@@ -714,7 +714,9 @@ export default function SpeakingScreen() {
               <ThemedText variant="caption" color={quota.canStartSession ? 'muted' : 'danger'}>
                 {quota.canStartSession
                   ? `Còn ~${Math.max(0, Math.round(quota.remainingSpendable)).toLocaleString('vi-VN')} lượt AI`
-                  : 'Đã dùng hết lượt AI — nâng cấp để tiếp tục'}
+                  : quota.orgBudget
+                    ? 'Ngân sách AI của trung tâm đã hết hoặc chưa được cấp — liên hệ quản trị trung tâm'
+                    : 'Đã dùng hết lượt AI — nâng cấp để tiếp tục'}
               </ThemedText>
             </View>
           </View>

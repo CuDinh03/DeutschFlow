@@ -18,9 +18,18 @@ export function isAiSpeakingQuotaBlocked(
  */
 const UNLIMITED_PLAN_CODE = "INTERNAL";
 
-/** True khi gói là loại không giới hạn (nội bộ) — badge nên ẩn thay vì in số dư khổng lồ. */
+/** Backend phát sentinel này khi pool trung tâm không giới hạn (cùng quy ước INTERNAL). */
+const ORG_BUDGET_UNLIMITED_SENTINEL = 999_999_999;
+
+/**
+ * True khi gói/pool là loại không giới hạn — badge nên ẩn thay vì in số dư khổng lồ.
+ * Nhánh sentinel CHỈ xét khi {@code orgBudget} (2 kênh token 26/07: số là pool trung tâm, không
+ * bao giờ là ví trả phí) — mối lo gốc của R-W6 (ví ULTRA lớn bị ẩn nhầm) không áp ở nhánh này.
+ */
 export function isUnlimitedAiSpeakingQuota(
   quota: AiSpeakingQuota | null | undefined,
 ): boolean {
-  return !!quota && quota.planCode === UNLIMITED_PLAN_CODE;
+  if (!quota) return false;
+  if (quota.planCode === UNLIMITED_PLAN_CODE) return true;
+  return !!quota.orgBudget && quota.remainingSpendable >= ORG_BUDGET_UNLIMITED_SENTINEL;
 }

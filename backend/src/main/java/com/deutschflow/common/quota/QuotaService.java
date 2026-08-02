@@ -59,9 +59,18 @@ public class QuotaService {
      * (marker {@code [Quota][P-9/P-11][OVERAGE]}) để log-based alert đếm được.
      *
      * <p><b>Cấp ORG thì KHÁC (H-3, 2026-07-23):</b> pool org là hạn mức doanh thu/COGS theo hợp đồng
-     * nên là <b>hard-cap thật</b> — {@code OrgQuotaService.tryReserve} cộng trước est vào counter
+     * nên là <b>hard-cap thật</b> — {@code OrgQuotaService.tryReserveForOrg} cộng trước est vào counter
      * bằng một câu conditional-upsert atomic (commit REQUIRES_NEW ngay tại gate), charge sau LLM chỉ
      * ghi delta, đường chết được {@code OrgReservationRefundFilter} hoàn trả.
+     *
+     * <p><b>2 kênh token (đã quyết 26/07):</b> ranh giới duy nhất là {@code org_members.role} —
+     * <ul>
+     *   <li><b>Staff org</b> (OWNER/MANAGER/TEACHER): chạy 100% bằng pool trung tâm. BỎ QUA toàn bộ
+     *       khối ví cá nhân (trial-expiry, remainingSpendable) — GV hết trial/ví 0đ không còn bị
+     *       chặn oan trước khi chạm pool (Q1).</li>
+     *   <li><b>STUDENT org + B2C</b>: chỉ ví cá nhân — pool trung tâm không gate, không trừ
+     *       (P0-01: HV/PRO hết cảnh chết vì pool org chưa cấu hình).</li>
+     * </ul>
      */
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public QuotaSnapshot assertAllowed(long userId, Instant nowUtc, long estimatedMinTokens) {
@@ -69,6 +78,11 @@ public class QuotaService {
         if (snap.unlimitedInternal()) {
             return snap;
         }
+        OrgQuotaService.OrgMembership membership = orgQuotaService.resolveActiveMembership(userId);
+        if (membership != null && membership.staff()) {
+            return assertStaffPoolAllowed(membership, estimatedMinTokens, snap);
+        }
+        // ── Kênh 1: ví cá nhân (STUDENT org + B2C) ──
         // Virtual 7-day FREE trial expiry — DB reconcile is async (SubscriptionReconcileJob);
         // gating must not allow AI access to users whose trial expired but ends_at is not yet set.
         if (PLAN_FREE.equals(snap.planCode())
@@ -83,14 +97,22 @@ public class QuotaService {
         if (estimatedMinTokens > 0L && snap.remainingSpendable() < estimatedMinTokens) {
             throw new QuotaExceededException("Not enough AI token quota remaining for this request.", snap);
         }
-        // Org-level shared monthly pool (opt-in: only when the user's org has monthly_token_pool > 0).
-        // B2C / non-org users and unconfigured pools are never gated here — personal quota is the only limit.
-        // H-3: reserve atomic (cộng trước est vào counter trong tx REQUIRES_NEW riêng) thay cho
-        // check-then-act — N request đồng thời không còn cùng lách qua pool. Suất giữ chỗ được charge
-        // đối soát delta (AiUsageLedgerService) hoặc filter hoàn trả cuối request nếu LLM fail.
-        var reservation = orgQuotaService.tryReserve(userId, estimatedMinTokens)
-                .orElseThrow(() -> new QuotaExceededException(
-                        "Tổ chức đã dùng hết ngân sách token AI tháng này.", snap));
+        return snap;
+    }
+
+    /**
+     * Kênh 2 — staff org: gate DUY NHẤT là pool trung tâm (H-3 reserve atomic trong tx REQUIRES_NEW
+     * riêng; suất giữ chỗ được charge đối soát delta hoặc {@code OrgReservationRefundFilter} hoàn trả
+     * nếu request chết). Khi pool chặn, mã lỗi tách "đã cạn" vs "chưa cấu hình" — client hiển thị
+     * "liên hệ quản trị trung tâm", không mời nâng cấp gói cá nhân (P0-02).
+     */
+    private QuotaSnapshot assertStaffPoolAllowed(OrgQuotaService.OrgMembership membership,
+                                                 long estimatedMinTokens,
+                                                 QuotaSnapshot snap) {
+        var reservation = orgQuotaService.tryReserveForOrg(membership.orgId(), estimatedMinTokens)
+                .orElseThrow(() -> orgQuotaService.isPoolConfigured(membership.orgId())
+                        ? QuotaExceededException.orgBudgetExhausted(snap)
+                        : QuotaExceededException.orgBudgetNotConfigured(snap));
         if (reservation.metered()) {
             OrgReservationHolder.replace(reservation, orgQuotaService::refund);
         }

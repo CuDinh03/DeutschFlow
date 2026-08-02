@@ -217,8 +217,16 @@ export function useAiSpeakingSession(opts: {
         (err, info) => {
           // Audit 24/07 (R-W5): phân loại theo mã lỗi backend, không chỉ đoán chuỗi "429". Hết
           // lượt / vượt tần suất → làm mới quota (mở luồng nâng cấp/đếm ngược ở tầng trên).
+          // 2 kênh token (26/07): ORG_BUDGET_* là ngân sách trung tâm (staff) — message backend
+          // hiển thị nguyên văn qua StreamStatusIndicator, không có CTA nâng cấp cá nhân.
           const code = info?.code;
-          if (code === "QUOTA_EXCEEDED" || code === "RATE_LIMITED" || err.includes("429")) {
+          if (
+            code === "QUOTA_EXCEEDED" ||
+            code === "RATE_LIMITED" ||
+            code === "ORG_BUDGET_EXHAUSTED" ||
+            code === "ORG_BUDGET_NOT_CONFIGURED" ||
+            err.includes("429")
+          ) {
             void refreshQuota();
           }
           if (err === AI_SPEAKING_STREAM_STALLED) {

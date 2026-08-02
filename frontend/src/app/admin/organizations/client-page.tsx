@@ -457,8 +457,12 @@ function OrgDetail({ org, onChanged }: { org: AdminOrg; onChanged: () => void })
             <Field label="Số ghế (Seat limit)">
               <Input value={seatLimit} onChange={setSeatLimit} type="number" />
             </Field>
-            <Field label="Token pool / tháng">
+            <Field label="Ngân sách AI cho giáo viên / tháng">
               <Input value={monthlyTokenPool} onChange={setMonthlyTokenPool} type="number" placeholder="Tuỳ chọn" />
+              {/* 2 kênh token (26/07): pool chỉ gate/trừ staff org */}
+              <span className="block mt-1 text-[10px] leading-snug" style={{ color: P.muted }}>
+                Học viên dùng ví AI cá nhân theo gói — không trừ vào ngân sách này.
+              </span>
             </Field>
             <Field label="Trạng thái">
               <Select value={status} onChange={(v) => setStatus(v as OrgStatus)} options={ORG_STATUSES.map((s) => ({ value: s, label: STATUS_VI[s] ?? s }))} />

@@ -3,6 +3,7 @@ package com.deutschflow.organization.service;
 import com.deutschflow.common.quota.OrgReservationHolder;
 import com.deutschflow.common.quota.QuotaExceededException;
 import com.deutschflow.organization.service.OrgQuotaService.OrgReservation;
+import com.deutschflow.speaking.exception.AiErrorCode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -70,20 +71,43 @@ class OrgPoolGuardTest {
     }
 
     @Test
-    @DisplayName("throws 429 QuotaExceededException when the pool has no room left")
-    void overPool_throws() {
+    @DisplayName("pool đã cấu hình nhưng hết chỗ → 429 mang mã ORG_BUDGET_EXHAUSTED")
+    void overPool_configured_throwsExhausted() {
         when(orgQuotaService.tryReserve(7L, 40_000L)).thenReturn(Optional.empty());
+        when(orgQuotaService.resolveActiveMembership(7L))
+                .thenReturn(new OrgQuotaService.OrgMembership(11L, "TEACHER"));
+        when(orgQuotaService.isPoolConfigured(11L)).thenReturn(true);
 
         assertThatThrownBy(() -> orgPoolGuard.assertOrgPoolAvailable(7L, 40_000L))
-                .isInstanceOf(QuotaExceededException.class)
-                .hasMessageContaining("ngân sách token AI");
+                .isInstanceOfSatisfying(QuotaExceededException.class, ex -> {
+                    assertThat(ex.getCode()).isEqualTo(AiErrorCode.ORG_BUDGET_EXHAUSTED);
+                    assertThat(ex.getMessage()).contains("đã hết");
+                });
         assertThat(OrgReservationHolder.take()).isNull();
     }
 
     @Test
-    @DisplayName("exhausted-pool exception carries a null snapshot (org-level, not personal)")
+    @DisplayName("pool chưa cấu hình (fail-safe V237) → 429 mang mã ORG_BUDGET_NOT_CONFIGURED")
+    void overPool_notConfigured_throwsNotConfigured() {
+        when(orgQuotaService.tryReserve(7L, 2_000L)).thenReturn(Optional.empty());
+        when(orgQuotaService.resolveActiveMembership(7L))
+                .thenReturn(new OrgQuotaService.OrgMembership(11L, "OWNER"));
+        when(orgQuotaService.isPoolConfigured(11L)).thenReturn(false);
+
+        assertThatThrownBy(() -> orgPoolGuard.assertOrgPoolAvailable(7L, 2_000L))
+                .isInstanceOfSatisfying(QuotaExceededException.class, ex -> {
+                    assertThat(ex.getCode()).isEqualTo(AiErrorCode.ORG_BUDGET_NOT_CONFIGURED);
+                    assertThat(ex.getMessage()).contains("chưa được cấp");
+                });
+    }
+
+    @Test
+    @DisplayName("exception cấp-org mang snapshot null (không phải quota cá nhân)")
     void overPool_nullSnapshot() {
         when(orgQuotaService.tryReserve(7L, 2_000L)).thenReturn(Optional.empty());
+        when(orgQuotaService.resolveActiveMembership(7L))
+                .thenReturn(new OrgQuotaService.OrgMembership(11L, "TEACHER"));
+        when(orgQuotaService.isPoolConfigured(11L)).thenReturn(true);
 
         assertThatThrownBy(() -> orgPoolGuard.assertOrgPoolAvailable(7L, 2_000L))
                 .isInstanceOfSatisfying(QuotaExceededException.class,

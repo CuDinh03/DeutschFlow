@@ -261,7 +261,9 @@ public class SpeakingStreamService {
             code = aiEx.getCode().name();
             message = aiEx.getMessage();
         } else if (ex instanceof QuotaExceededException qe) {
-            code = AiErrorCode.QUOTA_EXCEEDED.name();
+            // 2 kênh token (26/07): exception tự mang mã (QUOTA_EXCEEDED ví cá nhân / ORG_BUDGET_*
+            // pool trung tâm) — client phân nhánh CTA theo mã, không đoán từ chuỗi.
+            code = qe.getCode().name();
             message = qe.getMessage() != null ? qe.getMessage() : "Bạn đã dùng hết lượt AI của gói hiện tại.";
         } else if (ex instanceof RateLimitExceededException rle) {
             code = AiErrorCode.RATE_LIMITED.name();

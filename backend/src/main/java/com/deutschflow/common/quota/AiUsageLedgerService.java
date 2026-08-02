@@ -1,5 +1,7 @@
 package com.deutschflow.common.quota;
 
+import com.deutschflow.organization.service.OrgQuotaService;
+import com.deutschflow.organization.service.OrgQuotaService.OrgMembership;
 import com.deutschflow.organization.service.OrgQuotaService.OrgReservation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -14,6 +16,7 @@ public class AiUsageLedgerService {
 
     private final JdbcTemplate jdbcTemplate;
     private final QuotaService quotaService;
+    private final OrgQuotaService orgQuotaService;
 
     /**
      * Token-tương-đương cho mỗi giây audio STT. Whisper bị Groq tính theo giây (không theo
@@ -32,7 +35,8 @@ public class AiUsageLedgerService {
                         INSERT INTO stt_usage_events (user_id, feature, model, audio_duration_secs, org_id)
                         VALUES (?, ?, ?, ?,
                                 (SELECT om.org_id FROM org_members om
-                                  WHERE om.user_id = ? AND om.status = 'ACTIVE' LIMIT 1))
+                                  WHERE om.user_id = ? AND om.status = 'ACTIVE'
+                                  ORDER BY (om.role = 'STUDENT'), om.org_id LIMIT 1))
                         """,
                 userId, feature, model, durationSeconds, userId);
 
@@ -55,7 +59,8 @@ public class AiUsageLedgerService {
                        Long sessionId) {
         // Capture org_id at event time via subquery (D-2) — single round-trip, no separate lookup.
         // M-5: org đọc từ org_members ACTIVE (cùng nguồn với gate tryReserve) thay vì users.org_id —
-        // hết cảnh charge và gate nhìn hai nguồn tenant khác nhau rồi drift.
+        // hết cảnh charge và gate nhìn hai nguồn tenant khác nhau rồi drift. ORDER BY khớp
+        // resolveActiveMembership (staff-first) để event và chỗ trừ pool luôn quy CÙNG một org.
         jdbcTemplate.update("""
                         INSERT INTO ai_token_usage_events (
                           user_id, org_id, provider, model,
@@ -64,7 +69,8 @@ public class AiUsageLedgerService {
                         )
                         SELECT ?,
                                (SELECT om.org_id FROM org_members om
-                                 WHERE om.user_id = u.id AND om.status = 'ACTIVE' LIMIT 1),
+                                 WHERE om.user_id = u.id AND om.status = 'ACTIVE'
+                                 ORDER BY (om.role = 'STUDENT'), om.org_id LIMIT 1),
                                ?, ?, ?, ?, ?, ?, ?, ?
                         FROM users u WHERE u.id = ?
                         """,
@@ -78,17 +84,25 @@ public class AiUsageLedgerService {
     }
 
     /**
-     * Trừ {@code totalTokens} vào bộ đếm token tháng cấp-org và ví rollover của user.
+     * Trừ {@code totalTokens} vào ĐÚNG MỘT kênh theo vai trò org (2 kênh token — 26/07).
      * Dùng chung cho {@link #record} (tính năng token) và {@link #recordStt} (STT).
      *
      * <ul>
-     *   <li>Bộ đếm org (H-3 reconcile): nếu request này đã GIỮ CHỖ tại gate
-     *       ({@link OrgReservationHolder}) thì chỉ ghi phần chênh {@code delta = actual − reserved}
-     *       vào đúng org đã giữ (delta âm khi thực tế ít hơn ước lượng — floor 0). Không có suất
-     *       giữ chỗ (B2C, unlimited, hoặc charge chạy ở thread khác với gate) → ghi đủ số thật,
-     *       org resolve qua {@code org_members} ACTIVE (M-5, cùng nguồn gate).</li>
-     *   <li>Ví: {@link QuotaService#applyUsageDebit} tự no-op cho plan không phải ví (FREE/INTERNAL).</li>
+     *   <li><b>STUDENT org + B2C (kênh 1)</b>: chỉ {@link QuotaService#applyUsageDebit} ví cá nhân
+     *       (tự no-op cho plan không phải ví — FREE/INTERNAL). KHÔNG cộng counter pool trung tâm —
+     *       tiền HV tiêu không còn đổ vào pool GV. Suất giữ chỗ còn sót trong holder (role đổi giữa
+     *       request — cực hiếm) được ĐỂ NGUYÊN cho {@code OrgReservationRefundFilter} hoàn trả.</li>
+     *   <li><b>Staff org (kênh 2)</b>: cộng counter pool; KHÔNG debit ví cá nhân (Q1 — hết cảnh ví
+     *       GV bị trừ ngầm rồi {@code downgradePaidPlansToDefault} oan). H-3 reconcile: nếu request
+     *       đã GIỮ CHỖ tại gate ({@link OrgReservationHolder}) chỉ ghi phần chênh
+     *       {@code delta = actual − reserved} vào đúng org đã giữ (floor 0); không có suất
+     *       (unlimited, hoặc charge chạy ở thread khác với gate) → ghi đủ số thật vào org của
+     *       membership hiện tại.</li>
      * </ul>
+     *
+     * <p>Sổ cái event ({@code ai_token_usage_events}/{@code stt_usage_events}) vẫn ghi
+     * {@code org_id} cho MỌI thành viên kể cả HV — báo cáo COGS per-org/per-user không đổi;
+     * chỉ chỗ TRỪ POOL tách kênh.
      *
      * <p>⚠ Nếu transaction bọc ngoài rollback SAU khi đã {@code take()} suất giữ chỗ, phần counter
      * rollback theo nhưng suất (đã commit REQUIRES_NEW ở gate) không ai hoàn trả — pool lệch tối đa
@@ -99,6 +113,12 @@ public class AiUsageLedgerService {
         if (totalTokens <= 0) {
             return;
         }
+        OrgMembership membership = orgQuotaService.resolveActiveMembership(userId);
+        if (membership == null || !membership.staff()) {
+            quotaService.applyUsageDebit(userId, totalTokens, Instant.now());
+            return;
+        }
+
         OrgReservation reserved = OrgReservationHolder.take();
         if (reserved != null && reserved.orgId() != null) {
             long delta = totalTokens - reserved.reservedTokens();
@@ -115,18 +135,12 @@ public class AiUsageLedgerService {
         } else {
             jdbcTemplate.update("""
                             INSERT INTO org_monthly_token_counters (org_id, month_start, tokens_used)
-                            SELECT om.org_id,
-                                   date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date,
-                                   ?
-                            FROM org_members om WHERE om.user_id = ? AND om.status = 'ACTIVE'
-                            LIMIT 1
+                            VALUES (?, date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, ?)
                             ON CONFLICT (org_id, month_start)
                             DO UPDATE SET tokens_used = org_monthly_token_counters.tokens_used + EXCLUDED.tokens_used
                             """,
-                    totalTokens, userId
+                    membership.orgId(), totalTokens
             );
         }
-
-        quotaService.applyUsageDebit(userId, totalTokens, Instant.now());
     }
 }

@@ -1,9 +1,12 @@
 package com.deutschflow.common.quota;
 
+import com.deutschflow.organization.service.OrgQuotaService;
+import com.deutschflow.organization.service.OrgQuotaService.OrgMembership;
+import com.deutschflow.organization.service.OrgQuotaService.OrgReservation;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -17,37 +20,91 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+/**
+ * 2 kênh token (26/07): charge trừ vào ĐÚNG MỘT kênh theo {@code org_members.role} —
+ * STUDENT/B2C → ví cá nhân, staff org → counter pool trung tâm. Sổ cái event vẫn ghi cho mọi
+ * thành viên (ledger INSERT không đổi — chỉ chỗ TRỪ tách kênh).
+ */
 @ExtendWith(MockitoExtension.class)
 class AiUsageLedgerServiceUnitTest {
 
+    private static final OrgMembership STUDENT_MEMBER = new OrgMembership(11L, "STUDENT");
+    private static final OrgMembership TEACHER_MEMBER = new OrgMembership(11L, "TEACHER");
+
     @Mock JdbcTemplate jdbcTemplate;
     @Mock QuotaService quotaService;
+    @Mock OrgQuotaService orgQuotaService;
 
     @InjectMocks
     AiUsageLedgerService service;
+
+    @AfterEach
+    void clearHolder() {
+        OrgReservationHolder.take();
+    }
 
     @Test
     void serviceConstructedWithMocks() {
         assertThat(service).isNotNull();
     }
 
-    // ── record() — token features still charge org pool + wallet (regression) ──
+    // ── Kênh 1: B2C + STUDENT org — ví cá nhân, KHÔNG đụng counter pool ──
 
     @Test
-    @DisplayName("record charges the org counter + wallet with totalTokens")
-    void record_chargesPoolAndWallet() {
+    @DisplayName("B2C (không membership): debit ví, không đụng counter pool")
+    void record_b2c_debitsWalletOnly() {
+        when(orgQuotaService.resolveActiveMembership(7L)).thenReturn(null);
+
         service.record(7L, "GROQ", "llama", 100, 400, 500, "TEACHER_AI_GRADING", null, null);
 
-        // org_monthly_token_counters increment + wallet debit for the full totalTokens.
-        verify(jdbcTemplate).update(contains("org_monthly_token_counters"), eq(500L), eq(7L));
         verify(quotaService).applyUsageDebit(eq(7L), eq(500L), any(Instant.class));
+        verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
     }
 
     @Test
-    @DisplayName("record with zero totalTokens does not touch counter or wallet")
+    @DisplayName("HỌC VIÊN org: debit ví, counter pool trung tâm KHÔNG bị cộng (tách kênh)")
+    void record_studentMember_debitsWalletOnly_poolUntouched() {
+        when(orgQuotaService.resolveActiveMembership(7L)).thenReturn(STUDENT_MEMBER);
+
+        service.record(7L, "GROQ", "llama", 100, 400, 500, "SPEAKING_CHAT", null, null);
+
+        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), any(Instant.class));
+        verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
+    }
+
+    @Test
+    @DisplayName("HỌC VIÊN org có suất giữ chỗ sót trong holder: KHÔNG tiêu thụ — để filter hoàn trả")
+    void record_studentMember_staleReservationLeftForRefundFilter() {
+        when(orgQuotaService.resolveActiveMembership(7L)).thenReturn(STUDENT_MEMBER);
+        OrgReservation stale = new OrgReservation(11L, 400L);
+        OrgReservationHolder.replace(stale, r -> { throw new AssertionError("không có suất cũ"); });
+
+        service.record(7L, "GROQ", "llama", 100, 400, 500, "SPEAKING_CHAT", null, null);
+
+        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), any(Instant.class));
+        verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
+        // Suất còn nguyên cho OrgReservationRefundFilter — không bị nuốt mất rồi lệch pool.
+        assertThat(OrgReservationHolder.take()).isEqualTo(stale);
+    }
+
+    // ── Kênh 2: staff org — counter pool trung tâm, KHÔNG debit ví (Q1) ──
+
+    @Test
+    @DisplayName("Staff org (không reservation): cộng counter theo orgId membership, ví KHÔNG bị trừ")
+    void record_staffMember_chargesPool_walletUntouched() {
+        when(orgQuotaService.resolveActiveMembership(7L)).thenReturn(TEACHER_MEMBER);
+
+        service.record(7L, "GROQ", "llama", 100, 400, 500, "TEACHER_AI_GRADING", null, null);
+
+        verify(jdbcTemplate).update(contains("org_monthly_token_counters"), eq(11L), eq(500L));
+        verify(quotaService, never()).applyUsageDebit(anyLong(), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("record với totalTokens=0 không đụng counter lẫn ví")
     void record_zeroTokens_noCharge() {
         service.record(7L, "GROQ", "llama", 0, 0, 0, "FEATURE", null, null);
 
@@ -55,26 +112,35 @@ class AiUsageLedgerServiceUnitTest {
         verify(quotaService, never()).applyUsageDebit(anyLong(), anyLong(), any());
     }
 
-    // ── recordStt() — STT now draws down org pool + wallet (audit M-3) ──
+    // ── recordStt() — STT quy giây → token-tương-đương, theo cùng ranh giới kênh ──
 
     @Test
-    @DisplayName("recordStt charges duration-derived tokens to org pool + wallet")
-    void recordStt_chargesByDuration() {
+    @DisplayName("STT của staff: 10s ≈ 200 token cộng vào pool, ví không bị trừ")
+    void recordStt_staff_chargesPoolByDuration() {
+        when(orgQuotaService.resolveActiveMembership(42L)).thenReturn(TEACHER_MEMBER);
+
         service.recordStt(42L, "STT_TRANSCRIBE", "whisper-large-v3", 10.0);
 
-        // stt_usage_events insert always happens (M-4: userId lặp lại cho subquery org_members).
+        // stt_usage_events insert luôn chạy (M-4: userId lặp lại cho subquery org_members).
         verify(jdbcTemplate).update(contains("stt_usage_events"), eq(42L), eq("STT_TRANSCRIBE"),
                 eq("whisper-large-v3"), eq(10.0), eq(42L));
-
-        // 10s * 20 tokens/s = 200 token-equivalents charged to counter + wallet.
-        ArgumentCaptor<Long> tokens = ArgumentCaptor.forClass(Long.class);
-        verify(jdbcTemplate).update(contains("org_monthly_token_counters"), tokens.capture(), eq(42L));
-        assertThat(tokens.getValue()).isEqualTo(200L);
-        verify(quotaService).applyUsageDebit(eq(42L), eq(200L), any(Instant.class));
+        verify(jdbcTemplate).update(contains("org_monthly_token_counters"), eq(11L), eq(200L));
+        verify(quotaService, never()).applyUsageDebit(anyLong(), anyLong(), any());
     }
 
     @Test
-    @DisplayName("recordStt with zero duration logs the event but charges nothing")
+    @DisplayName("STT của học viên org: trừ ví 200 token-tương-đương, pool không đổi")
+    void recordStt_student_debitsWalletOnly() {
+        when(orgQuotaService.resolveActiveMembership(42L)).thenReturn(STUDENT_MEMBER);
+
+        service.recordStt(42L, "STT_TRANSCRIBE", "whisper-large-v3", 10.0);
+
+        verify(quotaService).applyUsageDebit(eq(42L), eq(200L), any(Instant.class));
+        verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
+    }
+
+    @Test
+    @DisplayName("recordStt với duration=0 chỉ ghi event, không charge")
     void recordStt_zeroDuration_noCharge() {
         service.recordStt(42L, "STT_TRANSCRIBE", "whisper-large-v3", 0.0);
 
@@ -83,26 +149,29 @@ class AiUsageLedgerServiceUnitTest {
         verify(quotaService, never()).applyUsageDebit(anyLong(), anyLong(), any());
     }
 
-    // ── H-3 reconcile — charge chỉ ghi delta khi request đã giữ chỗ tại gate ──
+    @Test
+    @DisplayName("recordStt với user null không charge gì")
+    void recordStt_nullUser_noCharge() {
+        service.recordStt(null, "STT_TRANSCRIBE", "whisper-large-v3", 12.0);
 
-    @org.junit.jupiter.api.AfterEach
-    void clearHolder() {
-        OrgReservationHolder.take();
+        verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
+        verify(quotaService, never()).applyUsageDebit(anyLong(), anyLong(), any());
     }
 
+    // ── H-3 reconcile — chỉ còn trên kênh staff (STUDENT không tạo reservation metered nữa) ──
+
     @Test
-    @DisplayName("với reservation trong holder: charge ghi delta = actual − reserved vào đúng org đã giữ")
-    void record_withReservation_writesDeltaOnly() {
-        OrgReservationHolder.replace(
-                new com.deutschflow.organization.service.OrgQuotaService.OrgReservation(11L, 400L),
+    @DisplayName("staff với reservation trong holder: charge ghi delta = actual − reserved, ví không bị trừ")
+    void record_staffWithReservation_writesDeltaOnly() {
+        when(orgQuotaService.resolveActiveMembership(7L)).thenReturn(TEACHER_MEMBER);
+        OrgReservationHolder.replace(new OrgReservation(11L, 400L),
                 r -> { throw new AssertionError("không có suất cũ để hoàn"); });
 
-        service.record(7L, "GROQ", "gpt-oss-20b", 100, 400, 500, "SPEAKING_CHAT", null, null);
+        service.record(7L, "GROQ", "gpt-oss-20b", 100, 400, 500, "TEACHER_AI_GRADING", null, null);
 
-        // delta = 500 − 400 = +100, ghi thẳng theo orgId 11 (không subquery org_members).
+        // delta = 500 − 400 = +100, ghi thẳng theo orgId 11 đã giữ.
         verify(jdbcTemplate).update(contains("org_monthly_token_counters"), eq(11L), eq(100L), eq(100L));
-        // Ví cá nhân vẫn debit đủ số thật.
-        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), any(Instant.class));
+        verify(quotaService, never()).applyUsageDebit(anyLong(), anyLong(), any());
         // Suất đã được tiêu thụ — holder phải trống để filter cuối request không hoàn nhầm.
         assertThat(OrgReservationHolder.take()).isNull();
     }
@@ -110,35 +179,26 @@ class AiUsageLedgerServiceUnitTest {
     @Test
     @DisplayName("delta âm (thực tế ít hơn ước lượng) vẫn được ghi để trả lại phần giữ thừa")
     void record_actualBelowReserved_negativeDelta() {
-        OrgReservationHolder.replace(
-                new com.deutschflow.organization.service.OrgQuotaService.OrgReservation(11L, 800L),
+        when(orgQuotaService.resolveActiveMembership(7L)).thenReturn(TEACHER_MEMBER);
+        OrgReservationHolder.replace(new OrgReservation(11L, 800L),
                 r -> { throw new AssertionError(); });
 
-        service.record(7L, "GROQ", "gpt-oss-20b", 100, 200, 300, "SPEAKING_CHAT", null, null);
+        service.record(7L, "GROQ", "gpt-oss-20b", 100, 200, 300, "TEACHER_AI_GRADING", null, null);
 
         verify(jdbcTemplate).update(contains("org_monthly_token_counters"), eq(11L), eq(-500L), eq(-500L));
     }
 
     @Test
-    @DisplayName("delta = 0 (ước lượng trúng) → không đụng counter, chỉ debit ví")
+    @DisplayName("delta = 0 (ước lượng trúng) → không đụng counter, ví cũng không")
     void record_exactReservation_skipsCounter() {
-        OrgReservationHolder.replace(
-                new com.deutschflow.organization.service.OrgQuotaService.OrgReservation(11L, 500L),
+        when(orgQuotaService.resolveActiveMembership(7L)).thenReturn(TEACHER_MEMBER);
+        OrgReservationHolder.replace(new OrgReservation(11L, 500L),
                 r -> { throw new AssertionError(); });
 
-        service.record(7L, "GROQ", "gpt-oss-20b", 100, 400, 500, "SPEAKING_CHAT", null, null);
+        service.record(7L, "GROQ", "gpt-oss-20b", 100, 400, 500, "TEACHER_AI_GRADING", null, null);
 
         verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"),
                 any(), any(), any());
-        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), any(Instant.class));
-    }
-
-    @Test
-    @DisplayName("recordStt with null user charges nothing")
-    void recordStt_nullUser_noCharge() {
-        service.recordStt(null, "STT_TRANSCRIBE", "whisper-large-v3", 12.0);
-
-        verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
         verify(quotaService, never()).applyUsageDebit(anyLong(), anyLong(), any());
     }
 }

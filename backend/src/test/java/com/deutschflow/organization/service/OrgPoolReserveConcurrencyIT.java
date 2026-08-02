@@ -60,8 +60,10 @@ class OrgPoolReserveConcurrencyIT extends AbstractPostgresIntegrationTest {
                         """,
                 Long.class, POOL);
         // Một user chỉ thuộc 1 org (LIMIT 1 ở resolve) — dọn membership cũ để test tất định.
+        // Role TEACHER (kênh trung tâm — 2 kênh 26/07): STUDENT giờ trả NONE, không đi qua máy
+        // reserve; cỗ máy atomic được test bằng membership staff.
         jdbc.update("DELETE FROM org_members WHERE user_id = ?", userId);
-        jdbc.update("INSERT INTO org_members (org_id, user_id, role, status) VALUES (?, ?, 'STUDENT', 'ACTIVE')",
+        jdbc.update("INSERT INTO org_members (org_id, user_id, role, status) VALUES (?, ?, 'TEACHER', 'ACTIVE')",
                 orgId, userId);
         jdbc.update("DELETE FROM org_monthly_token_counters WHERE org_id = ?", orgId);
     }

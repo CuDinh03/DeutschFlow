@@ -2,7 +2,7 @@ import { Alert, type AlertButton } from 'react-native'
 import { router } from 'expo-router'
 import { apiMessage } from '@/lib/api'
 import { usePlanStore } from '@/stores/usePlanStore'
-import { isQuotaExceededError, quotaExceededMessage } from '@/lib/quota'
+import { isOrgBudgetError, isQuotaExceededError, quotaExceededMessage } from '@/lib/quota'
 import { PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 
 /**
@@ -14,9 +14,20 @@ import { PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
  * paywall surface exists ({@link PAYWALL_ENABLED}); on iOS without StoreKit live it stays purely
  * informational (App Store 3.1.1 — no steering to an external purchase).
  *
+ * Org-budget 429s (kênh pool trung tâm — 2 kênh token 26/07) are a different failure: the fix is
+ * the org admin configuring/raising the pool, so the alert carries the server's message and NO
+ * upgrade CTA (P0-02 — đừng mời staff mua gói cá nhân cho lỗi ngân sách trung tâm).
+ *
  * Any other error keeps the caller's existing generic alert.
  */
 export function handleAiError(error: unknown, fallbackTitle = 'Lỗi'): void {
+  if (isOrgBudgetError(error)) {
+    const message =
+      quotaExceededMessage(error) ??
+      'Ngân sách AI của trung tâm đã hết hoặc chưa được cấp. Vui lòng liên hệ quản trị trung tâm.'
+    Alert.alert('Ngân sách AI của trung tâm', message)
+    return
+  }
   if (isQuotaExceededError(error)) {
     // The trial expiry is virtual (reconciled asynchronously), so the locally cached tier can lag —
     // refresh it so PRO-gated surfaces reflect reality on the next render.

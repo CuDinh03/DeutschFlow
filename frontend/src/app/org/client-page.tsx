@@ -276,7 +276,7 @@ function TokenPoolCard({ analytics }: { analytics: OrgAnalytics }) {
         <Sparkles size={40} />
       </div>
       <p className="mb-1 text-sm font-bold uppercase tracking-wider text-indigo-500">
-        Token AI tháng này
+        Ngân sách AI giáo viên tháng này
       </p>
       <p className="text-4xl font-black text-slate-800">
         {used.toLocaleString('vi-VN')}
@@ -306,15 +306,15 @@ function TokenPoolCard({ analytics }: { analytics: OrgAnalytics }) {
           {pct >= POOL_ALERT_PERCENT && (
             <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
               {pct >= 100
-                ? 'Tổ chức đã dùng hết ngân sách token AI tháng này — một số tính năng AI sẽ tạm khóa tới đầu tháng sau. Liên hệ quản trị nền tảng để nâng hạn mức.'
-                : 'Tổ chức sắp đạt hạn mức token AI tháng này. Cân nhắc nâng gói để không gián đoạn lớp học.'}
+                ? 'Trung tâm đã dùng hết ngân sách AI cho giáo viên tháng này — tính năng AI phía giáo viên sẽ tạm khóa tới đầu tháng sau (học viên vẫn dùng ví cá nhân bình thường). Liên hệ quản trị nền tảng để nâng hạn mức.'
+                : 'Trung tâm sắp đạt ngân sách AI cho giáo viên tháng này. Cân nhắc nâng gói để không gián đoạn việc chấm bài, sinh đề.'}
             </p>
           )}
         </>
       ) : (
         <p className="mt-2 text-xs text-slate-500">
-          Tổng token tiêu thụ bởi toàn bộ thành viên tổ chức trong tháng hiện tại.
-          Tổ chức chưa cấu hình hạn mức (không giới hạn).
+          Token AI của giáo viên và nhân sự trung tâm trong tháng hiện tại — học viên dùng ví AI
+          cá nhân theo gói, không trừ vào đây. Trung tâm chưa được cấp ngân sách.
         </p>
       )}
     </div>

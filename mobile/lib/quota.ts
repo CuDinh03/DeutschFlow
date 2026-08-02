@@ -13,12 +13,15 @@
 interface ProblemLike {
   type?: unknown
   detail?: unknown
+  extensions?: unknown
 }
 
 interface ParsedProblem {
   status: number
   type: string
   detail: string
+  /** `extensions.code` máy-đọc-được (QUOTA_EXCEEDED, ORG_BUDGET_EXHAUSTED…) nếu backend gửi. */
+  code: string
 }
 
 function parseProblem(error: unknown): ParsedProblem | null {
@@ -27,17 +30,37 @@ function parseProblem(error: unknown): ParsedProblem | null {
   if (!response || typeof response.status !== 'number') return null
   const data = response.data
   const problem: ProblemLike = data && typeof data === 'object' ? (data as ProblemLike) : {}
+  const ext = problem.extensions
+  const code =
+    ext && typeof ext === 'object' && typeof (ext as { code?: unknown }).code === 'string'
+      ? ((ext as { code: string }).code)
+      : ''
   return {
     status: response.status,
     type: typeof problem.type === 'string' ? problem.type : '',
     detail: typeof problem.detail === 'string' ? problem.detail : '',
+    code,
   }
+}
+
+/**
+ * True when the 429 is the CENTER's AI budget (staff-org channel — 2 kênh token 26/07), not the
+ * user's personal wallet. This must NEVER trigger the personal-upgrade upsell (P0-02): the fix is
+ * for the org admin to configure/raise the pool, not for the teacher to buy a personal plan.
+ */
+export function isOrgBudgetError(error: unknown): boolean {
+  const p = parseProblem(error)
+  if (!p || p.status !== 429) return false
+  if (p.code === 'ORG_BUDGET_EXHAUSTED' || p.code === 'ORG_BUDGET_NOT_CONFIGURED') return true
+  return p.type.endsWith('org-budget-exhausted') || p.type.endsWith('org-budget-not-configured')
 }
 
 /** True when the request failed because the user is out of AI quota or their trial has expired. */
 export function isQuotaExceededError(error: unknown): boolean {
   const p = parseProblem(error)
   if (!p || p.status !== 429) return false
+  // Org-budget 429s are a different channel (no upsell) — never classify them as personal quota.
+  if (isOrgBudgetError(error)) return false
   if (p.type.endsWith('quota-exceeded')) return true
   // A rate-limit 429 is explicitly not a quota problem.
   if (p.type.endsWith('rate-limit-exceeded')) return false

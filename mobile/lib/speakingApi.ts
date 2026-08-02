@@ -135,11 +135,22 @@ export interface AiSpeakingQuota {
   canStartSession: boolean
   remainingSpendable: number
   planCode: string
+  /** true = số liệu là NGÂN SÁCH TRUNG TÂM (kênh staff org — 2 kênh token 26/07), không phải ví cá nhân. */
+  orgBudget?: boolean
 }
 
-/** Gói nội bộ không giới hạn — badge số dư nên ẩn thay vì in sentinel 999999999 (audit R-W6/R-M9). */
+/** Backend phát sentinel này cho pool org không giới hạn (cùng quy ước gói INTERNAL). */
+const ORG_BUDGET_UNLIMITED_SENTINEL = 999_999_999
+
+/**
+ * Gói/pool không giới hạn — badge số dư nên ẩn thay vì in sentinel 999999999 (audit R-W6/R-M9).
+ * Nhánh sentinel CHỈ áp khi {@code orgBudget} (số là pool trung tâm, không bao giờ là ví trả phí)
+ * — lo ngại R-W6 "ví ULTRA lớn bị ẩn nhầm vì so ngưỡng" không xảy ra ở đây.
+ */
 export function isUnlimitedQuota(quota: AiSpeakingQuota | null | undefined): boolean {
-  return !!quota && quota.planCode === 'INTERNAL'
+  if (!quota) return false
+  if (quota.planCode === 'INTERNAL') return true
+  return !!quota.orgBudget && quota.remainingSpendable >= ORG_BUDGET_UNLIMITED_SENTINEL
 }
 
 /** Mirrors `InterviewReportDto`. */
