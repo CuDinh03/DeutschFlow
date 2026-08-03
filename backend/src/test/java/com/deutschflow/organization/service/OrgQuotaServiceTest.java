@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Unit tests for the pure org-pool decision helpers. Since H-3 the enforcement itself lives in
  * {@link OrgQuotaService#tryReserve} (atomic conditional-upsert, covered by
- * {@code OrgPoolReserveConcurrencyIT} against real Postgres); the pure branching helpers
+ * {@code OrgPoolReserveConcurrencyIntegrationTest} against real Postgres); the pure branching helpers
  * ({@link OrgQuotaService#exceeds}, {@code poolBlocks}, {@code usagePercent}) stay tested here.
  */
 class OrgQuotaServiceTest {

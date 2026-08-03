@@ -24,6 +24,8 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
     // idx_materials_tags — `= ANY(tags)` would NOT) and title uses ILIKE — neither is expressible as a
     // derived method. Nullable text params are wrapped in CAST(:x AS text) so a bound Java null doesn't
     // trip "could not determine data type of parameter"; folderId is a Long (integer) so needs no cast.
+    // Never spell a cast as Postgres `::type` here — Hibernate's parameter parser reads `::` as an
+    // escaped colon and emits a single `:`, producing invalid SQL. Always use CAST(x AS type).
 
     /** PERSONAL branch of the filtered list. Any null filter arg is treated as "no filter". */
     @Query(value = """
@@ -31,7 +33,7 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
             WHERE owner_scope = 'PERSONAL' AND teacher_id = :teacherId AND status = :status
               AND (CAST(:query AS text) IS NULL OR title ILIKE '%' || :query || '%')
               AND (CAST(:kind  AS text) IS NULL OR kind = :kind)
-              AND (CAST(:tag   AS text) IS NULL OR tags @> ARRAY[:tag]::text[])
+              AND (CAST(:tag   AS text) IS NULL OR tags @> CAST(ARRAY[:tag] AS text[]))
               AND (:folderId IS NULL OR folder_id = :folderId)
             ORDER BY created_at DESC
             """, nativeQuery = true)
@@ -45,7 +47,7 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
             WHERE owner_scope = 'ORG' AND org_id = :orgId AND status = :status
               AND (CAST(:query AS text) IS NULL OR title ILIKE '%' || :query || '%')
               AND (CAST(:kind  AS text) IS NULL OR kind = :kind)
-              AND (CAST(:tag   AS text) IS NULL OR tags @> ARRAY[:tag]::text[])
+              AND (CAST(:tag   AS text) IS NULL OR tags @> CAST(ARRAY[:tag] AS text[]))
               AND (:folderId IS NULL OR folder_id = :folderId)
             ORDER BY created_at DESC
             """, nativeQuery = true)

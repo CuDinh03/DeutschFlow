@@ -6,6 +6,7 @@ import com.deutschflow.speaking.dto.CreateGreetingSessionRequest;
 import com.deutschflow.speaking.dto.GreetingSessionDto;
 import com.deutschflow.speaking.dto.SubmitResponseRequest;
 import com.deutschflow.speaking.service.GreetingService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -35,7 +36,7 @@ public class SpeakingController {
 
     @PostMapping("/greeting-session")
     public ResponseEntity<GreetingSessionDto> createGreetingSession(
-            @RequestBody CreateGreetingSessionRequest request,
+            @Valid @RequestBody CreateGreetingSessionRequest request,
             @AuthenticationPrincipal UserDetails principal) {
         long userId = userId(principal);
         quotaService.assertAllowed(userId, Instant.now(), GREETING_ESTIMATED_TOKENS);
@@ -48,7 +49,7 @@ public class SpeakingController {
     @PostMapping("/greeting-session/{sessionId}/submit-response")
     public ResponseEntity<GreetingSessionDto> submitResponse(
             @PathVariable Long sessionId,
-            @RequestBody SubmitResponseRequest request,
+            @Valid @RequestBody SubmitResponseRequest request,
             @AuthenticationPrincipal UserDetails principal) {
         long userId = userId(principal);
         quotaService.assertAllowed(userId, Instant.now(), GREETING_ESTIMATED_TOKENS);

@@ -3,6 +3,9 @@ package com.deutschflow.speaking.service;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.dto.GreetingSessionDto;
+import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.speaking.entity.DialogueTemplate;
 import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
@@ -71,24 +74,24 @@ class GreetingServiceTest {
         @DisplayName("throws BadRequestException for difficulty = 0 (below min)")
         void difficultyZero_throwsBadRequestException() {
             assertThatThrownBy(() -> service.createGreetingSession(1L, 1L, 0))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Template not found");
+                    .isInstanceOf(BadRequestException.class)
+                    .hasMessageContaining("difficultyLevel must be between 1 and 5");
         }
 
         @Test
         @DisplayName("throws BadRequestException for difficulty = 6 (above max)")
         void difficultySix_throwsBadRequestException() {
             assertThatThrownBy(() -> service.createGreetingSession(1L, 1L, 6))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Template not found");
+                    .isInstanceOf(BadRequestException.class)
+                    .hasMessageContaining("difficultyLevel must be between 1 and 5");
         }
 
         @Test
         @DisplayName("throws BadRequestException for null difficulty")
         void difficultyNull_throwsBadRequestException() {
             assertThatThrownBy(() -> service.createGreetingSession(1L, 1L, null))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Template not found");
+                    .isInstanceOf(BadRequestException.class)
+                    .hasMessageContaining("difficultyLevel must be between 1 and 5");
         }
 
         @ParameterizedTest(name = "difficulty = {0} is valid and passes validation")
@@ -110,7 +113,7 @@ class GreetingServiceTest {
             when(dialogueTemplateRepository.findById(99L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.createGreetingSession(1L, 99L, 2))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(NotFoundException.class)
                     .hasMessageContaining("Template not found");
         }
     }
@@ -223,48 +226,48 @@ class GreetingServiceTest {
         @DisplayName("throws BadRequestException for null user input")
         void nullUserInput_throwsBadRequestException() {
             assertThatThrownBy(() -> service.submitUserResponse(1L, 1L, null, 3))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Session not found");
+                    .isInstanceOf(BadRequestException.class)
+                    .hasMessageContaining("userInput must not be blank");
         }
 
         @Test
         @DisplayName("throws BadRequestException for blank user input")
         void blankUserInput_throwsBadRequestException() {
             assertThatThrownBy(() -> service.submitUserResponse(1L, 1L, "   ", 3))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Session not found");
+                    .isInstanceOf(BadRequestException.class)
+                    .hasMessageContaining("userInput must not be blank");
         }
 
         @Test
         @DisplayName("throws BadRequestException for empty string user input")
         void emptyUserInput_throwsBadRequestException() {
             assertThatThrownBy(() -> service.submitUserResponse(1L, 1L, "", 3))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Session not found");
+                    .isInstanceOf(BadRequestException.class)
+                    .hasMessageContaining("userInput must not be blank");
         }
 
         @Test
         @DisplayName("throws BadRequestException for null confidence")
         void nullConfidence_throwsBadRequestException() {
             assertThatThrownBy(() -> service.submitUserResponse(1L, 1L, "Hallo", null))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Session not found");
+                    .isInstanceOf(BadRequestException.class)
+                    .hasMessageContaining("confidence must be between 1 and 5");
         }
 
         @Test
         @DisplayName("throws BadRequestException for confidence = 0 (below min)")
         void confidenceZero_throwsBadRequestException() {
             assertThatThrownBy(() -> service.submitUserResponse(1L, 1L, "Hallo", 0))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Session not found");
+                    .isInstanceOf(BadRequestException.class)
+                    .hasMessageContaining("confidence must be between 1 and 5");
         }
 
         @Test
         @DisplayName("throws BadRequestException for confidence = 6 (above max)")
         void confidenceSix_throwsBadRequestException() {
             assertThatThrownBy(() -> service.submitUserResponse(1L, 1L, "Hallo", 6))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Session not found");
+                    .isInstanceOf(BadRequestException.class)
+                    .hasMessageContaining("confidence must be between 1 and 5");
         }
 
         @ParameterizedTest(name = "confidence = {0} passes validation")
@@ -287,7 +290,7 @@ class GreetingServiceTest {
             when(aiSpeakingSessionRepository.findById(99L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.submitUserResponse(99L, 1L, "Hallo", 3))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(NotFoundException.class)
                     .hasMessageContaining("Session not found");
         }
 
@@ -300,7 +303,7 @@ class GreetingServiceTest {
             when(aiSpeakingSessionRepository.findById(1L)).thenReturn(Optional.of(session));
 
             assertThatThrownBy(() -> service.submitUserResponse(1L, 1L, "Hallo", 3))
-                    .isInstanceOf(SecurityException.class)
+                    .isInstanceOf(ForbiddenException.class)
                     .hasMessageContaining("Unauthorized access to session");
         }
     }
@@ -418,7 +421,7 @@ class GreetingServiceTest {
             when(aiSpeakingSessionRepository.findById(99L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.getGreetingSession(99L, 1L))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(NotFoundException.class)
                     .hasMessageContaining("Session not found");
         }
 
@@ -431,7 +434,7 @@ class GreetingServiceTest {
             when(aiSpeakingSessionRepository.findById(1L)).thenReturn(Optional.of(session));
 
             assertThatThrownBy(() -> service.getGreetingSession(1L, 1L))
-                    .isInstanceOf(SecurityException.class)
+                    .isInstanceOf(ForbiddenException.class)
                     .hasMessageContaining("Unauthorized access to session");
         }
 

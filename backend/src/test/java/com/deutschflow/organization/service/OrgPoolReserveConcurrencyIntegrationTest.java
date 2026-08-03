@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * migration-local (việc còn nợ của P0-15), test tự skip qua {@code assumeTrue} thay vì fail.
  */
 @SpringBootTest
-class OrgPoolReserveConcurrencyIT extends AbstractPostgresIntegrationTest {
+class OrgPoolReserveConcurrencyIntegrationTest extends AbstractPostgresIntegrationTest {
 
     private static final long POOL = 1_000L;
 
