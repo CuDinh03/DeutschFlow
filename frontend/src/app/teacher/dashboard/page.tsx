@@ -86,13 +86,15 @@ export default function TeacherDashboardPage() {
   }
 
   const deleteClass = async (id: number) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa lớp học này? Mọi dữ liệu liên quan sẽ bị xóa.')) return
+    if (!confirm('Chỉ xóa được lớp trống. Lớp đã có buổi học, điểm danh hay nhật ký sẽ bị từ chối. Tiếp tục?')) return
     setError('')
     try {
       await api.delete(`/v2/teacher/classes/${id}`)
       await load()
-    } catch {
-      setError('Không thể xóa lớp học.')
+    } catch (e) {
+      // Backend trả 409 kèm câu giải thích lớp còn những gì — nuốt nó thành "Không thể xóa lớp học."
+      // là biến một hàng rào có lý do thành một nút hỏng.
+      setError(apiMessage(e))
     }
   }
 

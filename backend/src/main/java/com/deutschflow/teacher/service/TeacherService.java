@@ -1,5 +1,7 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
@@ -72,6 +74,8 @@ public class TeacherService {
     private final com.deutschflow.material.service.MaterialService materialService;
     private final NotificationAutoAckService notificationAutoAckService;
     private final RunAfterCommitService runAfterCommitService;
+    private final ClassDeletionGuard classDeletionGuard;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public TeacherClassDto createClass(Long teacherId, String name) {
@@ -305,10 +309,35 @@ public class TeacherService {
                 Map.<String, Object>of("classId", classId, "studentId", req.getStudentId()));
     }
 
+    /**
+     * Xoá cứng một lớp — chỉ khi lớp thật sự trống.
+     *
+     * <p>Lệnh {@code deleteById} bên dưới trông như xoá một dòng, thực tế kéo theo ~9 bảng qua
+     * {@code ON DELETE CASCADE} (điểm danh, nhật ký, lịch, tin nhắn, giáo án…). Vì vậy
+     * {@link ClassDeletionGuard} chặn trước: còn dấu vết dạy học thì ném 409, không xoá gì cả.
+     * Lớp trống vẫn xoá được, nhưng luôn để lại vết trong {@code audit_logs} kèm kiểm kê những
+     * thứ đã biến mất — đây là thao tác không hoàn tác được, đọc log sáu tháng sau phải biết ai
+     * xoá cái gì.
+     *
+     * <p><b>Giới hạn còn lại, nói thẳng:</b> đếm rồi mới xoá, nên dưới READ COMMITTED vẫn còn khe
+     * đua cỡ mili-giây — một buổi học được tạo SAU lúc đếm và commit TRƯỚC lúc xoá thì vẫn bị
+     * cascade cuốn theo. Không bịt bằng khoá vì phía ghi (tạo buổi, ghi nhật ký) không hề khoá
+     * dòng lớp, nên {@code FOR UPDATE} ở đây chẳng chặn được ai. Lưu trữ mềm ở Đợt C xoá hẳn khe
+     * này vì khi đó không còn lệnh xoá nào để mà đua.
+     *
+     * <p>Đây là hàng rào tạm cho tới khi có cơ chế lưu trữ ({@code archived_at}, Đợt C); khi có,
+     * đường này nên chuyển hẳn sang archive.
+     */
     @Transactional
-    public void deleteClass(Long teacherId, Long classId) {
+    public void deleteClass(AuditActor actor, Long classId) {
+        Long teacherId = actor.id();
         // Chỉ giáo viên chính được xóa lớp (trợ giảng không có quyền hủy cả lớp)
         assertPrimaryTeacher(teacherId, classId);
+
+        ClassDeletionGuard.ClassContent content = classDeletionGuard.assertDeletable(classId);
+
+        // Chụp trước khi xoá: sau delete không còn gì để mô tả lớp vừa biến mất.
+        TeacherClass snapshot = classRepository.findById(classId).orElse(null);
 
         // Remove dependencies
         classTeacherRepository.deleteByIdClassId(classId);
@@ -317,6 +346,11 @@ public class TeacherService {
 
         // Remove class
         classRepository.deleteById(classId);
+
+        Map<String, Object> meta = new LinkedHashMap<>(content.toAuditMetadata());
+        meta.put("className", snapshot != null ? snapshot.getName() : null);
+        meta.put("orgId", snapshot != null ? snapshot.getOrgId() : null);
+        auditLogService.log("teacher_class_deleted", actor, "CLASS", String.valueOf(classId), meta);
     }
 
     // ─── Co-teaching: quản lý giáo viên trong lớp ────────────────────────────────
