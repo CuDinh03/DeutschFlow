@@ -482,6 +482,34 @@ public class MaterialService {
         }
     }
 
+    /**
+     * Detaches a material from a class. Same authorization as {@link #attachToClass}.
+     *
+     * <p>Without this, attaching was a one-way door: {@code ClassDeletionGuard} counts
+     * {@code class_materials} rows, so a class that ever had a material attached could never be
+     * deleted again through any API — archiving the material does not help, the row survives
+     * (QA 03/08). Idempotent: detaching something that is not attached is a no-op.
+     */
+    @Transactional
+    public void detachFromClass(User caller, Long materialId, Long classId) {
+        TeacherClass tc = teacherClassRepository.findById(classId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp học."));
+        if (!canAttachToClass(caller, tc)) {
+            throw new ForbiddenException("Bạn không có quyền gỡ tài liệu khỏi lớp này.");
+        }
+        classMaterialRepository.deleteByIdClassIdAndIdMaterialId(classId, materialId);
+    }
+
+    /**
+     * Drops every material link of a class — INTERNAL, called while the class itself is being
+     * deleted (the caller has already checked ownership). {@code class_materials} is a NO ACTION FK,
+     * so these rows must go first or the class DELETE fails on the constraint.
+     */
+    @Transactional
+    public void detachAllFromClass(Long classId) {
+        classMaterialRepository.deleteByIdClassId(classId);
+    }
+
     /** Active materials attached to a class (for the class-detail view). */
     @Transactional(readOnly = true)
     public List<MaterialDto> listForClass(User caller, Long classId) {

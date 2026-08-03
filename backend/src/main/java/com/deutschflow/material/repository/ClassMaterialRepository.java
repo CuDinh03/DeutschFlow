@@ -16,4 +16,10 @@ public interface ClassMaterialRepository extends JpaRepository<ClassMaterial, Cl
 
     /** How many classes a material is attached to — used to warn before archiving it. */
     long countByIdMaterialId(Long materialId);
+
+    /** Detach one material from one class (mirror of the lesson/assignment detach). */
+    void deleteByIdClassIdAndIdMaterialId(Long classId, Long materialId);
+
+    /** Detach every material of a class — run while deleting the class (FK is NO ACTION). */
+    void deleteByIdClassId(Long classId);
 }

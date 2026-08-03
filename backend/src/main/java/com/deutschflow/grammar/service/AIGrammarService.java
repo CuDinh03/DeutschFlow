@@ -1,6 +1,6 @@
 package com.deutschflow.grammar.service;
 
-import com.deutschflow.ai.AIModelService;
+import com.deutschflow.ai.AiTextService;
 import com.deutschflow.speaking.exception.AiServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +17,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AIGrammarService {
     
-    private final AIModelService aiModelService;
+    // Đi qua bean OpenAiChatClient đang hoạt động (Groq trên prod) thay vì gọi thẳng AI server
+    // tự host — nguyên nhân mọi endpoint ngữ pháp trả 500 trên prod (QA 03/08).
+    private final AiTextService aiTextService;
     
     /**
      * Correct German grammar using AI
@@ -26,8 +28,8 @@ public class AIGrammarService {
         log.info("Correcting grammar for text: {}", germanText.substring(0, Math.min(50, germanText.length())));
         
         try {
-            String corrected = aiModelService.correctGrammar(germanText);
-            String explanation = aiModelService.explainGrammar(germanText);
+            String corrected = aiTextService.correctGrammar(germanText);
+            String explanation = aiTextService.explainGrammar(germanText);
             
             boolean hasErrors = !germanText.trim().equals(corrected.trim());
             
@@ -53,7 +55,7 @@ public class AIGrammarService {
         log.info("Explaining grammar for: {}", germanText.substring(0, Math.min(50, germanText.length())));
 
         try {
-            return aiModelService.explainGrammar(germanText);
+            return aiTextService.explainGrammar(germanText);
         } catch (AiServiceException e) {
             throw e;
         } catch (Exception e) {
@@ -69,10 +71,10 @@ public class AIGrammarService {
         log.info("Analyzing grammar for: {}", germanText.substring(0, Math.min(50, germanText.length())));
 
         try {
-            String corrected = aiModelService.correctGrammar(germanText);
-            String explanation = aiModelService.explainGrammar(germanText);
+            String corrected = aiTextService.correctGrammar(germanText);
+            String explanation = aiTextService.explainGrammar(germanText);
             String errorDetectionPrompt = "Identify the types of grammar errors in this German sentence: " + germanText;
-            String errorTypes = aiModelService.generate(errorDetectionPrompt, "", 256, 0.3);
+            String errorTypes = aiTextService.generate(errorDetectionPrompt, "", 256, 0.3);
             boolean hasErrors = !germanText.trim().equals(corrected.trim());
             String severity = determineSeverity(germanText, corrected);
 
@@ -100,7 +102,7 @@ public class AIGrammarService {
 
         try {
             String instruction = "Suggest 3 practice exercises for improving this German grammar point: " + errorType;
-            return aiModelService.generate(instruction, "", 512, 0.7);
+            return aiTextService.generate(instruction, "", 512, 0.7);
         } catch (AiServiceException e) {
             throw e;
         } catch (Exception e) {

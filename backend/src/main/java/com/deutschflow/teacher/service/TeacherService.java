@@ -77,8 +77,20 @@ public class TeacherService {
     private final ClassDeletionGuard classDeletionGuard;
     private final AuditLogService auditLogService;
 
+    /** Tên lớp: bắt buộc, tối đa {@value #MAX_CLASS_NAME_LENGTH} ký tự (cột DB là varchar(255)). */
+    private static final int MAX_CLASS_NAME_LENGTH = 255;
+
     @Transactional
     public TeacherClassDto createClass(Long teacherId, String name) {
+        // Trước đây không kiểm tra gì: `{"name":""}` tạo được lớp không tên, và lớp thì chỉ xoá được
+        // khi chưa có dữ liệu dạy học — nghĩa là rác đọng lại trong danh sách của giáo viên (QA 03/08).
+        String cleanName = name == null ? "" : name.trim();
+        if (cleanName.isEmpty()) {
+            throw new BadRequestException("Tên lớp không được để trống.");
+        }
+        if (cleanName.length() > MAX_CLASS_NAME_LENGTH) {
+            throw new BadRequestException("Tên lớp tối đa " + MAX_CLASS_NAME_LENGTH + " ký tự.");
+        }
         String inviteCode = generateInviteCode();
         // Stamp the creating teacher's org (B2B): an org teacher's classes belong to that org,
         // so they show in /org/classes and are valid roster-import targets. null for B2C teachers.
@@ -86,7 +98,7 @@ public class TeacherService {
         TeacherClass teacherClass = TeacherClass.builder()
                 .teacherId(teacherId)
                 .orgId(orgId)
-                .name(name)
+                .name(cleanName)
                 .inviteCode(inviteCode)
                 .build();
         teacherClass = classRepository.save(teacherClass);
@@ -343,6 +355,9 @@ public class TeacherService {
         classTeacherRepository.deleteByIdClassId(classId);
         classStudentRepository.deleteByIdClassId(classId);
         assignmentRepository.deleteByClassId(classId);
+        // class_materials là FK NO ACTION: phải gỡ liên kết bằng tay, nếu không DELETE lớp sẽ vỡ.
+        // Chỉ bỏ liên kết — tài liệu vẫn nằm nguyên trong thư viện của giáo viên/trung tâm.
+        materialService.detachAllFromClass(classId);
 
         // Remove class
         classRepository.deleteById(classId);

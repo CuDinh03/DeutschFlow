@@ -1,5 +1,6 @@
 package com.deutschflow.ai;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.RateLimitExceededException;
 import com.deutschflow.speaking.AiRateLimiterService;
 import com.deutschflow.user.entity.User;
@@ -20,6 +21,10 @@ import java.util.Map;
 public class AIController {
 
     private final AIModelService aiModelService;
+    // Grammar helpers go through the ACTIVE chat provider (Groq on prod, local server in dev) instead
+    // of AIModelService, which only ever talks to the self-hosted Python server — the reason both
+    // grammar endpoints answered 500 in production (QA 03/08). See AiTextService.
+    private final AiTextService aiTextService;
     private final AiRateLimiterService aiRateLimiterService;
 
     /**
@@ -70,8 +75,8 @@ public class AIController {
             @AuthenticationPrincipal User user,
             @RequestBody Map<String, String> request) {
         requireTextBudget(user);
-        String germanText = request.get("text");
-        String corrected = aiModelService.correctGrammar(germanText);
+        String germanText = requireText(request);
+        String corrected = aiTextService.correctGrammar(germanText);
         return ResponseEntity.ok(Map.of(
             "original", germanText,
             "corrected", corrected
@@ -86,8 +91,8 @@ public class AIController {
             @AuthenticationPrincipal User user,
             @RequestBody Map<String, String> request) {
         requireTextBudget(user);
-        String germanText = request.get("text");
-        String explanation = aiModelService.explainGrammar(germanText);
+        String germanText = requireText(request);
+        String explanation = aiTextService.explainGrammar(germanText);
         return ResponseEntity.ok(Map.of(
             "text", germanText,
             "explanation", explanation
@@ -130,6 +135,15 @@ public class AIController {
             "input", input,
             "response", response
         ));
+    }
+
+    /** Câu tiếng Đức bắt buộc — thiếu/rỗng phải là 400, không phải NPE ở tầng dưới. */
+    private String requireText(Map<String, String> request) {
+        String text = request == null ? null : request.get("text");
+        if (text == null || text.isBlank()) {
+            throw new BadRequestException("Vui lòng nhập câu tiếng Đức cần kiểm tra.");
+        }
+        return text.trim();
     }
 
     /** Per-user request-rate guard on raw LLM text helpers (cost control on top of the quota wallet). */
