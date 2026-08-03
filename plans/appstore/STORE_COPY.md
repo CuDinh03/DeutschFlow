@@ -144,23 +144,43 @@ Fill this in at **Submit for Review**. **v1.0 ships FREE-ONLY** — no ads and n
 **Notes to reviewer:**
 ```
 DeutschFlow is a German-learning app (A1–B1 Goethe/ÖSD prep). Sign in with the primary demo
-account above to reach student content. This version is FREE-ONLY: no ads, no in-app purchase.
+account above. This version is FREE-ONLY: there are NO ads and NO in-app purchases anywhere
+in the app — there is no purchase button, StoreKit is not wired in this build.
 
-WALKTHROUGH
-• Lessons & practice: open the Học (Learn) tab for vocabulary, grammar, listening and reading —
-  this is the full free experience and works without any purchase.
-• Progress: streaks, review queue (spaced repetition) and the learning path are all free.
+FREE 7-DAY AI TRIAL (this is by design, not a bug)
+• Every new account automatically starts a 7-day full-access trial. The demo accounts we
+  provided were created fresh right before submission, so they are inside this trial window.
+• During the trial, AI Speaking works: open Luyện nói (Speaking), pick Emma or Anna, and hold
+  a German text conversation — you'll get real AI replies and feedback. This is the core free
+  experience.
+• Two things are reserved for the paid Pro plan even during/after trial: (a) answering by VOICE
+  (tapping the mic shows a short "Tính năng PRO — trả lời bằng giọng nói cần PRO; bạn vẫn có thể
+  gõ" notice, and typing still works), and (b) a few advanced (harder) speaking personas, which
+  appear with a small lock icon. Emma and Anna are always free.
 
-AI FEATURES ARE PRO-GATED (intentional — not a bug)
-• AI Speaking (Luyện nói) and some exam features are reserved for the Pro plan. In this FREE-ONLY
-  build there is no purchase path yet, so opening them shows an intentional "Tính năng PRO" lock
-  card (a lock icon + short explanation), NOT an error or a broken button. In-app purchase is
-  planned for a future version. Please treat the lock card as the intended free-tier behavior.
+AFTER THE TRIAL (only relevant if you test with an aged account)
+• Once the 7-day trial ends, AI requests return an intentional notice reading "Gói dùng thử 7
+  ngày đã hết hạn. Hãy nâng cấp để tiếp tục." (7-day trial ended — please upgrade to continue).
+  This is a deliberate, handled message — NOT a crash. Because v1.0 has no in-app purchase,
+  there is intentionally no upgrade button; monetization ships in a later version.
+
+WHAT WORKS FOR FREE (no trial needed, no purchase)
+• Lessons & practice under the Học (Learn) tab: vocabulary, grammar, listening, reading.
+• Streaks, spaced-repetition review queue, and the full learning path.
 
 ACCOUNT DELETION (Guideline 5.1.1(v))
-• In-app account deletion: Hồ sơ (Profile) → Xóa tài khoản (Delete account). This permanently
-  deletes the account and its data. Please use the SECONDARY demo account above for this test so
-  the primary demo login is preserved.
+• In-app deletion: Hồ sơ (Profile) → Xóa tài khoản (Delete account). This permanently deletes
+  the account and its data. PLEASE USE THE SECONDARY demo account below for this test, so the
+  primary demo login is preserved for the rest of your review.
+
+USER SAFETY (Guideline 1.2)
+• The app has messaging (student↔teacher direct messages) and class channels. Users can REPORT
+  any message or user (long-press a message, or the ⋮ menu in a conversation) and BLOCK any user
+  — a blocked user cannot message them and their content is hidden. A "Blocked users" management
+  screen is at Profile → "An toàn & chặn" (always reachable). Objectionable words are filtered
+  server-side and all reports are reviewed by an admin. Note: messaging only exists between a
+  teacher and their enrolled students / within a class, so a fresh solo demo account has an empty
+  inbox — the safety tools are still visible under Profile → "An toàn & chặn".
 
 Privacy Policy: https://mydeutschflow.com/privacy
 ```
@@ -169,6 +189,7 @@ Privacy Policy: https://mydeutschflow.com/privacy
 
 > Ghi chú kiểm chứng
 > - Delete-account path verified in repo: `mobile/app/(student)/profile.tsx:46` `confirmDeleteAccount()` → `:57` `api.delete('/profile/me')`, button at `:192` (backend `ProfileController @DeleteMapping("/me")` → `/api/profile/me`).
-> - **RESOLVED 2026-07-03 (submit approach A):** v1.0 ships **FREE-ONLY** — the ADS + SUBSCRIPTION review sections were removed and replaced with the "AI is Pro-gated, no purchase path yet" note. Mobile paywall stays iOS-disabled (`mobile/lib/paywall.ts:13` `PAYWALL_ENABLED = Platform.OS !== 'ios'`), which is correct for a free-only build. Ads (AdMob non-personalized) + Apple IAP subscription move to v1.1.
+> - **RESOLVED 2026-07-03 (submit approach A):** v1.0 ships **FREE-ONLY** — the ADS + SUBSCRIPTION review sections were removed. Mobile paywall stays iOS-disabled (`mobile/lib/paywall.ts:13` `PAYWALL_ENABLED = Platform.OS !== 'ios'`), which is correct for a free-only build. Ads (AdMob non-personalized) + Apple IAP subscription move to v1.1.
+> - **CORRECTED 2026-07-04 (submit-doc §2.1 + §2.7):** the reviewer Notes above were rewritten. The earlier "AI is fully Pro-gated → opening it shows an intentional lock card, not an error" wording was **inaccurate** and a Guideline 2.1 rejection risk: new accounts actually get a **7-day PRO trial** during which AI Speaking text chat works (Emma/Anna); only voice-input + a few advanced personas are Pro. After 7 days, AI returns a handled "trial expired" notice (title "Lỗi", not a crash), with no in-app upgrade button in v1.0. The Notes now describe this truthfully and add the Guideline 1.2 user-safety paragraph (report/block/word-filter → Profile → "An toàn & chặn"). Demo accounts must be created fresh right before submitting so they are inside the trial window.
 > - **DESCRIPTION also made free-only (2026-07-03):** EN + VI Descriptions previously said "ad-supported" / "ad-free experience" and carried a full auto-renewable-subscription disclosure — all removed (a Guideline 2.3.1 metadata-mismatch risk against a build with no ads and no IAP). Now: "FREE TO LEARN" + "some advanced AI features are marked Pro; in-app purchasing arrives in a future update." Real legal/support URLs filled (`mydeutschflow.com/privacy` `/terms` `/support`). When IAP ships in v1.1, re-add the subscription disclosure + auto-renew terms to both Descriptions.
 > - Pro is AI-token-quota-based (PRO tier), not literally unlimited. Avoid promising "unlimited" in the listing.
