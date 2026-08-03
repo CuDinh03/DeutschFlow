@@ -677,21 +677,6 @@
       "processing": "Wird verarbeitet…",
       "resultCap": "Ergebnis"
     },
-    "curriculum": {
-      "title": "Netzwerk Neu A1 Lehrplan",
-      "subtitle": "Goethe-Institut-Standard · Deutsch-Grundlagen",
-      "loading": "Lehrplan lädt…",
-      "cannotLoad": "Lehrplaninhalte konnten nicht geladen werden.",
-      "noData": "Keine Lehrplandaten.",
-      "content": "Lehrplaninhalte",
-      "themes": "Themen",
-      "grammar": "Grammatik",
-      "vocabulary": "Vokabeln ({count})",
-      "moreWords": "+{count} weitere Wörter",
-      "communicativeGoals": "Kommunikationsziele",
-      "lessonCount": "{count} Lektionen",
-      "chapterLessonCount": "{count} Lektionen"
-    },
     "game": {
       "title": "Wortbausteine-Spiel",
       "subtitle": "Zieh die Wortblöcke in die Lücken — Grammatik A1",

@@ -677,21 +677,6 @@
       "processing": "Đang xử lý…",
       "resultCap": "Kết quả"
     },
-    "curriculum": {
-      "title": "Giáo trình Netzwerk Neu A1",
-      "subtitle": "Chuẩn Goethe-Institut · Đức ngữ cơ bản",
-      "loading": "Đang tải giáo trình…",
-      "cannotLoad": "Không thể tải nội dung giáo trình.",
-      "noData": "Chưa có dữ liệu giáo trình.",
-      "content": "Nội dung giáo trình",
-      "themes": "Chủ đề",
-      "grammar": "Ngữ pháp",
-      "vocabulary": "Từ vựng ({count})",
-      "moreWords": "+{count} từ nữa",
-      "communicativeGoals": "Mục tiêu giao tiếp",
-      "lessonCount": "{count} bài học",
-      "chapterLessonCount": "{count} bài"
-    },
     "game": {
       "title": "Trò chơi ghép từ",
       "subtitle": "Kéo khối từ vào chỗ trống — luyện ngữ pháp A1",

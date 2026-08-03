@@ -677,21 +677,6 @@
       "processing": "Processing…",
       "resultCap": "Result"
     },
-    "curriculum": {
-      "title": "Netzwerk Neu A1 Curriculum",
-      "subtitle": "Goethe-Institut standard · German fundamentals",
-      "loading": "Loading curriculum…",
-      "cannotLoad": "Cannot load curriculum content.",
-      "noData": "No curriculum data.",
-      "content": "Curriculum Content",
-      "themes": "Themes",
-      "grammar": "Grammar",
-      "vocabulary": "Vocabulary ({count})",
-      "moreWords": "+{count} more words",
-      "communicativeGoals": "Communicative Goals",
-      "lessonCount": "{count} lessons",
-      "chapterLessonCount": "{count} lessons"
-    },
     "game": {
       "title": "Word Blocks Game",
       "subtitle": "Drag the word blocks into the gaps — A1 grammar drill",

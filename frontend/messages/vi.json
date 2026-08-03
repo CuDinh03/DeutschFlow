@@ -154,7 +154,6 @@
     "en": "English",
     "de": "Deutsch",
     "vocabAnalytics": "Thống kê từ vựng",
-    "curriculum": "Giáo trình A1",
     "grammarAI": "Luyện ngữ pháp AI",
     "dashboard": "Dashboard",
     "errorStats": "Thống kê lỗi",
@@ -1284,18 +1283,6 @@
     "newInterview": "Phỏng vấn mới",
     "noInterviews": "Chưa có kết quả phỏng vấn nào",
     "promptInterview": "Hãy tham gia một buổi phỏng vấn giả lập!"
-  },
-  "curriculum": {
-    "cannotLoad": "Không thể tải nội dung giáo trình.",
-    "content": "Nội dung giáo trình",
-    "title": "Giáo trình Netzwerk Neu A1",
-    "loading": "Đang tải giáo trình...",
-    "noData": "Chưa có dữ liệu giáo trình.",
-    "themes": "Chủ đề",
-    "grammar": "Ngữ pháp",
-    "vocabulary": "Từ vựng ({count})",
-    "moreWords": "+{count} từ nữa",
-    "communicativeGoals": "Mục tiêu giao tiếp"
   },
   "dashboard": {
     "loading": "Đang tải dữ liệu hôm nay...",
