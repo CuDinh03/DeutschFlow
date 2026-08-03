@@ -91,7 +91,6 @@ public class OpenApiConfig {
                         "/api/ai-speaking/**",
                         "/api/speaking/**",
                         "/api/roadmap/**",
-                        "/api/curriculum/**",
                         "/api/phase/**",
                         "/api/mock-exam*/**",
                         "/api/assessment/**",
