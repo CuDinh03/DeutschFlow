@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @SpringBootTest
 @DisplayName("Material persistence Integration Tests (V227 schema)")
-class MaterialPersistenceIT extends AbstractPostgresIntegrationTest {
+class MaterialPersistenceIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired private MaterialRepository materialRepository;
     @Autowired private MaterialFolderRepository folderRepository;

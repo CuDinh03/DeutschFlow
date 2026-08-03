@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @SpringBootTest
 @DisplayName("Class schedule Integration Tests (V236 schema)")
-class ClassScheduleIT extends AbstractPostgresIntegrationTest {
+class ClassScheduleIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired private ClassScheduleService service;
     @Autowired private ClassSessionRepository sessionRepo;

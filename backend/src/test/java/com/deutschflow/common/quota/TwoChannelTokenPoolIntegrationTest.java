@@ -31,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * dọn dữ liệu tường minh theo prefix email.
  */
 @SpringBootTest
-class TwoChannelTokenPoolIT extends AbstractPostgresIntegrationTest {
+class TwoChannelTokenPoolIntegrationTest extends AbstractPostgresIntegrationTest {
 
     private static final String EMAIL_PREFIX = "twoch-it-";
 

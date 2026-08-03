@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @SpringBootTest
 @DisplayName("learning-tree level-up ritual")
-class RoadmapTreeLevelUpIT extends AbstractPostgresIntegrationTest {
+class RoadmapTreeLevelUpIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired
     private RoadmapTreeService service;

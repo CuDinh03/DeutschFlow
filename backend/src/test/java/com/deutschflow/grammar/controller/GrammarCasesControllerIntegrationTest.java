@@ -6,16 +6,21 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+// SecurityConfig ends in anyRequest().authenticated() and grants no public rule to
+// /api/v1/grammar/cases — these read endpoints require a logged-in user. This class covers the
+// controller's own contract (payload shape, 400/404), not the security rule, so it authenticates.
 @SpringBootTest
 @AutoConfigureMockMvc
+@WithMockUser(roles = "STUDENT")
 @DisplayName("GrammarCasesController Integration Tests")
-class GrammarCasesControllerIT extends AbstractPostgresIntegrationTest {
+class GrammarCasesControllerIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
