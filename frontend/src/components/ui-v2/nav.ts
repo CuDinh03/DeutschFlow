@@ -310,10 +310,8 @@ export const studentNav: RoleNav = {
         // KHÁC 'review-queue': trang đó chỉ có flashcard SRS + task ngữ pháp ĐẾN HẠN (nút "Xong"),
         // không có toàn bộ sổ lỗi, không tìm kiếm, không luyện sửa.
         { id: 'st-errors', label: 'Sổ lỗi', href: '/v2/student/errors', icon: 'error' },
-        // "Bài học" = thư viện VIDEO (mediaApi). "Giáo trình" = đề cương sách Netzwerk Neu A1
-        // (GET /curriculum/netzwerk-neu/a1) — hai bề mặt KHÁC nhau, đừng gộp.
+        // "Bài học" = thư viện VIDEO (mediaApi) — KHÁC 'roadmap' (lộ trình node có runner).
         { id: 'lessons', label: 'Bài học', href: '/v2/student/lessons', icon: 'play_circle' },
-        { id: 'curriculum', label: 'Giáo trình', href: '/v2/student/curriculum', icon: 'library_books' },
         { id: 'roadmap', label: 'Lộ trình', href: '/v2/student/roadmap', icon: 'route' },
         { id: 'game', label: 'Trò chơi', href: '/v2/student/game', icon: 'sports_esports' },
         // Tin tức báo Đức (GET /news) — trang learner-shared: GV/admin cũng vào được

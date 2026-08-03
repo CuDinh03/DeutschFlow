@@ -154,7 +154,6 @@
     "en": "Englisch",
     "de": "Deutsch",
     "vocabAnalytics": "Vokabel-Statistik",
-    "curriculum": "A1 Lehrplan",
     "grammarAI": "KI Grammatik-Training",
     "dashboard": "Dashboard",
     "errorStats": "Fehlerstatistik",
@@ -1284,18 +1283,6 @@
     "newInterview": "Neues Interview",
     "noInterviews": "Noch keine Interviewergebnisse",
     "promptInterview": "Nehmen Sie an einem Mock-Interview teil!"
-  },
-  "curriculum": {
-    "cannotLoad": "Lehrplaninhalte konnten nicht geladen werden.",
-    "content": "Lehrplaninhalte",
-    "title": "Netzwerk Neu A1 Lehrplan",
-    "loading": "Lehrplan lädt...",
-    "noData": "Keine Lehrplandaten.",
-    "themes": "Themen",
-    "grammar": "Grammatik",
-    "vocabulary": "Vokabeln ({count})",
-    "moreWords": "+{count} weitere Wörter",
-    "communicativeGoals": "Kommunikationsziele"
   },
   "dashboard": {
     "loading": "Lade heutige Daten...",

@@ -154,7 +154,6 @@
     "en": "English",
     "de": "German",
     "vocabAnalytics": "Vocab Analytics",
-    "curriculum": "A1 Curriculum",
     "grammarAI": "AI Grammar Practice",
     "dashboard": "Dashboard",
     "errorStats": "Error Statistics",
@@ -1282,18 +1281,6 @@
     "newInterview": "New interview",
     "noInterviews": "No interview results yet",
     "promptInterview": "Participate in a mock interview!"
-  },
-  "curriculum": {
-    "cannotLoad": "Cannot load curriculum content.",
-    "content": "Curriculum Content",
-    "title": "Netzwerk Neu A1 Curriculum",
-    "loading": "Loading curriculum...",
-    "noData": "No curriculum data.",
-    "themes": "Themes",
-    "grammar": "Grammar",
-    "vocabulary": "Vocabulary ({count})",
-    "moreWords": "+{count} more words",
-    "communicativeGoals": "Communicative Goals"
   },
   "dashboard": {
     "loading": "Loading today's data...",
