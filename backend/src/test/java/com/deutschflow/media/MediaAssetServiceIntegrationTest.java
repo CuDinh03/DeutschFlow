@@ -19,6 +19,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.jdbc.Sql;
 
+import java.util.UUID;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -67,10 +69,13 @@ class MediaAssetServiceIntegrationTest extends AbstractPostgresIntegrationTest {
                 .role(User.Role.TEACHER)
                 .build());
 
+        // media_assets.s3_key is UNIQUE (V147). The real S3StorageService.uploadFile derives the key
+        // from a fresh UUID per call, so two uploads never collide — the mock must do the same, or
+        // any test uploading twice fails on the constraint instead of on its actual assertion.
         when(s3StorageService.uploadFile(any(), anyString()))
                 .thenAnswer(inv -> {
                     String cat = inv.getArgument(1, String.class).toLowerCase();
-                    String key = "media-it/" + cat + "/test-uuid.png";
+                    String key = "media-it/" + cat + "/" + UUID.randomUUID() + ".png";
                     return new S3StorageService.S3UploadResult(
                             key, "https://bucket.s3.ap-southeast-1.amazonaws.com/" + key);
                 });

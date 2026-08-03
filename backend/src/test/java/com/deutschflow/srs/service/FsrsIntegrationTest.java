@@ -3,6 +3,9 @@ package com.deutschflow.srs.service;
 import com.deutschflow.srs.entity.VocabReviewSchedule;
 import com.deutschflow.srs.repository.VocabReviewRepository;
 import com.deutschflow.testsupport.AbstractPostgresIntegrationTest;
+import com.deutschflow.user.entity.User;
+import com.deutschflow.user.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,22 +21,44 @@ import static org.assertj.core.api.Assertions.assertThat;
 @EnabledIf("com.deutschflow.testsupport.TestcontainersPostgresConditions#integrationPostgresAvailable")
 public class FsrsIntegrationTest extends AbstractPostgresIntegrationTest {
 
+    private static final String IT_EMAIL = "fsrs-it@test.com";
+
     @Autowired
     private FsrsService fsrsService;
 
     @Autowired
     private VocabReviewRepository vocabReviewRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    /** Real owner row: vocab_review_schedule.user_id has an FK to users(id) (V110). */
+    private Long userId;
+
     @BeforeEach
     void setup() {
-        vocabReviewRepository.deleteAll();
+        userRepository.findByEmail(IT_EMAIL).ifPresent(userRepository::delete); // leftover from an aborted run
+        userRepository.flush();
+        userId = userRepository.save(User.builder()
+                .email(IT_EMAIL)
+                .passwordHash("$2a$10$h")
+                .displayName("FSRS IT")
+                .role(User.Role.STUDENT)
+                .build()).getId();
+    }
+
+    @AfterEach
+    void tearDown() {
+        // ON DELETE CASCADE clears the schedule rows; drop them first so the intent is explicit.
+        vocabReviewRepository.deleteAll(vocabReviewRepository.findByUserIdOrderByNextReviewAtAsc(userId));
+        userRepository.deleteById(userId);
     }
 
     @Test
     void testFsrsInitializationAndPersistence() {
         // Create a new card without FSRS metrics
         VocabReviewSchedule card = VocabReviewSchedule.builder()
-                .userId(1L)
+                .userId(userId)
                 .vocabId("test_vocab_1")
                 .german("Hallo")
                 .meaning("Xin chào")
@@ -73,7 +98,7 @@ public class FsrsIntegrationTest extends AbstractPostgresIntegrationTest {
     @Test
     void testFsrsFailureState() {
         VocabReviewSchedule card = VocabReviewSchedule.builder()
-                .userId(1L)
+                .userId(userId)
                 .vocabId("test_vocab_2")
                 .german("Danke")
                 .meaning("Cảm ơn")
