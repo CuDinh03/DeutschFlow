@@ -18,8 +18,8 @@ import { DataTable, EmptyState, GaBtn, GaPageHdr, type DataTableColumn } from '@
  * nhật). Trang này là các LƯỢT NỘP bài của lộ trình cá nhân (tuần/buổi · lần thử · điểm % · số lỗi).
  *
  * ⚠️ Cột "Mở buổi" của v1 trỏ tới /student/plan/week/{w}/session/{s} — route ĐÓ KHÔNG TỒN TẠI
- * (đã 404 sẵn trên v1; không có bản v2 tương ứng: /v2/student/roadmap là learning-tree, không phải
- * plan tuần/buổi). Vì vậy cột này bị BỎ thay vì port một link chết trỏ vào cây v1 sắp xoá.
+ * (đã 404 sẵn trên v1; không có bản v2 tương ứng: /v2/student/roadmap liệt kê NODE lộ trình, không
+ * phải plan tuần/buổi). Vì vậy cột này bị BỎ thay vì port một link chết.
  * Khi nào có runner buổi học ở v2 thì thêm lại cột này.
  */
 

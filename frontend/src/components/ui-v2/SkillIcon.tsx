@@ -1,22 +1,22 @@
 import * as React from 'react'
-import type { IconPaths } from '@/lib/learning-tree/render/icons'
+import type { IconPaths } from '@/lib/skills'
 
-interface TreeIconProps {
+interface SkillIconProps {
   paths: IconPaths
   size?: number
   color?: string
   strokeWidth?: number
-  /** When set, renders a nested <svg x/y> so the icon positions inside a parent SVG. */
+  /** Khi có, render `<svg x/y>` lồng nhau để icon định vị được bên trong một SVG cha. */
   x?: number
   y?: number
   className?: string
 }
 
 /**
- * A 24×24 stroke icon. Renders a self-contained `<svg>`, so it works both standalone in HTML (legend
- * key) and nested inside the tree SVG (skill badge) via x/y. Decorative by default (aria-hidden).
+ * Icon nét 24×24. Render một `<svg>` tự chứa nên dùng được cả độc lập trong HTML lẫn lồng trong
+ * SVG cha qua x/y. Mặc định là trang trí (aria-hidden) — nhãn chữ đi kèm mới mang nghĩa.
  */
-export function TreeIcon({
+export function SkillIcon({
   paths,
   size = 16,
   color = 'currentColor',
@@ -24,7 +24,7 @@ export function TreeIcon({
   x,
   y,
   className,
-}: TreeIconProps): React.ReactElement {
+}: SkillIconProps): React.ReactElement {
   return (
     <svg
       x={x}

@@ -30,7 +30,7 @@ const instrumentSans = Instrument_Sans({
   variable: '--font-instrument-sans',
 })
 // Be Vietnam Pro — full Vietnamese diacritic coverage (Instrument Sans lacks the `vietnamese`
-// subset). Used for the learning-tree surface (labels/chips/tooltip + SVG text) via `--ga-vn`.
+// subset). Exposed as `--ga-vn` for surfaces that mix Vietnamese labels with SVG text.
 const beVietnamPro = Be_Vietnam_Pro({
   subsets: ['latin', 'latin-ext', 'vietnamese'],
   weight: ['400', '500', '600', '700'],
