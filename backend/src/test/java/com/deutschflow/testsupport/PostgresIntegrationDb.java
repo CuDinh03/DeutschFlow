@@ -45,10 +45,30 @@ public final class PostgresIntegrationDb {
         if (StringUtils.hasText(urlEnv)) {
             String user = fb(System.getenv(ENV_USERNAME), "postgres");
             String pass = fb(System.getenv(ENV_PASSWORD), "postgres");
-            return new Config(urlEnv.strip(), user, pass);
+            return new Config(withProductionDriverFlags(urlEnv.strip()), user, pass);
         }
         PostgreSQLContainer<?> pg = PostgresTestContainerHolder.get();
-        return new Config(pg.getJdbcUrl(), pg.getUsername(), pg.getPassword());
+        return new Config(withProductionDriverFlags(pg.getJdbcUrl()), pg.getUsername(), pg.getPassword());
+    }
+
+    /**
+     * Gắn {@code stringtype=unspecified} — đúng tham số mà URL production dùng
+     * ({@code application.yml}, {@code spring.datasource.url}).
+     *
+     * <p><b>Vì sao bắt buộc:</b> tham số này quyết định pgjdbc gửi {@code setString} với OID
+     * {@code varchar} hay {@code unknown}. Postgres KHÔNG tự ép {@code varchar → jsonb}, nên mọi
+     * lệnh ghi một chuỗi JSON vào cột {@code jsonb} — {@code audit_logs.metadata_json} là chỗ
+     * điển hình — chạy được trên prod nhưng nổ {@code PSQLException} trong IT nếu URL của test
+     * thiếu nó. Datasource của IT lệch prod ở điểm đổi ngữ nghĩa SQL thì kết quả IT vô nghĩa theo
+     * cả hai chiều: đỏ giả như trên, và nguy hiểm hơn là xanh giả cho SQL prod sẽ từ chối.
+     *
+     * <p>Tôn trọng lựa chọn của người chạy: URL đã tự khai {@code stringtype} thì giữ nguyên.
+     */
+    private static String withProductionDriverFlags(String jdbcUrl) {
+        if (jdbcUrl.contains("stringtype=")) {
+            return jdbcUrl;
+        }
+        return jdbcUrl + (jdbcUrl.contains("?") ? "&" : "?") + "stringtype=unspecified";
     }
 
     public static String withCurrentSchema(String jdbcUrl, String schema) {

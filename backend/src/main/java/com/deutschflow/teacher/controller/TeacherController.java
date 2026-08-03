@@ -1,5 +1,6 @@
 package com.deutschflow.teacher.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.quota.RequestContext;
 import com.deutschflow.teacher.dto.*;
@@ -79,9 +80,10 @@ public class TeacherController {
         return ResponseEntity.ok().build();
     }
 
+    /** 409 khi lớp còn dữ liệu dạy học — xem {@code TeacherService.deleteClass}. */
     @DeleteMapping("/classes/{classId}")
     public ResponseEntity<Void> deleteClass(@AuthenticationPrincipal User user, @PathVariable Long classId) {
-        teacherService.deleteClass(user.getId(), classId);
+        teacherService.deleteClass(AuditActor.of(user), classId);
         return ResponseEntity.noContent().build();
     }
 

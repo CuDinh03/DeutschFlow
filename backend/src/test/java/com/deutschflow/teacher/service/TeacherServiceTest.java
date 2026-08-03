@@ -1,5 +1,7 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.media.service.S3StorageService;
@@ -120,6 +122,12 @@ class TeacherServiceTest {
     @Mock
     private com.deutschflow.common.transaction.RunAfterCommitService runAfterCommitService;
 
+    @Mock
+    private ClassDeletionGuard classDeletionGuard;
+
+    @Mock
+    private com.deutschflow.common.audit.AuditLogService auditLogService;
+
     private TeacherService teacherService;
 
     @BeforeEach
@@ -146,7 +154,9 @@ class TeacherServiceTest {
                 studentCompetencyService,
                 materialService,
                 notificationAutoAckService,
-                runAfterCommitService
+                runAfterCommitService,
+                classDeletionGuard,
+                auditLogService
         );
     }
 
@@ -628,13 +638,73 @@ class TeacherServiceTest {
         verify(classTeacherRepository).delete(assistant);
     }
 
+    // ─── deleteClass: bom cascade — chỉ lớp trống mới xoá được, và luôn để lại vết ────
+
+    private static final AuditActor ACTOR = new AuditActor(1L, "gv@deutschflow.test", "TEACHER");
+
+    /** Kiểm kê rỗng: lớp chưa có gì treo vào. */
+    private static ClassDeletionGuard.ClassContent emptyContent() {
+        return new ClassDeletionGuard.ClassContent(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    }
+
+    private void callerIsPrimary() {
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
+    }
+
+    private void verifyNothingDeleted() {
+        verify(classRepository, never()).deleteById(any());
+        verify(classTeacherRepository, never()).deleteByIdClassId(any());
+        verify(classStudentRepository, never()).deleteByIdClassId(any());
+        verify(assignmentRepository, never()).deleteByClassId(any());
+    }
+
     @Test
+    @DisplayName("trợ giảng không được xoá lớp")
     void deleteClass_throwsForbidden_whenCallerIsAssistant() {
         when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
                 ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("ASSISTANT").build()));
 
-        assertThrows(ForbiddenException.class, () -> teacherService.deleteClass(1L, 100L));
-        verify(classRepository, never()).deleteById(any());
+        assertThrows(ForbiddenException.class, () -> teacherService.deleteClass(ACTOR, 100L));
+        verifyNothingDeleted();
+        verify(auditLogService, never()).log(anyString(), any(AuditActor.class), anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("lớp còn dữ liệu dạy học → 409 và KHÔNG xoá bảng nào (guard chặn trước cascade)")
+    void deleteClass_refusesAndTouchesNothing_whenClassHasHistory() {
+        callerIsPrimary();
+        when(classDeletionGuard.assertDeletable(100L)).thenThrow(
+                new ConflictException("Không xoá được lớp vì còn dữ liệu dạy học: 12 buổi học"));
+
+        assertThrows(ConflictException.class, () -> teacherService.deleteClass(ACTOR, 100L));
+
+        verifyNothingDeleted();
+        verify(auditLogService, never()).log(anyString(), any(AuditActor.class), anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("lớp trống → xoá được, và ghi vết audit kèm kiểm kê")
+    void deleteClass_deletesAndAudits_whenClassIsEmpty() {
+        callerIsPrimary();
+        when(classDeletionGuard.assertDeletable(100L)).thenReturn(emptyContent());
+        when(classRepository.findById(100L)).thenReturn(java.util.Optional.of(
+                TeacherClass.builder().id(100L).name("K30 · B1 Pflege").orgId(7L).build()));
+
+        teacherService.deleteClass(ACTOR, 100L);
+
+        verify(classTeacherRepository).deleteByIdClassId(100L);
+        verify(classStudentRepository).deleteByIdClassId(100L);
+        verify(assignmentRepository).deleteByClassId(100L);
+        verify(classRepository).deleteById(100L);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<java.util.Map<String, Object>> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        verify(auditLogService).log(
+                eq("teacher_class_deleted"), eq(ACTOR), eq("CLASS"), eq("100"), meta.capture());
+        assertEquals("K30 · B1 Pflege", meta.getValue().get("className"));
+        assertEquals(7L, meta.getValue().get("orgId"));
+        assertEquals(0L, meta.getValue().get("sessions"));
     }
 
     // ─── getOrCreateScenarioForStudent (lazy speaking-scenario recovery) ─────────
