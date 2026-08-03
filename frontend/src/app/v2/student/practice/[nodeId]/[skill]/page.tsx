@@ -8,11 +8,9 @@ import api from '@/lib/api'
 import { isAsyncJobAccepted, waitForAsyncJob } from '@/lib/asyncJob'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
-import { SKILL_COLORS, SKILL_LABELS } from '@/lib/learning-tree/render/palette'
-import { SKILL_ICONS } from '@/lib/learning-tree/render/icons'
-import { TreeIcon } from '@/components/learning-tree/TreeIcon'
-import { GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState } from '@/components/ui-v2'
-import type { Skill } from '@/lib/learning-tree/core'
+import { SKILL_COLORS, SKILL_LABELS, SKILL_ICONS } from '@/lib/skills'
+import { GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState, SkillIcon } from '@/components/ui-v2'
+import type { Skill } from '@/lib/skills'
 
 /**
  * /v2/student/practice/[nodeId]/[skill] — RUNNER luyện kỹ năng CÓ CHẤM ĐIỂM (vỏ Galerie).
@@ -565,7 +563,7 @@ export default function V2StudentPracticeRunnerPage() {
                 className="grid h-12 w-12 shrink-0 place-items-center rounded-full"
                 style={{ background: accent }}
               >
-                <TreeIcon paths={SKILL_ICONS[skill]} size={22} color="#FFFFFF" strokeWidth={2.4} />
+                <SkillIcon paths={SKILL_ICONS[skill]} size={22} color="#FFFFFF" strokeWidth={2.4} />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="break-words text-[15px] font-semibold text-ga-ink">
