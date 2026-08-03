@@ -123,10 +123,17 @@ public class ClassDeletionGuard {
             long lessons
     ) {
 
-        /** Lớp đã có dấu vết dạy học → không được xoá cứng. */
+        /**
+         * Lớp đã có dấu vết dạy học → không được xoá cứng.
+         *
+         * <p>{@code materials} KHÔNG nằm trong nhóm này: {@code class_materials} chỉ là bảng liên
+         * kết, tài liệu vẫn nguyên trong thư viện sau khi lớp biến mất — gỡ liên kết không mất gì.
+         * Khi còn tính nó là "lịch sử", một lớp lỡ gắn tài liệu là kẹt vĩnh viễn: guard chặn xoá,
+         * mà lưu trữ tài liệu cũng không xoá dòng liên kết (QA 03/08). Vẫn kiểm kê để ghi vết audit.
+         */
         public boolean hasHistory() {
             return sessions > 0 || lessonLogs > 0 || attendance > 0 || channelMessages > 0
-                    || materials > 0 || submissions > 0 || teachingRecords > 0;
+                    || submissions > 0 || teachingRecords > 0;
         }
 
         /** Liệt kê phần lịch sử cho thông điệp lỗi, ví dụ {@code "12 buổi học, 96 lượt điểm danh"}. */
@@ -136,7 +143,6 @@ public class ClassDeletionGuard {
             add(parts, lessonLogs, "nhật ký buổi học");
             add(parts, attendance, "lượt điểm danh");
             add(parts, channelMessages, "tin nhắn kênh lớp");
-            add(parts, materials, "tài liệu đính kèm");
             add(parts, submissions, "bài học viên đã nộp");
             add(parts, teachingRecords, "bản ghi công giáo viên");
             return String.join(", ", parts);

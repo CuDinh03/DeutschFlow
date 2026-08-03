@@ -275,6 +275,45 @@ class MaterialServiceTest {
         verify(classMaterialRepository, never()).save(any());
     }
 
+    // --------------------------------------------------------------- detach from class (QA 03/08)
+    //
+    // Attaching used to be one-way: ClassDeletionGuard counts class_materials, so a class that ever
+    // held a material could never be deleted through any API again.
+
+    @Test
+    @DisplayName("detach from a class the caller teaches → row removed")
+    void detachFromClass_ownTeacherClass_removesRow() {
+        User caller = user(7L, null);
+        TeacherClass tc = TeacherClass.builder().id(5L).teacherId(7L).build();
+        when(teacherClassRepository.findById(5L)).thenReturn(Optional.of(tc));
+
+        service.detachFromClass(caller, 1L, 5L);
+
+        verify(classMaterialRepository).deleteByIdClassIdAndIdMaterialId(5L, 1L);
+    }
+
+    @Test
+    @DisplayName("detach from someone else's class → Forbidden, nothing deleted")
+    void detachFromClass_otherTeachersClass_forbidden() {
+        User caller = user(7L, null);
+        TeacherClass tc = TeacherClass.builder().id(5L).teacherId(99L).build();
+        when(teacherClassRepository.findById(5L)).thenReturn(Optional.of(tc));
+
+        assertThatThrownBy(() -> service.detachFromClass(caller, 1L, 5L))
+                .isInstanceOf(ForbiddenException.class);
+        verify(classMaterialRepository, never()).deleteByIdClassIdAndIdMaterialId(any(), any());
+    }
+
+    @Test
+    @DisplayName("detach from a class that does not exist → NotFound")
+    void detachFromClass_missingClass_notFound() {
+        User caller = user(7L, null);
+        when(teacherClassRepository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.detachFromClass(caller, 1L, 404L))
+                .isInstanceOf(NotFoundException.class);
+    }
+
     // --------------------------------------------------------------- lesson attach (Phase 1d-D2)
 
     private ClassLesson lesson(long id, long classId) {

@@ -135,6 +135,13 @@ public class MaterialController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/{id}/classes/{classId}")
+    public ResponseEntity<Void> detach(@AuthenticationPrincipal User user,
+                                       @PathVariable Long id, @PathVariable Long classId) {
+        materialService.detachFromClass(user, id, classId);
+        return ResponseEntity.noContent().build();
+    }
+
     /** Materials attached to a lesson, in order (Phase 1d-D2). */
     @GetMapping("/lesson/{lessonId}")
     public List<MaterialDto> listForLesson(@AuthenticationPrincipal User user, @PathVariable Long lessonId) {

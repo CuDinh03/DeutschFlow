@@ -2,6 +2,7 @@
 package com.deutschflow.media;
 
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.media.dto.MediaAssetDto;
 import com.deutschflow.media.entity.MediaAsset;
 import com.deutschflow.media.repository.MediaAssetRepository;
 import com.deutschflow.media.service.MediaAssetService;
@@ -119,6 +120,43 @@ class MediaAssetServiceIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(pageA.getTotalElements()).isEqualTo(1);
         assertThat(pageB.getTotalElements()).isEqualTo(1);
         assertThat(pageA.getContent().get(0).getUploadedBy().getId()).isEqualTo(teacherA.getId());
+    }
+
+    // ─── QA 03/08: đọc thư viện ảnh nào cũng 500 khi có dữ liệu ────────────────────────────────
+    //
+    // Nhớ rằng test cũ chạm getUploadedBy().getId() vẫn xanh: Hibernate trả id từ khoá ngoại mà
+    // không cần khởi tạo proxy. Chỉ khi đọc getDisplayName() — đúng việc MediaAssetDto làm — proxy
+    // mới phải nạp, và với open-in-view=false thì persistence context đã đóng → 500.
+    // Vậy nên các test dưới đây map sang DTO, giống hệt controller.
+
+    @Test
+    void teacherList_mapsToDtoAfterPersistenceContextClosed() {
+        mediaAssetService.uploadMedia(png("a.png"), "ASSIGNMENT", "dto-a", null, teacherA);
+
+        var page = mediaAssetService.getMediaByCategory("ASSIGNMENT", PageRequest.of(0, 20), teacherA);
+        var dtos = page.map(MediaAssetDto::fromEntity);
+
+        assertThat(dtos.getContent()).hasSize(1);
+        assertThat(dtos.getContent().get(0).getUploadedByName()).isEqualTo("Teacher A");
+    }
+
+    @Test
+    void adminListAll_mapsToDtoAfterPersistenceContextClosed() {
+        mediaAssetService.uploadMedia(png("a.png"), "ASSIGNMENT", "dto-all", null, teacherA);
+
+        var page = mediaAssetService.getMediaByCategory(null, PageRequest.of(0, 20), admin);
+
+        assertThat(page.map(MediaAssetDto::fromEntity).getContent())
+                .allSatisfy(dto -> assertThat(dto.getUploadedByName()).isNotBlank());
+    }
+
+    @Test
+    void findByTag_mapsToDtoAfterPersistenceContextClosed() {
+        mediaAssetService.uploadMedia(png("a.png"), "ASSIGNMENT", "dto-tag", null, teacherA);
+
+        MediaAsset found = mediaAssetService.getMediaByTag("ASSIGNMENT", "dto-tag");
+
+        assertThat(MediaAssetDto.fromEntity(found).getUploadedByName()).isEqualTo("Teacher A");
     }
 
     @Test

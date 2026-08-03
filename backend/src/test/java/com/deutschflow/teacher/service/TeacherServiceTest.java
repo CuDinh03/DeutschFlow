@@ -657,6 +657,7 @@ class TeacherServiceTest {
         verify(classTeacherRepository, never()).deleteByIdClassId(any());
         verify(classStudentRepository, never()).deleteByIdClassId(any());
         verify(assignmentRepository, never()).deleteByClassId(any());
+        verify(materialService, never()).detachAllFromClass(any());
     }
 
     @Test
@@ -696,6 +697,8 @@ class TeacherServiceTest {
         verify(classTeacherRepository).deleteByIdClassId(100L);
         verify(classStudentRepository).deleteByIdClassId(100L);
         verify(assignmentRepository).deleteByClassId(100L);
+        // class_materials là FK NO ACTION — không gỡ trước thì DELETE lớp vỡ vì ràng buộc.
+        verify(materialService).detachAllFromClass(100L);
         verify(classRepository).deleteById(100L);
 
         @SuppressWarnings("unchecked")
@@ -848,6 +851,44 @@ class TeacherServiceTest {
         // NOT the assignment topic — that is what the old payload put in the className field.
         verify(userNotificationService, never()).onTeacherGradingEvent(
                 any(), any(), eq("Brief schreiben"), any(), any(), any(), any(), any());
+    }
+
+    // ─── createClass: tên lớp (QA 03/08 — `{"name":""}` từng tạo được lớp không tên) ───────────
+
+    @Test
+    @DisplayName("createClass từ chối tên rỗng/khoảng trắng/null, không đụng DB")
+    void createClass_rejectsBlankName() {
+        for (String bad : new String[]{"", "   ", null}) {
+            assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                    () -> teacherService.createClass(1L, bad));
+        }
+        verify(classRepository, never()).save(any());
+        verify(classTeacherRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createClass từ chối tên dài quá 255 ký tự")
+    void createClass_rejectsOverlongName() {
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.createClass(1L, "A".repeat(256)));
+        verify(classRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createClass cắt khoảng trắng thừa quanh tên lớp")
+    void createClass_trimsName() {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+        when(classRepository.save(any(TeacherClass.class))).thenAnswer(inv -> {
+            TeacherClass saved = inv.getArgument(0);
+            saved.setId(7L);
+            return saved;
+        });
+
+        teacherService.createClass(1L, "  A1.1 — Sáng T2  ");
+
+        ArgumentCaptor<TeacherClass> captor = ArgumentCaptor.forClass(TeacherClass.class);
+        verify(classRepository).save(captor.capture());
+        assertEquals("A1.1 — Sáng T2", captor.getValue().getName());
     }
 
     @Test

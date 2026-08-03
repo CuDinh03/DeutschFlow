@@ -1,12 +1,13 @@
 package com.deutschflow.grammar.service;
 
-import com.deutschflow.ai.AIModelService;
+import com.deutschflow.ai.AiTextService;
 import com.deutschflow.grammar.dto.GrammarDraftDto;
 import com.deutschflow.grammar.dto.GrammarExerciseDto;
 import com.deutschflow.grammar.dto.GrammarGeneratedExerciseDto;
 import com.deutschflow.grammar.dto.GrammarPendingReviewDto;
 import com.deutschflow.grammar.dto.GrammarSubmitResultDto;
 import com.deutschflow.grammar.dto.GrammarTopicDto;
+import com.deutschflow.speaking.exception.AiServiceException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +32,7 @@ import java.util.*;
 public class GrammarSyllabusService {
 
     private final JdbcTemplate jdbcTemplate;
-    private final AIModelService aiModelService;
+    private final AiTextService aiTextService;
     private final ObjectMapper objectMapper;
 
     // ─── Topics ──────────────────────────────────────────────────
@@ -147,7 +148,7 @@ public class GrammarSyllabusService {
             topic.get("cefr_level")
         );
 
-        String raw = aiModelService.generate(prompt, "", 4096, 0.7);
+        String raw = aiTextService.generate(prompt, "", 4096, 0.7);
 
         try {
             // Extract JSON array from response
@@ -177,9 +178,13 @@ public class GrammarSyllabusService {
             }
 
             return created;
+        } catch (AiServiceException e) {
+            throw e;
         } catch (Exception e) {
+            // Bài tập AI hỏng định dạng là lỗi của model, không phải lỗi lập trình: trả 503 kèm câu
+            // tiếng Việt để giáo viên biết bấm lại, thay vì 500 trống trơn (QA 03/08).
             log.error("Failed to parse AI-generated exercises", e);
-            throw new RuntimeException("AI generation failed: " + e.getMessage(), e);
+            throw new AiServiceException("AI trả về dữ liệu không đúng định dạng, vui lòng thử lại.", e);
         }
     }
 
