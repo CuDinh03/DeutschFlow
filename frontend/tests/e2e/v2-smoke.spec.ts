@@ -69,7 +69,11 @@ test.describe('UI 2.0 (/v2) smoke', () => {
     await mockApi(page, { ...ME, role: 'TEACHER', displayName: 'QA Teacher' })
 
     await page.goto('/v2/teacher')
-    await expect(page.locator('h1')).toContainText('Dashboard & Lớp học')
+    // "Trang chủ" since 076b8452 renamed the teacher dashboard title (this spec still asserted the
+    // original "Dashboard & Lớp học" until 2026-08-04). It is a generic heading, so pair it with a
+    // teacher-only element below — otherwise a bounce to some other page could pass this test.
+    await expect(page.locator('h1')).toContainText('Trang chủ')
+    await expect(page.getByText('Tổng học viên')).toBeVisible()
     await expect(page.getByPlaceholder('Tìm bài học, từ vựng, lớp…')).toBeVisible()
     await expect(page.getByText('Có lỗi xảy ra')).toHaveCount(0)
   })
