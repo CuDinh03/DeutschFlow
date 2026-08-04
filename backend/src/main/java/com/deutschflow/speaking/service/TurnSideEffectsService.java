@@ -119,10 +119,14 @@ public class TurnSideEffectsService {
 
         turnEvaluatorService.recordTurn(prep.userId(), prep.sessionId(), assistantMessageId, parsed, reliableParse, prep.policy());
 
-        trainingDatasetService.recordConversationTurn(
-                prep.userId(), prep.sessionId(), prep.cefrLevel(), prep.topic(),
-                userMessage, parsed, prep.systemPrompt(), assistantMessageId, ai.provider()
-        );
+        // Follow-up PR #261 (R-G2a): turn parse-fail có errors=[] giả — đưa vào dataset training sẽ
+        // dạy model rằng lượt lỗi là mẫu "sạch". Chỉ thu mẫu khi parse STRUCTURED (đáng tin).
+        if (reliableParse) {
+            trainingDatasetService.recordConversationTurn(
+                    prep.userId(), prep.sessionId(), prep.cefrLevel(), prep.topic(),
+                    userMessage, parsed, prep.systemPrompt(), assistantMessageId, ai.provider()
+            );
+        }
 
         session.setLastActivityAt(LocalDateTime.now());
         session.setMessageCount(prep.messageCountBaseline() + 2);

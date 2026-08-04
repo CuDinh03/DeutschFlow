@@ -336,6 +336,54 @@ class GroqChatClientResilienceTest {
         assertThat(requestCount.get()).isEqualTo(callsBeforeOpen);
     }
 
+    @Test
+    @DisplayName("429 liên tiếp KHÔNG mở breaker — chạm trần hạn mức không được biến thành 503 toàn phần")
+    void repeatedRateLimitsDoNotTripTheBreaker() {
+        // Sự cố 04/08 (free tier 8000 TPM): vài user nói cùng lúc → chuỗi 429 → breaker cũ đếm là
+        // failure và OPEN → MỌI user (kể cả greeting phiên mới) ăn 503 "AI đang quá tải" 30s. Bản
+        // chất 429 là bucket cạn tạm thời (refill ~50s) chứ không phải Groq chết, nên breaker phải
+        // đứng yên và từng request nhận đúng RATE_LIMITED + Retry-After để client tự chờ.
+        // Retry-After 45s > trần 20s/lượt ⇒ mỗi lượt gọi đúng 1 request, không tốn thời gian backoff.
+        respondWithSequence(rateLimited("45"));
+        CircuitBreakers breakers = breakersOpeningAfter(2); // ngưỡng mở thấp — hành vi cũ mở từ lượt 3
+        GroqChatClient client = client(breakers);
+
+        for (int i = 0; i < 4; i++) {
+            assertThatThrownBy(() -> client.chatCompletion(messages(), null, 0.7, 100))
+                    .isInstanceOfSatisfying(AiServiceException.class, ex ->
+                            // AI_BUSY ở đây nghĩa là breaker OPEN (hành vi cũ) — sai bản chất lỗi.
+                            assertThat(ex.getCode()).isEqualTo(AiErrorCode.RATE_LIMITED));
+        }
+
+        // Cả 4 lượt đều thật sự tới upstream — breaker chưa từng cắt mạch.
+        assertThat(requestCount.get()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("429 xen giữa lỗi thật không che breaker: 2 lỗi 4xx vẫn đủ mở mạch")
+    void rateLimitsDoNotMaskGenuineFailuresFromTheBreaker() {
+        // 400-thường (lỗi thật, không retry) + 429 (bị bỏ qua) + 400 — nếu 429 bị đếm NHẦM là
+        // "success" thì tỉ lệ failure tụt xuống dưới ngưỡng 50% và breaker không bao giờ mở.
+        respondWithSequence(
+                new StubResponse(400, "{\"error\":{\"message\":\"down\"}}"),
+                rateLimited("45"),
+                new StubResponse(400, "{\"error\":{\"message\":\"down\"}}"));
+        CircuitBreakers breakers = breakersOpeningAfter(2);
+        GroqChatClient client = client(breakers);
+
+        for (int i = 0; i < 3; i++) {
+            assertThatThrownBy(() -> client.chatCompletion(messages(), null, 0.7, 100))
+                    .isInstanceOf(AiServiceException.class);
+        }
+        int callsBeforeOpen = requestCount.get();
+
+        // 2 lỗi 400 đã vào cửa sổ đếm (429 không tính) ⇒ breaker OPEN, fail-fast không gọi upstream.
+        assertThatThrownBy(() -> client.chatCompletion(messages(), null, 0.7, 100))
+                .isInstanceOfSatisfying(AiServiceException.class, ex ->
+                        assertThat(ex.getCode()).isEqualTo(AiErrorCode.AI_BUSY));
+        assertThat(requestCount.get()).isEqualTo(callsBeforeOpen);
+    }
+
     // ── Nghẽn cục bộ: semaphore hết permit → AI_BUSY + Retry-After 15s ───────
 
     @Test
