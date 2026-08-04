@@ -4,12 +4,15 @@ import com.deutschflow.curriculum.dto.RoadmapNodeDto;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.entity.UserLearningProfile;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -36,6 +39,7 @@ public class RoadmapService {
 
     private final JdbcTemplate jdbcTemplate;
     private final UserLearningProfileRepository profileRepository;
+    private final ObjectMapper objectMapper;
 
     public List<RoadmapNodeDto> generateRoadmapForUser(Long userId) {
         UserLearningProfile profile = profileRepository.findByUserId(userId).orElse(null);
@@ -67,6 +71,24 @@ public class RoadmapService {
                     n.tags,
                     n.prerequisites_json,
                     n.unlock_metadata,
+                    -- Per-skill exercise tally, counted in SQL so the ~30KB content_json never
+                    -- crosses the wire. Two authored shapes: a bare array (Hören/Sprechen/Schreiben)
+                    -- or an object carrying `exercises` (Lesen, which also holds reading_passage).
+                    -- KEEP IN SYNC with the identical expression in SkillTreeService#getSkillTreeForUser.
+                    (
+                        SELECT jsonb_object_agg(e.key, CASE
+                                   WHEN jsonb_typeof(e.value) = 'array'
+                                       THEN jsonb_array_length(e.value)
+                                   WHEN jsonb_typeof(e.value -> 'exercises') = 'array'
+                                       THEN jsonb_array_length(e.value -> 'exercises')
+                                   ELSE 0
+                               END)::text
+                        FROM jsonb_each(
+                                 CASE WHEN jsonb_typeof(n.content_json -> 'skill_exercises') = 'object'
+                                      THEN n.content_json -> 'skill_exercises'
+                                      ELSE '{}'::jsonb END
+                             ) AS e
+                    ) AS skill_exercise_counts,
                     COALESCE(p.status, 'LOCKED') AS user_status,
                     COALESCE(p.score_percent, 0) AS user_score,
                     COALESCE(p.best_score, 0) AS user_best_score,
@@ -112,7 +134,11 @@ public class RoadmapService {
                     asString(row.get("description_vi")),
                     asString(row.get("cefr_level")),
                     firstPrerequisiteCode(row),
-                    row.get("sort_order") == null ? null : asInt(row.get("sort_order"))
+                    row.get("sort_order") == null ? null : asInt(row.get("sort_order")),
+                    asNullableInt(row.get("day_number")),
+                    asNullableInt(row.get("week_number")),
+                    computeProgressStatus(row, state),
+                    parseSkillCounts(row.get("skill_exercise_counts"))
             ));
         }
 
@@ -243,6 +269,49 @@ public class RoadmapService {
             return "current";
         }
         return "locked";
+    }
+
+    /**
+     * Refines the three-value {@code state} into the four a tree UI needs, where an offered node
+     * (bud) and a node being worked on (flower) look different. Derived from {@code state} rather
+     * than read straight off {@code user_status} so the two fields can never disagree: {@code state}
+     * already folds in starting points that have no progress row at all — the entry node of a fresh
+     * learner, or a focus-area node promoted by the profile.
+     */
+    private String computeProgressStatus(Map<String, Object> row, String state) {
+        if ("completed".equals(state)) {
+            return "COMPLETED";
+        }
+        if ("locked".equals(state)) {
+            return "LOCKED";
+        }
+        // "current" splits: only an actually-started node is IN_PROGRESS. UNLOCKED — and every
+        // inferred start — is AVAILABLE, which is also the normalization every client used to
+        // have to do for itself.
+        return "IN_PROGRESS".equals(asString(row.get("user_status"))) ? "IN_PROGRESS" : "AVAILABLE";
+    }
+
+    /**
+     * Reads the per-skill exercise tally the query aggregates out of
+     * {@code content_json.skill_exercises}. Content is authored, not user input, but a malformed
+     * node should cost that node its skill chips — not the whole roadmap request.
+     */
+    private Map<String, Integer> parseSkillCounts(Object raw) {
+        if (raw == null) {
+            return Map.of();
+        }
+        String json = raw.toString();
+        if (json.isBlank()) {
+            return Map.of();
+        }
+        try {
+            Map<String, Integer> counts =
+                    objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, Integer>>() {});
+            return counts == null ? Map.of() : counts;
+        } catch (Exception ex) {
+            log.warn("Skipping malformed skill_exercise_counts: {}", ex.getMessage());
+            return Map.of();
+        }
     }
 
     private String findFirstFocusAreaNodeCode(List<Map<String, Object>> rows, UserLearningProfile profile) {
@@ -376,5 +445,10 @@ public class RoadmapService {
 
     private String asString(Object value) {
         return value == null ? null : value.toString();
+    }
+
+    /** Like {@link #asInt} but keeps "absent" distinct from zero — day 0 and no day differ. */
+    private Integer asNullableInt(Object value) {
+        return value == null ? null : asInt(value);
     }
 }
