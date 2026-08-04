@@ -78,6 +78,15 @@ public class GroqChatClient implements OpenAiChatClient {
     /** Stream: trần tổng cho cả lượt sinh — dưới SSE emitter timeout 180s và stall-guard FE 90s. */
     private static final long STREAM_TOTAL_AWAIT_SECONDS = 90;
 
+    /**
+     * 429 hạn mức KHÔNG phải "upstream chết": Groq vẫn sống, bucket token refill trong ~1 phút.
+     * Nếu để breaker đếm 429 là failure thì vài user chạm trần TPM là breaker mở → MỌI user 503
+     * trong 30s (kể cả greeting phiên mới) — biến quá tải cục bộ thành sập toàn phần (đo prod 04/08,
+     * free tier 8000 TPM). Lỗi vẫn ném ra cho client nhận 429 + Retry-After như PR #288.
+     */
+    private static final java.util.function.Predicate<Throwable> RATE_LIMIT_IS_NOT_DOWNTIME =
+            t -> t instanceof AiServiceException ase && ase.getCode() == AiErrorCode.RATE_LIMITED;
+
     private final RestClient restClient;
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
@@ -90,37 +99,31 @@ public class GroqChatClient implements OpenAiChatClient {
      * ({@link #defaultModel}). Rỗng ⇒ không gửi (giữ hành vi cũ). Xem {@link #buildRequestBody}.
      */
     private final String reasoningEffort;
+    /** Endpoint chat-completions thực dùng — mặc định {@link #GROQ_BASE_URL}, đè được qua env/test. */
+    private final String baseUrl;
 
-    @org.springframework.beans.factory.annotation.Autowired
-    public GroqChatClient(
+    /**
+     * Constructor duy nhất, endpoint-overridable. Production mặc định {@link #GROQ_BASE_URL} nhưng
+     * đè được qua env {@code GROQ_BASE_URL} (bảo hiểm vendor: trỏ sang một endpoint OpenAI-compatible
+     * khác không cần sửa code — bài học llama-4-scout khai tử 17/07 + trần free tier 04/08); tests
+     * point it at a local stub server so the retry/deadline/timeout budget of R-B1 can be exercised
+     * for real instead of being asserted by reading the source.
+     */
+    GroqChatClient(
             @Value("${app.ai.groq.api-key:}") String apiKey,
             @Value("${app.ai.groq.model:openai/gpt-oss-20b}") String model,
             ObjectMapper objectMapper,
             GroqConcurrencyLimiter concurrencyLimiter,
             com.deutschflow.common.resilience.CircuitBreakers circuitBreakers,
-            @Value("${app.ai.groq.reasoning-effort:low}") String reasoningEffort) {
-        this(apiKey, model, objectMapper, concurrencyLimiter, circuitBreakers, reasoningEffort, GROQ_BASE_URL);
-    }
-
-    /**
-     * Endpoint-overridable constructor. Production always uses {@link #GROQ_BASE_URL}; tests point it
-     * at a local stub server so the retry/deadline/timeout budget of R-B1 can be exercised for real
-     * instead of being asserted by reading the source.
-     */
-    GroqChatClient(
-            String apiKey,
-            String model,
-            ObjectMapper objectMapper,
-            GroqConcurrencyLimiter concurrencyLimiter,
-            com.deutschflow.common.resilience.CircuitBreakers circuitBreakers,
-            String reasoningEffort,
-            String baseUrl) {
+            @Value("${app.ai.groq.reasoning-effort:low}") String reasoningEffort,
+            @Value("${app.ai.groq.base-url:" + GROQ_BASE_URL + "}") String baseUrl) {
         this.apiKey = apiKey;
         this.defaultModel = model;
         this.objectMapper = objectMapper;
         this.concurrencyLimiter = concurrencyLimiter;
         this.circuitBreakers = circuitBreakers;
         this.reasoningEffort = reasoningEffort == null ? "" : reasoningEffort.trim();
+        this.baseUrl = baseUrl;
 
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(5_000);
@@ -165,7 +168,8 @@ public class GroqChatClient implements OpenAiChatClient {
                     "groqChat",
                     () -> chatCompletionWithRetry(requestBody, effectiveModel),
                     () -> new AiServiceException(AiErrorCode.AI_BUSY,
-                            "AI đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS));
+                            "AI đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS),
+                    RATE_LIMIT_IS_NOT_DOWNTIME);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new AiServiceException(AiErrorCode.AI_INTERRUPTED,
@@ -314,7 +318,8 @@ public class GroqChatClient implements OpenAiChatClient {
                     "groqChat",
                     () -> pumpStream(requestBody, effectiveModel, messages, onToken, onComplete, cancelled),
                     () -> new AiServiceException(AiErrorCode.AI_BUSY,
-                            "AI đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS));
+                            "AI đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS),
+                    RATE_LIMIT_IS_NOT_DOWNTIME);
         } finally {
             if (acquired) {
                 concurrencyLimiter.releaseChat();
@@ -332,7 +337,7 @@ public class GroqChatClient implements OpenAiChatClient {
             final Throwable[] errorRef = new Throwable[1];
 
             webClient.post()
-                    .uri(GROQ_BASE_URL)
+                    .uri(baseUrl)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                     .header(HttpHeaders.ACCEPT, "text/event-stream")
                     .bodyValue(requestBody)

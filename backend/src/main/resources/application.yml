@@ -359,6 +359,10 @@ app:
     groq:
       # Optional: only for AI_CHAT_PROVIDER=groq and/or speech-to-text (Whisper).
       api-key: ${GROQ_API_KEY:}
+      # Endpoint chat-completions. Bảo hiểm vendor: trỏ sang một endpoint OpenAI-compatible khác
+      # (OpenRouter, Cerebras, …) chỉ bằng env + restart, không cần sửa code — bài học llama-4-scout
+      # bị khai tử 17/07 và trần free-tier 8000 TPM 04/08 đều là sự cố "chỉ đổi được bằng deploy".
+      base-url: ${GROQ_BASE_URL:https://api.groq.com/openai/v1/chat/completions}
       # Speaking real-time (greeting + chat từng lượt) — ưu tiên TỐC ĐỘ. gpt-oss-20b ~1000 tok/s,
       # rẻ nhất trong nhóm hỗ trợ json_schema strict (mọi call đều ép response_format=json_object,
       # xem GroqChatClient#buildRequestBody nên model BẮT BUỘC phải hỗ trợ JSON mode).
