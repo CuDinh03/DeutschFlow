@@ -730,6 +730,7 @@
       "correctionsTitle": "Lỗi vừa phát hiện",
       "suggestionsTitle": "Gợi ý trả lời",
       "suggestionsRequest": "Gợi ý trả lời cho mình",
+      "closePanel": "Đóng bảng",
       "suggestionsLoading": "Đang nghĩ gợi ý…",
       "emptyTitle": "Trợ lý học bên cạnh",
       "emptyHint": "Ghi âm, gõ tin hoặc chọn câu mở đầu để chat với {name}",

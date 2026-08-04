@@ -1,7 +1,8 @@
 "use client";
 
+import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Lightbulb, Mic, AlertCircle } from "lucide-react";
+import { Lightbulb, Mic, AlertCircle, Info, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Suggestion, ErrorItem } from "@/lib/aiSpeakingApi";
 import type { PhonemeEvalResult } from "@/lib/phonemeApi";
@@ -69,6 +70,7 @@ export function SpeakingChatSidebar({
 }: Props) {
   const t = useTranslations("speaking.chat");
   const viz = vizState(isListening, streamStatus, isSpeaking);
+  const [panelOpen, setPanelOpen] = useState(false);
 
   const showRecordingPanel = isListening || viz !== "idle";
   const showComposing = !isListening && !!inputText.trim();
@@ -92,12 +94,63 @@ export function SpeakingChatSidebar({
     t("starter3"),
   ] as const;
 
+  // Redesign 05/08 (owner chốt): rail icon mỏng mở-khi-cần thay sidebar 35% cố định —
+  // chat chiếm gần trọn bề ngang, panel trượt phủ lên khi bấm icon.
   return (
     <aside
       id="speaking-copilot-panel"
-      className="ga-ui hidden md:flex md:w-[35%] flex-col border-l border-ga-line bg-ga-card overflow-y-auto"
+      className="ga-ui hidden md:flex relative border-l border-ga-line bg-ga-card"
     >
-      <div className="p-4 space-y-4 flex-1">
+      <div className="w-14 flex flex-col items-center gap-1.5 py-4">
+        <RailButton
+          label={t("suggestionsTitle")}
+          active={panelOpen}
+          badge={showSuggestionRequest || showSuggestionPanel}
+          onClick={() => setPanelOpen((v) => !v)}
+        >
+          <Lightbulb size={18} />
+        </RailButton>
+        <RailButton
+          label={t("correctionsTitle")}
+          active={false}
+          badge={showCorrections}
+          onClick={() => setPanelOpen(true)}
+        >
+          <AlertCircle size={18} />
+        </RailButton>
+        <RailButton
+          label={t("micTitle")}
+          active={false}
+          badge={!!showPhoneme}
+          onClick={() => setPanelOpen(true)}
+        >
+          <Mic size={18} />
+        </RailButton>
+        <RailButton label={companionName} active={false} badge={false} onClick={() => setPanelOpen(true)}>
+          <Info size={18} />
+        </RailButton>
+      </div>
+
+      <AnimatePresence>
+        {panelOpen && (
+          <motion.div
+            initial={{ x: 24, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 24, opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="absolute right-full top-0 bottom-0 w-[340px] overflow-y-auto border-l border-ga-line bg-ga-card shadow-xl z-30"
+          >
+            <div className="flex items-center justify-end px-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setPanelOpen(false)}
+                className="p-1.5 rounded-ga text-ga-muted hover:text-ga-ink hover:bg-ga-surface transition-colors"
+                aria-label={t("closePanel")}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-4 pt-1 space-y-4 flex-1">
         {/* ── Voice / status ── */}
         {(showRecordingPanel || streamStatus !== "idle") && (
           <motion.div
@@ -281,7 +334,45 @@ export function SpeakingChatSidebar({
             )}
           </div>
         )}
-      </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </aside>
+  );
+}
+
+/** Nút icon trên rail 56px — chấm vàng khi mục tương ứng đang có nội dung đáng xem. */
+function RailButton({
+  label,
+  active,
+  badge,
+  onClick,
+  children,
+}: {
+  label: string;
+  active: boolean;
+  badge: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={
+        "relative w-10 h-10 rounded-ga flex items-center justify-center transition-colors " +
+        (active
+          ? "bg-ga-yellow-soft text-ga-gold border border-ga-yellow"
+          : "text-ga-muted hover:text-ga-ink hover:bg-ga-surface border border-transparent")
+      }
+    >
+      {children}
+      {badge && (
+        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-ga-yellow" aria-hidden />
+      )}
+    </button>
   );
 }

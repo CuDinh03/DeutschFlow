@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Send, Mic, MicOff, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
@@ -48,9 +49,20 @@ export function SpeakingInputDock({
   const showMicBlocked = micBlocked && !isListening && !micBusy;
   const micLabel = showMicBlocked ? t("micRetry") : tChat("micTitle");
 
+  // Redesign R1 (05/08): textarea rows=1 không tự cao — câu dài/transcript mic bị cắt dòng 2.
+  // Auto-grow theo scrollHeight, trần max-h (≈5 dòng) rồi mới scroll trong ô.
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [inputText]);
+
   return (
     <footer className="ga-ui border-t border-ga-line bg-ga-card p-3 sm:p-4">
-      <div className="max-w-3xl mx-auto w-full md:w-[65%] md:mx-0">
+      {/* Redesign 05/08: dock canh giữa theo cột chat (sidebar giờ là rail mỏng, hết chia 65/35). */}
+      <div className="max-w-3xl mx-auto w-full">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -97,6 +109,7 @@ export function SpeakingInputDock({
               </span>
             )}
             <textarea
+              ref={textareaRef}
               value={inputText}
               onChange={(e) => onInputChange(e.target.value)}
               onKeyDown={(e) => {
@@ -111,7 +124,7 @@ export function SpeakingInputDock({
                   ? tChat("quotaBlockedInputPlaceholder")
                   : tChat("inputPlaceholder", { name: companionName })
               }
-              className="flex-1 bg-transparent border-none outline-none resize-none max-h-28 min-h-[44px] py-2.5 px-1 text-ga-ink placeholder:text-ga-subtle text-[15px] disabled:opacity-50"
+              className="flex-1 bg-transparent border-none outline-none resize-none max-h-40 min-h-[44px] py-2.5 px-1 text-ga-ink placeholder:text-ga-subtle text-[15px] leading-relaxed disabled:opacity-50"
               rows={1}
             />
             <button
