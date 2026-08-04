@@ -175,7 +175,40 @@
       "nodeLessons": "{done}/{total} bài",
       "nodeLearn": "Học bài",
       "nodeRelearn": "Học lại",
-      "nodePractice": "Luyện 4 kỹ năng"
+      "nodePractice": "Luyện 4 kỹ năng",
+      "tabTree": "Cây học tập",
+      "tree": {
+        "pickNode": "Chạm vào một node trên cây để xem bài của ngày đó.",
+        "dayTitle": "Ngày {day} · {title}",
+        "dayShort": "Ngày {day}",
+        "weekShort": "Tuần {week}",
+        "weekRange": "Tuần {week} · Ngày {from}–{to}",
+        "status": {
+          "leaf": "đã xong",
+          "flower": "đang học",
+          "bud": "đã mở",
+          "nub": "chưa mở"
+        },
+        "legend": {
+          "leaf": "lá = xong",
+          "flower": "hoa = đang học",
+          "bud": "nụ = đã mở",
+          "nub": "chấm xám = khoá"
+        },
+        "lockedHint": "Node này chưa mở. Hoàn thành ngày trước để nụ này nở.",
+        "skillsCap": "Bài tập của node — 4 kỹ năng",
+        "exerciseCount": "{count} câu",
+        "practiceSkill": "Học & Luyện",
+        "progressHint": "Đã đạt {percent}% — đủ cả 4 kỹ năng thì hoa hoá lá.",
+        "doneHint": "Đã đạt cả 4 kỹ năng — lá đã mọc trên cành tuần này.",
+        "review": "Xem lại kiến thức",
+        "study": "Học kiến thức",
+        "futureTip": "ngọn nét đứt = cấp kế tiếp",
+        "summary": "{days} ngày · {weeks} tuần",
+        "doneCount": "{done}/{total} đã xong",
+        "motionOn": "Bật hiệu ứng",
+        "motionOff": "Tắt hiệu ứng"
+      }
     },
     "speaking": {
       "title": "Luyện nói AI",
