@@ -138,6 +138,89 @@ class GroqChatClientResilienceTest {
         assertThat(requestCount.get()).isEqualTo(1);
     }
 
+    // ── Hạn mức upstream 429 (sự cố 04/08: free tier 8000 TPM) ──────────────
+    //
+    // Trước bản vá này mọi 429 đều bị retry mù 3 lần rồi ném AI_UPSTREAM_UNAVAILABLE chung chung.
+    // Hai hệ quả đã đo được trên prod: (1) khi bucket cần ~50s mới đầy mà ngân sách một lượt gọi chỉ
+    // 20s thì retry CHẮC CHẮN trượt nhưng vẫn đốt hạn mức 1000 request/ngày; (2) không có tín hiệu
+    // nào phân biệt "chạm trần tài khoản" với "upstream sập", nên phải gọi tay API Groq mới biết.
+
+    @Test
+    @DisplayName("429 báo chờ lâu hơn ngân sách lượt gọi: bỏ cuộc NGAY sau 1 request, không đốt thêm hạn mức")
+    void rateLimitLongerThanDeadlineFailsFastWithoutRetrying() {
+        // Retry-After 45s > trần 20s/lượt ⇒ retry không thể thành công.
+        respondWithSequence(rateLimited("45"));
+
+        assertThatThrownBy(() -> client().chatCompletion(messages(), null, 0.7, 100))
+                .isInstanceOfSatisfying(AiServiceException.class, ex -> {
+                    assertThat(ex.getCode()).isEqualTo(AiErrorCode.RATE_LIMITED);
+                    assertThat(ex.getRetryAfterSeconds()).isEqualTo(45);
+                });
+
+        // Điểm mấu chốt: ĐÚNG 1 request. Hành vi cũ là 3.
+        assertThat(requestCount.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("429 báo chờ ngắn: nghe theo Retry-After rồi thử lại và thành công")
+    void rateLimitWithinDeadlineWaitsThenRetries() {
+        respondWithSequence(
+                rateLimited("1"),
+                new StubResponse(200, OK_JSON_RESPONSE));
+
+        long startedAt = System.nanoTime();
+        var result = client().chatCompletion(messages(), null, 0.7, 100);
+        Duration elapsed = Duration.ofNanos(System.nanoTime() - startedAt);
+
+        assertThat(result).isNotNull();
+        assertThat(requestCount.get()).isEqualTo(2);
+        // Chờ theo Retry-After (1s), KHÔNG phải backoff cố định 2s của nhánh 5xx.
+        assertThat(elapsed).isGreaterThanOrEqualTo(Duration.ofMillis(900));
+        assertThat(elapsed).isLessThan(Duration.ofMillis(1_900));
+    }
+
+    @Test
+    @DisplayName("429 không kèm Retry-After: vẫn retry 3 lần, nhưng ném RATE_LIMITED + gợi ý mặc định 60s")
+    void rateLimitWithoutHeaderStillClassifiedAsRateLimited() {
+        respondWith(429, "{\"error\":{\"message\":\"rate limited\"}}");
+
+        assertThatThrownBy(() -> client().chatCompletion(messages(), null, 0.7, 100))
+                .isInstanceOfSatisfying(AiServiceException.class, ex -> {
+                    // Mã riêng ⇒ GlobalExceptionHandler tự đếm speaking.ai.failures{code=RATE_LIMITED}
+                    // và phát Retry-After. Trước đây lẫn vào AI_UPSTREAM_UNAVAILABLE nên vô hình.
+                    assertThat(ex.getCode()).isEqualTo(AiErrorCode.RATE_LIMITED);
+                    assertThat(ex.getRetryAfterSeconds()).isEqualTo(60);
+                });
+
+        assertThat(requestCount.get()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("thông điệp hạn mức cũng trung tính — không lộ vendor cho người dùng cuối")
+    void rateLimitMessageIsNeutral() {
+        respondWithSequence(rateLimited("45"));
+
+        assertThatThrownBy(() -> client().chatCompletion(messages(), null, 0.7, 100))
+                .isInstanceOfSatisfying(AiServiceException.class, ex ->
+                        assertThat(ex.getMessage())
+                                .doesNotContain("Groq").doesNotContain("groq")
+                                .doesNotContain("rate limit").doesNotContain("429"));
+    }
+
+    @Test
+    @DisplayName("parse Retry-After: số phân số làm tròn LÊN, giá trị rác/thiếu ⇒ không có gợi ý")
+    void parsesRetryAfterLeniently() {
+        // Groq trả cả dạng phân số; làm tròn xuống là thử lại sớm và ăn thêm một 429.
+        assertThat(GroqChatClient.parseRetryAfterSeconds("7.5")).isEqualTo(8);
+        assertThat(GroqChatClient.parseRetryAfterSeconds("2")).isEqualTo(2);
+        assertThat(GroqChatClient.parseRetryAfterSeconds("0.2")).isEqualTo(1);
+        // RFC cho phép cả HTTP-date; ta không đoán mà coi như không có gợi ý.
+        assertThat(GroqChatClient.parseRetryAfterSeconds("Wed, 21 Oct 2026 07:28:00 GMT")).isNull();
+        assertThat(GroqChatClient.parseRetryAfterSeconds("-5")).isNull();
+        assertThat(GroqChatClient.parseRetryAfterSeconds("")).isNull();
+        assertThat(GroqChatClient.parseRetryAfterSeconds((String) null)).isNull();
+    }
+
     // ── Câu chữ lộ ra client (§8.1: không vendor, không tiếng Anh kỹ thuật) ──
 
     @Test
@@ -286,6 +369,7 @@ class GroqChatClientResilienceTest {
             receivedBodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             byte[] payload = response.body().getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
+            response.headers().forEach((name, value) -> exchange.getResponseHeaders().add(name, value));
             exchange.sendResponseHeaders(response.status(), payload.length);
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(payload);
@@ -294,7 +378,23 @@ class GroqChatClientResilienceTest {
         server.start();
     }
 
-    private record StubResponse(int status, String body) {}
+    private record StubResponse(int status, String body, java.util.Map<String, String> headers) {
+        StubResponse(int status, String body) {
+            this(status, body, java.util.Map.of());
+        }
+    }
+
+    /** 429 kèm đúng bộ header hạn mức Groq trả trên prod (đo 04/08). */
+    private static StubResponse rateLimited(String retryAfterSeconds) {
+        return new StubResponse(429,
+                "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-20b`\","
+                        + "\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}",
+                java.util.Map.of(
+                        "Retry-After", retryAfterSeconds,
+                        "x-ratelimit-limit-tokens", "8000",
+                        "x-ratelimit-remaining-tokens", "0",
+                        "x-ratelimit-reset-tokens", "49.5s"));
+    }
 
     private GroqChatClient client() {
         return client(breakersOpeningAfter(100));
