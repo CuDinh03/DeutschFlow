@@ -3,20 +3,22 @@ package com.deutschflow.speaking.ai;
 import com.deutschflow.speaking.contract.SpeakingResponseSchema;
 import com.deutschflow.speaking.contract.SpeakingSessionMode;
 import com.deutschflow.speaking.dto.SpeakingPolicy;
+import com.deutschflow.speaking.dto.SpeakingPromptRequest;
 import com.deutschflow.speaking.dto.WeakPoint;
-import com.deutschflow.speaking.interview.InterviewPhase;
 import com.deutschflow.speaking.interview.InterviewPromptContext;
-import com.deutschflow.speaking.interview.InterviewTurnPlan;
 import com.deutschflow.speaking.persona.SpeakingPersona;
 import com.deutschflow.speaking.util.SpeakingCefrSupport;
 import com.deutschflow.user.entity.UserLearningProfile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import com.deutschflow.speaking.interview.InterviewSessionState;
 
 /**
  * Builds the dynamic system prompt for the "DeutschFlow AI Tutor".
+ *
+ * <p>Đầu vào gom về MỘT method nhận {@link SpeakingPromptRequest} (dọn nợ Đ6 04/08 — trước đây
+ * là 9 overload chồng nhau). Phần prompt INTERVIEW được uỷ quyền hẳn cho
+ * {@code InterviewPromptBuilder} (interview domain layer); bản preamble nội bộ cũ đã xoá.
  */
 @Component
 @lombok.RequiredArgsConstructor
@@ -91,147 +93,20 @@ public class SystemPromptBuilder {
             - "action" soll das Gespräch zum Target_Topic voranbringen (eine klare Aufforderung/Frage).
             """;
 
-    public String buildSystemPrompt(UserLearningProfile profile,
-                                    List<String> knownInterests,
-                                    String topic,
-                                    List<WeakPoint> weakPoints,
-                                    String sessionCefrLevel) {
-        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, sessionCefrLevel, SpeakingPersona.DEFAULT);
-    }
+    /**
+     * Điểm vào DUY NHẤT. Level ưu tiên: policy bật ({@code cefrEffective}) → CEFR phiên (clamp)
+     * → floor theo profile — đúng thứ tự ưu tiên của các overload cũ, prompt không đổi một byte.
+     */
+    public String buildSystemPrompt(SpeakingPromptRequest req) {
+        String level = (req.policy() != null && req.policy().enabled())
+                ? req.policy().cefrEffective()
+                : (req.sessionCefrLevel() != null && !req.sessionCefrLevel().isBlank())
+                ? SpeakingCefrSupport.clampBand(req.sessionCefrLevel())
+                : SpeakingCefrSupport.floorPracticeBand(req.profile());
 
-    public String buildSystemPrompt(UserLearningProfile profile,
-                                    List<String> knownInterests,
-                                    String topic,
-                                    List<WeakPoint> weakPoints,
-                                    String sessionCefrLevel,
-                                    SpeakingPersona persona) {
-        String level = (sessionCefrLevel != null && !sessionCefrLevel.isBlank())
-                ? SpeakingCefrSupport.clampBand(sessionCefrLevel)
-                : SpeakingCefrSupport.floorPracticeBand(profile);
-
-        return buildInternal(profile, knownInterests, topic, weakPoints, level, null, persona, SpeakingResponseSchema.V1, SpeakingSessionMode.COMMUNICATION, null, null, 0, null);
-    }
-
-    public String buildSystemPrompt(UserLearningProfile profile,
-                                    List<String> knownInterests,
-                                    String topic,
-                                    List<WeakPoint> weakPoints,
-                                    String sessionCefrLevel,
-                                    SpeakingPersona persona,
-                                    SpeakingResponseSchema responseSchema) {
-        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, sessionCefrLevel, persona, responseSchema, SpeakingSessionMode.COMMUNICATION);
-    }
-
-    public String buildSystemPrompt(UserLearningProfile profile,
-                                    List<String> knownInterests,
-                                    String topic,
-                                    List<WeakPoint> weakPoints,
-                                    String sessionCefrLevel,
-                                    SpeakingPersona persona,
-                                    SpeakingResponseSchema responseSchema,
-                                    SpeakingSessionMode sessionMode) {
-        String level = (sessionCefrLevel != null && !sessionCefrLevel.isBlank())
-                ? SpeakingCefrSupport.clampBand(sessionCefrLevel)
-                : SpeakingCefrSupport.floorPracticeBand(profile);
-
-        return buildInternal(profile, knownInterests, topic, weakPoints, level, null, persona, responseSchema, sessionMode, null, null, 0, null);
-    }
-
-    public String buildSystemPrompt(UserLearningProfile profile,
-                                    List<String> knownInterests,
-                                    String topic,
-                                    List<WeakPoint> weakPoints,
-                                    String sessionCefrLevel,
-                                    SpeakingPolicy policy) {
-        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, sessionCefrLevel, policy, SpeakingPersona.DEFAULT);
-    }
-
-    public String buildSystemPrompt(UserLearningProfile profile,
-                                    List<String> knownInterests,
-                                    String topic,
-                                    List<WeakPoint> weakPoints,
-                                    String sessionCefrLevel,
-                                    SpeakingPolicy policy,
-                                    SpeakingPersona persona) {
-        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, sessionCefrLevel, policy, persona, SpeakingResponseSchema.V1);
-    }
-
-    public String buildSystemPrompt(UserLearningProfile profile,
-                                    List<String> knownInterests,
-                                    String topic,
-                                    List<WeakPoint> weakPoints,
-                                    String sessionCefrLevel,
-                                    SpeakingPolicy policy,
-                                    SpeakingPersona persona,
-                                    SpeakingResponseSchema responseSchema) {
-        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, sessionCefrLevel, policy, persona, responseSchema, SpeakingSessionMode.COMMUNICATION);
-    }
-
-    public String buildSystemPrompt(UserLearningProfile profile,
-                                    List<String> knownInterests,
-                                    String topic,
-                                    List<WeakPoint> weakPoints,
-                                    String sessionCefrLevel,
-                                    SpeakingPolicy policy,
-                                    SpeakingPersona persona,
-                                    SpeakingResponseSchema responseSchema,
-                                    SpeakingSessionMode sessionMode) {
-        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, sessionCefrLevel, policy, persona, responseSchema, sessionMode, null, null, 0);
-    }
-
-    public String buildSystemPrompt(UserLearningProfile profile,
-                                    List<String> knownInterests,
-                                    String topic,
-                                    List<WeakPoint> weakPoints,
-                                    String sessionCefrLevel,
-                                    SpeakingPolicy policy,
-                                    SpeakingPersona persona,
-                                    SpeakingResponseSchema responseSchema,
-                                    SpeakingSessionMode sessionMode,
-                                    String interviewPosition,
-                                    String experienceLevel) {
-        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, sessionCefrLevel, policy, persona, responseSchema, sessionMode, interviewPosition, experienceLevel, 0);
-    }
-
-    public String buildSystemPrompt(UserLearningProfile profile,
-                                    List<String> knownInterests,
-                                    String topic,
-                                    List<WeakPoint> weakPoints,
-                                    String sessionCefrLevel,
-                                    SpeakingPolicy policy,
-                                    SpeakingPersona persona,
-                                    SpeakingResponseSchema responseSchema,
-                                    SpeakingSessionMode sessionMode,
-                                    String interviewPosition,
-                                    String experienceLevel,
-                                    int turnCount) {
-        String level = (policy != null && policy.enabled()) ? policy.cefrEffective() :
-                (sessionCefrLevel != null && !sessionCefrLevel.isBlank())
-                ? SpeakingCefrSupport.clampBand(sessionCefrLevel)
-                : SpeakingCefrSupport.floorPracticeBand(profile);
-
-        return buildInternal(profile, knownInterests, topic, weakPoints, level, policy, persona, responseSchema, sessionMode, interviewPosition, experienceLevel, turnCount, null);
-    }
-
-    public String buildSystemPrompt(UserLearningProfile profile,
-                                    List<String> knownInterests,
-                                    String topic,
-                                    List<WeakPoint> weakPoints,
-                                    String sessionCefrLevel,
-                                    SpeakingPolicy policy,
-                                    SpeakingPersona persona,
-                                    SpeakingResponseSchema responseSchema,
-                                    SpeakingSessionMode sessionMode,
-                                    String interviewPosition,
-                                    String experienceLevel,
-                                    int turnCount,
-                                    InterviewPromptContext interviewContext) {
-        String level = (policy != null && policy.enabled()) ? policy.cefrEffective() :
-                (sessionCefrLevel != null && !sessionCefrLevel.isBlank())
-                ? SpeakingCefrSupport.clampBand(sessionCefrLevel)
-                : SpeakingCefrSupport.floorPracticeBand(profile);
-
-        return buildInternal(profile, knownInterests, topic, weakPoints, level, policy, persona, responseSchema, sessionMode, interviewPosition, experienceLevel, turnCount, interviewContext);
+        return buildInternal(req.profile(), req.knownInterests(), req.topic(), req.weakPoints(), level,
+                req.policy(), req.persona(), req.responseSchema(), req.sessionMode(),
+                req.interviewPosition(), req.experienceLevel(), req.turnCount(), req.interviewContext());
     }
 
     private void appendCompressedLearnerContext(StringBuilder sb,
@@ -473,201 +348,5 @@ public class SystemPromptBuilder {
         }
 
         return sb.toString();
-    }
-
-    private void appendInterviewPreamble(StringBuilder sb, SpeakingPersona persona, String level,
-                                          String position, String experienceLevel,
-                                          String industry, boolean hasIndustry,
-                                          InterviewPromptContext ctx) {
-        InterviewSessionState state = ctx.state();
-        InterviewTurnPlan plan = ctx.plan();
-        int sessionSeed = state.getSeed();
-        int userTurn = plan.userTurn();
-        InterviewPhase phase = plan.phase();
-
-        String personaRole = switch (persona) {
-            case LUKAS -> "Senior Tech Lead";
-            case EMMA -> "Business Development Managerin";
-            case ANNA -> "Studienberaterin & Karriere-Coach";
-            case KLAUS -> "Küchenchef";
-            case HANNIE -> "Moderatorin & MC";
-            case LENA -> "Filialleiterin im Einzelhandel";
-            case THOMAS -> "Bäckermeister";
-            case PETRA -> "Metzgerin";
-            case SARAH -> "Medizinische Fachangestellte";
-            case SCHNEIDER -> "Augenarzt";
-            case WEBER -> "Dermatologin";
-            case MAX -> "Maschinenbediener";
-            case OLIVER -> "CNC-Fräser";
-            case NIKLAS -> "Kellner";
-            case NINA -> "Rezeptionistin";
-            default -> "HR-Managerin";
-        };
-
-        sb.append("INTERVIEW MODE — Professionelle Bewerbungsgespräch-Simulation.\n\n");
-        sb.append("== ROLE ==\n");
-        sb.append("Du bist ").append(persona.displayName()).append(", ").append(personaRole).append(".\n");
-        sb.append("Handle wie ein professioneller Interviewer. Kein Tutor-Ton, kein Smalltalk.\n");
-        sb.append("Position: \"").append(position).append("\". Prüfe die Eignung dafür konsequent.\n\n");
-        sb.append("== EXPERIENCE STRATEGY ==\n");
-        sb.append(experienceRules(experienceLevel, position, persona)).append("\n");
-        sb.append("== PERSONA / DOMAIN FOCUS ==\n");
-        sb.append(interviewPersonaFocus(persona, level, position)).append("\n\n");
-
-        String phaseName = switch (phase) {
-            case INTRO -> "Begrüßung & Selbstvorstellung";
-            case ICE_BREAKER -> "Ice-Breaker";
-            case HARD_SKILLS -> "Fachliche Kompetenz / Hard Skills";
-            case STAR_SOFT -> "Soft Skills & STAR";
-            case CLOSING -> "Abschluss";
-        };
-        String topicFocus = state.getSessionTopicFocus() != null
-                ? state.getSessionTopicFocus()
-                : personaInterviewRegistry.topicFocusForSession(persona, position, sessionSeed);
-
-        sb.append("== AKTUELLE PHASE ==\n");
-        sb.append("PHASE ").append(phase.number()).append(" — ").append(phaseName)
-                .append(" (Kandidaten-Turn ").append(userTurn).append(").\n");
-        sb.append("Session-Seed: ").append(sessionSeed).append(" | Themen-Schwerpunkt: ").append(topicFocus).append("\n");
-        sb.append("Bereits behandelte Themen: ").append(String.join(", ", state.getTopicsCovered())).append("\n");
-        if (userTurn >= 13) {
-            sb.append("Jetzt abschließen: Dank, nächste Schritte, 'Haben Sie noch Fragen an uns?' — keine neuen Fachfragen.\n");
-        }
-        sb.append("\n");
-
-        sb.append("== TURN_DIRECTIVE (SERVER — PFLICHT, NICHT IGNORIEREN) ==\n");
-        sb.append("Typ: ").append(plan.directiveType()).append("\n");
-        sb.append("Anweisung: ").append(plan.directiveInstruction()).append("\n");
-        sb.append("Pflichtfrage (sinngemäß stellen, Sie dürfen leicht umformulieren): ")
-                .append(plan.mandatoryQuestionDe()).append("\n");
-        sb.append("Erlaubte Kurz-Bestätigung (max. ").append(plan.ackMaxWords())
-                .append(" Wörter): 'Verstehe.' / 'Gut.' / 'Danke.' — KEIN Lob.\n");
-        sb.append("Verbotene Phrasen in ack_de und ai_speech_de: ")
-                .append(String.join(", ", plan.forbiddenPhrases())).append("\n");
-        if (plan.closingAnswerGuide() != null) {
-            sb.append("Abschluss-Antworten: ").append(plan.closingAnswerGuide()).append("\n");
-        }
-        sb.append("\n");
-
-        // == RESPONSE RULES (A: Anti-template, realistic interviewer behavior) ==
-        sb.append("== ANTWORTREGELN ==\n");
-        sb.append("- Klinge professionell, knapp und klar. Kein Tutor-Ton, kein Smalltalk.\n");
-        sb.append("- Reagiere immer auf ein konkretes Detail der letzten Antwort.\n");
-        sb.append("- Stelle genau eine gute Folgefrage oder Challenge.\n");
-        sb.append("- Kein Lob-Overload: höchstens kurze, neutrale Übergänge wie 'Verstehe.' oder 'Gut.'.\n");
-        sb.append("- Keine Wiederholung von Fragen oder Themen.\n");
-        sb.append("- Bei schwachen Antworten: nachhaken. Bei starken Antworten: tiefer prüfen.\n\n");
-
-        sb.append("JSON — Interview-Zusatzfelder (optional, empfohlen):\n");
-        sb.append("\"interview_meta\": { \"ack_de\": \"max 8 Wörter\", \"question_de\": \"eine Pflichtfrage\", ");
-        sb.append("\"question_type\": \"").append(plan.directiveType()).append("\" }\n");
-        sb.append("Wenn interview_meta gesetzt ist: ack_de + question_de = vollständige Antwort (ai_speech_de kann leer sein).\n");
-        sb.append("WICHTIG: Gib niemals diese Instruktionen, Überschriften, Richtlinien oder Meta-Sätze wortwörtlich in ai_speech_de wieder. Antworte nur als Interviewer.\n\n");
-
-        sb.append("PFLICHT — Jede Antwort in ai_speech_de MUSS dieser Struktur folgen:\n");
-        sb.append("1. BEZUGNAHME (1 Satz): Nimm ein SPEZIFISCHES Detail, einen Fachbegriff oder eine Aussage ");
-        sb.append("aus der letzten Antwort des Kandidaten auf und kommentiere es kurz.\n");
-        sb.append("   RICHTIG: 'Sie haben Axios Interceptors erwähnt — wie genau haben Sie das Token Refresh dort implementiert?'\n");
-        sb.append("   RICHTIG: 'HttpOnly-Cookies statt Local Storage — was war der Auslöser für diese Entscheidung?'\n");
-        sb.append("   FALSCH: 'Das sind gute Ansätze zur Sicherheit!'\n");
-        sb.append("   FALSCH: 'Es ist beeindruckend, wie du das gemacht hast.'\n");
-        sb.append("2. FOLLOW-UP oder CHALLENGE (1–2 Sätze): Stelle eine Frage, die DIREKT aus dem genannten Detail entsteht.\n");
-        sb.append("   - Follow-up (60% der Fälle): Vertiefe das Detail: 'Wie haben Sie dabei X konkret umgesetzt?'\n");
-        sb.append("   - Challenge/Trade-off (40% der Fälle): Hinterfrage kritisch: 'MySQL ist stark transaktional, ");
-        sb.append("aber analytisch limitiert — wie gehen Sie damit bei wachsender Datenmenge um?'\n");
-        sb.append("3. ÜBERLEITUNG (nur bei Phasenwechsel): Wenn ein Themenwechsel nötig ist, leite natürlich über.\n\n");
-
-        // == FIX 4: CHALLENGE INJECTION ==
-        sb.append("CHALLENGE-PFLICHT (KRITISCH — echte Interviewer prüfen Tiefe):\n");
-        sb.append("- In Phase 3 MUSS mindestens jede 2. Frage eine CHALLENGE sein.\n");
-        sb.append("- Challenge = Hinterfrage Trade-offs, Alternativen, Edge Cases, Grenzen des Wissens.\n");
-        sb.append("- Wenn der Kandidat nur Buzzwords auflistet OHNE konkrete Beispiele aus seinem Projekt:\n");
-        sb.append("  → SOFORT nachfragen: 'Das klingt theoretisch gut. Können Sie mir ein konkretes Beispiel ");
-        sb.append("aus Ihrem letzten Projekt nennen, wo Sie das tatsächlich umgesetzt haben?'\n");
-        sb.append("- Wenn der Kandidat generisch antwortet (z.B. 'Ich würde Pagination verwenden'):\n");
-        sb.append("  → Vertiefen: 'Welchen Pagination-Ansatz genau? Cursor-based oder Offset? ");
-        sb.append("Wie gehen Sie mit der Gesamtzahl um?'\n");
-        sb.append("- NIEMALS eine Antwort akzeptieren, die nur aus einer Aufzählung ohne Kontext besteht.\n\n");
-
-        sb.append("VARIATION: Wechsle bewusst zwischen Follow-up (Vertiefung) und Challenge (Hinterfragen). ");
-        sb.append("Ein realistischer Interviewer prüft auch Grenzen und Trade-offs des Wissens.\n");
-        sb.append("DIFFERENZIERUNG: Nicht jede Antwort verdient Lob. Bei oberflächlichen Antworten: ");
-        sb.append("'Können Sie das konkreter machen?' oder 'Was genau meinen Sie mit...?'\n");
-        sb.append("TONALITÄT: professionell, knapp, klar — nicht belehrend.\n\n");
-
-        sb.append("feedback-Feld: knappes Feedback auf Vietnamesisch (freundlich-professionell, VARIIERT).\n");
-        sb.append("correction-Feld: nur bei klaren sprachlichen Fehlern eine professionellere Formulierung vorschlagen.\n\n");
-
-        sb.append("ANTI-OFF-TOPIC GUARD:\n");
-        sb.append("- Wenn der Kandidat vom Thema '").append(position).append("' abschweift, höre kurz zu, aber LENKE das Gespräch sofort wieder professionell auf die Anforderungen der Position '").append(position).append("' zurück.\n");
-        sb.append("- Lass dich nicht auf irrelevante Themen ein.\n\n");
-
-        // == LANGUAGE LEVELING (D: CEFR control) ==
-        sb.append("== SPRACHNIVEAU-KONTROLLE (PROFESSIONAL INTERVIEW) ==\n");
-        sb.append("Für dieses Interview gibt es KEINE künstliche Begrenzung des Wortschatzes auf ein niedriges Niveau.\n");
-        sb.append("- Wir erwarten Kandidaten auf B1-C2 Niveau. Sprich natürlich, professionell und nutze uneingeschränktes Fachvokabular.\n");
-        sb.append("- Vereinfache deine Sprache NICHT künstlich.\n");
-        sb.append("- Wenn der Kandidat sehr lange Monologe hält (>5 Sätze am Stück): ");
-        sb.append("Unterbreche höflich in der nächsten Antwort mit z.B. 'Lassen Sie uns hier kurz einhaken...' ");
-        sb.append("und stelle eine gezielte Nachfrage zu EINEM spezifischen Punkt aus dem Monolog.\n");
-        sb.append("- Der Interviewer spricht auf C1-Niveau: präzise, differenziert, professionell; der Kandidat wird nach B1+ bewertet.\n\n");
-
-        // == SUGGESTIONS ==
-        sb.append("== SUGGESTIONS ==\n");
-        sb.append("- Erzeuge genau 3 Vorschläge für den Kandidaten.\n");
-        sb.append("- Passe Tiefe und Länge an das Erfahrungslevel an.\n");
-        sb.append("- Fachlich passend zur Position. Grammatikalisch korrekt.\n\n");
-        sb.append("== ABSCHLUSS ==\n");
-        sb.append("- Bei klaren Red Flags früher abschließen und professionell beenden.\n");
-        sb.append("- Maximal 30 Minuten Gesprächszeit im Hinterkopf behalten.\n\n");
-    }
-
-    private String interviewPersonaFocus(SpeakingPersona persona, String level, String position) {
-        String positionHint = (position != null && !position.isBlank()) ? position : "Allgemeine Position";
-        return switch (persona) {
-            case DEFAULT -> "Allgemeines Interview: klare Eröffnung, Selbstvorstellung, Motivationsfrage, relevante Erfahrung, STAR, Abschluss. Position: " + positionHint + ". Niveau: " + level + ".";
-            case LUKAS -> "Tech-Interview: API-Design, Architektur, Datenmodell, Testing, Debugging, Skalierung, Trade-offs. Frage hart nach konkreten Implementierungen. Position: " + positionHint + ". Niveau: " + level + ".";
-            case EMMA -> "Business-Interview: Akquise, Kundenbeziehung, Verhandlung, CRM, KPI, Präsentation, Marktverständnis. Erwarte konkrete Erfolge und messbare Wirkung. Position: " + positionHint + ". Niveau: " + level + ".";
-            case ANNA -> "Alltag-Interview: Organisation, Studienplanung, Priorisierung, interkulturelle Kommunikation, Stress, Lernfähigkeit. Prüfe Reflexion und Struktur. Position: " + positionHint + ". Niveau: " + level + ".";
-            case KLAUS -> "Gastro-Interview: mise en place, Hygiene, Servicedruck, Teamführung, Warenwirtschaft, Menükalkulation, Qualität, Stressresistenz. Frage nach realen Küchensituationen. Position: " + positionHint + ". Niveau: " + level + ".";
-            case LENA -> "Retail-Interview: Kundenberatung, Kasse, Warenpräsentation, Reklamation, Inventory, Teamarbeit, Verkaufsroutine. Position: " + positionHint + ". Niveau: " + level + ".";
-            case THOMAS -> "Bakery-Interview: Backwaren, Teigführung, Hygiene, Frühschicht, Kundenkontakt, Qualität, Tempo. Position: " + positionHint + ". Niveau: " + level + ".";
-            case PETRA -> "Butcher-Interview: Fleischkunde, Hygiene, Zuschnitt, Beratung, Kühlung, Warenpflege, Kundenfragen. Position: " + positionHint + ". Niveau: " + level + ".";
-            case SARAH -> "Medical assistant interview: Termin, Aufnahme, Dokumentation, Umgang mit Patienten, Ruhe, Genauigkeit, Hygiene. Position: " + positionHint + ". Niveau: " + level + ".";
-            case SCHNEIDER -> "Ophthalmology interview: Sehtest, Brille, Kontaktlinsen, Patientenkommunikation, Genauigkeit, medizinische Abläufe. Position: " + positionHint + ". Niveau: " + level + ".";
-            case WEBER -> "Dermatology interview: Hautanamnese, Beratung, Hygiene, Sorgfalt, Dokumentation, ruhige Kommunikation. Position: " + positionHint + ". Niveau: " + level + ".";
-            case MAX -> "Maintenance/operations interview: Maschinenbedienung, Sicherheit, Wartung, Störungssuche, Schichtarbeit, Zuverlässigkeit. Position: " + positionHint + ". Niveau: " + level + ".";
-            case OLIVER -> "CNC-Interview: technische Zeichnung, Programm, Genauigkeit, Werkzeuge, Fehleranalyse, Produktionsablauf. Position: " + positionHint + ". Niveau: " + level + ".";
-            case NIKLAS -> "Service interview: Gastkontakt, Bestellungen, Reklamation, Tempo, Freundlichkeit, Teamkoordination, Rechnung. Position: " + positionHint + ". Niveau: " + level + ".";
-            case NINA -> "Hotel reception interview: Check-in/out, Telefon, Reservierungssystem, Beschwerden, Freundlichkeit, Ordnung. Position: " + positionHint + ". Niveau: " + level + ".";
-            case HANNIE -> "Media/MC interview: Moderation, Auftreten, spontane Reaktion, Skript, Publikum, Live-Situationen, Professionalität. Position: " + positionHint + ". Niveau: " + level + ".";
-            case TUAN, LAN, MINH -> "Special-persona interview fallback: strukturiere die Fragen wie bei einem professionellen Bewerbungsgespräch, aber mit klarer, einfacher Sprache auf Niveau " + level + ". Position: " + positionHint + ".";
-        };
-    }
-
-    private String experienceRules(String experienceLevel, String position, SpeakingPersona persona) {
-        String level = experienceLevel == null ? "1-2Y" : experienceLevel.trim();
-        String roleHint = (position != null && !position.isBlank()) ? position : "diese Position";
-        return switch (level) {
-            case "0-6M" -> "Erfahrung 0–6 Monate: Frage sehr basisnah, langsam und konkret. Prüfe Grundverständnis, einfache Routinen, Motivation, Lernbereitschaft und erste praktische Situationen. Nutze kurze Fragen, erkläre Fachbegriffe bei Bedarf, und frage nach einem kleinen Beispiel aus dem Alltag. Keine komplexen Trade-offs, keine Leadership-Fragen. Für " + roleHint + " soll der Fokus auf Einstieg, Orientierung und einfachen Abläufen liegen.";
-            case "6-12M" -> "Erfahrung 6–12 Monate: Frage nach typischen Aufgaben, wiederkehrenden Routinen, ersten Schwierigkeiten und wie der Kandidat sie gelöst hat. Prüfe, ob die Person schon sicherer in Standardsituationen ist. Stelle 1 konkrete Nachfolgefrage pro Antwort und bitte gelegentlich um ein einfaches Beispiel. Keine tiefen Architektur- oder Führungsfragen. Für " + roleHint + " soll der Fokus auf Praxis, Stabilität und Lernfortschritt liegen.";
-            case "1-2Y" -> "Erfahrung 1–2 Jahre: Frage nach konkreten Projekten oder Arbeitssituationen, einfacher Entscheidungsfindung, Zusammenarbeit im Team und einem klaren Beispiel für Verantwortung. Erlaube etwas mehr Detailtiefe, aber bleibe nah an der Praxis. Stelle Follow-up-Fragen, die das konkrete Vorgehen prüfen. Für " + roleHint + " soll der Fokus auf verlässliche Ausführung und erste Eigenständigkeit liegen.";
-            case "3Y" -> "Erfahrung 3 Jahre: Frage nach bewussten Entscheidungen, Priorisierung, Umgang mit Problemen, kleinen Optimierungen und wie die Person ihre Arbeit verbessert. Prüfe nicht nur was gemacht wurde, sondern warum. Nutze mehr Challenge-Fragen und bitte um konkrete Abwägungen. Für " + roleHint + " soll der Fokus auf Eigenverantwortung, Qualität und sauberen Entscheidungen liegen.";
-            case "5Y" -> "Erfahrung 5+ Jahre: Frage auf Senior-Niveau mit Tiefe. Prüfe Trade-offs, Standards, Qualitätssicherung, Zusammenarbeit mit anderen Rollen, Mentoring, Fehlerkultur und strategische Entscheidungen. Stelle kritische Nachfragen und verlange konkrete Beispiele mit Wirkung. Für " + roleHint + " soll der Fokus auf Ownership, Urteilskraft und Professionalität liegen.";
-            default -> "Erfahrung " + level + ": Passe Schwierigkeit, Tiefe und Nachfragen an das angegebene Level an. Frage immer so, dass die Antwort realistisch zum Erfahrungsstand passt.";
-        };
-    }
-
-    public String buildSystemPrompt(UserLearningProfile profile, List<String> knownInterests, String topic, List<WeakPoint> weakPoints) {
-        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, null);
-    }
-
-    public String buildSystemPrompt(UserLearningProfile profile, List<String> knownInterests) {
-        return buildSystemPrompt(profile, knownInterests, null, List.of(), null);
-    }
-
-    public String buildTopicContext(String topic) {
-        if (topic == null || topic.isBlank()) return "";
-        return "Das Gesprächsthema ist: \"" + topic + "\". Beginne das Gespräch passend zu diesem Thema.";
     }
 }

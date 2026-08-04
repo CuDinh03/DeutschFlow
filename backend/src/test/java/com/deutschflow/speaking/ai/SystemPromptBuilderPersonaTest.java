@@ -18,6 +18,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import com.deutschflow.speaking.contract.SpeakingResponseSchema;
 import com.deutschflow.speaking.contract.SpeakingSessionMode;
+import com.deutschflow.speaking.dto.SpeakingPromptRequest;
 
 class SystemPromptBuilderPersonaTest {
 
@@ -48,10 +49,14 @@ class SystemPromptBuilderPersonaTest {
                 .build();
     }
 
+    private static SpeakingPromptRequest.SpeakingPromptRequestBuilder request(String topic, String level, SpeakingPersona persona) {
+        return SpeakingPromptRequest.builder()
+                .profile(minimalProfile()).topic(topic).sessionCefrLevel(level).persona(persona);
+    }
+
     @Test
     void lukasPrompt_containsAnchors() {
-        String p = builder.buildSystemPrompt(
-                minimalProfile(), List.of(), "Beruf", List.of(), "B1", SpeakingPersona.LUKAS);
+        String p = builder.buildSystemPrompt(request("Beruf", "B1", SpeakingPersona.LUKAS).build());
         assertThat(p).contains("PERSONA (Lukas");
         assertThat(p).contains("Berlin");
         assertThat(p).contains("Priorität: Target_Topic");
@@ -59,24 +64,21 @@ class SystemPromptBuilderPersonaTest {
 
     @Test
     void emmaPrompt_containsAnchors() {
-        String p = builder.buildSystemPrompt(
-                minimalProfile(), List.of(), "Alltag", List.of(), "A2", SpeakingPersona.EMMA);
+        String p = builder.buildSystemPrompt(request("Alltag", "A2", SpeakingPersona.EMMA).build());
         assertThat(p).contains("PERSONA (Emma");
         assertThat(p).contains("Flohmarkt");
     }
 
     @Test
     void klausPrompt_containsAnchors() {
-        String p = builder.buildSystemPrompt(
-                minimalProfile(), List.of(), "Familie", List.of(), "B2", SpeakingPersona.KLAUS);
+        String p = builder.buildSystemPrompt(request("Familie", "B2", SpeakingPersona.KLAUS).build());
         assertThat(p).contains("PERSONA (Klaus");
         assertThat(p).contains("Küchenchef");
     }
 
     @Test
     void defaultPrompt_hasNoPersonaBlock() {
-        String p = builder.buildSystemPrompt(
-                minimalProfile(), List.of(), "Thema", List.of(), "A1", SpeakingPersona.DEFAULT);
+        String p = builder.buildSystemPrompt(request("Thema", "A1", SpeakingPersona.DEFAULT).build());
         assertThat(p).doesNotContain("PERSONA (Lukas");
         assertThat(p).contains("AI TASKS & LOGIC");
     }
@@ -100,10 +102,11 @@ class SystemPromptBuilderPersonaTest {
     void interviewPrompt_containsTurnDirective() {
         var ctx = com.deutschflow.speaking.interview.InterviewPromptContext.fallback(
                 SpeakingPersona.WEBER, "MTA Dermatologie", 4, new PersonaInterviewRegistry());
-        String p = builder.buildSystemPrompt(
-                minimalProfile(), List.of(), "Interview", List.of(), "B1",
-                null, SpeakingPersona.WEBER, SpeakingResponseSchema.V1, SpeakingSessionMode.INTERVIEW,
-                "MTA Dermatologie", "1-2Y", 4, ctx);
+        String p = builder.buildSystemPrompt(request("Interview", "B1", SpeakingPersona.WEBER)
+                .responseSchema(SpeakingResponseSchema.V1).sessionMode(SpeakingSessionMode.INTERVIEW)
+                .interviewPosition("MTA Dermatologie").experienceLevel("1-2Y").turnCount(4)
+                .interviewContext(ctx)
+                .build());
         assertThat(p).contains("TURN_DIRECTIVE");
         assertThat(p).contains("Verbotene Phrasen");
         assertThat(p).contains("Pflichtfrage");
