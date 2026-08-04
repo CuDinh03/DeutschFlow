@@ -16,7 +16,7 @@ interface ComposePickerProps {
 /**
  * "+ Nhắn học viên" — a compose button that opens a searchable roster of every student across the
  * teacher's classes and starts a direct thread with the chosen one. The roster loads lazily on
- * first open. Rendered inside {@link MessagesView}'s conversation-list header.
+ * first open. Rendered inside the inbox's conversation-list header.
  */
 export function ComposePicker({ onPick }: ComposePickerProps) {
   const [open, setOpen] = useState(false)

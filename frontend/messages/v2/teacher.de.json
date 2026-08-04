@@ -475,9 +475,6 @@
     "messages": {
       "title": "Nachrichten",
       "subtitle": "Schreibe Lernenden einzeln oder der ganzen Klassengruppe",
-      "modeAria": "Nachrichtenmodus",
-      "modeDirect": "Direkt",
-      "modeClass": "Klassengruppe",
       "emptyDirect": "Noch keine Unterhaltungen. Tippe oben auf \"Lernenden anschreiben\", um einen privaten Chat mit einem Lernenden zu starten."
     },
     "analytics": {
