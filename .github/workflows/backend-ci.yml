@@ -108,13 +108,18 @@ jobs:
           path: backend/target/surefire-reports/
           retention-days: 7
 
-  # ─── Stage 3: Integration Tests (main only) ───────────────────────
+  # ─── Stage 3: Integration Tests ───────────────────────────────────
+  # Trước đây chỉ chạy khi push vào main, nghĩa là PR merge xong mới biết mình làm đỏ
+  # integration test — đúng lúc sửa đắt nhất, và người sửa thường đã chuyển việc khác.
+  # Giờ chạy cho mọi PR có đụng backend/, cùng điều kiện với Compile và Unit Tests
+  # (job `changes` quyết định) nên PR không đụng backend vẫn được báo cáo "skipped",
+  # thứ mà branch protection chấp nhận — xem ghi chú ở khối `on:` đầu file.
   integration-tests:
     name: 🐘 Integration Tests
-    needs: unit-tests
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [changes, unit-tests]
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -124,9 +129,13 @@ jobs:
           java-version: "17"
           cache: maven
 
-      # ubuntu-latest có Docker daemon sẵn — Testcontainers dùng trực tiếp
+      # ubuntu-latest có Docker daemon sẵn — Testcontainers dùng trực tiếp.
+      # DEUTSCHFLOW_IT_REQUIRE_DB: dựng không nổi Postgres thì ĐỎ, không skip êm rồi báo xanh.
+      # -DskipUnitTests: chỉ tắt surefire, failsafe vẫn chạy (property khai trong pom).
       - name: Run integration tests (Failsafe — Testcontainers)
         working-directory: backend
+        env:
+          DEUTSCHFLOW_IT_REQUIRE_DB: "true"
         run: ./mvnw -B verify -DskipUnitTests=true
 
       - name: Upload integration test results
