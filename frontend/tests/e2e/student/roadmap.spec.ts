@@ -1,180 +1,109 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { studentCookies, STUDENT_TOKEN } from '../../helpers/tokens';
 
 /**
- * E2E Tests: Student Roadmap — AsyncJob Integration
+ * E2E: tab "Bài học" và trạng thái rỗng của /v2/student/roadmap.
  *
- * Strategy: We mock ALL backend API calls at the network layer (page.route).
- * The app uses localStorage key 'accessToken' for auth.
- * addInitScript sets this BEFORE React hydrates.
- * We also intercept the navigation redirect to /undefined (caused by useLocale
- * returning undefined in headless) and redirect back to the roadmap.
+ * Tệp này trước đây trỏ vào `/student/roadmap` (v1) và có 3 test. Chỉ 1 test được port; 2 test
+ * kia BỊ XOÁ vì chúng kiểm thử một mô hình dữ liệu đã không còn tồn tại, chứ không phải một
+ * trang chỉ đổi địa chỉ:
+ *
+ *   · "roadmap creation status and learned node progress" — đọc `GET /skill-tree/me` (node
+ *     CORE_TRUNK/SATELLITE_LEAF, %, "1 / 2"). Lộ trình /v2 KHÔNG có nguồn này: trang đọc DUY NHẤT
+ *     `GET /roadmap/me`. Trục "cây kỹ năng" của v1 không có đối ứng để port sang.
+ *   · "unlock job slow before completing" — bấm mở khoá node vệ tinh qua `POST /skill-tree/{id}/unlock`
+ *     rồi poll `/async-jobs/{id}`. Luồng mở khoá bằng AI này không tồn tại trên /v2.
+ *
+ * Bù lại, tab "Cây học tập" (mặc định) đã được phủ riêng và kỹ ở `roadmap-tree.spec.ts` — cùng
+ * nguồn `GET /roadmap/me`. Tệp này giữ phần còn lại của hợp đồng trang: tab "Bài học" và
+ * trạng thái rỗng.
  */
-test.describe('Student Roadmap', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.context().addCookies([
-      { name: 'NEXT_LOCALE', value: 'vi', domain: 'localhost', path: '/' },
-      ...studentCookies(),
-    ]);
 
-    await page.addInitScript((token) => {
-      localStorage.setItem('accessToken', token);
-      localStorage.setItem('df_roadmap_view', 'list');
-    }, STUDENT_TOKEN);
+const STUDENT_ME = {
+  displayName: 'Test Student',
+  role: 'STUDENT',
+  userId: 1,
+  email: 'student@test.com',
+  learningTargetLevel: 'A1',
+};
 
-    // ── Mock all API endpoints ──────────────────────────────────────────────
-    // Catch-all MUST be registered first so specific routes can override it
-    await page.route('**/api/**', (route) => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: '{}',
-    }));
+function node(day: number, state: 'completed' | 'current' | 'locked') {
+  return {
+    id: 100 + day,
+    code: `D${String(day).padStart(2, '0')}`,
+    title: `Tag ${day}`,
+    subtitle: `Ngày ${day}`,
+    emoji: '📘',
+    state,
+    xpReward: 100,
+    lessonsTotal: 3,
+    lessonsCompleted: state === 'completed' ? 3 : state === 'current' ? 1 : 0,
+    cefrLevel: 'A1',
+    description: `Bài ngày ${day}`,
+    dayNumber: day,
+    weekNumber: Math.ceil(day / 5),
+    progressStatus: state === 'completed' ? 'COMPLETED' : state === 'locked' ? 'LOCKED' : 'IN_PROGRESS',
+    skillCounts: { HOEREN: 3, SPRECHEN: 2, LESEN: 2, SCHREIBEN: 2 },
+  };
+}
 
-    // Use regex to strictly match /api/auth/me (no trailing characters like /plan)
-    await page.route(/.+\/api\/auth\/me$/, (route) => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        displayName: 'Test Student',
-        role: 'STUDENT',
-        userId: 1,
-        email: 'student@test.com',
-        learningTargetLevel: 'A1',
-      }),
-    }));
+/** Catch-all trước, route cụ thể sau — Playwright ưu tiên route đăng ký SAU. */
+async function mockRoadmap(page: Page, nodes: unknown[]) {
+  await page.context().addCookies([
+    { name: 'NEXT_LOCALE', value: 'vi', domain: 'localhost', path: '/' },
+    ...studentCookies(),
+  ]);
+  await page.addInitScript((token) => localStorage.setItem('accessToken', token), STUDENT_TOKEN);
 
-    await page.route('**/api/auth/me/plan', (route) => route.fulfill({
+  await page.route('**/api/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+  );
+  await page.route(/.+\/api\/auth\/me$/, (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(STUDENT_ME) }),
+  );
+  await page.route('**/api/auth/me/plan', (route) =>
+    route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ planCode: 'PRO', tier: 'PRO' }),
-    }));
+    }),
+  );
+  await page.route('**/api/roadmap/me', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(nodes) }),
+  );
+}
 
-    await page.route('**/api/onboarding/status', (route) => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ hasPlan: true }),
-    }));
+test.describe('Lộ trình học viên (/v2)', () => {
+  test('backend không trả node nào thì báo lộ trình rỗng', async ({ page }) => {
+    await mockRoadmap(page, []);
+    await page.goto('/v2/student/roadmap');
 
-    await page.route('**/api/plan/me', (route) => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ plan: { targetLevel: 'A1', currentLevel: 'A1' } }),
-    }));
+    // Tab mặc định ("Cây học tập") và tab "Bài học" dùng CHUNG một trạng thái rỗng.
+    await expect(page.getByText('Chưa có bài học nào')).toBeVisible();
+    await expect(
+      page.getByText('Hoàn thành phần khảo sát đầu vào để nhận lộ trình cá nhân hoá.'),
+    ).toBeVisible();
 
-    await page.route('**/api/student/dashboard', (route) => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ streakDays: 5 }),
-    }));
-
-    await page.route('**/api/skill-tree/me', (route) => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify([
-        {
-          id: 1,
-          node_type: 'CORE_TRUNK',
-          title_vi: 'Cơ bản 1',
-          title_de: 'Grundlagen 1',
-          description_vi: 'Bài học cơ bản đầu tiên',
-          emoji: '🚀',
-          user_status: 'COMPLETED',
-          cefr_level: 'A1',
-          phase: 'GRUNDLAGEN',
-          xp_reward: 50, energy_cost: 10, difficulty: 1,
-          dependencies_met: true,
-          user_score: 100, user_xp: 50, user_attempts: 1,
-          sort_order: 1, week_number: 1, day_number: 1,
-          completed_at: null,
-        },
-        {
-          id: 2,
-          node_type: 'SATELLITE_LEAF',
-          title_vi: 'Chuyên ngành IT',
-          title_de: 'IT Fachbegriffe',
-          description_vi: 'Từ vựng IT chuyên ngành',
-          emoji: '💻',
-          user_status: 'LOCKED',
-          cefr_level: 'A1',
-          phase: 'BERUF_CONTEXT',
-          xp_reward: 100, energy_cost: 15, difficulty: 2,
-          dependencies_met: true,
-          user_score: 0, user_xp: 0, user_attempts: 0,
-          sort_order: 2, week_number: 1, day_number: 1,
-          completed_at: null,
-        },
-      ]),
-    }));
-
+    await page.getByRole('tab', { name: 'Bài học' }).click();
+    await expect(page.getByText('Chưa có bài học nào')).toBeVisible();
   });
 
-  test('should display roadmap creation status and learned node progress', async ({ page }) => {
-    await page.goto('/student/roadmap');
+  test('tab "Bài học" liệt kê node kèm tiến độ và hai cửa vào bài', async ({ page }) => {
+    await mockRoadmap(page, [node(1, 'completed'), node(2, 'current'), node(3, 'locked')]);
+    await page.goto('/v2/student/roadmap');
 
-    await expect(page.getByText('Cơ bản 1')).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText('Chuyên ngành IT')).toBeVisible();
-    await expect(page.getByText('A1')).toBeVisible();
-    await expect(page.getByText('50%')).toBeVisible();
-    await expect(page.getByText('1 / 2')).toBeVisible();
-  });
+    await page.getByRole('tab', { name: 'Bài học' }).click();
 
-  test('should keep roadmap responsive when the unlock job is slow before completing', async ({ page }) => {
-    await page.route('**/api/skill-tree/2/unlock', (route) => route.fulfill({
-      status: 202,
-      contentType: 'application/json',
-      body: JSON.stringify({ jobId: 'test-job-uuid', status: 'ACCEPTED' }),
-    }));
+    await expect(page.getByText('Ngày 1', { exact: true })).toBeVisible();
+    await expect(page.getByText('3/3 bài')).toBeVisible();
+    await expect(page.getByText('1/3 bài')).toBeVisible();
 
-    let pollCount = 0;
-    await page.route('**/api/async-jobs/test-job-uuid', (route) => {
-      pollCount++;
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(
-          pollCount <= 2
-            ? { status: 'PROCESSING' }
-            : { status: 'COMPLETED', resultPayload: '{}' }
-        ),
-      });
-    });
-
-    await page.goto('/student/roadmap');
-
-    await expect(page.getByText('Chuyên ngành IT')).toBeVisible({ timeout: 15000 });
-    await page.getByText('Chuyên ngành IT').click();
-    await page.getByRole('button', { name: /Mở khóa bài chuyên ngành/i }).click();
-
-    await expect(page.getByText(/AI đang tạo bài học/i)).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText(/Bài học đã được mở khóa/i)).toBeVisible({ timeout: 15000 });
-  });
-
-  test('should show empty roadmap fallback when backend returns no nodes', async ({ page }) => {
-    await page.route('**/api/roadmap/me', (route) => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify([]),
-    }));
-    await page.route('**/api/roadmap/me/meta', (route) => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        roadmapVersion: 'A0_A1_Foundation_First',
-        roadmapType: 'FOUNDATION_FIRST',
-        entryNodeCode: 'A0-001',
-        currentLevel: 'A0',
-        targetLevel: 'A1',
-        currentNodeCode: 'A0-001',
-        completedNodes: 0,
-        totalNodes: 0,
-        progressPercent: 0,
-        progressModel: 'ROADMAP_STATES_V1',
-      }),
-    }));
-
-    await page.goto('/student/roadmap');
-
-    await expect(page.getByText('Lộ trình trống')).toBeVisible();
-    await expect(page.getByText(/Chưa có node để học/i)).toBeVisible();
+    // Node đã mở có cả hai cửa; node khoá không mời học.
+    await expect(page.getByRole('link', { name: /Học lại/ })).toHaveAttribute(
+      'href',
+      /\/v2\/student\/learn\/101\/?$/,
+    );
+    await expect(page.getByRole('link', { name: 'Luyện 4 kỹ năng' })).toHaveCount(2);
+    await expect(page.getByText('Chưa mở')).toBeVisible();
   });
 });
