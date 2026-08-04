@@ -193,5 +193,11 @@ test-*.js
 !mobile/assets/
 !mobile/assets/**
 
+# …và icon PWA của web cũng vậy: manifest.json trỏ thẳng tới 2 file này, nên rule
+# *.png ở trên mà nuốt mất là icon 404 trên production. Sinh lại từ public/icon.svg
+# bằng `node scripts/generate-web-icons.mjs` (frontend/) mỗi khi logo đổi.
+!frontend/public/icon-192.png
+!frontend/public/icon-512.png
+
 # Scratch/temp scripts — thường chứa key hardcode, không commit
 scratch/
