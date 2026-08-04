@@ -30,7 +30,13 @@ public record SpeakingPromptRequest(
         String interviewPosition,
         String experienceLevel,
         int turnCount,
-        InterviewPromptContext interviewContext
+        InterviewPromptContext interviewContext,
+        /**
+         * Đ4: schema V1 có sinh 2 suggestions trong lượt chat không. Mặc định {@code true} (hành vi
+         * gốc); {@code ChatPrepService} đặt {@code false} khi config {@code speaking.suggestionsMode}
+         * = on_demand — khi đó client lấy gợi ý qua endpoint riêng, tiết kiệm ~⅓ completion token.
+         */
+        Boolean includeSuggestions
 ) {
     public SpeakingPromptRequest {
         knownInterests = knownInterests == null ? List.of() : List.copyOf(knownInterests);
@@ -38,5 +44,6 @@ public record SpeakingPromptRequest(
         persona = persona == null ? SpeakingPersona.DEFAULT : persona;
         responseSchema = responseSchema == null ? SpeakingResponseSchema.V1 : responseSchema;
         sessionMode = sessionMode == null ? SpeakingSessionMode.COMMUNICATION : sessionMode;
+        includeSuggestions = includeSuggestions == null || includeSuggestions;
     }
 }

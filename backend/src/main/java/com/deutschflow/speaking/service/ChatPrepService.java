@@ -187,6 +187,7 @@ public class ChatPrepService {
                 .interviewPosition(isInterview ? sessionRow.getInterviewPosition() : null)
                 .experienceLevel(isInterview ? sessionRow.getExperienceLevel() : null)
                 .interviewContext(isInterview ? interviewContext : null)
+                .includeSuggestions(chatTurnIncludesSuggestions())
                 .build();
         // Đ2: greeting cũng dùng bản TĨNH để làm ấm prefix-cache cho các lượt chat sau
         // (INTERVIEW: buildStaticSystemPrompt tự trả bản gộp như cũ).
@@ -376,6 +377,7 @@ public class ChatPrepService {
                 .experienceLevel(session.getExperienceLevel())
                 .turnCount(session.getMessageCount())
                 .interviewContext(sessionMode == SpeakingSessionMode.INTERVIEW ? interviewContext : null)
+                .includeSuggestions(chatTurnIncludesSuggestions())
                 .build();
         // Đ2: phần tĩnh bất biến suốt phiên (ăn prefix-cache); RAG + policy + learner context đổi
         // theo lượt nên đi riêng thành message system ngay trước tin nhắn user. INTERVIEW: bản gộp,
@@ -436,6 +438,16 @@ public class ChatPrepService {
             throw new NotFoundException("Session not found: " + sessionId);
         }
         return session;
+    }
+
+    /**
+     * Đ4: {@code on_demand} (mặc định) = lượt chat KHÔNG sinh suggestions — client bấm nút thì lấy
+     * qua {@code POST /api/ai-speaking/sessions/{id}/suggestions}. Đường lùi không cần deploy:
+     * {@code PUT /api/admin/ai-config} không đụng tới — đặt row {@code speaking.suggestionsMode}
+     * = {@code always} qua system_config (Caffeine TTL 1h) là hành vi cũ quay lại.
+     */
+    private boolean chatTurnIncludesSuggestions() {
+        return "always".equalsIgnoreCase(systemConfigService.getString("speaking.suggestionsMode", "on_demand"));
     }
 
     private UserLearningProfile defaultProfile() {

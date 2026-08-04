@@ -701,6 +701,8 @@
       "composing": "Wird geschrieben",
       "correctionsTitle": "Fehler in deiner letzten Nachricht",
       "suggestionsTitle": "Antwortvorschläge",
+      "suggestionsRequest": "Antwortvorschläge anzeigen",
+      "suggestionsLoading": "Vorschläge werden erstellt…",
       "emptyTitle": "Lern-Begleiter",
       "emptyHint": "Aufnehmen, tippen oder einen Einstieg wählen, um mit {name} zu chatten",
       "startersTitle": "Einstiegsvorschläge",

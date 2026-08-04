@@ -16,6 +16,9 @@ interface Props {
   lastUserErrors: ErrorItem[];
   phonemeResult: PhonemeEvalResult | null;
   phonemeLoading?: boolean;
+  /** Đ4: gợi ý sinh theo yêu cầu — có mặt ⇒ hiện nút khi chưa có chip nào. */
+  suggestionsLoading?: boolean;
+  onRequestSuggestions?: () => void;
   onSuggestionSelect: (text: string) => void;
 }
 
@@ -27,12 +30,18 @@ export function SpeakingMobileCopilotSheet({
   lastUserErrors,
   phonemeResult,
   phonemeLoading,
+  suggestionsLoading,
+  onRequestSuggestions,
   onSuggestionSelect,
 }: Props) {
   const t = useTranslations("speaking.chat");
 
+  // Đ4: chưa có chip nhưng có nút yêu cầu ⇒ sheet vẫn có nội dung để mở.
+  const showSuggestionRequest =
+    showSuggestions && suggestions.length === 0 && !!onRequestSuggestions;
   const hasContent =
     (showSuggestions && suggestions.length > 0) ||
+    showSuggestionRequest ||
     lastUserErrors.length > 0 ||
     !!phonemeResult ||
     phonemeLoading;
@@ -104,6 +113,20 @@ export function SpeakingMobileCopilotSheet({
                     ))}
                   </ul>
                 </div>
+              )}
+
+              {showSuggestionRequest && (
+                <button
+                  type="button"
+                  onClick={onRequestSuggestions}
+                  disabled={suggestionsLoading}
+                  className="w-full flex items-center gap-2 p-3 rounded-ga bg-ga-surface border border-ga-line hover:border-ga-accent transition-colors disabled:opacity-60"
+                >
+                  <Lightbulb size={14} className="text-ga-gold flex-shrink-0" />
+                  <span className="text-[12px] font-semibold text-ga-ink">
+                    {suggestionsLoading ? t("suggestionsLoading") : t("suggestionsRequest")}
+                  </span>
+                </button>
               )}
 
               {showSuggestions && suggestions.length > 0 && (

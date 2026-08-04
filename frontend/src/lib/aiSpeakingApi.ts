@@ -513,6 +513,29 @@ export const aiSpeakingApi = {
   chat: (sessionId: number, userMessage: string) =>
     api.post<AiChatResponse>(`/ai-speaking/sessions/${sessionId}/chat`, { userMessage }),
 
+  /**
+   * Đ4 (04/08): gợi ý theo yêu cầu cho câu hỏi gần nhất của AI — backend mặc định không sinh
+   * suggestions trong lượt chat nữa. Endpoint trả SuggestionDto camelCase; map về snake_case
+   * của type Suggestion (hình dạng meta stream) để mọi UI hiện có dùng lại nguyên xi.
+   */
+  fetchSuggestions: (sessionId: number) =>
+    api.post<{ suggestions: Array<{
+      germanText: string
+      vietnameseTranslation: string | null
+      level: string | null
+      whyToUse: string | null
+      usageContext: string | null
+      legoStructure: string | null
+    }> }>(`/ai-speaking/sessions/${sessionId}/suggestions`, {}, { timeout: 30000 })
+      .then(r => (r.data.suggestions ?? []).map((s): Suggestion => ({
+        german_text: s.germanText,
+        vietnamese_translation: s.vietnameseTranslation ?? '',
+        level: s.level ?? '',
+        why_to_use: s.whyToUse ?? '',
+        usage_context: s.usageContext ?? '',
+        lego_structure: s.legoStructure ?? '',
+      }))),
+
   transcribe: (audioBlob: Blob) => {
     const mime = String(audioBlob.type || '').toLowerCase()
     const ext =

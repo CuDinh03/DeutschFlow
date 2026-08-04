@@ -140,6 +140,27 @@ class SystemPromptBuilderCacheSplitTest {
     }
 
     @Test
+    @DisplayName("Đ4 on-demand: includeSuggestions=false ⇒ prompt sạch bóng khối suggestions")
+    void onDemandMode_dropsSuggestionsFromPrompt() {
+        String prompt = builder.buildStaticSystemPrompt(base().includeSuggestions(false).build());
+
+        assertThat(prompt)
+                .doesNotContain("suggestions")
+                .doesNotContain("Scaffolding")
+                .doesNotContain("KURZ + SICHER");
+        // phần còn lại của hợp đồng V1 vẫn nguyên vẹn
+        assertThat(prompt).contains("AI TASKS & LOGIC").contains("error_code").contains("learning_status");
+    }
+
+    @Test
+    @DisplayName("mặc định (không set cờ): vẫn sinh suggestions — tương thích hành vi cũ")
+    void defaultKeepsSuggestions() {
+        String prompt = builder.buildStaticSystemPrompt(base().build());
+
+        assertThat(prompt).contains("Scaffolding: GENAU 2 suggestions");
+    }
+
+    @Test
     @DisplayName("INTERVIEW chưa tách: static = bản gộp, dynamic = null")
     void interviewMode_staysCombined() {
         var req = base().sessionMode(SpeakingSessionMode.INTERVIEW)
