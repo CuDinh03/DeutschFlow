@@ -303,8 +303,12 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         InterviewPromptContext interviewContext = chatPrepService.buildGreetingInterviewContext(sessionMode, sessionRow, persona);
         String systemPrompt = chatPrepService.buildGreetingSystemPrompt(profile, knownInterests, topic, weakPoints, cefrLevel, policy,
                 persona, responseSchema, sessionMode, sessionRow, interviewContext);
-        List<ChatMessage> messages = chatPrepService.buildGreetingMessages(systemPrompt, persona, topic, weakPoints, sessionMode,
-                sessionRow, interviewContext);
+        // Đ2: system prompt greeting giờ là bản TĨNH (làm ấm prefix-cache cho các lượt chat sau);
+        // learner context + adaptive policy đi qua khối động riêng. INTERVIEW: dynamic=null như cũ.
+        String greetingDynamicContext = chatPrepService.buildGreetingDynamicContext(
+                profile, knownInterests, weakPoints, cefrLevel, policy, sessionMode);
+        List<ChatMessage> messages = chatPrepService.buildGreetingMessages(systemPrompt, greetingDynamicContext,
+                persona, topic, weakPoints, sessionMode, sessionRow, interviewContext);
         int greetMaxTokens = chatPrepService.resolveGreetingMaxTokens(userId);
 
         AiChatCompletionResult result = openAiChatClient.chatCompletion(

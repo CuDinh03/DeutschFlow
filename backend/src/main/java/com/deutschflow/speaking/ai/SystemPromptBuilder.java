@@ -94,19 +94,70 @@ public class SystemPromptBuilder {
             """;
 
     /**
-     * Điểm vào DUY NHẤT. Level ưu tiên: policy bật ({@code cefrEffective}) → CEFR phiên (clamp)
-     * → floor theo profile — đúng thứ tự ưu tiên của các overload cũ, prompt không đổi một byte.
+     * Prompt ĐẦY ĐỦ (tĩnh + động gộp một khối) — dùng cho INTERVIEW (P2 chưa tách chế độ này)
+     * và mọi chỗ cần bản gộp. Level ưu tiên: policy bật ({@code cefrEffective}) → CEFR phiên
+     * (clamp) → floor theo profile — đúng thứ tự ưu tiên cũ, prompt không đổi một byte.
      */
     public String buildSystemPrompt(SpeakingPromptRequest req) {
         String level = (req.policy() != null && req.policy().enabled())
                 ? req.policy().cefrEffective()
-                : (req.sessionCefrLevel() != null && !req.sessionCefrLevel().isBlank())
-                ? SpeakingCefrSupport.clampBand(req.sessionCefrLevel())
-                : SpeakingCefrSupport.floorPracticeBand(req.profile());
-
+                : sessionLevel(req);
         return buildInternal(req.profile(), req.knownInterests(), req.topic(), req.weakPoints(), level,
                 req.policy(), req.persona(), req.responseSchema(), req.sessionMode(),
-                req.interviewPosition(), req.experienceLevel(), req.turnCount(), req.interviewContext());
+                req.interviewPosition(), req.experienceLevel(), req.turnCount(), req.interviewContext(),
+                true);
+    }
+
+    /**
+     * Phần TĨNH của prompt (Đ2 04/08): bất biến từng byte trong suốt phiên để prefix-cache của
+     * Groq ăn được (token trúng cache không tính TPM + rẻ hơn). Khác bản gộp ở 2 điểm có chủ đích:
+     * <ul>
+     *   <li>KHÔNG chứa learner context (Interessen/Schwachstellen) + ADAPTIVE POLICY — hai khối
+     *       đổi theo lượt, chuyển sang {@link #buildDynamicTurnContext};</li>
+     *   <li>level lấy theo PHIÊN (CEFR chọn lúc tạo / floor profile), KHÔNG theo
+     *       {@code policy.cefrEffective()} — policy trôi giữa các lượt sẽ phá cache; level hiệu
+     *       dụng vẫn tới model qua dòng "effektives Niveau" trong khối động.</li>
+     * </ul>
+     * INTERVIEW chưa tách (directive đổi từng lượt nằm sâu trong InterviewPromptBuilder) — trả
+     * bản gộp như cũ.
+     */
+    public String buildStaticSystemPrompt(SpeakingPromptRequest req) {
+        if (req.sessionMode() == SpeakingSessionMode.INTERVIEW) {
+            return buildSystemPrompt(req);
+        }
+        return buildInternal(req.profile(), req.knownInterests(), req.topic(), req.weakPoints(),
+                sessionLevel(req), req.policy(), req.persona(), req.responseSchema(), req.sessionMode(),
+                req.interviewPosition(), req.experienceLevel(), req.turnCount(), req.interviewContext(),
+                false);
+    }
+
+    /**
+     * Phần ĐỘNG theo lượt (Đ2): learner context + adaptive policy + RAG — gửi thành MESSAGE system
+     * riêng ngay trước tin nhắn user (không nằm trong system prompt đầu) để phần tĩnh giữ nguyên
+     * prefix. Trả {@code null} khi không có gì (hoặc INTERVIEW — toàn bộ nằm trong bản gộp).
+     */
+    public String buildDynamicTurnContext(SpeakingPromptRequest req, String ragContext) {
+        if (req.sessionMode() == SpeakingSessionMode.INTERVIEW) {
+            return null;
+        }
+        StringBuilder inner = new StringBuilder();
+        appendCompressedLearnerContext(inner, req.knownInterests(), req.weakPoints());
+        appendAdaptivePolicy(inner, req.policy());
+        if (ragContext != null && !ragContext.isBlank()) {
+            inner.append("\n=== TÀI LIỆU HỖ TRỢ (RAG CONTEXT) ===\n").append(ragContext).append("\n");
+        }
+        if (inner.isEmpty()) {
+            return null;
+        }
+        // Đóng khung rõ nguồn: model từng sửa lỗi cả text ngữ cảnh khi nó lẫn vào lời học viên.
+        return "NGỮ CẢNH TỪ SERVER cho lượt này (tham khảo — KHÔNG phải lời học viên, KHÔNG sửa lỗi hay trích dẫn phần này):\n"
+                + inner;
+    }
+
+    private static String sessionLevel(SpeakingPromptRequest req) {
+        return (req.sessionCefrLevel() != null && !req.sessionCefrLevel().isBlank())
+                ? SpeakingCefrSupport.clampBand(req.sessionCefrLevel())
+                : SpeakingCefrSupport.floorPracticeBand(req.profile());
     }
 
     private void appendCompressedLearnerContext(StringBuilder sb,
@@ -260,7 +311,8 @@ public class SystemPromptBuilder {
                                  String interviewPosition,
                                  String experienceLevel,
                                  int turnCount,
-                                 InterviewPromptContext interviewContext) {
+                                 InterviewPromptContext interviewContext,
+                                 boolean includeTurnDynamicBlocks) {
 
         boolean hasIndustry = profile.getIndustry() != null && !profile.getIndustry().isBlank();
         String industry = hasIndustry ? profile.getIndustry() : null;
@@ -284,10 +336,13 @@ public class SystemPromptBuilder {
             sb.append("- Session_Mode: ").append(sessionMode.name()).append("\n");
         }
 
-        if (sessionMode != SpeakingSessionMode.INTERVIEW) {
-            appendCompressedLearnerContext(sb, knownInterests, weakPoints);
+        // Đ2: hai khối dưới đổi theo lượt — bản TĨNH bỏ qua, chúng đi theo buildDynamicTurnContext.
+        if (includeTurnDynamicBlocks) {
+            if (sessionMode != SpeakingSessionMode.INTERVIEW) {
+                appendCompressedLearnerContext(sb, knownInterests, weakPoints);
+            }
+            appendAdaptivePolicy(sb, policy);
         }
-        appendAdaptivePolicy(sb, policy);
 
         sb.append("\n");
 

@@ -174,7 +174,7 @@ public class ChatPrepService {
                                              InterviewPromptContext interviewContext) {
         boolean isInterview = sessionMode == SpeakingSessionMode.INTERVIEW && interviewContext != null;
         // SpeakingPromptRequest tự xử lý policy tắt (builder kiểm tra enabled()) — hết nhánh ?: lồng nhau.
-        return promptBuilder.buildSystemPrompt(SpeakingPromptRequest.builder()
+        SpeakingPromptRequest req = SpeakingPromptRequest.builder()
                 .profile(profile)
                 .knownInterests(knownInterests)
                 .topic(topic)
@@ -187,10 +187,35 @@ public class ChatPrepService {
                 .interviewPosition(isInterview ? sessionRow.getInterviewPosition() : null)
                 .experienceLevel(isInterview ? sessionRow.getExperienceLevel() : null)
                 .interviewContext(isInterview ? interviewContext : null)
-                .build());
+                .build();
+        // Đ2: greeting cũng dùng bản TĨNH để làm ấm prefix-cache cho các lượt chat sau
+        // (INTERVIEW: buildStaticSystemPrompt tự trả bản gộp như cũ).
+        return promptBuilder.buildStaticSystemPrompt(req);
+    }
+
+    /**
+     * Khối ngữ cảnh ĐỘNG cho greeting (Đ2): learner context + adaptive policy — trước đây nằm
+     * trong system prompt greeting, nay gửi thành message system riêng để system prompt tĩnh
+     * byte-identical với các lượt chat. Không có RAG (greeting chưa có tin nhắn user).
+     */
+    public String buildGreetingDynamicContext(UserLearningProfile profile,
+                                              List<String> knownInterests,
+                                              List<WeakPoint> weakPoints,
+                                              String cefrLevel,
+                                              SpeakingPolicy policy,
+                                              SpeakingSessionMode sessionMode) {
+        return promptBuilder.buildDynamicTurnContext(SpeakingPromptRequest.builder()
+                .profile(profile)
+                .knownInterests(knownInterests)
+                .weakPoints(weakPoints)
+                .sessionCefrLevel(cefrLevel)
+                .policy(policy)
+                .sessionMode(sessionMode)
+                .build(), null);
     }
 
     public List<ChatMessage> buildGreetingMessages(String systemPrompt,
+                                                    String dynamicContext,
                                                     SpeakingPersona persona,
                                                     String topic,
                                                     List<WeakPoint> weakPoints,
@@ -207,7 +232,8 @@ public class ChatPrepService {
                 """.trim()
                 : persona.buildGreetingInstruction(topic, industry, weakPointsStr, sessionMode,
                 sessionRow.getInterviewPosition());
-        if (sessionMode == SpeakingSessionMode.INTERVIEW && interviewContext != null) {
+        // Đ2: khối động (nếu có) đứng giữa system tĩnh và instruction — cùng hình dạng với lượt chat.
+        if (dynamicContext == null || dynamicContext.isBlank()) {
             return List.of(
                     new ChatMessage("system", systemPrompt),
                     new ChatMessage("user", greetingInstruction)
@@ -215,6 +241,7 @@ public class ChatPrepService {
         }
         return List.of(
                 new ChatMessage("system", systemPrompt),
+                new ChatMessage("system", dynamicContext),
                 new ChatMessage("user", greetingInstruction)
         );
     }
@@ -290,16 +317,18 @@ public class ChatPrepService {
             interviewContext = new InterviewPromptContext(state, plan);
         }
 
-        String systemPrompt = buildSpeakingSystemPrompt(session, userMessage, effectiveProfile, knownInterests, weakPoints,
+        TurnPrompt turnPrompt = buildTurnPrompt(session, userMessage, effectiveProfile, knownInterests, weakPoints,
                 persona, responseSchema, policy, sessionMode, interviewContext);
-        List<ChatMessage> openAiMessages = buildOpenAiMessages(systemPrompt, recentMessages, userMessage);
+        List<ChatMessage> openAiMessages = buildOpenAiMessages(
+                turnPrompt.staticPrompt(), recentMessages, turnPrompt.dynamicContext(), userMessage);
         int maxTokens = resolveMaxTokens(userId);
 
         return new AiSpeakingServiceImpl.SpeakingChatPrep(
                 userId,
                 sessionId,
                 policy,
-                systemPrompt,
+                // Bản gộp cho persistence/training — messages gửi LLM thì đã tách tĩnh/động ở trên.
+                turnPrompt.combinedForRecord(),
                 session.getCefrLevel(),
                 session.getTopic(),
                 List.copyOf(openAiMessages),
@@ -323,7 +352,7 @@ public class ChatPrepService {
         return recentMessages;
     }
 
-    private String buildSpeakingSystemPrompt(AiSpeakingSession session,
+    private TurnPrompt buildTurnPrompt(AiSpeakingSession session,
                                              String userMessage,
                                              UserLearningProfile effectiveProfile,
                                              List<String> knownInterests,
@@ -333,7 +362,7 @@ public class ChatPrepService {
                                              SpeakingPolicy policy,
                                              SpeakingSessionMode sessionMode,
                                              InterviewPromptContext interviewContext) {
-        String prompt = promptBuilder.buildSystemPrompt(SpeakingPromptRequest.builder()
+        SpeakingPromptRequest req = SpeakingPromptRequest.builder()
                 .profile(effectiveProfile)
                 .knownInterests(knownInterests)
                 .topic(session.getTopic())
@@ -347,25 +376,49 @@ public class ChatPrepService {
                 .experienceLevel(session.getExperienceLevel())
                 .turnCount(session.getMessageCount())
                 .interviewContext(sessionMode == SpeakingSessionMode.INTERVIEW ? interviewContext : null)
-                .build());
-        if (sessionMode != SpeakingSessionMode.INTERVIEW) {
-            String ragContext = knowledgeBaseService.searchRelevantContext(userMessage, session.getCefrLevel(), 2);
-            if (ragContext != null && !ragContext.isBlank()) {
-                prompt += "\n\n=== TÀI LIỆU HỖ TRỢ (RAG CONTEXT) ===\n" + ragContext;
-            }
-        }
-        return prompt;
+                .build();
+        // Đ2: phần tĩnh bất biến suốt phiên (ăn prefix-cache); RAG + policy + learner context đổi
+        // theo lượt nên đi riêng thành message system ngay trước tin nhắn user. INTERVIEW: bản gộp,
+        // dynamic=null (buildStaticSystemPrompt/buildDynamicTurnContext tự xử lý).
+        String staticPrompt = promptBuilder.buildStaticSystemPrompt(req);
+        String ragContext = sessionMode != SpeakingSessionMode.INTERVIEW
+                ? knowledgeBaseService.searchRelevantContext(userMessage, session.getCefrLevel(), 2)
+                : null;
+        String dynamicContext = promptBuilder.buildDynamicTurnContext(req, ragContext);
+        return new TurnPrompt(staticPrompt, dynamicContext);
     }
 
-    private List<ChatMessage> buildOpenAiMessages(String systemPrompt, List<AiSpeakingMessage> recentMessages, String userMessage) {
+    /**
+     * Cặp prompt của một lượt chat (Đ2): {@code staticPrompt} vào message system đầu (cache được),
+     * {@code dynamicContext} (nullable) vào message system ngay trước tin nhắn user.
+     */
+    record TurnPrompt(String staticPrompt, String dynamicContext) {
+        /** Bản gộp cho persistence/training — giữ nguyên độ đầy đủ như prompt một-khối trước Đ2. */
+        String combinedForRecord() {
+            return dynamicContext == null ? staticPrompt : staticPrompt + "\n\n" + dynamicContext;
+        }
+    }
+
+    /**
+     * Đ2 — thứ tự message quyết định cache: [system TĨNH][history…][system ĐỘNG?][user]. Khối động
+     * đứng SAU history để prefix chung giữa các lượt (tĩnh + history cũ, append-only trong cửa sổ)
+     * dài nhất có thể. Static package-private để test khẳng định thứ tự không cần dựng cả service.
+     */
+    static List<ChatMessage> buildOpenAiMessages(String staticSystemPrompt,
+                                                 List<AiSpeakingMessage> recentMessages,
+                                                 String dynamicContext,
+                                                 String userMessage) {
         List<ChatMessage> openAiMessages = new ArrayList<>();
-        openAiMessages.add(new ChatMessage("system", systemPrompt));
+        openAiMessages.add(new ChatMessage("system", staticSystemPrompt));
         for (AiSpeakingMessage msg : recentMessages) {
             if (msg.getRole() == MessageRole.USER) {
                 openAiMessages.add(new ChatMessage("user", msg.getUserText()));
             } else {
                 openAiMessages.add(new ChatMessage("assistant", msg.getAiSpeechDe()));
             }
+        }
+        if (dynamicContext != null && !dynamicContext.isBlank()) {
+            openAiMessages.add(new ChatMessage("system", dynamicContext));
         }
         openAiMessages.add(new ChatMessage("user", userMessage));
         return openAiMessages;
