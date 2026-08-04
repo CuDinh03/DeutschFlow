@@ -34,6 +34,8 @@ public class GroqWhisperClient {
     /** Khớp gợi ý Retry-After của {@link GroqChatClient}: nghẽn cục bộ vài giây, breaker 30s. */
     private static final int BUSY_RETRY_AFTER_SECONDS = 15;
     private static final int BREAKER_OPEN_RETRY_AFTER_SECONDS = 30;
+    /** 429 không kèm Retry-After: hạn mức STT của Groq tính theo giây-audio/giờ — 60s là mốc an toàn. */
+    private static final int DEFAULT_RATE_LIMIT_RETRY_AFTER_SECONDS = 60;
 
     private final String apiKey;
     private final String endpointUrl;
@@ -93,6 +95,26 @@ public class GroqWhisperClient {
                 "Dịch vụ nhận diện giọng nói tạm thời không khả dụng, vui lòng thử lại sau.", null, e);
     }
 
+    /**
+     * 429 = chạm hạn mức tài khoản Groq (giây audio/giờ hoặc request/ngày), KHÔNG phải upstream
+     * chết — cùng khuôn bản vá chat #288/#291. Mã {@code RATE_LIMITED} để handler phát
+     * {@code Retry-After} + metric riêng, và predicate ở call-site giữ breaker đứng yên.
+     */
+    private AiServiceException rateLimited(String phase, HttpResponse<String> response) {
+        Integer retryAfter = response.headers().firstValue("retry-after")
+                .map(GroqChatClient::parseRetryAfterSeconds)
+                .orElse(null);
+        log.warn("[Whisper] 429 HẠN MỨC UPSTREAM ({}): Retry-After={} · {}", phase,
+                retryAfter == null ? "(upstream không nói)" : retryAfter + "s",
+                response.headers().map().entrySet().stream()
+                        .filter(e -> e.getKey().toLowerCase(java.util.Locale.ROOT).startsWith("x-ratelimit"))
+                        .map(e -> e.getKey() + "=" + String.join(",", e.getValue()))
+                        .collect(java.util.stream.Collectors.joining(" ")));
+        return new AiServiceException(AiErrorCode.RATE_LIMITED,
+                "Hệ thống đang nhận quá nhiều bản ghi âm, vui lòng thử lại sau ít phút.",
+                retryAfter != null ? retryAfter : DEFAULT_RATE_LIMIT_RETRY_AFTER_SECONDS);
+    }
+
     public String getWhisperModel() {
         return whisperModel;
     }
@@ -136,7 +158,8 @@ public class GroqWhisperClient {
                     "groqWhisper",
                     () -> sendAndParseVerbose(request),
                     () -> new AiServiceException(AiErrorCode.AI_BUSY,
-                            "Nhận diện giọng nói đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS));
+                            "Nhận diện giọng nói đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS),
+                    AiServiceException::isRateLimited);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new AiServiceException(AiErrorCode.AI_INTERRUPTED,
@@ -151,6 +174,9 @@ public class GroqWhisperClient {
     private VerboseTranscript sendAndParseVerbose(HttpRequest request) {
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() == 429) {
+                throw rateLimited("verbose", response);
+            }
             if (response.statusCode() != 200) {
                 throw upstreamFailure("verbose", response.statusCode());
             }
@@ -234,7 +260,8 @@ public class GroqWhisperClient {
                     "groqWhisper",
                     () -> sendAndParseTranscribe(request, prompt, audioBytes.length),
                     () -> new AiServiceException(AiErrorCode.AI_BUSY,
-                            "Nhận diện giọng nói đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS));
+                            "Nhận diện giọng nói đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS),
+                    AiServiceException::isRateLimited);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new AiServiceException(AiErrorCode.AI_INTERRUPTED,
@@ -251,6 +278,9 @@ public class GroqWhisperClient {
     private TranscribeResult sendAndParseTranscribe(HttpRequest request, String prompt, int audioLen) {
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() == 429) {
+                throw rateLimited("transcribe", response);
+            }
             if (response.statusCode() != 200) {
                 log.error("[Whisper] HTTP {}: {}", response.statusCode(), response.body());
                 throw upstreamFailure("transcribe", response.statusCode());

@@ -39,6 +39,15 @@ public class AiServiceException extends RuntimeException {
         return code;
     }
 
+    /**
+     * Predicate cho {@code CircuitBreakers.call(..)}: lỗi HẠN MỨC (429) không phải "upstream chết"
+     * — bucket refill trong ~1 phút, nên không được đếm vào tỉ lệ failure của breaker (PR #291,
+     * chuỗi sập 04/08: 2×429 mở breaker ⇒ mọi user 503). Dùng chung cho chat lẫn Whisper.
+     */
+    public static boolean isRateLimited(Throwable t) {
+        return t instanceof AiServiceException ase && ase.getCode() == AiErrorCode.RATE_LIMITED;
+    }
+
     /** Nullable — chỉ có ở lỗi kiểu "bận/quá tải" nơi biết được thời điểm nên thử lại. */
     public Integer getRetryAfterSeconds() {
         return retryAfterSeconds;

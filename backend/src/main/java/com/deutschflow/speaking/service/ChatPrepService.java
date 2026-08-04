@@ -16,6 +16,7 @@ import com.deutschflow.speaking.contract.SpeakingResponseSchema;
 import com.deutschflow.speaking.contract.SpeakingSessionMode;
 import com.deutschflow.speaking.persona.SpeakingPersona;
 import com.deutschflow.speaking.dto.SpeakingPolicy;
+import com.deutschflow.speaking.dto.SpeakingPromptRequest;
 import com.deutschflow.speaking.dto.WeakPoint;
 import com.deutschflow.speaking.util.SpeakingCefrSupport;
 import com.deutschflow.speaking.entity.AiSpeakingMessage;
@@ -171,19 +172,22 @@ public class ChatPrepService {
                                              SpeakingSessionMode sessionMode,
                                              AiSpeakingSession sessionRow,
                                              InterviewPromptContext interviewContext) {
-        return sessionMode == SpeakingSessionMode.INTERVIEW && interviewContext != null
-                ? (policy.enabled()
-                ? promptBuilder.buildSystemPrompt(
-                profile, knownInterests, topic, weakPoints, cefrLevel, policy,
-                persona, responseSchema, sessionMode, sessionRow.getInterviewPosition(),
-                sessionRow.getExperienceLevel(), 0, interviewContext)
-                : promptBuilder.buildSystemPrompt(
-                profile, knownInterests, topic, weakPoints, cefrLevel, null,
-                persona, responseSchema, sessionMode, sessionRow.getInterviewPosition(),
-                sessionRow.getExperienceLevel(), 0, interviewContext))
-                : (policy.enabled()
-                ? promptBuilder.buildSystemPrompt(profile, knownInterests, topic, weakPoints, cefrLevel, policy, persona, responseSchema, sessionMode)
-                : promptBuilder.buildSystemPrompt(profile, knownInterests, topic, weakPoints, cefrLevel, persona, responseSchema, sessionMode));
+        boolean isInterview = sessionMode == SpeakingSessionMode.INTERVIEW && interviewContext != null;
+        // SpeakingPromptRequest tự xử lý policy tắt (builder kiểm tra enabled()) — hết nhánh ?: lồng nhau.
+        return promptBuilder.buildSystemPrompt(SpeakingPromptRequest.builder()
+                .profile(profile)
+                .knownInterests(knownInterests)
+                .topic(topic)
+                .weakPoints(weakPoints)
+                .sessionCefrLevel(cefrLevel)
+                .policy(policy)
+                .persona(persona)
+                .responseSchema(responseSchema)
+                .sessionMode(sessionMode)
+                .interviewPosition(isInterview ? sessionRow.getInterviewPosition() : null)
+                .experienceLevel(isInterview ? sessionRow.getExperienceLevel() : null)
+                .interviewContext(isInterview ? interviewContext : null)
+                .build());
     }
 
     public List<ChatMessage> buildGreetingMessages(String systemPrompt,
@@ -329,25 +333,21 @@ public class ChatPrepService {
                                              SpeakingPolicy policy,
                                              SpeakingSessionMode sessionMode,
                                              InterviewPromptContext interviewContext) {
-        if (sessionMode == SpeakingSessionMode.INTERVIEW && interviewContext != null) {
-            return policy.enabled()
-                    ? promptBuilder.buildSystemPrompt(
-                    effectiveProfile, knownInterests, session.getTopic(), weakPoints, session.getCefrLevel(), policy,
-                    persona, responseSchema, sessionMode, session.getInterviewPosition(), session.getExperienceLevel(),
-                    session.getMessageCount(), interviewContext)
-                    : promptBuilder.buildSystemPrompt(
-                    effectiveProfile, knownInterests, session.getTopic(), weakPoints, session.getCefrLevel(), null,
-                    persona, responseSchema, sessionMode, session.getInterviewPosition(), session.getExperienceLevel(),
-                    session.getMessageCount(), interviewContext);
-        }
-
-        String prompt = policy.enabled()
-                ? promptBuilder.buildSystemPrompt(
-                effectiveProfile, knownInterests, session.getTopic(), weakPoints, session.getCefrLevel(), policy, persona, responseSchema, sessionMode,
-                session.getInterviewPosition(), session.getExperienceLevel(), session.getMessageCount())
-                : promptBuilder.buildSystemPrompt(
-                effectiveProfile, knownInterests, session.getTopic(), weakPoints, session.getCefrLevel(), null, persona, responseSchema, sessionMode,
-                session.getInterviewPosition(), session.getExperienceLevel(), session.getMessageCount());
+        String prompt = promptBuilder.buildSystemPrompt(SpeakingPromptRequest.builder()
+                .profile(effectiveProfile)
+                .knownInterests(knownInterests)
+                .topic(session.getTopic())
+                .weakPoints(weakPoints)
+                .sessionCefrLevel(session.getCefrLevel())
+                .policy(policy)
+                .persona(persona)
+                .responseSchema(responseSchema)
+                .sessionMode(sessionMode)
+                .interviewPosition(session.getInterviewPosition())
+                .experienceLevel(session.getExperienceLevel())
+                .turnCount(session.getMessageCount())
+                .interviewContext(sessionMode == SpeakingSessionMode.INTERVIEW ? interviewContext : null)
+                .build());
         if (sessionMode != SpeakingSessionMode.INTERVIEW) {
             String ragContext = knowledgeBaseService.searchRelevantContext(userMessage, session.getCefrLevel(), 2);
             if (ragContext != null && !ragContext.isBlank()) {
