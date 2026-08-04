@@ -8,7 +8,9 @@ test.describe('Teacher LMS Flow', () => {
       ...teacherCookies(),
     ]);
 
-    await page.goto('/teacher');
+    // Port sang /v2 (04/08): `/teacher` và `/teacher/dashboard` giờ đã bị next.config đá sang
+    // `/v2/teacher`, nên spec phải vào thẳng địa chỉ mới thay vì đi qua một chặng redirect.
+    await page.goto('/v2/teacher');
     await page.evaluate((token) => {
       localStorage.setItem('accessToken', token);
     }, TEACHER_TOKEN);
@@ -64,15 +66,18 @@ test.describe('Teacher LMS Flow', () => {
     // Reload to apply localstorage and load the page as teacher
     await page.reload();
 
-    // Verify we are on the teacher dashboard
-    await expect(page).toHaveURL(/\/teacher\/dashboard/);
+    // Verify we are on the teacher home. Trang chủ GV của v2 là `/v2/teacher` — KHÔNG còn tầng
+    // `/dashboard` như v1, nên assertion cũ `/\/teacher\/dashboard/` không bao giờ khớp nữa.
+    await expect(page).toHaveURL(/\/v2\/teacher/);
 
-    // Fill in the class name in the inline form
+    // Fill in the class name in the inline form. `getByPlaceholder` khớp theo chuỗi con nên vẫn
+    // bắt được placeholder dài hơn của v2 ("Nhập tên lớp học (VD: A1.1 Lớp tối 2-4-6)").
     const nameInput = page.getByPlaceholder('Nhập tên lớp học');
     await nameInput.fill('A1 German Class');
 
-    // Submit the form
-    const submitButton = page.locator('button').filter({ hasText: 'Tạo lớp học' });
+    // Submit the form. Nhãn nút ở v2 là "Tạo lớp" (v1: "Tạo lớp học") — `hasText` khớp chuỗi con
+    // nên phải dùng nhãn NGẮN hơn, dùng nhãn v1 sẽ không khớp.
+    const submitButton = page.locator('button').filter({ hasText: 'Tạo lớp' });
     await submitButton.click();
 
     // Wait for the mock POST to resolve, we should see the class name and the invite code
