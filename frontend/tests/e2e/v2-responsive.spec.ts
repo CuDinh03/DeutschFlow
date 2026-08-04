@@ -113,7 +113,16 @@ async function gotoAs(page: Page, role: string, path: string) {
   if (token) await page.addInitScript((t) => localStorage.setItem('accessToken', t), token)
   await mockApi(page, role)
   await page.goto(path, { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(1500)
+
+  // Chờ trang RENDER XONG, không chờ theo đồng hồ. `waitForTimeout(1500)` cũ là một cuộc đua:
+  // trên `next dev`, route vào lần ĐẦU phải biên dịch nguội (nhiều giây), nên hết 1500ms <main>
+  // mới chỉ có <LoadingState> ≈ 10 phần tử → assertMeasurable đánh trượt "trang gần như trống".
+  // Đúng lỗi đã dính ở /v2/admin/revenue: trượt ở khổ 320px (lượt đầu, route nguội) rồi tự xanh
+  // ở 390px (route đã ấm) — một thất bại phụ thuộc THỨ TỰ CHẠY, không phải lỗi bố cục.
+  // LoadingState (components/ui-v2) luôn gắn role="status", nên "hết trạng thái tải" là mốc chờ
+  // xác định được. Vẫn giữ một nhịp ngắn sau đó cho layout ổn định trước khi đo.
+  await expect(page.getByRole('status')).toHaveCount(0, { timeout: 45_000 })
+  await page.waitForTimeout(300)
 }
 
 /**
