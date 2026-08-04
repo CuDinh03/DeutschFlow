@@ -17,8 +17,9 @@ export function SpeakingAdaptiveBar({ adaptive, repairBlocking, personaId }: Pro
 
   if (!adaptive?.enabled) return null;
 
+  // focusCodes là MÃ NỘI BỘ (TE_KA_MO_LO, GENDER_WRONG_DER_DIE_DAS…) — không render ra UI
+  // (QA prod 04/08 23:40: lộ mã dự án); targetStructures đã là nhãn người-đọc-được tương ứng.
   const hasFocus =
-    (adaptive.focusCodes?.length ?? 0) > 0 ||
     (adaptive.targetStructures?.length ?? 0) > 0 ||
     !!adaptive.topicSuggestion;
 
@@ -47,15 +48,6 @@ export function SpeakingAdaptiveBar({ adaptive, repairBlocking, personaId }: Pro
               {adaptive.cefrEffective}
             </span>
           )}
-          {adaptive.focusCodes?.map((code) => (
-            <span
-              key={code}
-              className="text-[10px] font-mono px-2 py-0.5 rounded-ga-pill border"
-              style={{ borderColor: personaSoft(rawAccent, 0.35), background: personaSoft(rawAccent, 0.1), color: accent }}
-            >
-              {code.split(".").pop()}
-            </span>
-          ))}
           {adaptive.targetStructures?.slice(0, 2).map((s) => (
             <span
               key={s}

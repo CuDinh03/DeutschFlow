@@ -28,6 +28,11 @@ interface Props {
   /** Đ4: gợi ý sinh theo yêu cầu — có mặt ⇒ hiện nút khi chưa có chip nào. */
   suggestionsLoading?: boolean;
   onRequestSuggestions?: () => void;
+  /**
+   * Học viên đã nói ít nhất một câu chưa. Starters là CÂU MỞ ĐẦU hội thoại — giữa cuộc
+   * nói chuyện mà hiện lại thì lạc đề với câu hỏi hiện tại của AI (QA prod 04/08 23:40).
+   */
+  hasUserSpoken?: boolean;
   onSuggestionSelect: (text: string) => void;
   onStarterSelect: (text: string) => void;
 }
@@ -58,6 +63,7 @@ export function SpeakingChatSidebar({
   phonemeLoading,
   suggestionsLoading,
   onRequestSuggestions,
+  hasUserSpoken,
   onSuggestionSelect,
   onStarterSelect,
 }: Props) {
@@ -254,21 +260,25 @@ export function SpeakingChatSidebar({
                 </p>
               )}
             </div>
-            <div className="space-y-2">
-              <p className="text-[10px] font-bold text-ga-subtle uppercase tracking-wide px-1">
-                {t("startersTitle")}
-              </p>
-              {starters.map((phrase, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => onStarterSelect(phrase)}
-                  className="w-full text-left text-sm px-3 py-2.5 rounded-ga border border-ga-line bg-ga-surface text-ga-ink hover:border-ga-accent transition-colors"
-                >
-                  {phrase}
-                </button>
-              ))}
-            </div>
+            {/* Starters = câu MỞ ĐẦU — chỉ hợp lý khi học viên chưa nói câu nào; giữa hội
+                thoại thì lạc đề với câu hỏi hiện tại của AI (nút "Gợi ý" mới là thứ đúng). */}
+            {!hasUserSpoken && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-ga-subtle uppercase tracking-wide px-1">
+                  {t("startersTitle")}
+                </p>
+                {starters.map((phrase, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => onStarterSelect(phrase)}
+                    className="w-full text-left text-sm px-3 py-2.5 rounded-ga border border-ga-line bg-ga-surface text-ga-ink hover:border-ga-accent transition-colors"
+                  >
+                    {phrase}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

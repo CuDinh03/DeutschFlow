@@ -657,6 +657,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
           phonemeLoading={isEvaluatingPhoneme}
           suggestionsLoading={suggestionsLoading}
           onRequestSuggestions={requestSuggestions}
+          hasUserSpoken={messages.some((m) => m.role === "user")}
           onSuggestionSelect={handleSuggestionSelect}
           onStarterSelect={handleSuggestionSelect}
         />
