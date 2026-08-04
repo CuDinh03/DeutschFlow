@@ -352,20 +352,22 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
             setServerDurationSec(Math.round(ms / 1000));
           }
         }
-        // GR-1 (R-G1/R-G7): phiên COMMUNICATION/LESSON lấy báo cáo AI THẬT (typed) để thay điểm heuristic
-        // bịa. parseReport chỉ đọc JSON đã lưu ở /end (không gọi LLM lại) nên report sẵn sàng ngay.
-        // Lỗi mạng/429 → giữ null → SessionSummary rơi về guard/heuristic cũ (degrade an toàn, không crash).
-        if (sessionMode !== "INTERVIEW") {
-          try {
-            const rep = await aiSpeakingApi.getConversationReport(sid);
-            setConversationReport(rep.data ?? null);
-          } catch {
-            setConversationReport(null);
-          }
-        }
         trackFeatureAction('ai_speaking', 'completed', { mode: sessionMode, messagesCount: messages.length });
       } catch (err) {
         console.error("Failed to end session", err);
+      }
+      // GR-1 (R-G1/R-G7): phiên COMMUNICATION/LESSON lấy báo cáo AI THẬT (typed) để thay điểm heuristic
+      // bịa. parseReport chỉ đọc JSON đã lưu ở /end (không gọi LLM lại) nên report sẵn sàng ngay.
+      // Nằm NGOÀI try của endSession (QA prod 04/08 23:48): /end có thể timeout phía FE trong khi
+      // server vẫn chấm xong — vẫn phải thử lấy report thay vì mất "đánh giá chi tiết" oan.
+      // Lỗi mạng/429 → giữ null → SessionSummary rơi về guard/heuristic cũ (degrade an toàn, không crash).
+      if (sessionMode !== "INTERVIEW") {
+        try {
+          const rep = await aiSpeakingApi.getConversationReport(sid);
+          setConversationReport(rep.data ?? null);
+        } catch {
+          setConversationReport(null);
+        }
       }
     }
     stopSpeaking();

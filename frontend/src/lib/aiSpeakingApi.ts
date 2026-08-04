@@ -566,7 +566,10 @@ export const aiSpeakingApi = {
     api.get<SessionsPage>('/ai-speaking/sessions', { params: { page, size } }),
 
   endSession: (sessionId: number) =>
-    api.patch<AiSpeakingSession>(`/ai-speaking/sessions/${sessionId}/end`),
+    // /end SINH report LLM đồng bộ phía server (ConversationEvaluationService) — trên free tier
+    // Groq có thể mất >8s (retry/backoff). Timeout mặc định 8s làm FE bỏ cuộc giữa chừng và
+    // học viên mất "đánh giá chi tiết" dù server chấm xong (QA prod 04/08 23:48).
+    api.patch<AiSpeakingSession>(`/ai-speaking/sessions/${sessionId}/end`, undefined, { timeout: 45000 }),
 
   /**
    * Báo cáo AI cuối buổi cho phiên COMMUNICATION/LESSON (GR-1). Backend `parseReport` chỉ ĐỌC JSON
