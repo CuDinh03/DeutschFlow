@@ -45,6 +45,7 @@ export function useAiSpeakingSession(opts: {
   } = useChatStore();
 
   const [lastSuggestions, setLastSuggestions] = useState<Suggestion[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [quota, setQuota] = useState<AiSpeakingQuota | null>(null);
   const [autoTtsEnabled, setAutoTtsState] = useState(true);
   const [retryUserText, setRetryUserText] = useState<string | null>(null);
@@ -122,6 +123,9 @@ export function useAiSpeakingSession(opts: {
       const trimmed = userText.trim();
       setRetryUserText(null);
       setStreamErrorMessage(null);
+      // Đ4: gợi ý thuộc về câu hỏi CŨ — xoá ngay khi gửi lượt mới để nút "Gợi ý" không
+      // hiện lại chip của lượt trước cho câu hỏi mới.
+      setLastSuggestions([]);
       setStreamStatus("processing");
 
       if (!options?.skipUserBubble) {
@@ -319,10 +323,32 @@ export function useAiSpeakingSession(opts: {
     trackFeatureAction("ai_speaking", "error_repaired", { mode: sessionMode });
   }, [sessionMode, trackFeatureAction]);
 
+  /**
+   * Đ4: lấy 2 gợi ý cho câu hỏi AI gần nhất — chỉ khi học viên bấm nút (backend mặc định
+   * không sinh kèm lượt chat nữa). Đã có gợi ý (mode "always" hoặc bấm rồi) thì không gọi lại.
+   * Lỗi giữ im lặng: nút vẫn còn để bấm lại, lỗi hạn mức đã có toast tầng api chung.
+   */
+  const requestSuggestions = useCallback(async () => {
+    const sid = useChatStore.getState().sessionId;
+    if (!sid || suggestionsLoading || lastSuggestions.length > 0) return;
+    setSuggestionsLoading(true);
+    try {
+      const sugs = await aiSpeakingApi.fetchSuggestions(sid);
+      setLastSuggestions(sugs);
+      trackFeatureAction("ai_speaking", "suggestions_requested", { mode: sessionMode });
+    } catch {
+      // giữ nút — người học bấm lại được
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  }, [suggestionsLoading, lastSuggestions.length, sessionMode, trackFeatureAction]);
+
   return {
     messages,
     lastSuggestions,
     setLastSuggestions,
+    suggestionsLoading,
+    requestSuggestions,
     quota,
     quotaBlocked,
     refreshQuota,

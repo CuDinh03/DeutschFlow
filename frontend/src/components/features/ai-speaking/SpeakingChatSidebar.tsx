@@ -25,6 +25,9 @@ interface Props {
   sessionTopic?: string | null;
   phonemeResult?: PhonemeEvalResult | null;
   phonemeLoading?: boolean;
+  /** Đ4: gợi ý sinh theo yêu cầu — có mặt ⇒ hiện nút khi chưa có chip nào. */
+  suggestionsLoading?: boolean;
+  onRequestSuggestions?: () => void;
   onSuggestionSelect: (text: string) => void;
   onStarterSelect: (text: string) => void;
 }
@@ -53,6 +56,8 @@ export function SpeakingChatSidebar({
   sessionTopic,
   phonemeResult,
   phonemeLoading,
+  suggestionsLoading,
+  onRequestSuggestions,
   onSuggestionSelect,
   onStarterSelect,
 }: Props) {
@@ -62,12 +67,16 @@ export function SpeakingChatSidebar({
   const showRecordingPanel = isListening || viz !== "idle";
   const showComposing = !isListening && !!inputText.trim();
   const showSuggestionPanel = showSuggestions && suggestions.length > 0;
+  // Đ4: chưa có chip nào nhưng bấm được — hiện nút yêu cầu thay vì im lặng.
+  const showSuggestionRequest =
+    showSuggestions && suggestions.length === 0 && !!onRequestSuggestions;
   const showCorrections = lastUserErrors.length > 0;
   const showPhoneme = !!phonemeResult || phonemeLoading;
   const showEmpty =
     !showRecordingPanel &&
     !showComposing &&
     !showSuggestionPanel &&
+    !showSuggestionRequest &&
     !showCorrections &&
     !showPhoneme;
 
@@ -155,6 +164,26 @@ export function SpeakingChatSidebar({
             </ul>
           </div>
         )}
+
+        {/* ── Đ4: nút yêu cầu gợi ý (backend không sinh kèm lượt chat nữa) ── */}
+        <AnimatePresence>
+          {showSuggestionRequest && (
+            <motion.button
+              type="button"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              onClick={onRequestSuggestions}
+              disabled={suggestionsLoading}
+              className="w-full flex items-center gap-2 p-3 rounded-ga bg-ga-surface border border-ga-line hover:border-ga-accent hover:bg-ga-accent-soft transition-colors disabled:opacity-60"
+            >
+              <Lightbulb size={14} className="text-ga-gold flex-shrink-0" />
+              <span className="text-[12px] font-semibold text-ga-ink">
+                {suggestionsLoading ? t("suggestionsLoading") : t("suggestionsRequest")}
+              </span>
+            </motion.button>
+          )}
+        </AnimatePresence>
 
         {/* ── Suggestions (full metadata) ── */}
         <AnimatePresence>

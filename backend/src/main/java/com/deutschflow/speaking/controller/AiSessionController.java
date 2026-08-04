@@ -49,6 +49,7 @@ public class AiSessionController {
     private static final long STT_ESTIMATED_TOKENS = 200L;
 
     private final AiSpeakingService aiSpeakingService;
+    private final com.deutschflow.speaking.service.SpeakingSuggestionService speakingSuggestionService;
     private final com.deutschflow.speaking.ai.GroqWhisperClient groqWhisperClient;
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
@@ -137,6 +138,22 @@ public class AiSessionController {
         ledgerService.recordStt(user.getId(), "STT_TRANSCRIBE", groqWhisperClient.getWhisperModel(), stt.durationSeconds());
         return new TranscribeDto(stt.text());
     }
+
+    /**
+     * Đ4 (04/08): 2 gợi ý trả lời cho câu hỏi gần nhất của trợ lý — sinh THEO YÊU CẦU thay vì kèm
+     * mọi lượt chat (config {@code speaking.suggestionsMode}, mặc định on_demand). Dùng chung
+     * bucket CHAT + quota ví như lượt chat; client cache theo messageId để bấm lại không gọi lại.
+     */
+    @PostMapping("/sessions/{id}/suggestions")
+    public SpeakingSuggestionsResponse suggestions(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
+        requireAiBudget(Bucket.CHAT, user.getId(), "Too many suggestion requests. Please slow down.");
+        return new SpeakingSuggestionsResponse(speakingSuggestionService.suggestForLastAiTurn(user.getId(), id));
+    }
+
+    /** Envelope cho {@link #suggestions} — cùng hình dạng SuggestionDto với response lượt chat. */
+    public record SpeakingSuggestionsResponse(java.util.List<AiSpeakingChatResponse.SuggestionDto> suggestions) {}
 
     @PostMapping("/sessions/{id}/chat")
     public AiSpeakingChatResponse chat(

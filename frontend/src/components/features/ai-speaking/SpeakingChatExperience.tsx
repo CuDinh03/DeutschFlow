@@ -162,6 +162,8 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   const {
     messages,
     lastSuggestions,
+    suggestionsLoading,
+    requestSuggestions,
     quota,
     quotaBlocked,
     autoTtsEnabled,
@@ -653,6 +655,8 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
           sessionTopic={sessionTopic}
           phonemeResult={phonemeResult}
           phonemeLoading={isEvaluatingPhoneme}
+          suggestionsLoading={suggestionsLoading}
+          onRequestSuggestions={requestSuggestions}
           onSuggestionSelect={handleSuggestionSelect}
           onStarterSelect={handleSuggestionSelect}
         />
@@ -696,6 +700,8 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
         lastUserErrors={lastUserErrors}
         phonemeResult={phonemeResult}
         phonemeLoading={isEvaluatingPhoneme}
+        suggestionsLoading={suggestionsLoading}
+        onRequestSuggestions={requestSuggestions}
         onSuggestionSelect={handleSuggestionSelect}
       />
 

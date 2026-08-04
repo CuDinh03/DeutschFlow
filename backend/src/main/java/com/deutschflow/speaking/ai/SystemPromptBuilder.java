@@ -76,6 +76,40 @@ public class SystemPromptBuilder {
             %s
             """;
 
+    /**
+     * Đ4: biến thể KHÔNG suggestions cho chế độ on-demand — model không sinh 2 gợi ý mỗi lượt
+     * (~⅓ completion token); client bấm nút thì lấy qua endpoint riêng. Nội dung còn lại giữ
+     * NGUYÊN VĂN với {@link #JSON_SCHEMA_INSTRUCTION} (chỉ một tham số format: catalog codes).
+     */
+    private static final String JSON_SCHEMA_INSTRUCTION_NO_SUGGESTIONS = """
+            Ausgabe: genau EIN JSON-Objekt, gültiges STRICT JSON (kein Markdown, kein Text drumherum).
+            {
+              "ai_speech_de": "Deutsch, Tutor-Antwort + kurze Folgefrage zum Target_Topic",
+              "status": "OFF_TOPIC | ON_TOPIC_NEEDS_IMPROVEMENT | EXCELLENT",
+              "similarity_score": 0.0,
+              "feedback": "kurz, ermutigend, Vietnamesisch",
+              "correction": null ODER korrigierte Fassung NUR der ALLERLETZTEN Nutzer-Nachricht — frühere Turns aus der History NIEMALS korrigieren; null, wenn die letzte Nachricht sprachlich korrekt ist",
+              "explanation_vi": null oder kurz Vietnamesisch",
+              "grammar_point": null oder Stichwort",
+              "errors": [
+                {
+                  "error_code": "Pflichtfeld aus Katalog",
+                  "severity": "BLOCKING | MAJOR | MINOR",
+                  "confidence": 0.0,
+                  "wrong_span": "",
+                  "corrected_span": "",
+                  "rule_vi_short": "",
+                  "example_correct_de": ""
+                }
+              ],
+              "learning_status": { "new_word": null, "user_interest_detected": null }
+            }
+            REGELN KURZ:
+            - severity (UI-Reparatur-Gate): BLOCKING nur bei schwerem Missverständnis / Kernfehler (Verständnis, falsche Person/Kasus die Bedeutung ändert, Satz unverständlich). MAJOR = klarer Satzfehler. MINOR = Tippfehler, kleine Randkorrekturen. BLOCKING sparsam — Frontend erzwingt Drill.
+            - error_code MUSS sein:
+            %s
+            """;
+
     private static final String JSON_SCHEMA_V2 = """
             Antworte NUR im folgenden JSON-Format (STRICT JSON, kein Markdown):
             {
@@ -105,7 +139,7 @@ public class SystemPromptBuilder {
         return buildInternal(req.profile(), req.knownInterests(), req.topic(), req.weakPoints(), level,
                 req.policy(), req.persona(), req.responseSchema(), req.sessionMode(),
                 req.interviewPosition(), req.experienceLevel(), req.turnCount(), req.interviewContext(),
-                true);
+                true, req.includeSuggestions());
     }
 
     /**
@@ -128,7 +162,7 @@ public class SystemPromptBuilder {
         return buildInternal(req.profile(), req.knownInterests(), req.topic(), req.weakPoints(),
                 sessionLevel(req), req.policy(), req.persona(), req.responseSchema(), req.sessionMode(),
                 req.interviewPosition(), req.experienceLevel(), req.turnCount(), req.interviewContext(),
-                false);
+                false, req.includeSuggestions());
     }
 
     /**
@@ -216,7 +250,8 @@ public class SystemPromptBuilder {
                                     String interviewPosition,
                                     String experienceLevel,
                                     int turnCount,
-                                    InterviewPromptContext interviewContext) {
+                                    InterviewPromptContext interviewContext,
+                                    boolean includeSuggestions) {
         // ── Mode-specific preamble ──────────────────────────────────────
         if (sessionMode == SpeakingSessionMode.INTERVIEW) {
             String pos = (interviewPosition != null && !interviewPosition.isBlank()) ? interviewPosition : "Allgemeine Position";
@@ -261,8 +296,10 @@ public class SystemPromptBuilder {
                 sb.append("KONTEXTINFO BERUF: Der Lernende arbeitet als '").append(industry).append("'.\n");
                 sb.append("Du WEISST das bereits — frage NICHT 'Was ist dein Beruf?'. ");
                 sb.append("Beziehe den Beruf nur EINMAL beiläufig in das Gespräch ein (z.B. Feierabend, Kollegen, Lieblingsmoment), dann zurück zum Alltag.\n");
-                sb.append("Die 2 'suggestions' sollen alltagsnahe Antworten zum Beruf '")
-                        .append(industry).append("' sein — NICHT Bewerbungsantworten, NICHT generisch.\n");
+                if (includeSuggestions) {
+                    sb.append("Die 2 'suggestions' sollen alltagsnahe Antworten zum Beruf '")
+                            .append(industry).append("' sein — NICHT Bewerbungsantworten, NICHT generisch.\n");
+                }
             } else {
                 sb.append("Der Lernende hat keinen Beruf angegeben. Führe ein allgemeines Alltagsgespräch über Hobby, Essen, Wochenende, Familie, Wetter, Filme.\n");
             }
@@ -312,7 +349,8 @@ public class SystemPromptBuilder {
                                  String experienceLevel,
                                  int turnCount,
                                  InterviewPromptContext interviewContext,
-                                 boolean includeTurnDynamicBlocks) {
+                                 boolean includeTurnDynamicBlocks,
+                                 boolean includeSuggestions) {
 
         boolean hasIndustry = profile.getIndustry() != null && !profile.getIndustry().isBlank();
         String industry = hasIndustry ? profile.getIndustry() : null;
@@ -321,7 +359,7 @@ public class SystemPromptBuilder {
 
         StringBuilder sb = new StringBuilder();
 
-        appendModePreamble(sb, sessionMode, isVietnamese, hasIndustry, industry, topicSection, persona, level, interviewPosition, experienceLevel, turnCount, interviewContext);
+        appendModePreamble(sb, sessionMode, isVietnamese, hasIndustry, industry, topicSection, persona, level, interviewPosition, experienceLevel, turnCount, interviewContext, includeSuggestions);
 
         String baseSystemPrompt = systemConfigService.getString("ai.systemPrompt", "Du bist \"DeutschFlow AI Tutor\", một chuyên gia ngôn ngữ học tiếng Đức kiêm trợ lý sư phạm chuyên sâu.\nNhiệm vụ của bạn là đồng hành cùng người dùng, giúp họ sửa lỗi và phát triển tư duy ngôn ngữ trình độ {level}.\n\n");
         if (sessionMode != SpeakingSessionMode.INTERVIEW) {
@@ -376,29 +414,35 @@ public class SystemPromptBuilder {
 
             sb.append("3. Fehlererkennung: konservativ. IGNORE capitalization (Groß-/Kleinschreibung) and missing punctuation (Satzzeichen) — if these are the ONLY mistakes, return errors=[]! Keine rein stilistischen Varianten. Akzeptabel korrekt → errors=[].\n");
             sb.append("   ZERO-ARTICLE: Akzeptiere unbedingt den Nullartikel bei unzählbaren Nomen (z.B. Kaffee, Tee, Wasser) in generellem Kontext (z.B. 'ich trinke gerne Kaffee' ist KORREKT). Melde hier KEINEN 'fehlender Artikel' Fehler!\n");
-            sb.append("4. Scaffolding: GENAU 2 suggestions auf Niveau ").append(level).append(".\n");
-            sb.append("   - [0] KURZ + SICHER: 3-6 Wörter, leicht auszusprechen — eine direkte, klare Antwort auf deine LETZTE Frage.\n");
-            sb.append("   - [1] LÄNGER + REICHER: 8-14 Wörter — eine ehrlichere/detailliertere Antwort auf DIESELBE Frage (anderer Registry oder mehr Kontext).\n");
-            sb.append("   - BEIDE müssen die LETZTE Frage konkret beantworten — keine generischen Satzanfänge wie 'Ich möchte sagen...'.\n");
-            sb.append("   - Grammatikalisch zu 100% fehlerfrei (korrekte Wortstellung TeKaMoLo, Genus, Kasus). Generiere KEINE fehlerhaften Vorschläge!\n");
-            sb.append("5. Vietnamesische Kurzhinweise in feedback/explanation_vi/why_to_use wo nötig.\n\n");
+            if (includeSuggestions) {
+                sb.append("4. Scaffolding: GENAU 2 suggestions auf Niveau ").append(level).append(".\n");
+                sb.append("   - [0] KURZ + SICHER: 3-6 Wörter, leicht auszusprechen — eine direkte, klare Antwort auf deine LETZTE Frage.\n");
+                sb.append("   - [1] LÄNGER + REICHER: 8-14 Wörter — eine ehrlichere/detailliertere Antwort auf DIESELBE Frage (anderer Registry oder mehr Kontext).\n");
+                sb.append("   - BEIDE müssen die LETZTE Frage konkret beantworten — keine generischen Satzanfänge wie 'Ich möchte sagen...'.\n");
+                sb.append("   - Grammatikalisch zu 100% fehlerfrei (korrekte Wortstellung TeKaMoLo, Genus, Kasus). Generiere KEINE fehlerhaften Vorschläge!\n");
+                sb.append("5. Vietnamesische Kurzhinweise in feedback/explanation_vi/why_to_use wo nötig.\n\n");
+            } else {
+                sb.append("4. Vietnamesische Kurzhinweise in feedback/explanation_vi wo nötig.\n\n");
+            }
 
             sb.append("Sprachliche Deckel: nicht über ").append(level).append(" hinaus.\n\n");
 
             // For Vietnamese personas: override ai_speech_de description in schema to clarify it holds Vietnamese + German words
+            String schemaBlock = includeSuggestions
+                    ? JSON_SCHEMA_INSTRUCTION.formatted(level, ErrorCatalog.codesCompactForPrompt())
+                    : JSON_SCHEMA_INSTRUCTION_NO_SUGGESTIONS.formatted(ErrorCatalog.codesCompactForPrompt());
             if (isVietnamese) {
-                String viSchema = JSON_SCHEMA_INSTRUCTION
+                String viSchema = schemaBlock
                     .replace(
                         "\"ai_speech_de\": \"Deutsch, Tutor-Antwort + kurze Folgefrage zum Target_Topic\"",
                         "\"ai_speech_de\": \"TIẾNG VIỆT LÀ CHÍNH — câu trả lời bằng tiếng Việt, lồng 1-2 từ Đức in **bold**, kèm giải thích nghĩa. KHÔNG được dùng tiếng Đức làm ngôn ngữ chính.\""
-                    )
-                    .formatted(level, ErrorCatalog.codesCompactForPrompt());
+                    );
                 sb.append(viSchema);
                 sb.append("\nLƯU Ý QUAN TRỌNG NHẤT: Trường ai_speech_de phải chứa câu tiếng VIỆT, không phải tiếng Đức. ");
                 sb.append("Ví dụ: 'Chào bạn! Hôm nay mình học chữ **A** trong tiếng Đức nhé!' — ĐÂY LÀ ĐÚNG.\n");
                 sb.append("Ví dụ: 'Hallo! Heute lernen wir das Alphabet!' — ĐÂY LÀ SAI.\n");
             } else {
-                sb.append(JSON_SCHEMA_INSTRUCTION.formatted(level, ErrorCatalog.codesCompactForPrompt()));
+                sb.append(schemaBlock);
             }
         }
 

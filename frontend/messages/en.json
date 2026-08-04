@@ -727,6 +727,8 @@
       "composing": "Composing",
       "correctionsTitle": "Issues in your last message",
       "suggestionsTitle": "Suggested replies",
+      "suggestionsRequest": "Suggest replies for me",
+      "suggestionsLoading": "Thinking of suggestions…",
       "emptyTitle": "Learning copilot",
       "emptyHint": "Record, type, or pick a starter to chat with {name}",
       "startersTitle": "Suggested openers",
