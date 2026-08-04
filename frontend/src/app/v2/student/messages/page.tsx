@@ -4,12 +4,20 @@ import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { GaPageHdr } from '@/components/ui-v2'
-import { MessagesView } from '../../messagesShared'
+import { MessagesInbox } from '../../messages/MessagesInbox'
+import { loadStudentChannelClasses } from '../../messages/classLoaders'
 
 function Body() {
   const sp = useSearchParams()
   const to = sp.get('to')
-  return <MessagesView initialUserId={to ? Number(to) : null} initialName={sp.get('name')} />
+  return (
+    <MessagesInbox
+      loadClasses={loadStudentChannelClasses}
+      initialUserId={to ? Number(to) : null}
+      initialName={sp.get('name')}
+      emptyDirectText="Chưa có hội thoại riêng. Mở trang lớp và nhấn “Nhắn giáo viên” để bắt đầu."
+    />
+  )
 }
 
 export default function StudentMessagesPage() {

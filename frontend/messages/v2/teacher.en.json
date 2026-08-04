@@ -475,9 +475,6 @@
     "messages": {
       "title": "Messages",
       "subtitle": "Message students individually or the whole class group",
-      "modeAria": "Messaging mode",
-      "modeDirect": "Direct",
-      "modeClass": "Class group",
       "emptyDirect": "No conversations yet. Tap \"Message a student\" above to start a private chat with a student."
     },
     "analytics": {
