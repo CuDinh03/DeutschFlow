@@ -1,0 +1,30 @@
+/**
+ * Node của lộ trình bài học — đúng shape `RoadmapNodeDto` của `GET /roadmap/me`.
+ *
+ * `id` là SỐ và là id duy nhất mà backend học/luyện chấp nhận (`/skill-tree/{nodeId}/…`) — cùng
+ * backend app mobile dùng.
+ */
+export interface RoadmapNode {
+  id: number
+  code: string
+  /** Tiêu đề tiếng Đức. */
+  title: string
+  /** Tiêu đề tiếng Việt. */
+  subtitle: string
+  emoji: string
+  /** "completed" | "current" | "locked" — 3 mức, giữ cho các màn cũ. */
+  state: string
+  xpReward: number
+  lessonsTotal: number
+  lessonsCompleted: number
+  cefrLevel: string
+  description: string
+  /** Ngày trong giáo trình, 1-based. Null với node ngoài trục ngày. */
+  dayNumber?: number | null
+  /** Tuần trong giáo trình, 1-based. */
+  weekNumber?: number | null
+  /** "COMPLETED" | "IN_PROGRESS" | "AVAILABLE" | "LOCKED" — bản chi tiết của `state`. */
+  progressStatus?: string | null
+  /** Số bài tập soạn sẵn theo kỹ năng, khoá viết hoa: `{"HOEREN":3,…}`. */
+  skillCounts?: Record<string, number> | null
+}

@@ -175,7 +175,40 @@
       "nodeLessons": "{done}/{total} Lektionen",
       "nodeLearn": "Lernen",
       "nodeRelearn": "Wiederholen",
-      "nodePractice": "4 Fertigkeiten üben"
+      "nodePractice": "4 Fertigkeiten üben",
+      "tabTree": "Lernbaum",
+      "tree": {
+        "pickNode": "Tippe auf einen Knoten, um den jeweiligen Tag zu sehen.",
+        "dayTitle": "Tag {day} · {title}",
+        "dayShort": "Tag {day}",
+        "weekShort": "Woche {week}",
+        "weekRange": "Woche {week} · Tag {from}–{to}",
+        "status": {
+          "leaf": "fertig",
+          "flower": "in Arbeit",
+          "bud": "freigeschaltet",
+          "nub": "gesperrt"
+        },
+        "legend": {
+          "leaf": "Blatt = fertig",
+          "flower": "Blüte = in Arbeit",
+          "bud": "Knospe = frei",
+          "nub": "grauer Punkt = gesperrt"
+        },
+        "lockedHint": "Dieser Knoten ist noch gesperrt. Schließe den Vortag ab, damit diese Knospe aufgeht.",
+        "skillsCap": "Aufgaben des Knotens — 4 Fertigkeiten",
+        "exerciseCount": "{count} Aufgaben",
+        "practiceSkill": "Lernen & üben",
+        "progressHint": "{percent}% geschafft — alle vier Fertigkeiten, dann wird aus der Blüte ein Blatt.",
+        "doneHint": "Alle vier Fertigkeiten geschafft — am Ast dieser Woche ist ein Blatt gewachsen.",
+        "review": "Stoff wiederholen",
+        "study": "Stoff lernen",
+        "futureTip": "gestrichelte Spitze = nächstes Niveau",
+        "summary": "{days} Tage · {weeks} Wochen",
+        "doneCount": "{done}/{total} fertig",
+        "motionOn": "Animation an",
+        "motionOff": "Animation aus"
+      }
     },
     "speaking": {
       "title": "KI-Sprechen",
