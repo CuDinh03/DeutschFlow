@@ -599,7 +599,8 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
       )}
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
-        <main className="relative flex-1 md:w-[65%] md:flex-none overflow-y-auto p-4 md:p-6 space-y-2 min-h-0">
+        {/* Redesign 05/08: sidebar 35% → rail mỏng, chat lấy trọn phần còn lại. */}
+        <main className="relative flex-1 overflow-y-auto p-4 md:p-6 space-y-2 min-h-0">
           <SpeakingPersonaFloat
             personaId={selectedCompanion.id}
             reaction={personaReaction}

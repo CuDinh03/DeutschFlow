@@ -728,6 +728,7 @@
       "correctionsTitle": "Issues in your last message",
       "suggestionsTitle": "Suggested replies",
       "suggestionsRequest": "Suggest replies for me",
+      "closePanel": "Close panel",
       "suggestionsLoading": "Thinking of suggestions…",
       "emptyTitle": "Learning copilot",
       "emptyHint": "Record, type, or pick a starter to chat with {name}",
