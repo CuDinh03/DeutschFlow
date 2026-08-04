@@ -107,9 +107,30 @@ public class SkillTreeService {
                            (jsonb_typeof(n.content_json->'theory_cards') = 'array' AND jsonb_array_length(n.content_json->'theory_cards') > 0)
                            OR (jsonb_typeof(n.content_json->'vocabulary') = 'array' AND jsonb_array_length(n.content_json->'vocabulary') > 0)
                            OR (jsonb_typeof(n.content_json->'phrases') = 'array' AND jsonb_array_length(n.content_json->'phrases') > 0)
+                           -- A node whose only content is the authored 4-skill exercise set still has
+                           -- content. Without this a practice-only node reports "Nội dung đang cập nhật"
+                           -- even though the runner can grade it end to end.
+                           OR (jsonb_typeof(n.content_json->'skill_exercises') = 'object' AND n.content_json->'skill_exercises' <> '{}'::jsonb)
                          )
                         THEN TRUE ELSE FALSE
                     END AS has_content,
+                    -- Per-skill exercise tally — lets a client show "Hören 3 · Lesen 2 …" without
+                    -- pulling content_json. KEEP IN SYNC with the identical expression in
+                    -- RoadmapService#generateRoadmapForUser.
+                    (
+                        SELECT jsonb_object_agg(e.key, CASE
+                                   WHEN jsonb_typeof(e.value) = 'array'
+                                       THEN jsonb_array_length(e.value)
+                                   WHEN jsonb_typeof(e.value -> 'exercises') = 'array'
+                                       THEN jsonb_array_length(e.value -> 'exercises')
+                                   ELSE 0
+                               END)::text
+                        FROM jsonb_each(
+                                 CASE WHEN jsonb_typeof(n.content_json -> 'skill_exercises') = 'object'
+                                      THEN n.content_json -> 'skill_exercises'
+                                      ELSE '{}'::jsonb END
+                             ) AS e
+                    ) AS skill_exercise_counts,
                     CASE
                         WHEN NOT EXISTS (
                             SELECT 1 FROM skill_tree_node_dependencies d

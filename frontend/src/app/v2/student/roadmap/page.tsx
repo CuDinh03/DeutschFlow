@@ -6,6 +6,8 @@ import { useTranslations } from 'next-intl'
 import { Check, ArrowRight, BookOpen, Dumbbell, Lock } from 'lucide-react'
 import api from '@/lib/api'
 import { phaseApi, type PhaseStateResponse, type PhaseType } from '@/lib/phaseApi'
+import type { RoadmapNode } from '@/lib/roadmap-tree/types'
+import { RoadmapTreeTab } from '@/components/roadmap-tree/RoadmapTreeTab'
 import {
   GaPageHdr,
   GaCard,
@@ -21,29 +23,14 @@ import {
 } from '@/components/ui-v2'
 
 /**
- * Node của lộ trình bài học (`GET /roadmap/me` → RoadmapNodeDto). CHÚ Ý: `id` ở đây là SỐ và là id
- * duy nhất mà backend bài học/luyện tập chấp nhận (`/skill-tree/{nodeId}/...`,
- * `/skill-tree/node/{nodeId}/session`) — cùng backend mà app mobile dùng.
+ * Trang này từng có một tab "Cây học tập" khác, đọc `GET /roadmap/tree`. Đã gỡ 2026-08-03: dữ liệu
+ * ở đó là nội dung demo hardcode trong `TreeCurriculumSeeder` (144 node kiểu "Begrüßung"/"Familie")
+ * và ghi tiến độ vào một sổ riêng không cộng vào đâu cả.
  *
- * Trang này từng có thêm tab "Cây học tập" đọc `GET /roadmap/tree`. Đã gỡ 2026-08-03: dữ liệu ở đó
- * là nội dung demo hardcode trong `TreeCurriculumSeeder` (144 node kiểu "Begrüßung"/"Familie"),
- * không phải giáo trình thật, và ghi tiến độ vào một sổ riêng (`tree_node_progress`) không cộng vào
- * đâu cả. Xem BAO_CAO_DANH_GIA_LO_TRINH_HOC_2026-08-03.md.
+ * Tab "Cây học tập" hiện tại KHÁC HẲN: cùng nguồn `GET /roadmap/me` với tab "Bài học" — cùng dữ
+ * liệu, cùng sổ tiến độ, chỉ khác cách nhìn (cành = tuần, node = ngày). Xem
+ * TONG_HOP_CAY_HOC_TAP_2026-08-03.md.
  */
-interface RoadmapNode {
-  id: number
-  code: string
-  title: string
-  subtitle: string
-  emoji: string
-  /** "completed" | "current" | "locked" */
-  state: string
-  xpReward: number
-  lessonsTotal: number
-  lessonsCompleted: number
-  cefrLevel: string
-  description: string
-}
 
 const PHASES: { type: PhaseType; labelKey: string; descKey: string }[] = [
   { type: 'FOUNDATION', labelKey: 'phases.foundationLabel', descKey: 'phases.foundationDesc' },
@@ -55,7 +42,7 @@ const ORDER: PhaseType[] = ['FOUNDATION', 'PRODUCTION', 'FLUENCY', 'GRADUATED']
 
 export default function V2StudentRoadmapPage() {
   const t = useTranslations('v2.student.roadmap')
-  const [tab, setTab] = useState('nodes')
+  const [tab, setTab] = useState('tree')
 
   // ── Bài học (nodes) — cửa vào bài học thật + runner luyện 4 kỹ năng ──
   const [nodes, setNodes] = useState<RoadmapNode[]>([])
@@ -104,9 +91,22 @@ export default function V2StudentRoadmapPage() {
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-6 pt-4 sm:px-6 lg:px-10">
         <TkTabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
           <TkTabsList>
+            <TkTabsTrigger value="tree">{t('tabTree')}</TkTabsTrigger>
             <TkTabsTrigger value="nodes">{t('tabNodes')}</TkTabsTrigger>
             <TkTabsTrigger value="phase">{t('tabPhase')}</TkTabsTrigger>
           </TkTabsList>
+
+          {/* Cây học tập — cùng dữ liệu với tab "Bài học", khác cách nhìn. Dùng chung state tải ở
+              trên nên chuyển tab không gọi lại API. */}
+          <TkTabsContent value="tree" className="flex min-h-0 flex-1 flex-col">
+            {nodesError ? (
+              <ErrorBanner message={nodesError} onRetry={loadNodes} />
+            ) : nodesLoading ? (
+              <LoadingState label={t('nodesLoading')} />
+            ) : (
+              <RoadmapTreeTab nodes={nodes} />
+            )}
+          </TkTabsContent>
 
           {/* Bài học — cửa DUY NHẤT của /v2 vào bài học thật (5 view) và runner luyện 4 kỹ năng
               có chấm điểm. Cùng nguồn dữ liệu với app mobile. */}

@@ -1,0 +1,127 @@
+/* Cây học tập — bảng màu và chuyển động riêng của màn hình này.
+ *
+ * Nằm ngoài galerie.css vì đây là art direction của một màn: mực nâu ấm và tán xanh, không phải
+ * palette Galerie chung. Điểm chạm duy nhất là hoa — dùng thẳng --ga-yellow để cây vẫn mang màu
+ * thương hiệu. Chỉ chuyển động thuộc nhóm compositor (transform/opacity).
+ */
+
+.rt-scope {
+  --tree-ink: #3a2a20;
+  --tree-bark: #8a6350;
+  --tree-canopy: #eef7ea;
+  --tree-paper: #fffdf8;
+  --tree-leaf-a: #6fcbbf;
+  --tree-leaf-b: #8fd29a;
+  --tree-leaf-c: #bfe3a8;
+  --tree-bud: #eaf6ec;
+  --tree-flower: var(--ga-yellow, #ffcd00);
+  --tree-flower-lit: #ffd940;
+  --tree-nub: #f0ece7;
+  --tree-nub-line: #b9aea6;
+  --tree-ghost: #cdc3ba;
+  --tree-label-mute: #8b837c;
+}
+
+/* ── Chuyển động nền ─────────────────────────────────────────────────── */
+
+@keyframes rtSway {
+  0%,
+  100% {
+    transform: rotate(-0.6deg);
+  }
+  50% {
+    transform: rotate(0.6deg);
+  }
+}
+
+@keyframes rtPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.45;
+  }
+}
+
+@keyframes rtRing {
+  0% {
+    transform: scale(0.72);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+.rt-sway {
+  transform-box: fill-box;
+  transform-origin: 50% 97%;
+  animation: rtSway 9s ease-in-out infinite;
+}
+
+.rt-ring-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rtPulse 2.4s ease-in-out infinite;
+}
+
+.rt-ring-out {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rtRing 2.4s ease-out infinite;
+}
+
+/* Cây đứng yên ngay khi người học chạm tới: một node đang đung đưa là một node khó bấm trúng —
+ * nhất là bằng chuột đầu run hoặc trên màn cảm ứng. Hover và focus-within đều dừng, nên cả chuột
+ * lẫn bàn phím đều nhắm vào mục tiêu tĩnh. */
+.rt-scope:hover .rt-sway,
+.rt-scope:focus-within .rt-sway {
+  animation-play-state: paused;
+}
+
+/* Tắt chuyển động: người dùng bật giảm chuyển động, hoặc tự bấm nút tắt hiệu ứng. */
+.rt-still .rt-sway,
+.rt-still .rt-ring-pulse,
+.rt-still .rt-ring-out {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rt-sway,
+  .rt-ring-pulse,
+  .rt-ring-out {
+    animation: none;
+  }
+}
+
+/* ── Node ────────────────────────────────────────────────────────────── */
+
+.rt-node {
+  cursor: pointer;
+  outline: none;
+}
+
+.rt-node .rt-hit {
+  fill: transparent;
+}
+
+/* Viền focus vẽ bằng SVG để hiện rõ trên nền giấy — outline mặc định bị tán lá nuốt mất. */
+.rt-node:focus-visible .rt-focus {
+  stroke: var(--tree-ink);
+  stroke-width: 2.5;
+  stroke-dasharray: 3 3;
+}
+
+.rt-node .rt-focus {
+  stroke: transparent;
+  fill: none;
+}
+
+.rt-canvas {
+  touch-action: none;
+  display: block;
+}
