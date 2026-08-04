@@ -22,6 +22,10 @@
         <jjwt.version>0.12.5</jjwt.version>
         <!-- Spring Boot 3.2.5 manages 1.19.x; bump for docker-java / Docker Desktop API fixes on macOS -->
         <testcontainers.version>1.20.5</testcontainers.version>
+        <!-- `-DskipUnitTests=true` bỏ qua surefire mà KHÔNG đụng failsafe (khác `-DskipTests`, vốn
+             tắt cả hai). Job Integration Tests dùng cờ này để khỏi chạy lại 1692 unit test. Phải
+             khai property ở đây thì cờ mới có tác dụng — trước đó nó là no-op im lặng. -->
+        <skipUnitTests>false</skipUnitTests>
     </properties>
 
     <dependencies>
@@ -321,6 +325,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
+                    <!-- Chỉ tắt surefire, failsafe không đụng tới. `-DskipTests` thì tắt cả hai. -->
+                    <skipTests>${skipUnitTests}</skipTests>
                     <excludes>
                         <exclude>**/*IntegrationTest.java</exclude>
                         <exclude>**/*ContractTest.java</exclude>
