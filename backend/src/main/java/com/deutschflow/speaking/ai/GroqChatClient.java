@@ -18,6 +18,7 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -61,6 +62,17 @@ public class GroqChatClient implements OpenAiChatClient {
     private static final int BUSY_RETRY_AFTER_SECONDS = 15;
     /** Gợi ý Retry-After khi breaker OPEN — khớp wait-duration-in-open-state 30s trong yml. */
     private static final int BREAKER_OPEN_RETRY_AFTER_SECONDS = 30;
+    /**
+     * Gợi ý Retry-After khi upstream trả 429 mà KHÔNG kèm header. Groq tính hạn mức theo cửa sổ
+     * token/phút và bucket đầy lại trong khoảng một phút (đo prod 04/08: reset_tokens ~50s), nên
+     * 60s là mốc an toàn để client không đập lại vào đúng cửa sổ vẫn đang cạn.
+     */
+    private static final int DEFAULT_RATE_LIMIT_RETRY_AFTER_SECONDS = 60;
+    /** Header hạn mức của Groq, gom vào log 429 để chẩn đoán "burst" hay "chạm trần tier". */
+    private static final String[] RATE_LIMIT_HEADERS = {
+            "x-ratelimit-limit-tokens", "x-ratelimit-remaining-tokens", "x-ratelimit-reset-tokens",
+            "x-ratelimit-limit-requests", "x-ratelimit-remaining-requests"
+    };
     /** Stream: khoảng lặng tối đa giữa 2 token trước khi coi là treo (thay cho 120s cũ). */
     private static final Duration STREAM_TOKEN_GAP_TIMEOUT = Duration.ofSeconds(30);
     /** Stream: trần tổng cho cả lượt sinh — dưới SSE emitter timeout 180s và stall-guard FE 90s. */
@@ -168,7 +180,15 @@ public class GroqChatClient implements OpenAiChatClient {
     private AiChatCompletionResult chatCompletionWithRetry(String requestBody, String effectiveModel) {
         long deadlineNanos = System.nanoTime() + REQUEST_DEADLINE_MILLIS * 1_000_000L;
         Exception lastException = null;
+        // Lần hỏng GẦN NHẤT có phải 429 không — quyết định mã lỗi ném ra ở cuối vòng (một lượt gọi
+        // có thể trộn 503 rồi 429 hoặc ngược lại). rateLimitRetryAfter là gợi ý Retry-After kèm theo
+        // (giây; null khi upstream không nói ⇒ dùng mặc định), luôn được gán lại ở mỗi lần 429 nên
+        // không bao giờ mang giá trị cũ.
+        boolean lastFailureWasRateLimit = false;
+        Integer rateLimitRetryAfter = null;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            // Mặc định là backoff cố định; nhánh 429 ghi đè bằng chính Retry-After của upstream.
+            long nextDelayMillis = BACKOFF_MILLIS[Math.min(attempt - 1, BACKOFF_MILLIS.length - 1)];
             try {
                 String responseBody = restClient.post()
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
@@ -178,7 +198,36 @@ public class GroqChatClient implements OpenAiChatClient {
                 return extractResult(responseBody, effectiveModel);
             } catch (RestClientResponseException e) {
                 int statusCode = e.getStatusCode().value();
-                if (statusCode != 429 && statusCode < 500) {
+                lastFailureWasRateLimit = false;
+                if (statusCode == 429) {
+                    // ── Hạn mức upstream (đo prod 04/08) ────────────────────────────────────
+                    // Tài khoản Groq free tier: 8.000 token/PHÚT cho openai/gpt-oss-20b, và Groq trừ
+                    // theo `max_tokens` ĐẶT CHỖ chứ không theo token thật sinh ra (1 lượt nói thật =
+                    // 1234 prompt + 2000 đặt chỗ = 3234, trong khi chỉ sinh 174). Tức cả prod chỉ
+                    // chạy được ~3-5 lượt/phút. Bucket refill ~50s, trong khi ngân sách một lượt gọi
+                    // chỉ 20s ⇒ retry mù CHẮC CHẮN trượt mà vẫn đốt hạn mức 1000 request/ngày.
+                    // Vì vậy: nghe theo Retry-After của upstream, và bỏ cuộc NGAY nếu phải chờ lâu
+                    // hơn ngân sách còn lại.
+                    rateLimitRetryAfter = parseRetryAfterSeconds(e);
+                    lastFailureWasRateLimit = true;
+                    lastException = e;
+                    log.warn("[Groq] 429 HẠN MỨC UPSTREAM attempt {}/{} — retry_after={}, {}. "
+                                    + "Nếu lặp lại liên tục: tài khoản Groq đang chạm trần tokens/phút "
+                                    + "(free tier = 8000 TPM) — nâng tier hoặc hạ system_config ai.maxTokens.",
+                            attempt, MAX_ATTEMPTS,
+                            rateLimitRetryAfter == null ? "(upstream không nói)" : rateLimitRetryAfter + "s",
+                            describeRateLimitHeaders(e));
+                    if (rateLimitRetryAfter != null) {
+                        long suggestedMillis = rateLimitRetryAfter * 1_000L;
+                        if (!fitsInDeadline(suggestedMillis, deadlineNanos)) {
+                            log.warn("[Groq] bỏ retry NGAY: upstream bảo chờ {}s > ngân sách còn lại "
+                                    + "của lượt gọi ({}ms) — retry chỉ đốt thêm hạn mức request.",
+                                    rateLimitRetryAfter, REQUEST_DEADLINE_MILLIS);
+                            throw rateLimitException(rateLimitRetryAfter, e);
+                        }
+                        nextDelayMillis = suggestedMillis;
+                    }
+                } else if (statusCode < 500) {
                     String body = e.getResponseBodyAsString();
                     // json_validate_failed là kết quả SINH (model nhả JSON hỏng/cụt trong json-mode),
                     // không phải request sai — gọi lại với temperature > 0 thường ra bản hợp lệ.
@@ -210,13 +259,21 @@ public class GroqChatClient implements OpenAiChatClient {
                 }
             } catch (ResourceAccessException e) {
                 log.warn("[Groq] timeout on attempt {}/{}: {}", attempt, MAX_ATTEMPTS, e.getMessage());
+                lastFailureWasRateLimit = false;
                 lastException = e;
             }
-            if (attempt < MAX_ATTEMPTS && !backoffWithinDeadline(attempt, deadlineNanos)) {
+            if (attempt < MAX_ATTEMPTS && !sleepWithinDeadline(nextDelayMillis, deadlineNanos)) {
                 log.warn("[Groq] bỏ retry sau attempt {}/{}: chạm trần {}ms cho một lượt gọi",
                         attempt, MAX_ATTEMPTS, REQUEST_DEADLINE_MILLIS);
                 break;
             }
+        }
+        // Hết ngân sách vì hạn mức upstream là một CHẨN ĐOÁN KHÁC hẳn "AI bận": nó không tự khỏi khi
+        // tải giảm, mà đòi nâng tier / hạ cap token. Mã riêng cho client + metric
+        // speaking.ai.failures{code=RATE_LIMITED} (GlobalExceptionHandler tự đếm) để lần sau nhìn ra
+        // ngay thay vì phải gọi thẳng API nhà cung cấp mới biết.
+        if (lastFailureWasRateLimit) {
+            throw rateLimitException(rateLimitRetryAfter, lastException);
         }
         throw new AiServiceException("Trợ lý AI đang bận, vui lòng thử lại sau ít phút.", lastException);
     }
@@ -302,6 +359,15 @@ public class GroqChatClient implements OpenAiChatClient {
                 return false;
             }
             if (errorRef[0] != null) {
+                // Nhánh stream KHÔNG retry (đã phát token ra client rồi thì không gọi lại được), nhưng
+                // vẫn phải phân biệt 429: nó là chẩn đoán hạn mức tài khoản chứ không phải "gián đoạn
+                // tạm thời", và web /v2 đọc `code` trong SSE event error để chọn thông điệp. Trước đây
+                // mọi lỗi stream đều đội lốt AI_UPSTREAM_UNAVAILABLE nên hạn mức là vô hình ở đường web
+                // — đúng đường mà người dùng gặp hôm 04/08.
+                AiServiceException rateLimited = asStreamRateLimit(errorRef[0]);
+                if (rateLimited != null) {
+                    throw rateLimited;
+                }
                 log.warn("[Groq-stream] upstream error: {}", errorRef[0].getMessage());
                 throw new AiServiceException(AiErrorCode.AI_UPSTREAM_UNAVAILABLE,
                         "Dịch vụ AI tạm thời gián đoạn, vui lòng thử lại.", null, errorRef[0]);
@@ -465,21 +531,104 @@ public class GroqChatClient implements OpenAiChatClient {
     }
 
     /**
-     * Ngủ backoff cho attempt vừa hỏng nếu vẫn còn nằm trong trần thời gian của lượt gọi;
+     * Nhận diện 429 ở nhánh stream (WebClient ném {@code WebClientResponseException}, KHÁC
+     * {@code RestClientResponseException} của nhánh blocking). Trả {@code null} nếu không phải 429.
+     */
+    private AiServiceException asStreamRateLimit(Throwable error) {
+        if (!(error instanceof WebClientResponseException wcre) || wcre.getStatusCode().value() != 429) {
+            return null;
+        }
+        Integer retryAfter = parseRetryAfterSeconds(wcre.getHeaders().getFirst(HttpHeaders.RETRY_AFTER));
+        log.warn("[Groq-stream] 429 HẠN MỨC UPSTREAM — retry_after={}. Nếu lặp lại liên tục: tài khoản "
+                        + "Groq đang chạm trần tokens/phút (free tier = 8000 TPM) — nâng tier hoặc hạ "
+                        + "system_config ai.maxTokens.",
+                retryAfter == null ? "(upstream không nói)" : retryAfter + "s");
+        return rateLimitException(retryAfter, wcre);
+    }
+
+    /** Còn đủ chỗ trong ngân sách của lượt gọi để chờ {@code delayMillis} rồi thử lại không? */
+    private boolean fitsInDeadline(long delayMillis, long deadlineNanos) {
+        long remainingMillis = (deadlineNanos - System.nanoTime()) / 1_000_000L;
+        return remainingMillis > delayMillis;
+    }
+
+    /**
+     * Ngủ {@code delayMillis} trước attempt kế nếu vẫn còn nằm trong trần thời gian của lượt gọi;
      * trả {@code false} khi ngân sách đã cạn (bỏ retry, fail ngay) hoặc thread bị interrupt.
      */
-    private boolean backoffWithinDeadline(int attempt, long deadlineNanos) {
-        long delay = BACKOFF_MILLIS[Math.min(attempt - 1, BACKOFF_MILLIS.length - 1)];
-        long remainingMillis = (deadlineNanos - System.nanoTime()) / 1_000_000L;
-        if (remainingMillis <= delay) {
+    private boolean sleepWithinDeadline(long delayMillis, long deadlineNanos) {
+        if (!fitsInDeadline(delayMillis, deadlineNanos)) {
             return false;
         }
         try {
-            Thread.sleep(delay);
+            Thread.sleep(delayMillis);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             return false;
         }
         return true;
+    }
+
+    /**
+     * Lỗi hạn mức upstream. Message là câu tiếng Việt trung tính (nó thành {@code detail} của
+     * ProblemDetail 503 / payload SSE {@code error}); {@code retryAfterSeconds} thành header
+     * {@code Retry-After} để client biết đợi bao lâu thay vì đập lại ngay.
+     */
+    private AiServiceException rateLimitException(Integer retryAfterSeconds, Throwable cause) {
+        int retryAfter = retryAfterSeconds != null ? retryAfterSeconds : DEFAULT_RATE_LIMIT_RETRY_AFTER_SECONDS;
+        return new AiServiceException(AiErrorCode.RATE_LIMITED,
+                "Trợ lý AI đang quá tải, vui lòng thử lại sau ít phút.", retryAfter, cause);
+    }
+
+    /**
+     * Đọc {@code Retry-After} (giây) từ phản hồi 429. Groq trả số giây, có thể là phân số
+     * ({@code "7.5"}) nên phải parse như số thực rồi làm tròn LÊN — làm tròn xuống là thử lại
+     * sớm và ăn thêm một 429. Trả {@code null} khi thiếu header hoặc không đọc được (RFC cho
+     * phép cả HTTP-date; ta không đoán, cứ coi như không có gợi ý).
+     */
+    static Integer parseRetryAfterSeconds(RestClientResponseException e) {
+        HttpHeaders headers = e.getResponseHeaders();
+        if (headers == null) {
+            return null;
+        }
+        return parseRetryAfterSeconds(headers.getFirst(HttpHeaders.RETRY_AFTER));
+    }
+
+    static Integer parseRetryAfterSeconds(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return null;
+        }
+        try {
+            double seconds = Double.parseDouble(rawValue.trim());
+            if (seconds < 0) {
+                return null;
+            }
+            return (int) Math.max(1L, (long) Math.ceil(seconds));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * Gói các header {@code x-ratelimit-*} vào một chuỗi log. Đây chính là thứ đã thiếu khi truy
+     * sự cố 04/08: log chỉ có "429" trơ trọi nên không thể phân biệt "burst nhất thời" với "tài
+     * khoản chạm trần tier", phải gọi tay API nhà cung cấp mới biết.
+     */
+    static String describeRateLimitHeaders(RestClientResponseException e) {
+        HttpHeaders headers = e.getResponseHeaders();
+        if (headers == null) {
+            return "không có header hạn mức";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String name : RATE_LIMIT_HEADERS) {
+            String value = headers.getFirst(name);
+            if (value != null) {
+                if (sb.length() > 0) {
+                    sb.append(", ");
+                }
+                sb.append(name).append('=').append(value);
+            }
+        }
+        return sb.length() == 0 ? "không có header hạn mức" : sb.toString();
     }
 }

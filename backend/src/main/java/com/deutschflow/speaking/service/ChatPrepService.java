@@ -62,13 +62,30 @@ import java.util.stream.Collectors;
 public class ChatPrepService {
 
     /**
-     * Cap completion tokens per turn/greeting (config {@code ai.maxTokens} có thể đè).
-     * 2000 chứ không phải 512: {@code gpt-oss-20b} là model reasoning — {@code max_tokens} của Groq
-     * đếm CẢ token "nghĩ" lẫn JSON trả về, nên 512/1024 làm greeting chết chập chờn với
-     * {@code json_validate_failed: "max completion tokens reached before generating a valid
-     * document"} (đo prod 29/07, session 437/441). Đây là TRẦN — token thật tính theo usage.
+     * Cap completion tokens per turn/greeting.
+     *
+     * <p>🔴 <b>ĐÂY CHỈ LÀ FALLBACK KHI THIẾU ROW — KHÔNG PHẢI GIÁ TRỊ CHẠY THẬT.</b> Giá trị hiệu
+     * lực đọc từ {@code system_config.ai.maxTokens}, mà {@code V63__create_system_config_table.sql}
+     * đã seed sẵn {@code '1024'} và chưa migration nào UPDATE. Nên trên mọi môi trường đã chạy V63
+     * (gồm production), hằng số này KHÔNG được dùng: cap thật là 1024. Bản vá 29/07 nâng 512→2000 ở
+     * đây vì vậy có thể chưa từng có hiệu lực trên prod — phát hiện khi truy sự cố 04/08.
+     * {@link #logMaxTokensShadowingOnce} log WARN một lần khi hai giá trị lệch nhau để lần sau
+     * không ai đọc hằng số rồi tưởng đó là sự thật nữa.
+     *
+     * <p>Muốn đổi cap thật: {@code PUT /api/admin/ai-config} (role ADMIN, Caffeine TTL 1h) — không
+     * cần deploy. Lưu ý cap này còn là số token Groq ĐẶT CHỖ và trừ vào hạn mức tokens/phút của
+     * tài khoản, không phải số token thật sinh ra (đo prod 04/08: đặt chỗ 2000, thật 174).
+     *
+     * <p>Bối cảnh lịch sử: 2000 chứ không phải 512 vì {@code gpt-oss-20b} là model reasoning —
+     * {@code max_tokens} của Groq đếm CẢ token "nghĩ" lẫn JSON trả về, nên 512/1024 làm greeting
+     * chết chập chờn với {@code json_validate_failed} (đo prod 29/07, session 437/441). Áp lực đó
+     * nay đã được xử lý đúng gốc hơn bằng {@code reasoning_effort=low} (PR #272).
      */
     private static final int SPEAKING_MAX_COMPLETION_TOKENS = 2000;
+
+    /** Chỉ log cảnh báo lệch cap MỘT lần cho mỗi lần khởi động — nếu không sẽ spam mỗi lượt nói. */
+    private static final java.util.concurrent.atomic.AtomicBoolean MAX_TOKENS_SHADOW_LOGGED =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
 
     /**
      * Sàn của clamp-theo-quota bên dưới: ví gần cạn mà cấp cap tí hon (vd 50 token) thì JSON chắc
@@ -205,7 +222,26 @@ public class ChatPrepService {
 
     private int clampCompletionBudget(long remainingThisMonth) {
         int maxTokensConfig = systemConfigService.getInteger("ai.maxTokens", SPEAKING_MAX_COMPLETION_TOKENS);
+        logMaxTokensShadowingOnce(maxTokensConfig);
         return clampCompletionBudget(maxTokensConfig, remainingThisMonth);
+    }
+
+    /**
+     * Nói to ra khi row {@code system_config.ai.maxTokens} đang che hằng số trong mã. Sự cố 04/08 lộ
+     * ra rằng cả hai cùng tồn tại với hai giá trị khác nhau mà KHÔNG có tín hiệu nào — người đọc mã
+     * tin là 2000 trong khi prod chạy 1024. Log một lần ở mức WARN là đủ để lần sau chẩn đoán không
+     * phải bới migration mới biết.
+     */
+    private void logMaxTokensShadowingOnce(int effectiveMaxTokens) {
+        if (effectiveMaxTokens == SPEAKING_MAX_COMPLETION_TOKENS
+                || !MAX_TOKENS_SHADOW_LOGGED.compareAndSet(false, true)) {
+            return;
+        }
+        log.warn("[Speaking] cap completion token ĐANG CHẠY = {} (đọc từ system_config 'ai.maxTokens'), "
+                        + "KHÁC hằng số trong mã SPEAKING_MAX_COMPLETION_TOKENS = {}. Row DB thắng. "
+                        + "Đổi bằng PUT /api/admin/ai-config, không phải bằng sửa mã. Cap này cũng là số "
+                        + "token Groq đặt chỗ và trừ vào hạn mức tokens/phút của tài khoản.",
+                effectiveMaxTokens, SPEAKING_MAX_COMPLETION_TOKENS);
     }
 
     /**
