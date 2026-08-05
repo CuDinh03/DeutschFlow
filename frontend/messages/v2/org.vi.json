@@ -295,13 +295,27 @@
       "statusLeft": "Đã rời",
       "joined": "Tham gia {date}",
       "assign": "Phân công",
-      "assignSoon": "Phân công lớp (sắp ra mắt)",
       "viewClasses": "Xem lớp",
       "hideClasses": "Ẩn lớp",
       "classesPanel": {
         "loading": "Đang tải…",
         "empty": "Giáo viên chưa phụ trách lớp nào trong trung tâm.",
         "meta": "{students} HV · {assignments} bài tập"
+      },
+      "assignModal": {
+        "title": "Phân công lớp",
+        "description": "Chọn lớp để giao cho {name} phụ trách. Lớp đang có giáo viên khác sẽ được chuyển sang giáo viên này.",
+        "searchPlaceholder": "Tìm lớp…",
+        "emptyOrg": "Tổ chức chưa có lớp nào — tạo lớp ở trang Lớp học trước.",
+        "emptySearch": "Không có lớp nào khớp từ khóa.",
+        "statusCurrent": "Giáo viên này đang phụ trách",
+        "statusUnassigned": "Chưa có giáo viên phụ trách",
+        "statusTaken": "Đang có giáo viên khác phụ trách",
+        "currentBadge": "Đang phụ trách",
+        "assignBtn": "Giao lớp này",
+        "assigning": "Đang giao…",
+        "success": "Đã giao lớp {className}.",
+        "close": "Đóng"
       }
     },
     "analytics": {

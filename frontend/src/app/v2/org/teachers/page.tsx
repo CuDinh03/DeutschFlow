@@ -13,6 +13,7 @@ import {
 } from '@/lib/orgApi'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 import { CreateTeacherModal } from './CreateTeacherModal'
+import { AssignClassModal } from './AssignClassModal'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Giáo viên của tổ chức (GaOrgTeachers) — teal, card grid.
@@ -39,6 +40,9 @@ export default function V2OrgTeachersPage() {
   const [showCreate, setShowCreate] = useState(false)
   // M-17: userId của GV đang mở panel "Lớp phụ trách" (null = đóng hết).
   const [openTeacher, setOpenTeacher] = useState<number | null>(null)
+  // GV đang mở modal "Phân công lớp"; panelVersion bump để panel lớp refetch sau khi gán.
+  const [assignFor, setAssignFor] = useState<OrgMember | null>(null)
+  const [panelVersion, setPanelVersion] = useState(0)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -140,11 +144,11 @@ export default function V2OrgTeachersPage() {
                     <button type="button" onClick={() => setOpenTeacher((cur) => (cur === teacher.userId ? null : teacher.userId))} className="ga-ui inline-flex min-h-[40px] shrink-0 items-center justify-center border border-ga-line px-3 py-2 text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0">
                       {openTeacher === teacher.userId ? t('hideClasses') : t('viewClasses')}
                     </button>
-                    <button type="button" onClick={() => toast(t('assignSoon'))} className="ga-ui inline-flex min-h-[40px] shrink-0 items-center justify-center border border-ga-line px-3 py-2 text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0">
+                    <button type="button" onClick={() => setAssignFor(teacher)} className="ga-ui inline-flex min-h-[40px] shrink-0 items-center justify-center border border-ga-line px-3 py-2 text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0">
                       {t('assign')}
                     </button>
                   </div>
-                  {openTeacher === teacher.userId && <TeacherClassesPanel teacherId={teacher.userId} />}
+                  {openTeacher === teacher.userId && <TeacherClassesPanel key={panelVersion} teacherId={teacher.userId} />}
                   </div>
                 ))}
               </div>
@@ -155,6 +159,14 @@ export default function V2OrgTeachersPage() {
 
       {showCreate && (
         <CreateTeacherModal onClose={() => setShowCreate(false)} onCreated={() => void load()} />
+      )}
+
+      {assignFor && (
+        <AssignClassModal
+          teacher={assignFor}
+          onClose={() => setAssignFor(null)}
+          onAssigned={() => setPanelVersion((v) => v + 1)}
+        />
       )}
     </div>
   )

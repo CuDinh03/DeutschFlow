@@ -300,6 +300,15 @@ export async function createOrgClass(body: {
   return res.data
 }
 
+/**
+ * PATCH /org/classes/{id}/teacher — đổi giáo viên phụ trách của lớp đã tồn tại (nút "Phân công").
+ * teacherId phải là giáo viên TEACHER ACTIVE của org (backend verify — chống IDOR).
+ */
+export async function assignClassTeacher(classId: number, teacherId: number): Promise<OrgClass> {
+  const res = await api.patch<OrgClass>(`/org/classes/${classId}/teacher`, { teacherId })
+  return res.data
+}
+
 /** GET /org/classes/{id} — class detail (teacher + roster). 404 if not in caller's org (B1.1). */
 export async function getOrgClassDetail(id: number): Promise<OrgClassDetail> {
   const res = await api.get<OrgClassDetail>(`/org/classes/${id}`)

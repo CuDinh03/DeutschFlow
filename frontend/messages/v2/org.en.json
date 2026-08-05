@@ -295,13 +295,27 @@
       "statusLeft": "Left",
       "joined": "Joined {date}",
       "assign": "Assign",
-      "assignSoon": "Assign class (coming soon)",
       "viewClasses": "View classes",
       "hideClasses": "Hide classes",
       "classesPanel": {
         "loading": "Loading…",
         "empty": "This teacher has no classes in the center yet.",
         "meta": "{students} students · {assignments} assignments"
+      },
+      "assignModal": {
+        "title": "Assign classes",
+        "description": "Pick a class to put {name} in charge of. A class that already has another teacher will be reassigned to this one.",
+        "searchPlaceholder": "Search classes…",
+        "emptyOrg": "The organization has no classes yet — create one on the Classes page first.",
+        "emptySearch": "No classes match your search.",
+        "statusCurrent": "This teacher is in charge",
+        "statusUnassigned": "No teacher assigned yet",
+        "statusTaken": "Another teacher is in charge",
+        "currentBadge": "In charge",
+        "assignBtn": "Assign this class",
+        "assigning": "Assigning…",
+        "success": "Assigned class {className}.",
+        "close": "Close"
       }
     },
     "analytics": {

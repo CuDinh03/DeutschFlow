@@ -295,13 +295,27 @@
       "statusLeft": "Ausgetreten",
       "joined": "Beigetreten {date}",
       "assign": "Zuweisen",
-      "assignSoon": "Kurs zuweisen (bald verfügbar)",
       "viewClasses": "Klassen ansehen",
       "hideClasses": "Klassen ausblenden",
       "classesPanel": {
         "loading": "Wird geladen…",
         "empty": "Diese Lehrkraft betreut noch keine Klassen im Zentrum.",
         "meta": "{students} Lernende · {assignments} Aufgaben"
+      },
+      "assignModal": {
+        "title": "Kurse zuweisen",
+        "description": "Wählen Sie einen Kurs, den {name} übernehmen soll. Ein Kurs mit einer anderen Lehrkraft wird auf diese Lehrkraft übertragen.",
+        "searchPlaceholder": "Kurse suchen…",
+        "emptyOrg": "Die Organisation hat noch keine Kurse — legen Sie zuerst einen auf der Kursseite an.",
+        "emptySearch": "Keine Kurse entsprechen der Suche.",
+        "statusCurrent": "Diese Lehrkraft ist verantwortlich",
+        "statusUnassigned": "Noch keine Lehrkraft zugewiesen",
+        "statusTaken": "Eine andere Lehrkraft ist verantwortlich",
+        "currentBadge": "Verantwortlich",
+        "assignBtn": "Diesen Kurs zuweisen",
+        "assigning": "Wird zugewiesen…",
+        "success": "Kurs {className} zugewiesen.",
+        "close": "Schließen"
       }
     },
     "analytics": {

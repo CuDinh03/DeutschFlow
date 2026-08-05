@@ -152,6 +152,51 @@ public class OrgService {
     }
 
     /**
+     * Đổi giáo viên phụ trách của một lớp đã tồn tại (nút "Phân công" trang GV org).
+     *
+     * <p>404 nếu lớp không thuộc {@code orgId} (chống IDOR). {@code teacherId} phải là TEACHER
+     * ACTIVE của chính org — cùng rule với {@link #createClass}. Đồng bộ {@code class_teachers}:
+     * xoá row PRIMARY của GV cũ, upsert row PRIMARY cho GV mới (giữ nguyên các ASSISTANT khác;
+     * nếu GV mới đang là ASSISTANT thì thăng lên PRIMARY thay vì tạo row trùng khoá).
+     * Gán lại chính GV đang phụ trách là no-op idempotent.
+     */
+    @Transactional
+    public OrgClassDto assignClassTeacher(Long orgId, Long classId, Long teacherId) {
+        if (teacherId == null) {
+            throw new BadRequestException("Phải chọn giáo viên phụ trách");
+        }
+        TeacherClass tc = teacherClassRepository.findById(classId)
+                .filter(c -> orgId.equals(c.getOrgId()))
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp trong tổ chức"));
+        OrgMember teacherMember = memberRepo.findByIdOrgIdAndIdUserId(orgId, teacherId)
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()) && ROLE_TEACHER.equals(m.getRole()))
+                .orElseThrow(() -> new BadRequestException("Giáo viên không hợp lệ hoặc không thuộc tổ chức"));
+
+        Long newTeacherId = teacherMember.getId().getUserId();
+        Long oldTeacherId = tc.getTeacherId();
+        if (newTeacherId.equals(oldTeacherId)) {
+            return toClassDto(tc);
+        }
+
+        tc.setTeacherId(newTeacherId);
+        TeacherClass saved = teacherClassRepository.save(tc);
+
+        if (oldTeacherId != null) {
+            classTeacherRepository.findById(new ClassTeacherId(classId, oldTeacherId))
+                    .filter(ct -> "PRIMARY".equals(ct.getRole()))
+                    .ifPresent(classTeacherRepository::delete);
+        }
+        ClassTeacher primaryRow = classTeacherRepository.findById(new ClassTeacherId(classId, newTeacherId))
+                .orElseGet(() -> ClassTeacher.builder()
+                        .id(new ClassTeacherId(classId, newTeacherId))
+                        .build());
+        primaryRow.setRole("PRIMARY");
+        classTeacherRepository.save(primaryRow);
+
+        return toClassDto(saved);
+    }
+
+    /**
      * Chi tiết một lớp thuộc tổ chức (B1.1): tên giáo viên + roster học viên (kèm skill_*).
      * 404 nếu lớp không tồn tại hoặc không thuộc {@code orgId} (chống IDOR — không lộ lớp org khác).
      */
