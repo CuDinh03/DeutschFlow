@@ -246,7 +246,12 @@
         "colAttendance": "Điểm danh",
         "colHomework": "Bài về nhà",
         "attendanceShort": "{present}/{total} có mặt"
-      }
+      },
+      "rolePrimary": "Phụ trách",
+      "roleAssistant": "Trợ giảng",
+      "removeAssistant": "Gỡ",
+      "removingAssistant": "Đang gỡ…",
+      "assistantRemoved": "Đã gỡ trợ giảng khỏi lớp."
     },
     "schedule": {
       "title": "Lịch trung tâm",
@@ -304,7 +309,7 @@
       },
       "assignModal": {
         "title": "Phân công lớp",
-        "description": "Chọn lớp để giao cho {name} phụ trách. Lớp đang có giáo viên khác sẽ được chuyển sang giáo viên này.",
+        "description": "Chọn lớp để giao cho {name}. \"Giao phụ trách\": giáo viên hiện tại của lớp sẽ trở thành trợ giảng (không rời lớp). \"Thêm trợ giảng\": giữ nguyên giáo viên phụ trách.",
         "searchPlaceholder": "Tìm lớp…",
         "emptyOrg": "Tổ chức chưa có lớp nào — tạo lớp ở trang Lớp học trước.",
         "emptySearch": "Không có lớp nào khớp từ khóa.",
@@ -312,10 +317,14 @@
         "statusUnassigned": "Chưa có giáo viên phụ trách",
         "statusTaken": "Đang có giáo viên khác phụ trách",
         "currentBadge": "Đang phụ trách",
-        "assignBtn": "Giao lớp này",
+        "assignBtn": "Giao phụ trách",
         "assigning": "Đang giao…",
         "success": "Đã giao lớp {className}.",
-        "close": "Đóng"
+        "close": "Đóng",
+        "statusAssistant": "Đang là trợ giảng của lớp này",
+        "assistantBadge": "Trợ giảng",
+        "addAssistantBtn": "Thêm trợ giảng",
+        "assistantAdded": "Đã thêm làm trợ giảng lớp {className}."
       }
     },
     "analytics": {
