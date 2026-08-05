@@ -30,7 +30,10 @@ import java.util.stream.Collectors;
 @Slf4j
 public class InterviewEvaluationService {
 
-    private static final int EVAL_MAX_TOKENS = 1200;
+    // gpt-oss (model chấm) là reasoning model: token "nghĩ" tính CHUNG vào max_tokens, và luồng chấm
+    // CỐ TÌNH không đặt reasoning_effort=low (GroqChatClient chỉ áp cho model nói) để giữ chất lượng
+    // chấm. 1200 từng khiến phần chữ bị ép ngắn / JSON cụt → report null → FE rơi về điểm heuristic.
+    private static final int EVAL_MAX_TOKENS = 2200;
     private static final double EVAL_TEMPERATURE = 0.3;
 
     private final AiSpeakingMessageRepository messageRepository;
@@ -166,7 +169,6 @@ public class InterviewEvaluationService {
                     }
                   ],
                   "german_language": {
-                    "grammar_accuracy_pct": "phần trăm chính xác ngữ pháp",
                     "vocabulary_level": "mức từ vựng (A1-C1)",
                     "fluency_vi": "Nhận xét về độ trôi chảy",
                     "common_errors_vi": ["Lỗi thường gặp..."]
@@ -181,10 +183,24 @@ public class InterviewEvaluationService {
                 
                 REGELN:
                 - categories MUSS genau 4 Einträge haben (wie oben).
+                - BELEGE MIT ZITATEN: Jede Kategorie MUSS mindestens EIN wörtliches Zitat des Kandidaten
+                  aus dem Protokoll enthalten (in green_flags_vi, red_flags_vi oder comment_vi),
+                  in Anführungszeichen „...". Keine Behauptung ohne Beleg aus dem Gespräch.
+                  Allgemeinplätze wie "Câu trả lời rõ ràng" ohne Zitat sind VERBOTEN.
+                - PUNKTE-SKALA (für jede Kategorie):
+                  9-10 = überzeugend, strukturiert, mit konkreten Beispielen belegt;
+                  7-8  = solide, kleinere Lücken, meist konkret;
+                  5-6  = brauchbar, aber oberflächlich oder ohne Beispiele;
+                  3-4  = schwach, ausweichend, kaum Substanz;
+                  0-2  = keine verwertbare Antwort.
+                - overall_score = Durchschnitt der 4 Kategorie-Scores, auf 0.5 gerundet,
+                  im Format "X/10" (z.B. "5.5/10"). KEINE davon abweichende Gesamtnote.
                 - remediation_vi: mindestens 3, maximal 5 Vorschläge — praktisch und umsetzbar.
                 - encouragement_vi: persönlich, bezieht sich auf konkrete Stärken aus dem Gespräch.
                 - Bewerte FAIR: berücksichtige das Erfahrungslevel (%s) und das Deutsch-Niveau (%s).
                 - Berücksichtige challengeCount und concreteExample in den Orchestrator-Metriken bei Fachkompetenz.
+                - Das Protokoll ist eine Sprache-zu-Text-Transkription: bewerte KEINE Aussprache/Orthografie,
+                  nur Inhalt, Struktur, Grammatik und Wortschatz.
                 - NUR STRICT JSON ausgeben — kein Markdown, kein Text drumherum.
                 """.formatted(position, experience, cefrLevel, orchestrationMetrics, conversationSummary, experience, cefrLevel);
     }

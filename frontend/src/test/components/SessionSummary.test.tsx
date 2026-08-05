@@ -89,6 +89,42 @@ describe('SessionSummary — GR-1 báo cáo AI thật (COMMUNICATION/LESSON)', (
     expect(screen.queryByText('Chưa đủ để chấm điểm')).toBeNull() // block heuristic cũ bị siết
   })
 
+  it('INTERVIEW có report AI: vòng tròn = điểm AI /10, KHÔNG còn heuristic /100 lẫn dòng "Đánh giá AI" phụ', () => {
+    const interviewJson = JSON.stringify({
+      overall_score: '5.5/10',
+      verdict: 'CONDITIONAL_PASS',
+      verdict_label_vi: 'Đạt có điều kiện',
+      categories: [
+        { name_vi: 'Cấu trúc & Sự cô đọng (Struktur & Prägnanz)', score: 6, red_flags_vi: ['Thiếu chi tiết'] },
+        { name_vi: 'Kỹ năng chuyên môn (Fachkompetenz)', score: 5 },
+      ],
+    })
+    render(
+      <SessionSummary {...baseProps} messages={userTurns(2)} isInterviewMode={true} interviewReportJson={interviewJson} />,
+    )
+    expect(screen.getByText('5.5')).toBeInTheDocument()
+    expect(screen.getByText('điểm / 10')).toBeInTheDocument()
+    expect(screen.queryByText('/ 100')).toBeNull() // heuristic client-side không được đè lên điểm AI
+    expect(screen.queryByText('Đánh giá AI:')).toBeNull() // hết dòng phụ trùng lặp
+  })
+
+  it('INTERVIEW overall_score không parse được: fallback trung bình category, vẫn không hiện /100', () => {
+    const interviewJson = JSON.stringify({
+      overall_score: 'Khá',
+      verdict: 'PASS',
+      verdict_label_vi: 'Đạt',
+      categories: [
+        { name_vi: 'A', score: 6 },
+        { name_vi: 'B', score: 7 },
+      ],
+    })
+    render(
+      <SessionSummary {...baseProps} messages={userTurns(3)} isInterviewMode={true} interviewReportJson={interviewJson} />,
+    )
+    expect(screen.getByText('6.5')).toBeInTheDocument() // (6+7)/2
+    expect(screen.queryByText('/ 100')).toBeNull()
+  })
+
   it('INTERVIEW: không đụng — conversationReport bị bỏ qua, vẫn render đánh giá phỏng vấn', () => {
     const interviewJson = JSON.stringify({
       overall_score: '8/10',
