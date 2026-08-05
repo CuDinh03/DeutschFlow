@@ -233,9 +233,8 @@ public class TeacherService {
 
     @Transactional
     public void approveJoinRequest(Long teacherId, Long classId, Long requestId) {
-        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ForbiddenException("Bạn không có quyền duyệt học viên lớp này");
-        }
+        // PR B trợ giảng: duyệt HV vào lớp là quản-lý-lớp — chỉ GV phụ trách (ma trận owner 06/08).
+        assertPrimaryTeacher(teacherId, classId);
 
         com.deutschflow.teacher.entity.ClassroomJoinRequest req = joinRequestRepository.findById(requestId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu"));
@@ -285,9 +284,8 @@ public class TeacherService {
 
     @Transactional
     public void rejectJoinRequest(Long teacherId, Long classId, Long requestId) {
-        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ForbiddenException("Bạn không có quyền duyệt học viên lớp này");
-        }
+        // PR B trợ giảng: từ chối HV cũng là quản-lý-lớp — chỉ GV phụ trách.
+        assertPrimaryTeacher(teacherId, classId);
 
         com.deutschflow.teacher.entity.ClassroomJoinRequest req = joinRequestRepository.findById(requestId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu"));
@@ -371,6 +369,15 @@ public class TeacherService {
     // ─── Co-teaching: quản lý giáo viên trong lớp ────────────────────────────────
 
     /** Trả về ClassTeacher của caller nếu là PRIMARY; ném ForbiddenException nếu không. */
+    /**
+     * Guard PRIMARY-only dùng chung cho service khác (PR B trợ giảng) — ví dụ cấp/thu hồi
+     * chứng nhận ({@code OrgCertificateService}). Trợ giảng (ASSISTANT) bị 403.
+     */
+    @Transactional(readOnly = true)
+    public void assertPrimaryTeacherOfClass(Long teacherId, Long classId) {
+        assertPrimaryTeacher(teacherId, classId);
+    }
+
     private ClassTeacher assertPrimaryTeacher(Long teacherId, Long classId) {
         ClassTeacher membership = classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))
                 .orElseThrow(() -> new ForbiddenException("Bạn không có quyền với lớp học này"));
@@ -448,9 +455,8 @@ public class TeacherService {
 
     @Transactional
     public void addStudentToClassByEmail(Long teacherId, Long classId, String email) {
-        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ForbiddenException("Bạn không có quyền thêm học viên vào lớp này");
-        }
+        // PR B trợ giảng: thêm HV là quản-lý-lớp — chỉ GV phụ trách.
+        assertPrimaryTeacher(teacherId, classId);
 
         // Case-insensitive lookup — the teacher may type the student's email in any case.
         String normalizedEmail = email == null ? "" : email.trim();
@@ -698,9 +704,8 @@ public class TeacherService {
 
     @Transactional
     public ClassAssignmentDto createAssignment(Long teacherId, Long classId, CreateAssignmentRequest req) {
-        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ForbiddenException("Bạn không có quyền thao tác trên lớp này");
-        }
+        // PR B trợ giảng: tạo & giao bài là quản-lý-lớp — chỉ GV phụ trách (trợ giảng vẫn CHẤM bài).
+        assertPrimaryTeacher(teacherId, classId);
         // If linking to a lesson (Phase 1d-D1), it must belong to this class (reject cross-class).
         if (req.lessonId() != null) {
             ClassLesson lesson = lessonRepository.findById(req.lessonId())

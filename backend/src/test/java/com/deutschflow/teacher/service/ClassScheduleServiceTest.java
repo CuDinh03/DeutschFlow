@@ -249,7 +249,7 @@ class ClassScheduleServiceTest {
     void updateSession_notOwner_forbidden() {
         ClassSession s = session(5L, CLASS_ID, LocalDateTime.now().plusDays(1), "P.302", false);
         when(sessionRepo.findById(5L)).thenReturn(Optional.of(s));
-        when(classTeacherRepo.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(false);
+        when(classTeacherRepo.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(false);
 
         assertThatThrownBy(() -> service.updateSession(TEACHER_ID, 5L,
                 new UpdateSessionRequest(null, null, null, "P.303", null)))
@@ -629,7 +629,8 @@ class ClassScheduleServiceTest {
     }
 
     private void allowOwner() {
-        when(classTeacherRepo.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        // PR B trợ giảng: mọi mutation lịch đòi PRIMARY — helper stub theo gate mới.
+        when(classTeacherRepo.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(true);
     }
 
     private static ClassTeacher classTeacher(Long classId) {

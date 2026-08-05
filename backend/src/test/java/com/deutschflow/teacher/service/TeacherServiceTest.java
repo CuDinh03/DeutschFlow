@@ -166,7 +166,8 @@ class TeacherServiceTest {
         Long classId = 100L;
         CreateAssignmentRequest req = new CreateAssignmentRequest("Test Topic", "Test Desc", "GENERAL", null, 10L, LocalDateTime.now().plusDays(7), null, null, null);
 
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, teacherId)).role("PRIMARY").build()));
 
         TeacherClass teacherClass = TeacherClass.builder().id(classId).name("Class A").build();
         when(classRepository.findById(classId)).thenReturn(java.util.Optional.of(teacherClass));
@@ -195,12 +196,36 @@ class TeacherServiceTest {
     }
 
     @Test
+    void createAssignment_assistantTeacher_throwsForbidden() {
+        // PR B trợ giảng: có tên trong lớp nhưng vai ASSISTANT → không được tạo bài.
+        Long teacherId = 1L, classId = 100L;
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, teacherId)).role("ASSISTANT").build()));
+
+        assertThrows(ForbiddenException.class, () -> teacherService.createAssignment(teacherId, classId,
+                new CreateAssignmentRequest("T", "D", "GENERAL", null, null, null, null, null, null)));
+        verify(assignmentRepository, never()).save(any());
+    }
+
+    @Test
+    void approveJoinRequest_assistantTeacher_throwsForbidden() {
+        // PR B trợ giảng: duyệt HV vào lớp là việc của GV phụ trách.
+        Long teacherId = 1L, classId = 100L;
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, teacherId)).role("ASSISTANT").build()));
+
+        assertThrows(ForbiddenException.class, () -> teacherService.approveJoinRequest(teacherId, classId, 5L));
+        verify(joinRequestRepository, never()).findById(any());
+    }
+
+    @Test
     void createAssignment_lessonFromOtherClass_throwsForbidden() {
         Long teacherId = 1L, classId = 100L, lessonId = 55L;
         CreateAssignmentRequest req = new CreateAssignmentRequest(
                 "T", "D", "GENERAL", null, null, null, null, lessonId, null);
 
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, teacherId)).role("PRIMARY").build()));
         when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
                 ClassLesson.builder().id(lessonId).classId(999L).orderIndex(0).title("Fremd").build()));
 
@@ -214,7 +239,8 @@ class TeacherServiceTest {
         CreateAssignmentRequest req = new CreateAssignmentRequest(
                 "T", "D", "GENERAL", null, null, null, null, lessonId, null);
 
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, teacherId)).role("PRIMARY").build()));
         when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
                 ClassLesson.builder().id(lessonId).classId(classId).orderIndex(0).title("Lektion 5").build()));
         when(classRepository.findById(classId)).thenReturn(Optional.of(
@@ -243,7 +269,8 @@ class TeacherServiceTest {
         CreateAssignmentRequest req = new CreateAssignmentRequest(
                 "Im Restaurant", "D", "SPEAKING_SCENARIO", null, null, null, null, lessonId, null);
 
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, teacherId)).role("PRIMARY").build()));
         when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
                 ClassLesson.builder().id(lessonId).classId(classId).orderIndex(0).title("L5").cefrLevel("B1").build()));
         when(assignmentRepository.save(any(ClassAssignment.class))).thenAnswer(inv -> {
@@ -268,7 +295,8 @@ class TeacherServiceTest {
         CreateAssignmentRequest req = new CreateAssignmentRequest(
                 "Smalltalk", "D", "SPEAKING_SCENARIO", null, null, null, null, null, null);
 
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, teacherId)).role("PRIMARY").build()));
         when(assignmentRepository.save(any(ClassAssignment.class))).thenAnswer(inv -> {
             ClassAssignment a = inv.getArgument(0);
             if (a.getId() == null) a.setId(501L);
@@ -517,7 +545,8 @@ class TeacherServiceTest {
      */
     @Test
     void addStudentByEmail_rejectsUserFromAnotherOrg() {
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
         when(userRepository.findByEmailIgnoreCase("outsider@other.de")).thenReturn(java.util.Optional.of(
                 com.deutschflow.user.entity.User.builder().id(9001L).orgId(77L)
                         .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));
@@ -531,7 +560,8 @@ class TeacherServiceTest {
 
     @Test
     void addStudentByEmail_allowsSameOrg() {
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
         when(userRepository.findByEmailIgnoreCase("hv@org.de")).thenReturn(java.util.Optional.of(
                 com.deutschflow.user.entity.User.builder().id(5L).orgId(42L)
                         .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));
@@ -547,7 +577,8 @@ class TeacherServiceTest {
     @Test
     void addStudentByEmail_personalClassHasNoOrgRestriction() {
         // Lớp cá nhân (orgId = null) giữ nguyên hành vi cũ — không áp ràng buộc tổ chức.
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
         when(userRepository.findByEmailIgnoreCase("hv@bat-ky.de")).thenReturn(java.util.Optional.of(
                 com.deutschflow.user.entity.User.builder().id(6L).orgId(77L)
                         .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));

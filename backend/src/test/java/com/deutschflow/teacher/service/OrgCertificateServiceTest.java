@@ -112,7 +112,7 @@ class OrgCertificateServiceTest {
     @DisplayName("issue: GV không sở hữu lớp → Forbidden, KHÔNG lưu")
     void issue_notOwner_throwsForbidden() {
         doThrow(new ForbiddenException("Bạn không có quyền xem lớp này"))
-                .when(teacherService).assertTeacherOwnsClass(ISSUER_ID, CLASS_ID);
+                .when(teacherService).assertPrimaryTeacherOfClass(ISSUER_ID, CLASS_ID);
 
         assertThatThrownBy(() -> service.issue(ISSUER_ID, req("B1", null, null)))
                 .isInstanceOf(ForbiddenException.class);
@@ -134,7 +134,7 @@ class OrgCertificateServiceTest {
     void issue_invalidLevel_throwsBadRequest() {
         assertThatThrownBy(() -> service.issue(ISSUER_ID, req("Z9", null, null)))
                 .isInstanceOf(BadRequestException.class);
-        verify(teacherService, never()).assertTeacherOwnsClass(anyLong(), anyLong());
+        verify(teacherService, never()).assertPrimaryTeacherOfClass(anyLong(), anyLong());
     }
 
     @Test
@@ -206,7 +206,7 @@ class OrgCertificateServiceTest {
         service.revoke(ISSUER_ID, 7L);
 
         assertThat(cert.isActive()).isFalse();
-        verify(teacherService).assertTeacherOwnsClass(ISSUER_ID, CLASS_ID);
+        verify(teacherService).assertPrimaryTeacherOfClass(ISSUER_ID, CLASS_ID);
         verify(certificateRepository).save(cert);
     }
 
@@ -216,7 +216,7 @@ class OrgCertificateServiceTest {
         OrgCertificate cert = OrgCertificate.builder().classId(CLASS_ID).active(true).build();
         when(certificateRepository.findById(7L)).thenReturn(Optional.of(cert));
         doThrow(new ForbiddenException("Bạn không có quyền xem lớp này"))
-                .when(teacherService).assertTeacherOwnsClass(ISSUER_ID, CLASS_ID);
+                .when(teacherService).assertPrimaryTeacherOfClass(ISSUER_ID, CLASS_ID);
 
         assertThatThrownBy(() -> service.revoke(ISSUER_ID, 7L)).isInstanceOf(ForbiddenException.class);
         assertThat(cert.isActive()).isTrue();

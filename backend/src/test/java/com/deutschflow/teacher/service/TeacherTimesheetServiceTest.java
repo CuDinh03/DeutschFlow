@@ -150,9 +150,23 @@ class TeacherTimesheetServiceTest {
     }
 
     @Test
+    @DisplayName("PR B: record() từ chối vai ASSISTANT — trợ giảng không tính công")
+    void record_assistantRole_isRejected() {
+        LocalDateTime start = LocalDateTime.now().minusDays(1).withNano(0);
+        allowTeaches();
+        when(recordRepository.findByTeacherIdAndStartedAt(TEACHER_ID, start)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.record(ACTOR,
+                new RecordTeachingRequest(null, CLASS_ID, start, 90, "ASSISTANT", null)))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Trợ giảng không tính công");
+        verify(recordRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("record() từ chối lớp mà giáo viên không dạy")
     void record_classNotTaught_isForbidden() {
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(false);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(false);
 
         assertThatThrownBy(() -> service.record(ACTOR,
                 new RecordTeachingRequest(null, CLASS_ID, LocalDateTime.now().minusDays(1), 90, null, null)))
@@ -416,7 +430,8 @@ class TeacherTimesheetServiceTest {
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private void allowTeaches() {
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        // PR B trợ giảng: chỉ PRIMARY của lớp được ghi công — helper stub theo gate mới.
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(true);
     }
 
     private static ClassSession session(LocalDateTime startAt, int minutes) {
