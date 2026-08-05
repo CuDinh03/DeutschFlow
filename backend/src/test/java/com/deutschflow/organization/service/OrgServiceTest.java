@@ -8,6 +8,7 @@ import com.deutschflow.organization.entity.OrgMemberId;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.teacher.entity.ClassTeacher;
+import com.deutschflow.teacher.entity.ClassTeacherId;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
@@ -163,6 +164,116 @@ class OrgServiceTest {
     @DisplayName("createClass: teacherId null → BadRequest, không chạm DB")
     void createClass_nullTeacher_throwsBadRequest() {
         assertThatThrownBy(() -> service.createClass(ORG_ID, "Lớp X", null))
+                .isInstanceOf(BadRequestException.class);
+        verify(teacherClassRepository, never()).save(any());
+    }
+
+    // ─── assignClassTeacher (nút "Phân công" trang GV org): đổi GV phụ trách lớp đã tồn tại ───
+
+    @Test
+    @DisplayName("assignClassTeacher: GV TEACHER ACTIVE của org → đổi teacher_id + thay PRIMARY trong class_teachers")
+    void assignClassTeacher_validTeacher_reassignsPrimary() {
+        long oldTeacherId = 55L;
+        TeacherClass tc = TeacherClass.builder()
+                .id(123L).orgId(ORG_ID).teacherId(oldTeacherId).name("A1.1").inviteCode("ABCD1234").build();
+        when(teacherClassRepository.findById(123L)).thenReturn(Optional.of(tc));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, TEACHER_ID))
+                .thenReturn(Optional.of(activeTeacher()));
+        when(teacherClassRepository.save(any(TeacherClass.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(classTeacherRepository.findById(new ClassTeacherId(123L, oldTeacherId)))
+                .thenReturn(Optional.of(ClassTeacher.builder()
+                        .id(new ClassTeacherId(123L, oldTeacherId)).role("PRIMARY").build()));
+        when(classTeacherRepository.findById(new ClassTeacherId(123L, TEACHER_ID)))
+                .thenReturn(Optional.empty());
+
+        OrgClassDto dto = service.assignClassTeacher(ORG_ID, 123L, TEACHER_ID);
+
+        assertThat(dto.teacherId()).isEqualTo(TEACHER_ID);
+        ArgumentCaptor<TeacherClass> classCaptor = ArgumentCaptor.forClass(TeacherClass.class);
+        verify(teacherClassRepository).save(classCaptor.capture());
+        assertThat(classCaptor.getValue().getTeacherId()).isEqualTo(TEACHER_ID);
+
+        ArgumentCaptor<ClassTeacher> deleted = ArgumentCaptor.forClass(ClassTeacher.class);
+        verify(classTeacherRepository).delete(deleted.capture());
+        assertThat(deleted.getValue().getId().getTeacherId()).isEqualTo(oldTeacherId);
+
+        ArgumentCaptor<ClassTeacher> savedRow = ArgumentCaptor.forClass(ClassTeacher.class);
+        verify(classTeacherRepository).save(savedRow.capture());
+        assertThat(savedRow.getValue().getId().getTeacherId()).isEqualTo(TEACHER_ID);
+        assertThat(savedRow.getValue().getRole()).isEqualTo("PRIMARY");
+    }
+
+    @Test
+    @DisplayName("assignClassTeacher: GV mới đang là ASSISTANT của lớp → thăng PRIMARY, không tạo row trùng")
+    void assignClassTeacher_assistantTeacher_promotedToPrimary() {
+        long oldTeacherId = 55L;
+        TeacherClass tc = TeacherClass.builder()
+                .id(123L).orgId(ORG_ID).teacherId(oldTeacherId).name("A1.1").inviteCode("ABCD1234").build();
+        when(teacherClassRepository.findById(123L)).thenReturn(Optional.of(tc));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, TEACHER_ID))
+                .thenReturn(Optional.of(activeTeacher()));
+        when(teacherClassRepository.save(any(TeacherClass.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(classTeacherRepository.findById(new ClassTeacherId(123L, oldTeacherId)))
+                .thenReturn(Optional.empty());
+        ClassTeacher assistant = ClassTeacher.builder()
+                .id(new ClassTeacherId(123L, TEACHER_ID)).role("ASSISTANT").build();
+        when(classTeacherRepository.findById(new ClassTeacherId(123L, TEACHER_ID)))
+                .thenReturn(Optional.of(assistant));
+
+        service.assignClassTeacher(ORG_ID, 123L, TEACHER_ID);
+
+        ArgumentCaptor<ClassTeacher> savedRow = ArgumentCaptor.forClass(ClassTeacher.class);
+        verify(classTeacherRepository).save(savedRow.capture());
+        assertThat(savedRow.getValue()).isSameAs(assistant);
+        assertThat(savedRow.getValue().getRole()).isEqualTo("PRIMARY");
+    }
+
+    @Test
+    @DisplayName("assignClassTeacher: gán lại chính GV đang phụ trách → idempotent, không ghi DB")
+    void assignClassTeacher_sameTeacher_isIdempotent() {
+        TeacherClass tc = TeacherClass.builder()
+                .id(123L).orgId(ORG_ID).teacherId(TEACHER_ID).name("A1.1").inviteCode("ABCD1234").build();
+        when(teacherClassRepository.findById(123L)).thenReturn(Optional.of(tc));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, TEACHER_ID))
+                .thenReturn(Optional.of(activeTeacher()));
+
+        OrgClassDto dto = service.assignClassTeacher(ORG_ID, 123L, TEACHER_ID);
+
+        assertThat(dto.teacherId()).isEqualTo(TEACHER_ID);
+        verify(teacherClassRepository, never()).save(any());
+        verify(classTeacherRepository, never()).save(any());
+        verify(classTeacherRepository, never()).delete(any(ClassTeacher.class));
+    }
+
+    @Test
+    @DisplayName("assignClassTeacher: lớp thuộc org khác → NotFound (chống IDOR)")
+    void assignClassTeacher_crossOrgClass_throwsNotFound() {
+        when(teacherClassRepository.findById(5L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(5L).orgId(OTHER_ORG).teacherId(55L).build()));
+
+        assertThatThrownBy(() -> service.assignClassTeacher(ORG_ID, 5L, TEACHER_ID))
+                .isInstanceOf(NotFoundException.class);
+        verify(teacherClassRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("assignClassTeacher: giáo viên không thuộc org / không ACTIVE TEACHER → BadRequest")
+    void assignClassTeacher_teacherNotInOrg_throwsBadRequest() {
+        TeacherClass tc = TeacherClass.builder()
+                .id(123L).orgId(ORG_ID).teacherId(55L).name("A1.1").inviteCode("ABCD1234").build();
+        when(teacherClassRepository.findById(123L)).thenReturn(Optional.of(tc));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, TEACHER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.assignClassTeacher(ORG_ID, 123L, TEACHER_ID))
+                .isInstanceOf(BadRequestException.class);
+        verify(teacherClassRepository, never()).save(any());
+        verify(classTeacherRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("assignClassTeacher: teacherId null → BadRequest, không chạm DB")
+    void assignClassTeacher_nullTeacher_throwsBadRequest() {
+        assertThatThrownBy(() -> service.assignClassTeacher(ORG_ID, 123L, null))
                 .isInstanceOf(BadRequestException.class);
         verify(teacherClassRepository, never()).save(any());
     }

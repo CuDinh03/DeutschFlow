@@ -214,6 +214,19 @@ public class OrgController {
         return orgService.createClass(orgId, body.name(), body.teacherId());
     }
 
+    /**
+     * Đổi giáo viên phụ trách của một lớp đã tồn tại (nút "Phân công" trang GV org).
+     * teacherId phải là TEACHER ACTIVE của chính org (verify trong service — chống IDOR).
+     */
+    @PatchMapping("/classes/{id}/teacher")
+    public OrgClassDto assignClassTeacher(@AuthenticationPrincipal User user,
+                                          @PathVariable Long id,
+                                          @jakarta.validation.Valid @RequestBody com.deutschflow.organization.dto.AssignClassTeacherRequest body) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        return orgService.assignClassTeacher(orgId, id, body.teacherId());
+    }
+
     /** Chi tiết một lớp thuộc tổ chức (B1.1). 404 nếu lớp không thuộc org của người gọi. */
     @GetMapping("/classes/{id}")
     public OrgClassDetailDto getClassDetail(@AuthenticationPrincipal User user, @PathVariable Long id) {

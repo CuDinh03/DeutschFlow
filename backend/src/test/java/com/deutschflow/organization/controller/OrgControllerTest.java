@@ -39,6 +39,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -167,6 +168,47 @@ class OrgControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(orgService, never()).createClass(anyLong(), anyString(), anyLong());
+    }
+
+    // ── PATCH /api/org/classes/{id}/teacher — đổi GV phụ trách (nút "Phân công") ──
+
+    @Test
+    @DisplayName("assign teacher: org-admin hợp lệ → 200 + lớp với GV mới")
+    void assignClassTeacher_orgAdmin_returns200() throws Exception {
+        OrgClassDto dto = new OrgClassDto(7L, "A1.1 Tối", "ABCD1234", 99L, LocalDateTime.now());
+        when(orgService.assignClassTeacher(eq(10L), eq(7L), eq(99L))).thenReturn(dto);
+
+        mvc.perform(patch("/api/org/classes/7/teacher")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"teacherId\": 99}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(7))
+                .andExpect(jsonPath("$.teacherId").value(99));
+    }
+
+    @Test
+    @DisplayName("assign teacher: non-admin (guard ném Forbidden) → 403, KHÔNG gọi service")
+    void assignClassTeacher_nonAdmin_returns403_serviceNotCalled() throws Exception {
+        doThrow(new ForbiddenException("Chỉ quản trị viên tổ chức mới được thao tác này"))
+                .when(orgGuard).assertOrgAdmin(anyLong(), anyLong());
+
+        mvc.perform(patch("/api/org/classes/7/teacher")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"teacherId\": 99}"))
+                .andExpect(status().isForbidden());
+
+        verify(orgService, never()).assignClassTeacher(anyLong(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("assign teacher: teacherId null → 400 (@NotNull), KHÔNG gọi service")
+    void assignClassTeacher_nullTeacher_returns400() throws Exception {
+        mvc.perform(patch("/api/org/classes/7/teacher")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"teacherId\": null}"))
+                .andExpect(status().isBadRequest());
+
+        verify(orgService, never()).assignClassTeacher(anyLong(), anyLong(), anyLong());
     }
 
     // ── DELETE /api/org/members/{userId} — RBAC boundary (C-2/H-5) ──────────────
