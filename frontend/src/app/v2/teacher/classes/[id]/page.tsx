@@ -284,9 +284,11 @@ export default function V2ClassDetailPage() {
             <GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/teacher')}>
               <ArrowLeft size={15} /> {t('backToClasses')}
             </GaBtn>
-            <GaBtn variant="ghost" size="sm" onClick={() => setModal(true)}>
-              <Plus size={15} /> {t('addAssignment')}
-            </GaBtn>
+            {isPrimary && (
+              <GaBtn variant="ghost" size="sm" onClick={() => setModal(true)}>
+                <Plus size={15} /> {t('addAssignment')}
+              </GaBtn>
+            )}
             <GaBtn variant="yellow" size="sm" onClick={() => toast(t('createAiMaterialComing'))}>
               <Sparkles size={15} /> {t('createAiMaterial')}
             </GaBtn>
@@ -340,14 +342,17 @@ export default function V2ClassDetailPage() {
                           <p className="truncate text-[14px] font-semibold text-ga-ink">{r.studentName}</p>
                           <p className="ga-ui truncate text-[12.5px] text-ga-muted">{r.studentEmail} · {fmtDate(r.createdAt)}</p>
                         </div>
-                        <div className="flex shrink-0 gap-2">
-                          <GaBtn variant="yellow" size="sm" loading={actingReq === r.id} disabled={actingReq !== null} onClick={() => actOnRequest(r.id, 'approve')}>
-                            {t('approve')}
-                          </GaBtn>
-                          <GaBtn variant="ghost" size="sm" disabled={actingReq !== null} onClick={() => actOnRequest(r.id, 'reject')}>
-                            {t('reject')}
-                          </GaBtn>
-                        </div>
+                        {/* PR C trợ giảng: duyệt/từ chối là việc GV phụ trách — trợ giảng chỉ thấy danh sách chờ. */}
+                        {isPrimary && (
+                          <div className="flex shrink-0 gap-2">
+                            <GaBtn variant="yellow" size="sm" loading={actingReq === r.id} disabled={actingReq !== null} onClick={() => actOnRequest(r.id, 'approve')}>
+                              {t('approve')}
+                            </GaBtn>
+                            <GaBtn variant="ghost" size="sm" disabled={actingReq !== null} onClick={() => actOnRequest(r.id, 'reject')}>
+                              {t('reject')}
+                            </GaBtn>
+                          </div>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -494,13 +499,15 @@ export default function V2ClassDetailPage() {
                       </div>
                     )
                   })}
-                  <button
-                    type="button"
-                    onClick={() => setModal(true)}
-                    className="ga-ui border-2 border-dashed border-ga-line px-4 py-4 text-[14px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
-                  >
-                    {t('addNewTask')}
-                  </button>
+                  {isPrimary && (
+                    <button
+                      type="button"
+                      onClick={() => setModal(true)}
+                      className="ga-ui border-2 border-dashed border-ga-line px-4 py-4 text-[14px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
+                    >
+                      {t('addNewTask')}
+                    </button>
+                  )}
                   {assignments.length === 0 && (
                     <p className="text-center text-[13px] text-ga-muted">{t('noTasks')}</p>
                   )}

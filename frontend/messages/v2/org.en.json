@@ -246,7 +246,12 @@
         "colAttendance": "Attendance",
         "colHomework": "Homework",
         "attendanceShort": "{present}/{total} present"
-      }
+      },
+      "rolePrimary": "Lead teacher",
+      "roleAssistant": "Assistant",
+      "removeAssistant": "Remove",
+      "removingAssistant": "Removing…",
+      "assistantRemoved": "Assistant removed from the class."
     },
     "schedule": {
       "title": "Center schedule",
@@ -304,7 +309,7 @@
       },
       "assignModal": {
         "title": "Assign classes",
-        "description": "Pick a class to put {name} in charge of. A class that already has another teacher will be reassigned to this one.",
+        "description": "Pick a class for {name}. \"Make lead teacher\": the current lead becomes an assistant (stays on the class). \"Add as assistant\": the lead teacher is unchanged.",
         "searchPlaceholder": "Search classes…",
         "emptyOrg": "The organization has no classes yet — create one on the Classes page first.",
         "emptySearch": "No classes match your search.",
@@ -312,10 +317,14 @@
         "statusUnassigned": "No teacher assigned yet",
         "statusTaken": "Another teacher is in charge",
         "currentBadge": "In charge",
-        "assignBtn": "Assign this class",
+        "assignBtn": "Make lead teacher",
         "assigning": "Assigning…",
         "success": "Assigned class {className}.",
-        "close": "Close"
+        "close": "Close",
+        "statusAssistant": "Already an assistant on this class",
+        "assistantBadge": "Assistant",
+        "addAssistantBtn": "Add as assistant",
+        "assistantAdded": "Added as assistant on {className}."
       }
     },
     "analytics": {

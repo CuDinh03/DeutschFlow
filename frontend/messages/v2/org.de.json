@@ -246,7 +246,12 @@
         "colAttendance": "Anwesenheit",
         "colHomework": "Hausaufgabe",
         "attendanceShort": "{present}/{total} anwesend"
-      }
+      },
+      "rolePrimary": "Hauptlehrkraft",
+      "roleAssistant": "Assistenz",
+      "removeAssistant": "Entfernen",
+      "removingAssistant": "Wird entfernt…",
+      "assistantRemoved": "Assistenz aus dem Kurs entfernt."
     },
     "schedule": {
       "title": "Zentrumsplan",
@@ -304,7 +309,7 @@
       },
       "assignModal": {
         "title": "Kurse zuweisen",
-        "description": "Wählen Sie einen Kurs, den {name} übernehmen soll. Ein Kurs mit einer anderen Lehrkraft wird auf diese Lehrkraft übertragen.",
+        "description": "Wählen Sie einen Kurs für {name}. \"Als Hauptlehrkraft\": die bisherige Hauptlehrkraft wird Assistenz (bleibt im Kurs). \"Als Assistenz hinzufügen\": die Hauptlehrkraft bleibt unverändert.",
         "searchPlaceholder": "Kurse suchen…",
         "emptyOrg": "Die Organisation hat noch keine Kurse — legen Sie zuerst einen auf der Kursseite an.",
         "emptySearch": "Keine Kurse entsprechen der Suche.",
@@ -312,10 +317,14 @@
         "statusUnassigned": "Noch keine Lehrkraft zugewiesen",
         "statusTaken": "Eine andere Lehrkraft ist verantwortlich",
         "currentBadge": "Verantwortlich",
-        "assignBtn": "Diesen Kurs zuweisen",
+        "assignBtn": "Als Hauptlehrkraft",
         "assigning": "Wird zugewiesen…",
         "success": "Kurs {className} zugewiesen.",
-        "close": "Schließen"
+        "close": "Schließen",
+        "statusAssistant": "Bereits Assistenz in diesem Kurs",
+        "assistantBadge": "Assistenz",
+        "addAssistantBtn": "Als Assistenz hinzufügen",
+        "assistantAdded": "Als Assistenz zu {className} hinzugefügt."
       }
     },
     "analytics": {
