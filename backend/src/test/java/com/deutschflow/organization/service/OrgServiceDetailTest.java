@@ -79,6 +79,14 @@ class OrgServiceDetailTest {
                 .build();
         when(classStudentRepository.findByIdClassId(1L)).thenReturn(List.of(cs));
         when(userRepository.findAllById(List.of(7L))).thenReturn(List.of(user(7L, "s@x", "HV Bảy")));
+        // PR A trợ giảng: lớp có 1 PRIMARY + 1 ASSISTANT — PRIMARY phải đứng đầu danh sách.
+        when(classTeacherRepository.findByIdClassId(1L)).thenReturn(List.of(
+                com.deutschflow.teacher.entity.ClassTeacher.builder()
+                        .id(new com.deutschflow.teacher.entity.ClassTeacherId(1L, 9L)).role("ASSISTANT").build(),
+                com.deutschflow.teacher.entity.ClassTeacher.builder()
+                        .id(new com.deutschflow.teacher.entity.ClassTeacherId(1L, 5L)).role("PRIMARY").build()));
+        when(userRepository.findAllById(List.of(9L, 5L))).thenReturn(List.of(
+                user(9L, "tg@x", "Trợ Giảng"), user(5L, "anna@x", "Cô Anna")));
 
         OrgClassDetailDto dto = orgService.getClassDetail(ORG_ID, 1L);
 
@@ -89,6 +97,11 @@ class OrgServiceDetailTest {
         assertThat(dto.students().get(0).userId()).isEqualTo(7L);
         assertThat(dto.students().get(0).email()).isEqualTo("s@x");
         assertThat(dto.students().get(0).skillHoren()).isEqualByComparingTo("8.5");
+        assertThat(dto.teachers()).hasSize(2);
+        assertThat(dto.teachers().get(0).role()).isEqualTo("PRIMARY");
+        assertThat(dto.teachers().get(0).displayName()).isEqualTo("Cô Anna");
+        assertThat(dto.teachers().get(1).role()).isEqualTo("ASSISTANT");
+        assertThat(dto.teachers().get(1).teacherId()).isEqualTo(9L);
     }
 
     @Test

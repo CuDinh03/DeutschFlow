@@ -211,6 +211,68 @@ class OrgControllerTest {
         verify(orgService, never()).assignClassTeacher(anyLong(), anyLong(), anyLong());
     }
 
+    // ── POST/DELETE /api/org/classes/{id}/teachers — trợ giảng (PR A) ──
+
+    @Test
+    @DisplayName("add assistant: org-admin hợp lệ → 200 + row ASSISTANT")
+    void addAssistantTeacher_orgAdmin_returns200() throws Exception {
+        when(orgService.addAssistantTeacher(eq(10L), eq(7L), eq(99L)))
+                .thenReturn(new com.deutschflow.organization.dto.OrgClassTeacherDto(99L, "tg@x", "Trợ Giảng", "ASSISTANT"));
+
+        mvc.perform(post("/api/org/classes/7/teachers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"teacherId\": 99}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.teacherId").value(99))
+                .andExpect(jsonPath("$.role").value("ASSISTANT"));
+    }
+
+    @Test
+    @DisplayName("add assistant: non-admin → 403, KHÔNG gọi service")
+    void addAssistantTeacher_nonAdmin_returns403() throws Exception {
+        doThrow(new ForbiddenException("Chỉ quản trị viên tổ chức mới được thao tác này"))
+                .when(orgGuard).assertOrgAdmin(anyLong(), anyLong());
+
+        mvc.perform(post("/api/org/classes/7/teachers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"teacherId\": 99}"))
+                .andExpect(status().isForbidden());
+
+        verify(orgService, never()).addAssistantTeacher(anyLong(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("add assistant: teacherId null → 400 (@NotNull), KHÔNG gọi service")
+    void addAssistantTeacher_nullTeacher_returns400() throws Exception {
+        mvc.perform(post("/api/org/classes/7/teachers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"teacherId\": null}"))
+                .andExpect(status().isBadRequest());
+
+        verify(orgService, never()).addAssistantTeacher(anyLong(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("remove assistant: org-admin hợp lệ → 204")
+    void removeAssistantTeacher_orgAdmin_returns204() throws Exception {
+        mvc.perform(delete("/api/org/classes/7/teachers/99"))
+                .andExpect(status().isNoContent());
+
+        verify(orgService).removeAssistantTeacher(eq(10L), eq(7L), eq(99L));
+    }
+
+    @Test
+    @DisplayName("remove assistant: non-admin → 403, KHÔNG gọi service")
+    void removeAssistantTeacher_nonAdmin_returns403() throws Exception {
+        doThrow(new ForbiddenException("Chỉ quản trị viên tổ chức mới được thao tác này"))
+                .when(orgGuard).assertOrgAdmin(anyLong(), anyLong());
+
+        mvc.perform(delete("/api/org/classes/7/teachers/99"))
+                .andExpect(status().isForbidden());
+
+        verify(orgService, never()).removeAssistantTeacher(anyLong(), anyLong(), anyLong());
+    }
+
     // ── DELETE /api/org/members/{userId} — RBAC boundary (C-2/H-5) ──────────────
 
     @Test
