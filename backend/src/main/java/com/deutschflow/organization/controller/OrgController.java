@@ -227,6 +227,31 @@ public class OrgController {
         return orgService.assignClassTeacher(orgId, id, body.teacherId());
     }
 
+    /**
+     * Thêm trợ giảng (ASSISTANT) vào lớp (PR A trợ giảng). teacherId phải là TEACHER ACTIVE
+     * của org; 409 nếu đã tham gia lớp.
+     */
+    @PostMapping("/classes/{id}/teachers")
+    public com.deutschflow.organization.dto.OrgClassTeacherDto addAssistantTeacher(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id,
+            @jakarta.validation.Valid @RequestBody com.deutschflow.organization.dto.AssignClassTeacherRequest body) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        return orgService.addAssistantTeacher(orgId, id, body.teacherId());
+    }
+
+    /** Gỡ một trợ giảng khỏi lớp. Không gỡ được PRIMARY — đổi phụ trách dùng PATCH /teacher. */
+    @DeleteMapping("/classes/{id}/teachers/{teacherId}")
+    public ResponseEntity<Void> removeAssistantTeacher(@AuthenticationPrincipal User user,
+                                                       @PathVariable Long id,
+                                                       @PathVariable Long teacherId) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        orgService.removeAssistantTeacher(orgId, id, teacherId);
+        return ResponseEntity.noContent().build();
+    }
+
     /** Chi tiết một lớp thuộc tổ chức (B1.1). 404 nếu lớp không thuộc org của người gọi. */
     @GetMapping("/classes/{id}")
     public OrgClassDetailDto getClassDetail(@AuthenticationPrincipal User user, @PathVariable Long id) {

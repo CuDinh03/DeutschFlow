@@ -171,8 +171,8 @@ class OrgServiceTest {
     // ─── assignClassTeacher (nút "Phân công" trang GV org): đổi GV phụ trách lớp đã tồn tại ───
 
     @Test
-    @DisplayName("assignClassTeacher: GV TEACHER ACTIVE của org → đổi teacher_id + thay PRIMARY trong class_teachers")
-    void assignClassTeacher_validTeacher_reassignsPrimary() {
+    @DisplayName("assignClassTeacher: đổi GV phụ trách → GV cũ HẠ vai ASSISTANT (không bị gỡ khỏi lớp)")
+    void assignClassTeacher_validTeacher_demotesOldPrimaryToAssistant() {
         long oldTeacherId = 55L;
         TeacherClass tc = TeacherClass.builder()
                 .id(123L).orgId(ORG_ID).teacherId(oldTeacherId).name("A1.1").inviteCode("ABCD1234").build();
@@ -180,9 +180,10 @@ class OrgServiceTest {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, TEACHER_ID))
                 .thenReturn(Optional.of(activeTeacher()));
         when(teacherClassRepository.save(any(TeacherClass.class))).thenAnswer(inv -> inv.getArgument(0));
+        ClassTeacher oldPrimary = ClassTeacher.builder()
+                .id(new ClassTeacherId(123L, oldTeacherId)).role("PRIMARY").build();
         when(classTeacherRepository.findById(new ClassTeacherId(123L, oldTeacherId)))
-                .thenReturn(Optional.of(ClassTeacher.builder()
-                        .id(new ClassTeacherId(123L, oldTeacherId)).role("PRIMARY").build()));
+                .thenReturn(Optional.of(oldPrimary));
         when(classTeacherRepository.findById(new ClassTeacherId(123L, TEACHER_ID)))
                 .thenReturn(Optional.empty());
 
@@ -193,19 +194,22 @@ class OrgServiceTest {
         verify(teacherClassRepository).save(classCaptor.capture());
         assertThat(classCaptor.getValue().getTeacherId()).isEqualTo(TEACHER_ID);
 
-        ArgumentCaptor<ClassTeacher> deleted = ArgumentCaptor.forClass(ClassTeacher.class);
-        verify(classTeacherRepository).delete(deleted.capture());
-        assertThat(deleted.getValue().getId().getTeacherId()).isEqualTo(oldTeacherId);
+        // GV cũ không bị delete — hạ vai tại chỗ.
+        verify(classTeacherRepository, never()).delete(any(ClassTeacher.class));
+        assertThat(oldPrimary.getRole()).isEqualTo("ASSISTANT");
 
-        ArgumentCaptor<ClassTeacher> savedRow = ArgumentCaptor.forClass(ClassTeacher.class);
-        verify(classTeacherRepository).save(savedRow.capture());
-        assertThat(savedRow.getValue().getId().getTeacherId()).isEqualTo(TEACHER_ID);
-        assertThat(savedRow.getValue().getRole()).isEqualTo("PRIMARY");
+        ArgumentCaptor<ClassTeacher> savedRows = ArgumentCaptor.forClass(ClassTeacher.class);
+        verify(classTeacherRepository, org.mockito.Mockito.times(2)).save(savedRows.capture());
+        assertThat(savedRows.getAllValues())
+                .extracting(r -> r.getId().getTeacherId(), ClassTeacher::getRole)
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple(oldTeacherId, "ASSISTANT"),
+                        org.assertj.core.groups.Tuple.tuple(TEACHER_ID, "PRIMARY"));
     }
 
     @Test
-    @DisplayName("assignClassTeacher: GV mới đang là ASSISTANT của lớp → thăng PRIMARY, không tạo row trùng")
-    void assignClassTeacher_assistantTeacher_promotedToPrimary() {
+    @DisplayName("assignClassTeacher: GV mới đang là ASSISTANT → hoán đổi vai hai chiều (thăng PRIMARY, GV cũ xuống ASSISTANT)")
+    void assignClassTeacher_assistantTeacher_swapsRoles() {
         long oldTeacherId = 55L;
         TeacherClass tc = TeacherClass.builder()
                 .id(123L).orgId(ORG_ID).teacherId(oldTeacherId).name("A1.1").inviteCode("ABCD1234").build();
@@ -213,8 +217,10 @@ class OrgServiceTest {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, TEACHER_ID))
                 .thenReturn(Optional.of(activeTeacher()));
         when(teacherClassRepository.save(any(TeacherClass.class))).thenAnswer(inv -> inv.getArgument(0));
+        ClassTeacher oldPrimary = ClassTeacher.builder()
+                .id(new ClassTeacherId(123L, oldTeacherId)).role("PRIMARY").build();
         when(classTeacherRepository.findById(new ClassTeacherId(123L, oldTeacherId)))
-                .thenReturn(Optional.empty());
+                .thenReturn(Optional.of(oldPrimary));
         ClassTeacher assistant = ClassTeacher.builder()
                 .id(new ClassTeacherId(123L, TEACHER_ID)).role("ASSISTANT").build();
         when(classTeacherRepository.findById(new ClassTeacherId(123L, TEACHER_ID)))
@@ -222,10 +228,115 @@ class OrgServiceTest {
 
         service.assignClassTeacher(ORG_ID, 123L, TEACHER_ID);
 
-        ArgumentCaptor<ClassTeacher> savedRow = ArgumentCaptor.forClass(ClassTeacher.class);
-        verify(classTeacherRepository).save(savedRow.capture());
-        assertThat(savedRow.getValue()).isSameAs(assistant);
-        assertThat(savedRow.getValue().getRole()).isEqualTo("PRIMARY");
+        assertThat(assistant.getRole()).isEqualTo("PRIMARY");
+        assertThat(oldPrimary.getRole()).isEqualTo("ASSISTANT");
+        verify(classTeacherRepository, never()).delete(any(ClassTeacher.class));
+    }
+
+    // ─── addAssistantTeacher / removeAssistantTeacher (PR A trợ giảng) ───
+
+    @Test
+    @DisplayName("addAssistantTeacher: GV TEACHER ACTIVE chưa trong lớp → lưu row ASSISTANT")
+    void addAssistantTeacher_valid_savesAssistantRow() {
+        TeacherClass tc = TeacherClass.builder()
+                .id(123L).orgId(ORG_ID).teacherId(55L).name("A1.1").inviteCode("ABCD1234").build();
+        when(teacherClassRepository.findById(123L)).thenReturn(Optional.of(tc));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, TEACHER_ID))
+                .thenReturn(Optional.of(activeTeacher()));
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(123L, TEACHER_ID)).thenReturn(false);
+
+        var dto = service.addAssistantTeacher(ORG_ID, 123L, TEACHER_ID);
+
+        assertThat(dto.teacherId()).isEqualTo(TEACHER_ID);
+        assertThat(dto.role()).isEqualTo("ASSISTANT");
+        ArgumentCaptor<ClassTeacher> saved = ArgumentCaptor.forClass(ClassTeacher.class);
+        verify(classTeacherRepository).save(saved.capture());
+        assertThat(saved.getValue().getId().getClassId()).isEqualTo(123L);
+        assertThat(saved.getValue().getId().getTeacherId()).isEqualTo(TEACHER_ID);
+        assertThat(saved.getValue().getRole()).isEqualTo("ASSISTANT");
+    }
+
+    @Test
+    @DisplayName("addAssistantTeacher: GV đã trong lớp (PRIMARY hoặc ASSISTANT) → Conflict")
+    void addAssistantTeacher_alreadyInClass_throwsConflict() {
+        TeacherClass tc = TeacherClass.builder()
+                .id(123L).orgId(ORG_ID).teacherId(55L).name("A1.1").inviteCode("ABCD1234").build();
+        when(teacherClassRepository.findById(123L)).thenReturn(Optional.of(tc));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, TEACHER_ID))
+                .thenReturn(Optional.of(activeTeacher()));
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(123L, TEACHER_ID)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.addAssistantTeacher(ORG_ID, 123L, TEACHER_ID))
+                .isInstanceOf(com.deutschflow.common.exception.ConflictException.class);
+        verify(classTeacherRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("addAssistantTeacher: GV không thuộc org / không ACTIVE TEACHER → BadRequest")
+    void addAssistantTeacher_teacherNotInOrg_throwsBadRequest() {
+        TeacherClass tc = TeacherClass.builder()
+                .id(123L).orgId(ORG_ID).teacherId(55L).name("A1.1").inviteCode("ABCD1234").build();
+        when(teacherClassRepository.findById(123L)).thenReturn(Optional.of(tc));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, TEACHER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.addAssistantTeacher(ORG_ID, 123L, TEACHER_ID))
+                .isInstanceOf(BadRequestException.class);
+        verify(classTeacherRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("addAssistantTeacher: lớp thuộc org khác → NotFound (chống IDOR)")
+    void addAssistantTeacher_crossOrgClass_throwsNotFound() {
+        when(teacherClassRepository.findById(5L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(5L).orgId(OTHER_ORG).teacherId(55L).build()));
+
+        assertThatThrownBy(() -> service.addAssistantTeacher(ORG_ID, 5L, TEACHER_ID))
+                .isInstanceOf(NotFoundException.class);
+        verify(classTeacherRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("removeAssistantTeacher: row ASSISTANT → xoá")
+    void removeAssistantTeacher_assistant_deletesRow() {
+        TeacherClass tc = TeacherClass.builder()
+                .id(123L).orgId(ORG_ID).teacherId(55L).name("A1.1").inviteCode("ABCD1234").build();
+        when(teacherClassRepository.findById(123L)).thenReturn(Optional.of(tc));
+        ClassTeacher assistant = ClassTeacher.builder()
+                .id(new ClassTeacherId(123L, TEACHER_ID)).role("ASSISTANT").build();
+        when(classTeacherRepository.findById(new ClassTeacherId(123L, TEACHER_ID)))
+                .thenReturn(Optional.of(assistant));
+
+        service.removeAssistantTeacher(ORG_ID, 123L, TEACHER_ID);
+
+        verify(classTeacherRepository).delete(assistant);
+    }
+
+    @Test
+    @DisplayName("removeAssistantTeacher: row PRIMARY → BadRequest, không xoá")
+    void removeAssistantTeacher_primary_throwsBadRequest() {
+        TeacherClass tc = TeacherClass.builder()
+                .id(123L).orgId(ORG_ID).teacherId(TEACHER_ID).name("A1.1").inviteCode("ABCD1234").build();
+        when(teacherClassRepository.findById(123L)).thenReturn(Optional.of(tc));
+        when(classTeacherRepository.findById(new ClassTeacherId(123L, TEACHER_ID)))
+                .thenReturn(Optional.of(ClassTeacher.builder()
+                        .id(new ClassTeacherId(123L, TEACHER_ID)).role("PRIMARY").build()));
+
+        assertThatThrownBy(() -> service.removeAssistantTeacher(ORG_ID, 123L, TEACHER_ID))
+                .isInstanceOf(BadRequestException.class);
+        verify(classTeacherRepository, never()).delete(any(ClassTeacher.class));
+    }
+
+    @Test
+    @DisplayName("removeAssistantTeacher: GV không trong lớp → NotFound")
+    void removeAssistantTeacher_absent_throwsNotFound() {
+        TeacherClass tc = TeacherClass.builder()
+                .id(123L).orgId(ORG_ID).teacherId(55L).name("A1.1").inviteCode("ABCD1234").build();
+        when(teacherClassRepository.findById(123L)).thenReturn(Optional.of(tc));
+        when(classTeacherRepository.findById(new ClassTeacherId(123L, TEACHER_ID)))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.removeAssistantTeacher(ORG_ID, 123L, TEACHER_ID))
+                .isInstanceOf(NotFoundException.class);
     }
 
     @Test
