@@ -43,7 +43,7 @@ public class CurriculumModuleService {
 
     @Transactional
     public CurriculumModuleDto create(Long teacherId, Long classId, CreateModuleRequest req) {
-        assertTeacherOwns(teacherId, classId);
+        assertPrimaryTeacher(teacherId, classId);
         if (req == null || req.title() == null || req.title().isBlank()) {
             throw new BadRequestException("Tên module không được để trống");
         }
@@ -58,7 +58,7 @@ public class CurriculumModuleService {
 
     @Transactional
     public CurriculumModuleDto update(Long teacherId, Long classId, Long moduleId, UpdateModuleRequest req) {
-        assertTeacherOwns(teacherId, classId);
+        assertPrimaryTeacher(teacherId, classId);
         CurriculumModule module = loadModuleInClass(classId, moduleId);
         if (req == null || req.title() == null || req.title().isBlank()) {
             throw new BadRequestException("Tên module không được để trống");
@@ -69,7 +69,7 @@ public class CurriculumModuleService {
 
     @Transactional
     public void delete(Long teacherId, Long classId, Long moduleId) {
-        assertTeacherOwns(teacherId, classId);
+        assertPrimaryTeacher(teacherId, classId);
         CurriculumModule module = loadModuleInClass(classId, moduleId);
         // FK ON DELETE SET NULL un-groups this module's lessons (does not delete them).
         moduleRepository.delete(module);
@@ -77,7 +77,7 @@ public class CurriculumModuleService {
 
     @Transactional
     public List<CurriculumModuleDto> reorder(Long teacherId, Long classId, ReorderModulesRequest req) {
-        assertTeacherOwns(teacherId, classId);
+        assertPrimaryTeacher(teacherId, classId);
         if (req == null || req.orderedModuleIds() == null || req.orderedModuleIds().isEmpty()) {
             throw new BadRequestException("Danh sách thứ tự không được trống");
         }
@@ -113,6 +113,13 @@ public class CurriculumModuleService {
     private void assertTeacherOwns(Long teacherId, Long classId) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
             throw new ForbiddenException("Bạn không có quyền với lớp học này");
+        }
+    }
+
+    /** PR B trợ giảng: sửa cấu trúc giáo trình là quản-lý-lớp — chỉ GV phụ trách (PRIMARY). */
+    private void assertPrimaryTeacher(Long teacherId, Long classId) {
+        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(classId, teacherId, "PRIMARY")) {
+            throw new ForbiddenException("Chỉ giáo viên phụ trách lớp mới được sửa giáo trình");
         }
     }
 

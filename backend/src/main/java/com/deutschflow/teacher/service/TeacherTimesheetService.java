@@ -250,9 +250,14 @@ public class TeacherTimesheetService {
         return rec;
     }
 
+    /**
+     * PR B trợ giảng (quyết định owner 06/08: trợ giảng KHÔNG tính công): chỉ GV phụ trách
+     * (PRIMARY) của lớp mới được ghi công cho lớp đó. Trước đây gate chỉ đòi "có tên trong lớp"
+     * nên trợ giảng vẫn tự khai công được — đó chính là lỗ hổng phải đóng.
+     */
     private void assertTeachesClass(Long teacherId, Long classId) {
-        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ForbiddenException("Bạn không dạy lớp này");
+        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(classId, teacherId, "PRIMARY")) {
+            throw new ForbiddenException("Chỉ giáo viên phụ trách lớp mới được ghi công cho lớp này");
         }
     }
 
@@ -296,6 +301,11 @@ public class TeacherTimesheetService {
 
     private static TeacherSessionRecord.TeacherRole parseRole(String raw) {
         if (raw == null || raw.isBlank()) return TeacherSessionRecord.TeacherRole.PRIMARY;
+        // PR B: trợ giảng không tính công → vai ASSISTANT không còn hợp lệ trên dòng công.
+        // SUBSTITUTE (dạy thay) vẫn giữ — dạy thay là có công thật.
+        if ("ASSISTANT".equalsIgnoreCase(raw.trim())) {
+            throw new BadRequestException("Trợ giảng không tính công — không thể ghi dòng công với vai ASSISTANT.");
+        }
         try {
             return TeacherSessionRecord.TeacherRole.valueOf(raw.trim().toUpperCase());
         } catch (IllegalArgumentException e) {

@@ -50,7 +50,7 @@ class CurriculumModuleServiceTest {
     @Test
     @DisplayName("create appends with next order_index and trims title")
     void create_appendsNextOrder() {
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(true);
         when(moduleRepository.findMaxOrderIndex(CLASS_ID)).thenReturn(1);
         when(moduleRepository.save(any())).thenAnswer(inv -> {
             CurriculumModule m = inv.getArgument(0);
@@ -70,7 +70,7 @@ class CurriculumModuleServiceTest {
     @Test
     @DisplayName("create rejects a blank title")
     void create_rejectsBlankTitle() {
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(true);
         assertThatThrownBy(() -> service.create(TEACHER_ID, CLASS_ID, new CreateModuleRequest("   ")))
                 .isInstanceOf(BadRequestException.class);
         verify(moduleRepository, never()).save(any());
@@ -79,7 +79,7 @@ class CurriculumModuleServiceTest {
     @Test
     @DisplayName("create rejects when the teacher does not own the class")
     void create_rejectsNonOwner() {
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(false);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(false);
         assertThatThrownBy(() -> service.create(TEACHER_ID, CLASS_ID, new CreateModuleRequest("M")))
                 .isInstanceOf(ForbiddenException.class);
     }
@@ -87,7 +87,7 @@ class CurriculumModuleServiceTest {
     @Test
     @DisplayName("update rejects a module belonging to a different class")
     void update_rejectsCrossClass() {
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(true);
         CurriculumModule m = CurriculumModule.builder().id(MODULE_ID).classId(99L).orderIndex(0).title("X").build();
         when(moduleRepository.findById(MODULE_ID)).thenReturn(java.util.Optional.of(m));
 
@@ -98,7 +98,7 @@ class CurriculumModuleServiceTest {
     @Test
     @DisplayName("update throws when the module does not exist")
     void update_missingModule() {
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(true);
         when(moduleRepository.findById(MODULE_ID)).thenReturn(java.util.Optional.empty());
 
         assertThatThrownBy(() -> service.update(TEACHER_ID, CLASS_ID, MODULE_ID, new UpdateModuleRequest("Y")))
@@ -108,7 +108,7 @@ class CurriculumModuleServiceTest {
     @Test
     @DisplayName("reorder rewrites order_index according to the given list")
     void reorder_rewritesOrder() {
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(true);
         CurriculumModule a = CurriculumModule.builder().id(1L).classId(CLASS_ID).orderIndex(0).title("A").build();
         CurriculumModule b = CurriculumModule.builder().id(2L).classId(CLASS_ID).orderIndex(1).title("B").build();
         when(moduleRepository.findByClassIdOrderByOrderIndexAsc(CLASS_ID))
@@ -125,7 +125,7 @@ class CurriculumModuleServiceTest {
     @Test
     @DisplayName("reorder rejects a mismatched id set")
     void reorder_rejectsMismatch() {
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(true);
         CurriculumModule a = CurriculumModule.builder().id(1L).classId(CLASS_ID).orderIndex(0).title("A").build();
         when(moduleRepository.findByClassIdOrderByOrderIndexAsc(CLASS_ID)).thenReturn(List.of(a));
 
@@ -136,7 +136,7 @@ class CurriculumModuleServiceTest {
     @Test
     @DisplayName("reorder rejects a duplicate id that omits another (same length) without corrupting order_index")
     void reorder_rejectsDuplicatePermutation() {
-        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(true);
         CurriculumModule a = CurriculumModule.builder().id(1L).classId(CLASS_ID).orderIndex(0).title("A").build();
         CurriculumModule b = CurriculumModule.builder().id(2L).classId(CLASS_ID).orderIndex(1).title("B").build();
         CurriculumModule c = CurriculumModule.builder().id(3L).classId(CLASS_ID).orderIndex(2).title("C").build();
@@ -148,6 +148,18 @@ class CurriculumModuleServiceTest {
         // No order_index was mutated (guard runs before the write loop).
         assertThat(c.getOrderIndex()).isEqualTo(2);
         verify(moduleRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("PR B: trợ giảng (member nhưng không PRIMARY) tạo module → Forbidden, nhưng vẫn XEM được danh sách")
+    void assistant_canList_butCannotCreate() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(false);
+        assertThatThrownBy(() -> service.create(TEACHER_ID, CLASS_ID, new CreateModuleRequest("M")))
+                .isInstanceOf(ForbiddenException.class);
+        verify(moduleRepository, never()).save(any());
+
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        service.listForTeacher(TEACHER_ID, CLASS_ID); // không ném — trợ giảng được xem
     }
 
     @Test

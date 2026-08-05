@@ -129,7 +129,7 @@ public class ClassScheduleService {
      */
     @Transactional
     public UpsertPatternResult upsertPattern(Long teacherId, Long classId, UpsertPatternRequest req) {
-        assertTeacherOwnsClass(teacherId, classId);
+        assertPrimaryTeacher(teacherId, classId);
         validatePatternReq(req);
 
         ClassSchedulePattern pattern = patternRepo.findByClassIdAndDayOfWeek(classId, req.dayOfWeek())
@@ -170,7 +170,7 @@ public class ClassScheduleService {
     public SessionSaveResult updateSession(Long teacherId, Long sessionId, UpdateSessionRequest req) {
         ClassSession s = sessionRepo.findById(sessionId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy buổi học"));
-        assertTeacherOwnsClass(teacherId, s.getClassId());
+        assertPrimaryTeacher(teacherId, s.getClassId());
 
         LocalDateTime oldStart = s.getStartAt();
         int oldDuration = s.getDurationMinutes();
@@ -210,7 +210,7 @@ public class ClassScheduleService {
     /** Thêm một buổi lớp lẻ (không theo pattern). Buổi tạo tay được đánh dấu overridden. */
     @Transactional
     public SessionSaveResult createSession(Long teacherId, Long classId, CreateSessionRequest req) {
-        assertTeacherOwnsClass(teacherId, classId);
+        assertPrimaryTeacher(teacherId, classId);
         if (req.startAt() == null) throw new BadRequestException("Thiếu thời gian bắt đầu");
         if (req.durationMinutes() <= 0) throw new BadRequestException("Thời lượng phải lớn hơn 0");
 
@@ -242,7 +242,7 @@ public class ClassScheduleService {
     public int deletePattern(Long teacherId, Long patternId) {
         ClassSchedulePattern p = patternRepo.findById(patternId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy lịch cố định"));
-        assertTeacherOwnsClass(teacherId, p.getClassId());
+        assertPrimaryTeacher(teacherId, p.getClassId());
 
         // Audit M-9: resolve "today" in VN time (UTC+7), not the container's UTC default — else
         // between 00:00–07:00 VN the boundary day is off by one and a same-day session can be
@@ -498,6 +498,13 @@ public class ClassScheduleService {
     private void assertTeacherOwnsClass(Long teacherId, Long classId) {
         if (!classTeacherRepo.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
             throw new ForbiddenException("Bạn không có quyền truy cập lớp này");
+        }
+    }
+
+    /** PR B trợ giảng: đổi lịch là quản-lý-lớp — chỉ GV phụ trách (PRIMARY), trợ giảng chỉ xem. */
+    private void assertPrimaryTeacher(Long teacherId, Long classId) {
+        if (!classTeacherRepo.existsByIdClassIdAndIdTeacherIdAndRole(classId, teacherId, "PRIMARY")) {
+            throw new ForbiddenException("Chỉ giáo viên phụ trách lớp mới được thao tác lịch");
         }
     }
 

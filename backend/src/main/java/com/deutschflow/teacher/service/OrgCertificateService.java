@@ -64,8 +64,9 @@ public class OrgCertificateService {
         }
         String note = normalizeNote(req.note());
 
-        // Authz: teacher must own the class AND the student must be enrolled in it.
-        teacherService.assertTeacherOwnsClass(issuerUserId, req.classId());
+        // Authz (PR B trợ giảng): cấp chứng nhận là quản-lý-lớp — chỉ GV phụ trách,
+        // và học viên phải thực sự thuộc lớp.
+        teacherService.assertPrimaryTeacherOfClass(issuerUserId, req.classId());
         if (!classStudentRepository.existsByIdClassIdAndIdStudentId(req.classId(), req.studentId())) {
             throw new BadRequestException("Học viên không thuộc lớp này");
         }
@@ -135,7 +136,8 @@ public class OrgCertificateService {
     public void revoke(Long teacherUserId, Long certificateId) {
         OrgCertificate cert = certificateRepository.findById(certificateId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy chứng nhận"));
-        teacherService.assertTeacherOwnsClass(teacherUserId, cert.getClassId());
+        // PR B trợ giảng: thu hồi chứng nhận cũng chỉ GV phụ trách.
+        teacherService.assertPrimaryTeacherOfClass(teacherUserId, cert.getClassId());
         cert.setActive(false);
         certificateRepository.save(cert);
     }
