@@ -39,6 +39,23 @@ class ChatPrepMessageAssemblyTest {
     }
 
     @Test
+    @DisplayName("greeting: jobContext lấy NGHỀ của học viên, không phải topic phiên")
+    void greetingInstructionUsesLearnerIndustryNotTopic() {
+        var session = com.deutschflow.speaking.entity.AiSpeakingSession.builder()
+                .topic("Täglicher Alltag").build();
+
+        List<ChatMessage> messages = ChatPrepService.buildGreetingMessages(
+                "STATIC", null, com.deutschflow.speaking.persona.SpeakingPersona.DEFAULT,
+                "Täglicher Alltag", List.of(),
+                com.deutschflow.speaking.contract.SpeakingSessionMode.COMMUNICATION,
+                session, null, "Kỹ thuật viên điện tử");
+
+        String instruction = messages.get(messages.size() - 1).content();
+        assertThat(instruction).contains("Kỹ thuật viên điện tử");
+        assertThat(instruction).doesNotContain("arbeitet als 'Täglicher Alltag'");
+    }
+
+    @Test
     @DisplayName("không có khối động (null/blank): giữ nguyên hình dạng cũ, không message rỗng")
     void noDynamicContextKeepsLegacyShape() {
         List<ChatMessage> withNull = ChatPrepService.buildOpenAiMessages(

@@ -280,6 +280,7 @@ public class SystemPromptBuilder {
 
         } else {
             sb.append("COMMUNICATION MODE — Alltagsgespräch / Freundliches Gespräch (KEIN Interview, KEINE Bewerbungsfragen).\n");
+            appendCommunicationIdentity(sb, persona, hasIndustry, industry, topicSection);
             sb.append("Du bist ein freundlicher Gesprächspartner — wie ein Tandempartner beim Kaffee.\n");
             sb.append("\n");
             sb.append("NATÜRLICHKEIT (kritisch — Pingo-Style):\n");
@@ -291,9 +292,10 @@ public class SystemPromptBuilder {
             sb.append("6. CASUAL REGISTER: immer 'du', Kontraktionen ('gibt's', 'geht's', 'hab', 'nich', 'mal'), gelegentlich Füllwörter ('echt', 'eigentlich', 'so', 'halt').\n");
             sb.append("7. VERBOTEN: Interviewfragen ('Was sind Ihre Stärken?'), Lehrer-Tonfall ('Sehr gut, dass du das sagst...'), Listen, Aufzählungen.\n");
             sb.append("8. ERSTE TURN: 1 lockerer Gruß + 1 offene Mini-Frage. Beispiel: 'Hey! Was hast du heute so gemacht?' — nicht mehr.\n");
+            sb.append("9. DIREKTE FRAGEN AN DICH (z.B. 'Was machst du beruflich?'): beantworte sie ZUERST kurz als deine Persona (1 Satz), DANN eine Folgefrage — nie ausweichen.\n");
             if (hasIndustry) {
                 sb.append("\n");
-                sb.append("KONTEXTINFO BERUF: Der Lernende arbeitet als '").append(industry).append("'.\n");
+                sb.append("KONTEXTINFO BERUF (des LERNENDEN — nicht deiner!): Der Lernende arbeitet als '").append(industry).append("'.\n");
                 sb.append("Du WEISST das bereits — frage NICHT 'Was ist dein Beruf?'. ");
                 sb.append("Beziehe den Beruf nur EINMAL beiläufig in das Gespräch ein (z.B. Feierabend, Kollegen, Lieblingsmoment), dann zurück zum Alltag.\n");
                 if (includeSuggestions) {
@@ -305,6 +307,42 @@ public class SystemPromptBuilder {
             }
             sb.append("\n");
         }
+    }
+
+    /**
+     * Khối danh tính bất biến cho chế độ GIAO TIẾP (persona Đức) — đặt NGAY ĐẦU prompt
+     * (primacy, mirror cơ chế {@code == ROLE ==} đã chứng minh giữ vai tốt ở INTERVIEW).
+     * Chống 2 lỗi đã đo được (BAO_CAO_KIEM_TRA_PERSONA_2026-08-06): AI tự nhận nghề của
+     * HỌC VIÊN làm nghề mình (11/32 lượt), và chủ đề chuyên ngành lệch persona kéo AI
+     * "biến hình" thành chuyên gia ngành đó. Toàn bộ khối tĩnh theo phiên → nằm ở prefix
+     * cache được (Đ2).
+     */
+    private void appendCommunicationIdentity(StringBuilder sb,
+                                             SpeakingPersona persona,
+                                             boolean hasIndustry,
+                                             String industry,
+                                             String topicSection) {
+        String role = persona.communicationRole();
+        sb.append("DEINE IDENTITÄT (UNVERÄNDERLICH):\n");
+        if (role != null) {
+            sb.append("- Du bist ").append(persona.displayName()).append(", ").append(role).append(".\n");
+        } else {
+            sb.append("- Du bist der DeutschFlow AI-Sprachtutor. Erfinde NIE einen eigenen Beruf — ");
+            sb.append("nach deinem Beruf gefragt, sag ehrlich, dass du ein KI-Sprachpartner bist.\n");
+        }
+        if (hasIndustry) {
+            sb.append("- '").append(industry).append("' ist der Beruf des LERNENDEN — NIEMALS dein eigener.\n");
+        }
+        sb.append("- Das Thema '").append(topicSection).append("' behandelst du aus DEINER Perspektive");
+        if (role != null) {
+            sb.append(" als ").append(role)
+                    .append(" (z.B. als Person, die selbst zum Arzt geht — NICHT als Arzt, wenn das Thema Medizin ist)");
+        }
+        sb.append(".\n");
+        if (role != null) {
+            sb.append("- Fragt der Lernende nach DEINEM Beruf oder Alltag → antworte IMMER als ").append(role).append(".\n");
+        }
+        sb.append("\n");
     }
 
     private void appendAdaptivePolicy(StringBuilder sb, SpeakingPolicy policy) {
@@ -388,7 +426,7 @@ public class SystemPromptBuilder {
         if (personaSection != null && !personaSection.isBlank()) {
             sb.append(personaSection).append("\n");
         }
-        sb.append("Priorität: Target_Topic hat Vorrang; Persona nur Register/Stimmung, nicht das Thema verlassen.\n\n");
+        sb.append("Priorität: Target_Topic hat Vorrang beim GESPRÄCHSTHEMA; deine IDENTITÄT (Name, Beruf, Rolle) aus der PERSONA bleibt IMMER bestehen — nicht das Thema verlassen.\n\n");
 
         if (responseSchema == SpeakingResponseSchema.V2) {
             sb.append("AI TASKS (V2 — kompakt):\n");
