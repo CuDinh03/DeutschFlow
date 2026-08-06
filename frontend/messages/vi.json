@@ -776,7 +776,9 @@
       "quotaBlockedInputPlaceholder": "Đã hết hạn mức AI — không thể gửi tin"
     },
     "continueToSettings": "Tiếp tục tới cài đặt",
-    "backToModeAndPersona": "Quay lại chọn chế độ & nhân vật"
+    "backToModeAndPersona": "Quay lại chọn chế độ & nhân vật",
+    "personaTopicHint": "Chủ đề này hợp hơn với:",
+    "personaTopicHintDismiss": "Ẩn gợi ý"
   },
   "onboarding": {
     "title": "Cá nhân hoá lộ trình học",
