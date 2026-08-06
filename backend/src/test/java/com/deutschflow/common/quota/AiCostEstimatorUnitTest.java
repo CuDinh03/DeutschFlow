@@ -107,4 +107,23 @@ class AiCostEstimatorUnitTest {
         assertThat(new AiCostEstimator(0).usdVndRate()).isEqualTo(25_400L);
         assertThat(new AiCostEstimator(-5).usdVndRate()).isEqualTo(25_400L);
     }
+
+    @Test
+    @DisplayName("khung tier P1: model Haiku/Sonnet/Gemini (kể cả tên OpenRouter) KHÔNG rơi vào DEFAULT")
+    void tierFrameworkModelsAreNotDefault() {
+        var def = estimator.rateFor("some-unknown-model");
+        assertThat(estimator.rateFor("anthropic/claude-haiku-4.5")).isNotEqualTo(def);
+        assertThat(estimator.rateFor("anthropic/claude-sonnet-4.6")).isNotEqualTo(def);
+        assertThat(estimator.rateFor("google/gemini-2.5-flash")).isNotEqualTo(def);
+        assertThat(estimator.rateFor("gemini-2.5-flash")).isNotEqualTo(def);
+    }
+
+    @Test
+    @DisplayName("Haiku đứng trước nhánh claude chung — không bị tính giá Sonnet (chênh 3×)")
+    void haikuIsCheaperThanSonnet() {
+        double haiku = estimator.costUsd("anthropic/claude-haiku-4.5", 1_000_000, 1_000_000);
+        double sonnet = estimator.costUsd("anthropic/claude-sonnet-4.6", 1_000_000, 1_000_000);
+        assertThat(haiku).isEqualTo(6.00);   // $1 in + $5 out
+        assertThat(sonnet).isEqualTo(18.00); // $3 in + $15 out
+    }
 }

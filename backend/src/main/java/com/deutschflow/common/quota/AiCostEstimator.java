@@ -39,6 +39,15 @@ public class AiCostEstimator {
     private static final ModelRate GPT_MINI       = new ModelRate(0.15, 0.60);
     private static final ModelRate EMBEDDING       = new ModelRate(0.02, 0.02);
     private static final ModelRate FREE            = new ModelRate(0.0, 0.0);
+    // ── Khung tier (plans/2026-08-07): rate cho các model P3 flip tới. Đây là FALLBACK ước tính —
+    // khi đi OpenRouter với include-usage, cost THẬT nằm trong AiChatCompletionResult.costUsd và
+    // được ưu tiên. Giá tra 08/2026 (Anthropic chính chủ; Gemini/Cerebras cần đối chiếu P0.3).
+    /** Claude Haiku 4.5 — tầng chấm/giải thích (P3+). */
+    private static final ModelRate CLAUDE_HAIKU    = new ModelRate(1.00, 5.00);
+    /** Claude Sonnet 4.6 — tầng sinh nội dung bài học (P3+). */
+    private static final ModelRate CLAUDE_SONNET   = new ModelRate(3.00, 15.00);
+    /** Gemini 2.5 Flash — tầng thẩm định errors (P4) + OCR (đã dùng, trước đây rơi vào DEFAULT). */
+    private static final ModelRate GEMINI_FLASH    = new ModelRate(0.30, 2.50);
     /** Conservative catch-all so an unrecognised model never silently reads as cheap. */
     private static final ModelRate DEFAULT         = new ModelRate(0.20, 0.20);
 
@@ -63,6 +72,16 @@ public class AiCostEstimator {
         String m = model == null ? "" : model.toLowerCase();
         if (m.isBlank()) {
             return DEFAULT;
+        }
+        if (m.contains("haiku")) {
+            // Trước nhánh "claude" chung — Haiku rẻ hơn Sonnet 3×, gộp là khai vống COGS.
+            return CLAUDE_HAIKU;
+        }
+        if (m.contains("claude") || m.contains("sonnet") || m.contains("anthropic")) {
+            return CLAUDE_SONNET;
+        }
+        if (m.contains("gemini")) {
+            return GEMINI_FLASH;
         }
         if (m.contains("scout") || m.contains("llama")) {
             // All Llama family chat models served via Groq share the Scout-class tariff

@@ -40,4 +40,28 @@ public interface OpenAiChatClient {
                                  Integer maxTokens, Consumer<String> onToken,
                                  Consumer<AiChatCompletionResult> onComplete,
                                  AtomicBoolean cancelled);
+
+    // ── Đường gọi theo TẦNG (khung tier, plans/2026-08-07) ─────────────────────────────────────
+
+    /**
+     * Blocking completion theo {@link com.deutschflow.ai.tier.TierSpec} — call site khai tầng,
+     * KHÔNG khai model. Default: chỉ lấy model của tier (đủ cho {@code LocalAiChatClient});
+     * {@code GroqChatClient} override để áp cả endpoint/provider/reasoning-effort của tier.
+     */
+    default AiChatCompletionResult chatCompletionForTier(List<ChatMessage> messages,
+                                                  com.deutschflow.ai.tier.TierSpec tier,
+                                                  double temperature, Integer maxTokens) {
+        return chatCompletion(messages, tier == null ? null : tier.model(), temperature, maxTokens);
+    }
+
+    /** Bản stream của đường gọi theo tầng — cùng quy ước với overload blocking ở trên. */
+    default boolean chatCompletionStreamForTier(List<ChatMessage> messages,
+                                         com.deutschflow.ai.tier.TierSpec tier,
+                                         double temperature, Integer maxTokens,
+                                         Consumer<String> onToken,
+                                         Consumer<AiChatCompletionResult> onComplete,
+                                         AtomicBoolean cancelled) {
+        return chatCompletionStream(messages, tier == null ? null : tier.model(), temperature,
+                maxTokens, onToken, onComplete, cancelled);
+    }
 }
