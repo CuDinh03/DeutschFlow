@@ -179,6 +179,63 @@ class OrgMembershipServiceTest {
         verify(memberRepo).save(any());
     }
 
+    // ----------------------------------------------------------------- ensureStudentSeat (vào TT qua lớp)
+
+    @Test
+    @DisplayName("ensureStudentSeat: non-member is upserted as an ACTIVE STUDENT (gets a seat)")
+    void ensureStudentSeat_nonMember_upsertsStudent() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(studentUser()));
+
+        service.ensureStudentSeat(ORG_ID, USER_ID);
+
+        ArgumentCaptor<OrgMember> saved = ArgumentCaptor.forClass(OrgMember.class);
+        verify(memberRepo).save(saved.capture());
+        assertThat(saved.getValue().getRole()).isEqualTo("STUDENT");
+        assertThat(saved.getValue().getStatus()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    @DisplayName("ensureStudentSeat: an ACTIVE member of this org (any role) is a no-op — staff is not demoted")
+    void ensureStudentSeat_activeStaffSameOrg_noop() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member("TEACHER", "ACTIVE")));
+
+        service.ensureStudentSeat(ORG_ID, USER_ID);
+
+        verify(memberRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("ensureStudentSeat: rejects a user ACTIVE in another org — no silent re-homing via class code")
+    void ensureStudentSeat_activeElsewhere_throwsBadRequest() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.ensureStudentSeat(ORG_ID, USER_ID))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("trung tâm khác");
+
+        verify(memberRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("ensureStudentSeat: a LEFT/REVOKED member is reactivated through upsertMember (seat gate applies)")
+    void ensureStudentSeat_formerMember_reactivatedViaUpsert() {
+        OrgMember former = member("STUDENT", "LEFT");
+        former.setLeftAt(Instant.now());
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(former));
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(studentUser()));
+
+        service.ensureStudentSeat(ORG_ID, USER_ID);
+
+        assertThat(former.getStatus()).isEqualTo("ACTIVE");
+        assertThat(former.getLeftAt()).isNull();
+        verify(memberRepo).save(former);
+    }
+
     // ----------------------------------------------------------------- removeMember (admin revoke)
 
     @Test

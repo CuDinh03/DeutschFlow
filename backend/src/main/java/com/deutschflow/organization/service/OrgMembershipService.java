@@ -115,6 +115,33 @@ public class OrgMembershipService {
     }
 
     /**
+     * Bảo đảm học viên có ghế STUDENT ACTIVE trong tổ chức {@code orgId} — cửa vào cho đường
+     * "vào trung tâm qua lớp học" (học viên nhập mã lớp, giáo viên duyệt). Đường duyệt lớp trước
+     * đây chỉ tạo {@code class_students} mà không đụng {@code org_members}, nên trung tâm có lớp
+     * đầy học viên trong khi trang "Học viên của tổ chức" đếm 0 và ghế không bị tính tiền.
+     *
+     * <p>Đã là thành viên ACTIVE của chính org này (bất kỳ vai trò) → no-op: giáo viên/quản lý của
+     * trung tâm vào một lớp không bị hạ xuống STUDENT. Đang ACTIVE ở org KHÁC → từ chối: move-semantics
+     * của STUDENT chỉ dành cho roster do org chủ động ghi (import/thêm tay), không re-home âm thầm
+     * chỉ vì học viên gõ một mã lớp. Trường hợp còn lại đi qua {@link #upsertMember} nên chịu đủ
+     * seat-limit gate — hết ghế thì lượt duyệt thất bại với thông báo rõ ràng.
+     */
+    @Transactional
+    public void ensureStudentSeat(Long orgId, Long userId) {
+        boolean activeInThisOrg = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId)
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
+                .isPresent();
+        if (activeInThisOrg) {
+            return;
+        }
+        if (memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(userId, STATUS_ACTIVE, orgId)) {
+            throw new BadRequestException(
+                    "Học viên đang thuộc một trung tâm khác — không thể thêm vào trung tâm này qua lớp học.");
+        }
+        upsertMember(orgId, userId, ROLE_STUDENT);
+    }
+
+    /**
      * Admin-initiated removal: marks the membership REVOKED (stamps {@code left_at}) and detaches
      * the user (clears {@code users.org_id}, demotes TEACHER → STUDENT when no active teaching
      * membership remains).
