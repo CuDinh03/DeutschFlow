@@ -776,7 +776,9 @@
     "personaNameMinh": "Minh — Kumpel",
     "personaDescMinh": "Junger Vietnamese in Deutschland — Straßendeutsch, Vietnamesisch + deutsche Wörter.",
     "continueToSettings": "Weiter zu den Einstellungen",
-    "backToModeAndPersona": "Zurück zu Modus & Begleiter"
+    "backToModeAndPersona": "Zurück zu Modus & Begleiter",
+    "personaTopicHint": "Zu diesem Thema passt besser:",
+    "personaTopicHintDismiss": "Hinweis ausblenden"
   },
   "onboarding": {
     "title": "Lernplan personalisieren",

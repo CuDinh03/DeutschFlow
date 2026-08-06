@@ -774,7 +774,9 @@
       "quotaBlockedInputPlaceholder": "AI quota exceeded — cannot send messages"
     },
     "continueToSettings": "Continue to settings",
-    "backToModeAndPersona": "Back to mode & companion"
+    "backToModeAndPersona": "Back to mode & companion",
+    "personaTopicHint": "This topic fits better with:",
+    "personaTopicHintDismiss": "Dismiss suggestion"
   },
   "onboarding": {
     "title": "Personalize your learning plan",

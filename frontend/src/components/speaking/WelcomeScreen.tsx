@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { CYAN, PURPLE, SPEAKING_LIGHT, glassLight } from "./types";
 import type { SpeakingPersonaId, SpeakingResponseSchemaId, SpeakingSessionMode } from "@/lib/aiSpeakingApi";
 import { SpeakingQuotaBlockedBanner } from "@/components/features/ai-speaking/SpeakingQuotaBlockedBanner";
+import { suggestPersonasForTopic } from "./personaTopicMatch";
 
 /** Ladder used for Speaking UI (subset of backend A1–C2). */
 const CEFR_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
@@ -185,6 +186,16 @@ export function WelcomeScreen({
       intDesc: "learningModeInterviewDesc" as const,
     };
   }, [persona]);
+
+  // Phương án B (BAO_CAO_KIEM_TRA_PERSONA_2026-08-06 mục 6.2): chủ đề chuyên ngành
+  // lệch persona → chip gợi ý mềm, không chặn. Đổi chủ đề thì hiện lại dù đã tắt.
+  const activeTopic = custom.trim() || selected || "";
+  const personaSuggestion = useMemo(
+    () => suggestPersonasForTopic(activeTopic, persona),
+    [activeTopic, persona],
+  );
+  const [suggestionDismissedFor, setSuggestionDismissedFor] = useState<string | null>(null);
+  const showPersonaSuggestion = personaSuggestion !== null && suggestionDismissedFor !== activeTopic;
 
   const displayTopics = useMemo(() => {
     const base = [...SUGGESTED_TOPICS];
@@ -507,6 +518,45 @@ export function WelcomeScreen({
                 </button>
               )}
             </div>
+
+            {showPersonaSuggestion && personaSuggestion && (
+              <div
+                className="mt-3 flex flex-wrap items-center gap-1.5 rounded-[12px] px-3 py-2"
+                style={{ background: `${PURPLE}0d`, border: `1px dashed ${PURPLE}44` }}
+              >
+                <span className="text-[11px]" style={{ color: SPEAKING_LIGHT.inkMuted }}>
+                  💡 {t("personaTopicHint")}
+                </span>
+                {personaSuggestion.personas.map((id) => {
+                  const meta = SPEAKING_PERSONAS.find((p) => p.id === id);
+                  if (!meta) return null;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setPersona(id)}
+                      className="rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all"
+                      style={{
+                        background: "rgba(255,255,255,0.9)",
+                        border: `1px solid ${PURPLE}55`,
+                        color: PURPLE,
+                      }}
+                    >
+                      {meta.emoji} {t(meta.nameKey)}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setSuggestionDismissedFor(activeTopic)}
+                  aria-label={t("personaTopicHintDismiss")}
+                  className="ml-auto"
+                  style={{ color: SPEAKING_LIGHT.inkFaint }}
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            )}
           </div>
 
           {quotaBlocked && (
