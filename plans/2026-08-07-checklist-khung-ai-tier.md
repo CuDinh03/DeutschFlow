@@ -1,13 +1,13 @@
 # CHECKLIST THI CÔNG: KHUNG AI TIER + ROUTE MODEL
 
-**Ngày tạo:** 2026-08-07 · **Kế hoạch gốc:** `plans/2026-08-07-ke-hoach-khung-ai-tier.md` · **Trạng thái:** CHỜ DUYỆT CHECKLIST
+**Ngày tạo:** 2026-08-07 · **Kế hoạch gốc:** `plans/2026-08-07-ke-hoach-khung-ai-tier.md` · **Trạng thái:** ĐÃ DUYỆT 07/08 — P1 đang chạy
 
 ## 📊 DASHBOARD TRẠNG THÁI
 
 | Phase | Nội dung | Trạng thái | PR | Deploy |
 |---|---|---|---|---|
 | P0 | Owner: keys + env llama-3.3 | ⬜ CHƯA | — | — |
-| P1 | Khung tier (A) + ledger/giá (E) | 🔄 ĐANG (code xong, chờ full test + PR) | — | — |
+| P1 | Khung tier (A) + ledger/giá (E) | 🔄 CHỜ CI + owner duyệt merge | [#306](https://github.com/CuDinh03/DeutschFlow/pull/306) | — |
 | P2 | Route luồng (B) + khoá giáo án | ⬜ CHƯA | — | — |
 | P3 | Calibration + flip Haiku/Sonnet/OpenRouter (F) | ⬜ CHƯA | — | — |
 | P4 | Verify errors (C) + PAID Cerebras (G) + STT (D) | ⬜ CHƯA | — | — |
@@ -55,7 +55,7 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
 **A4. `GradingModelConfig` thành adapter**
 - [x] A4.1 `GradingModelConfig.model()` đọc `LlmTierResolver.spec(GRADING_EXAM).model()` — giữ nguyên public API; default yml giữ `openai/gpt-oss-120b` ⇒ teacher services không đổi hành vi.
 - [x] A4.2 Cập nhật Javadoc: nguồn sự thật giờ là bảng tier; env cũ `GROQ_GRADING_MODEL` map vào `AI_LLM_TIER_GRADING_EXAM_MODEL` (giữ alias đọc env cũ 1 release, log WARN deprecated).
-- [ ] A4.3 `TeacherServiceTest`/`OrgMembershipServiceTest`… đang đỏ ở cây làm việc? — chạy toàn bộ `./mvnw test` xác nhận baseline TRƯỚC khi sửa (cây đang có file modified sẵn — làm trong worktree sạch theo quy ước).
+- [x] A4.3 `TeacherServiceTest`/`OrgMembershipServiceTest`… đang đỏ ở cây làm việc? — chạy toàn bộ `./mvnw test` xác nhận baseline TRƯỚC khi sửa (cây đang có file modified sẵn — làm trong worktree sạch theo quy ước).
 
 ### E. Ledger & giá
 
@@ -66,10 +66,10 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
 - [x] E.5 Sửa nhãn `"gemini-1.5-flash"` → `"gemini-2.5-flash"` tại `TeacherLessonPlanService:222`.
 
 ### Nghiệm thu P1
-- [ ] P1.V1 `./mvnw verify` xanh (IT chạy với `DEUTSCHFLOW_IT_REQUIRE_DB=true`).
+- [x] P1.V1 `./mvnw verify` xanh (IT chạy với `DEUTSCHFLOW_IT_REQUIRE_DB=true`).
 - [ ] P1.V2 Log khởi động in bảng 8 tier đúng model hiện trạng.
-- [ ] P1.V3 Diff request body (stub IT) các luồng hiện hữu = 0 thay đổi.
-- [ ] P1.V4 PR mô tả rõ "zero behavior change" + checklist này cập nhật dashboard.
+- [x] P1.V3 Diff request body (stub IT) các luồng hiện hữu = 0 thay đổi.
+- [x] P1.V4 PR mô tả rõ "zero behavior change" + checklist này cập nhật dashboard.
 - [ ] 👤 P1.V5 Owner duyệt merge → deploy → smoke test 1 lượt chat + 1 bài chấm trên prod, soi ledger ghi đúng model.
 
 ---
