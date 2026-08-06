@@ -1,5 +1,8 @@
 package com.deutschflow.speaking.service;
 
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
+import com.deutschflow.ai.tier.TierSpec;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
@@ -23,8 +26,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Khoá regression: Sprechen Teil 2 (sinh câu hỏi AI + chấm lượt nói) PHẢI truyền model = null vào
- * {@link OpenAiChatClient#chatCompletion}, tức dùng model NÓI mặc định ({@code app.ai.groq.model}).
+ * Khoá regression: Sprechen Teil 2 — SINH CÂU HỎI dùng model NÓI mặc định (null), còn CHẤM lượt
+ * nói đi tier GRADING_EXAM (khung plans/2026-08-07, B1.2 — trước đây cả hai rơi về model nói).
  *
  * <p>Bug gốc (cùng họ với #94): code cũ truyền {@code "json_object"} vào THAM SỐ MODEL. Vì
  * {@code GroqChatClient} coi mọi chuỗi non-blank là tên model, nó gửi {@code model="json_object"}
@@ -36,13 +39,14 @@ import static org.mockito.Mockito.when;
 class SprechenTeil2ServiceModelTest {
 
     @Mock OpenAiChatClient chatClient;
+    @Mock LlmTierResolver llmTierResolver;
 
     private SprechenTeil2Service service;
 
     @BeforeEach
     void setUp() {
         // ObjectMapper thật để parse JSON trả về tự nhiên — chỉ mock client AI.
-        service = new SprechenTeil2Service(chatClient, new ObjectMapper());
+        service = new SprechenTeil2Service(chatClient, llmTierResolver, new ObjectMapper());
     }
 
     @Test
@@ -70,12 +74,13 @@ class SprechenTeil2ServiceModelTest {
     }
 
     @Test
-    @DisplayName("evaluateTurn truyền model = null, KHÔNG phải \"json_object\"")
-    void evaluateTurn_passesNullModel() {
-        when(chatClient.chatCompletion(any(), nullable(String.class), anyDouble(), any()))
+    @DisplayName("evaluateTurn đi tier GRADING_EXAM (khung tier B1.2), không còn rơi về model nói")
+    void evaluateTurn_routesToGradingExamTier() {
+        when(llmTierResolver.spec(LlmTier.GRADING_EXAM)).thenReturn(new TierSpec(LlmTier.GRADING_EXAM, "openai/gpt-oss-120b", null, null, null, null, null, null, null, false, false));
+        when(chatClient.chatCompletionForTier(any(), any(TierSpec.class), anyDouble(), any()))
                 .thenReturn(new AiChatCompletionResult(
                         "{\"score\":8,\"feedback_vi\":\"Tốt\",\"ai_response_de\":\"Ja, gern.\"}",
-                        null, "GROQ", "default-speaking-model"));
+                        null, "GROQ", "openai/gpt-oss-120b"));
 
         Map<String, Object> result = service.evaluateTurn(
                 "USER_ASKING", "Einkaufen", "Brot", "Kaufen Sie gern Brot?", null);
@@ -84,12 +89,12 @@ class SprechenTeil2ServiceModelTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<ChatMessage>> msgs = ArgumentCaptor.forClass(List.class);
-        ArgumentCaptor<String> model = ArgumentCaptor.forClass(String.class);
-        verify(chatClient).chatCompletion(msgs.capture(), model.capture(), anyDouble(), any());
+        ArgumentCaptor<TierSpec> tier = ArgumentCaptor.forClass(TierSpec.class);
+        verify(chatClient).chatCompletionForTier(msgs.capture(), tier.capture(), anyDouble(), any());
 
-        assertThat(model.getValue())
-                .as("Chấm lượt nói phải dùng model NÓI mặc định (null), không bao giờ là \"json_object\"")
-                .isNull();
+        assertThat(tier.getValue().tier())
+                .as("Chấm lượt thi phải đi tier GRADING_EXAM — không bao giờ rơi ngầm về model nói")
+                .isEqualTo(LlmTier.GRADING_EXAM);
         assertPromptMentionsJson(msgs.getValue());
     }
 

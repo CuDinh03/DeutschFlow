@@ -10,7 +10,9 @@ import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.gamification.service.XpService;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
-import com.deutschflow.speaking.ai.GroqChatClient;
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
+import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +42,9 @@ import java.util.concurrent.Executor;
 public class PracticeNodeService {
 
     private final JdbcTemplate jdbcTemplate;
-    private final GroqChatClient groqChatClient;
+    // Khung tier B3.3: sinh bài luyện tập = tier CONTENT (như SkillTreeService).
+    private final OpenAiChatClient chatClient;
+    private final LlmTierResolver llmTierResolver;
     private final AiUsageLedgerService aiUsageLedgerService;
     private final ObjectMapper objectMapper;
     private final AsyncJobService asyncJobService;
@@ -165,7 +169,7 @@ public class PracticeNodeService {
                     new ChatMessage("user", "Erstelle die Übungen jetzt als JSON.")
             );
 
-            AiChatCompletionResult result = groqChatClient.chatCompletion(messages, null, 0.4, 4096);
+            AiChatCompletionResult result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.CONTENT), 0.4, 4096);
             String rawJson = cleanJsonResponse(result.content());
 
             // Validate JSON
@@ -191,7 +195,7 @@ public class PracticeNodeService {
                         new ChatMessage("system", retryPrompt),
                         new ChatMessage("user", "Erstelle die Übungen jetzt als JSON. KOMPLETT ANDERE als vorher!")
                 );
-                result = groqChatClient.chatCompletion(messages, null, 0.6, 4096);
+                result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.CONTENT), 0.6, 4096);
                 rawJson = cleanJsonResponse(result.content());
                 parsed = objectMapper.readTree(rawJson);
                 cleanJson = objectMapper.writeValueAsString(parsed);

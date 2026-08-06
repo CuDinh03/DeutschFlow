@@ -8,7 +8,7 @@
 |---|---|---|---|---|
 | P0 | Owner: keys + env llama-3.3 | ⬜ CHƯA | — | — |
 | P1 | Khung tier (A) + ledger/giá (E) | 🔄 CHỜ CI + owner duyệt merge | [#306](https://github.com/CuDinh03/DeutschFlow/pull/306) | — |
-| P2 | Route luồng (B) + khoá giáo án | ⬜ CHƯA | — | — |
+| P2 | Route luồng (B) + khoá giáo án | 🔄 ĐANG (B1–B4 xong code+test; B5 giáo án chưa) | — | — |
 | P3 | Calibration + flip Haiku/Sonnet/OpenRouter (F) | ⬜ CHƯA | — | — |
 | P4 | Verify errors (C) + PAID Cerebras (G) + STT (D) | ⬜ CHƯA | — | — |
 | P5 | Regen cây học tập (H) | ⬜ CHƯA | — | — |
@@ -77,26 +77,27 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
 ## P2 — ROUTE LUỒNG (Khu vực B) — model chấm vẫn 120b, flip Haiku ở P3
 
 **B1. Sửa 4 luồng chấm mis-route → tier**
-- [ ] B1.1 `AiSpeakingMockExamController:101` → `spec(GRADING_EXAM)`.
-- [ ] B1.2 `SprechenTeil2Service:134` (call chấm) → `GRADING_EXAM`; dòng 159 (sinh đề) GIỮ nguyên default.
-- [ ] B1.3 `AiExamEvaluatorService:53` + `:177` → `GRADING_EXAM`.
-- [ ] B1.4 `ConversationEvaluationService:74` → `GRADING_DAILY` (bỏ đọc trực tiếp `gradingModelConfig`).
-- [ ] B1.5 `InterviewEvaluationService:71` → `GRADING_DAILY`.
-- [ ] B1.6 IT/unit từng luồng: assert model gửi đi = model tier (stub server).
+- [x] B1.1 `AiSpeakingMockExamController:101` → `spec(GRADING_EXAM)`.
+- [x] B1.2 `SprechenTeil2Service:134` (call chấm) → `GRADING_EXAM`; dòng 159 (sinh đề) GIỮ nguyên default.
+- [x] B1.3 `AiExamEvaluatorService:53` + `:177` → `GRADING_EXAM`.
+- [x] B1.4 `ConversationEvaluationService:74` → `GRADING_DAILY` (bỏ đọc trực tiếp `gradingModelConfig`).
+- [x] B1.5 `InterviewEvaluationService:71` → `GRADING_DAILY`.
+- [x] B1.6 IT/unit từng luồng: cập nhật các `*ModelTest` hiện hữu sang hợp đồng tier (test cũ mã hoá đúng hành vi mis-route — bài học "test cũ mã hóa chính bug"); 27/27 xanh.
+- [x] B1.7 **(phát hiện khi làm)** `SkillTreeController:296` CORRECT_WRITING — luồng CHẤM bài viết mis-route THỨ 5 (`getGroqClient()` + null) → route `GRADING_EXAM`, accessor đổi thành `getChatClient()` trả interface.
 
 **B2. AiTextService → EXPLAIN**
-- [ ] B2.1 `AiTextService.complete(...)` truyền `spec(EXPLAIN)` cho correction + explanation (generate() helper khác giữ default nếu là luồng nói).
-- [ ] B2.2 Xác nhận không đụng latency SSE (AiTextService là REST đồng bộ, không stream).
+- [x] B2.1 `AiTextService.complete(...)` truyền `spec(EXPLAIN)` cho correction + explanation (generate() helper khác giữ default nếu là luồng nói).
+- [x] B2.2 Xác nhận không đụng latency SSE (AiTextService là REST đồng bộ, không stream).
 
 **B3. Curriculum bỏ inject trực tiếp**
-- [ ] B3.1 `PlacementTestService`: `GroqChatClient` → `OpenAiChatClient` + `spec(GRADING_EXAM)`.
-- [ ] B3.2 `SkillTreeService` (3 call site 460/1102/1243): → `OpenAiChatClient` + `spec(CONTENT)`.
-- [ ] B3.3 `PracticeNodeService` (168/194): → `spec(CONTENT)`.
+- [x] B3.1 `PlacementTestService`: hoá ra field `groqChatClient` là INJECT CHẾT (không có call LLM nào) → đã gỡ field + import; không có gì để route.
+- [x] B3.2 `SkillTreeService` (3 call site 460/1102/1243): → `OpenAiChatClient` + `spec(CONTENT)`.
+- [x] B3.3 `PracticeNodeService` (168/194): → `spec(CONTENT)`.
 - [ ] B3.4 IT: contentHash cache KHÔNG regenerate (model P2 chưa đổi ⇒ hash prompt không đổi) — assert node cũ giữ nguyên sau deploy.
 - [ ] B3.5 Kiểm tra `AiCacheService`/`SkillTreeController` không còn tham chiếu kiểu `GroqChatClient` cụ thể.
 
 **B4. Vocab tagging → BATCH**
-- [ ] B4.1 `VocabularyAutoTaggingService:191` → `spec(BATCH)` (=120b, quyết định #10 chốt tại P2).
+- [x] B4.1 `VocabularyAutoTaggingService:191` → `spec(BATCH)` (=120b, quyết định #10 chốt tại P2).
 - [ ] B4.2 Chạy thử 1 batch nhỏ (~50 từ) staging, so sánh tag trước/sau bằng mắt.
 
 **B5. Khoá giáo án (#9) — PR riêng**

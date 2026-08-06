@@ -11,7 +11,8 @@ import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.QuotaExceededException;
 import com.deutschflow.common.quota.QuotaService;
-import com.deutschflow.teacher.service.GradingModelConfig;
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,7 +42,8 @@ public class InterviewEvaluationService {
     private final QuotaService quotaService;
     private final AiUsageLedgerService ledgerService;
     private final InterviewStateCodec interviewStateCodec;
-    private final GradingModelConfig gradingModelConfig;
+    // Khung tier B1.5: chấm phỏng vấn = GRADING_DAILY.
+    private final LlmTierResolver llmTierResolver;
 
     /**
      * Generates a JSON evaluation report for the given interview session.
@@ -68,8 +70,8 @@ public class InterviewEvaluationService {
             // tránh JSON cụt → report rỗng nhưng vẫn trừ token) và dùng MODEL CHẤM thay model nói.
             quotaService.assertAllowed(userId, Instant.now(), 1L);
 
-            AiChatCompletionResult result = openAiChatClient.chatCompletion(
-                    aiMessages, gradingModelConfig.model(), EVAL_TEMPERATURE, EVAL_MAX_TOKENS);
+            AiChatCompletionResult result = openAiChatClient.chatCompletionForTier(
+                    aiMessages, llmTierResolver.spec(LlmTier.GRADING_DAILY), EVAL_TEMPERATURE, EVAL_MAX_TOKENS);
 
             if (result.usage() != null) {
                 ledgerService.record(userId, result.provider(), result.model(),

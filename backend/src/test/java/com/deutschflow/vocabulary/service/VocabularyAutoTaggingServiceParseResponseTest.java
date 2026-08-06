@@ -27,7 +27,8 @@ class VocabularyAutoTaggingServiceParseResponseTest {
         TopicKeywordRuleService kw = Mockito.mock(TopicKeywordRuleService.class);
 
         var svc = new VocabularyAutoTaggingService(
-                jdbc, llm, new ObjectMapper(), tags, kw, ledger);
+                jdbc, llm, Mockito.mock(com.deutschflow.ai.tier.LlmTierResolver.class),
+                new ObjectMapper(), tags, kw, ledger);
 
         List<String> taxonomy = List.of("Reise", "Beruf");
 
