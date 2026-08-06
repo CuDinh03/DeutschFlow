@@ -76,6 +76,7 @@ public class TeacherService {
     private final RunAfterCommitService runAfterCommitService;
     private final ClassDeletionGuard classDeletionGuard;
     private final AuditLogService auditLogService;
+    private final com.deutschflow.organization.service.OrgMembershipService orgMembershipService;
 
     /** Tên lớp: bắt buộc, tối đa {@value #MAX_CLASS_NAME_LENGTH} ký tự (cột DB là varchar(255)). */
     private static final int MAX_CLASS_NAME_LENGTH = 255;
@@ -170,6 +171,17 @@ public class TeacherService {
         TeacherClass teacherClass = classRepository.findByInviteCode(inviteCode)
                 .orElseThrow(() -> new NotFoundException("Mã lớp học không hợp lệ"));
 
+        // Org isolation — cùng quy tắc với addStudentToClassByEmail: lớp của trung tâm không nhận
+        // người đang thuộc trung tâm khác. Chặn ngay lúc gửi yêu cầu để học viên biết liền, thay vì
+        // để giáo viên bấm duyệt rồi mới vỡ ở ensureStudentSeat. Học viên chưa thuộc trung tâm nào
+        // vẫn được gửi yêu cầu — ghế org_members sẽ được cấp lúc giáo viên duyệt.
+        if (teacherClass.getOrgId() != null) {
+            Long studentOrgId = userRepository.findById(studentId).map(User::getOrgId).orElse(null);
+            if (studentOrgId != null && !studentOrgId.equals(teacherClass.getOrgId())) {
+                throw new BadRequestException("Lớp này thuộc một trung tâm khác với trung tâm của bạn.");
+            }
+        }
+
         if (classStudentRepository.existsByIdClassIdAndIdStudentId(teacherClass.getId(), studentId)) {
             throw new ConflictException("Bạn đã tham gia lớp học này rồi");
         }
@@ -247,6 +259,16 @@ public class TeacherService {
             throw new BadRequestException("Yêu cầu đã được xử lý");
         }
 
+        TeacherClass teacherClass = classRepository.findById(classId)
+                .orElseThrow(() -> new NotFoundException("Lớp học không tồn tại"));
+
+        // Lớp của trung tâm thì duyệt vào lớp = nhận vào trung tâm: học viên phải có ghế STUDENT
+        // ACTIVE trong org_members. Trước đây bước này bị bỏ qua nên trung tâm có lớp đầy học viên
+        // mà roster/seat của org vẫn 0. Ném lỗi (khác org, hết ghế) → rollback cả lượt duyệt.
+        if (teacherClass.getOrgId() != null) {
+            orgMembershipService.ensureStudentSeat(teacherClass.getOrgId(), req.getStudentId());
+        }
+
         req.setStatus("APPROVED");
         joinRequestRepository.save(req);
 
@@ -265,12 +287,11 @@ public class TeacherService {
         // approve. (There used to be an onTeacherJoinRequestCreated call right here, telling the teacher
         // "X yêu cầu tham gia lớp" immediately after they had approved X. The notification now fires in
         // joinClass, when the request actually arrives.)
-        TeacherClass teacherClass = classRepository.findById(classId).orElse(null);
         User teacher = userRepository.findById(teacherId).orElse(null);
         userNotificationService.onJoinRequestApproved(
             req.getStudentId(),
             classId,
-            teacherClass != null ? teacherClass.getName() : "",
+            teacherClass.getName(),
             teacher != null ? teacher.getDisplayName() : ""
         );
 

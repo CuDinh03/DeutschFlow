@@ -128,6 +128,9 @@ class TeacherServiceTest {
     @Mock
     private com.deutschflow.common.audit.AuditLogService auditLogService;
 
+    @Mock
+    private com.deutschflow.organization.service.OrgMembershipService orgMembershipService;
+
     private TeacherService teacherService;
 
     @BeforeEach
@@ -156,7 +159,8 @@ class TeacherServiceTest {
                 notificationAutoAckService,
                 runAfterCommitService,
                 classDeletionGuard,
-                auditLogService
+                auditLogService,
+                orgMembershipService
         );
     }
 
@@ -589,6 +593,92 @@ class TeacherServiceTest {
         teacherService.addStudentToClassByEmail(1L, 100L, "hv@bat-ky.de");
 
         verify(classStudentRepository).save(any());
+    }
+
+    // ── Vào trung tâm qua lớp học ────────────────────────────────────────────
+    // Lớp của trung tâm: duyệt vào lớp = nhận vào trung tâm (ghế org_members qua
+    // ensureStudentSeat). Thiếu bước này thì lớp đầy học viên mà roster org đếm 0.
+
+    private com.deutschflow.teacher.entity.ClassroomJoinRequest pendingRequest(Long classId, Long studentId) {
+        return com.deutschflow.teacher.entity.ClassroomJoinRequest.builder()
+                .id(900L).classroomId(classId).studentId(studentId).status("PENDING").build();
+    }
+
+    @Test
+    void approveJoinRequest_orgClass_grantsOrgSeat() {
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
+        when(joinRequestRepository.findById(900L)).thenReturn(Optional.of(pendingRequest(100L, 5L)));
+        when(classRepository.findById(100L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).orgId(42L).name("A1.1").build()));
+
+        teacherService.approveJoinRequest(1L, 100L, 900L);
+
+        verify(orgMembershipService).ensureStudentSeat(42L, 5L);
+        verify(classStudentRepository).save(any());
+    }
+
+    @Test
+    void approveJoinRequest_personalClass_doesNotTouchOrgMembership() {
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
+        when(joinRequestRepository.findById(900L)).thenReturn(Optional.of(pendingRequest(100L, 5L)));
+        when(classRepository.findById(100L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).name("B2C").build()));   // orgId = null
+
+        teacherService.approveJoinRequest(1L, 100L, 900L);
+
+        verify(orgMembershipService, never()).ensureStudentSeat(any(), any());
+        verify(classStudentRepository).save(any());
+    }
+
+    @Test
+    void approveJoinRequest_seatDenied_approvalRollsBack() {
+        // Hết ghế / khác org → ensureStudentSeat ném lỗi TRƯỚC khi ghi bất cứ gì:
+        // yêu cầu vẫn PENDING, học viên không vào lớp.
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
+        when(joinRequestRepository.findById(900L)).thenReturn(Optional.of(pendingRequest(100L, 5L)));
+        when(classRepository.findById(100L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).orgId(42L).name("A1.1").build()));
+        org.mockito.Mockito.doThrow(new com.deutschflow.common.exception.BadRequestException("Đã đạt giới hạn chỗ ngồi"))
+                .when(orgMembershipService).ensureStudentSeat(42L, 5L);
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.approveJoinRequest(1L, 100L, 900L));
+
+        verify(joinRequestRepository, never()).save(any());
+        verify(classStudentRepository, never()).save(any());
+    }
+
+    @Test
+    void joinClass_orgClass_rejectsStudentFromAnotherOrg() {
+        when(classRepository.findByInviteCode("ABC123")).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).orgId(42L).name("A1.1").build()));
+        when(userRepository.findById(5L)).thenReturn(java.util.Optional.of(
+                com.deutschflow.user.entity.User.builder().id(5L).orgId(77L)
+                        .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.joinClass(5L, "ABC123"));
+        verify(joinRequestRepository, never()).save(any());
+    }
+
+    @Test
+    void joinClass_orgClass_allowsOrglessStudent() {
+        // Học viên chưa thuộc trung tâm nào vẫn gửi được yêu cầu; ghế cấp lúc duyệt.
+        when(classRepository.findByInviteCode("ABC123")).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).orgId(42L).name("A1.1").build()));
+        when(userRepository.findById(5L)).thenReturn(java.util.Optional.of(
+                com.deutschflow.user.entity.User.builder().id(5L)
+                        .role(com.deutschflow.user.entity.User.Role.STUDENT).build())); // orgId = null
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(100L, 5L)).thenReturn(false);
+        when(joinRequestRepository.findByClassroomIdAndStudentId(100L, 5L)).thenReturn(Optional.empty());
+        when(classTeacherRepository.findByIdClassId(100L)).thenReturn(List.of());
+
+        teacherService.joinClass(5L, "ABC123");
+
+        verify(joinRequestRepository).save(any());
     }
 
     @Test
