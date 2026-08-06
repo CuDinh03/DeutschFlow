@@ -215,15 +215,18 @@ public class ChatPrepService {
                 .build(), null);
     }
 
-    public List<ChatMessage> buildGreetingMessages(String systemPrompt,
+    public static List<ChatMessage> buildGreetingMessages(String systemPrompt,
                                                     String dynamicContext,
                                                     SpeakingPersona persona,
                                                     String topic,
                                                     List<WeakPoint> weakPoints,
                                                     SpeakingSessionMode sessionMode,
                                                     AiSpeakingSession sessionRow,
-                                                    InterviewPromptContext interviewContext) {
-        String industry = sessionRow.getTopic() != null && !sessionRow.getTopic().isBlank() ? sessionRow.getTopic() : null;
+                                                    InterviewPromptContext interviewContext,
+                                                    String learnerIndustry) {
+        // Nghề của HỌC VIÊN từ profile — trước đây nhét nhầm session topic vào đây, khiến
+        // câu "Der Lernende arbeitet als '<topic>'" trong greeting nhận sai dữ liệu.
+        String industry = learnerIndustry != null && !learnerIndustry.isBlank() ? learnerIndustry : null;
         String weakPointsStr = weakPoints.stream().map(WeakPoint::grammarPoint).collect(Collectors.joining(", "));
         String greetingInstruction = sessionMode == SpeakingSessionMode.INTERVIEW
                 ? """

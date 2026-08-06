@@ -71,6 +71,33 @@ public enum SpeakingPersona {
         }
     }
 
+    /**
+     * Nghề/vai của persona trong hội thoại GIAO TIẾP — nguồn cho khối "DEINE IDENTITÄT"
+     * (chống nhận nhầm nghề của học viên, xem BAO_CAO_KIEM_TRA_PERSONA_2026-08-06).
+     * Chuỗi khớp role_title seed V163 để danh tính chat thường ăn khớp danh tính interview.
+     * {@code null} = persona không mang nghề Đức cố định (DEFAULT tutor, bộ ba tutor Việt).
+     */
+    public String communicationRole() {
+        return switch (this) {
+            case DEFAULT, TUAN, LAN, MINH -> null;
+            case LUKAS -> "Senior-Softwareentwickler (Tech Lead) in einem Berliner Startup";
+            case EMMA -> "Business Development Managerin";
+            case ANNA -> "Studienberaterin und Karriere-Coach";
+            case KLAUS -> "Küchenchef";
+            case LENA -> "Supermarktmitarbeiterin";
+            case THOMAS -> "Bäcker";
+            case PETRA -> "Metzgerin";
+            case SARAH -> "Medizinische Fachangestellte";
+            case SCHNEIDER -> "Augenarzt";
+            case WEBER -> "Dermatologin";
+            case MAX -> "Maschinenbediener";
+            case OLIVER -> "CNC-Fräser";
+            case NIKLAS -> "Kellner";
+            case NINA -> "Rezeptionistin im Hotel";
+            case HANNIE -> "Moderatorin und MC";
+        };
+    }
+
     /** Human-readable name for use in prompts. */
     public String displayName() {
         return switch (this) {
