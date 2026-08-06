@@ -8,7 +8,7 @@
 |---|---|---|---|---|
 | P0 | Owner: keys + env llama-3.3 | ⬜ CHƯA | — | — |
 | P1 | Khung tier (A) + ledger/giá (E) | 🔄 CHỜ CI + owner duyệt merge | [#306](https://github.com/CuDinh03/DeutschFlow/pull/306) | — |
-| P2 | Route luồng (B) + khoá giáo án | 🔄 ĐANG (B1–B4 xong code+test; B5 giáo án chưa) | — | — |
+| P2 | Route luồng (B) + khoá giáo án | 🔄 B1–B4 lên PR (chờ P1 merge + CI); B5 giáo án CHƯA | [#307](https://github.com/CuDinh03/DeutschFlow/pull/307) | — |
 | P3 | Calibration + flip Haiku/Sonnet/OpenRouter (F) | ⬜ CHƯA | — | — |
 | P4 | Verify errors (C) + PAID Cerebras (G) + STT (D) | ⬜ CHƯA | — | — |
 | P5 | Regen cây học tập (H) | ⬜ CHƯA | — | — |
