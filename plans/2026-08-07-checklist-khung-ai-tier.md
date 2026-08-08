@@ -7,8 +7,8 @@
 | Phase | Nội dung | Trạng thái | PR | Deploy |
 |---|---|---|---|---|
 | P0 | Owner: keys + env llama-3.3 | ⬜ CHƯA | — | — |
-| P1 | Khung tier (A) + ledger/giá (E) | 🔄 CHỜ CI + owner duyệt merge | [#306](https://github.com/CuDinh03/DeutschFlow/pull/306) | — |
-| P2 | Route luồng (B) + khoá giáo án | 🔄 B1–B4 lên PR (chờ P1 merge + CI); B5 giáo án CHƯA | [#307](https://github.com/CuDinh03/DeutschFlow/pull/307) | — |
+| P1 | Khung tier (A) + ledger/giá (E) | ✅ **MERGED** `dffd88c1` | [#306](https://github.com/CuDinh03/DeutschFlow/pull/306) | ✅ `2ba00e72` 08/08 15:36, UP 55s |
+| P2 | Route luồng (B) + khoá giáo án | ✅ **MERGED** `6c2db328` (#307) + `2ba00e72` (#308); nghiệm thu 08/08 xong P2.V1/V2 + B3.4/B3.5, lòi mis-route thứ 6 (B1.8, PR riêng) | #307 #308 | ✅ `2ba00e72` (cùng đợt) |
 | P3 | Calibration + flip Haiku/Sonnet/OpenRouter (F) | ⬜ CHƯA | — | — |
 | P4 | Verify errors (C) + PAID Cerebras (G) + STT (D) | ⬜ CHƯA | — | — |
 | P5 | Regen cây học tập (H) | ⬜ CHƯA | — | — |
@@ -67,10 +67,10 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
 
 ### Nghiệm thu P1
 - [x] P1.V1 `./mvnw verify` xanh (IT chạy với `DEUTSCHFLOW_IT_REQUIRE_DB=true`).
-- [ ] P1.V2 Log khởi động in bảng 8 tier đúng model hiện trạng.
+- [x] P1.V2 Log khởi động PROD in đủ 8 tier đúng model (chat/explain/content=20b+low, grading×2=120b, batch=120b) — script `DeutschFlow-deploy/smoke-llm-tier.sh`.
 - [x] P1.V3 Diff request body (stub IT) các luồng hiện hữu = 0 thay đổi.
 - [x] P1.V4 PR mô tả rõ "zero behavior change" + checklist này cập nhật dashboard.
-- [ ] 👤 P1.V5 Owner duyệt merge → deploy → smoke test 1 lượt chat + 1 bài chấm trên prod, soi ledger ghi đúng model.
+- [x] P1.V5 Merge+deploy XONG (`2ba00e72`, health UP, Edge TTS 19 persona, Redis PONG). 👤 CÒN: owner làm 1 lượt chat + 1 bài chấm thật rồi soi ledger ghi 120b cho luồng chấm (cần tài khoản thật).
 
 ---
 
@@ -84,6 +84,7 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
 - [x] B1.5 `InterviewEvaluationService:71` → `GRADING_DAILY`.
 - [x] B1.6 IT/unit từng luồng: cập nhật các `*ModelTest` hiện hữu sang hợp đồng tier (test cũ mã hoá đúng hành vi mis-route — bài học "test cũ mã hóa chính bug"); 27/27 xanh.
 - [x] B1.7 **(phát hiện khi làm)** `SkillTreeController:296` CORRECT_WRITING — luồng CHẤM bài viết mis-route THỨ 5 (`getGroqClient()` + null) → route `GRADING_EXAM`, accessor đổi thành `getChatClient()` trả interface.
+- [x] B1.8 **(phát hiện khi nghiệm thu P2.V1)** `WeeklySpeakingService:163` WEEK_RUBRIC — luồng CHẤM rubric bài nói tuần mis-route THỨ 6 (truyền `null` → model chat 20b) → route `GRADING_DAILY` + test hợp đồng tier (`WeeklySpeakingServiceUnitTest`).
 
 **B2. AiTextService → EXPLAIN**
 - [x] B2.1 `AiTextService.complete(...)` truyền `spec(EXPLAIN)` cho correction + explanation (generate() helper khác giữ default nếu là luồng nói).
@@ -93,22 +94,22 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
 - [x] B3.1 `PlacementTestService`: hoá ra field `groqChatClient` là INJECT CHẾT (không có call LLM nào) → đã gỡ field + import; không có gì để route.
 - [x] B3.2 `SkillTreeService` (3 call site 460/1102/1243): → `OpenAiChatClient` + `spec(CONTENT)`.
 - [x] B3.3 `PracticeNodeService` (168/194): → `spec(CONTENT)`.
-- [ ] B3.4 IT: contentHash cache KHÔNG regenerate (model P2 chưa đổi ⇒ hash prompt không đổi) — assert node cũ giữ nguyên sau deploy.
-- [ ] B3.5 Kiểm tra `AiCacheService`/`SkillTreeController` không còn tham chiếu kiểu `GroqChatClient` cụ thể.
+- [x] B3.4 IT: contentHash cache KHÔNG regenerate — `SkillTreeContentCacheIntegrationTest`: node có `content_json` sẵn → unlock trả `CACHE`, `content_hash` giữ nguyên, LLM client (`@MockBean`) không bị gọi.
+- [x] B3.5 Kiểm tra `AiCacheService`/`SkillTreeController` không còn tham chiếu kiểu `GroqChatClient` cụ thể — grep `origin/main` sạch (curriculum chỉ còn `OpenAiChatClient`).
 
 **B4. Vocab tagging → BATCH**
 - [x] B4.1 `VocabularyAutoTaggingService:191` → `spec(BATCH)` (=120b, quyết định #10 chốt tại P2).
 - [ ] B4.2 Chạy thử 1 batch nhỏ (~50 từ) staging, so sánh tag trước/sau bằng mắt.
 
 **B5. Khoá giáo án (#9) — PR riêng**
-- [ ] B5.1 BE: flag `app.features.teacher-lesson-plan.enabled:false` → endpoint trả 403 + error code `FEATURE_DISABLED`.
-- [ ] B5.2 FE: ẩn nút/route theo flag (đọc từ API config sẵn có của FE nếu có, không thì hardcode ẩn).
-- [ ] B5.3 i18n: key thông báo "tính năng tạm khoá" ×3 locale (`teacher.*.json` — nhớ đủ CẢ 3, checker parity mù khi thiếu cả 3).
-- [ ] B5.4 e2e teacher: nút không hiện; gọi API trực tiếp nhận 403.
+- [x] B5.1 BE: flag `app.features.teacher-lesson-plan.enabled:false` (env `FEATURE_TEACHER_LESSON_PLAN`) → `/generate-pptx` trả 403 `FEATURE_DISABLED` TRƯỚC mọi validate/quota/job — PR #308.
+- [x] B5.2 FE: KHÔNG CẦN — soi thực tế: v2 không có UI nào gọi `generate-pptx` (chỉ còn comment ở `tools/materials`), các trang v1 từng gọi đã bị redirect 307 từ đợt xoá v1 (#290). Bề mặt UI đã tự chết.
+- [x] B5.3 i18n: KHÔNG CẦN (hệ quả B5.2 — không có UI nào hiển thị thông báo; message 403 nằm trong body BE).
+- [x] B5.4 Test: `TeacherMaterialControllerLockTest` — flag tắt → 403, không tạo AsyncJob (e2e nút không cần vì không còn nút).
 
 **Nghiệm thu P2**
-- [ ] P2.V1 Grep toàn repo: `chatCompletion(.*null` chỉ còn ở luồng nói/helpers đúng thiết kế (danh sách trắng ghi trong PR).
-- [ ] P2.V2 `./mvnw verify` + e2e speaking specs xanh.
+- [x] P2.V1 Grep toàn repo (08/08): `chatCompletion(.*null` — lòi `WeeklySpeakingService` là mis-route thứ 6 → fix ở B1.8. Danh sách trắng còn lại đúng thiết kế: `ChatCompletionService` (chat nói), `GroqApiService` (helpers nói), `SpeakingAiHelpersService`, `SprechenTeil2Service:162` (sinh đề), 2 default trong interface client.
+- [x] P2.V2 `./mvnw verify` xanh 08/08 (unit 1810/0 đỏ; IT 122 chạy/0 đỏ, 10 skip = `AIModelServiceIntegrationTest` cần key LLM thật) + e2e `speaking.spec.ts` 2/2 xanh.
 - [ ] P2.V3 Ledger sau deploy: mock exam/grammar exam/teil2 ghi model 120b.
 - [ ] 👤 P2.V4 Owner QA: 1 bài mock exam + 1 grammar exam trên prod, cảm quan chất lượng chấm.
 
