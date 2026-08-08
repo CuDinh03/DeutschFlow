@@ -2,6 +2,8 @@ package com.deutschflow.ai;
 
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.exception.AiServiceException;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +50,9 @@ public class AiTextService {
             """;
 
     private final OpenAiChatClient chatClient;
+    // Khung tier B2: sửa câu + giải thích lỗi dạy QUY TẮC cho học viên → tier EXPLAIN
+    // (P2 giữ model hiện trạng, P3 flip Haiku sau calibration).
+    private final LlmTierResolver llmTierResolver;
 
     /**
      * Free-form generation. {@code instruction} becomes the system prompt, {@code input} the user
@@ -80,7 +85,8 @@ public class AiTextService {
     private String complete(List<ChatMessage> messages, double temperature, int maxTokens) {
         AiChatCompletionResult result;
         try {
-            result = chatClient.chatCompletion(messages, null, temperature, maxTokens);
+            result = chatClient.chatCompletionForTier(
+                    messages, llmTierResolver.spec(LlmTier.EXPLAIN), temperature, maxTokens);
         } catch (AiServiceException e) {
             throw e;
         } catch (Exception e) {

@@ -2,6 +2,8 @@ package com.deutschflow.grammar.service;
 
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.speaking.ai.ChatMessage;
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,10 +29,14 @@ public class AiExamEvaluatorService {
     private static final int MAX_USER_CONTENT_CHARS = 4000;
 
     private final OpenAiChatClient chatClient;
+    // Khung tier B1.3: bài THI ngữ pháp chấm bằng tier GRADING_EXAM (trước đây rơi về model nói)
+    private final LlmTierResolver llmTierResolver;
     private final AiUsageLedgerService ledgerService;
 
-    public AiExamEvaluatorService(OpenAiChatClient chatClient, AiUsageLedgerService ledgerService) {
+    public AiExamEvaluatorService(OpenAiChatClient chatClient, LlmTierResolver llmTierResolver,
+                                  AiUsageLedgerService ledgerService) {
         this.chatClient = chatClient;
+        this.llmTierResolver = llmTierResolver;
         this.ledgerService = ledgerService;
     }
 
@@ -50,7 +56,7 @@ public class AiExamEvaluatorService {
                 new ChatMessage("user", prompt)
             );
 
-            var result = chatClient.chatCompletion(messages, null, 0.2, 800);
+            var result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.GRADING_EXAM), 0.2, 800);
             if (result.usage() != null) {
                 ledgerService.record(userId, result.provider(), result.model(),
                         result.usage().promptTokens(), result.usage().completionTokens(),
@@ -174,7 +180,7 @@ public class AiExamEvaluatorService {
                 new ChatMessage("user", prompt)
             );
 
-            var result = chatClient.chatCompletion(messages, null, 0.2, 800);
+            var result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.GRADING_EXAM), 0.2, 800);
             if (result.usage() != null) {
                 ledgerService.record(userId, result.provider(), result.model(),
                         result.usage().promptTokens(), result.usage().completionTokens(),

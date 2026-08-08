@@ -3,6 +3,9 @@ package com.deutschflow.speaking.controller;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.speaking.AiRateLimiterService;
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
+import com.deutschflow.ai.tier.TierSpec;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
@@ -44,6 +47,7 @@ import static org.mockito.Mockito.when;
 class AiSpeakingMockExamControllerModelTest {
 
     @Mock OpenAiChatClient chatClient;
+    @Mock LlmTierResolver llmTierResolver;
     @Mock JdbcTemplate jdbcTemplate;
     @Mock SprechenTeil2Service sprechenTeil2Service;
     @Mock AiRateLimiterService aiRateLimiterService;
@@ -52,15 +56,16 @@ class AiSpeakingMockExamControllerModelTest {
 
     private AiSpeakingMockExamController controller() {
         return new AiSpeakingMockExamController(
-                chatClient, jdbcTemplate, new ObjectMapper(), sprechenTeil2Service, aiRateLimiterService,
-                quotaService, orgPoolGuard);
+                chatClient, llmTierResolver, jdbcTemplate, new ObjectMapper(), sprechenTeil2Service,
+                aiRateLimiterService, quotaService, orgPoolGuard);
     }
 
     @Test
-    @DisplayName("evaluateMockExam truyền model = null, KHÔNG phải \"json_object\"")
-    void evaluateMockExam_passesNullModel() {
+    @DisplayName("evaluateMockExam đi tier GRADING_EXAM (khung tier B1.1)")
+    void evaluateMockExam_routesToGradingExamTier() {
         when(aiRateLimiterService.allow(any(), anyLong())).thenReturn(true);
-        when(chatClient.chatCompletion(any(), nullable(String.class), anyDouble(), any()))
+        when(llmTierResolver.spec(LlmTier.GRADING_EXAM)).thenReturn(new TierSpec(LlmTier.GRADING_EXAM, "openai/gpt-oss-120b", null, null, null, null, null, null, null, false, false));
+        when(chatClient.chatCompletionForTier(any(), any(TierSpec.class), anyDouble(), any()))
                 .thenReturn(new AiChatCompletionResult(
                         "{\"estimated_cefr\":\"B1\","
                                 + "\"radar_chart\":{\"grammar\":70,\"pronunciation\":65,\"vocabulary\":72,\"fluency\":68},"
@@ -81,10 +86,10 @@ class AiSpeakingMockExamControllerModelTest {
         assertThat(resp.getBody()).isNotNull();
         assertThat(resp.getBody().estimatedCefr()).isEqualTo("B1");
 
-        ArgumentCaptor<String> model = ArgumentCaptor.forClass(String.class);
-        verify(chatClient).chatCompletion(any(), model.capture(), anyDouble(), any());
-        assertThat(model.getValue())
-                .as("Mock-exam evaluation must use the default speaking model (null), never \"json_object\"")
-                .isNull();
+        ArgumentCaptor<TierSpec> tier = ArgumentCaptor.forClass(TierSpec.class);
+        verify(chatClient).chatCompletionForTier(any(), tier.capture(), anyDouble(), any());
+        assertThat(tier.getValue().tier())
+                .as("Chấm mock exam phải đi tier GRADING_EXAM (khung tier B1.1)")
+                .isEqualTo(LlmTier.GRADING_EXAM);
     }
 }

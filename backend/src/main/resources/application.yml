@@ -409,6 +409,7 @@ app:
         # Thẩm định errors/suggestions trước khi persist (P4, khu vực C — sẽ trỏ Gemini 2.5 Flash).
         error-verify:
           model: "${AI_LLM_TIER_ERROR_VERIFY_MODEL:openai/gpt-oss-20b}"
+          reasoning-effort: "${AI_LLM_TIER_ERROR_VERIFY_EFFORT:${GROQ_REASONING_EFFORT:low}}"
         # Chấm có tính PHÁN QUYẾT: mock exam, grammar exam, Teil 2, placement, essay B2B.
         # P3 flip Haiku 4.5 sau calibration ~100 bài (khu vực F). GROQ_GRADING_MODEL cũ vẫn ăn.
         grading-exam:
@@ -419,12 +420,19 @@ app:
         # Giải thích lỗi/sửa câu (AiTextService). P2 route (giữ model hiện trạng), P3 flip Haiku.
         explain:
           model: "${AI_LLM_TIER_EXPLAIN_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
+          # effort=low giữ nguyên hành vi cũ của đường null-model (budget completion nhỏ 512–700 tok).
+          # ⚠️ Khi flip model khác họ gpt-oss (Haiku) ở P3: xoá/để rỗng effort của tier này.
+          reasoning-effort: "${AI_LLM_TIER_EXPLAIN_EFFORT:${GROQ_REASONING_EFFORT:low}}"
         # Sinh nội dung bài học có cache (SkillTree/PracticeNode). P3 flip Sonnet 4.6; regen P5.
         content:
           model: "${AI_LLM_TIER_CONTENT_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
-        # Batch đêm (tag từ vựng, …) — P2 chốt 120b theo quyết định #10 (flip bằng env này).
+          # Giữ hành vi cũ (đường null-model có effort=low). Flip Sonnet ở P3 thì xoá effort.
+          reasoning-effort: "${AI_LLM_TIER_CONTENT_EFFORT:${GROQ_REASONING_EFFORT:low}}"
+        # Batch đêm (tag từ vựng, …) — 120b theo quyết định #10 (chốt tại P2). Tag maxTokens=600
+        # nên effort=low là BẮT BUỘC với họ gpt-oss (token "nghĩ" ăn chung budget completion).
         batch:
-          model: "${AI_LLM_TIER_BATCH_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
+          model: "${AI_LLM_TIER_BATCH_MODEL:openai/gpt-oss-120b}"
+          reasoning-effort: "${AI_LLM_TIER_BATCH_EFFORT:${GROQ_REASONING_EFFORT:low}}"
     gemini:
       api-key: ${GEMINI_API_KEY:}
     google:

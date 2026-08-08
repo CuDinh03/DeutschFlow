@@ -8,7 +8,9 @@ import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.gamification.service.XpService;
-import com.deutschflow.speaking.ai.GroqChatClient;
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
+import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -40,7 +42,10 @@ import java.util.concurrent.Executor;
 public class SkillTreeService {
 
     private final JdbcTemplate jdbcTemplate;
-    private final GroqChatClient groqChatClient;
+    // Khung tier B3.2: sinh nội dung bài học = tier CONTENT, đi qua interface thay vì
+    // inject thẳng client cụ thể (trước đây khoá cứng nhà cung cấp, bỏ qua fallback local).
+    private final OpenAiChatClient chatClient;
+    private final LlmTierResolver llmTierResolver;
     private final AiUsageLedgerService aiUsageLedgerService;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
@@ -66,7 +71,7 @@ public class SkillTreeService {
     private static final long PRONUNCIATION_ESTIMATED_TOKENS = 1_024L;
     private static final long INTERVIEW_REPORT_ESTIMATED_TOKENS = 1_024L;
 
-    public GroqChatClient getGroqClient() { return groqChatClient; }
+    public OpenAiChatClient getChatClient() { return chatClient; }
 
     // ─────────────────────────────────────────────────────────────
     // 1. GET SKILL TREE — Trả về toàn bộ cây cho user
@@ -457,7 +462,7 @@ public class SkillTreeService {
                     new ChatMessage("user", "Erstelle die Lektion jetzt als JSON.")
             );
 
-            AiChatCompletionResult result = groqChatClient.chatCompletion(messages, null, 0.3, 4096);
+            AiChatCompletionResult result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.CONTENT), 0.3, 4096);
             String rawJson = result.content();
 
             // Validate JSON
@@ -1099,7 +1104,7 @@ public class SkillTreeService {
                     new ChatMessage("system", "Bạn là chuyên gia ngữ âm học tiếng Đức. Trả về JSON hợp lệ."),
                     new ChatMessage("user", prompt)
             );
-            AiChatCompletionResult result = groqChatClient.chatCompletion(messages, null, 0.2, 1024);
+            AiChatCompletionResult result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.CONTENT), 0.2, 1024);
             
             // Clean up JSON response (strip markdown tags if present)
             String rawContent = result.content().trim();
@@ -1240,7 +1245,7 @@ public class SkillTreeService {
                     new ChatMessage("system", "Bạn là chuyên gia đánh giá ngôn ngữ tiếng Đức. Trả về JSON hợp lệ, không có markdown."),
                     new ChatMessage("user", prompt)
             );
-            AiChatCompletionResult result = groqChatClient.chatCompletion(messages, null, 0.3, 1024);
+            AiChatCompletionResult result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.CONTENT), 0.3, 1024);
 
             String rawContent = result.content().trim()
                     .replaceAll("^```json", "").replaceAll("^```", "").replaceAll("```$", "").trim();

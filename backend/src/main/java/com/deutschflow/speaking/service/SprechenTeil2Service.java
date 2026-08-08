@@ -1,5 +1,7 @@
 package com.deutschflow.speaking.service;
 
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,6 +19,7 @@ import java.util.Random;
 public class SprechenTeil2Service {
 
     private final OpenAiChatClient chatClient;
+    private final LlmTierResolver llmTierResolver;
     private final ObjectMapper objectMapper;
     private final Random random = new Random();
 
@@ -128,10 +131,10 @@ public class SprechenTeil2Service {
 
         try {
             var messages = List.of(new ChatMessage("user", prompt));
-            // model = null → use the configured default speaking model (app.ai.groq.model).
-            // JSON output is already forced by GroqChatClient's response_format; passing
-            // "json_object" here would be sent as the MODEL name → Groq HTTP 400 (same family as #94).
-            var response = chatClient.chatCompletion(messages, null, 0.3, 1000);
+            // Tier GRADING_EXAM (khung plans/2026-08-07, B1.2): call CHẤM lượt thi — trước đây
+            // model=null rơi về model nói (mis-route). Call sinh đề bên dưới GIỮ model nói.
+            var response = chatClient.chatCompletionForTier(
+                    messages, llmTierResolver.spec(LlmTier.GRADING_EXAM), 0.3, 1000);
             return objectMapper.readValue(response.content(), Map.class);
         } catch (Exception e) {
             log.error("Failed to evaluate Sprechen Teil 2 Turn", e);
