@@ -1,8 +1,26 @@
 # KẾ HOẠCH: KHUNG AI TIER + ROUTE MODEL THEO QUYẾT ĐỊNH 06/08
 
-**Ngày:** 2026-08-07 · **Trạng thái:** CHỜ DUYỆT · **Căn cứ:** `BAO_CAO_DE_XUAT_MODEL_TOAN_HE_THONG_2026-08-06.md` (Phần III — bảng quyết định owner)
+**Ngày:** 2026-08-07 · **Trạng thái:** ĐÃ DUYỆT — **CẬP NHẬT LỚN 09/08 (Fireworks-only, xem khung dưới)** · **Căn cứ:** `BAO_CAO_DE_XUAT_MODEL_TOAN_HE_THONG_2026-08-06.md` (Phần III) + **`BAO_CAO_LUA_CHON_MODEL_FIREWORKS_2026-08-09.md` (ma trận model thay thế, đã chốt)**
 
 **Nguyên tắc xuyên suốt:** mỗi phase tự đứng được, phase sau flip bằng config/env chứ không deploy code mới; mọi thay đổi model đều đi qua bảng tier để về sau "xoay model = sửa 1 dòng yaml".
+
+---
+
+## ⚠️ CẬP NHẬT 09/08/2026 — BỎ OPENROUTER, FIREWORKS LÀ NHÀ CUNG CẤP DUY NHẤT
+
+Đã flip prod sang Fireworks (#310, #311); quyết định owner (6) bỏ OpenRouter ⇒ **mọi tham chiếu OpenRouter/Haiku/Sonnet/Gemini/Cerebras trong các khu vực C/E/F/G/H dưới đây là LỖI THỜI** — giữ nguyên văn làm bối cảnh, đối chiếu bảng chốt này (owner duyệt 09/08, chi tiết + giá trong `BAO_CAO_LUA_CHON_MODEL_FIREWORKS_2026-08-09.md`):
+
+| # | Quyết định 09/08 | Chốt |
+|---|---|---|
+| 7 | **Chấm (GRADING_EXAM + GRADING_DAILY):** hướng 3 — F1 calibration ~100 bài, 120b (baseline) vs **DeepSeek V4 Flash** vs Qwen 3.7 Plus vs Kimi K2.6; chỉ flip khi thắng rõ precision/recall. EXPLAIN đo cùng đợt (ứng viên V4 Flash) | ✅ |
+| 8 | **ERROR_VERIFY = DeepSeek V4 Flash** (temp 0, ~300 tok) — nguyên tắc model verify phải KHÁC HỌ model sinh; shadow 1 tuần giữ nguyên (quyết định #2) | ✅ |
+| 9 | **CONTENT = Kimi K2.6** cho lần sinh mới; **regen P5 (khu vực H) = Kimi K3** (~$6/144 node); verifier pass của H = V4 Flash (thay Gemini) | ✅ |
+| 10 | **CHAT_PAID = gpt-oss-120b@Fireworks CÓ ĐIỀU KIỆN**: đo TTFT chế độ STREAM trước (G1.4); đạt <1,5s mới ship G, không đạt thì hoãn G, PAID tạm = FREE | ✅ |
+| 11 | **STT:** đo D1.3 (WER turbo vs whisper-v3, ~50 audio prod) rồi quyết; chênh ≤1% ⇒ đóng mục D, giữ turbo cả 2 tầng | ✅ |
+| 12 | **BATCH + weekly rubric → Fireworks Batch API (−50%)**, ticket riêng SAU khi FW.1–FW.6 nghiệm thu sạch | ✅ |
+| 13 | **Placement:** chưa tách — đi chung GRADING_EXAM, chờ số F1 rồi mới cân nhắc override riêng (ứng viên K3 nếu cần) | ✅ |
+
+Nhóm real-time **không đổi**: CHAT_FREE = `gpt-oss-20b` effort=low, STT transcript = `whisper-v3-turbo`, sinh câu hỏi PV + helpers = 20b, TTS giữ nguyên.
 
 ---
 
@@ -65,7 +83,9 @@
 
 ---
 
-## KHU VỰC C — Pipeline thẩm định errors (#2, Gemini 2.5 Flash)
+## KHU VỰC C — Pipeline thẩm định errors (#2, ~~Gemini 2.5 Flash~~ → **DeepSeek V4 Flash, quyết định #8 09/08**)
+
+> **⚠️ 09/08:** mọi chỗ ghi "Gemini 2.5 Flash qua OpenRouter" dưới đây đọc thành **`ERROR_VERIFY` = DeepSeek V4 Flash @Fireworks** (khác họ với 20b sinh lỗi — giữ được tính trọng tài độc lập). Thiết kế 2 nấc shadow→enforce, fail-open `unverified`, timeout 5s: GIỮ NGUYÊN.
 
 ### Vì sao
 `errors`/`suggestions` sinh từ 20b effort=low trong cùng call SSE rồi `TurnEvaluatorService` ghi thẳng vào `UserGrammarError` + lịch ôn — correction bịa được SRS bắt ôn lại nhiều lần (tiền lệ PR #210 chỉ vá prompt). Quyết định #2: Gemini 2.5 Flash làm trọng tài.
@@ -89,6 +109,8 @@
 
 ## KHU VỰC D — STT hai tầng (#12, #13)
 
+> **⚠️ 09/08 — hiện trạng ĐẢO NGƯỢC giả định:** sau flip Fireworks, CẢ HAI tầng (transcript + chấm phát âm) đang chạy `whisper-v3-turbo` (QA đọc-đúng 100/100, prod không khiếu nại). Mục D đổi mục tiêu thành **"có đáng tách tầng CHẤM về `whisper-v3` thường không"** — quyết định #11: chạy D1.3 đo WER ~50 audio prod, chênh ≤1% thì ĐÓNG mục D. Lưu ý Fireworks tách host theo model (`audio-turbo...` vs `audio-prod...`) nên nếu tách tầng thì property phải kèm base-url theo model.
+
 ### Vì sao
 STT là khoản chi lớn nhất mỗi lượt; transcript hội thoại chịu được turbo, nhưng transcript cascades vào correction nên phải đo trước — không flip mù.
 
@@ -106,8 +128,8 @@ STT là khoản chi lớn nhất mỗi lượt; transcript hội thoại chịu 
 Mọi call mới không có rate trong `AiCostEstimator` sẽ rơi vào DEFAULT ($0.20/$0.20) → dashboard COGS sai đúng lúc cần theo dõi nhất (đang tăng chi phí có chủ đích).
 
 ### Làm gì
-1. Thêm `ModelRate` cho: Haiku 4.5 ($1/$5), Sonnet 4.6 ($3/$15), Gemini 2.5 Flash, Cerebras gpt-oss-120b ($0.35/$0.75) — **xác nhận bảng giá hiện hành trước khi commit số**.
-2. Khi đi OpenRouter: đọc **cost thật** từ response (`usage.include=true`) ghi vào ledger thay vì ước theo bảng — bảng chỉ còn là fallback.
+1. ~~Thêm `ModelRate` cho Haiku/Sonnet/Gemini/Cerebras~~ → **09/08:** thêm `ModelRate` cho các ứng viên Fireworks (giá Standard, xác nhận docs.fireworks.ai 09/08): **DeepSeek V4 Flash $0.14/$0.28 · Qwen 3.7 Plus $0.40/$1.60 · Kimi K2.6 $0.95/$4.00 · Kimi K3 $3.00/$15.00 · MiniMax M3 $0.30/$1.20** (rate Haiku/Sonnet/Gemini đã thêm ở P1 giữ lại vô hại).
+2. ~~Khi đi OpenRouter: đọc cost thật từ `usage.include`~~ → **09/08:** Fireworks không trả `usage.cost` kiểu OpenRouter — ledger tính theo bảng `ModelRate` + `cached_tokens` (cached input = 50% giá với 20b, 10% với 120b; lấy từ `usage.prompt_tokens_details`).
 3. Sửa nhãn `gemini-1.5-flash` → `gemini-2.5-flash` tại `TeacherLessonPlanService:222` (dù chức năng bị khoá — ledger cũ vẫn hiển thị).
 4. Sửa `WHISPER_USD_PER_SEC` theo giá Groq thật sau xác nhận (hiện $0.006/phút là giá OpenAI, nghi vống ~3×).
 
@@ -115,30 +137,32 @@ Mọi call mới không có rate trong `AiCostEstimator` sẽ rơi vào DEFAULT 
 
 ---
 
-## KHU VỰC F — Calibration rồi mới flip Haiku/Sonnet
+## KHU VỰC F — Calibration rồi mới flip (~~Haiku/Sonnet~~ → **ứng viên Fireworks, quyết định #7/#9 09/08**)
 
 ### Vì sao
 Đổi trọng tài chấm là đổi phân phối điểm — học viên/GV sẽ thấy điểm "khác tuần trước". Flip không calibration = gánh khiếu nại không có số liệu trả lời.
 
-### Làm gì
-1. Mở rộng `/api/admin/grading-eval`: chấm lại ~100 bài đã lưu (trộn Schreiben/Sprechen/grammar-exam đủ level) bằng cả 120b lẫn Haiku 4.5 qua tier config; báo cáo offset trung bình, phân tán, các bài lệch >1 band.
-2. Owner duyệt báo cáo → flip config: `GRADING_EXAM`/`GRADING_DAILY`/`EXPLAIN` → `anthropic/claude-haiku-4.5`; `CONTENT` → `anthropic/claude-sonnet-4.6`. Ghi release note về thay đổi thang điểm nếu offset đáng kể.
-3. Flip base-url sang OpenRouter theo thứ tự tier: BATCH → CONTENT → GRADING_* → EXPLAIN → CHAT_* (mỗi bước quan sát 2–3 ngày qua ledger + error rate). Tier nào có model ngoài-Groq thì flip base-url là điều kiện tiên quyết của flip model.
+### Làm gì (viết lại 09/08)
+1. Mở rộng `/api/admin/grading-eval`: chấm lại ~100 bài đã lưu (trộn Schreiben/Sprechen/grammar-exam đủ level) bằng **120b (baseline) vs DeepSeek V4 Flash vs Qwen 3.7 Plus vs Kimi K2.6** qua tier config; báo cáo offset trung bình, phân tán, các bài lệch >1 band + precision/recall phát hiện lỗi (đối chiếu nhãn `user_grammar_errors`). EXPLAIN đo cùng đợt (ứng viên V4 Flash).
+2. Owner duyệt báo cáo → flip config: `GRADING_EXAM`/`GRADING_DAILY` → model thắng (V4 Flash thắng thì vừa nâng chất vừa **giảm** chi phí ~15đ vs 22đ/bài); không ai thắng rõ ⇒ ở lại 120b (hướng 1 là mặc định an toàn). `CONTENT` → **Kimi K2.6** (quyết định #9, không cần chờ F1 — nội dung sinh-một-lần-rồi-cache, chi phí khấu hao ~0). Ghi release note nếu offset đáng kể.
+3. ~~Flip base-url sang OpenRouter theo thứ tự tier~~ — **HUỶ** (một endpoint Fireworks duy nhất, không còn gì để flip). Thay bằng: **contract test (script `qa_fw.py` chính thức hoá — F2.4)** bắn request mẫu có `response_format` vào từng tier mỗi lần đổi model; model ngoài họ gpt-oss nhớ đặt `AI_LLM_TIER_*_EFFORT=` rỗng (bài học FW.7).
 
 **Cỡ: S code + công chạy/duyệt.**
 
 ---
 
-## KHU VỰC G — Chat PAID qua Cerebras (#1) + sticky/fallback
+## KHU VỰC G — Chat PAID ~~qua Cerebras~~ → **120b@Fireworks CÓ ĐIỀU KIỆN (quyết định #10 09/08)**
 
 ### Vì sao
 Điểm bán gói trả phí; cần plan-gating vì model đắt ×4.
 
+> **⚠️ 09/08:** Cerebras chỉ tới được qua OpenRouter — đóng đường. Thay bằng `gpt-oss-120b` cùng nhà Fireworks (cùng endpoint, cùng họ ⇒ JSON contract byte-compatible, degrade PAID→FREE không lệch giọng). **Điều kiện tiên quyết: G1.4 đo TTFT chế độ STREAM của 120b đạt <1,5s** (bench 08/08 chỉ có 3,4s non-stream — chưa đủ để hứa real-time); không đạt ⇒ HOÃN cả khu vực G, PAID tạm = FREE, phân biệt gói bằng quota/tính năng.
+
 ### Làm gì
 1. `ChatPrepService`/`ChatCompletionService`: resolve tier theo `planCode` từ `QuotaService` (FREE→CHAT_FREE, PRO/ULTRA/INTERNAL→CHAT_PAID). Cache theo phiên để không query quota mỗi lượt.
-2. `CHAT_PAID` = `openai/gpt-oss-120b`, base-url OpenRouter, `provider.order=[cerebras]`, `require_parameters=true`, sticky `session_id = "spk-{sessionId}"`.
-3. Fallback: khi tier PAID lỗi (breaker/model unavailable) → tự hạ về CHAT_FREE trong lượt đó (degrade êm, log + metric) — user trả phí thà nhận 20b còn hơn 503.
-4. Kiểm chứng schema V1/V2 + reasoning trên Cerebras bằng contract test (họ hỗ trợ gpt-oss + JSON mode nhưng phải test hành vi thật, nhất là `reasoning_effort`).
+2. `CHAT_PAID` = `accounts/fireworks/models/gpt-oss-120b` + `reasoning-effort: low` (cùng endpoint Fireworks — `provider.order`/`require_parameters`/sticky là field OpenRouter, BỎ).
+3. Fallback: khi tier PAID lỗi (breaker/model unavailable) → tự hạ về CHAT_FREE trong lượt đó (degrade êm, log + metric `chat_paid_degraded_total`) — user trả phí thà nhận 20b còn hơn 503.
+4. Kiểm chứng schema V1/V2 + JSON mode + **TTFT stream (điều kiện tiên quyết ở khung trên)** bằng contract test.
 
 ### Rủi ro
 - Persona 2 gói khác giọng — chủ đích (điểm bán), ghi vào marketing copy.
@@ -148,13 +172,13 @@ Mọi call mới không có rate trong `AiCostEstimator` sẽ rơi vào DEFAULT 
 
 ---
 
-## KHU VỰC H — Regen cây học tập bằng Sonnet (one-off, cuối cùng)
+## KHU VỰC H — Regen cây học tập bằng ~~Sonnet~~ **Kimi K3 (quyết định #9 09/08)** (one-off, cuối cùng)
 
 ### Vì sao
-Nội dung cache là lỗi có hệ số nhân lớn nhất; sinh bằng Sonnet 4.6 + thẩm định chéo trước khi cache; chi phí một lần ~$30–40.
+Nội dung cache là lỗi có hệ số nhân lớn nhất; sinh bằng **Kimi K3** (frontier-class trên Fireworks, $3/$15) + thẩm định chéo trước khi cache; chi phí một lần **~$6 cho 144 node** (~3K in/2K out mỗi node — rẻ hơn hẳn dự toán Sonnet $30–40 cũ).
 
 ### Làm gì
-1. Admin batch command: iterate node → sinh bằng CONTENT tier → **verifier pass** (Gemini 2.5 Flash chấm đúng/sai ngữ pháp + khớp CEFR, JSON pass/fail + lý do) → pass mới ghi đè cache (contentHash mới); fail đưa vào danh sách rà tay.
+1. Admin batch command: iterate node → sinh bằng CONTENT tier (env tạm trỏ K3 cho đợt regen; sinh thường nhật sau đó quay về K2.6) → **verifier pass** (~~Gemini 2.5 Flash~~ → **DeepSeek V4 Flash** — khác họ với K2/K3, chấm đúng/sai ngữ pháp + khớp CEFR, JSON pass/fail + lý do) → pass mới ghi đè cache (contentHash mới); fail đưa vào danh sách rà tay.
 2. Chạy theo level (A1 trước), owner rà mẫu ~10 node/level trước khi chạy level tiếp.
 3. Node đang có user học không bị đổi giữa phiên (cache swap nguyên tử theo node).
 
@@ -166,19 +190,30 @@ Nội dung cache là lỗi có hệ số nhân lớn nhất; sinh bằng Sonnet 
 
 | Phase | Gồm | Điều kiện vào | Hành vi user đổi? |
 |---|---|---|---|
-| P0 (owner, ngay) | Keys OpenRouter/Anthropic/Cerebras + billing; kiểm env llama-3.3 trước 16/08 | — | Không |
-| P1 | Khu vực A + E | P0 xong (key chưa cần dùng) | **Không** (zero-change) |
-| P2 | Khu vực B (route, model = 120b/hiện trạng) + khoá giáo án | P1 merged + IT xanh | Chấm chính xác hơn (6 luồng 20b→120b); giáo án khoá |
-| P3 | Khu vực F (calibration → flip Haiku/Sonnet + flip OpenRouter từng tier) | Báo cáo calibration được duyệt | Điểm chấm đổi phân phối (có release note) |
-| P4 | Khu vực C (shadow → enforce) + G (PAID Cerebras) + D (đo WER → flip) | P3 ổn định 1 tuần | Card sửa lỗi trễ 1–2s; PAID persona mới |
-| P5 | Khu vực H (regen cây) | P3 xong (CONTENT tier = Sonnet) | Nội dung bài học mới |
+| P0 (owner, ngay) | ~~Keys OpenRouter/Anthropic/Cerebras~~ → **09/08: FW.1 deploy + FW.3 Auto Reload + FW.4 revoke key Groq lộ**; kiểm env llama-3.3 hết ý nghĩa (đã rời Groq) | — | Không |
+| P1 | Khu vực A + E | ✅ XONG (#306) | **Không** (zero-change) |
+| P2 | Khu vực B (route, model = 120b/hiện trạng) + khoá giáo án | ✅ XONG (#307/#308/#309) | Chấm chính xác hơn; giáo án khoá |
+| P3 | Khu vực F (F1 calibration ứng viên Fireworks → flip GRADING_*; CONTENT → K2.6 không cần chờ) | FW.1–FW.6 nghiệm thu sạch; báo cáo calibration được duyệt | Điểm chấm đổi phân phối (có release note) |
+| P4 | Khu vực C (verify = V4 Flash, shadow → enforce) + G (PAID 120b, điều kiện TTFT stream) + D (D1.3 đo WER → quyết) + **Batch API −50% (quyết định #12, ticket riêng)** | P3 ổn định 1 tuần | Card sửa lỗi trễ 1–2s; PAID persona mới (nếu G ship) |
+| P5 | Khu vực H (regen cây bằng K3, verifier V4 Flash) | P3 xong (CONTENT tier = K2.6) | Nội dung bài học mới |
 
 Mỗi phase một (vài) PR riêng, e2e + IT xanh trước merge, deploy theo quy trình worktree `DeutschFlow-deploy` hiện hành, soi SHA ở log `[2/6] Pull code`.
 
 ## ĐIỂM CẦN OWNER QUYẾT KHI DUYỆT PLAN
 
-1. ✅/❌ Tách `GRADING_EXAM`/`GRADING_DAILY` (cả hai = Haiku theo quyết định #3, tách chỉ để giữ đòn bẩy config).
-2. ✅/❌ Shadow mode 1 tuần cho verify errors trước khi enforce (khuyến nghị mạnh: có).
-3. ✅/❌ Fail-open có đánh dấu khi Gemini verify lỗi (thay vì chặn correction).
-4. ✅/❌ PAID degrade về 20b khi Cerebras sự cố (thay vì báo lỗi).
-5. Ngưỡng WER 1% cho STT turbo — giữ hay nới?
+**Đợt 1 — đã chốt 07/08:**
+1. ✅ Tách `GRADING_EXAM`/`GRADING_DAILY` (tách để giữ đòn bẩy config).
+2. ✅ Shadow mode 1 tuần cho verify errors trước khi enforce.
+3. ✅ Fail-open có đánh dấu `unverified` khi verify lỗi (thay vì chặn correction).
+4. ✅ PAID degrade về 20b khi model PAID sự cố (thay vì báo lỗi).
+5. ✅ Ngưỡng WER 1% cho STT — giữ.
+
+**Đợt 2 — đã chốt 09/08 (sau flip Fireworks, bỏ OpenRouter):**
+6. ✅ Bỏ OpenRouter — Fireworks là nhà cung cấp duy nhất.
+7. ✅ Chấm: hướng 3 — F1 calibration (120b baseline vs V4 Flash vs Qwen 3.7 Plus vs K2.6) rồi mới flip; không ai thắng rõ thì ở lại 120b.
+8. ✅ ERROR_VERIFY = DeepSeek V4 Flash (khác họ model sinh).
+9. ✅ CONTENT = Kimi K2.6 ngay; regen P5 = Kimi K3 (~$6), verifier = V4 Flash.
+10. ✅ CHAT_PAID = 120b@Fireworks có điều kiện TTFT stream <1,5s; không đạt thì hoãn G.
+11. ✅ STT: đo D1.3 rồi quyết; ≤1% thì đóng mục D, giữ turbo cả 2 tầng.
+12. ✅ BATCH + weekly → Fireworks Batch API (−50%), ticket riêng sau FW sạch.
+13. ✅ Placement: chưa tách, chờ số F1 (ứng viên K3 nếu cần override riêng).
