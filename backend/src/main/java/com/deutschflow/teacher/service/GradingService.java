@@ -61,7 +61,7 @@ public class GradingService {
      * {@code reasoning_effort=low} của tầng mới là tuyến phòng thủ chính (kéo output về 308–427);
      * 1500 là đai an toàn thứ hai và gần như không tốn thêm vì chỉ trả tiền token thực sinh.
      */
-    private static final int GRADING_MAX_TOKENS = 1500;
+    static final int GRADING_MAX_TOKENS = 1500;
 
     /** Student-/teacher-safe note when AI grading fails — the raw cause stays in logs/admin alerts only (D8). */
     private static final String GRADING_FAILED_FEEDBACK = "Chưa chấm tự động được, giáo viên sẽ chấm lại.";
@@ -360,10 +360,37 @@ public class GradingService {
     }
 
     /**
+     * Như trên nhưng chọn được tầng + ngân sách token — dùng bởi harness calibration F1
+     * ({@code /api/admin/grading-eval}); xem lý do ở overload nhận {@code AssignmentGradingContext}.
+     */
+    public EssayGrade gradeGermanEssay(String topic, String content, String modelOverride,
+                                       LlmTier tier, int maxTokens) {
+        return gradeGermanEssay(AssignmentGradingContext.ofTopic(topic), content, modelOverride, tier, maxTokens);
+    }
+
+    /**
      * Lõi chấm — nhận NGỮ CẢNH bài tập đầy đủ (tiêu đề + đề bài + loại + tài liệu). Nguồn sự thật DUY NHẤT
      * cho cả chấm bài-tập (async, ngữ cảnh đầy đủ) lẫn lead-magnet/eval/OCR (chỉ tiêu đề, qua {@code ofTopic}).
      */
     public EssayGrade gradeGermanEssay(AssignmentGradingContext ctx, String content, String modelOverride) {
+        return gradeGermanEssay(ctx, content, modelOverride, LlmTier.GRADING_EXAM, GRADING_MAX_TOKENS);
+    }
+
+    /**
+     * Như trên nhưng chọn được TẦNG và NGÂN SÁCH TOKEN — chỉ dùng bởi harness calibration
+     * ({@code /api/admin/grading-eval}).
+     *
+     * <p>Vì sao harness cần đặt ngân sách: đo 09/08 cho thấy các ứng viên model mới dài dòng gấp
+     * 4–10× {@code gpt-oss-120b} (V4 Flash ~1040–1200 token, Qwen 3.7 Plus ~1929, Kimi K2.6 ~2925
+     * so với ~292 của 120b). Chấm chúng ở ngân sách của model cũ thì phép đo biến thành "model nào
+     * ít bị cắt JSON hơn" chứ không còn đo chất lượng chấm — và cắt JSON ở đây hỏng ÂM THẦM: điểm
+     * vẫn đọc được bằng regex fallback, chỉ nhận xét biến mất (FW.7).
+     *
+     * @param tier      tầng lấy model/endpoint/knob (harness thường dùng GRADING_EXAM hoặc GRADING_DAILY)
+     * @param maxTokens ngân sách completion; {@code <= 0} ⇒ dùng {@link #GRADING_MAX_TOKENS}
+     */
+    public EssayGrade gradeGermanEssay(AssignmentGradingContext ctx, String content, String modelOverride,
+                                       LlmTier tier, int maxTokens) {
         String systemPrompt = buildGradingPrompt(ctx);
 
         // Neutralize the delimiter in student content so a submission can't close the <submission> tag
@@ -380,9 +407,9 @@ public class GradingService {
         // viên phải bấm chấm lại. Đo 09/08 sau khi chuyển nhà cung cấp: 800 token không effort hỏng
         // 1–2/10 lượt; effort=low thì 10/10 và chỉ tiêu 308–427 token. `withModel` giữ nguyên khả năng
         // so sánh model của /api/admin/grading-eval — chỉ đổi model, các knob khác vẫn của tầng.
-        TierSpec spec = llmTierResolver.spec(LlmTier.GRADING_EXAM).withModel(modelOverride);
-        AiChatCompletionResult result =
-                openAiChatClient.chatCompletionForTier(messages, spec, 0.3, GRADING_MAX_TOKENS);
+        TierSpec spec = llmTierResolver.spec(tier).withModel(modelOverride);
+        AiChatCompletionResult result = openAiChatClient.chatCompletionForTier(
+                messages, spec, 0.3, maxTokens > 0 ? maxTokens : GRADING_MAX_TOKENS);
         if (result == null || result.content() == null) {
             return new EssayGrade(null, null, result);
         }

@@ -523,7 +523,12 @@ public class GroqChatClient implements OpenAiChatClient {
                 parsedUsage = TokenUsage.exact(
                         usage.path("prompt_tokens").asInt(0),
                         usage.path("completion_tokens").asInt(0),
-                        usage.path("total_tokens").asInt(0)
+                        usage.path("total_tokens").asInt(0),
+                        // Prompt caching của nhà cung cấp. Fireworks bật TỰ ĐỘNG và tính token cache
+                        // chỉ 10–50% giá input thường; đo 09/08 thấy hit ~99% ở cả 8 tier (system
+                        // prompt lặp y nguyên mỗi lượt) ⇒ không đọc field này là ước phí cao hơn
+                        // thực tế nhiều lần. Endpoint nào không có `prompt_tokens_details` → 0.
+                        usage.path("prompt_tokens_details").path("cached_tokens").asInt(0)
                 );
                 // OpenRouter trả cost THẬT (USD) khi request bật usage.include — chính xác hơn mọi
                 // bảng giá ước tính trong AiCostEstimator. Groq không có field này → null.
