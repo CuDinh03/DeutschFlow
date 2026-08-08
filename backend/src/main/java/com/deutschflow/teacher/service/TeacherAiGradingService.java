@@ -244,9 +244,7 @@ public class TeacherAiGradingService {
                     userId,
                     result.provider() != null ? result.provider() : "GROQ",
                     result.model() != null ? result.model() : "unknown",
-                    result.usage().promptTokens(),
-                    result.usage().completionTokens(),
-                    result.usage().totalTokens(),
+                    result.usage(),
                     "TEACHER_AI_SPEAKING_GRADING",
                     null,
                     sessionId

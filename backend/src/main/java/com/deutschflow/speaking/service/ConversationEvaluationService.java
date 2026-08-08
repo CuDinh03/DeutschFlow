@@ -78,8 +78,7 @@ public class ConversationEvaluationService {
 
             if (result.usage() != null) {
                 ledgerService.record(userId, result.provider(), result.model(),
-                        result.usage().promptTokens(), result.usage().completionTokens(),
-                        result.usage().totalTokens(), "CONVERSATION_EVAL", null, session.getId());
+                        result.usage(), "CONVERSATION_EVAL", null, session.getId());
             }
 
             String raw = result.content();

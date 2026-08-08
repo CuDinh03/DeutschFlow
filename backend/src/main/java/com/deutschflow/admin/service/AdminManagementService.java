@@ -362,6 +362,7 @@ public class AdminManagementService {
                         SELECT COALESCE(NULLIF(TRIM(feature), ''), 'UNKNOWN') AS feature,
                                COALESCE(model, 'unknown')                     AS model,
                                COALESCE(SUM(prompt_tokens), 0)::bigint        AS prompt_tokens,
+                               COALESCE(SUM(cached_prompt_tokens), 0)::bigint AS cached_prompt_tokens,
                                COALESCE(SUM(completion_tokens), 0)::bigint    AS completion_tokens,
                                COALESCE(SUM(total_tokens), 0)::bigint         AS total_tokens,
                                COUNT(*)::bigint                               AS requests
@@ -378,6 +379,9 @@ public class AdminManagementService {
             String feature = String.valueOf(row.get("feature"));
             String model = String.valueOf(row.get("model"));
             long prompt = toLong(row.get("prompt_tokens"));
+            // Phần prompt được nhà cung cấp phục vụ từ cache — rẻ hơn input thường 2–10×
+            // (V270). Hàng ledger cũ không có số này ⇒ 0 ⇒ định giá y như trước.
+            long cachedPrompt = toLong(row.get("cached_prompt_tokens"));
             long completion = toLong(row.get("completion_tokens"));
             long total = toLong(row.get("total_tokens"));
             long requests = toLong(row.get("requests"));
@@ -386,7 +390,7 @@ public class AdminManagementService {
             acc[1] += completion;
             acc[2] += total;
             acc[3] += requests;
-            costByFeature.merge(feature, aiCostEstimator.costUsd(model, prompt, completion), Double::sum);
+            costByFeature.merge(feature, aiCostEstimator.costUsd(model, prompt, cachedPrompt, completion), Double::sum);
         }
 
         long totalTokensSum = 0L;
@@ -442,6 +446,7 @@ public class AdminManagementService {
                     COALESCE(model, 'unknown')                             AS model,
                     COALESCE(NULLIF(TRIM(feature), ''), 'UNKNOWN')         AS feature,
                     SUM(prompt_tokens)::bigint                             AS prompt_tokens,
+                    SUM(cached_prompt_tokens)::bigint                      AS cached_prompt_tokens,
                     SUM(completion_tokens)::bigint                         AS completion_tokens,
                     SUM(total_tokens)::bigint                              AS tokens
                 FROM ai_token_usage_events
@@ -457,10 +462,13 @@ public class AdminManagementService {
         List<Map<String, Object>> daily = new ArrayList<>(rows.size());
         for (Map<String, Object> row : rows) {
             long prompt = toLong(row.get("prompt_tokens"));
+            // Phần prompt được nhà cung cấp phục vụ từ cache — rẻ hơn input thường 2–10×
+            // (V270). Hàng ledger cũ không có số này ⇒ 0 ⇒ định giá y như trước.
+            long cachedPrompt = toLong(row.get("cached_prompt_tokens"));
             long completion = toLong(row.get("completion_tokens"));
             long tokens = toLong(row.get("tokens"));
             String model = String.valueOf(row.get("model"));
-            double costUsd = aiCostEstimator.costUsd(model, prompt, completion);
+            double costUsd = aiCostEstimator.costUsd(model, prompt, cachedPrompt, completion);
             totalTokens += tokens;
             totalCostUsd += costUsd;
 
@@ -511,6 +519,7 @@ public class AdminManagementService {
                     COALESCE(model, 'unknown')                     AS model,
                     COALESCE(NULLIF(TRIM(feature), ''), 'UNKNOWN') AS feature,
                     SUM(prompt_tokens)::bigint                     AS prompt_tokens,
+                    SUM(cached_prompt_tokens)::bigint              AS cached_prompt_tokens,
                     SUM(completion_tokens)::bigint                 AS completion_tokens,
                     SUM(total_tokens)::bigint                      AS total_tokens,
                     COUNT(*)::bigint                               AS requests
@@ -542,10 +551,13 @@ public class AdminManagementService {
             String model = String.valueOf(row.get("model"));
             String feature = String.valueOf(row.get("feature"));
             long prompt = toLong(row.get("prompt_tokens"));
+            // Phần prompt được nhà cung cấp phục vụ từ cache — rẻ hơn input thường 2–10×
+            // (V270). Hàng ledger cũ không có số này ⇒ 0 ⇒ định giá y như trước.
+            long cachedPrompt = toLong(row.get("cached_prompt_tokens"));
             long completion = toLong(row.get("completion_tokens"));
             long total = toLong(row.get("total_tokens"));
             long requests = toLong(row.get("requests"));
-            double costUsd = aiCostEstimator.costUsd(model, prompt, completion);
+            double costUsd = aiCostEstimator.costUsd(model, prompt, cachedPrompt, completion);
 
             accumulate(byModelTokens, byModelCost, model, prompt, completion, total, requests, costUsd);
             accumulate(byFeatureTokens, byFeatureCost, feature, prompt, completion, total, requests, costUsd);

@@ -226,8 +226,7 @@ public class PracticeNodeService {
             if (result.usage() != null) {
                 aiUsageLedgerService.record(
                         userId, result.provider(), result.model(),
-                        result.usage().promptTokens(), result.usage().completionTokens(),
-                        result.usage().totalTokens(), "PRACTICE_NODE_GENERATE", null, null);
+                        result.usage(), "PRACTICE_NODE_GENERATE", null, null);
             }
 
             log.info("[PracticeNode] Generated {} Gen-{} for user={}, node={}, sessionId={}",
