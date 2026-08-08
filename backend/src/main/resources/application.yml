@@ -666,6 +666,13 @@ resilience4j:
 #
 # soffice is CPU/RAM-hungry and prod is a t3.medium (2 vCPU) — the three bounds below exist so a big
 # deck cannot starve the request threads. Exceeding any of them degrades to a download link, not a 500.
+# Feature flags — bật/tắt tính năng bằng env, không cần deploy code.
+features:
+  teacher-lesson-plan:
+    # B5 (khung AI tier 07/08, quyết định owner #9): sinh giáo án/PPTX tạm KHOÁ trong đợt
+    # tái cấu trúc model AI. UI v2 không còn lối vào; API trả 403 FEATURE_DISABLED.
+    enabled: ${FEATURE_TEACHER_LESSON_PLAN:false}
+
 materials:
   preview:
     soffice-path: ${SOFFICE_PATH:soffice}
