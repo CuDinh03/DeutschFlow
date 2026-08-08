@@ -20,6 +20,11 @@
     <properties>
         <java.version>17</java.version>
         <jjwt.version>0.12.5</jjwt.version>
+        <!-- Boot 3.2.5 quản lý Lombok 1.18.32; pom từng pin 1.18.34 riêng cho annotation processor.
+             JDK Homebrew 21.0.11 (build 04/2026) làm cả 1.18.34 im lặng không sinh getter/setter/
+             builder => hàng trăm "cannot find symbol" khi build NGUỘI (worktree mới; build ấm bị
+             target/ cũ che). Đồng bộ CẢ dependency lẫn annotationProcessorPaths qua property này. -->
+        <lombok.version>1.18.36</lombok.version>
         <!-- Spring Boot 3.2.5 manages 1.19.x; bump for docker-java / Docker Desktop API fixes on macOS -->
         <testcontainers.version>1.20.5</testcontainers.version>
         <!-- `-DskipUnitTests=true` bỏ qua surefire mà KHÔNG đụng failsafe (khác `-DskipTests`, vốn
@@ -301,7 +306,7 @@
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                            <version>1.18.34</version>
+                            <version>${lombok.version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>

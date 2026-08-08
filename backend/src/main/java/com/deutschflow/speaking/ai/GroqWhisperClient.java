@@ -17,9 +17,23 @@ import java.time.Duration;
 import java.util.UUID;
 
 /**
- * Client for Groq's Whisper STT API.
- * Endpoint: POST https://api.groq.com/openai/v1/audio/transcriptions
- * Model: whisper-large-v3
+ * Client for the OpenAI-compatible Whisper STT API (mặc định: Groq).
+ * Endpoint mặc định: POST https://api.groq.com/openai/v1/audio/transcriptions
+ * Model mặc định: whisper-large-v3
+ *
+ * <p><b>Đổi nhà cung cấp qua env, không sửa code</b> (bảo hiểm vendor — cùng lý do
+ * {@code GROQ_BASE_URL} bên {@link GroqChatClient}): {@code GROQ_WHISPER_BASE_URL} +
+ * {@code GROQ_WHISPER_MODEL}. Đã bench Fireworks 08/08/2026, hai bẫy khi trỏ sang đó:
+ * <ul>
+ *   <li>Audio KHÔNG đi {@code api.fireworks.ai} — mỗi model một host riêng:
+ *       {@code whisper-v3-turbo} → {@code https://audio-turbo.us-virginia-1.direct.fireworks.ai/v1/audio/transcriptions},
+ *       {@code whisper-v3} → {@code audio-prod...}. Nhầm host/model → 401 "Unauthorized"
+ *       TRÔNG NHƯ lỗi key nhưng không phải. Bearer dùng được bình thường.</li>
+ *   <li>Fireworks decode {@code prompt} theo semantics gốc Whisper ("văn bản đứng TRƯỚC audio"):
+ *       prompt trùng nội dung audio thì phần trùng bị NUỐT khỏi transcript — học viên đọc đúng
+ *       câu mẫu sẽ bị chấm MISSING toàn bộ. Bắt buộc {@code GROQ_WHISPER_PROMPT_ENABLED=false}
+ *       khi trỏ Fireworks (Groq không dính nên mặc định vẫn gửi).</li>
+ * </ul>
  */
 @Component
 @Slf4j
@@ -40,23 +54,40 @@ public class GroqWhisperClient {
     private final String apiKey;
     private final String endpointUrl;
     private final String whisperModel;
+    /** Gửi {@code prompt} (expectedText) định hướng STT — tắt khi provider nuốt phần trùng (Fireworks). */
+    private final boolean promptEnabled;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final GroqConcurrencyLimiter concurrencyLimiter;
     private final com.deutschflow.common.resilience.CircuitBreakers circuitBreakers;
 
+    /** Constructor đầy đủ, {@code @Autowired} — cũng là cửa cho tests chỉnh endpoint + cờ prompt
+     *  (xem {@code GroqWhisperClientVerboseParseTest}); production bind giá trị từ yml/env. */
     @org.springframework.beans.factory.annotation.Autowired
     public GroqWhisperClient(
             @Value("${app.ai.groq.api-key:}") String apiKey,
             @Value("${app.ai.groq.whisper-model:whisper-large-v3}") String whisperModel,
             ObjectMapper objectMapper,
             GroqConcurrencyLimiter concurrencyLimiter,
-            com.deutschflow.common.resilience.CircuitBreakers circuitBreakers) {
-        this(apiKey, whisperModel, objectMapper, concurrencyLimiter, circuitBreakers, WHISPER_URL);
+            com.deutschflow.common.resilience.CircuitBreakers circuitBreakers,
+            @Value("${app.ai.groq.whisper-base-url:" + WHISPER_URL + "}") String endpointUrl,
+            @Value("${app.ai.groq.whisper-prompt-enabled:true}") boolean promptEnabled) {
+        this.apiKey = apiKey;
+        this.endpointUrl = endpointUrl;
+        this.whisperModel = whisperModel;
+        this.promptEnabled = promptEnabled;
+        this.objectMapper = objectMapper;
+        this.concurrencyLimiter = concurrencyLimiter;
+        this.circuitBreakers = circuitBreakers;
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+        log.info("GroqWhisperClient initialized — model: {}, endpoint: {}, prompt: {}",
+                whisperModel, endpointUrl, promptEnabled ? "on" : "off");
     }
 
-    /** Endpoint-overridable constructor — tests point it at một stub HTTP cục bộ (xem
-     *  {@code GroqWhisperClientErrorTest}); production luôn dùng {@link #WHISPER_URL}. */
+    /** Endpoint-overridable — tests cũ trỏ stub HTTP cục bộ (xem {@code GroqWhisperClientErrorTest}),
+     *  hành vi prompt giữ mặc định (on) như trước. */
     GroqWhisperClient(
             String apiKey,
             String whisperModel,
@@ -64,16 +95,7 @@ public class GroqWhisperClient {
             GroqConcurrencyLimiter concurrencyLimiter,
             com.deutschflow.common.resilience.CircuitBreakers circuitBreakers,
             String endpointUrl) {
-        this.apiKey = apiKey;
-        this.endpointUrl = endpointUrl;
-        this.whisperModel = whisperModel;
-        this.objectMapper = objectMapper;
-        this.concurrencyLimiter = concurrencyLimiter;
-        this.circuitBreakers = circuitBreakers;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
-        log.info("GroqWhisperClient initialized — model: {}", whisperModel);
+        this(apiKey, whisperModel, objectMapper, concurrencyLimiter, circuitBreakers, endpointUrl, true);
     }
 
     /**
@@ -184,15 +206,6 @@ public class GroqWhisperClient {
             String text = root.path("text").asText("");
             double durationSeconds = root.path("duration").asDouble(0);
 
-            // Extract segment avg_logprob
-            double avgLogprob = -0.3;
-            JsonNode segments = root.path("segments");
-            if (segments.isArray() && !segments.isEmpty()) {
-                double sum = 0;
-                for (JsonNode seg : segments) sum += seg.path("avg_logprob").asDouble(-0.3);
-                avgLogprob = sum / segments.size();
-            }
-
             // Extract word timestamps
             java.util.List<WordTimestamp> words = new java.util.ArrayList<>();
             JsonNode wordsNode = root.path("words");
@@ -203,6 +216,27 @@ public class GroqWhisperClient {
                             w.path("start").asDouble(0),
                             w.path("end").asDouble(0)));
                 }
+            }
+
+            // Confidence: Groq trả segments[].avg_logprob; Fireworks KHÔNG có segments nhưng có
+            // words[].probability — suy avg_logprob = trung bình ln(p) để PronunciationScorerService
+            // giữ nguyên thang điểm calibration dù trỏ provider nào.
+            double avgLogprob = -0.3;
+            JsonNode segments = root.path("segments");
+            if (segments.isArray() && !segments.isEmpty()) {
+                double sum = 0;
+                for (JsonNode seg : segments) sum += seg.path("avg_logprob").asDouble(-0.3);
+                avgLogprob = sum / segments.size();
+            } else if (wordsNode.isArray()) {
+                double sum = 0;
+                int counted = 0;
+                for (JsonNode w : wordsNode) {
+                    if (!w.has("probability")) continue;
+                    double p = Math.min(1.0, Math.max(1e-6, w.path("probability").asDouble(0)));
+                    sum += Math.log(p);
+                    counted++;
+                }
+                if (counted > 0) avgLogprob = sum / counted;
             }
 
             return new VerboseTranscript(text.strip(), avgLogprob, words, durationSeconds);
@@ -354,8 +388,10 @@ public class GroqWhisperClient {
             sb.append("Content-Type: text/plain; charset=UTF-8\r\n\r\n");
             sb.append("0.0\r\n");
 
-            // --- prompt: must declare charset so the server interprets ü/ä/ö/ß bytes as UTF-8 ---
-            if (prompt != null && !prompt.isBlank()) {
+            // --- prompt: must declare charset so the server interprets ü/ä/ö/ß bytes as UTF-8.
+            //     Gate promptEnabled: provider decode prompt theo semantics "văn bản đứng trước
+            //     audio" (Fireworks) sẽ NUỐT phần transcript trùng prompt — xem javadoc class. ---
+            if (promptEnabled && prompt != null && !prompt.isBlank()) {
                 sb.append("--").append(boundary).append("\r\n");
                 sb.append("Content-Disposition: form-data; name=\"prompt\"\r\n");
                 sb.append("Content-Type: text/plain; charset=UTF-8\r\n\r\n");

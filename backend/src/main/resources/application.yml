@@ -381,6 +381,15 @@ app:
       # Đo bằng /api/admin/grading-eval rồi tinh chỉnh.
       grading-model: ${GROQ_GRADING_MODEL:openai/gpt-oss-120b}
       whisper-model: ${GROQ_WHISPER_MODEL:whisper-large-v3}
+      # STT đổi nhà cung cấp qua env — cùng "bảo hiểm vendor" với base-url chat ở trên. Bench
+      # Fireworks 08/08/2026 (xem javadoc GroqWhisperClient): audio đi host RIÊNG theo model,
+      # whisper-v3-turbo = https://audio-turbo.us-virginia-1.direct.fireworks.ai/v1/audio/transcriptions
+      # (nhầm host → 401 giả dạng lỗi key). Bearer dùng chung được.
+      whisper-base-url: ${GROQ_WHISPER_BASE_URL:https://api.groq.com/openai/v1/audio/transcriptions}
+      # Gửi expectedText làm prompt định hướng STT. Groq: vô hại. Fireworks: prompt trùng audio bị
+      # NUỐT khỏi transcript (semantics "văn bản đứng trước audio") → chấm phát âm sập điểm với
+      # người đọc ĐÚNG. Trỏ Fireworks thì BẮT BUỘC đặt false.
+      whisper-prompt-enabled: ${GROQ_WHISPER_PROMPT_ENABLED:true}
       # Concurrency caps (fair semaphores). Free tier ~30 RPM: chat 3–4; paid/Dev ~10–20 CCU: chat 6–8, whisper 4–6.
       max-concurrent-chat-requests: ${GROQ_MAX_CONCURRENT_CHAT:5}
       max-concurrent-whisper-requests: ${GROQ_MAX_CONCURRENT_WHISPER:4}
