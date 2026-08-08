@@ -399,10 +399,14 @@ app:
     # ── KHUNG TIER LLM (plans/2026-08-07-ke-hoach-khung-ai-tier.md) ──────────────────────────
     # Mỗi chức năng gọi AI khai "tầng" thay vì tự chọn model; đổi model/endpoint = đổi config ở
     # đây (env-overridable), KHÔNG sửa code. P1: mọi tier trỏ đúng model hiện trạng (zero change);
-    # P2 route call site; P3 flip Haiku/Sonnet + OpenRouter theo từng tier sau calibration.
-    # base-url/api-key rỗng = giữ endpoint + key Groq hiện tại. Flip MỘT tier sang OpenRouter:
-    # đặt base-url của tier đó = https://openrouter.ai/api/v1/chat/completions + api-key chung
-    # AI_LLM_API_KEY = key OpenRouter (per-tier api-key cũng có nếu cần).
+    # P2 route call site; P3 flip model sau calibration F1.
+    # ⚠️ 09/08/2026: nhà cung cấp đã chuyển Groq → Fireworks bằng env (GROQ_BASE_URL/GROQ_MODEL/
+    # GROQ_GRADING_MODEL trỏ slug `accounts/fireworks/models/...`) và owner BỎ OpenRouter — không
+    # còn tier nào cần base-url/api-key riêng. Hai trường đó vẫn để đấy làm bảo hiểm vendor: muốn
+    # thử một tier trên endpoint khác thì đặt base-url của CHÍNH tier đó, không đụng 7 tier còn lại.
+    # 8/8 tier lấy default qua ${GROQ_MODEL}/${GROQ_GRADING_MODEL} (nói/chấm) ⇒ đổi nhà cung cấp là
+    # sửa 2 env gốc, không phải nhớ tier nào hardcode (bài học FW.c: `batch` + `error-verify` từng
+    # ghim cứng slug Groq nên sau flip sẽ 404 âm thầm cho vocab tagging).
     llm:
       base-url: ${AI_LLM_BASE_URL:}
       api-key: ${AI_LLM_API_KEY:}
@@ -411,16 +415,24 @@ app:
         chat-free:
           model: "${AI_LLM_TIER_CHAT_FREE_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
           reasoning-effort: "${AI_LLM_TIER_CHAT_FREE_EFFORT:${GROQ_REASONING_EFFORT:low}}"
-        # Chat nói — gói trả phí. P1–P3 = FREE; P4 (khu vực G) mới trỏ Cerebras 120b.
+        # Chat nói — gói trả phí. P1–P3 = FREE. Khu vực G (quyết định #10 09/08): đích là
+        # gpt-oss-120b CÙNG nhà Fireworks (Cerebras chỉ tới được qua OpenRouter — đã bỏ), và CHỈ
+        # ship nếu đo được TTFT chế độ STREAM <1,5s (G1.4); không đạt thì PAID giữ nguyên = FREE.
         chat-paid:
           model: "${AI_LLM_TIER_CHAT_PAID_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
           reasoning-effort: "${AI_LLM_TIER_CHAT_PAID_EFFORT:${GROQ_REASONING_EFFORT:low}}"
-        # Thẩm định errors/suggestions trước khi persist (P4, khu vực C — sẽ trỏ Gemini 2.5 Flash).
+        # Thẩm định errors/suggestions trước khi persist (P4, khu vực C). Quyết định #8 (09/08):
+        # trọng tài = DeepSeek V4 Flash (accounts/fireworks/models/deepseek-v4-flash) — model verify
+        # phải KHÁC HỌ model sinh lỗi, 20b tự xác nhận lỗi của 20b là vô nghĩa. Chưa có caller nên
+        # default vẫn gương ${GROQ_MODEL}; khi bật khu vực C thì đặt AI_LLM_TIER_ERROR_VERIFY_MODEL
+        # + để _EFFORT rỗng nếu model đích không phải họ reasoning (bài học FW.7).
         error-verify:
-          model: "${AI_LLM_TIER_ERROR_VERIFY_MODEL:openai/gpt-oss-20b}"
+          model: "${AI_LLM_TIER_ERROR_VERIFY_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
           reasoning-effort: "${AI_LLM_TIER_ERROR_VERIFY_EFFORT:${GROQ_REASONING_EFFORT:low}}"
-        # Chấm có tính PHÁN QUYẾT: mock exam, grammar exam, Teil 2, placement, essay B2B.
-        # P3 flip Haiku 4.5 sau calibration ~100 bài (khu vực F). GROQ_GRADING_MODEL cũ vẫn ăn.
+        # Chấm có tính PHÁN QUYẾT: mock exam, grammar exam, Teil 2, placement, essay B2B, Schreiben.
+        # P3 flip sau calibration F1 ~100 bài: ứng viên 120b (baseline) vs deepseek-v4-flash vs
+        # qwen3p7-plus vs kimi-k2p6 (quyết định #7 09/08) — đo bằng /api/admin/grading-eval.
+        # GROQ_GRADING_MODEL cũ vẫn ăn.
         grading-exam:
           model: "${AI_LLM_TIER_GRADING_EXAM_MODEL:${GROQ_GRADING_MODEL:openai/gpt-oss-120b}}"
           # gpt-oss là REASONING model: token "nghĩ" ăn CHUNG max_tokens. Không ghìm effort thì
@@ -434,21 +446,26 @@ app:
           model: "${AI_LLM_TIER_GRADING_DAILY_MODEL:${GROQ_GRADING_MODEL:openai/gpt-oss-120b}}"
           # Cùng lý do grading-exam ở trên (ConversationEval 1000 tok từng chạm 904 khi không ghìm).
           reasoning-effort: "${AI_LLM_TIER_GRADING_DAILY_EFFORT:low}"
-        # Giải thích lỗi/sửa câu (AiTextService). P2 route (giữ model hiện trạng), P3 flip Haiku.
+        # Giải thích lỗi/sửa câu (AiTextService) — học viên ĐỌC phần này để học nên chất lượng có
+        # giá trị sư phạm trực tiếp. P3 đo cùng đợt F1, ứng viên deepseek-v4-flash.
         explain:
           model: "${AI_LLM_TIER_EXPLAIN_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
           # effort=low giữ nguyên hành vi cũ của đường null-model (budget completion nhỏ 512–700 tok).
-          # ⚠️ Khi flip model khác họ gpt-oss (Haiku) ở P3: xoá/để rỗng effort của tier này.
+          # ⚠️ Khi flip model KHÔNG-reasoning ở P3: xoá/để rỗng effort của tier này (bài học FW.7).
           reasoning-effort: "${AI_LLM_TIER_EXPLAIN_EFFORT:${GROQ_REASONING_EFFORT:low}}"
-        # Sinh nội dung bài học có cache (SkillTree/PracticeNode). P3 flip Sonnet 4.6; regen P5.
+        # Sinh nội dung bài học có cache (SkillTree/PracticeNode). Quyết định #9 (09/08): đích là
+        # kimi-k2p6 cho lần sinh MỚI (không cần chờ F1 — sinh 1 lần rồi cache phục vụ nghìn lượt,
+        # chi phí model xịn khấu hao về ~0); regen toàn cây ở P5 dùng kimi-k3.
         content:
           model: "${AI_LLM_TIER_CONTENT_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
-          # Giữ hành vi cũ (đường null-model có effort=low). Flip Sonnet ở P3 thì xoá effort.
+          # Giữ hành vi cũ (đường null-model có effort=low). Flip sang họ khác thì xoá effort.
           reasoning-effort: "${AI_LLM_TIER_CONTENT_EFFORT:${GROQ_REASONING_EFFORT:low}}"
-        # Batch đêm (tag từ vựng, …) — 120b theo quyết định #10 (chốt tại P2). Tag maxTokens=600
+        # Batch đêm (tag từ vựng, …) — model CHẤM theo quyết định #10 (chốt tại P2). Tag maxTokens=600
         # nên effort=low là BẮT BUỘC với họ gpt-oss (token "nghĩ" ăn chung budget completion).
+        # Chain qua ${GROQ_GRADING_MODEL} như grading-*: đây là tier ĐANG có caller thật (vocab
+        # tagging B4.1) nên slug ghim cứng ở đây từng là quả bom 404 âm thầm sau khi flip nhà cung cấp.
         batch:
-          model: "${AI_LLM_TIER_BATCH_MODEL:openai/gpt-oss-120b}"
+          model: "${AI_LLM_TIER_BATCH_MODEL:${GROQ_GRADING_MODEL:openai/gpt-oss-120b}}"
           reasoning-effort: "${AI_LLM_TIER_BATCH_EFFORT:${GROQ_REASONING_EFFORT:low}}"
     gemini:
       api-key: ${GEMINI_API_KEY:}
