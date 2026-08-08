@@ -12,10 +12,10 @@
 
 | # | Quyết định 09/08 | Chốt |
 |---|---|---|
-| 7 | **Chấm (GRADING_EXAM + GRADING_DAILY):** hướng 3 — F1 calibration ~100 bài, 120b (baseline) vs **DeepSeek V4 Flash** vs Qwen 3.7 Plus vs Kimi K2.6; chỉ flip khi thắng rõ precision/recall. EXPLAIN đo cùng đợt (ứng viên V4 Flash) | ✅ |
+| 7 | **Chấm (GRADING_EXAM + GRADING_DAILY):** hướng 3 — F1 calibration ~100 bài, 120b (baseline) vs **DeepSeek V4 Flash**; chỉ flip khi thắng rõ precision/recall. **THU HẸP bởi #14 (09/08 tối): bỏ Qwen 3.7 Plus + Kimi K2.6** khỏi đợt đo, và phải chạy ở `maxTokens=3000` (ở 800 tok mọi ứng viên đều cụt JSON). EXPLAIN đo cùng đợt | ⚠️ thu hẹp |
 | 8 | **ERROR_VERIFY = DeepSeek V4 Flash** (temp 0, ~300 tok) — nguyên tắc model verify phải KHÁC HỌ model sinh; shadow 1 tuần giữ nguyên (quyết định #2) | ✅ |
-| 9 | **CONTENT = Kimi K2.6** cho lần sinh mới; **regen P5 (khu vực H) = Kimi K3** (~$6/144 node); verifier pass của H = V4 Flash (thay Gemini) | ✅ |
-| 10 | **CHAT_PAID = gpt-oss-120b@Fireworks CÓ ĐIỀU KIỆN**: đo TTFT chế độ STREAM trước (G1.4); đạt <1,5s mới ship G, không đạt thì hoãn G, PAID tạm = FREE | ✅ |
+| 9 | ~~**CONTENT = Kimi K2.6** cho lần sinh mới~~ → **SỬA bởi #15 (09/08 tối)**: đường sinh-khi-unlock GIỮ 20b (K2.6 trả RỖNG ở ngân sách 1024 tok, và 32–41s/node thì học viên không chờ); K2.6 chỉ cho sinh TRƯỚC theo lô. **regen P5 = Kimi K3** (~$6/144 node) và verifier pass của H = V4 Flash: giữ nguyên | ⚠️ sửa |
+| 10 | **CHAT_PAID = gpt-oss-120b@Fireworks CÓ ĐIỀU KIỆN**: đo TTFT chế độ STREAM trước (G1.4); đạt <1,5s mới ship G. **Đo 09/08 tối: trung vị 1,29s / max 1,88s / 4-12 lượt vượt** — nhưng đo từ máy owner nên #16 hoãn chốt tới khi đo lại TỪ EC2 | ⚠️ chờ #16 |
 | 11 | **STT:** đo D1.3 (WER turbo vs whisper-v3, ~50 audio prod) rồi quyết; chênh ≤1% ⇒ đóng mục D, giữ turbo cả 2 tầng | ✅ |
 | 12 | **BATCH + weekly rubric → Fireworks Batch API (−50%)**, ticket riêng SAU khi FW.1–FW.6 nghiệm thu sạch | ✅ |
 | 13 | **Placement:** chưa tách — đi chung GRADING_EXAM, chờ số F1 rồi mới cân nhắc override riêng (ứng viên K3 nếu cần) | ✅ |
@@ -217,3 +217,9 @@ Mỗi phase một (vài) PR riêng, e2e + IT xanh trước merge, deploy theo qu
 11. ✅ STT: đo D1.3 rồi quyết; ≤1% thì đóng mục D, giữ turbo cả 2 tầng.
 12. ✅ BATCH + weekly → Fireworks Batch API (−50%), ticket riêng sau FW sạch.
 13. ✅ Placement: chưa tách, chờ số F1 (ứng viên K3 nếu cần override riêng).
+
+**Đợt 3 — chốt 09/08 TỐI, sau khi contract-test đo thật (`BAO_CAO_CONTRACT_TEST_TIER_2026-08-09.md`). Đợt này THU HẸP #7 và SỬA #9:**
+14. ✅ **F1 chỉ đo `deepseek-v4-flash` @ `maxTokens=3000`** vs 120b baseline. Bỏ `qwen3p7-plus` (cần cùng 3000 tok mà đắt 4× ở đầu output) và bỏ `kimi-k2p6` khỏi tầng chấm (27–43s/bài, biên an toàn 2%). Tinh thần #7 giữ nguyên — calibrate rồi mới flip — chỉ còn 1 ứng viên.
+15. ✅ **CONTENT tách 2 đường** (sửa #9): đường sinh-khi-unlock **giữ 20b**; K2.6 chỉ cho sinh TRƯỚC theo lô + regen P5. Lý do: ở ngân sách 1024 tok thật của `SkillTreeService:1107,1248` K2.6 trả RỖNG 3/3 im lặng; ở 4096 tok chạy được nhưng 32–41s/node.
+16. ✅ **CHAT_PAID: đo lại TTFT từ EC2 rồi mới chốt** (hoãn #10). Số 1,29s đo từ máy owner gồm RTT xuyên Thái Bình Dương; EC2 (us-east-1) cùng vùng với Fireworks (us-virginia-1) nên thực tế phải nhanh hơn.
+17. ✅ **Ledger đọc `cached_tokens` — làm ngay, PR riêng** (E.6 mới trong checklist): cache hit ~99% ở cả 8 tier, cached-in chỉ 10% giá input với 120b ⇒ COGS chat đang khai vống ~3×.

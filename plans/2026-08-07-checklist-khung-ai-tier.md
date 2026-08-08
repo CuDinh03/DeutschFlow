@@ -18,6 +18,15 @@
 
 **Quyết định 09/08:** (6) **bỏ OpenRouter** — Fireworks là nhà cung cấp duy nhất; mọi bước flip qua OpenRouter ở P3/P4 huỷ, đường lên Haiku/Sonnet đóng lại ✅ · **(7)–(13) chốt 09/08 chiều** (chi tiết `BAO_CAO_LUA_CHON_MODEL_FIREWORKS_2026-08-09.md` + mục ĐIỂM CẦN OWNER QUYẾT trong ke-hoach): (7) chấm = hướng 3, F1 với V4 Flash/Qwen 3.7 Plus/K2.6 ✅ · (8) ERROR_VERIFY = DeepSeek V4 Flash ✅ · (9) CONTENT = K2.6 ngay, regen P5 = K3, verifier = V4 Flash ✅ · (10) CHAT_PAID = 120b điều kiện TTFT stream <1,5s ✅ · (11) STT đo D1.3 rồi quyết ✅ · (12) BATCH → Batch API −50% ticket riêng sau FW sạch ✅ · (13) placement chưa tách, chờ F1 ✅
 
+**Quyết định 09/08 TỐI (#14–#17) — owner chốt sau khi đọc số đo contract-test:**
+
+| # | Chốt | Thay cho |
+|---|---|---|
+| 14 | **F1 chỉ đo `deepseek-v4-flash` @3000 tok** vs 120b baseline. **BỎ** `qwen3p7-plus` (cũng cần 3000 tok mà đắt 4× ở đầu output: $1.60 vs $0.28) và **BỎ** `kimi-k2p6` cho tầng chấm (27–43s/bài + biên an toàn 2% ⇒ không dùng được). V4 Flash là ứng viên duy nhất vừa mới hơn vừa RẺ hơn 120b | thu hẹp #7 |
+| 15 | **CONTENT tách làm 2 đường**: đường sinh-khi-unlock (học viên đang chờ) **giữ 20b**; K2.6 chỉ dùng cho **sinh TRƯỚC theo lô** + regen P5. Không flip `AI_LLM_TIER_CONTENT_MODEL` sang K2.6 trên đường realtime | sửa #9 |
+| 16 | **CHAT_PAID: đo lại TTFT từ EC2 rồi mới chốt** — số 1,29s đo từ máy owner nên gồm cả RTT xuyên Thái Bình Dương; EC2 prod (us-east-1) cùng vùng với Fireworks (us-virginia-1) nên thực tế nhanh hơn. 👤 owner chạy (agent bị hook chặn ssh) | hoãn #10 |
+| 17 | **Ledger đọc `cached_tokens` LÀM NGAY, PR riêng** — thêm cột `cached_prompt_tokens` vào `ai_token_usage_events` + migration; COGS chat đang khai vống ~3× vì cache hit ~99% | mới |
+
 **Số đo 09/08 tối (contract-test, `BAO_CAO_CONTRACT_TEST_TIER_2026-08-09.md`) — đụng vào 3 quyết định đã chốt:**
 - 🔴 **(7) sai giả định "flip = 1 dòng env"**: ở ngân sách token thật của GRADING_EXAM (800 tok), `deepseek-v4-flash` hỏng 3/4 lượt, `qwen3p7-plus` 4/4, `kimi-k2p6` 4/4 (RỖNG). Bỏ `reasoning_effort` không cứu được — 3 model này dài dòng gấp 4–10× 120b. Muốn flip thì **phải nới max_tokens ở mọi call site chấm** (F1.0 mới).
 - 🔴 **(9) CONTENT = K2.6 "flip ngay" sẽ làm hỏng cây học tập**: 2 call site `SkillTreeService:1107,1248` chỉ có 1024 tok ⇒ K2.6 trả **RỖNG 3/3**, im lặng. Ở 4096 tok thì chạy được nhưng **32–41s/node**. Phải nới ngân sách + tính lại latency trước F3.4.
@@ -110,7 +119,12 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
 - [x] E.3 OpenRouter cost thật: khi response có `usage.cost` (bật `usage: {include: true}` trong body cho request đi OpenRouter) → ledger ghi cost thật, estimator chỉ là fallback. (Field cộng thêm vào `AiChatCompletionResult` + `TokenUsage`.)
 - [x] ✅ E.4 `WHISPER_USD_PER_SEC` → giá Fireworks `whisper-v3-turbo` $0.0009/phút = **$0.000015/giây** ([PR #312](https://github.com/CuDinh03/DeutschFlow/pull/312)); hằng cũ $0.006/phút khai vống **6,67×**. Test khoá cả tỉ lệ vống để không ai đổi ngược. Kèm dọn comment giá STT lỗi thời ở `AiSessionController:126` (`WhisperApiClient` giữ nguyên $0.006 — nó thật sự gọi OpenAI).
 - [x] ✅ E.1b **(bổ sung 09/08 theo bản viết lại của kế hoạch)** `ModelRate` cho toàn bộ ứng viên Fireworks + cột **cached-input** + overload `costUsd(model, prompt, cached, completion)` ([PR #312](https://github.com/CuDinh03/DeutschFlow/pull/312)). Trước đó `deepseek-*`/`qwen3p7-plus`/`kimi-*`/`minimax`/`glm-5p2` rơi DEFAULT $0.20/$0.20 — với Kimi K3 ($3/$15) là khai **thiếu 75×** ở đầu output. Slug lấy từ `GET /inference/v1/models` (Fireworks viết "2.6"→`k2p6`, "3.7"→`3p7`, "5.2"→`5p2`).
-  - ⚠️ CÒN NỢ: ledger CHƯA đọc `usage.prompt_tokens_details.cached_tokens` (cần thêm cột vào `ai_token_usage_events` + parse ở client). Đo thật thấy cache hit ~99% ở cả 8 tier ⇒ COGS chat hiện vẫn khai vống. Overload đã sẵn, chỉ chờ đường dẫn số liệu.
+- [ ] **E.6 (MỚI, quyết định #17 — LÀM NGAY, PR riêng)** Ledger ghi token cache để COGS thôi khai vống ~3×:
+  - [ ] E.6.1 Migration V2xx thêm cột `cached_prompt_tokens` (default 0, NOT NULL) vào `ai_token_usage_events`; kiểm fresh-DB replay.
+  - [ ] E.6.2 `AiUsageLedgerService` ghi `TokenUsage.cachedPromptTokens` (client đã đọc `usage.prompt_tokens_details.cached_tokens` ở PR #314).
+  - [ ] E.6.3 `AdminManagementService` + `AdminAnalyticsService` gọi overload `costUsd(model, prompt, cached, completion)` (đã có ở PR #312) thay vì overload 3 tham số.
+  - [ ] E.6.4 Test: hàng ledger cũ (`cached=0`) ra đúng con số như trước ⇒ không viết lại lịch sử; hàng mới có cache thì rẻ hơn.
+  - ℹ️ Vì sao đáng làm ngay: đo 09/08 thấy cache hit **~99% ở cả 8 tier** (system prompt lặp y nguyên mỗi lượt) và cached-in chỉ bằng **10%** giá input với 120b ⇒ số COGS đang dùng để quyết giá gói/ngân sách AI lệch có hệ thống.
 - [x] E.5 Sửa nhãn `"gemini-1.5-flash"` → `"gemini-2.5-flash"` tại `TeacherLessonPlanService:222`.
 
 ### Nghiệm thu P1
@@ -184,7 +198,13 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
 - [ ] 🔴 **F1.0 (MỚI 09/08 — CHẶN F1.3)** Nới ngân sách token của các call site chấm, hoặc cho harness đặt ngân sách riêng theo lượt đo. Đo thật: ở 800 tok cả 3 ứng viên đều cụt/rỗng, ở 1500 chỉ V4 Flash sống (biên 20% — sát), ở 3000 thì V4 Flash + Qwen sống, K2.6 biên 2%. Call site phải nới nếu flip: `AiExamEvaluatorService:59,183` (800) · `SprechenTeil2Service:137` (1000) · `AiSpeakingMockExamController:104` (1200) · `GradingService` (1500) · `SkillTreeController:300` (2048, ĐỒNG BỘ — kiểm timeout vì latency lên 6–14s).
 - [x] ✅ **F1.1 XONG** ([PR #314](https://github.com/CuDinh03/DeutschFlow/pull/314), xếp chồng trên #312). `/api/admin/grading-eval` nhận `tier` + `maxTokens` + `parallelism`; kết quả thêm **`feedbackMissing`** (bài CÓ điểm nhưng MẤT nhận xét — cột phải đọc TRƯỚC MAE, bài học FW.7), `maxCompletionTokens`, `withinTenRate` (1 band = 10 điểm), latency p50/p95, `costUsd`/`costPerCaseVnd`; mỗi bài trả kèm token prompt/cached/completion. Chạy song song (mặc định 2, trần 4 vì chia sẻ semaphore chat với traffic thật). `MAX_CASES` 50 → **100** theo F1.2. Thêm `POST /api/admin/grading-eval/csv` cho báo cáo F1.4. Ứng viên P3 **không** nằm trong `DEFAULT_MODELS` (mỗi ứng viên cần ngân sách riêng ⇒ phải truyền tường minh). Kèm: `GroqChatClient` đọc `usage.prompt_tokens_details.cached_tokens` → `TokenUsage.cachedPromptTokens`. Test 12/0, full unit 1802/0.
 - [ ] F1.2 Chọn tập ~100 bài: trộn Schreiben/Sprechen/grammar-exam, đủ A1–B1, lấy từ prod (ẩn danh).
-- [ ] F1.3 Chạy 120b (hiện tại) vs ứng viên nâng cấp theo hướng owner chọn ở khung trên. Nếu chọn (1) thì bước này rút gọn thành "đo baseline 120b" để có mốc so cho tương lai.
+- [ ] F1.3 Chạy **120b (baseline) vs `accounts/fireworks/models/deepseek-v4-flash`, `maxTokens=3000`** (quyết định #14 — chỉ 2 model, không đo Qwen/K2.6 nữa). Lệnh mẫu:
+  ```
+  POST /api/admin/grading-eval/csv
+  {"models":["openai/gpt-oss-120b","accounts/fireworks/models/deepseek-v4-flash"],
+   "tier":"GRADING_EXAM","maxTokens":3000,"parallelism":2,"cases":[…]}
+  ```
+  ⚠️ Đọc `feedbackMissing` TRƯỚC MAE; nếu > 0 thì nới `maxTokens` rồi đo lại (số MAE của lượt đó không dùng được).
 - [ ] F1.4 Báo cáo: offset trung bình, độ phân tán, danh sách bài lệch >1 band kèm diff giải thích — file `BAO_CAO_CALIBRATION_CHAM_<ngày>.md`.
 - [ ] 👤 F1.5 Owner duyệt báo cáo → quyết flip.
 
@@ -198,8 +218,8 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
 - [ ] F3.1 `GRADING_EXAM.model` → model đã chọn. ⚠️ nếu là model KHÔNG-reasoning thì phải đặt `AI_LLM_TIER_GRADING_EXAM_EFFORT=` (rỗng) — xem FW.7.2.
 - [ ] F3.2 `GRADING_DAILY.model` → model đã chọn (+ `..._DAILY_EFFORT` rỗng nếu cần). Đòn bẩy chi phí: hạ riêng tier này về 120b bằng 1 env.
 - [ ] F3.3 `EXPLAIN.model` → model đã chọn.
-- [ ] 🔴 **F3.4 tiền đề (MỚI 09/08 — CHẶN flip CONTENT)** Nới `SkillTreeService:1107,1248` từ 1024 lên ≥4096 và xử lý latency: K2.6 ở 1024 tok trả **RỖNG 3/3** (im lặng, không exception), ở 4096 chạy được nhưng **32–41s/node**. Luồng sinh-khi-unlock của học viên không chờ được mức đó ⇒ cân nhắc chỉ dùng K2.6 cho sinh trước/regen, giữ 20b cho đường unlock.
-- [ ] F3.4 `CONTENT.model` → `accounts/fireworks/models/kimi-k2p6` (quyết định #9) — CHỈ sau khi xong tiền đề trên. Chỉ ảnh hưởng lần sinh mới; regen ở P5.
+- [x] ~~F3.4 `CONTENT.model` → kimi-k2p6~~ — **HUỶ trên đường realtime theo quyết định #15**: K2.6 ở ngân sách 1024 tok của `SkillTreeService:1107,1248` trả **RỖNG 3/3** (im lặng, không exception), ở 4096 tok chạy được nhưng **32–41s/node** — học viên đang chờ unlock không chịu được. `AI_LLM_TIER_CONTENT_MODEL` **giữ 20b**.
+- [ ] **F3.4b (thay F3.4, quyết định #15)** Đường sinh nội dung TRƯỚC theo lô dùng K2.6: admin command sinh sẵn node theo level (không ai chờ ⇒ 32–41s/node vô hại), ghi vào cache như P5 nhưng cho node CHƯA có content. Env riêng cho đường này (không dùng chung `AI_LLM_TIER_CONTENT_MODEL` vì tier đó phục vụ cả đường realtime) hoặc gộp luôn vào admin command của P5/H1.1.
 - [ ] F3.5 Release note 3 ngữ: "hệ thống chấm nâng cấp, thang điểm có thể lệch nhẹ so với trước <ngày>".
 - [ ] F3.6 Theo dõi 1 tuần: cost/ngày theo tier (ledger), khiếu nại điểm, p95 latency chấm.
 
@@ -229,7 +249,14 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
 - [ ] G1.2 `CHAT_PAID` config: `accounts/fireworks/models/gpt-oss-120b` + `reasoning-effort: low` (cùng endpoint Fireworks, KHÔNG cần provider.order/require_parameters — mấy field đó là của OpenRouter, nay bỏ).
 - [ ] G1.3 Degrade: breaker/model-unavailable/timeout trên tier PAID → chạy lại lượt bằng CHAT_FREE, log + metric `chat_paid_degraded_total`, KHÔNG 503.
 - [x] ✅ **G1.4 ĐÃ ĐO 09/08** (`scripts/ai-tier-contract-test.py --tiers chat-paid --model …gpt-oss-120b --stream --ttft-runs 12`): TTFT stream 120b **trung vị 1,29s** · min 0,65 · max 1,88 · **4/12 lượt vượt 1,5s**; đối chứng 20b trung vị **0,83s** · max 1,13 · **0/12 vượt**. Hợp đồng JSON của 120b ở ngân sách chat 800 tok: 3/3 đạt, biên an toàn 57%. Đính chính: "3,4s" của bench 08/08 là **non-stream** (đo lại non-stream ở đây 2,0–2,9s), không phải TTFT.
-  - 👤 **Điều kiện #10 đạt theo TRUNG VỊ (1,29 < 1,5s) nhưng 1/3 lượt vượt ngưỡng** ⇒ owner chốt: ship G với 120b (PAID chậm hơn FREE ~1,5× ở đuôi phân phối), hay giữ PAID = FREE và phân biệt gói bằng quota/tính năng.
+  - [ ] 👤 **G1.4b ĐO LẠI TỪ EC2 (quyết định #16) — chưa chốt ship G tới khi có số này.** Số 1,29s đo từ máy owner nên gồm RTT xuyên Thái Bình Dương; EC2 prod cùng vùng với Fireworks (us-east-1 ↔ us-virginia-1) nên thực tế phải nhanh hơn. Chạy trên EC2 (agent bị hook chặn `ssh`):
+    ```
+    scp -i deutschflow-key.pem scripts/ai-tier-contract-test.py ubuntu@35.175.232.152:/tmp/
+    ssh -i deutschflow-key.pem ubuntu@35.175.232.152 \
+      "python3 /tmp/ai-tier-contract-test.py --env-file /home/ubuntu/DeutschFlow/.env.production \
+       --tiers chat-paid --model accounts/fireworks/models/gpt-oss-120b --runs 3 --stream --ttft-runs 12"
+    ```
+    (`.env.production` đã sẵn trên EC2 do `deploy-backend.sh` scp vào `/home/ubuntu/DeutschFlow/`.) Đo cả `--tiers chat-free` làm đối chứng cùng vantage point. Trung vị <1,5s ⇒ ship G; không đạt ⇒ PAID = FREE, phân biệt gói bằng quota/tính năng.
 - [ ] G1.4b Contract test route PAID phía BE: schema V1/V2 khi tier PAID bật (chạy sau khi có G1.1–G1.3).
 - [ ] G1.5 e2e 2 account FREE vs PRO: ledger ghi model khác nhau; kill-switch env `AI_LLM_TIER_CHAT_PAID_MODEL=accounts/fireworks/models/gpt-oss-20b` hoạt động.
 - [ ] G1.6 Marketing/copy gói trả phí cập nhật (persona "não to") — phối hợp owner.
