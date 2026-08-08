@@ -387,6 +387,44 @@ app:
       # Fail-fast khi nghẽn: server phải bỏ cuộc TRƯỚC client (mobile chờ 15–45s). 90s cũ là
       # nguồn 503 dây chuyền đêm 23/07 (audit speaking R-B1).
       semaphore-acquire-timeout-seconds: ${GROQ_SEMAPHORE_ACQUIRE_SEC:10}
+    # ── KHUNG TIER LLM (plans/2026-08-07-ke-hoach-khung-ai-tier.md) ──────────────────────────
+    # Mỗi chức năng gọi AI khai "tầng" thay vì tự chọn model; đổi model/endpoint = đổi config ở
+    # đây (env-overridable), KHÔNG sửa code. P1: mọi tier trỏ đúng model hiện trạng (zero change);
+    # P2 route call site; P3 flip Haiku/Sonnet + OpenRouter theo từng tier sau calibration.
+    # base-url/api-key rỗng = giữ endpoint + key Groq hiện tại. Flip MỘT tier sang OpenRouter:
+    # đặt base-url của tier đó = https://openrouter.ai/api/v1/chat/completions + api-key chung
+    # AI_LLM_API_KEY = key OpenRouter (per-tier api-key cũng có nếu cần).
+    llm:
+      base-url: ${AI_LLM_BASE_URL:}
+      api-key: ${AI_LLM_API_KEY:}
+      tiers:
+        # Chat nói real-time — FREE. Model + effort gương env cũ để không ai phải đổi env.
+        chat-free:
+          model: "${AI_LLM_TIER_CHAT_FREE_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
+          reasoning-effort: "${AI_LLM_TIER_CHAT_FREE_EFFORT:${GROQ_REASONING_EFFORT:low}}"
+        # Chat nói — gói trả phí. P1–P3 = FREE; P4 (khu vực G) mới trỏ Cerebras 120b.
+        chat-paid:
+          model: "${AI_LLM_TIER_CHAT_PAID_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
+          reasoning-effort: "${AI_LLM_TIER_CHAT_PAID_EFFORT:${GROQ_REASONING_EFFORT:low}}"
+        # Thẩm định errors/suggestions trước khi persist (P4, khu vực C — sẽ trỏ Gemini 2.5 Flash).
+        error-verify:
+          model: "${AI_LLM_TIER_ERROR_VERIFY_MODEL:openai/gpt-oss-20b}"
+        # Chấm có tính PHÁN QUYẾT: mock exam, grammar exam, Teil 2, placement, essay B2B.
+        # P3 flip Haiku 4.5 sau calibration ~100 bài (khu vực F). GROQ_GRADING_MODEL cũ vẫn ăn.
+        grading-exam:
+          model: "${AI_LLM_TIER_GRADING_EXAM_MODEL:${GROQ_GRADING_MODEL:openai/gpt-oss-120b}}"
+        # Chấm feedback thường nhật (cuối phiên hội thoại/PV) — tách riêng làm đòn bẩy chi phí.
+        grading-daily:
+          model: "${AI_LLM_TIER_GRADING_DAILY_MODEL:${GROQ_GRADING_MODEL:openai/gpt-oss-120b}}"
+        # Giải thích lỗi/sửa câu (AiTextService). P2 route (giữ model hiện trạng), P3 flip Haiku.
+        explain:
+          model: "${AI_LLM_TIER_EXPLAIN_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
+        # Sinh nội dung bài học có cache (SkillTree/PracticeNode). P3 flip Sonnet 4.6; regen P5.
+        content:
+          model: "${AI_LLM_TIER_CONTENT_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
+        # Batch đêm (tag từ vựng, …) — P2 chốt 120b theo quyết định #10 (flip bằng env này).
+        batch:
+          model: "${AI_LLM_TIER_BATCH_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
     gemini:
       api-key: ${GEMINI_API_KEY:}
     google:
