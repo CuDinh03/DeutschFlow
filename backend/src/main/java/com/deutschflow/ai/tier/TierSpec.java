@@ -46,6 +46,25 @@ public record TierSpec(
         quantizations = quantizations == null ? List.of() : List.copyOf(quantizations);
     }
 
+    /**
+     * Bản sao đổi mỗi {@code model}, giữ nguyên endpoint/key/effort/provider của tầng.
+     *
+     * <p>Dùng cho các call-site so sánh model trong CÙNG một tầng — điển hình
+     * {@code /api/admin/grading-eval} chấm một bài bằng nhiều model: mọi model phải chạy dưới
+     * cùng bộ tham số thì số đo mới so được với nhau, và quan trọng hơn là chúng vẫn nhận
+     * {@code reasoning_effort} của tầng (thiếu nó, model reasoning đốt hết ngân sách vào phần
+     * "nghĩ" rồi trả JSON cụt — xem FW.7).
+     *
+     * <p>{@code null}/rỗng ⇒ trả về chính tầng này.
+     */
+    public TierSpec withModel(String overrideModel) {
+        if (overrideModel == null || overrideModel.isBlank() || overrideModel.trim().equals(model)) {
+            return this;
+        }
+        return new TierSpec(tier, overrideModel, baseUrl, apiKey, providerOrder, requireParameters,
+                sort, quantizations, reasoningEffort, sessionSticky, includeUsage);
+    }
+
     /** Tầng này có yêu cầu gì cần serialize vào object {@code provider} của OpenRouter không? */
     public boolean hasProviderPreferences() {
         return !providerOrder.isEmpty()
