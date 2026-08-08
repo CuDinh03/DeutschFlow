@@ -7,6 +7,8 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.common.quota.RequestContext;
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
@@ -58,6 +60,9 @@ public class WeeklySpeakingService {
     private final AiUsageLedgerService aiUsageLedgerService;
     private final WeeklyCompanionRollupService weeklyCompanionRollupService;
     private final UserLearningProfileRepository userLearningProfileRepository;
+    // Khung tier P2.V1 (mis-route thứ 6, phát hiện khi nghiệm thu): chấm rubric bài nói tuần
+    // = GRADING_DAILY — trước đây truyền null nên rơi vào model chat mặc định.
+    private final LlmTierResolver llmTierResolver;
 
     /** VN-aware calendar week anchored on ISO Monday (education default). */
     public LocalDate currentWeekStartVn(Instant now) {
@@ -160,7 +165,8 @@ public class WeeklySpeakingService {
 
         AiChatCompletionResult ai;
         try {
-            ai = openAiChatClient.chatCompletion(List.of(sys, usr), null, 0.2, maxTokens);
+            ai = openAiChatClient.chatCompletionForTier(
+                    List.of(sys, usr), llmTierResolver.spec(LlmTier.GRADING_DAILY), 0.2, maxTokens);
         } catch (AiServiceException e) {
             throw e; // giữ 503 "AI bận" chuẩn — KHÔNG hạ thành 400 (audit R-B3)
         } catch (Exception e) {
