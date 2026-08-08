@@ -1,5 +1,8 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
+import com.deutschflow.ai.tier.TierSpec;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
@@ -47,8 +50,18 @@ public class GradingService {
     private final AiUsageLedgerService aiUsageLedgerService;
     /** Model chấm bài (tách hẳn model nói) — xem {@link GradingModelConfig}. */
     private final GradingModelConfig gradingModelConfig;
+    /** Nguồn tham số tầng GRADING_EXAM (model + reasoning_effort + endpoint). */
+    private final LlmTierResolver llmTierResolver;
     /** Đọc tiêu đề tài liệu thư viện đính kèm bài tập để đưa vào ngữ cảnh chấm. */
     private final com.deutschflow.material.service.MaterialService materialService;
+
+    /**
+     * Ngân sách token một lượt chấm. 800 cũ là mức của thời model KHÔNG reasoning; với gpt-oss,
+     * phần "nghĩ" ăn chung ngân sách nên 800 nằm sát mép (đo 09/08: lượt hỏng đụng đúng trần 800).
+     * {@code reasoning_effort=low} của tầng mới là tuyến phòng thủ chính (kéo output về 308–427);
+     * 1500 là đai an toàn thứ hai và gần như không tốn thêm vì chỉ trả tiền token thực sinh.
+     */
+    private static final int GRADING_MAX_TOKENS = 1500;
 
     /** Student-/teacher-safe note when AI grading fails — the raw cause stays in logs/admin alerts only (D8). */
     private static final String GRADING_FAILED_FEEDBACK = "Chưa chấm tự động được, giáo viên sẽ chấm lại.";
@@ -361,7 +374,15 @@ public class GradingService {
         messages.add(new ChatMessage("system", systemPrompt));
         messages.add(new ChatMessage("user", "<submission>" + safeContent + "</submission>"));
 
-        AiChatCompletionResult result = openAiChatClient.chatCompletion(messages, modelOverride, 0.3, 800);
+        // Đi ĐƯỜNG TẦNG (GRADING_EXAM) thay cho chatCompletion(model,...) như trước: đường cũ không
+        // mang được tham số per-tier, mà thiếu `reasoning_effort` thì model reasoning (gpt-oss) tiêu
+        // ngân sách vào phần "nghĩ" rồi trả JSON CỤT ⇒ parseScore null ⇒ bài về GRADING_FAILED, giáo
+        // viên phải bấm chấm lại. Đo 09/08 sau khi chuyển nhà cung cấp: 800 token không effort hỏng
+        // 1–2/10 lượt; effort=low thì 10/10 và chỉ tiêu 308–427 token. `withModel` giữ nguyên khả năng
+        // so sánh model của /api/admin/grading-eval — chỉ đổi model, các knob khác vẫn của tầng.
+        TierSpec spec = llmTierResolver.spec(LlmTier.GRADING_EXAM).withModel(modelOverride);
+        AiChatCompletionResult result =
+                openAiChatClient.chatCompletionForTier(messages, spec, 0.3, GRADING_MAX_TOKENS);
         if (result == null || result.content() == null) {
             return new EssayGrade(null, null, result);
         }

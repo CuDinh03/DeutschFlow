@@ -423,9 +423,17 @@ app:
         # P3 flip Haiku 4.5 sau calibration ~100 bài (khu vực F). GROQ_GRADING_MODEL cũ vẫn ăn.
         grading-exam:
           model: "${AI_LLM_TIER_GRADING_EXAM_MODEL:${GROQ_GRADING_MODEL:openai/gpt-oss-120b}}"
+          # gpt-oss là REASONING model: token "nghĩ" ăn CHUNG max_tokens. Không ghìm effort thì
+          # phần nghĩ nuốt hết ngân sách và JSON bị cắt giữa chừng ⇒ parseScore null ⇒ bài về
+          # GRADING_FAILED. Đo 09/08 (Fireworks, 800 tok): không effort hỏng 1–2/10 lượt; low →
+          # 10/10, output 308–427 tok. Model KHÔNG-reasoning (Haiku/Sonnet ở P3) không nhận tham
+          # số này ⇒ khi flip nhớ đặt env rỗng để bỏ gửi.
+          reasoning-effort: "${AI_LLM_TIER_GRADING_EXAM_EFFORT:low}"
         # Chấm feedback thường nhật (cuối phiên hội thoại/PV) — tách riêng làm đòn bẩy chi phí.
         grading-daily:
           model: "${AI_LLM_TIER_GRADING_DAILY_MODEL:${GROQ_GRADING_MODEL:openai/gpt-oss-120b}}"
+          # Cùng lý do grading-exam ở trên (ConversationEval 1000 tok từng chạm 904 khi không ghìm).
+          reasoning-effort: "${AI_LLM_TIER_GRADING_DAILY_EFFORT:low}"
         # Giải thích lỗi/sửa câu (AiTextService). P2 route (giữ model hiện trạng), P3 flip Haiku.
         explain:
           model: "${AI_LLM_TIER_EXPLAIN_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
