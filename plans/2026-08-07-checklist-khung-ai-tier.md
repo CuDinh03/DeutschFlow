@@ -46,7 +46,24 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
 - [x] FW.c **Bug lòi khi soi tier**: yml 6/8 tier gương `${GROQ_MODEL}`/`${GROQ_GRADING_MODEL}` (flip ăn theo), nhưng `batch` + `error-verify` HARDCODE slug Groq — `batch` có caller thật (vocab tagging B4.1) ⇒ sau flip sẽ 404 âm thầm. Đã vá bằng env: `AI_LLM_TIER_BATCH_MODEL` + `AI_LLM_TIER_ERROR_VERIFY_MODEL` trỏ slug Fireworks (thêm vào `.env.production` 09/08).
 
 **Còn mở:**
-- [ ] 👤 FW.1 Deploy `./deploy-backend.sh` — nay gom **#309 + #310 + #311 + #312 + #313 + #314 + #315 + #316**. Soi SHA `[2/6] Pull code` = **`7d7b467f`** (đã qua `4c34c29c` → `7e9adc85` → nay `7d7b467f`; chuyến này gom **11 PR** #309→#319) (không còn là `346959f4`; worktree deploy nhớ `git merge --ff-only origin/main` trước, xem sự cố push non-fast-forward 09/08).
+- [x] ✅ **FW.1 DEPLOYED 09/08** — `8c8bd989`, pipeline 317s, `/actuator/health` = UP. Chuyến này gom **#309 → #320** (11 PR): lần đầu prod chạy #309 route WeeklySpeaking, #310 STT portable + cờ nuốt prompt, #311 vá FW.7 (chấm mất nhận xét), cùng toàn bộ việc 09/08.
+  ⚠️ Không xác nhận được từ NGOÀI là build mới đã live: `/actuator/info` trả 401, và filter bảo mật trả 401 cho MỌI đường `/api/admin/*` kể cả path không tồn tại ⇒ phép thử "endpoint mới trả 401 thay vì 404" vô hiệu. Bằng chứng phải lấy từ log/DB — xem FW.1b.
+  💡 Lần deploy sau: đừng so với SHA ghim trong tài liệu (rot mỗi lần merge, riêng 09/08 rot 3 lần). Chạy `git rev-parse --short origin/main` NGAY TRƯỚC khi deploy rồi đối chiếu log `[2/6] Pull code`.
+- [ ] 👤 **FW.1b Nghiệm thu sau deploy — 2 lệnh, gộp 4 mục checklist (P2.V3 + E.6 + B1.9/B1.10 + FW.2b một phần):**
+  1. **Bảng tier phải in 9 dòng** (trước là 8 — dòng thứ 9 là `content-batch`, bằng chứng rẻ nhất rằng code mới đã live):
+     `bash ~/Developer/DeutschFlow/smoke-llm-tier.sh`
+  2. Sau khi làm 1 lượt nói + 1 bài chấm + 1 bài phát âm + 1 báo cáo phỏng vấn trên app, chạy trên RDS:
+     ```sql
+     SELECT feature, model, count(*) AS n,
+            sum(prompt_tokens) AS in_tok,
+            sum(cached_prompt_tokens) AS cached_tok,
+            round(100.0*sum(cached_prompt_tokens)/nullif(sum(prompt_tokens),0),1) AS cache_pct,
+            sum(completion_tokens) AS out_tok
+     FROM ai_token_usage_events
+     WHERE created_at > now() - interval '2 hours'
+     GROUP BY feature, model ORDER BY n DESC;
+     ```
+     Đọc kết quả: `model` phải là slug `accounts/fireworks/...` (FW.2b) · `cached_tok > 0` và `cache_pct` cỡ 90–99% (E.6 chạy đúng — nếu bằng 0 thì client không đọc được `prompt_tokens_details`) · `PRONUNCIATION_EVAL` + `INTERVIEW_REPORT` phải là **120b** chứ không còn 20b (B1.9/B1.10) · mock exam/grammar exam/teil2 là 120b (P2.V3).
 - [x] FW.2a **QA phía Fireworks — XONG 09/08** (script `scratchpad/qa_fw.py`, `rate_test.py`; chạy bằng ĐÚNG key/URL/model đọc từ `.env.production`):
   - ✅ **Chấm phát âm đọc đúng câu mẫu = 100/100** (chạy trọn thuật toán `PronunciationScorerService`: 9/9 CORRECT, avg_logprob −0,0047 suy từ `words[].probability` đúng như code #310). Bẫy nuốt prompt KHÔNG còn cửa nào chạm tới.
   - ✅ Chat nói 20b + `json_object` + `reasoning_effort=low`: 1,66s, JSON 9 field hợp lệ, bắt đúng lỗi `habe→bin` + giải thích tiếng Việt chuẩn.
@@ -68,6 +85,14 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
   - [x] FW.7.4 `TierSpec.withModel()` — giữ khả năng so sánh model của `/api/admin/grading-eval` nhưng ép mọi model chạy dưới cùng bộ knob của tầng.
   - [x] FW.7.5 Test: 8 case ở `GradingServiceModelTest` (tier đúng + có effort + budget ≥1500 + override giữ knob + JSON cụt mất nhận xét + 3 case cũ), `GradingServiceGuardTest` chuyển sang hợp đồng tier. Full suite **1783/0**.
   - [x] FW.7.6 Nghiệm thu trên Fireworks thật (n=20 mỗi cấu hình): **trước vá 19/20 · sau vá 20/20**. Cộng dồn 40 lượt/cấu hình: trước vá 4 hỏng (~10%), sau vá 0.
+- [ ] 👤 **FW.7b (MỚI 09/08 — soi `SystemPromptBuilder` sau sự cố lộ JSON #322)** Kiểm row `system_config.ai.maxTokens` trên prod và **nâng 800 → 2000, hoặc XOÁ row**.
+  **Đo thật** (Fireworks 20b, temp 0.35, effort=low, lịch sử 4 lượt, hợp đồng V1 lấy nguyên văn từ `SystemPromptBuilder`):
+  - Biến thể PROD (`suggestionsMode=on_demand`, KHÔNG suggestions) @800 tok: **30/30 OK** — nhưng out `max 722/800`, **biên an toàn chỉ 10%**. Một câu dài hơn bình thường, hoặc phiên nhiều history/RAG hơn, là cụt.
+  - Biến thể CÓ suggestions inline @800 tok: **hỏng 8/30 (27%)** — 16% JSON cụt + 10% content rỗng ⇒ đổi `speaking.suggestionsMode` sang inline ở ngân sách hiện tại là bom hẹn giờ.
+  **Vì sao row đang là 800:** di sản thời Groq FREE 8K TPM — hồi đó cap CŨNG là số token Groq đặt chỗ và trừ vào TPM. Fireworks postpaid không có trần đó ⇒ lý do tồn tại của row đã mất, nhưng cái giá (biên 10%) thì còn.
+  **Nâng cap gần như miễn phí:** chỉ trả tiền token THỰC SINH, không trả theo cap. 800 → 2000 đưa biên từ 10% lên ~64%, hoá đơn không đổi.
+  Đổi bằng `PUT /api/admin/ai-config` — sửa mã KHÔNG có tác dụng (row DB thắng, xem `ChatPrepService.logMaxTokensShadowingOnce`).
+  ℹ️ Đã soi và LOẠI giả thuyết prompt: `SystemPromptBuilder` không chứa mảnh JSON-Schema nào, hợp đồng khai bằng object mẫu rõ ràng; 60 lượt đo KHÔNG tái hiện được payload hình dạng sai `{"type":"object",…}` (0/60 ⇒ dưới ~2%). #322 đã chặn đường lộ nên ca hiếm đó không còn hại người học; đếm WARN "vớt được lời thoại từ trường phụ" trong FW.6 sẽ ra tần suất thật.
 - [ ] FW.6 Theo dõi 24–48h: 429/latency trên log + cost/ngày theo tier (ledger); Fireworks postpaid không trần TPM kiểu Groq FREE nên kỳ vọng 429 ≈ 0. Cân nhắc nâng `GROQ_MAX_CONCURRENT_CHAT=8`/`GROQ_MAX_CONCURRENT_WHISPER=6` (đang 5/4 theo cỡ Groq FREE) — làm RIÊNG sau khi FW.2 sạch để không nhiễu chẩn đoán.
 
 **Rollback:** mở `.env.production`, xoá block Fireworks + 2 env tier, bỏ `#[GROQ-CŨ]# `, chạy lại deploy. (Groq FREE vẫn dùng được tới khi nào; nhớ 16/08 Groq khai tử llama-3.3 — không ảnh hưởng gpt-oss.)
