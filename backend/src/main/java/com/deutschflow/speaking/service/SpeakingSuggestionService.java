@@ -137,8 +137,7 @@ public class SpeakingSuggestionService {
         try {
             if (result.usage() != null) {
                 ledgerService.record(userId, result.provider(), result.model(),
-                        result.usage().promptTokens(), result.usage().completionTokens(),
-                        result.usage().totalTokens(), "SPEAKING_SUGGESTIONS",
+                        result.usage(), "SPEAKING_SUGGESTIONS",
                         RequestContext.requestIdOrNull(), sessionId);
             }
         } catch (Exception e) {

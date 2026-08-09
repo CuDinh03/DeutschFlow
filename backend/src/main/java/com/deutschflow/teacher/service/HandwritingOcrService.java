@@ -106,8 +106,7 @@ public class HandwritingOcrService {
                 aiUsageLedgerService.record(teacherUserId,
                         textGrade.provider() != null ? textGrade.provider() : "GROQ",
                         textGrade.model() != null ? textGrade.model() : "unknown",
-                        textGrade.usage().promptTokens(), textGrade.usage().completionTokens(),
-                        textGrade.usage().totalTokens(), "TEACHER_OCR_TEXT_GRADE", null, null);
+                        textGrade.usage(), "TEACHER_OCR_TEXT_GRADE", null, null);
             } catch (Exception e) {
                 log.warn("[OCR] Không ghi được usage chấm-text (non-fatal): {}", e.toString());
             }

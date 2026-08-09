@@ -570,9 +570,7 @@ public class GradingService {
                     teacherUserId,
                     result.provider() != null ? result.provider() : "GROQ",
                     result.model() != null ? result.model() : "unknown",
-                    result.usage().promptTokens(),
-                    result.usage().completionTokens(),
-                    result.usage().totalTokens(),
+                    result.usage(),
                     "TEACHER_AI_GRADING",
                     null,
                     null

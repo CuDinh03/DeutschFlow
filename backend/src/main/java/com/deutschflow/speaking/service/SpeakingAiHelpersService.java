@@ -33,8 +33,7 @@ public class SpeakingAiHelpersService {
     private void recordUsage(Long userId, AiChatCompletionResult result, String feature) {
         if (result.usage() != null) {
             ledgerService.record(userId, result.provider(), result.model(),
-                    result.usage().promptTokens(), result.usage().completionTokens(),
-                    result.usage().totalTokens(), feature, null, null);
+                    result.usage(), feature, null, null);
         }
     }
 
