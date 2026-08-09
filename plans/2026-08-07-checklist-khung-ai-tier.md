@@ -85,6 +85,14 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
   - [x] FW.7.4 `TierSpec.withModel()` — giữ khả năng so sánh model của `/api/admin/grading-eval` nhưng ép mọi model chạy dưới cùng bộ knob của tầng.
   - [x] FW.7.5 Test: 8 case ở `GradingServiceModelTest` (tier đúng + có effort + budget ≥1500 + override giữ knob + JSON cụt mất nhận xét + 3 case cũ), `GradingServiceGuardTest` chuyển sang hợp đồng tier. Full suite **1783/0**.
   - [x] FW.7.6 Nghiệm thu trên Fireworks thật (n=20 mỗi cấu hình): **trước vá 19/20 · sau vá 20/20**. Cộng dồn 40 lượt/cấu hình: trước vá 4 hỏng (~10%), sau vá 0.
+- [ ] 👤 **FW.7b (MỚI 09/08 — soi `SystemPromptBuilder` sau sự cố lộ JSON #322)** Kiểm row `system_config.ai.maxTokens` trên prod và **nâng 800 → 2000, hoặc XOÁ row**.
+  **Đo thật** (Fireworks 20b, temp 0.35, effort=low, lịch sử 4 lượt, hợp đồng V1 lấy nguyên văn từ `SystemPromptBuilder`):
+  - Biến thể PROD (`suggestionsMode=on_demand`, KHÔNG suggestions) @800 tok: **30/30 OK** — nhưng out `max 722/800`, **biên an toàn chỉ 10%**. Một câu dài hơn bình thường, hoặc phiên nhiều history/RAG hơn, là cụt.
+  - Biến thể CÓ suggestions inline @800 tok: **hỏng 8/30 (27%)** — 16% JSON cụt + 10% content rỗng ⇒ đổi `speaking.suggestionsMode` sang inline ở ngân sách hiện tại là bom hẹn giờ.
+  **Vì sao row đang là 800:** di sản thời Groq FREE 8K TPM — hồi đó cap CŨNG là số token Groq đặt chỗ và trừ vào TPM. Fireworks postpaid không có trần đó ⇒ lý do tồn tại của row đã mất, nhưng cái giá (biên 10%) thì còn.
+  **Nâng cap gần như miễn phí:** chỉ trả tiền token THỰC SINH, không trả theo cap. 800 → 2000 đưa biên từ 10% lên ~64%, hoá đơn không đổi.
+  Đổi bằng `PUT /api/admin/ai-config` — sửa mã KHÔNG có tác dụng (row DB thắng, xem `ChatPrepService.logMaxTokensShadowingOnce`).
+  ℹ️ Đã soi và LOẠI giả thuyết prompt: `SystemPromptBuilder` không chứa mảnh JSON-Schema nào, hợp đồng khai bằng object mẫu rõ ràng; 60 lượt đo KHÔNG tái hiện được payload hình dạng sai `{"type":"object",…}` (0/60 ⇒ dưới ~2%). #322 đã chặn đường lộ nên ca hiếm đó không còn hại người học; đếm WARN "vớt được lời thoại từ trường phụ" trong FW.6 sẽ ra tần suất thật.
 - [ ] FW.6 Theo dõi 24–48h: 429/latency trên log + cost/ngày theo tier (ledger); Fireworks postpaid không trần TPM kiểu Groq FREE nên kỳ vọng 429 ≈ 0. Cân nhắc nâng `GROQ_MAX_CONCURRENT_CHAT=8`/`GROQ_MAX_CONCURRENT_WHISPER=6` (đang 5/4 theo cỡ Groq FREE) — làm RIÊNG sau khi FW.2 sạch để không nhiễu chẩn đoán.
 
 **Rollback:** mở `.env.production`, xoá block Fireworks + 2 env tier, bỏ `#[GROQ-CŨ]# `, chạy lại deploy. (Groq FREE vẫn dùng được tới khi nào; nhớ 16/08 Groq khai tử llama-3.3 — không ảnh hưởng gpt-oss.)
