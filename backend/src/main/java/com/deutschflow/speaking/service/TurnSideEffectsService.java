@@ -101,9 +101,7 @@ public class TurnSideEffectsService {
                         prep.userId(),
                         ai.provider(),
                         ai.model(),
-                        ai.usage().promptTokens(),
-                        ai.usage().completionTokens(),
-                        ai.usage().totalTokens(),
+                        ai.usage(),
                         ledgerPurpose,
                         RequestContext.requestIdOrNull(),
                         prep.sessionId()

@@ -83,8 +83,10 @@ class SpeakingSuggestionServiceTest {
         assertThat(out.get(0).germanText()).isEqualTo("Ich war zu Hause.");
         assertThat(out.get(1).vietnameseTranslation()).isEqualTo("Tôi đá bóng với bạn.");
         verify(quotaService).assertAllowed(eq(7L), any(), eq(1L));
+        // Ledger nhận nguyên TokenUsage (V270) thay vì 3 số rời — nhờ vậy phần prompt được cache
+        // cũng vào sổ và COGS thôi khai vống; số token vẫn y như trước.
         verify(ledgerService).record(eq(7L), eq("GROQ"), eq("openai/gpt-oss-20b"),
-                eq(200), eq(60), eq(260), eq("SPEAKING_SUGGESTIONS"), any(), eq(11L));
+                eq(TokenUsage.exact(200, 60, 260)), eq("SPEAKING_SUGGESTIONS"), any(), eq(11L));
     }
 
     @Test

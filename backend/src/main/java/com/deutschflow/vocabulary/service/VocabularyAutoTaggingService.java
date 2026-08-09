@@ -204,9 +204,7 @@ public class VocabularyAutoTaggingService {
                             actorUserId,
                             ai.provider(),
                             ai.model(),
-                            ai.usage().promptTokens(),
-                            ai.usage().completionTokens(),
-                            ai.usage().totalTokens(),
+                            ai.usage(),
                             "VOCAB_AUTO_TAG",
                             RequestContext.requestIdOrNull(),
                             null

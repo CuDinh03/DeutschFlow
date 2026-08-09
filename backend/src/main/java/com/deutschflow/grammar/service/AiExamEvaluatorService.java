@@ -59,8 +59,7 @@ public class AiExamEvaluatorService {
             var result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.GRADING_EXAM), 0.2, 800);
             if (result.usage() != null) {
                 ledgerService.record(userId, result.provider(), result.model(),
-                        result.usage().promptTokens(), result.usage().completionTokens(),
-                        result.usage().totalTokens(), "EXAM_SPRECHEN", null, null);
+                        result.usage(), "EXAM_SPRECHEN", null, null);
             }
             return parseSprechenResponse(result.content(), transcript);
 
@@ -183,8 +182,7 @@ public class AiExamEvaluatorService {
             var result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.GRADING_EXAM), 0.2, 800);
             if (result.usage() != null) {
                 ledgerService.record(userId, result.provider(), result.model(),
-                        result.usage().promptTokens(), result.usage().completionTokens(),
-                        result.usage().totalTokens(), "EXAM_SCHREIBEN", null, null);
+                        result.usage(), "EXAM_SCHREIBEN", null, null);
             }
             return parseEvaluationResponse(result.content(), emailContent);
 
