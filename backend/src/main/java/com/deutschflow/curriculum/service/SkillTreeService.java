@@ -1102,8 +1102,16 @@ public class SkillTreeService {
                     new ChatMessage("system", "Bạn là chuyên gia ngữ âm học tiếng Đức. Trả về JSON hợp lệ."),
                     new ChatMessage("user", prompt)
             );
-            AiChatCompletionResult result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.CONTENT), 0.2, 1024);
-            
+            // B1.9: tier GRADING_DAILY chứ KHÔNG phải CONTENT. Đây là ĐÁNH GIÁ phát âm của một
+            // học viên cụ thể (phản hồi thường nhật), không phải sinh nội dung bài học rồi cache
+            // dùng chung. Nằm nhầm ở CONTENT thì mỗi lần nâng model cho nội dung sư phạm lại kéo
+            // theo luồng này — và ngược lại, ngân sách 1024 token ở đây khoá trần cho cả tier
+            // (đúng chỗ làm Kimi K2.6 trả RỖNG khi thử flip CONTENT, đo 09/08).
+            // Đo lại trên Fireworks với prompt thật: 120b + effort=low @1024 tok → 6/6 JSON hợp lệ,
+            // out 145–445 (biên an toàn 56%).
+            AiChatCompletionResult result = chatClient.chatCompletionForTier(
+                    messages, llmTierResolver.spec(LlmTier.GRADING_DAILY), 0.2, 1024);
+
             // Clean up JSON response (strip markdown tags if present)
             String rawContent = result.content().trim();
             if (rawContent.startsWith("```json")) {
@@ -1242,7 +1250,12 @@ public class SkillTreeService {
                     new ChatMessage("system", "Bạn là chuyên gia đánh giá ngôn ngữ tiếng Đức. Trả về JSON hợp lệ, không có markdown."),
                     new ChatMessage("user", prompt)
             );
-            AiChatCompletionResult result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.CONTENT), 0.3, 1024);
+            // B1.10: tier GRADING_DAILY — báo cáo cuối phiên phỏng vấn là CHẤM phản hồi thường
+            // nhật, cùng loại với ConversationEvaluationService/InterviewEvaluationService, không
+            // phải sinh nội dung có cache. Đo trên Fireworks với prompt thật: 120b + effort=low
+            // @1024 tok → 6/6 JSON hợp lệ, out 248–313 (biên an toàn 69%).
+            AiChatCompletionResult result = chatClient.chatCompletionForTier(
+                    messages, llmTierResolver.spec(LlmTier.GRADING_DAILY), 0.3, 1024);
 
             String rawContent = result.content().trim()
                     .replaceAll("^```json", "").replaceAll("^```", "").replaceAll("```$", "").trim();
