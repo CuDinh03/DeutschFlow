@@ -115,7 +115,11 @@
     "demoPasswordLabel": "Mật khẩu:",
     "placeholderLoginEmail": "student@deutschflow.com",
     "placeholderEmail": "email@example.com",
-    "passwordMaskPlaceholder": "••••••••"
+    "passwordMaskPlaceholder": "••••••••",
+    "phoneLabel": "Số điện thoại",
+    "phoneHelp": "Số VN 10 chữ số, bắt đầu bằng 03/05/07/08/09",
+    "maintenanceTitle": "🔧 Máy chủ đang bảo trì",
+    "dismissAria": "Đóng thông báo"
   },
   "errors": {
     "backendUnreachable": "Không kết nối được backend hoặc backend đang lỗi. Vui lòng kiểm tra backend đang chạy đúng port.",

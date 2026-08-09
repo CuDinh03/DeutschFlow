@@ -115,7 +115,11 @@
     "demoPasswordLabel": "Password:",
     "placeholderLoginEmail": "student@deutschflow.com",
     "placeholderEmail": "email@example.com",
-    "passwordMaskPlaceholder": "••••••••"
+    "passwordMaskPlaceholder": "••••••••",
+    "phoneLabel": "Phone number",
+    "phoneHelp": "Vietnamese number: 10 digits, starting with 03/05/07/08/09",
+    "maintenanceTitle": "🔧 Server under maintenance",
+    "dismissAria": "Dismiss notification"
   },
   "errors": {
     "backendUnreachable": "Could not reach the backend or the server returned an error. Please check that the backend is running on the correct port.",

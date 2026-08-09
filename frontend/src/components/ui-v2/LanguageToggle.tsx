@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
 import { getAccessToken } from '@/lib/authSession'
@@ -20,6 +20,7 @@ const LOCALES: ReadonlyArray<{ code: string; label: string }> = [
  * Vietnamese strings stay Vietnamese until those strings are extracted to messages/*.json.
  */
 export function LanguageToggle() {
+  const t = useTranslations('v2.shell')
   const active = useLocale()
   const router = useRouter()
   const [pending, setPending] = React.useState<string | null>(null)
@@ -45,7 +46,7 @@ export function LanguageToggle() {
     <div
       className="flex items-center rounded-ga border border-ga-line p-0.5"
       role="group"
-      aria-label="Ngôn ngữ"
+      aria-label={t('languageAria')}
     >
       {LOCALES.map((l) => {
         const isActive = l.code === active

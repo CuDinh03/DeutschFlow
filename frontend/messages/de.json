@@ -115,7 +115,11 @@
     "demoPasswordLabel": "Passwort:",
     "placeholderLoginEmail": "student@deutschflow.com",
     "placeholderEmail": "email@beispiel.de",
-    "passwordMaskPlaceholder": "••••••••"
+    "passwordMaskPlaceholder": "••••••••",
+    "phoneLabel": "Telefonnummer",
+    "phoneHelp": "Vietnamesische Nummer: 10 Ziffern, beginnend mit 03/05/07/08/09",
+    "maintenanceTitle": "🔧 Server wird gewartet",
+    "dismissAria": "Hinweis schließen"
   },
   "errors": {
     "backendUnreachable": "Backend nicht erreichbar oder Serverfehler. Bitte prüfen, ob das Backend auf dem richtigen Port läuft.",

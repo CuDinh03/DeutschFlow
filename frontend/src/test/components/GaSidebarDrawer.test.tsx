@@ -28,13 +28,34 @@ vi.mock('next/link', () => ({
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/v2/student/dashboard' }))
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => {
-    const f = (k: string) => k
-    ;(f as unknown as { has: (k: string) => boolean }).has = () => false
-    return f
-  },
-}))
+// Mock đọc catalog vi THẬT (chrome area) thay vì trả key thô: GaSidebarToggle giờ lấy aria qua
+// t('openNavAria') nên test tìm nút theo accessible name phải thấy đúng bản dịch — và không gãy
+// nếu wording trong catalog đổi. `has` giữ false cho key lồng → GaSidebar vẫn dùng fallback VN
+// của nav.ts như hành vi cũ.
+vi.mock('next-intl', async () => {
+  const chrome = (await import('../../../messages/v2/chrome.vi.json')).default as Record<string, unknown>
+  const resolve = (ns?: string): Record<string, unknown> | undefined => {
+    if (!ns) return chrome
+    let node: unknown = chrome
+    for (const p of ns.replace(/^v2\.?/, '').split('.').filter(Boolean)) {
+      node = (node as Record<string, unknown> | undefined)?.[p]
+    }
+    return node as Record<string, unknown> | undefined
+  }
+  return {
+    useTranslations: (ns?: string) => {
+      const table = resolve(ns)
+      const f = (k: string) => {
+        let node: unknown = table
+        for (const p of k.split('.')) node = (node as Record<string, unknown> | undefined)?.[p]
+        return typeof node === 'string' ? node : k
+      }
+      ;(f as unknown as { has: (k: string) => boolean }).has = (k: string) =>
+        typeof table?.[k] === 'string'
+      return f
+    },
+  }
+})
 
 vi.mock('@/stores/useUserStore', () => ({
   useUserStore: (sel: (s: unknown) => unknown) =>

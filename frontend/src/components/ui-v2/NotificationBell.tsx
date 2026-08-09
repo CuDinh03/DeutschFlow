@@ -8,6 +8,7 @@ import { notificationApi, type NotificationItem } from '@/lib/notificationApi'
 import { subscribeNotificationUnread } from '@/lib/notificationStream'
 import { TYPE_TONE, TYPE_ICON, notifTitle, notifBody, relTime, resolveNotificationHref } from '@/lib/notificationDisplay'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import type { RoleId } from './nav'
 
@@ -21,6 +22,8 @@ import type { RoleId } from './nav'
  * badge realtime. The badge hides at 0 and on error (no fabricated number).
  */
 export function NotificationBell({ role }: { role: RoleId }) {
+  const t = useTranslations('v2.account.notifications')
+  const tc = useTranslations('v2.common')
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [unread, setUnread] = React.useState(0)
@@ -165,7 +168,7 @@ export function NotificationBell({ role }: { role: RoleId }) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={unread > 0 ? `Thông báo (${unread} chưa đọc)` : 'Thông báo'}
+          aria-label={unread > 0 ? t('bellAriaUnread', { count: unread }) : t('title')}
           className="relative grid h-[38px] w-[38px] place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink data-[state=open]:bg-ga-surface data-[state=open]:text-ga-ink"
         >
           <GaIcon name="notifications" size={20} />
@@ -200,14 +203,14 @@ export function NotificationBell({ role }: { role: RoleId }) {
         <div data-role={role}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-ga-line bg-ga-surface px-4 py-3">
-          <span className="font-ga-display text-[15px] font-semibold text-ga-ink">Thông báo</span>
+          <span className="font-ga-display text-[15px] font-semibold text-ga-ink">{t('title')}</span>
           {unread > 0 && (
             <button
               type="button"
               onClick={() => void markAll()}
               className="ga-ui text-[12px] font-semibold text-ga-accent transition-opacity hover:opacity-70"
             >
-              Đánh dấu đã đọc
+              {t('markAllShort')}
             </button>
           )}
         </div>
@@ -215,22 +218,22 @@ export function NotificationBell({ role }: { role: RoleId }) {
         {/* List */}
         <div className="max-h-[22rem] overflow-y-auto">
           {loading && items.length === 0 ? (
-            <p className="ga-ui px-4 py-8 text-center text-[13px] text-ga-muted">Đang tải…</p>
+            <p className="ga-ui px-4 py-8 text-center text-[13px] text-ga-muted">{t('loading')}</p>
           ) : err ? (
             <div className="px-4 py-8 text-center">
-              <p className="ga-ui text-[13px] text-ga-muted">Không thể tải thông báo.</p>
+              <p className="ga-ui text-[13px] text-ga-muted">{t('loadError')}</p>
               <button
                 type="button"
                 onClick={() => void fetchList()}
                 className="ga-ui mt-2 text-[12px] font-semibold text-ga-accent hover:opacity-70"
               >
-                Thử lại
+                {tc('retry')}
               </button>
             </div>
           ) : items.length === 0 ? (
             <div className="px-4 py-10 text-center">
-              <p className="font-ga-display text-[15px] font-medium text-ga-ink">Chưa có thông báo</p>
-              <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">Các cập nhật mới sẽ hiện ở đây.</p>
+              <p className="font-ga-display text-[15px] font-medium text-ga-ink">{t('emptyTitle')}</p>
+              <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">{t('emptyBody')}</p>
             </div>
           ) : (
             items.map((n, i) => {
@@ -257,7 +260,7 @@ export function NotificationBell({ role }: { role: RoleId }) {
                     <p className="ga-ui mt-1 text-[11px] text-ga-subtle">{relTime(n.createdAtUtc)}</p>
                   </div>
                   {!n.read && (
-                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-ga-accent" aria-label="chưa đọc" />
+                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-ga-accent" aria-label={t('unreadAria')} />
                   )}
                 </button>
               )
@@ -272,7 +275,7 @@ export function NotificationBell({ role }: { role: RoleId }) {
             onClick={() => setOpen(false)}
             className="ga-ui block text-center text-[12px] font-semibold text-ga-accent transition-opacity hover:opacity-70"
           >
-            Xem tất cả thông báo →
+            {t('viewAll')}
           </Link>
         </div>
         </div>

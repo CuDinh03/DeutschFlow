@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useTranslations } from 'next-intl'
 import { GaIcon } from './GaIcon'
 
 /**
@@ -35,12 +36,13 @@ export function useGaShellNav(): GaShellNavCtx {
  * rail còn là ngăn kéo); từ lg trở lên rail đã tĩnh nên nút ẩn.
  */
 export function GaSidebarToggle() {
+  const t = useTranslations('v2.shell')
   const { open, setOpen } = useGaShellNav()
   return (
     <button
       type="button"
       onClick={() => setOpen(true)}
-      aria-label="Mở menu điều hướng"
+      aria-label={t('openNavAria')}
       aria-expanded={open}
       aria-controls="ga-shell-sidebar"
       className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink lg:hidden"

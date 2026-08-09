@@ -2,13 +2,14 @@ import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { GaIcon } from './GaIcon'
 import { GaBtn } from './GaBtn'
+import { useTranslations } from 'next-intl'
 
 /** ErrorBanner — error + retry. Manifest: variants inline|page. */
 export interface ErrorBannerProps {
   variant?: 'inline' | 'page'
   title?: string
   message?: string
-  /** Retry handler; renders "Thử lại" when provided. */
+  /** Retry handler; renders the retry button when provided. */
   onRetry?: () => void
   retryLabel?: string
   className?: string
@@ -16,12 +17,16 @@ export interface ErrorBannerProps {
 
 export function ErrorBanner({
   variant = 'inline',
-  title = 'Đã xảy ra lỗi',
-  message = 'Không tải được dữ liệu. Vui lòng thử lại.',
+  title,
+  message,
   onRetry,
-  retryLabel = 'Thử lại',
+  retryLabel,
   className,
 }: ErrorBannerProps) {
+  const t = useTranslations('v2.common')
+  const resolvedTitle = title ?? t('errorTitle')
+  const resolvedMessage = message ?? t('errorLoadFailed')
+  const resolvedRetry = retryLabel ?? t('retry')
   if (variant === 'page') {
     return (
       <div
@@ -35,12 +40,12 @@ export function ErrorBanner({
           <GaIcon name="error" size={24} />
         </span>
         <div className="space-y-1">
-          <p className="font-ga-display text-[18px] font-medium text-ga-ink">{title}</p>
-          <p className="ga-ui mx-auto max-w-sm text-[13px] text-ga-muted">{message}</p>
+          <p className="font-ga-display text-[18px] font-medium text-ga-ink">{resolvedTitle}</p>
+          <p className="ga-ui mx-auto max-w-sm text-[13px] text-ga-muted">{resolvedMessage}</p>
         </div>
         {onRetry && (
           <GaBtn variant="ghost" size="sm" onClick={onRetry} className="mt-1">
-            {retryLabel}
+            {resolvedRetry}
           </GaBtn>
         )}
       </div>
@@ -56,12 +61,12 @@ export function ErrorBanner({
     >
       <GaIcon name="error" size={20} className="text-ga-red" />
       <div className="min-w-0 flex-1">
-        <p className="ga-ui text-[13px] font-semibold text-ga-ink">{title}</p>
-        <p className="ga-ui truncate text-[12.5px] text-ga-muted">{message}</p>
+        <p className="ga-ui text-[13px] font-semibold text-ga-ink">{resolvedTitle}</p>
+        <p className="ga-ui truncate text-[12.5px] text-ga-muted">{resolvedMessage}</p>
       </div>
       {onRetry && (
         <GaBtn variant="ghost" size="sm" onClick={onRetry}>
-          {retryLabel}
+          {resolvedRetry}
         </GaBtn>
       )}
     </div>

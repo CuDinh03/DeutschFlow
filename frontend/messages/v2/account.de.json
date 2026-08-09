@@ -65,6 +65,21 @@
       "comingSoon": "Bald verfügbar",
       "comingSoonNote": "Bezahlung über SePay ist bald verfügbar.",
       "defaultPlan": "Standard-Tarif"
+    },
+    "notifications": {
+      "title": "Benachrichtigungen",
+      "unreadCount": "{count} ungelesene Benachrichtigungen",
+      "allRead": "Alles gelesen",
+      "markAll": "Alle als gelesen markieren",
+      "loadError": "Benachrichtigungen konnten nicht geladen werden.",
+      "markedAll": "Alle Benachrichtigungen als gelesen markiert.",
+      "emptyTitle": "Noch keine Benachrichtigungen",
+      "emptyBody": "Neue Updates erscheinen hier.",
+      "unreadAria": "ungelesen",
+      "loading": "Wird geladen…",
+      "markAllShort": "Als gelesen markieren",
+      "bellAriaUnread": "Benachrichtigungen ({count} ungelesen)",
+      "viewAll": "Alle Benachrichtigungen ansehen →"
     }
   }
 }

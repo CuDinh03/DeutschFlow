@@ -105,7 +105,16 @@
   },
   "shell": {
     "logout": "Abmelden",
-    "mainNav": "Hauptnavigation"
+    "mainNav": "Hauptnavigation",
+    "searchPlaceholder": "Lektionen, Vokabeln, Klassen suchen…",
+    "searchAria": "Suche",
+    "helpAria": "Hilfe",
+    "chipAdmin": "● System stabil",
+    "chipTeacher": "Lehrerbereich",
+    "chipOrg": "Organisationsbereich",
+    "chipStudent": "Lernendenbereich",
+    "languageAria": "Sprache",
+    "openNavAria": "Navigationsmenü öffnen"
   },
   "common": {
     "start": "Starten",
@@ -118,6 +127,8 @@
     "back": "Zurück",
     "next": "Weiter",
     "confirm": "Bestätigen",
-    "search": "Suchen"
+    "search": "Suchen",
+    "errorTitle": "Ein Fehler ist aufgetreten",
+    "errorLoadFailed": "Daten konnten nicht geladen werden. Bitte erneut versuchen."
   }
 }

@@ -65,6 +65,21 @@
       "comingSoon": "Sắp ra mắt",
       "comingSoonNote": "Thanh toán qua SePay sẽ sớm có mặt.",
       "defaultPlan": "Gói mặc định"
+    },
+    "notifications": {
+      "title": "Thông báo",
+      "unreadCount": "{count} thông báo chưa đọc",
+      "allRead": "Tất cả đã đọc",
+      "markAll": "Đánh dấu đã đọc tất cả",
+      "loadError": "Không thể tải thông báo.",
+      "markedAll": "Đã đánh dấu tất cả là đã đọc.",
+      "emptyTitle": "Chưa có thông báo",
+      "emptyBody": "Các cập nhật mới sẽ hiện ở đây.",
+      "unreadAria": "chưa đọc",
+      "loading": "Đang tải…",
+      "markAllShort": "Đánh dấu đã đọc",
+      "bellAriaUnread": "Thông báo ({count} chưa đọc)",
+      "viewAll": "Xem tất cả thông báo →"
     }
   }
 }
