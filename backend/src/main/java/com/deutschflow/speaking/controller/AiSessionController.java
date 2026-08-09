@@ -123,9 +123,10 @@ public class AiSessionController {
             @RequestParam("audio") MultipartFile file) throws IOException {
         quotaService.assertAllowed(user.getId(), Instant.now(), STT_ESTIMATED_TOKENS);
         orgPoolGuard.assertOrgPoolAvailable(user.getId(), STT_ESTIMATED_TOKENS);
-        // Per-user request-rate guard on top of the quota wallet. Whisper costs ~$0.006/min and
-        // the wallet's audit lags by one call; without this, a single tight loop could rack up
-        // significant spend and pin the Whisper API before the quota even debits.
+        // Per-user request-rate guard on top of the quota wallet. STT is billed per audio minute
+        // (Fireworks whisper-v3-turbo $0.0009/min since 09/08/2026 — nguồn sự thật:
+        // AiCostEstimator.WHISPER_USD_PER_SEC) and the wallet's audit lags by one call; without
+        // this, a single tight loop could pin the STT endpoint before the quota even debits.
         requireAiBudget(Bucket.TRANSCRIBE, user.getId(), "Too many transcribe requests. Please slow down.");
         byte[] audio = readValidatedAudio(file);
         log.info("Transcribing audio file: {} ({} bytes)", file.getOriginalFilename(), audio.length);
