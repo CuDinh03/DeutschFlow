@@ -46,7 +46,24 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
 - [x] FW.c **Bug lòi khi soi tier**: yml 6/8 tier gương `${GROQ_MODEL}`/`${GROQ_GRADING_MODEL}` (flip ăn theo), nhưng `batch` + `error-verify` HARDCODE slug Groq — `batch` có caller thật (vocab tagging B4.1) ⇒ sau flip sẽ 404 âm thầm. Đã vá bằng env: `AI_LLM_TIER_BATCH_MODEL` + `AI_LLM_TIER_ERROR_VERIFY_MODEL` trỏ slug Fireworks (thêm vào `.env.production` 09/08).
 
 **Còn mở:**
-- [ ] 👤 FW.1 Deploy `./deploy-backend.sh` — chuyến này gom **#309 → #320**. ⚠️ **Đừng so với SHA ghim trong tài liệu**: mỗi lần merge (kể cả PR chỉ sửa docs) là `main` đổi SHA, nên con số viết ở đây rot ngay — đã rot 3 lần trong ngày 09/08 (`4c34c29c` → `7e9adc85` → `7d7b467f` → …). Cách đúng: chạy `git rev-parse --short origin/main` NGAY TRƯỚC khi deploy, rồi đối chiếu với log `[2/6] Pull code`. Hai số khớp mới tính là deploy đúng code (X.5: đừng tin exit 0).
+- [x] ✅ **FW.1 DEPLOYED 09/08** — `8c8bd989`, pipeline 317s, `/actuator/health` = UP. Chuyến này gom **#309 → #320** (11 PR): lần đầu prod chạy #309 route WeeklySpeaking, #310 STT portable + cờ nuốt prompt, #311 vá FW.7 (chấm mất nhận xét), cùng toàn bộ việc 09/08.
+  ⚠️ Không xác nhận được từ NGOÀI là build mới đã live: `/actuator/info` trả 401, và filter bảo mật trả 401 cho MỌI đường `/api/admin/*` kể cả path không tồn tại ⇒ phép thử "endpoint mới trả 401 thay vì 404" vô hiệu. Bằng chứng phải lấy từ log/DB — xem FW.1b.
+  💡 Lần deploy sau: đừng so với SHA ghim trong tài liệu (rot mỗi lần merge, riêng 09/08 rot 3 lần). Chạy `git rev-parse --short origin/main` NGAY TRƯỚC khi deploy rồi đối chiếu log `[2/6] Pull code`.
+- [ ] 👤 **FW.1b Nghiệm thu sau deploy — 2 lệnh, gộp 4 mục checklist (P2.V3 + E.6 + B1.9/B1.10 + FW.2b một phần):**
+  1. **Bảng tier phải in 9 dòng** (trước là 8 — dòng thứ 9 là `content-batch`, bằng chứng rẻ nhất rằng code mới đã live):
+     `bash ~/Developer/DeutschFlow/smoke-llm-tier.sh`
+  2. Sau khi làm 1 lượt nói + 1 bài chấm + 1 bài phát âm + 1 báo cáo phỏng vấn trên app, chạy trên RDS:
+     ```sql
+     SELECT feature, model, count(*) AS n,
+            sum(prompt_tokens) AS in_tok,
+            sum(cached_prompt_tokens) AS cached_tok,
+            round(100.0*sum(cached_prompt_tokens)/nullif(sum(prompt_tokens),0),1) AS cache_pct,
+            sum(completion_tokens) AS out_tok
+     FROM ai_token_usage_events
+     WHERE created_at > now() - interval '2 hours'
+     GROUP BY feature, model ORDER BY n DESC;
+     ```
+     Đọc kết quả: `model` phải là slug `accounts/fireworks/...` (FW.2b) · `cached_tok > 0` và `cache_pct` cỡ 90–99% (E.6 chạy đúng — nếu bằng 0 thì client không đọc được `prompt_tokens_details`) · `PRONUNCIATION_EVAL` + `INTERVIEW_REPORT` phải là **120b** chứ không còn 20b (B1.9/B1.10) · mock exam/grammar exam/teil2 là 120b (P2.V3).
 - [x] FW.2a **QA phía Fireworks — XONG 09/08** (script `scratchpad/qa_fw.py`, `rate_test.py`; chạy bằng ĐÚNG key/URL/model đọc từ `.env.production`):
   - ✅ **Chấm phát âm đọc đúng câu mẫu = 100/100** (chạy trọn thuật toán `PronunciationScorerService`: 9/9 CORRECT, avg_logprob −0,0047 suy từ `words[].probability` đúng như code #310). Bẫy nuốt prompt KHÔNG còn cửa nào chạm tới.
   - ✅ Chat nói 20b + `json_object` + `reasoning_effort=low`: 1,66s, JSON 9 field hợp lệ, bắt đúng lỗi `habe→bin` + giải thích tiếng Việt chuẩn.
