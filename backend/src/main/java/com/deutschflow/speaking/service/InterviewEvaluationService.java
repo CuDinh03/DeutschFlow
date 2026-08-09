@@ -75,8 +75,7 @@ public class InterviewEvaluationService {
 
             if (result.usage() != null) {
                 ledgerService.record(userId, result.provider(), result.model(),
-                        result.usage().promptTokens(), result.usage().completionTokens(),
-                        result.usage().totalTokens(), "INTERVIEW_EVAL", null, session.getId());
+                        result.usage(), "INTERVIEW_EVAL", null, session.getId());
             }
 
             String raw = result.content();

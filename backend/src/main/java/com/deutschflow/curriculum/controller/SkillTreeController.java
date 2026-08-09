@@ -300,8 +300,7 @@ public class SkillTreeController {
                     messages, llmTierResolver.spec(com.deutschflow.ai.tier.LlmTier.GRADING_EXAM), 0.2, 2048);
             if (result.usage() != null) {
                 ledgerService.record(user.getId(), result.provider(), result.model(),
-                        result.usage().promptTokens(), result.usage().completionTokens(),
-                        result.usage().totalTokens(), "CORRECT_WRITING", null, null);
+                        result.usage(), "CORRECT_WRITING", null, null);
             }
             var parsed = new com.fasterxml.jackson.databind.ObjectMapper().readTree(result.content());
             return ResponseEntity.ok(new com.fasterxml.jackson.databind.ObjectMapper().convertValue(parsed, Map.class));

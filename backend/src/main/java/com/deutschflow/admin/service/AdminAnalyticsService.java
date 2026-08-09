@@ -113,6 +113,7 @@ public class AdminAnalyticsService {
                     TO_CHAR(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') AS period,
                     COALESCE(model, 'unknown')                                     AS model,
                     SUM(prompt_tokens)::bigint                                      AS prompt_tokens,
+                    SUM(cached_prompt_tokens)::bigint                               AS cached_prompt_tokens,
                     SUM(completion_tokens)::bigint                                  AS completion_tokens
                 FROM ai_token_usage_events
                 %s
@@ -124,8 +125,11 @@ public class AdminAnalyticsService {
             String period = String.valueOf(row.get("period"));
             String model = String.valueOf(row.get("model"));
             long prompt = toLong(row.get("prompt_tokens"));
+            // Phần prompt được nhà cung cấp phục vụ từ cache — rẻ hơn input thường 2–10×
+            // (V270). Hàng ledger cũ không có số này ⇒ 0 ⇒ định giá y như trước.
+            long cachedPrompt = toLong(row.get("cached_prompt_tokens"));
             long completion = toLong(row.get("completion_tokens"));
-            usdByMonth.merge(period, aiCostEstimator.costUsd(model, prompt, completion), Double::sum);
+            usdByMonth.merge(period, aiCostEstimator.costUsd(model, prompt, cachedPrompt, completion), Double::sum);
         }
 
         Map<String, Long> vndByMonth = new HashMap<>(usdByMonth.size());

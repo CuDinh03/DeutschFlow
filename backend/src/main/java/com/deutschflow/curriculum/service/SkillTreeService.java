@@ -485,9 +485,7 @@ public class SkillTreeService {
             if (result.usage() != null) {
                 aiUsageLedgerService.record(
                         userId, result.provider(), result.model(),
-                        result.usage().promptTokens(),
-                        result.usage().completionTokens(),
-                        result.usage().totalTokens(),
+                        result.usage(),
                         "SKILL_TREE_GENERATE",
                         null, null
                 );
@@ -1122,8 +1120,7 @@ public class SkillTreeService {
 
             if (result.usage() != null) {
                 aiUsageLedgerService.record(userId, result.provider(), result.model(),
-                        result.usage().promptTokens(), result.usage().completionTokens(),
-                        result.usage().totalTokens(), "PRONUNCIATION_EVAL", null, null);
+                        result.usage(), "PRONUNCIATION_EVAL", null, null);
             }
 
             List<String> tips = new java.util.ArrayList<>();
@@ -1254,8 +1251,7 @@ public class SkillTreeService {
 
             if (result.usage() != null) {
                 aiUsageLedgerService.record(userId, result.provider(), result.model(),
-                        result.usage().promptTokens(), result.usage().completionTokens(),
-                        result.usage().totalTokens(), "INTERVIEW_REPORT", null, null);
+                        result.usage(), "INTERVIEW_REPORT", null, null);
             }
 
             return objectMapper.convertValue(parsed, Map.class);

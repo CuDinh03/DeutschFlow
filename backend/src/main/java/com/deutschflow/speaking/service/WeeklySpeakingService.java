@@ -181,9 +181,7 @@ public class WeeklySpeakingService {
                     userId,
                     ai.provider(),
                     ai.model(),
-                    ai.usage().promptTokens(),
-                    ai.usage().completionTokens(),
-                    ai.usage().totalTokens(),
+                    ai.usage(),
                     "WEEK_RUBRIC",
                     RequestContext.requestIdOrNull(),
                     null);

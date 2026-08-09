@@ -50,8 +50,7 @@ public class GreetingService {
                 template.getUserPromptTemplate(), null, template.getTemplateName(), cefrLevel);
         if (dialogueResult.usage() != null) {
             ledgerService.record(userId, dialogueResult.provider(), dialogueResult.model(),
-                    dialogueResult.usage().promptTokens(), dialogueResult.usage().completionTokens(),
-                    dialogueResult.usage().totalTokens(), "GREETING_DIALOGUE", null, null);
+                    dialogueResult.usage(), "GREETING_DIALOGUE", null, null);
         }
         String aiResponse = dialogueResult.content();
 
@@ -88,8 +87,7 @@ public class GreetingService {
                 "A1", session.getTemplateId() != null ? session.getTemplateId().toString() : "greeting");
         if (evalResult.usage() != null) {
             ledgerService.record(userId, evalResult.provider(), evalResult.model(),
-                    evalResult.usage().promptTokens(), evalResult.usage().completionTokens(),
-                    evalResult.usage().totalTokens(), "GREETING_EVAL", null, null);
+                    evalResult.usage(), "GREETING_EVAL", null, null);
         }
         String feedback = evalResult.content();
 
