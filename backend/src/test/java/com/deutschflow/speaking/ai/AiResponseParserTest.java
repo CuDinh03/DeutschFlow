@@ -233,22 +233,77 @@ class AiResponseParserTest {
     }
 
     @Test
-    void parse_breakingAiSpeechDe_fallbackPreservesRawAndClearsStructuredErrors() {
+    void parse_breakingAiSpeechDe_fallbackClearsStructuredErrorsAndNeverLeaksJson() {
         String junk = "{ not valid json }}}";
         AiParseOutcome junkOut = parser.parseWithOutcome(junk);
         assertThat(junkOut.status()).isEqualTo(FALLBACK_PARSE_ERROR);
         assertThat(junkOut.dto().errors()).isEmpty();
+        // JSON hỏng cú pháp cũng là rác máy móc — không được hiện cho học viên.
+        assertThat(junkOut.dto().aiSpeechDe()).doesNotContain("{");
 
         String noSpeechField = "{\"not\":\"model forgot contract\"}";
         AiParseOutcome out = parser.parseWithOutcome(noSpeechField);
         assertThat(out.status()).isEqualTo(FALLBACK_MISSING_AI_SPEECH);
         assertThat(out.dto().errors()).isEmpty();
-        assertThat(out.dto().aiSpeechDe()).contains("not");
+        // ĐỔI HỢP ĐỒNG (sự cố prod 09/08): bản cũ assert `contains("not")` — tức test mã hoá đúng
+        // cái bug, khẳng định payload thô được đổ vào bong bóng chat.
+        assertThat(out.dto().aiSpeechDe()).isEqualTo("...");
 
         String missingSpeech = "{\"errors\":[{\"error_code\":\"VERB.PARTIZIP_II_FORM\"}],\"learning_status\":{}}";
         AiParseOutcome out2 = parser.parseWithOutcome(missingSpeech);
         assertThat(out2.status()).isEqualTo(FALLBACK_MISSING_AI_SPEECH);
         assertThat(out2.dto().errors()).isEmpty();
-        assertThat(out2.dto().aiSpeechDe()).contains("errors");
+        assertThat(out2.dto().aiSpeechDe()).isEqualTo("...");
+    }
+
+    // ── Sự cố prod 09/08: bong bóng chat hiện nguyên văn JSON ────────────────────────────────
+
+    @Test
+    void parse_exactProdIncidentPayload_salvagesGermanSentence() {
+        // Chụp nguyên văn từ ảnh màn hình học viên: phiên chạy V1 nhưng model trả hình dạng schema
+        // V2, kèm mảnh JSON-Schema bị lọt ("type":"object").
+        String payload = "{\"type\":\"object\",\"content\":\"Ach, Finacition! "
+                + "Was ist dein Lieblingsfeature dort?\"}";
+
+        AiParseOutcome out = parser.parseWithOutcome(payload);
+
+        assertThat(out.dto().aiSpeechDe())
+                .isEqualTo("Ach, Finacition! Was ist dein Lieblingsfeature dort?");
+        assertThat(out.dto().aiSpeechDe()).doesNotContain("{").doesNotContain("type");
+        // KHÔNG phải STRUCTURED: hợp đồng đã vỡ nên trường phụ không được tin/persist.
+        assertThat(out.status()).isEqualTo(AiParseStatus.FALLBACK_ALIAS_SALVAGED);
+        assertThat(out.dto().errors()).isEmpty();
+        assertThat(out.dto().correction()).isNull();
+    }
+
+    @Test
+    void parse_schemaNoiseIsNotMistakenForSpeech() {
+        AiParseOutcome out = parser.parseWithOutcome("{\"type\":\"object\",\"text\":\"string\"}");
+
+        assertThat(out.dto().aiSpeechDe()).isEqualTo("...");
+        assertThat(out.status()).isEqualTo(FALLBACK_MISSING_AI_SPEECH);
+    }
+
+    @Test
+    void parse_plainTextStillUsedAsSpeech() {
+        AiParseOutcome out = parser.parseWithOutcome("Guten Tag! Wie geht es dir heute?");
+
+        assertThat(out.dto().aiSpeechDe()).isEqualTo("Guten Tag! Wie geht es dir heute?");
+        assertThat(out.status()).isEqualTo(FALLBACK_PARSE_ERROR);
+    }
+
+    @Test
+    void parse_neverLeaksMachineNoiseForAnyPayload() {
+        for (String payload : java.util.List.of(
+                "{\"type\":\"object\",\"content\":\"Ach so!\"}",
+                "{\"not\":\"contract\"}",
+                "{ broken json ]]",
+                "[{\"content\":\"array thay vì object\"}]",
+                "{\"ai_speech_de\":null,\"content\":null}",
+                "```json\n{\"content\":\"Sehr gut!\"}\n```")) {
+            String speech = parser.parse(payload).aiSpeechDe();
+            assertThat(speech).as("payload=%s", payload)
+                    .doesNotContain("{").doesNotContain("ai_speech_de").doesNotContain("\"type\"");
+        }
     }
 }

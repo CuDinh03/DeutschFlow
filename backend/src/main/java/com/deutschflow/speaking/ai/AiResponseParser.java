@@ -87,8 +87,10 @@ public class AiResponseParser {
 
             // If ai_speech_de is missing or blank, fall back to raw text
             if (aiSpeechDe == null || aiSpeechDe.isBlank()) {
-                log.warn("OpenAI response parsed but ai_speech_de is missing/blank — using fallback");
-                return new AiParseOutcome(fallback(rawJson), AiParseStatus.FALLBACK_MISSING_AI_SPEECH);
+                // Thiếu ai_speech_de: có thể model trả hình dạng schema V2 ({"content":…}) hoặc
+                // tự chọn tên khác. Vớt câu nói ra thay vì đổ nguyên payload vào bong bóng chat.
+                log.warn("V1: ai_speech_de thiếu/rỗng — thử vớt lời thoại từ trường phụ");
+                return fallbackOutcome(rawJson);
             }
 
             var dto = new AiResponseDto(
@@ -97,8 +99,8 @@ public class AiResponseParser {
             return new AiParseOutcome(dto, AiParseStatus.STRUCTURED);
 
         } catch (Exception e) {
-            log.warn("Failed to parse OpenAI JSON response, using fallback. Error: {}", e.getMessage());
-            return new AiParseOutcome(fallback(rawJson), AiParseStatus.FALLBACK_PARSE_ERROR);
+            log.warn("V1: không parse được JSON, chuyển fallback. Lỗi: {}", e.getMessage());
+            return fallbackOutcome(rawJson);
         }
     }
 
@@ -114,8 +116,9 @@ public class AiResponseParser {
             String action = textOrNull(root, "action");
 
             if (content == null || content.isBlank()) {
-                log.warn("V2: content missing/blank — using fallback");
-                return new AiParseOutcome(fallbackV2(rawJson), AiParseStatus.FALLBACK_MISSING_AI_SPEECH);
+                // Đối xứng với V1: phiên V2 mà model trả {"ai_speech_de":…} thì vẫn đọc được.
+                log.warn("V2: content thiếu/rỗng — thử vớt lời thoại từ trường phụ");
+                return fallbackOutcome(rawJson);
             }
 
             var dto = new AiResponseDto(
@@ -134,8 +137,8 @@ public class AiResponseParser {
             return new AiParseOutcome(dto, AiParseStatus.STRUCTURED);
 
         } catch (Exception e) {
-            log.warn("Failed to parse V2 JSON, using fallback. Error: {}", e.getMessage());
-            return new AiParseOutcome(fallbackV2(rawJson), AiParseStatus.FALLBACK_PARSE_ERROR);
+            log.warn("V2: không parse được JSON, chuyển fallback. Lỗi: {}", e.getMessage());
+            return fallbackOutcome(rawJson);
         }
     }
 
@@ -191,18 +194,105 @@ public class AiResponseParser {
     }
 
     /**
-     * Creates a fallback response using the raw text as the German speech.
+     * Tên trường có thể chứa câu nói khi model trả JSON SAI hợp đồng của tầng.
+     *
+     * <p>Thứ tự: trường chính của schema kia trước ({@code content} của V2, {@code ai_speech_de}
+     * của V1) rồi tới các tên chung mà model hay tự chọn. Sự cố prod 09/08 rơi đúng ca đầu:
+     * phiên chạy V1 mà model trả {@code {"type":"object","content":"Ach, …"}}.
      */
-    private AiResponseDto fallback(String rawText) {
-        String speech = (rawText == null || rawText.isBlank()) ? "..." : rawText;
+    private static final List<String> SPEECH_ALIASES = List.of(
+            "content", "ai_speech_de", "text", "message", "speech", "answer", "response", "reply");
+
+    /**
+     * Kết quả vớt lời thoại từ payload sai hợp đồng.
+     *
+     * @param speech    câu nói đọc được, hoặc null nếu không vớt được gì
+     * @param wasJson   payload có phải JSON object không — quyết định được phép hiển thị nguyên văn
+     */
+    private record Salvage(String speech, boolean wasJson) {}
+
+    /**
+     * Cố đọc câu nói từ payload không khớp hợp đồng, và cho biết payload có phải JSON hay không.
+     *
+     * <p><b>Vì sao cần:</b> nhánh fallback trước đây nhét NGUYÊN payload vào {@code aiSpeechDe},
+     * nên khi model trả JSON lệch hình dạng thì học viên thấy cả cục {@code {"type":"object",…}}
+     * trong bong bóng chat (sự cố prod 09/08). Câu tiếng Đức lúc đó vẫn nằm sẵn trong
+     * {@code content} — chỉ là không ai đi lấy.
+     */
+    private Salvage salvage(String rawText) {
+        if (rawText == null || rawText.isBlank()) {
+            return new Salvage(null, false);
+        }
+        String cleaned = extractJsonObject(stripMarkdownFences(rawText.trim()));
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(cleaned);
+        } catch (Exception e) {
+            // Không phải JSON ⇒ đây là văn bản thuần, dùng thẳng làm lời thoại (degrade hợp lý:
+            // model bỏ JSON mode nhưng câu nói vẫn đọc được với người học).
+            return new Salvage(null, false);
+        }
+        if (root == null || !root.isObject()) {
+            return new Salvage(null, false);
+        }
+        for (String alias : SPEECH_ALIASES) {
+            String candidate = textOrNull(root, alias);
+            // Bỏ giá trị chỉ là mô tả schema bị lọt ("object", "string"…) chứ không phải câu nói.
+            if (candidate != null && !isSchemaNoise(candidate)) {
+                return new Salvage(candidate, true);
+            }
+        }
+        return new Salvage(null, true);
+    }
+
+    /** Giá trị rõ ràng là mảnh JSON-Schema model copy vào chứ không phải lời thoại. */
+    private static boolean isSchemaNoise(String value) {
+        String v = value.trim().toLowerCase();
+        return v.equals("object") || v.equals("string") || v.equals("array")
+                || v.equals("number") || v.equals("boolean") || v.equals("null");
+    }
+
+    /**
+     * Lời thoại cho nhánh fallback — <b>bất biến: KHÔNG bao giờ trả JSON thô cho người học.</b>
+     *
+     * <p>Ba ca: (a) payload là JSON và vớt được câu ở trường khác → dùng câu đó; (b) payload là
+     * JSON nhưng không có gì đọc được → trả {@code "..."} (thà trống còn hơn lộ nội bộ); (c)
+     * payload không phải JSON → dùng nguyên văn, vì lúc đó nó chính là câu model nói.
+     */
+    private AiParseOutcome fallbackOutcome(String rawText) {
+        Salvage s = salvage(rawText);
+        if (s.speech() != null) {
+            log.warn("Payload sai hợp đồng nhưng vớt được lời thoại từ trường phụ — "
+                    + "trường phụ (correction/errors) BỎ vì không đáng tin");
+            return new AiParseOutcome(speechOnly(s.speech()), AiParseStatus.FALLBACK_ALIAS_SALVAGED);
+        }
+        if (s.wasJson()) {
+            log.warn("Payload là JSON nhưng không có trường lời thoại nào đọc được — "
+                    + "KHÔNG hiển thị JSON thô cho học viên");
+            return new AiParseOutcome(speechOnly("..."), AiParseStatus.FALLBACK_MISSING_AI_SPEECH);
+        }
+        String plain = rawText == null ? "" : rawText.trim();
+        if (plain.isBlank()) {
+            return new AiParseOutcome(speechOnly("..."), AiParseStatus.FALLBACK_PARSE_ERROR);
+        }
+        // JSON HỎNG (mở ngoặc rồi sai cú pháp) cũng không được hiện ra: nó là rác máy móc, không
+        // phải câu model muốn nói. Chỉ payload không có dấu hiệu JSON nào mới được dùng nguyên văn.
+        if (plain.startsWith("{") || plain.startsWith("[")) {
+            log.warn("Payload trông như JSON nhưng hỏng cú pháp — KHÔNG hiển thị nguyên văn cho học viên");
+            return new AiParseOutcome(speechOnly("..."), AiParseStatus.FALLBACK_PARSE_ERROR);
+        }
+        return new AiParseOutcome(speechOnly(plain), AiParseStatus.FALLBACK_PARSE_ERROR);
+    }
+
+    /** DTO chỉ có lời thoại; mọi trường phụ để rỗng vì hợp đồng đã vỡ. */
+    private AiResponseDto speechOnly(String speech) {
         return new AiResponseDto(speech, null, null, null, null, null, List.of(),
                 null, null, null, List.of(), null);
     }
 
-    private AiResponseDto fallbackV2(String rawText) {
-        String speech = (rawText == null || rawText.isBlank()) ? "..." : rawText;
-        return new AiResponseDto(speech, null, null, null, null, null, List.of(),
-                null, null, null, List.of(), null);
+    /** Giữ cho ca input null (không có gì để vớt). */
+    private AiResponseDto fallback(String rawText) {
+        return speechOnly((rawText == null || rawText.isBlank()) ? "..." : rawText);
     }
 
     /**
