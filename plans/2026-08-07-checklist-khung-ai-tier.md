@@ -259,7 +259,7 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
        --tiers chat-paid --model accounts/fireworks/models/gpt-oss-120b --runs 3 --stream --ttft-runs 12"
     ```
     (`.env.production` đã sẵn trên EC2 do `deploy-backend.sh` scp vào `/home/ubuntu/DeutschFlow/`.) Đo cả `--tiers chat-free` làm đối chứng cùng vantage point. Trung vị <1,5s ⇒ ship G; không đạt ⇒ PAID = FREE, phân biệt gói bằng quota/tính năng.
-- [ ] G1.4b Contract test route PAID phía BE: schema V1/V2 khi tier PAID bật (chạy sau khi có G1.1–G1.3).
+- [ ] G1.4c Contract test route PAID phía BE: schema V1/V2 khi tier PAID bật (chạy sau khi có G1.1–G1.3). *(đổi tên từ G1.4b để khỏi trùng nhãn với mục đo TTFT từ EC2 ở trên)*
 - [ ] G1.5 e2e 2 account FREE vs PRO: ledger ghi model khác nhau; kill-switch env `AI_LLM_TIER_CHAT_PAID_MODEL=accounts/fireworks/models/gpt-oss-20b` hoạt động.
 - [ ] G1.6 Marketing/copy gói trả phí cập nhật (persona "não to") — phối hợp owner.
 
@@ -277,10 +277,11 @@ Ký hiệu: ⬜ chưa làm · 🔄 đang làm · ✅ xong · ⛔ chặn (ghi lý
 
 ## P5 — REGEN CÂY HỌC TẬP (Khu vực H)
 
-- [ ] H1.1 Admin batch command (idempotent, resume được): iterate node theo level → sinh bằng `CONTENT` (Sonnet) → verifier Gemini 2.5 Flash chấm `{pass, issues[]}` → pass mới swap cache nguyên tử theo node; fail vào danh sách rà tay.
+- [ ] H1.1 Admin batch command (idempotent, resume được): iterate node theo level → sinh bằng **`kimi-k3`** (quyết định #9; ~~Sonnet~~ đóng đường từ khi bỏ OpenRouter) → **verifier `deepseek-v4-flash`** (~~Gemini~~, cùng lý do; nguyên tắc khác-họ với model sinh) chấm `{pass, issues[]}` → pass mới swap cache nguyên tử theo node; fail vào danh sách rà tay.
+  - 🔑 **Đã có nền:** `SkillTreeContentPregenerationService` (#318) làm sẵn phần iterate + sinh + ghi cache + idempotent/resume. H1.1 = mở rộng nó theo 2 hướng: (a) cho phép GHI ĐÈ node đã có nội dung (F3.4b cố tình chỉ lấp chỗ trống), (b) thêm bước verifier trước khi swap. Đừng viết lại từ đầu.
 - [ ] H1.2 Dry-run 10 node A1 → 👤 owner rà mẫu nội dung.
 - [ ] H1.3 Chạy A1 → rà mẫu → A2 → … (mỗi level một lần duyệt).
-- [ ] H1.4 Ghi cost thật từng level vào checklist (ước tổng ~$30–40).
+- [ ] H1.4 Ghi cost thật từng level vào checklist (ước tổng **~$6 cho 144 node** bằng `kimi-k3` @ $3/$15 per 1M — thay dự toán $30–40 của thời Sonnet).
 - [ ] H1.5 e2e cây học tập (đã có suite roadmap) xanh sau mỗi level.
 
 ---
