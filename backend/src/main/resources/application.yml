@@ -460,6 +460,16 @@ app:
           model: "${AI_LLM_TIER_CONTENT_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
           # Giữ hành vi cũ (đường null-model có effort=low). Flip sang họ khác thì xoá effort.
           reasoning-effort: "${AI_LLM_TIER_CONTENT_EFFORT:${GROQ_REASONING_EFFORT:low}}"
+        # Sinh nội dung bài học TRƯỚC theo lô (admin chạy, KHÔNG ai chờ) — quyết định #15 (09/08).
+        # Default GƯƠNG tier `content` ⇒ chưa flip thì hành vi y hệt hôm nay. Đây là chỗ DUY NHẤT
+        # nên đặt kimi-k2p6: đo 09/08 thấy nó cần ≥4096 token (ở 1024 trả RỖNG, im lặng, không
+        # exception) và mất 32–41s mỗi node — chấp nhận được khi chạy lô, KHÔNG chấp nhận được ở
+        # đường unlock của học viên.
+        # Flip: AI_LLM_TIER_CONTENT_BATCH_MODEL=accounts/fireworks/models/kimi-k2p6
+        #       AI_LLM_TIER_CONTENT_BATCH_EFFORT=   (để RỖNG — K2.6 không thuộc họ gpt-oss, xem FW.7)
+        content-batch:
+          model: "${AI_LLM_TIER_CONTENT_BATCH_MODEL:${AI_LLM_TIER_CONTENT_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}}"
+          reasoning-effort: "${AI_LLM_TIER_CONTENT_BATCH_EFFORT:${GROQ_REASONING_EFFORT:low}}"
         # Batch đêm (tag từ vựng, …) — model CHẤM theo quyết định #10 (chốt tại P2). Tag maxTokens=600
         # nên effort=low là BẮT BUỘC với họ gpt-oss (token "nghĩ" ăn chung budget completion).
         # Chain qua ${GROQ_GRADING_MODEL} như grading-*: đây là tier ĐANG có caller thật (vocab
