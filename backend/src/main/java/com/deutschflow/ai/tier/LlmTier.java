@@ -24,8 +24,17 @@ public enum LlmTier {
     GRADING_DAILY,
     /** Giải thích lỗi/sửa câu cho học viên (AiTextService). */
     EXPLAIN,
-    /** Sinh nội dung bài học có cache (SkillTree/PracticeNode). */
+    /** Sinh nội dung bài học có cache (SkillTree/PracticeNode) — học viên ĐANG CHỜ kết quả. */
     CONTENT,
+    /**
+     * Sinh nội dung bài học TRƯỚC theo lô, khi chưa có học viên nào chờ (admin batch).
+     *
+     * <p>Tách khỏi {@link #CONTENT} theo quyết định #15 (09/08): model mạnh cho nội dung sư phạm
+     * là đáng tiền vì sinh MỘT lần rồi cache phục vụ nghìn lượt — nhưng đo thật thấy Kimi K2.6
+     * mất <b>32–41s mỗi node</b>, không ai chờ nổi ở đường unlock. Dùng chung một tier thì buộc
+     * phải chọn một trong hai; tách ra thì đường lô mua được chất lượng mà đường realtime vẫn nhanh.
+     */
+    CONTENT_BATCH,
     /** Việc batch chạy đêm, không nhạy latency (tag từ vựng, …). */
     BATCH;
 
