@@ -148,6 +148,28 @@ public class InterviewReportValidator {
         return n.toString();
     }
 
+    /**
+     * C2 (Đợt C 10/08): server là nguồn sự thật duy nhất về lỗi ngữ pháp. Phiên không có lỗi nào
+     * được ghi nhận ⇒ {@code german_language.common_errors_vi} bị ép RỖNG — model có "sáng tác"
+     * thêm lỗi cũng bị cắt trước khi lưu.
+     */
+    public String trimUngroundedErrors(String normalizedJson, boolean hasServerErrors) {
+        if (hasServerErrors || normalizedJson == null) {
+            return normalizedJson;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(normalizedJson);
+            JsonNode german = root.get("german_language");
+            if (german != null && german.isObject()) {
+                ArrayNode errs = ((ObjectNode) german).putArray("common_errors_vi");
+                errs.removeAll();
+            }
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception e) {
+            return normalizedJson;
+        }
+    }
+
     /** EVAL_FAILED được phép chấm lại ở lần end kế; report thật/INSUFFICIENT thì không. */
     public static boolean isRetryableFailure(String reportJson) {
         return reportJson != null && reportJson.contains("\"type\":\"" + TYPE_EVAL_FAILED + "\"");
