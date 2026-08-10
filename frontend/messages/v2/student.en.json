@@ -613,7 +613,10 @@
       "correction": "Correction: ",
       "explanation": "Explanation: ",
       "grammarErrors": "{count} grammar errors",
-      "details": "Details"
+      "details": "Details",
+      "groupToday": "Today",
+      "groupThisWeek": "This week",
+      "groupOlder": "Older"
     },
     "exerciseHistory": {
       "title": "Lesson attempt history",

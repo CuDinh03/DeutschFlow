@@ -29,6 +29,8 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
    */
   const [loadFailed, setLoadFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  /** Band có đề tuần này — chỉ tra khi 404 để empty-state nói thật (null = chưa tra xong). */
+  const [availableBands, setAvailableBands] = useState<string[] | null>(null);
 
   const [transcript, setTranscript] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -61,6 +63,15 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
         if (cancelled) return;
         if (httpStatus(e) === 404) {
           setPrompt(null);   // thật sự chưa có đề cho band này
+          // QA 09/08 mục I: empty-state phải nói thật band nào ĐANG có đề, thay vì bắt
+          // học viên bấm thử từng band (backend đã fallback band lân cận nên 404 thường
+          // = cả tuần trống — tra để xác nhận).
+          weeklySpeakingApi
+            .getAvailableBands()
+            .then((res) => {
+              if (!cancelled) setAvailableBands(res.data ?? []);
+            })
+            .catch(() => {});
           return;
         }
         setLoadFailed(true); // tải hỏng — KHÔNG được hiển thị như "chưa có đề"
@@ -161,7 +172,9 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
   if (!prompt) {
     return (
       <div className="rounded-[20px] border border-[#E2E8F0] bg-[#F8FAFC] p-6 text-center text-sm text-[#64748B]">
-        {t("weeklyNoPrompt")}
+        {availableBands && availableBands.length > 0
+          ? t("weeklyNoPromptOtherBands", { bands: availableBands.join(", ") })
+          : t("weeklyNoPromptWeek")}
       </div>
     );
   }

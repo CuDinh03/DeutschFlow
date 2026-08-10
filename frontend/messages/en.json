@@ -697,6 +697,8 @@
     "weeklyAlreadySubmitted": "You already submitted for this week's prompt.",
     "weeklyRecordingHint": "Recording… tap mic again to stop.",
     "weeklyNoPrompt": "No weekly prompt for your level yet. Try another band or wait for admins to publish one.",
+    "weeklyNoPromptWeek": "No weekly speaking prompt has been published yet this week. It will appear here as soon as one is available.",
+    "weeklyNoPromptOtherBands": "This week has prompts for band {bands} — pick one of those bands above.",
     "weeklyLoadFailed": "Couldn't load this week's prompt. Check your connection and try again.",
     "weeklyRetry": "Try again",
     "weeklyYourTranscript": "Your submission",
@@ -707,6 +709,7 @@
     "chat": {
       "modeConversation": "Conversation",
       "modeInterview": "Interview",
+      "modeLesson": "Practice",
       "emptyStart": "Start your conversation with {name}",
       "connectionError": "Sorry, a connection error occurred.",
       "inputPlaceholder": "Message {name}...",

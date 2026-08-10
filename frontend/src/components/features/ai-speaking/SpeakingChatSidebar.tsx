@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Lightbulb, Mic, AlertCircle, Info, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -36,6 +36,12 @@ interface Props {
   hasUserSpoken?: boolean;
   onSuggestionSelect: (text: string) => void;
   onStarterSelect: (text: string) => void;
+  /**
+   * QA 09/08 (J5): link "Xem N lỗi" trong bong bóng chat cần mở được panel desktop —
+   * state mở panel nâng lên cha (controlled) thay vì nội bộ, để mọi lối vào cùng một nguồn.
+   */
+  panelOpen: boolean;
+  onPanelOpenChange: (open: boolean) => void;
 }
 
 function vizState(
@@ -67,10 +73,11 @@ export function SpeakingChatSidebar({
   hasUserSpoken,
   onSuggestionSelect,
   onStarterSelect,
+  panelOpen,
+  onPanelOpenChange: setPanelOpen,
 }: Props) {
   const t = useTranslations("speaking.chat");
   const viz = vizState(isListening, streamStatus, isSpeaking);
-  const [panelOpen, setPanelOpen] = useState(false);
 
   const showRecordingPanel = isListening || viz !== "idle";
   const showComposing = !isListening && !!inputText.trim();
@@ -106,7 +113,7 @@ export function SpeakingChatSidebar({
           label={t("suggestionsTitle")}
           active={panelOpen}
           badge={showSuggestionRequest || showSuggestionPanel}
-          onClick={() => setPanelOpen((v) => !v)}
+          onClick={() => setPanelOpen(!panelOpen)}
         >
           <Lightbulb size={18} />
         </RailButton>

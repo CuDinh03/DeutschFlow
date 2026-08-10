@@ -613,7 +613,10 @@
       "correction": "Korrektur: ",
       "explanation": "Erklärung: ",
       "grammarErrors": "{count} Grammatikfehler",
-      "details": "Details"
+      "details": "Details",
+      "groupToday": "Heute",
+      "groupThisWeek": "Diese Woche",
+      "groupOlder": "Älter"
     },
     "exerciseHistory": {
       "title": "Versuchs-Historie (Lektionen)",

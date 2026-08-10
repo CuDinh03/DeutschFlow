@@ -196,11 +196,15 @@ export function CompanionSelect({
         : sessionMode === "INTERVIEW" ? interviewPosition
         : "Alltag";
 
+      // QA 09/08 mục H: mọi persona LESSON (Tuấn/Lan/Minh) dạy band A1 cho người mới —
+      // phiên LESSON chốt A1 thay vì cefrLevel hồ sơ (header từng ghi "· B1" trong bài A1).
+      const sessionCefr = sessionMode === "LESSON" ? "A1" : cefrLevel;
+
       const res = await aiSpeakingApi.createSession(
         topicForApi ?? "Alltag",
         // QA 09/08 mục F: bản cũ hardcode "C1" cho mọi phiên phỏng vấn — học viên B1 bị hỏi ở
         // mức C1 (mức không thể tự chọn) và kết quả kém làm ô nhiễm SpeakingUserState.
-        cefrLevel,
+        sessionCefr,
         selected.toUpperCase(),
         "V1",
         sessionMode,
@@ -217,7 +221,7 @@ export function CompanionSelect({
         avatarUrl: `/companions/${token.id}.png`,
         voiceId: token.id.toUpperCase(),
         personality: token.desc,
-        cefrLevel,
+        cefrLevel: sessionCefr,
       };
 
       // Same store bootstrap as the class-assignment entry point (lib/speakingSessionBootstrap).
@@ -337,6 +341,8 @@ export function CompanionSelect({
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
             {filteredGroups.map((g) => (
               <motion.button key={g.id} onClick={() => { setActiveGroup(g.id); setSelected(null); }}
+                aria-label={g.label}
+                aria-pressed={activeGroup === g.id}
                 className={`ga-ui flex items-center gap-1.5 px-3 py-1.5 rounded-ga-pill border text-xs font-semibold whitespace-nowrap transition-colors ${
                   activeGroup === g.id
                     ? "border-ga-yellow bg-ga-yellow-soft text-ga-gold"

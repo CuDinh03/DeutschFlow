@@ -671,6 +671,8 @@
     "weeklyAlreadySubmitted": "Du hast diese Woche schon abgegeben.",
     "weeklyRecordingHint": "Aufnahme… Mikro erneut tippen zum Stoppen.",
     "weeklyNoPrompt": "Kein wöchentliches Thema für dein Level. Anderes CEFR wählen oder später erneut prüfen.",
+    "weeklyNoPromptWeek": "Für diese Woche wurde noch keine Sprechaufgabe veröffentlicht. Sie erscheint hier, sobald sie verfügbar ist.",
+    "weeklyNoPromptOtherBands": "Diese Woche gibt es Aufgaben für Band {bands} — wähle oben eines dieser Bänder.",
     "weeklyLoadFailed": "Wochenthema konnte nicht geladen werden. Verbindung prüfen und erneut versuchen.",
     "weeklyRetry": "Erneut versuchen",
     "weeklyYourTranscript": "Dein eingereichter Text",
@@ -681,6 +683,7 @@
     "chat": {
       "modeConversation": "Gespräch",
       "modeInterview": "Interview",
+      "modeLesson": "Übung",
       "emptyStart": "Starte dein Gespräch mit {name}",
       "connectionError": "Entschuldigung, Verbindungsfehler.",
       "inputPlaceholder": "Nachricht an {name}…",

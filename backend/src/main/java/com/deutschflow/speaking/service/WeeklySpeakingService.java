@@ -80,6 +80,23 @@ public class WeeklySpeakingService {
         return mapPrompt(row);
     }
 
+    /**
+     * Các band có đề ACTIVE trong tuần hiện tại, xếp theo thang CEFR (QA 09/08 mục I:
+     * học viên phải bấm thử từng band để biết band nào có đề; tuần trống thì lối vào
+     * "Chủ đề theo tuần" là ngõ cụt — client dùng danh sách này để ẩn/nói thật).
+     */
+    public List<String> availableBandsThisWeek() {
+        LocalDate weekStart = currentWeekStartVn(Instant.now());
+        List<String> bands = jdbcTemplate.query("""
+                        SELECT DISTINCT cefr_band FROM weekly_speaking_prompts
+                        WHERE week_start_date = ? AND is_active = TRUE
+                        """,
+                (rs, n) -> rs.getString(1), Date.valueOf(weekStart));
+        bands.sort(java.util.Comparator.comparingInt(
+                com.deutschflow.speaking.util.SpeakingCefrSupport::bandIndex));
+        return bands;
+    }
+
     private Map<String, Object> loadPromptRow(LocalDate weekStart, String cefrBand) {
         List<Map<String, Object>> hits = jdbcTemplate.query("""
                         SELECT id, week_start_date, cefr_band, title, prompt_de,

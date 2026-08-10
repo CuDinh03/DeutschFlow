@@ -699,6 +699,8 @@
     "weeklyAlreadySubmitted": "Bạn đã gửi bài cho chủ đề tuần này.",
     "weeklyRecordingHint": "Đang ghi âm… nhấn lại mic để dừng.",
     "weeklyNoPrompt": "Chưa có đề nói tuần này cho trình độ của bạn. Thử chỉnh band CEFR hoặc đợi admin cập nhật.",
+    "weeklyNoPromptWeek": "Tuần này trung tâm chưa ra đề nói. Đề mới sẽ xuất hiện tại đây ngay khi có.",
+    "weeklyNoPromptOtherBands": "Band {bands} đang có đề tuần này — chọn band ở trên để làm bài.",
     "weeklyLoadFailed": "Không tải được đề nói tuần này. Kiểm tra kết nối rồi thử lại.",
     "weeklyRetry": "Thử lại",
     "weeklyYourTranscript": "Nộp dựng của bạn",
@@ -709,6 +711,7 @@
     "chat": {
       "modeConversation": "Hội thoại",
       "modeInterview": "Phỏng vấn",
+      "modeLesson": "Luyện tập",
       "emptyStart": "Hãy bắt đầu cuộc hội thoại với {name}",
       "connectionError": "Xin lỗi, đã xảy ra lỗi kết nối.",
       "inputPlaceholder": "Nhắn tin với {name}...",
