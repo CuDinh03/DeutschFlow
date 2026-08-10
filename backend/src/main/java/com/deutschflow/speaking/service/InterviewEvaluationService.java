@@ -182,7 +182,7 @@ public class InterviewEvaluationService {
                 Du hast gerade ein Bewerbungsgespräch beobachtet. Hier sind die Details:
                 - Position: %s
                 - Erfahrungslevel des Kandidaten: %s
-                - Deutsch-Niveau (CEFR): %s
+                - Übungs-Level der Sitzung (NUR Kontext — NICHT das tatsächliche Niveau des Kandidaten): %s
                 - Interview-Orchestrierung (Server): %s
                 
                 == EVIDENZ-PROTOKOLL (pro Runde: Frage, wörtliche Antwort, server-seitige Fakten) ==
@@ -266,7 +266,13 @@ public class InterviewEvaluationService {
                   im Format "X/10" (z.B. "5.5/10"). KEINE davon abweichende Gesamtnote.
                 - remediation_vi: mindestens 3, maximal 5 Vorschläge — praktisch und umsetzbar.
                 - encouragement_vi: persönlich, bezieht sich auf konkrete Stärken aus dem Gespräch.
-                - Bewerte FAIR: berücksichtige das Erfahrungslevel (%s) und das Deutsch-Niveau (%s).
+                - Bewerte FAIR: berücksichtige das Erfahrungslevel (%s).
+                - vocabulary_level: Bewerte AUSSCHLIESSLICH anhand der TATSÄCHLICHEN Antworten im Protokoll
+                  (Satzstrukturen, Fachwortschatz wie z.B. Fachbegriffe des Berufs) — NIEMALS das
+                  Übungs-Level der Sitzung wiederholen. Ein Kandidat kann in einer B1-Sitzung C1 sprechen
+                  und umgekehrt. Belege die Einstufung in fluency_vi mit 2 wörtlich zitierten Wörtern/Phrasen.
+                - fluency_vi: NUR aus dem Text ableitbar (Satzlänge, Verknüpfungen, Struktur). VERBOTEN:
+                  Aussagen über Stimme, Pausen, Sprechtempo oder Aussprache — du siehst nur Text.
                 - Berücksichtige challengeCount und concreteExample in den Orchestrator-Metriken bei Fachkompetenz.
                 - Das Protokoll ist eine Sprache-zu-Text-Transkription: bewerte KEINE Aussprache/Orthografie,
                   nur Inhalt, Struktur, Grammatik und Wortschatz.
@@ -288,7 +294,7 @@ public class InterviewEvaluationService {
 
                 - NUR STRICT JSON ausgeben — kein Markdown, kein Text drumherum.
                 """.formatted(position, experience, cefrLevel, orchestrationMetrics, evidenceLedger,
-                        sessionErrorsBlock, experience, cefrLevel, cefrLevel,
+                        sessionErrorsBlock, experience, cefrLevel,
                         InterviewNextStepCatalog.promptBlock(allowedNextSteps));
     }
 }

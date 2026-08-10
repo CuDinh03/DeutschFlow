@@ -154,6 +154,11 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             SpeakingPersona persona = SpeakingPersona.fromApi(personaRaw);
             SpeakingResponseSchema responseSchema = SpeakingResponseSchema.fromApi(responseSchemaRaw);
             SpeakingSessionMode sessionMode = SpeakingSessionMode.fromApi(sessionModeRaw);
+            // Owner chốt 11/08: phỏng vấn xin việc yêu cầu trình độ TỪ B1 TRỞ LÊN — hồ sơ A0/A1
+            // từng kéo cả phiên phỏng vấn xuống A1 (câu hỏi lẫn đánh giá đều lệch ngữ cảnh tuyển dụng).
+            if (sessionMode == SpeakingSessionMode.INTERVIEW) {
+                resolved = com.deutschflow.speaking.util.SpeakingCefrSupport.floorAtBand(resolved, "B1");
+            }
             validateCreateSessionRequest(sessionMode, interviewPosition, experienceLevel, personaRaw, responseSchemaRaw);
             session = buildSpeakingSession(userId, topic, resolved, persona, responseSchema,
                     sessionMode, interviewPosition, experienceLevel, assignmentId);
