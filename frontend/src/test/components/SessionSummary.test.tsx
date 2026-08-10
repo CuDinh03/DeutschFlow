@@ -179,6 +179,29 @@ describe('SessionSummary — Đợt A 10/08: INTERVIEW không bao giờ hiện �
     expect(screen.queryByText('Tự đánh giá nhanh')).toBeNull()
   })
 
+  it('Đợt D: next_steps render nút hành động; answer_upgrades render cặp Bạn nói → Nên nói', () => {
+    const interviewJson = JSON.stringify({
+      overall_score: '5.5/10', verdict: 'CONDITIONAL_PASS', verdict_label_vi: 'Đạt có điều kiện',
+      categories: [{ name_vi: 'A', score: 5 }],
+      next_steps: [
+        { code: 'RETRY_SAME_POSITION', reason_vi: 'Cần thêm ví dụ cụ thể ở Lượt 3' },
+        { code: 'MÃ_LẠ_KHÔNG_RENDER', reason_vi: 'x' },
+      ],
+      answer_upgrades: [
+        { original_quote: 'Ich weiß nicht.', better_de: 'Ich interessiere mich für diese Stelle, weil…' },
+      ],
+    })
+    render(
+      <SessionSummary {...baseProps} messages={userTurns(4)} isInterviewMode={true} interviewReportJson={interviewJson} />,
+    )
+    expect(screen.getByText('Bước tiếp theo cho bạn')).toBeInTheDocument()
+    expect(screen.getByText(/Phỏng vấn lại vị trí này/)).toBeInTheDocument()
+    expect(screen.getByText('Cần thêm ví dụ cụ thể ở Lượt 3')).toBeInTheDocument()
+    expect(screen.queryByText(/MÃ_LẠ_KHÔNG_RENDER/)).toBeNull() // mã ngoài danh mục không render
+    expect(screen.getByText('Nên nói thế nào')).toBeInTheDocument()
+    expect(screen.getByText(/Ich interessiere mich für diese Stelle/)).toBeInTheDocument()
+  })
+
   it('INTERVIEW report JSON hỏng (cụt): xử lý như chưa chấm được, không nổ render', () => {
     render(
       <SessionSummary {...baseProps} messages={userTurns(5)} isInterviewMode={true}

@@ -7,6 +7,7 @@ import com.deutschflow.speaking.entity.AiSpeakingMessage;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.speaking.interview.InterviewAnswerAnalyzer;
 import com.deutschflow.speaking.interview.InterviewEvidenceLedger;
+import com.deutschflow.speaking.interview.InterviewNextStepCatalog;
 import com.deutschflow.speaking.interview.InterviewReportValidator;
 import com.deutschflow.speaking.interview.InterviewSessionState;
 import com.deutschflow.speaking.interview.InterviewStateCodec;
@@ -92,7 +93,11 @@ public class InterviewEvaluationService {
             // cho german_language, model không được tự chế lỗi mới.
             String evidenceLedger = InterviewEvidenceLedger.build(messages, answerAnalyzer, session.getExperienceLevel());
             List<UserGrammarError> sessionErrors = grammarErrorRepository.findBySessionIdOrderByCreatedAtAsc(session.getId());
-            String evalPrompt = buildEvaluationPrompt(session, evidenceLedger, formatSessionErrors(sessionErrors), state);
+            // Đợt D: tập hành động hợp lệ tính từ dữ kiện khách quan — model chỉ được CHỌN trong tập này.
+            java.util.Set<String> allowedNextSteps =
+                    InterviewNextStepCatalog.allowedFor(state, sessionErrors.size(), messages);
+            String evalPrompt = buildEvaluationPrompt(session, evidenceLedger, formatSessionErrors(sessionErrors),
+                    state, allowedNextSteps);
 
             List<ChatMessage> aiMessages = List.of(
                     new ChatMessage("system", evalPrompt),
@@ -123,7 +128,8 @@ public class InterviewEvaluationService {
             }
             // C2: server không ghi nhận lỗi nào trong phiên → common_errors_vi phải RỖNG,
             // model có "sáng tác" thêm cũng bị cắt.
-            return reportValidator.trimUngroundedErrors(vr.normalizedJson(), !sessionErrors.isEmpty());
+            String result = reportValidator.trimUngroundedErrors(vr.normalizedJson(), !sessionErrors.isEmpty());
+            return reportValidator.sanitizeNextSteps(result, allowedNextSteps, userTexts);
         } catch (QuotaExceededException e) {
             log.warn("Quota exceeded for interview eval session {}: {}", session.getId(), e.getMessage());
             throw e;
@@ -161,7 +167,8 @@ public class InterviewEvaluationService {
     }
 
     private String buildEvaluationPrompt(AiSpeakingSession session, String evidenceLedger,
-                                         String sessionErrorsBlock, InterviewSessionState interviewState) {
+                                         String sessionErrorsBlock, InterviewSessionState interviewState,
+                                         java.util.Set<String> allowedNextSteps) {
         String position = session.getInterviewPosition() != null ? session.getInterviewPosition() : "Allgemein";
         String experience = session.getExperienceLevel() != null ? session.getExperienceLevel() : "unbekannt";
         String cefrLevel = session.getCefrLevel() != null ? session.getCefrLevel() : "A1";
@@ -234,7 +241,13 @@ public class InterviewEvaluationService {
                     "Giải pháp cụ thể 2...",
                     "Giải pháp cụ thể 3..."
                   ],
-                  "encouragement_vi": "Lời động viên chân thành, cụ thể dựa trên những điểm mạnh đã thể hiện..."
+                  "encouragement_vi": "Lời động viên chân thành, cụ thể dựa trên những điểm mạnh đã thể hiện...",
+                  "next_steps": [
+                    {"code": "MÃ_TỪ_DANH_MỤC", "reason_vi": "vì sao — bám vào một [Lượt N] cụ thể"}
+                  ],
+                  "answer_upgrades": [
+                    {"original_quote": "câu NGUYÊN VĂN yếu nhất của ứng viên", "better_de": "phiên bản tốt hơn, đúng band CEFR"}
+                  ]
                 }
                 
                 REGELN:
@@ -265,8 +278,17 @@ public class InterviewEvaluationService {
                   MUSS ein leeres Array sein — ERFINDE KEINE Fehler.
                 - fluency_vi und vocabulary_level: begründe mit mindestens einem wörtlichen Zitat/Wort
                   aus den Antworten des Kandidaten.
+                - next_steps: 1–3 mục, "code" CHỈ được chọn từ DANH MỤC HÀNH ĐỘNG dưới đây — mã khác sẽ bị
+                  server loại bỏ. reason_vi ngắn gọn, nhắc đúng [Lượt N] làm căn cứ.
+                - answer_upgrades: tối đa 2. original_quote phải là câu NGUYÊN VĂN của ứng viên (server đối
+                  chiếu từng ký tự sau chuẩn hoá — câu bịa sẽ bị loại); better_de viết lại ở band %s.
+
+                == DANH MỤC HÀNH ĐỘNG (next_steps.code hợp lệ) ==
+                %s== ENDE DANH MỤC ==
+
                 - NUR STRICT JSON ausgeben — kein Markdown, kein Text drumherum.
                 """.formatted(position, experience, cefrLevel, orchestrationMetrics, evidenceLedger,
-                        sessionErrorsBlock, experience, cefrLevel);
+                        sessionErrorsBlock, experience, cefrLevel, cefrLevel,
+                        InterviewNextStepCatalog.promptBlock(allowedNextSteps));
     }
 }

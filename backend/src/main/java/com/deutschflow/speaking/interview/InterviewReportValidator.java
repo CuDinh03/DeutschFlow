@@ -170,6 +170,54 @@ public class InterviewReportValidator {
         }
     }
 
+    /**
+     * Đợt D (10/08): lọc next_steps — chỉ giữ mã thuộc danh mục VÀ nằm trong tập điều kiện
+     * server đã tính ({@link InterviewNextStepCatalog#allowedFor}); tối đa 3. Đồng thời lọc
+     * answer_upgrades: câu gốc phải là TRÍCH DẪN THẬT của ứng viên, bản "nên nói" không rỗng —
+     * gợi ý sửa một câu ứng viên chưa từng nói là gợi ý bịa.
+     */
+    public String sanitizeNextSteps(String normalizedJson, java.util.Set<String> allowedCodes,
+                                    List<String> userTexts) {
+        if (normalizedJson == null) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(normalizedJson);
+            ObjectNode mutable = (ObjectNode) root;
+            String userCorpus = normalize(String.join("   ", userTexts));
+
+            ArrayNode kept = objectMapper.createArrayNode();
+            JsonNode steps = root.get("next_steps");
+            if (steps != null && steps.isArray()) {
+                for (JsonNode step : steps) {
+                    String code = step.path("code").asText("");
+                    if (kept.size() < 3 && allowedCodes.contains(code)
+                            && InterviewNextStepCatalog.isKnown(code)) {
+                        kept.add(step);
+                    }
+                }
+            }
+            mutable.set("next_steps", kept);
+
+            ArrayNode keptUpgrades = objectMapper.createArrayNode();
+            JsonNode upgrades = root.get("answer_upgrades");
+            if (upgrades != null && upgrades.isArray()) {
+                for (JsonNode up : upgrades) {
+                    String original = normalize(up.path("original_quote").asText(""));
+                    String better = up.path("better_de").asText("");
+                    if (keptUpgrades.size() < 2 && original.length() >= MIN_QUOTE_CHARS
+                            && userCorpus.contains(original) && !better.isBlank()) {
+                        keptUpgrades.add(up);
+                    }
+                }
+            }
+            mutable.set("answer_upgrades", keptUpgrades);
+            return objectMapper.writeValueAsString(mutable);
+        } catch (Exception e) {
+            return normalizedJson;
+        }
+    }
+
     /** EVAL_FAILED được phép chấm lại ở lần end kế; report thật/INSUFFICIENT thì không. */
     public static boolean isRetryableFailure(String reportJson) {
         return reportJson != null && reportJson.contains("\"type\":\"" + TYPE_EVAL_FAILED + "\"");
