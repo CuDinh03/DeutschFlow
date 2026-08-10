@@ -3,7 +3,19 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Dumbbell } from 'lucide-react'
+import {
+  ArrowLeft,
+  AudioLines,
+  BookOpen,
+  BookOpenText,
+  Check,
+  Dumbbell,
+  GraduationCap,
+  Headphones,
+  Mic,
+  PenLine,
+  type LucideIcon,
+} from 'lucide-react'
 import api from '@/lib/api'
 import { useNodeSessionStore } from '@/stores/useNodeSessionStore'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
@@ -35,13 +47,14 @@ import { GaCap, GaCard, GaPageHdr, LoadingState } from '@/components/ui-v2'
 
 type ViewKey = 'grammar' | 'reading' | 'listening' | 'speaking' | 'writing' | 'phoneme'
 
-const VIEW_TABS: { key: ViewKey; tKey: string; emoji: string }[] = [
-  { key: 'grammar', tKey: 'grammar', emoji: '📖' },
-  { key: 'reading', tKey: 'reading', emoji: '📚' },
-  { key: 'listening', tKey: 'listening', emoji: '🎧' },
-  { key: 'speaking', tKey: 'speaking', emoji: '🎤' },
-  { key: 'writing', tKey: 'writing', emoji: '✍️' },
-  { key: 'phoneme', tKey: 'phoneme', emoji: '🗣️' },
+// Icon nét Lucide — cùng bộ với menu (GaIcon/GaShellNav), thay emoji để đồng bộ theme.
+const VIEW_TABS: { key: ViewKey; tKey: string; icon: LucideIcon }[] = [
+  { key: 'grammar', tKey: 'grammar', icon: BookOpen },
+  { key: 'reading', tKey: 'reading', icon: BookOpenText },
+  { key: 'listening', tKey: 'listening', icon: Headphones },
+  { key: 'speaking', tKey: 'speaking', icon: Mic },
+  { key: 'writing', tKey: 'writing', icon: PenLine },
+  { key: 'phoneme', tKey: 'phoneme', icon: AudioLines },
 ]
 
 interface RoadmapState {
@@ -226,8 +239,8 @@ export default function V2StudentLearnNodePage() {
           {session && (
             <GaCard className="p-5">
               <div className="flex items-start gap-3">
-                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-ga bg-ga-surface text-[24px]">
-                  {session.emoji}
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-ga bg-ga-surface text-ga-ink">
+                  <GraduationCap size={22} aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="font-ga-display text-[20px] font-medium leading-tight text-ga-ink">
@@ -296,8 +309,8 @@ export default function V2StudentLearnNodePage() {
           {/* Node A2/B1 chưa có nội dung */}
           {session && !session.hasContent && !loading && !error && (
             <GaCard className="px-6 py-12 text-center">
-              <span className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-ga-surface text-[32px]">
-                {session.emoji || '📖'}
+              <span className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-ga-surface text-ga-ink">
+                <GraduationCap size={30} aria-hidden />
               </span>
               <span className="ga-ui mb-2 inline-block rounded-ga-pill bg-ga-accent-soft px-2 py-0.5 text-[11px] font-bold text-ga-accent">
                 {session.cefrLevel}
@@ -339,7 +352,7 @@ export default function V2StudentLearnNodePage() {
                             : 'text-ga-muted hover:bg-ga-card hover:text-ga-ink'
                       }`}
                     >
-                      <span aria-hidden>{isDone ? '✅' : tab.emoji}</span>
+                      {isDone ? <Check size={14} aria-hidden /> : <tab.icon size={14} aria-hidden />}
                       <span className="hidden sm:inline">{tLearn(tab.tKey as never)}</span>
                     </button>
                   )

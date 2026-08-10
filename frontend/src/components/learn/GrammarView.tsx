@@ -2,6 +2,7 @@
 
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useTranslations } from "next-intl";
+import { BookOpen, Library, MessagesSquare, Sparkles } from "lucide-react";
 import { VocabCard, VocabTag, AudioButton } from "./LearnComponents";
 import { useState, useMemo, useEffect } from "react";
 import { lightImpact, mediumImpact, heavyImpact } from "@/lib/haptics";
@@ -173,7 +174,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
     <div className="space-y-6 pb-20">
       <section>
         <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wide mb-3 flex items-center gap-2">
-          <span className="w-6 h-6 rounded bg-[#121212] text-white flex items-center justify-center text-xs">📖</span>
+          <span className="w-6 h-6 rounded bg-[#121212] text-white flex items-center justify-center"><BookOpen size={13} aria-hidden /></span>
           Lý thuyết ({content.theory_cards.length})
         </h2>
         <div className="grid gap-3 md:grid-cols-2">
@@ -197,7 +198,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
 
       <section>
         <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wide mb-3 flex items-center gap-2">
-          <span className="w-6 h-6 rounded bg-[#121212] text-white flex items-center justify-center text-xs">📚</span>
+          <span className="w-6 h-6 rounded bg-[#121212] text-white flex items-center justify-center"><Library size={13} aria-hidden /></span>
           {tLearn("vocabularyCount", { count: filteredVocab.length })}
         </h2>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -235,7 +236,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
       {content.phrases?.length > 0 && (
         <section>
           <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wide mb-3 flex items-center gap-2">
-            <span className="w-6 h-6 rounded bg-[#121212] text-white flex items-center justify-center text-xs">💬</span>
+            <span className="w-6 h-6 rounded bg-[#121212] text-white flex items-center justify-center"><MessagesSquare size={13} aria-hidden /></span>
             Cụm từ thường dùng
           </h2>
           <div className="space-y-2">
@@ -255,7 +256,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
       {content.examples?.length > 0 && (
         <section>
           <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wide mb-3 flex items-center gap-2">
-            <span className="w-6 h-6 rounded bg-[#121212] text-white flex items-center justify-center text-xs">✨</span>
+            <span className="w-6 h-6 rounded bg-[#121212] text-white flex items-center justify-center"><Sparkles size={13} aria-hidden /></span>
             Ví dụ thực tế
           </h2>
           <div className="space-y-2">

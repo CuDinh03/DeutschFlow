@@ -143,7 +143,7 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
 
       {/* Header */}
       <div className="px-4 py-3 border-b border-[#E2E8F0] bg-[#F8FAFC] flex items-center gap-3">
-        <span className="text-lg">🎤</span>
+        <span className="grid w-8 h-8 place-items-center rounded-lg bg-[#121212] text-white"><Mic size={15} aria-hidden /></span>
         <div className="flex-1">
           <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide">Phoneme Coach</p>
           <p className="text-sm font-bold text-[#0F172A]">Luyện phát âm</p>
