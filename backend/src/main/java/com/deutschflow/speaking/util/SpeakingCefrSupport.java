@@ -86,6 +86,13 @@ public final class SpeakingCefrSupport {
         return clampInclusive(p, floor, ceil);
     }
 
+    /** Đợt G 11/08: sàn band cho một mode (INTERVIEW ≥ B1) — band thấp hơn floor bị nâng lên floor. */
+    public static String floorAtBand(String band, String floorBand) {
+        String b = clampBand(band);
+        String f = clampBand(floorBand);
+        return bandIndex(b) < bandIndex(f) ? f : b;
+    }
+
     public static String clampInclusive(String proposedBand, String floorBand, String ceilingBand) {
         int pi = bandIndex(proposedBand);
         int fi = bandIndex(floorBand);

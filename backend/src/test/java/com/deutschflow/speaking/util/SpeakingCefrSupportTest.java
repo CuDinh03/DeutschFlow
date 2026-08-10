@@ -51,4 +51,15 @@ class SpeakingCefrSupportTest {
         var p = profile(UserLearningProfile.CurrentLevel.B1, UserLearningProfile.TargetLevel.C2);
         assertThat(SpeakingCefrSupport.applyKnobClamp("B2", 1, p)).isEqualTo("B2");
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("G2 11/08: floorAtBand nâng band dưới sàn lên sàn, giữ band từ sàn trở lên")
+    void floorAtBand_interviewB1Floor() {
+        org.assertj.core.api.Assertions.assertThat(SpeakingCefrSupport.floorAtBand("A1", "B1")).isEqualTo("B1");
+        org.assertj.core.api.Assertions.assertThat(SpeakingCefrSupport.floorAtBand("A2", "B1")).isEqualTo("B1");
+        org.assertj.core.api.Assertions.assertThat(SpeakingCefrSupport.floorAtBand("B1", "B1")).isEqualTo("B1");
+        org.assertj.core.api.Assertions.assertThat(SpeakingCefrSupport.floorAtBand("B2", "B1")).isEqualTo("B2");
+        org.assertj.core.api.Assertions.assertThat(SpeakingCefrSupport.floorAtBand(null, "B1")).isEqualTo("B1");
+        org.assertj.core.api.Assertions.assertThat(SpeakingCefrSupport.floorAtBand("rác", "B1")).isEqualTo("B1");
+    }
 }
