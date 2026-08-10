@@ -33,7 +33,14 @@ public class InterviewAnswerAnalyzer {
         boolean missingStar = phase == InterviewPhase.STAR_SOFT && !STAR_HINT.matcher(text).find() && !hasConcreteMarker;
         boolean roleScopeCreep = detectsDiagnosisWithoutCollaboration(text);
         boolean concreteExample = hasConcreteMarker && count(PAST_CONCRETE, text) >= 1;
-        boolean weakAnswer = hypotheticalHeavy || bulletListWithoutConcrete || (missingStar && phase == InterviewPhase.STAR_SOFT);
+        // Đợt E2 (10/08): câu né/quá ngắn ở các tầng nội dung cũng là câu YẾU — QA thật cho thấy
+        // "Ich weiß nicht. Vielleicht." không bị cờ nào bắt, nên interviewer vẫn khen "guter Ansatz".
+        // INTRO miễn (câu chào ngắn là bình thường).
+        String lower = text.toLowerCase(Locale.ROOT);
+        boolean evasiveShort = phase != InterviewPhase.INTRO
+                && (words <= 5 || lower.contains("weiß nicht") || lower.contains("keine ahnung"));
+        boolean weakAnswer = hypotheticalHeavy || bulletListWithoutConcrete || evasiveShort
+                || (missingStar && phase == InterviewPhase.STAR_SOFT);
         return new InterviewAnswerAnalysis(
                 hypotheticalHeavy, bulletListWithoutConcrete, monologue, missingStar, roleScopeCreep,
                 concreteExample, weakAnswer);

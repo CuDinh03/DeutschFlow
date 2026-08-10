@@ -23,12 +23,30 @@ public final class PhaseProgressionPolicy {
      * @param currentGoalMet     whether the current phase's objective is satisfied (LLM
      *                           {@code phase_goal_met}, falling back to {@link #deterministicGoalMet})
      */
+    /** Đợt E3 (10/08): STAR là tầng đánh giá hành vi quan trọng nhất — không được rời trước 2 lượt. */
+    static final int MIN_STAR_TURNS = 2;
+
     public static InterviewPhase resolve(int currentPhaseNumber, int userTurn, boolean currentGoalMet) {
+        return resolve(currentPhaseNumber, userTurn, currentGoalMet, MIN_STAR_TURNS);
+    }
+
+    /**
+     * @param starTurnsSoFar số lượt đã ở STAR_SOFT ({@code state.getStarTurns()}) — dưới
+     *                       {@link #MIN_STAR_TURNS} thì goalMet KHÔNG được đẩy sang CLOSING;
+     *                       trần theo lượt (ceiling) vẫn thắng để phỏng vấn không kẹt vô hạn.
+     */
+    public static InterviewPhase resolve(int currentPhaseNumber, int userTurn, boolean currentGoalMet,
+                                         int starTurnsSoFar) {
         InterviewPhase ceiling = InterviewPhase.fromUserTurn(userTurn);
         int current = clampPhaseNumber(currentPhaseNumber);
         int target = Math.max(current, ceiling.number());
         if (currentGoalMet && current < InterviewPhase.CLOSING.number()) {
             target = Math.max(target, current + 1);   // strong candidate advances early
+        }
+        if (current == InterviewPhase.STAR_SOFT.number()
+                && starTurnsSoFar < MIN_STAR_TURNS
+                && ceiling.number() < InterviewPhase.CLOSING.number()) {
+            target = Math.min(target, InterviewPhase.STAR_SOFT.number());
         }
         target = Math.min(target, InterviewPhase.CLOSING.number());
         return fromNumber(target);

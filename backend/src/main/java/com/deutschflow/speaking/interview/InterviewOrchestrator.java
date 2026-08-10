@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -63,7 +64,8 @@ public class InterviewOrchestrator {
         InterviewPhase currentPhase = PhaseProgressionPolicy.fromNumber(state.getPhase());
         boolean goalMet = state.isLastPhaseGoalMet()
                 || PhaseProgressionPolicy.deterministicGoalMet(currentPhase, state);
-        InterviewPhase phase = PhaseProgressionPolicy.resolve(state.getPhase(), userTurn, goalMet);
+        InterviewPhase phase = PhaseProgressionPolicy.resolve(state.getPhase(), userTurn, goalMet,
+                state.getStarTurns());
         InterviewAnswerAnalysis analysis = analyzer.analyze(userMessage, phase, experienceLevel);
 
         boolean userAskedClosingQuestions = phase == InterviewPhase.CLOSING
@@ -77,6 +79,15 @@ public class InterviewOrchestrator {
 
         InterviewDirectiveType directive = resolveDirective(phase, analysis, state, userAskedClosingQuestions);
         String directiveInstruction = directiveText(directive, analysis);
+        // Đợt E2 (10/08): khen phải xứng với chất lượng — câu trả lời YẾU thì ack trung tính,
+        // cấm cả cụm khen nhẹ ("guter Ansatz" cho "ich weiß nicht" là khen bịa).
+        List<String> forbiddenPhrases = InterviewTurnPlan.DEFAULT_FORBIDDEN;
+        if (analysis.weakAnswer()) {
+            forbiddenPhrases = WEAK_ANSWER_FORBIDDEN;
+            directiveInstruction = directiveInstruction
+                    + " Die letzte Antwort war SCHWACH: KEIN Lob in der Bestätigung — neutral quittieren"
+                    + " (z.B. 'Verstehe.') und konkret nachhaken.";
+        }
 
         // Calibrate question difficulty to the candidate's chosen level (CEFR + experience).
         QuestionDifficulty targetDifficulty = LevelCalibrator.resolve(cefrLevel, experienceLevel);
@@ -112,7 +123,7 @@ public class InterviewOrchestrator {
 
         String mandatoryQuestion = question
                 .map(InterviewQuestionDef::questionDe)
-                .orElse(fallbackQuestion(phase, position));
+                .orElse(fallbackQuestion(phase, position, userTurn));
         String questionId = question.map(InterviewQuestionDef::id).orElse("fallback_" + phase.name());
         String topicKey = question
                 .map(InterviewQuestionDef::topicKey)
@@ -145,7 +156,7 @@ public class InterviewOrchestrator {
                 questionId,
                 topicKey,
                 15,
-                InterviewTurnPlan.DEFAULT_FORBIDDEN,
+                forbiddenPhrases,
                 userAskedClosingQuestions ? InterviewClosingTemplates.answerGuide(persona, position) : null,
                 userAskedClosingQuestions
         );
@@ -215,6 +226,16 @@ public class InterviewOrchestrator {
         };
     }
 
+    /** E2: danh sách cấm mở rộng cho lượt sau câu trả lời yếu — chặn cả khen nhẹ. */
+    private static final java.util.List<String> WEAK_ANSWER_FORBIDDEN;
+    static {
+        java.util.List<String> extended = new java.util.ArrayList<>(InterviewTurnPlan.DEFAULT_FORBIDDEN);
+        extended.addAll(java.util.List.of(
+                "gute idee", "guter ansatz", "gute lösung", "guter anfang", "guter schritt",
+                "das ist gut", "klingt gut", "klingt solide", "super", "toll", "prima"));
+        WEAK_ANSWER_FORBIDDEN = java.util.List.copyOf(extended);
+    }
+
     private static String buildFarewell(String position) {
         String pos = (position == null || position.isBlank()) ? "diese Position" : position;
         return "Vielen Dank für das Gespräch und Ihr Interesse an " + pos
@@ -222,11 +243,24 @@ public class InterviewOrchestrator {
     }
 
     private static String fallbackQuestion(InterviewPhase phase, String position) {
+        return fallbackQuestion(phase, position, 0);
+    }
+
+    /**
+     * Đợt E1 (10/08): fallback INTRO không lặp lại "stellen Sie sich vor" (greeting vừa hỏi xong —
+     * lượt 1 luôn rơi fallback vì bank INTRO chỉ có 1 câu); HARD_SKILLS xoay biến thể theo lượt
+     * để phiên dài không nghe cùng một câu 3 lần (harness S3 lượt 7–9).
+     */
+    private static String fallbackQuestion(InterviewPhase phase, String position, int variantSeed) {
         String pos = position == null || position.isBlank() ? "der Position" : position;
         return switch (phase) {
-            case INTRO -> "Bitte stellen Sie sich kurz vor — relevant für " + pos + ".";
+            case INTRO -> "Danke für die Vorstellung. Was in Ihrem Werdegang bereitet Sie am besten auf " + pos + " vor?";
             case ICE_BREAKER -> "Was reizt Sie an " + pos + ", und wie sieht ein typischer Arbeitstag aus?";
-            case HARD_SKILLS -> "Nennen Sie eine konkrete Arbeitssituation, die zeigt, dass Sie für " + pos + " geeignet sind.";
+            case HARD_SKILLS -> switch (Math.floorMod(variantSeed, 3)) {
+                case 1 -> "Welche Aufgabe für " + pos + " fällt Ihnen am schwersten, und wie gehen Sie damit um? Ein Beispiel.";
+                case 2 -> "Was war Ihr größter messbarer Erfolg in Ihrer letzten Stelle — und Ihr Anteil daran?";
+                default -> "Nennen Sie eine konkrete Arbeitssituation, die zeigt, dass Sie für " + pos + " geeignet sind.";
+            };
             case STAR_SOFT -> "Beschreiben Sie ein Teamproblem und wie Sie es gelöst haben — mit Ergebnis.";
             case CLOSING -> "Haben Sie noch Fragen an uns?";
         };

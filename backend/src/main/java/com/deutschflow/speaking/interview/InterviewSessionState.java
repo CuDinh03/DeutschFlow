@@ -15,6 +15,8 @@ public class InterviewSessionState {
     private int weakAnswerStreak;
     private int praiseStreakBlocked;
     private boolean concreteExampleGiven;
+    /** Đợt E3 (10/08): số lượt đã ở STAR_SOFT — chặn rời tầng STAR khi chưa đủ 2 lượt. JSON cũ thiếu field → 0. */
+    private int starTurns;
     /** Whether the previous turn satisfied its phase goal (LLM phase_goal_met, else deterministic). */
     private boolean lastPhaseGoalMet;
     private List<String> topicsCovered = new ArrayList<>();
@@ -65,6 +67,14 @@ public class InterviewSessionState {
         return concreteExampleGiven;
     }
 
+    public int getStarTurns() {
+        return starTurns;
+    }
+
+    public void setStarTurns(int starTurns) {
+        this.starTurns = starTurns;
+    }
+
     public boolean isLastPhaseGoalMet() {
         return lastPhaseGoalMet;
     }
@@ -113,6 +123,9 @@ public class InterviewSessionState {
         }
         if (analysis.concreteExample()) {
             concreteExampleGiven = true;
+        }
+        if (plan.phase() == InterviewPhase.STAR_SOFT) {
+            starTurns++;
         }
     }
 
