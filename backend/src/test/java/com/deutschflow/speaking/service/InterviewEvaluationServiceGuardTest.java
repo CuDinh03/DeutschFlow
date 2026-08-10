@@ -8,7 +8,9 @@ import com.deutschflow.speaking.entity.AiSpeakingMessage;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.speaking.interview.InterviewReportValidator;
 import com.deutschflow.speaking.interview.InterviewStateCodec;
+import com.deutschflow.speaking.interview.InterviewAnswerAnalyzer;
 import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
+import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +38,7 @@ class InterviewEvaluationServiceGuardTest {
     @Mock private QuotaService quotaService;
     @Mock private AiUsageLedgerService ledgerService;
     @Mock private LlmTierResolver llmTierResolver;
+    @Mock private UserGrammarErrorRepository grammarErrorRepository;
 
     private InterviewEvaluationService service;
 
@@ -44,7 +47,7 @@ class InterviewEvaluationServiceGuardTest {
         ObjectMapper om = new ObjectMapper();
         service = new InterviewEvaluationService(messageRepository, openAiChatClient, quotaService,
                 ledgerService, new InterviewStateCodec(om), new InterviewReportValidator(om),
-                llmTierResolver);
+                new InterviewAnswerAnalyzer(), grammarErrorRepository, llmTierResolver);
     }
 
     private static AiSpeakingSession session() {

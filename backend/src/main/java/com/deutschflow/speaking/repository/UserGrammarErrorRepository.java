@@ -17,6 +17,9 @@ public interface UserGrammarErrorRepository extends JpaRepository<UserGrammarErr
 
     List<UserGrammarError> findTop20ByUserIdOrderByCreatedAtDesc(Long userId);
 
+    /** Đợt C 10/08: lỗi đã ghi nhận TRONG phiên — nguồn sự thật cho german_language của report phỏng vấn. */
+    List<UserGrammarError> findBySessionIdOrderByCreatedAtAsc(Long sessionId);
+
     /** Class-wide top error codes across a batch of users in ONE query (S-10). Limit via Pageable. */
     @Query("""
             SELECT e.errorCode, COUNT(e)

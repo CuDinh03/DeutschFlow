@@ -5,10 +5,14 @@ import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.entity.AiSpeakingMessage;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
+import com.deutschflow.speaking.interview.InterviewAnswerAnalyzer;
+import com.deutschflow.speaking.interview.InterviewEvidenceLedger;
 import com.deutschflow.speaking.interview.InterviewReportValidator;
 import com.deutschflow.speaking.interview.InterviewSessionState;
 import com.deutschflow.speaking.interview.InterviewStateCodec;
+import com.deutschflow.speaking.entity.UserGrammarError;
 import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
+import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.QuotaExceededException;
 import com.deutschflow.common.quota.QuotaService;
@@ -50,6 +54,9 @@ public class InterviewEvaluationService {
     private final AiUsageLedgerService ledgerService;
     private final InterviewStateCodec interviewStateCodec;
     private final InterviewReportValidator reportValidator;
+    // Đợt C: evidence ledger + lỗi ngữ pháp server-verified thay transcript thô.
+    private final InterviewAnswerAnalyzer answerAnalyzer;
+    private final UserGrammarErrorRepository grammarErrorRepository;
     // Khung tier B1.5: chấm phỏng vấn = GRADING_DAILY.
     private final LlmTierResolver llmTierResolver;
 
@@ -80,8 +87,12 @@ public class InterviewEvaluationService {
             }
 
             InterviewSessionState state = interviewStateCodec.decode(session.getInterviewStateJson());
-            String conversationSummary = buildConversationSummary(messages);
-            String evalPrompt = buildEvaluationPrompt(session, conversationSummary, state);
+            // Đợt C: prompt chấm nhận EVIDENCE LEDGER (hỏi/đáp nguyên văn + cờ server tính lại) thay
+            // transcript thô, kèm danh sách lỗi ngữ pháp ĐÃ ghi nhận per-turn — nguồn sự thật duy nhất
+            // cho german_language, model không được tự chế lỗi mới.
+            String evidenceLedger = InterviewEvidenceLedger.build(messages, answerAnalyzer, session.getExperienceLevel());
+            List<UserGrammarError> sessionErrors = grammarErrorRepository.findBySessionIdOrderByCreatedAtAsc(session.getId());
+            String evalPrompt = buildEvaluationPrompt(session, evidenceLedger, formatSessionErrors(sessionErrors), state);
 
             List<ChatMessage> aiMessages = List.of(
                     new ChatMessage("system", evalPrompt),
@@ -110,7 +121,9 @@ public class InterviewEvaluationService {
                         session.getId(), vr.failures());
                 return reportValidator.evalFailed(vr.failures());
             }
-            return vr.normalizedJson();
+            // C2: server không ghi nhận lỗi nào trong phiên → common_errors_vi phải RỖNG,
+            // model có "sáng tác" thêm cũng bị cắt.
+            return reportValidator.trimUngroundedErrors(vr.normalizedJson(), !sessionErrors.isEmpty());
         } catch (QuotaExceededException e) {
             log.warn("Quota exceeded for interview eval session {}: {}", session.getId(), e.getMessage());
             throw e;
@@ -130,20 +143,25 @@ public class InterviewEvaluationService {
         return result.content();
     }
 
-    private String buildConversationSummary(List<AiSpeakingMessage> messages) {
-        StringBuilder sb = new StringBuilder();
-        for (AiSpeakingMessage msg : messages) {
-            if (msg.getRole() == AiSpeakingMessage.MessageRole.USER) {
-                sb.append("KANDIDAT: ").append(msg.getUserText() != null ? msg.getUserText() : "(kein Text)").append("\n\n");
-            } else {
-                sb.append("INTERVIEWER: ").append(msg.getAiSpeechDe() != null ? msg.getAiSpeechDe() : "").append("\n\n");
-            }
+    /** C2: danh sách lỗi ĐÃ ghi nhận per-turn — nguồn duy nhất model được phép tóm tắt vào german_language. */
+    static String formatSessionErrors(List<UserGrammarError> errors) {
+        if (errors.isEmpty()) {
+            return "(keine server-seitig erfassten Grammatikfehler in dieser Sitzung)";
         }
-        return sb.toString();
+        return errors.stream()
+                .limit(15)
+                .map(e -> "- [" + (e.getErrorCode() != null ? e.getErrorCode() : e.getGrammarPoint()) + "] \""
+                        + nullSafe(e.getWrongSpan()) + "\" → \"" + nullSafe(e.getCorrectedSpan()) + "\""
+                        + (e.getRuleViShort() != null ? " — " + e.getRuleViShort() : ""))
+                .collect(Collectors.joining("\n"));
     }
 
-    private String buildEvaluationPrompt(AiSpeakingSession session, String conversationSummary,
-                                         InterviewSessionState interviewState) {
+    private static String nullSafe(String s) {
+        return s == null ? "" : s;
+    }
+
+    private String buildEvaluationPrompt(AiSpeakingSession session, String evidenceLedger,
+                                         String sessionErrorsBlock, InterviewSessionState interviewState) {
         String position = session.getInterviewPosition() != null ? session.getInterviewPosition() : "Allgemein";
         String experience = session.getExperienceLevel() != null ? session.getExperienceLevel() : "unbekannt";
         String cefrLevel = session.getCefrLevel() != null ? session.getCefrLevel() : "A1";
@@ -160,9 +178,13 @@ public class InterviewEvaluationService {
                 - Deutsch-Niveau (CEFR): %s
                 - Interview-Orchestrierung (Server): %s
                 
-                == GESPRÄCHSPROTOKOLL ==
+                == EVIDENZ-PROTOKOLL (pro Runde: Frage, wörtliche Antwort, server-seitige Fakten) ==
                 %s
                 == ENDE PROTOKOLL ==
+
+                == SERVER-SEITIG ERFASSTE GRAMMATIKFEHLER (einzige zulässige Fehlerquelle) ==
+                %s
+                == ENDE FEHLER ==
                 
                 Erstelle eine DETAILLIERTE Bewertung als STRICT JSON (kein Markdown).
                 Die Bewertung soll auf VIETNAMESISCH geschrieben sein, mit deutschen Fachbegriffen in Klammern wo relevant.
@@ -235,7 +257,16 @@ public class InterviewEvaluationService {
                 - Berücksichtige challengeCount und concreteExample in den Orchestrator-Metriken bei Fachkompetenz.
                 - Das Protokoll ist eine Sprache-zu-Text-Transkription: bewerte KEINE Aussprache/Orthografie,
                   nur Inhalt, Struktur, Grammatik und Wortschatz.
+                - NUR AUS DER EVIDENZ: Jede Behauptung stützt sich auf eine konkrete [Lượt N]-Zeile —
+                  nenne die Runde (z.B. "Lượt 3") bei jedem green/red flag. Die SERVER-FAKTEN
+                  (konkretesBeispiel/schwacheAntwort) sind verbindlich — widersprich ihnen nicht.
+                - GRAMMATIKFEHLER: common_errors_vi fasst NUR die server-seitig erfassten Fehler oben
+                  zusammen (mit wörtlichem Zitat des falschen Ausschnitts). Liste leer ⇒ common_errors_vi
+                  MUSS ein leeres Array sein — ERFINDE KEINE Fehler.
+                - fluency_vi und vocabulary_level: begründe mit mindestens einem wörtlichen Zitat/Wort
+                  aus den Antworten des Kandidaten.
                 - NUR STRICT JSON ausgeben — kein Markdown, kein Text drumherum.
-                """.formatted(position, experience, cefrLevel, orchestrationMetrics, conversationSummary, experience, cefrLevel);
+                """.formatted(position, experience, cefrLevel, orchestrationMetrics, evidenceLedger,
+                        sessionErrorsBlock, experience, cefrLevel);
     }
 }
