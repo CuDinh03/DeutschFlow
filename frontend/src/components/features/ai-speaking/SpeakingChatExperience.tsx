@@ -135,7 +135,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   const handleSpeak = useCallback(
     (text: string) => {
       if (selectedCompanion) {
-        speakWithPersona(text, selectedCompanion.id, selectedCompanion.voiceFile);
+        speakWithPersona(text, selectedCompanion.id);
       } else {
         speak(text);
       }
