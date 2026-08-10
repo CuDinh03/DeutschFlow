@@ -11,7 +11,7 @@ import { join, relative } from 'node:path'
  */
 
 // Nợ đã biết, có task riêng xử lý — không thêm mục mới vào danh sách này.
-const ALLOWLIST = new Set(['src/components/learn/ReadingView.tsx'])
+const ALLOWLIST = new Set<string>([])
 
 const RELATIVE_API_FETCH = /fetch\(\s*["'`]\/api\//
 

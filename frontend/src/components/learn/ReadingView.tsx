@@ -3,15 +3,19 @@
 import { NodeContent, VocabItem, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useCallback, useRef, useMemo } from "react";
 import { GenderBadge, AudioButton } from "./LearnComponents";
+import { reviewApi } from "@/lib/reviewApi";
+import { apiMessage } from "@/lib/api";
 
 // ── Tap-to-translate tooltip ──
 function TranslateTooltip({
-  vocab, position, onClose, onSaveFlashcard,
+  vocab, position, onClose, onSaveFlashcard, isSaved, saveError,
 }: {
   vocab: VocabItem;
   position: { x: number; y: number };
   onClose: () => void;
-  onSaveFlashcard: (vocabId: string) => void;
+  onSaveFlashcard: (vocab: VocabItem) => void;
+  isSaved: boolean;
+  saveError: string | null;
 }) {
   return (
     <div
@@ -31,22 +35,29 @@ function TranslateTooltip({
         <AudioButton text={vocab.speak_de} compact />
         <button
           type="button"
-          onClick={() => onSaveFlashcard(vocab.id)}
-          className="text-[10px] px-2 py-1 rounded-full bg-[#FFCD00] text-[#121212] font-bold hover:bg-[#FFCD00]/80 transition-colors"
+          onClick={() => onSaveFlashcard(vocab)}
+          disabled={isSaved}
+          className={`text-[10px] px-2 py-1 rounded-full font-bold transition-colors ${
+            isSaved
+              ? "bg-[#22C55E] text-white cursor-default"
+              : "bg-[#FFCD00] text-[#121212] hover:bg-[#FFCD00]/80"
+          }`}
         >
-          💾 Lưu Flashcard
+          {isSaved ? "✓ Đã lưu" : "💾 Lưu Flashcard"}
         </button>
       </div>
+      {saveError && <p className="text-[10px] text-red-600">{saveError}</p>}
     </div>
   );
 }
 
 export default function ReadingView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
-  const { markTabCompleted, tabCompletion } = useNodeSessionStore();
+  const { markTabCompleted, tabCompletion, session } = useNodeSessionStore();
   const isCompleted = tabCompletion.reading;
 
   const [tooltip, setTooltip] = useState<{ vocab: VocabItem; pos: { x: number; y: number } } | null>(null);
   const [savedFlashcards, setSavedFlashcards] = useState<Set<string>>(new Set());
+  const [saveError, setSaveError] = useState<string | null>(null);
   const textRef = useRef<HTMLDivElement>(null);
 
   const passage = content.reading_passage;
@@ -101,23 +112,29 @@ export default function ReadingView({ content, isLocked = false }: { content: No
 
     const found = vocabMap.get(selectedText);
     if (found) {
+      setSaveError(null);
       setTooltip({ vocab: found, pos: { x: e.clientX, y: e.clientY } });
     } else {
       setTooltip(null);
     }
   }, [vocabMap]);
 
-  const handleSaveFlashcard = useCallback(async (vocabId: string) => {
+  const handleSaveFlashcard = useCallback(async (vocab: VocabItem) => {
+    setSaveError(null);
     try {
-      // POST to flashcard API
-      await fetch("/api/flashcard", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vocabId }),
+      await reviewApi.scheduleVocab({
+        nodeId: session?.nodeId,
+        vocabId: vocab.id,
+        german: vocab.german,
+        meaning: vocab.meaning,
+        exampleDe: vocab.example_de,
+        speakDe: vocab.speak_de,
       });
-      setSavedFlashcards((prev) => new Set(prev).add(vocabId));
-    } catch { /* ignore */ }
-  }, []);
+      setSavedFlashcards((prev) => new Set(prev).add(vocab.id));
+    } catch (e) {
+      setSaveError(apiMessage(e));
+    }
+  }, [session?.nodeId]);
 
   if (!passage) {
     return (
@@ -260,6 +277,8 @@ export default function ReadingView({ content, isLocked = false }: { content: No
             position={tooltip.pos}
             onClose={() => setTooltip(null)}
             onSaveFlashcard={handleSaveFlashcard}
+            isSaved={savedFlashcards.has(tooltip.vocab.id)}
+            saveError={saveError}
           />
         </>
       )}
