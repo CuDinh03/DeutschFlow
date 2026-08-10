@@ -82,8 +82,16 @@ public class InterviewSpeechSanitizer {
         return userTurn <= 2 ? "Danke." : "Verstehe.";
     }
 
+    // F2 (QA 10/08 hậu-F): câu hỏi phỏng vấn kiểu MỆNH LỆNH ("Erzählen Sie…", "Bitte stellen Sie
+    // sich vor…") không có "?" — coverage-fallback từng coi là "chưa hỏi gì" và đè trọn lời chào
+    // (kể cả phần tự giới thiệu persona) bằng shortAck + câu bank. Đây là thủ phạm chính của
+    // greeting "Danke." (regex L2 chỉ là một nửa gốc rễ).
+    private static final Pattern IMPERATIVE_ASK = Pattern.compile(
+            "(?i)(erzählen sie|beschreiben sie|nennen sie|stellen sie sich|berichten sie|"
+                    + "geben sie ein beispiel|schildern sie)");
+
     private static boolean containsQuestion(String text) {
-        return text.contains("?");
+        return text.contains("?") || IMPERATIVE_ASK.matcher(text).find();
     }
 
     private static String collapseRepeatedAck(String text) {
