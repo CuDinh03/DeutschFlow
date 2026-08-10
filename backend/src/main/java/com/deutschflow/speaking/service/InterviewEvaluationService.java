@@ -5,6 +5,7 @@ import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.entity.AiSpeakingMessage;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
+import com.deutschflow.speaking.interview.InterviewReportValidator;
 import com.deutschflow.speaking.interview.InterviewSessionState;
 import com.deutschflow.speaking.interview.InterviewStateCodec;
 import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
@@ -32,16 +33,23 @@ import java.util.stream.Collectors;
 public class InterviewEvaluationService {
 
     // gpt-oss (model chấm) là reasoning model: token "nghĩ" tính CHUNG vào max_tokens, và luồng chấm
-    // CỐ TÌNH không đặt reasoning_effort=low (GroqChatClient chỉ áp cho model nói) để giữ chất lượng
-    // chấm. 1200 từng khiến phần chữ bị ép ngắn / JSON cụt → report null → FE rơi về điểm heuristic.
-    private static final int EVAL_MAX_TOKENS = 2200;
+    // CỐ TÌNH không đặt reasoning_effort (giữ chất lượng chấm). Đo thật 10/08 trên Fireworks: phần
+    // "nghĩ" nuốt ~1.5k token nên 2200 vẫn cụt 3/3 lần → owner chốt nâng 4000 (phương án B);
+    // lần retry sau validation-fail được nới thêm để không chết vì đúng lý do cũ.
+    private static final int EVAL_MAX_TOKENS = 4000;
+    private static final int EVAL_RETRY_MAX_TOKENS = 6000;
     private static final double EVAL_TEMPERATURE = 0.3;
+    // Guard đủ-dữ-liệu (owner chốt 10/08): dưới ngưỡng thì KHÔNG chấm — nói thật "chưa đủ dữ liệu"
+    // thay vì để model bịa nhận xét cho người chưa nói gì (prod sid 356/357/386).
+    private static final int MIN_USER_TURNS = 2;
+    private static final int MIN_USER_WORDS = 30;
 
     private final AiSpeakingMessageRepository messageRepository;
     private final OpenAiChatClient openAiChatClient;
     private final QuotaService quotaService;
     private final AiUsageLedgerService ledgerService;
     private final InterviewStateCodec interviewStateCodec;
+    private final InterviewReportValidator reportValidator;
     // Khung tier B1.5: chấm phỏng vấn = GRADING_DAILY.
     private final LlmTierResolver llmTierResolver;
 
@@ -57,9 +65,23 @@ public class InterviewEvaluationService {
                 return null;
             }
 
+            // Đợt A (10/08): guard đủ-dữ-liệu TRƯỚC khi tốn 1 call LLM. Check messages.isEmpty() cũ
+            // không đủ — greeting của AI làm list không rỗng nên phiên ứng viên im lặng vẫn bị chấm.
+            List<String> userTexts = messages.stream()
+                    .filter(m -> m.getRole() == AiSpeakingMessage.MessageRole.USER)
+                    .map(m -> m.getUserText() != null ? m.getUserText() : "")
+                    .toList();
+            int userTurns = userTexts.size();
+            int userWords = InterviewReportValidator.countWords(userTexts);
+            if (userTurns < MIN_USER_TURNS || userWords < MIN_USER_WORDS) {
+                log.info("[InterviewEval] session {} chưa đủ dữ liệu để chấm (turns={}, words={}) — INSUFFICIENT_DATA, không gọi LLM",
+                        session.getId(), userTurns, userWords);
+                return reportValidator.insufficientData(userTurns, userWords, MIN_USER_TURNS, MIN_USER_WORDS);
+            }
+
+            InterviewSessionState state = interviewStateCodec.decode(session.getInterviewStateJson());
             String conversationSummary = buildConversationSummary(messages);
-            String evalPrompt = buildEvaluationPrompt(session, conversationSummary,
-                    interviewStateCodec.decode(session.getInterviewStateJson()));
+            String evalPrompt = buildEvaluationPrompt(session, conversationSummary, state);
 
             List<ChatMessage> aiMessages = List.of(
                     new ChatMessage("system", evalPrompt),
@@ -70,24 +92,25 @@ public class InterviewEvaluationService {
             // tránh JSON cụt → report rỗng nhưng vẫn trừ token) và dùng MODEL CHẤM thay model nói.
             quotaService.assertAllowed(userId, Instant.now(), 1L);
 
-            AiChatCompletionResult result = openAiChatClient.chatCompletionForTier(
-                    aiMessages, llmTierResolver.spec(LlmTier.GRADING_DAILY), EVAL_TEMPERATURE, EVAL_MAX_TOKENS);
-
-            if (result.usage() != null) {
-                ledgerService.record(userId, result.provider(), result.model(),
-                        result.usage(), "INTERVIEW_EVAL", null, session.getId());
+            String raw = callEvalModel(aiMessages, userId, session, EVAL_MAX_TOKENS);
+            InterviewReportValidator.ValidationResult vr = reportValidator.validate(raw, userTexts, state);
+            if (!vr.valid()) {
+                log.warn("[InterviewEval] session {} report không qua validator (lần 1): {} — retry, budget {}",
+                        session.getId(), vr.failures(), EVAL_RETRY_MAX_TOKENS);
+                List<ChatMessage> retryMessages = new ArrayList<>(aiMessages);
+                retryMessages.add(new ChatMessage("user",
+                        "Der vorherige Versuch war UNGÜLTIG: " + String.join("; ", vr.failures())
+                                + ". Erzeuge das komplette JSON erneut — STRICT JSON, alle 4 Kategorien, und jede Kategorie"
+                                + " MUSS mindestens ein wörtliches Zitat des Kandidaten in „…\" enthalten (exakt wie im Protokoll)."));
+                raw = callEvalModel(retryMessages, userId, session, EVAL_RETRY_MAX_TOKENS);
+                vr = reportValidator.validate(raw, userTexts, state);
             }
-
-            String raw = result.content();
-            // Extract JSON from possible markdown fences
-            if (raw != null && raw.contains("{")) {
-                int start = raw.indexOf('{');
-                int end = raw.lastIndexOf('}');
-                if (end > start) {
-                    raw = raw.substring(start, end + 1);
-                }
+            if (!vr.valid()) {
+                log.warn("[InterviewEval] session {} report vẫn trượt validator sau retry: {} — lưu EVAL_FAILED, KHÔNG lưu raw",
+                        session.getId(), vr.failures());
+                return reportValidator.evalFailed(vr.failures());
             }
-            return raw;
+            return vr.normalizedJson();
         } catch (QuotaExceededException e) {
             log.warn("Quota exceeded for interview eval session {}: {}", session.getId(), e.getMessage());
             throw e;
@@ -95,6 +118,16 @@ public class InterviewEvaluationService {
             log.error("Failed to generate interview evaluation for session {}: {}", session.getId(), e.getMessage());
             return null;
         }
+    }
+
+    private String callEvalModel(List<ChatMessage> aiMessages, Long userId, AiSpeakingSession session, int maxTokens) {
+        AiChatCompletionResult result = openAiChatClient.chatCompletionForTier(
+                aiMessages, llmTierResolver.spec(LlmTier.GRADING_DAILY), EVAL_TEMPERATURE, maxTokens);
+        if (result.usage() != null) {
+            ledgerService.record(userId, result.provider(), result.model(),
+                    result.usage(), "INTERVIEW_EVAL", null, session.getId());
+        }
+        return result.content();
     }
 
     private String buildConversationSummary(List<AiSpeakingMessage> messages) {
