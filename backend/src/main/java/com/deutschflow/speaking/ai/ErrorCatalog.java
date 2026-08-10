@@ -1,6 +1,7 @@
 package com.deutschflow.speaking.ai;
 
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -52,6 +53,45 @@ public final class ErrorCatalog {
 
     public static boolean isValid(String code) {
         return code != null && !code.isBlank() && CODES.contains(code.trim());
+    }
+
+    /** UPPERCASE(mã đầy đủ) và UPPERCASE(hậu tố sau dấu chấm, nếu duy nhất) → mã chuẩn. */
+    private static final java.util.Map<String, String> NORMALIZED_LOOKUP;
+
+    static {
+        java.util.Map<String, String> m = new java.util.HashMap<>();
+        java.util.Set<String> ambiguousSuffixes = new java.util.HashSet<>();
+        for (String c : ORDERED_CODES) {
+            m.put(c.toUpperCase(Locale.ROOT), c);
+            int dot = c.indexOf('.');
+            if (dot >= 0) {
+                String suffix = c.substring(dot + 1).toUpperCase(Locale.ROOT);
+                if (m.containsKey(suffix) && !c.equals(m.get(suffix))) {
+                    ambiguousSuffixes.add(suffix);
+                } else {
+                    m.put(suffix, c);
+                }
+            }
+        }
+        ambiguousSuffixes.forEach(m::remove);
+        NORMALIZED_LOOKUP = Collections.unmodifiableMap(m);
+    }
+
+    /**
+     * Đưa mã model trả về dạng chuẩn của catalog, hoặc {@code null} nếu không khớp.
+     * Model hay trả sai định dạng chữ ({@code V2_main_clause}) hoặc thiếu tiền tố nhóm
+     * ({@code V2_MAIN_CLAUSE} thay vì {@code WORD_ORDER.V2_MAIN_CLAUSE}) — trước đây các
+     * lỗi THẬT này bị drop chỉ vì lệch định dạng (QA 09/08 mục G), mất dữ liệu cá nhân hoá.
+     */
+    public static String normalize(String code) {
+        if (code == null || code.isBlank()) {
+            return null;
+        }
+        String trimmed = code.trim();
+        if (CODES.contains(trimmed)) {
+            return trimmed;
+        }
+        return NORMALIZED_LOOKUP.get(trimmed.toUpperCase(Locale.ROOT));
     }
 
     /** Bullet list for system prompts (German instructions). */

@@ -80,13 +80,13 @@ export interface ErrorItem {
   exampleCorrectDe: string | null
 }
 
-/** Adaptive hints from backend (`meta.adaptive` on chat / SSE done). */
+/**
+ * Adaptive hints from backend (`meta.adaptive` on chat / SSE done).
+ * Server chỉ còn gửi phần dành cho NGƯỜI HỌC — cefrEffective/focusCodes/targetStructures/
+ * difficultyKnob là cơ chế nội bộ, đã bị lộ ra UI 2 lần (04/08, 09/08) nên bị cắt từ DTO.
+ */
 export interface AdaptiveMeta {
   enabled: boolean
-  cefrEffective: string
-  difficultyKnob: number
-  focusCodes: string[]
-  targetStructures: string[]
   topicSuggestion: string | null
   forceRepairBeforeContinue: boolean
   primaryRepairErrorCode: string | null

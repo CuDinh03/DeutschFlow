@@ -327,14 +327,17 @@ public class AiResponseParser {
         List<ErrorItem> out = new ArrayList<>();
         for (JsonNode item : errorsNode) {
             if (item == null || item.isNull()) continue;
-            String code = textOrNull(item, "error_code");
-            if (code == null || !ErrorCatalog.isValid(code)) {
+            String rawCode = textOrNull(item, "error_code");
+            // QA 09/08 mục G: model hay trả sai định dạng chữ (V2_main_clause) / thiếu tiền tố nhóm —
+            // chuẩn hoá về mã catalog trước khi kiểm, thay vì drop lỗi THẬT chỉ vì lệch định dạng.
+            String code = ErrorCatalog.normalize(rawCode);
+            if (code == null) {
                 // Audit R-G2: KHÔNG drop im lặng. Lỗi thật mang mã ngoài catalog (prompt drift / model
                 // mới) từng biến mất không dấu vết (log.debug tắt ở prod; nhánh code==null hoàn toàn im).
                 // Nâng lên warn + log cả case thiếu error_code để thấy tỉ lệ drop (chỉ báo cần cập nhật
                 // ErrorCatalog). Vẫn GIỮ hành vi drop (không đẩy mã lạ xuống DB) — không phá hợp đồng.
                 log.warn("[AiResponseParser] Dropped error — {} error_code: {}",
-                        code == null ? "missing" : "unknown", code == null ? "(none)" : code);
+                        rawCode == null ? "missing" : "unknown", rawCode == null ? "(none)" : rawCode);
                 continue;
             }
             String severity = textOrNull(item, "severity");
@@ -406,11 +409,27 @@ public class AiResponseParser {
                     textOrNull(item, "german_text"),
                     textOrNull(item, "vietnamese_translation"),
                     textOrNull(item, "level"),
-                    textOrNull(item, "why_to_use"),
-                    textOrNull(item, "usage_context"),
+                    dropSchemaPlaceholder(textOrNull(item, "why_to_use")),
+                    dropSchemaPlaceholder(textOrNull(item, "usage_context")),
                     textOrNull(item, "lego_structure")
             ));
         }
         return out;
+    }
+
+    /**
+     * QA 09/08 (J4): model đôi khi CHÉP LẠI mô tả schema ("kurz Vietnamesisch") vào trường
+     * thay vì điền nội dung — chuỗi meta tiếng Đức này từng hiện nguyên văn cho học viên.
+     * Hai trường này theo hợp đồng là gợi ý tiếng VIỆT; giá trị là câu mô tả schema → bỏ.
+     */
+    private static String dropSchemaPlaceholder(String value) {
+        if (value == null) {
+            return null;
+        }
+        String v = value.trim().toLowerCase();
+        if (v.contains("vietnamesisch") || v.equals("kurz") || v.startsWith("kurz,")) {
+            return null;
+        }
+        return value;
     }
 }

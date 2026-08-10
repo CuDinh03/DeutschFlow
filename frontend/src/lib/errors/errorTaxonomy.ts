@@ -140,4 +140,18 @@ export function getErrorSnippet(code: string, locale: string): LocaleSnippet {
   return row.en
 }
 
+/**
+ * Nhãn người-đọc-được cho một mã lỗi, hoặc null nếu mã ngoài taxonomy — khác
+ * getErrorSnippet ở chỗ KHÔNG rơi về mã thô (QA 09/08 mục G: `V2_main_clause`
+ * lộ nguyên văn ra màn tổng kết). Caller tự chọn nhãn chung khi nhận null.
+ */
+export function labelForCode(code: string | null | undefined, locale: string): string | null {
+  if (!code) return null
+  const row = SNIPPETS[code]
+  if (!row) return null
+  if (locale === 'vi') return row.vi.title
+  if (locale === 'de') return row.de.title
+  return row.en.title
+}
+
 export const ALL_ERROR_CODES = Object.keys(SNIPPETS)
