@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { ChatMessage } from "@/stores/useChatStore";
 import type { ConversationReport } from "@/lib/aiSpeakingApi";
+import { labelForCode } from "@/lib/errors/errorTaxonomy";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -121,9 +122,14 @@ export function SessionSummary({
     for (const msg of messages) {
       if (msg.role !== 'ai' || msg.isStreaming || !msg.feedback?.errors) continue;
       for (const err of msg.feedback.errors) {
-        const label = err.ruleViShort || err.errorCode || err.wrongSpan || 'Lỗi ngữ pháp';
-        if (!seen.has(label)) {
-          seen.add(label);
+        // QA 09/08 mục G: KHÔNG đổ errorCode thô ra UI ("V2_main_clause" từng hiện nguyên
+        // văn); mã ngoài taxonomy rơi về nhãn chung.
+        const label = err.ruleViShort || labelForCode(err.errorCode, 'vi') || 'Lỗi ngữ pháp';
+        // Gộp trùng theo MÃ (hai biến thể nhãn của cùng một lỗi từng bị đếm thành 2 mục),
+        // chỉ dùng nhãn làm khoá khi không có mã.
+        const key = err.errorCode || label;
+        if (!seen.has(key)) {
+          seen.add(key);
           items.push(label);
         }
       }

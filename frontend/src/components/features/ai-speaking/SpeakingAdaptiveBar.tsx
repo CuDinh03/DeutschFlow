@@ -17,11 +17,10 @@ export function SpeakingAdaptiveBar({ adaptive, repairBlocking, personaId }: Pro
 
   if (!adaptive?.enabled) return null;
 
-  // focusCodes là MÃ NỘI BỘ (TE_KA_MO_LO, GENDER_WRONG_DER_DIE_DAS…) — không render ra UI
-  // (QA prod 04/08 23:40: lộ mã dự án); targetStructures đã là nhãn người-đọc-được tương ứng.
-  const hasFocus =
-    (adaptive.targetStructures?.length ?? 0) > 0 ||
-    !!adaptive.topicSuggestion;
+  // QA 09/08 (lần rò thứ 2 của component này): cefrEffective (C1/C2) + targetStructures là cơ chế
+  // nội bộ — nay đã bị CẮT từ AdaptiveMetaDto, dải chỉ còn phần dành cho người học:
+  // banner sửa lỗi + chủ đề của PHIÊN (trước đây lấy nhầm kế hoạch trong ngày → "→ Sport" lạc đề).
+  const hasFocus = !!adaptive.topicSuggestion;
 
   if (!hasFocus && !repairBlocking) return null;
 
@@ -40,28 +39,9 @@ export function SpeakingAdaptiveBar({ adaptive, repairBlocking, personaId }: Pro
       {hasFocus && (
         <div className="flex items-start gap-2 flex-wrap">
           <Target size={14} className="flex-shrink-0 mt-0.5" style={{ color: accent }} />
-          {adaptive.cefrEffective && (
-            <span
-              className="text-[10px] font-bold px-2 py-0.5 rounded-ga-pill border"
-              style={{ borderColor: accent, background: personaSoft(rawAccent, 0.13), color: accent }}
-            >
-              {adaptive.cefrEffective}
-            </span>
-          )}
-          {adaptive.targetStructures?.slice(0, 2).map((s) => (
-            <span
-              key={s}
-              className="text-[10px] px-2 py-0.5 rounded-ga-pill bg-ga-card text-ga-muted border border-ga-line max-w-[200px] truncate"
-              title={s}
-            >
-              {s}
-            </span>
-          ))}
-          {adaptive.topicSuggestion && (
-            <span className="text-[11px] text-ga-muted italic truncate max-w-full">
-              → {adaptive.topicSuggestion}
-            </span>
-          )}
+          <span className="text-[11px] text-ga-muted italic truncate max-w-full">
+            → {adaptive.topicSuggestion}
+          </span>
         </div>
       )}
     </div>

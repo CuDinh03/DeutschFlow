@@ -39,10 +39,6 @@ export function mapResponseToBubble(meta: AiChatResponse, isStreaming?: boolean)
     adaptive: meta.adaptive
       ? {
           enabled: meta.adaptive.enabled,
-          cefrEffective: meta.adaptive.cefrEffective,
-          difficultyKnob: meta.adaptive.difficultyKnob,
-          focusCodes: meta.adaptive.focusCodes ?? [],
-          targetStructures: meta.adaptive.targetStructures ?? [],
           topicSuggestion: meta.adaptive.topicSuggestion,
           forceRepairBeforeContinue: meta.adaptive.forceRepairBeforeContinue,
           primaryRepairErrorCode: meta.adaptive.primaryRepairErrorCode,

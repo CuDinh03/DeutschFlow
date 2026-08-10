@@ -8,35 +8,30 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Phần adaptive được phép RỜI KHỎI server (QA 09/08 mục D — lần rò rỉ thứ HAI của dải
+ * adaptive). {@code cefrEffective}, {@code difficultyKnob}, {@code focusCodes},
+ * {@code targetStructures} là cơ chế nội bộ lái prompt — đã bị hiển thị nhầm 2 lần
+ * (04/08: focusCodes; 09/08: cefrEffective + targetStructures). Chốt chặn ở tầng DTO:
+ * dữ liệu không xuống client thì không UI nào — web/mobile, nay hay mai — hiển thị lại được.
+ * {@code SpeakingPolicy} phía server giữ nguyên đủ trường.
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AdaptiveMetaDto(
         boolean enabled,
-        String cefrEffective,
-        int difficultyKnob,
-        List<String> focusCodes,
-        List<String> targetStructures,
         String topicSuggestion,
         boolean forceRepairBeforeContinue,
         String primaryRepairErrorCode
 ) {
-    public static AdaptiveMetaDto fromPolicy(SpeakingPolicy p) {
-        if (p == null || !p.enabled()) {
-            return null;
-        }
-        return new AdaptiveMetaDto(
-                true,
-                p.cefrEffective(),
-                p.difficultyKnob(),
-                p.focusCodes(),
-                p.targetStructures(),
-                p.topicSuggestion(),
-                p.forceRepairBeforeContinue(),
-                p.primaryRepairErrorCode()
-        );
-    }
-
-    /** Client hints after this assistant turn: force drill if model emitted BLOCKING structured errors. */
-    public static AdaptiveMetaDto fromPolicyAndResponse(SpeakingPolicy promptPolicy, AiResponseDto parsed) {
+    /**
+     * Client hints after this assistant turn: force drill if model emitted BLOCKING structured errors.
+     *
+     * @param sessionTopic chủ đề PHIÊN — nguồn của {@code topicSuggestion} hiển thị. Bản cũ lấy
+     *                     {@code policy.topicSuggestion()} từ kế hoạch học trong ngày nên cả ba
+     *                     phiên QA đều hiện "→ Sport" giữa hội thoại về phim/kiến trúc/bảng chữ cái.
+     */
+    public static AdaptiveMetaDto fromPolicyAndResponse(SpeakingPolicy promptPolicy, AiResponseDto parsed,
+                                                        String sessionTopic) {
         if (promptPolicy == null || !promptPolicy.enabled() || parsed == null) {
             return null;
         }
@@ -53,15 +48,7 @@ public record AdaptiveMetaDto(
                 }
             }
         }
-        return new AdaptiveMetaDto(
-                true,
-                promptPolicy.cefrEffective(),
-                promptPolicy.difficultyKnob(),
-                promptPolicy.focusCodes(),
-                promptPolicy.targetStructures(),
-                promptPolicy.topicSuggestion(),
-                force,
-                primary
-        );
+        String topic = sessionTopic != null && !sessionTopic.isBlank() ? sessionTopic.trim() : null;
+        return new AdaptiveMetaDto(true, topic, force, primary);
     }
 }
