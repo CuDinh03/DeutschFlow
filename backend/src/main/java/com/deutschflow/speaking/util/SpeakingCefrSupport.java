@@ -60,16 +60,24 @@ public final class SpeakingCefrSupport {
         return DEFAULT_BAND;
     }
 
+    /**
+     * Trần band LUYỆN TẬP = trình độ hiện tại + 1 bậc (vùng phát triển gần) — quyết định
+     * sư phạm owner chốt 10/08 (QA 09/08 mục F). Bản cũ lấy theo {@code targetLevel}
+     * (trống thì C2): hồ sơ đặt mục tiêu C1 khiến band leo C1/C2 ngay với học viên B1.
+     * Chưa khai trình độ hiện tại → trần B2 (mức cao nhất chọn được trên UI) để không
+     * kẹp oan phiên của người dùng chưa làm hồ sơ.
+     */
     public static String ceilingBand(UserLearningProfile profile) {
-        if (profile == null || profile.getTargetLevel() == null) {
-            return "C2";
+        if (profile == null || profile.getCurrentLevel() == null) {
+            return "B2";
         }
-        return clampBand(profile.getTargetLevel().name());
+        int cur = bandIndex(bandFromCurrentLevel(profile.getCurrentLevel()));
+        return ORDER[Math.min(cur + 1, ORDER.length - 1)];
     }
 
     /**
      * Inclusive ladder clamp: learner-chosen band must stay between practice floor (from currentLevel)
-     * and profile target ceiling.
+     * and the practice ceiling (currentLevel + 1 step — see {@link #ceilingBand}).
      */
     public static String clampToProfileRange(String proposed, UserLearningProfile profile) {
         String floor = floorPracticeBand(profile);

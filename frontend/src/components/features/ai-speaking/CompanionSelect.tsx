@@ -9,6 +9,7 @@ import { personaInk, personaSoft } from "@/lib/personaPaper";
 import { PersonaCard } from "./PersonaCard";
 import { aiSpeakingApi, SpeakingSessionMode } from "@/lib/aiSpeakingApi";
 import { interviewDomainApi, InterviewPersonaInfo } from "@/lib/interviewDomainApi";
+import { getMyLearningProfile } from "@/lib/profileApi";
 import { apiMessage, httpStatus } from "@/lib/api";
 import { toastApiError } from "@/lib/toastApiError";
 import { useTranslations } from "next-intl";
@@ -21,7 +22,6 @@ import { spring } from "@/lib/motion";
 import { useStatusBarStyle } from "@/lib/statusBar";
 import { lightImpact, mediumImpact } from "@/lib/haptics";
 
-const CEFR_LEVELS = ["A1", "A2", "B1", "B2"];
 
 const MODE_TABS = [
   { mode: "COMMUNICATION" as SpeakingSessionMode, label: "Hội thoại", icon: MessageCircle },
@@ -86,8 +86,28 @@ export function CompanionSelect({
     const topic = searchParams.get('topic')
     const cefr = searchParams.get('cefr')
     if (topic) setLessonScenario(topic)
-    if (cefr && ['A1', 'A2', 'B1', 'B2'].includes(cefr)) setCefrLevel(cefr)
+    if (cefr && ['A1', 'A2', 'B1', 'B2'].includes(cefr)) {
+      cefrFromUrlRef.current = true
+      setCefrLevel(cefr)
+    }
   }, [searchParams])
+
+  // Mặc định CEFR theo trình độ THẬT trong hồ sơ thay vì hằng "B1" (QA 09/08 mục F):
+  // màn này không có bộ chọn CEFR nên giá trị mặc định là thứ duy nhất học viên nhận được.
+  // URL ?cefr= (deep-link từ lộ trình) vẫn được ưu tiên.
+  const cefrFromUrlRef = useRef(false)
+  useEffect(() => {
+    getMyLearningProfile()
+      .then((p) => {
+        if (cefrFromUrlRef.current || !p.currentLevel) return
+        const clamped = p.currentLevel === 'A0' ? 'A1'
+          : ['A1', 'A2', 'B1', 'B2'].includes(p.currentLevel) ? p.currentLevel
+          : 'B2' // C1/C2 trong hồ sơ — trần luyện tập của app là B2
+        setCefrLevel(clamped)
+      })
+      .catch(() => {}) // giữ mặc định B1 khi chưa có hồ sơ
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Mode from the URL (?mode=INTERVIEW|LESSON). The /v2 speaking launcher has one card per mode,
   // so the card can land directly on the right tab. Applied ONCE on mount — otherwise every
@@ -116,12 +136,9 @@ export function CompanionSelect({
     }
   }, [sessionMode, dbPersonas.length])
 
-  // Auto-set interview position from DB persona when a persona is selected
-  useEffect(() => {
-    if (sessionMode !== "INTERVIEW" || !selected) return;
-    const match = dbPersonas.find(p => p.code === selected.toUpperCase());
-    if (match) setInterviewPosition(match.roleTitle);
-  }, [selected, dbPersonas, sessionMode])
+  // QA 09/08 mục E: KHÔNG auto-gán vị trí ứng tuyển. Bản cũ gán roleTitle của NGƯỜI PHỎNG VẤN
+  // ("Senior Tech Lead") — ngược vai với vị trí ỨNG VIÊN ứng tuyển, vượt qua cổng isReady và
+  // ghi sai vào lịch sử. Học viên phải tự chọn; chưa chọn thì CTA giữ trạng thái nhắc.
 
   const isPersonaLocked = (personaId: string) => {
     if (!quota || quota.planCode !== "FREE") return false;
@@ -181,7 +198,9 @@ export function CompanionSelect({
 
       const res = await aiSpeakingApi.createSession(
         topicForApi ?? "Alltag",
-        sessionMode === "INTERVIEW" ? "C1" : cefrLevel,
+        // QA 09/08 mục F: bản cũ hardcode "C1" cho mọi phiên phỏng vấn — học viên B1 bị hỏi ở
+        // mức C1 (mức không thể tự chọn) và kết quả kém làm ô nhiễm SpeakingUserState.
+        cefrLevel,
         selected.toUpperCase(),
         "V1",
         sessionMode,
@@ -198,7 +217,7 @@ export function CompanionSelect({
         avatarUrl: `/companions/${token.id}.png`,
         voiceId: token.id.toUpperCase(),
         personality: token.desc,
-        cefrLevel: sessionMode === "INTERVIEW" ? "C1" : cefrLevel,
+        cefrLevel,
       };
 
       // Same store bootstrap as the class-assignment entry point (lib/speakingSessionBootstrap).
@@ -396,7 +415,7 @@ export function CompanionSelect({
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Briefcase size={14} style={{ color: selectedInk }} />
-                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>Vị trí ứng tuyển</span>
+                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>Bạn ứng tuyển vị trí nào?</span>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {(() => {
