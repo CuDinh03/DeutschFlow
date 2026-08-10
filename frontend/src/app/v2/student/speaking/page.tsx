@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { MessageCircle, Briefcase, CalendarDays, ArrowRight, History, Mic } from 'lucide-react'
 import { todayApi, type TodayPlan } from '@/lib/todayApi'
+import { weeklySpeakingApi } from '@/lib/weeklySpeakingApi'
 import { GaPageHdr, GaCard, GaCap, LoadingState } from '@/components/ui-v2'
 
 // Speaking launcher (v2). The live conversation engine (mic streaming + SSE + TTS) now runs on
@@ -85,6 +86,10 @@ export default function V2StudentSpeakingPage() {
   const t = useTranslations('v2.student.speaking')
   const [today, setToday] = useState<TodayPlan | null>(null)
   const [loading, setLoading] = useState(true)
+  // QA 09/08 mục I (owner chốt): tuần không có đề ở BẤT KỲ band nào thì ẩn ô "Chủ đề theo
+  // tuần" — không dẫn học viên vào ngõ cụt. Mặc định hiện (true) để không giật layout khi
+  // đang tải / lỗi mạng; chỉ ẩn khi backend xác nhận danh sách rỗng.
+  const [weekHasPrompts, setWeekHasPrompts] = useState(true)
 
   useEffect(() => {
     todayApi
@@ -92,6 +97,10 @@ export default function V2StudentSpeakingPage() {
       .then((r) => setToday(r.data))
       .catch(() => {})
       .finally(() => setLoading(false))
+    weeklySpeakingApi
+      .getAvailableBands()
+      .then((r) => setWeekHasPrompts((r.data ?? []).length > 0))
+      .catch(() => {})
   }, [])
 
   return (
@@ -145,7 +154,7 @@ export default function V2StudentSpeakingPage() {
 
         <GaCap className="mb-3 block">{t('modesCap')}</GaCap>
         <div className="grid grid-cols-1 gap-[18px] md:grid-cols-3">
-          {MODES.map((m) => {
+          {MODES.filter((m) => !m.weekly || weekHasPrompts).map((m) => {
             const Icon = m.icon
             // Ô "Speaking tuần" → trang nộp bài tuần (kèm ?cefBand gợi ý nếu backend có trả),
             // các ô còn lại → engine luyện nói (kèm ?return để thoát về đúng launcher này).

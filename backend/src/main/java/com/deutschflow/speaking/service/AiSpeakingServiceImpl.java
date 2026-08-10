@@ -317,13 +317,15 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         AiResponseDto parsed = parseGreetingResponse(result, responseSchema, userId, sessionId, policy, systemPrompt,
                 cefrLevel, topic, sessionMode, interviewContext, greetMaxTokens, persona);
 
+        // QA 09/08 (J6): greeting là lượt AI MỞ ĐẦU — học viên chưa nói gì nên feedback kiểu
+        // "Bạn làm tốt" là khen vào khoảng không, làm phản hồi mất giá trị. Bỏ hẳn ở greeting.
         AiSpeakingMessage msg = messageRepository.save(AiSpeakingMessage.builder()
                 .sessionId(sessionId)
                 .role(MessageRole.ASSISTANT)
                 .aiSpeechDe(parsed.aiSpeechDe())
                 .explanationVi(parsed.explanationVi())
                 .assistantAction(parsed.action())
-                .assistantFeedback(parsed.feedback())
+                .assistantFeedback(null)
                 .createdAt(LocalDateTime.now())
                 .build());
 
@@ -355,7 +357,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                 null,
                 parsed.status(),
                 parsed.similarityScore(),
-                parsed.feedback(),
+                null,
                 List.of(),
                 responseSchema.name(),
                 parsed.action(),

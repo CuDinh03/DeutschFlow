@@ -613,7 +613,10 @@
       "correction": "Sửa lỗi: ",
       "explanation": "Giải thích: ",
       "grammarErrors": "{count} lỗi ngữ pháp",
-      "details": "Chi tiết"
+      "details": "Chi tiết",
+      "groupToday": "Hôm nay",
+      "groupThisWeek": "Tuần này",
+      "groupOlder": "Cũ hơn"
     },
     "exerciseHistory": {
       "title": "Lịch sử bài tập lộ trình",

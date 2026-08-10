@@ -37,6 +37,15 @@ public class WeeklySpeakingController {
         return weeklySpeakingService.getCurrentPrompt(user.getId(), cefrBand);
     }
 
+    /**
+     * QA 09/08 mục I: các band có đề ACTIVE tuần này — client ẩn ô "Chủ đề theo tuần"
+     * khi rỗng (tuần trống là ngõ cụt) và cho empty-state nói thật band nào đang có đề.
+     */
+    @GetMapping("/available-bands")
+    public java.util.List<String> availableBands() {
+        return weeklySpeakingService.availableBandsThisWeek();
+    }
+
     @PostMapping("/submissions")
     public WeeklySpeakingDtos.WeeklySubmissionResponse submit(
             @AuthenticationPrincipal User user,

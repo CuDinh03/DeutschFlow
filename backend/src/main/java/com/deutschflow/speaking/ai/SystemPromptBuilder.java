@@ -71,6 +71,8 @@ public class SystemPromptBuilder {
               [0] = KURZ + SICHER (3-6 Wörter, leicht auszusprechen, direkte Antwort auf deine LETZTE Frage).
               [1] = LÄNGER + REICHER (8-14 Wörter, ehrlicher/detaillierter, auch direkte Antwort auf dieselbe Frage).
               BEIDE müssen die LETZTE Frage konkret beantworten — keine generischen Satzanfänge.
+            - vietnamese_translation: Bedeutung EXAKT wiedergeben. Internationale Lehnwörter und Genre-Namen (z.B. "Thriller", "Pizza") UNVERÄNDERT lassen, wenn es kein gebräuchliches vietnamesisches Äquivalent gibt — NIE eine falsche Übersetzung raten.
+            - feedback: bezieht sich NUR auf die ALLERLETZTE Nutzer-Antwort. Enthält sie Fehler → KEIN generisches Lob ("Bạn làm tốt"). NIE Fortschritt ("tiến bộ") behaupten ohne konkreten Vergleich zu einem früheren Turn.
             - severity (UI-Reparatur-Gate): BLOCKING nur bei schwerem Missverständnis / Kernfehler (Verständnis, falsche Person/Kasus die Bedeutung ändert, Satz unverständlich). MAJOR = klarer Satzfehler. MINOR = Tippfehler, kleine Randkorrekturen. BLOCKING sparsam — Frontend erzwingt Drill.
             - error_code MUSS sein:
             %s
@@ -105,6 +107,7 @@ public class SystemPromptBuilder {
               "learning_status": { "new_word": null, "user_interest_detected": null }
             }
             REGELN KURZ:
+            - feedback: bezieht sich NUR auf die ALLERLETZTE Nutzer-Antwort. Enthält sie Fehler → KEIN generisches Lob ("Bạn làm tốt"). NIE Fortschritt ("tiến bộ") behaupten ohne konkreten Vergleich zu einem früheren Turn.
             - severity (UI-Reparatur-Gate): BLOCKING nur bei schwerem Missverständnis / Kernfehler (Verständnis, falsche Person/Kasus die Bedeutung ändert, Satz unverständlich). MAJOR = klarer Satzfehler. MINOR = Tippfehler, kleine Randkorrekturen. BLOCKING sparsam — Frontend erzwingt Drill.
             - error_code MUSS sein:
             %s
@@ -123,7 +126,8 @@ public class SystemPromptBuilder {
               A1 = sehr kurze Hauptsätze, Präsens, Grundwortschatz; A2 = einfache Sätze, Perfekt/Modalverben, Alltagswörter;
               B1 = verbundene Sätze mit Konnektoren (weil/dass/wenn), Alltagsthemen; B2 = komplexe Satzgefüge, Nebensätze, abstraktere Themen;
               C1 = idiomatisch, nuanciert, anspruchsvoller/präziser Wortschatz. NICHT über User_Level hinausgehen.
-            - Sprache: Inhalt sprachlich primär Deutsch (im Feld "content"); translation immer Vietnamesisch.
+            - Sprache: Inhalt sprachlich primär Deutsch (im Feld "content"); translation immer Vietnamesisch — internationale Lehnwörter/Genres (z.B. "Thriller") unverändert lassen statt falsch zu raten.
+            - "feedback" bezieht sich NUR auf die letzte Nutzer-Antwort; bei Fehlern kein generisches Lob, NIE Fortschritt ohne Vergleichsbasis behaupten.
             - "action" soll das Gespräch zum Target_Topic voranbringen (eine klare Aufforderung/Frage).
             """;
 

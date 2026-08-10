@@ -48,8 +48,31 @@ interface SpeakingSession {
   cefrLevel?: string
   persona?: string
   status?: string
+  /** Backend (AiSpeakingSessionDto) trả startedAt — createdAt giữ lại cho tương thích. */
+  startedAt?: string
   createdAt?: string
   messageCount?: number
+}
+
+// QA 09/08 (J1): trang tên "Lịch sử" nhưng không có mốc thời gian — code cũ đọc createdAt
+// trong khi API trả startedAt nên ngày giờ không bao giờ hiện.
+function sessionDate(s: SpeakingSession): Date | null {
+  const raw = s.startedAt ?? s.createdAt
+  if (!raw) return null
+  const d = new Date(raw)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+type RecencyGroup = 'groupToday' | 'groupThisWeek' | 'groupOlder'
+
+function recencyGroup(d: Date | null): RecencyGroup {
+  if (!d) return 'groupOlder'
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  if (d >= startOfToday) return 'groupToday'
+  const weekAgo = new Date(startOfToday)
+  weekAgo.setDate(weekAgo.getDate() - 6)
+  return d >= weekAgo ? 'groupThisWeek' : 'groupOlder'
 }
 
 function mapSessionMessages(raw: unknown[]): SessionMessage[] {
@@ -201,6 +224,14 @@ export default function V2StudentSpeakingHistoryPage() {
       .finally(() => setLoading(false))
   }, [reloadKey])
 
+  // QA 09/08 (J2): phiên 0 tin nhắn là rác (tạo rồi thoát) — lọc khỏi danh sách.
+  const visibleSessions = sessions.filter((s) => (s.messageCount ?? 0) > 0)
+
+  // J1: nhóm theo Hôm nay / Tuần này / Cũ hơn để trang "Lịch sử" lần lại được theo thời gian.
+  const groupedSessions = (['groupToday', 'groupThisWeek', 'groupOlder'] as const)
+    .map((g) => [g, visibleSessions.filter((s) => recencyGroup(sessionDate(s)) === g)] as const)
+    .filter(([, items]) => items.length > 0)
+
   const openSession = async (sess: SpeakingSession) => {
     setSelected(sess)
     setLoadingMsgs(true)
@@ -254,7 +285,7 @@ export default function V2StudentSpeakingHistoryPage() {
 
           {!selected ? (
             <>
-              <GaCap>{t('recentSessions', { count: sessions.length })}</GaCap>
+              <GaCap>{t('recentSessions', { count: visibleSessions.length })}</GaCap>
 
               {loading ? (
                 <LoadingState label={t('loading')} />
@@ -272,7 +303,7 @@ export default function V2StudentSpeakingHistoryPage() {
                     {t('retry')}
                   </button>
                 </div>
-              ) : sessions.length === 0 ? (
+              ) : visibleSessions.length === 0 ? (
                 <div className="rounded-ga border border-ga-line bg-ga-card px-4 py-16 text-center lg:px-0">
                   <Mic size={36} className="mx-auto mb-3 text-ga-subtle" aria-hidden />
                   <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('noSessions')}</p>
@@ -285,8 +316,11 @@ export default function V2StudentSpeakingHistoryPage() {
                   </a>
                 </div>
               ) : (
-                sessions.map((sess) => {
-                  const date = sess.createdAt ? new Date(sess.createdAt) : null
+                groupedSessions.map(([groupKey, items]) => (
+                  <div key={groupKey} className="space-y-3">
+                    <GaCap className="mt-2 block">{t(groupKey)}</GaCap>
+                    {items.map((sess) => {
+                  const date = sessionDate(sess)
                   return (
                     <GaCard key={sess.id} hover className="overflow-hidden">
                       <button
@@ -327,7 +361,9 @@ export default function V2StudentSpeakingHistoryPage() {
                       </button>
                     </GaCard>
                   )
-                })
+                    })}
+                  </div>
+                ))
               )}
             </>
           ) : loadingMsgs ? (

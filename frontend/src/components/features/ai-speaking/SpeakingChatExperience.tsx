@@ -118,6 +118,9 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   const [showEndPopup, setShowEndPopup] = useState(false);
   const [greetingSpoken, setGreetingSpoken] = useState(false);
   const [mobileCopilotOpen, setMobileCopilotOpen] = useState(false);
+  // J5: panel copilot desktop (rail bên phải) — controlled ở đây để link "Xem N lỗi"
+  // trong bong bóng mở được cả panel desktop lẫn sheet mobile.
+  const [desktopCopilotOpen, setDesktopCopilotOpen] = useState(false);
   const { trackFeatureAction } = useTracking();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -404,7 +407,11 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
     lastUserErrors,
   });
 
-  const openCopilot = useCallback(() => setMobileCopilotOpen(true), []);
+  const openCopilot = useCallback(() => {
+    // Mở cả hai: chỉ bề mặt khớp breakpoint hiện tại hiển thị (sheet md:hidden, rail hidden md:flex).
+    setMobileCopilotOpen(true);
+    setDesktopCopilotOpen(true);
+  }, []);
 
   const suggestionCount = showSuggestions ? lastSuggestions.length : 0;
   const stripPhonemeScore = phonemeResult?.score ?? null;
@@ -541,7 +548,10 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
     .join(" ");
 
   const headerSubtitle = [
-    isInterview ? tChat("modeInterview") : tChat("modeConversation"),
+    // QA 09/08 mục H: LESSON từng rơi vào nhánh "Hội thoại" vì chỉ có 2 nhánh.
+    isInterview ? tChat("modeInterview")
+      : sessionMode === "LESSON" ? tChat("modeLesson")
+      : tChat("modeConversation"),
     selectedCompanion.cefrLevel,
     interviewPhaseLabel,
   ]
@@ -663,6 +673,8 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
           hasUserSpoken={messages.some((m) => m.role === "user")}
           onSuggestionSelect={handleSuggestionSelect}
           onStarterSelect={handleSuggestionSelect}
+          panelOpen={desktopCopilotOpen}
+          onPanelOpenChange={setDesktopCopilotOpen}
         />
       </div>
 
