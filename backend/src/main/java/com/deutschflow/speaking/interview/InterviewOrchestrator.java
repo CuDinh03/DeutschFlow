@@ -130,17 +130,24 @@ public class InterviewOrchestrator {
                 .orElse(phase.name().toLowerCase(Locale.ROOT));
 
         // ── CLOSING phase overrides (checked in priority order) ───────────────
-        if (phase == InterviewPhase.CLOSING && lastWasClosingAskOrAnswer) {
-            // Second CLOSING turn: say farewell and end the interview
-            directive = InterviewDirectiveType.CLOSING_FAREWELL;
-            directiveInstruction = directiveText(InterviewDirectiveType.CLOSING_FAREWELL, analysis);
-            mandatoryQuestion = buildFarewell(position);
-            questionId = "close_farewell";
-            topicKey = "farewell";
-        } else if (userAskedClosingQuestions) {
+        // L4 (QA 10/08): câu hỏi của ứng viên PHẢI thắng farewell — "Wie geht es weiter?" từng bị lơ
+        // vì nhánh farewell đứng trước. Và sau khi ĐÃ farewell thì lượt kế chào ngắn lại chứ không
+        // quay về CLOSING_ASK ("chào rồi lại hỏi Haben Sie noch Fragen?").
+        boolean alreadyFarewelled = "CLOSING_FAREWELL".equals(state.getLastDirectiveType());
+        if (phase == InterviewPhase.CLOSING && userAskedClosingQuestions) {
             directive = InterviewDirectiveType.CLOSING_ANSWER;
             directiveInstruction = InterviewClosingTemplates.answerGuide(persona, position);
             mandatoryQuestion = "Beantworten Sie die Fragen des Kandidaten einzeln und konkret. Fragen Sie zum Schluss: 'Gibt es noch etwas?'";
+            questionId = "close_answer";
+            topicKey = "closing";
+        } else if (phase == InterviewPhase.CLOSING && (lastWasClosingAskOrAnswer || alreadyFarewelled)) {
+            directive = InterviewDirectiveType.CLOSING_FAREWELL;
+            directiveInstruction = directiveText(InterviewDirectiveType.CLOSING_FAREWELL, analysis);
+            mandatoryQuestion = alreadyFarewelled
+                    ? "Vielen Dank, auf Wiedersehen!"
+                    : buildFarewell(position);
+            questionId = "close_farewell";
+            topicKey = "farewell";
         } else if (phase == InterviewPhase.CLOSING) {
             mandatoryQuestion = "Haben Sie noch Fragen an uns?";
             directive = InterviewDirectiveType.CLOSING_ASK;
@@ -268,6 +275,11 @@ public class InterviewOrchestrator {
 
     private static boolean looksLikeCandidateQuestions(String userMessage) {
         String lower = userMessage.toLowerCase(Locale.ROOT);
+        // "Nein, ich habe keine Fragen" chứa substring "frage" — không phải câu hỏi (lộ ra khi
+        // L4 đưa nhánh CLOSING_ANSWER lên trước farewell, 10/08).
+        if (lower.contains("keine frage") || lower.contains("keine weiteren fragen")) {
+            return false;
+        }
         return lower.contains("frage") || lower.contains("würde gerne wissen")
                 || lower.contains("interessiert") || lower.contains("wie ist")
                 || lower.contains("gibt es") || lower.contains("welche");
