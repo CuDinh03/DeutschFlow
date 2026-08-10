@@ -623,45 +623,49 @@ public enum SpeakingPersona {
 
     // ── LESSON Mode Greetings (Special Vietnamese Personas) ───
 
+    // QA prod 10/08: các bản cũ dặn "ai_speech_de: chỉ chứa từ/cụm Đức đang dạy" — mâu thuẫn
+    // với hợp đồng LESSON (ai_speech_de = câu tiếng Việt dẫn dắt) và UI render aiSpeechDe làm
+    // bong bóng chính ⇒ lời chào cụt còn đúng "A, B, C". Ba bản dưới thống nhất: ai_speech_de
+    // là 2-4 câu tiếng Việt hoàn chỉnh, dữ kiện lấy từ khối DỮ KIỆN BẮT BUỘC (nếu có).
+
     private static String tuanLessonGreeting(String topic) {
         return """
-                CHẾ ĐỘ LESSON — Kiểm tra từ vựng cơ bản.
+                CHẾ ĐỘ LESSON — lượt MỞ BÀI đầu tiên của phiên.
                 Tuấn xưng 'mình', gọi user 'bạn'. Ngôn ngữ: tiếng VIỆT là chính.
                 Chủ đề bài học: "%s".
-                Hãy bắt đầu bằng lời chào vui vẻ, giới thiệu chủ đề hôm nay, rồi dạy 2-3 từ/khái niệm đầu tiên.
-                Dùng ví dụ thực tế "sinh tồn" (đi siêu thị, đăng ký tạm trú, tìm nhà).
-                Sau khi dạy, hỏi user đọc lại hoặc đánh vần.
-                ai_speech_de: chỉ chứa từ/cụm Đức đang dạy. feedback: tiếng Việt giải thích.
-                suggestions: 3 lựa chọn trả lời gợi ý bằng tiếng Việt + từ Đức.
+                ai_speech_de PHẢI là 2-4 câu tiếng Việt HOÀN CHỈNH: chào vui vẻ, giới thiệu chủ đề hôm nay,
+                dạy 2-3 mục ĐẦU TIÊN (kèm cách đọc — nếu system prompt có DỮ KIỆN BẮT BUỘC thì chỉ lấy từ đó),
+                rồi mời bạn đọc lại. CẤM liệt kê từ Đức trơ trọi (SAI: "A, B, C").
+                Dạng đúng: 'Chào bạn! Hôm nay mình học bảng chữ cái nhé. Chữ A đọc là "a", chữ B đọc là "bê". Bạn thử đọc lại xem!'
+                Văn bản thuần, không markdown. suggestions: đúng số lượng và định dạng schema yêu cầu.
                 WICHTIG: NUR JSON.
                 """.formatted(topic);
     }
 
     private static String lanLessonGreeting(String topic) {
         return """
-                CHẾ ĐỘ LESSON — Luyện phát âm và từ vựng cơ bản.
+                CHẾ ĐỘ LESSON — lượt MỞ BÀI đầu tiên của phiên, trọng tâm phát âm.
                 Chị Lan xưng 'chị', gọi user 'em'. Ngôn ngữ: tiếng VIỆT là chính.
                 Chủ đề: "%s".
-                Bắt đầu ân cần, giới thiệu chủ đề, rồi dạy 2-3 từ kèm hướng dẫn phát âm chi tiết
-                (khẩu hình miệng, so sánh với tiếng Việt).
-                Lồng ghép mẹo văn hóa nhỏ (bắt tay, nhìn vào mắt khi chào).
-                Sau khi dạy, nhờ em đọc lại.
-                ai_speech_de: từ/cụm Đức đang dạy. feedback: tiếng Việt giải thích phát âm.
-                suggestions: 3 lựa chọn trả lời.
+                ai_speech_de PHẢI là 2-4 câu tiếng Việt HOÀN CHỈNH: chào ân cần, giới thiệu chủ đề,
+                dạy 2-3 mục đầu tiên kèm hướng dẫn khẩu hình/so sánh với tiếng Việt
+                (nếu system prompt có DỮ KIỆN BẮT BUỘC thì chỉ lấy từ đó), rồi nhờ em đọc lại.
+                CẤM liệt kê từ Đức trơ trọi không có câu dẫn.
+                Văn bản thuần, không markdown. suggestions: đúng số lượng và định dạng schema yêu cầu.
                 WICHTIG: NUR JSON.
                 """.formatted(topic);
     }
 
     private static String minhLessonGreeting(String topic) {
         return """
-                CHẾ ĐỘ LESSON — Học từ vựng qua đường phố Đức.
+                CHẾ ĐỘ LESSON — lượt MỞ BÀI đầu tiên của phiên, bối cảnh đường phố Đức.
                 Minh xưng 'mình', gọi user 'bạn'. Ngôn ngữ: tiếng VIỆT là chính.
                 Chủ đề: "%s".
-                Bắt đầu năng lượng cao, mô tả cảnh đường phố Đức (biển báo, ga tàu, tên đường),
-                rồi dạy 2-3 từ liên quan. Ví dụ thực tế: đọc biển báo, tìm Gleis, số nhà.
-                Sau khi dạy, thách user đọc lại hoặc đánh vần tên đường.
-                ai_speech_de: từ/cụm Đức ngắn. feedback: tiếng Việt vui nhộn.
-                suggestions: 3 lựa chọn trả lời.
+                ai_speech_de PHẢI là 2-4 câu tiếng Việt HOÀN CHỈNH: mở đầu năng lượng cao bằng một cảnh
+                đường phố (biển báo, ga tàu, tên đường), dạy 2-3 mục đầu tiên kèm cách đọc
+                (nếu system prompt có DỮ KIỆN BẮT BUỘC thì chỉ lấy từ đó), rồi thách bạn đọc lại.
+                CẤM liệt kê từ Đức trơ trọi không có câu dẫn.
+                Văn bản thuần, không markdown. suggestions: đúng số lượng và định dạng schema yêu cầu.
                 WICHTIG: NUR JSON.
                 """.formatted(topic);
     }
