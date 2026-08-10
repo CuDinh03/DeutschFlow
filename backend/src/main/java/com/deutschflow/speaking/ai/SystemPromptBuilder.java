@@ -177,6 +177,11 @@ public class SystemPromptBuilder {
         StringBuilder inner = new StringBuilder();
         appendCompressedLearnerContext(inner, req.knownInterests(), req.weakPoints());
         appendAdaptivePolicy(inner, req.policy());
+        // QA 09/08 mục B: LESSON lượt 2 lặp nguyên lời chào thay vì nhận xét — bài không tiến triển.
+        if (req.sessionMode() == SpeakingSessionMode.LESSON && req.turnCount() >= 1) {
+            inner.append("BÀI HỌC ĐANG GIỮA CHỪNG (đã chào ở lượt đầu): CẤM chào lại hay giới thiệu lại bài. ")
+                    .append("Nhận xét ngắn phần học viên vừa đọc (đúng/sai chỗ nào) rồi dạy tiếp phần kế.\n");
+        }
         if (ragContext != null && !ragContext.isBlank()) {
             inner.append("\n=== TÀI LIỆU HỖ TRỢ (RAG CONTEXT) ===\n").append(ragContext).append("\n");
         }
@@ -268,13 +273,16 @@ public class SystemPromptBuilder {
             sb.append("CHẾ ĐỘ LESSON — Giảng dạy từ vựng/bảng chữ cái tiếng Đức bằng tiếng Việt.\n");
             sb.append("NGÔN NGỮ CHÍNH: tiếng VIỆT. Chỉ dùng tiếng Đức trong trường (ai_speech_de) để dạy từ vựng.\n");
             sb.append("TUYỆT ĐỐI KHÔNG dùng tiếng Đức làm ngôn ngữ giao tiếp chính. Mọi giải thích, feedback đều bằng tiếng Việt.\n");
-            sb.append("Chủ đề bài học: ").append(topicSection).append("\n\n");
+            sb.append("Chủ đề bài học: ").append(topicSection).append("\n");
+            appendLessonFactSheet(sb, topicSection);
+            sb.append("TIẾN TRIỂN BÀI HỌC: mỗi lượt dạy MỘT phần nhỏ mới hoặc nhận xét phần học viên vừa đọc — ");
+            sb.append("không dạy lại phần đã dạy, không lặp lại lời chào/lời giới thiệu sau lượt đầu tiên.\n\n");
 
         } else if (isVietnamese) {
             sb.append("CHẾ ĐỘ GIAO TIẾP — Cuộc trò chuyện thân thiện về nước Đức bằng tiếng VIỆT.\n");
             sb.append("NGÔN NGỮ CHÍNH: tiếng VIỆT. Tuyệt đối không nói tiếng Đức làm ngôn ngữ chính.\n");
-            sb.append("Chỉ lồng ghép từ/cụm tiếng Đức (in đậm) vào câu tiếng Việt để giảng dạy.\n");
-            sb.append("Ví dụ đúng: 'Ở Đức khi gặp nhau người ta hay nói **Hallo** (xin chào) hoặc **Guten Morgen** (chào buổi sáng).\n");
+            sb.append("Chỉ lồng ghép từ/cụm tiếng Đức vào câu tiếng Việt để giảng dạy — văn bản thuần, KHÔNG dùng ký hiệu markdown (**, *, #).\n");
+            sb.append("Ví dụ đúng: 'Ở Đức khi gặp nhau người ta hay nói Hallo (xin chào) hoặc Guten Morgen (chào buổi sáng).\n");
             sb.append("Ví dụ SAI: 'Hallo! Heute lernen wir...' — tức là nói toàn tiếng Đức là SAI.\n");
             sb.append("Mỗi câu trả lời phải: (1) chủ yếu tiếng Việt, (2) có 1-2 từ Đức mới kèm giải thích.\n\n");
 
@@ -306,6 +314,25 @@ public class SystemPromptBuilder {
                 sb.append("Der Lernende hat keinen Beruf angegeben. Führe ein allgemeines Alltagsgespräch über Hobby, Essen, Wochenende, Familie, Wetter, Filme.\n");
             }
             sb.append("\n");
+        }
+    }
+
+    /**
+     * Khối dữ kiện tĩnh cho bài LESSON có đáp án cố định (QA 09/08 mục B: model tự bịa
+     * cách đọc bảng chữ cái). Nội dung tĩnh theo phiên (topic không đổi) → an toàn với
+     * prefix-cache. Chủ đề tình huống (không có sheet) nhận ràng buộc thận trọng chung.
+     */
+    private void appendLessonFactSheet(StringBuilder sb, String topicSection) {
+        String sheet = LessonFactSheets.factSheetFor(topicSection);
+        if (sheet != null) {
+            sb.append("\nDỮ KIỆN BẮT BUỘC (đã kiểm duyệt — nguồn duy nhất được phép dùng):\n");
+            sb.append(sheet);
+            sb.append("RÀNG BUỘC TUYỆT ĐỐI: KHÔNG tự bịa cách đọc/con số/quy tắc ngoài dữ kiện trên. ");
+            sb.append("KHÔNG tự đặt câu ví dụ tiếng Đức mới — chỉ dùng đúng các câu mẫu đã cho. ");
+            sb.append("Nếu học viên hỏi ngoài phạm vi dữ kiện, nói thật là bài này chỉ dạy phần trên.\n");
+        } else {
+            sb.append("RÀNG BUỘC: chỉ dùng câu tiếng Đức A1 đơn giản, chắc chắn đúng ngữ pháp và chính tả. ");
+            sb.append("Không chắc chắn một dữ kiện (cách đọc, quy tắc, con số) thì KHÔNG dạy dữ kiện đó.\n");
         }
     }
 
@@ -427,6 +454,8 @@ public class SystemPromptBuilder {
             sb.append(personaSection).append("\n");
         }
         sb.append("Priorität: Target_Topic hat Vorrang beim GESPRÄCHSTHEMA; deine IDENTITÄT (Name, Beruf, Rolle) aus der PERSONA bleibt IMMER bestehen — nicht das Thema verlassen.\n\n");
+        // QA 09/08 mục C: UI render text thuần + câu được đọc bằng TTS — markdown lộ nguyên ** ra chat.
+        sb.append("PLAINTEXT: Inhalt ALLER Textfelder ist reiner Text — KEIN Markdown (**fett**, *kursiv*, #, Listen, `Code`). Betonung nur durch Wortwahl.\n\n");
 
         if (responseSchema == SpeakingResponseSchema.V2) {
             sb.append("AI TASKS (V2 — kompakt):\n");
@@ -473,11 +502,11 @@ public class SystemPromptBuilder {
                 String viSchema = schemaBlock
                     .replace(
                         "\"ai_speech_de\": \"Deutsch, Tutor-Antwort + kurze Folgefrage zum Target_Topic\"",
-                        "\"ai_speech_de\": \"TIẾNG VIỆT LÀ CHÍNH — câu trả lời bằng tiếng Việt, lồng 1-2 từ Đức in **bold**, kèm giải thích nghĩa. KHÔNG được dùng tiếng Đức làm ngôn ngữ chính.\""
+                        "\"ai_speech_de\": \"TIẾNG VIỆT LÀ CHÍNH — câu trả lời bằng tiếng Việt, lồng 1-2 từ Đức kèm giải thích nghĩa, văn bản thuần KHÔNG markdown. KHÔNG được dùng tiếng Đức làm ngôn ngữ chính.\""
                     );
                 sb.append(viSchema);
                 sb.append("\nLƯU Ý QUAN TRỌNG NHẤT: Trường ai_speech_de phải chứa câu tiếng VIỆT, không phải tiếng Đức. ");
-                sb.append("Ví dụ: 'Chào bạn! Hôm nay mình học chữ **A** trong tiếng Đức nhé!' — ĐÂY LÀ ĐÚNG.\n");
+                sb.append("Ví dụ: 'Chào bạn! Hôm nay mình học chữ A trong tiếng Đức nhé!' — ĐÂY LÀ ĐÚNG.\n");
                 sb.append("Ví dụ: 'Hallo! Heute lernen wir das Alphabet!' — ĐÂY LÀ SAI.\n");
             } else {
                 sb.append(schemaBlock);

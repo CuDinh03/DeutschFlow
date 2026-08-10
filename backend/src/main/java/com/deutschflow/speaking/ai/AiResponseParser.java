@@ -94,8 +94,9 @@ public class AiResponseParser {
             }
 
             var dto = new AiResponseDto(
-                    aiSpeechDe, correction, explanationVi, grammarPoint, newWord, userInterestDetected, errors,
-                    status, similarityScore, feedback, suggestions, null, interviewMeta);
+                    stripInlineMarkdown(aiSpeechDe), stripInlineMarkdown(correction),
+                    stripInlineMarkdown(explanationVi), grammarPoint, newWord, userInterestDetected, errors,
+                    status, similarityScore, stripInlineMarkdown(feedback), suggestions, null, interviewMeta);
             return new AiParseOutcome(dto, AiParseStatus.STRUCTURED);
 
         } catch (Exception e) {
@@ -122,18 +123,18 @@ public class AiResponseParser {
             }
 
             var dto = new AiResponseDto(
-                    content,
+                    stripInlineMarkdown(content),
                     null,
-                    translation,
+                    stripInlineMarkdown(translation),
                     null,
                     null,
                     null,
                     List.of(),
                     null,
                     null,
-                    feedback,
+                    stripInlineMarkdown(feedback),
                     List.of(),
-                    action);
+                    stripInlineMarkdown(action));
             return new AiParseOutcome(dto, AiParseStatus.STRUCTURED);
 
         } catch (Exception e) {
@@ -191,6 +192,27 @@ public class AiResponseParser {
         if (field == null || field.isNull()) return null;
         String text = field.asText(null);
         return (text == null || text.isBlank() || "null".equals(text)) ? null : text;
+    }
+
+    /**
+     * Gỡ markdown inline khỏi văn bản hiển thị cho học viên (QA prod 09/08 mục C: model trả
+     * {@code **A**} mà UI render text thuần nên dấu sao lộ nguyên văn; TTS cũng đọc cả ký hiệu).
+     * Prompt đã cấm markdown nhưng không bảo đảm tuyệt đối — đây là chốt chặn phía server để
+     * web lẫn mobile cùng sạch. Chỉ gỡ ký hiệu bọc/trang trí, không đụng nội dung chữ.
+     */
+    static String stripInlineMarkdown(String text) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        String out = text
+                .replace("**", "")
+                .replace("__", "")
+                .replace("`", "");
+        // *nhấn mạnh* một cặp trong cùng dòng — gỡ cặp sao, giữ chữ. Dấu * lẻ giữ nguyên.
+        out = out.replaceAll("\\*([^*\\n]+)\\*", "$1");
+        // Tiêu đề markdown đầu dòng (#, ##, …) — gỡ ký hiệu, giữ chữ.
+        out = out.replaceAll("(?m)^#{1,6}\\s+", "");
+        return out;
     }
 
     /**
@@ -286,7 +308,7 @@ public class AiResponseParser {
 
     /** DTO chỉ có lời thoại; mọi trường phụ để rỗng vì hợp đồng đã vỡ. */
     private AiResponseDto speechOnly(String speech) {
-        return new AiResponseDto(speech, null, null, null, null, null, List.of(),
+        return new AiResponseDto(stripInlineMarkdown(speech), null, null, null, null, null, List.of(),
                 null, null, null, List.of(), null);
     }
 
