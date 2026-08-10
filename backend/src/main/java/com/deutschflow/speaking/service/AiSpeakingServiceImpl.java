@@ -485,7 +485,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
 
         turnSideEffectsService.applyTurnSideEffects(prep, userMessage, parsed, reliableParse, ai, assistantMsg.getId(), effectiveProfile, profile, session, ledgerPurpose);
 
-        AdaptiveMetaDto adaptive = AdaptiveMetaDto.fromPolicyAndResponse(prep.policy(), parsed);
+        AdaptiveMetaDto adaptive = AdaptiveMetaDto.fromPolicyAndResponse(prep.policy(), parsed, prep.topic());
         if (adaptive != null && adaptive.forceRepairBeforeContinue()) {
             speakingMetrics.recordForceRepair();
         }
@@ -643,7 +643,12 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     }
 
     private ErrorItemDto toErrorItemDto(UserGrammarError e) {
-        String code = e.getErrorCode() != null ? e.getErrorCode() : e.getGrammarPoint();
+        // QA 09/08 mục G: đây là đường rò mã thô ra UI — fallback grammarPoint là TEXT TỰ DO của
+        // model ("V2_main_clause") và không qua chốt catalog nào (khác đường chat đi qua
+        // AiResponseParser). Chỉ phát mã đã chuẩn hoá về catalog; ngoài catalog → null để client
+        // dùng nhãn người-đọc-được (ruleViShort / nhãn chung).
+        String code = com.deutschflow.speaking.ai.ErrorCatalog.normalize(
+                e.getErrorCode() != null ? e.getErrorCode() : e.getGrammarPoint());
         return new ErrorItemDto(
                 code,
                 e.getSeverity(),

@@ -52,8 +52,9 @@ public final class AiErrorSanitizer {
             if (!passesConfidenceGate(e.confidence(), e.severity())) {
                 continue;
             }
-            String code = normalizeCode(msgLower, e.errorCode());
-            if (code == null || !ErrorCatalog.isValid(code)) continue;
+            // Chuẩn hoá về mã catalog (case + tiền tố nhóm) trước khi kiểm — QA 09/08 mục G.
+            String code = ErrorCatalog.normalize(normalizeCode(msgLower, e.errorCode()));
+            if (code == null) continue;
 
             String wrong = trimToNull(e.wrongSpan());
             String corrected = trimToNull(e.correctedSpan());
