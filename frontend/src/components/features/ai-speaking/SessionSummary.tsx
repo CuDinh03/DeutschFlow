@@ -30,6 +30,11 @@ interface GermanLanguage {
   fluency_vi?: string; common_errors_vi?: string[];
 }
 interface InterviewReport {
+  /** Đợt A 10/08: "INSUFFICIENT_DATA" | "EVAL_FAILED" — report trạng thái, KHÔNG phải điểm. */
+  type?: string;
+  user_turns?: number;
+  min_turns?: number;
+  min_words?: number;
   overall_score?: string;
   verdict?: "PASS" | "CONDITIONAL_PASS" | "NOT_PASS";
   verdict_label_vi?: string;
@@ -143,7 +148,13 @@ export function SessionSummary({
     try { return JSON.parse(interviewReportJson) as InterviewReport; } catch { return null; }
   }, [interviewReportJson]);
 
-  const hasAiReport = isInterviewMode && aiReport !== null;
+  // Report có "type" là report TRẠNG THÁI (chưa đủ dữ liệu / chấm thất bại) — không phải điểm.
+  const reportStatusType = aiReport && typeof aiReport.type === "string" ? aiReport.type : null;
+  const hasAiReport = isInterviewMode && aiReport !== null && !reportStatusType;
+  // Đợt A 10/08: INTERVIEW không bao giờ rơi về điểm heuristic client-side nữa — không có report
+  // hợp lệ (kể cả parse fail / null) thì nói thật là chưa chấm được.
+  const interviewInsufficient = isInterviewMode && reportStatusType === "INSUFFICIENT_DATA";
+  const interviewNotScored = isInterviewMode && !hasAiReport;
 
   // Điểm AI /10 cho vòng tròn interview: parse "5.5/10" (chấp nhận dấu phẩy), fallback trung bình
   // 4 category. Trước đây vòng tròn interview hiện điểm heuristic /100 (client tự tính từ số lượt/lỗi)
@@ -260,8 +271,22 @@ export function SessionSummary({
                   </div>
                 );
               }
-              // Heuristic /100 (chỉ khi KHÔNG có report AI nào) — giữ hành vi cũ.
-              if (!hasConversationReport && !hasAiReport && showScore) {
+              // INTERVIEW chưa có điểm thật → trạng thái thành thật, KHÔNG hiện số nào.
+              if (interviewNotScored) {
+                return (
+                  <div
+                    className="flex flex-col items-center justify-center rounded-full text-center px-4"
+                    style={{ width: size, height: size, background: "var(--ga-surface)", border: "1px solid var(--ga-line)" }}
+                  >
+                    <span className="text-2xl leading-none mb-1">🎤</span>
+                    <span className="text-[11px] font-medium leading-tight" style={{ color: "var(--ga-muted)" }}>
+                      {interviewInsufficient ? <>Kết thúc quá sớm<br />chưa đủ để chấm</> : <>Chưa chấm được<br />điểm phiên này</>}
+                    </span>
+                  </div>
+                );
+              }
+              // Heuristic /100 (chỉ cho COMMUNICATION/LESSON không có report) — INTERVIEW đã bị chặn ở trên.
+              if (!isInterviewMode && !hasConversationReport && !hasAiReport && showScore) {
                 return (
                   <>
                     <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
@@ -537,8 +562,30 @@ export function SessionSummary({
         </>
       )}
 
+      {/* INTERVIEW chưa có điểm thật: giải thích + hướng hành động (Đợt A 10/08) */}
+      {interviewNotScored && (
+        <div className="rounded-[20px] p-4 flex items-start gap-3" style={glass}>
+          <MessageSquare size={16} style={{ color: CYAN, flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <p className="text-sm font-semibold text-ga-ink mb-1">
+              {interviewInsufficient ? "Buổi phỏng vấn kết thúc quá sớm" : "Chưa chấm được phiên này"}
+            </p>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--ga-muted)" }}>
+              {interviewInsufficient ? (
+                <>Bạn mới trả lời {aiReport?.user_turns ?? 0} câu. Hãy trả lời ít nhất{" "}
+                {aiReport?.min_turns ?? 2} câu (khoảng {aiReport?.min_words ?? 30} từ trở lên) rồi kết
+                thúc — hệ thống chỉ chấm điểm thật dựa trên những gì bạn đã nói, không ước lượng thay.</>
+              ) : (
+                <>Hệ thống chưa tạo được bản đánh giá đạt chuẩn cho phiên này. Bấm &quot;Kết thúc&quot; lần
+                nữa để chấm lại — nếu vẫn không được, thử lại sau ít phút.</>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Chưa đủ dữ liệu để chấm — mời nói thêm thay vì hiện điểm ảo (R-G1) */}
-      {!hasAiReport && !hasConversationReport && !showScore && (
+      {!isInterviewMode && !hasAiReport && !hasConversationReport && !showScore && (
         <div className="rounded-[20px] p-4 flex items-start gap-3" style={glass}>
           <MessageSquare size={16} style={{ color: CYAN, flexShrink: 0, marginTop: 2 }} />
           <div>
@@ -551,8 +598,9 @@ export function SessionSummary({
         </div>
       )}
 
-      {/* Tự đánh giá nhanh (phiên không có báo cáo AI, đã đủ số câu) — KHÔNG phải chấm điểm chính thức */}
-      {!hasAiReport && !hasConversationReport && showScore && (
+      {/* Tự đánh giá nhanh (COMMUNICATION/LESSON không có báo cáo AI, đã đủ số câu) — KHÔNG phải chấm
+          điểm chính thức. INTERVIEW bị loại: điểm ước lượng cho phỏng vấn = điểm bịa (Đợt A 10/08). */}
+      {!isInterviewMode && !hasAiReport && !hasConversationReport && showScore && (
         <div className="rounded-[20px] overflow-hidden" style={glass}>
           <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "var(--ga-line)" }}>
             <Star size={14} style={{ color: AMBER }} />

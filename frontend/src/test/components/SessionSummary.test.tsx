@@ -145,3 +145,46 @@ describe('SessionSummary — GR-1 báo cáo AI thật (COMMUNICATION/LESSON)', (
     expect(screen.getByText(/Đạt/)).toBeInTheDocument() // verdict badge "✅ Đạt" (emoji cùng element)
   })
 })
+
+describe('SessionSummary — Đợt A 10/08: INTERVIEW không bao giờ hiện điểm bịa', () => {
+  it('report INSUFFICIENT_DATA: nói thật "kết thúc quá sớm", không điểm /100, không Tự đánh giá nhanh', () => {
+    const statusJson = JSON.stringify({
+      type: 'INSUFFICIENT_DATA', user_turns: 1, user_words: 12, min_turns: 2, min_words: 30,
+    })
+    render(
+      <SessionSummary {...baseProps} messages={userTurns(1)} isInterviewMode={true} interviewReportJson={statusJson} />,
+    )
+    expect(screen.getByText('Buổi phỏng vấn kết thúc quá sớm')).toBeInTheDocument()
+    expect(screen.queryByText('/ 100')).toBeNull()
+    expect(screen.queryByText('điểm / 10')).toBeNull()
+    expect(screen.queryByText('Tự đánh giá nhanh')).toBeNull()
+  })
+
+  it('report EVAL_FAILED: hiện "Chưa chấm được phiên này" + gợi ý kết thúc lại, không điểm nào', () => {
+    const statusJson = JSON.stringify({ type: 'EVAL_FAILED', failures: ['JSON cụt'] })
+    render(
+      <SessionSummary {...baseProps} messages={userTurns(5)} isInterviewMode={true} interviewReportJson={statusJson} />,
+    )
+    expect(screen.getByText('Chưa chấm được phiên này')).toBeInTheDocument()
+    expect(screen.queryByText('/ 100')).toBeNull()
+    expect(screen.queryByText('Tự đánh giá nhanh')).toBeNull()
+  })
+
+  it('INTERVIEW không có report (null) + đủ lượt: KHÔNG rơi về heuristic /100 như trước nữa', () => {
+    render(
+      <SessionSummary {...baseProps} messages={userTurns(5)} isInterviewMode={true} interviewReportJson={null} />,
+    )
+    expect(screen.getByText('Chưa chấm được phiên này')).toBeInTheDocument()
+    expect(screen.queryByText('/ 100')).toBeNull()
+    expect(screen.queryByText('Tự đánh giá nhanh')).toBeNull()
+  })
+
+  it('INTERVIEW report JSON hỏng (cụt): xử lý như chưa chấm được, không nổ render', () => {
+    render(
+      <SessionSummary {...baseProps} messages={userTurns(5)} isInterviewMode={true}
+        interviewReportJson={'{"overall_score":"6/10","categories":[{"name_vi":"A"'} />,
+    )
+    expect(screen.getByText('Chưa chấm được phiên này')).toBeInTheDocument()
+    expect(screen.queryByText('/ 100')).toBeNull()
+  })
+})

@@ -63,7 +63,12 @@ public class SessionLifecycleService {
         // end whose generation FAILED (report == null) is still allowed to retry.
         AiSpeakingSession existing = Objects.requireNonNull(transactionTemplate.execute(
                 status -> loadSessionForUser(userId, sessionId)));
-        if (existing.getStatus() == SessionStatus.ENDED && existing.getInterviewReportJson() != null) {
+        // Đợt A (10/08): report EVAL_FAILED là trạng thái RETRYABLE — lần end kế được chấm lại.
+        // Report thật và INSUFFICIENT_DATA vẫn short-circuit như cũ (phiên đã ENDED thì dữ liệu
+        // không đổi, INSUFFICIENT chấm lại cũng chỉ tốn quota cho cùng kết quả).
+        if (existing.getStatus() == SessionStatus.ENDED && existing.getInterviewReportJson() != null
+                && !com.deutschflow.speaking.interview.InterviewReportValidator
+                        .isRetryableFailure(existing.getInterviewReportJson())) {
             return existing;
         }
 
