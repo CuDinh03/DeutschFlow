@@ -197,7 +197,6 @@ export function CompanionSelect({
         name: token.name,
         avatarUrl: `/companions/${token.id}.png`,
         voiceId: token.id.toUpperCase(),
-        voiceFile: token.voiceFile ?? null,
         personality: token.desc,
         cefrLevel: sessionMode === "INTERVIEW" ? "C1" : cefrLevel,
       };

@@ -65,7 +65,6 @@ export function SpeakingWelcomeClient() {
         name: token.name,
         avatarUrl: `/companions/${token.id}.png`,
         voiceId: token.id.toUpperCase(), // ElevenLabs persona key (LUKAS, EMMA, ANNA, KLAUS)
-        voiceFile: token.voiceFile ?? null, // Local file fallback
         personality: token.desc,
         cefrLevel: cefrLevel || "A1",
       };

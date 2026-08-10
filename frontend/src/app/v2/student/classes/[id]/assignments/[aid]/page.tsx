@@ -36,7 +36,6 @@ const SCENARIO_COMPANION = (cefrLevel: string): AiCompanion => ({
   name: 'DeutschFlow Tutor',
   avatarUrl: '/companions/default.png',
   voiceId: 'DEFAULT',
-  voiceFile: null,
   personality: 'DeutschFlow AI Tutor',
   cefrLevel,
 })

@@ -129,6 +129,8 @@ export default function AdminRevenuePage() {
     else setRefreshing(true)
     setError(null)
     try {
+      // Axios client (baseURL = backend origin + Bearer auth); a raw relative
+      // fetch('/api/...') resolves to the Next.js origin → 404 in production.
       const { data: json } = await api.get<AdminRevenueAnalyticsResponse>(
         `/admin/analytics/revenue?page=${pageNum}&size=20`
       )
