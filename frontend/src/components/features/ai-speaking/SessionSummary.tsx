@@ -29,6 +29,12 @@ interface GermanLanguage {
   vocabulary_level?: string;
   fluency_vi?: string; common_errors_vi?: string[];
 }
+interface InterviewNextStep {
+  code: string; reason_vi?: string;
+}
+interface InterviewAnswerUpgrade {
+  original_quote?: string; better_de?: string;
+}
 interface InterviewReport {
   /** Đợt A 10/08: "INSUFFICIENT_DATA" | "EVAL_FAILED" — report trạng thái, KHÔNG phải điểm. */
   type?: string;
@@ -42,7 +48,18 @@ interface InterviewReport {
   german_language?: GermanLanguage;
   remediation_vi?: string[];
   encouragement_vi?: string;
+  next_steps?: InterviewNextStep[];
+  answer_upgrades?: InterviewAnswerUpgrade[];
 }
+
+// Đợt D 10/08: mã hành động từ InterviewNextStepCatalog (backend) → nhãn + hành vi trên FE.
+const NEXT_STEP_LABELS: Record<string, string> = {
+  RETRY_SAME_POSITION: "Phỏng vấn lại vị trí này",
+  PRACTICE_STAR: "Luyện kể tình huống STAR",
+  DRILL_ERRORS: "Ôn lại lỗi của phiên này",
+  EXPAND_ANSWERS: "Tập trả lời 3–4 câu",
+  FACH_VOCAB: "Luyện từ vựng chuyên ngành",
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -435,6 +452,62 @@ export function SessionSummary({
                 {i + 1}
               </div>
               <span className="text-xs leading-relaxed" style={{ color: "var(--ga-muted)" }}>{r}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Đợt D: "Bạn nói → Nên nói" — viết lại đúng câu ứng viên đã nói (server đã kiểm trích dẫn) */}
+      {hasAiReport && (aiReport?.answer_upgrades?.length ?? 0) > 0 && (
+        <div className="rounded-[20px] p-4" style={glass}>
+          <div className="flex items-center gap-2 mb-3">
+            <MessageSquare size={14} style={{ color: MINT }} />
+            <span className="text-ga-ink font-semibold text-sm">Nên nói thế nào</span>
+          </div>
+          {aiReport!.answer_upgrades!.map((u, i) => (
+            <div key={i} className="mb-3 last:mb-0">
+              <div className="rounded-xl px-3 py-2 mb-1 text-xs" style={{ background: "var(--ga-surface)", color: "var(--ga-muted)" }}>
+                <span className="font-semibold" style={{ color: CORAL }}>Bạn nói: </span>„{u.original_quote}“
+              </div>
+              <div className="rounded-xl px-3 py-2 text-xs" style={{ background: "var(--ga-surface)", color: "var(--ga-ink)" }}>
+                <span className="font-semibold" style={{ color: MINT }}>Nên nói: </span>„{u.better_de}“
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Đợt D: hướng đi tiếp theo — nút hành động thật trong app, không phải lời khuyên suông */}
+      {hasAiReport && (aiReport?.next_steps?.length ?? 0) > 0 && (
+        <div className="rounded-[20px] p-4" style={glass}>
+          <div className="flex items-center gap-2 mb-3">
+            <Target size={14} style={{ color: CYAN }} />
+            <span className="text-ga-ink font-semibold text-sm">Bước tiếp theo cho bạn</span>
+          </div>
+          {aiReport!.next_steps!.filter((st) => NEXT_STEP_LABELS[st.code]).map((st, i) => (
+            <div key={i} className="mb-2 last:mb-0">
+              {st.reason_vi && (
+                <p className="text-xs mb-1" style={{ color: "var(--ga-muted)" }}>{st.reason_vi}</p>
+              )}
+              {st.code === "RETRY_SAME_POSITION" ? (
+                <button onClick={onRestart}
+                  className="w-full py-2.5 rounded-ga font-semibold text-sm text-left px-3 transition-colors hover:bg-ga-side-active"
+                  style={{ background: "var(--ga-surface)", border: "1px solid var(--ga-line)", color: "var(--ga-ink)" }}>
+                  🔁 {NEXT_STEP_LABELS[st.code]}
+                </button>
+              ) : st.code === "DRILL_ERRORS" ? (
+                <button onClick={() => onReviewErrors?.(speakingErrors)}
+                  className="w-full py-2.5 rounded-ga font-semibold text-sm text-left px-3 transition-colors hover:bg-ga-side-active"
+                  style={{ background: "var(--ga-surface)", border: "1px solid var(--ga-line)", color: "var(--ga-ink)" }}>
+                  📚 {NEXT_STEP_LABELS[st.code]}
+                </button>
+              ) : (
+                <a href="/v2/student/speaking"
+                  className="block w-full py-2.5 rounded-ga font-semibold text-sm px-3 transition-colors hover:bg-ga-side-active"
+                  style={{ background: "var(--ga-surface)", border: "1px solid var(--ga-line)", color: "var(--ga-ink)" }}>
+                  🎯 {NEXT_STEP_LABELS[st.code]}
+                </a>
+              )}
             </div>
           ))}
         </div>
