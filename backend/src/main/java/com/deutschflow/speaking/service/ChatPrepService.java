@@ -232,6 +232,8 @@ public class ChatPrepService {
                 ? """
                 Erste Nachricht des Interviewers (Turn 1 / INTRO).
                 Begrüßen Sie knapp auf Deutsch, stellen Sie sich als Interviewer vor, dann die Pflichtfrage aus TURN_DIRECTIVE.
+                WICHTIG: interview_meta.ack_de MUSS die Begrüßung MIT Ihrer Vorstellung enthalten
+                (Name + Rolle, z.B. "Guten Tag, ich bin Lukas, Tech Lead hier.") — nicht nur "Willkommen".
                 Kein Lob, kein Smalltalk. NUR JSON (optional interview_meta mit ack_de + question_de).
                 """.trim()
                 : persona.buildGreetingInstruction(topic, industry, weakPointsStr, sessionMode,
