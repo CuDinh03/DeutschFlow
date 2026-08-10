@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { BarChart3, TrendingUp, Wallet, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
 import AdminShell from '@/components/admin/AdminShell'
+import api, { apiMessage } from '@/lib/api'
 
 // ─── Palette (mirrors other admin pages) ──────────────────────────────────────
 const P = {
@@ -128,16 +129,15 @@ export default function AdminRevenuePage() {
     else setRefreshing(true)
     setError(null)
     try {
-      const res = await fetch(
-        `/api/admin/analytics/revenue?page=${pageNum}&size=20`,
-        { credentials: 'include' }
+      // Axios client (baseURL = backend origin + Bearer auth); a raw relative
+      // fetch('/api/...') resolves to the Next.js origin → 404 in production.
+      const { data: json } = await api.get<AdminRevenueAnalyticsResponse>(
+        `/admin/analytics/revenue?page=${pageNum}&size=20`
       )
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json: AdminRevenueAnalyticsResponse = await res.json()
       setData(json)
       setPage(pageNum)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Lỗi tải dữ liệu')
+      setError(apiMessage(e))
     } finally {
       setLoading(false)
       setRefreshing(false)

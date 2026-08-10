@@ -1,17 +1,16 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { getAccessToken } from "@/lib/authSession";
+import api from "@/lib/api";
 
 interface UseSpeechOptions {
   lang?: string;
 }
 
 /**
- * TTS Priority: 
- * 1. Local voice file (/public/voices/{voiceFile}) — instant, no API cost
- * 2. Server TTS (backend /api/ai-speaking/tts) — self-hosted persona voices, returns MP3 bytes
- * 3. Browser Web Speech API (speechSynthesis) — universal fallback
+ * TTS Priority:
+ * 1. Server TTS (backend /api/ai-speaking/tts) — self-hosted persona voices, returns MP3 bytes
+ * 2. Browser Web Speech API (speechSynthesis) — universal fallback
  */
 export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
   const [isListening, setIsListening] = useState(false);
@@ -310,27 +309,37 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
     [options.lang]
   );
 
-  // ─── Tier 2: Server TTS (self-hosted persona voices via backend proxy) ──
+  // ─── Tier 1: Server TTS (self-hosted persona voices via backend proxy) ──
 
-  const speakElevenLabs = useCallback(
+  // Replaying the same sentence (very common when practicing pronunciation) must not
+  // re-hit the network: POST responses bypass the browser HTTP cache, so memo here.
+  const audioCacheRef = useRef<Map<string, Blob>>(new Map());
+  const AUDIO_CACHE_MAX_ENTRIES = 20;
+
+  const speakServerTts = useCallback(
     async (text: string, personaId: string, onEnd?: () => void): Promise<boolean> => {
       try {
-        const token = getAccessToken();
-        const res = await fetch("/api/ai-speaking/tts", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ text, persona: personaId.toUpperCase() }),
-        });
+        const cacheKey = `${personaId.toUpperCase()}|${text}`;
+        let blob = audioCacheRef.current.get(cacheKey) ?? null;
 
-        if (!res.ok || res.status === 503) return false;
-
-        // Backend (/api/ai-speaking/tts) returns raw audio/mpeg bytes, not JSON.
-        // Read the body as a Blob and play it via an object URL.
-        const blob = await res.blob();
+        if (!blob) {
+          // Backend (/api/ai-speaking/tts) returns raw audio/mpeg bytes, not JSON.
+          // Read the body as a Blob and play it via an object URL.
+          const res = await api.post(
+            "/ai-speaking/tts",
+            { text, persona: personaId.toUpperCase() },
+            { responseType: "blob" }
+          );
+          blob = res.data as Blob;
+        }
         if (!blob || blob.size === 0) return false;
+
+        audioCacheRef.current.delete(cacheKey);
+        audioCacheRef.current.set(cacheKey, blob);
+        if (audioCacheRef.current.size > AUDIO_CACHE_MAX_ENTRIES) {
+          const oldest = audioCacheRef.current.keys().next().value;
+          if (oldest !== undefined) audioCacheRef.current.delete(oldest);
+        }
 
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
@@ -361,50 +370,16 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
     []
   );
 
-  // ─── Tier 1: Local voice file (/public/voices/) ─────────────────────────
-
-  const speakLocalFile = useCallback(
-    async (voiceFile: string, onEnd?: () => void): Promise<boolean> => {
-      try {
-        const url = `/voices/${voiceFile}`;
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        setIsSpeaking(true);
-
-        await new Promise<void>((resolve, reject) => {
-          audio.onended = () => {
-            audioRef.current = null;
-            resolve();
-          };
-          audio.onerror = () => {
-            audioRef.current = null;
-            reject(new Error("Local voice file failed"));
-          };
-          audio.play().catch(reject);
-        });
-
-        setIsSpeaking(false);
-        if (onEnd) onEnd();
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    []
-  );
-
-  // ─── Main: speakWithPersona (3-tier cascade) ─────────────────────────────
+  // ─── Main: speakWithPersona (2-tier cascade) ─────────────────────────────
 
   /**
    * Speaks text using the character's cloned voice.
    * Priority:
-   *   Tier 1 — Local voice file (/public/voices/{voiceFile}) — zero cost, instant
-   *   Tier 2 — ElevenLabs API (backend /api/ai-speaking/tts) — cloned voice
-   *   Tier 3 — Browser Web Speech API — universal fallback
+   *   Tier 1 — Server TTS (backend /api/ai-speaking/tts) — persona voice
+   *   Tier 2 — Browser Web Speech API — universal fallback
    *
    * @param text      German text to speak
    * @param personaId persona id (e.g. "lukas", "emma", "anna", "klaus")
-   * @param voiceFile local file name (e.g. "lukas.wav") — skips API cost when available
    * @param onEnd     callback when speech ends
    *
    * NOTE: Callers should return stopSpeaking + stopListening in their
@@ -412,31 +387,19 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
    *   useEffect(() => () => { stopSpeaking(); stopListening(); }, []);
    */
   const speakWithPersona = useCallback(
-    async (
-      text: string,
-      personaId: string,
-      voiceFile?: string | null,
-      onEnd?: () => void
-    ) => {
+    async (text: string, personaId: string, onEnd?: () => void) => {
       if (!text || typeof window === "undefined") return;
       stopAll();
 
-      // Tier 1: Local voice file — zero API cost, instant playback
-      if (voiceFile) {
-        const ok0 = await speakLocalFile(voiceFile, onEnd);
-        if (ok0) return;
-        console.info("[TTS] Local voice file unavailable → ElevenLabs");
-      }
+      // Tier 1: Server TTS — persona voice
+      const ok = await speakServerTts(text, personaId, onEnd);
+      if (ok) return;
+      console.info("[TTS] Server TTS failed/unavailable → browser fallback");
 
-      // Tier 2: ElevenLabs API — cloned voice (requires voiceId in .env)
-      const ok1 = await speakElevenLabs(text, personaId, onEnd);
-      if (ok1) return;
-      console.info("[TTS] ElevenLabs failed/unavailable → browser fallback");
-
-      // Tier 3: Browser Web Speech API — universal fallback
+      // Tier 2: Browser Web Speech API — universal fallback
       speakBrowser(text, onEnd);
     },
-    [stopAll, speakLocalFile, speakElevenLabs, speakBrowser]
+    [stopAll, speakServerTts, speakBrowser]
   );
 
   // ─── Legacy: speak (uses browser TTS) ──────────────────────────────────

@@ -25,7 +25,6 @@ export interface PersonaToken {
   ctaFrom: string;
   ctaTo: string;
   ctaShadow: string;
-  voiceFile?: string;
   interviewPositions?: { id: string; label: string; labelDe: string }[];
   lessonScenarios?: { id: string; label: string; labelDe: string }[];
   supportsInterview: boolean;
@@ -38,7 +37,7 @@ export const PERSONA_TOKENS: Record<PersonaId, PersonaToken> = {
   lukas: {
     id: "lukas", name: "Lukas", role: "Senior Tech Mentor", tag: "Backend Dev · Berlin",
     desc: "Erklärt Grammatik wie sauberen Code. Strukturiert, logisch, präzise.",
-    group: "it", voiceFile: "lukas.wav",
+    group: "it",
     accent: "#2D9CDB", glow: "rgba(45,156,219,0.4)", bubble: "#1A3A52",
     border: "rgba(45,156,219,0.25)", bg: "rgba(45,156,219,0.08)", tagBg: "rgba(45,156,219,0.15)",
     ctaFrom: "#1A6A9A", ctaTo: "#2D9CDB", ctaShadow: "0 4px 0 #0E4A6E, 0 8px 24px rgba(45,156,219,0.35)",
@@ -58,7 +57,7 @@ export const PERSONA_TOKENS: Record<PersonaId, PersonaToken> = {
   emma: {
     id: "emma", name: "Emma", role: "Berlin Culture Guide", tag: "Künstlerin · Neukölln",
     desc: "Bringt dir Deutsch durch Kunst, Kultur und Berliner Flair bei.",
-    group: "it", voiceFile: "emma.wav",
+    group: "it",
     accent: "#00BFA5", glow: "rgba(0,191,165,0.4)", bubble: "#0A3832",
     border: "rgba(0,191,165,0.25)", bg: "rgba(0,191,165,0.08)", tagBg: "rgba(0,191,165,0.15)",
     ctaFrom: "#007A6A", ctaTo: "#00BFA5", ctaShadow: "0 4px 0 #005A4A, 0 8px 24px rgba(0,191,165,0.35)",
@@ -78,7 +77,7 @@ export const PERSONA_TOKENS: Record<PersonaId, PersonaToken> = {
   anna: {
     id: "anna", name: "Anna", role: "Everyday Life Guide", tag: "Sprachlehrerin · Hamburg",
     desc: "Begleitet dich durch den deutschen Alltag – warm, geduldig und praktisch.",
-    group: "it", voiceFile: "anna.mp3",
+    group: "it",
     accent: "#F5A623", glow: "rgba(245,166,35,0.4)", bubble: "#3A2A00",
     border: "rgba(245,166,35,0.25)", bg: "rgba(245,166,35,0.08)", tagBg: "rgba(245,166,35,0.15)",
     ctaFrom: "#C97D00", ctaTo: "#F5A623", ctaShadow: "0 4px 0 #7A4D00, 0 8px 24px rgba(245,166,35,0.35)",
@@ -98,7 +97,7 @@ export const PERSONA_TOKENS: Record<PersonaId, PersonaToken> = {
   klaus: {
     id: "klaus", name: "Klaus", role: "Culinary Expert", tag: "Head Chef · München",
     desc: "Luyện tiếng Đức qua chủ đề ẩm thực, nhà bếp và giao tiếp nhóm.",
-    group: "it", voiceFile: "klaus.mp3",
+    group: "it",
     accent: "#991B1B", glow: "rgba(153,27,27,0.4)", bubble: "#450A0A",
     border: "rgba(153,27,27,0.25)", bg: "rgba(153,27,27,0.08)", tagBg: "rgba(153,27,27,0.15)",
     ctaFrom: "#7F1D1D", ctaTo: "#991B1B", ctaShadow: "0 4px 0 #450A0A, 0 8px 24px rgba(153,27,27,0.35)",
