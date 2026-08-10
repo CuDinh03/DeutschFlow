@@ -69,6 +69,21 @@ class InterviewClosingFlowTest {
         assertThat(out).contains("konkretes Beispiel");
     }
 
+    @Test
+    @DisplayName("F2: greeting hỏi kiểu MỆNH LỆNH (không '?') vẫn được tính là đã hỏi — giữ trọn lời giới thiệu")
+    void imperativeQuestionCountsAsAsked() {
+        InterviewTurnPlan greet = new InterviewTurnPlan(1, InterviewPhase.INTRO,
+                InterviewDirectiveType.STANDARD, "",
+                "Bitte stellen Sie sich kurz vor: Werdegang und Erfahrung.", "intro_self", "intro",
+                15, InterviewTurnPlan.DEFAULT_FORBIDDEN, null, false);
+        String in = "Hallo, ich bin Lukas, Senior Tech Lead. Erzählen Sie mir kurz von Ihrem Werdegang und Ihrem nächsten Karriereschritt.";
+
+        String out = sanitizer.sanitize(in, greet, 1);
+
+        assertThat(out).contains("Ich bin Lukas".replace("Ich","ich")).contains("Erzählen Sie mir");
+        assertThat(out).doesNotStartWith("Danke.");
+    }
+
     // ── L4: thứ tự directive ở CLOSING ────────────────────────────────────
 
     @Test
