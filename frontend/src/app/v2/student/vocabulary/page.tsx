@@ -183,7 +183,7 @@ export default function V2StudentVocabularyPage() {
               <Link
                 key={key}
                 href={href}
-                className="group flex items-start gap-3 border border-ga-line bg-ga-card p-4 transition-shadow hover:shadow-ga-card-hover"
+                className="group flex items-start gap-3 border border-ga-line bg-ga-card p-4 transition-all duration-200 hover:-translate-y-1 hover:border-ga-accent hover:shadow-[0_12px_30px_rgba(22,21,19,0.16)]"
               >
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-ga bg-ga-accent-soft text-ga-accent">
                   <Icon size={17} aria-hidden />
@@ -240,7 +240,7 @@ export default function V2StudentVocabularyPage() {
                 return (
                   <div
                     key={w.id}
-                    className="group border border-ga-line bg-ga-card p-4 transition-shadow hover:shadow-ga-card-hover"
+                    className="group border border-ga-line bg-ga-card p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(22,21,19,0.16)]"
                     style={w.article ? { borderLeftWidth: 3, borderLeftColor: color } : undefined}
                   >
                     <div className="flex items-start justify-between gap-2">
