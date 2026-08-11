@@ -63,30 +63,35 @@ public class AiTextService {
         List<ChatMessage> messages = (input == null || input.isBlank())
                 ? List.of(new ChatMessage("user", instruction))
                 : List.of(new ChatMessage("system", instruction), new ChatMessage("user", input));
-        return complete(messages, temperature, maxTokens);
+        // JSON output preserved: generate() callers (e.g. GrammarSyllabusService) parse the result as JSON.
+        return complete(messages, temperature, maxTokens, true);
     }
 
-    /** Corrected version of {@code germanText} (returned unchanged when already correct). */
+    /**
+     * Corrected version of {@code germanText} (returned unchanged when already correct).
+     * Plain-text output (forceJson=false): the prompt asks for the bare corrected sentence — under
+     * forced JSON mode the model returned {@code {"type":"object"}} instead of the sentence (QA F-8).
+     */
     public String correctGrammar(String germanText) {
         return complete(
                 List.of(new ChatMessage("system", CORRECT_SYSTEM_PROMPT),
                         new ChatMessage("user", germanText)),
-                GRAMMAR_TEMPERATURE, CORRECTION_MAX_TOKENS);
+                GRAMMAR_TEMPERATURE, CORRECTION_MAX_TOKENS, false);
     }
 
-    /** Vietnamese explanation of the grammar at play in {@code germanText}. */
+    /** Vietnamese explanation of the grammar at play in {@code germanText}. Plain-text (see F-8). */
     public String explainGrammar(String germanText) {
         return complete(
                 List.of(new ChatMessage("system", EXPLAIN_SYSTEM_PROMPT),
                         new ChatMessage("user", germanText)),
-                GRAMMAR_TEMPERATURE, EXPLANATION_MAX_TOKENS);
+                GRAMMAR_TEMPERATURE, EXPLANATION_MAX_TOKENS, false);
     }
 
-    private String complete(List<ChatMessage> messages, double temperature, int maxTokens) {
+    private String complete(List<ChatMessage> messages, double temperature, int maxTokens, boolean forceJson) {
         AiChatCompletionResult result;
         try {
             result = chatClient.chatCompletionForTier(
-                    messages, llmTierResolver.spec(LlmTier.EXPLAIN), temperature, maxTokens);
+                    messages, llmTierResolver.spec(LlmTier.EXPLAIN), temperature, maxTokens, forceJson);
         } catch (AiServiceException e) {
             throw e;
         } catch (Exception e) {

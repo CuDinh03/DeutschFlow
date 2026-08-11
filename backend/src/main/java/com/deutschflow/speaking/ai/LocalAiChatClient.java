@@ -34,7 +34,9 @@ public class LocalAiChatClient implements OpenAiChatClient {
 
     @Override
     public AiChatCompletionResult chatCompletion(
-            List<ChatMessage> messages, String model, double temperature, Integer maxTokens) {
+            List<ChatMessage> messages, String model, double temperature, Integer maxTokens, boolean forceJson) {
+        // forceJson is a no-op here: the local Alpaca model server returns free-form text and has no
+        // response_format switch. The flag only matters for the OpenAI-compatible GroqChatClient (F-8).
         String effectiveModel = (model == null || model.isBlank()) ? modelId : model.trim();
         String instruction;
         String input;

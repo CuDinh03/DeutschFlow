@@ -86,6 +86,23 @@ class GroqChatClientTierSpecTest {
     }
 
     @Test
+    @DisplayName("QA F-8: forceJson=false BỎ response_format (text helper); forceJson=true GIỮ như cũ")
+    void forceJsonControlsResponseFormat() throws Exception {
+        respondWith(server, receivedBodies, receivedAuth, OK_RESPONSE);
+        GroqChatClient client = client();
+
+        // Text mode (grammar correct/explain): no response_format → model returns plain text.
+        client.chatCompletion(messages(), (String) null, 0.2, 512, false);
+        JsonNode textBody = objectMapper.readTree(receivedBodies.get(0));
+        assertThat(textBody.has("response_format")).isFalse();
+
+        // JSON mode (speaking/grading/syllabus): pinned as before.
+        client.chatCompletion(messages(), (String) null, 0.2, 512, true);
+        JsonNode jsonBody = objectMapper.readTree(receivedBodies.get(1));
+        assertThat(jsonBody.path("response_format").path("type").asText()).isEqualTo("json_object");
+    }
+
+    @Test
     @DisplayName("đường cũ (model chấm tường minh): KHÔNG dính reasoning_effort — luật lịch sử giữ nguyên")
     void legacyExplicitModelSkipsEffort() throws Exception {
         respondWith(server, receivedBodies, receivedAuth, OK_RESPONSE);
