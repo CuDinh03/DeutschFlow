@@ -158,9 +158,10 @@ public class GroqChatClient implements OpenAiChatClient {
     // -----------------------------------------------------------------------
 
     @Override
-    public AiChatCompletionResult chatCompletion(List<ChatMessage> messages, String model, double temperature, Integer maxTokens) {
+    public AiChatCompletionResult chatCompletion(List<ChatMessage> messages, String model, double temperature,
+                                                 Integer maxTokens, boolean forceJson) {
         String effectiveModel = (model == null || model.isBlank()) ? defaultModel : model.trim();
-        String requestBody = buildRequestBody(messages, effectiveModel, temperature, maxTokens, false, null);
+        String requestBody = buildRequestBody(messages, effectiveModel, temperature, maxTokens, false, null, forceJson);
         log.debug("Calling Groq API (blocking): model={}", defaultModel);
         return completeBlocking(restClient, apiKey, requestBody, effectiveModel);
     }
@@ -172,11 +173,11 @@ public class GroqChatClient implements OpenAiChatClient {
      */
     @Override
     public AiChatCompletionResult chatCompletionForTier(List<ChatMessage> messages, TierSpec tier,
-                                                 double temperature, Integer maxTokens) {
+                                                 double temperature, Integer maxTokens, boolean forceJson) {
         if (tier == null) {
-            return chatCompletion(messages, (String) null, temperature, maxTokens);
+            return chatCompletion(messages, (String) null, temperature, maxTokens, forceJson);
         }
-        String requestBody = buildRequestBody(messages, tier.model(), temperature, maxTokens, false, tier);
+        String requestBody = buildRequestBody(messages, tier.model(), temperature, maxTokens, false, tier, forceJson);
         log.debug("Calling LLM (blocking, tier {}): model={}", tier.tier(), tier.model());
         return completeBlocking(restClientFor(tier.baseUrl()), keyFor(tier), requestBody, tier.model());
     }
@@ -323,7 +324,7 @@ public class GroqChatClient implements OpenAiChatClient {
                                         Consumer<AiChatCompletionResult> onComplete,
                                         AtomicBoolean cancelled) {
         String effectiveModel = (model == null || model.isBlank()) ? defaultModel : model.trim();
-        String requestBody = buildRequestBody(messages, effectiveModel, temperature, maxTokens, true, null);
+        String requestBody = buildRequestBody(messages, effectiveModel, temperature, maxTokens, true, null, true);
         log.debug("Calling Groq API (stream): model={}", defaultModel);
         return streamGuarded(webClient, baseUrl, apiKey, requestBody, effectiveModel,
                 messages, onToken, onComplete, cancelled);
@@ -339,7 +340,7 @@ public class GroqChatClient implements OpenAiChatClient {
             return chatCompletionStream(messages, (String) null, temperature, maxTokens,
                     onToken, onComplete, cancelled);
         }
-        String requestBody = buildRequestBody(messages, tier.model(), temperature, maxTokens, true, tier);
+        String requestBody = buildRequestBody(messages, tier.model(), temperature, maxTokens, true, tier, true);
         log.debug("Calling LLM (stream, tier {}): model={}", tier.tier(), tier.model());
         String effectiveBaseUrl = tier.baseUrl() != null ? tier.baseUrl() : baseUrl;
         return streamGuarded(webClientFor(tier.baseUrl()), effectiveBaseUrl, keyFor(tier),
@@ -459,9 +460,9 @@ public class GroqChatClient implements OpenAiChatClient {
     // Private helpers
     // -----------------------------------------------------------------------
 
-    private String buildRequestBody(List<ChatMessage> messages, String model,
+    String buildRequestBody(List<ChatMessage> messages, String model,
                                     double temperature, Integer maxTokens, boolean stream,
-                                    TierSpec tier) {
+                                    TierSpec tier, boolean forceJson) {
         try {
             ObjectNode root = objectMapper.createObjectNode();
             root.put("model", model);
@@ -471,9 +472,13 @@ public class GroqChatClient implements OpenAiChatClient {
             } else {
                 root.put("max_tokens", 600);
             }
-            // Force JSON output in both blocking and streaming modes
-            ObjectNode responseFormat = root.putObject("response_format");
-            responseFormat.put("type", "json_object");
+            // Pin JSON output for the structured flows (speaking chat, grading, syllabus generation).
+            // Text helpers pass forceJson=false: under json_object mode a plain-text prompt returns
+            // degenerate output like {"type":"object"} instead of the corrected sentence (QA F-8).
+            if (forceJson) {
+                ObjectNode responseFormat = root.putObject("response_format");
+                responseFormat.put("type", "json_object");
+            }
             if (stream) {
                 root.put("stream", true);
             }

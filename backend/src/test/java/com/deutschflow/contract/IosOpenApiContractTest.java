@@ -176,12 +176,13 @@ class IosOpenApiContractTest extends AbstractPostgresIntegrationTest {
     @Test
     void shouldTypeAIGrammarEndpoints() throws Exception {
         // P1 Round 6 (AIGrammar): /explain + /practice-suggestions flipped Map<String,String> → typed DTOs.
+        // QA F-7: /practice-suggestions now returns a level-based list {suggestions:[{topic,description,example}]}.
         mockMvc.perform(get("/v3/api-docs/ios"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.components.schemas.GrammarExplanationDto").exists())
                 .andExpect(jsonPath("$.components.schemas.GrammarExplanationDto.properties.explanation").exists())
-                .andExpect(jsonPath("$.components.schemas.GrammarPracticeSuggestionDto").exists())
-                .andExpect(jsonPath("$.components.schemas.GrammarPracticeSuggestionDto.properties.suggestions").exists());
+                .andExpect(jsonPath("$.components.schemas.GrammarPracticeSuggestionsDto").exists())
+                .andExpect(jsonPath("$.components.schemas.GrammarPracticeSuggestionsDto.properties.suggestions").exists());
     }
 
     @Test

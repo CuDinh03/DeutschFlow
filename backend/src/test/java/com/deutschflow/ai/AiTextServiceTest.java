@@ -22,6 +22,7 @@ import com.deutschflow.ai.tier.LlmTier;
 import com.deutschflow.ai.tier.LlmTierResolver;
 import com.deutschflow.ai.tier.TierSpec;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -53,14 +54,14 @@ class AiTextServiceTest {
     }
 
     private void stubReply(String content) {
-        when(chatClient.chatCompletionForTier(any(), any(TierSpec.class), anyDouble(), anyInt()))
+        when(chatClient.chatCompletionForTier(any(), any(TierSpec.class), anyDouble(), anyInt(), anyBoolean()))
                 .thenReturn(new AiChatCompletionResult(content, null, "test", "test-model"));
     }
 
     @SuppressWarnings("unchecked")
     private List<ChatMessage> capturedMessages() {
         ArgumentCaptor<List<ChatMessage>> captor = ArgumentCaptor.forClass(List.class);
-        verify(chatClient).chatCompletionForTier(captor.capture(), any(TierSpec.class), anyDouble(), anyInt());
+        verify(chatClient).chatCompletionForTier(captor.capture(), any(TierSpec.class), anyDouble(), anyInt(), anyBoolean());
         return captor.getValue();
     }
 
@@ -118,7 +119,7 @@ class AiTextServiceTest {
     @DisplayName("Lỗi provider giữ nguyên AiServiceException (→ 503), không bọc lại thành 500")
     void providerFailure_propagatesAiServiceException() {
         AiServiceException original = new AiServiceException("Groq đang bận.");
-        when(chatClient.chatCompletionForTier(any(), any(TierSpec.class), anyDouble(), anyInt())).thenThrow(original);
+        when(chatClient.chatCompletionForTier(any(), any(TierSpec.class), anyDouble(), anyInt(), anyBoolean())).thenThrow(original);
 
         AiServiceException thrown = assertThrows(AiServiceException.class,
                 () -> aiTextService.correctGrammar("Ich bin."));
@@ -129,7 +130,7 @@ class AiTextServiceTest {
     @Test
     @DisplayName("Lỗi lạ (server tự host chết) cũng thành AiServiceException tiếng Việt")
     void unexpectedFailure_becomesAiServiceException() {
-        when(chatClient.chatCompletionForTier(any(), any(TierSpec.class), anyDouble(), anyInt()))
+        when(chatClient.chatCompletionForTier(any(), any(TierSpec.class), anyDouble(), anyInt(), anyBoolean()))
                 .thenThrow(new IllegalStateException("Connection refused: localhost:8000"));
 
         AiServiceException thrown = assertThrows(AiServiceException.class,

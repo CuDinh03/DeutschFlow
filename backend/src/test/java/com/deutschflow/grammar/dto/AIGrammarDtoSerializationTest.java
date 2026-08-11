@@ -6,14 +6,15 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Guards the byte-level JSON contract of the AIGrammar typing round: {@link GrammarExplanationDto}
- * and {@link GrammarPracticeSuggestionDto} replaced raw {@code Map<String,String>} responses, so the
- * keys/values MUST stay identical to the live web client reads ({@code lib/localAiApi.ts}).
+ * Guards the byte-level JSON contract of the AIGrammar typed responses that the web client reads
+ * ({@code lib/localAiApi.ts}, {@code v2/student/grammar/ai}). {@link GrammarPracticeSuggestionsDto}
+ * MUST serialise to {@code {suggestions:[{topic,description,example}]}} (QA F-7).
  */
 class AIGrammarDtoSerializationTest {
 
@@ -33,9 +34,11 @@ class AIGrammarDtoSerializationTest {
     }
 
     @Test
-    @DisplayName("GrammarPracticeSuggestionDto == legacy Map.of(errorType, suggestions)")
-    void practiceSuggestionEqualsLegacyMap() throws Exception {
-        assertSameJson(new GrammarPracticeSuggestionDto("DATIV", "Übe Wechselpräpositionen mit Dativ."),
-                Map.of("errorType", "DATIV", "suggestions", "Übe Wechselpräpositionen mit Dativ."));
+    @DisplayName("GrammarPracticeSuggestionsDto == {suggestions:[{topic,description,example}]}")
+    void practiceSuggestionsMatchWebShape() throws Exception {
+        var dto = new GrammarPracticeSuggestionsDto(List.of(
+                new GrammarPracticeSuggestionsDto.Suggestion("Dativ", "Luyện giới từ đi với Dativ.", "Ich helfe dir.")));
+        assertSameJson(dto, Map.of("suggestions", List.of(
+                Map.of("topic", "Dativ", "description", "Luyện giới từ đi với Dativ.", "example", "Ich helfe dir."))));
     }
 }
