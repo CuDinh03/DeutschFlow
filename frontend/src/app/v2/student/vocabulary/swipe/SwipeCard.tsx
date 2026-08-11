@@ -84,18 +84,22 @@ export const CARD_COLOR: Record<
 /** Map WordListItem (GET /words) → thẻ vuốt. Giữ nguyên logic v1 (kể cả chọn nghĩa theo locale). */
 export function mapWordToSwipe(w: WordListItem, locale: string): SwipeCardData {
   const dtype = (w.dtype || 'Noun').toLowerCase()
-  // QA F-5: chỉ DANH TỪ mới có mạo từ. Trước đây mọi loại từ không phải verb/adjective (kể cả trạng
-  // từ, giới từ, hay từ thiếu dtype) rơi vào nhánh mặc định 'masculine' → hiện "Der <từ>" sai.
-  const isNounWord = dtype === 'noun'
-  let type: CardType = isNounWord ? 'masculine' : 'adjective'
+  // QA F-5: mạo từ + badge giống (Maskulin/Feminin/Neutrum) CHỈ suy từ TÍN HIỆU giống thật —
+  // article hoặc gender. Không có tín hiệu ⇒ coi như không phải danh từ hiển thị được: không bịa
+  // 'der', không gắn badge giống. Xử lý luôn data seed gán nhầm dtype='Noun' cho từ khác loại (vd.
+  // tính từ "ähnlich", gender/article đều null) — trước đây rơi vào mặc định 'masculine' → "Der ähnlich".
+  const nounArticle =
+    (w.article || '').toLowerCase() ||
+    (w.gender === 'DER' ? 'der' : w.gender === 'DIE' ? 'die' : w.gender === 'DAS' ? 'das' : '')
+  const isNounWord = dtype === 'noun' && nounArticle !== ''
+
+  let type: CardType
   if (dtype === 'verb') type = 'verb'
   else if (dtype === 'adjective') type = 'adjective'
-  else if (isNounWord && w.gender === 'DIE') type = 'feminine'
-  else if (isNounWord && w.gender === 'DAS') type = 'neuter'
+  else if (isNounWord) type = nounArticle === 'die' ? 'feminine' : nounArticle === 'das' ? 'neuter' : 'masculine'
+  else type = 'adjective' // non-noun, hoặc "danh từ" thiếu dữ liệu giống → không hiển thị mạo từ
 
-  const art = isNounWord
-    ? (w.article ?? (type === 'feminine' ? 'die' : type === 'neuter' ? 'das' : 'der'))
-    : undefined
+  const art = isNounWord ? nounArticle : undefined
   const articleCap = art ? art.charAt(0).toUpperCase() + art.slice(1) : undefined
 
   const loc = locale.toLowerCase()

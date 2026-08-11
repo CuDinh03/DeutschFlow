@@ -43,7 +43,9 @@ function isNonNoun(r: Record<string, unknown>): boolean {
   return dtype !== '' && dtype !== 'noun'
 }
 function normalize(r: Record<string, unknown>, i: number): Word {
-  const german = str(r, 'german', 'word', 'wordDe', 'lemma', 'text')
+  // GET /words để từ ở `baseForm`; thiếu key này thì mọi từ bị lọc (filter theo w.german) → hub rỗng
+  // dù API trả đủ dữ liệu (QA F-4: envelope `items` đã sửa, nhưng field từ vẫn lệch).
+  const german = str(r, 'baseForm', 'german', 'word', 'wordDe', 'lemma', 'text')
   let article = str(r, 'gender', 'artikel', 'article').toLowerCase() || null
   if (!article) {
     const first = german.split(/\s+/)[0]?.toLowerCase()
