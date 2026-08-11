@@ -109,11 +109,11 @@ public class AuthService {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, request.password()));
         } catch (BadCredentialsException e) {
-            throw new BadRequestException("Invalid email or password");
+            throw new BadRequestException("Email hoặc mật khẩu không đúng.");
         }
 
         var user = userRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new BadRequestException("Invalid email or password"));
+                .orElseThrow(() -> new BadRequestException("Email hoặc mật khẩu không đúng."));
 
         if (user.getRole() == User.Role.STUDENT) {
             Integer subCount = jdbcTemplate.queryForObject(
