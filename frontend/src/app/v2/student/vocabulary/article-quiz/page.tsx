@@ -43,7 +43,8 @@ export default function V2StudentArticleQuizPage() {
     setError(null)
     try {
       const { data } = await api.get<WordListResponse>('/words', {
-        params: { cefr, dtype: 'NOUN', size: 20, locale: apiLocale },
+        // Backend so khớp dtype phân biệt hoa/thường: 'Noun' hợp lệ, 'NOUN' → 400 Invalid dtype (QA F-6).
+        params: { cefr, dtype: 'Noun', size: 20, locale: apiLocale },
       })
       // Chỉ giữ danh từ CÓ giống — quiz mạo từ vô nghĩa nếu thiếu der/die/das.
       const nouns = (data.items ?? []).flatMap((it) => {

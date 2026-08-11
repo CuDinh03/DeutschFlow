@@ -80,7 +80,11 @@ export default function V2StudentVocabularyPage() {
     api
       .get('/words')
       .then((res) => {
-        const raw = (Array.isArray(res.data) ? res.data : (res.data?.content ?? [])) as Record<string, unknown>[]
+        // GET /words trả về envelope { items: [...] }; các đường cũ trả mảng trần hoặc { content }.
+        // Thiếu nhánh `items` khiến danh sách LUÔN rỗng dù API 200 (QA F-4).
+        const raw = (Array.isArray(res.data)
+          ? res.data
+          : (res.data?.items ?? res.data?.content ?? [])) as Record<string, unknown>[]
         setWords(raw.map(normalize).filter((w) => w.german))
       })
       .catch(() => setError(t('loadError')))
