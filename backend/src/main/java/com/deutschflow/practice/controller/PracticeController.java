@@ -37,7 +37,7 @@ public class PracticeController {
     @PostMapping("/submit")
     public ResponseEntity<Void> submitPracticeResult(
             @AuthenticationPrincipal User user,
-            @RequestBody PracticeSubmitRequest request) {
+            @jakarta.validation.Valid @RequestBody PracticeSubmitRequest request) {
         practiceService.submitPracticeResult(user.getId(), request);
         return ResponseEntity.ok().build();
     }
