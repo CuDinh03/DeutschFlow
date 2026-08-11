@@ -310,8 +310,11 @@ export const studentNav: RoleNav = {
         // KHÁC 'review-queue': trang đó chỉ có flashcard SRS + task ngữ pháp ĐẾN HẠN (nút "Xong"),
         // không có toàn bộ sổ lỗi, không tìm kiếm, không luyện sửa.
         { id: 'st-errors', label: 'Sổ lỗi', href: '/v2/student/errors', icon: 'error' },
-        // "Bài học" = thư viện VIDEO (mediaApi) — KHÁC 'roadmap' (lộ trình node có runner).
-        { id: 'lessons', label: 'Bài học', href: '/v2/student/lessons', icon: 'play_circle' },
+        // "Bài học" (thư viện video mediaApi) đã GỠ khỏi nav học viên: endpoint GET /v2/media chỉ
+        // cấp cho TEACHER/ADMIN và bảng media KHÔNG tách theo tổ chức (trộn chung ảnh giáo viên tự
+        // upload), nên mở cho học viên sẽ lộ dữ liệu chéo. Trang luôn báo lỗi 403 với mọi HV (QA
+        // F-11). Route /v2/student/lessons giờ redirect về roadmap. Khi có thư viện nội dung học
+        // riêng cho HV (scope curated) thì thêm lại mục này.
         { id: 'roadmap', label: 'Lộ trình', href: '/v2/student/roadmap', icon: 'route' },
         { id: 'game', label: 'Trò chơi', href: '/v2/student/game', icon: 'sports_esports' },
         // Tin tức báo Đức (GET /news) — trang learner-shared: GV/admin cũng vào được
