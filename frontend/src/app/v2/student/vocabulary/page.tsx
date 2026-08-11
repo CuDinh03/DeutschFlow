@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { BarChart3, HelpCircle, Layers, Mic, Volume2 } from 'lucide-react'
 import api from '@/lib/api'
 import { cleanExample, colorForArticle } from '@/lib/vocabWords'
@@ -74,44 +74,90 @@ function speak(text: string) {
   window.speechSynthesis.speak(u)
 }
 
+// Kho có ~10.9k từ: KHÔNG tải hết. Tìm + lọc cấp độ đẩy xuống server (q/cefr), danh sách nạp theo
+// trang và cuộn tới đâu nạp tới đó (infinite scroll). Trước đây trang chỉ gọi /words không tham số
+// → mặc định 20 từ, lọc phía client trong 20 từ đó → không bao giờ thấy hết kho.
+const PAGE_SIZE = 50
+const LEVELS = ['ALL', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
+
 export default function V2StudentVocabularyPage() {
   const t = useTranslations('v2.student.vocabulary')
+  const locale = useLocale()
   const [words, setWords] = useState<Word[]>([])
+  const [total, setTotal] = useState(0)
   const [query, setQuery] = useState('')
-  const [level, setLevel] = useState('ALL')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [level, setLevel] = useState<string>('ALL')
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const pageRef = useRef(0)
+  const inFlightRef = useRef(false)
 
-  const load = () => {
-    setLoading(true)
-    setError(null)
-    api
-      .get('/words')
-      .then((res) => {
-        // GET /words trả về envelope { items: [...] }; các đường cũ trả mảng trần hoặc { content }.
-        // Thiếu nhánh `items` khiến danh sách LUÔN rỗng dù API 200 (QA F-4).
-        const raw = (Array.isArray(res.data)
-          ? res.data
-          : (res.data?.items ?? res.data?.content ?? [])) as Record<string, unknown>[]
-        setWords(raw.map(normalize).filter((w) => w.german))
-      })
-      .catch(() => setError(t('loadError')))
-      .finally(() => setLoading(false))
-  }
-  useEffect(load, [])
+  // Debounce ô tìm — mỗi phím không bắn một query.
+  useEffect(() => {
+    const h = setTimeout(() => setDebouncedQuery(query.trim()), 300)
+    return () => clearTimeout(h)
+  }, [query])
 
-  const levels = useMemo(
-    () => ['ALL', ...Array.from(new Set(words.map((w) => w.level).filter(Boolean) as string[])).sort()],
-    [words],
+  const fetchPage = useCallback(
+    async (pageNum: number, append: boolean) => {
+      if (inFlightRef.current) return
+      inFlightRef.current = true
+      if (append) setLoadingMore(true)
+      else setLoading(true)
+      setError(null)
+      try {
+        const params: Record<string, string | number> = { page: pageNum, size: PAGE_SIZE, locale }
+        if (debouncedQuery) params.q = debouncedQuery
+        if (level !== 'ALL') params.cefr = level
+        const res = await api.get('/words', { params })
+        const data = res.data as { items?: unknown; content?: unknown; total?: number }
+        const raw = (Array.isArray(res.data) ? res.data : (data?.items ?? data?.content ?? [])) as Record<
+          string,
+          unknown
+        >[]
+        const mapped = raw.map(normalize).filter((w) => w.german)
+        const tot = typeof data?.total === 'number' ? data.total : mapped.length
+        setTotal(tot)
+        setWords((prev) => (append ? [...prev, ...mapped] : mapped))
+        pageRef.current = pageNum
+        setHasMore((pageNum + 1) * PAGE_SIZE < tot)
+      } catch {
+        setError(t('loadError'))
+        if (!append) setWords([])
+      } finally {
+        inFlightRef.current = false
+        setLoading(false)
+        setLoadingMore(false)
+      }
+    },
+    [debouncedQuery, level, locale, t],
   )
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return words.filter((w) => {
-      const mq = !q || w.german.toLowerCase().includes(q) || w.meaning.toLowerCase().includes(q)
-      const ml = level === 'ALL' || w.level === level
-      return mq && ml
-    })
-  }, [words, query, level])
+
+  // Đổi từ khoá/cấp độ → nạp lại từ trang 0.
+  useEffect(() => {
+    pageRef.current = 0
+    void fetchPage(0, false)
+  }, [fetchPage])
+
+  // Cuộn gần đáy → nạp trang kế.
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasMore && !inFlightRef.current) {
+          void fetchPage(pageRef.current + 1, true)
+        }
+      },
+      { rootMargin: '400px' },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [hasMore, fetchPage])
 
   return (
     <div className="flex min-h-full flex-col">
@@ -155,43 +201,41 @@ export default function V2StudentVocabularyPage() {
           </div>
         </div>
 
-        {levels.length > 1 && (
-          <div className="mb-5 flex flex-wrap gap-2">
-            {levels.map((l) => (
-              <button
-                key={l}
-                type="button"
-                onClick={() => setLevel(l)}
-                className={`ga-ui inline-flex min-h-10 items-center justify-center rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0 ${
-                  level === l
-                    ? 'border-ga-ink bg-ga-ink text-ga-card'
-                    : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink'
-                }`}
-              >
-                {l === 'ALL' ? t('all') : l}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="mb-5 flex flex-wrap gap-2">
+          {LEVELS.map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => setLevel(l)}
+              className={`ga-ui inline-flex min-h-10 items-center justify-center rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0 ${
+                level === l
+                  ? 'border-ga-ink bg-ga-ink text-ga-card'
+                  : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink'
+              }`}
+            >
+              {l === 'ALL' ? t('all') : l}
+            </button>
+          ))}
+        </div>
 
         {error && (
           <div className="mb-5">
-            <ErrorBanner message={error} onRetry={load} />
+            <ErrorBanner message={error} onRetry={() => fetchPage(0, false)} />
           </div>
         )}
 
         {loading ? (
           <LoadingState label={t('loading')} />
-        ) : filtered.length === 0 ? (
+        ) : words.length === 0 ? (
           <div className="border border-ga-line bg-ga-card px-4 py-16 text-center lg:px-0">
             <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('emptyTitle')}</p>
             <p className="ga-ui mt-2 text-[14px] text-ga-muted">{t('emptyDesc')}</p>
           </div>
         ) : (
           <>
-            <GaCap className="mb-3 block">{t('count', { count: filtered.length })}</GaCap>
+            <GaCap className="mb-3 block">{t('count', { count: total })}</GaCap>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.slice(0, 300).map((w) => {
+              {words.map((w) => {
                 const color = colorForArticle(w.article) ?? 'var(--ga-ink)'
                 return (
                   <div
@@ -226,10 +270,10 @@ export default function V2StudentVocabularyPage() {
                 )
               })}
             </div>
-            {filtered.length > 300 && (
-              <p className="ga-ui mt-5 text-center text-[12.5px] text-ga-subtle">
-                {t('cappedNote', { count: filtered.length })}
-              </p>
+            {/* Điểm neo cho infinite scroll + chỉ báo đang nạp thêm. */}
+            <div ref={sentinelRef} className="h-1" aria-hidden />
+            {loadingMore && (
+              <p className="ga-ui mt-4 text-center text-[12.5px] text-ga-subtle">{t('loading')}</p>
             )}
           </>
         )}
