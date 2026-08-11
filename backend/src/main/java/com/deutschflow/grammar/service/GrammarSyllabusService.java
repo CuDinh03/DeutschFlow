@@ -1,6 +1,7 @@
 package com.deutschflow.grammar.service;
 
 import com.deutschflow.ai.AiTextService;
+import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.grammar.dto.GrammarDraftDto;
 import com.deutschflow.grammar.dto.GrammarExerciseDto;
 import com.deutschflow.grammar.dto.GrammarGeneratedExerciseDto;
@@ -72,15 +73,50 @@ public class GrammarSyllabusService {
             WHERE topic_id = ? AND status = 'APPROVED'
             ORDER BY difficulty, id
             LIMIT ?
-            """, topicId, limit).stream().map(GrammarExerciseDto::from).toList();
+            """, topicId, limit).stream().map(row ->
+                // QA F-10: the answer key must NOT ship to the client before submission — the DTO's
+                // own contract says "answer key stays server-side". Strip it here (without mutating the
+                // source row); grading happens in submitAnswer against the untouched stored row.
+                new GrammarExerciseDto(
+                        ((Number) row.get("id")).longValue(),
+                        (String) row.get("exercise_type"),
+                        (Integer) row.get("difficulty"),
+                        stripAnswerKey((String) row.get("question_json")))
+            ).toList();
+    }
+
+    /** Remove the answer key + explanations from a question payload sent to the learner (QA F-10). */
+    private String stripAnswerKey(String questionJson) {
+        if (questionJson == null || questionJson.isBlank()) {
+            return questionJson;
+        }
+        try {
+            com.fasterxml.jackson.databind.JsonNode parsed = objectMapper.readTree(questionJson);
+            if (parsed instanceof com.fasterxml.jackson.databind.node.ObjectNode node) {
+                node.remove("correct_answer");
+                node.remove("explanation_vi");
+                node.remove("explanation_de");
+                return objectMapper.writeValueAsString(node);
+            }
+            return questionJson;
+        } catch (Exception e) {
+            // Fail CLOSED: an unparseable payload must not leak the key — return prompt-less {}.
+            log.warn("[Grammar] could not strip answer key from exercise payload: {}", e.getMessage());
+            return "{}";
+        }
     }
 
     @Transactional
     public GrammarSubmitResultDto submitAnswer(long userId, long exerciseId, String answer) {
-        var exercise = jdbcTemplate.queryForMap("""
+        var rows = jdbcTemplate.queryForList("""
             SELECT e.id, e.topic_id, e.question_json::text AS question_json
             FROM grammar_exercises e WHERE e.id = ? AND e.status = 'APPROVED'
             """, exerciseId);
+        if (rows.isEmpty()) {
+            // QA F-10: an unknown / non-approved exercise id used to hit queryForMap → 500 ERR-11.
+            throw new NotFoundException("Không tìm thấy bài tập ngữ pháp.");
+        }
+        var exercise = rows.get(0);
 
         try {
             Map<String, Object> questionData = objectMapper.readValue(

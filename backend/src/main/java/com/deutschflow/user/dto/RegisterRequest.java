@@ -7,8 +7,8 @@ import jakarta.validation.constraints.Size;
 
 public record RegisterRequest(
 
-        @Email(message = "Invalid email format")
-        @NotBlank(message = "Email is required")
+        @Email(message = "Email không hợp lệ.")
+        @NotBlank(message = "Vui lòng nhập email.")
         String email,
 
         // Phone is OPTIONAL (App Store 5.1.1(v): a non-core field cannot be forced at sign-up). When
@@ -18,15 +18,15 @@ public record RegisterRequest(
                 message = "Số điện thoại không hợp lệ (VD: 0912345678, phải là số VN 10 chữ số)")
         String phoneNumber,
 
-        @NotBlank(message = "Password is required")
-        @Size(min = 6, max = 100, message = "Password must be between 6 and 100 characters")
+        @NotBlank(message = "Vui lòng nhập mật khẩu.")
+        @Size(min = 6, max = 100, message = "Mật khẩu phải từ 6 đến 100 ký tự.")
         String password,
 
-        @NotBlank(message = "Display name is required")
-        @Size(min = 2, max = 100, message = "Display name must be between 2 and 100 characters")
+        @NotBlank(message = "Vui lòng nhập tên hiển thị.")
+        @Size(min = 2, max = 100, message = "Tên hiển thị phải từ 2 đến 100 ký tự.")
         String displayName,
 
-        @Pattern(regexp = "^(vi|en|de)$", message = "Locale must be one of: vi, en, de")
+        @Pattern(regexp = "^(vi|en|de)$", message = "Ngôn ngữ phải là vi, en hoặc de.")
         String locale
 ) {
     // Trim email + phone BEFORE Bean Validation runs, mirroring LoginRequest. @Email/@Pattern do a

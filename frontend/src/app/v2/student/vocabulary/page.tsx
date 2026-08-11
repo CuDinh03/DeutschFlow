@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { BarChart3, HelpCircle, Layers, Mic, Volume2 } from 'lucide-react'
 import api from '@/lib/api'
-import { colorForArticle } from '@/lib/vocabWords'
+import { cleanExample, colorForArticle } from '@/lib/vocabWords'
 import { GaPageHdr, TkSearch, GaCap, LoadingState, ErrorBanner } from '@/components/ui-v2'
 
 // Reuse GET /words (the vocabulary store). Tolerant field-picking (shape varies) + gender→color
@@ -37,6 +37,11 @@ function str(r: Record<string, unknown>, ...keys: string[]): string {
   }
   return ''
 }
+/** True khi từ có loại từ RÕ RÀNG không phải danh từ (verb/adjective/…) — chỉ danh từ mới có mạo từ. */
+function isNonNoun(r: Record<string, unknown>): boolean {
+  const dtype = str(r, 'dtype', 'type', 'wordType', 'partOfSpeech').toLowerCase()
+  return dtype !== '' && dtype !== 'noun'
+}
 function normalize(r: Record<string, unknown>, i: number): Word {
   const german = str(r, 'german', 'word', 'wordDe', 'lemma', 'text')
   let article = str(r, 'gender', 'artikel', 'article').toLowerCase() || null
@@ -52,8 +57,9 @@ function normalize(r: Record<string, unknown>, i: number): Word {
     id: str(r, 'id', 'vocabId') || String(i),
     german,
     meaning: str(r, 'meaning', 'vietnamese', 'translation', 'meaningVi', 'vi'),
-    article: article && colorForArticle(article) ? article : null,
-    example: str(r, 'exampleDe', 'example', 'sampleSentence') || null,
+    // QA F-5: chỉ danh từ mới có mạo từ — bỏ mạo từ với từ loại khác dù dữ liệu seed có gán giống.
+    article: isNonNoun(r) ? null : (article && colorForArticle(article) ? article : null),
+    example: cleanExample(str(r, 'exampleDe', 'example', 'sampleSentence')) || null,
     level: str(r, 'level', 'cefrLevel', 'cefr') || null,
   }
 }

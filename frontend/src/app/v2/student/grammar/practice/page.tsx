@@ -44,8 +44,11 @@ interface Exercise {
 interface ParsedQuestion {
   prompt: string
   options?: string[]
-  correct_answer: string
-  explanation_vi: string
+  // Answer key is stripped server-side before submit (QA F-10): only present in the submit RESULT,
+  // never in the pre-fetch payload. Kept optional here — the runner reads these from `result`, not
+  // from the question — so it never relies on the pre-submit answer.
+  correct_answer?: string
+  explanation_vi?: string
   explanation_de?: string
 }
 

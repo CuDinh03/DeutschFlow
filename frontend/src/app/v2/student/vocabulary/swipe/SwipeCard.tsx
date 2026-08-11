@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, useAnimation, useMotionValue, useTransform } from 'framer-motion'
 import { Check, RefreshCw, Volume2, X } from 'lucide-react'
 import { speakGerman } from '@/lib/speechDe'
-import { ARTICLE_COLOR, type WordListItem } from '@/lib/vocabWords'
+import { ARTICLE_COLOR, cleanExample, type WordListItem } from '@/lib/vocabWords'
 
 /**
  * SwipeCard — thẻ vuốt der/die/das (port từ /student/swipe-cards, giữ nguyên cơ chế).
@@ -84,16 +84,18 @@ export const CARD_COLOR: Record<
 /** Map WordListItem (GET /words) → thẻ vuốt. Giữ nguyên logic v1 (kể cả chọn nghĩa theo locale). */
 export function mapWordToSwipe(w: WordListItem, locale: string): SwipeCardData {
   const dtype = (w.dtype || 'Noun').toLowerCase()
-  let type: CardType = 'masculine'
+  // QA F-5: chỉ DANH TỪ mới có mạo từ. Trước đây mọi loại từ không phải verb/adjective (kể cả trạng
+  // từ, giới từ, hay từ thiếu dtype) rơi vào nhánh mặc định 'masculine' → hiện "Der <từ>" sai.
+  const isNounWord = dtype === 'noun'
+  let type: CardType = isNounWord ? 'masculine' : 'adjective'
   if (dtype === 'verb') type = 'verb'
   else if (dtype === 'adjective') type = 'adjective'
-  else if (w.gender === 'DIE') type = 'feminine'
-  else if (w.gender === 'DAS') type = 'neuter'
+  else if (isNounWord && w.gender === 'DIE') type = 'feminine'
+  else if (isNounWord && w.gender === 'DAS') type = 'neuter'
 
-  const art =
-    type === 'masculine' || type === 'feminine' || type === 'neuter'
-      ? (w.article ?? (type === 'masculine' ? 'der' : type === 'feminine' ? 'die' : 'das'))
-      : undefined
+  const art = isNounWord
+    ? (w.article ?? (type === 'feminine' ? 'die' : type === 'neuter' ? 'das' : 'der'))
+    : undefined
   const articleCap = art ? art.charAt(0).toUpperCase() + art.slice(1) : undefined
 
   const loc = locale.toLowerCase()
@@ -107,7 +109,7 @@ export function mapWordToSwipe(w: WordListItem, locale: string): SwipeCardData {
     word: w.baseForm,
     english: english || w.baseForm,
     phonetic: w.phonetic?.trim() || '',
-    sentence: w.exampleDe ?? w.example ?? '',
+    sentence: cleanExample(w.exampleDe ?? w.example),
     sentenceEN: w.exampleEn ?? '',
     emoji: EMOJIS[Math.abs(w.id) % EMOJIS.length],
     level: (w.cefrLevel ?? 'A1').toUpperCase(),
