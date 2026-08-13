@@ -169,16 +169,19 @@ export default function RegisterScreen() {
                 ) : null}
               </View>
 
-              {/* Terms agreement — gates the submit, matching the v2 auth mockup. */}
-              <Pressable
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: agree }}
-                accessibilityLabel="Đồng ý với Điều khoản sử dụng và Chính sách bảo mật"
-                onPress={() => setAgree((a) => !a)}
-                hitSlop={6}
-                style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}
-              >
-                <View
+              {/* Terms agreement — gates the submit, matching the v2 auth mockup.
+                  QA 14/08: ô tích và phần chữ phải là HAI vùng chạm TÁCH BIỆT. Trước đây hai link
+                  pháp lý nằm LỒNG trong <Pressable> của ô tích, nên chạm vào chúng tranh chấp
+                  responder với Pressable cha: đo trên máy ảo thì lần nào cũng bật/tắt ô đồng ý,
+                  còn tài liệu thì hầu như không mở. Người dùng muốn đọc thứ mình sắp đồng ý lại
+                  vô tình đảo ngược chính lựa chọn đó — mà không có dấu hiệu gì. */}
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: agree }}
+                  accessibilityLabel="Đồng ý với Điều khoản sử dụng và Chính sách bảo mật"
+                  onPress={() => setAgree((a) => !a)}
+                  hitSlop={11}
                   style={{
                     width: 22,
                     height: 22,
@@ -192,31 +195,44 @@ export default function RegisterScreen() {
                   }}
                 >
                   {agree ? <Icon icon={Check} size={15} color="accent" /> : null}
+                </Pressable>
+                {/* Mỗi liên kết là một <Pressable> RIÊNG, không phải <Text onPress> lồng trong
+                    <Text>: trên RN 0.81 + New Architecture (Fabric), onPress của Text lồng KHÔNG
+                    kích hoạt — đo trên máy ảo thì `openTermsOfUse` không hề được gọi (không có log
+                    nào), nên hai tài liệu pháp lý không bao giờ mở ở màn đăng ký.
+                    Dùng hàng flexWrap để câu vẫn xuống dòng tự nhiên như cũ. */}
+                <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <ThemedText variant="caption" color="secondary" style={{ lineHeight: 18 }}>
+                    Tôi đồng ý với{' '}
+                  </ThemedText>
+                  <Pressable onPress={openTermsOfUse} accessibilityRole="link" hitSlop={8}>
+                    <ThemedText
+                      variant="caption"
+                      color="primary"
+                      style={{ textDecorationLine: 'underline', lineHeight: 18 }}
+                    >
+                      Điều khoản sử dụng
+                    </ThemedText>
+                  </Pressable>
+                  <ThemedText variant="caption" color="secondary" style={{ lineHeight: 18 }}>
+                    {' '}
+                    và{' '}
+                  </ThemedText>
+                  <Pressable onPress={openPrivacyPolicy} accessibilityRole="link" hitSlop={8}>
+                    <ThemedText
+                      variant="caption"
+                      color="primary"
+                      style={{ textDecorationLine: 'underline', lineHeight: 18 }}
+                    >
+                      Chính sách bảo mật
+                    </ThemedText>
+                  </Pressable>
+                  <ThemedText variant="caption" color="secondary" style={{ lineHeight: 18 }}>
+                    {' '}
+                    của MyDeutschFlow.
+                  </ThemedText>
                 </View>
-                <ThemedText variant="caption" color="secondary" style={{ flex: 1, lineHeight: 18 }}>
-                  Tôi đồng ý với{' '}
-                  <ThemedText
-                    variant="caption"
-                    color="primary"
-                    style={{ textDecorationLine: 'underline' }}
-                    onPress={openTermsOfUse}
-                    accessibilityRole="link"
-                  >
-                    Điều khoản sử dụng
-                  </ThemedText>{' '}
-                  và{' '}
-                  <ThemedText
-                    variant="caption"
-                    color="primary"
-                    style={{ textDecorationLine: 'underline' }}
-                    onPress={openPrivacyPolicy}
-                    accessibilityRole="link"
-                  >
-                    Chính sách bảo mật
-                  </ThemedText>{' '}
-                  của MyDeutschFlow.
-                </ThemedText>
-              </Pressable>
+              </View>
 
               <Button
                 label="Tạo tài khoản"
