@@ -189,11 +189,21 @@ export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
           paddingVertical: space[5],
         }}
       >
-        <Pressable hitSlop={10} disabled={atStart} onPress={() => setIndex(index - 1)} style={{ opacity: atStart ? 0.3 : 1 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Câu trước"
+          accessibilityState={{ disabled: atStart }}
+          hitSlop={10}
+          disabled={atStart}
+          onPress={() => setIndex(index - 1)}
+          style={{ opacity: atStart ? 0.3 : 1 }}
+        >
           <Icon icon={ChevronLeft} size={28} color="muted" />
         </Pressable>
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={playing ? 'Tạm dừng' : 'Phát'}
           hitSlop={10}
           onPress={onTogglePlay}
           style={{
@@ -208,7 +218,15 @@ export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
           <Icon icon={playing ? Pause : Play} size={28} color="onAccent" />
         </Pressable>
 
-        <Pressable hitSlop={10} disabled={atEnd} onPress={() => setIndex(index + 1)} style={{ opacity: atEnd ? 0.3 : 1 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Câu sau"
+          accessibilityState={{ disabled: atEnd }}
+          hitSlop={10}
+          disabled={atEnd}
+          onPress={() => setIndex(index + 1)}
+          style={{ opacity: atEnd ? 0.3 : 1 }}
+        >
           <Icon icon={ChevronRight} size={28} color="muted" />
         </Pressable>
       </View>

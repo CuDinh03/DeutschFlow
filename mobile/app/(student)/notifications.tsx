@@ -2,6 +2,7 @@ import { View, FlatList, Pressable, RefreshControl, Alert } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import {
+  BadgeCheck,
   Bell,
   CalendarClock,
   CalendarPlus,
@@ -10,10 +11,14 @@ import {
   CheckSquare,
   ClipboardList,
   Flame,
+  GraduationCap,
+  Megaphone,
   MessageCircle,
   Repeat,
   TrendingUp,
   Trophy,
+  UserCheck,
+  UserX,
   type LucideIcon,
 } from 'lucide-react-native'
 import { formatDistanceToNow, isToday, isYesterday } from 'date-fns'
@@ -34,38 +39,43 @@ import {
 } from '@/components/ui'
 import {
   mapNotification,
+  notificationIconKey,
   notificationTypeLabel,
   stripLeadingEmoji,
   type Notification,
+  type NotificationIconKey,
   type NotificationPage,
 } from '@/lib/notificationsApi'
 import { resolveNotificationRoute } from '@/lib/notificationRoute'
 
-// Themed icon per notification type — replaces the emoji the backend bakes
-// into titles (stripped via stripLeadingEmoji). Unknown types fall back by
-// keyword so new backend types degrade to something sensible, then Bell.
+// Themed icon per notification type — replaces the emoji the backend bakes into titles (stripped
+// via stripLeadingEmoji). The type→key decision is a PURE function in lib/notificationsApi so it can
+// be unit-tested against the full list of student-facing types; here we only bind key → component.
+//
+// QA 13/08: trước đây bảng này chỉ liệt kê 8 loại, nên "được duyệt vào lớp", "thêm vào lớp",
+// "thông báo từ giáo viên"… vừa bị cắt emoji vừa chỉ còn chuông chung — ít thông tin hơn cả
+// trước khi cắt emoji. Nay mọi loại học viên nhận được đều có icon riêng.
+const ICON_BY_KEY: Record<NotificationIconKey, LucideIcon> = {
+  trophy: Trophy,
+  levelUp: TrendingUp,
+  review: Repeat,
+  streak: Flame,
+  assignment: ClipboardList,
+  graded: CheckSquare,
+  classJoinOk: UserCheck,
+  classJoinNo: UserX,
+  classAdded: GraduationCap,
+  announcement: Megaphone,
+  message: MessageCircle,
+  calendarAdd: CalendarPlus,
+  calendarCancel: CalendarX2,
+  calendarMove: CalendarClock,
+  plan: BadgeCheck,
+  bell: Bell,
+}
+
 function notificationTypeIcon(type: string): LucideIcon {
-  switch (type) {
-    case 'ACHIEVEMENT_UNLOCKED':
-      return Trophy
-    case 'LEVEL_UP':
-      return TrendingUp
-    case 'NEW_ASSIGNMENT':
-    case 'NEW_CLASS_ASSIGNMENT':
-      return ClipboardList
-    case 'ASSIGNMENT_GRADED':
-      return CheckSquare
-    case 'CLASS_SESSION_SCHEDULED':
-      return CalendarPlus
-    case 'CLASS_SESSION_CANCELLED':
-      return CalendarX2
-    case 'CLASS_SESSION_RESCHEDULED':
-      return CalendarClock
-  }
-  if (type.includes('STREAK')) return Flame
-  if (type.includes('SRS') || type.includes('REVIEW')) return Repeat
-  if (type.includes('MESSAGE') || type.includes('CHAT')) return MessageCircle
-  return Bell
+  return ICON_BY_KEY[notificationIconKey(type)]
 }
 
 // Presentation-only: editorial date buckets (HÔM NAY / HÔM QUA / TRƯỚC ĐÓ)

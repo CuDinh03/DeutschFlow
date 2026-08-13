@@ -1,4 +1,11 @@
-import { mapNotification, notificationTypeLabel, stripLeadingEmoji, type RawNotificationItem } from '@/lib/notificationsApi'
+import {
+  STUDENT_NOTIFICATION_TYPES,
+  mapNotification,
+  notificationIconKey,
+  notificationTypeLabel,
+  stripLeadingEmoji,
+  type RawNotificationItem,
+} from '@/lib/notificationsApi'
 
 describe('mapNotification', () => {
   it('reads title/body from the payload map and maps read/createdAtUtc', () => {
@@ -92,5 +99,31 @@ describe('stripLeadingEmoji', () => {
 
   it('keeps emoji-only titles instead of blanking them', () => {
     expect(stripLeadingEmoji('🔥')).toBe('🔥')
+  })
+})
+
+// QA 13/08: bản vá cắt emoji áp cho MỌI tiêu đề, nhưng bảng icon/nhãn khi đó chỉ liệt kê 8 loại
+// ⇒ "được duyệt vào lớp", "thêm vào lớp", "thông báo từ giáo viên"… vừa mất emoji vừa rơi về
+// chuông + nhãn "Thông báo" chung, ít thông tin hơn cả trước khi cắt. Hai test dưới khoá lại
+// điều đó: thêm loại mới cho học viên mà quên khai thì đỏ ngay, không hỏng âm thầm nữa.
+describe('phủ đủ mọi loại thông báo học viên nhận được', () => {
+  it('mọi loại đều có nhãn riêng, không rơi về "Thông báo"', () => {
+    const generic = STUDENT_NOTIFICATION_TYPES.filter((t) => notificationTypeLabel(t) === 'Thông báo')
+    expect(generic).toEqual([])
+  })
+
+  it('mọi loại đều có icon riêng, không rơi về chuông chung', () => {
+    const bells = STUDENT_NOTIFICATION_TYPES.filter((t) => notificationIconKey(t) === 'bell')
+    expect(bells).toEqual([])
+  })
+
+  it('vẫn rơi về chuông cho loại hoàn toàn lạ', () => {
+    expect(notificationIconKey('SOMETHING_ELSE')).toBe('bell')
+  })
+
+  it('đoán theo từ khoá cho loại backend thêm sau này', () => {
+    expect(notificationIconKey('WEEKLY_STREAK_BONUS')).toBe('streak')
+    expect(notificationIconKey('SRS_DIGEST')).toBe('review')
+    expect(notificationIconKey('DIRECT_MESSAGE_REPLY')).toBe('message')
   })
 })
