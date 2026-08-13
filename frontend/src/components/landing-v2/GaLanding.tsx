@@ -119,22 +119,24 @@ export function GaLanding() {
   return (
     <div className="min-h-screen overflow-x-clip scroll-smooth bg-ga-bg font-ga-ui text-ga-ink">
       {/* Nav */}
-      <nav className="sticky top-0 z-50 border-b border-ga-border bg-ga-bg/90 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-ga-border bg-ga-bg/90 backdrop-blur-md">
         <div className="flex h-16 items-center justify-between gap-2 px-5 sm:px-8 md:h-[78px] xl:px-[60px]">
           <GaLogo size={26} className="shrink-0 md:hidden" />
           <GaLogo className="hidden shrink-0 md:inline-flex" />
-          <div className="hidden gap-7 lg:flex xl:gap-9">
+          <nav aria-label="Điều hướng chính" className="hidden gap-7 lg:flex xl:gap-9">
             {NAV_LINKS.map(([l, id]) => (
               <a key={id} href={`#${id}`} className="whitespace-nowrap text-[14.5px] font-medium text-ga-muted transition-colors hover:text-ga-ink">
                 {l}
               </a>
             ))}
-          </div>
+          </nav>
           <div className="flex items-center gap-2 sm:gap-4 md:gap-5">
             <Link href="/v2/login" className="hidden text-[14.5px] font-semibold text-ga-ink hover:opacity-80 sm:block">
               Đăng nhập
             </Link>
-            <GaBtn asChild variant="ink" size="lg" className="h-9 px-3.5 text-[13px] sm:h-11 sm:px-6 sm:text-[14.5px]">
+            {/* h-11 (44px) ở mọi bề ngang — trước là h-9 (36px) trên máy nhỏ, dưới mức tối thiểu
+                44pt của Apple HIG, mà đây là nút chuyển đổi chính nằm ngay cạnh nút menu. */}
+            <GaBtn asChild variant="ink" size="lg" className="h-11 px-3.5 text-[13px] sm:px-6 sm:text-[14.5px]">
               <Link href="/v2/register">
                 <YellowSq />
                 <span className="sm:hidden">Học thử</span>
@@ -147,7 +149,7 @@ export function GaLanding() {
               aria-expanded={menuOpen}
               aria-controls="ga-mobile-menu"
               aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'}
-              className="flex h-9 w-9 shrink-0 items-center justify-center border border-ga-border text-ga-ink lg:hidden"
+              className="flex h-11 w-11 shrink-0 items-center justify-center border border-ga-border text-ga-ink lg:hidden"
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
                 {menuOpen ? (
@@ -188,7 +190,11 @@ export function GaLanding() {
             </div>
           </div>
         )}
-      </nav>
+      </header>
+
+      {/* QA 13/08: trang thiếu landmark <main> nên VoiceOver/rotor không có "nội dung chính"
+          để nhảy tới — người dùng trình đọc màn hình phải lướt qua cả thanh điều hướng mỗi lần. */}
+      <main>
 
       {/* Hero */}
       <section className="mx-auto grid max-w-[1240px] items-center gap-12 px-5 pb-14 pt-10 sm:px-8 sm:pt-14 lg:grid-cols-[1.15fr_1fr] lg:gap-20 lg:px-[60px] lg:pb-[72px] lg:pt-[90px]">
@@ -528,6 +534,8 @@ export function GaLanding() {
           </GaBtn>
         </div>
       </section>
+
+      </main>
 
       {/* Site footer — brand + legal/support links */}
       <footer className="border-t border-ga-border bg-ga-bg">
