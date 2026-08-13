@@ -52,6 +52,33 @@ export function notificationTypeLabel(type: string): string {
   }
 }
 
+// Server-rendered titles historically open with a decorative emoji ("🔥 Chuỗi
+// học tập"). The app renders its own themed icon per type, so the leading
+// emoji is stripped for display. Manual code-point scan instead of \p{...}
+// regex — Hermes' unicode-property support can't be relied on across OTA'd
+// runtimes. Emoji elsewhere in the string (real content) is kept.
+export function stripLeadingEmoji(s: string): string {
+  const isEmojiCodePoint = (cp: number): boolean =>
+    (cp >= 0x1f000 && cp <= 0x1ffff) || // pictographs & extended symbols
+    (cp >= 0x2600 && cp <= 0x27bf) || // misc symbols + dingbats
+    (cp >= 0x2b00 && cp <= 0x2bff) || // arrows/symbols (⬆ lives here)
+    (cp >= 0x2190 && cp <= 0x21ff) || // classic arrows
+    (cp >= 0x2300 && cp <= 0x23ff) || // technical (⏰, ⌛)
+    cp === 0xfe0f || // variation selector-16
+    cp === 0x200d || // zero-width joiner
+    cp === 0x20e3 // combining keycap
+  let i = 0
+  while (i < s.length) {
+    const cp = s.codePointAt(i)
+    if (cp == null || !isEmojiCodePoint(cp)) break
+    i += cp > 0xffff ? 2 : 1
+  }
+  if (i === 0) return s
+  const rest = s.slice(i).replace(/^\s+/, '')
+  // Emoji-only titles keep the original text rather than going blank.
+  return rest ? rest : s
+}
+
 export function mapNotification(item: RawNotificationItem): Notification {
   const p = item.payload ?? {}
   // Prefer the server-rendered title/body; fall back to payload keys (older backend).
