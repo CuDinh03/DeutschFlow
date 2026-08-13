@@ -1,11 +1,25 @@
 import { View, FlatList, Pressable, RefreshControl, Alert } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { Bell, CheckCheck } from 'lucide-react-native'
+import {
+  Bell,
+  CalendarClock,
+  CalendarPlus,
+  CalendarX2,
+  CheckCheck,
+  CheckSquare,
+  ClipboardList,
+  Flame,
+  MessageCircle,
+  Repeat,
+  TrendingUp,
+  Trophy,
+  type LucideIcon,
+} from 'lucide-react-native'
 import { formatDistanceToNow, isToday, isYesterday } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import api, { apiMessage } from '@/lib/api'
-import { space, useTheme } from '@/lib/theme'
+import { radius, space, useTheme } from '@/lib/theme'
 import {
   Screen,
   Card,
@@ -18,8 +32,41 @@ import {
   ErrorState,
   Skeleton,
 } from '@/components/ui'
-import { mapNotification, notificationTypeLabel, type Notification, type NotificationPage } from '@/lib/notificationsApi'
+import {
+  mapNotification,
+  notificationTypeLabel,
+  stripLeadingEmoji,
+  type Notification,
+  type NotificationPage,
+} from '@/lib/notificationsApi'
 import { resolveNotificationRoute } from '@/lib/notificationRoute'
+
+// Themed icon per notification type — replaces the emoji the backend bakes
+// into titles (stripped via stripLeadingEmoji). Unknown types fall back by
+// keyword so new backend types degrade to something sensible, then Bell.
+function notificationTypeIcon(type: string): LucideIcon {
+  switch (type) {
+    case 'ACHIEVEMENT_UNLOCKED':
+      return Trophy
+    case 'LEVEL_UP':
+      return TrendingUp
+    case 'NEW_ASSIGNMENT':
+    case 'NEW_CLASS_ASSIGNMENT':
+      return ClipboardList
+    case 'ASSIGNMENT_GRADED':
+      return CheckSquare
+    case 'CLASS_SESSION_SCHEDULED':
+      return CalendarPlus
+    case 'CLASS_SESSION_CANCELLED':
+      return CalendarX2
+    case 'CLASS_SESSION_RESCHEDULED':
+      return CalendarClock
+  }
+  if (type.includes('STREAK')) return Flame
+  if (type.includes('SRS') || type.includes('REVIEW')) return Repeat
+  if (type.includes('MESSAGE') || type.includes('CHAT')) return MessageCircle
+  return Bell
+}
 
 // Presentation-only: editorial date buckets (HÔM NAY / HÔM QUA / TRƯỚC ĐÓ)
 // derived from the already-fetched list. No extra fetch.
@@ -166,16 +213,28 @@ export default function NotificationsScreen() {
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
-                  {!item.isRead ? (
-                    <YellowSquare size={9} style={{ marginTop: 5 }} />
-                  ) : (
-                    <View style={{ width: 9 }} />
-                  )}
+                  {/* Type icon tile — surface-on-yellow when unread (card bg is
+                      accentSoft), soft-yellow-on-white when read. */}
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: radius.md,
+                      backgroundColor: item.isRead ? c.accentSoft : c.surface,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon icon={notificationTypeIcon(item.type)} size={20} color="accent" />
+                  </View>
                   <View style={{ flex: 1, gap: 3 }}>
-                    <Caption color={item.isRead ? c.textFaint : c.accentText}>
-                      {notificationTypeLabel(item.type)}
-                    </Caption>
-                    <ThemedText variant="bodyStrong">{item.title}</ThemedText>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                      {!item.isRead ? <YellowSquare size={8} /> : null}
+                      <Caption color={item.isRead ? c.textFaint : c.accentText}>
+                        {notificationTypeLabel(item.type)}
+                      </Caption>
+                    </View>
+                    <ThemedText variant="bodyStrong">{stripLeadingEmoji(item.title)}</ThemedText>
                     {item.body ? (
                       <ThemedText variant="caption" color="secondary">
                         {item.body}

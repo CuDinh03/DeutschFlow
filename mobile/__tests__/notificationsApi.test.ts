@@ -1,4 +1,4 @@
-import { mapNotification, notificationTypeLabel, type RawNotificationItem } from '@/lib/notificationsApi'
+import { mapNotification, notificationTypeLabel, stripLeadingEmoji, type RawNotificationItem } from '@/lib/notificationsApi'
 
 describe('mapNotification', () => {
   it('reads title/body from the payload map and maps read/createdAtUtc', () => {
@@ -70,5 +70,27 @@ describe('notificationTypeLabel', () => {
     expect(notificationTypeLabel('ACHIEVEMENT_UNLOCKED')).toBe('Thành tích mới')
     expect(notificationTypeLabel('NEW_CLASS_ASSIGNMENT')).toBe('Bài tập mới')
     expect(notificationTypeLabel('SOMETHING_ELSE')).toBe('Thông báo')
+  })
+})
+
+describe('stripLeadingEmoji', () => {
+  it('strips a single leading emoji + space', () => {
+    expect(stripLeadingEmoji('🏆 Thành tích mới')).toBe('Thành tích mới')
+    expect(stripLeadingEmoji('🔥 Chuỗi học tập')).toBe('Chuỗi học tập')
+    expect(stripLeadingEmoji('📚 Ôn tập hôm nay')).toBe('Ôn tập hôm nay')
+  })
+
+  it('strips multi-codepoint emoji (variation selector, ZWJ sequences)', () => {
+    expect(stripLeadingEmoji('⬆️ Lên cấp')).toBe('Lên cấp')
+    expect(stripLeadingEmoji('👨‍🏫 Bài tập mới')).toBe('Bài tập mới')
+  })
+
+  it('leaves titles without a leading emoji untouched', () => {
+    expect(stripLeadingEmoji('Lên cấp')).toBe('Lên cấp')
+    expect(stripLeadingEmoji('Huy hiệu "Trí nhớ thép 🧠"!')).toBe('Huy hiệu "Trí nhớ thép 🧠"!')
+  })
+
+  it('keeps emoji-only titles instead of blanking them', () => {
+    expect(stripLeadingEmoji('🔥')).toBe('🔥')
   })
 })
