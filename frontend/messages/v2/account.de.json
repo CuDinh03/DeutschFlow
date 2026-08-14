@@ -43,7 +43,21 @@
       "fieldNewPassword": "Neues Passwort",
       "newPasswordHint": "Mindestens 8 Zeichen.",
       "changingPassword": "Wird geändert…",
-      "changePassword": "Passwort ändern"
+      "changePassword": "Passwort ändern",
+      "fieldAvatar": "Profilbild",
+      "avatarHint": "JPG, PNG oder WebP, max. 5 MB — das Bild wird automatisch quadratisch zugeschnitten.",
+      "uploadAvatar": "Foto hochladen",
+      "uploadingAvatar": "Wird hochgeladen…",
+      "removeAvatar": "Foto entfernen",
+      "avatarSaved": "Profilbild aktualisiert.",
+      "avatarRemoved": "Profilbild entfernt.",
+      "avatarError": "Profilbild konnte nicht aktualisiert werden.",
+      "avatarInvalidType": "Nicht unterstütztes Format — bitte JPG, PNG oder WebP wählen.",
+      "avatarTooLarge": "Das Bild ist zu groß — bitte ein kleineres wählen.",
+      "fieldCurrentLevel": "Aktuelles Niveau",
+      "currentLevelHint": "Wird zur Personalisierung der Lektionen genutzt — bei Bedarf anpassen.",
+      "currentLevelA0": "A0 — kompletter Anfänger",
+      "fieldExamType": "Ziel-Prüfung"
     },
     "payment": {
       "title": "Tarif upgraden",

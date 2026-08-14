@@ -16,6 +16,8 @@ export interface ChangePasswordPayload {
 export interface UpdateLearningProfilePayload {
   goalType?: string;          // WORK | CERT
   targetLevel?: string;       // A1 | A2 | B1 | B2 | C1 | C2
+  currentLevel?: string;      // A0 | A1 | A2 | B1 | B2 | C1 | C2 (tự khai → levelSource=SELF)
+  examType?: string;          // GOETHE | TELC | TESTDAF…; chuỗi rỗng = xoá
   industry?: string;
   interests?: string[];
   learningSpeed?: string;     // SLOW | NORMAL | FAST
@@ -85,6 +87,29 @@ export async function updateProfile(
 export async function changePassword(data: ChangePasswordPayload): Promise<void> {
   try {
     await api.patch("/profile/me/password", data);
+  } catch (e) {
+    throw new Error(apiMessage(e));
+  }
+}
+
+/** Upload ảnh đại diện (ảnh chuẩn ≤5MB). Backend thay ảnh cũ và trả URL mới. */
+export async function uploadAvatar(file: File): Promise<{ avatarUrl: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  try {
+    const res = await api.post<{ avatarUrl: string }>("/profile/me/avatar", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data;
+  } catch (e) {
+    throw new Error(apiMessage(e));
+  }
+}
+
+/** Gỡ ảnh đại diện — quay về chữ cái tắt. */
+export async function removeAvatar(): Promise<void> {
+  try {
+    await api.delete("/profile/me/avatar");
   } catch (e) {
     throw new Error(apiMessage(e));
   }
