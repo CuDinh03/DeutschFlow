@@ -1,350 +1,289 @@
 #!/usr/bin/env python3
 """
-Trích xuất lemma + ví dụ tiếng Đức từ PDF Goethe (A1 Start Deutsch 1, A2, B1).
-
-Phụ thuộc:
-  pip install pymupdf pdfplumber
-
-Chạy từ thư mục gốc repo:
-  python3 scripts/extract_goethe_pdfs.py
+Trích xuất lemma + ví dụ tiếng Đức từ PDF Goethe chính thức (A1 Start Deutsch 1, A2, B1).
 
 Sinh: backend/src/main/resources/wordlists/goethe_official_wordlist.tsv
+      (đọc bởi CefrLevelResolver — nguồn quyết định words.cefr_level).
+
+Phụ thuộc:
+  pip install pdfplumber
+
+Chạy từ thư mục gốc repo (PDF nằm trong wordsDeutsch/, thư mục này KHÔNG commit):
+  python3 scripts/extract_goethe_pdfs.py
+
+Cách hoạt động — tách theo TOẠ ĐỘ, không đoán bằng regex:
+
+  * Mỗi trang danh sách là hai NỬA cạnh nhau (A2/B1), mỗi nửa gồm cột lemma + cột ví dụ.
+    Bản trước chỉ đọc nửa trái (`x0 < 270`) và dừng ở trang 60/104 của B1 ⇒ mất quá nửa dữ liệu
+    (A1 235 · A2 616 · B1 159 dòng). Xem BAO_CAO_PHAN_CAP_TU_VUNG_2026-08-14.md.
+  * Mép cột ví dụ dò bằng histogram x0 (mọi dòng ví dụ bắt đầu đúng một toạ độ), nên không phải
+    ghim số cứng cho từng file PDF.
+  * A2/B1: một mục từ = một KHỐI các dòng; mục mới bắt đầu khi khoảng cách dọc giãn ra
+    (trong mục ~11pt, giữa hai mục ≥14pt) — cần vậy vì dòng chia động từ ("hat aufgepasst")
+    cũng nằm ở cột lemma và không được tính thành mục riêng.
+  * A1: mỗi mục đúng một dòng nên chỉ cần "dòng có chữ ở cột lemma = mục mới".
 """
 from __future__ import annotations
 
 import re
 import unicodedata
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
-import fitz  # PyMuPDF
+import pdfplumber
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "backend/src/main/resources/wordlists/goethe_official_wordlist.tsv"
 PDF_DIR = ROOT / "wordsDeutsch"
 
-try:
-    import pdfplumber
-except ImportError as e:
-    pdfplumber = None  # type: ignore
+# Vùng chữ hữu ích trên trang (bỏ header "WORTLISTE"/số trang và footer).
+TOP_MARGIN = 60
+BOTTOM_MARGIN = 30
+# Gộp cột số thứ tự nghĩa ("1.", "2.") vào cột ví dụ ngay sau nó khi dò lưới.
+COLUMN_CLUSTER_TOL = 12
+# Cột ví dụ phải cách cột lemma ít nhất ngần này (pt) mới coi là cột khác.
+COLUMN_GAP_MIN = 60
+# Nửa phải bắt đầu từ đâu (tỉ lệ bề ngang) và cột phải "đáng kể" so với cột dày nhất.
+RIGHT_HALF_MIN_RATIO = 0.45
+MIN_COLUMN_SHARE = 0.25
+# Ranh giới lemma/ví dụ đặt ngay TRƯỚC mép cột ví dụ; mép nửa trang lùi thêm chút cho chữ nhô trái.
+BOUNDARY_PAD = 3
+HALF_PAD = 5
+# Giãn dòng trong một mục ~11pt; giữa hai mục ≥14pt.
+BLOCK_GAP = 13
+# Dung sai gom chữ về cùng một dòng (baseline hai cột lệch nhau vài pt).
+LINE_TOL = 4
 
-
-def norm_lemma(s: str) -> str:
-    s = unicodedata.normalize("NFKC", s).strip()
-    s = re.sub(r"\s+", " ", s)
-    return s
-
-
-def looks_like_new_a1_entry(line: str) -> bool:
-    s = line.strip()
-    if not s:
-        return False
-    if "\t" in s:
-        return True
-    if re.match(r"^(der|die|das|ein|eine)\s+", s):
-        return True
-    if re.match(r"^[a-zäöüß][a-zäöüß\-, ]{0,45}\s*$", s) and not s.startswith("Ich ") and not s.startswith("Wir "):
-        return True
-    if re.match(r"^[a-zäöüß][a-zäöüß\-]+,\s*$", s):
-        return True
-    return False
-
-
-def parse_a1_pages(doc: fitz.Document, start: int, end: int) -> list[tuple[str, str, str]]:
-    lines: list[str] = []
-    for p in range(start - 1, end):
-        lines.extend(doc[p].get_text().splitlines())
-
-    out: list[tuple[str, str, str]] = []
-    i = 0
-    skip_headers = re.compile(r"^(Inventare|Alphabetische|Wortliste|Seite\s+\d+|VS_)", re.I)
-
-    while i < len(lines):
-        raw = lines[i].rstrip()
-        i += 1
-        if not raw.strip() or skip_headers.match(raw.strip()):
-            continue
-        s = raw.strip()
-        if s in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" and len(s) == 1:
-            continue
-
-        lemma: str | None = None
-        ex_parts: list[str] = []
-
-        if "\t" in raw:
-            left, right = raw.split("\t", 1)
-            lemma = norm_lemma(left)
-            if right.strip():
-                ex_parts.append(right.strip())
-            else:
-                while i < len(lines):
-                    nxt = lines[i]
-                    if looks_like_new_a1_entry(nxt):
-                        break
-                    if nxt.strip() == "":
-                        i += 1
-                        continue
-                    if nxt.strip() == "\t" or (nxt.startswith("\t") and len(nxt.strip()) < 2):
-                        i += 1
-                        continue
-                    ex_parts.append(nxt.strip())
-                    i += 1
-        else:
-            m = re.match(r"^(\s*)(.+)$", raw)
-            if not m:
-                continue
-            indent, rest = m.group(1), m.group(2).rstrip()
-            if indent and len(indent) >= 2:
-                continue
-            if not rest:
-                continue
-            if re.match(r"^[a-zäöüß][a-zäöüß\-, ]*$", rest.strip()) and "\t" not in rest:
-                lemma = norm_lemma(rest.strip())
-                while i < len(lines):
-                    if "\t" in lines[i] and lines[i].strip() and not lines[i].strip().startswith("\t"):
-                        break
-                    nxt = lines[i].strip()
-                    if not nxt:
-                        i += 1
-                        continue
-                    ex_parts.append(nxt)
-                    i += 1
-            else:
-                continue
-
-        if not lemma or len(lemma) < 1:
-            continue
-        ex = re.sub(r"\s+", " ", " ".join(ex_parts)).strip()
-        if ex:
-            out.append(("A1", lemma, ex))
-
-    return out
-
-
-# --- A2: cột trái (x0 < LEFT_MAX) + parser dòng ---
-
-LEFT_MAX_A2 = 270
-
-SKIP_LINE = re.compile(
-    r"^(ALPHABETISCHER|WORTLISTE|Seite|\d+\s+WORTLISTE|61600|ZERTIFIKAT|GOETHE|ÖSD|Inventare)",
+ARTICLE_RE = re.compile(r"^(der|die|das)\b", re.I)
+# Mã tài liệu / header lọt vào lề trang ("VS_02_280312", "213082_20_SV", "A2_Wortliste_03_200616").
+JUNK_WORD_RE = re.compile(r"^(VS_|\d{5,}_|[A-B]\d_Wortliste)", re.I)
+SKIP_LINE_RE = re.compile(
+    r"^(WORTLISTE|GOETHE-ZERTIFIKAT|ZERTIFIKAT|Alphabetische|wortliste|Inventare|Seite|VS_|"
+    r"A1_|A2_|B1_|Felix Brandl|Goethe-Institut)",
     re.I,
 )
 
-ART_ENTRY_RE = re.compile(
-    r"^((?:der|die|das|ein|eine)\s+[A-Za-zäöüßÄÖÜ][^,]{0,45}?,\s*[-\w/¨]+)\s+(.+)$"
-)
-NEW_ENTRY_RE = re.compile(r'^([a-zäöüß][a-zäöüß\-, /]{0,55}?)\s+([A-ZÄÖÜ„"\d\(].*)$')
-BAD_LEMMA = frozenset(
-    {"ich", "du", "er", "sie", "es", "wir", "ihr", "und", "oder", "mit", "von", "zu", "in", "an", "auf", "mir", "dir"}
-)
+
+def norm_space(s: str) -> str:
+    return re.sub(r"\s+", " ", unicodedata.normalize("NFKC", s)).strip()
 
 
-def extract_left_column_lines(page, left_max: int) -> list[str]:
+def page_lines(page, x_start: float, x_end: float) -> list[tuple[int, list[dict]]]:
+    """
+    Chữ trong nửa trang [x_start, x_end), gom theo dòng.
+
+    Gom theo `top` với dung sai {LINE_TOL}pt chứ không theo `top` làm tròn: cột lemma và cột ví dụ
+    lệch baseline 1–3pt, nếu tách đôi thì một mục từ bị đếm thành hai dòng và khoảng cách dọc
+    (thứ dùng để tách mục) loạn hết.
+    """
     words = [
         w
         for w in page.extract_words()
-        if w.get("upright", True) and 75 < w["top"] < page.height - 30
+        if TOP_MARGIN < w["top"] < page.height - BOTTOM_MARGIN
+        and x_start <= w["x0"] < x_end
+        and not JUNK_WORD_RE.match(w["text"])
     ]
-    by_line: dict[int, list] = defaultdict(list)
+    words.sort(key=lambda w: (w["top"], w["x0"]))
+    lines: list[tuple[int, list[dict]]] = []
+    current: list[dict] = []
+    current_top: float | None = None
     for w in words:
-        by_line[round(w["top"])].append(w)
-    out: list[str] = []
-    for top in sorted(by_line.keys()):
-        ws = sorted(by_line[top], key=lambda x: x["x0"])
-        left = [w for w in ws if w["x0"] < left_max]
-        if not left:
-            continue
-        out.append(" ".join(w["text"] for w in left).strip())
-    return out
+        if current_top is None:
+            current_top = w["top"]
+        elif w["top"] - current_top > LINE_TOL:
+            lines.append((round(current_top), sorted(current, key=lambda x: x["x0"])))
+            current, current_top = [], w["top"]
+        current.append(w)
+    if current and current_top is not None:
+        lines.append((round(current_top), sorted(current, key=lambda x: x["x0"])))
+    return lines
 
 
-def parse_a2_style_stream(lines: list[str]) -> list[tuple[str, str]]:
-    merged: list[str] = []
-    for line in lines:
-        if SKIP_LINE.match(line):
-            continue
-        if not merged:
-            merged.append(line)
-            continue
-        if line.lower().startswith("ich ") and len(line) < 50:
-            merged[-1] = merged[-1] + " " + line
-            continue
-        m1 = ART_ENTRY_RE.match(line)
-        m2 = NEW_ENTRY_RE.match(line) if not m1 else None
-        first = None
-        if m1:
-            first = m1.group(1).split()[0].lower().strip(",")
-        elif m2:
-            first = m2.group(1).split(",")[0].lower().strip()
-        if (m1 or m2) and first not in BAD_LEMMA:
-            merged.append(line)
+def _x_clusters(words: list[dict]) -> list[tuple[float, int]]:
+    """Các mép cột theo histogram x0; cột số thứ tự nghĩa ("1.") gộp vào cột ví dụ ngay sau nó."""
+    counts = Counter(round(w["x0"]) for w in words)
+    clusters: list[list[float]] = []
+    for x, c in sorted(counts.items()):
+        if clusters and x - clusters[-1][0] <= COLUMN_CLUSTER_TOL:
+            clusters[-1][1] += c
         else:
-            merged[-1] = merged[-1] + " " + line
-
-    entries: list[tuple[str, str]] = []
-    cur_lemma: str | None = None
-    cur_ex: list[str] = []
-
-    for block in merged:
-        m = ART_ENTRY_RE.match(block)
-        if not m:
-            m = NEW_ENTRY_RE.match(block)
-        if m:
-            lemma = m.group(1).strip()
-            rest = m.group(2).strip()
-            first = lemma.split()[0].lower().strip(",")
-            if first in BAD_LEMMA and not ART_ENTRY_RE.match(block):
-                if cur_lemma:
-                    cur_ex.append(block)
-                continue
-            if cur_lemma:
-                if cur_lemma and cur_ex:
-                    entries.append((cur_lemma, re.sub(r"\s+", " ", " ".join(cur_ex)).strip()))
-                cur_ex = []
-            cur_lemma = lemma
-            cur_ex = [rest]
-        elif cur_lemma:
-            cur_ex.append(block)
-    if cur_lemma and cur_ex:
-        entries.append((cur_lemma, re.sub(r"\s+", " ", " ".join(cur_ex)).strip()))
-    return entries
+            clusters.append([x, c])
+    return [(c[0], int(c[1])) for c in clusters]
 
 
-# --- B1: dòng chỉ lemma + khối ví dụ (kèm lọc dòng lạc sang mục sau) ---
+def detect_grid(page) -> list[tuple[float, float, float]]:
+    """
+    Dò lưới cột của trang: trả về các đoạn ``(x_bắt_đầu, x_kết_thúc, ranh_giới_lemma_ví_dụ)``.
 
-LEFT_MAX_B1 = 270
-
-
-def is_b1_lemma_only(line: str) -> bool:
-    s = line.strip()
-    if not s or len(s) > 85:
-        return False
-    if "?" in s or "–" in s or "…" in s:
-        return False
-    if re.match(r"^\d+\.", s):
-        return False
-    if re.match(r"^[a-zäöüß]{2,30}$", s):
-        return True
-    if (
-        re.match(r"^(der|die|das|ein|eine)\s+[A-Za-zäöüßÄÖÜ].{0,60}$", s)
-        and "," in s
-        and s.count(" ") <= 6
-    ):
-        return True
-    if re.match(r"^[a-zäöüß][a-zäöüß, ]{2,70},\s+[a-zäöüß]", s) and s.count(",") >= 1 and len(s) < 80:
-        return True
-    return False
-
-
-def lemma_core_token(lemma: str) -> str:
-    s = lemma.strip().split(",")[0].strip()
-    s = re.sub(r"^(der|die|das|ein|eine)\s+", "", s, flags=re.I)
-    parts = s.split()
-    return parts[0].lower() if parts else ""
-
-
-def line_supports_lemma(lemma: str, line: str) -> bool:
-    t = line.strip()
-    if re.match(r"^\d+\.", t):
-        return True
-    core = lemma_core_token(lemma)
-    if len(core) <= 2:
-        return True
-    if len(core) >= 3 and re.search(rf"\b{re.escape(core)}\b", t, re.I):
-        return True
-    return False
-
-
-def filter_b1_example_lines(lemma: str, parts: list[str]) -> list[str]:
-    if not parts:
+    Mọi dòng ví dụ bắt đầu đúng một toạ độ nên histogram x0 lộ ra mép cột. A1 có 1 nửa
+    (lemma | ví dụ); A2/B1 có 2 nửa cạnh nhau. Dò theo TỪNG TRANG vì mép cột xê dịch vài pt giữa
+    các trang — ghim số cứng thì nửa phải tràn sang nửa trái, các dòng chèn vào nhau làm khoảng
+    cách dọc loạn và cả trang dồn thành một khối (mất sạch mục từ trừ mục đầu).
+    """
+    words = [
+        w
+        for w in page.extract_words()
+        if TOP_MARGIN < w["top"] < page.height - BOTTOM_MARGIN and not JUNK_WORD_RE.match(w["text"])
+    ]
+    clusters = _x_clusters(words)
+    if len(clusters) < 2:
         return []
-    out: list[str] = []
-    prev_incomplete = False
-    for t in parts:
-        t = t.strip()
-        if not t:
+    peak = max(c for _, c in clusters)
+    # Mép nửa phải = cột "đáng kể" đầu tiên nằm quá nửa trang.
+    right_start = next(
+        (x for x, c in clusters if x >= page.width * RIGHT_HALF_MIN_RATIO and c >= peak * MIN_COLUMN_SHARE),
+        None,
+    )
+    bounds = [(0.0, right_start - HALF_PAD)] if right_start else [(0.0, float(page.width))]
+    if right_start:
+        bounds.append((right_start - HALF_PAD, float(page.width)))
+
+    segments: list[tuple[float, float, float]] = []
+    for x_start, x_end in bounds:
+        half = [w for w in words if x_start <= w["x0"] < x_end]
+        if not half:
             continue
-        if line_supports_lemma(lemma, t):
-            out.append(t)
-            prev_incomplete = not bool(re.search(r"[.!?…]\s*$", t))
+        lemma_x = min(w["x0"] for w in half)
+        example = [(x, c) for x, c in _x_clusters(half) if x >= lemma_x + COLUMN_GAP_MIN]
+        if not example:
             continue
-        if out and prev_incomplete:
-            out.append(t)
-            prev_incomplete = not bool(re.search(r"[.!?…]\s*$", t))
-            continue
+        example_x = max(example, key=lambda t: t[1])[0]
+        segments.append((x_start, x_end, example_x - BOUNDARY_PAD))
+    return segments
+
+
+def split_line(words: list[dict], boundary: float) -> tuple[str, str]:
+    left = " ".join(w["text"] for w in words if w["x0"] < boundary)
+    right = " ".join(w["text"] for w in words if w["x0"] >= boundary)
+    return norm_space(left), norm_space(right)
+
+
+def clean_lemma(raw: str) -> str:
+    """"aufpassen, passt auf," → "aufpassen"; "der Politiker, -" → "der Politiker"; bỏ "1." dính đuôi."""
+    s = norm_space(raw)
+    s = re.sub(r"\d+\.?$", "", s).strip()
+    s = s.split(",")[0].strip()
+    s = re.sub(r"[^\wÄÖÜäöüß\-/ ]", " ", s)
+    s = norm_space(s)
+    # Nhãn ngữ pháp/vùng miền trong Wortliste: "die Eltern pl", "der Gehsteig D" (D/A/CH).
+    s = re.sub(r"\s+(pl|Pl|D|A|CH)$", "", s).strip()
+    if re.search(r"\d", s):
+        return ""
+    if len(s) < 2 or len(s) > 60 or SKIP_LINE_RE.match(s):
+        return ""
+    # Chữ cái phân mục ("A", "B", …) và mẩu rác một–hai ký tự.
+    if len(s) <= 2 and s.isupper():
+        return ""
+    return s
+
+
+def is_paradigm_line(text: str) -> bool:
+    """Dòng chia động từ / phân từ đi kèm mục từ, không phải lemma riêng."""
+    return bool(re.match(r"^(hat|ist|hatte|war|wird|sind|haben|→)\b", text.strip(), re.I))
+
+
+def blocks_by_gap(lines: list[tuple[int, list[dict]]], gap: int = BLOCK_GAP) -> list[list[tuple[int, list[dict]]]]:
+    blocks: list[list[tuple[int, list[dict]]]] = []
+    prev_top: int | None = None
+    for top, ws in lines:
+        if prev_top is None or top - prev_top >= gap:
+            blocks.append([])
+        blocks[-1].append((top, ws))
+        prev_top = top
+    return blocks
+
+
+def parse_two_column_page(page) -> list[tuple[str, str]]:
+    """A2/B1: mỗi nửa trang là (cột lemma | cột ví dụ); mục từ tách theo khoảng cách dọc."""
+    out: list[tuple[str, str]] = []
+    for x_start, x_end, boundary in detect_grid(page):
+        lines = page_lines(page, x_start, x_end)
+        for block in blocks_by_gap(lines):
+            lemma_lines: list[str] = []
+            example_parts: list[str] = []
+            for _, ws in block:
+                left, right = split_line(ws, boundary)
+                if left:
+                    lemma_lines.append(left)
+                if right:
+                    example_parts.append(right)
+            if not lemma_lines:
+                continue
+            example = norm_space(" ".join(example_parts))
+            # Dòng lemma đầu khối là mục chính; các dòng sau chỉ nhận khi mở đầu bằng mạo từ
+            # (dạng giống cái "die Politikerin, -nen" đi kèm "der Politiker, -").
+            for i, raw in enumerate(lemma_lines):
+                if i > 0 and not ARTICLE_RE.match(raw):
+                    continue
+                if is_paradigm_line(raw):
+                    continue
+                lemma = clean_lemma(raw)
+                if lemma:
+                    out.append((lemma, example))
     return out
 
 
-def parse_b1_blocks(lines: list[str]) -> list[tuple[str, str]]:
-    lines = [ln for ln in lines if ln.strip() and not SKIP_LINE.match(ln)]
-    idxs = [i for i, ln in enumerate(lines) if is_b1_lemma_only(ln)]
-    entries: list[tuple[str, str]] = []
-    for j, i in enumerate(idxs):
-        lemma = lines[i].strip()
-        next_i = idxs[j + 1] if j + 1 < len(idxs) else len(lines)
-        block: list[str] = []
-        k = i - 1
-        while k >= 0 and re.match(r"^\d+\.", lines[k].strip()):
-            block.insert(0, lines[k].strip())
-            k -= 1
-        for x in range(i + 1, next_i):
-            t = lines[x].strip()
-            if SKIP_LINE.match(t):
-                continue
-            block.append(t)
-        block = filter_b1_example_lines(lemma, block)
-        ex = re.sub(r"\s+", " ", " ".join(block)).strip()
-        entries.append((lemma, ex))
-    return entries
+def parse_a1_page(page) -> list[tuple[str, str]]:
+    """A1: mỗi mục một dòng; dòng không có chữ ở cột lemma là ví dụ nối tiếp của mục trước."""
+    grid = detect_grid(page)
+    if not grid:
+        return []
+    x_start, x_end, boundary = grid[0]
+    out: list[tuple[str, str]] = []
+    for _, ws in page_lines(page, x_start, x_end):
+        left, right = split_line(ws, boundary)
+        if left and not SKIP_LINE_RE.match(left):
+            lemma = clean_lemma(left)
+            if lemma:
+                out.append((lemma, right))
+        elif right and out:
+            lemma, example = out[-1]
+            out[-1] = (lemma, norm_space(f"{example} {right}"))
+    return out
 
 
-def dedup_highest_cefr(rows: list[tuple[str, str, str]]) -> list[tuple[str, str, str]]:
+def dedup_lowest_cefr(rows: list[tuple[str, str, str]]) -> list[tuple[str, str, str]]:
+    """Wortliste Goethe là cộng dồn ⇒ giữ cấp THẤP NHẤT (cấp người học gặp từ này lần đầu)."""
     rank = {"A1": 1, "A2": 2, "B1": 3}
     best: dict[str, tuple[int, str, str, str]] = {}
     for level, lemma, ex in rows:
-        key = lemma.casefold()
+        key = re.sub(r"^(der|die|das)\s+", "", lemma, flags=re.I).casefold()
         r = rank[level]
         cur = best.get(key)
-        if not cur or r > cur[0]:
+        if not cur or r < cur[0]:
             best[key] = (r, level, lemma, ex)
         elif r == cur[0] and ex and ex not in cur[3]:
             _, lv, lm, old_ex = cur
-            merged = old_ex + " || " + ex if old_ex else ex
-            best[key] = (r, lv, lm, merged)
+            best[key] = (r, lv, lm, (old_ex + " || " + ex) if old_ex else ex)
     return sorted([(t[1], t[2], t[3]) for t in best.values()], key=lambda x: (x[0], x[1].casefold()))
+
+
+# (file, cấp, trang đầu, trang cuối — 1-indexed, đọc từ cấu trúc PDF; số cột của bố cục)
+SOURCES = [
+    ("A1_SD1_Wortliste_02.pdf", "A1", 9, 27, 2),
+    ("Goethe-Zertifikat_A2_Wortliste.pdf", "A2", 8, 31, 4),
+    ("Goethe-Zertifikat_B1_Wortliste.pdf", "B1", 16, 102, 4),
+]
 
 
 def main() -> None:
     rows: list[tuple[str, str, str]] = []
+    for filename, level, first_page, last_page, columns in SOURCES:
+        path = PDF_DIR / filename
+        if not path.exists():
+            print(f"WARNING: thiếu {path} — bỏ qua cấp {level}")
+            continue
+        count = 0
+        with pdfplumber.open(path) as pdf:
+            for pi in range(first_page - 1, min(last_page, len(pdf.pages))):
+                page = pdf.pages[pi]
+                entries = parse_a1_page(page) if columns == 2 else parse_two_column_page(page)
+                for lemma, example in entries:
+                    rows.append((level, lemma, example))
+                    count += 1
+        print(f"{level}: {count} mục thô từ {filename} (trang {first_page}–{last_page})")
 
-    p_a1 = PDF_DIR / "A1_SD1_Wortliste_02.pdf"
-    if p_a1.exists():
-        d = fitz.open(p_a1)
-        rows.extend(parse_a1_pages(d, 9, 27))
-        d.close()
-
-    if pdfplumber is None:
-        print("WARNING: pdfplumber not installed — skipping A2/B1. pip install pdfplumber")
-    else:
-        p_a2 = PDF_DIR / "Goethe-Zertifikat_A2_Wortliste.pdf"
-        if p_a2.exists():
-            with pdfplumber.open(p_a2) as pdf:
-                for pi in range(7, 31):
-                    lines = extract_left_column_lines(pdf.pages[pi], LEFT_MAX_A2)
-                    for lemma, ex in parse_a2_style_stream(lines):
-                        if lemma and ex:
-                            rows.append(("A2", lemma, ex))
-
-        p_b1 = PDF_DIR / "Goethe-Zertifikat_B1_Wortliste.pdf"
-        if p_b1.exists():
-            with pdfplumber.open(p_b1) as pdf:
-                for pi in range(15, 60):
-                    lines = extract_left_column_lines(pdf.pages[pi], LEFT_MAX_B1)
-                    for lemma, ex in parse_b1_blocks(lines):
-                        if lemma and ex:
-                            rows.append(("B1", lemma, ex))
-
-    merged = dedup_highest_cefr(rows)
+    merged = dedup_lowest_cefr(rows)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with OUT.open("w", encoding="utf-8") as f:
@@ -354,7 +293,9 @@ def main() -> None:
             lemma_esc = lemma.replace("\t", " ")
             f.write(f"{level}\t{lemma_esc}\t{ex_esc}\n")
 
-    print(f"Wrote {len(merged)} deduplicated rows to {OUT} (from {len(rows)} raw)")
+    per_level = Counter(level for level, _, _ in merged)
+    print(f"Wrote {len(merged)} dòng (từ {len(rows)} thô) → {OUT}")
+    print("  " + " · ".join(f"{lv} {per_level[lv]}" for lv in ("A1", "A2", "B1")))
 
 
 if __name__ == "__main__":

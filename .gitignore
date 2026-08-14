@@ -114,7 +114,11 @@ frontend/public/voices/
 # WORD DATA & SCRIPTS — Dữ liệu thô nội bộ
 # (PDF, TSV, HTML scrapes, Python extract scripts)
 # ============================================================
+# PDF Wortliste Goethe gốc — nguồn của scripts/extract_goethe_pdfs.py, không phát hành lại.
 wordsDeutsch/
+# Bytecode của script trích PDF (từng bị commit nhầm).
+__pycache__/
+*.pyc
 
 # ============================================================
 # TEMP / DEBUG files

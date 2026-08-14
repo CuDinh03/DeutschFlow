@@ -38,6 +38,16 @@ class CefrLevelResolverTest {
         assertThat(resolver.resolve("trinken")).contains("A1");
         assertThat(resolver.resolve("Haus")).contains("A1");
         assertThat(resolver.resolve("arbeiten")).contains("A1");
+        // "aber" là ca mẫu của báo cáo 14/08: TSV cũ thiếu nó nên nó rơi xuống danh sách B1 cộng dồn.
+        assertThat(resolver.resolve("aber")).contains("A1");
+    }
+
+    @Test
+    @DisplayName("từ chỉ có ở Wortliste A2 nhận đúng A2, không bị danh sách B1 cộng dồn nuốt")
+    void a2WordsKeepA2() {
+        assertThat(resolver.resolve("aktuell")).contains("A2");
+        assertThat(resolver.resolve("aufpassen")).contains("A2");
+        assertThat(resolver.resolve("modern")).contains("A2");
     }
 
     @Test
@@ -77,8 +87,10 @@ class CefrLevelResolverTest {
         Map<String, Integer> counts = resolver.countsByLevel();
         // Wortliste A1 của Goethe có ~650 mục — cùng cỡ này nghĩa là parse đúng.
         assertThat(counts.get("A1")).isBetween(500, 900);
+        // A2 chỉ có ~370 khi TSV mới trích được 1.010 dòng; sau khi trích lại đủ 3 PDF thì ~650.
+        assertThat(counts.get("A2")).isGreaterThan(500);
         assertThat(counts.get("B1")).isGreaterThan(1000);
-        assertThat(resolver.gradedLemmas()).hasSizeGreaterThan(2500);
+        assertThat(resolver.gradedLemmas()).hasSizeGreaterThan(3000);
         // Chưa có nguồn chính thức cho B2/C1/C2 ⇒ không được tự sinh ra cấp nào ở đó.
         assertThat(counts.get("B2")).isZero();
         assertThat(counts.get("C1")).isZero();
