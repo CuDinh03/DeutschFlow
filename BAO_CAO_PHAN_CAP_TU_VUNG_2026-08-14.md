@@ -65,12 +65,12 @@ Owner chốt 14/08: **mở rộng wordlist chính thức trước rồi mới ba
 | Ưu tiên | Nguồn | Cấp |
 |---|---|---|
 | 1 | `goethe_official_wordlist.tsv` (trích PDF Goethe, có cấp từng dòng) | A1/A2/B1 chính xác |
-| 2 | `cefr_a1_patsy.txt` — Wortliste A1 (668 lemma) | A1 |
+| 2 | `cefr_a1_patsy.txt` — Wortliste A1 bản Anki (668 lemma) | A1 |
 | 3 | `cefr-sources.a2/b2/c1/c2-list` (chưa cấu hình — chỗ để cắm wordlist mới) | theo cấu hình |
 | 4 | `goethe_sorted.txt` — Wortliste **B1** của Goethe, cộng dồn A1–B1 | B1 cho phần còn lại |
 | — | Bảng tần suất `de_50k` | **không quyết định cấp** — chỉ chọn từ nào vào kho |
 
-Danh sách Goethe là cộng dồn nên lemma xuất hiện ở nhiều danh sách lấy **cấp THẤP NHẤT** (cấp gặp từ lần đầu) — ngược hẳn quy tắc "giữ cấp cao nhất" đã đẩy 407 từ A1 lên B1. Kết quả hiện tại: **3.068 lemma có cấp thật — A1 674 · A2 371 · B1 2.023**; B2/C1/C2 = 0 vì **chưa có nguồn** (thà trống còn hơn bịa).
+Danh sách Goethe là cộng dồn nên lemma xuất hiện ở nhiều danh sách lấy **cấp THẤP NHẤT** (cấp gặp từ lần đầu) — ngược hẳn quy tắc "giữ cấp cao nhất" đã đẩy 407 từ A1 lên B1. Sau khi trích lại wordlist ở mục 6: **3.436 lemma có cấp thật — A1 707 · A2 646 · B1 2.083**; B2/C1/C2 = 0 vì **chưa có nguồn** (thà trống còn hơn bịa).
 
 **Đ2 — Bỏ toàn bộ phần đoán.** Xoá dải tần suất → cấp, xoá nhồi quota, xoá cắt theo bảng chữ cái, xoá `levelForIndex` (gán cấp theo vị trí). `GoetheOfficialWordlistImportService` nay được quyền **hạ cấp** (`shouldApplyCefr`), nên wordlist thật kéo được từ bị đẩy nhầm lên B2/C1 về đúng chỗ. `normalizeCefr(null)` trả `null` thay vì `"A1"` — A1 hết là thùng rác.
 
@@ -82,14 +82,30 @@ Danh sách Goethe là cộng dồn nên lemma xuất hiện ở nhiều danh sá
 
 **Đ6 — Backfill có công tắc riêng:** `POST /api/admin/vocabulary/cefr/reclassify` → xoá cấp cũ rồi gán lại theo wordlist, có ghi audit log. **Chưa chạy trên prod** (chờ owner duyệt sau khi wordlist được mở rộng).
 
-## 6. Việc còn lại
+## 6. Mở rộng wordlist chính thức (đợt 2 — trích lại từ 3 PDF Goethe)
 
-1. **Mở rộng wordlist chính thức** (việc chính, quyết định độ phủ):
-   - `goethe_official_wordlist.tsv` mới có 1.010 dòng (A1 235 · A2 616 · B1 159) trong khi Goethe A1 ~650 / A2 ~1.300 / B1 ~2.400. Script trích `scripts/extract_goethe_pdfs.py` cần thư mục `wordsDeutsch/` (3 PDF Goethe) — thư mục này nằm trong `.gitignore` và **không còn trên máy**; đưa lại PDF vào là chạy lại được, phần B1 của script cũng cần sửa (159/2.400 dòng ⇒ parser hụt).
-   - Chưa có nguồn cho **B2/C1/C2** — cần owner chốt nguồn; cắm vào `app.vocabulary.cefr-sources.b2-list/c1-list/c2-list` là xong, không phải sửa code.
-   - Ví dụ độ phủ còn thiếu: `aber` (A1 thật) hiện ra B1 vì không có trong TSV lẫn bản Anki A1, chỉ có trong danh sách B1 cộng dồn.
-2. **Chạy backfill trên prod** sau khi wordlist đủ: gọi endpoint ở Đ6 rồi đối chiếu `GET /api/admin/vocabulary/review/stats`.
-3. **Xác nhận trạng thái prod hiện tại** bằng `GET /api/admin/vocabulary/review/stats` (cần tài khoản ADMIN) — dự đoán: gần như toàn bộ đang là `A1` mặc định.
-4. Kiểm tra lại `SessionExerciseService` (sinh bài tập từ `cefr_level = 'A1'`) sau backfill: A1 sẽ còn ~674 từ thật thay vì cả kho.
+Chạy lại `scripts/extract_goethe_pdfs.py` trên 3 PDF gốc. Bản cũ chỉ lấy được **1.010 dòng** vì hai lỗi trích:
 
-**Đánh đổi đã chấp nhận:** sau backfill, bộ lọc cấp độ chỉ trả ~3.000 từ có nhãn thật (phần còn lại vào nhóm "Chưa phân cấp") thay vì 10.957 từ mang nhãn bịa. Độ phủ tăng lại theo mức mở rộng wordlist ở mục 6.1.
+1. **Chỉ đọc nửa trái trang.** Mỗi trang A2/B1 là **hai nửa cạnh nhau**, mỗi nửa gồm cột lemma + cột ví dụ (4 cột/trang). Bản cũ lọc cứng `x0 < 270` ⇒ mất trọn nửa phải.
+2. **Dừng ở trang 60/104 của B1.** Danh sách chữ cái của B1 chạy tới trang 102 ⇒ mất ~42 trang.
+
+Bản mới tách theo **toạ độ**, dò lưới cột theo **từng trang** bằng histogram `x0` (mọi dòng ví dụ bắt đầu đúng một toạ độ), gom chữ về dòng với dung sai 4pt, và tách mục từ theo **khoảng cách dọc** (trong mục ~11pt, giữa hai mục ≥14pt) — cần vậy vì dòng chia động từ ("hat aufgepasst") cũng nằm ở cột lemma.
+
+| | Trước | Sau |
+|---|---|---|
+| Dòng trong `goethe_official_wordlist.tsv` | 1.010 | **3.258** |
+| — theo cấp | A1 235 · A2 616 · B1 159 | **A1 682 · A2 656 · B1 1.920** |
+| Chỉ mục cuối cùng của `CefrLevelResolver` | 3.068 lemma (A1 674 · A2 371 · B1 2.023) | **3.436 lemma (A1 707 · A2 646 · B1 2.083)** |
+
+Quan trọng hơn số lượng là **258 lemma được sửa cấp**: B1→A2 239 · B1→A1 13 · A2→A1 6 — tức các từ trước đây bị danh sách B1 cộng dồn nuốt nay về đúng cấp thật. Ca mẫu: `aber` B1 → **A1**; `aktuell`, `aufpassen`, `modern` giữ đúng **A2**. Còn 13 lemma (0,4%) vẫn tụt A2→B1 do parser bỏ sót — đã khoá ngưỡng độ phủ trong `CefrLevelResolverTest` để không tụt tiếp.
+
+`wordsDeutsch/` (3 PDF Goethe) vẫn nằm trong `.gitignore` — không phát hành lại; chỉ TSV trích ra được commit.
+
+## 7. Việc còn lại
+
+1. **Chạy backfill trên prod**: `POST /api/admin/vocabulary/cefr/reclassify`, rồi đối chiếu `GET /api/admin/vocabulary/review/stats`. Cần deploy backend trước (migration `V272` + code mới).
+2. **Xác nhận trạng thái prod hiện tại** bằng `GET /api/admin/vocabulary/review/stats` (cần tài khoản ADMIN) — dự đoán: gần như toàn bộ đang là `A1` mặc định.
+3. Chưa có nguồn cho **B2/C1/C2** — owner chốt nguồn rồi cắm vào `app.vocabulary.cefr-sources.b2-list/c1-list/c2-list`, không phải sửa code.
+4. Kiểm tra lại `SessionExerciseService` (sinh bài tập từ `cefr_level = 'A1'`) sau backfill: A1 sẽ còn ~707 từ thật thay vì cả kho.
+
+**Đánh đổi đã chấp nhận:** sau backfill, bộ lọc cấp độ trả ~3.400 từ có nhãn thật (phần còn lại vào nhóm "Chưa phân cấp") thay vì 10.957 từ mang nhãn bịa.
