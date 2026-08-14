@@ -5,6 +5,7 @@ import com.deutschflow.vocabulary.dto.WordCoverageHistoryResponse;
 import com.deutschflow.vocabulary.dto.WordCoverageResponse;
 import com.deutschflow.vocabulary.dto.WordAdjectiveDetails;
 import com.deutschflow.vocabulary.dto.WordListItem;
+import com.deutschflow.vocabulary.dto.WordLevelCountsResponse;
 import com.deutschflow.vocabulary.dto.WordListResponse;
 import com.deutschflow.vocabulary.dto.WordNounDeclensionItem;
 import com.deutschflow.vocabulary.dto.WordNounDetails;
@@ -20,7 +21,9 @@ import java.util.ArrayList;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -34,7 +37,10 @@ public class WordQueryService {
 
     private static final Set<String> ALLOWED_DTYPES = Set.of("Noun", "Verb", "Adjective", "Word");
     private static final Set<String> ALLOWED_GENDERS = Set.of("DER", "DIE", "DAS");
+    private static final List<String> ALLOWED_CEFR_ORDER = List.of("A1", "A2", "B1", "B2", "C1", "C2");
     private static final Set<String> ALLOWED_CEFR = Set.of("A1", "A2", "B1", "B2", "C1", "C2");
+    /** Từ chưa có trong wordlist chính thức ⇒ {@code cefr_level IS NULL} (xem CefrLevelResolver). */
+    private static final String UNGRADED = "UNGRADED";
     private static final Set<String> ALLOWED_SRS_STATUS = Set.of("NEW", "LEARNING", "MASTERED");
     /** Canonical "mastered" boundary — interval >= 21d (matches VocabReviewRepository.countMastered). */
     private static final int MASTERED_INTERVAL_DAYS = 21;
@@ -43,6 +49,7 @@ public class WordQueryService {
 
     public WordListResponse listWords(Long userId,
                                      String cefr,
+                                     boolean cefrExact,
                                      String q,
                                      String topic,
                                      String focus,
@@ -68,7 +75,7 @@ public class WordQueryService {
         if (normalizedDtype != null && !ALLOWED_DTYPES.contains(normalizedDtype)) {
             throw new BadRequestException("Invalid dtype");
         }
-        if (normalizedCefr != null && !ALLOWED_CEFR.contains(normalizedCefr)) {
+        if (normalizedCefr != null && !ALLOWED_CEFR.contains(normalizedCefr) && !UNGRADED.equals(normalizedCefr)) {
             throw new BadRequestException("Invalid cefr");
         }
         if (normalizedGender != null && !ALLOWED_GENDERS.contains(normalizedGender)) {
@@ -91,7 +98,13 @@ public class WordQueryService {
         List<Object> filterParams = new ArrayList<>();
         StringBuilder where = new StringBuilder(" WHERE 1=1 ");
 
-        if (normalizedCefr != null) {
+        if (UNGRADED.equals(normalizedCefr)) {
+            where.append(" AND w.cefr_level IS NULL ");
+        } else if (normalizedCefr != null && cefrExact) {
+            // Đúng một cấp — chip cấp độ ở /v2 dùng chế độ này, để nhãn chip khớp badge trên từng thẻ từ.
+            where.append(" AND w.cefr_level = ? ");
+            filterParams.add(normalizedCefr);
+        } else if (normalizedCefr != null) {
             // Cumulative mode: A2 includes A1+A2, B1 includes A1+A2+B1, ...
             // Build IN (...) in Java (clean parameter binding for Postgres).
             List<String> cumulative = cumulativeCefrLevelsIncluding(normalizedCefr);
@@ -294,6 +307,26 @@ public class WordQueryService {
         });
 
         return new WordListResponse(items, page, size, total);
+    }
+
+    /**
+     * Số từ theo từng cấp (kể cả {@code UNGRADED} = chưa phân cấp) — UI dựng chip cấp độ từ đây thay vì
+     * hardcode A1–C2, nên không còn chip rỗng như chip C2 trước 14/08/2026.
+     */
+    public WordLevelCountsResponse levelCounts() {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        for (String level : ALLOWED_CEFR_ORDER) {
+            counts.put(level, 0L);
+        }
+        counts.put(UNGRADED, 0L);
+        jdbcTemplate.query(
+                "SELECT COALESCE(cefr_level, '" + UNGRADED + "') AS lvl, COUNT(*) AS total FROM words GROUP BY 1",
+                rs -> {
+                    counts.merge(rs.getString("lvl"), rs.getLong("total"), Long::sum);
+                }
+        );
+        long total = counts.values().stream().mapToLong(Long::longValue).sum();
+        return new WordLevelCountsResponse(counts, total);
     }
 
     /** Last segment of an error code (e.g. {@code VERB.CONJ} → {@code conj}) for loose tag/word match. */

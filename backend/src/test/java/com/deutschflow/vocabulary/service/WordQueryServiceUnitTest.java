@@ -30,7 +30,7 @@ class WordQueryServiceUnitTest {
     void listWords_rejectsUnknownStatus() {
         // Validation runs before any query, so no jdbcTemplate stubbing is needed.
         assertThrows(BadRequestException.class, () -> service.listWords(
-                1L, null, null, null, null, null, null, null, "BOGUS", null, 0, 20));
+                1L, null, false, null, null, null, null, null, null, "BOGUS", null, 0, 20));
     }
 
     @Test
@@ -39,9 +39,27 @@ class WordQueryServiceUnitTest {
         // the mocked jdbcTemplate (null count) and fails downstream — so we assert only that a
         // valid status is NOT rejected with BadRequestException.
         try {
-            service.listWords(1L, null, null, null, null, null, null, null, "learning", null, 0, 20);
+            service.listWords(1L, null, false, null, null, null, null, null, null, "learning", null, 0, 20);
         } catch (BadRequestException e) {
             throw new AssertionError("valid status must not be rejected", e);
+        } catch (Exception ignored) {
+            // expected: downstream failure from the mocked jdbcTemplate returning a null count
+        }
+    }
+
+    @Test
+    void listWords_rejectsUnknownCefr() {
+        assertThrows(BadRequestException.class, () -> service.listWords(
+                1L, "B3", false, null, null, null, null, null, null, null, null, 0, 20));
+    }
+
+    @Test
+    void listWords_acceptsUngradedBucket() {
+        // UNGRADED = từ chưa có trong wordlist chính thức (cefr_level IS NULL) — phải qua được validation.
+        try {
+            service.listWords(1L, "ungraded", false, null, null, null, null, null, null, null, null, 0, 20);
+        } catch (BadRequestException e) {
+            throw new AssertionError("UNGRADED must be a valid cefr bucket", e);
         } catch (Exception ignored) {
             // expected: downstream failure from the mocked jdbcTemplate returning a null count
         }

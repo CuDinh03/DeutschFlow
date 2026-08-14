@@ -2,6 +2,7 @@ package com.deutschflow.vocabulary.controller;
 
 import com.deutschflow.vocabulary.dto.WordCoverageHistoryResponse;
 import com.deutschflow.vocabulary.dto.WordCoverageResponse;
+import com.deutschflow.vocabulary.dto.WordLevelCountsResponse;
 import com.deutschflow.vocabulary.dto.WordListResponse;
 import com.deutschflow.vocabulary.dto.WordTranslationCoverageHistoryResponse;
 import com.deutschflow.vocabulary.dto.WordTranslationCoverageResponse;
@@ -25,6 +26,9 @@ public class WordController {
     public WordListResponse list(
             @AuthenticationPrincipal User user,
             @RequestParam(required = false) String cefr,
+            // false (mặc định) = cộng dồn A1..cefr — giữ nguyên hành vi cũ cho mobile và web v1.
+            // true = đúng một cấp; cefr=UNGRADED = từ chưa phân cấp.
+            @RequestParam(name = "exact", defaultValue = "false") boolean cefrExact,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String topic,
             @RequestParam(required = false) String focus,
@@ -37,7 +41,14 @@ public class WordController {
             @RequestParam(defaultValue = "20") int size
     ) {
         Long userId = user != null ? user.getId() : null;
-        return wordQueryService.listWords(userId, cefr, q, topic, focus, tag, dtype, gender, status, locale, page, size);
+        return wordQueryService.listWords(
+                userId, cefr, cefrExact, q, topic, focus, tag, dtype, gender, status, locale, page, size);
+    }
+
+    /** Số từ theo từng cấp (kể cả UNGRADED) — UI dựng chip cấp độ từ đây. */
+    @GetMapping("/levels")
+    public WordLevelCountsResponse levels() {
+        return wordQueryService.levelCounts();
     }
 
     @GetMapping("/coverage")

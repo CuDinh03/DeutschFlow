@@ -529,42 +529,42 @@ app:
     # Từ điển TSV trên classpath — không gọi API; mở rộng bằng cách thêm dòng vào file.
     local-lexicon:
       resource: ${LOCAL_LEXICON_RESOURCE:wordlists/local_lexicon.tsv}
+    # Nguồn DUY NHẤT quyết định cefr_level (CefrLevelResolver). Danh sách Goethe là cộng dồn ⇒ lemma có ở
+    # nhiều danh sách lấy cấp THẤP NHẤT. Từ không nằm trong wordlist nào ⇒ cefr_level = NULL (chưa phân cấp),
+    # KHÔNG đoán theo tần suất như trước 14/08/2026 (BAO_CAO_PHAN_CAP_TU_VUNG_2026-08-14.md).
+    cefr-sources:
+      official-tsv: ${CEFR_SOURCE_OFFICIAL_TSV:wordlists/goethe_official_wordlist.tsv}
+      a1-anki-tsv: ${CEFR_SOURCE_A1_ANKI:wordlists/cefr_a1_patsy.txt}
+      b1-list: ${CEFR_SOURCE_B1_LIST:wordlists/goethe_sorted.txt}
+      # Chưa có danh sách chính thức cho A2/B2/C1/C2 → để trống. Thêm file vào classpath rồi trỏ vào đây
+      # là mở rộng được độ phủ mà không phải sửa code.
+      a2-list: ${CEFR_SOURCE_A2_LIST:}
+      b2-list: ${CEFR_SOURCE_B2_LIST:}
+      c1-list: ${CEFR_SOURCE_C1_LIST:}
+      c2-list: ${CEFR_SOURCE_C2_LIST:}
     goethe:
-      auto-import-on-startup: ${GOETHE_AUTO_IMPORT_ON_STARTUP:true}
+      # Mặc định TẮT: import lúc khởi động ghi lại cefr_level/dtype của cả kho, mỗi lần restart lại dập một
+      # lần — phải là thao tác có chủ đích (POST /api/admin/vocabulary/...), không phải tác dụng phụ của deploy.
+      auto-import-on-startup: ${GOETHE_AUTO_IMPORT_ON_STARTUP:false}
       # Wordlist trích từ PDF Goethe (A1/A2/B1) → goethe_official_wordlist.tsv; nạp ví dụ DE + CEFR.
       official-wordlist:
-        auto-import-on-startup: ${GOETHE_OFFICIAL_WORDLIST_AUTO_IMPORT:true}
+        auto-import-on-startup: ${GOETHE_OFFICIAL_WORDLIST_AUTO_IMPORT:false}
       # classpath = file trong JAR; remote = tải wordlist từ GitHub (HTTP).
       wordlist-source: ${GOETHE_WORDLIST_SOURCE:classpath}
       # local_only = chỉ local_lexicon.tsv; online = DeepL + tuỳ chọn Wiktionary.
       enrich-source: ${GOETHE_ENRICH_SOURCE:local_only}
       enrich-with-deepl: ${GOETHE_ENRICH_WITH_DEEPL:true}
       enrich-with-wiktionary: ${GOETHE_ENRICH_WITH_WIKTIONARY:false}
-    # Wordlist theo cấp A1–C1 (~10k), dedup ưu tiên cấp cao; pad từ de_50k nếu thiếu quota.
+    # Mở rộng kho lên ~10k lemma. Bảng tần suất de_50k chỉ chọn TỪ NÀO vào kho; cấp độ lấy từ cefr-sources.
     cefr-curated:
-      # Nạp từ wordlists/cefr_a1_patsy.txt, goethe_sorted.txt, de_50k.txt khi start (sau Goethe + official TSV).
-      auto-import-on-startup: ${CEFR_CURATED_AUTO_IMPORT_STARTUP:true}
+      # Mặc định TẮT (xem ghi chú ở goethe.auto-import-on-startup).
+      auto-import-on-startup: ${CEFR_CURATED_AUTO_IMPORT_STARTUP:false}
       # false = không enrich (DeepL) lúc bootstrap; bật true nếu muốn làm đầy nghĩa/ví dụ ngay (chậm, tốn quota).
       auto-import-enrich: ${CEFR_CURATED_AUTO_IMPORT_ENRICH:false}
       target-total: ${CEFR_CURATED_TARGET_TOTAL:10000}
-      quota-a1: ${CEFR_CURATED_QUOTA_A1:2000}
-      quota-a2: ${CEFR_CURATED_QUOTA_A2:2000}
-      quota-b1: ${CEFR_CURATED_QUOTA_B1:2000}
-      quota-b2: ${CEFR_CURATED_QUOTA_B2:2000}
-      quota-c1: ${CEFR_CURATED_QUOTA_C1:2000}
       # false = chỉ đọc wordlists trên classpath (offline).
       use-remote-sources: ${CEFR_CURATED_REMOTE_SOURCES:false}
-      classpath-a1: ${CEFR_CURATED_CLASSPATH_A1:wordlists/cefr_a1_patsy.txt}
-      classpath-b1: ${CEFR_CURATED_CLASSPATH_B1:wordlists/goethe_sorted.txt}
       classpath-freq: ${CEFR_CURATED_CLASSPATH_FREQ:wordlists/de_50k.txt}
-      classpath-a2: ${CEFR_CURATED_CLASSPATH_A2:}
-      classpath-b2: ${CEFR_CURATED_CLASSPATH_B2:}
-      classpath-c1: ${CEFR_CURATED_CLASSPATH_C1:}
-      url-a1: ${CEFR_CURATED_URL_A1:}
-      url-a2: ${CEFR_CURATED_URL_A2:}
-      url-b1: ${CEFR_CURATED_URL_B1:}
-      url-b2: ${CEFR_CURATED_URL_B2:}
-      url-c1: ${CEFR_CURATED_URL_C1:}
       fallback-frequency-url: ${CEFR_CURATED_FREQ_URL:}
       enrich-after-upsert: ${CEFR_CURATED_ENRICH_AFTER_UPSERT:true}
       deepl-max-chars-per-run: ${CEFR_CURATED_DEEPL_MAX_CHARS:450000}
