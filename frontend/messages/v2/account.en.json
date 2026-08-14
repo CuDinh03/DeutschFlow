@@ -43,7 +43,21 @@
       "fieldNewPassword": "New password",
       "newPasswordHint": "At least 8 characters.",
       "changingPassword": "Changing…",
-      "changePassword": "Change password"
+      "changePassword": "Change password",
+      "fieldAvatar": "Profile photo",
+      "avatarHint": "JPG, PNG or WebP, up to 5MB — the photo is cropped to a square automatically.",
+      "uploadAvatar": "Upload photo",
+      "uploadingAvatar": "Uploading…",
+      "removeAvatar": "Remove photo",
+      "avatarSaved": "Profile photo updated.",
+      "avatarRemoved": "Profile photo removed.",
+      "avatarError": "Could not update the profile photo.",
+      "avatarInvalidType": "Unsupported format — choose a JPG, PNG or WebP image.",
+      "avatarTooLarge": "The image is too large — please choose a smaller one.",
+      "fieldCurrentLevel": "Current level",
+      "currentLevelHint": "Used to personalize your lessons — adjust it if it's off.",
+      "currentLevelA0": "A0 — absolute beginner",
+      "fieldExamType": "Target exam"
     },
     "payment": {
       "title": "Upgrade plan",

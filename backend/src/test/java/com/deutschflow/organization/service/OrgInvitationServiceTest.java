@@ -175,7 +175,8 @@ class OrgInvitationServiceTest {
                 userId, "teacher@school.edu", "Existing Teacher",
                 "TEACHER", "vi",
                 null, null,
-                ORG_ID, "TEACHER"
+                ORG_ID, "TEACHER",
+                null
         );
     }
 

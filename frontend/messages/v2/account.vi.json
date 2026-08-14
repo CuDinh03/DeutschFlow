@@ -43,7 +43,21 @@
       "fieldNewPassword": "Mật khẩu mới",
       "newPasswordHint": "Tối thiểu 8 ký tự.",
       "changingPassword": "Đang đổi…",
-      "changePassword": "Đổi mật khẩu"
+      "changePassword": "Đổi mật khẩu",
+      "fieldAvatar": "Ảnh đại diện",
+      "avatarHint": "JPG, PNG hoặc WebP, tối đa 5MB — ảnh sẽ được cắt vuông tự động.",
+      "uploadAvatar": "Tải ảnh lên",
+      "uploadingAvatar": "Đang tải ảnh…",
+      "removeAvatar": "Gỡ ảnh",
+      "avatarSaved": "Đã cập nhật ảnh đại diện.",
+      "avatarRemoved": "Đã gỡ ảnh đại diện.",
+      "avatarError": "Không thể cập nhật ảnh đại diện.",
+      "avatarInvalidType": "Định dạng không hỗ trợ — hãy chọn ảnh JPG, PNG hoặc WebP.",
+      "avatarTooLarge": "Ảnh quá lớn — hãy chọn ảnh nhỏ hơn.",
+      "fieldCurrentLevel": "Trình độ hiện tại",
+      "currentLevelHint": "Dùng để cá nhân hoá bài học — chỉnh lại nếu chưa đúng.",
+      "currentLevelA0": "A0 — mới bắt đầu",
+      "fieldExamType": "Kỳ thi mục tiêu"
     },
     "payment": {
       "title": "Nâng cấp gói",

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import api from '@/lib/api'
@@ -14,6 +14,7 @@ import {
 import { useUserStore } from '@/stores/useUserStore'
 import { GaPageHdr, GaBtn, GaCard, LoadingState } from '@/components/ui-v2'
 import { RoleShell } from '../RoleShell'
+import { AvatarSection } from './AvatarSection'
 
 type Tab = 'info' | 'learning' | 'security'
 // labelKey resolves via t('tab…'); id drives tab logic (stable).
@@ -29,6 +30,14 @@ const ALL_TABS: { id: Tab; labelKey: 'tabInfo' | 'tabLearning' | 'tabSecurity' }
 const ROLES_WITHOUT_LEARNING = new Set(['ADMIN', 'OWNER', 'MANAGER', 'TEACHER'])
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+// currentLevel nhận thêm A0 (mới bắt đầu) — enum CurrentLevel phía backend.
+const CURRENT_LEVELS = ['A0', ...LEVELS]
+// Giá trị examType khớp onboarding (EXAMS). Nhãn là danh từ riêng — không cần i18n.
+const EXAM_TYPES = [
+  { v: 'GOETHE', label: 'Goethe' },
+  { v: 'TELC', label: 'telc' },
+  { v: 'TESTDAF', label: 'TestDaF' },
+] as const
 // v = API enum value (logic key, stays as-is); labelKey resolves the display via t(labelKey).
 const SPEEDS = [
   { v: 'SLOW', labelKey: 'speedSlow' },
@@ -66,6 +75,7 @@ const inputCls =
 function ProfileBody() {
   const t = useTranslations('v2.account.profile')
   const storeUser = useUserStore((s) => s.user)
+  const setUserStore = useUserStore((s) => s.setUser)
   const setLocaleStore = useUserStore((s) => s.setLocale)
 
   const TABS = ALL_TABS.filter(
@@ -79,6 +89,7 @@ function ProfileBody() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [locale, setLocale] = useState('vi')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [savingInfo, setSavingInfo] = useState(false)
 
   // learning
@@ -90,7 +101,14 @@ function ProfileBody() {
   const [newPw, setNewPw] = useState('')
   const [savingPw, setSavingPw] = useState(false)
 
+  // Chỉ nạp form MỘT lần khi vào trang. Trước đây deps [storeUser] vô hại vì store không đổi
+  // trong lúc ở trang này; nay upload/gỡ avatar cập nhật store (cho sidebar đổi ngay) — thiếu
+  // guard này effect sẽ refetch và ĐÈ các ô đang gõ dở (displayName/phone…) sau mỗi lần đổi ảnh.
+  // Ref chỉ được đặt SAU khi nạp xong (không phải trước fetch) để lần mount kép của StrictMode
+  // không bỏ trang ở trạng thái loading vĩnh viễn.
+  const loadedRef = useRef(false)
   useEffect(() => {
+    if (loadedRef.current) return
     let cancelled = false
     ;(async () => {
       try {
@@ -100,11 +118,18 @@ function ProfileBody() {
           setEmail(String(me.email ?? storeUser?.email ?? ''))
           setPhone(String(me.phoneNumber ?? ''))
           setLocale(String(me.locale ?? 'vi'))
+          const serverAvatar = typeof me.avatarUrl === 'string' && me.avatarUrl ? me.avatarUrl : null
+          setAvatarUrl(serverAvatar)
+          // Store persist từ phiên đăng nhập cũ có thể chưa có avatarUrl — đồng bộ để sidebar hiện ảnh.
+          if (storeUser && (storeUser.avatarUrl ?? null) !== serverAvatar) {
+            setUserStore({ ...storeUser, avatarUrl: serverAvatar ?? undefined })
+          }
         }
       } catch {
         if (!cancelled) {
           setDisplayName(storeUser?.displayName ?? '')
           setEmail(storeUser?.email ?? '')
+          setAvatarUrl(storeUser?.avatarUrl ?? null)
         }
       }
       try {
@@ -113,22 +138,33 @@ function ProfileBody() {
       } catch {
         /* learning profile optional */
       }
-      if (!cancelled) setLoading(false)
+      if (!cancelled) {
+        loadedRef.current = true
+        setLoading(false)
+      }
     })()
     return () => { cancelled = true }
-  }, [storeUser])
+  }, [storeUser, setUserStore])
 
   const saveInfo = async () => {
     setSavingInfo(true)
     try {
       await updateProfile({ displayName, phoneNumber: phone || undefined, locale })
       setLocaleStore(locale)
+      // Đồng bộ store để sidebar đổi tên ngay (loadedRef chặn refetch nên không đè form).
+      if (storeUser) setUserStore({ ...storeUser, displayName })
       toast.success(t('savedInfo'))
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : t('saveError'))
     } finally {
       setSavingInfo(false)
     }
+  }
+
+  /** Avatar đổi (upload/gỡ) → cập nhật form + store để chip sidebar đổi ảnh tức thì. */
+  const onAvatarChange = (url: string | null) => {
+    setAvatarUrl(url)
+    if (storeUser) setUserStore({ ...storeUser, avatarUrl: url ?? undefined })
   }
 
   const saveLearning = async () => {
@@ -138,6 +174,9 @@ function ProfileBody() {
       const updated = await updateLearningProfile({
         goalType: lp.goalType ?? undefined,
         targetLevel: lp.targetLevel ?? undefined,
+        currentLevel: lp.currentLevel ?? undefined,
+        // Chuỗi rỗng (chọn "— Chọn —") = xoá kỳ thi mục tiêu phía backend (blankToNull).
+        examType: lp.examType ?? '',
         industry: lp.industry ?? undefined,
         learningSpeed: lp.learningSpeed ?? undefined,
         sessionsPerWeek: lp.sessionsPerWeek,
@@ -200,6 +239,7 @@ function ProfileBody() {
           <GaCard className="max-w-2xl p-5 lg:p-7">
             {tab === 'info' && (
               <div className="space-y-5">
+                <AvatarSection displayName={displayName} avatarUrl={avatarUrl} onChange={onAvatarChange} />
                 <Field label={t('fieldDisplayName')}>
                   <input className={inputCls} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
                 </Field>
@@ -257,6 +297,36 @@ function ProfileBody() {
                         {LEVELS.map((l) => (
                           <option key={l} value={l}>
                             {l}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <Field label={t('fieldCurrentLevel')} hint={t('currentLevelHint')}>
+                      <select
+                        className={inputCls}
+                        value={lp.currentLevel ?? ''}
+                        onChange={(e) => setLp2({ currentLevel: e.target.value || null })}
+                      >
+                        <option value="">{t('selectPlaceholder')}</option>
+                        {CURRENT_LEVELS.map((l) => (
+                          <option key={l} value={l}>
+                            {l === 'A0' ? t('currentLevelA0') : l}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label={t('fieldExamType')}>
+                      <select
+                        className={inputCls}
+                        value={lp.examType ?? ''}
+                        onChange={(e) => setLp2({ examType: e.target.value || null })}
+                      >
+                        <option value="">{t('selectPlaceholder')}</option>
+                        {EXAM_TYPES.map((exam) => (
+                          <option key={exam.v} value={exam.v}>
+                            {exam.label}
                           </option>
                         ))}
                       </select>

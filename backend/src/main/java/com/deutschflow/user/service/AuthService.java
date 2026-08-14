@@ -299,7 +299,8 @@ public class AuthService {
                     learningTargetLevel,
                     industry,
                     orgId,
-                    orgRole
+                    orgRole,
+                    user.getAvatarUrl()
             );
         }
         return new AuthResponse(
@@ -313,7 +314,8 @@ public class AuthService {
                 learningTargetLevel,
                 industry,
                 orgId,
-                orgRole
+                orgRole,
+                user.getAvatarUrl()
         );
     }
 

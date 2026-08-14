@@ -260,7 +260,8 @@ public class AuthController {
                 resp.learningTargetLevel(),
                 resp.industry(),
                 resp.orgId(),
-                resp.orgRole()
+                resp.orgRole(),
+                resp.avatarUrl()
         );
     }
 
