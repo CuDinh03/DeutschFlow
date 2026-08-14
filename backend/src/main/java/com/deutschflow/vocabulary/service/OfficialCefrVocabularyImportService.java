@@ -18,17 +18,18 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
- * Import ~10k lemma với CEFR từ wordlist theo cấp (URL hoặc file classpath). Dedup: giữ cấp cao nhất.
+ * Mở rộng kho từ vựng lên ~10k lemma. <b>Cấp độ CEFR chỉ do {@link CefrLevelResolver} quyết định</b> (wordlist
+ * chính thức); bảng tần suất chỉ chọn từ nào vào kho. Từ ngoài wordlist ⇒ {@code cefr_level = NULL} (chưa phân cấp).
+ *
+ * <p>Trước 14/08/2026 lớp này gán cấp theo dải tần suất (hạng 3.000–7.000 = B2…) rồi nhồi từ vào cấp còn thiếu
+ * quota — 29% kho mang cấp ngẫu nhiên. Xem {@code BAO_CAO_PHAN_CAP_TU_VUNG_2026-08-14.md}.
  */
 @Service
 @RequiredArgsConstructor
@@ -36,50 +37,16 @@ import java.util.stream.Collectors;
 public class OfficialCefrVocabularyImportService {
 
     private static final String TAG_NAME = "CEFR_CURATED";
-    private static final String SOURCE_A1 =
-            "https://raw.githubusercontent.com/patsytau/anki_german_a1_vocab/main/Goethe%20Institute%20A1%20Wordlist.txt";
-    private static final String SOURCE_B1_GOETHE =
-            "https://raw.githubusercontent.com/kennethsible/goethe-wortliste/main/sorted.txt";
     private static final String SOURCE_FREQ =
             "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/de/de_50k.txt";
 
-    private static final List<String> LEVEL_ORDER = List.of("A1", "A2", "B1", "B2", "C1");
-
     private final JdbcTemplate jdbcTemplate;
     private final GoetheVocabularyAutoImportService goetheVocabularyAutoImportService;
+    private final CefrLevelResolver cefrLevelResolver;
 
+    /** Trần số lemma trong kho (lemma có cấp luôn được nạp trước, phần còn lại lấy theo tần suất). */
     @Value("${app.vocabulary.cefr-curated.target-total:10000}")
     private int targetTotal;
-
-    @Value("${app.vocabulary.cefr-curated.quota-a1:2000}")
-    private int quotaA1;
-
-    @Value("${app.vocabulary.cefr-curated.quota-a2:2000}")
-    private int quotaA2;
-
-    @Value("${app.vocabulary.cefr-curated.quota-b1:2000}")
-    private int quotaB1;
-
-    @Value("${app.vocabulary.cefr-curated.quota-b2:2000}")
-    private int quotaB2;
-
-    @Value("${app.vocabulary.cefr-curated.quota-c1:2000}")
-    private int quotaC1;
-
-    @Value("${app.vocabulary.cefr-curated.url-a1:}")
-    private String urlA1;
-
-    @Value("${app.vocabulary.cefr-curated.url-a2:}")
-    private String urlA2;
-
-    @Value("${app.vocabulary.cefr-curated.url-b1:}")
-    private String urlB1;
-
-    @Value("${app.vocabulary.cefr-curated.url-b2:}")
-    private String urlB2;
-
-    @Value("${app.vocabulary.cefr-curated.url-c1:}")
-    private String urlC1;
 
     @Value("${app.vocabulary.cefr-curated.fallback-frequency-url:}")
     private String fallbackFrequencyUrl;
@@ -93,23 +60,8 @@ public class OfficialCefrVocabularyImportService {
     @Value("${app.vocabulary.cefr-curated.use-remote-sources:false}")
     private boolean useRemoteSources;
 
-    @Value("${app.vocabulary.cefr-curated.classpath-a1:wordlists/cefr_a1_patsy.txt}")
-    private String classpathA1;
-
-    @Value("${app.vocabulary.cefr-curated.classpath-b1:wordlists/goethe_sorted.txt}")
-    private String classpathB1;
-
     @Value("${app.vocabulary.cefr-curated.classpath-freq:wordlists/de_50k.txt}")
     private String classpathFreq;
-
-    @Value("${app.vocabulary.cefr-curated.classpath-a2:}")
-    private String classpathA2;
-
-    @Value("${app.vocabulary.cefr-curated.classpath-b2:}")
-    private String classpathB2;
-
-    @Value("${app.vocabulary.cefr-curated.classpath-c1:}")
-    private String classpathC1;
 
     @Value("${app.vocabulary.goethe.enrich-source:local_only}")
     private String goetheEnrichSource;
@@ -127,139 +79,52 @@ public class OfficialCefrVocabularyImportService {
      * @param enrichAfterUpsertForThisRun ghi đè cờ global (dùng khi bootstrap: false để tránh gọi DeepL lúc start).
      */
     public Map<String, Object> importCuratedCefrVocabulary(boolean enrichAfterUpsertForThisRun) {
-        String freqBody = useRemoteSources
-                ? fetchText(blank(fallbackFrequencyUrl) ? SOURCE_FREQ : fallbackFrequencyUrl)
-                : ClasspathWordlistReader.readUtf8(classpathFreq);
-        List<String> freqWords = parseFrequency(freqBody);
+        // Cấp độ CHỈ đến từ wordlist chính thức (CefrLevelResolver). Bảng tần suất de_50k chỉ quyết định
+        // từ nào được đưa vào kho — không bao giờ quyết định cấp độ (xem BAO_CAO_PHAN_CAP_TU_VUNG_2026-08-14.md).
+        List<CefrLevelResolver.GradedLemma> graded = cefrLevelResolver.gradedLemmas();
 
-        List<String> a1Words = parseGoetheStyle(
-                useRemoteSources ? fetchText(blank(urlA1) ? SOURCE_A1 : urlA1) : ClasspathWordlistReader.readUtf8(classpathA1)
-        );
-        List<String> b1Words = parseGoetheStyle(
-                useRemoteSources ? fetchText(blank(urlB1) ? SOURCE_B1_GOETHE : urlB1) : ClasspathWordlistReader.readUtf8(classpathB1)
-        );
-
-        List<String> a2Words;
-        if (!useRemoteSources) {
-            a2Words = !blank(classpathA2)
-                    ? parseGoetheStyle(ClasspathWordlistReader.readUtf8(classpathA2))
-                    : slice(freqWords, 0, 3000);
-        } else if (!blank(urlA2)) {
-            a2Words = parseGoetheStyle(fetchText(urlA2));
-        } else {
-            a2Words = slice(freqWords, 0, 3000);
-        }
-
-        List<String> b2Words;
-        if (!useRemoteSources) {
-            b2Words = !blank(classpathB2)
-                    ? parseGoetheStyle(ClasspathWordlistReader.readUtf8(classpathB2))
-                    : slice(freqWords, 3000, 7000);
-        } else if (!blank(urlB2)) {
-            b2Words = parseGoetheStyle(fetchText(urlB2));
-        } else {
-            b2Words = slice(freqWords, 3000, 7000);
-        }
-
-        List<String> c1Words;
-        if (!useRemoteSources) {
-            c1Words = !blank(classpathC1)
-                    ? parseGoetheStyle(ClasspathWordlistReader.readUtf8(classpathC1))
-                    : slice(freqWords, 7000, freqWords.size());
-        } else if (!blank(urlC1)) {
-            c1Words = parseGoetheStyle(fetchText(urlC1));
-        } else {
-            c1Words = slice(freqWords, 7000, freqWords.size());
-        }
-
-        Map<String, String> keyToLevel = new LinkedHashMap<>();
-        Map<String, String> keyToDisplay = new LinkedHashMap<>();
-
-        mergeLevel(keyToLevel, keyToDisplay, a1Words, "A1");
-        mergeLevel(keyToLevel, keyToDisplay, a2Words, "A2");
-        mergeLevel(keyToLevel, keyToDisplay, b1Words, "B1");
-        mergeLevel(keyToLevel, keyToDisplay, b2Words, "B2");
-        mergeLevel(keyToLevel, keyToDisplay, c1Words, "C1");
-
-        Map<String, Integer> quotas = Map.of(
-                "A1", quotaA1,
-                "A2", quotaA2,
-                "B1", quotaB1,
-                "B2", quotaB2,
-                "C1", quotaC1
-        );
-
-        Map<String, List<String>> byLevel = new LinkedHashMap<>();
-        for (String lv : LEVEL_ORDER) {
-            byLevel.put(lv, new ArrayList<>());
-        }
-        for (Map.Entry<String, String> e : keyToLevel.entrySet()) {
-            String k = e.getKey();
-            String lv = e.getValue();
-            byLevel.computeIfAbsent(lv, x -> new ArrayList<>()).add(keyToDisplay.getOrDefault(k, k));
-        }
-        for (List<String> list : byLevel.values()) {
-            list.sort(Comparator.naturalOrder());
-        }
-
-        List<LemmaEntry> toInsert = new ArrayList<>();
-        Set<String> globalUsed = new LinkedHashSet<>();
-
-        for (String lv : LEVEL_ORDER) {
-            int cap = quotas.getOrDefault(lv, 2000);
-            int addedForLevel = 0;
-            for (String lemma : byLevel.getOrDefault(lv, List.of())) {
-                if (toInsert.size() >= targetTotal) {
-                    break;
-                }
-                if (addedForLevel >= cap) {
-                    break;
-                }
-                String norm = normalizeLemma(lemma);
-                if (norm.isEmpty()) {
-                    continue;
-                }
-                if (!globalUsed.add(norm)) {
-                    continue;
-                }
-                toInsert.add(new LemmaEntry(lemma.trim(), lv));
-                addedForLevel++;
+        // Ứng viên vào kho: lemma có cấp trước, rồi từ theo tần suất cho tới khi đủ targetTotal.
+        Map<String, String> candidates = new LinkedHashMap<>();
+        for (CefrLevelResolver.GradedLemma g : graded) {
+            String key = CefrLevelResolver.normalizeLemma(g.lemma());
+            if (!key.isEmpty()) {
+                candidates.putIfAbsent(key, g.lemma());
             }
         }
+        int gradedCandidates = candidates.size();
 
-        if (toInsert.size() < targetTotal) {
-            Map<String, Integer> pickedByLevel = countByLevel(toInsert);
-            for (String w : freqWords) {
-                if (toInsert.size() >= targetTotal) {
-                    break;
-                }
-                String nk = normalizeLemma(w);
-                if (nk.isEmpty() || globalUsed.contains(nk)) {
-                    continue;
-                }
-                String deficitLevel = firstDeficitLevel(pickedByLevel, quotas);
-                if (deficitLevel == null) {
-                    break;
-                }
-                globalUsed.add(nk);
-                toInsert.add(new LemmaEntry(w.trim(), deficitLevel));
-                pickedByLevel.merge(deficitLevel, 1, Integer::sum);
+        List<String> freqWords = loadFrequencyWords();
+        for (String w : freqWords) {
+            if (candidates.size() >= targetTotal) {
+                break;
+            }
+            String key = CefrLevelResolver.normalizeLemma(w);
+            if (!key.isEmpty()) {
+                candidates.putIfAbsent(key, w.trim());
             }
         }
 
         long tagId = ensureTag();
         int inserted = 0;
         int updated = 0;
+        int ungraded = 0;
         long charsUsed = 0;
         boolean doEnrich = enrichAfterUpsertForThisRun;
         boolean countDeeplBudget = enrichAfterUpsertForThisRun && !"local_only".equalsIgnoreCase(goetheEnrichSource);
+        Map<String, Integer> levelCounts = new LinkedHashMap<>();
 
-        for (LemmaEntry e : toInsert) {
+        for (String lemma : candidates.values()) {
+            String level = cefrLevelResolver.resolve(lemma).orElse(null);
+            if (level == null) {
+                ungraded++;
+            } else {
+                levelCounts.merge(level, 1, Integer::sum);
+            }
             if (doEnrich && countDeeplBudget && charsUsed >= deeplMaxCharsPerRun) {
                 log.warn("DeepL budget per run exceeded ({} chars); stopping enrich for remainder", deeplMaxCharsPerRun);
                 doEnrich = false;
             }
-            UpsertResult upsert = upsertLemma(e.lemma(), e.cefr(), tagId);
+            UpsertResult upsert = upsertLemma(lemma, level, tagId);
             if (upsert.inserted()) {
                 inserted++;
             } else {
@@ -267,29 +132,76 @@ public class OfficialCefrVocabularyImportService {
             }
             if (doEnrich) {
                 if (countDeeplBudget) {
-                    charsUsed += estimateEnrichChars(e.lemma());
+                    charsUsed += estimateEnrichChars(lemma);
                 }
-                goetheVocabularyAutoImportService.enrichLemma(upsert.wordId(), e.lemma());
+                goetheVocabularyAutoImportService.enrichLemma(upsert.wordId(), lemma);
             }
         }
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("source", "CEFR_CURATED");
         out.put("targetTotal", targetTotal);
-        out.put("pickedTotal", toInsert.size());
+        out.put("pickedTotal", candidates.size());
+        out.put("gradedFromWordlists", gradedCandidates);
+        out.put("ungraded", ungraded);
         out.put("inserted", inserted);
         out.put("updated", updated);
-        out.put("levelCounts", countByLevel(toInsert));
+        out.put("levelCounts", levelCounts);
         out.put("deeplCharsEstimated", charsUsed);
-        out.put(
-                "note",
-                useRemoteSources
-                        ? "CEFR theo wordlist (HTTP) + dedup cấp cao nhất; pad từ de_50k nếu thiếu."
-                        : "CEFR theo file classpath (offline) + dedup cấp cao nhất; pad từ de_50k nếu thiếu."
-        );
+        out.put("note", "Cấp độ chỉ lấy từ wordlist chính thức; từ ngoài wordlist để CHƯA PHÂN CẤP (cefr_level = NULL).");
         out.put("useRemoteSources", useRemoteSources);
         out.put("enrichAfterUpsertApplied", enrichAfterUpsertForThisRun);
         return out;
+    }
+
+    /**
+     * Gán lại cấp độ cho TOÀN BỘ bảng {@code words} theo wordlist chính thức: từ nào không có trong wordlist
+     * nào sẽ về {@code NULL} (chưa phân cấp). Chỉ chạy khi ADMIN gọi — không chạy lúc khởi động.
+     */
+    @Transactional
+    public Map<String, Object> reclassifyAllWords() {
+        Long totalWords = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM words", Long.class);
+
+        // Xoá sạch cấp cũ TRƯỚC (trong cùng transaction) rồi gán lại theo wordlist: cách duy nhất để
+        // những cấp bịa từ thời heuristic biến mất, chứ nâng-cấp-dần thì chúng sống mãi.
+        int cleared = jdbcTemplate.update(
+                "UPDATE words SET cefr_level = NULL, updated_at = NOW() WHERE cefr_level IS NOT NULL");
+
+        List<CefrLevelResolver.GradedLemma> graded = cefrLevelResolver.gradedLemmas();
+        List<Object[]> batchArgs = new ArrayList<>(graded.size());
+        for (CefrLevelResolver.GradedLemma g : graded) {
+            batchArgs.add(new Object[]{g.level(), g.lemma()});
+        }
+        int[] affected = jdbcTemplate.batchUpdate(
+                "UPDATE words SET cefr_level = ?, updated_at = NOW() WHERE LOWER(base_form) = LOWER(?)",
+                batchArgs
+        );
+        int gradedRows = 0;
+        int lemmasNotInCatalog = 0;
+        for (int n : affected) {
+            gradedRows += Math.max(n, 0);
+            if (n == 0) {
+                lemmasNotInCatalog++;
+            }
+        }
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("totalWords", totalWords == null ? 0L : totalWords);
+        out.put("clearedStaleLevels", cleared);
+        out.put("gradedRows", gradedRows);
+        out.put("wordlistLemmas", graded.size());
+        out.put("lemmasNotInCatalog", lemmasNotInCatalog);
+        out.put("wordlistCounts", cefrLevelResolver.countsByLevel());
+        out.put("note", "Từ ngoài wordlist chính thức để NULL (chưa phân cấp) — không đoán cấp.");
+        return out;
+    }
+
+    /** Bảng tần suất — chỉ để chọn từ vào kho, KHÔNG dùng để gán cấp. */
+    private List<String> loadFrequencyWords() {
+        String freqBody = useRemoteSources
+                ? fetchText(blank(fallbackFrequencyUrl) ? SOURCE_FREQ : fallbackFrequencyUrl)
+                : ClasspathWordlistReader.readUtf8(classpathFreq);
+        return parseFrequency(freqBody);
     }
 
     public Map<String, Object> importFromClasspathSample() throws IOException {
@@ -323,79 +235,8 @@ public class OfficialCefrVocabularyImportService {
         return Map.of("imported", n, "source", "classpath:wordlists/cefr_import_sample.csv");
     }
 
-    private Map<String, Integer> countByLevel(List<LemmaEntry> list) {
-        return list.stream().collect(Collectors.groupingBy(LemmaEntry::cefr, Collectors.summingInt(x -> 1)));
-    }
-
-    private String firstDeficitLevel(Map<String, Integer> picked, Map<String, Integer> quotas) {
-        for (String lv : LEVEL_ORDER) {
-            int q = quotas.getOrDefault(lv, 0);
-            int p = picked.getOrDefault(lv, 0);
-            if (p < q) {
-                return lv;
-            }
-        }
-        return null;
-    }
-
     private long estimateEnrichChars(String lemma) {
         return lemma.length() * 40L + 200L;
-    }
-
-    private void mergeLevel(
-            Map<String, String> keyToLevel,
-            Map<String, String> keyToDisplay,
-            List<String> words,
-            String level
-    ) {
-        for (String w : words) {
-            String key = normalizeLemma(w);
-            if (key.isEmpty()) {
-                continue;
-            }
-            String cur = keyToLevel.get(key);
-            if (cur == null || rank(level) > rank(cur)) {
-                keyToLevel.put(key, level);
-                keyToDisplay.put(key, cleanDisplayLemma(w));
-            }
-        }
-    }
-
-    private String cleanDisplayLemma(String w) {
-        if (w == null) {
-            return "";
-        }
-        String s = w.trim();
-        s = s.replaceAll("\\[.*?\\]", "").trim();
-        s = s.split(",")[0].trim();
-        if (s.length() > 100) {
-            s = s.substring(0, 100);
-        }
-        return s;
-    }
-
-    private static int rank(String cefr) {
-        if (cefr == null) {
-            return 0;
-        }
-        return switch (cefr.toUpperCase(Locale.ROOT)) {
-            case "A1" -> 1;
-            case "A2" -> 2;
-            case "B1" -> 3;
-            case "B2" -> 4;
-            case "C1" -> 5;
-            case "C2" -> 6;
-            default -> 0;
-        };
-    }
-
-    private List<String> slice(List<String> all, int from, int to) {
-        List<String> out = new ArrayList<>();
-        int end = Math.min(to, all.size());
-        for (int i = from; i < end; i++) {
-            out.add(all.get(i));
-        }
-        return out;
     }
 
     private UpsertResult upsertLemma(String baseForm, String cefrLevel, long tagId) {
@@ -405,6 +246,7 @@ public class OfficialCefrVocabularyImportService {
                 baseForm
         );
         String dtype = inferDtype(baseForm);
+        // null = wordlist chính thức không nhắc tới từ này ⇒ CHƯA PHÂN CẤP, không đoán.
         String normalizedCefr = normalizeCefr(cefrLevel);
         if (existingId == null) {
             Long newId = jdbcTemplate.queryForObject(
@@ -419,19 +261,29 @@ public class OfficialCefrVocabularyImportService {
             attachTag(newId, tagId);
             return new UpsertResult(newId, true);
         }
-        jdbcTemplate.update(
-                "UPDATE words SET cefr_level = ?, dtype = ?, updated_at = NOW() WHERE id = ?",
-                normalizedCefr, dtype, existingId
-        );
+        if (normalizedCefr != null) {
+            jdbcTemplate.update(
+                    "UPDATE words SET cefr_level = ?, dtype = ?, updated_at = NOW() WHERE id = ?",
+                    normalizedCefr, dtype, existingId
+            );
+        } else {
+            // Không có cấp chính thức: chỉ cập nhật dtype, giữ nguyên cefr_level hiện có.
+            // Dọn cấp cũ sai là việc của reclassifyAllWords() — chạy có chủ đích, không tự động.
+            jdbcTemplate.update("UPDATE words SET dtype = ?, updated_at = NOW() WHERE id = ?", dtype, existingId);
+        }
         attachTag(existingId, tagId);
         return new UpsertResult(existingId, false);
     }
 
+    /** null/không hợp lệ ⇒ null (chưa phân cấp). Trước 14/08/2026 hàm này trả "A1" nên A1 thành thùng rác. */
     private String normalizeCefr(String cefr) {
-        String u = cefr == null ? "A1" : cefr.trim().toUpperCase(Locale.ROOT);
+        if (cefr == null || cefr.isBlank()) {
+            return null;
+        }
+        String u = cefr.trim().toUpperCase(Locale.ROOT);
         return switch (u) {
             case "A1", "A2", "B1", "B2", "C1", "C2" -> u;
-            default -> "A1";
+            default -> null;
         };
     }
 
@@ -462,53 +314,6 @@ public class OfficialCefrVocabularyImportService {
             throw new IllegalStateException("Cannot resolve tag " + TAG_NAME);
         }
         return id;
-    }
-
-    private String normalizeLemma(String raw) {
-        if (raw == null) {
-            return "";
-        }
-        String s = Normalizer.normalize(raw.trim(), Normalizer.Form.NFKC);
-        s = s.replaceAll("^\\(.*\\)\\s*", "");
-        s = s.replaceAll("\\s*\\[.*?\\]\\s*", "");
-        s = s.replaceAll("^(der|die|das|ein|eine)\\s+", "");
-        s = s.split(",")[0].trim();
-        s = s.replaceAll("[^\\p{L}\\-]", "").trim();
-        return s.toLowerCase(Locale.ROOT);
-    }
-
-    private List<String> parseGoetheStyle(String body) {
-        List<String> out = new ArrayList<>();
-        for (String raw : body.split("\\R")) {
-            String line = raw == null ? "" : raw.trim();
-            if (line.isBlank()) {
-                continue;
-            }
-            String cleaned = line
-                    .replaceAll("\\(.*?\\)", "")
-                    .replaceAll("[0-9]", "")
-                    .trim();
-            if (cleaned.isBlank()) {
-                continue;
-            }
-            String token = cleaned.split(",")[0].trim();
-            token = token.replaceAll("^(der|die|das|ein|eine)\\s+", "").trim();
-            token = token.split("/")[0].trim();
-            // Heuristic: many sources contain phrases/sentences; keep lemma-like prefix.
-            // Preserve spaces (e.g. "sich freuen") and avoid concatenation like "ausseinDieSchule...".
-            String[] words = token.split("\\s+");
-            if (words.length >= 3) {
-                token = "sich".equalsIgnoreCase(words[0]) && words[1].length() >= 2
-                        ? (words[0] + " " + words[1])
-                        : words[0];
-            }
-            token = token.replaceAll("[^\\p{L}\\-\\s]", " ").replaceAll("\\s{2,}", " ").trim();
-            if (token.isBlank() || token.length() < 2 || token.endsWith("-")) {
-                continue;
-            }
-            out.add(token);
-        }
-        return out;
     }
 
     private List<String> parseFrequency(String body) {
@@ -556,7 +361,6 @@ public class OfficialCefrVocabularyImportService {
         return s == null || s.isBlank();
     }
 
-    private record LemmaEntry(String lemma, String cefr) {}
 
     private record UpsertResult(long wordId, boolean inserted) {}
 }

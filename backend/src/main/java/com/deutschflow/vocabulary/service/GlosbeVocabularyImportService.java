@@ -197,7 +197,7 @@ public class GlosbeVocabularyImportService {
             int changed = jdbcTemplate.update(
                     """
                     UPDATE words
-                    SET dtype = ?, cefr_level = ?, phonetic = COALESCE(NULLIF(?, ''), phonetic),
+                    SET dtype = ?, cefr_level = COALESCE(?, cefr_level), phonetic = COALESCE(NULLIF(?, ''), phonetic),
                         usage_note = COALESCE(NULLIF(?, ''), usage_note), updated_at = NOW()
                     WHERE id = ?
                     """,
@@ -507,12 +507,13 @@ public class GlosbeVocabularyImportService {
         };
     }
 
+    /** null/không hợp lệ ⇒ null (chưa phân cấp) thay vì "A1" — A1 không còn là thùng rác mặc định. */
     private String normalizeCefr(String cefrLevel) {
-        if (cefrLevel == null) return "A1";
+        if (cefrLevel == null || cefrLevel.isBlank()) return null;
         String normalized = cefrLevel.trim().toUpperCase(Locale.ROOT);
         return switch (normalized) {
             case "A1", "A2", "B1", "B2", "C1", "C2" -> normalized;
-            default -> "A1";
+            default -> null;
         };
     }
 

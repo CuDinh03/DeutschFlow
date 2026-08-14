@@ -53,6 +53,7 @@
       "subtitle": "Learn words by gender color — der (blue) · die (red) · das (green)",
       "searchPlaceholder": "Search word / meaning…",
       "all": "All",
+      "ungraded": "Ungraded",
       "loadError": "Couldn't load vocabulary.",
       "loading": "Loading vocabulary…",
       "emptyTitle": "No words found",

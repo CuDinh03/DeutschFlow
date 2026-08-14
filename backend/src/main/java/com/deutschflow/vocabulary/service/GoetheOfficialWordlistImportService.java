@@ -87,7 +87,7 @@ public class GoetheOfficialWordlistImportService {
             } else {
                 String current = jdbcTemplate.queryForObject(
                         "SELECT cefr_level FROM words WHERE id = ?", String.class, wordId);
-                if (shouldUpgradeCefr(current, cefr)) {
+                if (shouldApplyCefr(current, cefr)) {
                     jdbcTemplate.update("UPDATE words SET cefr_level = ?, updated_at = NOW() WHERE id = ?", cefr, wordId);
                     updated = true;
                     updatedWords++;
@@ -435,28 +435,17 @@ public class GoetheOfficialWordlistImportService {
         return null;
     }
 
-    private int rankCefr(String level) {
-        if (level == null) {
-            return 0;
-        }
-        return switch (level.toUpperCase(Locale.ROOT)) {
-            case "A1" -> 1;
-            case "A2" -> 2;
-            case "B1" -> 3;
-            case "B2" -> 4;
-            case "C1" -> 5;
-            default -> 0;
-        };
-    }
-
-    private boolean shouldUpgradeCefr(String current, String incoming) {
-        if (incoming == null) {
+    /**
+     * TSV Goethe là nguồn CHÍNH THỨC ⇒ luôn thắng giá trị đang có, kể cả khi phải HẠ cấp.
+     *
+     * <p>Trước 14/08/2026 hàm này chỉ cho phép nâng cấp, nên một từ A1 bị heuristic đẩy lên B2/C1 thì
+     * wordlist thật không bao giờ kéo về đúng chỗ được (xem BAO_CAO_PHAN_CAP_TU_VUNG_2026-08-14.md).
+     */
+    private boolean shouldApplyCefr(String current, String incoming) {
+        if (incoming == null || incoming.isBlank()) {
             return false;
         }
-        if (current == null || current.isBlank()) {
-            return true;
-        }
-        return rankCefr(incoming) > rankCefr(current);
+        return !incoming.equalsIgnoreCase(current);
     }
 
     private static final java.util.Set<String> KNOWN_ADJECTIVES = java.util.Set.of(

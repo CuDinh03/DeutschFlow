@@ -78,7 +78,15 @@ function speak(text: string) {
 // trang và cuộn tới đâu nạp tới đó (infinite scroll). Trước đây trang chỉ gọi /words không tham số
 // → mặc định 20 từ, lọc phía client trong 20 từ đó → không bao giờ thấy hết kho.
 const PAGE_SIZE = 50
-const LEVELS = ['ALL', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
+/** Từ chưa có trong wordlist Goethe chính thức (backend trả cefr_level = null). */
+const UNGRADED = 'UNGRADED'
+const CEFR_ORDER = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
+
+interface LevelChip {
+  key: string
+  label: string
+  count: number
+}
 
 export default function V2StudentVocabularyPage() {
   const t = useTranslations('v2.student.vocabulary')
@@ -88,6 +96,7 @@ export default function V2StudentVocabularyPage() {
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [level, setLevel] = useState<string>('ALL')
+  const [levelChips, setLevelChips] = useState<LevelChip[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
@@ -109,9 +118,14 @@ export default function V2StudentVocabularyPage() {
       else setLoading(true)
       setError(null)
       try {
-        const params: Record<string, string | number> = { page: pageNum, size: PAGE_SIZE, locale }
+        const params: Record<string, string | number | boolean> = { page: pageNum, size: PAGE_SIZE, locale }
         if (debouncedQuery) params.q = debouncedQuery
-        if (level !== 'ALL') params.cefr = level
+        // exact=true: chip "A2" trả ĐÚNG từ A2. Mặc định của API là cộng dồn (A2 = A1+A2) nên trước đây
+        // nhãn chip không khớp badge cấp độ trên từng thẻ từ.
+        if (level !== 'ALL') {
+          params.cefr = level
+          params.exact = true
+        }
         const res = await api.get('/words', { params })
         const data = res.data as { items?: unknown; content?: unknown; total?: number }
         const raw = (Array.isArray(res.data) ? res.data : (data?.items ?? data?.content ?? [])) as Record<
@@ -135,6 +149,33 @@ export default function V2StudentVocabularyPage() {
     },
     [debouncedQuery, level, locale, t],
   )
+
+  // Chip cấp độ dựng theo số liệu thật: cấp nào không có từ thì không hiện chip.
+  useEffect(() => {
+    let cancelled = false
+    api
+      .get('/words/levels')
+      .then((res) => {
+        if (cancelled) return
+        const counts = (res.data?.counts ?? {}) as Record<string, number>
+        const chips: LevelChip[] = CEFR_ORDER.filter((l) => (counts[l] ?? 0) > 0).map((l) => ({
+          key: l,
+          label: l,
+          count: counts[l] ?? 0,
+        }))
+        if ((counts[UNGRADED] ?? 0) > 0) {
+          chips.push({ key: UNGRADED, label: t('ungraded'), count: counts[UNGRADED] ?? 0 })
+        }
+        setLevelChips(chips)
+      })
+      .catch(() => {
+        // Không lấy được số liệu thì bỏ dải chip — thà không có bộ lọc còn hơn bộ lọc trả rỗng.
+        if (!cancelled) setLevelChips([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [t])
 
   // Đổi từ khoá/cấp độ → nạp lại từ trang 0.
   useEffect(() => {
@@ -201,22 +242,27 @@ export default function V2StudentVocabularyPage() {
           </div>
         </div>
 
-        <div className="mb-5 flex flex-wrap gap-2">
-          {LEVELS.map((l) => (
-            <button
-              key={l}
-              type="button"
-              onClick={() => setLevel(l)}
-              className={`ga-ui inline-flex min-h-10 items-center justify-center rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0 ${
-                level === l
-                  ? 'border-ga-ink bg-ga-ink text-ga-card'
-                  : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink'
-              }`}
-            >
-              {l === 'ALL' ? t('all') : l}
-            </button>
-          ))}
-        </div>
+        {levelChips.length > 0 && (
+          <div className="mb-5 flex flex-wrap gap-2">
+            {[{ key: 'ALL', label: t('all'), count: 0 }, ...levelChips].map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                onClick={() => setLevel(chip.key)}
+                className={`ga-ui inline-flex min-h-10 items-center justify-center gap-1.5 rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0 ${
+                  level === chip.key
+                    ? 'border-ga-ink bg-ga-ink text-ga-card'
+                    : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink'
+                }`}
+              >
+                {chip.label}
+                {chip.count > 0 && (
+                  <span className={level === chip.key ? 'opacity-70' : 'text-ga-subtle'}>{chip.count}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
 
         {error && (
           <div className="mb-5">

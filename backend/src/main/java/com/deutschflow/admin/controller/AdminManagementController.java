@@ -602,6 +602,25 @@ public class AdminManagementController {
         return result;
     }
 
+    /**
+     * Gán lại cấp CEFR cho TOÀN BỘ bảng words theo wordlist Goethe chính thức; từ ngoài wordlist về NULL
+     * (chưa phân cấp). Chạy có chủ đích — KHÔNG tự chạy lúc khởi động vì thao tác này ghi lại cả kho.
+     */
+    @PostMapping("/vocabulary/cefr/reclassify")
+    public Map<String, Object> reclassifyCefrLevels(Authentication authentication) {
+        Map<String, Object> result = officialCefrVocabularyImportService.reclassifyAllWords();
+        auditLogService.log(
+                "admin.vocabulary.cefr.reclassify.triggered",
+                null,
+                actorEmail(authentication),
+                actorRole(authentication),
+                "VOCABULARY_IMPORT",
+                "cefr-reclassify",
+                result
+        );
+        return result;
+    }
+
     @PostMapping("/vocabulary/cefr/import/sample")
     public Map<String, Object> importCefrCuratedSample(Authentication authentication) throws IOException {
         Map<String, Object> result = officialCefrVocabularyImportService.importFromClasspathSample();
