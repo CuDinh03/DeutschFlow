@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { Eye, EyeOff, AlertCircle } from 'lucide-react'
@@ -38,9 +38,17 @@ export function GaAuthShell({
   return (
     <div className="flex min-h-screen flex-col bg-ga-bg text-ga-ink">
       <header className="flex items-center justify-between gap-3 border-b border-ga-line bg-ga-card px-4 py-5 sm:px-6 lg:gap-0 lg:px-10 lg:py-6">
-        {/* Brand name — not translated on purpose. */}
-        <Link href="/" aria-label="DeutschFlow" className="inline-flex min-w-0">
-          <GaLogo />
+        {/* Brand name — not translated on purpose.
+            QA 13/08: chữ "myDeutschFlow" rộng 161px, cụm phải (chuyển ngôn ngữ + về trang chủ)
+            rộng ~181px và khai `shrink-0`; cộng padding 32px thì header cần ~374px mới đủ.
+            Ở 320px hai bên ĐÈ LÊN NHAU 54px — chữ chồng chữ, đọc không ra. Ở 375px chỉ hở 1px,
+            tức là mọi máy hẹp hơn (360px của phần lớn Android, 320px máy cũ) đều hỏng, và 375px
+            thì chỉ cần người dùng phóng to cỡ chữ là hỏng theo.
+            Dưới 390px chỉ hiện dấu hiệu thương hiệu — vẫn là link về trang chủ, vẫn giữ nguyên
+            aria-label. Từ 390px (iPhone 14/15/16 trở lên) chữ hiện lại đầy đủ, còn dư ~16px. */}
+        <Link href="/" aria-label="DeutschFlow" className="inline-flex min-w-0 shrink">
+          <GaLogo className="max-[389px]:hidden" />
+          <GaLogo markOnly className="hidden max-[389px]:inline-flex" />
         </Link>
         <div className="flex shrink-0 items-center gap-2 lg:gap-4">
           {/* The locale cookie is otherwise only written at login (from user.locale) or by the
@@ -97,6 +105,11 @@ export function GaField({
   const t = useTranslations('v2.auth')
   const [focus, setFocus] = useState(false)
   const [show, setShow] = useState(false)
+  // QA 13/08: nhãn nhìn thấy được nhưng KHÔNG nối vào input (không có htmlFor/id), nên trình đọc
+  // màn hình chỉ đọc placeholder — mà placeholder biến mất ngay khi người dùng gõ (WCAG 3.3.2).
+  // Nối nhãn + mô tả lỗi/gợi ý, và khai `required`/`aria-invalid` cho đúng trạng thái thật.
+  const fieldId = useId()
+  const describedById = `${fieldId}-desc`
   const isPw = type === 'password'
   const inputType = isPw && show ? 'text' : type
   const borderColor = error ? 'var(--ga-red)' : focus ? 'var(--ga-ink)' : 'var(--ga-line)'
@@ -107,12 +120,13 @@ export function GaField({
       : 'none'
   return (
     <div className="mb-4">
-      <label className="ga-ui mb-[7px] block text-[13px] font-semibold text-ga-ink">
+      <label htmlFor={fieldId} className="ga-ui mb-[7px] block text-[13px] font-semibold text-ga-ink">
         {label}
         {required && <span className="text-ga-red"> *</span>}
       </label>
       <div className="relative">
         <input
+          id={fieldId}
           type={inputType}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -120,6 +134,9 @@ export function GaField({
           autoComplete={autoComplete}
           inputMode={inputMode}
           maxLength={maxLength}
+          required={required}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error || hint ? describedById : undefined}
           onFocus={() => setFocus(true)}
           onBlur={() => setFocus(false)}
           className="ga-ui block w-full rounded-ga bg-ga-card px-[15px] py-3 text-[15px] text-ga-ink outline-none transition-[border-color,box-shadow] duration-150"
@@ -137,11 +154,15 @@ export function GaField({
         )}
       </div>
       {error ? (
-        <div className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-ga-red">
+        <div id={describedById} className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-ga-red">
           <AlertCircle size={14} /> {error}
         </div>
       ) : (
-        hint && <div className="mt-[5px] text-[12px] text-ga-muted">{hint}</div>
+        hint && (
+          <div id={describedById} className="mt-[5px] text-[12px] text-ga-muted">
+            {hint}
+          </div>
+        )
       )}
     </div>
   )
