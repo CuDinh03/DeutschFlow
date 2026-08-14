@@ -119,5 +119,15 @@
     "next": "Next",
     "confirm": "Confirm",
     "search": "Search"
+  },
+  "error": {
+    "title": "This page hit an error",
+    "desc": "The page stopped part-way through rendering. Retrying usually clears it; if it doesn't, send the details below to the team.",
+    "staleTitle": "Your browser is holding an old build",
+    "staleDesc": "Files from the previous deploy are no longer on the server. Reload the page to pick up the latest build.",
+    "detailsCap": "Technical details",
+    "digestLabel": "Error code",
+    "noMessage": "No error message.",
+    "reload": "Reload page"
   }
 }
