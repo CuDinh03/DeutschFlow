@@ -10,6 +10,7 @@ import com.deutschflow.user.repository.LearningSessionStateRepository;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.Random;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class SessionExerciseService {
 
@@ -123,12 +125,37 @@ public class SessionExerciseService {
     }
 
     /**
+     * Seed ổn định theo (user, tuần, buổi, lần làm lại) cho thứ tự "ngẫu nhiên nhưng lặp lại được"
+     * của ba truy vấn từ vựng bên dưới. Giữ nguyên ý đồ của {@code RAND(seed)} cũ, vốn nhận
+     * {@code (userId + week*100 + sessionIndex*10) + attemptCount}.
+     *
+     * <p><b>Vì sao ba truy vấn kia dùng {@code ORDER BY md5(? || w.id::text)}:</b> bản cũ viết
+     * {@code ORDER BY RAND(? + ?)} — cú pháp MySQL. PostgreSQL không có hàm {@code rand()} nên mọi
+     * truy vấn ném {@code function rand(bigint) does not exist}, bị {@code catch} bên dưới nuốt, và
+     * {@link #fetchPersonalizedVocab} luôn trả về danh sách rỗng. Không ai thấy lỗi vì
+     * {@link TheoryBasedExerciseGenerator} lặng lẽ rơi về bộ từ vựng hardcode khi {@code dbVocabs}
+     * rỗng — học viên vẫn có bài tập, chỉ là không bao giờ lấy từ DB.
+     *
+     * <p>Không dùng {@code setseed()} + {@code random()}: đó là trạng thái theo phiên, không ghép
+     * được vào {@code ORDER BY} như {@code RAND(seed)}. Băm {@code seed || id} thì mỗi dòng nhận một
+     * khoá sắp xếp cố định, thuần hàm — cùng seed cho ra cùng thứ tự, đổi seed thì đảo thứ tự.
+     *
+     * <p>Tính ở Java rồi truyền MỘT tham số, thay vì để SQL cộng {@code (? + ?)}: PostgreSQL từ chối
+     * {@code $1 + $2} khi cả hai tham số chưa có kiểu ("operator is not unique: unknown + unknown"),
+     * nên phép cộng trong SQL sẽ phụ thuộc vào việc driver có suy ra kiểu hay không.
+     */
+    private static String vocabSeed(long userId, int week, int sessionIndex, int attemptCount) {
+        return Long.toString(userId + week * 100L + sessionIndex * 10L + attemptCount);
+    }
+
+    /**
      * Fetch từ vựng cá nhân hóa từ DB dựa trên industry và interests của user.
      * Mỗi lần gọi với attemptCount khác nhau → shuffle khác → bài tập không lặp.
      */
-    private List<TheoryBasedExerciseGenerator.SourceVocab> fetchPersonalizedVocab(
+    List<TheoryBasedExerciseGenerator.SourceVocab> fetchPersonalizedVocab(
             long userId, String industry, List<String> interests, int week, int sessionIndex, int attemptCount
     ) {
+        String seed = vocabSeed(userId, week, sessionIndex, attemptCount);
         try {
             List<TheoryBasedExerciseGenerator.SourceVocab> result = new ArrayList<>();
 
@@ -149,11 +176,11 @@ public class SessionExerciseService {
                         )
                         AND (t_vi.meaning IS NOT NULL OR t_en.meaning IS NOT NULL)
                         AND w.cefr_level IN ('A1','A2','B1')
-                        ORDER BY RAND(? + ?)
+                        ORDER BY md5(? || w.id::text)
                         LIMIT 12
                         """,
                         "%" + indLower + "%", "%" + indLower + "%",
-                        userId + week * 100L + sessionIndex * 10L, attemptCount
+                        seed
                 );
                 for (Map<String, Object> row : rows) {
                     String german = str(row.get("base_form"));
@@ -182,11 +209,11 @@ public class SessionExerciseService {
                         )
                         AND (t_vi.meaning IS NOT NULL OR t_en.meaning IS NOT NULL)
                         AND w.cefr_level IN ('A1','A2','B1')
-                        ORDER BY RAND(? + ?)
+                        ORDER BY md5(? || w.id::text)
                         LIMIT 6
                         """,
                         "%" + intLower + "%",
-                        userId + week * 100L + sessionIndex * 10L, attemptCount
+                        seed
                 );
                 for (Map<String, Object> row : rows) {
                     String german = str(row.get("base_form"));
@@ -210,10 +237,10 @@ public class SessionExerciseService {
                         WHERE w.cefr_level = 'A1'
                         AND (t_vi.meaning IS NOT NULL OR t_en.meaning IS NOT NULL)
                         AND t_de.example IS NOT NULL AND t_de.example != ''
-                        ORDER BY RAND(? + ?)
+                        ORDER BY md5(? || w.id::text)
                         LIMIT ?
                         """,
-                        userId + week * 100L + sessionIndex * 10L, attemptCount,
+                        seed,
                         16 - result.size()
                 );
                 for (Map<String, Object> row : rows) {
@@ -230,6 +257,11 @@ public class SessionExerciseService {
             Collections.shuffle(result, new Random(userId * 31L + attemptCount * 997L));
             return result;
         } catch (Exception e) {
+            // Vẫn rơi về bộ từ vựng hardcode của TheoryBasedExerciseGenerator để buổi học không vỡ,
+            // NHƯNG phải ghi log: nuốt im lặng chính là thứ đã giấu lỗi cú pháp MySQL RAND() ở đây —
+            // cá nhân hoá từ vựng chết hoàn toàn mà không một tín hiệu nào lộ ra.
+            log.warn("Không lấy được từ vựng cá nhân hoá từ DB (userId={}, week={}, session={}); "
+                    + "buổi học sẽ dùng từ vựng hardcode", userId, week, sessionIndex, e);
             return List.of();
         }
     }
