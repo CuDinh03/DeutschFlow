@@ -278,6 +278,7 @@
       "refresh": "Làm mới",
       "loadError": "Không tải được báo cáo",
       "noData": "Không có dữ liệu.",
+      "partialError": "{count} báo cáo con không tải được — phần còn lại vẫn hiển thị.",
       "signalLatency": "Submit latency (p95)",
       "signalGrammar": "Grammar coverage",
       "signalUnder20": "Học viên < 20%",
