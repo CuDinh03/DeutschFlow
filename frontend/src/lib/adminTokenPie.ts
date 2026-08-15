@@ -6,7 +6,9 @@ export type AiUsageByFeatureRow = {
 }
 
 export type AiUsageByFeatureDto = {
-  rows?: AiUsageByFeatureRow[]
+  // Backend (AdminManagementService.aiUsageByFeature) trả mảng dưới key `byFeature`, KHÔNG phải
+  // `rows` — đọc sai key khiến donut "Token theo tính năng" luôn rỗng (A-10).
+  byFeature?: AiUsageByFeatureRow[]
   totalTokens?: number
   promptTokens?: number
   completionTokens?: number
@@ -29,7 +31,7 @@ export function buildAiTokenPie(
   fallbackTotal: number,
   t: (key: string, values?: Record<string, string | number>) => string,
 ): AdminTokenPie {
-  const rows = ledger?.rows ?? []
+  const rows = ledger?.byFeature ?? []
   const prompt = ledger?.promptTokens ?? rows.reduce((sum, row) => sum + (Number(row.promptTokens) || 0), 0)
   const completion = ledger?.completionTokens ?? rows.reduce((sum, row) => sum + (Number(row.completionTokens) || 0), 0)
   const total = ledger?.totalTokens ?? (fallbackTotal + prompt + completion)
