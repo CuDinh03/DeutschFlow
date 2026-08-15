@@ -12,18 +12,14 @@ interface AiConfig {
   temperature: number
   maxTokens: number
   topP: number
+  // Read-only runtime wiring surfaced by GET /admin/ai-config (env-driven; may be absent on older BE).
+  chatProvider?: string
+  chatModel?: string
+  gradingModel?: string
+  sttModel?: string
 }
 
 const DEFAULT_CONFIG: AiConfig = { prompt: '', temperature: 0.7, maxTokens: 1024, topP: 0.9 }
-
-// Static reference (proto GaAdminAIConfig "Mô hình đang dùng" — informational).
-// [labelKey, provider] — labelKey resolves via t(), provider stays as-is (technical id).
-const MODELS: [string, string][] = [
-  ['modelSpeaking', 'Claude · Sonnet'],
-  ['modelGrammar', 'Claude · Haiku'],
-  ['modelImage', 'AWS Bedrock'],
-  ['modelTts', 'Edge TTS (DE)'],
-]
 
 export default function V2AdminAiConfigPage() {
   const t = useTranslations('v2.adminContent.aiConfig')
@@ -68,6 +64,16 @@ export default function V2AdminAiConfigPage() {
     { label: t('sliderTemperature'), val: temperature, set: setTemperature, min: 0, max: 1, step: 0.05 },
     { label: t('sliderTopP'), val: topP, set: setTopP, min: 0, max: 1, step: 0.05 },
     { label: t('sliderMaxTokens'), val: maxTokens, set: setMaxTokens, min: 256, max: 4096, step: 256 },
+  ]
+
+  // "Model đang dùng" — đọc từ cấu hình runtime thật (env: app.ai.*) thay vì hardcode Claude/Bedrock.
+  // Ảnh giữ nhãn tĩnh vì thực sự dùng AWS Bedrock. [labelKey, giá trị kỹ thuật].
+  const models: [string, string][] = [
+    ['modelProvider', data.chatProvider ?? '—'],
+    ['modelSpeaking', data.chatModel ?? '—'],
+    ['modelGrading', data.gradingModel ?? '—'],
+    ['modelStt', data.sttModel ?? '—'],
+    ['modelImage', 'AWS Bedrock'],
   ]
 
   return (
@@ -133,7 +139,7 @@ export default function V2AdminAiConfigPage() {
 
           <div className="mt-2 border-t border-ga-line pt-[18px]">
             <GaCap className="mb-3 block">{t('modelsInUse')}</GaCap>
-            {MODELS.map(([k, v], i) => (
+            {models.map(([k, v], i) => (
               <div
                 key={k}
                 className={`flex items-center justify-between gap-3 py-2 text-[13px] ${i ? 'border-t border-ga-line' : ''}`}

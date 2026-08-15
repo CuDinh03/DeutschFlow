@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { Megaphone } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, TkModal } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 
 // Visual category (preview colour + badge). Purely cosmetic — the backend notification type comes
@@ -64,6 +64,8 @@ export default function V2AdminBroadcastPage() {
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState<SentItem[]>([])
+  // A-1: số người nhận thực tế → confirm trước khi fan-out. `null` = đóng modal.
+  const [preview, setPreview] = useState<{ count: number } | null>(null)
 
   const audience = AUDIENCE.find((a) => a.id === aud) ?? AUDIENCE[0]
   const isSingle = audience.id === 'single'
@@ -79,7 +81,8 @@ export default function V2AdminBroadcastPage() {
     setBody(t.has(`tpl.${next.id}.body`) ? t(`tpl.${next.id}.body`) : '')
   }
 
-  const send = async () => {
+  // Bấm "Gửi" → validate + hỏi backend số người nhận THẬT rồi mở confirm (KHÔNG gửi ngay).
+  const requestSend = async () => {
     if (!title.trim()) {
       toast(t('enterTitle'))
       return
@@ -93,6 +96,24 @@ export default function V2AdminBroadcastPage() {
       toast(t('enterEmail'))
       return
     }
+    setSending(true)
+    try {
+      const res = await api.post<{ recipientCount: number }>('/admin/notifications/broadcast/preview', {
+        type: tpl.type,
+        ...audience.payload,
+        ...(isSingle ? { targetEmail: email.trim() } : {}),
+        payload: { title: title.trim(), body: body.trim() },
+      })
+      setPreview({ count: res.data?.recipientCount ?? 0 })
+    } catch (e: unknown) {
+      toast.error(apiMessage(e))
+    } finally {
+      setSending(false)
+    }
+  }
+
+  // Xác nhận trong modal → gửi/hẹn giờ thật.
+  const doSend = async () => {
     const scheduled = when === 'schedule'
     setSending(true)
     try {
@@ -114,6 +135,7 @@ export default function V2AdminBroadcastPage() {
         ...s,
       ])
       toast.success(scheduled ? t('queuedSchedule') : t('sentTo', { audience: audienceLabel }))
+      setPreview(null)
     } catch (e: unknown) {
       toast.error(apiMessage(e))
     } finally {
@@ -261,9 +283,9 @@ export default function V2AdminBroadcastPage() {
             )}
           </div>
 
-          <GaBtn variant="yellow" disabled={sending} onClick={send}>
+          <GaBtn variant="yellow" disabled={sending} onClick={requestSend}>
             <span aria-hidden className="inline-block h-[7px] w-[7px] bg-ga-ink" />
-            {sending ? t('sending') : when === 'schedule' ? t('scheduleSend') : t('sendNow')}
+            {sending && !preview ? t('sending') : when === 'schedule' ? t('scheduleSend') : t('sendNow')}
           </GaBtn>
         </div>
 
@@ -331,6 +353,29 @@ export default function V2AdminBroadcastPage() {
           </div>
         </div>
       </div>
+
+      {preview && (
+        <TkModal
+          open
+          onOpenChange={(o) => !o && setPreview(null)}
+          title={t('confirmTitle')}
+          footer={
+            <div className="flex justify-end gap-2.5">
+              <GaBtn variant="ghost" onClick={() => setPreview(null)}>
+                {t('confirmCancel')}
+              </GaBtn>
+              <GaBtn variant="primary" disabled={sending} onClick={doSend}>
+                {sending ? t('sending') : when === 'schedule' ? t('scheduleSend') : t('sendNow')}
+              </GaBtn>
+            </div>
+          }
+        >
+          <p className="text-[14.5px] leading-[1.6] text-ga-ink">
+            {t('confirmBody', { count: preview.count.toLocaleString('vi-VN'), audience: audienceLabel })}
+          </p>
+          <p className="mt-2 text-[12.5px] text-ga-muted">{t('confirmIrreversible')}</p>
+        </TkModal>
+      )}
     </div>
   )
 }
