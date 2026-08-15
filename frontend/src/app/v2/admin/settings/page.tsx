@@ -23,6 +23,9 @@ export default function V2AdminSettingsPage() {
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
+        <div role="note" className="mb-5 border border-ga-line bg-ga-card px-4 py-3 text-[13px] leading-relaxed text-ga-muted">
+          {t('readonlyBanner')}
+        </div>
         <div className="grid gap-4 lg:grid-cols-3">
           {SECTIONS.map((s) => (
             <section key={s.key} className="min-w-0 border border-ga-line bg-ga-card p-4 lg:p-5">

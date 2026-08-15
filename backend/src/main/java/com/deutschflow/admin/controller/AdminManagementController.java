@@ -288,8 +288,15 @@ public class AdminManagementController {
     public Map<String, Object> updateRole(
             @PathVariable Long userId,
             @Valid @RequestBody UpdateRoleRequest req,
+            @AuthenticationPrincipal User actor,
             Authentication authentication
     ) {
+        // Đối xứng với setUserActive: không cho admin TỰ bỏ quyền của chính mình. Trên prod có lúc
+        // chỉ có đúng 1 ADMIN → tự hạ quyền = khoá cứng toàn hệ thống, chỉ gỡ được bằng DB.
+        if (actor != null && actor.getId().equals(userId)
+                && !"ADMIN".equalsIgnoreCase(req.role() == null ? "" : req.role().trim())) {
+            throw new BadRequestException("Bạn không thể tự bỏ quyền quản trị của chính mình.");
+        }
         Map<String, Object> updated = adminManagementService.updateUserRole(userId, req.role());
         auditLogService.log(
                 "admin.user.role.updated",
@@ -916,9 +923,11 @@ public class AdminManagementController {
             Authentication authentication
     ) {
         boolean reviewed = Boolean.TRUE.equals(body.get("reviewed"));
-        String notes = body.containsKey("notes") ? (String) body.get("notes") : null;
-        String newDtype  = body.containsKey("dtype")  ? (String) body.get("dtype")  : null;
-        String newGender = body.containsKey("gender") ? (String) body.get("gender") : null;
+        // Null-safe: chỉ nhận String thật. Trước đây `(String) body.get(...)` ép thô — client gửi
+        // dtype/gender/notes là số/object trong JSON sẽ ClassCastException → 500 thay vì bỏ qua.
+        String notes = asString(body.get("notes"));
+        String newDtype  = asString(body.get("dtype"));
+        String newGender = asString(body.get("gender"));
 
         // Update words table
         jdbcTemplate.update(
@@ -989,6 +998,11 @@ public class AdminManagementController {
     public record BulkAssignStudentsRequest(
             List<Long> studentIds
     ) {}
+
+    /** Null-safe cast: giá trị JSON không phải chuỗi → null (tránh ClassCastException → 500). */
+    private static String asString(Object v) {
+        return v instanceof String s ? s : null;
+    }
 
     private String actorEmail(Authentication authentication) {
         return authentication == null ? null : authentication.getName();
