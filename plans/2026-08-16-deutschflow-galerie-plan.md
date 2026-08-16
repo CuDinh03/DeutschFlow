@@ -41,7 +41,10 @@ S3 public-read + `media_assets` metadata. 5.000 WebP 1024² ≈ 250–400MB — 
 ## 5. AI provider hiện tại
 
 - Text: **Fireworks** (sống, có key, có resilience) — giữ cho concept/classify (P0 đã chạy).
-- Artwork: **Claude (Anthropic API)** theo quyết định owner 16/08. Claude không có endpoint sinh ảnh raster — artwork được tạo dưới dạng **SVG do Claude viết** từ visualConcept. Model mặc định `claude-opus-5` ($5/$25 per MTok; qua **Batch API giảm 50%** — hợp batch đêm không nhạy latency); bậc rẻ hơn `claude-sonnet-5` nếu pilot cho thấy đủ chất lượng. Cần `ANTHROPIC_API_KEY` mới (vendor mới — owner tạo key + đặt trần chi tiêu). Diffusion (FLUX) hạ xuống DỰ PHÒNG nếu pilot SVG không đạt bar organic-editorial.
+- Artwork: **Claude (Anthropic API)** theo quyết định owner 16/08. Claude không có endpoint sinh ảnh raster — artwork được tạo dưới dạng **SVG do Claude viết** từ visualConcept.
+- **Kết quả pilot A/B (owner tự chạy 16/08, prompt `plans/galerie/prompt-pilot-svg-ab.md`): Sonnet 5 và Opus 5 đều "vẽ xấu hơn Fable 5"** ⇒ **model chốt: `claude-fable-5`** ($10/$50 per MTok; Batch API giảm 50% → $5/$25). Lưu ý kỹ thuật khi code P2 với Fable 5: xử lý `stop_reason: "refusal"` + bật `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`), org cần data-retention ≥30 ngày (không ZDR).
+- Phép thử tiết kiệm để ngỏ: lượt A/B chưa có few-shot anchor — sau khi Fable 5 tạo xong anchor set APPROVED, thử lại Sonnet 5 + anchors; nếu bắt kịp thì chạy full bằng Sonnet (rẻ ~1/4). Nếu không, chạy full Fable 5.
+- Cần `ANTHROPIC_API_KEY` mới (vendor mới — owner tạo key + đặt trần chi tiêu). Diffusion (FLUX) vẫn là DỰ PHÒNG xa.
 
 ## 6. File cần SỬA (khi được duyệt)
 
@@ -145,8 +148,8 @@ Pilot 30 ảnh chạy sync loop được (5–15s/ảnh); scale thì chunk 50–
 | Hạng mục | Pilot 30 | Full ~4.000 từ sạch (+30% retry) |
 |---|---|---|
 | Concept LLM (Fireworks — P0 giữ nguyên) | ~0đ | < $1 |
-| SVG Claude Opus 5 batch ($2.5/$12.5 MTok) | **0đ — sinh ngay trong phiên Claude Code** | ~$180–250 |
-| SVG Claude Sonnet 5 batch (intro $1/$5 tới 31/08) | — | ~$80–130 |
+| **SVG Claude Fable 5 batch ($5/$25 MTok) — MODEL CHỐT** | **0đ — sinh ngay trong phiên Claude Code (chính là Fable 5)** | ~$350–500 |
+| SVG Sonnet 5 + anchors (phép thử tiết kiệm, chưa chốt) | — | ~$80–130 nếu bắt kịp chất lượng |
 | Vision QA (Claude vision, batch) | ~0đ | ~$15–25 |
 | Nhánh dự phòng FLUX dev-class | — | ~$130 |
 
@@ -175,5 +178,5 @@ Batch theo CEFR (A1 → A2 → B1...), chunk 100/đêm, resumable nhờ filter `
 
 1. ~~Provider pilot A/B~~ → **ĐÃ QUYẾT 16/08: Claude (SVG-first)**, diffusion là dự phòng nếu pilot fail bar organic.
 2. ~~Migration 3 cột~~ → đã merge V274 (#364).
-3. **Sau pilot P1 (nếu SVG đạt)**: owner tạo `ANTHROPIC_API_KEY` (vendor mới) + trần chi tiêu; chốt model chạy full (Opus 5 ~$180–250 vs Sonnet 5 ~$80–130 cho ~4.000 từ, Batch API).
+3. ~~Chốt model~~ → **ĐÃ QUYẾT (pilot A/B 16/08): `claude-fable-5`** — Sonnet 5/Opus 5 bị owner đánh giá vẽ xấu hơn. Còn lại: owner tạo `ANTHROPIC_API_KEY` + trần chi tiêu (~$350–500 full kho, Batch API) khi bước vào P2; phép thử Sonnet+anchors để hạ giá quyết sau khi có anchor set.
 4. **Quan hệ với chiến lược 3 tầng cũ (plan 14/07)**: đề xuất Galerie = nguồn chính; vocabGlyph icon = placeholder khi chưa APPROVED (mục 24). → Xác nhận?
