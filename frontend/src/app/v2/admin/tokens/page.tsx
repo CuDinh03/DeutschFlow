@@ -64,7 +64,7 @@ export default function V2AdminTokensPage() {
 
   const { users, ledger, daily } = state
 
-  const featureSegs = (ledger?.rows ?? [])
+  const featureSegs = (ledger?.byFeature ?? [])
     .map((r) => ({ label: featureLabel(r.feature), value: Number(r.totalTokens) || 0 }))
     .filter((s) => s.value > 0)
     .sort((a, b) => b.value - a.value)

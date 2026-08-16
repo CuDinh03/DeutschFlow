@@ -826,8 +826,12 @@ public class AdminManagementService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> listClasses() {
         return jdbcTemplate.queryForList("""
-                SELECT c.id, c.name, c.teacher_id AS teacherId, u.display_name AS teacherName, c.created_at AS createdAt,
-                       (SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = c.id) AS studentCount
+                -- Quote the camelCase aliases: Postgres folds UNquoted aliases to lowercase, so
+                -- the JSON keys became teachername/studentcount and the admin FE (which reads
+                -- c.teacherName / c.studentCount) showed every class as "chưa phân công · 0 HV"
+                -- despite the INNER JOIN guaranteeing a teacher (A-12).
+                SELECT c.id, c.name, c.teacher_id AS "teacherId", u.display_name AS "teacherName", c.created_at AS "createdAt",
+                       (SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = c.id) AS "studentCount"
                 FROM teacher_classes c
                 JOIN users u ON u.id = c.teacher_id
                 ORDER BY c.created_at DESC
