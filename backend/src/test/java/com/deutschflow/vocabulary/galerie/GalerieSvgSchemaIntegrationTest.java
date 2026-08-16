@@ -125,6 +125,26 @@ class GalerieSvgSchemaIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
+    @DisplayName("import endpoint: SVG vẽ sẵn lên prod không cần API key; SVG bẩn → 400")
+    void importEndpoint_persistsPreDrawnSvg() {
+        when(anthropicClient.isConfigured()).thenReturn(false); // đường 0đ: chưa có key
+
+        var ok = controller.importArtwork(wordId,
+                new GalerieAdminController.GalerieArtworkImportRequest(VALID_SVG), null);
+        assertThat(ok.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Map<String, Object> row = jdbcTemplate.queryForMap(
+                "SELECT image_status, image_url FROM words WHERE id = ?", wordId);
+        assertThat(row.get("image_status")).isEqualTo("QA_PENDING");
+        assertThat(String.valueOf(row.get("image_url"))).contains(wordId + ".svg");
+
+        var bad = controller.importArtwork(wordId,
+                new GalerieAdminController.GalerieArtworkImportRequest(
+                        VALID_SVG.replace("#DA291C", "#FF0000")), null);
+        assertThat(bad.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("decision endpoint: APPROVE từ QA_PENDING → APPROVED; APPROVE lần 2 → 409; REGENERATE → CONCEPT_READY sạch artwork")
     void decisionEndpoint_transitionsOnRealSchema() {
         svgService.generateForReady(5, "A1", null);

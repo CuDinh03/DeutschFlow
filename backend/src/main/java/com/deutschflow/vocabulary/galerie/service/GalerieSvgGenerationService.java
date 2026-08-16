@@ -150,6 +150,46 @@ public class GalerieSvgGenerationService {
         return count == null ? 0 : count;
     }
 
+    // ── Import artwork vẽ sẵn (đường 0đ: SVG sinh trong phiên Claude Code gói Max) ─────────────
+
+    /**
+     * Nhận SVG vẽ SẴN (pilot P1 + tranh vẽ in-session) và đưa vào ĐÚNG luồng lưu của generate:
+     * sanitizer → S3 → media_assets → image_url → QA_PENDING. Không đụng Anthropic API nên
+     * KHÔNG cần {@code ANTHROPIC_API_KEY}/flag — đây là đường lên prod khi owner chưa tạo key.
+     * Ghi đè artwork cũ nếu có (re-import = vẽ lại thủ công).
+     */
+    public ImportResult importArtwork(long wordId, String rawSvg, User adminUser) {
+        Map<String, Object> word;
+        try {
+            word = jdbcTemplate.queryForMap(
+                    "SELECT base_form, image_concept FROM words WHERE id = ?", wordId);
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            throw new com.deutschflow.common.exception.NotFoundException("Không có từ id=" + wordId);
+        }
+
+        GalerieSvgSanitizer.SanitizedSvg sanitized = sanitizer.sanitize(rawSvg);
+        byte[] bytes = sanitized.svg().getBytes(StandardCharsets.UTF_8);
+        String altText = stringOrNull(word.get("image_concept")) != null
+                ? stringOrNull(word.get("image_concept")) : stringOrNull(word.get("base_form"));
+
+        String s3Key = "galerie/" + GaleriePromptFactory.VERSION + "/" + wordId + ".svg";
+        S3StorageService.S3UploadResult uploaded =
+                s3StorageService.uploadBytes(bytes, s3Key, "image/svg+xml");
+        MediaAsset asset = mediaAssetService.registerGeneratedAsset(
+                uploaded.getS3Key(), uploaded.getUrl(),
+                wordId + ".svg", "image/svg+xml", bytes.length,
+                "GALERIE", "SYSTEM", "AI_GENERATED",
+                GaleriePromptFactory.VERSION, altText, adminUser);
+
+        vocabularyImageService.applyGeneratedImage(wordId, asset, GaleriePromptFactory.VERSION, altText);
+        jdbcTemplate.update("UPDATE words SET image_status = ? WHERE id = ?", STATUS_QA_PENDING, wordId);
+        log.info("[Galerie] import artwork wordId={} elements={} bytes={}",
+                wordId, sanitized.elementCount(), bytes.length);
+        return new ImportResult(wordId, uploaded.getUrl(), sanitized.elementCount(), bytes.length);
+    }
+
+    public record ImportResult(long wordId, String imageUrl, int elementCount, int sizeBytes) {}
+
     // ── Decision (plan mục 16: chỉ APPROVED là artwork production) ─────────────────────────────
 
     public enum Decision { APPROVE, REGENERATE, REJECT }

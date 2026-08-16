@@ -110,6 +110,31 @@ public class GalerieAdminController {
     }
 
     /**
+     * Import SVG vẽ SẴN (0đ — tranh sinh trong phiên Claude Code gói Max, gồm 30 pilot P1).
+     * Đi qua đúng sanitizer + luồng lưu của generate; KHÔNG cần ANTHROPIC_API_KEY.
+     * 400 khi SVG trượt sanitizer (kèm lý do), 404 khi từ không tồn tại.
+     */
+    @PostMapping("/{wordId}/artwork")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> importArtwork(
+            @PathVariable long wordId,
+            @RequestBody GalerieArtworkImportRequest request,
+            @AuthenticationPrincipal User user) {
+        String svg = request == null ? null : request.svg();
+        try {
+            GalerieSvgGenerationService.ImportResult result =
+                    svgGenerationService.importArtwork(wordId, svg, user);
+            return ResponseEntity.ok(Map.of(
+                    "wordId", result.wordId(),
+                    "imageUrl", result.imageUrl(),
+                    "elementCount", result.elementCount(),
+                    "sizeBytes", result.sizeBytes()));
+        } catch (com.deutschflow.vocabulary.galerie.GalerieSvgSanitizer.GalerieSvgValidationException e) {
+            return ResponseEntity.badRequest().body(Map.of("wordId", wordId, "error", e.getMessage()));
+        }
+    }
+
+    /**
      * Quyết định review per-artwork: APPROVE (QA_PENDING→APPROVED), REGENERATE (gỡ artwork,
      * về CONCEPT_READY), REJECT. 409 khi từ không ở trạng thái cho phép chuyển.
      */
@@ -144,4 +169,6 @@ public class GalerieAdminController {
     public record GalerieConceptByIdsRequest(List<Long> wordIds) {}
 
     public record GalerieDecisionRequest(String decision) {}
+
+    public record GalerieArtworkImportRequest(String svg) {}
 }

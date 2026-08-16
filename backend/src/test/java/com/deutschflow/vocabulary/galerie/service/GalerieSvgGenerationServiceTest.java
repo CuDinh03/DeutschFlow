@@ -175,6 +175,50 @@ class GalerieSvgGenerationServiceTest {
         verify(anthropicClient, never()).complete(anyString(), anyString(), anyString());
     }
 
+    // ── importArtwork (đường 0đ, không cần API key) ────────────────────────────────────────────
+
+    @Test
+    @DisplayName("importArtwork: không cần isConfigured, qua sanitizer, lưu như generate, QA_PENDING")
+    void importArtwork_persistsWithoutApiKey() {
+        when(jdbcTemplate.queryForMap(anyString(), eq(42L)))
+                .thenReturn(Map.of("base_form", "Apfel", "image_concept", "One expressive apple."));
+        when(jdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(1);
+        when(s3StorageService.uploadBytes(any(), anyString(), eq("image/svg+xml")))
+                .thenReturn(new S3StorageService.S3UploadResult(
+                        "galerie/galerie-v1/42.svg", "https://cdn/galerie/galerie-v1/42.svg"));
+        MediaAsset asset = MediaAsset.builder().url("https://cdn/galerie/galerie-v1/42.svg").build();
+        when(mediaAssetService.registerGeneratedAsset(anyString(), anyString(), anyString(),
+                anyString(), anyLong(), anyString(), anyString(), anyString(), anyString(),
+                anyString(), any())).thenReturn(asset);
+
+        GalerieSvgGenerationService.ImportResult result =
+                service.importArtwork(42L, VALID_SVG, admin);
+
+        assertThat(result.imageUrl()).contains("galerie/galerie-v1/42.svg");
+        verify(vocabularyImageService).applyGeneratedImage(eq(42L), eq(asset),
+                eq(GaleriePromptFactory.VERSION), eq("One expressive apple."));
+        verify(jdbcTemplate).update(contains("SET image_status = ? WHERE id = ?"),
+                eq("QA_PENDING"), eq(42L));
+        // Đường 0đ: import KHÔNG đụng Anthropic API, cũng không cần key được cấu hình
+        verify(anthropicClient, never()).complete(anyString(), anyString(), anyString());
+        verify(anthropicClient, never()).isConfigured();
+    }
+
+    @Test
+    @DisplayName("importArtwork: SVG bẩn bị sanitizer chặn, không upload; từ không tồn tại → NotFound")
+    void importArtwork_rejectsDirtyAndMissing() {
+        when(jdbcTemplate.queryForMap(anyString(), eq(42L)))
+                .thenReturn(Map.of("base_form", "Apfel"));
+        assertThatThrownBy(() -> service.importArtwork(42L, VALID_SVG.replace("#DA291C", "#FF0000"), admin))
+                .isInstanceOf(GalerieSvgSanitizer.GalerieSvgValidationException.class);
+        verify(s3StorageService, never()).uploadBytes(any(), anyString(), anyString());
+
+        when(jdbcTemplate.queryForMap(anyString(), eq(99L)))
+                .thenThrow(new org.springframework.dao.EmptyResultDataAccessException(1));
+        assertThatThrownBy(() -> service.importArtwork(99L, VALID_SVG, admin))
+                .isInstanceOf(com.deutschflow.common.exception.NotFoundException.class);
+    }
+
     // ── decide ─────────────────────────────────────────────────────────────────────────────────
 
     @Test
