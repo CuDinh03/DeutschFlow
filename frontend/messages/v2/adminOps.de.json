@@ -415,6 +415,7 @@
     "settings": {
       "title": "Systemkonfiguration",
       "subtitle": "Überblick über die Admin-Betriebskonfiguration (schreibgeschützt)",
+      "readonlyBanner": "Diese Seite ist eine reine Übersicht — hier wird nichts bearbeitet. Die Detailkonfiguration erfolgt im jeweiligen Modul (oder über Umgebungsvariablen).",
       "footer": "Details über das jeweils zuständige Modul bearbeiten.",
       "sections": {
         "platform": {

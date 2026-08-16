@@ -415,6 +415,7 @@
     "settings": {
       "title": "System settings",
       "subtitle": "Overview of admin operating configuration (read-only)",
+      "readonlyBanner": "This page is a read-only overview — nothing is edited here. Detailed configuration happens in each corresponding module (or environment variables).",
       "footer": "Edit details through each corresponding module.",
       "sections": {
         "platform": {

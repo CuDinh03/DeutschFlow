@@ -53,6 +53,15 @@ public class OrgMembershipService {
     private final AuditLogService auditLogService;
 
     /**
+     * True if the user currently holds an ACTIVE membership in any org. Callers use this to route
+     * a platform-role change through the org flow instead of overwriting {@code users.role} directly
+     * (which would leave {@code org_members.role} out of sync).
+     */
+    public boolean hasActiveMembership(Long userId) {
+        return memberRepo.existsByIdUserIdAndStatus(userId, STATUS_ACTIVE);
+    }
+
+    /**
      * Inserts a new org membership or reactivates an existing one, sets {@code users.org_id},
      * and promotes a global STUDENT to TEACHER when joining as MANAGER/TEACHER.
      *

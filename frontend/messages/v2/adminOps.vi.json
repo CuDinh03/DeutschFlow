@@ -415,6 +415,7 @@
     "settings": {
       "title": "Cấu hình hệ thống",
       "subtitle": "Tổng quan cấu hình vận hành quản trị (chỉ xem)",
+      "readonlyBanner": "Trang này chỉ để XEM tổng quan — không chỉnh sửa trực tiếp tại đây. Cấu hình chi tiết thực hiện ở từng module tương ứng (hoặc biến môi trường).",
       "footer": "Chỉnh sửa chi tiết thực hiện qua từng module tương ứng.",
       "sections": {
         "platform": {

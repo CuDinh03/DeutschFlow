@@ -61,6 +61,18 @@ public class GlobalExceptionHandler {
                 ex.getMessage(), request.getRequestURI(), null, null);
     }
 
+    /**
+     * IllegalArgumentException means "the caller passed a bad argument" — a client error, not a
+     * server fault. Without this it fell through to the catch-all 500 (e.g. an invalid broadcast
+     * audienceType or a malformed scheduledAt returned 500 instead of 400 — A-7).
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ProblemDetail> handleIllegalArgument(IllegalArgumentException ex,
+                                                               HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, "bad-request", "Bad Request",
+                ex.getMessage(), request.getRequestURI(), null, null);
+    }
+
     // --- 405 Method Not Allowed ---
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ProblemDetail> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex,

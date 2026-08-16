@@ -678,6 +678,13 @@ public class AdminManagementService {
         if (!List.of("ADMIN", "TEACHER", "STUDENT").contains(normalized)) {
             throw new BadRequestException("Invalid role");
         }
+        // Overwriting users.role here bypasses OrgMembershipService, which is the only writer that
+        // keeps org_members.role in lock-step. For an org member that silently desyncs the two, so
+        // force the change through the org console instead (A-5).
+        if (orgMembershipService.hasActiveMembership(userId)) {
+            throw new BadRequestException(
+                    "Người dùng đang thuộc một tổ chức. Hãy đổi vai trò qua Console tổ chức để giữ đồng bộ org_members.");
+        }
         user.setRole(User.Role.valueOf(normalized));
         userRepository.save(user);
         return Map.of(

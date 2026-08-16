@@ -17,6 +17,10 @@ public interface OrgMemberRepository extends JpaRepository<OrgMember, OrgMemberI
     long countByIdOrgIdAndRoleAndStatus(Long orgId, String role, String status);
     boolean existsByIdUserIdAndRoleInAndStatus(Long userId, Collection<String> roles, String status);
 
+    /** True if the user has a membership of the given status in ANY org (used to block a platform
+     *  role change that would desync {@code org_members} vs {@code users.role}). */
+    boolean existsByIdUserIdAndStatus(Long userId, String status);
+
     /** True if the user has a membership of the given status in ANY org other than {@code orgId}
      *  (enforces "1 staff – 1 org at a time": B2B model §4 decision 1). */
     boolean existsByIdUserIdAndStatusAndIdOrgIdNot(Long userId, String status, Long orgId);
