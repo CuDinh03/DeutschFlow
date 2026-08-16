@@ -68,6 +68,13 @@
             <version>2.25.35</version>
         </dependency>
 
+        <!-- Anthropic (Galerie SVG generation — plan mục 12, model claude-fable-5) -->
+        <dependency>
+            <groupId>com.anthropic</groupId>
+            <artifactId>anthropic-java</artifactId>
+            <version>2.34.0</version>
+        </dependency>
+
         <!-- Security -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
