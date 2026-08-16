@@ -868,7 +868,10 @@ public class AdminManagementService {
                 SELECT
                   u.id AS studentId,
                   u.display_name AS name,
-                  lp.plan_json AS planJson,
+                  -- plan_json is JSONB: cast to text so JdbcTemplate returns a String, not a
+                  -- PGobject (which the (String) cast below would choke on → 500 for the whole
+                  -- reports page). CAST(... AS text) avoids the `::` form that Hibernate mangles.
+                  CAST(lp.plan_json AS text) AS planJson,
                   COALESCE(c.completedSessions, 0) AS completedSessions,
                   lc.week_number AS lastCompletedWeek,
                   lc.session_index AS lastCompletedSession,

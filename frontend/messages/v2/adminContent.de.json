@@ -278,6 +278,7 @@
       "refresh": "Aktualisieren",
       "loadError": "Berichte konnten nicht geladen werden",
       "noData": "Keine Daten.",
+      "partialError": "{count} Bericht(e) konnten nicht geladen werden — der Rest wird angezeigt.",
       "signalLatency": "Submit-Latenz (p95)",
       "signalGrammar": "Grammatikabdeckung",
       "signalUnder20": "Lernende < 20 %",

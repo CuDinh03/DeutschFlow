@@ -278,6 +278,7 @@
       "refresh": "Refresh",
       "loadError": "Could not load reports",
       "noData": "No data.",
+      "partialError": "{count} report(s) failed to load — the rest are shown.",
       "signalLatency": "Submit latency (p95)",
       "signalGrammar": "Grammar coverage",
       "signalUnder20": "Students < 20%",
