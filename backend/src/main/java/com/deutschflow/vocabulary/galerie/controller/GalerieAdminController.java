@@ -57,18 +57,23 @@ public class GalerieAdminController {
             @RequestParam(defaultValue = "0") int offset) {
         int effectiveLimit = Math.min(Math.max(1, limit), OVERVIEW_MAX_LIMIT);
         int effectiveOffset = Math.max(0, offset);
+        // Schema thật (hotfix ERR-2): meaning ở word_translations (vi→en), gender ở nouns.
         StringBuilder sql = new StringBuilder("""
-                SELECT id, base_form, gender, dtype, cefr_level, meaning,
-                       image_family, image_concept, image_status, image_url, image_style
-                FROM words
-                WHERE image_status IS NOT NULL
+                SELECT w.id, w.base_form, n.gender, w.dtype, w.cefr_level,
+                       COALESCE(t_vi.meaning, t_en.meaning) AS meaning,
+                       w.image_family, w.image_concept, w.image_status, w.image_url, w.image_style
+                FROM words w
+                LEFT JOIN nouns n ON n.id = w.id
+                LEFT JOIN word_translations t_vi ON t_vi.word_id = w.id AND t_vi.locale = 'vi'
+                LEFT JOIN word_translations t_en ON t_en.word_id = w.id AND t_en.locale = 'en'
+                WHERE w.image_status IS NOT NULL
                 """);
         java.util.ArrayList<Object> args = new java.util.ArrayList<>();
         if (status != null && !status.isBlank()) {
-            sql.append(" AND image_status = ?");
+            sql.append(" AND w.image_status = ?");
             args.add(status.trim().toUpperCase());
         }
-        sql.append(" ORDER BY image_updated_at DESC NULLS LAST, id ASC LIMIT ? OFFSET ?");
+        sql.append(" ORDER BY w.image_updated_at DESC NULLS LAST, w.id ASC LIMIT ? OFFSET ?");
         args.add(effectiveLimit);
         args.add(effectiveOffset);
         return ResponseEntity.ok(jdbcTemplate.queryForList(sql.toString(), args.toArray()));
