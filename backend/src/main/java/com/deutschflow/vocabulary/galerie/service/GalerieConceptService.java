@@ -31,6 +31,10 @@ import java.util.Map;
  * loại từ có nghĩa rỗng, nghĩa chứa ký tự điều khiển/xuống dòng, nghĩa dài bất thường (nhồi
  * trích dẫn Wiktionary), và lemma dính ký tự điều khiển (TAB). Dùng lớp POSIX {@code [:cntrl:]}
  * qua JdbcTemplate — tránh hẳn bẫy Hibernate nuốt {@code ::} của native query.
+ *
+ * <p>Schema thật (hotfix 16/08 — ERR-1 prod): {@code words} KHÔNG có cột {@code meaning} hay
+ * {@code gender}. Nghĩa nằm ở {@code word_translations} (UNIQUE word_id+locale; ưu tiên vi,
+ * fallback en); gender nằm ở {@code nouns.gender} (JOINED inheritance, {@code nouns.id = words.id}).
  */
 @Slf4j
 @Service
@@ -47,12 +51,22 @@ public class GalerieConceptService {
     private static final double TEMPERATURE = 0.4;
     private static final int MAX_TOKENS = 300;
 
+    /** Nghĩa hiển thị cho concept: ưu tiên tiếng Việt, fallback tiếng Anh. */
+    private static final String MEANING_EXPR = "COALESCE(t_vi.meaning, t_en.meaning)";
+
+    private static final String FROM_WORDS_JOINED = """
+            FROM words w
+            LEFT JOIN nouns n ON n.id = w.id
+            LEFT JOIN word_translations t_vi ON t_vi.word_id = w.id AND t_vi.locale = 'vi'
+            LEFT JOIN word_translations t_en ON t_en.word_id = w.id AND t_en.locale = 'en'
+            """;
+
     private static final String CLEAN_WORD_FILTER = """
-             AND meaning IS NOT NULL AND btrim(meaning) <> ''
-             AND length(meaning) <= %d
-             AND meaning !~ '[[:cntrl:]]'
-             AND base_form !~ '[[:cntrl:]]'
-            """.formatted(MAX_MEANING_LENGTH);
+             AND %1$s IS NOT NULL AND btrim(%1$s) <> ''
+             AND length(%1$s) <= %2$d
+             AND %1$s !~ '[[:cntrl:]]'
+             AND w.base_form !~ '[[:cntrl:]]'
+            """.formatted(MEANING_EXPR, MAX_MEANING_LENGTH);
 
     private final JdbcTemplate jdbcTemplate;
     private final OpenAiChatClient chatClient;
@@ -65,16 +79,17 @@ public class GalerieConceptService {
     public GalerieConceptBatchResponse generateForMissing(int limit, String cefr, Long adminUserId) {
         int effectiveLimit = Math.min(Math.max(1, limit), MAX_BATCH);
         StringBuilder sql = new StringBuilder("""
-                SELECT id, base_form, gender, dtype, meaning, cefr_level
-                FROM words
-                WHERE image_concept IS NULL
-                """).append(CLEAN_WORD_FILTER);
+                SELECT w.id, w.base_form, n.gender, w.dtype, w.cefr_level, %s AS meaning
+                """.formatted(MEANING_EXPR))
+                .append(FROM_WORDS_JOINED)
+                .append("WHERE w.image_concept IS NULL\n")
+                .append(CLEAN_WORD_FILTER);
         List<Object> args = new ArrayList<>();
         if (cefr != null && !cefr.isBlank()) {
-            sql.append(" AND cefr_level = ?");
+            sql.append(" AND w.cefr_level = ?");
             args.add(cefr.trim().toUpperCase());
         }
-        sql.append(" ORDER BY frequency_rank ASC NULLS LAST, id ASC LIMIT ?");
+        sql.append(" ORDER BY w.frequency_rank ASC NULLS LAST, w.id ASC LIMIT ?");
         args.add(effectiveLimit);
 
         List<Map<String, Object>> candidates = jdbcTemplate.queryForList(sql.toString(), args.toArray());
@@ -89,20 +104,23 @@ public class GalerieConceptService {
         List<Long> capped = wordIds.stream().distinct().limit(MAX_BATCH).toList();
         String placeholders = String.join(",", java.util.Collections.nCopies(capped.size(), "?"));
         String sql = """
-                SELECT id, base_form, gender, dtype, meaning, cefr_level
-                FROM words
-                WHERE id IN (%s)
-                """.formatted(placeholders) + CLEAN_WORD_FILTER + " ORDER BY id ASC";
+                SELECT w.id, w.base_form, n.gender, w.dtype, w.cefr_level, %s AS meaning
+                """.formatted(MEANING_EXPR)
+                + FROM_WORDS_JOINED
+                + "WHERE w.id IN (%s)\n".formatted(placeholders)
+                + CLEAN_WORD_FILTER + " ORDER BY w.id ASC";
         List<Map<String, Object>> candidates = jdbcTemplate.queryForList(sql, capped.toArray());
         return process(candidates, null, adminUserId);
     }
 
     public int countMissing(String cefr) {
-        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM words WHERE image_concept IS NULL")
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*)\n")
+                .append(FROM_WORDS_JOINED)
+                .append("WHERE w.image_concept IS NULL\n")
                 .append(CLEAN_WORD_FILTER);
         List<Object> args = new ArrayList<>();
         if (cefr != null && !cefr.isBlank()) {
-            sql.append(" AND cefr_level = ?");
+            sql.append(" AND w.cefr_level = ?");
             args.add(cefr.trim().toUpperCase());
         }
         Integer count = jdbcTemplate.queryForObject(sql.toString(), Integer.class, args.toArray());
