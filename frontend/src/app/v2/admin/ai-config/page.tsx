@@ -21,6 +21,13 @@ interface AiConfig {
 
 const DEFAULT_CONFIG: AiConfig = { prompt: '', temperature: 0.7, maxTokens: 1024, topP: 0.9 }
 
+/**
+ * Kẹp vào [min,max]. CHỈ gọi lúc blur — kẹp trong lúc gõ sẽ chặn các chữ số trung gian
+ * (gõ "6" trên đường tới "600" bị nhảy thành 64 vì 6 < min).
+ */
+const clampTo = (v: number, min: number, max: number): number =>
+  Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : min
+
 export default function V2AdminAiConfigPage() {
   const t = useTranslations('v2.adminContent.aiConfig')
   const { data, loading, reload } = useAdminData<AiConfig>({
@@ -63,7 +70,11 @@ export default function V2AdminAiConfigPage() {
   const sliders: { label: string; val: number; set: (v: number) => void; min: number; max: number; step: number }[] = [
     { label: t('sliderTemperature'), val: temperature, set: setTemperature, min: 0, max: 1, step: 0.05 },
     { label: t('sliderTopP'), val: topP, set: setTopP, min: 0, max: 1, step: 0.05 },
-    { label: t('sliderMaxTokens'), val: maxTokens, set: setMaxTokens, min: 256, max: 4096, step: 256 },
+    // Biên khớp hợp đồng backend (AdminAiConfigController: MIN/MAX_MAX_TOKENS = 64/8192) và
+    // step=1 để MỌI giá trị đang lưu đều nằm trên lưới. Bản cũ `256–4096 step 256` vừa hẹp hơn
+    // backend, vừa không biểu diễn được giá trị prod 2000: thumb snap về 2048 trong khi nhãn vẫn
+    // ghi 2000, và chỉ cần kéo một cái là 2000 mất vĩnh viễn — không có đường quay lại qua UI.
+    { label: t('sliderMaxTokens'), val: maxTokens, set: setMaxTokens, min: 64, max: 8192, step: 1 },
   ]
 
   // "Model đang dùng" — đọc từ cấu hình runtime thật (env: app.ai.*) thay vì hardcode Claude/Bedrock.
@@ -121,7 +132,25 @@ export default function V2AdminAiConfigPage() {
             <div key={s.label} className="mb-[22px]">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <span className="min-w-0 text-[13px] font-semibold text-ga-ink">{s.label}</span>
-                <span className="shrink-0 font-ga-display text-[18px] font-medium text-ga-ink">{s.val}</span>
+                {/* Nhập được, không chỉ hiển thị: slider một mình không thể trả về đúng một giá trị
+                    cụ thể (vd 2000) khi đã lỡ kéo. Kẹp ở blur chứ không ở change — xem clampTo. */}
+                <input
+                  type="number"
+                  min={s.min}
+                  max={s.max}
+                  step={s.step}
+                  value={s.val}
+                  disabled={loading}
+                  aria-label={s.label}
+                  title={`${s.min} – ${s.max}`}
+                  onChange={(e) => {
+                    if (e.target.value === '') return
+                    const n = Number(e.target.value)
+                    if (Number.isFinite(n)) s.set(n)
+                  }}
+                  onBlur={(e) => s.set(clampTo(Number(e.target.value), s.min, s.max))}
+                  className="w-[88px] shrink-0 rounded-ga border border-ga-line bg-ga-bg px-2 py-1 text-right font-ga-display text-[18px] font-medium text-ga-ink outline-none"
+                />
               </div>
               <input
                 type="range"
