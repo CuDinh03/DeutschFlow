@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.test.context.support.WithMockUser;
 
 import java.util.List;
 import java.util.Map;
@@ -89,6 +90,9 @@ class GalerieConceptSchemaIntegrationTest extends AbstractPostgresIntegrationTes
     }
 
     @Test
+    // Controller có @PreAuthorize — gọi trực tiếp trong IT cần Authentication giả
+    // (gotcha đã ghi: plain @SpringBootTest → AuthenticationCredentialsNotFound)
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("generateForWordIds: đọc nghĩa từ word_translations, persist family/concept/CONCEPT_READY; overview đọc lại được")
     void generateForWordIds_persistsAndOverviewReads() {
         when(chatClient.chatCompletionForTier(anyList(), any(), anyDouble(), anyInt(), anyBoolean()))
