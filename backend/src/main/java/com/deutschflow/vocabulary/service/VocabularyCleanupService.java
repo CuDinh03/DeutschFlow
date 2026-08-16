@@ -5,6 +5,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -255,7 +256,15 @@ public class VocabularyCleanupService {
             return out;
         }
 
-        // Delete children first (no FK cascade assumed).
+        out.put("deleted", deleteWordsWithChildren(ids));
+        return out;
+    }
+
+    /** Xoá từ kèm mọi bảng con (không giả định FK cascade). Trả về số dòng {@code words} đã xoá. */
+    private int deleteWordsWithChildren(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return 0;
+        }
         String in = ids.stream().map(x -> "?").reduce((a, b) -> a + "," + b).orElse("?");
         Object[] args = ids.toArray();
         jdbcTemplate.update("DELETE FROM noun_declension_forms WHERE noun_id IN (" + in + ")", args);
@@ -265,9 +274,102 @@ public class VocabularyCleanupService {
         jdbcTemplate.update("DELETE FROM adjectives WHERE id IN (" + in + ")", args);
         jdbcTemplate.update("DELETE FROM word_tags WHERE word_id IN (" + in + ")", args);
         jdbcTemplate.update("DELETE FROM word_translations WHERE word_id IN (" + in + ")", args);
-        int deleted = jdbcTemplate.update("DELETE FROM words WHERE id IN (" + in + ")", args);
+        return jdbcTemplate.update("DELETE FROM words WHERE id IN (" + in + ")", args);
+    }
 
-        out.put("deleted", deleted);
+    /**
+     * Sửa lemma dính ký tự điều khiển — di chứng của bộ trích PDF Goethe CŨ, đã vá ở #356.
+     *
+     * <p>Bộ trích cũ đặt TAB sai ranh giới cột nên {@code base_form} nuốt luôn từ đầu của câu ví dụ:
+     * {@code "Salz<TAB>Entschuldigung"}, {@code "See<TAB>Komm"}, {@code "schließen<TAB>Bitte"}.
+     * Đo trên mẫu 2.314 bản ghi prod: 5 dòng (0,22%), nằm gọn trong một khối id liền kề.
+     *
+     * <p><b>Vì sao KHÔNG cắt cụt tất cả:</b> 4/5 ca có lemma chuẩn ĐÃ tồn tại ở dòng khác
+     * ({@code "Entschuldigung"}, {@code "See"}, {@code "einsteigen"}, {@code "schließen"}), mà kho
+     * hiện <b>không có lemma trùng nào</b> — cắt cụt sẽ tạo ra bản trùng đầu tiên. Nên quyết định
+     * theo từng dòng, đọc dữ liệu thật lúc chạy:
+     * <ul>
+     *   <li>đã có dòng khác mang đúng lemma đó → dòng hỏng là <b>thừa</b> ⇒ xoá cả cây con;</li>
+     *   <li>chưa có → <b>sửa</b> {@code base_form} về phần trước ký tự điều khiển.</li>
+     * </ul>
+     *
+     * <p>Lưu ý: 1.939 lemma chứa DẤU CÁCH ({@code "das Auto"}, {@code "an sein"}) là HỢP LỆ và
+     * không bao giờ bị đụng tới — bộ lọc chỉ bắt TAB/CR/LF.
+     */
+    @Transactional
+    public Map<String, Object> repairControlCharLemmas(Integer limit, boolean dryRun) {
+        int cap = (limit == null || limit < 1) ? 200 : Math.min(limit, 2000);
+
+        List<Map<String, Object>> broken = jdbcTemplate.queryForList(
+                """
+                SELECT id, base_form, cefr_level, dtype
+                FROM words
+                WHERE base_form LIKE '%' || CHR(9)  || '%'
+                   OR base_form LIKE '%' || CHR(10) || '%'
+                   OR base_form LIKE '%' || CHR(13) || '%'
+                ORDER BY id ASC
+                LIMIT ?
+                """,
+                cap);
+
+        List<Map<String, Object>> plan = new ArrayList<>();
+        List<Long> toDelete = new ArrayList<>();
+        Map<Long, String> toRepair = new LinkedHashMap<>();
+
+        for (Map<String, Object> row : broken) {
+            long id = ((Number) row.get("id")).longValue();
+            String raw = String.valueOf(row.get("base_form"));
+            String trimmed = raw.split("[\t\r\n]", 2)[0].trim();
+
+            String action;
+            if (trimmed.isEmpty()) {
+                // Toàn ký tự điều khiển — không còn gì để giữ.
+                action = "delete_empty";
+                toDelete.add(id);
+            } else {
+                Integer canonical = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM words WHERE id <> ? AND LOWER(TRIM(base_form)) = LOWER(?)",
+                        Integer.class, id, trimmed);
+                if (canonical != null && canonical > 0) {
+                    action = "delete_redundant";
+                    toDelete.add(id);
+                } else {
+                    action = "repair";
+                    toRepair.put(id, trimmed);
+                }
+            }
+
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", id);
+            item.put("baseForm", raw);
+            item.put("trimmed", trimmed);
+            item.put("cefrLevel", row.get("cefr_level"));
+            item.put("dtype", row.get("dtype"));
+            item.put("action", action);
+            plan.add(item);
+        }
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("matched", broken.size());
+        out.put("limit", cap);
+        out.put("dryRun", dryRun);
+        out.put("plannedRepair", toRepair.size());
+        out.put("plannedDelete", toDelete.size());
+        out.put("plan", plan);
+
+        if (dryRun) {
+            out.put("repaired", 0);
+            out.put("deleted", 0);
+            return out;
+        }
+
+        int repaired = 0;
+        for (Map.Entry<Long, String> e : toRepair.entrySet()) {
+            repaired += jdbcTemplate.update(
+                    "UPDATE words SET base_form = ?, updated_at = NOW() WHERE id = ?", e.getValue(), e.getKey());
+        }
+        out.put("repaired", repaired);
+        out.put("deleted", deleteWordsWithChildren(toDelete));
         return out;
     }
 }

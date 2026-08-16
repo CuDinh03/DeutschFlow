@@ -770,6 +770,35 @@ public class AdminManagementController {
         return result;
     }
 
+    /**
+     * POST /api/admin/vocabulary/cleanup/control-char-lemmas?limit=200&dryRun=true
+     *
+     * Sửa lemma dính TAB/CR/LF — di chứng bộ trích PDF Goethe cũ (đã vá ở #356).
+     * Dry-run mặc định: trả về KẾ HOẠCH từng dòng (repair hay delete) mà không ghi gì.
+     * Khác {@code concatenated-lemmas} vốn chỉ bắt chuỗi KHÔNG dấu cách và luôn xoá.
+     */
+    @PostMapping("/vocabulary/cleanup/control-char-lemmas")
+    public Map<String, Object> cleanupControlCharLemmas(
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(defaultValue = "true") boolean dryRun,
+            Authentication authentication
+    ) {
+        Map<String, Object> result = vocabularyCleanupService.repairControlCharLemmas(limit, dryRun);
+        auditLogService.log(
+                "admin.vocabulary.cleanup.control-char-lemmas.triggered",
+                null,
+                actorEmail(authentication),
+                actorRole(authentication),
+                "VOCABULARY_CLEANUP",
+                "control-char-lemmas",
+                Map.of("limit", result.get("limit"), "dryRun", dryRun,
+                        "matched", result.get("matched"),
+                        "repaired", result.get("repaired"),
+                        "deleted", result.get("deleted"))
+        );
+        return result;
+    }
+
     @PostMapping("/vocabulary/auto-tag/batch")
     public Map<String, Object> autoTagBatch(
             @AuthenticationPrincipal User user,
