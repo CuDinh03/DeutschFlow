@@ -784,6 +784,15 @@ public class UserNotificationService {
         log.info("[notifications] CLASS_CHANNEL_MESSAGE → {} members in class={}", notifications.size(), classId);
     }
 
+    /**
+     * How many active users a broadcast would reach — powers the admin confirm dialog (A-1) so a
+     * "Gửi tới tất cả" click shows the real headcount before fanning out an irreversible push.
+     */
+    @Transactional(readOnly = true)
+    public long countAudience(BroadcastNotificationRequest request) {
+        return resolveAudience(request).size();
+    }
+
     private List<User> resolveAudience(BroadcastNotificationRequest request) {
         return switch (request.audienceType().toUpperCase()) {
             // Filter at the DB rather than loading every user row into the JVM via findAll().
