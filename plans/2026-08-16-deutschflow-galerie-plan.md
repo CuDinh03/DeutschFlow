@@ -6,6 +6,8 @@ Ngày: 2026-08-16 · Trạng thái: **ĐÃ DUYỆT 16/08 → P0 code xong (nhán
 
 > ⚠️ Ghi chú về ảnh tham chiếu owner gửi kèm: ảnh đó truyền tải đúng *tinh thần* (editorial, controlled imperfection, micro-scene, negative space) nhưng palette của nó (sage/xanh xám/pastel) **không phải palette Galerie** (gold–brick red–ink–cream). Chỉ dùng làm tham chiếu độ "artistic", không dùng làm style reference khi gen.
 
+> 🔄 **ĐỔI HƯỚNG P1 (owner quyết 16/08): dùng CLAUDE tạo artwork.** Ràng buộc kỹ thuật: Claude API **không sinh ảnh raster** (không có image-generation endpoint) — Claude tạo artwork bằng cách **viết SVG**. Toàn bộ mục 5/12/19/20/22 bên dưới được viết lại theo hướng SVG-first; nhánh FLUX/diffusion hạ xuống làm phương án dự phòng nếu pilot SVG không đạt bar "organic editorial" của master prompt. Concept pipeline P0 giữ nguyên — visualConcept là đầu vào cho cả hai hướng.
+
 ## 1. Kiến trúc hiện tại (đã verify 16/08)
 
 - **Entity `Word`** (`vocabulary/entity/Word.java`): có sẵn `base_form`, `gender`, `dtype`, `cefr_level`, `meaning`, `frequency_rank`, `image_url`, `audio_url` + metadata ảnh từ V150: `image_source`, `image_style`, `image_prompt`, `image_generated_at`, `image_updated_at`. Kho ~10.900 từ.
@@ -38,8 +40,8 @@ S3 public-read + `media_assets` metadata. 5.000 WebP 1024² ≈ 250–400MB — 
 
 ## 5. AI provider hiện tại
 
-- Text: **Fireworks** (sống, có key, có resilience). 
-- Image: **KHÔNG có provider nào sống** (Bedrock tắt; Unsplash là search, không phải gen). Phải thêm 1 provider mới — đề xuất ưu tiên kiểm tra **Fireworks image API (họ host FLUX)** để reuse key/billing/vendor; fallback fal.ai. Cần verify model list + giá trước khi chốt (⚠️ chưa verify).
+- Text: **Fireworks** (sống, có key, có resilience) — giữ cho concept/classify (P0 đã chạy).
+- Artwork: **Claude (Anthropic API)** theo quyết định owner 16/08. Claude không có endpoint sinh ảnh raster — artwork được tạo dưới dạng **SVG do Claude viết** từ visualConcept. Model mặc định `claude-opus-5` ($5/$25 per MTok; qua **Batch API giảm 50%** — hợp batch đêm không nhạy latency); bậc rẻ hơn `claude-sonnet-5` nếu pilot cho thấy đủ chất lượng. Cần `ANTHROPIC_API_KEY` mới (vendor mới — owner tạo key + đặt trần chi tiêu). Diffusion (FLUX) hạ xuống DỰ PHÒNG nếu pilot SVG không đạt bar organic-editorial.
 
 ## 6. File cần SỬA (khi được duyệt)
 
@@ -93,19 +95,22 @@ words (lọc data sạch) → GalerieConceptService (LLM batch, rẻ)
 
 LLM (Fireworks gpt-oss-120b) với few-shot đúng 8 ví dụ mục 16, output 1–2 câu tiếng Anh, persist `image_concept`. Regenerate concept chỉ khi prompt-version đổi hoặc admin yêu cầu.
 
-## 12. Chiến lược image generation
+## 12. Chiến lược artwork generation (SVG bằng Claude — sửa 16/08)
 
-- Master 1024×1024 → convert **WebP** trước khi upload (chốt Q2 cũ; thư viện Java: TwelveMonkeys/webp-imageio — verify khi code).
-- **1 master artwork/từ** — thumbnail bằng CSS crop/resize FE (mục 18), không gen riêng.
-- ⚠️ **Master prompt của spec quá dài cho FLUX** (T5 encoder giới hạn ~512 token): cần `GaleriePromptFactory` xuất 2 bản — bản condensed (~250 từ, giữ palette/form/avoid cốt lõi + visualConcept) cho FLUX, bản full cho model context dài (gpt-image-1) nếu pilot chọn nó.
-- Style anchors (mục 28): sau pilot chọn 8–12 artwork APPROVED làm reference set nếu provider hỗ trợ (FLUX Redux/img2img trên fal; Fireworks image-to-image — verify).
+- **Master artwork = SVG** (viewBox vuông ~1024, canvas cream `#F6F3EC`), Claude viết từ visualConcept + master prompt full của owner (context Claude dài — KHÔNG cần bản condensed như FLUX; giữ bản condensed trong PromptFactory cho nhánh dự phòng diffusion).
+- Prompt yêu cầu **organic editorial**: path bezier bất đối xứng có chủ đích, silhouette biểu cảm — KHÔNG lặp lại lỗi "geometric Bauhaus" của bộ mock 14 từ (spec mục 6–7). Đây là điểm pilot phải chứng minh.
+- **Style anchors thật sự khả thi**: nhét 3–5 SVG đã APPROVED vào prompt làm few-shot (điều diffusion không làm được sạch) + **prompt caching** cho khối master-prompt+anchors ⇒ mọi lượt sau đọc cache ~0.1× giá.
+- **Sanitize/validate bắt buộc trước khi lưu** (SVG là code): chỉ cho phép tập tag hình học an toàn (path/rect/circle/ellipse/polygon/g/defs/use), CẤM `<script>`, `<text>/<tspan>` (spec cấm chữ — enforce bằng parser, không cần vision!), event handler, href ngoài; cap kích thước ~20KB.
+- **Serve SVG trực tiếp**: web render native; mobile đã có `react-native-svg` (SvgXml) — KHÔNG cần `expo-image`, mở lại khả năng **ship OTA** (đảo ngược ràng buộc build-native của nhánh raster!). Rasterize WebP (Batik) chỉ cho vision-QA + og-image nếu cần.
+- **1 master artwork/từ** — SVG sắc nét mọi kích thước ⇒ mục 18 (thumbnail strategy) thành miễn phí, không crop metadata.
+- Sinh qua **Anthropic Batch API** (50% giá, kết quả ≤1h, hợp chunk đêm) cho batch lớn; pilot chạy sync.
 
 ## 13. Chiến lược QA
 
-- **Semantic** (ưu tiên 1, mục 19): Vision model nhìn ảnh KHÔNG được mớm từ → mô tả → LLM text so khớp meaning → PASS/REVIEW. Vision qua chat client với model vision trên Fireworks (verify model), hoặc Groq llama-4-scout còn key.
-- **Palette compliance**: script đếm histogram pixel, % pixel ngoài 5 màu (± tolerance ΔE) > ngưỡng ⇒ REVIEW. Chạy local, 0đ.
-- **Text detection**: hỏi vision "any letters/text?" trong cùng lượt gọi semantic.
-- **Thumbnail readability**: chỉ QA thủ công ở pilot (đắt nếu tự động toàn kho).
+- **Semantic** (ưu tiên 1, mục 19): rasterize SVG → Claude **vision** (cùng vendor, cùng key) nhìn ảnh KHÔNG mớm từ → mô tả → so khớp meaning → PASS/REVIEW.
+- **Palette compliance = DETERMINISTIC, 0đ** (lợi thế lớn của SVG): parse thuộc tính fill/stroke, whitelist đúng 5 mã hex Galerie — không cần histogram xấp xỉ như raster.
+- **Text detection = DETERMINISTIC, 0đ**: sanitizer đã cấm `<text>/<tspan>` từ đầu (chữ vẽ bằng path vẫn có thể lọt → vision semantic bắt nốt).
+- **Thumbnail readability**: SVG scale vô hạn nên chỉ cần soi độ rối (đếm element > ngưỡng ⇒ REVIEW); QA thủ công ở pilot.
 
 ## 14. Chiến lược storage
 
@@ -135,21 +140,23 @@ Pilot 30 ảnh chạy sync loop được (5–15s/ảnh); scale thì chunk 50–
 
 ## 19. Rủi ro chi phí / rate-limit
 
+Ước tính mỗi SVG: ~1.5–3K token input (master prompt + anchors, phần lớn CACHE ~0.1×) + ~2–4K token output. Giá niêm yết (Batch API = 50%):
+
 | Hạng mục | Pilot 30 | Full ~4.000 từ sạch (+30% retry) |
 |---|---|---|
-| Concept LLM (Fireworks) | ~0đ | < $1 |
-| Image FLUX schnell-class | ~$0.1 | ~$15–25 |
-| Image FLUX dev-class | ~$0.8 | ~$130 |
-| Image gpt-image-1 | ~$1.5 | ~$220+ |
-| Vision QA | ~$0.1 | ~$10–20 |
+| Concept LLM (Fireworks — P0 giữ nguyên) | ~0đ | < $1 |
+| SVG Claude Opus 5 batch ($2.5/$12.5 MTok) | **0đ — sinh ngay trong phiên Claude Code** | ~$180–250 |
+| SVG Claude Sonnet 5 batch (intro $1/$5 tới 31/08) | — | ~$80–130 |
+| Vision QA (Claude vision, batch) | ~0đ | ~$15–25 |
+| Nhánh dự phòng FLUX dev-class | — | ~$130 |
 
-(Giá ước lượng, PHẢI verify pricing provider trước khi chốt.) Rate-limit: đã có concurrency limiter/circuit breaker phía text; image provider cần throttle ~2–4 concurrent. Ledger: ghi `AiUsageLedger` cho batch admin để COGS nhìn thấy (bài học H-1).
+(SVG đắt hơn FLUX schnell trên đơn giá nhưng bù lại: QA palette/text 0đ, storage ~3–5KB/file, thumbnail miễn phí, mobile OTA được, style ổn định hơn.) Rate-limit: throttle 2–4 concurrent khi sync; Batch API tự quản. Ledger: ghi `AiUsageLedger` provider `anthropic` cho COGS (bài học H-1).
 
 ## 20. Rủi ro style-drift (rủi ro số 1)
 
-- Editorial "controlled imperfection" khó giữ ổn định hơn flat-geometric; 5.000 ảnh sẽ drift nếu chỉ dựa prompt chay.
-- Giảm nhẹ: reference set 8–12 anchor + seed cố định họ hàng + condensed prompt chặt + palette QA tự động + collection review mỗi batch + chấp nhận tỉ lệ regenerate 20–30%.
-- Model khác nhau "hiểu" prompt này rất khác nhau ⇒ **pilot phải chạy A/B tối thiểu 2 provider** trước khi cam kết.
+- Với SVG-bằng-Claude, drift **màu/chữ/khung** gần như triệt tiêu (enforce bằng code); rủi ro chuyển sang **chất "organic handcrafted"**: SVG do LLM viết dễ trượt về geometric/icon-look — chính điểm master prompt cấm (mục 6, STRICTLY AVOID "icon library").
+- Giảm nhẹ: few-shot 3–5 SVG anchor đã APPROVED trong prompt (khả thi thật với text model) + prompt yêu cầu path bezier bất đối xứng + collection review mỗi batch + chấp nhận regenerate 20–30%.
+- **Cửa quyết định nằm ở pilot P1**: nếu 30 SVG bị owner đánh giá "vẫn như icon", kích hoạt nhánh dự phòng diffusion (FLUX) thay vì cố ép.
 
 ## 21. Scale lên 5.000+
 
@@ -157,16 +164,16 @@ Batch theo CEFR (A1 → A2 → B1...), chunk 100/đêm, resumable nhờ filter `
 
 ## 22. Kế hoạch pilot (đề xuất, CHỜ DUYỆT)
 
-1. **P0**: migration V274+ (3 cột) + `GaleriePromptFactory` + `GalerieConceptService`; chạy concept cho đúng 30 từ pilot mục 30 (đủ 5 families).
-2. **P1**: provider A/B — gen 30 từ × 2 provider (đề xuất: FLUX-dev-class + 1 model khác), cùng visualConcept.
-3. **P2**: Galerie overview grid (admin) hiển thị 2 bộ cạnh nhau → owner collection-review theo checklist mục 31 → chốt provider + chốt `galerie-v1`.
-4. **P3**: QA tự động (vision + palette) chạy trên bộ chốt → đo tỉ lệ PASS.
-5. **P4**: batch A1 (~700 từ sạch) → review → APPROVED dần.
-6. Song song: A1/A2 plan cũ (VocabReviewCard.imageUrl) để flashcard SRS nhận ảnh; mobile cần `expo-image` ⇒ **native build mới, không OTA** (đã biết từ plan 14/07) — web nhận trước, mobile theo build kế.
+1. **P0** ✅ (16/08): migration V274 + PromptFactory + ConceptService + endpoints, MERGED #364 + hotfix schema #365; chạy concept 30 từ pilot sau deploy fix.
+2. **P1 (SVG pilot, 0đ API)**: sinh 30 SVG **ngay trong phiên Claude Code** từ 30 visualConcept pilot (đủ 5 families, gồm cả HANDLUNG/GEFÜHL — thử thách organic thật sự) → dựng grid overview → owner collection-review theo checklist mục 31. Đây là cổng go/no-go SVG-vs-diffusion.
+3. **P2 (nếu SVG đạt)**: backend `GalerieSvgGenerationService` (Anthropic Java SDK + Batch API + sanitizer + validator palette/text) + tab review admin; cần owner tạo `ANTHROPIC_API_KEY`.
+4. **P3**: QA tự động (validator deterministic + Claude vision semantic) → đo tỉ lệ PASS trên pilot.
+5. **P4**: batch A1 (~700 từ sạch) qua Batch API → review → APPROVED dần.
+6. Song song: A1/A2 plan cũ (VocabReviewCard.imageUrl) để flashcard SRS nhận ảnh; **SVG + react-native-svg sẵn có ⇒ mobile ship OTA được, KHÔNG cần expo-image/build native** (đảo ngược ràng buộc cũ).
 
-## Điểm cần owner QUYẾT trước khi code
+## Điểm cần owner QUYẾT
 
-1. **Quan hệ với chiến lược 3 tầng cũ (plan 14/07)**: Galerie spec cho MỌI từ có artwork (kể cả abstract → metaphor), khác Tầng 3 "không ảnh". Đề xuất: Galerie = nguồn chính; vocabGlyph icon = placeholder khi chưa APPROVED (mục 24). Icon Tầng 1 không còn là đích, chỉ là fallback. → Xác nhận?
-2. **Provider pilot A/B**: chốt cặp nào (Fireworks-FLUX nếu có + fal.ai FLUX dev? thêm gpt-image-1?). Cần key nào owner cấp?
-3. **Ngân sách pilot** (~$1–3) và ngân sách full (~$15–130 tuỳ model) — trần bao nhiêu?
-4. Migration 3 cột trên `words` — OK không, hay muốn bảng riêng?
+1. ~~Provider pilot A/B~~ → **ĐÃ QUYẾT 16/08: Claude (SVG-first)**, diffusion là dự phòng nếu pilot fail bar organic.
+2. ~~Migration 3 cột~~ → đã merge V274 (#364).
+3. **Sau pilot P1 (nếu SVG đạt)**: owner tạo `ANTHROPIC_API_KEY` (vendor mới) + trần chi tiêu; chốt model chạy full (Opus 5 ~$180–250 vs Sonnet 5 ~$80–130 cho ~4.000 từ, Batch API).
+4. **Quan hệ với chiến lược 3 tầng cũ (plan 14/07)**: đề xuất Galerie = nguồn chính; vocabGlyph icon = placeholder khi chưa APPROVED (mục 24). → Xác nhận?
