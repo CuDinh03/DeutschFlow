@@ -210,6 +210,14 @@ server:
     min-response-size: 1024
 
 app:
+  # DeutschFlow Galerie — sinh artwork SVG bằng Anthropic (plan mục 12). Tắt mặc định:
+  # bật cần GALERIE_SVG_ENABLED=true VÀ ANTHROPIC_API_KEY trong môi trường (SDK tự đọc env).
+  # Không bật thì endpoint generate trả 503 AI_NOT_CONFIGURED, phần còn lại của pipeline vẫn chạy.
+  galerie:
+    enabled: ${GALERIE_SVG_ENABLED:false}
+    model: ${GALERIE_SVG_MODEL:claude-fable-5}
+    max-batch: ${GALERIE_SVG_MAX_BATCH:30}
+    max-output-tokens: ${GALERIE_SVG_MAX_OUTPUT_TOKENS:16000}
   async:
     core-pool-size: ${ASYNC_CORE_POOL_SIZE:10}
     max-pool-size: ${ASYNC_MAX_POOL_SIZE:50}

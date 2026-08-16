@@ -2,8 +2,11 @@ package com.deutschflow.vocabulary.galerie.controller;
 
 import com.deutschflow.user.entity.User;
 import com.deutschflow.vocabulary.galerie.dto.GalerieConceptBatchResponse;
+import com.deutschflow.vocabulary.galerie.dto.GalerieSvgBatchResponse;
 import com.deutschflow.vocabulary.galerie.service.GalerieConceptService;
+import com.deutschflow.vocabulary.galerie.service.GalerieSvgGenerationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,6 +29,7 @@ public class GalerieAdminController {
     private static final int OVERVIEW_MAX_LIMIT = 200;
 
     private final GalerieConceptService conceptService;
+    private final GalerieSvgGenerationService svgGenerationService;
     private final JdbcTemplate jdbcTemplate;
 
     /** Sinh concept cho các từ sạch còn thiếu (ưu tiên frequency_rank). */
@@ -86,5 +90,58 @@ public class GalerieAdminController {
         return ResponseEntity.ok(Map.of("missing", conceptService.countMissing(cefr)));
     }
 
+    // ── P2: sinh SVG + quyết định review (plan mục 12/16/18) ───────────────────────────────────
+
+    /** Sinh artwork SVG cho các từ CONCEPT_READY (sync, chunk nhỏ — pilot/A1; Batch API để P4). */
+    @PostMapping("/generate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<GalerieSvgBatchResponse> generateSvg(
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(required = false) String cefr,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(svgGenerationService.generateForReady(limit, cefr, user));
+    }
+
+    /** Số từ CONCEPT_READY đang chờ sinh artwork. */
+    @GetMapping("/generate/ready-count")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Integer>> readyCount(@RequestParam(required = false) String cefr) {
+        return ResponseEntity.ok(Map.of("ready", svgGenerationService.countReady(cefr)));
+    }
+
+    /**
+     * Quyết định review per-artwork: APPROVE (QA_PENDING→APPROVED), REGENERATE (gỡ artwork,
+     * về CONCEPT_READY), REJECT. 409 khi từ không ở trạng thái cho phép chuyển.
+     */
+    @PostMapping("/{wordId}/decision")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> decide(
+            @PathVariable long wordId,
+            @RequestBody GalerieDecisionRequest request) {
+        GalerieSvgGenerationService.Decision decision = parseDecision(request);
+        boolean changed = svgGenerationService.decide(wordId, decision);
+        if (!changed) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "wordId", wordId,
+                    "decision", decision.name(),
+                    "error", "Từ không ở trạng thái cho phép quyết định này"));
+        }
+        return ResponseEntity.ok(Map.of("wordId", wordId, "decision", decision.name()));
+    }
+
+    private static GalerieSvgGenerationService.Decision parseDecision(GalerieDecisionRequest request) {
+        String raw = request == null ? null : request.decision();
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException("decision là bắt buộc: APPROVE | REGENERATE | REJECT");
+        }
+        try {
+            return GalerieSvgGenerationService.Decision.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("decision không hợp lệ: " + raw);
+        }
+    }
+
     public record GalerieConceptByIdsRequest(List<Long> wordIds) {}
+
+    public record GalerieDecisionRequest(String decision) {}
 }

@@ -62,4 +62,45 @@ class GaleriePromptFactoryTest {
         assertThat(prompt).containsIgnoringCase("no").containsIgnoringCase("Bauhaus");
         assertThat(prompt).containsIgnoringCase("watermark");
     }
+
+    @Test
+    @DisplayName("svgSystemPrompt: mang 3 quy tắc owner (mặt biểu cảm / đối chứng / micro-scene) + luật kỹ thuật")
+    void svgSystemPrompt_carriesOwnerRulesAndTechnicalConstraints() {
+        String system = factory.svgSystemPrompt();
+
+        // Quy tắc 1: hình người phải có mặt biểu cảm
+        assertThat(system).contains("cream face").contains("expressive eyes");
+        // Quy tắc 2: tính từ cần chủ thể + vật đối chứng
+        assertThat(system).contains("contrasting reference");
+        // Quy tắc 3: động từ cần micro-scene
+        assertThat(system).contains("micro-scene");
+        // Luật kỹ thuật khớp sanitizer (element whitelist + viewBox + cấm text)
+        assertThat(system).contains("svg,rect,circle,ellipse,path,polygon,g");
+        assertThat(system).contains("0 0 1024 1024");
+        assertThat(system).contains("#F6F3EC", "#FFCD00", "#C79A00", "#DA291C", "#161513");
+    }
+
+    @Test
+    @DisplayName("svgAnchorsBlock: nạp đủ 3 anchor, mỗi anchor là SVG palette-compliant")
+    void svgAnchorsBlock_containsThreeAnchors() {
+        String block = factory.svgAnchorsBlock();
+
+        assertThat(block).contains("match their style, not their subjects");
+        // 3 anchor = 3 lần mở khối <svg
+        assertThat(block.split("<svg", -1)).hasSize(4);
+        assertThat(block).contains("viewBox=\"0 0 1024 1024\"");
+    }
+
+    @Test
+    @DisplayName("svgUserMessage: format WORD/MEANING/FAMILY/CONCEPT; động từ không dính 'null'")
+    void svgUserMessage_formatAndNullGender() {
+        String msg = factory.svgUserMessage("lesen", null, "đọc",
+                GalerieFamily.HANDLUNG, "One figure reading\n in an armchair.");
+
+        assertThat(msg).contains("GERMAN WORD: \"lesen\"");
+        assertThat(msg).contains("MEANING (vi): đọc");
+        assertThat(msg).contains("SEMANTIC FAMILY: HANDLUNG");
+        assertThat(msg).contains("One figure reading in an armchair.");
+        assertThat(msg).doesNotContain("null");
+    }
 }

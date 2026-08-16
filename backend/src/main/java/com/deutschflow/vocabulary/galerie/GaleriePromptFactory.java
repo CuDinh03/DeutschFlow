@@ -179,6 +179,91 @@ public class GaleriePromptFactory {
                 family == null ? "" : family.name(), oneLine(visualConcept), nullSafe(meaning));
     }
 
+    // ── Bước 2b: SVG generation prompt (P2 — plan mục 12, model claude-fable-5) ────────────────
+
+    /**
+     * System prompt sinh SVG — bản đã chạy pilot P1 v2 (30/30 PASS validator, owner duyệt),
+     * gồm sẵn 3 quy tắc art-direction owner chốt 16/08: mặt người biểu cảm, tính từ có vật
+     * đối chứng, động từ có micro-scene. Đổi luật vẽ = đổi Ở ĐÂY + nâng {@link #VERSION}.
+     */
+    private static final String SVG_SYSTEM_PROMPT = """
+            You are the illustrator of DeutschFlow Galerie — a curated collection of editorial
+            vocabulary artworks hung together like prints in a contemporary European gallery.
+            Create ONE SVG artwork for the given German word so a learner can guess the meaning
+            from the image alone.
+
+            STYLE: Modern European Editorial Illustration — curated, warm, handcrafted, slightly
+            playful. NOT an icon, pictogram, emoji, clip-art or rigid Bauhaus geometry. Build
+            shapes from organic bezier paths with controlled asymmetry — silhouettes slightly
+            irregular, curves imperfect on purpose, like hand-cut paper.
+
+            HUMAN FIGURES: cream face clearly visible with expressive eyes and mouth matching the
+            emotion; hair is only a cap, never swallowing the face; arms end in round visible
+            hands so gestures read; add cheek dots for warmth.
+            ADJECTIVES: always show an explicit subject plus a contrasting reference
+            (big elephant vs tiny mouse; running hare vs watching snail; rain cloud over a sad
+            person). Never draw an abstract adjective without a concrete carrier.
+            VERBS: build a small detailed micro-scene with context props (a meal needs the table,
+            plate and fork; sleeping needs the bed, moon and a sheep dream-bubble; reading needs
+            the armchair, book and floor lamp) — still ONE visual idea, no full environment.
+
+            COLOR (strict): background rect #F6F3EC first; shapes only #FFCD00, #C79A00, #DA291C,
+            #161513; 2–4 shape colors per artwork; no gradients, no opacity, no filters, no shadows.
+            COMPOSITION: viewBox "0 0 1024 1024"; main idea ~60–68% of canvas, optically centered,
+            generous cream negative space, intentional asymmetry welcome.
+            TECHNICAL: elements allowed: svg,rect,circle,ellipse,path,polygon,g (prefer path);
+            FORBIDDEN: text,tspan,image,script,style,filter,gradient,mask,clipPath,animation,
+            comments, id/class; no letters or digits drawn as shapes; under 60 elements.
+            Output ONLY the SVG markup.""";
+
+    /** 3 anchor few-shot (đại diện 3 loại: danh từ / động từ / tính từ) — bộ pilot P1 đã duyệt. */
+    private static final List<String> ANCHOR_RESOURCES =
+            List.of("01-der-apfel.svg", "16-lesen.svg", "24-gross.svg");
+
+    /** Nạp một lần trong constructor — fail-fast lúc boot nếu resource anchor thiếu. */
+    private final String svgAnchorsBlock = loadAnchorsBlock();
+
+    public String svgSystemPrompt() {
+        return SVG_SYSTEM_PROMPT;
+    }
+
+    /**
+     * Khối anchors đứng SAU system prompt, TRƯỚC user message; cùng system prompt tạo thành
+     * prefix ổn định cho prompt caching (mọi lượt sau đọc cache ~0.1× giá — plan mục 12).
+     */
+    public String svgAnchorsBlock() {
+        return svgAnchorsBlock;
+    }
+
+    /** User message mỗi từ — format chốt ở handoff P1: WORD / MEANING / FAMILY / CONCEPT. */
+    public String svgUserMessage(String germanWord, String gender, String meaning,
+                                 GalerieFamily family, String visualConcept) {
+        String word = (gender == null || gender.isBlank())
+                ? nullSafe(germanWord) : gender.trim() + " " + nullSafe(germanWord);
+        return "GERMAN WORD: \"" + word + "\""
+                + "\nMEANING (vi): " + nullSafe(meaning)
+                + "\nSEMANTIC FAMILY: " + (family == null ? "" : family.name())
+                + "\nVISUAL CONCEPT: " + oneLine(visualConcept)
+                + "\n\nCreate the SVG artwork now. Output ONLY the SVG markup.";
+    }
+
+    private static String loadAnchorsBlock() {
+        StringBuilder block = new StringBuilder(
+                "Reference artworks from the approved collection — match their style, "
+                        + "not their subjects:\n");
+        for (String name : ANCHOR_RESOURCES) {
+            try (var in = GaleriePromptFactory.class.getResourceAsStream("/galerie/anchors/" + name)) {
+                if (in == null) {
+                    throw new IllegalStateException("Thiếu resource anchor Galerie: " + name);
+                }
+                block.append('\n').append(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).trim()).append('\n');
+            } catch (java.io.IOException e) {
+                throw new IllegalStateException("Không đọc được anchor Galerie: " + name, e);
+            }
+        }
+        return block.toString();
+    }
+
     private static String nullSafe(String value) {
         return value == null ? "" : value.trim();
     }
