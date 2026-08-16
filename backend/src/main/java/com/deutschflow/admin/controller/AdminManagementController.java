@@ -799,6 +799,33 @@ public class AdminManagementController {
         return result;
     }
 
+    /**
+     * POST /api/admin/vocabulary/cleanup/stuffed-meanings?limit=200&dryRun=true
+     *
+     * Cắt phần nhồi (câu ví dụ, trích dẫn nguồn, danh sách đồng nghĩa, bảng biến cách) khỏi
+     * {@code meaning_en}. Dry-run mặc định trả về danh sách trước/sau. KHÔNG xoá bản dịch nào.
+     */
+    @PostMapping("/vocabulary/cleanup/stuffed-meanings")
+    public Map<String, Object> cleanupStuffedMeanings(
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(defaultValue = "true") boolean dryRun,
+            Authentication authentication
+    ) {
+        Map<String, Object> result = vocabularyCleanupService.repairStuffedMeanings(limit, dryRun);
+        auditLogService.log(
+                "admin.vocabulary.cleanup.stuffed-meanings.triggered",
+                null,
+                actorEmail(authentication),
+                actorRole(authentication),
+                "VOCABULARY_CLEANUP",
+                "stuffed-meanings",
+                Map.of("limit", result.get("limit"), "dryRun", dryRun,
+                        "scanned", result.get("scanned"),
+                        "updated", result.get("updated"))
+        );
+        return result;
+    }
+
     @PostMapping("/vocabulary/auto-tag/batch")
     public Map<String, Object> autoTagBatch(
             @AuthenticationPrincipal User user,
