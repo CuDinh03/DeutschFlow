@@ -16,6 +16,11 @@ import { GaBtn, GaCap, AdStatStrip } from '@/components/ui-v2'
 //   POST /api/v2/admin/vocabulary/galerie/{id}/decision {decision}       → 200 | 409
 
 const GOLD = '#C79A00'
+// Bucket S3 private (nợ bucket-policy 14/07) → render artwork qua endpoint public của backend.
+const BACKEND_ORIGIN = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080')
+  .replace(/\/+$/, '')
+  .replace(/\/api$/, '')
+const artworkSrc = (wordId: number) => `${BACKEND_ORIGIN}/api/public/galerie/artwork/${wordId}.svg`
 const GRID_LIMIT = 60
 // Sinh SVG sync ~5–15s/ảnh — giữ chunk nhỏ để không đụng timeout HTTP phía client.
 const GENERATE_CHUNK = 5
@@ -221,10 +226,10 @@ export default function GalerieReviewGrid() {
               <figure key={row.id} className="flex flex-col border border-ga-line bg-ga-card">
                 <div className="relative aspect-square" style={{ background: '#F6F3EC' }}>
                   {row.image_url ? (
-                    // SVG từ S3 render thẳng qua <img> — sanitizer backend đã chặn script/event.
+                    // SVG đã qua sanitizer backend (chặn script/event) — an toàn render qua <img>.
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={row.image_url}
+                      src={artworkSrc(row.id)}
                       alt={row.image_concept ?? row.base_form ?? ''}
                       className="h-full w-full object-contain"
                       loading="lazy"
