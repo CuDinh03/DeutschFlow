@@ -137,6 +137,58 @@ test.describe('Cây học tập (/v2)', () => {
     await expect(page.getByText(/Tuần 2 · Ngày 6–7/)).toBeVisible()
   })
 
+  // Regression QA prod 17/08: `onWheel` cũ đọc `event.currentTarget` bên trong updater setCamera —
+  // React đã null hoá nó ở render phase ⇒ MỘT nấc lăn chuột sập cả trang (error boundary nuốt cây).
+  test('lăn chuột trên cây: zoom tại chỗ, không sập trang', async ({ page }) => {
+    await mockSession(page, a1Roadmap())
+    await page.goto('/v2/student/roadmap')
+
+    const tree = page.getByRole('group', { name: 'Cây học tập' })
+    await expect(tree).toBeVisible()
+    const cameraG = page.locator('svg.rt-canvas > g')
+    const before = await cameraG.getAttribute('transform')
+
+    await tree.hover()
+    await page.mouse.wheel(0, -240)
+
+    // Cây còn sống (không rơi vào error boundary) và camera thực sự đã zoom.
+    await expect(tree.getByRole('button')).toHaveCount(30)
+    await expect(cameraG).not.toHaveAttribute('transform', before ?? '')
+  })
+
+  // Regression QA prod 17/08: zoomBy cũ chỉ nhân scale quanh gốc (0,0) — mỗi nấc + là khung nhìn
+  // trôi về góc, node đang học bay khỏi màn hình.
+  test('nút + phóng quanh tâm khung nhìn, không trôi về góc', async ({ page }) => {
+    await mockSession(page, a1Roadmap())
+    await page.goto('/v2/student/roadmap')
+    await expect(page.getByRole('group', { name: 'Cây học tập' })).toBeVisible()
+
+    await page.getByRole('button', { name: '+', exact: true }).click()
+
+    const transform = await page.locator('svg.rt-canvas > g').getAttribute('transform')
+    expect(transform).toContain('scale(1.25')
+    // Neo tâm ⇒ translate phải rời (0,0) ngay nấc đầu; bản lỗi giữ nguyên translate(0 0).
+    expect(transform).not.toContain('translate(0 0)')
+  })
+
+  // Regression QA prod 17/08: panel cây inactive mang class `flex` đè thuộc tính `hidden` của
+  // Radix ⇒ div rỗng flex-1 vẫn chiếm chỗ, tab Bài học/Giai đoạn hở ~300px trắng trên đầu.
+  test('chuyển tab Bài học: panel cây ẩn hẳn, không để lại khoảng trống', async ({ page }) => {
+    await mockSession(page, a1Roadmap())
+    await page.goto('/v2/student/roadmap')
+    await expect(page.getByRole('group', { name: 'Cây học tập' })).toBeVisible()
+
+    await page.getByRole('tab', { name: 'Bài học' }).click()
+
+    const gap = await page.evaluate(() => {
+      const tablist = document.querySelector('[role="tablist"]')
+      const panel = document.querySelector('[role="tabpanel"][data-state="active"]')
+      if (!tablist || !panel) return Number.NaN
+      return panel.getBoundingClientRect().top - tablist.getBoundingClientRect().bottom
+    })
+    expect(gap).toBeLessThan(60)
+  })
+
   test('không tràn ngang trên màn hình điện thoại', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await mockSession(page, a1Roadmap())

@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Sparkles } from 'lucide-react'
 import { buildTreeLayout, type Branch, type PlacedNode } from '@/lib/roadmap-tree/treeLayout'
-import type { RoadmapNode } from '@/lib/roadmap-tree/types'
+import { nodeDisplayTitle, type RoadmapNode } from '@/lib/roadmap-tree/types'
 import { EmptyState } from '@/components/ui-v2'
 import { SkillTreeCanvas } from './SkillTreeCanvas'
 import { TreeNodePanel, type TreeNodeSummary } from './TreeNodePanel'
@@ -18,6 +18,7 @@ const ZOOM_STEP = 1.25
 
 export function RoadmapTreeTab({ nodes }: { nodes: RoadmapNode[] }) {
   const t = useTranslations('v2.student.roadmap')
+  const locale = useLocale()
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [motionEnabled, setMotionEnabled] = useState(true)
 
@@ -55,7 +56,7 @@ export function RoadmapTreeTab({ nodes }: { nodes: RoadmapNode[] }) {
 
   const nodeLabel = (placed: PlacedNode) => {
     const node = nodeById.get(placed.id)
-    const name = node?.subtitle || node?.title || ''
+    const name = node ? nodeDisplayTitle(node, locale) : ''
     const day = placed.dayNumber ? t('tree.dayShort', { day: placed.dayNumber }) : ''
     return [day, name, t(`tree.status.${placed.motif}`)].filter(Boolean).join(' · ')
   }

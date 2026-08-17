@@ -197,6 +197,12 @@
           "nub": "chấm xám = khoá"
         },
         "lockedHint": "Node này chưa mở. Hoàn thành ngày trước để nụ này nở.",
+        "skillNames": {
+          "hoeren": "Nghe",
+          "lesen": "Đọc",
+          "sprechen": "Nói",
+          "schreiben": "Viết"
+        },
         "skillsCap": "Bài tập của node — 4 kỹ năng",
         "exerciseCount": "{count} câu",
         "practiceSkill": "Học & Luyện",

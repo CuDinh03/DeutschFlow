@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Branch, PlacedNode, TreeLayout } from '@/lib/roadmap-tree/treeLayout'
 import '@/styles/roadmap-tree.css'
 
@@ -40,6 +40,16 @@ interface Camera {
 
 const IDLE: Camera = { scale: 1, x: 0, y: 0 }
 
+/**
+ * Đổi toạ độ chuột (client) sang hệ toạ độ viewBox — cùng hệ đơn vị với camera, nên phép neo
+ * "điểm dưới con trỏ đứng yên" mới đúng ở mọi cỡ khung (SVG co theo `preserveAspectRatio`).
+ */
+function toViewBoxPoint(svg: SVGSVGElement, clientX: number, clientY: number): DOMPoint | null {
+  const ctm = svg.getScreenCTM()
+  if (!ctm) return null
+  return new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse())
+}
+
 export function SkillTreeCanvas({
   layout,
   selectedId,
@@ -55,27 +65,42 @@ export function SkillTreeCanvas({
   const [hoveredId, setHoveredId] = useState<number | null>(null)
   const dragRef = useRef<{ x: number; y: number; camX: number; camY: number; moved: boolean } | null>(null)
   const [dragging, setDragging] = useState(false)
+  const svgRef = useRef<SVGSVGElement | null>(null)
 
-  const zoomBy = useCallback((factor: number) => {
+  /** Phóng/thu quanh một điểm neo (toạ độ viewBox) — điểm neo đứng yên trên màn hình. */
+  const zoomAt = useCallback((factor: number, anchorX: number, anchorY: number) => {
     setCamera((cam) => {
       const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, cam.scale * factor))
-      return { ...cam, scale }
-    })
-  }, [])
-
-  const onWheel = useCallback((event: React.WheelEvent<SVGSVGElement>) => {
-    event.preventDefault()
-    setCamera((cam) => {
-      const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1
-      const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, cam.scale * factor))
-      // Giữ điểm dưới con trỏ đứng yên khi phóng to.
-      const rect = event.currentTarget.getBoundingClientRect()
-      const px = event.clientX - rect.left
-      const py = event.clientY - rect.top
       const ratio = scale / cam.scale
-      return { scale, x: px - (px - cam.x) * ratio, y: py - (py - cam.y) * ratio }
+      return { scale, x: anchorX - (anchorX - cam.x) * ratio, y: anchorY - (anchorY - cam.y) * ratio }
     })
   }, [])
+
+  // Nút ± neo vào TÂM khung nhìn (xMidYMid ⇒ tâm viewBox = tâm khung). Bản trước chỉ nhân scale
+  // quanh gốc (0,0) nên mỗi nấc zoom lại trôi khung nhìn về góc — node đang học bay mất.
+  const zoomBy = useCallback(
+    (factor: number) => zoomAt(factor, layout.width / 2, layout.height / 2),
+    [zoomAt, layout.width, layout.height],
+  )
+
+  // Zoom bằng con lăn: listener gắn tay, KHÔNG qua JSX `onWheel`, vì hai bẫy đã trả giá trên prod:
+  //  1. React gắn wheel dạng passive ⇒ `preventDefault()` trong JSX là no-op — vừa zoom cây vừa
+  //     cuộn trang.
+  //  2. Đọc `event.currentTarget` BÊN TRONG updater của `setCamera` thì updater chạy ở render
+  //     phase, khi React đã null hoá currentTarget ⇒ sập cả trang ngay nấc lăn đầu tiên.
+  //     Mọi thứ cần từ event phải đọc xong TRƯỚC khi gọi setCamera.
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      const anchor = toViewBoxPoint(svg, event.clientX, event.clientY)
+      if (!anchor) return
+      zoomAt(event.deltaY < 0 ? 1.1 : 1 / 1.1, anchor.x, anchor.y)
+    }
+    svg.addEventListener('wheel', onWheel, { passive: false })
+    return () => svg.removeEventListener('wheel', onWheel)
+  }, [zoomAt])
 
   const onPointerDown = useCallback(
     (event: React.PointerEvent<SVGSVGElement>) => {
@@ -113,13 +138,13 @@ export function SkillTreeCanvas({
   return (
     <div className={`rt-scope relative h-full w-full ${motionEnabled ? '' : 'rt-still'}`}>
       <svg
+        ref={svgRef}
         className="rt-canvas h-full w-full"
         viewBox={`0 0 ${layout.width} ${layout.height}`}
         preserveAspectRatio="xMidYMid meet"
         role="group"
         aria-label={treeLabel}
         style={{ background: 'var(--tree-paper)', cursor: dragging ? 'grabbing' : 'grab' }}
-        onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}

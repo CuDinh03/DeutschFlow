@@ -197,6 +197,12 @@
           "nub": "grey dot = locked"
         },
         "lockedHint": "This node is still locked. Finish the previous day to open this bud.",
+        "skillNames": {
+          "hoeren": "Listening",
+          "lesen": "Reading",
+          "sprechen": "Speaking",
+          "schreiben": "Writing"
+        },
         "skillsCap": "Node exercises — 4 skills",
         "exerciseCount": "{count} items",
         "practiceSkill": "Learn & practise",
