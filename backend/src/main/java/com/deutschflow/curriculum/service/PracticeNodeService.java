@@ -259,12 +259,23 @@ public class PracticeNodeService {
         if (nodeRows.isEmpty()) throw new NotFoundException("Node not found: " + sourceNodeId);
         Map<String, Object> nodeInfo = nodeRows.get(0);
 
-        // Get latest session per skill type
+        // Get latest session per skill type.
+        // exercises_json stores the LLM output verbatim: a bare array, or an object carrying
+        // `exercises` (e.g. LESEN, which also holds reading_passage). A bare jsonb_array_length on
+        // the object shape aborts the whole query ("cannot get array length of a non-array"), which
+        // poisons the overview AND every skill's /start for the node — guard like RoadmapService /
+        // SkillTreeService do for skill_exercises (KEEP IN SYNC).
         List<Map<String, Object>> sessions = jdbcTemplate.queryForList("""
                 SELECT DISTINCT ON (skill_type)
-                    id, skill_type, generation, status, score_percent, 
+                    id, skill_type, generation, status, score_percent,
                     xp_earned, created_at, completed_at,
-                    jsonb_array_length(exercises_json) AS exercise_count
+                    CASE
+                        WHEN jsonb_typeof(exercises_json) = 'array'
+                            THEN jsonb_array_length(exercises_json)
+                        WHEN jsonb_typeof(exercises_json -> 'exercises') = 'array'
+                            THEN jsonb_array_length(exercises_json -> 'exercises')
+                        ELSE 0
+                    END AS exercise_count
                 FROM practice_node_sessions
                 WHERE user_id = ? AND source_node_id = ?
                 ORDER BY skill_type, generation DESC
