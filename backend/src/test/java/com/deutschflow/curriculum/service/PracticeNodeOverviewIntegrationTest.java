@@ -98,4 +98,21 @@ class PracticeNodeOverviewIntegrationTest extends AbstractPostgresIntegrationTes
         assertThat(sessions).hasSize(1);
         assertThat(((Number) sessions.get(0).get("exercise_count")).intValue()).isZero();
     }
+
+    @Test
+    @DisplayName("an LLM wrapper shell that slipped past normalization is counted via its content array")
+    void wrapperShellCountsContent() {
+        // Write-time normalization (normalizeExercisePayload) + V275 should keep this shape out of
+        // the table; the defensive CASE branch still counts it instead of showing an empty session.
+        insertSession("SPRECHEN", """
+                {"type": "object", "content": [{"q": "a"}, {"q": "b"}]}
+                """);
+
+        Map<String, Object> overview = service.getPracticeSessionsForNode(userId, nodeId);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> sessions = (List<Map<String, Object>>) overview.get("sessions");
+        assertThat(sessions).hasSize(1);
+        assertThat(((Number) sessions.get(0).get("exercise_count")).intValue()).isEqualTo(2);
+    }
 }
