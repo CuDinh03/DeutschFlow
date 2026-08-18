@@ -172,8 +172,8 @@ public class PracticeNodeService {
             AiChatCompletionResult result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.CONTENT), 0.4, 4096);
             String rawJson = cleanJsonResponse(result.content());
 
-            // Validate JSON
-            JsonNode parsed = objectMapper.readTree(rawJson);
+            // Validate JSON + bóc vỏ wrapper trước khi lưu
+            JsonNode parsed = normalizeExercisePayload(objectMapper.readTree(rawJson));
             String cleanJson = objectMapper.writeValueAsString(parsed);
 
             // Compute hashes for each exercise
@@ -197,7 +197,7 @@ public class PracticeNodeService {
                 );
                 result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.CONTENT), 0.6, 4096);
                 rawJson = cleanJsonResponse(result.content());
-                parsed = objectMapper.readTree(rawJson);
+                parsed = normalizeExercisePayload(objectMapper.readTree(rawJson));
                 cleanJson = objectMapper.writeValueAsString(parsed);
                 hashes = computeExerciseHashes(parsed, skillType);
             }
@@ -274,6 +274,8 @@ public class PracticeNodeService {
                             THEN jsonb_array_length(exercises_json)
                         WHEN jsonb_typeof(exercises_json -> 'exercises') = 'array'
                             THEN jsonb_array_length(exercises_json -> 'exercises')
+                        WHEN jsonb_typeof(exercises_json -> 'content') = 'array'
+                            THEN jsonb_array_length(exercises_json -> 'content')
                         ELSE 0
                     END AS exercise_count
                 FROM practice_node_sessions
@@ -557,6 +559,22 @@ public class PracticeNodeService {
             }
         }
         return summaries;
+    }
+
+    /**
+     * Bóc vỏ wrapper mà LLM tier CONTENT thỉnh thoảng tự bọc quanh output —
+     * {@code {"type":"object","content":[...]}} kiểu JSON-schema (gặp trên prod 17–18/08:
+     * session 33 HOEREN, 35 SPRECHEN). Payload hợp lệ chỉ có 2 dạng: mảng trần hoặc
+     * object mang {@code exercises}/{@code reading_passage} (LESEN) — object có
+     * {@code content} mà thiếu cả hai key đó chắc chắn là vỏ. Bóc lặp phòng vỏ lồng vỏ.
+     */
+    static JsonNode normalizeExercisePayload(JsonNode parsed) {
+        while (parsed != null && parsed.isObject() && parsed.has("content")
+                && !parsed.has("exercises") && !parsed.has("reading_passage")
+                && (parsed.get("content").isArray() || parsed.get("content").isObject())) {
+            parsed = parsed.get("content");
+        }
+        return parsed;
     }
 
     private String extractQuestionText(JsonNode exercise) {

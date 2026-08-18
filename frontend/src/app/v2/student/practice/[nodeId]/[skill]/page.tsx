@@ -89,7 +89,12 @@ interface Exercise {
 
 type ExercisePayload =
   | Exercise[]
-  | { reading_passage?: { text_type?: string; text_de?: string }; exercises?: Exercise[] }
+  | {
+      reading_passage?: { text_type?: string; text_de?: string }
+      exercises?: Exercise[]
+      /** Vỏ LLM tự bọc (đã bóc ở backend từ V275) — giữ để render được session sót. */
+      content?: Exercise[]
+    }
 
 interface SessionDetail {
   sessionId: number
@@ -410,6 +415,9 @@ export default function V2StudentPracticeRunnerPage() {
     const payload = detail.exercises
     if (Array.isArray(payload)) setExercises(payload)
     else if (Array.isArray(payload?.exercises)) setExercises(payload.exercises)
+    // Vỏ {"type":"object","content":[...]} LLM tự bọc — backend đã bóc lúc ghi (V275),
+    // giữ fallback phòng session hỏng còn sót/cache.
+    else if (Array.isArray(payload?.content)) setExercises(payload.content)
     else setExercises([])
   }, [])
 
