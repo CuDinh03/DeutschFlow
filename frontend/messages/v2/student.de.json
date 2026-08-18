@@ -197,6 +197,12 @@
           "nub": "grauer Punkt = gesperrt"
         },
         "lockedHint": "Dieser Knoten ist noch gesperrt. Schließe den Vortag ab, damit diese Knospe aufgeht.",
+        "skillNames": {
+          "hoeren": "Hören",
+          "lesen": "Lesen",
+          "sprechen": "Sprechen",
+          "schreiben": "Schreiben"
+        },
         "skillsCap": "Aufgaben des Knotens — 4 Fertigkeiten",
         "exerciseCount": "{count} Aufgaben",
         "practiceSkill": "Lernen & üben",

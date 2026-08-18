@@ -48,5 +48,14 @@ export function TkTabsContent({
   className,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.Content>) {
-  return <TabsPrimitive.Content className={cn('pt-5 outline-none', className)} {...props} />
+  return (
+    <TabsPrimitive.Content
+      // Radix ẩn panel không hoạt động bằng THUỘC TÍNH `hidden` (specificity 0,1,0 từ UA sheet) —
+      // truyền vào một class hiển thị như `flex` là đè mất và panel rỗng vẫn chiếm chỗ (QA 17/08:
+      // tab Bài học/Giai đoạn hở ~300px trắng vì panel cây inactive vẫn flex-1). `[&[hidden]]:hidden`
+      // sinh selector `.x[hidden]` (0,2,0) nên luôn thắng mọi class hiển thị truyền từ ngoài.
+      className={cn('pt-5 outline-none [&[hidden]]:hidden', className)}
+      {...props}
+    />
+  )
 }

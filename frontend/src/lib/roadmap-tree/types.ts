@@ -28,3 +28,14 @@ export interface RoadmapNode {
   /** Số bài tập soạn sẵn theo kỹ năng, khoá viết hoa: `{"HOEREN":3,…}`. */
   skillCounts?: Record<string, number> | null
 }
+
+/**
+ * Tiêu đề node theo locale. DTO trả `title` = title_de, `subtitle` = title_vi — học viên Việt cần
+ * bản Việt, còn UI tiếng Đức/Anh mà hiện title_vi là lỗi trộn ngôn ngữ (QA prod 17/08).
+ */
+export function nodeDisplayTitle(
+  node: Pick<RoadmapNode, 'title' | 'subtitle'>,
+  locale: string,
+): string {
+  return (locale === 'vi' ? node.subtitle || node.title : node.title || node.subtitle) || ''
+}

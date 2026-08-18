@@ -1,11 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { BookOpen, Lock, Play } from 'lucide-react'
-import { SKILL_COLORS, SKILL_ICONS, SKILL_LABELS, type Skill } from '@/lib/skills'
+import { SKILL_COLORS, SKILL_ICONS, type Skill } from '@/lib/skills'
 import { SkillIcon } from '@/components/ui-v2'
 import type { TreeMotif } from '@/lib/roadmap-tree/treeLayout'
+import { nodeDisplayTitle } from '@/lib/roadmap-tree/types'
 
 /**
  * Bảng bên phải của cây: chạm một node thì đây là chỗ nói node đó có gì và đi tiếp bằng cách nào.
@@ -36,6 +37,7 @@ export interface TreeNodePanelProps {
 
 export function TreeNodePanel({ node }: TreeNodePanelProps) {
   const t = useTranslations('v2.student.roadmap')
+  const locale = useLocale()
 
   if (!node) {
     return (
@@ -50,12 +52,13 @@ export function TreeNodePanel({ node }: TreeNodePanelProps) {
   const done = node.motif === 'leaf'
   const percent =
     node.lessonsTotal > 0 ? Math.round((node.lessonsCompleted / node.lessonsTotal) * 100) : 0
+  const title = nodeDisplayTitle(node, locale)
 
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-dashed border-ga-line px-4 py-3">
         <p className="break-words font-ga-display text-[17px] font-medium text-ga-ink">
-          {node.dayNumber ? t('tree.dayTitle', { day: node.dayNumber, title: node.subtitle || node.title }) : node.subtitle || node.title}
+          {node.dayNumber ? t('tree.dayTitle', { day: node.dayNumber, title }) : title}
         </p>
         <p className="ga-ui mt-0.5 text-[12px] text-ga-subtle">
           {node.weekNumber ? t('tree.weekShort', { week: node.weekNumber }) : ''}
@@ -85,7 +88,7 @@ export function TreeNodePanel({ node }: TreeNodePanelProps) {
                   >
                     <SkillIcon paths={SKILL_ICONS[skill]} size={16} color={SKILL_COLORS[skill]} />
                     <span className="min-w-0 flex-1 text-[13.5px] font-semibold text-ga-ink">
-                      {SKILL_LABELS[skill]}
+                      {t(`tree.skillNames.${skill}`)}
                       {count > 0 && (
                         <span className="ga-ui ml-1.5 text-[11.5px] font-normal text-ga-subtle">
                           {t('tree.exerciseCount', { count })}
