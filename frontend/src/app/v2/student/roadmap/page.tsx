@@ -40,9 +40,42 @@ const PHASES: { type: PhaseType; labelKey: string; descKey: string }[] = [
 ]
 const ORDER: PhaseType[] = ['FOUNDATION', 'PRODUCTION', 'FLUENCY', 'GRADUATED']
 
+const VALID_TABS = ['tree', 'nodes', 'phase']
+
 export default function V2StudentRoadmapPage() {
   const t = useTranslations('v2.student.roadmap')
   const [tab, setTab] = useState('tree')
+  const [urlNodeId, setUrlNodeId] = useState<number | null>(null)
+
+  // URL-as-state (T7): `?tab=&node=` để refresh/share giữ đúng ngữ cảnh. Đọc qua
+  // window.location + history.replaceState thay vì useSearchParams — trang render lần đầu trên
+  // server không có query, đọc trong initializer sẽ lệch hydration, còn useSearchParams đòi bọc
+  // Suspense khi prerender.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const urlTab = params.get('tab')
+    if (urlTab && VALID_TABS.includes(urlTab)) setTab(urlTab)
+    const nodeParam = Number(params.get('node'))
+    if (Number.isInteger(nodeParam) && nodeParam > 0) setUrlNodeId(nodeParam)
+  }, [])
+
+  const patchQuery = useCallback((patch: Record<string, string | null>) => {
+    const params = new URLSearchParams(window.location.search)
+    for (const [key, value] of Object.entries(patch)) {
+      if (value == null) params.delete(key)
+      else params.set(key, value)
+    }
+    const qs = params.toString()
+    window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
+  }, [])
+
+  const changeTab = useCallback(
+    (next: string) => {
+      setTab(next)
+      patchQuery({ tab: next })
+    },
+    [patchQuery],
+  )
 
   // ── Bài học (nodes) — cửa vào bài học thật + runner luyện 4 kỹ năng ──
   const [nodes, setNodes] = useState<RoadmapNode[]>([])
@@ -89,7 +122,7 @@ export default function V2StudentRoadmapPage() {
     <div className="flex h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-6 pt-4 sm:px-6 lg:px-10">
-        <TkTabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
+        <TkTabs value={tab} onValueChange={changeTab} className="flex min-h-0 flex-1 flex-col">
           <TkTabsList>
             <TkTabsTrigger value="tree">{t('tabTree')}</TkTabsTrigger>
             <TkTabsTrigger value="nodes">{t('tabNodes')}</TkTabsTrigger>
@@ -104,7 +137,11 @@ export default function V2StudentRoadmapPage() {
             ) : nodesLoading ? (
               <LoadingState label={t('nodesLoading')} />
             ) : (
-              <RoadmapTreeTab nodes={nodes} />
+              <RoadmapTreeTab
+                nodes={nodes}
+                initialSelectedId={urlNodeId}
+                onSelectedIdChange={(id) => patchQuery({ node: String(id) })}
+              />
             )}
           </TkTabsContent>
 
