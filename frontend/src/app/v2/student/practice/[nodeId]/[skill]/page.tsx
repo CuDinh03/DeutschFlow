@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { ArrowLeft, BookOpen, Check, Mic, RefreshCw, Sparkles, Trophy, Volume2, X } from 'lucide-react'
 import api from '@/lib/api'
 import { isAsyncJobAccepted, waitForAsyncJob } from '@/lib/asyncJob'
+import { pickExplanation } from '@/lib/practice/explanation'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { SKILL_COLORS, SKILL_LABELS, SKILL_ICONS } from '@/lib/skills'
@@ -46,7 +47,9 @@ const SPEAKING_TYPES = ['SPEAKING_REPEAT', 'SPEAKING_RESPONSE', 'ROLE_PLAY', 'SP
 
 interface Exercise {
   type: string
-  instruction_vi: string
+  /** Hợp đồng mới 18/08: đề 100% tiếng Đức. Field `*_vi` chỉ còn ở session sinh trước ngày đổi. */
+  instruction_de?: string
+  instruction_vi?: string
   audio_transcript?: string
   question_vi?: string
   sentence_with_blank?: string
@@ -57,15 +60,18 @@ interface Exercise {
   grading_keywords?: string[]
   focus_sounds?: string[]
   scenario_vi?: string
+  scenario_de?: string
   partner_line_de?: string
   expected_response?: string
   situation_vi?: string
+  situation_de?: string
   expected_phrases?: string[]
   statement_de?: string
   words?: string[]
   correct_order?: string[]
   translation_vi?: string
   hint_vi?: string
+  hint_de?: string
   grammar_rule_vi?: string
   prompt_vi?: string
   prompt_de?: string
@@ -76,6 +82,8 @@ interface Exercise {
   correct_answer?: string | boolean
   accept_also?: string[]
   explanation_vi?: string
+  explanation_en?: string
+  explanation_de?: string
   pairs?: { de: string; vi: string }[]
 }
 
@@ -119,6 +127,7 @@ function ExerciseCard({
   onAnswer,
   answered,
   isCorrect,
+  revealExplanations,
 }: {
   exercise: Exercise
   index: number
@@ -126,10 +135,14 @@ function ExerciseCard({
   onAnswer: (answer: AnswerValue) => void
   answered: boolean
   isCorrect: boolean | null
+  /** Chỉ true SAU khi nộp bài — mọi giải thích/dịch nghĩa (VI/EN) giấu đến lúc đó (product 18/08). */
+  revealExplanations: boolean
 }) {
   const t = useTranslations('v2.student.practiceRunner')
+  const locale = useLocale()
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
   const [textInput, setTextInput] = useState('')
+  const explanation = pickExplanation(exercise, locale)
 
   const isSpeaking = SPEAKING_TYPES.includes(exercise.type)
   const isReadingType = ['READ_AND_CHOOSE', 'READ_TRUE_FALSE', 'READ_AND_FILL'].includes(exercise.type)
@@ -154,7 +167,23 @@ function ExerciseCard({
         </span>
       </div>
 
-      <p className="ga-ui mb-3 break-words text-[14px] font-semibold text-ga-ink">{exercise.instruction_vi}</p>
+      <p className="ga-ui mb-3 break-words text-[14px] font-semibold text-ga-ink">
+        {exercise.instruction_de ?? exercise.instruction_vi}
+      </p>
+
+      {/* Nói: tình huống / kịch bản (hợp đồng DE-only 18/08) */}
+      {(exercise.situation_de || exercise.scenario_de) && (
+        <div className="mb-4 rounded-ga border border-ga-line bg-ga-surface px-4 py-3">
+          <p className="ga-ui break-words text-[13.5px] leading-relaxed text-ga-ink">
+            {exercise.situation_de ?? exercise.scenario_de}
+          </p>
+          {exercise.partner_line_de && (
+            <p className="ga-ui mt-1 break-words text-[13.5px] italic text-ga-muted">
+              &laquo;{exercise.partner_line_de}&raquo;
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Nghe: phát transcript bằng TTS */}
       {exercise.audio_transcript && (
@@ -180,6 +209,9 @@ function ExerciseCard({
       {exercise.sentence_with_blank && (
         <div className="mb-4 rounded-ga border border-ga-line bg-ga-surface px-4 py-3">
           <p className="ga-ui break-words text-[14px] font-medium text-ga-ink">{exercise.sentence_with_blank}</p>
+          {exercise.hint_de && (
+            <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">💡 {exercise.hint_de}</p>
+          )}
         </div>
       )}
 
@@ -187,7 +219,8 @@ function ExerciseCard({
       {exercise.sentence_de && (exercise.type === 'SPEAKING_REPEAT' || exercise.type === 'SPEAKING_RESPONSE') && (
         <div className="mb-4 rounded-ga border border-ga-line bg-ga-surface px-4 py-3">
           <p className="break-words font-ga-display text-[17px] font-medium text-ga-ink">{exercise.sentence_de}</p>
-          {exercise.sentence_vi && (
+          {/* Dịch nghĩa (session cũ) chỉ lộ sau khi nộp — trong bài là 100% tiếng Đức. */}
+          {revealExplanations && exercise.sentence_vi && (
             <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">{exercise.sentence_vi}</p>
           )}
           <button
@@ -201,7 +234,8 @@ function ExerciseCard({
         </div>
       )}
 
-      {exercise.question_vi && !exercise.audio_transcript && (
+      {/* Câu hỏi VI: chỉ session cũ mới có — session mới hỏi bằng question_de. */}
+      {exercise.question_vi && !exercise.question_de && !exercise.audio_transcript && (
         <p className="ga-ui mb-3 text-[13.5px] text-ga-muted">{exercise.question_vi}</p>
       )}
       {exercise.question_de && (
@@ -316,8 +350,9 @@ function ExerciseCard({
         </button>
       )}
 
-      {/* Giải thích sau khi trả lời */}
-      {answered && exercise.explanation_vi && (
+      {/* Giải thích: CHỈ sau khi nộp cả bài (product 18/08) — trong bài đề 100% tiếng Đức,
+          phản hồi đúng/sai tức thời vẫn có qua màu viền/đáp án. */}
+      {revealExplanations && answered && explanation && (
         <div
           className="mt-3 rounded-ga border px-4 py-3"
           style={{
@@ -331,7 +366,7 @@ function ExerciseCard({
           >
             {isCorrect ? t('correct') : t('incorrect')}
           </p>
-          <p className="ga-ui break-words text-[13.5px] text-ga-muted">{exercise.explanation_vi}</p>
+          <p className="ga-ui break-words text-[13.5px] text-ga-muted">{explanation}</p>
           {!isCorrect && typeof exercise.correct_answer === 'string' && (
             <p className="ga-ui mt-1 break-words text-[13.5px] font-semibold text-ga-ink">
               {t('answerIs')} {exercise.correct_answer}
@@ -613,6 +648,7 @@ export default function V2StudentPracticeRunnerPage() {
                   onAnswer={(answer) => handleAnswer(idx, answer)}
                   answered={answers.has(idx)}
                   isCorrect={answers.get(idx)?.correct ?? null}
+                  revealExplanations={submitted}
                 />
               ))}
             </div>
