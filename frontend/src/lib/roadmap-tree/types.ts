@@ -27,6 +27,8 @@ export interface RoadmapNode {
   progressStatus?: string | null
   /** Số bài tập soạn sẵn theo kỹ năng, khoá viết hoa: `{"HOEREN":3,…}`. */
   skillCounts?: Record<string, number> | null
+  /** `code` của node phải xong trước thì node này mới mở. Null với node đầu chuỗi. */
+  prerequisiteCode?: string | null
 }
 
 /**

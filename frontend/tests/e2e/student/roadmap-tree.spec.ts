@@ -35,8 +35,25 @@ function a1Roadmap() {
       weekNumber: Math.ceil(day / 5),
       progressStatus,
       skillCounts: SKILL_COUNTS,
+      prerequisiteCode: day > 1 ? `D${String(day - 1).padStart(2, '0')}` : null,
     }
   })
+}
+
+// Mock `GET /skill-tree/{nodeId}/practice` (Đợt 2) — row SQL snake_case như backend trả.
+// Đăng ký SAU `mockSession` để thắng route api chung (route đăng ký sau khớp trước).
+async function mockPracticeOverview(
+  page: Page,
+  nodeId: number,
+  sessions: Record<string, unknown>[],
+) {
+  await page.route(new RegExp(`/api/skill-tree/${nodeId}/practice$`), (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ nodeTitle: `Tag ${nodeId - 100}`, sessions }),
+    }),
+  )
 }
 
 /** Camera giờ là CSS transform (để glide được) — đọc style thay vì attribute. */
@@ -116,7 +133,8 @@ test.describe('Cây học tập (/v2)', () => {
     await expect(practice.first()).toHaveAttribute('href', /\/v2\/student\/practice\/113\/hoeren\/?$/)
   })
 
-  test('chạm node khoá thì báo chưa mở, không mời luyện tập', async ({ page }) => {
+  // Đợt 2 (N7): node khoá không nói suông "chưa mở" — nó kể node nào đang chặn và dẫn tới đó.
+  test('chạm node khoá thì nêu điều kiện mở + link tới bài đang chặn, không mời luyện tập', async ({ page }) => {
     await mockSession(page, a1Roadmap())
     await page.goto('/v2/student/roadmap')
 
@@ -125,8 +143,13 @@ test.describe('Cây học tập (/v2)', () => {
     const locked = page.getByRole('button', { name: /Ngày 30 · Ngày 30 · chưa mở/ })
     await locked.click()
 
-    await expect(page.getByText(/Node này chưa mở/)).toBeVisible()
+    await expect(page.getByText(/Xong Ngày 29 · Ngày 29 thì nụ này nở/)).toBeVisible()
     await expect(page.getByRole('link', { name: /Học & Luyện/ })).toHaveCount(0)
+
+    // "Tới bài đang chặn" nhảy panel sang node 29 và ghi URL để share được.
+    await page.getByRole('button', { name: 'Tới bài đang chặn' }).click()
+    await expect(page.getByText('Ngày 29 · Ngày 29')).toBeVisible()
+    expect(page.url()).toContain('node=129')
   })
 
   test('node tới được bằng bàn phím', async ({ page }) => {
@@ -249,6 +272,41 @@ test.describe('Cây học tập (/v2)', () => {
 
     await page.reload()
     await expect(page.getByRole('button', { name: 'Bật hiệu ứng' })).toBeVisible()
+  })
+
+  // Đợt 2 (N1): hero CTA "Học tiếp" — 1 click từ đầu tab cây vào runner của node đang học.
+  test('hero CTA Học tiếp dẫn vào runner của node đang học, kỹ năng đầu khi chưa có điểm', async ({ page }) => {
+    await mockSession(page, a1Roadmap())
+    await page.goto('/v2/student/roadmap')
+
+    const cta = page.getByRole('link', { name: /Học tiếp: Ngày 13 · Nghe/ })
+    await expect(cta).toBeVisible()
+    await expect(cta).toHaveAttribute('href', /\/v2\/student\/practice\/113\/hoeren\/?$/)
+  })
+
+  // Đợt 2 (N1+N2): có điểm luyện tập thì CTA nhắm kỹ năng còn thiếu, panel khoe điểm tốt nhất,
+  // và cánh hoa của kỹ năng đã đạt tô màu kỹ năng đó.
+  test('điểm luyện tập đổ vào CTA, panel và cánh hoa', async ({ page }) => {
+    await mockSession(page, a1Roadmap())
+    await mockPracticeOverview(page, 113, [
+      { skill_type: 'HOEREN', status: 'COMPLETED', score_percent: 85, best_score_percent: 85 },
+      { skill_type: 'LESEN', status: 'ACTIVE', score_percent: null, best_score_percent: 40 },
+    ])
+    await page.goto('/v2/student/roadmap')
+
+    // Nghe đã đạt 85% ⇒ kỹ năng còn thiếu kế tiếp là Đọc.
+    const cta = page.getByRole('link', { name: /Học tiếp: Ngày 13 · Đọc/ })
+    await expect(cta).toBeVisible()
+    await expect(cta).toHaveAttribute('href', /\/v2\/student\/practice\/113\/lesen\/?$/)
+
+    // Panel node đang chọn (mặc định node 13) khoe điểm tốt nhất từng kỹ năng.
+    await expect(page.getByText('tốt nhất 85%')).toBeVisible()
+    await expect(page.getByText('tốt nhất 40%')).toBeVisible()
+    await expect(page.getByText(/1\/4 kỹ năng đạt từ 70% trở lên/)).toBeVisible()
+
+    // Cánh hoa của kỹ năng đã đạt tô màu kỹ năng (Nghe = #4F86E0), kỹ năng chưa đạt giữ màu hoa.
+    await expect(page.locator('svg.rt-canvas ellipse[fill="#4F86E0"]')).toHaveCount(1)
+    await expect(page.locator('svg.rt-canvas ellipse[fill="#5E9150"]')).toHaveCount(0)
   })
 
   test('không tràn ngang trên màn hình điện thoại', async ({ page }) => {

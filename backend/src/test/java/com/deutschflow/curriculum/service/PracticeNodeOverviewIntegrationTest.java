@@ -64,6 +64,33 @@ class PracticeNodeOverviewIntegrationTest extends AbstractPostgresIntegrationTes
                 """, userId, nodeId, skillType, exercisesJson);
     }
 
+    private void insertScoredSession(String skillType, int generation, String status, Integer scorePercent) {
+        jdbcTemplate.update("""
+                INSERT INTO practice_node_sessions
+                    (user_id, source_node_id, skill_type, generation, exercises_json, status, score_percent)
+                VALUES (?, ?, ?, ?, '[]'::jsonb, ?, ?)
+                """, userId, nodeId, skillType, generation, status, scorePercent);
+    }
+
+    @Test
+    @DisplayName("best_score_percent survives a regenerated session whose own score is still null")
+    void bestScoreSpansAllGenerations() {
+        insertScoredSession("HOEREN", 1, "COMPLETED", 85);
+        insertScoredSession("HOEREN", 2, "ACTIVE", null);
+
+        Map<String, Object> overview = service.getPracticeSessionsForNode(userId, nodeId);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> sessions = (List<Map<String, Object>>) overview.get("sessions");
+        assertThat(sessions).hasSize(1);
+        Map<String, Object> latest = sessions.get(0);
+        // The row itself is the latest generation (score not yet earned)…
+        assertThat(((Number) latest.get("generation")).intValue()).isEqualTo(2);
+        assertThat(latest.get("score_percent")).isNull();
+        // …but the mastery earned on Gen-1 is still reported.
+        assertThat(((Number) latest.get("best_score_percent")).intValue()).isEqualTo(85);
+    }
+
     @Test
     @DisplayName("counts both authored shapes and never aborts on the object shape")
     void overviewHandlesBothShapes() {

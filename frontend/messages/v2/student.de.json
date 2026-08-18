@@ -215,7 +215,12 @@
         "summary": "{days} Tage · {weeks} Wochen",
         "doneCount": "{done}/{total} fertig",
         "motionOn": "Animation an",
-        "motionOff": "Animation aus"
+        "motionOff": "Animation aus",
+        "continueCta": "Weiterlernen: {target} · {skill}",
+        "bestScore": "Bestwert {percent}%",
+        "skillsMastered": "{done}/4 Fertigkeiten mit mindestens {threshold}%",
+        "unlockCondition": "Schließe {target} ab, damit diese Knospe aufgeht.",
+        "goPrereq": "Zum blockierenden Tag"
       }
     },
     "speaking": {

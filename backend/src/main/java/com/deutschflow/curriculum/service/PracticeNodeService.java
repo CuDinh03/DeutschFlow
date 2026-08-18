@@ -265,9 +265,13 @@ public class PracticeNodeService {
         // the object shape aborts the whole query ("cannot get array length of a non-array"), which
         // poisons the overview AND every skill's /start for the node — guard like RoadmapService /
         // SkillTreeService do for skill_exercises (KEEP IN SYNC).
+        // best_score_percent spans ALL generations of the skill (the window runs before DISTINCT ON
+        // keeps only the latest row), because regenerating a fresh Gen-N must not erase the mastery
+        // the learner already proved on an earlier generation.
         List<Map<String, Object>> sessions = jdbcTemplate.queryForList("""
                 SELECT DISTINCT ON (skill_type)
                     id, skill_type, generation, status, score_percent,
+                    MAX(score_percent) OVER (PARTITION BY skill_type) AS best_score_percent,
                     xp_earned, created_at, completed_at,
                     CASE
                         WHEN jsonb_typeof(exercises_json) = 'array'
