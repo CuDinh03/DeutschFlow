@@ -560,9 +560,11 @@ public class PracticeNodeService {
     }
 
     private String extractQuestionText(JsonNode exercise) {
-        // Try various field names used across exercise types
-        for (String field : List.of("question_vi", "sentence_de", "sentence_with_blank",
-                "audio_transcript", "sentence_vi", "question_de", "statement_de", "prompt_vi")) {
+        // Try various field names used across exercise types — German-first contract (18/08),
+        // legacy *_vi fields kept for sessions generated before the switch.
+        for (String field : List.of("question_de", "sentence_de", "sentence_with_blank",
+                "audio_transcript", "statement_de", "situation_de", "scenario_de", "prompt_de",
+                "question_vi", "sentence_vi", "prompt_vi")) {
             if (exercise.has(field)) return exercise.get(field).asText();
         }
         return exercise.toString().substring(0, Math.min(80, exercise.toString().length()));
