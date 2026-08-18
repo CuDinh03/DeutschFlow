@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Sparkles } from 'lucide-react'
 import { buildTreeLayout, type Branch, type PlacedNode } from '@/lib/roadmap-tree/treeLayout'
@@ -16,25 +16,56 @@ import { TreeNodePanel, type TreeNodeSummary } from './TreeNodePanel'
 
 const ZOOM_STEP = 1.25
 
-export function RoadmapTreeTab({ nodes }: { nodes: RoadmapNode[] }) {
+export interface RoadmapTreeTabProps {
+  nodes: RoadmapNode[]
+  /** Node từ URL (?node=) — chọn sẵn khi mở tab để share/refresh giữ đúng ngữ cảnh (T7). */
+  initialSelectedId?: number | null
+  /** Bắn khi NGƯỜI DÙNG chọn node (không bắn cho auto-select) — page ghi vào URL. */
+  onSelectedIdChange?: (id: number) => void
+}
+
+export function RoadmapTreeTab({ nodes, initialSelectedId, onSelectedIdChange }: RoadmapTreeTabProps) {
   const t = useTranslations('v2.student.roadmap')
   const locale = useLocale()
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [motionEnabled, setMotionEnabled] = useState(true)
+  const panelRef = useRef<HTMLDivElement | null>(null)
 
   const layout = useMemo(() => buildTreeLayout(nodes), [nodes])
   const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes])
   const placedById = useMemo(() => new Map(layout.nodes.map((n) => [n.id, n])), [layout])
 
-  // Mở sẵn node đang học; không có thì node mở gần nhất; không có nữa thì node đầu tiên.
-  useEffect(() => {
-    if (selectedId != null && placedById.has(selectedId)) return
+  /** Node đang học — đích của auto-focus camera và nút ⌖. */
+  const focusNodeId = useMemo(() => {
     const preferred =
       layout.nodes.find((n) => n.motif === 'flower') ??
       layout.nodes.find((n) => n.motif === 'bud') ??
       layout.nodes[0]
-    setSelectedId(preferred?.id ?? null)
-  }, [layout, placedById, selectedId])
+    return preferred?.id ?? null
+  }, [layout])
+
+  // Mở sẵn node từ URL nếu có, không thì node đang học.
+  useEffect(() => {
+    if (selectedId != null && placedById.has(selectedId)) return
+    if (initialSelectedId != null && placedById.has(initialSelectedId)) {
+      setSelectedId(initialSelectedId)
+      return
+    }
+    setSelectedId(focusNodeId)
+  }, [placedById, selectedId, initialSelectedId, focusNodeId])
+
+  /** Chọn node do người dùng chạm: cập nhật URL, và trên màn hẹp cuộn tới panel (F7 —
+   *  panel nằm dưới canvas 420px nên chọn xong không thấy phản hồi gì). */
+  const handleUserSelect = useCallback(
+    (id: number) => {
+      setSelectedId(id)
+      onSelectedIdChange?.(id)
+      if (window.innerWidth < 1024) {
+        panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
+    },
+    [onSelectedIdChange],
+  )
 
   const summary = useMemo<TreeNodeSummary | null>(() => {
     if (selectedId == null) return null
@@ -101,16 +132,21 @@ export function RoadmapTreeTab({ nodes }: { nodes: RoadmapNode[] }) {
           <SkillTreeCanvas
             layout={layout}
             selectedId={selectedId}
-            onSelect={setSelectedId}
+            onSelect={handleUserSelect}
             nodeLabel={nodeLabel}
             weekLabel={weekLabel}
             futureTipLabel={t('tree.futureTip')}
             treeLabel={t('tabTree')}
             motionEnabled={motionEnabled}
             zoomStep={ZOOM_STEP}
+            focusNodeId={focusNodeId}
+            focusLabel={t('tree.focusCurrent')}
           />
         </div>
-        <div className="min-h-0 shrink-0 bg-ga-surface lg:h-[calc(100vh-22rem)] lg:max-h-[640px] lg:min-h-[400px] lg:w-[300px] lg:overflow-auto">
+        <div
+          ref={panelRef}
+          className="min-h-0 shrink-0 bg-ga-surface lg:h-[calc(100vh-22rem)] lg:max-h-[640px] lg:min-h-[400px] lg:w-[300px] lg:overflow-auto"
+        >
           <TreeNodePanel node={summary} />
         </div>
       </div>

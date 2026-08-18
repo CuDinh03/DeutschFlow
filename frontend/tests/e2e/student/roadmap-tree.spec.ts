@@ -39,6 +39,16 @@ function a1Roadmap() {
   })
 }
 
+/** Camera giờ là CSS transform (để glide được) — đọc style thay vì attribute. */
+const cameraTransform = (page: Page) =>
+  page.locator('svg.rt-canvas > g').first().evaluate((el) => (el as SVGGElement).style.transform)
+
+function parseCamera(transform: string): { x: number; y: number; scale: number } {
+  const t = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(transform)
+  const s = /scale\((-?[\d.]+)\)/.exec(transform)
+  return { x: t ? Number(t[1]) : 0, y: t ? Number(t[2]) : 0, scale: s ? Number(s[1]) : 1 }
+}
+
 async function mockSession(page: Page, nodes: unknown[]) {
   await page.context().addCookies([
     { name: 'NEXT_LOCALE', value: 'vi', domain: 'localhost', path: '/' },
@@ -110,6 +120,8 @@ test.describe('Cây học tập (/v2)', () => {
     await mockSession(page, a1Roadmap())
     await page.goto('/v2/student/roadmap')
 
+    // Auto-focus đang nhắm node 13 — thu nhỏ về toàn cây trước thì node 30 mới nằm trong khung.
+    await page.getByRole('button', { name: '⤢', exact: true }).click()
     const locked = page.getByRole('button', { name: /Ngày 30 · Ngày 30 · chưa mở/ })
     await locked.click()
 
@@ -145,15 +157,14 @@ test.describe('Cây học tập (/v2)', () => {
 
     const tree = page.getByRole('group', { name: 'Cây học tập' })
     await expect(tree).toBeVisible()
-    const cameraG = page.locator('svg.rt-canvas > g')
-    const before = await cameraG.getAttribute('transform')
+    const before = await cameraTransform(page)
 
     await tree.hover()
     await page.mouse.wheel(0, -240)
 
     // Cây còn sống (không rơi vào error boundary) và camera thực sự đã zoom.
     await expect(tree.getByRole('button')).toHaveCount(30)
-    await expect(cameraG).not.toHaveAttribute('transform', before ?? '')
+    expect(await cameraTransform(page)).not.toBe(before)
   })
 
   // Regression QA prod 17/08: zoomBy cũ chỉ nhân scale quanh gốc (0,0) — mỗi nấc + là khung nhìn
@@ -163,12 +174,53 @@ test.describe('Cây học tập (/v2)', () => {
     await page.goto('/v2/student/roadmap')
     await expect(page.getByRole('group', { name: 'Cây học tập' })).toBeVisible()
 
+    const before = parseCamera(await cameraTransform(page))
     await page.getByRole('button', { name: '+', exact: true }).click()
+    const after = parseCamera(await cameraTransform(page))
 
-    const transform = await page.locator('svg.rt-canvas > g').getAttribute('transform')
-    expect(transform).toContain('scale(1.25')
-    // Neo tâm ⇒ translate phải rời (0,0) ngay nấc đầu; bản lỗi giữ nguyên translate(0 0).
-    expect(transform).not.toContain('translate(0 0)')
+    expect(after.scale).toBeCloseTo(Math.min(2.4, before.scale * 1.25), 3)
+    // Neo tâm ⇒ translate phải bù theo scale, không giữ nguyên như bản lỗi.
+    expect(after.x).not.toBeCloseTo(before.x, 3)
+  })
+
+  // Đợt 1 (F8): mở tab là camera tự nhắm node đang học — không còn toàn cây co nhỏ với node ~8px.
+  test('mở tab: camera auto-focus node đang học, có nút ⌖ quay lại', async ({ page }) => {
+    await mockSession(page, a1Roadmap())
+    await page.goto('/v2/student/roadmap')
+    await expect(page.getByRole('group', { name: 'Cây học tập' })).toBeVisible()
+
+    const cam = parseCamera(await cameraTransform(page))
+    expect(cam.scale).toBeGreaterThan(1)
+
+    // Kéo cây đi chỗ khác rồi bấm ⌖ — camera phải quay về đúng chỗ auto-focus.
+    const focusBtn = page.getByRole('button', { name: 'Về bài đang học' })
+    await expect(focusBtn).toBeVisible()
+    const tree = page.getByRole('group', { name: 'Cây học tập' })
+    const box = (await tree.boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 + 140, box.y + box.height / 2 + 90, { steps: 4 })
+    await page.mouse.up()
+    expect(parseCamera(await cameraTransform(page)).x).not.toBeCloseTo(cam.x, 1)
+
+    await focusBtn.click()
+    const backCam = parseCamera(await cameraTransform(page))
+    expect(backCam.x).toBeCloseTo(cam.x, 1)
+    expect(backCam.y).toBeCloseTo(cam.y, 1)
+  })
+
+  // Đợt 1 (T7): URL-as-state — refresh/share giữ đúng tab + node đang chọn.
+  test('deep-link ?node= chọn sẵn node, click node ghi vào URL', async ({ page }) => {
+    await mockSession(page, a1Roadmap())
+    await page.goto('/v2/student/roadmap?tab=tree&node=114')
+
+    // Panel mở đúng node 14 từ URL thay vì node đang học (13).
+    await expect(page.getByText('Ngày 14 · Ngày 14')).toBeVisible()
+
+    // Người dùng chọn node khác → URL cập nhật để share được.
+    await page.getByRole('button', { name: /Ngày 12 · Ngày 12/ }).click()
+    await expect(page.getByText('Ngày 12 · Ngày 12')).toBeVisible()
+    expect(page.url()).toContain('node=112')
   })
 
   // Regression QA prod 17/08: panel cây inactive mang class `flex` đè thuộc tính `hidden` của

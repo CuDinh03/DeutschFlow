@@ -210,6 +210,7 @@
         "doneHint": "Đã đạt cả 4 kỹ năng — lá đã mọc trên cành tuần này.",
         "review": "Xem lại kiến thức",
         "study": "Học kiến thức",
+        "focusCurrent": "Về bài đang học",
         "futureTip": "ngọn nét đứt = cấp kế tiếp",
         "summary": "{days} ngày · {weeks} tuần",
         "doneCount": "{done}/{total} đã xong",

@@ -210,6 +210,7 @@
         "doneHint": "All four skills cleared — a leaf has grown on this week's branch.",
         "review": "Review the material",
         "study": "Study the material",
+        "focusCurrent": "Back to current lesson",
         "futureTip": "dashed tip = next level",
         "summary": "{days} days · {weeks} weeks",
         "doneCount": "{done}/{total} done",

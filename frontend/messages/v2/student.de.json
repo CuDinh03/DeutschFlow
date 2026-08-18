@@ -210,6 +210,7 @@
         "doneHint": "Alle vier Fertigkeiten geschafft — am Ast dieser Woche ist ein Blatt gewachsen.",
         "review": "Stoff wiederholen",
         "study": "Stoff lernen",
+        "focusCurrent": "Zur aktuellen Lektion",
         "futureTip": "gestrichelte Spitze = nächstes Niveau",
         "summary": "{days} Tage · {weeks} Wochen",
         "doneCount": "{done}/{total} fertig",
