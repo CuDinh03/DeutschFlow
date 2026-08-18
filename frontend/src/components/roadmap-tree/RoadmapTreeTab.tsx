@@ -15,6 +15,7 @@ import { TreeNodePanel, type TreeNodeSummary } from './TreeNodePanel'
  */
 
 const ZOOM_STEP = 1.25
+const MOTION_PREF_KEY = 'df-tree-motion'
 
 export interface RoadmapTreeTabProps {
   nodes: RoadmapNode[]
@@ -28,7 +29,18 @@ export function RoadmapTreeTab({ nodes, initialSelectedId, onSelectedIdChange }:
   const t = useTranslations('v2.student.roadmap')
   const locale = useLocale()
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  // Nút tắt/bật hiệu ứng nhớ qua các lần vào (T5). Đọc trong effect chứ không phải initializer —
+  // SSR render mặc định true, đọc localStorage lúc init sẽ lệch hydration.
   const [motionEnabled, setMotionEnabled] = useState(true)
+  useEffect(() => {
+    if (localStorage.getItem(MOTION_PREF_KEY) === 'off') setMotionEnabled(false)
+  }, [])
+  const toggleMotion = useCallback(() => {
+    setMotionEnabled((on) => {
+      localStorage.setItem(MOTION_PREF_KEY, on ? 'off' : 'on')
+      return !on
+    })
+  }, [])
   const panelRef = useRef<HTMLDivElement | null>(null)
 
   const layout = useMemo(() => buildTreeLayout(nodes), [nodes])
@@ -116,7 +128,7 @@ export function RoadmapTreeTab({ nodes, initialSelectedId, onSelectedIdChange }:
         <span className="flex-1" />
         <button
           type="button"
-          onClick={() => setMotionEnabled((on) => !on)}
+          onClick={toggleMotion}
           aria-pressed={motionEnabled}
           className="ga-ui inline-flex min-h-9 items-center gap-1.5 rounded-ga border border-ga-line px-2.5 py-1 text-[12px] text-ga-muted transition-colors hover:bg-ga-surface"
         >

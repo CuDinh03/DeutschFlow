@@ -241,6 +241,16 @@ test.describe('Cây học tập (/v2)', () => {
     expect(gap).toBeLessThan(60)
   })
 
+  // Đợt 1 (T5): lựa chọn tắt hiệu ứng phải sống qua lần vào sau.
+  test('nút tắt hiệu ứng nhớ qua reload', async ({ page }) => {
+    await mockSession(page, a1Roadmap())
+    await page.goto('/v2/student/roadmap')
+    await page.getByRole('button', { name: 'Tắt hiệu ứng' }).click()
+
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Bật hiệu ứng' })).toBeVisible()
+  })
+
   test('không tràn ngang trên màn hình điện thoại', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await mockSession(page, a1Roadmap())
