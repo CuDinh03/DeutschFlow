@@ -215,7 +215,12 @@
         "summary": "{days} days · {weeks} weeks",
         "doneCount": "{done}/{total} done",
         "motionOn": "Turn on motion",
-        "motionOff": "Turn off motion"
+        "motionOff": "Turn off motion",
+        "continueCta": "Continue: {target} · {skill}",
+        "bestScore": "best {percent}%",
+        "skillsMastered": "{done}/4 skills at {threshold}% or higher",
+        "unlockCondition": "Finish {target} to open this bud.",
+        "goPrereq": "Go to the blocking day"
       }
     },
     "speaking": {

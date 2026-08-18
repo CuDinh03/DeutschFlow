@@ -10,6 +10,7 @@ import {
   type Camera,
 } from '@/lib/roadmap-tree/camera'
 import type { Branch, PlacedNode, TreeLayout } from '@/lib/roadmap-tree/treeLayout'
+import { SKILL_COLORS, type Skill } from '@/lib/skills'
 import '@/styles/roadmap-tree.css'
 
 /**
@@ -47,6 +48,41 @@ export interface SkillTreeCanvasProps {
   /** Node đang học — camera tự nhắm vào khi mở tab, và nút ⌖ quay lại nó. */
   focusNodeId: number | null
   focusLabel: string
+  /**
+   * Kỹ năng đã đạt (≥70%) của node hoa — mỗi cánh hoa là một kỹ năng, cánh tô màu kỹ năng khi đạt
+   * (N2). Null/undefined khi chưa có dữ liệu: hoa vẽ bản mặc định, không đổi hình khi đang tải.
+   */
+  flowerMastery?: Partial<Record<Skill, boolean>> | null
+}
+
+/**
+ * Bốn cánh của node hoa theo đúng hình học `#rtFlower`, gán kỹ năng THEO THỨ TỰ TRÌNH BÀY của panel
+ * (Nghe → Đọc → Nói → Viết, xuôi kim đồng hồ từ cánh trên) — hai chỗ phải kể cùng một câu chuyện.
+ */
+const FLOWER_PETALS: { skill: Skill; cx: number; cy: number; rx: number; ry: number }[] = [
+  { skill: 'hoeren', cx: 0, cy: -13, rx: 7, ry: 11 },
+  { skill: 'lesen', cx: 13, cy: 0, rx: 11, ry: 7 },
+  { skill: 'sprechen', cx: 0, cy: 13, rx: 7, ry: 11 },
+  { skill: 'schreiben', cx: -13, cy: 0, rx: 11, ry: 7 },
+]
+
+function FlowerWithSkills({ mastery }: { mastery: Partial<Record<Skill, boolean>> }) {
+  return (
+    <g stroke="var(--tree-ink)" strokeWidth="2">
+      {FLOWER_PETALS.map((petal) => (
+        <ellipse
+          key={petal.skill}
+          cx={petal.cx}
+          cy={petal.cy}
+          rx={petal.rx}
+          ry={petal.ry}
+          fill={mastery[petal.skill] ? SKILL_COLORS[petal.skill] : 'var(--tree-flower)'}
+          fillOpacity={mastery[petal.skill] ? 0.85 : 1}
+        />
+      ))}
+      <circle r="6.5" fill="#fff" />
+    </g>
+  )
 }
 
 /**
@@ -71,6 +107,7 @@ export function SkillTreeCanvas({
   zoomStep,
   focusNodeId,
   focusLabel,
+  flowerMastery,
 }: SkillTreeCanvasProps) {
   const [camera, setCamera] = useState<Camera>(CAMERA_IDLE)
   const [hoveredId, setHoveredId] = useState<number | null>(null)
@@ -420,7 +457,12 @@ export function SkillTreeCanvas({
                         <use href={LEAF_HREF[leaf.kind]} />
                       </g>
                     ))}
-                    {node.motif === 'flower' && <use href="#rtFlower" />}
+                    {node.motif === 'flower' &&
+                      (flowerMastery ? (
+                        <FlowerWithSkills mastery={flowerMastery} />
+                      ) : (
+                        <use href="#rtFlower" />
+                      ))}
                     {node.motif === 'bud' && <use href="#rtBud" />}
                     {node.motif === 'nub' && (
                       <circle r="7" fill="var(--tree-nub)" stroke="var(--tree-nub-line)" strokeWidth="2" />

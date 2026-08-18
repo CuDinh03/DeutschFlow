@@ -215,7 +215,12 @@
         "summary": "{days} ngày · {weeks} tuần",
         "doneCount": "{done}/{total} đã xong",
         "motionOn": "Bật hiệu ứng",
-        "motionOff": "Tắt hiệu ứng"
+        "motionOff": "Tắt hiệu ứng",
+        "continueCta": "Học tiếp: {target} · {skill}",
+        "bestScore": "tốt nhất {percent}%",
+        "skillsMastered": "{done}/4 kỹ năng đạt từ {threshold}% trở lên",
+        "unlockCondition": "Xong {target} thì nụ này nở.",
+        "goPrereq": "Tới bài đang chặn"
       }
     },
     "speaking": {

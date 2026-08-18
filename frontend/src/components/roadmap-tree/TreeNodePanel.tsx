@@ -2,10 +2,16 @@
 
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { BookOpen, Lock, Play } from 'lucide-react'
-import { SKILL_COLORS, SKILL_ICONS, type Skill } from '@/lib/skills'
+import { ArrowUpLeft, BookOpen, Check, Lock, Play } from 'lucide-react'
+import { SKILL_COLORS, SKILL_ICONS } from '@/lib/skills'
 import { SkillIcon } from '@/components/ui-v2'
 import type { TreeMotif } from '@/lib/roadmap-tree/treeLayout'
+import {
+  isSkillMastered,
+  MASTERY_PERCENT,
+  SKILL_ORDER,
+  type NodePracticeStats,
+} from '@/lib/roadmap-tree/practiceStats'
 import { nodeDisplayTitle } from '@/lib/roadmap-tree/types'
 
 /**
@@ -16,26 +22,33 @@ import { nodeDisplayTitle } from '@/lib/roadmap-tree/types'
  * dẫn đường.
  */
 
-/** Thứ tự trình bày theo wireframe: Nghe → Đọc → Nói → Viết. */
-const SKILL_ORDER: Skill[] = ['hoeren', 'lesen', 'sprechen', 'schreiben']
-
 export interface TreeNodeSummary {
   id: number
   title: string
   subtitle: string
+  emoji: string
+  description: string
+  xpReward: number
+  cefrLevel: string
   dayNumber: number | null
   weekNumber: number | null
   motif: TreeMotif
   skillCounts: Record<string, number>
   lessonsCompleted: number
   lessonsTotal: number
+  /** Node đang chặn node khoá này (N7) — null khi không tra được từ `prerequisiteCode`. */
+  prerequisite?: { id: number; label: string } | null
 }
 
 export interface TreeNodePanelProps {
   node: TreeNodeSummary | null
+  /** Điểm luyện tập per-kỹ-năng của node đang chọn (N2) — null khi chưa tải xong. */
+  stats?: NodePracticeStats | null
+  /** Nhảy sang node khác trong cây — dùng cho link "tới bài đang chặn" của node khoá. */
+  onJumpToNode?: (id: number) => void
 }
 
-export function TreeNodePanel({ node }: TreeNodePanelProps) {
+export function TreeNodePanel({ node, stats, onJumpToNode }: TreeNodePanelProps) {
   const t = useTranslations('v2.student.roadmap')
   const locale = useLocale()
 
@@ -53,25 +66,55 @@ export function TreeNodePanel({ node }: TreeNodePanelProps) {
   const percent =
     node.lessonsTotal > 0 ? Math.round((node.lessonsCompleted / node.lessonsTotal) * 100) : 0
   const title = nodeDisplayTitle(node, locale)
+  const masteredCount = SKILL_ORDER.filter((skill) => isSkillMastered(stats?.[skill])).length
 
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-dashed border-ga-line px-4 py-3">
         <p className="break-words font-ga-display text-[17px] font-medium text-ga-ink">
+          {node.emoji && (
+            <span className="mr-1.5" aria-hidden>
+              {node.emoji}
+            </span>
+          )}
           {node.dayNumber ? t('tree.dayTitle', { day: node.dayNumber, title }) : title}
         </p>
-        <p className="ga-ui mt-0.5 text-[12px] text-ga-subtle">
-          {node.weekNumber ? t('tree.weekShort', { week: node.weekNumber }) : ''}
-          {node.weekNumber ? ' · ' : ''}
-          {t(`tree.status.${node.motif}`)}
+        <p className="ga-ui mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] text-ga-subtle">
+          {node.weekNumber ? <span>{t('tree.weekShort', { week: node.weekNumber })} ·</span> : null}
+          <span>{t(`tree.status.${node.motif}`)}</span>
+          {node.cefrLevel && (
+            <span className="rounded-ga-pill bg-ga-accent-soft px-1.5 py-px text-[10.5px] font-bold text-ga-accent">
+              {node.cefrLevel}
+            </span>
+          )}
+          {node.xpReward > 0 && <span>+{node.xpReward} XP</span>}
         </p>
+        {node.description && !locked && (
+          <p className="ga-ui mt-1.5 line-clamp-3 text-[12.5px] leading-relaxed text-ga-muted">
+            {node.description}
+          </p>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
         {locked ? (
           <div className="ga-ui flex items-start gap-2 text-[13px] leading-relaxed text-ga-muted">
             <Lock size={15} className="mt-0.5 shrink-0 text-ga-subtle" aria-hidden />
-            <span>{t('tree.lockedHint')}</span>
+            {node.prerequisite ? (
+              <span>
+                {t('tree.unlockCondition', { target: node.prerequisite.label })}{' '}
+                <button
+                  type="button"
+                  onClick={() => onJumpToNode?.(node.prerequisite!.id)}
+                  className="inline-flex items-center gap-0.5 font-semibold text-ga-accent underline-offset-2 hover:underline"
+                >
+                  <ArrowUpLeft size={12} aria-hidden />
+                  {t('tree.goPrereq')}
+                </button>
+              </span>
+            ) : (
+              <span>{t('tree.lockedHint')}</span>
+            )}
           </div>
         ) : (
           <>
@@ -81,6 +124,8 @@ export function TreeNodePanel({ node }: TreeNodePanelProps) {
             <ul className="space-y-2">
               {SKILL_ORDER.map((skill) => {
                 const count = node.skillCounts[skill.toUpperCase()] ?? 0
+                const stat = stats?.[skill]
+                const mastered = isSkillMastered(stat)
                 return (
                   <li
                     key={skill}
@@ -92,6 +137,16 @@ export function TreeNodePanel({ node }: TreeNodePanelProps) {
                       {count > 0 && (
                         <span className="ga-ui ml-1.5 text-[11.5px] font-normal text-ga-subtle">
                           {t('tree.exerciseCount', { count })}
+                        </span>
+                      )}
+                      {stat?.bestScorePercent != null && (
+                        <span
+                          className={`ga-ui ml-1.5 inline-flex items-center gap-0.5 text-[11.5px] font-semibold ${
+                            mastered ? 'text-ga-green' : 'text-ga-subtle'
+                          }`}
+                        >
+                          {mastered && <Check size={11} aria-hidden />}
+                          {t('tree.bestScore', { percent: stat.bestScorePercent })}
                         </span>
                       )}
                     </span>
@@ -107,6 +162,11 @@ export function TreeNodePanel({ node }: TreeNodePanelProps) {
                 )
               })}
             </ul>
+            {stats != null && masteredCount > 0 && (
+              <p className="ga-ui mt-2 text-[12px] text-ga-subtle">
+                {t('tree.skillsMastered', { done: masteredCount, threshold: MASTERY_PERCENT })}
+              </p>
+            )}
 
             <div className="mt-3.5">
               <span className="block h-2 w-full overflow-hidden rounded-ga-pill border border-ga-line bg-ga-card">
