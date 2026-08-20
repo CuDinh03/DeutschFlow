@@ -40,6 +40,7 @@ import { motion, radius, space, useTheme } from '@/lib/theme'
 import { ThemedText, Button } from '@/components/ui'
 import { captureEvent } from '@/lib/analytics'
 import { useTourStore } from '@/stores/useTourStore'
+import { useReducedMotion } from '@/lib/useReducedMotion'
 import {
   buildTourSteps,
   type SpotlightStep,
@@ -149,6 +150,11 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
   const theme = useTheme()
   const { width: winW, height: winH } = useWindowDimensions()
   const pathname = usePathname()
+  // Giảm chuyển động: khung khoét sáng nhảy thẳng sang bước kế thay vì bay bằng
+  // spring. Tour vẫn dùng được y nguyên, chỉ bỏ phần chuyển động (F-7).
+  const reducedMotion = useReducedMotion()
+  const reducedMotionRef = useRef(reducedMotion)
+  reducedMotionRef.current = reducedMotion
 
   const targetsRef = useRef(new Map<string, RefObject<View | null>[]>())
   const [active, setActive] = useState<ActiveTour | null>(null)
@@ -250,7 +256,7 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
           w: usable.width + CUTOUT_PAD * 2,
           h: usable.height + CUTOUT_PAD * 2,
         }
-        if (hasRectRef.current) {
+        if (hasRectRef.current && !reducedMotionRef.current) {
           hx.value = withSpring(to.x, motion.spring.snappy)
           hy.value = withSpring(to.y, motion.spring.snappy)
           hw.value = withSpring(to.w, motion.spring.snappy)
@@ -338,16 +344,30 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
 
   const step = active && display ? active.steps[display.index] : null
 
+  // Trong lúc tour chạy, phần app phía dưới lớp mờ phải BIẾN MẤT với screen
+  // reader — nếu không, người dùng VoiceOver vẫn vuốt được vào các phần tử đang
+  // bị làm mờ và kích hoạt chúng, phá vỡ tính "chỉ một chỗ bấm được" của tour
+  // (QA 2026-08-20, F-8). Riêng bước tap-through thì KHÔNG khoá: mục đích của
+  // bước đó chính là để người dùng chạm vào element được chiếu sáng.
+  const contentHidden = !!(active && display && step && !step.tapThrough)
+
   return (
     <SpotlightCtx.Provider value={ctxValue}>
       <View style={{ flex: 1 }}>
-        {children}
+        <View
+          style={{ flex: 1 }}
+          accessibilityElementsHidden={contentHidden}
+          importantForAccessibility={contentHidden ? 'no-hide-descendants' : 'auto'}
+        >
+          {children}
+        </View>
         {active && display && step ? (
           <MotiView
             from={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ type: 'timing', duration: motion.duration.normal }}
             pointerEvents="box-none"
+            accessibilityViewIsModal={!step.tapThrough}
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, elevation: 30 }}
           >
             {display.rect ? (

@@ -23,6 +23,7 @@ import { MENTOR_META, mentorEmoji, mentorFirstName, type OnboardingMentor } from
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useTourStore } from '@/stores/useTourStore'
 import { useBlockBackNavigation } from '@/hooks/useBlockBackNavigation'
+import { useReducedMotion } from '@/lib/useReducedMotion'
 import { useStarterStore } from '@/stores/useStarterStore'
 import { captureEvent } from '@/lib/analytics'
 import { motion, radius, space, useTheme } from '@/lib/theme'
@@ -333,9 +334,15 @@ export default function FirstSentenceScreen() {
 
 function MentorAvatar({ emoji, speaking }: { emoji: string; speaking?: boolean }) {
   const c = useTheme().colors
+  // Vòng sáng lặp vô hạn: chạm WCAG 2.2.2 (chuyển động > 5 giây, không nút dừng).
+  // Giảm chuyển động → avatar tĩnh (F-7).
+  // Gọi hook vô điều kiện: `speaking && !useReducedMotion()` sẽ đoản mạch và bỏ
+  // qua lời gọi hook khi speaking falsy — vi phạm rules-of-hooks.
+  const reducedMotion = useReducedMotion()
+  const pulsing = speaking && !reducedMotion
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-      {speaking ? (
+      {pulsing ? (
         <MotiView
           from={{ scale: 1, opacity: 0.45 }}
           animate={{ scale: 1.35, opacity: 0 }}
