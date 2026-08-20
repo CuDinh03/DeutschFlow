@@ -78,6 +78,25 @@ class FixedMentorResolverTest {
         }
 
         @Test
+        @DisplayName("Du lịch (Tourismus) + FREE → NIKLAS — mentor ngành mà gói FREE ĐƯỢC dùng (F-6)")
+        void tourism_free_reachesServiceBeginner() {
+            // Trước bản vá F-6, "Tourismus" không khớp từ khoá nào nên rơi về EDUCATION
+            // và trả ANNA — học viên ngành du lịch mất đúng persona BEGINNER mà tier
+            // FREE cho phép. Đây là lý do F-6 đáng vá dù chỉ là chuyện từ khoá.
+            FixedMentor m = resolver.resolve(GoalType.WORK, "Tourismus", CurrentLevel.A0, FREE);
+            assertThat(m.code()).isEqualTo("NIKLAS");
+            assertThat(m.difficulty()).isEqualTo(MentorDifficulty.BEGINNER);
+        }
+
+        @Test
+        @DisplayName("Kỹ thuật (Technik) + PRO → MAX/OLIVER (OPERATIONS), không phải LUKAS (F-6)")
+        void technik_premium_isOperationsNotIt() {
+            FixedMentor m = resolver.resolve(GoalType.WORK, "Technik", CurrentLevel.A2, PRO);
+            assertThat(m.code()).isIn("MAX", "OLIVER");
+            assertThat(m.code()).isNotEqualTo("LUKAS");
+        }
+
+        @Test
         @DisplayName("Gastronomy + PRO + A2 → KLAUS (INTERMEDIATE)")
         void gastronomy_premium() {
             FixedMentor m = resolver.resolve(GoalType.WORK, "Koch / Küche", CurrentLevel.A2, PRO);
