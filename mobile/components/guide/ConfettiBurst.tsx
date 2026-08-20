@@ -5,6 +5,7 @@
 import { useMemo } from 'react'
 import { View, useWindowDimensions } from 'react-native'
 import { MotiView } from 'moti'
+import { useReducedMotion } from '@/lib/useReducedMotion'
 
 const PIECES = 26
 // Brand-forward palette: DE gold + red, ink, and a cool counterpoint.
@@ -22,6 +23,7 @@ interface Piece {
 
 export function ConfettiBurst() {
   const { width, height } = useWindowDimensions()
+  const reducedMotion = useReducedMotion()
 
   const pieces = useMemo<Piece[]>(
     () =>
@@ -36,6 +38,10 @@ export function ConfettiBurst() {
       })),
     [width],
   )
+
+  // Giảm chuyển động: bỏ hẳn mưa giấy. Nội dung ăn mừng (tiêu đề + câu tiếng
+  // Đức) vẫn còn nguyên nên khoảnh khắc không mất ý nghĩa (F-7).
+  if (reducedMotion) return null
 
   return (
     <View
