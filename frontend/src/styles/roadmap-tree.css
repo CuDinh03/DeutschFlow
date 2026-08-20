@@ -6,7 +6,8 @@
  */
 
 .rt-scope {
-  --tree-ink: #3a2a20;
+  /* Mực nâu ấm hơi xám (Lernbaum v2 §15) — tránh cảm giác viền đen icon. */
+  --tree-ink: #3a302a;
   --tree-bark: #8a6350;
   --tree-canopy: #eef7ea;
   --tree-paper: #fffdf8;
@@ -16,6 +17,9 @@
   --tree-bud: #eaf6ec;
   --tree-flower: var(--ga-yellow, #ffcd00);
   --tree-flower-lit: #ffd940;
+  /* Aura nhịp thở quanh hoa: vàng đậm hơn cánh (F4BE24) + cam đất cho gợn thứ hai. */
+  --tree-aura: #f4be24;
+  --tree-aura-2: #e89b2c;
   --tree-nub: #f0ece7;
   --tree-nub-line: #b9aea6;
   --tree-ghost: #cdc3ba;
@@ -34,26 +38,63 @@
   }
 }
 
-@keyframes rtPulse {
+/* Nhịp thở 5 lớp lệch pha của node đang học (Lernbaum v2):
+ * 1) vòng gạch xoay rất chậm, 2) chính nó "hít–thở" bất đối xứng (phồng 55% chu kỳ / xẹp 45% —
+ * giống hơi thở thật hơn sin đều), 3) hào quang mềm thở NGƯỢC pha bên trong, 4) hai gợn lan
+ * so le nửa chu kỳ, 5) ba đốm phấn nhấp nháy lệch nhịp. Tất cả transform/opacity. */
+@keyframes rtSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rtBreath {
   0%,
   100% {
-    transform: scale(1);
-    opacity: 0.9;
+    transform: scale(0.955);
+    opacity: 0.55;
   }
-  50% {
-    transform: scale(1.08);
-    opacity: 0.45;
+  55% {
+    transform: scale(1.09);
+    opacity: 0.95;
+  }
+}
+
+@keyframes rtGlowBreath {
+  0%,
+  100% {
+    transform: scale(1.05);
+    opacity: 0.16;
+  }
+  55% {
+    transform: scale(0.94);
+    opacity: 0.05;
   }
 }
 
 @keyframes rtRing {
   0% {
-    transform: scale(0.72);
-    opacity: 0.85;
+    transform: scale(0.74);
+    opacity: 0.7;
+  }
+  70% {
+    opacity: 0.18;
   }
   100% {
-    transform: scale(1.35);
+    transform: scale(1.42);
     opacity: 0;
+  }
+}
+
+@keyframes rtSpark {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  45% {
+    opacity: 0.9;
+    transform: scale(1);
   }
 }
 
@@ -63,16 +104,50 @@
   animation: rtSway 9s ease-in-out infinite;
 }
 
+.rt-ring-spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rtSpin 26s linear infinite;
+}
+
 .rt-ring-pulse {
   transform-box: fill-box;
   transform-origin: center;
-  animation: rtPulse 2.4s ease-in-out infinite;
+  animation: rtBreath 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.rt-ring-glow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rtGlowBreath 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 .rt-ring-out {
   transform-box: fill-box;
   transform-origin: center;
-  animation: rtRing 2.4s ease-out infinite;
+  animation: rtRing 3.4s ease-out infinite;
+}
+
+/* Delay ÂM: gợn thứ hai vào giữa chu kỳ ngay từ frame đầu — delay dương sẽ để lộ
+ * một vòng tròn tĩnh trong 1,7s đầu tiên trước khi animation bắt đầu. */
+.rt-ring-out.rt-r2 {
+  animation-delay: -1.7s;
+}
+
+.rt-spark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rtSpark 2.6s ease-in-out infinite;
+}
+
+.rt-spark.rt-s2 {
+  animation-duration: 3.4s;
+  animation-delay: -0.9s;
+}
+
+.rt-spark.rt-s3 {
+  animation-duration: 3.1s;
+  animation-delay: -1.8s;
 }
 
 /* Cây đứng yên ngay khi người học chạm tới: một node đang đung đưa là một node khó bấm trúng —
@@ -83,18 +158,33 @@
   animation-play-state: paused;
 }
 
-/* Tắt chuyển động: người dùng bật giảm chuyển động, hoặc tự bấm nút tắt hiệu ứng. */
+/* Tắt chuyển động: người dùng bật giảm chuyển động, hoặc tự bấm nút tắt hiệu ứng.
+ * Đốm phấn ẩn hẳn khi tĩnh — một chấm vàng đứng yên cạnh hoa trông như vết bẩn. */
 .rt-still .rt-sway,
+.rt-still .rt-ring-spin,
 .rt-still .rt-ring-pulse,
-.rt-still .rt-ring-out {
+.rt-still .rt-ring-glow,
+.rt-still .rt-ring-out,
+.rt-still .rt-spark {
   animation: none;
+}
+
+.rt-still .rt-spark {
+  opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .rt-sway,
+  .rt-ring-spin,
   .rt-ring-pulse,
-  .rt-ring-out {
+  .rt-ring-glow,
+  .rt-ring-out,
+  .rt-spark {
     animation: none;
+  }
+
+  .rt-spark {
+    opacity: 0;
   }
 }
 

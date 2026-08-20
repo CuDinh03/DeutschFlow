@@ -304,9 +304,17 @@ test.describe('Cây học tập (/v2)', () => {
     await expect(page.getByText('tốt nhất 40%')).toBeVisible()
     await expect(page.getByText(/1\/4 kỹ năng đạt từ 70% trở lên/)).toBeVisible()
 
-    // Cánh hoa của kỹ năng đã đạt tô màu kỹ năng (Nghe = #4F86E0), kỹ năng chưa đạt giữ màu hoa.
-    await expect(page.locator('svg.rt-canvas ellipse[fill="#4F86E0"]')).toHaveCount(1)
-    await expect(page.locator('svg.rt-canvas ellipse[fill="#5E9150"]')).toHaveCount(0)
+    // Cánh hoa: kỹ năng đã đạt tô màu (Nghe 85% ≥ 70), kỹ năng chưa đạt giữ ngà (Đọc 40% < 70).
+    // Assert qua data-attr thay vì màu fill — bộ botanical v2 tô cánh bằng gradient path.
+    await expect(
+      page.locator('svg.rt-canvas [data-skill-petal="hoeren"][data-mastered="true"]'),
+    ).toHaveCount(1)
+    await expect(
+      page.locator('svg.rt-canvas [data-skill-petal="lesen"][data-mastered="false"]'),
+    ).toHaveCount(1)
+    await expect(
+      page.locator('svg.rt-canvas [data-skill-petal="sprechen"][data-mastered="false"]'),
+    ).toHaveCount(1)
   })
 
   test('không tràn ngang trên màn hình điện thoại', async ({ page }) => {
