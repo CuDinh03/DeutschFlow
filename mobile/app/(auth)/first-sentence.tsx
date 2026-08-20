@@ -22,6 +22,7 @@ import { evaluateFirstSentence } from '@/lib/firstSentence'
 import { MENTOR_META, mentorEmoji, mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useTourStore } from '@/stores/useTourStore'
+import { useBlockBackNavigation } from '@/hooks/useBlockBackNavigation'
 import { useStarterStore } from '@/stores/useStarterStore'
 import { captureEvent } from '@/lib/analytics'
 import { motion, radius, space, useTheme } from '@/lib/theme'
@@ -59,6 +60,10 @@ export default function FirstSentenceScreen() {
   const attemptsRef = useRef(0)
   const recordingRef = useRef(false)
   const doneRef = useRef(false)
+
+  // Màn này chỉ tới được sau khi đã lưu hồ sơ ⇒ luôn đang đăng nhập. Lùi khỏi đây
+  // là rơi vào màn Đăng nhập (F-5). Muốn bỏ qua thì đã có nút "Để sau".
+  useBlockBackNavigation(true)
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
 

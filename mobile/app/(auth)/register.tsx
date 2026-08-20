@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { View, KeyboardAvoidingView, Platform, Alert, ScrollView, Pressable } from 'react-native'
 import { router, Link } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
 import { Check } from 'lucide-react-native'
-import api from '@/lib/api'
+import api, { apiMessage } from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { setTokens } from '@/lib/auth'
 import { captureEvent } from '@/lib/analytics'
+import { clearOnboardingDraft } from '@/lib/onboardingDraft'
 import { passwordStrength } from '@/lib/passwordStrength'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { motion, radius, space, useTheme } from '@/lib/theme'
@@ -22,10 +23,24 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('')
   const [agree, setAgree] = useState(false)
   const [loading, setLoading] = useState(false)
+  // Đăng ký thành công hay không quyết định số phận của draft khách khi màn này
+  // rời khỏi ngăn xếp — xem effect dọn dẹp bên dưới (F-3).
+  const signedUpRef = useRef(false)
   const { fetchMe } = useAuthStore()
   const { fetchPlan } = usePlanStore()
 
   const strength = useMemo(() => passwordStrength(password), [password])
+
+  // Khách bỏ ngang ở màn này (vuốt lùi, đổi ý, kill app rồi mở lại) thì draft
+  // phễu phải chết theo. Không dọn thì nó nằm lại và người ĐĂNG KÝ KẾ TIẾP trên
+  // cùng máy sẽ bị replay im lặng câu trả lời của người trước, không hề thấy
+  // bảng câu hỏi (QA 2026-08-20, F-3).
+  useEffect(
+    () => () => {
+      if (!signedUpRef.current) void clearOnboardingDraft()
+    },
+    [],
+  )
 
   async function handleRegister() {
     const phoneTrimmed = phone.trim()
@@ -62,12 +77,18 @@ export default function RegisterScreen() {
       await fetchPlan()
       captureEvent('register_success')
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      // Đặt TRƯỚC khi điều hướng: replace làm màn này unmount ngay, và effect dọn
+      // dẹp phải thấy được là đã đăng ký xong để không xoá mất draft sắp replay.
+      signedUpRef.current = true
       // New learners go through onboarding before reaching the app.
       router.replace('/(auth)/onboarding')
-    } catch {
+    } catch (e) {
       captureEvent('register_failed')
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      Alert.alert('Đăng ký thất bại', 'Email có thể đã được sử dụng.')
+      // Đừng đoán hộ nguyên nhân: mất mạng, 500, email sai định dạng đều từng bị
+      // gộp thành "Email có thể đã được sử dụng" (F-9). apiMessage đọc `detail`
+      // của ProblemDetail, đúng như phần còn lại của app.
+      Alert.alert('Đăng ký thất bại', apiMessage(e))
     } finally {
       setLoading(false)
     }

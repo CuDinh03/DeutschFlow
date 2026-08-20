@@ -104,12 +104,15 @@ export default function DashboardScreen() {
   // lần đầu (sau wow moment), delay ~500ms — không auto-mở đè app như tour cũ.
   useFocusEffect(
     useCallback(() => {
-      if (!tourHydrated || tourDone.home || activeTourId) return
+      // Chờ dashboard render xong: bước 1 neo vào thẻ chuỗi học, mà thẻ đó chỉ
+      // tồn tại khi hết isLoading. Mạng chậm thì waitForRect (1.8s) hết hạn và
+      // tour rơi về "màn mờ phẳng + tooltip giữa màn", mất hiệu ứng khoét sáng (F-11).
+      if (!tourHydrated || tourDone.home || activeTourId || isLoading) return
       const t = setTimeout(() => {
         void getDailyGoalMinutes().then((m) => startTour('home', 'auto', { dailyGoalMinutes: m }))
       }, 500)
       return () => clearTimeout(t)
-    }, [tourHydrated, tourDone.home, activeTourId, startTour]),
+    }, [tourHydrated, tourDone.home, activeTourId, isLoading, startTour]),
   )
 
   // ── Tuần đầu (Phase D): checklist "Bắt đầu" + sheet nhắc học 20:00 ─────────

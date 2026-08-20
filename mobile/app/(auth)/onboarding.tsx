@@ -12,6 +12,7 @@ import { saveDailyGoalMinutes } from '@/lib/dailyGoal'
 import { MENTOR_META, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { nextAfterProfile } from '@/lib/onboardingRouting'
 import { useTourStore } from '@/stores/useTourStore'
+import { useBlockBackNavigation } from '@/hooks/useBlockBackNavigation'
 import { Screen, ThemedText, Button } from '@/components/ui'
 
 // Onboarding for iOS B2C (MVP checklist §5.1): collect goal, target level, and
@@ -98,6 +99,10 @@ export default function OnboardingScreen() {
 
   const canSubmit = !!targetLevel
 
+  // Khách chạy phễu value-first vẫn lùi về màn Đăng nhập được; người đã đăng ký
+  // thì không — lùi lúc này là rơi vào màn Đăng nhập trong khi đang đăng nhập (F-5).
+  useBlockBackNavigation(isLoggedIn)
+
   // Live mentor preview — updates as the learner picks goal / level / industry.
   useEffect(() => {
     let active = true
@@ -125,6 +130,12 @@ export default function OnboardingScreen() {
       const draft = await readOnboardingDraft()
       if (!active || !draft) return
       setResuming(true)
+      // Xoá TRƯỚC khi POST không phải để tiết kiệm — đó là chốt GIÀNH QUYỀN replay.
+      // register.tsx quay lại đây bằng router.replace, nên instance onboarding CŨ
+      // vẫn nằm trong ngăn xếp và effect [isLoggedIn] của nó cũng bắn theo. Ai đọc
+      // được draft trước thì xoá và đi tiếp; người sau đọc ra null và đứng im.
+      // Đổi lại, nhánh catch phải LƯU LẠI draft (xem bên dưới) để POST hỏng không
+      // làm mất trắng câu trả lời (F-10).
       await clearOnboardingDraft()
       try {
         await api.post('/onboarding/profile', {
@@ -147,6 +158,10 @@ export default function OnboardingScreen() {
         // khoá vĩnh viễn checklist tuần đầu + nhắc học (F-2).
         void useTourStore.getState().markDone('profile_done')
         captureEvent('onboarding_completed', { goalType: draft.goalType, targetLevel: draft.targetLevel })
+        // Bắn đủ như nhánh authed — thiếu ở đây thì phễu lệch giữa hai đường vào
+        // và không so được người dùng khách với người đăng ký thẳng (F-12).
+        captureEvent('onboarding_motivation_selected', { motivation: draft.motivation, goalType: draft.goalType })
+        captureEvent('onboarding_daily_goal_set', { minutes: parseInt(draft.dailyGoal, 10) })
         let route: OnboardingRoute | null = null
         try {
           const { data } = await api.get<OnboardingRoute>('/onboarding/route', {
@@ -163,6 +178,10 @@ export default function OnboardingScreen() {
         await saveDailyGoalMinutes(parseInt(draft.dailyGoal, 10))
         router.replace(nextAfterProfile(route?.postAction))
       } catch (e) {
+        // POST hỏng → trả draft về máy. Nạp lại form chỉ cứu được user còn đang ở
+        // đây; ai tắt app ngay lúc đó thì mất trắng nếu draft không được khôi phục
+        // (F-10). Lưu lại cũng làm mới savedAt — user đang thao tác thật.
+        await saveOnboardingDraft(draft)
         // Save failed → hydrate the form so the user can retry instead of losing their answers.
         if (active) {
           setMotivation(draft.motivation); setGoalType(draft.goalType); setCurrentLevel(draft.currentLevel)
@@ -209,6 +228,10 @@ export default function OnboardingScreen() {
       })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       void useTourStore.getState().markDone('profile_done')   // xem ghi chú F-2 ở nhánh resume-draft
+      // Dọn draft còn sót: ca "resume POST hỏng → form được nạp lại → user bấm
+      // lưu lại" đi qua đúng nhánh này, và draft cũ không được phép replay ở lần
+      // đăng nhập sau (F-10).
+      void clearOnboardingDraft()
       captureEvent('onboarding_completed', { goalType, targetLevel })
       captureEvent('onboarding_motivation_selected', { motivation, goalType })
       captureEvent('onboarding_daily_goal_set', { minutes: parseInt(dailyGoal, 10) })
