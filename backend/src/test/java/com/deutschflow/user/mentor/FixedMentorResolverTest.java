@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.stream.Stream;
@@ -63,18 +64,32 @@ class FixedMentorResolverTest {
         }
 
         @Test
-        @DisplayName("IT + PRO + A1 → LUKAS (industry match wins; difficulty is a soft preference)")
-        void it_premium_beginnerLevel_stillIndustryMatch() {
+        @DisplayName("IT + PRO + A1 → JONAS (bậc khó khớp trình độ — nay họ IT đã có lựa chọn BEGINNER)")
+        void it_premium_beginnerLevel_picksLevelAppropriate() {
+            // ĐỔI HÀNH VI có chủ đích (F-15). Tie-break trong resolve() vốn đã chọn
+            // persona có bậc gần desiredForLevel nhất; trước đây họ IT chỉ có LUKAS
+            // (ADVANCED) nên "gần nhất" luôn là LUKAS bất kể trình độ. Thêm JONAS thì
+            // học viên PRO trình A1 nhận đúng người nói tiếng Đức A1-A2 trong ngành
+            // mình — chính là điều difficultyForLevel() sinh ra để làm.
+            // Chỉ ảnh hưởng lượt gán MỚI (assigned_persona_code đã lưu không đổi), và
+            // học viên PRO vẫn tự đổi mentor được trong module Speaking.
             FixedMentor m = resolver.resolve(GoalType.WORK, "Informatik", CurrentLevel.A1, PRO);
-            assertThat(m.code()).isEqualTo("LUKAS");
+            assertThat(m.code()).isEqualTo("JONAS");
+
+            // Lên trình thì vẫn về đúng chuyên gia của ngành.
+            assertThat(resolver.resolve(GoalType.WORK, "Informatik", CurrentLevel.B2, PRO).code())
+                    .isEqualTo("LUKAS");
         }
 
         @Test
-        @DisplayName("IT + FREE → ANNA (IT has no BEGINNER persona; tier gate falls back to default)")
-        void it_free_fallsBackToDefault() {
+        @DisplayName("IT + FREE → JONAS (mentor nhập môn của họ IT, không còn rơi về ANNA)")
+        void it_free_getsBeginnerItMentor() {
+            // Trước F-15: họ IT không có persona BEGINNER nên bộ lọc tier đẩy về ANNA.
+            // Đó chính là tiền đề của lỗi mà test cũ vô tình khoá lại.
             FixedMentor m = resolver.resolve(GoalType.WORK, "Software Developer", CurrentLevel.A1, FREE);
-            assertThat(m.code()).isEqualTo("ANNA");
-            assertThat(m.reason()).contains("FREE").contains("default");
+            assertThat(m.code()).isEqualTo("JONAS");
+            assertThat(m.difficulty()).isEqualTo(MentorDifficulty.BEGINNER);
+            assertThat(m.reason()).contains("free");
         }
 
         @Test
@@ -104,19 +119,19 @@ class FixedMentorResolverTest {
         }
 
         @Test
-        @DisplayName("Gastronomy + FREE → ANNA (KLAUS is INTERMEDIATE, gated)")
-        void gastronomy_free_fallsBack() {
+        @DisplayName("Gastronomy + FREE → TIM (KLAUS vẫn khoá ở INTERMEDIATE)")
+        void gastronomy_free_getsBeginnerMentor() {
             FixedMentor m = resolver.resolve(GoalType.WORK, "Restaurant Küche", CurrentLevel.A2, FREE);
-            assertThat(m.code()).isEqualTo("ANNA");
+            assertThat(m.code()).isEqualTo("TIM");
         }
 
         @Test
-        @DisplayName("Business + PRO → EMMA; Business + FREE → ANNA")
+        @DisplayName("Business + PRO → EMMA; Business + FREE → FELIX")
         void business() {
             assertThat(resolver.resolve(GoalType.WORK, "Business Development", CurrentLevel.B1, PRO).code())
                     .isEqualTo("EMMA");
             assertThat(resolver.resolve(GoalType.WORK, "kinh doanh", CurrentLevel.B1, FREE).code())
-                    .isEqualTo("ANNA");
+                    .isEqualTo("FELIX");
         }
 
         @Test
@@ -166,17 +181,21 @@ class FixedMentorResolverTest {
         }
 
         @Test
-        @DisplayName("Healthcare + PRO + A1 → SARAH (no BEGINNER; closest available is INTERMEDIATE)")
-        void healthcare_beginnerLevel_picksGentlestAvailable() {
-            FixedMentor m = resolver.resolve(GoalType.WORK, "y khoa", CurrentLevel.A1, PRO);
-            assertThat(m.code()).isEqualTo("SARAH");
+        @DisplayName("Healthcare + PRO + A1 → MARIE (nay đã có BEGINNER trong họ)")
+        void healthcare_beginnerLevel_picksLevelAppropriate() {
+            // Cùng lý do như IT + PRO + A1 ở trên.
+            assertThat(resolver.resolve(GoalType.WORK, "y khoa", CurrentLevel.A1, PRO).code())
+                    .isEqualTo("MARIE");
+            // A2 trở lên vẫn là SARAH như cũ.
+            assertThat(resolver.resolve(GoalType.WORK, "y khoa", CurrentLevel.A2, PRO).code())
+                    .isEqualTo("SARAH");
         }
 
         @Test
-        @DisplayName("Healthcare + FREE → ANNA (family has no BEGINNER persona)")
-        void healthcare_free_fallsBack() {
+        @DisplayName("Healthcare + FREE → MARIE (SARAH/WEBER/SCHNEIDER vẫn khoá)")
+        void healthcare_free_getsBeginnerMentor() {
             assertThat(resolver.resolve(GoalType.WORK, "Arztpraxis", CurrentLevel.A2, FREE).code())
-                    .isEqualTo("ANNA");
+                    .isEqualTo("MARIE");
         }
 
         @Test
@@ -228,14 +247,15 @@ class FixedMentorResolverTest {
         @DisplayName("null plan code is treated as free (BEGINNER gate)")
         void nullPlan_isFree() {
             assertThat(resolver.isPremium(null)).isFalse();
-            // IT has no BEGINNER → null plan falls back to default
-            assertThat(resolver.resolve(GoalType.WORK, "IT", CurrentLevel.B2, null).code()).isEqualTo("ANNA");
+            // Plan null = FREE ⇒ vẫn bị chặn ở bậc BEGINNER, dù học viên đã B2:
+            // nhận JONAS (BEGINNER) chứ không phải LUKAS (ADVANCED).
+            assertThat(resolver.resolve(GoalType.WORK, "IT", CurrentLevel.B2, null).code()).isEqualTo("JONAS");
         }
 
         @Test
         @DisplayName("DEFAULT plan (new user, no subscription) gates to BEGINNER")
         void defaultPlan_isFree() {
-            assertThat(resolver.resolve(GoalType.WORK, "IT", CurrentLevel.B2, "DEFAULT").code()).isEqualTo("ANNA");
+            assertThat(resolver.resolve(GoalType.WORK, "IT", CurrentLevel.B2, "DEFAULT").code()).isEqualTo("JONAS");
         }
     }
 
@@ -283,5 +303,65 @@ class FixedMentorResolverTest {
                 Arguments.of(GoalType.WORK, null, CurrentLevel.A0, FREE),
                 Arguments.of(GoalType.WORK, "etwas Unbekanntes", CurrentLevel.C1, "ULTRA")
         );
+    }
+
+    /**
+     * F-15 (QA 2026-08-20): tier FREE lọc cứng chỉ còn persona BEGINNER, mà catalog
+     * trước đây chỉ có 5 persona BEGINNER trên tổng 9 họ ngành. Hệ quả đo được trên
+     * prod: thẻ "Mentor của bạn" ở onboarding trả ANNA cho 5/6 lĩnh vực, ở MỌI cấp
+     * độ — người dùng bấm hết các chip mà thẻ không đổi, tưởng app hỏng.
+     *
+     * <p>Phương án (a) owner chọn: mỗi họ ngành có ít nhất một persona BEGINNER.
+     */
+    @Nested
+    @DisplayName("F-15 — mọi họ ngành đều có mentor cho tài khoản FREE")
+    class FreeTierCoverage {
+
+        @DisplayName("mỗi họ ngành có ít nhất một persona BEGINNER trong catalog")
+        @ParameterizedTest(name = "{0}")
+        @EnumSource(IndustryFamily.class)
+        void everyFamilyHasABeginnerPersona(IndustryFamily family) {
+            assertThat(FixedMentorResolver.catalogFor(family))
+                    .as("họ %s phải có persona BEGINNER, nếu không tài khoản FREE rơi về ANNA", family)
+                    .anyMatch(p -> p.difficulty() == MentorDifficulty.BEGINNER);
+        }
+
+        @DisplayName("FREE + A0 nhận mentor ĐÚNG NGÀNH, không rơi về ANNA")
+        @ParameterizedTest(name = "{0} → {1}")
+        @MethodSource("com.deutschflow.user.mentor.FixedMentorResolverTest#freeTierIndustryCases")
+        void freeTierGetsIndustryMentor(String industry, IndustryFamily expectedFamily) {
+            FixedMentor m = resolver.resolve(GoalType.WORK, industry, CurrentLevel.A0, FREE);
+
+            assertThat(FixedMentorResolver.familyOf(m.code()))
+                    .as("industry=%s phải ra mentor họ %s, nhận được %s", industry, expectedFamily, m.code())
+                    .isEqualTo(expectedFamily);
+            assertThat(m.difficulty()).isEqualTo(MentorDifficulty.BEGINNER);
+        }
+
+        @Test
+        @DisplayName("6 lựa chọn lĩnh vực của app mobile cho ra 6 mentor KHÁC NHAU (thẻ hết bất động)")
+        void mobileIndustryChipsProduceDistinctMentors() {
+            String[] chips = { "IT", "Pflege", "Gastronomie", "Verkauf", "Tourismus", "Technik" };
+
+            var codes = java.util.Arrays.stream(chips)
+                    .map(i -> resolver.resolve(GoalType.WORK, i, CurrentLevel.A0, FREE).code())
+                    .distinct()
+                    .toList();
+
+            assertThat(codes).as("mỗi chip phải đổi mentor, không còn 5/6 ra ANNA").hasSize(6);
+        }
+    }
+
+    static Stream<Arguments> freeTierIndustryCases() {
+        return Stream.of(
+                Arguments.of("IT", IndustryFamily.IT),
+                Arguments.of("Pflege", IndustryFamily.HEALTHCARE),
+                Arguments.of("Gastronomie", IndustryFamily.GASTRONOMY),
+                Arguments.of("Verkauf", IndustryFamily.RETAIL),
+                Arguments.of("Tourismus", IndustryFamily.SERVICE),
+                Arguments.of("Technik", IndustryFamily.OPERATIONS),
+                Arguments.of("Marketing", IndustryFamily.BUSINESS),
+                Arguments.of("Medien", IndustryFamily.MEDIA),
+                Arguments.of("Bildung", IndustryFamily.EDUCATION));
     }
 }

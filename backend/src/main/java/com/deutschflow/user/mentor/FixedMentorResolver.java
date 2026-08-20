@@ -58,7 +58,16 @@ public class FixedMentorResolver {
             new MentorPersona("OLIVER",    IndustryFamily.OPERATIONS, MentorDifficulty.ADVANCED),
             new MentorPersona("NIKLAS",    IndustryFamily.SERVICE,    MentorDifficulty.BEGINNER),
             new MentorPersona("NINA",      IndustryFamily.SERVICE,    MentorDifficulty.INTERMEDIATE),
-            new MentorPersona("HANNIE",    IndustryFamily.MEDIA,      MentorDifficulty.INTERMEDIATE)
+            new MentorPersona("HANNIE",    IndustryFamily.MEDIA,      MentorDifficulty.INTERMEDIATE),
+            // Mentor nhập môn — mỗi họ ngành phải có ít nhất một persona BEGINNER, nếu không
+            // bộ lọc tier ở (3) đẩy tài khoản FREE về ANNA và thẻ mentor ở onboarding bất
+            // động dù người dùng chọn lĩnh vực nào (QA 2026-08-20, F-15).
+            new MentorPersona("JONAS",     IndustryFamily.IT,         MentorDifficulty.BEGINNER),
+            new MentorPersona("MARIE",     IndustryFamily.HEALTHCARE, MentorDifficulty.BEGINNER),
+            new MentorPersona("TIM",       IndustryFamily.GASTRONOMY, MentorDifficulty.BEGINNER),
+            new MentorPersona("JULIA",     IndustryFamily.OPERATIONS, MentorDifficulty.BEGINNER),
+            new MentorPersona("FELIX",     IndustryFamily.BUSINESS,   MentorDifficulty.BEGINNER),
+            new MentorPersona("MIA",       IndustryFamily.MEDIA,      MentorDifficulty.BEGINNER)
     );
 
     private static final MentorPersona DEFAULT_PERSONA = CATALOG.stream()
@@ -112,6 +121,20 @@ public class FixedMentorResolver {
         return new FixedMentor(pick.code(), pick.difficulty(),
                 "WORK/" + family + "/" + (currentLevel == null ? "A0" : currentLevel)
                         + (premiumUnlocked ? "/premium" : "/free"));
+    }
+
+    /** Personas thuộc một họ ngành. Dùng cho test bất biến "họ nào cũng có BEGINNER". */
+    public static List<MentorPersona> catalogFor(IndustryFamily family) {
+        return CATALOG.stream().filter(p -> p.family() == family).toList();
+    }
+
+    /** Họ ngành của một mã persona; {@code null} nếu mã không có trong catalog. */
+    public static IndustryFamily familyOf(String code) {
+        return CATALOG.stream()
+                .filter(p -> p.code().equals(code))
+                .map(MentorPersona::family)
+                .findFirst()
+                .orElse(null);
     }
 
     /** True when the plan code unlocks INTERMEDIATE / ADVANCED mentors. */

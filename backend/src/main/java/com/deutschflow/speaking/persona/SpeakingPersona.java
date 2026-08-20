@@ -55,6 +55,19 @@ public enum SpeakingPersona {
     // ── Medien / MC (Truyền thông) ──
     HANNIE,    // Moderatorin / MC, 20 Jahre, A2-B2
 
+    // ── Mentor nhập môn (BEGINNER, A1-A2) ──
+    // Mỗi họ ngành phải có ít nhất một persona BEGINNER, nếu không tài khoản FREE
+    // (= mọi người vừa đăng ký) rơi hết về ANNA và thẻ "Mentor của bạn" ở onboarding
+    // bất động dù chọn lĩnh vực nào (QA 2026-08-20, F-15).
+    // Đều là VAI NHẬP MÔN thật sự — cùng tinh thần với LENA/THOMAS/NIKLAS đã có:
+    // đồng nghiệp mới vào nghề, nói tiếng Đức đơn giản, chứ không phải sếp hay chuyên gia.
+    JONAS,     // IT-Support / Helpdesk, A1-A2
+    MARIE,     // Pflegehelferin, A1-A2
+    TIM,       // Küchenhilfe, A1-A2
+    JULIA,     // Produktionshelferin, A1-A2
+    FELIX,     // Bürokaufmann (Azubi), A1-A2
+    MIA,       // Social-Media-Assistentin, A1-A2
+
     // ── Special Vietnamese tutors (LESSON mode) ──
     TUAN,      // "Anh bạn học nghề"
     LAN,       // "Chị đi trước"
@@ -95,6 +108,12 @@ public enum SpeakingPersona {
             case NIKLAS -> "Kellner";
             case NINA -> "Rezeptionistin im Hotel";
             case HANNIE -> "Moderatorin und MC";
+            case JONAS -> "IT-Support-Mitarbeiter im Helpdesk";
+            case MARIE -> "Pflegehelferin im Altenheim";
+            case TIM -> "Küchenhilfe im Restaurant";
+            case JULIA -> "Produktionshelferin in der Fertigung";
+            case FELIX -> "Bürokaufmann in der Ausbildung";
+            case MIA -> "Social-Media-Assistentin";
         };
     }
 
@@ -117,6 +136,12 @@ public enum SpeakingPersona {
             case NIKLAS -> "Niklas";
             case NINA -> "Nina";
             case HANNIE -> "Hannie";
+            case JONAS -> "Jonas";
+            case MARIE -> "Marie";
+            case TIM -> "Tim";
+            case JULIA -> "Julia";
+            case FELIX -> "Felix";
+            case MIA -> "Mia";
             case TUAN -> "Tuấn";
             case LAN -> "Lan";
             case MINH -> "Minh";
@@ -144,6 +169,18 @@ public enum SpeakingPersona {
             case NIKLAS -> serviceSection("Niklas", "Kellner", "Restaurant, Speisekarte, Bestellung, Rechnung, Tischreservierung", userLevel);
             case NINA -> serviceSection("Nina", "Rezeptionistin", "Hotel, Check-in, Zimmer, Frühstück, Schlüsselkarte", userLevel);
             case HANNIE -> hannieSection(userLevel);
+            case JONAS -> einstiegSection("Jonas", "IT-Support-Mitarbeiter im Helpdesk",
+                    "Büro, Computer, Passwort, Drucker, Internet, Ticket, Kollege", userLevel);
+            case MARIE -> einstiegSection("Marie", "Pflegehelferin im Altenheim",
+                    "Altenheim, Bewohner, Frühstück, Waschen, Schicht, Kollegin", userLevel);
+            case TIM -> einstiegSection("Tim", "Küchenhilfe im Restaurant",
+                    "Küche, Gemüse, Spülen, Vorbereiten, Schicht, Pause", userLevel);
+            case JULIA -> einstiegSection("Julia", "Produktionshelferin in der Fertigung",
+                    "Halle, Band, Karton, Palette, Schicht, Sicherheitsschuhe", userLevel);
+            case FELIX -> einstiegSection("Felix", "Bürokaufmann in der Ausbildung",
+                    "Büro, Termin, Telefon, E-Mail, Ordner, Kollege", userLevel);
+            case MIA -> einstiegSection("Mia", "Social-Media-Assistentin",
+                    "Foto, Video, Beitrag, Kommentar, Kanal, Termin", userLevel);
             case TUAN -> tuanSection(userLevel);
             case LAN -> lanSection(userLevel);
             case MINH -> minhSection(userLevel);
@@ -181,6 +218,7 @@ public enum SpeakingPersona {
             case MAX, OLIVER -> maschinenbauGreeting(this, t, industry, weakPointsStr);
             case NIKLAS, NINA -> serviceGreeting(this, t, industry, weakPointsStr);
             case HANNIE -> hannieGreeting(t, industry, weakPointsStr);
+            case JONAS, MARIE, TIM, JULIA, FELIX, MIA -> einstiegGreeting(this, t, weakPointsStr);
             case TUAN -> specialViGreeting("Tuấn", "mình", "bạn", t);
             case LAN -> specialViGreeting("chị Lan", "chị", "em", t);
             case MINH -> specialViGreeting("Minh", "mình", "bạn", t);
@@ -201,6 +239,14 @@ public enum SpeakingPersona {
             case MAX, OLIVER -> maschinenbauInterviewGreeting(p, pos, industry, weakPointsStr);
             case NIKLAS, NINA -> serviceInterviewGreeting(p, pos, industry, weakPointsStr);
             case HANNIE -> hannieInterviewGreeting(pos, industry, weakPointsStr);
+            // Mentor nhập môn: dùng lại khuôn phỏng vấn của họ ngành gần nhất để giữ
+            // đúng bối cảnh nghề; giọng "nhập môn" đã nằm ở personaPromptSection.
+            case MARIE -> medizinInterviewGreeting(p, pos, industry, weakPointsStr);
+            case TIM -> klausInterviewGreeting(pos, industry, weakPointsStr);
+            case JULIA -> maschinenbauInterviewGreeting(p, pos, industry, weakPointsStr);
+            case JONAS -> lukasInterviewGreeting(pos, industry, weakPointsStr);
+            case FELIX -> emmaInterviewGreeting(pos, industry, weakPointsStr);
+            case MIA -> hannieInterviewGreeting(pos, industry, weakPointsStr);
             // Special personas do not support INTERVIEW mode — fall back to default
             case TUAN, LAN, MINH -> defaultInterviewGreeting(pos, industry, weakPointsStr);
         };
@@ -468,6 +514,25 @@ public enum SpeakingPersona {
                 """.formatted(name, role, name, role, vocab, userLevel);
     }
 
+    /**
+     * Khuôn prompt cho mentor NHẬP MÔN (BEGINNER). Khác các khuôn theo ngành ở chỗ
+     * ràng buộc độ khó ngôn ngữ một cách tường minh: người dùng của những persona này
+     * là học viên A1-A2 vừa qua onboarding, câu dài là mất hút ngay.
+     */
+    private static String einstiegSection(String name, String role, String vocab, String userLevel) {
+        return """
+                PERSONA (%s — %s, Einstiegsniveau):
+                - Rolle: Du bist %s und arbeitest als %s in Deutschland. Du bist selbst noch
+                  nicht lange dabei, deshalb erklärst du gern und ohne Fachjargon.
+                - Stimmung: freundlich, geduldig, kollegial — wie jemand am ersten Arbeitstag.
+                - Szenario-Anker: %s.
+                - ai_speech_de: SEHR einfaches Deutsch (A1-A2), kurze Hauptsätze, Alltagswörter.
+                  Keine Fachbegriffe ohne sofortige Erklärung. User_Level: %s. Immer EINE
+                  einfache Folgefrage — nie mehrere auf einmal.
+                - Lob & feedback (Vietnamesisch): sehr ermutigend; kleine Fortschritte ausdrücklich loben.
+                """.formatted(name, role, name, role, vocab, userLevel);
+    }
+
     // ── Special Vietnamese Tutor Sections ───
 
     private static String tuanSection(String userLevel) {
@@ -550,6 +615,17 @@ public enum SpeakingPersona {
                 KEIN Interview. Die suggestions sollen gästebezogene Antworten sein.
                 WICHTIG: NUR JSON.
                 """.formatted(p.displayName(), topic, weakPointsStr);
+    }
+
+    private static String einstiegGreeting(SpeakingPersona p, String topic, String weakPointsStr) {
+        return """
+                COMMUNICATION MODE — Lockeres Gespräch mit einem neuen Kollegen als %s (%s).
+                Begrüße auf SEHR einfachem Deutsch (JSON ai_speech_de), kurze Sätze.
+                Thema: "%s". Grammatik kurz: "%s".
+                Stelle EINE einfache, offene Frage — wie beim ersten Kennenlernen am Arbeitsplatz.
+                KEIN Interview. Die suggestions sollen ganz kurze Alltagsantworten sein (A1-A2).
+                WICHTIG: NUR JSON.
+                """.formatted(p.displayName(), p.communicationRole(), topic, weakPointsStr);
     }
 
     private static String specialViGreeting(String name, String selfPronoun, String userPronoun, String topic) {
