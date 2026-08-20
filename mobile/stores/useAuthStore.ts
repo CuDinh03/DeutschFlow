@@ -2,6 +2,10 @@ import { create } from 'zustand'
 import api from '@/lib/api'
 import { setTokens, clearTokens, getRoleFromToken } from '@/lib/auth'
 import { identifyUser, resetAnalytics } from '@/lib/analytics'
+import { useTourStore } from './useTourStore'
+import { useStarterStore } from './useStarterStore'
+import { clearDailyGoalMinutes } from '@/lib/dailyGoal'
+import { clearOnboardingDraft } from '@/lib/onboardingDraft'
 
 export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN'
 
@@ -51,6 +55,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     try { await api.post('/auth/logout') } catch {}
     await clearTokens()
+    // Cờ onboarding/tour/checklist lưu per-THIẾT BỊ, không per-tài khoản. Không dọn
+    // ở đây thì tài khoản kế tiếp đăng nhập trên cùng máy thừa hưởng trạng thái của
+    // người trước: mất spotlight tour, checklist tuần đầu có thể đã dismissed, và
+    // copy bước streak đọc mục tiêu phút/ngày của người khác (QA 2026-08-20, F-4).
+    // Cố ý KHÔNG đụng df_ai_consent_v1 — consent chia sẻ dữ liệu với AI là quyết
+    // định ở mức thiết bị, có màn riêng trong Hồ sơ để thu hồi.
+    await Promise.all([
+      useTourStore.getState().reset(),
+      useStarterStore.getState().reset(),
+      clearDailyGoalMinutes(),
+      clearOnboardingDraft(),
+    ])
     set({ user: null, isLoggedIn: false })
     resetAnalytics()
   },

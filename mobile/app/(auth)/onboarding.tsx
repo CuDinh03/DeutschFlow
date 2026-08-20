@@ -11,6 +11,7 @@ import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft } from '
 import { saveDailyGoalMinutes } from '@/lib/dailyGoal'
 import { MENTOR_META, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { nextAfterProfile } from '@/lib/onboardingRouting'
+import { useTourStore } from '@/stores/useTourStore'
 import { Screen, ThemedText, Button } from '@/components/ui'
 
 // Onboarding for iOS B2C (MVP checklist §5.1): collect goal, target level, and
@@ -141,6 +142,10 @@ export default function OnboardingScreen() {
           dailyGoalMinutes: parseInt(draft.dailyGoal, 10),
           learningSpeed: 'NORMAL',
         })
+        // Cờ đặt NGAY khi hồ sơ đã lưu — trước cửa sổ dễ vỡ (màn wow). Phase D gate
+        // trên (profile_done || first_sentence) nên thoát app giữa chừng không còn
+        // khoá vĩnh viễn checklist tuần đầu + nhắc học (F-2).
+        void useTourStore.getState().markDone('profile_done')
         captureEvent('onboarding_completed', { goalType: draft.goalType, targetLevel: draft.targetLevel })
         let route: OnboardingRoute | null = null
         try {
@@ -203,6 +208,7 @@ export default function OnboardingScreen() {
         learningSpeed: 'NORMAL',
       })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      void useTourStore.getState().markDone('profile_done')   // xem ghi chú F-2 ở nhánh resume-draft
       captureEvent('onboarding_completed', { goalType, targetLevel })
       captureEvent('onboarding_motivation_selected', { motivation, goalType })
       captureEvent('onboarding_daily_goal_set', { minutes: parseInt(dailyGoal, 10) })

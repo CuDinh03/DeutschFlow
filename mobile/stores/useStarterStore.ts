@@ -37,6 +37,12 @@ interface StarterState {
   markReminderEnabled: () => void
   declineReminderSheet: (now: number) => void
   dismissChecklist: () => void
+  /**
+   * Xoá sạch tiến độ tuần đầu trên MÁY. Gọi lúc đăng xuất — state này là
+   * per-thiết bị, không dọn thì tài khoản thứ hai trên cùng máy thừa hưởng
+   * checklist đã hoàn thành/dismissed của người trước (QA 2026-08-20, F-4).
+   */
+  reset: () => Promise<void>
 }
 
 function persist(key: string, value: string): void {
@@ -114,5 +120,23 @@ export const useStarterStore = create<StarterState>((set, get) => ({
     if (get().checklistDismissed) return
     set({ checklistDismissed: true })
     persist(KEYS.dismissed, '1')
+  },
+
+  reset: async () => {
+    // hydrated giữ true: store đã ở trạng thái biết-rõ (rỗng), UI không phải chờ.
+    set({
+      hydrated: true,
+      spokeFirstSentence: false,
+      srsReviews: 0,
+      speakingSessionStarted: false,
+      reminderEnabled: false,
+      checklistDismissed: false,
+      reminderDeclinedAt: null,
+    })
+    try {
+      await Promise.all(Object.values(KEYS).map((k) => SecureStore.deleteItemAsync(k)))
+    } catch {
+      /* best-effort */
+    }
   },
 }))
