@@ -2,7 +2,7 @@
 
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, PenLine } from "lucide-react";
 import api from "@/lib/api";
 
 interface CorrectionResult {
@@ -83,7 +83,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
   if (!prompt) {
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0] space-y-4">
-        <span className="text-4xl mb-3">✍️</span>
+        <PenLine size={40} className="mb-3 text-[#94A3B8]" aria-hidden />
         <p className="text-sm text-[#64748B]">Bài viết chưa có cho bài học này.</p>
         <button
           onClick={() => markTabCompleted("writing")}
@@ -105,7 +105,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
       {/* ── Prompt card ── */}
       <div className="rounded-2xl bg-gradient-to-br from-[#121212] to-[#1E293B] p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded bg-[#FFCD00] text-[#121212] flex items-center justify-center text-xs font-bold">✍️</span>
+          <span className="w-6 h-6 rounded bg-[#FFCD00] text-[#121212] flex items-center justify-center"><PenLine size={13} aria-hidden /></span>
           <span className="text-sm font-bold text-white">Aufgabe</span>
         </div>
         <p className="text-sm text-white/90">{prompt.task_de}</p>
