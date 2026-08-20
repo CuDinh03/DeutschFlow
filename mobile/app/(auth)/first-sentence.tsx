@@ -22,6 +22,8 @@ import { evaluateFirstSentence } from '@/lib/firstSentence'
 import { MENTOR_META, mentorEmoji, mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useTourStore } from '@/stores/useTourStore'
+import { useBlockBackNavigation } from '@/hooks/useBlockBackNavigation'
+import { useReducedMotion } from '@/lib/useReducedMotion'
 import { useStarterStore } from '@/stores/useStarterStore'
 import { captureEvent } from '@/lib/analytics'
 import { motion, radius, space, useTheme } from '@/lib/theme'
@@ -59,6 +61,10 @@ export default function FirstSentenceScreen() {
   const attemptsRef = useRef(0)
   const recordingRef = useRef(false)
   const doneRef = useRef(false)
+
+  // Màn này chỉ tới được sau khi đã lưu hồ sơ ⇒ luôn đang đăng nhập. Lùi khỏi đây
+  // là rơi vào màn Đăng nhập (F-5). Muốn bỏ qua thì đã có nút "Để sau".
+  useBlockBackNavigation(true)
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
 
@@ -111,6 +117,9 @@ export default function FirstSentenceScreen() {
     if (doneRef.current) return
     doneRef.current = true
     void useTourStore.getState().markDone('first_sentence')
+    // Idempotent — che ca user vào lại màn này từ checklist mà cờ profile_done
+    // chưa từng được đặt (tài khoản tạo trước bản vá F-2).
+    void useTourStore.getState().markDone('profile_done')
     // Checklist "Bắt đầu" (§7.1): tick "Nói câu đầu tiên" khi user đã đi tới
     // màn ăn mừng (kể cả biến thể nghe–lặp lại) — skip "Để sau" không tính,
     // checklist sẽ mời làm lại.
@@ -325,9 +334,15 @@ export default function FirstSentenceScreen() {
 
 function MentorAvatar({ emoji, speaking }: { emoji: string; speaking?: boolean }) {
   const c = useTheme().colors
+  // Vòng sáng lặp vô hạn: chạm WCAG 2.2.2 (chuyển động > 5 giây, không nút dừng).
+  // Giảm chuyển động → avatar tĩnh (F-7).
+  // Gọi hook vô điều kiện: `speaking && !useReducedMotion()` sẽ đoản mạch và bỏ
+  // qua lời gọi hook khi speaking falsy — vi phạm rules-of-hooks.
+  const reducedMotion = useReducedMotion()
+  const pulsing = speaking && !reducedMotion
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-      {speaking ? (
+      {pulsing ? (
         <MotiView
           from={{ scale: 1, opacity: 0.45 }}
           animate={{ scale: 1.35, opacity: 0 }}

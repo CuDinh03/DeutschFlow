@@ -95,4 +95,41 @@ describe('useStarterStore', () => {
     expect(useStarterStore.getState().reminderDeclinedAt).toBe(1752710400000)
     expect(backing.get('df_starter_reminder_declined_at')).toBe('1752710400000')
   })
+
+  // ── reset (F-4) ───────────────────────────────────────────────────────────
+  // Checklist tuần đầu là per-thiết bị. Không dọn lúc đăng xuất thì tài khoản
+  // thứ hai trên cùng máy có thể thấy checklist đã dismissed sẵn.
+  test('reset xoá sạch tiến độ tuần đầu trên máy', async () => {
+    // Arrange — tài khoản trước đã dùng hết checklist.
+    await useStarterStore.getState().hydrate()
+    useStarterStore.getState().markSpokeFirstSentence()
+    useStarterStore.getState().markSpeakingSession()
+    useStarterStore.getState().markReminderEnabled()
+    useStarterStore.getState().bumpSrsReviews()
+    useStarterStore.getState().declineReminderSheet(1_700_000_000_000)
+    useStarterStore.getState().dismissChecklist()
+
+    // Act
+    await useStarterStore.getState().reset()
+
+    // Assert
+    const s = useStarterStore.getState()
+    expect(s.spokeFirstSentence).toBe(false)
+    expect(s.speakingSessionStarted).toBe(false)
+    expect(s.reminderEnabled).toBe(false)
+    expect(s.srsReviews).toBe(0)
+    expect(s.reminderDeclinedAt).toBeNull()
+    expect(s.checklistDismissed).toBe(false)
+    expect(backing.size).toBe(0)
+  })
+
+  test('sau reset, hydrate không hồi sinh tiến độ cũ', async () => {
+    await useStarterStore.getState().hydrate()
+    useStarterStore.getState().dismissChecklist()
+
+    await useStarterStore.getState().reset()
+    await useStarterStore.getState().hydrate()
+
+    expect(useStarterStore.getState().checklistDismissed).toBe(false)
+  })
 })
