@@ -111,6 +111,9 @@ export default function FirstSentenceScreen() {
     if (doneRef.current) return
     doneRef.current = true
     void useTourStore.getState().markDone('first_sentence')
+    // Idempotent — che ca user vào lại màn này từ checklist mà cờ profile_done
+    // chưa từng được đặt (tài khoản tạo trước bản vá F-2).
+    void useTourStore.getState().markDone('profile_done')
     // Checklist "Bắt đầu" (§7.1): tick "Nói câu đầu tiên" khi user đã đi tới
     // màn ăn mừng (kể cả biến thể nghe–lặp lại) — skip "Để sau" không tính,
     // checklist sẽ mời làm lại.

@@ -140,12 +140,17 @@ export default function DashboardScreen() {
   )
 
   const firstActivityDone = treeDone > 0 || starterSrsReviews > 0 || speakingStarted
+  // Cửa vào Phase D (checklist tuần đầu + sheet nhắc học). OR chứ không chỉ
+  // first_sentence: cờ đó đặt ở CUỐI màn wow, mà lối vào lại màn wow nằm trong
+  // chính checklist bị nó khoá — thoát app giữa chừng là khoá vĩnh viễn (F-2).
+  // first_sentence giữ trong biểu thức để tài khoản tạo trước bản vá không mất gì.
+  const onboardedV1 = tourDone.profile_done || tourDone.first_sentence
 
   // §7.2: pre-permission — sheet ngữ cảnh chỉ SAU khi user hoàn thành hoạt động
   // đầu tiên, không xin quyền lúc mở app. Từ chối sheet → hỏi lại sau cooldown.
   useFocusEffect(
     useCallback(() => {
-      if (!starterHydrated || !tourHydrated || !tourDone.first_sentence) return
+      if (!starterHydrated || !tourHydrated || !onboardedV1) return
       if (reminderEnabled || reminderOpen || activeTourId || !firstActivityDone) return
       if (reminderDeclinedAt && Date.now() - reminderDeclinedAt < REMINDER_COOLDOWN_MS) return
       const t = setTimeout(() => {
@@ -156,7 +161,7 @@ export default function DashboardScreen() {
     }, [
       starterHydrated,
       tourHydrated,
-      tourDone.first_sentence,
+      onboardedV1,
       reminderEnabled,
       reminderOpen,
       activeTourId,
@@ -310,7 +315,7 @@ export default function DashboardScreen() {
 
           {/* Tuần đầu (§7.1): checklist "Bắt đầu" — chỉ cho user đã qua onboarding v1,
               tự biến mất vĩnh viễn khi hoàn thành đủ. */}
-          {tourDone.first_sentence ? (
+          {onboardedV1 ? (
             <StarterChecklist
               lessonDone={treeDone > 0}
               onEnableReminder={() => {
