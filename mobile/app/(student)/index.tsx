@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { View, RefreshControl, Pressable } from 'react-native'
+import { View, RefreshControl, Pressable, Alert, Linking } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useFocusEffect } from 'expo-router'
 import { MotiView } from 'moti'
@@ -14,6 +14,7 @@ import { StarterChecklist } from '@/components/guide/StarterChecklist'
 import { ReminderSheet } from '@/components/guide/ReminderSheet'
 import { getDailyGoalMinutes } from '@/lib/dailyGoal'
 import { enableStudyReminder } from '@/lib/studyReminder'
+import { registerPushTokenIfGranted } from '@/hooks/usePushNotifications'
 import { captureEvent } from '@/lib/analytics'
 import api from '@/lib/api'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
@@ -167,14 +168,31 @@ export default function DashboardScreen() {
 
   async function acceptReminder() {
     setReminderBusy(true)
-    const ok = await enableStudyReminder(goalMinutes)
+    const outcome = await enableStudyReminder(goalMinutes)
     setReminderBusy(false)
     setReminderOpen(false)
-    if (ok) {
+
+    if (outcome === 'granted') {
       useStarterStore.getState().markReminderEnabled()
-    } else {
-      // OS từ chối → cũng vào cooldown, không hỏi dồn dập.
-      useStarterStore.getState().declineReminderSheet(Date.now())
+      // Quyền vừa được cấp → lấy push token luôn. Không gọi ở đây thì thiết bị
+      // phải chờ tới lần đăng nhập kế tiếp mới đăng ký được (F-14).
+      void registerPushTokenIfGranted()
+      return
+    }
+
+    // Vào cooldown ở cả 2 nhánh còn lại, không hỏi dồn dập.
+    useStarterStore.getState().declineReminderSheet(Date.now())
+
+    if (outcome === 'blocked') {
+      // OS không cho hỏi nữa — hỏi lại là vô nghĩa, phải chỉ đường vào Cài đặt.
+      Alert.alert(
+        'Thông báo đang tắt',
+        'Bạn đã tắt thông báo cho MyDeutschFlow. Mở Cài đặt để bật lại thì mới nhắc học buổi tối được nhé.',
+        [
+          { text: 'Để sau', style: 'cancel' },
+          { text: 'Mở Cài đặt', onPress: () => void Linking.openSettings() },
+        ],
+      )
     }
   }
 

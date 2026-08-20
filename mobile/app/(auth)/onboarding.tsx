@@ -10,7 +10,7 @@ import { captureEvent } from '@/lib/analytics'
 import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft } from '@/lib/onboardingDraft'
 import { saveDailyGoalMinutes } from '@/lib/dailyGoal'
 import { MENTOR_META, type OnboardingMentor } from '@/lib/onboardingMentor'
-import { PRO_UNLOCKED_FREE } from '@/lib/paywall'
+import { nextAfterProfile } from '@/lib/onboardingRouting'
 import { Screen, ThemedText, Button } from '@/components/ui'
 
 // Onboarding for iOS B2C (MVP checklist §5.1): collect goal, target level, and
@@ -88,7 +88,6 @@ export default function OnboardingScreen() {
   const [industry, setIndustry] = useState<string | null>(null)
   const [examType, setExamType] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [showUpsell, setShowUpsell] = useState(false)
   const [mentor, setMentor] = useState<OnboardingMentor | null>(null)
   // Value-first auth inversion: a guest runs the funnel before signing up.
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
@@ -153,18 +152,11 @@ export default function OnboardingScreen() {
             onboardingType: data.onboardingType, postAction: data.postAction, paywallAllowed: data.paywallAllowed,
           })
         } catch { /* route is best-effort */ }
-        // iOS v1.0 free build ships with NO commercial surface — skip the web-upsell consent here too
-        // (mirrors handleSubmit's guard). Without this, the guest-signup resume path re-introduces the
-        // PRO email-capture screen on iOS (App Store 2.1(b)/3.1.1). Falls through to the practice route.
-        if (route?.postAction === 'EMAIL_CAPTURE_UPSELL' && !PRO_UNLOCKED_FREE) {
-          if (active) { setResuming(false); setShowUpsell(true) }
-          return
-        }
         // Onboarding v1 (Q1): wow "câu tiếng Đức đầu tiên" NGAY SAU signup, thay
         // routing theo postAction cũ. Màn wow kết thúc tại Trang chủ — nơi
         // spotlight tour nổ (Q4). dailyGoal lưu on-device cho copy bước streak.
         await saveDailyGoalMinutes(parseInt(draft.dailyGoal, 10))
-        router.replace('/(auth)/first-sentence')
+        router.replace(nextAfterProfile(route?.postAction))
       } catch (e) {
         // Save failed → hydrate the form so the user can retry instead of losing their answers.
         if (active) {
@@ -230,18 +222,11 @@ export default function OnboardingScreen() {
         })
       } catch { /* analytics/route is best-effort */ }
 
-      // iOS "reader app" (Apple 3.1.1): no in-app pricing — offer email-upsell consent.
-      // The iOS v1.0 free build ships with NO commercial surface at all: skip this consent (it steers
-      // toward a web PRO, a 2.1(b)/3.1.1 risk) and fall through to the first practice session.
-      if (route?.postAction === 'EMAIL_CAPTURE_UPSELL' && !PRO_UNLOCKED_FREE) {
-        setShowUpsell(true)
-        return
-      }
-      // Onboarding v1 (Q1): mọi archetype (trừ upsell-consent) đều đi qua wow
-      // "câu tiếng Đức đầu tiên" trước, rồi đáp xuống Trang chủ cho spotlight
-      // tour (Q4) — thay routing roadmap/speaking theo postAction cũ.
+      // Onboarding v1 (Q1): MỌI archetype đều đi qua wow "câu tiếng Đức đầu tiên"
+      // trước, rồi đáp xuống Trang chủ cho spotlight tour (Q4). Quyết định nằm ở
+      // lib/onboardingRouting.ts — xem comment ở đó về lỗi F-1 (2026-08-20).
       await saveDailyGoalMinutes(parseInt(dailyGoal, 10))
-      router.replace('/(auth)/first-sentence')
+      router.replace(nextAfterProfile(route?.postAction))
     } catch (e) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       Alert.alert('Không lưu được', apiMessage(e))
@@ -258,26 +243,11 @@ export default function OnboardingScreen() {
     router.push('/(auth)/register')
   }
 
-  async function handleUpsellConsent(optIn: boolean) {
-    if (optIn) {
-      try {
-        await api.post('/onboarding/upsell-interest')
-        captureEvent('upsell_opt_in', { source: 'onboarding' })
-      } catch { /* best-effort */ }
-    } else {
-      captureEvent('upsell_dismissed', { source: 'onboarding' })
-    }
-    router.replace('/(student)/speaking')
-  }
-
   if (resuming) {
     return <Resuming />
   }
   if (guestQuickWin) {
     return <GuestQuickWin mentor={mentor} onSignup={handleGuestSignup} />
-  }
-  if (showUpsell) {
-    return <UpsellConsent onChoice={handleUpsellConsent} />
   }
 
   return (
@@ -407,35 +377,6 @@ export default function OnboardingScreen() {
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
-
-/**
- * iOS web-upsell consent (Apple 3.1.1 "reader app"): opt in to receive PRO info by
- * email. Deliberately no pricing, "buy", or external purchase links — just consent.
- */
-function UpsellConsent({ onChoice }: { onChoice: (optIn: boolean) => void }) {
-  return (
-    <Screen edges={['top', 'bottom']}>
-      <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[6], gap: space[6] }}>
-        <MotiView
-          from={{ opacity: 0, translateY: 16 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: motion.duration.slow }}
-          style={{ gap: space[3] }}
-        >
-          <ThemedText variant="display">Học đến đâu, nhắc đến đó ✉️</ThemedText>
-          <ThemedText variant="body" color="muted">
-            Bạn có muốn nhận email gợi ý lộ trình và các tính năng nâng cao của MyDeutschFlow không?
-            Chúng tôi chỉ gửi nội dung hữu ích và bạn có thể huỷ bất cứ lúc nào.
-          </ThemedText>
-        </MotiView>
-      </View>
-      <View style={{ paddingHorizontal: space[6], paddingBottom: space[2], gap: space[3] }}>
-        <Button label="Đồng ý nhận email" onPress={() => onChoice(true)} />
-        <Button label="Để sau" variant="ghost" onPress={() => onChoice(false)} />
-      </View>
-    </Screen>
-  )
-}
 
 interface ChipOption {
   value: string
