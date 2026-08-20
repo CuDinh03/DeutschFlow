@@ -10,7 +10,7 @@ import {
   type Camera,
 } from '@/lib/roadmap-tree/camera'
 import type { Branch, PlacedNode, TreeLayout } from '@/lib/roadmap-tree/treeLayout'
-import { SKILL_COLORS, type Skill } from '@/lib/skills'
+import type { Skill } from '@/lib/skills'
 import '@/styles/roadmap-tree.css'
 
 /**
@@ -56,31 +56,86 @@ export interface SkillTreeCanvasProps {
 }
 
 /**
- * Bốn cánh của node hoa theo đúng hình học `#rtFlower`, gán kỹ năng THEO THỨ TỰ TRÌNH BÀY của panel
- * (Nghe → Đọc → Nói → Viết, xuôi kim đồng hồ từ cánh trên) — hai chỗ phải kể cùng một câu chuyện.
+ * Hoa kỹ năng botanical v2: 4 cánh CHÍNH theo 4 hướng = 4 kỹ năng, đúng thứ tự trình bày của panel
+ * (trên=Nghe, phải=Đọc, dưới=Nói, trái=Viết — hai chỗ phải kể cùng một câu chuyện), lệch xoay/scale
+ * để không cánh nào sao chép hệt nhau. Cánh đạt: gradient màu kỹ năng (giảm bão hoà) + lớp lót màu
+ * mềm phía sau; cánh chưa đạt: ngà ấm CÓ cấu trúc — hoa 0/4 kỹ năng vẫn là một bông hoàn chỉnh.
  */
-const FLOWER_PETALS: { skill: Skill; cx: number; cy: number; rx: number; ry: number }[] = [
-  { skill: 'hoeren', cx: 0, cy: -13, rx: 7, ry: 11 },
-  { skill: 'lesen', cx: 13, cy: 0, rx: 11, ry: 7 },
-  { skill: 'sprechen', cx: 0, cy: 13, rx: 7, ry: 11 },
-  { skill: 'schreiben', cx: -13, cy: 0, rx: 11, ry: 7 },
+const SKILL_PETALS: { skill: Skill; rotate: number; scale: number; petal: string }[] = [
+  { skill: 'hoeren', rotate: 1, scale: 1, petal: '#rtPetP1' },
+  { skill: 'lesen', rotate: 90, scale: 1.03, petal: '#rtPetP3' },
+  { skill: 'sprechen', rotate: 182, scale: 0.98, petal: '#rtPetP4' },
+  { skill: 'schreiben', rotate: 271, scale: 1, petal: '#rtPetP2' },
 ]
+const SKILL_PETAL_FILL: Record<Skill, string> = {
+  hoeren: 'url(#rtGSkillH)',
+  lesen: 'url(#rtGSkillL)',
+  sprechen: 'url(#rtGSkillS)',
+  schreiben: 'url(#rtGSkillW)',
+}
+/** Lớp lót mềm sau cánh đã đạt — thay cho halo stroke (halo render thành vệt lệch ở mọi cỡ). */
+const SKILL_PETAL_UNDER: Record<Skill, string> = {
+  hoeren: '#5B82CE',
+  lesen: '#5E9150',
+  sprechen: '#DE8A43',
+  schreiben: '#7E5EC4',
+}
+/** 4 cánh chéo ivory phía sau — bông luôn đủ 8 cánh dù chưa đạt kỹ năng nào. */
+const BACK_PETALS = [
+  { rotate: 45, scale: 0.86, petal: '#rtPetP2' },
+  { rotate: 136, scale: 0.88, petal: '#rtPetP4' },
+  { rotate: 224, scale: 0.84, petal: '#rtPetP3' },
+  { rotate: 315, scale: 0.87, petal: '#rtPetP2' },
+] as const
 
 function FlowerWithSkills({ mastery }: { mastery: Partial<Record<Skill, boolean>> }) {
+  const anyMastered = SKILL_PETALS.some((p) => mastery[p.skill])
   return (
-    <g stroke="var(--tree-ink)" strokeWidth="2">
-      {FLOWER_PETALS.map((petal) => (
-        <ellipse
-          key={petal.skill}
-          cx={petal.cx}
-          cy={petal.cy}
-          rx={petal.rx}
-          ry={petal.ry}
-          fill={mastery[petal.skill] ? SKILL_COLORS[petal.skill] : 'var(--tree-flower)'}
-          fillOpacity={mastery[petal.skill] ? 0.85 : 1}
-        />
+    <g>
+      {SKILL_PETALS.filter((p) => mastery[p.skill]).map((p) => (
+        <g key={`under-${p.skill}`} transform={`rotate(${p.rotate}) scale(${(p.scale * 1.07).toFixed(3)})`}>
+          <use href={p.petal} fill={SKILL_PETAL_UNDER[p.skill]} opacity="0.15" />
+        </g>
       ))}
-      <circle r="6.5" fill="#fff" />
+      {BACK_PETALS.map((p, i) => (
+        <g key={i} transform={`rotate(${p.rotate}) scale(${p.scale})`}>
+          <use
+            href={p.petal}
+            fill="url(#rtGIvory)"
+            stroke="var(--tree-ink)"
+            strokeWidth="1.4"
+            strokeLinejoin="round"
+            opacity="0.9"
+          />
+        </g>
+      ))}
+      {SKILL_PETALS.map((p) => {
+        const mastered = mastery[p.skill] === true
+        return (
+          <g
+            key={p.skill}
+            data-skill-petal={p.skill}
+            data-mastered={mastered}
+            transform={`rotate(${p.rotate}) scale(${p.scale})`}
+          >
+            <use
+              href={p.petal}
+              fill={mastered ? SKILL_PETAL_FILL[p.skill] : 'url(#rtGIvory)'}
+              stroke="var(--tree-ink)"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+            />
+            {mastered ? <use href="#rtPetHi" opacity="0.35" /> : <use href="#rtPetShade" />}
+          </g>
+        )
+      })}
+      <use href="#rtCenter" />
+      {anyMastered && (
+        <>
+          <circle cx="4.6" cy="-6.4" r="1" fill="#F4BE24" opacity="0.85" />
+          <circle cx="6.6" cy="-3.4" r="0.7" fill="#F4BE24" opacity="0.7" />
+        </>
+      )}
     </g>
   )
 }
@@ -312,61 +367,304 @@ export function SkillTreeCanvas({
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
       >
+        {/* Bộ botanical v2 (Lernbaum) — nguồn chuẩn: artifact "Lernbaum v2". Footprint và điểm neo
+            GIỮ NGUYÊN bản cũ (lá mọc từ 0,0 hướng lên, hoa/nụ neo tâm) nên treeLayout không đổi.
+            Chỉ gradient + nét — KHÔNG filter (46 node × 3 lá phải rẻ như bản cũ). */}
         <defs>
+          <linearGradient id="rtGA2" x1="0.15" y1="1" x2="0.5" y2="0">
+            <stop offset="0" stopColor="#347D75" />
+            <stop offset="0.55" stopColor="#58AFA3" />
+            <stop offset="1" stopColor="#8CCDBF" />
+          </linearGradient>
+          <linearGradient id="rtGB2" x1="0.2" y1="1" x2="0.55" y2="0">
+            <stop offset="0" stopColor="#4E8F67" />
+            <stop offset="0.55" stopColor="#8EBF7A" />
+            <stop offset="1" stopColor="#B5DA9C" />
+          </linearGradient>
+          <linearGradient id="rtGC2" x1="0.2" y1="1" x2="0.5" y2="0">
+            <stop offset="0" stopColor="#8CC46B" />
+            <stop offset="1" stopColor="#D2EAB4" />
+          </linearGradient>
+          <linearGradient id="rtGPet" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stopColor="#E09A28" />
+            <stop offset="0.5" stopColor="#F6C63A" />
+            <stop offset="1" stopColor="#FFEFB8" />
+          </linearGradient>
+          <linearGradient id="rtGPetBack" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stopColor="#CE8A26" />
+            <stop offset="1" stopColor="#F3D98F" />
+          </linearGradient>
+          <linearGradient id="rtGIvory" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stopColor="#E9DDC4" />
+            <stop offset="0.55" stopColor="#F7F2E8" />
+            <stop offset="1" stopColor="#FFFBF2" />
+          </linearGradient>
+          <linearGradient id="rtGBudPetal" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stopColor="#E4D6B4" />
+            <stop offset="1" stopColor="#FBF6EA" />
+          </linearGradient>
+          <radialGradient id="rtGCen" cx="0.5" cy="0.42" r="0.75">
+            <stop offset="0" stopColor="#FFF4D4" />
+            <stop offset="0.68" stopColor="#F4BE24" />
+            <stop offset="1" stopColor="#E89B2C" />
+          </radialGradient>
+          <linearGradient id="rtGSkillH" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stopColor="#3E5FA8" />
+            <stop offset="0.55" stopColor="#5B82CE" />
+            <stop offset="1" stopColor="#A9C2EE" />
+          </linearGradient>
+          <linearGradient id="rtGSkillL" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stopColor="#3F6B36" />
+            <stop offset="0.55" stopColor="#5E9150" />
+            <stop offset="1" stopColor="#A6C892" />
+          </linearGradient>
+          <linearGradient id="rtGSkillS" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stopColor="#B4652A" />
+            <stop offset="0.55" stopColor="#DE8A43" />
+            <stop offset="1" stopColor="#F5C58F" />
+          </linearGradient>
+          <linearGradient id="rtGSkillW" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stopColor="#5A3F99" />
+            <stop offset="0.55" stopColor="#7E5EC4" />
+            <stop offset="1" stopColor="#C3ACE8" />
+          </linearGradient>
+
+          {/* Lá A: thon dài, trưởng thành — trái phồng hơn, ngọn nghiêng ~2° phải */}
           <g id="rtLeafA">
             <path
-              d="M0 0 C 9 -11, 10 -26, 0 -35 C -10 -26, -9 -11, 0 0 Z"
-              fill="var(--tree-leaf-a)"
+              d="M0 0 C -3 -4, -8.5 -10, -9.5 -18 C -10.2 -25, -6.5 -32, 1.2 -36.5 C 6.8 -31.5, 9.6 -24, 8.4 -16.5 C 7.4 -9.5, 3 -4, 0 0 Z"
+              fill="url(#rtGA2)"
               stroke="var(--tree-ink)"
-              strokeWidth="2"
+              strokeWidth="1.9"
+              strokeLinejoin="round"
+            />
+            <path d="M1.5 -5 C 6 -10, 7.6 -18, 5.6 -26 C 7.9 -19.5, 7.3 -11, 3.4 -6 Z" fill="#2E6B62" opacity="0.2" />
+            <path d="M-2 -8 C -4.5 -13, -4.8 -22, -2.6 -29 C -1.2 -24, -1 -14, -2 -8 Z" fill="#8ED2C4" opacity="0.45" />
+            <path
+              d="M0 -1.5 C 0.6 -9, 0.2 -18, 1 -32"
+              fill="none"
+              stroke="#24564F"
+              strokeWidth="1.4"
+              opacity="0.75"
+              strokeLinecap="round"
             />
             <path
-              d="M0 -3 L0 -30 M0 -11 L5 -17 M0 -11 L-5 -17 M0 -20 L5 -26 M0 -20 L-5 -26"
+              d="M0.2 -8.2 C -2.2 -9.6, -4.2 -11.4, -5.6 -13.8 M0.3 -13.6 C -2.4 -15, -4.6 -17.2, -6.2 -20 M0.5 -19.4 C -1.8 -20.8, -3.8 -22.8, -5 -25.4 M0.7 -25 C -1.2 -26.4, -2.6 -28, -3.4 -30 M0.3 -6.4 C 2.6 -7.8, 4.4 -9.6, 5.6 -12 M0.4 -11.2 C 2.9 -12.6, 4.9 -14.6, 6.1 -17.4 M0.6 -16.8 C 3 -18.2, 4.8 -20.2, 5.8 -23 M0.8 -22.6 C 2.8 -24, 4.2 -25.8, 4.8 -28.2 M1 -28 C 2.2 -29.2, 3.2 -30.4, 3.7 -32.2"
               fill="none"
-              stroke="var(--tree-ink)"
-              strokeWidth="1.1"
+              stroke="#24564F"
+              strokeWidth="0.8"
+              opacity="0.45"
+              strokeLinecap="round"
+            />
+            <path
+              d="M-3 -1.5 C -1.5 -3.5, 1.5 -3.5, 3 -1.5 C 1.5 -0.5, -1.5 -0.5, -3 -1.5 Z"
+              fill="#24564F"
+              opacity="0.28"
             />
           </g>
+          {/* Lá B: bầu, đầy đặn — ngọn nghiêng nhẹ trái, moss green */}
           <g id="rtLeafB">
             <path
-              d="M0 0 C 9 -11, 10 -26, 0 -35 C -10 -26, -9 -11, 0 0 Z"
-              fill="var(--tree-leaf-b)"
+              d="M0 0 C -4.5 -3.5, -11 -9, -12 -16.5 C -12.8 -23.5, -7.5 -30, -0.8 -33.5 C 6.5 -30.5, 11.8 -24.5, 11 -17 C 10.3 -10, 4.5 -4, 0 0 Z"
+              fill="url(#rtGB2)"
               stroke="var(--tree-ink)"
-              strokeWidth="2"
+              strokeWidth="1.9"
+              strokeLinejoin="round"
+            />
+            <path d="M-2 -5 C -7 -9.5, -9.4 -16.5, -8 -24 C -9.9 -17.5, -8.9 -10.5, -4.4 -5.8 Z" fill="#3D7A55" opacity="0.2" />
+            <path d="M2 -8 C 4.6 -13, 5 -21, 2.8 -27.5 C 1.4 -22.5, 1.2 -13.5, 2 -8 Z" fill="#B4DCA0" opacity="0.5" />
+            <path
+              d="M0 -1.5 C -0.9 -8, -0.3 -16, -0.8 -29.5"
+              fill="none"
+              stroke="#35684A"
+              strokeWidth="1.4"
+              opacity="0.75"
+              strokeLinecap="round"
             />
             <path
-              d="M0 -3 L0 -30 M0 -11 L5 -17 M0 -11 L-5 -17 M0 -20 L5 -26 M0 -20 L-5 -26"
+              d="M-0.4 -7.4 C -3.4 -8.8, -6 -10.6, -7.8 -13.2 M-0.5 -12.4 C -3.6 -13.8, -6.4 -15.8, -8.4 -18.8 M-0.6 -17.6 C -3.4 -19, -5.8 -21, -7.4 -23.8 M-0.7 -22.6 C -3 -24, -4.8 -25.8, -5.9 -28.2 M-0.3 -9.6 C 2.8 -11, 5.4 -12.8, 7.2 -15.4 M-0.4 -14.8 C 2.6 -16.2, 5.2 -18.2, 6.9 -21 M-0.5 -20 C 2 -21.4, 4.2 -23.2, 5.5 -25.8 M-0.6 -25 C 1.4 -26.4, 3 -28, 3.9 -30.1"
               fill="none"
-              stroke="var(--tree-ink)"
-              strokeWidth="1.1"
+              stroke="#35684A"
+              strokeWidth="0.8"
+              opacity="0.45"
+              strokeLinecap="round"
+            />
+            <path
+              d="M-4.6 -1.8 C -2.3 -3.8, 2.3 -3.8, 4.6 -1.8 C 2.3 -0.6, -2.3 -0.6, -4.6 -1.8 Z"
+              fill="#35684A"
+              opacity="0.26"
             />
           </g>
+          {/* Lá C: lá non phụ hoạ — nhỏ, ít gân, im lặng */}
           <g id="rtLeafC">
             <path
-              d="M0 0 C 8 -10, 9 -23, 0 -31 C -9 -23, -8 -10, 0 0 Z"
-              fill="var(--tree-leaf-c)"
+              d="M0 0 C -2.5 -3, -6 -7.5, -6.5 -13 C -6.8 -18.5, -3.5 -24, 0.6 -27 C 4.5 -23.5, 6.6 -18, 6 -12.5 C 5.4 -7.5, 2.5 -3, 0 0 Z"
+              fill="url(#rtGC2)"
               stroke="var(--tree-ink)"
-              strokeWidth="2"
+              strokeWidth="1.7"
+              strokeLinejoin="round"
             />
-            <path d="M0 -3 L0 -27" fill="none" stroke="var(--tree-ink)" strokeWidth="1.1" />
+            <path d="M-1.3 -6 C -3.1 -9.5, -3.6 -15, -2.4 -20 C -1.7 -15.5, -1.4 -10, -1.3 -6 Z" fill="#E4F3CC" opacity="0.5" />
+            <path
+              d="M0 -1.5 C 0.3 -8, 0.1 -15, 0.5 -24"
+              fill="none"
+              stroke="#5E8F3E"
+              strokeWidth="1.1"
+              opacity="0.65"
+              strokeLinecap="round"
+            />
+            <path
+              d="M0.1 -7.5 C -1.6 -8.7, -3 -10.1, -4 -12 M0.2 -13 C -1.7 -14.3, -3.2 -15.9, -4.2 -18 M0.3 -10 C 1.9 -11.3, 3.3 -12.9, 4.2 -15 M0.4 -16 C 1.8 -17.2, 3 -18.7, 3.7 -20.6"
+              fill="none"
+              stroke="#5E8F3E"
+              strokeWidth="0.7"
+              opacity="0.4"
+              strokeLinecap="round"
+            />
           </g>
+          {/* Nụ: 2 đài + 3 cánh khép chồng lớp + chấm vàng đầu nụ — đọc rõ là NỤ HOA.
+              Không có cuống riêng: cuống là twig của node, vẽ ở tầng layout. */}
           <g id="rtBud">
             <path
-              d="M0 0 C -7 -6, -7 -18, 0 -24 C 7 -18, 7 -6, 0 0 Z"
-              fill="var(--tree-bud)"
+              d="M-0.6 0.5 C -4.6 -0.4, -7.6 -3.6, -8.2 -8.4 C -4.8 -7.2, -1.9 -4.6, -0.3 -1.2 Z"
+              fill="#7FAF77"
               stroke="var(--tree-ink)"
-              strokeWidth="2"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
             />
-            <path d="M0 -3 L0 -20" fill="none" stroke="var(--tree-ink)" strokeWidth="1.1" />
+            <path
+              d="M0.7 0.5 C 4.9 -0.6, 7.8 -4.2, 8 -9.2 C 4.6 -7.7, 1.8 -4.8, 0.4 -1.2 Z"
+              fill="#8EBF7A"
+              stroke="var(--tree-ink)"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M-0.6 -2.6 C -4.8 -5.4, -6.6 -11, -5.4 -17.6 C -4.4 -19.8, -2.8 -21, -1.6 -20.6 C -2.6 -14.6, -2 -7.8, -0.6 -2.6 Z"
+              fill="#ECDFC4"
+              stroke="var(--tree-ink)"
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M0.8 -2.8 C 5 -5.8, 6.6 -11.6, 5.2 -18 C 4.2 -20.2, 2.6 -21.2, 1.6 -20.8 C 2.6 -14.6, 1.9 -7.8, 0.8 -2.8 Z"
+              fill="#F1E7D2"
+              stroke="var(--tree-ink)"
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M0 -1.8 C -3.4 -6.8, -3.9 -14.6, -0.4 -22.8 C 3.4 -15.2, 3.4 -7.2, 0 -1.8 Z"
+              fill="url(#rtGBudPetal)"
+              stroke="var(--tree-ink)"
+              strokeWidth="1.7"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M-0.6 -6 C -0.9 -11, -0.7 -16, -0.3 -20"
+              fill="none"
+              stroke="#C9B78F"
+              strokeWidth="0.8"
+              opacity="0.5"
+              strokeLinecap="round"
+            />
+            <circle cx="-0.3" cy="-21.6" r="1.7" fill="#F4BE24" stroke="#C77F1F" strokeWidth="0.8" />
+            <circle cx="-0.75" cy="-22.1" r="0.5" fill="#FFF4D4" />
           </g>
-          <g id="rtFlower" stroke="var(--tree-ink)" strokeWidth="2">
-            <ellipse cx="0" cy="-13" rx="7" ry="11" fill="var(--tree-flower)" />
-            <ellipse cx="13" cy="0" rx="11" ry="7" fill="var(--tree-flower)" />
-            <ellipse cx="0" cy="13" rx="7" ry="11" fill="var(--tree-flower)" />
-            <ellipse cx="-13" cy="0" rx="11" ry="7" fill="var(--tree-flower)" />
-            <ellipse cx="9" cy="-9" rx="9" ry="6" fill="var(--tree-flower-lit)" transform="rotate(-45 9 -9)" />
-            <ellipse cx="-9" cy="9" rx="9" ry="6" fill="var(--tree-flower-lit)" transform="rotate(-45 -9 9)" />
-            <circle r="6.5" fill="#fff" />
+          {/* Hạt mầm ngủ — node khoá: khoá nhưng là một sự sống đang chờ */}
+          <g id="rtNub">
+            <ellipse cx="0" cy="-1" rx="6.5" ry="7.5" fill="var(--tree-nub)" stroke="var(--tree-nub-line)" strokeWidth="2" />
+            <path
+              d="M0 -8 C 0 -12, 4 -12.5, 4 -10 C 4 -8.4, 2 -8, 0.6 -8.6"
+              fill="none"
+              stroke="var(--tree-nub-line)"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+            <path d="M-2.5 -2 C -1 -4, 1 -4, 2.5 -2" fill="none" stroke="var(--tree-ghost)" strokeWidth="1.2" />
+          </g>
+
+          {/* 4 biến thể cánh hoa (path trần, tô màu lúc use) + chi tiết + tâm nhị */}
+          <path
+            id="rtPetP1"
+            d="M0 -3.6 C -3.4 -5.4, -5 -10.2, -4 -14.6 C -3.2 -17.8, -0.6 -19.8, 0.7 -19.1 C 3.3 -17.6, 4.5 -12.4, 3.2 -7.6 C 2.4 -5.4, 1.2 -4, 0 -3.6 Z"
+          />
+          <path
+            id="rtPetP2"
+            d="M0 -3.6 C -4 -5.2, -5.6 -9.6, -4.8 -13.6 C -4 -16.9, -1.4 -18.9, -0.4 -18.2 C 2.8 -16.9, 4.9 -11.9, 3.7 -7.3 C 2.8 -5.1, 1.3 -3.9, 0 -3.6 Z"
+          />
+          <path
+            id="rtPetP3"
+            d="M0 -3.7 C -2.9 -5.5, -4.2 -10.8, -3.4 -15.4 C -2.8 -18.6, -0.4 -20.6, 0.5 -19.9 C 2.7 -18.3, 3.8 -12.6, 2.7 -7.5 C 2 -5.3, 1 -4, 0 -3.7 Z"
+          />
+          <path
+            id="rtPetP4"
+            d="M0 -3.6 C -3.1 -5.6, -4.4 -10.4, -3.6 -14.8 C -2.9 -17.9, -0.2 -19.6, 0.9 -18.8 C 3.7 -17, 5 -11.7, 3.5 -7.2 C 2.6 -5.2, 1.2 -3.9, 0 -3.6 Z"
+          />
+          <path
+            id="rtPetShade"
+            d="M-2.1 -4.9 C -2.7 -7.1, -2.6 -9.1, -1.9 -10.7 C -0.7 -8.7, 0.6 -6.7, 1.8 -5.1 C 0.6 -4.3, -0.9 -4.3, -2.1 -4.9 Z"
+            fill="#9C6114"
+            opacity="0.15"
+          />
+          <path
+            id="rtPetHi"
+            d="M-0.7 -7.4 C -1.2 -10.6, -1 -13.9, -0.2 -16.4 C 0.7 -13.9, 0.9 -10.4, 0.4 -7.6 Z"
+            fill="#FFF6D6"
+            opacity="0.5"
+          />
+          <g id="rtCenter">
+            <circle r="5" fill="url(#rtGCen)" stroke="#C77F1F" strokeWidth="1.2" />
+            <path
+              d="M0 -3.4 L0 -4.4 M2.4 -2.4 L3.1 -3.1 M3.4 0 L4.4 0 M2.4 2.4 L3.1 3.1 M0 3.4 L0 4.4 M-2.4 2.4 L-3.1 3.1 M-3.4 0 L-4.4 0 M-2.4 -2.4 L-3.1 -3.1"
+              stroke="#C77F1F"
+              strokeWidth="0.8"
+              opacity="0.6"
+              strokeLinecap="round"
+            />
+            <circle cx="2.2" cy="0" r="0.75" fill="#A9641C" />
+            <circle cx="1.1" cy="1.9" r="0.75" fill="#A9641C" />
+            <circle cx="-1.1" cy="1.9" r="0.75" fill="#A9641C" />
+            <circle cx="-2.2" cy="0" r="0.75" fill="#A9641C" />
+            <circle cx="-1.1" cy="-1.9" r="0.75" fill="#A9641C" />
+            <circle cx="1.1" cy="-1.9" r="0.75" fill="#A9641C" />
+            <circle r="0.95" fill="#8F5417" />
+          </g>
+          {/* Hoa vàng mặc định (chưa có dữ liệu kỹ năng): 8 cánh, lớp sau sẫm tạo overlap depth */}
+          <g id="rtFlower">
+            <g transform="rotate(44) scale(0.93)">
+              <use href="#rtPetP2" fill="url(#rtGPetBack)" stroke="var(--tree-ink)" strokeWidth="1.4" strokeLinejoin="round" />
+            </g>
+            <g transform="rotate(137) scale(0.96)">
+              <use href="#rtPetP4" fill="url(#rtGPetBack)" stroke="var(--tree-ink)" strokeWidth="1.4" strokeLinejoin="round" />
+            </g>
+            <g transform="rotate(226) scale(0.91)">
+              <use href="#rtPetP3" fill="url(#rtGPetBack)" stroke="var(--tree-ink)" strokeWidth="1.4" strokeLinejoin="round" />
+            </g>
+            <g transform="rotate(313) scale(0.95)">
+              <use href="#rtPetP2" fill="url(#rtGPetBack)" stroke="var(--tree-ink)" strokeWidth="1.4" strokeLinejoin="round" />
+            </g>
+            <g transform="rotate(2)">
+              <use href="#rtPetP1" fill="url(#rtGPet)" stroke="var(--tree-ink)" strokeWidth="1.6" strokeLinejoin="round" />
+              <use href="#rtPetShade" />
+              <use href="#rtPetHi" />
+            </g>
+            <g transform="rotate(91) scale(1.04)">
+              <use href="#rtPetP3" fill="url(#rtGPet)" stroke="var(--tree-ink)" strokeWidth="1.6" strokeLinejoin="round" />
+              <use href="#rtPetShade" />
+              <use href="#rtPetHi" />
+            </g>
+            <g transform="rotate(183) scale(0.98)">
+              <use href="#rtPetP4" fill="url(#rtGPet)" stroke="var(--tree-ink)" strokeWidth="1.6" strokeLinejoin="round" />
+              <use href="#rtPetShade" />
+              <use href="#rtPetHi" />
+            </g>
+            <g transform="rotate(272) scale(1.01)">
+              <use href="#rtPetP2" fill="url(#rtGPet)" stroke="var(--tree-ink)" strokeWidth="1.6" strokeLinejoin="round" />
+              <use href="#rtPetShade" />
+              <use href="#rtPetHi" />
+            </g>
+            <use href="#rtCenter" />
           </g>
         </defs>
 
@@ -417,15 +715,27 @@ export function SkillTreeCanvas({
                       bao của nút phình ra co vào theo nhịp và con trỏ khó bám. */}
                   {node.motif === 'flower' && (
                     <g transform={`translate(${node.x.toFixed(1)} ${node.y.toFixed(1)})`} pointerEvents="none">
-                      <circle
-                        className="rt-ring-pulse"
-                        r="27"
-                        fill="none"
-                        stroke="var(--tree-flower)"
-                        strokeWidth="3"
-                        strokeDasharray="4 5"
-                      />
-                      <circle className="rt-ring-out" r="27" fill="none" stroke="var(--tree-flower)" strokeWidth="2" />
+                      {/* Nhịp thở 5 lớp lệch pha (xem roadmap-tree.css): gạch xoay chậm + hít–thở
+                          bất đối xứng + hào quang ngược pha + 2 gợn lan so le + 3 đốm phấn.
+                          Gạch dasharray KHÔNG đều — botanical aura, không phải ring chọn item game. */}
+                      <circle className="rt-ring-glow" r="22" fill="none" stroke="var(--tree-aura)" strokeWidth="6" />
+                      <g className="rt-ring-spin">
+                        <circle
+                          className="rt-ring-pulse"
+                          r="26"
+                          fill="none"
+                          stroke="var(--tree-aura)"
+                          strokeWidth="2.4"
+                          strokeDasharray="5 8 2 10"
+                        />
+                      </g>
+                      <circle className="rt-ring-out" r="26" fill="none" stroke="var(--tree-aura)" strokeWidth="1.8" />
+                      <circle className="rt-ring-out rt-r2" r="26" fill="none" stroke="var(--tree-aura-2)" strokeWidth="1.4" />
+                      <g className="rt-spark rt-s1"><circle cx="2" cy="-29" r="1.5" fill="var(--tree-aura)" /></g>
+                      <g className="rt-spark rt-s2"><circle cx="25" cy="16" r="1.2" fill="var(--tree-aura)" /></g>
+                      <g className="rt-spark rt-s3"><circle cx="-26" cy="13" r="1.3" fill="var(--tree-aura)" /></g>
+                      <circle cx="14" cy="-22" r="1" fill="var(--tree-aura-2)" opacity="0.3" />
+                      <circle cx="-19" cy="-16" r="0.8" fill="var(--tree-aura-2)" opacity="0.3" />
                     </g>
                   )}
                   <g
@@ -464,9 +774,7 @@ export function SkillTreeCanvas({
                         <use href="#rtFlower" />
                       ))}
                     {node.motif === 'bud' && <use href="#rtBud" />}
-                    {node.motif === 'nub' && (
-                      <circle r="7" fill="var(--tree-nub)" stroke="var(--tree-nub-line)" strokeWidth="2" />
-                    )}
+                    {node.motif === 'nub' && <use href="#rtNub" />}
                     <circle className="rt-focus" r="22" />
                     <circle className="rt-hit" r="19" />
                   </g>
