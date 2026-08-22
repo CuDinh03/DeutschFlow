@@ -484,7 +484,12 @@
         "submittedAt": "Submitted at",
         "score": "Score"
       },
-      "gradedDone": "This assignment has been graded"
+      "gradedDone": "This assignment has been graded",
+      "resubmit": "Resubmit",
+      "resubmitHint": "Submitted the wrong thing? You can still replace it until your teacher grades it.",
+      "resubmitCap": "Submit a replacement",
+      "resubmitWarning": "The new submission fully replaces the previous one.",
+      "submitReplacement": "Submit this version"
     },
     "progress": {
       "title": "Course progress",

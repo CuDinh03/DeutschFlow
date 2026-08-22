@@ -675,7 +675,14 @@
         "LESEN": "Đọc (Lesen)",
         "SCHREIBEN": "Viết (Schreiben)",
         "SPRECHEN": "Nói (Sprechen)"
-      }
+      },
+      "editTask": "Sửa",
+      "deleteTask": "Xoá",
+      "deleteTaskConfirm": "Xoá bài tập “{topic}”? Chỉ xoá được khi chưa học viên nào nộp.",
+      "deleteTaskSuccess": "Đã xoá bài tập.",
+      "modalEditTitle": "Sửa bài tập",
+      "modalSaveEdit": "Lưu thay đổi",
+      "modalEditSuccess": "Đã lưu thay đổi."
     },
     "studentDetail": {
       "nameFallback": "Học viên #{id}",

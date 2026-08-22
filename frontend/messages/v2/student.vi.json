@@ -484,7 +484,12 @@
         "submittedAt": "Nộp lúc",
         "score": "Điểm"
       },
-      "gradedDone": "Bài đã được chấm xong"
+      "gradedDone": "Bài đã được chấm xong",
+      "resubmit": "Nộp lại",
+      "resubmitHint": "Nộp nhầm bài? Bạn vẫn nộp lại được cho tới khi giáo viên chấm.",
+      "resubmitCap": "Nộp bản khác",
+      "resubmitWarning": "Bản nộp mới sẽ thay hoàn toàn bản trước đó.",
+      "submitReplacement": "Nộp bản này"
     },
     "progress": {
       "title": "Tiến độ khóa học",

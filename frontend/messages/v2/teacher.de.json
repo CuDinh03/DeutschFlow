@@ -675,7 +675,14 @@
         "LESEN": "Lesen",
         "SCHREIBEN": "Schreiben",
         "SPRECHEN": "Sprechen"
-      }
+      },
+      "editTask": "Bearbeiten",
+      "deleteTask": "Löschen",
+      "deleteTaskConfirm": "„{topic}“ löschen? Nur möglich, solange niemand abgegeben hat.",
+      "deleteTaskSuccess": "Aufgabe gelöscht.",
+      "modalEditTitle": "Aufgabe bearbeiten",
+      "modalSaveEdit": "Änderungen speichern",
+      "modalEditSuccess": "Änderungen gespeichert."
     },
     "studentDetail": {
       "nameFallback": "Lernende(r) #{id}",

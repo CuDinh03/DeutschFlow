@@ -836,6 +836,93 @@ public class TeacherService {
     }
 
     /**
+     * Sửa một bài tập đã giao. Chỉ giáo viên chính, và bài phải thuộc đúng lớp trong đường dẫn.
+     *
+     * <p>Cho sửa kể cả khi đã có người nộp: đề bài gõ nhầm, hạn đặt sai hay gắn nhầm bài học là
+     * chuyện thường, và trước đây KHÔNG có đường nào sửa — không PATCH, không DELETE — nên một bài
+     * giao nhầm nằm lại vĩnh viễn trên màn hình của cả lớp. Điểm và bài nộp không bị đụng tới.
+     *
+     * <p>Không bắn thông báo: đây là sửa chính tả/metadata, còn mọi học viên trong lớp đều đã nhận
+     * "📋 Bài tập mới" lúc giao. Nếu sau này {@code dueDate} thực sự được dùng (nhắc hạn, chặn nộp
+     * muộn) thì lúc đó đổi hạn mới đáng một thông báo riêng.
+     */
+    @Transactional
+    public ClassAssignmentDto updateAssignment(Long teacherId, Long classId, Long assignmentId,
+                                               UpdateAssignmentRequest req) {
+        assertPrimaryTeacher(teacherId, classId);
+        ClassAssignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new NotFoundException("Bài tập không tồn tại"));
+        if (!assignment.getClassId().equals(classId)) {
+            throw new ForbiddenException("Bài tập không thuộc lớp này");
+        }
+
+        if (req.topic() != null) {
+            String topic = req.topic().trim();
+            if (topic.isEmpty()) {
+                throw new BadRequestException("Tiêu đề bài tập không được để trống");
+            }
+            assignment.setTopic(topic);
+        }
+        if (req.description() != null) assignment.setDescription(req.description().trim());
+        if (req.skill() != null) assignment.setSkill(normalizeSkill(req.skill()));
+
+        if (Boolean.TRUE.equals(req.clearDueDate())) assignment.setDueDate(null);
+        else if (req.dueDate() != null) assignment.setDueDate(req.dueDate());
+
+        if (Boolean.TRUE.equals(req.clearAttachmentUrl())) assignment.setAttachmentUrl(null);
+        else if (req.attachmentUrl() != null) assignment.setAttachmentUrl(req.attachmentUrl().trim());
+
+        if (Boolean.TRUE.equals(req.clearLessonId())) {
+            assignment.setLessonId(null);
+        } else if (req.lessonId() != null) {
+            // Cùng chốt như lúc tạo: bài học phải thuộc chính lớp này (chặn gắn chéo lớp).
+            ClassLesson lesson = lessonRepository.findById(req.lessonId())
+                    .orElseThrow(() -> new NotFoundException("Bài học không tồn tại"));
+            if (!lesson.getClassId().equals(classId)) {
+                throw new ForbiddenException("Bài học không thuộc lớp này");
+            }
+            assignment.setLessonId(req.lessonId());
+        }
+
+        return toAssignmentDto(assignmentRepository.save(assignment));
+    }
+
+    /**
+     * Xoá một bài tập đã giao — CHỈ khi chưa học viên nào nộp.
+     *
+     * <p>Ranh giới này lấy đúng từ {@link ClassDeletionGuard}: bài tập chưa ai nộp là cấu hình do
+     * chính giáo viên chính tạo và dựng lại được, còn một bài nộp là công của người khác. Ba bảng con
+     * ({@code student_assignments}, {@code class_assignment_scenarios}, tài liệu đính kèm) đều
+     * {@code ON DELETE CASCADE}, nên xoá một bài đã có người nộp sẽ kéo theo bài làm, điểm và nhận
+     * xét — âm thầm và không hoàn tác được. Đã có người nộp thì sửa đề (updateAssignment) hoặc để
+     * nguyên, đừng xoá.
+     */
+    @Transactional
+    public void deleteAssignment(Long teacherId, Long classId, Long assignmentId) {
+        assertPrimaryTeacher(teacherId, classId);
+        ClassAssignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new NotFoundException("Bài tập không tồn tại"));
+        if (!assignment.getClassId().equals(classId)) {
+            throw new ForbiddenException("Bài tập không thuộc lớp này");
+        }
+
+        long submitted = studentAssignmentRepository.findByAssignmentId(assignmentId).stream()
+                .filter(sa -> AssignmentStatus.isSubmitted(sa.getStatus()))
+                .count();
+        if (submitted > 0) {
+            throw new ConflictException(
+                    "Đã có " + submitted + " học viên nộp bài này — xoá sẽ mất bài nộp và điểm. "
+                    + "Hãy sửa lại đề bài thay vì xoá.");
+        }
+
+        // Chỉ còn các dòng PENDING (bài chưa ai đụng tới) — cascade dọn nốt chúng cùng kịch bản AI
+        // và liên kết tài liệu.
+        assignmentRepository.delete(assignment);
+        log.info("[assignments] teacher={} deleted assignment={} of class={} (no submissions)",
+                teacherId, assignmentId, classId);
+    }
+
+    /**
      * IDOR guard dùng chung: chặn teacher truy cập lớp không thuộc về mình.
      * Dùng cho các endpoint nhận {classId} mà service đích không tự kiểm tra quyền.
      */
@@ -1084,7 +1171,7 @@ public class TeacherService {
 
     private ClassAssignmentDto toAssignmentDto(ClassAssignment a) {
         return new ClassAssignmentDto(a.getId(), a.getClassId(), a.getTopic(), a.getDescription(),
-                a.getAssignmentType(), a.getReferenceId(), a.getDueDate(), a.getCreatedAt(),
+                a.getAssignmentType(), a.getSkill(), a.getReferenceId(), a.getDueDate(), a.getCreatedAt(),
                 a.getAttachmentUrl(), a.getLessonId());
     }
 

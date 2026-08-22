@@ -675,7 +675,14 @@
         "LESEN": "Reading (Lesen)",
         "SCHREIBEN": "Writing (Schreiben)",
         "SPRECHEN": "Speaking (Sprechen)"
-      }
+      },
+      "editTask": "Edit",
+      "deleteTask": "Delete",
+      "deleteTaskConfirm": "Delete “{topic}”? Only possible while no student has submitted.",
+      "deleteTaskSuccess": "Assignment deleted.",
+      "modalEditTitle": "Edit assignment",
+      "modalSaveEdit": "Save changes",
+      "modalEditSuccess": "Changes saved."
     },
     "studentDetail": {
       "nameFallback": "Student #{id}",

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Paperclip, Download, Mic, Clock, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Paperclip, Download, Mic, Clock, CheckCircle2, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import api, { apiMessage } from '@/lib/api'
@@ -67,6 +67,8 @@ export default function V2AssignmentPage() {
   const [content, setContent] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
+  /** Mở lại ô soạn bài để nộp bản khác đè lên bản đã nộp. */
+  const [resubmitting, setResubmitting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
@@ -106,6 +108,7 @@ export default function V2AssignmentPage() {
       let submissionFileUrl = ''
       if (file) submissionFileUrl = await uploadToS3(file)
       await api.post(`/v2/students/assignments/${assignmentId}/submit`, { submissionContent: content, submissionFileUrl })
+      setResubmitting(false)
       toast.success(t('submitSuccess'))
       setContent(''); setFile(null)
       await load()
@@ -147,6 +150,10 @@ export default function V2AssignmentPage() {
   // Only a confirmed grade is shown to the student — an AI_GRADED proposal is not one.
   const isGraded = ['GRADED', 'EVALUATED'].includes((a?.status ?? '').toUpperCase())
   const isSpeaking = (a?.assignmentType ?? '').toUpperCase() === 'SPEAKING_SCENARIO'
+  // Nộp lại được chừng nào giáo viên CHƯA chốt điểm. AI_GRADED nằm trong nhóm này: AI mới đề xuất
+  // điểm và học viên chưa hề thấy nó. Trước đây backend chặn mọi trạng thái khác PENDING, nên chọn
+  // nhầm file là vĩnh viễn — không có đường rút hay thay bài nộp.
+  const canResubmit = ['SUBMITTED', 'AI_GRADED', 'GRADING_FAILED'].includes((a?.status ?? '').toUpperCase())
 
   return (
     <div className="flex min-h-full flex-col">
@@ -192,9 +199,14 @@ export default function V2AssignmentPage() {
               <AssignmentMaterials assignmentId={a.assignmentId} />
 
               {/* Submission / feedback */}
-              {isPending ? (
+              {isPending || resubmitting ? (
                 <div className="border border-ga-line bg-ga-card p-4 lg:p-6">
-                  <GaCap className="mb-4 block">{t('yourSubmissionCap')}</GaCap>
+                  <GaCap className="mb-4 block">{resubmitting ? t('resubmitCap') : t('yourSubmissionCap')}</GaCap>
+                  {resubmitting && (
+                    <p className="ga-ui mb-4 border border-dashed border-ga-line px-3.5 py-2.5 text-[13px] text-ga-muted">
+                      {t('resubmitWarning')}
+                    </p>
+                  )}
                   {isSpeaking && (
                     <div className="mb-4 flex flex-wrap items-center gap-4 border border-dashed border-ga-line bg-ga-bg p-4 lg:flex-nowrap lg:p-5">
                       <span className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full" style={{ background: 'var(--ga-red)' }}><Mic size={20} className="text-white" /></span>
@@ -220,7 +232,12 @@ export default function V2AssignmentPage() {
                     }} />
                     <GaBtn variant="ghost" size="sm" onClick={() => fileRef.current?.click()}><Paperclip size={14} /> {file ? t('changeFile') : t('attachFile')}</GaBtn>
                     {file && <span className="ga-ui min-w-0 max-w-full truncate text-[13px] text-ga-muted">{file.name}</span>}
-                    <GaBtn variant="yellow" size="sm" className="ml-auto" loading={busy} disabled={busy} onClick={submit}>{t('submitToTeacher')}</GaBtn>
+                    {resubmitting && (
+                      <GaBtn variant="ghost" size="sm" className="ml-auto" disabled={busy} onClick={() => setResubmitting(false)}>{tc('cancel')}</GaBtn>
+                    )}
+                    <GaBtn variant="yellow" size="sm" className={resubmitting ? '' : 'ml-auto'} loading={busy} disabled={busy} onClick={submit}>
+                      {resubmitting ? t('submitReplacement') : t('submitToTeacher')}
+                    </GaBtn>
                   </div>
                 </div>
               ) : isGraded ? (
@@ -255,13 +272,31 @@ export default function V2AssignmentPage() {
                   <GaCap className="mb-4 block">{t('yourSubmissionCap')}</GaCap>
                   {a.submissionContent && <p className="mb-4 whitespace-pre-wrap break-words border border-ga-line bg-ga-bg p-4 text-[14px] leading-relaxed text-ga-ink">{a.submissionContent}</p>}
                   {a.submissionFileUrl && <a href={a.submissionFileUrl} target="_blank" rel="noopener noreferrer" className="ga-ui mb-4 inline-flex min-h-[40px] items-center gap-2 border border-ga-line px-3 py-2 text-[13px] font-semibold text-ga-ink hover:bg-ga-surface lg:min-h-0"><Download size={14} /> {t('submittedFile')}</a>}
-                  <div className="flex items-center gap-3 border p-3.5" style={{ background: 'rgba(47,111,201,0.08)', borderColor: 'rgba(47,111,201,0.25)' }}>
+                  <div className="flex flex-wrap items-center gap-3 border p-3.5 lg:flex-nowrap" style={{ background: 'rgba(47,111,201,0.08)', borderColor: 'rgba(47,111,201,0.25)' }}>
                     <Clock size={18} className="shrink-0" style={{ color: '#2F6FC9' }} />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="text-[14px] font-semibold text-ga-ink">{t('waitingGrade')}</div>
                       <div className="mt-0.5 text-[12.5px] text-ga-muted">{t('submittedAt', { time: fmtDateTime(a.submittedAt) })}</div>
                     </div>
+                    {canResubmit && (
+                      <GaBtn
+                        variant="ghost"
+                        size="sm"
+                        className="w-full shrink-0 lg:w-auto"
+                        onClick={() => {
+                          // Mở lại ô soạn với chính nội dung đã nộp, để sửa chứ không phải gõ lại từ đầu.
+                          setContent(a.submissionContent ?? '')
+                          setFile(null)
+                          setResubmitting(true)
+                        }}
+                      >
+                        <RotateCcw size={14} /> {t('resubmit')}
+                      </GaBtn>
+                    )}
                   </div>
+                  {canResubmit && (
+                    <p className="ga-ui mt-2.5 text-[12.5px] text-ga-muted">{t('resubmitHint')}</p>
+                  )}
                 </div>
               )}
             </div>

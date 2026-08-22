@@ -484,7 +484,12 @@
         "submittedAt": "Abgegeben um",
         "score": "Note"
       },
-      "gradedDone": "Diese Aufgabe wurde bewertet"
+      "gradedDone": "Diese Aufgabe wurde bewertet",
+      "resubmit": "Erneut abgeben",
+      "resubmitHint": "Das Falsche abgegeben? Bis zur Bewertung kannst du es noch ersetzen.",
+      "resubmitCap": "Neue Abgabe",
+      "resubmitWarning": "Die neue Abgabe ersetzt die vorherige vollständig.",
+      "submitReplacement": "Diese Fassung abgeben"
     },
     "progress": {
       "title": "Kursfortschritt",
