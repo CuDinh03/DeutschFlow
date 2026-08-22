@@ -210,6 +210,14 @@ server:
     min-response-size: 1024
 
 app:
+  # Mảng Luyện thi Nói (plans/2026-08-19-ke-hoach-luyen-thi-noi.md). allow-text-turns-in-mock CHỈ dev/test:
+  # prod mock phải nhận audio (server phiên âm) để chống dán văn bản.
+  examspeaking:
+    allow-text-turns-in-mock: ${EXAM_SPEAKING_ALLOW_TEXT_MOCK:false}
+    grading-passes: ${EXAM_SPEAKING_GRADING_PASSES:2}
+    turn-max-tokens: ${EXAM_SPEAKING_TURN_MAX_TOKENS:400}
+    drill-eval-max-tokens: ${EXAM_SPEAKING_DRILL_EVAL_MAX_TOKENS:700}
+    grading-max-tokens: ${EXAM_SPEAKING_GRADING_MAX_TOKENS:1800}
   # DeutschFlow Galerie — sinh artwork SVG bằng Anthropic (plan mục 12). Tắt mặc định:
   # bật cần GALERIE_SVG_ENABLED=true VÀ ANTHROPIC_API_KEY trong môi trường (SDK tự đọc env).
   # Không bật thì endpoint generate trả 503 AI_NOT_CONFIGURED, phần còn lại của pipeline vẫn chạy.
