@@ -1024,7 +1024,16 @@
       "generateNext": "Làm thêm bài mới",
       "generating": "Đang sinh…",
       "otherSkill": "Chọn kỹ năng khác",
-      "totalSeen": "Tổng cộng đã luyện {count} câu không lặp lại"
+      "totalSeen": "Tổng cộng đã luyện {count} câu không lặp lại",
+      "backToTree": "Về cây",
+      "backToTreeGrow": "Về cây — xem nó lớn lên",
+      "seeding": "Đang ươm đề cho riêng bạn…",
+      "progressLabel": "Đã trả lời {answered}/{total} câu",
+      "errorConflict": "Một đề khác đang được sinh cho kỹ năng này — chờ một lát rồi thử lại.",
+      "errorQuota": "Hôm nay bạn đã dùng hết lượt AI. Bài đã có vẫn làm được; lượt mới sẽ mở lại sau.",
+      "errorRateLimited": "Bạn thao tác hơi nhanh — thử lại sau {seconds} giây.",
+      "errorAiUnavailable": "Trợ lý AI đang bận, chưa sinh được đề. Thử lại sau ít phút.",
+      "errorJobFailed": "Sinh đề không thành công. Bấm thử lại để ươm đề mới."
     },
     "learnNode": {
       "toPractice": "Luyện 4 kỹ năng",

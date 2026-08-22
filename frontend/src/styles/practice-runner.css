@@ -1,0 +1,74 @@
+/* Runner luyện kỹ năng — "áo" Lernbaum (L3b).
+ *
+ * Màn chờ sinh đề là nghi thức ươm mầm: nụ hoa đập theo nhịp thở (cùng nhịp 3,4s bất đối xứng của
+ * node đang học trên cây) thay cho spinner chung. Chỉ transform/opacity; tắt theo reduced-motion. */
+
+@keyframes prBreath {
+  0%,
+  100% {
+    transform: scale(0.96);
+  }
+  55% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes prRing {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.55;
+  }
+  70% {
+    opacity: 0.15;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+@keyframes prLeafFill {
+  0% {
+    transform: scale(0.7);
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.pr-seed-bud {
+  transform-box: fill-box;
+  transform-origin: 50% 92%;
+  animation: prBreath 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.pr-seed-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: prRing 3.4s ease-out infinite;
+}
+
+.pr-seed-ring.pr-r2 {
+  animation-delay: -1.7s;
+}
+
+.pr-leaf-filled {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: prLeafFill 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-seed-bud,
+  .pr-seed-ring,
+  .pr-leaf-filled {
+    animation: none;
+  }
+
+  .pr-seed-ring {
+    opacity: 0.25;
+  }
+}

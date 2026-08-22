@@ -1024,7 +1024,16 @@
       "generateNext": "Practise a new set",
       "generating": "Generating…",
       "otherSkill": "Pick another skill",
-      "totalSeen": "You have practised {count} non-repeating questions in total"
+      "totalSeen": "You have practised {count} non-repeating questions in total",
+      "backToTree": "Back to the tree",
+      "backToTreeGrow": "Back to the tree — watch it grow",
+      "seeding": "Growing a set just for you…",
+      "progressLabel": "Answered {answered}/{total} questions",
+      "errorConflict": "Another set is being generated for this skill — wait a moment and try again.",
+      "errorQuota": "You've used up today's AI allowance. Existing sets still work; new ones unlock later.",
+      "errorRateLimited": "That was a bit fast — try again in {seconds} seconds.",
+      "errorAiUnavailable": "The AI assistant is busy and couldn't generate a set. Try again in a few minutes.",
+      "errorJobFailed": "Generating the set failed. Hit retry to grow a new one."
     },
     "learnNode": {
       "toPractice": "Practice 4 skills",

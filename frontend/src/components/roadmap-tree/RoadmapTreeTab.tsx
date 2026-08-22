@@ -13,6 +13,7 @@ import {
   SKILL_ORDER,
   type NodePracticeStats,
 } from '@/lib/roadmap-tree/practiceStats'
+import { planRitual, RITUAL_TIMELINE, type RitualPlan } from '@/lib/roadmap-tree/ritual'
 import { nodeDisplayTitle, type RoadmapNode } from '@/lib/roadmap-tree/types'
 import type { Skill } from '@/lib/skills'
 import { EmptyState } from '@/components/ui-v2'
@@ -36,9 +37,19 @@ export interface RoadmapTreeTabProps {
   initialSelectedId?: number | null
   /** Bắn khi NGƯỜI DÙNG chọn node (không bắn cho auto-select) — page ghi vào URL. */
   onSelectedIdChange?: (id: number) => void
+  /**
+   * Nghi thức trở về từ runner: `?feiern=<skill>` đi kèm `?node=` (page đã đọc + xoá param).
+   * Tab tải lại điểm của node đó (bỏ cache) rồi diễn bậc tương ứng — xem ritual.ts.
+   */
+  initialFeiern?: { nodeId: number; skill: Skill } | null
 }
 
-export function RoadmapTreeTab({ nodes, initialSelectedId, onSelectedIdChange }: RoadmapTreeTabProps) {
+export function RoadmapTreeTab({
+  nodes,
+  initialSelectedId,
+  onSelectedIdChange,
+  initialFeiern,
+}: RoadmapTreeTabProps) {
   const t = useTranslations('v2.student.roadmap')
   const locale = useLocale()
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -96,12 +107,32 @@ export function RoadmapTreeTab({ nodes, initialSelectedId, onSelectedIdChange }:
   // ── Điểm luyện tập per-kỹ-năng (N2) — cache theo node, node khoá không có gì để hỏi ──
   const [practiceStats, setPracticeStats] = useState<Map<number, NodePracticeStats>>(new Map())
   const statsInFlightRef = useRef(new Set<number>())
+
+  // ── Nghi thức trở về (L3a) ──
+  // `pendingFeiern` sống từ lúc nhận param tới lúc điểm của node về; lúc đó mới biết bậc nào.
+  const [pendingFeiern, setPendingFeiern] = useState<{ nodeId: number; skill: Skill } | null>(null)
+  const [ritual, setRitual] = useState<RitualPlan | null>(null)
+  const [cameraTarget, setCameraTarget] = useState<{ id: number; seq: number } | null>(null)
+  const ritualTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  useEffect(() => {
+    if (!initialFeiern) return
+    setPendingFeiern(initialFeiern)
+    // BẮT BUỘC bỏ cache node vừa luyện: điểm vừa chấm phải về thì cánh mới tô — cache Map không có
+    // invalidation nào khác.
+    setPracticeStats((m) => {
+      if (!m.has(initialFeiern.nodeId)) return m
+      const next = new Map(m)
+      next.delete(initialFeiern.nodeId)
+      return next
+    })
+  }, [initialFeiern])
+
   useEffect(() => {
     // Fetch cho node đang chọn VÀ node đang học: cánh hoa cần dữ liệu của node hoa kể cả khi
     // người dùng deep-link vào một node khác. `statsInFlightRef` chặn fetch trùng — effect chạy lại
     // mỗi khi cache đổi, không được coi đó là cớ hỏi lại API.
     const wanted = new Set(
-      [selectedId, focusNodeId].filter(
+      [selectedId, focusNodeId, pendingFeiern?.nodeId ?? null].filter(
         (id): id is number =>
           id != null &&
           !practiceStats.has(id) &&
@@ -123,7 +154,33 @@ export function RoadmapTreeTab({ nodes, initialSelectedId, onSelectedIdChange }:
         })
         .finally(() => statsInFlightRef.current.delete(id))
     })
-  }, [selectedId, focusNodeId, nodeById, practiceStats])
+  }, [selectedId, focusNodeId, pendingFeiern, nodeById, practiceStats])
+
+  // Điểm của node vừa luyện đã về → chốt kế hoạch nghi thức, chạy timeline, rồi trả cây về tĩnh.
+  useEffect(() => {
+    if (!pendingFeiern) return
+    const stats = practiceStats.get(pendingFeiern.nodeId)
+    if (!stats) return
+    setPendingFeiern(null)
+    const plan = planRitual(layout, pendingFeiern.nodeId, pendingFeiern.skill, stats)
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    // Tắt hiệu ứng / giảm chuyển động → mọi nghi thức thành đổi trạng thái tức thì: cây đã ở
+    // trạng thái mới rồi, không gắn class nào cả.
+    if (!plan || !motionEnabled || reduced) return
+    setRitual(plan)
+    const timers: ReturnType<typeof setTimeout>[] = []
+    if (plan.tier >= 2 && plan.nextNodeId != null) {
+      timers.push(
+        setTimeout(
+          () => setCameraTarget({ id: plan.nextNodeId as number, seq: Date.now() }),
+          RITUAL_TIMELINE.cameraGlideMs,
+        ),
+      )
+    }
+    timers.push(setTimeout(() => setRitual(null), RITUAL_TIMELINE.totalMs))
+    ritualTimersRef.current = timers
+  }, [pendingFeiern, practiceStats, layout, motionEnabled])
+  useEffect(() => () => ritualTimersRef.current.forEach(clearTimeout), [])
 
   // ── Hero CTA "Học tiếp" (N1): node đang học + kỹ năng còn thiếu → 1 click vào runner ──
   const hero = useMemo<{ id: number; skill: Skill; target: string } | null>(() => {
@@ -251,6 +308,9 @@ export function RoadmapTreeTab({ nodes, initialSelectedId, onSelectedIdChange }:
             focusNodeId={focusNodeId}
             focusLabel={t('tree.focusCurrent')}
             flowerMastery={flowerMastery}
+            ritual={ritual}
+            cameraTarget={cameraTarget}
+            autoFocusId={initialFeiern?.nodeId ?? focusNodeId}
           />
         </div>
         <div

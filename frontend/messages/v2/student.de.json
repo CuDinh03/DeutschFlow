@@ -1024,7 +1024,16 @@
       "generateNext": "Neue Übung machen",
       "generating": "Wird erzeugt…",
       "otherSkill": "Andere Fertigkeit wählen",
-      "totalSeen": "Insgesamt {count} Aufgaben ohne Wiederholung geübt"
+      "totalSeen": "Insgesamt {count} Aufgaben ohne Wiederholung geübt",
+      "backToTree": "Zurück zum Baum",
+      "backToTreeGrow": "Zurück zum Baum – sieh ihn wachsen",
+      "seeding": "Deine Aufgaben werden gerade ausgesät…",
+      "progressLabel": "{answered}/{total} Fragen beantwortet",
+      "errorConflict": "Für diese Fertigkeit wird gerade ein anderer Satz erzeugt – kurz warten und erneut versuchen.",
+      "errorQuota": "Dein KI-Kontingent für heute ist aufgebraucht. Vorhandene Sätze gehen weiter; neue gibt es später.",
+      "errorRateLimited": "Das war etwas schnell – versuch es in {seconds} Sekunden noch einmal.",
+      "errorAiUnavailable": "Der KI-Assistent ist ausgelastet und konnte keinen Satz erzeugen. Versuch es in ein paar Minuten.",
+      "errorJobFailed": "Das Erzeugen des Satzes ist fehlgeschlagen. Erneut versuchen, um einen neuen auszusäen."
     },
     "learnNode": {
       "toPractice": "4 Fertigkeiten üben",
