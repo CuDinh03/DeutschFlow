@@ -316,6 +316,8 @@
       "tabOverview": "Overview",
       "tabTasks": "Assignments",
       "tabLessons": "Roadmap",
+      "tabEvaluation": "Evaluation",
+      "tabSchedule": "Schedule",
       "invalidClassId": "Invalid class ID",
       "titleFallback": "Class details",
       "titleLoading": "Loading…",
@@ -370,6 +372,65 @@
         "empty": "No materials for this lesson yet.",
         "loadError": "Could not load materials.",
         "openError": "Could not open the material."
+      },
+      "evaluation": {
+        "loading": "Loading your evaluation…",
+        "skillsCap": "Four-skill report",
+        "totalCap": "Overall",
+        "noScore": "Not graded",
+        "skill": {
+          "horen": "Listening (Hören)",
+          "lesen": "Reading (Lesen)",
+          "schreiben": "Writing (Schreiben)",
+          "sprechen": "Speaking (Sprechen)"
+        },
+        "noSkillsTitle": "No skill scores yet",
+        "noSkillsBody": "Your teacher has not scored your four skills in this class yet.",
+        "commentCap": "Teacher's comment",
+        "evaluatedAt": "Written on {date}",
+        "noCommentTitle": "No comment yet",
+        "noCommentBody": "Your teacher has not written a comment for you. It will appear here once they do.",
+        "attendanceCap": "Attendance",
+        "rate": "{pct}% attendance",
+        "presentCount": "Present: {count}",
+        "lateCount": "Late: {count}",
+        "absentCount": "Absent: {count}",
+        "sessionNo": "Session {no}",
+        "noTopic": "No topic recorded",
+        "noAttendanceTitle": "No sessions yet",
+        "noAttendanceBody": "No session in this class has been marked for attendance yet.",
+        "status": {
+          "PRESENT": "Present",
+          "LATE": "Late",
+          "ABSENT": "Absent",
+          "UNMARKED": "Not marked"
+        }
+      },
+      "schedule": {
+        "loading": "Loading schedule…",
+        "emptyTitle": "No schedule yet",
+        "emptyBody": "Your teacher has not scheduled any session for this class.",
+        "upcomingCap": "Upcoming ({count})",
+        "noUpcoming": "No upcoming sessions.",
+        "pastCap": "Past sessions ({count})",
+        "modeOnline": "Online",
+        "modeOffline": "In class",
+        "room": "Room {room}",
+        "duration": "{minutes} min",
+        "status": {
+          "SCHEDULED": "Scheduled",
+          "MOVED": "Moved",
+          "CANCELLED": "Cancelled"
+        },
+        "weekday": {
+          "0": "Sun",
+          "1": "Mon",
+          "2": "Tue",
+          "3": "Wed",
+          "4": "Thu",
+          "5": "Fri",
+          "6": "Sat"
+        }
       }
     },
     "assignment": {

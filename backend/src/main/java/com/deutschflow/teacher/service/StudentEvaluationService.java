@@ -164,8 +164,13 @@ public class StudentEvaluationService {
     }
 
     /**
-     * The requesting student's OWN 4-skill report row (teacher-set score, or their own
-     * skill-tagged assignment averages as a fallback). Never returns the class list.
+     * The requesting student's OWN evaluation row: the 4-skill scores (teacher-set, or their own
+     * skill-tagged assignment averages as a fallback) AND the teacher's written comment about them.
+     * Never returns the class list.
+     *
+     * <p>The comment is the same {@code class_students.teacher_comment} the teacher writes in the
+     * gradebook. It was previously teacher-only — written, stored, and never shown to the student it
+     * was about.
      */
     @Transactional(readOnly = true)
     public MySkillReportDto mySkillReport(Long studentId, Long classId) {
@@ -192,7 +197,8 @@ public class StudentEvaluationService {
         Double schreiben = toDouble(cs.getSkillSchreiben(), myScoresBySkill.get("SCHREIBEN"));
         Double sprechen = toDouble(cs.getSkillSprechen(), myScoresBySkill.get("SPRECHEN"));
         Double total = avgOfPresent(horen, lesen, schreiben, sprechen);
-        return new MySkillReportDto(horen, lesen, schreiben, sprechen, total, SkillReportDto.gradeOf(total));
+        return new MySkillReportDto(horen, lesen, schreiben, sprechen, total, SkillReportDto.gradeOf(total),
+                cs.getTeacherComment(), cs.getEvaluatedAt());
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
