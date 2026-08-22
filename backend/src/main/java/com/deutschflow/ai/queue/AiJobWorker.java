@@ -35,6 +35,8 @@ public class AiJobWorker {
     private final GroqWhisperClient groqWhisperClient;
     private final AiUsageLedgerService ledgerService;
     private final ObjectMapper objectMapper;
+    /** Handler cắm được (module mới), tra theo jobType; các handler cũ giữ nguyên trong switch. */
+    private final java.util.List<AiJobHandler> pluggableHandlers;
 
     @Scheduled(fixedDelay = 2000)
     public void processPendingJobs() {
@@ -47,7 +49,7 @@ public class AiJobWorker {
                 Map<String, Object> result = switch (job.getJobType()) {
                     case AiJob.TYPE_PRONUNCIATION_EVAL -> handlePronunciationEval(job);
                     case AiJob.TYPE_INTERVIEW_REPORT   -> handleInterviewReport(job);
-                    default -> Map.of("error", "Unknown job type: " + job.getJobType());
+                    default -> dispatchPluggable(job);
                 };
 
                 saveCompleted(job, result);
@@ -60,6 +62,15 @@ public class AiJobWorker {
                 sseRegistry.error(job.getId(), "Đánh giá thất bại. Vui lòng thử lại.");
             }
         }
+    }
+
+    private Map<String, Object> dispatchPluggable(AiJob job) throws Exception {
+        for (AiJobHandler h : pluggableHandlers) {
+            if (h.jobType().equals(job.getJobType())) {
+                return h.handle(job);
+            }
+        }
+        return Map.of("error", "Unknown job type: " + job.getJobType());
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
