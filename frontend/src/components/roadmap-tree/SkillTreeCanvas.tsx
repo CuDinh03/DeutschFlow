@@ -9,6 +9,7 @@ import {
   zoomAtPoint,
   type Camera,
 } from '@/lib/roadmap-tree/camera'
+import type { RitualPlan } from '@/lib/roadmap-tree/ritual'
 import type { Branch, PlacedNode, TreeLayout } from '@/lib/roadmap-tree/treeLayout'
 import type { Skill } from '@/lib/skills'
 import '@/styles/roadmap-tree.css'
@@ -53,6 +54,21 @@ export interface SkillTreeCanvasProps {
    * (N2). Null/undefined khi chưa có dữ liệu: hoa vẽ bản mặc định, không đổi hình khi đang tải.
    */
   flowerMastery?: Partial<Record<Skill, boolean>> | null
+  /**
+   * Nghi thức trở về đang diễn (≤2,5s) — canvas chỉ gắn class `rt-rit-*` theo kế hoạch, không
+   * giữ timer: tab sở hữu vòng đời và gỡ prop khi xong. Null = cây tĩnh lặng.
+   */
+  ritual?: RitualPlan | null
+  /**
+   * Điểm camera nhắm tới theo yêu cầu (glide) — đổi `seq` để bắn lại cùng một node. Dùng cho bậc 2
+   * của nghi thức: camera lướt từ hoa vừa hoá lá sang hoa kế.
+   */
+  cameraTarget?: { id: number; seq: number } | null
+  /**
+   * Node camera nhắm lúc mở tab — mặc định `focusNodeId`. Nghi thức đặt nó vào node vừa luyện để
+   * bậc 1–2 diễn ngay trong khung nhìn, thay vì mở thẳng ở hoa kế rồi nhảy ngược lại.
+   */
+  autoFocusId?: number | null
 }
 
 /**
@@ -88,7 +104,16 @@ const BACK_PETALS = [
   { rotate: 315, scale: 0.87, petal: '#rtPetP2' },
 ] as const
 
-function FlowerWithSkills({ mastery }: { mastery: Partial<Record<Skill, boolean>> }) {
+function FlowerWithSkills({
+  mastery,
+  ritualSkill,
+  ritualTier,
+}: {
+  mastery: Partial<Record<Skill, boolean>>
+  /** Cánh đang diễn nghi thức: bậc 0 nhún, bậc ≥1 bung + nhận màu + 2 hạt phấn. */
+  ritualSkill?: Skill | null
+  ritualTier?: number
+}) {
   const anyMastered = SKILL_PETALS.some((p) => mastery[p.skill])
   return (
     <g>
@@ -111,21 +136,37 @@ function FlowerWithSkills({ mastery }: { mastery: Partial<Record<Skill, boolean>
       ))}
       {SKILL_PETALS.map((p) => {
         const mastered = mastery[p.skill] === true
+        const celebrating = ritualSkill === p.skill
+        // Animation CSS ghi đè attribute transform của SVG, nên lớp diễn nằm TRONG g xoay.
+        const ritualClass = !celebrating
+          ? undefined
+          : (ritualTier ?? 0) >= 1
+            ? 'rt-rit-petal-gain'
+            : 'rt-rit-petal-nudge'
         return (
           <g
             key={p.skill}
             data-skill-petal={p.skill}
             data-mastered={mastered}
+            data-ritual={celebrating ? ritualClass : undefined}
             transform={`rotate(${p.rotate}) scale(${p.scale})`}
           >
-            <use
-              href={p.petal}
-              fill={mastered ? SKILL_PETAL_FILL[p.skill] : 'url(#rtGIvory)'}
-              stroke="var(--tree-ink)"
-              strokeWidth="1.6"
-              strokeLinejoin="round"
-            />
-            {mastered ? <use href="#rtPetHi" opacity="0.35" /> : <use href="#rtPetShade" />}
+            <g className={ritualClass}>
+              <use
+                href={p.petal}
+                fill={mastered ? SKILL_PETAL_FILL[p.skill] : 'url(#rtGIvory)'}
+                stroke="var(--tree-ink)"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+              />
+              {mastered ? <use href="#rtPetHi" opacity="0.35" /> : <use href="#rtPetShade" />}
+            </g>
+            {celebrating && (ritualTier ?? 0) >= 1 && (
+              <g pointerEvents="none">
+                <circle className="rt-rit-pollen" cx="-2" cy="-16" r="1.2" fill="var(--tree-aura)" />
+                <circle className="rt-rit-pollen rt-p2" cx="3" cy="-13" r="0.9" fill="var(--tree-aura-2)" />
+              </g>
+            )}
           </g>
         )
       })}
@@ -163,6 +204,9 @@ export function SkillTreeCanvas({
   focusNodeId,
   focusLabel,
   flowerMastery,
+  ritual,
+  cameraTarget,
+  autoFocusId,
 }: SkillTreeCanvasProps) {
   const [camera, setCamera] = useState<Camera>(CAMERA_IDLE)
   const [hoveredId, setHoveredId] = useState<number | null>(null)
@@ -201,25 +245,40 @@ export function SkillTreeCanvas({
     glideTimerRef.current = setTimeout(() => setGliding(false), 500)
   }, [motionEnabled])
 
-  /** Đưa camera về node đang học — dùng cho lần mở tab và nút ⌖. */
-  const focusCurrent = useCallback(() => {
-    if (focusNodeId == null) return false
-    const node = layout.nodes.find((n) => n.id === focusNodeId)
-    const svg = svgRef.current
-    if (!node || !svg) return false
-    const rect = svg.getBoundingClientRect()
-    const scale = focusScaleFor(rect.width, rect.height, layout.width, layout.height, NODE_HIT_RADIUS, FOCUS_TARGET_PX)
-    setCamera(focusCamera(node.x, node.y, layout.width, layout.height, scale))
-    return true
-  }, [focusNodeId, layout])
+  /** Đưa camera nhắm một node cụ thể ở mức zoom auto-focus. */
+  const focusOn = useCallback(
+    (id: number | null) => {
+      if (id == null) return false
+      const node = layout.nodes.find((n) => n.id === id)
+      const svg = svgRef.current
+      if (!node || !svg) return false
+      const rect = svg.getBoundingClientRect()
+      const scale = focusScaleFor(rect.width, rect.height, layout.width, layout.height, NODE_HIT_RADIUS, FOCUS_TARGET_PX)
+      setCamera(focusCamera(node.x, node.y, layout.width, layout.height, scale))
+      return true
+    },
+    [layout],
+  )
+
+  /** Đưa camera về node đang học — dùng cho nút ⌖. */
+  const focusCurrent = useCallback(() => focusOn(focusNodeId), [focusOn, focusNodeId])
 
   // Mở tab (hoặc dữ liệu đổi hẳn) → nhắm ngay node đang học thay vì toàn cây co nhỏ (F8):
   // với lộ trình 11 tuần, mức fit biến node hoa thành chấm ~8px không bấm nổi.
   const focusedLayoutRef = useRef<TreeLayout | null>(null)
   useLayoutEffect(() => {
     if (focusedLayoutRef.current === layout) return
-    if (focusCurrent()) focusedLayoutRef.current = layout
-  }, [layout, focusCurrent])
+    const preferred = autoFocusId !== undefined ? autoFocusId : focusNodeId
+    if (focusOn(preferred) || focusOn(focusNodeId)) focusedLayoutRef.current = layout
+  }, [layout, focusOn, autoFocusId, focusNodeId])
+
+  // Camera theo yêu cầu (bậc 2 nghi thức): lướt sang node được chỉ. `seq` đổi ⇒ bắn lại.
+  useEffect(() => {
+    if (!cameraTarget) return
+    glide()
+    focusOn(cameraTarget.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ theo seq/id, không theo glide/focusOn
+  }, [cameraTarget?.id, cameraTarget?.seq])
 
   /** Phóng/thu quanh một điểm neo (toạ độ viewBox) — điểm neo đứng yên trên màn hình. */
   const zoomAt = useCallback((factor: number, anchorX: number, anchorY: number) => {
@@ -684,6 +743,35 @@ export function SkillTreeCanvas({
               {layout.canopy.map((blob, i) => (
                 <ellipse key={i} cx={blob.cx} cy={blob.cy} rx={blob.rx} ry={blob.ry} />
               ))}
+              {/* Bậc 3 — tuần khép tán: mảng màu nước đậm thêm một tông + 5 hạt phấn bay chậm
+                  qua tán một lượt rồi thôi. Lớp phủ nằm trong nhóm lay để đi cùng tán. */}
+              {ritual?.week != null &&
+                layout.canopy
+                  .filter((blob) => blob.week === ritual.week)
+                  .map((blob) => (
+                    <g key={`close-${blob.week}`} data-ritual="week-close" pointerEvents="none">
+                      <ellipse
+                        className="rt-rit-canopy-close"
+                        cx={blob.cx}
+                        cy={blob.cy}
+                        rx={blob.rx}
+                        ry={blob.ry}
+                        fill="var(--tree-canopy-deep)"
+                        opacity="0"
+                      />
+                      {[0, 1, 2, 3, 4].map((k) => (
+                        <circle
+                          key={k}
+                          className={`rt-rit-week-pollen rt-p${k + 1}`}
+                          cx={blob.cx - blob.rx * 0.6 + k * blob.rx * 0.3}
+                          cy={blob.cy + blob.ry * 0.5 - (k % 2) * 14}
+                          r={k % 2 ? 1.3 : 1.7}
+                          fill="var(--tree-aura)"
+                          opacity="0"
+                        />
+                      ))}
+                    </g>
+                  ))}
             </g>
 
             {/* Thân, rễ, vân vỏ, ngọn tương lai */}
@@ -708,6 +796,11 @@ export function SkillTreeCanvas({
             {layout.nodes.map((node) => {
               const selected = node.id === selectedId
               const hovered = node.id === hoveredId
+              const ritualHere = ritual?.nodeId === node.id ? ritual : null
+              /** Bậc 2: node này vừa hoá lá — diễn hoa khép + lá mở. */
+              const leafing = ritualHere != null && ritualHere.tier >= 2 && node.motif === 'leaf'
+              /** Bậc 2: hoa kế tiếp nở từ nụ. */
+              const blooming = ritual != null && ritual.tier >= 2 && ritual.nextNodeId === node.id && node.motif === 'flower'
               return (
                 <g key={node.id}>
                   <path d={node.twig} stroke="var(--tree-bark)" strokeWidth="3" fill="none" strokeLinecap="round" />
@@ -762,17 +855,41 @@ export function SkillTreeCanvas({
                     {hovered && !selected && (
                       <circle r="21" fill="none" stroke="var(--tree-ink)" strokeWidth="1.5" strokeDasharray="3 3" />
                     )}
-                    {node.leaves.map((leaf, i) => (
-                      <g key={i} transform={`rotate(${leaf.angle}) scale(${leaf.scale})`}>
-                        <use href={LEAF_HREF[leaf.kind]} />
-                      </g>
-                    ))}
-                    {node.motif === 'flower' &&
-                      (flowerMastery ? (
-                        <FlowerWithSkills mastery={flowerMastery} />
-                      ) : (
-                        <use href="#rtFlower" />
+                    <g className={leafing ? 'rt-rit-leaf-in' : undefined} data-ritual={leafing ? 'leaf-in' : undefined}>
+                      {node.leaves.map((leaf, i) => (
+                        <g key={i} transform={`rotate(${leaf.angle}) scale(${leaf.scale})`}>
+                          <use href={LEAF_HREF[leaf.kind]} />
+                        </g>
                       ))}
+                    </g>
+                    {leafing && (
+                      // Bóng hoa đủ 4 cánh khép lại rồi tan — cánh vừa đạt vẫn bung trước (bậc 1).
+                      <g className="rt-rit-flower-out" data-ritual="flower-out" pointerEvents="none">
+                        <FlowerWithSkills
+                          mastery={{ hoeren: true, lesen: true, sprechen: true, schreiben: true }}
+                          ritualSkill={ritualHere.skill}
+                          ritualTier={1}
+                        />
+                      </g>
+                    )}
+                    {blooming && (
+                      <g className="rt-rit-bud-out" data-ritual="bud-out" pointerEvents="none">
+                        <use href="#rtBud" />
+                      </g>
+                    )}
+                    {node.motif === 'flower' && (
+                      <g className={blooming ? 'rt-rit-flower-in' : undefined} data-ritual={blooming ? 'flower-in' : undefined}>
+                        {flowerMastery ? (
+                          <FlowerWithSkills
+                            mastery={flowerMastery}
+                            ritualSkill={ritualHere?.skill ?? null}
+                            ritualTier={ritualHere?.tier}
+                          />
+                        ) : (
+                          <use href="#rtFlower" />
+                        )}
+                      </g>
+                    )}
                     {node.motif === 'bud' && <use href="#rtBud" />}
                     {node.motif === 'nub' && <use href="#rtNub" />}
                     <circle className="rt-focus" r="22" />
@@ -804,7 +921,12 @@ export function SkillTreeCanvas({
                       strokeWidth="1.5"
                       strokeDasharray={branch.dim ? '5 4' : undefined}
                     />
-                    <text x="10" y="15" fill={branch.dim ? 'var(--tree-label-mute)' : 'var(--tree-ink)'}>
+                    <text
+                      x="10"
+                      y="15"
+                      fill={branch.dim ? 'var(--tree-label-mute)' : branch.complete ? 'var(--tree-label-done)' : 'var(--tree-ink)'}
+                      data-week-complete={branch.complete || undefined}
+                    >
                       {label}
                     </text>
                   </g>

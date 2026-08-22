@@ -6,7 +6,9 @@ import { useTranslations } from 'next-intl'
 import { Check, ArrowRight, BookOpen, Dumbbell, Lock } from 'lucide-react'
 import api from '@/lib/api'
 import { phaseApi, type PhaseStateResponse, type PhaseType } from '@/lib/phaseApi'
+import { parseFeiernParam } from '@/lib/roadmap-tree/ritual'
 import type { RoadmapNode } from '@/lib/roadmap-tree/types'
+import type { Skill } from '@/lib/skills'
 import { RoadmapTreeTab } from '@/components/roadmap-tree/RoadmapTreeTab'
 import {
   GaPageHdr,
@@ -46,18 +48,8 @@ export default function V2StudentRoadmapPage() {
   const t = useTranslations('v2.student.roadmap')
   const [tab, setTab] = useState('tree')
   const [urlNodeId, setUrlNodeId] = useState<number | null>(null)
-
-  // URL-as-state (T7): `?tab=&node=` để refresh/share giữ đúng ngữ cảnh. Đọc qua
-  // window.location + history.replaceState thay vì useSearchParams — trang render lần đầu trên
-  // server không có query, đọc trong initializer sẽ lệch hydration, còn useSearchParams đòi bọc
-  // Suspense khi prerender.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const urlTab = params.get('tab')
-    if (urlTab && VALID_TABS.includes(urlTab)) setTab(urlTab)
-    const nodeParam = Number(params.get('node'))
-    if (Number.isInteger(nodeParam) && nodeParam > 0) setUrlNodeId(nodeParam)
-  }, [])
+  /** Nghi thức trở về (L3a): `?feiern=<skill>` đọc MỘT lần rồi xoá khỏi URL — refresh không diễn lại. */
+  const [feiern, setFeiern] = useState<{ nodeId: number; skill: Skill } | null>(null)
 
   const patchQuery = useCallback((patch: Record<string, string | null>) => {
     const params = new URLSearchParams(window.location.search)
@@ -68,6 +60,24 @@ export default function V2StudentRoadmapPage() {
     const qs = params.toString()
     window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
   }, [])
+
+  // URL-as-state (T7): `?tab=&node=` để refresh/share giữ đúng ngữ cảnh. Đọc qua
+  // window.location + history.replaceState thay vì useSearchParams — trang render lần đầu trên
+  // server không có query, đọc trong initializer sẽ lệch hydration, còn useSearchParams đòi bọc
+  // Suspense khi prerender.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const urlTab = params.get('tab')
+    if (urlTab && VALID_TABS.includes(urlTab)) setTab(urlTab)
+    const nodeParam = Number(params.get('node'))
+    const hasNode = Number.isInteger(nodeParam) && nodeParam > 0
+    if (hasNode) setUrlNodeId(nodeParam)
+    const feiernSkill = parseFeiernParam(params.get('feiern'))
+    if (params.has('feiern')) {
+      if (hasNode && feiernSkill) setFeiern({ nodeId: nodeParam, skill: feiernSkill })
+      patchQuery({ feiern: null })
+    }
+  }, [patchQuery])
 
   const changeTab = useCallback(
     (next: string) => {
@@ -141,6 +151,7 @@ export default function V2StudentRoadmapPage() {
                 nodes={nodes}
                 initialSelectedId={urlNodeId}
                 onSelectedIdChange={(id) => patchQuery({ node: String(id) })}
+                initialFeiern={feiern}
               />
             )}
           </TkTabsContent>

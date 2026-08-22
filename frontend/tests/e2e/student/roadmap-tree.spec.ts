@@ -317,6 +317,69 @@ test.describe('Cây học tập (/v2)', () => {
     ).toHaveCount(1)
   })
 
+  // ── L3a — Nghi thức trở về: `?feiern=<skill>` đọc MỘT lần, đối chiếu điểm vừa tải rồi diễn bậc ──
+  test('feiern bậc 1: cánh vừa đạt bung màu, param bị xoá khỏi URL, cây về tĩnh trong 3s', async ({ page }) => {
+    await mockSession(page, a1Roadmap())
+    await mockPracticeOverview(page, 113, [
+      { skill_type: 'HOEREN', status: 'COMPLETED', score_percent: 85, best_score_percent: 85 },
+    ])
+    await page.goto('/v2/student/roadmap?tab=tree&node=113&feiern=hoeren')
+
+    const gaining = page.locator('svg.rt-canvas [data-skill-petal="hoeren"][data-ritual="rt-rit-petal-gain"]')
+    await expect(gaining).toHaveCount(1)
+    await expect(page.locator('svg.rt-canvas [data-skill-petal="hoeren"][data-mastered="true"]')).toHaveCount(1)
+    // Param nghi thức là một lần — refresh không diễn lại.
+    await expect.poll(() => page.evaluate(() => window.location.search)).not.toContain('feiern')
+    expect(await page.evaluate(() => window.location.search)).toContain('node=113')
+    // Xong ≤2,5s thì gỡ class, cây trở về tĩnh lặng.
+    await expect(gaining).toHaveCount(0, { timeout: 4000 })
+  })
+
+  test('feiern bậc 3: node cuối tuần hoá lá → hoa khép, lá mở, nụ kế nở, tuần khép tán, camera lướt sang', async ({ page }) => {
+    // Ngày 15 (cuối tuần 3) vừa xong; backend đã đóng node và mở ngày 16 thành hoa.
+    const nodes = a1Roadmap().map((n) => {
+      const day = n.dayNumber
+      const progressStatus =
+        day <= 15 ? 'COMPLETED' : day === 16 ? 'IN_PROGRESS' : day === 17 ? 'AVAILABLE' : 'LOCKED'
+      return { ...n, progressStatus, state: progressStatus === 'COMPLETED' ? 'completed' : progressStatus === 'LOCKED' ? 'locked' : 'current' }
+    })
+    await mockSession(page, nodes)
+    await mockPracticeOverview(page, 115, ['HOEREN', 'LESEN', 'SPRECHEN', 'SCHREIBEN'].map((skill_type) => ({
+      skill_type, status: 'COMPLETED', score_percent: 90, best_score_percent: 90,
+    })))
+    await mockPracticeOverview(page, 116, [])
+    await page.goto('/v2/student/roadmap?tab=tree&node=115&feiern=schreiben')
+
+    const tree = page.locator('svg.rt-canvas')
+    await expect(tree.locator('[data-ritual="flower-out"]')).toHaveCount(1)
+    await expect(tree.locator('[data-ritual="leaf-in"]')).toHaveCount(1)
+    await expect(tree.locator('[data-ritual="bud-out"]')).toHaveCount(1)
+    await expect(tree.locator('[data-ritual="flower-in"]')).toHaveCount(1)
+    await expect(tree.locator('[data-ritual="week-close"]')).toHaveCount(1)
+    // Nhãn tuần đã xong chuyển tông xanh (bền, không chỉ lúc diễn).
+    await expect(tree.locator('text[data-week-complete="true"]')).toHaveCount(3)
+
+    // Camera mở ở node vừa luyện (115) rồi lướt sang hoa kế (116) trong nghi thức.
+    const start = parseCamera(await cameraTransform(page))
+    await expect.poll(async () => parseCamera(await cameraTransform(page)).x, { timeout: 4000 }).not.toBe(start.x)
+    await expect(tree.locator('[data-ritual]')).toHaveCount(0, { timeout: 4000 })
+    // Hero CTA đã đổi theo hoa kế.
+    await expect(page.getByRole('link', { name: /Học tiếp: Ngày 16/ })).toBeVisible()
+  })
+
+  test('feiern dưới giảm chuyển động: đổi trạng thái tức thì, không gắn class nghi thức', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await mockSession(page, a1Roadmap())
+    await mockPracticeOverview(page, 113, [
+      { skill_type: 'HOEREN', status: 'COMPLETED', score_percent: 85, best_score_percent: 85 },
+    ])
+    await page.goto('/v2/student/roadmap?tab=tree&node=113&feiern=hoeren')
+
+    await expect(page.locator('svg.rt-canvas [data-skill-petal="hoeren"][data-mastered="true"]')).toHaveCount(1)
+    await expect(page.locator('svg.rt-canvas [data-ritual]')).toHaveCount(0)
+    await expect.poll(() => page.evaluate(() => window.location.search)).not.toContain('feiern')
+  })
+
   test('không tràn ngang trên màn hình điện thoại', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await mockSession(page, a1Roadmap())
