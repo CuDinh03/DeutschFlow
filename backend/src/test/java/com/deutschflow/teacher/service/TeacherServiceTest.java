@@ -52,6 +52,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class TeacherServiceTest {
@@ -160,8 +161,84 @@ class TeacherServiceTest {
                 runAfterCommitService,
                 classDeletionGuard,
                 auditLogService,
-                orgMembershipService
+                orgMembershipService,
+                // Bucket private ⇒ link file bài nộp phải được ký lại. Truyền resolver THẬT với
+                // S3 mock: objectKeyFromOwnUrl trả null ⇒ resolve() nhả nguyên URL đã lưu, tức
+                // đúng hành vi các test này vốn khẳng định.
+                new SubmissionFileUrlResolver(mock(S3StorageService.class))
         );
+    }
+
+    /**
+     * `class_assignments.skill` là đầu vào của bảng điểm 4 kỹ năng (cả phía giáo viên lẫn phía học
+     * viên). Web /v2 từng hardcode 'GENERAL' nên nhánh tính điểm theo kỹ năng chưa từng có dữ liệu.
+     */
+    @Test
+    void createAssignment_persistsTheChosenSkill() {
+        Long teacherId = 1L, classId = 100L;
+        stubCreateAssignment(teacherId, classId);
+        CreateAssignmentRequest req = new CreateAssignmentRequest(
+                "Hörübung 3", "Nghe và điền", "GENERAL", "horen", null, null, null, null, null);
+
+        teacherService.createAssignment(teacherId, classId, req);
+
+        ArgumentCaptor<ClassAssignment> captor = ArgumentCaptor.forClass(ClassAssignment.class);
+        verify(assignmentRepository).save(captor.capture());
+        assertEquals("HOREN", captor.getValue().getSkill());   // chuẩn hoá hoa, KHÔNG có E
+    }
+
+    @Test
+    void createAssignment_acceptsHoerenSpellingAndMapsToHoren() {
+        Long teacherId = 1L, classId = 100L;
+        stubCreateAssignment(teacherId, classId);
+        // can_do_statements.skill_tag dùng "HOEREN" — client nào lỡ gửi cách viết đó vẫn phải về đúng ô Nghe
+        CreateAssignmentRequest req = new CreateAssignmentRequest(
+                "Hörübung", null, "GENERAL", "HOEREN", null, null, null, null, null);
+
+        teacherService.createAssignment(teacherId, classId, req);
+
+        ArgumentCaptor<ClassAssignment> captor = ArgumentCaptor.forClass(ClassAssignment.class);
+        verify(assignmentRepository).save(captor.capture());
+        assertEquals("HOREN", captor.getValue().getSkill());
+    }
+
+    @Test
+    void createAssignment_rejectsUnknownSkill() {
+        Long teacherId = 1L, classId = 100L;
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, teacherId)).role("PRIMARY").build()));
+        CreateAssignmentRequest req = new CreateAssignmentRequest(
+                "Bài lạ", null, "GENERAL", "GRAMMATIK", null, null, null, null, null);
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.createAssignment(teacherId, classId, req));
+        verify(assignmentRepository, never()).save(any(ClassAssignment.class));
+    }
+
+    @Test
+    void createAssignment_nullSkillDefaultsToGeneral() {
+        Long teacherId = 1L, classId = 100L;
+        stubCreateAssignment(teacherId, classId);
+        CreateAssignmentRequest req = new CreateAssignmentRequest(
+                "Bài chung", null, "GENERAL", null, null, null, null, null, null);
+
+        teacherService.createAssignment(teacherId, classId, req);
+
+        ArgumentCaptor<ClassAssignment> captor = ArgumentCaptor.forClass(ClassAssignment.class);
+        verify(assignmentRepository).save(captor.capture());
+        assertEquals("GENERAL", captor.getValue().getSkill());
+    }
+
+    /** Stub tối thiểu cho một lượt createAssignment thành công. */
+    private void stubCreateAssignment(Long teacherId, Long classId) {
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, teacherId)).role("PRIMARY").build()));
+        when(classRepository.findById(classId)).thenReturn(
+                java.util.Optional.of(TeacherClass.builder().id(classId).name("Class A").build()));
+        when(userRepository.findById(teacherId)).thenReturn(java.util.Optional.empty());
+        when(assignmentRepository.save(any(ClassAssignment.class))).thenReturn(
+                ClassAssignment.builder().id(500L).classId(classId).topic("t").build());
+        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
     }
 
     @Test

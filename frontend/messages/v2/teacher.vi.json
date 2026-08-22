@@ -663,10 +663,19 @@
       "modalLinkPlaceholder": "https://… (allango, Drive, YouTube)",
       "modalLinkInvalid": "Link phải bắt đầu bằng http:// hoặc https://",
       "modalTypeCap": "Loại",
+      "modalSkillCap": "Kỹ năng",
+      "modalSkillHint": "Kỹ năng dùng để cộng vào bảng điểm 4 kỹ năng của học viên. Chọn \"Chung\" nếu bài không thuộc kỹ năng nào.",
       "modalDueCap": "Hạn nộp",
       "modalLessonCap": "Gắn với bài học",
       "modalLessonNone": "— Không gắn —",
-      "modalAssign": "Giao cho lớp"
+      "modalAssign": "Giao cho lớp",
+      "skills": {
+        "GENERAL": "Chung (Allgemein)",
+        "HOREN": "Nghe (Hören)",
+        "LESEN": "Đọc (Lesen)",
+        "SCHREIBEN": "Viết (Schreiben)",
+        "SPRECHEN": "Nói (Sprechen)"
+      }
     },
     "studentDetail": {
       "nameFallback": "Học viên #{id}",

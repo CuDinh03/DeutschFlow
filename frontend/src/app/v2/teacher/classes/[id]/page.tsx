@@ -733,6 +733,19 @@ function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics |
   )
 }
 
+/**
+ * Kỹ năng của bài tập, ghi vào `class_assignments.skill`.
+ *
+ * Chuỗi phải đúng từng chữ: backend tra "HOREN" KHÔNG có E cho bảng điểm 4 kỹ năng
+ * (can-do statement thì lại dùng "HOEREN" — hai quy ước khác nhau), và `resolveSkillKey`
+ * của sổ điểm cũng chỉ nhận dạng không E. Sai một chữ là điểm rơi vào ô "không kỹ năng".
+ *
+ * Trường này từng bị hardcode 'GENERAL' ở đây khi port từ v1 sang: mọi bài tập giao từ web
+ * đều không mang kỹ năng, nên nhánh "trung bình bài tập theo kỹ năng" của bảng điểm — cả phía
+ * giáo viên lẫn phía học viên — không bao giờ có dữ liệu để chạy.
+ */
+const ASSIGNMENT_SKILLS = ['GENERAL', 'HOREN', 'LESEN', 'SCHREIBEN', 'SPRECHEN'] as const
+
 // ── Add-assignment modal (real POST) ─────────────────────────────────────────
 function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; classId: number; lessons: ClassLesson[]; onCreated: () => void }) {
   const t = useTranslations('v2.teacher.classDetail')
@@ -742,6 +755,7 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
   const [attachmentUrl, setAttachmentUrl] = useState('')
   const [materials, setMaterials] = useState<Material[]>([])
   const [type, setType] = useState('GENERAL')
+  const [skill, setSkill] = useState<string>('GENERAL')
   const [due, setDue] = useState('')
   const [lessonId, setLessonId] = useState('')
   const [saving, setSaving] = useState(false)
@@ -760,7 +774,7 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
         // presigned S3 link; hosted files reach students via library materials instead).
         description: description.trim(),
         assignmentType: type,
-        skill: 'GENERAL',
+        skill,
         dueDate: due ? new Date(due).toISOString() : null,
         attachmentUrl: link || null,
         lessonId: lessonId ? Number(lessonId) : null,
@@ -769,7 +783,7 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
         materialIds: materials.map((m) => m.id),
       })
       toast.success(t('modalCreateSuccess'))
-      setTopic(''); setDescription(''); setAttachmentUrl(''); setMaterials([]); setType('GENERAL'); setDue(''); setLessonId('')
+      setTopic(''); setDescription(''); setAttachmentUrl(''); setMaterials([]); setType('GENERAL'); setSkill('GENERAL'); setDue(''); setLessonId('')
       onOpenChange(false)
       onCreated()
     } catch (e: unknown) {
@@ -819,7 +833,7 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
             placeholder={t('modalLinkPlaceholder')}
           />
         </div>
-        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
           <div>
             <GaCap className="mb-2 block">{t('modalTypeCap')}</GaCap>
             <select className={field} value={type} onChange={(e) => setType(e.target.value)}>
@@ -827,10 +841,17 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
             </select>
           </div>
           <div>
+            <GaCap className="mb-2 block">{t('modalSkillCap')}</GaCap>
+            <select className={field} value={skill} onChange={(e) => setSkill(e.target.value)}>
+              {ASSIGNMENT_SKILLS.map((sk) => <option key={sk} value={sk}>{t(`skills.${sk}`)}</option>)}
+            </select>
+          </div>
+          <div>
             <GaCap className="mb-2 block">{t('modalDueCap')}</GaCap>
             <input type="date" className={field} value={due} onChange={(e) => setDue(e.target.value)} />
           </div>
         </div>
+        <p className="ga-ui -mt-1 text-[12px] text-ga-muted">{t('modalSkillHint')}</p>
         {lessons.length > 0 && (
           <div>
             <GaCap className="mb-2 block">{t('modalLessonCap')}</GaCap>

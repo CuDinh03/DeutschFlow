@@ -53,6 +53,8 @@ public class StudentAssignmentController {
     private final com.deutschflow.material.service.MaterialService materialService;
     private final com.deutschflow.notification.service.NotificationAutoAckService notificationAutoAckService;
     private final com.deutschflow.common.transaction.RunAfterCommitService runAfterCommitService;
+    /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
+    private final com.deutschflow.teacher.service.SubmissionFileUrlResolver submissionFileUrlResolver;
 
     /**
      * The assignment the class handed out — resolved and access-checked by ENROLLMENT (the student must be
@@ -97,7 +99,7 @@ public class StudentAssignmentController {
                             ca != null ? ca.getAssignmentType() : "GENERAL",
                             ca != null ? ca.getDueDate() : null,
                             a.getSubmissionContent(),
-                            a.getSubmissionFileUrl(),
+                            submissionFileUrlResolver.resolve(a.getSubmissionFileUrl()),
                             ca != null ? ca.getAttachmentUrl() : null,
                             ca != null ? ca.getReferenceId() : null
                     );
@@ -187,7 +189,7 @@ public class StudentAssignmentController {
                 ca != null ? ca.getAssignmentType() : "GENERAL",
                 ca != null ? ca.getDueDate() : null,
                 assignment.getSubmissionContent(),
-                assignment.getSubmissionFileUrl(),
+                submissionFileUrlResolver.resolve(assignment.getSubmissionFileUrl()),
                 ca != null ? ca.getAttachmentUrl() : null,
                 ca != null ? ca.getReferenceId() : null
         ));

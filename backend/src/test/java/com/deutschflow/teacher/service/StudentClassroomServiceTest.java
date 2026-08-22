@@ -38,6 +38,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
+import com.deutschflow.media.service.S3StorageService;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class StudentClassroomServiceTest {
@@ -62,7 +64,11 @@ class StudentClassroomServiceTest {
         service = new StudentClassroomService(
                 classRepository, classStudentRepository, classTeacherRepository,
                 assignmentRepository, lessonRepository, studentAssignmentRepository,
-                classSessionRepository, userRepository);
+                classSessionRepository, userRepository,
+                // Bucket private ⇒ link file bài nộp phải được ký lại. Truyền resolver THẬT với
+                // S3 mock: objectKeyFromOwnUrl trả null ⇒ resolve() nhả nguyên URL đã lưu, tức
+                // đúng hành vi các test này vốn khẳng định.
+                new SubmissionFileUrlResolver(mock(S3StorageService.class)));
     }
 
     @Test

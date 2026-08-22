@@ -77,6 +77,8 @@ public class TeacherService {
     private final ClassDeletionGuard classDeletionGuard;
     private final AuditLogService auditLogService;
     private final com.deutschflow.organization.service.OrgMembershipService orgMembershipService;
+    /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
+    private final SubmissionFileUrlResolver submissionFileUrlResolver;
 
     /** Tên lớp: bắt buộc, tối đa {@value #MAX_CLASS_NAME_LENGTH} ký tự (cột DB là varchar(255)). */
     private static final int MAX_CLASS_NAME_LENGTH = 255;
@@ -742,7 +744,7 @@ public class TeacherService {
                 .topic(req.topic())
                 .description(req.description())
                 .assignmentType(req.assignmentType())
-                .skill(req.skill() != null ? req.skill().toUpperCase() : "GENERAL")
+                .skill(normalizeSkill(req.skill()))
                 .referenceId(req.referenceId())
                 .dueDate(req.dueDate())
                 .attachmentUrl(req.attachmentUrl())
@@ -804,6 +806,33 @@ public class TeacherService {
         );
 
         return toAssignmentDto(savedAssignment);
+    }
+
+    /**
+     * Bộ kỹ năng hợp lệ của một bài tập lớp. Cố ý viết {@code HOREN} KHÔNG có E: đây là quy ước của
+     * cột {@code class_assignments.skill} — khác {@code can_do_statements.skill_tag} vốn dùng
+     * {@code HOEREN} (xem {@code StudentCompetencyService#toCanDoSkillTag}). Bảng điểm 4 kỹ năng ở cả
+     * hai phía tra đúng chuỗi này, nên ghi sai một chữ là điểm rơi thẳng vào ô "không kỹ năng".
+     */
+    private static final Set<String> ASSIGNMENT_SKILLS =
+            Set.of("GENERAL", "HOREN", "LESEN", "SCHREIBEN", "SPRECHEN");
+
+    /**
+     * Chuẩn hoá kỹ năng do client gửi lên; rác thì từ chối thay vì ghi vào DB.
+     *
+     * <p>Trước đây giá trị được {@code toUpperCase()} rồi ghi thẳng, không kiểm gì — mà cột này là
+     * đầu vào của bảng điểm 4 kỹ năng và của bộ lọc sổ điểm, nên một chuỗi lạ sẽ âm thầm tạo ra một
+     * "kỹ năng" mà không màn hình nào biết cách hiển thị.
+     */
+    private static String normalizeSkill(String raw) {
+        if (raw == null || raw.isBlank()) return "GENERAL";
+        String v = raw.trim().toUpperCase();
+        // Nhận cả cách viết có E của can-do statement để client nào lỡ gửi HOEREN vẫn về đúng ô Nghe.
+        if ("HOEREN".equals(v)) v = "HOREN";
+        if (!ASSIGNMENT_SKILLS.contains(v)) {
+            throw new BadRequestException("Kỹ năng không hợp lệ: " + raw);
+        }
+        return v;
     }
 
     /**
@@ -1078,7 +1107,7 @@ public class TeacherService {
                 ca != null ? ca.getAssignmentType() : "GENERAL",
                 ca != null ? ca.getDueDate() : null,
                 a.getSubmissionContent(),
-                a.getSubmissionFileUrl(),
+                submissionFileUrlResolver.resolve(a.getSubmissionFileUrl()),
                 ca != null ? ca.getAttachmentUrl() : null,
                 ca != null ? ca.getReferenceId() : null
         );

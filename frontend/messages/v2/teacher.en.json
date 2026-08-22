@@ -663,10 +663,19 @@
       "modalLinkPlaceholder": "https://… (allango, Drive, YouTube)",
       "modalLinkInvalid": "The link must start with http:// or https://",
       "modalTypeCap": "Type",
+      "modalSkillCap": "Skill",
+      "modalSkillHint": "The skill this work counts toward in the student's four-skill report. Pick “General” if it belongs to none.",
       "modalDueCap": "Due date",
       "modalLessonCap": "Link to lesson",
       "modalLessonNone": "— Not linked —",
-      "modalAssign": "Give to class"
+      "modalAssign": "Give to class",
+      "skills": {
+        "GENERAL": "General (Allgemein)",
+        "HOREN": "Listening (Hören)",
+        "LESEN": "Reading (Lesen)",
+        "SCHREIBEN": "Writing (Schreiben)",
+        "SPRECHEN": "Speaking (Sprechen)"
+      }
     },
     "studentDetail": {
       "nameFallback": "Student #{id}",
