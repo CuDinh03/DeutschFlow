@@ -35,15 +35,16 @@ public class DefaultPrueferScriptService implements PrueferScriptService {
         return switch (part.archetype()) {
             case SELF_INTRO -> "Teil " + part.teilNo() + ": Sich vorstellen. Bitte stellen Sie sich vor. Auf der Karte sehen Sie Stichwörter: "
                     + join(stimulus, "keywords") + ". Sprechen Sie bitte zu jedem Punkt.";
-            case CARD_QA -> "Teil " + part.teilNo() + ": Um Informationen bitten und Informationen geben. Sie bekommen Karten mit einem Thema und einem Wort. "
-                    + "Bitte stellen Sie Ihrem Partner eine Frage zu dem Wort, und beantworten Sie die Frage Ihres Partners. Ihre erste Karte: Thema "
-                    + str(stimulus, "thema") + ", Wort " + str(stimulus, "wort") + ".";
+            case CARD_QA -> cardQaIntro(part, stimulus);
             case REQUEST_RESPOND -> "Teil " + part.teilNo() + ": Bitten formulieren und darauf reagieren. Sie sehen ein Bild und formulieren eine Bitte oder eine Aufforderung; "
                     + "Ihr Partner reagiert darauf. Ihr erstes Bild zeigt: " + str(stimulus, "article") + " " + str(stimulus, "object") + ".";
             case ABOUT_ME -> "Teil " + part.teilNo() + ": Von sich erzählen. Auf Ihrer Karte steht: " + str(stimulus, "prompt")
                     + ". Erzählen Sie bitte etwas darüber. Sie haben etwa eine Minute.";
-            case PLAN_NEGOTIATE -> "Teil " + part.teilNo() + ": Gemeinsam etwas planen. Die Situation: " + str(stimulus, "situation")
-                    + ". Machen Sie Vorschläge, reagieren Sie auf die Vorschläge Ihres Partners und einigen Sie sich.";
+            case PLAN_NEGOTIATE -> "Teil " + part.teilNo() + ": " + part.title() + ". Die Situation: " + str(stimulus, "situation")
+                    + (stimulus != null && stimulus.get("candidateCalendar") != null
+                        ? " Sie sehen Ihren Terminkalender; Ihr Partner hat einen anderen Kalender. "
+                        : " ")
+                    + "Machen Sie Vorschläge, reagieren Sie auf die Vorschläge Ihres Partners und einigen Sie sich.";
             case TOPIC_EXCHANGE -> "Teil " + part.teilNo() + ": " + part.title() + ". " + str(stimulus, "instruction");
             case PRESENT -> "Teil " + part.teilNo() + ": " + part.title() + ". Bitte präsentieren Sie Ihr Thema: " + str(stimulus, "topic")
                     + ". Achten Sie auf Einleitung, Hauptteil und Schluss.";
@@ -52,6 +53,20 @@ public class DefaultPrueferScriptService implements PrueferScriptService {
                     + ". Tauschen Sie Ihren Standpunkt und Ihre Argumente aus und fassen Sie am Ende zusammen: dafür oder dagegen?";
             case PICTURE -> "Teil " + part.teilNo() + ": Bitte beschreiben Sie das Bild und erzählen Sie, was Sie damit verbinden.";
         } + s;
+    }
+
+    private static String cardQaIntro(BlueprintPart part, Map<String, Object> stimulus) {
+        String type = stimulus == null ? "" : String.valueOf(stimulus.getOrDefault("type", ""));
+        return switch (type) {
+            case "PERSON_CARD" -> "Teil " + part.teilNo() + ": Fragen zur Person. Sie bekommen Karten mit Stichwörtern. Stellen Sie Ihrem Partner "
+                    + "zu jedem Stichwort eine Frage und antworten Sie auf die Fragen Ihres Partners. Ihre erste Karte: " + str(stimulus, "keyword");
+            case "QUESTION_WORD_CARD" -> "Teil " + part.teilNo() + ": Ein Alltagsgespräch führen. Das Thema ist " + str(stimulus, "thema")
+                    + ". Auf Ihren Karten stehen Fragewörter — stellen Sie damit Fragen und antworten Sie Ihrem Partner. Ihre erste Karte: "
+                    + str(stimulus, "questionWord");
+            default -> "Teil " + part.teilNo() + ": Um Informationen bitten und Informationen geben. Sie bekommen Karten mit einem Thema und einem Wort. "
+                    + "Bitte stellen Sie Ihrem Partner eine Frage zu dem Wort, und beantworten Sie die Frage Ihres Partners. Ihre erste Karte: Thema "
+                    + str(stimulus, "thema") + ", Wort " + str(stimulus, "wort") + ".";
+        };
     }
 
     private static String str(Map<String, Object> stimulus, String key) {

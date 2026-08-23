@@ -422,6 +422,24 @@ public class ExamSessionService {
         return objectMapper.convertValue(s.getPlanJson(), SessionPlan.class);
     }
 
+    /**
+     * Đề riêng tư (kế hoạch B2B §5 "stimulus riêng tư" áp dụng cả phiên cá nhân): mọi khóa bắt đầu bằng
+     * {@code partner} (partnerCalendar, partnerNotes, partnerPresentation…) chỉ AI partner được biết —
+     * KHÔNG BAO GIỜ gửi cho client, kể cả trong DevTools.
+     */
+    public static Map<String, Object> clientStimulus(Map<String, Object> full) {
+        if (full == null) {
+            return null;
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        full.forEach((k, v) -> {
+            if (!k.startsWith("partner")) {
+                out.put(k, v);
+            }
+        });
+        return out;
+    }
+
     private static Map<String, Object> stimulus(SessionPlan.PartPlan pp, Integer index) {
         if (index == null || pp.stimuli().isEmpty()) {
             return null;
@@ -459,7 +477,7 @@ public class ExamSessionService {
                     && SpeakingExamTurn.ROLE_PRUEFER.equals(t.getRole())).reduce((a, b) -> b).orElse(null);
             directive = new ExamSessionView.Directive(pp.teilNo(), part.title(), part.archetype().name(),
                     s.getCurrentStep(), pp.steps().size(), step.candidateAction(), step.hintVi(),
-                    stimulus(pp, step.cardIndex()),
+                    clientStimulus(stimulus(pp, step.cardIndex())),
                     lastPruefer == null ? null : lastPruefer.getTranscript(), "PRUEFER",
                     lastAi == null ? null : lastAi.getRole(), lastAi == null ? null : lastAi.getTranscript());
         }

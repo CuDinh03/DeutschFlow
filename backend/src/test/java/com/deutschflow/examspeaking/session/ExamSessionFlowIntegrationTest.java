@@ -74,17 +74,29 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         when(chatClient.chatCompletionForTier(any(), any(), anyDouble(), anyInt(), anyBoolean())).thenAnswer(inv -> {
             List<ChatMessage> msgs = inv.getArgument(0);
             String user = msgs.get(msgs.size() - 1).content();
-            return new AiChatCompletionResult(fakeLlm(user), TokenUsage.exact(120, 40, 160), "test", "fake-model");
+            String all = msgs.stream().map(ChatMessage::content).reduce("", (a, b) -> a + "\n" + b);
+            return new AiChatCompletionResult(fakeLlm(user, all), TokenUsage.exact(120, 40, 160), "test", "fake-model");
         });
     }
 
     /** LLM giả: nhận dạng loại prompt qua dấu hiệu ổn định trong text. */
-    static String fakeLlm(String user) {
+    static String fakeLlm(String user, String all) {
         if (user.contains("Kandidat sagt:")) {
+            // Lịch của partner nằm trong SYSTEM prompt (không bao giờ gửi client) → dò trên toàn bộ messages.
+            if (all.contains("DEIN TERMINKALENDER")) {
+                return "{\"reply_de\":\"Montag kann ich nicht, da habe ich Deutschkurs. Geht Dienstag um 18 Uhr?\"}";
+            }
             return "{\"reply_de\":\"Ja, gern. Und Sie: Was essen Sie zum Frühstück?\"}";
         }
         if (user.contains("Bewerte NUR diese eine Äußerung")) {
             return "{\"score\":7,\"feedback_vi\":\"Câu hỏi đúng trọng tâm. Chú ý chia động từ.\",\"corrections\":[{\"code\":\"VERB.CONJUGATION\",\"original\":\"du trinken\",\"correction\":\"du trinkst\"}],\"redemittel\":[\"Was … Sie gern?\"]}";
+        }
+        if (user.contains("Goethe-Zertifikat A2") && user.contains("GESAMTBEWERTUNG")) {
+            return "{\"criteria\":[{\"code\":\"WORTSCHATZ\",\"band\":\"B\",\"evidence\":[\"Wortschatz zum Alltag\"]},{\"code\":\"STRUKTUREN\",\"band\":\"C\",\"evidence\":[]}]}";
+        }
+        if (user.contains("Goethe-Zertifikat A2") && user.contains("TRANSKRIPT")) {
+            return "{\"items\":[],\"criteria\":[{\"code\":\"ERFUELLUNG\",\"band\":\"B\",\"evidence\":[\"Vorschlag gemacht\"]}],"
+                    + "\"errors\":[{\"code\":\"VERB.CONJUGATION\",\"original\":\"ich haben\",\"correction\":\"ich habe\",\"severity\":\"MAJOR\"}]}";
         }
         if (user.contains("Teil 1") && user.contains("TRANSKRIPT")) {
             return "{\"items\":[{\"code\":\"VORSTELLUNG\",\"status\":\"VOLL\",\"quote\":\"Ich heiße\"},{\"code\":\"BUCHSTABIEREN\",\"status\":\"HALB\"},{\"code\":\"ZAHL\",\"status\":\"VOLL\"}],\"criteria\":[],\"errors\":[]}";
@@ -191,4 +203,60 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
                 .isInstanceOf(com.deutschflow.common.exception.ConflictException.class)
                 .hasMessageContaining("Chưa đủ đề");
     }
+
+    @Test
+    @DisplayName("V278 seed: đề A2 (Goethe T1/T2, T3 chung, telc T1/T2) đủ số lượng")
+    void a2SeedIsPresent() {
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='A2' AND provider='GOETHE' AND teil_no=1", Integer.class)).isEqualTo(22);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='A2' AND provider='GOETHE' AND teil_no=2", Integer.class)).isEqualTo(12);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='A2' AND provider IS NULL AND teil_no=3", Integer.class)).isEqualTo(10);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='A2' AND provider='TELC' AND teil_no=1", Integer.class)).isEqualTo(3);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='A2' AND provider='TELC' AND teil_no=2", Integer.class)).isEqualTo(24);
+        String parts = jdbcTemplate.queryForObject("SELECT parts_json::text FROM speaking_exam_blueprints WHERE provider='GOETHE' AND level='A2'", String.class);
+        assertThat(parts).contains("PERSON_CARD");
+    }
+
+    @Test
+    @DisplayName("DRILL Goethe A2 Teil 3 (lịch tuần A≠B): client chỉ thấy lịch của mình, AI partner được biết lịch kia")
+    void drillA2CalendarKeepsPartnerCalendarPrivate() {
+        ExamSessionView s = sessionService.create(userId, new CreateExamSessionRequest("GOETHE", "A2", "DRILL", 3));
+        assertThat(s.directive().archetype()).isEqualTo("PLAN_NEGOTIATE");
+        assertThat(s.directive().stimulus()).containsKeys("situation", "candidateCalendar");
+        assertThat(s.directive().stimulus()).doesNotContainKey("partnerCalendar");
+        assertThat(s.directive().prueferText()).contains("Terminkalender");
+
+        TurnResponse t1 = sessionService.submitTextTurn(userId, s.id(), "Hast du am Montag Zeit?");
+        assertThat(t1.aiRole()).isEqualTo("PARTNER");
+        assertThat(t1.aiText()).contains("Dienstag"); // fakeLlm chỉ trả câu này khi prompt có DEIN TERMINKALENDER
+        assertThat(t1.session().directive().stimulus()).doesNotContainKey("partnerCalendar");
+    }
+
+    @Test
+    @DisplayName("MOCK Goethe A2 trọn gói text-only: 3 Teil → chấm A–E + tiêu chí chung + ngưỡng nói riêng 15/25")
+    void mockA2EndToEndAppliesSpeakingOnlyThreshold() {
+        ExamSessionView s = sessionService.create(userId, new CreateExamSessionRequest("GOETHE", "A2", "MOCK", null));
+        assertThat(s.state()).isEqualTo(SpeakingExamSession.STATE_IN_PART);
+        assertThat(s.totalParts()).isEqualTo(3);
+        String[] lines = {"Wann hast du Geburtstag?", "Im Mai.", "Wo wohnst du?", "In Hanoi.", "Was ist dein Hobby?", "Musik.",
+                "Welche Sprachen sprichst du?", "Vietnamesisch und Deutsch.",
+                "Ich spare mein Geld und ich reise gern. Ich kaufe auch Kleidung.", "Ja, einmal im Jahr.", "Nach Deutschland.",
+                "Hast du am Dienstag Zeit?", "Dienstag um 18 Uhr ist gut.", "Wir kaufen ein Buch.", "Im Buchladen.",
+                "Gut, Dienstag 18 Uhr.", "Bis dann.", "Tschüss.", "Danke."};
+        ExamSessionView cur = s;
+        for (String line : lines) {
+            if (!SpeakingExamSession.STATE_IN_PART.equals(cur.state())) {
+                break;
+            }
+            cur = sessionService.submitTextTurn(userId, s.id(), line).session();
+        }
+        assertThat(cur.state()).isEqualTo(SpeakingExamSession.STATE_GRADING);
+        AiJob job = aiJobRepository.findById(cur.gradingJobId()).orElseThrow();
+        gradingJobHandler.handle(job);
+        ExamResultView r = sessionService.result(userId, s.id());
+        assertThat(r.max()).isEqualByComparingTo("20.00"); // Aussprache (5) chưa chấm được ở text-only → mẫu 20/25
+        assertThat(r.total()).isPositive();
+        assertThat(r.scoreSheet().get("passRule").toString()).contains("15");
+        assertThat(r.passed()).isNotNull();
+    }
+
 }

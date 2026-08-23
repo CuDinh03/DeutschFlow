@@ -55,8 +55,7 @@ public class AiInterlocutorService {
             case "NUMBER_REQUEST" -> "Sag kurz \"Danke\" und bitte den Kandidaten, diese Nummer zu sagen: \"" + val(candidateCard, "number") + "\".";
             case "THANK" -> "Bedanke dich kurz (1 Satz) und beende den Teil freundlich.";
             case "ANSWER_AND_ASK" -> "Beantworte die Frage/Bitte des Kandidaten realistisch in 1–2 Sätzen. Stelle danach GENAU EINE eigene Frage"
-                    + (nextCard == null ? "." : " zu Thema \"" + val(nextCard, "thema") + "\" mit dem Wort \"" + val(nextCard, "wort") + "\""
-                    + (nextCard.containsKey("object") ? " (Bildkarte: " + val(nextCard, "article") + " " + val(nextCard, "object") + " — formuliere eine Bitte)" : "") + ".");
+                    + askWithCard(nextCard);
             case "REACT_AND_ASK" -> "Reagiere auf den Beitrag des Kandidaten (zustimmen oder höflich widersprechen, mit kurzer Begründung) und bringe einen eigenen Vorschlag oder eine Rückfrage ein. Maximal 2 Sätze.";
             case "REACT" -> "Reagiere kurz und natürlich (z. B. \"Ach, interessant!\", \"Gut, danke.\"). Maximal 1 Satz. Keine neue Frage.";
             case "FOLLOWUP_QUESTION" -> "Stelle GENAU EINE passende Nachfrage zum Gesagten. Maximal 2 Sätze.";
@@ -67,8 +66,9 @@ public class AiInterlocutorService {
                 ? "Du bist Prüfer/in in der mündlichen Prüfung. Sei freundlich, neutral, knapp. Du korrigierst NICHT und erklärst NICHT."
                 : "Du bist der/die Prüfungspartner/in — ein/e Lerner/in auf Niveau " + bp.level()
                 + ". Sprich einfach, kurz, natürlich; kein perfektes Deutsch nötig; führe das Gespräch NICHT alleine; lass dem Kandidaten Raum.";
-        String system = persona + " Niveau: " + bp.level() + ". Aufgabe: " + part.title()
-                + ". Antworte NUR mit JSON: {\"reply_de\":\"...\"}";
+        String system = persona + " Niveau: " + bp.level() + ". Aufgabe: " + part.title() + "."
+                + privateContext(candidateCard)
+                + " Antworte NUR mit JSON: {\"reply_de\":\"...\"}";
         List<ChatMessage> messages = new ArrayList<>();
         messages.add(new ChatMessage("system", system));
         messages.addAll(history);
@@ -136,6 +136,33 @@ public class AiInterlocutorService {
         return out;
     }
 
+    /** Lời nhắc đặt câu hỏi theo loại thẻ kế tiếp (A1 Themen-/Bildkarte, A2 Stichwort-/Fragewortkarte). */
+    private static String askWithCard(Map<String, Object> next) {
+        if (next == null) {
+            return ".";
+        }
+        if (next.containsKey("keyword")) {
+            return " zum Stichwort \"" + val(next, "keyword") + "\" (Fragen zur Person).";
+        }
+        if (next.containsKey("questionWord")) {
+            return " zum Thema \"" + val(next, "thema") + "\", die mit \"" + val(next, "questionWord") + "\" beginnt.";
+        }
+        if (next.containsKey("object")) {
+            return " — formuliere eine Bitte mit der Bildkarte \"" + val(next, "article") + " " + val(next, "object") + "\".";
+        }
+        return " zu Thema \"" + val(next, "thema") + "\" mit dem Wort \"" + val(next, "wort") + "\".";
+    }
+
+    /** Đề riêng của partner (lịch tuần…): chỉ AI biết; không bao giờ lộ sang client (xem ExamSessionService.clientStimulus). */
+    private static String privateContext(Map<String, Object> card) {
+        if (card == null || card.get("partnerCalendar") == null) {
+            return "";
+        }
+        return " DEIN TERMINKALENDER (nur du kennst ihn; der Kandidat hat einen anderen): " + card.get("partnerCalendar")
+                + ". Ziel: " + val(card, "goal") + " Schlage NUR Zeiten vor, an denen du frei bist; lehne belegte Zeiten mit kurzer Begründung ab"
+                + " und mache einen Gegenvorschlag. Einigt euch am Ende auf einen konkreten Termin.";
+    }
+
     private static String val(Map<String, Object> card, String key) {
         if (card == null) {
             return "…";
@@ -149,7 +176,10 @@ public class AiInterlocutorService {
             case "SPELL_REQUEST" -> "Danke. Können Sie bitte das Wort \"" + val(card, "spell") + "\" buchstabieren?";
             case "NUMBER_REQUEST" -> "Danke. Und sagen Sie bitte diese Nummer: " + val(card, "number") + ".";
             case "THANK", "CONCLUDE" -> "Vielen Dank.";
-            case "ANSWER_AND_ASK" -> next == null ? "Ja, gut. Und Sie?" : "Ja, gern. Und Sie — " + val(next, "thema") + ": " + val(next, "wort") + "?";
+            case "ANSWER_AND_ASK" -> next == null ? "Ja, gut. Und Sie?"
+                    : next.containsKey("keyword") ? "Ja, gut. Und Sie — " + val(next, "keyword")
+                    : next.containsKey("questionWord") ? "Ja, gut. Und Sie — " + val(next, "questionWord").replace("…", val(next, "thema"))
+                    : "Ja, gern. Und Sie — " + val(next, "thema") + ": " + val(next, "wort") + "?";
             case "FOLLOWUP_QUESTION", "REACT_AND_ASK" -> "Interessant. Können Sie das genauer erklären?";
             default -> "Ach so, verstehe.";
         };
