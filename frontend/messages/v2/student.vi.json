@@ -1223,7 +1223,10 @@
         "topic": "Chủ đề",
         "partnerTopic": "Chủ đề bài trình bày của bạn thi",
         "feedbackHint": "Nghe bạn thi trình bày, sau đó nhận xét và đặt một câu hỏi.",
-        "vorlageA": "Vorlage của bạn"
+        "vorlageA": "Vorlage của bạn",
+        "yourTopic": "Chủ đề của bạn",
+        "debate": "Tranh luận",
+        "debateHint": "Nêu quan điểm, phản hồi bạn thi, rồi tóm lại: ủng hộ hay phản đối?"
       },
       "result": {
         "sheetCap": "Phiếu kết quả mô phỏng",

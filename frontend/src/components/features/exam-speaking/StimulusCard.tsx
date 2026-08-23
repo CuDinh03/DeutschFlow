@@ -194,6 +194,52 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction }: Props) {
     )
   }
 
+  // B2 T1 (Goethe „Vortrag halten" / telc „Präsentation"): thẻ chủ đề để trình bày.
+  // Thí sinh được rút nhiều thẻ rồi chọn 1 — màn chọn nằm ở trang prep, thẻ này chỉ hiển thị thẻ đã chọn.
+  if (type === 'TOPIC_CHOICE') {
+    const aspects = Array.isArray(stimulus.aspects) ? (stimulus.aspects as unknown[]).map(String) : []
+    return (
+      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-topic-choice-card">
+        <GaCap className="mb-2 block">{t('yourTopic')}</GaCap>
+        {stimulus.context ? <p className="ga-ui mb-2 text-[12.5px] text-ga-muted">{String(stimulus.context)}</p> : null}
+        <p className="ga-ui text-[17px] font-semibold leading-snug text-ga-ink">{String(stimulus.topic ?? '')}</p>
+        {aspects.length > 0 && (
+          <ol className="mt-3 space-y-1.5">
+            {aspects.map((a, i) => (
+              <li key={a} className="ga-ui flex items-start gap-2 text-[14px] text-ga-ink">
+                <span className="ga-ui mt-[1px] shrink-0 font-semibold text-ga-muted">{i + 1}.</span> {a}
+              </li>
+            ))}
+          </ol>
+        )}
+        {stimulus.structureHint ? (
+          <p className="ga-ui mt-3 text-[12.5px] text-ga-muted">{String(stimulus.structureHint)}</p>
+        ) : null}
+        {stimulus.instruction ? (
+          <p className="ga-ui mt-2 text-[12.5px] text-ga-muted">{String(stimulus.instruction)}</p>
+        ) : null}
+      </div>
+    )
+  }
+
+  // B2 T2 „Diskussion": Goethe dùng DEBATE_CARD (chỉ câu hỏi), telc dùng DEBATE_TEXT (thêm đoạn text).
+  // partnerStance là lập trường riêng của partner-AI — đã bị lược ở server, không bao giờ tới đây.
+  if (type === 'DEBATE_CARD' || type === 'DEBATE_TEXT') {
+    return (
+      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-debate-card">
+        <GaCap className="mb-2 block">{t('debate')}</GaCap>
+        {stimulus.context ? <p className="ga-ui mb-2 text-[12.5px] text-ga-muted">{String(stimulus.context)}</p> : null}
+        {stimulus.text ? (
+          <blockquote className="mb-3 border-l-4 border-ga-yellow pl-3 ga-ui text-[14px] italic leading-relaxed text-ga-ink">
+            {String(stimulus.text)}
+          </blockquote>
+        ) : null}
+        <p className="ga-ui text-[17px] font-semibold leading-snug text-ga-ink">{String(stimulus.question ?? '')}</p>
+        <p className="ga-ui mt-3 text-[12.5px] text-ga-muted">{String(stimulus.instruction ?? t('debateHint'))}</p>
+      </div>
+    )
+  }
+
   if (type === 'FOLIEN_DECK') {
     const folien = Array.isArray(stimulus.folien) ? (stimulus.folien as unknown[]).map(String) : []
     return (

@@ -178,6 +178,130 @@ class RubricScorerTest {
                 List.of(), null, null);
     }
 
+    // ── Goethe B2: T1 44 + T2 40 + Aussprache 16 = 100 ─────────────────────────────────────
+
+    static RubricDefinition goetheB2() {
+        Map<String, Double> fr = Map.of("A", 1.0, "B", 0.75, "C", 0.5, "D", 0.25, "E", 0.0);
+        return new RubricDefinition(ExamProvider.GOETHE, RubricDefinition.BandScale.A_E, fr, 100, 60.0, null, null, null,
+                true, true, List.of(
+                new RubricDefinition.RubricPart(1, List.of(c("ERFUELLUNG", 16), c("KOHAERENZ_FLUESSIGKEIT", 8),
+                        c("WORTSCHATZ", 8), c("STRUKTUREN", 8), c("FRAGEN_ANTWORTEN", 4)), List.of()),
+                new RubricDefinition.RubricPart(2, List.of(c("ERFUELLUNG", 16), c("INTERAKTION_REGISTER", 8),
+                        c("WORTSCHATZ", 8), c("STRUKTUREN", 8)), List.of())),
+                List.of(c("AUSSPRACHE", 16)), null, null);
+    }
+
+    @Test
+    @DisplayName("Goethe B2: Vortrag 44 + Diskussion 40 + Aussprache 16 = 100; thang 16/12/8/4/0")
+    void goetheB2Mapping() {
+        RubricDefinition r = goetheB2();
+        RubricRef ref = new RubricRef(ExamProvider.GOETHE, "B2", 1);
+
+        Ergebnisbogen all = scorer.score(ref, r, uniform(r, "A"));
+        assertThat(all.total()).isEqualTo(100.0);
+        assertThat(all.passed()).isTrue();
+        assertThat(all.parts().get(0).points()).isEqualTo(44.0);
+        assertThat(all.parts().get(1).points()).isEqualTo(40.0);
+        assertThat(all.global().get(0).points()).isEqualTo(16.0);
+
+        // Thang ba nhóm trọng số của phiếu chấm B2: 16/12/8/4/0 · 8/6/4/2/0 · 4/3/2/1/0
+        Ergebnisbogen b = scorer.score(ref, r, uniform(r, "B"));
+        assertThat(b.parts().get(0).criteria().get(0).points()).isEqualTo(12.0); // Erfüllung 16 → B
+        assertThat(b.parts().get(0).criteria().get(1).points()).isEqualTo(6.0);  // nhóm 8 → B
+        assertThat(b.parts().get(0).criteria().get(4).points()).isEqualTo(3.0);  // nhóm 4 → B
+        assertThat(b.total()).isEqualTo(75.0);
+        assertThat(b.passed()).isTrue();
+
+        assertThat(scorer.score(ref, r, uniform(r, "C")).total()).isEqualTo(50.0);
+        assertThat(scorer.score(ref, r, uniform(r, "C")).passed()).isFalse(); // 50 < 60
+    }
+
+    @Test
+    @DisplayName("Goethe B2: Erfüllung=E ở Teil 1 xoá trắng 44 điểm của Teil đó → trượt dù Teil 2 hoàn hảo")
+    void goetheB2ErfuellungLowestZeroesPart() {
+        RubricDefinition r = goetheB2();
+        RubricRef ref = new RubricRef(ExamProvider.GOETHE, "B2", 1);
+        PassAssessment mixed = new PassAssessment(Map.of(
+                1, partC(1, Map.of("ERFUELLUNG", band("E"), "KOHAERENZ_FLUESSIGKEIT", band("A"),
+                        "WORTSCHATZ", band("A"), "STRUKTUREN", band("A"), "FRAGEN_ANTWORTEN", band("A"))),
+                2, partC(2, Map.of("ERFUELLUNG", band("A"), "INTERAKTION_REGISTER", band("A"),
+                        "WORTSCHATZ", band("A"), "STRUKTUREN", band("A")))),
+                Map.of("AUSSPRACHE", band("A")), List.of(), List.of());
+
+        Ergebnisbogen z = scorer.score(ref, r, mixed);
+        assertThat(z.parts().get(0).zeroed()).isTrue();
+        assertThat(z.parts().get(0).points()).isEqualTo(0.0);
+        assertThat(z.total()).isEqualTo(56.0); // 0 + 40 + 16
+        assertThat(z.passed()).isFalse();      // 56 < 60 — đúng tinh thần quy chế
+        assertThat(z.notes()).anyMatch(n -> n.contains("Teil 1"));
+    }
+
+    @Test
+    @DisplayName("Goethe B2 text-only: Aussprache chưa chấm được → trần còn 84, toàn B vẫn đỗ theo tỉ lệ")
+    void goetheB2TextOnlyCapsAt84() {
+        RubricDefinition r = goetheB2();
+        PassAssessment pa = new PassAssessment(uniform(r, "B").parts(),
+                Map.of("AUSSPRACHE", PassAssessment.CriterionAssessment.unscored("không có audio")), List.of(), List.of());
+        Ergebnisbogen e = scorer.score(new RubricRef(ExamProvider.GOETHE, "B2", 1), r, pa);
+        assertThat(e.maxPoints()).isEqualTo(84.0);
+        assertThat(e.total()).isEqualTo(63.0);
+        assertThat(e.passed()).isTrue();
+    }
+
+    // ── telc B2: 3 Teil × 25 = 75, ngưỡng nói riêng 45 ──────────────────────────────────────
+
+    static RubricDefinition telcB2() {
+        Map<String, Double> p7 = Map.of("A", 7.0, "B", 5.0, "C", 3.0, "D", 0.0);
+        Map<String, Double> p4 = Map.of("A", 4.0, "B", 3.0, "C", 2.0, "D", 0.0);
+        List<RubricDefinition.RubricCriterion> teil = List.of(cb("AUSDRUCKSFAEHIGKEIT", 7, p7),
+                cb("AUFGABENBEWAELTIGUNG", 7, p7), cb("FORMALE_RICHTIGKEIT", 7, p7), cb("AUSSPRACHE_INTONATION", 4, p4));
+        return new RubricDefinition(ExamProvider.TELC, RubricDefinition.BandScale.A_D, Map.of(), 75, null, 45.0, null, null,
+                false, true, List.of(new RubricDefinition.RubricPart(1, teil, List.of()),
+                new RubricDefinition.RubricPart(2, teil, List.of()), new RubricDefinition.RubricPart(3, teil, List.of())),
+                List.of(), null, null);
+    }
+
+    @Test
+    @DisplayName("telc B2: mỗi Teil 25 (7/7/7/4) → 75; ngưỡng nói riêng 45 quyết đỗ/trượt")
+    void telcB2Mapping() {
+        RubricDefinition r = telcB2();
+        RubricRef ref = new RubricRef(ExamProvider.TELC, "B2", 1);
+
+        Ergebnisbogen all = scorer.score(ref, r, uniform(r, "A"));
+        assertThat(all.total()).isEqualTo(75.0);
+        assertThat(all.passed()).isTrue();
+        assertThat(all.parts()).hasSize(3);
+        assertThat(all.parts().get(0).points()).isEqualTo(25.0);
+
+        Ergebnisbogen b = scorer.score(ref, r, uniform(r, "B"));
+        assertThat(b.total()).isEqualTo(54.0); // (5+5+5+3) × 3
+        assertThat(b.passed()).isTrue();       // 54 ≥ 45
+
+        Ergebnisbogen cc = scorer.score(ref, r, uniform(r, "C"));
+        assertThat(cc.total()).isEqualTo(33.0); // (3+3+3+2) × 3
+        assertThat(cc.passed()).isFalse();      // 33 < 45
+
+        assertThat(scorer.score(ref, r, uniform(r, "D")).total()).isEqualTo(0.0);
+    }
+
+    @Test
+    @DisplayName("telc B2 text-only: Aussprache nằm TRONG từng Teil nên trần còn 63, không phải 75")
+    void telcB2TextOnlyCapsAt63() {
+        RubricDefinition r = telcB2();
+        Map<Integer, PassAssessment.PartAssessment> parts = new java.util.HashMap<>();
+        for (RubricDefinition.RubricPart rp : r.parts()) {
+            Map<String, PassAssessment.CriterionAssessment> m = new java.util.HashMap<>();
+            rp.criteria().forEach(c -> m.put(c.code(), "AUSSPRACHE_INTONATION".equals(c.code())
+                    ? PassAssessment.CriterionAssessment.unscored("không có audio") : band("A")));
+            parts.put(rp.teilNo(), partC(rp.teilNo(), m));
+        }
+        Ergebnisbogen e = scorer.score(new RubricRef(ExamProvider.TELC, "B2", 1),
+                r, new PassAssessment(parts, Map.of(), List.of(), List.of()));
+        assertThat(e.maxPoints()).isEqualTo(63.0); // 75 − 3×4
+        assertThat(e.total()).isEqualTo(63.0);
+        assertThat(e.passed()).isTrue();
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────────────────
 
     static RubricDefinition.RubricCriterion c(String code, double max) {

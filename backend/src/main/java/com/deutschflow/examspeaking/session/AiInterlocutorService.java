@@ -156,8 +156,17 @@ public class AiInterlocutorService {
         return " zu Thema \"" + val(next, "thema") + "\" mit dem Wort \"" + val(next, "wort") + "\".";
     }
 
-    /** Đề riêng của partner (lịch tuần, Vorlage B, bài trình bày…): chỉ AI biết; không bao giờ lộ sang client (xem ExamSessionService.clientStimulus). */
-    private static String privateContext(Map<String, Object> card) {
+    /**
+     * Đề riêng của partner (lịch tuần, Vorlage B, bài trình bày, lập trường tranh luận…): chỉ AI biết;
+     * không bao giờ lộ sang client (xem ExamSessionService.clientStimulus).
+     *
+     * <p>⚠️ Hai tầng ĐỘC LẬP nhau, dễ tưởng nhầm là một: {@code clientStimulus} ẩn khoá khỏi client
+     * theo tiền tố "partner" một cách tự động, còn hàm này chỉ hiểu những khoá nó biết TÊN. Thêm
+     * khoá {@code partner*} mới trong migration mà quên khai báo ở đây thì đề riêng bị ẩn khỏi
+     * client nhưng AI cũng không thấy — partner hành xử như không có đề, âm thầm và khó phát hiện.
+     * Package-private để PrivateContextTest chốt lại từng khoá.
+     */
+    static String privateContext(Map<String, Object> card) {
         if (card == null) {
             return "";
         }
@@ -179,6 +188,14 @@ public class AiInterlocutorService {
         if (card.get("partnerPresentation") != null) {
             sb.append(" DEIN VORTRAG (du hast ihn gerade gehalten; beantworte Fragen dazu konsistent): ")
                     .append(val(card, "partnerPresentation"));
+        }
+        if (card.get("partnerStance") != null) {
+            // B2 Diskussion: partner phải giữ vững phía ĐỐI LẬP, nếu không cuộc tranh luận xẹp
+            // sau một lượt và thí sinh không có gì để phản biện — mất trắng tiêu chí Interaktion.
+            sb.append(" DEINE ROLLE IN DER DISKUSSION: Du bist ").append(val(card, "partnerStance"))
+                    .append(" bei der Frage \"").append(val(card, "question"))
+                    .append("\". Vertritt diese Position durchgehend mit konkreten Argumenten und Beispielen,")
+                    .append(" gib höchstens Teilpunkte zu und wechsle die Seite NICHT, auch wenn der Kandidat gut argumentiert.");
         }
         return sb.toString();
     }

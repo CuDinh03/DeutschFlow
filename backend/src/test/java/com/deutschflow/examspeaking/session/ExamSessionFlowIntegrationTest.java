@@ -97,16 +97,21 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         if (user.contains("Bewerte NUR diese eine Äußerung")) {
             return "{\"score\":7,\"feedback_vi\":\"Câu hỏi đúng trọng tâm. Chú ý chia động từ.\",\"corrections\":[{\"code\":\"VERB.CONJUGATION\",\"original\":\"du trinken\",\"correction\":\"du trinkst\"}],\"redemittel\":[\"Was … Sie gern?\"]}";
         }
-        if (user.contains("Goethe-Zertifikat B1") && user.contains("TRANSKRIPT")) {
-            // Trả band cho MỌI mã tiêu chí có trong prompt (Teil 1: 4 tiêu chí, Teil 2: 4, Teil 3: 1) + 1 lỗi.
+        if ((user.contains("B1") || user.contains("B2")) && user.contains("TRANSKRIPT")) {
+            // Quét MỌI mã tiêu chí prompt thực sự hỏi, thay vì liệt kê cứng. Danh sách cứng từng làm
+            // Đợt 4 đỏ: B2 có KOHAERENZ_FLUESSIGKEIT / INTERAKTION_REGISTER / FRAGEN_ANTWORTEN mà mock
+            // không biết → mọi tiêu chí đó unscored → trần tụt từ 84 xuống 16 mà không ai ngờ nguyên nhân
+            // nằm trong test double. Quét động thì thêm cấp mới (C1…) không phải sửa mock nữa.
             StringBuilder sb = new StringBuilder("{\"items\":[],\"criteria\":[");
-            String[] codes = {"ERFUELLUNG", "INTERAKTION", "KOHAERENZ", "WORTSCHATZ", "STRUKTUREN"};
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("- ([A-Z_]{3,}):").matcher(user);
+            java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+            while (m.find()) {
+                seen.add(m.group(1));
+            }
             boolean first = true;
-            for (String c : codes) {
-                if (user.contains("- " + c + ":")) {
-                    sb.append(first ? "" : ",").append("{\"code\":\"").append(c).append("\",\"band\":\"B\",\"evidence\":[\"Beleg\"]}");
-                    first = false;
-                }
+            for (String c : seen) {
+                sb.append(first ? "" : ",").append("{\"code\":\"").append(c).append("\",\"band\":\"B\",\"evidence\":[\"Beleg\"]}");
+                first = false;
             }
             sb.append("],\"errors\":[{\"code\":\"CASE.PREP_DAT_MIT\",\"original\":\"mit die Bahn\",\"correction\":\"mit der Bahn\",\"severity\":\"MAJOR\"}]}");
             return sb.toString();
@@ -217,11 +222,57 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    @DisplayName("Thiếu đề (B1 chưa seed) → 409 rõ ràng, không tạo phiên hỏng")
+    @DisplayName("V281 seed: đề B2 đủ pool lớn hơn cardsNeeded (Goethe 16/12, telc 30/8/8)")
+    void seedB2IsPresent() {
+        // Pool phải LỚN HƠN cardsNeeded của Teil, nếu không ExamTaskBankService ném 409 lúc tạo phiên:
+        // Goethe T1 cần 2, telc T1 cần 5.
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B2' AND provider='GOETHE' AND teil_no=1", Integer.class)).isEqualTo(16);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B2' AND provider='GOETHE' AND teil_no=2", Integer.class)).isEqualTo(12);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B2' AND provider='TELC' AND teil_no=1", Integer.class)).isEqualTo(30);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B2' AND provider='TELC' AND teil_no=2", Integer.class)).isEqualTo(8);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B2' AND provider='TELC' AND teil_no=3", Integer.class)).isEqualTo(8);
+
+        // Mọi thẻ Diskussion phải có 'question' — DefaultPrueferScriptService đọc đúng khoá này để
+        // đọc đề; thiếu là lời giám khảo in ra dấu ba chấm mà không lỗi gì cả.
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B2' AND archetype='DISCUSS' AND stimulus_json->>'question' IS NULL",
+                Integer.class)).isZero();
+        // Lập trường của partner là dữ liệu RIÊNG: có trong DB để AI dùng, bị lược trước khi tới client.
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B2' AND stimulus_json ? 'partnerStance'", Integer.class)).isEqualTo(20);
+    }
+
+    @Test
+    @DisplayName("Chưa có blueprint (C1 ngoài MVP) → 404 rõ ràng")
+    void missingBlueprintFailsFast() {
+        assertThatThrownBy(() -> sessionService.create(userId, new CreateExamSessionRequest("TELC", "C1", "MOCK", null)))
+                .isInstanceOf(com.deutschflow.common.exception.NotFoundException.class)
+                .hasMessageContaining("blueprint");
+    }
+
+    @Test
+    @DisplayName("Có blueprint nhưng ngân hàng đề rỗng → 409 rõ ràng, không tạo phiên hỏng")
     void missingTasksFailsFast() {
-        assertThatThrownBy(() -> sessionService.create(userId, new CreateExamSessionRequest("TELC", "B2", "MOCK", null)))
-                .isInstanceOf(com.deutschflow.common.exception.ConflictException.class)
-                .hasMessageContaining("Chưa đủ đề");
+        // Test này từng trỏ vào B1, rồi B2— mỗi đợt seed thêm một cấp là nó phải dời sang cấp kế tiếp,
+        // và sau Đợt 4 thì A1–B2 đã kín. Nên dựng blueprint tạm cho một cấp ngoài MVP thay vì đi mượn
+        // cấp thật: test không còn mục nát theo mỗi lần seed nữa.
+        jdbcTemplate.update("INSERT INTO speaking_exam_blueprints (provider, level, version, title, parts_json, rubric_json) "
+                + "VALUES ('TELC','C1',1,'IT tạm — không có đề', ?::jsonb, ?::jsonb)",
+                "{\"prepSec\":0,\"parts\":[{\"teilNo\":1,\"archetype\":\"DISCUSS\",\"title\":\"IT\",\"durationSec\":60,"
+                        + "\"flow\":\"DIALOGUE\",\"partnerRole\":\"PARTNER\",\"stimulusType\":\"DEBATE_CARD\",\"cardsNeeded\":1}]}",
+                "{\"scheme\":\"TELC\",\"scale\":\"A_D\",\"maxTotal\":25,\"parts\":[],\"global\":[]}");
+        try {
+            assertThatThrownBy(() -> sessionService.create(userId, new CreateExamSessionRequest("TELC", "C1", "MOCK", null)))
+                    .isInstanceOf(com.deutschflow.common.exception.ConflictException.class)
+                    .hasMessageContaining("Chưa đủ đề");
+        } finally {
+            jdbcTemplate.update("DELETE FROM speaking_exam_blueprints WHERE provider='TELC' AND level='C1'");
+        }
     }
 
     @Test
@@ -372,4 +423,96 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
                 .isInstanceOf(com.deutschflow.common.exception.ConflictException.class);
     }
 
+
+    // ── Đợt 4: B2 ──────────────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("MOCK Goethe B2: Vortrag chọn 1/2 → partner BẮT BUỘC hỏi → giám khảo hỏi → Diskussion; trần 84 vì text-only")
+    void mockGoetheB2VortragThenDiskussion() {
+        ExamSessionView s = sessionService.create(userId, new CreateExamSessionRequest("GOETHE", "B2", "MOCK", null));
+        assertThat(s.state()).isEqualTo(SpeakingExamSession.STATE_PREP);
+        assertThat(s.prepSec()).isEqualTo(300);           // SHORT mặc định (blueprint 900)
+        assertThat(s.prepMaterials()).hasSize(2);
+
+        ExamSessionView.PrepMaterial t1 = s.prepMaterials().get(0);
+        assertThat(t1.choiceRequired()).isTrue();          // Vortrag: 2 chủ đề, chọn 1
+        assertThat(t1.stimuli()).hasSize(2);
+        assertThat(t1.stimuli().get(0)).containsKeys("topic", "aspects", "context");
+
+        // Thẻ Diskussion không được lộ lập trường riêng của partner cho thí sinh.
+        ExamSessionView.PrepMaterial t2 = s.prepMaterials().get(1);
+        assertThat(t2.stimuli().get(0)).containsKey("question").doesNotContainKey("partnerStance");
+
+        ExamSessionView chosen = sessionService.choose(userId, s.id(), 1, 1);
+        assertThat(chosen.prepMaterials().get(0).chosenIndex()).isEqualTo(1);
+        String chosenTopic = String.valueOf(t1.stimuli().get(1).get("topic"));
+
+        ExamSessionView live = sessionService.advance(userId, s.id());
+        assertThat(live.currentPart()).isEqualTo(1);
+        assertThat(live.directive().stimulus().get("topic")).isEqualTo(chosenTopic);
+
+        // T1: trình bày → PARTNER hỏi (quy chế: bạn thi bắt buộc đặt câu hỏi) → giám khảo hỏi tiếp
+        TurnResponse vortrag = sessionService.submitTextTurn(userId, s.id(),
+                "Mein Thema ist " + chosenTopic + ". Zuerst beschreibe ich mehrere Möglichkeiten, dann bewerte ich Vor- und Nachteile.");
+        assertThat(vortrag.aiRole()).isEqualTo("PARTNER");
+        ExamSessionView cur = sessionService.submitTextTurn(userId, s.id(), "Ja, das sehe ich auch so.").session();
+        assertThat(cur.directive().lastAiRole()).isEqualTo("PRUEFER");
+        cur = sessionService.submitTextTurn(userId, s.id(), "Aus meiner Sicht überwiegen die Vorteile.").session();
+        cur = sessionService.submitTextTurn(userId, s.id(), "Das hängt von der Situation ab.").session();
+        assertThat(cur.currentPart()).isEqualTo(2);
+
+        // T2 Diskussion: partner giữ vai phản biện, kết bằng tóm tắt dafür/dagegen
+        assertThat(cur.directive().stimulus()).containsKey("question").doesNotContainKey("partnerStance");
+        for (int i = 0; i < 8 && cur.currentPart() == 2; i++) {
+            cur = sessionService.submitTextTurn(userId, s.id(), "Ich bin dafür, weil es die Lebensqualität verbessert.").session();
+        }
+        assertThat(cur.state()).isEqualTo(SpeakingExamSession.STATE_GRADING);
+
+        gradingJobHandler.handle(aiJobRepository.findById(cur.gradingJobId()).orElseThrow());
+        ExamResultView r = sessionService.result(userId, s.id());
+        assertThat(r.max()).isEqualByComparingTo("84.00"); // 100 − Aussprache 16 (text-only chưa chấm được)
+        assertThat(r.total()).isPositive();
+        assertThat(r.scoreSheet().get("passRule").toString()).contains("60");
+    }
+
+    @Test
+    @DisplayName("MOCK telc B2: Präsentation chọn 1/5 → Diskussion từ text → Problemlösung; trần 63 vì Aussprache nằm trong từng Teil")
+    void mockTelcB2ThreeParts() {
+        ExamSessionView s = sessionService.create(userId, new CreateExamSessionRequest("TELC", "B2", "MOCK", null));
+        assertThat(s.prepMaterials()).hasSize(3);
+
+        ExamSessionView.PrepMaterial t1 = s.prepMaterials().get(0);
+        assertThat(t1.choiceRequired()).isTrue();
+        assertThat(t1.stimuli()).hasSize(5);               // telc: chọn 1 trong 5 chủ đề
+
+        ExamSessionView.PrepMaterial t2 = s.prepMaterials().get(1);
+        assertThat(t2.stimuli().get(0)).containsKeys("text", "question").doesNotContainKey("partnerStance");
+        assertThat(s.prepMaterials().get(2).stimuli().get(0)).containsKeys("situation", "prompts");
+
+        sessionService.choose(userId, s.id(), 1, 3);
+        String chosenTopic = String.valueOf(t1.stimuli().get(3).get("topic"));
+
+        ExamSessionView cur = sessionService.advance(userId, s.id());
+        assertThat(cur.directive().stimulus().get("topic")).isEqualTo(chosenTopic);
+
+        // T1 Präsentation (3 bước): trình bày → partner hỏi → giám khảo
+        for (int i = 0; i < 3 && cur.currentPart() == 1; i++) {
+            cur = sessionService.submitTextTurn(userId, s.id(), "Mein Thema ist " + chosenTopic + ". Ich nenne drei Aspekte.").session();
+        }
+        assertThat(cur.currentPart()).isEqualTo(2);
+        for (int i = 0; i < 6 && cur.currentPart() == 2; i++) {
+            cur = sessionService.submitTextTurn(userId, s.id(), "Ich sehe das kritisch, denn es gibt auch Nachteile.").session();
+        }
+        assertThat(cur.currentPart()).isEqualTo(3);
+        for (int i = 0; i < 6 && cur.currentPart() == 3; i++) {
+            cur = sessionService.submitTextTurn(userId, s.id(), "Wir könnten am Freitag anfangen und die Aufgaben aufteilen.").session();
+        }
+        assertThat(cur.state()).isEqualTo(SpeakingExamSession.STATE_GRADING);
+
+        gradingJobHandler.handle(aiJobRepository.findById(cur.gradingJobId()).orElseThrow());
+        ExamResultView r = sessionService.result(userId, s.id());
+        // 75 − 3×4 (Aussprache und Intonation nằm TRONG từng Teil, không phải global như Goethe)
+        assertThat(r.max()).isEqualByComparingTo("63.00");
+        assertThat(r.scoreSheet().get("passRule").toString()).contains("45");
+    }
 }

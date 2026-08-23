@@ -40,6 +40,17 @@ const BLUEPRINTS = [
     ],
     rubricScale: 'A_E', maxTotal: 100, speakingOnlyMin: 0,
   },
+  {
+    // Cấp ngoài MVP: có blueprint nhưng chưa mở → phủ đường "sắp có" + nút bị khoá.
+    // Trước Đợt 4 vai này do B2 đóng; B2 mở rồi thì phải có cấp khác thế chỗ, nếu không nhánh
+    // OPEN_LEVELS trong catalog mất hẳn test.
+    id: 9, provider: 'GOETHE', level: 'C1', version: 1, title: 'Goethe-Zertifikat C1 — Modul Sprechen', prepSec: 900,
+    parts: [
+      { teilNo: 1, archetype: 'PRESENT', title: 'Vortrag halten', durationSec: 240, flow: 'MONOLOGUE', hasPartner: true },
+      { teilNo: 2, archetype: 'DISCUSS', title: 'Diskussion', durationSec: 300, flow: 'DIALOGUE', hasPartner: true },
+    ],
+    rubricScale: 'A_E', maxTotal: 100, speakingOnlyMin: 0,
+  },
 ];
 
 const NOW = new Date();
@@ -134,11 +145,11 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await page.goto('/v2/student/speaking/exam');
     await expect(page.getByRole('heading', { name: 'Phòng luyện thi nói' })).toBeVisible();
     await expect(page.getByTestId('start-mock')).toBeEnabled();
-    // Cấp chưa mở hiển thị "sắp có" và khóa nút.
-    await page.getByTestId('level-B2').click();
+    // Cấp chưa mở hiển thị "sắp có" và khóa nút. B2 đã mở ở Đợt 4 → dùng C1 (ngoài MVP).
+    await page.getByTestId('level-C1').click();
     await expect(page.getByTestId('start-mock')).toBeDisabled();
     await expect(page.getByTestId('start-drill-1')).toBeDisabled();
-    await expect(page.getByText('Cấp B2 sẽ mở ở đợt tiếp theo.')).toBeVisible();
+    await expect(page.getByText('Cấp C1 sẽ mở ở đợt tiếp theo.')).toBeVisible();
     await page.getByTestId('level-A1').click();
     await expect(page.getByTestId('start-mock')).toBeEnabled();
 
@@ -339,5 +350,85 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await expect(card.locator('svg rect')).toHaveCount(2);
     await expect(card).toContainText('34%');
     await expect(page.locator('main')).not.toContainText('GEHEIM-VORLAGE-B');
+  });
+
+  test('B2 mock: Vortrag chọn 1/2 hiện đủ 3 gạch nội dung, thẻ Diskussion không lộ lập trường partner', async ({ page }) => {
+    await baseMocks(page);
+    const aspects = [
+      'Beschreiben Sie mehrere Möglichkeiten oder Aspekte.',
+      'Bewerten Sie Vor- und Nachteile.',
+      'Beschreiben Sie eine Möglichkeit genauer und begründen Sie Ihre Wahl.',
+    ];
+    let chosen: number | null = null;
+    const prepSession = () => ({
+      id: 703, provider: 'GOETHE', level: 'B2', mode: 'MOCK', state: 'PREP', currentPart: 0, currentStep: 0, totalParts: 2,
+      serverNow: NOW.toISOString(), prepDeadlineAt: deadline(300), prepSec: 300, partDeadlineAt: null, directive: null, lastTurnEval: null,
+      notesText: null, gradingJobId: null, resultAvailable: false,
+      prepMaterials: [
+        { teilNo: 1, title: 'Vortrag halten', archetype: 'PRESENT', choiceRequired: true, chosenIndex: chosen,
+          stimuli: [
+            { type: 'TOPIC_CHOICE', context: 'Sie besuchen ein Seminar und halten dort einen kurzen Vortrag.',
+              topic: 'Wie sollten Städte den Autoverkehr in den Innenstädten regeln?', aspects, structureHint: 'Einleitung – Hauptteil – Schluss' },
+            { type: 'TOPIC_CHOICE', context: 'Sie besuchen ein Seminar und halten dort einen kurzen Vortrag.',
+              topic: 'Sollten Unternehmen ihren Mitarbeitenden Homeoffice garantieren?', aspects, structureHint: 'Einleitung – Hauptteil – Schluss' },
+          ] },
+        // Server đã lược partnerStance; nếu nó lọt ra đây là rò đề riêng của partner.
+        { teilNo: 2, title: 'Diskussion führen', archetype: 'DISCUSS', choiceRequired: false, chosenIndex: null,
+          stimuli: [{ type: 'DEBATE_CARD', context: 'Sie sind in einem Debattierclub.',
+            question: 'Sollten Arbeitgeber die Vier-Tage-Woche einführen?',
+            instruction: 'Tauschen Sie Ihren Standpunkt aus und fassen Sie am Ende zusammen.' }] },
+      ],
+    });
+    await page.route('**/api/speaking/exam/sessions/703', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(prepSession()) }),
+    );
+    await page.route('**/api/speaking/exam/sessions/703/choice', async (route) => {
+      const body = JSON.parse(route.request().postData() ?? '{}');
+      chosen = body.index;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(prepSession()) });
+    });
+    await page.goto('/v2/student/speaking/exam/session/703');
+    await expect(page.getByTestId('exam-prep')).toBeVisible();
+
+    const vortrag = page.getByTestId('stimulus-topic-choice-card').first();
+    await expect(vortrag).toContainText('Autoverkehr');
+    await expect(vortrag).toContainText('Vor- und Nachteile');
+    await expect(vortrag).toContainText('Einleitung – Hauptteil – Schluss');
+
+    const debate = page.getByTestId('stimulus-debate-card');
+    await expect(debate).toContainText('Vier-Tage-Woche');
+    await expect(debate).toContainText('Debattierclub');
+    await expect(page.getByTestId('prep-materials')).not.toContainText('partnerStance');
+    await expect(page.getByTestId('prep-materials')).not.toContainText('dagegen');
+
+    await expect(page.getByTestId('prep-enter')).toBeDisabled();
+    await page.getByTestId('choose-1-1').click();
+    await expect(page.getByTestId('prep-enter')).toBeEnabled();
+    expect(chosen).toBe(1);
+  });
+
+  test('telc B2 Teil 2: thẻ Diskussion hiện đoạn text nguồn kèm câu hỏi', async ({ page }) => {
+    await baseMocks(page);
+    await page.route('**/api/speaking/exam/sessions/704', (route) =>
+      route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({
+          id: 704, provider: 'TELC', level: 'B2', mode: 'DRILL', state: 'IN_PART', currentPart: 2, currentStep: 0, totalParts: 1,
+          serverNow: NOW.toISOString(), prepDeadlineAt: null, prepSec: null, prepMaterials: null, partDeadlineAt: deadline(150),
+          directive: { teilNo: 2, title: 'Diskussion', archetype: 'DISCUSS', stepIndex: 0, stepCount: 6, candidateAction: 'SPEAK',
+            hintVi: 'Nêu rõ quan điểm của bạn.', prueferText: 'Teil 2.', prueferVoice: 'PRUEFER', lastAiRole: null, lastAiText: null,
+            stimulus: { type: 'DEBATE_TEXT',
+              text: 'Immer mehr Betriebe erlauben Hunde am Arbeitsplatz. Befürworter sprechen von einem besseren Betriebsklima.',
+              question: 'Sollten Hunde am Arbeitsplatz erlaubt sein?',
+              instruction: 'Diskutieren Sie über den Text.' } },
+          lastTurnEval: null, notesText: null, gradingJobId: null, resultAvailable: false,
+        }),
+      }),
+    );
+    await page.goto('/v2/student/speaking/exam/session/704');
+    const debate = page.getByTestId('stimulus-debate-card');
+    await expect(debate).toContainText('Hunde am Arbeitsplatz');
+    await expect(debate).toContainText('Betriebsklima');
+    await expect(debate).not.toContainText('partnerStance');
   });
 });

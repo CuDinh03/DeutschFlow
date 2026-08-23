@@ -1223,7 +1223,10 @@
         "topic": "Thema",
         "partnerTopic": "Thema des Vortrags Ihres Partners",
         "feedbackHint": "Hören Sie zu, geben Sie dann eine Rückmeldung und stellen Sie eine Frage.",
-        "vorlageA": "Ihre Vorlage"
+        "vorlageA": "Ihre Vorlage",
+        "yourTopic": "Ihr Thema",
+        "debate": "Diskussion",
+        "debateHint": "Nennen Sie Ihren Standpunkt, reagieren Sie auf Ihre Partnerin oder Ihren Partner und fassen Sie zusammen: dafür oder dagegen?"
       },
       "result": {
         "sheetCap": "Simulierter Bewertungsbogen",
