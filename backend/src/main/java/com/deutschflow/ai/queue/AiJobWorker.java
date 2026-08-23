@@ -7,6 +7,7 @@ import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -41,6 +42,15 @@ public class AiJobWorker {
     /** Handler cắm được (module mới), tra theo jobType; các handler cũ giữ nguyên trong switch. */
     private final java.util.List<AiJobHandler> pluggableHandlers;
     private final PlatformTransactionManager transactionManager;
+
+    /**
+     * Chỉ nhận job đủ mới. Chốt chặn để sự cố 10/06–23/08 không lặp lại: khi worker chết một thời
+     * gian dài, backlog PENDING tích lại; nếu claim không lọc tuổi thì lúc worker sống lại nó sẽ
+     * gọi AI thật cho hàng loạt job mà người học đã rời phiên từ lâu — tốn token, dễ đụng rate
+     * limit. Job quá hạn được {@link StaleAiJobExpirer} chuyển sang FAILED để không kẹt PENDING.
+     */
+    @Value("${app.ai-jobs.max-age-days:7}")
+    private int maxAgeDays;
 
     @Scheduled(fixedDelay = 2000)
     public void processPendingJobs() {
@@ -90,7 +100,7 @@ public class AiJobWorker {
     /** Chỉ gọi qua {@link #claimInNewTransaction()} (hoặc từ ngoài bean qua proxy) — tự-gọi sẽ mất transaction. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<AiJob> claimJobs() {
-        List<AiJob> jobs = aiJobRepository.claimPendingJobs(BATCH_SIZE);
+        List<AiJob> jobs = aiJobRepository.claimPendingJobs(BATCH_SIZE, Math.max(1, maxAgeDays));
         if (!jobs.isEmpty()) {
             List<Long> ids = jobs.stream().map(AiJob::getId).toList();
             aiJobRepository.bulkUpdateStatus(ids, AiJob.STATUS_PROCESSING);
