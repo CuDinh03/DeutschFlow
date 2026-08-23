@@ -1204,7 +1204,15 @@
         "wort": "Wort",
         "pictureHint": "Formulieren Sie eine Bitte mit diesem Gegenstand.",
         "spell": "Buchstabieren",
-        "number": "Zahl nennen"
+        "number": "Zahl nennen",
+        "keyword": "Stichwort",
+        "personAskHint": "Stellen Sie Ihrem Partner eine Frage zu diesem Stichwort.",
+        "personAnswerHint": "Ihr Partner fragt Sie zu diesem Stichwort — antworten Sie.",
+        "questionWord": "Fragewort",
+        "promptHint": "Erzählen Sie von sich zu dieser Frage; die Stichpunkte helfen. Etwa eine Minute.",
+        "situation": "Situation",
+        "yourCalendar": "Ihr Kalender",
+        "partnerHasOtherCalendar": "Ihr Partner hat einen anderen Kalender — fragen Sie nach und finden Sie gemeinsam eine Zeit."
       },
       "result": {
         "sheetCap": "Simulierter Bewertungsbogen",

@@ -101,8 +101,81 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction }: Props) {
     )
   }
 
-  // Fallback: các loại đề đợt sau (A2 lịch tuần, B1 Folien…) vẫn hiện được nội dung thô.
-  const entries = Object.entries(stimulus).filter(([k]) => k !== 'type')
+  if (type === 'PERSON_CARD') {
+    const owner = candidateAction === 'ANSWER' ? t('partnerCard') : t('yourCard')
+    return (
+      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-person-card">
+        <GaCap className="mb-3 block">{owner}</GaCap>
+        <p className="ga-ui text-[12px] uppercase tracking-wide text-ga-muted">{t('keyword')}</p>
+        <p className="font-ga-display text-[36px] font-semibold leading-tight text-ga-ink">{String(stimulus.keyword ?? '')}</p>
+        <p className="ga-ui mt-3 text-[12.5px] text-ga-muted">{candidateAction === 'ANSWER' ? t('personAnswerHint') : t('personAskHint')}</p>
+      </div>
+    )
+  }
+
+  if (type === 'QUESTION_WORD_CARD') {
+    const owner = candidateAction === 'ANSWER' ? t('partnerCard') : t('yourCard')
+    return (
+      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-question-word-card">
+        <GaCap className="mb-3 block">{owner}</GaCap>
+        <p className="ga-ui text-[12px] uppercase tracking-wide text-ga-muted">{t('thema')}</p>
+        <p className="font-ga-display text-[22px] font-medium text-ga-ink">{String(stimulus.thema ?? '')}</p>
+        <p className="ga-ui mt-4 text-[12px] uppercase tracking-wide text-ga-muted">{t('questionWord')}</p>
+        <p className="font-ga-display text-[34px] font-semibold leading-tight text-ga-ink">{String(stimulus.questionWord ?? '')}</p>
+      </div>
+    )
+  }
+
+  if (type === 'PROMPT_CARD') {
+    const hints = Array.isArray(stimulus.hints) ? (stimulus.hints as unknown[]).map(String) : []
+    return (
+      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-prompt-card">
+        <GaCap className="mb-3 block">{t('yourCard')}</GaCap>
+        <p className="font-ga-display text-[24px] font-medium leading-snug text-ga-ink">{String(stimulus.prompt ?? '')}</p>
+        {hints.length > 0 && (
+          <ul className="mt-4 flex flex-wrap gap-2">
+            {hints.map((h) => (
+              <li key={h} className="ga-ui rounded-ga bg-ga-surface px-3 py-1.5 text-[14px] text-ga-ink">{h}</li>
+            ))}
+          </ul>
+        )}
+        <p className="ga-ui mt-3 text-[12.5px] text-ga-muted">{t('promptHint')}</p>
+      </div>
+    )
+  }
+
+  if (type === 'CALENDAR_PAIR') {
+    // Chỉ lịch CỦA THÍ SINH — server đã lược partnerCalendar; client cũng không bao giờ đọc khóa partner*.
+    const cal = (stimulus.candidateCalendar ?? {}) as Record<string, unknown>
+    const days = Object.keys(cal)
+    return (
+      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-calendar-card">
+        <GaCap className="mb-2 block">{t('situation')}</GaCap>
+        <p className="ga-ui text-[15px] text-ga-ink">{String(stimulus.situation ?? '')}</p>
+        {stimulus.goal ? <p className="ga-ui mt-1 text-[13px] font-semibold text-ga-ink">{String(stimulus.goal)}</p> : null}
+        <p className="ga-ui mt-4 text-[12px] uppercase tracking-wide text-ga-muted">{t('yourCalendar')}</p>
+        <table className="mt-1 w-full border-collapse text-[13px]">
+          <tbody>
+            {days.map((d) => {
+              const v = cal[d]
+              const items = Array.isArray(v) ? (v as unknown[]).map(String) : [String(v ?? '')]
+              const free = items.every((x) => /frei/i.test(x))
+              return (
+                <tr key={d} className="border-t border-ga-line">
+                  <th scope="row" className="ga-ui w-28 py-1.5 text-left font-semibold text-ga-ink">{d}</th>
+                  <td className={`ga-ui py-1.5 ${free ? 'text-ga-green' : 'text-ga-ink'}`}>{items.join(' · ')}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+        <p className="ga-ui mt-3 text-[12.5px] text-ga-muted">{t('partnerHasOtherCalendar')}</p>
+      </div>
+    )
+  }
+
+  // Fallback: các loại đề đợt sau (B1 Folien, Grafik…) vẫn hiện được nội dung thô — không bao giờ lộ khóa partner*.
+  const entries = Object.entries(stimulus).filter(([k]) => k !== 'type' && !k.startsWith('partner'))
   return (
     <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5" data-testid="stimulus-generic-card">
       <GaCap className="mb-3 block">{t('yourCard')}</GaCap>

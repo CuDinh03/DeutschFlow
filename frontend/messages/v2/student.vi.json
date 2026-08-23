@@ -1204,7 +1204,15 @@
         "wort": "Từ",
         "pictureHint": "Đưa ra một lời đề nghị / yêu cầu với đồ vật này.",
         "spell": "Đánh vần",
-        "number": "Đọc số"
+        "number": "Đọc số",
+        "keyword": "Từ khóa",
+        "personAskHint": "Đặt một câu hỏi cho bạn thi về từ khóa này.",
+        "personAnswerHint": "Bạn thi hỏi bạn về từ khóa này — hãy trả lời.",
+        "questionWord": "Từ hỏi",
+        "promptHint": "Kể về bản thân theo câu hỏi; dùng các gợi ý nếu cần. Khoảng một phút.",
+        "situation": "Tình huống",
+        "yourCalendar": "Lịch của bạn",
+        "partnerHasOtherCalendar": "Bạn thi có lịch khác — hãy hỏi và cùng tìm giờ hai bên đều rảnh."
       },
       "result": {
         "sheetCap": "Phiếu kết quả mô phỏng",

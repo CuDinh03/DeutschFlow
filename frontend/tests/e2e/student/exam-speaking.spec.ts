@@ -224,4 +224,57 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await expect(page.getByTestId('exam-grading')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('ergebnisbogen')).toBeVisible({ timeout: 30_000 });
   });
+
+  test('A2 Teil 3 lịch tuần: chỉ hiện lịch của mình, không bao giờ vẽ khóa partner*', async ({ page }) => {
+    await baseMocks(page);
+    const calendarSession = {
+      id: 602, provider: 'GOETHE', level: 'A2', mode: 'DRILL', state: 'IN_PART', currentPart: 3, currentStep: 0, totalParts: 1,
+      serverNow: NOW.toISOString(), prepDeadlineAt: null, partDeadlineAt: deadline(300),
+      directive: {
+        teilNo: 3, title: 'Gemeinsam etwas planen', archetype: 'PLAN_NEGOTIATE', stepIndex: 0, stepCount: 8, candidateAction: 'SPEAK',
+        hintVi: 'Mở đầu: đề xuất một ngày/giờ còn trống trong lịch CỦA BẠN (bạn thi có lịch khác).',
+        // Server đã lược partnerCalendar; giả lập một backend lỗi vẫn gửi — client vẫn KHÔNG được vẽ.
+        stimulus: { type: 'CALENDAR_PAIR', situation: 'Sie möchten zusammen ins Kino gehen.', goal: 'Finden Sie einen Termin.',
+          candidateCalendar: { Montag: ['frei'], Dienstag: ['8–16 Arbeit'], Samstag: ['Besuch von Eltern'] },
+          partnerCalendar: { Montag: ['GEHEIM-ARBEIT'] } },
+        prueferText: 'Teil 3: Gemeinsam etwas planen. Sie sehen Ihren Terminkalender; Ihr Partner hat einen anderen Kalender.',
+        prueferVoice: 'PRUEFER', lastAiRole: null, lastAiText: null,
+      },
+      lastTurnEval: null, notesText: null, gradingJobId: null, resultAvailable: false,
+    };
+    await page.route('**/api/speaking/exam/sessions/602', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(calendarSession) }),
+    );
+    await page.goto('/v2/student/speaking/exam/session/602');
+    const card = page.getByTestId('stimulus-calendar-card');
+    await expect(card).toBeVisible();
+    await expect(card).toContainText('Kino');
+    await expect(card).toContainText('Montag');
+    await expect(card).toContainText('8–16 Arbeit');
+    await expect(page.locator('main')).not.toContainText('GEHEIM-ARBEIT');
+    await expect(page.getByTestId('directive-hint')).toContainText('lịch CỦA BẠN');
+  });
+
+  test('A2: thẻ Stichwort (Fragen zur Person) và thẻ gợi ý (Von sich erzählen) render đúng', async ({ page }) => {
+    await baseMocks(page);
+    const mk = (stim: Record<string, unknown>, action: string, archetype: string) => ({
+      id: 603, provider: 'GOETHE', level: 'A2', mode: 'DRILL', state: 'IN_PART', currentPart: 1, currentStep: 0, totalParts: 1,
+      serverNow: NOW.toISOString(), prepDeadlineAt: null, partDeadlineAt: deadline(180),
+      directive: { teilNo: 1, title: 'Fragen zur Person', archetype, stepIndex: 0, stepCount: 8, candidateAction: action, hintVi: 'x',
+        stimulus: stim, prueferText: 'Teil 1: Fragen zur Person.', prueferVoice: 'PRUEFER', lastAiRole: null, lastAiText: null },
+      lastTurnEval: null, notesText: null, gradingJobId: null, resultAvailable: false,
+    });
+    let current = mk({ type: 'PERSON_CARD', keyword: 'Geburtstag?' }, 'ASK', 'CARD_QA');
+    await page.route('**/api/speaking/exam/sessions/603', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(current) }),
+    );
+    await page.goto('/v2/student/speaking/exam/session/603');
+    await expect(page.getByTestId('stimulus-person-card')).toContainText('Geburtstag?');
+    await expect(page.getByTestId('stimulus-person-card')).toContainText('Thẻ của bạn');
+
+    current = mk({ type: 'PROMPT_CARD', prompt: 'Was machen Sie mit Ihrem Geld?', hints: ['Sparen?', 'Reisen?'] }, 'SPEAK', 'ABOUT_ME');
+    await page.reload();
+    await expect(page.getByTestId('stimulus-prompt-card')).toContainText('Was machen Sie mit Ihrem Geld?');
+    await expect(page.getByTestId('stimulus-prompt-card')).toContainText('Sparen?');
+  });
 });

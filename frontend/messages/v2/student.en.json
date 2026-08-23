@@ -1204,7 +1204,15 @@
         "wort": "Word",
         "pictureHint": "Make a request using this object.",
         "spell": "Spell",
-        "number": "Say the number"
+        "number": "Say the number",
+        "keyword": "Keyword",
+        "personAskHint": "Ask your partner a question about this keyword.",
+        "personAnswerHint": "Your partner asks you about this keyword — answer.",
+        "questionWord": "Question word",
+        "promptHint": "Talk about yourself following the question; use the hints if you like. About one minute.",
+        "situation": "Situation",
+        "yourCalendar": "Your calendar",
+        "partnerHasOtherCalendar": "Your partner has a different calendar — ask and find a time that suits you both."
       },
       "result": {
         "sheetCap": "Simulated score sheet",
