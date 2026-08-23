@@ -78,6 +78,10 @@ public class SpeakingExamSession {
     @Column(name = "grading_job_id")
     private Long gradingJobId;
 
+    /** Vorbereitungszeit hiệu lực (giây): rút gọn 5′ mặc định hoặc chuẩn thi thật theo blueprint. */
+    @Column(name = "prep_sec")
+    private Integer prepSec;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

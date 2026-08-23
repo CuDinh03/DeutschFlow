@@ -106,6 +106,7 @@ public class ExamSessionService {
         }
         SessionPlan plan = orchestrator.buildPlan(bp, tasks, teil);
         boolean prep = SpeakingExamSession.MODE_MOCK.equals(mode) && bp.prepSec() > 0;
+        Integer prepSec = prep ? effectivePrepSec(bp.prepSec(), req.prepMode()) : null;
         Instant now = Instant.now();
         SpeakingExamSession s = SpeakingExamSession.builder()
                 .userId(userId).blueprintId(bp.id()).mode(mode)
@@ -115,6 +116,7 @@ public class ExamSessionService {
                 .currentStep(0)
                 .planJson(objectMapper.convertValue(plan, new TypeReference<Map<String, Object>>() {}))
                 .prepStartedAt(prep ? now : null)
+                .prepSec(prepSec)
                 .build();
         if (!prep) {
             startPart(s, plan.parts().get(0), now);
@@ -195,9 +197,18 @@ public class ExamSessionService {
                 .role(SpeakingExamTurn.ROLE_CANDIDATE).transcript(transcript).sttJson(sttJson).audioRef(audioRef).build();
 
         Map<String, Object> card = stimulus(pp, step.cardIndex());
-        Map<String, Object> nextCard = step.cardIndex() == null ? null : stimulus(pp, step.cardIndex() + 1);
-        AiInterlocutorService.AiReply ai = interlocutor.reply(userId, bp, part, step, card, nextCard,
-                history(turns, pp.teilNo()), transcript);
+        Map<String, Object> nextCard = step.cardIndex() == null || pp.chosenIndex() != null ? null : stimulus(pp, step.cardIndex() + 1);
+        List<ChatMessage> hist = history(turns, pp.teilNo());
+        AiInterlocutorService.AiReply ai = interlocutor.reply(userId, bp, part, step, card, nextCard, hist, transcript);
+        AiInterlocutorService.AiReply ai2 = null;
+        if (ai != null && step.hasSecondAi()) {
+            List<ChatMessage> hist2 = new ArrayList<>(hist);
+            hist2.add(new ChatMessage("user", transcript));
+            hist2.add(new ChatMessage("assistant", "[" + ai.role() + "] " + ai.textDe()));
+            SessionPlan.Step second = new SessionPlan.Step(step.index(), step.candidateAction(), step.cardIndex(),
+                    step.aiRole2(), step.aiAction2(), step.hintVi());
+            ai2 = interlocutor.reply(userId, bp, part, second, card, null, hist2, transcript);
+        }
 
         Map<String, Object> eval = null;
         if (!s.isMock()) {
@@ -206,10 +217,15 @@ public class ExamSessionService {
             candidate.setTurnEvalJson(eval);
         }
         turnRepository.save(candidate);
-        if (ai != null) {
-            turnRepository.save(SpeakingExamTurn.builder().sessionId(s.getId()).partNo(pp.teilNo()).seq(seq++)
-                    .role(ai.role()).transcript(ai.textDe()).build());
+        List<TurnResponse.AiTurn> aiTurns = new ArrayList<>();
+        for (AiInterlocutorService.AiReply r : new AiInterlocutorService.AiReply[]{ai, ai2}) {
+            if (r != null) {
+                turnRepository.save(SpeakingExamTurn.builder().sessionId(s.getId()).partNo(pp.teilNo()).seq(seq++)
+                        .role(r.role()).transcript(r.textDe()).build());
+                aiTurns.add(new TurnResponse.AiTurn(r.role(), r.textDe()));
+            }
         }
+        AiInterlocutorService.AiReply lastAi = ai2 != null ? ai2 : ai;
 
         s.setCurrentStep(s.getCurrentStep() + 1);
         if (s.getCurrentStep() >= pp.steps().size()) {
@@ -217,8 +233,55 @@ public class ExamSessionService {
         }
         sessionRepository.save(s);
         ExamSessionView v = view(s, bp, plan, eval);
-        return new TurnResponse(transcript, ai == null ? null : ai.role(), ai == null ? null : ai.textDe(),
-                ai == null ? null : ai.role(), eval, v);
+        return new TurnResponse(transcript, lastAi == null ? null : lastAi.role(), lastAi == null ? null : lastAi.textDe(),
+                lastAi == null ? null : lastAi.role(), aiTurns, eval, v);
+    }
+
+    // ── chọn đề (1 trong N) ─────────────────────────────────────────────────────────────────
+
+    /**
+     * Thí sinh chọn chủ đề cho Teil "chọn 1 trong N" (Goethe B1/B2 T2…). Cho phép trong PREP (mock) hoặc ngay khi
+     * vào Teil đó mà chưa nói lượt nào (drill). Chọn muộn hơn → 409 (đúng luật thi: đã bắt đầu thì không đổi đề).
+     */
+    @Transactional
+    public ExamSessionView choose(long userId, long sessionId, int teilNo, int index) {
+        SpeakingExamSession s = load(userId, sessionId);
+        ExamBlueprint bp = blueprint(s);
+        SessionPlan plan = plan(s);
+        SessionPlan.PartPlan pp = plan.part(teilNo);
+        if (pp == null || !pp.choiceRequired()) {
+            throw new BadRequestException("Teil " + teilNo + " không có lựa chọn chủ đề");
+        }
+        if (index < 0 || index >= pp.stimuli().size()) {
+            throw new BadRequestException("index ngoài phạm vi (0.." + (pp.stimuli().size() - 1) + ")");
+        }
+        boolean inPrep = SpeakingExamSession.STATE_PREP.equals(s.getState());
+        boolean atPartStart = SpeakingExamSession.STATE_IN_PART.equals(s.getState()) && s.getCurrentPart() == teilNo
+                && turnRepository.countBySessionIdAndPartNoAndRole(s.getId(), teilNo, SpeakingExamTurn.ROLE_CANDIDATE) == 0;
+        if (!inPrep && !atPartStart) {
+            throw new ConflictException("Không thể đổi chủ đề sau khi đã bắt đầu nói ở Teil " + teilNo);
+        }
+        List<SessionPlan.PartPlan> parts = new ArrayList<>();
+        for (SessionPlan.PartPlan p : plan.parts()) {
+            parts.add(p.teilNo() == teilNo ? p.withChosenIndex(index) : p);
+        }
+        SessionPlan updated = new SessionPlan(parts);
+        s.setPlanJson(objectMapper.convertValue(updated, new TypeReference<Map<String, Object>>() {}));
+        if (atPartStart) {
+            // Prüfer giới thiệu lại với đúng chủ đề đã chọn (thay lời giới thiệu cũ bằng lượt mới).
+            addPrueferTurn(s, nextSeq(s), teilNo, prueferScript.line(bp, bp.part(teilNo).orElseThrow(),
+                    PrueferScriptService.Moment.PART_INTRO, stimulus(updated.part(teilNo), 0)).textDe());
+        }
+        sessionRepository.save(s);
+        return view(s, bp, updated, null);
+    }
+
+    /** Vorbereitungszeit hiệu lực: SHORT (mặc định) = 5′ rút gọn (mục 4b kế hoạch); FULL = chuẩn thi thật. */
+    static int effectivePrepSec(int blueprintPrepSec, String prepMode) {
+        if (prepMode != null && "FULL".equalsIgnoreCase(prepMode.trim())) {
+            return blueprintPrepSec;
+        }
+        return Math.min(300, blueprintPrepSec);
     }
 
     // ── chuyển phần / kết thúc ──────────────────────────────────────────────────────────────
@@ -444,6 +507,9 @@ public class ExamSessionService {
         if (index == null || pp.stimuli().isEmpty()) {
             return null;
         }
+        if (pp.chosenIndex() != null) {
+            return pp.stimuli().get(Math.min(pp.chosenIndex(), pp.stimuli().size() - 1));
+        }
         return pp.stimuli().get(Math.min(index, pp.stimuli().size() - 1));
     }
 
@@ -481,11 +547,28 @@ public class ExamSessionService {
                     lastPruefer == null ? null : lastPruefer.getTranscript(), "PRUEFER",
                     lastAi == null ? null : lastAi.getRole(), lastAi == null ? null : lastAi.getTranscript());
         }
-        Instant prepDeadline = s.getPrepStartedAt() == null ? null : s.getPrepStartedAt().plusSeconds(bp.prepSec());
+        int prepSec = s.getPrepSec() != null ? s.getPrepSec() : bp.prepSec();
+        Instant prepDeadline = s.getPrepStartedAt() == null ? null : s.getPrepStartedAt().plusSeconds(prepSec);
         boolean resultAvailable = SpeakingExamSession.STATE_RESULTS.equals(s.getState());
+        List<ExamSessionView.PrepMaterial> materials = SpeakingExamSession.STATE_PREP.equals(s.getState())
+                ? prepMaterials(bp, plan) : null;
         return new ExamSessionView(s.getId(), bp.provider().name(), bp.level(), s.getMode(), s.getState(),
-                s.getCurrentPart(), s.getCurrentStep(), plan.parts().size(), now, prepDeadline, s.getPartDeadlineAt(),
-                directive, lastEval, s.getNotesText(), s.getGradingJobId(), resultAvailable);
+                s.getCurrentPart(), s.getCurrentStep(), plan.parts().size(), now, prepDeadline, prepSec, materials,
+                s.getPartDeadlineAt(), directive, lastEval, s.getNotesText(), s.getGradingJobId(), resultAvailable);
+    }
+
+    /** Tài liệu chuẩn bị: mọi Teil, chỉ phần thí sinh được xem (khóa partner* đã lược); Teil chọn đề trả đủ N phương án. */
+    private static List<ExamSessionView.PrepMaterial> prepMaterials(ExamBlueprint bp, SessionPlan plan) {
+        List<ExamSessionView.PrepMaterial> out = new ArrayList<>();
+        for (SessionPlan.PartPlan pp : plan.parts()) {
+            BlueprintPart part = bp.part(pp.teilNo()).orElseThrow();
+            List<Map<String, Object>> stimuli = pp.choiceRequired()
+                    ? pp.stimuli().stream().map(ExamSessionService::clientStimulus).toList()
+                    : (pp.stimuli().isEmpty() ? List.of() : List.of(clientStimulus(stimulus(pp, 0))));
+            out.add(new ExamSessionView.PrepMaterial(pp.teilNo(), part.title(), part.archetype().name(),
+                    pp.choiceRequired(), pp.chosenIndex(), stimuli));
+        }
+        return out;
     }
 
     private ExamResultView toView(SpeakingExamResult r) {

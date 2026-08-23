@@ -43,12 +43,18 @@ public class DefaultPrueferScriptService implements PrueferScriptService {
             case PLAN_NEGOTIATE -> "Teil " + part.teilNo() + ": " + part.title() + ". Die Situation: " + str(stimulus, "situation")
                     + (stimulus != null && stimulus.get("candidateCalendar") != null
                         ? " Sie sehen Ihren Terminkalender; Ihr Partner hat einen anderen Kalender. "
-                        : " ")
+                        : stimulus != null && stimulus.get("prompts") != null
+                            ? " Auf dem Aufgabenblatt finden Sie Punkte, die Sie besprechen sollten: " + join(stimulus, "prompts") + ". "
+                            : " ")
                     + "Machen Sie Vorschläge, reagieren Sie auf die Vorschläge Ihres Partners und einigen Sie sich.";
-            case TOPIC_EXCHANGE -> "Teil " + part.teilNo() + ": " + part.title() + ". " + str(stimulus, "instruction");
+            case TOPIC_EXCHANGE -> "Teil " + part.teilNo() + ": " + part.title() + ". " + str(stimulus, "instruction")
+                    + (stimulus != null && stimulus.get("thema") != null ? " Das Thema ist: " + str(stimulus, "thema") + "." : "");
             case PRESENT -> "Teil " + part.teilNo() + ": " + part.title() + ". Bitte präsentieren Sie Ihr Thema: " + str(stimulus, "topic")
-                    + ". Achten Sie auf Einleitung, Hauptteil und Schluss.";
-            case FEEDBACK_FOLLOWUP -> "Teil " + part.teilNo() + ": Über ein Thema sprechen. Ihr Partner hat gerade präsentiert. Geben Sie bitte eine Rückmeldung und stellen Sie eine Frage.";
+                    + (stimulus != null && stimulus.get("folien") != null
+                        ? ". Folgen Sie den fünf Folien auf Ihrem Aufgabenblatt. Danach stellen Ihnen Ihr Partner und ich Fragen."
+                        : ". Achten Sie auf Einleitung, Hauptteil und Schluss.");
+            case FEEDBACK_FOLLOWUP -> "Teil " + part.teilNo() + ": Über ein Thema sprechen. Ihr Partner präsentiert jetzt sein Thema: "
+                    + str(stimulus, "topic") + ". Hören Sie zu. Danach geben Sie bitte eine Rückmeldung und stellen eine Frage.";
             case DISCUSS -> "Teil " + part.teilNo() + ": Diskussion. Die Frage lautet: " + str(stimulus, "question")
                     + ". Tauschen Sie Ihren Standpunkt und Ihre Argumente aus und fassen Sie am Ende zusammen: dafür oder dagegen?";
             case PICTURE -> "Teil " + part.teilNo() + ": Bitte beschreiben Sie das Bild und erzählen Sie, was Sie damit verbinden.";

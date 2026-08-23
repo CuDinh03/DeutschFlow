@@ -13,8 +13,12 @@ export const examSpeakingApi = {
   listBlueprints: (params?: { provider?: ExamProvider; level?: string }) =>
     api.get<BlueprintSummary[]>('/speaking/exam/blueprints', { params }),
 
-  createSession: (body: { provider: ExamProvider; level: string; mode: ExamMode; teil?: number }) =>
+  createSession: (body: { provider: ExamProvider; level: string; mode: ExamMode; teil?: number; prepMode?: 'SHORT' | 'FULL' }) =>
     api.post<ExamSessionView>('/speaking/exam/sessions', body),
+
+  /** Chọn chủ đề cho Teil "1 trong N" (Goethe B1/B2 T2): trong PREP hoặc ngay đầu Teil. */
+  choose: (id: number, teilNo: number, index: number) =>
+    api.post<ExamSessionView>(`/speaking/exam/sessions/${id}/choice`, { teilNo, index }),
 
   getSession: (id: number) => api.get<ExamSessionView>(`/speaking/exam/sessions/${id}`),
 

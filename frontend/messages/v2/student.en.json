@@ -1138,7 +1138,10 @@
         "recentCap": "Recent results",
         "passed": "Pass",
         "failed": "Fail",
-        "disclaimer": "Simulates publicly documented exam formats; not affiliated with Goethe-Institut or telc. Scores are indicative (typical error ±1 band vs. a human examiner), not a certificate."
+        "disclaimer": "Simulates publicly documented exam formats; not affiliated with Goethe-Institut or telc. Scores are indicative (typical error ±1 band vs. a human examiner), not a certificate.",
+        "prepModeLabel": "Preparation",
+        "prepShort": "5 min short",
+        "prepFull": "{min} min as in the exam"
       },
       "room": {
         "loading": "Entering the exam room…",
@@ -1176,7 +1179,10 @@
         "pruefer": "Examiner",
         "partner": "Partner",
         "score": "{score}/10",
-        "redemittel": "Useful phrases"
+        "redemittel": "Useful phrases",
+        "chooseOne": "Choose one topic",
+        "chosen": "Option {n} chosen",
+        "option": "Option {n}"
       },
       "mic": {
         "sending": "Sending and waiting for the reply…",
@@ -1212,7 +1218,12 @@
         "promptHint": "Talk about yourself following the question; use the hints if you like. About one minute.",
         "situation": "Situation",
         "yourCalendar": "Your calendar",
-        "partnerHasOtherCalendar": "Your partner has a different calendar — ask and find a time that suits you both."
+        "partnerHasOtherCalendar": "Your partner has a different calendar — ask and find a time that suits you both.",
+        "planningHint": "Make proposals, respond to your partner's and decide each point together.",
+        "topic": "Topic",
+        "partnerTopic": "Your partner's presentation topic",
+        "feedbackHint": "Listen to your partner, then give feedback and ask one question.",
+        "vorlageA": "Your sheet"
       },
       "result": {
         "sheetCap": "Simulated score sheet",

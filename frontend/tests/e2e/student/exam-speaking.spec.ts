@@ -31,13 +31,12 @@ const BLUEPRINTS = [
     ],
     rubricScale: 'VHN', maxTotal: 15, speakingOnlyMin: 0,
   },
-  // B1 có blueprint (seed Đợt 0) nhưng chưa có đề → UI khóa nút + "sắp có".
+  // B2 có blueprint (seed Đợt 0) nhưng chưa có đề (Đợt 4) → UI khóa nút + "sắp có".
   {
-    id: 3, provider: 'GOETHE', level: 'B1', version: 1, title: 'Goethe-Zertifikat B1 — Modul Sprechen', prepSec: 900,
+    id: 3, provider: 'GOETHE', level: 'B2', version: 1, title: 'Goethe-Zertifikat B2 — Modul Sprechen', prepSec: 900,
     parts: [
-      { teilNo: 1, archetype: 'PLAN_NEGOTIATE', title: 'Gemeinsam etwas planen', durationSec: 180, flow: 'DIALOGUE', hasPartner: true },
-      { teilNo: 2, archetype: 'PRESENT', title: 'Ein Thema präsentieren', durationSec: 240, flow: 'MONOLOGUE', hasPartner: false },
-      { teilNo: 3, archetype: 'FEEDBACK_FOLLOWUP', title: 'Über ein Thema sprechen', durationSec: 120, flow: 'FEEDBACK', hasPartner: true },
+      { teilNo: 1, archetype: 'PRESENT', title: 'Vortrag halten', durationSec: 300, flow: 'MONOLOGUE', hasPartner: true },
+      { teilNo: 2, archetype: 'DISCUSS', title: 'Diskussion führen', durationSec: 300, flow: 'DIALOGUE', hasPartner: true },
     ],
     rubricScale: 'A_E', maxTotal: 100, speakingOnlyMin: 0,
   },
@@ -136,10 +135,10 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await expect(page.getByRole('heading', { name: 'Phòng luyện thi nói' })).toBeVisible();
     await expect(page.getByTestId('start-mock')).toBeEnabled();
     // Cấp chưa mở hiển thị "sắp có" và khóa nút.
-    await page.getByTestId('level-B1').click();
+    await page.getByTestId('level-B2').click();
     await expect(page.getByTestId('start-mock')).toBeDisabled();
     await expect(page.getByTestId('start-drill-1')).toBeDisabled();
-    await expect(page.getByText('Cấp B1 sẽ mở ở đợt tiếp theo.')).toBeVisible();
+    await expect(page.getByText('Cấp B2 sẽ mở ở đợt tiếp theo.')).toBeVisible();
     await page.getByTestId('level-A1').click();
     await expect(page.getByTestId('start-mock')).toBeEnabled();
 
@@ -276,5 +275,69 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await page.reload();
     await expect(page.getByTestId('stimulus-prompt-card')).toContainText('Was machen Sie mit Ihrem Geld?');
     await expect(page.getByTestId('stimulus-prompt-card')).toContainText('Sparen?');
+  });
+
+  test('B1 mock: màn chuẩn bị có tài liệu 3 Teil, phải chọn 1/2 chủ đề mới được vào thi, không lộ bài của partner', async ({ page }) => {
+    await baseMocks(page);
+    const folien = ['Thema vorstellen', 'Eigene Erfahrung', 'Heimatland', 'Vor- und Nachteile', 'Schluss'];
+    let chosen: number | null = null;
+    const prepSession = () => ({
+      id: 701, provider: 'GOETHE', level: 'B1', mode: 'MOCK', state: 'PREP', currentPart: 0, currentStep: 0, totalParts: 3,
+      serverNow: NOW.toISOString(), prepDeadlineAt: deadline(300), prepSec: 300, partDeadlineAt: null, directive: null, lastTurnEval: null,
+      notesText: null, gradingJobId: null, resultAvailable: false,
+      prepMaterials: [
+        { teilNo: 1, title: 'Gemeinsam etwas planen', archetype: 'PLAN_NEGOTIATE', choiceRequired: false, chosenIndex: null,
+          stimuli: [{ type: 'PLANNING_CARD', situation: 'Eine Kollegin liegt im Krankenhaus.', prompts: ['Wann besuchen?', 'Was mitbringen?'] }] },
+        { teilNo: 2, title: 'Ein Thema präsentieren', archetype: 'PRESENT', choiceRequired: true, chosenIndex: chosen,
+          stimuli: [{ type: 'FOLIEN_DECK', topic: 'Essen gehen oder selbst kochen?', folien }, { type: 'FOLIEN_DECK', topic: 'Sport im Verein oder allein?', folien }] },
+        { teilNo: 3, title: 'Über ein Thema sprechen', archetype: 'FEEDBACK_FOLLOWUP', choiceRequired: false, chosenIndex: null,
+          stimuli: [{ type: 'PARTNER_PRESENTATION', topic: 'Mit dem Fahrrad zur Arbeit?', instruction: 'Hören Sie zu und geben Sie eine Rückmeldung.' }] },
+      ],
+    });
+    await page.route('**/api/speaking/exam/sessions/701', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(prepSession()) }),
+    );
+    await page.route('**/api/speaking/exam/sessions/701/choice', async (route) => {
+      const body = JSON.parse(route.request().postData() ?? '{}');
+      chosen = body.index;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(prepSession()) });
+    });
+    await page.goto('/v2/student/speaking/exam/session/701');
+    await expect(page.getByTestId('exam-prep')).toBeVisible();
+    await expect(page.getByTestId('prep-materials')).toContainText('Krankenhaus');
+    await expect(page.getByTestId('stimulus-folien-card').first()).toContainText('Thema vorstellen');
+    await expect(page.getByTestId('stimulus-partner-presentation-card')).toContainText('Fahrrad');
+    await expect(page.getByTestId('exam-timer')).toBeVisible();
+    // Chưa chọn chủ đề → không vào thi được.
+    await expect(page.getByTestId('prep-enter')).toBeDisabled();
+    await page.getByTestId('choose-2-1').click();
+    await expect(page.getByTestId('choose-2-1')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('prep-enter')).toBeEnabled();
+    expect(chosen).toBe(1);
+  });
+
+  test('telc B1 Teil 2: Vorlage A có biểu đồ SVG, không lộ Vorlage B', async ({ page }) => {
+    await baseMocks(page);
+    await page.route('**/api/speaking/exam/sessions/702', (route) =>
+      route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({
+          id: 702, provider: 'TELC', level: 'B1', mode: 'DRILL', state: 'IN_PART', currentPart: 2, currentStep: 0, totalParts: 1,
+          serverNow: NOW.toISOString(), prepDeadlineAt: null, prepSec: null, prepMaterials: null, partDeadlineAt: deadline(330),
+          directive: { teilNo: 2, title: 'Gespräch über ein Thema', archetype: 'TOPIC_EXCHANGE', stepIndex: 0, stepCount: 8, candidateAction: 'SPEAK',
+            hintVi: 'Thuật lại Vorlage của bạn.', prueferText: 'Teil 2.', prueferVoice: 'PRUEFER', lastAiRole: null, lastAiText: null,
+            stimulus: { type: 'TOPIC_GRAPHIC_PAIR', thema: 'Ferien und Reisen', candidateText: 'Fiktive Umfrage: Wohin fahren Deutsche?', instruction: 'Berichten Sie.',
+              candidateChart: { title: 'Urlaubsziele (fiktiv, in %)', unit: '%', series: [{ label: 'Deutschland', value: 34 }, { label: 'Italien', value: 18 }] },
+              partnerText: 'GEHEIM-VORLAGE-B' } },
+          lastTurnEval: null, notesText: null, gradingJobId: null, resultAvailable: false,
+        }),
+      }),
+    );
+    await page.goto('/v2/student/speaking/exam/session/702');
+    const card = page.getByTestId('stimulus-graphic-card');
+    await expect(card).toContainText('Ferien und Reisen');
+    await expect(card.locator('svg rect')).toHaveCount(2);
+    await expect(card).toContainText('34%');
+    await expect(page.locator('main')).not.toContainText('GEHEIM-VORLAGE-B');
   });
 });

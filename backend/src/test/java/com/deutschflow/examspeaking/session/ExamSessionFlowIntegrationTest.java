@@ -82,6 +82,12 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
     /** LLM giả: nhận dạng loại prompt qua dấu hiệu ổn định trong text. */
     static String fakeLlm(String user, String all) {
         if (user.contains("Kandidat sagt:")) {
+            if (all.contains("DEINE VORLAGE")) {
+                return "{\"reply_de\":\"Interessant. Auf meiner Vorlage steht, wie junge Leute verreisen: die meisten mit dem Auto. Und du?\"}";
+            }
+            if (user.contains("DEINEM Vortrag") || user.contains("zu DEINEM Vortrag")) {
+                return "{\"reply_de\":\"Danke! Ja, ich fahre auch im Winter mit dem Fahrrad, nur bei Schnee nehme ich den Bus.\"}";
+            }
             // Lịch của partner nằm trong SYSTEM prompt (không bao giờ gửi client) → dò trên toàn bộ messages.
             if (all.contains("DEIN TERMINKALENDER")) {
                 return "{\"reply_de\":\"Montag kann ich nicht, da habe ich Deutschkurs. Geht Dienstag um 18 Uhr?\"}";
@@ -90,6 +96,20 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         }
         if (user.contains("Bewerte NUR diese eine Äußerung")) {
             return "{\"score\":7,\"feedback_vi\":\"Câu hỏi đúng trọng tâm. Chú ý chia động từ.\",\"corrections\":[{\"code\":\"VERB.CONJUGATION\",\"original\":\"du trinken\",\"correction\":\"du trinkst\"}],\"redemittel\":[\"Was … Sie gern?\"]}";
+        }
+        if (user.contains("Goethe-Zertifikat B1") && user.contains("TRANSKRIPT")) {
+            // Trả band cho MỌI mã tiêu chí có trong prompt (Teil 1: 4 tiêu chí, Teil 2: 4, Teil 3: 1) + 1 lỗi.
+            StringBuilder sb = new StringBuilder("{\"items\":[],\"criteria\":[");
+            String[] codes = {"ERFUELLUNG", "INTERAKTION", "KOHAERENZ", "WORTSCHATZ", "STRUKTUREN"};
+            boolean first = true;
+            for (String c : codes) {
+                if (user.contains("- " + c + ":")) {
+                    sb.append(first ? "" : ",").append("{\"code\":\"").append(c).append("\",\"band\":\"B\",\"evidence\":[\"Beleg\"]}");
+                    first = false;
+                }
+            }
+            sb.append("],\"errors\":[{\"code\":\"CASE.PREP_DAT_MIT\",\"original\":\"mit die Bahn\",\"correction\":\"mit der Bahn\",\"severity\":\"MAJOR\"}]}");
+            return sb.toString();
         }
         if (user.contains("Goethe-Zertifikat A2") && user.contains("GESAMTBEWERTUNG")) {
             return "{\"criteria\":[{\"code\":\"WORTSCHATZ\",\"band\":\"B\",\"evidence\":[\"Wortschatz zum Alltag\"]},{\"code\":\"STRUKTUREN\",\"band\":\"C\",\"evidence\":[]}]}";
@@ -199,7 +219,7 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
     @Test
     @DisplayName("Thiếu đề (B1 chưa seed) → 409 rõ ràng, không tạo phiên hỏng")
     void missingTasksFailsFast() {
-        assertThatThrownBy(() -> sessionService.create(userId, new CreateExamSessionRequest("GOETHE", "B1", "MOCK", null)))
+        assertThatThrownBy(() -> sessionService.create(userId, new CreateExamSessionRequest("TELC", "B2", "MOCK", null)))
                 .isInstanceOf(com.deutschflow.common.exception.ConflictException.class)
                 .hasMessageContaining("Chưa đủ đề");
     }
@@ -257,6 +277,99 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(r.total()).isPositive();
         assertThat(r.scoreSheet().get("passRule").toString()).contains("15");
         assertThat(r.passed()).isNotNull();
+    }
+
+
+    @Test
+    @DisplayName("V279 seed: đề B1 (Goethe T1/T2/T3, telc T1/T2/T3) + cột prep_sec")
+    void b1SeedIsPresent() {
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='GOETHE' AND teil_no=1", Integer.class)).isEqualTo(8);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='GOETHE' AND teil_no=2", Integer.class)).isEqualTo(12);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='GOETHE' AND teil_no=3", Integer.class)).isEqualTo(8);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=1", Integer.class)).isEqualTo(3);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=2", Integer.class)).isEqualTo(8);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=3", Integer.class)).isEqualTo(8);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_name='speaking_exam_sessions' AND column_name='prep_sec'", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("MOCK Goethe B1 text-only: prep rút gọn 5′ + tài liệu chuẩn bị (không lộ partner*), chọn 1/2 chủ đề, partner trình bày trước ở T3 (2 lượt AI), chấm thang 100")
+    void mockB1WithPrepChoiceAndPartnerPresentation() {
+        ExamSessionView s = sessionService.create(userId, new CreateExamSessionRequest("GOETHE", "B1", "MOCK", null));
+        assertThat(s.state()).isEqualTo(SpeakingExamSession.STATE_PREP);
+        assertThat(s.prepSec()).isEqualTo(300); // SHORT mặc định (blueprint 900)
+        assertThat(s.prepDeadlineAt()).isNotNull();
+        assertThat(s.prepMaterials()).hasSize(3);
+        ExamSessionView.PrepMaterial t2 = s.prepMaterials().get(1);
+        assertThat(t2.choiceRequired()).isTrue();
+        assertThat(t2.stimuli()).hasSize(2);
+        assertThat(t2.stimuli().get(0)).containsKeys("topic", "folien");
+        ExamSessionView.PrepMaterial t3 = s.prepMaterials().get(2);
+        assertThat(t3.stimuli().get(0)).containsKey("topic").doesNotContainKey("partnerPresentation");
+
+        ExamSessionView chosen = sessionService.choose(userId, s.id(), 2, 1);
+        assertThat(chosen.prepMaterials().get(1).chosenIndex()).isEqualTo(1);
+        String chosenTopic = String.valueOf(t2.stimuli().get(1).get("topic"));
+
+        ExamSessionView live = sessionService.advance(userId, s.id());
+        assertThat(live.state()).isEqualTo(SpeakingExamSession.STATE_IN_PART);
+        assertThat(live.currentPart()).isEqualTo(1);
+        assertThat(live.directive().stimulus()).containsKeys("situation", "prompts");
+
+        // T1: 8 lượt hội thoại planen
+        ExamSessionView cur = live;
+        for (int i = 0; i < 8 && cur.currentPart() == 1; i++) {
+            cur = sessionService.submitTextTurn(userId, s.id(), "Ich schlage vor, wir besuchen sie am Samstag.").session();
+        }
+        assertThat(cur.currentPart()).isEqualTo(2);
+        assertThat(cur.directive().stimulus().get("topic")).isEqualTo(chosenTopic);
+        assertThat(cur.directive().prueferText()).contains(chosenTopic);
+        // T2: trình bày → partner nhận xét+hỏi → trả lời → giám khảo hỏi → trả lời
+        TurnResponse present = sessionService.submitTextTurn(userId, s.id(), "Mein Thema ist " + chosenTopic + ". Zuerst …");
+        assertThat(present.aiRole()).isEqualTo("PARTNER");
+        cur = sessionService.submitTextTurn(userId, s.id(), "Ja, das stimmt.").session();
+        cur = sessionService.submitTextTurn(userId, s.id(), "Ich denke, das ist wichtig.").session();
+        assertThat(cur.currentPart()).isEqualTo(3);
+        // T3: partner đã trình bày TRƯỚC (lượt PARTNER ngay sau lời giới thiệu Teil)
+        List<SpeakingExamTurn> turns = turnRepository.findBySessionIdOrderBySeqAsc(s.id());
+        SpeakingExamTurn partnerPres = turns.stream().filter(t -> t.getPartNo() == 3 && SpeakingExamTurn.ROLE_PARTNER.equals(t.getRole())).findFirst().orElseThrow();
+        assertThat(partnerPres.getTranscript()).hasSizeGreaterThan(150); // bài trình bày đầy đủ (~100–150 từ), không phải câu đệm
+        assertThat(cur.directive().lastAiRole()).isEqualTo("PARTNER");
+        TurnResponse fb = sessionService.submitTextTurn(userId, s.id(), "Ich fand deinen Vortrag interessant. Fährst du auch im Winter mit dem Fahrrad?");
+        assertThat(fb.aiTurns()).hasSize(2);
+        assertThat(fb.aiTurns().get(0).role()).isEqualTo("PARTNER");
+        assertThat(fb.aiTurns().get(0).text()).contains("Winter");
+        assertThat(fb.aiTurns().get(1).role()).isEqualTo("PRUEFER");
+        cur = sessionService.submitTextTurn(userId, s.id(), "Ich fahre lieber mit dem Bus.").session();
+        assertThat(cur.state()).isEqualTo(SpeakingExamSession.STATE_GRADING);
+
+        gradingJobHandler.handle(aiJobRepository.findById(cur.gradingJobId()).orElseThrow());
+        ExamResultView r = sessionService.result(userId, s.id());
+        assertThat(r.max()).isEqualByComparingTo("84.00"); // 100 − Aussprache 16 (text-only chưa chấm)
+        assertThat(r.total()).isPositive();
+        assertThat(r.scoreSheet().get("passRule").toString()).contains("60");
+    }
+
+    @Test
+    @DisplayName("DRILL telc B1 Teil 2 (Vorlage A/B): client chỉ thấy Vorlage A, partner AI thuật lại Vorlage B từ system prompt")
+    void drillTelcB1VorlagePairKeepsPartnerSheetPrivate() {
+        ExamSessionView s = sessionService.create(userId, new CreateExamSessionRequest("TELC", "B1", "DRILL", 2));
+        assertThat(s.directive().stimulus()).containsKeys("thema", "candidateText", "candidateChart");
+        assertThat(s.directive().stimulus()).doesNotContainKeys("partnerText", "partnerChart");
+        TurnResponse t1 = sessionService.submitTextTurn(userId, s.id(), "Auf meiner Vorlage steht, wohin die Deutschen reisen.");
+        assertThat(t1.aiRole()).isEqualTo("PARTNER");
+        assertThat(t1.aiText()).contains("Auf meiner Vorlage steht");
+    }
+
+    @Test
+    @DisplayName("Chọn đề sau khi đã nói ở Teil đó → 409")
+    void choiceAfterSpeakingIsRejected() {
+        ExamSessionView s = sessionService.create(userId, new CreateExamSessionRequest("GOETHE", "B1", "DRILL", 2));
+        assertThat(s.state()).isEqualTo(SpeakingExamSession.STATE_IN_PART);
+        sessionService.choose(userId, s.id(), 2, 1); // chưa nói → được
+        sessionService.submitTextTurn(userId, s.id(), "Mein Thema ist …");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> sessionService.choose(userId, s.id(), 2, 0))
+                .isInstanceOf(com.deutschflow.common.exception.ConflictException.class);
     }
 
 }

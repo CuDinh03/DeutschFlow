@@ -174,7 +174,105 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction }: Props) {
     )
   }
 
-  // Fallback: các loại đề đợt sau (B1 Folien, Grafik…) vẫn hiện được nội dung thô — không bao giờ lộ khóa partner*.
+  if (type === 'PLANNING_CARD') {
+    const prompts = Array.isArray(stimulus.prompts) ? (stimulus.prompts as unknown[]).map(String) : []
+    return (
+      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-planning-card">
+        <GaCap className="mb-2 block">{t('situation')}</GaCap>
+        <p className="ga-ui text-[15px] text-ga-ink">{String(stimulus.situation ?? '')}</p>
+        {prompts.length > 0 && (
+          <ul className="mt-3 space-y-1.5">
+            {prompts.map((p) => (
+              <li key={p} className="ga-ui flex items-start gap-2 text-[14px] text-ga-ink">
+                <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-ga-ink" aria-hidden /> {p}
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="ga-ui mt-3 text-[12.5px] text-ga-muted">{t('planningHint')}</p>
+      </div>
+    )
+  }
+
+  if (type === 'FOLIEN_DECK') {
+    const folien = Array.isArray(stimulus.folien) ? (stimulus.folien as unknown[]).map(String) : []
+    return (
+      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-folien-card">
+        <GaCap className="mb-2 block">{t('topic')}</GaCap>
+        <p className="font-ga-display text-[22px] font-medium leading-snug text-ga-ink">{String(stimulus.topic ?? '')}</p>
+        <ol className="mt-4 space-y-2">
+          {folien.map((f, i) => (
+            <li key={f} className="flex items-start gap-3 rounded-ga bg-ga-surface p-2.5">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-ga bg-ga-ink font-ga-display text-[14px] font-semibold text-ga-bg">{i + 1}</span>
+              <span className="ga-ui text-[13.5px] text-ga-ink">{f}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+    )
+  }
+
+  if (type === 'PARTNER_PRESENTATION') {
+    // Văn bản bài trình bày của partner nằm ở khóa partner* (server không gửi) — nó đến dưới dạng lượt nói.
+    return (
+      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-partner-presentation-card">
+        <GaCap className="mb-2 block">{t('partnerTopic')}</GaCap>
+        <p className="font-ga-display text-[22px] font-medium leading-snug text-ga-ink">{String(stimulus.topic ?? '')}</p>
+        <p className="ga-ui mt-3 text-[13.5px] text-ga-ink">{String(stimulus.instruction ?? t('feedbackHint'))}</p>
+      </div>
+    )
+  }
+
+  if (type === 'CONTACT_CARD') {
+    const topics = Array.isArray(stimulus.topics) ? (stimulus.topics as unknown[]).map(String) : []
+    return (
+      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-contact-card">
+        <GaCap className="mb-2 block">{t('yourCard')}</GaCap>
+        <p className="ga-ui text-[13.5px] text-ga-ink">{String(stimulus.instruction ?? '')}</p>
+        <ul className="mt-3 flex flex-wrap gap-2">
+          {topics.map((h) => (
+            <li key={h} className="ga-ui rounded-ga bg-ga-surface px-3 py-1.5 text-[14px] text-ga-ink">{h}</li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
+  if (type === 'TOPIC_GRAPHIC_PAIR') {
+    const chart = (stimulus.candidateChart ?? null) as { title?: string; unit?: string; series?: { label: string; value: number }[] } | null
+    const series = chart?.series ?? []
+    const max = Math.max(1, ...series.map((s) => Number(s.value) || 0))
+    return (
+      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-graphic-card">
+        <GaCap className="mb-2 block">{t('vorlageA')}</GaCap>
+        <p className="font-ga-display text-[20px] font-medium leading-snug text-ga-ink">{String(stimulus.thema ?? '')}</p>
+        <p className="ga-ui mt-2 text-[13.5px] text-ga-ink">{String(stimulus.candidateText ?? '')}</p>
+        {chart && series.length > 0 && (
+          <figure className="mt-4">
+            <figcaption className="ga-ui text-[12px] uppercase tracking-wide text-ga-muted">{chart.title}</figcaption>
+            <svg viewBox={`0 0 320 ${series.length * 26 + 4}`} className="mt-1 w-full" role="img" aria-label={chart.title ?? ''}>
+              {series.map((s, i) => {
+                const w = Math.round((Number(s.value) / max) * 190)
+                const y = i * 26
+                return (
+                  <g key={s.label} transform={`translate(0, ${y})`}>
+                    <text x="0" y="16" fontSize="11" fill="currentColor" className="text-ga-ink">{s.label}</text>
+                    <rect x="110" y="4" width={w} height="16" fill="var(--ga-yellow)" stroke="var(--ga-ink)" />
+                    <text x={116 + w} y="16" fontSize="11" fill="currentColor" className="text-ga-ink">
+                      {s.value}{chart.unit ?? ''}
+                    </text>
+                  </g>
+                )
+              })}
+            </svg>
+          </figure>
+        )}
+        <p className="ga-ui mt-2 text-[12.5px] text-ga-muted">{String(stimulus.instruction ?? '')}</p>
+      </div>
+    )
+  }
+
+  // Fallback: các loại đề đợt sau (B2 Vortrag, Debatte…) vẫn hiện được nội dung thô — không bao giờ lộ khóa partner*.
   const entries = Object.entries(stimulus).filter(([k]) => k !== 'type' && !k.startsWith('partner'))
   return (
     <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5" data-testid="stimulus-generic-card">

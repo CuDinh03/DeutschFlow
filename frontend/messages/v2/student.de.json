@@ -1138,7 +1138,10 @@
         "recentCap": "Letzte Ergebnisse",
         "passed": "Bestanden",
         "failed": "Nicht bestanden",
-        "disclaimer": "Simulation öffentlich dokumentierter Prüfungsformate; keine Verbindung zum Goethe-Institut oder zu telc. Punkte sind Richtwerte (typische Abweichung ±1 Stufe), kein Zertifikat."
+        "disclaimer": "Simulation öffentlich dokumentierter Prüfungsformate; keine Verbindung zum Goethe-Institut oder zu telc. Punkte sind Richtwerte (typische Abweichung ±1 Stufe), kein Zertifikat.",
+        "prepModeLabel": "Vorbereitung",
+        "prepShort": "5 Min. kurz",
+        "prepFull": "{min} Min. wie in der Prüfung"
       },
       "room": {
         "loading": "Prüfungsraum wird betreten…",
@@ -1176,7 +1179,10 @@
         "pruefer": "Prüfer/in",
         "partner": "Partner/in",
         "score": "{score}/10",
-        "redemittel": "Redemittel"
+        "redemittel": "Redemittel",
+        "chooseOne": "Ein Thema wählen",
+        "chosen": "Option {n} gewählt",
+        "option": "Option {n}"
       },
       "mic": {
         "sending": "Wird gesendet, Antwort folgt…",
@@ -1212,7 +1218,12 @@
         "promptHint": "Erzählen Sie von sich zu dieser Frage; die Stichpunkte helfen. Etwa eine Minute.",
         "situation": "Situation",
         "yourCalendar": "Ihr Kalender",
-        "partnerHasOtherCalendar": "Ihr Partner hat einen anderen Kalender — fragen Sie nach und finden Sie gemeinsam eine Zeit."
+        "partnerHasOtherCalendar": "Ihr Partner hat einen anderen Kalender — fragen Sie nach und finden Sie gemeinsam eine Zeit.",
+        "planningHint": "Machen Sie Vorschläge, reagieren Sie auf die Ihres Partners und entscheiden Sie jeden Punkt gemeinsam.",
+        "topic": "Thema",
+        "partnerTopic": "Thema des Vortrags Ihres Partners",
+        "feedbackHint": "Hören Sie zu, geben Sie dann eine Rückmeldung und stellen Sie eine Frage.",
+        "vorlageA": "Ihre Vorlage"
       },
       "result": {
         "sheetCap": "Simulierter Bewertungsbogen",

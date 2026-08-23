@@ -109,9 +109,13 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       const added: RoomLine[] = [
         { id: nextId(), role: 'CANDIDATE', text: res.transcript || transcriptFallback, teilNo: prevTeil, eval: res.turnEval },
       ]
-      if (res.aiText && res.aiRole) {
-        added.push({ id: nextId(), role: res.aiRole as RoomLine['role'], text: res.aiText, teilNo: prevTeil, latencyMs: performance.now() - startedAt })
-      }
+      // B1 T3: partner trả lời + giám khảo hỏi = 2 lượt AI; backend cũ chỉ có aiRole/aiText.
+      const aiTurns = res.aiTurns && res.aiTurns.length > 0
+        ? res.aiTurns
+        : res.aiText && res.aiRole ? [{ role: res.aiRole, text: res.aiText }] : []
+      aiTurns.forEach((t, i) => {
+        added.push({ id: nextId(), role: t.role as RoomLine['role'], text: t.text, teilNo: prevTeil, latencyMs: i === 0 ? performance.now() - startedAt : undefined })
+      })
       const d = res.session.directive
       const movedToNewPart = d && d.teilNo !== prevTeil && d.prueferText
       if (movedToNewPart) {
@@ -121,7 +125,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       setSession(res.session)
       // Nói lời AI theo thứ tự: partner/prüfer trả lời → (nếu sang Teil mới) lời giới thiệu Teil.
       void (async () => {
-        if (res.aiText && res.aiRole) await speakExamLine(res.aiRole, res.aiText)
+        for (const t of aiTurns) await speakExamLine(t.role, t.text)
         if (movedToNewPart) {
           spokenRef.current = `${d!.teilNo}:${d!.prueferText}`
           await speakExamLine('PRUEFER', d!.prueferText!)
@@ -199,6 +203,22 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
     }
   }, [sessionId])
 
+  const choose = useCallback(
+    async (teilNo: number, index: number) => {
+      setBusy(true)
+      setError(null)
+      try {
+        const { data } = await examSpeakingApi.choose(sessionId, teilNo, index)
+        setSession(data)
+      } catch (e) {
+        setError(apiMessage(e))
+      } finally {
+        setBusy(false)
+      }
+    },
+    [sessionId],
+  )
+
   const saveNotes = useCallback(async () => {
     try {
       const { data } = await examSpeakingApi.saveNotes(sessionId, notes)
@@ -265,11 +285,50 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
         )}
 
         {session.state === 'PREP' && (
-          <section className="mx-auto max-w-2xl space-y-4" data-testid="exam-prep">
+          <section className="mx-auto max-w-3xl space-y-4" data-testid="exam-prep">
             <GaCap className="block">{t('prepCap')}</GaCap>
             <p className="ga-ui text-[14.5px] text-ga-ink">{t('prepDesc')}</p>
             {session.prepDeadlineAt && (
-              <ExamTimer deadlineAt={session.prepDeadlineAt} serverNow={session.serverNow} totalSec={blueprint?.prepSec ?? 0} label={t('prepLeft')} onExpire={() => void advance()} />
+              <ExamTimer deadlineAt={session.prepDeadlineAt} serverNow={session.serverNow} totalSec={session.prepSec ?? blueprint?.prepSec ?? 0} label={t('prepLeft')} onExpire={() => void advance()} />
+            )}
+            {session.prepMaterials && session.prepMaterials.length > 0 && (
+              <div className="space-y-4" data-testid="prep-materials">
+                {session.prepMaterials.map((m) => (
+                  <div key={m.teilNo} className="rounded-ga border border-ga-line bg-ga-card p-4">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="font-ga-display text-[18px] font-medium text-ga-ink">
+                        {t('teilCap', { n: m.teilNo })} · {m.title}
+                      </p>
+                      {m.choiceRequired && (
+                        <span className={`ga-ui text-[12px] font-semibold ${m.chosenIndex === null ? 'text-ga-red' : 'text-ga-green'}`}>
+                          {m.chosenIndex === null ? t('chooseOne') : t('chosen', { n: (m.chosenIndex ?? 0) + 1 })}
+                        </span>
+                      )}
+                    </div>
+                    <div className={m.choiceRequired ? 'grid gap-3 md:grid-cols-2' : ''}>
+                      {m.stimuli.map((stim, idx) => (
+                        <div key={idx} className="relative">
+                          {m.choiceRequired && (
+                            <button
+                              type="button"
+                              onClick={() => void choose(m.teilNo, idx)}
+                              disabled={busy}
+                              aria-pressed={m.chosenIndex === idx}
+                              className={`ga-ui mb-2 w-full rounded-ga border px-3 py-2 text-left text-[13px] font-semibold ${
+                                m.chosenIndex === idx ? 'border-ga-ink bg-ga-ink text-ga-bg' : 'border-ga-line bg-ga-card text-ga-ink hover:bg-ga-surface'
+                              }`}
+                              data-testid={`choose-${m.teilNo}-${idx}`}
+                            >
+                              {t('option', { n: idx + 1 })}
+                            </button>
+                          )}
+                          <StimulusCard stimulus={stim} stepIndex={0} candidateAction="SPEAK" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
             <textarea
               className="ga-ui min-h-[160px] w-full rounded-ga border border-ga-line bg-ga-bg p-3 text-[14.5px] text-ga-ink"
@@ -279,7 +338,13 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
               placeholder={t('notesPlaceholder')}
               aria-label={t('notesPlaceholder')}
             />
-            <GaBtn variant="ink" size="lg" onClick={() => void advance()} disabled={busy} data-testid="prep-enter">
+            <GaBtn
+              variant="ink"
+              size="lg"
+              onClick={() => void advance()}
+              disabled={busy || (session.prepMaterials ?? []).some((m) => m.choiceRequired && m.chosenIndex === null)}
+              data-testid="prep-enter"
+            >
               {t('enterExam')} <ChevronRight size={16} aria-hidden className="ml-1" />
             </GaBtn>
           </section>
