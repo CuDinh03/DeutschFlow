@@ -238,7 +238,9 @@
         "interviewTitle": "Luyện phỏng vấn",
         "interviewDesc": "Mô phỏng phỏng vấn xin việc với HR người Đức.",
         "weeklyTitle": "Chủ đề theo tuần",
-        "weeklyDesc": "Bài luyện nói có chủ đề, cập nhật mỗi tuần."
+        "weeklyDesc": "Bài luyện nói có chủ đề, cập nhật mỗi tuần.",
+        "examTitle": "Phòng luyện thi nói",
+        "examDesc": "Luyện từng phần hoặc thi thử theo đúng format Goethe / telc, chấm theo tiêu chí của kỳ thi."
       },
       "interviewResults": "Kết quả phỏng vấn",
       "historyCta": "Lịch sử"
@@ -1097,6 +1099,140 @@
       "allDone": "Bạn đã hoàn thành tất cả bài ôn tập hôm nay!",
       "completedCap": "Đã hoàn thành ({count})",
       "times": "{count} lần"
+    },
+    "examSpeaking": {
+      "catalog": {
+        "title": "Phòng luyện thi nói",
+        "subtitle": "Mô phỏng phần thi nói Goethe / telc — luyện từng Teil hoặc thi thử trọn gói",
+        "back": "Về luyện nói",
+        "dismiss": "Đóng",
+        "providerLabel": "Hệ chứng chỉ",
+        "levelLabel": "Cấp độ",
+        "soon": "sắp có",
+        "loading": "Đang tải đề thi…",
+        "noBlueprint": "Chưa có đề cho lựa chọn này.",
+        "mockCap": "Thi thử trọn gói",
+        "duration": "{min} phút",
+        "prep": "Chuẩn bị {min} phút",
+        "partnerAi": "AI làm giám khảo + bạn thi",
+        "scale": "Thang {scale}, tối đa {max} điểm",
+        "scaleVhn": "đủ / nửa / 0",
+        "mockDesc": "Đúng trình tự và đồng hồ như thi thật; không sửa lỗi giữa chừng; kết thúc nhận phiếu điểm theo tiêu chí của kỳ thi.",
+        "starting": "Đang mở phòng…",
+        "startMock": "Thi thử ngay",
+        "drillCap": "Luyện từng phần",
+        "archetype": {
+          "SELF_INTRO": "Tự giới thiệu theo từ khóa, đánh vần, đọc số",
+          "CARD_QA": "Hỏi – đáp theo thẻ chủ đề với bạn thi",
+          "REQUEST_RESPOND": "Đưa ra lời đề nghị theo hình và phản ứng",
+          "ABOUT_ME": "Kể về bản thân theo gợi ý",
+          "PLAN_NEGOTIATE": "Cùng lên kế hoạch / hẹn lịch với bạn thi",
+          "TOPIC_EXCHANGE": "Làm quen và trao đổi về một chủ đề",
+          "PRESENT": "Thuyết trình có cấu trúc",
+          "FEEDBACK_FOLLOWUP": "Nhận xét bài của bạn thi và đặt câu hỏi",
+          "DISCUSS": "Thảo luận ủng hộ / phản đối",
+          "PICTURE": "Mô tả hình và nói về hình"
+        },
+        "startDrill": "Luyện phần này",
+        "levelSoon": "Cấp {level} sẽ mở ở đợt tiếp theo.",
+        "recentCap": "Kết quả gần đây",
+        "passed": "Đạt",
+        "failed": "Chưa đạt",
+        "disclaimer": "Mô phỏng theo định dạng đề thi công khai; không liên kết với Goethe-Institut hay telc. Điểm chỉ mang tính tham khảo (sai số điển hình ±1 bậc so với giám khảo), không phải chứng nhận."
+      },
+      "room": {
+        "loading": "Đang vào phòng thi…",
+        "notFound": "Không tìm thấy phiên thi.",
+        "retry": "Thử lại",
+        "modeMock": "Thi thử",
+        "modeDrill": "Luyện phần",
+        "timeLeft": "Còn",
+        "unmute": "Bật tiếng",
+        "mute": "Tắt tiếng",
+        "dismiss": "Đóng",
+        "prepCap": "Thời gian chuẩn bị",
+        "prepDesc": "Ghi chú gạch đầu dòng; bạn được dùng ghi chú trong lúc thi. Hết giờ sẽ tự vào phòng.",
+        "prepLeft": "Chuẩn bị",
+        "notesPlaceholder": "Ghi chú của bạn (Konzeptpapier)…",
+        "enterExam": "Vào thi",
+        "teilCap": "Teil {n}",
+        "step": "Bước {i}/{n}",
+        "myNotes": "Ghi chú của tôi",
+        "skipPart": "Sang phần kế",
+        "finishMock": "Kết thúc & chấm",
+        "finishDrill": "Kết thúc",
+        "action": {
+          "ASK": "Đến lượt bạn ĐẶT CÂU HỎI / đưa lời đề nghị. Bấm để nói.",
+          "ANSWER": "Đến lượt bạn TRẢ LỜI. Bấm để nói.",
+          "SPEAK": "Đến lượt bạn nói. Bấm để bắt đầu.",
+          "REACT": "Phản hồi bạn thi. Bấm để nói."
+        },
+        "grading": "Giám khảo đang chấm…",
+        "gradingDesc": "Hai lượt chấm độc lập theo tiêu chí của kỳ thi, thường mất dưới một phút.",
+        "aborted": "Phiên đã bị hủy.",
+        "again": "Luyện tiếp",
+        "backToCatalog": "Về phòng luyện thi",
+        "you": "Bạn",
+        "pruefer": "Giám khảo",
+        "partner": "Bạn thi",
+        "score": "{score}/10",
+        "redemittel": "Gợi ý cách nói"
+      },
+      "mic": {
+        "sending": "Đang gửi và chờ phản hồi…",
+        "recording": "Đang thu — bấm để dừng & gửi",
+        "textPlaceholder": "Gõ câu trả lời tiếng Đức…",
+        "send": "Gửi",
+        "useMic": "Dùng mic",
+        "stopSend": "Dừng & gửi",
+        "start": "Bấm để nói",
+        "useText": "Gõ thay vì nói",
+        "errors": {
+          "denied": "Trình duyệt chặn micro. Hãy cấp quyền rồi thử lại.",
+          "no-device": "Không tìm thấy micro.",
+          "busy": "Micro đang bị ứng dụng khác dùng.",
+          "insecure": "Micro cần HTTPS.",
+          "unsupported": "Trình duyệt không hỗ trợ thu âm.",
+          "unknown": "Không thu âm được. Hãy thử lại."
+        }
+      },
+      "stimulus": {
+        "none": "Không có thẻ đề ở bước này — nghe giám khảo.",
+        "partnerCard": "Thẻ của bạn thi",
+        "yourCard": "Thẻ của bạn",
+        "thema": "Chủ đề",
+        "wort": "Từ",
+        "pictureHint": "Đưa ra một lời đề nghị / yêu cầu với đồ vật này.",
+        "spell": "Đánh vần",
+        "number": "Đọc số"
+      },
+      "result": {
+        "sheetCap": "Phiếu kết quả mô phỏng",
+        "range": "Khoảng {range} từ {passes} lượt chấm độc lập",
+        "noThreshold": "Không có ngưỡng riêng",
+        "passed": "Đạt",
+        "failed": "Chưa đạt",
+        "reducedMax": "Một số tiêu chí chưa chấm được → tính trên {max}/{official}; đỗ/trượt quy đổi tỉ lệ.",
+        "teil": "Teil {n}",
+        "zeroed": "Erfüllung ở bậc thấp nhất → cả Teil 0 điểm (luật của hệ).",
+        "global": "Tiêu chí chấm chung",
+        "errors": "Lỗi đã phát hiện ({n})",
+        "disclaimer": "Điểm mô phỏng — sai số điển hình ±1 bậc so với giám khảo người; không phải chứng nhận.",
+        "notScored": "Chưa chấm",
+        "confidence": {
+          "high": "tin cậy cao",
+          "medium": "tin cậy vừa",
+          "low": "ước lượng",
+          "none": "—"
+        },
+        "evidence": "Bằng chứng"
+      },
+      "drill": {
+        "cap": "Điểm nhanh trung bình",
+        "turns": "{n} lượt đã chấm",
+        "toReview": "Lỗi cần ôn",
+        "note": "Điểm nhanh để luyện; điểm theo tiêu chí kỳ thi chỉ có ở chế độ thi thử."
+      }
     }
   }
 }

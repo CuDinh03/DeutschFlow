@@ -238,7 +238,9 @@
         "interviewTitle": "Interview practice",
         "interviewDesc": "Simulate a job interview with a German HR manager.",
         "weeklyTitle": "Weekly topics",
-        "weeklyDesc": "Themed speaking practice, updated every week."
+        "weeklyDesc": "Themed speaking practice, updated every week.",
+        "examTitle": "Oral exam room",
+        "examDesc": "Drill single parts or take a full mock in the Goethe / telc format, scored by the exam's own criteria."
       },
       "interviewResults": "Interview results",
       "historyCta": "History"
@@ -1097,6 +1099,140 @@
       "allDone": "You have completed all review tasks for today!",
       "completedCap": "Completed ({count})",
       "times": "{count} times"
+    },
+    "examSpeaking": {
+      "catalog": {
+        "title": "Oral exam room",
+        "subtitle": "Simulates the Goethe / telc speaking exam — drill one Teil or take the full mock",
+        "back": "Back to speaking",
+        "dismiss": "Dismiss",
+        "providerLabel": "Exam board",
+        "levelLabel": "Level",
+        "soon": "soon",
+        "loading": "Loading exams…",
+        "noBlueprint": "No exam for this selection yet.",
+        "mockCap": "Full mock exam",
+        "duration": "{min} min",
+        "prep": "{min} min preparation",
+        "partnerAi": "AI examiner + partner",
+        "scale": "Scale {scale}, max {max} points",
+        "scaleVhn": "full / half / zero",
+        "mockDesc": "Real order and timing; no corrections mid-exam; you get a score sheet by the exam's criteria at the end.",
+        "starting": "Opening room…",
+        "startMock": "Start mock",
+        "drillCap": "Drill one part",
+        "archetype": {
+          "SELF_INTRO": "Introduce yourself from keywords, spell, say a number",
+          "CARD_QA": "Ask and answer with topic cards",
+          "REQUEST_RESPOND": "Make a request from a picture and respond",
+          "ABOUT_ME": "Talk about yourself from prompts",
+          "PLAN_NEGOTIATE": "Plan something together / find a date",
+          "TOPIC_EXCHANGE": "Get acquainted and exchange views on a topic",
+          "PRESENT": "Give a structured presentation",
+          "FEEDBACK_FOLLOWUP": "Give feedback on the partner's talk and ask a question",
+          "DISCUSS": "Discuss pro and contra",
+          "PICTURE": "Describe a picture and talk about it"
+        },
+        "startDrill": "Drill this part",
+        "levelSoon": "Level {level} opens in the next release.",
+        "recentCap": "Recent results",
+        "passed": "Pass",
+        "failed": "Fail",
+        "disclaimer": "Simulates publicly documented exam formats; not affiliated with Goethe-Institut or telc. Scores are indicative (typical error ±1 band vs. a human examiner), not a certificate."
+      },
+      "room": {
+        "loading": "Entering the exam room…",
+        "notFound": "Session not found.",
+        "retry": "Retry",
+        "modeMock": "Mock exam",
+        "modeDrill": "Drill",
+        "timeLeft": "Left",
+        "unmute": "Unmute",
+        "mute": "Mute",
+        "dismiss": "Dismiss",
+        "prepCap": "Preparation time",
+        "prepDesc": "Jot down keywords; you may use your notes during the exam. You enter automatically when time is up.",
+        "prepLeft": "Prep",
+        "notesPlaceholder": "Your notes (Konzeptpapier)…",
+        "enterExam": "Enter exam",
+        "teilCap": "Teil {n}",
+        "step": "Step {i}/{n}",
+        "myNotes": "My notes",
+        "skipPart": "Next part",
+        "finishMock": "Finish & grade",
+        "finishDrill": "Finish",
+        "action": {
+          "ASK": "Your turn to ASK a question / make a request. Tap to speak.",
+          "ANSWER": "Your turn to ANSWER. Tap to speak.",
+          "SPEAK": "Your turn to speak. Tap to start.",
+          "REACT": "Respond to your partner. Tap to speak."
+        },
+        "grading": "The examiner is grading…",
+        "gradingDesc": "Two independent grading passes by the exam's criteria — usually under a minute.",
+        "aborted": "This session was aborted.",
+        "again": "Practice again",
+        "backToCatalog": "Back to the exam room",
+        "you": "You",
+        "pruefer": "Examiner",
+        "partner": "Partner",
+        "score": "{score}/10",
+        "redemittel": "Useful phrases"
+      },
+      "mic": {
+        "sending": "Sending and waiting for the reply…",
+        "recording": "Recording — tap to stop & send",
+        "textPlaceholder": "Type your German answer…",
+        "send": "Send",
+        "useMic": "Use microphone",
+        "stopSend": "Stop & send",
+        "start": "Tap to speak",
+        "useText": "Type instead",
+        "errors": {
+          "denied": "Microphone blocked by the browser. Allow access and retry.",
+          "no-device": "No microphone found.",
+          "busy": "The microphone is used by another app.",
+          "insecure": "Microphone needs HTTPS.",
+          "unsupported": "This browser cannot record audio.",
+          "unknown": "Could not record. Please retry."
+        }
+      },
+      "stimulus": {
+        "none": "No card at this step — listen to the examiner.",
+        "partnerCard": "Partner's card",
+        "yourCard": "Your card",
+        "thema": "Topic",
+        "wort": "Word",
+        "pictureHint": "Make a request using this object.",
+        "spell": "Spell",
+        "number": "Say the number"
+      },
+      "result": {
+        "sheetCap": "Simulated score sheet",
+        "range": "Range {range} from {passes} independent grading passes",
+        "noThreshold": "No separate threshold",
+        "passed": "Pass",
+        "failed": "Fail",
+        "reducedMax": "Some criteria could not be scored → computed on {max}/{official}; pass/fail scaled proportionally.",
+        "teil": "Teil {n}",
+        "zeroed": "Erfüllung at the lowest band → whole Teil scores 0 (exam rule).",
+        "global": "Overall criteria",
+        "errors": "Errors found ({n})",
+        "disclaimer": "Simulated score — typical error ±1 band vs. a human examiner; not a certificate.",
+        "notScored": "Not scored",
+        "confidence": {
+          "high": "high confidence",
+          "medium": "medium confidence",
+          "low": "estimate",
+          "none": "—"
+        },
+        "evidence": "Evidence"
+      },
+      "drill": {
+        "cap": "Average quick score",
+        "turns": "{n} turns scored",
+        "toReview": "Errors to review",
+        "note": "Quick scores are for practice; exam-criteria scores are only available in mock mode."
+      }
     }
   }
 }
