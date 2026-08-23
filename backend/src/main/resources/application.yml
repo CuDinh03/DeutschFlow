@@ -218,6 +218,14 @@ app:
     turn-max-tokens: ${EXAM_SPEAKING_TURN_MAX_TOKENS:400}
     drill-eval-max-tokens: ${EXAM_SPEAKING_DRILL_EVAL_MAX_TOKENS:700}
     grading-max-tokens: ${EXAM_SPEAKING_GRADING_MAX_TOKENS:1800}
+  # Hàng đợi job AI (ai_jobs). max-age-days là chốt chặn kép chống lặp lại sự cố 10/06–23/08 (worker
+  # chết 2,5 tháng ⇒ backlog PENDING khổng lồ): (1) claimPendingJobs bỏ qua job cũ hơn ngưỡng nên
+  # worker không đốt token cho việc đã hết giá trị; (2) StaleAiJobExpirer chuyển chúng sang FAILED
+  # hằng đêm để không kẹt PENDING vĩnh viễn. Đổi ngưỡng là đổi cả hai vế cùng lúc.
+  ai-jobs:
+    max-age-days: ${AI_JOBS_MAX_AGE_DAYS:7}
+    expire-enabled: ${AI_JOBS_EXPIRE_ENABLED:true}
+    expire-cron: ${AI_JOBS_EXPIRE_CRON:0 15 3 * * *}
   # DeutschFlow Galerie — sinh artwork SVG bằng Anthropic (plan mục 12). Tắt mặc định:
   # bật cần GALERIE_SVG_ENABLED=true VÀ ANTHROPIC_API_KEY trong môi trường (SDK tự đọc env).
   # Không bật thì endpoint generate trả 503 AI_NOT_CONFIGURED, phần còn lại của pipeline vẫn chạy.
