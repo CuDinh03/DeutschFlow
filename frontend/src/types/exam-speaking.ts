@@ -1,0 +1,140 @@
+/**
+ * Mảng Luyện thi Nói — hợp đồng với backend `com.deutschflow.examspeaking` (Đợt 0, PR #377).
+ * Mọi đồng hồ/trạng thái là của server; client chỉ render theo snapshot.
+ */
+export type ExamProvider = 'GOETHE' | 'TELC'
+export type ExamMode = 'DRILL' | 'MOCK'
+export type ExamSessionState = 'PREP' | 'IN_PART' | 'BETWEEN' | 'DONE' | 'GRADING' | 'RESULTS' | 'ABORTED'
+export type CandidateAction = 'ASK' | 'ANSWER' | 'SPEAK' | 'REACT'
+
+export interface BlueprintPartSummary {
+  teilNo: number
+  archetype: string
+  title: string
+  durationSec: number
+  flow: string
+  hasPartner: boolean
+}
+
+export interface BlueprintSummary {
+  id: number
+  provider: ExamProvider
+  level: string
+  version: number
+  title: string
+  prepSec: number
+  parts: BlueprintPartSummary[]
+  rubricScale: 'A_E' | 'A_D' | 'VHN'
+  maxTotal: number
+  speakingOnlyMin: number
+}
+
+export interface ExamDirective {
+  teilNo: number
+  title: string
+  archetype: string
+  stepIndex: number
+  stepCount: number
+  candidateAction: CandidateAction
+  hintVi: string
+  stimulus: Record<string, unknown> | null
+  prueferText: string | null
+  prueferVoice: string | null
+  lastAiRole: string | null
+  lastAiText: string | null
+}
+
+export interface DrillTurnEval {
+  score?: number
+  feedbackVi?: string
+  corrections?: { code: string; original: string; correction: string }[]
+  redemittel?: string[]
+  error?: string
+}
+
+export interface ExamSessionView {
+  id: number
+  provider: ExamProvider
+  level: string
+  mode: ExamMode
+  state: ExamSessionState
+  currentPart: number
+  currentStep: number
+  totalParts: number
+  serverNow: string
+  prepDeadlineAt: string | null
+  partDeadlineAt: string | null
+  directive: ExamDirective | null
+  lastTurnEval: DrillTurnEval | null
+  notesText: string | null
+  gradingJobId: number | null
+  resultAvailable: boolean
+}
+
+export interface TurnResponse {
+  transcript: string
+  aiRole: string | null
+  aiText: string | null
+  aiVoice: string | null
+  turnEval: DrillTurnEval | null
+  session: ExamSessionView
+}
+
+export interface CriterionResult {
+  code: string
+  label: string
+  band: string | null
+  points: number
+  max: number
+  scored: boolean
+  confidence: string
+  evidence: string[]
+}
+
+export interface PartResult {
+  teilNo: number
+  criteria: CriterionResult[]
+  points: number
+  max: number
+  zeroed: boolean
+}
+
+export interface ScoreSheet {
+  rubricRef: { provider: ExamProvider; level: string; version: number }
+  parts: PartResult[]
+  global: CriterionResult[]
+  total: number
+  totalLow: number
+  totalHigh: number
+  maxPoints: number
+  officialMax: number
+  passed: boolean | null
+  passRule: string
+  errors: { code: string; original: string; correction: string; severity: string; teilNo: number }[]
+  notes: string[]
+  passes: number
+}
+
+export interface ExamResultView {
+  sessionId: number
+  provider: ExamProvider
+  level: string
+  rubricVersion: number
+  total: number | null
+  totalLow: number | null
+  totalHigh: number | null
+  max: number | null
+  passed: boolean | null
+  scoreSheet: ScoreSheet
+  createdAt: string
+}
+
+/** Một dòng transcript trong phòng thi (client giữ để render; server mới là nguồn sự thật). */
+export interface RoomLine {
+  id: string
+  role: 'CANDIDATE' | 'PRUEFER' | 'PARTNER'
+  text: string
+  teilNo: number
+  eval?: DrillTurnEval | null
+  latencyMs?: number
+}
