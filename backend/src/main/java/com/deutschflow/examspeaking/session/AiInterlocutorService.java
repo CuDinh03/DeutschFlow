@@ -60,6 +60,9 @@ public class AiInterlocutorService {
             case "REACT" -> "Reagiere kurz und natürlich (z. B. \"Ach, interessant!\", \"Gut, danke.\"). Maximal 1 Satz. Keine neue Frage.";
             case "FOLLOWUP_QUESTION" -> "Stelle GENAU EINE passende Nachfrage zum Gesagten. Maximal 2 Sätze.";
             case "CONCLUDE" -> "Fasse kurz zusammen, worauf ihr euch geeinigt habt (oder dass ihr unterschiedlicher Meinung seid), maximal 2 Sätze, und beende das Gespräch freundlich.";
+            case "FEEDBACK_AND_QUESTION" -> "Der Kandidat hat gerade präsentiert. Gib eine kurze Rückmeldung (1 Satz: was war interessant oder neu) und stelle GENAU EINE Frage zum Vortrag. Maximal 2 Sätze.";
+            case "ANSWER_QUESTION" -> "Der Kandidat hat dir eine Rückmeldung gegeben und eine Frage zu DEINEM Vortrag gestellt. Bedanke dich kurz und beantworte die Frage in 1–2 Sätzen. Keine Gegenfrage.";
+            case "REPORT_OWN" -> "Reagiere kurz auf den Bericht des Kandidaten (1 Satz). Berichte dann, was auf DEINER Vorlage steht (Thema und die wichtigsten Zahlen, 2–3 Sätze), und frage den Kandidaten nach seiner Erfahrung oder Meinung.";
             default -> "Reagiere kurz und passend. Maximal 2 Sätze.";
         };
         String persona = "PRUEFER".equals(role)
@@ -153,14 +156,31 @@ public class AiInterlocutorService {
         return " zu Thema \"" + val(next, "thema") + "\" mit dem Wort \"" + val(next, "wort") + "\".";
     }
 
-    /** Đề riêng của partner (lịch tuần…): chỉ AI biết; không bao giờ lộ sang client (xem ExamSessionService.clientStimulus). */
+    /** Đề riêng của partner (lịch tuần, Vorlage B, bài trình bày…): chỉ AI biết; không bao giờ lộ sang client (xem ExamSessionService.clientStimulus). */
     private static String privateContext(Map<String, Object> card) {
-        if (card == null || card.get("partnerCalendar") == null) {
+        if (card == null) {
             return "";
         }
-        return " DEIN TERMINKALENDER (nur du kennst ihn; der Kandidat hat einen anderen): " + card.get("partnerCalendar")
-                + ". Ziel: " + val(card, "goal") + " Schlage NUR Zeiten vor, an denen du frei bist; lehne belegte Zeiten mit kurzer Begründung ab"
-                + " und mache einen Gegenvorschlag. Einigt euch am Ende auf einen konkreten Termin.";
+        StringBuilder sb = new StringBuilder();
+        if (card.get("partnerCalendar") != null) {
+            sb.append(" DEIN TERMINKALENDER (nur du kennst ihn; der Kandidat hat einen anderen): ").append(card.get("partnerCalendar"))
+                    .append(". Ziel: ").append(val(card, "goal"))
+                    .append(" Schlage NUR Zeiten vor, an denen du frei bist; lehne belegte Zeiten mit kurzer Begründung ab")
+                    .append(" und mache einen Gegenvorschlag. Einigt euch am Ende auf einen konkreten Termin.");
+        }
+        if (card.get("partnerText") != null || card.get("partnerChart") != null) {
+            sb.append(" DEINE VORLAGE (nur du kennst sie; der Kandidat hat eine andere Vorlage zum Thema \"").append(val(card, "thema"))
+                    .append("\"): ").append(val(card, "partnerText"));
+            if (card.get("partnerChart") != null) {
+                sb.append(" Zahlen: ").append(card.get("partnerChart"));
+            }
+            sb.append(" Berichte nur davon, wenn du dran bist; erfinde keine anderen Zahlen.");
+        }
+        if (card.get("partnerPresentation") != null) {
+            sb.append(" DEIN VORTRAG (du hast ihn gerade gehalten; beantworte Fragen dazu konsistent): ")
+                    .append(val(card, "partnerPresentation"));
+        }
+        return sb.toString();
     }
 
     private static String val(Map<String, Object> card, String key) {

@@ -1138,7 +1138,10 @@
         "recentCap": "Kết quả gần đây",
         "passed": "Đạt",
         "failed": "Chưa đạt",
-        "disclaimer": "Mô phỏng theo định dạng đề thi công khai; không liên kết với Goethe-Institut hay telc. Điểm chỉ mang tính tham khảo (sai số điển hình ±1 bậc so với giám khảo), không phải chứng nhận."
+        "disclaimer": "Mô phỏng theo định dạng đề thi công khai; không liên kết với Goethe-Institut hay telc. Điểm chỉ mang tính tham khảo (sai số điển hình ±1 bậc so với giám khảo), không phải chứng nhận.",
+        "prepModeLabel": "Chuẩn bị",
+        "prepShort": "5′ rút gọn",
+        "prepFull": "{min}′ chuẩn thi thật"
       },
       "room": {
         "loading": "Đang vào phòng thi…",
@@ -1176,7 +1179,10 @@
         "pruefer": "Giám khảo",
         "partner": "Bạn thi",
         "score": "{score}/10",
-        "redemittel": "Gợi ý cách nói"
+        "redemittel": "Gợi ý cách nói",
+        "chooseOne": "Chọn 1 chủ đề",
+        "chosen": "Đã chọn phương án {n}",
+        "option": "Phương án {n}"
       },
       "mic": {
         "sending": "Đang gửi và chờ phản hồi…",
@@ -1212,7 +1218,12 @@
         "promptHint": "Kể về bản thân theo câu hỏi; dùng các gợi ý nếu cần. Khoảng một phút.",
         "situation": "Tình huống",
         "yourCalendar": "Lịch của bạn",
-        "partnerHasOtherCalendar": "Bạn thi có lịch khác — hãy hỏi và cùng tìm giờ hai bên đều rảnh."
+        "partnerHasOtherCalendar": "Bạn thi có lịch khác — hãy hỏi và cùng tìm giờ hai bên đều rảnh.",
+        "planningHint": "Đề xuất, phản hồi đề xuất của bạn thi và cùng quyết định từng điểm.",
+        "topic": "Chủ đề",
+        "partnerTopic": "Chủ đề bài trình bày của bạn thi",
+        "feedbackHint": "Nghe bạn thi trình bày, sau đó nhận xét và đặt một câu hỏi.",
+        "vorlageA": "Vorlage của bạn"
       },
       "result": {
         "sheetCap": "Phiếu kết quả mô phỏng",

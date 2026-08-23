@@ -52,6 +52,16 @@ export interface DrillTurnEval {
   error?: string
 }
 
+/** Tài liệu chuẩn bị một Teil (chỉ phần thí sinh được xem; choiceRequired → chọn 1 trong N). */
+export interface PrepMaterial {
+  teilNo: number
+  title: string
+  archetype: string
+  choiceRequired: boolean
+  chosenIndex: number | null
+  stimuli: Record<string, unknown>[]
+}
+
 export interface ExamSessionView {
   id: number
   provider: ExamProvider
@@ -63,6 +73,8 @@ export interface ExamSessionView {
   totalParts: number
   serverNow: string
   prepDeadlineAt: string | null
+  prepSec: number | null
+  prepMaterials: PrepMaterial[] | null
   partDeadlineAt: string | null
   directive: ExamDirective | null
   lastTurnEval: DrillTurnEval | null
@@ -71,11 +83,18 @@ export interface ExamSessionView {
   resultAvailable: boolean
 }
 
+export interface AiTurn {
+  role: string
+  text: string
+}
+
 export interface TurnResponse {
   transcript: string
   aiRole: string | null
   aiText: string | null
   aiVoice: string | null
+  /** Mọi lượt AI sau lượt thí sinh (B1 T3: partner trả lời + giám khảo hỏi = 2). */
+  aiTurns: AiTurn[] | null
   turnEval: DrillTurnEval | null
   session: ExamSessionView
 }

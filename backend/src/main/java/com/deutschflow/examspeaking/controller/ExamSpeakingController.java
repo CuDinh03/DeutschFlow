@@ -74,6 +74,18 @@ public class ExamSpeakingController {
         return sessionService.submitAudioTurn(user.getId(), id, readValidatedAudio(file), file.getOriginalFilename());
     }
 
+    /** Chọn chủ đề cho Teil "1 trong N" (Goethe B1/B2 T2): trong PREP (mock) hoặc ngay đầu Teil (drill). */
+    @PostMapping("/sessions/{id}/choice")
+    public ExamSessionView choice(@AuthenticationPrincipal User user, @PathVariable long id,
+                                  @RequestBody Map<String, Integer> body) {
+        Integer teil = body == null ? null : body.get("teilNo");
+        Integer index = body == null ? null : body.get("index");
+        if (teil == null || index == null) {
+            throw new BadRequestException("teilNo và index là bắt buộc");
+        }
+        return sessionService.choose(user.getId(), id, teil, index);
+    }
+
     @PostMapping("/sessions/{id}/advance")
     public ExamSessionView advance(@AuthenticationPrincipal User user, @PathVariable long id) {
         return sessionService.advance(user.getId(), id);

@@ -9,8 +9,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Map;
@@ -37,11 +40,15 @@ public class AiJobWorker {
     private final ObjectMapper objectMapper;
     /** Handler cắm được (module mới), tra theo jobType; các handler cũ giữ nguyên trong switch. */
     private final java.util.List<AiJobHandler> pluggableHandlers;
+    private final PlatformTransactionManager transactionManager;
 
     @Scheduled(fixedDelay = 2000)
     public void processPendingJobs() {
         // Claim jobs in a short transaction, then release the connection before the AI calls.
-        List<AiJob> jobs = claimJobs();
+        // BUG ĐÃ VÁ (23/08): gọi this.claimJobs() là tự-gọi trong cùng bean → @Transactional(REQUIRES_NEW) KHÔNG có hiệu
+        // lực (proxy bị bỏ qua) → bulkUpdateStatus (@Modifying) ném TransactionRequiredException mỗi 2s và worker
+        // KHÔNG BAO GIỜ claim được job (từ a7e48b28 10/06). Bọc bằng TransactionTemplate REQUIRES_NEW tường minh.
+        List<AiJob> jobs = claimInNewTransaction();
         if (jobs.isEmpty()) return;
 
         for (AiJob job : jobs) {
@@ -73,6 +80,14 @@ public class AiJobWorker {
         return Map.of("error", "Unknown job type: " + job.getJobType());
     }
 
+    private List<AiJob> claimInNewTransaction() {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        List<AiJob> claimed = tx.execute(status -> claimJobs());
+        return claimed == null ? List.of() : claimed;
+    }
+
+    /** Chỉ gọi qua {@link #claimInNewTransaction()} (hoặc từ ngoài bean qua proxy) — tự-gọi sẽ mất transaction. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<AiJob> claimJobs() {
         List<AiJob> jobs = aiJobRepository.claimPendingJobs(BATCH_SIZE);

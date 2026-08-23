@@ -10,8 +10,8 @@ import type { BlueprintSummary, ExamProvider, ExamResultView } from '@/types/exa
 import { GaPageHdr, GaCard, GaCap, GaBtn, TkSeg, TkBadge, LoadingState, ErrorBanner } from '@/components/ui-v2'
 
 const SESSION_HREF = (id: number) => `/v2/student/speaking/exam/session/${id}`
-// Đợt 1 mở A1, Đợt 2 mở A2 (ngân hàng đề V277/V278). B1–B2 có blueprint nhưng chưa có đề → hiện "sắp có".
-const OPEN_LEVELS = new Set(['A1', 'A2'])
+// Đợt 1 A1, Đợt 2 A2, Đợt 3 B1 (ngân hàng đề V277–V279). B2 có blueprint nhưng chưa có đề → hiện "sắp có".
+const OPEN_LEVELS = new Set(['A1', 'A2', 'B1'])
 const LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
 /** Catalog phòng luyện thi nói: chọn hệ (Goethe/telc) × cấp × chế độ (drill từng Teil / mock trọn gói). */
@@ -25,6 +25,8 @@ export default function V2ExamSpeakingCatalogPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState<string | null>(null)
+  // Mặc định prep rút gọn 5′ (mục 4b kế hoạch); "chuẩn thi thật" = đúng Vorbereitungszeit của blueprint.
+  const [prepMode, setPrepMode] = useState<'SHORT' | 'FULL'>('SHORT')
 
   useEffect(() => {
     let alive = true
@@ -53,7 +55,7 @@ export default function V2ExamSpeakingCatalogPage() {
     setStarting(key)
     setError(null)
     try {
-      const { data } = await examSpeakingApi.createSession({ provider, level, mode, teil })
+      const { data } = await examSpeakingApi.createSession({ provider, level, mode, teil, prepMode: blueprint?.prepSec ? prepMode : undefined })
       router.push(SESSION_HREF(data.id))
     } catch (e) {
       setError(apiMessage(e))
@@ -126,6 +128,20 @@ export default function V2ExamSpeakingCatalogPage() {
                   <span>{t('scale', { scale: blueprint.rubricScale === 'VHN' ? t('scaleVhn') : blueprint.rubricScale.replace('_', '–'), max: blueprint.maxTotal })}</span>
                 </p>
                 <p className="ga-ui mt-2 text-[12.5px]" style={{ color: '#A39E94' }}>{t('mockDesc')}</p>
+                {blueprint.prepSec > 0 && (
+                  <div className="mt-3 flex items-center gap-2" role="group" aria-label={t('prepModeLabel')}>
+                    <span className="ga-ui text-[12.5px]" style={{ color: '#A39E94' }}>{t('prepModeLabel')}:</span>
+                    <TkSeg
+                      aria-label={t('prepModeLabel')}
+                      value={prepMode}
+                      onValueChange={(v) => setPrepMode(v)}
+                      options={[
+                        { value: 'SHORT', label: t('prepShort') },
+                        { value: 'FULL', label: t('prepFull', { min: Math.round(blueprint.prepSec / 60) }) },
+                      ]}
+                    />
+                  </div>
+                )}
               </div>
               <GaBtn variant="yellow" size="lg" onClick={() => void start('MOCK')} disabled={!open || starting !== null} data-testid="start-mock">
                 <Mic size={16} aria-hidden className="mr-2" /> {starting === 'MOCK-all' ? t('starting') : t('startMock')}
