@@ -21,11 +21,22 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>Per-endpoint windows + limits are configured via {@code app.auth.rate-limit.*} (see
  * application.yml) so they can be tuned by env var without code changes:
  * <ul>
- *   <li><b>Login</b>: 5/60s per (IP + email).</li>
+ *   <li><b>Login</b>: two independent budgets, both must pass —
+ *       5/60s per (IP + email) <i>and</i> 100/60s per IP alone.</li>
  *   <li><b>Register</b>: 10/600s per IP.</li>
  *   <li><b>Refresh</b>: 10/60s per IP.</li>
  *   <li><b>Password reset</b>: 5/900s per (IP + email).</li>
  * </ul>
+ *
+ * <p><b>Why login needs two budgets:</b> the (IP + email) key stops credential-stuffing against one
+ * account, but it can never stop a flood — an attacker who changes the email on every request mints a
+ * fresh bucket each time. That is not merely a bypass of a counter: a login attempt costs a full
+ * BCrypt hash <i>even for an email that does not exist</i>, because Spring's
+ * {@code DaoAuthenticationProvider} runs {@code mitigateAgainstTimingAttack()} on unknown users. At
+ * BCrypt cost 10 (~50-100ms of CPU) a single IP could therefore saturate the box. The per-IP budget
+ * is the one that does not move when the email does. It is deliberately loose (see
+ * {@code app.auth.rate-limit.login-ip-*}) so a whole class logging in from one school/CGNAT address
+ * is not locked out — it removes the single-IP kill, it is not a substitute for an edge rate limit.
  *
  * <p><b>Storage (S16):</b> the counter is a <b>Redis</b> sorted-set sliding window (atomic Lua), so
  * the limit is shared across nodes. If Redis is unavailable, it <b>degrades safely</b> to a per-node
@@ -37,6 +48,8 @@ public class AuthRateLimiterService {
 
     private final int  loginMax;
     private final long loginWindow;     // giây
+    private final int  loginIpMax;
+    private final long loginIpWindow;   // giây
     private final int  registerMax;
     private final long registerWindow;  // giây
     private final int  refreshMax;
@@ -46,6 +59,7 @@ public class AuthRateLimiterService {
 
     // In-memory fallback (used when Redis is unavailable).
     private final ConcurrentHashMap<String, Deque<Instant>> loginAttempts    = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Deque<Instant>> loginIpAttempts  = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Deque<Instant>> registerAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Deque<Instant>> refreshAttempts  = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Deque<Instant>> passwordResetAttempts = new ConcurrentHashMap<>();
@@ -74,17 +88,21 @@ public class AuthRateLimiterService {
             """;
 
     public AuthRateLimiterService(
-            @Value("${app.auth.rate-limit.login-max-per-window:5}")      int  loginMax,
-            @Value("${app.auth.rate-limit.login-window-seconds:60}")     long loginWindow,
-            @Value("${app.auth.rate-limit.register-max-per-window:10}")  int  registerMax,
-            @Value("${app.auth.rate-limit.register-window-seconds:600}") long registerWindow,
-            @Value("${app.auth.rate-limit.refresh-max-per-window:10}")   int  refreshMax,
-            @Value("${app.auth.rate-limit.refresh-window-seconds:60}")   long refreshWindow,
+            @Value("${app.auth.rate-limit.login-max-per-window:5}")             int  loginMax,
+            @Value("${app.auth.rate-limit.login-window-seconds:60}")            long loginWindow,
+            @Value("${app.auth.rate-limit.login-ip-max-per-window:100}")        int  loginIpMax,
+            @Value("${app.auth.rate-limit.login-ip-window-seconds:60}")         long loginIpWindow,
+            @Value("${app.auth.rate-limit.register-max-per-window:10}")         int  registerMax,
+            @Value("${app.auth.rate-limit.register-window-seconds:600}")        long registerWindow,
+            @Value("${app.auth.rate-limit.refresh-max-per-window:10}")          int  refreshMax,
+            @Value("${app.auth.rate-limit.refresh-window-seconds:60}")          long refreshWindow,
             @Value("${app.auth.rate-limit.password-reset-max-per-window:5}")    int  passwordResetMax,
             @Value("${app.auth.rate-limit.password-reset-window-seconds:900}")  long passwordResetWindow,
             @Nullable StringRedisTemplate redis) {
         this.loginMax       = Math.max(1, loginMax);
         this.loginWindow    = Math.max(1L, loginWindow);
+        this.loginIpMax     = Math.max(1, loginIpMax);
+        this.loginIpWindow  = Math.max(1L, loginIpWindow);
         this.registerMax    = Math.max(1, registerMax);
         this.registerWindow = Math.max(1L, registerWindow);
         this.refreshMax     = Math.max(1, refreshMax);
@@ -103,6 +121,15 @@ public class AuthRateLimiterService {
     public boolean allow(String ip, String email) {
         String key = "login|" + safe(ip) + "|" + safe(email).toLowerCase(Locale.ROOT);
         return check(loginAttempts, key, loginMax, loginWindow);
+    }
+
+    /**
+     * Login limit keyed by IP <b>alone</b> — the budget an attacker cannot reset by changing the
+     * email. Checked in addition to {@link #allow(String, String)}, not instead of it: the two
+     * budgets are independent, and a request must pass both.
+     */
+    public boolean allowLoginPerIp(String ip) {
+        return check(loginIpAttempts, "login-ip|" + safe(ip), loginIpMax, loginIpWindow);
     }
 
     /** Register limit — keyed by IP. */
@@ -124,6 +151,7 @@ public class AuthRateLimiterService {
     // ─── Retry-After helpers (used in RateLimitExceededException) ──────────────
 
     public int retryAfterSeconds()         { return (int) loginWindow;    }
+    public int loginIpRetryAfterSeconds()  { return (int) loginIpWindow;  }
     public int registerRetryAfterSeconds() { return (int) registerWindow; }
     public int refreshRetryAfterSeconds()  { return (int) refreshWindow;  }
     public int passwordResetRetryAfterSeconds() { return (int) passwordResetWindow; }

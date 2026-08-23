@@ -80,6 +80,16 @@ public class AuthController {
                               HttpServletRequest httpRequest,
                               HttpServletResponse httpResponse) {
         String ip = resolveClientIp(httpRequest);
+        // Per-IP budget FIRST, and before anything expensive. A login attempt costs a full BCrypt
+        // hash even when the email does not exist (DaoAuthenticationProvider's timing-attack
+        // mitigation hashes against a dummy for unknown users), so this guard is only worth having
+        // if it short-circuits before authService.login(). The (IP + email) budget below cannot do
+        // that job on its own — rotating the email mints a fresh bucket on every request.
+        if (!authRateLimiterService.allowLoginPerIp(ip)) {
+            throw new RateLimitExceededException(
+                    "Too many login attempts. Please try again later.",
+                    authRateLimiterService.loginIpRetryAfterSeconds());
+        }
         if (!authRateLimiterService.allow(ip, request.email())) {
             throw new RateLimitExceededException(
                     "Too many login attempts. Please try again later.",
