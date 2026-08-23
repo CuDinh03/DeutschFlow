@@ -373,11 +373,19 @@ else
 fi
 
 # Khởi động GREEN
+# 127.0.0.1: chỉ hở cổng cho chính máy này, KHÔNG hở ra mạng ngoài — cùng khuôn mẫu với Redis ở trên.
+# Docker publish mặc định bind 0.0.0.0 VÀ tự chèn rule iptables đứng TRƯỚC ufw, nên "ufw deny 8081"
+# không cứu được; ràng buộc phải đặt ngay tại chỗ publish này.
+# Vì sao an toàn — đã rà từng đường phụ thuộc:
+#   • health-check + warm-up bên dưới curl localhost:8081 — chạy TRÊN host ⇒ vẫn tới.
+#   • nginx cũng chạy trên host, proxy_pass tới localhost ⇒ vẫn tới.
+#   • Prometheus scrape 'backend:8080' qua DNS mạng deutschflow-net, KHÔNG qua cổng publish này.
+#   • EDGE_TTS_URL=172.17.0.1:5050 là chiều container→host, không liên quan.
 sudo docker rm -f deutschflow-backend-green 2>/dev/null || true
 sudo docker run -d \
   --name deutschflow-backend-green \
   "${DOCKER_ARGS[@]}" \
-  -p 8081:8080 \
+  -p 127.0.0.1:8081:8080 \
   deutschflow-backend:new
 
 # Gắn GREEN vào deutschflow-net để resolve DNS 'deutschflow-redis'. Default bridge vẫn là primary
@@ -463,10 +471,13 @@ if ! docker_force_remove deutschflow-backend-green; then
   exit 1
 fi
 
+# 127.0.0.1 — xem ghi chú ở khối GREEN. Backend CHỈ được tiếp nhận request qua nginx: mọi rate-limit
+# theo IP (ở app lẫn ở nginx) đọc client IP từ X-Forwarded-For do chính nginx thêm vào. Nếu request
+# tới thẳng container thì header đó do người gọi tự khai ⇒ throttle mất sạch hiệu lực.
 if ! sudo docker run -d \
   --name deutschflow-backend \
   "${DOCKER_ARGS[@]}" \
-  -p 8080:8080 \
+  -p 127.0.0.1:8080:8080 \
   --restart unless-stopped \
   deutschflow-backend:new; then
   error "Không khởi động được deutschflow-backend trên :8080"
