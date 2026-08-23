@@ -96,6 +96,10 @@ public class ExamSessionOrchestrator {
                 boolean calendar = "CALENDAR_PAIR".equals(firstType);
                 boolean contact = "CONTACT_CARD".equals(firstType);
                 boolean vorlage = "TOPIC_GRAPHIC_PAIR".equals(firstType);
+                // B2 „Diskussion führen" / telc „Diskussion": tranh luận Pro–Contra, KHÁC hẳn lập kế hoạch.
+                // Nhánh mặc định của DIALOGUE dẫn thí sinh đi "đề xuất → chốt phương án"; ở đây phải là
+                // Standpunkt austauschen – reagieren – zusammenfassen (dafür oder dagegen).
+                boolean debate = firstType.startsWith("DEBATE");
                 for (int k = 0; k < n; k++) {
                     boolean last = k == n - 1;
                     if (contact && k == n - 2) {
@@ -112,12 +116,16 @@ public class ExamSessionOrchestrator {
                             ? (calendar ? "Mở đầu: đề xuất một ngày/giờ còn trống trong lịch CỦA BẠN (bạn thi có lịch khác)."
                                : vorlage ? "Thuật lại cho bạn thi: Vorlage của bạn nói gì (chủ đề, số liệu chính)?"
                                : contact ? "Mở đầu: chào hỏi, giới thiệu và hỏi bạn thi về một chủ đề trên thẻ."
+                               : debate ? "Mở đầu: nêu rõ quan điểm của bạn về câu hỏi và một lý do chính."
                                : "Mở đầu: đưa đề xuất/quan điểm đầu tiên.")
                             : last
-                                ? (calendar ? "Chốt lại: nhắc lại ngày giờ đã thống nhất." : "Kết: tóm tắt điều hai bên thống nhất.")
+                                ? (calendar ? "Chốt lại: nhắc lại ngày giờ đã thống nhất."
+                                   : debate ? "Kết: tóm tắt hai luồng ý kiến rồi nói rõ bạn nghiêng về dafür oder dagegen."
+                                   : "Kết: tóm tắt điều hai bên thống nhất.")
                                 : (calendar ? "Phản hồi: đồng ý nếu bạn rảnh, nếu không thì từ chối có lý do và đề xuất giờ khác."
                                    : vorlage ? "Phản hồi Vorlage của bạn thi; nói về trải nghiệm/ý kiến của bạn và hỏi lại."
                                    : contact ? "Trả lời và hỏi lại bạn thi về một chủ đề khác trên thẻ."
+                                   : debate ? "Phản biện lập luận vừa nghe (nhượng bộ một phần rồi đưa lý lẽ ngược lại)."
                                    : "Phản hồi bạn thi: đồng ý/phản đối có lý do, đề xuất tiếp.");
                     String aiAction = last ? "CONCLUDE" : (vorlage && k == 0 ? "REPORT_OWN" : "REACT_AND_ASK");
                     steps.add(new SessionPlan.Step(i++, k == 0 ? "SPEAK" : "REACT", 0, "PARTNER", aiAction, hint));

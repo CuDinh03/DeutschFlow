@@ -1223,7 +1223,10 @@
         "topic": "Topic",
         "partnerTopic": "Your partner's presentation topic",
         "feedbackHint": "Listen to your partner, then give feedback and ask one question.",
-        "vorlageA": "Your sheet"
+        "vorlageA": "Your sheet",
+        "yourTopic": "Your topic",
+        "debate": "Debate",
+        "debateHint": "State your position, respond to your partner, then sum up: for or against?"
       },
       "result": {
         "sheetCap": "Simulated score sheet",

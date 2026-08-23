@@ -10,9 +10,10 @@ import type { BlueprintSummary, ExamProvider, ExamResultView } from '@/types/exa
 import { GaPageHdr, GaCard, GaCap, GaBtn, TkSeg, TkBadge, LoadingState, ErrorBanner } from '@/components/ui-v2'
 
 const SESSION_HREF = (id: number) => `/v2/student/speaking/exam/session/${id}`
-// Đợt 1 A1, Đợt 2 A2, Đợt 3 B1 (ngân hàng đề V277–V279). B2 có blueprint nhưng chưa có đề → hiện "sắp có".
-const OPEN_LEVELS = new Set(['A1', 'A2', 'B1'])
-const LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
+// Đợt 1 A1, Đợt 2 A2, Đợt 3 B1, Đợt 4 B2 (ngân hàng đề V277–V279 + V281). MVP A1–B2 đã mở trọn.
+// C1 nằm ngoài MVP (Đợt 6) — liệt kê để người học thấy lộ trình, nhưng khoá lại vì chưa có blueprint.
+const OPEN_LEVELS = new Set(['A1', 'A2', 'B1', 'B2'])
+const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'] as const
 
 /** Catalog phòng luyện thi nói: chọn hệ (Goethe/telc) × cấp × chế độ (drill từng Teil / mock trọn gói). */
 export default function V2ExamSpeakingCatalogPage() {

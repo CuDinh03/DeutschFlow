@@ -138,4 +138,49 @@ class ExamSessionOrchestratorTest {
         assertThat(ExamSessionService.effectivePrepSec(120, null)).isEqualTo(120);
     }
 
+
+    // ── B2 (Đợt 4) ─────────────────────────────────────────────────────────────────────────
+
+    @Test
+    void goetheB2VortragLetsPartnerAskFirstThenExaminer() {
+        // Quy chế Goethe B2 T1: thí sinh trình bày → bạn thi BẮT BUỘC đặt câu hỏi → giám khảo hỏi.
+        BlueprintPart p = new BlueprintPart(1, TaskArchetype.PRESENT, "Vortrag halten", 300, PartFlow.MONOLOGUE,
+                "PARTNER", "TOPIC_CHOICE", 2, 1, 4);
+        List<SessionPlan.Step> steps = o.steps(p, cards(2, Map.of("type", "TOPIC_CHOICE", "topic", "Homeoffice")));
+        assertThat(steps).hasSize(4);
+        assertThat(steps.get(0).candidateAction()).isEqualTo("SPEAK");
+        assertThat(steps.get(0).aiRole()).isEqualTo("PARTNER");
+        assertThat(steps.get(0).aiAction()).isEqualTo("FEEDBACK_AND_QUESTION");
+        assertThat(steps.subList(1, 4)).allMatch(s -> "PRUEFER".equals(s.aiRole()));
+        assertThat(steps.get(3).aiAction()).isEqualTo("THANK");
+    }
+
+    @Test
+    void debateCardGetsStandpunktReactSummariseHints() {
+        // Goethe B2 T2 „Diskussion führen": Standpunkt austauschen – reagieren – zusammenfassen.
+        BlueprintPart p = new BlueprintPart(2, TaskArchetype.DISCUSS, "Diskussion führen", 300, PartFlow.DIALOGUE,
+                "PARTNER", "DEBATE_CARD", 1, 1, 4);
+        List<SessionPlan.Step> steps = o.steps(p, cards(1, Map.of("type", "DEBATE_CARD",
+                "question", "Sollte die Vier-Tage-Woche kommen?", "partnerStance", "dagegen")));
+        assertThat(steps).hasSize(4);
+        assertThat(steps.get(0).candidateAction()).isEqualTo("SPEAK");
+        assertThat(steps.get(0).hintVi()).containsIgnoringCase("quan điểm");
+        assertThat(steps.get(0).aiRole()).isEqualTo("PARTNER");
+        // Lượt giữa phải là phản biện, không phải "đề xuất tiếp" kiểu lập kế hoạch.
+        assertThat(steps.get(1).hintVi()).containsIgnoringCase("phản biện");
+        assertThat(steps.get(3).aiAction()).isEqualTo("CONCLUDE");
+        assertThat(steps.get(3).hintVi()).contains("dafür oder dagegen");
+    }
+
+    @Test
+    void debateTextVariantKeepsSameShape() {
+        // telc B2 T2: cùng archetype DISCUSS nhưng xuất phát từ một đoạn text.
+        BlueprintPart p = new BlueprintPart(2, TaskArchetype.DISCUSS, "Diskussion", 150, PartFlow.DIALOGUE,
+                "PARTNER", "DEBATE_TEXT", 1, 1, 3);
+        List<SessionPlan.Step> steps = o.steps(p, cards(1, Map.of("type", "DEBATE_TEXT",
+                "text", "Immer mehr Betriebe erlauben Hunde am Arbeitsplatz.", "question", "Sollten Hunde erlaubt sein?")));
+        assertThat(steps).hasSize(3);
+        assertThat(steps.get(0).hintVi()).containsIgnoringCase("quan điểm");
+        assertThat(steps.get(2).aiAction()).isEqualTo("CONCLUDE");
+    }
 }
