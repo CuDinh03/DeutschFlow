@@ -12,6 +12,22 @@
 
 version: '3.8'
 
+# ── Vì sao MỌI publish dưới đây đều bind 127.0.0.1 ──────────────────────────
+# Docker publish mặc định bind 0.0.0.0 (hở ra Internet nếu security group cho phép) VÀ tự chèn rule
+# iptables đứng TRƯỚC ufw — nên "ufw deny <cổng>" KHÔNG chặn được container. Ràng buộc phải đặt
+# ngay tại chỗ publish; đây là nơi duy nhất chắc chắn có tác dụng.
+#
+# backend/frontend: chỉ được tiếp nhận request qua nginx (chạy trên host, proxy tới localhost).
+#   Đi thẳng vào container là bỏ qua nginx — mà mọi rate-limit theo IP đều đọc client IP từ
+#   X-Forwarded-For do chính nginx thêm vào; request đi thẳng thì header đó do người gọi tự khai
+#   ⇒ throttle mất sạch hiệu lực.
+# prometheus/grafana/alertmanager/loki: bảng điều khiển vận hành, không có lý do hở ra Internet.
+#   Muốn xem từ máy cá nhân thì mở SSH tunnel forward cổng tương ứng (Grafana 3001, Prometheus 9090)
+#   về localhost, rồi mở trình duyệt vào localhost.
+#
+# Giao tiếp GIỮA các container KHÔNG đi qua các cổng này mà qua DNS của mạng deutschflow-net
+# (prometheus.yml scrape 'backend:8080'), nên đổi binding không ảnh hưởng.
+
 services:
   # ── Spring Boot Backend ──────────────────────────────────
   backend:
@@ -25,7 +41,7 @@ services:
     # Mirrors deploy-backend.sh's --memory=1500m. JVM heap = 75% (MaxRAMPercentage) ≈ 1.1GB.
     mem_limit: 1500m
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     env_file:
       - .env.production    # File thật (không commit). MoMo sandbox: tham khảo env.momo.sandbox.example ở root repo
     environment:
@@ -85,7 +101,7 @@ services:
     restart: unless-stopped
     mem_limit: 512m
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - NODE_ENV=production
       # Nếu Next.js cần gọi backend qua internal network
@@ -106,7 +122,7 @@ services:
     restart: unless-stopped
     mem_limit: 400m
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
       - ./docker/prometheus:/etc/prometheus
       - prometheus_data:/prometheus
@@ -125,7 +141,7 @@ services:
     restart: unless-stopped
     mem_limit: 128m
     ports:
-      - "9093:9093"
+      - "127.0.0.1:9093:9093"
     volumes:
       - ./docker/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager
@@ -141,7 +157,7 @@ services:
     restart: unless-stopped
     mem_limit: 256m
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     volumes:
       - ./docker/loki:/etc/loki
       - loki_data:/loki
@@ -167,7 +183,7 @@ services:
     restart: unless-stopped
     mem_limit: 256m
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
