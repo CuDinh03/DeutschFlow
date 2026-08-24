@@ -94,7 +94,8 @@ public class ExamWeaknessService {
         int examCount = stats.stream().mapToInt(SpeakingExamErrorStat::getSeenCount).sum();
         String ruleVi = grammarErrorRepository.findFirstByUserIdAndErrorCodeOrderByCreatedAtDesc(userId, code)
                 .map(g -> g.getRuleViShort())
-                .orElse(null);
+                // N1c-4: lỗi từ phòng thi không mang ruleViShort → fallback catalog tĩnh theo mã.
+                .orElseGet(() -> ErrorRuleCatalog.ruleVi(code));
         List<WeaknessView.Context> contexts = stats.stream()
                 .sorted(Comparator.comparingInt(SpeakingExamErrorStat::getSeenCount).reversed())
                 .map(s -> new WeaknessView.Context(s.getProvider(), s.getLevel(), s.getTeilNo(),

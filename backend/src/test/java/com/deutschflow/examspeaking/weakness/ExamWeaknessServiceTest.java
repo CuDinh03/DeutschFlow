@@ -97,6 +97,18 @@ class ExamWeaknessServiceTest {
     }
 
     @Test
+    void ruleViFallsBackToStaticCatalogForExamOnlyErrors() {
+        // N1c-4: lỗi chỉ có từ phòng thi (không có ruleViShort trong kho) → dùng catalog tĩnh theo mã.
+        when(statRepository.findByUserIdAndProviderAndLevelOrderByLastSeenAtDesc(7L, "GOETHE", "B1"))
+                .thenReturn(List.of(stat("GOETHE", "B1", 1, "PLAN_NEGOTIATE", "CASE.PREP_DAT_MIT", 1, now)));
+
+        WeaknessView view = service.weakness(7L, "GOETHE", "b1");
+
+        assertThat(view.weakPoints()).hasSize(1);
+        assertThat(view.weakPoints().get(0).ruleVi()).contains("Dativ");
+    }
+
+    @Test
     void emptyStatsStillReturnsPacksForLevel() {
         when(statRepository.findByUserIdOrderByLastSeenAtDesc(7L)).thenReturn(List.of());
 

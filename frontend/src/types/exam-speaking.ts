@@ -118,6 +118,8 @@ export interface PartResult {
   points: number
   max: number
   zeroed: boolean
+  /** N1c-2: 2 câu nhận xét của giám khảo cho Teil (null với phiếu cũ). */
+  comment?: string | null
 }
 
 export interface ScoreSheet {
