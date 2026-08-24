@@ -1141,7 +1141,9 @@
         "disclaimer": "Simulates publicly documented exam formats; not affiliated with Goethe-Institut or telc. Scores are indicative (typical error ±1 band vs. a human examiner), not a certificate.",
         "prepModeLabel": "Preparation",
         "prepShort": "5 min short",
-        "prepFull": "{min} min as in the exam"
+        "prepFull": "{min} min as in the exam",
+        "weaknessTitle": "Review weak points",
+        "weaknessDesc": "See your frequent exam-room mistakes by task type, with suggested Redemittel packs"
       },
       "room": {
         "loading": "Entering the exam room…",
@@ -1254,6 +1256,26 @@
         "turns": "{n} turns scored",
         "toReview": "Errors to review",
         "note": "Quick scores are for practice; exam-criteria scores are only available in mock mode."
+      },
+      "weakness": {
+        "title": "Review weak points",
+        "subtitle": "Mistakes detected in the exam room, grouped by error code and task type — with Redemittel to practise again",
+        "back": "Back to exam room",
+        "dismiss": "Dismiss",
+        "loading": "Loading weak points…",
+        "filterLabel": "Filter by task type",
+        "filterAll": "All task types",
+        "empty": "No mistakes recorded from the exam room yet.",
+        "emptyHint": "Practise any Teil (Drill) or take a full mock exam — detected mistakes will show up here for review.",
+        "seenCount": "Seen {count}×",
+        "severity": {
+          "BLOCKING": "Severe",
+          "MAJOR": "Notable",
+          "MINOR": "Minor"
+        },
+        "drillCta": "Drill this Teil again",
+        "starting": "Starting session…",
+        "redemittelCap": "Redemittel by task type"
       }
     }
   }

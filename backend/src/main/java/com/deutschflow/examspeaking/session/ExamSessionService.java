@@ -78,6 +78,7 @@ public class ExamSessionService {
     private final GroqWhisperClient whisperClient;
     private final ObjectMapper objectMapper;
     private final ExamSpeakingProperties props;
+    private final com.deutschflow.examspeaking.weakness.ExamErrorSrsBridge srsBridge;
 
     // ── tạo phiên ───────────────────────────────────────────────────────────────────────────
 
@@ -215,6 +216,8 @@ public class ExamSessionService {
             requireBudget(userId, AiRateLimiterService.Bucket.EVAL, DRILL_EVAL_ESTIMATED_TOKENS, "Too many evaluations.");
             eval = interlocutor.quickEval(userId, bp, part, step, card, lastAiText, transcript);
             candidate.setTurnEvalJson(eval);
+            // Đợt 5a: corrections của lượt drill đổ vào kho yếu điểm (SRS + stats theo dạng bài).
+            srsBridge.ingestDrillEval(userId, bp, pp.teilNo(), eval);
         }
         turnRepository.save(candidate);
         List<TurnResponse.AiTurn> aiTurns = new ArrayList<>();

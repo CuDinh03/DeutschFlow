@@ -1141,7 +1141,9 @@
         "disclaimer": "Mô phỏng theo định dạng đề thi công khai; không liên kết với Goethe-Institut hay telc. Điểm chỉ mang tính tham khảo (sai số điển hình ±1 bậc so với giám khảo), không phải chứng nhận.",
         "prepModeLabel": "Chuẩn bị",
         "prepShort": "5′ rút gọn",
-        "prepFull": "{min}′ chuẩn thi thật"
+        "prepFull": "{min}′ chuẩn thi thật",
+        "weaknessTitle": "Ôn yếu điểm",
+        "weaknessDesc": "Xem lỗi hay mắc trong phòng luyện thi theo dạng bài + gói Redemittel gợi ý"
       },
       "room": {
         "loading": "Đang vào phòng thi…",
@@ -1254,6 +1256,26 @@
         "turns": "{n} lượt đã chấm",
         "toReview": "Lỗi cần ôn",
         "note": "Điểm nhanh để luyện; điểm theo tiêu chí kỳ thi chỉ có ở chế độ thi thử."
+      },
+      "weakness": {
+        "title": "Ôn yếu điểm",
+        "subtitle": "Lỗi phát hiện trong phòng luyện thi, gộp theo mã lỗi và dạng bài — kèm Redemittel để luyện lại",
+        "back": "Về phòng luyện thi",
+        "dismiss": "Đóng",
+        "loading": "Đang tải yếu điểm…",
+        "filterLabel": "Lọc theo dạng bài",
+        "filterAll": "Tất cả dạng bài",
+        "empty": "Chưa có lỗi nào được ghi nhận từ phòng luyện thi.",
+        "emptyHint": "Luyện một Teil bất kỳ (Drill) hoặc thi thử trọn gói (Mock) — lỗi phát hiện sẽ tự xuất hiện ở đây để ôn lại.",
+        "seenCount": "Gặp {count} lần",
+        "severity": {
+          "BLOCKING": "Nặng",
+          "MAJOR": "Đáng chú ý",
+          "MINOR": "Nhẹ"
+        },
+        "drillCta": "Luyện lại Teil này",
+        "starting": "Đang tạo phiên…",
+        "redemittelCap": "Redemittel theo dạng bài"
       }
     }
   }
