@@ -304,6 +304,15 @@ app:
     public-rate-limit:
       enabled: ${APP_SECURITY_PUBLIC_RATE_LIMIT_ENABLED:true}
       per-minute: ${APP_SECURITY_PUBLIC_RATE_LIMIT_PER_MINUTE:30}
+    # Mở rộng throttle sang các đường permitAll NẰM NGOÀI /api/public/ mà trước đây không có lớp
+    # rate-limit ứng dụng nào (chỉ dựa vào nginx): onboarding preview (khách xem mentor) + media
+    # by-tag (landing, chạm DB). Defense in depth đối xứng với bind-localhost: nếu cổng backend lại
+    # hở ra ngoài thì các đường này vẫn còn một lớp chặn. Ngân sách RIÊNG và RỘNG (120/phút) + key
+    # riêng để không chặn oan lớp học sau NAT / landing tải nhiều media. KHÔNG gồm /api/auth (có
+    # limiter riêng), webhook (bên thứ ba gọi), /actuator/health (uptime monitor).
+    unauth-rate-limit:
+      paths: ${APP_SECURITY_UNAUTH_RATE_LIMIT_PATHS:/api/onboarding/preview/,/api/v2/media/by-tag}
+      per-minute: ${APP_SECURITY_UNAUTH_RATE_LIMIT_PER_MINUTE:120}
 
   # Gói miễn phí cho GV tự do (non-org): hạn mức/ngày cho tính năng AI ĐẮT (checklist D6).
   # Chấm bài text (core) KHÔNG bị cap; chỉ PPTX & OCR-ảnh. GV thuộc org dùng org token-pool.

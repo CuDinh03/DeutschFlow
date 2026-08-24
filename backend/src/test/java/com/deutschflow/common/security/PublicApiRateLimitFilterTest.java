@@ -24,6 +24,8 @@ import static org.mockito.Mockito.when;
 class PublicApiRateLimitFilterTest {
 
     private static final int LIMIT = 30;
+    private static final int EXTRA_LIMIT = 120;
+    private static final String EXTRA_PATHS = "/api/onboarding/preview/,/api/v2/media/by-tag";
 
     @Mock
     private StringRedisTemplate redis;
@@ -32,7 +34,15 @@ class PublicApiRateLimitFilterTest {
     private ValueOperations<String, String> valueOps;
 
     private PublicApiRateLimitFilter filter(boolean enabled) {
-        return new PublicApiRateLimitFilter(new ClientIpResolver(1), redis, enabled, LIMIT);
+        return new PublicApiRateLimitFilter(
+                new ClientIpResolver(1), redis, enabled, LIMIT, EXTRA_PATHS, EXTRA_LIMIT);
+    }
+
+    private MockHttpServletRequest req(String method, String uri, String ip) {
+        MockHttpServletRequest r = new MockHttpServletRequest(method, uri);
+        r.setRequestURI(uri);
+        r.setRemoteAddr(ip);
+        return r;
     }
 
     private MockHttpServletRequest publicRequest() {
@@ -88,6 +98,51 @@ class PublicApiRateLimitFilterTest {
     }
 
     @Test
+    @DisplayName("đường unauth ngoài /api/public/ (onboarding preview, media by-tag) VẪN bị filter phủ")
+    void extraUnauthPaths_areCovered() {
+        assertThat(filter(true).shouldNotFilter(req("GET", "/api/onboarding/preview/mentor", "203.0.113.5")))
+                .as("onboarding preview phải bị phủ").isFalse();
+        assertThat(filter(true).shouldNotFilter(req("GET", "/api/v2/media/by-tag", "203.0.113.5")))
+                .as("media by-tag phải bị phủ").isFalse();
+    }
+
+    @Test
+    @DisplayName("đường có xác thực (skill-tree/me, auth/me) KHÔNG bị filter đụng")
+    void authenticatedPaths_stillSkipped() {
+        assertThat(filter(true).shouldNotFilter(req("GET", "/api/skill-tree/me", "203.0.113.5"))).isTrue();
+        assertThat(filter(true).shouldNotFilter(req("GET", "/api/auth/me", "203.0.113.5"))).isTrue();
+    }
+
+    @Test
+    @DisplayName("đường unauth mới dùng ngân sách RIÊNG, rộng hơn — dưới ngưỡng extra thì đi tiếp")
+    void extraPath_usesItsOwnGenerousBudget() throws Exception {
+        when(redis.opsForValue()).thenReturn(valueOps);
+        // Ngay cả khi đã vượt cap public (30), đường extra vẫn cho qua tới tận cap riêng (120).
+        when(valueOps.increment(anyString())).thenReturn((long) LIMIT + 5);
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+        filter(true).doFilterInternal(req("GET", "/api/v2/media/by-tag", "203.0.113.5"), response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(chain.getRequest()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("đường unauth mới vượt cap riêng → 429")
+    void extraPath_overItsBudget_blocked() throws Exception {
+        when(redis.opsForValue()).thenReturn(valueOps);
+        when(valueOps.increment(anyString())).thenReturn((long) EXTRA_LIMIT + 1);
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+        filter(true).doFilterInternal(req("GET", "/api/onboarding/preview/mentor", "203.0.113.5"), response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(429);
+        assertThat(chain.getRequest()).isNull();
+    }
+
+    @Test
     @DisplayName("Redis ném exception → fail-open, request vẫn đi tiếp")
     void redisDown_failOpen() throws Exception {
         when(redis.opsForValue()).thenThrow(new IllegalStateException("redis down"));
@@ -104,7 +159,7 @@ class PublicApiRateLimitFilterTest {
     @DisplayName("không có Redis bean (null) → fail-open")
     void noRedisBean_failOpen() throws Exception {
         PublicApiRateLimitFilter noRedis =
-                new PublicApiRateLimitFilter(new ClientIpResolver(1), null, true, LIMIT);
+                new PublicApiRateLimitFilter(new ClientIpResolver(1), null, true, LIMIT, EXTRA_PATHS, EXTRA_LIMIT);
 
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();
