@@ -45,13 +45,20 @@ public record SessionPlan(List<PartPlan> parts) {
      * @param cardIndex       thẻ thí sinh nhìn thấy ở bước này (có thể là thẻ của partner khi ANSWER)
      * @param aiRole          PRUEFER | PARTNER | NONE — ai đáp lại sau lượt thí sinh
      * @param aiAction        ANSWER_AND_ASK | REACT_AND_ASK | REACT | FOLLOWUP_QUESTION | CONCLUDE | THANK | SPELL_REQUEST | NUMBER_REQUEST
-     * @param hintVi          gợi ý ngắn tiếng Việt cho thí sinh
+     * @param hintVi          gợi ý ngắn tiếng Việt cho thí sinh (fallback khi FE chưa có bản dịch)
+     * @param hintKey         khoá i18n ổn định của gợi ý — FE dịch theo locale (QS-3 N0.7)
      */
     public record Step(int index, String candidateAction, Integer cardIndex, String aiRole, String aiAction, String hintVi,
-                       String aiRole2, String aiAction2) {
+                       String hintKey, String aiRole2, String aiAction2) {
         /** Bước chỉ có một lượt AI đáp lại. */
+        public Step(int index, String candidateAction, Integer cardIndex, String aiRole, String aiAction, String hintVi,
+                    String hintKey) {
+            this(index, candidateAction, cardIndex, aiRole, aiAction, hintVi, hintKey, null, null);
+        }
+
+        /** Tương thích test/cũ: không có hintKey. */
         public Step(int index, String candidateAction, Integer cardIndex, String aiRole, String aiAction, String hintVi) {
-            this(index, candidateAction, cardIndex, aiRole, aiAction, hintVi, null, null);
+            this(index, candidateAction, cardIndex, aiRole, aiAction, hintVi, null, null, null);
         }
 
         public boolean hasSecondAi() {

@@ -71,6 +71,8 @@ class ExamWeaknessServiceTest {
         assertThat(first.errorCode()).isEqualTo("VERB_POSITION");
         assertThat(first.ruleVi()).isEqualTo("Động từ đứng vị trí 2");
         assertThat(first.totalCount()).isEqualTo(9);
+        // examCount = TỔNG seenCount các stats exam (2+1) — KHÔNG phải totalCount toàn cục (QS-5 N0.7)
+        assertThat(first.examCount()).isEqualTo(3);
         assertThat(first.contexts()).hasSize(2);
         assertThat(first.contexts().get(0).archetype()).isEqualTo("PRESENT"); // count 2 > 1
         assertThat(first.exampleOriginal()).isEqualTo("orig-VERB_POSITION");
@@ -91,6 +93,7 @@ class ExamWeaknessServiceTest {
         assertThat(view.weakPoints().get(0).errorCode()).isEqualTo("W_QUESTION_FORM");
         // fallback: chưa có skill row → totalCount = số lần thấy trong exam
         assertThat(view.weakPoints().get(0).totalCount()).isEqualTo(1);
+        assertThat(view.weakPoints().get(0).examCount()).isEqualTo(1);
     }
 
     @Test

@@ -144,8 +144,14 @@ public class ExamSessionService {
 
     // ── lượt nói ────────────────────────────────────────────────────────────────────────────
 
+    /** Overload không lang (test/tương thích): giải thích quickEval mặc định tiếng Việt. */
     @Transactional
     public TurnResponse submitTextTurn(long userId, long sessionId, String transcript) {
+        return submitTextTurn(userId, sessionId, transcript, null);
+    }
+
+    @Transactional
+    public TurnResponse submitTextTurn(long userId, long sessionId, String transcript, String lang) {
         SpeakingExamSession s = load(userId, sessionId);
         if (s.isMock() && !props.textTurnsInMockAllowed()) {
             throw new BadRequestException("Chế độ thi thử chỉ nhận audio (server tự phiên âm).");
@@ -153,11 +159,17 @@ public class ExamSessionService {
         if (transcript == null || transcript.isBlank()) {
             throw new BadRequestException("transcript is required");
         }
-        return processCandidateTurn(userId, s, transcript.trim(), null, null);
+        return processCandidateTurn(userId, s, transcript.trim(), null, null, lang);
+    }
+
+    /** Overload không lang (test/tương thích). */
+    @Transactional
+    public TurnResponse submitAudioTurn(long userId, long sessionId, byte[] audio, String filename) {
+        return submitAudioTurn(userId, sessionId, audio, filename, null);
     }
 
     @Transactional
-    public TurnResponse submitAudioTurn(long userId, long sessionId, byte[] audio, String filename) {
+    public TurnResponse submitAudioTurn(long userId, long sessionId, byte[] audio, String filename, String lang) {
         SpeakingExamSession s = load(userId, sessionId);
         requireBudget(userId, AiRateLimiterService.Bucket.TRANSCRIBE, STT_ESTIMATED_TOKENS, "Too many transcribe requests.");
         GroqWhisperClient.VerboseTranscript stt = whisperClient.transcribeVerbose(audio, filename == null ? "audio.webm" : filename, "de", "");
@@ -169,11 +181,11 @@ public class ExamSessionService {
         sttJson.put("avgLogprob", stt.avgLogprob());
         sttJson.put("durationSeconds", stt.durationSeconds());
         sttJson.put("words", stt.words().stream().map(w -> Map.of("word", w.word(), "start", w.start(), "end", w.end())).toList());
-        return processCandidateTurn(userId, s, stt.text().trim(), sttJson, null);
+        return processCandidateTurn(userId, s, stt.text().trim(), sttJson, null, lang);
     }
 
     private TurnResponse processCandidateTurn(long userId, SpeakingExamSession s, String transcript,
-                                              Map<String, Object> sttJson, String audioRef) {
+                                              Map<String, Object> sttJson, String audioRef, String lang) {
         if (!SpeakingExamSession.STATE_IN_PART.equals(s.getState())) {
             throw new ConflictException("Phiên không ở trạng thái nhận lượt nói (state=" + s.getState() + ")");
         }
@@ -207,14 +219,14 @@ public class ExamSessionService {
             hist2.add(new ChatMessage("user", transcript));
             hist2.add(new ChatMessage("assistant", "[" + ai.role() + "] " + ai.textDe()));
             SessionPlan.Step second = new SessionPlan.Step(step.index(), step.candidateAction(), step.cardIndex(),
-                    step.aiRole2(), step.aiAction2(), step.hintVi());
+                    step.aiRole2(), step.aiAction2(), step.hintVi(), step.hintKey());
             ai2 = interlocutor.reply(userId, bp, part, second, card, null, hist2, transcript);
         }
 
         Map<String, Object> eval = null;
         if (!s.isMock()) {
             requireBudget(userId, AiRateLimiterService.Bucket.EVAL, DRILL_EVAL_ESTIMATED_TOKENS, "Too many evaluations.");
-            eval = interlocutor.quickEval(userId, bp, part, step, card, lastAiText, transcript);
+            eval = interlocutor.quickEval(userId, bp, part, step, card, lastAiText, transcript, lang);
             candidate.setTurnEvalJson(eval);
             // Đợt 5a: corrections của lượt drill đổ vào kho yếu điểm (SRS + stats theo dạng bài).
             srsBridge.ingestDrillEval(userId, bp, pp.teilNo(), eval);
@@ -545,7 +557,7 @@ public class ExamSessionService {
             SpeakingExamTurn lastPruefer = turns.stream().filter(t -> t.getPartNo() == pp.teilNo()
                     && SpeakingExamTurn.ROLE_PRUEFER.equals(t.getRole())).reduce((a, b) -> b).orElse(null);
             directive = new ExamSessionView.Directive(pp.teilNo(), part.title(), part.archetype().name(),
-                    s.getCurrentStep(), pp.steps().size(), step.candidateAction(), step.hintVi(),
+                    s.getCurrentStep(), pp.steps().size(), step.candidateAction(), step.hintVi(), step.hintKey(),
                     clientStimulus(stimulus(pp, step.cardIndex())),
                     lastPruefer == null ? null : lastPruefer.getTranscript(), "PRUEFER",
                     lastAi == null ? null : lastAi.getRole(), lastAi == null ? null : lastAi.getTranscript());

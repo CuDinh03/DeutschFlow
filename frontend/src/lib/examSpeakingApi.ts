@@ -23,16 +23,17 @@ export const examSpeakingApi = {
 
   getSession: (id: number) => api.get<ExamSessionView>(`/speaking/exam/sessions/${id}`),
 
-  /** Drill (hoặc dev): lượt nói dạng text. */
-  textTurn: (id: number, transcript: string) =>
-    api.post<TurnResponse>(`/speaking/exam/sessions/${id}/turns`, { transcript }),
+  /** Drill (hoặc dev): lượt nói dạng text. `lang` = locale UI — ngôn ngữ lời giải thích quickEval. */
+  textTurn: (id: number, transcript: string, lang?: string) =>
+    api.post<TurnResponse>(`/speaking/exam/sessions/${id}/turns`, { transcript }, { params: lang ? { lang } : undefined }),
 
   /** Mock (và drill có mic): lượt nói dạng audio — server phiên âm verbose. */
-  audioTurn: (id: number, blob: Blob, filename = 'turn.webm') => {
+  audioTurn: (id: number, blob: Blob, filename = 'turn.webm', lang?: string) => {
     const form = new FormData()
     form.append('audio', blob, filename)
     return api.post<TurnResponse>(`/speaking/exam/sessions/${id}/turns`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      params: lang ? { lang } : undefined,
     })
   },
 

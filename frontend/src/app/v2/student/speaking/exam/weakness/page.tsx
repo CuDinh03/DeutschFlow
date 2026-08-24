@@ -147,7 +147,12 @@ export default function V2ExamWeaknessPage() {
                         {w.lastSeverity && (
                           <TkBadge tone={severityTone(w.lastSeverity)}>{t(`severity.${w.lastSeverity}`)}</TkBadge>
                         )}
-                        <TkBadge tone="neutral">{t('seenCount', { count: w.totalCount })}</TkBadge>
+                        <TkBadge tone="neutral">{t('seenCount', { count: w.examCount })}</TkBadge>
+                        {w.totalCount > w.examCount && (
+                          <span className="ga-ui text-[11.5px] text-ga-muted" data-testid="total-count-note">
+                            {t('totalCountNote', { count: w.totalCount })}
+                          </span>
+                        )}
                       </span>
                     </div>
                     {w.ruleVi && <p className="ga-ui text-[13.5px] text-ga-ink">{w.ruleVi}</p>}

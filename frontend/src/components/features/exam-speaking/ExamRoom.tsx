@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Volume2, VolumeX, Flag, ChevronRight, RotateCcw, ArrowLeft } from 'lucide-react'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { apiMessage } from '@/lib/api'
@@ -12,6 +12,8 @@ import { ExamTimer } from './ExamTimer'
 import { TeilStepper } from './TeilStepper'
 import { ExamTranscript } from './ExamTranscript'
 import { MicBar } from './MicBar'
+import { MicCheck } from './MicCheck'
+import { useMicPermission } from '@/hooks/useMicPermission'
 import { Ergebnisbogen } from './Ergebnisbogen'
 import { DrillSummary } from './DrillSummary'
 import { isExamTtsMuted, setExamTtsMuted, speakExamLine, stopExamTts } from './examTts'
@@ -31,6 +33,10 @@ const nextId = () => `l${Date.now()}-${lineSeq++}`
  */
 export function ExamRoom({ sessionId, catalogHref }: Props) {
   const t = useTranslations('v2.student.examSpeaking.room')
+  const locale = useLocale()
+  const micPermission = useMicPermission()
+  const [micCheckPassed, setMicCheckPassed] = useState(false)
+  const [drillTimeUp, setDrillTimeUp] = useState(false)
   const [session, setSession] = useState<ExamSessionView | null>(null)
   const [blueprint, setBlueprint] = useState<BlueprintSummary | null>(null)
   const [lines, setLines] = useState<RoomLine[]>([])
@@ -143,7 +149,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       try {
         stopExamTts()
         const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'
-        const { data } = await examSpeakingApi.audioTurn(sessionId, blob, `turn.${ext}`)
+        const { data } = await examSpeakingApi.audioTurn(sessionId, blob, `turn.${ext}`, locale)
         applyTurn(data, '', startedAt)
       } catch (e) {
         setError(apiMessage(e))
@@ -151,7 +157,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
         setBusy(false)
       }
     },
-    [applyTurn, sessionId],
+    [applyTurn, locale, sessionId],
   )
 
   const submitText = useCallback(
@@ -161,7 +167,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       const startedAt = performance.now()
       try {
         stopExamTts()
-        const { data } = await examSpeakingApi.textTurn(sessionId, text)
+        const { data } = await examSpeakingApi.textTurn(sessionId, text, locale)
         applyTurn(data, text, startedAt)
       } catch (e) {
         setError(apiMessage(e))
@@ -169,7 +175,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
         setBusy(false)
       }
     },
-    [applyTurn, sessionId],
+    [applyTurn, locale, sessionId],
   )
 
   const advance = useCallback(async () => {
@@ -234,6 +240,11 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
     setMuted(next)
   }
 
+  // Sang bước/Teil khác → badge "hết giờ" của drill hết hiệu lực.
+  useEffect(() => {
+    setDrillTimeUp(false)
+  }, [session?.currentPart, session?.currentStep])
+
   const currentPartSummary = useMemo(
     () => blueprint?.parts.find((p) => p.teilNo === session?.currentPart) ?? null,
     [blueprint, session?.currentPart],
@@ -259,7 +270,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
                 deadlineAt={session.partDeadlineAt}
                 serverNow={session.serverNow}
                 totalSec={currentPartSummary?.durationSec ?? 0}
-                onExpire={isMock ? () => void advance() : undefined}
+                onExpire={isMock ? () => void advance() : () => setDrillTimeUp(true)}
                 label={t('timeLeft')}
               />
             )}
@@ -281,6 +292,17 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
         {error && (
           <div className="mb-4">
             <ErrorBanner message={error} onRetry={() => setError(null)} retryLabel={t('dismiss')} />
+          </div>
+        )}
+
+        {micPermission === 'denied' && session.state !== 'RESULTS' && session.state !== 'DONE' && (
+          <div className="mb-4 rounded-ga border border-ga-red bg-ga-red-soft p-3" role="alert" data-testid="mic-denied-banner">
+            <p className="ga-ui text-[13.5px] font-semibold text-ga-red">{t('micDenied.title')}</p>
+            <ol className="ga-ui mt-1 list-decimal space-y-0.5 pl-5 text-[12.5px] text-ga-ink">
+              <li>{t('micDenied.site')}</li>
+              <li>{t('micDenied.browser')}</li>
+              <li>{t('micDenied.os')}</li>
+            </ol>
           </div>
         )}
 
@@ -338,11 +360,16 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
               placeholder={t('notesPlaceholder')}
               aria-label={t('notesPlaceholder')}
             />
+            {isMock && <MicCheck passed={micCheckPassed || micPermission === 'granted'} onPassed={() => setMicCheckPassed(true)} />}
             <GaBtn
               variant="ink"
               size="lg"
               onClick={() => void advance()}
-              disabled={busy || (session.prepMaterials ?? []).some((m) => m.choiceRequired && m.chosenIndex === null)}
+              disabled={
+                busy ||
+                (session.prepMaterials ?? []).some((m) => m.choiceRequired && m.chosenIndex === null) ||
+                (isMock && !micCheckPassed && micPermission !== 'granted')
+              }
               data-testid="prep-enter"
             >
               {t('enterExam')} <ChevronRight size={16} aria-hidden className="ml-1" />
@@ -362,7 +389,16 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
               </div>
               <StimulusCard stimulus={session.directive.stimulus} stepIndex={session.directive.stepIndex} candidateAction={session.directive.candidateAction} />
               <div className="rounded-ga bg-ga-yellow-soft p-3">
-                <p className="ga-ui text-[13px] text-ga-ink" data-testid="directive-hint">{session.directive.hintVi}</p>
+                <p className="ga-ui text-[13px] text-ga-ink" data-testid="directive-hint">
+                  {session.directive.hintKey && t.has(`hints.${session.directive.hintKey}`)
+                    ? t(`hints.${session.directive.hintKey}`)
+                    : session.directive.hintVi}
+                </p>
+                {drillTimeUp && !isMock && (
+                  <p className="ga-ui mt-1.5 text-[12.5px] font-semibold text-ga-red" data-testid="drill-time-up">
+                    {t('drillTimeUp')}
+                  </p>
+                )}
               </div>
               {session.notesText && (
                 <details className="rounded-ga border border-ga-line bg-ga-card p-3">

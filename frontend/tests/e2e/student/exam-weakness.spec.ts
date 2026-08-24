@@ -18,6 +18,7 @@ const WEAKNESS = {
     {
       errorCode: 'WORD_ORDER.V2_MAIN_CLAUSE',
       ruleVi: 'Động từ chia luôn đứng vị trí 2 trong câu trần thuật.',
+      examCount: 4,
       totalCount: 4,
       openCount: 3,
       lastSeverity: 'MAJOR',
@@ -32,6 +33,7 @@ const WEAKNESS = {
     {
       errorCode: 'ARTICLE.GENDER_WRONG_DER_DIE_DAS',
       ruleVi: 'Danh từ tiếng Đức có giống cố định — học kèm mạo từ.',
+      examCount: 1,
       totalCount: 2,
       openCount: 2,
       lastSeverity: 'MINOR',
@@ -72,7 +74,11 @@ test.describe('Ôn yếu điểm (/v2/student/speaking/exam/weakness)', () => {
     await expect(first).toContainText('Gern ich trinke Kaffee');
     await expect(first).toContainText('Ich trinke gern Kaffee');
     await expect(first).toContainText('Goethe A1 · Teil 2');
-    await expect(page.getByTestId('weak-ARTICLE.GENDER_WRONG_DER_DIE_DAS')).toBeVisible();
+    const second = page.getByTestId('weak-ARTICLE.GENDER_WRONG_DER_DIE_DAS');
+    await expect(second).toBeVisible();
+    // QS-5: số chính = số lần TRONG phòng thi; tổng toàn cục chỉ là ghi chú phụ khi lớn hơn.
+    await expect(second.getByTestId('total-count-note')).toContainText('2');
+    await expect(first.getByTestId('total-count-note')).toHaveCount(0);
     // Gói Redemittel của cả hai dạng bài đang yếu
     const packs = page.getByTestId('redemittel-packs');
     await expect(packs).toContainText('Wie heißt du?');

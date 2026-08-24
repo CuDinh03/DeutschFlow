@@ -1184,7 +1184,48 @@
         "redemittel": "Redemittel",
         "chooseOne": "Ein Thema wählen",
         "chosen": "Option {n} gewählt",
-        "option": "Option {n}"
+        "option": "Option {n}",
+        "micDenied": {
+          "title": "Mikrofon ist blockiert — erlaube den Zugriff, bevor du sprichst",
+          "site": "Klicke auf das 🎤-/Schloss-Symbol neben der Adressleiste → Mikrofon erlauben.",
+          "browser": "Nicht zu sehen? Browser-Einstellungen → Berechtigungen → Mikrofon → Blockierung aufheben.",
+          "os": "macOS/Windows: Mikrofonzugriff für den Browser in den Systemeinstellungen aktivieren und den Browser neu starten."
+        },
+        "drillTimeUp": "Die empfohlene Zeit für diesen Teil ist um — im Übungsmodus kannst du weitersprechen oder zum nächsten Teil gehen.",
+        "hints": {
+          "INTRO_SPELL": "Stell dich mit den Stichwörtern auf der Karte vor (Name, Alter, Land, Wohnort, Sprachen, Beruf, Hobby).",
+          "SPELL_WORD": "Buchstabiere das Wort, nach dem der/die Prüfer/in fragt.",
+          "READ_NUMBER": "Lies die Nummer/Telefonnummer/Postleitzahl vor, nach der gefragt wird.",
+          "INTRO_CARD": "Stell dich mit den Stichwörtern auf der Karte vor — sprich in ganzen Sätzen.",
+          "ANSWER_FOLLOWUP": "Beantworte die Zusatzfrage des Prüfers / der Prüferin.",
+          "ASK_PERSON": "Stell deinem/deiner Partner/in EINE Frage zum Stichwort auf der Karte (z. B. Geburtstag? → Wann hast du Geburtstag?).",
+          "ASK_QWORD": "Stell EINE Frage zum Thema — beginne mit dem Fragewort auf der Karte.",
+          "ASK_REQUEST": "Sieh dir das Bild an und formuliere eine Bitte an deine/n Partner/in.",
+          "ASK_CARD": "Stell deinem/deiner Partner/in EINE Frage zum Wort auf der Karte.",
+          "REACT_REQUEST": "Reagiere auf die Bitte deines Partners / deiner Partnerin (höflich zusagen oder ablehnen).",
+          "ANSWER_PARTNER": "Beantworte die Frage, die dein/e Partner/in gerade gestellt hat (seine/ihre Karte siehst du hier).",
+          "PRESENT_LONG": "Präsentiere dein Thema (Einleitung – Inhalt – Schluss). Sprich 3–4 Minuten zusammenhängend; nutze deine Notizen.",
+          "PRESENT_SHORT": "Präsentiere/erzähle zum Thema. Sprich zusammenhängend mit Einleitung, Inhalt und Schluss.",
+          "ANSWER_PARTNER_PRESENTATION": "Beantworte die Frage deines Partners / deiner Partnerin zu deiner Präsentation.",
+          "ANSWER_QUESTION": "Beantworte die Frage, die dir gerade gestellt wurde.",
+          "CONTACT_THEN_PRUEFER": "Reagiere auf deine/n Partner/in; danach stellt der/die Prüfer/in noch eine Frage.",
+          "ANSWER_PRUEFER": "Beantworte die Frage des Prüfers / der Prüferin.",
+          "OPEN_CALENDAR": "Anfang: Schlag einen freien Termin aus DEINEM Kalender vor (dein/e Partner/in hat einen anderen).",
+          "OPEN_VORLAGE": "Berichte deinem/deiner Partner/in, was in DEINER Vorlage steht (Thema, wichtige Zahlen).",
+          "OPEN_CONTACT": "Anfang: Begrüße, stell dich vor und frag deine/n Partner/in zu einem Thema auf der Karte.",
+          "OPEN_DEBATE": "Anfang: Nenne klar deinen Standpunkt zur Frage und einen Hauptgrund.",
+          "OPEN_DEFAULT": "Anfang: Mach den ersten Vorschlag / nenne deine Meinung.",
+          "CLOSE_CALENDAR": "Abschluss: Wiederhole den vereinbarten Termin.",
+          "CLOSE_DEBATE": "Schluss: Fasse beide Seiten zusammen und sag klar, ob du dafür oder dagegen bist.",
+          "CLOSE_DEFAULT": "Schluss: Fasse zusammen, worauf ihr euch geeinigt habt.",
+          "REACT_CALENDAR": "Reagiere: Sag zu, wenn du frei bist; sonst lehne mit Begründung ab und schlag eine andere Zeit vor.",
+          "REACT_VORLAGE": "Reagiere auf die Vorlage deines Partners / deiner Partnerin; erzähle von deiner Erfahrung/Meinung und frag zurück.",
+          "REACT_CONTACT": "Antworte und frag deine/n Partner/in zu einem anderen Thema auf der Karte.",
+          "REACT_DEBATE": "Widersprich dem gehörten Argument (räume einen Punkt ein, argumentiere dann dagegen).",
+          "REACT_DEFAULT": "Reagiere auf deine/n Partner/in: Stimme mit Begründung zu / widersprich und mach den nächsten Vorschlag.",
+          "FEEDBACK_COMMENT": "Gib deinem/deiner Partner/in eine Rückmeldung zur Präsentation (was war gut/neu/interessant) und stell EINE Frage.",
+          "ANSWER_PRUEFER_TOPIC": "Beantworte die Frage des Prüfers / der Prüferin zum Thema."
+        }
       },
       "mic": {
         "sending": "Wird gesendet, Antwort folgt…",
@@ -1202,6 +1243,12 @@
           "insecure": "Das Mikrofon braucht HTTPS.",
           "unsupported": "Dieser Browser kann keine Audioaufnahme.",
           "unknown": "Aufnahme fehlgeschlagen. Bitte erneut versuchen."
+        },
+        "retry": "Mikrofon erneut versuchen",
+        "deniedSteps": {
+          "site": "Klicke auf das 🎤-/Schloss-Symbol neben der Adressleiste → Mikrofon für diese Seite erlauben.",
+          "browser": "Nicht zu sehen? Browser-Einstellungen → Berechtigungen → Mikrofon → Blockierung für diese Seite aufheben.",
+          "os": "macOS/Windows: Mikrofonzugriff für den Browser in den Systemeinstellungen aktivieren und den Browser neu starten."
         }
       },
       "stimulus": {
@@ -1267,7 +1314,7 @@
         "filterAll": "Alle Aufgabentypen",
         "empty": "Noch keine Fehler aus dem Prüfungsraum erfasst.",
         "emptyHint": "Übe einen beliebigen Teil (Drill) oder mache eine komplette Probeprüfung — erkannte Fehler erscheinen hier zur Wiederholung.",
-        "seenCount": "{count}× aufgetreten",
+        "seenCount": "{count}× im Prüfungsraum",
         "severity": {
           "BLOCKING": "Schwerwiegend",
           "MAJOR": "Auffällig",
@@ -1275,7 +1322,20 @@
         },
         "drillCta": "Diesen Teil erneut üben",
         "starting": "Sitzung wird gestartet…",
-        "redemittelCap": "Redemittel nach Aufgabentyp"
+        "redemittelCap": "Redemittel nach Aufgabentyp",
+        "totalCountNote": "insgesamt {count}× in allen Sprechübungen"
+      },
+      "micCheck": {
+        "title": "Mikrofon-Check vor dem Betreten",
+        "desc": "Die Prüfungssimulation nimmt nur Audio an und läuft mit echter Zeit — prüfe vorher dein Mikrofon.",
+        "start": "Mikrofon prüfen",
+        "speakNow": "Sag etwas…",
+        "heard": "Wir hören dich!",
+        "passed": "Mikrofon bereit.",
+        "failed": {
+          "denied": "Der Browser blockiert das Mikrofon — folge den Schritten oben und prüfe erneut.",
+          "other": "Mikrofon konnte nicht geöffnet werden. Prüfe dein Gerät und versuche es erneut."
+        }
       }
     }
   }
