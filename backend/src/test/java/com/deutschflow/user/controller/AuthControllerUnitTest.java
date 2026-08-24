@@ -12,6 +12,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -26,6 +28,8 @@ class AuthControllerUnitTest {
     com.deutschflow.user.service.AuthService authService;
     @Mock
     com.deutschflow.user.service.AuthRateLimiterService authRateLimiterService;
+    @Mock
+    com.deutschflow.user.service.AuthConcurrencyLimiter authConcurrencyLimiter;
 
     @InjectMocks
     AuthController controller;
@@ -61,6 +65,30 @@ class AuthControllerUnitTest {
                 .andExpect(header().string("Retry-After", "60"));
 
         verifyNoInteractions(authService);
+    }
+
+    /**
+     * Bulkhead quá tải → 429, và tuyệt đối KHÔNG chạm AuthService. Đây là lớp duy nhất còn tác dụng
+     * khi tấn công PHÂN TÁN: rate-limit theo IP để lọt vì không IP nào chạm ngưỡng, nhưng tổng tải
+     * vẫn đủ lấp kín thread pool bằng BCrypt.
+     */
+    @Test
+    void login_bulkheadSaturated_returns429AndNeverReachesAuthService() throws Exception {
+        when(authRateLimiterService.allowLoginPerIp(anyString())).thenReturn(true);
+        when(authRateLimiterService.allow(anyString(), anyString())).thenReturn(true);
+        when(authConcurrencyLimiter.tryAcquire()).thenReturn(false);
+        when(authConcurrencyLimiter.retryAfterSeconds()).thenReturn(1);
+
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"real-user@x.com\",\"password\":\"whatever\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "1"));
+
+        verifyNoInteractions(authService);
+        // Không lấy được permit thì KHÔNG được release — release thừa sẽ tạo permit từ hư không
+        // và làm bulkhead nới rộng dần sau mỗi lần quá tải.
+        verify(authConcurrencyLimiter, never()).release();
     }
 
     @Test

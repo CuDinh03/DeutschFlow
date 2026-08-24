@@ -27,3 +27,57 @@ groups:
         annotations:
           summary: "High HTTP Error Rate"
           description: "More than 5% of requests are returning 5xx status codes over the last 2 minutes."
+
+  # ── Phát hiện lạm dụng / tấn công ────────────────────────────────────────────
+  # Nhóm này KHÔNG bắt lỗi ứng dụng mà bắt hành vi bất thường từ bên ngoài. Lý do tách riêng:
+  # khi bị dội, triệu chứng đầu tiên KHÔNG phải 5xx (app vẫn trả 429 đúng chuẩn, không hề lỗi) —
+  # nên HighErrorRate ở nhóm trên sẽ im lặng suốt trong khi server đang bị bào. Cần tín hiệu riêng.
+  #
+  # Mục tiêu là biết trong VÀI PHÚT thay vì phát hiện khi người dùng phàn nàn. Ngưỡng đặt theo
+  # nguyên tắc: thà kêu hơi sớm còn hơn ngủ quên, nhưng không được kêu vặt hằng ngày — cảnh báo
+  # bị chai là cảnh báo vô dụng.
+  - name: deutschflow_abuse
+    rules:
+      - alert: RateLimitSurge
+        # 429 lác đác là bình thường (người dùng bấm nhanh, mobile retry). Cả một dòng 429 LIÊN TỤC
+        # trong 3 phút thì không còn là ngẫu nhiên nữa.
+        expr: sum(rate(http_server_requests_seconds_count{status="429"}[2m])) > 3
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rate limit đang chặn liên tục (>3 req/s bị 429)"
+          description: "Có thể đang bị dội, hoặc một client (app mobile?) kẹt vòng lặp retry. Soi log nginx + WARN [PublicRateLimit]/[AuthBulkhead] để biết IP nào."
+
+      - alert: AuthEndpointFlood
+        # Đăng nhập là hành vi thưa: người thật đăng nhập một lần rồi dùng refresh token hàng giờ.
+        # 20 req/s LIÊN TỤC trên /api/auth/** không phải hình dạng của lưu lượng thật.
+        expr: sum(rate(http_server_requests_seconds_count{uri=~"/api/auth/.*"}[5m])) > 20
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Lưu lượng /api/auth/** bất thường (>20 req/s)"
+          description: "Mỗi request login tốn trọn một lần BCrypt kể cả với email không tồn tại. Kiểm cap login theo IP và bulkhead còn hiệu lực không; cân nhắc siết limit_req ở nginx."
+
+      - alert: TomcatThreadPoolSaturated
+        # Cần server.tomcat.mbeanregistry.enabled=true, nếu không metric này KHÔNG tồn tại và
+        # alert sẽ im lặng vĩnh viễn.
+        expr: tomcat_threads_busy_threads / tomcat_threads_config_max_threads > 0.8
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Tomcat thread pool đã dùng >80%"
+          description: "Hết thread là toàn bộ API ngừng phản hồi, không riêng phần đang bị dội. Nếu đi kèm AuthEndpointFlood thì bulkhead auth đang bị vượt — hạ APP_AUTH_BULKHEAD_MAX_CONCURRENT."
+
+      - alert: SustainedHighCpu
+        # EC2 là t3.medium — burstable. CPU cao kéo dài làm CẠN CPU credit, và khi cạn thì box bị
+        # bóp về baseline HÀNG GIỜ sau khi tải đã hết. Cảnh báo này để kịp can thiệp trước lúc đó.
+        expr: process_cpu_usage > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU backend >85% suốt 10 phút"
+          description: "Trên t3 burstable, kéo dài sẽ cạn CPU credit và server bị throttle về baseline hàng giờ SAU KHI tải đã hết. Kiểm CPUCreditBalance trên CloudWatch."
