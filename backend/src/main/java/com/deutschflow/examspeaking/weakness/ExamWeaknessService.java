@@ -103,6 +103,7 @@ public class ExamWeaknessService {
         return new WeaknessView.WeakPoint(
                 code,
                 ruleVi,
+                examCount,
                 skill != null ? skill.getTotalCount() : examCount,
                 skill != null ? skill.getOpenCount() : examCount,
                 skill != null ? skill.getLastSeverity() : null,

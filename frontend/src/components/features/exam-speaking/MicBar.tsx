@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Mic, Square, Keyboard, Send, Loader2 } from 'lucide-react'
 import { startRecorder, type RecorderHandle } from '@/lib/voiceRecorder'
-import { classifyMicError } from '@/lib/micErrors'
+import { classifyMicError, type MicErrorKind } from '@/lib/micErrors'
+import { useMicPermission } from '@/hooks/useMicPermission'
 import { GaBtn } from '@/components/ui-v2'
 
 interface Props {
@@ -23,10 +24,18 @@ export function MicBar({ disabled, busy, allowText, onAudio, onText, hint }: Pro
   const [recording, setRecording] = useState(false)
   const [textMode, setTextMode] = useState(false)
   const [text, setText] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ kind: MicErrorKind; message: string } | null>(null)
   const recorderRef = useRef<RecorderHandle | null>(null)
+  const micPermission = useMicPermission()
 
   useEffect(() => () => recorderRef.current?.stop(), [])
+
+  // Người dùng vừa cấp quyền trong cài đặt trình duyệt → lỗi "denied" hết hiệu lực, tự dọn (QS-1).
+  useEffect(() => {
+    if (micPermission === 'granted') {
+      setError((prev) => (prev?.kind === 'denied' ? null : prev))
+    }
+  }, [micPermission])
 
   const start = useCallback(async () => {
     setError(null)
@@ -39,7 +48,7 @@ export function MicBar({ disabled, busy, allowText, onAudio, onText, hint }: Pro
       setRecording(true)
     } catch (e) {
       const info = classifyMicError(e)
-      setError(t(`errors.${info.kind}`))
+      setError({ kind: info.kind, message: t(`errors.${info.kind}`) })
       setTextMode(allowText)
     }
   }, [allowText, onAudio, t])
@@ -111,7 +120,29 @@ export function MicBar({ disabled, busy, allowText, onAudio, onText, hint }: Pro
           )}
         </div>
       )}
-      {error && <p className="ga-ui mt-2 text-[12.5px] text-ga-red">{error}</p>}
+      {error && (
+        <div className="mt-2" data-testid="mic-error">
+          <p className="ga-ui text-[12.5px] text-ga-red">{error.message}</p>
+          {error.kind === 'denied' && (
+            <ol className="ga-ui mt-1.5 list-decimal space-y-0.5 pl-5 text-[12.5px] text-ga-muted" data-testid="mic-denied-steps">
+              <li>{t('deniedSteps.site')}</li>
+              <li>{t('deniedSteps.browser')}</li>
+              <li>{t('deniedSteps.os')}</li>
+            </ol>
+          )}
+          <button
+            type="button"
+            className="ga-ui mt-1.5 text-[12.5px] font-semibold text-ga-ink underline underline-offset-2"
+            onClick={() => {
+              setTextMode(false)
+              void start()
+            }}
+            data-testid="mic-retry"
+          >
+            {t('retry')}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -1184,7 +1184,42 @@
         "redemittel": "Useful phrases",
         "chooseOne": "Choose one topic",
         "chosen": "Option {n} chosen",
-        "option": "Option {n}"
+        "option": "Option {n}",
+        "drillTimeUp": "Recommended time for this part is up — in practice mode you can keep speaking, or move to the next part.",
+        "hints": {
+          "INTRO_SPELL": "Introduce yourself using the keywords on the card (name, age, country, residence, languages, job, hobby).",
+          "SPELL_WORD": "Spell the word the examiner asks for (buchstabieren).",
+          "READ_NUMBER": "Read out the number/phone/postcode the examiner asks for.",
+          "INTRO_CARD": "Introduce yourself using the keywords on the card — speak in full sentences.",
+          "ANSWER_FOLLOWUP": "Answer the examiner's follow-up question.",
+          "ASK_PERSON": "Ask your partner ONE question about the keyword on the card (e.g. Geburtstag? → Wann hast du Geburtstag?).",
+          "ASK_QWORD": "Ask ONE question about the topic, starting with the question word on the card.",
+          "ASK_REQUEST": "Look at the picture and make a request (Bitte) to your partner.",
+          "ASK_CARD": "Ask your partner ONE question about the word on the card.",
+          "REACT_REQUEST": "React to your partner's request (accept or decline politely).",
+          "ANSWER_PARTNER": "Answer the question your partner just asked (their card is shown here).",
+          "PRESENT_LONG": "Present your topic (introduction – content – conclusion). Speak fluently for 3–4 minutes; use your notes if needed.",
+          "PRESENT_SHORT": "Present/narrate your topic. Speak fluently with an introduction, content and a conclusion.",
+          "ANSWER_PARTNER_PRESENTATION": "Answer your partner's question about your presentation.",
+          "ANSWER_QUESTION": "Answer the question you were just asked.",
+          "CONTACT_THEN_PRUEFER": "Respond to your partner; then the examiner will ask one more question.",
+          "ANSWER_PRUEFER": "Answer the examiner's question.",
+          "OPEN_CALENDAR": "Start: suggest a free day/time from YOUR calendar (your partner's calendar is different).",
+          "OPEN_VORLAGE": "Tell your partner what YOUR text (Vorlage) says (topic, key figures).",
+          "OPEN_CONTACT": "Start: greet, introduce yourself and ask your partner about a topic on the card.",
+          "OPEN_DEBATE": "Start: state your position on the question clearly with one main reason.",
+          "OPEN_DEFAULT": "Start: make the first suggestion / state your view.",
+          "CLOSE_CALENDAR": "Wrap up: repeat the date and time you agreed on.",
+          "CLOSE_DEBATE": "Conclude: summarise both sides, then say clearly whether you are for or against.",
+          "CLOSE_DEFAULT": "Conclude: summarise what you both agreed on.",
+          "REACT_CALENDAR": "Respond: agree if you are free; otherwise decline with a reason and suggest another time.",
+          "REACT_VORLAGE": "Respond to your partner's text; talk about your own experience/opinion and ask back.",
+          "REACT_CONTACT": "Answer, then ask your partner about another topic on the card.",
+          "REACT_DEBATE": "Counter the argument you just heard (concede a point, then argue the other way).",
+          "REACT_DEFAULT": "Respond to your partner: agree/disagree with a reason, then suggest the next point.",
+          "FEEDBACK_COMMENT": "Give your partner one comment on the presentation (what was good/new/interesting) and ask ONE question.",
+          "ANSWER_PRUEFER_TOPIC": "Answer the examiner's question about the topic."
+        }
       },
       "mic": {
         "sending": "Sending and waiting for the reply…",
@@ -1202,6 +1237,12 @@
           "insecure": "Microphone needs HTTPS.",
           "unsupported": "This browser cannot record audio.",
           "unknown": "Could not record. Please retry."
+        },
+        "retry": "Try microphone again",
+        "deniedSteps": {
+          "site": "Click the 🎤/lock icon next to the address bar → allow Microphone for this site.",
+          "browser": "Can't see it? Browser settings → Permissions → Microphone → unblock this site.",
+          "os": "macOS/Windows: enable microphone access for your browser in system settings, then restart the browser."
         }
       },
       "stimulus": {
@@ -1267,7 +1308,7 @@
         "filterAll": "All task types",
         "empty": "No mistakes recorded from the exam room yet.",
         "emptyHint": "Practise any Teil (Drill) or take a full mock exam — detected mistakes will show up here for review.",
-        "seenCount": "Seen {count}×",
+        "seenCount": "Seen {count}× in the exam room",
         "severity": {
           "BLOCKING": "Severe",
           "MAJOR": "Notable",
@@ -1275,8 +1316,27 @@
         },
         "drillCta": "Drill this Teil again",
         "starting": "Starting session…",
-        "redemittelCap": "Redemittel by task type"
+        "redemittelCap": "Redemittel by task type",
+        "totalCountNote": "{count}× total across all speaking practice"
+      },
+      "micCheck": {
+        "title": "Check your microphone before entering",
+        "desc": "The mock exam is audio-only and runs on a real clock — make sure your microphone works first.",
+        "start": "Check microphone",
+        "speakNow": "Say something…",
+        "heard": "We can hear you!",
+        "passed": "Microphone ready.",
+        "failed": {
+          "denied": "The browser is blocking the microphone — follow the permission steps above, then check again.",
+          "other": "Could not open the microphone. Check your device and try again."
+        }
       }
+    },
+    "micGuide": {
+      "title": "Your browser is blocking the microphone — allow access before speaking",
+      "site": "Click the 🎤/lock icon next to the address bar → allow Microphone for this site.",
+      "browser": "Can't see it? Browser settings → Permissions → Microphone → unblock this site.",
+      "os": "macOS/Windows: enable microphone access for your browser in system settings, then restart the browser."
     }
   }
 }

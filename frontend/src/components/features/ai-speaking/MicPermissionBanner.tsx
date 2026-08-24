@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { AlertCircle, RefreshCw, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { isMicErrorRetryable, type MicErrorKind } from "@/lib/micErrors";
+import { useMicPermission } from "@/hooks/useMicPermission";
 
 interface Props {
   /** Localised, already-resolved cause message. */
@@ -22,7 +24,16 @@ interface Props {
  */
 export function MicPermissionBanner({ message, kind, onRetry, onDismiss }: Props) {
   const t = useTranslations("speaking");
+  const tGuide = useTranslations("v2.student.micGuide");
   const retryable = isMicErrorRetryable(kind);
+  const permission = useMicPermission();
+
+  // Người dùng vừa cấp quyền trong cài đặt trình duyệt → banner "denied" hết hiệu lực, tự đóng (N0.7).
+  useEffect(() => {
+    if (kind === "denied" && permission === "granted") {
+      onDismiss();
+    }
+  }, [kind, permission, onDismiss]);
 
   return (
     <div
@@ -33,6 +44,13 @@ export function MicPermissionBanner({ message, kind, onRetry, onDismiss }: Props
 
       <div className="min-w-0 flex-1 text-left">
         <p className="text-[13px] leading-snug text-ga-ink">{message}</p>
+        {kind === "denied" && (
+          <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-[11.5px] text-ga-ink" data-testid="mic-denied-steps">
+            <li>{tGuide("site")}</li>
+            <li>{tGuide("browser")}</li>
+            <li>{tGuide("os")}</li>
+          </ol>
+        )}
         <p className="mt-0.5 text-[11px] text-ga-muted">{t("micTypeInstead")}</p>
       </div>
 

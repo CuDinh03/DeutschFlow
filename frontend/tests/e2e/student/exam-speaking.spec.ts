@@ -10,6 +10,9 @@ import { studentCookies, STUDENT_TOKEN } from '../../helpers/tokens';
  * Không `waitForTimeout`: mọi chờ đều là assertion deterministic (bẫy đua biên dịch nguội `next dev`).
  */
 
+// Mock cần mic: quyền cấp sẵn ở mức context → Permissions API trả 'granted', gate Mic-Check tự đạt (N0.7).
+test.use({ permissions: ['microphone'] });
+
 const STUDENT_ME = { displayName: 'Test Student', role: 'STUDENT', userId: 1, email: 'student@test.com', learningTargetLevel: 'A1' };
 
 const BLUEPRINTS = [
@@ -129,7 +132,7 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await page.route('**/api/speaking/exam/sessions/501', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(drillSession(step)) }),
     );
-    await page.route('**/api/speaking/exam/sessions/501/turns', async (route) => {
+    await page.route('**/api/speaking/exam/sessions/501/turns*', async (route) => {
       const body = JSON.parse(route.request().postData() ?? '{}');
       step = 1;
       await route.fulfill({

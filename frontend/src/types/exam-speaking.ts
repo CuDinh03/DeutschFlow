@@ -37,6 +37,8 @@ export interface ExamDirective {
   stepCount: number
   candidateAction: CandidateAction
   hintVi: string
+  /** Khoá i18n ổn định của gợi ý — FE dịch theo locale; null với phiên cũ. */
+  hintKey?: string | null
   stimulus: Record<string, unknown> | null
   prueferText: string | null
   prueferVoice: string | null
@@ -173,6 +175,9 @@ export interface WeaknessContext {
 export interface WeakPointView {
   errorCode: string
   ruleVi: string | null
+  /** Số lần gặp TRONG phòng luyện thi (số chính trên UI). */
+  examCount: number
+  /** Số lần gặp trên mọi tính năng luyện nói (ngữ cảnh phụ). */
   totalCount: number
   openCount: number
   lastSeverity: string | null

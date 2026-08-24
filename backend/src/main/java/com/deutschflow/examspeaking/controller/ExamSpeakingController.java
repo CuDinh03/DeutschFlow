@@ -74,15 +74,17 @@ public class ExamSpeakingController {
     /** Drill (và mock khi dev bật allow-text-turns-in-mock): lượt nói dạng text. */
     @PostMapping(value = "/sessions/{id}/turns", consumes = MediaType.APPLICATION_JSON_VALUE)
     public TurnResponse textTurn(@AuthenticationPrincipal User user, @PathVariable long id,
-                                 @RequestBody Map<String, String> body) {
-        return sessionService.submitTextTurn(user.getId(), id, body == null ? null : body.get("transcript"));
+                                 @RequestBody Map<String, String> body,
+                                 @RequestParam(value = "lang", required = false) String lang) {
+        return sessionService.submitTextTurn(user.getId(), id, body == null ? null : body.get("transcript"), lang);
     }
 
     /** Mock: lượt nói dạng audio — server phiên âm verbose (word-timestamps + logprob) và phát hành transcript. */
     @PostMapping(value = "/sessions/{id}/turns", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public TurnResponse audioTurn(@AuthenticationPrincipal User user, @PathVariable long id,
-                                  @RequestParam("audio") MultipartFile file) throws IOException {
-        return sessionService.submitAudioTurn(user.getId(), id, readValidatedAudio(file), file.getOriginalFilename());
+                                  @RequestParam("audio") MultipartFile file,
+                                  @RequestParam(value = "lang", required = false) String lang) throws IOException {
+        return sessionService.submitAudioTurn(user.getId(), id, readValidatedAudio(file), file.getOriginalFilename(), lang);
     }
 
     /** Chọn chủ đề cho Teil "1 trong N" (Goethe B1/B2 T2): trong PREP (mock) hoặc ngay đầu Teil (drill). */

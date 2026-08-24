@@ -1,5 +1,6 @@
 'use client'
 
+import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide';
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Mic, Loader2, Play, CheckCircle, RefreshCcw, Volume2 } from 'lucide-react'
 import { startRecorder, RecorderHandle } from '@/lib/voiceRecorder'
@@ -178,6 +179,7 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+      <MicDeniedGuide className="m-3" />
       <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-4 lg:px-6 py-4">
         <h3 className="font-bold text-white text-lg flex items-center gap-2">
           <Mic size={20} />

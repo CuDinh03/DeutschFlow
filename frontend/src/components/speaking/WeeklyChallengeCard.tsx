@@ -1,5 +1,6 @@
 "use client";
 
+import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Calendar, ChevronDown, ChevronUp, Mic, SendHorizontal } from "lucide-react";
@@ -186,6 +187,7 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
       className="rounded-[20px] border border-[#E2E8F0] bg-white p-4 shadow-[0_2px_8px_rgba(0,48,94,0.04)]"
       style={{ boxShadow: `inset 0 1px 0 0 ${CYAN}18` }}
     >
+      <MicDeniedGuide className="mb-3" />
       <button
         type="button"
         className="w-full flex items-start justify-between gap-2 text-left"

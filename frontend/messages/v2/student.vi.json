@@ -1184,7 +1184,42 @@
         "redemittel": "Gợi ý cách nói",
         "chooseOne": "Chọn 1 chủ đề",
         "chosen": "Đã chọn phương án {n}",
-        "option": "Phương án {n}"
+        "option": "Phương án {n}",
+        "drillTimeUp": "Hết giờ khuyến nghị của phần này — trong chế độ luyện bạn vẫn nói tiếp được, hoặc bấm \"Sang phần kế\".",
+        "hints": {
+          "INTRO_SPELL": "Giới thiệu bản thân theo các từ khóa trên thẻ (tên, tuổi, nước, nơi ở, ngôn ngữ, nghề, sở thích).",
+          "SPELL_WORD": "Đánh vần từ giám khảo yêu cầu (buchstabieren).",
+          "READ_NUMBER": "Đọc số/điện thoại/mã bưu điện giám khảo yêu cầu.",
+          "INTRO_CARD": "Giới thiệu bản thân theo các từ khóa trên thẻ — nói thành câu đầy đủ.",
+          "ANSWER_FOLLOWUP": "Trả lời câu hỏi thêm của giám khảo.",
+          "ASK_PERSON": "Đặt MỘT câu hỏi cho bạn thi về từ khóa trên thẻ (vd. Geburtstag? → Wann hast du Geburtstag?).",
+          "ASK_QWORD": "Đặt MỘT câu hỏi về chủ đề, bắt đầu bằng từ hỏi trên thẻ.",
+          "ASK_REQUEST": "Nhìn hình và đưa ra một lời đề nghị/yêu cầu (Bitte) cho bạn thi.",
+          "ASK_CARD": "Đặt MỘT câu hỏi về từ trên thẻ cho bạn thi.",
+          "REACT_REQUEST": "Phản ứng với lời đề nghị của bạn thi (đồng ý/từ chối lịch sự).",
+          "ANSWER_PARTNER": "Trả lời câu hỏi bạn thi vừa đặt (thẻ của bạn thi hiện ở đây).",
+          "PRESENT_LONG": "Trình bày theo đề (mở đầu – nội dung – kết). Nói liền mạch 3–4 phút, dùng ghi chú nếu có.",
+          "PRESENT_SHORT": "Trình bày/kể theo đề. Nói liền mạch, có mở đầu – nội dung – kết.",
+          "ANSWER_PARTNER_PRESENTATION": "Trả lời câu hỏi của bạn thi về bài trình bày.",
+          "ANSWER_QUESTION": "Trả lời câu hỏi vừa được đặt.",
+          "CONTACT_THEN_PRUEFER": "Phản hồi bạn thi; sau đó giám khảo sẽ hỏi thêm một câu.",
+          "ANSWER_PRUEFER": "Trả lời câu hỏi của giám khảo.",
+          "OPEN_CALENDAR": "Mở đầu: đề xuất một ngày/giờ còn trống trong lịch CỦA BẠN (bạn thi có lịch khác).",
+          "OPEN_VORLAGE": "Thuật lại cho bạn thi: Vorlage của bạn nói gì (chủ đề, số liệu chính)?",
+          "OPEN_CONTACT": "Mở đầu: chào hỏi, giới thiệu và hỏi bạn thi về một chủ đề trên thẻ.",
+          "OPEN_DEBATE": "Mở đầu: nêu rõ quan điểm của bạn về câu hỏi và một lý do chính.",
+          "OPEN_DEFAULT": "Mở đầu: đưa đề xuất/quan điểm đầu tiên.",
+          "CLOSE_CALENDAR": "Chốt lại: nhắc lại ngày giờ đã thống nhất.",
+          "CLOSE_DEBATE": "Kết: tóm tắt hai luồng ý kiến rồi nói rõ bạn nghiêng về dafür oder dagegen.",
+          "CLOSE_DEFAULT": "Kết: tóm tắt điều hai bên thống nhất.",
+          "REACT_CALENDAR": "Phản hồi: đồng ý nếu bạn rảnh, nếu không thì từ chối có lý do và đề xuất giờ khác.",
+          "REACT_VORLAGE": "Phản hồi Vorlage của bạn thi; nói về trải nghiệm/ý kiến của bạn và hỏi lại.",
+          "REACT_CONTACT": "Trả lời và hỏi lại bạn thi về một chủ đề khác trên thẻ.",
+          "REACT_DEBATE": "Phản biện lập luận vừa nghe (nhượng bộ một phần rồi đưa lý lẽ ngược lại).",
+          "REACT_DEFAULT": "Phản hồi bạn thi: đồng ý/phản đối có lý do, đề xuất tiếp.",
+          "FEEDBACK_COMMENT": "Cho bạn thi một nhận xét về bài trình bày (hay/mới/thú vị ở đâu) và đặt MỘT câu hỏi.",
+          "ANSWER_PRUEFER_TOPIC": "Trả lời câu hỏi của giám khảo về chủ đề."
+        }
       },
       "mic": {
         "sending": "Đang gửi và chờ phản hồi…",
@@ -1202,6 +1237,12 @@
           "insecure": "Micro cần HTTPS.",
           "unsupported": "Trình duyệt không hỗ trợ thu âm.",
           "unknown": "Không thu âm được. Hãy thử lại."
+        },
+        "retry": "Thử lại với micro",
+        "deniedSteps": {
+          "site": "Bấm biểu tượng 🎤/ổ khoá cạnh thanh địa chỉ → cho phép Micro cho trang này.",
+          "browser": "Không thấy? Vào cài đặt trình duyệt → Quyền → Microphone → bỏ chặn trang này.",
+          "os": "macOS/Windows: bật quyền micro cho trình duyệt trong cài đặt hệ thống, rồi mở lại trình duyệt."
         }
       },
       "stimulus": {
@@ -1267,7 +1308,7 @@
         "filterAll": "Tất cả dạng bài",
         "empty": "Chưa có lỗi nào được ghi nhận từ phòng luyện thi.",
         "emptyHint": "Luyện một Teil bất kỳ (Drill) hoặc thi thử trọn gói (Mock) — lỗi phát hiện sẽ tự xuất hiện ở đây để ôn lại.",
-        "seenCount": "Gặp {count} lần",
+        "seenCount": "Gặp {count} lần trong phòng thi",
         "severity": {
           "BLOCKING": "Nặng",
           "MAJOR": "Đáng chú ý",
@@ -1275,8 +1316,27 @@
         },
         "drillCta": "Luyện lại Teil này",
         "starting": "Đang tạo phiên…",
-        "redemittelCap": "Redemittel theo dạng bài"
+        "redemittelCap": "Redemittel theo dạng bài",
+        "totalCountNote": "tổng {count} lần trong mọi bài luyện nói"
+      },
+      "micCheck": {
+        "title": "Kiểm tra micro trước khi vào thi",
+        "desc": "Thi thử chỉ nhận audio và đồng hồ chạy như thi thật — hãy chắc micro hoạt động trước.",
+        "start": "Kiểm tra micro",
+        "speakNow": "Nói thử một câu…",
+        "heard": "Nghe thấy bạn rồi!",
+        "passed": "Micro sẵn sàng.",
+        "failed": {
+          "denied": "Trình duyệt chặn micro — làm theo hướng dẫn cấp quyền phía trên rồi kiểm tra lại.",
+          "other": "Không mở được micro. Kiểm tra thiết bị rồi thử lại."
+        }
       }
+    },
+    "micGuide": {
+      "title": "Micro đang bị trình duyệt chặn — hãy mở quyền trước khi nói",
+      "site": "Bấm biểu tượng 🎤/ổ khoá cạnh thanh địa chỉ → cho phép Micro cho trang này.",
+      "browser": "Không thấy? Cài đặt trình duyệt → Quyền → Microphone → bỏ chặn trang này.",
+      "os": "macOS/Windows: bật quyền micro cho trình duyệt trong cài đặt hệ thống, rồi mở lại trình duyệt."
     }
   }
 }

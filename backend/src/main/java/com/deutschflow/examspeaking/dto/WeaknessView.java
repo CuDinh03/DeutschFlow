@@ -13,6 +13,9 @@ public record WeaknessView(List<WeakPoint> weakPoints, List<RedemittelPack> pack
     public record WeakPoint(
             String errorCode,
             String ruleVi,
+            /** Số lần gặp TRONG phòng luyện thi (tổng seenCount các stats exam) — số chính trên UI. */
+            int examCount,
+            /** Số lần gặp trên MỌI tính năng luyện nói (user_error_skills.totalCount) — ngữ cảnh phụ. */
             int totalCount,
             int openCount,
             String lastSeverity,

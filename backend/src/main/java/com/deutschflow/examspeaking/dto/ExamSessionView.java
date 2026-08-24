@@ -43,6 +43,7 @@ public record ExamSessionView(
             int stepCount,
             String candidateAction,
             String hintVi,
+            String hintKey,
             Map<String, Object> stimulus,
             String prueferText,
             String prueferVoice,

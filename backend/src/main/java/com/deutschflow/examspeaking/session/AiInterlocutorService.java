@@ -92,9 +92,18 @@ public class AiInterlocutorService {
         }
     }
 
-    /** Chấm nhanh một lượt drill: 0–10 + tối đa 3 lỗi (mã ErrorCatalog) + Redemittel. Không in điểm chính thức. */
+    /**
+     * Chấm nhanh một lượt drill: 0–10 + tối đa 3 lỗi (mã ErrorCatalog) + Redemittel. Không in điểm chính thức.
+     * {@code lang} = locale UI của học viên (vi/en/de) — quyết định NGÔN NGỮ lời giải thích (QS-3 N0.7);
+     * key JSON vẫn là {@code feedback_vi} vì lý do tương thích (FE + turnEvalJson đã lưu).
+     */
     public Map<String, Object> quickEval(long userId, ExamBlueprint bp, BlueprintPart part, SessionPlan.Step step,
-                                         Map<String, Object> card, String lastAiText, String candidateText) {
+                                         Map<String, Object> card, String lastAiText, String candidateText, String lang) {
+        String feedbackSpec = switch (lang == null ? "vi" : lang) {
+            case "de" -> "2 kurze deutsche Sätze (einfaches Deutsch)";
+            case "en" -> "2 short English sentences";
+            default -> "2 câu tiếng Việt";
+        };
         String prompt = """
                 Du bist Prüfer/in (%s %s, %s). Bewerte NUR diese eine Äußerung des Kandidaten.
                 Erwartete Handlung: %s. Material: %s. Vorherige Frage/Aussage des Gegenübers: "%s"
@@ -103,11 +112,11 @@ public class AiInterlocutorService {
                 Bewerte streng aber ermutigend. Bei Unsicherheit die niedrigere Note.
                 Fehlercodes (nur diese): %s
                 Antworte NUR mit JSON:
-                {"score":0-10,"feedback_vi":"2 câu tiếng Việt","corrections":[{"code":"...","original":"...","correction":"...","severity":"MINOR|MAJOR|BLOCKING"}],"redemittel":["...","..."]}
+                {"score":0-10,"feedback_vi":"%s","corrections":[{"code":"...","original":"...","correction":"...","severity":"MINOR|MAJOR|BLOCKING"}],"redemittel":["...","..."]}
                 Maximal 3 corrections, maximal 2 Redemittel (deutsch, passend zum Aufgabentyp).
                 """.formatted(bp.provider(), bp.level(), part.title(), step.candidateAction(),
                 card == null ? "-" : card.toString(), lastAiText == null ? "-" : lastAiText, candidateText,
-                String.join(", ", ErrorCatalog.ORDERED_CODES));
+                String.join(", ", ErrorCatalog.ORDERED_CODES), feedbackSpec);
         Map<String, Object> out = new LinkedHashMap<>();
         try {
             AiChatCompletionResult res = chatClient.chatCompletionForTier(List.of(new ChatMessage("user", prompt)),
