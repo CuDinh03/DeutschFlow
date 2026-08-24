@@ -82,6 +82,11 @@ const api = axios.create({
 //    brownout. We cap retries low and jitter the backoff to break the herd.
 const MAX_RETRIES = 2
 const RETRYABLE_METHODS = new Set(['get', 'head', 'options'])
+// Longest Retry-After we will sit through before giving up and surfacing the error. The backend's
+// throttles span a wide range: the auth bulkhead says 1s (a transient capacity blip, worth waiting
+// out), while the per-IP and public limiters say 60s or more (a spent budget — no amount of waiting
+// inside one page load helps, and blocking the UI that long is worse than showing the error).
+const MAX_RETRY_AFTER_SECONDS = 5
 
 api.interceptors.response.use(
   (res) => res,
@@ -96,13 +101,28 @@ api.interceptors.response.use(
     const method = (config.method ?? 'get').toLowerCase()
     const status = error.response?.status
 
-    // Retry conditions: idempotent method + (network error, rate limit, or 5xx)
+    // A 429 is the server telling us a budget is spent, and it says HOW LONG in Retry-After.
+    // Retrying after our own ~500ms while the header says 60s is three guaranteed-failing requests
+    // sent exactly when the server is least able to absorb them — the client turns "slow down" into
+    // "push harder". So honour the header: retry only when the wait is short enough to be worth
+    // sitting through, and give up otherwise. Missing/garbage header → treat as "don't retry",
+    // because we have no evidence the next attempt would fare any better.
+    const retryAfterMs = (() => {
+      if (status !== 429) return null
+      const raw = error.response?.headers?.['retry-after']
+      const seconds = Number(raw)
+      if (!Number.isFinite(seconds) || seconds < 0) return null
+      return seconds <= MAX_RETRY_AFTER_SECONDS ? seconds * 1000 : null
+    })()
+    const rateLimitedButWorthRetrying = status === 429 && retryAfterMs !== null
+
+    // Retry conditions: idempotent method + (network error, short-backoff rate limit, or 5xx)
     const isRetryable = (
       RETRYABLE_METHODS.has(method) &&
       config._retryCount < MAX_RETRIES &&
       (
         !error.response ||  // Network error
-        status === 429 ||   // Rate limit
+        rateLimitedButWorthRetrying ||  // 429 with a Retry-After we can actually wait out
         (typeof status === 'number' && status >= 500) ||  // Server error (5xx)
         error.code === 'ECONNABORTED' ||
         error.code === 'ENOTFOUND' ||
@@ -115,7 +135,12 @@ api.interceptors.response.use(
       // Exponential backoff with jitter — half fixed, half random — so many
       // concurrent failing calls don't retry in synchronized waves.
       const base = Math.min(1000 * Math.pow(2, config._retryCount - 1), 5000)
-      const delay = Math.round(base / 2 + Math.random() * (base / 2))
+      const backoff = Math.round(base / 2 + Math.random() * (base / 2))
+      // When the server named a wait, obey it — but keep the jitter on top so a crowd of clients
+      // released by the same Retry-After does not stampede back in one synchronized wave.
+      const delay = retryAfterMs !== null
+        ? retryAfterMs + Math.round(Math.random() * 500)
+        : backoff
       console.log(`⚠️ Retry ${config._retryCount}/${MAX_RETRIES} (${method.toUpperCase()}) in ${delay}ms`)
       await new Promise(r => setTimeout(r, delay))
       return api(config)

@@ -195,6 +195,11 @@ server:
     # -1 = đừng chặn size body: khi Spring từ chối multipart >25MB, Tomcat vẫn đọc hết phần còn lại
     # để trả 413 JSON sạch thay vì reset kết nối (nếu không, client thấy connection reset khó hiểu).
     max-swallow-size: -1
+    # Bắt buộc để Micrometer export tomcat_threads_busy_threads / tomcat_threads_config_max_threads.
+    # Không bật thì alert bão hoà thread pool (docker/prometheus/alert.rules.yml) sẽ không bao giờ
+    # kêu — một cảnh báo im lặng còn nguy hơn không có cảnh báo, vì nó tạo cảm giác đã được canh.
+    mbeanregistry:
+      enabled: ${TOMCAT_MBEANREGISTRY_ENABLED:true}
   servlet:
     multipart:
       # Materials Library: nâng 10MB→25MB. Tệp >25MB KHÔNG đi qua backend — dùng presigned PUT thẳng
@@ -322,6 +327,20 @@ app:
       account-name: ${SEPAY_ACCOUNT_NAME:}
 
   auth:
+    # Bulkhead: trần số request CÙNG LÚC được vào vùng chạy BCrypt (login/register).
+    # Khác rate-limit ở trên về mục đích: rate-limit theo IP chặn kẻ tấn công ĐƠN LẺ, còn cái này
+    # chặn kiệt quệ thread pool khi tấn công PHÂN TÁN — mười nghìn IP mỗi cái 1 req/s thì không IP
+    # nào chạm ngưỡng, nhưng tổng lại lấp kín 48 Tomcat thread và kéo sập luôn phần app không liên
+    # quan gì tới auth. Bulkhead khoanh thiệt hại lại trong phạm vi auth.
+    # 8 permit ≈ 17% thread pool — đủ chỗ cho một lớp đăng nhập cùng lúc (30 request qua 8 permit,
+    # mỗi lượt ~70ms ⇒ ~260ms, nằm trong ngân sách 500ms), vẫn chừa 40 thread cho phần còn lại.
+    # acquire-timeout-ms là TRẦN CỨNG và cố ý ngắn: chờ lâu nghĩa là vẫn đang giữ thread, đúng thứ
+    # bulkhead sinh ra để tránh. enabled=false là đường thoát nếu chặn nhầm người dùng thật.
+    bulkhead:
+      enabled: ${APP_AUTH_BULKHEAD_ENABLED:true}
+      max-concurrent: ${APP_AUTH_BULKHEAD_MAX_CONCURRENT:8}
+      acquire-timeout-ms: ${APP_AUTH_BULKHEAD_ACQUIRE_TIMEOUT_MS:500}
+
     # Brute-force / abuse guard cho auth endpoints (in-memory sliding window, per node).
     # Bộ đếm nằm trong RAM → restart/redeploy backend sẽ xoá hết (cách gỡ khoá nhanh nhất).
     # Tăng *-max hoặc giảm *-window nếu người dùng thật bị chặn nhầm

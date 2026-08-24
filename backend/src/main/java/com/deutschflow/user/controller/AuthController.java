@@ -7,6 +7,7 @@ import com.deutschflow.user.dto.RegisterRequest;
 import com.deutschflow.user.dto.UpdateLocaleRequest;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.service.AuthService;
+import com.deutschflow.user.service.AuthConcurrencyLimiter;
 import com.deutschflow.user.service.AuthRateLimiterService;
 import com.deutschflow.user.service.PasswordResetService;
 import com.deutschflow.common.exception.BadRequestException;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
+import java.util.function.Supplier;
 
 /**
  * Auth endpoints: login, register, refresh, logout, me.
@@ -43,8 +45,11 @@ public class AuthController {
 
     private static final String REFRESH_TOKEN_COOKIE = "refresh_token";
 
+    private static final String BUSY_MESSAGE = "Server is busy. Please try again in a moment.";
+
     private final AuthService authService;
     private final AuthRateLimiterService authRateLimiterService;
+    private final AuthConcurrencyLimiter authConcurrencyLimiter;
     private final PasswordResetService passwordResetService;
 
     @Value("${app.jwt.refresh-token-expiry-ms}")
@@ -69,7 +74,7 @@ public class AuthController {
                     "Too many registration attempts. Please try again later.",
                     authRateLimiterService.registerRetryAfterSeconds());
         }
-        AuthResponse authResp = authService.register(request);
+        AuthResponse authResp = withAuthBulkhead(() -> authService.register(request));
         setRefreshTokenCookie(authResp.refreshToken(), httpResponse);
         return isMobileRequest(httpRequest) ? authResp : stripRefreshToken(authResp);
     }
@@ -95,7 +100,7 @@ public class AuthController {
                     "Too many login attempts. Please try again later.",
                     authRateLimiterService.retryAfterSeconds());
         }
-        AuthResponse authResp = authService.login(request);
+        AuthResponse authResp = withAuthBulkhead(() -> authService.login(request));
         setRefreshTokenCookie(authResp.refreshToken(), httpResponse);
         // Native mobile clients (Capacitor) cannot use HttpOnly cookies cross-origin.
         // They send X-Platform header and receive the refresh token in the body instead.
@@ -293,6 +298,37 @@ public class AuthController {
      * trusted proxy actually observed. {@code trustedProxyCount=0} ignores XFF entirely and uses the
      * socket address (correct when the app is reached directly with no proxy).
      */
+    /**
+     * Chạy phần đắt (BCrypt) bên trong bulkhead.
+     *
+     * <p>Rate-limit theo IP ở trên chặn kẻ tấn công ĐƠN LẺ. Nó không chặn được tấn công phân tán:
+     * mười nghìn IP mỗi cái một request/giây thì không IP nào chạm ngưỡng, nhưng tổng lại lấp kín
+     * cả 48 Tomcat thread bằng BCrypt và kéo sập luôn những endpoint chẳng liên quan gì tới auth.
+     * Bulkhead khoanh thiệt hại: quá tải thì auth trả 429, phần còn lại của app vẫn còn thread chạy.
+     *
+     * <p>release() nằm trong finally — rò rỉ một permit là khoá cứng auth vĩnh viễn cho tới lần
+     * restart sau, nên đây là chỗ không được phép sai.
+     */
+    private <T> T withAuthBulkhead(Supplier<T> expensive) {
+        boolean acquired;
+        try {
+            acquired = authConcurrencyLimiter.tryAcquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RateLimitExceededException(
+                    BUSY_MESSAGE, authConcurrencyLimiter.retryAfterSeconds());
+        }
+        if (!acquired) {
+            throw new RateLimitExceededException(
+                    BUSY_MESSAGE, authConcurrencyLimiter.retryAfterSeconds());
+        }
+        try {
+            return expensive.get();
+        } finally {
+            authConcurrencyLimiter.release();
+        }
+    }
+
     private String resolveClientIp(HttpServletRequest request) {
         if (request == null) return "";
         if (trustedProxyCount > 0) {
