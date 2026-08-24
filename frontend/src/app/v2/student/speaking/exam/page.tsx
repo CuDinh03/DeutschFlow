@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { GraduationCap, Mic, ArrowLeft, ChevronRight, Clock, Users } from 'lucide-react'
+import { GraduationCap, Mic, ArrowLeft, ChevronRight, Clock, Users, Target } from 'lucide-react'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { apiMessage } from '@/lib/api'
 import type { BlueprintSummary, ExamProvider, ExamResultView } from '@/types/exam-speaking'
@@ -167,6 +167,24 @@ export default function V2ExamSpeakingCatalogPage() {
             </div>
 
             {!open && <p className="ga-ui mt-4 text-[13px] text-ga-muted">{t('levelSoon', { level })}</p>}
+
+            {/* Đợt 5a: lối vào màn Ôn yếu điểm (chế độ 3 — kế hoạch 2.1) */}
+            <a
+              href="/v2/student/speaking/exam/weakness"
+              data-testid="weakness-link"
+              className="mt-[22px] flex items-center justify-between gap-3 rounded-ga border border-ga-line bg-ga-card p-5 hover:bg-ga-surface"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-ga bg-ga-yellow-soft text-ga-ink">
+                  <Target size={18} aria-hidden />
+                </span>
+                <span className="min-w-0">
+                  <span className="ga-ui block text-[14.5px] font-semibold text-ga-ink">{t('weaknessTitle')}</span>
+                  <span className="ga-ui block text-[13px] text-ga-muted">{t('weaknessDesc')}</span>
+                </span>
+              </span>
+              <ChevronRight size={16} aria-hidden className="shrink-0 text-ga-muted" />
+            </a>
           </>
         )}
 

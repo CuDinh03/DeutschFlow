@@ -60,6 +60,46 @@ public class GrammarPersistenceService {
         }
     }
 
+    /**
+     * Đợt 5a Luyện thi Nói: đổ lỗi phát hiện trong phòng luyện thi (mock Ergebnisbogen + drill quickEval)
+     * vào kho yếu điểm SRS. KHÁC đường structured thường ở 3 điểm có chủ ý:
+     * (1) sessionId/messageId = null — id phiên exam KHÔNG được ghi vào cột sessionId vì
+     *     {@code findBySessionIdOrderByCreatedAtAsc} join theo id phiên AI-speaking (InterviewEvaluationService);
+     * (2) không ghi UserErrorObservation (bảng đòi message_id NOT NULL — lượt exam không có message);
+     * (3) không dedup theo messageId — mỗi lần ingest là một quan sát mới.
+     * Không bao giờ ném lỗi ra ngoài (P1-8): mất tín hiệu SRS thì ghi metric + log, không hỏng lượt thi.
+     */
+    public void persistExamError(Long userId, ErrorItem err, String cefrLevel) {
+        try {
+            String sev = GrammarErrorSeverity.normalizeToStored(
+                    err.severity() != null ? err.severity() : GrammarErrorSeverity.MINOR.name());
+            String correctionText = err.correctedSpan() != null ? err.correctedSpan() : err.exampleCorrectDe();
+            LocalDateTime now = LocalDateTime.now();
+            grammarErrorRepository.save(UserGrammarError.builder()
+                    .userId(userId)
+                    .grammarPoint(err.errorCode())
+                    .errorCode(err.errorCode())
+                    .confidence(toStoredConfidence(err.confidence()))
+                    .wrongSpan(err.wrongSpan())
+                    .correctedSpan(err.correctedSpan())
+                    .ruleViShort(err.ruleViShort())
+                    .exampleCorrectDe(err.exampleCorrectDe())
+                    .repairStatus("OPEN")
+                    .originalText(err.wrongSpan())
+                    .correctionText(correctionText)
+                    .severity(sev)
+                    .cefrLevel(cefrLevel)
+                    .createdAt(now)
+                    .build());
+            upsertUserErrorSkill(userId, err.errorCode(), sev, now);
+            reviewSchedulerService.onMajorObservation(userId, err.errorCode(), sev);
+        } catch (Exception e) {
+            speakingMetrics.recordGrammarPersistFailure("exam");
+            log.error("Exam grammar persist FAILED (SRS signal lost) userId={} errorCode={} wrong='{}' corrected='{}'",
+                    userId, err.errorCode(), err.wrongSpan(), err.correctedSpan(), e);
+        }
+    }
+
     private void saveStructuredGrammarError(Long userId, Long sessionId, Long messageId,
                                             String userMessage, ErrorItem err,
                                             UserLearningProfile profile) {

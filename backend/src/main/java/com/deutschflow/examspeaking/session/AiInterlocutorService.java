@@ -11,6 +11,7 @@ import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.ErrorCatalog;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
+import com.deutschflow.speaking.domain.GrammarErrorSeverity;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -102,7 +103,7 @@ public class AiInterlocutorService {
                 Bewerte streng aber ermutigend. Bei Unsicherheit die niedrigere Note.
                 Fehlercodes (nur diese): %s
                 Antworte NUR mit JSON:
-                {"score":0-10,"feedback_vi":"2 câu tiếng Việt","corrections":[{"code":"...","original":"...","correction":"..."}],"redemittel":["...","..."]}
+                {"score":0-10,"feedback_vi":"2 câu tiếng Việt","corrections":[{"code":"...","original":"...","correction":"...","severity":"MINOR|MAJOR|BLOCKING"}],"redemittel":["...","..."]}
                 Maximal 3 corrections, maximal 2 Redemittel (deutsch, passend zum Aufgabentyp).
                 """.formatted(bp.provider(), bp.level(), part.title(), step.candidateAction(),
                 card == null ? "-" : card.toString(), lastAiText == null ? "-" : lastAiText, candidateText,
@@ -123,7 +124,8 @@ public class AiInterlocutorService {
             for (JsonNode c : j.path("corrections")) {
                 String norm = ErrorCatalog.normalize(c.path("code").asText(""));
                 corrections.add(Map.of("code", norm == null ? "OTHER" : norm,
-                        "original", c.path("original").asText(""), "correction", c.path("correction").asText("")));
+                        "original", c.path("original").asText(""), "correction", c.path("correction").asText(""),
+                        "severity", GrammarErrorSeverity.normalizeToStored(c.path("severity").asText("MINOR"))));
                 if (corrections.size() == 3) {
                     break;
                 }

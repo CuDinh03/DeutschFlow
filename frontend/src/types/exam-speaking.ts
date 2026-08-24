@@ -157,3 +157,37 @@ export interface RoomLine {
   eval?: DrillTurnEval | null
   latencyMs?: number
 }
+
+// ── Đợt 5a: Ôn yếu điểm ───────────────────────────────────────────────────────
+
+/** Một dạng bài mà mã lỗi từng xuất hiện (facet lọc). */
+export interface WeaknessContext {
+  provider: ExamProvider
+  level: string
+  teilNo: number
+  archetype: string
+  count: number
+  lastSeenAt: string
+}
+
+export interface WeakPointView {
+  errorCode: string
+  ruleVi: string | null
+  totalCount: number
+  openCount: number
+  lastSeverity: string | null
+  lastSeenAt: string
+  exampleOriginal: string | null
+  exampleCorrection: string | null
+  contexts: WeaknessContext[]
+}
+
+export interface RedemittelPackView {
+  archetype: string
+  phrases: string[]
+}
+
+export interface WeaknessView {
+  weakPoints: WeakPointView[]
+  packs: RedemittelPackView[]
+}

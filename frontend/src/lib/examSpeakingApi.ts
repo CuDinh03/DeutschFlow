@@ -1,6 +1,7 @@
 import api from '@/lib/api'
 import type {
   BlueprintSummary,
+  WeaknessView,
   ExamMode,
   ExamProvider,
   ExamResultView,
@@ -40,4 +41,8 @@ export const examSpeakingApi = {
   saveNotes: (id: number, notes: string) => api.put<ExamSessionView>(`/speaking/exam/sessions/${id}/notes`, { notes }),
   getResult: (id: number) => api.get<ExamResultView>(`/speaking/exam/sessions/${id}/result`),
   listResults: () => api.get<ExamResultView[]>('/speaking/exam/results'),
+
+  /** Đợt 5a — màn Ôn yếu điểm: yếu điểm theo dạng bài + gói Redemittel. */
+  getWeakness: (params?: { provider?: ExamProvider; level?: string }) =>
+    api.get<WeaknessView>('/speaking/exam/weakness', { params }),
 }

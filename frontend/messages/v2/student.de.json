@@ -1141,7 +1141,9 @@
         "disclaimer": "Simulation öffentlich dokumentierter Prüfungsformate; keine Verbindung zum Goethe-Institut oder zu telc. Punkte sind Richtwerte (typische Abweichung ±1 Stufe), kein Zertifikat.",
         "prepModeLabel": "Vorbereitung",
         "prepShort": "5 Min. kurz",
-        "prepFull": "{min} Min. wie in der Prüfung"
+        "prepFull": "{min} Min. wie in der Prüfung",
+        "weaknessTitle": "Schwächen wiederholen",
+        "weaknessDesc": "Häufige Fehler aus dem Prüfungsraum nach Aufgabentyp, mit passenden Redemittel-Paketen"
       },
       "room": {
         "loading": "Prüfungsraum wird betreten…",
@@ -1254,6 +1256,26 @@
         "turns": "{n} Beiträge bewertet",
         "toReview": "Fehler zum Wiederholen",
         "note": "Schnellbewertung zum Üben; eine Bewertung nach Prüfungskriterien gibt es nur in der Prüfungssimulation."
+      },
+      "weakness": {
+        "title": "Schwächen wiederholen",
+        "subtitle": "Im Prüfungsraum erkannte Fehler, gruppiert nach Fehlercode und Aufgabentyp — mit Redemitteln zum Weiterüben",
+        "back": "Zurück zum Prüfungsraum",
+        "dismiss": "Schließen",
+        "loading": "Schwächen werden geladen…",
+        "filterLabel": "Nach Aufgabentyp filtern",
+        "filterAll": "Alle Aufgabentypen",
+        "empty": "Noch keine Fehler aus dem Prüfungsraum erfasst.",
+        "emptyHint": "Übe einen beliebigen Teil (Drill) oder mache eine komplette Probeprüfung — erkannte Fehler erscheinen hier zur Wiederholung.",
+        "seenCount": "{count}× aufgetreten",
+        "severity": {
+          "BLOCKING": "Schwerwiegend",
+          "MAJOR": "Auffällig",
+          "MINOR": "Leicht"
+        },
+        "drillCta": "Diesen Teil erneut üben",
+        "starting": "Sitzung wird gestartet…",
+        "redemittelCap": "Redemittel nach Aufgabentyp"
       }
     }
   }

@@ -8,7 +8,9 @@ import com.deutschflow.examspeaking.dto.CreateExamSessionRequest;
 import com.deutschflow.examspeaking.dto.ExamResultView;
 import com.deutschflow.examspeaking.dto.ExamSessionView;
 import com.deutschflow.examspeaking.dto.TurnResponse;
+import com.deutschflow.examspeaking.dto.WeaknessView;
 import com.deutschflow.examspeaking.session.ExamSessionService;
+import com.deutschflow.examspeaking.weakness.ExamWeaknessService;
 import com.deutschflow.speaking.util.TranscribeUploads;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,7 @@ public class ExamSpeakingController {
 
     private final ExamBlueprintCatalog catalog;
     private final ExamSessionService sessionService;
+    private final ExamWeaknessService weaknessService;
 
     @Value("${app.ai.transcribe.max-bytes:8388608}")
     private long transcribeMaxBytes;
@@ -47,6 +50,14 @@ public class ExamSpeakingController {
                 .filter(b -> level == null || b.level().equalsIgnoreCase(level))
                 .map(ExamSpeakingController::summary)
                 .toList();
+    }
+
+    /** Đợt 5a — màn "Ôn yếu điểm": yếu điểm theo dạng bài + gói Redemittel. */
+    @GetMapping("/weakness")
+    public WeaknessView weakness(@AuthenticationPrincipal User user,
+                                 @RequestParam(required = false) String provider,
+                                 @RequestParam(required = false) String level) {
+        return weaknessService.weakness(user.getId(), provider, level);
     }
 
     @PostMapping("/sessions")
