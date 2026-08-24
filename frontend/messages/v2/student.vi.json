@@ -1185,12 +1185,6 @@
         "chooseOne": "Chọn 1 chủ đề",
         "chosen": "Đã chọn phương án {n}",
         "option": "Phương án {n}",
-        "micDenied": {
-          "title": "Micro đang bị chặn — hãy mở quyền trước khi nói",
-          "site": "Bấm biểu tượng 🎤/ổ khoá cạnh thanh địa chỉ → cho phép Micro.",
-          "browser": "Không thấy? Cài đặt trình duyệt → Quyền → Microphone → bỏ chặn trang này.",
-          "os": "macOS/Windows: bật quyền micro cho trình duyệt trong cài đặt hệ thống, rồi mở lại trình duyệt."
-        },
         "drillTimeUp": "Hết giờ khuyến nghị của phần này — trong chế độ luyện bạn vẫn nói tiếp được, hoặc bấm \"Sang phần kế\".",
         "hints": {
           "INTRO_SPELL": "Giới thiệu bản thân theo các từ khóa trên thẻ (tên, tuổi, nước, nơi ở, ngôn ngữ, nghề, sở thích).",
@@ -1337,6 +1331,12 @@
           "other": "Không mở được micro. Kiểm tra thiết bị rồi thử lại."
         }
       }
+    },
+    "micGuide": {
+      "title": "Micro đang bị trình duyệt chặn — hãy mở quyền trước khi nói",
+      "site": "Bấm biểu tượng 🎤/ổ khoá cạnh thanh địa chỉ → cho phép Micro cho trang này.",
+      "browser": "Không thấy? Cài đặt trình duyệt → Quyền → Microphone → bỏ chặn trang này.",
+      "os": "macOS/Windows: bật quyền micro cho trình duyệt trong cài đặt hệ thống, rồi mở lại trình duyệt."
     }
   }
 }

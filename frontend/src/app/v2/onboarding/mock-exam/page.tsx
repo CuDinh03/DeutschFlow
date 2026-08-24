@@ -1,5 +1,6 @@
 'use client'
 
+import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide';
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -294,6 +295,7 @@ export default function V2OnboardingMockExamPage() {
   // ─── RECORDING state ──────────────────────────────────────
   return (
     <GaAuthShell showBackToLanding={false}>
+      <MicDeniedGuide className="mb-4" />
       <GaCard className="relative overflow-hidden shadow-ga-panel">
         {/* Progress Bar */}
         <div className="absolute left-0 top-0 h-1.5 w-full bg-ga-surface">

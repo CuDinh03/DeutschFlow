@@ -1185,12 +1185,6 @@
         "chooseOne": "Ein Thema wählen",
         "chosen": "Option {n} gewählt",
         "option": "Option {n}",
-        "micDenied": {
-          "title": "Mikrofon ist blockiert — erlaube den Zugriff, bevor du sprichst",
-          "site": "Klicke auf das 🎤-/Schloss-Symbol neben der Adressleiste → Mikrofon erlauben.",
-          "browser": "Nicht zu sehen? Browser-Einstellungen → Berechtigungen → Mikrofon → Blockierung aufheben.",
-          "os": "macOS/Windows: Mikrofonzugriff für den Browser in den Systemeinstellungen aktivieren und den Browser neu starten."
-        },
         "drillTimeUp": "Die empfohlene Zeit für diesen Teil ist um — im Übungsmodus kannst du weitersprechen oder zum nächsten Teil gehen.",
         "hints": {
           "INTRO_SPELL": "Stell dich mit den Stichwörtern auf der Karte vor (Name, Alter, Land, Wohnort, Sprachen, Beruf, Hobby).",
@@ -1337,6 +1331,12 @@
           "other": "Mikrofon konnte nicht geöffnet werden. Prüfe dein Gerät und versuche es erneut."
         }
       }
+    },
+    "micGuide": {
+      "title": "Dein Browser blockiert das Mikrofon — erlaube den Zugriff, bevor du sprichst",
+      "site": "Klicke auf das 🎤-/Schloss-Symbol neben der Adressleiste → Mikrofon für diese Seite erlauben.",
+      "browser": "Nicht zu sehen? Browser-Einstellungen → Berechtigungen → Mikrofon → Blockierung aufheben.",
+      "os": "macOS/Windows: Mikrofonzugriff für den Browser in den Systemeinstellungen aktivieren und den Browser neu starten."
     }
   }
 }

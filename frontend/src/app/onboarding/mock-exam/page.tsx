@@ -1,5 +1,6 @@
 'use client'
 
+import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide';
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
@@ -287,6 +288,7 @@ export default function MockExamPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6">
       <div className="max-w-md w-full">
+        <MicDeniedGuide className="mb-3" />
         <Card className="shadow-2xl border-0 overflow-hidden relative">
           {/* Progress Bar */}
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gray-100">

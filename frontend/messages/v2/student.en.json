@@ -1185,12 +1185,6 @@
         "chooseOne": "Choose one topic",
         "chosen": "Option {n} chosen",
         "option": "Option {n}",
-        "micDenied": {
-          "title": "Microphone is blocked — allow access before speaking",
-          "site": "Click the 🎤/lock icon next to the address bar → allow Microphone.",
-          "browser": "Can't see it? Browser settings → Permissions → Microphone → unblock this site.",
-          "os": "macOS/Windows: enable microphone access for your browser in system settings, then restart the browser."
-        },
         "drillTimeUp": "Recommended time for this part is up — in practice mode you can keep speaking, or move to the next part.",
         "hints": {
           "INTRO_SPELL": "Introduce yourself using the keywords on the card (name, age, country, residence, languages, job, hobby).",
@@ -1337,6 +1331,12 @@
           "other": "Could not open the microphone. Check your device and try again."
         }
       }
+    },
+    "micGuide": {
+      "title": "Your browser is blocking the microphone — allow access before speaking",
+      "site": "Click the 🎤/lock icon next to the address bar → allow Microphone for this site.",
+      "browser": "Can't see it? Browser settings → Permissions → Microphone → unblock this site.",
+      "os": "macOS/Windows: enable microphone access for your browser in system settings, then restart the browser."
     }
   }
 }

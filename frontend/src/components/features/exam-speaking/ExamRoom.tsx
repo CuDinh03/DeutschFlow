@@ -13,6 +13,7 @@ import { TeilStepper } from './TeilStepper'
 import { ExamTranscript } from './ExamTranscript'
 import { MicBar } from './MicBar'
 import { MicCheck } from './MicCheck'
+import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide'
 import { useMicPermission } from '@/hooks/useMicPermission'
 import { Ergebnisbogen } from './Ergebnisbogen'
 import { DrillSummary } from './DrillSummary'
@@ -295,16 +296,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
           </div>
         )}
 
-        {micPermission === 'denied' && session.state !== 'RESULTS' && session.state !== 'DONE' && (
-          <div className="mb-4 rounded-ga border border-ga-red bg-ga-red-soft p-3" role="alert" data-testid="mic-denied-banner">
-            <p className="ga-ui text-[13.5px] font-semibold text-ga-red">{t('micDenied.title')}</p>
-            <ol className="ga-ui mt-1 list-decimal space-y-0.5 pl-5 text-[12.5px] text-ga-ink">
-              <li>{t('micDenied.site')}</li>
-              <li>{t('micDenied.browser')}</li>
-              <li>{t('micDenied.os')}</li>
-            </ol>
-          </div>
-        )}
+        {session.state !== 'RESULTS' && session.state !== 'DONE' && <MicDeniedGuide className="mb-4" />}
 
         {session.state === 'PREP' && (
           <section className="mx-auto max-w-3xl space-y-4" data-testid="exam-prep">

@@ -1,5 +1,6 @@
 "use client";
 
+import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide';
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Mic, Square, RotateCcw, Loader2 } from "lucide-react";
@@ -233,6 +234,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
 
   return (
     <div className="space-y-4">
+      <MicDeniedGuide />
       {/* ── Current drill card ── */}
       <div className="rounded-2xl bg-gradient-to-br from-[#121212] to-[#1E293B] p-4 lg:p-6 space-y-4">
         <div className="flex items-center justify-between gap-2">

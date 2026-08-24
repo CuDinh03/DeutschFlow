@@ -1,5 +1,6 @@
 "use client";
 
+import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide';
 import { useCallback, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Play, RefreshCw, Volume2 } from "lucide-react";
@@ -140,6 +141,7 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
 
   return (
     <div className="rounded-2xl border-2 border-[#E2E8F0] bg-white overflow-hidden">
+      <MicDeniedGuide className="m-3" />
 
       {/* Header */}
       <div className="px-4 py-3 border-b border-[#E2E8F0] bg-[#F8FAFC] flex items-center gap-3">
