@@ -49,7 +49,10 @@ const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()' },
+  // microphone=(self): mọi tính năng luyện nói web (exam, AI-speaking, weekly, phoneme…) cần
+  // getUserMedia ở chính origin. `microphone=()` (03/06–25/08) đã CHẶN mic toàn site bất kể người
+  // dùng cấp quyền gì — Permissions API trả denied vĩnh viễn. Vẫn cấm iframe bên thứ ba (self ≠ *).
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=(), browsing-topics=()' },
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
 ];
 
