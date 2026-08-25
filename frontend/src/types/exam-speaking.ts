@@ -101,6 +101,16 @@ export interface TurnResponse {
   session: ExamSessionView
 }
 
+/**
+ * N1c-3: thông điệp structured backend sinh — `code` = khoá i18n dưới
+ * `v2.student.examSpeaking.result.msg.*`, `params` chèn vào bản dịch.
+ * Phiếu cũ (trước N1c-3) không có — FE fallback về chuỗi tiếng Việt đã lưu.
+ */
+export interface SheetMsg {
+  code: string
+  params: Record<string, string | number>
+}
+
 export interface CriterionResult {
   code: string
   label: string
@@ -109,7 +119,10 @@ export interface CriterionResult {
   max: number
   scored: boolean
   confidence: string
+  /** Trích dẫn tự do của LLM (tiếng Đức) — hiển thị nguyên văn. */
   evidence: string[]
+  /** Dòng đo lường/lý do do code sinh — FE dịch theo locale (phiếu cũ: thiếu). */
+  evidenceMsgs?: SheetMsg[]
 }
 
 export interface PartResult {
@@ -133,8 +146,12 @@ export interface ScoreSheet {
   officialMax: number
   passed: boolean | null
   passRule: string
+  /** N1c-3: bản structured của passRule (phiếu cũ: thiếu → hiện passRule VI). */
+  passRuleMsg?: SheetMsg | null
   errors: { code: string; original: string; correction: string; severity: string; teilNo: number }[]
   notes: string[]
+  /** N1c-3: bản structured của notes (phiếu cũ: thiếu → hiện notes VI). */
+  noteMsgs?: SheetMsg[]
   passes: number
 }
 

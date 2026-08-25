@@ -1291,7 +1291,31 @@
           "low": "estimate",
           "none": "—"
         },
-        "evidence": "Evidence"
+        "evidence": "Evidence",
+        "multiPassNote": "Band is the median and points are the mean of {passes} independent grading passes — they may differ slightly.",
+        "bandMedianTitle": "Band = median of {passes} passes; points = mean — the two can differ.",
+        "msg": {
+          "silentTeil": "Teil {teil}: no speech from the candidate → 0 points for this Teil.",
+          "llmInvalidTeil": "Teil {teil}: the AI returned no valid result → this Teil's criteria could not be graded.",
+          "erfuellungZero": "Teil {teil}: Erfüllung = {band} → the whole Teil scores 0 ({scheme} rule).",
+          "unscoredCount": "{count} criteria/tasks could not be graded.",
+          "passSpeakingOnly": "Speaking-only pass mark ≥{min}/{max} (the full exam also requires a separate writing mark).",
+          "passModule": "Module passed at ≥{min}/{max}.",
+          "passNoThreshold": "This exam has no separate speaking threshold — the speaking score counts toward the overall exam total.",
+          "noAssessment": "No assessment for this item.",
+          "silentTeilCriterion": "The candidate did not speak in this Teil.",
+          "itemNotMentioned": "The AI did not mention this task → treated as not completed.",
+          "llmInvalid": "The AI returned no valid result.",
+          "llmInvalidBand": "The AI returned an invalid band: {band}.",
+          "criterionNotGraded": "The AI did not grade the criterion {criterion}.",
+          "lexMetrics": "Measured: {words} words, TTR {ttr}, {inList}% within the Goethe wordlist, {above} words above level.",
+          "cohesionMetrics": "Measured: {connectors} connectors, {subordinators} subordinate clauses.",
+          "errorDensity": "Measured error density: {density} errors/100 words ({errors} errors, {words} words) → band {band}.",
+          "llmProposedBand": "The AI proposed band {band} — the final band is decided by the error-density thresholds.",
+          "fluencyBlend": "Fluency measured: {wpm} words/min, {pauses} long pauses, MLR {mlr} → band {fluencyBand}; blended with AI ({llmBand}) → {band}.",
+          "sttConfidence": "Estimated from STT confidence (avg_logprob {logprob}) — tier 1/3, low confidence.",
+          "noAudioTextOnly": "Not gradable: no audio/STT confidence (text-only)."
+        }
       },
       "drill": {
         "cap": "Average quick score",

@@ -1291,7 +1291,31 @@
           "low": "ước lượng",
           "none": "—"
         },
-        "evidence": "Bằng chứng"
+        "evidence": "Bằng chứng",
+        "multiPassNote": "Band là trung vị, điểm là trung bình của {passes} lượt chấm độc lập — nên band và điểm có thể chênh nhau nhẹ.",
+        "bandMedianTitle": "Band = trung vị {passes} lượt chấm; điểm = trung bình — hai con số có thể lệch nhau.",
+        "msg": {
+          "silentTeil": "Teil {teil}: thí sinh không nói gì → 0 điểm cho Teil này.",
+          "llmInvalidTeil": "Teil {teil}: AI không trả kết quả hợp lệ → tiêu chí của Teil chưa chấm được.",
+          "erfuellungZero": "Teil {teil}: Erfüllung = {band} → toàn bộ Teil 0 điểm (luật của hệ {scheme}).",
+          "unscoredCount": "{count} tiêu chí/nhiệm vụ chưa chấm được.",
+          "passSpeakingOnly": "Ngưỡng nói riêng ≥{min}/{max} (kỳ thi đầy đủ còn đòi phần viết đạt ngưỡng riêng).",
+          "passModule": "Modul đỗ khi ≥{min}/{max}.",
+          "passNoThreshold": "Hệ này không có ngưỡng nói riêng — điểm nói cộng vào tổng kỳ thi.",
+          "noAssessment": "Không có đánh giá cho mục này.",
+          "silentTeilCriterion": "Thí sinh không nói gì trong Teil này.",
+          "itemNotMentioned": "AI không nhắc tới nhiệm vụ này → coi như không thực hiện.",
+          "llmInvalid": "AI không trả kết quả hợp lệ.",
+          "llmInvalidBand": "AI trả band không hợp lệ: {band}.",
+          "criterionNotGraded": "AI không chấm tiêu chí {criterion}.",
+          "lexMetrics": "Đo được: {words} từ, TTR {ttr}, {inList}% trong wordlist Goethe, {above} từ vượt cấp.",
+          "cohesionMetrics": "Đo được: {connectors} liên từ, {subordinators} mệnh đề phụ.",
+          "errorDensity": "Mật độ lỗi đếm được: {density} lỗi/100 từ ({errors} lỗi, {words} từ) → band {band}.",
+          "llmProposedBand": "AI đề xuất band {band} — band cuối do bảng ngưỡng mật độ lỗi quyết định.",
+          "fluencyBlend": "Flüssigkeit đo được: {wpm} từ/phút, {pauses} khoảng lặng dài, MLR {mlr} → band {fluencyBand}; gộp với AI ({llmBand}) → {band}.",
+          "sttConfidence": "Ước lượng từ độ tự tin STT (avg_logprob {logprob}) — tầng 1/3, tin cậy thấp.",
+          "noAudioTextOnly": "Chưa chấm được: không có audio/độ tự tin STT (text-only)."
+        }
       },
       "drill": {
         "cap": "Điểm nhanh trung bình",

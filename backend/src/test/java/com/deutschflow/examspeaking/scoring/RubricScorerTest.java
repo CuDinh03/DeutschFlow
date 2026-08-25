@@ -331,6 +331,9 @@ class RubricScorerTest {
         assertThat(e.parts().get(1).points()).isEqualTo(0.0);
         assertThat(e.parts().get(1).max()).isEqualTo(40.0);
         assertThat(e.parts().get(1).criteria()).allMatch(c -> c.scored() && "E".equals(c.band()));
+        // N1c-3: lý do 0 điểm là msg structured để FE dịch theo locale
+        assertThat(e.parts().get(1).criteria()).allMatch(c ->
+                c.evidenceMsgs().stream().anyMatch(m -> m.code().equals("silentTeilCriterion")));
     }
 
     @Test

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ChevronDown, ChevronUp, ShieldAlert } from 'lucide-react'
 import { GaCap, TkBadge } from '@/components/ui-v2'
-import type { CriterionResult, ScoreSheet } from '@/types/exam-speaking'
+import type { CriterionResult, ScoreSheet, SheetMsg } from '@/types/exam-speaking'
 
 interface Props {
   sheet: ScoreSheet
@@ -20,14 +20,38 @@ function fmt(n: number): string {
 }
 
 /**
+ * N1c-3: khoá msg backend được phép dịch. Code lạ (backend mới hơn FE) → hiện raw code
+ * thay vì để next-intl báo thiếu khoá.
+ */
+const KNOWN_MSGS = new Set([
+  'silentTeil', 'llmInvalidTeil', 'erfuellungZero', 'unscoredCount',
+  'passSpeakingOnly', 'passModule', 'passNoThreshold',
+  'noAssessment', 'silentTeilCriterion', 'itemNotMentioned', 'llmInvalid', 'llmInvalidBand', 'criterionNotGraded',
+  'lexMetrics', 'cohesionMetrics', 'errorDensity', 'llmProposedBand', 'fluencyBlend', 'sttConfidence', 'noAudioTextOnly',
+])
+
+/** reducedMaxNote đã có dòng riêng trên header (t('reducedMax')) — bỏ khỏi danh sách ghi chú để khỏi lặp. */
+const SKIPPED_NOTE_MSGS = new Set(['reducedMaxNote'])
+
+function useMsgText() {
+  const t = useTranslations('v2.student.examSpeaking.result')
+  return (m: SheetMsg): string => (KNOWN_MSGS.has(m.code) ? t(`msg.${m.code}`, m.params) : m.code)
+}
+
+/**
  * Phiếu kết quả mô phỏng Bewertungsbogen của hệ (Goethe A–E / telc A–D / A1 volle-halbe-null).
  * Trung thực theo kế hoạch 2.4: tổng là KHOẢNG + tâm, mỗi tiêu chí có bằng chứng + nhãn tin cậy,
  * tiêu chí chưa chấm được ghi rõ thay vì bịa số.
  */
 export function Ergebnisbogen({ sheet }: Props) {
   const t = useTranslations('v2.student.examSpeaking.result')
+  const msgText = useMsgText()
   const reduced = sheet.maxPoints + 0.01 < sheet.officialMax
   const range = sheet.totalLow !== sheet.totalHigh ? `${fmt(sheet.totalLow)}–${fmt(sheet.totalHigh)}` : null
+  // N1c-3: phiếu mới có bản structured (dịch theo locale); phiếu cũ fallback chuỗi VI đã lưu.
+  const noteMsgs = (sheet.noteMsgs ?? []).filter((m) => !SKIPPED_NOTE_MSGS.has(m.code))
+  const noteLines = noteMsgs.length > 0 ? noteMsgs.map(msgText) : sheet.notes
+  const passRuleText = sheet.passRuleMsg ? msgText(sheet.passRuleMsg) : sheet.passRule
   return (
     <section className="space-y-5" data-testid="ergebnisbogen">
       <header className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]">
@@ -43,6 +67,10 @@ export function Ergebnisbogen({ sheet }: Props) {
             {range && (
               <p className="ga-ui mt-1 text-[13px] text-ga-muted">{t('range', { range, passes: sheet.passes })}</p>
             )}
+            {sheet.passes > 1 && (
+              // N1c-6: band = trung vị, điểm = trung bình các lượt chấm — nói rõ để "band NULL nhưng có điểm" không gây hoang mang.
+              <p className="ga-ui mt-1 text-[12px] text-ga-muted">{t('multiPassNote', { passes: sheet.passes })}</p>
+            )}
           </div>
           {sheet.passed === null ? (
             <TkBadge tone="neutral">{t('noThreshold')}</TkBadge>
@@ -52,7 +80,7 @@ export function Ergebnisbogen({ sheet }: Props) {
             <TkBadge tone="red" data-testid="result-failed">{t('failed')}</TkBadge>
           )}
         </div>
-        <p className="ga-ui mt-3 text-[13px] text-ga-ink">{sheet.passRule}</p>
+        <p className="ga-ui mt-3 text-[13px] text-ga-ink">{passRuleText}</p>
         {reduced && (
           <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">{t('reducedMax', { max: fmt(sheet.maxPoints), official: fmt(sheet.officialMax) })}</p>
         )}
@@ -76,7 +104,7 @@ export function Ergebnisbogen({ sheet }: Props) {
           )}
           <ul className="divide-y divide-ga-line">
             {p.criteria.map((c) => (
-              <CriterionRow key={c.code} c={c} />
+              <CriterionRow key={c.code} c={c} passes={sheet.passes} />
             ))}
           </ul>
         </div>
@@ -87,7 +115,7 @@ export function Ergebnisbogen({ sheet }: Props) {
           <p className="font-ga-display mb-2 text-[18px] font-medium text-ga-ink">{t('global')}</p>
           <ul className="divide-y divide-ga-line">
             {sheet.global.map((c) => (
-              <CriterionRow key={c.code} c={c} />
+              <CriterionRow key={c.code} c={c} passes={sheet.passes} />
             ))}
           </ul>
         </div>
@@ -109,9 +137,9 @@ export function Ergebnisbogen({ sheet }: Props) {
         </div>
       )}
 
-      {sheet.notes.length > 0 && (
+      {noteLines.length > 0 && (
         <ul className="ga-ui list-disc space-y-1 pl-5 text-[12.5px] text-ga-muted">
-          {sheet.notes.map((n, i) => (
+          {noteLines.map((n, i) => (
             <li key={i}>{n}</li>
           ))}
         </ul>
@@ -123,15 +151,21 @@ export function Ergebnisbogen({ sheet }: Props) {
   )
 }
 
-function CriterionRow({ c }: { c: CriterionResult }) {
+function CriterionRow({ c, passes }: { c: CriterionResult; passes: number }) {
   const t = useTranslations('v2.student.examSpeaking.result')
+  const msgText = useMsgText()
   const [open, setOpen] = useState(false)
+  // N1c-3: bằng chứng = trích dẫn LLM (nguyên văn tiếng Đức) + dòng đo lường structured (dịch theo locale).
+  const evidenceLines = [...c.evidence, ...(c.evidenceMsgs ?? []).map(msgText)]
   return (
     <li className="py-2">
       <div className="flex flex-wrap items-center gap-2">
         <span className="ga-ui flex-1 text-[14px] text-ga-ink">{c.label || c.code}</span>
         {c.scored && c.band ? (
-          <TkBadge tone={BAND_TONE[c.band] ?? 'neutral'}>{c.band}</TkBadge>
+          // N1c-6: điểm là trung bình nhiều lượt chấm nên có thể lệch với band (trung vị) — tooltip giải thích.
+          <span title={passes > 1 ? t('bandMedianTitle', { passes }) : undefined}>
+            <TkBadge tone={BAND_TONE[c.band] ?? 'neutral'}>{c.band}</TkBadge>
+          </span>
         ) : (
           <TkBadge tone="neutral">{t('notScored')}</TkBadge>
         )}
@@ -139,7 +173,7 @@ function CriterionRow({ c }: { c: CriterionResult }) {
           {c.scored ? `${fmt(c.points)}/${fmt(c.max)}` : `–/${fmt(c.max)}`}
         </span>
         <span className="ga-ui w-20 text-right text-[11px] text-ga-muted">{t(`confidence.${c.confidence || 'none'}`)}</span>
-        {c.evidence.length > 0 && (
+        {evidenceLines.length > 0 && (
           <button
             type="button"
             className="ga-ui inline-flex items-center gap-1 text-[12px] text-ga-accent"
@@ -152,7 +186,7 @@ function CriterionRow({ c }: { c: CriterionResult }) {
       </div>
       {open && (
         <ul className="mt-1.5 list-disc space-y-0.5 pl-5">
-          {c.evidence.map((e, i) => (
+          {evidenceLines.map((e, i) => (
             <li key={i} className="ga-ui text-[12.5px] text-ga-muted">{e}</li>
           ))}
         </ul>
