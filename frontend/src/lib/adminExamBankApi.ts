@@ -1,6 +1,6 @@
 import api from '@/lib/api'
 
-/** API Đ5b-A Admin ngân hàng đề — `/api/admin/speaking/exam/bank/**` (ADMIN). */
+/** API Đ5b-A Admin ngân hàng đề — `/admin/speaking/exam/bank/**` (ADMIN). */
 
 export interface BankPoolCell {
   provider: string
@@ -61,9 +61,9 @@ export interface BankTaskFilters {
 }
 
 export const adminExamBankApi = {
-  overview: () => api.get<BankPoolCell[]>('/api/admin/speaking/exam/bank/overview'),
-  tasks: (params: BankTaskFilters) => api.get<BankTaskRow[]>('/api/admin/speaking/exam/bank/tasks', { params }),
-  create: (payload: BankTaskPayload) => api.post<BankTaskRow>('/api/admin/speaking/exam/bank/tasks', payload),
-  update: (id: number, payload: BankTaskPayload) => api.put<BankTaskRow>(`/api/admin/speaking/exam/bank/tasks/${id}`, payload),
-  blueprints: () => api.get<BankBlueprint[]>('/api/admin/speaking/exam/bank/blueprints'),
+  overview: () => api.get<BankPoolCell[]>('/admin/speaking/exam/bank/overview'),
+  tasks: (params: BankTaskFilters) => api.get<BankTaskRow[]>('/admin/speaking/exam/bank/tasks', { params }),
+  create: (payload: BankTaskPayload) => api.post<BankTaskRow>('/admin/speaking/exam/bank/tasks', payload),
+  update: (id: number, payload: BankTaskPayload) => api.put<BankTaskRow>(`/admin/speaking/exam/bank/tasks/${id}`, payload),
+  blueprints: () => api.get<BankBlueprint[]>('/admin/speaking/exam/bank/blueprints'),
 }
