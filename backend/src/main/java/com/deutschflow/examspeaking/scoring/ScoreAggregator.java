@@ -64,7 +64,7 @@ public class ScoreAggregator {
             boolean zeroed = zeroedVotes * 2 >= passes.size();
             if (zeroed) {
                 merged = merged.stream().map(c -> new Ergebnisbogen.CriterionResult(c.code(), c.label(), c.band(), 0, c.max(),
-                        c.scored(), c.confidence(), c.evidence())).toList();
+                        c.scored(), c.confidence(), c.evidence(), c.evidenceMsgs())).toList();
             }
             double points = merged.stream().filter(Ergebnisbogen.CriterionResult::scored).mapToDouble(Ergebnisbogen.CriterionResult::points).sum();
             double max = merged.stream().filter(Ergebnisbogen.CriterionResult::scored).mapToDouble(Ergebnisbogen.CriterionResult::max).sum();
@@ -84,9 +84,11 @@ public class ScoreAggregator {
         List<Ergebnisbogen.ErrorItem> errors = dedupeErrors(passes);
         List<String> notes = new ArrayList<>();
         passes.stream().flatMap(p -> p.notes().stream()).distinct().forEach(notes::add);
+        List<Ergebnisbogen.Msg> noteMsgs = new ArrayList<>();
+        passes.stream().flatMap(p -> p.noteMsgs().stream()).distinct().forEach(noteMsgs::add);
         double low = passes.stream().mapToDouble(Ergebnisbogen::total).min().orElse(0);
         double high = passes.stream().mapToDouble(Ergebnisbogen::total).max().orElse(0);
-        return RubricScorer.Totals.assemble(ref, rubric, parts, global, errors, notes, passes.size(), low, high);
+        return RubricScorer.Totals.assemble(ref, rubric, parts, global, errors, notes, noteMsgs, passes.size(), low, high);
     }
 
     private Ergebnisbogen.CriterionResult mergeCriterion(RubricDefinition rubric, List<Ergebnisbogen.CriterionResult> across) {
@@ -102,10 +104,12 @@ public class ScoreAggregator {
         String band = BandScales.bands(rubric.scale()).get(median);
         List<String> evidence = new ArrayList<>();
         scored.forEach(c -> c.evidence().stream().filter(e -> !evidence.contains(e)).limit(2).forEach(evidence::add));
+        List<Ergebnisbogen.Msg> evidenceMsgs = new ArrayList<>();
+        scored.forEach(c -> c.evidenceMsgs().stream().filter(m -> !evidenceMsgs.contains(m)).limit(2).forEach(evidenceMsgs::add));
         String confidence = scored.stream().map(Ergebnisbogen.CriterionResult::confidence).filter(Objects::nonNull)
                 .min(String::compareTo).orElse(ref.confidence());
         return new Ergebnisbogen.CriterionResult(ref.code(), ref.label(), band, RubricScorer.round2(avgPoints), ref.max(),
-                true, confidence, evidence);
+                true, confidence, evidence, evidenceMsgs);
     }
 
     private static Map<String, List<Ergebnisbogen.CriterionResult>> groupByKey(List<Ergebnisbogen> passes) {

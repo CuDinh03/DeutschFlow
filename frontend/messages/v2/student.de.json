@@ -1291,7 +1291,31 @@
           "low": "Schätzung",
           "none": "—"
         },
-        "evidence": "Belege"
+        "evidence": "Belege",
+        "multiPassNote": "Band ist der Median, Punkte sind der Mittelwert aus {passes} unabhängigen Bewertungsdurchläufen — beide können leicht abweichen.",
+        "bandMedianTitle": "Band = Median aus {passes} Durchläufen; Punkte = Mittelwert — beide können abweichen.",
+        "msg": {
+          "silentTeil": "Teil {teil}: keine Äußerung → 0 Punkte für diesen Teil.",
+          "llmInvalidTeil": "Teil {teil}: Die KI hat kein gültiges Ergebnis geliefert → Kriterien dieses Teils konnten nicht bewertet werden.",
+          "erfuellungZero": "Teil {teil}: Erfüllung = {band} → der ganze Teil erhält 0 Punkte (Regel des Systems {scheme}).",
+          "unscoredCount": "{count} Kriterien/Aufgaben konnten nicht bewertet werden.",
+          "passSpeakingOnly": "Bestehensgrenze nur Sprechen ≥{min}/{max} (die vollständige Prüfung verlangt zusätzlich das Schreiben).",
+          "passModule": "Modul bestanden ab ≥{min}/{max}.",
+          "passNoThreshold": "Dieses System hat keine eigene Sprechgrenze — die Sprechpunkte zählen zur Gesamtprüfung.",
+          "noAssessment": "Keine Bewertung für diesen Punkt.",
+          "silentTeilCriterion": "Keine Äußerung in diesem Teil.",
+          "itemNotMentioned": "Die KI hat diese Aufgabe nicht erwähnt → gilt als nicht erfüllt.",
+          "llmInvalid": "Die KI hat kein gültiges Ergebnis geliefert.",
+          "llmInvalidBand": "Die KI hat ein ungültiges Band geliefert: {band}.",
+          "criterionNotGraded": "Die KI hat das Kriterium {criterion} nicht bewertet.",
+          "lexMetrics": "Gemessen: {words} Wörter, TTR {ttr}, {inList}% in der Goethe-Wortliste, {above} Wörter über dem Niveau.",
+          "cohesionMetrics": "Gemessen: {connectors} Konnektoren, {subordinators} Nebensätze.",
+          "errorDensity": "Gemessene Fehlerdichte: {density} Fehler/100 Wörter ({errors} Fehler, {words} Wörter) → Band {band}.",
+          "llmProposedBand": "Die KI schlug Band {band} vor — das endgültige Band bestimmt die Fehlerdichte-Tabelle.",
+          "fluencyBlend": "Flüssigkeit gemessen: {wpm} Wörter/Min., {pauses} lange Pausen, MLR {mlr} → Band {fluencyBand}; kombiniert mit KI ({llmBand}) → {band}.",
+          "sttConfidence": "Geschätzt aus der STT-Konfidenz (avg_logprob {logprob}) — Stufe 1/3, geringe Zuverlässigkeit.",
+          "noAudioTextOnly": "Nicht bewertbar: kein Audio/keine STT-Konfidenz (nur Text)."
+        }
       },
       "drill": {
         "cap": "Durchschnittliche Schnellbewertung",

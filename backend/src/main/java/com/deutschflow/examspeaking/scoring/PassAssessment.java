@@ -13,13 +13,21 @@ public record PassAssessment(
         Map<Integer, PartAssessment> parts,
         Map<String, CriterionAssessment> global,
         List<Ergebnisbogen.ErrorItem> errors,
-        List<String> notes
+        List<String> notes,
+        List<Ergebnisbogen.Msg> noteMsgs
 ) {
     public PassAssessment {
         parts = parts == null ? Map.of() : Map.copyOf(parts);
         global = global == null ? Map.of() : Map.copyOf(global);
         errors = errors == null ? List.of() : List.copyOf(errors);
         notes = notes == null ? List.of() : List.copyOf(notes);
+        noteMsgs = noteMsgs == null ? List.of() : List.copyOf(noteMsgs);
+    }
+
+    /** Tương thích test/cũ: không có bản structured của ghi chú. */
+    public PassAssessment(Map<Integer, PartAssessment> parts, Map<String, CriterionAssessment> global,
+                          List<Ergebnisbogen.ErrorItem> errors, List<String> notes) {
+        this(parts, global, errors, notes, List.of());
     }
 
     /**
@@ -39,14 +47,29 @@ public record PassAssessment(
         }
     }
 
-    /** {@code band} đã chuẩn hóa theo thang; {@code scored=false} = không có tín hiệu. */
-    public record CriterionAssessment(String band, boolean scored, String confidence, List<String> evidence) {
+    /**
+     * {@code band} đã chuẩn hóa theo thang; {@code scored=false} = không có tín hiệu.
+     * {@code evidence} = trích dẫn tự do của LLM; {@code evidenceMsgs} = dòng đo lường/lý do code sinh (N1c-3).
+     */
+    public record CriterionAssessment(String band, boolean scored, String confidence, List<String> evidence,
+                                      List<Ergebnisbogen.Msg> evidenceMsgs) {
         public CriterionAssessment {
             evidence = evidence == null ? List.of() : List.copyOf(evidence);
+            evidenceMsgs = evidenceMsgs == null ? List.of() : List.copyOf(evidenceMsgs);
+        }
+
+        /** Tương thích test/cũ: không có dòng structured. */
+        public CriterionAssessment(String band, boolean scored, String confidence, List<String> evidence) {
+            this(band, scored, confidence, evidence, List.of());
         }
 
         public static CriterionAssessment unscored(String why) {
             return new CriterionAssessment(null, false, "none", List.of(why));
+        }
+
+        /** unscored với lý do structured — chuỗi VI không còn cần thiết cho phiếu mới. */
+        public static CriterionAssessment unscored(Ergebnisbogen.Msg why) {
+            return new CriterionAssessment(null, false, "none", List.of(), List.of(why));
         }
     }
 }

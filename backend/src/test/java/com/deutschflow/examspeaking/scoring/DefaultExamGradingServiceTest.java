@@ -118,14 +118,20 @@ class DefaultExamGradingServiceTest {
                 .filter(c -> c.code().equals("STRUKTUREN")).findFirst().orElseThrow();
         // 5 lỗi MAJOR / 33 từ ≈ 15/100 → B1: >12 → E (LLM nói A nhưng code quyết)
         assertThat(strukturenT1.band()).isEqualTo("E");
-        assertThat(strukturenT1.evidence()).anyMatch(s -> s.contains("Mật độ lỗi"));
+        // N1c-3: dòng đo lường là structured msg (FE dịch theo locale), không còn chuỗi VI trong evidence
+        assertThat(strukturenT1.evidenceMsgs()).anyMatch(m -> m.code().equals("errorDensity"));
+        assertThat(strukturenT1.evidenceMsgs()).anyMatch(m -> m.code().equals("llmProposedBand")
+                && "A".equals(m.params().get("band")));
         Ergebnisbogen.CriterionResult aussprache = e.global().get(0);
         assertThat(aussprache.scored()).isFalse();
+        assertThat(aussprache.evidenceMsgs()).anyMatch(m -> m.code().equals("noAudioTextOnly"));
         assertThat(e.maxPoints()).isEqualTo(84.0);
         assertThat(e.parts().get(0).criteria().stream().filter(c -> c.code().equals("WORTSCHATZ")).findFirst().orElseThrow()
-                .evidence()).anyMatch(s -> s.contains("wordlist Goethe"));
+                .evidenceMsgs()).anyMatch(m -> m.code().equals("lexMetrics"));
         assertThat(e.total()).isGreaterThan(0);
         assertThat(e.passRule()).contains("60");
+        assertThat(e.passRuleMsg().code()).isEqualTo("passModule");
+        assertThat(e.noteMsgs()).anyMatch(m -> m.code().equals("unscoredCount"));
     }
 
     private static ParticipantBundle.PartTranscript part(int teil, TaskArchetype a, String text) {
