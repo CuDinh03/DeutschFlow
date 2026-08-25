@@ -13,6 +13,27 @@ public final class LlmJson {
 
     private LlmJson() {}
 
+    /**
+     * Lấy chuỗi văn bản do LLM sinh và chuẩn hoá cho hiển thị/đọc TTS.
+     *
+     * 🪤 LLM hay trả JSON DOUBLE-ESCAPE (`"...zusammen.\\n Wie oft..."`): Jackson decode ra đúng
+     * hai ký tự `\` + `n` nên chuỗi `\n` lòi nguyên văn ra UI và TTS đọc thành "backslash en"
+     * (owner bắt được trên prod 26/08). Ở đây `\n`/`\r`/`\t` literal — và cả xuống dòng thật —
+     * đều thành một khoảng trắng: lời thoại là câu NÓI, không có khái niệm xuống dòng.
+     */
+    public static String speechText(JsonNode node, String field) {
+        if (node == null) return "";
+        return normalizeSpeech(node.path(field).asText(""));
+    }
+
+    /** @see #speechText(JsonNode, String) */
+    public static String normalizeSpeech(String raw) {
+        if (raw == null || raw.isBlank()) return "";
+        return raw.replaceAll("\\\\[nrt]", " ")   // literal \n \r \t (LLM double-escape)
+                  .replaceAll("\\s+", " ")        // xuống dòng thật + khoảng trắng thừa
+                  .trim();
+    }
+
     public static Optional<JsonNode> parse(ObjectMapper mapper, String raw) {
         if (raw == null || raw.isBlank()) {
             return Optional.empty();
