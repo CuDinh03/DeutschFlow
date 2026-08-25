@@ -457,19 +457,24 @@ docker_force_remove() {
   return 0
 }
 
-# Graceful stop BLUE (must free name before promote)
+# Thứ tự promote — GREEN phải gỡ TRƯỚC BLUE (sự cố 25/08: GREEN kẹt dockerd "removal in
+# progress" SAU khi BLUE đã gỡ ⇒ :8080 trống ~15-20'). GREEN chỉ là instance kiểm chứng,
+# image :new đã chứng minh boot được; nếu dockerd kẹt thì abort ngay khi BLUE còn phục vụ.
+info "  Gỡ GREEN (instance kiểm chứng) trước khi đụng BLUE..."
+if ! docker_force_remove deutschflow-backend-green; then
+  error "GREEN không gỡ được (dockerd kẹt?) — BLUE VẪN phục vụ :8080, hủy promote an toàn."
+  error "Chờ vài phút cho dockerd nhả container rồi chạy lại script."
+  exit 1
+fi
+success "  GREEN đã gỡ — dockerd thao tác container bình thường"
+
+# Graceful stop BLUE (must free name + :8080 before promote)
 info "  Graceful stop BLUE (timeout 30s)..."
 if ! docker_force_remove deutschflow-backend; then
-  error "BLUE chưa được gỡ — giữ GREEN trên :8081, hủy promote."
+  error "BLUE chưa được gỡ — :8080 vẫn do BLUE giữ, hủy promote."
   exit 1
 fi
 success "  BLUE đã dừng và gỡ"
-
-# Promote GREEN → port 8080
-if ! docker_force_remove deutschflow-backend-green; then
-  error "GREEN chưa được gỡ — kiểm tra thủ công trên EC2."
-  exit 1
-fi
 
 # 127.0.0.1 — xem ghi chú ở khối GREEN. Backend CHỈ được tiếp nhận request qua nginx: mọi rate-limit
 # theo IP (ở app lẫn ở nginx) đọc client IP từ X-Forwarded-For do chính nginx thêm vào. Nếu request
@@ -482,6 +487,21 @@ if ! sudo docker run -d \
   deutschflow-backend:new; then
   error "Không khởi động được deutschflow-backend trên :8080"
   sudo docker ps -a --filter name=deutschflow-backend --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+  # BLUE đã gỡ ở trên ⇒ :8080 đang trống. Thử tự cứu bằng image cũ (:latest chưa bị re-tag
+  # ở bước này — vẫn là bản đang chạy trước deploy) thay vì để prod chết chờ người.
+  warn "Thử khôi phục bản CŨ từ image deutschflow-backend:latest..."
+  sudo docker rm -f deutschflow-backend 2>/dev/null || true
+  if sudo docker run -d \
+    --name deutschflow-backend \
+    "${DOCKER_ARGS[@]}" \
+    -p 127.0.0.1:8080:8080 \
+    --restart unless-stopped \
+    deutschflow-backend:latest 2>/dev/null; then
+    sudo docker network connect deutschflow-net deutschflow-backend 2>/dev/null || true
+    warn "Đã khôi phục BẢN CŨ trên :8080 — deploy THẤT BẠI nhưng prod không trống."
+  else
+    error ":8080 ĐANG TRỐNG (khôi phục bản cũ cũng thất bại) — xử lý tay NGAY trên EC2."
+  fi
   exit 1
 fi
 
@@ -493,17 +513,23 @@ sudo docker tag deutschflow-backend:new deutschflow-backend:latest 2>/dev/null |
 sudo docker rmi deutschflow-backend:new 2>/dev/null || true
 sudo docker image prune -f 2>/dev/null || true
 
-# Final health check (tối đa 90s)
-info "  Chờ backend healthy trên port 8080 (tối đa 90s)..."
+# Final health check — 300s, KHÔNG phải 90s: JVM boot mất ~2 phút, cửa sổ 90s từng báo
+# "DEPLOY THẤT BẠI" oan (25/08) trong khi container --restart unless-stopped vẫn tự lên sau.
+# Đồng bộ với cửa sổ health-check GREEN (300s) ở trên.
+info "  Chờ backend healthy trên port 8080 (tối đa 300s — JVM boot ~2 phút)..."
 FINAL_HEALTH=""
-for i in $(seq 1 18); do
+for i in $(seq 1 60); do
   sleep 5
   FINAL_HEALTH=$(curl -sf http://localhost:8080/actuator/health 2>/dev/null || echo "")
   if echo "$FINAL_HEALTH" | grep -q '"UP"'; then
     success "  Backend healthy sau $((i * 5))s"
     break
   fi
-  echo "    Chờ... ($((i * 5))s / 90s)"
+  if ! sudo docker ps --format '{{.Names}}' | grep -qx "deutschflow-backend"; then
+    warn "  Container không chạy — chờ restart policy kéo lên... ($((i * 5))s / 300s)"
+  else
+    echo "    Chờ... ($((i * 5))s / 300s)"
+  fi
 done
 
 # ── Final Report ──────────────────────────────────────────────
@@ -532,7 +558,10 @@ if echo "$FINAL_HEALTH" | grep -q '"UP"'; then
   echo "════════════════════════════════════════════════"
 else
   echo "════════════════════════════════════════════════"
-  echo -e "  \033[0;31mDEPLOY THẤT BẠI! Backend không healthy.\033[0m"
+  echo -e "  \033[0;31mDEPLOY THẤT BẠI! Backend không healthy sau 300s.\033[0m"
+  echo "  Container có --restart unless-stopped — kiểm tra lại"
+  echo "  curl https://api.mydeutschflow.com/actuator/health sau vài phút"
+  echo "  trước khi can thiệp tay."
   echo "════════════════════════════════════════════════"
   echo ""
   echo "=== Backend logs (50 dòng cuối) ==="
