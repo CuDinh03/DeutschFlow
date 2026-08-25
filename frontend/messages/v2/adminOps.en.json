@@ -492,6 +492,46 @@
       "machineBand": "machine: {band}",
       "save": "Save ratings",
       "saving": "Saving…"
+    },
+    "examBank": {
+      "title": "Speaking exam task bank",
+      "subtitle": "Manage Goethe/telc A1–B2 tasks: per-Teil pools, create/edit/approve — no migrations needed.",
+      "back": "Back to admin",
+      "dismiss": "Dismiss",
+      "loading": "Loading…",
+      "all": "All",
+      "providerLabel": "Exam board",
+      "levelLabel": "Level",
+      "statusLabel": "Status",
+      "poolBadge": "{pool}/{need} tasks",
+      "createCta": "New task",
+      "editCta": "Edit",
+      "tableCap": "Tasks ({n})",
+      "emptyTitle": "No tasks match the filters",
+      "emptyDesc": "Change the filters or click \"New task\" to draft one (drafts never enter the exam room).",
+      "colExam": "Board · Level",
+      "colArchetype": "Archetype",
+      "colContent": "Content",
+      "colStatus": "Status",
+      "shared": "Shared",
+      "status": {
+        "DRAFT": "Draft",
+        "APPROVED": "Live",
+        "RETIRED": "Retired"
+      },
+      "editorCreateTitle": "New task",
+      "editorEditTitle": "Edit task #{id}",
+      "stimulusLabel": "Stimulus (JSON — the task card content)",
+      "jsonInvalid": "Invalid JSON — fix it before saving.",
+      "typeMissing": "Missing \"type\" key — the FE needs it to render the right card.",
+      "partnerCap": "Private keys (partner*)",
+      "partnerPrivate": "partner* keys are visible only to the AI partner — never sent to the student.",
+      "partnerUnknown": "Key(s) {keys} are not supported by the AI — the task would silently break. Allowed: partnerCalendar, partnerText, partnerChart, partnerPresentation, partnerStance.",
+      "previewCap": "Preview — exactly what the student sees",
+      "previewNote": "All partner* keys are filtered out of this card (as in the real exam room). Check both text and card type.",
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel"
     }
   }
 }

@@ -46,4 +46,18 @@ class PrivateContextTest {
         assertThat(AiInterlocutorService.privateContext(Map.of("partnerPresentation", "Mein Thema ist …")))
                 .contains("Mein Thema ist");
     }
+
+    @Test
+    @DisplayName("Đ5b: KNOWN_PARTNER_KEYS (guard admin ngân hàng đề) khớp privateContext — mỗi khoá phải sinh ngữ cảnh")
+    void knownPartnerKeysConstantMatchesPrivateContext() {
+        // Giá trị đệm cho các khoá phụ (goal/thema/question) mà vài nhánh in kèm.
+        Map<String, String> padding = Map.of("goal", "G", "thema", "T", "question", "Q");
+        for (String key : AiInterlocutorService.KNOWN_PARTNER_KEYS) {
+            java.util.Map<String, Object> card = new java.util.HashMap<>(padding);
+            card.put(key, "SENTINEL-" + key);
+            assertThat(AiInterlocutorService.privateContext(card))
+                    .as("khoá %s nằm trong KNOWN_PARTNER_KEYS nhưng privateContext không đọc nó", key)
+                    .isNotEmpty();
+        }
+    }
 }

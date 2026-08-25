@@ -492,6 +492,46 @@
       "machineBand": "máy: {band}",
       "save": "Lưu phiếu chấm",
       "saving": "Đang lưu…"
+    },
+    "examBank": {
+      "title": "Ngân hàng đề Luyện thi Nói",
+      "subtitle": "Quản đề thi Goethe/telc A1–B2: pool theo Teil, tạo/sửa/duyệt đề — không cần viết migration.",
+      "back": "Về bảng quản trị",
+      "dismiss": "Đóng",
+      "loading": "Đang tải…",
+      "all": "Tất cả",
+      "providerLabel": "Hệ thi",
+      "levelLabel": "Cấp",
+      "statusLabel": "Trạng thái",
+      "poolBadge": "{pool}/{need} đề",
+      "createCta": "Thêm đề",
+      "editCta": "Sửa",
+      "tableCap": "Danh sách đề ({n})",
+      "emptyTitle": "Không có đề nào khớp bộ lọc",
+      "emptyDesc": "Đổi bộ lọc hoặc bấm \"Thêm đề\" để soạn đề mới (mặc định là bản nháp).",
+      "colExam": "Hệ · Cấp",
+      "colArchetype": "Dạng bài",
+      "colContent": "Nội dung",
+      "colStatus": "Trạng thái",
+      "shared": "Dùng chung",
+      "status": {
+        "DRAFT": "Bản nháp",
+        "APPROVED": "Đang dùng",
+        "RETIRED": "Đã gỡ"
+      },
+      "editorCreateTitle": "Thêm đề mới",
+      "editorEditTitle": "Sửa đề #{id}",
+      "stimulusLabel": "Stimulus (JSON — nội dung thẻ đề)",
+      "jsonInvalid": "JSON không hợp lệ — sửa xong mới lưu được.",
+      "typeMissing": "Thiếu khoá \"type\" — FE cần nó để render đúng loại thẻ.",
+      "partnerCap": "Khoá riêng tư (partner*)",
+      "partnerPrivate": "Các khoá partner* chỉ AI partner thấy — không bao giờ gửi cho học viên.",
+      "partnerUnknown": "Khoá {keys} chưa được AI hỗ trợ — đề sẽ hỏng âm thầm. Chỉ dùng: partnerCalendar, partnerText, partnerChart, partnerPresentation, partnerStance.",
+      "previewCap": "Xem trước — đúng như học viên thấy",
+      "previewNote": "Thẻ đã lọc mọi khoá partner* (như trong phòng thi thật). Kiểm cả phần chữ lẫn loại thẻ.",
+      "save": "Lưu",
+      "saving": "Đang lưu…",
+      "cancel": "Huỷ"
     }
   }
 }
