@@ -1219,7 +1219,8 @@
           "REACT_DEFAULT": "Respond to your partner: agree/disagree with a reason, then suggest the next point.",
           "FEEDBACK_COMMENT": "Give your partner one comment on the presentation (what was good/new/interesting) and ask ONE question.",
           "ANSWER_PRUEFER_TOPIC": "Answer the examiner's question about the topic."
-        }
+        },
+        "partnerAi": "Partner · AI"
       },
       "mic": {
         "sending": "Sending and waiting for the reply…",

@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { Sparkles } from 'lucide-react'
+import { Bot, Sparkles } from 'lucide-react'
 import type { DrillTurnEval, RoomLine } from '@/types/exam-speaking'
 
 interface Props {
@@ -23,13 +23,20 @@ export function ExamTranscript({ lines, mode }: Props) {
                   ? 'bg-ga-yellow-soft text-ga-ink'
                   : l.role === 'PRUEFER'
                     ? 'bg-ga-ink text-ga-bg'
-                    : 'border border-ga-line bg-ga-card text-ga-ink'
+                    : 'border-2 border-ga-accent bg-ga-accent-soft text-ga-ink'
               }`}
               data-role={l.role}
             >
-              <span className="mr-2 text-[11px] font-semibold uppercase tracking-wide opacity-70">
-                {l.role === 'CANDIDATE' ? t('you') : l.role === 'PRUEFER' ? t('pruefer') : t('partner')}
-              </span>
+              {l.role === 'CANDIDATE' || l.role === 'PRUEFER' ? (
+                <span className="mr-2 text-[11px] font-semibold uppercase tracking-wide opacity-70">
+                  {l.role === 'CANDIDATE' ? t('you') : t('pruefer')}
+                </span>
+              ) : (
+                // Partner là AI đóng vai bạn thi — chip accent + icon để phân vai ngay khi lướt transcript.
+                <span className="mr-2 inline-flex translate-y-[-1px] items-center gap-1 rounded-full bg-ga-accent px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-ga-accent-ink">
+                  <Bot size={11} aria-hidden /> {t('partnerAi')}
+                </span>
+              )}
               {l.text}
             </div>
             {typeof l.latencyMs === 'number' && l.role !== 'CANDIDATE' && (

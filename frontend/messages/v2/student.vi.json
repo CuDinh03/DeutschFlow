@@ -1219,7 +1219,8 @@
           "REACT_DEFAULT": "Phản hồi bạn thi: đồng ý/phản đối có lý do, đề xuất tiếp.",
           "FEEDBACK_COMMENT": "Cho bạn thi một nhận xét về bài trình bày (hay/mới/thú vị ở đâu) và đặt MỘT câu hỏi.",
           "ANSWER_PRUEFER_TOPIC": "Trả lời câu hỏi của giám khảo về chủ đề."
-        }
+        },
+        "partnerAi": "Bạn thi · AI"
       },
       "mic": {
         "sending": "Đang gửi và chờ phản hồi…",
