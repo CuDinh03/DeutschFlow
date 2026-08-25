@@ -156,7 +156,7 @@ public class DefaultExamGradingService implements ExamGradingService {
         Map<String, PassAssessment.CriterionAssessment> items = new HashMap<>();
         Map<String, PassAssessment.CriterionAssessment> criteria = new HashMap<>();
         // N1c-2: nhận xét 2 câu của "giám khảo" cho Teil — trước đây prompt yêu cầu nhưng bị vứt.
-        String comment = json.path("summary_vi").asText(null);
+        String comment = LlmJson.speechText(json, "summary_vi"); // blank → null ở dòng dưới
         if (comment != null && comment.isBlank()) {
             comment = null;
         }
@@ -213,7 +213,7 @@ public class DefaultExamGradingService implements ExamGradingService {
                 }
                 List<String> ev = new ArrayList<>();
                 for (JsonNode e : c.path("evidence")) {
-                    ev.add(e.asText());
+                    ev.add(LlmJson.normalizeSpeech(e.asText()));
                 }
                 return new PassAssessment.CriterionAssessment(band, true, "medium", ev);
             }
@@ -269,7 +269,7 @@ public class DefaultExamGradingService implements ExamGradingService {
         List<Ergebnisbogen.ErrorItem> out = new ArrayList<>();
         for (JsonNode e : json.path("errors")) {
             String code = e.path("code").asText("");
-            String original = e.path("original").asText("");
+            String original = LlmJson.speechText(e, "original");
             if (original.isBlank()) {
                 continue;
             }
@@ -285,12 +285,12 @@ public class DefaultExamGradingService implements ExamGradingService {
         if (q == null || q.isMissingNode() || q.isNull()) {
             return List.of();
         }
-        return q.isArray() ? stream(q) : List.of(q.asText());
+        return q.isArray() ? stream(q) : List.of(LlmJson.normalizeSpeech(q.asText()));
     }
 
     private static List<String> stream(JsonNode arr) {
         List<String> out = new ArrayList<>();
-        arr.forEach(n -> out.add(n.asText()));
+        arr.forEach(n -> out.add(LlmJson.normalizeSpeech(n.asText())));
         return out;
     }
 

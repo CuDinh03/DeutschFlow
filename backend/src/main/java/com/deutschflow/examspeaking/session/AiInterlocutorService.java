@@ -81,7 +81,7 @@ public class AiInterlocutorService {
             AiChatCompletionResult res = chatClient.chatCompletionForTier(messages, tierResolver.spec(LlmTier.CHAT_PAID),
                     0.6, props.turnTokens(), true);
             ledger.record(userId, res.provider(), res.model(), res.usage(), FEATURE_TURN, null, null);
-            String text = LlmJson.parse(objectMapper, res.content()).map(j -> j.path("reply_de").asText("")).orElse("");
+            String text = LlmJson.parse(objectMapper, res.content()).map(j -> LlmJson.speechText(j, "reply_de")).orElse("");
             if (text.isBlank()) {
                 text = fallback(step.aiAction(), candidateCard, nextCard);
             }
@@ -134,12 +134,12 @@ public class AiInterlocutorService {
                 return out;
             }
             out.put("score", Math.min(10, score));
-            out.put("feedbackVi", j.path("feedback_vi").asText(""));
+            out.put("feedbackVi", LlmJson.speechText(j, "feedback_vi"));
             List<Map<String, String>> corrections = new ArrayList<>();
             for (JsonNode c : j.path("corrections")) {
                 String norm = ErrorCatalog.normalize(c.path("code").asText(""));
                 corrections.add(Map.of("code", norm == null ? "OTHER" : norm,
-                        "original", c.path("original").asText(""), "correction", c.path("correction").asText(""),
+                        "original", LlmJson.speechText(c, "original"), "correction", LlmJson.speechText(c, "correction"),
                         "severity", GrammarErrorSeverity.normalizeToStored(c.path("severity").asText("MINOR"))));
                 if (corrections.size() == 3) {
                     break;
@@ -147,7 +147,7 @@ public class AiInterlocutorService {
             }
             out.put("corrections", corrections);
             List<String> redemittel = new ArrayList<>();
-            j.path("redemittel").forEach(n -> redemittel.add(n.asText()));
+            j.path("redemittel").forEach(n -> redemittel.add(LlmJson.normalizeSpeech(n.asText())));
             out.put("redemittel", redemittel);
         } catch (RuntimeException e) {
             log.warn("[ExamSpeaking] drill eval failed: {}", e.getMessage());
