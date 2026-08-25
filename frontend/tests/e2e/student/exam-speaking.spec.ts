@@ -435,3 +435,24 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await expect(debate).not.toContainText('partnerStance');
   });
 });
+
+// Gate mic cho mock khi quyền CHƯA cấp: A1/A2 không có màn chuẩn bị nên gate phải đứng trước khi tạo phiên.
+test.describe('Mock mic gate (quyền mic chưa cấp)', () => {
+  test.use({ permissions: [] });
+
+  test('bấm Thi thử khi mic chưa cấp quyền → hiện Mic-Check gate, KHÔNG tạo phiên', async ({ page }) => {
+    await baseMocks(page);
+    let created = false;
+    await page.route('**/api/speaking/exam/sessions', (route) => {
+      created = true;
+      return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' });
+    });
+    await page.goto('/v2/student/speaking/exam');
+    await expect(page.getByTestId('start-mock')).toBeEnabled();
+    await page.getByTestId('start-mock').click();
+    await expect(page.getByTestId('mock-mic-gate')).toBeVisible();
+    await expect(page.getByTestId('mic-check-start')).toBeVisible();
+    expect(created).toBe(false);
+  });
+});
+
