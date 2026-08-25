@@ -15,6 +15,7 @@ import com.deutschflow.ai.tier.LlmTierResolver;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -182,10 +183,20 @@ public class PracticeNodeService {
             // Check for duplicates against seen hashes
             List<String> existingHashes = getSeenHashes(userId, sourceNodeId, skillType);
             long duplicateCount = hashes.stream().filter(existingHashes::contains).count();
-            if (duplicateCount > hashes.size() / 2) {
-                log.warn("[PracticeNode] Too many duplicates ({}/{}), retrying...", duplicateCount, hashes.size());
-                // Retry once with stronger anti-repetition hint
-                seenSummaries.add("⚠️ WARNUNG: Die vorherige Generation hatte zu viele Duplikate. Sei KOMPLETT anders!");
+            boolean noExercises = countExercises(parsed) == 0;
+            if (noExercises || duplicateCount > hashes.size() / 2) {
+                String retryHint;
+                if (noExercises) {
+                    log.warn("[PracticeNode] Model trả 0 bài tập cho {} Gen-{} (user={}, node={}) — sinh lại",
+                            skillType, generation, userId, sourceNodeId);
+                    retryHint = "⚠️ WARNUNG: Die vorherige Antwort enthielt KEINE Übungen. "
+                            + "Antworte mit einem JSON-Objekt, das die Übungen im Feld \"exercises\" enthält!";
+                } else {
+                    log.warn("[PracticeNode] Too many duplicates ({}/{}), retrying...", duplicateCount, hashes.size());
+                    retryHint = "⚠️ WARNUNG: Die vorherige Generation hatte zu viele Duplikate. Sei KOMPLETT anders!";
+                }
+                // Retry once with stronger hint
+                seenSummaries.add(retryHint);
                 String retryPrompt = PracticeNodePromptBuilder.buildPromptForSkill(
                         skillType, lessonTitle, cefrLevel,
                         vocabularyWords, grammarFocus,
@@ -200,6 +211,15 @@ public class PracticeNodeService {
                 parsed = normalizeExercisePayload(objectMapper.readTree(rawJson));
                 cleanJson = objectMapper.writeValueAsString(parsed);
                 hashes = computeExerciseHashes(parsed, skillType);
+            }
+
+            // KHÔNG BAO GIỜ lưu session rỗng: học viên sẽ mở ra màn hình "0 câu" không có nút
+            // nộp bài lẫn nút sinh lại, và `start` sau đó cache-hit theo node nên kẹt vĩnh viễn.
+            // Thà báo lỗi để client hiện thông báo + cho thử lại.
+            if (countExercises(parsed) == 0) {
+                log.error("[PracticeNode] Bỏ session rỗng sau 2 lần sinh: {} Gen-{} user={} node={}",
+                        skillType, generation, userId, sourceNodeId);
+                return Map.of("status", "FAILED", "error", "AI không sinh được bài tập, vui lòng thử lại.");
             }
 
             // Save to DB
@@ -273,6 +293,9 @@ public class PracticeNodeService {
                     id, skill_type, generation, status, score_percent,
                     MAX(score_percent) OVER (PARTITION BY skill_type) AS best_score_percent,
                     xp_earned, created_at, completed_at,
+                    -- exercises_json là OBJECT {"exercises": [...]} (+ reading_passage cho LESEN);
+                    -- mảng top-level chỉ còn ở session sinh trước bản vá. jsonb_array_length ném lỗi
+                    -- "cannot get array length of a non-array" nếu gọi thẳng vào object → 500 cả trang.
                     CASE
                         WHEN jsonb_typeof(exercises_json) = 'array'
                             THEN jsonb_array_length(exercises_json)
@@ -544,15 +567,9 @@ public class PracticeNodeService {
         for (var session : sessions) {
             String json = (String) session.get("exercises_json");
             try {
-                JsonNode exercises = objectMapper.readTree(json);
-                if (exercises.isArray()) {
+                JsonNode exercises = findExerciseArray(objectMapper.readTree(json));
+                if (exercises != null) {
                     for (JsonNode ex : exercises) {
-                        String type = ex.has("type") ? ex.get("type").asText() : "UNKNOWN";
-                        String question = extractQuestionText(ex);
-                        summaries.add(PracticeNodePromptBuilder.summarizeExercise(type, question));
-                    }
-                } else if (exercises.has("exercises") && exercises.get("exercises").isArray()) {
-                    for (JsonNode ex : exercises.get("exercises")) {
                         String type = ex.has("type") ? ex.get("type").asText() : "UNKNOWN";
                         String question = extractQuestionText(ex);
                         summaries.add(PracticeNodePromptBuilder.summarizeExercise(type, question));
@@ -563,22 +580,6 @@ public class PracticeNodeService {
             }
         }
         return summaries;
-    }
-
-    /**
-     * Bóc vỏ wrapper mà LLM tier CONTENT thỉnh thoảng tự bọc quanh output —
-     * {@code {"type":"object","content":[...]}} kiểu JSON-schema (gặp trên prod 17–18/08:
-     * session 33 HOEREN, 35 SPRECHEN). Payload hợp lệ chỉ có 2 dạng: mảng trần hoặc
-     * object mang {@code exercises}/{@code reading_passage} (LESEN) — object có
-     * {@code content} mà thiếu cả hai key đó chắc chắn là vỏ. Bóc lặp phòng vỏ lồng vỏ.
-     */
-    static JsonNode normalizeExercisePayload(JsonNode parsed) {
-        while (parsed != null && parsed.isObject() && parsed.has("content")
-                && !parsed.has("exercises") && !parsed.has("reading_passage")
-                && (parsed.get("content").isArray() || parsed.get("content").isObject())) {
-            parsed = parsed.get("content");
-        }
-        return parsed;
     }
 
     private String extractQuestionText(JsonNode exercise) {
@@ -599,14 +600,75 @@ public class PracticeNodeService {
                 """, String.class, userId, sourceNodeId, skillType);
     }
 
+    /**
+     * Tên khoá đang chứa mảng bài tập trong một object, hoặc {@code null} nếu không có.
+     *
+     * <p>Ưu tiên {@code "exercises"} (dạng chuẩn). Nếu không có, nhận mảng-đối-tượng đầu tiên
+     * tìm được: sinh practice đi qua {@code chatCompletionForTier(messages, tier, temp, maxTokens)},
+     * overload này mặc định {@code forceJson=true} ⇒ {@code response_format=json_object} ⇒ model
+     * không thể trả mảng top-level và đôi khi tự đặt tên khoá khác ({@code "uebungen"},
+     * {@code "aufgaben"}…). Bắt lấy để cứu bài thay vì trả session rỗng cho học viên.
+     */
+    private static String findExerciseFieldName(JsonNode root) {
+        if (root == null || !root.isObject()) return null;
+        JsonNode named = root.get("exercises");
+        if (named != null && named.isArray()) return "exercises";
+        Iterator<String> names = root.fieldNames();
+        while (names.hasNext()) {
+            String name = names.next();
+            JsonNode candidate = root.get(name);
+            if (candidate.isArray() && candidate.size() > 0 && candidate.get(0).isObject()) return name;
+        }
+        return null;
+    }
+
+    /** Mảng bài tập trong payload, chấp nhận cả mảng top-level (session sinh trước bản vá). */
+    private static JsonNode findExerciseArray(JsonNode root) {
+        if (root == null || root.isMissingNode() || root.isNull()) return null;
+        if (root.isArray()) return root;
+        String field = findExerciseFieldName(root);
+        return field == null ? null : root.get(field);
+    }
+
+    static int countExercises(JsonNode root) {
+        JsonNode array = findExerciseArray(root);
+        return array == null ? 0 : array.size();
+    }
+
+    /**
+     * Đưa payload model trả về đúng hình dạng client và {@link PracticeExerciseGrader} đọc được.
+     *
+     * <p>Hai bước, vì có hai kiểu vỏ khác nhau đã gặp trên prod:
+     * <ol>
+     *   <li><b>Vỏ JSON-schema</b> {@code {"type":"object","content":[...]}} — bóc lặp (phòng vỏ
+     *       lồng vỏ). Object có {@code content} mà thiếu cả {@code exercises} lẫn
+     *       {@code reading_passage} thì chắc chắn là vỏ (prod 17–18/08: session 33 HOEREN,
+     *       35 SPRECHEN).</li>
+     *   <li><b>Khoá tự đặt</b> ({@code "uebungen"}, {@code "aufgaben"}…) — đổi tên về
+     *       {@code exercises}, giữ nguyên mọi khoá phụ như {@code reading_passage} của LESEN
+     *       (prod 25/08: node 114 HOEREN).</li>
+     * </ol>
+     * Cả hai đều là hệ quả của việc {@code response_format=json_object} cấm mảng top-level —
+     * xem hợp đồng hình dạng ở {@link PracticeNodePromptBuilder}. Bóc vỏ chỉ là lưới an toàn:
+     * sửa gốc nằm ở prompt.
+     */
+    static JsonNode normalizeExercisePayload(JsonNode parsed) {
+        while (parsed != null && parsed.isObject() && parsed.has("content")
+                && !parsed.has("exercises") && !parsed.has("reading_passage")
+                && (parsed.get("content").isArray() || parsed.get("content").isObject())) {
+            parsed = parsed.get("content");
+        }
+        String field = findExerciseFieldName(parsed);
+        if (field == null || "exercises".equals(field)) return parsed;
+        ObjectNode rebuilt = ((ObjectNode) parsed).deepCopy();
+        rebuilt.set("exercises", rebuilt.remove(field));
+        return rebuilt;
+    }
+
     private List<String> computeExerciseHashes(JsonNode exercises, String skillType) {
         List<String> hashes = new ArrayList<>();
-        Iterable<JsonNode> items;
-        if (exercises.isArray()) {
-            items = exercises;
-        } else if (exercises.has("exercises") && exercises.get("exercises").isArray()) {
-            items = exercises.get("exercises");
-        } else {
+        JsonNode items = findExerciseArray(exercises);
+        if (items == null) {
             hashes.add(sha256(skillType + ":" + exercises.toString()));
             return hashes;
         }

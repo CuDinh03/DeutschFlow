@@ -12,6 +12,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code {"type":"object","content":[...]}} (seen on prod 17–18/08, sessions 33/35) —
  * the overview then counts 0 exercises and the runner renders an empty session.
  * {@link PracticeNodeService#normalizeExercisePayload} strips that shell at write time.
+ *
+ * <p>The shell is not the only shape the model improvises: it wraps because
+ * {@code response_format=json_object} forbids a top-level array, so it may equally invent its
+ * own key ({@code "uebungen"}, {@code "aufgaben"}…) — prod 25/08, node 114 HOEREN. Those cases
+ * are covered below too. The root fix is the prompt contract in
+ * {@link PracticeNodePromptBuilder}; this normalization is the safety net.
  */
 @DisplayName("normalizeExercisePayload strips the LLM wrapper shell")
 class PracticeNodePayloadNormalizeTest {
@@ -72,5 +78,46 @@ class PracticeNodePayloadNormalizeTest {
         JsonNode out = norm("{\"exercises\":[{\"type\":\"X\"}],\"content\":[1,2]}");
         assertThat(out.has("exercises")).isTrue();
         assertThat(out.has("content")).isTrue();
+    }
+
+    @Test
+    @DisplayName("a model-invented key is renamed to exercises (prod 25/08, node 114 HOEREN)")
+    void renamesInventedKeyToExercises() throws Exception {
+        JsonNode out = norm("""
+                {"uebungen":[{"type":"LISTEN_AND_CHOOSE","correct_index":1},{"type":"DICTATION"}]}
+                """);
+
+        assertThat(out.has("uebungen")).isFalse();
+        assertThat(out.get("exercises").isArray()).isTrue();
+        assertThat(PracticeNodeService.countExercises(out)).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("renaming an invented key keeps LESEN's reading_passage")
+    void renameKeepsReadingPassage() throws Exception {
+        JsonNode out = norm("""
+                {"reading_passage":{"text_de":"Liebe Frau Weber","text_type":"E-Mail"},
+                 "aufgaben":[{"type":"READ_AND_CHOOSE","correct_index":0}]}
+                """);
+
+        assertThat(out.get("reading_passage").get("text_type").asText()).isEqualTo("E-Mail");
+        assertThat(PracticeNodeService.countExercises(out)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("countExercises returns 0 for payloads with no exercises — gate against dead sessions")
+    void countsZeroForEmptyPayloads() throws Exception {
+        // generatePracticeSession refuses to INSERT when this is 0: a stored 0-exercise session
+        // is a dead end for the learner (nothing to submit, no regenerate button).
+        assertThat(PracticeNodeService.countExercises(M.readTree("[]"))).isZero();
+        assertThat(PracticeNodeService.countExercises(M.readTree("{\"exercises\":[]}"))).isZero();
+        assertThat(PracticeNodeService.countExercises(M.readTree("{\"status\":\"ok\"}"))).isZero();
+        assertThat(PracticeNodeService.countExercises(M.readTree(""))).isZero();
+    }
+
+    @Test
+    @DisplayName("countExercises reads the legacy bare-array shape")
+    void countsLegacyBareArray() throws Exception {
+        assertThat(PracticeNodeService.countExercises(M.readTree("[{\"type\":\"DICTATION\"}]"))).isEqualTo(1);
     }
 }

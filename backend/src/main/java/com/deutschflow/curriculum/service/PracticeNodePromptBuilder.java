@@ -18,6 +18,16 @@ import java.util.List;
  * SAU khi nộp bài — dịch nghĩa + quy tắc ngữ pháp gộp hết vào giải thích.
  * Field {@code *_vi} kiểu cũ (instruction_vi, question_vi…) chỉ còn ở session đã lưu
  * trước ngày đổi; FE giữ fallback đọc chúng.
+ * <p>
+ * HỢP ĐỒNG HÌNH DẠNG — mọi prompt phải yêu cầu MỘT object chứa mảng {@code "exercises"},
+ * không bao giờ là mảng ở cấp cao nhất: sinh practice gọi
+ * {@code chatCompletionForTier(messages, tier, temperature, maxTokens)}, overload này mặc định
+ * {@code forceJson=true} nên request luôn mang {@code response_format={"type":"json_object"}} —
+ * chế độ CẤM mảng ở cấp cao nhất, nên model
+ * buộc phải tự bọc mảng dưới một khoá do nó đặt ({@code "content"}, {@code "uebungen"}…).
+ * Đó chính là gốc của sự cố prod 17–18/08 (session 33 HOEREN, 35 SPRECHEN) và 25/08
+ * (node 114 HOEREN): học viên mở ra session 0 câu. LESEN chưa từng dính vì prompt của nó
+ * vốn đã yêu cầu object. Xem {@link PracticeNodeService#normalizeExercisePayload}.
  */
 public final class PracticeNodePromptBuilder {
 
@@ -82,44 +92,46 @@ public final class PracticeNodePromptBuilder {
                 - Nur %s-Grammatik verwenden!
 
                 # OUTPUT FORMAT (STRICT JSON)
-                Antworte NUR mit einem JSON-Array von %d Übungen:
+                Antworte NUR mit EINEM JSON-Objekt, das die %d Übungen im Feld "exercises" enthält:
                 ```json
-                [
-                  {
-                    "type": "LISTEN_AND_CHOOSE",
-                    "instruction_de": "Höre zu und wähle die richtige Antwort.",
-                    "audio_transcript": "Der Zug fährt um 14 Uhr ab.",
-                    "question_de": "Wann fährt der Zug ab?",
-                    "options": ["Um 13 Uhr", "Um 14 Uhr", "Um 15 Uhr"],
-                    "correct_index": 1,
-                    "explanation_de": "Im Text steht: um 14 Uhr.",
-                    "explanation_en": "The transcript clearly says: um 14 Uhr (at 2 p.m.).",
-                    "explanation_vi": "Trong transcript nói rõ: um 14 Uhr (lúc 14 giờ)."
-                  },
-                  {
-                    "type": "LISTEN_AND_FILL",
-                    "instruction_de": "Höre zu und ergänze das fehlende Wort.",
-                    "audio_transcript": "Guten Morgen! Wie geht es Ihnen?",
-                    "sentence_with_blank": "Guten ___! Wie geht es Ihnen?",
-                    "correct_answer": "Morgen",
-                    "accept_also": ["morgen"],
-                    "explanation_de": "Guten Morgen sagt man am Vormittag.",
-                    "explanation_en": "Guten Morgen = good morning.",
-                    "explanation_vi": "Guten Morgen = chào buổi sáng."
-                  },
-                  {
-                    "type": "DICTATION",
-                    "instruction_de": "Höre zu und schreibe den Satz.",
-                    "audio_transcript": "Ich komme aus Vietnam.",
-                    "correct_answer": "Ich komme aus Vietnam.",
-                    "accept_also": ["ich komme aus Vietnam"],
-                    "explanation_de": "kommen aus + Land.",
-                    "explanation_en": "komme aus = come from.",
-                    "explanation_vi": "komme aus = đến từ."
-                  }
-                ]
+                {
+                  "exercises": [
+                    {
+                      "type": "LISTEN_AND_CHOOSE",
+                      "instruction_de": "Höre zu und wähle die richtige Antwort.",
+                      "audio_transcript": "Der Zug fährt um 14 Uhr ab.",
+                      "question_de": "Wann fährt der Zug ab?",
+                      "options": ["Um 13 Uhr", "Um 14 Uhr", "Um 15 Uhr"],
+                      "correct_index": 1,
+                      "explanation_de": "Im Text steht: um 14 Uhr.",
+                      "explanation_en": "The transcript clearly says: um 14 Uhr (at 2 p.m.).",
+                      "explanation_vi": "Trong transcript nói rõ: um 14 Uhr (lúc 14 giờ)."
+                    },
+                    {
+                      "type": "LISTEN_AND_FILL",
+                      "instruction_de": "Höre zu und ergänze das fehlende Wort.",
+                      "audio_transcript": "Guten Morgen! Wie geht es Ihnen?",
+                      "sentence_with_blank": "Guten ___! Wie geht es Ihnen?",
+                      "correct_answer": "Morgen",
+                      "accept_also": ["morgen"],
+                      "explanation_de": "Guten Morgen sagt man am Vormittag.",
+                      "explanation_en": "Guten Morgen = good morning.",
+                      "explanation_vi": "Guten Morgen = chào buổi sáng."
+                    },
+                    {
+                      "type": "DICTATION",
+                      "instruction_de": "Höre zu und schreibe den Satz.",
+                      "audio_transcript": "Ich komme aus Vietnam.",
+                      "correct_answer": "Ich komme aus Vietnam.",
+                      "accept_also": ["ich komme aus Vietnam"],
+                      "explanation_de": "kommen aus + Land.",
+                      "explanation_en": "komme aus = come from.",
+                      "explanation_vi": "komme aus = đến từ."
+                    }
+                  ]
+                }
                 ```
-                Antworte NUR mit dem JSON-Array, NICHTS anderes!
+                Antworte NUR mit dem JSON-Objekt, NICHTS anderes!
                 """.formatted(
                 cefrLevel, EXERCISES_PER_SESSION, lessonTitle, grammarFocus,
                 3 + difficultyBoost,
@@ -177,32 +189,34 @@ public final class PracticeNodePromptBuilder {
                 - Sätze: max 8 Wörter für %s
 
                 # OUTPUT FORMAT (STRICT JSON)
-                Antworte NUR mit einem JSON-Array von %d Übungen:
+                Antworte NUR mit EINEM JSON-Objekt, das die %d Übungen im Feld "exercises" enthält:
                 ```json
-                [
-                  {
-                    "type": "SPEAKING_REPEAT",
-                    "instruction_de": "Höre zu und sprich nach.",
-                    "sentence_de": "Guten Morgen, Frau Müller!",
-                    "focus_sounds": ["/ɡuːtən/", "/mɔʁɡən/"],
-                    "explanation_de": "Achtung: Morgen spricht man /mɔʁɡən/.",
-                    "explanation_en": "Pronunciation: Morgen = /mɔʁɡən/. The sentence means: Good morning, Ms Müller!",
-                    "explanation_vi": "Chú ý: Morgen đọc /mɔʁɡən/. Câu này nghĩa là: Chào buổi sáng, bà Müller!"
-                  },
-                  {
-                    "type": "SPEAKING_RESPONSE",
-                    "instruction_de": "Beantworte die Frage auf Deutsch.",
-                    "question_de": "Wie heißen Sie?",
-                    "expected_answer": "Ich heiße...",
-                    "grading_keywords": ["heiße", "ich"],
-                    "accept_also": ["Mein Name ist..."],
-                    "explanation_de": "Ich heiße... oder Mein Name ist... sind beide richtig.",
-                    "explanation_en": "Both Ich heiße... and Mein Name ist... are correct.",
-                    "explanation_vi": "Dùng Ich heiße hoặc Mein Name ist đều đúng."
-                  }
-                ]
+                {
+                  "exercises": [
+                    {
+                      "type": "SPEAKING_REPEAT",
+                      "instruction_de": "Höre zu und sprich nach.",
+                      "sentence_de": "Guten Morgen, Frau Müller!",
+                      "focus_sounds": ["/ɡuːtən/", "/mɔʁɡən/"],
+                      "explanation_de": "Achtung: Morgen spricht man /mɔʁɡən/.",
+                      "explanation_en": "Pronunciation: Morgen = /mɔʁɡən/. The sentence means: Good morning, Ms Müller!",
+                      "explanation_vi": "Chú ý: Morgen đọc /mɔʁɡən/. Câu này nghĩa là: Chào buổi sáng, bà Müller!"
+                    },
+                    {
+                      "type": "SPEAKING_RESPONSE",
+                      "instruction_de": "Beantworte die Frage auf Deutsch.",
+                      "question_de": "Wie heißen Sie?",
+                      "expected_answer": "Ich heiße...",
+                      "grading_keywords": ["heiße", "ich"],
+                      "accept_also": ["Mein Name ist..."],
+                      "explanation_de": "Ich heiße... oder Mein Name ist... sind beide richtig.",
+                      "explanation_en": "Both Ich heiße... and Mein Name ist... are correct.",
+                      "explanation_vi": "Dùng Ich heiße hoặc Mein Name ist đều đúng."
+                    }
+                  ]
+                }
                 ```
-                Antworte NUR mit dem JSON-Array, NICHTS anderes!
+                Antworte NUR mit dem JSON-Objekt, NICHTS anderes!
                 """.formatted(
                 cefrLevel, EXERCISES_PER_SESSION, lessonTitle, grammarFocus,
                 3 + difficultyBoost,
@@ -349,42 +363,44 @@ public final class PracticeNodePromptBuilder {
                 - Nur %s-Grammatik!
 
                 # OUTPUT FORMAT (STRICT JSON)
-                Antworte NUR mit einem JSON-Array von %d Übungen:
+                Antworte NUR mit EINEM JSON-Objekt, das die %d Übungen im Feld "exercises" enthält:
                 ```json
-                [
-                  {
-                    "type": "WRITE_ANSWER",
-                    "instruction_de": "Beantworte die Frage mit einem ganzen Satz.",
-                    "question_de": "Wie heißt du?",
-                    "correct_answer": "Ich heiße Anna.",
-                    "accept_also": ["Mein Name ist Anna.", "Ich bin Anna."],
-                    "explanation_de": "Ich heiße..., Mein Name ist... oder Ich bin... sind alle richtig.",
-                    "explanation_en": "You can answer with Ich heiße, Mein Name ist or Ich bin.",
-                    "explanation_vi": "Có thể dùng Ich heiße, Mein Name ist hoặc Ich bin."
-                  },
-                  {
-                    "type": "REORDER_WORDS",
-                    "instruction_de": "Ordne die Wörter zu einem Satz.",
-                    "words": ["heißt", "Wie", "Sie", "?"],
-                    "correct_order": ["Wie", "heißt", "Sie", "?"],
-                    "explanation_de": "W-Frage: Fragewort (Wie) + Verb (heißt) + Subjekt (Sie).",
-                    "explanation_en": "W-question order: question word (Wie) + verb (heißt) + subject (Sie). Meaning: What is your name? (formal)",
-                    "explanation_vi": "W-Frage: từ để hỏi (Wie) + động từ (heißt) + chủ ngữ (Sie). Nghĩa: Bạn tên gì? (trang trọng)"
-                  },
-                  {
-                    "type": "FILL_GRAMMAR",
-                    "instruction_de": "Ergänze die richtige Form des Verbs.",
-                    "sentence_with_blank": "Ich ___ aus Vietnam. (kommen)",
-                    "hint_de": "Verb: kommen, mit ich",
-                    "correct_answer": "komme",
-                    "accept_also": [],
-                    "explanation_de": "ich + Verb: -en weg, -e dazu → komm + e = komme.",
-                    "explanation_en": "With ich drop -en and add -e: komm + e = komme.",
-                    "explanation_vi": "ich + động từ: bỏ -en, thêm -e → komm + e = komme."
-                  }
-                ]
+                {
+                  "exercises": [
+                    {
+                      "type": "WRITE_ANSWER",
+                      "instruction_de": "Beantworte die Frage mit einem ganzen Satz.",
+                      "question_de": "Wie heißt du?",
+                      "correct_answer": "Ich heiße Anna.",
+                      "accept_also": ["Mein Name ist Anna.", "Ich bin Anna."],
+                      "explanation_de": "Ich heiße..., Mein Name ist... oder Ich bin... sind alle richtig.",
+                      "explanation_en": "You can answer with Ich heiße, Mein Name ist or Ich bin.",
+                      "explanation_vi": "Có thể dùng Ich heiße, Mein Name ist hoặc Ich bin."
+                    },
+                    {
+                      "type": "REORDER_WORDS",
+                      "instruction_de": "Ordne die Wörter zu einem Satz.",
+                      "words": ["heißt", "Wie", "Sie", "?"],
+                      "correct_order": ["Wie", "heißt", "Sie", "?"],
+                      "explanation_de": "W-Frage: Fragewort (Wie) + Verb (heißt) + Subjekt (Sie).",
+                      "explanation_en": "W-question order: question word (Wie) + verb (heißt) + subject (Sie). Meaning: What is your name? (formal)",
+                      "explanation_vi": "W-Frage: từ để hỏi (Wie) + động từ (heißt) + chủ ngữ (Sie). Nghĩa: Bạn tên gì? (trang trọng)"
+                    },
+                    {
+                      "type": "FILL_GRAMMAR",
+                      "instruction_de": "Ergänze die richtige Form des Verbs.",
+                      "sentence_with_blank": "Ich ___ aus Vietnam. (kommen)",
+                      "hint_de": "Verb: kommen, mit ich",
+                      "correct_answer": "komme",
+                      "accept_also": [],
+                      "explanation_de": "ich + Verb: -en weg, -e dazu → komm + e = komme.",
+                      "explanation_en": "With ich drop -en and add -e: komm + e = komme.",
+                      "explanation_vi": "ich + động từ: bỏ -en, thêm -e → komm + e = komme."
+                    }
+                  ]
+                }
                 ```
-                Antworte NUR mit dem JSON-Array, NICHTS anderes!
+                Antworte NUR mit dem JSON-Objekt, NICHTS anderes!
                 """.formatted(
                 cefrLevel, EXERCISES_PER_SESSION, lessonTitle, grammarFocus,
                 3 + difficultyBoost,

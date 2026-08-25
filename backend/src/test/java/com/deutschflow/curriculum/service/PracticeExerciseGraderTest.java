@@ -104,6 +104,22 @@ class PracticeExerciseGraderTest {
     }
 
     @Test
+    @DisplayName("a session stored under a model-invented key is still graded server-side")
+    void oddWrapperKeyIsStillGradeable() {
+        // Sessions written before the prompt fix can sit under a key the model chose itself
+        // (json_object mode forbids a top-level array, so it wrapped). If the grader cannot read
+        // them, submitPracticeSession silently falls back to the CLIENT-reported score — exactly
+        // the tampering this class exists to prevent.
+        String wrapped = "{ \"uebungen\": " + EXERCISES + " }";
+
+        var result = PracticeExerciseGrader.grade(mapper, wrapped, Map.of(
+                "0", cell(1), "1", cell("Morgen"), "2", cell("false"), "3", cell("spoken")));
+
+        assertThat(result.gradeable()).isTrue();
+        assertThat(result.percent()).isEqualTo(100);
+    }
+
+    @Test
     @DisplayName("null answers, blank content, and malformed JSON are not gradeable")
     void notGradeable() {
         assertThat(PracticeExerciseGrader.grade(mapper, EXERCISES, null).gradeable()).isFalse();

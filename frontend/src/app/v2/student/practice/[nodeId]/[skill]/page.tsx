@@ -96,6 +96,27 @@ type ExercisePayload =
       content?: Exercise[]
     }
 
+/**
+ * Lấy mảng bài tập ra khỏi payload session.
+ *
+ * Dạng chuẩn là `{ exercises: [...] }` (Lesen kèm `reading_passage`). Các dạng còn lại đến từ
+ * session sinh TRƯỚC bản vá prompt, khi model bị kẹt giữa "prompt đòi mảng" và
+ * `response_format: json_object` (chế độ CẤM mảng top-level) nên tự bọc mảng lại: vỏ
+ * `{"type":"object","content":[...]}` (prod 17–18/08, backend đã bóc từ V275) hoặc một khoá
+ * model tự đặt như `uebungen` (prod 25/08, node 114 Hören). Bắt mảng-đối-tượng đầu tiên nên
+ * cứu được cả hai kiểu vỏ mà không phải liệt kê tên khoá, thay vì hiện "0 câu" cụt đường.
+ */
+function extractExercises(payload: ExercisePayload | undefined): Exercise[] {
+  if (Array.isArray(payload)) return payload
+  if (!payload || typeof payload !== 'object') return []
+  if (Array.isArray(payload.exercises)) return payload.exercises
+  const rescued = Object.values(payload as Record<string, unknown>).find(
+    (value): value is Exercise[] =>
+      Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null,
+  )
+  return rescued ?? []
+}
+
 interface SessionDetail {
   sessionId: number
   skillType: string
@@ -412,13 +433,7 @@ export default function V2StudentPracticeRunnerPage() {
 
   const applyDetail = useCallback((detail: SessionDetail) => {
     setSession(detail)
-    const payload = detail.exercises
-    if (Array.isArray(payload)) setExercises(payload)
-    else if (Array.isArray(payload?.exercises)) setExercises(payload.exercises)
-    // Vỏ {"type":"object","content":[...]} LLM tự bọc — backend đã bóc lúc ghi (V275),
-    // giữ fallback phòng session hỏng còn sót/cache.
-    else if (Array.isArray(payload?.content)) setExercises(payload.content)
-    else setExercises([])
+    setExercises(extractExercises(detail.exercises))
   }, [])
 
   const loadDetail = useCallback(
@@ -630,6 +645,29 @@ export default function V2StudentPracticeRunnerPage() {
           )}
 
           {loading && <LoadingState label={t('generatingExercises')} />}
+
+          {/* Session không có bài nào: cho lối thoát thay vì màn hình cụt (không nộp được,
+              cũng không có nút sinh lại vì nút đó chỉ hiện sau khi nộp). */}
+          {!loading && session && exercises.length === 0 && (
+            <GaCard className="p-5 text-center lg:p-6" style={{ borderColor: 'var(--ga-orange)' }}>
+              <p className="ga-ui text-[14px] font-semibold text-ga-ink">{t('emptySession')}</p>
+              <p className="ga-ui mt-1 text-[13px] text-ga-muted">{t('emptySessionHint')}</p>
+              <button
+                type="button"
+                onClick={() => void handleGenerateNext()}
+                disabled={generatingNext}
+                className="ga-ui mt-4 inline-flex min-h-10 items-center gap-2 rounded-ga px-5 py-2.5 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0"
+                style={{ background: accent }}
+              >
+                {generatingNext ? (
+                  <RefreshCw size={14} className="animate-spin" aria-hidden />
+                ) : (
+                  <Sparkles size={14} aria-hidden />
+                )}
+                {generatingNext ? t('generating') : t('regenerate')}
+              </button>
+            </GaCard>
+          )}
 
           {/* Bài đọc (LESEN) */}
           {readingPassage && (
