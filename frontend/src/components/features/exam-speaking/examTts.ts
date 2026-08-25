@@ -10,12 +10,17 @@ import api from '@/lib/api'
  */
 const VOICE_BY_ROLE: Record<string, string> = { PRUEFER: 'ANNA', PARTNER: 'LUKAS' }
 
-// Web Speech không bắn event đáng tin trong mọi môi trường (headless không bao giờ onstart/onend)
-// → hai chốt an toàn: chưa start sau START_GUARD thì bỏ; đã start thì trần thời lượng theo độ dài câu.
+// KHÔNG đường phát nào được tin vào event một mình — QA prod 25/08 bắt được ca <audio> blob treo
+// readyState 0 KHÔNG bắn event nào (không loadedmetadata/error, play() không settle) ⇒ gate kẹt vĩnh viễn.
+// Watchdog: trần theo độ dài câu (100ms/ký tự ~ chậm hơn tốc độ đọc thật 67–83ms/ký tự nên không cắt sớm);
+// khi biết thời lượng thật (loadedmetadata) thì siết trần về duration + đệm.
 const SPEECH_START_GUARD_MS = 1500
 const SPEECH_MS_PER_CHAR = 100
 const SPEECH_BASE_MS = 3000
 const SPEECH_MAX_MS = 30_000
+const AUDIO_DURATION_BUFFER_MS = 2000
+
+const textCapMs = (text: string) => Math.min(SPEECH_BASE_MS + text.length * SPEECH_MS_PER_CHAR, SPEECH_MAX_MS)
 
 let current: HTMLAudioElement | null = null
 let currentDone: (() => void) | null = null
@@ -56,15 +61,32 @@ export async function speakExamLine(role: string, text: string): Promise<void> {
     current = audio
     await new Promise<void>((resolve) => {
       let settled = false
+      let guard: ReturnType<typeof setTimeout> | null = null
       const done = () => {
         if (settled) return
         settled = true
+        if (guard) clearTimeout(guard)
         URL.revokeObjectURL(url)
-        if (current === audio) current = null
+        if (current === audio) {
+          audio.pause()
+          current = null
+        }
         if (currentDone === done) currentDone = null
         resolve()
       }
+      const armGuard = (ms: number) => {
+        if (guard) clearTimeout(guard)
+        guard = setTimeout(done, ms)
+      }
       currentDone = done
+      // Watchdog ngay từ đầu theo độ dài câu — phòng ca media treo không event (QA prod 25/08).
+      armGuard(textCapMs(text))
+      audio.onloadedmetadata = () => {
+        // Biết thời lượng thật → siết trần: audio phát xong mà 'ended' không tới cũng chỉ trễ 2s.
+        if (Number.isFinite(audio.duration) && audio.duration > 0) {
+          armGuard(audio.duration * 1000 + AUDIO_DURATION_BUFFER_MS)
+        }
+      }
       audio.onended = done
       audio.onerror = done
       audio.play().catch(done)
@@ -91,8 +113,7 @@ export async function speakExamLine(role: string, text: string): Promise<void> {
       u.rate = 0.95
       u.onstart = () => {
         clearTimeout(startGuard)
-        const cap = Math.min(SPEECH_BASE_MS + text.length * SPEECH_MS_PER_CHAR, SPEECH_MAX_MS)
-        endGuard = setTimeout(done, cap)
+        endGuard = setTimeout(done, textCapMs(text))
       }
       u.onend = done
       u.onerror = done
