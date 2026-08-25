@@ -1230,7 +1230,8 @@
           "processing": "Processing your turn…",
           "yourTurn": "Your turn — speak now!",
           "waitHint": "Wait for your turn…"
-        }
+        },
+        "audioRetained": "This session is recorded for scoring calibration (you consented). You can withdraw consent at any time — the audio will be deleted."
       },
       "mic": {
         "sending": "Sending and waiting for the reply…",

@@ -6,8 +6,10 @@ import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import com.deutschflow.common.exception.BadRequestException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.Instant;
 
 import java.util.List;
 import java.util.Map;
@@ -70,4 +74,40 @@ public class AdminExamGoldenController {
     public GoldenView.RegradeResult regrade(@AuthenticationPrincipal User user, @PathVariable long id) {
         return goldenService.regrade(id, user.getId());
     }
+
+    // ── Chiến dịch hiệu chuẩn: người đồng ý lưu audio + dọn audio ───────────────────────────
+
+    @GetMapping("/participants")
+    public List<GoldenView.Participant> participants() {
+        return goldenService.listParticipants();
+    }
+
+    /** Body: {"userId":123,"consentedAt":"2026-08-26T10:00:00Z","note":"ký giấy 26/08"} */
+    @PostMapping("/participants")
+    public GoldenView.Participant addParticipant(@AuthenticationPrincipal User user,
+                                                 @RequestBody Map<String, Object> body) {
+        Object rawId = body.get("userId");
+        if (rawId == null) {
+            throw new BadRequestException("userId là bắt buộc");
+        }
+        long userId = Long.parseLong(String.valueOf(rawId));
+        Object rawAt = body.get("consentedAt");
+        Instant consentedAt = rawAt == null || String.valueOf(rawAt).isBlank()
+                ? Instant.now() : Instant.parse(String.valueOf(rawAt));
+        Object note = body.get("note");
+        return goldenService.addParticipant(user.getId(), userId, consentedAt, note == null ? null : String.valueOf(note));
+    }
+
+    /** Rút lại đồng ý: gỡ khỏi chiến dịch + xoá vĩnh viễn audio đã lưu (transcript giữ nguyên). */
+    @DeleteMapping("/participants/{userId}")
+    public Map<String, Object> removeParticipant(@PathVariable long userId) {
+        return Map.of("userId", userId, "audioDeleted", goldenService.removeParticipant(userId));
+    }
+
+    /** Xoá audio của MỘT phiên (dọn dẹp/lỗi ghi âm); transcript và điểm giữ nguyên. */
+    @DeleteMapping("/sessions/{id}/audio")
+    public GoldenView.PurgeResult purgeAudio(@PathVariable long id) {
+        return goldenService.purgeAudio(id);
+    }
+
 }

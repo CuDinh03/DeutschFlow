@@ -491,7 +491,22 @@
       "maxPts": "tối đa {max}đ",
       "machineBand": "máy: {band}",
       "save": "Lưu phiếu chấm",
-      "saving": "Đang lưu…"
+      "saving": "Đang lưu…",
+      "participants": {
+        "cap": "Người đồng ý lưu audio",
+        "desc": "Chỉ những người trong danh sách này mới được lưu audio phiên thi thử để giám khảo nghe lại. Xoá khỏi danh sách = rút đồng ý và audio đã lưu bị xoá vĩnh viễn (bản gỡ băng vẫn giữ).",
+        "userIdPlaceholder": "ID người học",
+        "notePlaceholder": "Ghi chú (vd: ký giấy 26/08)",
+        "add": "Thêm",
+        "remove": "Rút đồng ý",
+        "empty": "Chưa có ai — phiên thi thử hiện chỉ chấm trên bản gỡ băng.",
+        "consentedAt": "đồng ý {at}",
+        "confirmRemove": "Rút đồng ý của {name}? Toàn bộ audio đã lưu sẽ bị xoá vĩnh viễn."
+      },
+      "audio": {
+        "playLabel": "Nghe lại lượt nói Teil {teil}",
+        "transcriptOnly": "Phiên này không lưu audio — chấm trên bản gỡ băng."
+      }
     },
     "examBank": {
       "title": "Ngân hàng đề Luyện thi Nói",

@@ -1230,7 +1230,8 @@
           "processing": "Đang xử lý lượt nói của bạn…",
           "yourTurn": "Đến lượt bạn nói!",
           "waitHint": "Chờ đến lượt bạn…"
-        }
+        },
+        "audioRetained": "Phiên này được ghi âm để phục vụ hiệu chuẩn chấm điểm (bạn đã đồng ý). Bạn có thể rút lại đồng ý bất cứ lúc nào — audio sẽ bị xoá."
       },
       "mic": {
         "sending": "Đang gửi và chờ phản hồi…",

@@ -122,11 +122,27 @@ export default function AdminExamGoldenRatePage() {
                         {l.role}
                       </span>
                       {l.transcript}
+                      {/* Chỉ phiên hiệu chuẩn mới có audio; phiên thường audioUrl=null → chấm trên transcript. */}
+                      {l.audioUrl && (
+                        <audio
+                          controls
+                          preload="none"
+                          src={l.audioUrl}
+                          className="mt-1.5 block h-9 w-full max-w-md"
+                          data-testid={`turn-audio-${teil}-${i}`}
+                          aria-label={t('audio.playLabel', { teil })}
+                        />
+                      )}
                     </li>
                   ))}
                 </ol>
               </GaCard>
             ))}
+            {detail.turns.length > 0 && detail.turns.every((l) => !l.audioUrl) && (
+              <p className="ga-ui text-[12.5px] text-ga-muted" data-testid="no-audio-note">
+                {t('audio.transcriptOnly')}
+              </p>
+            )}
           </section>
 
           <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">

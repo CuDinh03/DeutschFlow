@@ -1230,7 +1230,8 @@
           "processing": "Dein Beitrag wird verarbeitet…",
           "yourTurn": "Du bist dran — sprich jetzt!",
           "waitHint": "Warte, bis du dran bist…"
-        }
+        },
+        "audioRetained": "Diese Sitzung wird zur Bewertungs-Kalibrierung aufgezeichnet (mit deiner Einwilligung). Du kannst die Einwilligung jederzeit widerrufen — das Audio wird gelöscht."
       },
       "mic": {
         "sending": "Wird gesendet, Antwort folgt…",

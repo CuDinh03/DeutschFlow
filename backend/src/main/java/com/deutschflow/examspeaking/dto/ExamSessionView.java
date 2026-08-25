@@ -23,7 +23,9 @@ public record ExamSessionView(
         Map<String, Object> lastTurnEval,
         String notesText,
         Long gradingJobId,
-        boolean resultAvailable
+        boolean resultAvailable,
+        /** true = phiên này ĐANG ghi âm để phục vụ hiệu chuẩn chấm điểm — UI phải nói rõ cho thí sinh. */
+        boolean retainAudio
 ) {
     /** Tài liệu chuẩn bị cho một Teil (chỉ phần thí sinh được xem; chọn 1 trong N nếu choiceRequired). */
     public record PrepMaterial(

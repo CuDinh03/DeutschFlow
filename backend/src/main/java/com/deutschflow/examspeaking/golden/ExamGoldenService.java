@@ -3,6 +3,12 @@ package com.deutschflow.examspeaking.golden;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.examspeaking.api.ExamBlueprintCatalog;
+import com.deutschflow.examspeaking.audio.ExamAudioStorage;
+import com.deutschflow.examspeaking.entity.SpeakingExamCalibrationParticipant;
+import com.deutschflow.examspeaking.repository.SpeakingExamCalibrationParticipantRepository;
+import com.deutschflow.examspeaking.repository.SpeakingExamSessionRepository;
+import com.deutschflow.examspeaking.entity.SpeakingExamSession;
+import com.deutschflow.examspeaking.entity.SpeakingExamTurn;
 import com.deutschflow.examspeaking.api.ExamGradingService;
 import com.deutschflow.examspeaking.api.model.Ergebnisbogen;
 import com.deutschflow.examspeaking.api.model.ExamBlueprint;
@@ -28,6 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -52,6 +59,7 @@ public class ExamGoldenService {
 
     private final SpeakingExamResultRepository resultRepository;
     private final SpeakingExamTurnRepository turnRepository;
+    private final SpeakingExamSessionRepository sessionRepository;
     private final SpeakingExamGoldenRatingRepository ratingRepository;
     private final ExamBlueprintCatalog catalog;
     private final RubricScorer rubricScorer;
@@ -59,6 +67,8 @@ public class ExamGoldenService {
     private final ExamGradingService gradingService;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final ExamAudioStorage audioStorage;
+    private final SpeakingExamCalibrationParticipantRepository participants;
 
     // ── danh sách phiên ─────────────────────────────────────────────────────────────────────
 
@@ -84,7 +94,8 @@ public class ExamGoldenService {
         RubricDefinition rubric = rubric(result);
         Ergebnisbogen machine = machineSheet(result);
         List<GoldenView.TurnLine> turns = turnRepository.findBySessionIdOrderBySeqAsc(sessionId).stream()
-                .map(t -> new GoldenView.TurnLine(t.getPartNo(), t.getRole(), t.getTranscript()))
+                .map(t -> new GoldenView.TurnLine(t.getPartNo(), t.getRole(), t.getTranscript(),
+                        audioStorage.playbackUrl(t.getAudioRef())))
                 .toList();
         List<GoldenView.RatingRow> mine = ratingRepository.findBySessionIdAndRaterUserId(sessionId, raterUserId).stream()
                 .map(g -> new GoldenView.RatingRow(g.getTeilNo(), g.getCriterionCode(), g.getBand()))
@@ -417,4 +428,69 @@ public class ExamGoldenService {
     private static String csv(String v) {
         return v == null ? "" : '"' + v.replace("\"", "\"\"") + '"';
     }
+
+    // ── Chiến dịch hiệu chuẩn: ai được lưu audio, và dọn audio khi rút đồng ý ────────────────
+
+    /** Danh sách người đã đồng ý cho lưu audio (kèm tên/email để owner đối chiếu consent giấy). */
+    @Transactional(readOnly = true)
+    public List<GoldenView.Participant> listParticipants() {
+        List<SpeakingExamCalibrationParticipant> rows = participants.findAllByOrderByConsentedAtDesc();
+        Map<Long, User> users = userRepository.findAllById(rows.stream().map(SpeakingExamCalibrationParticipant::getUserId).toList())
+                .stream().collect(Collectors.toMap(User::getId, u -> u));
+        return rows.stream().map(r -> {
+            User u = users.get(r.getUserId());
+            return new GoldenView.Participant(r.getUserId(),
+                    u == null ? null : u.getDisplayName(),
+                    u == null ? null : u.getEmail(),
+                    r.getConsentedAt(), r.getNote());
+        }).toList();
+    }
+
+    /**
+     * Ghi nhận đồng ý. `consentedAt` là thời điểm người học đồng ý THẬT (owner nhập), không phải
+     * thời điểm bấm nút — consent giấy có thể ký trước.
+     */
+    @Transactional
+    public GoldenView.Participant addParticipant(long adminId, long userId, Instant consentedAt, String note) {
+        User u = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng " + userId));
+        SpeakingExamCalibrationParticipant row = participants.save(SpeakingExamCalibrationParticipant.builder()
+                .userId(userId)
+                .consentedAt(consentedAt == null ? Instant.now() : consentedAt)
+                .note(note)
+                .createdBy(adminId)
+                .createdAt(Instant.now())
+                .build());
+        return new GoldenView.Participant(row.getUserId(), u.getDisplayName(), u.getEmail(), row.getConsentedAt(), row.getNote());
+    }
+
+    /**
+     * Rút lại đồng ý: gỡ khỏi chiến dịch VÀ xoá audio đã lưu của mọi phiên người đó.
+     * Phiên vẫn giữ transcript (bằng chứng chấm điểm), chỉ audio bị xoá vĩnh viễn.
+     */
+    @Transactional
+    public int removeParticipant(long userId) {
+        participants.deleteById(userId);
+        int deleted = 0;
+        for (SpeakingExamSession s : sessionRepository.findByUserIdAndRetainAudioTrue(userId)) {
+            deleted += purgeAudio(s.getId()).deleted();
+        }
+        return deleted;
+    }
+
+    /** Xoá vĩnh viễn audio của một phiên; transcript giữ nguyên. */
+    @Transactional
+    public GoldenView.PurgeResult purgeAudio(long sessionId) {
+        List<SpeakingExamTurn> turns = turnRepository.findBySessionIdOrderBySeqAsc(sessionId);
+        List<String> keys = turns.stream().map(SpeakingExamTurn::getAudioRef).filter(k -> k != null && !k.isBlank()).toList();
+        int deleted = audioStorage.purge(keys);
+        turns.forEach(t -> t.setAudioRef(null));
+        turnRepository.saveAll(turns);
+        sessionRepository.findById(sessionId).ifPresent(s -> {
+            s.setRetainAudio(false);
+            sessionRepository.save(s);
+        });
+        return new GoldenView.PurgeResult(sessionId, deleted);
+    }
+
 }

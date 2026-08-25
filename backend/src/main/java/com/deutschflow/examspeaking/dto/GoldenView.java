@@ -34,7 +34,17 @@ public final class GoldenView {
     /** {@code item=true} = nhiệm vụ VHN (A1); false = tiêu chí band. */
     public record SheetCriterion(String code, String label, double max, boolean item) {}
 
-    public record TurnLine(int teilNo, String role, String transcript) {}
+    /**
+     * @param audioUrl URL nghe lại có hạn (presigned ~1h) — chỉ có ở phiên hiệu chuẩn đã đồng ý lưu audio;
+     *                 null nghĩa là chấm trên transcript (đa số phiên).
+     */
+    public record TurnLine(int teilNo, String role, String transcript, String audioUrl) {}
+
+    /** Người học đã đồng ý cho lưu audio phục vụ hiệu chuẩn. */
+    public record Participant(long userId, String displayName, String email, java.time.Instant consentedAt, String note) {}
+
+    /** Kết quả purge audio của một phiên (rút lại đồng ý / dọn dẹp). */
+    public record PurgeResult(long sessionId, int deleted) {}
 
     public record RatingRow(int teilNo, String criterionCode, String band) {}
 

@@ -9,6 +9,8 @@ import com.deutschflow.common.exception.RateLimitExceededException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.examspeaking.api.ExamBlueprintCatalog;
+import com.deutschflow.examspeaking.audio.ExamAudioStorage;
+import com.deutschflow.examspeaking.repository.SpeakingExamCalibrationParticipantRepository;
 import com.deutschflow.examspeaking.api.PrueferScriptService;
 import com.deutschflow.examspeaking.api.model.BlueprintPart;
 import com.deutschflow.examspeaking.api.model.ExamBlueprint;
@@ -76,6 +78,8 @@ public class ExamSessionService {
     private final AiRateLimiterService rateLimiter;
     private final AiUsageLedgerService ledger;
     private final GroqWhisperClient whisperClient;
+    private final ExamAudioStorage audioStorage;
+    private final SpeakingExamCalibrationParticipantRepository calibrationParticipants;
     private final ObjectMapper objectMapper;
     private final ExamSpeakingProperties props;
     private final com.deutschflow.examspeaking.weakness.ExamErrorSrsBridge srsBridge;
@@ -118,6 +122,8 @@ public class ExamSessionService {
                 .planJson(objectMapper.convertValue(plan, new TypeReference<Map<String, Object>>() {}))
                 .prepStartedAt(prep ? now : null)
                 .prepSec(prepSec)
+                // Chỉ phiên MOCK của người ĐÃ ĐỒNG Ý hiệu chuẩn mới giữ audio (V284). Mặc định: không lưu.
+                .retainAudio(SpeakingExamSession.MODE_MOCK.equals(mode) && calibrationParticipants.existsById(userId))
                 .build();
         if (!prep) {
             startPart(s, plan.parts().get(0), now);
@@ -181,7 +187,12 @@ public class ExamSessionService {
         sttJson.put("avgLogprob", stt.avgLogprob());
         sttJson.put("durationSeconds", stt.durationSeconds());
         sttJson.put("words", stt.words().stream().map(w -> Map.of("word", w.word(), "start", w.start(), "end", w.end())).toList());
-        return processCandidateTurn(userId, s, stt.text().trim(), sttJson, null, lang);
+        // Phiên hiệu chuẩn: giữ audio để giám khảo nghe lại (G.2/G.3). Best-effort — S3 hỏng thì
+        // audioRef = null và lượt nói vẫn chạy; không được để việc lưu trữ giết phiên thi.
+        String audioRef = s.isRetainAudio()
+                ? audioStorage.store(s.getId(), nextSeq(s), audio, filename)
+                : null;
+        return processCandidateTurn(userId, s, stt.text().trim(), sttJson, audioRef, lang);
     }
 
     private TurnResponse processCandidateTurn(long userId, SpeakingExamSession s, String transcript,
@@ -569,7 +580,8 @@ public class ExamSessionService {
                 ? prepMaterials(bp, plan) : null;
         return new ExamSessionView(s.getId(), bp.provider().name(), bp.level(), s.getMode(), s.getState(),
                 s.getCurrentPart(), s.getCurrentStep(), plan.parts().size(), now, prepDeadline, prepSec, materials,
-                s.getPartDeadlineAt(), directive, lastEval, s.getNotesText(), s.getGradingJobId(), resultAvailable);
+                s.getPartDeadlineAt(), directive, lastEval, s.getNotesText(), s.getGradingJobId(), resultAvailable,
+                s.isRetainAudio());
     }
 
     /** Tài liệu chuẩn bị: mọi Teil, chỉ phần thí sinh được xem (khóa partner* đã lược); Teil chọn đề trả đủ N phương án. */

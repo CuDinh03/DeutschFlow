@@ -11,4 +11,7 @@ public interface SpeakingExamSessionRepository extends JpaRepository<SpeakingExa
     Optional<SpeakingExamSession> findByIdAndUserId(Long id, Long userId);
 
     List<SpeakingExamSession> findTop20ByUserIdOrderByCreatedAtDesc(Long userId);
+
+    /** Phiên còn giữ audio của một người — dùng khi họ rút lại đồng ý hiệu chuẩn (purge). */
+    List<SpeakingExamSession> findByUserIdAndRetainAudioTrue(Long userId);
 }

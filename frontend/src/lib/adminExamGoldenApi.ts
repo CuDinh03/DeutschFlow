@@ -31,6 +31,17 @@ export interface GoldenTurnLine {
   teilNo: number
   role: string
   transcript: string
+  /** URL nghe lại có hạn (~1h). null = phiên không lưu audio → chấm trên transcript. */
+  audioUrl: string | null
+}
+
+/** Người học đã đồng ý cho lưu audio phục vụ hiệu chuẩn (G.2/G.3). */
+export interface GoldenParticipant {
+  userId: number
+  displayName: string | null
+  email: string | null
+  consentedAt: string
+  note: string | null
 }
 
 export interface GoldenRatingRow {
@@ -99,4 +110,14 @@ export const adminExamGoldenApi = {
   compare: (params?: Filters) => api.get<GoldenCompareReport>('/admin/speaking/exam/golden/compare', { params }),
   exportCsv: (params?: Filters) =>
     api.get<Blob>('/admin/speaking/exam/golden/export.csv', { params, responseType: 'blob' }),
+
+  // ── Chiến dịch hiệu chuẩn: ai được lưu audio ────────────────────────────────────────────
+  listParticipants: () => api.get<GoldenParticipant[]>('/admin/speaking/exam/golden/participants'),
+  addParticipant: (body: { userId: number; consentedAt?: string; note?: string }) =>
+    api.post<GoldenParticipant>('/admin/speaking/exam/golden/participants', body),
+  /** Rút đồng ý: gỡ khỏi chiến dịch + xoá audio mọi phiên của người đó (transcript giữ nguyên). */
+  removeParticipant: (userId: number) =>
+    api.delete<{ userId: number; audioDeleted: number }>(`/admin/speaking/exam/golden/participants/${userId}`),
+  purgeSessionAudio: (id: number) =>
+    api.delete<{ sessionId: number; deleted: number }>(`/admin/speaking/exam/golden/sessions/${id}/audio`),
 }
