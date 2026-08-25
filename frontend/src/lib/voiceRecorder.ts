@@ -57,7 +57,19 @@ export async function startRecorder(
     unsupported('MicUnsupportedError', 'MediaRecorder is not supported in this browser')
   }
 
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+  // Cấu hình thu tối ưu cho STT tiếng Đức (25/08):
+  // - echoCancellation: BẮT BUỘC — Prüfer/partner TTS phát qua loa; không có EC thì mic thu cả
+  //   giọng AI và Whisper phiên âm lẫn lời AI vào lượt của thí sinh.
+  // - noiseSuppression + autoGainControl: giọng học viên rõ và đều mức trước khi nén opus.
+  // - channelCount 1: Whisper downmix mono — thu mono ngay cho sạch và nhẹ.
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      channelCount: 1,
+    },
+  })
 
   // Build AudioContext analyser for real-time waveform
   const audioCtx = new AudioContext()
@@ -67,7 +79,11 @@ export async function startRecorder(
   source.connect(analyser)
 
   const mimeType = detectMimeType()
-  const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+  // 128 kbps opus mono: dư dả cho STT (Whisper nghe 16 kHz), tránh bitrate mặc định thấp của trình duyệt.
+  const mr = new MediaRecorder(stream, {
+    ...(mimeType ? { mimeType } : {}),
+    audioBitsPerSecond: 128_000,
+  })
   const chunks: Blob[] = []
 
   mr.ondataavailable = (e) => {
