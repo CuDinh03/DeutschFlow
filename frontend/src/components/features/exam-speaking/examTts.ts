@@ -51,7 +51,8 @@ export async function speakExamLine(role: string, text: string): Promise<void> {
   stopExamTts()
   const persona = VOICE_BY_ROLE[role] ?? 'DEFAULT'
   try {
-    const resp = await api.post('/ai-speaking/tts', { text, persona }, { responseType: 'blob' })
+    // 20s thay trần mặc định 8s: câu Prüfer dài sinh audio lâu; hụt trần là rơi xuống Web Speech oan.
+    const resp = await api.post('/ai-speaking/tts', { text, persona }, { responseType: 'blob', timeout: 20_000 })
     const blob = resp.data as Blob
     // 2xx nhưng body rỗng = backend CHỦ Ý không trả audio (TTS tắt / e2e mock 204) → coi như đã
     // "nói xong" ngay, KHÔNG fallback Web Speech (fallback chỉ dành cho lỗi thật: network/5xx).
