@@ -8,7 +8,11 @@ import api from '@/lib/api'
  * khi lỗi, và cả khi bị `stopExamTts()` cắt ngang (pause() không bắn 'ended' nên stop phải tự resolve,
  * nếu không caller chờ vĩnh viễn và micro bị khoá mãi).
  */
-const VOICE_BY_ROLE: Record<string, string> = { PRUEFER: 'ANNA', PARTNER: 'LUKAS' }
+// Chọn persona theo chất giọng sidecar: ANNA = AmalaNeural pitch +0 (nguyên bản, hay);
+// PARTNER trước là LUKAS = ConradNeural pitch -15Hz rate -5% — ép pitch lên giọng neural
+// nghe méo/robotic (owner phản hồi 25/08). THOMAS = FlorianMultilingualNeural +0/+0:
+// nam thân thiện nguyên bản, vẫn tương phản rõ với giám khảo nữ.
+const VOICE_BY_ROLE: Record<string, string> = { PRUEFER: 'ANNA', PARTNER: 'THOMAS' }
 
 // KHÔNG đường phát nào được tin vào event một mình — QA prod 25/08 bắt được ca <audio> blob treo
 // readyState 0 KHÔNG bắn event nào (không loadedmetadata/error, play() không settle) ⇒ gate kẹt vĩnh viễn.
