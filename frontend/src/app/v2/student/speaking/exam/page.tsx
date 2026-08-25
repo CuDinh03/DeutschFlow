@@ -6,6 +6,9 @@ import { useTranslations } from 'next-intl'
 import { GraduationCap, Mic, ArrowLeft, ChevronRight, Clock, Users, Target } from 'lucide-react'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { apiMessage } from '@/lib/api'
+import { MicCheck } from '@/components/features/exam-speaking/MicCheck'
+import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide'
+import { useMicPermission } from '@/hooks/useMicPermission'
 import type { BlueprintSummary, ExamProvider, ExamResultView } from '@/types/exam-speaking'
 import { GaPageHdr, GaCard, GaCap, GaBtn, TkSeg, TkBadge, LoadingState, ErrorBanner } from '@/components/ui-v2'
 
@@ -26,6 +29,11 @@ export default function V2ExamSpeakingCatalogPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState<string | null>(null)
+  const micPermission = useMicPermission()
+  const [micCheckPassed, setMicCheckPassed] = useState(false)
+  // Mock A1/A2 không có màn chuẩn bị (prepSec=0) → vào thẳng phòng với đồng hồ THẬT.
+  // Gate mic vì thế phải đứng TRƯỚC khi tạo phiên, không thể chỉ dựa vào màn PREP (N1a QA 25/08).
+  const [micGateOpen, setMicGateOpen] = useState(false)
   // Mặc định prep rút gọn 5′ (mục 4b kế hoạch); "chuẩn thi thật" = đúng Vorbereitungszeit của blueprint.
   const [prepMode, setPrepMode] = useState<'SHORT' | 'FULL'>('SHORT')
 
@@ -51,7 +59,13 @@ export default function V2ExamSpeakingCatalogPage() {
   )
   const open = OPEN_LEVELS.has(level)
 
-  const start = async (mode: 'DRILL' | 'MOCK', teil?: number) => {
+  const start = async (mode: 'DRILL' | 'MOCK', teil?: number, skipMicGate = false) => {
+    // skipMicGate: gọi từ MicCheck.onPassed — state micCheckPassed chưa kịp commit trong closure này.
+    if (mode === 'MOCK' && !skipMicGate && micPermission !== 'granted' && !micCheckPassed) {
+      setMicGateOpen(true)
+      return
+    }
+    setMicGateOpen(false)
     const key = `${mode}-${teil ?? 'all'}`
     setStarting(key)
     setError(null)
@@ -147,6 +161,19 @@ export default function V2ExamSpeakingCatalogPage() {
               <GaBtn variant="yellow" size="lg" onClick={() => void start('MOCK')} disabled={!open || starting !== null} data-testid="start-mock">
                 <Mic size={16} aria-hidden className="mr-2" /> {starting === 'MOCK-all' ? t('starting') : t('startMock')}
               </GaBtn>
+              {micGateOpen && micPermission !== 'granted' && !micCheckPassed && (
+                <div className="mt-3 space-y-3" data-testid="mock-mic-gate">
+                  <MicDeniedGuide />
+                  <MicCheck
+                    passed={false}
+                    onPassed={() => {
+                      setMicCheckPassed(true)
+                      setMicGateOpen(false)
+                      void start('MOCK', undefined, true)
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             <GaCap className="mb-3 block">{t('drillCap')}</GaCap>
