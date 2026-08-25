@@ -1220,7 +1220,14 @@
           "FEEDBACK_COMMENT": "Gib deinem/deiner Partner/in eine Rückmeldung zur Präsentation (was war gut/neu/interessant) und stell EINE Frage.",
           "ANSWER_PRUEFER_TOPIC": "Beantworte die Frage des Prüfers / der Prüferin zum Thema."
         },
-        "partnerAi": "Partner/in · KI"
+        "partnerAi": "Partner/in · KI",
+        "turn": {
+          "prueferSpeaking": "Der Prüfer / die Prüferin spricht — hör zu, du bist noch nicht dran.",
+          "partnerSpeaking": "Dein Partner / deine Partnerin (KI) spricht — warte, bis er/sie fertig ist.",
+          "processing": "Dein Beitrag wird verarbeitet…",
+          "yourTurn": "Du bist dran — sprich jetzt!",
+          "waitHint": "Warte, bis du dran bist…"
+        }
       },
       "mic": {
         "sending": "Wird gesendet, Antwort folgt…",

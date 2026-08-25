@@ -1220,7 +1220,14 @@
           "FEEDBACK_COMMENT": "Cho bạn thi một nhận xét về bài trình bày (hay/mới/thú vị ở đâu) và đặt MỘT câu hỏi.",
           "ANSWER_PRUEFER_TOPIC": "Trả lời câu hỏi của giám khảo về chủ đề."
         },
-        "partnerAi": "Bạn thi · AI"
+        "partnerAi": "Bạn thi · AI",
+        "turn": {
+          "prueferSpeaking": "Giám khảo đang nói — hãy lắng nghe, chưa đến lượt bạn.",
+          "partnerSpeaking": "Bạn thi (AI) đang nói — chờ bạn ấy nói xong nhé.",
+          "processing": "Đang xử lý lượt nói của bạn…",
+          "yourTurn": "Đến lượt bạn nói!",
+          "waitHint": "Chờ đến lượt bạn…"
+        }
       },
       "mic": {
         "sending": "Đang gửi và chờ phản hồi…",

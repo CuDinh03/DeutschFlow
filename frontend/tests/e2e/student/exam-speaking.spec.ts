@@ -166,6 +166,8 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await expect(page.getByTestId('directive-hint')).toContainText('Đặt MỘT câu hỏi');
     await expect(page.getByTestId('mic-bar').getByRole('status')).toContainText('ĐẶT CÂU HỎI');
     await expect(page.getByTestId('exam-timer')).toBeVisible();
+    // Cơ chế lượt: headless không có giọng đọc → TTS resolve ngay → dải trạng thái báo đến lượt mình.
+    await expect(page.getByTestId('turn-status')).toContainText('Đến lượt bạn nói');
 
     // Drill cho phép gõ thay mic.
     await page.getByTestId('mic-text-mode').click();
@@ -181,6 +183,8 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await expect(page.getByTestId('directive-hint')).toContainText('Trả lời câu hỏi');
     await expect(page.getByTestId('mic-bar').getByRole('status')).toContainText('TRẢ LỜI');
     await expect(page.getByTestId('turn-latency')).toBeVisible();
+    // Sau lượt partner AI, quyền nói trả lại cho thí sinh (turn-gate mở).
+    await expect(page.getByTestId('turn-status')).toContainText('Đến lượt bạn nói');
   });
 
   test('mock đã chấm → Ergebnisbogen đúng phiếu A1 (voll/halb/null) + disclaimer', async ({ page }) => {

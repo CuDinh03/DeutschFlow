@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Volume2, VolumeX, Flag, ChevronRight, RotateCcw, ArrowLeft } from 'lucide-react'
+import { Volume2, VolumeX, Flag, ChevronRight, RotateCcw, ArrowLeft, Mic, Ear, Loader2 } from 'lucide-react'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { apiMessage } from '@/lib/api'
 import type { BlueprintSummary, ExamResultView, ExamSessionView, RoomLine, TurnResponse } from '@/types/exam-speaking'
@@ -48,6 +48,41 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
   const [muted, setMuted] = useState(isExamTtsMuted())
   const [notes, setNotes] = useState('')
   const spokenRef = useRef<string | null>(null)
+  // ── cơ chế lượt: AI đang nói → khoá mic/text, xong → báo "đến lượt bạn" ────────────────
+  const [aiSpeaking, setAiSpeaking] = useState<'PRUEFER' | 'PARTNER' | null>(null)
+  const [yourTurnPulse, setYourTurnPulse] = useState(false)
+  const speakGenRef = useRef(0)
+
+  /**
+   * Đọc lần lượt các lời AI và giữ trạng thái lượt trong suốt chuỗi. Generation guard: mỗi hành động
+   * của người dùng (gửi lượt, advance, finish) bump gen + stopExamTts() → chuỗi cũ tự thoát,
+   * không ghi đè state của hành động mới.
+   */
+  const speakSequence = useCallback(async (turns: { role: string; text: string }[]) => {
+    const gen = ++speakGenRef.current
+    for (const turn of turns) {
+      setAiSpeaking(turn.role === 'PARTNER' ? 'PARTNER' : 'PRUEFER')
+      await speakExamLine(turn.role, turn.text)
+      if (speakGenRef.current !== gen) return
+    }
+    setAiSpeaking(null)
+    setYourTurnPulse(true)
+  }, [])
+
+  /** Người dùng chủ động hành động → cắt mọi lời AI đang phát và mở khoá ngay. */
+  const interruptSpeech = useCallback(() => {
+    speakGenRef.current += 1
+    stopExamTts()
+    setAiSpeaking(null)
+    setYourTurnPulse(false)
+  }, [])
+
+  // Hiệu ứng "đến lượt bạn" chỉ nhấp nháy một nhịp ngắn rồi đứng yên.
+  useEffect(() => {
+    if (!yourTurnPulse) return
+    const id = window.setTimeout(() => setYourTurnPulse(false), 2500)
+    return () => window.clearTimeout(id)
+  }, [yourTurnPulse])
 
   // ── nạp phiên + blueprint (để vẽ stepper có tên Teil) ───────────────────────────────────
   const load = useCallback(async () => {
@@ -87,8 +122,8 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
     const key = `${d.teilNo}:${d.prueferText}`
     if (spokenRef.current === key) return
     spokenRef.current = key
-    void speakExamLine('PRUEFER', d.prueferText)
-  }, [session])
+    void speakSequence([{ role: 'PRUEFER', text: d.prueferText }])
+  }, [session, speakSequence])
 
   // ── poll khi đang chấm ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -131,15 +166,15 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       setLines((prev) => [...prev, ...added])
       setSession(res.session)
       // Nói lời AI theo thứ tự: partner/prüfer trả lời → (nếu sang Teil mới) lời giới thiệu Teil.
-      void (async () => {
-        for (const t of aiTurns) await speakExamLine(t.role, t.text)
-        if (movedToNewPart) {
-          spokenRef.current = `${d!.teilNo}:${d!.prueferText}`
-          await speakExamLine('PRUEFER', d!.prueferText!)
-        }
-      })()
+      // speakSequence giữ khoá mic đến khi lời cuối phát xong rồi mới báo "đến lượt bạn".
+      const toSpeak = [...aiTurns]
+      if (movedToNewPart) {
+        spokenRef.current = `${d!.teilNo}:${d!.prueferText}`
+        toSpeak.push({ role: 'PRUEFER', text: d!.prueferText! })
+      }
+      void speakSequence(toSpeak)
     },
-    [session],
+    [session, speakSequence],
   )
 
   const submitAudio = useCallback(
@@ -148,7 +183,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       setError(null)
       const startedAt = performance.now()
       try {
-        stopExamTts()
+        interruptSpeech()
         const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'
         const { data } = await examSpeakingApi.audioTurn(sessionId, blob, `turn.${ext}`, locale)
         applyTurn(data, '', startedAt)
@@ -158,7 +193,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
         setBusy(false)
       }
     },
-    [applyTurn, locale, sessionId],
+    [applyTurn, interruptSpeech, locale, sessionId],
   )
 
   const submitText = useCallback(
@@ -167,7 +202,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       setError(null)
       const startedAt = performance.now()
       try {
-        stopExamTts()
+        interruptSpeech()
         const { data } = await examSpeakingApi.textTurn(sessionId, text, locale)
         applyTurn(data, text, startedAt)
       } catch (e) {
@@ -176,14 +211,14 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
         setBusy(false)
       }
     },
-    [applyTurn, locale, sessionId],
+    [applyTurn, interruptSpeech, locale, sessionId],
   )
 
   const advance = useCallback(async () => {
     setBusy(true)
     setError(null)
     try {
-      stopExamTts()
+      interruptSpeech()
       const { data } = await examSpeakingApi.advance(sessionId)
       if (data.directive?.prueferText && data.directive.teilNo !== session?.directive?.teilNo) {
         setLines((prev) => [...prev, { id: nextId(), role: 'PRUEFER', text: data.directive!.prueferText!, teilNo: data.directive!.teilNo }])
@@ -194,13 +229,13 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
     } finally {
       setBusy(false)
     }
-  }, [session, sessionId])
+  }, [interruptSpeech, session, sessionId])
 
   const finish = useCallback(async () => {
     setBusy(true)
     setError(null)
     try {
-      stopExamTts()
+      interruptSpeech()
       const { data } = await examSpeakingApi.finish(sessionId)
       setSession(data)
     } catch (e) {
@@ -208,7 +243,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
     } finally {
       setBusy(false)
     }
-  }, [sessionId])
+  }, [interruptSpeech, sessionId])
 
   const choose = useCallback(
     async (teilNo: number, index: number) => {
@@ -413,13 +448,45 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
               </div>
               {/* Mobile: mic dính đáy để không phải cuộn qua transcript mỗi lượt; desktop: nằm dưới transcript. */}
               <div className="sticky bottom-2 z-10 mt-3 lg:static">
+                {/* Dải trạng thái lượt: AI đang nói → chờ; xong → "đến lượt bạn". aria-live cho screen reader. */}
+                <div
+                  role="status"
+                  aria-live="polite"
+                  data-testid="turn-status"
+                  className={`ga-ui mb-2 flex items-center gap-2 rounded-ga border px-3 py-2 text-[13px] font-semibold ${
+                    aiSpeaking || busy
+                      ? 'border-ga-line bg-ga-card text-ga-muted'
+                      : `border-ga-ink bg-ga-yellow-soft text-ga-ink ${yourTurnPulse ? 'motion-safe:animate-pulse' : ''}`
+                  }`}
+                >
+                  {aiSpeaking ? (
+                    <>
+                      <Ear size={15} aria-hidden className="shrink-0" />
+                      <span>{aiSpeaking === 'PARTNER' ? t('turn.partnerSpeaking') : t('turn.prueferSpeaking')}</span>
+                      <span className="relative ml-auto flex h-2.5 w-2.5 shrink-0">
+                        <span className="absolute inline-flex h-full w-full motion-safe:animate-ping rounded-full bg-ga-red opacity-75" />
+                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-ga-red" />
+                      </span>
+                    </>
+                  ) : busy ? (
+                    <>
+                      <Loader2 size={15} aria-hidden className="shrink-0 animate-spin" />
+                      <span>{t('turn.processing')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mic size={15} aria-hidden className="shrink-0" />
+                      <span>{t('turn.yourTurn')}</span>
+                    </>
+                  )}
+                </div>
                 <MicBar
-                  disabled={busy}
+                  disabled={busy || aiSpeaking !== null}
                   busy={busy}
                   allowText={!isMock}
                   onAudio={submitAudio}
                   onText={submitText}
-                  hint={t(`action.${session.directive.candidateAction}`)}
+                  hint={aiSpeaking ? t('turn.waitHint') : t(`action.${session.directive.candidateAction}`)}
                 />
               </div>
             </section>

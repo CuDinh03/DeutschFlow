@@ -1220,7 +1220,14 @@
           "FEEDBACK_COMMENT": "Give your partner one comment on the presentation (what was good/new/interesting) and ask ONE question.",
           "ANSWER_PRUEFER_TOPIC": "Answer the examiner's question about the topic."
         },
-        "partnerAi": "Partner · AI"
+        "partnerAi": "Partner · AI",
+        "turn": {
+          "prueferSpeaking": "The examiner is speaking — listen, it's not your turn yet.",
+          "partnerSpeaking": "Your AI partner is speaking — wait until they finish.",
+          "processing": "Processing your turn…",
+          "yourTurn": "Your turn — speak now!",
+          "waitHint": "Wait for your turn…"
+        }
       },
       "mic": {
         "sending": "Sending and waiting for the reply…",
