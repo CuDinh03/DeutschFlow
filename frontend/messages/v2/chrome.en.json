@@ -80,7 +80,8 @@
       "grammar-drafts": "Grammar exercises",
       "exercises": "Practice exercises",
       "org-timesheets": "Timesheets",
-      "tc-timesheet": "Timesheets"
+      "tc-timesheet": "Timesheets",
+      "admin-exam-golden": "Speaking golden set"
     },
     "sections": {
       "classMgmt": "Class Management",
