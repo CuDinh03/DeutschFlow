@@ -49,8 +49,10 @@ public final class PracticeExerciseGrader {
             Object parsed = mapper.readValue(exercisesJson, Object.class);
             if (parsed instanceof List<?> list) {
                 exercises = list;
-            } else if (parsed instanceof Map<?, ?> m && m.get("exercises") instanceof List<?> l) {
-                exercises = l;
+            } else if (parsed instanceof Map<?, ?> m) {
+                List<?> found = findExercises(m);
+                if (found == null) return new Result(0, 0);
+                exercises = found;
             } else {
                 return new Result(0, 0);
             }
@@ -74,6 +76,27 @@ public final class PracticeExerciseGrader {
             }
         }
         return new Result(total, correct);
+    }
+
+    /**
+     * Mảng bài tập bên trong một object payload.
+     *
+     * <p>Ưu tiên khoá {@code "exercises"}. Nếu không có thì nhận mảng-đối-tượng đầu tiên: các
+     * session sinh trước bản vá prompt có thể nằm dưới khoá do model tự đặt ({@code "uebungen"}…)
+     * vì {@code response_format=json_object} cấm mảng ở cấp cao nhất. Nhận rộng ở đây là CÓ CHỦ Ý —
+     * không đọc được thì {@code grade} trả 0 câu, và bên gọi sẽ rơi về điểm do client tự báo, đúng
+     * thứ lớp chấm này sinh ra để chặn.
+     */
+    private static List<?> findExercises(Map<?, ?> payload) {
+        if (payload.get("exercises") instanceof List<?> named) {
+            return named;
+        }
+        for (Object value : payload.values()) {
+            if (value instanceof List<?> list && !list.isEmpty() && list.get(0) instanceof Map<?, ?>) {
+                return list;
+            }
+        }
+        return null;
     }
 
     /** Mirrors the web client's handleAnswer precedence: correct_index → correct_answer → "spoken". */
