@@ -80,7 +80,8 @@
       "grammar-drafts": "Bài tập ngữ pháp",
       "exercises": "Bài tập bổ trợ",
       "org-timesheets": "Chấm công",
-      "tc-timesheet": "Chấm công"
+      "tc-timesheet": "Chấm công",
+      "admin-exam-golden": "Golden set Nói"
     },
     "sections": {
       "classMgmt": "Quản lý lớp",

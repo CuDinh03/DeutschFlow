@@ -11,4 +11,8 @@ public interface SpeakingExamResultRepository extends JpaRepository<SpeakingExam
     Optional<SpeakingExamResult> findBySessionId(Long sessionId);
 
     List<SpeakingExamResult> findTop20ByUserIdOrderByCreatedAtDesc(Long userId);
+
+    List<SpeakingExamResult> findTop200ByOrderByCreatedAtDesc();
+
+    List<SpeakingExamResult> findTop200ByProviderAndLevelOrderByCreatedAtDesc(String provider, String level);
 }

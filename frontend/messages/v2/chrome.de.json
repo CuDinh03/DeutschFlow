@@ -80,7 +80,8 @@
       "grammar-drafts": "Grammatikaufgaben",
       "exercises": "Übungsaufgaben",
       "org-timesheets": "Arbeitszeit",
-      "tc-timesheet": "Arbeitszeit"
+      "tc-timesheet": "Arbeitszeit",
+      "admin-exam-golden": "Golden-Set Sprechen"
     },
     "sections": {
       "classMgmt": "Kursverwaltung",
