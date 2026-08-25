@@ -29,8 +29,11 @@ class ExamGoldenServiceTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ExamGoldenService service = new ExamGoldenService(
             mock(SpeakingExamResultRepository.class), mock(SpeakingExamTurnRepository.class),
+            mock(com.deutschflow.examspeaking.repository.SpeakingExamSessionRepository.class),
             mock(SpeakingExamGoldenRatingRepository.class), mock(com.deutschflow.examspeaking.api.ExamBlueprintCatalog.class),
-            new RubricScorer(), null, null, mock(UserRepository.class), objectMapper);
+            new RubricScorer(), null, null, mock(UserRepository.class), objectMapper,
+            mock(com.deutschflow.examspeaking.audio.ExamAudioStorage.class),
+            mock(com.deutschflow.examspeaking.repository.SpeakingExamCalibrationParticipantRepository.class));
 
     static RubricDefinition goetheB1() {
         Map<String, Double> fr = Map.of("A", 1.0, "B", 0.75, "C", 0.5, "D", 0.25, "E", 0.0);

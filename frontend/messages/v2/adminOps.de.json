@@ -491,7 +491,22 @@
       "maxPts": "max. {max} P.",
       "machineBand": "Maschine: {band}",
       "save": "Bewertung speichern",
-      "saving": "Speichert…"
+      "saving": "Speichert…",
+      "participants": {
+        "cap": "Einwilligung zur Audio-Speicherung",
+        "desc": "Nur Personen auf dieser Liste bekommen ihr Prüfungssimulations-Audio gespeichert, damit Prüfende es erneut anhören können. Entfernen widerruft die Einwilligung und löscht gespeichertes Audio endgültig (Transkripte bleiben).",
+        "userIdPlaceholder": "Lernenden-ID",
+        "notePlaceholder": "Notiz (z. B. unterschrieben 26.08.)",
+        "add": "Hinzufügen",
+        "remove": "Einwilligung widerrufen",
+        "empty": "Noch niemand — Simulationen werden nur anhand des Transkripts bewertet.",
+        "consentedAt": "eingewilligt {at}",
+        "confirmRemove": "Einwilligung von {name} widerrufen? Alle gespeicherten Audios werden endgültig gelöscht."
+      },
+      "audio": {
+        "playLabel": "Beitrag aus Teil {teil} anhören",
+        "transcriptOnly": "Für diese Sitzung ist kein Audio gespeichert — Bewertung anhand des Transkripts."
+      }
     },
     "examBank": {
       "title": "Aufgabenbank Sprechprüfung",

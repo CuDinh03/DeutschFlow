@@ -333,6 +333,18 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
 
         {session.state !== 'RESULTS' && session.state !== 'DONE' && <MicDeniedGuide className="mb-4" />}
 
+        {/* Minh bạch: phiên hiệu chuẩn có lưu audio — thí sinh phải biết mình đang được ghi âm,
+            kể cả khi đã ký đồng ý trước đó (đồng ý một lần ≠ được im lặng mọi lần sau). */}
+        {session.retainAudio && session.state !== 'RESULTS' && (
+          <p
+            className="ga-ui mb-4 rounded-ga border border-ga-line bg-ga-surface px-3 py-2 text-[12.5px] text-ga-muted"
+            role="note"
+            data-testid="audio-retention-notice"
+          >
+            {t('audioRetained')}
+          </p>
+        )}
+
         {session.state === 'PREP' && (
           <section className="mx-auto max-w-3xl space-y-4" data-testid="exam-prep">
             <GaCap className="block">{t('prepCap')}</GaCap>

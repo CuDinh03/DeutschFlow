@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Download, ChevronRight, Scale } from 'lucide-react'
+import { ArrowLeft, Download, ChevronRight, Scale, Mic, Trash2, Plus } from 'lucide-react'
 import {
   adminExamGoldenApi,
   type GoldenCompareReport,
+  type GoldenParticipant,
   type GoldenSessionRow,
 } from '@/lib/adminExamGoldenApi'
 import { apiMessage } from '@/lib/api'
@@ -180,10 +181,130 @@ export default function AdminExamGoldenPage() {
                 </ul>
               )}
             </GaCard>
+
+            <ParticipantsCard t={t} />
           </>
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * Chiến dịch hiệu chuẩn: CHỈ những người trong danh sách này mới được lưu audio phiên mock
+ * (quyết định owner 26/08 — không lưu audio đại trà). Xoá khỏi danh sách = rút đồng ý +
+ * audio đã lưu bị xoá vĩnh viễn, transcript giữ nguyên.
+ */
+function ParticipantsCard({ t }: { t: ReturnType<typeof useTranslations> }) {
+  const [rows, setRows] = useState<GoldenParticipant[] | null>(null)
+  const [userId, setUserId] = useState('')
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(() => {
+    adminExamGoldenApi
+      .listParticipants()
+      .then((r) => setRows(r.data))
+      .catch((e) => setError(apiMessage(e)))
+  }, [])
+
+  useEffect(() => load(), [load])
+
+  const add = async () => {
+    const id = Number(userId.trim())
+    if (!Number.isFinite(id) || id <= 0) return
+    setBusy(true)
+    setError(null)
+    try {
+      await adminExamGoldenApi.addParticipant({ userId: id, note: note.trim() || undefined })
+      setUserId('')
+      setNote('')
+      load()
+    } catch (e) {
+      setError(apiMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const remove = async (row: GoldenParticipant) => {
+    if (!window.confirm(t('participants.confirmRemove', { name: row.displayName ?? String(row.userId) }))) return
+    setBusy(true)
+    setError(null)
+    try {
+      await adminExamGoldenApi.removeParticipant(row.userId)
+      load()
+    } catch (e) {
+      setError(apiMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <GaCard className="p-4 lg:p-6" data-testid="calibration-participants">
+      <GaCap className="mb-1 block">
+        <Mic size={13} aria-hidden className="mr-1 inline" /> {t('participants.cap')}
+      </GaCap>
+      <p className="ga-ui mb-3 text-[12.5px] text-ga-muted">{t('participants.desc')}</p>
+
+      {error && (
+        <div className="mb-3">
+          <ErrorBanner message={error} onRetry={() => setError(null)} />
+        </div>
+      )}
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <input
+          className="ga-ui min-h-[44px] w-32 rounded-ga border border-ga-line bg-ga-bg px-3 text-[13px] text-ga-ink"
+          value={userId}
+          onChange={(e) => setUserId(e.target.value)}
+          placeholder={t('participants.userIdPlaceholder')}
+          aria-label={t('participants.userIdPlaceholder')}
+          inputMode="numeric"
+          data-testid="participant-user-id"
+        />
+        <input
+          className="ga-ui min-h-[44px] min-w-[180px] flex-1 rounded-ga border border-ga-line bg-ga-bg px-3 text-[13px] text-ga-ink"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={t('participants.notePlaceholder')}
+          aria-label={t('participants.notePlaceholder')}
+          data-testid="participant-note"
+        />
+        <GaBtn variant="ink" size="sm" onClick={() => void add()} disabled={busy || !userId.trim()} data-testid="participant-add">
+          <Plus size={14} aria-hidden className="mr-1" /> {t('participants.add')}
+        </GaBtn>
+      </div>
+
+      {rows === null ? (
+        <LoadingState label={t('loading')} />
+      ) : rows.length === 0 ? (
+        <p className="ga-ui text-[13px] text-ga-muted" data-testid="participants-empty">
+          {t('participants.empty')}
+        </p>
+      ) : (
+        <ul className="divide-y divide-ga-line" data-testid="participants-list">
+          {rows.map((r) => (
+            <li key={r.userId} className="flex items-center justify-between gap-3 py-2.5">
+              <div className="min-w-0">
+                <p className="ga-ui truncate text-[13.5px] font-semibold text-ga-ink">
+                  {r.displayName ?? `#${r.userId}`} <span className="font-normal text-ga-muted">#{r.userId}</span>
+                </p>
+                <p className="ga-ui truncate text-[12px] text-ga-muted">
+                  {r.email ?? '—'} · {t('participants.consentedAt', { at: new Date(r.consentedAt).toLocaleDateString() })}
+                  {r.note ? ` · ${r.note}` : ''}
+                </p>
+              </div>
+              <GaBtn variant="ghost" size="sm" onClick={() => void remove(r)} disabled={busy} aria-label={t('participants.remove')}>
+                <Trash2 size={14} aria-hidden />
+              </GaBtn>
+            </li>
+          ))}
+        </ul>
+      )}
+    </GaCard>
   )
 }
 

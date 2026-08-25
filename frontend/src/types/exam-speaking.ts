@@ -83,6 +83,8 @@ export interface ExamSessionView {
   notesText: string | null
   gradingJobId: number | null
   resultAvailable: boolean
+  /** true = phiên đang được ghi âm để hiệu chuẩn chấm điểm (đã có đồng ý) — UI phải nói rõ. */
+  retainAudio?: boolean
 }
 
 export interface AiTurn {

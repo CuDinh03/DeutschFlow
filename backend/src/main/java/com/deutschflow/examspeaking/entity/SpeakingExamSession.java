@@ -79,6 +79,14 @@ public class SpeakingExamSession {
     private Long gradingJobId;
 
     /** Vorbereitungszeit hiệu lực (giây): rút gọn 5′ mặc định hoặc chuẩn thi thật theo blueprint. */
+    /**
+     * true = giữ lại audio từng lượt nói lên S3 ({@link SpeakingExamTurn#getAudioRef()}).
+     * Chỉ bật cho phiên MOCK của người đã đồng ý tham gia hiệu chuẩn (V284) — mặc định KHÔNG lưu.
+     */
+    @Builder.Default
+    @Column(name = "retain_audio", nullable = false)
+    private boolean retainAudio = false;
+
     @Column(name = "prep_sec")
     private Integer prepSec;
 

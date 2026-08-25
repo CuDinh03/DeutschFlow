@@ -491,7 +491,22 @@
       "maxPts": "max {max} pts",
       "machineBand": "machine: {band}",
       "save": "Save ratings",
-      "saving": "Saving…"
+      "saving": "Saving…",
+      "participants": {
+        "cap": "Audio consent list",
+        "desc": "Only people on this list have their mock-exam audio stored for examiners to replay. Removing someone withdraws consent and permanently deletes their stored audio (transcripts are kept).",
+        "userIdPlaceholder": "Learner ID",
+        "notePlaceholder": "Note (e.g. signed 26/08)",
+        "add": "Add",
+        "remove": "Withdraw consent",
+        "empty": "Nobody yet — mock sessions are graded on transcripts only.",
+        "consentedAt": "consented {at}",
+        "confirmRemove": "Withdraw consent for {name}? All stored audio will be permanently deleted."
+      },
+      "audio": {
+        "playLabel": "Replay Teil {teil} turn",
+        "transcriptOnly": "This session has no stored audio — graded on the transcript."
+      }
     },
     "examBank": {
       "title": "Speaking exam task bank",
