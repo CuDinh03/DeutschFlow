@@ -166,6 +166,8 @@ export const adminNav: RoleNav = {
         { id: 'admin-weekly', label: 'Speaking tuần', href: '/v2/admin/weekly-speaking', icon: 'mic' },
         // G.1 Golden set: giám khảo người chấm tay phiên mock → đồng thuận máy↔người (gate ra mắt).
         { id: 'admin-exam-golden', label: 'Golden set Nói', href: '/v2/admin/exam-golden', icon: 'grading' },
+        // Đ5b-A: ngân hàng đề Luyện thi Nói — CRUD đề + ma trận pool, hết cảnh viết migration tay.
+        { id: 'admin-exam-bank', label: 'Ngân hàng đề Nói', href: '/v2/admin/exam-bank', icon: 'quiz' },
         { id: 'admin-reports', label: 'Báo cáo', href: '/v2/admin/reports', icon: 'assessment' },
         { id: 'admin-personas', label: 'Persona', href: '/v2/admin/personas', icon: 'record_voice_over' },
         { id: 'admin-interviews', label: 'Phỏng vấn', href: '/v2/admin/interviews', icon: 'forum' },

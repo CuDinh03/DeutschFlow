@@ -492,6 +492,46 @@
       "machineBand": "Maschine: {band}",
       "save": "Bewertung speichern",
       "saving": "Speichert…"
+    },
+    "examBank": {
+      "title": "Aufgabenbank Sprechprüfung",
+      "subtitle": "Goethe/telc A1–B2 verwalten: Pools pro Teil, Aufgaben anlegen/bearbeiten/freigeben — ohne Migrationen.",
+      "back": "Zur Verwaltung",
+      "dismiss": "Schließen",
+      "loading": "Lädt…",
+      "all": "Alle",
+      "providerLabel": "Prüfungsanbieter",
+      "levelLabel": "Niveau",
+      "statusLabel": "Status",
+      "poolBadge": "{pool}/{need} Aufgaben",
+      "createCta": "Neue Aufgabe",
+      "editCta": "Bearbeiten",
+      "tableCap": "Aufgaben ({n})",
+      "emptyTitle": "Keine Aufgaben für diese Filter",
+      "emptyDesc": "Filter ändern oder \"Neue Aufgabe\" wählen (Entwürfe gelangen nie in den Prüfungsraum).",
+      "colExam": "Anbieter · Niveau",
+      "colArchetype": "Aufgabentyp",
+      "colContent": "Inhalt",
+      "colStatus": "Status",
+      "shared": "Gemeinsam",
+      "status": {
+        "DRAFT": "Entwurf",
+        "APPROVED": "Aktiv",
+        "RETIRED": "Ausgemustert"
+      },
+      "editorCreateTitle": "Neue Aufgabe",
+      "editorEditTitle": "Aufgabe #{id} bearbeiten",
+      "stimulusLabel": "Stimulus (JSON — Inhalt der Aufgabenkarte)",
+      "jsonInvalid": "Ungültiges JSON — vor dem Speichern korrigieren.",
+      "typeMissing": "Schlüssel \"type\" fehlt — das FE braucht ihn für die richtige Karte.",
+      "partnerCap": "Private Schlüssel (partner*)",
+      "partnerPrivate": "partner*-Schlüssel sieht nur der KI-Partner — sie gehen nie an Lernende.",
+      "partnerUnknown": "Schlüssel {keys} werden von der KI nicht unterstützt — die Aufgabe würde still kaputtgehen. Erlaubt: partnerCalendar, partnerText, partnerChart, partnerPresentation, partnerStance.",
+      "previewCap": "Vorschau — genau wie Lernende sie sehen",
+      "previewNote": "Alle partner*-Schlüssel sind hier herausgefiltert (wie im echten Prüfungsraum). Text und Kartentyp prüfen.",
+      "save": "Speichern",
+      "saving": "Speichert…",
+      "cancel": "Abbrechen"
     }
   }
 }

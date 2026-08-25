@@ -183,6 +183,15 @@ public class AiInterlocutorService {
      * client nhưng AI cũng không thấy — partner hành xử như không có đề, âm thầm và khó phát hiện.
      * Package-private để PrivateContextTest chốt lại từng khoá.
      */
+    /**
+     * Toàn bộ khoá {@code partner*} mà {@link #privateContext} biết diễn giải. Admin ngân hàng đề
+     * (Đ5b) từ chối đề có khoá partner* NGOÀI danh sách này — vì khoá lạ bị clientStimulus ẩn khỏi
+     * client nhưng AI cũng không đọc → hỏng âm thầm (xem cảnh báo ở trên). Thêm nhánh mới ở
+     * privateContext thì PHẢI thêm khoá vào đây (PrivateContextTest chốt đồng bộ).
+     */
+    public static final java.util.Set<String> KNOWN_PARTNER_KEYS = java.util.Set.of(
+            "partnerCalendar", "partnerText", "partnerChart", "partnerPresentation", "partnerStance");
+
     static String privateContext(Map<String, Object> card) {
         if (card == null) {
             return "";
