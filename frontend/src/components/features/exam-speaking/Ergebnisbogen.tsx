@@ -69,6 +69,11 @@ export function Ergebnisbogen({ sheet }: Props) {
               <ShieldAlert size={14} aria-hidden /> {t('zeroed')}
             </p>
           )}
+          {p.comment && (
+            <p className="ga-ui mb-2 rounded-ga bg-ga-surface px-3 py-2 text-[13px] italic text-ga-ink" data-testid={`part-comment-${p.teilNo}`}>
+              {p.comment}
+            </p>
+          )}
           <ul className="divide-y divide-ga-line">
             {p.criteria.map((c) => (
               <CriterionRow key={c.code} c={c} />

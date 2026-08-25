@@ -79,7 +79,13 @@ class StaleAiJobGuardIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(stale.getStatus()).isEqualTo(AiJob.STATUS_FAILED);
         assertThat(stale.getErrorMsg()).contains("STALE_PENDING_EXPIRED");
         AiJob fresh = aiJobRepository.findById(freshId).orElseThrow();
-        assertThat(fresh.getStatus()).isEqualTo(AiJob.STATUS_PENDING);
+        // CHỐNG FLAKY: AiJobWorker @Scheduled(2s) chạy trong context IT có thể claim job còn hạn
+        // giữa chừng (PENDING → PROCESSING/COMPLETED) — đó là hành vi ĐÚNG của hàng đợi, không phải
+        // lỗi của expirer. Hợp đồng cần kiểm ở đây chỉ là: expirer KHÔNG đánh FAILED job còn hạn.
+        assertThat(fresh.getStatus()).isNotEqualTo(AiJob.STATUS_FAILED);
+        assertThat(fresh.getErrorMsg() == null || !fresh.getErrorMsg().contains("STALE_PENDING_EXPIRED"))
+                .as("expirer không được đụng job còn hạn (errorMsg=%s)", fresh.getErrorMsg())
+                .isTrue();
     }
 
 }

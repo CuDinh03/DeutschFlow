@@ -127,7 +127,13 @@ public class AiInterlocutorService {
                 out.put("error", "AI trả kết quả không hợp lệ");
                 return out;
             }
-            out.put("score", Math.max(0, Math.min(10, j.path("score").asInt(0))));
+            int score = j.path("score").asInt(-1);
+            if (score < 0) {
+                // N1c-5: LLM không trả điểm hợp lệ → báo lỗi thay vì hiển thị 0/10 oan.
+                out.put("error", "AI không trả điểm hợp lệ");
+                return out;
+            }
+            out.put("score", Math.min(10, score));
             out.put("feedbackVi", j.path("feedback_vi").asText(""));
             List<Map<String, String>> corrections = new ArrayList<>();
             for (JsonNode c : j.path("corrections")) {

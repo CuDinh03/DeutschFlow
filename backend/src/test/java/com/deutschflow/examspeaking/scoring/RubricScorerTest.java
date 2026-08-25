@@ -312,6 +312,42 @@ class RubricScorerTest {
         return new RubricDefinition.RubricCriterion(code, code, max, bp);
     }
 
+    @Test
+    @DisplayName("N1c-1: Teil thí sinh KHÔNG nói = 0 điểm CÓ CHẤM (vẫn trong mẫu số) — không được quy đổi tỉ lệ để đỗ")
+    void silentTeilCountsAsZeroNotReducedMax() {
+        RubricDefinition r = goetheB1();
+        RubricRef ref = new RubricRef(ExamProvider.GOETHE, "B1", 1);
+        // Nói tốt Teil 1 (A trọn) + Aussprache A, bỏ hẳn Teil 2 và 3.
+        PassAssessment pa = new PassAssessment(Map.of(
+                1, partC(1, Map.of("ERFUELLUNG", band("A"), "INTERAKTION", band("A"), "WORTSCHATZ", band("A"), "STRUKTUREN", band("A"))),
+                2, new PassAssessment.PartAssessment(2, Map.of(), Map.of(), true, null),
+                3, new PassAssessment.PartAssessment(3, Map.of(), Map.of(), true, null)),
+                Map.of("AUSSPRACHE", band("A")), List.of(), List.of());
+        Ergebnisbogen e = scorer.score(ref, r, pa);
+        // Trước N1c-1: max co về 44 → normalized 100 → ĐỖ OAN. Nay: max giữ 100, tổng 44 → TRƯỢT.
+        assertThat(e.maxPoints()).isEqualTo(100.0);
+        assertThat(e.total()).isEqualTo(44.0);
+        assertThat(e.passed()).isFalse();
+        assertThat(e.parts().get(1).points()).isEqualTo(0.0);
+        assertThat(e.parts().get(1).max()).isEqualTo(40.0);
+        assertThat(e.parts().get(1).criteria()).allMatch(c -> c.scored() && "E".equals(c.band()));
+    }
+
+    @Test
+    @DisplayName("N1c-2: nhận xét Teil của giám khảo được truyền tới Ergebnisbogen")
+    void partCommentPropagates() {
+        RubricDefinition r = goetheB1();
+        RubricRef ref = new RubricRef(ExamProvider.GOETHE, "B1", 1);
+        PassAssessment pa = new PassAssessment(Map.of(
+                1, new PassAssessment.PartAssessment(1,
+                        Map.of(),
+                        Map.of("ERFUELLUNG", band("B"), "INTERAKTION", band("B"), "WORTSCHATZ", band("B"), "STRUKTUREN", band("B")),
+                        false, "Gut strukturiert, aber mehr Details nennen.")),
+                Map.of(), List.of(), List.of());
+        Ergebnisbogen e = scorer.score(ref, r, pa);
+        assertThat(e.parts().get(0).comment()).isEqualTo("Gut strukturiert, aber mehr Details nennen.");
+    }
+
     static PassAssessment.PartAssessment part(int teil, Map<String, PassAssessment.CriterionAssessment> items) {
         return new PassAssessment.PartAssessment(teil, items, Map.of());
     }

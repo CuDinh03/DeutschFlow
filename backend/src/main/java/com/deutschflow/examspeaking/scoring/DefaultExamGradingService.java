@@ -101,8 +101,9 @@ public class DefaultExamGradingService implements ExamGradingService {
             Optional<ParticipantBundle.PartTranscript> ptOpt = bundle.parts().stream()
                     .filter(p -> p.teilNo() == rp.teilNo()).findFirst();
             if (ptOpt.isEmpty() || ptOpt.get().candidate().isEmpty()) {
-                notes.add("Teil " + rp.teilNo() + ": thí sinh không nói gì → không chấm được.");
-                parts.put(rp.teilNo(), new PassAssessment.PartAssessment(rp.teilNo(), Map.of(), Map.of()));
+                // N1c-1: Teil không nói = 0 điểm CÓ CHẤM (vẫn nằm trong mẫu số) — khác tiêu chí thiếu tín hiệu.
+                notes.add("Teil " + rp.teilNo() + ": thí sinh không nói gì → 0 điểm cho Teil này.");
+                parts.put(rp.teilNo(), new PassAssessment.PartAssessment(rp.teilNo(), Map.of(), Map.of(), true, null));
                 continue;
             }
             ParticipantBundle.PartTranscript pt = ptOpt.get();
@@ -150,6 +151,11 @@ public class DefaultExamGradingService implements ExamGradingService {
                                                               List<Ergebnisbogen.ErrorItem> partErrors, String level) {
         Map<String, PassAssessment.CriterionAssessment> items = new HashMap<>();
         Map<String, PassAssessment.CriterionAssessment> criteria = new HashMap<>();
+        // N1c-2: nhận xét 2 câu của "giám khảo" cho Teil — trước đây prompt yêu cầu nhưng bị vứt.
+        String comment = json.path("summary_vi").asText(null);
+        if (comment != null && comment.isBlank()) {
+            comment = null;
+        }
         if (rubric.scale() == RubricDefinition.BandScale.VHN) {
             Map<String, JsonNode> byCode = new HashMap<>();
             for (JsonNode it : json.path("items")) {
@@ -166,7 +172,7 @@ public class DefaultExamGradingService implements ExamGradingService {
                             "high", quotes(it.path("quote"))));
                 }
             }
-            return new PassAssessment.PartAssessment(rp.teilNo(), items, Map.of());
+            return new PassAssessment.PartAssessment(rp.teilNo(), items, Map.of(), false, comment);
         }
 
         LexicalProfile lex = lexicalProfiler.profile(pt.candidate(), level);
@@ -191,7 +197,7 @@ public class DefaultExamGradingService implements ExamGradingService {
             }
             criteria.put(c.code(), ca);
         }
-        return new PassAssessment.PartAssessment(rp.teilNo(), Map.of(), criteria);
+        return new PassAssessment.PartAssessment(rp.teilNo(), Map.of(), criteria, false, comment);
     }
 
     private PassAssessment.CriterionAssessment criterionFromJson(RubricDefinition rubric, JsonNode json, String code) {

@@ -28,7 +28,13 @@ public record Ergebnisbogen(
         notes = notes == null ? List.of() : List.copyOf(notes);
     }
 
-    public record PartResult(int teilNo, List<CriterionResult> criteria, double points, double max, boolean zeroed) {
+    public record PartResult(int teilNo, List<CriterionResult> criteria, double points, double max, boolean zeroed,
+                             String comment) {
+        /** Tương thích cũ: không comment. */
+        public PartResult(int teilNo, List<CriterionResult> criteria, double points, double max, boolean zeroed) {
+            this(teilNo, criteria, points, max, zeroed, null);
+        }
+
         public PartResult {
             criteria = criteria == null ? List.of() : List.copyOf(criteria);
         }

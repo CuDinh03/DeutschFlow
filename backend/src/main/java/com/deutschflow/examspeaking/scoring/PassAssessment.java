@@ -22,10 +22,20 @@ public record PassAssessment(
         notes = notes == null ? List.of() : List.copyOf(notes);
     }
 
-    public record PartAssessment(int teilNo, Map<String, CriterionAssessment> items, Map<String, CriterionAssessment> criteria) {
+    /**
+     * {@code silent} = thí sinh KHÔNG nói gì trong Teil (khác "LLM không trả kết quả"): Teil vẫn tính
+     * trong tổng với 0 điểm (N1c-1). {@code comment} = 2 câu nhận xét của "giám khảo" cho Teil (N1c-2).
+     */
+    public record PartAssessment(int teilNo, Map<String, CriterionAssessment> items,
+                                 Map<String, CriterionAssessment> criteria, boolean silent, String comment) {
         public PartAssessment {
             items = items == null ? Map.of() : Map.copyOf(items);
             criteria = criteria == null ? Map.of() : Map.copyOf(criteria);
+        }
+
+        /** Tương thích test/cũ: không silent, không comment. */
+        public PartAssessment(int teilNo, Map<String, CriterionAssessment> items, Map<String, CriterionAssessment> criteria) {
+            this(teilNo, items, criteria, false, null);
         }
     }
 

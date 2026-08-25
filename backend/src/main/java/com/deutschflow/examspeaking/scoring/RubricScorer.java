@@ -38,6 +38,22 @@ public class RubricScorer {
                                                PassAssessment.PartAssessment pa, List<String> notes) {
         List<Ergebnisbogen.CriterionResult> results = new ArrayList<>();
         boolean zeroed = false;
+        if (pa != null && pa.silent()) {
+            // N1c-1: thí sinh không nói gì → mọi tiêu chí/nhiệm vụ band thấp nhất, 0 điểm, VẪN TÍNH trong mẫu số.
+            String lowest = rubric.lowestBand();
+            List<String> why = List.of("Thí sinh không nói gì trong Teil này.");
+            if (rubric.scale() == RubricDefinition.BandScale.VHN) {
+                for (RubricDefinition.RubricItem item : rp.items()) {
+                    results.add(new Ergebnisbogen.CriterionResult(item.code(), item.label(), lowest, 0, item.max(), true, "high", why));
+                }
+            } else {
+                for (RubricDefinition.RubricCriterion c : rp.criteria()) {
+                    results.add(new Ergebnisbogen.CriterionResult(c.code(), c.label(), lowest, 0, c.max(), true, "high", why));
+                }
+            }
+            double silentMax = results.stream().mapToDouble(Ergebnisbogen.CriterionResult::max).sum();
+            return new Ergebnisbogen.PartResult(rp.teilNo(), results, 0, round2(silentMax), false, null);
+        }
         if (rubric.scale() == RubricDefinition.BandScale.VHN) {
             for (RubricDefinition.RubricItem item : rp.items()) {
                 PassAssessment.CriterionAssessment ca = pa == null ? null : pa.items().get(item.code());
@@ -58,7 +74,8 @@ public class RubricScorer {
         }
         double points = results.stream().filter(Ergebnisbogen.CriterionResult::scored).mapToDouble(Ergebnisbogen.CriterionResult::points).sum();
         double max = results.stream().filter(Ergebnisbogen.CriterionResult::scored).mapToDouble(Ergebnisbogen.CriterionResult::max).sum();
-        return new Ergebnisbogen.PartResult(rp.teilNo(), results, round2(points), round2(max), zeroed);
+        return new Ergebnisbogen.PartResult(rp.teilNo(), results, round2(points), round2(max), zeroed,
+                pa == null ? null : pa.comment());
     }
 
     private Ergebnisbogen.CriterionResult scoreItem(RubricDefinition.RubricItem item, PassAssessment.CriterionAssessment ca) {

@@ -68,7 +68,13 @@ public class ScoreAggregator {
             }
             double points = merged.stream().filter(Ergebnisbogen.CriterionResult::scored).mapToDouble(Ergebnisbogen.CriterionResult::points).sum();
             double max = merged.stream().filter(Ergebnisbogen.CriterionResult::scored).mapToDouble(Ergebnisbogen.CriterionResult::max).sum();
-            parts.add(new Ergebnisbogen.PartResult(p0.teilNo(), merged, RubricScorer.round2(points), RubricScorer.round2(max), zeroed));
+            String comment = passes.stream()
+                    .map(p -> p.parts().stream().filter(pp -> pp.teilNo() == p0.teilNo()).findFirst().orElse(null))
+                    .filter(Objects::nonNull)
+                    .map(Ergebnisbogen.PartResult::comment)
+                    .filter(c -> c != null && !c.isBlank())
+                    .findFirst().orElse(null);
+            parts.add(new Ergebnisbogen.PartResult(p0.teilNo(), merged, RubricScorer.round2(points), RubricScorer.round2(max), zeroed, comment));
         }
         List<Ergebnisbogen.CriterionResult> global = new ArrayList<>();
         for (int i = 0; i < first.global().size(); i++) {
