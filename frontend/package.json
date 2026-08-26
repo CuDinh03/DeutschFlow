@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "check:i18n": "node scripts/check-i18n-v2.js && node scripts/check-i18n-usage.js",
+    "check:design-tokens": "node scripts/lint-design-tokens.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",

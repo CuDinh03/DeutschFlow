@@ -33,10 +33,12 @@ export function TkTabsTrigger({
       className={cn(
         'ga-ui -mb-px border-b-2 border-transparent px-1 pb-3 pt-2 text-[13px] font-semibold text-ga-muted transition-colors',
         // Trong vùng cuộn ngang, tab không được co lại (nhãn sẽ xuống dòng từng chữ);
-        // 40px chạm tay. Từ lg trả lại hành vi co giãn và chiều cao gốc.
-        'min-h-[40px] shrink-0 whitespace-nowrap lg:min-h-0 lg:shrink lg:whitespace-normal',
+        // 44px chạm tay (F-06/D8). Từ lg trả lại hành vi co giãn và chiều cao gốc.
+        'min-h-11 shrink-0 whitespace-nowrap lg:min-h-0 lg:shrink lg:whitespace-normal',
         'hover:text-ga-ink data-[state=active]:border-ga-accent data-[state=active]:text-ga-ink',
-        'outline-none focus-visible:text-ga-ink',
+        // Focus bàn phím phải NHÌN THẤY (F-05) — đổi màu chữ đơn thuần không đủ.
+        'outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset',
+        'disabled:pointer-events-none disabled:opacity-50',
         className,
       )}
       {...props}

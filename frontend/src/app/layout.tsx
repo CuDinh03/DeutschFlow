@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, Newsreader, Instrument_Sans, Be_Vietnam_Pro } from 'next/font/google'
+import { Inter, Newsreader, Be_Vietnam_Pro } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
 import { Toaster } from '@/components/ui/sonner'
@@ -18,22 +18,22 @@ const inter = Inter({
 })
 
 // ── Galerie 2.0 (UI 2.0) type — self-hosted via next/font; exposed as CSS vars
-// consumed ONLY inside `.ga-scope` (see src/styles/galerie.css). Legacy Inter body unchanged.
+// consumed ONLY inside `.ga-scope` (see src/styles/galerie.css). Legacy Inter body giữ nguyên
+// CHỈ cho cây legacy trong thời gian migration (D1 approved 26/08/2026).
+// Italic được tải thật vì landing (GaLanding) dùng emphasis italic cho trích dẫn/nhãn Đức —
+// trước đây trình duyệt phải synthesize (faux italic) do chỉ tải style normal.
 const newsreader = Newsreader({
   subsets: ['latin', 'latin-ext', 'vietnamese'],
+  style: ['normal', 'italic'],
   display: 'swap',
   variable: '--font-newsreader',
 })
-const instrumentSans = Instrument_Sans({
-  subsets: ['latin', 'latin-ext'],
-  display: 'swap',
-  variable: '--font-instrument-sans',
-})
-// Be Vietnam Pro — full Vietnamese diacritic coverage (Instrument Sans lacks the `vietnamese`
-// subset). Exposed as `--ga-vn` for surfaces that mix Vietnamese labels with SVG text.
+// Be Vietnam Pro — UI sans DUY NHẤT của Galerie (D1: thay Instrument Sans vốn không có subset
+// `vietnamese` → UI tiếng Việt từng render trộn glyph với system-ui). Chỉ 3 weight Design System
+// cho phép (DS §3.1: ui 400/500/600) — KHÔNG tải 700.
 const beVietnamPro = Be_Vietnam_Pro({
   subsets: ['latin', 'latin-ext', 'vietnamese'],
-  weight: ['400', '500', '600', '700'],
+  weight: ['400', '500', '600'],
   display: 'swap',
   variable: '--font-be-vietnam-pro',
 })
@@ -75,7 +75,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html
       lang={locale}
-      className={`${inter.variable} ${newsreader.variable} ${instrumentSans.variable} ${beVietnamPro.variable}`}
+      className={`${inter.variable} ${newsreader.variable} ${beVietnamPro.variable}`}
     >
       <body className={inter.className}>
         <NextIntlClientProvider locale={locale} messages={messages}>

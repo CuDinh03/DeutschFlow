@@ -28,5 +28,23 @@ export { ErrorBanner } from './ErrorBanner'
 export { SkeletonRow } from './SkeletonRow'
 export { LoadingState } from './LoadingState'
 export { SkillIcon } from './SkillIcon'
+// ── Wave 0 primitives (DS §8.2 + D6 adapter): control nhập liệu + progress + portal adapters.
+export { GaRoleProvider, useGaShellRole } from './gaScope'
+export { GaInput, GaTextarea } from './GaInput'
+export type { GaInputProps, GaTextareaProps } from './GaInput'
+export { GaProgress } from './GaProgress'
+export type { GaProgressProps } from './GaProgress'
+export { GaPopover, GaPopoverTrigger, GaPopoverContent, GaPopoverAnchor } from './GaPopover'
+export { GaTooltip, GaTooltipTrigger, GaTooltipContent } from './GaTooltip'
+export {
+  GaSelect,
+  GaSelectTrigger,
+  GaSelectValue,
+  GaSelectContent,
+  GaSelectItem,
+  GaSelectGroup,
+  GaSelectLabel,
+  GaSelectSeparator,
+} from './GaSelect'
 export { ROLE_NAV, teacherNav, adminNav, orgNav, managerNav } from './nav'
 export type { RoleId, RoleNav, NavSection, NavItem } from './nav'

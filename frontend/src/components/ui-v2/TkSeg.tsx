@@ -51,8 +51,11 @@ export function TkSeg<T extends string>({
             onClick={() => onValueChange(opt.value)}
             className={cn(
               'ga-ui px-3.5 py-2.5 text-[12.5px] font-semibold transition-colors',
-              // Trong vùng cuộn ngang, ô không được co lại; 40px chạm tay. lg trả về nguyên bản.
-              'min-h-[40px] shrink-0 whitespace-nowrap lg:min-h-0 lg:shrink lg:whitespace-normal',
+              // Trong vùng cuộn ngang, ô không được co lại; 44px chạm tay (F-06/D8). lg trả về nguyên bản.
+              'min-h-11 shrink-0 whitespace-nowrap lg:min-h-0 lg:shrink lg:whitespace-normal',
+              // Ring inset vì container overflow-hidden sẽ cắt mất ring offset.
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset',
+              'disabled:pointer-events-none disabled:opacity-50',
               active ? 'bg-ga-accent text-ga-accent-ink' : 'text-ga-muted hover:text-ga-ink',
             )}
           >

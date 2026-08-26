@@ -45,6 +45,12 @@ jobs:
         working-directory: ./frontend
         run: npm run check:i18n
 
+      # Design-token ratchet (Wave 0, W0-C1): chặn literal/arbitrary design value MỚI trên surface
+      # /v2 so với design-token-baseline.json. Baseline chỉ được giảm; CI và local chạy CÙNG lệnh.
+      - name: Design Token Ratchet
+        working-directory: ./frontend
+        run: npm run check:design-tokens
+
       - name: Unit Tests
         working-directory: ./frontend
         run: npm test -- --coverage

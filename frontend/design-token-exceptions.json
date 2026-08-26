@@ -1,0 +1,14 @@
+[
+  {
+    "file": "src/components/ui-v2/GaLogo.tsx",
+    "rule": "hex-literal",
+    "pattern": "#DA291C",
+    "reason": "Brand mark SVG — hex nằm trong asset logo để export được độc lập khỏi CSS var (DS §10.3 exception hợp lệ: hex trong asset SVG). Không chạm GaLogo trong Wave 0 (W0-C6)."
+  },
+  {
+    "file": "src/components/ui-v2/GaLogo.tsx",
+    "rule": "hex-literal",
+    "pattern": "#FFCD00",
+    "reason": "Brand mark SVG — như trên."
+  }
+]

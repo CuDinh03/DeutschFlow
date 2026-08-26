@@ -7,7 +7,8 @@ import { GaIcon } from './GaIcon'
 import { notificationApi, type NotificationItem } from '@/lib/notificationApi'
 import { subscribeNotificationUnread } from '@/lib/notificationStream'
 import { TYPE_TONE, TYPE_ICON, notifTitle, notifBody, relTime, resolveNotificationHref } from '@/lib/notificationDisplay'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { GaPopover, GaPopoverContent, GaPopoverTrigger } from './GaPopover'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import type { RoleId } from './nav'
 
@@ -22,6 +23,8 @@ import type { RoleId } from './nav'
  */
 export function NotificationBell({ role }: { role: RoleId }) {
   const router = useRouter()
+  // i18n primitive contract (W0-C8): copy qua namespace chung v2.ui.
+  const t = useTranslations('v2.ui')
   const [open, setOpen] = React.useState(false)
   const [unread, setUnread] = React.useState(0)
   const [items, setItems] = React.useState<NotificationItem[]>([])
@@ -91,12 +94,12 @@ export function NotificationBell({ role }: { role: RoleId }) {
       const href = resolveNotificationHref(top, role)
       toast(notifTitle(top), {
         description: notifBody(top) ?? undefined,
-        action: href ? { label: 'Xem', onClick: () => router.push(href) } : undefined,
+        action: href ? { label: t('view'), onClick: () => router.push(href) } : undefined,
       })
     } catch {
       /* toast is best-effort — the badge still updates */
     }
-  }, [role, router])
+  }, [role, router, t])
 
   // Live realtime updates — the SSE stream pushes the unread count on every change; refresh the
   // open panel so newly arrived items show without reopening, and pop a toast on a fresh arrival.
@@ -161,12 +164,12 @@ export function NotificationBell({ role }: { role: RoleId }) {
   }
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
+    <GaPopover gaRole={role} open={open} onOpenChange={onOpenChange}>
+      <GaPopoverTrigger asChild>
         <button
           type="button"
-          aria-label={unread > 0 ? `Thông báo (${unread} chưa đọc)` : 'Thông báo'}
-          className="relative grid h-[38px] w-[38px] place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink data-[state=open]:bg-ga-surface data-[state=open]:text-ga-ink"
+          aria-label={unread > 0 ? t('notificationsUnread', { count: unread }) : t('notifications')}
+          className="relative grid h-11 w-11 place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg data-[state=open]:bg-ga-surface data-[state=open]:text-ga-ink lg:h-[38px] lg:w-[38px]"
         >
           <GaIcon name="notifications" size={20} />
           {unread > 0 && (
@@ -174,40 +177,33 @@ export function NotificationBell({ role }: { role: RoleId }) {
               {/* Radar ping so a fresh count draws the eye; paused for reduced-motion users. */}
               <span
                 aria-hidden
-                className="pointer-events-none absolute -right-1 -top-1 h-[18px] w-[18px] rounded-full motion-safe:animate-ping"
-                style={{ background: '#ef4444', opacity: 0.5 }}
+                className="pointer-events-none absolute -right-1 -top-1 h-[18px] w-[18px] rounded-full bg-ga-red opacity-50 motion-safe:animate-ping"
               />
-              <span
-                className="absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold leading-none shadow-sm ring-2 ring-[var(--ga-hdr-bg)]"
-                style={{ background: '#ef4444', color: '#fff' }}
-              >
+              <span className="absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-ga-red px-1 text-[10px] font-bold leading-none text-ga-bg ring-2 ring-[var(--ga-hdr-bg)]">
                 {unread > 99 ? '99+' : unread}
               </span>
             </>
           )}
         </button>
-      </PopoverTrigger>
+      </GaPopoverTrigger>
 
-      <PopoverContent
+      {/* Portal scope contract (W0-C4): GaPopoverContent tự mang .ga-scope + data-role (từ gaRole). */}
+      <GaPopoverContent
         align="end"
         sideOffset={8}
-        className="ga-scope w-[min(100vw-2rem,24rem)] overflow-hidden rounded-ga border border-ga-line bg-ga-card p-0 text-ga-ink shadow-ga-panel"
+        className="w-[min(100vw-2rem,24rem)] overflow-hidden p-0"
       >
-        {/* `ga-scope` re-declares the design tokens on this portaled panel — Radix renders it on
-            document.body, OUTSIDE the app's .ga-scope, so bg-ga-card / border-ga-line / text-ga-*
-            would otherwise resolve to nothing and the panel renders transparent. `data-role`
-            re-applies the role accent (matches the .ga-scope [data-role] pattern in galerie.css). */}
-        <div data-role={role}>
+        <div>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-ga-line bg-ga-surface px-4 py-3">
-          <span className="font-ga-display text-[15px] font-semibold text-ga-ink">Thông báo</span>
+          <span className="font-ga-display text-[15px] font-semibold text-ga-ink">{t('notifications')}</span>
           {unread > 0 && (
             <button
               type="button"
               onClick={() => void markAll()}
-              className="ga-ui text-[12px] font-semibold text-ga-accent transition-opacity hover:opacity-70"
+              className="min-h-11 text-[12px] font-semibold text-ga-accent transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset lg:min-h-0"
             >
-              Đánh dấu đã đọc
+              {t('markAllRead')}
             </button>
           )}
         </div>
@@ -215,22 +211,22 @@ export function NotificationBell({ role }: { role: RoleId }) {
         {/* List */}
         <div className="max-h-[22rem] overflow-y-auto">
           {loading && items.length === 0 ? (
-            <p className="ga-ui px-4 py-8 text-center text-[13px] text-ga-muted">Đang tải…</p>
+            <p role="status" aria-live="polite" className="px-4 py-8 text-center text-[13px] text-ga-muted">{t('notificationsLoading')}</p>
           ) : err ? (
-            <div className="px-4 py-8 text-center">
-              <p className="ga-ui text-[13px] text-ga-muted">Không thể tải thông báo.</p>
+            <div role="alert" className="px-4 py-8 text-center">
+              <p className="text-[13px] text-ga-muted">{t('notificationsError')}</p>
               <button
                 type="button"
                 onClick={() => void fetchList()}
-                className="ga-ui mt-2 text-[12px] font-semibold text-ga-accent hover:opacity-70"
+                className="mt-2 min-h-11 text-[12px] font-semibold text-ga-accent hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset lg:min-h-0"
               >
-                Thử lại
+                {t('retry')}
               </button>
             </div>
           ) : items.length === 0 ? (
             <div className="px-4 py-10 text-center">
-              <p className="font-ga-display text-[15px] font-medium text-ga-ink">Chưa có thông báo</p>
-              <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">Các cập nhật mới sẽ hiện ở đây.</p>
+              <p className="font-ga-display text-[15px] font-medium text-ga-ink">{t('notificationsEmptyTitle')}</p>
+              <p className="mt-1 text-[12.5px] text-ga-muted">{t('notificationsEmptyBody')}</p>
             </div>
           ) : (
             items.map((n, i) => {
@@ -241,7 +237,7 @@ export function NotificationBell({ role }: { role: RoleId }) {
                   key={n.id}
                   type="button"
                   onClick={() => openNotification(n)}
-                  className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-ga-surface ${
+                  className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-ga-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset ${
                     i ? 'border-t border-ga-border' : ''
                   } ${!n.read ? 'bg-ga-accent-soft/40' : ''}`}
                 >
@@ -253,11 +249,11 @@ export function NotificationBell({ role }: { role: RoleId }) {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13px] font-semibold capitalize text-ga-ink">{notifTitle(n)}</p>
-                    {body && <p className="ga-ui mt-0.5 line-clamp-2 text-[12px] text-ga-muted">{body}</p>}
-                    <p className="ga-ui mt-1 text-[11px] text-ga-subtle">{relTime(n.createdAtUtc)}</p>
+                    {body && <p className="mt-0.5 line-clamp-2 text-[12px] text-ga-muted">{body}</p>}
+                    <p className="mt-1 text-[11px] text-ga-subtle">{relTime(n.createdAtUtc)}</p>
                   </div>
                   {!n.read && (
-                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-ga-accent" aria-label="chưa đọc" />
+                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-ga-accent" aria-label={t('unread')} />
                   )}
                 </button>
               )
@@ -270,13 +266,13 @@ export function NotificationBell({ role }: { role: RoleId }) {
           <Link
             href={`/v2/notifications?from=${role}`}
             onClick={() => setOpen(false)}
-            className="ga-ui block text-center text-[12px] font-semibold text-ga-accent transition-opacity hover:opacity-70"
+            className="block min-h-11 content-center text-center text-[12px] font-semibold text-ga-accent transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset lg:min-h-0"
           >
-            Xem tất cả thông báo →
+            {t('viewAllNotifications')}
           </Link>
         </div>
         </div>
-      </PopoverContent>
-    </Popover>
+      </GaPopoverContent>
+    </GaPopover>
   )
 }

@@ -90,7 +90,7 @@ export function GaSidebar({ nav }: GaSidebarProps) {
           'transition-transform duration-200 ease-out',
           // lg+: trả lại rail tĩnh 248px như thiết kế gốc (không hiệu ứng, không đổ bóng).
           'lg:static lg:z-auto lg:w-[248px] lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:shadow-none lg:transition-none',
-          open ? 'translate-x-0 shadow-[0_16px_48px_rgba(22,21,19,0.18)]' : '-translate-x-full',
+          open ? 'translate-x-0 shadow-ga-drawer' : '-translate-x-full',
         )}
       >
         <div className="mb-2 flex items-center justify-between gap-2">
@@ -98,8 +98,8 @@ export function GaSidebar({ nav }: GaSidebarProps) {
           <button
             type="button"
             onClick={close}
-            aria-label="Đóng menu"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-ga text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink lg:hidden"
+            aria-label={t('ui.closeNav')}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-ga text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset lg:hidden"
           >
             <GaIcon name="close" size={20} />
           </button>
@@ -126,11 +126,11 @@ export function GaSidebar({ nav }: GaSidebarProps) {
                     href={item.href}
                     onClick={close}
                     aria-current={active ? 'page' : undefined}
-                    style={active ? { boxShadow: 'inset 3px 0 0 var(--ga-accent)' } : undefined}
                     className={cn(
-                      'flex items-center gap-3 rounded-ga px-3 py-2.5 text-[14.5px] transition-colors',
+                      'flex min-h-11 items-center gap-3 rounded-ga px-3 py-2.5 text-[14.5px] transition-colors lg:min-h-0',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset',
                       active
-                        ? 'bg-ga-accent-soft font-semibold text-ga-accent'
+                        ? 'bg-ga-accent-soft font-semibold text-ga-accent shadow-ga-selected-bar'
                         : 'font-medium text-ga-muted hover:bg-ga-surface hover:text-ga-ink',
                     )}
                   >
@@ -162,7 +162,7 @@ export function GaSidebar({ nav }: GaSidebarProps) {
           <button
             type="button"
             onClick={() => { close(); void logout() }}
-            className="mt-3 flex w-full items-center gap-3 rounded-ga px-3 py-2.5 text-[14.5px] font-medium text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink"
+            className="mt-3 flex min-h-11 w-full items-center gap-3 rounded-ga px-3 py-2.5 text-[14.5px] font-medium text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset lg:min-h-0"
           >
             <GaIcon name="logout" size={18} className="text-ga-subtle" />
             <span>{t('shell.logout')}</span>

@@ -195,3 +195,11 @@ test-*.js
 
 # Scratch/temp scripts — thường chứa key hardcode, không commit
 scratch/
+
+# ── Gate evidence (Wave 0, UI redesign) — exception PHẠM VI HẸP, duy nhất cho docs/wave0-gate/.
+# `docs/` và `*.png` ở trên ignore toàn cục; khối này chỉ mở lại đúng thư mục evidence để
+# artifact Gate không biến mất khi clone/handoff. KHÔNG mở rộng cho docs/ hoặc *.png nói chung.
+!docs/
+docs/*
+!docs/wave0-gate/
+!docs/wave0-gate/**

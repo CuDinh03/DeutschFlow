@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { GaSidebar } from './GaSidebar'
 import { GaTopBar } from './GaTopBar'
 import { GaShellNavProvider } from './GaShellNav'
+import { GaRoleProvider } from './gaScope'
 import { ROLE_NAV, type RoleId } from './nav'
 
 /**
@@ -24,6 +25,9 @@ export interface GaShellProps {
 
 export function GaShell({ role, children, className }: GaShellProps) {
   return (
+    // GaRoleProvider (Gate 0 remediation #1): khai role MỘT lần cho cả cây — portal components
+    // (TkModal, GaPopover/GaTooltip/GaSelect) tự nhận đúng data-role, page không phải truyền tay.
+    <GaRoleProvider role={role}>
     <GaShellNavProvider>
       <div
         data-role={role}
@@ -39,5 +43,6 @@ export function GaShell({ role, children, className }: GaShellProps) {
         </div>
       </div>
     </GaShellNavProvider>
+    </GaRoleProvider>
   )
 }

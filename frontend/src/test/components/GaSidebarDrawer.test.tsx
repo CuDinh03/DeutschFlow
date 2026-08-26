@@ -56,8 +56,10 @@ function renderShellNav() {
   )
 }
 
+// Wave 0 (W0-C8): aria-label chuyển qua i18n (v2.ui) — mock next-intl trả về key,
+// nên accessible name giờ là KEY ('openNav' / 'ui.closeNav'), không phải chuỗi tiếng Việt.
 const drawer = () => document.getElementById('ga-shell-sidebar') as HTMLElement
-const toggle = () => screen.getByRole('button', { name: 'Mở menu điều hướng' })
+const toggle = () => screen.getByRole('button', { name: 'openNav' })
 
 describe('GaSidebar — ngăn kéo mobile', () => {
   it('mặc định đóng: aside trượt khỏi màn hình, hamburger aria-expanded=false', () => {
@@ -77,7 +79,7 @@ describe('GaSidebar — ngăn kéo mobile', () => {
   it('bấm nút đóng (X) trong ngăn kéo thì đóng lại', () => {
     renderShellNav()
     fireEvent.click(toggle())
-    fireEvent.click(screen.getByRole('button', { name: 'Đóng menu' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ui.closeNav' }))
     expect(drawer().className).toContain('-translate-x-full')
   })
 

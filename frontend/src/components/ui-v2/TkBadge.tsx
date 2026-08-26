@@ -10,7 +10,10 @@ const badgeVariants = cva(
   'ga-ui inline-flex items-center gap-1 rounded-ga-pill px-2 py-0.5 text-[11px] font-semibold leading-none',
   {
     variants: {
-      variant: { soft: '', solid: 'text-white' },
+      // `text-ga-bg` (giấy sáng) thay `text-white` thô: cùng vai trò "chữ trên nền đậm" như GaBtn
+      // variant ink. KHÔNG dùng --ga-accent-ink ở đây — nó đổi theo role (student = ink tối) và sẽ
+      // phá độ tương phản của badge tone cố định (green/red/blue…).
+      variant: { soft: '', solid: 'text-ga-bg' },
       tone: {
         neutral: '',
         green: '',

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { GaIcon } from './GaIcon'
 import { GaSidebarToggle } from './GaShellNav'
 import { TeacherPendingPill } from './TeacherPendingPill'
@@ -31,24 +32,26 @@ const HELP_HREF: Record<RoleId, string> = {
   admin: '/support',
 }
 
-const ROLE_CHIP: Record<RoleId, string> = {
-  admin: '● Hệ thống ổn định',
-  teacher: 'Khu vực giáo viên',
-  org: 'Khu vực tổ chức',
-  student: 'Khu vực học viên',
+// Khóa i18n cho chip vai trò (v2.ui.*) — copy qua catalog, không hardcode (W0-C8).
+const ROLE_CHIP_KEY: Record<RoleId, string> = {
+  admin: 'roleChipAdmin',
+  teacher: 'roleChipTeacher',
+  org: 'roleChipOrg',
+  student: 'roleChipStudent',
 }
 
 export function GaTopBar({ role }: GaTopBarProps) {
+  const t = useTranslations('v2.ui')
   return (
     <header className="flex h-[58px] shrink-0 items-center gap-3 border-b border-ga-line bg-ga-card px-4 lg:gap-4 lg:px-6">
       <GaSidebarToggle />
 
-      <label className="hidden max-w-[420px] flex-1 items-center gap-2.5 rounded-ga border border-ga-line bg-ga-surface px-3.5 py-2.5 lg:flex">
+      <label className="hidden max-w-[420px] flex-1 items-center gap-2.5 rounded-ga border border-ga-line bg-ga-surface px-3.5 py-2.5 focus-within:ring-2 focus-within:ring-ga-focus lg:flex">
         <GaIcon name="search" size={18} className="text-ga-subtle" />
         <input
           type="search"
-          placeholder="Tìm bài học, từ vựng, lớp…"
-          aria-label="Tìm kiếm"
+          placeholder={t('searchPlaceholder')}
+          aria-label={t('search')}
           className="ga-ui min-w-0 flex-1 border-none bg-transparent text-[14px] text-ga-ink outline-none placeholder:text-ga-subtle"
         />
       </label>
@@ -56,11 +59,8 @@ export function GaTopBar({ role }: GaTopBarProps) {
       <div className="ml-auto flex items-center gap-2 sm:gap-3.5">
         {/* Chip vai trò: trang trí, ẩn dưới md để nhường chỗ trên màn hình hẹp. */}
         {role === 'admin' ? (
-          <span
-            className="hidden whitespace-nowrap rounded-ga px-3 py-[7px] text-[12.5px] font-semibold md:inline-flex"
-            style={{ background: 'rgba(30,158,97,0.12)', color: '#1E9E61' }}
-          >
-            {ROLE_CHIP.admin}
+          <span className="hidden whitespace-nowrap rounded-ga bg-ga-green-soft px-3 py-[7px] text-[12.5px] font-semibold text-ga-green md:inline-flex">
+            {t(ROLE_CHIP_KEY.admin)}
           </span>
         ) : role === 'teacher' ? (
           <div className="hidden md:block">
@@ -68,7 +68,7 @@ export function GaTopBar({ role }: GaTopBarProps) {
           </div>
         ) : (
           <span className="hidden whitespace-nowrap rounded-ga bg-ga-accent-soft px-3 py-[7px] text-[12.5px] font-semibold text-ga-accent md:inline-flex">
-            {ROLE_CHIP[role]}
+            {t(ROLE_CHIP_KEY[role])}
           </span>
         )}
 
@@ -78,8 +78,8 @@ export function GaTopBar({ role }: GaTopBarProps) {
 
         <Link
           href={HELP_HREF[role]}
-          aria-label="Trợ giúp"
-          className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink"
+          aria-label={t('help')}
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg lg:h-[38px] lg:w-[38px]"
         >
           <GaIcon name="help" size={20} />
         </Link>

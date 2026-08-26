@@ -3,7 +3,10 @@
 import * as React from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
+import { useGaShellRole } from './gaScope'
+import type { RoleId } from './nav'
 
 /** TkModal — overlay dialog (manifest TkModal: variants sm|md|lg, open|closed). Wraps Radix Dialog. */
 const SIZE = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl' } as const
@@ -17,6 +20,10 @@ export interface TkModalProps {
   children: React.ReactNode
   /** Sticky footer slot (actions). */
   footer?: React.ReactNode
+  /** Override nhãn nút đóng (i18n contract W0-C8: default từ v2.ui, prop để tuỳ ngữ cảnh). */
+  closeLabel?: string
+  /** Override role accent cho portal content; mặc định lấy từ GaShell context (remediation #1). */
+  gaRole?: RoleId
   className?: string
 }
 
@@ -28,13 +35,24 @@ export function TkModal({
   size = 'md',
   children,
   footer,
+  closeLabel,
+  gaRole,
   className,
 }: TkModalProps) {
+  const t = useTranslations('v2.ui')
+  // Portal scope contract (W0-C4 + remediation #1): content ra ngoài .ga-scope nên tự mang
+  // class + data-role; role đến từ GaShell context (không phải sửa từng page), prop override được.
+  const shellRole = useGaShellRole()
+  const role = gaRole ?? shellRole
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in" />
+        {/* Overlay portaled ra body — NGOÀI .ga-scope — nên phải tự mang ga-scope để
+            bg-ga-overlay resolve được token (portal scope contract W0-C4). */}
+        <Dialog.Overlay className="ga-scope fixed inset-0 z-[100] bg-ga-overlay backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in" />
         <Dialog.Content
+          data-slot="tk-modal-content"
+          data-role={role}
           className={cn(
             // `max-h-[90dvh]` dưới lg: thanh công cụ động của trình duyệt mobile làm 90vh vượt
             // quá vùng nhìn thấy → footer bị đẩy khuất. Từ lg giữ nguyên 90vh như thiết kế gốc.
@@ -58,8 +76,8 @@ export function TkModal({
                 )}
               </div>
               <Dialog.Close
-                aria-label="Đóng"
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink"
+                aria-label={closeLabel ?? t('close')}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset lg:h-8 lg:w-8"
               >
                 <X size={16} />
               </Dialog.Close>
