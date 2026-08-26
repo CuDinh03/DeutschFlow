@@ -10,7 +10,7 @@ import { getOrgRole, logout } from '@/lib/authSession'
 import { GaLogo } from './GaLogo'
 import { GaIcon } from './GaIcon'
 import { useGaShellNav } from './GaShellNav'
-import { managerNav } from './nav'
+import { managerNav, ROLE_AREAS, resolveArea } from './nav'
 import type { RoleNav } from './nav'
 
 /**
@@ -65,6 +65,9 @@ export function GaSidebar({ nav }: GaSidebarProps) {
   React.useEffect(() => { setIsOwner(getOrgRole() === 'OWNER') }, [])
 
   const resolved: RoleNav = nav.role === 'org' && !isOwner ? managerNav : nav
+  // Student/teacher đã chuyển sang area navigation (Wave 1 / S-01); admin/org vẫn dùng sections.
+  const roleAreas = ROLE_AREAS[resolved.role]
+  const activeArea = roleAreas ? resolveArea(roleAreas, pathname) : undefined
   const roleLabel = t(`nav.roles.${resolved.roleLabelKey ?? resolved.role}`)
   const displayName = user?.displayName || roleLabel
   const email = user?.email || ''
@@ -108,6 +111,75 @@ export function GaSidebar({ nav }: GaSidebarProps) {
           {roleLabel}
         </span>
 
+        {/* ── Area navigation (student/teacher — Wave 1 / S-01) ────────────────
+            Persistent nav chỉ còn các AREA theo ý định người dùng; destination cũ nằm ở
+            GaLocalNav (cấp 2) và account menu. Dưới md, danh sách area được ẩn vì bottom
+            nav đã phủ — ngăn kéo lúc đó chỉ còn utility (IA §10.1). */}
+        {roleAreas ? (
+          <>
+            <nav
+              className="hidden flex-1 space-y-0.5 overflow-y-auto md:block"
+              aria-label={t('ui.areaNav')}
+            >
+              {roleAreas.areas.map((area) => {
+                const active = activeArea?.id === area.id
+                return (
+                  <Link
+                    key={area.id}
+                    href={area.href}
+                    onClick={close}
+                    aria-current={active ? 'page' : undefined}
+                    // Nhãn Đức + nghĩa tiếng Việt trong accessible name (song ngữ theo trình độ,
+                    // không tooltip-only và không in hai dòng thường trực).
+                    aria-label={`${t(`nav.areas.${area.id}`)} — ${t(`nav.areaHelper.${area.id}`)}`}
+                    className={cn(
+                      'flex min-h-11 items-center gap-3 rounded-ga px-3 py-2.5 transition-colors lg:min-h-0',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset',
+                      active
+                        ? 'bg-ga-accent-soft font-semibold text-ga-accent shadow-ga-selected-bar'
+                        : 'font-medium text-ga-muted hover:bg-ga-surface hover:text-ga-ink',
+                    )}
+                  >
+                    <GaIcon name={area.icon} size={18} className={active ? 'text-ga-accent' : 'text-ga-subtle'} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-ga-body leading-tight">
+                        {t(`nav.areas.${area.id}`)}
+                      </span>
+                      <span className="block truncate text-ga-caption font-normal text-ga-subtle">
+                        {t(`nav.areaHelper.${area.id}`)}
+                      </span>
+                    </span>
+                  </Link>
+                )
+              })}
+            </nav>
+
+            {/* Utility: dưới md đây là toàn bộ nội dung ngăn kéo. */}
+            <nav className="mt-4 flex-1 space-y-0.5 md:mt-6 md:flex-none" aria-label={t('ui.account')}>
+              <p className="px-3 pb-2 text-ga-eyebrow uppercase text-ga-subtle">{t('ui.account')}</p>
+              {roleAreas.utility.map((item) => (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  onClick={close}
+                  aria-current={isActive(item.href, resolved.rootHref, pathname) ? 'page' : undefined}
+                  className={cn(
+                    'flex min-h-11 items-center gap-3 rounded-ga px-3 py-2.5 text-ga-body font-medium transition-colors lg:min-h-0',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset',
+                    isActive(item.href, resolved.rootHref, pathname)
+                      ? 'bg-ga-accent-soft font-semibold text-ga-accent'
+                      : 'text-ga-muted hover:bg-ga-surface hover:text-ga-ink',
+                  )}
+                >
+                  <GaIcon name={item.icon} size={18} className="text-ga-subtle" />
+                  <span className="truncate">
+                    {t.has(`nav.items.${item.id}`) ? t(`nav.items.${item.id}`) : item.label}
+                  </span>
+                </Link>
+              ))}
+            </nav>
+          </>
+        ) : (
         <nav className="flex-1 space-y-5 overflow-y-auto" aria-label={t('shell.mainNav')}>
           {resolved.sections.map((section, si) => (
             <div key={section.labelKey ?? section.label ?? si} className="space-y-0.5">
@@ -148,6 +220,7 @@ export function GaSidebar({ nav }: GaSidebarProps) {
             </div>
           ))}
         </nav>
+        )}
 
         <div className="mt-auto border-t border-ga-line pt-4">
           <div className="flex items-center gap-3">

@@ -1,7 +1,7 @@
 # UI Redesign — Session Handoff (26/08/2026)
 
 > **File này là điểm vào duy nhất cho session sau.** Nó gộp toàn bộ trạng thái, quyết định, và nội dung memory của track UI/UX redesign — session sau KHÔNG cần lịch sử chat, KHÔNG cần memory máy cũ.
-> **Trạng thái chốt lúc handoff:** Phase 1–4 **APPROVED** · Phase 5 / **Wave 0 implemented** (2 vòng remediation theo review của owner) · **Gate 0 PENDING owner approval** · **Wave 1 CHƯA bắt đầu** · **CHƯA commit/push bất cứ thứ gì**.
+> **Trạng thái (cập nhật 26/08 sau Gate 0):** Phase 1–4 **APPROVED** · **Gate 0 APPROVED** (kèm exception CLS/LCP before/after unavailable) · **Wave 0 đã commit** `5a9b6127` (chỉ file Wave 0, tách khỏi thay đổi của owner) · **Wave 1: S-01 + S-13 implemented, chờ checkpoint review** → đọc `WAVE_1_CHECKPOINT_S01_S13.md` · **S-02/S-03 chưa bắt đầu · Wave 1 chưa commit · chưa push**.
 
 ---
 

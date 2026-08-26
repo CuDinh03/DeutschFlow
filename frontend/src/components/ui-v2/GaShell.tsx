@@ -4,6 +4,8 @@ import { GaSidebar } from './GaSidebar'
 import { GaTopBar } from './GaTopBar'
 import { GaShellNavProvider } from './GaShellNav'
 import { GaRoleProvider } from './gaScope'
+import { GaLocalNav } from './GaLocalNav'
+import { GaBottomNav } from './GaBottomNav'
 import { ROLE_NAV, type RoleId } from './nav'
 
 /**
@@ -39,7 +41,13 @@ export function GaShell({ role, children, className }: GaShellProps) {
         <GaSidebar nav={ROLE_NAV[role]} />
         <div className="flex min-w-0 flex-1 flex-col">
           <GaTopBar role={role} />
+          {/* Điều hướng cấp 2 của area (Wave 1 / S-01) — chrome của shell nên mọi màn đều có
+              đường vào đầy đủ mà không phải sửa page. Tự ẩn khi area không có local nav. */}
+          <GaLocalNav role={role} />
           <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+          {/* Bottom nav web <768px (S-13). Là anh em flex của <main>, không phải overlay
+              `fixed`, nên không cần padding bù và không bao giờ che nội dung. */}
+          <GaBottomNav role={role} />
         </div>
       </div>
     </GaShellNavProvider>

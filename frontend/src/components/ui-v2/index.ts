@@ -48,3 +48,9 @@ export {
 } from './GaSelect'
 export { ROLE_NAV, teacherNav, adminNav, orgNav, managerNav } from './nav'
 export type { RoleId, RoleNav, NavSection, NavItem } from './nav'
+// ── Wave 1 / S-01 + S-13: area navigation (IA-D1/D6/D7)
+export { ROLE_AREAS, studentAreas, teacherAreas, resolveArea, isUnder, isImmersiveRoute } from './nav'
+export type { AreaNav, RoleAreas } from './nav'
+export { GaLocalNav } from './GaLocalNav'
+export { GaBottomNav } from './GaBottomNav'
+export { GaAccountMenu } from './GaAccountMenu'

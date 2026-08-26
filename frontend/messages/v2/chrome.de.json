@@ -80,7 +80,9 @@
       "grammar-drafts": "Grammatikaufgaben",
       "exercises": "Übungsaufgaben",
       "org-timesheets": "Arbeitszeit",
-      "tc-timesheet": "Arbeitszeit"
+      "tc-timesheet": "Arbeitszeit",
+      "interviews": "AI Interview",
+      "speaking-history": "Sprechverlauf"
     },
     "sections": {
       "classMgmt": "Kursverwaltung",
@@ -101,6 +103,32 @@
       "org": "Organisation",
       "student": "Schüler",
       "manager": "Leitung"
+    },
+    "areas": {
+      "heute": "Heute",
+      "lernen": "Lernen",
+      "sprechen": "Sprechen",
+      "pruefung": "Prüfung",
+      "fortschritt": "Fortschritt",
+      "tHeute": "Heute",
+      "tKlassen": "Klassen",
+      "tBewerten": "Bewerten",
+      "tMaterialien": "Materialien",
+      "tBerichte": "Berichte",
+      "more": "Mehr"
+    },
+    "areaHelper": {
+      "heute": "Heute",
+      "lernen": "Lernen",
+      "sprechen": "Sprechen",
+      "pruefung": "Prüfung",
+      "fortschritt": "Fortschritt",
+      "tHeute": "Heute",
+      "tKlassen": "Klassen",
+      "tBewerten": "Bewerten",
+      "tMaterialien": "Materialien",
+      "tBerichte": "Berichte",
+      "more": "Mehr"
     }
   },
   "shell": {
@@ -155,6 +183,11 @@
     "pendingGrading": "{count} Abgaben zu bewerten",
     "loading": "Wird geladen…",
     "openRow": "Details öffnen",
-    "actions": "Aktionen"
+    "actions": "Aktionen",
+    "account": "Konto",
+    "messages": "Nachrichten",
+    "more": "Mehr",
+    "areaNav": "Bereichsnavigation",
+    "sectionNav": "Navigation im Bereich"
   }
 }
