@@ -42,7 +42,14 @@ export const examSpeakingApi = {
     const form = new FormData()
     form.append('audio', blob, filename)
     return api.post<TurnResponse>(`/speaking/exam/sessions/${id}/turns`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      // Content-Type PHẢI được gỡ, và gỡ TƯỜNG MINH — không phải bỏ trắng.
+      //   • Đặt tay 'multipart/form-data' là gửi header không có `boundary`; chỉ trình duyệt mới
+      //     sinh được boundary lúc tuần tự hoá FormData.
+      //   • Nhưng bỏ hẳn khoá này thì request thừa hưởng default 'application/json' của instance
+      //     (lib/api.ts), và `transformRequest` của axios đọc đúng header đó rồi JSON-hoá FormData
+      //     (axios defaults/index.js — `hasJSONContentType`) ⇒ bản ghi âm biến mất, lượt nói mất trắng.
+      // `null` unset khoá cho riêng request này; browser tự gắn multipart + boundary.
+      headers: { 'Content-Type': null },
       params: lang ? { lang } : undefined,
       timeout: TURN_TIMEOUT_MS,
     })

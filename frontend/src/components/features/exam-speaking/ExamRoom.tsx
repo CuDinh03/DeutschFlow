@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Volume2, VolumeX, Flag, ChevronRight, RotateCcw, ArrowLeft, Mic, Ear, Loader2 } from 'lucide-react'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
-import { apiMessage } from '@/lib/api'
+import { apiMessage, httpStatus } from '@/lib/api'
+import { MAX_TRANSCRIBE_BYTES } from '@/lib/voiceRecorder'
 import type { BlueprintSummary, ExamResultView, ExamSessionView, RoomLine, TurnResponse } from '@/types/exam-speaking'
 import { GaBtn, GaCap, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { StimulusCard } from './StimulusCard'
@@ -177,8 +178,23 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
     [session, speakSequence],
   )
 
+  // Chốt chống nộp trùng ở tầng phòng thi. `busy` là state nên hai lượt gửi trong cùng một tick
+  // React đều thấy `busy === false` và cùng đi qua — mỗi lượt thừa là một lần trừ quota AI và một
+  // dòng transcript ma. Ref cập nhật đồng bộ nên lượt thứ hai bị chặn ngay.
+  const inFlightRef = useRef(false)
+
   const submitAudio = useCallback(
     async (blob: Blob) => {
+      if (inFlightRef.current) return
+      // Guard client theo ĐÚNG trần của endpoint phiên âm (8MB), không phải trần multipart 25MB
+      // của Spring. Với trần 180s + bitrate hiện tại, một lượt nói chỉ ~1,4MB nên nhánh này gần
+      // như không bao giờ chạy; nó tồn tại để trình duyệt nào lờ `audioBitsPerSecond` cũng nhận
+      // được câu giải thích đúng việc thay vì lời khuyên "dùng presigned upload" của Materials.
+      if (blob.size > MAX_TRANSCRIBE_BYTES) {
+        setError(t('audioTooLarge'))
+        return
+      }
+      inFlightRef.current = true
       setBusy(true)
       setError(null)
       const startedAt = performance.now()
@@ -188,16 +204,19 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
         const { data } = await examSpeakingApi.audioTurn(sessionId, blob, `turn.${ext}`, locale)
         applyTurn(data, '', startedAt)
       } catch (e) {
-        setError(apiMessage(e))
+        setError(httpStatus(e) === 413 ? t('audioTooLarge') : apiMessage(e))
       } finally {
+        inFlightRef.current = false
         setBusy(false)
       }
     },
-    [applyTurn, interruptSpeech, locale, sessionId],
+    [applyTurn, interruptSpeech, locale, sessionId, t],
   )
 
   const submitText = useCallback(
     async (text: string) => {
+      if (inFlightRef.current) return
+      inFlightRef.current = true
       setBusy(true)
       setError(null)
       const startedAt = performance.now()
@@ -208,6 +227,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       } catch (e) {
         setError(apiMessage(e))
       } finally {
+        inFlightRef.current = false
         setBusy(false)
       }
     },

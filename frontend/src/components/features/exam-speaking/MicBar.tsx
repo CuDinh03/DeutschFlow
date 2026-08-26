@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Mic, Square, Keyboard, Send, Loader2 } from 'lucide-react'
-import { startRecorder, type RecorderHandle } from '@/lib/voiceRecorder'
+import { DEFAULT_MAX_RECORDING_MS, startRecorder, type RecorderHandle } from '@/lib/voiceRecorder'
 import { classifyMicError, type MicErrorKind } from '@/lib/micErrors'
 import { useMicPermission } from '@/hooks/useMicPermission'
 import { GaBtn } from '@/components/ui-v2'
@@ -18,17 +18,45 @@ interface Props {
   hint: string
 }
 
+/** mm:ss cho đồng hồ đếm ngược của lượt thu. */
+function mmss(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000))
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
 /** Thanh thu âm bấm-để-nói / bấm-để-gửi + fallback bàn phím (drill). Trạng thái qua role="status". */
 export function MicBar({ disabled, busy, allowText, onAudio, onText, hint }: Props) {
   const t = useTranslations('v2.student.examSpeaking.mic')
   const [recording, setRecording] = useState(false)
+  const [remainingMs, setRemainingMs] = useState(DEFAULT_MAX_RECORDING_MS)
   const [textMode, setTextMode] = useState(false)
   const [text, setText] = useState('')
   const [error, setError] = useState<{ kind: MicErrorKind; message: string } | null>(null)
   const recorderRef = useRef<RecorderHandle | null>(null)
   const micPermission = useMicPermission()
 
-  useEffect(() => () => recorderRef.current?.stop(), [])
+  // `onAudio` của ExamRoom đổi identity mỗi lần session thay đổi, nhưng callback đã nằm trong
+  // recorder từ lúc bắt đầu thu. Đi qua ref để lượt nộp luôn dùng bản mới nhất thay vì bản
+  // đóng băng lúc bấm mic (nếu không, applyTurn ghép lượt vào đúng Teil cũ).
+  const onAudioRef = useRef(onAudio)
+  onAudioRef.current = onAudio
+
+  // Chống bấm kép: `start()` có một khe `await` (getUserMedia) mà trong đó nút vẫn còn trên màn
+  // hình. Hai lần chạm nhanh trên mobile sẽ tạo HAI MediaRecorder trên hai stream, ref chỉ giữ
+  // cái sau — cái trước thu mãi không ai dừng và giữ mic sáng. Cờ này khoá ngay từ lần chạm đầu.
+  const startingRef = useRef(false)
+  const unmountedRef = useRef(false)
+
+  useEffect(() => {
+    unmountedRef.current = false
+    // Unmount = huỷ, KHÔNG phải dừng-và-nộp: người dùng rời màn hình thì lượt nói dở dang không
+    // được tự gửi (và setState sau unmount cũng không hợp lệ). `cancel()` vẫn trả mic về OS.
+    return () => {
+      unmountedRef.current = true
+      recorderRef.current?.cancel()
+      recorderRef.current = null
+    }
+  }, [])
 
   // Người dùng vừa cấp quyền trong cài đặt trình duyệt → lỗi "denied" hết hiệu lực, tự dọn (QS-1).
   useEffect(() => {
@@ -38,20 +66,54 @@ export function MicBar({ disabled, busy, allowText, onAudio, onText, hint }: Pro
   }, [micPermission])
 
   const start = useCallback(async () => {
+    if (startingRef.current || recorderRef.current) return
+    startingRef.current = true
     setError(null)
+    setRemainingMs(DEFAULT_MAX_RECORDING_MS)
     try {
-      recorderRef.current = await startRecorder((blob) => {
-        recorderRef.current = null
-        setRecording(false)
-        if (blob.size > 0) void onAudio(blob)
-      })
+      const handle = await startRecorder(
+        (blob) => {
+          recorderRef.current = null
+          setRecording(false)
+          setRemainingMs(DEFAULT_MAX_RECORDING_MS)
+          // Recorder bảo đảm callback này chạy tối đa MỘT lần cho mỗi lần thu, nên dù hết giờ
+          // và người dùng bấm dừng cùng lúc thì lượt vẫn chỉ nộp một lần.
+          if (blob.size > 0) {
+            void onAudioRef.current(blob)
+            return
+          }
+          // Không nộp blob rỗng — nhưng cũng KHÔNG được im lặng. Trước đây nhánh này trả UI về
+          // trạng thái nghỉ không một lời nào: học viên nói xong, bấm dừng, và không có gì xảy
+          // ra. Mic bị OS thu hồi giữa chừng hoặc watchdog chốt sổ trước khi có chunk nào đều
+          // rơi vào đây, nên phải hiện lỗi có nút thử lại.
+          setError({ kind: 'unknown', message: t('errors.unknown') })
+        },
+        {
+          maxDurationMs: DEFAULT_MAX_RECORDING_MS,
+          // Recorder tick nhanh hơn giây để đồng hồ không trễ nhịp, nhưng chỉ nhận state khi chữ
+          // số hiển thị thật sự đổi — 180 lần render thay vì 720 trong ba phút cầm máy.
+          onTick: (elapsed) =>
+            setRemainingMs((prev) => {
+              const next = Math.max(0, DEFAULT_MAX_RECORDING_MS - elapsed)
+              return Math.ceil(prev / 1000) === Math.ceil(next / 1000) ? prev : next
+            }),
+        },
+      )
+      // Component đã unmount trong lúc chờ getUserMedia → huỷ ngay, đừng để mic sáng mồ côi.
+      if (unmountedRef.current) {
+        handle.cancel()
+        return
+      }
+      recorderRef.current = handle
       setRecording(true)
     } catch (e) {
       const info = classifyMicError(e)
       setError({ kind: info.kind, message: t(`errors.${info.kind}`) })
       setTextMode(allowText)
+    } finally {
+      startingRef.current = false
     }
-  }, [allowText, onAudio, t])
+  }, [allowText, t])
 
   const stop = useCallback(() => {
     recorderRef.current?.stop()
@@ -67,7 +129,19 @@ export function MicBar({ disabled, busy, allowText, onAudio, onText, hint }: Pro
   return (
     <div className="rounded-ga border border-ga-line bg-ga-card p-3" data-testid="mic-bar">
       <p className="ga-ui mb-2 text-[13px] text-ga-muted" role="status">
-        {busy ? t('sending') : recording ? t('recording') : hint}
+        {busy ? (
+          t('sending')
+        ) : recording ? (
+          // tabular-nums + span riêng: đồng hồ đổi mỗi giây mà không làm câu chữ nhảy trên mobile.
+          <>
+            {t('recording')}{' '}
+            <span className="font-semibold tabular-nums text-ga-ink" data-testid="mic-remaining">
+              {mmss(remainingMs)}
+            </span>
+          </>
+        ) : (
+          hint
+        )}
       </p>
       {textMode ? (
         <form
