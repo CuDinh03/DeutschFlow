@@ -46,7 +46,48 @@
       "recentAch": "Recent achievements",
       "viewAllAch": "View all achievements",
       "beginnerTitle": "Start your first session",
-      "beginnerDesc": "10 core German words + a chat with the AI"
+      "beginnerDesc": "10 core German words + a chat with the AI",
+      "continue": {
+        "eyebrow": "Weiterlernen",
+        "progressLabel": "Chapter progress",
+        "lessons": "{done}/{total} lessons done",
+        "cta": "Weiterlernen",
+        "ctaHelper": "Continue learning",
+        "startEyebrow": "Erste Lektion",
+        "startTitle": "Start your first lesson",
+        "startDesc": "We will walk you through the first lesson, step by step.",
+        "startCta": "Start",
+        "doneEyebrow": "Lernweg",
+        "doneTitle": "You finished everything unlocked",
+        "doneDesc": "Open the learning path to pick the next stage or review what you finished.",
+        "doneCta": "Open learning path"
+      },
+      "today": {
+        "eyebrow": "Heute",
+        "empty": "Nothing due today. Continuing above is enough.",
+        "srs": "Review due vocabulary",
+        "srsMeta": "{count} items due",
+        "speaking": "Speak with the AI",
+        "weekly": "Weekly speaking task",
+        "repair": "Fix your frequent mistake"
+      },
+      "habit": {
+        "label": "Study habit",
+        "streak": "day streak",
+        "level": "Level {level}",
+        "xpToNext": "{xp} XP to go"
+      },
+      "journey": {
+        "eyebrow": "Lernweg",
+        "completion": "{done}/{total} stages · {percent}%",
+        "viewAll": "View the whole path",
+        "status": {
+          "completed": "Done",
+          "inProgress": "In progress",
+          "available": "Ready",
+          "locked": "Locked"
+        }
+      }
     },
     "vocabulary": {
       "title": "Vocabulary",
@@ -208,6 +249,21 @@
         "doneCount": "{done}/{total} done",
         "motionOn": "Turn on motion",
         "motionOff": "Turn off motion"
+      },
+      "headerContext": "Current stage: {phase}",
+      "courseProgressLabel": "Path progress",
+      "courseCompletion": "{done}/{total} stages",
+      "viewLabel": "Path view",
+      "viewTree": "Tree",
+      "viewList": "List",
+      "nodeProgressLabel": "Stage progress",
+      "nodeLockedBy": "Finish «{prev}» to unlock this stage.",
+      "nodeLockedGeneric": "Follow the path in order to unlock this stage.",
+      "nodeStatus": {
+        "completed": "Done",
+        "inProgress": "In progress",
+        "available": "Ready",
+        "locked": "Locked"
       }
     },
     "speaking": {

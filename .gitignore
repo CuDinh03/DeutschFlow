@@ -205,3 +205,5 @@ docs/*
 !docs/wave0-gate/**
 !docs/wave1-s01-s13/
 !docs/wave1-s01-s13/**
+!docs/wave1-s02-s03/
+!docs/wave1-s02-s03/**

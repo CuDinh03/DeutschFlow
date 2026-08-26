@@ -46,7 +46,48 @@
       "recentAch": "Aktuelle Erfolge",
       "viewAllAch": "Alle Erfolge anzeigen",
       "beginnerTitle": "Erste Lerneinheit starten",
-      "beginnerDesc": "10 deutsche Grundwörter + Gespräch mit der KI"
+      "beginnerDesc": "10 deutsche Grundwörter + Gespräch mit der KI",
+      "continue": {
+        "eyebrow": "Weiterlernen",
+        "progressLabel": "Kapitelfortschritt",
+        "lessons": "{done}/{total} Lektionen erledigt",
+        "cta": "Weiterlernen",
+        "ctaHelper": "Weiter lernen",
+        "startEyebrow": "Erste Lektion",
+        "startTitle": "Erste Lektion beginnen",
+        "startDesc": "Wir führen dich Schritt für Schritt durch die erste Lektion.",
+        "startCta": "Beginnen",
+        "doneEyebrow": "Lernweg",
+        "doneTitle": "Alles Freigeschaltete ist erledigt",
+        "doneDesc": "Öffne den Lernweg für die nächste Etappe oder wiederhole Abgeschlossenes.",
+        "doneCta": "Lernweg öffnen"
+      },
+      "today": {
+        "eyebrow": "Heute",
+        "empty": "Heute steht nichts an. Weiterlernen oben genügt.",
+        "srs": "Fällige Wörter wiederholen",
+        "srsMeta": "{count} fällig",
+        "speaking": "Mit der KI sprechen",
+        "weekly": "Wochen-Sprechaufgabe",
+        "repair": "Häufigen Fehler korrigieren"
+      },
+      "habit": {
+        "label": "Lerngewohnheit",
+        "streak": "Tage in Folge",
+        "level": "Level {level}",
+        "xpToNext": "noch {xp} XP"
+      },
+      "journey": {
+        "eyebrow": "Lernweg",
+        "completion": "{done}/{total} Etappen · {percent}%",
+        "viewAll": "Ganzen Lernweg ansehen",
+        "status": {
+          "completed": "Abgeschlossen",
+          "inProgress": "Läuft",
+          "available": "Bereit",
+          "locked": "Gesperrt"
+        }
+      }
     },
     "vocabulary": {
       "title": "Wortschatz",
@@ -208,6 +249,21 @@
         "doneCount": "{done}/{total} fertig",
         "motionOn": "Animation an",
         "motionOff": "Animation aus"
+      },
+      "headerContext": "Aktuelle Phase: {phase}",
+      "courseProgressLabel": "Lernwegfortschritt",
+      "courseCompletion": "{done}/{total} Etappen",
+      "viewLabel": "Ansicht des Lernwegs",
+      "viewTree": "Baum",
+      "viewList": "Liste",
+      "nodeProgressLabel": "Etappenfortschritt",
+      "nodeLockedBy": "Schließe «{prev}» ab, um diese Etappe zu öffnen.",
+      "nodeLockedGeneric": "Folge dem Lernweg der Reihe nach, um diese Etappe zu öffnen.",
+      "nodeStatus": {
+        "completed": "Abgeschlossen",
+        "inProgress": "Läuft",
+        "available": "Bereit",
+        "locked": "Gesperrt"
       }
     },
     "speaking": {

@@ -46,7 +46,48 @@
       "recentAch": "Thành tích gần đây",
       "viewAllAch": "Xem tất cả thành tích",
       "beginnerTitle": "Bắt đầu buổi học đầu tiên",
-      "beginnerDesc": "10 từ tiếng Đức cơ bản + nói chuyện với AI"
+      "beginnerDesc": "10 từ tiếng Đức cơ bản + nói chuyện với AI",
+      "continue": {
+        "eyebrow": "Weiterlernen",
+        "progressLabel": "Tiến độ chương",
+        "lessons": "{done}/{total} bài đã học",
+        "cta": "Weiterlernen",
+        "ctaHelper": "Tiếp tục học",
+        "startEyebrow": "Erste Lektion",
+        "startTitle": "Bắt đầu buổi học đầu tiên",
+        "startDesc": "Chúng tôi sẽ dẫn bạn qua bài học đầu tiên, từng bước một.",
+        "startCta": "Bắt đầu",
+        "doneEyebrow": "Lernweg",
+        "doneTitle": "Bạn đã học hết phần đang mở",
+        "doneDesc": "Xem lộ trình để chọn chặng tiếp theo hoặc ôn lại bài đã xong.",
+        "doneCta": "Xem lộ trình"
+      },
+      "today": {
+        "eyebrow": "Heute",
+        "empty": "Hôm nay không có việc đến hạn. Học tiếp ở trên là đủ.",
+        "srs": "Ôn từ vựng đến hạn",
+        "srsMeta": "{count} việc cần ôn",
+        "speaking": "Luyện nói với AI",
+        "weekly": "Bài nói theo tuần",
+        "repair": "Sửa lỗi hay gặp"
+      },
+      "habit": {
+        "label": "Thói quen học",
+        "streak": "ngày liên tiếp",
+        "level": "Cấp {level}",
+        "xpToNext": "còn {xp} XP"
+      },
+      "journey": {
+        "eyebrow": "Lernweg",
+        "completion": "{done}/{total} chặng · {percent}%",
+        "viewAll": "Xem toàn bộ lộ trình",
+        "status": {
+          "completed": "Đã xong",
+          "inProgress": "Đang học",
+          "available": "Sẵn sàng",
+          "locked": "Chưa mở"
+        }
+      }
     },
     "vocabulary": {
       "title": "Từ vựng",
@@ -208,6 +249,21 @@
         "doneCount": "{done}/{total} đã xong",
         "motionOn": "Bật hiệu ứng",
         "motionOff": "Tắt hiệu ứng"
+      },
+      "headerContext": "Giai đoạn hiện tại: {phase}",
+      "courseProgressLabel": "Tiến độ lộ trình",
+      "courseCompletion": "{done}/{total} chặng",
+      "viewLabel": "Cách xem lộ trình",
+      "viewTree": "Cây",
+      "viewList": "Danh sách",
+      "nodeProgressLabel": "Tiến độ chặng",
+      "nodeLockedBy": "Hoàn thành «{prev}» để mở chặng này.",
+      "nodeLockedGeneric": "Học theo thứ tự lộ trình để mở chặng này.",
+      "nodeStatus": {
+        "completed": "Đã xong",
+        "inProgress": "Đang học",
+        "available": "Sẵn sàng",
+        "locked": "Chưa mở"
       }
     },
     "speaking": {

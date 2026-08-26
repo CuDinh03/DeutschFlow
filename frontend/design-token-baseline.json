@@ -1019,28 +1019,6 @@
       "text-[12.5px]": 1
     }
   },
-  "src/app/v2/student/dashboard/page.tsx": {
-    "hex-literal": {
-      "#C79A00": 1,
-      "#E07B39": 1,
-      "#1E9E61": 1,
-      "#2F6FC9": 1,
-      "#A39E94": 2
-    },
-    "arbitrary-font-size": {
-      "text-[13px]": 6,
-      "text-[19px]": 1,
-      "text-[18px]": 1,
-      "text-[13.5px]": 2,
-      "text-[24px]": 1,
-      "text-[20px]": 2,
-      "text-[26px]": 1,
-      "text-[12.5px]": 1
-    },
-    "arbitrary-radius": {
-      "rounded-[3px]": 2
-    }
-  },
   "src/app/v2/student/errors/page.tsx": {
     "hex-literal": {
       "#7C56C8": 1,
@@ -1346,20 +1324,6 @@
       "text-[22px]": 1,
       "text-[14px]": 2,
       "text-[12px]": 2
-    }
-  },
-  "src/app/v2/student/roadmap/page.tsx": {
-    "arbitrary-font-size": {
-      "text-[22px]": 1,
-      "text-[15px]": 1,
-      "text-[11px]": 2,
-      "text-[11.5px]": 1,
-      "text-[12.5px]": 3,
-      "text-[13px]": 2,
-      "text-[12px]": 2,
-      "text-[14px]": 2,
-      "text-[19px]": 1,
-      "text-[13.5px]": 3
     }
   },
   "src/app/v2/student/speaking/history/page.tsx": {

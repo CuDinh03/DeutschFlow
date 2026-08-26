@@ -1,6 +1,7 @@
-# Wave 1 — Checkpoint review: S-01 (Navigation & role shells) + S-13 (Mobile navigation)
+# Wave 1 — S-01 (Navigation & role shells) + S-13 (Mobile navigation)
 
-> **Trạng thái:** implemented, **chờ owner review checkpoint**. S-02 (Heute) và S-03 (Lernen/Journey) **CHƯA bắt đầu** theo yêu cầu. **Chưa commit** phần Wave 1.
+> **Trạng thái:** ✅ checkpoint đã được owner duyệt · **đã commit `dfe80764`**.
+> **Tiếp theo:** S-02 + S-03 đã implemented — xem `WAVE_1_S02_S03_REPORT.md` (chưa commit).
 > **Ngày:** 26/08/2026 · Gate 0 đã được owner approve (kèm exception CLS/LCP) và Wave 0 đã commit `5a9b6127`.
 > **Evidence:** `docs/wave1-s01-s13/` (8 ảnh + `measurements.json`, chụp từ production build).
 
