@@ -1,9 +1,17 @@
 # UI Redesign — Session Handoff (26/08/2026)
 
 > **File này là điểm vào duy nhất cho session sau.** Nó gộp toàn bộ trạng thái, quyết định, và nội dung memory của track UI/UX redesign — session sau KHÔNG cần lịch sử chat, KHÔNG cần memory máy cũ.
-> **Trạng thái (cập nhật 26/08 sau Gate 0):** Phase 1–4 **APPROVED** · **Gate 0 APPROVED** (kèm exception CLS/LCP before/after unavailable) · **Wave 0 đã commit** `5a9b6127` (chỉ file Wave 0, tách khỏi thay đổi của owner) · **Wave 1: S-01 + S-13 implemented, chờ checkpoint review** → đọc `WAVE_1_CHECKPOINT_S01_S13.md` · **S-02/S-03 chưa bắt đầu · Wave 1 chưa commit · chưa push**.
+> **Trạng thái (cập nhật 26/08):** Phase 1–4 **APPROVED** · **Gate 0 APPROVED** (kèm exception CLS/LCP before/after unavailable) · **Wave 0 đã commit** `5a9b6127` · **Wave 1 đã commit trọn 4 màn**: `dfe80764` (S-01 nav + S-13 mobile nav) và `f245d29f` (S-02 Heute + S-03 Lernweg) — báo cáo ở `WAVE_1_CHECKPOINT_S01_S13.md` và `WAVE_1_S02_S03_REPORT.md`. **Chưa push.** Việc kế: Gate 1 của Wave 1 (first-click test, analytics map cũ→mới) và hợp nhất Lernbaum trước khi chạm `TreeNodePanel`.
 
 ---
+
+## 0. Việc còn lại → đọc `UI_REDESIGN_BACKLOG.md`
+
+Toàn bộ việc chưa làm được liệt kê chi tiết (vì sao · file cụ thể · định nghĩa xong) trong **`UI_REDESIGN_BACKLOG.md`**. Ba việc P0 phải xử lý trước tiên:
+
+1. **B-01 — e2e `student/roadmap.spec.ts` ĐANG GÃY** vì S-03 bỏ ba tab (spec còn click tab `"Bài học"`).
+2. **B-02 — rà 12 spec e2e còn lại** theo nav mới (sidebar 30 mục → 5 area, Tin nhắn ra topbar).
+3. **B-03 — mở PR để CI thật sự chạy**: nhánh feature KHÔNG kích hoạt workflow, nên step Design Token Ratchet của Wave 0 chưa từng chạy trên CI.
 
 ## 1. Mở session sau như thế nào
 
