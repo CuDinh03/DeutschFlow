@@ -1158,6 +1158,7 @@
         "unmute": "Ton an",
         "mute": "Ton aus",
         "dismiss": "Schließen",
+        "audioTooLarge": "Die Aufnahme ist zu lang zum Senden. Pro Redebeitrag sind höchstens 3 Minuten möglich — bitte kürzer aufnehmen.",
         "prepCap": "Vorbereitungszeit",
         "prepDesc": "Stichpunkte notieren; die Notizen dürfen in der Prüfung benutzt werden. Nach Ablauf der Zeit geht es automatisch los.",
         "prepLeft": "Vorbereitung",
@@ -1235,7 +1236,7 @@
       },
       "mic": {
         "sending": "Wird gesendet, Antwort folgt…",
-        "recording": "Aufnahme läuft — zum Stoppen & Senden tippen",
+        "recording": "Aufnahme · noch",
         "textPlaceholder": "Antwort auf Deutsch tippen…",
         "send": "Senden",
         "useMic": "Mikrofon benutzen",

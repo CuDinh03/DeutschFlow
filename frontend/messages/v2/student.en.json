@@ -1158,6 +1158,7 @@
         "unmute": "Unmute",
         "mute": "Mute",
         "dismiss": "Dismiss",
+        "audioTooLarge": "That recording is too long to send. Each turn is capped at 3 minutes — please record a shorter one.",
         "prepCap": "Preparation time",
         "prepDesc": "Jot down keywords; you may use your notes during the exam. You enter automatically when time is up.",
         "prepLeft": "Prep",
@@ -1235,7 +1236,7 @@
       },
       "mic": {
         "sending": "Sending and waiting for the reply…",
-        "recording": "Recording — tap to stop & send",
+        "recording": "Recording · left",
         "textPlaceholder": "Type your German answer…",
         "send": "Send",
         "useMic": "Use microphone",

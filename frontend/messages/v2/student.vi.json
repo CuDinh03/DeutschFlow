@@ -1158,6 +1158,7 @@
         "unmute": "Bật tiếng",
         "mute": "Tắt tiếng",
         "dismiss": "Đóng",
+        "audioTooLarge": "Bản ghi quá dài nên không gửi được. Mỗi lượt nói tối đa 3 phút — hãy thu lại ngắn hơn.",
         "prepCap": "Thời gian chuẩn bị",
         "prepDesc": "Ghi chú gạch đầu dòng; bạn được dùng ghi chú trong lúc thi. Hết giờ sẽ tự vào phòng.",
         "prepLeft": "Chuẩn bị",
@@ -1235,7 +1236,7 @@
       },
       "mic": {
         "sending": "Đang gửi và chờ phản hồi…",
-        "recording": "Đang thu — bấm để dừng & gửi",
+        "recording": "Đang thu · còn",
         "textPlaceholder": "Gõ câu trả lời tiếng Đức…",
         "send": "Gửi",
         "useMic": "Dùng mic",
