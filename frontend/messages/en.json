@@ -1407,7 +1407,7 @@
     "plans": {
       "FREE": {
         "name": "Free",
-        "badge": null,
+        "badge": "",
         "features": [
           "✅ A1–B1 vocabulary",
           "✅ Up to 20 review cards/day",
