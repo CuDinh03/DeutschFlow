@@ -1409,7 +1409,7 @@
     "plans": {
       "FREE": {
         "name": "Miễn Phí",
-        "badge": null,
+        "badge": "",
         "features": [
           "✅ Học từ vựng A1–B1",
           "✅ Tối đa 20 thẻ ôn tập/ngày",

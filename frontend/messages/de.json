@@ -1409,7 +1409,7 @@
     "plans": {
       "FREE": {
         "name": "Kostenlos",
-        "badge": null,
+        "badge": "",
         "features": [
           "✅ Vokabular A1–B1",
           "✅ Max. 20 Karten/Tag",

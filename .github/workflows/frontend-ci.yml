@@ -53,3 +53,20 @@ jobs:
         run: |
           chmod +x scripts/i18n/check_i18n.py
           ./scripts/i18n/check_i18n.py || (echo "i18n Check Failed: Hardcoded strings found! Please extract them using t() hook." && exit 1)
+
+      # Typecheck and unit tests never execute static generation, so a page can pass every
+      # gate above and still emit i18n resolution errors (MISSING_MESSAGE) or fail outright
+      # when the production artifact is built. Build the real artifact here and treat
+      # MISSING_MESSAGE as a failure — next-intl logs it but exits 0, and the raw key path
+      # leaks into the rendered page.
+      - name: Production Build (gate on MISSING_MESSAGE)
+        working-directory: ./frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log
+          if grep -n "MISSING_MESSAGE" build.log; then
+            echo "::error::next-intl MISSING_MESSAGE in production build — an i18n key fails to resolve (see lines above)"
+            exit 1
+          fi

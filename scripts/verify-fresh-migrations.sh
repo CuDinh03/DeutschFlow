@@ -7,8 +7,9 @@
 # prod) would then fail at boot. This script guards against that regressing again.
 #
 # What it does: spins a throwaway pgvector Postgres + Redis, boots the backend with Flyway
-# enabled against the empty DB, asserts every migration applied and the app started, then
-# tears everything down. Exits non-zero on any migration failure.
+# enabled against the empty DB and ddl-auto=validate, asserts every migration applied and
+# the app started, then tears everything down. Exits non-zero on any migration failure or
+# on Hibernate schema-validation mismatch (entity needs a table/column Flyway never created).
 #
 # Usage:  scripts/verify-fresh-migrations.sh
 # Requires: docker, a JDK, the Maven wrapper (backend/mvnw).
@@ -31,14 +32,16 @@ docker exec "$PG" psql -U "$USER" -d "$DB" -c "CREATE EXTENSION IF NOT EXISTS ve
 
 echo "▶ booting backend against the empty DB (Flyway migrate)…"
 # Spring CLI args override any local .env.
-# ddl-auto=update: lets Hibernate add any JPA columns not yet in Flyway (should be none).
-# The gate is (1) all Flyway migrations apply and (2) the app starts.
+# ddl-auto=validate: Hibernate must NOT mutate schema. Flyway alone has to produce every
+# table/column the entities map, or boot fails. (`update` would silently patch any gap,
+# so a green run proved nothing about the migration chain itself.)
+# The gate is (1) all Flyway migrations apply and (2) the app starts under validate.
 ( cd "$ROOT/backend" && ./mvnw -q spring-boot:run -Dmaven.test.skip=true \
     -Dspring-boot.run.arguments="\
 --spring.datasource.url=jdbc:postgresql://localhost:$PGPORT/$DB \
 --spring.datasource.username=$USER --spring.datasource.password=$PW \
 --spring.data.redis.host=localhost --spring.data.redis.port=$REDISPORT \
---spring.jpa.hibernate.ddl-auto=update" > "$LOG" 2>&1 ) &
+--spring.jpa.hibernate.ddl-auto=validate" > "$LOG" 2>&1 ) &
 APP_PID=$!
 
 ok=""
@@ -48,14 +51,15 @@ for i in $(seq 1 90); do
   sleep 3
 done
 kill "$APP_PID" >/dev/null 2>&1 || true
-pkill -f spring-boot:run >/dev/null 2>&1 || true
+# Scoped cleanup: match this run's unique throwaway datasource, never someone else's spring-boot:run.
+pkill -f "localhost:$PGPORT/$DB" >/dev/null 2>&1 || true
 
 if [ -n "$ok" ]; then
   applied="$(grep -oE "Successfully applied [0-9]+ migrations" "$LOG" | tail -1)"
-  echo "✅ fresh-DB migration replay OK — ${applied:-migrations applied}"
+  echo "✅ fresh-DB migration replay OK — ${applied:-migrations applied} (ddl-auto=validate)"
   exit 0
 else
   echo "❌ fresh-DB migration replay FAILED:"
-  grep -nE "Migration V[0-9]+__.* failed|Message    :|Location   :|APPLICATION FAILED TO START" "$LOG" | head -10
+  grep -nE "Migration V[0-9]+__.* failed|Schema-validation:|Message    :|Location   :|APPLICATION FAILED TO START" "$LOG" | head -10
   exit 1
 fi
