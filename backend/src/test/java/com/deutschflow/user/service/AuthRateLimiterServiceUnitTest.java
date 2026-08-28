@@ -25,7 +25,7 @@ class AuthRateLimiterServiceUnitTest {
      */
     private AuthRateLimiterService newService() {
         // null Redis → exercises the in-memory sliding-window fallback (same logic these tests assert).
-        return new AuthRateLimiterService(3, 60, 5, 120, 2, 600, 4, 60, 2, 900, 30, 60, null);
+        return new AuthRateLimiterService(3, 60, 5, 120, 2, 600, 4, 60, 2, 900, null);
     }
 
     @Test
@@ -157,7 +157,7 @@ class AuthRateLimiterServiceUnitTest {
     @DisplayName("non-positive config values are clamped to safe minimums (max>=1, window>=1)")
     void config_clampedToSafeMinimums() {
         // max=0 / window=0 must not block everything nor divide-by-zero; clamp to 1.
-        AuthRateLimiterService service = new AuthRateLimiterService(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null);
+        AuthRateLimiterService service = new AuthRateLimiterService(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null);
 
         assertTrue(service.allowRegister("4.4.4.4"), "first call allowed even with max=0 (clamped to 1)");
         assertFalse(service.allowRegister("4.4.4.4"), "second call blocked at clamped max=1");
@@ -191,7 +191,7 @@ class AuthRateLimiterServiceUnitTest {
 
         // login 2/60s so we can prove the in-memory fallback still actually enforces a limit.
         AuthRateLimiterService service =
-                new AuthRateLimiterService(2, 60, 5, 120, 2, 600, 4, 60, 2, 900, 30, 60, redis);
+                new AuthRateLimiterService(2, 60, 5, 120, 2, 600, 4, 60, 2, 900, redis);
 
         assertDoesNotThrow(() -> {
             assertTrue(service.allow("5.5.5.5", "a@x.com"), "1st login allowed via in-memory fallback");

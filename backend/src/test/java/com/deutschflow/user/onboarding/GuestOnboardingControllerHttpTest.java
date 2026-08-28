@@ -1,12 +1,10 @@
 package com.deutschflow.user.onboarding;
 
 import com.deutschflow.common.exception.GlobalExceptionHandler;
-import com.deutschflow.common.web.ClientIpResolver;
 import com.deutschflow.unittest.support.MockMvcWithValidation;
 import com.deutschflow.user.onboarding.controller.GuestOnboardingController;
 import com.deutschflow.user.onboarding.dto.GuestSessionDtos.SessionResponse;
 import com.deutschflow.user.onboarding.service.GuestOnboardingService;
-import com.deutschflow.user.service.AuthRateLimiterService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,7 +20,6 @@ import java.time.Instant;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,16 +29,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Bề mặt CÔNG KHAI của guest onboarding. Trọng tâm: rate-limit phải chặn TRƯỚC khi
- * chạm service (đây là endpoint tạo hàng, không giới hạn là mời bơm phình bảng),
- * và validation phải từ chối input rác.
+ * Bề mặt CÔNG KHAI của guest onboarding. Trọng tâm là validation phải từ chối input
+ * rác trước khi nó vào cột dùng để tách funnel.
+ *
+ * <p>Rate-limit KHÔNG kiểm ở đây vì nó nằm ở tầng filter ({@code PublicApiRateLimitFilter}),
+ * không phải trong controller — MockMvc standalone không dựng filter chain nên test
+ * ở đây chỉ chứng minh được cái mock của chính nó.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class GuestOnboardingControllerHttpTest {
 
     @Mock private GuestOnboardingService guestOnboardingService;
-    @Mock private AuthRateLimiterService rateLimiter;
 
     private MockMvc mvc;
 
@@ -49,11 +48,8 @@ class GuestOnboardingControllerHttpTest {
 
     @BeforeEach
     void setUp() {
-        var controller = new GuestOnboardingController(
-                guestOnboardingService, rateLimiter, new ClientIpResolver(1));
+        var controller = new GuestOnboardingController(guestOnboardingService);
         mvc = MockMvcWithValidation.standalone(controller, new GlobalExceptionHandler(), null);
-        when(rateLimiter.allowGuestSession(anyString())).thenReturn(true);
-        when(rateLimiter.guestSessionRetryAfterSeconds()).thenReturn(60);
         when(guestOnboardingService.create(any()))
                 .thenReturn(new SessionResponse(SID, "INTRO", "onb_v3", Instant.now().plusSeconds(3600)));
         when(guestOnboardingService.update(any(), any()))
@@ -89,32 +85,6 @@ class GuestOnboardingControllerHttpTest {
                         .content("{\"platform\":\"WEB\",\"locale\":\"fr\"}"))
                 .andExpect(status().isBadRequest());
         verify(guestOnboardingService, never()).create(any());
-    }
-
-    @Test
-    @DisplayName("vượt hạn mức → 429 và KHÔNG chạm service")
-    void createRateLimited() throws Exception {
-        when(rateLimiter.allowGuestSession(anyString())).thenReturn(false);
-
-        mvc.perform(post("/api/onboarding/guest-session")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"platform\":\"WEB\",\"locale\":\"vi\"}"))
-                .andExpect(status().isTooManyRequests());
-
-        // Chặn phải xảy ra TRƯỚC service: nếu không thì hàng vẫn được tạo rồi mới báo lỗi.
-        verify(guestOnboardingService, never()).create(any());
-    }
-
-    @Test
-    @DisplayName("PATCH cũng bị rate-limit — nếu không thì bơm phình qua đường sửa")
-    void patchRateLimited() throws Exception {
-        when(rateLimiter.allowGuestSession(anyString())).thenReturn(false);
-
-        mvc.perform(patch("/api/onboarding/guest-session/" + SID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"currentStep\":\"PROFILE\"}"))
-                .andExpect(status().isTooManyRequests());
-        verify(guestOnboardingService, never()).update(any(), any());
     }
 
     @Test

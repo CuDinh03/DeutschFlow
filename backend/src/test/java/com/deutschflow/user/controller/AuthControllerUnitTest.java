@@ -32,13 +32,13 @@ class AuthControllerUnitTest {
     @Mock
     com.deutschflow.user.service.AuthConcurrencyLimiter authConcurrencyLimiter;
     /**
-     * Bản THẬT chứ không phải mock: {@link com.deutschflow.common.web.ClientIpResolver} không phụ
+     * Bản THẬT chứ không phải mock: {@link com.deutschflow.common.security.ClientIpResolver} không phụ
      * thuộc gì, và để nó chạy thật thì các ca dưới vẫn đi qua đúng đường phân giải IP mà
      * rate-limit dùng. Mock nó sẽ trả null và biến hai ca 429 thành "xanh vì tình cờ".
      */
     @Spy
-    com.deutschflow.common.web.ClientIpResolver clientIpResolver =
-            new com.deutschflow.common.web.ClientIpResolver(1);
+    com.deutschflow.common.security.ClientIpResolver clientIpResolver =
+            new com.deutschflow.common.security.ClientIpResolver(1);
 
     @InjectMocks
     AuthController controller;

@@ -12,7 +12,7 @@ import com.deutschflow.user.service.AuthRateLimiterService;
 import com.deutschflow.user.service.PasswordResetService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.RateLimitExceededException;
-import com.deutschflow.common.web.ClientIpResolver;
+import com.deutschflow.common.security.ClientIpResolver;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;

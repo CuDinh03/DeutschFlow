@@ -1,13 +1,9 @@
 package com.deutschflow.user.onboarding.controller;
 
-import com.deutschflow.common.exception.RateLimitExceededException;
-import com.deutschflow.common.web.ClientIpResolver;
 import com.deutschflow.user.onboarding.dto.GuestSessionDtos.CreateRequest;
 import com.deutschflow.user.onboarding.dto.GuestSessionDtos.SessionResponse;
 import com.deutschflow.user.onboarding.dto.GuestSessionDtos.UpdateRequest;
 import com.deutschflow.user.onboarding.service.GuestOnboardingService;
-import com.deutschflow.user.service.AuthRateLimiterService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,9 +19,10 @@ import java.util.UUID;
  * phải chạy được khi chưa có tài khoản. Trộn chung là hoặc phải nới quyền cả class,
  * hoặc phải đè annotation ở từng method — cả hai đều dễ hỏng lặng lẽ về sau.
  *
- * <p><b>Đây là bề mặt public MỚI</b>, nên rate-limit theo IP có ngay từ PR đầu:
- * repo đã có tiền sử audit DDoS/EDoS, và một endpoint tạo hàng không giới hạn là
- * lời mời bơm phình bảng.
+ * <p><b>Rate-limit</b> do {@code PublicApiRateLimitFilter} lo, không phải controller:
+ * repo đã có sẵn cơ chế chặn theo IP cho đường công khai, và đường dẫn này được thêm
+ * vào danh sách mặc định {@code app.security.unauth-rate-limit.paths}. Dựng thêm một
+ * bộ đếm thứ hai trong controller là hai luật chồng nhau, mỗi cái chặn một kiểu.
  */
 @RestController
 @RequestMapping("/api/onboarding/guest-session")
@@ -33,32 +30,17 @@ import java.util.UUID;
 public class GuestOnboardingController {
 
     private final GuestOnboardingService guestOnboardingService;
-    private final AuthRateLimiterService rateLimiter;
-    private final ClientIpResolver clientIpResolver;
 
     /** 201 — tạo phiên mới, trả về sessionId dùng làm bearer cho PATCH. */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public SessionResponse create(@Valid @RequestBody CreateRequest request, HttpServletRequest http) {
-        guard(http);
+    public SessionResponse create(@Valid @RequestBody CreateRequest request) {
         return guestOnboardingService.create(request);
     }
 
     /** 200 — cập nhật từng phần. Trường vắng mặt = không đổi. */
     @PatchMapping("/{id}")
-    public SessionResponse update(@PathVariable UUID id,
-                                  @Valid @RequestBody UpdateRequest request,
-                                  HttpServletRequest http) {
-        guard(http);
+    public SessionResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateRequest request) {
         return guestOnboardingService.update(id, request);
-    }
-
-    private void guard(HttpServletRequest http) {
-        String ip = clientIpResolver.resolve(http);
-        if (!rateLimiter.allowGuestSession(ip)) {
-            throw new RateLimitExceededException(
-                    "Quá nhiều yêu cầu. Vui lòng thử lại sau.",
-                    rateLimiter.guestSessionRetryAfterSeconds());
-        }
     }
 }

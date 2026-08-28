@@ -67,7 +67,7 @@ public class PublicApiRateLimitFilter extends OncePerRequestFilter {
             @Nullable StringRedisTemplate redis,
             @Value("${app.security.public-rate-limit.enabled:true}") boolean enabled,
             @Value("${app.security.public-rate-limit.per-minute:30}") int perMinute,
-            @Value("${app.security.unauth-rate-limit.paths:/api/onboarding/preview/,/api/v2/media/by-tag}") String extraPathsCsv,
+            @Value("${app.security.unauth-rate-limit.paths:/api/onboarding/preview/,/api/onboarding/guest-session,/api/v2/media/by-tag}") String extraPathsCsv,
             @Value("${app.security.unauth-rate-limit.per-minute:120}") int extraPerMinute) {
         this.clientIpResolver = clientIpResolver;
         this.redis = redis;

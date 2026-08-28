@@ -203,7 +203,12 @@ xác nhận "phiên này có chủ rồi" không thêm thông tin gì cho kẻ d
   (một entry point, đủ `@Scheduled` + `@SchedulerLock` + `@Transactional`, trả
   `void` — bẫy proxy đã ghi nhận).
 - Rate-limit **ngay từ PR đầu**: đây là bề mặt public mới, repo đã có tiền sử
-  audit DDoS/EDoS và dùng Bucket4j.
+  audit DDoS/EDoS. Dùng lại `PublicApiRateLimitFilter` đã có (thêm đường dẫn vào
+  `app.security.unauth-rate-limit.paths`), **không** dựng bộ đếm thứ hai trong
+  controller — hai luật chồng nhau thì mỗi cái chặn một kiểu và không ai biết cái
+  nào đang có hiệu lực. Danh sách đường dẫn mặc định có test khoá
+  (`PublicApiRateLimitFilterPathsTest`): làm rơi một prefix thì không có gì đỏ,
+  endpoint vẫn chạy, chỉ là hết được bảo vệ.
 - Audio của khách **không** lưu server (so khớp cục bộ như
   `mobile/lib/firstSentence.ts`). Nếu sau này cần lưu: TTL ≤24h, **không** gửi
   PostHog.
