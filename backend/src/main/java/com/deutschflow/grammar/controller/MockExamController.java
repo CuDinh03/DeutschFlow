@@ -5,6 +5,9 @@ import com.deutschflow.common.async.AsyncJobService;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.grammar.dto.ExamAttemptDto;
 import com.deutschflow.grammar.dto.ExamCoverageDto;
+import com.deutschflow.grammar.dto.ExamDraftDto;
+import com.deutschflow.grammar.dto.ExamDraftSaveDto;
+import com.deutschflow.grammar.dto.ExamDraftSaveRequest;
 import com.deutschflow.grammar.dto.ExamFinishAcceptedDto;
 import com.deutschflow.grammar.dto.ExamQuestionsDto;
 import com.deutschflow.grammar.dto.ExamRecommendationDto;
@@ -17,6 +20,7 @@ import com.deutschflow.grammar.service.AiExamEvaluatorService;
 import com.deutschflow.grammar.service.ExamGenerationService;
 import com.deutschflow.grammar.service.ExamQuestionSanitizer;
 import com.deutschflow.grammar.service.ExamScoringService;
+import com.deutschflow.grammar.service.MockExamDraftService;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +62,8 @@ public class MockExamController {
     // S-5: injected separately to avoid growing the explicit constructor
     @Autowired private AsyncJobService asyncJobService;
     @Autowired @Qualifier("aiExecutor") private Executor aiExecutor;
+    // V285 autosave (audit C-02) — same separate-injection idiom as S-5
+    @Autowired private MockExamDraftService draftService;
 
     public MockExamController(JdbcTemplate jdbcTemplate, ExamScoringService scoringService,
                                AiExamEvaluatorService aiEvaluator, ExamGenerationService generationService,
@@ -113,12 +119,17 @@ public class MockExamController {
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
 
-        // Check active attempt
+        // Check active attempt — resume returns the FULL row incl. the autosaved draft (V285,
+        // audit C-02): a fresh device must be able to rebuild position, answers and countdown
+        // from this one call. (The old branch selected only `id`, which left resume blind.)
         var existing = jdbcTemplate.queryForList("""
-            SELECT id FROM mock_exam_attempts
+            SELECT id, exam_id, started_at, status,
+                   draft_json::text AS draft_json, draft_section_index, draft_question_index,
+                   draft_version, draft_saved_at
+            FROM mock_exam_attempts
             WHERE user_id = ? AND exam_id = ? AND status = 'IN_PROGRESS'
             """, uid, examId);
-        
+
         Map<String, Object> attemptRow;
         if (!existing.isEmpty()) {
             attemptRow = existing.get(0);
@@ -136,19 +147,88 @@ public class MockExamController {
             FROM mock_exams WHERE id = ?
             """, examId);
 
+        Integer timeLimitMinutes = (Integer) examDetails.get("time_limit_minutes");
+        java.sql.Timestamp startedAt = (java.sql.Timestamp) attemptRow.get("started_at");
+        Instant now = Instant.now();
+        Instant deadlineAt = MockExamDraftService.deadlineOf(startedAt, timeLimitMinutes);
+
+        ExamDraftDto draft = null;
+        if (attemptRow.get("draft_saved_at") != null) {
+            draft = new ExamDraftDto(
+                    (String) attemptRow.get("draft_json"),
+                    (Integer) attemptRow.get("draft_section_index"),
+                    (Integer) attemptRow.get("draft_question_index"),
+                    ((Number) attemptRow.get("draft_version")).longValue(),
+                    (java.util.Date) attemptRow.get("draft_saved_at"));
+        }
+
         // Strip the answer key before sending to the client: an in-progress exam must not
         // expose `correct`/explanations. Scoring (/finish) and review re-read them from the DB.
-        // exam_id/started_at/status are absent when reusing an attempt (only `id` was selected) —
-        // @JsonInclude(NON_NULL) on ExamStartDto reproduces that omission.
         ExamStartDto response = new ExamStartDto(
                 ((Number) attemptRow.get("id")).longValue(),
                 attemptRow.get("exam_id") != null ? ((Number) attemptRow.get("exam_id")).longValue() : null,
-                (java.util.Date) attemptRow.get("started_at"),
+                startedAt,
                 (String) attemptRow.get("status"),
                 questionSanitizer.stripAnswerKey((String) examDetails.get("sections_json")),
-                (Integer) examDetails.get("time_limit_minutes"));
+                timeLimitMinutes,
+                now,
+                deadlineAt,
+                MockExamDraftService.remainingSeconds(deadlineAt, now),
+                draft);
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * V285 (audit C-02): debounced autosave of the in-progress answer map. Optimistic-locked —
+     * a stale device gets 409 + the newer server draft instead of silently overwriting it.
+     * 410 means the server-computed deadline passed beyond grace: the client should submit.
+     */
+    @PatchMapping("/attempts/{attemptId}/draft")
+    public ResponseEntity<?> saveDraft(
+            @PathVariable long attemptId,
+            @RequestBody ExamDraftSaveRequest body,
+            @AuthenticationPrincipal UserDetails principal) throws Exception {
+        long uid = userId(principal);
+        String answersJson = om.writeValueAsString(body.answers() != null ? body.answers() : Map.of());
+        long baseVersion = body.baseVersion() != null ? body.baseVersion() : 0L;
+        Instant now = Instant.now();
+
+        MockExamDraftService.SaveResult result = draftService.save(
+                uid, attemptId, answersJson, body.sectionIndex(), body.questionIndex(), baseVersion, now);
+
+        return switch (result.outcome()) {
+            case SAVED -> ResponseEntity.ok(new ExamDraftSaveDto(
+                    result.server().version(), result.server().savedAt(), now,
+                    result.deadlineAt(), MockExamDraftService.remainingSeconds(result.deadlineAt(), now)));
+            case VERSION_CONFLICT -> ResponseEntity.status(409).body(conflictBody("DRAFT_VERSION_CONFLICT", result));
+            case ATTEMPT_NOT_IN_PROGRESS -> ResponseEntity.status(409).body(conflictBody("ATTEMPT_NOT_IN_PROGRESS", result));
+            case ATTEMPT_EXPIRED -> ResponseEntity.status(410).body(Map.of(
+                    "error", "ATTEMPT_EXPIRED",
+                    "deadline_at", result.deadlineAt().toString()));
+            case DRAFT_TOO_LARGE -> ResponseEntity.badRequest().body(Map.of("error", "DRAFT_TOO_LARGE"));
+            case NOT_FOUND -> ResponseEntity.notFound().build();
+        };
+    }
+
+    /** 409 body: which rule rejected the save + the current server draft to reconcile against. */
+    private Map<String, Object> conflictBody(String error, MockExamDraftService.SaveResult result) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", error);
+        MockExamDraftService.DraftState server = result.server();
+        if (server != null) {
+            body.put("server_version", server.version());
+            if (server.exists()) {
+                Map<String, Object> draft = new HashMap<>();
+                draft.put("answers_json", server.answersJson());
+                draft.put("section_index", server.sectionIndex());
+                draft.put("question_index", server.questionIndex());
+                draft.put("version", server.version());
+                draft.put("saved_at", server.savedAt());
+                body.put("draft", draft);
+            }
+        }
+        return body;
     }
 
     @GetMapping("/{examId}/questions")
@@ -231,6 +311,15 @@ public class MockExamController {
         if (body.containsKey("answers")) {
             answers = (Map<String, Object>) body.get("answers");
         }
+
+        // Deadline enforcement (V285, audit C-02): past deadline+grace the client body could be
+        // held back to buy extra time — score the last server-autosaved draft instead.
+        MockExamDraftService.EffectiveAnswers effective =
+                draftService.effectiveAnswersForFinish(uid, attemptId, answers, Instant.now());
+        if (effective.usedServerDraft()) {
+            log.warn("[MockExam] Attempt {} finished past deadline+grace — scoring the server draft instead of the client body", attemptId);
+        }
+        answers = effective.answers();
 
         // Calculate scores for each section using real rubrics
         Map<String, Object> detailedScores = new HashMap<>();
