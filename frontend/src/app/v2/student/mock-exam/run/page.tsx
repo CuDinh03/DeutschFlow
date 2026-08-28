@@ -280,13 +280,17 @@ function MockExamRunner() {
         if (submittingRef.current) return { kind: 'saved', version: baseVersion, remainingSeconds: null }
         return saveDraftRequest(attemptId, payload, baseVersion)
       },
-      onSaved: ({ remainingSeconds }) => {
+      onSaved: ({ version, remainingSeconds }) => {
+        // Mirror the lock version into the ref so a re-created autosaver (effect re-run)
+        // resumes from the real version instead of the value captured at /start.
+        draftBaseVersionRef.current = version
         if (typeof remainingSeconds === 'number') {
           setTimeLeft((prev) => resyncCountdown(prev, remainingSeconds))
         }
       },
       onConflict: ({ serverVersion, draft }: { serverVersion: number; draft: ServerDraft | null }) => {
         if (submittingRef.current) return
+        draftBaseVersionRef.current = serverVersion
         autosaverRef.current?.adoptVersion(serverVersion)
         if (draft?.answersJson) {
           const serverAnswers = parseDraftAnswers(draft.answersJson)
