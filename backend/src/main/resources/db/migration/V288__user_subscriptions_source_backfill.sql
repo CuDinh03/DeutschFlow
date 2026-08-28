@@ -1,4 +1,4 @@
--- V287 — Backfill user_subscriptions.source + biến nó thành bắt buộc.
+-- V288 — Backfill user_subscriptions.source + biến nó thành bắt buộc.
 --
 -- Cột `source` ĐÃ CÓ từ V189 (Apple IAP) nhưng nullable và chỉ được ghi bởi đường
 -- thanh toán. Mọi gói do provisioner cấp — trial PRO 7 ngày lúc đăng ký, và gói
