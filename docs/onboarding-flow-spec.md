@@ -1,6 +1,6 @@
 # Đặc tả luồng Onboarding — `onb_v3`
 
-> **Trạng thái: DỰ THẢO, chờ owner duyệt.** Đây là Giai đoạn 0 của
+> **Trạng thái: DỰ THẢO — 4 quyết định chặn đã được owner chốt 28/08 (§8).** Đây là Giai đoạn 0 của
 > `plans/2026-08-28-ke-hoach-chi-tiet-onboarding-tong-the.md`.
 > Sau khi duyệt, tài liệu này là **nguồn chân lý duy nhất** cho web, mobile và
 > backend: contract test của GĐ 1–8 sinh ra từ đây, không từ code hiện có.
@@ -120,7 +120,7 @@ một luồng**, và mọi kế hoạch "parity" đều phải xuất phát từ
 > `GET /onboarding/route`, mobile bỏ qua hoàn toàn, web chỉ dùng cho một nhánh
 > UI. Trước khi GĐ 5/6 xây trên nó, owner phải chốt: **hồi sinh** (client tôn
 > trọng đủ 7 giá trị) hay **khai tử** (bỏ khỏi response, ma trận chỉ còn quyết
-> định `placementRequired/Optional`). Xem §8 câu hỏi Q-A.
+> định `placementRequired/Optional`). **Owner đã chốt: KHAI TỬ** — xem §8.1.
 
 ---
 
@@ -154,8 +154,8 @@ thuần additive.
 có `ConflictException` nào trên nhánh gọi. 409 duy nhất có thể tới là
 optimistic-lock hoặc data-integrity từ `GlobalExceptionHandler`, và cả hai nổ
 **lúc commit** ⟹ **toàn bộ ghi đã rollback**. Client **không được** coi 409 là
-thành công. (Hiện `saveProfile()` trên web vẫn `return true` khi gặp 409 — nợ đã
-ghi nhận, xem §8 Q-B.)
+thành công. (Hiện `saveProfile()` trên web vẫn `return true` khi gặp 409.
+**Owner đã chốt: SỬA** — xem §8.2.)
 
 ### 4.2 🟢 Ma trận điều hướng
 
@@ -335,16 +335,86 @@ funnel, kill-switch quay về flow cũ **không cần deploy backend**.
 
 ---
 
-## 8. Câu hỏi cần owner chốt trước khi thi công GĐ 1
+## 8. Quyết định owner — ĐÃ CHỐT 28/08
 
-| # | Câu hỏi | Vì sao chặn |
+| # | Quyết định | Hệ quả thi công |
 |---|---|---|
-| **Q-A** | `postAction` — **hồi sinh** (client tôn trọng đủ 7 giá trị) hay **khai tử** (bỏ khỏi response)? | GĐ 5/6 sẽ xây điều hướng trên nó. Để nguyên trạng "backend tính, client bỏ qua" là ôm một hợp đồng chết vào flow mới. |
-| **Q-B** | `saveProfile()` gặp 409 hiện vẫn `return true` và cho đi tiếp, dù 409 nghĩa là **rollback**. Sửa thành chặn + báo lỗi? | Là đổi hành vi điều hướng, cần chốt riêng. Hiện người dùng có thể đứng ở roadmap mà không có learning plan. |
-| **Q-C** | Mốc TTL guest session 72h và draft 30′ — giữ hay đổi? | 30′ hợp lý cho web (register chuyển thẳng về onboarding) nhưng GĐ 3 thêm social auth có thể kéo dài quãng rời trang. |
-| **Q-D** | i18n mobile: `onb_v3` chỉ phủ **luồng onboarding/auth**, phần còn lại của app để dự án riêng. Đồng ý? | Ảnh hưởng ước lượng GĐ 4. |
+| **Q-A** | **Khai tử `postAction`** | §8.1 |
+| **Q-B** | **Sửa**: 409 phải đi nhánh lỗi, không được coi là thành công | §8.2 |
+| **Q-C** | **Giữ** TTL guest session 72h và draft 30′ | Không đổi gì. Nếu GĐ 3 (social auth) làm quãng rời trang dài ra thì mở lại bàn, đừng tự nới. |
+| **Q-D** | **Đồng ý**: i18n mobile ở `onb_v3` chỉ phủ luồng onboarding/auth | Phần còn lại của app tách dự án i18n riêng. GĐ 4 ước lượng theo phạm vi hẹp này. |
 
----
+### 8.1 Q-A — "khai tử `postAction`" nghĩa là gì, cụ thể
+
+Kiểm kê toàn bộ nơi tiêu thụ trên `main`: **đúng MỘT chỗ dùng nó để quyết định
+hành vi**, còn lại là ghi log hoặc no-op.
+
+| Nơi | Dùng làm gì | Sau khi khai tử |
+|---|---|---|
+| `frontend/.../v2/onboarding/page.tsx:562` | điều kiện hiện nút "Khám phá gói PRO" | 🔧 **thay bằng luật client** — xem dưới |
+| `frontend/.../(auth)/onboarding/page.tsx:505` | y hệt (trang v1) | v1 sẽ bị xoá ở GĐ 5; không vá riêng |
+| cả hai trang web, `trackEvent('onboarding_type_assigned')` | chỉ ghi log | bỏ property |
+| `mobile/.../onboarding.tsx:179,265` | truyền vào `nextAfterProfile()` | đổi thành `nextAfterProfile()` không tham số |
+| `mobile/lib/onboardingRouting.ts:21-22` | **`void postAction`** — đã là no-op từ #375 | bỏ tham số |
+| `frontend/src/lib/profileApi.ts:52` | kiểu DTO | bỏ trường |
+| `OnboardingRouteResponse` | trường thứ 6 của record | bỏ trường |
+
+**Luật thay thế cho nút PRICING_CTA.** Ô ma trận sinh ra nó là
+`WEB × B1+ → PRICING_CTA`, và `paywallAllowed` đã đúng cho web. Điều kiện tương
+đương hoàn toàn suy ra được ở client từ dữ liệu client đã có:
+
+```ts
+// Trước:  route.paywallAllowed && route.postAction === "PRICING_CTA"
+// Sau:    paywallAllowed + trình độ người dùng tự chọn
+const showPricingCta = route?.paywallAllowed && ["B1","B2","C1","C2"].includes(currentLevel)
+```
+
+⚠️ **Móc nối với GĐ 2 (Q1):** trong 7 ngày trial, paywall/upsell bị **ẩn hoàn
+toàn**. Nên điều kiện cuối cùng là `showPricingCta && !isTrial`. Đừng thi công
+§8.1 và GĐ 2 tách rời nhau rồi để hai luật chồng nhau.
+
+**Thứ tự triển khai — quan trọng.** Bỏ một trường khỏi response là breaking nếu
+client đọc nó trước. Cả hai client hiện **chịu được `undefined`** (mobile chỉ
+log + no-op), nhưng vẫn phải theo thứ tự an toàn:
+
+1. Client bỏ đọc `postAction` (web thay bằng luật trên, mobile bỏ tham số).
+2. Web tự lên qua Amplify khi merge `main`; backend deploy **thủ công** sau đó.
+3. Chỉ khi cả hai đã lên mới bỏ trường khỏi `OnboardingRouteResponse`.
+
+Thứ tự tự nhiên của repo (Amplify tự build, backend deploy tay) trùng với thứ tự
+an toàn — nhưng đừng dựa vào may mắn, hãy tách thành hai PR.
+
+**Giữ lại gì:** `OnboardingType` (`onboardingType`) vẫn hữu ích cho phân tích, và
+`placementRequired` / `placementOptional` / `assessmentHookAfter` /
+`paywallAllowed` là phần còn sống của ma trận. `PostOnboardingAction` enum và
+trường `postAction` trong record `OnboardingRoute` bị xoá cùng lượt.
+
+⚠️ `OnboardingTypeResolverTest` đang **khoá hành vi cũ có chủ ý** — sửa ma trận
+phải sửa test đó trong cùng PR, và phải đọc thân test chứ đừng tin tên test.
+
+### 8.2 Q-B — 409 phải đi nhánh lỗi
+
+`saveProfile()` hiện `return true` khi gặp 409, tức cho người dùng đi tiếp sang
+roadmap. Nhưng 409 nghĩa là transaction **đã rollback** (§4.1) ⟹ người dùng đứng
+ở lộ trình mà **không có learning plan**, rồi bị guard `hasPlan === false` đá
+ngược về onboarding.
+
+Hành vi đúng:
+
+| | Trước | Sau |
+|---|---|---|
+| `saveProfile()` gặp 409 | `return true` (đi tiếp) | `return false` — chặn chuyển trang, hiện `detail` của ProblemDetail |
+| `resumeFromDraft()` gặp 409 | `router.push(ROADMAP_ROUTE)` | đi nhánh lỗi: giữ draft, `setResuming(false)`, `setStep(3)` |
+| Draft | không đụng (đã đúng từ #407) | không đụng — 409 = chưa lưu được ⟹ **giữ** |
+
+Backend đã có sẵn câu tiếng Việt cho ca này trong `GlobalExceptionHandler`
+("Bản ghi vừa được cập nhật bởi một thao tác khác. Vui lòng tải lại và thử lại.")
+nên client chỉ cần hiện `detail`, không tự chế thông điệp.
+
+**Nguồn 409 đáng chặn từ gốc:** nút bước 3 **không bị disable** trong lúc
+`await getOnboardingRoute()` chạy, nên bấm hai lần là hai POST song song và bên
+thua đụng `uq_profile_user`. Vá kèm: `setLoading(true)` ngay đầu nhánh
+`step === 3`.
 
 ## 9. Nợ kỹ thuật đã biết, ảnh hưởng tới đo lường
 
