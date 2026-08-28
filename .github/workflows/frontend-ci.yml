@@ -6,12 +6,17 @@ name: Frontend CI
 # đó chính là hình dạng của commit 63e406cb, thứ đã để 6 mentor nhập môn trôi mất trên web.
 on:
   push:
-    branches: [ "master", "main", "dev" ]
+    branches: [ "master", "main", "dev", "feat/onboarding-v3" ]
     paths:
       - 'frontend/**'
       - 'backend/src/main/java/com/deutschflow/user/mentor/**'
+#
+# `feat/onboarding-v3` là nhánh dài hạn của dự án onboarding onb_v3: các đợt GĐ 1–8
+# PR VÀO nó chứ không vào main. Không liệt kê ở đây thì workflow không kích hoạt cho
+# những PR đó, và chúng merge mà KHÔNG có cổng nào — nguy nhất là GĐ 5 (viết lại web
+# onboarding), vốn thuần frontend. Gỡ dòng này khi nhánh dài hạn đã merge xong.
   pull_request:
-    branches: [ "master", "main", "dev" ]
+    branches: [ "master", "main", "dev", "feat/onboarding-v3" ]
     paths:
       - 'frontend/**'
       - 'backend/src/main/java/com/deutschflow/user/mentor/**'
