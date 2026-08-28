@@ -208,6 +208,19 @@ api.interceptors.response.use(
       // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
       const { useAuthStore } = require('@/stores/useAuthStore') as typeof import('@/stores/useAuthStore')
       useAuthStore.getState().setUser(null)
+      // Đây là đường kết thúc phiên PHỔ BIẾN HƠN nút "Đăng xuất" (người dùng bỏ
+      // app lâu hơn tuổi thọ refresh token), và nó không đi qua useAuthStore.logout()
+      // — nên phải tự dọn trạng thái per-thiết bị, kẻo người đã rời đi vẫn bị nhắc
+      // học 20:00 và tài khoản kế tiếp thừa hưởng mục tiêu/tour/checklist của họ.
+      // KHÔNG gọi logout(): nó POST /auth/logout bằng token vừa xoá → 401 → quay
+      // lại chính interceptor này.
+      // Lazy require vì cùng lý do với useAuthStore ở trên: import tĩnh
+      // deviceSessionState kéo studyReminder → analytics vào module graph của api.ts.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+      const { clearDeviceSessionState } = require('@/lib/deviceSessionState') as typeof import('@/lib/deviceSessionState')
+      // .catch: dọn dẹp hỏng không được chặn cú router.replace đưa người dùng
+      // về màn đăng nhập — kẹt ở màn cũ với token đã xoá còn tệ hơn.
+      await clearDeviceSessionState().catch(() => undefined)
       router.replace('/(auth)/login')
       return Promise.reject(error)
     }

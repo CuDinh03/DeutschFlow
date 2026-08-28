@@ -10,7 +10,7 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -106,6 +106,8 @@ vi.mock("@/lib/profileApi", () => ({
 import V2OnboardingPage from "@/app/v2/onboarding/page";
 import api from "@/lib/api";
 import { getOnboardingRoute } from "@/lib/profileApi";
+import { readOnboardingDraft, clearOnboardingDraft } from "@/lib/onboardingDraft";
+import { toast } from "sonner";
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -290,5 +292,140 @@ describe("V2OnboardingPage — non-A0 level triggers placement test flow", () =>
     await waitFor(() => {
       expect(screen.getByText("Was ist ein Tisch?")).toBeInTheDocument();
     });
+  });
+});
+
+// ─── QW-3: draft chỉ được xoá SAU khi hồ sơ đã lên server ─────────────────────
+//
+// Bản cũ xoá draft ngay lúc đọc (trước POST), nên POST hỏng là mất trắng câu trả
+// lời của người dùng. Nhánh resume này trước đây coverage 0 — không test nào chạm.
+
+describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
+  const DRAFT = {
+    motivation: "JOB",
+    goalType: "WORK",
+    currentLevel: "A0",
+    targetLevel: "B1",
+    industry: "IT",
+    examType: "GOETHE",
+    weeklyTarget: 5,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(readOnboardingDraft).mockReturnValue(DRAFT);
+    vi.mocked(api.post).mockResolvedValue({ data: {} });
+    // vi.clearAllMocks() chỉ xoá lịch sử gọi, KHÔNG xoá implementation: describe
+    // "non-A0 … placement test" ở trên đã đặt getOnboardingRoute thành
+    // placementRequired=true và giá trị đó rò sang đây. Đặt lại tường minh.
+    vi.mocked(getOnboardingRoute).mockResolvedValue({
+      onboardingType: "ZERO_START",
+      placementRequired: false,
+      placementOptional: false,
+      assessmentHookAfter: false,
+      paywallAllowed: true,
+      postAction: "ROADMAP_ALPHABET",
+    });
+  });
+
+  afterEach(() => {
+    // Trả mock về null, nếu không mọi describe chạy sau sẽ vô tình đi vào nhánh
+    // resume và render loader thay vì bước 1 → hàng loạt fail giả.
+    vi.mocked(readOnboardingDraft).mockReturnValue(null);
+  });
+
+  it("POST hồ sơ thành công → xoá draft SAU khi POST, không phải trước", async () => {
+    render(<V2OnboardingPage />);
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith("/onboarding/profile", expect.objectContaining({
+        targetLevel: "B1",
+        goalType: "WORK",
+      }));
+    });
+    await waitFor(() => {
+      expect(clearOnboardingDraft).toHaveBeenCalledTimes(1);
+    });
+    // Chỉ đếm số lần gọi thì bản cũ (xoá TRƯỚC khi POST) cũng xanh — phải soi
+    // đúng THỨ TỰ mới khoá được hành vi mà QW-3 đang sửa.
+    expect(vi.mocked(clearOnboardingDraft).mock.invocationCallOrder[0]).toBeGreaterThan(
+      vi.mocked(api.post).mock.invocationCallOrder[0],
+    );
+    expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
+  });
+
+  it("POST hồ sơ hỏng → GIỮ draft, báo lỗi, và trả người dùng về bước dùng lại được", async () => {
+    vi.mocked(api.post).mockRejectedValue({ response: { status: 500 } });
+
+    render(<V2OnboardingPage />);
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+    });
+    // Đây là điểm mấu chốt của QW-3.
+    expect(clearOnboardingDraft).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+    // Giữ được dữ liệu mà kẹt ở màn loader thì cũng như mất: phải khoá cả vế
+    // "có lối đi tiếp". Không có hai assert này thì việc bỏ setResuming(false)
+    // vẫn khiến ca test xanh.
+    await waitFor(() => {
+      expect(screen.getByText("Bạn muốn học bao nhiêu?")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Đang tạo lộ trình của bạn…")).not.toBeInTheDocument();
+  });
+
+  it("resume hỏng rồi tự hoàn tất lại bằng wizard → draft KHÔNG bị bỏ mồ côi", async () => {
+    // Hồi quy do chính QW-3 đẻ ra: giữ draft ở nhánh lỗi mở ra một đường mà
+    // trước đó không tồn tại — người dùng lưu hồ sơ thành công qua saveProfile()
+    // trong khi draft cũ vẫn nằm đó, rồi bị replay đè lên hồ sơ vừa lưu.
+    const user = userEvent.setup();
+    vi.mocked(api.post).mockRejectedValueOnce({ response: { status: 500 } });
+
+    render(<V2OnboardingPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bạn muốn học bao nhiêu?")).toBeInTheDocument();
+    });
+    expect(clearOnboardingDraft).not.toHaveBeenCalled();
+
+    vi.mocked(api.post).mockResolvedValue({ data: {} });
+    await user.click(screen.getByRole("button", { name: /Bắt đầu lộ trình|Tiếp tục/i }));
+
+    await waitFor(() => {
+      expect(clearOnboardingDraft).toHaveBeenCalled();
+    });
+    expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
+  });
+
+  it("POST trả 409 (hồ sơ đã có) → xoá draft vì nó hết việc", async () => {
+    vi.mocked(api.post).mockRejectedValue({ response: { status: 409 } });
+
+    render(<V2OnboardingPage />);
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
+    });
+    expect(clearOnboardingDraft).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(clearOnboardingDraft).mock.invocationCallOrder[0]).toBeGreaterThan(
+      vi.mocked(api.post).mock.invocationCallOrder[0],
+    );
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("chỉ chạy resume một lần dù StrictMode gọi effect hai lần", async () => {
+    // Lệnh xoá draft đồng bộ của bản cũ kiêm luôn vai chống chạy hai lần. Bỏ nó
+    // mà không có cờ riêng thì StrictMode bắn hai POST + hai `onboarding_completed`.
+    render(
+      <React.StrictMode>
+        <V2OnboardingPage />
+      </React.StrictMode>,
+    );
+
+    await waitFor(() => {
+      expect(clearOnboardingDraft).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      vi.mocked(api.post).mock.calls.filter((c) => c[0] === "/onboarding/profile"),
+    ).toHaveLength(1);
   });
 });
