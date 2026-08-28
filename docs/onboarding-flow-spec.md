@@ -241,7 +241,8 @@ giữ nguyên vị trí và ý nghĩa cho client hiện tại.
 }
 ```
 
-Client **ẩn toàn bộ paywall/upsell** khi `isTrial && trialEndsAt > now` (hệ quả Q1).
+Client **ẩn toàn bộ paywall/upsell** khi `isTrial && trialEndsAt > now` (hệ quả Q1);
+ngày 8 mới được hiện lại.
 ⚠️ **Đừng suy ra trial từ `tier`** — người đã TRẢ TIỀN cũng là PRO, và họ không được
 ẩn paywall gia hạn.
 
@@ -249,16 +250,34 @@ Client **ẩn toàn bộ paywall/upsell** khi `isTrial && trialEndsAt > now` (h�
 nào, nên trả một mảng tự chế là bịa ra hợp đồng. Client hiện gate theo `tier`; khi
 nào cần capability thật thì thiết kế riêng.
 
-### 5.3 Hai chỗ kế hoạch §5.2 nói sai, đã đối chiếu code
+### 5.3 Đối chiếu kế hoạch §5.2 với code thật
+
+**Đánh số migration.**
+
+Số hiệu Flyway **phải kiểm lại ngay trước merge** — trùng số là backend không boot
+("Found more than one migration with version …"). Trạng thái tại thời điểm viết:
+
+| Version | Bảng / thay đổi | Thuộc PR |
+|---|---|---|
+| V285 | `mock_exam_draft_autosave` | #409 (không thuộc dự án này) |
+| V286 | `guest_onboarding_sessions` | GĐ 1 — #412 |
+| V287 | `user_onboarding_progress` | GĐ 1 — #412 |
+| V288 | `user_subscriptions_source_backfill` | GĐ 2 — #413 |
+
+Kế hoạch gốc đề xuất V285–V287; cả ba đã phải dời lên vì #409 chiếm V285 trước.
+**Đừng lấy số trong kế hoạch làm chuẩn** — đọc thư mục `db/migration` và các PR
+đang mở.
+
+**Hai chỗ kế hoạch nói sai.**
 
 | Kế hoạch nói | Thực tế trên `main` |
 |---|---|
-| "V287 `ALTER TABLE user_subscriptions ADD COLUMN source`" | **Cột đã có từ V189** (Apple IAP), `VARCHAR(16)` nullable. V287 chỉ cần **backfill** + `SET NOT NULL`. |
+| "V287 `ALTER TABLE user_subscriptions ADD COLUMN source`" | **Cột đã có từ V189** (Apple IAP), `VARCHAR(16)` nullable. Chỉ cần **backfill** + `SET NOT NULL`. Migration thật là **V288** — V285 thuộc PR #409, V286/V287 thuộc GĐ 1. |
 | "Mua giữa trial: trước khi INSERT gói trả phí, UPDATE trial ACTIVE thành ENDED" | **Đã có sẵn.** `SubscriptionActivationService.activateWithExplicitEnd` bước 1 deactivate MỌI gói ACTIVE trước khi INSERT. Không cần làm gì. |
 
 Giá trị `source` đang dùng: `TRIAL` · `IAP` · `SEPAY` · `DEFAULT` · `ADMIN` · `UNKNOWN`
 (hàng đời cũ không đoán được — **để nguyên UNKNOWN**, vì đoán bừa nghĩa là Q3 có thể
-xoá ví của một người đã trả tiền). Ngày 8 mới được hiện.
+xoá ví của một người đã trả tiền).
 
 ---
 
