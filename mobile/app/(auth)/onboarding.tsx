@@ -181,6 +181,13 @@ export default function OnboardingScreen() {
         // POST hỏng → trả draft về máy. Nạp lại form chỉ cứu được user còn đang ở
         // đây; ai tắt app ngay lúc đó thì mất trắng nếu draft không được khôi phục
         // (F-10). Lưu lại cũng làm mới savedAt — user đang thao tác thật.
+        //
+        // TRỪ khi phiên vừa chết: 401 + refresh hỏng làm interceptor dọn sạch
+        // trạng thái thiết bị rồi đá về màn đăng nhập, và rejection mới rơi xuống
+        // đây. Ghi lại draft lúc đó là hồi sinh nó VỚI TTL MỚI TOANH cho một người
+        // đã rời máy — đúng lỗ F-3: người kế tiếp đăng nhập trong 30 phút đó sẽ bị
+        // draft này POST đè lên hồ sơ học của họ.
+        if (!useAuthStore.getState().isLoggedIn) return
         await saveOnboardingDraft(draft)
         // Save failed → hydrate the form so the user can retry instead of losing their answers.
         if (active) {

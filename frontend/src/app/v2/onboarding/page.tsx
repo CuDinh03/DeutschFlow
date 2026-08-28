@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -104,10 +104,16 @@ export default function V2OnboardingPage() {
   }, [isGuest, goalType, industry, currentLevel]);
 
   /**
-   * Persist the onboarding profile. Returns true on success (incl. 409 "already
-   * exists" — idempotent). Surfaces real failures instead of silently swallowing
-   * them, so callers can BLOCK the redirect and avoid leaving the user with an
-   * incomplete profile (data-integrity fix, design §5 DI-3).
+   * Persist the onboarding profile. Returns true on success. Surfaces real
+   * failures instead of silently swallowing them, so callers can BLOCK the
+   * redirect and avoid leaving the user with an incomplete profile
+   * (data-integrity fix, design §5 DI-3).
+   *
+   * 409 cũng trả true — hành vi có sẵn từ trước. Chú thích cũ giải thích nó là
+   * "hồ sơ đã tồn tại, idempotent", điều đó SAI: endpoint UPSERT và trả 201, nên
+   * 409 duy nhất có thể tới là optimistic-lock/data-integrity lúc commit, tức
+   * ghi hỏng. Xử lý đúng phải là trả false; để lại làm nợ riêng vì đổi nó là đổi
+   * hành vi điều hướng, ngoài phạm vi đợt quick-win này.
    */
   const saveProfile = useCallback(async (): Promise<boolean> => {
     try {
@@ -118,10 +124,23 @@ export default function V2OnboardingPage() {
         sessionsPerWeek: weeklyTarget, minutesPerSession: 15, dailyGoalMinutes,
         learningSpeed: weeklyTarget >= 7 ? "FAST" : weeklyTarget >= 5 ? "NORMAL" : "SLOW",
       });
+      // Bất biến: hồ sơ đã nằm trên server ⇒ draft hết việc. Phải dọn ở ĐÂY chứ
+      // không chỉ trong resumeFromDraft, vì đường phục hồi đi lối khác: resume
+      // hỏng → giữ draft → người dùng làm lại bằng wizard → goRoadmap/startTest
+      // → saveProfile thành công. Thiếu chỗ này thì draft cũ sống hết TTL 30
+      // phút rồi bị replay đè lên đúng hồ sơ người dùng vừa sửa.
+      clearOnboardingDraft();
       return true;
     } catch (e: unknown) {
       const err = e as { response?: { status?: number; data?: { detail?: string } } };
-      if (err?.response?.status === 409) return true; // profile already exists → safe to proceed
+      // ĐỪNG dọn draft ở đây. Endpoint này trả 201 và UPSERT hồ sơ — nó không bao
+      // giờ phát 409 với nghĩa "hồ sơ đã tồn tại". 409 duy nhất có thể tới là
+      // optimistic-lock / data-integrity từ GlobalExceptionHandler, và cả hai đều
+      // nổ LÚC COMMIT của transaction saveProfileAndGeneratePlan ⇒ toàn bộ ghi đã
+      // ROLLBACK. Xoá draft ở nhánh này là vứt bản sao cuối cùng đúng lúc server
+      // KHÔNG lưu được gì. (Việc `return true` vẫn cho đi tiếp là hành vi có sẵn
+      // từ trước, ngoài phạm vi đợt này — đã ghi vào phần nợ.)
+      if (err?.response?.status === 409) return true;
       // api.ts already retried transient 5xx/429/network errors. Reaching here is a real
       // failure → surface it clearly and let the caller BLOCK the redirect (no silent skip).
       const offline = typeof navigator !== "undefined" && navigator.onLine === false;
@@ -185,6 +204,10 @@ export default function V2OnboardingPage() {
         sessionsPerWeek: d.weeklyTarget, minutesPerSession: 15, dailyGoalMinutes: daily,
         learningSpeed: d.weeklyTarget >= 7 ? "FAST" : d.weeklyTarget >= 5 ? "NORMAL" : "SLOW",
       });
+      // Draft chỉ được vứt SAU khi hồ sơ đã nằm trên server. Bản cũ xoá ngay lúc
+      // đọc, nên bất kỳ lỗi POST nào (mạng chập, 5xx, timeout 8s của api.ts) là
+      // mất trắng toàn bộ câu trả lời người dùng vừa điền, không có đường lấy lại.
+      clearOnboardingDraft();
       trackEvent('onboarding_completed', { level: d.currentLevel, goal: d.goalType, industry: d.industry });
       let r: OnboardingRouteData | null = null;
       try {
@@ -199,17 +222,32 @@ export default function V2OnboardingPage() {
         router.push(ROADMAP_ROUTE);
       }
     } catch (e: unknown) {
-      if ((e as { response?: { status?: number } })?.response?.status === 409) { router.push(ROADMAP_ROUTE); return; }
-      toast.error("Không lưu được hồ sơ. Vui lòng hoàn tất lại.");
+      // 409 ở đây KHÔNG phải "hồ sơ đã tồn tại" (endpoint UPSERT, trả 201) mà là
+      // xung đột dữ liệu lúc commit ⇒ đã rollback. Giữ draft lại. Việc vẫn đẩy
+      // sang roadmap là hành vi có sẵn từ trước, không đổi ở đợt này.
+      if ((e as { response?: { status?: number } })?.response?.status === 409) {
+        router.push(ROADMAP_ROUTE);
+        return;
+      }
+      // Lỗi thật: GIỮ draft để lần thử sau còn dữ liệu. Draft có TTL 30 phút nên
+      // một hồ sơ hỏng vĩnh viễn cũng chỉ replay trong cửa sổ đó rồi tự hết hạn.
+      toast.error("Không lưu được hồ sơ — câu trả lời của bạn vẫn được giữ. Vui lòng thử lại.");
       setResuming(false); setStep(3);
     }
   }, [router, trackEvent]);
 
+  // Trước đây lệnh xoá draft đồng bộ ngay tại useEffect kiêm luôn vai chống chạy
+  // hai lần: StrictMode dev double-mount đọc lại thì draft đã rỗng. Nay draft
+  // sống tới khi POST xong, nên phải có cờ riêng — không thì hai POST song song
+  // và hai event `onboarding_completed` làm nhiễu funnel.
+  const resumeStartedRef = useRef(false);
+
   // On mount: detect guest vs. authed. If authed with a stored draft, this is a post-signup resume.
   useEffect(() => {
     if (getAccessToken()) {
+      if (resumeStartedRef.current) return;
       const draft = readOnboardingDraft();
-      if (draft) { clearOnboardingDraft(); void resumeFromDraft(draft); }
+      if (draft) { resumeStartedRef.current = true; void resumeFromDraft(draft); }
     } else {
       setIsGuest(true);
     }

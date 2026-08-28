@@ -1,9 +1,30 @@
-import axios, { type AxiosError, type AxiosResponse } from 'axios'
+import axios, { isAxiosError, type AxiosError, type AxiosResponse } from 'axios'
 import { Platform } from 'react-native'
 import { API_BASE_URL } from './constants'
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './auth'
 import { reportApiError } from './observability'
 import { router } from 'expo-router'
+import { runCleanupBestEffort } from './bestEffort'
+
+/**
+ * Refresh hỏng: đây có phải phiên bị TỪ CHỐI DỨT KHOÁT không, hay chỉ là trục
+ * trặc hạ tầng thoáng qua?
+ *
+ * Quan trọng vì nhánh retry thoáng qua của interceptor CHỈ áp cho GET, còn
+ * refresh là POST — nên 502/503 lúc blue-green deploy, timeout hay mất sóng đều
+ * rơi vào đúng nhánh catch như refresh token hết hạn thật. Chỉ ca dứt khoát mới
+ * được phép xoá trạng thái per-thiết bị và huỷ lịch nhắc 20:00 trong OS; ca
+ * thoáng qua chỉ dọn token rồi đá về màn đăng nhập, đăng nhập lại là còn nguyên.
+ *
+ * Hàm thuần + export để test được mà không phải dựng cả interceptor (interceptor
+ * đọc `__DEV__`, thứ jest của repo này không định nghĩa).
+ */
+export function isSessionDefinitelyOver(err: unknown): boolean {
+  if (err instanceof Error && err.message === 'no_refresh_token') return true
+  if (!isAxiosError(err)) return false
+  const st = err.response?.status
+  return st === 400 || st === 401 || st === 403
+}
 
 export function isAxiosErr(e: unknown): e is AxiosError {
   return axios.isAxiosError(e)
@@ -192,7 +213,7 @@ api.interceptors.response.use(
       const { accessToken } = await refreshPromise
       original!.headers!.Authorization = `Bearer ${accessToken}`
       return api(original!)
-    } catch {
+    } catch (refreshErr) {
       refreshPromise = null
       await clearTokens()
       // Reset the auth store too, not just the tokens. Otherwise isLoggedIn stays true after the
@@ -208,6 +229,30 @@ api.interceptors.response.use(
       // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
       const { useAuthStore } = require('@/stores/useAuthStore') as typeof import('@/stores/useAuthStore')
       useAuthStore.getState().setUser(null)
+      // Đây là đường kết thúc phiên PHỔ BIẾN HƠN nút "Đăng xuất" (người dùng bỏ
+      // app lâu hơn tuổi thọ refresh token), và nó không đi qua useAuthStore.logout()
+      // — nên phải tự dọn trạng thái per-thiết bị, kẻo người đã rời đi vẫn bị nhắc
+      // học 20:00 và tài khoản kế tiếp thừa hưởng mục tiêu/tour/checklist của họ.
+      // KHÔNG gọi logout(): nó POST /auth/logout bằng token vừa xoá → 401 → quay
+      // lại chính interceptor này.
+      //
+      // NHƯNG chỉ dọn khi phiên bị TỪ CHỐI DỨT KHOÁT. Nhánh retry thoáng qua ở
+      // trên chỉ áp cho GET, còn refresh là POST — nên một 502/503 lúc blue-green
+      // deploy, hay mất sóng, cũng rơi vào đúng catch này y như refresh token hết
+      // hạn thật. Dọn vô điều kiện thì một trục trặc hạ tầng vài giây sẽ xoá tour,
+      // checklist tuần đầu, mục tiêu phút/ngày VÀ huỷ lịch nhắc 20:00 trong OS của
+      // một người mà refresh token còn hạn — mất dữ liệu đúng kiểu mà đợt vá này
+      // sinh ra để dập.
+      if (isSessionDefinitelyOver(refreshErr)) {
+        // Lazy require vì cùng lý do với useAuthStore ở trên: import tĩnh
+        // deviceSessionState kéo studyReminder → analytics vào module graph của api.ts.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+        const { clearDeviceSessionState } =
+          require('@/lib/deviceSessionState') as typeof import('@/lib/deviceSessionState')
+        // Hỏng HAY treo đều không được chặn router.replace bên dưới — kẹt ở màn
+        // đã-đăng-nhập với token đã xoá còn tệ hơn là bỏ dở việc dọn.
+        await runCleanupBestEffort(clearDeviceSessionState)
+      }
       router.replace('/(auth)/login')
       return Promise.reject(error)
     }

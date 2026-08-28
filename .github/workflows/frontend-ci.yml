@@ -1,14 +1,20 @@
 name: Frontend CI
 
+# Ngoài frontend/** còn phải theo dõi catalog mentor ở backend: src/__tests__/mentorMeta.test.ts
+# đọc thẳng FixedMentorResolver.java làm nguồn chuẩn, nên một PR CHỈ đụng backend mà thêm
+# mentor sẽ không kích hoạt workflow này và guard trở thành vô dụng đúng lúc cần nhất —
+# đó chính là hình dạng của commit 63e406cb, thứ đã để 6 mentor nhập môn trôi mất trên web.
 on:
   push:
     branches: [ "master", "main", "dev" ]
     paths:
       - 'frontend/**'
+      - 'backend/src/main/java/com/deutschflow/user/mentor/**'
   pull_request:
     branches: [ "master", "main", "dev" ]
     paths:
       - 'frontend/**'
+      - 'backend/src/main/java/com/deutschflow/user/mentor/**'
 
 jobs:
   build-and-lint:

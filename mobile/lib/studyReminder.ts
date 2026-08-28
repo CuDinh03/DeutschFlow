@@ -10,7 +10,10 @@ import { captureEvent } from './analytics'
 import { classifyPermission, type PermissionOutcome } from './permissionOutcome'
 
 export const REMINDER_HOUR = 20
-const REMINDER_ID = 'df-study-reminder-2000'
+// ĐỪNG đổi chuỗi này: lịch đã đặt trên máy người dùng được nhận diện bằng đúng
+// id đó. Đổi id thì lệnh huỷ không trúng lịch cũ, và người dùng bị nhắc vĩnh
+// viễn mà gỡ không được qua app.
+export const REMINDER_ID = 'df-study-reminder-2000'
 
 /**
  * Xin quyền hệ thống (nếu cần) rồi đặt nhắc lặp hằng ngày lúc 20:00.
@@ -52,5 +55,24 @@ export async function enableStudyReminder(dailyGoalMinutes: number | null): Prom
   } catch {
     // Native lỗi / module chưa link — coi như không xin được, để UI cho lối thoát thủ công.
     return 'blocked'
+  }
+}
+
+/**
+ * Gỡ lịch nhắc 20:00 khỏi hệ điều hành. Không bao giờ throw.
+ *
+ * Lịch local sống trong OS, không sống trong app: đăng xuất mà không gỡ thì người
+ * đã rời đi vẫn bị nhắc, và tài khoản kế tiếp trên cùng máy nhận thông báo mang
+ * mục tiêu phút/ngày của người trước. Nặng hơn: useStarterStore.reset() ĐÃ xoá cờ
+ * `df_starter_reminder_on`, nên trạng thái app và lịch OS lệch pha — sheet hỏi lại
+ * từ đầu trong khi thông báo cũ vẫn chạy ngầm (QA 2026-08-20, F-4).
+ */
+export async function disableStudyReminder(): Promise<void> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(REMINDER_ID)
+  } catch {
+    // Native lỗi / module chưa link / không có lịch nào — không có gì để cứu vãn.
+    // Nuốt lỗi là có chủ ý: đăng xuất không được phép hỏng vì một bước dọn dẹp
+    // best-effort. (logout() còn bọc thêm một lớp Promise.allSettled nữa.)
   }
 }
