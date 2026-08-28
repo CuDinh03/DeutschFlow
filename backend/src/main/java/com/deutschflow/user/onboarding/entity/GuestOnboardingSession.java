@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Phiên onboarding của khách chưa có tài khoản (V285).
+ * Phiên onboarding của khách chưa có tài khoản (V286).
  *
  * <p>{@code id} vừa là khoá chính vừa là bearer token: client cầm nó để PATCH mà
  * không cần đăng nhập. Vì vậy nó PHẢI được sinh ngẫu nhiên ({@link UUID#randomUUID()}),

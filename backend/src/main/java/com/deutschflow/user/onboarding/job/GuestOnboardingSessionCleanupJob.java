@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Dọn phiên onboarding của khách đã hết hạn (V285, TTL 72h).
+ * Dọn phiên onboarding của khách đã hết hạn (V286, TTL 72h).
  *
  * <p>Phiên chưa claim là rác thuần: khách bỏ ngang thì không ai quay lại nữa. Để
  * chúng nằm mãi là vừa phình bảng vừa giữ câu trả lời của người lạ lâu hơn mức

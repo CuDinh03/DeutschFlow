@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Tiến độ onboarding server-side của một user (V286).
+ * Tiến độ onboarding server-side của một user (V287).
  *
  * <p>{@code activatedAt} là ACTIVATION theo định nghĩa của sản phẩm: HOÀN THÀNH
  * BÀI HỌC ĐẦU TIÊN. Không phải lúc lưu hồ sơ, và không phải sự kiện

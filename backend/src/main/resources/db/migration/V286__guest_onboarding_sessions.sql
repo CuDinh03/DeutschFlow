@@ -1,4 +1,4 @@
--- V285 — Phiên onboarding của KHÁCH (chưa có tài khoản).
+-- V286 — Phiên onboarding của KHÁCH (chưa có tài khoản).
 --
 -- Vì sao cần (spec docs/onboarding-flow-spec.md §4.3, bất biến I-7):
 -- Luồng value-first cho khách chạy hết phễu TRƯỚC khi đăng ký. Hôm nay câu trả lời

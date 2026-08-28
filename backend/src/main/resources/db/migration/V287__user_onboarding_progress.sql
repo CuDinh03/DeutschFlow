@@ -1,4 +1,4 @@
--- V286 — Tiến độ onboarding phía SERVER của người đã có tài khoản.
+-- V287 — Tiến độ onboarding phía SERVER của người đã có tài khoản.
 --
 -- Vì sao cần (spec docs/onboarding-flow-spec.md, bất biến I-2):
 -- Mọi trạng thái từ bước AUTH trở đi phải có bản ghi server-side. Hôm nay tiến độ
