@@ -113,7 +113,7 @@ một luồng**, và mọi kế hoạch "parity" đều phải xuất phát từ
 | Nhắc học | không có | local notification 20:00, pre-permission + cooldown 3 ngày | 🔴 |
 | Spotlight tour | không có | 5 bước, **thứ tự đã chốt với owner, có test khoá** | 🔴 |
 | Draft khách | localStorage, TTL 30′ | SecureStore, TTL 30′ | 🟢 đã đồng bộ (#407) |
-| i18n | copy tiếng Việt **hard-code** trong page | tiếng Việt hard-code toàn app | 🔴 |
+| i18n | ✅ next-intl, namespace `v2.onboarding` (GĐ 4) | tiếng Việt hard-code toàn app | 🔴 còn mobile |
 | Tiền tố sự kiện | `onboarding_*` | `onboarding_*` **và** `onb_*` | 🔴 |
 
 > ⚠️ **`postAction` là hợp đồng chết một nửa.** Backend tính toán và trả nó ở
@@ -240,6 +240,29 @@ Client **ẩn toàn bộ paywall/upsell** khi `isTrial && trialEndsAt > now`
 (hệ quả của quyết định Q1). Ngày 8 mới được hiện.
 
 ---
+
+## 5.4 i18n onboarding (GĐ 4)
+
+**Web — xong.** Copy của `/v2/onboarding` nằm ở `messages/v2/onboarding.{vi,en,de}.json`
+(79 khoá lá × 3 locale). Hằng số `LEVELS`/`MOTIVATIONS`/`WEEKLY` trong page nay chỉ
+còn **dữ liệu** (value + emoji); nhãn resolve qua `t()` lúc render.
+
+Hai điều đáng nhớ khi làm tiếp:
+
+- `src/i18n/request.ts` có `V2_AREAS` là **danh sách cứng** — thêm file vào
+  `messages/v2/` mà quên thêm vào đó thì namespace không được nạp và mọi khoá render
+  ra dạng thô. Ngược lại, `scripts/check-i18n-v2.js` **tự phát hiện** file nên nó
+  không bắt được lỗi này.
+- Chuỗi có `<b>` dùng `t.rich`. Test nào mock `useTranslations` phải mock cả
+  `t.rich`, nếu không nó ném "t.rich is not a function" thay vì fail có nghĩa.
+
+**Đã xoá 93 khoá chết**: namespace `onboarding.*` (30 khoá × 3 locale) và
+`student.continueOnboardingHint` ở catalog cũ `messages/{vi,en,de}.json` — đã xác
+minh không component nào dùng, và `check-i18n-usage` (5102 khoá) xanh sau khi xoá.
+
+**Mobile — CHƯA làm.** Phạm vi theo Q-D: chỉ luồng onboarding/auth. Cần một module
+i18n mới (mobile hiện hard-code tiếng Việt toàn app), `expo-localization` để dò
+locale, và bỏ `locale: 'vi'` hard-code lúc đăng ký.
 
 ## 6. Taxonomy sự kiện
 
