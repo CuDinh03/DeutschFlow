@@ -225,19 +225,40 @@ nguồn cho contract test hai chiều.
 tiếp. `onb_v3` chốt **`dailyGoalMinutes: number`** là trường chuẩn; nhịp tuần là
 thứ hiển thị, không phải thứ lưu.
 
-### 5.2 `EntitlementResponse` (GĐ 2)
+### 5.2 Quyền lợi — `GET /api/auth/me/plan` (GĐ 2, đã thi công)
+
+Mở rộng **thuần bổ sung** trên `MyPlanResponse`/`PlanBadge` đang chạy; bốn trường cũ
+giữ nguyên vị trí và ý nghĩa cho client hiện tại.
 
 ```jsonc
 {
-  "tier":         "FREE|PRO|ULTRA|DEFAULT",
-  "isTrial":      true,
-  "trialEndsAt":  "2026-09-04T00:00:00Z",
-  "capabilities": ["speaking", "placement", "..."]
+  "planCode":    "PRO",
+  "tier":        "PREMIUM",
+  "startsAtUtc": "2026-08-28T00:00:00Z",
+  "endsAtUtc":   "2026-09-04T00:00:00Z",
+  "isTrial":     true,                      // MỚI
+  "trialEndsAt": "2026-09-04T00:00:00Z"     // MỚI, null khi không phải trial
 }
 ```
 
-Client **ẩn toàn bộ paywall/upsell** khi `isTrial && trialEndsAt > now`
-(hệ quả của quyết định Q1). Ngày 8 mới được hiện.
+Client **ẩn toàn bộ paywall/upsell** khi `isTrial && trialEndsAt > now` (hệ quả Q1).
+⚠️ **Đừng suy ra trial từ `tier`** — người đã TRẢ TIỀN cũng là PRO, và họ không được
+ẩn paywall gia hạn.
+
+`capabilities[]` **hoãn**: chưa có nguồn chân lý nào định nghĩa tier nào mở tính năng
+nào, nên trả một mảng tự chế là bịa ra hợp đồng. Client hiện gate theo `tier`; khi
+nào cần capability thật thì thiết kế riêng.
+
+### 5.3 Hai chỗ kế hoạch §5.2 nói sai, đã đối chiếu code
+
+| Kế hoạch nói | Thực tế trên `main` |
+|---|---|
+| "V287 `ALTER TABLE user_subscriptions ADD COLUMN source`" | **Cột đã có từ V189** (Apple IAP), `VARCHAR(16)` nullable. V287 chỉ cần **backfill** + `SET NOT NULL`. |
+| "Mua giữa trial: trước khi INSERT gói trả phí, UPDATE trial ACTIVE thành ENDED" | **Đã có sẵn.** `SubscriptionActivationService.activateWithExplicitEnd` bước 1 deactivate MỌI gói ACTIVE trước khi INSERT. Không cần làm gì. |
+
+Giá trị `source` đang dùng: `TRIAL` · `IAP` · `SEPAY` · `DEFAULT` · `ADMIN` · `UNKNOWN`
+(hàng đời cũ không đoán được — **để nguyên UNKNOWN**, vì đoán bừa nghĩa là Q3 có thể
+xoá ví của một người đã trả tiền). Ngày 8 mới được hiện.
 
 ---
 

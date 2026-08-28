@@ -21,6 +21,7 @@ public class AuthMePlanController {
     @GetMapping("/plan")
     public MyPlanResponse plan(@AuthenticationPrincipal User user) {
         var badge = quotaService.resolvePlanBadge(user.getId(), Instant.now());
-        return new MyPlanResponse(badge.planCode(), badge.tier(), badge.startsAtUtc(), badge.endsAtUtc());
+        return new MyPlanResponse(badge.planCode(), badge.tier(), badge.startsAtUtc(), badge.endsAtUtc(),
+                badge.isTrial(), badge.trialEndsAt());
     }
 }

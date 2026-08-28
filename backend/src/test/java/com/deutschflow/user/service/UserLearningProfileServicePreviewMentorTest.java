@@ -53,7 +53,7 @@ class UserLearningProfileServicePreviewMentorTest {
 
     private void onPlan(String code) {
         when(quotaService.resolvePlanBadge(anyLong(), any()))
-                .thenReturn(new PlanBadge(code, "BASIC", null, null));
+                .thenReturn(new PlanBadge(code, "BASIC", null, null, false, null));
     }
 
     @Test

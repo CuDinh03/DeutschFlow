@@ -61,7 +61,9 @@ public class SubscriptionActivationService {
                 userId, planCode,
                 Timestamp.from(startsAt),
                 endsAt != null ? Timestamp.from(endsAt) : null,
-                source,
+                // V287 làm cột source NOT NULL. Đường cũ (Stripe one-time, MoMo) truyền null,
+                // và DEFAULT của cột KHÔNG cứu được vì INSERT này nêu tên cột tường minh.
+                source == null ? "UNKNOWN" : source,
                 Timestamp.from(now), Timestamp.from(now));
         log.info("[SUB] Activated plan={} for userId={} source={} until={}", planCode, userId, source, endsAt);
 

@@ -50,12 +50,16 @@ class SubscriptionActivationServiceTest {
     }
 
     @Test
-    @DisplayName("legacy activatePlan delegates with a null source (Stripe/MoMo behavior unchanged)")
-    void activatePlan_delegatesWithNullSource() {
+    @DisplayName("legacy activatePlan ghi source='UNKNOWN' (V287 làm cột NOT NULL)")
+    void activatePlan_writesUnknownSource() {
         service.activatePlan(USER, "PRO", 1);
 
+        // Trước GĐ 2 đường này ghi NULL. V287 backfill xong rồi SET NOT NULL, nên NULL sẽ
+        // nổ ràng buộc — DEFAULT của cột không cứu được vì INSERT nêu tên cột tường minh.
+        // 'UNKNOWN' là đúng ngữ nghĩa: Stripe one-time/MoMo không nói mình là provider nào,
+        // và đoán bừa ở đây nghĩa là Q3 có thể xoá ví của một người đã trả tiền.
         verify(jdbcTemplate).update(contains("INSERT INTO user_subscriptions"),
-                eq(USER), eq("PRO"), any(), any(), isNull(), any(), any());
+                eq(USER), eq("PRO"), any(), any(), eq("UNKNOWN"), any(), any());
         verify(userNotificationService).onLearnerSubscribed(USER, "PRO");
     }
 
