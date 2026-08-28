@@ -104,10 +104,16 @@ export default function V2OnboardingPage() {
   }, [isGuest, goalType, industry, currentLevel]);
 
   /**
-   * Persist the onboarding profile. Returns true on success (incl. 409 "already
-   * exists" — idempotent). Surfaces real failures instead of silently swallowing
-   * them, so callers can BLOCK the redirect and avoid leaving the user with an
-   * incomplete profile (data-integrity fix, design §5 DI-3).
+   * Persist the onboarding profile. Returns true on success. Surfaces real
+   * failures instead of silently swallowing them, so callers can BLOCK the
+   * redirect and avoid leaving the user with an incomplete profile
+   * (data-integrity fix, design §5 DI-3).
+   *
+   * 409 cũng trả true — hành vi có sẵn từ trước. Chú thích cũ giải thích nó là
+   * "hồ sơ đã tồn tại, idempotent", điều đó SAI: endpoint UPSERT và trả 201, nên
+   * 409 duy nhất có thể tới là optimistic-lock/data-integrity lúc commit, tức
+   * ghi hỏng. Xử lý đúng phải là trả false; để lại làm nợ riêng vì đổi nó là đổi
+   * hành vi điều hướng, ngoài phạm vi đợt quick-win này.
    */
   const saveProfile = useCallback(async (): Promise<boolean> => {
     try {
@@ -127,8 +133,14 @@ export default function V2OnboardingPage() {
       return true;
     } catch (e: unknown) {
       const err = e as { response?: { status?: number; data?: { detail?: string } } };
-      // 409 = hồ sơ đã có ⇒ cũng là "đã nằm trên server", dọn draft rồi đi tiếp.
-      if (err?.response?.status === 409) { clearOnboardingDraft(); return true; }
+      // ĐỪNG dọn draft ở đây. Endpoint này trả 201 và UPSERT hồ sơ — nó không bao
+      // giờ phát 409 với nghĩa "hồ sơ đã tồn tại". 409 duy nhất có thể tới là
+      // optimistic-lock / data-integrity từ GlobalExceptionHandler, và cả hai đều
+      // nổ LÚC COMMIT của transaction saveProfileAndGeneratePlan ⇒ toàn bộ ghi đã
+      // ROLLBACK. Xoá draft ở nhánh này là vứt bản sao cuối cùng đúng lúc server
+      // KHÔNG lưu được gì. (Việc `return true` vẫn cho đi tiếp là hành vi có sẵn
+      // từ trước, ngoài phạm vi đợt này — đã ghi vào phần nợ.)
+      if (err?.response?.status === 409) return true;
       // api.ts already retried transient 5xx/429/network errors. Reaching here is a real
       // failure → surface it clearly and let the caller BLOCK the redirect (no silent skip).
       const offline = typeof navigator !== "undefined" && navigator.onLine === false;
@@ -210,11 +222,10 @@ export default function V2OnboardingPage() {
         router.push(ROADMAP_ROUTE);
       }
     } catch (e: unknown) {
-      // 409 giữ lại làm phòng thủ. Lưu ý: backend hiện UPSERT và trả 201, nên
-      // nhánh này thực tế không bắn — nếu có thì là xung đột dữ liệu, không phải
-      // "hồ sơ đã tồn tại". Dù sao hồ sơ cũng không cần ghi nữa ⇒ dọn draft.
+      // 409 ở đây KHÔNG phải "hồ sơ đã tồn tại" (endpoint UPSERT, trả 201) mà là
+      // xung đột dữ liệu lúc commit ⇒ đã rollback. Giữ draft lại. Việc vẫn đẩy
+      // sang roadmap là hành vi có sẵn từ trước, không đổi ở đợt này.
       if ((e as { response?: { status?: number } })?.response?.status === 409) {
-        clearOnboardingDraft();
         router.push(ROADMAP_ROUTE);
         return;
       }

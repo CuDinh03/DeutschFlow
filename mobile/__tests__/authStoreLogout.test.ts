@@ -26,6 +26,9 @@ jest.mock('@/lib/analytics', () => ({
 jest.mock('@/lib/deviceSessionState', () => ({
   clearDeviceSessionState: (...a: unknown[]) => clearDeviceSessionState(...a),
 }))
+// KHÔNG mock '@/lib/bestEffort': runCleanupBestEffort chính là lớp bảo vệ mà ca
+// "dọn dẹp hỏng" bên dưới đang khẳng định — mock nó đi thì test chỉ chứng minh
+// chính cái mock. Nó không phụ thuộc gì nên dùng bản thật là an toàn.
 
 import { useAuthStore } from '@/stores/useAuthStore'
 

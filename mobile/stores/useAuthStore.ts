@@ -3,6 +3,7 @@ import api from '@/lib/api'
 import { setTokens, clearTokens, getRoleFromToken } from '@/lib/auth'
 import { identifyUser, resetAnalytics } from '@/lib/analytics'
 import { clearDeviceSessionState } from '@/lib/deviceSessionState'
+import { runCleanupBestEffort } from '@/lib/bestEffort'
 
 export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN'
 
@@ -55,10 +56,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     // Cờ onboarding/tour/checklist và lịch nhắc 20:00 lưu per-THIẾT BỊ, không
     // per-tài khoản. Danh sách dọn nằm ở lib/deviceSessionState.ts vì interceptor
     // 401 trong lib/api.ts cũng phải chạy đúng danh sách đó — xem lý do ở file ấy.
-    // .catch tại đây chứ không chỉ tin helper: kết thúc phiên không được phép
-    // hỏng vì một bước dọn dẹp best-effort. Thiếu nó thì một rejection sẽ chặn
-    // hai dòng dưới ⇒ người dùng kẹt "đã đăng nhập" với token vừa bị xoá.
-    await clearDeviceSessionState().catch(() => undefined)
+    // Dọn là best-effort; kết thúc phiên thì không. Hỏng HAY treo đều không được
+    // chặn hai dòng dưới, kẻo người dùng kẹt "đã đăng nhập" với token vừa bị xoá.
+    await runCleanupBestEffort(clearDeviceSessionState)
     set({ user: null, isLoggedIn: false })
     resetAnalytics()
   },

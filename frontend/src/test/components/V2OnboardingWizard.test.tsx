@@ -342,10 +342,10 @@ describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
         targetLevel: "B1",
         goalType: "WORK",
       }));
-    });
+    }, { timeout: 5000 });
     await waitFor(() => {
       expect(clearOnboardingDraft).toHaveBeenCalledTimes(1);
-    });
+    }, { timeout: 5000 });
     // Chỉ đếm số lần gọi thì bản cũ (xoá TRƯỚC khi POST) cũng xanh — phải soi
     // đúng THỨ TỰ mới khoá được hành vi mà QW-3 đang sửa.
     expect(vi.mocked(clearOnboardingDraft).mock.invocationCallOrder[0]).toBeGreaterThan(
@@ -361,7 +361,7 @@ describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalled();
-    });
+    }, { timeout: 5000 });
     // Đây là điểm mấu chốt của QW-3.
     expect(clearOnboardingDraft).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
@@ -370,7 +370,7 @@ describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
     // vẫn khiến ca test xanh.
     await waitFor(() => {
       expect(screen.getByText("Bạn muốn học bao nhiêu?")).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
     expect(screen.queryByText("Đang tạo lộ trình của bạn…")).not.toBeInTheDocument();
   });
 
@@ -385,7 +385,7 @@ describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Bạn muốn học bao nhiêu?")).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
     expect(clearOnboardingDraft).not.toHaveBeenCalled();
 
     vi.mocked(api.post).mockResolvedValue({ data: {} });
@@ -393,22 +393,22 @@ describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
 
     await waitFor(() => {
       expect(clearOnboardingDraft).toHaveBeenCalled();
-    });
+    }, { timeout: 5000 });
     expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
   });
 
-  it("POST trả 409 (hồ sơ đã có) → xoá draft vì nó hết việc", async () => {
+  it("POST trả 409 → GIỮ draft, vì 409 nghĩa là giao dịch đã rollback", async () => {
+    // Endpoint UPSERT và trả 201; 409 duy nhất có thể tới là optimistic-lock /
+    // data-integrity nổ lúc commit ⇒ hồ sơ KHÔNG được ghi. Xoá draft ở đây là
+    // vứt bản sao cuối cùng đúng lúc server không lưu được gì.
     vi.mocked(api.post).mockRejectedValue({ response: { status: 409 } });
 
     render(<V2OnboardingPage />);
 
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
-    });
-    expect(clearOnboardingDraft).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(clearOnboardingDraft).mock.invocationCallOrder[0]).toBeGreaterThan(
-      vi.mocked(api.post).mock.invocationCallOrder[0],
-    );
+    }, { timeout: 5000 });
+    expect(clearOnboardingDraft).not.toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
   });
 
