@@ -12,6 +12,7 @@ import com.deutschflow.user.service.AuthRateLimiterService;
 import com.deutschflow.user.service.PasswordResetService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.RateLimitExceededException;
+import com.deutschflow.common.web.ClientIpResolver;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -51,14 +52,10 @@ public class AuthController {
     private final AuthRateLimiterService authRateLimiterService;
     private final AuthConcurrencyLimiter authConcurrencyLimiter;
     private final PasswordResetService passwordResetService;
+    private final ClientIpResolver clientIpResolver;
 
     @Value("${app.jwt.refresh-token-expiry-ms}")
     private long refreshTokenExpiryMs;
-
-    /** Number of trusted reverse proxies in front of the app (ALB/CloudFront/nginx). Drives
-     *  spoof-resistant client-IP resolution for rate limiting. 0 = no proxy (use socket addr). */
-    @Value("${app.security.trusted-proxy-count:1}")
-    private int trustedProxyCount;
 
     // ─── Public endpoints ──────────────────────────────────────────────────────
 
@@ -289,16 +286,6 @@ public class AuthController {
     }
 
     /**
-     * Resolve the client IP for rate limiting in a spoof-resistant way.
-     *
-     * <p>X-Forwarded-For is appended left→right as a request traverses proxies, so the LEFTMOST
-     * token is the client-supplied value an attacker can freely forge to rotate fake IPs and evade
-     * IP-based rate limits. Only the rightmost entries are appended by our own trusted proxies.
-     * We therefore read the entry at {@code (length - trustedProxyCount)} — the hop our outermost
-     * trusted proxy actually observed. {@code trustedProxyCount=0} ignores XFF entirely and uses the
-     * socket address (correct when the app is reached directly with no proxy).
-     */
-    /**
      * Chạy phần đắt (BCrypt) bên trong bulkhead.
      *
      * <p>Rate-limit theo IP ở trên chặn kẻ tấn công ĐƠN LẺ. Nó không chặn được tấn công phân tán:
@@ -329,18 +316,8 @@ public class AuthController {
         }
     }
 
+    /** Uỷ quyền cho {@link ClientIpResolver} — logic chống giả mạo X-Forwarded-For chỉ nên có MỘT bản. */
     private String resolveClientIp(HttpServletRequest request) {
-        if (request == null) return "";
-        if (trustedProxyCount > 0) {
-            String forwarded = request.getHeader("X-Forwarded-For");
-            if (forwarded != null && !forwarded.isBlank()) {
-                String[] parts = forwarded.split(",");
-                int idx = parts.length - trustedProxyCount;
-                if (idx < 0) idx = 0;
-                String ip = parts[idx].trim();
-                if (!ip.isBlank()) return ip;
-            }
-        }
-        return request.getRemoteAddr();
+        return clientIpResolver.resolve(request);
     }
 }

@@ -56,6 +56,8 @@ public class AuthRateLimiterService {
     private final long refreshWindow;   // giây
     private final int  passwordResetMax;
     private final long passwordResetWindow;  // giây
+    private final int  guestSessionMax;
+    private final long guestSessionWindow;   // giây
 
     // In-memory fallback (used when Redis is unavailable).
     private final ConcurrentHashMap<String, Deque<Instant>> loginAttempts    = new ConcurrentHashMap<>();
@@ -63,6 +65,7 @@ public class AuthRateLimiterService {
     private final ConcurrentHashMap<String, Deque<Instant>> registerAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Deque<Instant>> refreshAttempts  = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Deque<Instant>> passwordResetAttempts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Deque<Instant>> guestSessionAttempts  = new ConcurrentHashMap<>();
 
     // Redis sliding window (primary). May be null if no Redis is configured.
     private final StringRedisTemplate redis;
@@ -98,6 +101,8 @@ public class AuthRateLimiterService {
             @Value("${app.auth.rate-limit.refresh-window-seconds:60}")          long refreshWindow,
             @Value("${app.auth.rate-limit.password-reset-max-per-window:5}")    int  passwordResetMax,
             @Value("${app.auth.rate-limit.password-reset-window-seconds:900}")  long passwordResetWindow,
+            @Value("${app.onboarding.rate-limit.guest-session-max-per-window:30}") int  guestSessionMax,
+            @Value("${app.onboarding.rate-limit.guest-session-window-seconds:60}")  long guestSessionWindow,
             @Nullable StringRedisTemplate redis) {
         this.loginMax       = Math.max(1, loginMax);
         this.loginWindow    = Math.max(1L, loginWindow);
@@ -109,6 +114,8 @@ public class AuthRateLimiterService {
         this.refreshWindow  = Math.max(1L, refreshWindow);
         this.passwordResetMax    = Math.max(1, passwordResetMax);
         this.passwordResetWindow = Math.max(1L, passwordResetWindow);
+        this.guestSessionMax    = Math.max(1, guestSessionMax);
+        this.guestSessionWindow = Math.max(1L, guestSessionWindow);
 
         this.redis = redis;
         this.slidingWindowScript = new DefaultRedisScript<>(SLIDING_WINDOW_LUA, Long.class);
@@ -148,6 +155,20 @@ public class AuthRateLimiterService {
         return check(passwordResetAttempts, key, passwordResetMax, passwordResetWindow);
     }
 
+    /**
+     * Guest onboarding session limit — keyed by IP.
+     *
+     * <p>Ở đây thay vì một service riêng vì toàn bộ máy móc sliding-window (Redis +
+     * fallback in-memory) đã nằm sẵn trong lớp này; dựng bản sao thứ hai của cùng
+     * đoạn Lua là cách chắc chắn để hai bên trôi khỏi nhau.
+     *
+     * <p>Hạn mức rộng hơn login (30/phút) vì một người dùng thật đi qua phễu sẽ PATCH
+     * nhiều lần liên tiếp; nó chặn bot bơm phình bảng, không chặn người đang điền form.
+     */
+    public boolean allowGuestSession(String ip) {
+        return check(guestSessionAttempts, "guest-onb|" + safe(ip), guestSessionMax, guestSessionWindow);
+    }
+
     // ─── Retry-After helpers (used in RateLimitExceededException) ──────────────
 
     public int retryAfterSeconds()         { return (int) loginWindow;    }
@@ -155,6 +176,7 @@ public class AuthRateLimiterService {
     public int registerRetryAfterSeconds() { return (int) registerWindow; }
     public int refreshRetryAfterSeconds()  { return (int) refreshWindow;  }
     public int passwordResetRetryAfterSeconds() { return (int) passwordResetWindow; }
+    public int guestSessionRetryAfterSeconds()  { return (int) guestSessionWindow;  }
 
     // ─── Sliding-window: Redis primary, in-memory fallback ────────────────────
 

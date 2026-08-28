@@ -181,10 +181,21 @@ postAction)`.
 
 | Endpoint | Auth | Mô tả |
 |---|---|---|
-| `POST /api/onboarding/guest-session` | công khai + rate-limit theo IP | Tạo session, trả `sessionId` (UUID không đoán được). |
-| `PATCH /api/onboarding/guest-session/{id}` | công khai, chỉ khi **chưa claim** và **chưa hết hạn** | Cập nhật `current_step` / `answers` / `activity_result`. |
-| `POST /api/onboarding/claim` | authed | Gắn session → user. Idempotent (I-6), atomic (`UPDATE … WHERE claimed_by_user_id IS NULL`). |
-| `GET /api/onboarding/progress` | authed | Trả progress server-side để resume trên thiết bị khác. |
+| `POST /api/onboarding/guest-session` | công khai + rate-limit theo IP | **201** — tạo session, trả `sessionId` (UUID ngẫu nhiên). |
+| `PATCH /api/onboarding/guest-session/{id}` | công khai, chỉ khi **chưa claim** và **chưa hết hạn** | **200** — cập nhật từng phần `currentStep` / `answers` / `activityResult`. Trường vắng mặt = **không đổi**, không phải xoá. |
+| `POST /api/onboarding/claim` | authed (STUDENT) | Gắn session → user. Idempotent (I-6), atomic (`UPDATE … WHERE claimed_by_user_id IS NULL`). Phát lại `answers` thành hồ sơ học qua chính service của `POST /profile`. |
+| `GET /api/onboarding/progress` | authed (STUDENT) | Progress server-side để resume trên thiết bị khác. Chưa có dòng nào thì trả mặc định, **không** 404. |
+
+**Bố cục controller (đã thi công).** Hai đầu công khai nằm ở
+`GuestOnboardingController` riêng, KHÔNG nhét vào `OnboardingController`: class đó
+mang `@PreAuthorize("hasRole('STUDENT')")` ở cấp class, trộn chung là hoặc phải nới
+quyền cả class, hoặc phải đè annotation từng method — cả hai đều hỏng lặng lẽ về
+sau. Hai đầu authed (`/claim`, `/progress`) thì nằm trong `OnboardingController`.
+
+**Mã lỗi.** Phiên hết hạn và phiên không tồn tại đều trả **404 với cùng thông
+điệp** — phân biệt hai ca là rò rỉ thông tin cho người đang dò `sessionId`. Phiên
+của người khác trả **400**, không phải 404: ở đây người gọi đã đăng nhập nên việc
+xác nhận "phiên này có chủ rồi" không thêm thông tin gì cho kẻ dò.
 
 **Ràng buộc bắt buộc:**
 
