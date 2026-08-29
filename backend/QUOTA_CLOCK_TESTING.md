@@ -1,8 +1,8 @@
 # Đồng hồ trong ví token & ngày lịch VN — vì sao test phải ghim `Clock`
 
-> Trạng thái: vá xong và chạy xanh **cục bộ** ngày **2026-08-29**; ngày **2026-08-30** áp lại lên
-> `origin/main` (`473bfcdf`) ở nhánh `fix/quota-clock-flaky-it` rồi mở PR để job `🐘 Integration Tests`
-> chạy thật. Phần còn chưa có bằng chứng: §10.
+> Trạng thái: **CI XANH** ngày **2026-08-30** trên PR #416 (nhánh `fix/quota-clock-flaky-it`, base
+> `origin/main` `473bfcdf`) — job `🐘 Integration Tests` chạy TOÀN BỘ IT của repo:
+> `Tests run: 177, Failures: 0, Errors: 0, Skipped: 10`. Chờ owner merge. Phần còn chưa kiểm: §10.
 > Phạm vi: `AiUsageLedgerService` + unit test của nó + hai lớp integration test hạn mức token.
 >
 > Đặt ở `backend/` chứ không phải `docs/` vì `.gitignore:203` ignore `docs/*` (chỉ chừa vài thư mục
@@ -232,11 +232,14 @@ Số dưới đây là của lần 30/08 — tức đúng bản đem đi PR. C�
 | IT `QuotaBillingIntegrationTest` | 6/6 xanh (0,100s) |
 | IT `TwoChannelTokenPoolIntegrationTest` | 9/9 xanh (6,2s) |
 | IT `OrgContextLoadIntegrationTest` | 1/1 xanh (24,9s) |
+| **CI** job `🐘 Integration Tests` (toàn bộ IT repo) | `Tests run: 177, Failures: 0, Errors: 0, Skipped: 10` |
 
 `OrgContextLoadIntegrationTest` được chạy có chủ đích vì nó **không** `@Import` config ghim — nó cho
 thấy bean `Clock` mới không phá vỡ context của các test khác. Chênh lệch thời gian cũng xác nhận lại
 §6.2: nó dựng context riêng (24,9s) còn `QuotaBillingIntegrationTest` dùng lại context đã cache của
-`TwoChannelTokenPoolIntegrationTest` (0,100s).
+`TwoChannelTokenPoolIntegrationTest` (0,100s). CI cho lại đúng dạng số đó trên máy khác, JDK khác
+(17 thay vì 21): `TwoChannelTokenPool` 9,973s rồi `QuotaBilling` **0,139s** — nên "dùng chung context"
+là tính chất của thiết kế, không phải may mắn của một máy.
 
 ### 8.1 Chứng cứ ngược — gỡ vá ra thì test có đỏ thật không
 
@@ -311,14 +314,10 @@ Nếu sau này cần test theo mốc tháng, phải xử lý riêng ở tầng S
 
 Ghi ra để không ai đọc tài liệu này rồi tưởng đã chắc hơn thực tế:
 
-- **CI GitHub Actions đang chạy lần đầu, chưa có kết quả.** Mọi số ở §8 là chạy cục bộ trên macOS với
-  Postgres dựng tay. Job `🐘 Integration Tests` chạy `./mvnw -B verify -DskipUnitTests=true`, tức
-  **toàn bộ IT của repo** — rộng hơn hẳn 3 lớp (16 test) chạy tay ở §8. Đó mới là bằng chứng còn
-  thiếu; đừng đọc §8 rồi tưởng đã phủ hết.
-- **Rủi ro còn lại của việc chỉ chạy 3 lớp:** một lớp IT khác tự khai bean `Clock` rồi xung đột với
-  `ClockConfig`. Đã grep `java.time.Clock` toàn `src/main` + `src/test` trên chính `origin/main`
-  (`473bfcdf`) và **không có** khai báo nào ngoài hai file của đợt này — nhưng grep không thay được
-  một lần chạy đầy đủ.
+- ~~Chưa chạy trên CI~~ và ~~chưa chạy toàn bộ IT của repo~~ — **cả hai đã đóng 30/08**: job
+  `🐘 Integration Tests` (= `./mvnw -B verify -DskipUnitTests=true`) xanh với 177 IT. Đó cũng là lời
+  đáp cho rủi ro "một lớp IT khác tự khai bean `Clock` rồi xung đột với `ClockConfig`": trước đó chỉ
+  có một lần grep làm chứng, giờ có một lần chạy đầy đủ.
 - **Chưa thử `FIXED_NOW` ở mốc mà ngày VN lệch ngày UTC** (ngoài lần thử 00:05 đã bị rào chặn lại).
   Nhận định ở §9.3 về `java.sql.Date` là *cảnh báo cần kiểm*, không phải kết luận đã đo.
 - **Chưa đo lại xác suất đỏ trên CI sau khi vá** — không có cách đo trực tiếp; lập luận là cửa sổ phụ
