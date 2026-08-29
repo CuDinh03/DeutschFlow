@@ -9,7 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
+import java.time.Clock;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +18,13 @@ public class AiUsageLedgerService {
     private final JdbcTemplate jdbcTemplate;
     private final QuotaService quotaService;
     private final OrgQuotaService orgQuotaService;
+    /**
+     * Mốc "bây giờ" của bước trừ ví. Đọc qua bean ({@link com.deutschflow.common.config.ClockConfig})
+     * chứ không gọi {@code Instant.now()} tĩnh: ví cộng dồn theo NGÀY LỊCH giờ VN, nên test phải ghim
+     * được cùng một mốc cho cả dữ liệu dựng sẵn lẫn lời gọi này, thay vì hên xui theo giờ CI chạy.
+     * Chi tiết: {@code backend/QUOTA_CLOCK_TESTING.md}.
+     */
+    private final Clock clock;
 
     /**
      * Token-tương-đương cho mỗi giây audio STT. Whisper bị Groq tính theo giây (không theo
@@ -162,7 +169,7 @@ public class AiUsageLedgerService {
         }
         OrgMembership membership = orgQuotaService.resolveActiveMembership(userId);
         if (membership == null || !membership.staff()) {
-            quotaService.applyUsageDebit(userId, totalTokens, Instant.now());
+            quotaService.applyUsageDebit(userId, totalTokens, clock.instant());
             return;
         }
 

@@ -4,18 +4,20 @@ import com.deutschflow.organization.service.OrgQuotaService;
 import com.deutschflow.organization.service.OrgQuotaService.OrgMembership;
 import com.deutschflow.organization.service.OrgQuotaService.OrgReservation;
 import com.deutschflow.speaking.ai.TokenUsage;
+import com.deutschflow.testsupport.FixedClockTestConfig;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.invocation.Invocation;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.time.Instant;
+import java.time.Clock;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,8 +45,16 @@ class AiUsageLedgerServiceUnitTest {
     @Mock QuotaService quotaService;
     @Mock OrgQuotaService orgQuotaService;
 
-    @InjectMocks
     AiUsageLedgerService service;
+
+    @BeforeEach
+    void setUp() {
+        // Dựng tường minh thay vì @InjectMocks: Clock không phải mock nên @InjectMocks sẽ để null
+        // và clock.instant() ném NPE. Đồng hồ ghim cũng cho phép assert ĐÚNG mốc mà service
+        // chuyển xuống applyUsageDebit, thay vì chấp nhận "một Instant nào đó".
+        service = new AiUsageLedgerService(jdbcTemplate, quotaService, orgQuotaService,
+                Clock.fixed(FixedClockTestConfig.FIXED_NOW, ZoneOffset.UTC));
+    }
 
     @AfterEach
     void clearHolder() {
@@ -101,7 +111,7 @@ class AiUsageLedgerServiceUnitTest {
         assertThat(args[5]).isEqualTo(120);
         assertThat(args[6]).isEqualTo(1_271);
         // Ví vẫn trừ theo TỔNG token như trước — cache làm đổi GIÁ, không đổi số token đã tiêu.
-        verify(quotaService).applyUsageDebit(eq(7L), eq(1_271L), any(Instant.class));
+        verify(quotaService).applyUsageDebit(eq(7L), eq(1_271L), eq(FixedClockTestConfig.FIXED_NOW));
     }
 
     @Test
@@ -143,7 +153,7 @@ class AiUsageLedgerServiceUnitTest {
 
         service.record(7L, "GROQ", "llama", 100, 400, 500, "TEACHER_AI_GRADING", null, null);
 
-        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), any(Instant.class));
+        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), eq(FixedClockTestConfig.FIXED_NOW));
         verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
     }
 
@@ -154,7 +164,7 @@ class AiUsageLedgerServiceUnitTest {
 
         service.record(7L, "GROQ", "llama", 100, 400, 500, "SPEAKING_CHAT", null, null);
 
-        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), any(Instant.class));
+        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), eq(FixedClockTestConfig.FIXED_NOW));
         verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
     }
 
@@ -167,7 +177,7 @@ class AiUsageLedgerServiceUnitTest {
 
         service.record(7L, "GROQ", "llama", 100, 400, 500, "SPEAKING_CHAT", null, null);
 
-        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), any(Instant.class));
+        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), eq(FixedClockTestConfig.FIXED_NOW));
         verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
         // Suất còn nguyên cho OrgReservationRefundFilter — không bị nuốt mất rồi lệch pool.
         assertThat(OrgReservationHolder.take()).isEqualTo(stale);
@@ -218,7 +228,7 @@ class AiUsageLedgerServiceUnitTest {
 
         service.recordStt(42L, "STT_TRANSCRIBE", "whisper-large-v3", 10.0);
 
-        verify(quotaService).applyUsageDebit(eq(42L), eq(200L), any(Instant.class));
+        verify(quotaService).applyUsageDebit(eq(42L), eq(200L), eq(FixedClockTestConfig.FIXED_NOW));
         verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
     }
 
