@@ -1,12 +1,14 @@
 package com.deutschflow.common.quota;
 
 import com.deutschflow.testsupport.AbstractPostgresIntegrationTest;
+import com.deutschflow.testsupport.FixedClockTestConfig;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.sql.Date;
@@ -21,8 +23,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Covers VN calendar daily usage sums, rollover wallet caps, paid downgrade when balance hits 0,
  * and INTERNAL exemption. {@link QuotaService} uses {@code REQUIRES_NEW} on reads — no outer test
  * {@code @Transactional}; users are deleted explicitly.
+ *
+ * <p><b>Mọi mốc thời gian đều tường minh</b> — không test nào ở đây được gọi {@code Instant.now()}.
+ * Ví token cộng dồn theo ngày lịch giờ VN, mà {@code AiUsageLedgerService} đọc "bây giờ" một lần
+ * nữa ở bước trừ ví; hễ nửa đêm giờ VN rơi vào giữa lúc dựng dữ liệu và lúc trừ là ví được cộng
+ * dồn hai ngày và assert vỡ. {@link FixedClockTestConfig} ghim đồng hồ đó về
+ * {@link FixedClockTestConfig#FIXED_NOW} để cả hai phía nhìn cùng một ngày, bất kể CI chạy giờ nào.
  */
 @SpringBootTest
+@Import(FixedClockTestConfig.class)
 class QuotaBillingIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired
@@ -149,7 +158,7 @@ class QuotaBillingIntegrationTest extends AbstractPostgresIntegrationTest {
                 .build());
         userRepository.flush();
 
-        Instant now = Instant.now();
+        Instant now = FixedClockTestConfig.FIXED_NOW;
         insertSubscription(u.getId(), "ULTRA",
                 Timestamp.from(now.minusSeconds(86400)), null);
 
@@ -190,7 +199,7 @@ class QuotaBillingIntegrationTest extends AbstractPostgresIntegrationTest {
                 .build());
         userRepository.flush();
 
-        Instant now = Instant.now();
+        Instant now = FixedClockTestConfig.FIXED_NOW;
         insertSubscription(u.getId(), "PRO",
                 Timestamp.from(now.minusSeconds(600)),
                 Timestamp.from(now.plusSeconds(7L * 86400)));
@@ -227,7 +236,7 @@ class QuotaBillingIntegrationTest extends AbstractPostgresIntegrationTest {
                 .build());
         userRepository.flush();
 
-        Instant now = Instant.now();
+        Instant now = FixedClockTestConfig.FIXED_NOW;
         insertSubscription(u.getId(), "INTERNAL",
                 Timestamp.from(now.minusSeconds(86400)), null);
 
