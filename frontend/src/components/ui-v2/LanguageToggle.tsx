@@ -61,7 +61,7 @@ export function LanguageToggle() {
               // 44px chạm tay trên mobile (F-06/D8); từ lg trả lại kích thước compact của topbar.
               'min-h-11 min-w-11 rounded-ga-touch px-2 py-1 text-[11px] font-semibold transition-colors lg:min-h-0 lg:min-w-0 ' +
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset disabled:opacity-50 ' +
-              (isActive ? 'bg-ga-accent-soft text-ga-accent' : 'text-ga-subtle hover:text-ga-ink')
+              (isActive ? 'bg-ga-accent-soft text-ga-ink' : 'text-ga-muted hover:text-ga-ink')
             }
           >
             {l.label}

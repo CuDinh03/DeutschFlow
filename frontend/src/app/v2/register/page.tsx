@@ -130,11 +130,12 @@ export default function V2RegisterPage() {
         noValidate
       >
         <div className="grid grid-cols-1 gap-x-[18px] sm:grid-cols-2">
-          <GaField label={t('register.familyNameLabel')} placeholder={t('register.familyNamePlaceholder')} autoComplete="family-name" value={f.first} onChange={(v) => set('first', v)} error={errs.first} required />
-          <GaField label={t('register.givenNameLabel')} placeholder={t('register.givenNamePlaceholder')} autoComplete="given-name" value={f.last} onChange={(v) => set('last', v)} error={errs.last} required />
+          <GaField name="family-name" label={t('register.familyNameLabel')} placeholder={t('register.familyNamePlaceholder')} autoComplete="family-name" value={f.first} onChange={(v) => set('first', v)} error={errs.first} required />
+          <GaField name="given-name" label={t('register.givenNameLabel')} placeholder={t('register.givenNamePlaceholder')} autoComplete="given-name" value={f.last} onChange={(v) => set('last', v)} error={errs.last} required />
         </div>
-        <GaField label={t('register.emailLabel')} type="email" placeholder={t('register.emailPlaceholder')} autoComplete="email" value={f.email} onChange={(v) => set('email', v)} error={errs.email} required />
+        <GaField name="email" label={t('register.emailLabel')} type="email" placeholder={t('register.emailPlaceholder')} autoComplete="email" value={f.email} onChange={(v) => set('email', v)} error={errs.email} required />
         <GaField
+          name="tel"
           label={t('register.phoneLabel')}
           type="tel"
           placeholder={t('register.phonePlaceholder')}
@@ -146,6 +147,7 @@ export default function V2RegisterPage() {
           required
         />
         <GaField
+          name="new-password"
           label={t('register.passwordLabel')}
           type="password"
           placeholder={t('register.passwordPlaceholder')}

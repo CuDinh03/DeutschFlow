@@ -224,9 +224,9 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
 
   if (drills.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
+      <div className="flex flex-col items-center justify-center py-16 bg-ga-card rounded-ga border border-ga-line">
         <span className="text-4xl mb-3">🎤</span>
-        <p className="text-sm text-[#64748B]">Chưa có bài luyện nói cho bài học này.</p>
+        <p className="text-sm text-ga-muted">Chưa có bài luyện nói cho bài học này.</p>
       </div>
     );
   }
@@ -234,9 +234,9 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
   return (
     <div className="space-y-4">
       {/* ── Current drill card ── */}
-      <div className="rounded-2xl bg-gradient-to-br from-[#121212] to-[#1E293B] p-4 lg:p-6 space-y-4">
+      <div className="rounded-ga bg-gradient-to-br from-ga-ink to-ga-ink p-4 lg:p-6 space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-bold text-[#FFCD00] uppercase">
+          <span className="text-[10px] font-bold text-ga-yellow uppercase">
             Bài {currentDrillIndex + 1} / {drills.length}
           </span>
           <div className="flex min-w-0 flex-wrap justify-end gap-1">
@@ -244,8 +244,8 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
               <div
                 key={i}
                 className={`w-2 h-2 rounded-full transition-colors ${
-                  i === currentDrillIndex ? "bg-[#FFCD00]" :
-                  i < currentDrillIndex ? "bg-[#22C55E]" : "bg-white/20"
+                  i === currentDrillIndex ? "bg-ga-yellow" :
+                  i < currentDrillIndex ? "bg-ga-green" : "bg-ga-card/20"
                 }`}
               />
             ))}
@@ -263,12 +263,12 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
       </div>
 
       {/* ── Waveform canvas ── */}
-      <div className="rounded-xl bg-[#0F172A] p-4">
+      <div className="rounded-ga bg-ga-ink p-4">
         <canvas
           ref={canvasRef}
           width={600}
           height={80}
-          className="w-full h-20 rounded-lg"
+          className="w-full h-20 rounded-ga"
         />
       </div>
 
@@ -279,7 +279,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
             type="button"
             onClick={startRecording}
             disabled={evaluating}
-            className="w-16 h-16 rounded-full bg-[#EF4444] flex items-center justify-center text-white hover:scale-105 active:scale-95 transition-transform shadow-lg disabled:opacity-50"
+            className="w-16 h-16 rounded-full bg-ga-red flex items-center justify-center text-white hover:scale-105 active:scale-95 transition-transform shadow-ga-card-hover disabled:opacity-50"
           >
             {evaluating ? <Loader2 size={24} className="animate-spin" /> : <Mic size={24} />}
           </button>
@@ -287,7 +287,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
           <button
             type="button"
             onClick={stopRecording}
-            className="w-16 h-16 rounded-full bg-[#EF4444] flex items-center justify-center text-white animate-pulse hover:scale-105 active:scale-95 transition-transform shadow-lg"
+            className="w-16 h-16 rounded-full bg-ga-red flex items-center justify-center text-white animate-pulse hover:scale-105 active:scale-95 transition-transform shadow-ga-card-hover"
           >
             <Square size={20} />
           </button>
@@ -297,42 +297,42 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
           <button
             type="button"
             onClick={() => { setFeedback(null); startRecording(); }}
-            className="w-10 h-10 rounded-full bg-[#F1F5F9] flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0] transition-colors"
+            className="w-10 h-10 rounded-full bg-ga-surface flex items-center justify-center text-ga-muted hover:bg-ga-line transition-colors"
           >
             <RotateCcw size={16} />
           </button>
         )}
       </div>
 
-      {recording && <p className="text-center text-xs text-[#EF4444] animate-pulse">🎙️ Đang ghi âm...</p>}
-      {evaluating && <p className="text-center text-xs text-[#64748B]">🤖 Đang đánh giá phát âm...</p>}
-      {error && <p className="text-center text-xs text-red-500">{error}</p>}
+      {recording && <p className="text-center text-xs text-ga-red animate-pulse">🎙️ Đang ghi âm...</p>}
+      {evaluating && <p className="text-center text-xs text-ga-muted">🤖 Đang đánh giá phát âm...</p>}
+      {error && <p className="text-center text-xs text-ga-red">{error}</p>}
 
       {/* ── Feedback ── */}
       {feedback && (
-        <div className="rounded-xl bg-white border border-[#E2E8F0] p-4 space-y-3 animate-in fade-in duration-300">
+        <div className="rounded-ga bg-ga-card border border-ga-line p-4 space-y-3 animate-in fade-in duration-300">
           <div className="flex items-center gap-3">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold ${
-              feedback.overall_score >= 80 ? "bg-green-100 text-green-600" :
-              feedback.overall_score >= 50 ? "bg-yellow-100 text-yellow-600" :
-              "bg-red-100 text-red-600"
+              feedback.overall_score >= 80 ? "bg-ga-green-soft text-ga-green" :
+              feedback.overall_score >= 50 ? "bg-ga-yellow-soft text-ga-orange" :
+              "bg-ga-red-soft text-ga-red"
             }`}>
               {feedback.overall_score}
             </div>
             <div>
-              <p className="text-sm font-bold text-[#0F172A]">
+              <p className="text-sm font-bold text-ga-ink">
                 {feedback.overall_score >= 80 ? "Rất tốt! 🎉" : feedback.overall_score >= 50 ? "Khá! Cần cải thiện" : "Cần luyện thêm"}
               </p>
-              <p className="text-xs text-[#64748B]">Điểm phát âm</p>
+              <p className="text-xs text-ga-muted">Điểm phát âm</p>
             </div>
           </div>
           
-          <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-            <p className="text-xs font-bold text-[#64748B] uppercase mb-1">🎙️ Hệ thống nghe được:</p>
+          <div className="bg-ga-surface rounded-ga p-3 border border-ga-line">
+            <p className="text-xs font-bold text-ga-muted uppercase mb-1">🎙️ Hệ thống nghe được:</p>
             {feedback.transcribed ? (
-              <p className="text-sm italic text-[#334155]">{'"'}{feedback.transcribed}{'"'}</p>
+              <p className="text-sm italic text-ga-ink">{'"'}{feedback.transcribed}{'"'}</p>
             ) : (
-              <p className="text-sm text-red-500 font-medium">
+              <p className="text-sm text-ga-red font-medium">
                 [Không thu được tiếng — Vui lòng nói to và rõ hơn]
               </p>
             )}
@@ -343,10 +343,10 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
             {feedback.words.map((w, i) => (
               <span
                 key={i}
-                className={`text-sm px-2 py-0.5 rounded-lg ${
-                  w.score === "correct" ? "bg-green-50 text-green-700" :
-                  w.score === "minor_error" ? "bg-yellow-50 text-yellow-700" :
-                  "bg-red-50 text-red-700"
+                className={`text-sm px-2 py-0.5 rounded-ga ${
+                  w.score === "correct" ? "bg-ga-green-soft text-ga-green" :
+                  w.score === "minor_error" ? "bg-ga-yellow-soft text-ga-orange" :
+                  "bg-ga-red-soft text-ga-red"
                 }`}
                 title={w.feedback}
               >
@@ -360,10 +360,10 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
 
           {/* Tips */}
           {feedback.tips.length > 0 && (
-            <div className="bg-[#FFFBEB] rounded-lg p-3 space-y-1">
-              <p className="text-xs font-bold text-[#92400E]">💡 Gợi ý:</p>
+            <div className="bg-ga-yellow-soft rounded-ga p-3 space-y-1">
+              <p className="text-xs font-bold text-ga-orange">💡 Gợi ý:</p>
               {feedback.tips.map((tip, i) => (
-                <p key={i} className="text-xs text-[#92400E]">• {tip}</p>
+                <p key={i} className="text-xs text-ga-orange">• {tip}</p>
               ))}
             </div>
           )}
@@ -373,7 +373,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
             <button
               type="button"
               onClick={() => { setCurrentDrillIndex((i) => i + 1); setFeedback(null); }}
-              className="w-full py-2.5 rounded-xl bg-[#121212] text-white text-sm font-bold hover:bg-[#1E293B] transition-colors"
+              className="w-full py-2.5 rounded-ga bg-ga-ink text-white text-sm font-bold hover:bg-ga-ink transition-colors"
             >
               Bài tiếp theo →
             </button>
@@ -383,8 +383,8 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
 
       {/* ── Completion Status ── */}
       {isCompleted && (
-        <div className="mt-4 rounded-xl bg-green-50 border border-green-200 p-4 text-center">
-          <p className="text-sm font-bold text-green-700">✅ {tLearn("speakingSuccess")}</p>
+        <div className="mt-4 rounded-ga bg-ga-green-soft border border-ga-green/40 p-4 text-center">
+          <p className="text-sm font-bold text-ga-green">✅ {tLearn("speakingSuccess")}</p>
         </div>
       )}
     </div>

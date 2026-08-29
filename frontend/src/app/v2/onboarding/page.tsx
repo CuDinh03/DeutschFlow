@@ -272,6 +272,7 @@ export default function V2OnboardingPage() {
   const card = "rounded-ga border border-ga-line bg-ga-card p-4 lg:p-6 shadow-ga-card-hover space-y-4";
   const sel = (v: boolean) => `w-full flex items-center gap-3 p-3 rounded-ga border text-left transition-colors duration-150 ${v ? "border-ga-gold bg-ga-yellow-soft" : "border-ga-line hover:border-ga-subtle"}`;
   const chip = (v: boolean) => `ga-ui text-[12px] px-3 py-1.5 min-h-[40px] lg:min-h-0 rounded-ga-pill border transition-colors ${v ? "bg-ga-yellow border-ga-gold text-ga-ink font-bold" : "border-ga-line text-ga-muted hover:border-ga-subtle"}`;
+  const totalSteps = isGuest ? 5 : 4;
   // GaBtn ép whitespace-nowrap + h-11: nhãn CTA tiếng Việt dài tràn ngang ở khổ 320px.
   // Cho xuống dòng trên mobile, từ lg trả lại đúng một dòng/44px như bản gốc.
   const btnWrap = "h-auto min-h-[44px] whitespace-normal py-2.5 text-center lg:h-11 lg:whitespace-nowrap lg:py-0";
@@ -291,22 +292,32 @@ export default function V2OnboardingPage() {
 
   return (
     <GaAuthShell wide>
-      <div className="mx-auto w-full max-w-lg">
+      <div className="mx-auto w-full max-w-lg overflow-x-clip">
         <div className="rounded-ga border border-ga-line bg-ga-card p-4 mb-4">
           <p className="ga-ui text-[14px] font-semibold text-ga-ink">Bắt đầu trong 2 phút</p>
           <p className="mt-1 text-[12.5px] text-ga-muted">Chọn trình độ, mục tiêu và nhịp học để nhận lộ trình cá nhân hóa ngay.</p>
         </div>
-        <div className="flex items-center justify-center gap-2 mb-6">
-          {(isGuest ? [1,2,3,4,5] : [1,2,3,4]).map(s => <div key={s} className={`w-8 h-1.5 rounded-ga-pill ${s <= step ? "bg-ga-yellow" : "bg-ga-line"}`} />)}
+        <div
+          role="progressbar"
+          aria-label="Tiến độ thiết lập lộ trình"
+          aria-valuemin={1}
+          aria-valuemax={totalSteps}
+          aria-valuenow={Math.min(step, totalSteps)}
+          className="mb-6 flex items-center justify-center gap-2"
+        >
+          <span className="sr-only">Bước {Math.min(step, totalSteps)} trên {totalSteps}</span>
+          {Array.from({ length: totalSteps }, (_, index) => index + 1).map(s => (
+            <span aria-hidden="true" key={s} className={`h-1.5 w-8 rounded-ga-pill ${s <= step ? "bg-ga-yellow" : "bg-ga-line"}`} />
+          ))}
         </div>
 
         <AnimatePresence mode="wait">
           {step === 1 && (
             <motion.div key="s1" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">Bạn đang ở trình độ nào?</h2>
+              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">Bạn đang ở trình độ nào?</h1>
               <p className="text-[13.5px] text-ga-muted">Chọn trình độ phù hợp nhất.</p>
               {LEVELS.map(l => (
-                <button key={l.value} type="button" onClick={() => setCurrentLevel(l.value)} className={sel(currentLevel===l.value)}>
+                <button key={l.value} type="button" aria-pressed={currentLevel===l.value} onClick={() => setCurrentLevel(l.value)} className={sel(currentLevel===l.value)}>
                   <span className="text-2xl">{l.emoji}</span>
                   <div className="min-w-0 flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{l.label}</p><p className="text-[12px] text-ga-muted">{l.desc}</p></div>
                   {currentLevel===l.value && <CheckCircle size={18} className="text-ga-gold" />}
@@ -317,11 +328,11 @@ export default function V2OnboardingPage() {
 
           {step === 2 && (
             <motion.div key="s2" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">Vì sao bạn học tiếng Đức?</h2>
+              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">Vì sao bạn học tiếng Đức?</h1>
               <p className="text-[13.5px] text-ga-muted">Để chúng mình chọn đúng mentor và lộ trình cho bạn.</p>
               <div className="grid grid-cols-2 gap-2">
                 {MOTIVATIONS.map(m => (
-                  <button key={m.value} type="button" onClick={() => { setMotivation(m.value); setGoalType(m.goal); }}
+                  <button key={m.value} type="button" aria-pressed={motivation===m.value} onClick={() => { setMotivation(m.value); setGoalType(m.goal); }}
                     className={`p-3 rounded-ga border text-center transition-colors duration-150 ${motivation===m.value ? "border-ga-gold bg-ga-yellow-soft" : "border-ga-line hover:border-ga-subtle"}`}>
                     <span className="text-2xl block mb-1">{m.emoji}</span>
                     <p className="ga-ui text-[12px] font-bold leading-tight text-ga-ink">{m.label}</p>
@@ -333,7 +344,7 @@ export default function V2OnboardingPage() {
                   <label className="ga-ui block text-[13px] font-semibold text-ga-ink">Ngành nghề</label>
                   <div className="flex flex-wrap gap-1.5">
                     {INDUSTRIES.map(ind => (
-                      <button key={ind} type="button" onClick={() => setIndustry(ind)} className={chip(industry===ind)}>
+                      <button key={ind} type="button" aria-pressed={industry===ind} onClick={() => setIndustry(ind)} className={chip(industry===ind)}>
                         {ind}
                       </button>
                     ))}
@@ -344,7 +355,7 @@ export default function V2OnboardingPage() {
                   <label className="ga-ui block text-[13px] font-semibold text-ga-ink">Loại chứng chỉ</label>
                   <div className="flex flex-wrap gap-1.5">
                     {EXAMS.map(ex => (
-                      <button key={ex} type="button" onClick={() => setExamType(ex)} className={chip(examType===ex)}>
+                      <button key={ex} type="button" aria-pressed={examType===ex} onClick={() => setExamType(ex)} className={chip(examType===ex)}>
                         {ex}
                       </button>
                     ))}
@@ -361,7 +372,7 @@ export default function V2OnboardingPage() {
 
           {step === 3 && (
             <motion.div key="s3" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">Bạn muốn học bao nhiêu?</h2>
+              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">Bạn muốn học bao nhiêu?</h1>
               <p className="text-[13.5px] text-ga-muted">Weekly target ảnh hưởng đến chủ đề mở rộng cá nhân hóa.</p>
               {mentor && (
                 <div className="space-y-1.5">
@@ -384,7 +395,7 @@ export default function V2OnboardingPage() {
                 </div>
               )}
               {WEEKLY.map(w => (
-                <button key={w.value} type="button" onClick={() => setWeeklyTarget(w.value)} className={sel(weeklyTarget===w.value)}>
+                <button key={w.value} type="button" aria-pressed={weeklyTarget===w.value} onClick={() => setWeeklyTarget(w.value)} className={sel(weeklyTarget===w.value)}>
                   <span className="text-3xl">{w.emoji}</span>
                   <div className="min-w-0 flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{w.label}</p><p className="text-[12px] text-ga-muted">{w.desc}</p></div>
                 </button>
@@ -399,7 +410,7 @@ export default function V2OnboardingPage() {
           {step === 4 && isGuest && (
             <motion.div key="s4qw" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
               <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-3xl mx-auto">🇩🇪</div>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">Thử ngay câu đầu tiên!</h2>
+              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">Thử ngay câu đầu tiên!</h1>
               <p className="text-[13.5px] text-ga-muted">&quot;Chào buổi sáng&quot; trong tiếng Đức là gì?</p>
               <div className="space-y-2 text-left">
                 {["Guten Morgen","Gute Nacht","Auf Wiedersehen"].map(opt => {
@@ -408,7 +419,7 @@ export default function V2OnboardingPage() {
                   const answered = quickWinChoice !== null;
                   const solved = quickWinChoice === "Guten Morgen";
                   return (
-                    <button key={opt} type="button" disabled={solved}
+                    <button key={opt} type="button" disabled={solved} aria-pressed={picked}
                       onClick={() => { setQuickWinChoice(opt); if (isCorrect) trackEvent('onboarding_quickwin_completed', { correct: true }); }}
                       className={`ga-ui w-full text-left p-3 rounded-ga border text-[13.5px] transition-colors duration-150 disabled:cursor-default ${
                         answered && isCorrect ? "border-ga-green bg-ga-green-soft font-bold text-ga-ink"
@@ -442,7 +453,7 @@ export default function V2OnboardingPage() {
                   </div>
                 </div>
               )}
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">Lưu lộ trình của bạn</h2>
+              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">Lưu lộ trình của bạn</h1>
               <p className="text-[13.5px] text-ga-muted">Tạo tài khoản miễn phí để giữ tiến độ{mentor ? ` và mentor ${mentor.displayName}` : ""} — chỉ mất 30 giây.</p>
               <GaBtn variant="yellow" size="lg" className={`w-full ${btnWrap}`} onClick={handleGuestSignup}>
                 Tạo tài khoản &amp; lưu lộ trình <ArrowRight size={14}/>
@@ -454,7 +465,7 @@ export default function V2OnboardingPage() {
           {step === 4 && !isGuest && placementOffer && !testResult && questions.length === 0 && (
             <motion.div key="s4offer" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
               <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-3xl mx-auto">🎯</div>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">Vào đúng trình độ của bạn?</h2>
+              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">Vào đúng trình độ của bạn?</h1>
               <p className="text-[13.5px] text-ga-muted">Bạn tự đánh giá <strong>{currentLevel}</strong>. Làm bài kiểm tra ~5 phút để lộ trình khớp chính xác — hoặc bắt đầu học ngay rồi tinh chỉnh sau.</p>
               <GaBtn variant="ink" size="lg" className="w-full" loading={loading} disabled={loading} onClick={startTest}>
                 Làm bài kiểm tra 5 phút
@@ -469,7 +480,7 @@ export default function V2OnboardingPage() {
           {step === 4 && !testResult && questions.length > 0 && (
             <motion.div key="s4t" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
               <div className="flex items-center justify-between gap-2">
-                <h2 className="min-w-0 font-ga-display text-[20px] font-medium text-ga-ink lg:text-[24px]">Bài kiểm tra xếp lớp</h2>
+                <h1 className="min-w-0 font-ga-display text-[20px] font-medium text-ga-ink lg:text-[24px]">Bài kiểm tra xếp lớp</h1>
                 <span className="ga-ui shrink-0 text-[12px] text-ga-subtle">{currentQ+1}/{questions.length}</span>
               </div>
               <div className="flex gap-1">{questions.map((_,i) => <div key={i} className={`flex-1 h-1 rounded-ga-pill ${i<currentQ?"bg-ga-green":i===currentQ?"bg-ga-yellow":"bg-ga-line"}`} />)}</div>
@@ -484,7 +495,7 @@ export default function V2OnboardingPage() {
               {questions[currentQ].questionVi && <p className="text-[12px] text-ga-subtle">{questions[currentQ].questionVi}</p>}
               {questions[currentQ].options ? (
                 <div className="space-y-2">{questions[currentQ].options!.map((opt,i) => (
-                  <button key={i} type="button" onClick={() => setAnswers(a => ({...a,[questions[currentQ].id]:opt}))}
+                  <button key={i} type="button" aria-pressed={answers[questions[currentQ].id]===opt} onClick={() => setAnswers(a => ({...a,[questions[currentQ].id]:opt}))}
                     className={`ga-ui w-full text-left p-3 rounded-ga border text-[13.5px] transition-colors duration-150 ${answers[questions[currentQ].id]===opt?"border-ga-gold bg-ga-yellow-soft font-bold text-ga-ink":"border-ga-line text-ga-ink hover:border-ga-subtle"}`}>
                     {String.fromCharCode(65+i)}. {opt}
                   </button>
@@ -510,7 +521,7 @@ export default function V2OnboardingPage() {
               <div className={`inline-flex w-20 h-20 rounded-ga-pill items-center justify-center mx-auto ${testResult.passed?"bg-ga-green-soft text-ga-green":"bg-ga-red-soft text-ga-red"}`}>
                 {testResult.passed ? <CheckCircle size={40}/> : <XCircle size={40}/>}
               </div>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{testResult.passed ? "Tốt rồi, bạn đã sẵn sàng!" : "Mình đã tìm ra chỗ cần ôn"}</h2>
+              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{testResult.passed ? "Tốt rồi, bạn đã sẵn sàng!" : "Mình đã tìm ra chỗ cần ôn"}</h1>
               <p className="text-[13.5px] text-ga-muted">Kết quả: <strong>{testResult.correctCount}/{testResult.totalQuestions}</strong> ({testResult.scorePercent}%)</p>
               {!testResult.passed && testResult.weakModules && (
                 <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3 text-left">

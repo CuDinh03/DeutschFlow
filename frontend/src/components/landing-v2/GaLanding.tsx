@@ -62,11 +62,6 @@ const EXAM_PARTS = [
   { de: 'Schreiben', vi: 'Viết', time: '60 phút', body: 'Email và nêu ý kiến — nộp qua ảnh, AI chấm bố cục và ngữ pháp.' },
   { de: 'Sprechen', vi: 'Nói', time: '15 phút', body: 'Phỏng vấn cặp đôi — luyện trực tiếp với AI HR trước ngày thi.' },
 ]
-const TESTIMONIALS = [
-  { name: 'Nguyễn Thị Lan', role: 'Điều dưỡng tại Münster', q: 'Sau 3 tuần luyện với DeutschFlow, tôi vượt qua phỏng vấn tại bệnh viện Herz-Jesu ngay lần đầu. HR nói tôi trả lời rất tự nhiên.' },
-  { name: 'Trần Văn Hùng', role: 'IT Engineer tại Berlin', q: 'AI hỏi đúng những câu phỏng vấn IT bằng tiếng Đức mà Google không tìm được. Tôi dùng 2 tuần trước ngày phỏng vấn thật.' },
-  { name: 'Phạm Thị Mai', role: 'Krankenpflegerin tại Hamburg', q: 'Điểm B2 không cao nhưng vẫn được nhận vì phỏng vấn tốt. Coach AI giúp tôi biết cách nói tự tin.' },
-]
 const TEACH_VALUE = [
   { t: 'Quản lý lớp học', s: 'Tạo lớp bằng mã, theo dõi tiến độ từng học viên theo thời gian thực.' },
   { t: 'Chấm bài bằng AI', s: 'AI chấm Speaking và nhận bài viết qua ảnh — tiết kiệm hàng giờ mỗi tuần.' },
@@ -134,7 +129,7 @@ export function GaLanding() {
             <Link href="/v2/login" className="hidden text-[14.5px] font-semibold text-ga-ink hover:opacity-80 sm:block">
               Đăng nhập
             </Link>
-            <GaBtn asChild variant="ink" size="lg" className="h-9 px-3.5 text-[13px] sm:h-11 sm:px-6 sm:text-[14.5px]">
+            <GaBtn asChild variant="ink" size="lg" className="h-11 px-3.5 text-[13px] sm:px-6 sm:text-[14.5px]">
               <Link href="/v2/register">
                 <YellowSq />
                 <span className="sm:hidden">Học thử</span>
@@ -147,7 +142,7 @@ export function GaLanding() {
               aria-expanded={menuOpen}
               aria-controls="ga-mobile-menu"
               aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'}
-              className="flex h-9 w-9 shrink-0 items-center justify-center border border-ga-border text-ga-ink lg:hidden"
+              className="flex h-11 w-11 shrink-0 items-center justify-center border border-ga-border text-ga-ink lg:hidden"
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
                 {menuOpen ? (
@@ -210,11 +205,11 @@ export function GaLanding() {
               <Link href="/v2/register"><YellowSq />Bắt đầu miễn phí</Link>
             </GaBtn>
             <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-              <Link href="/v2/login">Xem demo 90 giây</Link>
+              <a href="#how-it-works">Xem cách hoạt động</a>
             </GaBtn>
           </div>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 sm:mt-[38px]">
-            {['2.400+ học viên', '12 ngành nghề', 'Không cần thẻ tín dụng'].map((t) => (
+            {['Lộ trình A1–C1', '12 ngành nghề', 'Không cần thẻ tín dụng'].map((t) => (
               <span key={t} className="flex items-center gap-1.5 text-[13px] text-ga-muted">
                 <span className="inline-block h-[5px] w-[5px] bg-ga-yellow" />{t}
               </span>
@@ -255,7 +250,7 @@ export function GaLanding() {
 
       {/* Stats bar */}
       <div className="grid border-y border-ga-border sm:grid-cols-3">
-        {[['2.400+', 'học viên đang luyện mỗi tuần'], ['92%', 'đậu phỏng vấn trong 2 lần đầu'], ['4.9/5', 'đánh giá từ học viên tại Đức']].map(([n, l], i) => (
+        {[['A1–C1', 'lộ trình theo trình độ'], ['12 ngành nghề', 'tình huống luyện theo mục tiêu'], ['Sau từng lượt', 'phản hồi cụ thể để cải thiện']].map(([n, l], i) => (
           <div key={l} className={`py-6 text-center sm:py-8 ${i ? 'border-t border-ga-border sm:border-l sm:border-t-0' : ''}`}>
             <div className="font-ga-display text-[34px] font-medium sm:text-[42px]">{n}</div>
             <div className="mt-1.5 text-[14px] text-ga-muted sm:mt-[9px]">{l}</div>
@@ -278,7 +273,7 @@ export function GaLanding() {
       </section>
 
       {/* How it works */}
-      <section className="border-y border-ga-border bg-ga-card">
+      <section id="how-it-works" className="scroll-mt-[78px] border-y border-ga-border bg-ga-card">
         <div className={SECTION}>
           <GaCap className="mb-[18px]">Cách hoạt động</GaCap>
           <h2 className={`${H2} mb-12`}>Ba bước đến phỏng vấn thành công</h2>
@@ -427,24 +422,6 @@ export function GaLanding() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="border-y border-ga-border bg-ga-card">
-        <div className={SECTION}>
-          <GaCap className="mb-[18px]">Học viên nói gì</GaCap>
-          <h2 className={`${H2} mb-12`}>Họ đã thành công như thế nào</h2>
-          <div className="grid border border-ga-border md:grid-cols-3">
-            {TESTIMONIALS.map((t, i) => (
-              <div key={i} className={`p-6 sm:p-[36px_40px] ${i ? 'border-t border-ga-border md:border-l md:border-l-ga-border md:border-t-0' : ''}`}>
-                <div className="mb-3.5 font-ga-display text-[40px] leading-none text-[#E7E3DA]">&ldquo;</div>
-                <p className="mb-6 font-ga-display text-[17px] italic leading-[1.65]">{t.q}</p>
-                <div className="text-[14.5px] font-bold">{t.name}</div>
-                <div className="mt-[3px] text-[13px] text-ga-muted">{t.role}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Teachers */}
       <section id="teachers" className="scroll-mt-[78px] border-y border-ga-border bg-ga-card">
         <div className="mx-auto grid max-w-[1240px] items-center gap-10 px-5 py-14 sm:px-8 md:grid-cols-2 md:gap-[60px] md:py-[78px] lg:px-[60px]">
@@ -468,7 +445,7 @@ export function GaLanding() {
                 <Link href="/v2/register"><YellowSq />Nhận tư vấn cho trung tâm</Link>
               </GaBtn>
               <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-                <Link href="/v2/login">Xem demo bảng giáo viên →</Link>
+                <Link href="/v2/register">Dùng thử cho giáo viên →</Link>
               </GaBtn>
             </div>
           </div>

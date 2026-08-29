@@ -21,7 +21,15 @@ vi.mock('next/link', () => ({
 vi.mock('@/components/ui-v2', () => ({
   GaLogo: () => <span>myDeutschFlow</span>,
   GaCap: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
-  GaBtn: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
+  GaBtn: ({ children, className, asChild }: { children?: React.ReactNode; className?: string; asChild?: boolean }) => {
+    if (asChild && React.isValidElement(children)) {
+      const child = children as React.ReactElement<{ className?: string }>
+      return React.cloneElement(child, {
+        className: [child.props.className, className].filter(Boolean).join(' '),
+      })
+    }
+    return <span className={className}>{children}</span>
+  },
 }))
 
 const menuPanel = () => document.getElementById('ga-mobile-menu')
@@ -65,5 +73,28 @@ describe('GaLanding — menu mobile', () => {
     expect(panel.getByText('Dành cho giáo viên')).toBeDefined()
     expect(panel.getByText('Đăng nhập')).toBeDefined()
     expect(panel.getByText('Học thử miễn phí')).toBeDefined()
+  })
+
+  it('CTA phụ dẫn tới nội dung thật thay vì giả làm video demo', () => {
+    render(<GaLanding />)
+
+    const cta = screen.getByRole('link', { name: 'Xem cách hoạt động' })
+    expect(cta).toHaveAttribute('href', '#how-it-works')
+    expect(screen.queryByText('Xem demo 90 giây')).not.toBeInTheDocument()
+  })
+
+  it('các control chính trên header mobile có vùng chạm tối thiểu 44px', () => {
+    render(<GaLanding />)
+
+    expect(screen.getByRole('button', { name: 'Mở menu' }).className).toContain('h-11')
+    expect(screen.getByRole('link', { name: /Học thử Học thử miễn phí/ }).className).toContain('h-11')
+  })
+
+  it('không dùng số liệu hoặc lời chứng thực chưa có nguồn', () => {
+    render(<GaLanding />)
+
+    expect(screen.queryByText('92%')).not.toBeInTheDocument()
+    expect(screen.queryByText('2.400+')).not.toBeInTheDocument()
+    expect(screen.queryByText('Nguyễn Thị Lan')).not.toBeInTheDocument()
   })
 })

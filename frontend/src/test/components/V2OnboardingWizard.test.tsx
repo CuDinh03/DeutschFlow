@@ -118,7 +118,17 @@ describe("V2OnboardingPage — step 1 (current level)", () => {
   it("renders step 1 with the level selection heading", () => {
     render(<V2OnboardingPage />);
 
-    expect(screen.getByText("Bạn đang ở trình độ nào?")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Bạn đang ở trình độ nào?" })).toBeInTheDocument();
+  });
+
+  it("announces wizard progress and the selected level", () => {
+    render(<V2OnboardingPage />);
+
+    const progress = screen.getByRole("progressbar", { name: "Tiến độ thiết lập lộ trình" });
+    expect(progress).toHaveAttribute("aria-valuenow", "1");
+    expect(progress).toHaveAttribute("aria-valuemax", "4");
+    expect(screen.getByRole("button", { name: /Chưa biết gì/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Cơ bản \(A1\)/i })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("renders all 5 level options (A0 through B2)", () => {
@@ -191,6 +201,8 @@ describe("V2OnboardingPage — level selection", () => {
 
     // v2 token equivalent of v1's border-[#FFCD00].
     expect(a1Button.className).toMatch(/border-ga-gold/);
+    expect(a1Button).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Chưa biết gì/i })).toHaveAttribute("aria-pressed", "false");
   });
 });
 

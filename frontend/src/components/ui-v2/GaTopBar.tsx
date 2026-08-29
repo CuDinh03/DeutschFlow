@@ -11,13 +11,12 @@ import { ROLE_AREAS, type RoleId } from './nav'
 
 /**
  * GaTopBar — global utility bar above the content area (proto GaTopBar, proto-classroom.jsx:93):
- * decorative search + role status chip + notifications bell + help. Rendered by GaShell on every
- * logged-in screen. The search is intentionally non-functional (no v2 search backend), matching the
- * prototype. Status chip text avoids fabricated metrics (Option-1): admin shows a real health chip,
+ * role status chip + notifications bell + help. Rendered by GaShell on every logged-in screen.
+ * Status chip text avoids fabricated metrics (Option-1): admin shows a real health chip,
  * other roles show an honest role label tinted with the role accent.
  *
- * Mobile (<lg): hamburger mở ngăn kéo sidebar thay cho rail; ô tìm kiếm trang trí và chip vai trò
- * bị ẩn để nhường chỗ — chuông + đổi ngôn ngữ + trợ giúp vẫn luôn hiện.
+ * Mobile (<lg): hamburger mở ngăn kéo sidebar thay cho rail; chip vai trò bị ẩn để nhường chỗ —
+ * chuông + đổi ngôn ngữ + trợ giúp vẫn luôn hiện.
  */
 export interface GaTopBarProps {
   role: RoleId
@@ -44,26 +43,14 @@ const ROLE_CHIP_KEY: Record<RoleId, string> = {
 export function GaTopBar({ role }: GaTopBarProps) {
   const t = useTranslations('v2.ui')
   // Role đã chuyển sang area navigation (Wave 1 / S-01): topbar mang utility (inbox + account
-  // menu) và BỎ ô tìm kiếm trang trí — global search không phải nhu cầu của learner, tìm kiếm
-  // thuộc về từng màn thư viện (IA §13.4). Admin/org giữ nguyên bố cục cũ.
+  // menu) và BỎ ô tìm kiếm trang trí — global search không có backend và tìm kiếm thuộc về từng
+  // màn thư viện (IA §13.4).
   const roleAreas = ROLE_AREAS[role]
   const inbox = roleAreas?.inbox
 
   return (
-    <header className="flex h-[58px] shrink-0 items-center gap-3 border-b border-ga-line bg-ga-card px-4 lg:gap-4 lg:px-6">
+    <header data-ga-chrome className="flex h-[58px] shrink-0 items-center gap-3 border-b border-ga-line bg-ga-card px-4 lg:gap-4 lg:px-6">
       <GaSidebarToggle />
-
-      {!roleAreas && (
-        <label className="hidden max-w-[420px] flex-1 items-center gap-2.5 rounded-ga border border-ga-line bg-ga-surface px-3.5 py-2.5 focus-within:ring-2 focus-within:ring-ga-focus lg:flex">
-          <GaIcon name="search" size={18} className="text-ga-subtle" />
-          <input
-            type="search"
-            placeholder={t('searchPlaceholder')}
-            aria-label={t('search')}
-            className="ga-ui min-w-0 flex-1 border-none bg-transparent text-[14px] text-ga-ink outline-none placeholder:text-ga-subtle"
-          />
-        </label>
-      )}
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3.5">
         {/* Chip vai trò: chỉ giữ khi mang dữ liệu thật (admin health, teacher pending). */}

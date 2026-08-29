@@ -15,24 +15,24 @@ function TranslateTooltip({
 }) {
   return (
     <div
-      className="fixed z-50 bg-white rounded-xl shadow-2xl border border-[#E2E8F0] p-3 space-y-2 min-w-0 max-w-[calc(100vw_-_32px)] sm:min-w-[200px] sm:max-w-[280px] animate-in fade-in zoom-in-95 duration-150"
+      className="fixed z-50 bg-ga-card rounded-ga shadow-ga-card-hover border border-ga-line p-3 space-y-2 min-w-0 max-w-[calc(100vw_-_32px)] sm:min-w-[200px] sm:max-w-[280px] animate-in fade-in zoom-in-95 duration-150"
       style={{ left: Math.min(position.x, window.innerWidth - 300), top: position.y + 10 }}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <GenderBadge gender={vocab.gender} label={vocab.gender_label} />
-          <span className="font-bold text-sm text-[#0F172A]">{vocab.german}</span>
+          <span className="font-bold text-sm text-ga-ink">{vocab.german}</span>
         </div>
-        <button type="button" onClick={onClose} className="text-[#94A3B8] hover:text-[#0F172A] text-xs">✕</button>
+        <button type="button" onClick={onClose} className="text-ga-subtle hover:text-ga-ink text-xs">✕</button>
       </div>
-      <p className="text-sm text-[#475569]">{vocab.meaning}</p>
-      {vocab.example_de && <p className="text-xs text-[#94A3B8] italic">{'"'}{vocab.example_de}{'"'}</p>}
+      <p className="text-sm text-ga-muted">{vocab.meaning}</p>
+      {vocab.example_de && <p className="text-xs text-ga-subtle italic">{'"'}{vocab.example_de}{'"'}</p>}
       <div className="flex items-center gap-2 pt-1">
         <AudioButton text={vocab.speak_de} compact />
         <button
           type="button"
           onClick={() => onSaveFlashcard(vocab.id)}
-          className="text-[10px] px-2 py-1 rounded-full bg-[#FFCD00] text-[#121212] font-bold hover:bg-[#FFCD00]/80 transition-colors"
+          className="text-[10px] px-2 py-1 rounded-full bg-ga-yellow text-ga-ink font-bold hover:bg-ga-yellow/80 transition-colors"
         >
           💾 Lưu Flashcard
         </button>
@@ -121,9 +121,9 @@ export default function ReadingView({ content, isLocked = false }: { content: No
 
   if (!passage) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
+      <div className="flex flex-col items-center justify-center py-16 bg-ga-card rounded-ga border border-ga-line">
         <span className="text-4xl mb-3">📚</span>
-        <p className="text-sm text-[#64748B]">Bài đọc chưa có cho bài học này.</p>
+        <p className="text-sm text-ga-muted">Bài đọc chưa có cho bài học này.</p>
       </div>
     );
   }
@@ -135,39 +135,39 @@ export default function ReadingView({ content, isLocked = false }: { content: No
         {/* Text (60%) */}
         <div className="md:w-[60%] space-y-3">
           <div className="flex items-center gap-2 mb-2">
-            <span className="w-6 h-6 rounded bg-[#121212] text-white flex items-center justify-center text-xs">📚</span>
-            <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wide">Bài đọc</h2>
+            <span className="w-6 h-6 rounded bg-ga-ink text-white flex items-center justify-center text-xs">📚</span>
+            <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide">Bài đọc</h2>
           </div>
 
           <div
             ref={textRef}
             onClick={handleTextClick}
-            className="bg-white rounded-xl border border-[#E2E8F0] p-5 text-[15px] leading-relaxed text-[#1E293B] cursor-text select-text"
+            className="bg-ga-card rounded-ga border border-ga-line p-5 text-[15px] leading-relaxed text-ga-ink cursor-text select-text"
             style={{ fontFamily: "'Inter', sans-serif" }}
           >
             {passage.text_de}
           </div>
 
-          <p className="text-xs text-[#94A3B8] italic">💡 Bôi đen từ bất kỳ để xem nghĩa</p>
+          <p className="text-xs text-ga-subtle italic">💡 Bôi đen từ bất kỳ để xem nghĩa</p>
         </div>
 
         {/* Questions (40%) */}
         <div className="md:w-[40%] space-y-3">
           <div className="flex items-center gap-2 mb-2">
-            <span className="w-6 h-6 rounded bg-[#FFCD00] text-[#121212] flex items-center justify-center text-xs font-bold">❓</span>
-            <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wide">Câu hỏi</h2>
+            <span className="w-6 h-6 rounded bg-ga-yellow text-ga-ink flex items-center justify-center text-xs font-bold">❓</span>
+            <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide">Câu hỏi</h2>
           </div>
 
-          <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 space-y-4 md:sticky md:top-4">
+          <div className="bg-ga-card rounded-ga border border-ga-line p-4 space-y-4 md:sticky md:top-4">
             {practiceItems.length > 0 ? (
               <div className="space-y-6 text-left">
                 {practiceItems.map((item: any, i: number) => {
                   if (typeof item === "string") {
                     return (
                       <div key={i} className="space-y-2">
-                        <p className="text-sm font-medium text-[#0F172A]">{item}</p>
+                        <p className="text-sm font-medium text-ga-ink">{item}</p>
                         <textarea
-                          className="w-full rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm focus:border-[#FFCD00] focus:ring-1 focus:ring-[#FFCD00] outline-none resize-none"
+                          className="w-full rounded-ga border border-ga-line px-3 py-2 text-sm focus:border-ga-gold focus:ring-1 focus:ring-ga-gold outline-none resize-none"
                           rows={2}
                           placeholder="Viết câu trả lời (tự luận)..."
                         />
@@ -177,24 +177,24 @@ export default function ReadingView({ content, isLocked = false }: { content: No
 
                   return (
                     <div key={i} className="space-y-3">
-                      <p className="text-sm font-bold text-[#0F172A]">{i + 1}. {item.question || "Câu hỏi..."}</p>
+                      <p className="text-sm font-bold text-ga-ink">{i + 1}. {item.question || "Câu hỏi..."}</p>
                       <div className="space-y-2">
                         {Array.isArray(item.options) && item.options.map((opt: string, j: number) => {
                           const isSelected = answers[i] === j;
                           const isCorrect = item.answerIndex === j;
                           const showResult = quizSubmitted;
                           
-                          let btnClass = "border-[#E2E8F0] hover:border-[#CBD5E1] text-[#475569]";
-                          if (isSelected && !showResult) btnClass = "border-[#FFCD00] bg-[#FFCD00]/10 text-[#121212]";
-                          if (showResult && isCorrect) btnClass = "border-green-500 bg-green-50 text-green-700";
-                          if (showResult && isSelected && !isCorrect) btnClass = "border-red-500 bg-red-50 text-red-700";
+                          let btnClass = "border-ga-line hover:border-ga-subtle text-ga-muted";
+                          if (isSelected && !showResult) btnClass = "border-ga-gold bg-ga-yellow-soft text-ga-ink";
+                          if (showResult && isCorrect) btnClass = "border-ga-green bg-ga-green-soft text-ga-green";
+                          if (showResult && isSelected && !isCorrect) btnClass = "border-ga-red bg-ga-red-soft text-ga-red";
 
                           return (
                             <button
                               key={j}
                               onClick={() => !quizSubmitted && setAnswers(prev => ({ ...prev, [i]: j }))}
                               disabled={quizSubmitted}
-                              className={`w-full text-left px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all ${btnClass}`}
+                              className={`w-full text-left px-3 py-2 rounded-ga border-2 text-xs font-medium transition-[background-color,border-color,color,box-shadow,transform,max-height,width] ${btnClass}`}
                             >
                               {opt}
                             </button>
@@ -209,18 +209,18 @@ export default function ReadingView({ content, isLocked = false }: { content: No
                   <button
                     onClick={handleQuizSubmit}
                     disabled={Object.keys(answers).length < validMcqCount}
-                    className="w-full py-2.5 rounded-xl bg-[#121212] text-white text-xs font-bold disabled:opacity-50"
+                    className="w-full py-2.5 rounded-ga bg-ga-ink text-white text-xs font-bold disabled:opacity-50"
                   >
                     Kiểm tra đáp án
                   </button>
                 )}
 
                 {quizSubmitted && score < validMcqCount && (
-                  <div className="text-red-500 text-xs font-bold mt-2 text-center">
+                  <div className="text-ga-red text-xs font-bold mt-2 text-center">
                     Bạn trả lời đúng {score}/{validMcqCount}. Cần đúng 100% để qua bài!
                     <button 
                       onClick={() => { setQuizSubmitted(false); setAnswers({}); }}
-                      className="ml-3 text-blue-600 underline"
+                      className="ml-3 text-ga-blue underline"
                     >
                       Làm lại
                     </button>
@@ -228,19 +228,19 @@ export default function ReadingView({ content, isLocked = false }: { content: No
                 )}
               </div>
             ) : (
-              <p className="text-sm text-[#94A3B8]">Chưa có câu hỏi cho bài đọc này.</p>
+              <p className="text-sm text-ga-subtle">Chưa có câu hỏi cho bài đọc này.</p>
             )}
 
             {/* ── Completion Button ── */}
-            <div className="pt-4 border-t border-[#E2E8F0] mt-4">
+            <div className="pt-4 border-t border-ga-line mt-4">
               {(!validMcqCount || (quizSubmitted && score === validMcqCount)) ? (
                 <button
                   onClick={() => markTabCompleted("reading")}
                   disabled={isCompleted}
-                  className={`w-full py-3 rounded-xl font-bold text-sm transition-colors ${
+                  className={`w-full py-3 rounded-ga font-bold text-sm transition-colors ${
                     isCompleted 
-                      ? "bg-green-500 text-white" 
-                      : "bg-[#22C55E] hover:bg-[#16A34A] text-white"
+                      ? "bg-ga-green text-white"
+                      : "bg-ga-green hover:bg-ga-green text-white"
                   }`}
                 >
                   {isCompleted ? "✅ Đã hoàn thành 100%" : "✅ Đã đọc & Hiểu (100%)"}
