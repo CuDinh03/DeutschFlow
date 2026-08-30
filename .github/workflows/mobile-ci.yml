@@ -2,12 +2,17 @@ name: Mobile CI
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: [ "main", "dev", "feat/onboarding-v3" ]
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-ci.yml'
+#
+# `feat/onboarding-v3` là nhánh dài hạn của dự án onboarding onb_v3: các đợt GĐ 1–8
+# PR VÀO nó chứ không vào main. Không liệt kê ở đây thì workflow không kích hoạt cho
+# những PR đó, và chúng merge mà KHÔNG có cổng nào — nguy nhất là GĐ 5 (viết lại web
+# onboarding), vốn thuần frontend. Gỡ dòng này khi nhánh dài hạn đã merge xong.
   pull_request:
-    branches: [ "main", "dev" ]
+    branches: [ "main", "dev", "feat/onboarding-v3" ]
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-ci.yml'

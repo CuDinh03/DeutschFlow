@@ -76,6 +76,13 @@ public class SecurityConfig {
                         auth.requestMatchers("/api/quiz/*/join").permitAll();  // guest join
                         // Value-first onboarding: guests preview their mentor before signup (read-only, non-sensitive)
                         auth.requestMatchers(HttpMethod.GET, "/api/onboarding/preview/**").permitAll();
+                        // Value-first onboarding: khách chạy hết phễu TRƯỚC khi có tài khoản, nên
+                        // hai đầu này phải mở. Có rate-limit theo IP trong GuestOnboardingController
+                        // (bề mặt public mới ⇒ không để trần). Không đầu nào đọc/ghi dữ liệu của
+                        // user đã tồn tại: sessionId là UUID ngẫu nhiên, và phiên đã claim thì
+                        // PATCH bị từ chối.
+                        auth.requestMatchers(HttpMethod.POST, "/api/onboarding/guest-session").permitAll();
+                        auth.requestMatchers(HttpMethod.PATCH, "/api/onboarding/guest-session/*").permitAll();
                         // MoMo IPN webhook: called by MoMo servers (no JWT), secured via HMAC-SHA256 signature verification
                         auth.requestMatchers("/api/payments/momo/ipn").permitAll();
                         // Stripe webhook: called by Stripe servers (no JWT), secured via HMAC-SHA256 signature verification

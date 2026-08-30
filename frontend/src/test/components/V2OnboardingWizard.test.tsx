@@ -22,10 +22,15 @@ vi.mock("next/navigation", () => ({
 }));
 
 // GaAuthShell resolves its chrome copy through next-intl ('v2.auth.…').
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
-  useLocale: () => "vi",
-}));
+// Trả về chính KEY cho cả t() lẫn t.rich(): page dùng t.rich cho các chuỗi có <b>,
+// và một mock chỉ có t() sẽ ném "t.rich is not a function" thay vì fail có nghĩa.
+// Vì thế mọi truy vấn bên dưới tìm theo KEY, không phải theo tiếng Việt — copy nay
+// nằm ở messages/v2/onboarding.<locale>.json (GĐ 4).
+vi.mock("next-intl", () => {
+  const translate = (key: string) => key;
+  const t = Object.assign(translate, { rich: translate });
+  return { useTranslations: () => t, useLocale: () => "vi" };
+});
 
 vi.mock("@/hooks/useTracking", () => ({
   useTracking: () => ({
@@ -120,15 +125,17 @@ describe("V2OnboardingPage — step 1 (current level)", () => {
   it("renders step 1 with the level selection heading", () => {
     render(<V2OnboardingPage />);
 
-    expect(screen.getByText("Bạn đang ở trình độ nào?")).toBeInTheDocument();
+    expect(screen.getByText("level.heading")).toBeInTheDocument();
   });
 
   it("renders all 5 level options (A0 through B2)", () => {
     render(<V2OnboardingPage />);
 
-    const levels = ["Chưa biết gì", "Cơ bản (A1)", "Sơ cấp (A2)", "Trung cấp (B1)", "Cao cấp (B2)"];
-    levels.forEach((label) => {
-      expect(screen.getByText(label)).toBeInTheDocument();
+    // Khoá theo MÃ trình độ, không theo nhãn: nhãn nay sống ở catalog i18n và đổi
+    // được mà không đụng luồng — còn việc đủ 5 lựa chọn A0..B2 mới là hành vi.
+    ["A0", "A1", "A2", "B1", "B2"].forEach((code) => {
+      expect(screen.getByText(`level.${code}.label`)).toBeInTheDocument();
+      expect(screen.getByText(`level.${code}.desc`)).toBeInTheDocument();
     });
   });
 });
@@ -151,30 +158,30 @@ describe("V2OnboardingPage — navigation between steps", () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
 
-    await user.click(screen.getByRole("button", { name: /Tiếp tục/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
 
-    expect(screen.getByText("Vì sao bạn học tiếng Đức?")).toBeInTheDocument();
+    expect(screen.getByText("goal.heading")).toBeInTheDocument();
   });
 
   it("goes back to step 1 after navigating to step 2", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
 
-    await user.click(screen.getByRole("button", { name: /Tiếp tục/i }));
-    expect(screen.getByText("Vì sao bạn học tiếng Đức?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    expect(screen.getByText("goal.heading")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Quay lại/i }));
-    expect(screen.getByText("Bạn đang ở trình độ nào?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /nav\.back/i }));
+    expect(screen.getByText("level.heading")).toBeInTheDocument();
   });
 
   it("advances to step 3 (weekly target) from step 2", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
 
-    await user.click(screen.getByRole("button", { name: /Tiếp tục/i }));
-    await user.click(screen.getByRole("button", { name: /Tiếp tục/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
 
-    expect(screen.getByText("Bạn muốn học bao nhiêu?")).toBeInTheDocument();
+    expect(screen.getByText("pace.heading")).toBeInTheDocument();
   });
 });
 
@@ -188,7 +195,7 @@ describe("V2OnboardingPage — level selection", () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
 
-    const a1Button = screen.getByRole("button", { name: /Cơ bản \(A1\)/i });
+    const a1Button = screen.getByRole("button", { name: /level\.A1\.label/i });
     await user.click(a1Button);
 
     // v2 token equivalent of v1's border-[#FFCD00].
@@ -214,19 +221,19 @@ describe("V2OnboardingPage — A0 level shortcut (skip placement test)", () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
 
-    await user.click(screen.getByRole("button", { name: /Tiếp tục/i }));
-    await user.click(screen.getByRole("button", { name: /Tiếp tục/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
 
-    expect(screen.getByRole("button", { name: /Bắt đầu lộ trình/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /nav\.startRoadmap/i })).toBeInTheDocument();
   });
 
   it("redirects to /v2/student/roadmap (NOT the v1 /student/roadmap) on 'Bắt đầu lộ trình'", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
 
-    await user.click(screen.getByRole("button", { name: /Tiếp tục/i }));
-    await user.click(screen.getByRole("button", { name: /Tiếp tục/i }));
-    await user.click(screen.getByRole("button", { name: /Bắt đầu lộ trình/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.startRoadmap/i }));
 
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
@@ -238,9 +245,9 @@ describe("V2OnboardingPage — A0 level shortcut (skip placement test)", () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
 
-    await user.click(screen.getByRole("button", { name: /Tiếp tục/i }));
-    await user.click(screen.getByRole("button", { name: /Tiếp tục/i }));
-    await user.click(screen.getByRole("button", { name: /Bắt đầu lộ trình/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.startRoadmap/i }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith(
@@ -283,11 +290,11 @@ describe("V2OnboardingPage — non-A0 level triggers placement test flow", () =>
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
 
-    await user.click(screen.getByRole("button", { name: /Cơ bản \(A1\)/i }));
+    await user.click(screen.getByRole("button", { name: /level\.A1\.label/i }));
 
-    await user.click(screen.getByRole("button", { name: /Tiếp tục/i }));
-    await user.click(screen.getByRole("button", { name: /Tiếp tục/i }));
-    await user.click(screen.getByRole("button", { name: /Tiếp tục/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
 
     await waitFor(() => {
       expect(screen.getByText("Was ist ein Tisch?")).toBeInTheDocument();
@@ -369,9 +376,9 @@ describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
     // "có lối đi tiếp". Không có hai assert này thì việc bỏ setResuming(false)
     // vẫn khiến ca test xanh.
     await waitFor(() => {
-      expect(screen.getByText("Bạn muốn học bao nhiêu?")).toBeInTheDocument();
+      expect(screen.getByText("pace.heading")).toBeInTheDocument();
     }, { timeout: 5000 });
-    expect(screen.queryByText("Đang tạo lộ trình của bạn…")).not.toBeInTheDocument();
+    expect(screen.queryByText("loader.title")).not.toBeInTheDocument();
   });
 
   it("resume hỏng rồi tự hoàn tất lại bằng wizard → draft KHÔNG bị bỏ mồ côi", async () => {
@@ -384,12 +391,12 @@ describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
     render(<V2OnboardingPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("Bạn muốn học bao nhiêu?")).toBeInTheDocument();
+      expect(screen.getByText("pace.heading")).toBeInTheDocument();
     }, { timeout: 5000 });
     expect(clearOnboardingDraft).not.toHaveBeenCalled();
 
     vi.mocked(api.post).mockResolvedValue({ data: {} });
-    await user.click(screen.getByRole("button", { name: /Bắt đầu lộ trình|Tiếp tục/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.startRoadmap|nav\.continue/i }));
 
     await waitFor(() => {
       expect(clearOnboardingDraft).toHaveBeenCalled();

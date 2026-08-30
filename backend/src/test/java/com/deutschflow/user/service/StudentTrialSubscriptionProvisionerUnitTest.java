@@ -28,7 +28,11 @@ class StudentTrialSubscriptionProvisionerUnitTest {
         provisioner.provisionSevenDayTrial(55L, start, end);
         // Idempotent Postgres form: INSERT ... SELECT ... WHERE NOT EXISTS, with userId bound
         // twice (once for the row, once for the NOT EXISTS active-subscription guard).
+        //
+        // source='TRIAL' là tham số thứ 5 (GĐ 2, onb_v3): Q2/Q3 rẽ nhánh theo đúng cột này —
+        // ví cạn giữa trial thì KHÔNG hạ gói, còn ngày 8 thì kết thúc hẳn + xoá ví, trong khi
+        // gói TRẢ PHÍ vẫn được grace-drain. Không ghi cột này thì hai luật áp nhầm lên nhau.
         verify(jdbcTemplate).update(contains("WHERE NOT EXISTS"),
-                eq(55L), eq("PRO"), any(), any(), eq(55L));
+                eq(55L), eq("PRO"), any(), any(), eq("TRIAL"), eq(55L));
     }
 }

@@ -13,6 +13,7 @@ import { getAccessToken } from "@/lib/authSession";
 import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft, type OnboardingDraft } from "@/lib/onboardingDraft";
 import { MENTOR_META } from "@/lib/mentorMeta";
 import { useFeatureFlagEnabled } from "posthog-js/react";
+import { useTranslations } from "next-intl";
 import { GaBtn } from "@/components/ui-v2";
 import { GaAuthShell } from "../authShared";
 
@@ -31,28 +32,30 @@ import { GaAuthShell } from "../authShared";
 // `/v2/onboarding` from the login bounce for exactly this reason.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Chỉ còn DỮ LIỆU. Nhãn/mô tả nằm ở messages/v2/onboarding.<locale>.json dưới khoá
+// `level.<value>.label|desc` — hằng số ở đây không được mang copy nữa (GĐ 4).
 const LEVELS = [
-  { value: "A0", emoji: "🌱", label: "Chưa biết gì", desc: "Bắt đầu từ bảng chữ cái" },
-  { value: "A1", emoji: "📗", label: "Cơ bản (A1)", desc: "Biết chào hỏi, giới thiệu" },
-  { value: "A2", emoji: "📘", label: "Sơ cấp (A2)", desc: "Giao tiếp đơn giản" },
-  { value: "B1", emoji: "📙", label: "Trung cấp (B1)", desc: "Thảo luận, diễn đạt ý kiến" },
-  { value: "B2", emoji: "📕", label: "Cao cấp (B2)", desc: "Đọc hiểu phức tạp" },
+  { value: "A0", emoji: "🌱" },
+  { value: "A1", emoji: "📗" },
+  { value: "A2", emoji: "📘" },
+  { value: "B1", emoji: "📙" },
+  { value: "B2", emoji: "📕" },
 ];
 // "Vì sao bạn học?" — the emotional anchor (Duolingo's first question, adapted for the
 // Việt → Đức audience). Each maps to a coarse goalType the plan still uses (EXAM → CERT, else WORK).
 const MOTIVATIONS = [
-  { value: "JOB",         emoji: "💼", label: "Đi làm tại Đức",       goal: "WORK" },
-  { value: "AUSBILDUNG",  emoji: "🛠️", label: "Học nghề (Ausbildung)", goal: "WORK" },
-  { value: "STUDY",       emoji: "🎓", label: "Du học",               goal: "WORK" },
-  { value: "IMMIGRATION", emoji: "🏠", label: "Định cư / đoàn tụ",    goal: "WORK" },
-  { value: "EXAM",        emoji: "📜", label: "Thi chứng chỉ",        goal: "CERT" },
-  { value: "HOBBY",       emoji: "✨", label: "Sở thích cá nhân",     goal: "WORK" },
+  { value: "JOB",         emoji: "💼", goal: "WORK" },
+  { value: "AUSBILDUNG",  emoji: "🛠️", goal: "WORK" },
+  { value: "STUDY",       emoji: "🎓", goal: "WORK" },
+  { value: "IMMIGRATION", emoji: "🏠", goal: "WORK" },
+  { value: "EXAM",        emoji: "📜", goal: "CERT" },
+  { value: "HOBBY",       emoji: "✨", goal: "WORK" },
 ];
 const EXAMS = ["GOETHE", "TELC", "TESTDAF"];
 const WEEKLY = [
-  { value: 3, emoji: "🔥", label: "3 bài/tuần", desc: "~15 phút/ngày" },
-  { value: 5, emoji: "⚡", label: "5 bài/tuần", desc: "~20 phút/ngày" },
-  { value: 7, emoji: "🚀", label: "7 bài/tuần", desc: "Mỗi ngày một bài" },
+  { value: 3, emoji: "🔥" },
+  { value: 5, emoji: "⚡" },
+  { value: 7, emoji: "🚀" },
 ];
 const INDUSTRIES = ["IT","Medizin","Gastronomie","Bildung","Handel","Sport","Andere"];
 
@@ -64,6 +67,7 @@ interface PQ { id: number; skillSection: string; type: string; questionDe: strin
 
 export default function V2OnboardingPage() {
   const router = useRouter();
+  const t = useTranslations("v2.onboarding");
   const { trackOnboardingStep, trackEvent } = useTracking();
   // A/B: the mentor PRO-upsell nudge is gated behind a PostHog feature flag. Default-on
   // (undefined = flag not configured → shown), so no regression until an experiment is run.
@@ -146,8 +150,8 @@ export default function V2OnboardingPage() {
       const offline = typeof navigator !== "undefined" && navigator.onLine === false;
       const msg = err?.response?.data?.detail
         ?? (offline || !err?.response
-          ? "Mất kết nối — hồ sơ chưa được lưu. Kiểm tra mạng rồi thử lại."
-          : "Không lưu được hồ sơ học tập. Vui lòng thử lại.");
+          ? t("error.offline")
+          : t("error.saveProfile"));
       toast.error(msg);
       return false;
     }
@@ -162,7 +166,7 @@ export default function V2OnboardingPage() {
       setTestId(data.testId); setQuestions(data.questions ?? []); setAnswers({}); setCurrentQ(0); setStep(4);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      toast.error(msg || "Không thể tạo bài test.");
+      toast.error(msg || t("error.createTest"));
     }
     setLoading(false);
   }, [currentLevel, saveProfile, trackEvent]);
@@ -175,7 +179,7 @@ export default function V2OnboardingPage() {
       setTestResult(data);
       trackEvent('onboarding_placement_test_completed', { passed: data.passed, score: data.scorePercent });
     }
-    catch { toast.error("Nộp bài thất bại."); }
+    catch { toast.error(t("error.submitTest")); }
     setLoading(false);
   }, [testId, answers, trackEvent]);
 
@@ -231,7 +235,7 @@ export default function V2OnboardingPage() {
       }
       // Lỗi thật: GIỮ draft để lần thử sau còn dữ liệu. Draft có TTL 30 phút nên
       // một hồ sơ hỏng vĩnh viễn cũng chỉ replay trong cửa sổ đó rồi tự hết hạn.
-      toast.error("Không lưu được hồ sơ — câu trả lời của bạn vẫn được giữ. Vui lòng thử lại.");
+      toast.error(t("error.resumeKeepsDraft"));
       setResuming(false); setStep(3);
     }
   }, [router, trackEvent]);
@@ -320,8 +324,8 @@ export default function V2OnboardingPage() {
       <GaAuthShell showBackToLanding={false}>
         <div className="text-center space-y-3">
           <Loader2 size={28} className="animate-spin mx-auto text-ga-gold" />
-          <p className="ga-ui text-[14px] font-semibold text-ga-ink">Đang tạo lộ trình của bạn…</p>
-          <p className="text-[12.5px] text-ga-muted">Lưu mục tiêu và mentor bạn vừa chọn.</p>
+          <p className="ga-ui text-[14px] font-semibold text-ga-ink">{t("loader.title")}</p>
+          <p className="text-[12.5px] text-ga-muted">{t("loader.sub")}</p>
         </div>
       </GaAuthShell>
     );
@@ -331,8 +335,8 @@ export default function V2OnboardingPage() {
     <GaAuthShell wide>
       <div className="mx-auto w-full max-w-lg">
         <div className="rounded-ga border border-ga-line bg-ga-card p-4 mb-4">
-          <p className="ga-ui text-[14px] font-semibold text-ga-ink">Bắt đầu trong 2 phút</p>
-          <p className="mt-1 text-[12.5px] text-ga-muted">Chọn trình độ, mục tiêu và nhịp học để nhận lộ trình cá nhân hóa ngay.</p>
+          <p className="ga-ui text-[14px] font-semibold text-ga-ink">{t("intro.title")}</p>
+          <p className="mt-1 text-[12.5px] text-ga-muted">{t("intro.subtitle")}</p>
         </div>
         <div className="flex items-center justify-center gap-2 mb-6">
           {(isGuest ? [1,2,3,4,5] : [1,2,3,4]).map(s => <div key={s} className={`w-8 h-1.5 rounded-ga-pill ${s <= step ? "bg-ga-yellow" : "bg-ga-line"}`} />)}
@@ -341,12 +345,12 @@ export default function V2OnboardingPage() {
         <AnimatePresence mode="wait">
           {step === 1 && (
             <motion.div key="s1" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">Bạn đang ở trình độ nào?</h2>
-              <p className="text-[13.5px] text-ga-muted">Chọn trình độ phù hợp nhất.</p>
+              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("level.heading")}</h2>
+              <p className="text-[13.5px] text-ga-muted">{t("level.sub")}</p>
               {LEVELS.map(l => (
                 <button key={l.value} type="button" onClick={() => setCurrentLevel(l.value)} className={sel(currentLevel===l.value)}>
                   <span className="text-2xl">{l.emoji}</span>
-                  <div className="min-w-0 flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{l.label}</p><p className="text-[12px] text-ga-muted">{l.desc}</p></div>
+                  <div className="min-w-0 flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{t(`level.${l.value}.label`)}</p><p className="text-[12px] text-ga-muted">{t(`level.${l.value}.desc`)}</p></div>
                   {currentLevel===l.value && <CheckCircle size={18} className="text-ga-gold" />}
                 </button>
               ))}
@@ -355,20 +359,20 @@ export default function V2OnboardingPage() {
 
           {step === 2 && (
             <motion.div key="s2" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">Vì sao bạn học tiếng Đức?</h2>
-              <p className="text-[13.5px] text-ga-muted">Để chúng mình chọn đúng mentor và lộ trình cho bạn.</p>
+              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("goal.heading")}</h2>
+              <p className="text-[13.5px] text-ga-muted">{t("goal.sub")}</p>
               <div className="grid grid-cols-2 gap-2">
                 {MOTIVATIONS.map(m => (
                   <button key={m.value} type="button" onClick={() => { setMotivation(m.value); setGoalType(m.goal); }}
                     className={`p-3 rounded-ga border text-center transition-colors duration-150 ${motivation===m.value ? "border-ga-gold bg-ga-yellow-soft" : "border-ga-line hover:border-ga-subtle"}`}>
                     <span className="text-2xl block mb-1">{m.emoji}</span>
-                    <p className="ga-ui text-[12px] font-bold leading-tight text-ga-ink">{m.label}</p>
+                    <p className="ga-ui text-[12px] font-bold leading-tight text-ga-ink">{t(`goal.${m.value}`)}</p>
                   </button>
                 ))}
               </div>
               {goalType === "WORK" ? (
                 <>
-                  <label className="ga-ui block text-[13px] font-semibold text-ga-ink">Ngành nghề</label>
+                  <label className="ga-ui block text-[13px] font-semibold text-ga-ink">{t("goal.industryLabel")}</label>
                   <div className="flex flex-wrap gap-1.5">
                     {INDUSTRIES.map(ind => (
                       <button key={ind} type="button" onClick={() => setIndustry(ind)} className={chip(industry===ind)}>
@@ -379,7 +383,7 @@ export default function V2OnboardingPage() {
                 </>
               ) : (
                 <>
-                  <label className="ga-ui block text-[13px] font-semibold text-ga-ink">Loại chứng chỉ</label>
+                  <label className="ga-ui block text-[13px] font-semibold text-ga-ink">{t("goal.examLabel")}</label>
                   <div className="flex flex-wrap gap-1.5">
                     {EXAMS.map(ex => (
                       <button key={ex} type="button" onClick={() => setExamType(ex)} className={chip(examType===ex)}>
@@ -389,7 +393,7 @@ export default function V2OnboardingPage() {
                   </div>
                 </>
               )}
-              <label className="ga-ui block text-[13px] font-semibold text-ga-ink">Trình độ mục tiêu</label>
+              <label className="ga-ui block text-[13px] font-semibold text-ga-ink">{t("goal.targetLevelLabel")}</label>
               <select value={targetLevel} onChange={e => setTargetLevel(e.target.value)}
                 className="ga-ui block w-full rounded-ga border border-ga-line bg-ga-card px-[15px] py-2.5 text-[14px] text-ga-ink outline-none">
                 {["A1","A2","B1","B2","C1","C2"].map(l => <option key={l} value={l}>{l}</option>)}
@@ -399,24 +403,27 @@ export default function V2OnboardingPage() {
 
           {step === 3 && (
             <motion.div key="s3" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">Bạn muốn học bao nhiêu?</h2>
-              <p className="text-[13.5px] text-ga-muted">Weekly target ảnh hưởng đến chủ đề mở rộng cá nhân hóa.</p>
+              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("pace.heading")}</h2>
+              <p className="text-[13.5px] text-ga-muted">{t("pace.sub")}</p>
               {mentor && (
                 <div className="space-y-1.5">
                   <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3 flex items-center gap-3">
                     <div className="w-11 h-11 rounded-ga-pill bg-ga-yellow flex items-center justify-center text-xl shrink-0">{MENTOR_META[mentor.code]?.emoji ?? "🧑‍🏫"}</div>
                     <div className="min-w-0">
-                      <p className="ga-ui text-[10.5px] uppercase tracking-[0.08em] text-ga-muted font-semibold">Mentor của bạn</p>
+                      <p className="ga-ui text-[10.5px] uppercase tracking-[0.08em] text-ga-muted font-semibold">{t("pace.mentorLabel")}</p>
                       <p className="ga-ui text-[13.5px] font-bold text-ga-ink">{mentor.displayName}</p>
-                      <p className="text-[12px] text-ga-muted">{MENTOR_META[mentor.code]?.tagline ?? "Người đồng hành học tập"}</p>
+                      <p className="text-[12px] text-ga-muted">{MENTOR_META[mentor.code]?.tagline ?? t("pace.mentorFallbackTagline")}</p>
                     </div>
                   </div>
                   {mentor.upsellCode && mentorUpsellEnabled && (
                     <button type="button"
                       onClick={() => { trackEvent('onboarding_mentor_upsell_clicked', { mentor: mentor.code, upsell: mentor.upsellCode }); router.push(PRICING_ROUTE); }}
                       className="w-full text-left text-[12px] text-ga-ink bg-ga-yellow-soft border border-dashed border-ga-gold rounded-ga px-3 py-2">
-                      🔓 Mở khoá mentor <strong>{mentor.upsellDisplayName}</strong>
-                      {MENTOR_META[mentor.upsellCode]?.tagline ? ` (${MENTOR_META[mentor.upsellCode].tagline})` : ""} với PRO →
+                      {t.rich("pace.upsell", {
+                        name: mentor.upsellDisplayName ?? "",
+                        tagline: MENTOR_META[mentor.upsellCode]?.tagline ? ` (${MENTOR_META[mentor.upsellCode].tagline})` : "",
+                        b: (chunks) => <strong>{chunks}</strong>,
+                      })}
                     </button>
                   )}
                 </div>
@@ -424,12 +431,12 @@ export default function V2OnboardingPage() {
               {WEEKLY.map(w => (
                 <button key={w.value} type="button" onClick={() => setWeeklyTarget(w.value)} className={sel(weeklyTarget===w.value)}>
                   <span className="text-3xl">{w.emoji}</span>
-                  <div className="min-w-0 flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{w.label}</p><p className="text-[12px] text-ga-muted">{w.desc}</p></div>
+                  <div className="min-w-0 flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{t(`pace.w${w.value}.label`)}</p><p className="text-[12px] text-ga-muted">{t(`pace.w${w.value}.desc`)}</p></div>
                 </button>
               ))}
               {currentLevel === "A0"
-                ? <div className="rounded-ga border border-ga-green bg-ga-green-soft p-3"><p className="text-[12px] text-ga-ink">🌱 Bước đầu tiên của bạn sẽ là <strong>Bảng chữ cái, Phát âm và Chào hỏi</strong>.</p></div>
-                : <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3"><p className="text-[12px] text-ga-ink">📝 Có thể làm <strong>bài kiểm tra 5 phút (tùy chọn)</strong> để vào đúng trình độ — hoặc bắt đầu học ngay.</p></div>
+                ? <div className="rounded-ga border border-ga-green bg-ga-green-soft p-3"><p className="text-[12px] text-ga-ink">{t.rich("pace.noteA0", { b: (chunks) => <strong>{chunks}</strong> })}</p></div>
+                : <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3"><p className="text-[12px] text-ga-ink">{t.rich("pace.notePlacement", { b: (chunks) => <strong>{chunks}</strong> })}</p></div>
               }
             </motion.div>
           )}
@@ -437,8 +444,8 @@ export default function V2OnboardingPage() {
           {step === 4 && isGuest && (
             <motion.div key="s4qw" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
               <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-3xl mx-auto">🇩🇪</div>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">Thử ngay câu đầu tiên!</h2>
-              <p className="text-[13.5px] text-ga-muted">&quot;Chào buổi sáng&quot; trong tiếng Đức là gì?</p>
+              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("quickWin.heading")}</h2>
+              <p className="text-[13.5px] text-ga-muted">{t("quickWin.prompt")}</p>
               <div className="space-y-2 text-left">
                 {["Guten Morgen","Gute Nacht","Auf Wiedersehen"].map(opt => {
                   const picked = quickWinChoice === opt;
@@ -459,11 +466,11 @@ export default function V2OnboardingPage() {
               </div>
               {quickWinChoice === "Guten Morgen" ? (
                 <>
-                  <p className="ga-ui text-[13.5px] font-bold text-ga-green">Richtig! 🎉 Bạn vừa học từ đầu tiên.</p>
-                  <GaBtn variant="ink" size="lg" className="w-full" onClick={() => setStep(5)}>Tiếp tục <ArrowRight size={14}/></GaBtn>
+                  <p className="ga-ui text-[13.5px] font-bold text-ga-green">{t("quickWin.correct")}</p>
+                  <GaBtn variant="ink" size="lg" className="w-full" onClick={() => setStep(5)}>{t("nav.continue")} <ArrowRight size={14}/></GaBtn>
                 </>
               ) : quickWinChoice ? (
-                <p className="text-[12px] text-ga-red">Chưa đúng — thử lại nhé!</p>
+                <p className="text-[12px] text-ga-red">{t("quickWin.wrong")}</p>
               ) : null}
             </motion.div>
           )}
@@ -474,32 +481,36 @@ export default function V2OnboardingPage() {
                 <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3 flex items-center gap-3 text-left">
                   <div className="w-11 h-11 rounded-ga-pill bg-ga-yellow flex items-center justify-center text-xl shrink-0">{MENTOR_META[mentor.code]?.emoji ?? "🧑‍🏫"}</div>
                   <div className="min-w-0">
-                    <p className="ga-ui text-[10.5px] uppercase tracking-[0.08em] text-ga-muted font-semibold">Mentor của bạn</p>
+                    <p className="ga-ui text-[10.5px] uppercase tracking-[0.08em] text-ga-muted font-semibold">{t("pace.mentorLabel")}</p>
                     <p className="ga-ui text-[13.5px] font-bold text-ga-ink">{mentor.displayName}</p>
-                    <p className="text-[12px] text-ga-muted">{MENTOR_META[mentor.code]?.tagline ?? "Người đồng hành học tập"}</p>
+                    <p className="text-[12px] text-ga-muted">{MENTOR_META[mentor.code]?.tagline ?? t("pace.mentorFallbackTagline")}</p>
                   </div>
                 </div>
               )}
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">Lưu lộ trình của bạn</h2>
-              <p className="text-[13.5px] text-ga-muted">Tạo tài khoản miễn phí để giữ tiến độ{mentor ? ` và mentor ${mentor.displayName}` : ""} — chỉ mất 30 giây.</p>
+              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("signup.heading")}</h2>
+              <p className="text-[13.5px] text-ga-muted">
+                {mentor ? t("signup.subWithMentor", { name: mentor.displayName }) : t("signup.sub")}
+              </p>
               <GaBtn variant="yellow" size="lg" className={`w-full ${btnWrap}`} onClick={handleGuestSignup}>
-                Tạo tài khoản &amp; lưu lộ trình <ArrowRight size={14}/>
+                {t("signup.cta")} <ArrowRight size={14}/>
               </GaBtn>
-              <p className="text-[12px] text-ga-muted">Đã có tài khoản? <Link href="/v2/login" className="font-bold text-ga-ink underline">Đăng nhập</Link></p>
+              <p className="text-[12px] text-ga-muted">{t("signup.haveAccount")} <Link href="/v2/login" className="font-bold text-ga-ink underline">{t("signup.login")}</Link></p>
             </motion.div>
           )}
 
           {step === 4 && !isGuest && placementOffer && !testResult && questions.length === 0 && (
             <motion.div key="s4offer" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
               <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-3xl mx-auto">🎯</div>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">Vào đúng trình độ của bạn?</h2>
-              <p className="text-[13.5px] text-ga-muted">Bạn tự đánh giá <strong>{currentLevel}</strong>. Làm bài kiểm tra ~5 phút để lộ trình khớp chính xác — hoặc bắt đầu học ngay rồi tinh chỉnh sau.</p>
+              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("placementOffer.heading")}</h2>
+              <p className="text-[13.5px] text-ga-muted">
+                {t.rich("placementOffer.body", { level: currentLevel, b: (chunks) => <strong>{chunks}</strong> })}
+              </p>
               <GaBtn variant="ink" size="lg" className="w-full" loading={loading} disabled={loading} onClick={startTest}>
-                Làm bài kiểm tra 5 phút
+                {t("placementOffer.take")}
               </GaBtn>
               <GaBtn variant="ghost" size="lg" className="w-full" disabled={loading}
                 onClick={() => { trackEvent('onboarding_placement_skipped', { currentLevel }); void goRoadmap(); }}>
-                Bắt đầu học ngay →
+                {t("placementOffer.skip")}
               </GaBtn>
             </motion.div>
           )}
@@ -507,7 +518,7 @@ export default function V2OnboardingPage() {
           {step === 4 && !testResult && questions.length > 0 && (
             <motion.div key="s4t" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
               <div className="flex items-center justify-between gap-2">
-                <h2 className="min-w-0 font-ga-display text-[20px] font-medium text-ga-ink lg:text-[24px]">Bài kiểm tra xếp lớp</h2>
+                <h2 className="min-w-0 font-ga-display text-[20px] font-medium text-ga-ink lg:text-[24px]">{t("test.heading")}</h2>
                 <span className="ga-ui shrink-0 text-[12px] text-ga-subtle">{currentQ+1}/{questions.length}</span>
               </div>
               <div className="flex gap-1">{questions.map((_,i) => <div key={i} className={`flex-1 h-1 rounded-ga-pill ${i<currentQ?"bg-ga-green":i===currentQ?"bg-ga-yellow":"bg-ga-line"}`} />)}</div>
@@ -516,7 +527,7 @@ export default function V2OnboardingPage() {
                 questions[currentQ].skillSection==="HOEREN"?"bg-ga-blue-soft text-ga-blue":
                 questions[currentQ].skillSection==="SPRECHEN"?"bg-ga-red-soft text-ga-red":
                 questions[currentQ].skillSection==="LESEN"?"bg-ga-green-soft text-ga-green":"bg-ga-violet-soft text-ga-violet"
-              }`}>{questions[currentQ].skillSection==="HOEREN"?"🎧 Nghe":questions[currentQ].skillSection==="SPRECHEN"?"🎤 Nói":questions[currentQ].skillSection==="LESEN"?"📚 Đọc":"✍️ Viết"}</span>
+              }`}>{questions[currentQ].skillSection==="HOEREN"?t("test.skillHoeren"):questions[currentQ].skillSection==="SPRECHEN"?t("test.skillSprechen"):questions[currentQ].skillSection==="LESEN"?t("test.skillLesen"):t("test.skillSchreiben")}</span>
               {questions[currentQ].audioTranscript && <div className="rounded-ga bg-ga-surface p-3 text-[12px] text-ga-muted italic">🔊 &quot;{questions[currentQ].audioTranscript}&quot;</div>}
               <p className="text-[13.5px] font-medium text-ga-ink whitespace-pre-line break-words">{questions[currentQ].questionDe}</p>
               {questions[currentQ].questionVi && <p className="text-[12px] text-ga-subtle">{questions[currentQ].questionVi}</p>}
@@ -529,15 +540,15 @@ export default function V2OnboardingPage() {
                 ))}</div>
               ) : (
                 <textarea value={answers[questions[currentQ].id]??""} onChange={e => setAnswers(a => ({...a,[questions[currentQ].id]:e.target.value}))}
-                  placeholder="Viết câu trả lời bằng tiếng Đức..." className="ga-ui w-full rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13.5px] text-ga-ink outline-none resize-none" rows={3} />
+                  placeholder={t("test.writePlaceholder")} className="ga-ui w-full rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13.5px] text-ga-ink outline-none resize-none" rows={3} />
               )}
               <div className="flex flex-wrap items-center justify-between gap-3 pt-2 lg:flex-nowrap lg:gap-0">
                 {currentQ > 0
-                  ? <GaBtn variant="ghost" onClick={() => setCurrentQ(q=>q-1)}><ArrowLeft size={14}/> Trước</GaBtn>
+                  ? <GaBtn variant="ghost" onClick={() => setCurrentQ(q=>q-1)}><ArrowLeft size={14}/> {t("test.prev")}</GaBtn>
                   : <div/>}
                 {currentQ < questions.length-1
-                  ? <GaBtn variant="ink" onClick={() => setCurrentQ(q=>q+1)}>Tiếp <ArrowRight size={14}/></GaBtn>
-                  : <GaBtn variant="yellow" loading={loading} disabled={loading} onClick={submitTest}>Nộp bài</GaBtn>
+                  ? <GaBtn variant="ink" onClick={() => setCurrentQ(q=>q+1)}>{t("test.next")} <ArrowRight size={14}/></GaBtn>
+                  : <GaBtn variant="yellow" loading={loading} disabled={loading} onClick={submitTest}>{t("test.submit")}</GaBtn>
                 }
               </div>
             </motion.div>
@@ -548,21 +559,28 @@ export default function V2OnboardingPage() {
               <div className={`inline-flex w-20 h-20 rounded-ga-pill items-center justify-center mx-auto ${testResult.passed?"bg-ga-green-soft text-ga-green":"bg-ga-red-soft text-ga-red"}`}>
                 {testResult.passed ? <CheckCircle size={40}/> : <XCircle size={40}/>}
               </div>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{testResult.passed ? "Tốt rồi, bạn đã sẵn sàng!" : "Mình đã tìm ra chỗ cần ôn"}</h2>
-              <p className="text-[13.5px] text-ga-muted">Kết quả: <strong>{testResult.correctCount}/{testResult.totalQuestions}</strong> ({testResult.scorePercent}%)</p>
+              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{testResult.passed ? t("result.passed") : t("result.failed")}</h2>
+              <p className="text-[13.5px] text-ga-muted">
+                {t.rich("result.score", {
+                  correct: testResult.correctCount,
+                  total: testResult.totalQuestions,
+                  percent: testResult.scorePercent,
+                  b: (chunks) => <strong>{chunks}</strong>,
+                })}
+              </p>
               {!testResult.passed && testResult.weakModules && (
                 <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3 text-left">
-                  <p className="text-[12px] text-ga-ink">📋 Module cần ôn: {testResult.weakModules.join(", ")}</p>
-                  <p className="mt-1 text-[10.5px] text-ga-muted">Làm lại sau {testResult.retryAfterDays ?? 3} ngày.</p>
+                  <p className="text-[12px] text-ga-ink">{t("result.weakModules", { modules: testResult.weakModules.join(", ") })}</p>
+                  <p className="mt-1 text-[10.5px] text-ga-muted">{t("result.retryAfter", { days: testResult.retryAfterDays ?? 3 })}</p>
                 </div>
               )}
               <GaBtn variant="ink" size="lg" className={`w-full ${btnWrap}`} onClick={() => router.push(ROADMAP_ROUTE)}>
-                {testResult.passed ? "Bắt đầu lộ trình cá nhân hóa →" : "Xem lộ trình phù hợp →"}
+                {testResult.passed ? t("result.ctaPassed") : t("result.ctaFailed")}
               </GaBtn>
               {route?.paywallAllowed && route.postAction === "PRICING_CTA" && (
                 <GaBtn variant="yellow" size="lg" className={`w-full ${btnWrap}`}
                   onClick={() => { trackEvent('onboarding_pricing_cta_clicked', { currentLevel }); router.push(PRICING_ROUTE); }}>
-                  Khám phá gói PRO để mở khóa toàn bộ →
+                  {t("result.pricingCta")}
                 </GaBtn>
               )}
             </motion.div>
@@ -572,10 +590,10 @@ export default function V2OnboardingPage() {
         {step <= 3 && (
           <div className="flex flex-wrap items-center justify-between gap-3 mt-4 lg:flex-nowrap lg:gap-0">
             {step > 1
-              ? <GaBtn variant="ghost" onClick={() => setStep(s=>s-1)}><ArrowLeft size={14}/> Quay lại</GaBtn>
+              ? <GaBtn variant="ghost" onClick={() => setStep(s=>s-1)}><ArrowLeft size={14}/> {t("nav.back")}</GaBtn>
               : <div/>}
             <GaBtn variant="ink" size="lg" loading={loading} disabled={loading} onClick={nextStep}>
-              {step===3 && !isGuest && currentLevel==="A0" ? "Bắt đầu lộ trình" : "Tiếp tục"}
+              {step===3 && !isGuest && currentLevel==="A0" ? t("nav.startRoadmap") : t("nav.continue")}
               <ArrowRight size={14}/>
             </GaBtn>
           </div>

@@ -125,15 +125,19 @@ public class QuotaService {
         reconcileSubscriptions(userId, now);
     }
 
+    /** Giá trị {@code user_subscriptions.source} của gói do provisioner cấp lúc đăng ký. */
+    static final String SOURCE_TRIAL = "TRIAL";
+
     @Transactional
     public PlanBadge resolvePlanBadge(long userId, Instant nowUtc) {
         reconcileSubscriptions(userId, nowUtc);
         SubscriptionRow row = loadActiveCoveringSubscription(userId, nowUtc);
         if (row == null) {
-            return new PlanBadge(PLAN_DEFAULT, publicTier(PLAN_DEFAULT), null, null);
+            return new PlanBadge(PLAN_DEFAULT, publicTier(PLAN_DEFAULT), null, null, false, null);
         }
         return new PlanBadge(
-                row.planCode(), publicTier(row.planCode()), row.startsAt(), row.endsAtExclusive());
+                row.planCode(), publicTier(row.planCode()), row.startsAt(), row.endsAtExclusive(),
+                row.isTrial(), row.isTrial() ? row.endsAtExclusive() : null);
     }
 
     /**
@@ -187,6 +191,16 @@ public class QuotaService {
                 "SELECT balance FROM user_ai_token_wallets WHERE user_id = ?", Long.class, userId);
         long remaining = balance == null ? 0L : balance;
         if (remaining <= 0L) {
+            // Q2 (quyết định owner 28/08): ví cạn GIỮA trial thì KHÔNG hạ gói. Ví được cấp
+            // theo ngày, nên cạn hôm nay là chuyện bình thường — grant hôm sau sẽ nạp lại.
+            // Hạ về DEFAULT ở đây là kết thúc trial sớm vì một lý do tạm thời, và người dùng
+            // mất phần còn lại của 7 ngày mà không hiểu vì sao. Client hiện thông điệp
+            // "token hồi lại ngày mai", không phải paywall.
+            if (row.isTrial() && row.endsAtExclusive() != null && row.endsAtExclusive().isAfter(now)) {
+                log.info("[Quota][TRIAL_WALLET_EMPTY] userId={} ví cạn nhưng trial còn hạn tới {} — giữ nguyên gói",
+                        userId, row.endsAtExclusive());
+                return;
+            }
             downgradePaidPlansToDefault(userId, now);
             jdbcTemplate.update("DELETE FROM user_ai_token_wallets WHERE user_id = ?", userId);
         }
@@ -494,7 +508,7 @@ public class QuotaService {
     private void reconcileExpiredPaidWithWallet(long userId, Instant now) {
         // Find expired PRO/ULTRA subscriptions that are still ACTIVE
         var expiredPaid = jdbcTemplate.queryForList("""
-                        SELECT us.id, us.plan_code
+                        SELECT us.id, us.plan_code, us.source
                         FROM user_subscriptions us
                         WHERE us.user_id = ?
                           AND us.status = 'ACTIVE'
@@ -512,6 +526,32 @@ public class QuotaService {
                     "SELECT balance FROM user_ai_token_wallets WHERE user_id = ?", Long.class, userId);
         } catch (Exception ignored) { /* no wallet row */ }
 
+        // Q3 (quyết định owner 28/08): trial hết hạn thì kết thúc HẲN — ENDED + xoá ví,
+        // BẤT KỂ ví còn dư. Grace-drain là quyền lợi của người ĐÃ TRẢ TIỀN (họ mua token,
+        // token đó là của họ); token trial là quà dùng thử, không mang sang ngày 8 được,
+        // nếu không thì "trial 7 ngày" thực chất dài bằng số ngày họ tiết kiệm được ví.
+        var expiredTrials = expiredPaid.stream()
+                .filter(r -> SOURCE_TRIAL.equals(r.get("source")))
+                .toList();
+        if (!expiredTrials.isEmpty()) {
+            for (var row : expiredTrials) {
+                jdbcTemplate.update(
+                        "UPDATE user_subscriptions SET status = 'ENDED', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                        row.get("id"));
+            }
+            // Xoá KHÔNG điều kiện balance: ví trial hết vòng đời cùng trial.
+            jdbcTemplate.update("DELETE FROM user_ai_token_wallets WHERE user_id = ?", userId);
+            log.info("[Quota][TRIAL_ENDED] userId={} trial hết hạn — đã kết thúc {} gói và xoá ví",
+                    userId, expiredTrials.size());
+        }
+
+        var expiredPaidOnly = expiredPaid.stream()
+                .filter(r -> !SOURCE_TRIAL.equals(r.get("source")))
+                .toList();
+        if (expiredPaidOnly.isEmpty()) {
+            return;
+        }
+
         if (walletBalance != null && walletBalance > 0) {
             // Grace period: wallet has tokens, keep subscription ACTIVE
             // User can still spend tokens, but publicTier() returns DEFAULT
@@ -519,7 +559,7 @@ public class QuotaService {
         }
 
         // Wallet empty or doesn't exist → fully end the subscription
-        for (var row : expiredPaid) {
+        for (var row : expiredPaidOnly) {
             jdbcTemplate.update("""
                             UPDATE user_subscriptions
                             SET status = 'ENDED', updated_at = CURRENT_TIMESTAMP
@@ -554,8 +594,8 @@ public class QuotaService {
             return;
         }
         jdbcTemplate.update("""
-                        INSERT INTO user_subscriptions (user_id, plan_code, status, starts_at, ends_at)
-                        VALUES (?, ?, 'ACTIVE', ?, NULL)
+                        INSERT INTO user_subscriptions (user_id, plan_code, status, starts_at, ends_at, source)
+                        VALUES (?, ?, 'ACTIVE', ?, NULL, 'DEFAULT')
                         """,
                 userId, PLAN_DEFAULT, Timestamp.from(now));
     }
@@ -593,7 +633,8 @@ public class QuotaService {
                                us.starts_at AS startsAt,
                                us.ends_at AS endsAt,
                                COALESCE(us.monthly_token_limit_override, sp.daily_token_grant) AS dailyGrantRaw,
-                               sp.wallet_cap_days AS walletCapDays
+                               sp.wallet_cap_days AS walletCapDays,
+                               us.source AS source
                         FROM user_subscriptions us
                         JOIN subscription_plans sp ON sp.code = us.plan_code
                         WHERE us.user_id = ?
@@ -621,7 +662,8 @@ public class QuotaService {
                 starts,
                 endsExcl,
                 toLong(raw.get("dailyGrantRaw")),
-                toInt(raw.get("walletCapDays"))
+                toInt(raw.get("walletCapDays")),
+                raw.get("source") == null ? null : String.valueOf(raw.get("source"))
         );
     }
 
@@ -734,6 +776,12 @@ public class QuotaService {
             Instant startsAt,
             Instant endsAtExclusive,
             long dailyGrant,
-            int walletCapDays
-    ) {}
+            int walletCapDays,
+            String source
+    ) {
+        /** Quyền lợi do provisioner cấp lúc đăng ký, không phải do trả tiền (Q2/Q3). */
+        boolean isTrial() {
+            return SOURCE_TRIAL.equals(source);
+        }
+    }
 }

@@ -1,0 +1,99 @@
+{
+  "onboarding": {
+    "intro": {
+      "title": "Bắt đầu trong 2 phút",
+      "subtitle": "Chọn trình độ, mục tiêu và nhịp học để nhận lộ trình cá nhân hóa ngay."
+    },
+    "level": {
+      "heading": "Bạn đang ở trình độ nào?",
+      "sub": "Chọn trình độ phù hợp nhất.",
+      "A0": { "label": "Chưa biết gì", "desc": "Bắt đầu từ bảng chữ cái" },
+      "A1": { "label": "Cơ bản (A1)", "desc": "Biết chào hỏi, giới thiệu" },
+      "A2": { "label": "Sơ cấp (A2)", "desc": "Giao tiếp đơn giản" },
+      "B1": { "label": "Trung cấp (B1)", "desc": "Thảo luận, diễn đạt ý kiến" },
+      "B2": { "label": "Cao cấp (B2)", "desc": "Đọc hiểu phức tạp" }
+    },
+    "goal": {
+      "heading": "Vì sao bạn học tiếng Đức?",
+      "sub": "Để chúng mình chọn đúng mentor và lộ trình cho bạn.",
+      "industryLabel": "Ngành nghề",
+      "examLabel": "Loại chứng chỉ",
+      "targetLevelLabel": "Trình độ mục tiêu",
+      "JOB": "Đi làm tại Đức",
+      "AUSBILDUNG": "Học nghề (Ausbildung)",
+      "STUDY": "Du học",
+      "IMMIGRATION": "Định cư / đoàn tụ",
+      "EXAM": "Thi chứng chỉ",
+      "HOBBY": "Sở thích cá nhân"
+    },
+    "pace": {
+      "heading": "Bạn muốn học bao nhiêu?",
+      "sub": "Weekly target ảnh hưởng đến chủ đề mở rộng cá nhân hóa.",
+      "mentorLabel": "Mentor của bạn",
+      "mentorFallbackTagline": "Người đồng hành học tập",
+      "upsell": "🔓 Mở khoá mentor <b>{name}</b>{tagline} với PRO →",
+      "w3": { "label": "3 bài/tuần", "desc": "~15 phút/ngày" },
+      "w5": { "label": "5 bài/tuần", "desc": "~20 phút/ngày" },
+      "w7": { "label": "7 bài/tuần", "desc": "Mỗi ngày một bài" },
+      "noteA0": "🌱 Bước đầu tiên của bạn sẽ là <b>Bảng chữ cái, Phát âm và Chào hỏi</b>.",
+      "notePlacement": "📝 Có thể làm <b>bài kiểm tra 5 phút (tùy chọn)</b> để vào đúng trình độ — hoặc bắt đầu học ngay."
+    },
+    "quickWin": {
+      "heading": "Thử ngay câu đầu tiên!",
+      "prompt": "\"Chào buổi sáng\" trong tiếng Đức là gì?",
+      "correct": "Richtig! 🎉 Bạn vừa học từ đầu tiên.",
+      "wrong": "Chưa đúng — thử lại nhé!"
+    },
+    "signup": {
+      "heading": "Lưu lộ trình của bạn",
+      "subWithMentor": "Tạo tài khoản miễn phí để giữ tiến độ và mentor {name} — chỉ mất 30 giây.",
+      "sub": "Tạo tài khoản miễn phí để giữ tiến độ — chỉ mất 30 giây.",
+      "cta": "Tạo tài khoản & lưu lộ trình",
+      "haveAccount": "Đã có tài khoản?",
+      "login": "Đăng nhập"
+    },
+    "placementOffer": {
+      "heading": "Vào đúng trình độ của bạn?",
+      "body": "Bạn tự đánh giá <b>{level}</b>. Làm bài kiểm tra ~5 phút để lộ trình khớp chính xác — hoặc bắt đầu học ngay rồi tinh chỉnh sau.",
+      "take": "Làm bài kiểm tra 5 phút",
+      "skip": "Bắt đầu học ngay →"
+    },
+    "test": {
+      "heading": "Bài kiểm tra xếp lớp",
+      "skillHoeren": "🎧 Nghe",
+      "skillSprechen": "🎤 Nói",
+      "skillLesen": "📚 Đọc",
+      "skillSchreiben": "✍️ Viết",
+      "writePlaceholder": "Viết câu trả lời bằng tiếng Đức...",
+      "prev": "Trước",
+      "next": "Tiếp",
+      "submit": "Nộp bài"
+    },
+    "result": {
+      "passed": "Tốt rồi, bạn đã sẵn sàng!",
+      "failed": "Mình đã tìm ra chỗ cần ôn",
+      "score": "Kết quả: <b>{correct}/{total}</b> ({percent}%)",
+      "weakModules": "📋 Module cần ôn: {modules}",
+      "retryAfter": "Làm lại sau {days} ngày.",
+      "ctaPassed": "Bắt đầu lộ trình cá nhân hóa →",
+      "ctaFailed": "Xem lộ trình phù hợp →",
+      "pricingCta": "Khám phá gói PRO để mở khóa toàn bộ →"
+    },
+    "nav": {
+      "back": "Quay lại",
+      "continue": "Tiếp tục",
+      "startRoadmap": "Bắt đầu lộ trình"
+    },
+    "loader": {
+      "title": "Đang tạo lộ trình của bạn…",
+      "sub": "Lưu mục tiêu và mentor bạn vừa chọn."
+    },
+    "error": {
+      "offline": "Mất kết nối — hồ sơ chưa được lưu. Kiểm tra mạng rồi thử lại.",
+      "saveProfile": "Không lưu được hồ sơ học tập. Vui lòng thử lại.",
+      "createTest": "Không thể tạo bài test.",
+      "submitTest": "Nộp bài thất bại.",
+      "resumeKeepsDraft": "Không lưu được hồ sơ — câu trả lời của bạn vẫn được giữ. Vui lòng thử lại."
+    }
+  }
+}
