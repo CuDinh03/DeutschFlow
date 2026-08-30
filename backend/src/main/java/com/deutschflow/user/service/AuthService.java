@@ -39,6 +39,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthService {
 
+    /**
+     * Trần tuổi tài khoản còn được nhận trial ở đường đăng nhập (Q1, 28/08).
+     * Bằng đúng độ dài trial: quá 7 ngày thì kể cả có cấp cũng đã hết hạn.
+     */
+    private static final int TRIAL_BACKFILL_MAX_AGE_DAYS = 7;
+
+
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JdbcTemplate jdbcTemplate;
@@ -99,6 +106,28 @@ public class AuthService {
         return buildAuthResponse(user);
     }
 
+    /**
+     * Tài khoản có đủ điều kiện nhận trial khi đăng nhập không?
+     *
+     * <p>Hai điều kiện, cả hai đều cần: (1) người dùng TỰ đăng ký — tài khoản do admin/
+     * trung tâm tạo hộ đi theo hợp đồng B2B, không phải phễu trial; (2) mới tạo trong
+     * vòng {@value #TRIAL_BACKFILL_MAX_AGE_DAYS} ngày — quá hạn đó thì việc thiếu
+     * subscription là dữ liệu cũ cần vá tay, không phải người mới cần trial.
+     *
+     * <p>Đây là lưới an toàn cho ca "đăng ký xong nhưng provision hỏng", KHÔNG phải
+     * đường cấp trial chính. Đường chính nằm ở {@code register()}.
+     */
+    static boolean isFreshSelfSignup(User user) {
+        if (user.getCreatedVia() != User.CreatedVia.SELF) {
+            return false;
+        }
+        LocalDateTime createdAt = user.getCreatedAt();
+        if (createdAt == null) {
+            return false;
+        }
+        return createdAt.isAfter(LocalDateTime.now().minusDays(TRIAL_BACKFILL_MAX_AGE_DAYS));
+    }
+
     @Transactional
     public AuthResponse login(LoginRequest request) {
         // Trim the submitted email; the actual match is case-insensitive (UserDetailsServiceConfig +
@@ -115,7 +144,12 @@ public class AuthService {
         var user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new BadRequestException("Email hoặc mật khẩu không đúng."));
 
-        if (user.getRole() == User.Role.STUDENT) {
+        // Q1 (quyết định owner 28/08): trial 7 ngày chỉ dành cho tài khoản VỪA ĐĂNG KÝ.
+        // Trước đây bất kỳ STUDENT nào chưa có dòng subscription nào cũng được cấp trial
+        // PRO ngay lúc đăng nhập — nghĩa là một tài khoản tạo từ năm ngoái, hoặc tài khoản
+        // do trung tâm/admin tạo hộ, đăng nhập lần đầu vào hôm nay là nhận trọn 7 ngày PRO.
+        // Đó là phát quyền lợi không ai chủ ý, và nó làm hỏng luôn phép đo cohort trial.
+        if (user.getRole() == User.Role.STUDENT && isFreshSelfSignup(user)) {
             Integer subCount = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM user_subscriptions WHERE user_id = ?",
                     Integer.class, user.getId());
