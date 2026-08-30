@@ -7,6 +7,10 @@ import com.deutschflow.user.dto.OnboardingMentorResponse;
 import com.deutschflow.user.dto.OnboardingProfileRequest;
 import com.deutschflow.user.dto.OnboardingRouteResponse;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.user.onboarding.dto.GuestSessionDtos.ClaimRequest;
+import com.deutschflow.user.onboarding.dto.GuestSessionDtos.ClaimResponse;
+import com.deutschflow.user.onboarding.dto.GuestSessionDtos.ProgressResponse;
+import com.deutschflow.user.onboarding.service.GuestOnboardingService;
 import com.deutschflow.user.entity.UserLearningProfile;
 import com.deutschflow.user.onboarding.OnboardingRoute;
 import com.deutschflow.user.onboarding.OnboardingTypeResolver;
@@ -33,6 +37,7 @@ public class OnboardingController {
     private final UserLearningProfileService learningProfileService;
     private final UserLearningProfileRepository learningProfileRepository;
     private final OnboardingTypeResolver onboardingTypeResolver;
+    private final GuestOnboardingService guestOnboardingService;
 
     @PostMapping("/profile")
     @ResponseStatus(HttpStatus.CREATED)
@@ -109,6 +114,29 @@ public class OnboardingController {
         var profile = learningProfileRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new NotFoundException("Learning profile not found. Please complete onboarding first."));
         return learningProfileService.toResponse(profile);
+    }
+
+    // ─── Guest session: hai đầu ĐÃ ĐĂNG NHẬP ───────────────────────────────────
+    // Hai đầu công khai (tạo/sửa phiên) nằm ở GuestOnboardingController vì class
+    // này gắn @PreAuthorize("hasRole('STUDENT')") ở cấp class.
+
+    /**
+     * POST /api/onboarding/claim — gắn phiên khách vào tài khoản vừa đăng nhập.
+     *
+     * <p>Idempotent (spec I-6): gọi lại với cùng phiên trả {@code alreadyClaimed=true},
+     * KHÔNG phải lỗi — client retry sau timeout là chuyện bình thường.
+     */
+    @PostMapping("/claim")
+    public ClaimResponse claim(@AuthenticationPrincipal User user,
+                               @Valid @RequestBody ClaimRequest request,
+                               @RequestHeader(value = "X-Platform", required = false) String platform) {
+        return guestOnboardingService.claim(user, request.sessionId(), platform);
+    }
+
+    /** GET /api/onboarding/progress — tiến độ server-side, cho resume trên thiết bị khác (spec I-2). */
+    @GetMapping("/progress")
+    public ProgressResponse progress(@AuthenticationPrincipal User user) {
+        return guestOnboardingService.readProgress(user);
     }
 
     public record StatusResponse(boolean hasPlan) {}
