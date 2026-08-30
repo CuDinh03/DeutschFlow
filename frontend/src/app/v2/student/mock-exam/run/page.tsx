@@ -5,7 +5,17 @@ import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { ArrowLeft, BookOpen, Check, ChevronRight, Clock, Play, Trophy, X, AlertCircle } from 'lucide-react'
-import api from '@/lib/api'
+import api, { httpStatus, isAxiosErr } from '@/lib/api'
+import { getAccessToken } from '@/lib/authSession'
+import {
+  classifyDraftSaveError,
+  createDraftAutosaver,
+  parseDraftAnswers,
+  resyncCountdown,
+  type DraftAutosaver,
+  type DraftSaveResult,
+  type ServerDraft,
+} from '@/lib/exam/examDraftSync'
 import { useTracking } from '@/hooks/useTracking'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -86,6 +96,26 @@ interface ReviewData {
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
+/** /start response (V285): full attempt metadata + server countdown + autosaved draft. */
+interface ExamStartResponse {
+  id: number
+  exam_id?: number
+  started_at?: string
+  status?: string
+  sections_json?: unknown
+  time_limit_minutes?: number
+  server_now?: string
+  deadline_at?: string
+  remaining_seconds?: number
+  draft?: {
+    answers_json?: string | null
+    section_index?: number | null
+    question_index?: number | null
+    version: number
+    saved_at?: string
+  }
+}
+
 /** Tolerates both a JSON string and an already-parsed object (the API has shipped both). */
 function parseSections(raw: unknown): ActiveExamData | null {
   if (!raw) return null
@@ -94,6 +124,30 @@ function parseSections(raw: unknown): ActiveExamData | null {
     return parsed?.sections ? (parsed as ActiveExamData) : null
   } catch {
     return null
+  }
+}
+
+/** PATCH …/draft transport, mapped onto the autosaver's result union. */
+async function saveDraftRequest(
+  attemptId: number,
+  payload: { answers: Record<string, string>; sectionIndex: number },
+  baseVersion: number,
+): Promise<DraftSaveResult> {
+  try {
+    const res = await api.patch(`/mock-exams/attempts/${attemptId}/draft`, {
+      answers: payload.answers,
+      sectionIndex: payload.sectionIndex,
+      baseVersion,
+    })
+    const data = res.data as { version?: number; remaining_seconds?: number | null }
+    return {
+      kind: 'saved',
+      version: typeof data?.version === 'number' ? data.version : baseVersion + 1,
+      remainingSeconds: typeof data?.remaining_seconds === 'number' ? data.remaining_seconds : null,
+    }
+  } catch (err) {
+    if (isAxiosErr(err) && err.response) return classifyDraftSaveError(httpStatus(err), err.response.data)
+    return { kind: 'error' }
   }
 }
 
@@ -128,6 +182,12 @@ function MockExamRunner() {
   const [submitting, setSubmitting] = useState(false)
   const submittedByTimerRef = useRef(false)
   const autoStartedRef = useRef(false)
+
+  // V285 autosave (audit C-02): the server owns the in-progress draft and the countdown.
+  const autosaverRef = useRef<DraftAutosaver | null>(null)
+  const draftBaseVersionRef = useRef(0)
+  const submittingRef = useRef(false)
+  const submitExamRef = useRef<() => void>(() => {})
 
   // Sync the level filter with the user's target level once it loads — unless the deep link
   // already pinned one (the catalog knows which level the user picked).
@@ -164,6 +224,7 @@ function MockExamRunner() {
       if (!autoSubmit && !confirm(t('confirmSubmit'))) return
 
       setSubmitting(true)
+      submittingRef.current = true // autosaves pause while the finish is in flight
       try {
         await api.post(`/mock-exams/attempts/${activeAttemptId}/finish`, { answers })
         const finished = await api.get<MockAttempt>(`/mock-exams/attempts/${activeAttemptId}/result`)
@@ -178,10 +239,15 @@ function MockExamRunner() {
         toast.error(t('submitError'))
       } finally {
         setSubmitting(false)
+        submittingRef.current = false
       }
     },
     [activeAttemptId, answers, load, t, trackFeatureAction],
   )
+
+  useEffect(() => {
+    submitExamRef.current = () => void submitExam(true)
+  }, [submitExam])
 
   // Interval: one timer per 'taking' session; never re-registers on every tick
   useEffect(() => {
@@ -204,6 +270,97 @@ function MockExamRunner() {
     }
   }, [view, activeAttemptId, trackFeatureAction])
 
+  // V285 autosave lifecycle: one autosaver per taking-session. Conflicts adopt the newer
+  // server draft (another device won), expiry auto-submits, saves resync the countdown.
+  useEffect(() => {
+    if (view !== 'taking' || !activeAttemptId) return
+    const attemptId = activeAttemptId
+    const autosaver = createDraftAutosaver({
+      save: async (payload, baseVersion) => {
+        if (submittingRef.current) return { kind: 'saved', version: baseVersion, remainingSeconds: null }
+        return saveDraftRequest(attemptId, payload, baseVersion)
+      },
+      onSaved: ({ version, remainingSeconds }) => {
+        // Mirror the lock version into the ref so a re-created autosaver (effect re-run)
+        // resumes from the real version instead of the value captured at /start.
+        draftBaseVersionRef.current = version
+        if (typeof remainingSeconds === 'number') {
+          setTimeLeft((prev) => resyncCountdown(prev, remainingSeconds))
+        }
+      },
+      onConflict: ({ serverVersion, draft }: { serverVersion: number; draft: ServerDraft | null }) => {
+        if (submittingRef.current) return
+        draftBaseVersionRef.current = serverVersion
+        autosaverRef.current?.adoptVersion(serverVersion)
+        if (draft?.answersJson) {
+          const serverAnswers = parseDraftAnswers(draft.answersJson)
+          setAnswers(serverAnswers)
+          if (typeof draft.sectionIndex === 'number' && draft.sectionIndex >= 0) {
+            setCurrentSectionIdx(draft.sectionIndex)
+          }
+        }
+        toast.info(t('draftConflict'))
+      },
+      onExpired: () => {
+        if (submittedByTimerRef.current) return
+        submittedByTimerRef.current = true
+        toast.info(t('draftExpired'))
+        submitExamRef.current()
+      },
+    })
+    autosaver.adoptVersion(draftBaseVersionRef.current)
+    autosaverRef.current = autosaver
+    return () => {
+      autosaver.dispose()
+      if (autosaverRef.current === autosaver) autosaverRef.current = null
+    }
+  }, [view, activeAttemptId, t])
+
+  // Every change to answers/position feeds the debounced autosave.
+  useEffect(() => {
+    if (view !== 'taking') return
+    autosaverRef.current?.notifyChange({ answers, sectionIndex: currentSectionIdx })
+  }, [view, answers, currentSectionIdx])
+
+  // Leaving the page (tab close, app switch) flushes unsaved changes with a keepalive PATCH —
+  // axios can't outlive the document, fetch(keepalive) can.
+  useEffect(() => {
+    if (view !== 'taking' || !activeAttemptId) return
+    const attemptId = activeAttemptId
+    const flushKeepalive = () => {
+      const snap = autosaverRef.current?.getSnapshot()
+      if (!snap) return
+      const token = getAccessToken()
+      try {
+        void fetch(`${api.defaults.baseURL ?? ''}/mock-exams/attempts/${attemptId}/draft`, {
+          method: 'PATCH',
+          keepalive: true,
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            answers: snap.payload.answers,
+            sectionIndex: snap.payload.sectionIndex,
+            baseVersion: snap.baseVersion,
+          }),
+        })
+      } catch {
+        // fire-and-forget: the draft stays dirty and the next session resumes from the last save
+      }
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushKeepalive()
+    }
+    window.addEventListener('pagehide', flushKeepalive)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('pagehide', flushKeepalive)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [view, activeAttemptId])
+
   /**
    * Starts (or resumes) an exam. `fallbackMinutes` comes from the exam row when we have it;
    * the /start response carries `time_limit_minutes` for the deep-link path where we don't.
@@ -212,7 +369,7 @@ function MockExamRunner() {
     async (examId: number, fallbackMinutes?: number, title?: string) => {
       try {
         setLoading(true)
-        const res = await api.post(`/mock-exams/${examId}/start`)
+        const res = await api.post<ExamStartResponse>(`/mock-exams/${examId}/start`)
         const attempt = res.data
 
         let sections = parseSections(attempt?.sections_json)
@@ -227,14 +384,29 @@ function MockExamRunner() {
         }
 
         const minutes = fallbackMinutes ?? (typeof attempt?.time_limit_minutes === 'number' ? attempt.time_limit_minutes : 60)
+        // V285 (audit C-02): the countdown follows the server (started_at + limit). Before,
+        // every resume/reload reset the timer to the full duration client-side.
+        const remaining = typeof attempt?.remaining_seconds === 'number' ? attempt.remaining_seconds : minutes * 60
+        // Resume restores the server-autosaved draft — answers, position and lock version.
+        const draft = attempt?.draft
+        const restoredAnswers = parseDraftAnswers(draft?.answers_json)
+        const restoredCount = Object.keys(restoredAnswers).length
+        const sectionCount = sections.sections?.length ?? 0
+        const restoredSection =
+          typeof draft?.section_index === 'number' && draft.section_index >= 0 && draft.section_index < sectionCount
+            ? draft.section_index
+            : 0
+
         submittedByTimerRef.current = false
+        draftBaseVersionRef.current = draft?.version ?? 0
         setActiveAttemptId(attempt.id)
         setActiveExamData(sections)
-        setCurrentSectionIdx(0)
-        setTimeLeft(minutes * 60)
-        setAnswers({})
+        setCurrentSectionIdx(restoredSection)
+        setTimeLeft(remaining)
+        setAnswers(restoredAnswers)
         setView('taking')
-        trackFeatureAction('mock_exam', 'started', { examId, title })
+        if (restoredCount > 0) toast.success(t('draftRestored', { count: restoredCount }))
+        trackFeatureAction('mock_exam', 'started', { examId, title, resumedAnswers: restoredCount })
       } catch (err: unknown) {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
         toast.error(msg ?? t('startError'))

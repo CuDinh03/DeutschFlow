@@ -503,6 +503,9 @@
       }
     },
     "mockExamRun": {
+      "draftRestored": "Entwurf wiederhergestellt — {count} zuvor gespeicherte Antworten.",
+      "draftConflict": "Dieser Versuch wurde gerade auf einem anderen Gerät aktualisiert — neuester Entwurf geladen.",
+      "draftExpired": "Die Zeit ist abgelaufen — deine Prüfung wird jetzt abgegeben.",
       "title": "Goethe-Prüfungssimulation",
       "subtitle": "Im offiziellen Goethe-Institut-Format mit automatischer Bewertung",
       "loading": "Wird geladen…",

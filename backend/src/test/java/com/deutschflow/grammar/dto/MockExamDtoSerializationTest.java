@@ -22,10 +22,13 @@ class MockExamDtoSerializationTest {
 
     private final ObjectMapper om = new ObjectMapper();
 
-    // Mirrors the app config (spring.jackson.serialization.write-dates-as-timestamps:false). The
+    // Mirrors the app config (spring.jackson.serialization.write-dates-as-timestamps:false, plus
+    // the JSR-310 module Spring Boot registers — ExamStartDto carries Instant since V285). The
     // SAME mapper serializes both sides of each equivalence check, so any date-format detail cancels
     // out and the assertion proves keys/values/null-handling match the old map exactly.
-    private final ObjectMapper omd = new ObjectMapper().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    private final ObjectMapper omd = new ObjectMapper()
+            .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     private void assertSameJson(Object dto, Map<String, Object> legacyMap) throws Exception {
         JsonNode fromDto = omd.readTree(omd.writeValueAsString(dto));
@@ -108,27 +111,82 @@ class MockExamDtoSerializationTest {
     // ── Round 2b: timestamp DTOs proven byte-equivalent to the exact legacy maps ──────────────
 
     @Test
-    @DisplayName("ExamStartDto (new attempt) == legacy map with all keys")
-    void startNewAttemptEqualsLegacyMap() throws Exception {
+    @DisplayName("ExamStartDto keeps the legacy snake_case keys, extended by V285 timing fields")
+    void startNewAttemptKeepsLegacyKeysPlusTiming() throws Exception {
         Date ts = new Date(1_718_866_800_000L);
-        Map<String, Object> legacy = new LinkedHashMap<>();
-        legacy.put("id", 5L);
-        legacy.put("exam_id", 7L);
-        legacy.put("started_at", ts);
-        legacy.put("status", "IN_PROGRESS");
-        legacy.put("sections_json", "{\"sections\":[]}");
-        legacy.put("time_limit_minutes", 90);
-        assertSameJson(new ExamStartDto(5L, 7L, ts, "IN_PROGRESS", "{\"sections\":[]}", 90), legacy);
+        java.time.Instant now = java.time.Instant.ofEpochMilli(1_718_866_900_000L);
+        java.time.Instant deadline = java.time.Instant.ofEpochMilli(1_718_872_200_000L);
+        var json = omd.writeValueAsString(
+                new ExamStartDto(5L, 7L, ts, "IN_PROGRESS", "{\"sections\":[]}", 90,
+                        now, deadline, 5300L, null));
+        assertThat(json)
+                .contains("\"id\":5")
+                .contains("\"exam_id\":7")
+                .contains("\"started_at\":")
+                .contains("\"status\":\"IN_PROGRESS\"")
+                .contains("\"sections_json\":\"{\\\"sections\\\":[]}\"")
+                .contains("\"time_limit_minutes\":90")
+                .contains("\"server_now\":")
+                .contains("\"deadline_at\":")
+                .contains("\"remaining_seconds\":5300")
+                .doesNotContain("\"draft\"")           // no autosave yet → key absent
+                .doesNotContain("examId")
+                .doesNotContain("timeLimitMinutes");
     }
 
     @Test
-    @DisplayName("ExamStartDto (reusing) omits exam_id/started_at/status like the legacy map")
-    void startReusingOmitsKeys() throws Exception {
-        Map<String, Object> legacy = new LinkedHashMap<>();   // reusing branch put only these 3 keys
-        legacy.put("id", 5L);
-        legacy.put("sections_json", "{\"sections\":[]}");
-        legacy.put("time_limit_minutes", 90);
-        assertSameJson(new ExamStartDto(5L, null, null, null, "{\"sections\":[]}", 90), legacy);
+    @DisplayName("ExamStartDto (resume, V285) returns full metadata + the autosaved draft")
+    void startResumeCarriesDraft() throws Exception {
+        Date ts = new Date(1_718_866_800_000L);
+        Date savedAt = new Date(1_718_866_890_000L);
+        var draft = new ExamDraftDto("{\"q1\":\"a\"}", 1, 4, 3L, savedAt);
+        var json = omd.writeValueAsString(
+                new ExamStartDto(5L, 7L, ts, "IN_PROGRESS", "{\"sections\":[]}", 90,
+                        java.time.Instant.ofEpochMilli(1_718_866_900_000L),
+                        java.time.Instant.ofEpochMilli(1_718_872_200_000L), 5300L, draft));
+        // The pre-V285 "reusing returns only id" omission was a resume bug (audit C-02):
+        // a second device could not rebuild the attempt. Resume now carries everything.
+        assertThat(json)
+                .contains("\"exam_id\":7")
+                .contains("\"status\":\"IN_PROGRESS\"")
+                .contains("\"draft\":{")
+                .contains("\"answers_json\":\"{\\\"q1\\\":\\\"a\\\"}\"")
+                .contains("\"section_index\":1")
+                .contains("\"question_index\":4")
+                .contains("\"version\":3")
+                .contains("\"saved_at\":")
+                .doesNotContain("answersJson")
+                .doesNotContain("sectionIndex");
+    }
+
+    @Test
+    @DisplayName("ExamStartDto omits timing keys when the exam has no time limit")
+    void startOmitsTimingWithoutLimit() throws Exception {
+        Date ts = new Date(1_718_866_800_000L);
+        var json = omd.writeValueAsString(
+                new ExamStartDto(5L, 7L, ts, "IN_PROGRESS", "{\"sections\":[]}", null,
+                        java.time.Instant.ofEpochMilli(1_718_866_900_000L), null, null, null));
+        assertThat(json)
+                .doesNotContain("deadline_at")
+                .doesNotContain("remaining_seconds")
+                .doesNotContain("time_limit_minutes");
+    }
+
+    @Test
+    @DisplayName("ExamDraftSaveDto emits version/saved_at/server_now/deadline_at/remaining_seconds")
+    void draftSaveDtoKeys() throws Exception {
+        var json = omd.writeValueAsString(new ExamDraftSaveDto(
+                4L, new Date(1_718_866_890_000L),
+                java.time.Instant.ofEpochMilli(1_718_866_900_000L),
+                java.time.Instant.ofEpochMilli(1_718_872_200_000L), 5300L));
+        assertThat(json)
+                .contains("\"version\":4")
+                .contains("\"saved_at\":")
+                .contains("\"server_now\":")
+                .contains("\"deadline_at\":")
+                .contains("\"remaining_seconds\":5300")
+                .doesNotContain("savedAt")
+                .doesNotContain("serverNow");
     }
 
     @Test

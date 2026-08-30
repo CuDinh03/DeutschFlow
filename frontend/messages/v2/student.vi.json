@@ -503,6 +503,9 @@
       }
     },
     "mockExamRun": {
+      "draftRestored": "Đã khôi phục bài làm — {count} câu đã trả lời trước đó.",
+      "draftConflict": "Bài làm vừa được cập nhật từ thiết bị khác — đã tải bản mới nhất.",
+      "draftExpired": "Đã hết giờ làm bài — hệ thống đang nộp bài của bạn.",
       "title": "Thi thử Goethe",
       "subtitle": "Làm bài theo format Goethe-Institut chính thức, chấm điểm tự động",
       "loading": "Đang tải…",

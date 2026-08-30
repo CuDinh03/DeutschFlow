@@ -503,6 +503,9 @@
       }
     },
     "mockExamRun": {
+      "draftRestored": "Draft restored — {count} answers you saved earlier.",
+      "draftConflict": "This attempt was just updated from another device — loaded the newest draft.",
+      "draftExpired": "Time is up — submitting your exam now.",
       "title": "Goethe mock exam",
       "subtitle": "Sit the official Goethe-Institut format with automatic scoring",
       "loading": "Loading…",
