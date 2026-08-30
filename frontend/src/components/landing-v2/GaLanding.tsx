@@ -62,10 +62,12 @@ const EXAM_PARTS = [
   { de: 'Schreiben', vi: 'Viết', time: '60 phút', body: 'Email và nêu ý kiến — nộp qua ảnh, AI chấm bố cục và ngữ pháp.' },
   { de: 'Sprechen', vi: 'Nói', time: '15 phút', body: 'Phỏng vấn cặp đôi — luyện trực tiếp với AI HR trước ngày thi.' },
 ]
-const TESTIMONIALS = [
-  { name: 'Nguyễn Thị Lan', role: 'Điều dưỡng tại Münster', q: 'Sau 3 tuần luyện với DeutschFlow, tôi vượt qua phỏng vấn tại bệnh viện Herz-Jesu ngay lần đầu. HR nói tôi trả lời rất tự nhiên.' },
-  { name: 'Trần Văn Hùng', role: 'IT Engineer tại Berlin', q: 'AI hỏi đúng những câu phỏng vấn IT bằng tiếng Đức mà Google không tìm được. Tôi dùng 2 tuần trước ngày phỏng vấn thật.' },
-  { name: 'Phạm Thị Mai', role: 'Krankenpflegerin tại Hamburg', q: 'Điểm B2 không cao nhưng vẫn được nhận vì phỏng vấn tốt. Coach AI giúp tôi biết cách nói tự tin.' },
+// P0.2 (audit 2026-08-28, H-01): thay testimonial bịa tên người/bệnh viện thật bằng
+// audience card — mô tả sản phẩm làm gì cho từng nhóm, không dựng nhân chứng giả.
+const AUDIENCES = [
+  { title: 'Điều dưỡng sang Đức', de: 'Pflegekräfte', color: 'var(--ga-red)', body: 'Luyện trả lời câu hỏi tình huống chăm sóc bệnh nhân bằng tiếng Đức — đúng dạng câu hỏi nhà tuyển dụng ngành Pflege hay dùng nhất, kèm sửa phát âm từng câu.' },
+  { title: 'Kỹ sư & IT', de: 'IT & Ingenieurwesen', color: 'var(--ga-blue)', body: 'Tập trình bày dự án, giải thích giải pháp kỹ thuật và trả lời phỏng vấn chuyên môn bằng tiếng Đức trước khi ngồi trước HR thật.' },
+  { title: 'Nhà bếp & dịch vụ', de: 'Gastronomie & Service', color: 'var(--ga-green)', body: 'Luyện giao tiếp ca làm, quy trình vệ sinh và phỏng vấn xin việc ở trình độ A2–B1 bằng ngôn ngữ thực tế trong bếp và nhà hàng Đức.' },
 ]
 const TEACH_VALUE = [
   { t: 'Quản lý lớp học', s: 'Tạo lớp bằng mã, theo dõi tiến độ từng học viên theo thời gian thực.' },
@@ -73,9 +75,11 @@ const TEACH_VALUE = [
   { t: 'Tạo tài liệu AI', s: 'Sinh bài tập, quiz và đề kiểm tra theo chủ đề chỉ trong vài giây.' },
   { t: 'Báo cáo tiến độ', s: 'Phân tích điểm mạnh – yếu của lớp và từng cá nhân để dạy đúng trọng tâm.' },
 ]
+// Copy gói phải khớp entitlement thật (audit H-01): backend áp hạn mức token AI theo ngày,
+// nên không hứa "không giới hạn"; không nêu con số quota cứng vì cấu hình chỉnh được runtime.
 const PLANS = [
-  { name: 'Miễn phí', price: '0₫', features: ['3 buổi phỏng vấn AI/tháng', 'Phản hồi cơ bản', '1 ngành nghề'], cta: 'Bắt đầu ngay', highlight: false },
-  { name: 'Pro', price: '299.000₫', sub: '/tháng', features: ['Không giới hạn phỏng vấn', 'Phân tích phát âm chi tiết', '12 ngành nghề', 'Luyện thi Goethe B1/B2'], cta: 'Dùng thử 7 ngày miễn phí', highlight: true },
+  { name: 'Miễn phí', price: '0₫', features: ['Học từ vựng & ngữ pháp A1–B1', 'Ôn tập ngắt quãng (SRS) mỗi ngày', 'Trải nghiệm phỏng vấn AI có hạn mức'], cta: 'Bắt đầu ngay', highlight: false },
+  { name: 'Pro', price: '299.000₫', sub: '/tháng', features: ['Phỏng vấn AI hạn mức cao mỗi ngày', 'Phân tích phát âm & ngữ pháp chi tiết', 'Đủ bộ ngành nghề phỏng vấn', 'Luyện thi Goethe A1–B2'], cta: 'Dùng thử 7 ngày miễn phí', highlight: true },
   { name: 'Giáo viên', price: 'Liên hệ', features: ['Quản lý lớp học', 'Tạo tài liệu AI', 'Chấm bài Speaking', 'Báo cáo tiến độ học viên'], cta: 'Nhận tư vấn', highlight: false },
 ]
 const INDUSTRIES = [
@@ -216,11 +220,11 @@ export function GaLanding() {
               <Link href="/v2/register"><YellowSq />Bắt đầu miễn phí</Link>
             </GaBtn>
             <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-              <Link href="/v2/login">Xem demo 90 giây</Link>
+              <Link href="/v2/login">Đăng nhập để trải nghiệm</Link>
             </GaBtn>
           </div>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 sm:mt-[38px]">
-            {['2.400+ học viên', '12 ngành nghề', 'Không cần thẻ tín dụng'].map((t) => (
+            {['AI hỏi đúng ngành của bạn', 'Luyện đủ 4 kỹ năng Goethe', 'Không cần thẻ tín dụng'].map((t) => (
               <span key={t} className="flex items-center gap-1.5 text-[13px] text-ga-muted">
                 <span className="inline-block h-[5px] w-[5px] bg-ga-yellow" />{t}
               </span>
@@ -259,9 +263,10 @@ export function GaLanding() {
         </div>
       </section>
 
-      {/* Stats bar */}
+      {/* Stats bar — chỉ nêu năng lực sản phẩm kiểm chứng được, không số liệu xã hội
+          không có nguồn (audit 2026-08-28, H-01: 2.400+/92%/4.9 không có provenance). */}
       <div className="grid border-y border-ga-border sm:grid-cols-3">
-        {[['2.400+', 'học viên đang luyện mỗi tuần'], ['92%', 'đậu phỏng vấn trong 2 lần đầu'], ['4.9/5', 'đánh giá từ học viên tại Đức']].map(([n, l], i) => (
+        {[['A1–B2', 'lộ trình học theo khung CEFR'], ['4 kỹ năng', 'Lesen · Hören · Schreiben · Sprechen'], ['24/7', 'AI phỏng vấn sẵn sàng mọi lúc']].map(([n, l], i) => (
           <div key={l} className={`py-6 text-center sm:py-8 ${i ? 'border-t border-ga-border sm:border-l sm:border-t-0' : ''}`}>
             <div className="font-ga-display text-[34px] font-medium sm:text-[42px]">{n}</div>
             <div className="mt-1.5 text-[14px] text-ga-muted sm:mt-[9px]">{l}</div>
@@ -404,7 +409,7 @@ export function GaLanding() {
         </div>
         <div className="mt-[18px] flex items-center gap-2.5 text-[14px] text-ga-muted">
           <span className="inline-block h-[7px] w-[7px] bg-ga-yellow" />
-          Ngoài 4 ngành trên, DeutschFlow còn hỗ trợ <strong className="text-ga-ink">Văn phòng</strong> và nhiều ngành khác — tổng cộng 12 bộ câu hỏi.
+          Ngoài 4 ngành trên, DeutschFlow còn hỗ trợ <strong className="text-ga-ink">Văn phòng, bán lẻ</strong> và nhiều vị trí khác — bộ câu hỏi được AI tạo theo đúng ngành bạn chọn.
         </div>
       </section>
 
@@ -433,18 +438,18 @@ export function GaLanding() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Audiences — thay khối testimonial: nói sản phẩm làm gì cho từng nhóm người học */}
       <section className="border-y border-ga-border bg-ga-card">
         <div className={SECTION}>
-          <GaCap className="mb-[18px]">Học viên nói gì</GaCap>
-          <h2 className={`${H2} mb-12`}>Họ đã thành công như thế nào</h2>
+          <GaCap className="mb-[18px]">Dành cho ai</GaCap>
+          <h2 className={`${H2} mb-12`}>Sinh ra cho hành trình đi Đức của bạn</h2>
           <div className="grid border border-ga-border md:grid-cols-3">
-            {TESTIMONIALS.map((t, i) => (
-              <div key={i} className={`p-6 sm:p-[36px_40px] ${i ? 'border-t border-ga-border md:border-l md:border-l-ga-border md:border-t-0' : ''}`}>
-                <div className="mb-3.5 font-ga-display text-[40px] leading-none text-[#E7E3DA]">&ldquo;</div>
-                <p className="mb-6 font-ga-display text-[17px] italic leading-[1.65]">{t.q}</p>
-                <div className="text-[14.5px] font-bold">{t.name}</div>
-                <div className="mt-[3px] text-[13px] text-ga-muted">{t.role}</div>
+            {AUDIENCES.map((a, i) => (
+              <div key={a.title} className={`p-6 sm:p-[36px_40px] ${i ? 'border-t border-ga-border md:border-l md:border-l-ga-border md:border-t-0' : ''}`}>
+                <span className="mb-4 inline-block h-[11px] w-[11px]" style={{ background: a.color }} />
+                <div className="text-[18px] font-bold">{a.title}</div>
+                <div className="mb-4 mt-1 font-ga-display text-[14px] italic text-ga-subtle">{a.de}</div>
+                <p className="text-[15px] leading-[1.72] text-ga-muted">{a.body}</p>
               </div>
             ))}
           </div>
