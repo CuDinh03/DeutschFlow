@@ -39,34 +39,30 @@
       "loadError": "Không tải được tổ chức",
       "loadErrorDesc": "Không thể tải dữ liệu tổ chức. Vui lòng thử lại.",
       "managePlan": "Quản lý gói",
-      "managePlanSoon": "Quản lý gói (sắp ra mắt)",
       "inviteMember": "Mời thành viên",
-      "inviteMemberSoon": "Mời thành viên (sắp ra mắt)",
       "stats": {
         "seatsUsed": "Ghế đã dùng",
         "capacity": "{pct}% sức chứa",
         "totalStudents": "Tổng học viên",
-        "active7d": "{count} hoạt động 7 ngày",
+        "active7d": "{count} có dùng AI 7 ngày",
         "openClasses": "Lớp đang mở",
         "teacherCount": "{count} giáo viên",
         "tokensThisMonth": "Token AI giáo viên tháng này",
         "poolUnlimited": "ngân sách không giới hạn",
         "poolPercent": "{pct}% ngân sách",
-        "noPool": "Chưa cấp ngân sách GV"
+        "noPool": "Chưa cấp ngân sách GV",
+        "capacityUnlimited": "không giới hạn ghế"
       },
       "todo": {
         "freeSeats": "{count} ghế chưa phân bổ",
         "teacherless": "{count} lớp chưa có giáo viên",
-        "pendingInvites": "{count} lời mời đang chờ",
-        "relatedSoon": "Mục liên quan (sắp ra mắt)"
+        "pendingInvites": "{count} lời mời đang chờ"
       },
       "cefrCap": "Phân bố trình độ (CEFR)",
       "cefrEmpty": "Chưa có dữ liệu phân bố trình độ.",
       "seatUsageCap": "Sử dụng ghế",
       "seatsSuffix": "{used}/{limit} ghế",
       "freeSuffix": "Còn trống · {count}",
-      "buySeats": "+ Mua thêm ghế",
-      "buySeatsSoon": "Mua thêm ghế (sắp ra mắt)",
       "poolStudentNote": "Học viên dùng ví AI cá nhân theo gói học — không trừ vào ngân sách này.",
       "tokenPoolCap": "Ngân sách AI cho giáo viên",
       "todoCap": "Cần xử lý",
@@ -74,7 +70,12 @@
       "orgClassesCap": "Lớp học của tổ chức",
       "orgClassesEmpty": "Chưa có lớp nào trong tổ chức.",
       "classNoTeacher": "Chưa phân giáo viên",
-      "classHasTeacher": "Đã có giáo viên"
+      "classHasTeacher": "Đã có giáo viên",
+      "viewBilling": "Gói & thanh toán",
+      "seatsUnlimitedSuffix": "học viên đang dùng ghế · không giới hạn",
+      "sectionError": "Chưa tải được dữ liệu vùng này.",
+      "todoSourceError": "Chưa tải được đủ dữ liệu (lớp/lời mời) — danh sách dưới có thể thiếu việc.",
+      "statUnavailable": "chưa tải được"
     },
     "manager": {
       "title": "Bảng vận hành",
@@ -92,7 +93,7 @@
         "teacherless": "{count} lớp chưa có giáo viên",
         "allStaffed": "Đã phân công đủ giáo viên",
         "students": "Học viên",
-        "active7d": "{count} hoạt động 7 ngày qua",
+        "active7d": "{count} có dùng AI 7 ngày qua",
         "pendingInvites": "Lời mời đang chờ",
         "expiringSoon": "{count} sắp hết hạn"
       },
@@ -126,14 +127,13 @@
       "title": "Học viên của tổ chức",
       "subtitle": "Danh sách học viên đang dùng ghế của trung tâm",
       "exportList": "Xuất danh sách",
-      "exportSoon": "Xuất danh sách học viên (sắp ra mắt)",
       "stats": {
         "totalStudents": "Tổng học viên",
         "usingSeats": "đang dùng ghế",
         "active": "Đang hoạt động",
         "activeMembers": "thành viên ACTIVE",
-        "active7d": "Hoạt động 7 ngày",
-        "activeRecently": "có học gần đây",
+        "active7d": "Có dùng AI 7 ngày",
+        "activeRecently": "có dùng AI gần đây",
         "classes": "Lớp đang học",
         "ofCenter": "của trung tâm"
       },
@@ -147,7 +147,9 @@
       "colJoined": "Tham gia",
       "statusActive": "Hoạt động",
       "statusLeft": "Đã rời",
-      "profile": "Hồ sơ"
+      "profile": "Hồ sơ",
+      "exportEmpty": "Không có dòng nào để xuất.",
+      "exportDone": "Đã xuất {count} học viên ra CSV."
     },
     "studentDetail": {
       "titleFallback": "Chi tiết học viên",
@@ -333,7 +335,7 @@
       "loading": "Đang tải phân tích…",
       "stats": {
         "totalStudents": "Tổng học viên",
-        "active7d": "Hoạt động 7 ngày",
+        "active7d": "Có dùng AI 7 ngày",
         "ofStudents": "{pct}% học viên",
         "openClasses": "Lớp đang mở",
         "tokensThisMonth": "Token AI giáo viên tháng này",
@@ -344,7 +346,7 @@
       "cefrTitle": "Phân bố trình độ (CEFR)",
       "cefrEmpty": "Chưa có dữ liệu phân bố trình độ.",
       "usageTitle": "Mức độ sử dụng",
-      "activeStudents": "Học viên hoạt động (7 ngày)",
+      "activeStudents": "Học viên có dùng AI (7 ngày)",
       "poolStudentNote": "Học viên dùng ví AI cá nhân theo gói học — không trừ vào ngân sách này.",
       "tokenPool": "Ngân sách AI cho giáo viên",
       "classesTitle": "Lớp học của tổ chức",
@@ -355,37 +357,9 @@
       "unassigned": "Chưa phân",
       "assigned": "Đã có GV"
     },
-    "finance": {
-      "title": "Tài chính",
-      "subtitle": "Tổng quan doanh thu, công nợ và hoá đơn của tổ chức",
-      "loading": "Đang tải tài chính…",
-      "status": {
-        "paid": "Đã thanh toán",
-        "sent": "Chờ thanh toán",
-        "draft": "Nháp",
-        "void": "Đã huỷ"
-      },
-      "stats": {
-        "paid": "Đã thanh toán",
-        "invoiceCount": "{count} hoá đơn",
-        "outstanding": "Đang chờ thu",
-        "totalInvoices": "Tổng hoá đơn",
-        "seatsSold": "Ghế đã bán",
-        "seatsSuffix": "/{limit} ghế"
-      },
-      "invoicesByPeriod": "Hoá đơn theo kỳ",
-      "noIssued": "Chưa có hoá đơn đã xuất.",
-      "invoiceHistory": "Lịch sử hoá đơn",
-      "colPeriod": "Kỳ",
-      "colIssued": "Ngày xuất",
-      "colSeats": "Ghế",
-      "colAmount": "Số tiền",
-      "colStatus": "Trạng thái",
-      "emptyInvoices": "Chưa có hoá đơn."
-    },
     "billing": {
-      "title": "Gói & Thanh toán",
-      "subtitle": "Quản lý ghế, gói B2B và hoá đơn của tổ chức",
+      "title": "Gói DeutschFlow & thanh toán",
+      "subtitle": "Khoản trung tâm trả cho DeutschFlow (license & ghế) — không phải doanh thu của trung tâm",
       "loadError": "Không tải được thông tin gói",
       "status": {
         "paid": "Đã thanh toán",
@@ -395,23 +369,39 @@
       },
       "currentPlanCap": "Gói hiện tại",
       "noPlan": "Chưa có gói",
-      "planDesc": "{seats} ghế · token cho mỗi học viên · hỗ trợ ưu tiên",
-      "seatsUsedDesc": "{used}/{limit} ghế đã dùng · còn {free} ghế trống",
-      "buySeats": "Mua thêm ghế",
-      "buySeatsSoon": "Mua thêm ghế (sắp ra mắt)",
-      "nextInvoiceCap": "Hoá đơn kế tiếp",
-      "dueDesc": "Đến hạn {date} · {seats} ghế",
-      "pay": "Thanh toán",
-      "paySoon": "Chuyển tới cổng thanh toán (sắp ra mắt)",
-      "downloadInvoice": "Tải hoá đơn",
-      "downloadSoon": "Tải hoá đơn PDF (sắp ra mắt)",
+      "nextInvoiceCap": "Hoá đơn chờ thanh toán",
       "noNextInvoice": "Không có hoá đơn nào đang chờ thanh toán 🎉",
       "invoiceHistoryCap": "Lịch sử hoá đơn ({count})",
       "noIssued": "Chưa có hoá đơn đã xuất.",
-      "colPeriod": "Kỳ",
+      "colPeriod": "Kỳ dịch vụ",
       "colIssued": "Ngày xuất",
       "colAmount": "Số tiền",
-      "colStatus": "Trạng thái"
+      "colStatus": "Trạng thái",
+      "stats": {
+        "paidToDf": "Đã trả DeutschFlow",
+        "owedToDf": "Cần thanh toán",
+        "invoiceCount": "{count} hoá đơn",
+        "seatsInUse": "Ghế đang sử dụng",
+        "seatsOfLimit": "/{limit} ghế",
+        "seatsUnlimited": "không giới hạn"
+      },
+      "planDescLimited": "{seats} ghế · token cho mỗi học viên · hỗ trợ ưu tiên",
+      "planDescUnlimited": "Không giới hạn ghế · token cho mỗi học viên · hỗ trợ ưu tiên",
+      "seatsUsedLimited": "{used}/{limit} ghế đã dùng · còn {free} ghế trống",
+      "seatsUsedUnlimited": "{used} học viên đang dùng ghế",
+      "servicePeriodDesc": "Kỳ dịch vụ {from} – {to} · {seats} ghế",
+      "payBelowHint": "Thanh toán bằng chuyển khoản theo hướng dẫn bên dưới.",
+      "payCap": "Thanh toán qua chuyển khoản",
+      "payIntro": "Chuyển khoản đúng số tiền và đúng nội dung — hệ thống tự xác nhận và kích hoạt trong vài phút.",
+      "bankName": "Ngân hàng",
+      "bankAccount": "Số tài khoản",
+      "accountName": "Chủ tài khoản",
+      "transferContent": "Nội dung CK",
+      "seatCount": "{count} ghế",
+      "copy": "Chép",
+      "copied": "Đã chép",
+      "payInfoError": "Chưa tải được hướng dẫn thanh toán.",
+      "payNotConfigured": "Chưa có thông tin tài khoản nhận — liên hệ DeutschFlow để được hướng dẫn thanh toán."
     },
     "invitations": {
       "title": "Lời mời thành viên",
@@ -425,10 +415,12 @@
       "stats": {
         "pending": "Lời mời đang chờ",
         "pendingSub": "chưa phản hồi",
-        "accepted": "Đã tham gia",
-        "acceptedSub": "qua lời mời",
         "freeSeats": "Ghế còn trống",
-        "freeSeatsSub": "có thể mời thêm"
+        "freeSeatsSub": "có thể mời thêm",
+        "expiring": "Sắp hết hạn",
+        "expiringSub": "trong ≤ {days} ngày",
+        "freeSeatsUnlimited": "Không giới hạn",
+        "freeSeatsUnlimitedSub": "ghế theo gói"
       },
       "studentByCode": "Học viên tham gia bằng mã tổ chức (xem bên dưới)",
       "sent": "Đã gửi lời mời tới {email}",
@@ -445,8 +437,8 @@
       "statusExpired": "Hết hạn",
       "statusRevoked": "Đã thu hồi",
       "resend": "Gửi lại",
-      "resendSoon": "Gửi lại lời mời (sắp ra mắt)",
-      "revoke": "Thu hồi"
+      "revoke": "Thu hồi",
+      "resendDone": "Đã gửi link mời mới tới {email} — link cũ hết hiệu lực."
     },
     "roles": {
       "title": "Phân quyền",

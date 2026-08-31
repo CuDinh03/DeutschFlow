@@ -200,8 +200,10 @@ const ORG_ITEM = {
   schedule: { id: 'org-schedule', label: 'Lịch trung tâm', href: '/v2/org/schedule', icon: 'schedule' },
   teachers: { id: 'org-teachers', label: 'Giáo viên', href: '/v2/org/teachers', icon: 'badge' },
   analytics: { id: 'org-analytics', label: 'Phân tích', href: '/v2/org/analytics', icon: 'monitoring' },
-  finance: { id: 'org-finance', label: 'Tài chính', href: '/v2/org/finance', icon: 'account_balance', ownerOnly: true },
-  billing: { id: 'org-billing', label: 'Gói & Giấy phép', href: '/v2/org/billing', icon: 'receipt', ownerOnly: true },
+  // "Tài chính" đã gỡ (Đợt 0 OWNER, F01): trang cũ chỉ là hóa đơn license đội lốt doanh thu.
+  // Slot này để dành cho Tài chính trung tâm THẬT (học phí/thu chi) ở Đợt 2; /v2/org/finance
+  // hiện redirect sang billing.
+  billing: { id: 'org-billing', label: 'Gói & Thanh toán', href: '/v2/org/billing', icon: 'receipt', ownerOnly: true },
   invitations: { id: 'org-invitations', label: 'Lời mời', href: '/v2/org/invitations', icon: 'mail' },
   timesheets: { id: 'org-timesheets', label: 'Chấm công', href: '/v2/org/timesheets', icon: 'timer' },
   roles: { id: 'org-roles', label: 'Phân quyền', href: '/v2/org/roles', icon: 'admin_panel_settings' },
@@ -211,10 +213,10 @@ const ORG_ITEM = {
 /**
  * orgNav — giám đốc trung tâm (org OWNER).
  *
- * Một nhóm chính (tổng quan, học viên, lớp, lịch trung tâm, giáo viên, phân tích, tài chính,
- * gói & giấy phép, lời mời, phân quyền) + nhóm "Tài khoản".
+ * Một nhóm chính (tổng quan, học viên, lớp, lịch trung tâm, giáo viên, phân tích,
+ * gói & thanh toán, lời mời, phân quyền) + nhóm "Tài khoản".
  *
- * Phân quyền: item gắn `ownerOnly: true` (tài chính, gói & giấy phép) CHỈ OWNER thấy. Sidebar vẫn
+ * Phân quyền: item gắn `ownerOnly: true` (gói & thanh toán) CHỈ OWNER thấy. Sidebar vẫn
  * lọc `ownerOnly` như một lớp phòng thủ thứ hai, kể cả khi MANAGER đã được chuyển sang `managerNav`.
  */
 export const orgNav: RoleNav = {
@@ -229,7 +231,6 @@ export const orgNav: RoleNav = {
         ORG_ITEM.schedule,
         ORG_ITEM.teachers,
         ORG_ITEM.analytics,
-        ORG_ITEM.finance,
         ORG_ITEM.billing,
         ORG_ITEM.invitations,
         ORG_ITEM.timesheets,

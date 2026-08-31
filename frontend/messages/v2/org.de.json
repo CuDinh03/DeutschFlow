@@ -39,34 +39,30 @@
       "loadError": "Organisation konnte nicht geladen werden",
       "loadErrorDesc": "Organisationsdaten konnten nicht geladen werden. Bitte erneut versuchen.",
       "managePlan": "Tarif verwalten",
-      "managePlanSoon": "Tarif verwalten (bald verfügbar)",
       "inviteMember": "Mitglied einladen",
-      "inviteMemberSoon": "Mitglied einladen (bald verfügbar)",
       "stats": {
         "seatsUsed": "Belegte Plätze",
         "capacity": "{pct}% Auslastung",
         "totalStudents": "Schüler gesamt",
-        "active7d": "{count} in 7 Tagen aktiv",
+        "active7d": "{count} mit KI-Nutzung in 7 Tagen",
         "openClasses": "Aktive Kurse",
         "teacherCount": "{count} Lehrkräfte",
         "tokensThisMonth": "KI-Tokens der Lehrkräfte diesen Monat",
         "poolUnlimited": "unbegrenztes Budget",
         "poolPercent": "{pct}% des Budgets",
-        "noPool": "Kein Lehrkräfte-Budget festgelegt"
+        "noPool": "Kein Lehrkräfte-Budget festgelegt",
+        "capacityUnlimited": "unbegrenzte Plätze"
       },
       "todo": {
         "freeSeats": "{count} nicht zugewiesene Plätze",
         "teacherless": "{count} Kurse ohne Lehrkraft",
-        "pendingInvites": "{count} ausstehende Einladungen",
-        "relatedSoon": "Zugehöriger Punkt (bald verfügbar)"
+        "pendingInvites": "{count} ausstehende Einladungen"
       },
       "cefrCap": "Niveauverteilung (GER)",
       "cefrEmpty": "Noch keine Daten zur Niveauverteilung.",
       "seatUsageCap": "Platznutzung",
       "seatsSuffix": "{used}/{limit} Plätze",
       "freeSuffix": "Verfügbar · {count}",
-      "buySeats": "+ Weitere Plätze kaufen",
-      "buySeatsSoon": "Weitere Plätze kaufen (bald verfügbar)",
       "poolStudentNote": "Lernende nutzen ihr persönliches KI-Guthaben (laut Paket) — dieses Budget wird nicht belastet.",
       "tokenPoolCap": "KI-Budget für Lehrkräfte",
       "todoCap": "Zu erledigen",
@@ -74,7 +70,12 @@
       "orgClassesCap": "Kurse der Organisation",
       "orgClassesEmpty": "Noch keine Kurse in der Organisation.",
       "classNoTeacher": "Keine Lehrkraft zugewiesen",
-      "classHasTeacher": "Lehrkraft zugewiesen"
+      "classHasTeacher": "Lehrkraft zugewiesen",
+      "viewBilling": "Tarif & Zahlung",
+      "seatsUnlimitedSuffix": "Schüler belegen Plätze · unbegrenzt",
+      "sectionError": "Dieser Bereich konnte nicht geladen werden.",
+      "todoSourceError": "Einige Daten (Klassen/Einladungen) konnten nicht geladen werden — die Liste kann unvollständig sein.",
+      "statUnavailable": "nicht geladen"
     },
     "manager": {
       "title": "Betriebsübersicht",
@@ -92,7 +93,7 @@
         "teacherless": "{count} ohne Lehrkraft",
         "allStaffed": "Alle Kurse besetzt",
         "students": "Lernende",
-        "active7d": "{count} aktiv in 7 Tagen",
+        "active7d": "{count} mit KI-Nutzung in 7 Tagen",
         "pendingInvites": "Offene Einladungen",
         "expiringSoon": "{count} laufen bald ab"
       },
@@ -126,14 +127,13 @@
       "title": "Schüler der Organisation",
       "subtitle": "Schüler, die Plätze des Zentrums nutzen",
       "exportList": "Liste exportieren",
-      "exportSoon": "Schülerliste exportieren (bald verfügbar)",
       "stats": {
         "totalStudents": "Schüler gesamt",
         "usingSeats": "nutzen Plätze",
         "active": "Aktiv",
         "activeMembers": "AKTIVE Mitglieder",
-        "active7d": "In 7 Tagen aktiv",
-        "activeRecently": "kürzlich gelernt",
+        "active7d": "KI-Nutzung in 7 Tagen",
+        "activeRecently": "kürzlich KI genutzt",
         "classes": "Belegte Kurse",
         "ofCenter": "des Zentrums"
       },
@@ -147,7 +147,9 @@
       "colJoined": "Beigetreten",
       "statusActive": "Aktiv",
       "statusLeft": "Ausgetreten",
-      "profile": "Profil"
+      "profile": "Profil",
+      "exportEmpty": "Keine Zeilen zum Exportieren.",
+      "exportDone": "{count} Schüler als CSV exportiert."
     },
     "studentDetail": {
       "titleFallback": "Schülerdetails",
@@ -333,7 +335,7 @@
       "loading": "Analyse wird geladen…",
       "stats": {
         "totalStudents": "Schüler gesamt",
-        "active7d": "In 7 Tagen aktiv",
+        "active7d": "KI-Nutzung in 7 Tagen",
         "ofStudents": "{pct}% der Schüler",
         "openClasses": "Aktive Kurse",
         "tokensThisMonth": "KI-Tokens der Lehrkräfte diesen Monat",
@@ -344,7 +346,7 @@
       "cefrTitle": "Niveauverteilung (GER)",
       "cefrEmpty": "Noch keine Daten zur Niveauverteilung.",
       "usageTitle": "Nutzung",
-      "activeStudents": "Aktive Schüler (7 Tage)",
+      "activeStudents": "Schüler mit KI-Nutzung (7 Tage)",
       "poolStudentNote": "Lernende nutzen ihr persönliches KI-Guthaben (laut Paket) — dieses Budget wird nicht belastet.",
       "tokenPool": "KI-Budget für Lehrkräfte",
       "classesTitle": "Kurse der Organisation",
@@ -355,37 +357,9 @@
       "unassigned": "Nicht zugewiesen",
       "assigned": "Zugewiesen"
     },
-    "finance": {
-      "title": "Finanzen",
-      "subtitle": "Überblick über Umsatz, Forderungen und Rechnungen der Organisation",
-      "loading": "Finanzen werden geladen…",
-      "status": {
-        "paid": "Bezahlt",
-        "sent": "Zahlung ausstehend",
-        "draft": "Entwurf",
-        "void": "Storniert"
-      },
-      "stats": {
-        "paid": "Bezahlt",
-        "invoiceCount": "{count} Rechnungen",
-        "outstanding": "Ausstehend",
-        "totalInvoices": "Rechnungen gesamt",
-        "seatsSold": "Verkaufte Plätze",
-        "seatsSuffix": "/{limit} Plätze"
-      },
-      "invoicesByPeriod": "Rechnungen nach Zeitraum",
-      "noIssued": "Noch keine ausgestellten Rechnungen.",
-      "invoiceHistory": "Rechnungsverlauf",
-      "colPeriod": "Zeitraum",
-      "colIssued": "Ausgestellt",
-      "colSeats": "Plätze",
-      "colAmount": "Betrag",
-      "colStatus": "Status",
-      "emptyInvoices": "Keine Rechnungen."
-    },
     "billing": {
-      "title": "Tarife & Zahlungen",
-      "subtitle": "Plätze, B2B-Tarif und Rechnungen der Organisation verwalten",
+      "title": "DeutschFlow-Tarif & Zahlungen",
+      "subtitle": "Was das Zentrum an DeutschFlow zahlt (Lizenz & Plätze) — nicht der Umsatz des Zentrums",
       "loadError": "Tarifinformationen konnten nicht geladen werden",
       "status": {
         "paid": "Bezahlt",
@@ -395,23 +369,39 @@
       },
       "currentPlanCap": "Aktueller Tarif",
       "noPlan": "Kein Tarif",
-      "planDesc": "{seats} Plätze · Tokens pro Schüler · vorrangiger Support",
-      "seatsUsedDesc": "{used}/{limit} Plätze belegt · {free} Plätze frei",
-      "buySeats": "Weitere Plätze kaufen",
-      "buySeatsSoon": "Weitere Plätze kaufen (bald verfügbar)",
-      "nextInvoiceCap": "Nächste Rechnung",
-      "dueDesc": "Fällig am {date} · {seats} Plätze",
-      "pay": "Bezahlen",
-      "paySoon": "Zum Zahlungsportal (bald verfügbar)",
-      "downloadInvoice": "Rechnung herunterladen",
-      "downloadSoon": "Rechnung als PDF herunterladen (bald verfügbar)",
+      "nextInvoiceCap": "Rechnung mit ausstehender Zahlung",
       "noNextInvoice": "Keine Rechnungen mit ausstehender Zahlung 🎉",
       "invoiceHistoryCap": "Rechnungsverlauf ({count})",
       "noIssued": "Noch keine ausgestellten Rechnungen.",
-      "colPeriod": "Zeitraum",
+      "colPeriod": "Leistungszeitraum",
       "colIssued": "Ausgestellt",
       "colAmount": "Betrag",
-      "colStatus": "Status"
+      "colStatus": "Status",
+      "stats": {
+        "paidToDf": "An DeutschFlow gezahlt",
+        "owedToDf": "Noch zu zahlen",
+        "invoiceCount": "{count} Rechnungen",
+        "seatsInUse": "Belegte Plätze",
+        "seatsOfLimit": "/{limit} Plätze",
+        "seatsUnlimited": "unbegrenzt"
+      },
+      "planDescLimited": "{seats} Plätze · Tokens pro Schüler · vorrangiger Support",
+      "planDescUnlimited": "Unbegrenzte Plätze · Tokens pro Schüler · vorrangiger Support",
+      "seatsUsedLimited": "{used}/{limit} Plätze belegt · {free} frei",
+      "seatsUsedUnlimited": "{used} Schüler belegen Plätze",
+      "servicePeriodDesc": "Leistungszeitraum {from} – {to} · {seats} Plätze",
+      "payBelowHint": "Per Überweisung zahlen — Anleitung unten.",
+      "payCap": "Zahlung per Überweisung",
+      "payIntro": "Genauen Betrag mit genauem Verwendungszweck überweisen — das System bestätigt und aktiviert automatisch innerhalb weniger Minuten.",
+      "bankName": "Bank",
+      "bankAccount": "Kontonummer",
+      "accountName": "Kontoinhaber",
+      "transferContent": "Verwendungszweck",
+      "seatCount": "{count} Plätze",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "payInfoError": "Zahlungsanleitung konnte nicht geladen werden.",
+      "payNotConfigured": "Kein Empfängerkonto hinterlegt — bitte DeutschFlow für die Zahlung kontaktieren."
     },
     "invitations": {
       "title": "Mitgliedereinladungen",
@@ -425,10 +415,12 @@
       "stats": {
         "pending": "Ausstehende Einladungen",
         "pendingSub": "noch keine Antwort",
-        "accepted": "Beigetreten",
-        "acceptedSub": "über Einladung",
         "freeSeats": "Freie Plätze",
-        "freeSeatsSub": "kann mehr einladen"
+        "freeSeatsSub": "kann mehr einladen",
+        "expiring": "Läuft bald ab",
+        "expiringSub": "in ≤ {days} Tagen",
+        "freeSeatsUnlimited": "Unbegrenzt",
+        "freeSeatsUnlimitedSub": "Plätze im Tarif"
       },
       "studentByCode": "Schüler treten mit dem Organisationscode bei (siehe unten)",
       "sent": "Einladung an {email} gesendet",
@@ -445,8 +437,8 @@
       "statusExpired": "Abgelaufen",
       "statusRevoked": "Zurückgezogen",
       "resend": "Erneut senden",
-      "resendSoon": "Einladung erneut senden (bald verfügbar)",
-      "revoke": "Zurückziehen"
+      "revoke": "Zurückziehen",
+      "resendDone": "Neuer Einladungslink an {email} gesendet — der alte Link ist ungültig."
     },
     "roles": {
       "title": "Rollen",

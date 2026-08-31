@@ -273,6 +273,16 @@ export async function revokeInvitation(id: number): Promise<void> {
   await api.delete(`/org/invitations/${id}`)
 }
 
+/**
+ * POST /org/invitations/{id}/rotate — xoay token lời mời PENDING (L-2): link cũ vô hiệu
+ * NGAY LẬP TỨC, hạn dùng đặt lại, backend TỰ GỬI email mời với link mới. Đây là nút
+ * "Gửi lại" của trang Lời mời (Đợt 0 OWNER, F03).
+ */
+export async function rotateInvitation(id: number): Promise<OrgInvitation> {
+  const res = await api.post<OrgInvitation>(`/org/invitations/${id}/rotate`)
+  return res.data
+}
+
 /** DELETE /org/members/{userId} — admin removes a member (membership → REVOKED). */
 export async function removeMember(userId: number): Promise<void> {
   await api.delete(`/org/members/${userId}`)
