@@ -449,25 +449,32 @@ export default function V2ClassDetailPage() {
                         if (ids.length === 0 || body === '') return
                         setGroupMsgSending(true)
                         let ok = 0
-                        const failed: string[] = []
+                        const failedIds: number[] = []
                         for (const sid of ids) {
                           try {
                             await sendMessage(sid, body)
                             ok += 1
                           } catch {
-                            failed.push(students.find((x) => x.studentId === sid)?.displayName ?? `#${sid}`)
+                            failedIds.push(sid)
                           }
                         }
                         setGroupMsgSending(false)
-                        if (failed.length === 0) {
+                        if (failedIds.length === 0) {
                           toast.success(t('groupMessageSent', { count: ok }))
                           setGroupMsgOpen(false)
                           setGroupMsgBody('')
                           setSelected({})
                         } else {
-                          // Giữ dialog mở: người gửi trượt được nêu tên để thử lại, người đã gửi không gửi đôi
-                          // vì giáo viên thấy rõ danh sách trượt và tự bỏ tick người đã nhận nếu muốn.
-                          toast.error(t('groupMessageFailed', { count: failed.length, names: failed.join(', ') }))
+                          // Thu hẹp selection về ĐÚNG những người trượt: bấm "Gửi" lại chỉ gửi cho họ —
+                          // người đã nhận không thể nhận đôi (overlay modal chặn roster nên không thể
+                          // trông chờ giáo viên tự bỏ tick).
+                          const onlyFailed: Record<number, boolean> = {}
+                          failedIds.forEach((sid) => { onlyFailed[sid] = true })
+                          setSelected(onlyFailed)
+                          const names = failedIds
+                            .map((sid) => students.find((x) => x.studentId === sid)?.displayName ?? `#${sid}`)
+                            .join(', ')
+                          toast.error(t('groupMessageFailed', { count: failedIds.length, names }))
                         }
                       })()}
                     >
