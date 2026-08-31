@@ -968,9 +968,24 @@ public class TeacherService {
             throw new ConflictException("Bài tập không thuộc lớp của bạn");
         }
 
+        // F12: only handed-in work can be finalized. A PENDING row exists BEFORE the student ever
+        // submits (rows are pre-created/backfilled), so without this guard one valid call turned
+        // "not submitted" into EVALUATED — and notified the student of a grade for work they never
+        // handed in. Re-grading a final row stays allowed: it is the only correction path until a
+        // grade-revision history exists.
+        if (AssignmentStatus.PENDING.equals(assignment.getStatus())) {
+            throw new ConflictException("Bài chưa được nộp, không thể chốt điểm");
+        }
+
         // Scores are graded on a 0-100 scale; reject out-of-range manual entry so it can't pollute
-        // the class/teacher report averages (root cause of the "234.4 average" report bug).
-        if (req.teacherScore() != null && (req.teacherScore() < 0 || req.teacherScore() > 100)) {
+        // the class/teacher report averages (root cause of the "234.4 average" report bug). A null
+        // score is rejected too (F12): EVALUATED is the announce-the-final-grade transition, and a
+        // final grade with no grade both notifies the student of nothing and reads as "not graded"
+        // in every average. Feedback-without-a-grade would be its own state, not a null EVALUATED.
+        if (req.teacherScore() == null) {
+            throw new BadRequestException("Thiếu điểm khi chốt bài (0–100)");
+        }
+        if (req.teacherScore() < 0 || req.teacherScore() > 100) {
             throw new BadRequestException("Điểm phải trong khoảng 0–100");
         }
 

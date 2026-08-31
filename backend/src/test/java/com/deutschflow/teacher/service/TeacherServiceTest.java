@@ -1022,4 +1022,82 @@ class TeacherServiceTest {
         assertThrows(com.deutschflow.common.exception.ConflictException.class,
                 () -> teacherService.getStudentAssignments(teacherId, studentId));
     }
+
+    // ─── evaluateAssignment (A5/F12): ràng buộc đầu vào khi chốt điểm ─────────────
+
+    /** Bài nộp id=5 của học viên 200, thuộc bài tập 10 của lớp 100 mà giáo viên 1 phụ trách. */
+    private StudentAssignment stubGradableSubmission(String status) {
+        StudentAssignment sa = StudentAssignment.builder()
+                .id(5L).assignmentId(10L).studentId(200L).status(status).build();
+        when(studentAssignmentRepository.findById(5L)).thenReturn(Optional.of(sa));
+        ClassAssignment ca = ClassAssignment.builder()
+                .id(10L).classId(100L).topic("Brief").assignmentType("WRITING").build();
+        when(assignmentRepository.findById(10L)).thenReturn(Optional.of(ca));
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+        return sa;
+    }
+
+    /**
+     * F12: dòng PENDING tồn tại TRƯỚC khi học viên nộp (tạo sẵn/backfill), nên trước guard này một
+     * caller hợp lệ có thể biến "chưa nộp" thành EVALUATED bằng một lời gọi — và học viên nhận
+     * thông báo điểm cho bài mình chưa từng nộp.
+     */
+    @Test
+    @DisplayName("F12: bài PENDING (chưa nộp) không thể chốt điểm — trạng thái giữ nguyên, không thông báo")
+    void evaluateAssignment_pendingSubmission_isRejectedUntouched() {
+        StudentAssignment sa = stubGradableSubmission("PENDING");
+
+        assertThrows(ConflictException.class, () -> teacherService.evaluateAssignment(
+                1L, 5L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(80, "tốt")));
+
+        assertEquals("PENDING", sa.getStatus());
+        verify(studentAssignmentRepository, never()).save(any());
+        verify(userNotificationService, never()).onAssignmentGraded(any(), anyString(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("F12: chốt điểm bắt buộc có điểm — EVALUATED điểm null bị từ chối")
+    void evaluateAssignment_nullScore_isRejected() {
+        StudentAssignment sa = stubGradableSubmission("SUBMITTED");
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.evaluateAssignment(
+                        1L, 5L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(null, "chỉ nhận xét")));
+
+        assertEquals("SUBMITTED", sa.getStatus());
+        verify(studentAssignmentRepository, never()).save(any());
+        verify(userNotificationService, never()).onAssignmentGraded(any(), anyString(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("evaluateAssignment: bài SUBMITTED chốt được — EVALUATED, thông báo, cập nhật năng lực")
+    void evaluateAssignment_submitted_finalizesAndNotifies() {
+        StudentAssignment sa = stubGradableSubmission("SUBMITTED");
+        when(studentAssignmentRepository.save(any(StudentAssignment.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        StudentAssignmentDto dto = teacherService.evaluateAssignment(
+                1L, 5L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(85, "Gut"));
+
+        assertEquals("EVALUATED", dto.status());
+        assertEquals(85, sa.getScore());
+        verify(userNotificationService).onAssignmentGraded(eq(200L), eq("ASSIGNMENT"), eq(10L), eq(85), eq("Gut"));
+        verify(studentCompetencyService).applyGradingResult(200L, 10L, 85);
+    }
+
+    /** Chưa có lịch sử chấm thì cấm chấm lại là tự trói — đường sửa điểm final phải còn (F12). */
+    @Test
+    @DisplayName("evaluateAssignment: chấm lại bài EVALUATED vẫn hợp lệ (đường sửa điểm)")
+    void evaluateAssignment_regradeOfFinal_isAllowed() {
+        StudentAssignment sa = stubGradableSubmission("EVALUATED");
+        sa.setScore(70);
+        when(studentAssignmentRepository.save(any(StudentAssignment.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        StudentAssignmentDto dto = teacherService.evaluateAssignment(
+                1L, 5L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(90, "sửa lại"));
+
+        assertEquals("EVALUATED", dto.status());
+        assertEquals(90, sa.getScore());
+    }
 }
