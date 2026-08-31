@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { listMembers, getAnalytics, type OrgMember, type OrgAnalytics } from '@/lib/orgApi'
+import { studentsToCsv, downloadTextFile } from '@/lib/orgCsv'
 import { GaPageHdr, GaBtn, GaCap, TkStatStrip, TkSearch } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -15,7 +16,9 @@ import { GaPageHdr, GaBtn, GaCap, TkStatStrip, TkSearch } from '@/components/ui-
 // Plumbing reused 1:1 (zero backend): orgApi.listMembers('STUDENT') + getAnalytics.
 // Option-1: OrgMember carries name/email/status/joinedAt only — the proto's per-student
 // CLASS / LEVEL / PROGRESS bar / lastActive have no backing → dropped (roster columns +
-// real org-wide stats from /org/analytics instead). org-student-detail not built → "Hồ sơ" toasts.
+// real org-wide stats from /org/analytics instead).
+// Đợt 0 OWNER (F03): "Xuất danh sách" xuất CSV THẬT từ đúng các dòng đang hiển thị
+// (danh sách tải trọn qua GET /org/members, không phân trang) — hết toast "sắp ra mắt".
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEAL = '#11888A'
@@ -62,7 +65,16 @@ export default function V2OrgStudentsPage() {
         title={t('title')}
         subtitle={t('subtitle')}
         right={
-          <GaBtn variant="ghost" size="sm" onClick={() => toast(t('exportSoon'))}>
+          <GaBtn
+            variant="ghost"
+            size="sm"
+            disabled={loading}
+            onClick={() => {
+              if (rows.length === 0) { toast(t('exportEmpty')); return }
+              downloadTextFile(`hoc-vien-${format(new Date(), 'yyyy-MM-dd')}.csv`, studentsToCsv(rows))
+              toast.success(t('exportDone', { count: rows.length }))
+            }}
+          >
             <Download size={15} /> {t('exportList')}
           </GaBtn>
         }

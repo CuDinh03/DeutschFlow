@@ -39,34 +39,30 @@
       "loadError": "Could not load organization",
       "loadErrorDesc": "Unable to load organization data. Please try again.",
       "managePlan": "Manage plan",
-      "managePlanSoon": "Manage plan (coming soon)",
       "inviteMember": "Invite member",
-      "inviteMemberSoon": "Invite member (coming soon)",
       "stats": {
         "seatsUsed": "Seats used",
         "capacity": "{pct}% capacity",
         "totalStudents": "Total students",
-        "active7d": "{count} active in 7 days",
+        "active7d": "{count} used AI in 7 days",
         "openClasses": "Open classes",
         "teacherCount": "{count} teachers",
         "tokensThisMonth": "Teacher AI tokens this month",
         "poolUnlimited": "unlimited budget",
         "poolPercent": "{pct}% of budget",
-        "noPool": "No teacher budget set"
+        "noPool": "No teacher budget set",
+        "capacityUnlimited": "unlimited seats"
       },
       "todo": {
         "freeSeats": "{count} unallocated seats",
         "teacherless": "{count} classes without a teacher",
-        "pendingInvites": "{count} pending invitations",
-        "relatedSoon": "Related item (coming soon)"
+        "pendingInvites": "{count} pending invitations"
       },
       "cefrCap": "Level distribution (CEFR)",
       "cefrEmpty": "No level distribution data yet.",
       "seatUsageCap": "Seat usage",
       "seatsSuffix": "{used}/{limit} seats",
       "freeSuffix": "Available · {count}",
-      "buySeats": "+ Buy more seats",
-      "buySeatsSoon": "Buy more seats (coming soon)",
       "poolStudentNote": "Students draw on their personal AI wallets (per plan) — nothing is deducted from this budget.",
       "tokenPoolCap": "Teacher AI budget",
       "todoCap": "To do",
@@ -74,7 +70,12 @@
       "orgClassesCap": "Organization classes",
       "orgClassesEmpty": "No classes in the organization yet.",
       "classNoTeacher": "No teacher assigned",
-      "classHasTeacher": "Teacher assigned"
+      "classHasTeacher": "Teacher assigned",
+      "viewBilling": "Plan & billing",
+      "seatsUnlimitedSuffix": "students using seats · unlimited",
+      "sectionError": "Could not load this section.",
+      "todoSourceError": "Some data (classes/invitations) failed to load — this list may be incomplete.",
+      "statUnavailable": "could not load"
     },
     "manager": {
       "title": "Operations board",
@@ -92,7 +93,7 @@
         "teacherless": "{count} without a teacher",
         "allStaffed": "All classes staffed",
         "students": "Students",
-        "active7d": "{count} active in 7 days",
+        "active7d": "{count} used AI in 7 days",
         "pendingInvites": "Pending invitations",
         "expiringSoon": "{count} expiring soon"
       },
@@ -126,14 +127,13 @@
       "title": "Organization students",
       "subtitle": "Students using the center's seats",
       "exportList": "Export list",
-      "exportSoon": "Export student list (coming soon)",
       "stats": {
         "totalStudents": "Total students",
         "usingSeats": "using seats",
         "active": "Active",
         "activeMembers": "ACTIVE members",
-        "active7d": "Active in 7 days",
-        "activeRecently": "studied recently",
+        "active7d": "Used AI in 7 days",
+        "activeRecently": "used AI recently",
         "classes": "Enrolled classes",
         "ofCenter": "of the center"
       },
@@ -147,7 +147,9 @@
       "colJoined": "Joined",
       "statusActive": "Active",
       "statusLeft": "Left",
-      "profile": "Profile"
+      "profile": "Profile",
+      "exportEmpty": "No rows to export.",
+      "exportDone": "Exported {count} students to CSV."
     },
     "studentDetail": {
       "titleFallback": "Student detail",
@@ -333,7 +335,7 @@
       "loading": "Loading analytics…",
       "stats": {
         "totalStudents": "Total students",
-        "active7d": "Active in 7 days",
+        "active7d": "Used AI in 7 days",
         "ofStudents": "{pct}% of students",
         "openClasses": "Open classes",
         "tokensThisMonth": "Teacher AI tokens this month",
@@ -344,7 +346,7 @@
       "cefrTitle": "Level distribution (CEFR)",
       "cefrEmpty": "No level distribution data yet.",
       "usageTitle": "Usage",
-      "activeStudents": "Active students (7 days)",
+      "activeStudents": "Students who used AI (7 days)",
       "poolStudentNote": "Students draw on their personal AI wallets (per plan) — nothing is deducted from this budget.",
       "tokenPool": "Teacher AI budget",
       "classesTitle": "Organization classes",
@@ -355,37 +357,9 @@
       "unassigned": "Unassigned",
       "assigned": "Assigned"
     },
-    "finance": {
-      "title": "Finance",
-      "subtitle": "Overview of revenue, receivables and invoices for the organization",
-      "loading": "Loading finance…",
-      "status": {
-        "paid": "Paid",
-        "sent": "Awaiting payment",
-        "draft": "Draft",
-        "void": "Voided"
-      },
-      "stats": {
-        "paid": "Paid",
-        "invoiceCount": "{count} invoices",
-        "outstanding": "Outstanding",
-        "totalInvoices": "Total invoices",
-        "seatsSold": "Seats sold",
-        "seatsSuffix": "/{limit} seats"
-      },
-      "invoicesByPeriod": "Invoices by period",
-      "noIssued": "No issued invoices yet.",
-      "invoiceHistory": "Invoice history",
-      "colPeriod": "Period",
-      "colIssued": "Issued",
-      "colSeats": "Seats",
-      "colAmount": "Amount",
-      "colStatus": "Status",
-      "emptyInvoices": "No invoices."
-    },
     "billing": {
-      "title": "Plans & Payments",
-      "subtitle": "Manage seats, B2B plan and the organization's invoices",
+      "title": "DeutschFlow Plan & Payments",
+      "subtitle": "What the center pays DeutschFlow (license & seats) — not the center's revenue",
       "loadError": "Could not load plan information",
       "status": {
         "paid": "Paid",
@@ -395,23 +369,39 @@
       },
       "currentPlanCap": "Current plan",
       "noPlan": "No plan",
-      "planDesc": "{seats} seats · tokens per student · priority support",
-      "seatsUsedDesc": "{used}/{limit} seats used · {free} seats free",
-      "buySeats": "Buy more seats",
-      "buySeatsSoon": "Buy more seats (coming soon)",
-      "nextInvoiceCap": "Next invoice",
-      "dueDesc": "Due {date} · {seats} seats",
-      "pay": "Pay",
-      "paySoon": "Go to payment portal (coming soon)",
-      "downloadInvoice": "Download invoice",
-      "downloadSoon": "Download invoice PDF (coming soon)",
+      "nextInvoiceCap": "Invoice awaiting payment",
       "noNextInvoice": "No invoices awaiting payment 🎉",
       "invoiceHistoryCap": "Invoice history ({count})",
       "noIssued": "No issued invoices yet.",
-      "colPeriod": "Period",
+      "colPeriod": "Service period",
       "colIssued": "Issued",
       "colAmount": "Amount",
-      "colStatus": "Status"
+      "colStatus": "Status",
+      "stats": {
+        "paidToDf": "Paid to DeutschFlow",
+        "owedToDf": "To be paid",
+        "invoiceCount": "{count} invoices",
+        "seatsInUse": "Seats in use",
+        "seatsOfLimit": "/{limit} seats",
+        "seatsUnlimited": "unlimited"
+      },
+      "planDescLimited": "{seats} seats · tokens per student · priority support",
+      "planDescUnlimited": "Unlimited seats · tokens per student · priority support",
+      "seatsUsedLimited": "{used}/{limit} seats used · {free} free",
+      "seatsUsedUnlimited": "{used} students using seats",
+      "servicePeriodDesc": "Service period {from} – {to} · {seats} seats",
+      "payBelowHint": "Pay by bank transfer using the instructions below.",
+      "payCap": "Pay by bank transfer",
+      "payIntro": "Transfer the exact amount with the exact memo — the system confirms and activates automatically within minutes.",
+      "bankName": "Bank",
+      "bankAccount": "Account number",
+      "accountName": "Account holder",
+      "transferContent": "Transfer memo",
+      "seatCount": "{count} seats",
+      "copy": "Copy",
+      "copied": "Copied",
+      "payInfoError": "Could not load payment instructions.",
+      "payNotConfigured": "No receiving account configured — contact DeutschFlow for payment instructions."
     },
     "invitations": {
       "title": "Member invitations",
@@ -425,10 +415,13 @@
       "stats": {
         "pending": "Pending invitations",
         "pendingSub": "no response yet",
-        "accepted": "Joined",
-        "acceptedSub": "via invitation",
         "freeSeats": "Free seats",
-        "freeSeatsSub": "can invite more"
+        "freeSeatsSub": "can invite more",
+        "expiring": "Expiring soon",
+        "expiringSub": "within ≤ {days} days",
+        "freeSeatsUnlimited": "Unlimited",
+        "freeSeatsUnlimitedSub": "seats on this plan",
+        "freeSeatsUnavailable": "seat data could not load"
       },
       "studentByCode": "Students join with the organization code (see below)",
       "sent": "Invitation sent to {email}",
@@ -445,8 +438,8 @@
       "statusExpired": "Expired",
       "statusRevoked": "Revoked",
       "resend": "Resend",
-      "resendSoon": "Resend invitation (coming soon)",
-      "revoke": "Revoke"
+      "revoke": "Revoke",
+      "resendDone": "New invite link sent to {email} — the old link is now invalid."
     },
     "roles": {
       "title": "Roles",
