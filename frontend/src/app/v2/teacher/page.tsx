@@ -310,7 +310,9 @@ export default function V2TeacherDashboardPage() {
               <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5">
                   <GaCap>{t('toGradeCap')}</GaCap>
-                  {summary.pendingReviewCount > 0 && (
+                  {/* Cùng gate summaryError như stat strip — reload lỗi thì summary là giá trị CŨ,
+                      badge không được lặng lẽ hiển thị số cũ mâu thuẫn với ô "—" ngay bên trên. */}
+                  {!summaryError && summary.pendingReviewCount > 0 && (
                     <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: VIOLET, background: 'var(--ga-violet-soft)' }}>
                       {summary.pendingReviewCount}
                     </span>
