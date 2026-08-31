@@ -175,17 +175,18 @@ class ClassScheduleServiceTest {
 
         UpsertPatternResult res = service.upsertPattern(TEACHER_ID, CLASS_ID, req);
 
-        // only the non-overridden future session is deleted
-        ArgumentCaptor<List<ClassSession>> delCap = listCaptor();
-        verify(sessionRepo).deleteAll(delCap.capture());
-        assertThat(delCap.getValue()).extracting(ClassSession::getId).containsExactly(501L);
+        // PR-3 (AC16/G1): buổi thường ĐÚNG ô (id 501, thứ Hai đầu) được GIỮ NGUYÊN — upsert-giữ-id
+        // không xoá gì (pattern không đổi giờ/phòng nên bản ghi đó cũng không cần cập nhật).
+        verify(sessionRepo, never()).deleteAll(any());
 
-        // generated = Mondays in window EXCEPT the kept override date
+        // generated = các thứ Hai còn TRỐNG trong cửa sổ: +2w, +3w (nextMon đã có 501 giữ chỗ;
+        // keptDate do buổi override chiếm ô).
         ArgumentCaptor<List<ClassSession>> saveCap = listCaptor();
         verify(sessionRepo).saveAll(saveCap.capture());
         List<ClassSession> generated = saveCap.getValue();
-        assertThat(generated).hasSize(3);
+        assertThat(generated).hasSize(2);
         assertThat(generated).noneMatch(s -> s.getStartAt().toLocalDate().equals(keptDate));
+        assertThat(generated).noneMatch(s -> s.getStartAt().toLocalDate().equals(nextMon));
         assertThat(generated).allSatisfy(s -> {
             assertThat(s.getPatternId()).isEqualTo(99L);
             assertThat(s.isOverridden()).isFalse();
@@ -194,7 +195,7 @@ class ClassScheduleServiceTest {
         });
 
         assertThat(res.patternId()).isEqualTo(99L);
-        assertThat(res.generated()).isEqualTo(3);
+        assertThat(res.generated()).isEqualTo(2);
         assertThat(res.keptOverridden()).isEqualTo(1);
     }
 

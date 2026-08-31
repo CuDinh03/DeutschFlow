@@ -48,6 +48,10 @@ public class ClassScheduleService {
 
     /** Sinh buổi trước N tuần khi pattern không có ngày kết thúc (effective_to = null). */
     private static final int GENERATE_WEEKS = 12;
+    /** D04: buổi lớp trung tâm = 180' học + 15' nghỉ = 195' chiếm lịch. */
+    private static final int ORG_SESSION_TOTAL_MINUTES = 195;
+    private static final int ORG_SESSION_TEACHING_MINUTES = 180;
+    private static final int ORG_SESSION_BREAK_MINUTES = 15;
     private static final DateTimeFormatter WARN_FMT = DateTimeFormatter.ofPattern("dd/MM HH:mm");
     /** Định dạng đầy đủ cho thông báo gửi học viên. */
     private static final DateTimeFormatter WHEN_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy 'lúc' HH:mm");
@@ -142,6 +146,10 @@ public class ClassScheduleService {
         pattern.setDefaultRoom(req.defaultRoom());
         pattern.setEffectiveFrom(req.effectiveFrom());
         pattern.setEffectiveTo(req.effectiveTo());
+        Minutes minutes = resolveMinutes(req.teachingMinutes(), req.breakMinutes(),
+                req.durationMinutes(), classId);
+        pattern.setTeachingMinutes(minutes.teaching());
+        pattern.setBreakMinutes(minutes.brk());
 
         // Những ngày trùng lịch dạy của giáo viên (ở lớp khác) — sẽ bị bỏ qua khi regenerate.
         Set<LocalDate> conflictDates = findTeacherConflictDates(teacherId, classId, pattern);
@@ -150,9 +158,10 @@ public class ClassScheduleService {
 
         Regen regen = regenerate(pattern, conflictDates);
 
-        // Chỉ báo học viên khi thực sự có buổi được sinh — tránh "có lịch học cố định" khi mọi ngày
-        // đều bị bỏ qua do trùng lịch (khi đó chỉ mình giáo viên thấy cảnh báo ở FE).
-        if (regen.generated() > 0) {
+        // Chỉ báo học viên khi lịch của họ THẬT SỰ đổi: có buổi mới sinh, hoặc buổi thường được
+        // cập-nhật-giữ-ID theo pattern mới (đổi giờ/phòng). Mọi ngày đều bị bỏ qua do trùng lịch,
+        // hoặc re-save pattern không đổi gì → im lặng.
+        if (regen.generated() > 0 || regen.changed() > 0) {
             String name = className(classId);
             String message = "Lớp " + name + " có lịch học cố định: "
                     + dowLabel(pattern.getDayOfWeek()) + " hàng tuần lúc " + pattern.getStartTime()
@@ -188,6 +197,17 @@ public class ClassScheduleService {
             if (req.durationMinutes() <= 0) throw new BadRequestException("Thời lượng phải lớn hơn 0");
             s.setDurationMinutes(req.durationMinutes());
         }
+        // PR-3 (D04): đổi phút học/nghỉ đi kèm ràng buộc teaching + break = duration. Buổi ĐÃ tách
+        // phút mà chỉ đổi duration thì bắt gửi kèm — không tự chia lại thay giáo viên.
+        if (req.teachingMinutes() != null || req.breakMinutes() != null) {
+            Minutes minutes = validateMinutes(req.teachingMinutes(), req.breakMinutes(), s.getDurationMinutes());
+            s.setTeachingMinutes(minutes.teaching());
+            s.setBreakMinutes(minutes.brk());
+        } else if (req.durationMinutes() != null && s.getTeachingMinutes() != null
+                && s.getTeachingMinutes() + s.getBreakMinutes() != s.getDurationMinutes()) {
+            throw new BadRequestException(
+                    "Buổi đã tách phút học/nghỉ — đổi thời lượng phải gửi kèm teachingMinutes và breakMinutes");
+        }
         if (req.mode() != null) s.setMode(parseSessionMode(req.mode()));
         if (req.status() != null) s.setStatus(parseStatus(req.status()));
         // SCH-1: nếu PATCH chỉ set status=CANCELLED mà không gửi room → giữ nguyên phòng cũ
@@ -218,10 +238,14 @@ public class ClassScheduleService {
         assertTeacherFree(teacherId, req.startAt(), req.durationMinutes(), null);
 
         ClassSession.Mode mode = parseSessionMode(req.mode());
+        Minutes minutes = resolveMinutes(req.teachingMinutes(), req.breakMinutes(),
+                req.durationMinutes(), classId);
         ClassSession s = ClassSession.builder()
                 .classId(classId)
                 .startAt(req.startAt())
                 .durationMinutes(req.durationMinutes())
+                .teachingMinutes(minutes.teaching())
+                .breakMinutes(minutes.brk())
                 .mode(mode)
                 .room(mode == ClassSession.Mode.ONLINE ? null : req.room())
                 .status(ClassSession.Status.SCHEDULED)
@@ -313,6 +337,14 @@ public class ClassScheduleService {
                 .orElseGet(() -> teachers.stream().map(ct -> ct.getId().getTeacherId()).findFirst().orElse(null));
     }
 
+    /**
+     * PR-3 (G1/AC16): regenerate kiểu UPSERT-GIỮ-ID. Buổi thường (chưa override) được CẬP NHẬT
+     * tại chỗ theo ô lịch gốc thay vì xoá-tạo-lại — {@code class_sessions.id} sống qua mọi lần
+     * tính lại lịch (kể cả job hằng ngày), nên các liên kết theo buổi (chấm công hôm nay; phân bổ
+     * nội dung/slide/nhật ký từ PR-4) không bao giờ bốc hơi. Chỉ xoá buổi thường khi Ô của nó
+     * không còn thuộc pattern (rút ngắn effectiveTo, đổi thứ) hoặc là bản ghi "ma" trùng ô
+     * (dữ liệu tiền-V262 — unique V292 chặn phát sinh mới).
+     */
     private Regen regenerate(ClassSchedulePattern p, Set<LocalDate> skipDates) {
         LocalDate today = LocalDate.now(QuotaVnCalendar.ZONE);   // audit M-9: VN time, not UTC
         // Lấy theo CẢ hai trục: còn ở tương lai, HOẶC đã bị dời lùi khỏi tương lai nhưng ô lịch gốc
@@ -321,8 +353,17 @@ public class ClassScheduleService {
         List<ClassSession> future = sessionRepo.findLiveForPattern(
                 p.getId(), today.atStartOfDay(), today);
 
-        List<ClassSession> stale = future.stream().filter(s -> !s.isOverridden()).toList();
-        sessionRepo.deleteAll(stale);
+        // Buổi thường theo ô lịch gốc — ứng viên upsert. Trùng ô (chỉ có ở dữ liệu tiền-V262):
+        // giữ bản id nhỏ nhất, phần dư xếp vào danh sách dọn.
+        Map<LocalDate, ClassSession> plainBySlot = new HashMap<>();
+        List<ClassSession> toDelete = new ArrayList<>();
+        future.stream()
+                .filter(s -> !s.isOverridden())
+                .sorted(java.util.Comparator.comparing(ClassSession::getId))
+                .forEach(s -> {
+                    ClassSession prev = plainBySlot.putIfAbsent(patternSlotDate(s), s);
+                    if (prev != null) toDelete.add(s);
+                });
 
         // Neo theo Ô LỊCH GỐC, không theo startAt hiện tại: một buổi bị dời sang thứ khác vẫn
         // chiếm chỗ ngày cũ, nếu không ngày cũ trông như còn trống và bị sinh lại thành buổi "ma".
@@ -335,24 +376,69 @@ public class ClassScheduleService {
                 ? ClassSession.Mode.ONLINE : ClassSession.Mode.OFFLINE;
 
         int skipped = 0;
-        List<ClassSession> created = new ArrayList<>();
+        int changed = 0;
+        List<ClassSession> toSave = new ArrayList<>();
         for (LocalDate d : patternOccurrenceDates(p)) {
-            if (keptDates.contains(d)) continue;                 // buổi override đã chiếm chỗ
-            if (skipDates.contains(d)) { skipped++; continue; } // trùng lịch GV lớp khác → bỏ qua
-            created.add(ClassSession.builder()
-                    .classId(p.getClassId())
-                    .patternId(p.getId())
-                    .startAt(d.atTime(p.getStartTime()))
-                    .originalDate(d)                             // V262: ghi ô lịch gốc ngay khi sinh
-                    .durationMinutes(p.getDurationMinutes())
-                    .mode(mode)
-                    .room(mode == ClassSession.Mode.ONLINE ? null : p.getDefaultRoom())
-                    .status(ClassSession.Status.SCHEDULED)
-                    .overridden(false)
-                    .build());
+            if (keptDates.contains(d)) {
+                // Ô đã có buổi override chiếm chỗ; buổi thường trùng ô (nếu sót) là bản ghi ma.
+                ClassSession ghost = plainBySlot.remove(d);
+                if (ghost != null) toDelete.add(ghost);
+                continue;
+            }
+            if (skipDates.contains(d)) {
+                skipped++;
+                ClassSession clash = plainBySlot.remove(d); // ngày trùng lịch GV: không giữ buổi thường
+                if (clash != null) toDelete.add(clash);
+                continue;
+            }
+            ClassSession existing = plainBySlot.remove(d);
+            if (existing == null) {
+                toSave.add(ClassSession.builder()
+                        .classId(p.getClassId())
+                        .patternId(p.getId())
+                        .startAt(d.atTime(p.getStartTime()))
+                        .originalDate(d)                         // V262: ghi ô lịch gốc ngay khi sinh
+                        .durationMinutes(p.getDurationMinutes())
+                        .teachingMinutes(p.getTeachingMinutes())
+                        .breakMinutes(p.getBreakMinutes())
+                        .mode(mode)
+                        .room(mode == ClassSession.Mode.ONLINE ? null : p.getDefaultRoom())
+                        .status(ClassSession.Status.SCHEDULED)
+                        .overridden(false)
+                        .build());
+            } else if (syncFromPattern(existing, p, d, mode)) {
+                changed++;
+                toSave.add(existing);
+            }
         }
-        sessionRepo.saveAll(created);
-        return new Regen(created.size(), keptDates.size(), skipped);
+        // Buổi thường còn sót ở ô ngoài dải pattern (rút ngắn/đổi thứ) → gỡ như hành vi cũ.
+        toDelete.addAll(plainBySlot.values());
+        if (!toDelete.isEmpty()) sessionRepo.deleteAll(toDelete);
+        long created = toSave.stream().filter(s -> s.getId() == null).count();
+        sessionRepo.saveAll(toSave);
+        return new Regen((int) created, keptDates.size(), skipped, changed);
+    }
+
+    /** Đồng bộ buổi thường theo pattern (giữ nguyên id/originalDate); true nếu có thay đổi thực. */
+    private static boolean syncFromPattern(ClassSession s, ClassSchedulePattern p, LocalDate d,
+                                           ClassSession.Mode mode) {
+        boolean changed = false;
+        LocalDateTime start = d.atTime(p.getStartTime());
+        if (!start.equals(s.getStartAt())) { s.setStartAt(start); changed = true; }
+        if (s.getDurationMinutes() != p.getDurationMinutes()) {
+            s.setDurationMinutes(p.getDurationMinutes()); changed = true;
+        }
+        if (!Objects.equals(s.getTeachingMinutes(), p.getTeachingMinutes())) {
+            s.setTeachingMinutes(p.getTeachingMinutes()); changed = true;
+        }
+        if (s.getBreakMinutes() != p.getBreakMinutes()) { s.setBreakMinutes(p.getBreakMinutes()); changed = true; }
+        if (s.getMode() != mode) { s.setMode(mode); changed = true; }
+        String room = mode == ClassSession.Mode.ONLINE ? null : p.getDefaultRoom();
+        if (!Objects.equals(s.getRoom(), room)) { s.setRoom(room); changed = true; }
+        if (s.getStatus() != ClassSession.Status.SCHEDULED) {
+            s.setStatus(ClassSession.Status.SCHEDULED); changed = true; // buổi thường luôn SCHEDULED
+        }
+        return changed;
     }
 
     /**
@@ -380,7 +466,48 @@ public class ClassScheduleService {
         return out;
     }
 
-    private record Regen(int generated, int kept, int skipped) {}
+    private record Regen(int generated, int kept, int skipped, int changed) {}
+
+    // ── Phút học/nghỉ (PR-3, D04) ───────────────────────────────────────────────
+
+    /**
+     * Suy phút học/nghỉ khi caller KHÔNG khai: lớp trung tâm với buổi đúng
+     * {@value #ORG_SESSION_TOTAL_MINUTES}′ → mặc định D04 (180 học + 15 nghỉ); mọi ca khác giữ
+     * legacy (teaching = null ⇒ đọc ra bằng duration, break = 0) — không đoán quá khứ (spec §10).
+     * Caller ĐÃ khai thì validate teaching + break = duration.
+     */
+    private Minutes resolveMinutes(Integer teaching, Integer brk, int duration, Long classId) {
+        if (teaching == null && brk == null) {
+            if (duration == ORG_SESSION_TOTAL_MINUTES && isOrgClass(classId)) {
+                return new Minutes(ORG_SESSION_TEACHING_MINUTES, ORG_SESSION_BREAK_MINUTES);
+            }
+            return new Minutes(null, 0);
+        }
+        return validateMinutes(teaching, brk, duration);
+    }
+
+    private static Minutes validateMinutes(Integer teaching, Integer brk, int duration) {
+        int b = brk == null ? 0 : brk;
+        int t = teaching == null ? duration - b : teaching;
+        if (t <= 0) throw new BadRequestException("Phút học phải lớn hơn 0");
+        if (b < 0) throw new BadRequestException("Phút giải lao không được âm");
+        if (t + b != duration) {
+            throw new BadRequestException(
+                    "Phút học + phút nghỉ phải bằng thời lượng chiếm lịch (" + t + " + " + b + " ≠ " + duration + ")");
+        }
+        return new Minutes(t, b);
+    }
+
+    private boolean isOrgClass(Long classId) {
+        return classRepo.findById(classId).map(c -> c.getOrgId() != null).orElse(false);
+    }
+
+    /** Phút học hiển thị: bản ghi cũ chưa tách (teaching null) đọc là duration − break. */
+    private static int resolvedTeaching(Integer teaching, int duration, int brk) {
+        return teaching != null ? teaching : duration - brk;
+    }
+
+    private record Minutes(Integer teaching, int brk) {}
 
     // ── Chặn cứng trùng lịch giáo viên ──────────────────────────────────────────
 
@@ -538,13 +665,17 @@ public class ClassScheduleService {
     private ClassSessionDto toDto(ClassSession s, String className, int studentCount) {
         return new ClassSessionDto(s.getId(), s.getClassId(), className, s.getPatternId(),
                 s.getMode().name(), s.getRoom(), s.getStartAt(), s.getDurationMinutes(),
-                s.getStatus().name(), s.isOverridden(), studentCount);
+                s.getStatus().name(), s.isOverridden(), studentCount,
+                resolvedTeaching(s.getTeachingMinutes(), s.getDurationMinutes(), s.getBreakMinutes()),
+                s.getBreakMinutes());
     }
 
     private ClassSchedulePatternDto toPatternDto(ClassSchedulePattern p) {
         return new ClassSchedulePatternDto(p.getId(), p.getClassId(), p.getDayOfWeek(),
                 p.getStartTime(), p.getDurationMinutes(), p.getDefaultMode().name(),
-                p.getDefaultRoom(), p.getEffectiveFrom(), p.getEffectiveTo());
+                p.getDefaultRoom(), p.getEffectiveFrom(), p.getEffectiveTo(),
+                resolvedTeaching(p.getTeachingMinutes(), p.getDurationMinutes(), p.getBreakMinutes()),
+                p.getBreakMinutes());
     }
 
     private void validatePatternReq(UpsertPatternRequest req) {
