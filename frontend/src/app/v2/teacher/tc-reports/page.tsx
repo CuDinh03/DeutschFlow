@@ -9,7 +9,7 @@ import { listLessonLogs, type ClassLessonLog } from '@/lib/teacherLessonLogApi'
 import { listLessons, type ClassLesson } from '@/lib/teacherLessonsApi'
 import { listEvaluations, type StudentEvaluation } from '@/lib/teacherEvaluationApi'
 import { getClassCompetency, type ClassCompetency } from '@/lib/teacherCompetencyApi'
-import { GaPageHdr, GaBtn, TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent, ErrorBanner } from '@/components/ui-v2'
 import { ClassPicker, useTeacherClasses } from '../tcShared'
 import { GradebookTab } from './GradebookTab'
 import { SkillReportTab } from './SkillReportTab'
@@ -35,7 +35,7 @@ const SECTION_TAB_KEY: Record<string, string> = {
 export default function V2TcReportsPage() {
   const t = useTranslations('v2.teacher.tcReports')
   const tc = useTranslations('v2.common')
-  const { classes, classId, setClassId, loadingClasses } = useTeacherClasses()
+  const { classes, classId, setClassId, loadingClasses, classesError, reloadClasses } = useTeacherClasses()
 
   const [gradebook, setGradebook] = useState<Gradebook | null>(null)
   const [skillReport, setSkillReport] = useState<SkillReport | null>(null)
@@ -138,6 +138,12 @@ export default function V2TcReportsPage() {
       />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
+        {/* F05: lỗi tải danh sách lớp phải tự hiện — không classId thì fetch con không chạy để surface. */}
+        {classesError && (
+          <div className="mb-4">
+            <ErrorBanner message={classesError} onRetry={reloadClasses} />
+          </div>
+        )}
         {!classId ? (
           <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">
             {t('selectClassPrompt')}

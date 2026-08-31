@@ -5,7 +5,7 @@
       "subtitle": "Manage an overview of learning progress and your classes",
       "viewReports": "View reports →",
       "stats": {
-        "students": "Total students",
+        "students": "Enrollments",
         "studentsSub": "Active across {count} classes",
         "toGrade": "To grade",
         "toGradeSub": "Assignments & Speaking",
@@ -31,6 +31,8 @@
       "toGradeCap": "To grade",
       "toGradeLink": "Go grade →",
       "queueEmpty": "No submissions to grade 🎉",
+      "queueError": "Could not load the grading queue.",
+      "summaryError": "Could not load the overview numbers.",
       "joinRequestsCap": "Join requests",
       "joinRequestsWaiting": "students awaiting class approval",
       "types": {
@@ -482,6 +484,7 @@
       "subtitle": "Overview of classes, assignments and average scores",
       "exportPdf": "Export PDF",
       "loadError": "Could not load analytics data.",
+      "sectionError": "Could not load this section.",
       "loading": "Loading analytics…",
       "stats": {
         "classes": "Classes",

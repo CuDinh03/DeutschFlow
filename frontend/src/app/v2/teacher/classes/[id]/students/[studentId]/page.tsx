@@ -9,6 +9,7 @@ import api, { apiMessage } from '@/lib/api'
 import {
   GaPageHdr, GaBtn, GaCap, TkStatStrip,
   TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent,
+  ErrorBanner,
 } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,6 +62,9 @@ function StudentReport() {
   const [speaking, setSpeaking] = useState<SpeakingSession[]>([])
   const [assignments, setAssignments] = useState<AssignmentRow[]>([])
   const [loading, setLoading] = useState(true)
+  // F05: lỗi tải từng bị nuốt thành mảng rỗng — "học viên chưa làm bài" giả. Mỗi tab giữ lỗi riêng.
+  const [assignmentsError, setAssignmentsError] = useState('')
+  const [speakingError, setSpeakingError] = useState('')
 
   // AI analysis — lazy (LLM cost): only fetched when the tab is first opened.
   const [report, setReport] = useState<Report | null>(null)
@@ -69,16 +73,23 @@ function StudentReport() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    try {
-      const [sp2, asg] = await Promise.all([
-        api.get<SpeakingSession[]>(`/v2/teacher/students/${studentId}/speaking-sessions`).catch(() => ({ data: [] })),
-        api.get<AssignmentRow[]>(`/v2/teacher/students/${studentId}/assignments`).catch(() => ({ data: [] })),
-      ])
-      setSpeaking(sp2.data ?? [])
-      setAssignments(asg.data ?? [])
-    } finally {
-      setLoading(false)
+    const [sp2, asg] = await Promise.allSettled([
+      api.get<SpeakingSession[]>(`/v2/teacher/students/${studentId}/speaking-sessions`),
+      api.get<AssignmentRow[]>(`/v2/teacher/students/${studentId}/assignments`),
+    ])
+    if (sp2.status === 'fulfilled') {
+      setSpeaking(sp2.value.data ?? [])
+      setSpeakingError('')
+    } else {
+      setSpeakingError(apiMessage(sp2.reason))
     }
+    if (asg.status === 'fulfilled') {
+      setAssignments(asg.value.data ?? [])
+      setAssignmentsError('')
+    } else {
+      setAssignmentsError(apiMessage(asg.reason))
+    }
+    setLoading(false)
   }, [studentId])
 
   useEffect(() => {
@@ -127,8 +138,9 @@ function StudentReport() {
       <div className="flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-6">
         <TkStatStrip
           items={[
-            { label: t('stats.assignments'), value: assignments.length, sub: t('stats.assignmentsSub', { count: gradedCount }), color: VIOLET },
-            { label: t('stats.speakingSessions'), value: speaking.length, sub: t('stats.speakingSessionsSub'), color: '#2F6FC9' },
+            // Nguồn lỗi → '—' thay vì 0 giả (F05); lỗi chi tiết hiện trong tab tương ứng.
+            { label: t('stats.assignments'), value: assignmentsError ? '—' : assignments.length, sub: t('stats.assignmentsSub', { count: gradedCount }), color: VIOLET },
+            { label: t('stats.speakingSessions'), value: speakingError ? '—' : speaking.length, sub: t('stats.speakingSessionsSub'), color: '#2F6FC9' },
             { label: t('stats.avgSpeaking'), value: avgTeacherSpeaking ?? '—', sub: avgTeacherSpeaking != null ? t('stats.avgSpeakingSub') : t('stats.avgSpeakingSubEmpty'), color: '#1E9E61' },
           ]}
         />
@@ -145,6 +157,8 @@ function StudentReport() {
             <TkTabsContent value="assignments">
               {loading ? (
                 <div className="ga-shimmer h-[160px] border border-ga-line" aria-hidden />
+              ) : assignmentsError ? (
+                <ErrorBanner message={assignmentsError} onRetry={() => void load()} />
               ) : assignments.length === 0 ? (
                 <Empty icon={BookOpen} text={t('assignmentsEmpty')} />
               ) : (
@@ -167,6 +181,8 @@ function StudentReport() {
             <TkTabsContent value="speaking">
               {loading ? (
                 <div className="ga-shimmer h-[160px] border border-ga-line" aria-hidden />
+              ) : speakingError ? (
+                <ErrorBanner message={speakingError} onRetry={() => void load()} />
               ) : speaking.length === 0 ? (
                 <Empty icon={Mic} text={t('speakingEmpty')} />
               ) : (

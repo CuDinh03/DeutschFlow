@@ -5,7 +5,7 @@
       "subtitle": "Verschaffe dir einen Überblick über den Lernfortschritt und deine Klassen",
       "viewReports": "Berichte ansehen →",
       "stats": {
-        "students": "Lernende gesamt",
+        "students": "Anmeldungen",
         "studentsSub": "Aktiv in {count} Klassen",
         "toGrade": "Zu bewerten",
         "toGradeSub": "Aufgaben & Speaking",
@@ -31,6 +31,8 @@
       "toGradeCap": "Zu bewerten",
       "toGradeLink": "Zur Bewertung →",
       "queueEmpty": "Keine Abgaben zu bewerten 🎉",
+      "queueError": "Die Bewertungsliste konnte nicht geladen werden.",
+      "summaryError": "Die Übersichtszahlen konnten nicht geladen werden.",
       "joinRequestsCap": "Beitrittsanfragen",
       "joinRequestsWaiting": "Lernende warten auf Freigabe zur Klasse",
       "types": {
@@ -482,6 +484,7 @@
       "subtitle": "Überblick über Klassen, Aufgaben und Durchschnittsnoten",
       "exportPdf": "PDF exportieren",
       "loadError": "Analysedaten konnten nicht geladen werden.",
+      "sectionError": "Dieser Abschnitt konnte nicht geladen werden.",
       "loading": "Analyse wird geladen…",
       "stats": {
         "classes": "Klassen",

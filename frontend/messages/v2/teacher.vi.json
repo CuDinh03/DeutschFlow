@@ -5,7 +5,7 @@
       "subtitle": "Quản lý tổng quan tiến độ học tập và các lớp học của bạn",
       "viewReports": "Xem báo cáo →",
       "stats": {
-        "students": "Tổng học viên",
+        "students": "Lượt ghi danh",
         "studentsSub": "Hoạt động trong {count} lớp",
         "toGrade": "Cần chấm điểm",
         "toGradeSub": "Bài tập & Speaking",
@@ -31,6 +31,8 @@
       "toGradeCap": "Cần chấm điểm",
       "toGradeLink": "Vào chấm →",
       "queueEmpty": "Không có bài chờ chấm 🎉",
+      "queueError": "Không tải được danh sách bài chờ chấm.",
+      "summaryError": "Không tải được số liệu tổng quan.",
       "joinRequestsCap": "Yêu cầu vào lớp",
       "joinRequestsWaiting": "học viên chờ duyệt vào lớp",
       "types": {
@@ -482,6 +484,7 @@
       "subtitle": "Tổng quan lớp học, bài tập và điểm trung bình",
       "exportPdf": "Xuất PDF",
       "loadError": "Không thể tải dữ liệu phân tích.",
+      "sectionError": "Không tải được phần này.",
       "loading": "Đang tải phân tích…",
       "stats": {
         "classes": "Lớp học",

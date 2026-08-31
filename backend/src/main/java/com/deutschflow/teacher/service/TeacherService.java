@@ -152,12 +152,25 @@ public class TeacherService {
                 "SELECT class_id, COUNT(*) AS cnt FROM class_assignments WHERE class_id IN (" + placeholders + ") GROUP BY class_id",
                 args).forEach(r -> assignmentCounts.put(toLong(r.get("class_id")), toLong(r.get("cnt"))));
 
+        // Bài chờ chấm theo lớp — trạng thái khớp AssignmentStatus.AWAITING_TEACHER (F05: FE đọc
+        // pendingReviewCount trên thẻ lớp từ lâu nhưng DTO chưa từng trả).
+        Map<Long, Long> pendingCounts = new HashMap<>();
+        jdbcTemplate.queryForList(
+                "SELECT ca.class_id AS class_id, COUNT(*) AS cnt FROM student_assignments sa"
+                        + " JOIN class_assignments ca ON ca.id = sa.assignment_id"
+                        + " WHERE ca.class_id IN (" + placeholders + ")"
+                        + " AND sa.status IN ('SUBMITTED','AI_GRADED','GRADING_FAILED')"
+                        + " AND COALESCE(sa.is_deleted, false) = false"
+                        + " GROUP BY ca.class_id",
+                args).forEach(r -> pendingCounts.put(toLong(r.get("class_id")), toLong(r.get("cnt"))));
+
         return classRepository.findAllById(classIds)
                 .stream()
                 .map(c -> {
                     long studentCount = studentCounts.getOrDefault(c.getId(), 0L);
                     long quizCount = assignmentCounts.getOrDefault(c.getId(), 0L);
-                    return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, c.getCreatedAt());
+                    long pendingCount = pendingCounts.getOrDefault(c.getId(), 0L);
+                    return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, pendingCount, c.getCreatedAt());
                 })
                 .collect(Collectors.toList());
     }
@@ -1050,7 +1063,8 @@ public class TeacherService {
     private TeacherClassDto toClassDto(TeacherClass c) {
         long studentCount = classStudentRepository.countByIdClassId(c.getId());
         long quizCount = assignmentRepository.countByClassId(c.getId());
-        return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, c.getCreatedAt());
+        // Chỉ dùng cho lớp VỪA TẠO (createClass) — chưa thể có bài nộp nên pendingReviewCount = 0.
+        return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, 0L, c.getCreatedAt());
     }
 
     private ClassAssignmentDto toAssignmentDto(ClassAssignment a) {

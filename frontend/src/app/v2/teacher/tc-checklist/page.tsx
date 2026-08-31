@@ -11,7 +11,7 @@ import { listLessons, createLesson, updateLesson, deleteLesson, reorderLessons, 
 import { listModules, createModule, updateModule, deleteModule, reorderModules, assignLessonModule, type CurriculumModule } from '@/lib/teacherModulesApi'
 import { groupLessonsByModule, swapInOrder, type LessonModuleGroup } from '@/lib/moduleGrouping'
 import { parseKnowledgePoints, resolvePointTexts } from '@/lib/knowledgePoints'
-import { GaPageHdr, GaBtn } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, ErrorBanner } from '@/components/ui-v2'
 import { ClassPicker, useTeacherClasses, pct, classHref } from '../tcShared'
 import { parseIsoDateLocal } from '../lessonPacing'
 import { LessonMaterialsPanel } from './LessonMaterialsPanel'
@@ -228,7 +228,7 @@ export default function V2TcChecklistPage() {
   const t = useTranslations('v2.teacher.tcChecklist')
   const tc = useTranslations('v2.common')
   const router = useRouter()
-  const { classes, classId, setClassId, loadingClasses } = useTeacherClasses()
+  const { classes, classId, setClassId, loadingClasses, classesError, reloadClasses } = useTeacherClasses()
   const [lessons, setLessons] = useState<ClassLesson[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -547,6 +547,12 @@ export default function V2TcChecklistPage() {
       />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
+        {/* F05: lỗi tải danh sách lớp phải tự hiện — trước đây bị nuốt im lặng. */}
+        {classesError && (
+          <div className="mb-4">
+            <ErrorBanner message={classesError} onRetry={reloadClasses} />
+          </div>
+        )}
         {/* Add lesson: title + knowledge points */}
         <div className="mb-5 border border-ga-line bg-ga-card p-4">
           <label className={labelCls}>{t('lessonTitleLabel')}</label>
