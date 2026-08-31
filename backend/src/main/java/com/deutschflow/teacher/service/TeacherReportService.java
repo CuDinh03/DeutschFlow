@@ -51,9 +51,27 @@ public class TeacherReportService {
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final UserRepository userRepository;
 
+    /**
+     * Every class the teacher is ASSIGNED to (class_teachers — PRIMARY or ASSISTANT), sorted by id
+     * for stable row/series order. This is the same set the class list and the per-class report
+     * guards use. The four aggregate reports used to read {@code findByTeacherId} — the CREATOR
+     * column — so a co-teacher saw and graded a class whose data then vanished from their
+     * overview/summary/trends/skills (F04).
+     */
+    private List<TeacherClass> assignedClasses(Long teacherId) {
+        List<Long> classIds = classTeacherRepository.findByIdTeacherId(teacherId).stream()
+                .map(ct -> ct.getId().getClassId())
+                .distinct()
+                .toList();
+        if (classIds.isEmpty()) return List.of();
+        return classRepository.findAllById(classIds).stream()
+                .sorted(Comparator.comparing(TeacherClass::getId))
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public Map<String, Object> overview(Long teacherId) {
-        List<TeacherClass> classes = classRepository.findByTeacherId(teacherId);
+        List<TeacherClass> classes = assignedClasses(teacherId);
         List<Long> classIds = classes.stream().map(TeacherClass::getId).toList();
 
         // Audit L-4: one IN-list query instead of one query per class (N+1).
@@ -93,15 +111,15 @@ public class TeacherReportService {
     }
 
     /**
-     * Per-class summary rows for every class the teacher owns, in ONE pass (no N+1): sĩ số, số bài
-     * đã giao và điểm trung bình lớp. Batch-loads students, assignments and submissions with three
+     * Per-class summary rows for every class the teacher is assigned to, in ONE pass (no N+1): sĩ số,
+     * số bài đã giao và điểm trung bình lớp. Batch-loads students, assignments and submissions with three
      * IN-list queries, then groups in memory — replacing the analytics page's overview + one
      * classReport request per class. avgScore uses the same confirmed-only, one-vote-per-student
      * rule as {@link #averageScore}.
      */
     @Transactional(readOnly = true)
     public List<ClassSummaryDto> classesSummary(Long teacherId) {
-        List<TeacherClass> classes = classRepository.findByTeacherId(teacherId);
+        List<TeacherClass> classes = assignedClasses(teacherId);
         if (classes.isEmpty()) return List.of();
         List<Long> classIds = classes.stream().map(TeacherClass::getId).toList();
 
@@ -146,7 +164,7 @@ public class TeacherReportService {
      */
     @Transactional(readOnly = true)
     public ClassTrendDto weeklyTrends(Long teacherId) {
-        List<TeacherClass> classes = classRepository.findByTeacherId(teacherId);
+        List<TeacherClass> classes = assignedClasses(teacherId);
         if (classes.isEmpty()) return new ClassTrendDto(List.of(), List.of());
         List<Long> classIds = classes.stream().map(TeacherClass::getId).toList();
 
@@ -183,7 +201,7 @@ public class TeacherReportService {
      */
     @Transactional(readOnly = true)
     public SkillDistributionDto skillDistribution(Long teacherId) {
-        List<TeacherClass> classes = classRepository.findByTeacherId(teacherId);
+        List<TeacherClass> classes = assignedClasses(teacherId);
         if (classes.isEmpty()) return new SkillDistributionDto(null, null, null, null, 0);
         List<Long> classIds = classes.stream().map(TeacherClass::getId).toList();
 
