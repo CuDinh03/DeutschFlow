@@ -13,5 +13,7 @@ public record ClassSchedulePatternDto(
         String defaultMode,
         String defaultRoom,
         LocalDate effectiveFrom,
-        LocalDate effectiveTo
+        LocalDate effectiveTo,
+        int teachingMinutes,
+        int breakMinutes
 ) {}

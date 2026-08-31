@@ -14,5 +14,7 @@ public record ClassSessionDto(
         int durationMinutes,
         String status,
         boolean overridden,
-        int studentCount
+        int studentCount,
+        int teachingMinutes,
+        int breakMinutes
 ) {}

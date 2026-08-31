@@ -53,6 +53,26 @@ public class ClassSession {
     private Status status = Status.SCHEDULED;
 
     /** true = giáo viên đã chỉnh tay → regenerate từ pattern KHÔNG ghi đè. */
+    /**
+     * Phút HỌC của buổi (D04: buổi lớp trung tâm 180'). NULL = bản ghi cũ chưa tách — đọc ra
+     * hiểu là teaching = durationMinutes. durationMinutes GIỮ vai trò phút CHIẾM LỊCH (kiểm
+     * trùng giờ), không đổi ngữ nghĩa (V292).
+     */
+    @Column(name = "teaching_minutes")
+    private Integer teachingMinutes;
+
+    /** Phút GIẢI LAO trong buổi (D04: 15'); không tính vào thời gian học. Default 0 (V292). */
+    @Column(name = "break_minutes", nullable = false)
+    @Builder.Default
+    private int breakMinutes = 0;
+
+    /** "Đã ghi nhận kết thúc" (spec §2.3): buổi qua giờ KHÔNG tự thành đã dạy — GV chốt ở PR-7. */
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "completed_by")
+    private Long completedBy;
+
     @Column(name = "is_overridden", nullable = false)
     @Builder.Default
     private boolean overridden = false;
