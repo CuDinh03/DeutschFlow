@@ -663,10 +663,29 @@
       "modalLinkPlaceholder": "https://… (allango, Drive, YouTube)",
       "modalLinkInvalid": "The link must start with http:// or https://",
       "modalTypeCap": "Type",
+      "modalSkillCap": "Skill",
+      "modalSkillHint": "The skill this work counts toward in the student's four-skill report. Pick “General” if it belongs to none.",
       "modalDueCap": "Due date",
       "modalLessonCap": "Link to lesson",
       "modalLessonNone": "— Not linked —",
-      "modalAssign": "Give to class"
+      "modalAssign": "Give to class",
+      "skills": {
+        "GENERAL": "General (Allgemein)",
+        "HOREN": "Listening (Hören)",
+        "LESEN": "Reading (Lesen)",
+        "SCHREIBEN": "Writing (Schreiben)",
+        "SPRECHEN": "Speaking (Sprechen)"
+      },
+      "editTask": "Edit",
+      "deleteTask": "Delete",
+      "deleteTaskConfirmTitle": "Delete assigned task?",
+      "deleteTaskConfirmDesc": "“{topic}” will be removed from the class.",
+      "deleteTaskConfirmDetailPending": "Students’ not-yet-submitted copies of this task are deleted with it.",
+      "deleteTaskConfirmDetailSubmitted": "If any student has already submitted, the system refuses to delete — edit the task instead.",
+      "deleteTaskSuccess": "Assignment deleted.",
+      "modalEditTitle": "Edit assignment",
+      "modalSaveEdit": "Save changes",
+      "modalEditSuccess": "Changes saved."
     },
     "studentDetail": {
       "nameFallback": "Student #{id}",

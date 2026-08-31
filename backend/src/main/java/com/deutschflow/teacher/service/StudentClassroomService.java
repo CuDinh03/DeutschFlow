@@ -47,6 +47,8 @@ public class StudentClassroomService {
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final ClassSessionRepository classSessionRepository;
     private final UserRepository userRepository;
+    /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
+    private final SubmissionFileUrlResolver submissionFileUrlResolver;
 
     @Transactional(readOnly = true)
     public List<MyClassroomDto> listMyClasses(Long studentId) {
@@ -278,7 +280,7 @@ public class StudentClassroomService {
                 ca != null ? ca.getAssignmentType() : "GENERAL",
                 ca != null ? ca.getDueDate() : null,
                 a.getSubmissionContent(),
-                a.getSubmissionFileUrl(),
+                submissionFileUrlResolver.resolve(a.getSubmissionFileUrl()),
                 ca != null ? ca.getAttachmentUrl() : null,
                 ca != null ? ca.getReferenceId() : null
         );

@@ -10,6 +10,7 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.teacher.repository.StudentAssignmentRepository;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
+import com.deutschflow.teacher.entity.AssignmentStatus;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.repository.StudentAssignmentRepository;
 import com.deutschflow.teacher.entity.StudentAssignment;
@@ -53,6 +54,8 @@ public class StudentAssignmentController {
     private final com.deutschflow.material.service.MaterialService materialService;
     private final com.deutschflow.notification.service.NotificationAutoAckService notificationAutoAckService;
     private final com.deutschflow.common.transaction.RunAfterCommitService runAfterCommitService;
+    /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
+    private final com.deutschflow.teacher.service.SubmissionFileUrlResolver submissionFileUrlResolver;
 
     /**
      * The assignment the class handed out — resolved and access-checked by ENROLLMENT (the student must be
@@ -97,7 +100,7 @@ public class StudentAssignmentController {
                             ca != null ? ca.getAssignmentType() : "GENERAL",
                             ca != null ? ca.getDueDate() : null,
                             a.getSubmissionContent(),
-                            a.getSubmissionFileUrl(),
+                            submissionFileUrlResolver.resolve(a.getSubmissionFileUrl()),
                             ca != null ? ca.getAttachmentUrl() : null,
                             ca != null ? ca.getReferenceId() : null
                     );
@@ -145,13 +148,34 @@ public class StudentAssignmentController {
         // enrollment check) so the student isn't permanently blocked from handing the work in.
         StudentAssignment assignment = getOrCreateRow(user.getId(), assignmentId);
 
-        if (!"PENDING".equals(assignment.getStatus())) {
-            throw new ConflictException("Bài tập đã được nộp hoặc đã được chấm");
+        // Chốt duy nhất: ĐIỂM ĐÃ CHỐT thì không nộp đè.
+        //
+        // Trước đây điều kiện là `!PENDING → 409`, tức nộp xong là hết đường quay lại: chọn nhầm ảnh,
+        // bấm nộp khi bài còn dở, thu âm hỏng — đều thành vĩnh viễn, và giáo viên chấm đúng cái file
+        // sai đó. Không có endpoint nào rút hay thay bài nộp. Nay chỉ chặn khi giáo viên đã chốt điểm
+        // (EVALUATED, hoặc GRADED của dữ liệu cũ): điểm đã công bố thì bài nộp phải đứng yên làm căn
+        // cứ. Các trạng thái còn lại — SUBMITTED, GRADING_FAILED, và AI_GRADED (AI mới ĐỀ XUẤT điểm,
+        // học viên chưa hề thấy) — vẫn là bài chưa ai chấm xong, nộp lại được.
+        boolean isResubmission = AssignmentStatus.isSubmitted(assignment.getStatus());
+        if (AssignmentStatus.isFinal(assignment.getStatus())) {
+            throw new ConflictException(
+                    "Bài đã được giáo viên chấm nên không nộp lại được. Hãy nhắn cho giáo viên nếu bạn cần nộp bản khác.");
         }
 
-        assignment.setStatus("SUBMITTED");
+        assignment.setStatus(AssignmentStatus.SUBMITTED);
         assignment.setSubmittedAt(java.time.LocalDateTime.now());
-        
+
+        if (isResubmission) {
+            // Bài đã đổi ⇒ điểm AI đề xuất cho bản CŨ không còn nghĩa gì. Không dọn thì bản nộp mới
+            // đi kèm điểm/nhận xét của bản cũ, và màn chấm hiển thị chúng như thể vừa chấm bản mới.
+            // (Điểm giáo viên không bao giờ tới nhánh này — nhánh isFinal ở trên đã chặn.)
+            assignment.setScore(null);
+            assignment.setFeedback(null);
+            assignment.setCriteria(null);
+            assignment.setAiConfidence(null);
+            assignment.setGradedAt(null);
+        }
+
         if (request.getSubmissionContent() != null && !request.getSubmissionContent().isBlank()) {
             assignment.setSubmissionContent(request.getSubmissionContent());
         }
@@ -187,7 +211,7 @@ public class StudentAssignmentController {
                 ca != null ? ca.getAssignmentType() : "GENERAL",
                 ca != null ? ca.getDueDate() : null,
                 assignment.getSubmissionContent(),
-                assignment.getSubmissionFileUrl(),
+                submissionFileUrlResolver.resolve(assignment.getSubmissionFileUrl()),
                 ca != null ? ca.getAttachmentUrl() : null,
                 ca != null ? ca.getReferenceId() : null
         ));
