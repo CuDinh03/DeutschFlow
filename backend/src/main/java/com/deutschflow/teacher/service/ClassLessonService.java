@@ -14,6 +14,7 @@ import com.deutschflow.teacher.dto.UpdateLessonRequest;
 import com.deutschflow.teacher.entity.CanDoStatement;
 import com.deutschflow.teacher.entity.ClassLesson;
 import com.deutschflow.teacher.entity.LessonKnowledgePoint;
+import com.deutschflow.organization.repository.ClassCurriculumLinkRepository;
 import com.deutschflow.teacher.repository.CanDoStatementRepository;
 import com.deutschflow.teacher.repository.ClassLessonRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
@@ -57,6 +58,7 @@ public class ClassLessonService {
     private final LessonKnowledgePointRepository knowledgePointRepository;
     private final CurriculumModuleRepository moduleRepository;
     private final CanDoStatementRepository canDoRepository;
+    private final ClassCurriculumLinkRepository classCurriculumLinkRepository;
 
     @Transactional(readOnly = true)
     public List<ClassLessonDto> listForTeacher(Long teacherId, Long classId) {
@@ -91,9 +93,14 @@ public class ClassLessonService {
 
         int nextOrder = lessonRepository.findMaxOrderIndex(classId) + 1;
 
+        // Lớp đã gắn giáo trình trung tâm: bài GV tự thêm là BÀI BỔ TRỢ (D02) — được phép,
+        // nhưng không vào mẫu số hoàn thành giáo trình (dùng từ PR-4).
+        boolean supplementary = classCurriculumLinkRepository.existsByClassId(classId);
+
         ClassLesson lesson = ClassLesson.builder()
                 .classId(classId)
                 .orderIndex(nextOrder)
+                .supplementary(supplementary)
                 .title(req.title().trim())
                 .description(description)
                 .cefrLevel(normalizeCefrLevel(req.cefrLevel()))
@@ -114,6 +121,19 @@ public class ClassLessonService {
 
         if (req == null) {
             throw new BadRequestException("Request body trống");
+        }
+        // AC01: bài sinh từ giáo trình trung tâm — nội dung bắt buộc và mục tiêu là BẤT BIẾN với
+        // giáo viên (chỉ trung tâm phát hành phiên bản mới). Vẫn cho sửa các trường phân phối:
+        // plannedDate, estimatedUnits, completed, module.
+        if (lesson.getLektionId() != null && (req.title() != null
+                || req.description() != null
+                || req.knowledgePoints() != null
+                || req.canDoStatements() != null
+                || req.cefrLevel() != null
+                || Boolean.TRUE.equals(req.clearCefrLevel()))) {
+            throw new ForbiddenException(
+                    "Bài thuộc giáo trình trung tâm — giáo viên không sửa được nội dung/mục tiêu. "
+                            + "Bạn vẫn có thể đổi ngày dự kiến, số tiết, trạng thái hoàn thành hoặc thêm bài bổ trợ.");
         }
         if (req.title() != null && !req.title().isBlank()) {
             lesson.setTitle(req.title().trim());
@@ -166,6 +186,10 @@ public class ClassLessonService {
     public void delete(Long teacherId, Long classId, Long lessonId) {
         assertTeacherOwns(teacherId, classId);
         ClassLesson lesson = loadLessonInClass(classId, lessonId);
+        // AC01: không xoá nội dung bắt buộc của giáo trình; trung tâm gỡ/đổi phiên bản nếu cần.
+        if (lesson.getLektionId() != null) {
+            throw new ForbiddenException("Bài thuộc giáo trình trung tâm — giáo viên không xoá được khỏi lớp");
+        }
         lessonRepository.delete(lesson); // FK ON DELETE CASCADE removes the sub-table points
     }
 
@@ -201,6 +225,19 @@ public class ClassLessonService {
                 || new HashSet<>(ordered).size() != ordered.size()
                 || !byId.keySet().containsAll(ordered)) {
             throw new BadRequestException("Danh sách lesson IDs không khớp với lớp");
+        }
+
+        // AC01/D06: các bài thuộc giáo trình giữ NGUYÊN thứ tự tương đối (trình tự Lektion đã
+        // thống nhất với trung tâm); bài tự do/bổ trợ vẫn xen kẽ tự do quanh chúng.
+        List<Long> linkedCurrent = existing.stream()
+                .filter(l -> l.getLektionId() != null)
+                .map(ClassLesson::getId)
+                .toList();
+        List<Long> linkedRequested = ordered.stream()
+                .filter(id -> byId.get(id).getLektionId() != null)
+                .toList();
+        if (!linkedCurrent.equals(linkedRequested)) {
+            throw new ForbiddenException("Không thể đổi thứ tự các Lektion của giáo trình trung tâm");
         }
 
         for (int i = 0; i < ordered.size(); i++) {
@@ -450,6 +487,8 @@ public class ClassLessonService {
                 l.getClassId(),
                 l.getOrderIndex(),
                 l.getModuleId(),
+                l.getLektionId(),
+                l.isSupplementary(),
                 l.getTitle(),
                 l.getDescription(),
                 l.getCefrLevel(),

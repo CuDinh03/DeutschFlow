@@ -10,6 +10,9 @@ import java.util.List;
 public interface ClassAssignmentRepository extends JpaRepository<ClassAssignment, Long> {
     List<ClassAssignment> findByClassIdOrderByCreatedAtDesc(Long classId);
     long countByClassId(Long classId);
+
+    /** Số bài tập gắn vào các bài học cho trước — dấu vết chặn đổi/gỡ giáo trình (PR-1). */
+    long countByLessonIdIn(List<Long> lessonIds);
     void deleteByClassId(Long classId);
     List<ClassAssignment> findByClassIdIn(List<Long> classIds);
 }
