@@ -84,7 +84,6 @@ class TeacherTimesheetServiceTest {
         when(sessionRepository.findById(SESSION_ID)).thenReturn(Optional.of(session(start, 90)));
         when(classRepository.findById(CLASS_ID)).thenReturn(Optional.of(
                 TeacherClass.builder().id(CLASS_ID).name("K30 · B1").orgId(ORG_ID).build()));
-        when(recordRepository.findByTeacherIdAndStartedAt(TEACHER_ID, start)).thenReturn(Optional.empty());
         when(recordRepository.save(any())).thenAnswer(inv -> {
             TeacherSessionRecord r = inv.getArgument(0);
             r.setId(7L);
@@ -108,7 +107,6 @@ class TeacherTimesheetServiceTest {
         when(sessionRepository.findById(SESSION_ID)).thenReturn(Optional.of(session(start, 90)));
         when(classRepository.findById(CLASS_ID)).thenReturn(Optional.of(
                 TeacherClass.builder().id(CLASS_ID).name("K30").orgId(ORG_ID).build()));
-        when(recordRepository.findByTeacherIdAndStartedAt(TEACHER_ID, start)).thenReturn(Optional.empty());
         when(recordRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         // Buổi kéo dài hơn kế hoạch 15 phút — hợp đồng tính theo giờ phải ăn theo con số này.
@@ -139,12 +137,71 @@ class TeacherTimesheetServiceTest {
     void record_duplicateStart_isRejected() {
         LocalDateTime start = LocalDateTime.now().minusDays(1).withNano(0);
         allowTeaches();
-        when(recordRepository.findByTeacherIdAndStartedAt(TEACHER_ID, start))
-                .thenReturn(Optional.of(TeacherSessionRecord.builder().id(3L).build()));
+        stubExistingRecords(TeacherSessionRecord.builder().id(3L)
+                .startedAt(start).durationMinutes(90).build());
 
         assertThatThrownBy(() -> service.record(ACTOR,
                 new RecordTeachingRequest(null, CLASS_ID, start, 90, null, null)))
                 .isInstanceOf(ConflictException.class);
+
+        verify(recordRepository, never()).save(any());
+    }
+
+    /**
+     * A4/F03: so khớp đúng mốc bắt đầu là chưa đủ — 18:00–19:30 và 18:30–20:00 vẫn được trả công
+     * đôi 60 phút. Nay mọi khoảng [start, start+duration) chồng nhau đều bị chặn.
+     */
+    @Test
+    @DisplayName("A4: record() chặn dòng công CHỒNG GIỜ dù khác mốc bắt đầu")
+    void record_overlappingWindow_isRejected() {
+        LocalDateTime start = LocalDateTime.now().minusDays(1)
+                .withHour(18).withMinute(30).withSecond(0).withNano(0);
+        allowTeaches();
+        // Dòng đã có 18:00–19:30 — buổi mới 18:30–20:00 đè lên 60 phút.
+        stubExistingRecords(TeacherSessionRecord.builder().id(3L)
+                .startedAt(start.minusMinutes(30)).durationMinutes(90).build());
+
+        assertThatThrownBy(() -> service.record(ACTOR,
+                new RecordTeachingRequest(null, CLASS_ID, start, 90, null, null)))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("chồng giờ");
+
+        verify(recordRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("A4: hai buổi SÁT GIỜ (18:00–19:30 rồi 19:30–21:00) không bị coi là chồng")
+    void record_backToBack_isAllowed() {
+        LocalDateTime start = LocalDateTime.now().minusDays(1)
+                .withHour(19).withMinute(30).withSecond(0).withNano(0);
+        allowTeaches();
+        // Buổi trước kết thúc ĐÚNG 19:30 — ranh giới [start, end) không chồng.
+        stubExistingRecords(TeacherSessionRecord.builder().id(3L)
+                .startedAt(start.minusMinutes(90)).durationMinutes(90).build());
+        when(recordRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        SessionRecordDto dto = service.record(ACTOR,
+                new RecordTeachingRequest(null, CLASS_ID, start, 90, null, null));
+
+        assertThat(dto.durationMinutes()).isEqualTo(90);
+    }
+
+    @Test
+    @DisplayName("A4: updateRecord() kéo dài thời lượng đè lên dòng kế → chặn; không tự chặn chính nó")
+    void updateRecord_extendIntoNextRecord_isRejected() {
+        LocalDateTime start = LocalDateTime.of(2026, 7, 10, 18, 0);
+        TeacherSessionRecord mine = TeacherSessionRecord.builder()
+                .id(7L).teacherId(TEACHER_ID).startedAt(start).durationMinutes(60).build();
+        TeacherSessionRecord next = TeacherSessionRecord.builder()
+                .id(8L).teacherId(TEACHER_ID).startedAt(start.plusMinutes(60)).durationMinutes(60).build();
+        when(recordRepository.findById(7L)).thenReturn(Optional.of(mine));
+        // Trả về CẢ chính nó để chứng minh self-exclusion: chỉ dòng id=8 mới gây chặn.
+        stubExistingRecords(mine, next);
+
+        assertThatThrownBy(() -> service.updateRecord(ACTOR, 7L,
+                new RecordTeachingRequest(null, null, null, 90, null, null)))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("chồng giờ");
 
         verify(recordRepository, never()).save(any());
     }
@@ -154,7 +211,6 @@ class TeacherTimesheetServiceTest {
     void record_assistantRole_isRejected() {
         LocalDateTime start = LocalDateTime.now().minusDays(1).withNano(0);
         allowTeaches();
-        when(recordRepository.findByTeacherIdAndStartedAt(TEACHER_ID, start)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.record(ACTOR,
                 new RecordTeachingRequest(null, CLASS_ID, start, 90, "ASSISTANT", null)))
@@ -223,7 +279,6 @@ class TeacherTimesheetServiceTest {
         LocalDateTime destStart = LocalDateTime.of(2026, 7, 5, 18, 0);   // kỳ đích đã chốt
         when(recordRepository.findById(7L)).thenReturn(Optional.of(TeacherSessionRecord.builder()
                 .id(7L).teacherId(TEACHER_ID).startedAt(srcStart).durationMinutes(90).build()));
-        when(recordRepository.findByTeacherIdAndStartedAt(TEACHER_ID, destStart)).thenReturn(Optional.empty());
         // Kỳ nguồn (srcStart) cho qua; kỳ đích (destStart) bị chặn.
         doNothing().when(periodService).assertRecordEditable(eq(TEACHER_ID), eq(srcStart.toLocalDate()));
         doThrow(new ConflictException("Kỳ công đích đang ở trạng thái LOCKED"))
@@ -268,7 +323,6 @@ class TeacherTimesheetServiceTest {
     void record_insideClosedPeriod_isRejected() {
         LocalDateTime start = LocalDateTime.now().minusDays(1).withNano(0);
         allowTeaches();
-        when(recordRepository.findByTeacherIdAndStartedAt(TEACHER_ID, start)).thenReturn(Optional.empty());
         doThrow(new ConflictException("Kỳ công đang ở trạng thái APPROVED"))
                 .when(periodService).assertRecordEditable(TEACHER_ID, start.toLocalDate());
 
@@ -316,6 +370,23 @@ class TeacherTimesheetServiceTest {
 
         assertThat(result).extracting(SuggestionDto::sessionId).containsExactly(501L);
         assertThat(result.get(0).className()).isEqualTo("K30");
+    }
+
+    /**
+     * A4/F03: gợi ý phải cùng phạm vi với gate ghi công (PRIMARY-only, PR B). Trước đây lớp trợ
+     * giảng vẫn hiện gợi ý — bấm xác nhận là 403: hàng gợi ý chết.
+     */
+    @Test
+    @DisplayName("A4: suggestions() bỏ lớp chỉ làm TRỢ GIẢNG — không đề xuất buổi không thể ghi công")
+    void suggestions_assistantOnlyClass_isExcluded() {
+        when(classTeacherRepository.findByIdTeacherId(TEACHER_ID)).thenReturn(List.of(
+                ClassTeacher.builder().id(new ClassTeacherId(CLASS_ID, TEACHER_ID)).role("ASSISTANT").build()));
+
+        List<SuggestionDto> result = service.suggestions(
+                TEACHER_ID, LocalDateTime.now().minusDays(7), LocalDateTime.now());
+
+        assertThat(result).isEmpty();
+        verify(sessionRepository, never()).findForClassesInRange(anyList(), any(), any());
     }
 
     @Test
@@ -416,7 +487,6 @@ class TeacherTimesheetServiceTest {
     void record_blockedByClosedPeriod_writesNoAudit() {
         LocalDateTime start = LocalDateTime.now().minusDays(1).withNano(0);
         allowTeaches();
-        when(recordRepository.findByTeacherIdAndStartedAt(TEACHER_ID, start)).thenReturn(Optional.empty());
         doThrow(new ConflictException("kỳ đã chốt"))
                 .when(periodService).assertRecordEditable(eq(TEACHER_ID), any());
 
@@ -432,6 +502,14 @@ class TeacherTimesheetServiceTest {
     private void allowTeaches() {
         // PR B trợ giảng: chỉ PRIMARY của lớp được ghi công — helper stub theo gate mới.
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(true);
+    }
+
+    /** Stub cửa sổ truy vấn của assertNoOverlap (A4) — các dòng công sẵn có của giáo viên. */
+    private void stubExistingRecords(TeacherSessionRecord... records) {
+        when(recordRepository
+                .findByTeacherIdAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAt(
+                        eq(TEACHER_ID), any(), any()))
+                .thenReturn(List.of(records));
     }
 
     private static ClassSession session(LocalDateTime startAt, int minutes) {

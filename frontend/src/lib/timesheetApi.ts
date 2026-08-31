@@ -91,6 +91,18 @@ export async function recordTeaching(data: RecordTeachingInput): Promise<Session
   return res.data
 }
 
+/** PUT /api/v2/teacher/timesheet/records/{id} — sửa thời lượng thực dạy / vai trò / ghi chú (A4). */
+export async function updateRecord(id: number, data: RecordTeachingInput): Promise<SessionRecord> {
+  const res = await api.put<SessionRecord>(`/v2/teacher/timesheet/records/${id}`, data)
+  return res.data
+}
+
+/** GET /api/v2/teacher/timesheet/periods — mọi kỳ công của chính giáo viên (A4). */
+export async function myPeriods(): Promise<TimesheetPeriod[]> {
+  const res = await api.get<TimesheetPeriod[]>('/v2/teacher/timesheet/periods')
+  return res.data ?? []
+}
+
 /** DELETE /api/v2/teacher/timesheet/records/{id} */
 export async function deleteRecord(id: number): Promise<void> {
   await api.delete(`/v2/teacher/timesheet/records/${id}`)
