@@ -9,6 +9,7 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
+import com.deutschflow.organization.repository.OrgAcademicApproverRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
@@ -48,6 +49,7 @@ public class OrgMembershipService {
     private static final Set<String> ASSIGNABLE_ROLES = Set.of("MANAGER", "TEACHER");
 
     private final OrgMemberRepository memberRepo;
+    private final OrgAcademicApproverRepository academicApproverRepo;
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
     private final AuditLogService auditLogService;
@@ -352,6 +354,10 @@ public class OrgMembershipService {
         member.setStatus(status);
         member.setLeftAt(Instant.now());
         memberRepo.save(member);
+        // Security H1 (PR-2): quyền duyệt học vụ không sống lâu hơn tư cách thành viên — thu hồi
+        // soft mọi phân công đang hiệu lực, để nếu người này quay lại org (ví dụ ensureStudentSeat
+        // tái kích hoạt membership với vai trò STUDENT) thì phân công cũ KHÔNG sống lại theo.
+        academicApproverRepo.revokeAllActiveFor(orgId, userId, java.time.LocalDateTime.now(), null);
         detachUser(orgId, userId);
         return role;
     }

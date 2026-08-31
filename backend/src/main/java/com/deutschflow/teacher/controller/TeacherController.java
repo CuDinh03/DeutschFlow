@@ -160,6 +160,27 @@ public class TeacherController {
         return ResponseEntity.ok(teacherService.getClassAssignments(user.getId(), classId));
     }
 
+    /**
+     * Sửa một bài tập đã giao (giáo viên chính). Trường nào không gửi thì giữ nguyên; muốn xoá giá
+     * trị thì dùng cờ {@code clear*} trong body. Không đụng tới bài nộp hay điểm.
+     */
+    @PatchMapping("/classes/{classId}/assignments/{assignmentId}")
+    public ResponseEntity<ClassAssignmentDto> updateAssignment(@AuthenticationPrincipal User user,
+                                                               @PathVariable Long classId,
+                                                               @PathVariable Long assignmentId,
+                                                               @RequestBody UpdateAssignmentRequest req) {
+        return ResponseEntity.ok(teacherService.updateAssignment(user.getId(), classId, assignmentId, req));
+    }
+
+    /** Xoá một bài tập đã giao (giáo viên chính) — 409 nếu đã có học viên nộp. */
+    @DeleteMapping("/classes/{classId}/assignments/{assignmentId}")
+    public ResponseEntity<Void> deleteAssignment(@AuthenticationPrincipal User user,
+                                                 @PathVariable Long classId,
+                                                 @PathVariable Long assignmentId) {
+        teacherService.deleteAssignment(user.getId(), classId, assignmentId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/students/{studentId}/speaking-sessions")
     public ResponseEntity<List<TeacherSpeakingSessionDto>> getStudentSpeakingSessions(@AuthenticationPrincipal User user, @PathVariable Long studentId) {
         return ResponseEntity.ok(teacherService.getStudentSpeakingSessions(user.getId(), studentId));

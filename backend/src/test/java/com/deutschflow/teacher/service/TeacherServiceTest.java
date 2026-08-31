@@ -1,6 +1,7 @@
 package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
@@ -11,6 +12,7 @@ import com.deutschflow.teacher.dto.ClassAssignmentDto;
 import com.deutschflow.teacher.dto.ClassTeacherDto;
 import com.deutschflow.teacher.dto.CreateAssignmentRequest;
 import com.deutschflow.teacher.dto.StudentAssignmentDto;
+import com.deutschflow.teacher.dto.UpdateAssignmentRequest;
 import com.deutschflow.teacher.entity.AssignmentScenario;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.ClassLesson;
@@ -45,6 +47,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -53,6 +57,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class TeacherServiceTest {
@@ -161,8 +166,195 @@ class TeacherServiceTest {
                 runAfterCommitService,
                 classDeletionGuard,
                 auditLogService,
-                orgMembershipService
+                orgMembershipService,
+                // Bucket private ⇒ link file bài nộp phải được ký lại. Truyền resolver THẬT với
+                // S3 mock: objectKeyFromOwnUrl trả null ⇒ resolve() nhả nguyên URL đã lưu, tức
+                // đúng hành vi các test này vốn khẳng định.
+                new SubmissionFileUrlResolver(mock(S3StorageService.class))
         );
+    }
+
+    // ── Sửa / xoá bài tập đã giao ────────────────────────────────────────────
+    // Trước đây không có PATCH lẫn DELETE: một bài giao nhầm nằm lại vĩnh viễn trên màn hình cả lớp.
+
+    @Test
+    void updateAssignment_changesOnlyWhatWasSent() {
+        Long teacherId = 1L, classId = 100L, aid = 500L;
+        primaryTeacher(teacherId, classId);
+        ClassAssignment existing = ClassAssignment.builder()
+                .id(aid).classId(classId).topic("Sai chính tả").description("mô tả cũ")
+                .skill("GENERAL").dueDate(LocalDateTime.of(2026, 9, 1, 23, 59)).build();
+        when(assignmentRepository.findById(aid)).thenReturn(java.util.Optional.of(existing));
+        when(assignmentRepository.save(any(ClassAssignment.class))).thenAnswer(i -> i.getArgument(0));
+
+        teacherService.updateAssignment(teacherId, classId, aid,
+                new UpdateAssignmentRequest("Hörübung 3", null, null, "HOREN", null, null, null, null, null));
+
+        assertEquals("Hörübung 3", existing.getTopic());
+        assertEquals("HOREN", existing.getSkill());
+        assertEquals("mô tả cũ", existing.getDescription());                       // không gửi = giữ nguyên
+        assertEquals(LocalDateTime.of(2026, 9, 1, 23, 59), existing.getDueDate()); // không gửi = giữ nguyên
+    }
+
+    @Test
+    void updateAssignment_clearFlagRemovesTheValue() {
+        Long teacherId = 1L, classId = 100L, aid = 500L;
+        primaryTeacher(teacherId, classId);
+        ClassAssignment existing = ClassAssignment.builder()
+                .id(aid).classId(classId).topic("Bài 1")
+                .dueDate(LocalDateTime.of(2026, 9, 1, 23, 59)).attachmentUrl("https://x/y").build();
+        when(assignmentRepository.findById(aid)).thenReturn(java.util.Optional.of(existing));
+        when(assignmentRepository.save(any(ClassAssignment.class))).thenAnswer(i -> i.getArgument(0));
+
+        teacherService.updateAssignment(teacherId, classId, aid,
+                new UpdateAssignmentRequest(null, null, null, null, null, null, true, true, null));
+
+        assertNull(existing.getDueDate());
+        assertNull(existing.getAttachmentUrl());
+    }
+
+    @Test
+    void updateAssignment_rejectsAssignmentFromAnotherClass() {
+        Long teacherId = 1L, classId = 100L, aid = 500L;
+        primaryTeacher(teacherId, classId);
+        when(assignmentRepository.findById(aid)).thenReturn(java.util.Optional.of(
+                ClassAssignment.builder().id(aid).classId(777L).topic("Của lớp khác").build()));
+
+        assertThrows(ForbiddenException.class, () -> teacherService.updateAssignment(
+                teacherId, classId, aid, new UpdateAssignmentRequest("X", null, null, null, null, null, null, null, null)));
+        verify(assignmentRepository, never()).save(any(ClassAssignment.class));
+    }
+
+    @Test
+    void updateAssignment_rejectsBlankTopic() {
+        Long teacherId = 1L, classId = 100L, aid = 500L;
+        primaryTeacher(teacherId, classId);
+        when(assignmentRepository.findById(aid)).thenReturn(java.util.Optional.of(
+                ClassAssignment.builder().id(aid).classId(classId).topic("Bài 1").build()));
+
+        assertThrows(BadRequestException.class, () -> teacherService.updateAssignment(
+                teacherId, classId, aid, new UpdateAssignmentRequest("   ", null, null, null, null, null, null, null, null)));
+    }
+
+    @Test
+    void deleteAssignment_withNoSubmissions_deletes() {
+        Long teacherId = 1L, classId = 100L, aid = 500L;
+        primaryTeacher(teacherId, classId);
+        ClassAssignment existing = ClassAssignment.builder().id(aid).classId(classId).topic("Bài thừa").build();
+        when(assignmentRepository.findById(aid)).thenReturn(java.util.Optional.of(existing));
+        when(studentAssignmentRepository.findByAssignmentId(aid)).thenReturn(List.of(
+                StudentAssignment.builder().assignmentId(aid).studentId(200L).status("PENDING").build(),
+                StudentAssignment.builder().assignmentId(aid).studentId(201L).status("PENDING").build()));
+
+        teacherService.deleteAssignment(teacherId, classId, aid);
+
+        verify(assignmentRepository).delete(existing);
+    }
+
+    /**
+     * Ba bảng con đều ON DELETE CASCADE, nên xoá một bài đã có người nộp sẽ kéo theo bài làm, điểm và
+     * nhận xét — âm thầm, không hoàn tác. Ranh giới lấy đúng từ ClassDeletionGuard.
+     */
+    @Test
+    void deleteAssignment_withSubmissions_isBlocked() {
+        Long teacherId = 1L, classId = 100L, aid = 500L;
+        primaryTeacher(teacherId, classId);
+        when(assignmentRepository.findById(aid)).thenReturn(java.util.Optional.of(
+                ClassAssignment.builder().id(aid).classId(classId).topic("Bài đã có người nộp").build()));
+        when(studentAssignmentRepository.findByAssignmentId(aid)).thenReturn(List.of(
+                StudentAssignment.builder().assignmentId(aid).studentId(200L).status("PENDING").build(),
+                StudentAssignment.builder().assignmentId(aid).studentId(201L).status("EVALUATED").build()));
+
+        ConflictException ex = assertThrows(ConflictException.class,
+                () -> teacherService.deleteAssignment(teacherId, classId, aid));
+        assertTrue(ex.getMessage().contains("1 học viên"));   // đếm người đã nộp, không phải cả roster
+        verify(assignmentRepository, never()).delete(any(ClassAssignment.class));
+    }
+
+    @Test
+    void deleteAssignment_assistantTeacherCannot() {
+        Long teacherId = 2L, classId = 100L;
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, teacherId)).role("ASSISTANT").build()));
+
+        assertThrows(ForbiddenException.class, () -> teacherService.deleteAssignment(teacherId, classId, 500L));
+    }
+
+    private void primaryTeacher(Long teacherId, Long classId) {
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, teacherId)).role("PRIMARY").build()));
+    }
+
+    /**
+     * `class_assignments.skill` là đầu vào của bảng điểm 4 kỹ năng (cả phía giáo viên lẫn phía học
+     * viên). Web /v2 từng hardcode 'GENERAL' nên nhánh tính điểm theo kỹ năng chưa từng có dữ liệu.
+     */
+    @Test
+    void createAssignment_persistsTheChosenSkill() {
+        Long teacherId = 1L, classId = 100L;
+        stubCreateAssignment(teacherId, classId);
+        CreateAssignmentRequest req = new CreateAssignmentRequest(
+                "Hörübung 3", "Nghe và điền", "GENERAL", "horen", null, null, null, null, null);
+
+        teacherService.createAssignment(teacherId, classId, req);
+
+        ArgumentCaptor<ClassAssignment> captor = ArgumentCaptor.forClass(ClassAssignment.class);
+        verify(assignmentRepository).save(captor.capture());
+        assertEquals("HOREN", captor.getValue().getSkill());   // chuẩn hoá hoa, KHÔNG có E
+    }
+
+    @Test
+    void createAssignment_acceptsHoerenSpellingAndMapsToHoren() {
+        Long teacherId = 1L, classId = 100L;
+        stubCreateAssignment(teacherId, classId);
+        // can_do_statements.skill_tag dùng "HOEREN" — client nào lỡ gửi cách viết đó vẫn phải về đúng ô Nghe
+        CreateAssignmentRequest req = new CreateAssignmentRequest(
+                "Hörübung", null, "GENERAL", "HOEREN", null, null, null, null, null);
+
+        teacherService.createAssignment(teacherId, classId, req);
+
+        ArgumentCaptor<ClassAssignment> captor = ArgumentCaptor.forClass(ClassAssignment.class);
+        verify(assignmentRepository).save(captor.capture());
+        assertEquals("HOREN", captor.getValue().getSkill());
+    }
+
+    @Test
+    void createAssignment_rejectsUnknownSkill() {
+        Long teacherId = 1L, classId = 100L;
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, teacherId)).role("PRIMARY").build()));
+        CreateAssignmentRequest req = new CreateAssignmentRequest(
+                "Bài lạ", null, "GENERAL", "GRAMMATIK", null, null, null, null, null);
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.createAssignment(teacherId, classId, req));
+        verify(assignmentRepository, never()).save(any(ClassAssignment.class));
+    }
+
+    @Test
+    void createAssignment_nullSkillDefaultsToGeneral() {
+        Long teacherId = 1L, classId = 100L;
+        stubCreateAssignment(teacherId, classId);
+        CreateAssignmentRequest req = new CreateAssignmentRequest(
+                "Bài chung", null, "GENERAL", null, null, null, null, null, null);
+
+        teacherService.createAssignment(teacherId, classId, req);
+
+        ArgumentCaptor<ClassAssignment> captor = ArgumentCaptor.forClass(ClassAssignment.class);
+        verify(assignmentRepository).save(captor.capture());
+        assertEquals("GENERAL", captor.getValue().getSkill());
+    }
+
+    /** Stub tối thiểu cho một lượt createAssignment thành công. */
+    private void stubCreateAssignment(Long teacherId, Long classId) {
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, teacherId)).role("PRIMARY").build()));
+        when(classRepository.findById(classId)).thenReturn(
+                java.util.Optional.of(TeacherClass.builder().id(classId).name("Class A").build()));
+        when(userRepository.findById(teacherId)).thenReturn(java.util.Optional.empty());
+        when(assignmentRepository.save(any(ClassAssignment.class))).thenReturn(
+                ClassAssignment.builder().id(500L).classId(classId).topic("t").build());
+        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
     }
 
     @Test
@@ -1056,5 +1248,83 @@ class TeacherServiceTest {
         assertEquals(2, out.size());
         assertEquals(4L, out.get(0).pendingReviewCount()); // lớp 10 có 4 bài chờ chấm
         assertEquals(0L, out.get(1).pendingReviewCount()); // lớp 20 không có → 0, không phải null/thiếu
+    }
+
+    // ─── evaluateAssignment (A5/F12): ràng buộc đầu vào khi chốt điểm ─────────────
+
+    /** Bài nộp id=5 của học viên 200, thuộc bài tập 10 của lớp 100 mà giáo viên 1 phụ trách. */
+    private StudentAssignment stubGradableSubmission(String status) {
+        StudentAssignment sa = StudentAssignment.builder()
+                .id(5L).assignmentId(10L).studentId(200L).status(status).build();
+        when(studentAssignmentRepository.findById(5L)).thenReturn(Optional.of(sa));
+        ClassAssignment ca = ClassAssignment.builder()
+                .id(10L).classId(100L).topic("Brief").assignmentType("WRITING").build();
+        when(assignmentRepository.findById(10L)).thenReturn(Optional.of(ca));
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+        return sa;
+    }
+
+    /**
+     * F12: dòng PENDING tồn tại TRƯỚC khi học viên nộp (tạo sẵn/backfill), nên trước guard này một
+     * caller hợp lệ có thể biến "chưa nộp" thành EVALUATED bằng một lời gọi — và học viên nhận
+     * thông báo điểm cho bài mình chưa từng nộp.
+     */
+    @Test
+    @DisplayName("F12: bài PENDING (chưa nộp) không thể chốt điểm — trạng thái giữ nguyên, không thông báo")
+    void evaluateAssignment_pendingSubmission_isRejectedUntouched() {
+        StudentAssignment sa = stubGradableSubmission("PENDING");
+
+        assertThrows(ConflictException.class, () -> teacherService.evaluateAssignment(
+                1L, 5L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(80, "tốt")));
+
+        assertEquals("PENDING", sa.getStatus());
+        verify(studentAssignmentRepository, never()).save(any());
+        verify(userNotificationService, never()).onAssignmentGraded(any(), anyString(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("F12: chốt điểm bắt buộc có điểm — EVALUATED điểm null bị từ chối")
+    void evaluateAssignment_nullScore_isRejected() {
+        StudentAssignment sa = stubGradableSubmission("SUBMITTED");
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.evaluateAssignment(
+                        1L, 5L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(null, "chỉ nhận xét")));
+
+        assertEquals("SUBMITTED", sa.getStatus());
+        verify(studentAssignmentRepository, never()).save(any());
+        verify(userNotificationService, never()).onAssignmentGraded(any(), anyString(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("evaluateAssignment: bài SUBMITTED chốt được — EVALUATED, thông báo, cập nhật năng lực")
+    void evaluateAssignment_submitted_finalizesAndNotifies() {
+        StudentAssignment sa = stubGradableSubmission("SUBMITTED");
+        when(studentAssignmentRepository.save(any(StudentAssignment.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        StudentAssignmentDto dto = teacherService.evaluateAssignment(
+                1L, 5L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(85, "Gut"));
+
+        assertEquals("EVALUATED", dto.status());
+        assertEquals(85, sa.getScore());
+        verify(userNotificationService).onAssignmentGraded(eq(200L), eq("ASSIGNMENT"), eq(10L), eq(85), eq("Gut"));
+        verify(studentCompetencyService).applyGradingResult(200L, 10L, 85);
+    }
+
+    /** Chưa có lịch sử chấm thì cấm chấm lại là tự trói — đường sửa điểm final phải còn (F12). */
+    @Test
+    @DisplayName("evaluateAssignment: chấm lại bài EVALUATED vẫn hợp lệ (đường sửa điểm)")
+    void evaluateAssignment_regradeOfFinal_isAllowed() {
+        StudentAssignment sa = stubGradableSubmission("EVALUATED");
+        sa.setScore(70);
+        when(studentAssignmentRepository.save(any(StudentAssignment.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        StudentAssignmentDto dto = teacherService.evaluateAssignment(
+                1L, 5L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(90, "sửa lại"));
+
+        assertEquals("EVALUATED", dto.status());
+        assertEquals(90, sa.getScore());
     }
 }

@@ -284,13 +284,9 @@ export default function V2TeacherDashboardPage() {
                         >
                           {t('enterClass')}
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => toast(t('aiMaterialsComing'))}
-                          className="min-h-[40px] rounded-ga border border-ga-line px-3 py-[7px] text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
-                        >
-                          {t('aiMaterials')}
-                        </button>
+                        {/* A6/F13: nút "Tài liệu AI" chỉ toast "sắp có" đã bị gỡ — hành động không
+                            dẫn tới kết quả thì không được đứng cạnh nút thật; công cụ AI quay lại
+                            qua sidebar khi TEACHER_AI_TOOLS_ENABLED bật. */}
                       </div>
                       {c.code && (
                         <code className="bg-ga-ink px-2.5 py-1.5 text-[12px] font-semibold tracking-[0.08em] text-ga-yellow">

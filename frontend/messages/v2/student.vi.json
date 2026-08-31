@@ -316,6 +316,8 @@
       "tabOverview": "Tổng quan",
       "tabTasks": "Bài tập",
       "tabLessons": "Lộ trình",
+      "tabEvaluation": "Đánh giá",
+      "tabSchedule": "Lịch học",
       "invalidClassId": "Mã lớp không hợp lệ",
       "titleFallback": "Chi tiết lớp",
       "titleLoading": "Đang tải…",
@@ -370,6 +372,65 @@
         "empty": "Chưa có tài liệu cho bài này.",
         "loadError": "Không tải được tài liệu.",
         "openError": "Không mở được tài liệu."
+      },
+      "evaluation": {
+        "loading": "Đang tải đánh giá…",
+        "skillsCap": "Bảng điểm 4 kỹ năng",
+        "totalCap": "Điểm tổng",
+        "noScore": "Chưa có",
+        "skill": {
+          "horen": "Nghe (Hören)",
+          "lesen": "Đọc (Lesen)",
+          "schreiben": "Viết (Schreiben)",
+          "sprechen": "Nói (Sprechen)"
+        },
+        "noSkillsTitle": "Chưa có điểm kỹ năng",
+        "noSkillsBody": "Giáo viên chưa chấm điểm 4 kỹ năng cho bạn trong lớp này.",
+        "commentCap": "Nhận xét của giáo viên",
+        "evaluatedAt": "Nhận xét ngày {date}",
+        "noCommentTitle": "Chưa có nhận xét",
+        "noCommentBody": "Giáo viên chưa viết nhận xét cho bạn. Nhận xét sẽ hiện ở đây khi có.",
+        "attendanceCap": "Điểm danh",
+        "rate": "Chuyên cần {pct}%",
+        "presentCount": "Có mặt: {count}",
+        "lateCount": "Đi muộn: {count}",
+        "absentCount": "Vắng: {count}",
+        "sessionNo": "Buổi {no}",
+        "noTopic": "Chưa ghi chủ đề",
+        "noAttendanceTitle": "Chưa có buổi học nào",
+        "noAttendanceBody": "Lớp chưa có buổi học nào được ghi nhận điểm danh.",
+        "status": {
+          "PRESENT": "Có mặt",
+          "LATE": "Đi muộn",
+          "ABSENT": "Vắng",
+          "UNMARKED": "Chưa điểm danh"
+        }
+      },
+      "schedule": {
+        "loading": "Đang tải lịch học…",
+        "emptyTitle": "Chưa có lịch học",
+        "emptyBody": "Giáo viên chưa xếp buổi học nào cho lớp này.",
+        "upcomingCap": "Buổi sắp tới ({count})",
+        "noUpcoming": "Không còn buổi nào sắp tới.",
+        "pastCap": "Buổi đã học ({count})",
+        "modeOnline": "Trực tuyến",
+        "modeOffline": "Tại lớp",
+        "room": "Phòng {room}",
+        "duration": "{minutes} phút",
+        "status": {
+          "SCHEDULED": "Theo lịch",
+          "MOVED": "Đã dời",
+          "CANCELLED": "Đã huỷ"
+        },
+        "weekday": {
+          "0": "CN",
+          "1": "T2",
+          "2": "T3",
+          "3": "T4",
+          "4": "T5",
+          "5": "T6",
+          "6": "T7"
+        }
       }
     },
     "assignment": {
@@ -423,7 +484,12 @@
         "submittedAt": "Nộp lúc",
         "score": "Điểm"
       },
-      "gradedDone": "Bài đã được chấm xong"
+      "gradedDone": "Bài đã được chấm xong",
+      "resubmit": "Nộp lại",
+      "resubmitHint": "Nộp nhầm bài? Bạn vẫn nộp lại được cho tới khi giáo viên chấm.",
+      "resubmitCap": "Nộp bản khác",
+      "resubmitWarning": "Bản nộp mới sẽ thay hoàn toàn bản trước đó.",
+      "submitReplacement": "Nộp bản này"
     },
     "progress": {
       "title": "Tiến độ khóa học",

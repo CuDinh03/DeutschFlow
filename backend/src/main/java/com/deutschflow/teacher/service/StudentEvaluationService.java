@@ -79,7 +79,8 @@ public class StudentEvaluationService {
 
     /**
      * Bảng điểm 4 kỹ năng: dùng điểm đã lưu trực tiếp từ teacher evaluation.
-     * Fallback: tính trung bình từ bài tập đã chấm nếu chưa có evaluation.
+     * Fallback: trung bình từ bài tập đã chấm — CHỈ điểm final ({@link AssignmentStatus#isFinal}),
+     * cùng quy tắc với điều kiện chứng nhận bên dưới và mọi trung bình trong TeacherReportService.
      */
     @Transactional(readOnly = true)
     public SkillReportDto skillReport(Long teacherId, Long classId) {
@@ -93,7 +94,10 @@ public class StudentEvaluationService {
                 : userRepository.findAllById(studentIds).stream()
                         .collect(Collectors.toMap(User::getId, u -> u));
 
-        // Fallback: skill-tagged assignment averages per student
+        // Fallback: skill-tagged assignment averages per student — confirmed grades only (F01). AI
+        // writes its PROPOSAL into score already at AI_GRADED, so "has a score" is not "was graded":
+        // counting it showed a student "Hören 9/10" while the gradebook said the same work was still
+        // awaiting the teacher's review.
         List<ClassAssignment> assignments = assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId);
         Map<Long, Map<String, List<Integer>>> assignmentScoresByStudentAndSkill = new HashMap<>();
         if (!assignments.isEmpty()) {
@@ -103,7 +107,7 @@ public class StudentEvaluationService {
                     .collect(Collectors.toMap(ClassAssignment::getId,
                             a -> a.getSkill().toUpperCase()));
             for (StudentAssignment sa : studentAssignmentRepository.findByAssignmentIds(assignmentIds)) {
-                if (sa.getScore() == null) continue;
+                if (sa.getScore() == null || !AssignmentStatus.isFinal(sa.getStatus())) continue;
                 String skill = skillByAssignment.getOrDefault(sa.getAssignmentId(), "GENERAL");
                 assignmentScoresByStudentAndSkill
                         .computeIfAbsent(sa.getStudentId(), k -> new HashMap<>())
@@ -164,8 +168,13 @@ public class StudentEvaluationService {
     }
 
     /**
-     * The requesting student's OWN 4-skill report row (teacher-set score, or their own
-     * skill-tagged assignment averages as a fallback). Never returns the class list.
+     * The requesting student's OWN evaluation row: the 4-skill scores (teacher-set, or their own
+     * skill-tagged assignment averages as a fallback) AND the teacher's written comment about them.
+     * Never returns the class list.
+     *
+     * <p>The comment is the same {@code class_students.teacher_comment} the teacher writes in the
+     * gradebook. It was previously teacher-only — written, stored, and never shown to the student it
+     * was about.
      */
     @Transactional(readOnly = true)
     public MySkillReportDto mySkillReport(Long studentId, Long classId) {
@@ -181,7 +190,10 @@ public class StudentEvaluationService {
                     .filter(a -> a.getSkill() != null)
                     .collect(Collectors.toMap(ClassAssignment::getId, a -> a.getSkill().toUpperCase()));
             for (StudentAssignment sa : studentAssignmentRepository.findByAssignmentIds(assignmentIds)) {
-                if (sa.getScore() == null || !sa.getStudentId().equals(studentId)) continue;
+                // Final-only, same as skillReport (F01): the student must never see a grade derived
+                // from an AI proposal they were never announced.
+                if (sa.getScore() == null || !sa.getStudentId().equals(studentId)
+                        || !AssignmentStatus.isFinal(sa.getStatus())) continue;
                 String skill = skillByAssignment.getOrDefault(sa.getAssignmentId(), "GENERAL");
                 myScoresBySkill.computeIfAbsent(skill, k -> new ArrayList<>()).add(sa.getScore());
             }
@@ -192,7 +204,8 @@ public class StudentEvaluationService {
         Double schreiben = toDouble(cs.getSkillSchreiben(), myScoresBySkill.get("SCHREIBEN"));
         Double sprechen = toDouble(cs.getSkillSprechen(), myScoresBySkill.get("SPRECHEN"));
         Double total = avgOfPresent(horen, lesen, schreiben, sprechen);
-        return new MySkillReportDto(horen, lesen, schreiben, sprechen, total, SkillReportDto.gradeOf(total));
+        return new MySkillReportDto(horen, lesen, schreiben, sprechen, total, SkillReportDto.gradeOf(total),
+                cs.getTeacherComment(), cs.getEvaluatedAt());
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

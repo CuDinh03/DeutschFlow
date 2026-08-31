@@ -1,40 +1,42 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
+import { Pencil } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import {
   getMyTimesheet,
   recordTeaching,
+  updateRecord,
   deleteRecord,
   openPeriod,
+  myPeriods,
   submitPeriod,
   formatMinutes,
+  type SessionRecord,
   type TimesheetSummary,
   type TimesheetPeriod,
   type TimesheetSuggestion,
 } from '@/lib/timesheetApi'
-import { GaPageHdr, GaBtn, GaCap, TkBadge, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import {
+  GaPageHdr, GaBtn, GaCap, TkBadge, TkModal, ConfirmDialog, LoadingState, ErrorBanner,
+} from '@/components/ui-v2'
+import {
+  monthRange, periodOptions, rangeKey, hasPreviousMonthPeriod, submitAllowedFrom,
+  type PeriodRange,
+} from './periods'
 
 /**
  * Bảng công của chính giáo viên: xác nhận buổi đã dạy, xem tổng công, nộp kỳ cho quản lý duyệt.
  *
- * Buổi dạy KHÔNG tự động thành công. Lịch chỉ nói "lớp có buổi lúc đó", không nói ai đứng lớp — một
- * lớp có thể có trợ giảng hoặc người dạy thay. Vì vậy màn hình này liệt kê buổi đã qua chưa ghi công
- * để giáo viên xác nhận một chạm.
+ * Buổi dạy KHÔNG tự động thành công. Lịch chỉ nói "lớp có buổi lúc đó", không nói ai đứng lớp —
+ * lớp có thể có người dạy thay. Màn hình liệt kê buổi đã qua chưa ghi công để giáo viên xác nhận,
+ * kèm vai trò + thời lượng THỰC dạy (A4/F03: xác nhận một chạm từng gửi mỗi sessionId).
+ *
+ * Kỳ công chọn được (A4/F03): mặc định tháng này, nhưng ngày 01/09 vẫn mở/sửa/nộp được kỳ 08 còn
+ * OPEN/REJECTED — trước đây UI khóa cứng currentMonth nên đường đó không tồn tại dù backend cho phép.
  */
-
-/** Kỳ mặc định: tháng hiện tại (ranh giới theo lịch địa phương của người dùng). */
-function currentMonth(): { fromDate: string; toDate: string } {
-  const now = new Date()
-  const iso = (d: Date): string =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  return {
-    fromDate: iso(new Date(now.getFullYear(), now.getMonth(), 1)),
-    toDate: iso(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
-  }
-}
 
 function fmtWhen(iso: string): string {
   const d = new Date(iso)
@@ -42,29 +44,57 @@ function fmtWhen(iso: string): string {
   return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
+/** Vai trò chọn được khi ghi công. ASSISTANT vắng mặt có chủ đích: trợ giảng không tính công (PR B). */
+const RECORDABLE_ROLES = ['PRIMARY', 'SUBSTITUTE'] as const
+
+type RecordDialogState =
+  | { mode: 'confirm'; suggestion: TimesheetSuggestion }
+  | { mode: 'edit'; record: SessionRecord }
+  | null
+
 export default function TeacherTimesheetPage() {
   const t = useTranslations('v2.teacher.timesheet')
-  const range = useMemo(currentMonth, [])
+  const tc = useTranslations('v2.common')
 
+  const [range, setRange] = useState<PeriodRange>(() => monthRange(0))
+  const [periods, setPeriods] = useState<TimesheetPeriod[]>([])
   const [sheet, setSheet] = useState<TimesheetSummary | null>(null)
   const [period, setPeriod] = useState<TimesheetPeriod | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState<number | null>(null)
+
+  // Dialog ghi/sửa công — vai trò + thời lượng thực dạy + ghi chú.
+  const [recordDialog, setRecordDialog] = useState<RecordDialogState>(null)
+  const [formRole, setFormRole] = useState<string>('PRIMARY')
+  const [formDuration, setFormDuration] = useState<number | ''>('')
+  const [formNote, setFormNote] = useState('')
+  const [savingRecord, setSavingRecord] = useState(false)
+
+  const [deleteTarget, setDeleteTarget] = useState<SessionRecord | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [submitOpen, setSubmitOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const loadSeq = useRef(0)
 
-  const load = useCallback(async () => {
+  const refreshPeriods = useCallback(async () => {
+    try {
+      setPeriods(await myPeriods())
+    } catch {
+      // Danh sách kỳ chỉ phục vụ bộ chọn — lỗi không được chặn bảng công của kỳ đang xem.
+    }
+  }, [])
+
+  /** Tải kỳ + bảng công cho một range. `existing` = kỳ đã có trong danh sách (không mở kỳ mới). */
+  const load = useCallback(async (r: PeriodRange, existing: TimesheetPeriod | null) => {
     const seq = ++loadSeq.current
     setLoading(true)
     setError('')
     try {
-      // Kỳ được mở (hoặc lấy lại) trước, vì trạng thái của nó quyết định có cho sửa hay không.
-      const [p, s] = await Promise.all([
-        openPeriod(range.fromDate, range.toDate),
-        getMyTimesheet(`${range.fromDate}T00:00:00`, `${range.toDate}T23:59:59`),
-      ])
+      // Kỳ trước (trạng thái quyết định có cho sửa), rồi bảng công theo range của kỳ.
+      const p = existing ?? (await openPeriod(r.fromDate, r.toDate))
+      const s = await getMyTimesheet(`${r.fromDate}T00:00:00`, `${r.toDate}T23:59:59`)
       if (seq !== loadSeq.current) return
       setPeriod(p)
       setSheet(s)
@@ -74,46 +104,104 @@ export default function TeacherTimesheetPage() {
     } finally {
       if (seq === loadSeq.current) setLoading(false)
     }
-  }, [range])
+  }, [])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    void refreshPeriods()
+    void load(monthRange(0), null)
+  }, [load, refreshPeriods])
+
+  const options = periodOptions(periods)
+  const currentKey = rangeKey(range)
+
+  const selectPeriod = (key: string): void => {
+    const opt = options.find((o) => o.key === key)
+    if (!opt || key === currentKey) return
+    setRange(opt.range)
+    void load(opt.range, opt.period)
+  }
+
+  const openPrevMonth = async (): Promise<void> => {
+    const r = monthRange(-1)
+    setRange(r)
+    await load(r, null) // openPeriod tạo kỳ OPEN nếu chưa có (idempotent phía backend)
+    await refreshPeriods()
+  }
 
   const editable = period?.editable ?? true
+  const canSubmit = period != null && submitAllowedFrom(period.periodEnd)
 
-  const confirmSuggestion = async (s: TimesheetSuggestion): Promise<void> => {
-    setBusyId(s.sessionId)
+  // ── dialog ghi/sửa công ────────────────────────────────────────────────────
+
+  const openConfirmDialog = (s: TimesheetSuggestion): void => {
+    setFormRole('PRIMARY')
+    setFormDuration(s.plannedDurationMinutes)
+    setFormNote('')
+    setRecordDialog({ mode: 'confirm', suggestion: s })
+  }
+
+  const openEditDialog = (r: SessionRecord): void => {
+    setFormRole(RECORDABLE_ROLES.includes(r.teacherRole as (typeof RECORDABLE_ROLES)[number]) ? r.teacherRole : 'PRIMARY')
+    setFormDuration(r.durationMinutes)
+    setFormNote(r.note ?? '')
+    setRecordDialog({ mode: 'edit', record: r })
+  }
+
+  const saveRecordDialog = async (): Promise<void> => {
+    if (!recordDialog || formDuration === '' || formDuration <= 0) return
+    setSavingRecord(true)
     try {
-      await recordTeaching({ sessionId: s.sessionId })
-      toast.success(t('recordSuccess'))
-      await load()
+      if (recordDialog.mode === 'confirm') {
+        await recordTeaching({
+          sessionId: recordDialog.suggestion.sessionId,
+          durationMinutes: formDuration,
+          teacherRole: formRole,
+          note: formNote.trim() === '' ? null : formNote.trim(),
+        })
+        toast.success(t('recordSuccess'))
+      } else {
+        await updateRecord(recordDialog.record.id, {
+          durationMinutes: formDuration,
+          teacherRole: formRole,
+          note: formNote.trim() === '' ? null : formNote.trim(),
+        })
+        toast.success(t('updateSuccess'))
+      }
+      setRecordDialog(null)
+      await load(range, period)
     } catch (e) {
       toast.error(apiMessage(e))
     } finally {
-      setBusyId(null)
+      setSavingRecord(false)
     }
   }
 
-  const removeRecord = async (id: number): Promise<void> => {
-    if (typeof window !== 'undefined' && !window.confirm(t('deleteConfirm'))) return
-    setBusyId(id)
+  const confirmDelete = async (): Promise<void> => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    setBusyId(deleteTarget.id)
     try {
-      await deleteRecord(id)
+      await deleteRecord(deleteTarget.id)
       toast.success(t('deleteSuccess'))
-      await load()
+      setDeleteTarget(null)
+      await load(range, period)
     } catch (e) {
       toast.error(apiMessage(e))
     } finally {
+      setDeleting(false)
       setBusyId(null)
     }
   }
 
-  const submit = async (): Promise<void> => {
+  const confirmSubmit = async (): Promise<void> => {
     if (!period) return
-    if (typeof window !== 'undefined' && !window.confirm(t('submitConfirm'))) return
     setSubmitting(true)
     try {
-      setPeriod(await submitPeriod(period.id))
+      const updated = await submitPeriod(period.id)
+      setPeriod(updated)
       toast.success(t('submitSuccess'))
+      setSubmitOpen(false)
+      await refreshPeriods()
     } catch (e) {
       toast.error(apiMessage(e))
     } finally {
@@ -121,13 +209,47 @@ export default function TeacherTimesheetPage() {
     }
   }
 
+  const inputCls =
+    'ga-ui block w-full border border-ga-line bg-ga-bg px-3 py-2 text-[14px] text-ga-ink outline-none focus:border-ga-accent'
+
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
+      <GaPageHdr
+        accent
+        title={t('title')}
+        subtitle={t('subtitle')}
+        right={
+          <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
+            <label className="ga-ui text-[12.5px] font-semibold text-ga-muted" htmlFor="tk-period">
+              {t('periodLabel')}
+            </label>
+            <select
+              id="tk-period"
+              value={currentKey}
+              onChange={(e) => selectPeriod(e.target.value)}
+              disabled={loading}
+              className="ga-ui border border-ga-line bg-ga-card px-2.5 py-2 text-[13px] text-ga-ink outline-none focus:border-ga-accent"
+            >
+              {options.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.key === rangeKey(monthRange(0))
+                    ? t('periodCurrent')
+                    : `${o.range.fromDate} – ${o.range.toDate}${o.period ? ` · ${t(`status${o.period.status}`)}` : ''}`}
+                </option>
+              ))}
+            </select>
+            {!hasPreviousMonthPeriod(periods) && (
+              <GaBtn variant="ghost" size="sm" disabled={loading} onClick={() => void openPrevMonth()}>
+                {t('openPrevMonth')}
+              </GaBtn>
+            )}
+          </div>
+        }
+      />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         {loading && <LoadingState variant="skeleton" rows={4} />}
-        {!loading && error && <ErrorBanner message={error} onRetry={() => void load()} />}
+        {!loading && error && <ErrorBanner message={error} onRetry={() => void load(range, period)} />}
 
         {!loading && !error && sheet && (
           <>
@@ -178,9 +300,8 @@ export default function TeacherTimesheetPage() {
                         </span>
                         <GaBtn
                           size="sm"
-                          loading={busyId === s.sessionId}
-                          disabled={busyId !== null}
-                          onClick={() => void confirmSuggestion(s)}
+                          disabled={busyId !== null || savingRecord}
+                          onClick={() => openConfirmDialog(s)}
                         >
                           {t('confirmSession')}
                         </GaBtn>
@@ -224,15 +345,25 @@ export default function TeacherTimesheetPage() {
                           </td>
                           <td className="border border-ga-line px-3 py-2 text-right">
                             {editable && (
-                              <GaBtn
-                                size="sm"
-                                variant="ghost"
-                                loading={busyId === r.id}
-                                disabled={busyId !== null}
-                                onClick={() => void removeRecord(r.id)}
-                              >
-                                {t('delete')}
-                              </GaBtn>
+                              <span className="inline-flex gap-1">
+                                <GaBtn
+                                  size="sm"
+                                  variant="ghost"
+                                  disabled={busyId !== null || savingRecord}
+                                  onClick={() => openEditDialog(r)}
+                                >
+                                  <Pencil size={13} aria-hidden /> {t('edit')}
+                                </GaBtn>
+                                <GaBtn
+                                  size="sm"
+                                  variant="ghost"
+                                  loading={busyId === r.id && deleting}
+                                  disabled={busyId !== null || savingRecord}
+                                  onClick={() => setDeleteTarget(r)}
+                                >
+                                  {t('delete')}
+                                </GaBtn>
+                              </span>
                             )}
                           </td>
                         </tr>
@@ -244,8 +375,15 @@ export default function TeacherTimesheetPage() {
             </section>
 
             {editable && period && sheet.records.length > 0 && (
-              <div className="mt-5 flex justify-end">
-                <GaBtn loading={submitting} onClick={() => void submit()}>{t('submit')}</GaBtn>
+              <div className="mt-5 flex flex-col items-end gap-1.5">
+                <GaBtn disabled={!canSubmit || submitting} onClick={() => setSubmitOpen(true)}>
+                  {t('submit')}
+                </GaBtn>
+                {!canSubmit && (
+                  <p className="ga-ui text-[12px] text-ga-muted">
+                    {t('submitEarlyHint', { date: period.periodEnd })}
+                  </p>
+                )}
               </div>
             )}
 
@@ -253,6 +391,100 @@ export default function TeacherTimesheetPage() {
           </>
         )}
       </div>
+
+      {/* Dialog xác nhận buổi / sửa dòng công — vai trò + thời lượng THỰC dạy quyết định số công. */}
+      <TkModal
+        open={recordDialog != null}
+        onOpenChange={(o) => { if (!o && !savingRecord) setRecordDialog(null) }}
+        title={recordDialog?.mode === 'edit' ? t('editTitle') : t('confirmTitle')}
+        description={
+          recordDialog?.mode === 'confirm'
+            ? `${fmtWhen(recordDialog.suggestion.startedAt)} · ${recordDialog.suggestion.className ?? `#${recordDialog.suggestion.classId}`}`
+            : recordDialog?.mode === 'edit'
+              ? `${fmtWhen(recordDialog.record.startedAt)} · ${recordDialog.record.className ?? '—'}`
+              : undefined
+        }
+        size="sm"
+        footer={
+          <>
+            <GaBtn variant="ghost" disabled={savingRecord} onClick={() => setRecordDialog(null)}>
+              {tc('cancel')}
+            </GaBtn>
+            <GaBtn
+              loading={savingRecord}
+              disabled={formDuration === '' || formDuration <= 0}
+              onClick={() => void saveRecordDialog()}
+            >
+              {tc('save')}
+            </GaBtn>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <label className="ga-ui block text-[12.5px] font-semibold text-ga-muted">
+            {t('roleLabel')}
+            <select
+              value={formRole}
+              onChange={(e) => setFormRole(e.target.value)}
+              className={`mt-1 ${inputCls}`}
+            >
+              {RECORDABLE_ROLES.map((role) => (
+                <option key={role} value={role}>{t(`role${role}`)}</option>
+              ))}
+            </select>
+          </label>
+          <label className="ga-ui block text-[12.5px] font-semibold text-ga-muted">
+            {t('durationLabel')}
+            <input
+              type="number"
+              min={1}
+              max={1440}
+              value={formDuration}
+              onChange={(e) => setFormDuration(e.target.value === '' ? '' : Math.min(1440, Math.max(0, Number(e.target.value))))}
+              className={`mt-1 ${inputCls}`}
+            />
+          </label>
+          <label className="ga-ui block text-[12.5px] font-semibold text-ga-muted">
+            {t('noteLabel')}
+            <input value={formNote} onChange={(e) => setFormNote(e.target.value)} className={`mt-1 ${inputCls}`} />
+          </label>
+        </div>
+      </TkModal>
+
+      {/* Xóa dòng công — chuẩn §2.11: ConfirmDialog nêu đối tượng + hệ quả, không window.confirm. */}
+      <ConfirmDialog
+        open={deleteTarget != null}
+        onOpenChange={(o) => { if (!o && !deleting) setDeleteTarget(null) }}
+        title={t('deleteTitle')}
+        description={deleteTarget
+          ? `${fmtWhen(deleteTarget.startedAt)} · ${deleteTarget.className ?? '—'} · ${formatMinutes(deleteTarget.durationMinutes)}`
+          : undefined}
+        details={[t('deleteDetail')]}
+        confirmLabel={t('delete')}
+        cancelLabel={tc('cancel')}
+        loading={deleting}
+        onConfirm={() => void confirmDelete()}
+      />
+
+      {/* Nộp kỳ — không phá hoại nhưng ĐÓNG BĂNG mọi dòng công trong kỳ nên vẫn phải xác nhận rõ. */}
+      <ConfirmDialog
+        open={submitOpen}
+        onOpenChange={(o) => { if (!o && !submitting) setSubmitOpen(o) }}
+        title={t('submitTitle')}
+        description={period ? `${period.periodStart} – ${period.periodEnd}` : undefined}
+        details={[
+          t('submitDetail', {
+            sessions: sheet?.totalSessions ?? 0,
+            minutes: formatMinutes(sheet?.totalMinutes ?? 0),
+          }),
+          t('submitFreezeNote'),
+        ]}
+        confirmLabel={t('submit')}
+        cancelLabel={tc('cancel')}
+        destructive={false}
+        loading={submitting}
+        onConfirm={() => void confirmSubmit()}
+      />
     </div>
   )
 }

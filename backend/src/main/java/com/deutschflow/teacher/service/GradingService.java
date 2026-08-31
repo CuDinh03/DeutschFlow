@@ -69,6 +69,8 @@ public class GradingService {
     /** Throttle admin AI-grading alerts so a systemic outage (LLM env down) can't flood the bell. */
     private static final long GRADING_ALERT_COOLDOWN_MS = 10 * 60 * 1000L;
     private final AtomicLong lastGradingAlertMs = new AtomicLong(0);
+    /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
+    private final SubmissionFileUrlResolver submissionFileUrlResolver;
 
     /**
      * Lấy toàn bộ bài nộp cần chấm (status=SUBMITTED) thuộc các lớp của giáo viên.
@@ -140,7 +142,7 @@ public class GradingService {
             item.put("status", sa.getStatus());
             item.put("submittedAt", sa.getSubmittedAt());
             item.put("submissionContent", sa.getSubmissionContent());
-            item.put("submissionFileUrl", sa.getSubmissionFileUrl());
+            item.put("submissionFileUrl", submissionFileUrlResolver.resolve(sa.getSubmissionFileUrl()));
             item.put("score", sa.getScore());
             item.put("feedback", sa.getFeedback());
             item.put("attachmentUrl", ca != null ? ca.getAttachmentUrl() : null);
@@ -264,7 +266,7 @@ public class GradingService {
                 item.put("submittedAt", sa.getSubmittedAt());
                 item.put("gradedAt", sa.getGradedAt());
                 item.put("submissionContent", sa.getSubmissionContent());
-                item.put("submissionFileUrl", sa.getSubmissionFileUrl());
+                item.put("submissionFileUrl", submissionFileUrlResolver.resolve(sa.getSubmissionFileUrl()));
             } else {
                 item.put("submissionId", null);
                 item.put("status", "NOT_SUBMITTED");

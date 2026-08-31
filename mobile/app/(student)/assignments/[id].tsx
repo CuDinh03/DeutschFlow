@@ -15,7 +15,7 @@ import {
 } from 'expo-audio'
 import {
   AlertCircle, Camera, CheckCircle2, Clock, ExternalLink, FileText, Image as ImageIcon,
-  Link2, MessageSquare, Mic, Music, Paperclip, Square, Upload, Video as VideoIcon, X,
+  Link2, MessageSquare, Mic, Music, Paperclip, Square, Upload, Video as VideoIcon, X, RotateCcw,
 } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
@@ -38,6 +38,13 @@ const TYPE_LABELS: Record<string, string> = {
 const typeLabel = (t: string) => TYPE_LABELS[t] ?? 'Bài tập chung'
 
 const isGraded = (status: string) => status === 'GRADED' || status === 'EVALUATED'
+/**
+ * Nộp lại được chừng nào giáo viên CHƯA chốt điểm. AI_GRADED nằm trong nhóm này: AI mới đề xuất điểm
+ * và học viên chưa hề thấy nó. Backend trước đây chặn mọi trạng thái khác PENDING, nên chọn nhầm ảnh
+ * hay thu âm hỏng là vĩnh viễn — không có đường rút hay thay bài nộp.
+ */
+const canResubmit = (status: string) =>
+  status === 'SUBMITTED' || status === 'AI_GRADED' || status === 'GRADING_FAILED'
 const isSubmitted = (status: string) => status === 'SUBMITTED' || isGraded(status)
 
 const MATERIAL_KIND_ICON: Record<MaterialKind, typeof FileText> = {
@@ -72,6 +79,8 @@ export default function AssignmentDetail() {
 
   const [content, setContent] = useState('')
   const [file, setFile] = useState<UploadFile | null>(null)
+  /** Mở lại ô soạn để nộp bản khác đè lên bản đã nộp. */
+  const [resubmitting, setResubmitting] = useState(false)
 
   const submitMut = useMutation({
     // Upload the attachment (if any) to S3 first, then submit with its URL. isPending covers
@@ -91,6 +100,7 @@ export default function AssignmentDetail() {
       void queryClient.invalidateQueries({ queryKey: ['my-classes'] })
       setContent('')
       setFile(null)
+      setResubmitting(false)
     },
     onError: (e) => Alert.alert('Nộp bài thất bại', apiMessage(e)),
   })
@@ -121,6 +131,7 @@ export default function AssignmentDetail() {
   const a = detailQ.data
   const pending = a.status === 'PENDING'
   const speaking = a.assignmentType === 'SPEAKING_SCENARIO'
+  const showForm = pending || resubmitting
 
   return (
     <Screen>
@@ -139,8 +150,8 @@ export default function AssignmentDetail() {
           <DescriptionCard assignment={a} />
           <MaterialsCard assignmentId={assignmentId} />
 
-          {pending && speaking && <SpeakingNotice />}
-          {pending && !speaking && (
+          {showForm && speaking && <SpeakingNotice />}
+          {showForm && !speaking && (
             <SubmitForm
               content={content}
               setContent={setContent}
@@ -156,7 +167,17 @@ export default function AssignmentDetail() {
               }}
             />
           )}
-          {!pending && <SubmissionView assignment={a} />}
+          {!showForm && (
+            <SubmissionView
+              assignment={a}
+              onResubmit={canResubmit(a.status) ? () => {
+                // Mở lại ô soạn với chính nội dung đã nộp, để sửa chứ không phải gõ lại từ đầu.
+                setContent(a.submissionContent ?? '')
+                setFile(null)
+                setResubmitting(true)
+              } : undefined}
+            />
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -594,7 +615,7 @@ function SpeakingNotice() {
   )
 }
 
-function SubmissionView({ assignment: a }: { assignment: StudentAssignment }) {
+function SubmissionView({ assignment: a, onResubmit }: { assignment: StudentAssignment; onResubmit?: () => void }) {
   const c = useTheme().colors
   const openFile = async () => {
     if (!a.submissionFileUrl) return
@@ -619,6 +640,14 @@ function SubmissionView({ assignment: a }: { assignment: StudentAssignment }) {
               <ThemedText variant="caption" color="muted">
                 Nộp lúc {new Date(a.submittedAt).toLocaleString('vi-VN')}
               </ThemedText>
+            )}
+            {onResubmit && (
+              <>
+                <Button label="Nộp lại" variant="ghost" size="sm" icon={RotateCcw} fullWidth={false} onPress={onResubmit} />
+                <ThemedText variant="caption" color="muted">
+                  Nộp nhầm bài? Bạn vẫn nộp lại được cho tới khi giáo viên chấm.
+                </ThemedText>
+              </>
             )}
           </View>
         </Card>

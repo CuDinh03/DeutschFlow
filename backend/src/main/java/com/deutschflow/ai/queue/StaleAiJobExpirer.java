@@ -29,7 +29,8 @@ import org.springframework.stereotype.Component;
  * </ul>
  *
  * <p>Method mang @SchedulerLock phải trả {@code void} (ShedLock ném LockingNotSupportedException
- * với kiểu nguyên thuỷ).
+ * với kiểu nguyên thuỷ) — {@code SchedulerLockVoidContractTest} khoá ràng buộc này cho MỌI entry
+ * point bằng quét bytecode.
  */
 @Component
 @RequiredArgsConstructor

@@ -38,6 +38,15 @@ public class ClassSchedulePattern {
     @Column(name = "duration_minutes", nullable = false)
     private int durationMinutes;
 
+    /** Phút HỌC mỗi buổi sinh từ pattern (D04). NULL = chưa tách (teaching = durationMinutes). */
+    @Column(name = "teaching_minutes")
+    private Integer teachingMinutes;
+
+    /** Phút GIẢI LAO mỗi buổi (D04: 15'). Default 0 (V292). */
+    @Column(name = "break_minutes", nullable = false)
+    @Builder.Default
+    private int breakMinutes = 0;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "default_mode", nullable = false)
     @Builder.Default

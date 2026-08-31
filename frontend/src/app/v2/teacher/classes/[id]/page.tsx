@@ -5,18 +5,19 @@ import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
   Plus, Mail, ChevronRight, AlertTriangle, Trophy,
-  ArrowLeft, Sparkles, Mic, PenLine, FileText, BookOpen, SpellCheck, UserPlus, Trash2,
+  ArrowLeft, Sparkles, Mic, PenLine, FileText, BookOpen, SpellCheck, UserPlus, Trash2, Pencil,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
+import { sendMessage } from '@/lib/messagesApi'
 import { listLessons, type ClassLesson } from '@/lib/teacherLessonsApi'
 import { type Material } from '@/lib/materialApi'
 import { AssignmentMaterialPicker } from './AssignmentMaterialPicker'
 import { AssignmentMaterialsStrip } from './AssignmentMaterialsStrip'
 import {
   GaPageHdr, GaBtn, GaCap, TkStatStrip, TkSearch, TkModal,
-  TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent,
+  TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent, ConfirmDialog,
 } from '@/components/ui-v2'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import { useUserStore } from '@/stores/useUserStore'
@@ -45,7 +46,7 @@ interface Student {
   skillHoren: number | null; skillLesen: number | null; skillSchreiben: number | null; skillSprechen: number | null
   evaluatedAt: string | null
 }
-interface Assignment { id: number; topic: string; description: string; assignmentType: string; dueDate: string | null; createdAt: string; lessonId?: number | null }
+interface Assignment { id: number; topic: string; description: string; assignmentType: string; skill?: string | null; dueDate: string | null; createdAt: string; attachmentUrl?: string | null; lessonId?: number | null }
 interface ActionItem { title: string; detail: string; priority: string }
 interface Analytics {
   totalStudents: number; totalXp: number; completedAssignments: number
@@ -136,6 +137,12 @@ export default function V2ClassDetailPage() {
   const [sort, setSort] = useState<{ col: SortCol; dir: 'asc' | 'desc' }>({ col: 'xp', dir: 'desc' })
   const [selected, setSelected] = useState<Record<number, boolean>>({})
   const [modal, setModal] = useState(false)
+
+  // A6/F13: chọn NHIỀU học viên giờ nhắn được cho tất cả — trước đây nút chỉ nhận đúng 1 người
+  // dù roster cho tick nhiều ô. Gửi lần lượt qua API DM 1-1 sẵn có, báo rõ người gửi trượt.
+  const [groupMsgOpen, setGroupMsgOpen] = useState(false)
+  const [groupMsgBody, setGroupMsgBody] = useState('')
+  const [groupMsgSending, setGroupMsgSending] = useState(false)
 
   // Co-teaching (buried BE→v2). List is supplementary; add/remove gated to the PRIMARY teacher.
   const [teachers, setTeachers] = useState<ClassTeacher[]>([])
@@ -254,6 +261,30 @@ export default function V2ClassDetailPage() {
   )
 
   const isPrimary = useMemo(() => isPrimaryTeacher(teachers, currentUserId), [teachers, currentUserId])
+  /** Bài tập đang được sửa; null = modal ở chế độ tạo mới. */
+  const [editing, setEditing] = useState<Assignment | null>(null)
+  const [deletingTask, setDeletingTask] = useState<number | null>(null)
+  /** Bài tập đang chờ xác nhận xoá trong ConfirmDialog; null = dialog đóng. */
+  const [confirmDelete, setConfirmDelete] = useState<Assignment | null>(null)
+
+  /**
+   * Xoá một bài tập đã giao. Backend chỉ cho xoá khi CHƯA ai nộp (ba bảng con đều ON DELETE CASCADE,
+   * nên xoá bài đã có người nộp sẽ kéo theo bài làm và điểm) — thông điệp 409 nói rõ số người đã nộp
+   * nên cứ hiển thị nguyên văn cho giáo viên.
+   */
+  const deleteTask = useCallback(async (task: Assignment) => {
+    setDeletingTask(task.id)
+    try {
+      await api.delete(`/v2/teacher/classes/${id}/assignments/${task.id}`)
+      toast.success(t('deleteTaskSuccess'))
+      setConfirmDelete(null)
+      await load()
+    } catch (e: unknown) {
+      toast.error(apiMessage(e))
+    } finally {
+      setDeletingTask(null)
+    }
+  }, [id, t, load])
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -376,10 +407,16 @@ export default function V2ClassDetailPage() {
                         type="button"
                         onClick={() => {
                           const ids = Object.entries(selected).filter(([, v]) => v).map(([k]) => Number(k))
-                          if (ids.length !== 1) { toast(t('messagePickOne')); return }
-                          const s = students.find((x) => x.studentId === ids[0])
-                          if (s) router.push(`/v2/teacher/messages?to=${s.studentId}&name=${encodeURIComponent(s.displayName)}`)
-                          setSelected({})
+                          if (ids.length === 0) return
+                          // 1 người: mở thẳng luồng chat 1-1 như cũ; nhiều người: dialog nhắn nhóm.
+                          if (ids.length === 1) {
+                            const s = students.find((x) => x.studentId === ids[0])
+                            if (s) router.push(`/v2/teacher/messages?to=${s.studentId}&name=${encodeURIComponent(s.displayName)}`)
+                            setSelected({})
+                            return
+                          }
+                          setGroupMsgBody('')
+                          setGroupMsgOpen(true)
                         }}
                         className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 border border-ga-line px-2.5 py-1.5 text-[11.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
                       >
@@ -390,6 +427,70 @@ export default function V2ClassDetailPage() {
                 </div>
                 <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchStudent')} containerClassName="w-full sm:w-[220px]" />
               </div>
+
+              {/* Nhắn nhóm: một nội dung gửi lần lượt tới TỪNG học viên đã chọn (DM 1-1, không phải kênh lớp). */}
+              <TkModal
+                open={groupMsgOpen}
+                onOpenChange={(o) => { if (!groupMsgSending) setGroupMsgOpen(o) }}
+                title={t('groupMessageTitle', { count: selCount })}
+                description={t('groupMessageDesc')}
+                size="sm"
+                footer={
+                  <>
+                    <GaBtn variant="ghost" disabled={groupMsgSending} onClick={() => setGroupMsgOpen(false)}>
+                      {tc('cancel')}
+                    </GaBtn>
+                    <GaBtn
+                      loading={groupMsgSending}
+                      disabled={groupMsgBody.trim() === ''}
+                      onClick={() => void (async () => {
+                        const ids = Object.entries(selected).filter(([, v]) => v).map(([k]) => Number(k))
+                        const body = groupMsgBody.trim()
+                        if (ids.length === 0 || body === '') return
+                        setGroupMsgSending(true)
+                        let ok = 0
+                        const failedIds: number[] = []
+                        for (const sid of ids) {
+                          try {
+                            await sendMessage(sid, body)
+                            ok += 1
+                          } catch {
+                            failedIds.push(sid)
+                          }
+                        }
+                        setGroupMsgSending(false)
+                        if (failedIds.length === 0) {
+                          toast.success(t('groupMessageSent', { count: ok }))
+                          setGroupMsgOpen(false)
+                          setGroupMsgBody('')
+                          setSelected({})
+                        } else {
+                          // Thu hẹp selection về ĐÚNG những người trượt: bấm "Gửi" lại chỉ gửi cho họ —
+                          // người đã nhận không thể nhận đôi (overlay modal chặn roster nên không thể
+                          // trông chờ giáo viên tự bỏ tick).
+                          const onlyFailed: Record<number, boolean> = {}
+                          failedIds.forEach((sid) => { onlyFailed[sid] = true })
+                          setSelected(onlyFailed)
+                          const names = failedIds
+                            .map((sid) => students.find((x) => x.studentId === sid)?.displayName ?? `#${sid}`)
+                            .join(', ')
+                          toast.error(t('groupMessageFailed', { count: failedIds.length, names }))
+                        }
+                      })()}
+                    >
+                      {t('groupMessageSend')}
+                    </GaBtn>
+                  </>
+                }
+              >
+                <textarea
+                  value={groupMsgBody}
+                  onChange={(e) => setGroupMsgBody(e.target.value)}
+                  rows={4}
+                  placeholder={t('groupMessagePlaceholder')}
+                  className="ga-ui block w-full border border-ga-line bg-ga-bg px-3 py-2.5 text-[14px] text-ga-ink outline-none focus:border-ga-accent"
+                />
+              </TkModal>
 
               <div className="overflow-x-auto border border-ga-line bg-ga-card lg:overflow-x-visible">
                 <div className="grid min-w-[720px] items-center gap-2 border-b border-ga-line bg-ga-bg px-[18px] py-[11px] lg:min-w-0" style={{ gridTemplateColumns: '34px 1fr 84px 74px 68px 118px 84px' }}>
@@ -492,7 +593,23 @@ export default function V2ClassDetailPage() {
                               <AlertTriangle size={13} /> {t('pendingGrade', { count: pending })}
                             </span>
                           )}
-                          <GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/teacher/grading')}>
+                          {isPrimary && (
+                            <>
+                              <GaBtn variant="ghost" size="sm" onClick={() => { setEditing(task); setModal(true) }}>
+                                <Pencil size={14} /> {t('editTask')}
+                              </GaBtn>
+                              <GaBtn
+                                variant="ghost"
+                                size="sm"
+                                loading={deletingTask === task.id}
+                                disabled={deletingTask === task.id}
+                                onClick={() => setConfirmDelete(task)}
+                              >
+                                <Trash2 size={14} /> {t('deleteTask')}
+                              </GaBtn>
+                            </>
+                          )}
+                          <GaBtn variant="ghost" size="sm" onClick={() => router.push(`/v2/teacher/grading?classId=${id}`)}>
                             {t('viewSubmissions')} <ChevronRight size={14} />
                           </GaBtn>
                         </div>
@@ -594,7 +711,22 @@ export default function V2ClassDetailPage() {
         )}
       </div>
 
-      <AddAssignmentModal open={modal} onOpenChange={setModal} classId={id} lessons={lessons} onCreated={load} />
+      <AddAssignmentModal open={modal} onOpenChange={(o) => { setModal(o); if (!o) setEditing(null) }} classId={id} lessons={lessons} onCreated={load} editing={editing} />
+
+      {/* Chuẩn xoá toàn sản phẩm: ConfirmDialog nêu hệ quả, không window.confirm. */}
+      {confirmDelete && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => { if (!o) setConfirmDelete(null) }}
+          title={t('deleteTaskConfirmTitle')}
+          description={t('deleteTaskConfirmDesc', { topic: confirmDelete.topic })}
+          details={[t('deleteTaskConfirmDetailPending'), t('deleteTaskConfirmDetailSubmitted')]}
+          confirmLabel={t('deleteTask')}
+          cancelLabel={tc('cancel')}
+          loading={deletingTask === confirmDelete.id}
+          onConfirm={() => void deleteTask(confirmDelete)}
+        />
+      )}
     </div>
   )
 }
@@ -733,18 +865,55 @@ function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics |
   )
 }
 
-// ── Add-assignment modal (real POST) ─────────────────────────────────────────
-function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; classId: number; lessons: ClassLesson[]; onCreated: () => void }) {
+/**
+ * Kỹ năng của bài tập, ghi vào `class_assignments.skill`.
+ *
+ * Chuỗi phải đúng từng chữ: backend tra "HOREN" KHÔNG có E cho bảng điểm 4 kỹ năng
+ * (can-do statement thì lại dùng "HOEREN" — hai quy ước khác nhau), và `resolveSkillKey`
+ * của sổ điểm cũng chỉ nhận dạng không E. Sai một chữ là điểm rơi vào ô "không kỹ năng".
+ *
+ * Trường này từng bị hardcode 'GENERAL' ở đây khi port từ v1 sang: mọi bài tập giao từ web
+ * đều không mang kỹ năng, nên nhánh "trung bình bài tập theo kỹ năng" của bảng điểm — cả phía
+ * giáo viên lẫn phía học viên — không bao giờ có dữ liệu để chạy.
+ */
+const ASSIGNMENT_SKILLS = ['GENERAL', 'HOREN', 'LESEN', 'SCHREIBEN', 'SPRECHEN'] as const
+
+/** ISO datetime → yyyy-MM-dd cho <input type="date"> (đổ lại hạn nộp khi sửa). */
+const toDateInput = (iso: string | null | undefined): string => (iso ? format(new Date(iso), 'yyyy-MM-dd') : '')
+
+/**
+ * Modal giao bài — dùng cho CẢ tạo mới lẫn sửa (`editing != null`).
+ *
+ * Sửa đi đường PATCH và chỉ gửi metadata; loại bài tập không đổi được (một bài SPEAKING_SCENARIO đã
+ * sinh kịch bản AI và trỏ tới nó qua referenceId) và tài liệu đính kèm giữ nguyên như lúc giao.
+ */
+function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated, editing }: { open: boolean; onOpenChange: (o: boolean) => void; classId: number; lessons: ClassLesson[]; onCreated: () => void; editing?: Assignment | null }) {
   const t = useTranslations('v2.teacher.classDetail')
   const tc = useTranslations('v2.common')
+  const isEdit = !!editing
   const [topic, setTopic] = useState('')
   const [description, setDescription] = useState('')
   const [attachmentUrl, setAttachmentUrl] = useState('')
   const [materials, setMaterials] = useState<Material[]>([])
   const [type, setType] = useState('GENERAL')
+  const [skill, setSkill] = useState<string>('GENERAL')
   const [due, setDue] = useState('')
   const [lessonId, setLessonId] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // Đổ lại giá trị mỗi lần mở: mở để SỬA thì lấy từ bài đang sửa, mở để TẠO thì về mặc định — nếu
+  // không reset, form còn giữ nội dung của lần mở trước.
+  useEffect(() => {
+    if (!open) return
+    setTopic(editing?.topic ?? '')
+    setDescription(editing?.description ?? '')
+    setAttachmentUrl(editing?.attachmentUrl ?? '')
+    setType(editing?.assignmentType ?? 'GENERAL')
+    setSkill(editing?.skill ?? 'GENERAL')
+    setDue(toDateInput(editing?.dueDate))
+    setLessonId(editing?.lessonId != null ? String(editing.lessonId) : '')
+    setMaterials([])
+  }, [open, editing])
 
   const submit = async () => {
     if (!topic.trim()) { toast.error(t('modalTopicRequired')); return }
@@ -752,6 +921,25 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
     if (link && !/^https?:\/\//i.test(link)) { toast.error(t('modalLinkInvalid')); return }
     setSaving(true)
     try {
+      if (isEdit) {
+        // Cờ clear* cần thiết vì backend không phân biệt được "không gửi" với "gửi null":
+        // trường bỏ trống ở đây là ý muốn XOÁ giá trị, không phải giữ nguyên.
+        await api.patch(`/v2/teacher/classes/${classId}/assignments/${editing!.id}`, {
+          topic: topic.trim(),
+          description: description.trim(),
+          skill,
+          dueDate: due ? new Date(due).toISOString() : null,
+          clearDueDate: !due,
+          attachmentUrl: link || null,
+          clearAttachmentUrl: !link,
+          lessonId: lessonId ? Number(lessonId) : null,
+          clearLessonId: !lessonId,
+        })
+        toast.success(t('modalEditSuccess'))
+        onOpenChange(false)
+        onCreated()
+        return
+      }
       await api.post(`/v2/teacher/classes/${classId}/assignments`, {
         topic: topic.trim(),
         // Real values now instead of hardcoded '' / null: students saw a one-line topic and no way to
@@ -760,7 +948,7 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
         // presigned S3 link; hosted files reach students via library materials instead).
         description: description.trim(),
         assignmentType: type,
-        skill: 'GENERAL',
+        skill,
         dueDate: due ? new Date(due).toISOString() : null,
         attachmentUrl: link || null,
         lessonId: lessonId ? Number(lessonId) : null,
@@ -769,7 +957,7 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
         materialIds: materials.map((m) => m.id),
       })
       toast.success(t('modalCreateSuccess'))
-      setTopic(''); setDescription(''); setAttachmentUrl(''); setMaterials([]); setType('GENERAL'); setDue(''); setLessonId('')
+      setTopic(''); setDescription(''); setAttachmentUrl(''); setMaterials([]); setType('GENERAL'); setSkill('GENERAL'); setDue(''); setLessonId('')
       onOpenChange(false)
       onCreated()
     } catch (e: unknown) {
@@ -785,12 +973,12 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
     <TkModal
       open={open}
       onOpenChange={onOpenChange}
-      title={t('modalTitle')}
+      title={isEdit ? t('modalEditTitle') : t('modalTitle')}
       size="sm"
       footer={
         <>
           <GaBtn variant="ghost" size="sm" onClick={() => onOpenChange(false)}>{tc('cancel')}</GaBtn>
-          <GaBtn variant="yellow" size="sm" loading={saving} onClick={submit}>{t('modalAssign')}</GaBtn>
+          <GaBtn variant="yellow" size="sm" loading={saving} onClick={submit}>{isEdit ? t('modalSaveEdit') : t('modalAssign')}</GaBtn>
         </>
       }
     >
@@ -808,7 +996,7 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
             placeholder={t('modalDescPlaceholder')}
           />
         </div>
-        <AssignmentMaterialPicker selected={materials} onChange={setMaterials} />
+        {!isEdit && <AssignmentMaterialPicker selected={materials} onChange={setMaterials} />}
         <div>
           <GaCap className="mb-2 block">{t('modalLinkCap')}</GaCap>
           <input
@@ -819,11 +1007,17 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
             placeholder={t('modalLinkPlaceholder')}
           />
         </div>
-        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
           <div>
             <GaCap className="mb-2 block">{t('modalTypeCap')}</GaCap>
-            <select className={field} value={type} onChange={(e) => setType(e.target.value)}>
+            <select className={field} value={type} disabled={isEdit} onChange={(e) => setType(e.target.value)}>
               {ASSIGNMENT_TYPES.map((at) => <option key={at} value={at}>{t(`types.${metaOf(at).labelKey}`)}</option>)}
+            </select>
+          </div>
+          <div>
+            <GaCap className="mb-2 block">{t('modalSkillCap')}</GaCap>
+            <select className={field} value={skill} onChange={(e) => setSkill(e.target.value)}>
+              {ASSIGNMENT_SKILLS.map((sk) => <option key={sk} value={sk}>{t(`skills.${sk}`)}</option>)}
             </select>
           </div>
           <div>
@@ -831,6 +1025,7 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
             <input type="date" className={field} value={due} onChange={(e) => setDue(e.target.value)} />
           </div>
         </div>
+        <p className="ga-ui -mt-1 text-[12px] text-ga-muted">{t('modalSkillHint')}</p>
         {lessons.length > 0 && (
           <div>
             <GaCap className="mb-2 block">{t('modalLessonCap')}</GaCap>

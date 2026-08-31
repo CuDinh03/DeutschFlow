@@ -77,6 +77,8 @@ public class TeacherService {
     private final ClassDeletionGuard classDeletionGuard;
     private final AuditLogService auditLogService;
     private final com.deutschflow.organization.service.OrgMembershipService orgMembershipService;
+    /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
+    private final SubmissionFileUrlResolver submissionFileUrlResolver;
 
     /** Tên lớp: bắt buộc, tối đa {@value #MAX_CLASS_NAME_LENGTH} ký tự (cột DB là varchar(255)). */
     private static final int MAX_CLASS_NAME_LENGTH = 255;
@@ -755,7 +757,7 @@ public class TeacherService {
                 .topic(req.topic())
                 .description(req.description())
                 .assignmentType(req.assignmentType())
-                .skill(req.skill() != null ? req.skill().toUpperCase() : "GENERAL")
+                .skill(normalizeSkill(req.skill()))
                 .referenceId(req.referenceId())
                 .dueDate(req.dueDate())
                 .attachmentUrl(req.attachmentUrl())
@@ -817,6 +819,120 @@ public class TeacherService {
         );
 
         return toAssignmentDto(savedAssignment);
+    }
+
+    /**
+     * Bộ kỹ năng hợp lệ của một bài tập lớp. Cố ý viết {@code HOREN} KHÔNG có E: đây là quy ước của
+     * cột {@code class_assignments.skill} — khác {@code can_do_statements.skill_tag} vốn dùng
+     * {@code HOEREN} (xem {@code StudentCompetencyService#toCanDoSkillTag}). Bảng điểm 4 kỹ năng ở cả
+     * hai phía tra đúng chuỗi này, nên ghi sai một chữ là điểm rơi thẳng vào ô "không kỹ năng".
+     */
+    private static final Set<String> ASSIGNMENT_SKILLS =
+            Set.of("GENERAL", "HOREN", "LESEN", "SCHREIBEN", "SPRECHEN");
+
+    /**
+     * Chuẩn hoá kỹ năng do client gửi lên; rác thì từ chối thay vì ghi vào DB.
+     *
+     * <p>Trước đây giá trị được {@code toUpperCase()} rồi ghi thẳng, không kiểm gì — mà cột này là
+     * đầu vào của bảng điểm 4 kỹ năng và của bộ lọc sổ điểm, nên một chuỗi lạ sẽ âm thầm tạo ra một
+     * "kỹ năng" mà không màn hình nào biết cách hiển thị.
+     */
+    private static String normalizeSkill(String raw) {
+        if (raw == null || raw.isBlank()) return "GENERAL";
+        String v = raw.trim().toUpperCase();
+        // Nhận cả cách viết có E của can-do statement để client nào lỡ gửi HOEREN vẫn về đúng ô Nghe.
+        if ("HOEREN".equals(v)) v = "HOREN";
+        if (!ASSIGNMENT_SKILLS.contains(v)) {
+            throw new BadRequestException("Kỹ năng không hợp lệ: " + raw);
+        }
+        return v;
+    }
+
+    /**
+     * Sửa một bài tập đã giao. Chỉ giáo viên chính, và bài phải thuộc đúng lớp trong đường dẫn.
+     *
+     * <p>Cho sửa kể cả khi đã có người nộp: đề bài gõ nhầm, hạn đặt sai hay gắn nhầm bài học là
+     * chuyện thường, và trước đây KHÔNG có đường nào sửa — không PATCH, không DELETE — nên một bài
+     * giao nhầm nằm lại vĩnh viễn trên màn hình của cả lớp. Điểm và bài nộp không bị đụng tới.
+     *
+     * <p>Không bắn thông báo: đây là sửa chính tả/metadata, còn mọi học viên trong lớp đều đã nhận
+     * "📋 Bài tập mới" lúc giao. Nếu sau này {@code dueDate} thực sự được dùng (nhắc hạn, chặn nộp
+     * muộn) thì lúc đó đổi hạn mới đáng một thông báo riêng.
+     */
+    @Transactional
+    public ClassAssignmentDto updateAssignment(Long teacherId, Long classId, Long assignmentId,
+                                               UpdateAssignmentRequest req) {
+        assertPrimaryTeacher(teacherId, classId);
+        ClassAssignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new NotFoundException("Bài tập không tồn tại"));
+        if (!assignment.getClassId().equals(classId)) {
+            throw new ForbiddenException("Bài tập không thuộc lớp này");
+        }
+
+        if (req.topic() != null) {
+            String topic = req.topic().trim();
+            if (topic.isEmpty()) {
+                throw new BadRequestException("Tiêu đề bài tập không được để trống");
+            }
+            assignment.setTopic(topic);
+        }
+        if (req.description() != null) assignment.setDescription(req.description().trim());
+        if (req.skill() != null) assignment.setSkill(normalizeSkill(req.skill()));
+
+        if (Boolean.TRUE.equals(req.clearDueDate())) assignment.setDueDate(null);
+        else if (req.dueDate() != null) assignment.setDueDate(req.dueDate());
+
+        if (Boolean.TRUE.equals(req.clearAttachmentUrl())) assignment.setAttachmentUrl(null);
+        else if (req.attachmentUrl() != null) assignment.setAttachmentUrl(req.attachmentUrl().trim());
+
+        if (Boolean.TRUE.equals(req.clearLessonId())) {
+            assignment.setLessonId(null);
+        } else if (req.lessonId() != null) {
+            // Cùng chốt như lúc tạo: bài học phải thuộc chính lớp này (chặn gắn chéo lớp).
+            ClassLesson lesson = lessonRepository.findById(req.lessonId())
+                    .orElseThrow(() -> new NotFoundException("Bài học không tồn tại"));
+            if (!lesson.getClassId().equals(classId)) {
+                throw new ForbiddenException("Bài học không thuộc lớp này");
+            }
+            assignment.setLessonId(req.lessonId());
+        }
+
+        return toAssignmentDto(assignmentRepository.save(assignment));
+    }
+
+    /**
+     * Xoá một bài tập đã giao — CHỈ khi chưa học viên nào nộp.
+     *
+     * <p>Ranh giới này lấy đúng từ {@link ClassDeletionGuard}: bài tập chưa ai nộp là cấu hình do
+     * chính giáo viên chính tạo và dựng lại được, còn một bài nộp là công của người khác. Ba bảng con
+     * ({@code student_assignments}, {@code class_assignment_scenarios}, tài liệu đính kèm) đều
+     * {@code ON DELETE CASCADE}, nên xoá một bài đã có người nộp sẽ kéo theo bài làm, điểm và nhận
+     * xét — âm thầm và không hoàn tác được. Đã có người nộp thì sửa đề (updateAssignment) hoặc để
+     * nguyên, đừng xoá.
+     */
+    @Transactional
+    public void deleteAssignment(Long teacherId, Long classId, Long assignmentId) {
+        assertPrimaryTeacher(teacherId, classId);
+        ClassAssignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new NotFoundException("Bài tập không tồn tại"));
+        if (!assignment.getClassId().equals(classId)) {
+            throw new ForbiddenException("Bài tập không thuộc lớp này");
+        }
+
+        long submitted = studentAssignmentRepository.findByAssignmentId(assignmentId).stream()
+                .filter(sa -> AssignmentStatus.isSubmitted(sa.getStatus()))
+                .count();
+        if (submitted > 0) {
+            throw new ConflictException(
+                    "Đã có " + submitted + " học viên nộp bài này — xoá sẽ mất bài nộp và điểm. "
+                    + "Hãy sửa lại đề bài thay vì xoá.");
+        }
+
+        // Chỉ còn các dòng PENDING (bài chưa ai đụng tới) — cascade dọn nốt chúng cùng kịch bản AI
+        // và liên kết tài liệu.
+        assignmentRepository.delete(assignment);
+        log.info("[assignments] teacher={} deleted assignment={} of class={} (no submissions)",
+                teacherId, assignmentId, classId);
     }
 
     /**
@@ -981,9 +1097,24 @@ public class TeacherService {
             throw new ConflictException("Bài tập không thuộc lớp của bạn");
         }
 
+        // F12: only handed-in work can be finalized. A PENDING row exists BEFORE the student ever
+        // submits (rows are pre-created/backfilled), so without this guard one valid call turned
+        // "not submitted" into EVALUATED — and notified the student of a grade for work they never
+        // handed in. Re-grading a final row stays allowed: it is the only correction path until a
+        // grade-revision history exists.
+        if (AssignmentStatus.PENDING.equals(assignment.getStatus())) {
+            throw new ConflictException("Bài chưa được nộp, không thể chốt điểm");
+        }
+
         // Scores are graded on a 0-100 scale; reject out-of-range manual entry so it can't pollute
-        // the class/teacher report averages (root cause of the "234.4 average" report bug).
-        if (req.teacherScore() != null && (req.teacherScore() < 0 || req.teacherScore() > 100)) {
+        // the class/teacher report averages (root cause of the "234.4 average" report bug). A null
+        // score is rejected too (F12): EVALUATED is the announce-the-final-grade transition, and a
+        // final grade with no grade both notifies the student of nothing and reads as "not graded"
+        // in every average. Feedback-without-a-grade would be its own state, not a null EVALUATED.
+        if (req.teacherScore() == null) {
+            throw new BadRequestException("Thiếu điểm khi chốt bài (0–100)");
+        }
+        if (req.teacherScore() < 0 || req.teacherScore() > 100) {
             throw new BadRequestException("Điểm phải trong khoảng 0–100");
         }
 
@@ -1069,7 +1200,7 @@ public class TeacherService {
 
     private ClassAssignmentDto toAssignmentDto(ClassAssignment a) {
         return new ClassAssignmentDto(a.getId(), a.getClassId(), a.getTopic(), a.getDescription(),
-                a.getAssignmentType(), a.getReferenceId(), a.getDueDate(), a.getCreatedAt(),
+                a.getAssignmentType(), a.getSkill(), a.getReferenceId(), a.getDueDate(), a.getCreatedAt(),
                 a.getAttachmentUrl(), a.getLessonId());
     }
 
@@ -1092,7 +1223,7 @@ public class TeacherService {
                 ca != null ? ca.getAssignmentType() : "GENERAL",
                 ca != null ? ca.getDueDate() : null,
                 a.getSubmissionContent(),
-                a.getSubmissionFileUrl(),
+                submissionFileUrlResolver.resolve(a.getSubmissionFileUrl()),
                 ca != null ? ca.getAttachmentUrl() : null,
                 ca != null ? ca.getReferenceId() : null
         );

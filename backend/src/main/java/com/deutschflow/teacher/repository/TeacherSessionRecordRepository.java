@@ -17,12 +17,6 @@ public interface TeacherSessionRecordRepository extends JpaRepository<TeacherSes
     List<TeacherSessionRecord> findByTeacherIdAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAt(
             Long teacherId, LocalDateTime from, LocalDateTime to);
 
-    /**
-     * Bản ghi trùng ô công. Ràng buộc thật nằm ở unique index {@code uq_tsr_teacher_start}; truy vấn
-     * này để trả lỗi 409 có thông báo rõ thay vì để vỡ ràng buộc thành 409 chung chung.
-     */
-    Optional<TeacherSessionRecord> findByTeacherIdAndStartedAt(Long teacherId, LocalDateTime startedAt);
-
     /** Đã ghi công cho buổi lịch này chưa (dùng để đánh dấu gợi ý đã xử lý). */
     List<TeacherSessionRecord> findByTeacherIdAndSessionIdIn(Long teacherId, List<Long> sessionIds);
 

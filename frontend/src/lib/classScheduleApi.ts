@@ -22,6 +22,10 @@ export interface ClassSession {
   status: ClassSessionStatus
   overridden: boolean
   studentCount: number
+  /** PR-3 (D04): phút HỌC — durationMinutes vẫn là phút CHIẾM LỊCH (kiểm trùng giờ). */
+  teachingMinutes: number
+  /** PR-3 (D04): phút GIẢI LAO trong buổi (lớp trung tâm: 15). */
+  breakMinutes: number
 }
 
 export interface SessionSaveResult {
@@ -39,6 +43,9 @@ export interface ClassSchedulePattern {
   defaultRoom: string | null
   effectiveFrom: string
   effectiveTo: string | null
+  /** PR-3 (D04): phút học/nghỉ mỗi buổi sinh từ pattern (lớp trung tâm 195' → 180 + 15). */
+  teachingMinutes: number
+  breakMinutes: number
 }
 
 export interface UpsertPatternResult {
@@ -106,6 +113,9 @@ export interface UpsertPatternBody {
   defaultRoom: string | null
   effectiveFrom: string
   effectiveTo: string | null
+  /** PR-3: bỏ trống để BE tự suy (lớp trung tâm buổi 195' → 180 + 15); khai thì teaching + break = duration. */
+  teachingMinutes?: number | null
+  breakMinutes?: number | null
 }
 
 export async function upsertClassPattern(classId: number, body: UpsertPatternBody): Promise<UpsertPatternResult> {

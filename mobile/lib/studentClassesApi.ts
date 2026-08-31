@@ -120,6 +120,10 @@ export interface MySkillReport {
   sprechen: number | null
   total: number | null
   grade: string
+  /** Nhận xét bằng lời của giáo viên về học viên này trong lớp này; null khi chưa viết. */
+  teacherComment: string | null
+  /** Thời điểm giáo viên lưu đánh giá; null khi chưa từng lưu. */
+  evaluatedAt: string | null
 }
 
 export async function fetchMyClasses(): Promise<MyClassroom[]> {

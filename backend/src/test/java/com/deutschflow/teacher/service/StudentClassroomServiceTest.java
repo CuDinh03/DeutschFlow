@@ -38,6 +38,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
+import com.deutschflow.media.service.S3StorageService;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class StudentClassroomServiceTest {
@@ -62,7 +64,11 @@ class StudentClassroomServiceTest {
         service = new StudentClassroomService(
                 classRepository, classStudentRepository, classTeacherRepository,
                 assignmentRepository, lessonRepository, studentAssignmentRepository,
-                classSessionRepository, userRepository);
+                classSessionRepository, userRepository,
+                // Bucket private ⇒ link file bài nộp phải được ký lại. Truyền resolver THẬT với
+                // S3 mock: objectKeyFromOwnUrl trả null ⇒ resolve() nhả nguyên URL đã lưu, tức
+                // đúng hành vi các test này vốn khẳng định.
+                new SubmissionFileUrlResolver(mock(S3StorageService.class)));
     }
 
     @Test
@@ -195,6 +201,31 @@ class StudentClassroomServiceTest {
         assertThat(out).hasSize(1);
         assertThat(out.get(0).studentId()).isEqualTo(STUDENT_ID);
         assertThat(out.get(0).teacherScore()).isEqualTo(7);
+    }
+
+    /**
+     * F01: while a row is AI_GRADED the score is an unconfirmed AI proposal (and on GRADING_FAILED
+     * the feedback field holds an ops error note) — neither may be published to the student. The
+     * status itself stays visible so the UI can render "đã nộp, chờ chấm".
+     */
+    @Test
+    @DisplayName("listAssignments masks score/feedback of an unconfirmed (AI_GRADED) submission")
+    void listAssignments_masksUnconfirmedGrade() {
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_ID)).thenReturn(true);
+        ClassAssignment a1 = assignment(1L, "T1", LocalDateTime.now());
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID)).thenReturn(List.of(a1));
+
+        StudentAssignment mine = sa(1L, "AI_GRADED", 95);
+        mine.setStudentId(STUDENT_ID);
+        mine.setFeedback("AI: bài khá tốt (đề xuất, chưa duyệt)");
+        when(studentAssignmentRepository.findByAssignmentIds(any())).thenReturn(List.of(mine));
+
+        List<StudentAssignmentDto> out = service.listAssignments(STUDENT_ID, CLASS_ID);
+
+        assertThat(out).hasSize(1);
+        assertThat(out.get(0).status()).isEqualTo("AI_GRADED");
+        assertThat(out.get(0).teacherScore()).isNull();      // proposal not published
+        assertThat(out.get(0).teacherFeedback()).isNull();
     }
 
     @Test

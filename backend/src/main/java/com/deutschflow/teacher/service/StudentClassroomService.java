@@ -47,6 +47,8 @@ public class StudentClassroomService {
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final ClassSessionRepository classSessionRepository;
     private final UserRepository userRepository;
+    /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
+    private final SubmissionFileUrlResolver submissionFileUrlResolver;
 
     @Transactional(readOnly = true)
     public List<MyClassroomDto> listMyClasses(Long studentId) {
@@ -270,18 +272,10 @@ public class StudentClassroomService {
     }
 
     private StudentAssignmentDto toDto(StudentAssignment a, ClassAssignment ca) {
-        return new StudentAssignmentDto(
-                a.getId(), a.getAssignmentId(), a.getStudentId(), a.getStatus(),
-                a.getScore(), a.getFeedback(), a.getSubmittedAt(), a.getCreatedAt(),
-                ca != null ? ca.getTopic() : "",
-                ca != null ? ca.getDescription() : "",
-                ca != null ? ca.getAssignmentType() : "GENERAL",
-                ca != null ? ca.getDueDate() : null,
-                a.getSubmissionContent(),
-                a.getSubmissionFileUrl(),
-                ca != null ? ca.getAttachmentUrl() : null,
-                ca != null ? ca.getReferenceId() : null
-        );
+        // Student-facing: forStudent masks score/feedback until the grade is final (F01); file URL
+        // đi qua resolver vì bucket private (URL trần đã lưu không mở được).
+        return StudentAssignmentDto.forStudent(
+                a, ca, submissionFileUrlResolver.resolve(a.getSubmissionFileUrl()));
     }
 
     /**

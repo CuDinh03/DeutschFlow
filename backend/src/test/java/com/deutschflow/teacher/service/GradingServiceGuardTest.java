@@ -28,6 +28,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import com.deutschflow.media.service.S3StorageService;
+import static org.mockito.Mockito.mock;
 
 /**
  * D1 regression: {@code aiGradeAssignment} PHẢI có status-guard — AI chấm không được ghi đè điểm GV
@@ -59,7 +61,11 @@ class GradingServiceGuardTest {
                 studentAssignmentRepository, classAssignmentRepository, classStudentRepository,
                 classTeacherRepository, teacherClassRepository, userRepository,
                 userNotificationService, openAiChatClient, aiUsageLedgerService, gradingModelConfig,
-                llmTierResolver, materialService);
+                llmTierResolver, materialService,
+                // Bucket private ⇒ link file bài nộp phải được ký lại. Truyền resolver THẬT với
+                // S3 mock: objectKeyFromOwnUrl trả null ⇒ resolve() nhả nguyên URL đã lưu, tức
+                // đúng hành vi các test này vốn khẳng định.
+                new SubmissionFileUrlResolver(mock(S3StorageService.class)));
     }
 
     @Test
