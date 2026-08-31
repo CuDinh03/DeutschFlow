@@ -1,108 +1,58 @@
 package com.deutschflow.ai.queue;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Dọn job AI kẹt ở PENDING quá lâu.
+ * Entry point LỊCH cho việc dọn job AI kẹt — logic thật ở {@link StaleAiJobMaintenance}.
  *
  * <p>Vì sao cần: {@link AiJobRepository#claimPendingJobs} đã lọc bỏ job quá hạn để worker không gọi
  * AI cho backlog đã hết giá trị (bài học từ sự cố 10/06–23/08: worker chết 2,5 tháng, lúc sống lại
  * suýt xử lý cả đống job cũ). Nhưng lọc mà không dọn thì job quá hạn nằm PENDING vĩnh viễn — người
- * học thấy "đang chờ" mãi và bảng cứ phình. Lớp này đóng nốt vế còn lại.
+ * học thấy "đang chờ" mãi và bảng cứ phình. PROCESSING mồ côi (worker bị restart/deploy cắt ngang)
+ * cùng số phận vì claim lẫn expirer PENDING đều không đụng tới nó.
  *
  * <p>Khác {@code DataRetentionJob} ở chỗ: chỗ kia XOÁ bản ghi hết hạn lưu trữ, còn ở đây ta GIỮ bản
  * ghi và chỉ chuyển trạng thái sang FAILED, để lịch sử của người học vẫn phản ánh đúng chuyện gì đã
  * xảy ra.
+ *
+ * <p>Kiến trúc chống hai cái bẫy đã đâm phải:
+ * <ul>
+ *   <li>KHÔNG tự-gọi method @Transactional cùng bean (proxy bị bỏ qua — chính bug đã giết
+ *       AiJobWorker.claimJobs): wrapper này gọi bean {@link StaleAiJobMaintenance} qua proxy.</li>
+ *   <li>KHÔNG kiểm logic qua entry point mang @SchedulerLock trong integration test: ShedLock giữ
+ *       khoá trong bảng chung của DB, mà CI dùng MỘT Postgres Testcontainers cho mọi Spring context
+ *       còn sống trong context-cache — scheduler nền của context khác tranh khoá làm lời gọi tay bị
+ *       skip im lặng. Test gọi thẳng StaleAiJobMaintenance.</li>
+ * </ul>
+ *
+ * <p>Method mang @SchedulerLock phải trả {@code void} (ShedLock ném LockingNotSupportedException
+ * với kiểu nguyên thuỷ).
  */
 @Component
-@Slf4j
+@RequiredArgsConstructor
 public class StaleAiJobExpirer {
 
-    /** Tiền tố tra cứu: SELECT count(*) FROM ai_jobs WHERE error_msg LIKE 'STALE_PENDING_EXPIRED%' */
-    static final String REASON_PREFIX = "STALE_PENDING_EXPIRED";
+    private final StaleAiJobMaintenance maintenance;
 
-    /** Tiền tố tra cứu: SELECT count(*) FROM ai_jobs WHERE error_msg LIKE 'STALE_PROCESSING_EXPIRED%' */
-    static final String PROCESSING_REASON_PREFIX = "STALE_PROCESSING_EXPIRED";
-
-    private final AiJobRepository aiJobRepository;
-    private final boolean enabled;
-    private final int maxAgeDays;
-    private final int processingMaxMinutes;
-
-    public StaleAiJobExpirer(
-            AiJobRepository aiJobRepository,
-            @Value("${app.ai-jobs.expire-enabled:true}") boolean enabled,
-            @Value("${app.ai-jobs.max-age-days:7}") int maxAgeDays,
-            @Value("${app.ai-jobs.processing-max-minutes:30}") int processingMaxMinutes) {
-        this.aiJobRepository = aiJobRepository;
-        this.enabled = enabled;
-        this.maxAgeDays = Math.max(1, maxAgeDays);
-        this.processingMaxMinutes = Math.max(5, processingMaxMinutes);
-    }
-
-    /**
-     * Đánh dấu FAILED job PENDING cũ hơn {@code app.ai-jobs.max-age-days}. Chạy hằng đêm 03:15,
-     * trước DataRetentionJob (03:30).
-     *
-     * <p>CỐ Ý chỉ có MỘT method: mọi annotation (@Scheduled, @SchedulerLock, @Transactional) nằm
-     * chung một entry point nên không tồn tại đường tự-gọi nào để proxy bị bỏ qua. Tách ra thành
-     * "expireScheduled() gọi expireStalePendingJobs()" trông sạch hơn nhưng chính là cái bẫy đã
-     * giết AiJobWorker suốt 10/06–23/08: tự-gọi trong cùng bean ⇒ @Transactional vô hiệu ⇒
-     * @Modifying query ném TransactionRequiredException. Đừng tách lại.
-     *
-     * <p>Trả về {@code void} là BẮT BUỘC, không phải lựa chọn phong cách: ShedLock ném
-     * {@code LockingNotSupportedException: Can not lock method returning primitive value} nếu method
-     * mang @SchedulerLock trả về kiểu nguyên thuỷ. Số job đã đổi trạng thái xem ở log WARN bên dưới,
-     * hoặc đếm bằng: SELECT count(*) FROM ai_jobs WHERE error_msg LIKE 'STALE_PENDING_EXPIRED%'.
-     */
+    /** Job PENDING quá hạn — hằng đêm 03:15, trước DataRetentionJob (03:30). */
     @Scheduled(cron = "${app.ai-jobs.expire-cron:0 15 3 * * *}")
     @SchedulerLock(name = "staleAiJobExpire", lockAtMostFor = "PT10M", lockAtLeastFor = "PT1M")
-    @Transactional
     public void expireStalePendingJobs() {
-        if (!enabled) {
-            return;
-        }
-        String reason = REASON_PREFIX + ": job kẹt PENDING quá " + maxAgeDays + " ngày nên không còn được worker "
-                + "nhận (xem AiJobRepository.claimPendingJobs). Người học cần chạy lại nếu vẫn muốn có đánh giá.";
-        int expired = aiJobRepository.expireStalePending(maxAgeDays, reason);
-        if (expired > 0) {
-            log.warn("[StaleAiJobExpirer] Đã đánh dấu FAILED {} job PENDING cũ hơn {} ngày", expired, maxAgeDays);
-        }
+        maintenance.expireStalePending();
     }
 
     /**
-     * Lease cho PROCESSING: job bị worker bỏ rơi giữa chừng (restart/deploy cắt ngang — PROCESSING
-     * không có heartbeat) được đánh FAILED sau {@code app.ai-jobs.processing-max-minutes} (mặc định
-     * 30′, sàn 5′) để client/sweep của module chủ thấy lỗi thật thay vì "đang xử lý" vĩnh viễn.
-     * Chạy mỗi 5 phút chứ không chờ cron đêm: người học đang NGỒI NHÌN spinner của chính job đó.
-     *
-     * <p>Cùng quy tắc chống bẫy như {@link #expireStalePendingJobs()}: MỘT method mang đủ
-     * @Scheduled + @SchedulerLock + @Transactional, trả {@code void}, không tự-gọi method nào
-     * cùng bean.
+     * Job PROCESSING mồ côi — quét mỗi ~5 phút chứ không chờ cron đêm: người học đang NGỒI NHÌN
+     * spinner của chính job đó. initialDelay > 0 để không chạy ngay lúc boot (đỡ ồn khi deploy).
      */
     @Scheduled(
             fixedDelayString = "${app.ai-jobs.processing-sweep-delay-ms:300000}",
-            // initialDelay > 0 là bắt buộc: fixedDelay mặc định chạy NGAY lúc boot, mà lockAtLeastFor
-            // giữ khoá 30s — IT gọi tay entry point này ngay sau boot sẽ bị ShedLock skip im lặng.
             initialDelayString = "${app.ai-jobs.processing-sweep-initial-delay-ms:60000}")
     @SchedulerLock(name = "staleAiProcessingExpire", lockAtMostFor = "PT4M", lockAtLeastFor = "PT30S")
-    @Transactional
     public void expireStaleProcessingJobs() {
-        if (!enabled) {
-            return;
-        }
-        String reason = PROCESSING_REASON_PREFIX + ": job kẹt PROCESSING quá " + processingMaxMinutes
-                + " phút — worker đã bị dừng giữa chừng (restart/deploy), không ai quay lại xử lý."
-                + " Người học cần chấm lại/chạy lại nếu vẫn muốn có đánh giá.";
-        int expired = aiJobRepository.expireStaleProcessing(processingMaxMinutes, reason);
-        if (expired > 0) {
-            log.warn("[StaleAiJobExpirer] Đã đánh dấu FAILED {} job kẹt PROCESSING quá {} phút",
-                    expired, processingMaxMinutes);
-        }
+        maintenance.expireStaleProcessing();
     }
 }

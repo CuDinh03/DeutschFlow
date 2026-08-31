@@ -3,7 +3,7 @@ package com.deutschflow.examspeaking.session;
 import com.deutschflow.ai.queue.AiJob;
 import com.deutschflow.ai.queue.AiJobRepository;
 import com.deutschflow.ai.queue.AiJobWorker;
-import com.deutschflow.ai.queue.StaleAiJobExpirer;
+import com.deutschflow.ai.queue.StaleAiJobMaintenance;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.examspeaking.dto.CreateExamSessionRequest;
 import com.deutschflow.examspeaking.dto.ExamSessionView;
@@ -63,9 +63,12 @@ import static org.mockito.ArgumentMatchers.anyInt;
 class ExamGradingFailurePathIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired private ExamSessionService sessionService;
-    @Autowired private ExamGradingStuckSweeper sweeper;
+    // Gọi bean LOGIC, không gọi entry point @Scheduled+@SchedulerLock: DB Testcontainers dùng chung
+    // giữa mọi Spring context của suite CI, scheduler nền của context khác giữ khoá ShedLock
+    // (lockAtLeastFor 30s) làm lời gọi tay bị skip im lặng → đỏ chỉ trên CI.
+    @Autowired private ExamGradingStuckSweepService sweeper;
     @Autowired private AiJobWorker worker;
-    @Autowired private StaleAiJobExpirer expirer;
+    @Autowired private StaleAiJobMaintenance maintenance;
     @Autowired private AiJobRepository aiJobRepository;
     @Autowired private SpeakingExamSessionRepository sessionRepository;
     @Autowired private UserRepository userRepository;
@@ -233,7 +236,7 @@ class ExamGradingFailurePathIntegrationTest extends AbstractPostgresIntegrationT
         jdbcTemplate.update("UPDATE ai_jobs SET updated_at = NOW() - make_interval(mins => 40) WHERE id = ?",
                 orphan.getId());
 
-        expirer.expireStaleProcessingJobs();
+        maintenance.expireStaleProcessing();
 
         AiJob deadJob = aiJobRepository.findById(orphan.getId()).orElseThrow();
         assertThat(deadJob.getStatus()).isEqualTo(AiJob.STATUS_FAILED);
