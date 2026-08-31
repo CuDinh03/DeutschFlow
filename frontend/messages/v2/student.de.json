@@ -316,6 +316,8 @@
       "tabOverview": "Übersicht",
       "tabTasks": "Aufgaben",
       "tabLessons": "Lernpfad",
+      "tabEvaluation": "Bewertung",
+      "tabSchedule": "Stundenplan",
       "invalidClassId": "Ungültige Kurs-ID",
       "titleFallback": "Kursdetails",
       "titleLoading": "Wird geladen…",
@@ -370,6 +372,65 @@
         "empty": "Noch keine Materialien für diese Lektion.",
         "loadError": "Materialien konnten nicht geladen werden.",
         "openError": "Material konnte nicht geöffnet werden."
+      },
+      "evaluation": {
+        "loading": "Bewertung wird geladen…",
+        "skillsCap": "Bewertung der vier Fertigkeiten",
+        "totalCap": "Gesamt",
+        "noScore": "Nicht bewertet",
+        "skill": {
+          "horen": "Hören",
+          "lesen": "Lesen",
+          "schreiben": "Schreiben",
+          "sprechen": "Sprechen"
+        },
+        "noSkillsTitle": "Noch keine Bewertung",
+        "noSkillsBody": "Deine Lehrkraft hat deine vier Fertigkeiten in diesem Kurs noch nicht bewertet.",
+        "commentCap": "Kommentar der Lehrkraft",
+        "evaluatedAt": "Verfasst am {date}",
+        "noCommentTitle": "Noch kein Kommentar",
+        "noCommentBody": "Deine Lehrkraft hat noch keinen Kommentar geschrieben. Er erscheint hier, sobald es so weit ist.",
+        "attendanceCap": "Anwesenheit",
+        "rate": "{pct}% Anwesenheit",
+        "presentCount": "Anwesend: {count}",
+        "lateCount": "Verspätet: {count}",
+        "absentCount": "Abwesend: {count}",
+        "sessionNo": "Sitzung {no}",
+        "noTopic": "Kein Thema erfasst",
+        "noAttendanceTitle": "Noch keine Sitzungen",
+        "noAttendanceBody": "Für diesen Kurs wurde noch keine Anwesenheit erfasst.",
+        "status": {
+          "PRESENT": "Anwesend",
+          "LATE": "Verspätet",
+          "ABSENT": "Abwesend",
+          "UNMARKED": "Nicht erfasst"
+        }
+      },
+      "schedule": {
+        "loading": "Stundenplan wird geladen…",
+        "emptyTitle": "Noch kein Stundenplan",
+        "emptyBody": "Deine Lehrkraft hat für diesen Kurs noch keine Sitzung geplant.",
+        "upcomingCap": "Kommende Sitzungen ({count})",
+        "noUpcoming": "Keine kommenden Sitzungen.",
+        "pastCap": "Vergangene Sitzungen ({count})",
+        "modeOnline": "Online",
+        "modeOffline": "Im Kurs",
+        "room": "Raum {room}",
+        "duration": "{minutes} Min.",
+        "status": {
+          "SCHEDULED": "Geplant",
+          "MOVED": "Verschoben",
+          "CANCELLED": "Abgesagt"
+        },
+        "weekday": {
+          "0": "So",
+          "1": "Mo",
+          "2": "Di",
+          "3": "Mi",
+          "4": "Do",
+          "5": "Fr",
+          "6": "Sa"
+        }
       }
     },
     "assignment": {
@@ -423,7 +484,12 @@
         "submittedAt": "Abgegeben um",
         "score": "Note"
       },
-      "gradedDone": "Diese Aufgabe wurde bewertet"
+      "gradedDone": "Diese Aufgabe wurde bewertet",
+      "resubmit": "Erneut abgeben",
+      "resubmitHint": "Das Falsche abgegeben? Bis zur Bewertung kannst du es noch ersetzen.",
+      "resubmitCap": "Neue Abgabe",
+      "resubmitWarning": "Die neue Abgabe ersetzt die vorherige vollständig.",
+      "submitReplacement": "Diese Fassung abgeben"
     },
     "progress": {
       "title": "Kursfortschritt",

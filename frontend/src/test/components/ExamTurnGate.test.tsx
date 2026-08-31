@@ -55,11 +55,18 @@ vi.mock('@/components/features/exam-speaking/examTts', () => ({
 
 vi.mock('@/hooks/useMicPermission', () => ({ useMicPermission: () => 'granted' }))
 
-/** Phát xong lời AI đang treo đầu hàng đợi. */
+/**
+ * Phát xong lời AI đang treo đầu hàng đợi. speakExamLine được gọi trong passive effect,
+ * tức SAU khi turn-status đã vào DOM — trên runner chậm, hàng đợi có thể còn rỗng một nhịp
+ * dù DOM đã hiện. Chờ xác định bằng waitFor; hợp đồng "phải có lời AI" giữ nguyên (hết
+ * timeout mà không có lời nào → vẫn đỏ với đúng thông điệp này).
+ */
 async function finishSpeaking() {
-  const resolve = tts.pending.shift()
-  expect(resolve, 'phải có một lời AI đang phát').toBeTruthy()
-  resolve!()
+  await waitFor(
+    () => expect(tts.pending.length, 'phải có một lời AI đang phát').toBeGreaterThan(0),
+    { timeout: 5000 },
+  )
+  tts.pending.shift()!()
 }
 
 const NOW = new Date()

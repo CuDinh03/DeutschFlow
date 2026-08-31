@@ -14,6 +14,9 @@ public interface TeacherClassRepository extends JpaRepository<TeacherClass, Long
     List<TeacherClass> findByTeacherId(Long teacherId);
     Optional<TeacherClass> findByInviteCode(String inviteCode);
 
+    /** Lớp có thuộc trung tâm không — guard học vụ tự vệ với classId do caller truyền (PR-2/M1). */
+    boolean existsByIdAndOrgId(Long id, Long orgId);
+
     /** Org-scoped read for the B2B org admin (GET /api/org/classes). */
     Page<TeacherClass> findByOrgId(Long orgId, Pageable pageable);
 

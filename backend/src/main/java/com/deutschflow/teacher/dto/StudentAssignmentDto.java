@@ -31,8 +31,12 @@ public record StudentAssignmentDto(
      * AI proposal and {@code feedback} can even be an ops error note from a failed AI pass
      * (GRADING_FAILED) — neither has been published to the student, so both read as null here.
      * Teacher-facing mappers keep the raw values: the proposal is the teacher's to review.
+     *
+     * <p>{@code resolvedSubmissionFileUrl} là URL đã được caller ký lại qua SubmissionFileUrlResolver
+     * (bucket private — URL trần đã lưu không mở được); DTO không tự ôm bean resolver.
      */
-    public static StudentAssignmentDto forStudent(StudentAssignment a, ClassAssignment ca) {
+    public static StudentAssignmentDto forStudent(StudentAssignment a, ClassAssignment ca,
+                                                  String resolvedSubmissionFileUrl) {
         boolean published = AssignmentStatus.isFinal(a.getStatus());
         return new StudentAssignmentDto(
                 a.getId(), a.getAssignmentId(), a.getStudentId(), a.getStatus(),
@@ -44,7 +48,7 @@ public record StudentAssignmentDto(
                 ca != null ? ca.getAssignmentType() : "GENERAL",
                 ca != null ? ca.getDueDate() : null,
                 a.getSubmissionContent(),
-                a.getSubmissionFileUrl(),
+                resolvedSubmissionFileUrl,
                 ca != null ? ca.getAttachmentUrl() : null,
                 ca != null ? ca.getReferenceId() : null);
     }
