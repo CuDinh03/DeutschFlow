@@ -10,6 +10,7 @@ import {
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
+import { sendMessage } from '@/lib/messagesApi'
 import { listLessons, type ClassLesson } from '@/lib/teacherLessonsApi'
 import { type Material } from '@/lib/materialApi'
 import { AssignmentMaterialPicker } from './AssignmentMaterialPicker'
@@ -136,6 +137,12 @@ export default function V2ClassDetailPage() {
   const [sort, setSort] = useState<{ col: SortCol; dir: 'asc' | 'desc' }>({ col: 'xp', dir: 'desc' })
   const [selected, setSelected] = useState<Record<number, boolean>>({})
   const [modal, setModal] = useState(false)
+
+  // A6/F13: chọn NHIỀU học viên giờ nhắn được cho tất cả — trước đây nút chỉ nhận đúng 1 người
+  // dù roster cho tick nhiều ô. Gửi lần lượt qua API DM 1-1 sẵn có, báo rõ người gửi trượt.
+  const [groupMsgOpen, setGroupMsgOpen] = useState(false)
+  const [groupMsgBody, setGroupMsgBody] = useState('')
+  const [groupMsgSending, setGroupMsgSending] = useState(false)
 
   // Co-teaching (buried BE→v2). List is supplementary; add/remove gated to the PRIMARY teacher.
   const [teachers, setTeachers] = useState<ClassTeacher[]>([])
@@ -400,10 +407,16 @@ export default function V2ClassDetailPage() {
                         type="button"
                         onClick={() => {
                           const ids = Object.entries(selected).filter(([, v]) => v).map(([k]) => Number(k))
-                          if (ids.length !== 1) { toast(t('messagePickOne')); return }
-                          const s = students.find((x) => x.studentId === ids[0])
-                          if (s) router.push(`/v2/teacher/messages?to=${s.studentId}&name=${encodeURIComponent(s.displayName)}`)
-                          setSelected({})
+                          if (ids.length === 0) return
+                          // 1 người: mở thẳng luồng chat 1-1 như cũ; nhiều người: dialog nhắn nhóm.
+                          if (ids.length === 1) {
+                            const s = students.find((x) => x.studentId === ids[0])
+                            if (s) router.push(`/v2/teacher/messages?to=${s.studentId}&name=${encodeURIComponent(s.displayName)}`)
+                            setSelected({})
+                            return
+                          }
+                          setGroupMsgBody('')
+                          setGroupMsgOpen(true)
                         }}
                         className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 border border-ga-line px-2.5 py-1.5 text-[11.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
                       >
@@ -414,6 +427,70 @@ export default function V2ClassDetailPage() {
                 </div>
                 <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchStudent')} containerClassName="w-full sm:w-[220px]" />
               </div>
+
+              {/* Nhắn nhóm: một nội dung gửi lần lượt tới TỪNG học viên đã chọn (DM 1-1, không phải kênh lớp). */}
+              <TkModal
+                open={groupMsgOpen}
+                onOpenChange={(o) => { if (!groupMsgSending) setGroupMsgOpen(o) }}
+                title={t('groupMessageTitle', { count: selCount })}
+                description={t('groupMessageDesc')}
+                size="sm"
+                footer={
+                  <>
+                    <GaBtn variant="ghost" disabled={groupMsgSending} onClick={() => setGroupMsgOpen(false)}>
+                      {tc('cancel')}
+                    </GaBtn>
+                    <GaBtn
+                      loading={groupMsgSending}
+                      disabled={groupMsgBody.trim() === ''}
+                      onClick={() => void (async () => {
+                        const ids = Object.entries(selected).filter(([, v]) => v).map(([k]) => Number(k))
+                        const body = groupMsgBody.trim()
+                        if (ids.length === 0 || body === '') return
+                        setGroupMsgSending(true)
+                        let ok = 0
+                        const failedIds: number[] = []
+                        for (const sid of ids) {
+                          try {
+                            await sendMessage(sid, body)
+                            ok += 1
+                          } catch {
+                            failedIds.push(sid)
+                          }
+                        }
+                        setGroupMsgSending(false)
+                        if (failedIds.length === 0) {
+                          toast.success(t('groupMessageSent', { count: ok }))
+                          setGroupMsgOpen(false)
+                          setGroupMsgBody('')
+                          setSelected({})
+                        } else {
+                          // Thu hẹp selection về ĐÚNG những người trượt: bấm "Gửi" lại chỉ gửi cho họ —
+                          // người đã nhận không thể nhận đôi (overlay modal chặn roster nên không thể
+                          // trông chờ giáo viên tự bỏ tick).
+                          const onlyFailed: Record<number, boolean> = {}
+                          failedIds.forEach((sid) => { onlyFailed[sid] = true })
+                          setSelected(onlyFailed)
+                          const names = failedIds
+                            .map((sid) => students.find((x) => x.studentId === sid)?.displayName ?? `#${sid}`)
+                            .join(', ')
+                          toast.error(t('groupMessageFailed', { count: failedIds.length, names }))
+                        }
+                      })()}
+                    >
+                      {t('groupMessageSend')}
+                    </GaBtn>
+                  </>
+                }
+              >
+                <textarea
+                  value={groupMsgBody}
+                  onChange={(e) => setGroupMsgBody(e.target.value)}
+                  rows={4}
+                  placeholder={t('groupMessagePlaceholder')}
+                  className="ga-ui block w-full border border-ga-line bg-ga-bg px-3 py-2.5 text-[14px] text-ga-ink outline-none focus:border-ga-accent"
+                />
+              </TkModal>
 
               <div className="overflow-x-auto border border-ga-line bg-ga-card lg:overflow-x-visible">
                 <div className="grid min-w-[720px] items-center gap-2 border-b border-ga-line bg-ga-bg px-[18px] py-[11px] lg:min-w-0" style={{ gridTemplateColumns: '34px 1fr 84px 74px 68px 118px 84px' }}>
@@ -532,7 +609,7 @@ export default function V2ClassDetailPage() {
                               </GaBtn>
                             </>
                           )}
-                          <GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/teacher/grading')}>
+                          <GaBtn variant="ghost" size="sm" onClick={() => router.push(`/v2/teacher/grading?classId=${id}`)}>
                             {t('viewSubmissions')} <ChevronRight size={14} />
                           </GaBtn>
                         </div>

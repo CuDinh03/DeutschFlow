@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Sparkles, FileText, Info } from 'lucide-react'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 
@@ -21,6 +22,7 @@ const MAT_TOPICS = ['Krankenhaus & Pflege', 'Arbeitsalltag', 'Bewerbungsgespräc
 const LEVELS = ['A2', 'B1', 'B2', 'C1']
 
 export default function V2MaterialsAiPage() {
+  const tProto = useTranslations('v2.teacher.toolsMaterials')
   const [type, setType] = useState(MAT_TYPES[0])
   const [topic, setTopic] = useState(MAT_TOPICS[0])
   const [level, setLevel] = useState('B1')
@@ -29,6 +31,13 @@ export default function V2MaterialsAiPage() {
   return (
     <div className="flex min-h-full flex-col lg:h-full lg:overflow-hidden">
       <GaPageHdr accent title="Tạo Tài liệu AI" subtitle="Tự động tạo bài tập, đề kiểm tra và tài liệu học tập cá nhân hoá" />
+
+      {/* A6/F13: màn này là PROTOTYPE (chưa có backend sinh worksheet) — phải nói thẳng ngay đầu
+          trang, không để giáo viên tin nút Generate sắp cho ra tài liệu thật. */}
+      <div className="flex items-start gap-2.5 border-b border-ga-line bg-ga-side-active px-4 py-3 sm:px-6">
+        <Info size={15} className="mt-0.5 shrink-0" style={{ color: VIOLET }} aria-hidden />
+        <p className="ga-ui text-[13px] leading-relaxed text-ga-muted">{tProto('prototypeNotice')}</p>
+      </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[300px_1fr]">
         {/* Config */}
