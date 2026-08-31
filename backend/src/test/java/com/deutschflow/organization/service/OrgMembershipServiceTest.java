@@ -48,6 +48,7 @@ class OrgMembershipServiceTest {
     @Mock private OrgMemberRepository memberRepo;
     @Mock private UserRepository userRepository;
     @Mock private JdbcTemplate jdbcTemplate;
+    @Mock private com.deutschflow.organization.repository.OrgAcademicApproverRepository academicApproverRepo;
 
     @Mock private AuditLogService auditLogService;
 
@@ -59,7 +60,7 @@ class OrgMembershipServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new OrgMembershipService(memberRepo, userRepository, jdbcTemplate, auditLogService);
+        service = new OrgMembershipService(memberRepo, academicApproverRepo, userRepository, jdbcTemplate, auditLogService);
     }
 
     private User studentUser() {

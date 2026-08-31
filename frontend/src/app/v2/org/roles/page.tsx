@@ -7,8 +7,9 @@ import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { changeMemberRole, listMembers, removeMember, type OrgMember, type OrgRole } from '@/lib/orgApi'
 import { getOrgRole } from '@/lib/authSession'
-import { GaPageHdr, TkStatStrip, TkBadge, ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { GaPageHdr, TkStatStrip, TkBadge, ErrorBanner, LoadingState, ConfirmDialog } from '@/components/ui-v2'
 import { GaSection, nfVN } from '../../analyticsShared'
+import { ApproverSection } from './ApproverSection'
 
 // listMembers() (all roles) + real mutations: changeMemberRole (PATCH /org/members/{id}/role,
 // OWNER-only, MANAGER↔TEACHER) and removeMember (DELETE → REVOKED). Both backed by #143.
@@ -63,16 +64,25 @@ export default function V2OrgRolesPage() {
     }
   }
 
-  const handleRemove = async (m: OrgMember) => {
+  // §2.11: gỡ thành viên là thao tác hủy hoại → ConfirmDialog nêu hệ quả (thay window.confirm cũ).
+  const [removeTarget, setRemoveTarget] = useState<OrgMember | null>(null)
+
+  const handleRemove = (m: OrgMember) => {
     if (m.role === 'OWNER') {
       toast.error(t('cannotRemoveOwner'))
       return
     }
-    if (!window.confirm(t('confirmRemove', { name: m.displayName || m.email }))) return
+    setRemoveTarget(m)
+  }
+
+  const confirmRemove = async () => {
+    if (!removeTarget) return
+    const m = removeTarget
     setBusy(m.userId)
     try {
       await removeMember(m.userId)
       toast.success(t('removed'))
+      setRemoveTarget(null)
       await load()
     } catch (e: unknown) {
       toast.error(apiMessage(e))
@@ -190,12 +200,28 @@ export default function V2OrgRolesPage() {
               </div>
             </GaSection>
 
+            <ApproverSection isOwner={isOwner} members={members} />
+
             <p className="ga-ui text-[12px] text-ga-subtle">
               {isOwner ? t('footerOwner', { count: nfVN.format(members.length) }) : t('footerMember', { count: nfVN.format(members.length) })}
             </p>
           </div>
         )}
       </div>
+
+      {removeTarget && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => { if (!o) setRemoveTarget(null) }}
+          title={t('removeDialogTitle')}
+          description={t('confirmRemove', { name: removeTarget.displayName || removeTarget.email })}
+          details={[t('removeDialogDetailAccess'), t('removeDialogDetailReinvite')]}
+          confirmLabel={t('remove')}
+          cancelLabel={t('removeDialogCancel')}
+          loading={busy === removeTarget.userId}
+          onConfirm={() => void confirmRemove()}
+        />
+      )}
     </div>
   )
 }

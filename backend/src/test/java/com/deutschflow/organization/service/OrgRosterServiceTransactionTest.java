@@ -6,6 +6,7 @@ import com.deutschflow.organization.dto.RosterImportResultDto;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
 import com.deutschflow.organization.entity.Organization;
+import com.deutschflow.organization.repository.OrgAcademicApproverRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
@@ -88,6 +89,7 @@ class OrgRosterServiceTransactionTest {
     private PasswordEncoder passwordEncoder;
     private OrgEntitlementService entitlementService;
     private OrgMemberRepository orgMemberRepository;
+    private OrgAcademicApproverRepository academicApproverRepository;
     private ClassStudentRepository classStudentRepository;
     private TeacherClassRepository teacherClassRepository;
     private AssignmentBackfillService assignmentBackfillService;
@@ -109,6 +111,7 @@ class OrgRosterServiceTransactionTest {
         passwordEncoder = mock(PasswordEncoder.class);
         entitlementService = mock(OrgEntitlementService.class);
         orgMemberRepository = mock(OrgMemberRepository.class);
+        academicApproverRepository = mock(OrgAcademicApproverRepository.class);
         classStudentRepository = mock(ClassStudentRepository.class);
         teacherClassRepository = mock(TeacherClassRepository.class);
         assignmentBackfillService = mock(AssignmentBackfillService.class);
@@ -129,6 +132,9 @@ class OrgRosterServiceTransactionTest {
         ctx.registerBean(PasswordEncoder.class, () -> passwordEncoder);
         ctx.registerBean(OrgEntitlementService.class, () -> entitlementService);
         ctx.registerBean(OrgMemberRepository.class, () -> orgMemberRepository);
+        // PR-2: OrgMembershipService.deactivate nay thu hồi phân công duyệt học vụ (security H1)
+        // — context tối giản cần bean này; mock vì bài test đo ranh giới transaction, không đo revoke.
+        ctx.registerBean(OrgAcademicApproverRepository.class, () -> academicApproverRepository);
         ctx.registerBean(ClassStudentRepository.class, () -> classStudentRepository);
         ctx.registerBean(TeacherClassRepository.class, () -> teacherClassRepository);
         ctx.registerBean(AssignmentBackfillService.class, () -> assignmentBackfillService);
