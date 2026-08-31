@@ -7,6 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Map;
 
@@ -23,6 +24,7 @@ class AiJobWorkerClaimIntegrationTest extends AbstractPostgresIntegrationTest {
     @Autowired private AiJobWorker worker;
     @Autowired private AiJobRepository aiJobRepository;
     @Autowired private UserRepository userRepository;
+    @Autowired private JdbcTemplate jdbcTemplate;
 
     @Test
     @DisplayName("processPendingJobs claim được job PENDING (không còn TransactionRequiredException)")
@@ -32,9 +34,30 @@ class AiJobWorkerClaimIntegrationTest extends AbstractPostgresIntegrationTest {
         AiJob job = aiJobRepository.save(AiJob.builder().jobType("UNKNOWN_TYPE_FOR_TEST").userId(u.getId())
                 .payload(Map.of("x", 1)).build());
 
-        worker.processPendingJobs();
+        // CÔ LẬP DỮ LIỆU: DB Testcontainers dùng chung cho cả suite CI — job PENDING cũ hơn của
+        // suite khác chen trước batch claim LIMIT 5 (job này created_at = NOW nên trẻ nhất).
+        jdbcTemplate.update(
+                "UPDATE ai_jobs SET status = 'FAILED', error_msg = 'IT_SWEEP_COMPETING_PENDING' "
+                        + "WHERE status = 'PENDING' AND id <> ?", job.getId());
 
-        AiJob after = aiJobRepository.findById(job.getId()).orElseThrow();
+        // Gọi lặp có thời hạn — chống race SKIP LOCKED với scheduler 2s của các context khác cùng DB
+        // (chi tiết ở StaleAiJobGuardIntegrationTest#processUntilCompleted). Assertion giữ nguyên.
+        long deadline = System.currentTimeMillis() + 15_000;
+        AiJob after;
+        while (true) {
+            worker.processPendingJobs();
+            after = aiJobRepository.findById(job.getId()).orElseThrow();
+            if (AiJob.STATUS_COMPLETED.equals(after.getStatus()) || System.currentTimeMillis() >= deadline) {
+                break;
+            }
+            try {
+                Thread.sleep(150);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
         assertThat(after.getStatus()).isEqualTo(AiJob.STATUS_COMPLETED);
         assertThat(after.getResult()).containsEntry("error", "Unknown job type: UNKNOWN_TYPE_FOR_TEST");
     }
