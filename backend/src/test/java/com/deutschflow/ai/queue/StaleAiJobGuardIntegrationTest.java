@@ -19,13 +19,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * Hai lớp phòng vệ được kiểm ở đây:
  *   1. claimPendingJobs KHÔNG nhận job quá hạn  → worker không đốt token.
- *   2. StaleAiJobExpirer đánh dấu FAILED job quá hạn → không kẹt PENDING vĩnh viễn.
+ *   2. StaleAiJobExpirer (logic thật: StaleAiJobMaintenance) đánh dấu FAILED job quá hạn → không
+ *      kẹt PENDING vĩnh viễn.
  */
 @SpringBootTest
 class StaleAiJobGuardIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired private AiJobWorker worker;
-    @Autowired private StaleAiJobExpirer expirer;
+    // Bean LOGIC của expirer — xem lý do không autowire StaleAiJobExpirer ở expirerFailsOnlyStaleJobs.
+    @Autowired private StaleAiJobMaintenance maintenance;
     @Autowired private AiJobRepository aiJobRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
@@ -104,9 +106,14 @@ class StaleAiJobGuardIntegrationTest extends AbstractPostgresIntegrationTest {
         Long staleId = newJobAgedDays(30);
         Long freshId = newJobAgedDays(1);
 
-        // Gọi qua proxy đúng như scheduler gọi — đây LÀ entry point duy nhất, không có tầng tự-gọi,
-        // nên test này phủ luôn cả ràng buộc của ShedLock (method mang @SchedulerLock phải trả void).
-        expirer.expireStalePendingJobs();
+        // Gọi thẳng bean LOGIC, KHÔNG qua entry point @SchedulerLock (StaleAiJobExpirer): khoá
+        // 'staleAiJobExpire' nằm trong bảng shedlock của DB dùng chung — cron 03:15 UTC của một
+        // context khác còn sống trong context-cache (CI hay khởi động đúng cửa sổ 03:14–03:16),
+        // hoặc lần chạy suite trước đó <60s trên cùng DB (lockAtLeastFor=PT1M), làm lời gọi tay bị
+        // skip im lặng → stale job vẫn PENDING → đỏ giả (đã tái hiện bằng chạy lặp <60s). Ràng buộc
+        // "method @SchedulerLock phải trả void" mà bài này từng phủ ké đã chuyển về
+        // SchedulerLockVoidContractTest — quét bytecode toàn bộ entry point, không đụng ShedLock.
+        maintenance.expireStalePending();
 
         AiJob stale = aiJobRepository.findById(staleId).orElseThrow();
         assertThat(stale.getStatus()).isEqualTo(AiJob.STATUS_FAILED);
