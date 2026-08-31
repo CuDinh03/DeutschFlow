@@ -197,6 +197,7 @@ const ORG_ITEM = {
   overview: { id: 'org', label: 'Tổng quan', href: '/v2/org', icon: 'dashboard' },
   students: { id: 'org-students', label: 'Học viên', href: '/v2/org/students', icon: 'school' },
   classes: { id: 'org-classes', label: 'Lớp học', href: '/v2/org/classes', icon: 'groups' },
+  curricula: { id: 'org-curricula', label: 'Giáo trình', href: '/v2/org/curricula', icon: 'menu_book' },
   schedule: { id: 'org-schedule', label: 'Lịch trung tâm', href: '/v2/org/schedule', icon: 'schedule' },
   teachers: { id: 'org-teachers', label: 'Giáo viên', href: '/v2/org/teachers', icon: 'badge' },
   analytics: { id: 'org-analytics', label: 'Phân tích', href: '/v2/org/analytics', icon: 'monitoring' },
@@ -228,6 +229,7 @@ export const orgNav: RoleNav = {
         ORG_ITEM.overview,
         ORG_ITEM.students,
         ORG_ITEM.classes,
+        ORG_ITEM.curricula,
         ORG_ITEM.schedule,
         ORG_ITEM.teachers,
         ORG_ITEM.analytics,
@@ -264,7 +266,7 @@ export const managerNav: RoleNav = {
     {
       label: 'Vận hành',
       labelKey: 'ops',
-      items: [ORG_ITEM.overview, ORG_ITEM.schedule, ORG_ITEM.classes, ORG_ITEM.students],
+      items: [ORG_ITEM.overview, ORG_ITEM.schedule, ORG_ITEM.classes, ORG_ITEM.curricula, ORG_ITEM.students],
     },
     {
       label: 'Nhân sự',

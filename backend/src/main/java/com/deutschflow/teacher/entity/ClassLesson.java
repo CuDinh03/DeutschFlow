@@ -57,6 +57,19 @@ public class ClassLesson {
     @Column(name = "completed_by_teacher_id")
     private Long completedByTeacherId;
 
+    /**
+     * Lektion giáo trình trung tâm sinh ra bài này (V290); null = bài tự do/lớp chưa gắn giáo
+     * trình (toàn bộ dữ liệu cũ). Bài có lektion_id là NỘI DUNG BẮT BUỘC: giáo viên không
+     * sửa/xóa nội dung, không đổi thứ tự tương đối (guard trong ClassLessonService — AC01).
+     */
+    @Column(name = "lektion_id")
+    private Long lektionId;
+
+    /** Bài BỔ TRỢ giáo viên tự thêm trong lớp đã gắn giáo trình (D02) — không vào mẫu số hoàn thành. */
+    @Column(name = "is_supplementary", nullable = false)
+    @Builder.Default
+    private boolean supplementary = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

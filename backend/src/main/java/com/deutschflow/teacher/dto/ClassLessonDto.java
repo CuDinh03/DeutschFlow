@@ -9,6 +9,8 @@ public record ClassLessonDto(
         Long classId,
         int orderIndex,
         Long moduleId,
+        Long lektionId,
+        boolean supplementary,
         String title,
         String description,
         String cefrLevel,

@@ -13,6 +13,9 @@ public interface ClassLessonLogRepository extends JpaRepository<ClassLessonLog, 
     List<ClassLessonLog> findByClassIdOrderBySessionDateDesc(Long classId);
     int countByClassId(Long classId);
 
+    /** Số nhật ký gắn vào các bài cho trước — dấu vết chặn đổi/gỡ giáo trình (PR-1). */
+    long countByLessonIdIn(List<Long> lessonIds);
+
     /**
      * Nhật ký đã ghi cho cùng một buổi của lớp. Dùng để chặn ghi trùng: số buổi là căn cứ tính
      * công giáo viên, nên một lần bấm Lưu hai lần (double-click / mạng chập) là trả thừa công.

@@ -13,6 +13,9 @@ public interface ClassLessonRepository extends JpaRepository<ClassLesson, Long> 
 
     List<ClassLesson> findByClassIdOrderByOrderIndexAsc(Long classId);
 
+    /** Các bài được SINH từ giáo trình trung tâm (lektion_id ≠ null) của lớp — V290. */
+    List<ClassLesson> findByClassIdAndLektionIdIsNotNullOrderByOrderIndexAsc(Long classId);
+
     long countByClassId(Long classId);
 
     long countByClassIdAndCompletedTrue(Long classId);
