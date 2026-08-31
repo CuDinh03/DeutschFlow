@@ -88,23 +88,14 @@ public class StudentAssignmentController {
     @GetMapping
     @Transactional(readOnly = true)
     public ResponseEntity<List<StudentAssignmentDto>> getMyAssignments(@AuthenticationPrincipal User user) {
+        // forStudent masks the score/feedback of not-yet-final rows (F01) — never hand a student an
+        // unconfirmed AI proposal, even though the teacher-facing surfaces still see it.
         List<StudentAssignmentDto> assignments = studentAssignmentRepository.findByStudentIdOrderByCreatedAtDesc(user.getId())
                 .stream()
-                .map(a -> {
-                    ClassAssignment ca = classAssignmentRepository.findById(a.getAssignmentId()).orElse(null);
-                    return new StudentAssignmentDto(
-                            a.getId(), a.getAssignmentId(), a.getStudentId(), a.getStatus(),
-                            a.getScore(), a.getFeedback(), a.getSubmittedAt(), a.getCreatedAt(),
-                            ca != null ? ca.getTopic() : "",
-                            ca != null ? ca.getDescription() : "",
-                            ca != null ? ca.getAssignmentType() : "GENERAL",
-                            ca != null ? ca.getDueDate() : null,
-                            a.getSubmissionContent(),
-                            submissionFileUrlResolver.resolve(a.getSubmissionFileUrl()),
-                            ca != null ? ca.getAttachmentUrl() : null,
-                            ca != null ? ca.getReferenceId() : null
-                    );
-                })
+                .map(a -> StudentAssignmentDto.forStudent(
+                        a,
+                        classAssignmentRepository.findById(a.getAssignmentId()).orElse(null),
+                        submissionFileUrlResolver.resolve(a.getSubmissionFileUrl())))
                 .toList();
         return ResponseEntity.ok(assignments);
     }
@@ -203,18 +194,8 @@ public class StudentAssignmentController {
                 Set.of(com.deutschflow.notification.NotificationType.NEW_CLASS_ASSIGNMENT),
                 Map.<String, Object>of("assignmentId", ackAssignmentId)));
 
-        return ResponseEntity.ok(new StudentAssignmentDto(
-                assignment.getId(), assignment.getAssignmentId(), assignment.getStudentId(), assignment.getStatus(),
-                assignment.getScore(), assignment.getFeedback(), assignment.getSubmittedAt(), assignment.getCreatedAt(),
-                ca != null ? ca.getTopic() : "",
-                ca != null ? ca.getDescription() : "",
-                ca != null ? ca.getAssignmentType() : "GENERAL",
-                ca != null ? ca.getDueDate() : null,
-                assignment.getSubmissionContent(),
-                submissionFileUrlResolver.resolve(assignment.getSubmissionFileUrl()),
-                ca != null ? ca.getAttachmentUrl() : null,
-                ca != null ? ca.getReferenceId() : null
-        ));
+        return ResponseEntity.ok(StudentAssignmentDto.forStudent(
+                assignment, ca, submissionFileUrlResolver.resolve(assignment.getSubmissionFileUrl())));
     }
 
     @GetMapping("/{assignmentId}/scenario")
