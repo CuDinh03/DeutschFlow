@@ -420,7 +420,8 @@
         "expiring": "Expiring soon",
         "expiringSub": "within ≤ {days} days",
         "freeSeatsUnlimited": "Unlimited",
-        "freeSeatsUnlimitedSub": "seats on this plan"
+        "freeSeatsUnlimitedSub": "seats on this plan",
+        "freeSeatsUnavailable": "seat data could not load"
       },
       "studentByCode": "Students join with the organization code (see below)",
       "sent": "Invitation sent to {email}",

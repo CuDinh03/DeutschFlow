@@ -420,7 +420,8 @@
         "expiring": "Sắp hết hạn",
         "expiringSub": "trong ≤ {days} ngày",
         "freeSeatsUnlimited": "Không giới hạn",
-        "freeSeatsUnlimitedSub": "ghế theo gói"
+        "freeSeatsUnlimitedSub": "ghế theo gói",
+        "freeSeatsUnavailable": "chưa tải được dữ liệu ghế"
       },
       "studentByCode": "Học viên tham gia bằng mã tổ chức (xem bên dưới)",
       "sent": "Đã gửi lời mời tới {email}",

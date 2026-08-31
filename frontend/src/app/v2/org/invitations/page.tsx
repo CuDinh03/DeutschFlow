@@ -10,7 +10,7 @@ import {
   listInvitations, inviteTeacher, revokeInvitation, rotateInvitation, getOrgSummary,
   type OrgInvitation, type OrgSummary, type OrgRole,
 } from '@/lib/orgApi'
-import { seatMeta } from '@/lib/orgSeats'
+import { seatMetaOf } from '@/lib/orgSeats'
 import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -107,7 +107,9 @@ export default function V2OrgInvitationsPage() {
 
   const pending = invites.filter((i) => i.status === 'PENDING')
   const expiring = pending.filter((i) => daysUntil(i.expiresAt) <= INVITE_EXPIRING_DAYS)
-  const seats = seatMeta(summary?.seatUsed ?? 0, summary?.seatLimit ?? 0)
+  // summary lỗi/chưa về (getOrgSummary bị .catch(()=>null) ở load) → seats=null: hiển thị
+  // "chưa tải được", KHÔNG giả vờ "không giới hạn" (review O-1, finding HIGH).
+  const seats = seatMetaOf(summary)
 
   return (
     <div className="flex min-h-full flex-col">
@@ -120,8 +122,8 @@ export default function V2OrgInvitationsPage() {
             { label: t('stats.expiring'), value: expiring.length, sub: t('stats.expiringSub', { days: INVITE_EXPIRING_DAYS }), color: '#E07B39', alert: expiring.length > 0 },
             {
               label: t('stats.freeSeats'),
-              value: seats.unlimited ? t('stats.freeSeatsUnlimited') : (seats.free ?? 0),
-              sub: seats.unlimited ? t('stats.freeSeatsUnlimitedSub') : t('stats.freeSeatsSub'),
+              value: !seats ? '—' : seats.unlimited ? t('stats.freeSeatsUnlimited') : (seats.free ?? 0),
+              sub: !seats ? t('stats.freeSeatsUnavailable') : seats.unlimited ? t('stats.freeSeatsUnlimitedSub') : t('stats.freeSeatsSub'),
               color: TEAL,
             },
           ]}

@@ -6,7 +6,7 @@ import { Banknote, Check, Copy } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { getOrgSummary, getPaymentInfo, listMyInvoices, type OrgInvoice, type OrgSummary, type PaymentInfo } from '@/lib/orgApi'
-import { seatMeta } from '@/lib/orgSeats'
+import { seatMetaOf } from '@/lib/orgSeats'
 import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
 import { OrgOwnerOnly } from '../OwnerOnly'
 
@@ -99,7 +99,9 @@ function V2OrgBillingInner() {
 
   useEffect(() => { void load() }, [load])
 
-  const seats = seatMeta(summary?.seatUsed ?? 0, summary?.seatLimit ?? 0)
+  // null khi summary chưa về; JSX dùng seats chỉ render sau loading (summary chắc chắn có,
+  // vì summary lỗi đã rẽ sang error panel) — nhưng vẫn null-safe để không lệ thuộc thứ tự render.
+  const seats = seatMetaOf(summary)
   const issued = useMemo(
     () => [...invoices].filter((i) => !['DRAFT', 'VOID'].includes((i.status ?? '').toUpperCase())).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     [invoices],
@@ -147,7 +149,7 @@ function V2OrgBillingInner() {
               items={[
                 { label: t('stats.paidToDf'), value: vnd(totalPaid), sub: t('stats.invoiceCount', { count: paid.length }), color: GREEN },
                 { label: t('stats.owedToDf'), value: vnd(totalOwed), sub: t('stats.invoiceCount', { count: unpaid.length }), color: totalOwed > 0 ? '#E07B39' : '#76716A', alert: totalOwed > 0 },
-                { label: t('stats.seatsInUse'), value: summary ? summary.seatUsed.toLocaleString('vi-VN') : '—', sub: seats.unlimited ? t('stats.seatsUnlimited') : t('stats.seatsOfLimit', { limit: summary?.seatLimit ?? 0 }), color: '#7C56C8' },
+                { label: t('stats.seatsInUse'), value: summary ? summary.seatUsed.toLocaleString('vi-VN') : '—', sub: !seats ? '—' : seats.unlimited ? t('stats.seatsUnlimited') : t('stats.seatsOfLimit', { limit: summary?.seatLimit ?? 0 }), color: '#7C56C8' },
               ]}
             />
 
@@ -157,16 +159,16 @@ function V2OrgBillingInner() {
                 <GaCap className="mb-2.5 block" style={{ color: '#A39E94' }}>{t('currentPlanCap')}</GaCap>
                 <div className="break-words font-ga-display text-[22px] font-medium sm:text-[26px] lg:text-[28px]">{summary?.planCode || t('noPlan')}</div>
                 <p className="mb-[18px] mt-2 text-[14px]" style={{ color: '#A39E94' }}>
-                  {seats.unlimited ? t('planDescUnlimited') : t('planDescLimited', { seats: summary?.seatLimit ?? 0 })}
+                  {seats?.unlimited ? t('planDescUnlimited') : t('planDescLimited', { seats: summary?.seatLimit ?? 0 })}
                 </p>
                 {/* F05: org không giới hạn KHÔNG vẽ thanh 0% sức chứa. */}
-                {!seats.unlimited && (
+                {seats && !seats.unlimited && (
                   <>
                     <div className="mb-2 h-2 overflow-hidden bg-white/15"><div className="h-full" style={{ width: `${seats.pct ?? 0}%`, background: 'var(--ga-yellow)' }} /></div>
                     <div className="text-[13px]" style={{ color: '#A39E94' }}>{t('seatsUsedLimited', { used: summary?.seatUsed ?? 0, limit: summary?.seatLimit ?? 0, free: seats.free ?? 0 })}</div>
                   </>
                 )}
-                {seats.unlimited && (
+                {seats?.unlimited && (
                   <div className="text-[13px]" style={{ color: '#A39E94' }}>{t('seatsUsedUnlimited', { used: summary?.seatUsed ?? 0 })}</div>
                 )}
               </div>

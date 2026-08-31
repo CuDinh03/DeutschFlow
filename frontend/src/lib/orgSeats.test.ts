@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { seatMeta } from './orgSeats'
+import { seatMeta, seatMetaOf } from './orgSeats'
 
 describe('seatMeta', () => {
   test('limit 0 = không giới hạn — không phải hết ghế', () => {
@@ -23,5 +23,17 @@ describe('seatMeta', () => {
 
   test('chưa dùng ghế nào', () => {
     expect(seatMeta(0, 40)).toEqual({ unlimited: false, free: 40, pct: 0 })
+  })
+})
+
+describe('seatMetaOf', () => {
+  test('summary null (chưa tải/lỗi) trả null — KHÔNG giả vờ "không giới hạn"', () => {
+    expect(seatMetaOf(null)).toBeNull()
+    expect(seatMetaOf(undefined)).toBeNull()
+  })
+
+  test('summary có thật thì ủy quyền cho seatMeta', () => {
+    expect(seatMetaOf({ seatUsed: 30, seatLimit: 40 })).toEqual({ unlimited: false, free: 10, pct: 75 })
+    expect(seatMetaOf({ seatUsed: 12, seatLimit: 0 })).toEqual({ unlimited: true, free: null, pct: null })
   })
 })

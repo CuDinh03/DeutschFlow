@@ -10,7 +10,7 @@ import {
   getOrgSummary, getAnalytics, listClasses, listInvitations,
   type OrgSummary, type OrgAnalytics, type OrgClass, type OrgInvitation,
 } from '@/lib/orgApi'
-import { seatMeta } from '@/lib/orgSeats'
+import { seatMetaOf } from '@/lib/orgSeats'
 import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -73,13 +73,14 @@ export function OrgOwnerDashboard() {
 
   useEffect(() => { void load() }, [load])
 
-  const seats = seatMeta(summary?.seatUsed ?? 0, summary?.seatLimit ?? 0)
+  // null khi summary CHƯA tải xong — không được hiểu là "không giới hạn" (review O-1).
+  const seats = seatMetaOf(summary)
   const an = analytics.state === 'ok' ? analytics.data : null
 
   // "Cần xử lý" chỉ tổng hợp từ nguồn ĐÃ tải được; nguồn lỗi → nói rõ, không im lặng bỏ qua.
   const todoSourceFailed = classes.state === 'error' || invites.state === 'error'
   const todos: { key: string; label: string; tone: string; href: string }[] = []
-  if (!seats.unlimited && (seats.free ?? 0) > 0) {
+  if (seats && !seats.unlimited && (seats.free ?? 0) > 0) {
     todos.push({ key: 'seats', label: t('todo.freeSeats', { count: seats.free ?? 0 }), tone: 'var(--ga-yellow)', href: '/v2/org/invitations' })
   }
   if (classes.state === 'ok') {
@@ -133,8 +134,9 @@ export function OrgOwnerDashboard() {
           items={[
             {
               label: t('stats.seatsUsed'),
-              value: summary ? (seats.unlimited ? summary.seatUsed.toLocaleString('vi-VN') : `${summary.seatUsed}/${summary.seatLimit}`) : '—',
-              sub: seats.unlimited ? t('stats.capacityUnlimited') : t('stats.capacity', { pct: seats.pct ?? 0 }),
+              value: summary && seats ? (seats.unlimited ? summary.seatUsed.toLocaleString('vi-VN') : `${summary.seatUsed}/${summary.seatLimit}`) : '—',
+              // seats=null (summary chưa về) KHÔNG hiển thị "không giới hạn" — chỉ '—'.
+              sub: seats ? (seats.unlimited ? t('stats.capacityUnlimited') : t('stats.capacity', { pct: seats.pct ?? 0 })) : '—',
               color: TEAL,
             },
             {
@@ -189,27 +191,34 @@ export function OrgOwnerDashboard() {
           {/* Seat + token meters (real) */}
           <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
             <GaCap className="mb-4 block">{t('seatUsageCap')}</GaCap>
-            {seats.unlimited ? (
-              <>
-                {/* F05: gói không giới hạn — hiển thị số đang dùng, KHÔNG vẽ % sức chứa giả. */}
-                <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3">
-                  <span className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[26px]">{summary?.seatUsed ?? 0}</span>
-                  <span className="min-w-0 text-[12.5px] text-ga-muted">{t('seatsUnlimitedSuffix')}</span>
-                </div>
-              </>
+            {/* seats=null = summary chưa về → shimmer, KHÔNG render "0 · không giới hạn" giả. */}
+            {!seats ? (
+              <div className="ga-shimmer h-[88px]" aria-hidden />
             ) : (
               <>
-                <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 lg:flex-nowrap lg:gap-x-0">
-                  <span className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[26px]">{seats.pct ?? 0}%</span>
-                  <span className="min-w-0 text-[12.5px] text-ga-muted">{t('seatsSuffix', { used: summary?.seatUsed ?? 0, limit: summary?.seatLimit ?? 0 })}</span>
+                {seats.unlimited ? (
+                  <>
+                    {/* F05: gói không giới hạn — hiển thị số đang dùng, KHÔNG vẽ % sức chứa giả. */}
+                    <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3">
+                      <span className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[26px]">{summary?.seatUsed ?? 0}</span>
+                      <span className="min-w-0 text-[12.5px] text-ga-muted">{t('seatsUnlimitedSuffix')}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 lg:flex-nowrap lg:gap-x-0">
+                      <span className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[26px]">{seats.pct ?? 0}%</span>
+                      <span className="min-w-0 text-[12.5px] text-ga-muted">{t('seatsSuffix', { used: summary?.seatUsed ?? 0, limit: summary?.seatLimit ?? 0 })}</span>
+                    </div>
+                    <span className="block h-2.5 bg-ga-bg"><span className="block h-full" style={{ width: `${seats.pct ?? 0}%`, background: TEAL }} /></span>
+                  </>
+                )}
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 text-[12.5px] text-ga-muted lg:flex-nowrap lg:gap-x-0">
+                  <span className="min-w-0">{seats.unlimited ? '' : t('freeSuffix', { count: seats.free ?? 0 })}</span>
+                  <Link href="/v2/org/billing" className="inline-flex min-h-[40px] items-center font-semibold underline lg:min-h-0" style={{ color: TEAL }}>{t('viewBilling')}</Link>
                 </div>
-                <span className="block h-2.5 bg-ga-bg"><span className="block h-full" style={{ width: `${seats.pct ?? 0}%`, background: TEAL }} /></span>
               </>
             )}
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 text-[12.5px] text-ga-muted lg:flex-nowrap lg:gap-x-0">
-              <span className="min-w-0">{seats.unlimited ? '' : t('freeSuffix', { count: seats.free ?? 0 })}</span>
-              <Link href="/v2/org/billing" className="inline-flex min-h-[40px] items-center font-semibold underline lg:min-h-0" style={{ color: TEAL }}>{t('viewBilling')}</Link>
-            </div>
 
             {an && an.monthlyTokenPool > 0 && (
               <>

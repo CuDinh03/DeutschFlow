@@ -420,7 +420,8 @@
         "expiring": "Läuft bald ab",
         "expiringSub": "in ≤ {days} Tagen",
         "freeSeatsUnlimited": "Unbegrenzt",
-        "freeSeatsUnlimitedSub": "Plätze im Tarif"
+        "freeSeatsUnlimitedSub": "Plätze im Tarif",
+        "freeSeatsUnavailable": "Platzdaten nicht geladen"
       },
       "studentByCode": "Schüler treten mit dem Organisationscode bei (siehe unten)",
       "sent": "Einladung an {email} gesendet",

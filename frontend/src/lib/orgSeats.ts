@@ -23,3 +23,13 @@ export function seatMeta(used: number, limit: number): SeatMeta {
   const pct = Math.min(100, Math.round((used / limit) * 100))
   return { unlimited: false, free, pct }
 }
+
+/**
+ * Biến thể null-aware: summary CHƯA TẢI/LỖI (null) trả null thay vì giả vờ
+ * `seatMeta(0, 0)` = "không giới hạn". "Chưa có dữ liệu" và "gói không giới hạn"
+ * là hai sự thật khác nhau — UI phải hiển thị khác nhau (review O-1, finding HIGH).
+ */
+export function seatMetaOf(summary: { seatUsed: number; seatLimit: number } | null | undefined): SeatMeta | null {
+  if (!summary) return null
+  return seatMeta(summary.seatUsed, summary.seatLimit)
+}

@@ -31,5 +31,6 @@ export function downloadTextFile(filename: string, content: string, mime = 'text
   a.href = url
   a.download = filename
   a.click()
-  URL.revokeObjectURL(url)
+  // Hoãn revoke một nhịp: WebKit có thể chưa kịp bắt đầu tải nếu revoke đồng bộ ngay sau click.
+  setTimeout(() => URL.revokeObjectURL(url), 0)
 }
