@@ -7,7 +7,8 @@ export interface ReportsOverview {
   classCount: number
   studentCount: number
   assignmentCount: number
-  avgScore: number
+  /** null = chưa có điểm chốt nào (F05) — 0 là một trung bình THẬT, không phải "chưa có dữ liệu". */
+  avgScore: number | null
 }
 
 export interface ClassSummary {
@@ -15,7 +16,8 @@ export interface ClassSummary {
   name: string
   studentCount: number
   assignmentCount: number
-  avgScore: number
+  /** null = lớp chưa có điểm chốt (F05); phân biệt với 0 thật. */
+  avgScore: number | null
 }
 
 export interface TrendSeries {
@@ -59,7 +61,7 @@ export async function getReportsOverview(): Promise<ReportsOverview> {
     classCount: num(d.classCount),
     studentCount: num(d.studentCount),
     assignmentCount: num(d.assignmentCount),
-    avgScore: num(d.avgScore),
+    avgScore: optNum(d.avgScore),
   }
 }
 
@@ -73,7 +75,7 @@ export async function getClassesSummary(): Promise<ClassSummary[]> {
       name: String(r.name ?? `Lớp #${r.id}`),
       studentCount: num(r.studentCount),
       assignmentCount: num(r.assignmentCount),
-      avgScore: num(r.avgScore),
+      avgScore: optNum(r.avgScore),
     }
   })
 }

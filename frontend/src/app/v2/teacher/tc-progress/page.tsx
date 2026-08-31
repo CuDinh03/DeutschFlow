@@ -12,7 +12,7 @@ import { listModules, type CurriculumModule } from '@/lib/teacherModulesApi'
 import { groupLessonsByModule } from '@/lib/moduleGrouping'
 import { resolvePointTexts } from '@/lib/knowledgePoints'
 import { computePacing, isLessonOverdue, todayIsoLocal, parseIsoDateLocal, type PacingStatus } from '../lessonPacing'
-import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, ErrorBanner } from '@/components/ui-v2'
 import { ClassPicker, useTeacherClasses, pct, classHref } from '../tcShared'
 
 const VIOLET = '#7C56C8'
@@ -35,7 +35,7 @@ export default function V2TcProgressPage() {
   const t = useTranslations('v2.teacher.tcProgress')
   const tc = useTranslations('v2.common')
   const router = useRouter()
-  const { classes, classId, setClassId, loadingClasses } = useTeacherClasses()
+  const { classes, classId, setClassId, loadingClasses, classesError, reloadClasses } = useTeacherClasses()
   const [lessons, setLessons] = useState<ClassLesson[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -112,6 +112,12 @@ export default function V2TcProgressPage() {
       />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
+        {/* F05: lỗi tải danh sách lớp từng chết im — không classId thì fetch con không chạy để surface. */}
+        {classesError && (
+          <div className="mb-4">
+            <ErrorBanner message={classesError} onRetry={reloadClasses} />
+          </div>
+        )}
         {loading ? (
           <div className="ga-shimmer h-[180px] border border-ga-line" aria-hidden />
         ) : error ? (

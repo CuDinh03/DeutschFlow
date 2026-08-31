@@ -42,6 +42,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -1213,6 +1214,40 @@ class TeacherServiceTest {
 
         assertThrows(com.deutschflow.common.exception.ConflictException.class,
                 () -> teacherService.getStudentAssignments(teacherId, studentId));
+    }
+
+    /**
+     * F05 (A3): badge "chờ chấm" trên thẻ lớp đọc pendingReviewCount — DTO phải trả nó thật,
+     * đếm đúng tập AWAITING_TEACHER, và lớp không có bài chờ thì 0.
+     */
+    @Test
+    @DisplayName("F05: getClassesForTeacher trả pendingReviewCount theo lớp từ truy vấn gộp")
+    void getClassesForTeacher_returnsPendingReviewCount() {
+        Long teacherId = 1L;
+        when(classTeacherRepository.findByIdTeacherId(teacherId)).thenReturn(List.of(
+                ClassTeacher.builder().id(new ClassTeacherId(10L, teacherId)).role("PRIMARY").build(),
+                ClassTeacher.builder().id(new ClassTeacherId(20L, teacherId)).role("PRIMARY").build()));
+        TeacherClass c10 = TeacherClass.builder().id(10L).name("A1").inviteCode("X1").build();
+        TeacherClass c20 = TeacherClass.builder().id(20L).name("A2").inviteCode("X2").build();
+        when(classRepository.findAllById(any())).thenReturn(List.of(c10, c20));
+        when(jdbcTemplate.queryForList(org.mockito.ArgumentMatchers.argThat(
+                        (String sql) -> sql != null && sql.contains("FROM class_students")),
+                any(Object[].class)))
+                .thenReturn(List.of(Map.of("class_id", 10L, "cnt", 5L)));
+        when(jdbcTemplate.queryForList(org.mockito.ArgumentMatchers.argThat(
+                        (String sql) -> sql != null && sql.contains("FROM class_assignments WHERE")),
+                any(Object[].class)))
+                .thenReturn(List.of(Map.of("class_id", 10L, "cnt", 3L)));
+        when(jdbcTemplate.queryForList(org.mockito.ArgumentMatchers.argThat(
+                        (String sql) -> sql != null && sql.contains("FROM student_assignments")),
+                any(Object[].class)))
+                .thenReturn(List.of(Map.of("class_id", 10L, "cnt", 4L)));
+
+        List<com.deutschflow.teacher.dto.TeacherClassDto> out = teacherService.getClassesForTeacher(teacherId);
+
+        assertEquals(2, out.size());
+        assertEquals(4L, out.get(0).pendingReviewCount()); // lớp 10 có 4 bài chờ chấm
+        assertEquals(0L, out.get(1).pendingReviewCount()); // lớp 20 không có → 0, không phải null/thiếu
     }
 
     // ─── evaluateAssignment (A5/F12): ràng buộc đầu vào khi chốt điểm ─────────────

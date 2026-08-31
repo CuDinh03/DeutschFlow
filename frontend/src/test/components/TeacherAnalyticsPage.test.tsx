@@ -95,4 +95,37 @@ describe('V2 teacher analytics — X3 trend view', () => {
     render(<Page />)
     await waitFor(() => expect(screen.getByText('loadError')).toBeInTheDocument())
   })
+
+  // ── F05: 0 thật ≠ chưa có dữ liệu; nguồn lỗi hiện lỗi đúng vùng, không rơi im lặng ──
+
+  it('plots a confirmed 0.0 average and shows — only for null (no confirmed grade)', async () => {
+    getClassesSummary.mockResolvedValue([
+      { id: 11, name: 'A1 Sáng', studentCount: 3, assignmentCount: 4, avgScore: 82 },
+      { id: 12, name: 'A2 Chiều', studentCount: 2, assignmentCount: 4, avgScore: 0 },
+      { id: 13, name: 'B1 Tối', studentCount: 2, assignmentCount: 1, avgScore: null },
+    ])
+    render(<Page />)
+    await waitFor(() => expect(screen.getByRole('link', { name: 'B1 Tối' })).toBeInTheDocument())
+    // Điểm 0 THẬT có mặt ở cả bảng lẫn biểu đồ trung bình theo lớp — trước đây `> 0` lọc mất nó.
+    expect(screen.getAllByText('A2 Chiều').length).toBeGreaterThanOrEqual(2)
+    // Lớp chưa có điểm chốt (null): chỉ ở bảng, ô điểm là "—".
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('a single failed source shows an error in ITS OWN section while the rest renders', async () => {
+    getSkillDistribution.mockRejectedValue(new Error('boom'))
+    render(<Page />)
+    await waitFor(() => expect(screen.getByText('sectionError')).toBeInTheDocument())
+    expect(screen.queryByText('loadError')).not.toBeInTheDocument()  // không phải lỗi toàn trang
+    expect(screen.queryByText('skillEmpty')).not.toBeInTheDocument() // KHÔNG rơi im lặng về "trống"
+    expect(screen.getByRole('link', { name: 'A1 Sáng' })).toBeInTheDocument() // bảng lớp vẫn sống
+  })
+
+  it('overview failing alone degrades to a section error, not the full-page error', async () => {
+    getReportsOverview.mockRejectedValue(new Error('boom'))
+    render(<Page />)
+    await waitFor(() => expect(screen.getByText('sectionError')).toBeInTheDocument())
+    expect(screen.queryByText('loadError')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'A1 Sáng' })).toBeInTheDocument()
+  })
 })
