@@ -337,6 +337,28 @@ public class ExamSessionService {
         return view(s, bp, plan, null);
     }
 
+    /**
+     * Chấm lại phiên mock có job chấm đã chết (GRADING_FAILED): assert quota như finish rồi enqueue
+     * job MỚI và quay về GRADING — poll sẵn có của client tự nối tiếp. Chỉ nhận đúng GRADING_FAILED:
+     * GRADING đang chạy thì không chen (sinh job đôi), RESULTS thì đã có phiếu — đều 409.
+     */
+    @Transactional
+    public ExamSessionView regrade(long userId, long sessionId) {
+        SpeakingExamSession s = load(userId, sessionId);
+        if (!SpeakingExamSession.STATE_GRADING_FAILED.equals(s.getState())) {
+            throw new ConflictException("Phiên không ở trạng thái chấm lỗi (state=" + s.getState() + ")");
+        }
+        quotaService.assertAllowed(userId, Instant.now(), MOCK_GRADING_ESTIMATED_TOKENS);
+        orgPoolGuard.assertOrgPoolAvailable(userId, MOCK_GRADING_ESTIMATED_TOKENS);
+        AiJob job = aiJobRepository.save(AiJob.builder().jobType(JOB_TYPE_MOCK_GRADING).userId(userId)
+                .payload(Map.of("sessionId", s.getId())).build());
+        s.setGradingJobId(job.getId());
+        s.setState(SpeakingExamSession.STATE_GRADING);
+        sessionRepository.save(s);
+        log.info("[ExamSpeaking] mock session {} regrade → job {}", s.getId(), job.getId());
+        return view(s, blueprint(s), plan(s), null);
+    }
+
     @Transactional
     public ExamSessionView saveNotes(long userId, long sessionId, String notes) {
         SpeakingExamSession s = load(userId, sessionId);

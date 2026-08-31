@@ -242,6 +242,43 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await expect(page.getByTestId('ergebnisbogen')).toBeVisible({ timeout: 30_000 });
   });
 
+  test('chấm lỗi (GRADING_FAILED) → thông báo + nút Chấm lại → job mới → RESULTS', async ({ page }) => {
+    await baseMocks(page);
+    let regraded = false;
+    let postRegradePolls = 0;
+    const failedSession = (state: string) => ({
+      id: 779, provider: 'GOETHE', level: 'A1', mode: 'MOCK', state, currentPart: 3, currentStep: 4, totalParts: 3,
+      serverNow: NOW.toISOString(), prepDeadlineAt: null, partDeadlineAt: null, directive: null, lastTurnEval: null,
+      notesText: null, gradingJobId: state === 'GRADING_FAILED' ? 9003 : 9004, resultAvailable: state === 'RESULTS',
+    });
+    await page.route('**/api/speaking/exam/sessions/779', (route) => {
+      if (!regraded) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(failedSession('GRADING_FAILED')) });
+      }
+      postRegradePolls += 1;
+      return route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify(failedSession(postRegradePolls >= 2 ? 'RESULTS' : 'GRADING')),
+      });
+    });
+    await page.route('**/api/speaking/exam/sessions/779/regrade', (route) => {
+      regraded = true;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(failedSession('GRADING')) });
+    });
+    await page.route('**/api/speaking/exam/sessions/779/result', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...RESULT, sessionId: 779 }) }),
+    );
+
+    await page.goto('/v2/student/speaking/exam/session/779');
+    // Không còn spinner "đang chấm" mù: học viên thấy lỗi thật + biết bài thi còn nguyên.
+    await expect(page.getByTestId('exam-grading-failed')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('exam-grading-failed')).toContainText('Chấm điểm bị lỗi');
+    await page.getByTestId('regrade-btn').click();
+    // Quay về màn đang chấm, poll sẵn có tự nối tới phiếu điểm.
+    await expect(page.getByTestId('exam-grading')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('ergebnisbogen')).toBeVisible({ timeout: 30_000 });
+  });
+
   test('A2 Teil 3 lịch tuần: chỉ hiện lịch của mình, không bao giờ vẽ khóa partner*', async ({ page }) => {
     await baseMocks(page);
     const calendarSession = {

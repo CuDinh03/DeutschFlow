@@ -265,6 +265,33 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
     }
   }, [interruptSpeech, sessionId])
 
+  // Gói vá F-01: job chấm chết → server trả GRADING_FAILED; nút này enqueue job MỚI và quay về
+  // GRADING — effect poll sẵn có tự nối tiếp, không cần reload trang.
+  const regrade = useCallback(async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const { data } = await examSpeakingApi.regrade(sessionId)
+      setSession(data)
+    } catch (e) {
+      setError(apiMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }, [sessionId])
+
+  // Gói vá F-19: phiên đã RESULTS nhưng lượt tải phiếu lỗi (mạng) — thử lại phải REFETCH thật,
+  // không phải chỉ đóng banner như trước.
+  const retryResult = useCallback(async () => {
+    setError(null)
+    try {
+      const r = await examSpeakingApi.getResult(sessionId)
+      setResult(r.data)
+    } catch (e) {
+      setError(apiMessage(e))
+    }
+  }, [sessionId])
+
   const choose = useCallback(
     async (teilNo: number, index: number) => {
       setBusy(true)
@@ -529,6 +556,33 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
           <section className="mx-auto max-w-xl py-10 text-center" data-testid="exam-grading">
             <LoadingState label={t('grading')} />
             <p className="ga-ui mt-3 text-[13px] text-ga-muted">{t('gradingDesc')}</p>
+          </section>
+        )}
+
+        {session.state === 'GRADING_FAILED' && (
+          <section className="mx-auto max-w-xl py-10" data-testid="exam-grading-failed">
+            <ErrorBanner variant="page" message={t('gradingFailed')} />
+            <p className="ga-ui mt-3 text-[13px] text-ga-muted">{t('gradingFailedDesc')}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={regrade}
+                disabled={busy}
+                data-testid="regrade-btn"
+                className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-ink px-4 py-2.5 text-[13px] font-semibold text-ga-bg disabled:opacity-60"
+              >
+                <RotateCcw size={14} aria-hidden /> {t('regradeCta')}
+              </button>
+              <a href={catalogHref} className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink">
+                <ArrowLeft size={14} aria-hidden /> {t('backToCatalog')}
+              </a>
+            </div>
+          </section>
+        )}
+
+        {session.state === 'RESULTS' && !result && (
+          <section className="mx-auto max-w-xl py-10" data-testid="result-load-failed">
+            <ErrorBanner variant="page" message={t('resultLoadFailed')} onRetry={retryResult} retryLabel={t('retryResult')} />
           </section>
         )}
 

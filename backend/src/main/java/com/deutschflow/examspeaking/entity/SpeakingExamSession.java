@@ -32,6 +32,8 @@ public class SpeakingExamSession {
     public static final String STATE_DONE = "DONE";
     public static final String STATE_GRADING = "GRADING";
     public static final String STATE_RESULTS = "RESULTS";
+    /** Chấm nền thất bại (job FAILED/mồ côi) — client thấy lỗi thật + được chấm lại, không kẹt GRADING. */
+    public static final String STATE_GRADING_FAILED = "GRADING_FAILED";
     public static final String STATE_ABORTED = "ABORTED";
 
     @Id
@@ -107,6 +109,7 @@ public class SpeakingExamSession {
 
     public boolean isTerminal() {
         return STATE_DONE.equals(state) || STATE_GRADING.equals(state)
-                || STATE_RESULTS.equals(state) || STATE_ABORTED.equals(state);
+                || STATE_RESULTS.equals(state) || STATE_GRADING_FAILED.equals(state)
+                || STATE_ABORTED.equals(state);
     }
 }
