@@ -1,5 +1,17 @@
 {
   "teacher": {
+    "composePicker": {
+      "trigger": "Nhắn học viên",
+      "title": "Nhắn học viên",
+      "description": "Chọn một học viên trong lớp của bạn để bắt đầu trò chuyện riêng.",
+      "searchPlaceholder": "Tìm theo tên hoặc email…",
+      "loadingRoster": "Đang tải danh sách học viên…",
+      "emptyNoStudents": "Bạn chưa có học viên nào trong lớp. Hãy tạo lớp và thêm học viên trước.",
+      "emptyNoMatch": "Không tìm thấy học viên phù hợp."
+    },
+    "toolsMaterials": {
+      "prototypeNotice": "Bản dựng thử giao diện — chưa có backend sinh tài liệu, nút tạo đang tắt. Màn này chỉ để góp ý thiết kế, không tạo ra tài liệu thật."
+    },
     "teacherHome": {
       "title": "Trang chủ",
       "subtitle": "Quản lý tổng quan tiến độ học tập và các lớp học của bạn",
@@ -332,6 +344,8 @@
       "gradedProgress": "{graded}/{total} đã chấm",
       "queueCap": "Hàng đợi chấm",
       "filterAria": "Lọc loại bài",
+      "classScope": "Lọc theo lớp: {name}",
+      "clearClassScope": "Bỏ lọc theo lớp",
       "buckets": {
         "all": "Tất cả",
         "speaking": "Nói AI",
@@ -605,6 +619,12 @@
       "selectedCount": "{count} đã chọn",
       "message": "Nhắn tin",
       "messagePickOne": "Chọn đúng 1 học viên để nhắn tin 1-1.",
+      "groupMessageTitle": "Nhắn {count} học viên đã chọn",
+      "groupMessageDesc": "Một nội dung gửi riêng tới từng học viên (tin nhắn 1-1, không phải kênh lớp).",
+      "groupMessagePlaceholder": "Ví dụ: Nhớ nộp bài Brief schreiben trước 20:00 tối nay nhé.",
+      "groupMessageSend": "Gửi tin nhắn",
+      "groupMessageSent": "Đã gửi tới {count} học viên.",
+      "groupMessageFailed": "Gửi trượt {count} người: {names}. Bỏ chọn người đã nhận rồi thử lại.",
       "searchStudent": "Tìm học viên…",
       "selectAll": "Chọn tất cả",
       "selectStudent": "Chọn {name}",
