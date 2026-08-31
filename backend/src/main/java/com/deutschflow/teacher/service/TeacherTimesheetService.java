@@ -146,6 +146,7 @@ public class TeacherTimesheetService {
         if (duration == null || duration <= 0) {
             throw new BadRequestException("Thời lượng buổi dạy phải lớn hơn 0 phút.");
         }
+        assertDurationWithinCap(duration);
         assertTeachesClass(teacherId, classId);
         assertNotInFuture(startedAt);
         assertNoOverlap(teacherId, startedAt, duration, null);
@@ -190,6 +191,7 @@ public class TeacherTimesheetService {
             if (req.durationMinutes() <= 0) {
                 throw new BadRequestException("Thời lượng buổi dạy phải lớn hơn 0 phút.");
             }
+            assertDurationWithinCap(req.durationMinutes());
             rec.setDurationMinutes(req.durationMinutes());
         }
         if (req.teacherRole() != null) rec.setTeacherRole(parseRole(req.teacherRole()));
@@ -264,6 +266,21 @@ public class TeacherTimesheetService {
         }
     }
 
+    /**
+     * Trần thời lượng một dòng công. Không phải quy tắc nghiệp vụ tùy hứng: cửa sổ truy vấn 24h
+     * của {@link #assertNoOverlap} CHỈ đúng khi không dòng công nào dài quá một ngày — một bản ghi
+     * 2000 phút (gõ thừa chữ số) sẽ thò đuôi ra ngoài cửa sổ và các dòng sau đè lên nó mà không bị
+     * phát hiện.
+     */
+    private static final int MAX_DURATION_MINUTES = 24 * 60;
+
+    private static void assertDurationWithinCap(int durationMinutes) {
+        if (durationMinutes > MAX_DURATION_MINUTES) {
+            throw new BadRequestException(
+                    "Thời lượng buổi dạy không quá 24 giờ (" + MAX_DURATION_MINUTES + " phút).");
+        }
+    }
+
     /** Không ghi công cho buổi chưa diễn ra — nếu không, đây là kênh khai công trước khi làm. */
     private void assertNotInFuture(LocalDateTime startedAt) {
         if (startedAt.isAfter(LocalDateTime.now(QuotaVnCalendar.ZONE))) {
@@ -272,14 +289,11 @@ public class TeacherTimesheetService {
     }
 
     /**
-     * Một giáo viên không thể đứng hai lớp cùng một thời điểm, nên một mốc bắt đầu chỉ được có một
-     * dòng công. Đây là chốt chặn trả thừa công, soi đúng unique index {@code uq_tsr_teacher_start}.
-     */
-    /**
      * Chặn dòng công CHỒNG GIỜ với dòng đã có (A4/F03). So khớp đúng mốc bắt đầu là chưa đủ:
-     * 18:00–19:30 và 18:30–20:00 vẫn được trả công đôi 60 phút. Cửa sổ truy vấn lùi 24h vì một
-     * buổi dạy không dài quá một ngày; chỉ chặn bản ghi MỚI/SỬA — dữ liệu chồng lấn lịch sử (nếu
-     * có) giữ nguyên, không backfill.
+     * 18:00–19:30 và 18:30–20:00 vẫn được trả công đôi 60 phút (đúng-mốc-bắt-đầu vẫn còn được
+     * unique index {@code uq_tsr_teacher_start} chốt ở tầng DB). Cửa sổ truy vấn lùi 24h — giả
+     * định này được {@link #MAX_DURATION_MINUTES} bảo đảm, không phải phỏng đoán. Chỉ chặn bản
+     * ghi MỚI/SỬA — dữ liệu chồng lấn lịch sử (nếu có) giữ nguyên, không backfill.
      */
     private void assertNoOverlap(Long teacherId, LocalDateTime startedAt, int durationMinutes,
                                  Long selfRecordId) {

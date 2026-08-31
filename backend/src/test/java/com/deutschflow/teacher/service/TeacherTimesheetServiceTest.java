@@ -206,6 +206,62 @@ class TeacherTimesheetServiceTest {
         verify(recordRepository, never()).save(any());
     }
 
+    /**
+     * A4 (review): cửa sổ truy vấn 24h của assertNoOverlap CHỈ đúng khi không dòng công nào dài
+     * quá một ngày — bản ghi 2000 phút (gõ thừa chữ số) sẽ thò đuôi ra ngoài cửa sổ và các dòng
+     * sau đè lên nó mà không bị phát hiện. Trần này giữ cho giả định đó luôn đúng.
+     */
+    @Test
+    @DisplayName("A4: record() từ chối thời lượng quá 24 giờ — giữ giả định cửa sổ kiểm chồng giờ")
+    void record_durationOver24h_isRejected() {
+        LocalDateTime start = LocalDateTime.now().minusDays(2).withNano(0);
+
+        assertThatThrownBy(() -> service.record(ACTOR,
+                new RecordTeachingRequest(null, CLASS_ID, start, 2000, null, null)))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("24 giờ");
+
+        verify(recordRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("A4: updateRecord() cũng chặn thời lượng quá 24 giờ")
+    void updateRecord_durationOver24h_isRejected() {
+        when(recordRepository.findById(7L)).thenReturn(Optional.of(TeacherSessionRecord.builder()
+                .id(7L).teacherId(TEACHER_ID)
+                .startedAt(LocalDateTime.of(2026, 7, 10, 18, 0)).durationMinutes(90).build()));
+
+        assertThatThrownBy(() -> service.updateRecord(ACTOR, 7L,
+                new RecordTeachingRequest(null, null, null, 2000, null, null)))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("24 giờ");
+
+        verify(recordRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("A4: mySheet vẫn liệt kê dòng công đã có dù suggestions bỏ lớp trợ giảng")
+    void mySheet_keepsRecords_whenOnlyAssistantAssignments() {
+        LocalDateTime from = LocalDateTime.now().minusDays(30).withNano(0);
+        LocalDateTime to = LocalDateTime.now().withNano(0);
+        // Dòng công lịch sử (ví dụ dạy thay đã ghi với vai SUBSTITUTE) phải tiếp tục hiển thị…
+        when(recordRepository
+                .findByTeacherIdAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAt(
+                        TEACHER_ID, from, to))
+                .thenReturn(List.of(TeacherSessionRecord.builder()
+                        .id(5L).teacherId(TEACHER_ID).classId(CLASS_ID)
+                        .startedAt(from.plusDays(1)).durationMinutes(90)
+                        .teacherRole(TeacherSessionRecord.TeacherRole.SUBSTITUTE).build()));
+        // …trong khi lớp chỉ-trợ-giảng không sinh gợi ý mới.
+        when(classTeacherRepository.findByIdTeacherId(TEACHER_ID)).thenReturn(List.of(
+                ClassTeacher.builder().id(new ClassTeacherId(CLASS_ID, TEACHER_ID)).role("ASSISTANT").build()));
+
+        TimesheetSummaryDto sheet = service.mySheet(TEACHER_ID, from, to);
+
+        assertThat(sheet.records()).hasSize(1);
+        assertThat(sheet.suggestions()).isEmpty();
+    }
+
     @Test
     @DisplayName("PR B: record() từ chối vai ASSISTANT — trợ giảng không tính công")
     void record_assistantRole_isRejected() {

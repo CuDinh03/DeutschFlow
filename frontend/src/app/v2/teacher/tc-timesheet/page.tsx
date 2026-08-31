@@ -438,8 +438,9 @@ export default function TeacherTimesheetPage() {
             <input
               type="number"
               min={1}
+              max={1440}
               value={formDuration}
-              onChange={(e) => setFormDuration(e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
+              onChange={(e) => setFormDuration(e.target.value === '' ? '' : Math.min(1440, Math.max(0, Number(e.target.value))))}
               className={`mt-1 ${inputCls}`}
             />
           </label>
