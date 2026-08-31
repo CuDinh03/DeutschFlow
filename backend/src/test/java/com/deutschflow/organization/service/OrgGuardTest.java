@@ -3,6 +3,7 @@ package com.deutschflow.organization.service;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
+import com.deutschflow.organization.repository.OrgAcademicApproverRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,14 +25,18 @@ class OrgGuardTest {
     @Mock
     private OrgMemberRepository memberRepo;
 
+    @Mock
+    private OrgAcademicApproverRepository academicApproverRepo;
+
     private OrgGuard orgGuard;
 
     private static final Long ORG_ID = 10L;
     private static final Long USER_ID = 99L;
+    private static final Long CLASS_ID = 55L;
 
     @BeforeEach
     void setUp() {
-        orgGuard = new OrgGuard(memberRepo);
+        orgGuard = new OrgGuard(memberRepo, academicApproverRepo);
     }
 
     // ------------------------------------------------------------------ helpers
@@ -204,5 +209,68 @@ class OrgGuardTest {
         stubMember(activeMember("TEACHER"));
         assertThatThrownBy(() -> orgGuard.assertOrgOwner(USER_ID, ORG_ID))
                 .isInstanceOf(ForbiddenException.class);
+    }
+
+    // ------------------------------------------------ assertAcademicApprover (PR-2, P01 — D13/§6)
+
+    @Test
+    @DisplayName("assertAcademicApprover: OWNER (giám đốc) luôn qua, không cần dòng phân công")
+    void academicApprover_owner_passes() {
+        stubMember(activeMember("OWNER"));
+        orgGuard.assertAcademicApprover(USER_ID, ORG_ID, CLASS_ID); // no throw
+    }
+
+    @Test
+    @DisplayName("assertAcademicApprover: MANAGER KHÔNG mặc định có quyền — tách học vụ khỏi quản trị (§6)")
+    void academicApprover_managerWithoutGrant_throwsForbidden() {
+        stubMember(activeMember("MANAGER"));
+        when(academicApproverRepo.hasActiveApproval(ORG_ID, USER_ID, CLASS_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> orgGuard.assertAcademicApprover(USER_ID, ORG_ID, CLASS_ID))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("assertAcademicApprover: TEACHER có phân công hiệu lực phủ lớp → qua")
+    void academicApprover_grantedTeacher_passes() {
+        stubMember(activeMember("TEACHER"));
+        when(academicApproverRepo.hasActiveApproval(ORG_ID, USER_ID, CLASS_ID)).thenReturn(true);
+
+        orgGuard.assertAcademicApprover(USER_ID, ORG_ID, CLASS_ID); // no throw
+    }
+
+    @Test
+    @DisplayName("assertAcademicApprover: TEACHER không có phân công phủ lớp → Forbidden")
+    void academicApprover_teacherWithoutCoverage_throwsForbidden() {
+        stubMember(activeMember("TEACHER"));
+        when(academicApproverRepo.hasActiveApproval(ORG_ID, USER_ID, CLASS_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> orgGuard.assertAcademicApprover(USER_ID, ORG_ID, CLASS_ID))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("assertAcademicApprover: không phải thành viên → Forbidden trước cả khi tra phân công")
+    void academicApprover_nonMember_throwsForbidden() {
+        stubMember(null);
+        assertThatThrownBy(() -> orgGuard.assertAcademicApprover(USER_ID, ORG_ID, CLASS_ID))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("isAcademicApprover: OWNER=true; TEACHER theo phân công; non-member=false (không ném)")
+    void isAcademicApprover_booleanMatrix() {
+        stubMember(activeMember("OWNER"));
+        assertThat(orgGuard.isAcademicApprover(USER_ID, ORG_ID, CLASS_ID)).isTrue();
+
+        stubMember(activeMember("TEACHER"));
+        when(academicApproverRepo.hasActiveApproval(ORG_ID, USER_ID, CLASS_ID)).thenReturn(true);
+        assertThat(orgGuard.isAcademicApprover(USER_ID, ORG_ID, CLASS_ID)).isTrue();
+
+        when(academicApproverRepo.hasActiveApproval(ORG_ID, USER_ID, CLASS_ID)).thenReturn(false);
+        assertThat(orgGuard.isAcademicApprover(USER_ID, ORG_ID, CLASS_ID)).isFalse();
+
+        stubMember(null);
+        assertThat(orgGuard.isAcademicApprover(USER_ID, ORG_ID, CLASS_ID)).isFalse();
     }
 }
