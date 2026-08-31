@@ -622,6 +622,38 @@ class StudentEvaluationServiceTest {
     }
 
     @Test
+    @DisplayName("mySkillReport hands the teacher's written comment back to the student it is about")
+    void mySkillReport_returnsTeacherComment() {
+        when(classStudentRepository.existsById(new ClassStudentId(CLASS_ID, STUDENT_ID))).thenReturn(true);
+        ClassStudent cs = buildClassStudent(CLASS_ID, STUDENT_ID);
+        cs.setTeacherComment("Phát âm tiến bộ rõ, cần luyện thêm Perfekt.");
+        LocalDateTime evaluatedAt = LocalDateTime.of(2026, 8, 20, 9, 30);
+        cs.setEvaluatedAt(evaluatedAt);
+        when(classStudentRepository.findById(new ClassStudentId(CLASS_ID, STUDENT_ID)))
+                .thenReturn(Optional.of(cs));
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID)).thenReturn(List.of());
+
+        var report = service.mySkillReport(STUDENT_ID, CLASS_ID);
+
+        assertThat(report.teacherComment()).isEqualTo("Phát âm tiến bộ rõ, cần luyện thêm Perfekt.");
+        assertThat(report.evaluatedAt()).isEqualTo(evaluatedAt);
+    }
+
+    @Test
+    @DisplayName("mySkillReport returns a null comment when the teacher has not written one (never another student's)")
+    void mySkillReport_noComment_returnsNull() {
+        when(classStudentRepository.existsById(new ClassStudentId(CLASS_ID, STUDENT_ID))).thenReturn(true);
+        when(classStudentRepository.findById(new ClassStudentId(CLASS_ID, STUDENT_ID)))
+                .thenReturn(Optional.of(buildClassStudent(CLASS_ID, STUDENT_ID)));
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID)).thenReturn(List.of());
+
+        var report = service.mySkillReport(STUDENT_ID, CLASS_ID);
+
+        assertThat(report.teacherComment()).isNull();
+        assertThat(report.evaluatedAt()).isNull();
+    }
+
+    @Test
     @DisplayName("mySkillReport (student view) also ignores an unconfirmed AI proposal")
     void mySkillReport_unconfirmedAiScore_isNotUsed() {
         when(classStudentRepository.existsById(new ClassStudentId(CLASS_ID, STUDENT_ID))).thenReturn(true);

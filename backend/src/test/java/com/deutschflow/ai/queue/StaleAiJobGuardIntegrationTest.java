@@ -19,13 +19,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * Hai lớp phòng vệ được kiểm ở đây:
  *   1. claimPendingJobs KHÔNG nhận job quá hạn  → worker không đốt token.
- *   2. StaleAiJobExpirer đánh dấu FAILED job quá hạn → không kẹt PENDING vĩnh viễn.
+ *   2. StaleAiJobExpirer (logic thật: StaleAiJobMaintenance) đánh dấu FAILED job quá hạn → không
+ *      kẹt PENDING vĩnh viễn.
  */
 @SpringBootTest
 class StaleAiJobGuardIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired private AiJobWorker worker;
-    @Autowired private StaleAiJobExpirer expirer;
+    // Bean LOGIC của expirer — xem lý do không autowire StaleAiJobExpirer ở expirerFailsOnlyStaleJobs.
+    @Autowired private StaleAiJobMaintenance maintenance;
     @Autowired private AiJobRepository aiJobRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
@@ -59,10 +61,43 @@ class StaleAiJobGuardIntegrationTest extends AbstractPostgresIntegrationTest {
     void workerStillClaimsFreshJob() {
         Long freshId = newJobAgedDays(1);
 
-        worker.processPendingJobs();
+        // CÔ LẬP DỮ LIỆU: 209 IT dùng chung MỘT Postgres, suite khác có thể để lại job PENDING.
+        // Batch claim LIMIT 5 ORDER BY created_at ASC mà gặp ≥5 job cũ hơn là job của test rớt khỏi
+        // batch → một lần gọi không claim tới nó (tái hiện được tất định bằng cách seed 5 job lùi
+        // 2 ngày). Đánh FAILED mọi job PENDING không phải của test trước khi claim.
+        jdbcTemplate.update(
+                "UPDATE ai_jobs SET status = 'FAILED', error_msg = 'IT_SWEEP_COMPETING_PENDING' "
+                        + "WHERE status = 'PENDING' AND id <> ?", freshId);
 
-        AiJob after = aiJobRepository.findById(freshId).orElseThrow();
+        AiJob after = processUntilCompleted(freshId);
+
         assertThat(after.getStatus()).isEqualTo(AiJob.STATUS_COMPLETED);
+    }
+
+    /**
+     * Gọi processPendingJobs LẶP CÓ THỜI HẠN thay vì đúng một lần — chống race SKIP LOCKED:
+     * processPendingJobs KHÔNG mang @SchedulerLock, scheduler 2s của MỌI Spring context còn sống
+     * trong context-cache CI đều claim trên cùng DB. Tick của context khác giữ FOR UPDATE đúng lúc
+     * test claim → lời gọi của test bị SKIP LOCKED bỏ qua, còn assert đọc READ COMMITTED trước khi
+     * tx kia commit nên vẫn thấy PENDING (đỏ chỉ trên CI chậm; local tái hiện ~30% khi ép claim tx
+     * ngoài giữ khoá kéo dài). Dù context nào claim, job loại lạ đều kết thúc COMPLETED — chờ tới
+     * trạng thái đích, assertion giữ nguyên COMPLETED, không nới.
+     */
+    private AiJob processUntilCompleted(Long jobId) {
+        long deadline = System.currentTimeMillis() + 15_000;
+        while (true) {
+            worker.processPendingJobs();
+            AiJob job = aiJobRepository.findById(jobId).orElseThrow();
+            if (AiJob.STATUS_COMPLETED.equals(job.getStatus()) || System.currentTimeMillis() >= deadline) {
+                return job;
+            }
+            try {
+                Thread.sleep(150);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return job;
+            }
+        }
     }
 
     @Test
@@ -71,9 +106,14 @@ class StaleAiJobGuardIntegrationTest extends AbstractPostgresIntegrationTest {
         Long staleId = newJobAgedDays(30);
         Long freshId = newJobAgedDays(1);
 
-        // Gọi qua proxy đúng như scheduler gọi — đây LÀ entry point duy nhất, không có tầng tự-gọi,
-        // nên test này phủ luôn cả ràng buộc của ShedLock (method mang @SchedulerLock phải trả void).
-        expirer.expireStalePendingJobs();
+        // Gọi thẳng bean LOGIC, KHÔNG qua entry point @SchedulerLock (StaleAiJobExpirer): khoá
+        // 'staleAiJobExpire' nằm trong bảng shedlock của DB dùng chung — cron 03:15 UTC của một
+        // context khác còn sống trong context-cache (CI hay khởi động đúng cửa sổ 03:14–03:16),
+        // hoặc lần chạy suite trước đó <60s trên cùng DB (lockAtLeastFor=PT1M), làm lời gọi tay bị
+        // skip im lặng → stale job vẫn PENDING → đỏ giả (đã tái hiện bằng chạy lặp <60s). Ràng buộc
+        // "method @SchedulerLock phải trả void" mà bài này từng phủ ké đã chuyển về
+        // SchedulerLockVoidContractTest — quét bytecode toàn bộ entry point, không đụng ShedLock.
+        maintenance.expireStalePending();
 
         AiJob stale = aiJobRepository.findById(staleId).orElseThrow();
         assertThat(stale.getStatus()).isEqualTo(AiJob.STATUS_FAILED);

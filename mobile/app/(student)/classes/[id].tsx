@@ -493,6 +493,19 @@ function EvaluationTab({ classId }: { classId: number }) {
       </View>
 
       <View style={{ gap: space[3] }}>
+        <SectionHeader title="Nhận xét của giáo viên" />
+        {report?.teacherComment ? (
+          <TeacherCommentCard comment={report.teacherComment} evaluatedAt={report.evaluatedAt} />
+        ) : (
+          <EmptyState
+            icon={MessagesSquare}
+            title="Chưa có nhận xét"
+            message="Giáo viên chưa viết nhận xét cho bạn. Nhận xét sẽ hiện ở đây khi có."
+          />
+        )}
+      </View>
+
+      <View style={{ gap: space[3] }}>
         <SectionHeader title="Điểm danh" />
         {attendanceQ.isError ? (
           <ErrorState title="Không tải được điểm danh" onRetry={() => void attendanceQ.refetch()} />
@@ -563,6 +576,22 @@ function SkillReportCard({ report }: { report: MySkillReport }) {
           )
         })}
       </View>
+    </Card>
+  )
+}
+
+/**
+ * Nhận xét bằng lời của giáo viên. Trước đây `teacher_comment` chỉ đi ra DTO phía giáo viên: thầy cô
+ * viết trong sổ điểm và không đường nào trả nó về cho chính học viên được nhận xét.
+ */
+function TeacherCommentCard({ comment, evaluatedAt }: { comment: string; evaluatedAt: string | null }) {
+  const c = useTheme().colors
+  return (
+    <Card style={{ gap: space[2], borderLeftWidth: 3, borderLeftColor: c.accentText }}>
+      <ThemedText variant="body" style={{ lineHeight: 22 }}>{comment}</ThemedText>
+      {evaluatedAt ? (
+        <Caption>Nhận xét ngày {new Date(evaluatedAt).toLocaleDateString('vi-VN')}</Caption>
+      ) : null}
     </Card>
   )
 }

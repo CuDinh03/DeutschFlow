@@ -196,13 +196,16 @@ class ExamGradingFailurePathIntegrationTest extends AbstractPostgresIntegrationT
     @DisplayName("Sweeper: GRADING + job FAILED (kẹt kiểu trước bản vá) → GRADING_FAILED; GRADING + job COMPLETED + result → RESULTS; job PENDING được để yên")
     void sweeperRescuesStuckSessions() throws Exception {
         // (A) GRADING + job FAILED — giả dữ liệu kẹt từ trước bản vá (onFailure chưa tồn tại khi đó).
+        // THỨ TỰ SỐNG CÒN trên DB chung: sửa JOB trước, rồi phiên bằng MỘT câu UPDATE. Nếu phiên về
+        // GRADING trong lúc job còn COMPLETED + result thì nhánh completed-result của sweep — chạy
+        // nền ở các context khác trong context-cache CI, KHÔNG lọc tuổi — flip phiên về RESULTS ngay
+        // giữa hai câu UPDATE được.
         llmHealthy();
         ExamSessionView a = mockWithOneTurnToGrading();
         awaitState(a.id(), SpeakingExamSession.STATE_RESULTS); // worker nền chấm xong phiên A trước đã
-        jdbcTemplate.update("UPDATE speaking_exam_sessions SET state = 'GRADING' WHERE id = ?", a.id());
         jdbcTemplate.update("UPDATE ai_jobs SET status = 'FAILED', error_msg = 'IT: gia lap job chet' WHERE id = ?",
                 a.gradingJobId());
-        jdbcTemplate.update("UPDATE speaking_exam_sessions SET updated_at = NOW() - make_interval(mins => 10) WHERE id = ?", a.id());
+        jdbcTemplate.update("UPDATE speaking_exam_sessions SET state = 'GRADING', updated_at = NOW() - make_interval(mins => 10) WHERE id = ?", a.id());
         // Phiên A có result row (worker đã chấm) — nhưng job FAILED nên nhánh dead-job thắng? KHÔNG:
         // nhánh completed-result đòi job COMPLETED. A rơi đúng nhánh dead-job → GRADING_FAILED.
 
@@ -211,11 +214,19 @@ class ExamGradingFailurePathIntegrationTest extends AbstractPostgresIntegrationT
         awaitState(b.id(), SpeakingExamSession.STATE_RESULTS);
         jdbcTemplate.update("UPDATE speaking_exam_sessions SET state = 'GRADING', updated_at = NOW() - make_interval(mins => 10) WHERE id = ?", b.id());
 
-        // (C) GRADING + job PENDING còn tươi (giả enqueue xong chưa claim) — sweep không được đụng.
+        // (C) GRADING + job PENDING — sweep không được đụng: cả hai query của sweep chỉ xét status
+        // (FAILED/mất job, COMPLETED+result), job PENDING được để yên BẤT KỂ tuổi. created_at phải
+        // lùi QUÁ cửa sổ claim app.ai-jobs.max-age-days=7: job PENDING tươi bị chính
+        // AiJobWorker.processPendingJobs (@Scheduled 2s, KHÔNG @SchedulerLock — chạy nền ở MỌI
+        // Spring context sống trong context-cache CI, trên cùng DB) claim lại và chấm ra RESULTS
+        // trước khi assert đọc (đã tái hiện khi chạy lặp: expected GRADING but was RESULTS). Job
+        // quá hạn thì chỉ StaleAiJobExpirer đụng tới — cron 03:15, không chạy giữa test. Kịch bản
+        // vẫn thật: job PENDING quá hạn nằm chờ expirer đêm đánh FAILED, sweep CHƯA được vớt phiên.
         ExamSessionView c = mockWithOneTurnToGrading();
         awaitState(c.id(), SpeakingExamSession.STATE_RESULTS);
+        jdbcTemplate.update("UPDATE ai_jobs SET status = 'PENDING', updated_at = NOW(), created_at = NOW() - make_interval(days => 30) WHERE id = ?",
+                c.gradingJobId());
         jdbcTemplate.update("UPDATE speaking_exam_sessions SET state = 'GRADING', updated_at = NOW() - make_interval(mins => 10) WHERE id = ?", c.id());
-        jdbcTemplate.update("UPDATE ai_jobs SET status = 'PENDING', updated_at = NOW() WHERE id = ?", c.gradingJobId());
 
         sweeper.sweepStuckGradingSessions();
 
