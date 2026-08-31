@@ -327,6 +327,49 @@ class TeacherReportServiceTest {
         assertEquals(60.0, a2Row.avgScore());
     }
 
+    /**
+     * F05: 0.0 từng vừa là "trung bình 0 thật" vừa là "chưa có điểm" — FE phải đoán bằng
+     * {@code > 0} nên lớp điểm 0 thật bị coi là không có dữ liệu. Nay chưa-có-điểm = null.
+     */
+    @Test
+    @DisplayName("F05: avgScore là null khi chưa có điểm chốt — không còn 0.0 canh gác")
+    void avgScore_nullWhenNoConfirmedGrade_zeroStaysZero() {
+        Long teacherId = 1L;
+        assignTeacher(teacherId,
+                TeacherClass.builder().id(100L).name("A1").build(),
+                TeacherClass.builder().id(200L).name("A2").build());
+        when(classStudentRepository.findByIdClassIdIn(anyList())).thenReturn(List.of(
+                ClassStudent.builder().id(new ClassStudentId(100L, 1L)).build(),
+                ClassStudent.builder().id(new ClassStudentId(200L, 2L)).build()));
+        ClassAssignment a1 = ClassAssignment.builder().id(10L).classId(100L).topic("x").assignmentType("GENERAL").build();
+        ClassAssignment a2 = ClassAssignment.builder().id(20L).classId(200L).topic("y").assignmentType("GENERAL").build();
+        when(assignmentRepository.findByClassIdIn(anyList())).thenReturn(List.of(a1, a2));
+        when(studentAssignmentRepository.findByAssignmentIds(anyList())).thenReturn(List.of(
+                // Lớp 100: chỉ đề xuất AI chưa duyệt → KHÔNG có điểm chốt → null.
+                StudentAssignment.builder().assignmentId(10L).studentId(1L).status("AI_GRADED").score(90).build(),
+                // Lớp 200: một điểm 0 THẬT đã chốt → 0.0, không phải null.
+                StudentAssignment.builder().assignmentId(20L).studentId(2L).status("EVALUATED").score(0).build()));
+
+        List<ClassSummaryDto> rows = service.classesSummary(teacherId);
+        assertNull(rows.get(0).avgScore());
+        assertEquals(0.0, rows.get(1).avgScore());
+
+        Map<String, Object> overview = service.overview(teacherId);
+        assertEquals(0.0, overview.get("avgScore")); // toàn cục vẫn có 1 điểm chốt (0 thật)
+    }
+
+    @Test
+    void overview_avgScoreNull_whenNothingConfirmedAnywhere() {
+        Long teacherId = 1L;
+        assignTeacher(teacherId, TeacherClass.builder().id(100L).name("A1").build());
+        when(classStudentRepository.findByIdClassIdIn(anyList())).thenReturn(List.of());
+        when(assignmentRepository.findByClassIdIn(anyList())).thenReturn(List.of(
+                ClassAssignment.builder().id(10L).classId(100L).topic("x").assignmentType("GENERAL").build()));
+        when(studentAssignmentRepository.findByAssignmentIds(anyList())).thenReturn(List.of());
+
+        assertNull(service.overview(teacherId).get("avgScore"));
+    }
+
     @Test
     void classesSummary_emptyWhenTeacherHasNoClasses() {
         when(classTeacherRepository.findByIdTeacherId(1L)).thenReturn(List.of());

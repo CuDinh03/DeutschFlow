@@ -50,6 +50,15 @@ const SKILL_COLOR: Record<'horen' | 'lesen' | 'schreiben' | 'sprechen', string> 
   sprechen: '#C79A00',
 }
 
+/** Nguồn nào lỗi thì hiện lỗi ĐÚNG VÙNG đó (F05) — không rơi im lặng về trạng thái rỗng. */
+interface SourceFailures {
+  overview: boolean
+  classes: boolean
+  trend: boolean
+  skill: boolean
+}
+const NO_FAILURES: SourceFailures = { overview: false, classes: false, trend: false, skill: false }
+
 export default function V2TeacherAnalyticsPage() {
   const t = useTranslations('v2.teacher.analytics')
   const [overview, setOverview] = useState<ReportsOverview | null>(null)
@@ -58,12 +67,14 @@ export default function V2TeacherAnalyticsPage() {
   const [skill, setSkill] = useState<SkillDistribution>(EMPTY_SKILL)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [failed, setFailed] = useState<SourceFailures>(NO_FAILURES)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
-    // One batched summary call + two enhancement calls (trend/skill). Each degrades on its own: a
-    // failed chart falls back to its empty state; only losing BOTH core datasets shows the retry.
+    // One batched summary call + two enhancement calls (trend/skill). Losing BOTH core datasets
+    // shows the full-page retry; a single failed source shows an error IN ITS OWN SECTION instead
+    // of silently rendering the empty state (F05: "không có dữ liệu" từng che mất "tải lỗi").
     const [ov, cls, tr, sk] = await Promise.allSettled([
       getReportsOverview(),
       getClassesSummary(),
@@ -79,6 +90,12 @@ export default function V2TeacherAnalyticsPage() {
     setClasses(cls.status === 'fulfilled' ? cls.value : [])
     setTrend(tr.status === 'fulfilled' ? tr.value : EMPTY_TREND)
     setSkill(sk.status === 'fulfilled' ? sk.value : EMPTY_SKILL)
+    setFailed({
+      overview: ov.status === 'rejected',
+      classes: cls.status === 'rejected',
+      trend: tr.status === 'rejected',
+      skill: sk.status === 'rejected',
+    })
     setLoading(false)
   }, [t])
 
@@ -86,7 +103,8 @@ export default function V2TeacherAnalyticsPage() {
     void load()
   }, [load])
 
-  const scored = classes.filter((c) => c.avgScore > 0)
+  // null = chưa có điểm chốt; 0 là điểm trung bình thật và phải được vẽ (F05).
+  const scored = classes.filter((c): c is ClassSummary & { avgScore: number } => c.avgScore != null)
 
   // recharts rows: one row per week, one keyed value per class series.
   const trendData = trend.buckets.map((bucket, i) => {
@@ -129,25 +147,32 @@ export default function V2TeacherAnalyticsPage() {
           // it the global @media print rule hides everything and the PDF comes out blank. The header
           // + its Export button sit outside this wrapper, so they don't print.
           <div className="print-area print-flow print-color-exact space-y-[22px]">
-            <TkStatStrip
-              items={[
-                { label: t('stats.classes'), value: overview?.classCount ?? 0, color: VIOLET },
-                { label: t('stats.students'), value: overview?.studentCount ?? 0, sub: t('stats.studentsSub'), color: '#2F6FC9' },
-                { label: t('stats.assignments'), value: overview?.assignmentCount ?? 0, sub: t('stats.assignmentsSub'), color: '#11888A' },
-                {
-                  label: t('stats.avgScore'),
-                  value: overview && overview.avgScore > 0 ? overview.avgScore.toFixed(1) : '—',
-                  sub: t('stats.avgScoreSub'),
-                  color: '#1E9E61',
-                },
-              ]}
-            />
+            {failed.overview ? (
+              <ErrorBanner message={t('sectionError')} onRetry={() => void load()} />
+            ) : (
+              <TkStatStrip
+                items={[
+                  { label: t('stats.classes'), value: overview?.classCount ?? 0, color: VIOLET },
+                  { label: t('stats.students'), value: overview?.studentCount ?? 0, sub: t('stats.studentsSub'), color: '#2F6FC9' },
+                  { label: t('stats.assignments'), value: overview?.assignmentCount ?? 0, sub: t('stats.assignmentsSub'), color: '#11888A' },
+                  {
+                    // 0.0 thật hiển thị "0.0"; chỉ khi CHƯA có điểm chốt nào mới là "—" (F05).
+                    label: t('stats.avgScore'),
+                    value: overview && overview.avgScore != null ? overview.avgScore.toFixed(1) : '—',
+                    sub: t('stats.avgScoreSub'),
+                    color: '#1E9E61',
+                  },
+                ]}
+              />
+            )}
 
             <GaSection
               title={t('trendTitle')}
               right={<span className="ga-ui text-[12px] text-ga-muted">{t('trendScaleNote')}</span>}
             >
-              {trendSeries.length > 0 ? (
+              {failed.trend ? (
+                <ErrorBanner message={t('sectionError')} onRetry={() => void load()} />
+              ) : trendSeries.length > 0 ? (
                 <div className="space-y-3">
                   <GaLines data={trendData} series={trendSeries} yDomain={[0, 100]} valueFmt={(v) => v.toFixed(0)} />
                   <GaLegend items={trendSeries.map((s) => ({ label: s.name, color: s.color }))} />
@@ -161,7 +186,9 @@ export default function V2TeacherAnalyticsPage() {
               title={t('skillTitle')}
               right={<span className="ga-ui text-[12px] text-ga-muted">{t('skillScaleNote')}</span>}
             >
-              {skillRows.length > 0 ? (
+              {failed.skill ? (
+                <ErrorBanner message={t('sectionError')} onRetry={() => void load()} />
+              ) : skillRows.length > 0 ? (
                 <div className="space-y-1">
                   {skillRows.map((row) => (
                     <GaBarRow
@@ -180,7 +207,9 @@ export default function V2TeacherAnalyticsPage() {
             </GaSection>
 
             <GaSection title={t('avgByClass')}>
-              {scored.length > 0 ? (
+              {failed.classes ? (
+                <ErrorBanner message={t('sectionError')} onRetry={() => void load()} />
+              ) : scored.length > 0 ? (
                 <div className="space-y-1">
                   {scored
                     .slice()
@@ -217,7 +246,13 @@ export default function V2TeacherAnalyticsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {classes.length === 0 ? (
+                    {failed.classes ? (
+                      <tr>
+                        <td colSpan={4} className="px-5 py-6">
+                          <ErrorBanner message={t('sectionError')} onRetry={() => void load()} />
+                        </td>
+                      </tr>
+                    ) : classes.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="ga-ui px-5 py-10 text-center text-[14px] text-ga-muted">
                           {t('noClasses')}
@@ -241,7 +276,7 @@ export default function V2TeacherAnalyticsPage() {
                             {nfVN.format(c.assignmentCount)}
                           </td>
                           <td className="px-5 py-3 text-right text-[13.5px] font-semibold tabular-nums text-ga-ink">
-                            {c.avgScore > 0 ? c.avgScore.toFixed(1) : '—'}
+                            {c.avgScore != null ? c.avgScore.toFixed(1) : '—'}
                           </td>
                         </tr>
                       ))

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ChevronDown } from 'lucide-react'
-import api from '@/lib/api'
+import api, { apiMessage } from '@/lib/api'
 import type { ClassLesson } from '@/lib/teacherLessonsApi'
 
 // Shared helpers for the per-class course screens (tc-checklist + tc-progress + tc-reports).
@@ -31,9 +31,15 @@ export function useTeacherClasses() {
   const [classes, setClasses] = useState<TeacherClass[]>([])
   const [classId, setClassIdState] = useState<number | null>(urlClassId ? Number(urlClassId) : null)
   const [loadingClasses, setLoadingClasses] = useState(true)
+  // F05: lỗi tải danh sách lớp từng bị nuốt ("surfaced by the lessons fetch") — nhưng khi KHÔNG có
+  // classId thì fetch con không bao giờ chạy, màn đứng ở trạng thái trống vô hạn. Lỗi phải tự hiện.
+  const [classesError, setClassesError] = useState('')
+  const [reloadToken, setReloadToken] = useState(0)
 
   useEffect(() => {
     let active = true
+    setLoadingClasses(true)
+    setClassesError('')
     api
       .get('/v2/teacher/classes')
       .then((res) => {
@@ -47,11 +53,13 @@ export function useTeacherClasses() {
           return prev ?? list[0]?.id ?? null
         })
       })
-      .catch(() => { /* surfaced by the lessons fetch */ })
+      .catch((e: unknown) => { if (active) setClassesError(apiMessage(e)) })
       .finally(() => { if (active) setLoadingClasses(false) })
     return () => { active = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [reloadToken])
+
+  const reloadClasses = useCallback(() => setReloadToken((n) => n + 1), [])
 
   // Selecting a class writes it to the URL so a later screen change (or reload) keeps it.
   const setClassId = useCallback((id: number) => {
@@ -61,7 +69,7 @@ export function useTeacherClasses() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }, [router, pathname, searchParams])
 
-  return { classes, classId, setClassId, loadingClasses }
+  return { classes, classId, setClassId, loadingClasses, classesError, reloadClasses }
 }
 
 /** Build a link to a per-class screen that carries the class id, so it opens on the same class. */

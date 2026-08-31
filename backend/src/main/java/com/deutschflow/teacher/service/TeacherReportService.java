@@ -115,7 +115,7 @@ public class TeacherReportService {
      * số bài đã giao và điểm trung bình lớp. Batch-loads students, assignments and submissions with three
      * IN-list queries, then groups in memory — replacing the analytics page's overview + one
      * classReport request per class. avgScore uses the same confirmed-only, one-vote-per-student
-     * rule as {@link #averageScore}.
+     * rule as {@link #averageScore} and is null when the class has no confirmed grade (F05).
      */
     @Transactional(readOnly = true)
     public List<ClassSummaryDto> classesSummary(Long teacherId) {
@@ -339,7 +339,8 @@ public class TeacherReportService {
     }
 
     /**
-     * Class-level average score across the given assignments (0 when none), on a 0-100 scale.
+     * Class-level average score across the given assignments, on a 0-100 scale — NULL when no
+     * confirmed grade exists (F05: 0.0 is a real average, never a "no data" sentinel).
      *
      * <p>Two rules keep this honest and consistent with the gradebook:
      * <ul>
@@ -354,14 +355,14 @@ public class TeacherReportService {
      * Every score is clamped to [0,100] first (out-of-range manual entry — the "234.4 on a 10-point
      * scale" bug).
      */
-    private double averageScore(List<ClassAssignment> assignments) {
-        if (assignments.isEmpty()) return 0.0;
+    private Double averageScore(List<ClassAssignment> assignments) {
+        if (assignments.isEmpty()) return null;
         List<Long> assignmentIds = assignments.stream().map(ClassAssignment::getId).toList();
         return averageOfStudentAverages(studentAssignmentRepository.findByAssignmentIds(assignmentIds));
     }
 
-    /** Average of each student's finalized-grade mean (see {@link #averageScore}). 0 when none. */
-    private double averageOfStudentAverages(List<StudentAssignment> submissions) {
+    /** Average of each student's finalized-grade mean (see {@link #averageScore}). NULL when none. */
+    private Double averageOfStudentAverages(List<StudentAssignment> submissions) {
         Map<Long, List<Integer>> scoresByStudent = new HashMap<>();
         for (StudentAssignment sa : submissions) {
             if (sa.getScore() == null || !AssignmentStatus.isFinal(sa.getStatus())) continue;
@@ -369,7 +370,7 @@ public class TeacherReportService {
                     .computeIfAbsent(sa.getStudentId(), k -> new ArrayList<>())
                     .add(clampPercent(sa.getScore()));
         }
-        if (scoresByStudent.isEmpty()) return 0.0;
+        if (scoresByStudent.isEmpty()) return null;
         double sumOfStudentAverages = scoresByStudent.values().stream()
                 .mapToDouble(scores -> scores.stream().mapToInt(Integer::intValue).average().orElse(0.0))
                 .sum();
