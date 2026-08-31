@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computePacing, isLessonOverdue, todayIsoLocal, parseIsoDateLocal, type PacedLesson } from './lessonPacing'
+import { computePacing, isLessonOverdue, todayIsoLocal, parseIsoDateLocal, type PacedLesson, allocationSummary } from './lessonPacing'
 
 const L = (completed: boolean, plannedDate: string | null): PacedLesson => ({ completed, plannedDate })
 const TODAY = '2026-07-08'
@@ -69,5 +69,40 @@ describe('parseIsoDateLocal', () => {
 
   it('round-trips with todayIsoLocal', () => {
     expect(todayIsoLocal(parseIsoDateLocal('2026-01-05'))).toBe('2026-01-05')
+  })
+})
+
+describe('allocationSummary (PR-4)', () => {
+  it('sums planned minutes and reports zero over-budget when within the teaching window', () => {
+    const out = allocationSummary(
+      [
+        { plannedMinutes: 120, status: 'TAUGHT', remainingMinutes: null },
+        { plannedMinutes: 60, status: 'PLANNED', remainingMinutes: null },
+      ],
+      180,
+    )
+    expect(out).toEqual({ plannedTotal: 180, overBudget: 0, partialRemaining: 0 })
+  })
+
+  it('reports minutes over the session budget', () => {
+    const out = allocationSummary([{ plannedMinutes: 200, status: 'PLANNED', remainingMinutes: null }], 180)
+    expect(out.overBudget).toBe(20)
+  })
+
+  it('sums remaining minutes of PARTIAL rows only, treating null planned/remaining as 0', () => {
+    const out = allocationSummary(
+      [
+        { plannedMinutes: null, status: 'PARTIAL', remainingMinutes: 20 },
+        { plannedMinutes: 30, status: 'PARTIAL', remainingMinutes: null },
+        { plannedMinutes: 40, status: 'TAUGHT', remainingMinutes: 99 },
+      ],
+      180,
+    )
+    expect(out.plannedTotal).toBe(70)
+    expect(out.partialRemaining).toBe(20)
+  })
+
+  it('handles an empty session', () => {
+    expect(allocationSummary([], 180)).toEqual({ plannedTotal: 0, overBudget: 0, partialRemaining: 0 })
   })
 })

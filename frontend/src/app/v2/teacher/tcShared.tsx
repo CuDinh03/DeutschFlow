@@ -77,10 +77,14 @@ export function classHref(path: string, classId: number | null): string {
   return classId == null ? path : `${path}?classId=${classId}`
 }
 
-/** Course completion percentage from a flat lesson list. */
-export function pct(lessons: { completed: boolean }[]): number {
-  if (lessons.length === 0) return 0
-  return Math.round((lessons.filter((l) => l.completed).length / lessons.length) * 100)
+/**
+ * Course completion percentage from a flat lesson list. Bài BỔ TRỢ (supplementary, PR-4)
+ * không tính vào mẫu số — %% đo tiến độ GIÁO TRÌNH, thêm bài phụ không được kéo tụt nó.
+ */
+export function pct(lessons: { completed: boolean; supplementary?: boolean }[]): number {
+  const core = lessons.filter((l) => !l.supplementary)
+  if (core.length === 0) return 0
+  return Math.round((core.filter((l) => l.completed).length / core.length) * 100)
 }
 
 /** Styled class selector (matches Galerie tokens). */

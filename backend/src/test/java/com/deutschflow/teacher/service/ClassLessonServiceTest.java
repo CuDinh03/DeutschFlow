@@ -49,6 +49,7 @@ class ClassLessonServiceTest {
     @Mock private CurriculumModuleRepository moduleRepository;
     @Mock private CanDoStatementRepository canDoRepository;
     @Mock private ClassCurriculumLinkRepository classCurriculumLinkRepository;
+    @Mock private com.deutschflow.organization.repository.CurriculumItemRepository curriculumItemRepository;
 
     private ClassLessonService service;
 
@@ -59,7 +60,7 @@ class ClassLessonServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ClassLessonService(lessonRepository, classTeacherRepository, classStudentRepository, knowledgePointRepository, moduleRepository, canDoRepository, classCurriculumLinkRepository);
+        service = new ClassLessonService(lessonRepository, classTeacherRepository, classStudentRepository, knowledgePointRepository, moduleRepository, canDoRepository, classCurriculumLinkRepository, curriculumItemRepository);
     }
 
     @Test
@@ -726,18 +727,22 @@ class ClassLessonServiceTest {
     }
 
     @Test
-    @DisplayName("AC01: bài gắn giáo trình vẫn đổi được plannedDate/completed (trường phân phối)")
+    @DisplayName("AC01/AC07: bài gắn giáo trình đổi được plannedDate; completed KHÔNG toggle tay (suy từ xác nhận mục)")
     void update_curriculumLesson_allowsDistributionFields() {
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
         when(lessonRepository.findById(LESSON_ID)).thenReturn(java.util.Optional.of(linkedLesson()));
         when(lessonRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         ClassLessonDto dto = service.update(TEACHER_ID, CLASS_ID, LESSON_ID,
-                new UpdateLessonRequest(null, null, true, null, LocalDate.of(2026, 9, 8), null, null, null, null, null, null));
+                new UpdateLessonRequest(null, null, null, null, LocalDate.of(2026, 9, 8), null, null, null, null, null, null));
 
-        assertThat(dto.completed()).isTrue();
         assertThat(dto.plannedDate()).isEqualTo(LocalDate.of(2026, 9, 8));
         assertThat(dto.lektionId()).isEqualTo(900L);
+
+        // PR-4 (AC07): completed của bài giáo trình là trạng thái SUY RA — toggle tay bị chặn.
+        assertThatThrownBy(() -> service.update(TEACHER_ID, CLASS_ID, LESSON_ID,
+                new UpdateLessonRequest(null, null, true, null, null, null, null, null, null, null, null)))
+                .isInstanceOf(ForbiddenException.class);
     }
 
     @Test

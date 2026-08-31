@@ -72,7 +72,10 @@ export default function V2TcProgressPage() {
   }, [classId])
 
   const ordered = useMemo(() => [...lessons].sort((a, b) => a.orderIndex - b.orderIndex), [lessons])
-  const done = lessons.filter((l) => l.completed)
+  // Thống kê hero đo tiến độ GIÁO TRÌNH: bài bổ trợ (PR-4) hiện trong timeline nhưng
+  // không vào mẫu số — khớp pct() (cũng đã lọc supplementary).
+  const core = useMemo(() => lessons.filter((l) => !l.supplementary), [lessons])
+  const done = core.filter((l) => l.completed)
   const progress = pct(lessons)
   const lastDone = [...done].sort((a, b) => new Date(b.completedAt ?? 0).getTime() - new Date(a.completedAt ?? 0).getTime())[0]
   const next = ordered.find((l) => !l.completed)
@@ -145,7 +148,7 @@ export default function V2TcProgressPage() {
                 )}
                 <div className="mb-3.5 flex flex-wrap items-baseline gap-2.5 lg:flex-nowrap">
                   <span className="font-ga-display text-[36px] font-medium leading-none sm:text-[44px] lg:text-[54px]">{progress}%</span>
-                  <span className="min-w-0 text-[14px] sm:text-[15px]" style={{ color: '#A39E94' }}>{t('completedSummary', { done: done.length, total: lessons.length })}</span>
+                  <span className="min-w-0 text-[14px] sm:text-[15px]" style={{ color: '#A39E94' }}>{t('completedSummary', { done: done.length, total: core.length })}</span>
                 </div>
                 <div className="h-3 bg-white/15">
                   <div className="h-full transition-[width] duration-500" style={{ width: `${progress}%`, background: 'var(--ga-yellow)' }} />
@@ -166,7 +169,9 @@ export default function V2TcProgressPage() {
               </div>
               <div className="border-t border-white/15 pt-4 lg:border-l lg:border-t-0 lg:pl-[30px] lg:pt-0">
                 {[
-                  [t('taughtSessions'), `${done.length}/${lessons.length}`],
+                  // PR-4: "buổi" giờ là thực thể lịch riêng (class_sessions) — dòng này đếm BÀI
+                  // giáo trình đã hoàn thành, nên nhãn không được gọi là buổi nữa.
+                  [t('completedLessons'), `${done.length}/${core.length}`],
                   [t('lastCompletedLesson'), lastDone ? lastDone.title : '—'],
                   [t('completedAt'), lastDone?.completedAt ? format(new Date(lastDone.completedAt), 'dd/MM/yyyy') : '—'],
                   ...(lessonLogCount !== null ? [[t('lessonLogsCount'), String(lessonLogCount)]] : []),
@@ -209,6 +214,9 @@ export default function V2TcProgressPage() {
                     <div className="min-w-0 grow basis-[calc(100%_-_2.5rem)] lg:basis-0">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-[14px] font-semibold text-ga-ink">{l.title}</span>
+                        {l.supplementary && (
+                          <span className="ga-ui shrink-0 rounded-ga border border-ga-line px-1.5 text-[10px] font-bold text-ga-muted">{t('supplementaryBadge')}</span>
+                        )}
                         {l.cefrLevel && (
                           <span className="ga-ui shrink-0 rounded-ga px-1.5 text-[10px] font-bold" style={{ background: 'var(--ga-violet-soft)', color: VIOLET }}>{l.cefrLevel}</span>
                         )}

@@ -14,7 +14,9 @@ import com.deutschflow.teacher.dto.UpdateLessonRequest;
 import com.deutschflow.teacher.entity.CanDoStatement;
 import com.deutschflow.teacher.entity.ClassLesson;
 import com.deutschflow.teacher.entity.LessonKnowledgePoint;
+import com.deutschflow.organization.entity.CurriculumItem;
 import com.deutschflow.organization.repository.ClassCurriculumLinkRepository;
+import com.deutschflow.organization.repository.CurriculumItemRepository;
 import com.deutschflow.teacher.repository.CanDoStatementRepository;
 import com.deutschflow.teacher.repository.ClassLessonRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
@@ -59,6 +61,7 @@ public class ClassLessonService {
     private final CurriculumModuleRepository moduleRepository;
     private final CanDoStatementRepository canDoRepository;
     private final ClassCurriculumLinkRepository classCurriculumLinkRepository;
+    private final CurriculumItemRepository curriculumItemRepository;
 
     @Transactional(readOnly = true)
     public List<ClassLessonDto> listForTeacher(Long teacherId, Long classId) {
@@ -124,16 +127,20 @@ public class ClassLessonService {
         }
         // AC01: bài sinh từ giáo trình trung tâm — nội dung bắt buộc và mục tiêu là BẤT BIẾN với
         // giáo viên (chỉ trung tâm phát hành phiên bản mới). Vẫn cho sửa các trường phân phối:
-        // plannedDate, estimatedUnits, completed, module.
+        // plannedDate, estimatedUnits, module.
+        // PR-4 (AC07): `completed` của bài giáo trình là TRẠNG THÁI SUY RA từ xác nhận mục nội dung
+        // (SessionContentService) — không toggle tay, để "hoàn thành" luôn có bằng chứng đã dạy đủ.
         if (lesson.getLektionId() != null && (req.title() != null
                 || req.description() != null
                 || req.knowledgePoints() != null
                 || req.canDoStatements() != null
                 || req.cefrLevel() != null
-                || Boolean.TRUE.equals(req.clearCefrLevel()))) {
+                || Boolean.TRUE.equals(req.clearCefrLevel())
+                || req.completed() != null)) {
             throw new ForbiddenException(
-                    "Bài thuộc giáo trình trung tâm — giáo viên không sửa được nội dung/mục tiêu. "
-                            + "Bạn vẫn có thể đổi ngày dự kiến, số tiết, trạng thái hoàn thành hoặc thêm bài bổ trợ.");
+                    "Bài thuộc giáo trình trung tâm — giáo viên không sửa được nội dung/mục tiêu, và "
+                            + "trạng thái hoàn thành suy từ việc xác nhận đã dạy đủ các mục trong buổi. "
+                            + "Bạn vẫn có thể đổi ngày dự kiến, số tiết hoặc thêm bài bổ trợ.");
         }
         if (req.title() != null && !req.title().isBlank()) {
             lesson.setTitle(req.title().trim());
@@ -249,6 +256,25 @@ public class ClassLessonService {
         }
         return toDtos(lessonRepository.findByClassIdOrderByOrderIndexAsc(classId));
     }
+
+    /**
+     * Mục BẮT BUỘC của Lektion mà bài này sinh từ (PR-4) — nguồn cho màn phân bổ nội dung theo
+     * buổi (curriculumItemId + phút ước lượng). Bài tự do/bổ trợ trả rỗng.
+     */
+    @Transactional(readOnly = true)
+    public List<CurriculumItemLiteDto> curriculumItems(Long teacherId, Long classId, Long lessonId) {
+        assertTeacherOwns(teacherId, classId);
+        ClassLesson lesson = loadLessonInClass(classId, lessonId);
+        if (lesson.getLektionId() == null) return List.of();
+        return curriculumItemRepository.findByLektionIdOrderByOrderIndexAsc(lesson.getLektionId()).stream()
+                .map(i -> new CurriculumItemLiteDto(i.getId(), i.getOrderIndex(), i.getText(),
+                        i.getSkillTag(), i.getContentTag(), i.getEstimatedMinutes()))
+                .toList();
+    }
+
+    /** Bản rút gọn của mục giáo trình cho phía giáo viên (không lộ cấu trúc soạn thảo của org). */
+    public record CurriculumItemLiteDto(Long id, int orderIndex, String text, String skillTag,
+                                        String contentTag, Integer estimatedMinutes) {}
 
     private void assertTeacherOwns(Long teacherId, Long classId) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
