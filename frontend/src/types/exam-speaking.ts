@@ -4,7 +4,7 @@
  */
 export type ExamProvider = 'GOETHE' | 'TELC'
 export type ExamMode = 'DRILL' | 'MOCK'
-export type ExamSessionState = 'PREP' | 'IN_PART' | 'BETWEEN' | 'DONE' | 'GRADING' | 'RESULTS' | 'ABORTED'
+export type ExamSessionState = 'PREP' | 'IN_PART' | 'BETWEEN' | 'DONE' | 'GRADING' | 'RESULTS' | 'GRADING_FAILED' | 'ABORTED'
 export type CandidateAction = 'ASK' | 'ANSWER' | 'SPEAK' | 'REACT'
 
 export interface BlueprintPartSummary {

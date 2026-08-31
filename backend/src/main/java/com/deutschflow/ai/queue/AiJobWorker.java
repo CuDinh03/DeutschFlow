@@ -76,18 +76,45 @@ public class AiJobWorker {
             } catch (Exception e) {
                 log.error("[Worker] Failed jobId={}: {}", job.getId(), e.getMessage(), e);
                 saveFailed(job, e.getMessage());
+                notifyHandlerFailure(job, e);
                 sseRegistry.error(job.getId(), "Đánh giá thất bại. Vui lòng thử lại.");
             }
         }
     }
 
     private Map<String, Object> dispatchPluggable(AiJob job) throws Exception {
-        for (AiJobHandler h : pluggableHandlers) {
-            if (h.jobType().equals(job.getJobType())) {
-                return h.handle(job);
-            }
+        AiJobHandler h = findPluggable(job.getJobType());
+        if (h != null) {
+            return h.handle(job);
         }
         return Map.of("error", "Unknown job type: " + job.getJobType());
+    }
+
+    /**
+     * Báo module chủ job rằng job đã FAILED, để nó gỡ trạng thái domain (phiên GRADING → lỗi).
+     * Chạy SAU saveFailed và nuốt mọi lỗi: onFailure hỏng không được phép che mất trạng thái FAILED
+     * của job — sweep định kỳ của module chủ là lưới đỡ cuối cho trường hợp đó.
+     */
+    private void notifyHandlerFailure(AiJob job, Exception cause) {
+        AiJobHandler h = findPluggable(job.getJobType());
+        if (h == null) {
+            return;
+        }
+        try {
+            h.onFailure(job, cause);
+        } catch (Exception onFailureError) {
+            log.error("[Worker] onFailure của handler {} cũng lỗi cho jobId={}: {}",
+                    job.getJobType(), job.getId(), onFailureError.getMessage(), onFailureError);
+        }
+    }
+
+    private AiJobHandler findPluggable(String jobType) {
+        for (AiJobHandler h : pluggableHandlers) {
+            if (h.jobType().equals(jobType)) {
+                return h;
+            }
+        }
+        return null;
     }
 
     private List<AiJob> claimInNewTransaction() {

@@ -109,6 +109,12 @@ public class ExamSpeakingController {
         return sessionService.finish(user.getId(), id);
     }
 
+    /** Chấm lại khi job chấm nền đã chết (state = GRADING_FAILED). Trạng thái khác → 409. */
+    @PostMapping("/sessions/{id}/regrade")
+    public ExamSessionView regrade(@AuthenticationPrincipal User user, @PathVariable long id) {
+        return sessionService.regrade(user.getId(), id);
+    }
+
     @PutMapping("/sessions/{id}/notes")
     public ExamSessionView notes(@AuthenticationPrincipal User user, @PathVariable long id,
                                  @RequestBody Map<String, String> body) {

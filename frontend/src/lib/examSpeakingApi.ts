@@ -57,6 +57,8 @@ export const examSpeakingApi = {
 
   advance: (id: number) => api.post<ExamSessionView>(`/speaking/exam/sessions/${id}/advance`, undefined, { timeout: SESSION_TIMEOUT_MS }),
   finish: (id: number) => api.post<ExamSessionView>(`/speaking/exam/sessions/${id}/finish`, undefined, { timeout: SESSION_TIMEOUT_MS }),
+  /** Chấm lại khi job chấm nền đã chết (state = GRADING_FAILED); trạng thái khác → 409. */
+  regrade: (id: number) => api.post<ExamSessionView>(`/speaking/exam/sessions/${id}/regrade`, undefined, { timeout: SESSION_TIMEOUT_MS }),
   saveNotes: (id: number, notes: string) => api.put<ExamSessionView>(`/speaking/exam/sessions/${id}/notes`, { notes }),
   getResult: (id: number) => api.get<ExamResultView>(`/speaking/exam/sessions/${id}/result`),
   listResults: () => api.get<ExamResultView[]>('/speaking/exam/results'),
