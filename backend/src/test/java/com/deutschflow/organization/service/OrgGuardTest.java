@@ -5,6 +5,7 @@ import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
 import com.deutschflow.organization.repository.OrgAcademicApproverRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
+import com.deutschflow.teacher.repository.TeacherClassRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,9 @@ class OrgGuardTest {
     @Mock
     private OrgAcademicApproverRepository academicApproverRepo;
 
+    @Mock
+    private TeacherClassRepository teacherClassRepository;
+
     private OrgGuard orgGuard;
 
     private static final Long ORG_ID = 10L;
@@ -36,7 +40,7 @@ class OrgGuardTest {
 
     @BeforeEach
     void setUp() {
-        orgGuard = new OrgGuard(memberRepo, academicApproverRepo);
+        orgGuard = new OrgGuard(memberRepo, academicApproverRepo, teacherClassRepository);
     }
 
     // ------------------------------------------------------------------ helpers
@@ -52,6 +56,11 @@ class OrgGuardTest {
     private void stubMember(OrgMember member) {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
                 .thenReturn(Optional.ofNullable(member));
+    }
+
+    /** Guard tự vệ M1: mọi test duyệt học vụ dùng CLASS_ID phải khai lớp thuộc đúng org. */
+    private void stubClassInOrg(boolean inOrg) {
+        when(teacherClassRepository.existsByIdAndOrgId(CLASS_ID, ORG_ID)).thenReturn(inOrg);
     }
 
     // ------------------------------------------------------------------ assertMember
@@ -217,6 +226,7 @@ class OrgGuardTest {
     @DisplayName("assertAcademicApprover: OWNER (giám đốc) luôn qua, không cần dòng phân công")
     void academicApprover_owner_passes() {
         stubMember(activeMember("OWNER"));
+        stubClassInOrg(true);
         orgGuard.assertAcademicApprover(USER_ID, ORG_ID, CLASS_ID); // no throw
     }
 
@@ -224,6 +234,7 @@ class OrgGuardTest {
     @DisplayName("assertAcademicApprover: MANAGER KHÔNG mặc định có quyền — tách học vụ khỏi quản trị (§6)")
     void academicApprover_managerWithoutGrant_throwsForbidden() {
         stubMember(activeMember("MANAGER"));
+        stubClassInOrg(true);
         when(academicApproverRepo.hasActiveApproval(ORG_ID, USER_ID, CLASS_ID)).thenReturn(false);
 
         assertThatThrownBy(() -> orgGuard.assertAcademicApprover(USER_ID, ORG_ID, CLASS_ID))
@@ -234,6 +245,7 @@ class OrgGuardTest {
     @DisplayName("assertAcademicApprover: TEACHER có phân công hiệu lực phủ lớp → qua")
     void academicApprover_grantedTeacher_passes() {
         stubMember(activeMember("TEACHER"));
+        stubClassInOrg(true);
         when(academicApproverRepo.hasActiveApproval(ORG_ID, USER_ID, CLASS_ID)).thenReturn(true);
 
         orgGuard.assertAcademicApprover(USER_ID, ORG_ID, CLASS_ID); // no throw
@@ -243,6 +255,7 @@ class OrgGuardTest {
     @DisplayName("assertAcademicApprover: TEACHER không có phân công phủ lớp → Forbidden")
     void academicApprover_teacherWithoutCoverage_throwsForbidden() {
         stubMember(activeMember("TEACHER"));
+        stubClassInOrg(true);
         when(academicApproverRepo.hasActiveApproval(ORG_ID, USER_ID, CLASS_ID)).thenReturn(false);
 
         assertThatThrownBy(() -> orgGuard.assertAcademicApprover(USER_ID, ORG_ID, CLASS_ID))
@@ -260,6 +273,7 @@ class OrgGuardTest {
     @Test
     @DisplayName("isAcademicApprover: OWNER=true; TEACHER theo phân công; non-member=false (không ném)")
     void isAcademicApprover_booleanMatrix() {
+        stubClassInOrg(true);
         stubMember(activeMember("OWNER"));
         assertThat(orgGuard.isAcademicApprover(USER_ID, ORG_ID, CLASS_ID)).isTrue();
 
@@ -271,6 +285,30 @@ class OrgGuardTest {
         assertThat(orgGuard.isAcademicApprover(USER_ID, ORG_ID, CLASS_ID)).isFalse();
 
         stubMember(null);
+        assertThat(orgGuard.isAcademicApprover(USER_ID, ORG_ID, CLASS_ID)).isFalse();
+    }
+
+    @Test
+    @DisplayName("M1: classId không thuộc trung tâm → Forbidden với MỌI vai, kể cả OWNER")
+    void academicApprover_classOutsideOrg_throwsForAll() {
+        stubMember(activeMember("OWNER"));
+        stubClassInOrg(false);
+        assertThatThrownBy(() -> orgGuard.assertAcademicApprover(USER_ID, ORG_ID, CLASS_ID))
+                .isInstanceOf(ForbiddenException.class);
+
+        stubMember(activeMember("TEACHER"));
+        assertThatThrownBy(() -> orgGuard.assertAcademicApprover(USER_ID, ORG_ID, CLASS_ID))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("H1 phòng thủ sâu: STUDENT còn sót dòng phân công cũ vẫn KHÔNG duyệt được")
+    void academicApprover_studentWithStaleGrant_throwsForbidden() {
+        stubMember(activeMember("STUDENT"));
+        stubClassInOrg(true);
+        // KHÔNG stub hasActiveApproval: guard phải chặn từ vai trò, không được rơi tới tra phân công.
+        assertThatThrownBy(() -> orgGuard.assertAcademicApprover(USER_ID, ORG_ID, CLASS_ID))
+                .isInstanceOf(ForbiddenException.class);
         assertThat(orgGuard.isAcademicApprover(USER_ID, ORG_ID, CLASS_ID)).isFalse();
     }
 }

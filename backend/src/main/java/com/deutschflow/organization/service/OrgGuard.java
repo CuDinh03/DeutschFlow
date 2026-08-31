@@ -4,6 +4,7 @@ import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.repository.OrgAcademicApproverRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
+import com.deutschflow.teacher.repository.TeacherClassRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,7 @@ public class OrgGuard {
 
     private final OrgMemberRepository memberRepo;
     private final OrgAcademicApproverRepository academicApproverRepo;
+    private final TeacherClassRepository teacherClassRepository;
 
     /** Asserts the user is an ACTIVE member of the org; returns the membership row. */
     @Transactional(readOnly = true)
@@ -69,6 +71,16 @@ public class OrgGuard {
     @Transactional(readOnly = true)
     public void assertAcademicApprover(Long userId, Long orgId, Long classId) {
         OrgMember member = assertMember(userId, orgId);
+        // Guard tự vệ (security M1): classId do caller truyền PHẢI thuộc đúng trung tâm — áp cho
+        // MỌI vai, kể cả OWNER; không tin caller đã tự xác minh.
+        if (classId != null && !teacherClassRepository.existsByIdAndOrgId(classId, orgId)) {
+            throw new ForbiddenException("Lớp không thuộc trung tâm này");
+        }
+        // Phòng thủ theo chiều sâu (security H1): STUDENT không bao giờ duyệt học vụ — kể cả khi
+        // còn sót một dòng phân công cũ (ví dụ rời org rồi quay lại làm học viên).
+        if ("STUDENT".equals(member.getRole())) {
+            throw new ForbiddenException("Học viên không có quyền duyệt học vụ");
+        }
         if ("OWNER".equals(member.getRole())) {
             return;
         }
@@ -80,11 +92,12 @@ public class OrgGuard {
     /** Bản boolean của {@link #assertAcademicApprover} — cho DTO/UI, không ném lỗi. */
     @Transactional(readOnly = true)
     public boolean isAcademicApprover(Long userId, Long orgId, Long classId) {
-        return memberRepo.findByIdOrgIdAndIdUserId(orgId, userId)
-                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
-                .map(m -> "OWNER".equals(m.getRole())
-                        || academicApproverRepo.hasActiveApproval(orgId, userId, classId))
-                .orElse(false);
+        try {
+            assertAcademicApprover(userId, orgId, classId);
+            return true;
+        } catch (ForbiddenException ex) {
+            return false;
+        }
     }
 
     /**

@@ -94,11 +94,11 @@ public class OrgAcademicApproverService {
             if (req.classId() == null) {
                 throw new BadRequestException("Phạm vi CLASS cần classId");
             }
+            // Một thông điệp chung cho cả "không tồn tại" lẫn "thuộc org khác" — không làm oracle
+            // dò id chéo trung tâm (security L1).
             TeacherClass klass = teacherClassRepo.findById(req.classId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp"));
-            if (!Objects.equals(klass.getOrgId(), orgId)) {
-                throw new NotFoundException("Không tìm thấy lớp trong trung tâm");
-            }
+                    .filter(k -> Objects.equals(k.getOrgId(), orgId))
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp trong trung tâm"));
             classId = klass.getId();
             if (approverRepo.existsByOrgIdAndUserIdAndScopeAndClassIdAndRevokedAtIsNull(
                     orgId, req.userId(), scope, classId)) {

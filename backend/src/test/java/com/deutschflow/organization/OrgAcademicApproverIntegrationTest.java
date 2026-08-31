@@ -11,8 +11,10 @@ import com.deutschflow.organization.entity.OrgMemberId;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.organization.service.OrgAcademicApproverService;
 import com.deutschflow.organization.service.OrgGuard;
+import com.deutschflow.organization.service.OrgMembershipService;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.testsupport.AbstractPostgresIntegrationTest;
@@ -42,6 +44,7 @@ class OrgAcademicApproverIntegrationTest extends AbstractPostgresIntegrationTest
 
     @Autowired private OrgAcademicApproverService service;
     @Autowired private OrgGuard orgGuard;
+    @Autowired private OrgMembershipService membershipService;
     @Autowired private OrganizationRepository organizationRepo;
     @Autowired private OrgMemberRepository memberRepo;
     @Autowired private UserRepository userRepository;
@@ -168,6 +171,81 @@ class OrgAcademicApproverIntegrationTest extends AbstractPostgresIntegrationTest
         assertThatThrownBy(() -> service.revoke(b.owner.getId(), b.org.getId(), granted.id()))
                 .isInstanceOf(NotFoundException.class);
         assertThat(service.list(b.owner.getId(), b.org.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("H1: gỡ thành viên khỏi trung tâm → phân công tự thu hồi; quay lại làm STUDENT cũng không duyệt được")
+    void removeMember_revokesApprovals_noResurrection() {
+        Fixture f = fixture();
+        service.grant(f.owner.getId(), f.org.getId(),
+                new GrantAcademicApproverRequest(f.teacher.getId(), "ORG", null));
+        orgGuard.assertAcademicApprover(f.teacher.getId(), f.org.getId(), f.classA.getId());
+
+        membershipService.removeMember(f.org.getId(), f.teacher.getId(),
+                new AuditActor(f.owner.getId(), "owner@test.local", "OWNER"));
+
+        // Hết tư cách thành viên → guard chặn, và phân công đã bị thu hồi soft (danh sách rỗng)
+        assertThatThrownBy(() -> orgGuard.assertAcademicApprover(f.teacher.getId(), f.org.getId(), f.classA.getId()))
+                .isInstanceOf(ForbiddenException.class);
+        assertThat(service.list(f.owner.getId(), f.org.getId())).isEmpty();
+
+        // Kịch bản "sống lại": membership được tái kích hoạt với vai trò STUDENT (đường
+        // ensureStudentSeat khi được duyệt vào lớp) — phân công cũ đã revoked nên vẫn chặn.
+        OrgMember comeback = memberRepo.findByIdOrgIdAndIdUserId(f.org.getId(), f.teacher.getId()).orElseThrow();
+        comeback.setStatus("ACTIVE");
+        comeback.setRole("STUDENT");
+        memberRepo.save(comeback);
+        assertThatThrownBy(() -> orgGuard.assertAcademicApprover(f.teacher.getId(), f.org.getId(), f.classA.getId()))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("H1 phòng thủ sâu: còn sót phân công hiệu lực nhưng vai trò hiện tại là STUDENT → vẫn chặn")
+    void studentRole_defenseInDepth() {
+        Fixture f = fixture();
+        service.grant(f.owner.getId(), f.org.getId(),
+                new GrantAcademicApproverRequest(f.teacher.getId(), "ORG", null));
+
+        // Giả lập dữ liệu sót: đổi vai trò xuống STUDENT mà KHÔNG qua removeMember (không thu hồi)
+        OrgMember m = memberRepo.findByIdOrgIdAndIdUserId(f.org.getId(), f.teacher.getId()).orElseThrow();
+        m.setRole("STUDENT");
+        memberRepo.save(m);
+
+        assertThatThrownBy(() -> orgGuard.assertAcademicApprover(f.teacher.getId(), f.org.getId(), f.classA.getId()))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("giáo viên trưởng KHÔNG tự gán/thu hồi người khác; TEACHER thường không xem được danh sách")
+    void approverCannotEscalate_andPlainTeacherCannotList() {
+        Fixture f = fixture();
+        AcademicApproverDto granted = service.grant(f.owner.getId(), f.org.getId(),
+                new GrantAcademicApproverRequest(f.teacher.getId(), "ORG", null));
+
+        // f.teacher đang là giáo viên trưởng scope ORG — vẫn không có quyền gán/thu hồi (OWNER-only)
+        assertThatThrownBy(() -> service.grant(f.teacher.getId(), f.org.getId(),
+                new GrantAcademicApproverRequest(f.teacher2.getId(), "ORG", null)))
+                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> service.revoke(f.teacher.getId(), f.org.getId(), granted.id()))
+                .isInstanceOf(ForbiddenException.class);
+
+        // TEACHER thường (không org-admin) không xem được danh sách phân công
+        assertThatThrownBy(() -> service.list(f.teacher2.getId(), f.org.getId()))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("M1: guard tự vệ — classId thuộc org KHÁC bị chặn với mọi vai, kể cả OWNER và approver scope ORG")
+    void guard_rejectsForeignClassId() {
+        Fixture a = fixture();
+        Fixture b = fixture();
+        service.grant(a.owner.getId(), a.org.getId(),
+                new GrantAcademicApproverRequest(a.teacher.getId(), "ORG", null));
+
+        assertThatThrownBy(() -> orgGuard.assertAcademicApprover(a.teacher.getId(), a.org.getId(), b.classA.getId()))
+                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> orgGuard.assertAcademicApprover(a.owner.getId(), a.org.getId(), b.classA.getId()))
+                .isInstanceOf(ForbiddenException.class);
     }
 
     // ── fixtures ────────────────────────────────────────────────────────────
