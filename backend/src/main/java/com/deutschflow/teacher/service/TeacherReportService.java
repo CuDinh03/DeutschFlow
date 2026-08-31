@@ -54,9 +54,9 @@ public class TeacherReportService {
     /**
      * Every class the teacher is ASSIGNED to (class_teachers — PRIMARY or ASSISTANT), sorted by id
      * for stable row/series order. This is the same set the class list and the per-class report
-     * guards use. The four aggregate reports used to read {@code findByTeacherId} — the CREATOR
-     * column — so a co-teacher saw and graded a class whose data then vanished from their
-     * overview/summary/trends/skills (F04).
+     * guards use. The four aggregate reports used to read the CREATOR column (the repository's
+     * findByTeacherId, since removed) — so a co-teacher saw and graded a class whose data then
+     * vanished from their overview/summary/trends/skills (F04).
      */
     private List<TeacherClass> assignedClasses(Long teacherId) {
         List<Long> classIds = classTeacherRepository.findByIdTeacherId(teacherId).stream()

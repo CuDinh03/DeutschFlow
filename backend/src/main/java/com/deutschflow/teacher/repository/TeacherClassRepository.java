@@ -9,9 +9,14 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * NOTE: "which classes does this teacher work with" is the class_teachers relation
+ * (PRIMARY/ASSISTANT) — resolve it via ClassTeacherRepository, not a creator-column query here.
+ * The old {@code findByTeacherId} (creator column) hid co-taught classes from the aggregate
+ * reports (F04) and was removed with its last caller.
+ */
 @Repository
 public interface TeacherClassRepository extends JpaRepository<TeacherClass, Long> {
-    List<TeacherClass> findByTeacherId(Long teacherId);
     Optional<TeacherClass> findByInviteCode(String inviteCode);
 
     /** Org-scoped read for the B2B org admin (GET /api/org/classes). */
