@@ -9,6 +9,8 @@ import com.deutschflow.teacher.dto.SkillDistributionDto;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
+import com.deutschflow.teacher.entity.ClassTeacher;
+import com.deutschflow.teacher.entity.ClassTeacherId;
 import com.deutschflow.teacher.entity.StudentAssignment;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
@@ -75,6 +77,21 @@ class TeacherReportServiceTest {
                 studentAssignmentRepository,
                 userRepository
         );
+    }
+
+    /**
+     * F04: các báo cáo tổng hợp đọc lớp theo PHÂN CÔNG (class_teachers) — cùng tập với danh sách
+     * lớp và guard per-class — chứ không theo cột giáo viên tạo lớp. Helper này stub đúng đường đó.
+     */
+    private void assignTeacher(Long teacherId, TeacherClass... classes) {
+        List<ClassTeacher> links = Arrays.stream(classes)
+                .map(c -> ClassTeacher.builder()
+                        .id(new ClassTeacherId(c.getId(), teacherId))
+                        .role("PRIMARY")
+                        .build())
+                .toList();
+        when(classTeacherRepository.findByIdTeacherId(teacherId)).thenReturn(links);
+        when(classRepository.findAllById(anyList())).thenReturn(Arrays.asList(classes));
     }
 
     // ─── gradebook ───────────────────────────────────────────────────────────────
@@ -232,8 +249,7 @@ class TeacherReportServiceTest {
     @Test
     void overview_countsDistinctStudents_andAveragesConfirmedGradesOnly() {
         Long teacherId = 1L;
-        when(classRepository.findByTeacherId(teacherId)).thenReturn(List.of(
-                TeacherClass.builder().id(100L).name("A1").build()));
+        assignTeacher(teacherId, TeacherClass.builder().id(100L).name("A1").build());
         when(classStudentRepository.findByIdClassIdIn(anyList())).thenReturn(List.of(
                 ClassStudent.builder().id(new ClassStudentId(100L, 1L)).build(),
                 ClassStudent.builder().id(new ClassStudentId(100L, 2L)).build()));
@@ -251,14 +267,38 @@ class TeacherReportServiceTest {
         assertEquals(70.0, result.get("avgScore")); // only student 1 has a confirmed grade
     }
 
+    /**
+     * F04 lõi: lớp do NGƯỜI KHÁC tạo (cột teacher_classes.teacher_id = 99) nhưng caller được phân
+     * công ASSISTANT vẫn phải xuất hiện trong tổng hợp — trước đây 4 aggregate dùng findByTeacherId
+     * (cột người tạo) nên trợ giảng thấy lớp, chấm bài được, mà analytics thì rỗng.
+     */
+    @Test
+    @DisplayName("F04: overview gồm cả lớp được phân công ASSISTANT, không đọc cột người tạo lớp")
+    void overview_includesCoTaughtClasses_neverReadsCreatorColumn() {
+        Long assistantId = 5L;
+        TeacherClass someoneElses = TeacherClass.builder().id(100L).name("A1").teacherId(99L).build();
+        when(classTeacherRepository.findByIdTeacherId(assistantId)).thenReturn(List.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, assistantId)).role("ASSISTANT").build()));
+        when(classRepository.findAllById(anyList())).thenReturn(List.of(someoneElses));
+        when(classStudentRepository.findByIdClassIdIn(anyList())).thenReturn(List.of(
+                ClassStudent.builder().id(new ClassStudentId(100L, 1L)).build()));
+        when(assignmentRepository.findByClassIdIn(anyList())).thenReturn(List.of());
+
+        Map<String, Object> result = service.overview(assistantId);
+
+        assertEquals(1, result.get("classCount"));
+        assertEquals(1, result.get("studentCount"));
+        verify(classRepository, never()).findByTeacherId(any());
+    }
+
     // ─── classesSummary: one batched pass, per-class rows ─────────────────────────
 
     @Test
     void classesSummary_buildsPerClassRows_withConfirmedOnlyAverages() {
         Long teacherId = 1L;
-        when(classRepository.findByTeacherId(teacherId)).thenReturn(List.of(
+        assignTeacher(teacherId,
                 TeacherClass.builder().id(100L).name("A1").build(),
-                TeacherClass.builder().id(200L).name("A2").build()));
+                TeacherClass.builder().id(200L).name("A2").build());
         when(classStudentRepository.findByIdClassIdIn(anyList())).thenReturn(List.of(
                 ClassStudent.builder().id(new ClassStudentId(100L, 1L)).build(),
                 ClassStudent.builder().id(new ClassStudentId(100L, 2L)).build(),
@@ -289,7 +329,7 @@ class TeacherReportServiceTest {
 
     @Test
     void classesSummary_emptyWhenTeacherHasNoClasses() {
-        when(classRepository.findByTeacherId(1L)).thenReturn(List.of());
+        when(classTeacherRepository.findByIdTeacherId(1L)).thenReturn(List.of());
 
         assertTrue(service.classesSummary(1L).isEmpty());
         verify(assignmentRepository, never()).findByClassIdIn(any());
@@ -300,9 +340,9 @@ class TeacherReportServiceTest {
     @Test
     void weeklyTrends_assemblesSortedBuckets_andAlignsSeriesWithGapsAsNull() {
         Long teacherId = 1L;
-        when(classRepository.findByTeacherId(teacherId)).thenReturn(List.of(
+        assignTeacher(teacherId,
                 TeacherClass.builder().id(100L).name("A1").build(),
-                TeacherClass.builder().id(200L).name("A2").build()));
+                TeacherClass.builder().id(200L).name("A2").build());
         // A1 has data in two weeks; A2 only in the later week → its earlier value must be null.
         when(studentAssignmentRepository.findWeeklyConfirmedAverages(anyList())).thenReturn(List.of(
                 new Object[]{100L, "2026-W23", 70.0, 2L},
@@ -323,7 +363,7 @@ class TeacherReportServiceTest {
 
     @Test
     void weeklyTrends_emptyWhenNoClasses() {
-        when(classRepository.findByTeacherId(1L)).thenReturn(List.of());
+        when(classTeacherRepository.findByIdTeacherId(1L)).thenReturn(List.of());
 
         ClassTrendDto trend = service.weeklyTrends(1L);
 
@@ -337,8 +377,7 @@ class TeacherReportServiceTest {
     @Test
     void skillDistribution_averagesEachSkillOverRatedStudents() {
         Long teacherId = 1L;
-        when(classRepository.findByTeacherId(teacherId)).thenReturn(List.of(
-                TeacherClass.builder().id(100L).name("A1").build()));
+        assignTeacher(teacherId, TeacherClass.builder().id(100L).name("A1").build());
         when(classStudentRepository.findByIdClassIdIn(anyList())).thenReturn(List.of(
                 ClassStudent.builder().id(new ClassStudentId(100L, 1L))
                         .skillHoren(BigDecimal.valueOf(8.0)).skillLesen(BigDecimal.valueOf(6.0))
@@ -359,9 +398,9 @@ class TeacherReportServiceTest {
     @Test
     void skillDistribution_countsAMultiClassStudentOnce() {
         Long teacherId = 1L;
-        when(classRepository.findByTeacherId(teacherId)).thenReturn(List.of(
+        assignTeacher(teacherId,
                 TeacherClass.builder().id(100L).name("A1").build(),
-                TeacherClass.builder().id(200L).name("A2").build()));
+                TeacherClass.builder().id(200L).name("A2").build());
         // Student 1 is enrolled in BOTH classes (Hören 8.0 in A1, 4.0 in A2); student 2 only in A1 (8.0).
         // Student 1 collapses to a single mean 6.0 → distribution Hören = (6.0 + 8.0) / 2 = 7.0.
         // Without dedup it would be (8 + 4 + 8) / 3 = 6.7 and ratedCount 3 — proving the fix.
@@ -378,7 +417,7 @@ class TeacherReportServiceTest {
 
     @Test
     void skillDistribution_emptyWhenNoClasses() {
-        when(classRepository.findByTeacherId(1L)).thenReturn(List.of());
+        when(classTeacherRepository.findByIdTeacherId(1L)).thenReturn(List.of());
 
         SkillDistributionDto dist = service.skillDistribution(1L);
 
