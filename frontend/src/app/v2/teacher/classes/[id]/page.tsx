@@ -16,7 +16,7 @@ import { AssignmentMaterialPicker } from './AssignmentMaterialPicker'
 import { AssignmentMaterialsStrip } from './AssignmentMaterialsStrip'
 import {
   GaPageHdr, GaBtn, GaCap, TkStatStrip, TkSearch, TkModal,
-  TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent,
+  TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent, ConfirmDialog,
 } from '@/components/ui-v2'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import { useUserStore } from '@/stores/useUserStore'
@@ -257,6 +257,8 @@ export default function V2ClassDetailPage() {
   /** Bài tập đang được sửa; null = modal ở chế độ tạo mới. */
   const [editing, setEditing] = useState<Assignment | null>(null)
   const [deletingTask, setDeletingTask] = useState<number | null>(null)
+  /** Bài tập đang chờ xác nhận xoá trong ConfirmDialog; null = dialog đóng. */
+  const [confirmDelete, setConfirmDelete] = useState<Assignment | null>(null)
 
   /**
    * Xoá một bài tập đã giao. Backend chỉ cho xoá khi CHƯA ai nộp (ba bảng con đều ON DELETE CASCADE,
@@ -264,11 +266,11 @@ export default function V2ClassDetailPage() {
    * nên cứ hiển thị nguyên văn cho giáo viên.
    */
   const deleteTask = useCallback(async (task: Assignment) => {
-    if (!window.confirm(t('deleteTaskConfirm', { topic: task.topic }))) return
     setDeletingTask(task.id)
     try {
       await api.delete(`/v2/teacher/classes/${id}/assignments/${task.id}`)
       toast.success(t('deleteTaskSuccess'))
+      setConfirmDelete(null)
       await load()
     } catch (e: unknown) {
       toast.error(apiMessage(e))
@@ -524,7 +526,7 @@ export default function V2ClassDetailPage() {
                                 size="sm"
                                 loading={deletingTask === task.id}
                                 disabled={deletingTask === task.id}
-                                onClick={() => void deleteTask(task)}
+                                onClick={() => setConfirmDelete(task)}
                               >
                                 <Trash2 size={14} /> {t('deleteTask')}
                               </GaBtn>
@@ -633,6 +635,21 @@ export default function V2ClassDetailPage() {
       </div>
 
       <AddAssignmentModal open={modal} onOpenChange={(o) => { setModal(o); if (!o) setEditing(null) }} classId={id} lessons={lessons} onCreated={load} editing={editing} />
+
+      {/* Chuẩn xoá toàn sản phẩm: ConfirmDialog nêu hệ quả, không window.confirm. */}
+      {confirmDelete && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => { if (!o) setConfirmDelete(null) }}
+          title={t('deleteTaskConfirmTitle')}
+          description={t('deleteTaskConfirmDesc', { topic: confirmDelete.topic })}
+          details={[t('deleteTaskConfirmDetailPending'), t('deleteTaskConfirmDetailSubmitted')]}
+          confirmLabel={t('deleteTask')}
+          cancelLabel={tc('cancel')}
+          loading={deletingTask === confirmDelete.id}
+          onConfirm={() => void deleteTask(confirmDelete)}
+        />
+      )}
     </div>
   )
 }
