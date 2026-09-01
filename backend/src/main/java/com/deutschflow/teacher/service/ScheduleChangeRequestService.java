@@ -15,6 +15,11 @@ import com.deutschflow.teacher.entity.ClassSchedulePattern;
 import com.deutschflow.teacher.entity.ClassScheduleChangeRequest;
 import com.deutschflow.teacher.entity.ClassSession;
 import com.deutschflow.teacher.entity.TeacherClass;
+import com.deutschflow.teacher.dto.ScheduleForecastDto;
+import com.deutschflow.teacher.dto.SchedulePreviewDto;
+import com.deutschflow.teacher.dto.UpdateSessionRequest;
+import com.deutschflow.teacher.entity.ClassMilestone;
+import com.deutschflow.teacher.repository.ClassMilestoneRepository;
 import com.deutschflow.teacher.repository.ClassSchedulePatternRepository;
 import com.deutschflow.teacher.repository.ClassScheduleChangeRequestRepository;
 import com.deutschflow.teacher.repository.ClassSessionRepository;
@@ -53,6 +58,8 @@ public class ScheduleChangeRequestService {
     private final ClassTeacherRepository classTeacherRepo;
     private final ClassSessionRepository sessionRepo;
     private final ClassSchedulePatternRepository patternRepo;
+    private final ClassMilestoneRepository milestoneRepo;
+    private final ScheduleForecastService forecastService;
     private final ClassScheduleService scheduleService;
     private final NotificationOutboxRepository outboxRepo;
     private final OrgGuard orgGuard;
@@ -161,6 +168,64 @@ public class ScheduleChangeRequestService {
         return toDto(r);
     }
 
+    /**
+     * Bản xem trước 2 cột cho người duyệt (PR-6, AC09): dự báo hiện trạng vs dự báo NẾU ÁP —
+     * mô phỏng payload trên bản sao in-memory, KHÔNG ghi DB. UPDATE_PATTERN trả projected=null
+     * (mô phỏng regenerate ngoài phạm vi v1 — người duyệt đọc impact_snapshot).
+     */
+    @Transactional(readOnly = true)
+    public SchedulePreviewDto preview(Long viewerId, Long orgId, Long requestId) {
+        ClassScheduleChangeRequest r = loadForReview(orgId, requestId);
+        orgGuard.assertAcademicApprover(viewerId, orgId, r.getClassId());
+
+        int remaining = forecastService.remainingCurriculumMinutes(r.getClassId());
+        List<ScheduleForecastService.FutureSession> base = forecastService.futureSessions(r.getClassId());
+        List<ClassMilestone> milestones = milestoneRepo.findByClassIdOrderByPlannedDateAsc(r.getClassId());
+        ScheduleForecastDto current = ScheduleForecastService.compute(remaining, base, milestones);
+
+        ScheduleForecastDto projected = switch (r.getRequestType()) {
+            case CANCEL_SESSION, MOVE_SESSION -> {
+                ScheduleChangePayloads.SessionChange sc =
+                        objectMapper.convertValue(r.getPayload(), ScheduleChangePayloads.SessionChange.class);
+                ClassSession target = sessionRepo.findById(sc.sessionId()).orElse(null);
+                if (target == null) yield null;
+                java.time.LocalDate oldDate = target.getStartAt().toLocalDate();
+                UpdateSessionRequest body = sc.request();
+                boolean cancels = r.getRequestType() == ClassScheduleChangeRequest.Type.CANCEL_SESSION;
+                List<ScheduleForecastService.FutureSession> add = cancels || body.startAt() == null
+                        ? List.of()
+                        : List.of(new ScheduleForecastService.FutureSession(body.startAt().toLocalDate(),
+                                target.getTeachingMinutes() != null ? target.getTeachingMinutes()
+                                        : target.getDurationMinutes()));
+                yield ScheduleForecastService.compute(remaining,
+                        ScheduleForecastService.adjusted(base, add, List.of(oldDate)), milestones);
+            }
+            case ADD_MAKEUP -> {
+                CreateSessionRequest req = objectMapper.convertValue(r.getPayload(), CreateSessionRequest.class);
+                List<ScheduleForecastService.FutureSession> add = List.of(
+                        new ScheduleForecastService.FutureSession(req.startAt().toLocalDate(),
+                                ScheduleForecastService.ORG_TEACHING_MINUTES));
+                yield ScheduleForecastService.compute(remaining,
+                        ScheduleForecastService.adjusted(base, add, List.of()), milestones);
+            }
+            case MOVE_MILESTONE -> {
+                ScheduleChangePayloads.MilestoneMove mv =
+                        objectMapper.convertValue(r.getPayload(), ScheduleChangePayloads.MilestoneMove.class);
+                List<ClassMilestone> moved = milestones.stream().map(m -> {
+                    if (!m.getId().equals(mv.milestoneId())) return m;
+                    ClassMilestone copy = ClassMilestone.builder()
+                            .id(m.getId()).classId(m.getClassId()).kind(m.getKind()).title(m.getTitle())
+                            .plannedDate(mv.newPlannedDate()).note(m.getNote()).createdBy(m.getCreatedBy())
+                            .build();
+                    return copy;
+                }).toList();
+                yield ScheduleForecastService.compute(remaining, base, moved);
+            }
+            case UPDATE_PATTERN -> null;
+        };
+        return new SchedulePreviewDto(toDto(r), current, projected);
+    }
+
     // ── Áp payload theo loại ────────────────────────────────────────────────
 
     private ClassScheduleService.SessionChangeNote applyPayload(ClassScheduleChangeRequest r) {
@@ -193,8 +258,22 @@ public class ScheduleChangeRequestService {
                 UpsertPatternRequest req = objectMapper.convertValue(r.getPayload(), UpsertPatternRequest.class);
                 yield scheduleService.applyUpsertPattern(r.getRequestedBy(), r.getClassId(), req).note();
             }
-            // Khai đủ enum từ đầu; mốc thi vào ở PR-6 — tới đó nhánh này mới có payload thật.
-            case MOVE_MILESTONE -> throw new BadRequestException("Loại đề xuất chưa hỗ trợ áp dụng: MOVE_MILESTONE");
+            // PR-6 (P05): dời mốc chính thức — đổi ngày sau duyệt; học viên nhận thông báo dạng
+            // đổi-lịch (không thêm NotificationType mới để giữ hợp đồng render của mobile — P08).
+            case MOVE_MILESTONE -> {
+                ScheduleChangePayloads.MilestoneMove mv =
+                        objectMapper.convertValue(r.getPayload(), ScheduleChangePayloads.MilestoneMove.class);
+                ClassMilestone m = milestoneRepo.findByIdAndClassId(mv.milestoneId(), r.getClassId())
+                        .orElseThrow(() -> new ConflictException("Mốc trong đề xuất không còn tồn tại"));
+                m.setPlannedDate(mv.newPlannedDate());
+                milestoneRepo.save(m);
+                String className = classRepo.findById(r.getClassId()).map(TeacherClass::getName)
+                        .orElse("Lớp #" + r.getClassId());
+                yield new ClassScheduleService.SessionChangeNote(
+                        com.deutschflow.notification.NotificationType.CLASS_SESSION_RESCHEDULED,
+                        "Mốc \"" + m.getTitle() + "\" của lớp " + className + " dời sang "
+                                + mv.newPlannedDate() + ".");
+            }
         };
     }
 

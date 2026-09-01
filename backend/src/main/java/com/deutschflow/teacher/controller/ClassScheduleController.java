@@ -10,7 +10,9 @@ import com.deutschflow.teacher.dto.UpsertPatternRequest;
 import com.deutschflow.teacher.dto.UpsertPatternResult;
 import com.deutschflow.teacher.dto.ScheduleChangeRequestDto;
 import com.deutschflow.teacher.service.ClassScheduleService;
+import com.deutschflow.teacher.dto.ScheduleForecastDto;
 import com.deutschflow.teacher.service.ScheduleChangeRequestService;
+import com.deutschflow.teacher.service.ScheduleForecastService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -33,6 +35,7 @@ public class ClassScheduleController {
 
     private final ClassScheduleService service;
     private final ScheduleChangeRequestService changeRequestService;
+    private final ScheduleForecastService forecastService;
 
     /** Lịch tuần buổi lớp của giáo viên hiện tại. */
     @GetMapping("/week")
@@ -88,6 +91,12 @@ public class ClassScheduleController {
     public List<ScheduleChangeRequestDto> changeRequests(@AuthenticationPrincipal User teacher,
                                                          @PathVariable Long classId) {
         return changeRequestService.listForTeacher(teacher.getId(), classId);
+    }
+
+    /** PR-6 (AC09/AC17): dự báo tiến độ theo phân bổ — ngày học xong dự kiến, phần thiếu khung, mốc rủi ro. */
+    @GetMapping("/classes/{classId}/forecast")
+    public ScheduleForecastDto forecast(@AuthenticationPrincipal User teacher, @PathVariable Long classId) {
+        return forecastService.forecastForTeacher(teacher.getId(), classId);
     }
 
     /** PR-5: giáo viên rút đề xuất của CHÍNH MÌNH khi còn PENDING. */

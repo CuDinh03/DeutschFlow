@@ -284,7 +284,42 @@
       "loadError": "Could not load center schedule",
       "emptyWeek": "No class sessions in the center this week.",
       "sessionTitle": "{class} · {place} · {time} · {count} students",
-      "sessionMeta": "{count} · {place}"
+      "sessionMeta": "{count} · {place}",
+      "requests": {
+        "heading": "Schedule change approval queue",
+        "type": {
+          "CANCEL_SESSION": "Cancel session",
+          "ADD_MAKEUP": "Make-up session",
+          "MOVE_SESSION": "Move session",
+          "UPDATE_PATTERN": "Change fixed schedule",
+          "MOVE_MILESTONE": "Move milestone"
+        },
+        "weekendBadge": "Weekend",
+        "requestedBy": "{name} · {date}",
+        "impactLine": "Affects {sessions} sessions · {contents} allocated content items",
+        "preview": "Preview",
+        "approve": "Approve",
+        "reject": "Reject",
+        "weekendOwnerOnly": "Only the center owner can approve weekend requests",
+        "approveSuccess": "Approved — the new schedule is live, students will be notified",
+        "rejectSuccess": "Rejected — the effective schedule stays unchanged",
+        "rejectTitle": "Reject request",
+        "rejectConfirm": "Reject",
+        "cancel": "Cancel",
+        "reasonLabel": "Reason (required)",
+        "reasonPlaceholder": "E.g. room conflict, parents not informed yet…",
+        "reasonRequired": "A rejection needs a reason",
+        "previewTitle": "Impact preview",
+        "currentCol": "Effective schedule",
+        "projectedCol": "If approved",
+        "noProjection": "Fixed-schedule change — see the impact on the request card (regenerate is not simulated).",
+        "remaining": "Content left",
+        "available": "Upcoming capacity",
+        "sessions": "{count} sessions",
+        "projectedEnd": "Projected completion",
+        "shortfall": "{minutes}′ short (~{sessions} sessions)",
+        "atRisk": "at risk"
+      }
     },
     "teachers": {
       "title": "Organization teachers",

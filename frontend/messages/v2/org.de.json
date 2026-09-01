@@ -284,7 +284,42 @@
       "loadError": "Zentrumsplan konnte nicht geladen werden",
       "emptyWeek": "Diese Woche gibt es keine Kurseinheiten im Zentrum.",
       "sessionTitle": "{class} · {place} · {time} · {count} Schüler",
-      "sessionMeta": "{count} · {place}"
+      "sessionMeta": "{count} · {place}",
+      "requests": {
+        "heading": "Genehmigungsliste Terminänderungen",
+        "type": {
+          "CANCEL_SESSION": "Termin absagen",
+          "ADD_MAKEUP": "Nachholtermin",
+          "MOVE_SESSION": "Termin verschieben",
+          "UPDATE_PATTERN": "Stundenplan ändern",
+          "MOVE_MILESTONE": "Meilenstein verschieben"
+        },
+        "weekendBadge": "Wochenende",
+        "requestedBy": "{name} · {date}",
+        "impactLine": "Betrifft {sessions} Termine · {contents} verplante Inhalte",
+        "preview": "Vorschau",
+        "approve": "Genehmigen",
+        "reject": "Ablehnen",
+        "weekendOwnerOnly": "Wochenend-Anträge kann nur die Zentrumsleitung genehmigen",
+        "approveSuccess": "Genehmigt — der neue Plan gilt, die Lernenden werden benachrichtigt",
+        "rejectSuccess": "Abgelehnt — der gültige Plan bleibt unverändert",
+        "rejectTitle": "Antrag ablehnen",
+        "rejectConfirm": "Ablehnen",
+        "cancel": "Abbrechen",
+        "reasonLabel": "Grund (erforderlich)",
+        "reasonPlaceholder": "z. B. Raumkonflikt, Eltern noch nicht informiert…",
+        "reasonRequired": "Eine Ablehnung braucht einen Grund",
+        "previewTitle": "Auswirkungs-Vorschau",
+        "currentCol": "Gültiger Plan",
+        "projectedCol": "Falls genehmigt",
+        "noProjection": "Stundenplan-Änderung — Auswirkungen auf der Antragskarte (Regenerate wird nicht simuliert).",
+        "remaining": "Verbleibender Inhalt",
+        "available": "Kommende Kapazität",
+        "sessions": "{count} Termine",
+        "projectedEnd": "Voraussichtlich fertig",
+        "shortfall": "{minutes}′ fehlen (~{sessions} Termine)",
+        "atRisk": "Risiko"
+      }
     },
     "teachers": {
       "title": "Lehrkräfte der Organisation",

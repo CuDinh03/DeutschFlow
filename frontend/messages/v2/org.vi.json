@@ -284,7 +284,42 @@
       "loadError": "Không tải được lịch trung tâm",
       "emptyWeek": "Tuần này chưa có buổi lớp nào trong trung tâm.",
       "sessionTitle": "{class} · {place} · {time} · {count} HV",
-      "sessionMeta": "{count} · {place}"
+      "sessionMeta": "{count} · {place}",
+      "requests": {
+        "heading": "Hàng chờ duyệt thay đổi lịch",
+        "type": {
+          "CANCEL_SESSION": "Hủy buổi",
+          "ADD_MAKEUP": "Buổi bù",
+          "MOVE_SESSION": "Dời buổi",
+          "UPDATE_PATTERN": "Đổi lịch cố định",
+          "MOVE_MILESTONE": "Dời mốc"
+        },
+        "weekendBadge": "Cuối tuần",
+        "requestedBy": "{name} · {date}",
+        "impactLine": "Ảnh hưởng {sessions} buổi · {contents} phần nội dung đã xếp",
+        "preview": "Xem trước",
+        "approve": "Duyệt",
+        "reject": "Từ chối",
+        "weekendOwnerOnly": "Chỉ giám đốc duyệt được đề xuất chạm Thứ 7/Chủ nhật",
+        "approveSuccess": "Đã duyệt — lịch mới có hiệu lực, học viên sẽ nhận thông báo",
+        "rejectSuccess": "Đã từ chối — lịch hiệu lực giữ nguyên",
+        "rejectTitle": "Từ chối đề xuất",
+        "rejectConfirm": "Từ chối",
+        "cancel": "Huỷ",
+        "reasonLabel": "Lý do (bắt buộc)",
+        "reasonPlaceholder": "Ví dụ: trùng lịch phòng, chưa thống nhất với phụ huynh…",
+        "reasonRequired": "Từ chối phải kèm lý do",
+        "previewTitle": "Xem trước tác động",
+        "currentCol": "Lịch hiệu lực",
+        "projectedCol": "Nếu áp đề xuất",
+        "noProjection": "Đổi lịch cố định — xem phần tác động ở thẻ đề xuất (chưa mô phỏng regenerate).",
+        "remaining": "Nội dung còn lại",
+        "available": "Khung học tới",
+        "sessions": "{count} buổi",
+        "projectedEnd": "Học xong dự kiến",
+        "shortfall": "Thiếu {minutes}′ (~{sessions} buổi)",
+        "atRisk": "rủi ro"
+      }
     },
     "teachers": {
       "title": "Giáo viên của tổ chức",

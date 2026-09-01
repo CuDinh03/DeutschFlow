@@ -2,6 +2,7 @@ package com.deutschflow.organization.controller;
 
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.teacher.dto.ScheduleChangeRequestDto;
+import com.deutschflow.teacher.dto.SchedulePreviewDto;
 import com.deutschflow.teacher.service.ScheduleChangeRequestService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,12 @@ public class OrgScheduleApprovalController {
     @GetMapping
     public List<ScheduleChangeRequestDto> pending(@AuthenticationPrincipal User user) {
         return changeRequestService.listPendingForOrg(user.getId(), requireOrgContext(user));
+    }
+
+    /** PR-6 (AC09): xem trước 2 cột — dự báo hiện trạng vs nếu-áp (mô phỏng, không ghi DB). */
+    @GetMapping("/{requestId}/preview")
+    public SchedulePreviewDto preview(@AuthenticationPrincipal User user, @PathVariable Long requestId) {
+        return changeRequestService.preview(user.getId(), requireOrgContext(user), requestId);
     }
 
     @PostMapping("/{requestId}/approve")
