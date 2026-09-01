@@ -78,6 +78,29 @@ public class WordController {
         return wordQueryService.facets(userId, cefr, cefrExact, q, topic, focus, tag, dtype, gender, status, locale);
     }
 
+    /**
+     * Bộ thẻ cho một lượt luyện — đến hạn ôn trước, rồi từ chưa học theo dải tần suất, trộn theo ngày.
+     *
+     * <p>Thay kiểu gọi cũ {@code /words?page=0&size=20}: trang 0 của danh sách là bất biến (sắp theo cấp rồi
+     * alphabet) nên ba bài luyện lặp lại đúng một bộ thẻ. {@code mode=ARTICLE} thêm ràng buộc danh từ có mạo từ.
+     */
+    @GetMapping("/deck")
+    public WordListResponse deck(
+            @AuthenticationPrincipal User user,
+            @RequestParam(defaultValue = "SWIPE") String mode,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String cefr,
+            // false (mặc định) = cộng dồn A1..cefr, khớp cách ba bài luyện vốn nhận một mức sàn.
+            @RequestParam(name = "exact", defaultValue = "false") boolean cefrExact,
+            @RequestParam(required = false) String topic,
+            @RequestParam(required = false) String focus,
+            @RequestParam(required = false) String tag,
+            @RequestParam(required = false) String locale
+    ) {
+        Long userId = user != null ? user.getId() : null;
+        return wordQueryService.deck(userId, mode, size, cefr, cefrExact, topic, focus, tag, locale);
+    }
+
     @GetMapping("/coverage")
     public WordCoverageResponse coverage() {
         return wordQueryService.coverage();
