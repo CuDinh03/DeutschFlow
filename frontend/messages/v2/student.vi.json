@@ -79,6 +79,24 @@
           "title": "Thống kê từ vựng",
           "desc": "Độ phủ danh từ có giống & động từ đã chia."
         }
+      },
+      "filters": {
+        "statusCap": "Trạng thái học",
+        "typeCap": "Từ loại",
+        "topicCap": "Chủ đề",
+        "levelLabel": "Cấp độ",
+        "clear": "Xoá bộ lọc",
+        "status": {
+          "NEW": "Chưa học",
+          "LEARNING": "Đang học",
+          "MASTERED": "Đã thuộc"
+        },
+        "dtype": {
+          "Noun": "Danh từ",
+          "Verb": "Động từ",
+          "Adjective": "Tính từ",
+          "Word": "Khác"
+        }
       }
     },
     "grammar": {

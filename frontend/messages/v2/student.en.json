@@ -79,6 +79,24 @@
           "title": "Vocabulary analytics",
           "desc": "Nouns with gender & conjugated verbs coverage."
         }
+      },
+      "filters": {
+        "statusCap": "Learning status",
+        "typeCap": "Word type",
+        "topicCap": "Topic",
+        "levelLabel": "Level",
+        "clear": "Clear filters",
+        "status": {
+          "NEW": "Not started",
+          "LEARNING": "Learning",
+          "MASTERED": "Mastered"
+        },
+        "dtype": {
+          "Noun": "Noun",
+          "Verb": "Verb",
+          "Adjective": "Adjective",
+          "Word": "Other"
+        }
       }
     },
     "grammar": {

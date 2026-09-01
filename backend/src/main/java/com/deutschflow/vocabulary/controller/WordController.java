@@ -1,6 +1,7 @@
 package com.deutschflow.vocabulary.controller;
 
 import com.deutschflow.vocabulary.dto.WordCoverageHistoryResponse;
+import com.deutschflow.vocabulary.dto.WordFacetsResponse;
 import com.deutschflow.vocabulary.dto.WordCoverageResponse;
 import com.deutschflow.vocabulary.dto.WordLevelCountsResponse;
 import com.deutschflow.vocabulary.dto.WordListResponse;
@@ -45,10 +46,36 @@ public class WordController {
                 userId, cefr, cefrExact, q, topic, focus, tag, dtype, gender, status, locale, page, size);
     }
 
-    /** Số từ theo từng cấp (kể cả UNGRADED) — UI dựng chip cấp độ từ đây. */
+    /**
+     * Số từ theo từng cấp (kể cả UNGRADED).
+     *
+     * <p>Hub /v2 nay dùng {@link #facets} — endpoint này giữ lại cho các bản client cũ còn gọi.
+     */
     @GetMapping("/levels")
     public WordLevelCountsResponse levels() {
         return wordQueryService.levelCounts();
+    }
+
+    /**
+     * Số từ theo TỪNG TRỤC lọc — trạng thái học, từ loại, mạo từ, cấp độ và chủ đề — mỗi trục đã tính
+     * giao với các bộ lọc khác đang bật. Nhận đúng bộ tham số như {@link #list}, trừ phân trang.
+     */
+    @GetMapping("/facets")
+    public WordFacetsResponse facets(
+            @AuthenticationPrincipal User user,
+            @RequestParam(required = false) String cefr,
+            @RequestParam(name = "exact", defaultValue = "false") boolean cefrExact,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String topic,
+            @RequestParam(required = false) String focus,
+            @RequestParam(required = false) String tag,
+            @RequestParam(required = false) String dtype,
+            @RequestParam(required = false) String gender,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String locale
+    ) {
+        Long userId = user != null ? user.getId() : null;
+        return wordQueryService.facets(userId, cefr, cefrExact, q, topic, focus, tag, dtype, gender, status, locale);
     }
 
     @GetMapping("/coverage")

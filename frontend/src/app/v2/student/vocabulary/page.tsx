@@ -1,12 +1,27 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { BarChart3, HelpCircle, Layers, Mic, Volume2 } from 'lucide-react'
 import api from '@/lib/api'
 import { cleanExample, colorForArticle } from '@/lib/vocabWords'
 import { GaPageHdr, TkSearch, GaCap, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import {
+  CEFR_ORDER,
+  DTYPE_ORDER,
+  EMPTY_FACETS,
+  GENDER_ORDER,
+  NO_FILTERS,
+  STATUS_ORDER,
+  UNGRADED,
+  filterParams,
+  genderChipColor,
+  hasAnyFilter,
+  toggleAxis,
+  type VocabFilterState,
+  type WordFacets,
+} from './facets'
 
 // Reuse GET /words (the vocabulary store). Tolerant field-picking (shape varies) + gender→color
 // (der=blue / die=red / das=green, DeutschFlow's signature) + search + speak.
@@ -78,14 +93,54 @@ function speak(text: string) {
 // trang và cuộn tới đâu nạp tới đó (infinite scroll). Trước đây trang chỉ gọi /words không tham số
 // → mặc định 20 từ, lọc phía client trong 20 từ đó → không bao giờ thấy hết kho.
 const PAGE_SIZE = 50
-/** Từ chưa có trong wordlist Goethe chính thức (backend trả cefr_level = null). */
-const UNGRADED = 'UNGRADED'
-const CEFR_ORDER = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
 
-interface LevelChip {
-  key: string
+/** Một lựa chọn trên dải lọc. `color` chỉ dùng cho mạo từ — der xanh · die đỏ · das lục. */
+function Chip({
+  label,
+  count,
+  active,
+  color,
+  onClick,
+}: {
   label: string
-  count: number
+  count?: number
+  active: boolean
+  color?: string | null
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`ga-ui inline-flex min-h-10 items-center justify-center gap-1.5 rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0 ${
+        active
+          ? 'border-ga-ink bg-ga-ink text-ga-card'
+          : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink'
+      }`}
+      style={
+        color
+          ? active
+            ? { backgroundColor: color, borderColor: color }
+            : { borderLeftWidth: 3, borderLeftColor: color }
+          : undefined
+      }
+    >
+      {label}
+      {typeof count === 'number' && count > 0 && (
+        <span className={active ? 'opacity-70' : 'text-ga-subtle'}>{count}</span>
+      )}
+    </button>
+  )
+}
+
+function FilterRow({ cap, children }: { cap: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:gap-4">
+      <GaCap className="block shrink-0 sm:w-[108px] sm:pt-2.5">{cap}</GaCap>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  )
 }
 
 export default function V2StudentVocabularyPage() {
@@ -95,8 +150,8 @@ export default function V2StudentVocabularyPage() {
   const [total, setTotal] = useState(0)
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
-  const [level, setLevel] = useState<string>('ALL')
-  const [levelChips, setLevelChips] = useState<LevelChip[]>([])
+  const [filters, setFilters] = useState<VocabFilterState>(NO_FILTERS)
+  const [facets, setFacets] = useState<WordFacets>(EMPTY_FACETS)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
@@ -118,13 +173,10 @@ export default function V2StudentVocabularyPage() {
       else setLoading(true)
       setError(null)
       try {
-        const params: Record<string, string | number | boolean> = { page: pageNum, size: PAGE_SIZE, locale }
-        if (debouncedQuery) params.q = debouncedQuery
-        // exact=true: chip "A2" trả ĐÚNG từ A2. Mặc định của API là cộng dồn (A2 = A1+A2) nên trước đây
-        // nhãn chip không khớp badge cấp độ trên từng thẻ từ.
-        if (level !== 'ALL') {
-          params.cefr = level
-          params.exact = true
+        const params = {
+          ...filterParams(filters, locale, debouncedQuery),
+          page: pageNum,
+          size: PAGE_SIZE,
         }
         const res = await api.get('/words', { params })
         const data = res.data as { items?: unknown; content?: unknown; total?: number }
@@ -147,35 +199,27 @@ export default function V2StudentVocabularyPage() {
         setLoadingMore(false)
       }
     },
-    [debouncedQuery, level, locale, t],
+    [debouncedQuery, filters, locale, t],
   )
 
-  // Chip cấp độ dựng theo số liệu thật: cấp nào không có từ thì không hiện chip.
+  // Số đếm của MỌI trục lấy trong một lượt gọi, và tính lại mỗi khi bộ lọc đổi: mỗi trục được đếm với
+  // các bộ lọc khác đang bật nhưng BỎ bộ lọc của chính nó, nên con số trên chip trả lời đúng câu "chọn
+  // chip này thì còn bao nhiêu từ" — không chip nào dẫn tới danh sách rỗng.
   useEffect(() => {
     let cancelled = false
     api
-      .get('/words/levels')
+      .get('/words/facets', { params: filterParams(filters, locale, debouncedQuery) })
       .then((res) => {
-        if (cancelled) return
-        const counts = (res.data?.counts ?? {}) as Record<string, number>
-        const chips: LevelChip[] = CEFR_ORDER.filter((l) => (counts[l] ?? 0) > 0).map((l) => ({
-          key: l,
-          label: l,
-          count: counts[l] ?? 0,
-        }))
-        if ((counts[UNGRADED] ?? 0) > 0) {
-          chips.push({ key: UNGRADED, label: t('ungraded'), count: counts[UNGRADED] ?? 0 })
-        }
-        setLevelChips(chips)
+        if (!cancelled) setFacets({ ...EMPTY_FACETS, ...(res.data as WordFacets) })
       })
       .catch(() => {
-        // Không lấy được số liệu thì bỏ dải chip — thà không có bộ lọc còn hơn bộ lọc trả rỗng.
-        if (!cancelled) setLevelChips([])
+        // Không lấy được số liệu thì bỏ hẳn dải chip — thà không có bộ lọc còn hơn bộ lọc trả rỗng.
+        if (!cancelled) setFacets(EMPTY_FACETS)
       })
     return () => {
       cancelled = true
     }
-  }, [t])
+  }, [filters, locale, debouncedQuery])
 
   // Đổi từ khoá/cấp độ → nạp lại từ trang 0.
   useEffect(() => {
@@ -199,6 +243,23 @@ export default function V2StudentVocabularyPage() {
     obs.observe(el)
     return () => obs.disconnect()
   }, [hasMore, fetchPage])
+
+  // Chip chỉ hiện khi có từ, HOẶC khi đang được chọn — chọn xong mà chip biến mất thì không bỏ chọn được.
+  const statusChips = useMemo(
+    () => STATUS_ORDER.filter((k) => (facets.status[k] ?? 0) > 0 || filters.status === k),
+    [facets.status, filters.status],
+  )
+  const dtypeChips = useMemo(
+    () => DTYPE_ORDER.filter((k) => (facets.dtype[k] ?? 0) > 0 || filters.dtype === k),
+    [facets.dtype, filters.dtype],
+  )
+  const cefrOptions = useMemo(() => {
+    const levels: string[] = CEFR_ORDER.filter((l) => (facets.cefr[l] ?? 0) > 0 || filters.cefr === l)
+    if ((facets.cefr[UNGRADED] ?? 0) > 0 || filters.cefr === UNGRADED) levels.push(UNGRADED)
+    return levels
+  }, [facets.cefr, filters.cefr])
+  const anyFilter = hasAnyFilter(filters)
+  const showFilters = statusChips.length > 0 || dtypeChips.length > 0 || facets.topics.length > 0 || anyFilter
 
   return (
     <div className="flex min-h-full flex-col">
@@ -242,25 +303,93 @@ export default function V2StudentVocabularyPage() {
           </div>
         </div>
 
-        {levelChips.length > 0 && (
-          <div className="mb-5 flex flex-wrap gap-2">
-            {[{ key: 'ALL', label: t('all'), count: 0 }, ...levelChips].map((chip) => (
-              <button
-                key={chip.key}
-                type="button"
-                onClick={() => setLevel(chip.key)}
-                className={`ga-ui inline-flex min-h-10 items-center justify-center gap-1.5 rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0 ${
-                  level === chip.key
-                    ? 'border-ga-ink bg-ga-ink text-ga-card'
-                    : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink'
-                }`}
+        {/* Ba trục có dữ liệu thật thay cho một trục CEFR đơn độc: trạng thái học · từ loại + mạo từ ·
+            chủ đề. Cấp độ lùi xuống một select vì đó là trục dữ liệu yếu nhất của kho. Chip chỉ hiện khi
+            có từ (hoặc khi đang được chọn) — chip đếm 0 là chip dẫn tới danh sách rỗng. */}
+        {showFilters && (
+          <div className="mb-5 flex flex-col gap-3 border border-ga-line bg-ga-card p-4">
+            {statusChips.length > 0 && (
+              <FilterRow cap={t('filters.statusCap')}>
+                {statusChips.map((key) => (
+                  <Chip
+                    key={key}
+                    label={t(`filters.status.${key}`)}
+                    count={facets.status[key] ?? 0}
+                    active={filters.status === key}
+                    onClick={() => setFilters((f) => toggleAxis(f, 'status', key))}
+                  />
+                ))}
+              </FilterRow>
+            )}
+
+            {dtypeChips.length > 0 && (
+              <FilterRow cap={t('filters.typeCap')}>
+                {dtypeChips.map((key) => (
+                  <Chip
+                    key={key}
+                    label={t(`filters.dtype.${key}`)}
+                    count={facets.dtype[key] ?? 0}
+                    active={filters.dtype === key}
+                    onClick={() => setFilters((f) => toggleAxis(f, 'dtype', key))}
+                  />
+                ))}
+                {filters.dtype === 'Noun' &&
+                  GENDER_ORDER.filter((g) => (facets.gender[g] ?? 0) > 0 || filters.gender === g).map((g) => (
+                    <Chip
+                      key={g}
+                      label={g.toLowerCase()}
+                      count={facets.gender[g] ?? 0}
+                      active={filters.gender === g}
+                      color={genderChipColor(g)}
+                      onClick={() => setFilters((f) => toggleAxis(f, 'gender', g))}
+                    />
+                  ))}
+              </FilterRow>
+            )}
+
+            {facets.topics.length > 0 && (
+              <FilterRow cap={t('filters.topicCap')}>
+                {facets.topics.map((topic) => (
+                  <Chip
+                    key={topic.name}
+                    label={topic.label}
+                    count={topic.count}
+                    active={filters.tag === topic.name}
+                    onClick={() => setFilters((f) => toggleAxis(f, 'tag', topic.name))}
+                  />
+                ))}
+              </FilterRow>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3 border-t border-ga-line pt-3">
+              <label htmlFor="vocab-cefr" className="ga-ui text-[12.5px] font-semibold text-ga-muted">
+                {t('filters.levelLabel')}
+              </label>
+              <select
+                id="vocab-cefr"
+                value={filters.cefr ?? 'ALL'}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, cefr: e.target.value === 'ALL' ? null : e.target.value }))
+                }
+                className="ga-ui min-h-10 rounded-ga border border-ga-border bg-ga-card px-3 py-2 text-[12.5px] font-semibold text-ga-ink lg:min-h-0"
               >
-                {chip.label}
-                {chip.count > 0 && (
-                  <span className={level === chip.key ? 'opacity-70' : 'text-ga-subtle'}>{chip.count}</span>
-                )}
-              </button>
-            ))}
+                <option value="ALL">{t('all')}</option>
+                {cefrOptions.map((l) => (
+                  <option key={l} value={l}>
+                    {`${l === UNGRADED ? t('ungraded') : l} · ${facets.cefr[l] ?? 0}`}
+                  </option>
+                ))}
+              </select>
+              {anyFilter && (
+                <button
+                  type="button"
+                  onClick={() => setFilters(NO_FILTERS)}
+                  className="ga-ui min-h-10 text-[12.5px] font-semibold text-ga-accent underline underline-offset-4 hover:text-ga-ink lg:min-h-0"
+                >
+                  {t('filters.clear')}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -276,6 +405,15 @@ export default function V2StudentVocabularyPage() {
           <div className="border border-ga-line bg-ga-card px-4 py-16 text-center lg:px-0">
             <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('emptyTitle')}</p>
             <p className="ga-ui mt-2 text-[14px] text-ga-muted">{t('emptyDesc')}</p>
+            {anyFilter && (
+              <button
+                type="button"
+                onClick={() => setFilters(NO_FILTERS)}
+                className="ga-ui mt-4 min-h-10 rounded-ga border border-ga-ink px-4 py-2 text-[12.5px] font-semibold text-ga-ink transition-colors hover:bg-ga-ink hover:text-ga-card"
+              >
+                {t('filters.clear')}
+              </button>
+            )}
           </div>
         ) : (
           <>
