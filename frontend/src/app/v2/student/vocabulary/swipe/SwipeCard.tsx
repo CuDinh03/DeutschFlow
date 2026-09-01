@@ -144,12 +144,15 @@ export function SwipeCard({
   card,
   stackIndex,
   onSwipe,
+  onDecided,
   mode,
   t,
 }: {
   card: SwipeCardData
   stackIndex: 0 | 1 | 2
   onSwipe: (dir: 'learned' | 'unlearned') => void
+  /** Gọi ngay khi người học quyết định, KHÔNG chờ animation — dùng cho việc ghi tiến độ. */
+  onDecided?: (dir: 'learned' | 'unlearned') => void
   mode: CardMode
   t: (key: string) => string
 }) {
@@ -172,6 +175,11 @@ export function SwipeCard({
 
   const swipeAway = useCallback(
     async (dir: 'learned' | 'unlearned') => {
+      // Báo quyết định NGAY, trước animation: việc ghi tiến độ về server không được phụ thuộc vào việc
+      // animation thoát thẻ có chạy xong hay không. Tab bị ẩn (rAF bị throttle), người học chuyển trang
+      // giữa chừng, hay máy bật giảm chuyển động — animation không kết thúc thì onSwipe bên dưới cũng
+      // không chạy, và tiến độ biến mất không dấu vết.
+      onDecided?.(dir)
       await controls.start({
         x: dir === 'learned' ? 700 : -700,
         rotate: dir === 'learned' ? 22 : -22,
@@ -180,7 +188,7 @@ export function SwipeCard({
       })
       onSwipe(dir)
     },
-    [controls, onSwipe],
+    [controls, onSwipe, onDecided],
   )
 
   useEffect(() => {

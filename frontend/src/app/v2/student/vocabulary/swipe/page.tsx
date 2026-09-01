@@ -8,6 +8,7 @@ import { ArrowLeft, RotateCcw } from 'lucide-react'
 import api from '@/lib/api'
 import { primeGermanVoices } from '@/lib/speechDe'
 import { shuffle, type WordListResponse } from '@/lib/vocabWords'
+import { EMPTY_TALLY, hasUnsaved, markWordLearned, tally, type SaveTally } from '../progress'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { useTracking } from '@/hooks/useTracking'
 import { GaBtn, GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState, TkSeg } from '@/components/ui-v2'
@@ -48,6 +49,9 @@ function SwipeCards() {
   const [reviewIds, setReviewIds] = useState<Set<number>>(new Set())
   const [showComplete, setShowComplete] = useState(false)
   const [mode, setMode] = useState<CardMode>('flip')
+  // Vuốt phải = "đã thuộc" nay ghi về server. Lưu hỏng không chặn lượt vuốt, nhưng được đếm lại
+  // và nói ra ở màn hình kết thúc — im lặng là mất tiến độ mà người học không hề biết.
+  const [saves, setSaves] = useState<SaveTally>(EMPTY_TALLY)
 
   useEffect(() => {
     primeGermanVoices()
@@ -121,9 +125,19 @@ function SwipeCards() {
     [currentCard, learnedIds.size, mode, remaining.length, reviewIds.size, trackFeatureAction],
   )
 
+  /** Ghi tiến độ ngay lúc người học quyết định — không chờ animation thoát thẻ chạy xong. */
+  const handleDecided = useCallback(
+    (dir: 'learned' | 'unlearned') => {
+      if (dir !== 'learned' || !currentCard) return
+      void markWordLearned(currentCard.id).then((ok) => setSaves((st) => tally(st, ok)))
+    },
+    [currentCard],
+  )
+
   const restart = useCallback(() => {
     setLearnedIds(new Set())
     setReviewIds(new Set())
+    setSaves(EMPTY_TALLY)
     setShowComplete(false)
     setDeck((d) => shuffle(d))
   }, [])
@@ -218,6 +232,11 @@ function SwipeCards() {
                     </div>
                   ))}
                 </div>
+                {hasUnsaved(saves) && (
+                  <p className="ga-ui w-full rounded-ga border border-ga-red bg-ga-red-soft px-3 py-2 text-center text-[12.5px] text-ga-ink">
+                    {t('saveFailed', { count: saves.failed })}
+                  </p>
+                )}
                 <GaBtn variant="primary" size="lg" className="w-full" onClick={restart}>
                   <RotateCcw size={16} aria-hidden /> {t('again')}
                 </GaBtn>
@@ -235,6 +254,7 @@ function SwipeCards() {
                       card={card}
                       stackIndex={stackPos}
                       onSwipe={handleSwipe}
+                      onDecided={handleDecided}
                       mode={mode}
                       t={t}
                     />

@@ -20,6 +20,8 @@ export type ArticleQuizWord = {
   meaning: string
 }
 
+import { EMPTY_TALLY, hasUnsaved, markWordLearned, tally, type SaveTally } from '../progress'
+
 const ARTICLES: ArticleLower[] = ['der', 'die', 'das']
 type AnswerState = 'unanswered' | 'correct' | 'wrong'
 
@@ -36,6 +38,9 @@ export function ArticleQuiz({
   const [answerState, setAnswerState] = useState<AnswerState>('unanswered')
   const [chosenArticle, setChosenArticle] = useState<ArticleLower | null>(null)
   const [finished, setFinished] = useState(false)
+  // Đoán đúng mạo từ là tín hiệu "biết từ này" ⇒ xếp vào hàng ôn. Lưu hỏng thì đếm lại và báo ở
+  // màn hình kết quả, không chặn người học giữa lượt quiz.
+  const [saves, setSaves] = useState<SaveTally>(EMPTY_TALLY)
 
   const current = words[currentIndex]
 
@@ -45,7 +50,10 @@ export function ArticleQuiz({
       setChosenArticle(article)
       const correct = article === current.article
       setAnswerState(correct ? 'correct' : 'wrong')
-      if (correct) setScore((s) => s + 1)
+      if (correct) {
+        setScore((s) => s + 1)
+        void markWordLearned(current.id).then((ok) => setSaves((st) => tally(st, ok)))
+      }
     },
     [answerState, current],
   )
@@ -64,6 +72,7 @@ export function ArticleQuiz({
   const handleRestart = useCallback(() => {
     setCurrentIndex(0)
     setScore(0)
+    setSaves(EMPTY_TALLY)
     setAnswerState('unanswered')
     setChosenArticle(null)
     setFinished(false)
@@ -84,6 +93,11 @@ export function ArticleQuiz({
         <p className="ga-ui mt-1 text-[12.5px] text-ga-subtle">
           {pct >= 80 ? t('excellent') : pct >= 60 ? t('good') : t('keepPracticing')}
         </p>
+        {hasUnsaved(saves) && (
+          <p className="ga-ui mx-auto mt-4 max-w-sm rounded-ga border border-ga-red bg-ga-red-soft px-3 py-2 text-[12.5px] text-ga-ink">
+            {t('saveFailed', { count: saves.failed })}
+          </p>
+        )}
         <GaBtn variant="primary" className="mt-6" onClick={handleRestart}>
           <RefreshCw size={14} aria-hidden /> {t('again')}
         </GaBtn>

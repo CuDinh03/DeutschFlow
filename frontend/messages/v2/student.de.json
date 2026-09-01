@@ -1024,7 +1024,8 @@
       "swipeHint": "Nach rechts wischen = gelernt · Nach links = später wiederholen",
       "sessionEnd": "Runde fertig!",
       "score": "Quote",
-      "again": "Neu mischen"
+      "again": "Neu mischen",
+      "saveFailed": "{count} Wort/Wörter konnten nicht gespeichert werden. Dieser Fortschritt geht möglicherweise verloren — bitte bei stabiler Verbindung erneut versuchen."
     },
     "articleQuiz": {
       "title": "Artikel-Quiz",
@@ -1046,7 +1047,8 @@
       "good": "Gut gemacht!",
       "keepPracticing": "Weiter üben!",
       "again": "Quiz wiederholen",
-      "lastResult": "Letzte Runde: {score}/{total}"
+      "lastResult": "Letzte Runde: {score}/{total}",
+      "saveFailed": "{count} Wort/Wörter konnten nicht gespeichert werden. Dieser Fortschritt geht möglicherweise verloren — bitte bei stabiler Verbindung erneut versuchen."
     },
     "vocabAnalytics": {
       "title": "Vokabel-Statistik",
