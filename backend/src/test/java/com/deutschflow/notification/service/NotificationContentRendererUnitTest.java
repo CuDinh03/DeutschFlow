@@ -73,6 +73,25 @@ class NotificationContentRendererUnitTest {
         assertThat(noScore.body()).contains("tập").doesNotContain("Điểm");
     }
 
+    /**
+     * F-QA-01: chấm lại cập nhật thông báo tại chỗ với cờ {@code updated} — copy phải nói rõ điểm
+     * ĐƯỢC CẬP NHẬT (không phải "đã chấm" lần nữa) và chỉ mang điểm HIỆN TẠI, không lộ điểm cũ.
+     */
+    @Test
+    @DisplayName("assignment graded with updated flag renders the regrade copy (current score only)")
+    void assignmentGraded_updatedFlag_rendersRegradeCopy() {
+        RenderedContent updated = renderer.render(NotificationType.ASSIGNMENT_GRADED,
+                Map.of("assignmentType", "WRITING", "score", 90, "updated", true));
+        assertThat(updated.title()).isEqualTo("🔄 Điểm đã được cập nhật");
+        assertThat(updated.body()).isEqualTo("Điểm bài tập của bạn đã được cập nhật — Điểm: 90. Xem phản hồi.");
+
+        // jsonb đọc lại thường trả Boolean, nhưng chuỗi "true" cũng phải nhận (phòng payload cũ/khác kiểu).
+        RenderedContent updatedStr = renderer.render(NotificationType.ASSIGNMENT_GRADED,
+                Map.of("assignmentType", "SPEAKING", "score", 85, "updated", "true"));
+        assertThat(updatedStr.title()).isEqualTo("🔄 Điểm đã được cập nhật");
+        assertThat(updatedStr.body()).contains("nói").contains("Điểm: 85.");
+    }
+
     @Test
     @DisplayName("user registered distinguishes self-signup from staff-created (via)")
     void userRegistered_distinguishesSource() {

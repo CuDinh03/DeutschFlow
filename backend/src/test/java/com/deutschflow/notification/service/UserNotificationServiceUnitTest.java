@@ -49,6 +49,7 @@ class UserNotificationServiceUnitTest {
     @Mock ScheduledBroadcastRepository scheduledBroadcastRepository;
     @Mock ExpoPushSenderService expoPushSenderService;
     @Spy NotificationContentRenderer contentRenderer = new NotificationContentRenderer();
+    @Spy com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
     @InjectMocks
     UserNotificationService service;
@@ -332,6 +333,71 @@ class UserNotificationServiceUnitTest {
 
         service.onAccountDeleted(99L, "gone@x.com", "Gone");
 
+        verify(notificationRepository, never()).save(any());
+    }
+
+    // ── F-QA-01: chấm lại không phát thêm thông báo — cập nhật tại chỗ ───
+
+    @Test
+    @DisplayName("F-QA-01: onAssignmentRegraded cập nhật TẠI CHỖ dòng cũ — không insert dòng mới, không push Expo")
+    void onAssignmentRegraded_refreshesInPlace_noNewRowNoPush() {
+        User student = org.mockito.Mockito.mock(User.class);
+        when(student.isActive()).thenReturn(true);
+        when(userRepository.findById(200L)).thenReturn(Optional.of(student));
+        when(notificationRepository.refreshLatestByContext(eq(200L), eq("ASSIGNMENT_GRADED"), any(), any()))
+                .thenReturn(1);
+
+        service.onAssignmentRegraded(200L, "ASSIGNMENT", 10L, 90, "sửa lại");
+
+        ArgumentCaptor<String> matchCap = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> payloadCap = ArgumentCaptor.forClass(String.class);
+        verify(notificationRepository).refreshLatestByContext(
+                eq(200L), eq("ASSIGNMENT_GRADED"), matchCap.capture(), payloadCap.capture());
+        // Khớp đúng bài (type + referenceId), payload mới mang điểm hiện tại + cờ updated.
+        assertThat(matchCap.getValue()).contains("\"assignmentType\":\"ASSIGNMENT\"").contains("\"referenceId\":10");
+        assertThat(payloadCap.getValue()).contains("\"score\":90").contains("\"updated\":true");
+        // Không có dòng mới (hết spam 3-tin/1-phút), không push Expo cho lần sửa — chỉ badge SSE.
+        verify(notificationRepository, never()).save(any());
+        verify(expoPushSenderService, never()).sendAsync(any(), any(), any(), any());
+        verify(unreadPushCoordinator).afterCommit(200L);
+    }
+
+    @Test
+    @DisplayName("F-QA-01: hộp thư không còn dòng của bài → onAssignmentRegraded chèn MỘT dòng 'đã cập nhật' (kèm push copy mới)")
+    void onAssignmentRegraded_noPriorRow_insertsSingleUpdatedRow() {
+        User student = activeUser(200L);
+        when(student.getPushToken()).thenReturn("ExponentPushToken[r]");
+        when(userRepository.findById(200L)).thenReturn(Optional.of(student));
+        when(notificationRepository.refreshLatestByContext(eq(200L), eq("ASSIGNMENT_GRADED"), any(), any()))
+                .thenReturn(0);
+        when(notificationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.onAssignmentRegraded(200L, "ASSIGNMENT", 10L, 90, "sửa lại");
+
+        UserNotification saved = captureSaved();
+        assertThat(saved.getType()).isEqualTo(NotificationType.ASSIGNMENT_GRADED);
+        assertThat(saved.getPayload())
+                .containsEntry("referenceId", 10L)
+                .containsEntry("score", 90)
+                .containsEntry("updated", true);
+        // Push (nếu có token) phải mang copy regrade, không phải "✅ Bài đã chấm" lần nữa.
+        verify(expoPushSenderService).sendAsync(
+                eq("ExponentPushToken[r]"),
+                eq("🔄 Điểm đã được cập nhật"),
+                eq("Điểm bài tập của bạn đã được cập nhật — Điểm: 90. Xem phản hồi."),
+                any());
+    }
+
+    @Test
+    @DisplayName("F-QA-01: học viên không còn active → onAssignmentRegraded không làm gì")
+    void onAssignmentRegraded_inactiveStudent_doesNothing() {
+        User student = org.mockito.Mockito.mock(User.class);
+        when(student.isActive()).thenReturn(false);
+        when(userRepository.findById(200L)).thenReturn(Optional.of(student));
+
+        service.onAssignmentRegraded(200L, "ASSIGNMENT", 10L, 90, "sửa lại");
+
+        verify(notificationRepository, never()).refreshLatestByContext(org.mockito.ArgumentMatchers.anyLong(), any(), any(), any());
         verify(notificationRepository, never()).save(any());
     }
 

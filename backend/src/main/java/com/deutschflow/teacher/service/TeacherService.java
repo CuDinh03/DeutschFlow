@@ -1063,6 +1063,10 @@ public class TeacherService {
             throw new ConflictException("Học viên không thuộc lớp của bạn");
         }
 
+        // F-QA-01: reviewedAt được đặt ở mọi lần giáo viên lưu đánh giá — còn null nghĩa là lần
+        // chấm ĐẦU TIÊN; đã có giá trị nghĩa là chấm lại (sửa điểm/nhận xét).
+        boolean regrade = session.getReviewedAt() != null;
+
         session.setTeacherScore(req.teacherScore());
         session.setTeacherFeedback(req.teacherFeedback());
         session.setReviewedAt(java.time.LocalDateTime.now());
@@ -1075,9 +1079,18 @@ public class TeacherService {
         // i.e. the teacher was told there was work to review about the very session they had just
         // finished reviewing. It was, in fact, the only place that helper was ever called: teachers got
         // no notification when work actually arrived, and one bogus one after they finished.
-        userNotificationService.onAssignmentGraded(
-            session.getUserId(), "SPEAKING", sessionId, req.teacherScore(), req.teacherFeedback()
-        );
+        //
+        // F-QA-01: chấm LẠI không phát thêm "✅ Bài đã chấm" — cập nhật tại chỗ thông báo cũ thành
+        // "🔄 Điểm đã được cập nhật" (một dòng duy nhất, điểm mới nhất).
+        if (regrade) {
+            userNotificationService.onAssignmentRegraded(
+                session.getUserId(), "SPEAKING", sessionId, req.teacherScore(), req.teacherFeedback()
+            );
+        } else {
+            userNotificationService.onAssignmentGraded(
+                session.getUserId(), "SPEAKING", sessionId, req.teacherScore(), req.teacherFeedback()
+            );
+        }
 
         return result;
     }
@@ -1118,17 +1131,30 @@ public class TeacherService {
             throw new BadRequestException("Điểm phải trong khoảng 0–100");
         }
 
+        // F-QA-01: xác định chấm-lại TRƯỚC khi ghi đè trạng thái — bài đã final (EVALUATED, hoặc
+        // GRADED legacy) tức là học viên ĐÃ được announce điểm một lần rồi.
+        boolean regrade = AssignmentStatus.isFinal(assignment.getStatus());
+
         assignment.setScore(req.teacherScore());
         assignment.setFeedback(req.teacherFeedback());
         assignment.setStatus("EVALUATED");
         assignment.setGradedAt(java.time.LocalDateTime.now());
         StudentAssignmentDto result = toStudentAssignmentDto(studentAssignmentRepository.save(assignment));
 
-        // Notify student
-        userNotificationService.onAssignmentGraded(
-            assignment.getStudentId(), "ASSIGNMENT", assignment.getAssignmentId(),
-            req.teacherScore(), req.teacherFeedback()
-        );
+        // Notify student. F-QA-01: chấm LẠI không phát thêm "✅ Bài đã chấm" lần nữa —
+        // AssignmentStatus hứa announce đúng MỘT lần; đường regrade cập nhật tại chỗ thông báo cũ
+        // thành "🔄 Điểm đã được cập nhật" mang điểm mới nhất (không lộ lịch sử dao động điểm).
+        if (regrade) {
+            userNotificationService.onAssignmentRegraded(
+                assignment.getStudentId(), "ASSIGNMENT", assignment.getAssignmentId(),
+                req.teacherScore(), req.teacherFeedback()
+            );
+        } else {
+            userNotificationService.onAssignmentGraded(
+                assignment.getStudentId(), "ASSIGNMENT", assignment.getAssignmentId(),
+                req.teacherScore(), req.teacherFeedback()
+            );
+        }
 
         // Tự đánh dấu ĐÃ ĐỌC "📥 Bài cần xem" (QUIZ_SUBMISSION_RECEIVED) cho MỌI giáo viên của lớp: bài
         // vừa chấm nên không còn "cần xem" với ai trong nhóm co-teaching, kể cả người vào Trung tâm Chấm

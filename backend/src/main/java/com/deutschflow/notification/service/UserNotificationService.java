@@ -15,6 +15,8 @@ import com.deutschflow.notification.repository.UserNotificationRepository;
 import com.deutschflow.notification.sse.NotificationUnreadPushCoordinator;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -47,6 +49,7 @@ public class UserNotificationService {
     private final ScheduledBroadcastRepository scheduledBroadcastRepository;
     private final ExpoPushSenderService expoPushSenderService;
     private final NotificationContentRenderer contentRenderer;
+    private final ObjectMapper objectMapper;
 
     /** A scheduledAt within this window of "now" is treated as immediate delivery. */
     private static final long SCHEDULE_THRESHOLD_SECONDS = 30;
@@ -465,6 +468,56 @@ public class UserNotificationService {
 
         insert(student, NotificationType.ASSIGNMENT_GRADED, payload);
         log.info("[notifications] ASSIGNMENT_GRADED → student={} type={} score={}", studentId, assignmentType, score);
+    }
+
+    /**
+     * Chấm LẠI một bài đã final (F-QA-01): KHÔNG phát thêm "✅ Bài đã chấm" — {@code AssignmentStatus}
+     * hứa announce đúng MỘT lần. Thay vào đó cập nhật TẠI CHỖ thông báo chấm bài hiện có của đúng bài
+     * đó ({@code assignmentType + referenceId}) sang bản sao "🔄 Điểm đã được cập nhật" mang điểm mới
+     * nhất (cờ {@code updated} trong payload — renderer đổi copy), và trả dòng về CHƯA ĐỌC để
+     * chuông/badge báo. N lần sửa điểm liên tiếp gộp thành đúng MỘT dòng hộp thư: không spam, không
+     * lộ lịch sử dao động điểm.
+     *
+     * <p>Không bắn Expo push cho lần sửa — sửa điểm là tin thụ động, badge/SSE là đủ; push lặp cho
+     * mỗi lần gõ lại điểm chính là spam QA đã báo. Chỉ khi hộp thư không còn dòng nào của bài
+     * (thông báo cũ đã bị job dọn thu hồi) mới chèn MỘT dòng "đã cập nhật" mới (kèm push) để học
+     * viên không mất thông tin điểm thay đổi.
+     */
+    @Transactional
+    public void onAssignmentRegraded(Long studentId, String assignmentType, Long referenceId,
+                                     Integer score, String feedback) {
+        User student = userRepository.findById(studentId).orElse(null);
+        if (student == null || !student.isActive()) return;
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("assignmentType", assignmentType);
+        payload.put("referenceId", referenceId);
+        payload.put("score", score);
+        payload.put("feedback", feedback != null ? feedback : "");
+        payload.put("updated", true);
+
+        Map<String, Object> match = new LinkedHashMap<>();
+        match.put("assignmentType", assignmentType);
+        match.put("referenceId", referenceId);
+
+        try {
+            int rows = notificationRepository.refreshLatestByContext(
+                    studentId, NotificationType.ASSIGNMENT_GRADED.name(),
+                    objectMapper.writeValueAsString(match), objectMapper.writeValueAsString(payload));
+            if (rows > 0) {
+                unreadPushCoordinator.afterCommit(studentId);
+                log.info("[notifications] ASSIGNMENT_GRADED refreshed in place (regrade) → student={} type={} score={}",
+                        studentId, assignmentType, score);
+                return;
+            }
+        } catch (JsonProcessingException e) {
+            // Map String/Long/Integer/Boolean không thể fail serialize; nếu có thì rơi xuống chèn mới.
+            log.warn("[notifications] cannot serialize regrade payload for student={}: {}", studentId, e.toString());
+        }
+
+        insert(student, NotificationType.ASSIGNMENT_GRADED, payload);
+        log.info("[notifications] ASSIGNMENT_GRADED (regrade, no prior row) → student={} type={} score={}",
+                studentId, assignmentType, score);
     }
 
     /**
