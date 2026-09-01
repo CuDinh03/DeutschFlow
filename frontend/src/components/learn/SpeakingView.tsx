@@ -3,7 +3,7 @@
 import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide';
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Mic, Square, RotateCcw, Loader2 } from "lucide-react";
+import { Mic, Square, RotateCcw, Loader2, PartyPopper, Bot, Lightbulb, Check, TriangleAlert, X, CircleCheck } from "lucide-react";
 import { AudioButton } from "./LearnComponents";
 import api from "@/lib/api";
 import { useTranslations } from "next-intl";
@@ -306,8 +306,8 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
         )}
       </div>
 
-      {recording && <p className="text-center text-xs text-[#EF4444] animate-pulse">🎙️ Đang ghi âm...</p>}
-      {evaluating && <p className="text-center text-xs text-[#64748B]">🤖 Đang đánh giá phát âm...</p>}
+      {recording && <p className="flex items-center justify-center gap-1.5 text-center text-xs text-[#EF4444] animate-pulse"><Mic size={13} aria-hidden /> Đang ghi âm...</p>}
+      {evaluating && <p className="flex items-center justify-center gap-1.5 text-center text-xs text-[#64748B]"><Bot size={13} aria-hidden /> Đang đánh giá phát âm...</p>}
       {error && <p className="text-center text-xs text-red-500">{error}</p>}
 
       {/* ── Feedback ── */}
@@ -323,14 +323,14 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
             </div>
             <div>
               <p className="text-sm font-bold text-[#0F172A]">
-                {feedback.overall_score >= 80 ? "Rất tốt! 🎉" : feedback.overall_score >= 50 ? "Khá! Cần cải thiện" : "Cần luyện thêm"}
+                {feedback.overall_score >= 80 ? <span className="inline-flex items-center gap-1.5">Rất tốt! <PartyPopper size={14} aria-hidden /></span> : feedback.overall_score >= 50 ? "Khá! Cần cải thiện" : "Cần luyện thêm"}
               </p>
               <p className="text-xs text-[#64748B]">Điểm phát âm</p>
             </div>
           </div>
           
           <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-            <p className="text-xs font-bold text-[#64748B] uppercase mb-1">🎙️ Hệ thống nghe được:</p>
+            <p className="flex items-center gap-1.5 text-xs font-bold text-[#64748B] uppercase mb-1"><Mic size={12} aria-hidden /> Hệ thống nghe được:</p>
             {feedback.transcribed ? (
               <p className="text-sm italic text-[#334155]">{'"'}{feedback.transcribed}{'"'}</p>
             ) : (
@@ -345,7 +345,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
             {feedback.words.map((w, i) => (
               <span
                 key={i}
-                className={`text-sm px-2 py-0.5 rounded-lg ${
+                className={`inline-flex items-center gap-1 text-sm px-2 py-0.5 rounded-lg ${
                   w.score === "correct" ? "bg-green-50 text-green-700" :
                   w.score === "minor_error" ? "bg-yellow-50 text-yellow-700" :
                   "bg-red-50 text-red-700"
@@ -353,9 +353,9 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
                 title={w.feedback}
               >
                 {w.word}
-                {w.score === "correct" && " ✓"}
-                {w.score === "minor_error" && " ⚠"}
-                {w.score === "major_error" && " ✕"}
+                {w.score === "correct" && <Check size={13} aria-hidden />}
+                {w.score === "minor_error" && <TriangleAlert size={13} aria-hidden />}
+                {w.score === "major_error" && <X size={13} aria-hidden />}
               </span>
             ))}
           </div>
@@ -363,7 +363,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
           {/* Tips */}
           {feedback.tips.length > 0 && (
             <div className="bg-[#FFFBEB] rounded-lg p-3 space-y-1">
-              <p className="text-xs font-bold text-[#92400E]">💡 Gợi ý:</p>
+              <p className="flex items-center gap-1.5 text-xs font-bold text-[#92400E]"><Lightbulb size={12} aria-hidden /> Gợi ý:</p>
               {feedback.tips.map((tip, i) => (
                 <p key={i} className="text-xs text-[#92400E]">• {tip}</p>
               ))}
@@ -386,7 +386,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
       {/* ── Completion Status ── */}
       {isCompleted && (
         <div className="mt-4 rounded-xl bg-green-50 border border-green-200 p-4 text-center">
-          <p className="text-sm font-bold text-green-700">✅ {tLearn("speakingSuccess")}</p>
+          <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-green-700"><CircleCheck size={15} aria-hidden /> {tLearn("speakingSuccess")}</p>
         </div>
       )}
     </div>

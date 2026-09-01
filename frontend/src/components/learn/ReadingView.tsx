@@ -2,7 +2,7 @@
 
 import { NodeContent, VocabItem, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useCallback, useRef, useMemo } from "react";
-import { BookOpenText, FileQuestion, Lightbulb, Save } from "lucide-react";
+import { BookOpenText, FileQuestion, Lightbulb, Save, X, Check, CircleCheck } from "lucide-react";
 import { GenderBadge, AudioButton } from "./LearnComponents";
 import { reviewApi } from "@/lib/reviewApi";
 import { apiMessage } from "@/lib/api";
@@ -28,7 +28,7 @@ function TranslateTooltip({
           <GenderBadge gender={vocab.gender} label={vocab.gender_label} />
           <span className="font-bold text-sm text-[#0F172A]">{vocab.german}</span>
         </div>
-        <button type="button" onClick={onClose} className="text-[#94A3B8] hover:text-[#0F172A] text-xs">✕</button>
+        <button type="button" onClick={onClose} aria-label="Đóng" className="text-[#94A3B8] hover:text-[#0F172A]"><X size={14} aria-hidden /></button>
       </div>
       <p className="text-sm text-[#475569]">{vocab.meaning}</p>
       {vocab.example_de && <p className="text-xs text-[#94A3B8] italic">{'"'}{vocab.example_de}{'"'}</p>}
@@ -44,7 +44,7 @@ function TranslateTooltip({
               : "bg-[#FFCD00] text-[#121212] hover:bg-[#FFCD00]/80"
           }`}
         >
-          {isSaved ? "✓ Đã lưu" : <><Save size={11} aria-hidden /> Lưu Flashcard</>}
+          {isSaved ? <><Check size={11} aria-hidden /> Đã lưu</> : <><Save size={11} aria-hidden /> Lưu Flashcard</>}
         </button>
       </div>
       {saveError && <p className="text-[10px] text-red-600">{saveError}</p>}
@@ -263,7 +263,10 @@ export default function ReadingView({ content, isLocked = false }: { content: No
                       : "bg-[#22C55E] hover:bg-[#16A34A] text-white"
                   }`}
                 >
-                  {isCompleted ? "✅ Đã hoàn thành 100%" : "✅ Đã đọc & Hiểu (100%)"}
+                  <span className="inline-flex items-center justify-center gap-1.5">
+                    <CircleCheck size={15} aria-hidden />
+                    {isCompleted ? "Đã hoàn thành 100%" : "Đã đọc & Hiểu (100%)"}
+                  </span>
                 </button>
               ) : null}
             </div>

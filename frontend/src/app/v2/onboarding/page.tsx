@@ -14,7 +14,7 @@ import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft, type On
 import { MENTOR_META } from "@/lib/mentorMeta";
 import { useFeatureFlagEnabled } from "posthog-js/react";
 import { useTranslations } from "next-intl";
-import { GaBtn } from "@/components/ui-v2";
+import { GaBtn, GaIcon } from "@/components/ui-v2";
 import { GaAuthShell } from "../authShared";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,28 +34,31 @@ import { GaAuthShell } from "../authShared";
 
 // Chỉ còn DỮ LIỆU. Nhãn/mô tả nằm ở messages/v2/onboarding.<locale>.json dưới khoá
 // `level.<value>.label|desc` — hằng số ở đây không được mang copy nữa (GĐ 4).
+// `icon` là khoá của GaIcon. Năm mức KHÔNG dùng chung một icon sách như bộ emoji cũ
+// (📗📘📙📕 chỉ khác màu — đổi sang icon một màu là năm ô giống hệt nhau): mỗi mức lấy
+// một icon nói đúng việc làm được ở mức đó, để đọc lướt vẫn thấy tiến độ.
 const LEVELS = [
-  { value: "A0", emoji: "🌱" },
-  { value: "A1", emoji: "📗" },
-  { value: "A2", emoji: "📘" },
-  { value: "B1", emoji: "📙" },
-  { value: "B2", emoji: "📕" },
+  { value: "A0", icon: "eco" },
+  { value: "A1", icon: "menu_book" },
+  { value: "A2", icon: "forum" },
+  { value: "B1", icon: "record_voice_over" },
+  { value: "B2", icon: "school" },
 ];
 // "Vì sao bạn học?" — the emotional anchor (Duolingo's first question, adapted for the
 // Việt → Đức audience). Each maps to a coarse goalType the plan still uses (EXAM → CERT, else WORK).
 const MOTIVATIONS = [
-  { value: "JOB",         emoji: "💼", goal: "WORK" },
-  { value: "AUSBILDUNG",  emoji: "🛠️", goal: "WORK" },
-  { value: "STUDY",       emoji: "🎓", goal: "WORK" },
-  { value: "IMMIGRATION", emoji: "🏠", goal: "WORK" },
-  { value: "EXAM",        emoji: "📜", goal: "CERT" },
-  { value: "HOBBY",       emoji: "✨", goal: "WORK" },
+  { value: "JOB",         icon: "work",              goal: "WORK" },
+  { value: "AUSBILDUNG",  icon: "build",             goal: "WORK" },
+  { value: "STUDY",       icon: "school",            goal: "WORK" },
+  { value: "IMMIGRATION", icon: "home",              goal: "WORK" },
+  { value: "EXAM",        icon: "workspace_premium", goal: "CERT" },
+  { value: "HOBBY",       icon: "auto_awesome",      goal: "WORK" },
 ];
 const EXAMS = ["GOETHE", "TELC", "TESTDAF"];
 const WEEKLY = [
-  { value: 3, emoji: "🔥" },
-  { value: 5, emoji: "⚡" },
-  { value: 7, emoji: "🚀" },
+  { value: 3, icon: "local_fire_department" },
+  { value: 5, icon: "bolt" },
+  { value: 7, icon: "rocket" },
 ];
 const INDUSTRIES = ["IT","Medizin","Gastronomie","Bildung","Handel","Sport","Andere"];
 
@@ -349,7 +352,7 @@ export default function V2OnboardingPage() {
               <p className="text-[13.5px] text-ga-muted">{t("level.sub")}</p>
               {LEVELS.map(l => (
                 <button key={l.value} type="button" onClick={() => setCurrentLevel(l.value)} className={sel(currentLevel===l.value)}>
-                  <span className="text-2xl">{l.emoji}</span>
+                  <GaIcon name={l.icon} size={22} className="text-ga-muted" />
                   <div className="min-w-0 flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{t(`level.${l.value}.label`)}</p><p className="text-[12px] text-ga-muted">{t(`level.${l.value}.desc`)}</p></div>
                   {currentLevel===l.value && <CheckCircle size={18} className="text-ga-gold" />}
                 </button>
@@ -365,7 +368,7 @@ export default function V2OnboardingPage() {
                 {MOTIVATIONS.map(m => (
                   <button key={m.value} type="button" onClick={() => { setMotivation(m.value); setGoalType(m.goal); }}
                     className={`p-3 rounded-ga border text-center transition-colors duration-150 ${motivation===m.value ? "border-ga-gold bg-ga-yellow-soft" : "border-ga-line hover:border-ga-subtle"}`}>
-                    <span className="text-2xl block mb-1">{m.emoji}</span>
+                    <GaIcon name={m.icon} size={22} className="mx-auto mb-1 text-ga-muted" />
                     <p className="ga-ui text-[12px] font-bold leading-tight text-ga-ink">{t(`goal.${m.value}`)}</p>
                   </button>
                 ))}
@@ -430,7 +433,7 @@ export default function V2OnboardingPage() {
               )}
               {WEEKLY.map(w => (
                 <button key={w.value} type="button" onClick={() => setWeeklyTarget(w.value)} className={sel(weeklyTarget===w.value)}>
-                  <span className="text-3xl">{w.emoji}</span>
+                  <GaIcon name={w.icon} size={24} className="text-ga-muted" />
                   <div className="min-w-0 flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{t(`pace.w${w.value}.label`)}</p><p className="text-[12px] text-ga-muted">{t(`pace.w${w.value}.desc`)}</p></div>
                 </button>
               ))}
@@ -459,7 +462,7 @@ export default function V2OnboardingPage() {
                         answered && isCorrect ? "border-ga-green bg-ga-green-soft font-bold text-ga-ink"
                         : picked ? "border-ga-red bg-ga-red-soft text-ga-red"
                         : "border-ga-line text-ga-ink hover:border-ga-subtle"}`}>
-                      {opt}{answered && isCorrect ? " ✓" : ""}
+                      <span className="inline-flex items-center gap-1.5">{opt}{answered && isCorrect ? <GaIcon name="check" size={14} /> : null}</span>
                     </button>
                   );
                 })}
@@ -500,7 +503,7 @@ export default function V2OnboardingPage() {
 
           {step === 4 && !isGuest && placementOffer && !testResult && questions.length === 0 && (
             <motion.div key="s4offer" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
-              <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-3xl mx-auto">🎯</div>
+              <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-ga-gold mx-auto"><GaIcon name="target" size={30} /></div>
               <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("placementOffer.heading")}</h2>
               <p className="text-[13.5px] text-ga-muted">
                 {t.rich("placementOffer.body", { level: currentLevel, b: (chunks) => <strong>{chunks}</strong> })}
@@ -528,7 +531,7 @@ export default function V2OnboardingPage() {
                 questions[currentQ].skillSection==="SPRECHEN"?"bg-ga-red-soft text-ga-red":
                 questions[currentQ].skillSection==="LESEN"?"bg-ga-green-soft text-ga-green":"bg-ga-violet-soft text-ga-violet"
               }`}>{questions[currentQ].skillSection==="HOEREN"?t("test.skillHoeren"):questions[currentQ].skillSection==="SPRECHEN"?t("test.skillSprechen"):questions[currentQ].skillSection==="LESEN"?t("test.skillLesen"):t("test.skillSchreiben")}</span>
-              {questions[currentQ].audioTranscript && <div className="rounded-ga bg-ga-surface p-3 text-[12px] text-ga-muted italic">🔊 &quot;{questions[currentQ].audioTranscript}&quot;</div>}
+              {questions[currentQ].audioTranscript && <div className="flex items-start gap-1.5 rounded-ga bg-ga-surface p-3 text-[12px] text-ga-muted italic"><GaIcon name="volume_up" size={13} className="mt-[2px]" /><span>&quot;{questions[currentQ].audioTranscript}&quot;</span></div>}
               <p className="text-[13.5px] font-medium text-ga-ink whitespace-pre-line break-words">{questions[currentQ].questionDe}</p>
               {questions[currentQ].questionVi && <p className="text-[12px] text-ga-subtle">{questions[currentQ].questionVi}</p>}
               {questions[currentQ].options ? (

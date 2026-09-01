@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { getAvailability, putAvailability, type AvailabilitySlot } from '@/lib/teacherAvailabilityApi'
+import { Check } from 'lucide-react'
 import { GaBtn, GaCap } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,7 +166,7 @@ export function AvailabilityPanel() {
                       color: on ? VIOLET : 'var(--ga-faint)',
                     }}
                   >
-                    {on ? '✓' : ''}
+                    {on ? <Check size={14} aria-hidden /> : null}
                   </button>
                 )
               })}

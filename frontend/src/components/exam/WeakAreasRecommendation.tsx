@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertTriangle, BookOpen, Headphones, PenTool, Mic2, ArrowRight } from 'lucide-react'
+import { AlertTriangle, BookOpen, Headphones, PenTool, Mic2, ArrowRight, PartyPopper } from 'lucide-react'
 
 const SECTION_META: Record<string, { icon: React.ReactNode; label: string; color: string; studyLink: string; tipVi: string }> = {
   LESEN: {
@@ -42,7 +42,7 @@ export function WeakAreasRecommendation({ weakAreas }: WeakAreasRecommendationPr
     return (
       <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-start gap-3">
         <div className="w-8 h-8 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
-          <span className="text-lg">🎉</span>
+          <PartyPopper size={18} className="text-emerald-700" aria-hidden />
         </div>
         <div>
           <p className="font-bold text-emerald-800 text-sm">Xuất sắc! Không có điểm yếu</p>

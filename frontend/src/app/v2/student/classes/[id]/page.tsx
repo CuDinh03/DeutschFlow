@@ -319,7 +319,7 @@ export default function V2ClassStudentPage() {
                               const mastered = st === 'MASTERED'
                               return (
                                 <li key={c.id ?? c.orderIndex} className="flex flex-wrap items-start gap-2 text-[12.5px] leading-[1.5] lg:flex-nowrap">
-                                  <span className="mt-[2px] shrink-0" style={{ color: mastered ? 'var(--ga-green)' : 'var(--ga-violet)' }}>✓</span>
+                                  <Check size={13} aria-hidden className="mt-[3px] shrink-0" style={{ color: mastered ? 'var(--ga-green)' : 'var(--ga-violet)' }} />
                                   <span className="min-w-0 flex-1 break-words" style={{ color: 'var(--ga-violet)' }}>
                                     {c.text}
                                     {c.id != null && competencySourceMap[c.id] === 'GRADING' && (

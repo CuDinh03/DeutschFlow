@@ -16,6 +16,7 @@ import {
   Trophy,
   Volume2,
   XCircle,
+  Check,
 } from 'lucide-react'
 import api from '@/lib/api'
 import { getAccessToken } from '@/lib/authSession'
@@ -299,8 +300,8 @@ function VocabPractice() {
         subtitle={t('subtitle')}
         right={
           screen === 'practicing' ? (
-            <span className="ga-ui text-[13px] font-semibold text-ga-muted">
-              {idx + 1}/{words.length} · ✓ {score}
+            <span className="ga-ui inline-flex items-center gap-1 text-[13px] font-semibold text-ga-muted">
+              {idx + 1}/{words.length} · <Check size={13} aria-hidden /> {score}
             </span>
           ) : null
         }
@@ -499,8 +500,8 @@ function VocabPractice() {
                   </p>
                 )}
                 {heard && verdict === 'correct' && (
-                  <p className="ga-ui mt-4 text-[12.5px]" style={{ color: 'var(--ga-green)' }}>
-                    “{heard}” ✓
+                  <p className="ga-ui mt-4 inline-flex items-center gap-1 text-[12.5px]" style={{ color: 'var(--ga-green)' }}>
+                    “{heard}” <Check size={13} aria-hidden />
                   </p>
                 )}
               </GaCard>

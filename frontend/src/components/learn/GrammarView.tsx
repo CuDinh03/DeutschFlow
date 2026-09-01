@@ -2,7 +2,7 @@
 
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useTranslations } from "next-intl";
-import { BookOpen, Library, MessagesSquare, Sparkles } from "lucide-react";
+import { BookOpen, Library, MessagesSquare, Sparkles, TriangleAlert, Lightbulb, CircleCheck, CircleX } from "lucide-react";
 import { VocabCard, VocabTag, AudioButton } from "./LearnComponents";
 import { useState, useMemo, useEffect } from "react";
 import { lightImpact, mediumImpact, heavyImpact } from "@/lib/haptics";
@@ -25,13 +25,13 @@ function TheoryContent({ text }: { text: string }) {
       {lines.map((line, i) => {
         if (line.startsWith("⚠️")) return (
           <div key={i} className="flex items-start gap-1.5 rounded-lg bg-red-50 border border-red-200 px-2.5 py-2">
-            <span className="text-sm shrink-0">⚠️</span>
+            <TriangleAlert size={14} className="mt-[1px] shrink-0" aria-hidden />
             <p className="text-xs text-red-700 leading-relaxed">{line.slice(2).trim()}</p>
           </div>
         );
         if (line.startsWith("💡")) return (
           <div key={i} className="flex items-start gap-1.5 rounded-lg bg-blue-50 border border-blue-200 px-2.5 py-2">
-            <span className="text-sm shrink-0">💡</span>
+            <Lightbulb size={14} className="mt-[1px] shrink-0" aria-hidden />
             <p className="text-xs text-blue-700 leading-relaxed">{line.slice(2).trim()}</p>
           </div>
         );
@@ -53,11 +53,11 @@ function TheoryContent({ text }: { text: string }) {
       {hasSideBySide && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-2">
           <div className="min-w-0 rounded-lg bg-green-50 border border-green-200 p-2 space-y-1">
-            <p className="text-[10px] font-bold text-green-700 uppercase">✅ Đúng</p>
+            <p className="flex items-center gap-1 text-[10px] font-bold text-green-700 uppercase"><CircleCheck size={12} aria-hidden /> Đúng</p>
             {goodLines.map((l, i) => <p key={i} className="text-xs text-green-800 break-words">{l}</p>)}
           </div>
           <div className="min-w-0 rounded-lg bg-red-50 border border-red-200 p-2 space-y-1">
-            <p className="text-[10px] font-bold text-red-700 uppercase">❌ Sai</p>
+            <p className="flex items-center gap-1 text-[10px] font-bold text-red-700 uppercase"><CircleX size={12} aria-hidden /> Sai</p>
             {badLines.map((l, i) => <p key={i} className="text-xs text-red-800 break-words">{l}</p>)}
           </div>
         </div>
@@ -267,7 +267,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
                   <p className="text-sm font-bold text-white">{ex.german}</p>
                 </div>
                 <p className="text-xs text-white/70">{ex.translation}</p>
-                {ex.note && <p className="text-[10px] text-[#FFCD00]">💡 {ex.note}</p>}
+                {ex.note && <p className="flex items-start gap-1 text-[10px] text-[#FFCD00]"><Lightbulb size={11} className="mt-[2px] shrink-0" aria-hidden /> {ex.note}</p>}
               </div>
             ))}
           </div>
@@ -332,7 +332,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
             isCompleted ? (
               // Read-only badge — node already completed, no action needed
               <div className="w-full py-3 rounded-xl bg-green-500 text-white font-bold text-sm text-center cursor-default select-none flex items-center justify-center gap-2">
-                <span>✅</span>
+                <CircleCheck size={16} aria-hidden />
                 <span>{tLearn("completed100")}</span>
               </div>
             ) : (
