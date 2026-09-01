@@ -19,8 +19,6 @@ export type TheoryCompletionOutcome =
   | 'saved'
   /** Node vốn đã hoàn thành từ trước; với người dùng thì không có gì sai. */
   | 'alreadyDone'
-  /** Node này CÓ câu chấm điểm nên phải hoàn thành qua đường nộp bài — không phải lỗi. */
-  | 'gradedNode'
   /** Hỏng thật: chưa đủ điều kiện tiên quyết, mất mạng, máy chủ lỗi… Phải cho học viên thấy. */
   | 'failed'
 
@@ -33,16 +31,21 @@ export interface TheoryCompletionResult {
 /**
  * Phân loại lỗi theo `detail` của backend.
  *
- * ⚠️ Khớp theo chuỗi nên có phần mong manh: đổi câu tiếng Việt bên backend sẽ làm nhánh im lặng
- * rơi xuống nhánh `failed`. Chấp nhận có ý thức — hỏng theo kiểu ồn ào (hiện thừa một thông báo)
- * an toàn hơn nhiều so với nuốt lỗi, đúng bài học của F-18 trong cùng đợt QA này. Khi backend có
- * mã lỗi ổn định thì thay hai nhánh dưới bằng mã.
+ * Chỉ "node đã hoàn thành từ trước" là im lặng — với người dùng thì không có gì sai.
+ *
+ * ⚠️ Trước đây còn một nhánh im lặng nữa cho 400 "Bài này có bài tập chấm điểm", vì tôi cho rằng
+ * node đó "hoàn thành qua đường nộp bài". Kiểm lại (QA 2026-09-02, F-22) thì trên web KHÔNG có
+ * đường đó — im lặng ở đấy là che giấu đúng blocker cần thấy, tức lặp lại bẫy F-18 vừa mới vá.
+ * Nay hàm gọi phải tự chọn đúng đường: node có mục chấm được thì đi `submitNodeExercises`, chỉ node
+ * lý thuyết thuần mới gọi đây. Nếu vẫn ăn 400 đó nghĩa là nhận diện sai — và ta MUỐN thấy nó.
+ *
+ * ⚠️ Khớp theo chuỗi nên mong manh: backend đổi câu chữ thì nhánh im lặng rơi xuống `failed`.
+ * Chấp nhận có ý thức — hỏng ồn ào an toàn hơn nuốt lỗi. Khi backend có mã lỗi ổn định thì thay.
  */
 export function classifyTheoryCompletionError(status: number, detail: string): TheoryCompletionResult {
   if (status === 400) {
     const d = detail.toLowerCase()
     if (d.includes('đã hoàn thành')) return { outcome: 'alreadyDone', message: null }
-    if (d.includes('bài tập chấm điểm')) return { outcome: 'gradedNode', message: null }
   }
   return { outcome: 'failed', message: detail || null }
 }

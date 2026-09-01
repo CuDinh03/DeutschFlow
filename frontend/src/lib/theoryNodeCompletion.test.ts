@@ -20,10 +20,12 @@ describe('classifyTheoryCompletionError', () => {
     })
   })
 
-  test('node có bài chấm điểm hoàn thành qua đường nộp bài — cũng không phải lỗi', () => {
+  test('node CÓ bài chấm điểm phải HIỆN ra — trên web không có đường nộp bài thay thế (F-22)', () => {
+    // Trước đây nhánh này im lặng vì giả định "node đó hoàn thành ở chỗ khác". Không có chỗ khác.
+    // Nơi gọi phải chọn đúng đường; ăn 400 này nghĩa là nhận diện sai và ta muốn thấy.
     expect(classifyTheoryCompletionError(400, BE.graded)).toEqual({
-      outcome: 'gradedNode',
-      message: null,
+      outcome: 'failed',
+      message: BE.graded,
     })
   })
 
