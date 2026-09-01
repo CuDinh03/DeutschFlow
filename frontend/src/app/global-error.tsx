@@ -4,6 +4,7 @@
 // <html>/<body> because at this level even the root layout has crashed.
 
 import { useEffect } from 'react'
+import { TriangleAlert } from 'lucide-react'
 import posthog from 'posthog-js'
 
 export default function GlobalError({
@@ -34,7 +35,7 @@ export default function GlobalError({
             className="w-12 h-12 mx-auto rounded-full bg-red-50 flex items-center justify-center"
             aria-hidden
           >
-            <span className="text-red-500 text-xl">⚠</span>
+            <TriangleAlert size={22} className="text-red-500" aria-hidden />
           </div>
           <h1 className="text-lg font-bold text-slate-900">Đã xảy ra lỗi</h1>
           {error.digest ? (

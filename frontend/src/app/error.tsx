@@ -5,6 +5,7 @@
 // the entire page with a blank white screen in production.
 
 import { useEffect } from 'react'
+import { TriangleAlert } from 'lucide-react'
 import posthog from 'posthog-js'
 
 export default function RootError({
@@ -34,7 +35,7 @@ export default function RootError({
           className="w-12 h-12 mx-auto rounded-full bg-red-50 flex items-center justify-center"
           aria-hidden
         >
-          <span className="text-red-500 text-xl">⚠</span>
+          <TriangleAlert size={22} className="text-red-500" aria-hidden />
         </div>
         <h2 className="text-lg font-bold text-slate-900">Có lỗi xảy ra</h2>
         <p className="text-slate-500 text-sm">Vui lòng thử lại sau ít phút.</p>

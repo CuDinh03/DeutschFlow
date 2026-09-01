@@ -36,37 +36,6 @@ const COLORS = [
   { color: '#4CAF50', shadow: '#2E8B32', text: '#FFFFFF' },
 ]
 
-export const sessionVariants: Record<SessionType, { emoji: string; title: string; subtitle: string; poolLabel: string; hint: string }> = {
-  GRAMMAR: {
-    emoji: '🧠',
-    title: 'Grammar Builder',
-    subtitle: 'Kéo-thả để sắp xếp câu theo đúng ngữ pháp.',
-    poolLabel: 'Grammar Blocks',
-    hint: 'Tập trung vào vị trí động từ và trật tự chủ ngữ-bổ ngữ.',
-  },
-  READING: {
-    emoji: '📖',
-    title: 'Reading Builder',
-    subtitle: 'Từ ngữ được chọn theo ngữ cảnh đọc hiểu của session.',
-    poolLabel: 'Reading Tokens',
-    hint: 'Dựa vào ý nghĩa đoạn đọc để chọn đúng từ then chốt.',
-  },
-  LISTENING: {
-    emoji: '🎧',
-    title: 'Listening Builder',
-    subtitle: 'Nghe audio rồi kéo-thả thành câu đúng.',
-    poolLabel: 'Listening Tokens',
-    hint: 'Nghe lại audio và chú ý đuôi từ hoặc mạo từ.',
-  },
-  GENERAL: {
-    emoji: '🧱',
-    title: 'Lego Builder',
-    subtitle: 'Kéo-thả để ghép câu chính xác.',
-    poolLabel: 'Word Blocks',
-    hint: 'Kéo-thả theo đúng thứ tự đáp án.',
-  },
-}
-
 export function sessionMode(raw?: string | null): SessionType {
   const v = String(raw || '').trim().toUpperCase()
   if (v === 'GRAMMAR') return 'GRAMMAR'
