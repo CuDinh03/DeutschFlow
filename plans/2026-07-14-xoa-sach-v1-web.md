@@ -193,7 +193,21 @@ Plan gốc (Q9) giả định nhóm route "GAP thuần" chỉ cần **đo PostHo
 
 ## 7. Đợt 4 — Dọn dẹp
 
-### 7.0 ✅ ĐÃ THỰC THI 2026-09-02 — nhánh `chore/v1-purge-wave4` (stacked trên Đợt 3)
+### 7.0 ✅ ĐÃ THỰC THI 2026-09-02 — nhánh `chore/v1-purge-wave4` (PR #444, base `main`)
+
+> **Bối cảnh**: Đợt 3 (#443) đã **merged `c2deee93` + deploy prod**, smoke prod 100% pass — xem §6.0.
+> Nhánh này ban đầu stacked trên `chore/v1-purge-wave3`; sau khi #443 được **squash**-merge, nhánh
+> base biến mất khỏi lịch sử main nên merge-base lệch (PR phình thành 309 tệp). Đã chữa bằng cách
+> merge `main` vào nhánh rồi đổi base PR về `main` — diff trở lại đúng 91 tệp của riêng Đợt 4.
+>
+> 🪤 **Hai cái bẫy CI đáng nhớ, cùng một gốc:** `.github/workflows/frontend-ci.yml` lọc
+> `pull_request.branches: [master, main, dev, feat/onboarding-v3]`, nên **PR stacked (base là nhánh
+> khác) KHÔNG được `build-and-lint` gác** — job vắng mặt khỏi danh sách check chứ không phải fail,
+> và `gh pr checks` vẫn báo "all pass" còn `mergeStateStatus` vẫn `CLEAN`. Tệ hơn: **đổi base sang
+> `main` KHÔNG tự kích hoạt lại workflow** (sự kiện `edited` không thuộc
+> `opened|synchronize|reopened`) — phải đẩy thêm một commit hoặc close/reopen PR. Với PR stacked,
+> luôn kiểm tên job có mặt hay không, đừng đọc mỗi trạng thái tổng.
+
 
 **Dead code — 85 tệp.** Sau khi Đợt 3 gỡ cây `src/app` v1, đây là toàn bộ phần còn lại không còn
 đường nào từ entry point tới: 40 tệp `components/ui/*` (shadcn chưa bao giờ được `/v2` dùng),
