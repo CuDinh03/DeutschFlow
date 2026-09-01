@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Plus, Check, Loader2, Info, X, Pencil, Trash2, ArrowUp, ArrowDown, FolderPlus, BookOpen, CalendarRange } from 'lucide-react'
+import { Plus, Check, Loader2, Info, X, Pencil, Trash2, ArrowUp, ArrowDown, FolderPlus, BookOpen, CalendarRange, FileUp } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
@@ -17,6 +17,7 @@ import { parseIsoDateLocal } from '../lessonPacing'
 import { LessonMaterialsPanel } from './LessonMaterialsPanel'
 import { CanDoEditor, emptyCanDo, seedEditableCanDos, toCanDoPayload, type EditableCanDo } from './CanDoEditor'
 import { AllocationModal } from './AllocationModal'
+import { CurriculumImportWizard } from './CurriculumImportWizard'
 
 /** Parse the estimated-units input to a positive integer, or undefined when empty/invalid. */
 function parseUnits(raw: string): number | undefined {
@@ -266,6 +267,23 @@ export default function V2TcChecklistPage() {
 
   // Modules (Phase 1c)
   const [modules, setModules] = useState<CurriculumModule[]>([])
+  const [importOpen, setImportOpen] = useState(false)
+  // Module đầu tiên vừa nhập — cuộn tới sau khi danh sách tải lại, để giáo viên thấy ngay
+  // kết quả thay vì phải tự tìm trong danh sách dài.
+  const [focusModuleId, setFocusModuleId] = useState<number | null>(null)
+  const importedModuleRef = useRef<HTMLDivElement | null>(null)
+
+  // Sau khi nhập xong và danh sách đã tải lại, đưa module đầu tiên vừa nhập vào tầm nhìn và trao
+  // focus cho nó — người dùng bàn phím/trình đọc màn hình cũng tới được kết quả, không chỉ chuột.
+  useEffect(() => {
+    if (focusModuleId == null) return
+    const el = importedModuleRef.current
+    if (!el) return
+    el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    el.focus({ preventScroll: true })
+    setFocusModuleId(null)
+  }, [focusModuleId, modules])
+
   const [newModuleTitle, setNewModuleTitle] = useState('')
   const [creatingModule, setCreatingModule] = useState(false)
   const [editingModuleId, setEditingModuleId] = useState<number | null>(null)
@@ -570,6 +588,14 @@ export default function V2TcChecklistPage() {
             <span className="ga-ui hidden text-[13px] text-ga-muted sm:inline">
               {t('progress')}: <strong className="font-ga-display text-[16px] text-ga-ink">{progress}%</strong>
             </span>
+            <GaBtn
+              variant="ghost"
+              size="sm"
+              disabled={!classId}
+              onClick={() => setImportOpen(true)}
+            >
+              <FileUp size={14} /> {t('import.openButton')}
+            </GaBtn>
             <GaBtn variant="ghost" size="sm" onClick={() => router.push(classHref('/v2/teacher/tc-progress', classId))}>{t('viewOverview')}</GaBtn>
           </div>
         }
@@ -701,7 +727,12 @@ export default function V2TcChecklistPage() {
         ) : (
           <div className="flex flex-col gap-4">
             {lessonGroups.map((group) => (
-              <div key={group.module?.id ?? 'ungrouped'} className="border border-ga-line bg-ga-card">
+              <div
+                key={group.module?.id ?? 'ungrouped'}
+                ref={group.module && group.module.id === focusModuleId ? importedModuleRef : undefined}
+                tabIndex={group.module && group.module.id === focusModuleId ? -1 : undefined}
+                className="border border-ga-line bg-ga-card"
+              >
                 <div className="border-b border-ga-line px-4 py-2 text-[12px] font-bold uppercase tracking-[0.06em]" style={{ color: VIOLET, background: 'var(--ga-violet-soft)' }}>
                   {group.module ? group.module.title : t('ungrouped')}
                 </div>
@@ -945,6 +976,19 @@ export default function V2TcChecklistPage() {
         loading={moduleBusy}
         onConfirm={() => { if (confirmModule) void removeModule(confirmModule) }}
       />
+      {classId != null && (
+        <CurriculumImportWizard
+          classId={classId}
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          onImported={({ modulesCreated, lessonsCreated, firstModuleId }) => {
+            setImportOpen(false)
+            setFocusModuleId(firstModuleId ?? null)
+            toast.success(t('import.toastImported', { modules: modulesCreated, lessons: lessonsCreated }))
+            void load(classId)
+          }}
+        />
+      )}
       {allocLesson && classId != null && (
         <AllocationModal
           classId={classId}

@@ -10,7 +10,7 @@
 | Đợt 1 | Bù GAP tính năng v2 còn deep-link về v1 | ✅ 2026-07-15 · PR #220 (11 route v2 mới) |
 | Đợt 2 | Backend đổi URL sinh ra (email, payment, DTO href) | ✅ 2026-07-15 · PR #221 (backend-only) |
 | **Đợt 2.5 + 2.6** | **Port nốt ~22 tính năng THẬT còn kẹt ở v1** (24 route v2 mới) — *phát sinh* | ✅ 2026-07-15 · PR #222 (nhánh `feat/v1-lockout-wave2h`) |
-| Đợt 3 | Xóa cây v1 + redirect map + nâng 307→permanent | ✅ 2026-09-02 · nhánh `chore/v1-purge-wave3` (xem §6.0) — **còn 4 gate của owner trước khi merge** |
+| Đợt 3 | Xóa cây v1 + redirect map + nâng 307→permanent | ✅ **MERGED 2026-09-02 — `c2deee93` (PR #443)**, Amplify auto-deploy (xem §6.0) |
 | Đợt 4 | Dọn dead code, dependencies, docs, PostHog | ✅ 2026-09-02 · nhánh `chore/v1-purge-wave4` (xem §7.0) |
 
 **Thứ tự deploy bắt buộc**: FE (Đợt 0 → 1) → BE (Đợt 2) → FE (Đợt 2.5/2.6 → 3) → dọn (Đợt 4).
@@ -238,11 +238,11 @@ trong repo (M-11/12/13 nay chỉ còn được nhắc trong chính tệp này), 
 **Verify**: `npm ci` từ lock mới · tsc 0 lỗi · vitest 79 tệp/623 test · `next build` thành công ·
 `routes-manifest` vẫn **141 route, 0 route v1, 107 redirect**.
 
-- [ ] **94 tệp mồ côi CÓ SẴN trên main** (không do Đợt 3 gây ra — đã đo và cố ý chừa lại): 44 tệp `components/ui/*` shadcn, cụm `components/speaking/*` (11), `components/vocabulary/*` (8), `components/roadmap/*` (4), `lib/*` (13)… Hai tệp `types/today-plan.ts` + `types/vocabulary.ts` phải xoá **cùng** TodayPlanBoard/VocabCard, không tách rời. Còn hai tệp mồ côi vẫn trỏ path v1 (`TodayPlanBoard` → `/speaking`, `/vocabulary`; `SpeakingWelcomeClient` → `/speaking/chat`) — chết theo tệp, không cần sửa riêng.
-- [ ] Gỡ dependency: `@dnd-kit/*`, `@radix-ui/react-dropdown-menu`, `idb-keyval` (v1-only) + ~30 gói orphan (`@xyflow/react`, `react-hook-form`, `cmdk`, `vaul`, `embla-carousel-react`, `react-day-picker`, `input-otp`, `react-resizable-panels`, `canvas-confetti`, `@ducanh2912/next-pwa`, `next-themes`, ~20 gói `@radix-ui/*` — chỉ 42 file shadcn orphan dùng). Giữ `react-dom`.
-- [ ] PostHog: archive flag `galerie-v2` (console + `src/lib/flags.ts:11` orphan); port event của tính năng đã port (`onboarding_step_completed`, `mock_exam_render_error`, `feature_session`, `streak_extended`); chấp nhận đứt chuỗi funnel theo `$current_url` v1 (ghi chú mốc thời gian vào dashboard).
+- [x] ~~**94**~~ **85 tệp mồ côi CÓ SẴN trên main** — ĐÃ XOÁ ở PR #444 (con số 94 là của phép đo lỗi, xem §7.0): 40 tệp `components/ui/*` shadcn, cụm `components/speaking/*` (11), `components/vocabulary/*` (8), `components/roadmap/*` (4), `lib/*` (13)… Hai tệp `types/today-plan.ts` + `types/vocabulary.ts` phải xoá **cùng** TodayPlanBoard/VocabCard, không tách rời. Còn hai tệp mồ côi vẫn trỏ path v1 (`TodayPlanBoard` → `/speaking`, `/vocabulary`; `SpeakingWelcomeClient` → `/speaking/chat`) — chết theo tệp, không cần sửa riêng.
+- [x] **ĐÃ GỠ 34 gói ở PR #444** (deps 60→26; **giữ `@dnd-kit/core`** — `/v2/student/game*` vẫn dùng). Danh sách khảo sát ban đầu: `@dnd-kit/*`, `@radix-ui/react-dropdown-menu`, `idb-keyval` (v1-only) + ~30 gói orphan (`@xyflow/react`, `react-hook-form`, `cmdk`, `vaul`, `embla-carousel-react`, `react-day-picker`, `input-otp`, `react-resizable-panels`, `canvas-confetti`, `@ducanh2912/next-pwa`, `next-themes`, ~20 gói `@radix-ui/*` — chỉ 42 file shadcn orphan dùng). Giữ `react-dom`.
+- [ ] PostHog: `src/lib/flags.ts` **đã xoá** ở PR #444; **còn lại việc tay của owner: archive flag `galerie-v2` trên console.** Ngoài ra: port event của tính năng đã port (`onboarding_step_completed`, `mock_exam_render_error`, `feature_session`, `streak_extended`); chấp nhận đứt chuỗi funnel theo `$current_url` v1 (ghi chú mốc thời gian vào dashboard).
 - [ ] Docs ưu tiên: `docs/GUIDE.md:133,139`, `docs/QA_TEACHER_PROD_CHECKLIST.md`, `docs/UI_2.0_HANDOFF.md`, `docs/UI_2.0_VISUAL_QA_RUNBOOK.md`, `docs/FE_END_TO_END_TESTING.md:91`, `docs/ROUTING.md` (viết lại theo v2), `docs/UI_2.0_MIGRATION_MAP.md` (đánh dấu Phase 4 cutover DONE), `plans/2026-07-03-OWNER-MANUAL-STEPS.md:79`, `frontend/I18N_V2_PROGRESS.md`, comment cache `amplify.yml:38-41`. Nhóm BAO_CAO/KE_HOACH lịch sử: chỉ chú thích "route v1 đã gỡ".
-- [ ] **Hợp nhất kế hoạch**: `plans/2026-07-14-b2b-completion.md` mục M-11/12/13 ("xoá `frontend/src/app/org/`") được plan này **nuốt** — cập nhật file đó trỏ về đây, tránh 2 nhánh cùng xóa `org/` với 2 scope.
+- [x] ~~**Hợp nhất kế hoạch**~~ — **KHÔNG CÓ GÌ ĐỂ HỢP NHẤT**: `plans/2026-07-14-b2b-completion.md` mục M-11/12/13 ("xoá `frontend/src/app/org/`") được plan này **nuốt** — cập nhật file đó trỏ về đây, tránh 2 nhánh cùng xóa `org/` với 2 scope.
 
 ## 8. Rủi ro & rollback
 

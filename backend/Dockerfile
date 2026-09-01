@@ -36,10 +36,17 @@ FROM eclipse-temurin:17-jre-jammy AS runtime
 # --no-install-recommends is load-bearing: the recommends pull in the whole LibreOffice suite plus a
 # JRE and python-uno (~700MB more) for filters we never invoke.
 #
+# tesseract-ocr + the German language data: local OCR of a scanned coursebook's contents
+# pages (CurriculumImportService). It is what lets the importer read a scan without sending a
+# centre's copyrighted book to any external service, and without an API key. Absent, the
+# feature degrades cleanly - managed curriculum templates keep working and the teacher is
+# told OCR is unavailable.
+#
 # Installed as root before dropping to the app user.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg fonts-dejavu-core \
         libreoffice-writer libreoffice-impress libreoffice-calc fonts-liberation \
+        tesseract-ocr tesseract-ocr-deu \
     && rm -rf /var/lib/apt/lists/*
 
 # Security: chạy dưới non-root user.
