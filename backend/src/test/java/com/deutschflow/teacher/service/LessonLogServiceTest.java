@@ -47,6 +47,7 @@ class LessonLogServiceTest {
     @Mock private ClassLessonRepository lessonRepository;
     @Mock private UserRepository userRepository;
     @Mock private com.deutschflow.teacher.repository.TeacherClassRepository teacherClassRepository;
+    @Mock private com.deutschflow.teacher.repository.ClassSessionRepository classSessionRepository;
 
     private LessonLogService service;
 
@@ -61,7 +62,7 @@ class LessonLogServiceTest {
         service = new LessonLogService(
                 lessonLogRepository, attendanceRepository,
                 classTeacherRepository, classStudentRepository, lessonRepository, userRepository,
-                teacherClassRepository);
+                teacherClassRepository, classSessionRepository);
     }
 
     // ── getLogs ───────────────────────────────────────────────────────────────

@@ -76,6 +76,23 @@ vi.mock('@/components/ui-v2', () => ({
         {footer}
       </div>
     ) : null,
+  // PR-4: trang dùng ConfirmDialog cho mọi thao tác xoá — mock tối giản giữ hợp đồng
+  // (mở → hiện title + nút xác nhận/hủy; bấm xác nhận gọi onConfirm).
+  ConfirmDialog: ({ open, title, confirmLabel, cancelLabel, onConfirm, onOpenChange }: {
+    open: boolean
+    title?: React.ReactNode
+    confirmLabel?: string
+    cancelLabel?: string
+    onConfirm?: () => void
+    onOpenChange?: (o: boolean) => void
+  }) =>
+    open ? (
+      <div role="alertdialog">
+        {title}
+        <button onClick={() => onOpenChange?.(false)}>{cancelLabel}</button>
+        <button onClick={onConfirm}>{confirmLabel}</button>
+      </div>
+    ) : null,
   LoadingState: ({ label }: { label?: React.ReactNode }) => <div>{label}</div>,
   ErrorBanner: ({ message, onRetry }: { message?: React.ReactNode; onRetry?: () => void }) => (
     <div>
@@ -277,18 +294,33 @@ describe('Nội dung giảng dạy — lessons with knowledge points', () => {
     await waitFor(() => expect(updateLesson).toHaveBeenCalledWith(1, 10, { completed: true }))
   })
 
-  it('deletes a lesson after confirmation', async () => {
+  it('locks curriculum lessons: no manual tick, no delete, allocation entry point instead (PR-4)', async () => {
+    listLessons.mockResolvedValue([lesson({ lektionId: 77, supplementary: false })])
+    await renderPage()
+
+    await waitFor(() => expect(screen.getByText('Bài 1')).toBeInTheDocument())
+    // Hoàn thành suy từ xác nhận theo buổi → nút tick bị vô hiệu với hint riêng.
+    expect(screen.getByRole('button', { name: 'curriculumCompletionHint' })).toBeDisabled()
+    // Bài giáo trình không xoá được khỏi lớp (backend chặn) → ẩn hẳn nút xoá.
+    expect(screen.queryByRole('button', { name: 'deleteLesson' })).not.toBeInTheDocument()
+    // Thay vào đó có lối vào màn phân bổ buổi.
+    expect(screen.getByRole('button', { name: 'allocate' })).toBeInTheDocument()
+    expect(screen.getByText('curriculumBadge')).toBeInTheDocument()
+  })
+
+  it('deletes a lesson only after confirming in the dialog (no window.confirm)', async () => {
     const user = userEvent.setup()
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
     listLessons.mockResolvedValue([lesson()])
     deleteLesson.mockResolvedValue(undefined)
     await renderPage()
 
     await waitFor(() => expect(screen.getByText('Bài 1')).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: 'deleteLesson' }))
+    // Chuẩn §2.11: chưa xác nhận thì CHƯA xoá — dialog nêu hệ quả mở ra trước.
+    expect(deleteLesson).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'deleteDialogConfirm' }))
 
     await waitFor(() => expect(deleteLesson).toHaveBeenCalledWith(1, 10))
     expect(toastSuccess).toHaveBeenCalled()
-    confirmSpy.mockRestore()
   })
 })

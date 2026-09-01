@@ -11,10 +11,12 @@ import com.deutschflow.teacher.entity.ClassAttendance;
 import com.deutschflow.teacher.entity.ClassAttendanceId;
 import com.deutschflow.teacher.entity.ClassLesson;
 import com.deutschflow.teacher.entity.ClassLessonLog;
+import com.deutschflow.teacher.entity.ClassSession;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassAttendanceRepository;
 import com.deutschflow.teacher.repository.ClassLessonLogRepository;
 import com.deutschflow.teacher.repository.ClassLessonRepository;
+import com.deutschflow.teacher.repository.ClassSessionRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
@@ -44,6 +46,7 @@ public class LessonLogService {
     private final ClassLessonRepository lessonRepository;
     private final UserRepository userRepository;
     private final TeacherClassRepository teacherClassRepository;
+    private final ClassSessionRepository classSessionRepository;
 
     @Transactional(readOnly = true)
     public List<ClassLessonLogDto> getLogs(Long teacherId, Long classId) {
@@ -98,12 +101,14 @@ public class LessonLogService {
     @Transactional
     public ClassLessonLogDto createLog(Long teacherId, Long classId, CreateLessonLogRequest req) {
         assertTeacherOwnsClass(teacherId, classId);
-        assertRecordableSession(classId, req, null);
+        Long sessionId = resolveSession(classId, req);
+        assertRecordableSession(classId, req, sessionId, null);
         ClassLesson lesson = validateLessonInClass(classId, req.lessonId());
 
         ClassLessonLog log = ClassLessonLog.builder()
                 .classId(classId)
                 .lessonId(req.lessonId())
+                .sessionId(sessionId)
                 .sessionDate(req.sessionDate())
                 .sessionNumber(req.sessionNumber())
                 .topic(req.topic())
@@ -133,9 +138,14 @@ public class LessonLogService {
     /**
      * Marks a lesson completed when a session log is recorded for it — completedAt from the session date.
      * No-op if the lesson is null or already completed, so re-editing a log never re-stamps the date.
+     *
+     * <p>PR-4 (AC07): bài SINH TỪ GIÁO TRÌNH ({@code lektionId != null}) KHÔNG auto-complete từ
+     * nhật ký nữa — Lektion chỉ hoàn thành khi MỌI mục bắt buộc được xác nhận đã dạy
+     * (SessionContentService.recomputeLessonCompletion). Bài tự do/lớp không gắn giáo trình giữ
+     * nguyên tiện lợi cũ.
      */
     private void autoCompleteLesson(ClassLesson lesson, Long teacherId, java.time.LocalDate sessionDate) {
-        if (lesson == null || lesson.isCompleted()) return;
+        if (lesson == null || lesson.getLektionId() != null || lesson.isCompleted()) return;
         lesson.setCompleted(true);
         lesson.setCompletedAt(sessionDate != null ? sessionDate.atStartOfDay() : java.time.LocalDateTime.now());
         lesson.setCompletedByTeacherId(teacherId);
@@ -148,10 +158,12 @@ public class LessonLogService {
         ClassLessonLog log = lessonLogRepository.findById(logId)
                 .orElseThrow(() -> new NotFoundException("Buổi học không tồn tại"));
         if (!log.getClassId().equals(classId)) throw new ForbiddenException("Buổi học không thuộc lớp này");
-        assertRecordableSession(classId, req, logId);
+        Long sessionId = resolveSession(classId, req);
+        assertRecordableSession(classId, req, sessionId, logId);
         ClassLesson lesson = validateLessonInClass(classId, req.lessonId());
 
         log.setLessonId(req.lessonId());
+        log.setSessionId(sessionId);
         log.setSessionDate(req.sessionDate());
         log.setSessionNumber(req.sessionNumber());
         log.setTopic(req.topic());
@@ -214,7 +226,8 @@ public class LessonLogService {
      *
      * @param selfLogId bản ghi đang sửa (bỏ qua khi so trùng); null khi tạo mới.
      */
-    private void assertRecordableSession(Long classId, CreateLessonLogRequest req, Long selfLogId) {
+    private void assertRecordableSession(Long classId, CreateLessonLogRequest req, Long resolvedSessionId,
+                                         Long selfLogId) {
         LocalDate sessionDate = req.sessionDate();
         if (sessionDate == null) {
             throw new BadRequestException("Thiếu ngày của buổi học.");
@@ -224,7 +237,20 @@ public class LessonLogService {
             throw new BadRequestException(
                     "Không thể ghi nhật ký cho buổi chưa diễn ra (" + sessionDate + ").");
         }
+        // PR-4 (AC05): nhật ký gắn buổi chốt trùng THEO BUỔI (1 nhật ký / buổi) — hai buổi
+        // sáng/chiều cùng ngày là hai bản ghi hợp lệ. Nhóm legacy (không buổi) giữ luật (ngày, số
+        // buổi) cũ, và chỉ so trong chính nhóm legacy để log-gắn-buổi cùng ngày không chặn oan.
+        if (resolvedSessionId != null) {
+            boolean taken = lessonLogRepository.findBySessionId(resolvedSessionId).stream()
+                    .anyMatch(existing -> !existing.getId().equals(selfLogId));
+            if (taken) {
+                throw new ConflictException(
+                        "Buổi này đã có nhật ký. Hãy sửa bản ghi cũ thay vì tạo thêm.");
+            }
+            return;
+        }
         boolean duplicate = lessonLogRepository.findByClassIdAndSessionDate(classId, sessionDate).stream()
+                .filter(existing -> existing.getSessionId() == null)
                 .filter(existing -> !existing.getId().equals(selfLogId))
                 .anyMatch(existing -> Objects.equals(existing.getSessionNumber(), req.sessionNumber()));
         if (duplicate) {
@@ -233,6 +259,47 @@ public class LessonLogService {
                             + (req.sessionNumber() != null ? " (buổi " + req.sessionNumber() + ")" : "")
                             + ". Hãy sửa bản ghi cũ thay vì tạo thêm.");
         }
+    }
+
+    /**
+     * Xác định buổi lịch cho nhật ký (PR-4):
+     * <ul>
+     *   <li>Client gửi {@code sessionId} → buổi phải thuộc đúng lớp, không phải buổi đã hủy, và
+     *       ngày của buổi phải khớp {@code sessionDate} (lệch = 400, không lặng lẽ tin một trong hai).</li>
+     *   <li>Không gửi → tự suy theo ngày: lớp không có buổi nào ngày đó = đường legacy (null);
+     *       đúng MỘT buổi = tự gắn; TỪ HAI buổi (sáng/chiều — D07) = 400 yêu cầu chọn rõ buổi,
+     *       không đoán hộ (AC05).</li>
+     * </ul>
+     */
+    private Long resolveSession(Long classId, CreateLessonLogRequest req) {
+        if (req.sessionDate() == null) {
+            throw new BadRequestException("Thiếu ngày của buổi học.");
+        }
+        if (req.sessionId() != null) {
+            ClassSession session = classSessionRepository.findById(req.sessionId())
+                    .orElseThrow(() -> new NotFoundException("Buổi lịch không tồn tại"));
+            if (!session.getClassId().equals(classId)) {
+                throw new ForbiddenException("Buổi lịch không thuộc lớp này");
+            }
+            if (session.getStatus() == ClassSession.Status.CANCELLED) {
+                throw new BadRequestException("Buổi đã hủy (nghỉ) — không ghi nhật ký dạy cho buổi này.");
+            }
+            if (!session.getStartAt().toLocalDate().equals(req.sessionDate())) {
+                throw new BadRequestException("Ngày nhật ký (" + req.sessionDate()
+                        + ") không khớp ngày của buổi (" + session.getStartAt().toLocalDate() + ").");
+            }
+            return session.getId();
+        }
+        List<ClassSession> sameDay = classSessionRepository
+                .findByClassIdAndStartAtBetweenOrderByStartAt(classId,
+                        req.sessionDate().atStartOfDay(), req.sessionDate().plusDays(1).atStartOfDay())
+                .stream()
+                .filter(s -> s.getStatus() != ClassSession.Status.CANCELLED)
+                .toList();
+        if (sameDay.isEmpty()) return null;          // lớp không dùng lịch buổi → đường legacy
+        if (sameDay.size() == 1) return sameDay.get(0).getId();
+        throw new BadRequestException("Ngày " + req.sessionDate() + " lớp có " + sameDay.size()
+                + " buổi (sáng/chiều) — hãy chọn rõ buổi (sessionId) khi ghi nhật ký.");
     }
 
     private void assertTeacherOwnsClass(Long teacherId, Long classId) {
@@ -334,6 +401,6 @@ public class LessonLogService {
         return new ClassLessonLogDto(
                 log.getId(), log.getClassId(), log.getSessionDate(), log.getSessionNumber(),
                 log.getTopic(), log.getHomework(), log.getNote(), log.getCreatedAt(), entries,
-                log.getLessonId(), lessonTitle);
+                log.getLessonId(), lessonTitle, log.getSessionId());
     }
 }

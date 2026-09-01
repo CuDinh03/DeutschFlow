@@ -95,6 +95,10 @@ export interface ClassLesson {
   orderIndex: number
   /** Curriculum module this lesson belongs to; null = ungrouped (Phase 1c). */
   moduleId: number | null
+  /** Lektion giáo trình trung tâm sinh ra bài này (PR-4); null = bài giáo viên tự soạn. */
+  lektionId: number | null
+  /** Bài BỔ TRỢ giáo viên thêm ngoài giáo trình — không tính vào %% hoàn thành giáo trình. */
+  supplementary: boolean
   title: string
   description: string | null
   /** Structured knowledge points (Phase 1b); may be empty (then fall back to description). */
