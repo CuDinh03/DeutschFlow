@@ -41,6 +41,7 @@ public class LessonLogService {
 
     private final ClassLessonLogRepository lessonLogRepository;
     private final ClassAttendanceRepository attendanceRepository;
+    private final RecordEditGuard recordEditGuard;
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassStudentRepository classStudentRepository;
     private final ClassLessonRepository lessonRepository;
@@ -158,6 +159,11 @@ public class LessonLogService {
         ClassLessonLog log = lessonLogRepository.findById(logId)
                 .orElseThrow(() -> new NotFoundException("Buổi học không tồn tại"));
         if (!log.getClassId().equals(classId)) throw new ForbiddenException("Buổi học không thuộc lớp này");
+        // P07: sửa nhật ký của buổi quá cửa sổ 7 ngày cần mở khóa của người duyệt học vụ.
+        recordEditGuard.assertEditable(classId, teacherId, log.getSessionId(), logAnchor(log));
+        List<ClassAttendance> beforeAttendance = attendanceRepository.findByIdLessonLogId(logId);
+        Map<String, Object> before = revisionSnapshot(log, beforeAttendance);
+
         Long sessionId = resolveSession(classId, req);
         assertRecordableSession(classId, req, sessionId, logId);
         ClassLesson lesson = validateLessonInClass(classId, req.lessonId());
@@ -193,6 +199,11 @@ public class LessonLogService {
         attendanceRepository.flush();
         attendanceRepository.saveAll(attendances);
 
+        // P07: mọi lần sửa để lại bản chụp before/after — lịch sử append-only.
+        recordEditGuard.revise(com.deutschflow.teacher.entity.ClassRecordRevision.EntityType.LESSON_LOG,
+                log.getId(), classId, log.getSessionId(), teacherId, req.editReason(),
+                before, revisionSnapshot(log, attendances));
+
         List<Long> studentIds = attendances.stream().map(a -> a.getId().getStudentId()).toList();
         Map<Long, User> users = studentIds.isEmpty() ? Map.of()
                 : userRepository.findAllById(studentIds).stream()
@@ -207,8 +218,13 @@ public class LessonLogService {
         ClassLessonLog log = lessonLogRepository.findById(logId)
                 .orElseThrow(() -> new NotFoundException("Buổi học không tồn tại"));
         if (!log.getClassId().equals(classId)) throw new ForbiddenException("Buổi học không thuộc lớp này");
+        // P07: xoá nhật ký quá cửa sổ cũng cần mở khóa; bản chụp cuối được giữ lại trong lịch sử.
+        recordEditGuard.assertEditable(classId, teacherId, log.getSessionId(), logAnchor(log));
+        Map<String, Object> before = revisionSnapshot(log, attendanceRepository.findByIdLessonLogId(logId));
         attendanceRepository.deleteByIdLessonLogId(logId);
         lessonLogRepository.delete(log);
+        recordEditGuard.revise(com.deutschflow.teacher.entity.ClassRecordRevision.EntityType.LESSON_LOG,
+                logId, classId, log.getSessionId(), teacherId, null, before, null);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
@@ -330,6 +346,35 @@ public class LessonLogService {
                 .collect(Collectors.toMap(ClassLesson::getId, ClassLesson::getTitle));
     }
 
+    /** Mốc thời gian của một nhật ký cho cửa sổ sửa hồi tố (P07): giờ buổi, hoặc ngày với log legacy. */
+    private java.time.LocalDateTime logAnchor(ClassLessonLog log) {
+        if (log.getSessionId() != null) {
+            return classSessionRepository.findById(log.getSessionId())
+                    .map(ClassSession::getStartAt)
+                    .orElse(log.getSessionDate() != null ? log.getSessionDate().atStartOfDay() : null);
+        }
+        return log.getSessionDate() != null ? log.getSessionDate().atStartOfDay() : null;
+    }
+
+    /** Bản chụp gọn của nhật ký + điểm danh cho lịch sử sửa hồi tố (P07). */
+    private Map<String, Object> revisionSnapshot(ClassLessonLog log, List<ClassAttendance> attendances) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("sessionDate", String.valueOf(log.getSessionDate()));
+        m.put("sessionNumber", log.getSessionNumber());
+        m.put("sessionId", log.getSessionId());
+        m.put("lessonId", log.getLessonId());
+        m.put("topic", log.getTopic());
+        m.put("homework", log.getHomework());
+        m.put("note", log.getNote());
+        m.put("attendance", attendances.stream()
+                .map(a -> Map.of(
+                        "studentId", a.getId().getStudentId(),
+                        "status", a.getStatus(),
+                        "needsMakeup", a.isNeedsMakeup()))
+                .toList());
+        return m;
+    }
+
     /** The only attendance values that may be stored. Anything else is a client bug, not a default. */
     private static final Set<String> ATTENDANCE_STATUSES = Set.of("PRESENT", "LATE", "ABSENT");
 
@@ -380,6 +425,8 @@ public class LessonLogService {
                     .id(new ClassAttendanceId(logId, input.studentId()))
                     .status(status)
                     .note(input.note())
+                    // AC13: vắng mặc định mang cờ "cần bù riêng"; giáo viên gửi tường minh để bỏ/đặt lại.
+                    .needsMakeup(input.needsMakeup() != null ? input.needsMakeup() : "ABSENT".equals(status))
                     .build());
         }
         return list;
@@ -394,7 +441,8 @@ public class LessonLogService {
                     u != null ? u.getDisplayName() : "Học viên #" + a.getId().getStudentId(),
                     u != null ? u.getEmail() : "",
                     a.getStatus(),
-                    a.getNote());
+                    a.getNote(),
+                    a.isNeedsMakeup());
         }).toList();
 
         String lessonTitle = log.getLessonId() != null ? lessonTitles.get(log.getLessonId()) : null;

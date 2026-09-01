@@ -55,6 +55,7 @@ public class SessionContentService {
     private final ClassTeacherRepository classTeacherRepo;
     private final ClassLessonRepository lessonRepo;
     private final CurriculumItemRepository curriculumItemRepo;
+    private final RecordEditGuard recordEditGuard;
 
     @Transactional(readOnly = true)
     public SessionContentsDto list(Long teacherId, Long sessionId) {
@@ -140,6 +141,8 @@ public class SessionContentService {
     public SessionContentsDto confirm(Long teacherId, Long sessionId, ConfirmSessionContentsRequest req) {
         ClassSession session = loadOwnedSession(teacherId, sessionId);
         assertNotCancelled(session);
+        // P07: xác nhận lại kết quả của buổi quá cửa sổ 7 ngày cần mở khóa của người duyệt học vụ.
+        recordEditGuard.assertEditable(session.getClassId(), teacherId, sessionId, session.getStartAt());
         List<ConfirmSessionContentsRequest.ConfirmEntry> entries =
                 req == null || req.entries() == null ? List.of() : req.entries();
         if (entries.isEmpty()) {
@@ -149,6 +152,13 @@ public class SessionContentService {
         Map<Long, ClassSessionContent> bySessionContent =
                 contentRepo.findBySessionIdOrderByOrderIndexAsc(sessionId).stream()
                         .collect(Collectors.toMap(ClassSessionContent::getId, c -> c));
+
+        List<Map<String, Object>> beforeRows = bySessionContent.values().stream()
+                .map(c -> Map.<String, Object>of(
+                        "id", c.getId(), "status", c.getStatus(),
+                        "actual", String.valueOf(c.getActualMinutes()),
+                        "remaining", String.valueOf(c.getRemainingMinutes())))
+                .toList();
 
         int unallocatedCarry = 0;
         Set<Long> lessonsToRecompute = new HashSet<>();
@@ -193,6 +203,15 @@ public class SessionContentService {
 
         lessonsToRecompute.forEach(lessonId -> recomputeLessonCompletion(lessonId, teacherId));
 
+        // P07: một dòng lịch sử cho cả lượt xác nhận (before/after các dòng của buổi).
+        recordEditGuard.revise(com.deutschflow.teacher.entity.ClassRecordRevision.EntityType.SESSION_CONTENT,
+                sessionId, session.getClassId(), sessionId, teacherId, null, Map.of("rows", beforeRows),
+                Map.of("rows", contentRepo.findBySessionIdOrderByOrderIndexAsc(sessionId).stream()
+                        .map(c -> Map.<String, Object>of(
+                                "id", c.getId(), "status", c.getStatus(),
+                                "actual", String.valueOf(c.getActualMinutes()),
+                                "remaining", String.valueOf(c.getRemainingMinutes())))
+                        .toList()));
         return toDto(session, contentRepo.findBySessionIdOrderByOrderIndexAsc(sessionId), unallocatedCarry);
     }
 

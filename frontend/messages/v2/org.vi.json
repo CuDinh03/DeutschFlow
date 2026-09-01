@@ -319,6 +319,18 @@
         "projectedEnd": "Học xong dự kiến",
         "shortfall": "Thiếu {minutes}′ (~{sessions} buổi)",
         "atRisk": "rủi ro"
+      },
+      "unlocks": {
+        "heading": "Mở khóa sửa hồi tố",
+        "hint": "Bản ghi buổi (nhật ký, điểm danh, xác nhận nội dung) quá cửa sổ 7 ngày chỉ sửa được khi được cấp mở khóa 24 giờ — lý do bắt buộc, chính bản ghi là audit.",
+        "classLabel": "Lớp",
+        "teacherLabel": "Giáo viên",
+        "primary": "phụ trách",
+        "reasonPlaceholder": "Lý do mở khóa (bắt buộc)…",
+        "reasonRequired": "Mở khóa phải kèm lý do",
+        "grant": "Cấp mở khóa 24h",
+        "grantSuccess": "Đã cấp mở khóa 24 giờ",
+        "activeLine": "Đang mở cho {teacher} tới {expires} — {reason}"
       }
     },
     "teachers": {

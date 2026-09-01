@@ -129,6 +129,15 @@ export function EditSessionModal({
       description={session ? `${session.className} · ${session.studentCount} học viên` : undefined}
       footer={
         <>
+          {/* PR-7: lối vào màn làm việc theo buổi (điểm danh, xác nhận nội dung, chốt buổi). */}
+          {session && (
+            <a
+              href={`/v2/teacher/session/${session.id}`}
+              className="ga-ui mr-auto inline-flex min-h-[40px] items-center gap-1.5 text-[13px] font-semibold text-ga-accent hover:underline lg:min-h-0"
+            >
+              Vào buổi dạy →
+            </a>
+          )}
           <GaBtn variant="ghost" onClick={onClose} disabled={saving}>
             Huỷ
           </GaBtn>
