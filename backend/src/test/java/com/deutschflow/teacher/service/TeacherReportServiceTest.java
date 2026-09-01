@@ -269,8 +269,9 @@ class TeacherReportServiceTest {
 
     /**
      * F04 lõi: lớp do NGƯỜI KHÁC tạo (cột teacher_classes.teacher_id = 99) nhưng caller được phân
-     * công ASSISTANT vẫn phải xuất hiện trong tổng hợp — trước đây 4 aggregate dùng findByTeacherId
-     * (cột người tạo) nên trợ giảng thấy lớp, chấm bài được, mà analytics thì rỗng.
+     * công ASSISTANT vẫn phải xuất hiện trong tổng hợp — trước đây 4 aggregate đọc thẳng cột người
+     * tạo (findByTeacherId, nay đã gỡ hẳn khỏi TeacherClassRepository) nên trợ giảng thấy lớp,
+     * chấm bài được, mà analytics thì rỗng. Query đó không còn tồn tại để gọi nhầm nữa.
      */
     @Test
     @DisplayName("F04: overview gồm cả lớp được phân công ASSISTANT, không đọc cột người tạo lớp")
@@ -288,7 +289,6 @@ class TeacherReportServiceTest {
 
         assertEquals(1, result.get("classCount"));
         assertEquals(1, result.get("studentCount"));
-        verify(classRepository, never()).findByTeacherId(any());
     }
 
     // ─── classesSummary: one batched pass, per-class rows ─────────────────────────
