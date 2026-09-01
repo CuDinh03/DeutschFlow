@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
 import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2, HelpCircle, Presentation, ShieldCheck, FileText, Lock, Sparkles, CreditCard, RotateCcw } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { usePlanStore } from '@/stores/usePlanStore'
+import { trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
 import api, { apiMessage } from '@/lib/api'
 import { IAP_ENABLED, PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
@@ -38,6 +38,17 @@ export default function ProfileScreen() {
     if (!plan?.endsAtUtc) return null
     const d = new Date(plan.endsAtUtc)
     return Number.isNaN(d.getTime()) ? null : `Gia hạn: ${d.toLocaleDateString('vi-VN')}`
+  })()
+
+  // F-20: người đang DÙNG THỬ phải thấy rõ điều đó + hạn — không phải "PRO đang
+  // hoạt động" rồi bất ngờ hết quota khi trial kết thúc.
+  const trialLabel = (() => {
+    if (!plan?.isTrial) return null
+    const days = trialDaysLeft(plan.trialEndsAt, new Date())
+    if (days == null) return 'Đang trong thời gian dùng thử'
+    const d = plan.trialEndsAt ? new Date(plan.trialEndsAt) : null
+    const dateStr = d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString('vi-VN') : null
+    return `Còn ${days} ngày dùng thử${dateStr ? ` · đến ${dateStr}` : ''}`
   })()
 
   async function manageAiConsent() {
@@ -213,14 +224,20 @@ export default function ProfileScreen() {
                   <Icon icon={Star} size={20} color="accent" fill />
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
-                  <ThemedText variant="bodyStrong">Gói {plan?.tier ?? 'PRO'} đang hoạt động</ThemedText>
-                  {renewalLabel ? (
+                  <ThemedText variant="bodyStrong">
+                    {plan?.isTrial ? 'Đang dùng thử PRO' : `Gói ${plan?.tier ?? 'PRO'} đang hoạt động`}
+                  </ThemedText>
+                  {trialLabel ? (
+                    <ThemedText variant="caption" color="muted">
+                      {trialLabel}
+                    </ThemedText>
+                  ) : renewalLabel ? (
                     <ThemedText variant="caption" color="muted">
                       {renewalLabel}
                     </ThemedText>
                   ) : null}
                 </View>
-                <Pill label={plan?.tier ?? 'PRO'} tone="accent" solid />
+                <Pill label={plan?.isTrial ? 'DÙNG THỬ' : plan?.tier ?? 'PRO'} tone="accent" solid />
               </View>
             </Card>
             <Card padded={false} style={{ paddingHorizontal: space[4] }}>

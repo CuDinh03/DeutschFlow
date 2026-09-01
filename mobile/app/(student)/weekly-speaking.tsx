@@ -35,13 +35,24 @@ export default function WeeklySpeakingScreen() {
   const c = theme.colors
   const { hasProAccess } = usePlanStore()
 
+  // F-19 (soát 02/09): band từng hardcode 'B1' — tuần nào không có đề B1 là màn
+  // này thành ngõ cụt dù backend có available-bands sinh ra đúng để tránh việc đó.
+  // Ưu tiên B1 (band mục tiêu phổ biến nhất), không có thì lấy band đầu tiên có đề.
+  const { data: bands, isLoading: bandsLoading } = useQuery({
+    queryKey: ['weekly-bands'],
+    queryFn: () => api.get<string[]>('/ai-speaking/weekly/available-bands').then((r) => r.data ?? []),
+    enabled: hasProAccess,
+    staleTime: 60_000 * 30,
+  })
+  const band = bands == null ? null : bands.includes('B1') ? 'B1' : bands[0] ?? null
+
   const { data: prompt, isLoading: promptLoading, isError: promptError, refetch: refetchPrompt, isFetching } = useQuery({
-    queryKey: ['weekly-prompt'],
+    queryKey: ['weekly-prompt', band],
     queryFn: () =>
       api
-        .get<WeeklyPrompt>('/ai-speaking/weekly/current-prompt', { params: { cefrBand: 'B1' } })
+        .get<WeeklyPrompt>('/ai-speaking/weekly/current-prompt', { params: { cefrBand: band } })
         .then((r) => r.data),
-    enabled: hasProAccess,
+    enabled: hasProAccess && band != null,
     staleTime: 60_000 * 30,
   })
 
@@ -88,8 +99,14 @@ export default function WeeklySpeakingScreen() {
           void refetchHistory()
         }}
       >
-        {promptLoading ? (
+        {bandsLoading || (band != null && promptLoading) ? (
           <Skeleton height={170} radius="2xl" />
+        ) : bands != null && bands.length === 0 ? (
+          <Card style={{ paddingVertical: space[6] }}>
+            <ThemedText variant="body" color="muted" align="center">
+              Tuần này chưa có đề — bạn quay lại sau nhé.
+            </ThemedText>
+          </Card>
         ) : promptError ? (
           <ErrorState
             onRetry={() => {

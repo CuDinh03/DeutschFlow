@@ -94,7 +94,8 @@ export default function VocabularyScreen() {
   // queue; we count it (capped) rather than fabricating learning/mastered totals.
   const { data: dueCount = 0 } = useQuery({
     queryKey: ['srs-due-count'],
-    queryFn: () => api.get<unknown[]>('/srs/due?limit=99').then((r) => (r.data ?? []).length),
+    // Backend /srs/due không nhận `limit` (tự cap phía server) — đừng gửi param chết (F-22).
+    queryFn: () => api.get<unknown[]>('/srs/due').then((r) => (r.data ?? []).length),
     staleTime: 60_000,
   })
 
