@@ -1110,6 +1110,7 @@
       "errorJobFailed": "Sinh đề không thành công. Bấm thử lại để ươm đề mới."
     },
     "learnNode": {
+      "progressNotSaved": "Chưa lưu được tiến độ lên máy chủ.",
       "toPractice": "Luyện 4 kỹ năng",
       "roadmapContext": "Vị trí trong lộ trình",
       "completedInRoadmap": "lộ trình đã hoàn thành",
