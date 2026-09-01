@@ -122,9 +122,25 @@ public class WordQueryService {
             }
         }
 
+        // Ô tìm hứa "Tìm từ / nghĩa" nên phải chạm cả word_translations; LIKE của Postgres phân biệt
+        // hoa/thường nên hai vế đều hạ chữ. Ký tự đại diện trong chuỗi người dùng gõ đã được thoát ở
+        // likeContains() — một dấu '%' phải là một dấu phần trăm, không phải "trả về cả kho".
+        String queryContains = query == null ? null : likeContains(query);
         if (query != null) {
-            where.append(" AND w.base_form LIKE ? ");
-            filterParams.add("%" + query + "%");
+            where.append("""
+                     AND (
+                       LOWER(w.base_form) LIKE ?
+                       OR EXISTS (
+                         SELECT 1 FROM word_translations wt_q
+                         WHERE wt_q.word_id = w.id
+                           AND wt_q.locale IN (?, 'en')
+                           AND LOWER(wt_q.meaning) LIKE ?
+                       )
+                     )
+                    """);
+            filterParams.add(queryContains);
+            filterParams.add(normalizedLocale);
+            filterParams.add(queryContains);
         }
 
         String focusTail = focusCodeTail(focus);
@@ -187,6 +203,24 @@ public class WordQueryService {
         queryParams.add(normalizedLocale); // t_loc locale
         queryParams.addAll(filterParams);
 
+        // Có từ khoá thì xếp theo CHẤT LƯỢNG KHỚP trước, rồi mới tới cấp độ và alphabet: khớp tuyệt đối →
+        // khớp đầu từ → khớp giữa từ (từ ghép tiếng Đức sống nhờ bậc này) → chỉ khớp ở phần nghĩa.
+        // Tham số của ORDER BY nằm SAU filterParams vì ORDER BY đứng sau WHERE trong câu SQL.
+        String matchRankOrder = "";
+        if (query != null) {
+            matchRankOrder = """
+                      CASE
+                        WHEN LOWER(w.base_form) = ? THEN 0
+                        WHEN LOWER(w.base_form) LIKE ? THEN 1
+                        WHEN LOWER(w.base_form) LIKE ? THEN 2
+                        ELSE 3
+                      END,
+                    """;
+            queryParams.add(query.toLowerCase(Locale.ROOT));
+            queryParams.add(likePrefix(query));
+            queryParams.add(queryContains);
+        }
+
         String sql = """
                 SELECT
                   w.id,
@@ -230,6 +264,7 @@ public class WordQueryService {
                   t_loc.example, t_en.example, t_de.example, n.gender,
                   srs.vocab_id, srs.interval_days
                 ORDER BY
+                """ + matchRankOrder + """
                   CASE w.cefr_level
                     WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3 WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6
                     ELSE 99 END,
@@ -341,6 +376,30 @@ public class WordQueryService {
             return null;
         }
         return tail.length() > 48 ? tail.substring(0, 48) : tail;
+    }
+
+    /**
+     * Chuỗi người dùng gõ, hạ chữ và THOÁT ký tự đại diện của LIKE.
+     *
+     * <p>Không thoát thì một dấu {@code %} khớp cả kho và {@code _} khớp mọi ký tự đơn — người học gõ
+     * "50%" hay "ăn_uống" sẽ nhận về kết quả vô nghĩa. Postgres mặc định lấy {@code \\} làm ký tự thoát
+     * của LIKE nên không cần mệnh đề {@code ESCAPE}.
+     */
+    private static String escapeLikeWildcards(String raw) {
+        return raw.toLowerCase(Locale.ROOT)
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+    }
+
+    /** Mẫu LIKE khớp GIỮA từ — từ ghép tiếng Đức (Kranken<b>haus</b>) phụ thuộc vào bậc này. */
+    private static String likeContains(String raw) {
+        return "%" + escapeLikeWildcards(raw) + "%";
+    }
+
+    /** Mẫu LIKE khớp ĐẦU từ — chỉ dùng để xếp hạng, không dùng để lọc. */
+    private static String likePrefix(String raw) {
+        return escapeLikeWildcards(raw) + "%";
     }
 
     /** Prepends the srs-join userId param ahead of the shared filter params (count query). */
