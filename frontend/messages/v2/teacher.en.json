@@ -1041,6 +1041,26 @@
       "assignmentDraft": "Draft",
       "assignmentRecipients": "{count} recipients",
       "assignmentDue": "due {date}"
+    },
+    "objectives": {
+      "title": "Objective assessment",
+      "subtitle": "Curriculum objectives × students — click a cell to cycle its state.",
+      "empty": "No curriculum assigned, or it has no objectives yet.",
+      "suggestionsCap": "Support suggestions",
+      "studentCol": "Student",
+      "pendingCol": "Awaiting grading",
+      "pendingBadge": "{count} awaiting grading",
+      "groupReview": "{count} students need practice — consider a whole-class review",
+      "individualSupport": "individual support: {names}",
+      "unassessedNote": "({count} not assessed yet)",
+      "assignSupport": "Assign practice work",
+      "status": {
+        "NOT_ASSESSED": "Not assessed",
+        "ACHIEVED": "Achieved",
+        "NEEDS_PRACTICE": "Needs practice"
+      },
+      "cellLabel": "Assess {name} — currently: {status}",
+      "legend": "Click to cycle: — not assessed → ✓ achieved → ! needs practice. \"Awaiting grading\" is neutral — submitted work waiting for the teacher, never a weak result. Suggestions only count assessed students and never change the curriculum by themselves."
     }
   }
 }
