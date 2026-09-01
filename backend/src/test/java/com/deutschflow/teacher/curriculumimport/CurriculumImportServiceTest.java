@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -87,7 +88,7 @@ class CurriculumImportServiceTest {
                 new CurriculumTemplateCatalog(mapper),
                 new CurriculumDraftBuilder(),
                 new DraftValidator(),
-                new PdfTocExtractor(ocr, 8, 600, 100),
+                new PdfTocExtractor(ocr, 8, 600, 100, 40_000_000L, 1),
                 new TocParser(),
                 materialService,
                 s3StorageService,
@@ -229,6 +230,60 @@ class CurriculumImportServiceTest {
         assertThatThrownBy(() -> service.startPreview(teacher, CLASS_ID,
                 new CurriculumImportConfig("netzwerk-neu-a1", MATERIAL_ID, "A1", 3, 99, true, null, null)))
                 .isInstanceOf(BadRequestException.class);
+    }
+
+    // ── Đọc job: chỉ job CỦA MÌNH và ĐÚNG loại ──────────────────────────────
+
+    private static AsyncJob job(String type, Long owner) {
+        return AsyncJob.builder().id(JOB_ID).jobType(type)
+                .status(AsyncJob.Status.COMPLETED.name()).createdByUserId(owner)
+                .resultPayload("{}").build();
+    }
+
+    @Test
+    void readsBackTheTeachersOwnImportJob() {
+        when(asyncJobService.getJob(JOB_ID))
+                .thenReturn(Optional.of(job(CurriculumImportService.JOB_TYPE, TEACHER_ID)));
+
+        assertThat(service.requireOwnJob(teacher, CLASS_ID, JOB_ID).getId()).isEqualTo(JOB_ID);
+    }
+
+    @Test
+    void refusesAJobOfAnotherFeatureEvenWhenItHasNoOwner() {
+        // VIDEO_RENDER_VOCAB / GENERATE_SATELLITE / PREFETCH_SATELLITE được tạo KHÔNG có creator.
+        // Nếu chỉ bỏ qua kiểm quyền khi creator null thì endpoint này đọc được payload của chúng.
+        when(asyncJobService.getJob(JOB_ID))
+                .thenReturn(Optional.of(job("GENERATE_SATELLITE", null)));
+
+        assertThatThrownBy(() -> service.requireOwnJob(teacher, CLASS_ID, JOB_ID))
+                .isInstanceOf(com.deutschflow.common.exception.NotFoundException.class);
+    }
+
+    @Test
+    void refusesAnImportJobWithNoRecordedOwner() {
+        when(asyncJobService.getJob(JOB_ID))
+                .thenReturn(Optional.of(job(CurriculumImportService.JOB_TYPE, null)));
+
+        assertThatThrownBy(() -> service.requireOwnJob(teacher, CLASS_ID, JOB_ID))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void refusesAnotherTeachersImportJob() {
+        when(asyncJobService.getJob(JOB_ID))
+                .thenReturn(Optional.of(job(CurriculumImportService.JOB_TYPE, 999L)));
+
+        assertThatThrownBy(() -> service.requireOwnJob(teacher, CLASS_ID, JOB_ID))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void refusesToReadAJobThroughAClassTheTeacherDoesNotTeach() {
+        // classId trên đường dẫn phải thực sự được kiểm, không để làm cảnh.
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.requireOwnJob(teacher, CLASS_ID, JOB_ID))
+                .isInstanceOf(ForbiddenException.class);
     }
 
     // ── Preview writes nothing ──────────────────────────────────────────────

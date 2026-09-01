@@ -56,6 +56,11 @@ public class CurriculumImportCommitService {
     private final DraftValidator draftValidator;
     private final ObjectMapper objectMapper;
 
+    /** Khớp `curriculum_import_commit.idempotency_key VARCHAR(120)` (V299). Chặn ở đây để
+     *  một khoá quá dài thành 400 nói đúng nguyên nhân, thay vì để Postgres ném 22001 rồi
+     *  bị nhánh xử lý tranh chấp bên dưới hiểu nhầm thành "có người giành cùng khoá". */
+    private static final int MAX_IDEMPOTENCY_KEY_LENGTH = 120;
+
     public CurriculumImportCommitResult commit(User caller, Long classId, CurriculumImportCommitRequest req) {
         if (req == null) {
             throw new BadRequestException("Thiếu dữ liệu nhập.");
@@ -63,6 +68,10 @@ public class CurriculumImportCommitService {
         String key = req.idempotencyKey() == null ? "" : req.idempotencyKey().trim();
         if (key.isEmpty()) {
             throw new BadRequestException("Thiếu idempotencyKey — không thể bảo đảm chống nhập trùng.");
+        }
+        if (key.length() > MAX_IDEMPOTENCY_KEY_LENGTH) {
+            throw new BadRequestException(
+                    "idempotencyKey vượt quá " + MAX_IDEMPOTENCY_KEY_LENGTH + " ký tự.");
         }
         assertTeacherOwns(caller.getId(), classId);
 
@@ -86,13 +95,19 @@ public class CurriculumImportCommitService {
         try {
             return writer.write(classId, caller.getId(), key, req.sourceMaterialId(), modules, onDuplicate);
         } catch (DataIntegrityViolationException e) {
-            // Another request holding the same key won the race; its transaction wrote the
-            // curriculum and ours rolled back entirely. Answer with theirs — never a second copy.
+            // Only ONE reading of this exception is safe to act on: another request holding the same
+            // key won the race, so its transaction wrote the curriculum and ours rolled back. That
+            // is provable — the row is now there. Any other integrity failure (a bad foreign key, a
+            // CHECK, a value too long for its column) must surface as itself; dressing it up as a
+            // concurrency conflict hides a real defect from both the teacher and the logs.
+            var winner = commitRepository.findByClassIdAndIdempotencyKey(classId, key);
+            if (winner.isEmpty()) {
+                log.error("Curriculum import into class {} failed on a data error unrelated to the "
+                        + "idempotency key", classId, e);
+                throw e;
+            }
             log.info("Curriculum import key {} for class {} was claimed concurrently — replaying", key, classId);
-            return commitRepository.findByClassIdAndIdempotencyKey(classId, key)
-                    .map(this::replay)
-                    .orElseThrow(() -> new ConflictException(
-                            "Yêu cầu nhập đang được xử lý đồng thời — hãy thử lại."));
+            return replay(winner.get());
         }
     }
 

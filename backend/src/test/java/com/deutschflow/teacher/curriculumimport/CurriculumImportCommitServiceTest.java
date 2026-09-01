@@ -299,6 +299,34 @@ class CurriculumImportCommitServiceTest {
     }
 
     @Test
+    void refusesAnIdempotencyKeyLongerThanTheColumnCanHold() {
+        // Cột là VARCHAR(120). Không chặn ở đây thì Postgres ném 22001, bị catch bên dưới hiểu
+        // nhầm thành "có người giành cùng khoá" và trả 409 sai hẳn nguyên nhân.
+        String tooLong = "k".repeat(121);
+
+        assertThatThrownBy(() -> service.commit(teacher, CLASS_ID,
+                request(tooLong, List.of(module("K01 – A", "K01.1")))))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("120");
+
+        verify(moduleRepository, never()).save(any());
+    }
+
+    @Test
+    void aDataErrorThatIsNotAKeyClashSurfacesInsteadOfBecomingAFakeConflict() {
+        // Vi phạm toàn vẹn KHÔNG phải do trùng khoá (FK/CHECK/quá dài…) không được đội lốt
+        // "đang xử lý đồng thời" — che như vậy là giấu lỗi thật khỏi log và khỏi người dùng.
+        DataIntegrityViolationException real = new DataIntegrityViolationException("check constraint bể");
+        when(commitRepository.save(any())).thenThrow(real);
+        when(commitRepository.findByClassIdAndIdempotencyKey(CLASS_ID, "k1"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.commit(teacher, CLASS_ID,
+                request("k1", List.of(module("K01 – A", "K01.1")))))
+                .isSameAs(real);
+    }
+
+    @Test
     void refusesACommitWithoutAnIdempotencyKey() {
         assertThatThrownBy(() -> service.commit(teacher, CLASS_ID,
                 request("  ", List.of(module("K01 – A", "K01.1")))))
