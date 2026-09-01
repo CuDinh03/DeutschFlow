@@ -31,6 +31,8 @@ class AssignmentBackfillServiceTest {
 
     @Mock private ClassAssignmentRepository assignmentRepository;
     @Mock private StudentAssignmentRepository studentAssignmentRepository;
+    // PR-8: audience — mock trả rỗng (không bài nào giao-theo-người-nhận) = hành vi cũ.
+    @Mock private com.deutschflow.teacher.repository.ClassAssignmentRecipientRepository recipientRepository;
     @InjectMocks private AssignmentBackfillService service;
 
     @Test
