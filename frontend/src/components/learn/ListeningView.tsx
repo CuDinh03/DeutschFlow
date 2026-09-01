@@ -3,7 +3,7 @@
 import { NodeContent, WordTimestamp, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useTranslations } from "next-intl";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { Play, Pause, RotateCcw, Volume2, CheckCircle, Mic } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, CheckCircle, Mic, Headphones } from "lucide-react";
 import { PronunciationFeedback } from "@/components/speaking/PronunciationFeedback";
 
 export default function ListeningView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
@@ -127,7 +127,7 @@ export default function ListeningView({ content, isLocked = false }: { content: 
   if (!audio?.url) {
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
-        <span className="text-4xl mb-3">🎧</span>
+        <Headphones size={40} className="mb-3 text-[#94A3B8]" aria-hidden />
         <p className="text-sm text-[#64748B]">Audio chưa có cho bài học này.</p>
       </div>
     );

@@ -2,6 +2,7 @@
 
 import { NodeContent, VocabItem, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useCallback, useRef, useMemo } from "react";
+import { BookOpenText, FileQuestion, Lightbulb, Save } from "lucide-react";
 import { GenderBadge, AudioButton } from "./LearnComponents";
 import { reviewApi } from "@/lib/reviewApi";
 import { apiMessage } from "@/lib/api";
@@ -37,13 +38,13 @@ function TranslateTooltip({
           type="button"
           onClick={() => onSaveFlashcard(vocab)}
           disabled={isSaved}
-          className={`text-[10px] px-2 py-1 rounded-full font-bold transition-colors ${
+          className={`inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-bold transition-colors ${
             isSaved
               ? "bg-[#22C55E] text-white cursor-default"
               : "bg-[#FFCD00] text-[#121212] hover:bg-[#FFCD00]/80"
           }`}
         >
-          {isSaved ? "✓ Đã lưu" : "💾 Lưu Flashcard"}
+          {isSaved ? "✓ Đã lưu" : <><Save size={11} aria-hidden /> Lưu Flashcard</>}
         </button>
       </div>
       {saveError && <p className="text-[10px] text-red-600">{saveError}</p>}
@@ -139,7 +140,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
   if (!passage) {
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
-        <span className="text-4xl mb-3">📚</span>
+        <BookOpenText size={40} className="mb-3 text-[#94A3B8]" aria-hidden />
         <p className="text-sm text-[#64748B]">Bài đọc chưa có cho bài học này.</p>
       </div>
     );
@@ -152,7 +153,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
         {/* Text (60%) */}
         <div className="md:w-[60%] space-y-3">
           <div className="flex items-center gap-2 mb-2">
-            <span className="w-6 h-6 rounded bg-[#121212] text-white flex items-center justify-center text-xs">📚</span>
+            <span className="w-6 h-6 rounded bg-[#121212] text-white flex items-center justify-center"><BookOpenText size={13} aria-hidden /></span>
             <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wide">Bài đọc</h2>
           </div>
 
@@ -165,13 +166,15 @@ export default function ReadingView({ content, isLocked = false }: { content: No
             {passage.text_de}
           </div>
 
-          <p className="text-xs text-[#94A3B8] italic">💡 Bôi đen từ bất kỳ để xem nghĩa</p>
+          <p className="flex items-center gap-1 text-xs text-[#94A3B8] italic">
+            <Lightbulb size={12} aria-hidden /> Bôi đen từ bất kỳ để xem nghĩa
+          </p>
         </div>
 
         {/* Questions (40%) */}
         <div className="md:w-[40%] space-y-3">
           <div className="flex items-center gap-2 mb-2">
-            <span className="w-6 h-6 rounded bg-[#FFCD00] text-[#121212] flex items-center justify-center text-xs font-bold">❓</span>
+            <span className="w-6 h-6 rounded bg-[#FFCD00] text-[#121212] flex items-center justify-center"><FileQuestion size={13} aria-hidden /></span>
             <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wide">Câu hỏi</h2>
           </div>
 

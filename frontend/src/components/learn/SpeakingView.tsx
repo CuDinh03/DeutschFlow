@@ -226,7 +226,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
   if (drills.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
-        <span className="text-4xl mb-3">🎤</span>
+        <Mic size={40} className="mb-3 text-[#94A3B8]" aria-hidden />
         <p className="text-sm text-[#64748B]">Chưa có bài luyện nói cho bài học này.</p>
       </div>
     );
