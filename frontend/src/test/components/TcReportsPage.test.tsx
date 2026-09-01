@@ -27,6 +27,9 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/lib/api', () => ({
+  // PR-10: FourAxisPanel dùng api.get (default export) — trả pending mãi để panel đứng ở shimmer,
+  // không đụng vào các assert của những tab đang test.
+  default: { get: vi.fn(() => new Promise(() => {})) },
   apiMessage: (e: unknown) => (e instanceof Error ? e.message : 'error'),
 }))
 

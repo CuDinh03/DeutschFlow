@@ -50,6 +50,8 @@ import java.util.stream.Collectors;
 public class TeacherTimesheetService {
 
     private final TeacherSessionRecordRepository recordRepository;
+    private final com.deutschflow.organization.service.OrgSettingsService orgSettingsService;
+    private final com.deutschflow.teacher.repository.TeacherClassRepository teacherClassRepositoryP04;
     private final ClassSessionRepository sessionRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final TeacherClassRepository classRepository;
@@ -116,8 +118,25 @@ public class TeacherTimesheetService {
                 .sorted(Comparator.comparing(ClassSession::getStartAt))
                 .map(s -> new SuggestionDto(
                         s.getId(), s.getClassId(), classNames.get(s.getClassId()),
-                        s.getStartAt(), s.getDurationMinutes()))
+                        s.getStartAt(), suggestedMinutes(s)))
                 .toList();
+    }
+
+    /**
+     * P04 (PR-10): phút công GỢI Ý cho một buổi. Chính sách theo trung tâm —
+     * {@code timesheet_break_included} default true = trọn thời lượng chiếm lịch (195′, hành vi
+     * trước giờ); tắt đi thì gợi ý PHÚT HỌC (180′; buổi legacy chưa tách phút giữ duration).
+     * Chỉ áp cho GỢI Ý — bản ghi công là con số giáo viên xác nhận, không hồi tố record cũ.
+     */
+    private int suggestedMinutes(ClassSession s) {
+        Long orgId = teacherClassRepositoryP04.findById(s.getClassId())
+                .map(c -> c.getOrgId()).orElse(null);
+        boolean breakIncluded = orgSettingsService.getBoolean(orgId,
+                com.deutschflow.organization.service.OrgSettingsService.TIMESHEET_BREAK_INCLUDED);
+        if (breakIncluded || s.getTeachingMinutes() == null) {
+            return s.getDurationMinutes();
+        }
+        return s.getTeachingMinutes();
     }
 
     /** Ghi nhận một buổi đã dạy. Snapshot mọi giá trị dùng để tính công. */

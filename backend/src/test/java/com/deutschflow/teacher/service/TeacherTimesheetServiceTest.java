@@ -47,6 +47,8 @@ import static org.mockito.Mockito.when;
 class TeacherTimesheetServiceTest {
 
     @Mock private TeacherSessionRecordRepository recordRepository;
+    @Mock private com.deutschflow.organization.service.OrgSettingsService orgSettingsService;
+    @Mock private com.deutschflow.teacher.repository.TeacherClassRepository teacherClassRepositoryP04;
     @Mock private ClassSessionRepository sessionRepository;
     @Mock private ClassTeacherRepository classTeacherRepository;
     @Mock private TeacherClassRepository classRepository;
@@ -64,8 +66,13 @@ class TeacherTimesheetServiceTest {
 
     @BeforeEach
     void setUp() {
+        // P04: settings mock default true (gồm nghỉ) = hành vi cũ — lenient vì không phải test nào cũng chạm suggestions.
+        org.mockito.Mockito.lenient().when(orgSettingsService.getBoolean(
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(true);
         service = new TeacherTimesheetService(
-                recordRepository, sessionRepository, classTeacherRepository, classRepository, periodService,
+                recordRepository, orgSettingsService, teacherClassRepositoryP04,
+                sessionRepository, classTeacherRepository, classRepository, periodService,
                 auditLogService);
     }
 

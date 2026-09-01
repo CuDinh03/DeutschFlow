@@ -35,6 +35,7 @@ public class TeacherController {
     );
 
     private final TeacherService teacherService;
+    private final com.deutschflow.teacher.service.FourAxisReportService fourAxisReportService;
     private final XpService xpService;
     private final com.deutschflow.teacher.service.TeacherAnalyticsService analyticsService;
     private final com.deutschflow.teacher.service.TeacherAdvisoryService advisoryService;
@@ -164,6 +165,13 @@ public class TeacherController {
      * Sửa một bài tập đã giao (giáo viên chính). Trường nào không gửi thì giữ nguyên; muốn xoá giá
      * trị thì dùng cờ {@code clear*} trong body. Không đụng tới bài nộp hay điểm.
      */
+    /** PR-10 (spec §7): báo cáo 4 trục — nội dung / nhịp độ / tham gia / mục tiêu. */
+    @GetMapping("/classes/{classId}/four-axis-report")
+    public ResponseEntity<com.deutschflow.teacher.dto.FourAxisReportDto> fourAxisReport(
+            @AuthenticationPrincipal User user, @PathVariable Long classId) {
+        return ResponseEntity.ok(fourAxisReportService.report(user.getId(), classId));
+    }
+
     /** PR-8 (P06): công bố bài NHÁP — fan-out đúng người nhận (AC14) + notification. */
     @PostMapping("/classes/{classId}/assignments/{assignmentId}/publish")
     public ResponseEntity<ClassAssignmentDto> publishAssignment(

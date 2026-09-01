@@ -1061,6 +1061,22 @@
       },
       "cellLabel": "{name} bewerten — aktuell: {status}",
       "legend": "Klick wechselt: — nicht bewertet → ✓ erreicht → ! braucht Übung. „Wartet auf Korrektur\" ist neutral — eingereichte Arbeit, kein schwaches Ergebnis. Hinweise zählen nur bewertete Lernende und ändern das Curriculum nie von selbst."
+    },
+    "fourAxis": {
+      "contentCap": "Unterrichtete Inhalte",
+      "contentMain": "{taught}/{total} Inhalte vollständig",
+      "contentSub": "{partial} teilweise · {lessons}/{totalLessons} Lektionen abgeschlossen",
+      "pacingCap": "Tempo",
+      "pacingMain": "Voraussichtlich fertig {date}",
+      "pacingShortfall": "{minutes}′ fehlen (~{sessions} Termine)",
+      "pacingSub": "{remaining}′ Inhalt übrig / {available}′ Kapazität · {risk} Meilensteine im Risiko",
+      "participationCap": "Teilnahme",
+      "participationMain": "{present} anwesend · {late} verspätet · {absent} abwesend",
+      "participationSub": "{makeup} offene Nachhol-Marker · {done}/{total} Termine abgeschlossen",
+      "objectivesCap": "Lernziele",
+      "objectivesMain": "{achieved} erreicht · {needs} brauchen Übung",
+      "objectivesSub": "{notAssessed} Zellen unbewertet",
+      "objectivesSupport": "Förderbedarf: {names}"
     }
   }
 }

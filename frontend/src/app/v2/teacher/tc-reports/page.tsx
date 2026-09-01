@@ -10,6 +10,7 @@ import { listLessons, type ClassLesson } from '@/lib/teacherLessonsApi'
 import { listEvaluations, type StudentEvaluation } from '@/lib/teacherEvaluationApi'
 import { getClassCompetency, type ClassCompetency } from '@/lib/teacherCompetencyApi'
 import { GaPageHdr, GaBtn, TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent, ErrorBanner } from '@/components/ui-v2'
+import { FourAxisPanel } from './FourAxisPanel'
 import { ClassPicker, useTeacherClasses } from '../tcShared'
 import { GradebookTab } from './GradebookTab'
 import { SkillReportTab } from './SkillReportTab'
@@ -169,6 +170,8 @@ export default function V2TcReportsPage() {
               </div>
             )}
 
+            {/* PR-10 (spec §7): tổng quan 4 trục — nội dung / nhịp độ / tham gia / mục tiêu. */}
+            {classId != null && <div className="mb-5"><FourAxisPanel classId={classId} /></div>}
             <TkTabs defaultValue="gradebook">
               <TkTabsList>
                 <TkTabsTrigger value="gradebook">{t('tabs.gradebook')}</TkTabsTrigger>

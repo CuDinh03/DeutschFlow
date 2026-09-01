@@ -706,6 +706,19 @@
       "importError_lektionTitle": "Every Lektion needs a \"title\".",
       "importError_items": "A Lektion's \"items\"/\"objectives\" must be arrays.",
       "importSubmit": "Import as draft"
+    },
+    "settings": {
+      "title": "Center settings",
+      "subtitle": "Timesheet policy and support-suggestion thresholds — owner only.",
+      "timesheetCap": "Timesheet (P04)",
+      "breakIncludedLabel": "A session counts INCLUDING the break (195 minutes)",
+      "breakIncludedHint": "Unchecked: suggestions use TEACHING minutes (180). Applies to future suggestions only — confirmed records are never rewritten.",
+      "supportCap": "Support-suggestion thresholds",
+      "individualMaxLabel": "Up to how many struggling students per objective suggests INDIVIDUAL support",
+      "groupMinLabel": "From how many struggling students per objective suggests a WHOLE-CLASS review",
+      "supportHint": "Display-only suggestions on the objective matrix — the system never moves the curriculum by itself.",
+      "save": "Save settings",
+      "saveSuccess": "Center settings saved"
     }
   }
 }
