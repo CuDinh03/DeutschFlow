@@ -121,6 +121,16 @@ class TeacherServiceTest {
 
     @Mock
     private AssignmentBackfillService assignmentBackfillService;
+    @Mock
+    private com.deutschflow.teacher.repository.ClassAssignmentRecipientRepository assignmentRecipientRepository;
+    @Mock
+    private com.deutschflow.organization.repository.ClassCurriculumLinkRepository classCurriculumLinkRepositoryPr8;
+    @Mock
+    private com.deutschflow.organization.repository.CurriculumLektionRepository curriculumLektionRepositoryPr8;
+    @Mock
+    private com.deutschflow.organization.repository.CurriculumItemRepository curriculumItemRepositoryPr8;
+    @Mock
+    private com.deutschflow.teacher.repository.ClassSessionRepository classSessionRepositoryPr8;
 
     @Mock
     private com.deutschflow.notification.service.NotificationAutoAckService notificationAutoAckService;
@@ -147,6 +157,11 @@ class TeacherServiceTest {
                 classTeacherRepository,
                 assignmentRepository,
                 assignmentBackfillService,
+                assignmentRecipientRepository,
+                classCurriculumLinkRepositoryPr8,
+                curriculumLektionRepositoryPr8,
+                curriculumItemRepositoryPr8,
+                classSessionRepositoryPr8,
                 jdbcTemplate,
                 studentAssignmentRepository,
                 speakingSessionRepository,

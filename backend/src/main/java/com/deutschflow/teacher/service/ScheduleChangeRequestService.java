@@ -59,6 +59,7 @@ public class ScheduleChangeRequestService {
     private final ClassSessionRepository sessionRepo;
     private final ClassSchedulePatternRepository patternRepo;
     private final ClassMilestoneRepository milestoneRepo;
+    private final com.deutschflow.teacher.repository.ClassAssignmentRepository assignmentRepo;
     private final ScheduleForecastService forecastService;
     private final ClassScheduleService scheduleService;
     private final NotificationOutboxRepository outboxRepo;
@@ -238,7 +239,21 @@ public class ScheduleChangeRequestService {
                 if (!s.getClassId().equals(r.getClassId())) {
                     throw new ConflictException("Buổi trong đề xuất không thuộc lớp của đề xuất");
                 }
-                yield scheduleService.applyUpdateSession(r.getRequestedBy(), s, sc.request());
+                java.time.LocalDateTime oldStart = s.getStartAt();
+                ClassScheduleService.SessionChangeNote moveNote =
+                        scheduleService.applyUpdateSession(r.getRequestedBy(), s, sc.request());
+                // PR-8 (P06/spec §6): buổi dời — bài NHÁP gắn buổi tự dời hạn theo cùng delta;
+                // bài ĐÃ CÔNG BỐ không tự sửa (GV quyết qua PATCH, impact đã cảnh báo người duyệt).
+                if (sc.request().startAt() != null && !sc.request().startAt().equals(oldStart)) {
+                    java.time.Duration delta = java.time.Duration.between(oldStart, sc.request().startAt());
+                    for (var a : assignmentRepo.findBySessionId(s.getId())) {
+                        if ("DRAFT".equals(a.getStatus()) && a.getDueDate() != null) {
+                            a.setDueDate(a.getDueDate().plus(delta));
+                            assignmentRepo.save(a);
+                        }
+                    }
+                }
+                yield moveNote;
             }
             case ADD_MAKEUP -> {
                 CreateSessionRequest req = objectMapper.convertValue(r.getPayload(), CreateSessionRequest.class);

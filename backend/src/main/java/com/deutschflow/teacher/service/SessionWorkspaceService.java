@@ -44,6 +44,8 @@ public class SessionWorkspaceService {
     private final LessonLogService lessonLogService;
     private final ScheduleForecastService forecastService;
     private final RecordEditGuard recordEditGuard;
+    private final com.deutschflow.teacher.repository.ClassAssignmentRepository assignmentRepo;
+    private final com.deutschflow.teacher.repository.ClassAssignmentRecipientRepository assignmentRecipientRepo;
 
     @Transactional(readOnly = true)
     public SessionWorkspaceDto workspace(Long teacherId, Long sessionId) {
@@ -79,7 +81,8 @@ public class SessionWorkspaceService {
                 sessionContentService.list(teacherId, sessionId),
                 log,
                 roster,
-                forecastService.forecast(s.getClassId()));
+                forecastService.forecast(s.getClassId()),
+                sessionAssignments(sessionId));
     }
 
     /**
@@ -123,6 +126,19 @@ public class SessionWorkspaceService {
         recordEditGuard.revise(ClassRecordRevision.EntityType.SESSION_COMPLETION, sessionId,
                 s.getClassId(), sessionId, teacherId, null, before, null);
         return workspace(teacherId, sessionId);
+    }
+
+    /** Bài tập gắn CHÍNH buổi (spec §8) — giáo viên thấy cả nháp; học viên không đi qua đây. */
+    private List<com.deutschflow.teacher.dto.ClassAssignmentDto> sessionAssignments(Long sessionId) {
+        return assignmentRepo.findBySessionId(sessionId).stream()
+                .map(a -> new com.deutschflow.teacher.dto.ClassAssignmentDto(
+                        a.getId(), a.getClassId(), a.getTopic(), a.getDescription(),
+                        a.getAssignmentType(), a.getSkill(), a.getReferenceId(), a.getDueDate(),
+                        a.getCreatedAt(), a.getAttachmentUrl(), a.getLessonId(),
+                        a.getStatus(), a.getPublishedAt(), a.getSessionId(), a.getLektionId(),
+                        a.getCurriculumItemId(),
+                        assignmentRecipientRepo.findByIdAssignmentId(a.getId()).size()))
+                .toList();
     }
 
     private ClassSession loadOwnedSession(Long teacherId, Long sessionId) {

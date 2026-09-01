@@ -164,6 +164,15 @@ public class TeacherController {
      * Sửa một bài tập đã giao (giáo viên chính). Trường nào không gửi thì giữ nguyên; muốn xoá giá
      * trị thì dùng cờ {@code clear*} trong body. Không đụng tới bài nộp hay điểm.
      */
+    /** PR-8 (P06): công bố bài NHÁP — fan-out đúng người nhận (AC14) + notification. */
+    @PostMapping("/classes/{classId}/assignments/{assignmentId}/publish")
+    public ResponseEntity<ClassAssignmentDto> publishAssignment(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long classId,
+            @PathVariable Long assignmentId) {
+        return ResponseEntity.ok(teacherService.publishAssignment(user.getId(), classId, assignmentId));
+    }
+
     @PatchMapping("/classes/{classId}/assignments/{assignmentId}")
     public ResponseEntity<ClassAssignmentDto> updateAssignment(@AuthenticationPrincipal User user,
                                                                @PathVariable Long classId,

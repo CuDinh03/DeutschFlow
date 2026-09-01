@@ -30,6 +30,7 @@ public class ScheduleChangeQueue {
     private final ClassScheduleChangeRequestRepository requestRepo;
     private final ClassSessionContentRepository contentRepo;
     private final TeacherClassRepository classRepo;
+    private final com.deutschflow.teacher.repository.ClassAssignmentRepository assignmentRepo;
     private final ObjectMapper objectMapper;
 
     /** Một cảnh báo/thống kê tác động do caller (nơi có sẵn ngữ cảnh lịch) đưa vào bản chụp. */
@@ -59,6 +60,11 @@ public class ScheduleChangeQueue {
         // duyệt thấy ngay thay đổi này kéo theo bao nhiêu phân bổ phải sắp lại (spec §4.2).
         impact.put("plannedContentCount", seed.affectedSessionIds().isEmpty()
                 ? 0 : contentRepo.countBySessionIdIn(seed.affectedSessionIds()));
+        // PR-8: bài ĐÃ CÔNG BỐ gắn buổi bị chạm — hạn nộp không tự dời, người duyệt cần thấy con số.
+        impact.put("publishedAssignmentsOnSession", seed.affectedSessionIds().stream()
+                .flatMap(id -> assignmentRepo.findBySessionId(id).stream())
+                .filter(a -> "PUBLISHED".equals(a.getStatus()))
+                .count());
         List<String> warnings = new ArrayList<>(seed.warnings());
         if (weekend) {
             warnings.add("Thay đổi chạm Thứ 7/Chủ nhật — chỉ giám đốc trung tâm duyệt được");

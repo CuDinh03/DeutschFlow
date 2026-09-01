@@ -799,7 +799,23 @@
       "deleteTaskSuccess": "Assignment deleted.",
       "modalEditTitle": "Edit assignment",
       "modalSaveEdit": "Save changes",
-      "modalEditSuccess": "Changes saved."
+      "modalEditSuccess": "Changes saved.",
+      "draftBadge": "Draft",
+      "recipientChip": "{count} recipients",
+      "publishTask": "Publish",
+      "publishSuccess": "Assignment published — students were notified",
+      "publishDialogTitle": "Publish this assignment?",
+      "publishDialogTargeted": "It reaches the {count} selected students (not the whole class).",
+      "publishDialogWholeClass": "It reaches EVERY student in the class.",
+      "publishDialogNotify": "Each recipient gets a notification and a new assignment entry — no silent undo.",
+      "publishConfirm": "Publish",
+      "modalPublishNow": "Publish immediately on save",
+      "modalDraftHint": "Save as DRAFT: invisible to students — hit Publish in the list when ready.",
+      "modalAudienceCap": "Recipients",
+      "modalAudienceAll": "Whole class",
+      "modalAudiencePicked": "Pick students…",
+      "modalRecipientsRequired": "Pick at least one recipient",
+      "modalDraftSuccess": "Draft saved — students see nothing yet"
     },
     "studentDetail": {
       "nameFallback": "Student #{id}",
@@ -1020,7 +1036,11 @@
       "cancel": "Cancel",
       "uncompleteDialogTitle": "Reopen this session?",
       "uncompleteDialogDetail": "The session returns to not-closed; the action is written to the retro-edit history.",
-      "uncompleteConfirm": "Reopen"
+      "uncompleteConfirm": "Reopen",
+      "assignmentsCap": "Session assignments",
+      "assignmentDraft": "Draft",
+      "assignmentRecipients": "{count} recipients",
+      "assignmentDue": "due {date}"
     }
   }
 }

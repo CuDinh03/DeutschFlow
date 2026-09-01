@@ -69,6 +69,7 @@ const workspace = (over: Partial<Record<string, unknown>> = {}) => ({
     { studentId: 10, displayName: 'Bình' },
   ],
   forecast: { remainingMinutes: 0, availableMinutes: 0, futureSessionCount: 0, projectedEndDate: null, shortfallMinutes: 0, suggestedExtraSessions: 0, milestones: [] },
+  assignments: [],
   ...over,
 })
 

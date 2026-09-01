@@ -15,4 +15,6 @@ public interface ClassAssignmentRepository extends JpaRepository<ClassAssignment
     long countByLessonIdIn(List<Long> lessonIds);
     void deleteByClassId(Long classId);
     List<ClassAssignment> findByClassIdIn(List<Long> classIds);
+
+    java.util.List<ClassAssignment> findBySessionId(Long sessionId);
 }

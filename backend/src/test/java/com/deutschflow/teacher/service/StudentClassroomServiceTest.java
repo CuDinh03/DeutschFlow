@@ -45,6 +45,7 @@ import static org.mockito.Mockito.mock;
 class StudentClassroomServiceTest {
 
     @Mock private TeacherClassRepository classRepository;
+    @Mock private AssignmentAudienceService assignmentAudienceService;
     @Mock private ClassStudentRepository classStudentRepository;
     @Mock private ClassTeacherRepository classTeacherRepository;
     @Mock private ClassAssignmentRepository assignmentRepository;
@@ -61,8 +62,13 @@ class StudentClassroomServiceTest {
 
     @BeforeEach
     void setUp() {
+        // PR-8: audience mock cho QUA hết (mọi bài giao cả lớp, PUBLISHED) — hành vi trước PR-8;
+        // các ca lọc theo người nhận/nháp nằm ở AssignmentAudienceServiceTest + IT.
+        org.mockito.Mockito.lenient().when(assignmentAudienceService.visibleTo(
+                        org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyList()))
+                .thenAnswer(inv -> inv.getArgument(1));
         service = new StudentClassroomService(
-                classRepository, classStudentRepository, classTeacherRepository,
+                classRepository, assignmentAudienceService, classStudentRepository, classTeacherRepository,
                 assignmentRepository, lessonRepository, studentAssignmentRepository,
                 classSessionRepository, userRepository,
                 // Bucket private ⇒ link file bài nộp phải được ký lại. Truyền resolver THẬT với

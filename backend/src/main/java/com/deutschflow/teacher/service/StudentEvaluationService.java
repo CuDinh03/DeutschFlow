@@ -33,6 +33,7 @@ public class StudentEvaluationService {
     private static final double CERT_MIN_ATTENDANCE = 0.8;   // 80% of recorded sessions
 
     private final ClassStudentRepository classStudentRepository;
+    private final AssignmentAudienceService assignmentAudienceService;
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassLessonLogRepository lessonLogRepository;
     private final ClassAttendanceRepository attendanceRepository;
@@ -183,7 +184,9 @@ public class StudentEvaluationService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp học"));
 
         Map<String, List<Integer>> myScoresBySkill = new HashMap<>();
-        List<ClassAssignment> assignments = assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId);
+        // PR-8 (P06/AC14): chỉ tính bài học viên này được thấy.
+        List<ClassAssignment> assignments = assignmentAudienceService.visibleTo(studentId,
+                assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId));
         if (!assignments.isEmpty()) {
             List<Long> assignmentIds = assignments.stream().map(ClassAssignment::getId).toList();
             Map<Long, String> skillByAssignment = assignments.stream()
@@ -246,8 +249,9 @@ public class StudentEvaluationService {
         // giao diện và bản in đều đang giữ.
         int recordedSessions = presentCount + absentCount + lateCount;
 
-        // Avg score from assignments
-        List<ClassAssignment> assignments = assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId);
+        // Avg score from assignments — PR-8: chỉ những bài áp cho học viên này (P06/AC14).
+        List<ClassAssignment> assignments = assignmentAudienceService.visibleTo(studentId,
+                assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId));
         double avgScore = 0.0;
         if (!assignments.isEmpty()) {
             List<Long> aIds = assignments.stream().map(ClassAssignment::getId).toList();

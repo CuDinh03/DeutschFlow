@@ -799,7 +799,23 @@
       "deleteTaskSuccess": "Đã xoá bài tập.",
       "modalEditTitle": "Sửa bài tập",
       "modalSaveEdit": "Lưu thay đổi",
-      "modalEditSuccess": "Đã lưu thay đổi."
+      "modalEditSuccess": "Đã lưu thay đổi.",
+      "draftBadge": "Nháp",
+      "recipientChip": "{count} người nhận",
+      "publishTask": "Công bố",
+      "publishSuccess": "Đã công bố bài — học viên nhận được thông báo",
+      "publishDialogTitle": "Công bố bài tập?",
+      "publishDialogTargeted": "Bài sẽ tới {count} học viên được chọn (không phải cả lớp).",
+      "publishDialogWholeClass": "Bài sẽ tới TOÀN BỘ học viên của lớp.",
+      "publishDialogNotify": "Mỗi người nhận sẽ có thông báo và mục bài tập mới — không thu hồi im lặng được.",
+      "publishConfirm": "Công bố",
+      "modalPublishNow": "Công bố ngay khi lưu",
+      "modalDraftHint": "Lưu NHÁP: học viên chưa thấy gì — bấm Công bố trong danh sách bài khi sẵn sàng.",
+      "modalAudienceCap": "Người nhận",
+      "modalAudienceAll": "Cả lớp",
+      "modalAudiencePicked": "Chọn học viên…",
+      "modalRecipientsRequired": "Chọn ít nhất một học viên nhận bài",
+      "modalDraftSuccess": "Đã lưu bài nháp — học viên chưa thấy"
     },
     "studentDetail": {
       "nameFallback": "Học viên #{id}",
@@ -1020,7 +1036,11 @@
       "cancel": "Huỷ",
       "uncompleteDialogTitle": "Bỏ chốt buổi?",
       "uncompleteDialogDetail": "Buổi trở lại trạng thái chưa chốt; thao tác được ghi vào lịch sử sửa hồi tố.",
-      "uncompleteConfirm": "Bỏ chốt"
+      "uncompleteConfirm": "Bỏ chốt",
+      "assignmentsCap": "Bài tập gắn buổi",
+      "assignmentDraft": "Nháp",
+      "assignmentRecipients": "{count} người nhận",
+      "assignmentDue": "hạn {date}"
     }
   }
 }

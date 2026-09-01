@@ -57,6 +57,11 @@ public class TeacherService {
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassAssignmentRepository assignmentRepository;
     private final AssignmentBackfillService assignmentBackfillService;
+    private final com.deutschflow.teacher.repository.ClassAssignmentRecipientRepository assignmentRecipientRepository;
+    private final com.deutschflow.organization.repository.ClassCurriculumLinkRepository classCurriculumLinkRepositoryPr8;
+    private final com.deutschflow.organization.repository.CurriculumLektionRepository curriculumLektionRepositoryPr8;
+    private final com.deutschflow.organization.repository.CurriculumItemRepository curriculumItemRepositoryPr8;
+    private final com.deutschflow.teacher.repository.ClassSessionRepository classSessionRepositoryPr8;
     private final JdbcTemplate jdbcTemplate;
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final com.deutschflow.speaking.repository.AiSpeakingSessionRepository speakingSessionRepository;
@@ -751,6 +756,15 @@ public class TeacherService {
             }
         }
 
+        // PR-8: trạng thái + neo buổi/nội dung + người nhận — validate TRƯỚC khi ghi gì.
+        String status = req.status() == null || req.status().isBlank()
+                ? "PUBLISHED" : req.status().toUpperCase();
+        if (!"DRAFT".equals(status) && !"PUBLISHED".equals(status)) {
+            throw new BadRequestException("Trạng thái bài tập không hợp lệ (DRAFT | PUBLISHED)");
+        }
+        validateAssignmentAnchors(classId, req.sessionId(), req.lektionId(), req.curriculumItemId());
+        List<Long> recipients = validateRecipients(classId, req.recipientStudentIds());
+
         ClassAssignment assignment = ClassAssignment.builder()
                 .classId(classId)
                 .lessonId(req.lessonId())
@@ -761,8 +775,14 @@ public class TeacherService {
                 .referenceId(req.referenceId())
                 .dueDate(req.dueDate())
                 .attachmentUrl(req.attachmentUrl())
+                .status(status)
+                .publishedAt("PUBLISHED".equals(status) ? java.time.LocalDateTime.now() : null)
+                .sessionId(req.sessionId())
+                .lektionId(req.lektionId())
+                .curriculumItemId(req.curriculumItemId())
                 .build();
         ClassAssignment savedAssignment = assignmentRepository.save(assignment);
+        saveRecipients(savedAssignment.getId(), recipients);
 
         // Khởi tạo kịch bản AI nếu là SPEAKING_SCENARIO
         if ("SPEAKING_SCENARIO".equals(req.assignmentType())) {
@@ -784,16 +804,11 @@ public class TeacherService {
             }
         }
 
-        List<ClassStudent> students = classStudentRepository.findByIdClassId(classId);
-        List<StudentAssignment> studentAssignments = students.stream().map(student ->
-            StudentAssignment.builder()
-                .assignmentId(savedAssignment.getId())
-                .studentId(student.getId().getStudentId())
-                .status("PENDING")
-                .build()
-        ).toList();
-
-        studentAssignmentRepository.saveAll(studentAssignments);
+        // P06: bài NHÁP chưa tới tay ai — không StudentAssignment; publish mới fan-out (AC14 theo
+        // đúng người nhận, không recipients = cả lớp).
+        if ("PUBLISHED".equals(status)) {
+            fanOutStudentAssignments(savedAssignment.getId(), classId, recipients);
+        }
 
         User teacher = userRepository.findById(teacherId).orElse(null);
 
@@ -808,17 +823,124 @@ public class TeacherService {
             }
         }
 
-        // Notify all students in class (async batch)
-        TeacherClass teacherClass = classRepository.findById(classId).orElse(null);
-        userNotificationService.onNewClassAssignment(
-            classId,
-            teacherClass != null ? teacherClass.getName() : "",
-            teacher != null ? teacher.getDisplayName() : "",
-            savedAssignment.getId(),
-            savedAssignment.getTopic()
-        );
+        // P06/AC14: chỉ bài CÔNG BỐ mới réo học viên — và chỉ réo đúng người nhận.
+        if ("PUBLISHED".equals(status)) {
+            notifyAssignmentAudience(savedAssignment, teacher, recipients);
+        }
 
         return toAssignmentDto(savedAssignment);
+    }
+
+    /**
+     * P06: công bố một bài NHÁP — fan-out StudentAssignment theo đúng người nhận (AC14) +
+     * notification; từ đây bài xuất hiện với học viên và luật sửa/xoá của bài đã công bố áp dụng.
+     */
+    @Transactional
+    public ClassAssignmentDto publishAssignment(Long teacherId, Long classId, Long assignmentId) {
+        assertPrimaryTeacher(teacherId, classId);
+        ClassAssignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new NotFoundException("Bài tập không tồn tại"));
+        if (!assignment.getClassId().equals(classId)) {
+            throw new ForbiddenException("Bài tập không thuộc lớp này");
+        }
+        if ("PUBLISHED".equals(assignment.getStatus())) {
+            throw new ConflictException("Bài đã được công bố trước đó");
+        }
+        assignment.setStatus("PUBLISHED");
+        assignment.setPublishedAt(java.time.LocalDateTime.now());
+        ClassAssignment saved = assignmentRepository.save(assignment);
+
+        List<Long> recipients = assignmentRecipientRepository.findByIdAssignmentId(assignmentId).stream()
+                .map(r -> r.getId().getStudentId())
+                .toList();
+        fanOutStudentAssignments(assignmentId, classId, recipients);
+        notifyAssignmentAudience(saved, userRepository.findById(teacherId).orElse(null), recipients);
+        return toAssignmentDto(saved);
+    }
+
+    /** Fan-out StudentAssignment PENDING cho đúng đối tượng (rỗng = cả lớp) — idempotent theo khoá. */
+    private void fanOutStudentAssignments(Long assignmentId, Long classId, List<Long> recipients) {
+        List<Long> targets = recipients.isEmpty()
+                ? classStudentRepository.findByIdClassId(classId).stream()
+                        .map(cs -> cs.getId().getStudentId())
+                        .toList()
+                : recipients;
+        List<StudentAssignment> rows = targets.stream().map(studentId ->
+                StudentAssignment.builder()
+                        .assignmentId(assignmentId)
+                        .studentId(studentId)
+                        .status("PENDING")
+                        .build())
+                .toList();
+        studentAssignmentRepository.saveAll(rows);
+    }
+
+    private void notifyAssignmentAudience(ClassAssignment assignment, User teacher, List<Long> recipients) {
+        TeacherClass teacherClass = classRepository.findById(assignment.getClassId()).orElse(null);
+        String className = teacherClass != null ? teacherClass.getName() : "";
+        String teacherName = teacher != null ? teacher.getDisplayName() : "";
+        if (recipients.isEmpty()) {
+            userNotificationService.onNewClassAssignment(assignment.getClassId(), className, teacherName,
+                    assignment.getId(), assignment.getTopic());
+        } else {
+            userNotificationService.onNewClassAssignmentFor(recipients, assignment.getClassId(), className,
+                    teacherName, assignment.getId(), assignment.getTopic());
+        }
+    }
+
+    /** PR-8: buổi phải thuộc lớp; Lektion thuộc phiên bản giáo trình ĐÃ GÁN cho lớp; mục thuộc Lektion. */
+    private void validateAssignmentAnchors(Long classId, Long sessionId, Long lektionId, Long curriculumItemId) {
+        if (sessionId != null) {
+            var session = classSessionRepositoryPr8.findById(sessionId)
+                    .orElseThrow(() -> new NotFoundException("Buổi học không tồn tại"));
+            if (!session.getClassId().equals(classId)) {
+                throw new ForbiddenException("Buổi học không thuộc lớp này");
+            }
+        }
+        if (curriculumItemId != null && lektionId == null) {
+            throw new BadRequestException("Mục giáo trình phải đi kèm Lektion của nó");
+        }
+        if (lektionId != null) {
+            Long versionId = classCurriculumLinkRepositoryPr8.findByClassId(classId)
+                    .map(l -> l.getVersionId())
+                    .orElseThrow(() -> new BadRequestException("Lớp chưa gắn giáo trình — không neo bài vào Lektion được"));
+            var lektion = curriculumLektionRepositoryPr8.findById(lektionId)
+                    .orElseThrow(() -> new NotFoundException("Lektion không tồn tại"));
+            if (!lektion.getVersionId().equals(versionId)) {
+                throw new ForbiddenException("Lektion không thuộc giáo trình đã gán cho lớp");
+            }
+            if (curriculumItemId != null) {
+                var item = curriculumItemRepositoryPr8.findById(curriculumItemId)
+                        .orElseThrow(() -> new NotFoundException("Mục giáo trình không tồn tại"));
+                if (!item.getLektionId().equals(lektionId)) {
+                    throw new BadRequestException("Mục không thuộc Lektion đã chọn");
+                }
+            }
+        }
+    }
+
+    /** AC14: danh sách người nhận (nếu gửi) phải nằm trọn trong roster lớp; trả list đã chuẩn hoá. */
+    private List<Long> validateRecipients(Long classId, List<Long> recipientStudentIds) {
+        if (recipientStudentIds == null || recipientStudentIds.isEmpty()) return List.of();
+        Set<Long> roster = classStudentRepository.findByIdClassId(classId).stream()
+                .map(cs -> cs.getId().getStudentId())
+                .collect(Collectors.toSet());
+        List<Long> cleaned = recipientStudentIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        for (Long id : cleaned) {
+            if (!roster.contains(id)) {
+                throw new BadRequestException("Học viên #" + id + " không thuộc lớp này");
+            }
+        }
+        return cleaned;
+    }
+
+    private void saveRecipients(Long assignmentId, List<Long> recipients) {
+        if (recipients.isEmpty()) return;
+        assignmentRecipientRepository.saveAll(recipients.stream()
+                .map(studentId -> com.deutschflow.teacher.entity.ClassAssignmentRecipient.builder()
+                        .id(new com.deutschflow.teacher.entity.ClassAssignmentRecipient.Id(assignmentId, studentId))
+                        .build())
+                .toList());
     }
 
     /**
@@ -1225,9 +1347,12 @@ public class TeacherService {
     }
 
     private ClassAssignmentDto toAssignmentDto(ClassAssignment a) {
+        int recipientCount = assignmentRecipientRepository.findByIdAssignmentId(a.getId()).size();
         return new ClassAssignmentDto(a.getId(), a.getClassId(), a.getTopic(), a.getDescription(),
                 a.getAssignmentType(), a.getSkill(), a.getReferenceId(), a.getDueDate(), a.getCreatedAt(),
-                a.getAttachmentUrl(), a.getLessonId());
+                a.getAttachmentUrl(), a.getLessonId(),
+                a.getStatus(), a.getPublishedAt(), a.getSessionId(), a.getLektionId(),
+                a.getCurriculumItemId(), recipientCount);
     }
 
     private TeacherSpeakingSessionDto toTeacherSpeakingSessionDto(com.deutschflow.speaking.entity.AiSpeakingSession s) {

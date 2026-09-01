@@ -51,6 +51,24 @@ public class ClassAssignment {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /** P06 (V297): DRAFT vô hình với học viên — không StudentAssignment, không notification. */
+    @Column(nullable = false, length = 16)
+    @lombok.Builder.Default
+    private String status = "PUBLISHED";
+
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
+
+    /** Bài gắn BUỔI (spec §8) — buổi dời qua duyệt: bài DRAFT tự dời hạn theo, PUBLISHED thì không. */
+    @Column(name = "session_id")
+    private Long sessionId;
+
+    @Column(name = "lektion_id")
+    private Long lektionId;
+
+    @Column(name = "curriculum_item_id")
+    private Long curriculumItemId;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
