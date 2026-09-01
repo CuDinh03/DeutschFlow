@@ -18,6 +18,8 @@ import {
 } from 'lucide-react'
 import api from '@/lib/api'
 import { completeTheoryNode } from '@/lib/theoryNodeCompletion'
+import { submitNodeExercises } from '@/lib/nodeSubmission'
+import { collectExercises, isScored } from '@/lib/nodeExercises'
 import { useNodeSessionStore } from '@/stores/useNodeSessionStore'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
@@ -100,6 +102,7 @@ export default function V2StudentLearnNodePage() {
     tabScores,
     markTabCompleted,
     resetTabCompletion,
+    itemAnswers,
   } = useNodeSessionStore()
 
   const [showRecap, setShowRecap] = useState(false)
@@ -137,14 +140,25 @@ export default function V2StudentLearnNodePage() {
 
     if (allAttempted && allPassed) {
       setShowRecap(true)
-      // Bấm "Đã đọc & Hiểu" trước đây chỉ đổi state trong trình duyệt, không hề gọi máy chủ, nên
-      // lộ trình vẫn đứng im ở 0/46 (F-19). Backend đã có sẵn đường này và mobile vẫn dùng.
+      // Hoàn thành node trước đây chỉ đổi state trong trình duyệt, không hề gọi máy chủ, nên lộ
+      // trình đứng im ở 0/46 (F-19/F-22). Hai đường, backend đã tách sẵn và cố tình chặn chéo:
+      //   · node CÓ mục chấm được  → `POST /skill-tree/{nodeId}/submit`, máy chủ tự chấm lại
+      //     `item_answers` theo đáp án gốc (client không tự khai điểm để mở khoá được);
+      //   · node lý thuyết thuần   → `POST /skill-tree/{nodeId}/complete`.
+      // Gọi nhầm đường sẽ ăn 400 và HIỆN ra, chứ không im lặng.
       if (completionSentForRef.current !== nodeId) {
         completionSentForRef.current = nodeId
-        void completeTheoryNode(nodeId).then((result) => {
-          // 'alreadyDone' và 'gradedNode' là bình thường: node đã xong từ trước, hoặc node này
-          // hoàn thành qua đường nộp bài chấm điểm. Chỉ lỗi THẬT mới hiện — im lặng ở đây là tái
-          // lập đúng cái bẫy của F-18 (học viên tưởng đã lưu, thực ra chưa).
+        const coMucChamDuoc = collectExercises(session?.content?.exercises).some(isScored)
+        const ketQua = coMucChamDuoc
+          ? submitNodeExercises(nodeId, itemAnswers, tabScores.grammar ?? 0).then((r) =>
+              r.outcome === 'notPassed'
+                ? { outcome: 'failed' as const, message: t('scoreBelowThreshold', { score: r.scorePercent ?? 0 }) }
+                : { outcome: r.outcome === 'failed' ? ('failed' as const) : ('saved' as const), message: r.message },
+            )
+          : completeTheoryNode(nodeId)
+        void ketQua.then((result) => {
+          // Chỉ 'alreadyDone' và 'saved' là im lặng. Mọi thứ khác phải hiện — nuốt ở đây là tái lập
+          // đúng bẫy F-18: học viên tưởng đã lưu, thực ra chưa.
           if (result.outcome === 'failed') setCompletionNotice(result.message)
         })
       }
