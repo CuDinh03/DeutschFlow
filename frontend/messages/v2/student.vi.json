@@ -1111,6 +1111,7 @@
     },
     "learnNode": {
       "progressNotSaved": "Chưa lưu được tiến độ lên máy chủ.",
+      "scoreBelowThreshold": "Máy chủ chấm được {score}% — chưa đạt ngưỡng qua bài nên tiến độ chưa được ghi nhận.",
       "toPractice": "Luyện 4 kỹ năng",
       "roadmapContext": "Vị trí trong lộ trình",
       "completedInRoadmap": "lộ trình đã hoàn thành",
