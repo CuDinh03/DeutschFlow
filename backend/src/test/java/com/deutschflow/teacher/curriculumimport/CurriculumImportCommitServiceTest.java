@@ -59,6 +59,7 @@ class CurriculumImportCommitServiceTest {
     @Mock private ClassTeacherRepository classTeacherRepository;
     @Mock private CurriculumImportCommitRepository commitRepository;
     @Mock private com.deutschflow.material.service.MaterialService materialService;
+    @Mock private CurriculumImportService importService;
 
     private CurriculumImportCommitService service;
     private CurriculumImportWriter writer;
@@ -79,7 +80,7 @@ class CurriculumImportCommitServiceTest {
                 commitRepository, new ObjectMapper());
         service = new CurriculumImportCommitService(
                 moduleRepository, classTeacherRepository, commitRepository, writer,
-                materialService, new DraftValidator(), new ObjectMapper());
+                materialService, importService, new DraftValidator(), new ObjectMapper());
 
         teacher = new User();
         teacher.setId(TEACHER_ID);
@@ -103,6 +104,8 @@ class CurriculumImportCommitServiceTest {
             return l;
         });
         lenient().when(commitRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(importService.requireOwnJob(any(), anyLong(), any()))
+                .thenReturn(completedPreviewJob(MATERIAL_ID));
     }
 
     // ── Fixtures ────────────────────────────────────────────────────────────
@@ -120,9 +123,23 @@ class CurriculumImportCommitServiceTest {
         return new DraftModule("cm-" + title, title, DraftModule.KIND_CHAPTER, 8, 17, lessons);
     }
 
+    private static final java.util.UUID PREVIEW_JOB =
+            java.util.UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+
     private CurriculumImportCommitRequest request(String key, List<DraftModule> modules) {
-        return new CurriculumImportCommitRequest(MATERIAL_ID, key,
+        return new CurriculumImportCommitRequest(PREVIEW_JOB, key,
                 CurriculumImportCommitRequest.ON_DUPLICATE_FAIL, modules);
+    }
+
+    /** Job preview đã xong, ghi rõ bản nháp sinh từ tài liệu nào. */
+    private static com.deutschflow.common.async.AsyncJob completedPreviewJob(Long materialId) {
+        String payload = ("{\"sourceMaterialId\":" + materialId + ",\"sourceFileName\":\"x.pdf\","
+                + "\"detectedTitle\":\"x\",\"detectedLevel\":\"A1\",\"source\":\"TEMPLATE\","
+                + "\"warnings\":[],\"modules\":[]}");
+        return com.deutschflow.common.async.AsyncJob.builder()
+                .id(PREVIEW_JOB).jobType(CurriculumImportService.JOB_TYPE)
+                .status(com.deutschflow.common.async.AsyncJob.Status.COMPLETED.name())
+                .createdByUserId(TEACHER_ID).resultPayload(payload).build();
     }
 
     // ── Happy path ──────────────────────────────────────────────────────────
@@ -299,6 +316,88 @@ class CurriculumImportCommitServiceTest {
     }
 
     @Test
+    void refusesAnIdempotencyKeyLongerThanTheColumnCanHold() {
+        // Cột là VARCHAR(120). Không chặn ở đây thì Postgres ném 22001, bị catch bên dưới hiểu
+        // nhầm thành "có người giành cùng khoá" và trả 409 sai hẳn nguyên nhân.
+        String tooLong = "k".repeat(121);
+
+        assertThatThrownBy(() -> service.commit(teacher, CLASS_ID,
+                request(tooLong, List.of(module("K01 – A", "K01.1")))))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("120");
+
+        verify(moduleRepository, never()).save(any());
+    }
+
+    @Test
+    void aDataErrorThatIsNotAKeyClashSurfacesInsteadOfBecomingAFakeConflict() {
+        // Vi phạm toàn vẹn KHÔNG phải do trùng khoá (FK/CHECK/quá dài…) không được đội lốt
+        // "đang xử lý đồng thời" — che như vậy là giấu lỗi thật khỏi log và khỏi người dùng.
+        DataIntegrityViolationException real = new DataIntegrityViolationException("check constraint bể");
+        when(commitRepository.save(any())).thenThrow(real);
+        when(commitRepository.findByClassIdAndIdempotencyKey(CLASS_ID, "k1"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.commit(teacher, CLASS_ID,
+                request("k1", List.of(module("K01 – A", "K01.1")))))
+                .isSameAs(real);
+    }
+
+    @Test
+    void refusesACommitThatDoesNotSayWhichPreviewItCameFrom() {
+        assertThatThrownBy(() -> service.commit(teacher, CLASS_ID,
+                new CurriculumImportCommitRequest(null, "k1",
+                        CurriculumImportCommitRequest.ON_DUPLICATE_FAIL,
+                        List.of(module("K01 – A", "K01.1")))))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(moduleRepository, never()).save(any());
+    }
+
+    @Test
+    void provenanceIsTakenFromThePreviewJobNotFromTheClient() {
+        // Client không còn khai được nguồn: tài liệu ghi vào sổ nhập phải là tài liệu ĐÃ SINH ra
+        // bản nháp, đọc từ chính job preview.
+        when(importService.requireOwnJob(teacher, CLASS_ID, PREVIEW_JOB))
+                .thenReturn(completedPreviewJob(4242L));
+
+        service.commit(teacher, CLASS_ID, request("k1", List.of(module("K01 – A", "K01.1"))));
+
+        verify(materialService).requireReadable(teacher, 4242L);
+        ArgumentCaptor<CurriculumImportCommitRecord> rec =
+                ArgumentCaptor.forClass(CurriculumImportCommitRecord.class);
+        verify(commitRepository).save(rec.capture());
+        assertThat(rec.getValue().getSourceMaterialId()).isEqualTo(4242L);
+    }
+
+    @Test
+    void refusesToCommitFromAPreviewThatHasNotFinished() {
+        when(importService.requireOwnJob(teacher, CLASS_ID, PREVIEW_JOB))
+                .thenReturn(com.deutschflow.common.async.AsyncJob.builder()
+                        .id(PREVIEW_JOB).jobType(CurriculumImportService.JOB_TYPE)
+                        .status(com.deutschflow.common.async.AsyncJob.Status.PROCESSING.name())
+                        .createdByUserId(TEACHER_ID).build());
+
+        assertThatThrownBy(() -> service.commit(teacher, CLASS_ID,
+                request("k1", List.of(module("K01 – A", "K01.1")))))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(moduleRepository, never()).save(any());
+    }
+
+    @Test
+    void aPreviewJobTheTeacherMayNotReadStopsTheCommit() {
+        when(importService.requireOwnJob(teacher, CLASS_ID, PREVIEW_JOB))
+                .thenThrow(new ForbiddenException("không phải job của bạn"));
+
+        assertThatThrownBy(() -> service.commit(teacher, CLASS_ID,
+                request("k1", List.of(module("K01 – A", "K01.1")))))
+                .isInstanceOf(ForbiddenException.class);
+
+        verify(moduleRepository, never()).save(any());
+    }
+
+    @Test
     void refusesACommitWithoutAnIdempotencyKey() {
         assertThatThrownBy(() -> service.commit(teacher, CLASS_ID,
                 request("  ", List.of(module("K01 – A", "K01.1")))))
@@ -331,7 +430,7 @@ class CurriculumImportCommitServiceTest {
         when(moduleRepository.findByClassIdOrderByOrderIndexAsc(CLASS_ID)).thenReturn(List.of(existing));
 
         CurriculumImportCommitResult r = service.commit(teacher, CLASS_ID,
-                new CurriculumImportCommitRequest(MATERIAL_ID, "k1",
+                new CurriculumImportCommitRequest(PREVIEW_JOB, "k1",
                         CurriculumImportCommitRequest.ON_DUPLICATE_SKIP,
                         List.of(module("K01 – A", "K01.1"), module("K02 – B", "K02.1"))));
 
@@ -351,7 +450,7 @@ class CurriculumImportCommitServiceTest {
         when(moduleRepository.findByClassIdOrderByOrderIndexAsc(CLASS_ID)).thenReturn(List.of(existing));
 
         CurriculumImportCommitResult r = service.commit(teacher, CLASS_ID,
-                new CurriculumImportCommitRequest(MATERIAL_ID, "k1",
+                new CurriculumImportCommitRequest(PREVIEW_JOB, "k1",
                         CurriculumImportCommitRequest.ON_DUPLICATE_RENAME,
                         List.of(module("K01 – A", "K01.1"))));
 

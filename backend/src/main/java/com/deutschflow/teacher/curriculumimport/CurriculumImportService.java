@@ -4,6 +4,7 @@ import com.deutschflow.common.async.AsyncJob;
 import com.deutschflow.common.async.AsyncJobService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.material.entity.Material;
 import com.deutschflow.material.service.MaterialService;
 import com.deutschflow.media.service.S3StorageService;
@@ -94,6 +95,38 @@ public class CurriculumImportService {
         return jobId;
     }
 
+    /**
+     * The preview job behind {@code jobId}, once the caller is allowed to see it.
+     *
+     * <p>Three checks, because a draft carries a class's teaching plan:
+     *
+     * <ul>
+     *   <li>the caller must teach {@code classId} — the path segment is authorisation, not decoration;</li>
+     *   <li>the job must be one of OURS. Several features create jobs with no recorded owner
+     *       ({@code VIDEO_RENDER_VOCAB}, {@code GENERATE_SATELLITE}, {@code PREFETCH_SATELLITE}),
+     *       so an endpoint that skipped the type check would hand their payloads to any teacher
+     *       holding the uuid;</li>
+     *   <li>the job must record an owner and it must be this caller — a missing owner is refused,
+     *       never waved through.</li>
+     * </ul>
+     *
+     * <p>An unknown or foreign-typed job is a 404 rather than a 403: confirming that some other
+     * feature's job exists is itself a small leak.
+     */
+    public AsyncJob requireOwnJob(User caller, Long classId, UUID jobId) {
+        assertTeacherOwns(caller.getId(), classId);
+
+        AsyncJob job = asyncJobService.getJob(jobId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tiến trình phân tích."));
+        if (!JOB_TYPE.equals(job.getJobType())) {
+            throw new NotFoundException("Không tìm thấy tiến trình phân tích.");
+        }
+        if (job.getCreatedByUserId() == null || !job.getCreatedByUserId().equals(caller.getId())) {
+            throw new ForbiddenException("Bạn không có quyền truy cập tiến trình này.");
+        }
+        return job;
+    }
+
     /** Runs one preview to completion and reports it on the job. Invoked from {@link CurriculumPreviewWorker}. */
     public void runPreview(UUID jobId, CurriculumImportConfig config,
                            String objectKey, String materialTitle, List<LocalDate> scheduleDates) {
@@ -110,11 +143,19 @@ public class CurriculumImportService {
                     preview.source());
         } catch (BadRequestException e) {
             asyncJobService.failJob(jobId, e.getMessage());
-        } catch (Exception e) {
+        } catch (Throwable t) {
+            // Throwable, not Exception. An OutOfMemoryError from rasterising a hostile page is an
+            // Error, so `catch (Exception)` let it pass and the job stayed PROCESSING for ever — the
+            // client polled to its timeout and monitoring saw "still running" instead of a failure.
             // The message is ours, never the document's: a PDF must not be able to choose what the
             // teacher reads on screen.
-            log.error("Curriculum import preview {} failed", jobId, e);
+            log.error("Curriculum import preview {} failed", jobId, t);
             asyncJobService.failJob(jobId, "Không phân tích được tài liệu. Hãy thử lại hoặc chọn giáo trình mẫu.");
+            // An Error means the JVM may be unhealthy; report the job, then let it keep travelling
+            // so the runtime can react rather than having it swallowed here.
+            if (t instanceof Error error) {
+                throw error;
+            }
         }
     }
 
