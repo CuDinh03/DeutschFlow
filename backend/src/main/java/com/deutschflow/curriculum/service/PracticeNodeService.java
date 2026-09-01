@@ -13,6 +13,7 @@ import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.ai.tier.LlmTier;
 import com.deutschflow.ai.tier.LlmTierResolver;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -94,12 +95,42 @@ public class PracticeNodeService {
      * Sinh Gen-1 session cho 1 kỹ năng trên aiExecutor, trả jobId ngay.
      * Controller trả 202; client poll {@code GET /api/async-jobs/{jobId}}.
      */
+    /**
+     * Ghi kết quả job theo ĐÚNG trạng thái thật của lần sinh.
+     *
+     * <p>{@code generatePracticeSession}/{@code generateNextGeneration} KHÔNG ném ngoại lệ ra ngoài:
+     * chúng bắt hết rồi trả {@code Map.of("status","FAILED","error",…)}. Vì vậy khối {@code catch}
+     * bọc quanh chúng không bao giờ chạy, và trước đây MỌI lần sinh hỏng vẫn được ghi
+     * {@code COMPLETED} với {@code errorMessage=null} — payload là chỗ DUY NHẤT nói job đã hỏng.
+     *
+     * <p>Hai hậu quả đo được trên prod (QA 2026-09-01, sự cố model Fireworks trả 404):
+     * <ul>
+     *   <li>Client đọc {@code status} của VỎ job nên rẽ vào nhánh thành công, không thấy
+     *       {@code sessionId} rồi hiện câu lỗi chung ⇒ thông điệp thật bị nuốt.</li>
+     *   <li>Mọi thống kê đếm job {@code FAILED} báo 0 trong khi 100% job hỏng ⇒ sự cố chạy âm thầm
+     *       11 tiếng, không cảnh báo nào nổ.</li>
+     * </ul>
+     */
+    // Package-private (không phải private) để PracticeNodeJobSettlementTest kiểm được cả hai nhánh
+    // mà không phải dựng nguyên đường sinh bài.
+    void settleJob(UUID jobId, Map<String, Object> result) throws JsonProcessingException {
+        if (result != null && "FAILED".equals(String.valueOf(result.get("status")))) {
+            Object error = result.get("error");
+            String message = (error == null || String.valueOf(error).isBlank())
+                    ? "Sinh bài tập thất bại."
+                    : String.valueOf(error);
+            asyncJobService.failJob(jobId, message);
+            return;
+        }
+        asyncJobService.completeJob(jobId, objectMapper.writeValueAsString(result));
+    }
+
     public Map<String, Object> startPracticeSessionAsync(long userId, long nodeId, String skillType) {
         AsyncJob job = asyncJobService.createJob("GENERATE_PRACTICE", userId);
         CompletableFuture.runAsync(() -> {
             try {
                 Map<String, Object> result = generatePracticeSession(userId, nodeId, skillType, 1);
-                asyncJobService.completeJob(job.getId(), objectMapper.writeValueAsString(result));
+                settleJob(job.getId(), result);
             } catch (Exception e) {
                 asyncJobService.failJob(job.getId(),
                         e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
@@ -118,7 +149,7 @@ public class PracticeNodeService {
         CompletableFuture.runAsync(() -> {
             try {
                 Map<String, Object> result = generateNextGeneration(userId, nodeId, skillType);
-                asyncJobService.completeJob(job.getId(), objectMapper.writeValueAsString(result));
+                settleJob(job.getId(), result);
             } catch (Exception e) {
                 asyncJobService.failJob(job.getId(),
                         e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
