@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
   Plus, Mail, ChevronRight, AlertTriangle, Trophy,
@@ -268,6 +268,20 @@ export default function V2ClassDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState<Assignment | null>(null)
   // PR-8 (P06): công bố bài nháp qua ConfirmDialog nêu ai sẽ nhận + notification.
   const [confirmPublish, setConfirmPublish] = useState<Assignment | null>(null)
+  // PR-9: /objectives gửi sang ?assignStudents=1,2 → mở modal giao bài với người nhận prefill.
+  const [prefillStudents, setPrefillStudents] = useState<number[] | null>(null)
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    const raw = searchParams.get('assignStudents')
+    if (!raw) return
+    const ids = raw.split(',').map(Number).filter(Number.isFinite)
+    if (ids.length > 0) {
+      setPrefillStudents(ids)
+      setModal(true)
+      setTab('tasks')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [publishing, setPublishing] = useState(false)
 
   /**
@@ -744,7 +758,7 @@ export default function V2ClassDetailPage() {
         )}
       </div>
 
-      <AddAssignmentModal open={modal} onOpenChange={(o) => { setModal(o); if (!o) setEditing(null) }} classId={id} lessons={lessons} students={students} onCreated={load} editing={editing} />
+      <AddAssignmentModal open={modal} onOpenChange={(o) => { setModal(o); if (!o) { setEditing(null); setPrefillStudents(null) } }} classId={id} lessons={lessons} students={students} onCreated={load} editing={editing} prefillStudents={prefillStudents} />
 
       {/* Chuẩn xoá toàn sản phẩm: ConfirmDialog nêu hệ quả, không window.confirm. */}
       {confirmPublish && (
@@ -940,7 +954,7 @@ const toDateInput = (iso: string | null | undefined): string => (iso ? format(ne
  * Sửa đi đường PATCH và chỉ gửi metadata; loại bài tập không đổi được (một bài SPEAKING_SCENARIO đã
  * sinh kịch bản AI và trỏ tới nó qua referenceId) và tài liệu đính kèm giữ nguyên như lúc giao.
  */
-function AddAssignmentModal({ open, onOpenChange, classId, lessons, students, onCreated, editing }: { open: boolean; onOpenChange: (o: boolean) => void; classId: number; lessons: ClassLesson[]; students: Student[]; onCreated: () => void; editing?: Assignment | null }) {
+function AddAssignmentModal({ open, onOpenChange, classId, lessons, students, onCreated, editing, prefillStudents }: { open: boolean; onOpenChange: (o: boolean) => void; classId: number; lessons: ClassLesson[]; students: Student[]; onCreated: () => void; editing?: Assignment | null; prefillStudents?: number[] | null }) {
   const t = useTranslations('v2.teacher.classDetail')
   const tc = useTranslations('v2.common')
   const isEdit = !!editing
@@ -971,9 +985,10 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, students, on
     setLessonId(editing?.lessonId != null ? String(editing.lessonId) : '')
     setMaterials([])
     setPublishNow(true)
-    setAudience('ALL')
-    setPicked(new Set())
-  }, [open, editing])
+    // PR-9: sang từ màn mục tiêu → prefill người nhận là nhóm cần củng cố.
+    setAudience(prefillStudents && prefillStudents.length > 0 ? 'PICKED' : 'ALL')
+    setPicked(new Set(prefillStudents ?? []))
+  }, [open, editing, prefillStudents])
 
   const submit = async () => {
     if (!topic.trim()) { toast.error(t('modalTopicRequired')); return }

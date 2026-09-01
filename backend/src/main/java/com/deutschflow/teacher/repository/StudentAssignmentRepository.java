@@ -85,4 +85,16 @@ public interface StudentAssignmentRepository extends JpaRepository<StudentAssign
             ORDER BY date_trunc('week', COALESCE(sa.graded_at, sa.created_at))
             """, nativeQuery = true)
     List<Object[]> findWeeklyConfirmedAverages(@Param("classIds") List<Long> classIds);
+    /**
+     * AC12 (PR-9): số bài mỗi học viên đã nộp nhưng CHƯA có điểm chốt (SUBMITTED/AI_GRADED) trong
+     * lớp — hiển thị "chờ chấm" trung tính trên ma trận mục tiêu, không bao giờ đọc thành yếu.
+     */
+    @org.springframework.data.jpa.repository.Query("""
+            SELECT sa.studentId, COUNT(sa) FROM StudentAssignment sa, ClassAssignment ca
+            WHERE sa.assignmentId = ca.id AND ca.classId = :classId
+              AND sa.status IN ('SUBMITTED','AI_GRADED')
+            GROUP BY sa.studentId
+            """)
+    java.util.List<Object[]> countPendingGradingByStudent(
+            @org.springframework.data.repository.query.Param("classId") Long classId);
 }

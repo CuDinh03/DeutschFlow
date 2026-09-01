@@ -1041,6 +1041,26 @@
       "assignmentDraft": "Nháp",
       "assignmentRecipients": "{count} người nhận",
       "assignmentDue": "hạn {date}"
+    },
+    "objectives": {
+      "title": "Đánh giá mục tiêu",
+      "subtitle": "Ma trận mục tiêu giáo trình × học viên — bấm ô để xoay trạng thái.",
+      "empty": "Lớp chưa gắn giáo trình hoặc giáo trình chưa có mục tiêu.",
+      "suggestionsCap": "Gợi ý hỗ trợ",
+      "studentCol": "Học viên",
+      "pendingCol": "Chờ chấm",
+      "pendingBadge": "{count} bài chờ chấm",
+      "groupReview": "{count} học viên cần luyện — cân nhắc ôn chung cả lớp",
+      "individualSupport": "kèm riêng: {names}",
+      "unassessedNote": "(còn {count} chưa đánh giá)",
+      "assignSupport": "Giao bài củng cố",
+      "status": {
+        "NOT_ASSESSED": "Chưa đánh giá",
+        "ACHIEVED": "Đạt",
+        "NEEDS_PRACTICE": "Cần luyện thêm"
+      },
+      "cellLabel": "Đánh giá {name} — hiện tại: {status}",
+      "legend": "Bấm ô để xoay: — chưa đánh giá → ✓ đạt → ! cần luyện thêm. \"Chờ chấm\" là trạng thái trung tính — bài đã nộp đang đợi giáo viên, không phải kết quả yếu. Gợi ý chỉ tính học viên đã được đánh giá và không tự thay đổi giáo trình."
     }
   }
 }

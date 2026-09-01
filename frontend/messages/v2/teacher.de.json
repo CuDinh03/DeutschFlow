@@ -1041,6 +1041,26 @@
       "assignmentDraft": "Entwurf",
       "assignmentRecipients": "{count} Empfänger",
       "assignmentDue": "fällig {date}"
+    },
+    "objectives": {
+      "title": "Lernziel-Bewertung",
+      "subtitle": "Curriculum-Ziele × Lernende — Zelle anklicken, um den Status zu wechseln.",
+      "empty": "Kein Curriculum zugewiesen oder noch keine Lernziele.",
+      "suggestionsCap": "Förder-Hinweise",
+      "studentCol": "Lernende*r",
+      "pendingCol": "Wartet auf Korrektur",
+      "pendingBadge": "{count} warten auf Korrektur",
+      "groupReview": "{count} Lernende brauchen Übung — gemeinsame Wiederholung erwägen",
+      "individualSupport": "Einzelförderung: {names}",
+      "unassessedNote": "({count} noch nicht bewertet)",
+      "assignSupport": "Übungsaufgabe zuweisen",
+      "status": {
+        "NOT_ASSESSED": "Nicht bewertet",
+        "ACHIEVED": "Erreicht",
+        "NEEDS_PRACTICE": "Braucht Übung"
+      },
+      "cellLabel": "{name} bewerten — aktuell: {status}",
+      "legend": "Klick wechselt: — nicht bewertet → ✓ erreicht → ! braucht Übung. „Wartet auf Korrektur\" ist neutral — eingereichte Arbeit, kein schwaches Ergebnis. Hinweise zählen nur bewertete Lernende und ändern das Curriculum nie von selbst."
     }
   }
 }
