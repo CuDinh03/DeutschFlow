@@ -21,12 +21,14 @@ const getPatternsMock = vi.fn()
 const toastSuccess = vi.fn()
 const toastError = vi.fn()
 
+const deleteMock = vi.fn()
+
 vi.mock('@/lib/classScheduleApi', () => ({
   upsertClassPattern: (...args: unknown[]) => upsertMock(...args),
   getClassPatterns: (...args: unknown[]) => getPatternsMock(...args),
   createClassSession: vi.fn(),
   updateClassSession: vi.fn(),
-  deleteClassPattern: vi.fn(),
+  deleteClassPattern: (...args: unknown[]) => deleteMock(...args),
 }))
 
 vi.mock('@/lib/api', () => ({
@@ -132,6 +134,38 @@ describe('PatternModal — multi-day recurring schedule', () => {
 
     expect(upsertMock).not.toHaveBeenCalled()
     expect(toastError).toHaveBeenCalledWith('Chọn ít nhất một thứ')
+  })
+
+  it('PR-5: gated class — every day becomes a pending request, toast says "đề xuất" not "đã lưu"', async () => {
+    const user = userEvent.setup()
+    upsertMock.mockResolvedValue({ patternId: null, generated: 0, keptOverridden: 0, skipped: 0, pendingRequestId: 55 })
+    await renderOpen()
+
+    fireEvent.change(screen.getByLabelText('Áp dụng từ'), { target: { value: '2026-07-10' } })
+    await user.click(screen.getByRole('button', { name: 'Lưu lịch cố định' }))
+
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalled())
+    const msg = toastSuccess.mock.calls[0][0] as string
+    expect(msg).toContain('đề xuất')
+    expect(msg).not.toContain('sinh')
+  })
+
+  it('PR-5/§2.11: deleting a pattern asks for confirmation first, then reports the pending request', async () => {
+    const user = userEvent.setup()
+    getPatternsMock.mockResolvedValue([
+      { id: 9, classId: 1, dayOfWeek: 1, startTime: '18:00:00', durationMinutes: 195, defaultMode: 'OFFLINE', defaultRoom: null, effectiveFrom: '2026-07-01', effectiveTo: null, teachingMinutes: 180, breakMinutes: 15 },
+    ])
+    deleteMock.mockResolvedValue({ removedSessions: 0, pendingRequestId: 77 })
+    await renderOpen()
+
+    await user.click(await screen.findByRole('button', { name: 'Xoá lịch cố định' }))
+    // Chưa xác nhận thì CHƯA xoá — dialog nêu hệ quả mở ra trước.
+    expect(deleteMock).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Xoá lịch' }))
+
+    await waitFor(() => expect(deleteMock).toHaveBeenCalledWith(9))
+    const msg = toastSuccess.mock.calls[0][0] as string
+    expect(msg).toContain('đề xuất')
   })
 
   it('toggles a chip on and off via aria-pressed', async () => {

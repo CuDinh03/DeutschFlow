@@ -50,6 +50,8 @@ class ClassScheduleServiceTest {
     @Mock private ClassStudentRepository classStudentRepo;
     @Mock private ClassTeacherRepository classTeacherRepo;
     @Mock private UserNotificationService notificationService;
+    @Mock private com.deutschflow.organization.repository.ClassCurriculumLinkRepository classCurriculumLinkRepository;
+    @Mock private ScheduleChangeQueue changeQueue;
 
     private ClassScheduleService service;
 
@@ -60,7 +62,8 @@ class ClassScheduleServiceTest {
     @BeforeEach
     void setUp() {
         service = new ClassScheduleService(
-                patternRepo, sessionRepo, classRepo, classStudentRepo, classTeacherRepo, notificationService);
+                patternRepo, sessionRepo, classRepo, classStudentRepo, classTeacherRepo, notificationService,
+                classCurriculumLinkRepository, changeQueue);
     }
 
     // ── weekForTeacher ───────────────────────────────────────────────────────
@@ -297,7 +300,7 @@ class ClassScheduleServiceTest {
         when(sessionRepo.findByPatternIdAndStartAtGreaterThanEqual(eq(99L), any()))
                 .thenReturn(List.of(ov, st));
 
-        int removed = service.deletePattern(TEACHER_ID, 99L);
+        int removed = service.deletePattern(TEACHER_ID, 99L).removedSessions();
 
         ArgumentCaptor<List<ClassSession>> delCap = listCaptor();
         verify(sessionRepo).deleteAll(delCap.capture());
@@ -317,6 +320,8 @@ class ClassScheduleServiceTest {
                 .thenReturn(List.of(classTeacher(CLASS_ID), classTeacher(OTHER_CLASS_ID)));
         ClassSession busy = session(700L, OTHER_CLASS_ID, start.plusMinutes(30), null, false);
         when(sessionRepo.findTeacherTimeConflicts(anyList(), any(), any(), any())).thenReturn(List.of(busy));
+        // PR-5: gate duyệt đọc lớp trước (isOrgClass) — lớp cá nhân → đi tiếp đường trực tiếp.
+        when(classRepo.findById(CLASS_ID)).thenReturn(Optional.of(teacherClass(CLASS_ID, "K30")));
         when(classRepo.findById(OTHER_CLASS_ID)).thenReturn(Optional.of(teacherClass(OTHER_CLASS_ID, "A2 tối")));
 
         assertThatThrownBy(() -> service.createSession(TEACHER_ID, CLASS_ID,
@@ -363,6 +368,8 @@ class ClassScheduleServiceTest {
                 .thenReturn(List.of(classTeacher(CLASS_ID), classTeacher(OTHER_CLASS_ID)));
         ClassSession busy = session(800L, OTHER_CLASS_ID, newStart.plusMinutes(15), null, false);
         when(sessionRepo.findTeacherTimeConflicts(anyList(), any(), any(), eq(5L))).thenReturn(List.of(busy));
+        // PR-5: gate duyệt đọc lớp trước (isOrgClass) — lớp cá nhân → đi tiếp đường trực tiếp.
+        when(classRepo.findById(CLASS_ID)).thenReturn(Optional.of(teacherClass(CLASS_ID, "K30")));
         when(classRepo.findById(OTHER_CLASS_ID)).thenReturn(Optional.of(teacherClass(OTHER_CLASS_ID, "A2")));
 
         assertThatThrownBy(() -> service.updateSession(TEACHER_ID, 5L,

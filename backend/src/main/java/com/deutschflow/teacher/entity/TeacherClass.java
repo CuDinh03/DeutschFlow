@@ -31,6 +31,15 @@ public class TeacherClass {
     @Column(name = "invite_code", nullable = false, unique = true)
     private String inviteCode;
 
+    /**
+     * Phiên bản LỊCH của lớp (V294, AC10): tăng mỗi lần lịch thật sự đổi (áp đề xuất, hoặc ghi
+     * trực tiếp ở lớp không qua duyệt). Đề xuất lưu base_version lúc tạo; duyệt so khớp trong cùng
+     * giao dịch — lệch nghĩa là duyệt trên nền lỗi thời.
+     */
+    @Column(name = "schedule_version", nullable = false)
+    @Builder.Default
+    private long scheduleVersion = 0L;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
