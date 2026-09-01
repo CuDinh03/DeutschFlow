@@ -11,7 +11,7 @@
 | Đợt 2 | Backend đổi URL sinh ra (email, payment, DTO href) | ✅ 2026-07-15 · PR #221 (backend-only) |
 | **Đợt 2.5 + 2.6** | **Port nốt ~22 tính năng THẬT còn kẹt ở v1** (24 route v2 mới) — *phát sinh* | ✅ 2026-07-15 · PR #222 (nhánh `feat/v1-lockout-wave2h`) |
 | Đợt 3 | Xóa cây v1 + redirect map + nâng 307→permanent | ✅ 2026-09-02 · nhánh `chore/v1-purge-wave3` (xem §6.0) — **còn 4 gate của owner trước khi merge** |
-| Đợt 4 | Dọn dead code, dependencies, docs, PostHog | ⬜ ← **tiếp theo** (94 tệp mồ côi CÓ SẴN + ~35 deps, xem §7) |
+| Đợt 4 | Dọn dead code, dependencies, docs, PostHog | ✅ 2026-09-02 · nhánh `chore/v1-purge-wave4` (xem §7.0) |
 
 **Thứ tự deploy bắt buộc**: FE (Đợt 0 → 1) → BE (Đợt 2) → FE (Đợt 2.5/2.6 → 3) → dọn (Đợt 4).
 
@@ -192,6 +192,51 @@ Plan gốc (Q9) giả định nhóm route "GAP thuần" chỉ cần **đo PostHo
 **Theo dõi sau deploy Đợt 3 (48h)**: 404 event từ not-found tracking (path + referrer) — thiếu entry redirect thì thêm ngay; Amplify revert = rollback (redirect map nằm cùng PR nên revert an toàn).
 
 ## 7. Đợt 4 — Dọn dẹp
+
+### 7.0 ✅ ĐÃ THỰC THI 2026-09-02 — nhánh `chore/v1-purge-wave4` (stacked trên Đợt 3)
+
+**Dead code — 85 tệp.** Sau khi Đợt 3 gỡ cây `src/app` v1, đây là toàn bộ phần còn lại không còn
+đường nào từ entry point tới: 40 tệp `components/ui/*` (shadcn chưa bao giờ được `/v2` dùng),
+`components/speaking/*` (11), `components/vocabulary/*` (7), `components/roadmap/*` (4, gồm cụm
+`SkillTreeFlow` cũ), `features/ai-speaking/*` (4), 5 tệp `lib/*`, 2 store, 2 hook, 2 type.
+Sau khi xoá, **đo lại: 0 tệp mồ côi** — tập đã đóng, không sinh thêm vòng nào.
+
+> 🐛 **Script đo mồ côi của Đợt 3 có lỗi, đã sửa ở đợt này.** Regex bắt import chỉ khớp
+> `from '…'` / `import('…')` / `require('…')` — **bỏ sót side-effect import** `import '@/styles/x.css'`.
+> Hậu quả: 3 tệp CSS (`galerie.css`, `practice-runner.css`, `roadmap-tree.css`) bị gắn nhãn mồ côi
+> SAI, dù `app/page.tsx`, `app/v2/layout.tsx`… vẫn import chúng. Chúng **không** nằm trong danh sách
+> xoá của Đợt 3 (chỉ .ts/.tsx bị xoá) nên không gây thiệt hại, và `tsc` sạch đã chứng minh không có
+> tệp .ts/.tsx nào bị xoá nhầm. Script nay bắt cả `import\s+'…'`, kèm whitelist cho tệp được nạp
+> bởi cấu hình chứ không qua import: `__tests__/setup.ts`, `test/setup.ts` (vitest `setupFiles`),
+> `i18n/request.ts` (next-intl plugin), và mọi `*.d.ts` (ambient).
+
+**Dependencies — gỡ 34 gói trực tiếp (kéo theo 300 gói), `dependencies` 60 → 26.**
+20 gói `@radix-ui/react-*` + `cmdk`, `vaul`, `embla-carousel-react`, `react-day-picker`,
+`input-otp`, `react-resizable-panels`, `react-hook-form` (chết theo shadcn); `@xyflow/react`
+(SkillTreeFlow); `@dnd-kit/sortable` + `@dnd-kit/utilities` (**giữ `@dnd-kit/core`** — `/v2/student/game*`
+vẫn dùng); `idb-keyval` (offlineSync); `canvas-confetti`; `next-themes`; và
+`@ducanh2912/next-pwa` — gói này script báo "còn tham chiếu" là **dương tính giả**: chỗ duy nhất
+nhắc tên nó là *comment* trong `public/sw.js` do Đợt 3 viết.
+**Không đụng `devDependencies`**: `typescript`, `eslint`, `postcss`, `autoprefixer`, `@types/*`…
+đều được tooling nạp chứ không import, nên phép đo "không tham chiếu" ở đó là vô nghĩa.
+
+**PostHog**: `src/lib/flags.ts` (cờ `galerie-v2` mồ côi) đã xoá cùng dead code. Việc archive cờ
+trên PostHog console vẫn là **thao tác tay của owner**.
+
+**Docs đã sửa** (chỉ tài liệu còn được dùng để vận hành):
+- `qa/RUNBOOK_FULL_E2E.md` — khối cập nhật đầu file đang nói "cây v1 **vẫn còn sống** (chưa xoá)" và "redirect (307)"; sửa thành trạng thái thật + liệt kê 13 trang còn ở gốc + ghi chú SW tự huỷ. `/student/pricing` → `/v2/payment` ở hai ca thử.
+- `plans/2026-06-20-deploy-ops-runbook.md` — hai dòng checklist đầu file vẫn dạy "rollback = `GALERIE_V2_DISABLED=true`", mâu thuẫn với chính bảng env phía dưới (đã đánh dấu khai tử từ 14/07). Nay thống nhất: rollback = revert commit / Amplify redeploy.
+- `plans/2026-07-03-OWNER-MANUAL-STEPS.md` — "cây v1 đang gỡ" → đã gỡ.
+
+**Cố ý KHÔNG sửa**: các `BAO_CAO_*.md`, `qa/RESULTS_*.md` và plan `2026-06-*` là **biên bản tại thời
+điểm** — route v1 trong đó là sự thật lịch sử, sửa đi mới là làm sai hồ sơ. `docs/SRS_DeutschFlow.md`
+chỉ nhắc route v1 trong changelog cũ, cùng lý do.
+
+**Mục "hợp nhất kế hoạch" bên dưới đã lỗi thời**: `plans/2026-07-14-b2b-completion.md` **không tồn tại**
+trong repo (M-11/12/13 nay chỉ còn được nhắc trong chính tệp này), nên không có gì để hợp nhất.
+
+**Verify**: `npm ci` từ lock mới · tsc 0 lỗi · vitest 79 tệp/623 test · `next build` thành công ·
+`routes-manifest` vẫn **141 route, 0 route v1, 107 redirect**.
 
 - [ ] **94 tệp mồ côi CÓ SẴN trên main** (không do Đợt 3 gây ra — đã đo và cố ý chừa lại): 44 tệp `components/ui/*` shadcn, cụm `components/speaking/*` (11), `components/vocabulary/*` (8), `components/roadmap/*` (4), `lib/*` (13)… Hai tệp `types/today-plan.ts` + `types/vocabulary.ts` phải xoá **cùng** TodayPlanBoard/VocabCard, không tách rời. Còn hai tệp mồ côi vẫn trỏ path v1 (`TodayPlanBoard` → `/speaking`, `/vocabulary`; `SpeakingWelcomeClient` → `/speaking/chat`) — chết theo tệp, không cần sửa riêng.
 - [ ] Gỡ dependency: `@dnd-kit/*`, `@radix-ui/react-dropdown-menu`, `idb-keyval` (v1-only) + ~30 gói orphan (`@xyflow/react`, `react-hook-form`, `cmdk`, `vaul`, `embla-carousel-react`, `react-day-picker`, `input-otp`, `react-resizable-panels`, `canvas-confetti`, `@ducanh2912/next-pwa`, `next-themes`, ~20 gói `@radix-ui/*` — chỉ 42 file shadcn orphan dùng). Giữ `react-dom`.
