@@ -18,5 +18,11 @@ public record ClassLessonLogDto(
         String lessonTitle,
         Long sessionId
 ) {
-    public record AttendanceEntry(Long studentId, String name, String email, String status, String note) {}
+    public record AttendanceEntry(Long studentId, String name, String email, String status, String note,
+                                   boolean needsMakeup) {
+        /** Arity cũ (trước PR-7). */
+        public AttendanceEntry(Long studentId, String name, String email, String status, String note) {
+            this(studentId, name, email, status, note, false);
+        }
+    }
 }

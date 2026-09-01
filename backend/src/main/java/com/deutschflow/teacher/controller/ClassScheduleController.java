@@ -13,6 +13,8 @@ import com.deutschflow.teacher.service.ClassScheduleService;
 import com.deutschflow.teacher.dto.ScheduleForecastDto;
 import com.deutschflow.teacher.service.ScheduleChangeRequestService;
 import com.deutschflow.teacher.service.ScheduleForecastService;
+import com.deutschflow.teacher.service.SessionWorkspaceService;
+import com.deutschflow.teacher.dto.SessionWorkspaceDto;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -36,6 +38,7 @@ public class ClassScheduleController {
     private final ClassScheduleService service;
     private final ScheduleChangeRequestService changeRequestService;
     private final ScheduleForecastService forecastService;
+    private final SessionWorkspaceService workspaceService;
 
     /** Lịch tuần buổi lớp của giáo viên hiện tại. */
     @GetMapping("/week")
@@ -97,6 +100,24 @@ public class ClassScheduleController {
     @GetMapping("/classes/{classId}/forecast")
     public ScheduleForecastDto forecast(@AuthenticationPrincipal User teacher, @PathVariable Long classId) {
         return forecastService.forecastForTeacher(teacher.getId(), classId);
+    }
+
+    /** PR-7 (spec §8): màn làm việc theo buổi — một response gom Trước/Trong/Sau. */
+    @GetMapping("/sessions/{sessionId}/workspace")
+    public SessionWorkspaceDto workspace(@AuthenticationPrincipal User teacher, @PathVariable Long sessionId) {
+        return workspaceService.workspace(teacher.getId(), sessionId);
+    }
+
+    /** PR-7 (spec §2.3): CHỐT buổi — buổi qua giờ không tự thành "đã dạy", giáo viên xác nhận mới tính. */
+    @PostMapping("/sessions/{sessionId}/complete")
+    public SessionWorkspaceDto complete(@AuthenticationPrincipal User teacher, @PathVariable Long sessionId) {
+        return workspaceService.complete(teacher.getId(), sessionId);
+    }
+
+    /** PR-7: bỏ chốt — đi qua cửa sổ sửa hồi tố P07. */
+    @DeleteMapping("/sessions/{sessionId}/complete")
+    public SessionWorkspaceDto uncomplete(@AuthenticationPrincipal User teacher, @PathVariable Long sessionId) {
+        return workspaceService.uncomplete(teacher.getId(), sessionId);
     }
 
     /** PR-5: giáo viên rút đề xuất của CHÍNH MÌNH khi còn PENDING. */

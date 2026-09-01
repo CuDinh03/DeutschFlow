@@ -21,4 +21,9 @@ public class ClassAttendance {
 
     @Column(columnDefinition = "TEXT")
     private String note;
+
+    /** AC13 (V296): vắng → "cần bù riêng" (mặc định bật khi ABSENT, giáo viên bỏ được); lớp giữ tiến độ chung. */
+    @Column(name = "needs_makeup", nullable = false)
+    @Builder.Default
+    private boolean needsMakeup = false;
 }

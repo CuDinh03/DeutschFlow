@@ -319,6 +319,18 @@
         "projectedEnd": "Projected completion",
         "shortfall": "{minutes}′ short (~{sessions} sessions)",
         "atRisk": "at risk"
+      },
+      "unlocks": {
+        "heading": "Retro-edit unlocks",
+        "hint": "Session records (log, attendance, content confirmations) past the 7-day window can only be edited with a 24-hour unlock — reason required, the record itself is the audit.",
+        "classLabel": "Class",
+        "teacherLabel": "Teacher",
+        "primary": "primary",
+        "reasonPlaceholder": "Unlock reason (required)…",
+        "reasonRequired": "An unlock needs a reason",
+        "grant": "Grant 24h unlock",
+        "grantSuccess": "24-hour unlock granted",
+        "activeLine": "Active for {teacher} until {expires} — {reason}"
       }
     },
     "teachers": {

@@ -6,6 +6,8 @@ export interface LessonLogAttendanceEntry {
   email: string
   status: string
   note: string | null
+  /** AC13 (PR-7): vắng → "cần bù riêng" (mặc định bật khi ABSENT; giáo viên bỏ được). */
+  needsMakeup: boolean
 }
 
 export interface ClassLessonLog {
@@ -21,12 +23,16 @@ export interface ClassLessonLog {
   /** Optional link to the taught ClassLesson (Phase 1d-D3). */
   lessonId?: number | null
   lessonTitle?: string | null
+  /** PR-4 (AC05): buổi lịch mà nhật ký này thuộc về; null = nhật ký legacy theo ngày. */
+  sessionId?: number | null
 }
 
 export interface LessonLogAttendanceInput {
   studentId: number
   status: string
   note?: string | null
+  /** null/bỏ trống = tự suy theo trạng thái (ABSENT → cần bù riêng, AC13). */
+  needsMakeup?: boolean | null
 }
 
 export interface LessonLogRequest {
@@ -37,6 +43,9 @@ export interface LessonLogRequest {
   note?: string | null
   attendance?: LessonLogAttendanceInput[]
   lessonId?: number | null
+  sessionId?: number | null
+  /** PR-7 (P07): lý do sửa hồi tố — lưu vào lịch sử; tùy chọn. */
+  editReason?: string | null
 }
 
 export async function listLessonLogs(classId: number): Promise<ClassLessonLog[]> {

@@ -319,6 +319,18 @@
         "projectedEnd": "Voraussichtlich fertig",
         "shortfall": "{minutes}′ fehlen (~{sessions} Termine)",
         "atRisk": "Risiko"
+      },
+      "unlocks": {
+        "heading": "Freischaltungen für Nachbearbeitung",
+        "hint": "Aufzeichnungen außerhalb des 7-Tage-Fensters (Protokoll, Anwesenheit, Inhalte) sind nur mit einer 24-h-Freischaltung änderbar — Grund erforderlich, der Eintrag selbst ist das Audit.",
+        "classLabel": "Klasse",
+        "teacherLabel": "Lehrkraft",
+        "primary": "verantwortlich",
+        "reasonPlaceholder": "Grund (erforderlich)…",
+        "reasonRequired": "Eine Freischaltung braucht einen Grund",
+        "grant": "24-h-Freischaltung erteilen",
+        "grantSuccess": "24-h-Freischaltung erteilt",
+        "activeLine": "Aktiv für {teacher} bis {expires} — {reason}"
       }
     },
     "teachers": {
