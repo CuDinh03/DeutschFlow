@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import api from '@/lib/api'
+import { completeTheoryNode } from '@/lib/theoryNodeCompletion'
 import { useNodeSessionStore } from '@/stores/useNodeSessionStore'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
@@ -102,6 +103,10 @@ export default function V2StudentLearnNodePage() {
   } = useNodeSessionStore()
 
   const [showRecap, setShowRecap] = useState(false)
+  // Ghi nhận hoàn thành lên máy chủ chỉ MỘT lần cho mỗi node (F-19). Effect hoàn thành chạy lại mỗi
+  // khi tabScores đổi, nên thiếu chốt này là bắn trùng và lần thứ hai ăn 400 "đã hoàn thành rồi".
+  const completionSentForRef = useRef<number | null>(null)
+  const [completionNotice, setCompletionNotice] = useState<string | null>(null)
   const [phonemeSuccess, setPhonemeSuccess] = useState<Set<number>>(new Set())
   const [roadmapState, setRoadmapState] = useState<RoadmapState | null>(null)
 
@@ -132,6 +137,17 @@ export default function V2StudentLearnNodePage() {
 
     if (allAttempted && allPassed) {
       setShowRecap(true)
+      // Bấm "Đã đọc & Hiểu" trước đây chỉ đổi state trong trình duyệt, không hề gọi máy chủ, nên
+      // lộ trình vẫn đứng im ở 0/46 (F-19). Backend đã có sẵn đường này và mobile vẫn dùng.
+      if (completionSentForRef.current !== nodeId) {
+        completionSentForRef.current = nodeId
+        void completeTheoryNode(nodeId).then((result) => {
+          // 'alreadyDone' và 'gradedNode' là bình thường: node đã xong từ trước, hoặc node này
+          // hoàn thành qua đường nộp bài chấm điểm. Chỉ lỗi THẬT mới hiện — im lặng ở đây là tái
+          // lập đúng cái bẫy của F-18 (học viên tưởng đã lưu, thực ra chưa).
+          if (result.outcome === 'failed') setCompletionNotice(result.message)
+        })
+      }
       trackFeatureAction('lesson', 'completed', {
         node_id: nodeId,
         node_title: session?.titleVi,
@@ -435,6 +451,16 @@ export default function V2StudentLearnNodePage() {
           )}
         </div>
       </div>
+
+      {/* Ghi nhận hoàn thành lên máy chủ thất bại — nói thẳng, đừng để học viên tưởng đã lưu. */}
+      {completionNotice && (
+        <div
+          role="alert"
+          className="mx-auto mb-4 max-w-[860px] border border-ga-red/40 bg-ga-red-soft px-4 py-3 text-[14px] text-ga-ink"
+        >
+          <strong className="font-semibold">{t('progressNotSaved')}</strong> {completionNotice}
+        </div>
+      )}
 
       {/* Recap khi vượt node */}
       {showRecap && session && (

@@ -1110,6 +1110,7 @@
       "errorJobFailed": "Generating the set failed. Hit retry to grow a new one."
     },
     "learnNode": {
+      "progressNotSaved": "Your progress could not be saved to the server.",
       "toPractice": "Practice 4 skills",
       "roadmapContext": "Position in roadmap",
       "completedInRoadmap": "of the roadmap completed",
