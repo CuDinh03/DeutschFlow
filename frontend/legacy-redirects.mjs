@@ -6,10 +6,11 @@
  * routes-manifest và áp dụng ở tầng CDN — nên nó bắt được cả lượt truy cập từ cache lẫn từ
  * bookmark/lịch sử trình duyệt (đúng đường mà người dùng rơi ngược về v1 hôm 04/08).
  *
- * `permanent: false` (307) là CỐ Ý — giống hệt lý do của ba redirect gốc (/login, /register,
- * /dashboard): 301/308 bị trình duyệt cache VĨNH VIỄN, nếu phải rollback thì người dùng vẫn kẹt.
- * Cây v1 vẫn còn nguyên trên đĩa ở đợt này → phải giữ đường lui. Chỉ nâng lên `permanent: true`
- * ở đợt xoá hẳn cây v1 (Đợt 3).
+ * `permanent: true` (308) TỪ ĐỢT 3 — trước đó là 307 vì cây v1 vẫn nằm nguyên trên đĩa và phải
+ * giữ đường lui khi rollback. Đợt 3 đã XOÁ HẲN cây v1: không còn gì để lui về, đích /v2 là vĩnh
+ * viễn, nên 308 là đúng ngữ nghĩa và tiết kiệm một vòng round-trip cho lượt truy cập lặp lại.
+ * Đổi ý sau này thì tốn kém: 308 bị trình duyệt cache VĨNH VIỄN — muốn trỏ một path v1 sang đích
+ * khác thì phải đổi chính path đó, không sửa được trên máy người dùng đã cache.
  *
  * `trailingSlash: true` (next.config.mjs) → khai báo `source` KHÔNG có dấu "/" cuối; Next tự
  * chuẩn hoá cả hai dạng. Query string được giữ nguyên khi redirect (nên `?token=` của lời mời
@@ -20,8 +21,8 @@
  * -to-regexp khớp đúng số segment. Vẫn xếp cụ-thể-trước-tổng-quát làm thói quen phòng thủ.
  */
 
-/** `[source, destination]` → entry redirect đầy đủ. Tránh lặp `permanent: false` ~90 lần. */
-const to307 = ([source, destination]) => ({ source, destination, permanent: false })
+/** `[source, destination]` → entry redirect đầy đủ. Tránh lặp `permanent: true` ~100 lần. */
+const toPermanent = ([source, destination]) => ({ source, destination, permanent: true })
 
 /**
  * Học viên. Lưu ý vài chỗ ĐỔI TÊN chứ không phải port 1-1:
@@ -77,6 +78,9 @@ const STUDENT = [
   ['/student/vocab-practice', '/v2/student/vocabulary/practice'],
   ['/student/vocabulary', '/v2/student/vocabulary'],
   ['/student/weekly-speaking', '/v2/student/weekly-speaking'],
+  // Trang chết của v1 (chỉ hiện "N/A"), không có đích tương ứng ở v2 — đổ về dashboard để lượt
+  // truy cập từ bookmark cũ không rơi vào 404 sau khi Đợt 3 xoá file.
+  ['/student/groq-usage', '/v2/student/dashboard'],
 ]
 
 /**
@@ -191,7 +195,9 @@ const ADMIN = [
  * 3. `/payment/success`: URL RETURN của cổng thanh toán. Không có gì trong `src/` trỏ tới nó
  *    NHƯNG cổng ngoài có thể vẫn giữ URL cũ trong cấu hình merchant — redirect ở đây là rủi ro
  *    tiền bạc, phải đối chiếu cấu hình cổng trước rồi mới đụng.
- * 4. `/student/groq-usage`: trang chết, chỉ hiển thị "N/A". Không có đích v2 nào tương ứng.
+ * 4. (ĐÃ HẾT — xem STUDENT ở trên) `/student/groq-usage` từng nằm trong danh sách này vì là trang
+ *    chết chỉ hiển thị "N/A" và không có đích v2. Ở Đợt 0–2.6 nó vẫn TỰ PHỤC VỤ được nên bỏ trống
+ *    là vô hại; Đợt 3 xoá file đi thì bỏ trống = 404 thật, nên nay đổ về dashboard học viên.
  * 5. `/login`, `/register`, `/dashboard`: đã có redirect từ đợt 0, giữ nguyên tại chỗ cũ trong
  *    `next.config.mjs` để không làm loãng lịch sử của chúng.
  */
@@ -201,6 +207,6 @@ export const legacyV1Redirects = [
   ...TEACHER,
   ...ORG,
   ...ADMIN,
-].map(to307)
+].map(toPermanent)
 
 export default legacyV1Redirects
