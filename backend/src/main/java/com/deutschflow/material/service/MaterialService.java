@@ -365,6 +365,19 @@ public class MaterialService {
 
     @Transactional(readOnly = true)
     public MaterialDto get(User caller, Long id) {
+        return toDto(requireReadable(caller, id));
+    }
+
+    /**
+     * The material behind {@code id}, once the caller is allowed to read it and it is still ACTIVE.
+     *
+     * <p>Exposed for callers that need the entity and the permission check but not a presigned URL —
+     * the curriculum importer, for instance, verifies the teacher may read the book it is importing
+     * from without paying for an S3 signature it would never use. Same rules as {@link #get}; keeping
+     * one implementation is what stops the two drifting apart.
+     */
+    @Transactional(readOnly = true)
+    public Material requireReadable(User caller, Long id) {
         Material m = materialRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tài liệu."));
         assertCanAccess(caller, m);
@@ -372,7 +385,7 @@ public class MaterialService {
         if (!STATUS_ACTIVE.equals(m.getStatus())) {
             throw new NotFoundException("Không tìm thấy tài liệu.");
         }
-        return toDto(m);
+        return m;
     }
 
     /** Archived materials (the "Đã lưu trữ" filter) — same PERSONAL ∪ ORG scoping as {@link #list}. */
