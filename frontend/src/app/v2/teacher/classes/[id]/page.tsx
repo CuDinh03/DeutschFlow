@@ -46,7 +46,7 @@ interface Student {
   skillHoren: number | null; skillLesen: number | null; skillSchreiben: number | null; skillSprechen: number | null
   evaluatedAt: string | null
 }
-interface Assignment { id: number; topic: string; description: string; assignmentType: string; skill?: string | null; dueDate: string | null; createdAt: string; attachmentUrl?: string | null; lessonId?: number | null }
+interface Assignment { id: number; topic: string; description: string; assignmentType: string; skill?: string | null; dueDate: string | null; createdAt: string; attachmentUrl?: string | null; lessonId?: number | null; status?: string; publishedAt?: string | null; sessionId?: number | null; recipientCount?: number }
 interface ActionItem { title: string; detail: string; priority: string }
 interface Analytics {
   totalStudents: number; totalXp: number; completedAssignments: number
@@ -266,6 +266,9 @@ export default function V2ClassDetailPage() {
   const [deletingTask, setDeletingTask] = useState<number | null>(null)
   /** Bài tập đang chờ xác nhận xoá trong ConfirmDialog; null = dialog đóng. */
   const [confirmDelete, setConfirmDelete] = useState<Assignment | null>(null)
+  // PR-8 (P06): công bố bài nháp qua ConfirmDialog nêu ai sẽ nhận + notification.
+  const [confirmPublish, setConfirmPublish] = useState<Assignment | null>(null)
+  const [publishing, setPublishing] = useState(false)
 
   /**
    * Xoá một bài tập đã giao. Backend chỉ cho xoá khi CHƯA ai nộp (ba bảng con đều ON DELETE CASCADE,
@@ -285,6 +288,21 @@ export default function V2ClassDetailPage() {
       setDeletingTask(null)
     }
   }, [id, t, load])
+
+  const publishTask = async () => {
+    if (!confirmPublish) return
+    setPublishing(true)
+    try {
+      await api.post(`/v2/teacher/classes/${id}/assignments/${confirmPublish.id}/publish`)
+      toast.success(t('publishSuccess'))
+      setConfirmPublish(null)
+      await load()
+    } catch (e: unknown) {
+      toast.error(apiMessage(e))
+    } finally {
+      setPublishing(false)
+    }
+  }
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -575,6 +593,16 @@ export default function V2ClassDetailPage() {
                             <span className="inline-flex items-center gap-1 px-2 py-[3px] text-[10px] font-bold uppercase tracking-[0.06em]" style={{ color: m.tone, background: `color-mix(in srgb, ${m.tone} 12%, transparent)` }}>
                               <m.Icon size={12} /> {t(`types.${m.labelKey}`)}
                             </span>
+                            {task.status === 'DRAFT' && (
+                              <span className="ga-ui inline-flex items-center rounded-ga px-1.5 py-[3px] text-[10px] font-bold uppercase" style={{ color: 'var(--ga-gold)', background: 'var(--ga-yellow-soft)' }}>
+                                {t('draftBadge')}
+                              </span>
+                            )}
+                            {(task.recipientCount ?? 0) > 0 && (
+                              <span className="ga-ui inline-flex items-center rounded-ga border border-ga-line px-1.5 py-[3px] text-[10px] font-bold text-ga-muted">
+                                {t('recipientChip', { count: task.recipientCount })}
+                              </span>
+                            )}
                             {task.lessonId != null && lessons.find((l) => l.id === task.lessonId) && (
                               <span className="ga-ui inline-flex items-center rounded-ga px-1.5 py-[3px] text-[10px] font-bold" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>
                                 {lessons.find((l) => l.id === task.lessonId)!.title}
@@ -592,6 +620,11 @@ export default function V2ClassDetailPage() {
                             <span className="inline-flex items-center gap-1 px-3 py-[7px] text-[11.5px] font-bold" style={{ color: 'var(--ga-ink)', background: 'var(--ga-yellow-soft)', border: '1px solid var(--ga-yellow)' }}>
                               <AlertTriangle size={13} /> {t('pendingGrade', { count: pending })}
                             </span>
+                          )}
+                          {isPrimary && task.status === 'DRAFT' && (
+                            <GaBtn variant="yellow" size="sm" onClick={() => setConfirmPublish(task)}>
+                              {t('publishTask')}
+                            </GaBtn>
                           )}
                           {isPrimary && (
                             <>
@@ -711,9 +744,28 @@ export default function V2ClassDetailPage() {
         )}
       </div>
 
-      <AddAssignmentModal open={modal} onOpenChange={(o) => { setModal(o); if (!o) setEditing(null) }} classId={id} lessons={lessons} onCreated={load} editing={editing} />
+      <AddAssignmentModal open={modal} onOpenChange={(o) => { setModal(o); if (!o) setEditing(null) }} classId={id} lessons={lessons} students={students} onCreated={load} editing={editing} />
 
       {/* Chuẩn xoá toàn sản phẩm: ConfirmDialog nêu hệ quả, không window.confirm. */}
+      {confirmPublish && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => { if (!o) setConfirmPublish(null) }}
+          title={t('publishDialogTitle')}
+          description={confirmPublish.topic}
+          details={[
+            (confirmPublish.recipientCount ?? 0) > 0
+              ? t('publishDialogTargeted', { count: confirmPublish.recipientCount })
+              : t('publishDialogWholeClass'),
+            t('publishDialogNotify'),
+          ]}
+          confirmLabel={t('publishConfirm')}
+          cancelLabel={tc('cancel')}
+          destructive={false}
+          loading={publishing}
+          onConfirm={() => void publishTask()}
+        />
+      )}
       {confirmDelete && (
         <ConfirmDialog
           open
@@ -744,6 +796,7 @@ function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics |
     MEDIUM: { fg: 'var(--ga-orange)', bg: 'var(--ga-orange-soft)' },
     LOW: { fg: 'var(--ga-muted)', bg: 'var(--ga-side-active)' },
   }
+
 
   return (
     <>
@@ -887,7 +940,7 @@ const toDateInput = (iso: string | null | undefined): string => (iso ? format(ne
  * Sửa đi đường PATCH và chỉ gửi metadata; loại bài tập không đổi được (một bài SPEAKING_SCENARIO đã
  * sinh kịch bản AI và trỏ tới nó qua referenceId) và tài liệu đính kèm giữ nguyên như lúc giao.
  */
-function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated, editing }: { open: boolean; onOpenChange: (o: boolean) => void; classId: number; lessons: ClassLesson[]; onCreated: () => void; editing?: Assignment | null }) {
+function AddAssignmentModal({ open, onOpenChange, classId, lessons, students, onCreated, editing }: { open: boolean; onOpenChange: (o: boolean) => void; classId: number; lessons: ClassLesson[]; students: Student[]; onCreated: () => void; editing?: Assignment | null }) {
   const t = useTranslations('v2.teacher.classDetail')
   const tc = useTranslations('v2.common')
   const isEdit = !!editing
@@ -900,6 +953,10 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated, e
   const [due, setDue] = useState('')
   const [lessonId, setLessonId] = useState('')
   const [saving, setSaving] = useState(false)
+  // PR-8: công bố ngay (mặc định — hành vi cũ) hay lưu NHÁP (P06); người nhận (AC14).
+  const [publishNow, setPublishNow] = useState(true)
+  const [audience, setAudience] = useState<'ALL' | 'PICKED'>('ALL')
+  const [picked, setPicked] = useState<Set<number>>(new Set())
 
   // Đổ lại giá trị mỗi lần mở: mở để SỬA thì lấy từ bài đang sửa, mở để TẠO thì về mặc định — nếu
   // không reset, form còn giữ nội dung của lần mở trước.
@@ -913,10 +970,14 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated, e
     setDue(toDateInput(editing?.dueDate))
     setLessonId(editing?.lessonId != null ? String(editing.lessonId) : '')
     setMaterials([])
+    setPublishNow(true)
+    setAudience('ALL')
+    setPicked(new Set())
   }, [open, editing])
 
   const submit = async () => {
     if (!topic.trim()) { toast.error(t('modalTopicRequired')); return }
+    if (!isEdit && audience === 'PICKED' && picked.size === 0) { toast.error(t('modalRecipientsRequired')); return }
     const link = attachmentUrl.trim()
     if (link && !/^https?:\/\//i.test(link)) { toast.error(t('modalLinkInvalid')); return }
     setSaving(true)
@@ -955,8 +1016,11 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated, e
         // Library materials picked from the teacher's own shelf; the backend re-checks access + class
         // ownership per id and attaches them to the assignment (in pick order).
         materialIds: materials.map((m) => m.id),
+        // PR-8: nháp vô hình với học viên (P06); người nhận rỗng = cả lớp (AC14).
+        status: publishNow ? 'PUBLISHED' : 'DRAFT',
+        recipientStudentIds: audience === 'PICKED' ? Array.from(picked) : null,
       })
-      toast.success(t('modalCreateSuccess'))
+      toast.success(publishNow ? t('modalCreateSuccess') : t('modalDraftSuccess'))
       setTopic(''); setDescription(''); setAttachmentUrl(''); setMaterials([]); setType('GENERAL'); setSkill('GENERAL'); setDue(''); setLessonId('')
       onOpenChange(false)
       onCreated()
@@ -983,6 +1047,48 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated, e
       }
     >
       <div className="flex flex-col gap-4">
+        {!isEdit && (
+          <div className="flex flex-col gap-2 border border-ga-line bg-ga-bg p-3">
+            <label className="flex items-center gap-2 text-[13.5px] text-ga-ink">
+              <input type="checkbox" checked={publishNow} onChange={(e) => setPublishNow(e.target.checked)} className="h-4 w-4 accent-[var(--ga-accent)]" />
+              {t('modalPublishNow')}
+            </label>
+            {!publishNow && <p className="ga-ui m-0 pl-6 text-[12px] text-ga-muted">{t('modalDraftHint')}</p>}
+            <div className="mt-1 flex flex-col gap-1.5">
+              <span className="ga-ui text-[11.5px] font-bold uppercase tracking-[0.05em] text-ga-muted">{t('modalAudienceCap')}</span>
+              <label className="flex items-center gap-2 text-[13px] text-ga-ink">
+                <input type="radio" name="aud" checked={audience === 'ALL'} onChange={() => setAudience('ALL')} className="accent-[var(--ga-accent)]" />
+                {t('modalAudienceAll')}
+              </label>
+              <label className="flex items-center gap-2 text-[13px] text-ga-ink">
+                <input type="radio" name="aud" checked={audience === 'PICKED'} onChange={() => setAudience('PICKED')} className="accent-[var(--ga-accent)]" />
+                {t('modalAudiencePicked')}
+              </label>
+              {audience === 'PICKED' && (
+                <ul className="m-0 flex max-h-[160px] list-none flex-col gap-1 overflow-auto border border-ga-line bg-ga-card p-2">
+                  {students.map((st) => (
+                    <li key={st.studentId}>
+                      <label className="flex items-center gap-2 text-[12.5px] text-ga-ink">
+                        <input
+                          type="checkbox"
+                          checked={picked.has(st.studentId)}
+                          onChange={(e) => setPicked((prev) => {
+                            const next = new Set(prev)
+                            if (e.target.checked) next.add(st.studentId)
+                            else next.delete(st.studentId)
+                            return next
+                          })}
+                          className="h-3.5 w-3.5 accent-[var(--ga-accent)]"
+                        />
+                        {st.displayName}
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
         <div>
           <GaCap className="mb-2 block">{t('modalTopicCap')}</GaCap>
           <input className={field} value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={t('modalTopicPlaceholder')} />

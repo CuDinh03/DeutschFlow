@@ -30,6 +30,7 @@ import static org.mockito.Mockito.*;
 class StudentEvaluationServiceTest {
 
     @Mock private ClassStudentRepository classStudentRepository;
+    @Mock private AssignmentAudienceService assignmentAudienceService;
     @Mock private ClassTeacherRepository classTeacherRepository;
     @Mock private ClassLessonLogRepository lessonLogRepository;
     @Mock private ClassAttendanceRepository attendanceRepository;
@@ -46,8 +47,13 @@ class StudentEvaluationServiceTest {
 
     @BeforeEach
     void setUp() {
+        // PR-8: audience mock cho QUA hết (mọi bài giao cả lớp, PUBLISHED) — hành vi trước PR-8;
+        // các ca lọc theo người nhận/nháp nằm ở AssignmentAudienceServiceTest + IT.
+        org.mockito.Mockito.lenient().when(assignmentAudienceService.visibleTo(
+                        org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyList()))
+                .thenAnswer(inv -> inv.getArgument(1));
         service = new StudentEvaluationService(
-                classStudentRepository, classTeacherRepository,
+                classStudentRepository, assignmentAudienceService, classTeacherRepository,
                 lessonLogRepository, attendanceRepository,
                 assignmentRepository, studentAssignmentRepository,
                 classRepository, userRepository);

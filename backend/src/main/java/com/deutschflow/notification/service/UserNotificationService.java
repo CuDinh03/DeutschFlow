@@ -532,7 +532,18 @@ public class UserNotificationService {
             "SELECT student_id FROM class_students WHERE class_id = ?",
             Long.class, classId);
 
-        if (studentIds.isEmpty()) return;
+        onNewClassAssignmentFor(studentIds, classId, className, teacherName, assignmentId, topic);
+    }
+
+    /**
+     * PR-8 (AC14): biến thể giao-theo-người-nhận — chỉ những {@code studentIds} này nhận thông báo
+     * (bài có danh sách người nhận không được réo cả lớp). Vẫn async như bản cả-lớp.
+     */
+    @Async("taskExecutor")
+    @Transactional
+    public void onNewClassAssignmentFor(List<Long> studentIds, Long classId, String className,
+                                        String teacherName, Long assignmentId, String topic) {
+        if (studentIds == null || studentIds.isEmpty()) return;
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("classId", classId);

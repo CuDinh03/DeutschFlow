@@ -29,6 +29,16 @@ export interface SessionWorkspace {
   log: ClassLessonLog | null
   roster: { studentId: number; displayName: string }[]
   forecast: ScheduleForecast
+  /** PR-8 (spec §8): bài tập gắn CHÍNH buổi này — giáo viên thấy cả nháp. */
+  assignments: SessionAssignment[]
+}
+
+export interface SessionAssignment {
+  id: number
+  topic: string
+  status: 'DRAFT' | 'PUBLISHED'
+  dueDate: string | null
+  recipientCount: number
 }
 
 export async function getSessionWorkspace(sessionId: number): Promise<SessionWorkspace> {

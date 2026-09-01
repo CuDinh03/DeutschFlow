@@ -21,5 +21,22 @@ public record ClassAssignmentDto(
         LocalDateTime dueDate,
         LocalDateTime createdAt,
         String attachmentUrl,
-        Long lessonId
-) {}
+        Long lessonId,
+        /** PR-8: DRAFT | PUBLISHED (P06 — nháp vô hình với học viên). */
+        String status,
+        LocalDateTime publishedAt,
+        Long sessionId,
+        Long lektionId,
+        Long curriculumItemId,
+        /** Số người nhận được chọn; 0 = giao cả lớp (AC14). */
+        int recipientCount
+) {
+    /** Arity cũ (trước PR-8). */
+    public ClassAssignmentDto(Long id, Long classId, String topic, String description,
+                              String assignmentType, String skill, Long referenceId,
+                              LocalDateTime dueDate, LocalDateTime createdAt, String attachmentUrl,
+                              Long lessonId) {
+        this(id, classId, topic, description, assignmentType, skill, referenceId, dueDate, createdAt,
+                attachmentUrl, lessonId, "PUBLISHED", null, null, null, null, 0);
+    }
+}

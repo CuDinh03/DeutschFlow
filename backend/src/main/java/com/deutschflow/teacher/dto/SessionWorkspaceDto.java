@@ -30,7 +30,9 @@ public record SessionWorkspaceDto(
         /** Nhật ký của CHÍNH buổi (null = chưa ghi). */
         ClassLessonLogDto log,
         List<RosterStudent> roster,
-        ScheduleForecastDto forecast
+        ScheduleForecastDto forecast,
+        /** PR-8 (spec §8): bài tập gắn CHÍNH buổi này — kể cả nháp (chỉ giáo viên thấy nháp). */
+        List<ClassAssignmentDto> assignments
 ) {
     public record RosterStudent(Long studentId, String displayName) {}
 }

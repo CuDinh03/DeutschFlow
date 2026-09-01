@@ -799,7 +799,23 @@
       "deleteTaskSuccess": "Aufgabe gelöscht.",
       "modalEditTitle": "Aufgabe bearbeiten",
       "modalSaveEdit": "Änderungen speichern",
-      "modalEditSuccess": "Änderungen gespeichert."
+      "modalEditSuccess": "Änderungen gespeichert.",
+      "draftBadge": "Entwurf",
+      "recipientChip": "{count} Empfänger",
+      "publishTask": "Veröffentlichen",
+      "publishSuccess": "Aufgabe veröffentlicht — Lernende wurden benachrichtigt",
+      "publishDialogTitle": "Aufgabe veröffentlichen?",
+      "publishDialogTargeted": "Sie erreicht die {count} ausgewählten Lernenden (nicht die ganze Klasse).",
+      "publishDialogWholeClass": "Sie erreicht ALLE Lernenden der Klasse.",
+      "publishDialogNotify": "Jede*r Empfänger*in erhält eine Benachrichtigung und einen neuen Aufgabeneintrag — kein stilles Zurückziehen.",
+      "publishConfirm": "Veröffentlichen",
+      "modalPublishNow": "Beim Speichern sofort veröffentlichen",
+      "modalDraftHint": "Als ENTWURF speichern: für Lernende unsichtbar — später in der Liste veröffentlichen.",
+      "modalAudienceCap": "Empfänger",
+      "modalAudienceAll": "Ganze Klasse",
+      "modalAudiencePicked": "Lernende auswählen…",
+      "modalRecipientsRequired": "Mindestens eine*n Empfänger*in wählen",
+      "modalDraftSuccess": "Entwurf gespeichert — Lernende sehen noch nichts"
     },
     "studentDetail": {
       "nameFallback": "Lernende(r) #{id}",
@@ -1020,7 +1036,11 @@
       "cancel": "Abbrechen",
       "uncompleteDialogTitle": "Termin wieder öffnen?",
       "uncompleteDialogDetail": "Der Termin gilt wieder als nicht abgeschlossen; die Aktion wird in der Änderungshistorie festgehalten.",
-      "uncompleteConfirm": "Wieder öffnen"
+      "uncompleteConfirm": "Wieder öffnen",
+      "assignmentsCap": "Aufgaben des Termins",
+      "assignmentDraft": "Entwurf",
+      "assignmentRecipients": "{count} Empfänger",
+      "assignmentDue": "fällig {date}"
     }
   }
 }

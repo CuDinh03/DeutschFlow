@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 public class StudentClassroomService {
 
     private final TeacherClassRepository classRepository;
+    private final AssignmentAudienceService assignmentAudienceService;
     private final ClassStudentRepository classStudentRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassAssignmentRepository assignmentRepository;
@@ -119,7 +120,9 @@ public class StudentClassroomService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp học"));
 
         List<TeacherSummaryDto> teachers = teachersForClasses(List.of(classId)).getOrDefault(classId, List.of());
-        List<ClassAssignment> classAssignments = assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId);
+        // PR-8 (P06/AC14): thống kê chỉ tính bài học viên NÀY được thấy — nháp/bài của người khác vô hình.
+        List<ClassAssignment> classAssignments = assignmentAudienceService.visibleTo(studentId,
+                assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId));
         Map<Long, StudentAssignment> myByAssignmentId = classAssignments.isEmpty()
                 ? Map.of()
                 : studentAssignmentRepository.findByAssignmentIds(
@@ -168,7 +171,10 @@ public class StudentClassroomService {
         // they could not open. Left-join each assignment with the student's row and synthesise a
         // not-yet-started entry where none exists. AssignmentBackfillService keeps the rows in sync going
         // forward; this net covers any that are still missing (e.g. a pre-V260 join not yet backfilled).
-        List<ClassAssignment> classAssignments = assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId);
+        // PR-8 (P06/AC14): học viên chỉ thấy bài PUBLISHED giao cho MÌNH (không recipients = cả lớp)
+        // — lọc TRƯỚC synthesise, nếu không dòng not-started tự sinh sẽ làm lộ bài nháp/bài người khác.
+        List<ClassAssignment> classAssignments = assignmentAudienceService.visibleTo(studentId,
+                assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId));
         if (classAssignments.isEmpty()) return List.of();
 
         List<Long> assignmentIds = classAssignments.stream().map(ClassAssignment::getId).toList();

@@ -246,6 +246,29 @@ export default function V2SessionWorkspacePage() {
               )}
             </section>
 
+            {/* ── Bài tập gắn buổi (PR-8, spec §8) ── */}
+            {ws.assignments.length > 0 && (
+              <section aria-label={t('assignmentsCap')}>
+                <GaCap className="mb-2 block">{t('assignmentsCap')}</GaCap>
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+                  {ws.assignments.map((a) => (
+                    <li key={a.id} className="flex flex-wrap items-center gap-2 border border-ga-line bg-ga-card px-3.5 py-2">
+                      <span className="min-w-0 flex-1 text-[13px] font-semibold text-ga-ink">{a.topic}</span>
+                      {a.status === 'DRAFT' && (
+                        <TkBadge tone="yellow">{t('assignmentDraft')}</TkBadge>
+                      )}
+                      {a.recipientCount > 0 && (
+                        <span className="ga-ui text-[11px] text-ga-muted">{t('assignmentRecipients', { count: a.recipientCount })}</span>
+                      )}
+                      {a.dueDate && (
+                        <span className="ga-ui text-[11.5px] text-ga-subtle">{t('assignmentDue', { date: format(new Date(a.dueDate), 'dd/MM HH:mm') })}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
             {/* ── Trong buổi: nhật ký + điểm danh (AC13) ── */}
             <section aria-label={t('duringCap')}>
               <GaCap className="mb-2 block">{t('duringCap')}</GaCap>
