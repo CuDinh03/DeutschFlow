@@ -50,6 +50,8 @@ export interface Branch {
   strokeWidth: number
   /** Tuần chưa có node nào mở — vẽ mờ. */
   dim: boolean
+  /** Mọi ngày trong tuần đã hoá lá — nhãn tuần chuyển tông xanh. */
+  complete: boolean
   labelX: number
   labelY: number
   firstDay: number | null
@@ -57,6 +59,8 @@ export interface Branch {
 }
 
 export interface CanopyBlob {
+  /** Tuần mà tán này che; undefined với tán ngọn. */
+  week?: number
   cx: number
   cy: number
   rx: number
@@ -233,6 +237,7 @@ export function buildTreeLayout(nodes: readonly TreeNodeInput[]): TreeLayout {
     const bucket = byWeek.get(week) ?? []
     const days = bucket.map((b) => b.node.dayNumber).filter((d): d is number => d != null && d > 0)
     const dim = !bucket.some((b) => b.motif !== 'nub')
+    const complete = bucket.length > 0 && bucket.every((b) => b.motif === 'leaf')
 
     branches.push({
       week,
@@ -246,6 +251,7 @@ export function buildTreeLayout(nodes: readonly TreeNodeInput[]): TreeLayout {
         .join(' '),
       strokeWidth,
       dim,
+      complete,
       labelX: side === -1 ? 34 : WIDTH - 34 - 160,
       labelY: baseY + 26,
       firstDay: days.length ? Math.min(...days) : null,
@@ -253,6 +259,7 @@ export function buildTreeLayout(nodes: readonly TreeNodeInput[]): TreeLayout {
     })
 
     canopy.push({
+      week,
       cx: (start[0] + end[0]) / 2 + side * 12,
       cy: baseY - 34,
       rx: clamp(86 - tier * 3, 60, 86),

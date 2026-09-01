@@ -1,12 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowLeft, BookOpen, Check, Mic, RefreshCw, Sparkles, Trophy, Volume2, X } from 'lucide-react'
+import { ArrowLeft, BookOpen, Check, Mic, RefreshCw, Sparkles, TreeDeciduous, Trophy, Volume2, X } from 'lucide-react'
 import api from '@/lib/api'
 import { isAsyncJobAccepted, waitForAsyncJob } from '@/lib/asyncJob'
 import { pickExplanation } from '@/lib/practice/explanation'
+import { classifyPracticeError, type PracticeErrorInfo } from '@/lib/practice/practiceError'
+import { MASTERY_PERCENT } from '@/lib/roadmap-tree/practiceStats'
+import { LeafProgress } from '@/components/practice/LeafProgress'
+import { SeedlingWait } from '@/components/practice/SeedlingWait'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { SKILL_COLORS, SKILL_LABELS, SKILL_ICONS } from '@/lib/skills'
@@ -41,6 +46,13 @@ const SKILL_LABELS_DE: Record<Skill, string> = {
   lesen: 'Lesen',
   schreiben: 'Schreiben',
 }
+
+/**
+ * Đường về cây (L3a/L3b): luôn mang `feiern=<skill>` — tab cây tự đối chiếu điểm để diễn bậc 0
+ * (dưới ngưỡng: cánh nhún) hay bậc 1–3 (đạt: cánh nhận màu → hoa hoá lá → tuần khép tán).
+ */
+const treeHref = (nodeId: number, skill: Skill, feiern: boolean) =>
+  `/v2/student/roadmap?tab=tree&node=${nodeId}${feiern ? `&feiern=${skill}` : ''}`
 
 /** Các dạng bài "nói" — không chấm tự động, học viên tự xác nhận đã đọc (giữ nguyên v1). */
 const SPEAKING_TYPES = ['SPEAKING_REPEAT', 'SPEAKING_RESPONSE', 'ROLE_PLAY', 'SPEAKING_DESCRIBE']
@@ -424,12 +436,35 @@ export default function V2StudentPracticeRunnerPage() {
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [errorInfo, setErrorInfo] = useState<PracticeErrorInfo | null>(null)
   const [answers, setAnswers] = useState<Map<number, { answer: AnswerValue; correct: boolean }>>(new Map())
   const [submitted, setSubmitted] = useState(false)
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null)
   const [generatingNext, setGeneratingNext] = useState(false)
 
   const accent = SKILL_COLORS[skill]
+
+  /** Đ0b: tách nhánh 409 / quota / AI 503 / job FAILED thay vì nuốt hết thành "không tải được". */
+  const failWith = useCallback(
+    (err: unknown, fallbackKey: 'loadError' | 'generateError') => {
+      const info = classifyPracticeError(err)
+      setErrorInfo(info)
+      const base =
+        info.kind === 'conflict'
+          ? t('errorConflict')
+          : info.kind === 'quota'
+            ? info.retryAfterSeconds
+              ? t('errorRateLimited', { seconds: info.retryAfterSeconds })
+              : t('errorQuota')
+            : info.kind === 'aiUnavailable'
+              ? t('errorAiUnavailable')
+              : info.kind === 'jobFailed'
+                ? t('errorJobFailed')
+                : t(fallbackKey)
+      setError(info.detail && info.kind !== 'generic' ? `${base} ${info.detail}` : base)
+    },
+    [t],
+  )
 
   const applyDetail = useCallback((detail: SessionDetail) => {
     setSession(detail)
@@ -463,6 +498,7 @@ export default function V2StudentPracticeRunnerPage() {
     if (!nodeId || !skill) return
     setLoading(true)
     setError(null)
+    setErrorInfo(null)
     try {
       const { data } = await api.post<
         { sessions?: Array<{ id: number; skill_type: string }>; sessionId?: number } | unknown
@@ -507,12 +543,12 @@ export default function V2StudentPracticeRunnerPage() {
       }
 
       setError(t('noSession'))
-    } catch {
-      setError(t('loadError'))
+    } catch (err) {
+      failWith(err, 'loadError')
     } finally {
       setLoading(false)
     }
-  }, [nodeId, skill, skillUpper, loadDetail, generateSkillSession, t])
+  }, [nodeId, skill, skillUpper, loadDetail, generateSkillSession, failWith, t])
 
   useEffect(() => {
     if (me && nodeId && skill) void fetchSession()
@@ -567,6 +603,7 @@ export default function V2StudentPracticeRunnerPage() {
     if (!nodeId) return
     setGeneratingNext(true)
     setError(null)
+    setErrorInfo(null)
     try {
       // `next` LUÔN trả 202 + jobId → bắt buộc phải poll (v1 thiếu bước này nên nút không chạy).
       const sessionId = await generateSkillSession()
@@ -578,8 +615,8 @@ export default function V2StudentPracticeRunnerPage() {
       } else {
         setError(t('generateError'))
       }
-    } catch {
-      setError(t('generateError'))
+    } catch (err) {
+      failWith(err, 'generateError')
     } finally {
       setGeneratingNext(false)
     }
@@ -604,15 +641,30 @@ export default function V2StudentPracticeRunnerPage() {
       />
       <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-2xl space-y-[22px]">
-          <button
-            type="button"
-            onClick={() => router.push(`/v2/student/practice/${nodeId}`)}
-            className="ga-ui inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
-          >
-            <ArrowLeft size={15} aria-hidden /> {t('backToSkills')}
-          </button>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+            <button
+              type="button"
+              onClick={() => router.push(`/v2/student/practice/${nodeId}`)}
+              className="ga-ui inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
+            >
+              <ArrowLeft size={15} aria-hidden /> {t('backToSkills')}
+            </button>
+            {/* Thoát giữa chừng: session giữ ACTIVE, quay lại là tiếp — cây không mất gì. */}
+            <Link
+              href={treeHref(nodeId, skill, false)}
+              className="ga-ui inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
+            >
+              <TreeDeciduous size={15} aria-hidden /> {t('backToTree')}
+            </Link>
+          </div>
 
-          {error && <ErrorBanner message={error} onRetry={() => void fetchSession()} />}
+          {error && (
+            <ErrorBanner
+              message={error}
+              // Quota/giới hạn tần suất: thử lại ngay chỉ ăn thêm 429 — để học viên tự quay lại sau.
+              onRetry={errorInfo?.kind === 'quota' ? undefined : () => void fetchSession()}
+            />
+          )}
 
           {/* Đầu bài + điểm hiện tại */}
           {session && (
@@ -635,16 +687,25 @@ export default function V2StudentPracticeRunnerPage() {
                   })}
                 </p>
               </div>
-              <div className="shrink-0 text-center">
-                <p className="whitespace-nowrap font-ga-display text-[18px] font-medium lg:text-[22px]" style={{ color: accent }}>
-                  {correctCount}/{exercises.length}
+              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                <LeafProgress
+                  total={exercises.length}
+                  answered={answers.size}
+                  accent={accent}
+                  label={t('progressLabel', { answered: answers.size, total: exercises.length })}
+                />
+                <p className="ga-ui whitespace-nowrap text-[11px] text-ga-subtle">
+                  <span className="font-ga-display text-[15px] font-medium" style={{ color: accent }}>
+                    {correctCount}/{exercises.length}
+                  </span>{' '}
+                  {t('correctLabel')}
                 </p>
-                <p className="ga-ui text-[11px] text-ga-subtle">{t('correctLabel')}</p>
               </div>
             </GaCard>
           )}
 
-          {loading && <LoadingState label={t('generatingExercises')} />}
+          {/* Đang sinh đề (202 + job nền) — nghi thức ươm mầm thay spinner chung. */}
+          {(loading || generatingNext) && !error && <SeedlingWait label={t('seeding')} accent={accent} />}
 
           {/* Session không có bài nào: cho lối thoát thay vì màn hình cụt (không nộp được,
               cũng không có nút sinh lại vì nút đó chỉ hiện sau khi nộp). */}
@@ -742,13 +803,35 @@ export default function V2StudentPracticeRunnerPage() {
                 </p>
               )}
 
+              {/* ≥70%: "Về cây" là CTA chính — phần thưởng là cây lớn lên, đi xem nó. Dưới ngưỡng:
+                  làm thêm bài mới là việc chính, cây vẫn ở đó. */}
               <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <Link
+                  href={treeHref(nodeId, skill, true)}
+                  data-testid="back-to-tree"
+                  className={
+                    submitResult.scorePercent >= MASTERY_PERCENT
+                      ? 'ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga bg-ga-accent px-5 py-2.5 text-[13.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 lg:min-h-0'
+                      : 'ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga border-2 border-ga-line bg-ga-card px-5 py-2.5 text-[13.5px] font-semibold text-ga-muted transition-colors hover:bg-ga-surface lg:min-h-0'
+                  }
+                >
+                  <TreeDeciduous size={14} aria-hidden />
+                  {submitResult.scorePercent >= MASTERY_PERCENT ? t('backToTreeGrow') : t('backToTree')}
+                </Link>
                 <button
                   type="button"
                   onClick={() => void handleGenerateNext()}
                   disabled={generatingNext}
-                  className="ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga px-5 py-2.5 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0"
-                  style={{ background: accent }}
+                  className={
+                    submitResult.scorePercent >= MASTERY_PERCENT
+                      ? 'ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga border-2 bg-ga-card px-5 py-2.5 text-[13.5px] font-semibold transition-colors hover:bg-ga-surface disabled:opacity-60 lg:min-h-0'
+                      : 'ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga px-5 py-2.5 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0'
+                  }
+                  style={
+                    submitResult.scorePercent >= MASTERY_PERCENT
+                      ? { borderColor: accent, color: accent }
+                      : { background: accent }
+                  }
                 >
                   {generatingNext ? (
                     <RefreshCw size={14} className="animate-spin" aria-hidden />
