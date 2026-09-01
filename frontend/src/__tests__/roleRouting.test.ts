@@ -37,11 +37,14 @@ describe('homeFor — trang chủ sau đăng nhập', () => {
     expect(homeFor('SOMETHING_NEW')).toBe('/v2/student/dashboard')
   })
 
-  test('vỏ native (Expo) dùng route legacy, không vào bề mặt /v2', () => {
-    expect(homeFor('MANAGER', { native: true })).toBe('/org')
-    expect(homeFor('TEACHER', { native: true })).toBe('/teacher')
-    expect(homeFor('STUDENT', { native: true })).toBe('/dashboard')
-    expect(homeFor('ADMIN', { native: true })).toBe('/admin')
+  // Hồi quy Đợt 3 (xoá cây v1): nhánh `native` từng trả `/org`, `/teacher`, `/dashboard`, `/admin`
+  // — những trang nay KHÔNG CÒN TỒN TẠI. Nó chỉ do `/login` v1 truyền vào và `isNative()` luôn
+  // false trong bản dựng web, nên đã bị gỡ. Test này khoá lại: mọi đích phải nằm trên /v2.
+  test('mọi vai trò đều hạ cánh trên bề mặt /v2 — không còn đường về cây v1', () => {
+    for (const role of ['STUDENT', 'TEACHER', 'MANAGER', 'OWNER', 'ADMIN', 'SOMETHING_NEW']) {
+      expect(homeFor(role)).toMatch(/^\/v2\//)
+    }
+    expect(homeFor('TEACHER', { orgRole: 'MANAGER' })).toMatch(/^\/v2\//)
   })
 
   test('vai trò không phân biệt hoa thường / khoảng trắng thừa', () => {

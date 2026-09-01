@@ -10,8 +10,8 @@
 | Đợt 1 | Bù GAP tính năng v2 còn deep-link về v1 | ✅ 2026-07-15 · PR #220 (11 route v2 mới) |
 | Đợt 2 | Backend đổi URL sinh ra (email, payment, DTO href) | ✅ 2026-07-15 · PR #221 (backend-only) |
 | **Đợt 2.5 + 2.6** | **Port nốt ~22 tính năng THẬT còn kẹt ở v1** (24 route v2 mới) — *phát sinh* | ✅ 2026-07-15 · PR #222 (nhánh `feat/v1-lockout-wave2h`) |
-| Đợt 3 | Xóa cây v1 + redirect map + nâng 307→permanent | ⬜ ← **tiếp theo** (cần deploy #219-#222 + QA trước) |
-| Đợt 4 | Dọn dead code, dependencies, docs, PostHog | ⬜ |
+| Đợt 3 | Xóa cây v1 + redirect map + nâng 307→permanent | ✅ 2026-09-02 · nhánh `chore/v1-purge-wave3` (xem §6.0) — **còn 4 gate của owner trước khi merge** |
+| Đợt 4 | Dọn dead code, dependencies, docs, PostHog | ⬜ ← **tiếp theo** (94 tệp mồ côi CÓ SẴN + ~35 deps, xem §7) |
 
 **Thứ tự deploy bắt buộc**: FE (Đợt 0 → 1) → BE (Đợt 2) → FE (Đợt 2.5/2.6 → 3) → dọn (Đợt 4).
 
@@ -122,6 +122,33 @@ Plan gốc (Q9) giả định nhóm route "GAP thuần" chỉ cần **đo PostHo
 
 ## 6. Đợt 3 — Xóa cây v1 + redirect map + gỡ kill-switch (1 PR lớn, tag trước khi merge)
 
+### 6.0 ✅ ĐÃ THỰC THI 2026-09-02 — nhánh `chore/v1-purge-wave3` (base `878d987b`)
+
+**218 tệp thay đổi · +149 / −45.167 dòng**, ba commit tách theo trục review:
+
+| Commit | Nội dung |
+|---|---|
+| `6539cd4c` | Xoá 162 tệp cây `src/app` v1 (15 nhánh route + test wizard onboarding v1) |
+| `4f9aed58` | Xoá 46 tệp mồ côi chết theo v1 (4 shell v1, NotificationBell v1, hooks/lib) |
+| `e5bd4896` | 307→308, `/student/groq-usage`, robots, `homeFor()` bỏ nhánh native, `payment/success`, SW tự huỷ, port `live-account.spec.ts` |
+
+**Khác plan gốc — ghi lại để không phải suy luận lại:**
+- §6.2 dự tính redirect **gộp theo prefix** (`/student/:path*` → `/v2/student/dashboard`). Thực tế Đợt 2.5 (#290) đã dựng **bảng 101 ánh xạ 1-1**, giữ được deep-link, nên đợt này chỉ **nâng 307→308** và **thêm 1 entry** (`/student/groq-usage` — trang chết, trước đây cố ý bỏ trống vì nó vẫn tự phục vụ được; xoá tệp rồi thì bỏ trống = 404).
+- §6.1 dự tính xoá cả `payment/`. **KHÔNG xoá**: `/payment/success` là URL return của cổng thanh toán (đổi = rủi ro tiền bạc). Trang ở lại gốc nhưng điều hướng nội bộ đã trỏ thẳng `/v2/student/dashboard`.
+- `news/` (Q3) → **xoá**, đã có `/v2/student/news` + ngoại lệ `V2_LEARNER_SHARED` trong middleware cho GV/admin.
+- `/game` (cảnh báo "đừng xoá mù") → đã port ở Đợt 2.5 thành `/v2/student/game/lego`, redirect trỏ đúng đó.
+- **Ranh giới với Đợt 4**: chỉ dọn tệp *chết vì đợt này*. Đo bằng đồ thị import trên hai cây: `origin/main` đã có sẵn **98 tệp mồ côi**, sau khi xoá v1 thành **139** → chỉ 45 tệp chênh lệch thuộc phạm vi (giữ lại `types/today-plan.ts`, `types/vocabulary.ts` vì mồ côi-có-sẵn còn import; xoá thêm 3 tệp mồ côi-có-sẵn vì chúng import thẳng tệp vừa gỡ).
+- **Phát sinh, không có trong plan**: `public/sw.js` là artifact next-pwa commit từ PR #28, precache manifest cố định trỏ tới chunk `app/student|admin|login/…` của một build đã chết; next-pwa không còn nối vào `next.config` từ lâu. Đã thay bằng **service worker tự huỷ** + xoá `workbox-*.js`, `swe-worker-*.js`. **Đừng xoá `/sw.js`** — phải còn đó để trình duyệt còn giữ SW cũ ghé qua và tự dọn.
+- **Middleware KHÔNG đụng tới** (plan có nhắc "viết lại middleware"): các nhánh gate path v1 trong `src/middleware.ts` nay là defence-in-depth vô hại; đây là code an ninh, sửa để cho gọn không đáng rủi ro. Đưa sang Đợt 4.
+
+**Kiểm chứng (server production build tại chỗ, cổng 3999):**
+- `routes-manifest.json`: 141 route (124 `/v2` + 17 gốc), **0 route v1**; 107 redirect, **toàn bộ 308**.
+- curl: 13 path v1 đại diện → 308 đúng đích (kể cả `/teacher/dashboard/9/students/5` và `?token=` giữ nguyên); 9 trang cố ý giữ → 200 không Location; `/sw.js` 200, `/workbox-*.js` 404; `/v2/login|register|onboarding|org/accept` → 200.
+- tsc 0 lỗi · vitest 79 tệp/623 test · `check:i18n` xanh (4056 khoá × 3 locale) · `next lint` không error · `next build` thành công.
+- ⚠️ `/teachers` trả **404** — KHÔNG do đợt này: cờ `MARKETPLACE_ENABLED` tắt marketplace C2C, giống hệt `origin/main`.
+
+**4 gate của owner vẫn treo** (xem checklist ngay dưới): E2E 4 role, Amplify "Rewrites and redirects", env `GALERIE_V2_DISABLED`, tag `pre-v1-removal`.
+
 **Gate bắt buộc trước khi merge** (B9 critic):
 - [ ] E2E smoke v2 pass đủ **4 role** (STUDENT / TEACHER / ADMIN / OWNER-MANAGER) — mở rộng `v2-smoke.spec.ts` (helpers `tests/helpers/tokens.ts` hiện thiếu token admin/org) + viết bản thay thế `live-account.spec.ts` chạy trên prod.
 - [ ] Đã kiểm Amplify console "Rewrites and redirects" (rule ngoài repo).
@@ -166,6 +193,7 @@ Plan gốc (Q9) giả định nhóm route "GAP thuần" chỉ cần **đo PostHo
 
 ## 7. Đợt 4 — Dọn dẹp
 
+- [ ] **94 tệp mồ côi CÓ SẴN trên main** (không do Đợt 3 gây ra — đã đo và cố ý chừa lại): 44 tệp `components/ui/*` shadcn, cụm `components/speaking/*` (11), `components/vocabulary/*` (8), `components/roadmap/*` (4), `lib/*` (13)… Hai tệp `types/today-plan.ts` + `types/vocabulary.ts` phải xoá **cùng** TodayPlanBoard/VocabCard, không tách rời. Còn hai tệp mồ côi vẫn trỏ path v1 (`TodayPlanBoard` → `/speaking`, `/vocabulary`; `SpeakingWelcomeClient` → `/speaking/chat`) — chết theo tệp, không cần sửa riêng.
 - [ ] Gỡ dependency: `@dnd-kit/*`, `@radix-ui/react-dropdown-menu`, `idb-keyval` (v1-only) + ~30 gói orphan (`@xyflow/react`, `react-hook-form`, `cmdk`, `vaul`, `embla-carousel-react`, `react-day-picker`, `input-otp`, `react-resizable-panels`, `canvas-confetti`, `@ducanh2912/next-pwa`, `next-themes`, ~20 gói `@radix-ui/*` — chỉ 42 file shadcn orphan dùng). Giữ `react-dom`.
 - [ ] PostHog: archive flag `galerie-v2` (console + `src/lib/flags.ts:11` orphan); port event của tính năng đã port (`onboarding_step_completed`, `mock_exam_render_error`, `feature_session`, `streak_extended`); chấp nhận đứt chuỗi funnel theo `$current_url` v1 (ghi chú mốc thời gian vào dashboard).
 - [ ] Docs ưu tiên: `docs/GUIDE.md:133,139`, `docs/QA_TEACHER_PROD_CHECKLIST.md`, `docs/UI_2.0_HANDOFF.md`, `docs/UI_2.0_VISUAL_QA_RUNBOOK.md`, `docs/FE_END_TO_END_TESTING.md:91`, `docs/ROUTING.md` (viết lại theo v2), `docs/UI_2.0_MIGRATION_MAP.md` (đánh dấu Phase 4 cutover DONE), `plans/2026-07-03-OWNER-MANUAL-STEPS.md:79`, `frontend/I18N_V2_PROGRESS.md`, comment cache `amplify.yml:38-41`. Nhóm BAO_CAO/KE_HOACH lịch sử: chỉ chú thích "route v1 đã gỡ".

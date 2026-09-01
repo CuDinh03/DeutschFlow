@@ -1,4 +1,12 @@
 "use client";
+/**
+ * /payment/success — URL RETURN của cổng thanh toán (MoMo/Stripe giữ path này trong cấu hình
+ * merchant), nên trang phải ở NGUYÊN gốc: nó là một trong số ít trang cố ý KHÔNG bị redirect sang
+ * /v2 khi Đợt 3 xoá cây v1 (lý do đầy đủ trong `frontend/legacy-redirects.mjs`).
+ *
+ * Bản thân trang thì đưa người dùng vào bề mặt v2: `/student` cũ nay chỉ còn là redirect 308, đi
+ * qua nó chỉ tốn thêm một vòng round-trip ngay sau khi trả tiền.
+ */
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -67,7 +75,7 @@ function PaymentSuccessContent() {
               orderId,
             });
             setTimeout(() => {
-              if (!cancelled) router.push("/student");
+              if (!cancelled) router.push("/v2/student/dashboard");
             }, 10000);
             return;
           }
@@ -81,7 +89,7 @@ function PaymentSuccessContent() {
       if (!cancelled) {
         setLoading(false);
         setTimeout(() => {
-          if (!cancelled) router.push("/student");
+          if (!cancelled) router.push("/v2/student/dashboard");
         }, 5000);
       }
     })();
@@ -142,7 +150,7 @@ function PaymentSuccessContent() {
 
         <button
           id="btn-go-dashboard"
-          onClick={() => router.push("/student")}
+          onClick={() => router.push("/v2/student/dashboard")}
           className="w-full inline-flex justify-center items-center gap-2 bg-gradient-to-r from-violet-600 to-purple-700 hover:opacity-90 text-white font-bold py-3.5 px-8 rounded-xl shadow-lg shadow-violet-500/30 transition-all active:scale-95"
         >
           🏠 Bắt đầu học ngay
