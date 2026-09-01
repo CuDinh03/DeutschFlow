@@ -153,3 +153,32 @@ describe('normalizeAnswer / isFillCorrect — phản chiếu backend', () => {
     expect(isScored({ id: 'a', type: 'REORDER' })).toBe(false)
   })
 })
+
+describe('scoredExercises — hồi quy từ nghiệm thu prod node 136', () => {
+  test('loại TRANSLATE/REORDER: backend không chấm, web chưa có runner ⇒ không đưa ra', async () => {
+    const { scoredExercises } = await import('@/lib/nodeExercises')
+    const items = scoredExercises({
+      theory_gate: [
+        { id: 'tg31_01', type: 'FILL_BLANK', answer: 'dem', sentence_de: 'Ich helfe ___ Mann.' },
+        { id: 'tg31_02', type: 'MULTIPLE_CHOICE', question_vi: 'Giới từ nào?', options: ['a'], correct: 0 },
+      ],
+      practice: [
+        { id: 'p31_01', type: 'TRANSLATE', sentence: '…', answer: '…' },
+        { id: 'p31_02', type: 'REORDER', words: ['a'], correct_order: ['a'] },
+        { id: 'p31_03', type: 'FILL_BLANK', answer: 'der', sentence_de: '… ___ …' },
+      ],
+    })
+    expect(items.map((i) => i.id)).toEqual(['tg31_01', 'tg31_02', 'p31_03'])
+  })
+
+  test('mẫu số hiển thị bằng đúng số mục chấm được — 6/8 trên prod là sai', async () => {
+    const { scoredExercises, gradeItems } = await import('@/lib/nodeExercises')
+    const items = scoredExercises({
+      theory_gate: [{ id: 'a', type: 'MULTIPLE_CHOICE', options: ['x', 'y'], correct: 1 }],
+      practice: [{ id: 'b', type: 'TRANSLATE', answer: 'z' }],
+    })
+    expect(items).toHaveLength(1)
+    const g = gradeItems(items, { 0: 1 })
+    expect(g).toEqual({ scored: 1, correct: 1, percent: 100 })
+  })
+})

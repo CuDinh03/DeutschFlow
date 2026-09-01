@@ -8,6 +8,7 @@ import { reviewApi } from "@/lib/reviewApi";
 import { apiMessage } from "@/lib/api";
 import {
   correctIndexOf,
+  isScored,
   gradeItems,
   questionTextOf,
   MULTIPLE_CHOICE,
@@ -74,9 +75,11 @@ export default function ReadingView({ content, isLocked = false }: { content: No
   // ── Practice Quiz Logic ──
   const practiceItems = useMemo(
     () =>
-      (Array.isArray(passage?.questions) ? passage.questions : []).filter(
-        (q): q is NodeExerciseItem => !!q && typeof q === "object",
-      ),
+      // Chỉ giữ mục máy chủ thật sự chấm — cùng lý do với GrammarView: mục không chấm được sẽ
+      // hiện dòng trống kèm ô nhập và làm sai mẫu số "đúng x/y".
+      (Array.isArray(passage?.questions) ? passage.questions : [])
+        .filter((q): q is NodeExerciseItem => !!q && typeof q === "object")
+        .filter(isScored),
     [passage?.questions]
   );
   const [answers, setAnswers] = useState<AnswerMap>({});
