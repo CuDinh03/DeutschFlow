@@ -10,6 +10,7 @@ import {
   Briefcase, Users, Heart, Zap, MessageSquare,
   ThumbsUp, ThumbsDown, Target, Lightbulb, Sparkles,
   ClipboardList, CircleCheck, CircleX, PartyPopper,
+  Mic, Repeat, Library,
 } from "lucide-react";
 import type { ChatMessage } from "@/stores/useChatStore";
 import type { ConversationReport } from "@/lib/aiSpeakingApi";
@@ -296,7 +297,7 @@ export function SessionSummary({
                     className="flex flex-col items-center justify-center rounded-full text-center px-4"
                     style={{ width: size, height: size, background: "var(--ga-surface)", border: "1px solid var(--ga-line)" }}
                   >
-                    <span className="text-2xl leading-none mb-1">🎤</span>
+                    <Mic size={22} strokeWidth={1.7} className="mb-1" style={{ color: "var(--ga-muted)" }} aria-hidden />
                     <span className="text-[11px] font-medium leading-tight" style={{ color: "var(--ga-muted)" }}>
                       {interviewInsufficient ? <>Kết thúc quá sớm<br />chưa đủ để chấm</> : <>Chưa chấm được<br />điểm phiên này</>}
                     </span>
@@ -494,19 +495,19 @@ export function SessionSummary({
                 <button onClick={onRestart}
                   className="w-full py-2.5 rounded-ga font-semibold text-sm text-left px-3 transition-colors hover:bg-ga-side-active"
                   style={{ background: "var(--ga-surface)", border: "1px solid var(--ga-line)", color: "var(--ga-ink)" }}>
-                  🔁 {NEXT_STEP_LABELS[st.code]}
+                  <span className="inline-flex items-center gap-1.5"><Repeat size={14} aria-hidden /> {NEXT_STEP_LABELS[st.code]}</span>
                 </button>
               ) : st.code === "DRILL_ERRORS" ? (
                 <button onClick={() => onReviewErrors?.(speakingErrors)}
                   className="w-full py-2.5 rounded-ga font-semibold text-sm text-left px-3 transition-colors hover:bg-ga-side-active"
                   style={{ background: "var(--ga-surface)", border: "1px solid var(--ga-line)", color: "var(--ga-ink)" }}>
-                  📚 {NEXT_STEP_LABELS[st.code]}
+                  <span className="inline-flex items-center gap-1.5"><Library size={14} aria-hidden /> {NEXT_STEP_LABELS[st.code]}</span>
                 </button>
               ) : (
                 <a href="/v2/student/speaking"
                   className="block w-full py-2.5 rounded-ga font-semibold text-sm px-3 transition-colors hover:bg-ga-side-active"
                   style={{ background: "var(--ga-surface)", border: "1px solid var(--ga-line)", color: "var(--ga-ink)" }}>
-                  🎯 {NEXT_STEP_LABELS[st.code]}
+                  <span className="inline-flex items-center gap-1.5"><Target size={14} aria-hidden /> {NEXT_STEP_LABELS[st.code]}</span>
                 </a>
               )}
             </div>
