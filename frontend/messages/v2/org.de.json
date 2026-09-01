@@ -706,6 +706,19 @@
       "importError_lektionTitle": "Jede Lektion braucht einen \"title\".",
       "importError_items": "\"items\"/\"objectives\" einer Lektion müssen Arrays sein.",
       "importSubmit": "Als Entwurf importieren"
+    },
+    "settings": {
+      "title": "Zentrums-Einstellungen",
+      "subtitle": "Arbeitszeit-Politik und Förder-Schwellen — nur Leitung.",
+      "timesheetCap": "Arbeitszeit (P04)",
+      "breakIncludedLabel": "Ein Termin zählt INKLUSIVE Pause (195 Minuten)",
+      "breakIncludedHint": "Abgewählt: Vorschläge nutzen UNTERRICHTSminuten (180). Gilt nur für künftige Vorschläge — bestätigte Einträge bleiben unangetastet.",
+      "supportCap": "Förder-Schwellen",
+      "individualMaxLabel": "Bis zu wie vielen schwachen Lernenden pro Ziel wird EINZELförderung vorgeschlagen",
+      "groupMinLabel": "Ab wie vielen schwachen Lernenden pro Ziel wird gemeinsame WIEDERHOLUNG vorgeschlagen",
+      "supportHint": "Nur Anzeige-Hinweise auf der Zielmatrix — das System verschiebt das Curriculum nie selbst.",
+      "save": "Speichern",
+      "saveSuccess": "Einstellungen gespeichert"
     }
   }
 }

@@ -1061,6 +1061,22 @@
       },
       "cellLabel": "Assess {name} — currently: {status}",
       "legend": "Click to cycle: — not assessed → ✓ achieved → ! needs practice. \"Awaiting grading\" is neutral — submitted work waiting for the teacher, never a weak result. Suggestions only count assessed students and never change the curriculum by themselves."
+    },
+    "fourAxis": {
+      "contentCap": "Content taught",
+      "contentMain": "{taught}/{total} items fully taught",
+      "contentSub": "{partial} partly taught · {lessons}/{totalLessons} Lektionen completed",
+      "pacingCap": "Pacing",
+      "pacingMain": "Projected completion {date}",
+      "pacingShortfall": "{minutes}′ short (~{sessions} sessions)",
+      "pacingSub": "{remaining}′ content left / {available}′ capacity · {risk} milestones at risk",
+      "participationCap": "Participation",
+      "participationMain": "{present} present · {late} late · {absent} absent",
+      "participationSub": "{makeup} make-up flags open · {done}/{total} sessions closed",
+      "objectivesCap": "Objectives",
+      "objectivesMain": "{achieved} achieved · {needs} need practice",
+      "objectivesSub": "{notAssessed} cells not assessed",
+      "objectivesSupport": "Needing support: {names}"
     }
   }
 }

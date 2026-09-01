@@ -1061,6 +1061,22 @@
       },
       "cellLabel": "Đánh giá {name} — hiện tại: {status}",
       "legend": "Bấm ô để xoay: — chưa đánh giá → ✓ đạt → ! cần luyện thêm. \"Chờ chấm\" là trạng thái trung tính — bài đã nộp đang đợi giáo viên, không phải kết quả yếu. Gợi ý chỉ tính học viên đã được đánh giá và không tự thay đổi giáo trình."
+    },
+    "fourAxis": {
+      "contentCap": "Nội dung đã dạy",
+      "contentMain": "{taught}/{total} mục đã dạy đủ",
+      "contentSub": "{partial} mục còn dở · {lessons}/{totalLessons} Lektion hoàn thành",
+      "pacingCap": "Nhịp độ",
+      "pacingMain": "Học xong dự kiến {date}",
+      "pacingShortfall": "Thiếu {minutes}′ (~{sessions} buổi)",
+      "pacingSub": "Còn {remaining}′ nội dung / {available}′ khung · {risk} mốc rủi ro",
+      "participationCap": "Tham gia",
+      "participationMain": "{present} có mặt · {late} muộn · {absent} vắng",
+      "participationSub": "{makeup} cờ cần bù riêng · {done}/{total} buổi đã chốt",
+      "objectivesCap": "Mục tiêu",
+      "objectivesMain": "{achieved} đạt · {needs} cần luyện",
+      "objectivesSub": "{notAssessed} ô chưa đánh giá",
+      "objectivesSupport": "Cần hỗ trợ: {names}"
     }
   }
 }

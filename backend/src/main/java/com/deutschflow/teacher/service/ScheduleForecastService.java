@@ -117,6 +117,30 @@ public class ScheduleForecastService {
                 .toList();
     }
 
+    /** Phân bố trạng thái mục giáo trình của lớp — cho báo cáo 4 trục (PR-10). */
+    public record ItemStatusCounts(int taught, int partial, int total) {}
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ItemStatusCounts itemStatusCounts(Long classId) {
+        List<ClassLesson> lessons = lessonRepository.findByClassIdAndLektionIdIsNotNullOrderByOrderIndexAsc(classId);
+        if (lessons.isEmpty()) return new ItemStatusCounts(0, 0, 0);
+        List<ClassSessionContent> contents = contentRepo.findByClassLessonIdIn(
+                lessons.stream().map(ClassLesson::getId).toList());
+        Set<Long> taughtIds = new HashSet<>();
+        Set<Long> partialIds = new HashSet<>();
+        for (ClassSessionContent c : contents) {
+            if (c.getCurriculumItemId() == null) continue;
+            if ("TAUGHT".equals(c.getStatus())) taughtIds.add(c.getCurriculumItemId());
+            else if ("PARTIAL".equals(c.getStatus())) partialIds.add(c.getCurriculumItemId());
+        }
+        partialIds.removeAll(taughtIds); // đã dạy xong thì không còn tính dở
+        int total = 0;
+        for (Long lektionId : lessons.stream().map(ClassLesson::getLektionId).distinct().toList()) {
+            total += curriculumItemRepository.findByLektionIdOrderByOrderIndexAsc(lektionId).size();
+        }
+        return new ItemStatusCounts(taughtIds.size(), partialIds.size(), total);
+    }
+
     /**
      * Tổng phút mục giáo trình bắt buộc CHƯA dạy xong trên các bài của lớp: item chưa TAUGHT tính
      * trọn {@code estimated_minutes} (sàn {@link #DEFAULT_ITEM_MINUTES}); item PARTIAL tính
