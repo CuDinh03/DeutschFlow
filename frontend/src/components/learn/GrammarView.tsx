@@ -6,6 +6,15 @@ import { BookOpen, Library, MessagesSquare, Sparkles, TriangleAlert, Lightbulb, 
 import { VocabCard, VocabTag, AudioButton } from "./LearnComponents";
 import { useState, useMemo, useEffect } from "react";
 import { lightImpact, mediumImpact, heavyImpact } from "@/lib/haptics";
+import {
+  buildItemAnswers,
+  collectExercises,
+  correctIndexOf,
+  gradeItems,
+  questionTextOf,
+  MULTIPLE_CHOICE,
+  type AnswerMap,
+} from "@/lib/nodeExercises";
 
 // ── Smart content renderer ──
 function TheoryContent({ text }: { text: string }) {
@@ -118,36 +127,35 @@ function TheoryCard({ card, index, total }: { card: NodeContent["theory_cards"][
 
 export default function GrammarView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
   const tLearn = useTranslations("learn");
-  const { markTabCompleted, tabCompletion } = useNodeSessionStore();
+  const { markTabCompleted, tabCompletion, recordItemAnswers } = useNodeSessionStore();
   const isCompleted = tabCompletion.grammar;
 
   const [activeTag, setActiveTag] = useState<string | null>(null);
 
   // ── Practice Quiz Logic ──
-  const practiceItems = useMemo(
-    () => (Array.isArray(content.exercises?.practice) ? content.exercises.practice : []),
-    [content.exercises]
-  );
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  // Gộp theory_gate + practice: backend chấm CẢ HAI, web trước đây chỉ đọc `practice` nên vừa
+  // thiếu câu vừa nộp thiếu (F-21/F-22).
+  const practiceItems = useMemo(() => collectExercises(content.exercises), [content.exercises]);
+  const [answers, setAnswers] = useState<AnswerMap>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
 
   // ── Vocabulary Pagination Logic ──
   const [vocabPage, setVocabPage] = useState(1);
   const VOCAB_PAGE_SIZE = 10;
 
-  const score = useMemo(() => {
-    let correct = 0;
-    practiceItems.forEach((item: any, i) => {
-      if (answers[i] === item.answerIndex) correct++;
-    });
-    return correct;
-  }, [answers, practiceItems]);
+  // Trước đây so `answers[i] === item.answerIndex`, nhưng nội dung thật dùng khoá `correct`
+  // (406 lần trong migration, `answerIndex` chỉ 2) ⇒ điểm LUÔN bằng 0 và không ai qua nổi node.
+  const graded = useMemo(() => gradeItems(practiceItems, answers), [practiceItems, answers]);
+  const score = graded.correct;
 
   const handleQuizSubmit = () => {
     setQuizSubmitted(true);
-    if (score === practiceItems.length && practiceItems.length > 0) {
+    // Đáp án thô đi kèm lên `POST /skill-tree/{nodeId}/submit` để MÁY CHỦ chấm — điểm client chỉ
+    // để hiển thị. Đây là ý đồ sẵn có của backend (chống client tự khai 100% để mở khoá node).
+    recordItemAnswers(buildItemAnswers(practiceItems, answers));
+    if (graded.scored > 0 && graded.correct === graded.scored) {
       mediumImpact();
-      markTabCompleted("grammar");
+      markTabCompleted("grammar", graded.percent);
     } else {
       heavyImpact();
     }
@@ -285,11 +293,22 @@ export default function GrammarView({ content, isLocked = false }: { content: No
             <div className="space-y-6 text-left mt-4">
               {practiceItems.map((item: any, i: number) => (
                 <div key={i} className="space-y-3 bg-white p-4 rounded-xl border border-[#E2E8F0]">
-                  <p className="text-sm font-bold text-[#0F172A] break-words">{i + 1}. {item.question || "Câu hỏi..."}</p>
+                  <p className="text-sm font-bold text-[#0F172A] break-words">{i + 1}. {questionTextOf(item) ?? item.sentence_de ?? ""}</p>
+                  {item.type !== MULTIPLE_CHOICE ? (
+                    <input
+                      type="text"
+                      value={typeof answers[i] === "string" ? (answers[i] as string) : ""}
+                      onChange={(e) => { if (!quizSubmitted) setAnswers((prev) => ({ ...prev, [i]: e.target.value })); }}
+                      disabled={quizSubmitted}
+                      placeholder={item.hint_vi ?? "Nhập câu trả lời"}
+                      aria-label={questionTextOf(item) ?? `Câu ${i + 1}`}
+                      className="w-full rounded-lg border-2 border-[#E2E8F0] px-4 py-3 text-sm focus:border-[#FFCD00] focus:outline-none disabled:opacity-60"
+                    />
+                  ) : (
                   <div className="space-y-2">
                     {Array.isArray(item.options) && item.options.map((opt: string, j: number) => {
                       const isSelected = answers[i] === j;
-                      const isCorrect = item.answerIndex === j;
+                      const isCorrect = correctIndexOf(item) === j;
                       const showResult = quizSubmitted;
                       
                       let btnClass = "border-[#E2E8F0] hover:border-[#CBD5E1] text-[#475569]";
@@ -309,13 +328,19 @@ export default function GrammarView({ content, isLocked = false }: { content: No
                       );
                     })}
                   </div>
+                  )}
                 </div>
               ))}
               
               {!isCompleted && (
                 <button
                   onClick={handleQuizSubmit}
-                  disabled={Object.keys(answers).length < practiceItems.length}
+                  disabled={
+                    practiceItems.filter((_, i) => {
+                      const v = answers[i]
+                      return typeof v === "number" || (typeof v === "string" && v.trim() !== "")
+                    }).length < practiceItems.length
+                  }
                   className="w-full py-3 rounded-xl bg-[#121212] text-white text-sm font-bold disabled:opacity-50"
                 >
                   Kiểm tra đáp án
@@ -337,7 +362,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
               </div>
             ) : (
               <button
-                onClick={() => markTabCompleted("grammar")}
+                onClick={() => { recordItemAnswers({}); markTabCompleted("grammar"); }}
                 className="w-full py-3 rounded-xl font-bold text-sm bg-[#22C55E] hover:bg-[#16A34A] text-white transition-colors"
               >
                 <span>{tLearn("readAndUnderstood")}</span>

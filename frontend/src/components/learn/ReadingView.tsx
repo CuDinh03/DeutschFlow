@@ -6,6 +6,14 @@ import { BookOpenText, FileQuestion, Lightbulb, Save, X, Check, CircleCheck } fr
 import { GenderBadge, AudioButton } from "./LearnComponents";
 import { reviewApi } from "@/lib/reviewApi";
 import { apiMessage } from "@/lib/api";
+import {
+  correctIndexOf,
+  gradeItems,
+  questionTextOf,
+  MULTIPLE_CHOICE,
+  type AnswerMap,
+  type NodeExerciseItem,
+} from "@/lib/nodeExercises";
 
 // ── Tap-to-translate tooltip ──
 function TranslateTooltip({
@@ -65,28 +73,26 @@ export default function ReadingView({ content, isLocked = false }: { content: No
   
   // ── Practice Quiz Logic ──
   const practiceItems = useMemo(
-    () => (Array.isArray(passage?.questions) ? passage.questions : []),
+    () =>
+      (Array.isArray(passage?.questions) ? passage.questions : []).filter(
+        (q): q is NodeExerciseItem => !!q && typeof q === "object",
+      ),
     [passage?.questions]
   );
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [answers, setAnswers] = useState<AnswerMap>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
 
-  const score = useMemo(() => {
-    let correct = 0;
-    practiceItems.forEach((item: any, i) => {
-      // If it's old format (string), we can't grade it automatically, skip or treat as free text
-      if (typeof item === "object" && answers[i] === item.answerIndex) correct++;
-    });
-    return correct;
-  }, [answers, practiceItems]);
-
-  const validMcqCount = practiceItems.filter((i: any) => typeof i === "object" && i.options).length;
+  // Trước đây so với `item.answerIndex`, nhưng nội dung thật dùng khoá `correct` ⇒ điểm luôn 0 và
+  // tab Đọc không bao giờ qua được (F-21). Mẫu số cũ chỉ đếm mục có `options` nên câu FILL_BLANK
+  // vừa không hiện ô nhập vừa bị bỏ khỏi phép tính.
+  const graded = useMemo(() => gradeItems(practiceItems, answers), [practiceItems, answers]);
+  const score = graded.correct;
+  const validMcqCount = graded.scored;
 
   const handleQuizSubmit = () => {
     setQuizSubmitted(true);
-    const pct = validMcqCount > 0 ? Math.round((score / validMcqCount) * 100) : 100;
-    if (score === validMcqCount && validMcqCount > 0) {
-      markTabCompleted("reading", pct);
+    if (graded.scored > 0 && graded.correct === graded.scored) {
+      markTabCompleted("reading", graded.percent);
     }
   };
   // Build vocab lookup from refs
@@ -197,11 +203,22 @@ export default function ReadingView({ content, isLocked = false }: { content: No
 
                   return (
                     <div key={i} className="space-y-3">
-                      <p className="text-sm font-bold text-[#0F172A]">{i + 1}. {item.question || "Câu hỏi..."}</p>
+                      <p className="text-sm font-bold text-[#0F172A]">{i + 1}. {questionTextOf(item) ?? ""}</p>
+                      {item.type !== MULTIPLE_CHOICE ? (
+                        <input
+                          type="text"
+                          value={typeof answers[i] === "string" ? (answers[i] as string) : ""}
+                          onChange={(e) => { if (!quizSubmitted) setAnswers((prev: AnswerMap) => ({ ...prev, [i]: e.target.value })); }}
+                          disabled={quizSubmitted}
+                          placeholder={item.hint_vi ?? "Nhập câu trả lời"}
+                          aria-label={questionTextOf(item) ?? `Câu ${i + 1}`}
+                          className="w-full rounded-lg border-2 border-[#E2E8F0] px-3 py-2 text-xs focus:border-[#FFCD00] focus:outline-none disabled:opacity-60"
+                        />
+                      ) : (
                       <div className="space-y-2">
                         {Array.isArray(item.options) && item.options.map((opt: string, j: number) => {
                           const isSelected = answers[i] === j;
-                          const isCorrect = item.answerIndex === j;
+                          const isCorrect = correctIndexOf(item) === j;
                           const showResult = quizSubmitted;
                           
                           let btnClass = "border-[#E2E8F0] hover:border-[#CBD5E1] text-[#475569]";
@@ -212,7 +229,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
                           return (
                             <button
                               key={j}
-                              onClick={() => !quizSubmitted && setAnswers(prev => ({ ...prev, [i]: j }))}
+                              onClick={() => !quizSubmitted && setAnswers((prev: AnswerMap) => ({ ...prev, [i]: j }))}
                               disabled={quizSubmitted}
                               className={`w-full text-left px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all ${btnClass}`}
                             >
@@ -221,6 +238,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
                           );
                         })}
                       </div>
+                      )}
                     </div>
                   );
                 })}
@@ -228,7 +246,12 @@ export default function ReadingView({ content, isLocked = false }: { content: No
                 {validMcqCount > 0 && !isCompleted && (
                   <button
                     onClick={handleQuizSubmit}
-                    disabled={Object.keys(answers).length < validMcqCount}
+                    disabled={
+                      practiceItems.filter((_: unknown, i: number) => {
+                        const v = answers[i]
+                        return typeof v === "number" || (typeof v === "string" && v.trim() !== "")
+                      }).length < validMcqCount
+                    }
                     className="w-full py-2.5 rounded-xl bg-[#121212] text-white text-xs font-bold disabled:opacity-50"
                   >
                     Kiểm tra đáp án
