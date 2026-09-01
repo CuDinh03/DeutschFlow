@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
-import { ArrowLeft, RotateCcw } from 'lucide-react'
+import { ArrowLeft, RotateCcw, Trophy } from 'lucide-react'
 import api from '@/lib/api'
 import { primeGermanVoices } from '@/lib/speechDe'
 import { shuffle, type WordListResponse } from '@/lib/vocabWords'
@@ -196,9 +196,7 @@ function SwipeCards() {
           ) : showComplete ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <GaCard className="flex flex-col items-center gap-4 px-4 py-8 lg:px-6">
-                <span className="text-[40px]" aria-hidden>
-                  🏆
-                </span>
+                <Trophy size={40} strokeWidth={1.4} className="text-ga-accent" aria-hidden />
                 <p className="font-ga-display text-[24px] font-medium text-ga-ink">{t('sessionEnd')}</p>
                 <div className="grid w-full grid-cols-3 gap-2 text-center">
                   {[

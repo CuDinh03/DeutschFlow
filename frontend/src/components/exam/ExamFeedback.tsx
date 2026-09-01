@@ -1,6 +1,6 @@
 'use client'
 
-import { Sparkles, ThumbsUp, TrendingUp, PenTool, Clock } from 'lucide-react'
+import { Sparkles, ThumbsUp, TrendingUp, PenTool, Clock, Check } from 'lucide-react'
 
 interface AiEmailEvaluation {
   status: string
@@ -114,7 +114,7 @@ function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
           <ul className="space-y-1">
             {evalData.strengths.map((s, i) => (
               <li key={i} className="flex items-start gap-2 text-xs text-[#334155]">
-                <span className="text-emerald-400 mt-0.5">✓</span>
+                <Check size={13} className="text-emerald-400 mt-0.5 shrink-0" aria-hidden />
                 {s}
               </li>
             ))}

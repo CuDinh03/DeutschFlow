@@ -235,7 +235,7 @@ export default function V2TcProgressPage() {
                         <ul className="mt-1 flex flex-col gap-0.5">
                           {l.canDoStatements.map((c) => (
                             <li key={c.id ?? c.orderIndex} className="flex gap-1.5 text-[12px] leading-[1.4]" style={{ color: VIOLET }}>
-                              <span className="mt-[1px] shrink-0">✓</span>
+                              <Check size={12} aria-hidden className="mt-[2px] shrink-0" />
                               <span className="min-w-0 break-words">{c.text}</span>
                             </li>
                           ))}
