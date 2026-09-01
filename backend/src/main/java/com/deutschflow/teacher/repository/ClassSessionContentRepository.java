@@ -16,6 +16,8 @@ public interface ClassSessionContentRepository extends JpaRepository<ClassSessio
 
     List<ClassSessionContent> findByClassLessonIdOrderBySessionIdAscOrderIndexAsc(Long classLessonId);
 
+    List<ClassSessionContent> findByClassLessonIdIn(Collection<Long> classLessonIds);
+
     @Query("SELECT COALESCE(MAX(c.orderIndex), -1) FROM ClassSessionContent c WHERE c.sessionId = :sessionId")
     int findMaxOrderIndex(@Param("sessionId") Long sessionId);
 

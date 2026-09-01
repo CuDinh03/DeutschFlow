@@ -76,7 +76,63 @@
       "emptyWeekPrefix": "No class sessions this week yet. Tap",
       "emptyWeekMid": "or",
       "emptyWeekSuffix": "to add.",
-      "sessionTitle": "{className} · {place} · {time} · {count} students"
+      "sessionTitle": "{className} · {place} · {time} · {count} students",
+      "milestonesButton": "Milestones & forecast",
+      "requests": {
+        "heading": "Schedule change requests",
+        "classLabel": "Class",
+        "empty": "No requests for this class yet.",
+        "status": {
+          "PENDING": "Pending",
+          "APPROVED": "Approved",
+          "REJECTED": "Rejected",
+          "CANCELLED": "Withdrawn"
+        },
+        "type": {
+          "CANCEL_SESSION": "Cancel session",
+          "ADD_MAKEUP": "Make-up session",
+          "MOVE_SESSION": "Move session",
+          "UPDATE_PATTERN": "Change fixed schedule",
+          "MOVE_MILESTONE": "Move milestone"
+        },
+        "rejectedReason": "Reason: {reason}",
+        "appliedAt": "applied {date}",
+        "withdraw": "Withdraw",
+        "withdrawTitle": "Withdraw request?",
+        "withdrawDetail": "The request leaves the center approval queue; the current schedule was never changed, so nothing is rolled back.",
+        "withdrawConfirm": "Withdraw",
+        "cancel": "Cancel",
+        "withdrawSuccess": "Request withdrawn"
+      },
+      "milestones": {
+        "title": "Milestones & forecast",
+        "subtitle": "Official exam dates, course end and the allocation-based forecast.",
+        "classLabel": "Class",
+        "close": "Close",
+        "forecastCap": "Forecast",
+        "forecastOk": "Projected completion {date} — {remaining} content minutes left across the next {sessions} sessions.",
+        "forecastShortfall": "{minutes} teaching minutes short — about {sessions} more sessions needed. The system never creates sessions or drops content on its own.",
+        "empty": "No milestones yet.",
+        "kind": {
+          "EXAM": "Official exam",
+          "COURSE_END": "Course end"
+        },
+        "kindLabel": "Kind",
+        "titlePlaceholder": "Milestone name (e.g. midterm exam)",
+        "dateLabel": "Planned date",
+        "add": "Add milestone",
+        "addSuccess": "Milestone added",
+        "saveDate": "Save date",
+        "movePending": "Move request submitted — awaiting center approval, the date is unchanged for now",
+        "moveSuccess": "Milestone moved",
+        "atRisk": "AT RISK",
+        "delete": "Delete milestone",
+        "deleteTitle": "Delete milestone?",
+        "deleteDetail": "It disappears from the forecast and the center view; a pending move request (if any) can no longer be applied.",
+        "deleteConfirm": "Delete",
+        "deleteSuccess": "Milestone deleted",
+        "cancel": "Cancel"
+      }
     },
     "tcProgress": {
       "ungrouped": "Ungrouped",

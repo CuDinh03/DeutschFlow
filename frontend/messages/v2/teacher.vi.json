@@ -76,7 +76,63 @@
       "emptyWeekPrefix": "Tuần này chưa có buổi lớp nào. Bấm",
       "emptyWeekMid": "hoặc",
       "emptyWeekSuffix": "để thêm.",
-      "sessionTitle": "{className} · {place} · {time} · {count} HV"
+      "sessionTitle": "{className} · {place} · {time} · {count} HV",
+      "milestonesButton": "Mốc & dự báo",
+      "requests": {
+        "heading": "Đề xuất thay đổi lịch",
+        "classLabel": "Lớp",
+        "empty": "Chưa có đề xuất nào cho lớp này.",
+        "status": {
+          "PENDING": "Chờ duyệt",
+          "APPROVED": "Đã duyệt",
+          "REJECTED": "Bị từ chối",
+          "CANCELLED": "Đã rút"
+        },
+        "type": {
+          "CANCEL_SESSION": "Hủy buổi",
+          "ADD_MAKEUP": "Buổi bù",
+          "MOVE_SESSION": "Dời buổi",
+          "UPDATE_PATTERN": "Đổi lịch cố định",
+          "MOVE_MILESTONE": "Dời mốc"
+        },
+        "rejectedReason": "Lý do: {reason}",
+        "appliedAt": "áp dụng {date}",
+        "withdraw": "Rút đề xuất",
+        "withdrawTitle": "Rút đề xuất?",
+        "withdrawDetail": "Đề xuất sẽ rời hàng chờ duyệt của trung tâm; lịch hiện tại vốn chưa đổi nên không có gì bị hoàn tác.",
+        "withdrawConfirm": "Rút",
+        "cancel": "Huỷ",
+        "withdrawSuccess": "Đã rút đề xuất"
+      },
+      "milestones": {
+        "title": "Mốc & dự báo",
+        "subtitle": "Mốc thi chính thức, ngày kết thúc khóa và dự báo theo phân bổ nội dung.",
+        "classLabel": "Lớp",
+        "close": "Đóng",
+        "forecastCap": "Dự báo",
+        "forecastOk": "Học xong dự kiến {date} — còn {remaining} phút nội dung trên {sessions} buổi tới.",
+        "forecastShortfall": "Thiếu {minutes} phút khung học — cần thêm khoảng {sessions} buổi. Hệ thống không tự tạo lịch hay bỏ bài.",
+        "empty": "Lớp chưa có mốc nào.",
+        "kind": {
+          "EXAM": "Thi chính thức",
+          "COURSE_END": "Kết thúc khóa"
+        },
+        "kindLabel": "Loại mốc",
+        "titlePlaceholder": "Tên mốc (ví dụ: Thi giữa khóa)",
+        "dateLabel": "Ngày dự kiến",
+        "add": "Thêm mốc",
+        "addSuccess": "Đã thêm mốc",
+        "saveDate": "Lưu ngày",
+        "movePending": "Đã gửi đề xuất dời mốc — chờ trung tâm duyệt, ngày hiện tại chưa đổi",
+        "moveSuccess": "Đã dời mốc",
+        "atRisk": "RỦI RO",
+        "delete": "Xoá mốc",
+        "deleteTitle": "Xoá mốc?",
+        "deleteDetail": "Mốc biến mất khỏi dự báo và khỏi màn của trung tâm; đề xuất dời mốc đang chờ (nếu có) sẽ không còn áp được.",
+        "deleteConfirm": "Xoá mốc",
+        "deleteSuccess": "Đã xoá mốc",
+        "cancel": "Huỷ"
+      }
     },
     "tcProgress": {
       "ungrouped": "Chưa xếp chương",

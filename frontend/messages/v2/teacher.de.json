@@ -76,7 +76,63 @@
       "emptyWeekPrefix": "Diese Woche gibt es noch keine Klassenstunden. Tippe auf",
       "emptyWeekMid": "oder",
       "emptyWeekSuffix": "zum Hinzufügen.",
-      "sessionTitle": "{className} · {place} · {time} · {count} Lernende"
+      "sessionTitle": "{className} · {place} · {time} · {count} Lernende",
+      "milestonesButton": "Meilensteine & Prognose",
+      "requests": {
+        "heading": "Terminänderungsanträge",
+        "classLabel": "Klasse",
+        "empty": "Noch keine Anträge für diese Klasse.",
+        "status": {
+          "PENDING": "Ausstehend",
+          "APPROVED": "Genehmigt",
+          "REJECTED": "Abgelehnt",
+          "CANCELLED": "Zurückgezogen"
+        },
+        "type": {
+          "CANCEL_SESSION": "Termin absagen",
+          "ADD_MAKEUP": "Nachholtermin",
+          "MOVE_SESSION": "Termin verschieben",
+          "UPDATE_PATTERN": "Stundenplan ändern",
+          "MOVE_MILESTONE": "Meilenstein verschieben"
+        },
+        "rejectedReason": "Grund: {reason}",
+        "appliedAt": "übernommen {date}",
+        "withdraw": "Zurückziehen",
+        "withdrawTitle": "Antrag zurückziehen?",
+        "withdrawDetail": "Der Antrag verlässt die Genehmigungsliste des Zentrums; der aktuelle Plan wurde nie geändert, es wird also nichts rückgängig gemacht.",
+        "withdrawConfirm": "Zurückziehen",
+        "cancel": "Abbrechen",
+        "withdrawSuccess": "Antrag zurückgezogen"
+      },
+      "milestones": {
+        "title": "Meilensteine & Prognose",
+        "subtitle": "Offizielle Prüfungstermine, Kursende und die Prognose aus der Inhaltsverteilung.",
+        "classLabel": "Klasse",
+        "close": "Schließen",
+        "forecastCap": "Prognose",
+        "forecastOk": "Voraussichtlich fertig am {date} — noch {remaining} Inhaltsminuten in den nächsten {sessions} Terminen.",
+        "forecastShortfall": "Es fehlen {minutes} Unterrichtsminuten — etwa {sessions} zusätzliche Termine nötig. Das System legt nie selbst Termine an und lässt keine Inhalte weg.",
+        "empty": "Noch keine Meilensteine.",
+        "kind": {
+          "EXAM": "Offizielle Prüfung",
+          "COURSE_END": "Kursende"
+        },
+        "kindLabel": "Art",
+        "titlePlaceholder": "Name (z. B. Zwischenprüfung)",
+        "dateLabel": "Geplantes Datum",
+        "add": "Meilenstein anlegen",
+        "addSuccess": "Meilenstein angelegt",
+        "saveDate": "Datum speichern",
+        "movePending": "Verschiebe-Antrag gesendet — wartet auf Genehmigung, das Datum bleibt vorerst unverändert",
+        "moveSuccess": "Meilenstein verschoben",
+        "atRisk": "RISIKO",
+        "delete": "Meilenstein löschen",
+        "deleteTitle": "Meilenstein löschen?",
+        "deleteDetail": "Er verschwindet aus Prognose und Zentrumsansicht; ein offener Verschiebe-Antrag kann nicht mehr übernommen werden.",
+        "deleteConfirm": "Löschen",
+        "deleteSuccess": "Meilenstein gelöscht",
+        "cancel": "Abbrechen"
+      }
     },
     "tcProgress": {
       "ungrouped": "Ohne Modul",
