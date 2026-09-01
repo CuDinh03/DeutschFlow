@@ -773,6 +773,25 @@ features:
     # tái cấu trúc model AI. UI v2 không còn lối vào; API trả 403 FEATURE_DISABLED.
     enabled: ${FEATURE_TEACHER_LESSON_PLAN:false}
 
+# Nhap PDF thanh noi dung giang day (curriculum import).
+# Toan bo chay trong container nay: giao trinh mau la du lieu dong goi san, con sach la thi doc muc
+# luc bang OCR noi bo. KHONG goi dich vu AI nao va KHONG can API key.
+curriculum:
+  import:
+    # Chi quet phan dau sach - noi muc luc nam. Nho tran nay, sach 176 trang ton dung bang sach 20
+    # trang, va phan than sach khong bao gio bi xu ly.
+    max-scan-pages: ${CURRICULUM_IMPORT_MAX_SCAN_PAGES:12}
+    max-document-pages: ${CURRICULUM_IMPORT_MAX_DOC_PAGES:600}
+    ocr:
+      # Vang tesseract KHONG phai loi: luong giao trinh mau van chay, chi sach scan la la khong doc
+      # duoc va giao vien nhan thong bao ro rang.
+      tesseract-path: ${TESSERACT_PATH:tesseract}
+      language: ${CURRICULUM_IMPORT_OCR_LANG:deu}
+      render-dpi: ${CURRICULUM_IMPORT_OCR_DPI:150}
+      timeout-seconds: ${CURRICULUM_IMPORT_OCR_TIMEOUT_SEC:60}
+      # Nhan dang ky tu ngon CPU; giu 1 suat de mot dot nhap khong cuop core cua request thuong.
+      max-concurrent: ${CURRICULUM_IMPORT_OCR_MAX_CONCURRENT:1}
+
 materials:
   preview:
     soffice-path: ${SOFFICE_PATH:soffice}
