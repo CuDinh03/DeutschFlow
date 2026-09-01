@@ -13,6 +13,7 @@
 // to that (e.g. `/interviews/personas`). The previous screen called
 // `/speaking/sessions` + `/speaking/turn`, which do not exist on the backend.
 
+import * as FileSystem from 'expo-file-system/legacy'
 import api from './api'
 
 // Encode binary audio (arraybuffer) to base64 for expo-file-system to write.
@@ -226,20 +227,30 @@ export const speakingApi = {
       )
       .then((r) => r.data),
 
-  /** Upload a recorded answer and get the German transcript back. */
-  transcribe: (audioUri: string) => {
+  /**
+   * Upload a recorded answer and get the German transcript back.
+   *
+   * Xoá file .m4a trong finally (F-17 soát 02/09): mỗi lượt nói để lại một file
+   * cache không ai dọn — app dùng hằng ngày tích luỹ vô hạn. Xoá ở ĐÂY an toàn vì
+   * không caller nào dùng lại uri sau transcribe (speaking/weekly/first-sentence
+   * chỉ giữ transcript; skill-practice phát lại bản ghi nhưng KHÔNG transcribe).
+   */
+  transcribe: async (audioUri: string) => {
     const form = new FormData()
     form.append('audio', {
       uri: audioUri,
       type: 'audio/m4a',
       name: 'answer.m4a',
     } as unknown as Blob)
-    return api
-      .post<{ transcript: string }>('/ai-speaking/transcribe', form, {
+    try {
+      const r = await api.post<{ transcript: string }>('/ai-speaking/transcribe', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 30_000,
       })
-      .then((r) => r.data.transcript)
+      return r.data.transcript
+    } finally {
+      void FileSystem.deleteAsync(audioUri, { idempotent: true }).catch(() => {})
+    }
   },
 
   /**

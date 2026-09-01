@@ -697,7 +697,14 @@ function SpeakingInput({
       }
       if (recordingRef.current) {
         setGermanRecordingActive(false)
-        void recorder.stop().catch(() => undefined)
+        void recorder
+          .stop()
+          .catch(() => undefined)
+          .finally(() => {
+            // Audio mode là cấu hình toàn app — không thoát record mode ở đây thì
+            // TTS/phát lại sau đó ra loa trong rất nhỏ (F-11 soát 02/09).
+            void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {})
+          })
       }
     },
     [recorder],

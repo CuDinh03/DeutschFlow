@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { View, Alert, Linking, Pressable, ActivityIndicator } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics'
 import { Flame, Lock, Mic, Square, RotateCcw, ChevronRight } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
+import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { speakingApi } from '@/lib/speakingApi'
 import { weeklyApi, rubricScore } from '@/lib/weeklyApi'
 import { radius, space, useTheme } from '@/lib/theme'
@@ -176,19 +177,10 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
   // + the `phase` state drive the UI and guards (replacing the old recording ref).
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
 
-  // Stop any in-progress recording on unmount so navigating away mid-record doesn't
-  // leak the mic or leave iOS stuck in record mode.
-  useEffect(() => {
-    return () => {
-      if (!recorder.isRecording) return
-      void recorder
-        .stop()
-        .catch(() => {})
-        .finally(() => {
-          void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {})
-        })
-    }
-  }, [recorder])
+  // Rời màn giữa lúc ghi → dừng mic + thoát record mode. Logic gốc của màn này
+  // được trích thành hook dùng chung cho cả 5 màn ghi âm (soát 02/09, F-9/F-11);
+  // cleanup của useFocusEffect chạy ở cả blur lẫn unmount nên phủ rộng hơn bản cũ.
+  useRecorderBlurGuard(recorder, () => setPhase('idle'))
 
   async function start() {
     // 5.1.1(i): the recording is transcribed by a third-party AI — disclose & get consent first.

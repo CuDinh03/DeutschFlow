@@ -64,6 +64,15 @@ interface ChatOutboxState {
   flush: () => void
   /** Drop confirmed shadows a real server fetch now contains — called with the fetched ids. */
   reconcile: (kind: OutboxKind, targetId: number, serverIds: readonly number[]) => void
+  /**
+   * Xoá SẠCH outbox (MMKV + state) — gọi khi phiên kết thúc (logout / refresh
+   * token chết), qua clearDeviceSessionState. Item không gắn userId nên tin chưa
+   * gửi được của tài khoản A mà còn nằm lại sẽ hiện thành bong bóng "của tôi"
+   * kèm nút "Gửi lại" dưới tài khoản B trên cùng máy — lộ nguyên văn tin nhắn và
+   * mở đường gửi lại dưới danh nghĩa người khác (soát 02/09, F-23). Tin nháp
+   * chưa gửi của A bị bỏ có chủ đích: không được phép giữ hộ cho người sau.
+   */
+  clear: () => void
 }
 
 export const useChatOutboxStore = create<ChatOutboxState>((set, get) => {
@@ -129,6 +138,12 @@ export const useChatOutboxStore = create<ChatOutboxState>((set, get) => {
       const cur = get().items
       const next = reconcileConfirmed(cur, kind, targetId, serverIds)
       if (next !== cur) commit(next)
+    },
+
+    clear: () => {
+      // Attempt đang bay (nếu có) settle vào danh sách rỗng: markConfirmed/markFailed
+      // map trên items hiện tại nên item đã xoá chỉ là no-op, không hồi sinh.
+      commit([])
     },
   }
 })

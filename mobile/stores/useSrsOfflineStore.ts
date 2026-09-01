@@ -18,6 +18,12 @@ interface SrsOfflineState {
   enqueue: (vocabId: string, quality: number) => void
   sync: () => Promise<void>
   loadCount: () => void
+  /**
+   * Xoá sạch hàng đợi (MMKV + state) khi phiên kết thúc — review chưa đồng bộ
+   * không gắn userId, để lại là `sync()` lần sau POST chúng bằng token của
+   * TÀI KHOẢN KẾ TIẾP trên cùng máy (soát 02/09, F-24).
+   */
+  clear: () => void
 }
 
 function readQueue(): SrsReview[] {
@@ -61,5 +67,10 @@ export const useSrsOfflineStore = create<SrsOfflineState>((set, get) => ({
     } catch {
       set({ isSyncing: false })
     }
+  },
+
+  clear: () => {
+    writeQueue([])
+    set({ pendingCount: 0 })
   },
 }))

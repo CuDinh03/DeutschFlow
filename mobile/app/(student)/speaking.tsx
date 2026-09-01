@@ -25,6 +25,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { handleAiError } from '@/lib/upsell'
 import { ensureAiConsent } from '@/lib/aiConsent'
+import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import {
   speakingApi,
   isUnlimitedQuota,
@@ -140,6 +141,16 @@ export default function SpeakingScreen() {
   const reactionRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const speakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pulseAnim = useSharedValue(1)
+
+  // F-9 (soát 02/09): màn này là bottom-tab — chuyển tab KHÔNG unmount, nên nếu
+  // đang ghi mà người dùng đi tab khác thì mic ghi tiếp vô thời hạn. Guard theo
+  // blur tự dừng recorder + thoát record mode; bản ghi dở bị bỏ, UI trả về idle.
+  useRecorderBlurGuard(recorder, () => {
+    cancelAnimation(pulseAnim)
+    pulseAnim.value = 1
+    setIsRecording(false)
+    setStage('idle')
+  })
 
   // Offer to resume an interrupted session left over from a previous app run.
   useEffect(() => {
