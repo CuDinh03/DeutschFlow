@@ -682,6 +682,24 @@ public class UserNotificationService {
      *             {@code CLASS_SESSION_RESCHEDULED}
      * @return the number of students notified
      */
+    /**
+     * Gửi MỘT thông báo tới MỘT người dùng — ĐỒNG BỘ, dành cho outbox worker (PR-5/G2): worker đã
+     * đứng ngoài giao dịch nghiệp vụ nên không cần (và không được) @Async; ghi notification + push
+     * trong giao dịch của dòng outbox để SENT và notification nguyên tử với nhau.
+     */
+    @Transactional
+    public void deliverToUser(Long recipientId, NotificationType type, Map<String, Object> payload) {
+        User recipient = userRepository.findById(recipientId).orElse(null);
+        if (recipient == null || !recipient.isActive()) return;
+        UserNotification n = notificationRepository.save(UserNotification.builder()
+                .recipient(recipient)
+                .type(type)
+                .payload(new LinkedHashMap<>(payload))
+                .build());
+        unreadPushCoordinator.afterCommit(recipient.getId());
+        pushForNotification(n);
+    }
+
     @Async("taskExecutor")
     @Transactional
     public void notifyClassScheduleEvent(NotificationType type, Long classId, String className,
