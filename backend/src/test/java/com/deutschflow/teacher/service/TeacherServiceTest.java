@@ -1297,7 +1297,7 @@ class TeacherServiceTest {
     }
 
     @Test
-    @DisplayName("evaluateAssignment: bài SUBMITTED chốt được — EVALUATED, thông báo, cập nhật năng lực")
+    @DisplayName("evaluateAssignment: bài SUBMITTED chốt được — EVALUATED, thông báo ĐÚNG MỘT lần, cập nhật năng lực")
     void evaluateAssignment_submitted_finalizesAndNotifies() {
         StudentAssignment sa = stubGradableSubmission("SUBMITTED");
         when(studentAssignmentRepository.save(any(StudentAssignment.class)))
@@ -1308,14 +1308,16 @@ class TeacherServiceTest {
 
         assertEquals("EVALUATED", dto.status());
         assertEquals(85, sa.getScore());
+        // Lần chấm ĐẦU: đúng 1 thông báo "✅ Bài đã chấm", không đi đường regrade.
         verify(userNotificationService).onAssignmentGraded(eq(200L), eq("ASSIGNMENT"), eq(10L), eq(85), eq("Gut"));
+        verify(userNotificationService, never()).onAssignmentRegraded(any(), anyString(), any(), any(), any());
         verify(studentCompetencyService).applyGradingResult(200L, 10L, 85);
     }
 
     /** Chưa có lịch sử chấm thì cấm chấm lại là tự trói — đường sửa điểm final phải còn (F12). */
     @Test
-    @DisplayName("evaluateAssignment: chấm lại bài EVALUATED vẫn hợp lệ (đường sửa điểm)")
-    void evaluateAssignment_regradeOfFinal_isAllowed() {
+    @DisplayName("F-QA-01: chấm lại bài EVALUATED hợp lệ nhưng KHÔNG phát thêm 'Bài đã chấm' — đi đường cập-nhật-tại-chỗ")
+    void evaluateAssignment_regradeOfFinal_refreshesInsteadOfAnnouncingAgain() {
         StudentAssignment sa = stubGradableSubmission("EVALUATED");
         sa.setScore(70);
         when(studentAssignmentRepository.save(any(StudentAssignment.class)))
@@ -1326,5 +1328,68 @@ class TeacherServiceTest {
 
         assertEquals("EVALUATED", dto.status());
         assertEquals(90, sa.getScore());
+        // AssignmentStatus hứa announce đúng MỘT lần: regrade không được bắn "✅ Bài đã chấm" nữa
+        // (QA prod 02/09: 3 lần sửa điểm = 3 thông báo trong 1 phút).
+        verify(userNotificationService, never()).onAssignmentGraded(any(), anyString(), any(), any(), any());
+        verify(userNotificationService).onAssignmentRegraded(eq(200L), eq("ASSIGNMENT"), eq(10L), eq(90), eq("sửa lại"));
+    }
+
+    /** GRADED (legacy AI-announce) cũng là final: học viên đã nghe điểm một lần → sửa điểm đi đường regrade. */
+    @Test
+    @DisplayName("F-QA-01: chấm lại bài GRADED legacy cũng đi đường cập-nhật-tại-chỗ, không announce lại")
+    void evaluateAssignment_regradeOfLegacyGraded_refreshesInsteadOfAnnouncingAgain() {
+        StudentAssignment sa = stubGradableSubmission("GRADED");
+        sa.setScore(60);
+        when(studentAssignmentRepository.save(any(StudentAssignment.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        teacherService.evaluateAssignment(
+                1L, 5L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(75, "chốt lại"));
+
+        verify(userNotificationService, never()).onAssignmentGraded(any(), anyString(), any(), any(), any());
+        verify(userNotificationService).onAssignmentRegraded(eq(200L), eq("ASSIGNMENT"), eq(10L), eq(75), eq("chốt lại"));
+    }
+
+    // ─── evaluateSpeakingSession (F-QA-01): cùng hợp đồng thông-báo-một-lần cho bài nói ─────────
+
+    /** Phiên nói id=30 của học viên 200 trong lớp 10 mà giáo viên 1 phụ trách. */
+    private com.deutschflow.speaking.entity.AiSpeakingSession stubReviewableSpeakingSession() {
+        com.deutschflow.speaking.entity.AiSpeakingSession session =
+                com.deutschflow.speaking.entity.AiSpeakingSession.builder()
+                        .id(30L).userId(200L).topic("Vorstellung").cefrLevel("A1")
+                        .startedAt(LocalDateTime.now().minusHours(1))
+                        .build();
+        when(speakingSessionRepository.findById(30L)).thenReturn(Optional.of(session));
+        when(classTeacherRepository.findByIdTeacherId(1L))
+                .thenReturn(List.of(ClassTeacher.builder().id(new ClassTeacherId(10L, 1L)).build()));
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(10L, 200L)).thenReturn(true);
+        when(speakingSessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        return session;
+    }
+
+    @Test
+    @DisplayName("evaluateSpeakingSession: lần chấm đầu (reviewedAt null) → thông báo 'Bài đã chấm' đúng một lần")
+    void evaluateSpeakingSession_firstReview_notifiesGradedOnce() {
+        stubReviewableSpeakingSession();
+
+        teacherService.evaluateSpeakingSession(
+                1L, 30L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(80, "Sehr gut"));
+
+        verify(userNotificationService).onAssignmentGraded(eq(200L), eq("SPEAKING"), eq(30L), eq(80), eq("Sehr gut"));
+        verify(userNotificationService, never()).onAssignmentRegraded(any(), anyString(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("F-QA-01: chấm lại phiên nói (reviewedAt đã có) → không announce lại, đi đường cập-nhật-tại-chỗ")
+    void evaluateSpeakingSession_reReview_refreshesInsteadOfAnnouncingAgain() {
+        com.deutschflow.speaking.entity.AiSpeakingSession session = stubReviewableSpeakingSession();
+        session.setTeacherScore(70);
+        session.setReviewedAt(LocalDateTime.now().minusMinutes(5));
+
+        teacherService.evaluateSpeakingSession(
+                1L, 30L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(85, "besser"));
+
+        verify(userNotificationService, never()).onAssignmentGraded(any(), anyString(), any(), any(), any());
+        verify(userNotificationService).onAssignmentRegraded(eq(200L), eq("SPEAKING"), eq(30L), eq(85), eq("besser"));
     }
 }

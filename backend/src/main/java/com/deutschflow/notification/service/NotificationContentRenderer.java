@@ -187,6 +187,13 @@ public class NotificationContentRenderer {
         // Scores are on a 0–100 scale (AI + teacher grading). Render scale-agnostically
         // (matching the prior web wording) — never a fixed "/10" denominator.
         String scorePart = score != null ? " — Điểm: " + score + "." : ".";
+        // F-QA-01: regrade refreshes the announcement in place with the `updated` flag — the copy
+        // says the grade CHANGED and carries only the CURRENT score (no old→new fluctuation trail).
+        if (Boolean.TRUE.equals(p.get("updated")) || "true".equals(str(p, "updated"))) {
+            return new RenderedContent(
+                    "🔄 Điểm đã được cập nhật",
+                    "Điểm bài " + typeLabel + " của bạn đã được cập nhật" + scorePart + " Xem phản hồi.");
+        }
         return new RenderedContent(
                 "✅ Bài đã chấm",
                 "Bài " + typeLabel + " của bạn đã được chấm" + scorePart + " Xem phản hồi.");
