@@ -2,6 +2,7 @@
 package com.deutschflow.media;
 
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.media.dto.MediaAssetDto;
 import com.deutschflow.media.entity.MediaAsset;
 import com.deutschflow.media.repository.MediaAssetRepository;
@@ -164,6 +165,42 @@ class MediaAssetServiceIntegrationTest extends AbstractPostgresIntegrationTest {
         MediaAsset landing = mediaAssetService.uploadMedia(png("hero.png"), "LANDING", "hero", null, admin);
         assertThatThrownBy(() -> mediaAssetService.deleteMedia(landing.getId(), teacherA))
                 .isInstanceOf(ForbiddenException.class);
+    }
+
+    // ─── Audit F-M6 (03/09): đọc metadata theo id từng là IDOR ────────────────────────────────
+    //
+    // GET /api/v2/media/{id} trước đây không gác gì: mọi user đăng nhập đọc được s3Key/url/người
+    // upload của asset bất kỳ bằng cách dò id. Nay cùng ranh giới với DELETE/PATCH, và trả 404
+    // (NotFoundException) chứ không 403 — 403 sẽ xác nhận id đó có thật.
+
+    @Test
+    void readById_uploaderCanReadOwnAsset() {
+        MediaAsset own = mediaAssetService.uploadMedia(png("a.png"), "ASSIGNMENT", "own-read", null, teacherA);
+
+        MediaAsset found = mediaAssetService.getMediaByIdForReader(own.getId(), teacherA);
+
+        assertThat(found.getId()).isEqualTo(own.getId());
+    }
+
+    @Test
+    void readById_crossTeacherIsNotFound() {
+        MediaAsset ofA = mediaAssetService.uploadMedia(png("a.png"), "ASSIGNMENT", "cross-read", null, teacherA);
+
+        assertThatThrownBy(() -> mediaAssetService.getMediaByIdForReader(ofA.getId(), teacherB))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void readById_adminCanReadAnyAsset() {
+        MediaAsset ofA = mediaAssetService.uploadMedia(png("a.png"), "ASSIGNMENT", "admin-read", null, teacherA);
+
+        assertThat(mediaAssetService.getMediaByIdForReader(ofA.getId(), admin).getId()).isEqualTo(ofA.getId());
+    }
+
+    @Test
+    void readById_missingAssetIsNotFound() {
+        assertThatThrownBy(() -> mediaAssetService.getMediaByIdForReader(-1L, admin))
+                .isInstanceOf(NotFoundException.class);
     }
 
     private static MockMultipartFile png(String name) {

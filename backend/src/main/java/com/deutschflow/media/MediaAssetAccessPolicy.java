@@ -22,6 +22,19 @@ public final class MediaAssetAccessPolicy {
                 && asset.getUploadedBy().getId().equals(user.getId());
     }
 
+    /**
+     * Audit F-M6 (03/09/2026): quyền ĐỌC metadata một asset theo id. Trước đây
+     * {@code GET /api/v2/media/{id}} không gác gì, nên mọi user đăng nhập đọc được
+     * {@code s3Key} / {@code url} / người upload của asset bất kỳ chỉ bằng cách dò id.
+     *
+     * <p>Cùng ranh giới với DELETE/PATCH: ADMIN đọc mọi asset, còn lại chỉ đọc asset mình upload.
+     * Trả boolean (không ném) để phía gọi biến "không có quyền" thành 404 — xem
+     * {@code MediaAssetService#getMediaByIdForReader}: 403 sẽ xác nhận id đó tồn tại.
+     */
+    public static boolean isReadAllowed(User user, MediaAsset asset) {
+        return isAdmin(user) || isUploader(user, asset);
+    }
+
     public static void requireUploadAllowed(User user, MediaCategory category) {
         if (user == null) {
             throw new ForbiddenException("Authentication required");
