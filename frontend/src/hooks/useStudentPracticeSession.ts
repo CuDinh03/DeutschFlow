@@ -88,7 +88,19 @@ export function useStudentPracticeSession(options?: {
     setLoading(true);
     setLoadError(null);
     try {
-      const meRes = await api.get<PracticeSessionUser>("/auth/me");
+      // W3 audit lag 02/09: trước đây 3 await TUẦN TỰ (/auth/me → /onboarding/status → meta+dash)
+      // — mỗi nhịp một RTT VN→us-east-1 (~0,5s ấm) ⇒ ~1,5s chỉ để "vào cửa". Giờ bắn CẢ BỐN cùng
+      // lúc; /auth/me vẫn được đọc trước để giữ nguyên thứ tự guard (sai vai trò → về trang chủ
+      // vai trò, chưa có lộ trình → onboarding). Nhánh redirect bỏ phí 3 request còn lại — đánh
+      // đổi rẻ hơn nhiều so với bắt mọi người dùng hợp lệ xếp hàng 3 nhịp.
+      const mePromise = api.get<PracticeSessionUser>("/auth/me");
+      const statusPromise = requireStudent && !skipOnboardingCheck
+        ? api.get<{ hasPlan: boolean }>("/onboarding/status").catch(() => null)
+        : Promise.resolve(null);
+      const roadmapMetaPromise = api.get<RoadmapMeta>("/roadmap/me/meta").catch(() => null);
+      const dashPromise = api.get<{ streakDays?: number }>("/student/dashboard").catch(() => null);
+
+      const meRes = await mePromise;
       const userData = meRes.data;
 
       if (requireStudent && userData.role !== "STUDENT") {
@@ -101,19 +113,17 @@ export function useStudentPracticeSession(options?: {
         return;
       }
 
-      // Onboarding guard — redirect students who haven't completed onboarding
-      if (requireStudent && !skipOnboardingCheck) {
-        const statusRes = await api.get<{ hasPlan: boolean }>("/onboarding/status").catch(() => null);
-        if (statusRes?.data?.hasPlan === false) {
-          router.replace(pathname?.startsWith("/v2/") ? "/v2/onboarding" : "/onboarding");
-          return;
-        }
-      }
-
-      const [roadmapMetaRes, dashRes] = await Promise.all([
-        api.get<RoadmapMeta>("/roadmap/me/meta").catch(() => null),
-        api.get<{ streakDays?: number }>("/student/dashboard").catch(() => null),
+      const [statusRes, roadmapMetaRes, dashRes] = await Promise.all([
+        statusPromise,
+        roadmapMetaPromise,
+        dashPromise,
       ]);
+
+      // Onboarding guard — redirect students who haven't completed onboarding
+      if (statusRes?.data?.hasPlan === false) {
+        router.replace(pathname?.startsWith("/v2/") ? "/v2/onboarding" : "/onboarding");
+        return;
+      }
 
       const roadmapMetaData = roadmapMetaRes?.data ?? null;
       const tl = roadmapMetaData?.targetLevel ?? userData.learningTargetLevel ?? "A1";

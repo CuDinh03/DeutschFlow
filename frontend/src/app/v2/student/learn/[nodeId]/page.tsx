@@ -208,10 +208,19 @@ export default function V2StudentLearnNodePage() {
     }
   }, [nodeId])
 
+  // W3 audit lag 02/09: fetchSession từng chờ `me` (hook auth xong) — nội dung bài học xếp hàng
+  // sau 2 nhịp mạng dù chỉ cần nodeId. Giờ bắn ngay khi mount: người chưa đăng nhập nhận 401 và
+  // hook vẫn đá về /login như cũ (phí đúng 1 request), còn mọi học viên hợp lệ được tải bài học
+  // song song với /auth/me. UI vẫn chờ `me` mới render — chỉ REQUEST là chạy trước.
   useEffect(() => {
-    if (!me || !nodeId) return
+    if (!nodeId) return
     reset()
     void fetchSession(nodeId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodeId])
+
+  useEffect(() => {
+    if (!me || !nodeId) return
     trackFeatureAction('lesson', 'started', { node_id: nodeId, cefr: targetLevel })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me, nodeId])

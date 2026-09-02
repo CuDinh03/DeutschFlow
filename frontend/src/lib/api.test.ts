@@ -141,3 +141,53 @@ describe('api interceptor — refresh-storm latch', () => {
     expect(h.clearTokens).not.toHaveBeenCalled()
   })
 })
+
+// W6 audit lag 02/09 — kỷ luật retry: 1 lần, và CHỈ cho 502/503 (+ lỗi mạng). 500 là bug xác
+// định — retry chỉ nhân đôi thời gian chờ và tải; 504 nghĩa là upstream đã treo hết một vòng
+// timeout của nginx rồi.
+describe('api interceptor — transient-only retry (W6)', () => {
+  it('does NOT retry a 500 (deterministic server bug)', async () => {
+    let calls = 0
+    const { api } = await bootstrap(() => {
+      calls += 1
+      return { status: 500, data: { message: 'boom' } }
+    })
+
+    await expect(api.get('/anything')).rejects.toMatchObject({ response: { status: 500 } })
+    expect(calls).toBe(1)
+  })
+
+  it('retries a 503 exactly ONCE then surfaces the error', async () => {
+    let calls = 0
+    const { api } = await bootstrap(() => {
+      calls += 1
+      return { status: 503, data: { message: 'brownout' } }
+    })
+
+    await expect(api.get('/anything')).rejects.toMatchObject({ response: { status: 503 } })
+    expect(calls).toBe(2)
+  }, 10_000)
+
+  it('a 502 recovers on the single retry (deploy promote window)', async () => {
+    let calls = 0
+    const { api } = await bootstrap(() => {
+      calls += 1
+      return calls === 1 ? { status: 502, data: {} } : { status: 200, data: { ok: true } }
+    })
+
+    const res = await api.get<{ ok: boolean }>('/anything')
+    expect(res.data).toEqual({ ok: true })
+    expect(calls).toBe(2)
+  }, 10_000)
+
+  it('never retries a POST, even on 503', async () => {
+    let calls = 0
+    const { api } = await bootstrap(() => {
+      calls += 1
+      return { status: 503, data: {} }
+    })
+
+    await expect(api.post('/grade', { x: 1 })).rejects.toMatchObject({ response: { status: 503 } })
+    expect(calls).toBe(1)
+  })
+})

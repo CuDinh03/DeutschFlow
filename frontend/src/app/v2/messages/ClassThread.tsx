@@ -9,6 +9,8 @@ import {
   deleteClassMessage,
   type ClassMessage,
 } from '@/lib/classChannelApi'
+import { sameMessageIds } from '@/lib/messagesApi'
+import { usePollWhileVisible } from '@/hooks/usePollWhileVisible'
 import { LoadingState } from '@/components/ui-v2'
 import { Composer } from './Composer'
 import { ThreadShell, fmtDay } from './ThreadShell'
@@ -41,7 +43,9 @@ export function ClassThread({ classId, name, onBack }: ClassThreadProps) {
   const load = useCallback(async (spin: boolean) => {
     if (spin) setLoading(true)
     try {
-      setMessages(await listClassMessages(classId))
+      const next = await listClassMessages(classId)
+      // Không có tin mới → giữ nguyên reference cũ, khỏi re-render cả feed mỗi tick (W5).
+      setMessages((prev) => (sameMessageIds(prev, next) ? prev : next))
       setError('')
     } catch (e: unknown) {
       setError(apiMessage(e))
@@ -52,9 +56,10 @@ export function ClassThread({ classId, name, onBack }: ClassThreadProps) {
 
   useEffect(() => {
     void load(true)
-    const t = setInterval(() => void load(false), POLL_MS)
-    return () => clearInterval(t)
   }, [load])
+
+  const poll = useCallback(() => load(false), [load])
+  usePollWhileVisible(poll, POLL_MS)
 
   const send = async (text: string) => {
     try {

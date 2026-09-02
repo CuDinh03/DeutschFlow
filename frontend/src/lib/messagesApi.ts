@@ -55,3 +55,15 @@ export async function getUnreadCount(): Promise<number> {
   const res = await api.get<{ count: number }>('/messages/unread-count')
   return res.data?.count ?? 0
 }
+
+/**
+ * So hai mảng tin nhắn theo (độ dài, id đầu, id cuối) — đủ cho luồng chat append-only có xoá
+ * (id tăng dần, tin mới luôn nằm cuối). Dùng để các vòng poll (W5) giữ nguyên reference mảng cũ
+ * khi không có gì mới: setState với mảng mới mỗi tick là mỗi 5–12s re-render toàn bộ thread
+ * dù chẳng ai nhắn gì.
+ */
+export function sameMessageIds(a: ReadonlyArray<{ id: number }>, b: ReadonlyArray<{ id: number }>): boolean {
+  if (a.length !== b.length) return false
+  if (a.length === 0) return true
+  return a[0].id === b[0].id && a[a.length - 1].id === b[b.length - 1].id
+}

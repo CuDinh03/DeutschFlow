@@ -1,7 +1,7 @@
 'use client'
 
-import axios from 'axios'
-import { getAccessToken, setTokens } from '@/lib/authSession'
+import { refreshAccessToken } from '@/lib/api'
+import { getAccessToken } from '@/lib/authSession'
 
 // SSE fetch must go directly to Spring Boot, not to the Next.js origin — a relative
 // `/api/...` resolves against window.location.origin and hits Next.js → 404 retry loop.
@@ -77,7 +77,16 @@ export function parseUnreadCount(data: string): number | null {
 
 /**
  * Subscribes to GET /notifications/stream (SSE via fetch ReadableStream).
- * Reconnects with backoff until `AbortController.abort()`.
+ * Reconnects with exponential backoff (capped) until `AbortController.abort()`.
+ *
+ * W4 audit lag 02/09 — kỷ luật reconnect:
+ *  - Refresh 401 đi qua {@link refreshAccessToken} (single-flight + latch chung với api.ts).
+ *    Trước đây stream POST /auth/refresh bằng axios trần: một session chết vẫn refresh mỗi 4s
+ *    VĨNH VIỄN (return chỉ thoát iteration, runner gọi lại) — góp bão 429 vào đúng lúc backend yếu.
+ *  - Session chết dứt khoát → DỪNG HẲN runner (bell remount sau khi re-login sẽ subscribe lại).
+ *  - Backoff lũy tiến 4s → 8s → … trần 60s khi lỗi liên tiếp; reset khi stream sống trở lại.
+ *  - Tab ẩn → không mở vòng reconnect mới, chờ visibilitychange (stream đang sống thì giữ nguyên —
+ *    đóng/mở theo mỗi lần chuyển tab còn đắt hơn một kết nối idle có ping).
  */
 export function subscribeNotificationUnread(
   onUnread: (count: number) => void,
@@ -85,11 +94,35 @@ export function subscribeNotificationUnread(
   options?: {
     reconnectAfterMs?: number
     reconnectAfterRateLimitMs?: number
+    maxReconnectMs?: number
   },
 ): AbortController {
   const ctrl = new AbortController()
   const reconnectDelay = options?.reconnectAfterMs ?? 4_000
   const retry429Ms = options?.reconnectAfterRateLimitMs ?? 30_000
+  const maxReconnectMs = options?.maxReconnectMs ?? 60_000
+  // Lỗi liên tiếp chưa xen một stream sống nào — mũ của backoff lũy tiến.
+  let consecutiveFailures = 0
+  // Bật khi session chết dứt khoát — runner thoát hẳn thay vì reconnect vô ích.
+  let sessionDead = false
+
+  function waitUntilVisible(): Promise<void> {
+    if (typeof document === 'undefined' || document.visibilityState !== 'hidden') {
+      return Promise.resolve()
+    }
+    return new Promise((resolve) => {
+      const settle = () => {
+        document.removeEventListener('visibilitychange', onChange)
+        ctrl.signal.removeEventListener('abort', settle)
+        resolve()
+      }
+      const onChange = () => {
+        if (document.visibilityState === 'visible') settle()
+      }
+      document.addEventListener('visibilitychange', onChange)
+      ctrl.signal.addEventListener('abort', settle, { once: true })
+    })
+  }
 
   async function iteration() {
     const url = `${SSE_BASE}/notifications/stream`
@@ -98,7 +131,8 @@ export function subscribeNotificationUnread(
       'Cache-Control': 'no-cache',
     }
 
-    let pauseMs = reconnectDelay
+    let pauseMs = Math.min(reconnectDelay * 2 ** consecutiveFailures, maxReconnectMs)
+    consecutiveFailures += 1
 
     try {
       const doFetch = (token: string | null) =>
@@ -110,33 +144,28 @@ export function subscribeNotificationUnread(
 
       let res = await doFetch(getAccessToken())
       if (res.status === 401) {
-        // Access token expired. The refresh token lives in an HttpOnly cookie on web, so
-        // POST with an empty body + credentials and let the browser attach it (same flow
-        // as api.ts). Hit the backend origin, not the relative /api (which 404s on Next.js).
-        try {
-          const { data } = await axios.post<{ accessToken?: string; refreshToken?: string | null }>(
-            `${SSE_BASE}/auth/refresh`,
-            {},
-            { withCredentials: true },
-          )
-          setTokens(data)
-          res = await doFetch(data.accessToken ?? null)
-        } catch {
-          // Refresh failed — stop this background stream and defer global re-auth to the
-          // shared api client (useAuthRecoveryStore), instead of force-redirecting here.
+        // Access token expired — refresh qua đường single-flight chung. `null` = session chết
+        // dứt khoát (latch đã bật / refresh bị từ chối, banner re-auth do api.ts lo): dừng hẳn.
+        // Ném lỗi = thất bại thoáng qua: rơi xuống catch, backoff rồi thử lại.
+        const token = await refreshAccessToken()
+        if (token === null) {
           onError?.('unauthorized')
+          sessionDead = true
           return
         }
+        res = await doFetch(token)
       }
 
       if (res.status === 429) {
         onError?.('rate-limit')
-        pauseMs = retry429Ms
+        pauseMs = Math.max(pauseMs, retry429Ms)
         return
       }
 
       if (res.status === 401) {
+        // Vẫn 401 với token vừa refresh xong — đừng vắt thêm refresh nào nữa.
         onError?.('unauthorized')
+        sessionDead = true
         return
       }
 
@@ -144,6 +173,10 @@ export function subscribeNotificationUnread(
         onError?.(`http-${res.status}`)
         return
       }
+
+      // Stream sống — chuỗi lỗi kết thúc, backoff quay về mốc đầu.
+      consecutiveFailures = 0
+      pauseMs = reconnectDelay
 
       const reader = res.body.getReader()
       const dec = new TextDecoder()
@@ -171,14 +204,16 @@ export function subscribeNotificationUnread(
         onError?.('disconnect')
       }
     } finally {
-      if (!ctrl.signal.aborted) {
+      if (!ctrl.signal.aborted && !sessionDead) {
         await sleepAbortable(pauseMs, ctrl.signal)
       }
     }
   }
 
   async function runner() {
-    while (!ctrl.signal.aborted) {
+    while (!ctrl.signal.aborted && !sessionDead) {
+      await waitUntilVisible()
+      if (ctrl.signal.aborted || sessionDead) break
       await iteration()
     }
   }
