@@ -104,6 +104,22 @@ public class MediaAssetService {
                 .orElseThrow(() -> new NotFoundException("Media asset not found with id: " + id));
     }
 
+    /**
+     * Đọc metadata asset theo id CHO MỘT NGƯỜI DÙNG cụ thể (audit F-M6).
+     *
+     * <p>Tách khỏi {@link #getMediaById(Long)} vì method kia là đường nội bộ, đã có
+     * {@code MediaAssetAccessPolicy.requireDeleteAllowed} gác ngay sau khi gọi.
+     *
+     * <p>Trả 404 cả khi asset không tồn tại lẫn khi người gọi không có quyền — 403 sẽ biến endpoint
+     * thành máy dò id (xác nhận asset nào có thật). Cùng hình mẫu với
+     * {@code InterviewController#requireOwnedSession}.
+     */
+    public MediaAsset getMediaByIdForReader(Long id, User user) {
+        return mediaAssetRepository.findById(id)
+                .filter(asset -> MediaAssetAccessPolicy.isReadAllowed(user, asset))
+                .orElseThrow(() -> new NotFoundException("Media asset not found with id: " + id));
+    }
+
     public Page<MediaAsset> getMediaByCategory(String category, Pageable pageable, User user) {
         if (user != null && user.getRole() == User.Role.TEACHER) {
             return listForTeacher(category, pageable, user.getId());

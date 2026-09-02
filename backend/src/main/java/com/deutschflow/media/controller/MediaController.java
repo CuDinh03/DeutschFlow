@@ -72,9 +72,18 @@ public class MediaController {
         return ResponseEntity.ok(MediaAssetDto.fromEntity(asset));
     }
 
+    /**
+     * Audit F-M6 (03/09/2026): trước đây endpoint này không gác gì — mọi user đăng nhập (kể cả
+     * STUDENT) đọc được s3Key/url/người upload của asset bất kỳ bằng cách dò id. Nay cùng ranh giới
+     * với DELETE/PATCH: ADMIN đọc mọi asset, TEACHER chỉ asset mình upload; không đủ quyền thì 404
+     * chứ không 403, để không dùng được làm máy dò id.
+     */
     @GetMapping("/api/v2/media/{id}")
-    public ResponseEntity<MediaAssetDto> getMediaById(@PathVariable("id") Long id) {
-        MediaAsset asset = mediaAssetService.getMediaById(id);
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public ResponseEntity<MediaAssetDto> getMediaById(
+            @PathVariable("id") Long id,
+            @AuthenticationPrincipal User user) {
+        MediaAsset asset = mediaAssetService.getMediaByIdForReader(id, user);
         return ResponseEntity.ok(MediaAssetDto.fromEntity(asset));
     }
 
