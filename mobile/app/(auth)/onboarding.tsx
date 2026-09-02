@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native'
+import { AccessibilityInfo, View, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
@@ -117,6 +117,15 @@ const DAILY_GOALS: { value: string; tag: string }[] = [
 const DEFAULT_SESSIONS_PER_WEEK = 5
 const DEFAULT_MINUTES_PER_SESSION = 15
 
+// VoiceOver/TalkBack không tự biết wizard vừa đổi bước (nội dung thay tại chỗ,
+// không có điều hướng) — đọc to tiêu đề bước mới mỗi lần chuyển.
+const STEP_ANNOUNCEMENTS: Record<OnboardingStepId, string> = {
+  motivation: 'Bước 1 trên 4: Vì sao bạn học tiếng Đức?',
+  levels: 'Bước 2 trên 4: Bạn đang ở đâu, và muốn tới đâu?',
+  rhythm: 'Bước 3 trên 4: Mỗi ngày bao nhiêu phút?',
+  focus: 'Bước 4 trên 4: Lĩnh vực hoặc kỳ thi của bạn.',
+}
+
 export default function OnboardingScreen() {
   const theme = useTheme()
   const c = theme.colors
@@ -142,6 +151,12 @@ export default function OnboardingScreen() {
   // Khách chạy phễu value-first vẫn lùi về màn Đăng nhập được; người đã đăng ký
   // thì không — lùi lúc này là rơi vào màn Đăng nhập trong khi đang đăng nhập (F-5).
   useBlockBackNavigation(isLoggedIn)
+
+  // Bước đầu do chính màn hình tự giới thiệu; các bước sau cần announce tay.
+  useEffect(() => {
+    if (step === 0) return
+    AccessibilityInfo.announceForAccessibility(STEP_ANNOUNCEMENTS[ONBOARDING_STEP_IDS[step]])
+  }, [step])
 
   // Live mentor preview — updates as the learner picks goal / level / industry.
   useEffect(() => {
@@ -339,7 +354,7 @@ export default function OnboardingScreen() {
   }
 
   if (resuming) {
-    return <Resuming mentor={mentor} />
+    return <Resuming />
   }
   if (guestQuickWin) {
     return <GuestQuickWin mentor={mentor} onSignup={handleGuestSignup} onBack={() => setGuestQuickWin(false)} />
@@ -1018,12 +1033,14 @@ function GuestQuickWin({
 }
 
 /** Brief loading state while a guest's saved draft is replayed after signup. */
-function Resuming({ mentor }: { mentor: OnboardingMentor | null }) {
+function Resuming() {
   const c = useTheme().colors
   return (
     <Screen edges={['top', 'bottom']}>
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: space[5], paddingHorizontal: space[6] }}>
-        {mentor ? <MentorMonogram mentor={mentor} size={64} /> : null}
+        {/* Không hiện monogram ở đây: instance thắng cuộc đua replay-draft có thể
+            là instance MỚI với state mặc định, mentor preview của nó chưa chắc
+            khớp câu trả lời thật trong draft — thà trung tính còn hơn sai tên. */}
         <ActivityIndicator size="large" color={c.accent} />
         <View style={{ alignItems: 'center', gap: space[2] }}>
           <ThemedText variant="titleLg" align="center">
@@ -1073,7 +1090,9 @@ function StageRow({
       }}
     >
       {spinning ? (
-        <ActivityIndicator size="small" color={c.accentText} />
+        <View style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="small" color={c.accentText} />
+        </View>
       ) : (
         <MotiView
           from={{ opacity: 0, scale: 0.6 }}

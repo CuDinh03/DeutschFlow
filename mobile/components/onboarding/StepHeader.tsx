@@ -40,7 +40,13 @@ export function StepHeader({ step, onBack }: StepHeaderProps) {
       ) : (
         <BrandMark size={26} />
       )}
-      <View style={{ flex: 1, flexDirection: 'row', gap: space[1] }}>
+      {/* Vạch tiến trình thuần trang trí — ẩn khỏi screen reader; thông tin
+          thật nằm ở bộ đếm "n/4" bên cạnh. */}
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={{ flex: 1, flexDirection: 'row', gap: space[1] }}
+      >
         {Array.from({ length: TOTAL_ONBOARDING_STEPS }, (_, i) => (
           <View
             key={i}
@@ -53,7 +59,12 @@ export function StepHeader({ step, onBack }: StepHeaderProps) {
           />
         ))}
       </View>
-      <ThemedText variant="label" color="secondary" style={{ fontVariant: ['tabular-nums'] }}>
+      <ThemedText
+        variant="label"
+        color="secondary"
+        accessibilityLabel={`Bước ${step + 1} trên ${TOTAL_ONBOARDING_STEPS}`}
+        style={{ fontVariant: ['tabular-nums'] }}
+      >
         {step + 1}/{TOTAL_ONBOARDING_STEPS}
       </ThemedText>
     </View>

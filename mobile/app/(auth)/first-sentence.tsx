@@ -399,15 +399,13 @@ export default function FirstSentenceScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Chỉ nghe rồi lặp lại, không dùng micro"
-                hitSlop={8}
+                hitSlop={10}
                 onPress={() => skip('no_mic_choice', 'echo')}
-                style={{ paddingVertical: space[1] }}
+                style={{ paddingVertical: space[2] }}
               >
-                <ThemedText
-                  variant="label"
-                  color="secondary"
-                  style={{ borderBottomWidth: 1, borderBottomColor: c.border, paddingBottom: 2 }}
-                >
+                {/* textDecorationLine thay gạch-chân giả bằng border: border chỉ
+                    vẽ dưới dòng CUỐI khi label xuống dòng trên máy hẹp. */}
+                <ThemedText variant="label" color="secondary" style={{ textDecorationLine: 'underline' }}>
                   Chỉ nghe — lặp lại (không dùng micro)
                 </ThemedText>
               </Pressable>
@@ -449,7 +447,11 @@ function MentorAvatar({ mentor, speaking }: { mentor: OnboardingMentor | null; s
   )
 }
 
-/** Pill thành quả trên màn ăn mừng — nền dịu lấy từ chính màu token (hex + alpha). */
+/**
+ * Pill thành quả trên màn ăn mừng — nền dịu lấy từ chính màu token (hex + alpha).
+ * `color` PHẢI là hex 6 chữ số (vd theme.colors.orange/accentText); truyền chuỗi
+ * `rgba(...)` sẽ ghép thành màu không hợp lệ và nền lặng lẽ biến mất.
+ */
 function AchievementPill({ icon, color, label }: { icon?: LucideIconType; color: string; label: string }) {
   return (
     <View
