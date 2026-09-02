@@ -3,6 +3,11 @@
 // glass capsule that slides between tabs with spring physics — HIG-aligned
 // (tint + glass highlight, not a heavy filled pill). Light haptic on press.
 //
+// VUỐT NGANG trên pill (QA 02/09 tối): capsule chọn trượt bám theo ngón tay
+// (worklet UI-thread, không đợi JS), haptic mỗi lần qua ô mới, NHẢ ở ô nào thì
+// chuyển sang tab đó — đúng hành vi tab bar iOS 26. Chạm nhẹ vẫn là bấm thường
+// (pan chỉ kích hoạt khi kéo ngang ≥10pt, lúc đó touch của Pressable bị huỷ).
+//
 // OVERLAY, không chiếm chỗ layout: react-navigation đặt custom tab bar theo
 // flow CỘT (screens flex:1 + bar một khoang riêng), khoang đó lộ màu nền
 // navigator thành một DẢI chia vùng ngay dưới nội dung — và BlurView chẳng có
@@ -14,7 +19,9 @@ import * as Haptics from 'expo-haptics'
 import { useEffect, useState } from 'react'
 import { Home, BookOpen, Mic, User, type LucideIcon } from 'lucide-react-native'
 import { type LayoutChangeEvent, Pressable, StyleSheet, View, type ViewStyle } from 'react-native'
+import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, {
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -23,6 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { captureEvent } from '@/lib/analytics'
+import { tabIndexForX } from '@/lib/tabGesture'
 import { useSpotlightTarget } from '@/components/guide/SpotlightTour'
 import { ThemedText } from './ThemedText'
 
@@ -83,6 +91,86 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     indicatorW.value = withSpring(layout.width, motion.spring.snappy)
     ready.value = withSpring(1, motion.spring.gentle)
   }, [activeTabIndex, layouts, indicatorX, indicatorW, ready])
+
+  // ── Vuốt ngang trên pill để chuyển tab ─────────────────────────────────────
+  // Worklet chỉ được đọc shared value → mirror layout các ô + tab đang active.
+  const slotsSv = useSharedValue<(TabLayout | undefined)[]>([])
+  const activeIdxSv = useSharedValue(activeTabIndex)
+  // Ô đang nằm dưới ngón tay trong lúc kéo (−1 = không trong cử chỉ nào).
+  const previewIdx = useSharedValue(-1)
+
+  useEffect(() => {
+    slotsSv.value = tabRoutes.map((_, i) => layouts[i])
+    // tabRoutes dựng lại mỗi render nhưng nội dung ổn định — chỉ layouts đáng theo dõi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layouts, tabRoutes.length, slotsSv])
+  useEffect(() => {
+    activeIdxSv.value = activeTabIndex
+  }, [activeTabIndex, activeIdxSv])
+
+  // JS-side: haptic khi ngón trượt qua ô mới; chốt tab khi nhả; trả capsule về
+  // chỗ cũ khi cử chỉ bị huỷ hoặc bị màn chặn tabPress. Gesture dựng lại mỗi
+  // render nên các closure này luôn thấy props/state mới nhất.
+  const previewHaptic = () => {
+    void Haptics.selectionAsync()
+  }
+  const snapToActive = () => {
+    const layout = layouts[activeTabIndex]
+    if (!layout) return
+    indicatorX.value = withSpring(layout.x, motion.spring.snappy)
+    indicatorW.value = withSpring(layout.width, motion.spring.snappy)
+  }
+  const commitFromSwipe = (idx: number) => {
+    const route = tabRoutes[idx]
+    if (idx < 0 || !route || idx === activeTabIndex) {
+      snapToActive()
+      return
+    }
+    const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true })
+    if (event.defaultPrevented) {
+      snapToActive()
+      return
+    }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    captureEvent('nav_clicked', { feature: route.name, from: 'tab_bar_swipe' })
+    navigation.navigate(route.name)
+  }
+
+  const swipeGesture = Gesture.Pan()
+    .maxPointers(1)
+    // Chỉ nhận khi kéo NGANG ≥10pt — chạm nhẹ vẫn rơi vào Pressable của từng ô;
+    // kéo dọc (mép dưới = home indicator của hệ) thì fail sớm, không tranh chấp.
+    .activeOffsetX([-10, 10])
+    .failOffsetY([-14, 14])
+    .onBegin(() => {
+      previewIdx.value = activeIdxSv.value
+    })
+    .onUpdate((e) => {
+      // e.x = toạ độ trong hàng tab (view gắn detector) — cùng hệ với layouts.
+      const idx = tabIndexForX(slotsSv.value, e.x)
+      if (idx < 0) return
+      if (idx !== previewIdx.value) {
+        previewIdx.value = idx
+        runOnJS(previewHaptic)()
+      }
+      const slot = slotsSv.value[idx]
+      if (slot) {
+        indicatorX.value = withSpring(slot.x, motion.spring.snappy)
+        indicatorW.value = withSpring(slot.width, motion.spring.snappy)
+      }
+    })
+    .onEnd(() => {
+      runOnJS(commitFromSwipe)(previewIdx.value)
+    })
+    .onFinalize((_e, success) => {
+      // Cử chỉ bị huỷ giữa chừng (hoặc chưa từng active) mà capsule đã trượt
+      // lệch → trả về ô đang active. Tap thuần (preview == active) thì bỏ qua,
+      // khỏi tạo double-spring chồng lên hiệu ứng của onPress.
+      if (!success && previewIdx.value !== activeIdxSv.value) {
+        runOnJS(snapToActive)()
+      }
+      previewIdx.value = -1
+    })
 
   const indicatorStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: indicatorX.value }],
@@ -168,6 +256,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             }}
           />
 
+          <GestureDetector gesture={swipeGesture}>
           <View
             style={{
               flex: 1,
@@ -222,6 +311,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               )
             })}
           </View>
+          </GestureDetector>
         </View>
       </View>
     </View>
