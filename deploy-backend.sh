@@ -508,7 +508,22 @@ fi
 # Gắn container production vào deutschflow-net (Redis DNS). Default bridge vẫn primary → EDGE_TTS giữ nguyên.
 sudo docker network connect deutschflow-net deutschflow-backend 2>/dev/null || true
 
-# Tag + cleanup
+# Prometheus (docker-compose) nằm trên network CÓ PREFIX project (thường deutschflow_deutschflow-net),
+# khác network trên ⇒ scrape backend chết im lặng: dashboard + alert không có dữ liệu backend nào.
+# Tự dò network thật của prometheus rồi gắn backend vào đó; prometheus.yml scrape deutschflow-backend:8080.
+PROM_NET=$(sudo docker inspect deutschflow-prometheus --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}' 2>/dev/null | head -n1 || true)
+if [ -n "$PROM_NET" ] && [ "$PROM_NET" != "deutschflow-net" ]; then
+  sudo docker network connect "$PROM_NET" deutschflow-backend 2>/dev/null \
+    && info "  Backend đã vào network Prometheus ($PROM_NET) — scrape hoạt động" || true
+fi
+
+# Giữ bản ĐANG CHẠY trước deploy dưới tag :prev — thiếu nó thì `image prune` bên dưới xoá image cũ
+# ngay giữa deploy, và khi bản mới hỏng (pass health nhưng lỗi nghiệp vụ) không còn đường rollback
+# nào ngoài rebuild ~10 phút trên máy 2 vCPU. Rollback tay:
+#   sudo docker rm -f deutschflow-backend && chạy lại docker run như trên với image deutschflow-backend:prev
+sudo docker tag deutschflow-backend:latest deutschflow-backend:prev 2>/dev/null || true
+
+# Tag + cleanup (:prev vừa gắn giữ image cũ sống qua prune)
 sudo docker tag deutschflow-backend:new deutschflow-backend:latest 2>/dev/null || true
 sudo docker rmi deutschflow-backend:new 2>/dev/null || true
 sudo docker image prune -f 2>/dev/null || true

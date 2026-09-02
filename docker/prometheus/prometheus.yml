@@ -18,7 +18,12 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
+  # Target là TÊN CONTAINER thật (docker run --name deutschflow-backend trong deploy-backend.sh).
+  # Alias `backend` cũ chỉ tồn tại cho service backend của docker-compose — container prod KHÔNG do
+  # compose tạo, nên scrape này chết im lặng từ đầu (dashboard/alert không có dữ liệu backend).
+  # deploy-backend.sh giờ tự gắn container vào network của prometheus ở bước promote; áp config
+  # mới bằng: sudo docker restart deutschflow-prometheus (thư mục này được bind-mount).
   - job_name: 'deutschflow-backend'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['backend:8080']
+      - targets: ['deutschflow-backend:8080']
