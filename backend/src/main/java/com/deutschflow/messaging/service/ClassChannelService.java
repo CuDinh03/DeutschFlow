@@ -1,5 +1,6 @@
 package com.deutschflow.messaging.service;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.messaging.dto.ClassChannelDtos.ClassMessageDto;
@@ -82,19 +83,59 @@ public class ClassChannelService {
                 .toList();
     }
 
+    /** Post without an idempotency key (web/client cũ) — mỗi lần gọi một bản ghi. */
     @Transactional
     public ClassMessageDto post(Long userId, Long classId, String body) {
+        return post(userId, classId, body, null);
+    }
+
+    /**
+     * Post a message to the class channel.
+     *
+     * <p>{@code clientTempId} (tuỳ chọn) là idempotency key của client outbox (F-13): POST timeout
+     * không có nghĩa server chưa lưu, nên lần retry gửi lại CÙNG key — thấy key đã dùng thì trả lại
+     * bản ghi cũ, không tạo tin trùng và không fan-out lại thông báo cho cả lớp. Cửa sổ đua hai
+     * request cùng key đến đồng thời được UNIQUE index V300 chặn: request thua lỗi (client coi là
+     * transient và retry), lần retry sau rơi vào nhánh replay ở đây — hội tụ về đúng một bản ghi.
+     */
+    @Transactional
+    public ClassMessageDto post(Long userId, Long classId, String body, String clientTempId) {
         assertMember(userId, classId);
+
+        String idemKey = normalizeKey(clientTempId);
+        if (idemKey != null) {
+            ClassChannelMessage existing =
+                    channelRepository.findBySenderIdAndClientTempId(userId, idemKey).orElse(null);
+            if (existing != null) {
+                // Key phải trỏ đúng lượt gửi cũ: cùng lớp. Lệch = client tái dùng key sai — từ chối
+                // tất định thay vì lưu (lưu sẽ vỡ UNIQUE index và 500 khó hiểu).
+                if (!existing.getClassId().equals(classId)) {
+                    throw new BadRequestException("clientTempId đã dùng cho một lượt gửi khác.");
+                }
+                return toDto(existing, userId, isTeacher(userId, classId), resolveNames(List.of(existing)));
+            }
+        }
+
         wordFilter.assertClean(body);
         ClassChannelMessage saved = channelRepository.save(ClassChannelMessage.builder()
                 .classId(classId)
                 .senderId(userId)
                 .body(body)
                 .createdAt(Instant.now())
+                .clientTempId(idemKey)
                 .build());
         Map<Long, String> names = resolveNames(List.of(saved));
         notifyMembers(classId, userId, names.getOrDefault(userId, "Thành viên"), saved.getBody());
         return toDto(saved, userId, isTeacher(userId, classId), names);
+    }
+
+    /** Key rỗng/toàn khoảng trắng coi như không gửi key (tránh "" và "  " thành hai key khác nhau). */
+    private static String normalizeKey(String clientTempId) {
+        if (clientTempId == null) {
+            return null;
+        }
+        String trimmed = clientTempId.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     /** Soft-delete: a member may delete their own message; a teacher of the class may delete any. */

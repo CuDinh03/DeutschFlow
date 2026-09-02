@@ -30,12 +30,15 @@ public class ClassChannelController {
         return channelService.listMessages(user.getId(), classId);
     }
 
-    /** Post a message to the class channel. */
+    /**
+     * Post a message to the class channel. {@code clientTempId} tuỳ chọn là idempotency key —
+     * retry cùng key trả lại bản ghi cũ thay vì tạo tin trùng (F-13).
+     */
     @PostMapping("/messages")
     public ClassMessageDto post(@AuthenticationPrincipal User user,
                                 @PathVariable Long classId,
                                 @Valid @RequestBody PostClassMessageRequest body) {
-        return channelService.post(user.getId(), classId, body.body());
+        return channelService.post(user.getId(), classId, body.body(), body.clientTempId());
     }
 
     /** Soft-delete a message (own message, or any if the caller is a teacher of the class). */

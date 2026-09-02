@@ -1,5 +1,6 @@
 package com.deutschflow.messaging.service;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.messaging.dto.ClassChannelDtos.ClassMessageDto;
 import com.deutschflow.messaging.entity.ClassChannelMessage;
@@ -109,6 +110,59 @@ class ClassChannelServiceTest {
 
         assertThat(dto.body()).isEqualTo("vẫn gửi được");
         assertThat(dto.mine()).isTrue();
+    }
+
+    @Test
+    @DisplayName("post(clientTempId): lần đầu → lưu kèm key để retry sau replay được")
+    void post_firstSendWithKey_persistsKey() {
+        asStudentMember(STUDENT_A);
+        when(channelRepository.findBySenderIdAndClientTempId(STUDENT_A, "tmp-9-9")).thenReturn(Optional.empty());
+        when(channelRepository.save(any(ClassChannelMessage.class))).thenAnswer(inv -> inv.getArgument(0));
+        stubNames(STUDENT_A, "An");
+        when(teacherClassRepository.findById(CLASS_ID))
+                .thenReturn(Optional.of(TeacherClass.builder().id(CLASS_ID).name("A1").build()));
+
+        service.post(STUDENT_A, CLASS_ID, "hi", "tmp-9-9");
+
+        org.mockito.ArgumentCaptor<ClassChannelMessage> captor =
+                org.mockito.ArgumentCaptor.forClass(ClassChannelMessage.class);
+        verify(channelRepository).save(captor.capture());
+        assertThat(captor.getValue().getClientTempId()).isEqualTo("tmp-9-9");
+    }
+
+    @Test
+    @DisplayName("post(clientTempId): retry cùng key → trả bản ghi cũ, KHÔNG lưu mới, KHÔNG fan-out lại")
+    void post_replaySameKey_returnsExistingWithoutSavingOrNotifying() {
+        asStudentMember(STUDENT_A);
+        ClassChannelMessage existing = msg(42L, STUDENT_A, "chào cả lớp");
+        existing.setClientTempId("tmp-1-1");
+        when(channelRepository.findBySenderIdAndClientTempId(STUDENT_A, "tmp-1-1"))
+                .thenReturn(Optional.of(existing));
+        stubNames(STUDENT_A, "An");
+
+        ClassMessageDto dto = service.post(STUDENT_A, CLASS_ID, "chào cả lớp", "tmp-1-1");
+
+        assertThat(dto.id()).isEqualTo(42L);
+        assertThat(dto.mine()).isTrue();
+        verify(channelRepository, never()).save(any());
+        verify(notificationService, never()).notifyClassChannelMessage(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("post(clientTempId): key đã dùng ở LỚP khác → BadRequest, không lưu")
+    void post_keyReusedForOtherClass_throwsBadRequest() {
+        // Chỉ stub vế student: assertMember short-circuit ở vế đầu, và nhánh mismatch ném lỗi TRƯỚC
+        // khi isTeacher chạy — stub cả vế teacher (asStudentMember) sẽ thành unused dưới strict-stubs.
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_A)).thenReturn(true);
+        ClassChannelMessage existing = ClassChannelMessage.builder()
+                .id(42L).classId(77L).senderId(STUDENT_A).body("x")
+                .createdAt(Instant.now()).clientTempId("tmp-1-1").build();
+        when(channelRepository.findBySenderIdAndClientTempId(STUDENT_A, "tmp-1-1"))
+                .thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> service.post(STUDENT_A, CLASS_ID, "hi", "tmp-1-1"))
+                .isInstanceOf(BadRequestException.class);
+        verify(channelRepository, never()).save(any());
     }
 
     @Test
