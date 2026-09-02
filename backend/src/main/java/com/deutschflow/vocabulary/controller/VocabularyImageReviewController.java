@@ -14,21 +14,24 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v2/admin/vocabulary/images/review")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class VocabularyImageReviewController {
 
     private final VocabularyImageReviewService reviewService;
 
+    /** Số ứng viên ảnh tối đa một lượt review — chặn quét Unsplash bằng limit khổng lồ. */
+    private static final int MAX_REVIEW_LIMIT = 30;
+
     @GetMapping("/{wordId}")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<VocabularyImageReviewResponse> review(
             @PathVariable long wordId,
             @RequestParam(defaultValue = "8") int limit,
             @AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(reviewService.review(wordId, limit));
+        int safeLimit = Math.min(Math.max(limit, 1), MAX_REVIEW_LIMIT);
+        return ResponseEntity.ok(reviewService.review(wordId, safeLimit));
     }
 
     @PostMapping("/{wordId}/approve")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<MediaAsset> approve(
             @PathVariable long wordId,
             @RequestBody VocabularyImageReviewDecisionRequest request,
