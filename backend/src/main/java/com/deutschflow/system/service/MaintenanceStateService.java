@@ -70,8 +70,8 @@ public class MaintenanceStateService {
                     .findFirstByStatus(MaintenanceWindow.Status.ACTIVE)
                     .orElse(null);
             MaintenanceWindow upcoming = repository
-                    .findFirstByStatusAndStartsAtLessThanEqualOrderByStartsAtAsc(
-                            MaintenanceWindow.Status.SCHEDULED, now.plusDays(UPCOMING_HORIZON_DAYS))
+                    .findFirstByStatusAndRecurrenceKeyIsNullAndStartsAtBetweenOrderByStartsAtAsc(
+                            MaintenanceWindow.Status.SCHEDULED, now, now.plusDays(UPCOMING_HORIZON_DAYS))
                     .orElse(null);
             snapshot.set(new Snapshot(active, upcoming));
         } catch (Exception e) {

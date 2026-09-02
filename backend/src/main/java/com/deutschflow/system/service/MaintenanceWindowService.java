@@ -10,14 +10,20 @@ import com.deutschflow.system.repository.MaintenanceWindowRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,11 +49,35 @@ public class MaintenanceWindowService {
     private final MaintenanceStateService stateService;
     private final UserNotificationService userNotificationService;
 
+    private static final ZoneId VN_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
     @Value("${app.maintenance.remind-before-minutes:60}")
     private int remindBeforeMinutes;
 
     @Value("${app.maintenance.overdue-alert-minutes:30}")
     private int overdueAlertMinutes;
+
+    // ── Bảo trì định kỳ hằng ngày (config-driven, mặc định TẮT) ──────────────
+    @Value("${app.maintenance.daily.enabled:false}")
+    private boolean dailyEnabled;
+
+    /** Giờ bắt đầu theo giờ VN, dạng HH:mm. */
+    @Value("${app.maintenance.daily.time:03:00}")
+    private String dailyTime;
+
+    @Value("${app.maintenance.daily.duration-minutes:15}")
+    private int dailyDurationMinutes;
+
+    @Value("${app.maintenance.daily.mode:FULL}")
+    private String dailyMode;
+
+    /** true = gửi SCHEDULED/REMINDER cho cửa sổ đêm; mặc định false (khỏi spam push mỗi đêm). */
+    @Value("${app.maintenance.daily.notify:false}")
+    private boolean dailyNotify;
+
+    /** Tạo trước cửa sổ định kỳ chừng này phút để job kịp nhắc/bật. */
+    @Value("${app.maintenance.daily.materialize-lead-minutes:180}")
+    private int dailyMaterializeLeadMinutes;
 
     // ── Đọc ─────────────────────────────────────────────────────────────────
 
@@ -210,7 +240,10 @@ public class MaintenanceWindowService {
             throw new ConflictException("Chỉ lịch SCHEDULED mới huỷ được (hiện là " + window.getStatus() + ").");
         }
         window.setStatus(MaintenanceWindow.Status.CANCELLED);
-        if (window.getNotifiedScheduleAt() != null) {
+        // Báo huỷ nếu user đã từng nghe về lịch này — QUA "có lịch" HOẶC qua "sắp bảo
+        // trì" (fix §12b): job nhắc chạy độc lập theo notified_before_at, nên một lịch
+        // notifyUsers=off vẫn có thể đã bắn REMINDER; huỷ im lặng để user chờ hụt.
+        if (window.getNotifiedScheduleAt() != null || window.getNotifiedBeforeAt() != null) {
             broadcast(window, "CANCELLED", true);
         }
         MaintenanceWindow saved = repository.save(window);
@@ -320,6 +353,73 @@ public class MaintenanceWindowService {
             alerted++;
         }
         return alerted;
+    }
+
+    /**
+     * Bảo trì định kỳ hằng ngày (thiết kế §12b): nếu bật, đảm bảo tồn tại MỘT cửa sổ
+     * SCHEDULED cho lần xảy ra kế tiếp (giờ VN), tạo trước {@code materialize-lead-minutes}
+     * để job kịp nhắc/bật. auto_activate + auto_complete BẬT; recurrence_key chống trùng
+     * (unique index) và loại khỏi banner. Job {@code activate/completeDueWindows} có sẵn
+     * lo phần bật/tắt — method này chỉ "vật chất hoá" lịch.
+     */
+    @Transactional
+    public int materializeDailyWindow() {
+        if (!dailyEnabled) {
+            return 0;
+        }
+        LocalTime tod = parseDailyTime();
+        if (tod == null) {
+            return 0;
+        }
+        ZonedDateTime nowVn = ZonedDateTime.now(VN_ZONE);
+        ZonedDateTime occVn = nowVn.toLocalDate().atTime(tod).atZone(VN_ZONE);
+        if (!occVn.isAfter(nowVn)) {
+            occVn = occVn.plusDays(1); // hôm nay đã qua giờ → lần kế là ngày mai
+        }
+        // Chỉ tạo khi đã trong tầm lead (tránh tạo trước cả ngày); ngoài tầm thì để tick sau.
+        if (Duration.between(nowVn, occVn).toMinutes() > dailyMaterializeLeadMinutes) {
+            return 0;
+        }
+        String key = "daily:" + occVn.toLocalDate();
+        if (repository.findByRecurrenceKey(key).isPresent()) {
+            return 0;
+        }
+        LocalDateTime startsUtc = occVn.withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
+        MaintenanceWindow window = MaintenanceWindow.builder()
+                .title("Bảo trì định kỳ hằng ngày")
+                .startsAt(startsUtc)
+                .endsAt(startsUtc.plusMinutes(Math.max(1, dailyDurationMinutes)))
+                .mode(parseMode(dailyMode))
+                .status(MaintenanceWindow.Status.SCHEDULED)
+                .autoActivate(true)
+                .autoComplete(true)
+                .recurrenceKey(key)
+                .createdBy("recurring-daily")
+                .build();
+        if (dailyNotify) {
+            window.setNotifiedScheduleAt(LocalDateTime.now(ZoneOffset.UTC));
+        }
+        try {
+            window = repository.saveAndFlush(window); // unique index chặn nếu node khác vừa tạo
+        } catch (DataIntegrityViolationException e) {
+            return 0;
+        }
+        if (dailyNotify) {
+            broadcast(window, "SCHEDULED", true);
+        }
+        log.info("[maintenance] materialized daily window {} ({}..{} UTC, notify={})",
+                key, startsUtc, window.getEndsAt(), dailyNotify);
+        return 1;
+    }
+
+    /** "03:00" → LocalTime; cấu hình sai → null (log warn, coi như tắt định kỳ). */
+    private LocalTime parseDailyTime() {
+        try {
+            return LocalTime.parse(dailyTime.trim());
+        } catch (DateTimeParseException e) {
+            log.warn("[maintenance] app.maintenance.daily.time không hợp lệ: '{}' (mong HH:mm) — bỏ qua định kỳ", dailyTime);
+            return null;
+        }
     }
 
     // ── Lõi chuyển trạng thái dùng chung ─────────────────────────────────────
