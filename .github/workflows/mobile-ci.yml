@@ -1,15 +1,25 @@
 name: Mobile CI
 
-# Filter branches: `dev` (nhánh chết) và `feat/onboarding-v3` (đã merge trọn vào
-# main) đã được gỡ 02/09 theo nợ ghi từ 30/08 — giữ lại chỉ gây nhiễu.
 on:
+  # `push` vẫn lọc nhánh: nhánh feature đã có sự kiện `pull_request` bên dưới lo, chạy cả hai chỉ tốn
+  # đôi CI cho cùng một commit. `dev` (nhánh chết) và `feat/onboarding-v3` (đã merge trọn vào main) đã
+  # được gỡ 02/09 theo nợ ghi từ 30/08 — giữ lại chỉ gây nhiễu.
   push:
     branches: [ "main" ]
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-ci.yml'
+
+  # `pull_request` KHÔNG lọc base — cố ý, xem frontend-ci.yml cho cùng lý do.
+  #
+  # `branches:` chỉ khớp nhánh ĐÍCH, nên PR xếp chồng (base là một nhánh feature khác) rơi ra ngoài và
+  # workflow này không hề chạy. Nó không đỏ, nó VẮNG MẶT: PR vẫn hiện CLEAN/MERGEABLE vì Backend CI và
+  # Security CI (cả hai để `pull_request:` trần) vẫn xanh. Với mobile thì mất mát nặng hơn frontend —
+  # `type-check-and-test` là cổng duy nhất chặn lỗi TypeScript trôi vào một bản build native, thứ chỉ
+  # lộ ra khi đã lên TestFlight.
+  #
+  # `paths` thì giữ: PR không đụng mobile/** không cần dựng mobile.
   pull_request:
-    branches: [ "main" ]
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-ci.yml'

@@ -2,8 +2,11 @@ name: Frontend CI
 
 on:
   # `push` vẫn lọc nhánh: mỗi lần push lên nhánh feature đã có sự kiện `pull_request` bên dưới lo,
-  # chạy cả hai chỉ tốn đôi CI cho cùng một commit. `feat/onboarding-v3` là nhánh dài hạn của dự án
-  # onboarding onb_v3 (các đợt GĐ 1–8 push thẳng vào đó); gỡ khi nhánh ấy merge xong.
+  # chạy cả hai chỉ tốn đôi CI cho cùng một commit.
+  #
+  # Danh sách này còn nợ dọn, nhưng để nguyên vì gỡ nhầm thì mất cổng: `feat/onboarding-v3` nay ĐÃ merge
+  # trọn vào main (kiểm 02/09 bằng `git merge-base --is-ancestor`) nên gỡ được; `dev` thì KHÔNG — nó vẫn
+  # còn 19 commit chưa lên main, dù mobile-ci.yml đã gỡ `dev` với lý do "nhánh chết".
   push:
     branches: [ "master", "main", "dev", "feat/onboarding-v3" ]
     paths:
