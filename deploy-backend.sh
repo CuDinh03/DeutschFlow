@@ -240,6 +240,18 @@ error()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 EC2_DIR="/home/ubuntu/DeutschFlow"
 ENV_FILE="$EC2_DIR/.env.production"
 
+# Materialize token scrape Prometheus từ .env.production — MỘT nguồn sự thật, không có bước tạo
+# file bằng tay. prometheus.yml đọc credentials_file MỖI lần scrape nên đổi token không cần
+# restart prometheus. File nằm trong .gitignore ⇒ sống sót qua git reset --hard ở bước [2/6].
+PROM_TOKEN=$(grep -E '^PROMETHEUS_SCRAPE_TOKEN=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- || true)
+if [ -n "$PROM_TOKEN" ]; then
+  printf '%s' "$PROM_TOKEN" > "$EC2_DIR/docker/prometheus/scrape-token"
+  chmod 600 "$EC2_DIR/docker/prometheus/scrape-token"
+  info "Scrape token Prometheus: đã ghi docker/prometheus/scrape-token"
+else
+  warn "PROMETHEUS_SCRAPE_TOKEN chưa có trong .env.production — scrape /actuator/prometheus sẽ 401 (fail-closed)"
+fi
+
 # ── [1/6] Disk space check ────────────────────────────────────
 echo ""
 info "[1/6] Kiểm tra disk space..."
