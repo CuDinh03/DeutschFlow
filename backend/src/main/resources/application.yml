@@ -451,6 +451,16 @@ app:
     remind-before-minutes: ${APP_MAINTENANCE_REMIND_BEFORE_MINUTES:60}
     # ACTIVE quá ends_at chừng này phút thì réo ADMIN_SYSTEM_ALERT (lặp cùng nhịp tới khi xử lý).
     overdue-alert-minutes: ${APP_MAINTENANCE_OVERDUE_ALERT_MINUTES:30}
+    # Bảo trì định kỳ hằng ngày (khung deploy/job đêm). MẶC ĐỊNH TẮT — bật bằng
+    # APP_MAINTENANCE_DAILY_ENABLED=true rồi redeploy. Job tự tạo cửa sổ SCHEDULED
+    # (auto bật/tắt) cho lần kế tiếp; cửa sổ định kỳ KHÔNG lên banner (khỏi spam mỗi ngày).
+    daily:
+      enabled: ${APP_MAINTENANCE_DAILY_ENABLED:false}
+      time: ${APP_MAINTENANCE_DAILY_TIME:03:00}            # giờ VN (Asia/Ho_Chi_Minh), HH:mm
+      duration-minutes: ${APP_MAINTENANCE_DAILY_DURATION_MIN:15}
+      mode: ${APP_MAINTENANCE_DAILY_MODE:FULL}             # FULL | ANNOUNCE_ONLY
+      notify: ${APP_MAINTENANCE_DAILY_NOTIFY:false}        # true = gửi push mỗi đêm (thường off)
+      materialize-lead-minutes: ${APP_MAINTENANCE_DAILY_LEAD_MIN:180}
 
   speaking:
     adaptive:

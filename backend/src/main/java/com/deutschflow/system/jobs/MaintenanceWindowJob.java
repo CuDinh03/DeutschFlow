@@ -26,6 +26,8 @@ public class MaintenanceWindowJob {
             initialDelayString = "${app.maintenance.job-initial-delay-ms:15000}")
     @SchedulerLock(name = "maintenanceWindowTick", lockAtMostFor = "PT5M", lockAtLeastFor = "PT0S")
     public void tick() {
+        // Vật chất hoá cửa sổ định kỳ TRƯỚC — để cùng nhịp còn kịp nhắc/bật nếu tới giờ.
+        step("materializeDailyWindow", maintenanceWindowService::materializeDailyWindow);
         step("sendDueReminders", maintenanceWindowService::sendDueReminders);
         step("activateDueWindows", maintenanceWindowService::activateDueWindows);
         step("completeDueWindows", maintenanceWindowService::completeDueWindows);

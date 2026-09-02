@@ -92,6 +92,14 @@ public class MaintenanceWindow {
     @Column(name = "overdue_alerted_at")
     private LocalDateTime overdueAlertedAt;
 
+    /**
+     * Khoá cửa sổ định kỳ (vd "daily:2026-09-10") — non-null ⇒ do job materialize từ
+     * config `app.maintenance.daily.*`, KHÔNG phải admin đặt tay. Cửa sổ định kỳ bị
+     * loại khỏi banner `upcoming` để không spam mỗi ngày (thiết kế §12b).
+     */
+    @Column(name = "recurrence_key", length = 64)
+    private String recurrenceKey;
+
     @Column(name = "created_by", nullable = false)
     private String createdBy;
 

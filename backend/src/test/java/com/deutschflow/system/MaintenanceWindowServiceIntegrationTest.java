@@ -197,6 +197,55 @@ class MaintenanceWindowServiceIntegrationTest extends AbstractPostgresIntegratio
         assertThat(repository.findById(window.getId()).orElseThrow().getOverdueAlertedAt()).isNotNull();
     }
 
+    // ── Fix drill prod §12b ───────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("fix #1: banner (upcoming) LOẠI lịch đã quá starts_at mà vẫn SCHEDULED, và lịch định kỳ")
+    void upcomingExcludesPastDueAndRecurring() {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        // Lịch quá giờ mà không tự bật (auto_activate=false) → không còn là "sắp tới".
+        repository.save(MaintenanceWindow.builder()
+                .title("Quá giờ").startsAt(now.minusMinutes(5)).endsAt(now.plusMinutes(25))
+                .mode(MaintenanceWindow.Mode.FULL).status(MaintenanceWindow.Status.SCHEDULED)
+                .autoActivate(false).autoComplete(false).createdBy("admin@test.local").build());
+        // Lịch định kỳ tương lai → không lên banner.
+        repository.save(MaintenanceWindow.builder()
+                .title("Định kỳ").startsAt(now.plusHours(2)).endsAt(now.plusHours(2).plusMinutes(15))
+                .mode(MaintenanceWindow.Mode.FULL).status(MaintenanceWindow.Status.SCHEDULED)
+                .autoActivate(true).autoComplete(true).recurrenceKey("daily:test").createdBy("recurring-daily").build());
+        stateService.refreshNow();
+        assertThat(stateService.upcomingWindow()).isEmpty();
+
+        // Lịch thường tương lai → CÓ lên banner.
+        service.create("Sắp tới", null, utc(now.plusHours(3)), utc(now.plusHours(3).plusMinutes(20)),
+                "FULL", true, false, false, "admin@test.local");
+        stateService.refreshNow();
+        assertThat(stateService.upcomingWindow()).isPresent();
+    }
+
+    @Test
+    @DisplayName("fix #3: cancel gửi CANCELLED nếu ĐÃ NHẮC (notified_before_at) dù chưa gửi 'có lịch'")
+    void cancelNotifiesWhenOnlyReminded() {
+        User student = newStudent();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        // Lịch notifyUsers=off (không notified_schedule_at) nhưng job đã nhắc.
+        MaintenanceWindow window = repository.save(MaintenanceWindow.builder()
+                .title("Đã nhắc").startsAt(now.plusMinutes(30)).endsAt(now.plusMinutes(60))
+                .mode(MaintenanceWindow.Mode.FULL).status(MaintenanceWindow.Status.SCHEDULED)
+                .autoActivate(true).autoComplete(false)
+                .notifiedBeforeAt(now).createdBy("admin@test.local").build());
+
+        service.cancel(window.getId());
+        assertThat(maintenanceNoticeCount(student.getId(), "CANCELLED")).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("materializeDailyWindow: mặc định TẮT (dailyEnabled=false) → không tạo gì")
+    void dailyDisabledByDefault() {
+        assertThat(service.materializeDailyWindow()).isZero();
+        assertThat(repository.count()).isZero();
+    }
+
     // ── Fixtures & helpers ───────────────────────────────────────────────────
 
     private User newStudent() {

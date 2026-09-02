@@ -39,7 +39,7 @@
 - ⛔ Mobile: bắt maintenance **trước** khối transient-retry (`lib/api.ts:159–167` retry ngầm mọi 503 GET), loại 503-maintenance khỏi Sentry report (`lib/api.ts:103–107`), và **cấm `router.replace` từ root layout** (footgun crash React 19 đã ghi tại `app/_layout.tsx:182–189`) — gate bằng overlay kiểu `SplashAnimated`.
 - ⛔ Mobile OTA: tính năng chỉ đụng `app/ components/ lib/ stores/ hooks/` thì OTA được; **thêm dependency (vd NetInfo) là vỡ fingerprint** → thiết kế không thêm dep mới.
 - ⛔ Migration: mới nhất trên đĩa **V269**; V270 đã bị kế hoạch email-verify nhận; các plan khác nhận tới V289 (có va chạm V285 giữa 2 plan). → Đợt này lấy **V271**, và người thi hành PHẢI rà lại V mới nhất + PR đang mở tại thời điểm code (bài học trùng số migration).
-- ⚠️ `user_notifications` không bao giờ được dọn (retention job là file rỗng 1 byte) — broadcast ALL cộng thêm 1 dòng/người/lần gửi. ~~Chấp nhận ở quy mô hiện tại, ghi nợ kỹ thuật.~~ → **ĐÃ TRẢ NỢ 03/09/2026**: `UserNotificationRetentionJob` viết lại theo pattern job hiện hành (delegate `UserNotificationRetentionService` @Transactional, ShedLock, đọc `app.notifications.retention.*`), kèm IT — PR #487 (`fix/user-notification-retention-job`), SRS NOTIF-08/AC-NOTIF-02.
+- ⚠️ `user_notifications` không bao giờ được dọn (retention job là file rỗng 1 byte) — broadcast ALL cộng thêm 1 dòng/người/lần gửi. ~~Chấp nhận ở quy mô hiện tại, ghi nợ kỹ thuật.~~ → **ĐÃ TRẢ NỢ 03/09/2026**: `UserNotificationRetentionJob` viết lại theo pattern job hiện hành (delegate `UserNotificationRetentionService` @Transactional, ShedLock, đọc `app.notifications.retention.*`), kèm IT — **PR #487 MERGED** (squash `12a65558`, 03/09), SRS NOTIF-08/AC-NOTIF-02; CÒN deploy BE rồi nghiệm thu AC-NOTIF-02.
 
 ---
 
@@ -378,8 +378,8 @@ Mọi page /v2 đều `'use client'` (chỉ 10 server component, toàn layout m�
 
 | Đợt | Repo | Nội dung | Phụ thuộc |
 |---|---|---|---|
-| **PR-A** | DeutschFlow (backend) | V271 + entity/service/filter/status endpoint/admin API/emergency/job/renderer case/gauge + IT + **SRS module 12 & 11 + acceptance matrix cùng PR** | — |
-| **PR-B** | DeutschFlow (frontend) | probe + banner + MaintenanceGate + admin UI + i18n 3 thứ tiếng + vitest | PR-A merged (hợp đồng API) |
+| **PR-A** ✅ | DeutschFlow (backend) | **ĐÃ THI HÀNH 03/09 — PR #488** (V301 thay V271 vì main đã tới V300): entity/service/filter/status endpoint/admin API/emergency/job/renderer case/gauge + IT 14/14 + SRS module 12 & 11 + matrix + bản gộp cùng đợt (SRS ở cây chính vì thư mục untracked) | — |
+| **PR-B** ✅ | DeutschFlow (frontend) | **ĐÃ THI HÀNH 03/09 — PR #490**: systemStatus probe + useMaintenanceStore + MaintenanceOverlay (root layout, không ép reload) + MaintenanceBanner (GaShell flex-sibling) + interceptor trước-retry + `/v2/admin/maintenance` (ConfirmDialog mọi chuyển trạng thái) + i18n vi/en/de (`maintenance` vào V2_CORE) + vitest 29/29; demo e2e overlay/hồi phục với mock 503 | PR-A merged ✅ |
 | **PR-C** | DeutschFlow (mobile) | interceptor + store + overlay + banner + inbox label; OTA sau merge | PR-A merged |
 | **PR-D** | DeutschFlow-deploy | nginx conf + maintenance.json + scripts on/off + `MAINTENANCE=1` trong deploy script + alert rules | độc lập (làm song song được); áp lên EC2 khi deploy đợt A |
 | Nghiệm thu | prod | Kịch bản B1 (deploy thật quan sát 503 JSON + client tự hồi), B2 (lịch giả 5 phút), B3 (emergency + tắt) | A–D deployed |
@@ -409,6 +409,16 @@ Ca nghiệm thu đề xuất (thêm vào acceptance matrix, NOT_RUN):
 | Web: interceptor maintenance đăng ký SAU retry-interceptor → mỗi request nhân 3 tải lên server đang bảo trì | Đăng ký trước dòng retry trong `api.ts` + vitest chốt thứ tự |
 | Web: Amplify/CloudFront không chạy middleware trên route đã cache; redirect middleware từng gây loop sập site (post-mortem `GALERIE_V2_DISABLED`) | Tuyệt đối không làm trang bảo trì bằng middleware/redirect — chỉ overlay client-side |
 | Web: ép reload khi thoát bảo trì xoá bài đang làm dở của học viên | Auto-dismiss + toast, reload là nút tuỳ chọn |
+
+## 12b. Phát hiện từ drill nghiệm thu prod 03/09 (gộp vào PR kế — PR-A2 daily)
+
+Nghiệm thu AC-MAINT-01/-02/-03/-05 PASS trên prod (xem acceptance-matrix). Ba rough edge lộ ra khi owner drill tay, KHÔNG chặn nghiệm thu nhưng cần vá:
+
+1. **Banner hiện lịch quá-giờ-vẫn-SCHEDULED.** Window `auto_activate=false` (owner không tick, không bấm "Bật ngay") mà quá cả `starts_at` lẫn `ends_at` vẫn nằm `upcoming` → banner treo "còn 0 phút" mãi. Vá: `MaintenanceStateService.upcomingWindow()` loại window có `starts_at < now − ε`; và/hoặc job đánh dấu SCHEDULED quá hạn (auto_activate=false, starts_at đã qua) thành EXPIRED/CANCELLED.
+2. **Tab đã mở không tự nhảy overlay khi window vào ACTIVE.** Chặn ở tầng API (503 khi bấm/reload — đúng thiết kế), nhưng tab để yên chỉ bắt kịp qua poll nền của banner (5') hoặc refocus. Cân nhắc: overlay/banner poll status nhanh hơn (vd 60s) khi có `upcoming` sắp tới giờ, để tab để-yên vào màn chặn kịp thời.
+3. **Cancel im lặng khi chỉ mới gửi REMINDER (chưa gửi SCHEDULED).** `cancel()` chỉ broadcast CANCELLED nếu `notified_schedule_at != null`. Nhưng job nhắc (`sendDueReminders`) chạy độc lập theo `notified_before_at`, nên một window `notifyUsers=off` vẫn có thể đã gửi "⏰ Sắp bảo trì" rồi bị huỷ IM LẶNG → user bị cảnh báo bảo trì mà không được báo huỷ (quan sát prod: window id=2 chỉ có REMINDER, cancel không gửi CANCELLED). Vá: cancel gửi CANCELLED nếu `notified_schedule_at != null` **HOẶC** `notified_before_at != null`.
+
+Dọn sau drill: tài khoản `qa.maint.drill.*@example.com` (STUDENT, không dữ liệu thật) còn trên prod — vô hại, owner có thể tự xoá qua hồ sơ; window id=1/2/3 ở trạng thái kết thúc, để làm lịch sử.
 
 ## 13. Câu hỏi mở cho owner (không chặn thi hành — có mặc định)
 

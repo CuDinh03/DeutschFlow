@@ -17,9 +17,17 @@ public interface MaintenanceWindowRepository extends JpaRepository<MaintenanceWi
     /** Window đang ACTIVE (tối đa một — partial unique index). */
     Optional<MaintenanceWindow> findFirstByStatus(MaintenanceWindow.Status status);
 
-    /** Lịch SCHEDULED gần nhất có starts_at ≤ mốc cho trước (kể cả đã quá giờ chờ bật tay). */
-    Optional<MaintenanceWindow> findFirstByStatusAndStartsAtLessThanEqualOrderByStartsAtAsc(
-            MaintenanceWindow.Status status, LocalDateTime startsBefore);
+    /**
+     * Lịch SCHEDULED "sắp tới" cho banner: bắt đầu trong khoảng [from, to] (fix §12b —
+     * from = now loại lịch ĐÃ QUÁ GIỜ mà chưa bật, khỏi treo banner "còn 0 phút" mãi),
+     * KHÔNG phải lịch định kỳ (recurrence_key IS NULL — cửa sổ đêm hằng ngày không lên
+     * banner). Gần nhất trước.
+     */
+    Optional<MaintenanceWindow> findFirstByStatusAndRecurrenceKeyIsNullAndStartsAtBetweenOrderByStartsAtAsc(
+            MaintenanceWindow.Status status, LocalDateTime from, LocalDateTime to);
+
+    /** Dedup materialize định kỳ: cửa sổ cho khoá này đã tồn tại chưa. */
+    Optional<MaintenanceWindow> findByRecurrenceKey(String recurrenceKey);
 
     /** Admin list — mới nhất trước. */
     Page<MaintenanceWindow> findAllByOrderByStartsAtDesc(Pageable pageable);
