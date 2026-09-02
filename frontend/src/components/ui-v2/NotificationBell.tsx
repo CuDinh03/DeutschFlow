@@ -6,9 +6,9 @@ import { useRouter } from 'next/navigation'
 import { GaIcon } from './GaIcon'
 import { notificationApi, type NotificationItem } from '@/lib/notificationApi'
 import { subscribeNotificationUnread } from '@/lib/notificationStream'
-import { TYPE_TONE, TYPE_ICON, notifTitle, notifBody, relTime, resolveNotificationHref } from '@/lib/notificationDisplay'
+import { TYPE_TONE, TYPE_ICON, notifTitle, notifBody, relTime, resolveNotificationHref, toneSoft } from '@/lib/notificationDisplay'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { toast } from 'sonner'
+import { showGaNotificationToast } from './GaNotificationToast'
 import type { RoleId } from './nav'
 
 /**
@@ -81,17 +81,28 @@ export function NotificationBell({ role }: { role: RoleId }) {
   }, [])
 
   // When a new notification arrives while the panel is closed, surface it as a transient toast
-  // (top-center) so it actually gets noticed — not just a silent bump of the badge number.
-  // Fetches the newest item for its real title/body and deep-links on "Xem".
+  // (bottom-right) so it actually gets noticed — not just a silent bump of the badge number.
+  // Fetches the newest item for its real title/body and deep-links on the CTA.
+  // Nhãn tiếng Việt trực tiếp — đồng bộ với phần còn lại của component (panel chuông cũng
+  // hardcode VN) và với nội dung title/body vốn Vietnamese-first từ backend.
   const notifyNewArrival = React.useCallback(async () => {
     try {
       const res = await notificationApi.list(0, 1)
       const top = res.data.items?.[0]
       if (!top) return
       const href = resolveNotificationHref(top, role)
-      toast(notifTitle(top), {
-        description: notifBody(top) ?? undefined,
-        action: href ? { label: 'Xem', onClick: () => router.push(href) } : undefined,
+      showGaNotificationToast({
+        type: top.type,
+        title: notifTitle(top),
+        body: notifBody(top),
+        role,
+        labels: {
+          kicker: 'Thông báo',
+          justNow: 'vừa xong',
+          view: 'Xem chi tiết',
+          close: 'Đóng thông báo',
+        },
+        onView: href ? () => router.push(href) : undefined,
       })
     } catch {
       /* toast is best-effort — the badge still updates */
@@ -247,7 +258,7 @@ export function NotificationBell({ role }: { role: RoleId }) {
                 >
                   <span
                     className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-ga"
-                    style={{ background: `${tone}1a`, color: tone }}
+                    style={{ background: toneSoft(tone), color: tone }}
                   >
                     <GaIcon name={TYPE_ICON[n.type] ?? 'notifications'} size={16} />
                   </span>
