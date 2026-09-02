@@ -19,6 +19,7 @@ import {
   Trophy,
   UserCheck,
   UserX,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react-native'
 import { formatDistanceToNow, isToday, isYesterday } from 'date-fns'
@@ -71,6 +72,7 @@ const ICON_BY_KEY: Record<NotificationIconKey, LucideIcon> = {
   calendarCancel: CalendarX2,
   calendarMove: CalendarClock,
   plan: BadgeCheck,
+  maintenance: Wrench,
   bell: Bell,
 }
 

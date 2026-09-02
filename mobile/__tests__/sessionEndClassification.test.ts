@@ -11,16 +11,16 @@
 // thêm tải đúng lúc backend yếu nhất).
 
 import { AxiosError, AxiosHeaders } from 'axios'
-import { isSessionDefinitelyOver } from '@/lib/api'
+import { isSessionDefinitelyOver, isTransientFailure } from '@/lib/api'
 
-function axiosErrWithStatus(status: number): AxiosError {
+function axiosErrWithStatus(status: number, data: unknown = {}, respHeaders: Record<string, string> = {}): AxiosError {
   const headers = new AxiosHeaders()
   const config = { headers }
   return new AxiosError('boom', 'ERR_BAD_REQUEST', config, undefined, {
     status,
     statusText: '',
-    data: {},
-    headers: {},
+    data,
+    headers: respHeaders,
     config,
   } as never)
 }
@@ -52,5 +52,19 @@ describe('isSessionDefinitelyOver', () => {
     // lại trả 200-thiếu-token → người dùng KẸT trong vòng lặp không lối thoát. Logout (kèm dọn)
     // là lối thoát đúng khi server vỡ hợp đồng.
     expect(isSessionDefinitelyOver(new Error('invalid_refresh_response'))).toBe(true)
+  })
+})
+
+describe('isTransientFailure — loại 503 bảo trì (thiết kế §8)', () => {
+  test('503 thường → thoáng-qua (outbox/refresh được thử lại)', () => {
+    expect(isTransientFailure(axiosErrWithStatus(503, { message: 'brownout' }))).toBe(true)
+  })
+
+  test('503 code=MAINTENANCE → KHÔNG thoáng-qua (ngừng nện server đang nghỉ chủ đích)', () => {
+    expect(isTransientFailure(axiosErrWithStatus(503, { extensions: { code: 'MAINTENANCE' } }))).toBe(false)
+  })
+
+  test('503 header X-DF-Maintenance (nginx tĩnh) cũng KHÔNG thoáng-qua', () => {
+    expect(isTransientFailure(axiosErrWithStatus(503, 'junk', { 'x-df-maintenance': '1' }))).toBe(false)
   })
 })

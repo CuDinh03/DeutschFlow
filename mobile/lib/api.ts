@@ -5,6 +5,8 @@ import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './auth'
 import { reportApiError } from './observability'
 import { router } from 'expo-router'
 import { runCleanupBestEffort } from './bestEffort'
+import { isMaintenanceError, maintenanceInfoFromProblem } from './maintenance'
+import { useMaintenanceStore } from '@/stores/useMaintenanceStore'
 
 /**
  * Refresh hỏng: đây có phải phiên bị TỪ CHỐI DỨT KHOÁT không, hay chỉ là trục
@@ -41,6 +43,11 @@ export function isAxiosErr(e: unknown): e is AxiosError {
 export function isTransientFailure(err: unknown): boolean {
   if (!isAxiosErr(err)) return false
   const status = err.response?.status
+  // Bảo trì CÓ CHỦ ĐÍCH (503 MAINTENANCE): KHÔNG coi là thoáng-qua — outbox speaking/chat
+  // và retry refresh sẽ ngừng nện vào server đang nghỉ; màn chặn tự poll mở lại khi xong.
+  if (isMaintenanceError(status, err.response?.data, err.response?.headers as Record<string, unknown> | undefined)) {
+    return false
+  }
   return status == null || status >= 500
 }
 
@@ -201,6 +208,16 @@ api.interceptors.response.use(
       const body = error.response?.data ?? error.message
       // eslint-disable-next-line no-console
       console.warn(`[API] ${cfg?.method?.toUpperCase() ?? '?'} ${cfg?.url ?? '?'} → ${status}`, body)
+    }
+
+    // Bảo trì hệ thống (thiết kế §8): 503 code=MAINTENANCE, hoặc header X-DF-Maintenance từ nginx
+    // tĩnh khi Spring đã chết. Server nghỉ CÓ CHỦ ĐÍCH — bắn tín hiệu vào store (màn chặn hiện
+    // ngay) rồi reject LUÔN, TRƯỚC khối transient-retry (khỏi nhân tải lên server đang nghỉ) và
+    // trước reportApiFailure (khỏi flood Sentry). Store tự probe /public/system/status để xác nhận
+    // và mở lại khi hệ thống sống.
+    if (isMaintenanceError(error.response?.status, error.response?.data, error.response?.headers as Record<string, unknown> | undefined)) {
+      useMaintenanceStore.getState().signal(maintenanceInfoFromProblem(error.response?.data))
+      return Promise.reject(error)
     }
 
     // MB-4 (audit R-M4): thử lại MỘT lần cho GET idempotent khi lỗi thoáng qua — mất mạng, timeout,
