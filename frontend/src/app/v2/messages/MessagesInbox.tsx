@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { apiMessage } from '@/lib/api'
 import { listConversations, type Conversation } from '@/lib/messagesApi'
+import { usePollWhileVisible } from '@/hooks/usePollWhileVisible'
 import { ConversationList } from './ConversationList'
 import { DirectThread } from './DirectThread'
 import { ClassThread } from './ClassThread'
@@ -81,10 +82,7 @@ export function MessagesInbox({
     }
   }, [loadClasses, refreshConversations])
 
-  useEffect(() => {
-    const t = setInterval(() => void refreshConversations(), POLL_MS)
-    return () => clearInterval(t)
-  }, [refreshConversations])
+  usePollWhileVisible(refreshConversations, POLL_MS)
 
   const openDirect = useCallback((userId: number, name: string) => {
     setSelection({ kind: 'direct', userId, name })

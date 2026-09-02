@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { apiMessage } from '@/lib/api'
-import { getThread, sendMessage, type ChatMessage } from '@/lib/messagesApi'
+import { getThread, sendMessage, sameMessageIds, type ChatMessage } from '@/lib/messagesApi'
+import { usePollWhileVisible } from '@/hooks/usePollWhileVisible'
 import { LoadingState } from '@/components/ui-v2'
 import { Composer } from './Composer'
 import { ThreadShell, fmtDay, initial } from './ThreadShell'
@@ -27,7 +28,9 @@ export function DirectThread({ userId, name, onBack, onSent }: DirectThreadProps
   const load = useCallback(async (spin: boolean) => {
     if (spin) setLoading(true)
     try {
-      setThread(await getThread(userId))
+      const next = await getThread(userId)
+      // Không có tin mới → giữ nguyên reference cũ, khỏi re-render cả thread mỗi tick (W5).
+      setThread((prev) => (sameMessageIds(prev, next) ? prev : next))
       setError('')
     } catch (e: unknown) {
       setError(apiMessage(e))
@@ -38,9 +41,10 @@ export function DirectThread({ userId, name, onBack, onSent }: DirectThreadProps
 
   useEffect(() => {
     void load(true)
-    const t = setInterval(() => void load(false), POLL_MS)
-    return () => clearInterval(t)
   }, [load])
+
+  const poll = useCallback(() => load(false), [load])
+  usePollWhileVisible(poll, POLL_MS)
 
   const send = async (text: string) => {
     try {
