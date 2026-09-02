@@ -48,6 +48,7 @@ class AdminOrgServiceLifecycleTest {
     @Mock private UserRepository userRepository;
     @Mock private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     @Mock private com.deutschflow.notification.service.UserNotificationService userNotificationService;
+    @Mock private com.deutschflow.common.audit.AuditLogService auditLogService;
 
     private AdminOrgService service;
 
@@ -63,7 +64,8 @@ class AdminOrgServiceLifecycleTest {
                 orgEntitlementService,
                 userRepository,
                 passwordEncoder,
-                userNotificationService
+                userNotificationService,
+                auditLogService
         );
     }
 
@@ -414,5 +416,126 @@ class AdminOrgServiceLifecycleTest {
 
         assertThat(dto.teacherCount()).isEqualTo(2L);
         assertThat(dto.studentCount()).isEqualTo(3L);
+    }
+
+    // ─── F-M2: bất biến 1-OWNER qua đường admin addMember ──────────────────────────────
+    //
+    // upsertMember chỉ ghi đè vai trò, không biết gì về OWNER. Mọi đường khác đều giữ bất biến:
+    // changeRole từ chối đụng OWNER, removeMember/selfLeave từ chối gỡ OWNER, và OWNER chỉ được
+    // (tái) tạo qua transferOwnership (thăng + giáng nguyên tử). Riêng endpoint admin này hạ được
+    // OWNER duy nhất xuống TEACHER (org còn 0 OWNER) hoặc dựng thêm OWNER thứ hai.
+
+    private OrgMember memberWithRole(Long userId, String role, String status) {
+        OrgMember m = new OrgMember();
+        m.setId(new OrgMemberId(ORG_ID, userId));
+        m.setRole(role);
+        m.setStatus(status);
+        return m;
+    }
+
+    private User orgUser(Long id, String email) {
+        return User.builder().id(id).email(email).displayName("U" + id)
+                .passwordHash("h").role(User.Role.TEACHER).build();
+    }
+
+    @Test
+    @DisplayName("addMember: hạ OWNER đang hoạt động xuống TEACHER bị chặn (org sẽ còn 0 OWNER)")
+    void addMember_demotingActiveOwner_isBlocked() {
+        User owner = orgUser(9L, "owner@x.com");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(orgWithStatus("ACTIVE")));
+        when(userRepository.findByEmailIgnoreCase("owner@x.com")).thenReturn(Optional.of(owner));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 9L))
+                .thenReturn(Optional.of(memberWithRole(9L, "OWNER", "ACTIVE")));
+
+        assertThatThrownBy(() -> service.addMember(ORG_ID, "owner@x.com", "TEACHER", null))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("chuyển quyền sở hữu");
+
+        verify(orgMembershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("addMember: thêm OWNER thứ hai bị chặn (mỗi tổ chức một OWNER)")
+    void addMember_secondOwner_isBlocked() {
+        User other = orgUser(10L, "other@x.com");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(orgWithStatus("ACTIVE")));
+        when(userRepository.findByEmailIgnoreCase("other@x.com")).thenReturn(Optional.of(other));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 10L))
+                .thenReturn(Optional.of(memberWithRole(10L, "TEACHER", "ACTIVE")));
+        when(orgMembershipService.countActiveOwners(ORG_ID)).thenReturn(1L);
+
+        assertThatThrownBy(() -> service.addMember(ORG_ID, "other@x.com", "OWNER", null))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("đã có chủ sở hữu");
+
+        verify(orgMembershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("addMember: org chưa có OWNER thì gán OWNER đầu tiên vẫn được")
+    void addMember_firstOwner_isAllowed() {
+        User first = orgUser(11L, "first@x.com");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(orgWithStatus("ACTIVE")));
+        when(userRepository.findByEmailIgnoreCase("first@x.com")).thenReturn(Optional.of(first));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 11L))
+                .thenReturn(Optional.empty(), Optional.of(memberWithRole(11L, "OWNER", "ACTIVE")));
+        when(orgMembershipService.countActiveOwners(ORG_ID)).thenReturn(0L);
+
+        OrgMemberDto dto = service.addMember(ORG_ID, "first@x.com", "OWNER", null);
+
+        assertThat(dto.role()).isEqualTo("OWNER");
+        verify(orgMembershipService).upsertMember(ORG_ID, 11L, "OWNER");
+    }
+
+    @Test
+    @DisplayName("addMember: OWNER cũ được gán lại đúng OWNER thì không bị chặn (thao tác vô hại)")
+    void addMember_reassigningSameOwner_isAllowed() {
+        User owner = orgUser(12L, "owner2@x.com");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(orgWithStatus("ACTIVE")));
+        when(userRepository.findByEmailIgnoreCase("owner2@x.com")).thenReturn(Optional.of(owner));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 12L))
+                .thenReturn(Optional.of(memberWithRole(12L, "OWNER", "ACTIVE")));
+
+        service.addMember(ORG_ID, "owner2@x.com", "OWNER", null);
+
+        verify(orgMembershipService).upsertMember(ORG_ID, 12L, "OWNER");
+    }
+
+    @Test
+    @DisplayName("addMember: thêm TEACHER thường không tốn lượt đếm OWNER nào")
+    void addMember_regularTeacher_doesNotCountOwners() {
+        User teacher = orgUser(13L, "t@x.com");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(orgWithStatus("ACTIVE")));
+        when(userRepository.findByEmailIgnoreCase("t@x.com")).thenReturn(Optional.of(teacher));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 13L))
+                .thenReturn(Optional.empty(), Optional.of(memberWithRole(13L, "TEACHER", "ACTIVE")));
+
+        service.addMember(ORG_ID, "t@x.com", "TEACHER", null);
+
+        verify(orgMembershipService, never()).countActiveOwners(anyLong());
+        verify(orgMembershipService).upsertMember(ORG_ID, 13L, "TEACHER");
+    }
+
+    @Test
+    @DisplayName("addMember: ghi vết audit kèm vai trò trước và sau")
+    @SuppressWarnings("unchecked")
+    void addMember_writesAuditWithRoleTransition() {
+        User teacher = orgUser(14L, "up@x.com");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(orgWithStatus("ACTIVE")));
+        when(userRepository.findByEmailIgnoreCase("up@x.com")).thenReturn(Optional.of(teacher));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 14L))
+                .thenReturn(Optional.of(memberWithRole(14L, "TEACHER", "ACTIVE")),
+                           Optional.of(memberWithRole(14L, "MANAGER", "ACTIVE")));
+        com.deutschflow.common.audit.AuditActor actor =
+                new com.deutschflow.common.audit.AuditActor(1L, "admin@x.com", "ADMIN");
+
+        service.addMember(ORG_ID, "up@x.com", "MANAGER", actor);
+
+        ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        verify(auditLogService).log(eq("admin.org.member.upserted"), eq(actor),
+                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+        assertThat(meta.getValue().get("fromRole")).isEqualTo("TEACHER");
+        assertThat(meta.getValue().get("toRole")).isEqualTo("MANAGER");
+        assertThat(meta.getValue().get("targetUserId")).isEqualTo(14L);
     }
 }
