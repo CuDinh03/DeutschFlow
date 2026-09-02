@@ -80,6 +80,22 @@ Qua CF phải **200/401 như cũ**; gõ thẳng IP phải **timeout** (SG chặn
 Cuối cùng chạy lại lệnh deploy quen thuộc một lần để chắc pipeline không phụ thuộc đường thẳng-IP
 nào: `cd ~/Developer/DeutschFlow-deploy && git pull --ff-only origin main && ./deploy-backend.sh`.
 
+## Bước 3 — Nâng stack observability (H2+H3, MỘT lần, sau deploy đầu tiên có #480)
+
+Trên EC2 (config mới đã tự đến qua deploy — script `git reset --hard origin/main`):
+
+```bash
+cd /home/ubuntu/DeutschFlow && sudo docker compose -f docker-compose.prod.yml up -d node-exporter loki promtail
+```
+
+(loki + promtail cần restart để ăn retention 15 ngày + positions volume mới; node-exporter là
+service hoàn toàn mới, ~20MB RAM.)
+
+Kiểm chứng: `curl -s localhost:9090/api/v1/targets | grep -oE '"health":"[a-z]*"'` phải thêm một
+target `up` (node-exporter — Prometheus tự nạp scrape job mới khi restart hoặc SIGHUP; deploy
+script đã SIGHUP mỗi chuyến); Prometheus http://localhost:9090/rules (qua tunnel) thấy 4 rule mới
+HostDiskSpaceLow / HostMemoryPressure / HighJvmGcPause / CircuitBreakerOpen.
+
 ## Nếu hỏng — rollback
 
 - Bước 1: `sudo cp` bản backup (làm backup trước nếu muốn: `sudo cp /etc/nginx/sites-available/deutschflow /tmp/nginx-backup-$(date +%s)`) rồi `sudo nginx -t && sudo systemctl reload nginx`.
