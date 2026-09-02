@@ -3,8 +3,9 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ChevronRight, ArrowLeft, Briefcase, BookOpen, Lock, MessageCircle, GraduationCap } from "lucide-react";
+import { Sparkles, ChevronRight, ArrowLeft, Briefcase, BookOpen, Lock, MessageCircle, GraduationCap, Check } from "lucide-react";
 import { PERSONA_LIST, PERSONA_GROUPS, PersonaId, PersonaGroup, PERSONA_TOKENS } from "@/lib/personas";
+import { GaIcon } from "@/components/ui-v2";
 import { personaInk, personaSoft } from "@/lib/personaPaper";
 import { PersonaCard } from "./PersonaCard";
 import { aiSpeakingApi, SpeakingSessionMode } from "@/lib/aiSpeakingApi";
@@ -350,7 +351,7 @@ export function CompanionSelect({
                 }`}
                 whileTap={{ scale: 0.95 }}
               >
-                <span>{g.icon}</span>
+                <GaIcon name={g.icon} size={13} />
                 <span>{g.label}</span>
               </motion.button>
             ))}
@@ -442,7 +443,7 @@ export function CompanionSelect({
                         </div>
                         {interviewPosition === pos.label && (
                           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedInk }}>
-                            <span className="text-white text-xs">✓</span>
+                            <Check size={12} className="text-white" aria-hidden />
                           </motion.div>
                         )}
                       </motion.button>
@@ -501,7 +502,7 @@ export function CompanionSelect({
                       </div>
                       {lessonScenario === sc.label && (
                         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedInk }}>
-                          <span className="text-white text-xs">✓</span>
+                          <Check size={12} className="text-white" aria-hidden />
                         </motion.div>
                       )}
                     </motion.button>

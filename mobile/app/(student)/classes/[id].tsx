@@ -9,7 +9,7 @@ import {
 import { apiMessage } from '@/lib/api'
 import {
   fetchClassAssignments, fetchClassDetail, fetchClassLessons,
-  fetchMyAttendance, fetchMySkillReport,
+  fetchMyAttendance, fetchMySkillReport, isAwaitingTeacher, isFinalGrade,
   type ClassLesson, type ClassroomDetail, type MySkillReport, type StudentAssignment,
   type StudentAttendance, type TeacherSummary,
 } from '@/lib/studentClassesApi'
@@ -353,10 +353,12 @@ function AssignmentsTab({
 }
 
 function StatusPill({ status, score }: { status: string; score: number | null }) {
-  if (status === 'GRADED' || status === 'EVALUATED') {
+  if (isFinalGrade(status)) {
     return <Pill tone="success" icon={CheckCircle2} label={`Đã chấm${score != null ? ` · ${score}` : ''}`} />
   }
-  if (status === 'SUBMITTED') {
+  // AI_GRADED / GRADING_FAILED = bài ĐÃ nộp, đang chờ giáo viên (F-14 soát 02/09) —
+  // trước đây rơi nhánh else và hiện "Chưa nộp" đỏ cho bài học viên vừa nộp xong.
+  if (isAwaitingTeacher(status)) {
     return <Pill tone="info" icon={Upload} label="Đã nộp" />
   }
   return <Pill tone="danger" icon={AlertCircle} label="Chưa nộp" />
@@ -368,7 +370,7 @@ function GradesTab({
   const theme = useTheme()
   const c = theme.colors
   const graded = useMemo(
-    () => assignments.filter((a) => a.status === 'GRADED' || a.status === 'EVALUATED'),
+    () => assignments.filter((a) => isFinalGrade(a.status)),
     [assignments],
   )
   if (assignments.length === 0 && isError) {

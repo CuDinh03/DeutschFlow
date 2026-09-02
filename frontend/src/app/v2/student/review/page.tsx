@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Volume2, RotateCcw, Check } from 'lucide-react'
+import { Volume2, RotateCcw, Check, PartyPopper } from 'lucide-react'
 import { toast } from 'sonner'
 import { reviewApi, type VocabReviewCard, type ErrorReviewTaskDto } from '@/lib/reviewApi'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
@@ -184,7 +184,7 @@ export default function V2StudentReviewPage() {
               </GaCard>
             ) : (
               <GaCard className="px-4 py-12 text-center sm:px-7 lg:py-14">
-                <p className="text-[40px]">🎉</p>
+                <PartyPopper size={40} strokeWidth={1.4} className="mx-auto text-ga-accent" aria-hidden />
                 <p className="mt-3 font-ga-display text-[22px] font-medium text-ga-ink">
                   {cards.length === 0 ? t('emptyQueue') : t('doneCount', { count: reviewed })}
                 </p>

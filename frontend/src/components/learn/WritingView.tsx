@@ -2,7 +2,7 @@
 
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Loader2, CheckCircle, AlertCircle, PenLine } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, PenLine, CircleCheck } from "lucide-react";
 import api from "@/lib/api";
 
 interface CorrectionResult {
@@ -94,7 +94,10 @@ export default function WritingView({ content, isLocked = false }: { content: No
               : "bg-[#22C55E] hover:bg-[#16A34A] text-white"
           }`}
         >
-          {isCompleted ? "✅ Đã hoàn thành" : "✅ Bỏ qua & Đánh dấu hoàn thành"}
+          <span className="inline-flex items-center gap-1.5">
+            <CircleCheck size={15} aria-hidden />
+            {isCompleted ? "Đã hoàn thành" : "Bỏ qua & Đánh dấu hoàn thành"}
+          </span>
         </button>
       </div>
     );
@@ -232,7 +235,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
       {/* ── Completion status ── */}
       {isCompleted && (
         <div className="mt-4 rounded-xl bg-green-50 border border-green-200 p-4 text-center">
-          <p className="text-sm font-bold text-green-700">✅ Đã hoàn thành phần Viết (≥ 80 điểm)</p>
+          <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-green-700"><CircleCheck size={15} aria-hidden /> Đã hoàn thành phần Viết (≥ 80 điểm)</p>
         </div>
       )}
     </div>

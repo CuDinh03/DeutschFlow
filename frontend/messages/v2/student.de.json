@@ -1128,6 +1128,8 @@
       "errorJobFailed": "Das Erzeugen des Satzes ist fehlgeschlagen. Erneut versuchen, um einen neuen auszusäen."
     },
     "learnNode": {
+      "progressNotSaved": "Dein Fortschritt konnte nicht auf dem Server gespeichert werden.",
+      "scoreBelowThreshold": "Der Server hat {score}% gewertet — unter der Bestehensgrenze, dein Fortschritt wurde nicht gespeichert.",
       "toPractice": "4 Fertigkeiten üben",
       "roadmapContext": "Position im Lernpfad",
       "completedInRoadmap": "des Lernpfads abgeschlossen",

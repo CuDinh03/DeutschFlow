@@ -25,6 +25,8 @@ import Animated, {
 } from 'react-native-reanimated'
 import { handleAiError } from '@/lib/upsell'
 import { ensureAiConsent } from '@/lib/aiConsent'
+import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
+import { useBlurGuard } from '@/hooks/useBlurGuard'
 import {
   speakingApi,
   isUnlimitedQuota,
@@ -141,6 +143,25 @@ export default function SpeakingScreen() {
   const speakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pulseAnim = useSharedValue(1)
 
+  // F-9 (soát 02/09): màn này là bottom-tab — chuyển tab KHÔNG unmount, nên nếu
+  // đang ghi mà người dùng đi tab khác thì mic ghi tiếp vô thời hạn. Guard theo
+  // blur tự dừng recorder + thoát record mode; bản ghi dở bị bỏ, UI trả về idle.
+  useRecorderBlurGuard(recorder, () => {
+    cancelAnimation(pulseAnim)
+    pulseAnim.value = 1
+    setIsRecording(false)
+    setStage('idle')
+  })
+
+  // Cùng lớp với F-9 nhưng cho LOA: mic đã có guard, còn giọng AI đang phát thì
+  // không — chuyển tab là persona cứ nói tiếp. Blur = dừng tiếng ngay; player bị
+  // remove() sẽ không bao giờ bắn didJustFinish → onDone của lượt đó không chạy,
+  // nên phải tự chốt stage về idle kẻo persona kẹt "đang nói" khi quay lại.
+  const focusedRef = useBlurGuard(() => {
+    void stopSpeech()
+    setStage((s) => (s === 'speaking' ? 'idle' : s))
+  })
+
   // Offer to resume an interrupted session left over from a previous app run.
   useEffect(() => {
     let active = true
@@ -178,6 +199,12 @@ export default function SpeakingScreen() {
   //   3. Timed delay paced by text length
   // The persona "talks" for the audio duration, then runs onDone.
   async function speakGerman(text: string, onDone: () => void, personaOverride?: string | null) {
+    if (!focusedRef.current) {
+      // Phản hồi AI về sau khi người dùng đã sang tab khác: không phát tiếng,
+      // chốt luồng ngay để transcript/reaction vẫn tự settle trong nền.
+      onDone()
+      return
+    }
     setStage('speaking')
     setReaction(null)
     let done = false
@@ -697,6 +724,26 @@ export default function SpeakingScreen() {
             </Card>
           </View>
         ) : null}
+
+        {/* Lối vào Luyện thi Nói (cụm màn mới 02/09 — thiết kế đã chốt) */}
+        <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
+          <Card
+            onPress={() => router.push('/(student)/speaking-exam')}
+            accessibilityLabel="Mở Luyện thi Nói Goethe"
+            style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+              <View style={{ width: 7, height: 7, backgroundColor: c.accent }} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <ThemedText variant="bodyStrong" style={{ color: c.onInk }}>Luyện thi Nói · Goethe</ThemedText>
+                <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
+                  Thi thử đủ các Teil, chấm theo rubric 4 tiêu chí
+                </ThemedText>
+              </View>
+              <Icon icon={ChevronRight} size={18} color="onInk" />
+            </View>
+          </Card>
+        </View>
 
         {quota && !isUnlimitedQuota(quota) ? (
           <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>

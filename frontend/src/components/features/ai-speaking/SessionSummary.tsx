@@ -9,6 +9,8 @@ import {
   BookOpen, RotateCcw, ArrowLeft, Star,
   Briefcase, Users, Heart, Zap, MessageSquare,
   ThumbsUp, ThumbsDown, Target, Lightbulb, Sparkles,
+  ClipboardList, CircleCheck, CircleX, PartyPopper,
+  Mic, Repeat, Library,
 } from "lucide-react";
 import type { ChatMessage } from "@/stores/useChatStore";
 import type { ConversationReport } from "@/lib/aiSpeakingApi";
@@ -240,12 +242,12 @@ export function SessionSummary({
       {/* Header */}
       <div className="text-center pt-2">
         <motion.div
-          className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl"
-          style={{ background: "var(--ga-yellow-soft)", border: "1px solid var(--ga-yellow)" }}
+          className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center"
+          style={{ background: "var(--ga-yellow-soft)", border: "1px solid var(--ga-yellow)", color: "var(--ga-gold)" }}
           initial={{ scale: 0 }} animate={{ scale: 1 }}
           transition={{ ...spring.gentle, delay: 0.1 }}
         >
-          {hasAiReport ? "📋" : "🎯"}
+          {hasAiReport ? <ClipboardList size={26} strokeWidth={1.7} aria-hidden /> : <Target size={26} strokeWidth={1.7} aria-hidden />}
         </motion.div>
         <h2 className="font-ga-display text-ga-ink font-medium text-2xl">
           {isInterviewMode ? "Phỏng vấn kết thúc!" : "Buổi luyện nói kết thúc!"}
@@ -253,7 +255,7 @@ export function SessionSummary({
         {hasAiReport && aiReport?.verdict_label_vi && (
           <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold"
             style={{ background: `${verdictColor(aiReport.verdict)}22`, color: verdictColor(aiReport.verdict), border: `1px solid ${verdictColor(aiReport.verdict)}44` }}>
-            {aiReport.verdict === "PASS" ? "✅" : aiReport.verdict === "CONDITIONAL_PASS" ? "⚠️" : "❌"} {aiReport.verdict_label_vi}
+            {aiReport.verdict === "PASS" ? <CircleCheck size={15} aria-hidden /> : aiReport.verdict === "CONDITIONAL_PASS" ? <AlertTriangle size={15} aria-hidden /> : <CircleX size={15} aria-hidden />} {aiReport.verdict_label_vi}
           </div>
         )}
       </div>
@@ -295,7 +297,7 @@ export function SessionSummary({
                     className="flex flex-col items-center justify-center rounded-full text-center px-4"
                     style={{ width: size, height: size, background: "var(--ga-surface)", border: "1px solid var(--ga-line)" }}
                   >
-                    <span className="text-2xl leading-none mb-1">🎤</span>
+                    <Mic size={22} strokeWidth={1.7} className="mb-1" style={{ color: "var(--ga-muted)" }} aria-hidden />
                     <span className="text-[11px] font-medium leading-tight" style={{ color: "var(--ga-muted)" }}>
                       {interviewInsufficient ? <>Kết thúc quá sớm<br />chưa đủ để chấm</> : <>Chưa chấm được<br />điểm phiên này</>}
                     </span>
@@ -330,7 +332,7 @@ export function SessionSummary({
                   className="flex flex-col items-center justify-center rounded-full text-center px-4"
                   style={{ width: size, height: size, background: "var(--ga-surface)", border: "1px solid var(--ga-line)" }}
                 >
-                  <span className="text-2xl leading-none mb-1">💬</span>
+                  <MessageSquare size={22} strokeWidth={1.7} className="mb-1" style={{ color: "var(--ga-muted)" }} aria-hidden />
                   <span className="text-[11px] font-medium leading-tight" style={{ color: "var(--ga-muted)" }}>
                     Nói thêm vài câu<br />để nhận đánh giá
                   </span>
@@ -493,19 +495,19 @@ export function SessionSummary({
                 <button onClick={onRestart}
                   className="w-full py-2.5 rounded-ga font-semibold text-sm text-left px-3 transition-colors hover:bg-ga-side-active"
                   style={{ background: "var(--ga-surface)", border: "1px solid var(--ga-line)", color: "var(--ga-ink)" }}>
-                  🔁 {NEXT_STEP_LABELS[st.code]}
+                  <span className="inline-flex items-center gap-1.5"><Repeat size={14} aria-hidden /> {NEXT_STEP_LABELS[st.code]}</span>
                 </button>
               ) : st.code === "DRILL_ERRORS" ? (
                 <button onClick={() => onReviewErrors?.(speakingErrors)}
                   className="w-full py-2.5 rounded-ga font-semibold text-sm text-left px-3 transition-colors hover:bg-ga-side-active"
                   style={{ background: "var(--ga-surface)", border: "1px solid var(--ga-line)", color: "var(--ga-ink)" }}>
-                  📚 {NEXT_STEP_LABELS[st.code]}
+                  <span className="inline-flex items-center gap-1.5"><Library size={14} aria-hidden /> {NEXT_STEP_LABELS[st.code]}</span>
                 </button>
               ) : (
                 <a href="/v2/student/speaking"
                   className="block w-full py-2.5 rounded-ga font-semibold text-sm px-3 transition-colors hover:bg-ga-side-active"
                   style={{ background: "var(--ga-surface)", border: "1px solid var(--ga-line)", color: "var(--ga-ink)" }}>
-                  🎯 {NEXT_STEP_LABELS[st.code]}
+                  <span className="inline-flex items-center gap-1.5"><Target size={14} aria-hidden /> {NEXT_STEP_LABELS[st.code]}</span>
                 </a>
               )}
             </div>
@@ -627,7 +629,7 @@ export function SessionSummary({
           {!convHasContent && (
             <div className="rounded-[20px] p-4 text-center" style={glass}>
               <p className="text-sm leading-relaxed" style={{ color: "var(--ga-muted)" }}>
-                Buổi luyện nói đã hoàn thành! 🎉<br />
+                <span className="inline-flex items-center gap-1.5">Buổi luyện nói đã hoàn thành! <PartyPopper size={14} aria-hidden /></span><br />
                 Lần này chưa có đánh giá chi tiết, nhưng mỗi câu bạn nói đều là một bước tiến. Tiếp tục luyện nhé!
               </p>
             </div>

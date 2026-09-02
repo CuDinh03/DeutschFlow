@@ -21,13 +21,16 @@ import { Screen, ThemedText, Button } from '@/components/ui'
 
 type GoalType = 'WORK' | 'CERT'
 
-/** Onboarding routing decision from the backend matrix (design §4). */
+/**
+ * Onboarding routing decision from the backend matrix (design §4).
+ * `postAction` cố ý KHÔNG khai ở đây nữa (soát 02/09, F-21 — quyết định Q-A
+ * 28/08 khai tử trường này): client bỏ đọc trước, backend gỡ trường sau.
+ */
 interface OnboardingRoute {
   onboardingType: string
   placementRequired: boolean
   assessmentHookAfter: boolean
   paywallAllowed: boolean
-  postAction: string
 }
 
 // Mentor preview metadata (emoji/tagline theo code) — dùng chung với màn
@@ -169,14 +172,15 @@ export default function OnboardingScreen() {
           })
           route = data
           captureEvent('onboarding_type_assigned', {
-            onboardingType: data.onboardingType, postAction: data.postAction, paywallAllowed: data.paywallAllowed,
+            onboardingType: data.onboardingType, paywallAllowed: data.paywallAllowed,
           })
         } catch { /* route is best-effort */ }
-        // Onboarding v1 (Q1): wow "câu tiếng Đức đầu tiên" NGAY SAU signup, thay
-        // routing theo postAction cũ. Màn wow kết thúc tại Trang chủ — nơi
-        // spotlight tour nổ (Q4). dailyGoal lưu on-device cho copy bước streak.
+        // Onboarding v1 (Q1): wow "câu tiếng Đức đầu tiên" NGAY SAU signup. Màn
+        // wow kết thúc tại Trang chủ — nơi spotlight tour nổ (Q4). dailyGoal lưu
+        // on-device cho copy bước streak. `route` chỉ còn phục vụ analytics.
         await saveDailyGoalMinutes(parseInt(draft.dailyGoal, 10))
-        router.replace(nextAfterProfile(route?.postAction))
+        void route
+        router.replace(nextAfterProfile())
       } catch (e) {
         // POST hỏng → trả draft về máy. Nạp lại form chỉ cứu được user còn đang ở
         // đây; ai tắt app ngay lúc đó thì mất trắng nếu draft không được khôi phục
@@ -253,7 +257,6 @@ export default function OnboardingScreen() {
         route = data
         captureEvent('onboarding_type_assigned', {
           onboardingType: data.onboardingType,
-          postAction: data.postAction,
           paywallAllowed: data.paywallAllowed,
         })
       } catch { /* analytics/route is best-effort */ }
@@ -262,7 +265,8 @@ export default function OnboardingScreen() {
       // trước, rồi đáp xuống Trang chủ cho spotlight tour (Q4). Quyết định nằm ở
       // lib/onboardingRouting.ts — xem comment ở đó về lỗi F-1 (2026-08-20).
       await saveDailyGoalMinutes(parseInt(dailyGoal, 10))
-      router.replace(nextAfterProfile(route?.postAction))
+      void route
+      router.replace(nextAfterProfile())
     } catch (e) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       Alert.alert('Không lưu được', apiMessage(e))

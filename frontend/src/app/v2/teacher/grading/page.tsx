@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
   Mic, PenLine, FileText, BookOpen, SpellCheck, Sparkles, Save, Loader2,
-  CheckCircle2, AlertCircle, AlertTriangle, Play, ExternalLink, Clock,
+  CheckCircle2, AlertCircle, AlertTriangle, Play, ExternalLink, Clock, X,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -347,7 +347,7 @@ function V2TeacherGradingPage() {
                       ?? queue[0]?.className ?? `#${classScope}`,
                   })}
                 </span>
-                <span aria-hidden>✕</span>
+                <X size={13} aria-hidden />
               </button>
             )}
             <TkSeg options={BUCKETS} value={filter} onValueChange={setFilter} className="w-full [&>button]:flex-1" aria-label={t('filterAria')} />

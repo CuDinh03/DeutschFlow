@@ -3,7 +3,8 @@
 import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide';
 import { useCallback, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Play, RefreshCw, Volume2 } from "lucide-react";
+import { Mic, MicOff, Play, RefreshCw, Volume2, TriangleAlert, Check, X, Star, ThumbsUp, Dumbbell } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { playTTS } from "@/lib/tts";
 import api from "@/lib/api";
 
@@ -22,6 +23,19 @@ interface EvalResult {
   emoji: string;
   feedbackVi: string;
   words: WordResult[];
+}
+
+/**
+ * Icon phản hồi theo KHOẢNG ĐIỂM. Suy từ `score` chứ KHÔNG dùng `result.emoji` mà backend trả
+ * (🌟/😊/😅/💪 — PhonemeService), vì hai lý do: emoji mặt cười lệch hẳn nét với phần còn lại của
+ * giao diện, và buộc FE vào một chuỗi emoji thì đổi ngưỡng ở backend là hỏng ánh xạ ở đây.
+ * `emoji` vẫn nằm trong `EvalResult` vì nó là phần của hợp đồng API — chỉ là không render nữa.
+ */
+function scoreIcon(score: number): { Icon: LucideIcon; color: string } {
+  if (score >= 90) return { Icon: Star, color: "#F59E0B" };
+  if (score >= 70) return { Icon: ThumbsUp, color: "#16A34A" };
+  if (score >= 50) return { Icon: RefreshCw, color: "#EA580C" };
+  return { Icon: Dumbbell, color: "#DC2626" };
 }
 
 interface PhonemeCoachProps {
@@ -210,8 +224,8 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
 
           {/* Error */}
           {error && (
-            <div className="w-full rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-700">
-              ⚠️ {error}
+            <div className="w-full rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-700 flex items-start gap-1.5">
+              <TriangleAlert size={13} className="mt-[1px] shrink-0" aria-hidden /> {error}
             </div>
           )}
         </div>
@@ -248,7 +262,10 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
                 </div>
 
                 <div className="min-w-0">
-                  <p className="text-2xl">{result.emoji}</p>
+                  {(() => {
+                    const { Icon, color } = scoreIcon(result.score);
+                    return <Icon size={22} strokeWidth={1.9} style={{ color }} aria-hidden />;
+                  })()}
                   <p className="text-sm font-bold text-[#0F172A] mt-1 break-words">{result.feedbackVi}</p>
                   {result.transcribed ? (
                     <p className="text-xs text-[#64748B] mt-1 break-words">
@@ -270,13 +287,13 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
                     {result.words.map((w, i) => (
                       <span
                         key={i}
-                        className={`px-3 py-1 rounded-full text-sm font-bold border-2 ${
+                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold border-2 ${
                           w.correct
                             ? "bg-green-50 border-green-200 text-green-700"
                             : "bg-red-50 border-red-200 text-red-700"
                         }`}
                       >
-                        {w.correct ? "✓" : "✗"} {w.word}
+                        {w.correct ? <Check size={13} aria-hidden /> : <X size={13} aria-hidden />} {w.word}
                       </span>
                     ))}
                   </div>

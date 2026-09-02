@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { Megaphone } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap, TkModal } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaIcon, TkModal } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 
 // Visual category (preview colour + badge). Purely cosmetic — the backend notification type comes
@@ -22,10 +22,10 @@ const CAT: Record<string, { color: string; descKey: 'info' | 'action' | 'broadca
 // mới là khoá, KHÔNG dùng type làm khoá (v1 dùng type → 2 mẫu ADMIN_BROADCAST trùng key, bấm mẫu
 // này sáng cả mẫu kia).
 const TPL: { id: string; type: string; icon: string }[] = [
-  { id: 'system', type: 'ADMIN_BROADCAST', icon: '📣' },
-  { id: 'feature', type: 'ADMIN_BROADCAST', icon: '✨' },
-  { id: 'review', type: 'REVIEW_DUE', icon: '📚' },
-  { id: 'streak', type: 'STREAK_REMINDER', icon: '🔥' },
+  { id: 'system', type: 'ADMIN_BROADCAST', icon: 'campaign' },
+  { id: 'feature', type: 'ADMIN_BROADCAST', icon: 'auto_awesome' },
+  { id: 'review', type: 'REVIEW_DUE', icon: 'library_books' },
+  { id: 'streak', type: 'STREAK_REMINDER', icon: 'local_fire_department' },
 ]
 
 // audience id → labelKey + backend audienceType/tier/role (BroadcastNotificationRequest).
@@ -199,7 +199,7 @@ export default function V2AdminBroadcastPage() {
                     : 'border-ga-line bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink',
                 )}
               >
-                <span aria-hidden className="text-[15px]">{m.icon}</span>
+                <GaIcon name={m.icon} size={15} />
                 <span className="truncate">{t(`tpl.${m.id}.label`)}</span>
               </button>
             ))}

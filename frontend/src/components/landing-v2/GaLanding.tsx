@@ -7,7 +7,8 @@ import { GaLogo, GaBtn, GaCap } from '@/components/ui-v2'
 /**
  * GaLanding — public marketing landing (proto-landing.jsx + proto-landing-sections.jsx).
  * Canonical homepage: rendered at `/` AND at `/v2` (each route wraps it in `.ga-scope`).
- * Full-bleed (no role shell). CTAs route to the real /v2/register · /v2/login · /v2/teacher.
+ * Full-bleed (no role shell). CTA học viên → /v2/onboarding (phễu value-first, xem START_HREF);
+ * CTA B2B + đăng nhập giữ /v2/register · /v2/login · /v2/teacher.
  * Editorial Galerie style: 1px-divided grids, Newsreader display, yellow brand accent.
  */
 
@@ -77,10 +78,26 @@ const TEACH_VALUE = [
 ]
 // Copy gói phải khớp entitlement thật (audit H-01): backend áp hạn mức token AI theo ngày,
 // nên không hứa "không giới hạn"; không nêu con số quota cứng vì cấu hình chỉnh được runtime.
+/**
+ * Đích của mọi CTA "học thử / miễn phí" cho HỌC VIÊN.
+ *
+ * QA 2026-09-01 (F-13): trang này có 19 link, trong đó 8 CTA đều trỏ thẳng `/v2/register`, KHÔNG
+ * một CTA nào trỏ `/v2/onboarding` — trong khi `/v2/onboarding` là trang CÔNG KHAI, đã dịch đủ ba
+ * thứ tiếng, có ghép mentor, có "quick win" và đủ event PostHog. Chú thích trong chính trang đó
+ * viết: "a GUEST runs the whole funnel here before signing up". Thực tế khách lạ bấm "Học thử miễn
+ * phí" rơi thẳng vào form 5 ô kèm số điện thoại bắt buộc, chưa nhận được chút giá trị nào — nên
+ * toàn bộ phễu value-first nằm không và dashboard funnel gần như không có dữ liệu.
+ *
+ * Phễu tự đưa khách sang `/v2/register` ở bước cuối (kèm bản nháp lộ trình), nên đây là THÊM một
+ * chặng giá trị trước tường đăng ký chứ không phải thay thế nó. CTA B2B ("Nhận tư vấn…") giữ
+ * nguyên: phễu này dành cho học viên, không dành cho trung tâm.
+ */
+const START_HREF = '/v2/onboarding'
+
 const PLANS = [
-  { name: 'Miễn phí', price: '0₫', features: ['Học từ vựng & ngữ pháp A1–B1', 'Ôn tập ngắt quãng (SRS) mỗi ngày', 'Trải nghiệm phỏng vấn AI có hạn mức'], cta: 'Bắt đầu ngay', highlight: false },
-  { name: 'Pro', price: '299.000₫', sub: '/tháng', features: ['Phỏng vấn AI hạn mức cao mỗi ngày', 'Phân tích phát âm & ngữ pháp chi tiết', 'Đủ bộ ngành nghề phỏng vấn', 'Luyện thi Goethe A1–B2'], cta: 'Dùng thử 7 ngày miễn phí', highlight: true },
-  { name: 'Giáo viên', price: 'Liên hệ', features: ['Quản lý lớp học', 'Tạo tài liệu AI', 'Chấm bài Speaking', 'Báo cáo tiến độ học viên'], cta: 'Nhận tư vấn', highlight: false },
+  { name: 'Miễn phí', price: '0₫', features: ['Học từ vựng & ngữ pháp A1–B1', 'Ôn tập ngắt quãng (SRS) mỗi ngày', 'Trải nghiệm phỏng vấn AI có hạn mức'], cta: 'Bắt đầu ngay', href: START_HREF, highlight: false },
+  { name: 'Pro', price: '299.000₫', sub: '/tháng', features: ['Phỏng vấn AI hạn mức cao mỗi ngày', 'Phân tích phát âm & ngữ pháp chi tiết', 'Đủ bộ ngành nghề phỏng vấn', 'Luyện thi Goethe A1–B2'], cta: 'Dùng thử 7 ngày miễn phí', href: START_HREF, highlight: true },
+  { name: 'Giáo viên', price: 'Liên hệ', features: ['Quản lý lớp học', 'Tạo tài liệu AI', 'Chấm bài Speaking', 'Báo cáo tiến độ học viên'], cta: 'Nhận tư vấn', href: '/v2/register', highlight: false },
 ]
 const INDUSTRIES = [
   {
@@ -141,7 +158,7 @@ export function GaLanding() {
             {/* h-11 (44px) ở mọi bề ngang — trước là h-9 (36px) trên máy nhỏ, dưới mức tối thiểu
                 44pt của Apple HIG, mà đây là nút chuyển đổi chính nằm ngay cạnh nút menu. */}
             <GaBtn asChild variant="ink" size="lg" className="h-11 px-3.5 text-[13px] sm:px-6 sm:text-[14.5px]">
-              <Link href="/v2/register">
+              <Link href={START_HREF}>
                 <YellowSq />
                 <span className="sm:hidden">Học thử</span>
                 <span className="hidden sm:inline">Học thử miễn phí</span>
@@ -187,7 +204,7 @@ export function GaLanding() {
                 Đăng nhập
               </Link>
               <GaBtn asChild variant="ink" size="lg" className="mt-5 w-full">
-                <Link href="/v2/register" onClick={() => setMenuOpen(false)}>
+                <Link href={START_HREF} onClick={() => setMenuOpen(false)}>
                   <YellowSq />Học thử miễn phí
                 </Link>
               </GaBtn>
@@ -217,7 +234,7 @@ export function GaLanding() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:gap-3.5">
             <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
-              <Link href="/v2/register"><YellowSq />Bắt đầu miễn phí</Link>
+              <Link href={START_HREF}><YellowSq />Bắt đầu miễn phí</Link>
             </GaBtn>
             <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
               <Link href="/v2/login">Đăng nhập để trải nghiệm</Link>
@@ -433,7 +450,7 @@ export function GaLanding() {
             <div className="font-ga-display text-[19px] font-medium leading-[1.35] sm:text-[21px]">Biết ngay mình ở đâu so với chuẩn B1 — trước khi tốn tiền thi thật.</div>
           </div>
           <GaBtn asChild variant="yellow" size="lg" className="w-full sm:w-auto">
-            <Link href="/v2/register"><YellowSq dark />Làm thử miễn phí</Link>
+            <Link href={START_HREF}><YellowSq dark />Làm thử miễn phí</Link>
           </GaBtn>
         </div>
       </section>
@@ -520,7 +537,7 @@ export function GaLanding() {
                 ))}
               </div>
               <GaBtn asChild variant={p.highlight ? 'yellow' : 'ink'} size="md" className="w-full md:w-auto">
-                <Link href="/v2/register">{p.cta}</Link>
+                <Link href={p.href}>{p.cta}</Link>
               </GaBtn>
             </div>
           ))}
@@ -535,7 +552,7 @@ export function GaLanding() {
             <h2 className="font-ga-display text-[34px] font-medium leading-[1.15] sm:text-[42px] md:text-[50px] md:leading-[1.1]">Sẵn sàng cho phỏng vấn tiếng Đức của bạn?</h2>
           </div>
           <GaBtn asChild variant="yellow" size="lg" className="w-full md:w-auto">
-            <Link href="/v2/register"><YellowSq dark />Học thử miễn phí</Link>
+            <Link href={START_HREF}><YellowSq dark />Học thử miễn phí</Link>
           </GaBtn>
         </div>
       </section>

@@ -5,7 +5,9 @@ import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.material.service.MaterialService;
 import com.deutschflow.teacher.curriculumimport.dto.CurriculumImportCommitRequest;
+import com.deutschflow.common.async.AsyncJob;
 import com.deutschflow.teacher.curriculumimport.dto.CurriculumImportCommitResult;
+import com.deutschflow.teacher.curriculumimport.dto.CurriculumImportPreview;
 import com.deutschflow.teacher.curriculumimport.dto.DraftModule;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.teacher.repository.CurriculumModuleRepository;
@@ -53,8 +55,14 @@ public class CurriculumImportCommitService {
     private final CurriculumImportCommitRepository commitRepository;
     private final CurriculumImportWriter writer;
     private final MaterialService materialService;
+    private final CurriculumImportService importService;
     private final DraftValidator draftValidator;
     private final ObjectMapper objectMapper;
+
+    /** Khớp `curriculum_import_commit.idempotency_key VARCHAR(120)` (V299). Chặn ở đây để
+     *  một khoá quá dài thành 400 nói đúng nguyên nhân, thay vì để Postgres ném 22001 rồi
+     *  bị nhánh xử lý tranh chấp bên dưới hiểu nhầm thành "có người giành cùng khoá". */
+    private static final int MAX_IDEMPOTENCY_KEY_LENGTH = 120;
 
     public CurriculumImportCommitResult commit(User caller, Long classId, CurriculumImportCommitRequest req) {
         if (req == null) {
@@ -63,6 +71,13 @@ public class CurriculumImportCommitService {
         String key = req.idempotencyKey() == null ? "" : req.idempotencyKey().trim();
         if (key.isEmpty()) {
             throw new BadRequestException("Thiếu idempotencyKey — không thể bảo đảm chống nhập trùng.");
+        }
+        if (key.length() > MAX_IDEMPOTENCY_KEY_LENGTH) {
+            throw new BadRequestException(
+                    "idempotencyKey vượt quá " + MAX_IDEMPOTENCY_KEY_LENGTH + " ký tự.");
+        }
+        if (req.previewJobId() == null) {
+            throw new BadRequestException("Thiếu previewJobId — không xác định được bản nháp nguồn.");
         }
         assertTeacherOwns(caller.getId(), classId);
 
@@ -73,10 +88,15 @@ public class CurriculumImportCommitService {
             return replay(existing.get());
         }
 
-        // The material is the import's stated source; a teacher must be allowed to read it even
-        // though nothing is copied from it here.
-        if (req.sourceMaterialId() != null) {
-            materialService.requireReadable(caller, req.sourceMaterialId());
+        // Provenance is READ, never accepted. requireOwnJob re-applies the class, job-type and
+        // ownership checks, and the material id comes out of the preview's own result — so the
+        // source recorded against this import is the document that actually produced the draft.
+        Long sourceMaterialId = sourceMaterialOf(caller, classId, req.previewJobId());
+
+        // The teacher must still be allowed to read it AT COMMIT TIME: a material can be archived or
+        // its org membership revoked between analysing and confirming.
+        if (sourceMaterialId != null) {
+            materialService.requireReadable(caller, sourceMaterialId);
         }
 
         List<DraftModule> modules = draftValidator.validate(req.modules());
@@ -84,15 +104,42 @@ public class CurriculumImportCommitService {
         assertNoUnhandledDuplicates(classId, modules, onDuplicate);
 
         try {
-            return writer.write(classId, caller.getId(), key, req.sourceMaterialId(), modules, onDuplicate);
+            return writer.write(classId, caller.getId(), key, sourceMaterialId, modules, onDuplicate);
         } catch (DataIntegrityViolationException e) {
-            // Another request holding the same key won the race; its transaction wrote the
-            // curriculum and ours rolled back entirely. Answer with theirs — never a second copy.
+            // Only ONE reading of this exception is safe to act on: another request holding the same
+            // key won the race, so its transaction wrote the curriculum and ours rolled back. That
+            // is provable — the row is now there. Any other integrity failure (a bad foreign key, a
+            // CHECK, a value too long for its column) must surface as itself; dressing it up as a
+            // concurrency conflict hides a real defect from both the teacher and the logs.
+            var winner = commitRepository.findByClassIdAndIdempotencyKey(classId, key);
+            if (winner.isEmpty()) {
+                log.error("Curriculum import into class {} failed on a data error unrelated to the "
+                        + "idempotency key", classId, e);
+                throw e;
+            }
             log.info("Curriculum import key {} for class {} was claimed concurrently — replaying", key, classId);
-            return commitRepository.findByClassIdAndIdempotencyKey(classId, key)
-                    .map(this::replay)
-                    .orElseThrow(() -> new ConflictException(
-                            "Yêu cầu nhập đang được xử lý đồng thời — hãy thử lại."));
+            return replay(winner.get());
+        }
+    }
+
+    /**
+     * The material the preview actually read, taken from that job's stored result.
+     *
+     * <p>Deliberately not a field on the request: the draft's content is the teacher's to edit, but
+     * WHERE it came from is a fact of the analysis, and a client that could state it would be able
+     * to file a curriculum built from one book under another book's name.
+     */
+    private Long sourceMaterialOf(User caller, Long classId, java.util.UUID previewJobId) {
+        AsyncJob job = importService.requireOwnJob(caller, classId, previewJobId);
+        if (!AsyncJob.Status.COMPLETED.name().equals(job.getStatus()) || job.getResultPayload() == null) {
+            throw new BadRequestException("Bản nháp chưa phân tích xong — hãy chờ rồi nhập lại.");
+        }
+        try {
+            return objectMapper.readValue(job.getResultPayload(), CurriculumImportPreview.class)
+                    .sourceMaterialId();
+        } catch (JsonProcessingException e) {
+            log.warn("Preview job {} has an unreadable payload", previewJobId, e);
+            throw new BadRequestException("Không đọc được bản nháp nguồn — hãy phân tích lại.");
         }
     }
 

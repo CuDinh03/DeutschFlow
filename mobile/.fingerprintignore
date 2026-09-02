@@ -1,0 +1,17 @@
+# Vì sao file này tồn tại (soát 02/09, F-5 + bước 0 kế hoạch build 16):
+#
+# Build 16 ngày 20/08 (adf7006e) chết ở phase "Configure expo-updates" vì
+# fingerprint tính trên MÁY DEV khác fingerprint worker EAS tính — máy dev có
+# node_modules cũ và thư mục ios/ bare (sản phẩm của `expo run:ios`), còn worker
+# npm ci sạch và không nhận ios/ (gitignored). Hai nguồn lệch:
+#   1. node_modules lệch lockfile  → PHẢI npm ci trước khi build (quy trình,
+#      không ignore được — ignore node_modules là mù trước thay đổi native thật).
+#   2. ios/ + android/ bare local  → ignore Ở ĐÂY: worker không bao giờ thấy
+#      chúng nên hash worker không đổi; máy dev hết đo ra hash khác chỉ vì
+#      từng chạy prebuild.
+#
+# TUYỆT ĐỐI KHÔNG thêm app.json / package.json / node_modules vào đây:
+# ignore nhầm thứ ảnh hưởng native là OTA bắn vào binary không tương thích
+# (crash khi update áp lên).
+ios/**
+android/**
