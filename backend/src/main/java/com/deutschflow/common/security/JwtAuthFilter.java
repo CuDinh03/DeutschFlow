@@ -82,17 +82,20 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         log.debug("[JwtAuthFilter] Token found for request: {}", requestUri);
         log.debug("[JwtAuthFilter] Token length: {}", token.length());
 
+        // Check TRƯỚC khi validate: filter đứng trước có thể đã xác thực bằng credential không phải
+        // JWT (PrometheusScrapeTokenFilter với bearer token tĩnh) — validate tiếp vừa parse thừa vừa
+        // spam WARN "INVALID TOKEN" mỗi lần scrape 15s.
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            log.debug("[JwtAuthFilter] Authentication already set for {}", requestUri);
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         boolean isTokenValid = jwtService.isTokenValid(token);
         log.debug("[JwtAuthFilter] Token valid: {} for {}", isTokenValid, requestUri);
 
         if (!isTokenValid) {
             log.warn("[JwtAuthFilter] ⚠️ INVALID TOKEN detected for {} - Token will NOT be used for authentication", requestUri);
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        if (SecurityContextHolder.getContext().getAuthentication() != null) {
-            log.debug("[JwtAuthFilter] Authentication already set for {}", requestUri);
             filterChain.doFilter(request, response);
             return;
         }
