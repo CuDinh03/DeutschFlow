@@ -1,5 +1,6 @@
 package com.deutschflow.interview.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
@@ -74,9 +75,7 @@ public class InterviewAdminController {
         InterviewRubricTemplate saved = rubricRepository.save(rubric);
         auditLogService.log(
                 "admin.interview.rubric.updated",
-                null,
-                authentication == null ? null : authentication.getName(),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "INTERVIEW_RUBRIC",
                 String.valueOf(id),
                 Map.of("version", saved.getVersion()));
@@ -92,10 +91,4 @@ public class InterviewAdminController {
         }
     }
 
-    private String actorRole(Authentication authentication) {
-        if (authentication == null || authentication.getAuthorities() == null || authentication.getAuthorities().isEmpty()) {
-            return null;
-        }
-        return authentication.getAuthorities().iterator().next().getAuthority();
-    }
 }

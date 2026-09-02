@@ -4,6 +4,7 @@ import com.deutschflow.admin.service.AdminManagementService;
 import com.deutschflow.admin.dto.AdminUpdateLearningProfileRequest;
 import com.deutschflow.user.dto.AdminUpdateProfileRequest;
 import com.deutschflow.notification.service.UserNotificationService;
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.vocabulary.service.DeepLLemmaBackfillService;
@@ -93,9 +94,8 @@ public class AdminManagementController {
             ));
         }
         cache.clear();
-        auditLogService.log("admin.cache.purged", null,
-                actorEmail(authentication), actorRole(authentication),
-                "CACHE", name, Map.of("action", "clear"));
+        auditLogService.log("admin.cache.purged", AuditActor.ofAuthentication(authentication),
+                                "CACHE", name, Map.of("action", "clear"));
         return ResponseEntity.ok(Map.of(
             "status", "ok",
             "cache", name,
@@ -214,9 +214,7 @@ public class AdminManagementController {
                 req.email(), req.displayName(), req.password(), req.role(), req.locale(), req.orgId(), req.orgRole());
         auditLogService.log(
                 "admin.user.created",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(created.get("id")),
                 Map.of(
@@ -249,9 +247,7 @@ public class AdminManagementController {
         Map<String, Object> updated = adminManagementService.setUserActive(userId, req.active());
         auditLogService.log(
                 req.active() ? "admin.user.reactivated" : "admin.user.deactivated",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
                 Map.of("active", req.active())
@@ -269,9 +265,7 @@ public class AdminManagementController {
         Map<String, Object> updated = adminManagementService.setUserPassword(userId, req.password());
         auditLogService.log(
                 "admin.user.password.reset",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
                 Map.of()
@@ -300,12 +294,13 @@ public class AdminManagementController {
         Map<String, Object> updated = adminManagementService.updateUserRole(userId, req.role());
         auditLogService.log(
                 "admin.user.role.updated",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
-                Map.of("newRole", String.valueOf(updated.get("role")))
+                Map.of(
+                        "oldRole", String.valueOf(updated.get("previousRole")),
+                        "newRole", String.valueOf(updated.get("role"))
+                )
         );
         return updated;
     }
@@ -325,9 +320,7 @@ public class AdminManagementController {
         );
         auditLogService.log(
                 "admin.user.plan.updated",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
                 Map.of(
@@ -375,9 +368,7 @@ public class AdminManagementController {
         Map<String, Object> result = adminManagementService.bulkAssignStudents(classId, request.studentIds());
         auditLogService.log(
                 "admin.class.students.bulk_assigned",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "CLASS",
                 String.valueOf(classId),
                 Map.of("assignedCount", result.get("assignedCount"))
@@ -411,14 +402,16 @@ public class AdminManagementController {
         Map<String, Object> result = adminManagementService.adminUpdateProfile(userId, request);
         auditLogService.log(
                 "admin.user.profile.updated",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
+                // Audit F-M4 (03/09/2026): KHÔNG ghi phoneNumber vào metadata. audit_logs là bảng
+                // giữ vĩnh viễn và màn hình audit cho ADMIN nào cũng đọc được, nên số điện thoại
+                // dạng rõ ở đây là một bản sao PII sống lâu hơn cả chính hồ sơ người dùng. Ghi
+                // việc SỐ ĐÃ ĐỔI là đủ để truy vết; giá trị thì tra trong bảng users.
                 Map.of(
                         "displayName", String.valueOf(result.getOrDefault("displayName", "")),
-                        "phoneNumber", String.valueOf(result.getOrDefault("phoneNumber", ""))
+                        "phoneNumberChanged", request.phoneNumber() != null
                 )
         );
         return result;
@@ -446,9 +439,8 @@ public class AdminManagementController {
             Authentication authentication
     ) {
         Map<String, Object> result = glosbeViEnrichmentService.runBatch(limit, resetCursor);
-        auditLogService.log("admin.vocabulary.glosbe-vi.batch.triggered", null,
-                actorEmail(authentication), actorRole(authentication),
-                "VOCABULARY_IMPORT", "glosbe-vi",
+        auditLogService.log("admin.vocabulary.glosbe-vi.batch.triggered", AuditActor.ofAuthentication(authentication),
+                                "VOCABULARY_IMPORT", "glosbe-vi",
                 Map.of("viUpserts", result.getOrDefault("viUpserts", 0), "status", result.get("status")));
         return result;
     }
@@ -473,9 +465,8 @@ public class AdminManagementController {
             Authentication authentication
     ) {
         Map<String, Object> result = llmViTranslationService.runBatch(limit, resetCursor);
-        auditLogService.log("admin.vocabulary.llm-vi.batch.triggered", null,
-                actorEmail(authentication), actorRole(authentication),
-                "VOCABULARY_IMPORT", "llm-vi",
+        auditLogService.log("admin.vocabulary.llm-vi.batch.triggered", AuditActor.ofAuthentication(authentication),
+                                "VOCABULARY_IMPORT", "llm-vi",
                 Map.of("translated", result.getOrDefault("translated", 0), "status", result.get("status")));
         return result;
     }
@@ -494,9 +485,8 @@ public class AdminManagementController {
     ) {
         Map<String, Object> result = llmDtypeFixService.runBatch(limit, useLlm, dryRun);
         if (!dryRun) {
-            auditLogService.log("admin.vocabulary.dtype-fix.batch.triggered", null,
-                    actorEmail(authentication), actorRole(authentication),
-                    "VOCABULARY_IMPORT", "dtype-fix",
+            auditLogService.log("admin.vocabulary.dtype-fix.batch.triggered", AuditActor.ofAuthentication(authentication),
+                                        "VOCABULARY_IMPORT", "dtype-fix",
                     Map.of("totalFixed", result.getOrDefault("totalFixed", 0),
                             "status", result.get("status")));
         }
@@ -512,9 +502,7 @@ public class AdminManagementController {
         Map<String, Object> result = deepLLemmaBackfillService.runBatch(limit, resetCursor);
         auditLogService.log(
                 "admin.vocabulary.deepl-lemma-backfill.batch.triggered",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY_IMPORT",
                 "deepl-lemma-backfill",
                 Map.of(
@@ -531,9 +519,7 @@ public class AdminManagementController {
         Map<String, Object> result = goetheOfficialWordlistImportService.importFromClasspathTsv();
         auditLogService.log(
                 "admin.vocabulary.goethe-official-wordlist.import.triggered",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY_IMPORT",
                 "goethe-official-tsv",
                 result
@@ -551,9 +537,7 @@ public class AdminManagementController {
         metadata.put("duplicatesSkipped", result.get("duplicatesSkipped"));
         auditLogService.log(
                 "admin.vocabulary.goethe.import.triggered",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY_IMPORT",
                 "goethe-a1-c1",
                 metadata
@@ -578,9 +562,7 @@ public class AdminManagementController {
         metadata.put("nextCursor", result.get("nextCursor"));
         auditLogService.log(
                 "admin.vocabulary.glosbe.import.triggered",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY_IMPORT",
                 "glosbe-de-vi",
                 metadata
@@ -599,9 +581,7 @@ public class AdminManagementController {
         metadata.put("deeplCharsEstimated", result.get("deeplCharsEstimated"));
         auditLogService.log(
                 "admin.vocabulary.cefr-curated.import.triggered",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY_IMPORT",
                 "cefr-curated-10k",
                 metadata
@@ -618,9 +598,7 @@ public class AdminManagementController {
         Map<String, Object> result = officialCefrVocabularyImportService.reclassifyAllWords();
         auditLogService.log(
                 "admin.vocabulary.cefr.reclassify.triggered",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY_IMPORT",
                 "cefr-reclassify",
                 result
@@ -633,9 +611,7 @@ public class AdminManagementController {
         Map<String, Object> result = officialCefrVocabularyImportService.importFromClasspathSample();
         auditLogService.log(
                 "admin.vocabulary.cefr-curated.sample.import.triggered",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY_IMPORT",
                 "cefr-curated-sample",
                 result
@@ -658,9 +634,7 @@ public class AdminManagementController {
         metadata.put("resetCursor", result.get("resetCursor"));
         auditLogService.log(
                 "admin.vocabulary.ipa.batch.triggered",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY_IMPORT",
                 "wiktionary-ipa",
                 metadata
@@ -684,9 +658,7 @@ public class AdminManagementController {
         metadata.put("resetCursor", result.get("resetCursor"));
         auditLogService.log(
                 "admin.vocabulary.wiktionary.enrich.batch.triggered",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY_IMPORT",
                 "wiktionary-enrich",
                 metadata
@@ -705,9 +677,8 @@ public class AdminManagementController {
             Authentication authentication
     ) {
         Map<String, Object> result = wiktionaryEnrichmentBatchService.runGenderOnlyBatch(limit);
-        auditLogService.log("admin.vocabulary.gender.batch.triggered", null,
-                actorEmail(authentication), actorRole(authentication),
-                "VOCABULARY_IMPORT", "wiktionary-gender",
+        auditLogService.log("admin.vocabulary.gender.batch.triggered", AuditActor.ofAuthentication(authentication),
+                                "VOCABULARY_IMPORT", "wiktionary-gender",
                 Map.of("genderFilled", result.getOrDefault("genderFilled", 0),
                         "status", result.get("status")));
         return result;
@@ -724,9 +695,8 @@ public class AdminManagementController {
             Authentication authentication
     ) {
         Map<String, Object> result = wiktionaryEnrichmentBatchService.runMissingDataBatch(limit);
-        auditLogService.log("admin.vocabulary.missing-data.batch.triggered", null,
-                actorEmail(authentication), actorRole(authentication),
-                "VOCABULARY_IMPORT", "wiktionary-missing-data",
+        auditLogService.log("admin.vocabulary.missing-data.batch.triggered", AuditActor.ofAuthentication(authentication),
+                                "VOCABULARY_IMPORT", "wiktionary-missing-data",
                 Map.of("ipaFilled", result.getOrDefault("ipaFilled", 0),
                         "enFilled", result.getOrDefault("enFilled", 0),
                         "status", result.get("status")));
@@ -741,9 +711,7 @@ public class AdminManagementController {
         Map<String, Object> result = wiktionaryEnrichmentBatchService.enrichOne(wordId);
         auditLogService.log(
                 "admin.vocabulary.wiktionary.enrich.one.triggered",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY_IMPORT",
                 "wiktionary-enrich-one",
                 Map.of("wordId", wordId, "status", result.get("status"))
@@ -760,9 +728,7 @@ public class AdminManagementController {
         Map<String, Object> result = vocabularyCleanupService.deleteConcatenatedLemmas(limit, dryRun);
         auditLogService.log(
                 "admin.vocabulary.cleanup.concatenated-lemmas.triggered",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY_CLEANUP",
                 "concatenated-lemmas",
                 Map.of("limit", result.get("limit"), "dryRun", dryRun, "matched", result.get("matched"), "deleted", result.get("deleted"))
@@ -786,9 +752,7 @@ public class AdminManagementController {
         Map<String, Object> result = vocabularyCleanupService.repairControlCharLemmas(limit, dryRun);
         auditLogService.log(
                 "admin.vocabulary.cleanup.control-char-lemmas.triggered",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY_CLEANUP",
                 "control-char-lemmas",
                 Map.of("limit", result.get("limit"), "dryRun", dryRun,
@@ -814,9 +778,7 @@ public class AdminManagementController {
         Map<String, Object> result = vocabularyCleanupService.repairStuffedMeanings(limit, dryRun);
         auditLogService.log(
                 "admin.vocabulary.cleanup.stuffed-meanings.triggered",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY_CLEANUP",
                 "stuffed-meanings",
                 Map.of("limit", result.get("limit"), "dryRun", dryRun,
@@ -840,9 +802,7 @@ public class AdminManagementController {
         if (!dryRun) {
             auditLogService.log(
                     "admin.vocabulary.auto-tag.batch.triggered",
-                    null,
-                    actorEmail(authentication),
-                    actorRole(authentication),
+                    AuditActor.ofAuthentication(authentication),
                     "VOCABULARY_TAGGING",
                     "auto-tag",
                     Map.of("limit", String.valueOf(limit), "resetTags", resetTags,
@@ -860,9 +820,7 @@ public class AdminManagementController {
         Map<String, Object> result = vocabularyResetService.resetAndReimport(wiktionaryLimit);
         auditLogService.log(
                 "admin.vocabulary.reset.triggered",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY_RESET",
                 "full-reset",
                 Map.of("wiktionaryLimit", wiktionaryLimit, "status", result.get("status"))
@@ -879,9 +837,7 @@ public class AdminManagementController {
         Map<String, Object> result = vocabularyCleanupService.updateWord(wordId, body);
         auditLogService.log(
                 "admin.vocabulary.word.updated",
-                null,
-                actorEmail(authentication),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "VOCABULARY",
                 String.valueOf(wordId),
                 Map.of("fields", body.keySet())
@@ -1002,9 +958,8 @@ public class AdminManagementController {
             );
         }
 
-        auditLogService.log("admin.vocabulary.reviewed", null,
-                actorEmail(authentication), actorRole(authentication),
-                "VOCABULARY_REVIEW", String.valueOf(wordId),
+        auditLogService.log("admin.vocabulary.reviewed", AuditActor.ofAuthentication(authentication),
+                                "VOCABULARY_REVIEW", String.valueOf(wordId),
                 Map.of("reviewed", reviewed, "dtype", newDtype != null ? newDtype : "",
                         "gender", newGender != null ? newGender : ""));
 
@@ -1060,16 +1015,6 @@ public class AdminManagementController {
         return v instanceof String s ? s : null;
     }
 
-    private String actorEmail(Authentication authentication) {
-        return authentication == null ? null : authentication.getName();
-    }
-
-    private String actorRole(Authentication authentication) {
-        if (authentication == null || authentication.getAuthorities() == null || authentication.getAuthorities().isEmpty()) {
-            return null;
-        }
-        return authentication.getAuthorities().iterator().next().getAuthority();
-    }
 }
 
 

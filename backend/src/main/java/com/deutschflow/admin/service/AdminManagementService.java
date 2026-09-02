@@ -709,6 +709,10 @@ public class AdminManagementService {
         if (user.getRole() == User.Role.ADMIN && !"ADMIN".equals(normalized)) {
             requireNotLastActiveAdmin(user, "Không thể hạ quyền quản trị viên hoạt động cuối cùng.");
         }
+        // Audit F-M4 (03/09/2026): vết admin.user.role.updated chỉ ghi vai trò MỚI, nên nhật ký
+        // không nói được đã đổi TỪ đâu — muốn biết phải suy ngược qua các vết trước đó. Trả về
+        // vai trò cũ để controller ghi kèm.
+        String previousRole = user.getRole().name();
         user.setRole(User.Role.valueOf(normalized));
         userRepository.save(user);
         // Audit F-H3 (03/09/2026): đổi vai trò xong phải cắt phiên cũ. Access token đang lưu hành
@@ -719,7 +723,8 @@ public class AdminManagementService {
                 "id", user.getId(),
                 "email", user.getEmail(),
                 "displayName", user.getDisplayName(),
-                "role", user.getRole().name()
+                "role", user.getRole().name(),
+                "previousRole", previousRole
         );
     }
 

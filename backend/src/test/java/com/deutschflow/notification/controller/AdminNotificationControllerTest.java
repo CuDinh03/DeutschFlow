@@ -1,5 +1,6 @@
 package com.deutschflow.notification.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.notification.dto.BroadcastNotificationRequest;
 import com.deutschflow.notification.dto.BroadcastNotificationResponse;
@@ -69,8 +70,62 @@ class AdminNotificationControllerTest {
 
         controller.broadcast(allUsersRequest(), null);
 
+        // F-M4 (03/09/2026): controller nay truyền AuditActor thay vì (null, email, role) rời rạc.
         verify(auditLogService).log(
-                eq("admin.notification.broadcast"), isNull(), isNull(), isNull(),
+                eq("admin.notification.broadcast"), eq(new AuditActor(null, null, null)),
                 eq("NOTIFICATION"), eq("ALL"), anyMap());
+    }
+
+    // ─── F-M4: vết broadcast phải nói được GỬI CHO AI ────────────────────────────────
+
+    @Test
+    @DisplayName("SINGLE_USER: vết ghi kèm targetEmail — không chỉ chữ \"SINGLE_USER\"")
+    @SuppressWarnings("unchecked")
+    void singleUserBroadcastRecordsTheRecipient() {
+        when(userNotificationService.broadcastToAudience(any()))
+                .thenReturn(new BroadcastNotificationResponse(1, "sent"));
+        BroadcastNotificationRequest req = new BroadcastNotificationRequest(
+                "ADMIN_BROADCAST", "SINGLE_USER", null, null, "hocvien@x.com",
+                new BroadcastNotificationRequest.Payload("Tiêu đề", "Nội dung"), null);
+
+        controller.broadcast(req, null);
+
+        org.mockito.ArgumentCaptor<Map> meta = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("admin.notification.broadcast"), any(AuditActor.class),
+                eq("NOTIFICATION"), eq("SINGLE_USER"), meta.capture());
+        assertThat(meta.getValue()).containsEntry("targetEmail", "hocvien@x.com");
+    }
+
+    @Test
+    @DisplayName("ROLE/TIER: vết ghi kèm tiêu chí chọn đối tượng, hai lần gửi khác nhau không nhìn giống nhau")
+    @SuppressWarnings("unchecked")
+    void audienceCriteriaAreRecorded() {
+        when(userNotificationService.broadcastToAudience(any()))
+                .thenReturn(new BroadcastNotificationResponse(10, "sent"));
+        BroadcastNotificationRequest req = new BroadcastNotificationRequest(
+                "ADMIN_BROADCAST", "ROLE", "PRO", "TEACHER", null,
+                new BroadcastNotificationRequest.Payload("Tiêu đề", "Nội dung"), null);
+
+        controller.broadcast(req, null);
+
+        org.mockito.ArgumentCaptor<Map> meta = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("admin.notification.broadcast"), any(AuditActor.class),
+                eq("NOTIFICATION"), eq("ROLE"), meta.capture());
+        assertThat(meta.getValue()).containsEntry("role", "TEACHER").containsEntry("tier", "PRO");
+    }
+
+    @Test
+    @DisplayName("ALL: không nhét khoá rỗng vào metadata")
+    @SuppressWarnings("unchecked")
+    void allAudienceKeepsMetadataClean() {
+        when(userNotificationService.broadcastToAudience(any()))
+                .thenReturn(new BroadcastNotificationResponse(42, "sent"));
+
+        controller.broadcast(allUsersRequest(), null);
+
+        org.mockito.ArgumentCaptor<Map> meta = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("admin.notification.broadcast"), any(AuditActor.class),
+                eq("NOTIFICATION"), eq("ALL"), meta.capture());
+        assertThat(meta.getValue()).doesNotContainKeys("targetEmail", "role", "tier");
     }
 }

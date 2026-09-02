@@ -1,5 +1,6 @@
 package com.deutschflow.admin.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.system.dto.MaintenanceWindowDto;
 import com.deutschflow.system.service.MaintenanceWindowService;
@@ -152,16 +153,9 @@ public class AdminMaintenanceController {
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private void audit(String event, Authentication authentication, long windowId, Map<String, Object> details) {
-        auditLogService.log(event, null, authentication.getName(), actorRole(authentication),
+        // Audit F-M4 (03/09/2026): trước đây truyền null làm actor_user_id nên vết chỉ có email.
+        auditLogService.log(event, AuditActor.ofAuthentication(authentication),
                 "MAINTENANCE", String.valueOf(windowId), details);
     }
 
-    private static String actorRole(Authentication authentication) {
-        return authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .filter(a -> a.startsWith("ROLE_"))
-                .map(a -> a.substring("ROLE_".length()))
-                .findFirst()
-                .orElse("UNKNOWN");
-    }
 }

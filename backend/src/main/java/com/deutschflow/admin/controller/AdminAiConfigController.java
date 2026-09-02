@@ -1,5 +1,6 @@
 package com.deutschflow.admin.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.system.service.SystemConfigService;
@@ -86,9 +87,7 @@ public class AdminAiConfigController {
         // High-impact, system-wide change → leave an audit trail (it had none before).
         auditLogService.log(
                 "admin.aiconfig.updated",
-                null,
-                authentication == null ? null : authentication.getName(),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "AI_CONFIG",
                 "ai",
                 changed);
@@ -110,12 +109,6 @@ public class AdminAiConfigController {
         }
     }
 
-    private String actorRole(Authentication authentication) {
-        if (authentication == null || authentication.getAuthorities() == null || authentication.getAuthorities().isEmpty()) {
-            return null;
-        }
-        return authentication.getAuthorities().iterator().next().getAuthority();
-    }
 
     @Data
     public static class AiConfigDto {
