@@ -89,9 +89,43 @@ class UserNotificationServiceUnitTest {
 
         // Regression: deliverBroadcast previously omitted the push fan-out, so admin
         // and scheduled broadcasts (which carry real title/body) never reached mobile.
-        verify(expoPushSenderService).sendAsync(eq("ExponentPushToken[abc]"), eq("Title"), eq("Body"), any());
+        // B3: fan-out đi qua Expo batch API — một sendBatchAsync mang message đã render.
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ExpoPushSenderService.PushMessage>> pushCaptor =
+                ArgumentCaptor.forClass((Class) List.class);
+        verify(expoPushSenderService).sendBatchAsync(pushCaptor.capture());
+        assertThat(pushCaptor.getValue()).singleElement().satisfies(msg -> {
+            assertThat(msg.token()).isEqualTo("ExponentPushToken[abc]");
+            assertThat(msg.title()).isEqualTo("Title");
+            assertThat(msg.body()).isEqualTo("Body");
+        });
         // ...and prove the push text comes through the shared renderer, not raw payload reads.
         verify(contentRenderer).render(eq(NotificationType.ADMIN_BROADCAST), any());
+    }
+
+    @Test
+    @DisplayName("B3: fan-out cả lớp = MỘT findAllById + MỘT sendBatchAsync (không sendAsync lẻ nào)")
+    void classFanOut_batchesRecipientLoadAndPush() {
+        when(jdbcTemplate.queryForList(contains("class_students"), eq(Long.class), eq(10L)))
+                .thenReturn(List.of(200L, 300L));
+        when(jdbcTemplate.queryForList(contains("class_teachers"), eq(Long.class), eq(10L)))
+                .thenReturn(List.of());
+        User u200 = activeUser(200L);
+        when(u200.getPushToken()).thenReturn("ExponentPushToken[a]");
+        User u300 = activeUser(300L);
+        when(u300.getPushToken()).thenReturn("ExponentPushToken[b]");
+        when(userRepository.findAllById(any())).thenReturn(List.of(u200, u300));
+
+        service.notifyClassChannelMessage(10L, "A1", 100L, "An", "hi");
+
+        verify(userRepository, org.mockito.Mockito.times(1)).findAllById(any());
+        verify(userRepository, never()).findById(any());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ExpoPushSenderService.PushMessage>> pushCaptor =
+                ArgumentCaptor.forClass((Class) List.class);
+        verify(expoPushSenderService, org.mockito.Mockito.times(1)).sendBatchAsync(pushCaptor.capture());
+        assertThat(pushCaptor.getValue()).hasSize(2);
+        verify(expoPushSenderService, never()).sendAsync(any(), any(), any(), any());
     }
 
     @Test
@@ -120,15 +154,13 @@ class UserNotificationServiceUnitTest {
                 .thenReturn(List.of(100L, 200L, 300L));
         when(jdbcTemplate.queryForList(contains("class_teachers"), eq(Long.class), eq(10L)))
                 .thenReturn(List.of(5L));
-        // Build the recipient mocks BEFORE stubbing findById — activeUser() itself calls when(),
+        // Build the recipient mocks BEFORE stubbing findAllById — activeUser() itself calls when(),
         // and nesting that inside a when(...).thenReturn(...) argument trips Mockito's strict
-        // UnfinishedStubbing check.
+        // UnfinishedStubbing check. B3: fan-out nạp người nhận bằng MỘT findAllById.
         User u200 = activeUser(200L);
         User u300 = activeUser(300L);
         User u5 = activeUser(5L);
-        when(userRepository.findById(200L)).thenReturn(Optional.of(u200));
-        when(userRepository.findById(300L)).thenReturn(Optional.of(u300));
-        when(userRepository.findById(5L)).thenReturn(Optional.of(u5));
+        when(userRepository.findAllById(any())).thenReturn(List.of(u200, u300, u5));
 
         service.notifyClassChannelMessage(10L, "A1 Sáng", senderId, "An", "chào cả lớp");
 

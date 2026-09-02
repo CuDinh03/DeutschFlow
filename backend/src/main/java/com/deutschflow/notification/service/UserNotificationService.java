@@ -553,23 +553,16 @@ public class UserNotificationService {
         payload.put("topic", topic);
 
         List<UserNotification> notifications = new ArrayList<>();
-        for (Long studentId : studentIds) {
-            User student = userRepository.findById(studentId).orElse(null);
-            if (student != null && student.isActive()) {
-                notifications.add(UserNotification.builder()
-                    .recipient(student)
-                    .type(NotificationType.NEW_CLASS_ASSIGNMENT)
-                    .payload(new LinkedHashMap<>(payload))
-                    .build());
-            }
+        for (User student : loadActiveRecipients(studentIds)) {
+            notifications.add(UserNotification.builder()
+                .recipient(student)
+                .type(NotificationType.NEW_CLASS_ASSIGNMENT)
+                .payload(new LinkedHashMap<>(payload))
+                .build());
         }
 
         if (!notifications.isEmpty()) {
-            notificationRepository.saveAll(notifications);
-            for (UserNotification n : notifications) {
-                unreadPushCoordinator.afterCommit(n.getRecipient().getId());
-                pushForNotification(n);
-            }
+            saveAndPushAll(notifications);
             log.info("[notifications] NEW_CLASS_ASSIGNMENT → {} students in class={}", notifications.size(), classId);
         }
     }
@@ -641,11 +634,7 @@ public class UserNotificationService {
                     .build());
         }
 
-        notificationRepository.saveAll(notifications);
-        for (UserNotification n : notifications) {
-            unreadPushCoordinator.afterCommit(n.getRecipient().getId());
-            pushForNotification(n);
-        }
+        saveAndPushAll(notifications);
         log.info("[notifications] {} broadcast → {} recipients, audience={}", notificationType, notifications.size(), request.audienceType());
         return notifications.size();
     }
@@ -711,24 +700,15 @@ public class UserNotificationService {
         payload.put("message", message);
 
         List<UserNotification> notifications = new ArrayList<>(studentIds.size());
-        for (Long studentId : studentIds) {
-            User student = userRepository.findById(studentId).orElse(null);
-            if (student != null && student.isActive()) {
-                notifications.add(UserNotification.builder()
-                        .recipient(student)
-                        .type(NotificationType.TEACHER_ANNOUNCEMENT)
-                        .payload(new LinkedHashMap<>(payload))
-                        .build());
-            }
+        for (User student : loadActiveRecipients(studentIds)) {
+            notifications.add(UserNotification.builder()
+                    .recipient(student)
+                    .type(NotificationType.TEACHER_ANNOUNCEMENT)
+                    .payload(new LinkedHashMap<>(payload))
+                    .build());
         }
 
-        if (!notifications.isEmpty()) {
-            notificationRepository.saveAll(notifications);
-            for (UserNotification n : notifications) {
-                unreadPushCoordinator.afterCommit(n.getRecipient().getId());
-                pushForNotification(n);
-            }
-        }
+        saveAndPushAll(notifications);
         log.info("[notifications] TEACHER_ANNOUNCEMENT → {} students in class={}", notifications.size(), classId);
         return notifications.size();
     }
@@ -787,24 +767,15 @@ public class UserNotificationService {
         payload.put("message", message);
 
         List<UserNotification> notifications = new ArrayList<>(studentIds.size());
-        for (Long studentId : studentIds) {
-            User student = userRepository.findById(studentId).orElse(null);
-            if (student != null && student.isActive()) {
-                notifications.add(UserNotification.builder()
-                        .recipient(student)
-                        .type(type)
-                        .payload(new LinkedHashMap<>(payload))
-                        .build());
-            }
+        for (User student : loadActiveRecipients(studentIds)) {
+            notifications.add(UserNotification.builder()
+                    .recipient(student)
+                    .type(type)
+                    .payload(new LinkedHashMap<>(payload))
+                    .build());
         }
 
-        if (!notifications.isEmpty()) {
-            notificationRepository.saveAll(notifications);
-            for (UserNotification n : notifications) {
-                unreadPushCoordinator.afterCommit(n.getRecipient().getId());
-                pushForNotification(n);
-            }
-        }
+        saveAndPushAll(notifications);
         log.info("[notifications] {} → {} students in class={}", type, notifications.size(), classId);
     }
 
@@ -845,24 +816,15 @@ public class UserNotificationService {
         payload.put("preview", preview);
 
         List<UserNotification> notifications = new ArrayList<>(recipientIds.size());
-        for (Long recipientId : recipientIds) {
-            User recipient = userRepository.findById(recipientId).orElse(null);
-            if (recipient != null && recipient.isActive()) {
-                notifications.add(UserNotification.builder()
-                        .recipient(recipient)
-                        .type(NotificationType.CLASS_CHANNEL_MESSAGE)
-                        .payload(new LinkedHashMap<>(payload))
-                        .build());
-            }
+        for (User recipient : loadActiveRecipients(recipientIds)) {
+            notifications.add(UserNotification.builder()
+                    .recipient(recipient)
+                    .type(NotificationType.CLASS_CHANNEL_MESSAGE)
+                    .payload(new LinkedHashMap<>(payload))
+                    .build());
         }
 
-        if (!notifications.isEmpty()) {
-            notificationRepository.saveAll(notifications);
-            for (UserNotification n : notifications) {
-                unreadPushCoordinator.afterCommit(n.getRecipient().getId());
-                pushForNotification(n);
-            }
-        }
+        saveAndPushAll(notifications);
         log.info("[notifications] CLASS_CHANNEL_MESSAGE → {} members in class={}", notifications.size(), classId);
     }
 
@@ -936,8 +898,16 @@ public class UserNotificationService {
 
     /** Fire-and-forget Expo push for a persisted notification, if the recipient has a token. */
     private void pushForNotification(UserNotification n) {
+        ExpoPushSenderService.PushMessage msg = buildPushMessage(n);
+        if (msg != null) {
+            expoPushSenderService.sendAsync(msg.token(), msg.title(), msg.body(), msg.data());
+        }
+    }
+
+    /** Render một dòng notification thành push message; null nếu người nhận không có token. */
+    private ExpoPushSenderService.PushMessage buildPushMessage(UserNotification n) {
         String token = n.getRecipient().getPushToken();
-        if (token == null || token.isBlank()) return;
+        if (token == null || token.isBlank()) return null;
         Map<String, Object> p = n.getPayload() != null ? n.getPayload() : Map.of();
         // Use the shared renderer so the push text matches the in-app content exactly,
         // instead of the old raw-enum title / empty body fallback.
@@ -950,7 +920,33 @@ public class UserNotificationService {
         // (mobile POST /notifications/{id}/read). Without it the badge stays elevated until the user
         // opens the inbox and taps the row. Backward-safe: older clients ignore the extra field.
         data.put("notificationId", n.getId());
-        expoPushSenderService.sendAsync(token, rendered.title(), rendered.body(), data);
+        return new ExpoPushSenderService.PushMessage(token, rendered.title(), rendered.body(), data);
+    }
+
+    /**
+     * B3 audit lag 02/09 — đường fan-out chung: lưu cả loạt bằng MỘT saveAll (batch INSERT thật
+     * nhờ hibernate.jdbc.batch_size), đăng ký badge/SSE sau-commit từng người, và đẩy push qua
+     * Expo batch API (≤100 message/request) thay vì N POST riêng lẻ.
+     */
+    private void saveAndPushAll(List<UserNotification> notifications) {
+        if (notifications.isEmpty()) return;
+        notificationRepository.saveAll(notifications);
+        List<ExpoPushSenderService.PushMessage> pushes = new ArrayList<>(notifications.size());
+        for (UserNotification n : notifications) {
+            unreadPushCoordinator.afterCommit(n.getRecipient().getId());
+            ExpoPushSenderService.PushMessage msg = buildPushMessage(n);
+            if (msg != null) pushes.add(msg);
+        }
+        expoPushSenderService.sendBatchAsync(pushes);
+    }
+
+    /**
+     * Nạp người nhận active bằng MỘT findAllById (B3) — thay vòng lặp findById từng người
+     * (N query cho một lần fan-out cả lớp). Thứ tự theo danh sách trả về của repository.
+     */
+    private List<User> loadActiveRecipients(java.util.Collection<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) return List.of();
+        return userRepository.findAllById(userIds).stream().filter(User::isActive).toList();
     }
 
     private static int normalizeSize(int size) {

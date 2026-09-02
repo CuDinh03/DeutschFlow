@@ -121,6 +121,15 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        # B3 audit lag 02/09: bật JDBC batching cho saveAll(). LƯU Ý GIỚI HẠN THẬT: mọi entity
+        # hiện dùng GenerationType.IDENTITY — Hibernate KHÔNG batch được INSERT cho IDENTITY
+        # (cần id trả về sau từng câu), nên với user_notifications/user_xp_events cấu hình này
+        # chưa gom INSERT; nó có hiệu lực ngay cho UPDATE/DELETE gom loạt và cho mọi entity
+        # chuyển sang SEQUENCE sau này (follow-up của B3). Vô hại khi chưa áp dụng được.
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
 
   flyway:
     enabled: true
