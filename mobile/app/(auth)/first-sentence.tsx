@@ -107,7 +107,14 @@ export default function FirstSentenceScreen() {
       void stopGermanSpeech()
       if (recordingRef.current) {
         setGermanRecordingActive(false)
-        void recorder.stop().catch(() => undefined)
+        void recorder
+          .stop()
+          .catch(() => undefined)
+          .finally(() => {
+            // Thoát record mode kẻo audio mode toàn app kẹt allowsRecording và
+            // mọi phát lại sau đó ra loa trong rất nhỏ (F-11 soát 02/09).
+            void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {})
+          })
       }
     },
     [recorder],

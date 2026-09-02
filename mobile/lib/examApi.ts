@@ -65,6 +65,22 @@ export interface ExamAttempt {
   status: string // IN_PROGRESS | COMPLETED
 }
 
+/**
+ * Kết quả một attempt — GET /mock-exams/attempts/{id}/result. Backend trả
+ * SNAKE_CASE qua @JsonProperty (ExamResultDto.java): khoá điểm là `total_score`.
+ * Màn kết quả từng đọc `totalScore` (không tồn tại) nên luôn hiện 0 điểm
+ * (soát 02/09, F-10a) — helper dưới đây + test khoá đúng tên khoá.
+ */
+export interface AttemptResultDto {
+  total_score?: number | null
+  finished_at?: string | null
+  status?: string
+  passed?: boolean | null
+}
+
+export const attemptTotalScore = (r: AttemptResultDto | null | undefined): number =>
+  r?.total_score ?? 0
+
 export interface ReviewItem {
   id: string
   question: string

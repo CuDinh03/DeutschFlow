@@ -21,6 +21,7 @@ import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
 import { skillTreeApi } from '@/lib/skillTreeApi'
 import { messagesApi } from '@/lib/messagesApi'
+import { TodayTasks } from '@/components/home/TodayTasks'
 import { motion, space, radius, useTheme } from '@/lib/theme'
 import {
   Screen,
@@ -316,6 +317,11 @@ export default function DashboardScreen() {
             </View>
           </View>
 
+          {/* Heute (cụm 2, thiết kế 02/09): việc hôm nay từ /today/me — sửa lỗi
+              đến hạn + nói/từ vựng theo gợi ý. Thẻ Ôn SRS ngay dưới là "việc"
+              thứ tư, giữ nguyên vì nó là mỏ neo tour (homeSrsCard). */}
+          <TodayTasks />
+
           {/* Tuần đầu (§7.1): checklist "Bắt đầu" — chỉ cho user đã qua onboarding v1,
               tự biến mất vĩnh viễn khi hoàn thành đủ. */}
           {onboardedV1 ? (
@@ -362,10 +368,11 @@ export default function DashboardScreen() {
             </SpotlightTarget>
           ) : null}
 
-          {/* Roadmap progress entry (na-home PathCard) — real skill-tree % to B2. */}
+          {/* Lối vào Lernweg v2 (cụm 3, 02/09) — % vẫn từ skill-tree cũ tới khi
+              nguồn tiến độ hợp nhất; màn đích là cây /roadmap/tree mới. */}
           {treeTotal > 0 ? (
             <Card
-              onPress={() => router.push('/(student)/roadmap')}
+              onPress={() => router.push('/(student)/lernweg')}
               accessibilityLabel={`Lộ trình đến B2, ${pathPct}%`}
               style={{ marginHorizontal: space[5], marginTop: space[4], gap: space[3] }}
             >

@@ -2,10 +2,21 @@
 
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useTranslations } from "next-intl";
-import { BookOpen, Library, MessagesSquare, Sparkles } from "lucide-react";
+import { BookOpen, Library, MessagesSquare, Sparkles, TriangleAlert, Lightbulb, CircleCheck, CircleX } from "lucide-react";
 import { VocabCard, VocabTag, AudioButton } from "./LearnComponents";
 import { useState, useMemo, useEffect } from "react";
 import { lightImpact, mediumImpact, heavyImpact } from "@/lib/haptics";
+import SelfCheckCard from "./SelfCheckCard";
+import {
+  buildItemAnswers,
+  scoredExercises,
+  selfCheckExercises,
+  correctIndexOf,
+  gradeItems,
+  questionTextOf,
+  MULTIPLE_CHOICE,
+  type AnswerMap,
+} from "@/lib/nodeExercises";
 
 // ── Smart content renderer ──
 function TheoryContent({ text }: { text: string }) {
@@ -25,13 +36,13 @@ function TheoryContent({ text }: { text: string }) {
       {lines.map((line, i) => {
         if (line.startsWith("⚠️")) return (
           <div key={i} className="flex items-start gap-1.5 rounded-lg bg-red-50 border border-red-200 px-2.5 py-2">
-            <span className="text-sm shrink-0">⚠️</span>
+            <TriangleAlert size={14} className="mt-[1px] shrink-0" aria-hidden />
             <p className="text-xs text-red-700 leading-relaxed">{line.slice(2).trim()}</p>
           </div>
         );
         if (line.startsWith("💡")) return (
           <div key={i} className="flex items-start gap-1.5 rounded-lg bg-blue-50 border border-blue-200 px-2.5 py-2">
-            <span className="text-sm shrink-0">💡</span>
+            <Lightbulb size={14} className="mt-[1px] shrink-0" aria-hidden />
             <p className="text-xs text-blue-700 leading-relaxed">{line.slice(2).trim()}</p>
           </div>
         );
@@ -53,11 +64,11 @@ function TheoryContent({ text }: { text: string }) {
       {hasSideBySide && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-2">
           <div className="min-w-0 rounded-lg bg-green-50 border border-green-200 p-2 space-y-1">
-            <p className="text-[10px] font-bold text-green-700 uppercase">✅ Đúng</p>
+            <p className="flex items-center gap-1 text-[10px] font-bold text-green-700 uppercase"><CircleCheck size={12} aria-hidden /> Đúng</p>
             {goodLines.map((l, i) => <p key={i} className="text-xs text-green-800 break-words">{l}</p>)}
           </div>
           <div className="min-w-0 rounded-lg bg-red-50 border border-red-200 p-2 space-y-1">
-            <p className="text-[10px] font-bold text-red-700 uppercase">❌ Sai</p>
+            <p className="flex items-center gap-1 text-[10px] font-bold text-red-700 uppercase"><CircleX size={12} aria-hidden /> Sai</p>
             {badLines.map((l, i) => <p key={i} className="text-xs text-red-800 break-words">{l}</p>)}
           </div>
         </div>
@@ -118,36 +129,38 @@ function TheoryCard({ card, index, total }: { card: NodeContent["theory_cards"][
 
 export default function GrammarView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
   const tLearn = useTranslations("learn");
-  const { markTabCompleted, tabCompletion } = useNodeSessionStore();
+  const { markTabCompleted, tabCompletion, recordItemAnswers } = useNodeSessionStore();
   const isCompleted = tabCompletion.grammar;
 
   const [activeTag, setActiveTag] = useState<string | null>(null);
 
   // ── Practice Quiz Logic ──
-  const practiceItems = useMemo(
-    () => (Array.isArray(content.exercises?.practice) ? content.exercises.practice : []),
-    [content.exercises]
-  );
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  // Gộp theory_gate + practice: backend chấm CẢ HAI, web trước đây chỉ đọc `practice` nên vừa
+  // thiếu câu vừa nộp thiếu (F-21/F-22).
+  const practiceItems = useMemo(() => scoredExercises(content.exercises), [content.exercises]);
+  // TRANSLATE/REORDER: máy chủ không chấm, nên tách riêng — hiện dạng tự kiểm tra, KHÔNG tính điểm
+  // và KHÔNG chặn nút nộp bài (đúng cách mobile làm).
+  const selfChecks = useMemo(() => selfCheckExercises(content.exercises), [content.exercises]);
+  const [answers, setAnswers] = useState<AnswerMap>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
 
   // ── Vocabulary Pagination Logic ──
   const [vocabPage, setVocabPage] = useState(1);
   const VOCAB_PAGE_SIZE = 10;
 
-  const score = useMemo(() => {
-    let correct = 0;
-    practiceItems.forEach((item: any, i) => {
-      if (answers[i] === item.answerIndex) correct++;
-    });
-    return correct;
-  }, [answers, practiceItems]);
+  // Trước đây so `answers[i] === item.answerIndex`, nhưng nội dung thật dùng khoá `correct`
+  // (406 lần trong migration, `answerIndex` chỉ 2) ⇒ điểm LUÔN bằng 0 và không ai qua nổi node.
+  const graded = useMemo(() => gradeItems(practiceItems, answers), [practiceItems, answers]);
+  const score = graded.correct;
 
   const handleQuizSubmit = () => {
     setQuizSubmitted(true);
-    if (score === practiceItems.length && practiceItems.length > 0) {
+    // Đáp án thô đi kèm lên `POST /skill-tree/{nodeId}/submit` để MÁY CHỦ chấm — điểm client chỉ
+    // để hiển thị. Đây là ý đồ sẵn có của backend (chống client tự khai 100% để mở khoá node).
+    recordItemAnswers(buildItemAnswers(practiceItems, answers));
+    if (graded.scored > 0 && graded.correct === graded.scored) {
       mediumImpact();
-      markTabCompleted("grammar");
+      markTabCompleted("grammar", graded.percent);
     } else {
       heavyImpact();
     }
@@ -267,7 +280,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
                   <p className="text-sm font-bold text-white">{ex.german}</p>
                 </div>
                 <p className="text-xs text-white/70">{ex.translation}</p>
-                {ex.note && <p className="text-[10px] text-[#FFCD00]">💡 {ex.note}</p>}
+                {ex.note && <p className="flex items-start gap-1 text-[10px] text-[#FFCD00]"><Lightbulb size={11} className="mt-[2px] shrink-0" aria-hidden /> {ex.note}</p>}
               </div>
             ))}
           </div>
@@ -285,11 +298,22 @@ export default function GrammarView({ content, isLocked = false }: { content: No
             <div className="space-y-6 text-left mt-4">
               {practiceItems.map((item: any, i: number) => (
                 <div key={i} className="space-y-3 bg-white p-4 rounded-xl border border-[#E2E8F0]">
-                  <p className="text-sm font-bold text-[#0F172A] break-words">{i + 1}. {item.question || "Câu hỏi..."}</p>
+                  <p className="text-sm font-bold text-[#0F172A] break-words">{i + 1}. {questionTextOf(item) ?? item.sentence_de ?? ""}</p>
+                  {item.type !== MULTIPLE_CHOICE ? (
+                    <input
+                      type="text"
+                      value={typeof answers[i] === "string" ? (answers[i] as string) : ""}
+                      onChange={(e) => { if (!quizSubmitted) setAnswers((prev) => ({ ...prev, [i]: e.target.value })); }}
+                      disabled={quizSubmitted}
+                      placeholder={item.hint_vi ?? "Nhập câu trả lời"}
+                      aria-label={questionTextOf(item) ?? `Câu ${i + 1}`}
+                      className="w-full rounded-lg border-2 border-[#E2E8F0] px-4 py-3 text-sm focus:border-[#FFCD00] focus:outline-none disabled:opacity-60"
+                    />
+                  ) : (
                   <div className="space-y-2">
                     {Array.isArray(item.options) && item.options.map((opt: string, j: number) => {
                       const isSelected = answers[i] === j;
-                      const isCorrect = item.answerIndex === j;
+                      const isCorrect = correctIndexOf(item) === j;
                       const showResult = quizSubmitted;
                       
                       let btnClass = "border-[#E2E8F0] hover:border-[#CBD5E1] text-[#475569]";
@@ -309,18 +333,38 @@ export default function GrammarView({ content, isLocked = false }: { content: No
                       );
                     })}
                   </div>
+                  )}
                 </div>
               ))}
               
+              {selfChecks.length > 0 && (
+                <div className="space-y-3 pt-2">
+                  {selfChecks.map((sc, i) => (
+                    <SelfCheckCard key={sc.id} item={sc} index={practiceItems.length + i + 1} />
+                  ))}
+                </div>
+              )}
+
               {!isCompleted && (
                 <button
                   onClick={handleQuizSubmit}
-                  disabled={Object.keys(answers).length < practiceItems.length}
+                  disabled={
+                    practiceItems.filter((_, i) => {
+                      const v = answers[i]
+                      return typeof v === "number" || (typeof v === "string" && v.trim() !== "")
+                    }).length < practiceItems.length
+                  }
                   className="w-full py-3 rounded-xl bg-[#121212] text-white text-sm font-bold disabled:opacity-50"
                 >
                   Kiểm tra đáp án
                 </button>
               )}
+            </div>
+          ) : selfChecks.length > 0 ? (
+            <div className="space-y-3 text-left mt-4">
+              {selfChecks.map((sc, i) => (
+                <SelfCheckCard key={sc.id} item={sc} index={i + 1} />
+              ))}
             </div>
           ) : (
             <p className="text-sm text-[#64748B] mb-4">
@@ -332,12 +376,12 @@ export default function GrammarView({ content, isLocked = false }: { content: No
             isCompleted ? (
               // Read-only badge — node already completed, no action needed
               <div className="w-full py-3 rounded-xl bg-green-500 text-white font-bold text-sm text-center cursor-default select-none flex items-center justify-center gap-2">
-                <span>✅</span>
+                <CircleCheck size={16} aria-hidden />
                 <span>{tLearn("completed100")}</span>
               </div>
             ) : (
               <button
-                onClick={() => markTabCompleted("grammar")}
+                onClick={() => { recordItemAnswers({}); markTabCompleted("grammar"); }}
                 className="w-full py-3 rounded-xl font-bold text-sm bg-[#22C55E] hover:bg-[#16A34A] text-white transition-colors"
               >
                 <span>{tLearn("readAndUnderstood")}</span>

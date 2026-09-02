@@ -5,6 +5,7 @@ import com.deutschflow.teacher.curriculumimport.ocr.OcrProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +17,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Pulls the text of a document's front matter — where a table of contents lives — and nothing else.
@@ -39,16 +42,22 @@ public class PdfTocExtractor {
     private final int maxScanPages;
     private final int maxDocumentPages;
     private final int renderDpi;
+    private final long maxRenderPixels;
+    private final Semaphore renderSlots;
 
     public PdfTocExtractor(
             OcrProvider ocrProvider,
             @Value("${curriculum.import.max-scan-pages:12}") int maxScanPages,
             @Value("${curriculum.import.max-document-pages:600}") int maxDocumentPages,
-            @Value("${curriculum.import.ocr.render-dpi:150}") int renderDpi) {
+            @Value("${curriculum.import.ocr.render-dpi:150}") int renderDpi,
+            @Value("${curriculum.import.ocr.max-render-pixels:40000000}") long maxRenderPixels,
+            @Value("${curriculum.import.ocr.max-concurrent:1}") int maxConcurrent) {
         this.ocrProvider = ocrProvider;
         this.maxScanPages = maxScanPages;
         this.maxDocumentPages = maxDocumentPages;
         this.renderDpi = renderDpi;
+        this.maxRenderPixels = maxRenderPixels;
+        this.renderSlots = new Semaphore(Math.max(1, maxConcurrent));
     }
 
     /**
@@ -57,6 +66,20 @@ public class PdfTocExtractor {
      * @param pagesRead how many pages were actually looked at
      */
     public record Extraction(String text, boolean usedOcr, int pagesRead, List<String> warnings) {}
+
+    /**
+     * Pixels a page would occupy once rasterised at {@link #renderDpi}.
+     *
+     * <p>PDF measures pages in points (1/72"), and the format permits up to 14400 of them per side.
+     * The allocation grows with the SQUARE of that, which is why the cap is on the product and not
+     * on the file size: the bomb is tiny on disk and enormous in memory.
+     */
+    private long renderPixels(PDRectangle box) {
+        double scale = renderDpi / 72.0;
+        long w = Math.round(box.getWidth() * scale);
+        long h = Math.round(box.getHeight() * scale);
+        return Math.max(0, w) * Math.max(0, h);
+    }
 
     public Extraction extract(byte[] pdfBytes, String languageTag) {
         List<String> warnings = new ArrayList<>();
@@ -103,24 +126,51 @@ public class PdfTocExtractor {
                 return new Extraction(text.toString(), false, scanTo, List.copyOf(warnings));
             }
 
-            PDFRenderer renderer = new PDFRenderer(doc);
+            // Rasterising is the expensive half and it happens BEFORE the OCR engine's own permit,
+            // so without a gate here N concurrent imports render N pages at once. Holding one permit
+            // across the whole pass is what actually bounds the memory this feature can claim.
+            boolean acquired = false;
             int recognised = 0;
-            for (int page : needOcr) {
-                try {
-                    BufferedImage image = renderer.renderImageWithDPI(page - 1, renderDpi);
-                    ByteArrayOutputStream png = new ByteArrayOutputStream();
-                    ImageIO.write(image, "png", png);
-                    String pageText = ocrProvider.ocrPage(png.toByteArray(), languageTag);
-                    if (pageText != null && !pageText.isBlank()) {
-                        text.append(pageText).append('\n');
-                        recognised++;
-                    }
-                } catch (OcrProvider.OcrException | IOException e) {
-                    // One unreadable page must not sink the import — the others may still carry the
-                    // contents. The page number is logged; the document's content never is.
-                    log.warn("OCR failed on front-matter page {} ({})", page, e.toString());
-                    warnings.add("Không đọc được trang " + page + " của tài liệu.");
+            try {
+                acquired = renderSlots.tryAcquire(60, TimeUnit.SECONDS);
+                if (!acquired) {
+                    warnings.add("Máy chủ đang bận đọc tài liệu khác — hãy thử lại sau ít phút.");
+                    return new Extraction(text.toString(), false, scanTo, List.copyOf(warnings));
                 }
+
+                PDFRenderer renderer = new PDFRenderer(doc);
+                for (int page : needOcr) {
+                    long pixels = renderPixels(doc.getPage(page - 1).getMediaBox());
+                    if (pixels > maxRenderPixels) {
+                        // A contents page is a sheet of paper. A page this big is either a poster or
+                        // a render bomb — a 544-byte PDF declaring 200×200 inch pages costs 3.3 GB
+                        // per page at 150 DPI and takes the whole JVM with it.
+                        log.warn("Skipping front-matter page {}: {} px exceeds the {} px render cap",
+                                page, pixels, maxRenderPixels);
+                        warnings.add("Trang " + page + " của tài liệu quá lớn để nhận dạng — đã bỏ qua.");
+                        continue;
+                    }
+                    try {
+                        BufferedImage image = renderer.renderImageWithDPI(page - 1, renderDpi);
+                        ByteArrayOutputStream png = new ByteArrayOutputStream();
+                        ImageIO.write(image, "png", png);
+                        String pageText = ocrProvider.ocrPage(png.toByteArray(), languageTag);
+                        if (pageText != null && !pageText.isBlank()) {
+                            text.append(pageText).append('\n');
+                            recognised++;
+                        }
+                    } catch (OcrProvider.OcrException | IOException e) {
+                        // One unreadable page must not sink the import — the others may still carry
+                        // the contents. The page number is logged; the document's content never is.
+                        log.warn("OCR failed on front-matter page {} ({})", page, e.toString());
+                        warnings.add("Không đọc được trang " + page + " của tài liệu.");
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                warnings.add("Việc đọc tài liệu bị gián đoạn.");
+            } finally {
+                if (acquired) renderSlots.release();
             }
             if (recognised == 0) {
                 warnings.add("Không nhận dạng được nội dung nào ở phần đầu tài liệu.");

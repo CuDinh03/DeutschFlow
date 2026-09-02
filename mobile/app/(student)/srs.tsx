@@ -14,9 +14,10 @@ import { GestureDetector, Gesture } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { RotateCcw, Check, X, Minus, PartyPopper } from 'lucide-react-native'
-import api, { apiMessage } from '@/lib/api'
+import api, { apiMessage, isTransientFailure } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { useStarterStore } from '@/stores/useStarterStore'
+import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { Screen, ThemedText, Icon, ProgressBar, AppHeader, EmptyState, ErrorState, Skeleton, Caption, YellowSquare, VocabGlyphTile } from '@/components/ui'
 import type { ThemeColors } from '@/lib/theme'
@@ -95,13 +96,26 @@ export default function SrsScreen() {
   const translateX = useSharedValue(0)
   const translateY = useSharedValue(0)
 
+  // F-12 (soát 02/09): advance() chạy ngay (UX mượt) nghĩa là thẻ đã trôi qua khi
+  // POST lỗi — trước đây lượt chấm đó MẤT HẲN (mutation không retry, Alert xong
+  // là hết đường gửi lại). Nay lỗi thoáng qua (mất mạng/5xx) → đưa vào hàng đợi
+  // offline; sync() tự bắn lại khi app foreground (app/_layout.tsx). 4xx là server
+  // từ chối có chủ đích (vd vocab không trong lịch ôn) — vẫn báo như cũ.
+  const pendingSync = useSrsOfflineStore((s) => s.pendingCount)
+  useEffect(() => {
+    useSrsOfflineStore.getState().loadCount()
+  }, [])
   const reviewMutation = useMutation({
     mutationFn: ({ vocabId, quality }: { vocabId: string; quality: number }) =>
       api.post('/srs/review', { vocabId, quality }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
-    onError: (e) => {
+    onError: (e, vars) => {
+      if (isTransientFailure(e)) {
+        useSrsOfflineStore.getState().enqueue(vars.vocabId, vars.quality)
+        return
+      }
       Alert.alert('Lỗi', apiMessage(e))
     },
   })
@@ -204,7 +218,7 @@ export default function SrsScreen() {
             title={done ? 'Xong rồi!' : 'Chưa có thẻ đến hạn'}
             message={
               done
-                ? `Bạn đã ôn ${cards.length} thẻ hôm nay. Tuyệt vời!`
+                ? `Bạn đã ôn ${cards.length} thẻ hôm nay. Tuyệt vời!${pendingSync > 0 ? `\n${pendingSync} lượt chấm sẽ tự đồng bộ khi có mạng.` : ''}`
                 : 'Học bài mới là từ vựng sẽ tự vào hàng chờ ôn ở đây.'
             }
             actionLabel={done ? 'Quay lại' : 'Học từ mới ngay'}
@@ -229,8 +243,13 @@ export default function SrsScreen() {
         }
       />
 
-      <View style={{ paddingHorizontal: space[5], marginBottom: space[6] }}>
+      <View style={{ paddingHorizontal: space[5], marginBottom: space[6], gap: space[2] }}>
         <ProgressBar value={currentIndex / cards.length} />
+        {pendingSync > 0 ? (
+          <Caption color={c.textMuted}>
+            {pendingSync} lượt chấm chờ đồng bộ — sẽ tự gửi khi có mạng.
+          </Caption>
+        ) : null}
       </View>
 
       <GestureDetector gesture={swipe}>

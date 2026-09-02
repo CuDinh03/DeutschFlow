@@ -5,6 +5,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, cancelAnimation
 import { Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { ThemedText, Icon } from '@/components/ui'
+import { useBlurGuard } from '@/hooks/useBlurGuard'
 import type { VideoTimeline } from '@/lib/videoLessonApi'
 
 const FADE_MS = 350
@@ -26,6 +27,11 @@ export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
 
   const soundRef = useRef<AudioPlayer | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Màn video-lesson nằm trong Tabs — chuyển tab không unmount, thuyết minh cứ
+  // đọc tiếp và cảnh cứ tự trôi. Blur = pause (effect cảnh dọn player + timer);
+  // quay lại người dùng tự bấm Play, đúng ngữ nghĩa trình phát video.
+  useBlurGuard(() => setPlaying(false))
 
   const opacity = useSharedValue(0)
   const scale = useSharedValue(1)
