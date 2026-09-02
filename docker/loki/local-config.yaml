@@ -31,6 +31,11 @@ schema_config:
 # retention_period chỉ là lời hứa suông (Loki 3.x đòi thêm delete_request_store khi bật retention).
 limits_config:
   retention_period: 360h
+  # Sự cố 03/09 khi áp bản đầu của config này: chỉ cần limits_config XUẤT HIỆN là Loki 3.0
+  # validate allow_structured_metadata (default true) — không tương thích schema v11 +
+  # boltdb-shipper đang dùng ⇒ crash-loop "MULTIPLE CONFIG ERRORS". Tắt tường minh cho tới
+  # khi nào nâng schema v13 + tsdb (việc riêng, đụng dữ liệu index).
+  allow_structured_metadata: false
 
 compactor:
   working_directory: /loki/compactor

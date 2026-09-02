@@ -1,7 +1,28 @@
 # Runbook H1 — đồng bộ nginx + real_ip Cloudflare + khoá SG (owner chạy tay)
 
-> Sinh từ gói tuần 1 audit lag 02/09 (§3.4 H1). Claude bị hook chặn ssh/sudo nên phần trên EC2
-> owner chạy — mỗi bước có lệnh dán-là-chạy và cách kiểm chứng. Làm THEO THỨ TỰ.
+> ## ✅ TRẠNG THÁI 03/09 ĐÊM — bước ① và ③ ĐÃ THI HÀNH (owner uỷ quyền, chạy qua script
+> `~/Developer/deutschflow-tools/run-h1-apply.sh` + `run-h1-fix-loki.sh`); CHỈ CÒN bước ② (SG, Console).
+>
+> Thực tế host KHÁC giả định của bản đầu runbook — ghi lại để khỏi lạc lần sau:
+> - Site thật là **`/etc/nginx/sites-available/deutschflow-api`** (chỉ API; frontend do Amplify,
+>   không có block mydeutschflow.com). KHÔNG tồn tại file `sites-available/deutschflow`.
+> - **real_ip CF ĐÃ CÓ trên host từ 24/08** (`/etc/nginx/conf.d/cloudflare-realip.conf` — 22 dải +
+>   `CF-Connecting-IP`; rate-limit zones ở `conf.d/deutschflow-ratelimit.conf`). #480 thực chất là
+>   repo đuổi kịp host; file `docker/deutschflow.nginx.conf` trong repo là bản MÔ TẢ không khớp
+>   cấu trúc host — đừng bao giờ cp đè nguyên file (đè là mất dòng certbot + trùng zone → nginx -t đỏ).
+> - Drift 401 thật = host THIẾU block chặn `/actuator/` → đã CHÈN 2 location (health hở chủ đích +
+>   deny all) vào `deutschflow-api`, backup tại `/tmp/deutschflow-api-backup-1788368806`, nginx -t
+>   pass, reload xong. **Đã nghiệm thu từ internet: prometheus/metrics/env/info = 403, health = 200.**
+> - Bước ③: node-exporter Up + target `up`; 4 rule mới nạp; promtail positions volume mới; loki ăn
+>   retention 15 ngày + compactor chạy. ⚠️ Sự cố kèm fix: bản đầu config retention làm **loki
+>   crash-loop** (limits_config xuất hiện → Loki 3.0 validate `allow_structured_metadata` default
+>   true, kỵ schema v11/boltdb-shipper) — đã thêm `allow_structured_metadata: false` trên host +
+>   repo (PR loki-fix). Nâng schema v13+tsdb là việc riêng sau này.
+> - Certbot `renew --dry-run` PASS (lúc cổng 80 còn mở) — chưa chứng minh cho trạng thái ĐÃ khoá 80,
+>   nên bước ② khuyến nghị **chỉ khoá 443, giữ 80 mở** (80 chỉ 301 redirect — rủi ro thấp).
+>
+> Sinh từ gói tuần 1 audit lag 02/09 (§3.4 H1). Bản gốc bên dưới giữ nguyên làm ngữ cảnh; phần
+> còn hiệu lực duy nhất là **Bước 2** (đã cập nhật khuyến nghị 443-only ở trên).
 > EC2: `ubuntu@35.175.232.152`, key `~/Developer/DeutschFlow/deutschflow-key.pem`.
 
 ## Vì sao khẩn
