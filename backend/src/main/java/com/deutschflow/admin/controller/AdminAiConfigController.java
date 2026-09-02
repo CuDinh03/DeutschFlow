@@ -28,6 +28,12 @@ public class AdminAiConfigController {
     private static final double MAX_TOP_P = 1.0;
     private static final int MIN_MAX_TOKENS = 64;
     private static final int MAX_MAX_TOKENS = 8192;
+    /**
+     * Trần độ dài system prompt (audit F-M7, 03/09/2026). Prompt này ghép vào MỌI lời gọi AI của
+     * hệ thống, nên một chuỗi khổng lồ vừa đội chi phí token mỗi request vừa có thể đẩy chính nội
+     * dung người học ra khỏi cửa sổ ngữ cảnh. 8000 ký tự rộng hơn nhiều lần prompt đang dùng.
+     */
+    private static final int MAX_PROMPT_LENGTH = 8000;
 
     private final SystemConfigService systemConfigService;
     private final AuditLogService auditLogService;
@@ -90,6 +96,9 @@ public class AdminAiConfigController {
     }
 
     private void validate(AiConfigDto dto) {
+        if (dto.getPrompt() != null && dto.getPrompt().length() > MAX_PROMPT_LENGTH) {
+            throw new BadRequestException("System prompt tối đa " + MAX_PROMPT_LENGTH + " ký tự.");
+        }
         if (dto.getTemperature() != null && (dto.getTemperature() < MIN_TEMPERATURE || dto.getTemperature() > MAX_TEMPERATURE)) {
             throw new BadRequestException("temperature phải trong khoảng [" + MIN_TEMPERATURE + ", " + MAX_TEMPERATURE + "]");
         }

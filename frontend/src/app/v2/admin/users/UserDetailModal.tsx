@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { TkModal, GaBtn, GaCap, TkBadge, ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { TkModal, GaBtn, GaCap, TkBadge, ErrorBanner, LoadingState, ConfirmDialog } from '@/components/ui-v2'
 import type { PlanRow } from './page'
 
 type GlobalRole = 'ADMIN' | 'TEACHER' | 'STUDENT'
@@ -51,16 +52,17 @@ interface UserDetailModalProps {
 }
 
 const fmt = (n: number | undefined) => Number(n ?? 0).toLocaleString('vi-VN')
-function quotaKindVi(k: string | undefined): string {
+/** Ánh xạ quotaKind của backend sang khoá i18n (thay cho chuỗi tiếng Việt hardcode trước đây). */
+function quotaKindKey(k: string | undefined): string {
   switch (k) {
     case 'WALLET':
-      return 'Ví (PRO/PREMIUM/ULTRA)'
+      return 'quotaKind.wallet'
     case 'FREE_DAY':
-      return 'FREE / ngày VN'
+      return 'quotaKind.freeDay'
     case 'INTERNAL_UNLIMITED':
-      return 'Nội bộ không giới hạn'
+      return 'quotaKind.internalUnlimited'
     default:
-      return 'Không quota'
+      return 'quotaKind.none'
   }
 }
 function planEnd(code: string, from: Date): string {
@@ -81,6 +83,7 @@ export function UserDetailModal({
   onSaved,
   onShowLearning,
 }: UserDetailModalProps) {
+  const t = useTranslations('v2.adminOps.users.detail')
   const [quota, setQuota] = useState<QuotaDetail | null>(null)
   const [usage, setUsage] = useState<UsageRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -99,20 +102,35 @@ export function UserDetailModal({
   const [active, setActive] = useState(isActive)
   const [savingActive, setSavingActive] = useState(false)
 
-  const toggleActive = async () => {
+  /**
+   * Audit F-M11 (03/09/2026): KHÓA tài khoản là thao tác hủy hoại (chặn đăng nhập + chấm dứt mọi
+   * phiên đang chạy sau bản vá F-H3) nhưng trước đây bắn thẳng ngay khi click, không hỏi lại.
+   * MỞ khóa thì không cần xác nhận — nó khôi phục quyền truy cập chứ không lấy đi.
+   */
+  const [confirmLock, setConfirmLock] = useState(false)
+
+  const applyActive = async (next: boolean) => {
     setSavingActive(true)
     setError('')
     try {
-      const next = !active
       await api.patch(`/admin/users/${userId}/active`, { active: next })
       setActive(next)
-      toast.success(next ? 'Đã mở khóa tài khoản.' : 'Đã khóa tài khoản.')
+      toast.success(next ? t('unlocked') : t('locked'))
       onSaved()
     } catch (e: unknown) {
       setError(apiMessage(e))
     } finally {
       setSavingActive(false)
+      setConfirmLock(false)
     }
+  }
+
+  const toggleActive = () => {
+    if (active) {
+      setConfirmLock(true)
+      return
+    }
+    void applyActive(true)
   }
 
   // Admin reset password — đặt mật khẩu mới cho user (không cần mật khẩu cũ). Admin-only, audit.
@@ -121,7 +139,7 @@ export function UserDetailModal({
 
   const resetPassword = async () => {
     if (newPw.length < 8) {
-      setError('Mật khẩu mới tối thiểu 8 ký tự.')
+      setError(t('pwTooShort'))
       return
     }
     setSavingPw(true)
@@ -129,7 +147,7 @@ export function UserDetailModal({
     try {
       await api.patch(`/admin/users/${userId}/password`, { password: newPw })
       setNewPw('')
-      toast.success('Đã đặt lại mật khẩu.')
+      toast.success(t('pwDone'))
     } catch (e: unknown) {
       setError(apiMessage(e))
     } finally {
@@ -182,21 +200,32 @@ export function UserDetailModal({
     }
   }
 
-  const saveRole = async () => {
-    if (roleValue === currentRole) return
+  /**
+   * Audit F-M11 (03/09/2026): đổi vai trò hệ thống — nhất là gán ADMIN — trước đây bắn thẳng khi
+   * click "Đổi". Nay phải xác nhận, và hộp thoại nêu rõ hệ quả (toàn quyền + cắt phiên + audit).
+   */
+  const [confirmRole, setConfirmRole] = useState(false)
+
+  const applyRole = async () => {
     setSavingRole(true)
     setError('')
     try {
       await api.patch(`/admin/users/${userId}/role`, { role: roleValue })
       setCurrentRole(roleValue)
-      toast.success(`Đã đổi vai trò thành ${roleValue}.`)
+      toast.success(t('roleChanged', { role: roleValue }))
       onSaved()
     } catch (e: unknown) {
       setError(apiMessage(e))
       setRoleValue(currentRole)
     } finally {
       setSavingRole(false)
+      setConfirmRole(false)
     }
+  }
+
+  const saveRole = () => {
+    if (roleValue === currentRole) return
+    setConfirmRole(true)
   }
 
   const stat = (label: string, value: ReactNode) => (
@@ -207,6 +236,7 @@ export function UserDetailModal({
   )
 
   return (
+    <>
     <TkModal
       open
       onOpenChange={(o) => !o && onClose()}
@@ -217,14 +247,14 @@ export function UserDetailModal({
         <>
           {onShowLearning && (
             <GaBtn variant="ghost" onClick={onShowLearning} className="mr-auto">
-              Hồ sơ học tập
+              {t('learningProfile')}
             </GaBtn>
           )}
           <GaBtn variant="ghost" onClick={onClose}>
-            Đóng
+            {t('close')}
           </GaBtn>
           <GaBtn variant="primary" loading={saving} onClick={savePlan}>
-            Lưu thay đổi
+            {t('saveChanges')}
           </GaBtn>
         </>
       }
@@ -232,33 +262,33 @@ export function UserDetailModal({
       {error && <ErrorBanner className="mb-4" message={error} />}
 
       {loading ? (
-        <LoadingState variant="spinner" label="Đang tải quota & usage…" />
+        <LoadingState variant="spinner" label={t('loadingQuotaUsage')} />
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Quota */}
             <section className="space-y-4">
               <div className="flex items-center gap-2">
-                <GaCap>Chi tiết quota</GaCap>
-                {quota?.unlimitedInternal && <TkBadge tone="green">Không giới hạn</TkBadge>}
+                <GaCap>{t('quotaCap')}</GaCap>
+                {quota?.unlimitedInternal && <TkBadge tone="green">{t('unlimited')}</TkBadge>}
               </div>
               {quota ? (
                 <>
-                  <p className="ga-ui text-[13px] text-ga-muted">{quotaKindVi(quota.quotaKind)}</p>
+                  <p className="ga-ui text-[13px] text-ga-muted">{t(quotaKindKey(quota.quotaKind))}</p>
                   <div className="grid grid-cols-2 gap-4 text-[13px]">
-                    {stat('Ledger 30 ngày', fmt(quota.usageLast30Days))}
-                    {stat('Hôm nay (VN)', fmt(quota.usedToday ?? quota.usedThisMonth))}
+                    {stat(t('stat.ledger30'), fmt(quota.usageLast30Days))}
+                    {stat(t('stat.today'), fmt(quota.usedToday ?? quota.usedThisMonth))}
                     {stat(
-                      'Còn chi tiêu được',
+                      t('stat.remainingSpendable'),
                       quota.unlimitedInternal ? '—' : fmt(quota.remainingSpendable ?? quota.remainingThisMonth),
                     )}
-                    {stat('Trần ví', fmt(quota.walletCap))}
-                    {stat('Cộng mỗi ngày', fmt(quota.dailyTokenGrant))}
-                    {stat('Số dư ví', fmt(quota.walletBalance))}
+                    {stat(t('stat.walletCap'), fmt(quota.walletCap))}
+                    {stat(t('stat.dailyGrant'), fmt(quota.dailyTokenGrant))}
+                    {stat(t('stat.walletBalance'), fmt(quota.walletBalance))}
                   </div>
                 </>
               ) : (
-                <p className="ga-ui text-[13px] italic text-ga-muted">Chưa có snapshot quota.</p>
+                <p className="ga-ui text-[13px] italic text-ga-muted">{t('noQuotaSnapshot')}</p>
               )}
             </section>
 
@@ -266,13 +296,13 @@ export function UserDetailModal({
             <section className="space-y-5">
               {/* Global role — separate audited endpoint (PATCH /admin/users/{id}/role) */}
               <div className="space-y-2 border-b border-ga-line pb-5">
-                <GaCap>Vai trò hệ thống</GaCap>
+                <GaCap>{t('roleCap')}</GaCap>
                 <p className="ga-ui text-[13px] text-ga-muted">
-                  Hiện tại: <span className="font-semibold text-ga-ink">{currentRole}</span>
+                  {t('roleCurrent')} <span className="font-semibold text-ga-ink">{currentRole}</span>
                 </p>
                 {isOrgAdmin ? (
                   <p className="ga-ui text-[12px] text-ga-subtle">
-                    Vai trò quản trị tổ chức (OWNER/MANAGER) được quản lý trong console tổ chức — không đổi tại đây.
+                    {t('roleOrgAdminNote')}
                   </p>
                 ) : (
                   <>
@@ -280,7 +310,7 @@ export function UserDetailModal({
                       <select
                         value={roleValue}
                         onChange={(e) => setRoleValue(e.target.value as GlobalRole)}
-                        aria-label="Vai trò hệ thống"
+                        aria-label={t('roleCap')}
                         className="ga-ui min-w-0 flex-1 rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] font-semibold text-ga-ink outline-none"
                       >
                         {ROLES.map((r) => (
@@ -290,58 +320,58 @@ export function UserDetailModal({
                         ))}
                       </select>
                       <GaBtn variant="primary" loading={savingRole} disabled={roleValue === currentRole} onClick={saveRole}>
-                        Đổi
+                        {t('roleChange')}
                       </GaBtn>
                     </div>
-                    <p className="ga-ui text-[12px] text-ga-subtle">Đổi quyền truy cập toàn hệ thống — ghi log audit.</p>
+                    <p className="ga-ui text-[12px] text-ga-subtle">{t('roleNote')}</p>
                   </>
                 )}
               </div>
 
               {/* Account active state — soft delete (lock/unlock). Admin-only, reversible. */}
               <div className="space-y-2 border-b border-ga-line pb-5">
-                <GaCap>Trạng thái tài khoản</GaCap>
+                <GaCap>{t('statusCap')}</GaCap>
                 <p className="ga-ui text-[13px] text-ga-muted">
-                  Hiện tại:{' '}
+                  {t('roleCurrent')}{' '}
                   <span className={active ? 'font-semibold text-ga-green' : 'font-semibold text-ga-red'}>
-                    {active ? 'Hoạt động' : 'Đã khóa'}
+                    {active ? t('statusActive') : t('statusLocked')}
                   </span>
                 </p>
                 <GaBtn variant={active ? 'ghost' : 'primary'} loading={savingActive} onClick={toggleActive}>
-                  {active ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+                  {active ? t('lockAccount') : t('unlockAccount')}
                 </GaBtn>
                 <p className="ga-ui text-[12px] text-ga-subtle">
-                  Khóa = chặn đăng nhập nhưng giữ nguyên dữ liệu; mở lại bất cứ lúc nào. Chỉ admin.
+                  {t('statusNote')}
                 </p>
               </div>
 
               {/* Admin reset password — đặt lại mật khẩu cho user (gỡ default-cred / user quên pass). */}
               <div className="space-y-2 border-b border-ga-line pb-5">
-                <GaCap>Đặt lại mật khẩu</GaCap>
+                <GaCap>{t('pwCap')}</GaCap>
                 <div className="flex items-center gap-2">
                   <input
-                    type="text"
+                    type="password"
                     value={newPw}
                     onChange={(e) => setNewPw(e.target.value)}
                     autoComplete="new-password"
-                    placeholder="Mật khẩu mới (≥ 8 ký tự)"
+                    placeholder={t('pwPlaceholder')}
                     className="ga-ui min-w-0 flex-1 rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] text-ga-ink outline-none placeholder:text-ga-subtle"
                   />
                   <GaBtn variant="primary" loading={savingPw} disabled={newPw.length < 8} onClick={resetPassword}>
-                    Đặt lại
+                    {t('pwReset')}
                   </GaBtn>
                 </div>
                 <p className="ga-ui text-[12px] text-ga-subtle">
-                  Admin đặt mật khẩu mới trực tiếp (không cần mật khẩu cũ) — dùng khi gỡ tài khoản mật khẩu mặc định / user quên pass. Có ghi audit.
+                  {t('pwNote')}
                 </p>
               </div>
 
-              <GaCap>Đổi gói đăng ký</GaCap>
+              <GaCap>{t('planCap')}</GaCap>
               <p className="ga-ui text-[13px] text-ga-muted">
-                Gói hiện tại: <span className="font-semibold text-ga-ink">{planCode ?? '—'}</span>
+                {t('planCurrent')} <span className="font-semibold text-ga-ink">{planCode ?? '—'}</span>
               </p>
               <label className="block">
-                <GaCap>Plan code</GaCap>
+                <GaCap>{t('planCode')}</GaCap>
                 <select
                   value={code}
                   onChange={(e) => {
@@ -362,16 +392,16 @@ export function UserDetailModal({
                 </select>
               </label>
               <label className="block">
-                <GaCap>Bắt đầu (UTC)</GaCap>
+                <GaCap>{t('startsAt')}</GaCap>
                 <input
                   value={startsAt}
                   onChange={(e) => setStartsAt(e.target.value)}
-                  placeholder="auto = bây giờ"
+                  placeholder={t('startsAtPlaceholder')}
                   className="ga-ui mt-1 w-full rounded-ga border border-ga-line bg-ga-card px-3 py-2 font-mono text-[12px] text-ga-ink outline-none placeholder:text-ga-subtle"
                 />
               </label>
               <label className="block">
-                <GaCap>Kết thúc (trống = vô thời hạn)</GaCap>
+                <GaCap>{t('endsAt')}</GaCap>
                 <input
                   value={endsAt}
                   onChange={(e) => setEndsAt(e.target.value)}
@@ -379,7 +409,7 @@ export function UserDetailModal({
                 />
               </label>
               <label className="block">
-                <GaCap>Override limit (tuỳ chọn)</GaCap>
+                <GaCap>{t('overrideLimit')}</GaCap>
                 <input
                   value={override}
                   onChange={(e) => setOverride(e.target.value)}
@@ -392,12 +422,12 @@ export function UserDetailModal({
 
           {/* Usage log */}
           <section>
-            <GaCap>Nhật ký usage (200 gần nhất)</GaCap>
+            <GaCap>{t('usageCap')}</GaCap>
             <div className="mt-2 max-h-64 overflow-x-auto overflow-y-auto rounded-ga border border-ga-line">
               <table className="ga-ui w-full min-w-[560px] border-collapse text-[12.5px] lg:min-w-0">
                 <thead className="sticky top-0 bg-ga-side-active">
                   <tr>
-                    {['Thời điểm', 'Tính năng', 'Provider/Model', 'Tokens'].map((h) => (
+                    {[t('usageCol.time'), t('usageCol.feature'), t('usageCol.providerModel'), t('usageCol.tokens')].map((h) => (
                       <th
                         key={h}
                         className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-ga-muted last:text-right"
@@ -411,7 +441,7 @@ export function UserDetailModal({
                   {usage.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-3 py-6 text-center italic text-ga-muted">
-                        Không có lịch sử usage.
+                        {t('usageEmpty')}
                       </td>
                     </tr>
                   ) : (
@@ -435,5 +465,36 @@ export function UserDetailModal({
         </div>
       )}
     </TkModal>
+
+      {/* Hai hộp xác nhận cho thao tác đặc quyền (audit F-M11). Đứng NGOÀI TkModal chính để không
+          bị unmount theo nó và để nhận focus riêng. ConfirmDialog autoFocus vào nút Hủy. */}
+      <ConfirmDialog
+        open={confirmRole}
+        onOpenChange={setConfirmRole}
+        title={t('confirmRole.title')}
+        description={t('confirmRole.description', { name: userName, from: currentRole, to: roleValue })}
+        details={
+          roleValue === 'ADMIN'
+            ? [t('confirmRole.detailAdmin'), t('confirmRole.detailSessions'), t('confirmRole.detailAudit')]
+            : [t('confirmRole.detailSessions'), t('confirmRole.detailAudit')]
+        }
+        confirmLabel={t('confirmRole.confirm')}
+        cancelLabel={t('confirmRole.cancel')}
+        loading={savingRole}
+        onConfirm={() => void applyRole()}
+      />
+
+      <ConfirmDialog
+        open={confirmLock}
+        onOpenChange={setConfirmLock}
+        title={t('confirmLock.title')}
+        description={t('confirmLock.description', { name: userName })}
+        details={[t('confirmLock.detailBlocked'), t('confirmLock.detailSessions'), t('confirmLock.detailReversible')]}
+        confirmLabel={t('confirmLock.confirm')}
+        cancelLabel={t('confirmLock.cancel')}
+        loading={savingActive}
+        onConfirm={() => void applyActive(false)}
+      />
+    </>
   )
 }

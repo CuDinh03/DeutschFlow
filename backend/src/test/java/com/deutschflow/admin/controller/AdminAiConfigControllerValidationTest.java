@@ -63,6 +63,29 @@ class AdminAiConfigControllerValidationTest {
     }
 
     @Test
+    @DisplayName("từ chối system prompt vượt trần 8000 ký tự và không ghi gì (F-M7)")
+    void rejectsOversizedPrompt() {
+        // Prompt này ghép vào MỌI lời gọi AI của hệ thống: một chuỗi khổng lồ vừa đội chi phí token
+        // mỗi request vừa đẩy chính nội dung người học ra khỏi cửa sổ ngữ cảnh.
+        AdminAiConfigController.AiConfigDto dto = new AdminAiConfigController.AiConfigDto();
+        dto.setPrompt("x".repeat(8001));
+
+        assertThatThrownBy(() -> controller.updateConfig(dto, null))
+                .isInstanceOf(BadRequestException.class);
+        verifyNoInteractions(systemConfigService, auditLogService);
+    }
+
+    @Test
+    @DisplayName("prompt đúng 8000 ký tự vẫn được chấp nhận (ranh giới)")
+    void acceptsPromptAtTheBoundary() {
+        AdminAiConfigController.AiConfigDto dto = new AdminAiConfigController.AiConfigDto();
+        dto.setPrompt("x".repeat(8000));
+
+        assertThatCode(() -> controller.updateConfig(dto, null)).doesNotThrowAnyException();
+        verify(systemConfigService).setString(eq("ai.systemPrompt"), anyString(), anyString());
+    }
+
+    @Test
     @DisplayName("valid values persist and leave an audit trail (A-2)")
     void validUpdatePersistsAndAudits() {
         AdminAiConfigController.AiConfigDto dto = new AdminAiConfigController.AiConfigDto();
