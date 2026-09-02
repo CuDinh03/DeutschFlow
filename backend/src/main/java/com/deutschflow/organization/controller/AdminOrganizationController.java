@@ -1,5 +1,6 @@
 package com.deutschflow.organization.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.organization.dto.AddMemberRequest;
 import com.deutschflow.organization.dto.CreateInvoiceRequest;
 import com.deutschflow.organization.dto.CreateOrgRequest;
@@ -61,8 +62,10 @@ public class AdminOrganizationController {
     }
 
     @PostMapping("/{id}/members")
-    public OrgMemberDto addMember(@PathVariable("id") Long orgId, @RequestBody AddMemberRequest request) {
-        return adminOrgService.addMember(orgId, request.email(), request.role());
+    public OrgMemberDto addMember(@PathVariable("id") Long orgId,
+                                  @RequestBody AddMemberRequest request,
+                                  @AuthenticationPrincipal User actor) {
+        return adminOrgService.addMember(orgId, request.email(), request.role(), AuditActor.of(actor));
     }
 
     @PostMapping("/{id}/activate-entitlements")

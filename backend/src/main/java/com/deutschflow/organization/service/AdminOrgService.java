@@ -1,5 +1,7 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
@@ -64,6 +66,7 @@ public class AdminOrgService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserNotificationService userNotificationService;
+    private final AuditLogService auditLogService;
 
     /**
      * Creates an organization with a unique slug. If {@code ownerEmail} resolves to an existing
@@ -216,9 +219,19 @@ public class AdminOrgService {
                 .toList();
     }
 
-    /** Manually assigns an existing user as OWNER/MANAGER (or any valid member role) of the org. */
+    /**
+     * Manually assigns an existing user as OWNER/MANAGER (or any valid member role) of the org.
+     *
+     * <p>Audit F-M2 (03/09/2026): đường này gọi thẳng {@code upsertMember}, thứ chỉ ghi đè vai trò
+     * chứ không biết gì về bất biến 1-OWNER. Mọi đường khác đều giữ bất biến đó —
+     * {@code OrgMembershipService.changeRole} từ chối đụng OWNER, {@code removeMember}/
+     * {@code selfLeave} từ chối gỡ OWNER, và OWNER chỉ được (tái) tạo qua
+     * {@code transferOwnership} (thăng + giáng nguyên tử). Riêng endpoint admin này hạ được OWNER
+     * duy nhất xuống TEACHER (org còn 0 OWNER) hoặc dựng thêm OWNER thứ hai. Hai guard dưới đây
+     * khép lại lỗ đó; đổi chủ vẫn phải đi qua transferOwnership.
+     */
     @Transactional
-    public OrgMemberDto addMember(Long orgId, String email, String role) {
+    public OrgMemberDto addMember(Long orgId, String email, String role, AuditActor actor) {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: " + orgId));
         if (email == null || email.isBlank()) {
@@ -233,6 +246,24 @@ public class AdminOrgService {
         User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng: " + normalizedEmail));
 
+        OrgMember existing = orgMemberRepository.findByIdOrgIdAndIdUserId(org.getId(), user.getId())
+                .orElse(null);
+        boolean targetIsActiveOwner = existing != null
+                && ROLE_OWNER.equals(existing.getRole())
+                && STATUS_ACTIVE.equals(existing.getStatus());
+
+        if (targetIsActiveOwner && !ROLE_OWNER.equals(normalizedRole)) {
+            throw new BadRequestException(
+                    "Không thể hạ vai trò của chủ sở hữu — hãy chuyển quyền sở hữu cho người khác trước.");
+        }
+        if (ROLE_OWNER.equals(normalizedRole) && !targetIsActiveOwner
+                && orgMembershipService.countActiveOwners(org.getId()) > 0) {
+            throw new BadRequestException(
+                    "Tổ chức đã có chủ sở hữu — mỗi tổ chức chỉ một OWNER. Hãy dùng chuyển quyền sở hữu.");
+        }
+
+        String previousRole = existing == null ? null : existing.getRole();
+
         // Seat-limit enforcement (including the concurrent-add race) is centralized in
         // OrgMembershipService.upsertMember (ORG-1): it locks the org row and rejects a brand-new
         // STUDENT over seat_limit, so every add path inherits one race-safe gate.
@@ -240,6 +271,20 @@ public class AdminOrgService {
 
         OrgMember member = orgMemberRepository.findByIdOrgIdAndIdUserId(org.getId(), user.getId())
                 .orElseThrow(() -> new NotFoundException("Không tạo được thành viên tổ chức"));
+
+        // Gán vai trò trong tổ chức là thao tác đặc quyền — trước đây không để lại vết nào.
+        auditLogService.log(
+                "admin.org.member.upserted",
+                actor,
+                "ORG",
+                String.valueOf(org.getId()),
+                java.util.Map.of(
+                        "targetUserId", user.getId(),
+                        "targetEmail", user.getEmail(),
+                        "fromRole", String.valueOf(previousRole),
+                        "toRole", normalizedRole
+                )
+        );
         return new OrgMemberDto(
                 user.getId(),
                 user.getEmail(),
