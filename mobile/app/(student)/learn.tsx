@@ -23,6 +23,7 @@ import {
   SectionHeader,
   FadeIn,
   ErrorState,
+  useTabBarClearance,
 } from '@/components/ui'
 import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
 import { nextStudyDay } from '@/lib/roadmapDay'
@@ -48,6 +49,8 @@ function openNode(node: SkillNode) {
 }
 
 export default function LearnScreen() {
+  // Thanh tab liquid-glass nổi đè lên nội dung — chừa đáy cho mục cuối.
+  const tabClearance = useTabBarClearance()
   const { data: nodes = [], refetch, isFetching, isError } = useQuery({
     queryKey: ['skill-tree'],
     queryFn: () => skillTreeApi.getMySkillTree(),
@@ -74,7 +77,7 @@ export default function LearnScreen() {
       <Screen
         scroll
         edges={['top']}
-        contentStyle={{ paddingBottom: space[6] }}
+        contentStyle={{ paddingBottom: tabClearance }}
         refreshing={isFetching}
         onRefresh={() => void refetch()}
       >
@@ -93,7 +96,7 @@ export default function LearnScreen() {
     <Screen
       scroll
       edges={['top']}
-      contentStyle={{ paddingBottom: space[6] }}
+      contentStyle={{ paddingBottom: tabClearance }}
       refreshing={isFetching}
       onRefresh={() => void refetch()}
     >

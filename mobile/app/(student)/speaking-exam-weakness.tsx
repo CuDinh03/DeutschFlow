@@ -7,6 +7,7 @@ import {
   AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Pill, Screen, Skeleton, ThemedText, YellowSquare,
 } from '@/components/ui'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
+import { getErrorTitle } from '@/lib/errorTaxonomy'
 
 /** Ôn yếu điểm (Đợt 5a backend): mã lỗi hay mắc trong phòng thi + gói Redemittel theo dạng bài. */
 export default function SpeakingExamWeaknessScreen() {
@@ -55,7 +56,7 @@ export default function SpeakingExamWeaknessScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
                     <YellowSquare size={7} color={w.lastSeverity === 'HIGH' ? c.danger : c.orange} style={{ marginTop: 6 }} />
                     <View style={{ flex: 1, gap: 2 }}>
-                      <ThemedText variant="bodyStrong">{w.ruleVi ?? w.errorCode}</ThemedText>
+                      <ThemedText variant="bodyStrong">{w.ruleVi ?? getErrorTitle(w.errorCode)}</ThemedText>
                       <ThemedText variant="caption" color="secondary">
                         {`Gặp ${w.examCount} lần trong phòng thi${w.openCount > 0 ? ` · ${w.openCount} lần chưa trị dứt` : ''}`}
                       </ThemedText>

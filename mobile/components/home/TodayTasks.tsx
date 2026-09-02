@@ -4,7 +4,7 @@ import { router } from 'expo-router'
 import { ChevronRight, Mic, Wrench } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Caption, Card, Icon, Pill, ThemedText, YellowSquare } from '@/components/ui'
-import { errorSkillsApi, todayApi, todayHrefToRoute } from '@/lib/todayApi'
+import { dueRepairChipLabels, errorSkillsApi, todayApi, todayHrefToRoute } from '@/lib/todayApi'
 
 /**
  * Khối "Việc hôm nay" trên Trang chủ (cụm Heute — thiết kế đã chốt 02/09).
@@ -37,7 +37,9 @@ export function TodayTasks() {
   const dueTasks = plan.dueRepairTasks ?? []
   const speaking = plan.recommendedSpeaking
   const vocab = plan.recommendedVocabPractice
-  const ruleByCode = new Map((skillsQ.data ?? []).map((s) => [s.errorCode, s.ruleViShort ?? s.errorCode]))
+  // Nhãn người-đọc-được (ruleViShort → errorTaxonomy), đã khử trùng lặp —
+  // tuyệt đối không rơi về mã thô kiểu WORD_ORDER.V2_MAIN_CLAUSE.
+  const chipLabels = dueRepairChipLabels(dueTasks, skillsQ.data ?? [])
 
   const hasAnything = dueTasks.length > 0 || speaking || vocab
   if (!hasAnything) return null
@@ -69,10 +71,10 @@ export function TodayTasks() {
             <Pill label="ĐẾN HẠN" tone="danger" />
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[1] + 2 }}>
-            {dueTasks.slice(0, 3).map((t) => (
-              <View key={t.id} style={{ borderWidth: 1, borderColor: c.border, borderRadius: radius.sm, paddingHorizontal: space[2], paddingVertical: 4 }}>
+            {chipLabels.map((label) => (
+              <View key={label} style={{ borderWidth: 1, borderColor: c.border, borderRadius: radius.sm, paddingHorizontal: space[2], paddingVertical: 4 }}>
                 <ThemedText variant="caption" color="secondary">
-                  {ruleByCode.get(t.errorCode) ?? t.errorCode}
+                  {label}
                 </ThemedText>
               </View>
             ))}

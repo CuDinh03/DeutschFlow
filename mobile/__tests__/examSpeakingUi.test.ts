@@ -5,6 +5,7 @@ import {
   criterionRatio,
   formatClock,
   levelsFromBlueprints,
+  nextPrueferAnnouncement,
   ratioTone,
   remainingSec,
   stateLabel,
@@ -81,5 +82,31 @@ describe('stimulusDisplay — degrade êm với mọi kiểu stimulus', () => {
     expect(stimulusDisplay({ keywords: ['wann?', 'wo?'], hints: ['砸'] }).bullets).toEqual(['wann?', 'wo?', '砸'])
     expect(stimulusDisplay({ weird: { nested: true } })).toEqual({ headline: null, bullets: [] })
     expect(stimulusDisplay(null)).toEqual({ headline: null, bullets: [] })
+  })
+})
+
+describe('nextPrueferAnnouncement — chặn lặp câu dẫn giám khảo (directive là echo lời PRUEFER gần nhất)', () => {
+  const INTRO = 'Teil 1: Fragen zur Person. Ihre erste Karte: Auto?'
+
+  test('mới vào màn/Teil (chưa hiển thị gì) → hiển thị', () => {
+    expect(nextPrueferAnnouncement(null, INTRO)).toBe(INTRO)
+  })
+
+  test('cùng câu echo lại ở step sau (partner vừa đáp xong) → bỏ qua, không chèn lần 2', () => {
+    expect(nextPrueferAnnouncement(INTRO, INTRO)).toBeNull()
+  })
+
+  test('lệch khoảng trắng rìa vẫn tính là lặp', () => {
+    expect(nextPrueferAnnouncement(INTRO, `  ${INTRO}\n`)).toBeNull()
+  })
+
+  test('giám khảo nói câu MỚI → hiển thị (đã trim)', () => {
+    expect(nextPrueferAnnouncement(INTRO, ' Danke. Und was arbeiten Sie? ')).toBe('Danke. Und was arbeiten Sie?')
+  })
+
+  test('directive trống/thiếu → không hiển thị gì', () => {
+    expect(nextPrueferAnnouncement(INTRO, null)).toBeNull()
+    expect(nextPrueferAnnouncement(null, undefined)).toBeNull()
+    expect(nextPrueferAnnouncement(null, '   ')).toBeNull()
   })
 })

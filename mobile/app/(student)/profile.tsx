@@ -11,11 +11,13 @@ import { radius, space, useTheme } from '@/lib/theme'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { openManageSubscriptions, openRefundRequest } from '@/lib/iapManage'
 import { getAiConsent, resetAiConsent, setAiConsent } from '@/lib/aiConsent'
-import { Screen, Card, ThemedText, Icon, Pill, ListRow, Caption, FadeIn } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, ListRow, Caption, FadeIn, useTabBarClearance } from '@/components/ui'
 
 export default function ProfileScreen() {
   const theme = useTheme()
   const c = theme.colors
+  // Thanh tab liquid-glass nổi đè lên nội dung — chừa đáy cho mục cuối.
+  const tabClearance = useTabBarClearance()
   const { user, logout } = useAuthStore()
   const { plan, isPro, isUltra } = usePlanStore()
   const { data: xp } = useQuery({
@@ -123,7 +125,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
+    <Screen scroll edges={['top']} contentStyle={{ paddingBottom: tabClearance }}>
       <FadeIn delay={0} style={{ paddingHorizontal: space[5], paddingTop: space[5] }}>
         <Caption style={{ marginBottom: space[2] }}>Tài khoản của bạn</Caption>
         {/* Identity — editorial ink hero, mirroring the Home streak card idiom */}
