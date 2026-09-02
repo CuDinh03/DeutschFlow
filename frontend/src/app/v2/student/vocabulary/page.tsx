@@ -5,9 +5,10 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowRight, BarChart3, HelpCircle, Layers, Mic, RotateCcw, Volume2 } from 'lucide-react'
 import api from '@/lib/api'
-import { useReviewDueCount } from '@/hooks/useReviewDueCount'
+
 import { cleanExample, colorForArticle } from '@/lib/vocabWords'
 import { GaPageHdr, TkSearch, GaCap, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import { useDueCount } from './dueCount'
 import {
   CEFR_ORDER,
   DTYPE_ORDER,
@@ -175,7 +176,7 @@ function FilterRow({ cap, children }: { cap: string; children: ReactNode }) {
 export default function V2StudentVocabularyPage() {
   const t = useTranslations('v2.student.vocabulary')
   const locale = useLocale()
-  const dueCount = useReviewDueCount()
+  const dueCount = useDueCount()
   const [words, setWords] = useState<Word[]>([])
   const [total, setTotal] = useState(0)
   const [query, setQuery] = useState('')
