@@ -44,9 +44,14 @@ export const messagesApi = {
       .get<Message[]>(`/messages/with/${userId}`, afterId ? { params: { afterId } } : undefined)
       .then((r) => r.data ?? []),
 
-  /** Send a message (recipient must share a class with the caller). */
-  send: (recipientId: number, body: string) =>
-    api.post<Message>('/messages', { recipientId, body }).then((r) => r.data),
+  /**
+   * Send a message (recipient must share a class with the caller). `clientTempId` (tuỳ chọn) là
+   * idempotency key — outbox truyền tempId của item, server thấy key đã dùng thì trả lại đúng bản
+   * ghi cũ thay vì tạo tin trùng (F-13), nên retry sau timeout an toàn tuyệt đối. Bỏ trống thì
+   * JSON.stringify tự lược field — hợp đồng với backend cũ không đổi.
+   */
+  send: (recipientId: number, body: string, clientTempId?: string) =>
+    api.post<Message>('/messages', { recipientId, body, clientTempId }).then((r) => r.data),
 
   /** Explicitly mark a thread read (e.g. without fetching it). */
   markRead: (userId: number) =>

@@ -23,7 +23,7 @@ describe('useChatOutboxStore', () => {
   })
 
   it('send → sending → confirmed(serverId) on ack, keeping the message as a shadow', async () => {
-    jest.spyOn(messagesApi, 'send').mockResolvedValue(serverMsg(100, 'hi'))
+    const sendSpy = jest.spyOn(messagesApi, 'send').mockResolvedValue(serverMsg(100, 'hi'))
     useChatOutboxStore.getState().send('dm', 5, 'hi')
 
     // Optimistic immediately: one 'sending' item.
@@ -35,6 +35,10 @@ describe('useChatOutboxStore', () => {
     items = useChatOutboxStore.getState().items
     expect(items).toHaveLength(1) // NOT removed — kept as a shadow so a late poll can't lose it
     expect(items[0]).toMatchObject({ status: 'confirmed', serverId: 100 })
+    // tempId đi kèm làm idempotency key ngay từ lượt POST đầu (F-13 fix gốc), đúng format mới
+    // có hậu tố ngẫu nhiên (chống trùng key giữa hai thiết bị cùng tài khoản).
+    expect(sendSpy).toHaveBeenCalledWith(5, 'hi', items[0].tempId)
+    expect(items[0].tempId).toMatch(/^tmp-\d+-\d+-[a-z0-9]+$/)
   })
 
   it('classifies a network failure as retryable and a 4xx as permanent', async () => {
@@ -67,7 +71,8 @@ describe('useChatOutboxStore', () => {
     await settle()
 
     expect(sendSpy).toHaveBeenCalledTimes(1) // only the transient-failed 'a' re-attempted
-    expect(sendSpy).toHaveBeenCalledWith(5, 'a')
+    // Retry gửi lại CÙNG key (tempId của item) — server replay thay vì tạo tin trùng.
+    expect(sendSpy).toHaveBeenCalledWith(5, 'a', 't-net')
     const items = useChatOutboxStore.getState().items
     expect(items.find((i) => i.tempId === 't-net')).toMatchObject({ status: 'confirmed', serverId: 200 })
     expect(items.find((i) => i.tempId === 't-403')).toMatchObject({ status: 'failed', retryable: false })
@@ -131,7 +136,7 @@ describe('useChatOutboxStore', () => {
     const post = jest.spyOn(classChannelApi, 'post').mockResolvedValue(serverClassMsg(300, 'cả lớp ơi'))
     useChatOutboxStore.getState().send('class', 42, 'cả lớp ơi')
     await settle()
-    expect(post).toHaveBeenCalledWith(42, 'cả lớp ơi')
+    expect(post).toHaveBeenCalledWith(42, 'cả lớp ơi', expect.stringMatching(/^tmp-/))
     expect(useChatOutboxStore.getState().items[0]).toMatchObject({ status: 'confirmed', serverId: 300 })
   })
 })

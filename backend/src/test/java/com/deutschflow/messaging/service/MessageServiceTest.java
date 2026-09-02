@@ -161,6 +161,69 @@ class MessageServiceTest {
     }
 
     @Test
+    @DisplayName("send(clientTempId): lần đầu → lưu kèm key để retry sau replay được")
+    void send_firstSendWithKey_persistsKey() {
+        shareClass(TEACHER, STUDENT, CLASS);
+        when(messageRepository.findBySenderIdAndClientTempId(TEACHER, "tmp-9-9")).thenReturn(Optional.empty());
+        when(userRepository.findById(STUDENT)).thenReturn(Optional.of(User.builder().id(STUDENT).build()));
+        when(userRepository.findById(TEACHER)).thenReturn(Optional.of(User.builder().id(TEACHER).build()));
+        when(messageRepository.save(any(Message.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.send(TEACHER, STUDENT, "hi", "tmp-9-9");
+
+        org.mockito.ArgumentCaptor<Message> captor = org.mockito.ArgumentCaptor.forClass(Message.class);
+        verify(messageRepository).save(captor.capture());
+        assertThat(captor.getValue().getClientTempId()).isEqualTo("tmp-9-9");
+    }
+
+    @Test
+    @DisplayName("send(clientTempId): retry cùng key → trả bản ghi cũ, KHÔNG lưu mới, KHÔNG thông báo lại")
+    void send_replaySameKey_returnsExistingWithoutSavingOrNotifying() {
+        shareClass(TEACHER, STUDENT, CLASS);
+        Message existing = Message.builder().id(42L).senderId(TEACHER).recipientId(STUDENT)
+                .body("Chào em").createdAt(Instant.now()).clientTempId("tmp-1-1").build();
+        when(messageRepository.findBySenderIdAndClientTempId(TEACHER, "tmp-1-1"))
+                .thenReturn(Optional.of(existing));
+
+        MessageDto dto = service.send(TEACHER, STUDENT, "Chào em", "tmp-1-1");
+
+        assertThat(dto.id()).isEqualTo(42L);
+        assertThat(dto.mine()).isTrue();
+        verify(messageRepository, never()).save(any());
+        verify(notificationService, never()).insertForUser(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("send(clientTempId): key đã dùng cho NGƯỜI NHẬN khác → BadRequest, không lưu")
+    void send_keyReusedForOtherRecipient_throwsBadRequest() {
+        shareClass(TEACHER, STUDENT, CLASS);
+        Message existing = Message.builder().id(42L).senderId(TEACHER).recipientId(999L)
+                .body("x").createdAt(Instant.now()).clientTempId("tmp-1-1").build();
+        when(messageRepository.findBySenderIdAndClientTempId(TEACHER, "tmp-1-1"))
+                .thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> service.send(TEACHER, STUDENT, "hi", "tmp-1-1"))
+                .isInstanceOf(BadRequestException.class);
+        verify(messageRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("send(clientTempId rỗng/khoảng trắng): coi như không có key — không tra, lưu key null")
+    void send_blankKey_treatedAsNoKey() {
+        shareClass(TEACHER, STUDENT, CLASS);
+        when(userRepository.findById(STUDENT)).thenReturn(Optional.of(User.builder().id(STUDENT).build()));
+        when(userRepository.findById(TEACHER)).thenReturn(Optional.of(User.builder().id(TEACHER).build()));
+        when(messageRepository.save(any(Message.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.send(TEACHER, STUDENT, "hi", "   ");
+
+        verify(messageRepository, never()).findBySenderIdAndClientTempId(anyLong(), any());
+        org.mockito.ArgumentCaptor<Message> captor = org.mockito.ArgumentCaptor.forClass(Message.class);
+        verify(messageRepository).save(captor.capture());
+        assertThat(captor.getValue().getClientTempId()).isNull();
+    }
+
+    @Test
     @DisplayName("listConversations: gộp theo counterpart + đếm chưa đọc")
     void listConversations_groupsAndCountsUnread() {
         // recent desc: latest first. Two from STUDENT→me unread, one from me→STUDENT.

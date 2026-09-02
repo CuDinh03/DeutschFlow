@@ -45,6 +45,13 @@ public class ClassChannelMessage {
     @Column(name = "deleted_by")
     private Long deletedBy;
 
+    /**
+     * Idempotency key do client gửi kèm (tempId của outbox mobile); NULL khi client không dùng key.
+     * UNIQUE theo (senderId, clientTempId) ở tầng DB (V300) — retry cùng key không tạo bản ghi mới.
+     */
+    @Column(name = "client_temp_id", length = 64, updatable = false)
+    private String clientTempId;
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) {

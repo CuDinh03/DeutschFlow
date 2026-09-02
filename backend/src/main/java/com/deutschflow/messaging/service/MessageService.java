@@ -53,10 +53,38 @@ public class MessageService {
     private final UserBlockService blockService;
     private final WordFilterService wordFilter;
 
-    /** Sends a message; recipient gets a NEW_MESSAGE notification (best-effort). */
+    /** Sends a message without an idempotency key (web/client cũ) — mỗi lần gọi một bản ghi. */
     @Transactional
     public MessageDto send(Long senderId, Long recipientId, String body) {
+        return send(senderId, recipientId, body, null);
+    }
+
+    /**
+     * Sends a message; recipient gets a NEW_MESSAGE notification (best-effort).
+     *
+     * <p>{@code clientTempId} (tuỳ chọn) là idempotency key của client outbox (F-13): POST timeout
+     * không có nghĩa server chưa lưu, nên lần retry gửi lại CÙNG key — thấy key đã dùng thì trả lại
+     * bản ghi cũ, không tạo tin trùng và không bắn lại thông báo. Cửa sổ đua hai request cùng key
+     * đến đồng thời được UNIQUE index V300 chặn: request thua lỗi (client coi là transient và retry),
+     * lần retry sau rơi vào nhánh replay ở đây — hội tụ về đúng một bản ghi.
+     */
+    @Transactional
+    public MessageDto send(Long senderId, Long recipientId, String body, String clientTempId) {
         assertCanMessage(senderId, recipientId);
+
+        String idemKey = normalizeKey(clientTempId);
+        if (idemKey != null) {
+            Message existing = messageRepository.findBySenderIdAndClientTempId(senderId, idemKey).orElse(null);
+            if (existing != null) {
+                // Key phải trỏ đúng lượt gửi cũ: cùng người nhận. Lệch = client tái dùng key sai —
+                // từ chối tất định thay vì lưu (lưu sẽ vỡ UNIQUE index và 500 khó hiểu).
+                if (!existing.getRecipientId().equals(recipientId)) {
+                    throw new BadRequestException("clientTempId đã dùng cho một lượt gửi khác.");
+                }
+                return toDto(existing, senderId);
+            }
+        }
+
         if (blockService.isBlockedEitherWay(senderId, recipientId)) {
             throw new ForbiddenException("Không thể gửi tin — một trong hai người đã chặn người kia.");
         }
@@ -68,6 +96,7 @@ public class MessageService {
                 .senderId(senderId)
                 .recipientId(recipientId)
                 .body(body.trim())
+                .clientTempId(idemKey)
                 .build());
 
         notifyRecipient(recipient, senderId, saved.getBody());
@@ -174,6 +203,15 @@ public class MessageService {
     }
 
     // ----------------------------------------------------------------- internals
+
+    /** Key rỗng/toàn khoảng trắng coi như không gửi key (tránh "" và "  " thành hai key khác nhau). */
+    private static String normalizeKey(String clientTempId) {
+        if (clientTempId == null) {
+            return null;
+        }
+        String trimmed = clientTempId.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
 
     /** A student and a teacher may message iff they share at least one teacher↔student class. */
     private void assertCanMessage(Long a, Long b) {

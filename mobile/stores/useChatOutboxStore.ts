@@ -32,9 +32,13 @@ const KEY = 'outbox_v1'
 const inFlight = new Set<string>()
 
 let seq = 0
+// tempId giờ kiêm luôn idempotency key gửi lên server (F-13) nên phải là duy nhất THEO NGƯỜI GỬI,
+// kể cả giữa hai thiết bị cùng tài khoản: seq reset theo mỗi lần mở app, nên thêm hậu tố ngẫu
+// nhiên để hai máy cùng bấm gửi trong cùng một mili-giây không thể sinh trùng key (trùng = máy
+// sau nhận nhầm bản ghi của máy trước thay vì tạo tin mới).
 function newTempId(): string {
   seq += 1
-  return `tmp-${Date.now()}-${seq}`
+  return `tmp-${Date.now()}-${seq}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 function load(): OutboxItem[] {
@@ -87,8 +91,11 @@ export const useChatOutboxStore = create<ChatOutboxState>((set, get) => {
   /**
    * F-13 (soát 02/09): trước khi RESEND một item từng thất bại thoáng qua, hỏi
    * server xem tin đã nằm đó chưa — POST timeout/502 không có nghĩa server chưa
-   * lưu, và resend mù là người nhận thấy tin ĐÔI. Không có khoá idempotency phía
-   * backend (fix gốc, đợt sau) nên đây là chốt chặn phía client:
+   * lưu, và resend mù là người nhận thấy tin ĐÔI. Fix GỐC giờ nằm ở backend
+   * (clientTempId idempotency key, V300: attempt() gửi kèm tempId, server thấy
+   * key đã dùng thì trả lại bản ghi cũ); lớp echo này giữ lại làm chống đỡ khi
+   * app chạy trước backend mới (OTA đến trước deploy) và để khỏi tốn một POST
+   * thừa khi echo đã thấy tin:
    *  - class: GET channel messages (không có side effect đánh dấu đã-đọc) → khớp
    *    echo chính xác theo mine+body+thời gian → markConfirmed(id thật).
    *  - dm: conversations() làm bước NGHI VẤN rẻ (summary không có id, không side
@@ -135,10 +142,13 @@ export const useChatOutboxStore = create<ChatOutboxState>((set, get) => {
     commit(setItemStatus(get().items, item.tempId, 'sending'))
     try {
       if (opts?.retry && (await confirmedByServerEcho(item))) return
+      // tempId đi kèm làm idempotency key (F-13 fix gốc): server thấy key đã dùng thì trả lại
+      // đúng bản ghi cũ — retry sau timeout không bao giờ tạo tin trùng, kể cả khi bước echo
+      // ở trên bỏ sót (DM mà echo không phải tin cuối thread).
       const real =
         item.kind === 'dm'
-          ? await messagesApi.send(item.targetId, item.body)
-          : await classChannelApi.post(item.targetId, item.body)
+          ? await messagesApi.send(item.targetId, item.body, item.tempId)
+          : await classChannelApi.post(item.targetId, item.body, item.tempId)
       // Keep the acknowledged message as a shadow (keyed by its real id) until a genuine poll
       // surfaces it — never write it into the query cache ourselves, so a stale in-flight refetch
       // resolving late can't clobber it out of existence.
