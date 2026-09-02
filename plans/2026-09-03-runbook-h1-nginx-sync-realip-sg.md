@@ -1,7 +1,12 @@
 # Runbook H1 — đồng bộ nginx + real_ip Cloudflare + khoá SG (owner chạy tay)
 
-> ## ✅ TRẠNG THÁI 03/09 ĐÊM — bước ① và ③ ĐÃ THI HÀNH (owner uỷ quyền, chạy qua script
-> `~/Developer/deutschflow-tools/run-h1-apply.sh` + `run-h1-fix-loki.sh`); CHỈ CÒN bước ② (SG, Console).
+> ## ✅ H1 ĐÓNG TRỌN 03/09 ~00:30 — cả 3 bước xong, không còn việc treo trong runbook này.
+> ① + ③ do agent chạy qua script `~/Developer/deutschflow-tools/run-h1-apply.sh` + `run-h1-fix-loki.sh`
+> (owner uỷ quyền); ② do owner làm trên Console: SG `sg-0797393db3d8b6ad4 (launch-wizard-1)` —
+> 443 khoá về 15 dải IPv4 Cloudflare, GIỮ 80 `0.0.0.0/0` (certbot) + các rule :22 whitelist.
+> Verify 3 chiều sau khoá: qua CF health/web = 200 · thẳng-IP 443 = TIMEOUT · thẳng-IP 80 = 404
+> (nginx `return 404` — cổng sống, certbot renew ổn) · SSH :22 còn vào (script tools chạy được).
+> AC-PERF-H1 + H3 = PASS trong acceptance-matrix. File này từ đây chỉ còn giá trị tra cứu.
 >
 > Thực tế host KHÁC giả định của bản đầu runbook — ghi lại để khỏi lạc lần sau:
 > - Site thật là **`/etc/nginx/sites-available/deutschflow-api`** (chỉ API; frontend do Amplify,
