@@ -8,7 +8,7 @@ import { apiMessage } from '@/lib/api'
 import { changeMemberRole, listMembers, removeMember, type OrgMember, type OrgRole } from '@/lib/orgApi'
 import { getOrgRole } from '@/lib/authSession'
 import { GaPageHdr, TkStatStrip, TkBadge, ErrorBanner, LoadingState, ConfirmDialog } from '@/components/ui-v2'
-import { GaSection, nfVN } from '../../analyticsShared'
+import { GaSection, nfVN } from '../../sectionShared'
 import { ApproverSection } from './ApproverSection'
 
 // listMembers() (all roles) + real mutations: changeMemberRole (PATCH /org/members/{id}/role,

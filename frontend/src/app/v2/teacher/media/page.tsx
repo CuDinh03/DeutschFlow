@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { deleteMedia, listMedia, updateMediaMetadata, uploadMedia, type MediaAsset } from '@/lib/mediaApi'
 import { GaBtn, GaPageHdr, LoadingState, EmptyState, TkModal, TkSearch, TkSeg } from '@/components/ui-v2'
-import { GaSection } from '../../analyticsShared'
+import { GaSection } from '../../sectionShared'
 
 // Port 1:1 của /teacher/media (v1) sang vỏ Galerie. Cùng plumbing, cùng ràng buộc backend:
 //   • GET  /api/v2/media          → teacher CHỈ thấy ảnh do chính mình upload (MediaAssetService.listForTeacher)

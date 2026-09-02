@@ -17,7 +17,7 @@ import {
 } from '@/lib/materialApi'
 import { getOrgRole } from '@/lib/authSession'
 import { GaPageHdr, TkBadge, ErrorBanner, LoadingState, GaBtn } from '@/components/ui-v2'
-import { GaSection } from '../../analyticsShared'
+import { GaSection } from '../../sectionShared'
 import { MaterialPreviewModal } from './MaterialPreviewModal'
 
 // Persisted teaching materials (B2B §5). PERSONAL follows the teacher; ORG stays with the center

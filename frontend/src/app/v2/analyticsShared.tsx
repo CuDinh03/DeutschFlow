@@ -17,7 +17,6 @@ import {
   LineChart,
   Line,
 } from 'recharts'
-import { GaCard } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 
 /**
@@ -27,7 +26,15 @@ import { cn } from '@/lib/utils'
  * Mirrors Prototype A's AdSection / AdBars / AdDonut / Legend, ported to recharts
  * (already a dep) + ga-* tokens. Chart colours are HEX (recharts SVG fills) drawn
  * from galerie.css's accent family so charts read as part of the design system.
+ *
+ * W7 (FE-09, audit lag 02/09): GaSection + formatter TÁCH sang sectionShared.tsx (không
+ * recharts) — trang chỉ cần khung section import bên đó để khỏi gánh chart machinery.
+ * Re-export dưới đây giữ nguyên hợp đồng cho 7 trang analytics đang import từ file này
+ * (import rồi export lại — không dùng cú pháp `export {} from` vì chart bên dưới cũng cần nfVN).
  */
+import { fmtVnd, fmtDateTime, nfVN, GaSection } from './sectionShared'
+
+export { fmtVnd, fmtDateTime, nfVN, GaSection }
 
 /** Accent family (matches galerie.css --ga-blue/violet/teal/orange/green/navy/gold/red). */
 export const GA_CHART = [
@@ -50,55 +57,6 @@ const TOOLTIP_STYLE: React.CSSProperties = {
   fontFamily: 'var(--ga-ui)',
   fontSize: 12,
   color: '#161513',
-}
-
-// ── Formatters ────────────────────────────────────────────────────────────────
-export function fmtVnd(n: number): string {
-  if (!Number.isFinite(n)) return '—'
-  if (Math.abs(n) >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}tỷ₫`
-  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}tr₫`
-  if (Math.abs(n) >= 1_000) return `${Math.round(n / 1_000)}k₫`
-  return `${Math.round(n)}₫`
-}
-
-export function fmtDateTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
-  } catch {
-    return iso
-  }
-}
-
-export const nfVN = new Intl.NumberFormat('vi-VN')
-
-// ── Section card (= proto AdSection) ────────────────────────────────────────────
-export function GaSection({
-  title,
-  right,
-  children,
-  className,
-  bodyClassName,
-}: {
-  title: React.ReactNode
-  right?: React.ReactNode
-  children: React.ReactNode
-  className?: string
-  bodyClassName?: string
-}) {
-  return (
-    <GaCard className={cn('overflow-hidden', className)}>
-      {/* Dưới lg: hàng tiêu đề được phép xuống dòng để slot `right` (chú thích / bộ đếm) không
-          bóp tiêu đề còn min-content. Từ lg giữ nguyên một hàng + đệm 20px như thiết kế gốc. */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ga-border px-4 py-[14px] lg:flex-nowrap lg:px-5">
-        <h3 className="min-w-0 font-ga-display text-[17px] font-medium text-ga-ink lg:min-w-[auto]">{title}</h3>
-        {right}
-      </div>
-      {/* Đệm thân giữ nguyên `p-5` ở MỌI khổ có chủ ý: 9 nơi gọi truyền `bodyClassName="p-0"`
-          (các bảng cuộn ngang) và twMerge chỉ khử được lớp cùng tiền tố — thêm `lg:p-5` sẽ làm
-          các bảng đó mọc lại 20px đệm ở desktop. Đã đo: ở 320px thân section còn ~246px, không tràn. */}
-      <div className={cn('p-5', bodyClassName)}>{children}</div>
-    </GaCard>
-  )
 }
 
 // ── Bar chart (= proto AdBars) ──────────────────────────────────────────────────

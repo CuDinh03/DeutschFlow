@@ -14,7 +14,7 @@ import {
   type ApproverScope,
 } from '@/lib/orgAcademicApproverApi'
 import { GaBtn, TkBadge, ConfirmDialog, LoadingState } from '@/components/ui-v2'
-import { GaSection } from '../../analyticsShared'
+import { GaSection } from '../../sectionShared'
 
 /**
  * Phân công NGƯỜI DUYỆT HỌC VỤ (giáo viên trưởng) — PR-2, P01. Hiện trong màn Phân quyền:
