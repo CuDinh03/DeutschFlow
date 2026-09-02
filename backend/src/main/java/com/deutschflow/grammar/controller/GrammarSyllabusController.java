@@ -1,5 +1,7 @@
 package com.deutschflow.grammar.controller;
 
+import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.grammar.dto.GrammarDraftDto;
 import com.deutschflow.grammar.dto.GrammarExerciseDto;
@@ -35,6 +37,7 @@ public class GrammarSyllabusController {
     private static final long GRAMMAR_GEN_ESTIMATED_TOKENS = 2_000L;
 
     private final GrammarSyllabusService service;
+    private final AuditLogService auditLogService;
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
 
@@ -124,6 +127,10 @@ public class GrammarSyllabusController {
             @PathVariable long exerciseId,
             @AuthenticationPrincipal User principal) {
         service.approveExercise(exerciseId, userId(principal));
+        // Audit F-M3 (03/09/2026): duyệt là bước đưa bài tập AI sinh ra vào tay người học thật.
+        // Cả ba đường duyệt/từ chối trước đây không để lại vết nào.
+        auditLogService.log("admin.grammar.exercise.approved", AuditActor.of(principal),
+                "GRAMMAR_EXERCISE", String.valueOf(exerciseId), Map.of());
         return ResponseEntity.ok().build();
     }
 
@@ -133,7 +140,10 @@ public class GrammarSyllabusController {
             @PathVariable long exerciseId,
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal User principal) {
-        service.rejectExercise(exerciseId, userId(principal), body.getOrDefault("reason", ""));
+        String reason = body.getOrDefault("reason", "");
+        service.rejectExercise(exerciseId, userId(principal), reason);
+        auditLogService.log("admin.grammar.exercise.rejected", AuditActor.of(principal),
+                "GRAMMAR_EXERCISE", String.valueOf(exerciseId), Map.of("reason", reason));
         return ResponseEntity.ok().build();
     }
 
@@ -142,7 +152,11 @@ public class GrammarSyllabusController {
     public ResponseEntity<Void> bulkApprove(
             @RequestBody Map<String, List<Long>> body,
             @AuthenticationPrincipal User principal) {
-        service.bulkApprove(body.getOrDefault("ids", List.of()), userId(principal));
+        List<Long> ids = body.getOrDefault("ids", List.of());
+        service.bulkApprove(ids, userId(principal));
+        // Duyệt hàng loạt: ghi cả danh sách id, vì một lần bấm ở đây phát hành nhiều bài cùng lúc.
+        auditLogService.log("admin.grammar.exercise.bulk_approved", AuditActor.of(principal),
+                "GRAMMAR_EXERCISE", null, Map.of("count", ids.size(), "exerciseIds", ids));
         return ResponseEntity.ok().build();
     }
 }

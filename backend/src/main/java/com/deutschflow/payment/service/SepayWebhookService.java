@@ -1,5 +1,6 @@
 package com.deutschflow.payment.service;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.organization.entity.OrgInvoice;
 import com.deutschflow.organization.entity.OrgPaymentEvent;
 import com.deutschflow.organization.entity.Organization;
@@ -32,6 +33,10 @@ import java.util.regex.Pattern;
 @Service
 @RequiredArgsConstructor
 public class SepayWebhookService {
+
+    /** Actor cho đường webhook tự động — không có người bấm nút. */
+    private static final AuditActor SEPAY_WEBHOOK_ACTOR =
+            new AuditActor(null, "sepay-webhook", "SYSTEM");
 
     private static final String TRANSFER_IN = "in";
     private static final String STATUS_PAID = "PAID";
@@ -109,7 +114,10 @@ public class SepayWebhookService {
             }
         }
         organizationRepository.save(org);
-        adminOrgService.activateEntitlements(org.getId());
+        // Audit F-M3 (03/09/2026): đường TỰ ĐỘNG (webhook ngân hàng) không có người thao tác. Ghi
+        // actor hệ thống thay vì để rỗng, để nhật ký phân biệt được "máy kích hoạt" với "admin
+        // kích hoạt bằng tay" — hai việc có trách nhiệm rất khác nhau khi đối soát.
+        adminOrgService.activateEntitlements(org.getId(), SEPAY_WEBHOOK_ACTOR);
     }
 
     private void recordEvent(String sepayId, Long invoiceId, Long orgId, long amount,

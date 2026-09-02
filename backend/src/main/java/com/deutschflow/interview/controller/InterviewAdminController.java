@@ -1,5 +1,7 @@
 package com.deutschflow.interview.controller;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.deutschflow.user.entity.User;
 import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
@@ -41,7 +43,8 @@ public class InterviewAdminController {
     }
 
     @PatchMapping("/personas/{code}/toggle")
-    public ResponseEntity<InterviewPersonaDto> togglePersona(@PathVariable String code) {
+    public ResponseEntity<InterviewPersonaDto> togglePersona(@PathVariable String code,
+                                                             @AuthenticationPrincipal User actor) {
         InterviewPersonaEntity persona = personaRepository.findByCodeAndActiveTrue(code)
                 .or(() -> personaRepository.findAll().stream()
                         .filter(p -> p.getCode().equals(code))
@@ -49,6 +52,10 @@ public class InterviewAdminController {
                 .orElseThrow(() -> new NotFoundException("Persona not found: " + code));
         persona.setActive(!persona.isActive());
         personaRepository.save(persona);
+        // Audit F-M3 (03/09/2026): bật/tắt persona đổi ngay nội dung mà học viên gặp trong bài
+        // phỏng vấn — cùng loại "curation nội dung" như rubric (đã có vết) nhưng lại không có.
+        auditLogService.log("admin.interview.persona.toggled", AuditActor.of(actor),
+                "INTERVIEW_PERSONA", code, Map.of("active", persona.isActive()));
         return ResponseEntity.ok(InterviewPersonaDto.from(persona));
     }
 

@@ -11,6 +11,7 @@ import com.deutschflow.organization.repository.OrgInvoiceRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.notification.service.UserNotificationService;
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -74,7 +75,7 @@ public class OrgBillingService {
 
     /** Creates a DRAFT invoice for the org. */
     @Transactional
-    public OrgInvoiceDto createInvoice(Long orgId, CreateInvoiceRequest req, Long createdBy) {
+    public OrgInvoiceDto createInvoice(Long orgId, CreateInvoiceRequest req, AuditActor actor) {
         if (!organizationRepository.existsById(orgId)) {
             throw new NotFoundException("Không tìm thấy tổ chức");
         }
@@ -92,9 +93,23 @@ public class OrgBillingService {
                 .status(STATUS_DRAFT)
                 .paymentCode(newPaymentCode())
                 .note(req.note())
-                .createdBy(createdBy)
+                .createdBy(actor == null ? null : actor.id())
                 .build();
-        return toDto(invoiceRepo.save(invoice));
+        OrgInvoice saved = invoiceRepo.save(invoice);
+        // Audit F-M3 (03/09/2026): xuất hoá đơn là chứng từ tài chính — đổi trạng thái hoá đơn đã có
+        // vết (org_invoice_status_changed) nhưng chính lúc TẠO ra nó thì không, nên số tiền và kỳ
+        // thu ban đầu không truy được. Cột created_by có lưu id, nhưng nó biến mất nếu hoá đơn bị xoá.
+        auditLogService.log("admin.org.invoice.created", actor,
+                "ORG_INVOICE", String.valueOf(saved.getId()),
+                Map.of(
+                        "orgId", orgId,
+                        "amountVnd", saved.getAmountVnd(),
+                        "seats", saved.getSeats(),
+                        "periodStart", String.valueOf(saved.getPeriodStart()),
+                        "periodEnd", String.valueOf(saved.getPeriodEnd()),
+                        "paymentCode", String.valueOf(saved.getPaymentCode())
+                ));
+        return toDto(saved);
     }
 
     /**
@@ -157,7 +172,7 @@ public class OrgBillingService {
         if (nowPaid) {
             // Audit M-16: a manually-reconciled payment must provision the org identically to the
             // SePay webhook path (org ACTIVE + validUntil + re-grant entitlements), not just notify.
-            adminOrgService.activateForPaidInvoice(invoice);
+            adminOrgService.activateForPaidInvoice(invoice, new AuditActor(actorId, actorEmail, actorRole));
             String orgName = organizationRepository.findById(orgId)
                     .map(org -> org.getName()).orElse("");
             userNotificationService.onOrgInvoicePaid(orgId, orgName, invoice.getPaymentCode(), invoice.getAmountVnd());

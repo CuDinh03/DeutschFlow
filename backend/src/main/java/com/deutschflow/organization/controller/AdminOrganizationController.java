@@ -37,8 +37,9 @@ public class AdminOrganizationController {
     private final OrgBillingService billingService;
 
     @PostMapping
-    public OrgDto createOrganization(@RequestBody CreateOrgRequest request) {
-        return adminOrgService.createOrganization(request);
+    public OrgDto createOrganization(@RequestBody CreateOrgRequest request,
+                                     @AuthenticationPrincipal User actor) {
+        return adminOrgService.createOrganization(request, AuditActor.of(actor));
     }
 
     @GetMapping
@@ -52,8 +53,9 @@ public class AdminOrganizationController {
     }
 
     @PatchMapping("/{id}")
-    public OrgDto updateOrganization(@PathVariable Long id, @RequestBody UpdateOrgRequest request) {
-        return adminOrgService.updateOrganization(id, request);
+    public OrgDto updateOrganization(@PathVariable Long id, @RequestBody UpdateOrgRequest request,
+                                     @AuthenticationPrincipal User actor) {
+        return adminOrgService.updateOrganization(id, request, AuditActor.of(actor));
     }
 
     @GetMapping("/{id}/members")
@@ -69,15 +71,16 @@ public class AdminOrganizationController {
     }
 
     @PostMapping("/{id}/activate-entitlements")
-    public Map<String, Integer> activateEntitlements(@PathVariable("id") Long orgId) {
-        return Map.of("granted", adminOrgService.activateEntitlements(orgId));
+    public Map<String, Integer> activateEntitlements(@PathVariable("id") Long orgId,
+                                                     @AuthenticationPrincipal User actor) {
+        return Map.of("granted", adminOrgService.activateEntitlements(orgId, AuditActor.of(actor)));
     }
 
     @PostMapping("/{id}/invoices")
     public OrgInvoiceDto createInvoice(@PathVariable("id") Long orgId,
                                        @RequestBody CreateInvoiceRequest request,
                                        @AuthenticationPrincipal User admin) {
-        return billingService.createInvoice(orgId, request, admin.getId());
+        return billingService.createInvoice(orgId, request, AuditActor.of(admin));
     }
 
     @GetMapping("/{id}/invoices")
