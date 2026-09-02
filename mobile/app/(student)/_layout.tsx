@@ -21,7 +21,7 @@ export default function StudentLayout() {
         screenOptions={{ headerShown: false }}
         tabBar={(props) => <TabBar {...props} />}
       >
-        <Tabs.Screen name="index" options={{ title: 'Trang chủ' }} />
+        <Tabs.Screen name="index" options={{ title: 'Heute' }} />
         <Tabs.Screen name="learn" options={{ title: 'Học' }} />
         <Tabs.Screen name="speaking" options={{ title: 'Speaking' }} />
         <Tabs.Screen name="profile" options={{ title: 'Hồ sơ' }} />
@@ -50,6 +50,7 @@ export default function StudentLayout() {
         <Tabs.Screen name="speaking-exam-room" options={{ href: null }} />
         <Tabs.Screen name="speaking-exam-result" options={{ href: null }} />
         <Tabs.Screen name="speaking-exam-weakness" options={{ href: null }} />
+        <Tabs.Screen name="error-repair" options={{ href: null }} />
       </Tabs>
 
       {/* Emits feature_session per screen across the whole student area. */}

@@ -21,6 +21,7 @@ import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
 import { skillTreeApi } from '@/lib/skillTreeApi'
 import { messagesApi } from '@/lib/messagesApi'
+import { TodayTasks } from '@/components/home/TodayTasks'
 import { motion, space, radius, useTheme } from '@/lib/theme'
 import {
   Screen,
@@ -315,6 +316,11 @@ export default function DashboardScreen() {
               <StatCard icon={Zap} accent="info" value={`+${weeklyXp}`} label="XP tuần này" />
             </View>
           </View>
+
+          {/* Heute (cụm 2, thiết kế 02/09): việc hôm nay từ /today/me — sửa lỗi
+              đến hạn + nói/từ vựng theo gợi ý. Thẻ Ôn SRS ngay dưới là "việc"
+              thứ tư, giữ nguyên vì nó là mỏ neo tour (homeSrsCard). */}
+          <TodayTasks />
 
           {/* Tuần đầu (§7.1): checklist "Bắt đầu" — chỉ cho user đã qua onboarding v1,
               tự biến mất vĩnh viễn khi hoàn thành đủ. */}
