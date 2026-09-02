@@ -368,10 +368,11 @@ export default function DashboardScreen() {
             </SpotlightTarget>
           ) : null}
 
-          {/* Roadmap progress entry (na-home PathCard) — real skill-tree % to B2. */}
+          {/* Lối vào Lernweg v2 (cụm 3, 02/09) — % vẫn từ skill-tree cũ tới khi
+              nguồn tiến độ hợp nhất; màn đích là cây /roadmap/tree mới. */}
           {treeTotal > 0 ? (
             <Card
-              onPress={() => router.push('/(student)/roadmap')}
+              onPress={() => router.push('/(student)/lernweg')}
               accessibilityLabel={`Lộ trình đến B2, ${pathPct}%`}
               style={{ marginHorizontal: space[5], marginTop: space[4], gap: space[3] }}
             >
