@@ -133,6 +133,13 @@ import {
   Info,
   Coffee,
   Hotel,
+  CalendarDays,
+  CalendarX,
+  CalendarClock,
+  UserX,
+  BanknoteX,
+  Building,
+  CircleDollarSign,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -294,6 +301,16 @@ const ICONS: Record<string, LucideIcon> = {
   info: Info,
   coffee: Coffee,
   hotel: Hotel,
+
+  // ── TYPE_ICON của notifications (notificationDisplay.ts) ─────────────────
+  // Thiếu khoá nào thì bell dropdown + toast thông báo rơi về Circle rỗng trông như lỗi UI.
+  event: CalendarDays,
+  event_busy: CalendarX,
+  edit_calendar: CalendarClock,
+  person_off: UserX,
+  money_off: BanknoteX,
+  apartment: Building,
+  paid: CircleDollarSign,
 }
 
 /** Tên icon hợp lệ có trong bảng — dùng để test bao phủ, không dùng để render. */
