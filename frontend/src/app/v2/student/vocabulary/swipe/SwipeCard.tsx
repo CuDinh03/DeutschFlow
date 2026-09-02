@@ -14,7 +14,8 @@ import { ARTICLE_COLOR, cleanExample, type WordListItem } from '@/lib/vocabWords
  * ⚠️ Mạo từ der/die/das là phần bắt buộc của đáp án — không được lược bỏ.
  */
 
-export type CardType = 'masculine' | 'feminine' | 'neuter' | 'verb' | 'adjective'
+/** 'unknown' = từ chưa đủ dữ liệu để nói nó thuộc loại nào — KHÔNG được mượn nhãn của loại khác. */
+export type CardType = 'masculine' | 'feminine' | 'neuter' | 'verb' | 'adjective' | 'unknown'
 export type CardMode = 'flip' | 'type'
 
 export type SwipeCardData = {
@@ -79,6 +80,15 @@ export const CARD_COLOR: Record<
     label: 'Adjektiv',
     tag: 'adj.',
   },
+  // Trung tính có chủ đích: thẻ không khẳng định từ loại khi dữ liệu chưa đủ.
+  unknown: {
+    primary: '#76716A',
+    light: '#F3F0E8',
+    gradient: 'linear-gradient(145deg, #76716A 0%, #4A463F 100%)',
+    glow: 'rgba(118,113,106,0.35)',
+    label: 'Wort',
+    tag: '—',
+  },
 }
 
 /** Map WordListItem (GET /words) → thẻ vuốt. Giữ nguyên logic v1 (kể cả chọn nghĩa theo locale). */
@@ -97,7 +107,11 @@ export function mapWordToSwipe(w: WordListItem, locale: string): SwipeCardData {
   if (dtype === 'verb') type = 'verb'
   else if (dtype === 'adjective') type = 'adjective'
   else if (isNounWord) type = nounArticle === 'die' ? 'feminine' : nounArticle === 'das' ? 'neuter' : 'masculine'
-  else type = 'adjective' // non-noun, hoặc "danh từ" thiếu dữ liệu giống → không hiển thị mạo từ
+  // Danh từ thiếu dữ liệu giống rơi vào nhóm trung tính. Trước 02/09/2026 nhánh này gán 'adjective',
+  // nên thẻ dán nhãn "Adjektiv" lên danh từ — sai kiến thức, và trúng ~39% số từ trong kho vì rất nhiều
+  // danh từ chưa có dòng trong bảng nouns. Không hiển thị được mạo từ là một chuyện; khẳng định sai từ
+  // loại lại là chuyện khác.
+  else type = 'unknown'
 
   const art = isNounWord ? nounArticle : undefined
   const articleCap = art ? art.charAt(0).toUpperCase() + art.slice(1) : undefined

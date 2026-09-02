@@ -60,10 +60,12 @@ function SwipeCards() {
     setLoadError('')
     ;(async () => {
       try {
-        const wordsRes = await api.get<WordListResponse>('/words', {
+        // /words/deck thay cho /words?page=0: trang 0 của danh sách sắp theo cấp rồi alphabet nên bộ thẻ
+        // trước đây bất biến — trộn phía client cũng chỉ trộn trong đúng 20 từ đầu bảng chữ cái.
+        const wordsRes = await api.get<WordListResponse>('/words/deck', {
           params: {
+            mode: 'SWIPE',
             size: 20,
-            page: 0,
             locale: uiLocale || 'de',
             cefr: deckCefr,
             ...(urlTagQ ? { tag: urlTagQ } : {}),
@@ -72,7 +74,9 @@ function SwipeCards() {
         if (cancelled) return
         const loc = uiLocale || 'de'
         setPoolTotal(Number.isFinite(wordsRes.data.total) ? wordsRes.data.total : null)
-        const cards = shuffle((wordsRes.data.items ?? []).map((w) => mapWordToSwipe(w, loc)))
+        // KHÔNG shuffle nữa: server đã xếp đến-hạn-ôn trước rồi tới từ chưa học theo dải tần suất,
+        // trộn lại phía client là phá đúng thứ tự sư phạm vừa dựng.
+        const cards = (wordsRes.data.items ?? []).map((w) => mapWordToSwipe(w, loc))
         setDeck(cards)
         if (cards.length > 0) {
           trackFeatureAction('swipe_cards', 'started', { cefr: deckCefr, tag: urlTagQ, mode })

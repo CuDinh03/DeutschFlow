@@ -146,8 +146,9 @@ class VocabularyFacetsIntegrationTest extends AbstractPostgresIntegrationTest {
         WordFacetsResponse f = facets(null, null, null, null, null);
 
         assertThat(f.dtype())
-                .as("'NOUN' viết hoa của migration cũ phải nằm chung nhóm 'Noun'")
-                .containsEntry("Noun", 4L).containsEntry("Verb", 1L).containsEntry("Adjective", 1L)
+                .as("'NOUN' viết hoa của migration cũ phải nằm chung nhóm 'Noun'; danh từ chưa gán giống"
+                        + " cũng thuộc nhóm này từ khi ràng buộc mạo từ chuyển sang /words/deck (đợt 4)")
+                .containsEntry("Noun", 5L).containsEntry("Verb", 1L).containsEntry("Adjective", 1L)
                 .as("nhãn ngoài danh mục phải rơi vào nhóm 'Word', không được biến mất")
                 .containsEntry("Word", 1L);
         assertThat(f.gender()).containsEntry("DER", 2L).containsEntry("DIE", 1L).containsEntry("DAS", 1L);
@@ -189,7 +190,9 @@ class VocabularyFacetsIntegrationTest extends AbstractPostgresIntegrationTest {
     @DisplayName("lọc dtype=Noun bắt CẢ danh từ nhãn hoa của migration cũ")
     void dtypeFilterIsCaseInsensitive() {
         WordFacetsResponse nouns = facets(null, "Noun", null, null, null);
-        assertThat(nouns.total()).as("3 danh từ mới + 1 danh từ nhãn 'NOUN'").isEqualTo(4);
+        assertThat(nouns.total())
+                .as("3 danh từ có giống + 1 nhãn 'NOUN' + 1 danh từ chưa gán giống")
+                .isEqualTo(5);
 
         WordFacetsResponse others = facets(null, "Word", null, null, null);
         assertThat(others.total()).as("nhãn PHRASE phải lọc được qua nhóm 'Word'").isEqualTo(1);
@@ -200,10 +203,10 @@ class VocabularyFacetsIntegrationTest extends AbstractPostgresIntegrationTest {
     void axisBeingCountedIgnoresItsOwnFilter() {
         WordFacetsResponse f = facets(null, "Noun", null, null, null);
 
-        assertThat(f.total()).as("tổng phải phản ánh bộ lọc đang bật").isEqualTo(4);
+        assertThat(f.total()).as("tổng phải phản ánh bộ lọc đang bật").isEqualTo(5);
         assertThat(f.dtype())
                 .as("chip 'Động từ' vẫn phải cho biết chọn nó thì còn 1 từ")
-                .containsEntry("Noun", 4L).containsEntry("Verb", 1L).containsEntry("Adjective", 1L);
+                .containsEntry("Noun", 5L).containsEntry("Verb", 1L).containsEntry("Adjective", 1L);
     }
 
     @Test
