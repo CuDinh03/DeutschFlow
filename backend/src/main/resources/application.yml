@@ -431,6 +431,8 @@ app:
       mutate-window-seconds: ${APP_NOTIFICATION_MUTATE_RL_WINDOW:60}
       stream-connect-max-per-window: ${APP_NOTIFICATION_SSE_RL_MAX:20}
       stream-connect-window-seconds: ${APP_NOTIFICATION_SSE_RL_WINDOW:60}
+    # Nightly purge (UserNotificationRetentionJob): delete READ notifications whose read_at is
+    # older than delete-read-older-than-days. Unread rows are never deleted, regardless of age.
     retention:
       enabled: ${APP_NOTIFICATION_RETENTION_ENABLED:true}
       delete-read-older-than-days: ${APP_NOTIFICATION_RETENTION_READ_DAYS:90}
