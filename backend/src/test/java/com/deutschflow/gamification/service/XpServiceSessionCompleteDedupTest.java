@@ -2,7 +2,6 @@ package com.deutschflow.gamification.service;
 
 import com.deutschflow.gamification.entity.UserXpEvent;
 import com.deutschflow.gamification.entity.UserXpEvent.XpEventType;
-import com.deutschflow.gamification.repository.AchievementRepository;
 import com.deutschflow.gamification.repository.UserAchievementRepository;
 import com.deutschflow.gamification.repository.UserXpEventRepository;
 import com.deutschflow.notification.service.UserNotificationService;
@@ -38,7 +37,7 @@ import static org.mockito.Mockito.when;
 class XpServiceSessionCompleteDedupTest {
 
     @Mock UserXpEventRepository xpEventRepository;
-    @Mock AchievementRepository achievementRepository;
+    @Mock AchievementCatalogService achievementCatalog;
     @Mock UserAchievementRepository userAchievementRepository;
     @Mock LearningSessionProgressRepository sessionProgressRepository;
     @Mock UserNotificationService userNotificationService;
@@ -51,9 +50,10 @@ class XpServiceSessionCompleteDedupTest {
 
     @BeforeEach
     void setUp() {
-        xpService = new XpService(xpEventRepository, achievementRepository, userAchievementRepository,
+        xpService = new XpService(xpEventRepository, achievementCatalog, userAchievementRepository,
                 sessionProgressRepository, userNotificationService, jdbcTemplate);
         when(userAchievementRepository.findUnlockedAchievementIdsByUserId(any())).thenReturn(Set.of());
+        when(achievementCatalog.getAll()).thenReturn(java.util.List.of());
     }
 
     @Test

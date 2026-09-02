@@ -7,7 +7,6 @@ import com.deutschflow.gamification.entity.Achievement;
 import com.deutschflow.gamification.entity.UserAchievement;
 import com.deutschflow.gamification.entity.UserXpEvent;
 import com.deutschflow.gamification.entity.UserXpEvent.XpEventType;
-import com.deutschflow.gamification.repository.AchievementRepository;
 import com.deutschflow.gamification.repository.UserAchievementRepository;
 import com.deutschflow.gamification.repository.UserXpEventRepository;
 import com.deutschflow.notification.service.UserNotificationService;
@@ -66,7 +65,7 @@ public class XpService {
     public static final int XP_SRS_REVIEW        = 2;
 
     private final UserXpEventRepository xpEventRepository;
-    private final AchievementRepository achievementRepository;
+    private final AchievementCatalogService achievementCatalog;
     private final UserAchievementRepository userAchievementRepository;
     private final LearningSessionProgressRepository sessionProgressRepository;
     private final UserNotificationService userNotificationService;
@@ -177,13 +176,51 @@ public class XpService {
     /**
      * Award XP for an SRS vocab review (called from SrsService).
      * No daily cap enforcement here — kept simple for now.
+     *
+     * <p>KHÔNG evict "classLeaderboard" ở đây (khác các award kia): SRS là đường nóng nhất —
+     * mỗi thẻ một request — mà cache đó TTL 5' tự hết hạn; evict allEntries mỗi thẻ nghĩa là
+     * leaderboard của MỌI lớp bị tính lại liên tục trong lúc bất kỳ ai đang ôn tập.
      */
     @Transactional
-    @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardSrsReview(Long userId) {
         lockUserXp(userId);
         int oldLevel = currentLevel(userId);
         record(userId, XP_SRS_REVIEW, XpEventType.SRS_REVIEW, null, null, null);
+        checkLevelUp(userId, oldLevel);
+        checkAchievements(userId);
+    }
+
+    /**
+     * Award XP cho CẢ batch review một lần (POST /api/srs/review/batch — offline sync).
+     *
+     * <p>Trước đây batch N thẻ gọi {@link #awardSrsReview} N lần: N advisory lock, 2N lần SUM
+     * toàn bảng xp_events, N lần quét achievement (audit 02/09: 30 thẻ ≈ 250–350 query).
+     * Giờ: lock 1 lần, ghi N event bằng MỘT saveAll (giữ nguyên semantics event-sourcing —
+     * achievement SRS_REVIEW_COUNT đếm số event nên vẫn đúng từng thẻ), rồi check level-up +
+     * achievement đúng MỘT lần ở cuối — thông báo lên cấp/huy hiệu hiện một lần cuối phiên ôn
+     * (owner chốt 02/09).
+     */
+    @Transactional
+    public void awardSrsReviewBatch(Long userId, int reviewCount) {
+        if (reviewCount <= 0) {
+            return;
+        }
+        lockUserXp(userId);
+        int oldLevel = currentLevel(userId);
+        List<UserXpEvent> events = new ArrayList<>(reviewCount);
+        for (int i = 0; i < reviewCount; i++) {
+            events.add(UserXpEvent.builder()
+                    .userId(userId)
+                    .xpAmount(XP_SRS_REVIEW)
+                    .eventType(XpEventType.SRS_REVIEW)
+                    .build());
+        }
+        try {
+            xpEventRepository.saveAll(events);
+        } catch (Exception e) {
+            log.warn("[XP] Failed to record SRS batch ({} reviews) for user {}: {}",
+                    reviewCount, userId, e.getMessage());
+        }
         checkLevelUp(userId, oldLevel);
         checkAchievements(userId);
     }
@@ -202,7 +239,7 @@ public class XpService {
         int xpNeededForNext = nextLevelXp - currentLevelXp;
 
         Set<Long> unlockedIds = userAchievementRepository.findUnlockedAchievementIdsByUserId(userId);
-        List<AchievementDto> allAchievements = achievementRepository.findAll()
+        List<AchievementDto> allAchievements = achievementCatalog.getAll()
                 .stream()
                 .map(a -> toDto(a, unlockedIds.contains(a.getId())))
                 .toList();
@@ -348,7 +385,7 @@ public class XpService {
             // existsBy() per achievement, and read the catalogue from cache. Skip the aggregate
             // counts entirely when there's nothing left to unlock.
             Set<Long> unlockedIds = userAchievementRepository.findUnlockedAchievementIdsByUserId(userId);
-            List<Achievement> candidates = achievementRepository.findAll().stream()
+            List<Achievement> candidates = achievementCatalog.getAll().stream()
                     .filter(a -> !unlockedIds.contains(a.getId()))
                     .toList();
             if (candidates.isEmpty()) {

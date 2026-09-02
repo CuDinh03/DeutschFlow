@@ -129,6 +129,28 @@ public class SrsService {
      */
     @Transactional
     public VocabReviewCard recordReview(Long userId, ReviewRequest req) {
+        VocabReviewCard card = applyReview(userId, req);
+        try { xpService.awardSrsReview(userId); } catch (Exception ignored) {}
+        return card;
+    }
+
+    /**
+     * Batch review (offline queue). Áp từng thẻ theo thứ tự nhận, nhưng XP thì cộng MỘT lần
+     * cho cả batch ({@link XpService#awardSrsReviewBatch}) thay vì award mỗi thẻ — audit 02/09:
+     * 30 thẻ ≈ 250–350 query chỉ riêng phần gamification. Thông báo lên cấp/huy hiệu vì thế
+     * hiện một lần ở cuối phiên ôn (owner chốt 02/09).
+     */
+    @Transactional
+    public List<VocabReviewCard> recordReviewBatch(Long userId, List<ReviewRequest> reviews) {
+        List<VocabReviewCard> results = reviews.stream()
+                .map(req -> applyReview(userId, req))
+                .toList();
+        try { xpService.awardSrsReviewBatch(userId, results.size()); } catch (Exception ignored) {}
+        return results;
+    }
+
+    /** Ruột chung của review đơn lẻ và batch: cập nhật lịch FSRS, KHÔNG đụng XP. */
+    private VocabReviewCard applyReview(Long userId, ReviewRequest req) {
         var entry = repo.findByUserIdAndVocabId(userId, req.vocabId())
                 .orElseThrow(() -> new IllegalArgumentException("Vocab not found in SRS schedule"));
 
@@ -146,8 +168,6 @@ public class SrsService {
         repo.save(entry);
         log.debug("[SRS] Reviewed '{}' algo={} q={} next={}",
                 entry.getGerman(), entry.getAlgorithmVersion(), quality, entry.getNextReviewAt());
-
-        try { xpService.awardSrsReview(userId); } catch (Exception ignored) {}
 
         return toCard(entry);
     }
