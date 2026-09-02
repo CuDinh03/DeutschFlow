@@ -32,7 +32,7 @@ public class GlosbeVocabularyAutoImportRunner {
         runImport("startup");
     }
 
-    @Scheduled(cron = "${app.vocabulary.glosbe.cron:0 0 3 * * *}")
+    @Scheduled(cron = "${app.vocabulary.glosbe.cron:0 0 3 * * *}", zone = "Asia/Ho_Chi_Minh")
     @SchedulerLock(name = "glosbeAutoImport", lockAtMostFor = "PT1H", lockAtLeastFor = "PT5M")
     public void runScheduledImport() {
         runImport("scheduled");

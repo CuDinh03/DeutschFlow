@@ -40,7 +40,7 @@ public class GuestOnboardingSessionCleanupJob {
         this.batchSize = Math.max(100, batchSize);
     }
 
-    @Scheduled(cron = "${app.onboarding.guest-session-cleanup.cron:0 15 3 * * *}")
+    @Scheduled(cron = "${app.onboarding.guest-session-cleanup.cron:0 15 3 * * *}", zone = "Asia/Ho_Chi_Minh")
     @SchedulerLock(name = "guestOnboardingSessionCleanup", lockAtMostFor = "PT15M", lockAtLeastFor = "PT1M")
     @Transactional
     public void purgeExpiredSessions() {
