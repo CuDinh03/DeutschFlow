@@ -1,5 +1,6 @@
 package com.deutschflow.admin.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.system.service.SystemConfigService;
@@ -72,8 +73,10 @@ class AdminAiConfigControllerValidationTest {
         assertThatCode(() -> controller.updateConfig(dto, null)).doesNotThrowAnyException();
 
         verify(systemConfigService).setString(eq("ai.maxTokens"), eq("2000"), anyString());
+        // F-M4 (03/09/2026): controller nay truyền AuditActor thay vì (null, email, role) rời rạc.
+        // Authentication null trong bài này → actor rỗng, đúng như trước.
         verify(auditLogService).log(
-                eq("admin.aiconfig.updated"), isNull(), isNull(), isNull(),
+                eq("admin.aiconfig.updated"), eq(new AuditActor(null, null, null)),
                 eq("AI_CONFIG"), eq("ai"), anyMap());
     }
 }

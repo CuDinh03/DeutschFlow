@@ -1,5 +1,6 @@
 package com.deutschflow.notification.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.notification.dto.BroadcastNotificationRequest;
 import com.deutschflow.notification.dto.BroadcastNotificationResponse;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -64,23 +66,34 @@ public class AdminNotificationController {
         // Mass, effectively-irreversible outbound action → audit who sent what to whom (had none before).
         auditLogService.log(
                 "admin.notification.broadcast",
-                null,
-                authentication == null ? null : authentication.getName(),
-                actorRole(authentication),
+                AuditActor.ofAuthentication(authentication),
                 "NOTIFICATION",
                 request.audienceType(),
-                Map.of(
-                        "audienceType", request.audienceType(),
-                        "title", request.payload().title(),
-                        "recipientCount", response.recipientCount(),
-                        "status", response.status()));
+                broadcastMetadata(request, response));
         return ResponseEntity.ok(response);
     }
 
-    private String actorRole(Authentication authentication) {
-        if (authentication == null || authentication.getAuthorities() == null || authentication.getAuthorities().isEmpty()) {
-            return null;
+    /**
+     * Audit F-M4 (03/09/2026): vết cũ chỉ ghi {@code audienceType}, nên một broadcast SINGLE_USER
+     * để lại đúng chữ "SINGLE_USER" — không biết đã gửi cho AI. Với TIER/ROLE cũng vậy: hai lần
+     * gửi tới hai tầng khác nhau nhìn giống hệt nhau trong nhật ký. Ghi thêm tiêu chí chọn đối tượng.
+     */
+    private Map<String, Object> broadcastMetadata(BroadcastNotificationRequest request,
+                                                  BroadcastNotificationResponse response) {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("audienceType", request.audienceType());
+        meta.put("title", request.payload().title());
+        meta.put("recipientCount", response.recipientCount());
+        meta.put("status", response.status());
+        if (request.targetEmail() != null && !request.targetEmail().isBlank()) {
+            meta.put("targetEmail", request.targetEmail());
         }
-        return authentication.getAuthorities().iterator().next().getAuthority();
+        if (request.tier() != null && !request.tier().isBlank()) {
+            meta.put("tier", request.tier());
+        }
+        if (request.role() != null && !request.role().isBlank()) {
+            meta.put("role", request.role());
+        }
+        return meta;
     }
 }

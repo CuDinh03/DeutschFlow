@@ -284,9 +284,11 @@ class AdminManagementServiceUnitTest {
         when(userRepository.countByRoleAndActiveTrue(User.Role.ADMIN)).thenReturn(2L);
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.updateUserRole(11L, "student");
+        var out = service.updateUserRole(11L, "student");
 
         assertEquals(User.Role.STUDENT, u.getRole());
+        // F-M4: vết role.updated phải nói được đổi TỪ đâu, không chỉ vai trò mới.
+        assertEquals("ADMIN", out.get("previousRole"));
         // Access token cũ mang authorities vai trò CŨ; JwtAuthFilter còn cache UserDetails 60s.
         verify(refreshTokenRepository).revokeAllByUserId(11L);
     }

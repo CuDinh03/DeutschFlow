@@ -1,5 +1,6 @@
 package com.deutschflow.interview.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.interview.dto.InterviewRubricUpdateRequest;
@@ -74,8 +75,9 @@ class InterviewAdminControllerRubricTest {
         assertThatCode(() -> controller.updateRubric(1L, req, null)).doesNotThrowAnyException();
 
         verify(rubricRepository).save(any());
+        // F-M4 (03/09/2026): controller nay truyền AuditActor thay vì (null, email, role) rời rạc.
         verify(auditLogService).log(
-                eq("admin.interview.rubric.updated"), isNull(), isNull(), isNull(),
+                eq("admin.interview.rubric.updated"), eq(new AuditActor(null, null, null)),
                 eq("INTERVIEW_RUBRIC"), eq("1"), anyMap());
     }
 }
