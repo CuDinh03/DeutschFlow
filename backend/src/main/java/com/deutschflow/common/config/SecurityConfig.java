@@ -1,6 +1,7 @@
 package com.deutschflow.common.config;
 
 import com.deutschflow.common.security.JwtAuthFilter;
+import com.deutschflow.common.security.PrometheusScrapeTokenFilter;
 import com.deutschflow.common.security.SecurityExceptionLoggingHandler;
 import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final PrometheusScrapeTokenFilter prometheusScrapeTokenFilter;
     private final UserDetailsService userDetailsService; // inject từ UserDetailsServiceConfig
     private final Environment environment;
     private final SecurityExceptionLoggingHandler securityExceptionLoggingHandler;
@@ -114,7 +116,10 @@ public class SecurityConfig {
                                 auth.requestMatchers("/actuator/prometheus").permitAll();
                                 auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
                         } else {
-                                auth.requestMatchers("/actuator/prometheus").hasRole("ADMIN");
+                                // ROLE_PROMETHEUS do PrometheusScrapeTokenFilter cấp khi scrape mang
+                                // đúng bearer token tĩnh (PROMETHEUS_SCRAPE_TOKEN). Token rỗng → filter
+                                // bất hoạt → thực tế chỉ còn ADMIN (fail-closed, đúng hành vi cũ).
+                                auth.requestMatchers("/actuator/prometheus").hasAnyRole("ADMIN", "PROMETHEUS");
                                 auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").hasRole("ADMIN");
                         }
 
@@ -128,6 +133,9 @@ public class SecurityConfig {
                         auth.anyRequest().authenticated();
                 })
                 .authenticationProvider(authenticationProvider())
+                // Scrape-token filter đứng TRƯỚC jwt filter: set auth ROLE_PROMETHEUS xong thì
+                // JwtAuthFilter thấy "already set" và bỏ qua (token tĩnh không phải JWT).
+                .addFilterBefore(prometheusScrapeTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

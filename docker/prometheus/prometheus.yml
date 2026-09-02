@@ -25,5 +25,12 @@ scrape_configs:
   # mới bằng: sudo docker restart deutschflow-prometheus (thư mục này được bind-mount).
   - job_name: 'deutschflow-backend'
     metrics_path: '/actuator/prometheus'
+    # /actuator/prometheus được bảo vệ bằng bearer token tĩnh ở tầng app (401 nếu thiếu/sai).
+    # Tạo file token MỘT LẦN trên EC2 (gitignored, cùng giá trị với PROMETHEUS_SCRAPE_TOKEN
+    # trong .env.production):  printf '%s' "<token>" > docker/prometheus/scrape-token
+    # File thiếu → target down với lỗi đọc file (alert BackendScrapeDown sẽ kêu), prometheus vẫn chạy.
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/scrape-token
     static_configs:
       - targets: ['deutschflow-backend:8080']

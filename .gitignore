@@ -152,6 +152,9 @@ frontend/test-results/
 # Alertmanager config thật chứa Telegram bot token — chỉ commit .example
 docker/alertmanager/alertmanager.yml
 
+# Token scrape Prometheus (cùng giá trị PROMETHEUS_SCRAPE_TOKEN trong .env.production)
+docker/prometheus/scrape-token
+
 # ============================================================
 # COMPANION IMAGES — nếu dùng ảnh lớn (>1MB) thì dùng Git LFS
 # Tạm thời bỏ qua nếu cần (uncomment dưới đây)

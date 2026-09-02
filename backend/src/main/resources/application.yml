@@ -318,6 +318,11 @@ app:
     # chính mình thêm vào — nên kẻ tấn công KHÔNG thể giả mạo XFF để né rate-limit.
     # 0 = không có proxy (dùng socket address). 1 = một proxy (mặc định). 2 = CloudFront→ALB.
     trusted-proxy-count: ${APP_SECURITY_TRUSTED_PROXY_COUNT:1}
+    # Bearer token TĨNH cho Prometheus scrape /actuator/prometheus (PrometheusScrapeTokenFilter).
+    # RỖNG = tắt (fail-closed, endpoint giữ ADMIN-only → scrape 401 như trước). Bật: sinh chuỗi
+    # ngẫu nhiên ≥32 ký tự, đặt PROMETHEUS_SCRAPE_TOKEN trong .env.production VÀ ghi CÙNG giá trị
+    # vào docker/prometheus/scrape-token trên EC2 (gitignored — prometheus.yml đọc credentials_file).
+    prometheus-scrape-token: ${PROMETHEUS_SCRAPE_TOKEN:}
     # M-2/L-5: fixed-window theo IP cho TOÀN BỘ /api/public/** (Redis, chia sẻ giữa node;
     # Redis chết → fail-open). free-grade vẫn giữ cap riêng chặt hơn của LeadMagnetService.
     public-rate-limit:
