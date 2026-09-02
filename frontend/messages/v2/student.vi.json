@@ -97,6 +97,16 @@
           "Adjective": "Tính từ",
           "Word": "Khác"
         }
+      },
+      "cta": {
+        "cap": "Việc hôm nay",
+        "due": "Ôn {count} từ đến hạn",
+        "dueDesc": "Ôn đúng hạn là cách nhớ lâu nhất — làm trước khi học từ mới.",
+        "fresh": "Học 20 từ mới",
+        "freshDesc": "Không còn từ nào đến hạn ôn. Nhận bộ thẻ mới theo mức độ hay gặp."
+      },
+      "lookup": {
+        "cap": "Tra cứu"
       }
     },
     "grammar": {

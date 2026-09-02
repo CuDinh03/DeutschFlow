@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { BarChart3, HelpCircle, Layers, Mic, Volume2 } from 'lucide-react'
+import { ArrowRight, BarChart3, HelpCircle, Layers, Mic, RotateCcw, Volume2 } from 'lucide-react'
 import api from '@/lib/api'
+import { useReviewDueCount } from '@/hooks/useReviewDueCount'
 import { cleanExample, colorForArticle } from '@/lib/vocabWords'
 import { GaPageHdr, TkSearch, GaCap, LoadingState, ErrorBanner } from '@/components/ui-v2'
 import {
@@ -35,7 +36,14 @@ interface Word {
   article: string | null
   example: string | null
   level: string | null
+  /** NEW | LEARNING | MASTERED — theo lịch ôn của chính người học. */
+  srsStatus: string | null
 }
+
+/** Nơi CTA chính dẫn tới khi còn thẻ đến hạn ôn. Không nằm trong DRILLS — đây là màn ôn tập SRS. */
+const REVIEW_HREF = '/v2/student/review'
+/** Khi không còn gì đến hạn thì CTA chính mời học từ mới, tức chính bài thẻ vuốt. */
+const FRESH_HREF = '/v2/student/vocabulary/swipe'
 
 /** Dải lối vào các bài luyện — cùng thứ tự với sư phạm: nói → thẻ → mạo từ → thống kê. */
 const DRILLS = [
@@ -78,6 +86,7 @@ function normalize(r: Record<string, unknown>, i: number): Word {
     article: isNonNoun(r) ? null : (article && colorForArticle(article) ? article : null),
     example: cleanExample(str(r, 'exampleDe', 'example', 'sampleSentence')) || null,
     level: str(r, 'level', 'cefrLevel', 'cefr') || null,
+    srsStatus: str(r, 'srsStatus') || null,
   }
 }
 
@@ -93,6 +102,26 @@ function speak(text: string) {
 // trang và cuộn tới đâu nạp tới đó (infinite scroll). Trước đây trang chỉ gọi /words không tham số
 // → mặc định 20 từ, lọc phía client trong 20 từ đó → không bao giờ thấy hết kho.
 const PAGE_SIZE = 50
+
+/**
+ * Chấm trạng thái ôn tập trên thẻ từ.
+ *
+ * <p>Chỉ vẽ cho từ ĐANG học hoặc ĐÃ thuộc — chấm trên mọi từ chưa học là nhiễu. Màu không phải tín hiệu
+ * duy nhất: mỗi chấm mang nhãn chữ cho trình đọc màn hình và tooltip.
+ */
+function SrsDot({ status, label }: { status: string; label: string }) {
+  if (status !== 'LEARNING' && status !== 'MASTERED') return null
+  const color = status === 'MASTERED' ? 'var(--ga-green)' : 'var(--ga-gold)'
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 rounded-ga border border-ga-line px-1.5 py-0.5"
+      title={label}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} aria-hidden />
+      <span className="ga-ui text-[10px] font-semibold text-ga-muted">{label}</span>
+    </span>
+  )
+}
 
 /** Một lựa chọn trên dải lọc. `color` chỉ dùng cho mạo từ — der xanh · die đỏ · das lục. */
 function Chip({
@@ -146,6 +175,7 @@ function FilterRow({ cap, children }: { cap: string; children: ReactNode }) {
 export default function V2StudentVocabularyPage() {
   const t = useTranslations('v2.student.vocabulary')
   const locale = useLocale()
+  const dueCount = useReviewDueCount()
   const [words, setWords] = useState<Word[]>([])
   const [total, setTotal] = useState(0)
   const [query, setQuery] = useState('')
@@ -258,50 +288,70 @@ export default function V2StudentVocabularyPage() {
     if ((facets.cefr[UNGRADED] ?? 0) > 0 || filters.cefr === UNGRADED) levels.push(UNGRADED)
     return levels
   }, [facets.cefr, filters.cefr])
+  // Một CTA chính thay bốn ô đồng hạng: bốn lối vào ngang nhau không trả lời được câu "giờ tôi làm gì".
+  // Còn thẻ đến hạn thì ôn trước — đó là việc SRS đòi hôm nay; hết hạn mới mời học từ mới.
+  const cta = dueCount > 0
+    ? { href: REVIEW_HREF, Icon: RotateCcw, title: t('cta.due', { count: dueCount }), desc: t('cta.dueDesc') }
+    : { href: FRESH_HREF, Icon: Layers, title: t('cta.fresh'), desc: t('cta.freshDesc') }
+  // Không lặp lại lối vào mà CTA đã dẫn tới.
+  const secondaryDrills = DRILLS.filter((d) => d.href !== cta.href)
+
   const anyFilter = hasAnyFilter(filters)
   const showFilters = statusChips.length > 0 || dtypeChips.length > 0 || facets.topics.length > 0 || anyFilter
 
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr
-        accent
-        title={t('title')}
-        subtitle={t('subtitle')}
-        right={
-          <TkSearch
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('searchPlaceholder')}
-            containerClassName="w-full lg:w-[230px]"
-          />
-        }
-      />
+      {/* Ô tìm rời khỏi header: thanh trên đã có ô tìm toàn cục, hai ô cạnh nhau chỉ gây phân vân.
+          Nó xuống mở đầu khối tra cứu, nơi nó thật sự thuộc về. */}
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
-        {/* Lối vào các bài luyện — trước đây chỉ có ở cây v1, /v2 không có đường nào bấm được. */}
-        <div className="mb-6">
-          <GaCap className="mb-3 block">{t('drills.cap')}</GaCap>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {DRILLS.map(({ key, href, Icon }) => (
-              <Link
-                key={key}
-                href={href}
-                className="group flex items-start gap-3 border border-ga-line bg-ga-card p-4 transition-all duration-200 hover:-translate-y-1 hover:border-ga-accent hover:shadow-[0_12px_30px_rgba(22,21,19,0.16)]"
-              >
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-ga bg-ga-accent-soft text-ga-accent">
-                  <Icon size={17} aria-hidden />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-[14.5px] font-semibold text-ga-ink group-hover:text-ga-accent">
-                    {t(`drills.${key}.title`)}
-                  </span>
-                  <span className="ga-ui mt-0.5 block text-[12.5px] leading-snug text-ga-muted">
-                    {t(`drills.${key}.desc`)}
-                  </span>
-                </span>
-              </Link>
-            ))}
-          </div>
+        {/* Việc chính hôm nay, nói thẳng ra một lần. */}
+        <Link
+          href={cta.href}
+          className="group mb-3 flex items-center gap-4 rounded-ga bg-ga-accent px-5 py-5 text-ga-accent-ink transition-transform duration-200 hover:-translate-y-0.5 sm:px-7 sm:py-6"
+        >
+          <cta.Icon size={26} aria-hidden className="shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="ga-ui block text-[11px] font-semibold uppercase tracking-[0.12em] opacity-70">
+              {t('cta.cap')}
+            </span>
+            <span className="mt-1 block font-ga-display text-[21px] font-medium leading-tight sm:text-[25px]">
+              {cta.title}
+            </span>
+            <span className="ga-ui mt-1 block text-[12.5px] leading-snug opacity-80">{cta.desc}</span>
+          </span>
+          <ArrowRight
+            size={20}
+            aria-hidden
+            className="shrink-0 transition-transform duration-200 group-hover:translate-x-1"
+          />
+        </Link>
+
+        {/* Ba lối vào còn lại: vẫn bấm được, nhưng không còn tranh chỗ với việc chính. */}
+        {/* 3 hay 4 mục tuỳ CTA dẫn đi đâu, nên để chúng tự chia đều thay vì ghim số cột. */}
+        <div className="mb-8 flex flex-wrap gap-2">
+          {secondaryDrills.map(({ key, href, Icon }) => (
+            <Link
+              key={key}
+              href={href}
+              className="group flex min-w-[9.5rem] flex-1 items-center gap-2.5 border border-ga-line bg-ga-card px-3 py-2.5 transition-colors hover:border-ga-accent"
+            >
+              <Icon size={15} aria-hidden className="shrink-0 text-ga-accent" />
+              <span className="ga-ui truncate text-[13px] font-semibold text-ga-ink group-hover:text-ga-accent">
+                {t(`drills.${key}.title`)}
+              </span>
+            </Link>
+          ))}
         </div>
+
+        {/* Khối tra cứu: tìm → lọc → đếm → lưới, đi liền một mạch. */}
+        <GaCap className="mb-3 block">{t('lookup.cap')}</GaCap>
+        <TkSearch
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t('searchPlaceholder')}
+          containerClassName="mb-3 w-full"
+        />
 
         {/* Ba trục có dữ liệu thật thay cho một trục CEFR đơn độc: trạng thái học · từ loại + mạo từ ·
             chủ đề. Cấp độ lùi xuống một select vì đó là trục dữ liệu yếu nhất của kho. Chip chỉ hiện khi
@@ -445,9 +495,16 @@ export default function V2StudentVocabularyPage() {
                     </div>
                     <p className="ga-ui mt-1 text-[14px] text-ga-ink">{w.meaning || '—'}</p>
                     {w.example && <p className="ga-ui mt-2 text-[12.5px] italic text-ga-muted">“{w.example}”</p>}
-                    {w.level && (
-                      <span className="ga-ui mt-2 inline-block rounded-ga border border-ga-line px-1.5 py-0.5 text-[10px] font-semibold text-ga-muted">
-                        {w.level}
+                    {(w.level || w.srsStatus) && (
+                      <span className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {w.level && (
+                          <span className="ga-ui inline-block rounded-ga border border-ga-line px-1.5 py-0.5 text-[10px] font-semibold text-ga-muted">
+                            {w.level}
+                          </span>
+                        )}
+                        {w.srsStatus && (
+                          <SrsDot status={w.srsStatus} label={t(`filters.status.${w.srsStatus}`)} />
+                        )}
                       </span>
                     )}
                   </div>
