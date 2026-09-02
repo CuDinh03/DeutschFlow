@@ -1,5 +1,100 @@
 {
   "adminOps": {
+    "maintenance": {
+      "title": "System maintenance",
+      "subtitle": "Schedule, announce and toggle maintenance mode",
+      "createNew": "New window",
+      "emergency": "Emergency on",
+      "count": "{count} maintenance windows",
+      "empty": "No maintenance windows yet.",
+      "loadError": "Failed to load",
+      "activeBanner": {
+        "title": "MAINTENANCE ACTIVE — users are blocked",
+        "until": "expected done {time}",
+        "noEnd": "no end time set"
+      },
+      "status": {
+        "SCHEDULED": "SCHEDULED",
+        "ACTIVE": "ACTIVE",
+        "COMPLETED": "COMPLETED",
+        "CANCELLED": "CANCELLED"
+      },
+      "mode": {
+        "FULL": "Full block",
+        "ANNOUNCE_ONLY": "Announce only"
+      },
+      "row": {
+        "starts": "Starts {time}",
+        "ends": "→ ends {time}",
+        "notified": "users notified",
+        "reminded": "reminded"
+      },
+      "actions": {
+        "edit": "Edit",
+        "activate": "Start now",
+        "cancel": "Cancel",
+        "complete": "Finish",
+        "extend": "Extend"
+      },
+      "form": {
+        "titleCreate": "Schedule maintenance",
+        "titleEdit": "Edit window",
+        "titleExtend": "Extend / note (ACTIVE)",
+        "titleLabel": "Title",
+        "titlePlaceholder": "e.g. Database upgrade",
+        "noteLabel": "Note (shown verbatim to users)",
+        "notePlaceholder": "e.g. About 30 minutes.",
+        "startsLabel": "Starts (your local time)",
+        "endsLabel": "Expected end",
+        "endsOptional": "(leave empty if unknown)",
+        "modeLabel": "Mode",
+        "modeFull": "FULL — block all API",
+        "modeAnnounce": "ANNOUNCE_ONLY — banner only, no blocking",
+        "autoActivate": "Auto-start on time",
+        "autoComplete": "Auto-finish at expected end (needs end time)",
+        "notifyUsers": "Notify all users about this schedule now",
+        "submitCreate": "Create",
+        "submitSave": "Save"
+      },
+      "validation": {
+        "titleRequired": "Enter a title.",
+        "startsRequired": "Pick a start time.",
+        "endsAfterStarts": "End must be after start.",
+        "autoCompleteNeedsEnd": "Auto-finish needs an end time."
+      },
+      "toast": {
+        "created": "Window created (no notification).",
+        "createdNotified": "Window created and all users notified.",
+        "overlap": "Heads-up: overlaps window #{ids}.",
+        "saved": "Saved.",
+        "activated": "Maintenance is ON — users are blocked.",
+        "completed": "Maintenance finished — system reopened, users notified.",
+        "cancelled": "Window cancelled.",
+        "emergencyOn": "EMERGENCY maintenance is ON — effective within ~15s."
+      },
+      "confirm": {
+        "emergencyTitle": "Turn on EMERGENCY maintenance?",
+        "emergencyDesc": "FULL mode starts immediately, no prior notice.",
+        "emergencyDetail1": "All learners and teachers are blocked within ~15 seconds.",
+        "emergencyDetail2": "Payment webhooks are blocked temporarily (providers retry).",
+        "emergencyDetail3": "Only admins can act until you press Finish.",
+        "emergencyOk": "Turn on now",
+        "activateTitle": "Start maintenance now?",
+        "activateDesc": "\"{title}\" becomes ACTIVE right now.",
+        "activateDetail1": "All users (except admins) are blocked within ~15 seconds.",
+        "activateDetail2": "Start time is recorded as now.",
+        "activateOk": "Start now",
+        "completeTitle": "Finish maintenance?",
+        "completeDesc": "\"{title}\" becomes COMPLETED and the system reopens.",
+        "completeDetail1": "Users get a one-time \"we're back\" notification.",
+        "completeOk": "Finish",
+        "cancelTitle": "Cancel this window?",
+        "cancelDesc": "Cancel \"{title}\" — cannot be restored.",
+        "cancelDetailNotified": "Users WERE notified about this schedule → they get a cancellation notice.",
+        "cancelDetailQuiet": "Nobody was notified yet → silent cancel.",
+        "cancelOk": "Cancel window"
+      }
+    },
     "overview": {
       "title": "Admin dashboard",
       "subtitle": "DeutschFlow platform health overview",

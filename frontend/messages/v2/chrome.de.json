@@ -51,6 +51,7 @@
       "admin-media": "Medien",
       "admin-ai": "KI-Konfiguration",
       "admin-broadcast": "Rundsendung",
+      "admin-maintenance": "Wartung",
       "admin-marketing": "Wachstum",
       "admin-analytics": "Analysen",
       "admin-weekly": "Wöchentliches Sprechen",
@@ -130,5 +131,21 @@
     "digestLabel": "Fehlercode",
     "noMessage": "Keine Fehlermeldung.",
     "reload": "Seite neu laden"
+  },
+  "maintenance": {
+    "overlayTitle": "Systemwartung läuft",
+    "overlayNote": "Wir verbessern gerade das System — deine Lektionen und dein Fortschritt bleiben erhalten.",
+    "etaCountdown": "noch {minutes} Minuten",
+    "etaOverdue": "gleich geschafft…",
+    "etaUnknown": "Wir melden uns, sobald es weitergeht.",
+    "retryNow": "Jetzt erneut versuchen",
+    "retryChecking": "Wird geprüft…",
+    "autoRetry": "automatische Prüfung in 30 Sekunden",
+    "reloadPage": "Seite neu laden",
+    "restoredToast": "Wir sind wieder da. Viel Spaß beim Lernen!",
+    "bannerUpcoming": "Wartung um {time}",
+    "bannerCountdownHours": "noch {hours} Std. {minutes} Min.",
+    "bannerCountdownMinutes": "noch {minutes} Minuten",
+    "bannerDismiss": "Ausblenden"
   }
 }

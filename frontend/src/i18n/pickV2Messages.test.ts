@@ -8,6 +8,7 @@ vi.mock('next-intl/server', () => ({
     nav: { home: 'trang chủ' },
     v2: {
       chrome: { nav: { roles: { student: 'Học viên' } }, common: { ok: 'OK' } },
+      maintenance: { overlayTitle: 'Hệ thống đang bảo trì' },
       student: {
         dashboard: { hello: 'chào' },
         examSpeaking: { room: { start: 'bắt đầu' } },
@@ -61,5 +62,11 @@ describe('messagesForV2Areas', () => {
     const v2 = m.v2 as M
     expect('adminOps' in v2).toBe(false)
     expect(v2.chrome).toBeDefined()
+  })
+
+  it('maintenance thuộc V2_CORE — mọi provider đều mang (overlay/banner chạy khắp nơi)', async () => {
+    const m = (await messagesForV2Areas('teacher')) as M
+    const v2 = m.v2 as M
+    expect(v2.maintenance).toEqual({ overlayTitle: 'Hệ thống đang bảo trì' })
   })
 })
