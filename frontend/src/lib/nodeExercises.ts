@@ -53,6 +53,24 @@ export function collectExercises(exercises: unknown): NodeExerciseItem[] {
   )
 }
 
+/**
+ * Các mục ĐƯA RA cho người học làm trên web: chỉ những mục backend thật sự chấm.
+ *
+ * QA 2026-09-02, nghiệm thu trên prod node 136: nội dung còn có `TRANSLATE` và `REORDER` — hai loại
+ * `NodeExerciseGrader.countScored` KHÔNG tính, và chúng cũng không có trường `question*` nào (đề bài
+ * nằm ở `sentence` / `words`). Web chưa có runner cho hai loại này, nên render chúng ra là hiện hai
+ * dòng TRỐNG kèm ô nhập, mà cổng nút "Kiểm tra đáp án" lại đòi điền hết mọi ô ⇒ người học phải gõ
+ * bừa vào hai ô không có đề mới bấm nộp được. Tệ hơn: mẫu số đếm cả chúng, nên đúng trọn 6/6 câu
+ * chấm được vẫn hiện "6/8 — cần đúng 100%".
+ *
+ * Lọc theo `isScored` khiến mẫu số hiển thị, điều kiện qua bài và payload `item_answers` dùng CHUNG
+ * một tập mục, khớp đúng thứ máy chủ chấm. Nợ để lại: dựng runner TRANSLATE/REORDER cho web như
+ * `mobile/app/(student)/node-practice.tsx` đã có, rồi mới đưa chúng trở lại.
+ */
+export function scoredExercises(exercises: unknown): NodeExerciseItem[] {
+  return collectExercises(exercises).filter(isScored)
+}
+
 /** Câu hỏi hiển thị. Nội dung thật phần lớn nằm ở `question_vi` (338) chứ không phải `question` (184). */
 export function questionTextOf(item: NodeExerciseItem): string | null {
   return item.question?.trim() || item.question_vi?.trim() || item.question_de?.trim() || null

@@ -8,7 +8,7 @@ import { useState, useMemo, useEffect } from "react";
 import { lightImpact, mediumImpact, heavyImpact } from "@/lib/haptics";
 import {
   buildItemAnswers,
-  collectExercises,
+  scoredExercises,
   correctIndexOf,
   gradeItems,
   questionTextOf,
@@ -135,7 +135,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
   // ── Practice Quiz Logic ──
   // Gộp theory_gate + practice: backend chấm CẢ HAI, web trước đây chỉ đọc `practice` nên vừa
   // thiếu câu vừa nộp thiếu (F-21/F-22).
-  const practiceItems = useMemo(() => collectExercises(content.exercises), [content.exercises]);
+  const practiceItems = useMemo(() => scoredExercises(content.exercises), [content.exercises]);
   const [answers, setAnswers] = useState<AnswerMap>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
 
