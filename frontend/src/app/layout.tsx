@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Newsreader, Instrument_Sans, Be_Vietnam_Pro } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
-import { getLocale, getMessages } from 'next-intl/server'
+import { getLocale } from 'next-intl/server'
+import { messagesForV2Areas } from '@/i18n/pickV2Messages'
 import { Toaster } from '@/components/ui/sonner'
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
 import { PostHogProvider } from '@/providers/PostHogProvider'
@@ -70,7 +71,14 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale()
-  const messages = await getMessages()
+  // W2 audit lag 02/09: TRƯỚC serialize trọn catalog (~245KB) vào HTML của MỌI trang. Provider
+  // gốc giờ chỉ mang phần các bề mặt NGOÀI 4 khu role cần (landing, login/register, onboarding,
+  // profile/payment, messages, org-accept); mỗi khu role tự bọc provider với phần của khu trong
+  // layout của nó (src/app/v2/<khu>/layout.tsx) — provider trong ĐÈ provider ngoài.
+  //   - auth + onboarding + account: các trang v2 lẻ ngoài khu.
+  //   - org.accept: trang (public)/org/accept nhận lời mời.
+  //   - student.micGuide: MicDeniedGuide render trong onboarding/mock-exam.
+  const messages = await messagesForV2Areas('auth', 'onboarding', 'account', 'org.accept', 'student.micGuide')
 
   return (
     <html
