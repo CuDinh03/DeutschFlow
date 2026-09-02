@@ -4,6 +4,7 @@ import com.deutschflow.teacher.curriculumimport.ocr.OcrProvider;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.junit.jupiter.api.Test;
@@ -85,7 +86,7 @@ class PdfTocExtractorTest {
     @Test
     void readsTheTextLayerAndDoesNotCallOcr() throws IOException {
         FakeOcr ocr = new FakeOcr(true, "SHOULD NOT BE USED");
-        PdfTocExtractor extractor = new PdfTocExtractor(ocr, 12, 200, 150);
+        PdfTocExtractor extractor = new PdfTocExtractor(ocr, 12, 200, 150, 40_000_000L, 1);
 
         byte[] pdf = textPdf(List.of(
                 "Titel",
@@ -102,7 +103,7 @@ class PdfTocExtractorTest {
     @Test
     void fallsBackToOcrWhenThereIsNoUsableTextLayer() throws IOException {
         FakeOcr ocr = new FakeOcr(true, "1 Erste Schritte 6\nWortschatz Orte");
-        PdfTocExtractor extractor = new PdfTocExtractor(ocr, 4, 200, 120);
+        PdfTocExtractor extractor = new PdfTocExtractor(ocr, 4, 200, 120, 40_000_000L, 1);
 
         PdfTocExtractor.Extraction e = extractor.extract(blankPdf(20), "deu");
 
@@ -114,7 +115,7 @@ class PdfTocExtractorTest {
     @Test
     void neverRasterisesMoreThanTheConfiguredFrontMatter() throws IOException {
         FakeOcr ocr = new FakeOcr(true, "noise");
-        PdfTocExtractor extractor = new PdfTocExtractor(ocr, 6, 200, 120);
+        PdfTocExtractor extractor = new PdfTocExtractor(ocr, 6, 200, 120, 40_000_000L, 1);
 
         extractor.extract(blankPdf(176), "deu");
 
@@ -125,7 +126,7 @@ class PdfTocExtractorTest {
     @Test
     void scanningStopsAtTheDocumentEndForShortDocuments() throws IOException {
         FakeOcr ocr = new FakeOcr(true, "noise");
-        PdfTocExtractor extractor = new PdfTocExtractor(ocr, 10, 200, 120);
+        PdfTocExtractor extractor = new PdfTocExtractor(ocr, 10, 200, 120, 40_000_000L, 1);
 
         extractor.extract(blankPdf(3), "deu");
 
@@ -135,7 +136,7 @@ class PdfTocExtractorTest {
     @Test
     void reportsAClearReasonWhenOcrIsNotInstalled() throws IOException {
         FakeOcr ocr = new FakeOcr(false, "");
-        PdfTocExtractor extractor = new PdfTocExtractor(ocr, 8, 200, 120);
+        PdfTocExtractor extractor = new PdfTocExtractor(ocr, 8, 200, 120, 40_000_000L, 1);
 
         PdfTocExtractor.Extraction e = extractor.extract(blankPdf(10), "deu");
 
@@ -145,9 +146,47 @@ class PdfTocExtractorTest {
         assertThat(ocr.calls.get()).isZero();
     }
 
+    /** Tệp bé xíu nhưng khai trang khổng lồ — quả bom render kinh điển. */
+    private static byte[] hugePagePdf(float sidePoints, int pages) throws IOException {
+        try (PDDocument doc = new PDDocument()) {
+            for (int i = 0; i < pages; i++) {
+                doc.addPage(new PDPage(new PDRectangle(sidePoints, sidePoints)));
+            }
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            doc.save(out);
+            return out.toByteArray();
+        }
+    }
+
+    @Test
+    void skipsAPageTooLargeToRasteriseInsteadOfExhaustingTheHeap() throws IOException {
+        // 14400pt = 200 inch là khổ hợp lệ tối đa của PDF. Ở 150 DPI nó thành 30000x30000 px
+        // (~3,35 GB một trang) — đủ để một tệp 544 byte hạ cả JVM.
+        FakeOcr ocr = new FakeOcr(true, "không bao giờ được gọi");
+        PdfTocExtractor extractor = new PdfTocExtractor(ocr, 12, 600, 150, 40_000_000L, 1);
+
+        PdfTocExtractor.Extraction e = extractor.extract(hugePagePdf(14400f, 3), "deu");
+
+        assertThat(ocr.calls.get()).as("trang quá khổ không được render").isZero();
+        assertThat(e.warnings()).isNotEmpty();
+        assertThat(e.warnings().toString()).contains("quá lớn");
+    }
+
+    @Test
+    void stillRastersisesAnOversizedButRealisticPaperSize() throws IOException {
+        // A0 (33x46 inch) ở 150 DPI ~ 34 MP — vẫn dưới trần, phải đọc bình thường.
+        FakeOcr ocr = new FakeOcr(true, "1 Erste Schritte 6");
+        PdfTocExtractor extractor = new PdfTocExtractor(ocr, 2, 600, 150, 40_000_000L, 1);
+
+        PdfTocExtractor.Extraction e = extractor.extract(hugePagePdf(2384f, 2), "deu");
+
+        assertThat(ocr.calls.get()).isEqualTo(2);
+        assertThat(e.usedOcr()).isTrue();
+    }
+
     @Test
     void rejectsAFileThatIsNotAPdf() {
-        PdfTocExtractor extractor = new PdfTocExtractor(new FakeOcr(true, ""), 8, 200, 120);
+        PdfTocExtractor extractor = new PdfTocExtractor(new FakeOcr(true, ""), 8, 200, 120, 40_000_000L, 1);
 
         assertThatThrownBy(() -> extractor.extract("not a pdf at all".getBytes(), "deu"))
                 .isInstanceOf(com.deutschflow.common.exception.BadRequestException.class);
@@ -155,7 +194,7 @@ class PdfTocExtractorTest {
 
     @Test
     void rejectsADocumentWithMorePagesThanTheCap() throws IOException {
-        PdfTocExtractor extractor = new PdfTocExtractor(new FakeOcr(true, ""), 8, 5, 120);
+        PdfTocExtractor extractor = new PdfTocExtractor(new FakeOcr(true, ""), 8, 5, 120, 40_000_000L, 1);
 
         assertThatThrownBy(() -> extractor.extract(blankPdf(6), "deu"))
                 .isInstanceOf(com.deutschflow.common.exception.BadRequestException.class);

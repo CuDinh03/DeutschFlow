@@ -351,6 +351,19 @@ describe('CurriculumImportWizard', () => {
     expect(sent[0].lessons.map((l) => l.clientId)).toEqual(['K01.L1'])
   })
 
+  it('sends the analysis job id so the server decides provenance, not the client', async () => {
+    const user = userEvent.setup()
+    renderWizard()
+    await reachPreview(user)
+    await user.click(screen.getByRole('button', { name: /^importAll/ }))
+
+    await waitFor(() => expect(commitCurriculumImport).toHaveBeenCalled())
+    const body = commitCurriculumImport.mock.calls[0][1]
+    expect(body.previewJobId).toBe('job-1')
+    // Client không còn khai nguồn tài liệu nữa.
+    expect(body).not.toHaveProperty('sourceMaterialId')
+  })
+
   it('never commits before the teacher confirms', async () => {
     const user = userEvent.setup()
     renderWizard()

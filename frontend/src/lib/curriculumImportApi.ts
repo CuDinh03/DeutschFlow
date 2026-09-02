@@ -171,7 +171,10 @@ export async function waitForPreview(
 export async function commitCurriculumImport(
   classId: number,
   body: {
-    sourceMaterialId: number | null
+    /** Job phân tích đã sinh ra bản nháp này. Máy chủ đọc nguồn tài liệu TỪ ĐÂY —
+     *  client không còn tự khai được, nên không thể ghi giáo trình dựng từ sách này
+     *  dưới tên sách khác. */
+    previewJobId: string
     idempotencyKey: string
     onDuplicateModule: OnDuplicateModule
     modules: DraftModule[]

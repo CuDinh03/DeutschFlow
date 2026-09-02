@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Mic, MicOff, RotateCcw, Volume2 } from "lucide-react";
+import { Mic, MicOff, RotateCcw, Volume2, X } from "lucide-react";
 
 interface WordResult {
   expected: string;
@@ -108,7 +108,7 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
           <p className="text-lg font-semibold text-[#0F172A]">{expectedText}</p>
         </div>
         {onClose && (
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 shrink-0">✕</button>
+          <button onClick={onClose} aria-label="Đóng" className="text-gray-400 hover:text-gray-600 shrink-0"><X size={16} aria-hidden /></button>
         )}
       </div>
 

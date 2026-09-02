@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import {
-  AlertTriangle, Calendar, CheckCircle2, ChevronDown, ChevronUp, Clock, RotateCcw, Shield,
+  AlertTriangle, Calendar, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, PartyPopper, RotateCcw, Shield,
 } from 'lucide-react'
 import api from '@/lib/api'
 import { reviewApi, type ErrorReviewTaskDto } from '@/lib/reviewApi'
@@ -263,8 +263,8 @@ function ErrorBook() {
                                 {style.label === 'other' ? t('other') : style.label}
                               </span>
                               {repaired && (
-                                <span className="ga-ui rounded-ga-pill bg-ga-green-soft px-2 py-0.5 text-[10px] font-bold text-ga-green">
-                                  ✓ {t('fixed')}
+                                <span className="ga-ui inline-flex items-center gap-1 rounded-ga-pill bg-ga-green-soft px-2 py-0.5 text-[10px] font-bold text-ga-green">
+                                  <Check size={10} aria-hidden /> {t('fixed')}
                                 </span>
                               )}
                             </div>
@@ -305,8 +305,8 @@ function ErrorBook() {
 
               {/* ── Đã xong hết task hôm nay ──────────────────────────────────── */}
               {pendingTasks.length === 0 && tasks.length > 0 && (
-                <p className="border border-ga-line bg-ga-green-soft px-4 py-3.5 text-center text-[13.5px] font-semibold text-ga-green lg:px-5">
-                  🎉 {t('allDone')}
+                <p className="flex items-center justify-center gap-1.5 border border-ga-line bg-ga-green-soft px-4 py-3.5 text-center text-[13.5px] font-semibold text-ga-green lg:px-5">
+                  <PartyPopper size={15} aria-hidden /> {t('allDone')}
                 </p>
               )}
 

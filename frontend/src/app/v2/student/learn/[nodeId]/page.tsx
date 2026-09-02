@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -17,6 +17,9 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import api from '@/lib/api'
+import { completeTheoryNode } from '@/lib/theoryNodeCompletion'
+import { submitNodeExercises } from '@/lib/nodeSubmission'
+import { collectExercises, isScored } from '@/lib/nodeExercises'
 import { useNodeSessionStore } from '@/stores/useNodeSessionStore'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
@@ -99,9 +102,14 @@ export default function V2StudentLearnNodePage() {
     tabScores,
     markTabCompleted,
     resetTabCompletion,
+    itemAnswers,
   } = useNodeSessionStore()
 
   const [showRecap, setShowRecap] = useState(false)
+  // Ghi nhận hoàn thành lên máy chủ chỉ MỘT lần cho mỗi node (F-19). Effect hoàn thành chạy lại mỗi
+  // khi tabScores đổi, nên thiếu chốt này là bắn trùng và lần thứ hai ăn 400 "đã hoàn thành rồi".
+  const completionSentForRef = useRef<number | null>(null)
+  const [completionNotice, setCompletionNotice] = useState<string | null>(null)
   const [phonemeSuccess, setPhonemeSuccess] = useState<Set<number>>(new Set())
   const [roadmapState, setRoadmapState] = useState<RoadmapState | null>(null)
 
@@ -132,6 +140,28 @@ export default function V2StudentLearnNodePage() {
 
     if (allAttempted && allPassed) {
       setShowRecap(true)
+      // Hoàn thành node trước đây chỉ đổi state trong trình duyệt, không hề gọi máy chủ, nên lộ
+      // trình đứng im ở 0/46 (F-19/F-22). Hai đường, backend đã tách sẵn và cố tình chặn chéo:
+      //   · node CÓ mục chấm được  → `POST /skill-tree/{nodeId}/submit`, máy chủ tự chấm lại
+      //     `item_answers` theo đáp án gốc (client không tự khai điểm để mở khoá được);
+      //   · node lý thuyết thuần   → `POST /skill-tree/{nodeId}/complete`.
+      // Gọi nhầm đường sẽ ăn 400 và HIỆN ra, chứ không im lặng.
+      if (completionSentForRef.current !== nodeId) {
+        completionSentForRef.current = nodeId
+        const coMucChamDuoc = collectExercises(session?.content?.exercises).some(isScored)
+        const ketQua = coMucChamDuoc
+          ? submitNodeExercises(nodeId, itemAnswers, tabScores.grammar ?? 0).then((r) =>
+              r.outcome === 'notPassed'
+                ? { outcome: 'failed' as const, message: t('scoreBelowThreshold', { score: r.scorePercent ?? 0 }) }
+                : { outcome: r.outcome === 'failed' ? ('failed' as const) : ('saved' as const), message: r.message },
+            )
+          : completeTheoryNode(nodeId)
+        void ketQua.then((result) => {
+          // Chỉ 'alreadyDone' và 'saved' là im lặng. Mọi thứ khác phải hiện — nuốt ở đây là tái lập
+          // đúng bẫy F-18: học viên tưởng đã lưu, thực ra chưa.
+          if (result.outcome === 'failed') setCompletionNotice(result.message)
+        })
+      }
       trackFeatureAction('lesson', 'completed', {
         node_id: nodeId,
         node_title: session?.titleVi,
@@ -435,6 +465,16 @@ export default function V2StudentLearnNodePage() {
           )}
         </div>
       </div>
+
+      {/* Ghi nhận hoàn thành lên máy chủ thất bại — nói thẳng, đừng để học viên tưởng đã lưu. */}
+      {completionNotice && (
+        <div
+          role="alert"
+          className="mx-auto mb-4 max-w-[860px] border border-ga-red/40 bg-ga-red-soft px-4 py-3 text-[14px] text-ga-ink"
+        >
+          <strong className="font-semibold">{t('progressNotSaved')}</strong> {completionNotice}
+        </div>
+      )}
 
       {/* Recap khi vượt node */}
       {showRecap && session && (

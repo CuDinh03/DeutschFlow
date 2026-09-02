@@ -833,7 +833,7 @@ export default function V2TcChecklistPage() {
                             <span className="ga-ui text-[10px] font-medium text-ga-subtle">· {t('plannedShort', { date: format(parseIsoDateLocal(l.plannedDate), 'dd/MM') })}</span>
                           )}
                           {l.completed && l.completedAt && (
-                            <span className="text-[11px] font-medium" style={{ color: 'var(--ga-green)' }}>✓ {format(new Date(l.completedAt), 'dd/MM/yyyy')}</span>
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: 'var(--ga-green)' }}><Check size={11} aria-hidden /> {format(new Date(l.completedAt), 'dd/MM/yyyy')}</span>
                           )}
                         </div>
                         <div className="mt-0.5 break-words text-[14.5px] font-semibold text-ga-ink">{l.title}</div>
@@ -853,7 +853,7 @@ export default function V2TcChecklistPage() {
                             <ul className="mt-1 flex flex-col gap-1">
                               {l.canDoStatements.map((c) => (
                                 <li key={c.id ?? c.orderIndex} className="flex gap-2 text-[12.5px] leading-[1.5] text-ga-muted">
-                                  <span className="mt-[1px] shrink-0" style={{ color: VIOLET }}>✓</span>
+                                  <Check size={13} aria-hidden className="mt-[2px] shrink-0" style={{ color: VIOLET }} />
                                   <span className="min-w-0 break-words">
                                     {c.text}
                                     {c.cefrLevel && (

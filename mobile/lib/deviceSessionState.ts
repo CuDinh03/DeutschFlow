@@ -15,6 +15,9 @@
 
 import { useTourStore } from '@/stores/useTourStore'
 import { useStarterStore } from '@/stores/useStarterStore'
+import { useChatOutboxStore } from '@/stores/useChatOutboxStore'
+import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
+import { clearActiveSession } from './activeSession'
 import { clearDailyGoalMinutes } from './dailyGoal'
 import { clearOnboardingDraft } from './onboardingDraft'
 import { disableStudyReminder } from './studyReminder'
@@ -25,6 +28,14 @@ import { disableStudyReminder } from './studyReminder'
  * allSettled chứ không phải all: một bước dọn hỏng không được phép chặn phần
  * kết thúc phiên chạy sau nó, kẻo người dùng kẹt trạng thái "đã đăng nhập" với
  * token vừa bị xoá và mọi request sau đó 401.
+ *
+ * Soát 02/09 (F-23/24/25) bổ sung ba thứ per-thiết bị bị bỏ sót — cả ba đều
+ * không gắn userId nên sống sót qua logout là rò sang tài khoản kế tiếp:
+ *  - outbox chat (MMKV `chat-outbox`): lộ nguyên văn tin chưa gửi + "Gửi lại"
+ *    dưới danh nghĩa người sau;
+ *  - hàng đợi SRS offline (MMKV `srs-offline`): review của A ghi cho B khi sync;
+ *  - phiên luyện nói dở (SecureStore `df.active_session`): B nhận lời mời
+ *    "tiếp tục phiên" mang persona/chủ đề của A.
  */
 export async function clearDeviceSessionState(): Promise<void> {
   await Promise.allSettled([
@@ -33,5 +44,8 @@ export async function clearDeviceSessionState(): Promise<void> {
     clearDailyGoalMinutes(),
     clearOnboardingDraft(),
     disableStudyReminder(),
+    Promise.resolve().then(() => useChatOutboxStore.getState().clear()),
+    Promise.resolve().then(() => useSrsOfflineStore.getState().clear()),
+    clearActiveSession(),
   ])
 }

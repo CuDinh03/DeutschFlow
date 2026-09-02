@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowLeft, BookOpen, Check, Mic, RefreshCw, Sparkles, TreeDeciduous, Trophy, Volume2, X } from 'lucide-react'
+import { ArrowLeft, BookOpen, Check, Lightbulb, Mic, RefreshCw, Sparkles, TreeDeciduous, Trophy, Volume2, X } from 'lucide-react'
 import api from '@/lib/api'
 import { isAsyncJobAccepted, waitForAsyncJob } from '@/lib/asyncJob'
 import { pickExplanation } from '@/lib/practice/explanation'
@@ -248,7 +248,7 @@ function ExerciseCard({
         <div className="mb-4 rounded-ga border border-ga-line bg-ga-surface px-4 py-3">
           <p className="ga-ui break-words text-[14px] font-medium text-ga-ink">{exercise.sentence_with_blank}</p>
           {exercise.hint_de && (
-            <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">💡 {exercise.hint_de}</p>
+            <p className="ga-ui mt-1 flex items-start gap-1.5 text-[12.5px] text-ga-muted"><Lightbulb size={13} className="mt-[2px] shrink-0" aria-hidden /> {exercise.hint_de}</p>
           )}
         </div>
       )}

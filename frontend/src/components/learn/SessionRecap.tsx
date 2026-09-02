@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, BookOpen, Flame } from "lucide-react";
+import { Zap, BookOpen, Flame, PartyPopper } from "lucide-react";
 
 interface SessionRecapProps {
   xpEarned: number;
@@ -90,7 +90,7 @@ export default function SessionRecap({
             className="px-6 pt-8 pb-6 text-center"
             style={{ background: "linear-gradient(135deg, #121212 0%, #1E293B 100%)" }}
           >
-            <div className="text-5xl mb-3">🎉</div>
+            <PartyPopper size={44} strokeWidth={1.6} className="mx-auto mb-3 text-white" aria-hidden />
             <h2 className="text-white text-xl font-bold">Hoàn thành!</h2>
             <p className="text-white/70 text-sm mt-1">Bạn đã học xong bài này</p>
           </div>

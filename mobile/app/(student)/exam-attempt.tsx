@@ -19,12 +19,9 @@ import {
   ProgressBar,
   SelectableRow,
 } from '@/components/ui'
-import { parseLesenItems, type ExamObjItem } from '@/lib/examApi'
+import { attemptTotalScore, parseLesenItems, type AttemptResultDto, type ExamObjItem } from '@/lib/examApi'
+import { pollAsyncJob, AsyncJobFailedError, AsyncJobTimeoutError } from '@/lib/asyncJobs'
 import { trackFeatureAction } from '@/lib/analytics'
-
-interface AttemptResult {
-  totalScore?: number
-}
 
 // Auto-scored objective reading (Lesen) attempt. Listening/Writing/Speaking are
 // scored on the web; the app covers the true/false + single-choice items so a
@@ -40,11 +37,14 @@ export default function ExamAttemptScreen() {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [score, setScore] = useState<number | null>(null)
+  // Bài ĐÃ nộp lên server (202 nhận job) — kể cả khi poll điểm sau đó quá hạn.
+  const [finishAccepted, setFinishAccepted] = useState(false)
 
   // An attempt is "in progress" once the student has answered something and the
   // attempt has not been finished/scored yet. Leaving now silently discards the
   // answers and orphans the server-created attempt, so we confirm first.
-  const hasUnsavedAttempt = Object.keys(answers).length > 0 && score == null
+  // Sau khi finish đã được server NHẬN thì rời màn không mất gì nữa — đừng doạ.
+  const hasUnsavedAttempt = Object.keys(answers).length > 0 && score == null && !finishAccepted
   // Set right before a confirmed navigation so the beforeRemove guard lets it through.
   const allowLeaveRef = useRef(false)
 
@@ -103,13 +103,33 @@ export default function ExamAttemptScreen() {
     if (answeredCount === 0) return
     setSubmitting(true)
     try {
-      await api.post(`/mock-exams/attempts/${attemptId}/finish`, { answers })
-      const res = await api.get<AttemptResult>(`/mock-exams/attempts/${attemptId}/result`)
-      const total = res.data.totalScore ?? 0
+      // Chấm chạy NỀN (S-5): finish trả 202 + jobId ngay, KHÔNG có điểm. Trước
+      // đây màn này GET result ngay sau 202 nên đọc bản ghi chưa chấm (điểm null
+      // → hiện 0), thêm lỗi đọc `totalScore` trong khi backend trả `total_score`
+      // — hai lỗi che nhau (soát 02/09, F-10). Phải chờ job xong rồi mới đọc.
+      const finishRes = await api.post<{ jobId: string; status: string; attemptId: number }>(
+        `/mock-exams/attempts/${attemptId}/finish`,
+        { answers },
+      )
+      setFinishAccepted(true)
+      await pollAsyncJob(finishRes.data.jobId)
+      const res = await api.get<AttemptResultDto>(`/mock-exams/attempts/${attemptId}/result`)
+      const total = attemptTotalScore(res.data)
       trackFeatureAction('mock_exam', 'completed', { score: total })
       setScore(total)
     } catch (e) {
-      Alert.alert('Lỗi', apiMessage(e))
+      if (e instanceof AsyncJobTimeoutError) {
+        // Bài ĐÃ nộp — chỉ là chấm lâu hơn trần chờ. Đừng nói "lỗi" kẻo user nộp lại.
+        Alert.alert(
+          'Đang chấm bài',
+          'Bài của bạn đã nộp thành công nhưng chấm đang lâu hơn bình thường. Điểm sẽ hiện trong Lịch sử thi ít phút nữa.',
+          [{ text: 'Đã hiểu', onPress: () => router.back() }],
+        )
+      } else if (e instanceof AsyncJobFailedError) {
+        Alert.alert('Chấm bài thất bại', 'Hệ thống chấm gặp lỗi. Bạn hãy thử nộp lại.')
+      } else {
+        Alert.alert('Lỗi', apiMessage(e))
+      }
     } finally {
       setSubmitting(false)
     }

@@ -371,14 +371,19 @@ export const PERSONA_TOKENS: Record<PersonaId, PersonaToken> = {
   },
 };
 
+/**
+ * Nhóm ngành để LỌC danh sách persona. `icon` là khoá của `GaIcon` — đây là chip điều khiển
+ * chứ không phải avatar, nên nó theo bộ icon giao diện. (Avatar/lời chào của từng persona thì
+ * ngược lại: vẫn giữ emoji vì đó là nhận diện nhân vật.)
+ */
 export const PERSONA_GROUPS: { id: PersonaGroup; label: string; icon: string }[] = [
-  { id: 'it', label: 'IT / Startup', icon: '💻' },
-  { id: 'verkauf', label: 'Bán hàng', icon: '🛒' },
-  { id: 'medizin', label: 'Y khoa', icon: '🏥' },
-  { id: 'maschinenbau', label: 'Cơ khí', icon: '⚙️' },
-  { id: 'service', label: 'Phục vụ', icon: '🍽️' },
-  { id: 'medien', label: 'Truyền thông', icon: '🎤' },
-  { id: 'special', label: 'Bạn Việt', icon: '🇻🇳' },
+  { id: 'it', label: 'IT / Startup', icon: 'computer' },
+  { id: 'verkauf', label: 'Bán hàng', icon: 'shopping_cart' },
+  { id: 'medizin', label: 'Y khoa', icon: 'stethoscope' },
+  { id: 'maschinenbau', label: 'Cơ khí', icon: 'build' },
+  { id: 'service', label: 'Phục vụ', icon: 'restaurant' },
+  { id: 'medien', label: 'Truyền thông', icon: 'mic' },
+  { id: 'special', label: 'Bạn Việt', icon: 'handshake' },
 ];
 
 /** Ordered list for rendering */
