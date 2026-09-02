@@ -901,7 +901,8 @@
         "A2": "Sơ cấp — Goethe-Zertifikat A2",
         "B1": "Trung cấp — Goethe-Zertifikat B1",
         "B2": "Trung cấp cao — Goethe-Zertifikat B2",
-        "C1": "Cao cấp — Goethe-Zertifikat C1"
+        "C1": "Cao cấp — Goethe-Zertifikat C1",
+        "C2": "Thành thạo — Goethe-Zertifikat C2"
       }
     },
     "assessment": {
