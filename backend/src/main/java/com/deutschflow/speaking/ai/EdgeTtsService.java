@@ -55,8 +55,14 @@ public class EdgeTtsService {
      * @param personaName e.g. "LUKAS", "EMMA", "KLAUS"
      * @return MP3 audio bytes, or {@code null} when not configured / on failure
      */
-    @Cacheable(value = "ttsAudio", key = "T(java.util.Objects).hash(#text, #personaName)",
-               unless = "#result == null")
+    // B5 audit lag 02/09 — hai sửa trong một annotation:
+    //  • key chuỗi thay Objects.hash: hash 32-bit ĐỤNG NHAU được giữa hai (text, persona) khác
+    //    nhau — đụng là học viên nghe AUDIO CỦA CÂU KHÁC từ cache; key ghép chuỗi thì không thể.
+    //    Đổi key = cache cũ tự miss dần rồi đầy lại theo TTL, không cần dọn tay.
+    //  • sync=true chặn stampede: N request cùng câu lúc cache lạnh chỉ MỘT thread đi tổng hợp
+    //    TTS, còn lại chờ kết quả — thay vì N lần gọi Edge TTS trùng nhau.
+    @Cacheable(value = "ttsAudio", key = "#text + '|' + #personaName",
+               unless = "#result == null", sync = true)
     public byte[] synthesize(String text, String personaName) {
         if (text == null || text.isBlank()) return null;
         if (!isConfigured()) {

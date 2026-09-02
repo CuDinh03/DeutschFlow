@@ -95,8 +95,10 @@ spring:
       max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:600000}
       # Keepalive 30s — AWS RDS idle TCP timeout thường 300s, giữ conn sống
       keepalive-time: ${DB_POOL_KEEPALIVE_MS:30000}
-      # Validate trước khi dùng — phát hiện stale conn ngay
-      connection-test-query: SELECT 1
+      # B5 audit lag 02/09: BỎ connection-test-query. Khai câu SQL ở đây là ép Hikari chạy MỘT
+      # round-trip "SELECT 1" tới RDS mỗi lần mượn connection — thuế cộng vào mọi query của app.
+      # Driver PostgreSQL là JDBC4: không khai thì Hikari validate bằng Connection.isValid()
+      # (rẻ hơn hẳn), và keepalive-time 30s ở trên đã giữ connection không chết trộm giữa chừng.
       validation-timeout: ${DB_POOL_VALIDATION_TIMEOUT_MS:3000}
       # Cảnh báo leak nếu conn giữ > 20s
       leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:20000}

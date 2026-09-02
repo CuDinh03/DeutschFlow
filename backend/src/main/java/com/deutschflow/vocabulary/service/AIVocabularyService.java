@@ -31,7 +31,7 @@ public class AIVocabularyService {
      * Generate example sentences for a German word.
      * Cached 24h — same word/count always produces equivalent examples.
      */
-    @Cacheable(value = "aiVocabCache", key = "'examples:' + #germanWord + ':' + #count")
+    @Cacheable(value = "aiVocabCache", key = "'examples:' + #germanWord + ':' + #count", sync = true)
     public List<String> generateExamples(String germanWord, int count) {
         log.info("[AIVocab] Generating {} examples for word: {} (cache miss)", count, germanWord);
         try {
@@ -53,7 +53,7 @@ public class AIVocabularyService {
      * Explain word usage and context.
      * Cached 24h.
      */
-    @Cacheable(value = "aiVocabCache", key = "'usage:' + #germanWord")
+    @Cacheable(value = "aiVocabCache", key = "'usage:' + #germanWord", sync = true)
     public String explainUsage(String germanWord) {
         log.info("[AIVocab] Explaining usage for word: {} (cache miss)", germanWord);
         try {
@@ -73,7 +73,7 @@ public class AIVocabularyService {
      * Generate mnemonic device for remembering a word.
      * Cached 24h — mnemonic is deterministic per word.
      */
-    @Cacheable(value = "aiVocabCache", key = "'mnemonic:' + #germanWord")
+    @Cacheable(value = "aiVocabCache", key = "'mnemonic:' + #germanWord", sync = true)
     public String generateMnemonic(String germanWord, String meaning) {
         log.info("[AIVocab] Generating mnemonic for: {} (cache miss)", germanWord);
         try {
@@ -93,7 +93,7 @@ public class AIVocabularyService {
      * Find similar or related words.
      * Cached 24h.
      */
-    @Cacheable(value = "aiVocabCache", key = "'similar:' + #germanWord")
+    @Cacheable(value = "aiVocabCache", key = "'similar:' + #germanWord", sync = true)
     public List<String> findSimilarWords(String germanWord) {
         log.info("[AIVocab] Finding similar words for: {} (cache miss)", germanWord);
         try {
@@ -115,7 +115,7 @@ public class AIVocabularyService {
      * Generate a story using multiple vocabulary words.
      * Cached 6h (aiVocabShort) — story is creative, allow refresh more often.
      */
-    @Cacheable(value = "aiVocabShort", key = "'story:' + T(String).join(',', #words)")
+    @Cacheable(value = "aiVocabShort", key = "'story:' + T(String).join(',', #words)", sync = true)
     public String generateStory(List<String> words) {
         log.info("[AIVocab] Generating story with {} words (cache miss)", words.size());
         try {
@@ -136,7 +136,7 @@ public class AIVocabularyService {
      * Explain word etymology.
      * Cached 24h — etymology is factual/deterministic.
      */
-    @Cacheable(value = "aiVocabCache", key = "'etymology:' + #germanWord")
+    @Cacheable(value = "aiVocabCache", key = "'etymology:' + #germanWord", sync = true)
     public String explainEtymology(String germanWord) {
         log.info("[AIVocab] Explaining etymology for: {} (cache miss)", germanWord);
         try {
@@ -156,7 +156,7 @@ public class AIVocabularyService {
      * Generate quiz questions for vocabulary.
      * Cached 1h (aiVocabQuiz) — refresh more often to keep variety.
      */
-    @Cacheable(value = "aiVocabQuiz", key = "'quiz:' + T(String).join(',', #words) + ':' + #questionsPerWord")
+    @Cacheable(value = "aiVocabQuiz", key = "'quiz:' + T(String).join(',', #words) + ':' + #questionsPerWord", sync = true)
     public List<QuizQuestion> generateQuiz(List<String> words, int questionsPerWord) {
         log.info("[AIVocab] Generating quiz for {} words (cache miss)", words.size());
         List<QuizQuestion> questions = new ArrayList<>();

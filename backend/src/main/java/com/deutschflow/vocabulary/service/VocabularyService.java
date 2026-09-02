@@ -72,7 +72,7 @@ public class VocabularyService {
      * full {@code findAll()} over ~5k rows; without this cache that ran on every unauthenticated
      * {@code GET /api/words} hit. Admin word edits propagate within the TTL.
      */
-    @Cacheable(value = "words", key = "(#cefrLevel == null || #cefrLevel.isEmpty()) ? 'ALL' : #cefrLevel")
+    @Cacheable(value = "words", key = "(#cefrLevel == null || #cefrLevel.isEmpty()) ? 'ALL' : #cefrLevel", sync = true)
     public List<WordDto> getWordsByCefr(String cefrLevel) {
         List<Word> words;
         if (cefrLevel != null && !cefrLevel.isEmpty()) {
