@@ -203,4 +203,44 @@ class NotificationContentRendererUnitTest {
             assertThat(c.title()).isNotEqualTo(type.name().replace('_', ' '));
         }
     }
+
+    // ── SYSTEM_MAINTENANCE — vòng đời bảo trì theo payload.kind ──────────────
+
+    @Test
+    @DisplayName("maintenance SCHEDULED renders the window with pre-formatted VN times + admin note verbatim")
+    void systemMaintenance_scheduled() {
+        RenderedContent c = renderer.render(NotificationType.SYSTEM_MAINTENANCE, Map.of(
+                "kind", "SCHEDULED",
+                "startsAtDisplay", "23:00 ngày 10/09",
+                "endsAtDisplay", "23:30 ngày 10/09",
+                "note", "Nâng cấp cơ sở dữ liệu."));
+        assertThat(c.title()).contains("Lịch bảo trì");
+        assertThat(c.body()).contains("từ 23:00 ngày 10/09").contains("đến 23:30 ngày 10/09")
+                .contains("Nâng cấp cơ sở dữ liệu.");
+    }
+
+    @Test
+    @DisplayName("maintenance REMINDER tells the user to save work before the start time")
+    void systemMaintenance_reminder() {
+        RenderedContent c = renderer.render(NotificationType.SYSTEM_MAINTENANCE, Map.of(
+                "kind", "REMINDER", "startsAtDisplay", "23:00 ngày 10/09"));
+        assertThat(c.title()).contains("Sắp bảo trì");
+        assertThat(c.body()).contains("23:00 ngày 10/09").contains("lưu bài");
+    }
+
+    @Test
+    @DisplayName("maintenance STARTED without endsAt promises a completion notice instead of a time")
+    void systemMaintenance_startedWithoutEnd() {
+        RenderedContent c = renderer.render(NotificationType.SYSTEM_MAINTENANCE, Map.of("kind", "STARTED"));
+        assertThat(c.body()).contains("thông báo khi hoạt động trở lại");
+    }
+
+    @Test
+    @DisplayName("maintenance COMPLETED / CANCELLED close the loop for the user")
+    void systemMaintenance_completedAndCancelled() {
+        assertThat(renderer.render(NotificationType.SYSTEM_MAINTENANCE, Map.of("kind", "COMPLETED")).title())
+                .contains("hoạt động trở lại");
+        assertThat(renderer.render(NotificationType.SYSTEM_MAINTENANCE, Map.of("kind", "CANCELLED")).body())
+                .contains("đã được huỷ");
+    }
 }

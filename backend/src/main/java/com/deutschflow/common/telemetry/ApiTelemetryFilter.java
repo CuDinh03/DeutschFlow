@@ -29,7 +29,10 @@ public class ApiTelemetryFilter extends OncePerRequestFilter {
         String uri = request.getRequestURI();
         return !uri.startsWith("/api/")
                 || uri.startsWith("/api/quiz/")
-                || uri.startsWith("/api/ws/");
+                || uri.startsWith("/api/ws/")
+                // Probe bảo trì: mọi client poll 30s trong lúc chờ hết bảo trì — ghi
+                // telemetry từng lần poll chỉ là rác đo lường.
+                || uri.equals("/api/public/system/status");
     }
 
     @Override
