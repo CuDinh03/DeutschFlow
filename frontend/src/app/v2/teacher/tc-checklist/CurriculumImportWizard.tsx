@@ -79,6 +79,8 @@ export function CurriculumImportWizard({
 
   // ── Bản nháp ────────────────────────────────────────────────────────────
   const [preview, setPreview] = useState<CurriculumImportPreview | null>(null)
+  // Job đã sinh ra bản nháp — commit phải dẫn lại nó để máy chủ tự xác định nguồn tài liệu.
+  const [previewJobId, setPreviewJobId] = useState<string | null>(null)
   const [modules, setModules] = useState<DraftModule[]>([])
   const [selection, setSelection] = useState<DraftSelection>({ modules: {}, lessons: {} })
   const [onDuplicate, setOnDuplicate] = useState<OnDuplicateModule>('FAIL')
@@ -92,6 +94,7 @@ export function CurriculumImportWizard({
     setStep('source')
     setError('')
     setPreview(null)
+    setPreviewJobId(null)
     setModules([])
     setSelection({ modules: {}, lessons: {} })
     setResult(null)
@@ -182,6 +185,7 @@ export function CurriculumImportWizard({
       // Re-check after the await: cancelling while the last poll is in flight would otherwise let a
       // COMPLETED response come back and yank the teacher into the preview they just backed out of.
       if (ctrl.signal.aborted) return
+      setPreviewJobId(jobId)
       setPreview(p)
       setModules(p.modules)
       setSelection(allSelected(p.modules))
@@ -197,12 +201,12 @@ export function CurriculumImportWizard({
 
   async function runCommit() {
     const chosen = applySelection(modules, selection)
-    if (chosen.length === 0) return
+    if (chosen.length === 0 || !previewJobId) return
     setStep('importing')
     setError('')
     try {
       const res = await commitCurriculumImport(classId, {
-        sourceMaterialId: preview?.sourceMaterialId ?? materialId,
+        previewJobId,
         idempotencyKey: idempotencyKey.current,
         onDuplicateModule: onDuplicate,
         modules: chosen,
@@ -267,7 +271,7 @@ export function CurriculumImportWizard({
           <GaBtn variant="ghost" onClick={() => setStep('config')}>
             {t('back')}
           </GaBtn>
-          <GaBtn variant="primary" disabled={totals.lessons === 0} onClick={runCommit}>
+          <GaBtn variant="primary" disabled={totals.lessons === 0 || !previewJobId} onClick={runCommit}>
             {t('importAll', { modules: totals.modules, lessons: totals.lessons })}
           </GaBtn>
         </>

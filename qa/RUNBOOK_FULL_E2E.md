@@ -7,12 +7,20 @@
 > **GIAO DIỆN CANONICAL = `/v2/*` (Galerie 2.0 — đã full cutover, là default surface).**
 > Mọi bước UI bên dưới chạy trên `/v2/*`. Phần API không đổi (cùng backend).
 >
-> ⚠️ **CẬP NHẬT 2026-07-14 (đợt 0, `plans/2026-07-14-xoa-sach-v1-web.md`):**
-> - Bề mặt đăng nhập v1 **đã bị khai tử**: `/login`, `/register`, `/dashboard` giờ **redirect (307)** sang `/v2/login`, `/v2/register`, `/v2/student/dashboard` (khai báo ở `frontend/next.config.mjs`).
-> - Người **đã đăng nhập** gõ bất kỳ bề mặt login nào (kể cả `/v2/login`) đều bị đá về trang chủ theo vai trò — **không còn thấy form** (trước đây `/v2/login` vẫn hiện form cho người đã đăng nhập).
+> ⚠️ **CẬP NHẬT 2026-09-02 (Đợt 3+4, `plans/2026-07-14-xoa-sach-v1-web.md`):**
+> - **Cây v1 KHÔNG CÒN TỒN TẠI.** 162 tệp `frontend/src/app` v1 đã bị xoá; mọi path cũ
+>   (`/login`, `/register`, `/dashboard`, `/student/*`, `/teacher/*`, `/admin/*`, `/org/*`,
+>   `/speaking*`, `/roadmap*`, `/vocabulary`, `/onboarding*`, `/lesson`, `/game`, `/news`) nay là
+>   **redirect 308** sang đích `/v2` tương ứng — bảng ánh xạ ở `frontend/legacy-redirects.mjs`,
+>   ba entry gốc ở `frontend/next.config.mjs`. Không còn trang v1 nào để "kiểm tra bằng mắt".
+> - **13 trang vẫn ở gốc, KHÔNG redirect** (đây là bề mặt công khai, phải còn 200): `/`, `/about`,
+>   `/luyen-thi[/slug]`, `/free-grade`, `/giao-vien-mien-phi`, `/teachers[/id]`, `/privacy`,
+>   `/terms`, `/support`, `/certificate/[token]`, `/report/[token]`, `/payment/success`.
+>   *(`/teachers` hiện trả 404 có chủ đích — cờ `MARKETPLACE_ENABLED` đang tắt marketplace C2C.)*
+> - Người **đã đăng nhập** gõ bất kỳ bề mặt login nào (kể cả `/v2/login`) đều bị đá về trang chủ theo vai trò — **không còn thấy form**.
 > - Mọi lần middleware đá người dùng đều đổ về **v2** (bản đồ `roleHome()` legacy đã bị xoá). Người chưa đăng nhập vào trang cần quyền → `/v2/login?next=<đường-dẫn>` và **được đưa lại đúng chỗ** sau khi đăng nhập.
-> - Kill-switch `GALERIE_V2_DISABLED` **ĐÃ BỊ GỠ** (nó tạo vòng lặp redirect với `/login`→`/v2/login`). Rollback = revert commit / Amplify "Redeploy this version".
-> - Cây v1 sau đăng nhập (`/student/*`, `/teacher/*`, `/admin/*`, `/org/*`, `/speaking`…) **vẫn còn sống** (chưa xoá) — nhưng không có đường nào trong app dẫn vào nữa.
+> - Kill-switch `GALERIE_V2_DISABLED` **ĐÃ BỊ GỠ KHỎI CODE** từ đợt 0 (nó tạo vòng lặp redirect với `/login`→`/v2/login`). Đặt env này **không còn tác dụng gì** — đừng dùng làm rollback. Rollback = revert commit / Amplify "Redeploy this version".
+> - Service worker: `/sw.js` nay là bản **tự huỷ** (gỡ đăng ký + xoá Cache Storage). Nếu QA gặp trang cũ dai dẳng trên máy đã từng cài PWA, tải lại một lần nữa là sạch.
 >
 > Map trang chủ theo role (đăng nhập xong phải đáp đúng vào đây):
 > - ADMIN → `/v2/admin/users`
@@ -22,7 +30,7 @@
 > - Đăng nhập: `/v2/login`. Auth dùng cookie `auth_access` / `auth_role` (+ `refresh_token`) — không chỉ localStorage.
 >   (Lưu ý: nút Google SSO và "Quên mật khẩu" trên trang này hiện chỉ là toast "sắp ra mắt" — chưa nối backend. "Ghi nhớ đăng nhập" chưa nối state. Xem đợt 1 của plan.)
 >
-> **Kiểm tra cutover (đáng test):** `/login` → 307 → `/v2/login` (không 404, không lặp). Đăng nhập rồi gõ lại `/login` → đá thẳng về home đúng role. Sai-role vào `/v2/admin/*` → bounce về home đúng role. `/org/accept?token=…` (link mời qua email) **phải mở được khi CHƯA đăng nhập**.
+> **Kiểm tra cutover (đáng test):** `/login` → **308** → `/v2/login` (không 404, không lặp). Đăng nhập rồi gõ lại `/login` → đá thẳng về home đúng role. Sai-role vào `/v2/admin/*` → bounce về home đúng role. `/org/accept?token=…` (link mời qua email) **phải mở được khi CHƯA đăng nhập**.
 
 ---
 
@@ -150,12 +158,12 @@ Kèm theo (đợt 0): gõ `/login` → redirect sang `/v2/login`; đăng nhập 
 **C5 — TTS** `POST /api/ai-speaking/tts` (text ngắn) → audio; text quá dài → bị giới hạn (cap length). `GET /tts/status`.
 **C6 — SRS.** `GET /api/srs/due` + `/count` → thẻ tới hạn; `POST /api/srs/review` (rating) → lịch cập nhật theo FSRS; `/stats` phản ánh.
 **C7 — Assessment B1 + Mock exam.** `GET /api/assessment/b1/readiness` (0–100); `POST /api/assessment/b1/mock-exam`. Mock-exam pack: `POST /api/mock-exams/{examId}/start` → `/questions` → `/attempts/{id}/finish` → `/result` + `/review`.
-**C8 — Interview + premium gate.** `GET /api/interviews/personas`; persona **ADVANCED** với user FREE → bị khoá (nudge `/student/pricing`); đếm "X/3 tuần này". Sau khi (sandbox) nâng PRO → mở khoá.
+**C8 — Interview + premium gate.** `GET /api/interviews/personas`; persona **ADVANCED** với user FREE → bị khoá (nudge `/v2/payment`); đếm "X/3 tuần này". Sau khi (sandbox) nâng PRO → mở khoá.
 **C9 — Grammar/Vocabulary/Beginner.** `/api/grammar/cases`, `/api/beginner/journey`, `/api/beginner/speaking/day-one`.
 **C10 — Gamification.** XP (`/api/...xp`), achievement, coin earn/spend phản ánh đúng sau khi hoàn thành nhiệm vụ.
 **C11 — Notifications & Messages.** `GET /api/notifications/unread-count`, `POST /{id}/read`; `GET /api/messages/conversations`, nhắn với giáo viên.
 **C12 — Profile.** `PATCH /api/profile/me`, đổi mật khẩu `/me/password`, push-token; **`DELETE /api/profile/me`** chỉ trên tài khoản test dùng-một-lần.
-**C13 — Nâng cấp gói (sandbox).** UI `/payment` hoặc `/student/pricing` → `POST /api/payments/stripe/create-session` (hoặc momo `create-order`) → tới trang cổng test; **dừng trước khi trả tiền thật**.
+**C13 — Nâng cấp gói (sandbox).** UI `/v2/payment` → `POST /api/payments/stripe/create-session` (hoặc momo `create-order`) → tới trang cổng test; **dừng trước khi trả tiền thật**.
 **C14 — Join class.** `POST /api/classes/join` bằng mã lớp → tạo join-request (xem duyệt ở D4).
 
 ### D. TEACHER — công cụ giảng dạy

@@ -1,5 +1,14 @@
 "use client";
+/**
+ * /payment/success — URL RETURN của cổng thanh toán (MoMo/Stripe giữ path này trong cấu hình
+ * merchant), nên trang phải ở NGUYÊN gốc: nó là một trong số ít trang cố ý KHÔNG bị redirect sang
+ * /v2 khi Đợt 3 xoá cây v1 (lý do đầy đủ trong `frontend/legacy-redirects.mjs`).
+ *
+ * Bản thân trang thì đưa người dùng vào bề mặt v2: `/student` cũ nay chỉ còn là redirect 308, đi
+ * qua nó chỉ tốn thêm một vòng round-trip ngay sau khi trả tiền.
+ */
 import { useEffect, useState } from "react";
+import { PartyPopper, Zap, Rocket, Home } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import api from "@/lib/api";
@@ -67,7 +76,7 @@ function PaymentSuccessContent() {
               orderId,
             });
             setTimeout(() => {
-              if (!cancelled) router.push("/student");
+              if (!cancelled) router.push("/v2/student/dashboard");
             }, 10000);
             return;
           }
@@ -81,7 +90,7 @@ function PaymentSuccessContent() {
       if (!cancelled) {
         setLoading(false);
         setTimeout(() => {
-          if (!cancelled) router.push("/student");
+          if (!cancelled) router.push("/v2/student/dashboard");
         }, 5000);
       }
     })();
@@ -107,7 +116,7 @@ function PaymentSuccessContent() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 flex flex-col items-center justify-center text-white px-4">
       <div className="text-center max-w-md bg-white/5 backdrop-blur-sm p-8 rounded-3xl border border-white/10 shadow-2xl">
-        <div className="text-7xl mb-6 animate-bounce">🎉</div>
+        <PartyPopper size={64} strokeWidth={1.4} className="mx-auto mb-6 animate-bounce text-amber-300" aria-hidden />
 
         <h1 className="text-3xl font-extrabold bg-gradient-to-r from-violet-300 via-white to-purple-300 bg-clip-text text-transparent mb-4">
           {plan ? "Thanh toán thành công!" : "Đang hoàn tất kích hoạt gói"}
@@ -117,7 +126,7 @@ function PaymentSuccessContent() {
           <div className="bg-white/10 rounded-2xl p-6 mb-6 text-left border border-white/5">
             <p className="text-sm text-slate-400 mb-1">Gói cước của bạn</p>
             <p className="text-2xl font-bold text-amber-400 mb-4 flex items-center gap-2">
-              {plan.tier === "ULTRA" ? "⚡" : "🚀"} {plan.tier}
+              {plan.tier === "ULTRA" ? <Zap size={22} aria-hidden /> : <Rocket size={22} aria-hidden />} {plan.tier}
             </p>
             <div className="space-y-2 text-sm text-slate-300">
               <p><span className="text-slate-500">Mở khóa:</span> Toàn bộ Personas, Mock Exam & Tính năng AI</p>
@@ -142,10 +151,10 @@ function PaymentSuccessContent() {
 
         <button
           id="btn-go-dashboard"
-          onClick={() => router.push("/student")}
+          onClick={() => router.push("/v2/student/dashboard")}
           className="w-full inline-flex justify-center items-center gap-2 bg-gradient-to-r from-violet-600 to-purple-700 hover:opacity-90 text-white font-bold py-3.5 px-8 rounded-xl shadow-lg shadow-violet-500/30 transition-all active:scale-95"
         >
-          🏠 Bắt đầu học ngay
+          <Home size={17} aria-hidden /> Bắt đầu học ngay
         </button>
 
         <p className="text-slate-600 text-xs mt-6">

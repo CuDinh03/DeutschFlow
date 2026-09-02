@@ -1,9 +1,6 @@
 package com.deutschflow.teacher.curriculumimport;
 
 import com.deutschflow.common.async.AsyncJob;
-import com.deutschflow.common.async.AsyncJobService;
-import com.deutschflow.common.exception.ForbiddenException;
-import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.teacher.curriculumimport.dto.CurriculumImportCommitRequest;
 import com.deutschflow.teacher.curriculumimport.dto.CurriculumImportCommitResult;
 import com.deutschflow.teacher.curriculumimport.dto.CurriculumImportConfig;
@@ -36,7 +33,6 @@ public class CurriculumImportController {
     private final CurriculumTemplateCatalog templateCatalog;
     private final CurriculumImportService importService;
     private final CurriculumImportCommitService commitService;
-    private final AsyncJobService asyncJobService;
 
     /** The managed curriculum templates a teacher can expand into a plan. */
     @GetMapping("/curriculum-templates")
@@ -69,11 +65,7 @@ public class CurriculumImportController {
             @AuthenticationPrincipal User user,
             @PathVariable Long classId,
             @PathVariable UUID jobId) {
-        AsyncJob job = asyncJobService.getJob(jobId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy tiến trình phân tích."));
-        if (job.getCreatedByUserId() != null && !job.getCreatedByUserId().equals(user.getId())) {
-            throw new ForbiddenException("Bạn không có quyền truy cập tiến trình này.");
-        }
+        AsyncJob job = importService.requireOwnJob(user, classId, jobId);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("jobId", job.getId());
         body.put("status", job.getStatus());

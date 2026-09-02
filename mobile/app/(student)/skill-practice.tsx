@@ -20,6 +20,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
+import * as FileSystem from 'expo-file-system/legacy'
 import { Check, X, Trophy, Volume2, Mic, Square } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
@@ -670,6 +671,11 @@ function SpeakingInput({
   const [playingBack, setPlayingBack] = useState(false)
   const playerRef = useRef<AudioPlayer | null>(null)
   const recordingRef = useRef(false)
+  // Gương của recordedUri cho cleanup unmount (closure của effect [] không thấy
+  // state mới nhất). Màn này KHÔNG transcribe nên file không được dọn ở
+  // speakingApi.transcribe như 4 màn kia — tự dọn khi ghi đè / rời màn (F-17).
+  const recordedUriRef = useRef<string | null>(null)
+  recordedUriRef.current = recordedUri
 
   function stopPlayback() {
     const p = playerRef.current
@@ -697,7 +703,18 @@ function SpeakingInput({
       }
       if (recordingRef.current) {
         setGermanRecordingActive(false)
-        void recorder.stop().catch(() => undefined)
+        void recorder
+          .stop()
+          .catch(() => undefined)
+          .finally(() => {
+            // Audio mode là cấu hình toàn app — không thoát record mode ở đây thì
+            // TTS/phát lại sau đó ra loa trong rất nhỏ (F-11 soát 02/09).
+            void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {})
+          })
+      }
+      // Bản ghi phát-lại chỉ có nghĩa khi còn ở màn này — rời màn là dọn file (F-17).
+      if (recordedUriRef.current) {
+        void FileSystem.deleteAsync(recordedUriRef.current, { idempotent: true }).catch(() => {})
       }
     },
     [recorder],
@@ -738,6 +755,12 @@ function SpeakingInput({
       }
       await stopGermanSpeech() // don't record over the model TTS
       stopPlayback()
+      // Ghi lượt mới = bản cũ hết việc: dọn file kẻo mỗi lần thử lại rơi rớt
+      // thêm một .m4a trong cache (F-17).
+      if (recordedUri) {
+        void FileSystem.deleteAsync(recordedUri, { idempotent: true }).catch(() => {})
+        setRecordedUri(null)
+      }
       setPreparing(true)
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true })
       await recorder.prepareToRecordAsync()

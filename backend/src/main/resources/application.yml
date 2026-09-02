@@ -788,6 +788,10 @@ curriculum:
       tesseract-path: ${TESSERACT_PATH:tesseract}
       language: ${CURRICULUM_IMPORT_OCR_LANG:deu}
       render-dpi: ${CURRICULUM_IMPORT_OCR_DPI:150}
+      # Tran diem anh moi trang khi rasterise. PDF cho phep kho toi 14400pt (200 inch); o 150
+      # DPI mot trang nhu vay la 30000x30000 px ~ 3,3 GB — mot tep 544 byte du ha ca JVM.
+      # 40 MP van om tron moi kho giay that (A0 o 150 DPI ~ 34 MP).
+      max-render-pixels: ${CURRICULUM_IMPORT_OCR_MAX_RENDER_PIXELS:40000000}
       timeout-seconds: ${CURRICULUM_IMPORT_OCR_TIMEOUT_SEC:60}
       # Nhan dang ky tu ngon CPU; giu 1 suat de mot dot nhap khong cuop core cua request thuong.
       max-concurrent: ${CURRICULUM_IMPORT_OCR_MAX_CONCURRENT:1}

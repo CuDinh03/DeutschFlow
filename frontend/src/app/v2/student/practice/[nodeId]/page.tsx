@@ -9,7 +9,7 @@ import { isAsyncJobAccepted, waitForAsyncJob } from '@/lib/asyncJob'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { SKILL_COLORS, SKILL_LABELS, SKILL_ICONS } from '@/lib/skills'
-import { GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState, SkillIcon } from '@/components/ui-v2'
+import { GaCap, GaCard, GaGlyph, GaPageHdr, ErrorBanner, LoadingState, SkillIcon } from '@/components/ui-v2'
 import type { Skill } from '@/lib/skills'
 
 /**
@@ -147,7 +147,7 @@ export default function V2StudentPracticeNodePage() {
       <GaPageHdr
         accent
         title={t('title')}
-        subtitle={overview ? `${overview.emoji} ${overview.nodeTitleVi}` : t('subtitle')}
+        subtitle={overview ? overview.nodeTitleVi : t('subtitle')}
       />
       <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-3xl space-y-[22px]">
@@ -165,7 +165,9 @@ export default function V2StudentPracticeNodePage() {
           {overview && (
             <GaCard className="p-4 lg:p-6">
               <div className="flex items-start gap-4">
-                <span className="shrink-0 text-[34px] leading-none">{overview.emoji}</span>
+                {/* Chủ đề node: `overview.emoji` là dữ liệu (skill_tree_nodes.emoji), nên phải dịch
+                    sang icon ở FE — xem `emojiIconMap`. Emoji thô ở đây lệch hẳn nét với sidebar. */}
+                <GaGlyph emoji={overview.emoji} size="lg" />
                 <div className="min-w-0 flex-1">
                   <h2 className="font-ga-display text-[20px] font-medium leading-tight text-ga-ink break-words lg:text-[22px]">
                     {overview.nodeTitleVi}

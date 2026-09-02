@@ -51,6 +51,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    // Best-effort: server call hỏng (mất mạng…) vẫn phải đăng xuất LOCAL được —
+    // backend tự gỡ push token ở /auth/logout, nhưng giữ người dùng lại chỉ vì
+    // call đó lỗi thì tệ hơn. (Q-9 soát 02/09: catch rỗng là có chủ đích.)
     try { await api.post('/auth/logout') } catch {}
     await clearTokens()
     // Cờ onboarding/tour/checklist và lịch nhắc 20:00 lưu per-THIẾT BỊ, không

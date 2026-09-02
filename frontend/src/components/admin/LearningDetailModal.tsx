@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api, { apiMessage, isAxiosErr } from "@/lib/api";
-import { BookOpen, Brain, Briefcase, Flame, Lock, Mic, Star, Target, Trophy, Unlock, X, ChevronDown, ChevronUp, MessageSquare, Calendar } from "lucide-react";
+import { BookOpen, Brain, Briefcase, Flame, Lock, Mic, Star, Target, Trophy, Unlock, X, ChevronDown, ChevronUp, MessageSquare, Calendar, Save, Pencil, Check, Bot, User } from "lucide-react";
 import { CompleteBauhausLogo } from "@/components/BauhausLogo";
 
 const P = {
@@ -113,16 +113,16 @@ function ProfileTab({ d, userId, onSaved }: { d: LearningDetail; userId: number;
           <div>
             <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>MỤC TIÊU</p>
             <select value={form.goalType} onChange={fld('goalType')} className={selCls} style={selStyle}>
-              <option value="WORK">💼 Công việc</option>
-              <option value="CERT">📜 Lấy chứng chỉ</option>
+              <option value="WORK">Công việc</option>
+              <option value="CERT">Lấy chứng chỉ</option>
             </select>
           </div>
           <div>
             <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>TỐC ĐỘ HỌC</p>
             <select value={form.learningSpeed} onChange={fld('learningSpeed')} className={selCls} style={selStyle}>
-              <option value="SLOW">🐢 Chậm</option>
-              <option value="NORMAL">🚶 Bình thường</option>
-              <option value="FAST">🚀 Nhanh</option>
+              <option value="SLOW">Chậm</option>
+              <option value="NORMAL">Bình thường</option>
+              <option value="FAST">Nhanh</option>
             </select>
           </div>
           <div>
@@ -156,9 +156,9 @@ function ProfileTab({ d, userId, onSaved }: { d: LearningDetail; userId: number;
         {saveErr && <p className="text-xs font-medium" style={{ color: P.red }}>{saveErr}</p>}
         <div className="flex gap-2 pt-1">
           <button onClick={handleSave} disabled={saving}
-            className="flex-1 py-2 rounded-[10px] text-xs font-bold transition-opacity"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-[10px] text-xs font-bold transition-opacity"
             style={{ background: P.navy, color: P.white, opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Đang lưu…' : '💾 Lưu hồ sơ'}
+            {saving ? 'Đang lưu…' : <><Save size={13} aria-hidden /> Lưu hồ sơ</>}
           </button>
           <button onClick={() => { setEditing(false); setSaveErr(''); }}
             className="px-4 py-2 rounded-[10px] text-xs font-bold"
@@ -177,9 +177,9 @@ function ProfileTab({ d, userId, onSaved }: { d: LearningDetail; userId: number;
           <p className="text-sm font-medium mb-1" style={{ color: P.muted }}>Người dùng chưa thiết lập hồ sơ học tập.</p>
           <p className="text-xs mb-3" style={{ color: P.muted }}>Admin có thể tạo hồ sơ thay cho người dùng.</p>
           <button onClick={() => setEditing(true)}
-            className="px-4 py-2 rounded-[10px] text-xs font-bold"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] text-xs font-bold"
             style={{ background: P.navy, color: P.white }}>
-            ✏️ Tạo hồ sơ học tập
+            <Pencil size={13} aria-hidden /> Tạo hồ sơ học tập
           </button>
         </div>
       ) : (
@@ -219,9 +219,9 @@ function ProfileTab({ d, userId, onSaved }: { d: LearningDetail; userId: number;
           )}
           <div className="flex justify-end pt-1">
             <button onClick={() => setEditing(true)}
-              className="px-4 py-2 rounded-[10px] text-xs font-bold transition-all hover:opacity-80"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] text-xs font-bold transition-all hover:opacity-80"
               style={{ background: P.navyLt, color: P.navy, border: `1px solid ${P.navy}30` }}>
-              ✏️ Chỉnh sửa hồ sơ
+              <Pencil size={13} aria-hidden /> Chỉnh sửa hồ sơ
             </button>
           </div>
         </>
@@ -357,10 +357,10 @@ function SpeakingTab({ d }: { d: LearningDetail }) {
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: P.navyLt, color: P.navy }}>
                     {Number(s.totalCount ?? 0)}×
                   </span>
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full`}
+                  <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full`}
                     style={{ background: isResolved ? P.greenLt : P.redLt, color: isResolved ? P.green : P.red }}
                   >
-                    {isResolved ? `✓ Đã sửa` : `✗ Chưa sửa (${openCount})`}
+                    {isResolved ? <><Check size={9} aria-hidden /> Đã sửa</> : <><X size={9} aria-hidden /> Chưa sửa ({openCount})</>}
                   </span>
                 </div>
               </div>
@@ -586,8 +586,8 @@ function InterviewTab({ userId }: { userId: number }) {
                             borderBottomRightRadius: !isAi ? '4px' : undefined,
                           }}
                         >
-                          <span className="text-[9px] font-bold block mb-0.5" style={{ color: isAi ? P.navy : P.blue }}>
-                            {isAi ? '🤖 AI' : '👤 User'}
+                          <span className="flex items-center gap-1 text-[9px] font-bold mb-0.5" style={{ color: isAi ? P.navy : P.blue }}>
+                            {isAi ? <><Bot size={9} aria-hidden /> AI</> : <><User size={9} aria-hidden /> User</>}
                           </span>
                           {content}
                         </div>

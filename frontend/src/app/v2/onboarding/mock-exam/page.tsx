@@ -8,7 +8,7 @@ import { ArrowLeft, Mic, AlertTriangle } from 'lucide-react'
 import api from '@/lib/api'
 import { aiSpeakingApi } from '@/lib/aiSpeakingApi'
 import { startRecorder, RecorderHandle } from '@/lib/voiceRecorder'
-import { GaCard, GaBtn, GaCap } from '@/components/ui-v2'
+import { GaCard, GaBtn, GaCap, GaIcon } from '@/components/ui-v2'
 import { GaAuthShell } from '../../authShared'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -271,7 +271,7 @@ export default function V2OnboardingMockExamPage() {
           </p>
 
           <GaCard className="space-y-3 p-4 text-left lg:p-5">
-            <GaCap>💡 Gợi ý nội dung</GaCap>
+            <GaCap className="flex items-center gap-1.5"><GaIcon name="lightbulb" size={12} /> Gợi ý nội dung</GaCap>
             <ul className="space-y-2 text-[13.5px] text-ga-muted">
               <li>• Giới thiệu bản thân (tên, tuổi, quê quán)</li>
               <li>• Kể về công việc hoặc ngành học</li>

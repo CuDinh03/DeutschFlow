@@ -21,9 +21,11 @@ import { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import {
   fetchAssignmentDetail, fetchAssignmentMaterials, fetchAssignmentMaterialUrl,
+  isAwaitingTeacher, isFinalGrade, isSubmittedStatus,
   submitAssignment, uploadAssignmentFile,
   MAX_UPLOAD_BYTES, type AssignmentMaterial, type MaterialKind, type StudentAssignment, type UploadFile,
 } from '@/lib/studentClassesApi'
+import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, ProgressRing,
@@ -37,15 +39,16 @@ const TYPE_LABELS: Record<string, string> = {
 }
 const typeLabel = (t: string) => TYPE_LABELS[t] ?? 'Bài tập chung'
 
-const isGraded = (status: string) => status === 'GRADED' || status === 'EVALUATED'
+// Phân loại trạng thái dùng chung với classes/[id].tsx — định nghĩa + lý do ở
+// lib/studentClassesApi.ts (gương AssignmentStatus.java backend, F-14 soát 02/09).
+const isGraded = isFinalGrade
 /**
  * Nộp lại được chừng nào giáo viên CHƯA chốt điểm. AI_GRADED nằm trong nhóm này: AI mới đề xuất điểm
  * và học viên chưa hề thấy nó. Backend trước đây chặn mọi trạng thái khác PENDING, nên chọn nhầm ảnh
  * hay thu âm hỏng là vĩnh viễn — không có đường rút hay thay bài nộp.
  */
-const canResubmit = (status: string) =>
-  status === 'SUBMITTED' || status === 'AI_GRADED' || status === 'GRADING_FAILED'
-const isSubmitted = (status: string) => status === 'SUBMITTED' || isGraded(status)
+const canResubmit = isAwaitingTeacher
+const isSubmitted = isSubmittedStatus
 
 const MATERIAL_KIND_ICON: Record<MaterialKind, typeof FileText> = {
   PDF: FileText, DOCX: FileText, PPTX: FileText, OTHER: FileText,
@@ -209,7 +212,9 @@ function StatusPill({ status, score }: { status: string; score: number | null })
   if (isGraded(status)) {
     return <Pill tone="success" icon={CheckCircle2} label={`Đã chấm${score != null ? ` · ${score}/100` : ''}`} />
   }
-  if (status === 'SUBMITTED') {
+  // AI_GRADED / GRADING_FAILED hiển thị y như SUBMITTED: backend cố ý không công
+  // bố khâu chấm AI cho học viên; trước đây hai trạng thái này hiện "Chưa nộp" đỏ.
+  if (isAwaitingTeacher(status)) {
     return <Pill tone="info" icon={Upload} label="Đã nộp" />
   }
   return <Pill tone="danger" icon={AlertCircle} label="Chưa nộp" />
@@ -433,6 +438,13 @@ function AttachmentPicker({
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
 
+  // Rời màn giữa lúc ghi âm → dừng mic + thoát record mode (F-9/F-11 soát 02/09).
+  // Bản ghi dở bị bỏ; timer đếm giây phải dừng theo kẻo UI kẹt "Đang ghi…".
+  useRecorderBlurGuard(recorder, () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+    setRecording(false)
+  })
+
   const oversize = () => Alert.alert('File quá lớn', 'Vui lòng chọn tệp dưới 10MB.')
   const tooBig = (size?: number) => size != null && size > MAX_UPLOAD_BYTES
 
@@ -499,6 +511,10 @@ function AttachmentPicker({
     } catch {
       Alert.alert('Lỗi ghi âm', 'Không lưu được bản ghi. Vui lòng thử lại.')
       return
+    } finally {
+      // Audio mode là cấu hình toàn app: quên thoát record mode ở đây làm mọi
+      // phát lại sau đó (TTS từ vựng, video bài học) ra loa trong rất nhỏ (F-11).
+      void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {})
     }
     const uri = recorder.uri
     if (!uri) return

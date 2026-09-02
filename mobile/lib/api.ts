@@ -161,6 +161,27 @@ type RefreshResult = { accessToken: string; newRefresh: string }
 // Assign synchronously before any await so concurrent 401s share one refresh request.
 let refreshPromise: Promise<RefreshResult> | null = null
 
+/**
+ * F-15 (soát 02/09): refresh là POST nên không lọt nhánh retry-GET của interceptor —
+ * một 502/503/timeout đúng lúc blue-green deploy từng đá thẳng người còn refresh
+ * token hợp lệ về màn đăng nhập. Thử lại ĐÚNG MỘT lần, chỉ khi lỗi thoáng qua
+ * (không có response hoặc 5xx — isTransientFailure).
+ *
+ * An toàn với refresh-token rotation: ca xấu nhất là server ĐÃ xử lý lần 1 (đã
+ * rotate) nhưng response rớt trên đường về — retry bằng token cũ sẽ bị 401/400,
+ * rơi vào catch ngoài và đăng xuất… tức là ĐÚNG hành vi trước bản vá, không tệ hơn;
+ * còn mọi ca transient thật (server chưa nhận request) thì lần 2 cứu được phiên.
+ */
+async function postRefreshWithOneRetry(refreshToken: string) {
+  try {
+    return await api.post<RefreshResponseData>('/auth/refresh', { refreshToken })
+  } catch (err) {
+    if (!isTransientFailure(err)) throw err
+    await new Promise((resolve) => setTimeout(resolve, 900))
+    return api.post<RefreshResponseData>('/auth/refresh', { refreshToken })
+  }
+}
+
 api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
@@ -203,7 +224,7 @@ api.interceptors.response.use(
         refreshPromise = (async (): Promise<RefreshResult> => {
           const refreshToken = await getRefreshToken()
           if (!refreshToken) throw new Error('no_refresh_token')
-          const res = await api.post<RefreshResponseData>('/auth/refresh', { refreshToken })
+          const res = await postRefreshWithOneRetry(refreshToken)
           const { accessToken, refreshToken: newRefresh } = res.data
           if (!accessToken || !newRefresh) throw new Error('invalid_refresh_response')
           await setTokens(accessToken, newRefresh)

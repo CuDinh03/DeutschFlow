@@ -91,6 +91,62 @@ export function reconcileConfirmed(
 }
 
 /**
+ * Ứng viên "tiếng vọng" từ server khi RETRY một item: message do CHÍNH MÌNH gửi
+ * (mine) mà server đã lưu, dù client chưa từng nhận được response (timeout/502
+ * lúc POST — soát 02/09, F-13). Message của messagesApi lẫn ClassMessage của
+ * classChannelApi đều khớp shape này về cấu trúc.
+ */
+export interface RetryEchoCandidate {
+  id: number
+  body: string | null
+  mine: boolean
+  createdAt: string
+}
+
+/**
+ * Đồng hồ client (item.createdAt) có thể lệch server (candidate.createdAt) —
+ * khoan dung 5 phút. Echo phải SINH SAU lúc bấm gửi (trừ skew), kẻo một tin
+ * trùng nội dung từ hôm trước bị nhận vơ.
+ */
+export const RETRY_ECHO_CLOCK_SKEW_MS = 5 * 60_000
+
+/**
+ * Tìm id server của "tiếng vọng" cho `item` trước khi RESEND (F-13): POST timeout
+ * không có nghĩa là server chưa lưu — resend mù là người nhận thấy tin ĐÔI.
+ *
+ * Luật khớp, theo thứ tự an toàn:
+ *  - chỉ message `mine` (do mình gửi) và body trùng CHÍNH XÁC;
+ *  - sinh sau `item.createdAt - SKEW` (loại tin trùng nội dung cũ);
+ *  - id chưa bị item khác trong outbox chiếm (`usedServerIds`) — hai item trùng
+ *    body trong cùng thread phải ghép 1-1 theo thứ tự, caller xử lý item cũ trước
+ *    và bổ sung id vừa dùng vào set này.
+ * Trả id NHỎ NHẤT thoả (echo sớm nhất ↔ item sớm nhất), undefined = không thấy
+ * → caller cứ POST như thường.
+ */
+export function findRetryEcho(
+  item: OutboxItem,
+  candidates: readonly RetryEchoCandidate[],
+  usedServerIds: ReadonlySet<number>,
+): number | undefined {
+  const notBefore = new Date(item.createdAt).getTime() - RETRY_ECHO_CLOCK_SKEW_MS
+  let best: number | undefined
+  for (const c of candidates) {
+    if (!c.mine || c.body !== item.body || usedServerIds.has(c.id)) continue
+    const at = new Date(c.createdAt).getTime()
+    if (Number.isFinite(at) && at < notBefore) continue
+    if (best == null || c.id < best) best = c.id
+  }
+  return best
+}
+
+/** Mọi serverId mà outbox hiện tại đã gắn (confirmed) — để findRetryEcho không nhận vơ. */
+export function collectUsedServerIds(items: readonly OutboxItem[]): Set<number> {
+  const used = new Set<number>()
+  for (const i of items) if (i.serverId != null) used.add(i.serverId)
+  return used
+}
+
+/**
  * Whether an automatic flush should re-attempt this item. Only a still-'sending' item (interrupted
  * before it got a response) or a transiently-'failed' one — never a 'confirmed' shadow (already
  * sent → re-sending would duplicate) and never a permanently-rejected 4xx.

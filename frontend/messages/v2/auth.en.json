@@ -63,7 +63,7 @@
       "emailRequired": "Please enter your email",
       "emailInvalid": "Invalid email",
       "phoneRequired": "Please enter your phone number",
-      "phoneInvalid": "10-digit Vietnamese number starting with 03/05/07/08/09",
+      "phoneInvalid": "This is not a valid Vietnamese mobile number — it needs 10 digits and must start with 03, 05, 07, 08 or 09",
       "passwordRequired": "Please enter your password",
       "passwordTooShort": "Password must be at least 8 characters",
       "failed": "Could not create the account. Please try again."

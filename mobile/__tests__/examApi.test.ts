@@ -1,4 +1,4 @@
-import { mapExam, type RawMockExam } from '@/lib/examApi'
+import { attemptTotalScore, mapExam, type AttemptResultDto, type RawMockExam } from '@/lib/examApi'
 
 describe('mapExam', () => {
   it('maps snake_case backend row to ExamVariant', () => {
@@ -28,5 +28,24 @@ describe('mapExam', () => {
     }
 
     expect(mapExam(raw).totalQuestions).toBe(0)
+  })
+})
+
+describe('attemptTotalScore (F-10a soát 02/09)', () => {
+  it('đọc đúng khoá snake_case `total_score` của ExamResultDto backend', () => {
+    const result: AttemptResultDto = { total_score: 42, status: 'COMPLETED' }
+    expect(attemptTotalScore(result)).toBe(42)
+  })
+
+  it('điểm chưa có (job đang chấm) hoặc thiếu → 0, không NaN/undefined', () => {
+    expect(attemptTotalScore({ total_score: null, status: 'IN_PROGRESS' })).toBe(0)
+    expect(attemptTotalScore({})).toBe(0)
+    expect(attemptTotalScore(null)).toBe(0)
+  })
+
+  it('hồi quy: khoá camelCase `totalScore` KHÔNG tồn tại trong hợp đồng — không được đọc ra điểm', () => {
+    // Đây chính là lỗi cũ: màn kết quả đọc `totalScore` nên luôn hiện 0.
+    const wrongShape = { totalScore: 42 } as unknown as AttemptResultDto
+    expect(attemptTotalScore(wrongShape)).toBe(0)
   })
 })

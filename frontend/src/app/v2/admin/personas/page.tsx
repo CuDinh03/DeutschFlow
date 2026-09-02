@@ -12,7 +12,7 @@ import {
   type InterviewPersonaInfo,
   type InterviewAnalytics,
 } from '@/lib/interviewDomainApi'
-import { GaPageHdr, GaBtn, GaCap, AdStatStrip, TkModal, TkSeg, type TkSegOption } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaIcon, AdStatStrip, TkModal, TkSeg, type TkSegOption } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 
 // Tier-colored badge (BEGINNER green / INTERMEDIATE blue / ADVANCED violet; CEFR-aware).
@@ -374,10 +374,11 @@ export default function V2AdminPersonasPage() {
                     >
                       <span className="text-[13px] text-ga-ink">{t('totalWeight')}</span>
                       <span
-                        className="font-ga-display text-[18px] font-medium"
+                        className="inline-flex items-center gap-1 font-ga-display text-[18px] font-medium"
                         style={{ color: sum === 100 ? 'var(--ga-green)' : 'var(--ga-red)' }}
                       >
-                        {sum}%{sum !== 100 ? ' ⚠' : ' ✓'}
+                        {sum}%
+                        <GaIcon name={sum === 100 ? 'check' : 'warning'} size={15} />
                       </span>
                     </div>
                     <GaBtn
