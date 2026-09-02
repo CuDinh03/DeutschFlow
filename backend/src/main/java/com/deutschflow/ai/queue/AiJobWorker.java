@@ -12,12 +12,12 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * Background worker: mỗi 2 giây lấy tối đa 5 job PENDING
@@ -25,6 +25,10 @@ import java.util.Map;
  *
  * Thread-safety: FOR UPDATE SKIP LOCKED đảm bảo không có 2 worker
  * nào xử lý cùng 1 job dù Spring chạy nhiều threads.
+ *
+ * B2 audit lag 02/09: scheduler tick chỉ CLAIM; thân job (Whisper có thể 60s + LLM) chạy trên
+ * "aiExecutor" — trước đây worker chiếm một slot của scheduling pool suốt thời gian gọi AI,
+ * và mọi @Scheduled khác phải xếp hàng sau nó.
  */
 @Service
 @RequiredArgsConstructor
@@ -42,6 +46,8 @@ public class AiJobWorker {
     /** Handler cắm được (module mới), tra theo jobType; các handler cũ giữ nguyên trong switch. */
     private final java.util.List<AiJobHandler> pluggableHandlers;
     private final PlatformTransactionManager transactionManager;
+    /** Pool gọi AI (AsyncConfig) — resolve theo TÊN field, cùng kiểu khai báo với SkillTreeService. */
+    private final Executor aiExecutor;
 
     /**
      * Chỉ nhận job đủ mới. Chốt chặn để sự cố 10/06–23/08 không lặp lại: khi worker chết một thời
@@ -63,22 +69,34 @@ public class AiJobWorker {
 
         for (AiJob job : jobs) {
             try {
-                Map<String, Object> result = switch (job.getJobType()) {
-                    case AiJob.TYPE_PRONUNCIATION_EVAL -> handlePronunciationEval(job);
-                    case AiJob.TYPE_INTERVIEW_REPORT   -> handleInterviewReport(job);
-                    default -> dispatchPluggable(job);
-                };
-
-                saveCompleted(job, result);
-                sseRegistry.complete(job.getId(), result);
-                log.info("[Worker] Completed jobId={} type={}", job.getId(), job.getJobType());
-
-            } catch (Exception e) {
-                log.error("[Worker] Failed jobId={}: {}", job.getId(), e.getMessage(), e);
-                saveFailed(job, e.getMessage());
-                notifyHandlerFailure(job, e);
-                sseRegistry.error(job.getId(), "Đánh giá thất bại. Vui lòng thử lại.");
+                aiExecutor.execute(() -> runJob(job));
+            } catch (RejectedExecutionException full) {
+                // Pool + queue của aiExecutor đầy (đang bão AI call). Trả job về PENDING để tick
+                // sau claim lại — backpressure tự nhiên, không mất job, không FAILED oan.
+                log.warn("[Worker] aiExecutor đầy — trả jobId={} về PENDING chờ tick sau", job.getId());
+                requeuePending(job);
             }
+        }
+    }
+
+    /** Thân job — chạy trên aiExecutor, KHÔNG trên scheduler thread. */
+    private void runJob(AiJob job) {
+        try {
+            Map<String, Object> result = switch (job.getJobType()) {
+                case AiJob.TYPE_PRONUNCIATION_EVAL -> handlePronunciationEval(job);
+                case AiJob.TYPE_INTERVIEW_REPORT   -> handleInterviewReport(job);
+                default -> dispatchPluggable(job);
+            };
+
+            saveCompleted(job, result);
+            sseRegistry.complete(job.getId(), result);
+            log.info("[Worker] Completed jobId={} type={}", job.getId(), job.getJobType());
+
+        } catch (Exception e) {
+            log.error("[Worker] Failed jobId={}: {}", job.getId(), e.getMessage(), e);
+            saveFailed(job, e.getMessage());
+            notifyHandlerFailure(job, e);
+            sseRegistry.error(job.getId(), "Đánh giá thất bại. Vui lòng thử lại.");
         }
     }
 
@@ -117,37 +135,59 @@ public class AiJobWorker {
         return null;
     }
 
-    private List<AiJob> claimInNewTransaction() {
+    /**
+     * Mọi thao tác DB của worker bọc TransactionTemplate REQUIRES_NEW tường minh thay vì
+     * @Transactional: worker toàn gọi nội-bean (scheduler tick, lambda trên aiExecutor) nên
+     * annotation qua proxy KHÔNG BAO GIỜ có hiệu lực ở đây — cùng bài học với bug claim 10/06.
+     */
+    private TransactionTemplate newTransaction() {
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-        List<AiJob> claimed = tx.execute(status -> claimJobs());
+        return tx;
+    }
+
+    private List<AiJob> claimInNewTransaction() {
+        List<AiJob> claimed = newTransaction().execute(status -> {
+            List<AiJob> jobs = aiJobRepository.claimPendingJobs(BATCH_SIZE, Math.max(1, maxAgeDays));
+            if (!jobs.isEmpty()) {
+                List<Long> ids = jobs.stream().map(AiJob::getId).toList();
+                aiJobRepository.bulkUpdateStatus(ids, AiJob.STATUS_PROCESSING);
+            }
+            return jobs;
+        });
         return claimed == null ? List.of() : claimed;
     }
 
-    /** Chỉ gọi qua {@link #claimInNewTransaction()} (hoặc từ ngoài bean qua proxy) — tự-gọi sẽ mất transaction. */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<AiJob> claimJobs() {
-        List<AiJob> jobs = aiJobRepository.claimPendingJobs(BATCH_SIZE, Math.max(1, maxAgeDays));
-        if (!jobs.isEmpty()) {
-            List<Long> ids = jobs.stream().map(AiJob::getId).toList();
-            aiJobRepository.bulkUpdateStatus(ids, AiJob.STATUS_PROCESSING);
+    private void requeuePending(AiJob job) {
+        try {
+            newTransaction().executeWithoutResult(status ->
+                    aiJobRepository.bulkUpdateStatus(List.of(job.getId()), AiJob.STATUS_PENDING));
+        } catch (Exception e) {
+            // Không trả được về PENDING → job nằm PROCESSING mồ côi; StaleAiJobExpirer quét ~5' sẽ dọn.
+            log.error("[Worker] Không trả được jobId={} về PENDING: {}", job.getId(), e.getMessage());
         }
-        return jobs;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void saveCompleted(AiJob job, Map<String, Object> result) {
-        job.setResult(result);
-        job.setStatus(AiJob.STATUS_COMPLETED);
-        aiJobRepository.save(job);
+    private void saveCompleted(AiJob job, Map<String, Object> result) {
+        newTransaction().executeWithoutResult(status -> {
+            job.setResult(result);
+            job.setStatus(AiJob.STATUS_COMPLETED);
+            aiJobRepository.save(job);
+        });
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void saveFailed(AiJob job, String errorMsg) {
-        job.setStatus(AiJob.STATUS_FAILED);
-        job.setErrorMsg(errorMsg);
-        job.setRetryCount(job.getRetryCount() + 1);
-        aiJobRepository.save(job);
+    private void saveFailed(AiJob job, String errorMsg) {
+        try {
+            newTransaction().executeWithoutResult(status -> {
+                job.setStatus(AiJob.STATUS_FAILED);
+                job.setErrorMsg(errorMsg);
+                job.setRetryCount(job.getRetryCount() + 1);
+                aiJobRepository.save(job);
+            });
+        } catch (Exception e) {
+            // saveFailed hỏng không được ném tiếp — còn notifyHandlerFailure + SSE error phía sau.
+            log.error("[Worker] Không lưu được FAILED cho jobId={}: {}", job.getId(), e.getMessage());
+        }
     }
 
     // ──────────────────────────────────────────────────────────────
