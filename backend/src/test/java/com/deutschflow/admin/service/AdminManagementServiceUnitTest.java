@@ -49,6 +49,7 @@ class AdminManagementServiceUnitTest {
     @Mock org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     @Mock com.deutschflow.organization.service.OrgMembershipService orgMembershipService;
     @Mock com.deutschflow.organization.repository.OrganizationRepository organizationRepository;
+    @Mock com.deutschflow.user.repository.RefreshTokenRepository refreshTokenRepository;
 
     @InjectMocks
     AdminManagementService service;
@@ -156,6 +157,64 @@ class AdminManagementServiceUnitTest {
         var out = service.setUserActive(9L, true);
 
         assertEquals(true, out.get("isActive")); // lock có thể mở lại — reversible
+    }
+
+    // ── F-H3: thao tác đặc quyền của admin phải cắt phiên đang chạy của target ──────
+
+    @Test
+    void setUserActive_lock_revokesTargetSessions() {
+        User u = User.builder().id(9L).email("u@x.com").displayName("U")
+                .role(User.Role.TEACHER).active(true).build();
+        when(userRepository.findById(9L)).thenReturn(Optional.of(u));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.setUserActive(9L, false);
+
+        // Không revoke thì access token đang cầm vẫn sống tới khi hết hạn và refresh token còn 7 ngày.
+        verify(refreshTokenRepository).revokeAllByUserId(9L);
+    }
+
+    @Test
+    void setUserActive_unlock_doesNotRevokeSessions() {
+        User u = User.builder().id(9L).email("u@x.com").displayName("U")
+                .role(User.Role.TEACHER).active(false).build();
+        when(userRepository.findById(9L)).thenReturn(Optional.of(u));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.setUserActive(9L, true);
+
+        // Mở khóa không phải sự kiện bảo mật — không đá phiên nào cả.
+        verify(refreshTokenRepository, never()).revokeAllByUserId(anyLong());
+    }
+
+    @Test
+    void updateUserRole_revokesTargetSessions() {
+        User u = User.builder().id(11L).email("r@x.com").displayName("R")
+                .role(User.Role.ADMIN).active(true).build();
+        when(userRepository.findById(11L)).thenReturn(Optional.of(u));
+        when(orgMembershipService.hasActiveMembership(11L)).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.updateUserRole(11L, "student");
+
+        assertEquals(User.Role.STUDENT, u.getRole());
+        // Access token cũ mang authorities vai trò CŨ; JwtAuthFilter còn cache UserDetails 60s.
+        verify(refreshTokenRepository).revokeAllByUserId(11L);
+    }
+
+    @Test
+    void setUserPassword_revokesTargetSessions() {
+        User u = User.builder().id(12L).email("p@x.com").displayName("P")
+                .role(User.Role.STUDENT).active(true).build();
+        when(userRepository.findById(12L)).thenReturn(Optional.of(u));
+        when(passwordEncoder.encode("newsecret123")).thenReturn("HASH2");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.setUserPassword(12L, "newsecret123");
+
+        assertEquals("HASH2", u.getPasswordHash());
+        // Self-service đổi mật khẩu và OTP quên-mật-khẩu đều revoke; đường admin phải khớp.
+        verify(refreshTokenRepository).revokeAllByUserId(12L);
     }
 
     @Test

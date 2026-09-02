@@ -142,6 +142,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                                HttpServletResponse response) throws IOException {
         try {
             var userDetails = userCache.get(subject, userDetailsService::loadUserByUsername);
+            // Audit F-H2 (03/09/2026): filter tự dựng Authentication nên KHÔNG đi qua
+            // AccountStatusUserDetailsChecker của DaoAuthenticationProvider — trước đây một tài khoản
+            // bị admin khoá vẫn dùng tiếp access token đang cầm cho tới khi hết hạn. Kiểm tường minh
+            // ở đây; độ trễ tối đa là TTL 60s của userCache bên trên.
+            if (!userDetails.isEnabled()) {
+                log.warn("[JwtAuthFilter] Tài khoản đã bị khóa vẫn trình token: {} trên {}",
+                        subject, request.getRequestURI());
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Account is disabled");
+                return false;
+            }
             var auth = new UsernamePasswordAuthenticationToken(
                     userDetails, null, userDetails.getAuthorities());
             auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

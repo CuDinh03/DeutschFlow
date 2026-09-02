@@ -190,6 +190,15 @@ public class AuthService {
             throw new BadRequestException("Refresh token expired");
         }
 
+        // Audit F-H2 (03/09/2026): login kiểm is_active qua User#isEnabled (DaoAuthenticationProvider),
+        // nhưng refresh thì KHÔNG — nên một tài khoản bị admin khoá vẫn tự gia hạn phiên tới 7 ngày
+        // (TTL refresh token) mà không phải đăng nhập lại lần nào. Kiểm ở đây để "khoá tài khoản"
+        // thật sự chấm dứt phiên; revoke luôn phần còn lại cho khỏi thử tiếp bằng token khác.
+        if (!stored.getUser().isActive()) {
+            refreshTokenRepository.revokeAllByUserId(stored.getUser().getId());
+            throw new BadRequestException("Tài khoản đã bị khóa.");
+        }
+
         stored.setRevoked(true);
         refreshTokenRepository.save(stored);
 

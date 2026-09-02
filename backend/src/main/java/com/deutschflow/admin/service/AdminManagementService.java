@@ -26,6 +26,7 @@ import com.deutschflow.vocabulary.service.EnrichmentSuspendGate;
 import com.deutschflow.vocabulary.service.TranslationUsageMeter;
 import com.deutschflow.vocabulary.service.WordQueryService;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.user.repository.RefreshTokenRepository;
 import com.deutschflow.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -74,6 +75,7 @@ public class AdminManagementService {
     private final PasswordEncoder passwordEncoder;
     private final OrgMembershipService orgMembershipService;
     private final OrganizationRepository organizationRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional(readOnly = true)
     public Map<String, Object> overview() {
@@ -687,6 +689,10 @@ public class AdminManagementService {
         }
         user.setRole(User.Role.valueOf(normalized));
         userRepository.save(user);
+        // Audit F-H3 (03/09/2026): đổi vai trò xong phải cắt phiên cũ. Access token đang lưu hành
+        // mang authorities của vai trò CŨ và JwtAuthFilter cache UserDetails 60s, nên nếu không
+        // revoke thì người vừa bị hạ quyền còn giữ quyền cũ tới hết vòng đời refresh token (7 ngày).
+        refreshTokenRepository.revokeAllByUserId(userId);
         return Map.of(
                 "id", user.getId(),
                 "email", user.getEmail(),
@@ -767,6 +773,12 @@ public class AdminManagementService {
                 .orElseThrow(() -> new NotFoundException("User not found"));
         user.setActive(active);
         userRepository.save(user);
+        // Audit F-H3 (03/09/2026): khóa tài khoản mà không revoke thì phiên đang chạy vẫn sống —
+        // AuthService#refresh nay cũng chặn user bị khóa, nhưng revoke ở đây cắt ngay thay vì đợi
+        // access token hết hạn rồi mới chặn ở lần refresh kế tiếp.
+        if (!active) {
+            refreshTokenRepository.revokeAllByUserId(userId);
+        }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", user.getId());
         out.put("email", user.getEmail());
@@ -789,6 +801,10 @@ public class AdminManagementService {
                 .orElseThrow(() -> new NotFoundException("User not found"));
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
         userRepository.save(user);
+        // Audit F-H3 (03/09/2026): đổi mật khẩu qua self-service và qua OTP quên-mật-khẩu đều revoke
+        // session; riêng đường admin đặt lại hộ thì không — bất đối xứng đúng ở tình huống cần nhất
+        // (gỡ credential mặc định, thu hồi tài khoản bị chiếm). Revoke cho khớp hai đường kia.
+        refreshTokenRepository.revokeAllByUserId(userId);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", user.getId());
         out.put("email", user.getEmail());
