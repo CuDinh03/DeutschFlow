@@ -25,5 +25,19 @@ schema_config:
         prefix: index_
         period: 24h
 
+# H2 audit lag 02/09: mặc định Loki giữ log VĨNH VIỄN — volume loki_data mới tạo 02/09 nên còn
+# nhỏ, nhưng trên đĩa 30GB đang 59% thì "quên" mục này là bài toán disk-full hẹn giờ. 360h = 15
+# ngày, thừa cho chẩn đoán sự cố. Compactor là bên THI HÀNH việc xoá — thiếu nó thì
+# retention_period chỉ là lời hứa suông (Loki 3.x đòi thêm delete_request_store khi bật retention).
+limits_config:
+  retention_period: 360h
+
+compactor:
+  working_directory: /loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  delete_request_store: filesystem
+
 ruler:
   alertmanager_url: http://localhost:9093

@@ -102,3 +102,53 @@ groups:
         annotations:
           summary: "CPU backend >85% suốt 10 phút"
           description: "Trên t3 burstable, kéo dài sẽ cạn CPU credit và server bị throttle về baseline hàng giờ SAU KHI tải đã hết. Kiểm CPUCreditBalance trên CloudWatch."
+
+      # ── H3 (audit lag 02/09) — alert mở rộng trên node-exporter + JVM/breaker ─────────────
+      # Cert expiry CHƯA có rule: cần blackbox exporter probe HTTPS (thêm ~30MB RAM + service
+      # mới) — để đợt sau; certbot auto-renew vẫn là tuyến phòng thủ chính.
+
+      - alert: HostDiskSpaceLow
+        # node-exporter chạy với --path.rootfs=/host nên mountpoint="/" là đĩa gốc EC2 (30GB,
+        # đang ~59%). 15% ≈ 4.5GB — dưới mức đó một lần build image (cần ~2-3GB tạm) sẽ thất
+        # bại, và bước prune khẩn của deploy script bắt đầu phải dọn đồ thật.
+        expr: (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}) < 0.15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Dia goc EC2 con duoi 15%"
+          description: "Kiem tra: docker system df, log container (da co rotation 50mx3), volume loki (retention 15 ngay tu H2). Duoi 10% la deploy fail."
+
+      - alert: HostMemoryPressure
+        # RAM available ~1.2GB khi đủ backend + observability (đo 02/09). Dưới 300MB là vùng
+        # nguy hiểm: kernel bắt đầu reclaim mạnh, swap 2G nóng dần, mọi thứ chậm theo kiểu
+        # "không thấy gì cháy nhưng cái gì cũng ì" — đúng hình dạng lag đang truy.
+        expr: node_memory_MemAvailable_bytes < 300 * 1024 * 1024
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RAM available cua host duoi 300MB"
+          description: "Blue-green dang chay 2 JVM? Container nao vuot mem_limit? Xem docker stats. Swap dung nhieu keo dai = can can nhac nang instance."
+
+      - alert: HighJvmGcPause
+        # Tỉ lệ thời gian dừng GC trên thời gian thật. >5% kéo dài nghĩa là heap thiếu hoặc có
+        # allocation storm — p95/p99 API sẽ nhiễm răng cưa đúng chu kỳ GC.
+        expr: sum(rate(jvm_gc_pause_seconds_sum[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM dung vi GC >5% thoi gian (10 phut lien)"
+          description: "Xem jvm_memory_used_bytes theo pool tren Grafana. Heap tran 65% cua cgroup 2200m — neu old-gen day lien tuc thi tim allocation storm truoc khi tang RAM."
+
+      - alert: CircuitBreakerOpen
+        # resilience4j: breaker mở nghĩa là một dịch vụ ngoài (AI provider, TTS…) đang hỏng và
+        # backend đã tự ngắt để bảo vệ mình — người dùng đang nhận lỗi ở tính năng đó.
+        expr: resilience4j_circuitbreaker_state{state="open"} == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Circuit breaker {{ $labels.name }} dang OPEN"
+          description: "Dich vu ngoai sau breaker nay dang hong lien tuc. Kiem tra provider tuong ung (Groq/Fireworks/TTS) va log loi gan nhat."

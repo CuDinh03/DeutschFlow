@@ -2,8 +2,10 @@ server:
   http_listen_port: 9080
   grpc_listen_port: 0
 
+# H2 audit lag 02/09: positions nằm /tmp TRONG container = mất mỗi lần restart → promtail đọc
+# lại toàn bộ log từ đầu, đẩy trùng vào Loki. /positions là volume promtail_positions (compose).
 positions:
-  filename: /tmp/positions.yaml
+  filename: /positions/positions.yaml
 
 clients:
   - url: http://loki:3100/loki/api/v1/push

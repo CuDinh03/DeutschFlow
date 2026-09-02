@@ -262,7 +262,11 @@ info "[1/6] Kiểm tra disk space..."
 DISK_PCT=$(df / | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
 if [ "$DISK_PCT" -gt 90 ]; then
   warn "Disk ${DISK_PCT}% — dọn dẹp Docker trước khi build..."
-  sudo docker system prune -f --volumes 2>/dev/null || true
+  # H2 audit lag 02/09: KHÔNG --volumes. Prune volume chỉ xoá volume "không được container nào
+  # dùng" — nghĩa là đúng lúc observability stack lỡ down (compose down/sự cố) thì lần deploy
+  # disk-đầy kế tiếp sẽ xoá sạch prometheus_data/grafana_data/loki_data không lời báo trước.
+  # Dữ liệu dashboard + lịch sử metric là thứ đang dùng để chẩn lag — không phải rác dọn được.
+  sudo docker system prune -f 2>/dev/null || true
 elif [ "$DISK_PCT" -gt 80 ]; then
   warn "Disk ${DISK_PCT}% — dọn images cũ..."
   sudo docker image prune -f 2>/dev/null || true
@@ -380,6 +384,11 @@ DOCKER_ARGS=(
   # native+heap trôi tự do tới lúc bị giết (image không set JAVA_OPTS nào trước đây).
   --memory="2200m"
   -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=65.0"
+  # H2 audit lag 02/09: chặn log container phình vô hạn trên đĩa 59% — json-file mặc định KHÔNG
+  # rotate. Đặt ngay tại docker run (không cần sửa daemon.json + restart dockerd). 50m × 3 file
+  # ≈ trần 150MB cho backend; promtail vẫn đọc được vì nó tail file hiện hành.
+  --log-opt max-size=50m
+  --log-opt max-file=3
 )
 if [ "$HAS_GOOGLE_SA" = "true" ] && [ -f /home/ubuntu/google-sa.json ]; then
   DOCKER_ARGS+=(-v /home/ubuntu/google-sa.json:/run/secrets/google-sa.json:ro)
