@@ -24,6 +24,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v2/admin/vocabulary/images")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class VocabularyImageAdminController {
 
     private final VocabularyImageService vocabularyImageService;
@@ -33,7 +34,6 @@ public class VocabularyImageAdminController {
     private final ObjectProvider<UnsplashImageService> unsplashProvider;
 
     @PostMapping("/{wordId}/override")
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<Map<String, String>> overrideImage(
             @PathVariable long wordId,
             @RequestBody WordImageUpdateRequest request,
@@ -43,14 +43,12 @@ public class VocabularyImageAdminController {
     }
 
     @GetMapping("/missing-count")
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<Map<String, Integer>> missingCount() {
         return ResponseEntity.ok(Map.of("count", batchService.countMissingImages()));
     }
 
     /** Interactive Unsplash search so an admin can pick an image for a word manually. */
     @GetMapping("/unsplash/search")
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<List<UnsplashImageService.UnsplashImageResult>> searchUnsplash(
             @RequestParam String q,
             @RequestParam(defaultValue = "1") int page,
@@ -68,7 +66,6 @@ public class VocabularyImageAdminController {
 
     /** Download the chosen Unsplash image to S3 and set it as the word's image. */
     @PostMapping("/{wordId}/unsplash")
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<Map<String, String>> attachUnsplash(
             @PathVariable long wordId,
             @RequestBody UnsplashAttachRequest request) {

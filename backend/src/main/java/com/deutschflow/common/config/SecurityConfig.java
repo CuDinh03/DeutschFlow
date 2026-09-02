@@ -132,6 +132,12 @@ public class SecurityConfig {
                         // method-security is a second layer, not the sole one.
                         auth.requestMatchers("/api/admin/**").hasRole("ADMIN");
 
+                        // Audit F-H1 (03/09/2026): cùng lý do như trên cho namespace admin của /v2.
+                        // Trước đây prefix này KHÔNG có backstop URL, nên một endpoint quên annotation
+                        // (review GET đang để isAuthenticated()) là mọi STUDENT gọi được. Toàn bộ
+                        // controller dưới prefix này là quản trị nội dung → ADMIN-only.
+                        auth.requestMatchers("/api/v2/admin/**").hasRole("ADMIN");
+
                         auth.anyRequest().authenticated();
                 })
                 .authenticationProvider(authenticationProvider())
