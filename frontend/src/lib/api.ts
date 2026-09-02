@@ -1,6 +1,8 @@
 import axios, { type AxiosError, type AxiosResponse } from 'axios'
 import { getAccessToken, getRefreshToken, setTokens, recordTokenRefresh, isNative, getPlatform, clearTokens } from '@/lib/authSession'
 import { useAuthRecoveryStore } from '@/stores/useAuthRecoveryStore'
+import { useMaintenanceStore } from '@/stores/useMaintenanceStore'
+import { isMaintenanceError, maintenanceInfoFromProblem } from '@/lib/systemStatus'
 
 // ─── Error helpers ────────────────────────────────────────────────────────────
 
@@ -73,6 +75,34 @@ const api = axios.create({
   },
 })
 
+// ─── Maintenance mode — PHẢI đăng ký TRƯỚC retry interceptor ─────────────────
+// Thiết kế plans/2026-09-03 §7: 503 problem+json `extensions.code=MAINTENANCE` (từ
+// MaintenanceModeFilter, hoặc JSON tĩnh của nginx khi Spring đã chết) là tín hiệu bảo trì.
+// Bắn tín hiệu vào store NGAY tại đây (axios chạy interceptor theo thứ tự đăng ký — đứng
+// sau retry là người dùng phải ngồi hết một vòng backoff mới thấy màn bảo trì), còn việc
+// XÁC NHẬN là của store.signal() → probe /api/public/system/status (fetch trần, không
+// preflight). Response bảo trì cũng bị LOẠI khỏi retry bên dưới: server vừa nói "tôi đang
+// nghỉ có chủ đích" mà client lặp lại request là tự nhân tải vô ích.
+
+/** 503 mang mã bảo trì (body hoặc header X-DF-Maintenance từ nginx)? */
+function isMaintenance503(error: AxiosError): boolean {
+  return isMaintenanceError(
+    error.response?.status,
+    error.response?.data,
+    error.response?.headers as Record<string, unknown> | undefined,
+  )
+}
+
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (isAxiosErr(error) && isMaintenance503(error)) {
+      useMaintenanceStore.getState().signal(maintenanceInfoFromProblem(error.response?.data))
+    }
+    return Promise.reject(error)
+  }
+)
+
 // ─── Retry on transient failures — idempotent requests only ──────────────────
 // Retries are deliberately scoped to safe/idempotent methods (GET/HEAD/OPTIONS):
 //  • a timed-out POST/PUT/PATCH/DELETE must never be silently re-sent — the server
@@ -124,9 +154,12 @@ api.interceptors.response.use(
     const rateLimitedButWorthRetrying = status === 429 && retryAfterMs !== null
 
     // Retry conditions: idempotent method + (network error, short-backoff rate limit, or 502/503)
+    // — TRỪ 503 bảo trì: server nghỉ CÓ CHỦ ĐÍCH, retry chỉ nhân tải; màn bảo trì (interceptor
+    // phía trên đã bắn tín hiệu) tự poll 30s và mở lại khi hệ thống sống.
     const isRetryable = (
       RETRYABLE_METHODS.has(method) &&
       config._retryCount < MAX_RETRIES &&
+      !isMaintenance503(error) &&
       (
         !error.response ||  // Network error
         rateLimitedButWorthRetrying ||  // 429 with a Retry-After we can actually wait out

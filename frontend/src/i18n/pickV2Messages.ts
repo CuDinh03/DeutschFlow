@@ -20,7 +20,10 @@ import { getMessages } from 'next-intl/server'
  * ⚠️ Thêm khu/namespace mới thì chạy `npm run check:i18n` — và nhớ: một component client dùng
  * `useTranslations('v2.<x>')` chỉ chạy được trong khu có cấp phần `<x>` cho provider của nó.
  */
-const V2_CORE = ['chrome'] as const
+// `maintenance` đi cùng chrome ở MỌI provider: MaintenanceOverlay mount ở root layout và
+// MaintenanceBanner nằm trong GaShell của cả 4 khu — thiếu nhóm này ở một provider là
+// client component ném missing-namespace đúng lúc đang bảo trì (thời điểm tệ nhất có thể).
+const V2_CORE = ['chrome', 'maintenance'] as const
 
 type Messages = Record<string, unknown>
 

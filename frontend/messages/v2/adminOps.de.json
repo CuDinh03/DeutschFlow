@@ -1,5 +1,100 @@
 {
   "adminOps": {
+    "maintenance": {
+      "title": "Systemwartung",
+      "subtitle": "Wartungsfenster planen, ankündigen und schalten",
+      "createNew": "Neues Fenster",
+      "emergency": "Notfall an",
+      "count": "{count} Wartungsfenster",
+      "empty": "Noch keine Wartungsfenster.",
+      "loadError": "Laden fehlgeschlagen",
+      "activeBanner": {
+        "title": "WARTUNG AKTIV — Nutzer sind blockiert",
+        "until": "voraussichtlich fertig {time}",
+        "noEnd": "kein Ende gesetzt"
+      },
+      "status": {
+        "SCHEDULED": "GEPLANT",
+        "ACTIVE": "AKTIV",
+        "COMPLETED": "ABGESCHLOSSEN",
+        "CANCELLED": "ABGESAGT"
+      },
+      "mode": {
+        "FULL": "Komplett sperren",
+        "ANNOUNCE_ONLY": "Nur ankündigen"
+      },
+      "row": {
+        "starts": "Beginn {time}",
+        "ends": "→ Ende {time}",
+        "notified": "Nutzer informiert",
+        "reminded": "erinnert"
+      },
+      "actions": {
+        "edit": "Bearbeiten",
+        "activate": "Jetzt starten",
+        "cancel": "Absagen",
+        "complete": "Beenden",
+        "extend": "Verlängern"
+      },
+      "form": {
+        "titleCreate": "Wartung planen",
+        "titleEdit": "Fenster bearbeiten",
+        "titleExtend": "Verlängern / Notiz (AKTIV)",
+        "titleLabel": "Titel",
+        "titlePlaceholder": "z. B. Datenbank-Upgrade",
+        "noteLabel": "Notiz (wörtlich für Nutzer sichtbar)",
+        "notePlaceholder": "z. B. Etwa 30 Minuten.",
+        "startsLabel": "Beginn (deine Ortszeit)",
+        "endsLabel": "Voraussichtliches Ende",
+        "endsOptional": "(leer lassen, wenn unbekannt)",
+        "modeLabel": "Modus",
+        "modeFull": "FULL — gesamte API sperren",
+        "modeAnnounce": "ANNOUNCE_ONLY — nur Banner, keine Sperre",
+        "autoActivate": "Pünktlich automatisch starten",
+        "autoComplete": "Automatisch beenden (braucht Endzeit)",
+        "notifyUsers": "Alle Nutzer jetzt über den Termin informieren",
+        "submitCreate": "Erstellen",
+        "submitSave": "Speichern"
+      },
+      "validation": {
+        "titleRequired": "Titel eingeben.",
+        "startsRequired": "Beginn wählen.",
+        "endsAfterStarts": "Ende muss nach dem Beginn liegen.",
+        "autoCompleteNeedsEnd": "Automatisches Beenden braucht eine Endzeit."
+      },
+      "toast": {
+        "created": "Fenster erstellt (ohne Benachrichtigung).",
+        "createdNotified": "Fenster erstellt, alle Nutzer informiert.",
+        "overlap": "Achtung: Überschneidung mit Fenster #{ids}.",
+        "saved": "Gespeichert.",
+        "activated": "Wartung ist AN — Nutzer sind blockiert.",
+        "completed": "Wartung beendet — System offen, Nutzer informiert.",
+        "cancelled": "Fenster abgesagt.",
+        "emergencyOn": "NOTFALL-Wartung ist AN — wirksam in ~15 s."
+      },
+      "confirm": {
+        "emergencyTitle": "NOTFALL-Wartung einschalten?",
+        "emergencyDesc": "FULL-Modus startet sofort, ohne Vorankündigung.",
+        "emergencyDetail1": "Alle Lernenden und Lehrkräfte sind in ~15 Sekunden blockiert.",
+        "emergencyDetail2": "Zahlungs-Webhooks werden vorübergehend blockiert (Anbieter wiederholen).",
+        "emergencyDetail3": "Bis zum Beenden können nur Admins arbeiten.",
+        "emergencyOk": "Jetzt einschalten",
+        "activateTitle": "Wartung jetzt starten?",
+        "activateDesc": "\"{title}\" wird sofort AKTIV.",
+        "activateDetail1": "Alle Nutzer (außer Admins) sind in ~15 Sekunden blockiert.",
+        "activateDetail2": "Als Beginn wird der jetzige Zeitpunkt gespeichert.",
+        "activateOk": "Jetzt starten",
+        "completeTitle": "Wartung beenden?",
+        "completeDesc": "\"{title}\" wird ABGESCHLOSSEN, das System öffnet wieder.",
+        "completeDetail1": "Nutzer erhalten einmalig die Meldung \"wir sind zurück\".",
+        "completeOk": "Beenden",
+        "cancelTitle": "Fenster absagen?",
+        "cancelDesc": "\"{title}\" absagen — nicht wiederherstellbar.",
+        "cancelDetailNotified": "Nutzer WURDEN informiert → sie erhalten eine Absage-Meldung.",
+        "cancelDetailQuiet": "Noch niemand informiert → stille Absage.",
+        "cancelOk": "Absagen"
+      }
+    },
     "overview": {
       "title": "Admin-Dashboard",
       "subtitle": "Überblick über die Plattformgesundheit von DeutschFlow",

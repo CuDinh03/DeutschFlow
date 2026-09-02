@@ -9,6 +9,7 @@ import { PostHogProvider } from '@/providers/PostHogProvider'
 import { NativeAuthProvider } from '@/providers/NativeAuthProvider'
 import { MotionProvider } from '@/providers/MotionProvider'
 import { AuthRecoveryDialog } from '@/components/auth/AuthRecoveryDialog'
+import { MaintenanceOverlay } from '@/components/system/MaintenanceOverlay'
 import { SITE_URL } from '@/lib/siteUrl'
 import './globals.css'
 
@@ -92,6 +93,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <MotionProvider>
                 {children}
                 <AuthRecoveryDialog />
+                {/* Màn chặn bảo trì toàn cục — cùng pattern mount với AuthRecoveryDialog
+                    (interceptor bắn tín hiệu vào store, overlay render theo store). */}
+                <MaintenanceOverlay />
                 <Toaster position="top-center" />
               </MotionProvider>
             </NativeAuthProvider>

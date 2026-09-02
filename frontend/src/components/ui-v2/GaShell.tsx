@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { GaSidebar } from './GaSidebar'
 import { GaTopBar } from './GaTopBar'
 import { GaShellNavProvider } from './GaShellNav'
+import { MaintenanceBanner } from '@/components/system/MaintenanceBanner'
 import { ROLE_NAV, type RoleId } from './nav'
 
 /**
@@ -34,6 +35,9 @@ export function GaShell({ role, children, className }: GaShellProps) {
       >
         <GaSidebar nav={ROLE_NAV[role]} />
         <div className="flex min-w-0 flex-1 flex-col">
+          {/* Banner đếm ngược bảo trì — flex sibling (KHÔNG fixed: shell là flex
+              h-[100dvh], phần tử fixed sẽ che content thay vì đẩy layout). */}
+          <MaintenanceBanner />
           <GaTopBar role={role} />
           <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
         </div>

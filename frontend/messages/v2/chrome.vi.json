@@ -51,6 +51,7 @@
       "admin-media": "Ảnh",
       "admin-ai": "Cấu hình AI",
       "admin-broadcast": "Thông báo",
+      "admin-maintenance": "Bảo trì",
       "admin-marketing": "Tăng trưởng",
       "admin-analytics": "Phân tích",
       "admin-weekly": "Speaking tuần",
@@ -130,5 +131,21 @@
     "digestLabel": "Mã lỗi",
     "noMessage": "Không có thông báo lỗi.",
     "reload": "Tải lại trang"
+  },
+  "maintenance": {
+    "overlayTitle": "Hệ thống đang bảo trì",
+    "overlayNote": "Chúng tôi đang nâng cấp hệ thống — bài học và tiến độ của bạn được giữ nguyên.",
+    "etaCountdown": "còn {minutes} phút",
+    "etaOverdue": "đang hoàn tất, chờ thêm chút nữa…",
+    "etaUnknown": "Sẽ thông báo ngay khi hệ thống hoạt động trở lại.",
+    "retryNow": "Thử lại ngay",
+    "retryChecking": "Đang kiểm tra…",
+    "autoRetry": "tự kiểm tra lại sau 30 giây",
+    "reloadPage": "Tải lại trang",
+    "restoredToast": "Hệ thống đã hoạt động trở lại. Chúc bạn học vui!",
+    "bannerUpcoming": "Bảo trì lúc {time}",
+    "bannerCountdownHours": "còn {hours} giờ {minutes} phút",
+    "bannerCountdownMinutes": "còn {minutes} phút",
+    "bannerDismiss": "Ẩn thông báo này"
   }
 }

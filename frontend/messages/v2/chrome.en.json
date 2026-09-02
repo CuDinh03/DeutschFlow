@@ -51,6 +51,7 @@
       "admin-media": "Media",
       "admin-ai": "AI Config",
       "admin-broadcast": "Broadcast",
+      "admin-maintenance": "Maintenance",
       "admin-marketing": "Growth",
       "admin-analytics": "Analytics",
       "admin-weekly": "Weekly Speaking",
@@ -130,5 +131,21 @@
     "digestLabel": "Error code",
     "noMessage": "No error message.",
     "reload": "Reload page"
+  },
+  "maintenance": {
+    "overlayTitle": "System under maintenance",
+    "overlayNote": "We're upgrading the system — your lessons and progress are safe.",
+    "etaCountdown": "{minutes} min left",
+    "etaOverdue": "finishing up, almost there…",
+    "etaUnknown": "We'll let you know as soon as we're back.",
+    "retryNow": "Try again now",
+    "retryChecking": "Checking…",
+    "autoRetry": "auto-checking again in 30 seconds",
+    "reloadPage": "Reload page",
+    "restoredToast": "We're back online. Happy learning!",
+    "bannerUpcoming": "Maintenance at {time}",
+    "bannerCountdownHours": "{hours}h {minutes}m left",
+    "bannerCountdownMinutes": "{minutes} min left",
+    "bannerDismiss": "Dismiss"
   }
 }
