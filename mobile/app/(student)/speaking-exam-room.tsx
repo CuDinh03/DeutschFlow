@@ -12,6 +12,7 @@ import {
   AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, Screen, Skeleton, ThemedText, YellowSquare,
 } from '@/components/ui'
 import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
+import { useBlurGuard } from '@/hooks/useBlurGuard'
 import {
   examSpeakingApi, type ExamSessionView, type TurnResponse,
 } from '@/lib/examSpeakingApi'
@@ -79,6 +80,21 @@ export default function SpeakingExamRoomScreen() {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
   useRecorderBlurGuard(recorder, () => setRecording(false))
 
+  // Tabs không unmount khi rời màn: giọng giám khảo phải dừng theo BLUR (cleanup
+  // unmount ở effect nạp phiên không chạy khi chỉ chuyển tab). Đồng hồ thi vẫn
+  // chạy theo server — chỉ tắt tiếng, không tạm dừng bài thi hộ người dùng.
+  const pendingResultsNav = useRef(false)
+  const focusedRef = useBlurGuard(
+    () => stopExamTts(),
+    () => {
+      // Poll chấm xong trong lúc blur → đã hoãn điều hướng; giờ màn sáng lại mới đi.
+      if (pendingResultsNav.current) {
+        pendingResultsNav.current = false
+        router.replace({ pathname: '/(student)/speaking-exam-result', params: { id: String(sessionId) } })
+      }
+    },
+  )
+
   const pushLine = useCallback((role: RoomLine['role'], text: string) => {
     lineSeq.current += 1
     setLines((prev) => [...prev.slice(-11), { id: lineSeq.current, role, text }])
@@ -89,7 +105,13 @@ export default function SpeakingExamRoomScreen() {
     setSession(data)
     if (data.state === 'RESULTS') {
       stopExamTts()
-      router.replace({ pathname: '/(student)/speaking-exam-result', params: { id: String(data.id) } })
+      // Người dùng đang ở tab khác thì KHÔNG giật họ sang màn kết quả giữa
+      // chừng — ghi nhớ, quay lại phòng thi mới điều hướng (onFocus ở trên).
+      if (focusedRef.current) {
+        router.replace({ pathname: '/(student)/speaking-exam-result', params: { id: String(data.id) } })
+      } else {
+        pendingResultsNav.current = true
+      }
       return
     }
     const d = data.directive
@@ -98,7 +120,9 @@ export default function SpeakingExamRoomScreen() {
       if (spokenRef.current !== key) {
         spokenRef.current = key
         pushLine('PRUEFER', d.prueferText)
-        if (speak) void speakExamSequence([{ role: 'PRUEFER', text: d.prueferText }])
+        // Blur mà đồng hồ server hết hạn tự advance: dòng mới vẫn vào transcript
+        // (đọc lại được), chỉ không phát tiếng khi màn không hiển thị.
+        if (speak && focusedRef.current) void speakExamSequence([{ role: 'PRUEFER', text: d.prueferText }])
       }
     }
   }, [pushLine])

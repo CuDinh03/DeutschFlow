@@ -26,6 +26,7 @@ import Animated, {
 import { handleAiError } from '@/lib/upsell'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
+import { useBlurGuard } from '@/hooks/useBlurGuard'
 import {
   speakingApi,
   isUnlimitedQuota,
@@ -152,6 +153,15 @@ export default function SpeakingScreen() {
     setStage('idle')
   })
 
+  // Cùng lớp với F-9 nhưng cho LOA: mic đã có guard, còn giọng AI đang phát thì
+  // không — chuyển tab là persona cứ nói tiếp. Blur = dừng tiếng ngay; player bị
+  // remove() sẽ không bao giờ bắn didJustFinish → onDone của lượt đó không chạy,
+  // nên phải tự chốt stage về idle kẻo persona kẹt "đang nói" khi quay lại.
+  const focusedRef = useBlurGuard(() => {
+    void stopSpeech()
+    setStage((s) => (s === 'speaking' ? 'idle' : s))
+  })
+
   // Offer to resume an interrupted session left over from a previous app run.
   useEffect(() => {
     let active = true
@@ -189,6 +199,12 @@ export default function SpeakingScreen() {
   //   3. Timed delay paced by text length
   // The persona "talks" for the audio duration, then runs onDone.
   async function speakGerman(text: string, onDone: () => void, personaOverride?: string | null) {
+    if (!focusedRef.current) {
+      // Phản hồi AI về sau khi người dùng đã sang tab khác: không phát tiếng,
+      // chốt luồng ngay để transcript/reaction vẫn tự settle trong nền.
+      onDone()
+      return
+    }
     setStage('speaking')
     setReaction(null)
     let done = false

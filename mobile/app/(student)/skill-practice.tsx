@@ -59,6 +59,7 @@ import {
   type SkillAnswer,
 } from '@/lib/skillExercises'
 import { speakGerman, stopGermanSpeech, setGermanRecordingActive } from '@/lib/germanTts'
+import { useBlurGuard } from '@/hooks/useBlurGuard'
 import { findNextNode } from '@/lib/nextNode'
 import { LessonCompleteNav } from '@/components/LessonCompleteNav'
 
@@ -719,6 +720,26 @@ function SpeakingInput({
     },
     [recorder],
   )
+
+  // Cleanup unmount ở trên chỉ chạy khi ĐỔI card/bài — chuyển tab thì card còn
+  // nguyên (Tabs không unmount) nên TTS mẫu, bản phát lại và cả mic cứ chạy
+  // tiếp. Blur = tắt hết; bản ghi dở bị bỏ (không chấm), người dùng đã rời màn.
+  useBlurGuard(() => {
+    void stopGermanSpeech()
+    stopPlayback()
+    if (recordingRef.current) {
+      recordingRef.current = false
+      setRecording(false)
+      setPreparing(false)
+      setGermanRecordingActive(false)
+      void recorder
+        .stop()
+        .catch(() => undefined)
+        .finally(() => {
+          void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {})
+        })
+    }
+  })
 
   async function playRecording(uri: string) {
     stopPlayback()
