@@ -436,6 +436,20 @@ app:
       delete-read-older-than-days: ${APP_NOTIFICATION_RETENTION_READ_DAYS:90}
       cron: ${APP_NOTIFICATION_RETENTION_CRON:0 0 4 * * *}
 
+  # Cơ chế bảo trì hệ thống (plans/2026-09-03-thiet-ke-co-che-bao-tri-he-thong.md).
+  # Nguồn sự thật là bảng maintenance_windows — KHÔNG có cờ nào ở đây, chỉ nhịp vận hành.
+  maintenance:
+    # Job vòng đời (nhắc → tự bật → tự tắt → chuông quên tắt), ShedLock giữa các node.
+    job-delay-ms: ${APP_MAINTENANCE_JOB_DELAY_MS:60000}
+    job-initial-delay-ms: ${APP_MAINTENANCE_JOB_INITIAL_DELAY_MS:15000}
+    # Cache trạng thái per-node: admin đổi trạng thái có hiệu lực trên node khác trễ tối đa chừng này.
+    state-refresh-ms: ${APP_MAINTENANCE_STATE_REFRESH_MS:15000}
+    state-initial-delay-ms: ${APP_MAINTENANCE_STATE_INITIAL_DELAY_MS:2000}
+    # Nhắc "sắp bảo trì" trước giờ bắt đầu chừng này phút (đúng một lần mỗi lịch).
+    remind-before-minutes: ${APP_MAINTENANCE_REMIND_BEFORE_MINUTES:60}
+    # ACTIVE quá ends_at chừng này phút thì réo ADMIN_SYSTEM_ALERT (lặp cùng nhịp tới khi xử lý).
+    overdue-alert-minutes: ${APP_MAINTENANCE_OVERDUE_ALERT_MINUTES:30}
+
   speaking:
     adaptive:
       # When false: policy is minimal, turn evaluator skips state updates (rollback-friendly).

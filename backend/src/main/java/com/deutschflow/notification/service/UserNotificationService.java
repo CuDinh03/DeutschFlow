@@ -640,6 +640,41 @@ public class UserNotificationService {
     }
 
     /**
+     * Fan-out một thông báo vòng đời bảo trì ({@code SYSTEM_MAINTENANCE}) tới TOÀN BỘ
+     * user đang active — gọi từ {@code MaintenanceWindowService} (plans/2026-09-03 §5.6).
+     * Đi cùng đường batch với broadcast admin (MỘT saveAll + Expo push batch);
+     * {@code withPush=false} cho kind STARTED: màn chặn đã nói điều đó, chỉ ghi in-app.
+     *
+     * @return số người nhận
+     */
+    @Transactional
+    public int broadcastSystemMaintenance(Map<String, Object> payload, boolean withPush) {
+        List<User> recipients = userRepository.findByActiveTrue();
+        if (recipients.isEmpty()) {
+            return 0;
+        }
+        List<UserNotification> notifications = new ArrayList<>(recipients.size());
+        for (User user : recipients) {
+            notifications.add(UserNotification.builder()
+                    .recipient(user)
+                    .type(NotificationType.SYSTEM_MAINTENANCE)
+                    .payload(new LinkedHashMap<>(payload))
+                    .build());
+        }
+        if (withPush) {
+            saveAndPushAll(notifications);
+        } else {
+            notificationRepository.saveAll(notifications);
+            for (UserNotification n : notifications) {
+                unreadPushCoordinator.afterCommit(n.getRecipient().getId());
+            }
+        }
+        log.info("[notifications] SYSTEM_MAINTENANCE kind={} → {} recipients (push={})",
+                payload.get("kind"), notifications.size(), withPush);
+        return notifications.size();
+    }
+
+    /**
      * Dispatches a due scheduled broadcast. Called by {@link com.deutschflow.notification.jobs.ScheduledBroadcastJob}.
      *
      * @return the number of recipients notified.

@@ -1,6 +1,7 @@
 package com.deutschflow.common.config;
 
 import com.deutschflow.common.security.JwtAuthFilter;
+import com.deutschflow.common.security.MaintenanceModeFilter;
 import com.deutschflow.common.security.PrometheusScrapeTokenFilter;
 import com.deutschflow.common.security.SecurityExceptionLoggingHandler;
 import jakarta.servlet.DispatcherType;
@@ -34,6 +35,7 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final MaintenanceModeFilter maintenanceModeFilter;
     private final PrometheusScrapeTokenFilter prometheusScrapeTokenFilter;
     private final UserDetailsService userDetailsService; // inject từ UserDetailsServiceConfig
     private final Environment environment;
@@ -137,6 +139,9 @@ public class SecurityConfig {
                 // JwtAuthFilter thấy "already set" và bỏ qua (token tĩnh không phải JWT).
                 .addFilterBefore(prometheusScrapeTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // Bảo trì đứng SAU jwt filter (đọc được role → admin bypass) và TRƯỚC
+                // authorization: user thường nhận 503 MAINTENANCE thay vì lời từ chối quyền.
+                .addFilterAfter(maintenanceModeFilter, JwtAuthFilter.class)
                 .build();
     }
 
