@@ -28,6 +28,7 @@ import Svg, {
 } from 'react-native-svg'
 import { GestureDetector } from 'react-native-gesture-handler'
 import Animated, { useReducedMotion } from 'react-native-reanimated'
+import { useIsScreenFocused } from '@/hooks/useIsScreenFocused'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import type { SkillNode } from '@/lib/skillTreeApi'
 import { companionEmoji, type CompanionKey } from '@/lib/treeCompanion'
@@ -106,7 +107,11 @@ export function SkillTreeView({
 }: SkillTreeViewProps) {
   const c = useTheme().colors
   const insets = useSafeAreaInsets()
-  const reduced = useReducedMotion()
+  // M1 audit lag 02/09: withRepeat(-1) của BloomHalo/RecRing chạy trên UI thread nên KHÔNG dừng
+  // khi màn bị blur (Tabs không unmount; freezeOnBlur chỉ chặn render JS) — cây kỹ năng ẩn sau
+  // tab khác vẫn đốt GPU vô hạn. Gate cùng đường với reduced-motion: blur = tĩnh, focus = sống lại.
+  const isFocused = useIsScreenFocused()
+  const reduced = useReducedMotion() || !isFocused
   const svgRef = useRef<Svg>(null)
   const layout = useMemo(() => buildTreeLayout(nodes, CANVAS_W), [nodes])
   const recId = useMemo(() => recommendedNodeId(nodes), [nodes])
