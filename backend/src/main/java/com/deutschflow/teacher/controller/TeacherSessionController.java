@@ -1,5 +1,6 @@
 package com.deutschflow.teacher.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.teacher.dto.TeacherSessionDto;
 import com.deutschflow.teacher.service.TeacherSessionService;
 import com.deutschflow.user.entity.User;
@@ -101,8 +102,9 @@ public class TeacherSessionController {
 
     @PostMapping("/admin/mark-paid")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> markPaid(@RequestBody List<Long> sessionIds) {
-        sessionService.markPayoutProcessed(sessionIds);
+    public ResponseEntity<Void> markPaid(@RequestBody List<Long> sessionIds,
+                                         @AuthenticationPrincipal User actor) {
+        sessionService.markPayoutProcessed(sessionIds, AuditActor.of(actor));
         return ResponseEntity.ok().build();
     }
 

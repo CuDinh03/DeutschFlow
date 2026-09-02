@@ -74,7 +74,7 @@ class AdminOrganizationControllerTest {
     @DisplayName("POST /api/admin/organizations — ADMIN caller: returns 200 with created org")
     void createOrganization_adminRole_returns200() throws Exception {
         OrgDto orgDto = new OrgDto(1L, "Test School", "test-school", null, 0, "ACTIVE", 1L, 0L);
-        when(adminOrgService.createOrganization(any(CreateOrgRequest.class))).thenReturn(orgDto);
+        when(adminOrgService.createOrganization(any(CreateOrgRequest.class), any())).thenReturn(orgDto);
 
         CreateOrgRequest request = new CreateOrgRequest(
                 "Test School", "test-school", null, null, "owner@school.edu");
@@ -92,7 +92,7 @@ class AdminOrganizationControllerTest {
     @DisplayName("POST /api/admin/organizations — service throws ForbiddenException: returns 403")
     void createOrganization_forbiddenFromService_returns403() throws Exception {
         // Simulate what happens when a non-admin slips through (service-level guard).
-        when(adminOrgService.createOrganization(any(CreateOrgRequest.class)))
+        when(adminOrgService.createOrganization(any(CreateOrgRequest.class), any()))
                 .thenThrow(new ForbiddenException("Admin only"));
 
         CreateOrgRequest request = new CreateOrgRequest(
@@ -108,7 +108,7 @@ class AdminOrganizationControllerTest {
     @DisplayName("POST /api/admin/organizations — org with name returns 200 with expected fields")
     void createOrganization_withSeatLimit_returnsOrgDto() throws Exception {
         OrgDto orgDto = new OrgDto(2L, "Big School", "big-school", "PRO", 100, "ACTIVE", 0L, 0L);
-        when(adminOrgService.createOrganization(any(CreateOrgRequest.class))).thenReturn(orgDto);
+        when(adminOrgService.createOrganization(any(CreateOrgRequest.class), any())).thenReturn(orgDto);
 
         CreateOrgRequest request = new CreateOrgRequest(
                 "Big School", "big-school", "PRO", 100, "owner@bigschool.edu");

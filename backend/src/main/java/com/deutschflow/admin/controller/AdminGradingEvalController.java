@@ -1,5 +1,9 @@
 package com.deutschflow.admin.controller;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.deutschflow.user.entity.User;
+import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.teacher.dto.GradingEvalRequest;
 import com.deutschflow.teacher.dto.GradingEvalResponse;
 import com.deutschflow.teacher.service.GradingEvalService;
@@ -27,19 +31,41 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminGradingEvalController {
 
     private final GradingEvalService gradingEvalService;
+    private final AuditLogService auditLogService;
 
     /**
      * POST /api/admin/grading-eval — body:
      * {models?, tier?, maxTokens?, parallelism?, cases:[{topic?,essay,referenceScore}]}.
      */
     @PostMapping
-    public GradingEvalResponse evaluate(@RequestBody GradingEvalRequest request) {
-        return gradingEvalService.run(request);
+    public GradingEvalResponse evaluate(@RequestBody GradingEvalRequest request,
+                                        @AuthenticationPrincipal User actor) {
+        GradingEvalResponse response = gradingEvalService.run(request);
+        auditEval(actor, request, "json");
+        return response;
     }
 
     /** Như trên nhưng trả CSV một dòng mỗi model — dán thẳng vào báo cáo calibration (F1.4). */
     @PostMapping(path = "/csv", produces = "text/csv;charset=UTF-8")
-    public String evaluateCsv(@RequestBody GradingEvalRequest request) {
-        return GradingEvalService.toCsv(gradingEvalService.run(request));
+    public String evaluateCsv(@RequestBody GradingEvalRequest request,
+                              @AuthenticationPrincipal User actor) {
+        String csv = GradingEvalService.toCsv(gradingEvalService.run(request));
+        auditEval(actor, request, "csv");
+        return csv;
+    }
+
+    /**
+     * Audit F-M3 (03/09/2026): mỗi lần chạy hiệu chuẩn là một loạt lời gọi mô hình có tính phí,
+     * số lượng do người gọi tự đặt (models × cases) — và trước đây không để lại vết nào, nên một
+     * hoá đơn AI tăng vọt không truy ngược được về đây.
+     */
+    private void auditEval(User actor, GradingEvalRequest request, String format) {
+        auditLogService.log("admin.grading_eval.run", AuditActor.of(actor),
+                "GRADING_EVAL", format,
+                java.util.Map.of(
+                        "caseCount", request.cases() == null ? 0 : request.cases().size(),
+                        "modelCount", request.models() == null ? 0 : request.models().size(),
+                        "tier", String.valueOf(request.tier())
+                ));
     }
 }

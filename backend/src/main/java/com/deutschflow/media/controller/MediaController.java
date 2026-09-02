@@ -1,5 +1,7 @@
 package com.deutschflow.media.controller;
 
+import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.media.dto.MediaAssetDto;
 import com.deutschflow.media.entity.MediaAsset;
 import com.deutschflow.media.service.MediaAssetService;
@@ -23,6 +25,7 @@ import java.util.Map;
 public class MediaController {
 
     private final MediaAssetService mediaAssetService;
+    private final AuditLogService auditLogService;
 
     // Legacy endpoint kept for backward-compat but hardened (audit SEC-8): ADMIN-only, and routed
     // through the validated upload path (content-type allowlist + size cap) instead of a raw,
@@ -94,6 +97,10 @@ public class MediaController {
             @AuthenticationPrincipal User user) {
         
         mediaAssetService.deleteMedia(id, user);
+        // Audit F-M3 (03/09/2026): xoá asset là thao tác KHÔNG hoàn tác (kèm xoá file trên S3) và
+        // trước đây không để lại vết nào — một ảnh biến mất khỏi bài học thì không truy được ai gỡ.
+        auditLogService.log("admin.media.deleted", AuditActor.of(user),
+                "MEDIA_ASSET", String.valueOf(id), Map.of());
         return ResponseEntity.ok(Map.of("message", "Media asset successfully deleted"));
     }
 
@@ -107,6 +114,11 @@ public class MediaController {
         String altText = body.get("altText");
         String tag = body.get("tag");
         MediaAsset updated = mediaAssetService.updateMediaMetadata(id, altText, tag, user);
+        // Tag quyết định asset nào được gắn vào đâu (findByCategoryAndTag), nên đổi tag là đổi nội
+        // dung hiển thị cho người học — cùng mức hệ quả với xoá.
+        auditLogService.log("admin.media.metadata.updated", AuditActor.of(user),
+                "MEDIA_ASSET", String.valueOf(id),
+                Map.of("altText", String.valueOf(altText), "tag", String.valueOf(tag)));
         return ResponseEntity.ok(MediaAssetDto.fromEntity(updated));
     }
 }

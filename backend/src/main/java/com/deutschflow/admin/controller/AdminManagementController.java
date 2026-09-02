@@ -384,9 +384,21 @@ public class AdminManagementController {
     @PutMapping("/users/{userId}/learning-profile")
     public Map<String, Object> updateLearningProfile(
             @PathVariable Long userId,
-            @RequestBody @Valid AdminUpdateLearningProfileRequest request
+            @RequestBody @Valid AdminUpdateLearningProfileRequest request,
+            Authentication authentication
     ) {
-        return adminManagementService.adminUpdateLearningProfile(userId, request);
+        Map<String, Object> result = adminManagementService.adminUpdateLearningProfile(userId, request);
+        // Audit F-M3 (03/09/2026): admin ghi đè hồ sơ học tập của một người — trình độ, mục tiêu,
+        // lộ trình — tức đổi thẳng nội dung họ sẽ được học. Trước đây không để lại vết nào, nên
+        // người học thấy lộ trình đổi mà không ai giải thích được vì sao.
+        auditLogService.log(
+                "admin.user.learning_profile.updated",
+                AuditActor.ofAuthentication(authentication),
+                "USER",
+                String.valueOf(userId),
+                learningProfileAuditMeta(request)
+        );
+        return result;
     }
 
     /**
@@ -1015,6 +1027,21 @@ public class AdminManagementController {
         return v instanceof String s ? s : null;
     }
 
+    /**
+     * Chỉ ghi các trường THỰC SỰ được đặt (partial update — trường null không áp dụng), và ghi giá
+     * trị vì đây đều là enum hẹp (goalType/level/speed) chứ không phải dữ liệu tự do của người dùng.
+     */
+    private Map<String, Object> learningProfileAuditMeta(AdminUpdateLearningProfileRequest request) {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        if (request.goalType() != null) meta.put("goalType", request.goalType());
+        if (request.targetLevel() != null) meta.put("targetLevel", request.targetLevel());
+        if (request.currentLevel() != null) meta.put("currentLevel", request.currentLevel());
+        if (request.learningSpeed() != null) meta.put("learningSpeed", request.learningSpeed());
+        if (request.industry() != null) meta.put("industry", request.industry());
+        if (request.sessionsPerWeek() != null) meta.put("sessionsPerWeek", request.sessionsPerWeek());
+        if (request.minutesPerSession() != null) meta.put("minutesPerSession", request.minutesPerSession());
+        return meta;
+    }
 }
 
 

@@ -109,7 +109,7 @@ class AdminOrgServiceLifecycleTest {
         });
         stubActiveMembersForDto(List.of());
 
-        service.createOrganization(new CreateOrgRequest("ATB", "atb-center", "ultra", 100, null));
+        service.createOrganization(new CreateOrgRequest("ATB", "atb-center", "ultra", 100, null), null);
 
         assertThat(captor.getValue().getPlanCode()).isEqualTo("ULTRA");
     }
@@ -126,7 +126,7 @@ class AdminOrgServiceLifecycleTest {
         });
         stubActiveMembersForDto(List.of());
 
-        service.createOrganization(new CreateOrgRequest("ATB", "atb-2", "   ", 0, null));
+        service.createOrganization(new CreateOrgRequest("ATB", "atb-2", "   ", 0, null), null);
 
         assertThat(captor.getValue().getPlanCode()).isNull();
     }
@@ -151,7 +151,7 @@ class AdminOrgServiceLifecycleTest {
         });
 
         service.createOrganization(new CreateOrgRequest(
-                "New Org", "new-org", "PRO", 10, "owner@new.test", "Owner Name", "ownerpass123"));
+                "New Org", "new-org", "PRO", 10, "owner@new.test", "Owner Name", "ownerpass123"), null);
 
         assertThat(userCap.getValue().getRole()).isEqualTo(User.Role.OWNER);
         assertThat(userCap.getValue().getCreatedVia()).isEqualTo(User.CreatedVia.ADMIN);
@@ -173,7 +173,7 @@ class AdminOrgServiceLifecycleTest {
         when(userRepository.findByEmailIgnoreCase("owner@old.test")).thenReturn(Optional.of(existing));
 
         service.createOrganization(new CreateOrgRequest(
-                "Org2", "org2", "PRO", 10, "owner@old.test", "X", "pw123456"));
+                "Org2", "org2", "PRO", 10, "owner@old.test", "X", "pw123456"), null);
 
         verify(orgMembershipService).upsertMember(ORG_ID, 7L, "OWNER");
         verify(userRepository, never()).save(any(User.class));
@@ -229,7 +229,7 @@ class AdminOrgServiceLifecycleTest {
         stubActiveMembersForDto(List.of(s1, s2));
 
         UpdateOrgRequest req = new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null);
-        service.updateOrganization(ORG_ID, req);
+        service.updateOrganization(ORG_ID, req, null);
 
         verify(orgEntitlementService).revokeStudent(101L);
         verify(orgEntitlementService).revokeStudent(102L);
@@ -247,7 +247,7 @@ class AdminOrgServiceLifecycleTest {
                 .thenReturn(List.of(activeMember(101L)));
         stubActiveMembersForDto(List.of(activeMember(101L)));
 
-        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null));
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null), null);
 
         verify(orgEntitlementService, never()).grantStudent(anyLong(), any());
     }
@@ -268,7 +268,7 @@ class AdminOrgServiceLifecycleTest {
                 .thenReturn(List.of(s1, s2, s3));
         stubActiveMembersForDto(List.of(s1, s2, s3));
 
-        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null));
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null), null);
 
         verify(orgEntitlementService).grantStudent(eq(201L), any(Organization.class));
         verify(orgEntitlementService).grantStudent(eq(202L), any(Organization.class));
@@ -288,7 +288,7 @@ class AdminOrgServiceLifecycleTest {
                 .thenReturn(List.of(s1));
         stubActiveMembersForDto(List.of(s1));
 
-        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null));
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null), null);
 
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
     }
@@ -304,7 +304,7 @@ class AdminOrgServiceLifecycleTest {
         stubActiveMembersForDto(List.of());
 
         // No status field in request
-        service.updateOrganization(ORG_ID, new UpdateOrgRequest("BASIC", 20, null, null, null, null));
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest("BASIC", 20, null, null, null, null), null);
 
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
         verify(orgEntitlementService, never()).grantStudent(anyLong(), any());
@@ -322,7 +322,7 @@ class AdminOrgServiceLifecycleTest {
         stubActiveMembersForDto(List.of());
 
         // Sending same status as current
-        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null));
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null), null);
 
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
         verify(orgEntitlementService, never()).grantStudent(anyLong(), any());
@@ -340,7 +340,7 @@ class AdminOrgServiceLifecycleTest {
                 .thenReturn(List.of());
         stubActiveMembersForDto(List.of());
 
-        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null));
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null), null);
 
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
     }
@@ -354,7 +354,7 @@ class AdminOrgServiceLifecycleTest {
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
 
         assertThatThrownBy(() -> service.updateOrganization(ORG_ID,
-                new UpdateOrgRequest(null, null, "INACTIVE", null, null, null)))
+                new UpdateOrgRequest(null, null, "INACTIVE", null, null, null), null))
                 .isInstanceOf(BadRequestException.class);
 
         verify(organizationRepository, never()).save(any());
@@ -367,7 +367,7 @@ class AdminOrgServiceLifecycleTest {
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
 
         assertThatThrownBy(() -> service.updateOrganization(ORG_ID,
-                new UpdateOrgRequest(null, null, "PENDING", null, null, null)))
+                new UpdateOrgRequest(null, null, "PENDING", null, null, null), null))
                 .isInstanceOf(BadRequestException.class);
 
         verify(organizationRepository, never()).save(any());
@@ -412,7 +412,7 @@ class AdminOrgServiceLifecycleTest {
                 .thenReturn(List.of(owner, manager, t1, t2, s1, s2, s3));
 
         // trigger updateOrganization with no status change so toOrgDto is called
-        OrgDto dto = service.updateOrganization(ORG_ID, new UpdateOrgRequest("PRO", null, null, null, null, null));
+        OrgDto dto = service.updateOrganization(ORG_ID, new UpdateOrgRequest("PRO", null, null, null, null, null), null);
 
         assertThat(dto.teacherCount()).isEqualTo(2L);
         assertThat(dto.studentCount()).isEqualTo(3L);
@@ -537,5 +537,66 @@ class AdminOrgServiceLifecycleTest {
         assertThat(meta.getValue().get("fromRole")).isEqualTo("TEACHER");
         assertThat(meta.getValue().get("toRole")).isEqualTo("MANAGER");
         assertThat(meta.getValue().get("targetUserId")).isEqualTo(14L);
+    }
+
+    // ─── F-M3: nhóm tiền/đặc quyền của tổ chức phải để lại vết ──────────────────────────
+
+    @Test
+    @DisplayName("createOrganization: ghi vết kèm gói, ghế và email chủ sở hữu")
+    @SuppressWarnings("unchecked")
+    void createOrganization_writesAudit() {
+        when(organizationRepository.existsBySlug("atb-center")).thenReturn(false);
+        when(organizationRepository.save(any(Organization.class))).thenAnswer(i -> {
+            Organization o = i.getArgument(0);
+            o.setId(ORG_ID);
+            return o;
+        });
+        stubActiveMembersForDto(List.of());
+        com.deutschflow.common.audit.AuditActor actor =
+                new com.deutschflow.common.audit.AuditActor(1L, "admin@x.com", "ADMIN");
+
+        service.createOrganization(new CreateOrgRequest("ATB", "atb-center", "PRO", 100, null), actor);
+
+        ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        verify(auditLogService).log(eq("admin.org.created"), eq(actor),
+                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+        assertThat(meta.getValue()).containsEntry("slug", "atb-center").containsEntry("planCode", "PRO");
+    }
+
+    @Test
+    @DisplayName("updateOrganization: vết ghi CẢ trạng thái trước lẫn sau — bước chuyển mới là thứ có hệ quả")
+    @SuppressWarnings("unchecked")
+    void updateOrganization_auditRecordsStatusTransition() {
+        Organization org = orgWithStatus("ACTIVE");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        when(organizationRepository.save(any(Organization.class))).thenAnswer(i -> i.getArgument(0));
+        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(eq(ORG_ID), eq("STUDENT"), eq("ACTIVE")))
+                .thenReturn(List.of());
+        stubActiveMembersForDto(List.of());
+
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null), null);
+
+        ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        verify(auditLogService).log(eq("admin.org.updated"), any(),
+                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+        assertThat(meta.getValue()).containsEntry("fromStatus", "ACTIVE").containsEntry("toStatus", "SUSPENDED");
+    }
+
+    @Test
+    @DisplayName("activateEntitlements: vết ghi số học viên thật được cấp lại quyền lợi")
+    @SuppressWarnings("unchecked")
+    void activateEntitlements_writesAuditWithGrantedCount() {
+        Organization org = orgWithStatus("ACTIVE");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(eq(ORG_ID), eq("STUDENT"), eq("ACTIVE")))
+                .thenReturn(List.of(activeMember(101L), activeMember(102L)));
+
+        int granted = service.activateEntitlements(ORG_ID, null);
+
+        assertThat(granted).isEqualTo(2);
+        ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        verify(auditLogService).log(eq("admin.org.entitlements.activated"), any(),
+                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+        assertThat(meta.getValue()).containsEntry("grantedCount", 2);
     }
 }
