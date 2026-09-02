@@ -1024,7 +1024,8 @@
       "swipeHint": "Swipe right = learned · Swipe left = review later",
       "sessionEnd": "Round complete!",
       "score": "Score",
-      "again": "Shuffle again"
+      "again": "Shuffle again",
+      "saveFailed": "Couldn't save {count} word(s) to the server. That progress may be lost — try again when your connection is stable."
     },
     "articleQuiz": {
       "title": "Article quiz",
@@ -1046,7 +1047,8 @@
       "good": "Well done!",
       "keepPracticing": "Keep practicing!",
       "again": "Restart quiz",
-      "lastResult": "Last round: {score}/{total}"
+      "lastResult": "Last round: {score}/{total}",
+      "saveFailed": "Couldn't save {count} word(s) to the server. That progress may be lost — try again when your connection is stable."
     },
     "vocabAnalytics": {
       "title": "Vocabulary Analytics",

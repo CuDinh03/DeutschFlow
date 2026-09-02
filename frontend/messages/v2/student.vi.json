@@ -1024,7 +1024,8 @@
       "swipeHint": "Vuốt phải = đã thuộc · Vuốt trái = ôn sau",
       "sessionEnd": "Hết bộ thẻ!",
       "score": "Tỉ lệ",
-      "again": "Xáo lại"
+      "again": "Xáo lại",
+      "saveFailed": "Chưa lưu được {count} từ lên máy chủ. Tiến độ của các từ đó có thể mất — thử lại khi mạng ổn định."
     },
     "articleQuiz": {
       "title": "Quiz mạo từ",
@@ -1046,7 +1047,8 @@
       "good": "Tốt lắm!",
       "keepPracticing": "Luyện thêm nhé!",
       "again": "Làm lại quiz",
-      "lastResult": "Kết quả lượt trước: {score}/{total}"
+      "lastResult": "Kết quả lượt trước: {score}/{total}",
+      "saveFailed": "Chưa lưu được {count} từ lên máy chủ. Tiến độ của các từ đó có thể mất — thử lại khi mạng ổn định."
     },
     "vocabAnalytics": {
       "title": "Thống kê từ vựng",
