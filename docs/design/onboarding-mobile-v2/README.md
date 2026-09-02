@@ -1,6 +1,10 @@
 # Thiết kế onboarding mobile v2 — 2026-09-02
 
-Bản thiết kế đã được owner duyệt 02/09/2026. Canvas sống (pan/zoom, chỉnh trực tiếp):
+Bản thiết kế đã được owner duyệt 02/09/2026 và **đã thi công + phát hành cùng ngày**
+— toàn bộ hồ sơ (quyết định, code map, kiểm chứng, OTA, rollback, việc còn lại)
+nằm trong **[BAN_GIAO.md](BAN_GIAO.md)**; tài liệu đó tự đứng, đọc nó trước.
+
+Canvas sống (pan/zoom, chỉnh trực tiếp):
 **https://claude.ai/code/artifact/3799743c-4e3b-45cb-913e-b023763d0eb5**
 
 Mỗi file `*.dc.html` là một artboard iPhone 390×844 (mở thẳng bằng trình duyệt cũng
