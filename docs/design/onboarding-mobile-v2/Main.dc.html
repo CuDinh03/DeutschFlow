@@ -1,0 +1,153 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&amp;family=Instrument+Sans:wght@400;500;600;700&amp;display=swap">
+  <style>
+    body { margin: 0; font-family: 'Instrument Sans', system-ui, -apple-system, sans-serif; color: #161513; -webkit-font-smoothing: antialiased; }
+    a { color: #C79A00; text-decoration: none; }
+    a:hover { color: #161513; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #FBFAF7; position: relative; overflow: hidden; display: flex; flex-direction: column;">
+
+  <!-- header: brand mark + segmented progress (step 1/4) -->
+  <div style="padding-top: 58px; flex-shrink: 0;">
+    <div style="display: flex; align-items: center; gap: 14px; height: 40px; padding: 0 20px;">
+      <svg width="26" height="26" viewBox="0 0 100 100" fill="none" style="flex-shrink: 0;">
+        <path d="M 20 18 L 20 82 L 52 82 L 74 62 L 74 38 L 52 18 Z" stroke="#161513" stroke-width="6" stroke-linejoin="miter" fill="none"></path>
+        <polygon points="52,38 74,50 52,62" fill="#DA291C"></polygon>
+        <rect x="24" y="45" width="9" height="9" fill="#FFCD00"></rect>
+      </svg>
+      <div style="display: flex; gap: 5px; flex: 1;">
+        <div style="flex: 1; height: 5px; border-radius: 3px; background: #FFCD00;"></div>
+        <div style="flex: 1; height: 5px; border-radius: 3px; background: #E7E3DA;"></div>
+        <div style="flex: 1; height: 5px; border-radius: 3px; background: #E7E3DA;"></div>
+        <div style="flex: 1; height: 5px; border-radius: 3px; background: #E7E3DA;"></div>
+      </div>
+      <span style="font: 600 13px/1 'Instrument Sans', sans-serif; color: #76716A; font-variant-numeric: tabular-nums;">1/4</span>
+    </div>
+  </div>
+
+  <!-- title block -->
+  <div style="padding: 16px 24px 0; display: flex; flex-direction: column; gap: 9px; flex-shrink: 0;">
+    <div style="font: 600 10.5px/1.3 'Instrument Sans', sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #76716A;">Bước 1 / 4 · Mục tiêu</div>
+    <h1 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 28px; line-height: 1.16; letter-spacing: -0.02em;">Vì sao bạn học tiếng Đức?</h1>
+    <div style="display: flex; align-items: center; gap: 7px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1E9E61" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+      </svg>
+      <span style="font-size: 12.5px; color: #76716A;">Chưa cần tài khoản — trả lời trong khoảng 1 phút.</span>
+    </div>
+  </div>
+
+  <!-- 6 motivation cards, 2-col grid; "Đi làm tại Đức" selected -->
+  <div style="flex: 1; padding: 18px 24px 12px; overflow: hidden;">
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px;">
+
+      <div style="position: relative; display: flex; flex-direction: column; gap: 9px; padding: 14px 13px; border-radius: 4px; background: rgba(255, 205, 0, 0.09); border: 2px solid #C79A00; text-align: left;">
+        <div style="position: absolute; top: 11px; right: 11px; width: 21px; height: 21px; border-radius: 50%; border: 2px solid #C79A00; background: #C79A00; display: flex; align-items: center; justify-content: center;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
+        <div style="width: 38px; height: 38px; border-radius: 4px; background: #161513; display: flex; align-items: center; justify-content: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFCD00" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2"></rect>
+            <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"></path>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 16.5px; line-height: 1.15;">Đi làm tại Đức</div>
+          <div style="font-size: 11.5px; color: #76716A;">Việc làm, nghề nghiệp</div>
+        </div>
+      </div>
+
+      <div style="position: relative; display: flex; flex-direction: column; gap: 9px; padding: 14px 13px; border-radius: 4px; background: #FFFFFF; border: 1px solid #E7E3DA; text-align: left;">
+        <div style="position: absolute; top: 11px; right: 11px; width: 21px; height: 21px; border-radius: 50%; border: 2px solid #E7E3DA; background: #FFFFFF;"></div>
+        <div style="width: 38px; height: 38px; border-radius: 4px; background: #F6F3EC; display: flex; align-items: center; justify-content: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#76716A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 16.5px; line-height: 1.15;">Học nghề</div>
+          <div style="font-size: 11.5px; color: #76716A;">Ausbildung tại Đức</div>
+        </div>
+      </div>
+
+      <div style="position: relative; display: flex; flex-direction: column; gap: 9px; padding: 14px 13px; border-radius: 4px; background: #FFFFFF; border: 1px solid #E7E3DA; text-align: left;">
+        <div style="position: absolute; top: 11px; right: 11px; width: 21px; height: 21px; border-radius: 50%; border: 2px solid #E7E3DA; background: #FFFFFF;"></div>
+        <div style="width: 38px; height: 38px; border-radius: 4px; background: #F6F3EC; display: flex; align-items: center; justify-content: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#76716A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 10 12 5 2 10l10 5 10-5z"></path>
+            <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+            <path d="M22 10v6"></path>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 16.5px; line-height: 1.15;">Du học</div>
+          <div style="font-size: 11.5px; color: #76716A;">Vào đại học Đức</div>
+        </div>
+      </div>
+
+      <div style="position: relative; display: flex; flex-direction: column; gap: 9px; padding: 14px 13px; border-radius: 4px; background: #FFFFFF; border: 1px solid #E7E3DA; text-align: left;">
+        <div style="position: absolute; top: 11px; right: 11px; width: 21px; height: 21px; border-radius: 50%; border: 2px solid #E7E3DA; background: #FFFFFF;"></div>
+        <div style="width: 38px; height: 38px; border-radius: 4px; background: #F6F3EC; display: flex; align-items: center; justify-content: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#76716A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9.5 12 3l9 6.5V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 13 15 13 15 22"></polyline>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 16.5px; line-height: 1.15;">Định cư · đoàn tụ</div>
+          <div style="font-size: 11.5px; color: #76716A;">Cuộc sống gia đình</div>
+        </div>
+      </div>
+
+      <div style="position: relative; display: flex; flex-direction: column; gap: 9px; padding: 14px 13px; border-radius: 4px; background: #FFFFFF; border: 1px solid #E7E3DA; text-align: left;">
+        <div style="position: absolute; top: 11px; right: 11px; width: 21px; height: 21px; border-radius: 50%; border: 2px solid #E7E3DA; background: #FFFFFF;"></div>
+        <div style="width: 38px; height: 38px; border-radius: 4px; background: #F6F3EC; display: flex; align-items: center; justify-content: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#76716A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="6"></circle>
+            <path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1"></path>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 16.5px; line-height: 1.15;">Thi chứng chỉ</div>
+          <div style="font-size: 11.5px; color: #76716A;">Goethe · telc · TestDaF</div>
+        </div>
+      </div>
+
+      <div style="position: relative; display: flex; flex-direction: column; gap: 9px; padding: 14px 13px; border-radius: 4px; background: #FFFFFF; border: 1px solid #E7E3DA; text-align: left;">
+        <div style="position: absolute; top: 11px; right: 11px; width: 21px; height: 21px; border-radius: 50%; border: 2px solid #E7E3DA; background: #FFFFFF;"></div>
+        <div style="width: 38px; height: 38px; border-radius: 4px; background: #F6F3EC; display: flex; align-items: center; justify-content: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#76716A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3.5 13.8 9a1.8 1.8 0 0 0 1.2 1.2l5.5 1.8-5.5 1.8a1.8 1.8 0 0 0-1.2 1.2L12 20.5 10.2 15a1.8 1.8 0 0 0-1.2-1.2L3.5 12 9 10.2A1.8 1.8 0 0 0 10.2 9z"></path>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 16.5px; line-height: 1.15;">Sở thích</div>
+          <div style="font-size: 11.5px; color: #76716A;">Học cho chính mình</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- footer -->
+  <div style="margin-top: auto; flex-shrink: 0; border-top: 1px solid #E7E3DA; background: #FFFFFF; padding: 14px 24px 30px;">
+    <button style="display: flex; align-items: center; justify-content: center; gap: 9px; border: none; border-radius: 4px; background: #161513; color: #FBFAF7; font: 700 15.5px/1 'Instrument Sans', sans-serif; padding: 17px 22px; width: 100%; cursor: pointer;">
+      <span style="width: 7px; height: 7px; background: #FFCD00; display: inline-block;"></span>
+      <span>Tiếp tục</span>
+    </button>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

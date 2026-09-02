@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&amp;family=Instrument+Sans:wght@400;500;600;700&amp;display=swap">
+  <style>
+    body { margin: 0; font-family: 'Instrument Sans', system-ui, -apple-system, sans-serif; color: #161513; -webkit-font-smoothing: antialiased; }
+    a { color: #C79A00; text-decoration: none; }
+    a:hover { color: #161513; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #FBFAF7; position: relative; overflow: hidden; display: flex; flex-direction: column;">
+
+  <!-- header: back + segmented progress (step 4/4) -->
+  <div style="padding-top: 58px; flex-shrink: 0;">
+    <div style="display: flex; align-items: center; gap: 14px; height: 40px; padding: 0 20px;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#161513" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-left: -4px;">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+      <div style="display: flex; gap: 5px; flex: 1;">
+        <div style="flex: 1; height: 5px; border-radius: 3px; background: #FFCD00;"></div>
+        <div style="flex: 1; height: 5px; border-radius: 3px; background: #FFCD00;"></div>
+        <div style="flex: 1; height: 5px; border-radius: 3px; background: #FFCD00;"></div>
+        <div style="flex: 1; height: 5px; border-radius: 3px; background: #FFCD00;"></div>
+      </div>
+      <span style="font: 600 13px/1 'Instrument Sans', sans-serif; color: #76716A; font-variant-numeric: tabular-nums;">4/4</span>
+    </div>
+  </div>
+
+  <!-- title block -->
+  <div style="padding: 16px 24px 0; display: flex; flex-direction: column; gap: 9px; flex-shrink: 0;">
+    <div style="font: 600 10.5px/1.3 'Instrument Sans', sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #76716A;">Bước 4 / 4 · Kỳ thi</div>
+    <h1 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 28px; line-height: 1.16; letter-spacing: -0.02em;">Bạn nhắm kỳ thi nào?</h1>
+    <p style="margin: 0; font-size: 13.5px; line-height: 1.5; color: #76716A;">Không bắt buộc — đề luyện và dạng bài sẽ bám theo format kỳ thi này.</p>
+  </div>
+
+  <div style="flex: 1; padding: 16px 24px 12px; overflow: hidden; display: flex; flex-direction: column; gap: 14px;">
+
+    <!-- 3 exam rows; Goethe selected -->
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+
+      <div style="display: flex; align-items: center; gap: 13px; padding: 15px 16px; border-radius: 4px; background: rgba(255, 205, 0, 0.09); border: 2px solid #C79A00;">
+        <div style="width: 40px; height: 40px; border-radius: 4px; background: #161513; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFCD00" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="6"></circle>
+            <path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1"></path>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px; flex: 1;">
+          <span style="font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 16.5px; line-height: 1.15;">Goethe-Zertifikat</span>
+          <span style="font-size: 12px; color: #76716A;">Chứng chỉ phổ biến nhất</span>
+        </div>
+        <div style="width: 21px; height: 21px; border-radius: 50%; border: 2px solid #C79A00; background: #C79A00; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 13px; padding: 15px 16px; border-radius: 4px; background: #FFFFFF; border: 1px solid #E7E3DA;">
+        <div style="width: 40px; height: 40px; border-radius: 4px; background: #F6F3EC; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#76716A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <path d="m9 15 2 2 4-4"></path>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px; flex: 1;">
+          <span style="font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 16.5px; line-height: 1.15;">telc Deutsch</span>
+          <span style="font-size: 12px; color: #76716A;">Được công nhận ngang Goethe</span>
+        </div>
+        <div style="width: 21px; height: 21px; border-radius: 50%; border: 2px solid #E7E3DA; background: #FFFFFF; flex-shrink: 0;"></div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 13px; padding: 15px 16px; border-radius: 4px; background: #FFFFFF; border: 1px solid #E7E3DA;">
+        <div style="width: 40px; height: 40px; border-radius: 4px; background: #F6F3EC; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#76716A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 10 12 5 2 10l10 5 10-5z"></path>
+            <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+            <path d="M22 10v6"></path>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px; flex: 1;">
+          <span style="font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 16.5px; line-height: 1.15;">TestDaF</span>
+          <span style="font-size: 12px; color: #76716A;">Dành cho du học đại học</span>
+        </div>
+        <div style="width: 21px; height: 21px; border-radius: 50%; border: 2px solid #E7E3DA; background: #FFFFFF; flex-shrink: 0;"></div>
+      </div>
+
+    </div>
+
+    <!-- mentor reveal — CERT luôn là Anna -->
+    <div style="border: 2px solid #C79A00; border-radius: 4px; background: rgba(255, 205, 0, 0.09); padding: 16px; display: flex; flex-direction: column; gap: 13px;">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div style="font: 600 10.5px/1.3 'Instrument Sans', sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #C79A00;">Mentor của bạn</div>
+        <div style="display: flex; gap: 3px;">
+          <span style="width: 6px; height: 6px; background: #161513; display: inline-block;"></span>
+          <span style="width: 6px; height: 6px; background: #DA291C; display: inline-block;"></span>
+          <span style="width: 6px; height: 6px; background: #FFCD00; display: inline-block;"></span>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="width: 56px; height: 56px; border-radius: 4px; background: #161513; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <span style="font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 27px; color: #FFCD00;">A</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <span style="font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 21px; line-height: 1.1;">Anna</span>
+          <span style="font-size: 12.5px; color: #76716A;">Cố vấn luyện thi</span>
+        </div>
+      </div>
+      <div style="border-top: 1px solid rgba(199, 154, 0, 0.35); padding-top: 11px; display: flex; align-items: center; gap: 9px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#76716A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19"></polygon>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+        <span style="font-size: 12.5px; line-height: 1.45; color: #76716A;">Sẽ luyện cùng bạn theo đúng dạng đề của kỳ thi bạn chọn.</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- footer: skip + primary -->
+  <div style="margin-top: auto; flex-shrink: 0; border-top: 1px solid #E7E3DA; background: #FFFFFF; padding: 14px 24px 30px; display: flex; align-items: center; gap: 12px;">
+    <button style="border: 1px solid #E7E3DA; border-radius: 4px; background: transparent; color: #161513; font: 700 14px/1 'Instrument Sans', sans-serif; padding: 17px 18px; cursor: pointer; flex-shrink: 0;">Bỏ qua</button>
+    <button style="display: flex; align-items: center; justify-content: center; gap: 9px; border: none; border-radius: 4px; background: #161513; color: #FBFAF7; font: 700 15.5px/1 'Instrument Sans', sans-serif; padding: 17px 22px; flex: 1; cursor: pointer;">
+      <span style="width: 7px; height: 7px; background: #FFCD00; display: inline-block;"></span>
+      <span>Tạo lộ trình của tôi</span>
+    </button>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
