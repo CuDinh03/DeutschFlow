@@ -79,6 +79,24 @@
           "title": "Vokabel-Statistik",
           "desc": "Abdeckung: Nomen mit Genus & konjugierte Verben."
         }
+      },
+      "filters": {
+        "statusCap": "Lernstand",
+        "typeCap": "Wortart",
+        "topicCap": "Thema",
+        "levelLabel": "Niveau",
+        "clear": "Filter zurücksetzen",
+        "status": {
+          "NEW": "Noch nicht gelernt",
+          "LEARNING": "Wird gelernt",
+          "MASTERED": "Beherrscht"
+        },
+        "dtype": {
+          "Noun": "Nomen",
+          "Verb": "Verb",
+          "Adjective": "Adjektiv",
+          "Word": "Sonstige"
+        }
       }
     },
     "grammar": {
