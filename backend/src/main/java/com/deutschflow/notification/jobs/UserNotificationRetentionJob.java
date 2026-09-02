@@ -34,8 +34,8 @@ public class UserNotificationRetentionJob {
         this.deleteReadOlderThanDays = Math.max(1, deleteReadOlderThanDays);
     }
 
-    /** Runs nightly at 04:00 by default (after the 03:30 {@code DataRetentionJob} event purge). */
-    @Scheduled(cron = "${app.notifications.retention.cron:0 0 4 * * *}")
+    /** Runs nightly at 04:00 VN by default (after the 03:30 VN {@code DataRetentionJob} purge). */
+    @Scheduled(cron = "${app.notifications.retention.cron:0 0 4 * * *}", zone = "Asia/Ho_Chi_Minh")
     @SchedulerLock(name = "userNotificationRetention", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
     public void purgeReadNotifications() {
         if (!enabled) {
