@@ -1,25 +1,35 @@
 name: Frontend CI
 
-# Ngoài frontend/** còn phải theo dõi catalog mentor ở backend: src/__tests__/mentorMeta.test.ts
-# đọc thẳng FixedMentorResolver.java làm nguồn chuẩn, nên một PR CHỈ đụng backend mà thêm
-# mentor sẽ không kích hoạt workflow này và guard trở thành vô dụng đúng lúc cần nhất —
-# đó chính là hình dạng của commit 63e406cb, thứ đã để 6 mentor nhập môn trôi mất trên web.
 on:
+  # `push` vẫn lọc nhánh: mỗi lần push lên nhánh feature đã có sự kiện `pull_request` bên dưới lo,
+  # chạy cả hai chỉ tốn đôi CI cho cùng một commit. `feat/onboarding-v3` là nhánh dài hạn của dự án
+  # onboarding onb_v3 (các đợt GĐ 1–8 push thẳng vào đó); gỡ khi nhánh ấy merge xong.
   push:
     branches: [ "master", "main", "dev", "feat/onboarding-v3" ]
     paths:
       - 'frontend/**'
       - 'backend/src/main/java/com/deutschflow/user/mentor/**'
-#
-# `feat/onboarding-v3` là nhánh dài hạn của dự án onboarding onb_v3: các đợt GĐ 1–8
-# PR VÀO nó chứ không vào main. Không liệt kê ở đây thì workflow không kích hoạt cho
-# những PR đó, và chúng merge mà KHÔNG có cổng nào — nguy nhất là GĐ 5 (viết lại web
-# onboarding), vốn thuần frontend. Gỡ dòng này khi nhánh dài hạn đã merge xong.
+      - '.github/workflows/frontend-ci.yml'
+
+  # `pull_request` KHÔNG lọc base — cố ý.
+  #
+  # `branches:` ở đây chỉ khớp nhánh ĐÍCH, nên mọi PR xếp chồng (PR có base là một nhánh feature
+  # khác) rơi ra ngoài và workflow này không hề chạy. Nó không đỏ, nó VẮNG MẶT: PR vẫn hiện
+  # CLEAN/MERGEABLE vì Backend CI và Security CI (cả hai để `pull_request:` trần) vẫn xanh, nên
+  # nhìn qua tưởng đã qua cổng đầy đủ. Ngăn xếp 5 PR ngày 02/09/2026 (#445→#449→#455→#457→#458)
+  # merge được mà chưa từng chạy tsc, lint, i18n guard hay bản build thật một lần nào trên CI —
+  # đúng lúc cần nhất, vì bốn PR trong đó sửa frontend.
+  #
+  # `paths` thì giữ: PR chỉ đụng backend không cần dựng frontend. Ngoài `frontend/**` còn theo dõi
+  # catalog mentor ở backend vì `src/__tests__/mentorMeta.test.ts` đọc thẳng FixedMentorResolver.java
+  # làm nguồn chuẩn — một PR CHỈ đụng backend mà thêm mentor sẽ không kích hoạt workflow này và guard
+  # trở thành vô dụng; đó chính là hình dạng của commit 63e406cb, thứ đã để 6 mentor nhập môn trôi
+  # mất trên web. Và chính file workflow này cũng nằm trong danh sách, để sửa cổng thì cổng tự chạy.
   pull_request:
-    branches: [ "master", "main", "dev", "feat/onboarding-v3" ]
     paths:
       - 'frontend/**'
       - 'backend/src/main/java/com/deutschflow/user/mentor/**'
+      - '.github/workflows/frontend-ci.yml'
 
 jobs:
   build-and-lint:
