@@ -28,7 +28,11 @@ on:
   # làm nguồn chuẩn — một PR CHỈ đụng backend mà thêm mentor sẽ không kích hoạt workflow này và guard
   # trở thành vô dụng; đó chính là hình dạng của commit 63e406cb, thứ đã để 6 mentor nhập môn trôi
   # mất trên web. Và chính file workflow này cũng nằm trong danh sách, để sửa cổng thì cổng tự chạy.
+  # `edited` có mặt vì một lý do duy nhất: khi PR base được merge, GitHub trỏ lại base bằng sự kiện
+  # `edited` — không phải `synchronize` — nên nếu thiếu, PR xếp chồng được retarget sang main mà KHÔNG
+  # chạy lại cổng nào. Job bên dưới lọc lại để bỏ qua các lần `edited` chỉ sửa tiêu đề/mô tả.
   pull_request:
+    types: [opened, synchronize, reopened, edited]
     paths:
       - 'frontend/**'
       - 'backend/src/main/java/com/deutschflow/user/mentor/**'
@@ -37,6 +41,14 @@ on:
 jobs:
   build-and-lint:
     runs-on: ubuntu-latest
+    # `edited` bắn cho CẢ sửa tiêu đề/mô tả lẫn đổi base, mà ta chỉ cần vế đổi base. Payload của
+    # GitHub chỉ có `changes.base` khi base thật sự đổi, nên chặn ở đây để một lần sửa mô tả PR không
+    # kéo theo nguyên vòng CI. Điều kiện viết theo hướng an toàn: đoán sai thì job CHẠY thừa, chứ không
+    # bỏ mất lượt chạy cần có.
+    if: >-
+      github.event_name != 'pull_request'
+      || github.event.action != 'edited'
+      || github.event.changes.base != null
 
     steps:
       - name: Checkout Code

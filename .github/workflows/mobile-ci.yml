@@ -19,7 +19,11 @@ on:
   # lộ ra khi đã lên TestFlight.
   #
   # `paths` thì giữ: PR không đụng mobile/** không cần dựng mobile.
+  # `edited` có mặt vì một lý do duy nhất: khi PR base được merge, GitHub trỏ lại base bằng sự kiện
+  # `edited` — không phải `synchronize` — nên nếu thiếu, PR xếp chồng được retarget sang main mà KHÔNG
+  # chạy lại cổng nào. Các job bên dưới lọc lại để bỏ qua lần `edited` chỉ sửa tiêu đề/mô tả.
   pull_request:
+    types: [opened, synchronize, reopened, edited]
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-ci.yml'
@@ -32,6 +36,14 @@ jobs:
   type-check-and-test:
     name: 🧪 Type Check & Unit Tests
     runs-on: ubuntu-latest
+    # `edited` bắn cho CẢ sửa tiêu đề/mô tả lẫn đổi base, mà ta chỉ cần vế đổi base. Payload của
+    # GitHub chỉ có `changes.base` khi base thật sự đổi, nên chặn ở đây để một lần sửa mô tả PR không
+    # kéo theo nguyên vòng CI. Điều kiện viết theo hướng an toàn: đoán sai thì job CHẠY thừa, chứ không
+    # bỏ mất lượt chạy cần có.
+    if: >-
+      github.event_name != 'pull_request'
+      || github.event.action != 'edited'
+      || github.event.changes.base != null
     timeout-minutes: 10
 
     steps:
@@ -67,6 +79,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     continue-on-error: true
+    # `edited` bắn cho CẢ sửa tiêu đề/mô tả lẫn đổi base, mà ta chỉ cần vế đổi base. Payload của
+    # GitHub chỉ có `changes.base` khi base thật sự đổi, nên chặn ở đây để một lần sửa mô tả PR không
+    # kéo theo nguyên vòng CI. Điều kiện viết theo hướng an toàn: đoán sai thì job CHẠY thừa, chứ không
+    # bỏ mất lượt chạy cần có.
+    if: >-
+      github.event_name != 'pull_request'
+      || github.event.action != 'edited'
+      || github.event.changes.base != null
     concurrency: mobile-fingerprint-${{ github.event_name != 'pull_request' && 'main' || github.run_id }}
     permissions:
       pull-requests: write
