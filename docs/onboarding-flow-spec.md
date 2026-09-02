@@ -105,7 +105,7 @@ một luồng**, và mọi kế hoạch "parity" đều phải xuất phát từ
 
 | Khía cạnh | Web `/v2/onboarding` | Mobile `(auth)/onboarding` | |
 |---|---|---|---|
-| Số bước phễu | 5 (level → goal → target → quick-win → signup gate) | 1 màn cuộn + gate quick-win | 🔴 |
+| Số bước phễu | 5 (level → goal → target → quick-win → signup gate) | wizard 4 bước (mục tiêu → trình độ → nhịp → lĩnh vực/kỳ thi) + gate quick-win — UI v2, #463 (02/09) | 🟡 gần parity, thứ tự khác |
 | Bài học đầu (A0) | **không có** | `(auth)/first-sentence` — nghe/nói/chấm cục bộ | 🔴 |
 | Kiểm tra đầu vào | có (`/skill-tree/placement-test`) | **không có** | 🔴 |
 | Nói thử với AI | không | không | 🔵 cả hai đều thiếu |
@@ -121,6 +121,16 @@ một luồng**, và mọi kế hoạch "parity" đều phải xuất phát từ
 > UI. Trước khi GĐ 5/6 xây trên nó, owner phải chốt: **hồi sinh** (client tôn
 > trọng đủ 7 giá trị) hay **khai tử** (bỏ khỏi response, ma trận chỉ còn quyết
 > định `placementRequired/Optional`). **Owner đã chốt: KHAI TỬ** — xem §8.1.
+
+**Cập nhật 02/09/2026 — mobile UI v2 (PR #463**, hồ sơ đầy đủ:
+[design/onboarding-mobile-v2/BAN_GIAO.md](design/onboarding-mobile-v2/BAN_GIAO.md)**):**
+phễu mobile thành wizard 4 bước; quyết định bước nằm ở hàm thuần
+`mobile/lib/onboardingSteps.ts` (có test khoá thứ tự — cùng triết lý chống-F-1 với
+`nextAfterProfile()`). Hai điểm chạm spec: (1) `currentLevel` **mặc định 'A0'
+tường minh** thay vì `null` ngầm — POST profile và `/route` từ mobile luôn mang
+currentLevel; ma trận §4.2 không đổi, chỉ hết ca "không có trình độ" từ mobile.
+(2) `onb_first_sentence_skipped` thêm `reason='no_mic_choice'` (§6.1). Logic
+submit/draft/analytics còn lại không đổi.
 
 ---
 
@@ -337,6 +347,11 @@ kèm `step_name`/`step_number`) · `onboarding_motivation_selected` ·
 `onb_first_sentence_started|spoken|succeeded|retried|skipped` ·
 `onb_notif_permission` · `onb_starter_checklist_completed` ·
 `guide_tour_started|step_viewed|finished` · `login_*`
+
+`onb_first_sentence_skipped.reason` ∈ `consent | mic | later | error |
+no_mic_choice` — `no_mic_choice` thêm 02/09 (#463): user CHỦ ĐỘNG chọn đường
+"chỉ nghe — lặp lại", tách với `mic` (hệ thống từ chối quyền). Cả hai cùng vào
+biến thể echo; funnel đọc riêng hai lý do.
 
 ### 6.2 🔵 Đích `onb_v3`
 
