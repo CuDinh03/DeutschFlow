@@ -9,6 +9,7 @@ import {
   AppHeader, Button, Caption, Card, EmptyState, ErrorState, Icon, Pill, Screen, Skeleton, TextField, ThemedText, YellowSquare,
 } from '@/components/ui'
 import { drillPass, errorSkillsApi, todayApi, type ErrorSkill } from '@/lib/todayApi'
+import { getErrorTitle } from '@/lib/errorTaxonomy'
 import { trackFeatureAction } from '@/lib/analytics'
 
 /**
@@ -98,7 +99,7 @@ export default function ErrorRepairScreen() {
               <View style={{ backgroundColor: c.surfaceSunken, borderWidth: 1, borderColor: c.border, borderRadius: radius['2xl'], padding: space[3], flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
                 <Icon icon={Check} size={16} color="success" />
                 <ThemedText variant="caption" color="secondary" style={{ flex: 1 }} numberOfLines={2}>
-                  {(resolvedQ.data ?? []).slice(0, 4).map((s) => s.ruleViShort ?? s.errorCode).join(' · ')}
+                  {(resolvedQ.data ?? []).slice(0, 4).map((s) => s.ruleViShort ?? getErrorTitle(s.errorCode)).join(' · ')}
                 </ThemedText>
               </View>
             </View>
@@ -139,7 +140,7 @@ function DrillCard({ skill, intervalDays, onResolved }: { skill: ErrorSkill; int
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], borderColor: c.success }}>
         <Icon icon={Check} size={20} color="success" />
         <ThemedText variant="bodyStrong" style={{ flex: 1 }}>
-          {skill.ruleViShort ?? skill.errorCode} — đã trị xong hôm nay
+          {skill.ruleViShort ?? getErrorTitle(skill.errorCode)} — đã trị xong hôm nay
         </ThemedText>
       </Card>
     )
@@ -150,7 +151,7 @@ function DrillCard({ skill, intervalDays, onResolved }: { skill: ErrorSkill; int
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
         <YellowSquare size={7} color={c.danger} style={{ marginTop: 6 }} />
         <View style={{ flex: 1, gap: 2 }}>
-          <ThemedText variant="bodyStrong">{skill.ruleViShort ?? skill.errorCode}</ThemedText>
+          <ThemedText variant="bodyStrong">{skill.ruleViShort ?? getErrorTitle(skill.errorCode)}</ThemedText>
           <ThemedText variant="caption" color="secondary">
             {`Mắc ${skill.count} lần gần đây${intervalDays != null ? ` · chu kỳ ${intervalDays} ngày` : ''}`}
           </ThemedText>

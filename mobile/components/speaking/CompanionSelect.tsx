@@ -1,18 +1,21 @@
 // Persona + mode selector for AI Speaking — RN parity of the web CompanionSelect.
-// Three modes (Hội thoại / Gia sư Việt / Interview), grouped personas with avatars,
-// per-persona accent theming, and mode-specific config (position / scenario / level).
+// Hàng mode 4 ô (Hội thoại / Phỏng vấn / Thi nói / Luyện tập), grouped personas
+// with avatars, per-persona accent theming, and mode-specific config (position /
+// scenario / level). "Thi nói" là lối vào Luyện thi Nói Goethe (điều hướng sang
+// hub thi, không phải một sessionMode); "Luyện tập" (LESSON) đang KHOÁ theo
+// quyết định 02/09 — mở lại khi luồng lesson được làm mới.
 
 import { useMemo, useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { MotiView } from 'moti'
 import { useQuery } from '@tanstack/react-query'
 import {
-  MessageCircle, GraduationCap, Briefcase, Lock, Check,
+  MessageCircle, GraduationCap, Briefcase, Lock, Check, Award,
   Laptop, ShoppingBag, Stethoscope, Wrench, UtensilsCrossed, Mic, Languages,
   type LucideIcon,
 } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { ThemedText, Icon, Button } from '@/components/ui'
+import { ThemedText, Icon, Button, useTabBarClearance } from '@/components/ui'
 import { SpotlightTarget } from '@/components/guide/SpotlightTour'
 import { SPOTLIGHT_TARGETS } from '@/components/guide/spotlightTours'
 import {
@@ -37,14 +40,18 @@ interface CompanionSelectProps {
   isPro: boolean
   starting: boolean
   onStart: (args: StartArgs) => void
+  /** Mở hub Luyện thi Nói Goethe — ô "Thi nói" trên hàng mode. */
+  onOpenExam: () => void
   /** Preselect a mode (e.g. routed in from onboarding's INTERVIEW_FIRST). */
   initialMode?: SpeakingSessionMode
 }
 
-const MODES: { key: SpeakingSessionMode; label: string; icon: LucideIcon }[] = [
+/** 'EXAM' là ô điều hướng (không phải sessionMode); `locked` = ô hiển thị nhưng chưa mở. */
+const MODES: { key: SpeakingSessionMode | 'EXAM'; label: string; icon: LucideIcon; locked?: boolean }[] = [
   { key: 'COMMUNICATION', label: 'Hội thoại', icon: MessageCircle },
   { key: 'INTERVIEW', label: 'Phỏng vấn', icon: Briefcase },
-  { key: 'LESSON', label: 'Luyện tập', icon: GraduationCap },
+  { key: 'EXAM', label: 'Thi nói', icon: Award },
+  { key: 'LESSON', label: 'Luyện tập', icon: GraduationCap, locked: true },
 ]
 
 const GROUP_ICONS: Record<PersonaGroup, LucideIcon> = {
@@ -67,10 +74,16 @@ const EXPERIENCE: { id: string; label: string }[] = [
   { id: '5Y', label: '5+ năm' },
 ]
 
-export function CompanionSelect({ isPro, starting, onStart, initialMode }: CompanionSelectProps) {
+export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialMode }: CompanionSelectProps) {
   const theme = useTheme()
-  const [mode, setMode] = useState<SpeakingSessionMode>(initialMode ?? 'COMMUNICATION')
-  const [group, setGroup] = useState<PersonaGroup>(initialMode === 'LESSON' ? 'special' : 'it')
+  // Thanh tab liquid-glass nổi đè lên nội dung — nút "Bắt đầu" cuối trang phải
+  // nằm trên kính, không bị pill che.
+  const tabClearance = useTabBarClearance(space[6])
+  // LESSON đang khoá — deep link cũ ?mode=LESSON rơi êm về Hội thoại.
+  const [mode, setMode] = useState<SpeakingSessionMode>(
+    initialMode && initialMode !== 'LESSON' ? initialMode : 'COMMUNICATION',
+  )
+  const [group, setGroup] = useState<PersonaGroup>('it')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [position, setPosition] = useState<string | null>(null)
   const [experience, setExperience] = useState<string>('1-2Y')
@@ -148,7 +161,7 @@ export function CompanionSelect({ isPro, starting, onStart, initialMode }: Compa
   return (
     <ScrollView
       style={{ flex: 1 }}
-      contentContainerStyle={{ paddingBottom: space[12] }}
+      contentContainerStyle={{ paddingBottom: tabClearance }}
       showsVerticalScrollIndicator={false}
     >
       <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
@@ -165,10 +178,21 @@ export function CompanionSelect({ isPro, starting, onStart, initialMode }: Compa
       >
         {MODES.map((m) => {
           const active = mode === m.key
+          const locked = m.locked === true
           return (
             <Pressable
               key={m.key}
-              onPress={() => switchMode(m.key)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active, disabled: locked }}
+              accessibilityLabel={locked ? `${m.label} — sắp mở lại` : m.label}
+              disabled={locked}
+              onPress={() => {
+                if (m.key === 'EXAM') {
+                  onOpenExam()
+                  return
+                }
+                switchMode(m.key)
+              }}
               style={{
                 flex: 1,
                 paddingVertical: space[3],
@@ -178,10 +202,15 @@ export function CompanionSelect({ isPro, starting, onStart, initialMode }: Compa
                 backgroundColor: active ? theme.colors.accent : theme.colors.surface,
                 borderWidth: 1,
                 borderColor: active ? theme.colors.accent : theme.colors.border,
+                opacity: locked ? 0.45 : 1,
               }}
             >
-              <Icon icon={m.icon} size={20} color={active ? 'onAccent' : 'secondary'} />
-              <ThemedText variant="label" style={{ color: active ? theme.colors.onAccent : theme.colors.textSecondary }}>
+              <Icon icon={locked ? Lock : m.icon} size={20} color={active ? 'onAccent' : 'secondary'} />
+              <ThemedText
+                variant="label"
+                numberOfLines={1}
+                style={{ color: active ? theme.colors.onAccent : theme.colors.textSecondary }}
+              >
                 {m.label}
               </ThemedText>
             </Pressable>

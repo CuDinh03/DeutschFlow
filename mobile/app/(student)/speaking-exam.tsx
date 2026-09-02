@@ -11,6 +11,7 @@ import {
 import { usePlanStore } from '@/stores/usePlanStore'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { examSpeakingApi, type BlueprintSummary } from '@/lib/examSpeakingApi'
+import { getErrorTitle } from '@/lib/errorTaxonomy'
 import { levelsFromBlueprints } from '@/lib/examSpeakingUi'
 import { trackFeatureAction } from '@/lib/analytics'
 
@@ -182,7 +183,7 @@ export default function SpeakingExamHubScreen() {
             <View style={{ flex: 1, gap: 2 }}>
               <ThemedText variant="bodyStrong">Điểm yếu của bạn</ThemedText>
               <ThemedText variant="caption" color="secondary" numberOfLines={1}>
-                {topWeak.map((w) => w.ruleVi ?? w.errorCode).join(' · ')}
+                {topWeak.map((w) => w.ruleVi ?? getErrorTitle(w.errorCode)).join(' · ')}
               </ThemedText>
             </View>
             <Icon icon={ChevronRight} size={16} color="muted" />

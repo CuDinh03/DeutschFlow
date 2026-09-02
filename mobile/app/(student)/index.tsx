@@ -35,6 +35,7 @@ import {
   ErrorState,
   Caption,
   ProgressBar,
+  useTabBarClearance,
 } from '@/components/ui'
 
 // Only the fields the home actually uses from the (plan-oriented) dashboard.
@@ -52,6 +53,8 @@ function greetingFor(hour: number): string {
 
 export default function DashboardScreen() {
   const theme = useTheme()
+  // Thanh tab liquid-glass nổi đè lên nội dung — chừa đáy cho mục cuối.
+  const tabClearance = useTabBarClearance()
   const { user } = useAuthStore()
   const { isPro } = usePlanStore()
 
@@ -231,7 +234,7 @@ export default function DashboardScreen() {
     <Screen
       scroll
       edges={['top']}
-      contentStyle={{ paddingBottom: space[8] }}
+      contentStyle={{ paddingBottom: tabClearance }}
       refreshing={isRefetching}
       onRefresh={onRefresh}
     >

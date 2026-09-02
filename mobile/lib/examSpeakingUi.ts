@@ -55,6 +55,25 @@ export function stateLabel(state: ExamSessionState): string {
   }
 }
 
+/**
+ * `directive.prueferText` là ECHO lời PRUEFER GẦN NHẤT trong Teil (backend
+ * ExamSessionService.view: lastPruefer.getTranscript()) — nó lặp NGUYÊN VĂN qua
+ * mọi step của Teil và trùng với lượt PRUEFER vừa tới qua `aiTurns`. Chỉ hiển
+ * thị khi transcript CHƯA có nó ở vị trí lời-giám-khảo-cuối: lúc mới vào
+ * màn/Teil, hoặc khi giám khảo thật sự nói câu mới. Trả về text (đã trim) khi
+ * cần hiển thị, null khi là bản lặp — sửa lỗi "giám khảo hiện 2 lần câu hỏi
+ * mỗi khi partner trả lời" (QA TestFlight 02/09).
+ */
+export function nextPrueferAnnouncement(
+  lastShownPruefer: string | null,
+  directiveText: string | null | undefined,
+): string | null {
+  const next = directiveText?.trim()
+  if (!next) return null
+  if (lastShownPruefer !== null && lastShownPruefer.trim() === next) return null
+  return next
+}
+
 /** Phần trăm 0..1 an toàn cho thanh điểm tiêu chí. */
 export function criterionRatio(points: number, max: number): number {
   if (!Number.isFinite(points) || !Number.isFinite(max) || max <= 0) return 0

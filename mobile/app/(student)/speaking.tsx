@@ -14,8 +14,8 @@ import {
 import { createAudioPlayer, useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync, type AudioPlayer } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Haptics from 'expo-haptics'
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
-import { Mic, Send, ChevronRight, Flame, X, Flag, RotateCcw } from 'lucide-react-native'
+import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router'
+import { Mic, Send, X, Flag, RotateCcw } from 'lucide-react-native'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -82,14 +82,23 @@ export default function SpeakingScreen() {
   const { hasProAccess } = usePlanStore()
 
   // Onboarding (and deep links) can preselect a speaking mode — e.g. the
-  // INTERVIEW_FIRST archetype routes here as `?mode=INTERVIEW`.
+  // INTERVIEW_FIRST archetype routes here as `?mode=INTERVIEW`. LESSON đang
+  // khoá (quyết định 02/09) nên deep link cũ ?mode=LESSON rơi về mặc định.
   const { mode: modeParam } = useLocalSearchParams<{ mode?: string }>()
   const initialMode: SpeakingSessionMode | undefined =
-    modeParam === 'INTERVIEW' || modeParam === 'LESSON' || modeParam === 'COMMUNICATION'
-      ? modeParam
-      : undefined
+    modeParam === 'INTERVIEW' || modeParam === 'COMMUNICATION' ? modeParam : undefined
 
   const [view, setView] = useState<ScreenView>('select')
+
+  // Thanh tab liquid-glass giờ NỔI ĐÈ lên nội dung (overlay) — trong phiên nói
+  // (chat/tổng kết) nó sẽ đè lên dock nhập liệu/nút Xong, và giữa buổi nói cũng
+  // không nên mời gọi chuyển tab (lớp lỗi F-9). Ẩn bar khi rời màn chọn; TabBar
+  // đọc cờ này qua descriptor options.
+  const navigation = useNavigation()
+  useEffect(() => {
+    navigation.setOptions({ tabBarStyle: view === 'select' ? undefined : { display: 'none' } })
+  }, [navigation, view])
+
   const [session, setSession] = useState<AiSpeakingSession | null>(null)
   const [messages, setMessages] = useState<ChatTurn[]>([])
   // Async gửi/nhận đóng băng `messages` trong closure → dùng ref để retryTurn đọc turn hiện tại (MB-3).
@@ -725,26 +734,6 @@ export default function SpeakingScreen() {
           </View>
         ) : null}
 
-        {/* Lối vào Luyện thi Nói (cụm màn mới 02/09 — thiết kế đã chốt) */}
-        <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
-          <Card
-            onPress={() => router.push('/(student)/speaking-exam')}
-            accessibilityLabel="Mở Luyện thi Nói Goethe"
-            style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-              <View style={{ width: 7, height: 7, backgroundColor: c.accent }} />
-              <View style={{ flex: 1, gap: 2 }}>
-                <ThemedText variant="bodyStrong" style={{ color: c.onInk }}>Luyện thi Nói · Goethe</ThemedText>
-                <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
-                  Thi thử đủ các Teil, chấm theo rubric 4 tiêu chí
-                </ThemedText>
-              </View>
-              <Icon icon={ChevronRight} size={18} color="onInk" />
-            </View>
-          </Card>
-        </View>
-
         {quota && !isUnlimitedQuota(quota) ? (
           <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
             <View
@@ -769,7 +758,13 @@ export default function SpeakingScreen() {
           </View>
         ) : null}
 
-        <CompanionSelect isPro={hasProAccess} starting={starting} onStart={startSession} initialMode={initialMode} />
+        <CompanionSelect
+          isPro={hasProAccess}
+          starting={starting}
+          onStart={startSession}
+          onOpenExam={() => router.push('/(student)/speaking-exam')}
+          initialMode={initialMode}
+        />
       </Screen>
     )
   }

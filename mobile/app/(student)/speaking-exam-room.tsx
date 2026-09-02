@@ -16,7 +16,7 @@ import { useBlurGuard } from '@/hooks/useBlurGuard'
 import {
   examSpeakingApi, type ExamSessionView, type TurnResponse,
 } from '@/lib/examSpeakingApi'
-import { formatClock, remainingSec, stateLabel, stimulusDisplay } from '@/lib/examSpeakingUi'
+import { formatClock, nextPrueferAnnouncement, remainingSec, stateLabel, stimulusDisplay } from '@/lib/examSpeakingUi'
 import { speakExamSequence, stopExamTts } from '@/lib/examTts'
 import { trackFeatureAction } from '@/lib/analytics'
 
@@ -75,7 +75,10 @@ export default function SpeakingExamRoomScreen() {
   const [recording, setRecording] = useState(false)
   const [uploading, setUploading] = useState(false)
   const lineSeq = useRef(0)
-  const spokenRef = useRef<string | null>(null)
+  // Lời PRUEFER cuối cùng ĐÃ vào transcript (trim) — bất kể tới từ aiTurns hay
+  // từ directive echo. Là chốt chặn duy nhất cho lỗi lặp câu dẫn giám khảo:
+  // directive.prueferText lặp nguyên văn qua các step (xem nextPrueferAnnouncement).
+  const lastPrueferRef = useRef<string | null>(null)
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
   useRecorderBlurGuard(recorder, () => setRecording(false))
@@ -114,22 +117,31 @@ export default function SpeakingExamRoomScreen() {
       }
       return
     }
-    const d = data.directive
-    if (d?.prueferText && data.state === 'IN_PART') {
-      const key = `${d.teilNo}:${d.stepIndex}:${d.prueferText}`
-      if (spokenRef.current !== key) {
-        spokenRef.current = key
-        pushLine('PRUEFER', d.prueferText)
+    if (data.state === 'IN_PART') {
+      // Trước đây khoá theo `teil:stepIndex:text` → mỗi step mới trong CÙNG Teil
+      // (partner vừa đáp xong) lại chèn nguyên câu dẫn Teil thêm một lần nữa.
+      // Giờ so theo lời PRUEFER cuối đã hiển thị — echo lặp thì bỏ qua.
+      const announce = nextPrueferAnnouncement(lastPrueferRef.current, data.directive?.prueferText)
+      if (announce) {
+        lastPrueferRef.current = announce
+        pushLine('PRUEFER', announce)
         // Blur mà đồng hồ server hết hạn tự advance: dòng mới vẫn vào transcript
         // (đọc lại được), chỉ không phát tiếng khi màn không hiển thị.
-        if (speak && focusedRef.current) void speakExamSequence([{ role: 'PRUEFER', text: d.prueferText }])
+        if (speak && focusedRef.current) void speakExamSequence([{ role: 'PRUEFER', text: announce }])
       }
     }
   }, [pushLine])
 
-  // Nạp phiên lần đầu.
+  // Nạp phiên lần đầu. Màn nằm dưới Tabs nên KHÔNG unmount giữa hai bài thi —
+  // mở phiên mới trên màn cũ phải xoá sạch dấu vết phiên trước (transcript,
+  // chốt chặn lặp lời giám khảo, điều hướng đã hoãn), kẻo thiếu câu dẫn mở màn.
   useEffect(() => {
     let alive = true
+    setSession(null)
+    setLines([])
+    setLoadError(false)
+    lastPrueferRef.current = null
+    pendingResultsNav.current = false
     void (async () => {
       try {
         const data = await examSpeakingApi.getSession(sessionId)
@@ -277,10 +289,19 @@ export default function SpeakingExamRoomScreen() {
       }
       if (turn.transcript?.trim()) pushLine('CANDIDATE', turn.transcript.trim())
       const aiTurns = (turn.aiTurns ?? []).filter((t) => t.text?.trim())
-      for (const t of aiTurns) pushLine(t.role === 'PARTNER' ? 'PARTNER' : 'PRUEFER', t.text)
-      // Snapshot mới TRƯỚC rồi mới đọc thoại — spokenRef chặn đọc trùng câu dẫn.
+      for (const t of aiTurns) {
+        const role = t.role === 'PARTNER' ? 'PARTNER' : 'PRUEFER'
+        // Ghi nhận lời PRUEFER mới NGAY tại đây — directive của snapshot kế tiếp
+        // sẽ echo đúng câu này, applySession phải biết nó đã hiển thị rồi.
+        if (role === 'PRUEFER') lastPrueferRef.current = t.text.trim()
+        pushLine(role, t.text)
+      }
+      // Snapshot mới TRƯỚC rồi mới đọc thoại — lastPrueferRef chặn chèn trùng câu dẫn.
       applySession(turn.session, false)
-      if (aiTurns.length > 0) void speakExamSequence(aiTurns)
+      // Phản hồi về muộn sau khi người dùng đã rời màn (back/chuyển tab giữa lúc
+      // đang gửi): KHÔNG bắt đầu phát tiếng — stopExamTts lúc blur chỉ dừng được
+      // thứ ĐANG kêu, không chặn được chuỗi mới khởi phát sau đó.
+      if (aiTurns.length > 0 && focusedRef.current) void speakExamSequence(aiTurns)
     } catch (e) {
       Alert.alert('Lỗi lượt nói', apiMessage(e))
     } finally {

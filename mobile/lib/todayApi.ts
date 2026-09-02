@@ -4,6 +4,7 @@
 // streak lấy từ /student/dashboard sẵn có của màn Trang chủ.
 
 import api from './api'
+import { getErrorTitle } from './errorTaxonomy'
 
 export interface DueRepairTask {
   id: number
@@ -50,6 +51,29 @@ export const errorSkillsApi = {
   /** Đánh dấu đã sửa xong một mã lỗi SAU khi drill pass (semantics backend). */
   repairAttempt: (errorCode: string) =>
     api.post<void>(`/error-skills/me/${encodeURIComponent(errorCode)}/repair-attempt`),
+}
+
+/**
+ * Nhãn chip cho thẻ "Sửa lỗi đến hạn" trên Trang chủ: ưu tiên ruleViShort từ
+ * backend, thiếu thì rơi về bảng nhãn tiếng Việt local (errorTaxonomy) — KHÔNG
+ * bao giờ hiện mã thô kiểu "WORD_ORDER.V2_MAIN_CLAUSE" cho người học. Nhiều
+ * task trùng một mã/nhãn chỉ ra MỘT chip (trước đây 3 task cùng mã = 3 chip
+ * giống hệt nhau).
+ */
+export function dueRepairChipLabels(
+  dueTasks: readonly Pick<DueRepairTask, 'errorCode'>[],
+  skills: readonly Pick<ErrorSkill, 'errorCode' | 'ruleViShort'>[],
+  limit = 3,
+): string[] {
+  const ruleByCode = new Map(skills.map((s) => [s.errorCode, s.ruleViShort]))
+  const out: string[] = []
+  for (const t of dueTasks) {
+    const short = ruleByCode.get(t.errorCode)
+    const label = short?.trim() ? short : getErrorTitle(t.errorCode)
+    if (!out.includes(label)) out.push(label)
+    if (out.length >= limit) break
+  }
+  return out
 }
 
 /**

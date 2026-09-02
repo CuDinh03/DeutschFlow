@@ -2,12 +2,18 @@
 // refraction edges (top highlight + inner depth). Selection is a soft tinted
 // glass capsule that slides between tabs with spring physics — HIG-aligned
 // (tint + glass highlight, not a heavy filled pill). Light haptic on press.
+//
+// OVERLAY, không chiếm chỗ layout: react-navigation đặt custom tab bar theo
+// flow CỘT (screens flex:1 + bar một khoang riêng), khoang đó lộ màu nền
+// navigator thành một DẢI chia vùng ngay dưới nội dung — và BlurView chẳng có
+// gì để blur (QA TestFlight 02/09). Bar vì thế tự ghim absolute đáy màn để
+// nội dung chảy xuống dưới kính; các màn TAB chừa đáy bằng useTabBarClearance.
 
 import { BlurView } from 'expo-blur'
 import * as Haptics from 'expo-haptics'
 import { useEffect, useState } from 'react'
 import { Home, BookOpen, Mic, User, type LucideIcon } from 'lucide-react-native'
-import { type LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native'
+import { type LayoutChangeEvent, Pressable, StyleSheet, View, type ViewStyle } from 'react-native'
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -27,6 +33,9 @@ const ICONS: Record<string, LucideIcon> = {
   profile: User,
 }
 
+// Fallback khi route chưa khai `title` trong Tabs.Screen — nguồn nhãn chính là
+// options.title của _layout (trước đây map này ĐÈ title, nên đổi nhãn ở layout
+// không có tác dụng — vd "Heute" của cụm màn 02/09 không bao giờ hiện).
 const LABELS: Record<string, string> = {
   index: 'Trang chủ',
   learn: 'Học',
@@ -37,12 +46,22 @@ const LABELS: Record<string, string> = {
 const BAR_HEIGHT = 64
 const INDICATOR_HEIGHT = 48
 
+/**
+ * Khoảng chừa đáy cho NỘI DUNG các màn tab: thanh glass nổi đè lên nội dung,
+ * scroll view phải cộng khoảng này vào paddingBottom để mục cuối không bị pill
+ * che mất (pill + đệm trên + đệm dưới theo safe-area + hở thở thêm `extra`).
+ */
+export function useTabBarClearance(extra: number = space[4]): number {
+  const insets = useSafeAreaInsets()
+  return BAR_HEIGHT + space[2] + (insets.bottom > 0 ? insets.bottom : space[3]) + extra
+}
+
 interface TabLayout {
   x: number
   width: number
 }
 
-export function TabBar({ state, navigation }: BottomTabBarProps) {
+export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
 
@@ -75,8 +94,14 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
   // one of the 4 real tabs). They have their own AppHeader + back button, and the
   // bar would otherwise float over their bottom content — e.g. the skill tree's
   // companion/zoom controls. Placed after all hooks to respect rules-of-hooks.
-  const focusedName = state.routes[state.index]?.name
-  if (!focusedName || !ICONS[focusedName]) return null
+  const focusedRoute = state.routes[state.index]
+  const focusedName = focusedRoute?.name
+  // Màn tab cũng có thể tự ẩn bar theo pha (vd Speaking đang trong phiên chat)
+  // qua navigation.setOptions({ tabBarStyle: { display: 'none' } }).
+  const focusedTabBarStyle = focusedRoute
+    ? (StyleSheet.flatten(descriptors[focusedRoute.key]?.options.tabBarStyle) as ViewStyle | undefined)
+    : undefined
+  if (!focusedName || !ICONS[focusedName] || focusedTabBarStyle?.display === 'none') return null
 
   const onTabLayout = (index: number) => (e: LayoutChangeEvent) => {
     const { x, width } = e.nativeEvent.layout
@@ -95,6 +120,11 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
     <View
       pointerEvents="box-none"
       style={{
+        // Overlay thật sự — không chiếm khoang layout, nội dung chảy dưới kính.
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
         paddingHorizontal: space[3],
         paddingTop: space[2],
         paddingBottom: insets.bottom > 0 ? insets.bottom : space[3],
@@ -183,7 +213,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
                 <TabItem
                   key={route.key}
                   icon={icon}
-                  label={LABELS[route.name] ?? route.name}
+                  label={descriptors[route.key]?.options.title ?? LABELS[route.name] ?? route.name}
                   focused={focused}
                   onPress={onPress}
                   onLayout={onTabLayout(index)}
