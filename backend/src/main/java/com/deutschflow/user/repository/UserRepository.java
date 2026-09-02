@@ -35,6 +35,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByRoleAndActiveTrue(User.Role role);
 
+    /**
+     * Đếm tài khoản còn hoạt động theo vai trò nền tảng — dùng cho bất biến "không được mất ADMIN
+     * cuối cùng" (audit F-M1, 03/09/2026).
+     */
+    long countByRoleAndActiveTrue(User.Role role);
+
     /** All active users — filtered at the DB instead of loading every row via findAll(). */
     List<User> findByActiveTrue();
 
