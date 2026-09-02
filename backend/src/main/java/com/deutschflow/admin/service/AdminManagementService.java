@@ -672,6 +672,25 @@ public class AdminManagementService {
         return list;
     }
 
+    /**
+     * Bất biến "hệ thống luôn còn ít nhất một ADMIN hoạt động" (audit F-M1, 03/09/2026).
+     *
+     * <p>Controller đã chặn admin TỰ hạ quyền / tự khóa mình, nhưng chặn ở đó không đủ: hai admin
+     * vẫn tước quyền hoặc khóa lẫn nhau được, và kết cục là 0 admin — khoá cứng toàn hệ thống, chỉ
+     * gỡ được bằng cách sửa thẳng DB. Guard đặt ở service nên MỌI đường ghi đều đi qua, kể cả
+     * endpoint thêm sau này quên tự rào.
+     *
+     * <p>Chỉ đếm ADMIN còn {@code is_active=true}: một admin đã bị khóa không cứu được hệ thống.
+     */
+    private void requireNotLastActiveAdmin(User target, String message) {
+        if (!target.isActive()) {
+            return; // đã không nằm trong số admin hoạt động thì không phải người cuối cùng
+        }
+        if (userRepository.countByRoleAndActiveTrue(User.Role.ADMIN) <= 1) {
+            throw new BadRequestException(message);
+        }
+    }
+
     @Transactional
     public Map<String, Object> updateUserRole(Long userId, String role) {
         User user = userRepository.findById(userId)
@@ -686,6 +705,9 @@ public class AdminManagementService {
         if (orgMembershipService.hasActiveMembership(userId)) {
             throw new BadRequestException(
                     "Người dùng đang thuộc một tổ chức. Hãy đổi vai trò qua Console tổ chức để giữ đồng bộ org_members.");
+        }
+        if (user.getRole() == User.Role.ADMIN && !"ADMIN".equals(normalized)) {
+            requireNotLastActiveAdmin(user, "Không thể hạ quyền quản trị viên hoạt động cuối cùng.");
         }
         user.setRole(User.Role.valueOf(normalized));
         userRepository.save(user);
@@ -771,6 +793,9 @@ public class AdminManagementService {
     public Map<String, Object> setUserActive(Long userId, boolean active) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
+        if (!active && user.getRole() == User.Role.ADMIN) {
+            requireNotLastActiveAdmin(user, "Không thể khóa quản trị viên hoạt động cuối cùng.");
+        }
         user.setActive(active);
         userRepository.save(user);
         // Audit F-H3 (03/09/2026): khóa tài khoản mà không revoke thì phiên đang chạy vẫn sống —
