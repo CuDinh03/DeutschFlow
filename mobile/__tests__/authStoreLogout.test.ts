@@ -17,6 +17,7 @@ jest.mock('@/lib/api', () => ({
 jest.mock('@/lib/auth', () => ({
   setTokens: jest.fn(),
   clearTokens: (...a: unknown[]) => clearTokens(...a),
+  getRefreshToken: jest.fn().mockResolvedValue(null),
   getRoleFromToken: jest.fn(),
 }))
 jest.mock('@/lib/analytics', () => ({

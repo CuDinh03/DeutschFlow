@@ -133,11 +133,16 @@ export function shouldReportApiFailure(error: unknown): boolean {
 function reportApiFailure(error: AxiosError): void {
   if (!shouldReportApiFailure(error)) return
 
+  const status = apiStatusLabel(error)
   reportApiError(error, {
     endpoint: normalizeEndpoint(error.config?.url),
     method: error.config?.method?.toUpperCase() ?? 'UNKNOWN',
-    status: apiStatusLabel(error),
+    status,
     aiCode: apiErrorCode(error),
+    // network/timeout = thiết bị người dùng mất mạng — chuyện thường nhật của mobile, vẫn đếm
+    // trên dashboard nhưng KHÔNG réo email high-priority (đêm 03/09: owner tắt wifi thử offline
+    // là 7 email liền). 5xx/429 mới là sức khoẻ hệ thống → giữ mức error.
+    level: status === 'network' || status === 'timeout' ? 'warning' : 'error',
   })
 }
 
