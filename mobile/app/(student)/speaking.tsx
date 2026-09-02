@@ -709,6 +709,26 @@ export default function SpeakingScreen() {
           </View>
         ) : null}
 
+        {/* Lối vào Luyện thi Nói (cụm màn mới 02/09 — thiết kế đã chốt) */}
+        <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
+          <Card
+            onPress={() => router.push('/(student)/speaking-exam')}
+            accessibilityLabel="Mở Luyện thi Nói Goethe"
+            style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+              <View style={{ width: 7, height: 7, backgroundColor: c.accent }} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <ThemedText variant="bodyStrong" style={{ color: c.onInk }}>Luyện thi Nói · Goethe</ThemedText>
+                <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
+                  Thi thử đủ các Teil, chấm theo rubric 4 tiêu chí
+                </ThemedText>
+              </View>
+              <Icon icon={ChevronRight} size={18} color="onInk" />
+            </View>
+          </Card>
+        </View>
+
         {quota && !isUnlimitedQuota(quota) ? (
           <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
             <View

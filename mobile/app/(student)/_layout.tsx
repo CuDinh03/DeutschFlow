@@ -46,6 +46,10 @@ export default function StudentLayout() {
         <Tabs.Screen name="weekly-detail" options={{ href: null }} />
         <Tabs.Screen name="classes" options={{ href: null }} />
         <Tabs.Screen name="assignments" options={{ href: null }} />
+        <Tabs.Screen name="speaking-exam" options={{ href: null }} />
+        <Tabs.Screen name="speaking-exam-room" options={{ href: null }} />
+        <Tabs.Screen name="speaking-exam-result" options={{ href: null }} />
+        <Tabs.Screen name="speaking-exam-weakness" options={{ href: null }} />
       </Tabs>
 
       {/* Emits feature_session per screen across the whole student area. */}
