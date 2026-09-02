@@ -246,7 +246,11 @@ ENV_FILE="$EC2_DIR/.env.production"
 PROM_TOKEN=$(grep -E '^PROMETHEUS_SCRAPE_TOKEN=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- || true)
 if [ -n "$PROM_TOKEN" ]; then
   printf '%s' "$PROM_TOKEN" > "$EC2_DIR/docker/prometheus/scrape-token"
-  chmod 600 "$EC2_DIR/docker/prometheus/scrape-token"
+  # 644, KHÔNG PHẢI 600: container prometheus chạy user nobody (65534) — 600 chủ ubuntu làm
+  # credentials_file đọc fail ⇒ scrape down ("Get ...: unable to read authorization credentials
+  # file ... permission denied", sự cố 02/09 ngay sau deploy #468). World-readable chấp nhận
+  # được: file chỉ gác endpoint metrics, và ai đọc được host thì cũng đọc được .env.production.
+  chmod 644 "$EC2_DIR/docker/prometheus/scrape-token"
   info "Scrape token Prometheus: đã ghi docker/prometheus/scrape-token"
 else
   warn "PROMETHEUS_SCRAPE_TOKEN chưa có trong .env.production — scrape /actuator/prometheus sẽ 401 (fail-closed)"
