@@ -97,6 +97,16 @@
           "Adjective": "Adjektiv",
           "Word": "Sonstige"
         }
+      },
+      "cta": {
+        "cap": "Heute dran",
+        "due": "{count} fällige Wörter wiederholen",
+        "dueDesc": "Pünktliches Wiederholen lässt Wörter sitzen — erst das, dann Neues.",
+        "fresh": "20 neue Wörter lernen",
+        "freshDesc": "Nichts ist fällig. Hol dir ein neues Kartenset, häufigste Wörter zuerst."
+      },
+      "lookup": {
+        "cap": "Nachschlagen"
       }
     },
     "grammar": {

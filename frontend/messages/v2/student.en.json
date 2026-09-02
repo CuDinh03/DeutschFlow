@@ -97,6 +97,16 @@
           "Adjective": "Adjective",
           "Word": "Other"
         }
+      },
+      "cta": {
+        "cap": "Today's task",
+        "due": "Review {count} due word(s)",
+        "dueDesc": "Reviewing on time is what makes words stick — do this before learning new ones.",
+        "fresh": "Learn 20 new words",
+        "freshDesc": "Nothing is due for review. Get a fresh deck, most frequent words first."
+      },
+      "lookup": {
+        "cap": "Look up"
       }
     },
     "grammar": {
