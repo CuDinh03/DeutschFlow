@@ -516,6 +516,13 @@ if [ -n "$PROM_NET" ] && [ "$PROM_NET" != "deutschflow-net" ]; then
   sudo docker network connect "$PROM_NET" deutschflow-backend 2>/dev/null \
     && info "  Backend đã vào network Prometheus ($PROM_NET) — scrape hoạt động" || true
 fi
+# Nạp lại scrape config + alert rules: thư mục docker/prometheus được bind-mount từ repo — bước
+# [2/6] git pull đã cập nhật FILE trên đĩa, nhưng prometheus đang chạy vẫn giữ config CŨ trong RAM
+# (target cũ `backend:8080` chết) cho tới khi được SIGHUP/restart. SIGHUP không đụng TSDB.
+sudo docker kill -s HUP deutschflow-prometheus >/dev/null 2>&1 \
+  && info "  Prometheus đã nạp lại config (SIGHUP)" \
+  || { sudo docker restart deutschflow-prometheus >/dev/null 2>&1 \
+       && info "  Prometheus restart để nạp config" || true; }
 
 # Giữ bản ĐANG CHẠY trước deploy dưới tag :prev — thiếu nó thì `image prune` bên dưới xoá image cũ
 # ngay giữa deploy, và khi bản mới hỏng (pass health nhưng lỗi nghiệp vụ) không còn đường rollback
