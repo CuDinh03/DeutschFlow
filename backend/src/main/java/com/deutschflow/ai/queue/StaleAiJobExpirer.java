@@ -38,8 +38,8 @@ public class StaleAiJobExpirer {
 
     private final StaleAiJobMaintenance maintenance;
 
-    /** Job PENDING quá hạn — hằng đêm 03:15, trước DataRetentionJob (03:30). */
-    @Scheduled(cron = "${app.ai-jobs.expire-cron:0 15 3 * * *}")
+    /** Job PENDING quá hạn — hằng đêm 03:15 giờ VN, trước DataRetentionJob (03:30). */
+    @Scheduled(cron = "${app.ai-jobs.expire-cron:0 15 3 * * *}", zone = "Asia/Ho_Chi_Minh")
     @SchedulerLock(name = "staleAiJobExpire", lockAtMostFor = "PT10M", lockAtLeastFor = "PT1M")
     public void expireStalePendingJobs() {
         maintenance.expireStalePending();

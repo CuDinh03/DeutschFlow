@@ -102,7 +102,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         // Guest token (subject = "guest:nickname") — không load từ DB; pin trong claim phục vụ quiz submit.
         if (subject != null && subject.startsWith("guest:")) {
-            log.info("[JwtAuthFilter] Setting up GUEST authentication for: {} on {}", subject, requestUri);
+            log.debug("[JwtAuthFilter] Setting up GUEST authentication for: {} on {}", subject, requestUri);
             var claims  = jwtService.extractClaims(token);
             var pinCode = claims.get("pinCode", String.class);
             var auth = new UsernamePasswordAuthenticationToken(
@@ -113,7 +113,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             request.setAttribute("guestPinCode", pinCode);
             SecurityContextHolder.getContext().setAuthentication(auth);
-            log.info("[JwtAuthFilter] ✓ GUEST authentication set for {} on {}", subject, requestUri);
+            log.debug("[JwtAuthFilter] ✓ GUEST authentication set for {} on {}", subject, requestUri);
             filterChain.doFilter(request, response);
             return;
         }
@@ -143,7 +143,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     userDetails, null, userDetails.getAuthorities());
             auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(auth);
-            log.info("[JwtAuthFilter] ✓ USER AUTHENTICATION SET for {} with authorities {} on {}",
+            // DEBUG, không phải INFO: dòng này bắn MỖI request đã đăng nhập (kèm email) — ở INFO nó
+            // là dòng log nhiều nhất hệ thống, đổ thẳng vào promtail/Loki chạy cùng máy 2 vCPU.
+            log.debug("[JwtAuthFilter] ✓ USER AUTHENTICATION SET for {} with authorities {} on {}",
                     subject, userDetails.getAuthorities(), request.getRequestURI());
             return true;
         } catch (UsernameNotFoundException ex) {

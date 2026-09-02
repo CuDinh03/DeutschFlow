@@ -42,7 +42,10 @@ public class FsrsWeightOptimizerService {
     private final ObjectMapper objectMapper;
     private final FsrsService fsrsService;
 
-    @Scheduled(cron = "0 0 3 * * *", zone = "UTC")
+    // Container prod chạy đồng hồ UTC ⇒ zone="UTC" cũ nghĩa là 10:00 SÁNG giờ VN — job nặng nhất
+    // hệ thống (loop mọi user đủ điều kiện, tải trọn lịch sử review từng người) chạy ngay giờ cao
+    // điểm và tranh CPU/RDS với request người dùng. Ghim zone VN để "3 giờ đêm" là đêm thật.
+    @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Ho_Chi_Minh")
     @SchedulerLock(name = "fsrsNightlyOptimization", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
     public void runNightlyOptimization() {
         List<Long> eligibleUsers = findEligibleUsers();

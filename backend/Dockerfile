@@ -73,10 +73,15 @@ USER app
 EXPOSE 8080
 
 # JVM tuning cho container (20 CCU on t3.medium):
-# -XX:MaxRAMPercentage=75  => Chỉ dùng 75% RAM container cho heap
+# -XX:MaxRAMPercentage     => % RAM container cho heap. MẶC ĐỊNH 65, KHÔNG phải 75: flag trên
+#                             command-line THẮNG JAVA_TOOL_OPTIONS (flag lặp: cái sau ăn), nên
+#                             75.0 cứng ở đây từng ĐÈ LÊN chốt 65.0 mà deploy-backend.sh đặt sau
+#                             hai lần kernel OOM-kill 25+29/07 (cgroup 2200m: heap 75% ≈ 1.65GB
+#                             + Metaspace/native + soffice/ffmpeg con CÙNG cgroup là vượt trần).
+#                             Cần giá trị khác thì set env JVM_MAX_RAM_PCT, đừng sửa cứng lại.
 # -XX:+UseContainerSupport => Nhận diện giới hạn RAM từ Docker cgroup
 # -XX:+UseG1GC             => G1 collector — low-pause cho interactive workload
 # -XX:MaxGCPauseMillis=200 => Target GC pause ≤ 200ms
 # -XX:+UseStringDeduplication => Giảm heap cho chuỗi trùng lặp (vocab, prompts)
 # -Djava.security.egd=...  => Tăng tốc khởi động bằng /dev/urandom
-ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom $JAVA_OPTS -jar app.jar \"$@\""]
+ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=${JVM_MAX_RAM_PCT:-65.0} -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom $JAVA_OPTS -jar app.jar \"$@\""]

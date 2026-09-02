@@ -25,8 +25,9 @@ public class ClassScheduleRollForwardJob {
 
     private final ClassScheduleService classScheduleService;
 
-    // 02:15 daily (VN morning is quiet). Cron is in the server TZ; the service computes dates in VN time.
-    @Scheduled(cron = "0 15 2 * * *")
+    // 02:15 giờ VN (đêm thật). Container prod chạy UTC nên PHẢI ghim zone — comment cũ tưởng
+    // "server TZ" là giờ VN, thực tế job chạy 09:15 sáng VN suốt thời gian qua.
+    @Scheduled(cron = "0 15 2 * * *", zone = "Asia/Ho_Chi_Minh")
     @SchedulerLock(name = "classScheduleRollForward", lockAtMostFor = "PT30M", lockAtLeastFor = "PT0S")
     public void rollForward() {
         try {

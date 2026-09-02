@@ -92,7 +92,7 @@ public class AiSessionController {
             @AuthenticationPrincipal User user,
             @RequestBody @Valid CreateSessionRequest request) {
         var auth = SecurityContextHolder.getContext().getAuthentication();
-        log.info("AI speaking createSession request path=/api/ai-speaking/sessions userId={} email={} authorities={} role={} topic={} cefrLevel={} persona={} responseSchema={} sessionMode={} interviewPosition={} experienceLevel={} assignmentId={}",
+        log.debug("AI speaking createSession request path=/api/ai-speaking/sessions userId={} email={} authorities={} role={} topic={} cefrLevel={} persona={} responseSchema={} sessionMode={} interviewPosition={} experienceLevel={} assignmentId={}",
                 user != null ? user.getId() : null,
                 user != null ? user.getEmail() : null,
                 auth != null ? auth.getAuthorities() : null,
@@ -129,7 +129,7 @@ public class AiSessionController {
         // this, a single tight loop could pin the STT endpoint before the quota even debits.
         requireAiBudget(Bucket.TRANSCRIBE, user.getId(), "Too many transcribe requests. Please slow down.");
         byte[] audio = readValidatedAudio(file);
-        log.info("Transcribing audio file: {} ({} bytes)", file.getOriginalFilename(), audio.length);
+        log.debug("Transcribing audio file: {} ({} bytes)", file.getOriginalFilename(), audio.length);
         TranscribeResult stt = groqWhisperClient.transcribe(
                 audio,
                 file.getOriginalFilename(),

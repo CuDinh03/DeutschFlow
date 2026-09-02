@@ -141,7 +141,9 @@ api.interceptors.response.use(
       const delay = retryAfterMs !== null
         ? retryAfterMs + Math.round(Math.random() * 500)
         : backoff
-      console.log(`⚠️ Retry ${config._retryCount}/${MAX_RETRIES} (${method.toUpperCase()}) in ${delay}ms`)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`⚠️ Retry ${config._retryCount}/${MAX_RETRIES} (${method.toUpperCase()}) in ${delay}ms`)
+      }
       await new Promise(r => setTimeout(r, delay))
       return api(config)
     }

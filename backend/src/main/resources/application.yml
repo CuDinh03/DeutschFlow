@@ -22,6 +22,15 @@ spring:
   application:
     name: deutschflow-backend
 
+  # 16 job @Scheduled dùng chung TaskScheduler mặc định của Spring — mặc định CHỈ 1 THREAD.
+  # AiJobWorker còn chạy Whisper (timeout 60s) + LLM inline ngay trên thread đó, nên một job kẹt
+  # là telemetry-flush, cleanup, broadcast… đứng cả đoàn rồi bung ra thành cụm. 4 thread cho job
+  # chồng giờ chạy song song; ShedLock vẫn chống chạy trùng giữa các node/lần.
+  task:
+    scheduling:
+      pool:
+        size: ${SPRING_SCHEDULING_POOL_SIZE:4}
+
   # ── Email / SMTP (for password-reset OTP) ─────────────────────────────────
   # Set MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD in your .env.
   # Recommended: Gmail SMTP (smtp.gmail.com:587) or AWS SES.
@@ -154,6 +163,16 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+    # Grafana dashboard query http_server_requests_seconds_BUCKET, nhưng Spring mặc định chỉ export
+    # count/sum/max — panel p95/p99 vì thế trống từ ngày đầu. Dùng SLO bucket cố định (7 bucket)
+    # thay vì percentiles-histogram đầy đủ (~60 bucket/serie × mọi uri) để giữ cardinality thấp
+    # trên Prometheus mem_limit 400m. percentiles = gauge p50/p95/p99 tính sẵn per-instance,
+    # đọc trực tiếp không cần histogram_quantile.
+    distribution:
+      slo:
+        "[http.server.requests]": 100ms,300ms,500ms,1s,3s,10s
+      percentiles:
+        "[http.server.requests]": 0.5,0.95,0.99
 
 # Sentry error tracking. Entirely inert when SENTRY_DSN is unset (dev/CI) — no events, no startup
 # change. In prod set SENTRY_DSN; the logback appender then captures ERROR-level logs (incl. the

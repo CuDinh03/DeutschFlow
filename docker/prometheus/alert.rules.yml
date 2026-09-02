@@ -28,6 +28,27 @@ groups:
           summary: "High HTTP Error Rate"
           description: "More than 5% of requests are returning 5xx status codes over the last 2 minutes."
 
+      # "Alert canh alert": scrape chết thì MỌI rule phía trên mù mà không ai hay. Đã xảy ra thật —
+      # target cũ `backend:8080` không resolve được từ network của Prometheus nên toàn bộ dashboard
+      # + alert backend câm lặng từ đầu. Hai rule này bảo đảm sự cố scrape tự lên tiếng.
+      - alert: BackendScrapeDown
+        expr: up{job="deutschflow-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus không scrape được backend"
+          description: "Target deutschflow-backend:8080 down >2 phút — backend chết HOẶC sai network/tên container. Kiểm: docker network inspect + docker exec deutschflow-prometheus wget -qO- deutschflow-backend:8080/actuator/prometheus."
+
+      - alert: BackendScrapeAbsent
+        expr: absent(up{job="deutschflow-backend"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Job deutschflow-backend biến mất khỏi Prometheus"
+          description: "Không còn serie up{} nào cho job này — scrape config bị sửa/xoá hoặc Prometheus mất state. up==0 không bắt được ca này nên cần absent() riêng."
+
   # ── Phát hiện lạm dụng / tấn công ────────────────────────────────────────────
   # Nhóm này KHÔNG bắt lỗi ứng dụng mà bắt hành vi bất thường từ bên ngoài. Lý do tách riêng:
   # khi bị dội, triệu chứng đầu tiên KHÔNG phải 5xx (app vẫn trả 429 đúng chuẩn, không hề lỗi) —
