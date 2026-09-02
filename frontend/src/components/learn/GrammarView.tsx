@@ -6,9 +6,11 @@ import { BookOpen, Library, MessagesSquare, Sparkles, TriangleAlert, Lightbulb, 
 import { VocabCard, VocabTag, AudioButton } from "./LearnComponents";
 import { useState, useMemo, useEffect } from "react";
 import { lightImpact, mediumImpact, heavyImpact } from "@/lib/haptics";
+import SelfCheckCard from "./SelfCheckCard";
 import {
   buildItemAnswers,
   scoredExercises,
+  selfCheckExercises,
   correctIndexOf,
   gradeItems,
   questionTextOf,
@@ -136,6 +138,9 @@ export default function GrammarView({ content, isLocked = false }: { content: No
   // Gộp theory_gate + practice: backend chấm CẢ HAI, web trước đây chỉ đọc `practice` nên vừa
   // thiếu câu vừa nộp thiếu (F-21/F-22).
   const practiceItems = useMemo(() => scoredExercises(content.exercises), [content.exercises]);
+  // TRANSLATE/REORDER: máy chủ không chấm, nên tách riêng — hiện dạng tự kiểm tra, KHÔNG tính điểm
+  // và KHÔNG chặn nút nộp bài (đúng cách mobile làm).
+  const selfChecks = useMemo(() => selfCheckExercises(content.exercises), [content.exercises]);
   const [answers, setAnswers] = useState<AnswerMap>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
 
@@ -332,6 +337,14 @@ export default function GrammarView({ content, isLocked = false }: { content: No
                 </div>
               ))}
               
+              {selfChecks.length > 0 && (
+                <div className="space-y-3 pt-2">
+                  {selfChecks.map((sc, i) => (
+                    <SelfCheckCard key={sc.id} item={sc} index={practiceItems.length + i + 1} />
+                  ))}
+                </div>
+              )}
+
               {!isCompleted && (
                 <button
                   onClick={handleQuizSubmit}
@@ -346,6 +359,12 @@ export default function GrammarView({ content, isLocked = false }: { content: No
                   Kiểm tra đáp án
                 </button>
               )}
+            </div>
+          ) : selfChecks.length > 0 ? (
+            <div className="space-y-3 text-left mt-4">
+              {selfChecks.map((sc, i) => (
+                <SelfCheckCard key={sc.id} item={sc} index={i + 1} />
+              ))}
             </div>
           ) : (
             <p className="text-sm text-[#64748B] mb-4">

@@ -182,3 +182,57 @@ describe('scoredExercises — hồi quy từ nghiệm thu prod node 136', () => 
     expect(g).toEqual({ scored: 1, correct: 1, percent: 100 })
   })
 })
+
+describe('selfCheckExercises — TRANSLATE / REORDER (máy chủ không chấm)', () => {
+  // Hình dạng lấy nguyên văn từ node 136 trên prod.
+  const DL = {
+    theory_gate: [{ id: 'tg31_02', type: 'MULTIPLE_CHOICE', options: ['a', 'b'], correct: 1 }],
+    practice: [
+      { id: 'p31_01', type: 'TRANSLATE', from: 'vi', sentence: 'Tôi giúp người đàn ông.', answer: 'Ich helfe dem Mann.', accept_also: [] },
+      { id: 'p31_02', type: 'REORDER', words: ['gehört', 'Das', 'Buch', 'mir'], correct_order: ['Das', 'Buch', 'gehört', 'mir'], translation: 'Quyển sách là của tôi.' },
+      { id: 'p31_03', type: 'FILL_BLANK', answer: 'der', sentence_de: '… ___ …' },
+    ],
+  }
+
+  test('TRANSLATE lấy đề từ `sentence` và đáp án từ `answer`', async () => {
+    const { selfCheckExercises } = await import('@/lib/nodeExercises')
+    const t = selfCheckExercises(DL).find((x) => x.id === 'p31_01')
+    expect(t).toEqual({
+      id: 'p31_01',
+      kind: 'TRANSLATE',
+      prompt: 'Tôi giúp người đàn ông.',
+      words: null,
+      answer: 'Ich helfe dem Mann.',
+    })
+  })
+
+  test('REORDER lấy đề từ `translation`, các từ từ `words`, đáp án ghép từ `correct_order`', async () => {
+    const { selfCheckExercises } = await import('@/lib/nodeExercises')
+    const r = selfCheckExercises(DL).find((x) => x.id === 'p31_02')
+    expect(r).toEqual({
+      id: 'p31_02',
+      kind: 'REORDER',
+      prompt: 'Quyển sách là của tôi.',
+      words: ['gehört', 'Das', 'Buch', 'mir'],
+      answer: 'Das Buch gehört mir',
+    })
+  })
+
+  test('KHÔNG lẫn mục chấm được vào nhóm tự kiểm tra, và ngược lại', async () => {
+    const { selfCheckExercises, scoredExercises } = await import('@/lib/nodeExercises')
+    expect(selfCheckExercises(DL).map((x) => x.id)).toEqual(['p31_01', 'p31_02'])
+    expect(scoredExercises(DL).map((x) => x.id)).toEqual(['tg31_02', 'p31_03'])
+  })
+
+  test('mục tự kiểm tra KHÔNG được tính vào điểm — mẫu số vẫn là số mục chấm được', async () => {
+    const { scoredExercises, gradeItems } = await import('@/lib/nodeExercises')
+    const items = scoredExercises(DL)
+    expect(gradeItems(items, { 0: 1, 1: 'der' })).toEqual({ scored: 2, correct: 2, percent: 100 })
+  })
+
+  test('bỏ mục thiếu đáp án — thà không hiện còn hơn hiện thẻ trống', async () => {
+    const { selfCheckExercises } = await import('@/lib/nodeExercises')
+    expect(selfCheckExercises({ practice: [{ id: 'x', type: 'TRANSLATE', sentence: 'a' }] })).toEqual([])
+    expect(selfCheckExercises({ practice: [{ id: 'y', type: 'REORDER', words: ['a'] }] })).toEqual([])
+  })
+})

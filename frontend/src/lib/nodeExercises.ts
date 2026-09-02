@@ -28,6 +28,14 @@ export interface NodeExerciseItem {
   accept_also?: string[]
   sentence_de?: string
   hint_vi?: string
+  /** TRANSLATE: câu nguồn cần dịch. */
+  sentence?: string
+  /** TRANSLATE: ngôn ngữ nguồn ('vi' | 'de'). */
+  from?: string
+  /** REORDER: các từ cần sắp xếp + thứ tự đúng + nghĩa. */
+  words?: string[]
+  correct_order?: string[]
+  translation?: string
 }
 
 /** Đáp án thô gửi lên `POST /skill-tree/{nodeId}/submit`, đúng shape backend đọc. */
@@ -35,6 +43,15 @@ export type ItemAnswer = { choice: number } | { text: string }
 
 export const MULTIPLE_CHOICE = 'MULTIPLE_CHOICE'
 export const FILL_BLANK = 'FILL_BLANK'
+export const TRANSLATE = 'TRANSLATE'
+export const REORDER = 'REORDER'
+
+/**
+ * Hai loại KHÔNG được máy chủ chấm: `NodeExerciseGrader` chỉ tính MULTIPLE_CHOICE + FILL_BLANK.
+ * Mobile (`node-practice.tsx`) hiển thị chúng dạng "tự kiểm tra có nút xem đáp án" và cố tình để
+ * ngoài phép tính điểm — web nay làm y hệt, thay vì ẩn đi như bản vá tạm trước đó.
+ */
+const SELF_CHECK_TYPES = new Set<string>([TRANSLATE, REORDER])
 
 /**
  * Danh sách bài tập của một node: `theory_gate` TRƯỚC rồi `practice`, đúng thứ tự
@@ -86,6 +103,38 @@ export function correctIndexOf(item: NodeExerciseItem): number | null {
 /** Mục có thể chấm quyết định — phải khớp `NodeExerciseGrader.countScored` (cần cả `id`). */
 export function isScored(item: NodeExerciseItem): boolean {
   return !!item.id && (item.type === MULTIPLE_CHOICE || item.type === FILL_BLANK)
+}
+
+export function isSelfCheck(item: NodeExerciseItem): boolean {
+  return !!item.id && SELF_CHECK_TYPES.has(item.type ?? '')
+}
+
+/** Một mục tự kiểm tra, đã bóc sẵn phần hiển thị để view không phải biết hình dạng dữ liệu thô. */
+export interface SelfCheckItem {
+  id: string
+  kind: string
+  /** Đề bài: câu cần dịch, hoặc nghĩa tiếng Việt của câu cần sắp xếp. */
+  prompt: string | null
+  /** Với REORDER: các từ cần sắp xếp (đã xáo trong nội dung gốc). */
+  words: string[] | null
+  /** Đáp án để người học tự đối chiếu sau khi bấm xem. */
+  answer: string
+}
+
+export function selfCheckExercises(exercises: unknown): SelfCheckItem[] {
+  return collectExercises(exercises)
+    .filter(isSelfCheck)
+    .map((e) => ({
+      id: e.id as string,
+      kind: e.type as string,
+      prompt: e.type === REORDER ? e.translation?.trim() || null : e.sentence?.trim() || null,
+      words: e.type === REORDER && Array.isArray(e.words) ? e.words : null,
+      answer:
+        e.type === REORDER
+          ? (e.correct_order ?? []).join(' ')
+          : (e.answer ?? ''),
+    }))
+    .filter((e) => e.answer.trim() !== '')
 }
 
 /** Trim, hạ chữ thường, bỏ `.,!?;:`, gộp khoảng trắng — y hệt backend và mobile. */
