@@ -10,6 +10,7 @@ import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { openManageSubscriptions } from '@/lib/iapManage'
 import { useAppleIap } from '@/hooks/useAppleIap'
 import { metaForProductId } from '@/lib/iapProducts'
+import { trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
 
 const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
   { icon: Mic, label: 'AI Speaking không giới hạn' },
@@ -96,6 +97,10 @@ function IapPaywall() {
   const { connected, products, phase, activeSku, error, succeeded, buy, restore } = useAppleIap(true)
   const isBusy = phase === 'purchasing' || phase === 'restoring'
   const isLoadingProducts = (phase === 'loading' || !connected) && products.length === 0
+  // F-20 (soát 02/09): người đang dùng thử vào paywall phải thấy mình đang trial
+  // và còn bao lâu — dữ liệu /auth/me/plan có sẵn nhưng trước đây không render.
+  const plan = usePlanStore((s) => s.plan)
+  const trialDays = plan?.isTrial ? trialDaysLeft(plan.trialEndsAt, new Date()) : null
 
   return (
     <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
@@ -106,6 +111,17 @@ function IapPaywall() {
           title="Mở khoá toàn bộ"
           body="Học tiếng Đức không giới hạn với AI coach và lộ trình cá nhân hoá."
         />
+
+        {plan?.isTrial ? (
+          <Card style={{ marginTop: space[4], borderColor: c.accent, gap: 2 }}>
+            <ThemedText variant="bodyStrong">
+              Bạn đang dùng thử PRO{trialDays != null ? ` — còn ${trialDays} ngày` : ''}
+            </ThemedText>
+            <ThemedText variant="caption" color="muted">
+              Đăng ký để không gián đoạn khi hết dùng thử.
+            </ThemedText>
+          </Card>
+        ) : null}
 
         {succeeded ? (
           <Card style={{ marginTop: space[6], gap: space[3], borderColor: c.success }}>
