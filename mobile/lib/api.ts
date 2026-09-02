@@ -21,6 +21,9 @@ import { runCleanupBestEffort } from './bestEffort'
  */
 export function isSessionDefinitelyOver(err: unknown): boolean {
   if (err instanceof Error && err.message === 'no_refresh_token') return true
+  // Server trả 200 nhưng thiếu token — hợp đồng vỡ, coi như phiên kết thúc (giữ token cũ
+  // chỉ sinh vòng 401 mới mỗi request).
+  if (err instanceof Error && err.message === 'invalid_refresh_response') return true
   if (!isAxiosError(err)) return false
   const st = err.response?.status
   return st === 400 || st === 401 || st === 403
@@ -236,6 +239,18 @@ api.interceptors.response.use(
       return api(original!)
     } catch (refreshErr) {
       refreshPromise = null
+
+      // M2 audit lag 02/09: KHÔNG logout oan vì hạ tầng. postRefreshWithOneRetry đã cứu blip
+      // ngắn, nhưng brownout/mất sóng dài hơn hai nhịp vẫn rơi vào catch này — trước đây catch
+      // nào cũng clearTokens + đá về login, nghĩa là backend chập chờn nửa phút là cả cohort
+      // mobile bị đăng xuất (rồi bão re-login dồn thêm tải đúng lúc yếu nhất). Chỉ khi refresh
+      // bị TỪ CHỐI dứt khoát (4xx / không có token) mới kết thúc phiên; lỗi mạng/5xx giữ nguyên
+      // token + user, chỉ reject request gốc — màn hiện tại hiện lỗi tải, request kế tiếp sẽ
+      // thử refresh lại từ đầu.
+      if (!isSessionDefinitelyOver(refreshErr)) {
+        return Promise.reject(error)
+      }
+
       await clearTokens()
       // Reset the auth store too, not just the tokens. Otherwise isLoggedIn stays true after the
       // bounce: the app shows an authenticated shell whose every request 401s, and — because the
@@ -257,23 +272,16 @@ api.interceptors.response.use(
       // KHÔNG gọi logout(): nó POST /auth/logout bằng token vừa xoá → 401 → quay
       // lại chính interceptor này.
       //
-      // NHƯNG chỉ dọn khi phiên bị TỪ CHỐI DỨT KHOÁT. Nhánh retry thoáng qua ở
-      // trên chỉ áp cho GET, còn refresh là POST — nên một 502/503 lúc blue-green
-      // deploy, hay mất sóng, cũng rơi vào đúng catch này y như refresh token hết
-      // hạn thật. Dọn vô điều kiện thì một trục trặc hạ tầng vài giây sẽ xoá tour,
-      // checklist tuần đầu, mục tiêu phút/ngày VÀ huỷ lịch nhắc 20:00 trong OS của
-      // một người mà refresh token còn hạn — mất dữ liệu đúng kiểu mà đợt vá này
-      // sinh ra để dập.
-      if (isSessionDefinitelyOver(refreshErr)) {
-        // Lazy require vì cùng lý do với useAuthStore ở trên: import tĩnh
-        // deviceSessionState kéo studyReminder → analytics vào module graph của api.ts.
-        // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-        const { clearDeviceSessionState } =
-          require('@/lib/deviceSessionState') as typeof import('@/lib/deviceSessionState')
-        // Hỏng HAY treo đều không được chặn router.replace bên dưới — kẹt ở màn
-        // đã-đăng-nhập với token đã xoá còn tệ hơn là bỏ dở việc dọn.
-        await runCleanupBestEffort(clearDeviceSessionState)
-      }
+      // Tới được đây nghĩa là phiên đã bị từ chối DỨT KHOÁT (guard transient ở đầu catch đã
+      // reject sớm mọi ca hạ tầng) — nên luôn dọn trạng thái per-thiết bị, không cần rào thêm.
+      // Lazy require vì cùng lý do với useAuthStore ở trên: import tĩnh
+      // deviceSessionState kéo studyReminder → analytics vào module graph của api.ts.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+      const { clearDeviceSessionState } =
+        require('@/lib/deviceSessionState') as typeof import('@/lib/deviceSessionState')
+      // Hỏng HAY treo đều không được chặn router.replace bên dưới — kẹt ở màn
+      // đã-đăng-nhập với token đã xoá còn tệ hơn là bỏ dở việc dọn.
+      await runCleanupBestEffort(clearDeviceSessionState)
       router.replace('/(auth)/login')
       return Promise.reject(error)
     }

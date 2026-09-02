@@ -18,7 +18,13 @@ export default function StudentLayout() {
   return (
     <SpotlightTourProvider>
       <Tabs
-        screenOptions={{ headerShown: false }}
+        // M1 audit lag 02/09: 31 màn cùng sống trong một Tabs và KHÔNG unmount khi chuyển tab —
+        // mọi store update vẫn re-render những màn không ai nhìn. freezeOnBlur (react-native-screens,
+        // thuần JS → OTA-safe) đóng băng render của màn blur; nó KHÔNG thay được kỷ luật blur sẵn có
+        // (useBlurGuard/useRecorderBlurGuard cho tiếng+mic, gate refetchInterval cho poll — những thứ
+        // chạy ngoài render), chỉ cắt phần render thừa. onBlur/onFocus của useFocusEffect vẫn bắn
+        // bình thường quanh nhịp freeze.
+        screenOptions={{ headerShown: false, freezeOnBlur: true }}
         tabBar={(props) => <TabBar {...props} />}
       >
         <Tabs.Screen name="index" options={{ title: 'Heute' }} />

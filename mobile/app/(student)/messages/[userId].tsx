@@ -14,6 +14,7 @@ import { buildDmBubbles, type ChatBubbleVM } from '@/lib/chatBubbles'
 import { itemsForChannel } from '@/lib/chatOutbox'
 import { useChatOutboxStore } from '@/stores/useChatOutboxStore'
 import { useChatAutoScroll } from '@/hooks/useChatAutoScroll'
+import { useIsScreenFocused } from '@/hooks/useIsScreenFocused'
 import { reportFlow, userSafetyMenu } from '@/lib/moderationActions'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
@@ -48,6 +49,13 @@ export default function MessageThreadScreen() {
   // Drives the adaptive poll cadence — reset to "now" makes the next intervals snappy again.
   const lastActivityRef = useRef(Date.now())
 
+  // M1 audit lag 02/09: màn này nằm dưới Tabs nên KHÔNG unmount khi chuyển tab — trước đây poll
+  // 4–30s chạy mãi sau lưng người dùng. Blur → refetchInterval trả false (dừng hẳn); focus lại →
+  // useFocusEffect bên dưới refetch ngay và scheduler đọc lại interval → poll sống lại.
+  const isFocused = useIsScreenFocused()
+  const isFocusedRef = useRef(isFocused)
+  isFocusedRef.current = isFocused
+
   const q = useQuery({
     queryKey: ['message-thread', userId],
     queryFn: async () => {
@@ -60,7 +68,8 @@ export default function MessageThreadScreen() {
     },
     enabled: Number.isFinite(userId),
     staleTime: 2_000,
-    refetchInterval: () => adaptivePollMs(Date.now() - lastActivityRef.current),
+    refetchInterval: () =>
+      isFocusedRef.current ? adaptivePollMs(Date.now() - lastActivityRef.current) : false,
   })
 
   // Re-fetch + retry any stuck sends whenever the thread regains focus (e.g. after backgrounding
