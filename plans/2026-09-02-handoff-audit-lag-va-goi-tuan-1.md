@@ -34,7 +34,19 @@
 5. CloudShell AWS đang bị chặn "account verification ~2 ngày" (từ 02/09) — sau đó có thể dùng CLI thay Console.
 6. Tuỳ chọn vệ sinh: token bot Telegram từng lộ trong chat/ảnh phiên 02/09 → BotFather `/revoke` rồi `sed` token mới vào `alertmanager.yml` + restart (1 phút).
 
-## 3. GÓI TUẦN 1 — chi tiết từng mục (thứ tự đề xuất)
+## 3. GÓI TUẦN 1 — ✅ ĐÃ THI HÀNH TRỌN 02–03/09 (10 PR #473–#482, đều squash-merge)
+
+> **Trạng thái (session 03/09 đêm):** W1=#473 · W3+W4+W5+W6=#475 · W2=#476 · W7=#482 (phần purge
+> 15 dep bị cây v1 giữ chân — đi cùng Đợt 4; `components/chat` đã xoá từ trước; msw+tests/mocks đã
+> dọn) · B1=#474 (owner chốt gộp 1 event/batch) · B2=#477 · B3=#478 (lưu ý: mọi entity IDENTITY
+> nên batch INSERT của Hibernate chưa ăn — follow-up chuyển SEQUENCE) · B4+B5=#481 · M1+M2=#479
+> (M3 SRS-offline + M4 Sentry ĐÃ XONG từ #454/build 17 — audit đọc cây WIP cũ; mobile CHƯA bắn
+> OTA, đi chuyến kế) · H1-repo+H2+H3=#480 (H1 phần host + nâng stack observability: owner chạy
+> `plans/2026-09-03-runbook-h1-nginx-sync-realip-sg.md`, đủ 3 bước).
+> Backend đã deploy gộp sau #481; đối chiếu trước/sau bằng telemetry rerun 5–7/09 (§2.2).
+> AC mới: AC-PERF-W1..W5, B1, B4, M1, M2, H1, H3 (NOT_RUN) trong acceptance-matrix local.
+
+### (kế hoạch gốc giữ nguyên bên dưới để đối chiếu)
 
 Nguyên tắc chung: mỗi cụm 1 PR từ worktree `origin/main`; KHÔNG gộp cụm khác domain; backend đổi hành vi = thêm/sửa test đi kèm.
 
