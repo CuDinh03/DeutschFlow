@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 /**
  * JWT ký và verify token.
@@ -186,7 +187,7 @@ public class JwtService {
      * <p>Thử từng key trong {@link #verifyKeys} (HS256 + RSA public). Sai chữ ký
      * ({@link SignatureException}) → thử key tiếp theo. Lỗi khác (hết hạn, malformed, …) ném ngay.
      *
-     * <p>Khi {@code app.jwt.require-iss-aud=true}: bắt buộc kiểm tra issuer.
+     * <p>Khi {@code app.jwt.require-iss-aud=true}: bắt buộc kiểm tra CẢ issuer LẪN audience.
      */
     public Claims extractClaims(String token) {
         JwtException last = null;
@@ -197,11 +198,22 @@ public class JwtService {
                 pb = (key instanceof SecretKey sk) ? pb.verifyWith(sk) : pb.verifyWith((PublicKey) key);
                 if (requireIssAud) {
                     pb = pb.requireIssuer(issuer);
-                    // aud là Set — dùng require() trực tiếp
                 }
-                return pb.build()
+                Claims claims = pb.build()
                         .parseSignedClaims(token)
                         .getPayload();
+                if (requireIssAud) {
+                    // Audit R-M10 (03/09/2026): trước đây chỉ requireIssuer — claim aud được GẮN lúc
+                    // phát hành nhưng KHÔNG BAO GIỜ kiểm lúc verify, nên require-iss-aud=true hứa
+                    // nhiều hơn code làm. jjwt 0.12 để aud là Set, require() scalar không dùng được,
+                    // nên kiểm chứa thủ công. Chữ ký đã đúng ở đây → sai audience là ném NGAY (không
+                    // phải SignatureException nên không rơi vào nhánh thử-key-tiếp-theo).
+                    Set<String> aud = claims.getAudience();
+                    if (aud == null || !aud.contains(audience)) {
+                        throw new JwtException("JWT audience không hợp lệ");
+                    }
+                }
+                return claims;
             } catch (SignatureException | UnsupportedJwtException e) {
                 // Wrong key, OR a key whose type can't verify this token's algorithm (e.g. an HS256
                 // SecretKey tried against an RS256 token throws UnsupportedJwtException) — try next key.
