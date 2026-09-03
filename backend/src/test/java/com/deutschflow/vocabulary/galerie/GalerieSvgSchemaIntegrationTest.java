@@ -150,18 +150,18 @@ class GalerieSvgSchemaIntegrationTest extends AbstractPostgresIntegrationTest {
         svgService.generateForReady(5, "A1", null);
 
         var approved = controller.decide(wordId,
-                new GalerieAdminController.GalerieDecisionRequest("approve"));
+                new GalerieAdminController.GalerieDecisionRequest("approve"), null);
         assertThat(approved.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT image_status FROM words WHERE id = ?", String.class, wordId))
                 .isEqualTo("APPROVED");
 
         var conflict = controller.decide(wordId,
-                new GalerieAdminController.GalerieDecisionRequest("APPROVE"));
+                new GalerieAdminController.GalerieDecisionRequest("APPROVE"), null);
         assertThat(conflict.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 
         var regenerated = controller.decide(wordId,
-                new GalerieAdminController.GalerieDecisionRequest("REGENERATE"));
+                new GalerieAdminController.GalerieDecisionRequest("REGENERATE"), null);
         assertThat(regenerated.getStatusCode()).isEqualTo(HttpStatus.OK);
         Map<String, Object> row = jdbcTemplate.queryForMap(
                 "SELECT image_status, image_url, image_style FROM words WHERE id = ?", wordId);
