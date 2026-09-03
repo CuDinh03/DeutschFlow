@@ -109,6 +109,15 @@ class AdminManagementServiceUnitTest {
     }
 
     @Test
+    @org.junit.jupiter.api.DisplayName("C10/F-L4: mật khẩu 7 ký tự bị chặn — sàn admin-create nâng 6→8")
+    void createUser_sevenCharPassword_throwsBadRequest() {
+        // Dưới sàn cũ (<6) thì "abc1234" (7 ký tự) được chấp nhận; nay phải bị chặn cho khớp
+        // chuẩn ≥8 ở register/setUserPassword/quên-mật-khẩu.
+        assertThrows(BadRequestException.class, () ->
+                service.createUser("a@x.com", "A", "abc1234", "STUDENT", "vi", null, null));
+    }
+
+    @Test
     void createUser_manager_assignsOrgMembership() {
         when(userRepository.existsByEmailIgnoreCase("m@x.com")).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("HASH");

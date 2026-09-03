@@ -351,7 +351,12 @@ public class MomoPaymentService {
 
             String expectedSignature = hmacSHA256(secretKey, rawHash);
             String receivedSignature = payload.get("signature") != null ? String.valueOf(payload.get("signature")) : "";
-            return expectedSignature.equalsIgnoreCase(receivedSignature);
+            // R-L8 (03/09/2026): so chữ ký bằng constant-time để không rò rỉ độ dài khớp qua thời gian
+            // (timing oracle) — khớp cách SePay webhook làm. MoMo trả HMAC hex chữ thường; chuẩn hoá
+            // lowercase để giữ đúng ngữ nghĩa equalsIgnoreCase cũ rồi so từng byte.
+            return java.security.MessageDigest.isEqual(
+                    expectedSignature.toLowerCase().getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                    receivedSignature.toLowerCase().getBytes(java.nio.charset.StandardCharsets.UTF_8));
         } catch (Exception e) {
             log.error("[MOMO] Error verifying IPN signature", e);
             return false;
