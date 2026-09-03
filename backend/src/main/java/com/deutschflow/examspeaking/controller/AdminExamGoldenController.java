@@ -1,9 +1,12 @@
 package com.deutschflow.examspeaking.controller;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.examspeaking.dto.GoldenView;
 import com.deutschflow.examspeaking.golden.ExamGoldenService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import com.deutschflow.common.exception.BadRequestException;
@@ -36,6 +39,7 @@ import java.util.Map;
 public class AdminExamGoldenController {
 
     private final ExamGoldenService goldenService;
+    private final AuditLogService auditLogService;
 
     @GetMapping("/sessions")
     public List<GoldenView.SessionRow> sessions(@RequestParam(required = false) String provider,
@@ -62,11 +66,19 @@ public class AdminExamGoldenController {
 
     @GetMapping(value = "/export.csv", produces = "text/csv")
     public ResponseEntity<String> exportCsv(@RequestParam(required = false) String provider,
-                                            @RequestParam(required = false) String level) {
+                                            @RequestParam(required = false) String level,
+                                            @AuthenticationPrincipal User user) {
+        String csv = goldenService.exportCsv(provider, level);
+        // R-L7/C2 (03/09/2026): CSV này mang tên người chấm + band điểm hiệu chuẩn — export dữ liệu
+        // nội bộ, phải để lại vết (ai/khi nào) và cấm cache như các export PII khác.
+        auditLogService.log("admin.exam_golden.exported", AuditActor.of(user),
+                "EXAM_GOLDEN", null,
+                Map.of("provider", String.valueOf(provider), "level", String.valueOf(level)));
         return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
                 .contentType(MediaType.parseMediaType("text/csv; charset=utf-8"))
                 .header("Content-Disposition", "attachment; filename=\"golden-set.csv\"")
-                .body(goldenService.exportCsv(provider, level));
+                .body(csv);
     }
 
     /** Regression: chấm LẠI phiên trên transcript đóng băng — không ghi đè kết quả lưu. */

@@ -74,6 +74,7 @@ public class OrgTimesheetController {
                 "ORG_TIMESHEET", String.valueOf(orgId),
                 java.util.Map.of("from", String.valueOf(from), "to", String.valueOf(to)));
         return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.noStore())
                 .contentType(new MediaType("text", "csv", java.nio.charset.StandardCharsets.UTF_8))
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename=\"cham-cong-" + from + "_" + to + ".csv\"")
