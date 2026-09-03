@@ -199,4 +199,69 @@ class TeacherSessionServiceTest {
 
         verify(sessionRepository, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
     }
+
+    // ─── R-H2: máy trạng thái phiên học chống double-payout ───────────────────────
+
+    private TeacherSession sessionOwnedBy(User teacher, User student,
+                                          TeacherSession.Status status,
+                                          TeacherSession.PayoutStatus payout) {
+        TeacherProfile profile = TeacherProfile.builder().id(50L).user(teacher).build();
+        return TeacherSession.builder().id(70L)
+                .teacherProfile(profile).student(student)
+                .status(status).payoutStatus(payout).build();
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("R-H2: re-COMPLETED phiên đã chi trả bị chặn — payout KHÔNG lật về PENDING")
+    void updateStatus_rejectsReCompletingAlreadyPaidSession() {
+        TeacherSession paid = sessionOwnedBy(OWNER, STUDENT,
+                TeacherSession.Status.COMPLETED, TeacherSession.PayoutStatus.PROCESSED);
+        when(sessionRepository.findByIdFull(70L)).thenReturn(Optional.of(paid));
+
+        // Giáo viên của phiên cố PATCH lại COMPLETED — đường double-payout của R-H2.
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> service.updateStatus(OWNER, 70L, "COMPLETED", null));
+
+        assertEquals(TeacherSession.PayoutStatus.PROCESSED, paid.getPayoutStatus());
+        verify(sessionRepository, never()).save(any());
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("R-H2: học viên KHÔNG huỷ được phiên đã hoàn thành")
+    void updateStatus_rejectsCancellingCompletedSession() {
+        TeacherSession completed = sessionOwnedBy(OWNER, STUDENT,
+                TeacherSession.Status.COMPLETED, TeacherSession.PayoutStatus.PENDING);
+        when(sessionRepository.findByIdFull(70L)).thenReturn(Optional.of(completed));
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> service.updateStatus(STUDENT, 70L, "CANCELLED", null));
+        verify(sessionRepository, never()).save(any());
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("R-H2: CONFIRMED→COMPLETED hợp lệ, đánh dấu payout PENDING")
+    void updateStatus_allowsConfirmedToCompleted_marksPayoutPending() {
+        TeacherSession confirmed = sessionOwnedBy(OWNER, STUDENT,
+                TeacherSession.Status.CONFIRMED, TeacherSession.PayoutStatus.PENDING);
+        when(sessionRepository.findByIdFull(70L)).thenReturn(Optional.of(confirmed));
+        when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.updateStatus(OWNER, 70L, "COMPLETED", "buổi tốt");
+
+        assertEquals(TeacherSession.Status.COMPLETED, confirmed.getStatus());
+        assertEquals(TeacherSession.PayoutStatus.PENDING, confirmed.getPayoutStatus());
+        verify(sessionRepository).save(confirmed);
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("R-H2: PENDING→COMPLETED (bỏ qua CONFIRMED) bị chặn")
+    void updateStatus_rejectsPendingDirectlyToCompleted() {
+        TeacherSession pending = sessionOwnedBy(OWNER, STUDENT,
+                TeacherSession.Status.PENDING, TeacherSession.PayoutStatus.PENDING);
+        when(sessionRepository.findByIdFull(70L)).thenReturn(Optional.of(pending));
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> service.updateStatus(OWNER, 70L, "COMPLETED", null));
+        verify(sessionRepository, never()).save(any());
+    }
 }

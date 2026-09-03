@@ -2,6 +2,7 @@ package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.teacher.dto.TeacherSessionDto;
@@ -114,20 +115,49 @@ public class TeacherSessionService {
         }
 
         Status target = Status.valueOf(newStatus.toUpperCase());
+        Status current = session.getStatus();
 
-        // Transition guard
+        // Vai trò: chỉ giáo viên mới xác nhận/hoàn thành.
         if (target == Status.CONFIRMED && !isTeacher) throw new ForbiddenException("Chỉ giáo viên mới có thể xác nhận");
         if (target == Status.COMPLETED && !isTeacher) throw new ForbiddenException("Chỉ giáo viên mới có thể hoàn thành");
+
+        // Audit R-H2: máy trạng thái tường minh. Trước đây không ràng buộc chuyển trạng thái nên
+        // giáo viên PATCH lại COMPLETED trên một phiên đã hoàn thành + đã chi trả → payoutStatus bị
+        // lật về PENDING vô điều kiện (xem dưới) → phiên đã trả tiền quay lại pending-payouts và bị
+        // trả LẦN HAI; học viên cũng huỷ được phiên đã hoàn thành, để lại payout treo. COMPLETED và
+        // CANCELLED là trạng thái cuối — không rời khỏi được.
+        if (!isValidTransition(current, target)) {
+            throw new BadRequestException(
+                    "Không thể chuyển phiên học từ " + current + " sang " + target + ".");
+        }
 
         session.setStatus(target);
         if (teacherNotes != null) session.setTeacherNotes(teacherNotes);
 
-        // Mark payout eligible when completed
-        if (target == Status.COMPLETED) {
+        // Đủ điều kiện chi trả khi hoàn thành — nhưng KHÔNG bao giờ hạ một payout đã PROCESSED/SKIPPED
+        // trở lại PENDING. Máy trạng thái ở trên đã chặn re-COMPLETED; guard này là hàng rào thứ hai
+        // phòng khi có đường khác gọi tới updateStatus.
+        if (target == Status.COMPLETED
+                && session.getPayoutStatus() != PayoutStatus.PROCESSED
+                && session.getPayoutStatus() != PayoutStatus.SKIPPED) {
             session.setPayoutStatus(PayoutStatus.PENDING);
         }
 
         return TeacherSessionDto.from(sessionRepository.save(session));
+    }
+
+    /**
+     * Chuyển trạng thái hợp lệ cho phiên học 1:1:
+     * PENDING → CONFIRMED | CANCELLED; CONFIRMED → COMPLETED | CANCELLED.
+     * COMPLETED và CANCELLED là trạng thái CUỐI (không chuyển đi đâu, kể cả về chính nó).
+     * Chặn re-COMPLETED chính là chốt chống double-payout của R-H2.
+     */
+    private boolean isValidTransition(Status from, Status to) {
+        return switch (from) {
+            case PENDING -> to == Status.CONFIRMED || to == Status.CANCELLED;
+            case CONFIRMED -> to == Status.COMPLETED || to == Status.CANCELLED;
+            case COMPLETED, CANCELLED -> false;
+        };
     }
 
     // ── Student: submit review ────────────────────────────────────────────────
