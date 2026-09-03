@@ -53,6 +53,39 @@ public class GlobalExceptionHandler {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.deutschflow.speaking.metrics.SpeakingMetrics speakingMetrics;
 
+    /**
+     * Audit R-M9 (03/09/2026): cùng khuôn field-injection {@code required = false} như
+     * {@code speakingMetrics} ở trên (test standalone {@code new GlobalExceptionHandler()} → null,
+     * mọi lần ghi đều qua null-check).
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.deutschflow.common.audit.AuditLogService auditLogService;
+
+    /**
+     * Audit R-M9 (03/09/2026): lần thử phá bất biến đặc quyền bị guard chặn (hạ admin cuối, tạo
+     * OWNER thứ hai…) là tín hiệu dò/leo thang — đúng loại giám sát cần thấy nhất — nhưng guard ném
+     * trong {@code @Transactional} nên mọi vết ghi TRƯỚC khi ném đều rollback theo. Ghi Ở ĐÂY: khi
+     * exception tới advice, transaction đã rollback xong, INSERT audit chạy autocommit → vết sống
+     * sót. Actor lấy từ SecurityContext (endpoint public → actor null, meta vẫn mang định danh mục
+     * tiêu). Lỗi ghi vết không được đổi response của client — nuốt kèm log.
+     */
+    @ExceptionHandler(PrivilegedActionBlockedException.class)
+    public ResponseEntity<ProblemDetail> handleBlockedPrivilegedAction(PrivilegedActionBlockedException ex,
+                                                                       HttpServletRequest request) {
+        if (auditLogService != null) {
+            try {
+                var authentication =
+                        org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                auditLogService.log(ex.getAuditEvent(),
+                        com.deutschflow.common.audit.AuditActor.ofAuthentication(authentication),
+                        ex.getTargetType(), ex.getTargetId(), ex.getAuditMeta());
+            } catch (Exception auditEx) {
+                log.error("Không ghi được vết blocked-attempt {}: {}", ex.getAuditEvent(), auditEx.getMessage());
+            }
+        }
+        return handleBadRequest(ex, request);
+    }
+
     // --- 400 Bad Request ---
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ProblemDetail> handleBadRequest(BadRequestException ex,

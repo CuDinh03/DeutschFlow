@@ -5,6 +5,7 @@ import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.exception.PrivilegedActionBlockedException;
 import com.deutschflow.organization.dto.AddMemberRequest;
 import com.deutschflow.organization.dto.CreateOrgRequest;
 import com.deutschflow.organization.dto.OrgDetailDto;
@@ -275,14 +276,20 @@ public class AdminOrgService {
                 && ROLE_OWNER.equals(existing.getRole())
                 && STATUS_ACTIVE.equals(existing.getStatus());
 
+        // Audit R-M9: ném subtype mang chất liệu audit — vết ghi ở GlobalExceptionHandler SAU khi
+        // transaction rollback, nên lần thử phá bất biến 1-OWNER không còn vô hình trong audit_logs.
         if (targetIsActiveOwner && !ROLE_OWNER.equals(normalizedRole)) {
-            throw new BadRequestException(
-                    "Không thể hạ vai trò của chủ sở hữu — hãy chuyển quyền sở hữu cho người khác trước.");
+            throw new PrivilegedActionBlockedException(
+                    "Không thể hạ vai trò của chủ sở hữu — hãy chuyển quyền sở hữu cho người khác trước.",
+                    "admin.org.owner_invariant.blocked", "ORG", String.valueOf(org.getId()),
+                    Map.of("reason", "demote_owner", "targetUserId", user.getId(), "requestedRole", normalizedRole));
         }
         if (ROLE_OWNER.equals(normalizedRole) && !targetIsActiveOwner
                 && orgMembershipService.countActiveOwners(org.getId()) > 0) {
-            throw new BadRequestException(
-                    "Tổ chức đã có chủ sở hữu — mỗi tổ chức chỉ một OWNER. Hãy dùng chuyển quyền sở hữu.");
+            throw new PrivilegedActionBlockedException(
+                    "Tổ chức đã có chủ sở hữu — mỗi tổ chức chỉ một OWNER. Hãy dùng chuyển quyền sở hữu.",
+                    "admin.org.owner_invariant.blocked", "ORG", String.valueOf(org.getId()),
+                    Map.of("reason", "second_owner", "targetUserId", user.getId(), "requestedRole", normalizedRole));
         }
 
         String previousRole = existing == null ? null : existing.getRole();

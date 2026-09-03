@@ -6,6 +6,7 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.exception.PrivilegedActionBlockedException;
 import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
@@ -98,13 +99,20 @@ public class OrgMembershipService {
             // phép đọc countActiveOwners() trần để hở) — cùng cơ chế FOR UPDATE với seat-gate dưới.
             jdbcTemplate.query("SELECT id FROM organizations WHERE id = ? FOR UPDATE",
                     rs -> rs.next() ? rs.getLong(1) : null, orgId);
+            // Audit R-M9: subtype mang chất liệu audit — GlobalExceptionHandler ghi vết SAU rollback.
+            // Chokepoint này còn hứng cả đường KHÔNG-admin (nhận lời mời): actor khi đó là null/ẩn
+            // danh, meta vẫn mang đủ (orgId, userId, role xin) để nhận diện lần thử.
             if (existingIsActiveOwner && !ROLE_OWNER.equals(role)) {
-                throw new BadRequestException(
-                        "Không thể hạ vai trò của chủ sở hữu — hãy chuyển quyền sở hữu cho người khác trước.");
+                throw new PrivilegedActionBlockedException(
+                        "Không thể hạ vai trò của chủ sở hữu — hãy chuyển quyền sở hữu cho người khác trước.",
+                        "org.owner_invariant.blocked", "ORG", String.valueOf(orgId),
+                        Map.of("reason", "demote_owner", "targetUserId", userId, "requestedRole", role));
             }
             if (ROLE_OWNER.equals(role) && !existingIsActiveOwner && countActiveOwners(orgId) > 0) {
-                throw new BadRequestException(
-                        "Tổ chức đã có chủ sở hữu — mỗi tổ chức chỉ một OWNER. Hãy dùng chuyển quyền sở hữu.");
+                throw new PrivilegedActionBlockedException(
+                        "Tổ chức đã có chủ sở hữu — mỗi tổ chức chỉ một OWNER. Hãy dùng chuyển quyền sở hữu.",
+                        "org.owner_invariant.blocked", "ORG", String.valueOf(orgId),
+                        Map.of("reason", "second_owner", "targetUserId", userId, "requestedRole", role));
             }
         }
 

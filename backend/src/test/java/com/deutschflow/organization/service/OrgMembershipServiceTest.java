@@ -119,9 +119,12 @@ class OrgMembershipServiceTest {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
                 .thenReturn(Optional.of(member("OWNER", "ACTIVE")));
 
+        // R-M9: subtype mang event để GlobalExceptionHandler ghi vết lần thử sau rollback —
+        // chokepoint này hứng cả đường nhận-lời-mời (không phải admin console).
         assertThatThrownBy(() -> service.upsertMember(ORG_ID, USER_ID, "TEACHER"))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("chủ sở hữu");
+                .isInstanceOf(com.deutschflow.common.exception.PrivilegedActionBlockedException.class)
+                .hasMessageContaining("chủ sở hữu")
+                .extracting("auditEvent").isEqualTo("org.owner_invariant.blocked");
 
         verify(memberRepo, never()).save(any());
         verify(userRepository, never()).save(any());
