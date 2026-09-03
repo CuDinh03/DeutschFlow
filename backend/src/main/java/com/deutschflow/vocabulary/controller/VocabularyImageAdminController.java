@@ -1,6 +1,8 @@
 package com.deutschflow.vocabulary.controller;
 
 import com.deutschflow.aiimage.service.UnsplashImageService;
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.media.entity.MediaAsset;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.vocabulary.dto.UnsplashAttachRequest;
@@ -32,6 +34,7 @@ public class VocabularyImageAdminController {
     private final VocabularyImageGeneratorService imageGeneratorService;
     /** Optional: the Unsplash bean only exists when {@code unsplash.enabled=true}. */
     private final ObjectProvider<UnsplashImageService> unsplashProvider;
+    private final AuditLogService auditLogService;
 
     @PostMapping("/{wordId}/override")
     public ResponseEntity<Map<String, String>> overrideImage(
@@ -39,6 +42,10 @@ public class VocabularyImageAdminController {
             @RequestBody WordImageUpdateRequest request,
             @AuthenticationPrincipal User user) {
         vocabularyImageService.overrideImage(wordId, request);
+        // Audit R-M4: đặt tay ảnh cho một từ — thay đổi nội dung hiển thị, phải để lại vết.
+        auditLogService.log("admin.vocabulary.image.overridden", AuditActor.of(user),
+                "VOCABULARY", String.valueOf(wordId),
+                Map.of("imageStyle", request == null || request.imageStyle() == null ? "" : request.imageStyle()));
         return ResponseEntity.ok(Map.of("status", "ok"));
     }
 
@@ -68,7 +75,8 @@ public class VocabularyImageAdminController {
     @PostMapping("/{wordId}/unsplash")
     public ResponseEntity<Map<String, String>> attachUnsplash(
             @PathVariable long wordId,
-            @RequestBody UnsplashAttachRequest request) {
+            @RequestBody UnsplashAttachRequest request,
+            @AuthenticationPrincipal User user) {
         if (request == null || request.imageUrl() == null || request.imageUrl().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "imageUrl is required");
         }
@@ -78,6 +86,10 @@ public class VocabularyImageAdminController {
                 : "word-" + wordId;
         MediaAsset asset = imageGeneratorService.generateFromUrl(
                 wordId, baseForm, request.imageUrl(), "manual-unsplash", "Manual Unsplash selection");
+        // Audit R-M4: tải ảnh từ URL ngoài (Unsplash) vào S3 rồi gán cho từ — thao tác đưa nội dung
+        // bên thứ ba vào sản phẩm, để lại vết ai/khi nào cho truy vết bản quyền.
+        auditLogService.log("admin.vocabulary.image.unsplash_attached", AuditActor.of(user),
+                "VOCABULARY", String.valueOf(wordId), Map.of("imageUrl", asset.getUrl()));
         return ResponseEntity.ok(Map.of("imageUrl", asset.getUrl()));
     }
 

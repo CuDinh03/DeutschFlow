@@ -1,5 +1,7 @@
 package com.deutschflow.vocabulary.galerie.controller;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.vocabulary.galerie.dto.GalerieConceptBatchResponse;
 import com.deutschflow.vocabulary.galerie.dto.GalerieSvgBatchResponse;
@@ -31,6 +33,7 @@ public class GalerieAdminController {
     private final GalerieConceptService conceptService;
     private final GalerieSvgGenerationService svgGenerationService;
     private final JdbcTemplate jdbcTemplate;
+    private final AuditLogService auditLogService;
 
     /** Sinh concept cho các từ sạch còn thiếu (ưu tiên frequency_rank). */
     @PostMapping("/concepts")
@@ -124,6 +127,10 @@ public class GalerieAdminController {
         try {
             GalerieSvgGenerationService.ImportResult result =
                     svgGenerationService.importArtwork(wordId, svg, user);
+            // Audit R-M4: nạp artwork SVG vào một từ — thêm nội dung sẽ hiển thị công khai ở Galerie.
+            auditLogService.log("admin.vocabulary.galerie.artwork_imported", AuditActor.of(user),
+                    "GALERIE_ARTWORK", String.valueOf(wordId),
+                    Map.of("elementCount", result.elementCount(), "sizeBytes", result.sizeBytes()));
             return ResponseEntity.ok(Map.of(
                     "wordId", result.wordId(),
                     "imageUrl", result.imageUrl(),
@@ -142,15 +149,21 @@ public class GalerieAdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> decide(
             @PathVariable long wordId,
-            @RequestBody GalerieDecisionRequest request) {
+            @RequestBody GalerieDecisionRequest request,
+            @AuthenticationPrincipal User user) {
         GalerieSvgGenerationService.Decision decision = parseDecision(request);
         boolean changed = svgGenerationService.decide(wordId, decision);
         if (!changed) {
+            // Không đổi trạng thái → không ghi vết (vết chỉ dành cho việc đã thực sự xảy ra).
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
                     "wordId", wordId,
                     "decision", decision.name(),
                     "error", "Từ không ở trạng thái cho phép quyết định này"));
         }
+        // Audit R-M4: đây là CỔNG PUBLISH artwork ra Galerie công khai (APPROVE) / gỡ / từ chối —
+        // quyết định đưa nội dung ra người dùng thật, bắt buộc để lại vết ai/khi nào.
+        auditLogService.log("admin.vocabulary.galerie.decided", AuditActor.of(user),
+                "GALERIE_ARTWORK", String.valueOf(wordId), Map.of("decision", decision.name()));
         return ResponseEntity.ok(Map.of("wordId", wordId, "decision", decision.name()));
     }
 
