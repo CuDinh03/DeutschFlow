@@ -681,12 +681,18 @@ public class AdminManagementService {
      * endpoint thêm sau này quên tự rào.
      *
      * <p>Chỉ đếm ADMIN còn {@code is_active=true}: một admin đã bị khóa không cứu được hệ thống.
+     *
+     * <p>Audit R-M2 (03/09/2026): đếm DƯỚI khóa {@code FOR UPDATE} thay vì đọc trần. Phép đọc-rồi-
+     * quyết trước đây để hở TOCTOU — hai admin hạ quyền/khóa lẫn nhau đồng thời cùng thấy count==2
+     * rồi cùng ghi, kết cục 0 admin. Khóa các dòng admin đang hoạt động buộc hai giao dịch tuần tự
+     * hóa: giao dịch sau chỉ chạy sau khi giao dịch trước commit, nên số đếm nó thấy đã trừ đi admin
+     * vừa bị hạ. Chạy trong giao dịch ghi của updateUserRole/setUserActive nên khóa giữ tới hết tx.
      */
     private void requireNotLastActiveAdmin(User target, String message) {
         if (!target.isActive()) {
             return; // đã không nằm trong số admin hoạt động thì không phải người cuối cùng
         }
-        if (userRepository.countByRoleAndActiveTrue(User.Role.ADMIN) <= 1) {
+        if (userRepository.lockActiveIdsByRoleForUpdate(User.Role.ADMIN.name()).size() <= 1) {
             throw new BadRequestException(message);
         }
     }

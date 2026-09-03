@@ -41,6 +41,19 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     long countByRoleAndActiveTrue(User.Role role);
 
+    /**
+     * Khóa và trả về id các tài khoản còn hoạt động theo vai trò (audit R-M2, 03/09/2026).
+     *
+     * <p>Bất biến last-admin trước đây đọc {@link #countByRoleAndActiveTrue} không khóa nên để hở
+     * TOCTOU: hai admin hạ quyền/khóa lẫn nhau đồng thời cùng đọc count==2 rồi cùng ghi → 0 admin.
+     * {@code FOR UPDATE} khóa các dòng admin đang hoạt động (thứ tự id cố định để tránh deadlock),
+     * buộc các giao dịch cùng đụng tập admin phải tuần tự hóa: giao dịch sau đọc lại số đếm ĐÃ
+     * phản ánh thay đổi của giao dịch trước. Gọi trong một giao dịch ghi (updateUserRole/setUserActive).
+     */
+    @Query(value = "SELECT id FROM users WHERE role = :role AND is_active IS TRUE "
+            + "ORDER BY id ASC FOR UPDATE", nativeQuery = true)
+    List<Long> lockActiveIdsByRoleForUpdate(@Param("role") String role);
+
     /** All active users — filtered at the DB instead of loading every row via findAll(). */
     List<User> findByActiveTrue();
 
