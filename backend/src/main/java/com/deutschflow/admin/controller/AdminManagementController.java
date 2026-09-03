@@ -826,10 +826,14 @@ public class AdminManagementController {
 
     @PostMapping("/vocabulary/reset")
     public Map<String, Object> resetAndReimportVocabulary(
+            @RequestParam(required = false) String confirm,
             @RequestParam(defaultValue = "200") int wiktionaryLimit,
             Authentication authentication
     ) {
-        Map<String, Object> result = vocabularyResetService.resetAndReimport(wiktionaryLimit);
+        // Audit R-H1: guard confirm + all-or-nothing nằm trong SERVICE (mọi entry point đều qua);
+        // ở đây chỉ truyền xuống. Vết audit dưới ghi ngoài transaction của service nên kể cả
+        // khi reset ROLLED_BACK vẫn còn dấu ai đã bấm.
+        Map<String, Object> result = vocabularyResetService.resetAndReimport(confirm, wiktionaryLimit);
         auditLogService.log(
                 "admin.vocabulary.reset.triggered",
                 AuditActor.ofAuthentication(authentication),
