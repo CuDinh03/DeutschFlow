@@ -244,9 +244,10 @@ public class TimesheetPeriodService {
     }
 
     /** Bọc một ô CSV: luôn có nháy kép, nháy bên trong nhân đôi (RFC 4180). */
+    // C4/F-M13 (03/09/2026): trung hoà CSV formula injection + bọc nháy dùng chung — cột đầu là tên
+    // giáo viên do người nhập. Xem com.deutschflow.common.util.CsvSafe.
     private static String csv(String raw) {
-        String v = raw == null ? "" : raw;
-        return '"' + v.replace("\"", "\"\"") + '"';
+        return com.deutschflow.common.util.CsvSafe.quote(raw);
     }
 
     // ── chốt chặn dùng bởi TeacherTimesheetService ────────────────────────────
