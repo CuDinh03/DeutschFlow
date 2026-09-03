@@ -3,6 +3,7 @@ package com.deutschflow.admin.service;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.common.exception.PrivilegedActionBlockedException;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.organization.service.OrgMembershipService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -688,12 +689,16 @@ public class AdminManagementService {
      * hóa: giao dịch sau chỉ chạy sau khi giao dịch trước commit, nên số đếm nó thấy đã trừ đi admin
      * vừa bị hạ. Chạy trong giao dịch ghi của updateUserRole/setUserActive nên khóa giữ tới hết tx.
      */
-    private void requireNotLastActiveAdmin(User target, String message) {
+    private void requireNotLastActiveAdmin(User target, String message, String attemptedAction) {
         if (!target.isActive()) {
             return; // đã không nằm trong số admin hoạt động thì không phải người cuối cùng
         }
         if (userRepository.lockActiveIdsByRoleForUpdate(User.Role.ADMIN.name()).size() <= 1) {
-            throw new BadRequestException(message);
+            // Audit R-M9: ném subtype mang chất liệu audit — GlobalExceptionHandler ghi vết SAU khi
+            // transaction rollback (ghi ở đây thì vết rollback theo, lần thử dò vô hình mãi mãi).
+            throw new PrivilegedActionBlockedException(message,
+                    "admin.user.last_admin.blocked", "USER", String.valueOf(target.getId()),
+                    Map.of("attemptedAction", attemptedAction, "targetEmail", target.getEmail()));
         }
     }
 
@@ -713,7 +718,7 @@ public class AdminManagementService {
                     "Người dùng đang thuộc một tổ chức. Hãy đổi vai trò qua Console tổ chức để giữ đồng bộ org_members.");
         }
         if (user.getRole() == User.Role.ADMIN && !"ADMIN".equals(normalized)) {
-            requireNotLastActiveAdmin(user, "Không thể hạ quyền quản trị viên hoạt động cuối cùng.");
+            requireNotLastActiveAdmin(user, "Không thể hạ quyền quản trị viên hoạt động cuối cùng.", "role.update");
         }
         // Audit F-M4 (03/09/2026): vết admin.user.role.updated chỉ ghi vai trò MỚI, nên nhật ký
         // không nói được đã đổi TỪ đâu — muốn biết phải suy ngược qua các vết trước đó. Trả về
@@ -807,7 +812,7 @@ public class AdminManagementService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
         if (!active && user.getRole() == User.Role.ADMIN) {
-            requireNotLastActiveAdmin(user, "Không thể khóa quản trị viên hoạt động cuối cùng.");
+            requireNotLastActiveAdmin(user, "Không thể khóa quản trị viên hoạt động cuối cùng.", "deactivate");
         }
         user.setActive(active);
         userRepository.save(user);

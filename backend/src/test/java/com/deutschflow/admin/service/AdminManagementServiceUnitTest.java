@@ -184,7 +184,12 @@ class AdminManagementServiceUnitTest {
         // R-M2: guard nay đếm DƯỚI khóa FOR UPDATE — chỉ còn 1 admin hoạt động → chặn.
         when(userRepository.lockActiveIdsByRoleForUpdate("ADMIN")).thenReturn(List.of(20L));
 
-        assertThrows(BadRequestException.class, () -> service.updateUserRole(20L, "STUDENT"));
+        // R-M9: guard ném subtype mang chất liệu audit — GlobalExceptionHandler sẽ ghi vết sau rollback.
+        var blocked = assertThrows(
+                com.deutschflow.common.exception.PrivilegedActionBlockedException.class,
+                () -> service.updateUserRole(20L, "STUDENT"));
+        assertEquals("admin.user.last_admin.blocked", blocked.getAuditEvent());
+        assertEquals("role.update", blocked.getAuditMeta().get("attemptedAction"));
 
         assertEquals(User.Role.ADMIN, lastAdmin.getRole());   // không đổi
         verify(userRepository, never()).save(any(User.class));
