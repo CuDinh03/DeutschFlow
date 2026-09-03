@@ -109,6 +109,55 @@ class OrgMembershipServiceTest {
         verify(memberRepo).save(any());
     }
 
+    // ── R-M1/R-M3: bất biến 1-OWNER tại chokepoint upsertMember ───────────────────
+
+    @Test
+    @DisplayName("R-M1: upsertMember từ chối HẠ một OWNER đang hoạt động (nhận lời mời TEACHER cũ)")
+    void upsertMember_demotingActiveOwner_rejected() {
+        // Đường lạm dụng: một OWNER đang hoạt động bấm nhận một lời mời TEACHER cũ → upsert(TEACHER).
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member("OWNER", "ACTIVE")));
+
+        assertThatThrownBy(() -> service.upsertMember(ORG_ID, USER_ID, "TEACHER"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("chủ sở hữu");
+
+        verify(memberRepo, never()).save(any());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("R-M3: upsertMember từ chối tạo OWNER thứ hai khi org đã có OWNER (dưới khóa FOR UPDATE)")
+    void upsertMember_secondOwner_rejected() {
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepo.countByIdOrgIdAndRoleAndStatus(ORG_ID, "OWNER", "ACTIVE")).thenReturn(1L); // đã có 1 OWNER
+
+        assertThatThrownBy(() -> service.upsertMember(ORG_ID, USER_ID, "OWNER"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("đã có chủ sở hữu");
+
+        // Khóa dòng org PHẢI được lấy trước khi đếm — chống TOCTOU.
+        verify(jdbcTemplate).query(anyString(), any(ResultSetExtractor.class), eq(ORG_ID));
+        verify(memberRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("R-M3: upsertMember CHO PHÉP tạo OWNER đầu tiên khi org có 0 OWNER (đường tạo org)")
+    void upsertMember_firstOwner_allowed() {
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepo.countByIdOrgIdAndRoleAndStatus(ORG_ID, "OWNER", "ACTIVE")).thenReturn(0L); // chưa có OWNER
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(userWith(USER_ID, User.Role.OWNER)));
+
+        service.upsertMember(ORG_ID, USER_ID, "OWNER");
+
+        ArgumentCaptor<OrgMember> saved = ArgumentCaptor.forClass(OrgMember.class);
+        verify(memberRepo).save(saved.capture());
+        assertThat(saved.getValue().getRole()).isEqualTo("OWNER");
+    }
+
     private OrgMember member(String role, String status) {
         return member(USER_ID, role, status);
     }

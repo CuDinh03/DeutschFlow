@@ -81,6 +81,33 @@ public class OrgMembershipService {
 
         Optional<OrgMember> existingOpt = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId);
 
+        // Audit R-M1/R-M3 (03/09/2026): bất biến "một org đúng một OWNER ACTIVE" đặt tại CHOKEPOINT
+        // chung này — không chỉ ở AdminOrgService.addMember — nên đường nhận-lời-mời và mọi caller
+        // khác đều chịu chung. upsertMember vốn ghi đè vai trò vô điều kiện, để hở hai lỗ:
+        //   (R-M1) nhận một lời mời TEACHER cũ có thể hạ role của một OWNER đang hoạt động xuống
+        //          TEACHER (comment "upsert never downgrades platform role" chỉ đúng với ADMIN);
+        //   (R-M3) hai lượt thêm-OWNER chạy song song cùng đọc countActiveOwners()==0 rồi cùng ghi
+        //          → 2 OWNER (TOCTOU).
+        // transferOwnership/changeRole đổi chủ trên đường riêng, KHÔNG đi qua đây.
+        boolean existingIsActiveOwner = existingOpt
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
+                .map(m -> ROLE_OWNER.equals(m.getRole()))
+                .orElse(false);
+        if (ROLE_OWNER.equals(role) || existingIsActiveOwner) {
+            // Khóa dòng org để mọi thay đổi quyền sở hữu cùng org tuần tự hóa (đóng TOCTOU mà một
+            // phép đọc countActiveOwners() trần để hở) — cùng cơ chế FOR UPDATE với seat-gate dưới.
+            jdbcTemplate.query("SELECT id FROM organizations WHERE id = ? FOR UPDATE",
+                    rs -> rs.next() ? rs.getLong(1) : null, orgId);
+            if (existingIsActiveOwner && !ROLE_OWNER.equals(role)) {
+                throw new BadRequestException(
+                        "Không thể hạ vai trò của chủ sở hữu — hãy chuyển quyền sở hữu cho người khác trước.");
+            }
+            if (ROLE_OWNER.equals(role) && !existingIsActiveOwner && countActiveOwners(orgId) > 0) {
+                throw new BadRequestException(
+                        "Tổ chức đã có chủ sở hữu — mỗi tổ chức chỉ một OWNER. Hãy dùng chuyển quyền sở hữu.");
+            }
+        }
+
         // Seat-limit gate (ORG-1): centralized here so EVERY add path (admin add, roster import,
         // invitation accept) enforces it, and race-safe — a `SELECT ... FOR UPDATE` on the org row
         // serializes concurrent adds to the same org, so two admins cannot both pass the check and
