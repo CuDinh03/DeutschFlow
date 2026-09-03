@@ -425,8 +425,10 @@ public class ExamGoldenService {
         return v == null ? "" : String.valueOf(v);
     }
 
+    // C4/F-M13 (03/09/2026): trung hoà CSV formula injection + bọc nháy dùng chung — cột rater là tên
+    // người chấm do người nhập. Xem com.deutschflow.common.util.CsvSafe.
     private static String csv(String v) {
-        return v == null ? "" : '"' + v.replace("\"", "\"\"") + '"';
+        return com.deutschflow.common.util.CsvSafe.quote(v);
     }
 
     // ── Chiến dịch hiệu chuẩn: ai được lưu audio, và dọn audio khi rút đồng ý ────────────────
