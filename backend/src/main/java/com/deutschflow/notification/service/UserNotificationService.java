@@ -1,5 +1,6 @@
 package com.deutschflow.notification.service;
 
+import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.notification.NotificationType;
 import com.deutschflow.notification.dto.BroadcastNotificationRequest;
 import com.deutschflow.notification.dto.BroadcastNotificationResponse;
@@ -50,6 +51,7 @@ public class UserNotificationService {
     private final ExpoPushSenderService expoPushSenderService;
     private final NotificationContentRenderer contentRenderer;
     private final ObjectMapper objectMapper;
+    private final BroadcastDedupeGuard dedupeGuard;
 
     /** A scheduledAt within this window of "now" is treated as immediate delivery. */
     private static final long SCHEDULE_THRESHOLD_SECONDS = 30;
@@ -614,6 +616,20 @@ public class UserNotificationService {
     public int deliverBroadcast(BroadcastNotificationRequest request) {
         NotificationType notificationType = resolveNotificationType(request.type());
 
+        // Audit C1/F-M9 (03/09/2026): idempotency theo (đối tượng + tiêu đề + nội dung) trong cửa sổ
+        // ngắn. Không có chốt này, một cú double-click hoặc retry của client là hai lượt push cho
+        // toàn bộ audience. Đặt ở deliverBroadcast — chokepoint chung — nên phủ CẢ đường gửi ngay
+        // lẫn đường job gửi broadcast đã lên lịch (lượt dispatch trùng bị đánh FAILED kèm lý do rõ).
+        String dedupeKey = String.join("|", "admin-broadcast",
+                String.valueOf(request.audienceType()), String.valueOf(request.tier()),
+                String.valueOf(request.role()), String.valueOf(request.targetEmail()),
+                request.payload().title(), request.payload().body());
+        if (!dedupeGuard.tryAcquire(dedupeKey)) {
+            throw new ConflictException(
+                    "Broadcast trùng lặp — một broadcast giống hệt (đối tượng + tiêu đề + nội dung)"
+                            + " vừa được gửi trong cửa sổ chống trùng. Chờ vài phút hoặc đổi nội dung.");
+        }
+
         List<User> recipients = resolveAudience(request);
         if (recipients.isEmpty()) {
             log.warn("[notifications] broadcast skipped — no recipients for audience={}", request.audienceType());
@@ -649,6 +665,17 @@ public class UserNotificationService {
      */
     @Transactional
     public int broadcastSystemMaintenance(Map<String, Object> payload, boolean withPush) {
+        // Audit R-M6 (03/09/2026): mỗi PATCH đổi giờ một window đã announce lại bắn một lượt UPDATED
+        // tới TOÀN BỘ user — chuỗi chỉnh sửa liên tiếp thành chuỗi push lặp. Cùng (windowId, kind)
+        // trong cửa sổ dedupe chỉ gửi MỘT lần; bỏ qua ÊM (không ném) vì bản thân mutation sửa lịch
+        // vẫn phải thành công, chỉ phần re-spam bị chặn. Kind khác nhau (SCHEDULED→UPDATED→...) là
+        // khoá khác nhau nên các mốc vòng đời không chặn lẫn nhau.
+        String dedupeKey = "maintenance|" + payload.get("windowId") + "|" + payload.get("kind");
+        if (!dedupeGuard.tryAcquire(dedupeKey)) {
+            log.info("[notifications] SYSTEM_MAINTENANCE kind={} windowId={} trùng trong cửa sổ dedupe — bỏ qua push lặp",
+                    payload.get("kind"), payload.get("windowId"));
+            return 0;
+        }
         List<User> recipients = userRepository.findByActiveTrue();
         if (recipients.isEmpty()) {
             return 0;

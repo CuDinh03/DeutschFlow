@@ -50,6 +50,8 @@ class UserNotificationServiceUnitTest {
     @Mock ExpoPushSenderService expoPushSenderService;
     @Spy NotificationContentRenderer contentRenderer = new NotificationContentRenderer();
     @Spy com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+    /** Guard THẬT (mỗi test một instance mới → cửa sổ sạch) — mock trả false mặc định sẽ chặn nhầm mọi lượt gửi. */
+    @Spy BroadcastDedupeGuard dedupeGuard = new BroadcastDedupeGuard(300);
 
     @InjectMocks
     UserNotificationService service;
@@ -75,6 +77,57 @@ class UserNotificationServiceUnitTest {
         verify(notificationRepository).saveAll(any());
         verify(unreadPushCoordinator).afterCommit(42L);
         verify(scheduledBroadcastRepository, never()).save(any());
+    }
+
+    // ── C1/F-M9 + R-M6: cửa sổ chống gửi-trùng ─────────────────────────────────────
+
+    @Test
+    @DisplayName("C1: broadcast giống hệt lần hai trong cửa sổ dedupe → 409, KHÔNG fan-out lần nữa")
+    void broadcast_duplicateWithinWindow_throwsConflict() {
+        User active = org.mockito.Mockito.mock(User.class);
+        when(active.getId()).thenReturn(42L);
+        when(userRepository.findByActiveTrue()).thenReturn(List.of(active));
+
+        service.broadcastToAudience(allAudience(null)); // lượt đầu: gửi thật
+
+        assertThatThrownBy(() -> service.broadcastToAudience(allAudience(null)))
+                .isInstanceOf(com.deutschflow.common.exception.ConflictException.class)
+                .hasMessageContaining("trùng lặp");
+        // Fan-out chỉ xảy ra ĐÚNG MỘT lần — double-click không thành hai lượt push toàn hệ.
+        verify(notificationRepository, org.mockito.Mockito.times(1)).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("R-M6: cùng (windowId, kind) bảo trì lần hai trong cửa sổ → bỏ qua ÊM (trả 0, không ném)")
+    void maintenanceBroadcast_duplicateWindowKind_skipsSilently() {
+        User active = org.mockito.Mockito.mock(User.class);
+        when(active.getId()).thenReturn(42L);
+        when(userRepository.findByActiveTrue()).thenReturn(List.of(active));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("kind", "UPDATED");
+        payload.put("windowId", 7L);
+        payload.put("title", "Bảo trì hệ thống");
+
+        int first = service.broadcastSystemMaintenance(payload, false);
+        int second = service.broadcastSystemMaintenance(payload, false);
+
+        assertThat(first).isEqualTo(1);
+        assertThat(second).isZero(); // PATCH đổi giờ liên tiếp không thành chuỗi push lặp
+        verify(notificationRepository, org.mockito.Mockito.times(1)).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("R-M6: kind khác nhau của cùng window là các mốc vòng đời — không chặn lẫn nhau")
+    void maintenanceBroadcast_differentKinds_bothSend() {
+        User active = org.mockito.Mockito.mock(User.class);
+        when(active.getId()).thenReturn(42L);
+        when(userRepository.findByActiveTrue()).thenReturn(List.of(active));
+        Map<String, Object> scheduled = new LinkedHashMap<>(Map.of("kind", "SCHEDULED", "windowId", 7L, "title", "T"));
+        Map<String, Object> updated = new LinkedHashMap<>(Map.of("kind", "UPDATED", "windowId", 7L, "title", "T"));
+
+        assertThat(service.broadcastSystemMaintenance(scheduled, false)).isEqualTo(1);
+        assertThat(service.broadcastSystemMaintenance(updated, false)).isEqualTo(1);
+        verify(notificationRepository, org.mockito.Mockito.times(2)).saveAll(any());
     }
 
     @Test
