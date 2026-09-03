@@ -746,7 +746,9 @@ public class AdminManagementService {
         String normEmail = email == null ? "" : email.trim().toLowerCase();
         if (normEmail.isBlank()) throw new BadRequestException("Email không được để trống.");
         if (displayName == null || displayName.isBlank()) throw new BadRequestException("Tên hiển thị không được để trống.");
-        if (rawPassword == null || rawPassword.length() < 6) throw new BadRequestException("Mật khẩu tối thiểu 6 ký tự.");
+        // C10/F-L4 (03/09/2026): sàn 8 ký tự khớp mọi nơi khác (register, setUserPassword, quên mật
+        // khẩu) — trước đây admin-create lệch xuống 6, tạo tài khoản yếu hơn chuẩn chung.
+        if (rawPassword == null || rawPassword.length() < 8) throw new BadRequestException("Mật khẩu tối thiểu 8 ký tự.");
         String normRole = role == null ? "" : role.trim().toUpperCase();
         if (!List.of("ADMIN", "TEACHER", "STUDENT", "MANAGER").contains(normRole)) throw new BadRequestException("Vai trò không hợp lệ.");
         if (userRepository.existsByEmailIgnoreCase(normEmail)) throw new ConflictException("Email này đã có tài khoản.");
