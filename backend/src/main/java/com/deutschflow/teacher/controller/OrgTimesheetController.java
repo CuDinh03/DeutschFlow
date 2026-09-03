@@ -1,6 +1,7 @@
 package com.deutschflow.teacher.controller;
 
 import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.teacher.dto.TimesheetPeriodDtos.OrgTimesheetDto;
 import com.deutschflow.teacher.dto.TimesheetPeriodDtos.PeriodDto;
@@ -46,6 +47,7 @@ import java.time.LocalDate;
 public class OrgTimesheetController {
 
     private final TimesheetPeriodService periodService;
+    private final AuditLogService auditLogService;
 
     @GetMapping
     public OrgTimesheetDto summary(
@@ -61,7 +63,16 @@ public class OrgTimesheetController {
             @AuthenticationPrincipal User actor,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        String csv = periodService.exportOrgCsv(actor.getId(), requireOrgId(actor), from, to);
+        Long orgId = requireOrgId(actor);
+        String csv = periodService.exportOrgCsv(actor.getId(), orgId, from, to);
+        // Audit R-M8 (03/09/2026): xuất chấm công toàn bộ giáo viên là dữ liệu payroll-adjacent (tên
+        // thật + số giờ + đơn giá). Trước đây không để lại vết nào — khác hẳn hai export PII nền tảng
+        // (training-dataset, marketing leads) đã ghi vết ở B4b cùng lý do "ai đã tải, bao nhiêu, khi
+        // nào". Ghi Ở CONTROLLER vì exportOrgCsv là @Transactional(readOnly=true) — audit INSERT
+        // trong tx read-only sẽ nổ (đúng lý do TrainingDatasetController cũng audit ở controller).
+        auditLogService.log("admin.org.timesheet.exported", AuditActor.of(actor),
+                "ORG_TIMESHEET", String.valueOf(orgId),
+                java.util.Map.of("from", String.valueOf(from), "to", String.valueOf(to)));
         return ResponseEntity.ok()
                 .contentType(new MediaType("text", "csv", java.nio.charset.StandardCharsets.UTF_8))
                 .header(HttpHeaders.CONTENT_DISPOSITION,
