@@ -5,6 +5,7 @@ import com.deutschflow.user.entity.User;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.training.service.TrainingDatasetService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -59,7 +60,10 @@ public class TrainingDatasetController {
         String filename = buildFilename("conversations", cefrLevel, errorsOnly);
         auditExport("conversations", actor, cefrLevel, errorsOnly, safeLimit, jsonl);
 
+        // C2 (F-M10, 03/09/2026): corpus hội thoại thô của người học — cấm mọi tầng cache (proxy,
+        // browser disk) giữ lại một bản PII sau khi tải.
         return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .contentType(MediaType.parseMediaType("application/jsonl+json"))
                 .body(jsonl.getBytes(StandardCharsets.UTF_8));
@@ -85,6 +89,7 @@ public class TrainingDatasetController {
         auditExport("error_samples", actor, cefrLevel, false, safeLimit, jsonl);
 
         return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .contentType(MediaType.parseMediaType("application/jsonl+json"))
                 .body(jsonl.getBytes(StandardCharsets.UTF_8));

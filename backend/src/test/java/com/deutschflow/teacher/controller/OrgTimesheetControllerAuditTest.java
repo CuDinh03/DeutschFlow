@@ -58,6 +58,8 @@ class OrgTimesheetControllerAuditTest {
         var response = controller().exportCsv(orgAdmin(), from, to);
 
         assertThat(response.getBody()).contains("name,hours");
+        // C2 (03/09/2026): CSV chấm công là PII → cấm cache.
+        assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-store");
         var actor = ArgumentCaptor.forClass(AuditActor.class);
         var meta = ArgumentCaptor.forClass(Map.class);
         verify(auditLogService).log(eq("admin.org.timesheet.exported"), actor.capture(),
