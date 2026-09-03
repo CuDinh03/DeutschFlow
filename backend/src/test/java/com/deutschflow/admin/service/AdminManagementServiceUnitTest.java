@@ -20,6 +20,7 @@ import com.deutschflow.user.entity.User;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -171,12 +172,15 @@ class AdminManagementServiceUnitTest {
                 .role(User.Role.ADMIN).active(true).build();
         when(userRepository.findById(20L)).thenReturn(Optional.of(lastAdmin));
         when(orgMembershipService.hasActiveMembership(20L)).thenReturn(false);
-        when(userRepository.countByRoleAndActiveTrue(User.Role.ADMIN)).thenReturn(1L);
+        // R-M2: guard nay đếm DƯỚI khóa FOR UPDATE — chỉ còn 1 admin hoạt động → chặn.
+        when(userRepository.lockActiveIdsByRoleForUpdate("ADMIN")).thenReturn(List.of(20L));
 
         assertThrows(BadRequestException.class, () -> service.updateUserRole(20L, "STUDENT"));
 
         assertEquals(User.Role.ADMIN, lastAdmin.getRole());   // không đổi
         verify(userRepository, never()).save(any(User.class));
+        // R-M2: bất biến phải đếm DƯỚI khóa FOR UPDATE, không đọc trần → chống race.
+        verify(userRepository).lockActiveIdsByRoleForUpdate("ADMIN");
     }
 
     @Test
@@ -185,7 +189,8 @@ class AdminManagementServiceUnitTest {
                 .role(User.Role.ADMIN).active(true).build();
         when(userRepository.findById(21L)).thenReturn(Optional.of(admin));
         when(orgMembershipService.hasActiveMembership(21L)).thenReturn(false);
-        when(userRepository.countByRoleAndActiveTrue(User.Role.ADMIN)).thenReturn(2L);
+        // Có admin thứ hai (21L + 99L) → bất biến không chặn.
+        when(userRepository.lockActiveIdsByRoleForUpdate("ADMIN")).thenReturn(List.of(21L, 99L));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         service.updateUserRole(21L, "STUDENT");
@@ -198,7 +203,7 @@ class AdminManagementServiceUnitTest {
         User lastAdmin = User.builder().id(22L).email("a3@x.com").displayName("A3")
                 .role(User.Role.ADMIN).active(true).build();
         when(userRepository.findById(22L)).thenReturn(Optional.of(lastAdmin));
-        when(userRepository.countByRoleAndActiveTrue(User.Role.ADMIN)).thenReturn(1L);
+        when(userRepository.lockActiveIdsByRoleForUpdate("ADMIN")).thenReturn(List.of(22L));
 
         assertThrows(BadRequestException.class, () -> service.setUserActive(22L, false));
 
@@ -211,7 +216,7 @@ class AdminManagementServiceUnitTest {
         User admin = User.builder().id(23L).email("a4@x.com").displayName("A4")
                 .role(User.Role.ADMIN).active(true).build();
         when(userRepository.findById(23L)).thenReturn(Optional.of(admin));
-        when(userRepository.countByRoleAndActiveTrue(User.Role.ADMIN)).thenReturn(2L);
+        when(userRepository.lockActiveIdsByRoleForUpdate("ADMIN")).thenReturn(List.of(23L, 99L));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var out = service.setUserActive(23L, false);
@@ -228,8 +233,8 @@ class AdminManagementServiceUnitTest {
 
         service.setUserActive(24L, false);
 
-        // Khóa một TEACHER không được tốn thêm một COUNT trên bảng users.
-        verify(userRepository, never()).countByRoleAndActiveTrue(any());
+        // Khóa một TEACHER không được tốn thêm một truy vấn khóa admin trên bảng users.
+        verify(userRepository, never()).lockActiveIdsByRoleForUpdate(anyString());
     }
 
     @Test
@@ -243,7 +248,7 @@ class AdminManagementServiceUnitTest {
         service.updateUserRole(25L, "ADMIN");
 
         assertEquals(User.Role.ADMIN, student.getRole());
-        verify(userRepository, never()).countByRoleAndActiveTrue(any());
+        verify(userRepository, never()).lockActiveIdsByRoleForUpdate(anyString());
     }
 
     // ── F-H3: thao tác đặc quyền của admin phải cắt phiên đang chạy của target ──────
@@ -280,8 +285,8 @@ class AdminManagementServiceUnitTest {
                 .role(User.Role.ADMIN).active(true).build();
         when(userRepository.findById(11L)).thenReturn(Optional.of(u));
         when(orgMembershipService.hasActiveMembership(11L)).thenReturn(false);
-        // Có admin khác → bất biến last-admin (F-M1) không chặn; ca này chỉ nói về revoke session.
-        when(userRepository.countByRoleAndActiveTrue(User.Role.ADMIN)).thenReturn(2L);
+        // Có admin khác → bất biến last-admin (F-M1/R-M2) không chặn; ca này chỉ nói về revoke session.
+        when(userRepository.lockActiveIdsByRoleForUpdate("ADMIN")).thenReturn(List.of(11L, 99L));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var out = service.updateUserRole(11L, "student");
