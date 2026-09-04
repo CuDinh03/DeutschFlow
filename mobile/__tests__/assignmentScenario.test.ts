@@ -6,6 +6,12 @@ jest.mock('@/lib/api', () => ({
   apiMessage: (e: unknown) => (e instanceof Error ? e.message : String(e)),
 }))
 
+jest.mock('expo-file-system/legacy', () => ({
+  __esModule: true,
+  FileSystemUploadType: { BINARY_CONTENT: 0, MULTIPART: 1 },
+  uploadAsync: jest.fn(),
+}))
+
 import api from '@/lib/api'
 import { fetchAssignmentScenario, scenarioTopic } from '@/lib/studentClassesApi'
 import { speakingApi } from '@/lib/speakingApi'
