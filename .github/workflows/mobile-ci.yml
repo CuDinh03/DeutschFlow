@@ -111,24 +111,35 @@ jobs:
 
   # Soát 02/09 (F-5): chuỗi OTA từng đứt ÂM THẦM 3 tuần vì không gì canh runtime
   # fingerprint — PR đổi dep native (vd Sentry 8.17→8.23) trông y như PR JS thường,
-  # nhưng OTA từ sau nó không tới được build đang phát hành nữa. Job này so
-  # fingerprint HEAD vs commit trước và comment lên PR khi runtime ĐỔI.
+  # nhưng OTA từ sau nó không tới được build đang phát hành nữa.
+  #
+  # Viết lại 05/09 (đợt 0 plan nâng cấp mobile, AC-MOBFIX-13). Bản cũ dùng
+  # expo/expo-github-action/fingerprint@v8 — action đó KHÔNG tính fingerprint của commit gốc mà
+  # tra trong một DB sqlite cất ở Actions cache ("previous-fingerprint … may be null if not
+  # computed previously"). Cache trả 400 và DB chưa từng được ghi ⇒ previous = null ⇒ diff = toàn
+  # bộ ⇒ cảnh báo "runtime ĐỔI" ở MỌI PR (#525 thuần JS lẫn #526 chỉ sửa workflow đều bị). Guard
+  # kêu nhầm liên tục thì không ai tin nó nữa. Bản này tự tính CẢ HAI phía bằng
+  # `npx expo-updates fingerprint:generate --platform ios` — đúng thuật toán mà
+  # `runtimeVersion.policy = fingerprint` dùng lúc EAS build (trên main 89988670 ra đúng
+  # dfba226a… = runtime build 17). ĐỪNG thay bằng `npx @expo/fingerprint .`: nó ra số khác vì
+  # thiếu platform/option (bẫy đã ghi trong handoff mobile §3.1).
+  # Tuỳ chọn: đặt repo variable PROD_RUNTIME_FINGERPRINT = runtime của build đang phát hành → job
+  # nói thêm HEAD còn khớp build đó không (OTA tới được hay không).
   # Informational (continue-on-error) — cảnh báo, không chặn merge và KHÔNG là required check.
   fingerprint-guard:
     name: 🫆 Fingerprint (cảnh báo đổi runtime)
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.mobile == 'true'
-    timeout-minutes: 10
+    timeout-minutes: 15
     continue-on-error: true
-    concurrency: mobile-fingerprint-${{ github.event_name != 'pull_request' && 'main' || github.run_id }}
-    permissions:
-      pull-requests: write
-      actions: write
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          # Cần đủ lịch sử để dựng worktree tại commit gốc (base của PR / commit trước của push).
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -137,18 +148,57 @@ jobs:
           cache: 'npm'
           cache-dependency-path: mobile/package-lock.json
 
-      - name: Check fingerprint
-        id: fingerprint
-        uses: expo/expo-github-action/fingerprint@v8
-        with:
-          working-directory: ./mobile
-          packager: npm
-
-      - name: Cảnh báo khi runtime đổi
-        if: ${{ steps.fingerprint.outputs.fingerprint-diff != '[]' && steps.fingerprint.outputs.fingerprint-diff != '' }}
+      - name: Fingerprint HEAD (ios)
+        working-directory: ./mobile
         run: |
-          echo "::warning title=Runtime fingerprint ĐỔI::PR này đổi native fingerprint — OTA từ sau khi merge sẽ KHÔNG tới các build cũ; cần cắt build native mới để giao thay đổi JS tiếp theo."
-          echo '### 🫆 Runtime fingerprint ĐỔI' >> "$GITHUB_STEP_SUMMARY"
-          echo '- previous: `${{ steps.fingerprint.outputs.previous-fingerprint }}`' >> "$GITHUB_STEP_SUMMARY"
-          echo '- current:  `${{ steps.fingerprint.outputs.current-fingerprint }}`' >> "$GITHUB_STEP_SUMMARY"
-          echo 'OTA sau merge sẽ không tới build cũ — lên kế hoạch cắt build native.' >> "$GITHUB_STEP_SUMMARY"
+          npm ci
+          npx expo-updates fingerprint:generate --platform ios > "$RUNNER_TEMP/fp-head.json"
+          echo "HEAD: $(node -p "require('$RUNNER_TEMP/fp-head.json').hash")"
+
+      - name: Fingerprint commit gốc (ios)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "Không có commit gốc để so (push nhánh mới?) — bỏ qua phần so sánh."
+            echo '{"hash":null,"sources":[]}' > "$RUNNER_TEMP/fp-base.json"
+            exit 0
+          fi
+          git worktree add --detach "$RUNNER_TEMP/base" "$BASE_SHA"
+          cd "$RUNNER_TEMP/base/mobile"
+          npm ci
+          npx expo-updates fingerprint:generate --platform ios > "$RUNNER_TEMP/fp-base.json"
+          echo "BASE ($BASE_SHA): $(node -p "require('$RUNNER_TEMP/fp-base.json').hash")"
+
+      - name: So sánh và cảnh báo
+        env:
+          PROD_RUNTIME: ${{ vars.PROD_RUNTIME_FINGERPRINT }}
+        run: |
+          node - "$RUNNER_TEMP/fp-base.json" "$RUNNER_TEMP/fp-head.json" <<'JS'
+          const fs = require('fs');
+          const [baseFile, headFile] = process.argv.slice(2);
+          const key = (s) => `${s.type}:${s.filePath ?? s.id ?? ''}`;
+          const idx = (fp) => Object.fromEntries((fp.sources ?? []).map((s) => [key(s), s.hash ?? '']));
+          const base = JSON.parse(fs.readFileSync(baseFile, 'utf8'));
+          const head = JSON.parse(fs.readFileSync(headFile, 'utf8'));
+          const A = idx(base), B = idx(head);
+          const changed = [...new Set([...Object.keys(A), ...Object.keys(B)])].filter((k) => A[k] !== B[k]).sort();
+          const summary = [];
+          const prod = (process.env.PROD_RUNTIME || '').trim();
+          if (base.hash && base.hash !== head.hash) {
+            console.log(`::warning title=Runtime fingerprint ĐỔI::PR này đổi native fingerprint (${base.hash.slice(0, 8)} → ${head.hash.slice(0, 8)}) — OTA từ sau khi merge sẽ KHÔNG tới các build cũ; cần cắt build native mới để giao thay đổi JS tiếp theo.`);
+            summary.push('### 🫆 Runtime fingerprint ĐỔI', `- previous: \`${base.hash}\``, `- current:  \`${head.hash}\``, '- nguồn đổi:', ...changed.map((c) => `  - \`${c}\``), '', 'OTA sau merge sẽ không tới build cũ — lên kế hoạch cắt build native.');
+          } else if (base.hash) {
+            console.log(`::notice title=Runtime fingerprint giữ nguyên::${head.hash}`);
+            summary.push('### 🫆 Runtime fingerprint giữ nguyên', `- \`${head.hash}\``);
+          } else {
+            summary.push('### 🫆 Không có commit gốc để so', `- HEAD: \`${head.hash}\``);
+          }
+          if (prod) {
+            const ok = prod === head.hash;
+            summary.push('', ok ? `✅ HEAD khớp runtime đang phát hành (\`${prod.slice(0, 8)}\`) — OTA từ nhánh này tới được build đó.` : `⚠️ HEAD KHÁC runtime đang phát hành \`${prod.slice(0, 8)}\` — OTA từ nhánh này KHÔNG tới build đó.`);
+            if (!ok) console.log(`::warning title=Lệch runtime đang phát hành::HEAD ${head.hash.slice(0, 8)} ≠ PROD_RUNTIME_FINGERPRINT ${prod.slice(0, 8)}`);
+          }
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary.join('\n') + '\n');
+          JS
