@@ -3,6 +3,9 @@ import { cn } from '@/lib/utils'
 import { GaSidebar } from './GaSidebar'
 import { GaTopBar } from './GaTopBar'
 import { GaShellNavProvider } from './GaShellNav'
+import { GaRoleProvider } from './gaScope'
+import { GaLocalNav } from './GaLocalNav'
+import { GaBottomNav } from './GaBottomNav'
 import { MaintenanceBanner } from '@/components/system/MaintenanceBanner'
 import { ROLE_NAV, type RoleId } from './nav'
 
@@ -25,6 +28,9 @@ export interface GaShellProps {
 
 export function GaShell({ role, children, className }: GaShellProps) {
   return (
+    // GaRoleProvider (Gate 0 remediation #1): khai role MỘT lần cho cả cây — portal components
+    // (TkModal, GaPopover/GaTooltip/GaSelect) tự nhận đúng data-role, page không phải truyền tay.
+    <GaRoleProvider role={role}>
     <GaShellNavProvider>
       <div
         data-role={role}
@@ -39,9 +45,16 @@ export function GaShell({ role, children, className }: GaShellProps) {
               h-[100dvh], phần tử fixed sẽ che content thay vì đẩy layout). */}
           <MaintenanceBanner />
           <GaTopBar role={role} />
+          {/* Điều hướng cấp 2 của area (Wave 1 / S-01) — chrome của shell nên mọi màn đều có
+              đường vào đầy đủ mà không phải sửa page. Tự ẩn khi area không có local nav. */}
+          <GaLocalNav role={role} />
           <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+          {/* Bottom nav web <768px (S-13). Là anh em flex của <main>, không phải overlay
+              `fixed`, nên không cần padding bù và không bao giờ che nội dung. */}
+          <GaBottomNav role={role} />
         </div>
       </div>
     </GaShellNavProvider>
+    </GaRoleProvider>
   )
 }

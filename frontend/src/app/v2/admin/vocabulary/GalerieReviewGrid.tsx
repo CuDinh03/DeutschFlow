@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { RefreshCw, Sparkles, ImagePlus } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaBtn, GaCap, AdStatStrip } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 
 // Tab Galerie (plan mục 16/30–31): review CẢ COLLECTION cạnh nhau, không review lẻ.
 //   GET  /api/v2/admin/vocabulary/galerie/overview?status&limit&offset   → rows (snake_case)
@@ -15,7 +15,6 @@ import { GaBtn, GaCap, AdStatStrip } from '@/components/ui-v2'
 //   POST /api/v2/admin/vocabulary/galerie/generate?limit=                → batch response (chậm ~5–15s/ảnh)
 //   POST /api/v2/admin/vocabulary/galerie/{id}/decision {decision}       → 200 | 409
 
-const GOLD = '#C79A00'
 // Bucket S3 private (nợ bucket-policy 14/07) → render artwork qua endpoint public của backend.
 const BACKEND_ORIGIN = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080')
   .replace(/\/+$/, '')
@@ -137,24 +136,24 @@ export default function GalerieReviewGrid() {
 
   return (
     <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
-      <AdStatStrip
+      <GaStatStrip
         className="mb-5"
-        cells={[
+        items={[
           {
             label: t('statConceptMissing'),
             value: conceptMissing === null ? '—' : conceptMissing.toLocaleString('vi-VN'),
-            color: '#2F6FC9',
+            tone: 'blue',
           },
           {
             label: t('statReady'),
             value: svgReady === null ? '—' : svgReady.toLocaleString('vi-VN'),
-            color: GOLD,
+            tone: 'gold',
             alert: (svgReady ?? 0) > 0,
           },
           {
             label: t('statShowing'),
             value: rows.length.toLocaleString('vi-VN'),
-            color: '#1E9E61',
+            tone: 'green',
           },
         ]}
       />

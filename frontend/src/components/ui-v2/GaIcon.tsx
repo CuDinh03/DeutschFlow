@@ -40,6 +40,8 @@ import {
   Search,
   HelpCircle,
   Circle,
+  Compass,
+  ChevronDown,
   PenLine,
   FileQuestion,
   TrendingUp,
@@ -305,6 +307,9 @@ const ICONS: Record<string, LucideIcon> = {
   // ── TYPE_ICON của notifications (notificationDisplay.ts) ─────────────────
   // Thiếu khoá nào thì bell dropdown + toast thông báo rơi về Circle rỗng trông như lỗi UI.
   event: CalendarDays,
+  // Chevron nhóm local nav (B-05) + nhóm Khám phá của Lernen — thiếu là rơi về Circle rỗng.
+  expand_more: ChevronDown,
+  explore: Compass,
   event_busy: CalendarX,
   edit_calendar: CalendarClock,
   person_off: UserX,

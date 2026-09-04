@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { xpApi, type XpSummaryDto, type LeaderboardEntry, type AchievementDto } from '@/lib/xpApi'
 import { useUserStore } from '@/stores/useUserStore'
-import { GaPageHdr, TkStatStrip, GaCap, GaIcon, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import { GaPageHdr, GaStatStrip, GaCap, GaIcon, LoadingState, ErrorBanner } from '@/components/ui-v2'
 
 const RARITY: Record<string, { labelKey: string; color: string }> = {
   COMMON: { labelKey: 'rarity.common', color: '#76716A' },
@@ -80,12 +80,12 @@ export default function V2AchievementsPage() {
           <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
-            <TkStatStrip
+            <GaStatStrip
               items={[
-                { label: t('stats.level'), value: xp ? `Lv ${xp.level}` : '—', color: '#C79A00' },
-                { label: t('stats.totalXp'), value: xp ? xp.totalXp.toLocaleString('vi-VN') : '—', color: '#7C56C8' },
-                { label: t('stats.badges'), value: `${unlocked}/${total}`, sub: t('stats.badgesSub'), color: '#1E9E61' },
-                { label: t('stats.rank'), value: myRank ? `#${myRank}` : '—', sub: t('stats.rankSub'), color: '#2F6FC9' },
+                { label: t('stats.level'), value: xp ? `Lv ${xp.level}` : '—', tone: 'gold' },
+                { label: t('stats.totalXp'), value: xp ? xp.totalXp.toLocaleString('vi-VN') : '—', tone: 'violet' },
+                { label: t('stats.badges'), value: `${unlocked}/${total}`, sub: t('stats.badgesSub'), tone: 'green' },
+                { label: t('stats.rank'), value: myRank ? `#${myRank}` : '—', sub: t('stats.rankSub'), tone: 'blue' },
               ]}
             />
 

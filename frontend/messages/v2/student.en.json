@@ -46,7 +46,48 @@
       "recentAch": "Recent achievements",
       "viewAllAch": "View all achievements",
       "beginnerTitle": "Start your first session",
-      "beginnerDesc": "10 core German words + a chat with the AI"
+      "beginnerDesc": "10 core German words + a chat with the AI",
+      "continue": {
+        "eyebrow": "Weiterlernen",
+        "progressLabel": "Chapter progress",
+        "lessons": "{done}/{total} lessons done",
+        "cta": "Weiterlernen",
+        "ctaHelper": "Continue learning",
+        "startEyebrow": "Erste Lektion",
+        "startTitle": "Start your first lesson",
+        "startDesc": "We will walk you through the first lesson, step by step.",
+        "startCta": "Start",
+        "doneEyebrow": "Lernweg",
+        "doneTitle": "You finished everything unlocked",
+        "doneDesc": "Open the learning path to pick the next stage or review what you finished.",
+        "doneCta": "Open learning path"
+      },
+      "today": {
+        "eyebrow": "Heute",
+        "empty": "Nothing due today. Continuing above is enough.",
+        "srs": "Review due vocabulary",
+        "srsMeta": "{count} items due",
+        "speaking": "Speak with the AI",
+        "weekly": "Weekly speaking task",
+        "repair": "Fix your frequent mistake"
+      },
+      "habit": {
+        "label": "Study habit",
+        "streak": "day streak",
+        "level": "Level {level}",
+        "xpToNext": "{xp} XP to go"
+      },
+      "journey": {
+        "eyebrow": "Lernweg",
+        "completion": "{done}/{total} stages · {percent}%",
+        "viewAll": "View the whole path",
+        "status": {
+          "completed": "Done",
+          "inProgress": "In progress",
+          "available": "Ready",
+          "locked": "Locked"
+        }
+      }
     },
     "vocabulary": {
       "title": "Vocabulary",
@@ -249,6 +290,21 @@
         "skillsMastered": "{done}/4 skills at {threshold}% or higher",
         "unlockCondition": "Finish {target} to open this bud.",
         "goPrereq": "Go to the blocking day"
+      },
+      "headerContext": "Current stage: {phase}",
+      "courseProgressLabel": "Path progress",
+      "courseCompletion": "{done}/{total} stages",
+      "viewLabel": "Path view",
+      "viewTree": "Tree",
+      "viewList": "List",
+      "nodeProgressLabel": "Stage progress",
+      "nodeLockedBy": "Finish «{prev}» to unlock this stage.",
+      "nodeLockedGeneric": "Follow the path in order to unlock this stage.",
+      "nodeStatus": {
+        "completed": "Done",
+        "inProgress": "In progress",
+        "available": "Ready",
+        "locked": "Locked"
       }
     },
     "speaking": {
@@ -302,25 +358,31 @@
       "noExams": "This pack has no exams yet."
     },
     "exam": {
-      "title": "Goethe Exam Prep",
-      "subtitle": "Prepare for the German certification exam at each level",
-      "heroCap": "Ready to test yourself?",
-      "heroTitle": "Take a mock exam with AI scoring",
-      "heroDesc": "Simulate the real exam format and get scores and instant feedback.",
-      "heroCta": "Start a mock exam",
-      "levelsCap": "Levels",
-      "levels": {
-        "a1Desc": "Basic everyday communication, introducing yourself.",
-        "a2Desc": "Familiar situations and immediate needs.",
-        "b1Desc": "Manage while traveling, write & speak on familiar topics.",
-        "b2Desc": "Understand complex texts, communicate fluently."
-      },
-      "skillsCap": "Practice by skill",
+      "title": "Goethe exam prep",
+      "subtitle": "Three different things: a timed mock exam, a readiness check, and your past results",
+      "preparingFor": "You are preparing for: <strong>Goethe {level}</strong>",
+      "simCap": "Prüfungssimulation",
+      "simTitle": "Full exam, on the clock",
+      "simDesc": "The real exam format, timed and scored. Take it when you want to know where you stand under exam-day conditions.",
+      "simSaveNotice": "Your answers autosave to your account while you work — reloads, dropped connections and device switches all resume where you left off. When time runs out the exam submits itself.",
+      "simCta": "Pick a paper and start",
+      "readinessCap": "B1-Bereitschaft",
+      "readinessTitle": "B1 readiness check",
+      "readinessDesc": "Not an exam. A five-criteria assessment of whether you are ready to sit the B1 exam.",
+      "reportsCap": "Prüfungsberichte",
+      "reportsTitle": "History and score sheets",
+      "reportsDesc": "Past attempts, per-section scores and detailed corrections.",
+      "skillsCap": "What the exam covers",
       "skills": {
-        "listening": "Listening (Hören)",
-        "reading": "Reading & Writing (Lesen/Schreiben)",
-        "speaking": "Speaking (Sprechen)",
-        "mock": "Full mock exam"
+        "lesenName": "Lesen",
+        "lesenDesc": "Reading texts, signs and emails.",
+        "hoerenName": "Hören",
+        "hoerenDesc": "Listening to conversations and announcements.",
+        "schreibenName": "Schreiben",
+        "schreibenDesc": "Filling forms and writing short letters.",
+        "sprechenName": "Sprechen",
+        "sprechenDesc": "Introducing yourself, asking, presenting.",
+        "sprechenLink": "Open the speaking room"
       }
     },
     "classes": {
@@ -596,10 +658,20 @@
         "beginnerDesc": "Day 1: core words and your first greeting phrases"
       }
     },
+    "examShell": {
+      "sectionOf": "Section {index}/{total}",
+      "exit": "Exit",
+      "progressLabel": "Exam progress",
+      "answered": "{done}/{total} answered",
+      "saveSaving": "Saving…",
+      "saveSaved": "Saved",
+      "saveSavedAt": "Saved · {time}",
+      "saveError": "Couldn't save — retrying automatically",
+      "timeLeftAnnounce": "{minutes} minutes left"
+    },
     "mockExamRun": {
       "draftRestored": "Draft restored — {count} answers you saved earlier.",
-      "draftConflict": "This attempt was just updated from another device — loaded the newest draft.",
-      "draftExpired": "Time is up — submitting your exam now.",
+      "confirmExit": "Leave the exam? Your work is autosaved so you can come back, but the clock keeps running.",
       "title": "Goethe mock exam",
       "subtitle": "Sit the official Goethe-Institut format with automatic scoring",
       "loading": "Loading…",
@@ -655,7 +727,9 @@
       "reviewTotal": "Total score: {score}",
       "notAnswered": "Not answered",
       "yourAnswer": "Your answer",
-      "correctAnswer": "Correct answer"
+      "correctAnswer": "Correct answer",
+      "draftConflict": "This attempt was just updated from another device — loaded the newest draft.",
+      "draftExpired": "Time is up — submitting your exam now."
     },
     "grammarPractice": {
       "title": "Grammar practice",
@@ -700,7 +774,15 @@
       "downloadReport": "Download report",
       "generatingReport": "AI is analysing your interview…",
       "reportTimeout": "Report timed out — please try again",
-      "phaseCap": "Results by phase"
+      "phaseCap": "Results by phase",
+      "whatCap": "What an AI interview is",
+      "whatDesc": "A simulated job interview in German: a recruiter, a role you are applying for, five stages from introduction to closing, and an assessment report at the end.",
+      "whatVsStudio": "Different from AI Speaking — there you pick an everyday scenario and practise freely, without being judged against hiring criteria.",
+      "incompleteSaved": "Answered turns are saved",
+      "resume": "Resume session",
+      "resuming": "Reopening…",
+      "resumeFailed": "Could not reopen this session. Check your connection and try again.",
+      "resumeUnknownPersona": "The interviewer for this session is not recognised, so it cannot be reopened. The report is still available."
     },
     "speakingHistory": {
       "title": "Speaking History",
@@ -1106,13 +1188,9 @@
       "loading": "Loading…",
       "subtitle": "Loading…",
       "headerSubtitle": "{node} · Generation {gen}",
-      "metaLine": "{node} · Generation {gen} · {count} questions",
       "backToSkills": "Back to skill picker",
       "loadError": "Could not load the exercises. Please try again.",
       "noSession": "No exercises yet for this skill.",
-      "emptySession": "This session has no questions.",
-      "emptySessionHint": "The AI could not generate exercises for this round. Tap below to generate a new set.",
-      "regenerate": "Generate again",
       "generateError": "Could not generate new exercises.",
       "generatingExercises": "AI is generating exercises…",
       "correctLabel": "Correct",
@@ -1130,6 +1208,10 @@
       "generating": "Generating…",
       "otherSkill": "Pick another skill",
       "totalSeen": "You have practised {count} non-repeating questions in total",
+      "exerciseCount": "{count} exercises in this set",
+      "emptySession": "This session has no questions.",
+      "emptySessionHint": "The AI could not generate exercises for this round. Tap below to generate a new set.",
+      "regenerate": "Generate again",
       "backToTree": "Back to the tree",
       "backToTreeGrow": "Back to the tree — watch it grow",
       "seeding": "Growing a set just for you…",
@@ -1138,19 +1220,19 @@
       "errorQuota": "You've used up today's AI allowance. Existing sets still work; new ones unlock later.",
       "errorRateLimited": "That was a bit fast — try again in {seconds} seconds.",
       "errorAiUnavailable": "The AI assistant is busy and couldn't generate a set. Try again in a few minutes.",
-      "errorJobFailed": "Generating the set failed. Hit retry to grow a new one."
+      "errorJobFailed": "Generating the set failed. Hit retry to grow a new one.",
+      "metaLine": "{node} · Generation {gen} · {count} questions"
     },
     "learnNode": {
-      "progressNotSaved": "Your progress could not be saved to the server.",
-      "scoreBelowThreshold": "The server scored {score}% — below the passing threshold, so your progress was not recorded.",
-      "toPractice": "Practice 4 skills",
       "roadmapContext": "Position in roadmap",
       "completedInRoadmap": "of the roadmap completed",
       "contentPendingTitle": "⚡ Content is being prepared",
       "contentPendingDesc": "The {level} lesson will be added soon. Finish the A1 lessons first!",
       "retryTitle": "⚠️ Not enough to pass this node yet",
       "retryDesc": "Listening/Reading require 100% • Speaking/Pronunciation/Writing require ≥ 80 points",
-      "retryCta": "🔄 Try again"
+      "retryCta": "🔄 Try again",
+      "progressNotSaved": "Your progress could not be saved to the server.",
+      "scoreBelowThreshold": "The server scored {score}% — below the passing threshold, so your progress was not recorded."
     },
     "stats": {
       "title": "Learning statistics",
@@ -1213,6 +1295,31 @@
       "allDone": "You have completed all review tasks for today!",
       "completedCap": "Completed ({count})",
       "times": "{count} times"
+    },
+    "interviewShell": {
+      "phaseProgressLabel": "Interview progress",
+      "phaseOf": "Stage {index}/{total}",
+      "notStarted": "Not started",
+      "phases": {
+        "INTRO": "Introduction",
+        "ICE_BREAKER": "Ice breaker",
+        "HARD_SKILLS": "Hard skills",
+        "STAR_SOFT": "Situational",
+        "CLOSING": "Closing"
+      }
+    },
+    "lessonShell": {
+      "exit": "Exit",
+      "modeLabel": "Lesson mode",
+      "modeLearn": "Learn",
+      "modePractice": "Practice",
+      "minutes": "~{n} min",
+      "objective": "Goal",
+      "progressLabel": "Lesson progress",
+      "step": "Step {current}/{total}",
+      "savedOnDevice": "Saved on this device at {time}",
+      "saveUnavailable": "Cannot save your work on this device",
+      "restoredDraft": "Restored your unfinished work from this device"
     },
     "examSpeaking": {
       "catalog": {

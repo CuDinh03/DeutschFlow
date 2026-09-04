@@ -2,6 +2,10 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ConfirmDialog } from './ConfirmDialog'
 
+// TkModal (Wave 0) gọi useTranslations('v2.ui') cho aria-label — test này chỉ khẳng định
+// nội dung từ props nên mock key-as-string là đủ, khỏi dựng provider.
+vi.mock('next-intl', () => ({ useTranslations: () => (k: string) => k }))
+
 /** §2.11: mọi thao tác xóa phải qua dialog xác nhận — chọn rồi mới thực thi. */
 describe('ConfirmDialog — chuẩn xác nhận trước khi xóa', () => {
   const baseProps = {

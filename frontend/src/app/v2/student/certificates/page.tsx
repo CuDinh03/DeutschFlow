@@ -8,7 +8,7 @@ import { Award, Download, Lock, ShieldCheck, Star } from 'lucide-react'
 import api, { isAxiosErr } from '@/lib/api'
 import { getAccessToken } from '@/lib/authSession'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
-import { GaBtn, GaCap, GaPageHdr, LoadingState, TkStatStrip } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaPageHdr, LoadingState, GaStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /v2/student/certificates — CEFR certificate list (Galerie shell).
@@ -131,11 +131,11 @@ export default function V2StudentCertificatesPage() {
           <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
-            <TkStatStrip
+            <GaStatStrip
               items={[
-                { label: t('stats.earned'), value: certs.length, sub: t('stats.earnedSub'), color: '#1E9E61' },
-                { label: t('stats.locked'), value: locked.length, sub: t('stats.lockedSub'), color: '#C79A00' },
-                { label: t('stats.total'), value: ALL_LEVELS.length, sub: t('stats.totalSub'), color: '#2F6FC9' },
+                { label: t('stats.earned'), value: certs.length, sub: t('stats.earnedSub'), tone: 'green' },
+                { label: t('stats.locked'), value: locked.length, sub: t('stats.lockedSub'), tone: 'gold' },
+                { label: t('stats.total'), value: ALL_LEVELS.length, sub: t('stats.totalSub'), tone: 'blue' },
               ]}
             />
 

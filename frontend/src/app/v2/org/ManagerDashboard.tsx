@@ -10,7 +10,7 @@ import {
   getOrgSummary, getAnalytics, listClasses, listInvitations, listStudents,
   type OrgSummary, type OrgAnalytics, type OrgClass, type OrgInvitation, type OrgMember,
 } from '@/lib/orgApi'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Org dashboard MANAGER ("nhân sự") — teal (role=org), song song với OwnerDashboard.
@@ -180,33 +180,33 @@ export function OrgManagerDashboard() {
       />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
-        <TkStatStrip
+        <GaStatStrip
           items={[
             {
               label: t('stats.sessionsToday'),
               value: loading ? '—' : todaySessions.length,
               sub: disrupted > 0 ? t('stats.sessionsDisrupted', { count: disrupted }) : t('stats.sessionsOnTrack'),
-              color: TEAL,
+              tone: 'teal',
               alert: disrupted > 0,
             },
             {
               label: t('stats.openClasses'),
               value: loading ? '—' : (analytics?.classCount ?? classes.length),
               sub: teacherless.length > 0 ? t('stats.teacherless', { count: teacherless.length }) : t('stats.allStaffed'),
-              color: '#7C56C8',
+              tone: 'violet',
               alert: teacherless.length > 0,
             },
             {
               label: t('stats.students'),
               value: loading ? '—' : (analytics?.studentCount ?? summary?.studentCount ?? 0),
               sub: t('stats.active7d', { count: analytics?.activeStudents7d ?? 0 }),
-              color: '#2F6FC9',
+              tone: 'blue',
             },
             {
               label: t('stats.pendingInvites'),
               value: loading ? '—' : pending.length,
               sub: t('stats.expiringSoon', { count: expiringSoon.length }),
-              color: '#1E9E61',
+              tone: 'green',
               alert: expiringSoon.length > 0,
             },
           ]}

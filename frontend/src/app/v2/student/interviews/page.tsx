@@ -1,9 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Briefcase, Calendar, Check, Download, Loader2, MessageSquare, Plus, Target, X } from 'lucide-react'
+import { ArrowLeft, Briefcase, Calendar, Download, Loader2, MessageSquare, Play, Plus, Target, Check, X } from 'lucide-react'
 import api from '@/lib/api'
+import { aiSpeakingApi } from '@/lib/aiSpeakingApi'
+import { aiMessagesToChatMessages, companionFromPersonaId } from '@/lib/speaking/resumeSession'
+import { resumeSpeakingSessionIntoStore } from '@/lib/speakingSessionBootstrap'
+import { useChatStore } from '@/stores/useChatStore'
 import { SessionSummary } from '@/components/features/ai-speaking/SessionSummary'
 import { submitInterviewReport, streamJobResult } from '@/lib/interviewReportApi'
 import { interviewDomainApi, type InterviewPhaseResultInfo } from '@/lib/interviewDomainApi'
@@ -58,6 +63,8 @@ interface SpeakingSession {
   interviewPosition?: string
   experienceLevel?: string
   interviewReportJson?: string
+  /** Có sẵn trong lượt liệt kê (toSessionDto trả về) — cần cho luồng "Tiếp tục". */
+  responseSchema?: string | null
 }
 
 export default function V2StudentInterviewsPage() {
@@ -75,7 +82,53 @@ export default function V2StudentInterviewsPage() {
   const [phaseResults, setPhaseResults] = useState<InterviewPhaseResultInfo[]>([])
   const [generatingReport, setGeneratingReport] = useState(false)
   const [reportError, setReportError] = useState<string | null>(null)
+  const [resumingId, setResumingId] = useState<number | null>(null)
+  const [resumeError, setResumeError] = useState<string | null>(null)
   const reportStreamRef = useRef<AbortController | null>(null)
+  const router = useRouter()
+  const setReturnPath = useChatStore((st) => st.setReturnPath)
+
+  /**
+   * "Tiếp tục" — nửa UI còn thiếu của S-06 AC-2.
+   *
+   * Dữ liệu chưa bao giờ mất: backend ghi từng lượt ngay khi nó hoàn tất
+   * (`InterviewDomainCoordinator.onTurnCompleted → saveTurn`, REQUIRES_NEW — verify ở B-15), khác
+   * hẳn engine thi của B-13. Thứ thiếu suốt từ đó chỉ là ĐƯỜNG QUAY LẠI: engine đọc phiên từ
+   * `useChatStore`, mà không màn nào nạp lại store cho một phiên cũ, nên phiên dở là ngõ cụt —
+   * xem được báo cáo, không nói tiếp được.
+   */
+  const resumeSession = async (sess: SpeakingSession) => {
+    const companion = companionFromPersonaId(sess.persona, sess.cefrLevel)
+    if (!companion) {
+      setResumeError(t('resumeUnknownPersona'))
+      return
+    }
+
+    setResumingId(sess.id)
+    setResumeError(null)
+    try {
+      const res = await aiSpeakingApi.getMessages(sess.id)
+      resumeSpeakingSessionIntoStore({
+        sessionId: sess.id,
+        responseSchema: sess.responseSchema,
+        companion,
+        sessionMode: 'INTERVIEW',
+        topic: sess.topic ?? null,
+        experienceLevel: sess.experienceLevel ?? null,
+        messages: aiMessagesToChatMessages(res.data ?? []),
+      })
+      // clearChat() giữ returnPath, nhưng đặt sau cho chắc: thoát phòng phải về đúng màn này.
+      setReturnPath(RETURN_TO)
+      trackFeatureAction('interview_session', 'resumed', {
+        session_id: sess.id,
+        message_count: sess.messageCount,
+      })
+      router.push('/v2/student/speaking/live')
+    } catch {
+      setResumeError(t('resumeFailed'))
+      setResumingId(null)
+    }
+  }
 
   useEffect(() => {
     api
@@ -321,7 +374,16 @@ export default function V2StudentInterviewsPage() {
         }
       />
       <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
-        <div className="mx-auto max-w-3xl space-y-3">
+        <div className="mx-auto max-w-3xl space-y-5">
+          {/* Interview KHÁC Studio ở đâu — nói ngay tại cửa vào (S-06 AC-5). Trước B-15 màn này
+              chỉ là danh sách báo cáo, còn cửa vào là màn chọn nhân vật DÙNG CHUNG với luyện nói,
+              nên hai sản phẩm nhoè vào nhau đúng chỗ người dùng cần phân biệt nhất. */}
+          <div className="rounded-ga border border-ga-line bg-ga-card p-5">
+            <GaCap className="mb-2 block">{t('whatCap')}</GaCap>
+            <p className="ga-ui text-ga-body text-ga-ink">{t('whatDesc')}</p>
+            <p className="ga-ui mt-2 text-ga-small text-ga-muted">{t('whatVsStudio')}</p>
+          </div>
+
           <div className="flex items-center gap-2">
             <GaCap>{t('sessionCount', { count: sessions.length })}</GaCap>
             {/* FREE plan: 3 interview sessions per week (quota is enforced server-side). */}
@@ -384,10 +446,45 @@ export default function V2StudentInterviewsPage() {
                         )}
                       </p>
                     </div>
-                    <TkBadge tone={sess.status === 'COMPLETED' ? 'green' : 'neutral'} className="shrink-0">
-                      {sess.status === 'COMPLETED' ? t('completed') : t('incomplete')}
-                    </TkBadge>
+                    <span className="flex shrink-0 flex-col items-end gap-1">
+                      <TkBadge tone={sess.status === 'COMPLETED' ? 'green' : 'neutral'}>
+                        {sess.status === 'COMPLETED' ? t('completed') : t('incomplete')}
+                      </TkBadge>
+                      {/* Phiên dở KHÔNG mất bài: mỗi lượt hoàn tất được backend ghi ngay
+                          (`InterviewDomainCoordinator.onTurnCompleted → saveTurn`, REQUIRES_NEW).
+                          Đã verify ở B-15 — khác hẳn engine thi của B-13. */}
+                      {sess.status !== 'COMPLETED' && (sess.messageCount ?? 0) > 0 && (
+                        <span className="ga-ui text-right text-ga-caption text-ga-muted">
+                          {t('incompleteSaved')}
+                        </span>
+                      )}
+                    </span>
                   </button>
+
+                  {/* Hành động khôi phục nằm NGOÀI nút mở báo cáo — lồng button trong button là
+                      HTML không hợp lệ và bàn phím sẽ không tới được nút bên trong. */}
+                  {sess.status !== 'COMPLETED' && (
+                    <div className="border-t border-ga-line px-4 py-3 lg:px-5">
+                      <button
+                        type="button"
+                        onClick={() => resumeSession(sess)}
+                        disabled={resumingId === sess.id}
+                        className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 rounded-ga border border-ga-ink bg-ga-ink px-4 py-2 text-ga-small font-semibold text-ga-bg transition-opacity hover:opacity-90 disabled:opacity-50 lg:min-h-0"
+                      >
+                        {resumingId === sess.id ? (
+                          <Loader2 size={14} className="animate-spin" aria-hidden />
+                        ) : (
+                          <Play size={14} aria-hidden />
+                        )}
+                        {resumingId === sess.id ? t('resuming') : t('resume')}
+                      </button>
+                      {resumeError && resumingId === null && (
+                        <p role="alert" className="ga-ui mt-2 text-ga-caption text-ga-red">
+                          {resumeError}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </GaCard>
               )
             })

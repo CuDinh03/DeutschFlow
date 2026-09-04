@@ -7,7 +7,7 @@ import { ArrowLeft, Sparkles, AlertCircle, Mic, BookOpen } from 'lucide-react'
 import { format } from 'date-fns'
 import api, { apiMessage } from '@/lib/api'
 import {
-  GaPageHdr, GaBtn, GaCap, TkStatStrip,
+  GaPageHdr, GaBtn, GaCap, GaStatStrip,
   TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent,
   ErrorBanner,
 } from '@/components/ui-v2'
@@ -136,12 +136,12 @@ function StudentReport() {
       />
 
       <div className="flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-6">
-        <TkStatStrip
+        <GaStatStrip
           items={[
             // Nguồn lỗi → '—' thay vì 0 giả (F05); lỗi chi tiết hiện trong tab tương ứng.
-            { label: t('stats.assignments'), value: assignmentsError ? '—' : assignments.length, sub: t('stats.assignmentsSub', { count: gradedCount }), color: VIOLET },
-            { label: t('stats.speakingSessions'), value: speakingError ? '—' : speaking.length, sub: t('stats.speakingSessionsSub'), color: '#2F6FC9' },
-            { label: t('stats.avgSpeaking'), value: avgTeacherSpeaking ?? '—', sub: avgTeacherSpeaking != null ? t('stats.avgSpeakingSub') : t('stats.avgSpeakingSubEmpty'), color: '#1E9E61' },
+            { label: t('stats.assignments'), value: assignmentsError ? '—' : assignments.length, sub: t('stats.assignmentsSub', { count: gradedCount }), tone: 'violet' },
+            { label: t('stats.speakingSessions'), value: speakingError ? '—' : speaking.length, sub: t('stats.speakingSessionsSub'), tone: 'blue' },
+            { label: t('stats.avgSpeaking'), value: avgTeacherSpeaking ?? '—', sub: avgTeacherSpeaking != null ? t('stats.avgSpeakingSub') : t('stats.avgSpeakingSubEmpty'), tone: 'green' },
           ]}
         />
 

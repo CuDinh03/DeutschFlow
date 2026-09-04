@@ -2,6 +2,7 @@ import * as React from 'react'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale } from 'next-intl/server'
 import { GaShell } from '@/components/ui-v2'
+import { RoleAreaGuard } from '../RoleAreaGuard'
 import { messagesForV2Areas } from '@/i18n/pickV2Messages'
 
 /**
@@ -18,7 +19,9 @@ export default async function V2StudentLayout({ children }: { children: React.Re
   const messages = await messagesForV2Areas('student')
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <GaShell role="student">{children}</GaShell>
+      <RoleAreaGuard area="student">
+        <GaShell role="student">{children}</GaShell>
+      </RoleAreaGuard>
     </NextIntlClientProvider>
   )
 }

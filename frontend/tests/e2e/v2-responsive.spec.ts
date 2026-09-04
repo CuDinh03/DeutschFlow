@@ -192,6 +192,24 @@ const ROUTES: [string, string][] = [
   ['ADMIN', '/v2/admin/revenue'],
 ]
 
+test.describe('auth công khai không tràn ngang @320px', () => {
+  test.use({ viewport: { width: 320, height: 844 }, isMobile: true, hasTouch: true })
+
+  for (const path of ['/v2/login', '/v2/register', '/v2/onboarding']) {
+    test(path, async ({ page }) => {
+      await page.goto(path, { waitUntil: 'domcontentloaded' })
+      await expect(page.locator('main')).toBeVisible()
+
+      const m = (await page.evaluate(MEASURE)) as Measurement
+      assertMeasurable(m, path)
+      expect(
+        m.overflow,
+        `${path} tràn ngang ${m.overflow}px ở khổ 320. Thủ phạm:\n  ${m.culprits.join('\n  ')}`,
+      ).toBeLessThanOrEqual(1)
+    })
+  }
+})
+
 for (const width of [320, 390]) {
   test.describe(`/v2 không tràn ngang @${width}px`, () => {
     test.use({ viewport: { width, height: 844 }, isMobile: true, hasTouch: true })

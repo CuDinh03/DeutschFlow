@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { ArrowRight } from 'lucide-react'
 import api from '@/lib/api'
-import { AdStatStrip, type AdStatCell, ErrorBanner, LoadingState, GaPageHdr } from '@/components/ui-v2'
+import { GaStatStrip, type GaStatItem, ErrorBanner, LoadingState, GaPageHdr } from '@/components/ui-v2'
 import { GaSection, GaBars, GaDonut, GaLegend, fmtVnd, nfVN } from '../analyticsShared'
 
 type OverviewUser = { id: number; role?: string; isActive?: boolean; isactive?: boolean; usageLast30Days?: number }
@@ -58,11 +58,11 @@ export default function V2AdminOverviewPage() {
   const activeUsers = users.filter((u) => (Number(u.usageLast30Days) || 0) > 0).length
   const pausedUsers = users.filter((u) => u.isActive === false || u.isactive === false).length
 
-  const cells: AdStatCell[] = [
-    { label: t('stats.totalUsers'), value: nfVN.format(users.length), color: '#27406B' },
-    { label: t('stats.mrr'), value: fmtVnd(mrr), color: '#1E9E61', sub: latest?.period },
-    { label: t('stats.aiCost'), value: `$${aiCost.toFixed(2)}`, color: '#E07B39', sub: t('stats.aiCostSub') },
-    { label: t('stats.aiActivity'), value: nfVN.format(activeUsers), color: '#7C56C8', sub: t('stats.aiActivitySub') },
+  const cells: GaStatItem[] = [
+    { label: t('stats.totalUsers'), value: nfVN.format(users.length), tone: 'navy' },
+    { label: t('stats.mrr'), value: fmtVnd(mrr), tone: 'green', sub: latest?.period },
+    { label: t('stats.aiCost'), value: `$${aiCost.toFixed(2)}`, tone: 'orange', sub: t('stats.aiCostSub') },
+    { label: t('stats.aiActivity'), value: nfVN.format(activeUsers), tone: 'violet', sub: t('stats.aiActivitySub') },
   ]
 
   const todo: { text: string; href: string }[] = [
@@ -85,7 +85,7 @@ export default function V2AdminOverviewPage() {
           <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
-            <AdStatStrip cells={cells} />
+            <GaStatStrip items={cells} />
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[2fr_1fr]">
               <GaSection title={t('subscribersByPeriod')} right={<span className="ga-ui text-[12.5px] text-ga-muted">{t('recentPeriods', { count: chart.length })}</span>}>

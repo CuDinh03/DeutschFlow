@@ -1,0 +1,63 @@
+{
+  "heuteDesktop": {
+    "filledCtaCount": 1,
+    "ctaText": "Weiterlernen",
+    "ctaHref": "/v2/student/learn/103/",
+    "h2": "Công việc và nghề nghiệp",
+    "progressNow": "60",
+    "sections": [
+      "continue-heading",
+      "today-heading",
+      "Thói quen học",
+      "journey-heading"
+    ],
+    "todayTasks": [
+      "Ôn từ vựng đến hạn2 việc cần ôn",
+      "Luyện nói với AIĐặt lịch hẹn với bác sĩ",
+      "Bài nói theo tuầnGiới thiệu nơi làm việc",
+      "Sửa lỗi hay gặpAKK_DAT"
+    ]
+  },
+  "lernwegDesktop": {
+    "view": [
+      {
+        "label": "Cây",
+        "selected": "true"
+      },
+      {
+        "label": "Danh sách",
+        "selected": "false"
+      }
+    ],
+    "treeSvgs": 11,
+    "header": "VIENDEHV"
+  },
+  "heuteMobile": {
+    "overflowX": false,
+    "order": [
+      {
+        "id": "continue-heading",
+        "top": 184
+      },
+      {
+        "id": "today-heading",
+        "top": 486
+      },
+      {
+        "id": "Thói quen học",
+        "top": 794
+      },
+      {
+        "id": "journey-heading",
+        "top": 870
+      }
+    ]
+  },
+  "lernwegMobile": {
+    "selectedView": "Danh sách",
+    "hasCompactOverview": true,
+    "nodeItems": 8,
+    "lockedHint": "Thẻ bảo hiểm y tếChưa mởKrankenversicherungskarte · B1Hoàn thành «Công việc và n",
+    "overflowX": false
+  }
+}

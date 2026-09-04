@@ -66,7 +66,9 @@ export function SpeakingChatHeader({
           <h1 className="font-ga-display font-medium text-ga-ink leading-tight truncate text-sm sm:text-base">
             {companionName}
           </h1>
-          <p className="text-[11px] text-ga-muted font-medium truncate">{subtitle}</p>
+          {/* Từ xl trở lên, chế độ · CEFR · pha đã nằm trong dải ngữ cảnh trái (S-07 bố cục 3
+              vùng) và `InterviewPhaseBar` — nói lại ở đây là nói hai lần cùng một thứ. */}
+          <p className="text-[11px] text-ga-muted font-medium truncate xl:hidden">{subtitle}</p>
         </div>
       </div>
 
@@ -87,7 +89,8 @@ export function SpeakingChatHeader({
           </button>
         </div>
 
-        <div className="flex items-center gap-1 px-2 py-1 rounded-ga-pill border border-ga-line bg-ga-surface text-[11px] font-mono text-ga-muted">
+        {/* Đồng hồ cũng đã có ở chân dải ngữ cảnh trái từ xl trở lên. */}
+        <div className="flex xl:hidden items-center gap-1 px-2 py-1 rounded-ga-pill border border-ga-line bg-ga-surface text-[11px] font-mono text-ga-muted">
           <Clock size={11} />
           {secondsLabel}
         </div>

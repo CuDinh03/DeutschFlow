@@ -1,14 +1,18 @@
 import * as React from 'react'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { GaIcon } from './GaIcon'
 import { GaBtn } from './GaBtn'
 
-/** ErrorBanner — error + retry. Manifest: variants inline|page. */
+/**
+ * ErrorBanner — error + retry. Manifest: variants inline|page.
+ * i18n contract (W0-C8): default copy từ namespace chung `v2.ui`; props override theo ngữ cảnh.
+ */
 export interface ErrorBannerProps {
   variant?: 'inline' | 'page'
   title?: string
   message?: string
-  /** Retry handler; renders "Thử lại" when provided. */
+  /** Retry handler; renders nút thử lại when provided. */
   onRetry?: () => void
   retryLabel?: string
   className?: string
@@ -16,12 +20,16 @@ export interface ErrorBannerProps {
 
 export function ErrorBanner({
   variant = 'inline',
-  title = 'Đã xảy ra lỗi',
-  message = 'Không tải được dữ liệu. Vui lòng thử lại.',
+  title,
+  message,
   onRetry,
-  retryLabel = 'Thử lại',
+  retryLabel,
   className,
 }: ErrorBannerProps) {
+  const t = useTranslations('v2.ui')
+  title ??= t('errorTitle')
+  message ??= t('errorMessage')
+  retryLabel ??= t('retry')
   if (variant === 'page') {
     return (
       <div

@@ -1,77 +1,111 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
+import { useEffect, useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
-import { Flame, ArrowRight, Mic, BookOpen, Repeat, Sparkles } from 'lucide-react'
+import api from '@/lib/api'
 import { todayApi, type TodayPlan } from '@/lib/todayApi'
 import { phaseApi, type PhaseStateResponse } from '@/lib/phaseApi'
 import { xpApi, type XpSummaryDto } from '@/lib/xpApi'
 import { useUserStore } from '@/stores/useUserStore'
-import { GaPageHdr, TkStatStrip, GaCard, GaCap, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import type { RoadmapNode } from '@/lib/roadmap-tree/types'
+import { pickContinueNode } from '@/lib/learning/currentNode'
+import { GaPageHdr, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import { ContinueLearning } from '@/components/learning/ContinueLearning'
+import { TodayList, type TodayTask } from '@/components/learning/TodayList'
+import { HabitStrip } from '@/components/learning/HabitStrip'
+import { JourneyPreview } from '@/components/learning/JourneyPreview'
 
-const YELLOW = '#C79A00' // readable gold for value text on light bg
-
+/**
+ * Heute (Student Dashboard) — S-02.
+ *
+ * Hierarchy đã đảo so với bản cũ (UX-01/UI-04): trước đây màn mở bằng 4 ô thống kê rồi ba thẻ
+ * hành động ngang hàng, nên người học phải tự chọn engine trước khi học được. Nay:
+ *
+ *   Greeting  →  ContinueLearning (CTA filled duy nhất)  →  Heute (việc hôm nay)
+ *             →  Streak/XP (một hàng nhỏ)  →  Lernweg preview  →  gợi ý phụ
+ *
+ * Guardrail dữ liệu (P4-D2): mọi con số đều có nguồn thật —
+ *   `/roadmap/me` (node lộ trình) · `/today/me` (việc hôm nay, streak) · `/xp/me` (thưởng).
+ * Stat strip 4 ô cũ bị giải thể: "độ chính xác"/"từ đã thuộc" là chỉ số tiến bộ, thuộc về
+ * Fortschritt (S-10) — vẫn tới được qua `/v2/student/stats` trong local nav của Fortschritt.
+ * Khối `phase` cũ cũng chuyển sang Fortschritt; không nhân bản ở đây.
+ *
+ * Từng khối tự chịu lỗi riêng (`Promise.allSettled`): một API hỏng không làm sập cả màn.
+ */
 export default function V2StudentDashboardPage() {
   const t = useTranslations('v2.student.dashboard')
-  const tc = useTranslations('v2.common')
   const displayName = useUserStore((s) => s.user?.displayName)
+
+  const [nodes, setNodes] = useState<RoadmapNode[] | null>(null)
   const [today, setToday] = useState<TodayPlan | null>(null)
   const [phase, setPhase] = useState<PhaseStateResponse | null>(null)
   const [xp, setXp] = useState<XpSummaryDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true)
     setError(null)
-    Promise.allSettled([todayApi.getMe(), phaseApi.getCurrent(), xpApi.getMyXp()])
-      .then(([t2, p, x]) => {
+    Promise.allSettled([
+      api.get<RoadmapNode[]>('/roadmap/me'),
+      todayApi.getMe(),
+      phaseApi.getCurrent(),
+      xpApi.getMyXp(),
+    ])
+      .then(([r, t2, p, x]) => {
+        if (r.status === 'fulfilled') setNodes(Array.isArray(r.value.data) ? r.value.data : [])
         if (t2.status === 'fulfilled') setToday(t2.value.data)
         if (p.status === 'fulfilled') setPhase(p.value.data)
         if (x.status === 'fulfilled') setXp(x.value)
-        if (t2.status === 'rejected' && p.status === 'rejected' && x.status === 'rejected') {
-          setError(t('loadError'))
-        }
+        // Chỉ báo lỗi toàn màn khi KHÔNG khối nào tải được — lỗi lẻ đã tự xử ở từng khối.
+        if ([r, t2, p, x].every((s) => s.status === 'rejected')) setError(t('loadError'))
       })
       .finally(() => setLoading(false))
-  }
-  useEffect(load, [])
+  }, [t])
+  useEffect(load, [load])
 
-  const xpPct =
-    xp && xp.progressInLevel + xp.xpNeededForNext > 0
-      ? Math.round((xp.progressInLevel / (xp.progressInLevel + xp.xpNeededForNext)) * 100)
-      : 0
+  const isFirstSession = phase?.sessionsCompleted === 0
+  const continueNode = nodes ? pickContinueNode(nodes) : undefined
 
-  // `/today/me` may omit `progress`/`dueRepairTasks` for new students → guard fully.
-  const streakDays = today?.progress?.streakDays ?? 0
-  const accuracy = today?.progress?.rollingAccuracyPercent
+  // Việc hôm nay — chỉ dựng từ dữ liệu CÓ THẬT của `/today/me`.
+  const tasks: TodayTask[] = []
   const dueCount = today?.dueRepairTasks?.length ?? 0
-  const unlockedAch = xp?.achievements?.filter((a) => a.unlocked) ?? []
-
-  const actions = [
-    {
-      icon: Mic,
-      title: t('actions.speakingTitle'),
-      desc: today?.recommendedSpeaking?.topic || t('actions.speakingDesc'),
-      href: '/v2/student/speaking',
-      tone: 'var(--ga-violet)',
-    },
-    {
-      icon: BookOpen,
-      title: t('actions.vocabTitle'),
-      desc: today?.recommendedVocabPractice?.topic || t('actions.vocabDesc'),
-      href: '/v2/student/vocabulary',
-      tone: 'var(--ga-blue)',
-    },
-    {
-      icon: Repeat,
-      title: t('actions.srsTitle'),
-      desc: dueCount ? t('actions.srsDue', { count: dueCount }) : t('actions.srsQueue'),
+  if (dueCount > 0) {
+    tasks.push({
+      id: 'srs',
+      icon: 'srs',
+      label: t('today.srs'),
+      meta: t('today.srsMeta', { count: dueCount }),
       href: '/v2/student/review',
-      tone: 'var(--ga-orange)',
-    },
-  ]
+    })
+  }
+  if (today?.recommendedSpeaking) {
+    tasks.push({
+      id: 'speaking',
+      icon: 'speaking',
+      label: t('today.speaking'),
+      meta: today.recommendedSpeaking.topic ?? undefined,
+      href: today.recommendedSpeaking.href || '/v2/student/speaking',
+    })
+  }
+  if (today?.recommendedWeeklySpeaking) {
+    tasks.push({
+      id: 'weekly',
+      icon: 'weekly',
+      label: t('today.weekly'),
+      meta: today.recommendedWeeklySpeaking.topic ?? undefined,
+      href: today.recommendedWeeklySpeaking.href || '/v2/student/weekly-speaking',
+    })
+  }
+  if (today?.progress?.topWeakErrorCode) {
+    tasks.push({
+      id: 'repair',
+      icon: 'repair',
+      label: t('today.repair'),
+      meta: today.progress.topWeakErrorCode,
+      href: '/v2/student/errors',
+    })
+  }
 
   return (
     <div className="flex min-h-full flex-col">
@@ -79,173 +113,37 @@ export default function V2StudentDashboardPage() {
         accent
         title={displayName ? t('greeting', { name: displayName }) : t('titleFallback')}
         subtitle={t('subtitle')}
-        right={
-          today ? (
-            <span className="ga-ui inline-flex items-center gap-2 rounded-ga border border-ga-line px-3 py-2 text-[13px] font-semibold text-ga-ink">
-              <Flame size={16} className="text-ga-orange" aria-hidden />
-              {t('streakBadge', { days: streakDays })}
-            </span>
-          ) : null
-        }
       />
-      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
+
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-12">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={load} />
           </div>
         )}
+
         {loading ? (
-          <LoadingState label={t('loading')} />
+          // Skeleton giữ ĐÚNG thứ bậc thật: khối Continue trước, rồi danh sách việc.
+          <div className="space-y-8">
+            <div className="ga-shimmer h-[232px] border border-ga-line" aria-hidden />
+            <LoadingState variant="skeleton" rows={3} label={t('loading')} />
+          </div>
         ) : (
-          <div className="space-y-[22px]">
-            <TkStatStrip
-              items={[
-                { label: t('stats.streak'), value: streakDays, sub: t('stats.streakSub'), color: '#E07B39' },
-                {
-                  label: t('stats.accuracy'),
-                  value: accuracy != null ? `${Math.round(accuracy)}%` : '—',
-                  sub: t('stats.accuracySub'),
-                  color: '#1E9E61',
-                },
-                {
-                  label: t('stats.level'),
-                  value: xp?.level != null ? `Lv ${xp.level}` : '—',
-                  sub: xp?.totalXp != null ? `${xp.totalXp.toLocaleString('vi-VN')} XP` : undefined,
-                  color: YELLOW,
-                },
-                {
-                  label: t('stats.mastered'),
-                  value: phase?.vocabularyMasteredCount ?? 0,
-                  sub: t('stats.masteredSub'),
-                  color: '#2F6FC9',
-                },
-              ]}
+          <div className="space-y-8">
+            <ContinueLearning node={continueNode} isFirstSession={isFirstSession} />
+
+            <TodayList tasks={tasks} />
+
+            <HabitStrip
+              streakDays={today?.progress?.streakDays}
+              xp={
+                xp
+                  ? { level: xp.level, progressInLevel: xp.progressInLevel, xpNeededForNext: xp.xpNeededForNext }
+                  : undefined
+              }
             />
 
-            {/* First-session CTA — same condition as the legacy dashboard (sessionsCompleted === 0),
-                the only entry point into /v2/student/beginner for a brand-new student. */}
-            {phase && phase.sessionsCompleted === 0 && (
-              <Link
-                href="/v2/student/beginner"
-                className="flex items-center gap-4 bg-ga-ink p-4 text-ga-bg transition-opacity hover:opacity-95 lg:p-5"
-              >
-                <span
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-ga"
-                  style={{ background: 'var(--ga-yellow)', color: 'var(--ga-ink)' }}
-                >
-                  <Sparkles size={20} aria-hidden />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-ga-display text-[19px] font-medium">{t('beginnerTitle')}</span>
-                  <span className="ga-ui mt-0.5 block text-[13px]" style={{ color: '#A39E94' }}>
-                    {t('beginnerDesc')}
-                  </span>
-                </span>
-                <ArrowRight size={18} style={{ color: '#A39E94' }} aria-hidden />
-              </Link>
-            )}
-
-            {/* Today's actions */}
-            <div>
-              <GaCap className="mb-3 block">{t('todayCap')}</GaCap>
-              <div className="grid grid-cols-1 gap-[18px] md:grid-cols-3">
-                {actions.map((a) => {
-                  const Icon = a.icon
-                  return (
-                    <Link key={a.title} href={a.href}>
-                      <GaCard hover className="group h-full p-5">
-                        <span
-                          className="mb-3 grid h-11 w-11 place-items-center rounded-ga"
-                          style={{ background: `${a.tone}1a`, color: a.tone }}
-                        >
-                          <Icon size={22} aria-hidden />
-                        </span>
-                        <p className="font-ga-display text-[18px] font-medium text-ga-ink">{a.title}</p>
-                        <p className="ga-ui mt-1 line-clamp-2 text-[13.5px] text-ga-muted">{a.desc}</p>
-                        <span className="ga-ui mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ga-accent">
-                          {tc('start')} <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" aria-hidden />
-                        </span>
-                      </GaCard>
-                    </Link>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[1fr_1fr]">
-              {/* Phase progress */}
-              {phase && (
-                <GaCard className="p-4 lg:p-6">
-                  <GaCap className="mb-3 block">{t('phaseCap')}</GaCap>
-                  {/* break-words: nhãn giai đoạn là chuỗi động ở cỡ 24px. Một token dài không có
-                      chỗ ngắt (từ ghép tiếng Đức, hoặc khoá i18n chưa giải được) sẽ đẩy rộng cả
-                      vùng cuộn — đo được +45px ở khổ 390px. Chỉ ảnh hưởng khi tràn nên desktop
-                      không đổi pixel nào. */}
-                  <p className="break-words font-ga-display text-[24px] font-medium text-ga-ink">
-                    {t(`phase.${phase.currentPhase}`)}
-                  </p>
-                  <div className="mt-4 space-y-3">
-                    {[
-                      [t('phaseMetrics.vocabMastered'), phase.vocabularyMasteredCount],
-                      [t('phaseMetrics.speakingMinutes'), phase.speakingMinutesTotal],
-                      [t('phaseMetrics.grammarAccuracy'), `${Math.round(phase.grammarAccuracyPercent)}%`],
-                      [t('phaseMetrics.sessionsCompleted'), phase.sessionsCompleted],
-                    ].map(([k, v]) => (
-                      <div key={String(k)} className="ga-ui flex items-center justify-between gap-3 text-[13.5px]">
-                        <span className="min-w-0 text-ga-muted">{k}</span>
-                        <span className="shrink-0 font-semibold text-ga-ink">{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {phase.readyToAdvance && (
-                    <div className="mt-4 rounded-ga bg-ga-green-soft px-3.5 py-2.5 text-[13px] font-semibold text-ga-green">
-                      {t('readyToAdvance')}
-                    </div>
-                  )}
-                </GaCard>
-              )}
-
-              {/* XP level */}
-              {xp && (
-                <GaCard className="p-4 lg:p-6">
-                  <GaCap className="mb-3 block">{t('levelCap')}</GaCap>
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                    <p className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[26px]">{t('levelValue', { level: xp.level })}</p>
-                    <span className="ga-ui text-[13px] text-ga-muted">
-                      {xp.progressInLevel} / {xp.progressInLevel + xp.xpNeededForNext} XP
-                    </span>
-                  </div>
-                  <div className="mt-3 h-2.5 overflow-hidden rounded-[3px] bg-ga-border">
-                    <div className="h-full rounded-[3px] bg-ga-yellow" style={{ width: `${xpPct}%` }} />
-                  </div>
-                  <p className="ga-ui mt-2 text-[12.5px] text-ga-muted">{t('xpToNext', { xp: xp.xpNeededForNext })}</p>
-                  {unlockedAch.length > 0 && (
-                    <div className="mt-5">
-                      <GaCap className="mb-2.5 block">{t('recentAch')}</GaCap>
-                      <div className="flex flex-wrap gap-2">
-                        {unlockedAch
-                          .slice(0, 6)
-                          .map((a) => (
-                            <span
-                              key={a.id}
-                              title={a.nameVi}
-                              className="grid h-10 w-10 place-items-center rounded-ga border border-ga-line text-[20px]"
-                            >
-                              {a.iconEmoji}
-                            </span>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                  <Link
-                    href="/v2/student/achievements"
-                    className="ga-ui mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-ga-accent"
-                  >
-                    {t('viewAllAch')} <ArrowRight size={14} aria-hidden />
-                  </Link>
-                </GaCard>
-              )}
-            </div>
+            {nodes && nodes.length > 0 && <JourneyPreview nodes={nodes} />}
           </div>
         )}
       </div>

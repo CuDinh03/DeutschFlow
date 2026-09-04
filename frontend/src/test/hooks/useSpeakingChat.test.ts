@@ -65,7 +65,9 @@ function makeSession(overrides: Partial<AiSpeakingSession> = {}): AiSpeakingSess
     persona: "LUKAS",
     responseSchema: "V2",
     sessionMode: "COMMUNICATION",
-    status: "ACTIVE",
+    // Dây thật của API là COMPLETED | IN_PROGRESS (toSessionDto ánh xạ từ enum ENDED/ACTIVE).
+    // Fixture cũ dựng "ACTIVE" — một giá trị backend không bao giờ gửi.
+    status: "IN_PROGRESS",
     startedAt: new Date().toISOString(),
     lastActivityAt: null,
     endedAt: null,

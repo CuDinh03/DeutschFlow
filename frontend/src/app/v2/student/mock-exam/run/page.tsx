@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { ArrowLeft, BookOpen, Check, ChevronRight, Clock, Play, Trophy, X, AlertCircle } from 'lucide-react'
+import { ArrowLeft, BookOpen, Check, ChevronRight, Clock, Loader2, Play, Send, Trophy, X, AlertCircle } from 'lucide-react'
 import api, { httpStatus, isAxiosErr } from '@/lib/api'
 import { getAccessToken } from '@/lib/authSession'
 import {
@@ -23,6 +23,7 @@ import { DetailedScoreBreakdown } from '@/components/exam/DetailedScoreBreakdown
 import { ExamFeedback } from '@/components/exam/ExamFeedback'
 import { WeakAreasRecommendation } from '@/components/exam/WeakAreasRecommendation'
 import { GaCap, GaCard, GaPageHdr, LoadingState, TkBadge, TkSeg } from '@/components/ui-v2'
+import { ExamShell, type ExamSaveState } from '@/components/exam/ExamShell'
 import { ExamRecoveryPanel, ExamTaking, SECTION_COLOR, type ActiveExamData } from './ExamTaking'
 
 /**
@@ -116,17 +117,6 @@ interface ExamStartResponse {
   }
 }
 
-/** Tolerates both a JSON string and an already-parsed object (the API has shipped both). */
-function parseSections(raw: unknown): ActiveExamData | null {
-  if (!raw) return null
-  try {
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
-    return parsed?.sections ? (parsed as ActiveExamData) : null
-  } catch {
-    return null
-  }
-}
-
 /** PATCH …/draft transport, mapped onto the autosaver's result union. */
 async function saveDraftRequest(
   attemptId: number,
@@ -148,6 +138,17 @@ async function saveDraftRequest(
   } catch (err) {
     if (isAxiosErr(err) && err.response) return classifyDraftSaveError(httpStatus(err), err.response.data)
     return { kind: 'error' }
+  }
+}
+
+/** Tolerates both a JSON string and an already-parsed object (the API has shipped both). */
+function parseSections(raw: unknown): ActiveExamData | null {
+  if (!raw) return null
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return parsed?.sections ? (parsed as ActiveExamData) : null
+  } catch {
+    return null
   }
 }
 
@@ -179,11 +180,15 @@ function MockExamRunner() {
   const [currentSectionIdx, setCurrentSectionIdx] = useState(0)
   const [timeLeft, setTimeLeft] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [saveState, setSaveState] = useState<ExamSaveState>('saving')
+  const [savedAt, setSavedAt] = useState<number | undefined>(undefined)
   const [submitting, setSubmitting] = useState(false)
   const submittedByTimerRef = useRef(false)
   const autoStartedRef = useRef(false)
 
-  // V285 autosave (audit C-02): the server owns the in-progress draft and the countdown.
+  // V285 autosave (audit C-02): server sở hữu bản nháp lẫn đồng hồ đếm ngược. Vỏ thi chỉ còn
+  // TƯỜNG THUẬT trạng thái lưu (saveState/savedAt) — không còn đường localStorage của B-14:
+  // server-side đến sau (#409) và thắng, vì nó sống sót cả khi đổi máy/đổi trình duyệt.
   const autosaverRef = useRef<DraftAutosaver | null>(null)
   const draftBaseVersionRef = useRef(0)
   const submittingRef = useRef(false)
@@ -224,7 +229,7 @@ function MockExamRunner() {
       if (!autoSubmit && !confirm(t('confirmSubmit'))) return
 
       setSubmitting(true)
-      submittingRef.current = true // autosaves pause while the finish is in flight
+      submittingRef.current = true // autosave tạm dừng khi finish đang bay
       try {
         await api.post(`/mock-exams/attempts/${activeAttemptId}/finish`, { answers })
         const finished = await api.get<MockAttempt>(`/mock-exams/attempts/${activeAttemptId}/result`)
@@ -249,29 +254,16 @@ function MockExamRunner() {
     submitExamRef.current = () => void submitExam(true)
   }, [submitExam])
 
-  // Interval: one timer per 'taking' session; never re-registers on every tick
+  // Đồng hồ trừ dần từng giây; mỗi lần server nhận autosave nó trả `remaining_seconds` và
+  // resyncCountdown kéo đồng hồ về sự thật của server — tab bị throttle cũng không trôi lâu.
   useEffect(() => {
     if (view !== 'taking') return
     const timerId = setInterval(() => setTimeLeft((prev) => Math.max(0, prev - 1)), 1000)
     return () => clearInterval(timerId)
   }, [view])
 
-  // Expiry: submit once when time runs out — side-effects must not live inside state updaters
-  useEffect(() => {
-    if (view === 'taking' && timeLeft === 0 && !submittedByTimerRef.current) {
-      submittedByTimerRef.current = true
-      void submitExam(true)
-    }
-  }, [view, timeLeft, submitExam])
-
-  useEffect(() => {
-    return () => {
-      if (view === 'taking') trackFeatureAction('mock_exam', 'quit', { examId: activeAttemptId })
-    }
-  }, [view, activeAttemptId, trackFeatureAction])
-
-  // V285 autosave lifecycle: one autosaver per taking-session. Conflicts adopt the newer
-  // server draft (another device won), expiry auto-submits, saves resync the countdown.
+  // V285 autosave lifecycle: một autosaver cho mỗi phiên làm bài. Conflict thì nhận bản server
+  // mới hơn (thiết bị khác thắng), hết hạn thì tự nộp, mỗi lần lưu resync lại đồng hồ.
   useEffect(() => {
     if (view !== 'taking' || !activeAttemptId) return
     const attemptId = activeAttemptId
@@ -281,9 +273,11 @@ function MockExamRunner() {
         return saveDraftRequest(attemptId, payload, baseVersion)
       },
       onSaved: ({ version, remainingSeconds }) => {
-        // Mirror the lock version into the ref so a re-created autosaver (effect re-run)
-        // resumes from the real version instead of the value captured at /start.
+        // Đổ version khoá vào ref để autosaver dựng lại (effect re-run) tiếp tục từ version
+        // thật thay vì giá trị chụp lúc /start.
         draftBaseVersionRef.current = version
+        setSaveState('saved')
+        setSavedAt(Date.now())
         if (typeof remainingSeconds === 'number') {
           setTimeLeft((prev) => resyncCountdown(prev, remainingSeconds))
         }
@@ -299,6 +293,8 @@ function MockExamRunner() {
             setCurrentSectionIdx(draft.sectionIndex)
           }
         }
+        setSaveState('saved')
+        setSavedAt(Date.now())
         toast.info(t('draftConflict'))
       },
       onExpired: () => {
@@ -316,14 +312,16 @@ function MockExamRunner() {
     }
   }, [view, activeAttemptId, t])
 
-  // Every change to answers/position feeds the debounced autosave.
+  // Mỗi thay đổi đáp án/vị trí đổ vào autosave debounce; vỏ thi hiện "Đang lưu…" cho tới khi
+  // server xác nhận (onSaved) — không bao giờ nói "Đã lưu" khi chưa lưu thật (S-14).
   useEffect(() => {
     if (view !== 'taking') return
+    setSaveState('saving')
     autosaverRef.current?.notifyChange({ answers, sectionIndex: currentSectionIdx })
   }, [view, answers, currentSectionIdx])
 
-  // Leaving the page (tab close, app switch) flushes unsaved changes with a keepalive PATCH —
-  // axios can't outlive the document, fetch(keepalive) can.
+  // Rời trang (đóng tab, chuyển app) flush thay đổi chưa lưu bằng PATCH keepalive —
+  // axios không sống lâu hơn document, fetch(keepalive) thì có.
   useEffect(() => {
     if (view !== 'taking' || !activeAttemptId) return
     const attemptId = activeAttemptId
@@ -347,7 +345,7 @@ function MockExamRunner() {
           }),
         })
       } catch {
-        // fire-and-forget: the draft stays dirty and the next session resumes from the last save
+        // fire-and-forget: nháp còn dirty thì phiên sau resume từ lần lưu gần nhất
       }
     }
     const onVisibility = () => {
@@ -360,6 +358,20 @@ function MockExamRunner() {
       document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [view, activeAttemptId])
+
+  // Expiry: submit once when time runs out — side-effects must not live inside state updaters
+  useEffect(() => {
+    if (view === 'taking' && timeLeft === 0 && !submittedByTimerRef.current) {
+      submittedByTimerRef.current = true
+      void submitExam(true)
+    }
+  }, [view, timeLeft, submitExam])
+
+  useEffect(() => {
+    return () => {
+      if (view === 'taking') trackFeatureAction('mock_exam', 'quit', { examId: activeAttemptId })
+    }
+  }, [view, activeAttemptId, trackFeatureAction])
 
   /**
    * Starts (or resumes) an exam. `fallbackMinutes` comes from the exam row when we have it;
@@ -384,10 +396,10 @@ function MockExamRunner() {
         }
 
         const minutes = fallbackMinutes ?? (typeof attempt?.time_limit_minutes === 'number' ? attempt.time_limit_minutes : 60)
-        // V285 (audit C-02): the countdown follows the server (started_at + limit). Before,
-        // every resume/reload reset the timer to the full duration client-side.
+        // V285 (audit C-02): đồng hồ đi theo server (started_at + limit). Trước đây mỗi lần
+        // resume/reload client tự đặt lại full giờ — đúng lỗi B-13 đã đo.
         const remaining = typeof attempt?.remaining_seconds === 'number' ? attempt.remaining_seconds : minutes * 60
-        // Resume restores the server-autosaved draft — answers, position and lock version.
+        // Resume khôi phục bản nháp server đã autosave — đáp án, vị trí và version khoá.
         const draft = attempt?.draft
         const restoredAnswers = parseDraftAnswers(draft?.answers_json)
         const restoredCount = Object.keys(restoredAnswers).length
@@ -396,6 +408,7 @@ function MockExamRunner() {
           typeof draft?.section_index === 'number' && draft.section_index >= 0 && draft.section_index < sectionCount
             ? draft.section_index
             : 0
+        const restoredSavedAt = draft?.saved_at ? Date.parse(draft.saved_at) : NaN
 
         submittedByTimerRef.current = false
         draftBaseVersionRef.current = draft?.version ?? 0
@@ -404,7 +417,11 @@ function MockExamRunner() {
         setCurrentSectionIdx(restoredSection)
         setTimeLeft(remaining)
         setAnswers(restoredAnswers)
+        setSaveState(restoredCount > 0 ? 'saved' : 'saving')
+        setSavedAt(restoredCount > 0 ? (Number.isNaN(restoredSavedAt) ? Date.now() : restoredSavedAt) : undefined)
         setView('taking')
+        // Nói thật: khôi phục được thì báo khôi phục bao nhiêu câu (nháp giờ nằm trên server,
+        // nên "Tiếp tục" luôn được hậu thuẫn bằng lưu thật — ràng buộc B-13 §3b đã thành sự thật).
         if (restoredCount > 0) toast.success(t('draftRestored', { count: restoredCount }))
         trackFeatureAction('mock_exam', 'started', { examId, title, resumedAnswers: restoredCount })
       } catch (err: unknown) {
@@ -429,6 +446,15 @@ function MockExamRunner() {
     const exam = exams.find((e) => e.id === att.exam_id)
     void startExam(att.exam_id, exam?.time_limit_minutes, exam?.title)
   }
+
+  /**
+   * Thoát giữa bài. Có xác nhận VÀ nêu hậu quả thật: bài đã autosave lên server nên "Tiếp tục"
+   * ở bất kỳ máy nào cũng quay lại được — còn đồng hồ thì vẫn chạy, thoát không làm nó dừng.
+   */
+  const exitExam = useCallback(() => {
+    if (!confirm(t('confirmExit'))) return
+    setView('list')
+  }, [t])
 
   const viewReview = async (attemptId: number) => {
     setReviewLoading(true)
@@ -458,10 +484,33 @@ function MockExamRunner() {
 
   if (meLoading || !me) return <LoadingState label={t('loading')} />
 
-  // Taking = immersive full-screen overlay (covers the Galerie shell), like the legacy runner.
+  // Taking = ExamShell: layout SONG SONG với role shell (plan §6), không XP/streak/nav/animation.
   if (view === 'taking') {
+    const sections = activeExamData?.sections ?? []
+    const section = sections[currentSectionIdx]
     return (
-      <div className="fixed inset-0 z-50 overflow-hidden bg-ga-bg">
+      <ExamShell
+        sectionLabel={section ? `${section.name} — ${section.label_vi}` : t('title')}
+        sectionIndex={currentSectionIdx}
+        sectionCount={sections.length}
+        answeredCount={answeredCount}
+        totalQuestions={totalQuestions}
+        secondsLeft={timeLeft}
+        saveState={saveState}
+        savedAt={savedAt}
+        onExit={exitExam}
+        submitSlot={
+          <button
+            type="button"
+            onClick={() => submitExam(false)}
+            disabled={submitting}
+            className="ga-ui inline-flex min-h-11 shrink-0 items-center gap-2 rounded-ga bg-ga-green px-3 text-ga-small font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0 lg:px-4 lg:py-2"
+          >
+            {submitting ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Send size={16} aria-hidden />}
+            {t('submit')}
+          </button>
+        }
+      >
         <ErrorBoundary
           onError={(error, info) => {
             // Self-diagnosing: surface the real error + exam context to PostHog so a
@@ -483,7 +532,7 @@ function MockExamRunner() {
               message={t('recoveryRenderDesc')}
               onRetry={reset}
               onSubmit={() => submitExam(true)}
-              onExit={() => setView('list')}
+              onExit={exitExam}
               submitting={submitting}
             />
           )}
@@ -494,15 +543,12 @@ function MockExamRunner() {
             onSectionChange={setCurrentSectionIdx}
             answers={answers}
             onAnswerChange={handleAnswerChange}
-            timeLeft={timeLeft}
             submitting={submitting}
             onSubmit={submitExam}
-            onExit={() => setView('list')}
-            answeredCount={answeredCount}
-            totalQuestions={totalQuestions}
+            onExit={exitExam}
           />
         </ErrorBoundary>
-      </div>
+      </ExamShell>
     )
   }
 

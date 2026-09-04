@@ -16,6 +16,17 @@ import { PatternModal } from '@/app/v2/teacher/schedule/scheduleClassParts'
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
+// Wave 0: TkModal dùng useTranslations('v2.ui') cho nhãn nút đóng (i18n contract W0-C8)
+// → test phải mock next-intl như các test component v2 khác.
+vi.mock('next-intl', () => ({
+  useTranslations: () => {
+    const f = (k: string) => k
+    ;(f as unknown as { has: (k: string) => boolean }).has = () => false
+    return f
+  },
+  useLocale: () => 'vi',
+}))
+
 const upsertMock = vi.fn()
 const getPatternsMock = vi.fn()
 const toastSuccess = vi.fn()

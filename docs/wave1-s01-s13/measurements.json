@@ -1,0 +1,80 @@
+{
+  "studentDesktop": {
+    "sidebarLinks": [
+      "/v2/student/dashboard/",
+      "/v2/student/roadmap/",
+      "/v2/student/speaking/",
+      "/v2/student/exam/",
+      "/v2/student/progress/",
+      "/v2/profile/",
+      "/v2/student/tuition/",
+      "/v2/student/welcome/"
+    ],
+    "localNavLinks": [
+      "/v2/student/roadmap/",
+      "/v2/student/review/",
+      "/v2/student/errors/",
+      "/v2/student/vocabulary/",
+      "/v2/student/grammar/",
+      "/v2/student/exercises/",
+      "/v2/student/lessons/",
+      "/v2/student/classes/",
+      "/v2/student/news/",
+      "/v2/student/game/"
+    ],
+    "hasSearchBox": true
+  },
+  "studentMobile": {
+    "bottomNavItems": [
+      {
+        "label": "Heute",
+        "h": 62,
+        "w": 64
+      },
+      {
+        "label": "Lernen",
+        "h": 62,
+        "w": 64
+      },
+      {
+        "label": "Sprechen",
+        "h": 62,
+        "w": 83
+      },
+      {
+        "label": "Prüfung",
+        "h": 62,
+        "w": 70
+      },
+      {
+        "label": "Fortschritt",
+        "h": 62,
+        "w": 93
+      }
+    ],
+    "docOverflowX": false
+  },
+  "immersive": {
+    "bottomNavPresent": false
+  },
+  "teacherMobile": {
+    "items": [
+      "Heute",
+      "Klassen",
+      "Bewerten",
+      "Materialien",
+      "Mehr"
+    ]
+  },
+  "accountMenu": {
+    "role": "student",
+    "gaScope": true,
+    "links": [
+      "/v2/profile/",
+      "/v2/student/tuition/",
+      "/v2/student/welcome/",
+      "/support/"
+    ],
+    "accent": "#ffcd00"
+  }
+}

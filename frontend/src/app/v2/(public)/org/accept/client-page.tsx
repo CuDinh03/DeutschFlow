@@ -224,6 +224,7 @@ export default function V2OrgAcceptPage() {
           </div>
 
           <GaField
+            name="password"
             label={t('passwordField')}
             type="password"
             placeholder={t('passwordPlaceholder')}
@@ -233,6 +234,7 @@ export default function V2OrgAcceptPage() {
             required
           />
           <GaField
+            name="display-name"
             label={t('displayNameField')}
             placeholder={t('displayNamePlaceholder')}
             autoComplete="name"

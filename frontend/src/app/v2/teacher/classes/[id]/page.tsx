@@ -16,7 +16,7 @@ import { type Material } from '@/lib/materialApi'
 import { AssignmentMaterialPicker } from './AssignmentMaterialPicker'
 import { AssignmentMaterialsStrip } from './AssignmentMaterialsStrip'
 import {
-  GaPageHdr, GaBtn, GaCap, TkStatStrip, TkSearch, TkModal,
+  GaPageHdr, GaBtn, GaCap, GaStatStrip, TkSearch, TkModal,
   TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent, ConfirmDialog,
 } from '@/components/ui-v2'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
@@ -379,14 +379,14 @@ export default function V2ClassDetailPage() {
 
             {/* ── Students ── */}
             <TkTabsContent value="students">
-              <TkStatStrip
+              <GaStatStrip
                 items={[
                   { label: t('stats.size'), value: students.length, sub: t('stats.sizeSub', { count: info?.studentCount ?? 0 }) },
-                  { label: t('stats.totalXp'), value: (analytics?.totalXp ?? 0).toLocaleString(), sub: t('stats.totalXpSub'), color: '#2F6FC9' },
-                  { label: t('stats.assignments'), value: assignments.length, sub: t('stats.assignmentsSub'), color: VIOLET },
+                  { label: t('stats.totalXp'), value: (analytics?.totalXp ?? 0).toLocaleString(), sub: t('stats.totalXpSub'), tone: 'blue' },
+                  { label: t('stats.assignments'), value: assignments.length, sub: t('stats.assignmentsSub'), tone: 'violet' },
                   // Was "Điểm nói TB — chưa có phiên", which was permanently empty (no class-scoped
                   // speaking source). Replaced with the real graded-count so the 4th tile carries a fact.
-                  { label: t('stats.completed'), value: analytics?.completedAssignments ?? 0, sub: t('stats.completedSub'), color: '#1E9E61' },
+                  { label: t('stats.completed'), value: analytics?.completedAssignments ?? 0, sub: t('stats.completedSub'), tone: 'green' },
                 ]}
               />
 

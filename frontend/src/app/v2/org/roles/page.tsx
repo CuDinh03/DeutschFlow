@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { changeMemberRole, listMembers, removeMember, type OrgMember, type OrgRole } from '@/lib/orgApi'
 import { getOrgRole } from '@/lib/authSession'
-import { GaPageHdr, TkStatStrip, TkBadge, ErrorBanner, LoadingState, ConfirmDialog } from '@/components/ui-v2'
+import { GaPageHdr, GaStatStrip, TkBadge, ErrorBanner, LoadingState, ConfirmDialog } from '@/components/ui-v2'
 import { GaSection, nfVN } from '../../sectionShared'
 import { ApproverSection } from './ApproverSection'
 
@@ -104,12 +104,12 @@ export default function V2OrgRolesPage() {
           <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
-            <TkStatStrip
+            <GaStatStrip
               items={[
-                { label: t('stats.managers'), value: count('OWNER', 'MANAGER'), sub: t('stats.managersSub'), color: '#27406B' },
-                { label: t('stats.teachers'), value: count('TEACHER'), color: '#7C56C8' },
-                { label: t('stats.students'), value: count('STUDENT'), color: '#2F6FC9' },
-                { label: t('stats.totalMembers'), value: active.length, color: '#11888A' },
+                { label: t('stats.managers'), value: count('OWNER', 'MANAGER'), sub: t('stats.managersSub'), tone: 'navy' },
+                { label: t('stats.teachers'), value: count('TEACHER'), tone: 'violet' },
+                { label: t('stats.students'), value: count('STUDENT'), tone: 'blue' },
+                { label: t('stats.totalMembers'), value: active.length, tone: 'teal' },
               ]}
             />
 

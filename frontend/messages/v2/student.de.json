@@ -46,7 +46,48 @@
       "recentAch": "Aktuelle Erfolge",
       "viewAllAch": "Alle Erfolge anzeigen",
       "beginnerTitle": "Erste Lerneinheit starten",
-      "beginnerDesc": "10 deutsche Grundwörter + Gespräch mit der KI"
+      "beginnerDesc": "10 deutsche Grundwörter + Gespräch mit der KI",
+      "continue": {
+        "eyebrow": "Weiterlernen",
+        "progressLabel": "Kapitelfortschritt",
+        "lessons": "{done}/{total} Lektionen erledigt",
+        "cta": "Weiterlernen",
+        "ctaHelper": "Weiter lernen",
+        "startEyebrow": "Erste Lektion",
+        "startTitle": "Erste Lektion beginnen",
+        "startDesc": "Wir führen dich Schritt für Schritt durch die erste Lektion.",
+        "startCta": "Beginnen",
+        "doneEyebrow": "Lernweg",
+        "doneTitle": "Alles Freigeschaltete ist erledigt",
+        "doneDesc": "Öffne den Lernweg für die nächste Etappe oder wiederhole Abgeschlossenes.",
+        "doneCta": "Lernweg öffnen"
+      },
+      "today": {
+        "eyebrow": "Heute",
+        "empty": "Heute steht nichts an. Weiterlernen oben genügt.",
+        "srs": "Fällige Wörter wiederholen",
+        "srsMeta": "{count} fällig",
+        "speaking": "Mit der KI sprechen",
+        "weekly": "Wochen-Sprechaufgabe",
+        "repair": "Häufigen Fehler korrigieren"
+      },
+      "habit": {
+        "label": "Lerngewohnheit",
+        "streak": "Tage in Folge",
+        "level": "Level {level}",
+        "xpToNext": "noch {xp} XP"
+      },
+      "journey": {
+        "eyebrow": "Lernweg",
+        "completion": "{done}/{total} Etappen · {percent}%",
+        "viewAll": "Ganzen Lernweg ansehen",
+        "status": {
+          "completed": "Abgeschlossen",
+          "inProgress": "Läuft",
+          "available": "Bereit",
+          "locked": "Gesperrt"
+        }
+      }
     },
     "vocabulary": {
       "title": "Wortschatz",
@@ -249,6 +290,21 @@
         "skillsMastered": "{done}/4 Fertigkeiten mit mindestens {threshold}%",
         "unlockCondition": "Schließe {target} ab, damit diese Knospe aufgeht.",
         "goPrereq": "Zum blockierenden Tag"
+      },
+      "headerContext": "Aktuelle Phase: {phase}",
+      "courseProgressLabel": "Lernwegfortschritt",
+      "courseCompletion": "{done}/{total} Etappen",
+      "viewLabel": "Ansicht des Lernwegs",
+      "viewTree": "Baum",
+      "viewList": "Liste",
+      "nodeProgressLabel": "Etappenfortschritt",
+      "nodeLockedBy": "Schließe «{prev}» ab, um diese Etappe zu öffnen.",
+      "nodeLockedGeneric": "Folge dem Lernweg der Reihe nach, um diese Etappe zu öffnen.",
+      "nodeStatus": {
+        "completed": "Abgeschlossen",
+        "inProgress": "Läuft",
+        "available": "Bereit",
+        "locked": "Gesperrt"
       }
     },
     "speaking": {
@@ -303,24 +359,30 @@
     },
     "exam": {
       "title": "Goethe-Prüfungsvorbereitung",
-      "subtitle": "Bereite dich auf die deutsche Sprachprüfung nach Niveau vor",
-      "heroCap": "Bereit für einen Test?",
-      "heroTitle": "Mach eine Probeprüfung mit KI-Bewertung",
-      "heroDesc": "Simuliere das echte Prüfungsformat und erhalte Punkte und sofortiges Feedback.",
-      "heroCta": "Probeprüfung starten",
-      "levelsCap": "Niveaus",
-      "levels": {
-        "a1Desc": "Grundlegende Alltagskommunikation, sich vorstellen.",
-        "a2Desc": "Vertraute Situationen und unmittelbare Bedürfnisse.",
-        "b1Desc": "Auf Reisen zurechtkommen, über vertraute Themen schreiben & sprechen.",
-        "b2Desc": "Komplexe Texte verstehen, fließend kommunizieren."
-      },
-      "skillsCap": "Nach Fertigkeit üben",
+      "subtitle": "Drei verschiedene Dinge: Simulation mit Zeit, Bereitschaftscheck und deine Ergebnisse",
+      "preparingFor": "Du bereitest dich vor auf: <strong>Goethe {level}</strong>",
+      "simCap": "Prüfungssimulation",
+      "simTitle": "Vollständige Prüfung mit Zeit",
+      "simDesc": "Das echte Prüfungsformat, mit Uhr und Bewertung. Für den Moment, in dem du deinen Stand unter Prüfungsbedingungen wissen willst.",
+      "simSaveNotice": "Deine Antworten werden während der Prüfung automatisch in deinem Konto gespeichert — Neuladen, Verbindungsabbruch oder Gerätewechsel setzen genau dort fort. Läuft die Zeit ab, wird automatisch abgegeben.",
+      "simCta": "Prüfung wählen und starten",
+      "readinessCap": "B1-Bereitschaft",
+      "readinessTitle": "B1-Bereitschaft prüfen",
+      "readinessDesc": "Keine Prüfung. Eine Einschätzung nach fünf Kriterien, ob du für die B1-Prüfung bereit bist.",
+      "reportsCap": "Prüfungsberichte",
+      "reportsTitle": "Verlauf und Ergebnisbögen",
+      "reportsDesc": "Bisherige Versuche, Punkte je Teil und ausführliche Korrekturen.",
+      "skillsCap": "Was die Prüfung umfasst",
       "skills": {
-        "listening": "Hören",
-        "reading": "Lesen & Schreiben",
-        "speaking": "Sprechen",
-        "mock": "Vollständige Probeprüfung"
+        "lesenName": "Lesen",
+        "lesenDesc": "Texte, Schilder und E-Mails verstehen.",
+        "hoerenName": "Hören",
+        "hoerenDesc": "Gespräche und Durchsagen verstehen.",
+        "schreibenName": "Schreiben",
+        "schreibenDesc": "Formulare ausfüllen, kurze Briefe schreiben.",
+        "sprechenName": "Sprechen",
+        "sprechenDesc": "Sich vorstellen, fragen, präsentieren.",
+        "sprechenLink": "Zum Sprechtraining"
       }
     },
     "classes": {
@@ -596,10 +658,20 @@
         "beginnerDesc": "Tag 1: Grundwortschatz und erste Begrüßungen"
       }
     },
+    "examShell": {
+      "sectionOf": "Teil {index}/{total}",
+      "exit": "Verlassen",
+      "progressLabel": "Prüfungsfortschritt",
+      "answered": "{done}/{total} beantwortet",
+      "saveSaving": "Wird gespeichert…",
+      "saveSaved": "Gespeichert",
+      "saveSavedAt": "Gespeichert · {time}",
+      "saveError": "Speichern fehlgeschlagen — es wird automatisch erneut versucht",
+      "timeLeftAnnounce": "Noch {minutes} Minuten"
+    },
     "mockExamRun": {
       "draftRestored": "Entwurf wiederhergestellt — {count} zuvor gespeicherte Antworten.",
-      "draftConflict": "Dieser Versuch wurde gerade auf einem anderen Gerät aktualisiert — neuester Entwurf geladen.",
-      "draftExpired": "Die Zeit ist abgelaufen — deine Prüfung wird jetzt abgegeben.",
+      "confirmExit": "Prüfung verlassen? Deine Antworten sind automatisch gespeichert und du kannst zurückkehren — die Uhr läuft aber weiter.",
       "title": "Goethe-Prüfungssimulation",
       "subtitle": "Im offiziellen Goethe-Institut-Format mit automatischer Bewertung",
       "loading": "Wird geladen…",
@@ -655,7 +727,9 @@
       "reviewTotal": "Gesamtpunktzahl: {score}",
       "notAnswered": "Nicht beantwortet",
       "yourAnswer": "Ihre Antwort",
-      "correctAnswer": "Richtige Antwort"
+      "correctAnswer": "Richtige Antwort",
+      "draftConflict": "Dieser Versuch wurde gerade auf einem anderen Gerät aktualisiert — neuester Entwurf geladen.",
+      "draftExpired": "Die Zeit ist abgelaufen — deine Prüfung wird jetzt abgegeben."
     },
     "grammarPractice": {
       "title": "Grammatiktraining",
@@ -700,7 +774,15 @@
       "downloadReport": "Bericht herunterladen",
       "generatingReport": "Die KI analysiert Ihr Vorstellungsgespräch…",
       "reportTimeout": "Zeitüberschreitung beim Bericht — bitte erneut versuchen",
-      "phaseCap": "Ergebnisse nach Phase"
+      "phaseCap": "Ergebnisse nach Phase",
+      "whatCap": "Was ein KI-Interview ist",
+      "whatDesc": "Ein simuliertes Vorstellungsgespräch auf Deutsch: mit Recruiter, mit Zielposition, in fünf Phasen von der Vorstellung bis zum Abschluss — und einem Bericht am Ende.",
+      "whatVsStudio": "Anders als das Sprechtraining: dort wählst du Alltagssituationen und übst frei, ohne Bewertung nach Einstellungskriterien.",
+      "incompleteSaved": "Beantwortete Runden sind gespeichert",
+      "resume": "Sitzung fortsetzen",
+      "resuming": "Wird geöffnet…",
+      "resumeFailed": "Diese Sitzung konnte nicht erneut geöffnet werden. Prüfe die Verbindung und versuche es noch einmal.",
+      "resumeUnknownPersona": "Die interviewende Person dieser Sitzung ist unbekannt, sie kann daher nicht erneut geöffnet werden. Der Bericht bleibt verfügbar."
     },
     "speakingHistory": {
       "title": "Sprechverlauf",
@@ -1106,13 +1188,9 @@
       "loading": "Lädt…",
       "subtitle": "Lädt…",
       "headerSubtitle": "{node} · Generation {gen}",
-      "metaLine": "{node} · Generation {gen} · {count} Aufgaben",
       "backToSkills": "Zurück zur Fertigkeitsauswahl",
       "loadError": "Die Übungen konnten nicht geladen werden. Bitte erneut versuchen.",
       "noSession": "Für diese Fertigkeit gibt es noch keine Übungen.",
-      "emptySession": "Diese Übung enthält keine Aufgaben.",
-      "emptySessionHint": "Die KI konnte für diese Runde keine Aufgaben erzeugen. Unten neue Aufgaben erzeugen.",
-      "regenerate": "Neu erzeugen",
       "generateError": "Neue Übungen konnten nicht erzeugt werden.",
       "generatingExercises": "KI erzeugt Übungen…",
       "correctLabel": "Richtig",
@@ -1130,6 +1208,10 @@
       "generating": "Wird erzeugt…",
       "otherSkill": "Andere Fertigkeit wählen",
       "totalSeen": "Insgesamt {count} Aufgaben ohne Wiederholung geübt",
+      "exerciseCount": "{count} Aufgaben in dieser Runde",
+      "emptySession": "Diese Übung enthält keine Aufgaben.",
+      "emptySessionHint": "Die KI konnte für diese Runde keine Aufgaben erzeugen. Unten neue Aufgaben erzeugen.",
+      "regenerate": "Neu erzeugen",
       "backToTree": "Zurück zum Baum",
       "backToTreeGrow": "Zurück zum Baum – sieh ihn wachsen",
       "seeding": "Deine Aufgaben werden gerade ausgesät…",
@@ -1138,19 +1220,19 @@
       "errorQuota": "Dein KI-Kontingent für heute ist aufgebraucht. Vorhandene Sätze gehen weiter; neue gibt es später.",
       "errorRateLimited": "Das war etwas schnell – versuch es in {seconds} Sekunden noch einmal.",
       "errorAiUnavailable": "Der KI-Assistent ist ausgelastet und konnte keinen Satz erzeugen. Versuch es in ein paar Minuten.",
-      "errorJobFailed": "Das Erzeugen des Satzes ist fehlgeschlagen. Erneut versuchen, um einen neuen auszusäen."
+      "errorJobFailed": "Das Erzeugen des Satzes ist fehlgeschlagen. Erneut versuchen, um einen neuen auszusäen.",
+      "metaLine": "{node} · Generation {gen} · {count} Aufgaben"
     },
     "learnNode": {
-      "progressNotSaved": "Dein Fortschritt konnte nicht auf dem Server gespeichert werden.",
-      "scoreBelowThreshold": "Der Server hat {score}% gewertet — unter der Bestehensgrenze, dein Fortschritt wurde nicht gespeichert.",
-      "toPractice": "4 Fertigkeiten üben",
       "roadmapContext": "Position im Lernpfad",
       "completedInRoadmap": "des Lernpfads abgeschlossen",
       "contentPendingTitle": "⚡ Inhalt wird vorbereitet",
       "contentPendingDesc": "Die {level}-Lektion folgt bald. Schließe zuerst die A1-Lektionen ab!",
       "retryTitle": "⚠️ Node noch nicht bestanden",
       "retryDesc": "Hören/Lesen erfordern 100 % • Sprechen/Aussprache/Schreiben erfordern ≥ 80 Punkte",
-      "retryCta": "🔄 Erneut versuchen"
+      "retryCta": "🔄 Erneut versuchen",
+      "progressNotSaved": "Dein Fortschritt konnte nicht auf dem Server gespeichert werden.",
+      "scoreBelowThreshold": "Der Server hat {score}% gewertet — unter der Bestehensgrenze, dein Fortschritt wurde nicht gespeichert."
     },
     "stats": {
       "title": "Lernstatistik",
@@ -1213,6 +1295,31 @@
       "allDone": "Du hast alle Wiederholungsaufgaben für heute abgeschlossen!",
       "completedCap": "Abgeschlossen ({count})",
       "times": "{count} Mal"
+    },
+    "interviewShell": {
+      "phaseProgressLabel": "Interviewfortschritt",
+      "phaseOf": "Phase {index}/{total}",
+      "notStarted": "Nicht begonnen",
+      "phases": {
+        "INTRO": "Vorstellung",
+        "ICE_BREAKER": "Warmlaufen",
+        "HARD_SKILLS": "Fachwissen",
+        "STAR_SOFT": "Situationen",
+        "CLOSING": "Abschluss"
+      }
+    },
+    "lessonShell": {
+      "exit": "Beenden",
+      "modeLabel": "Lernmodus",
+      "modeLearn": "Lernen",
+      "modePractice": "Üben",
+      "minutes": "~{n} Min.",
+      "objective": "Ziel",
+      "progressLabel": "Lernfortschritt",
+      "step": "Schritt {current}/{total}",
+      "savedOnDevice": "Auf diesem Gerät gespeichert um {time}",
+      "saveUnavailable": "Deine Eingaben können auf diesem Gerät nicht gespeichert werden",
+      "restoredDraft": "Nicht abgeschlossene Arbeit von diesem Gerät wiederhergestellt"
     },
     "examSpeaking": {
       "catalog": {

@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
  * states default|hover|disabled|loading. Tokens only (no hardcoded color).
  */
 const gaBtnVariants = cva(
-  'ga-ui inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-ga font-semibold transition-[background-color,opacity,box-shadow] duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ga-accent focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0',
+  'ga-ui inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-ga font-semibold transition-[background-color,opacity,box-shadow] duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
@@ -18,10 +18,10 @@ const gaBtnVariants = cva(
         ink: 'bg-ga-ink text-ga-bg hover:opacity-90',
         ghost: 'border border-ga-line bg-ga-card text-ga-ink hover:bg-ga-surface',
       },
-      // Chiều cao mobile tối thiểu 40px cho chạm tay; từ lg trả lại đúng 32/36/44px gốc.
+      // Chiều cao mobile tối thiểu 44px (F-06/D8 — WCAG touch target); từ lg trả lại 32/36/44px gốc.
       size: {
-        sm: 'h-10 px-3 text-[12.5px] lg:h-8',
-        md: 'h-10 px-4 text-[13px] lg:h-9',
+        sm: 'h-11 px-3 text-[12.5px] lg:h-8',
+        md: 'h-11 px-4 text-[13px] lg:h-9',
         lg: 'h-11 px-6 text-[14.5px]',
       },
     },

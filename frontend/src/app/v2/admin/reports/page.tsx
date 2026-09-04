@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { ChevronRight, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Báo cáo hệ thống (admin) — navy HUB, condensed (W1.7 migrate admin/reports).
@@ -159,11 +159,11 @@ export default function V2AdminReportsPage() {
 
             {/* Overview */}
             <div className="mt-[22px]">
-              <TkStatStrip items={[
+              <GaStatStrip items={[
                 { label: t('statUsers'), value: (overview.userCount ?? 0).toLocaleString() },
-                { label: t('statTeacherStudent'), value: `${overview.teacherCount ?? 0} / ${overview.studentCount ?? 0}`, color: '#2F6FC9' },
-                { label: t('statClasses'), value: overview.classCount ?? 0, color: '#11888A' },
-                { label: t('statAvgQuiz'), value: Number(overview.avgQuizScore ?? 0).toFixed(2), color: '#E07B39' },
+                { label: t('statTeacherStudent'), value: `${overview.teacherCount ?? 0} / ${overview.studentCount ?? 0}`, tone: 'blue' },
+                { label: t('statClasses'), value: overview.classCount ?? 0, tone: 'teal' },
+                { label: t('statAvgQuiz'), value: Number(overview.avgQuizScore ?? 0).toFixed(2), tone: 'orange' },
               ]} />
             </div>
 

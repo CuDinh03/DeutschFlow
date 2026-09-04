@@ -11,7 +11,7 @@ import {
   type OrgSummary, type OrgAnalytics, type OrgClass, type OrgInvitation,
 } from '@/lib/orgApi'
 import { seatMetaOf } from '@/lib/orgSeats'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Org dashboard OWNER (GaOrgDashboard) — teal (role=org). Góc nhìn GIÁM ĐỐC: sức khoẻ trung tâm
@@ -130,32 +130,32 @@ export function OrgOwnerDashboard() {
       />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
-        <TkStatStrip
+        <GaStatStrip
           items={[
             {
               label: t('stats.seatsUsed'),
               value: summary && seats ? (seats.unlimited ? summary.seatUsed.toLocaleString('vi-VN') : `${summary.seatUsed}/${summary.seatLimit}`) : '—',
               // seats=null (summary chưa về) KHÔNG hiển thị "không giới hạn" — chỉ '—'.
               sub: seats ? (seats.unlimited ? t('stats.capacityUnlimited') : t('stats.capacity', { pct: seats.pct ?? 0 })) : '—',
-              color: TEAL,
+              tone: 'teal',
             },
             {
               label: t('stats.totalStudents'),
               value: loading ? '—' : (an?.studentCount ?? summary?.studentCount ?? 0),
               sub: analytics.state === 'error' ? t('statUnavailable') : t('stats.active7d', { count: an?.activeStudents7d ?? 0 }),
-              color: '#2F6FC9',
+              tone: 'blue',
             },
             {
               label: t('stats.openClasses'),
               value: loading ? '—' : (an?.classCount ?? (classes.state === 'ok' ? classes.data.length : '—')),
               sub: loading ? '—' : t('stats.teacherCount', { count: summary?.teacherCount ?? 0 }),
-              color: '#7C56C8',
+              tone: 'violet',
             },
             {
               label: t('stats.tokensThisMonth'),
               value: an ? an.tokensThisMonth.toLocaleString('vi-VN') : analytics.state === 'error' ? '—' : '…',
               sub: analytics.state === 'error' ? t('statUnavailable') : an?.poolUnlimited ? t('stats.poolUnlimited') : an && an.monthlyTokenPool > 0 ? t('stats.poolPercent', { pct: Math.round(an.poolUsagePercent) }) : t('stats.noPool'),
-              color: '#1E9E61',
+              tone: 'green',
             },
           ]}
         />

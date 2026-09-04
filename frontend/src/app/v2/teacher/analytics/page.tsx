@@ -7,7 +7,7 @@ import { FileDown } from 'lucide-react'
 import {
   GaPageHdr,
   GaBtn,
-  TkStatStrip,
+  GaStatStrip,
   ErrorBanner,
   LoadingState,
 } from '@/components/ui-v2'
@@ -32,7 +32,6 @@ import {
 } from '@/lib/teacherAnalyticsApi'
 import { classHref } from '../tcShared'
 
-const VIOLET = '#7C56C8'
 const EMPTY_TREND: ClassTrend = { buckets: [], series: [] }
 const EMPTY_SKILL: SkillDistribution = {
   horen: null,
@@ -150,17 +149,17 @@ export default function V2TeacherAnalyticsPage() {
             {failed.overview ? (
               <ErrorBanner message={t('sectionError')} onRetry={() => void load()} />
             ) : (
-              <TkStatStrip
+              <GaStatStrip
                 items={[
-                  { label: t('stats.classes'), value: overview?.classCount ?? 0, color: VIOLET },
-                  { label: t('stats.students'), value: overview?.studentCount ?? 0, sub: t('stats.studentsSub'), color: '#2F6FC9' },
-                  { label: t('stats.assignments'), value: overview?.assignmentCount ?? 0, sub: t('stats.assignmentsSub'), color: '#11888A' },
+                  { label: t('stats.classes'), value: overview?.classCount ?? 0, tone: 'violet' },
+                  { label: t('stats.students'), value: overview?.studentCount ?? 0, sub: t('stats.studentsSub'), tone: 'blue' },
+                  { label: t('stats.assignments'), value: overview?.assignmentCount ?? 0, sub: t('stats.assignmentsSub'), tone: 'teal' },
                   {
                     // 0.0 thật hiển thị "0.0"; chỉ khi CHƯA có điểm chốt nào mới là "—" (F05).
                     label: t('stats.avgScore'),
                     value: overview && overview.avgScore != null ? overview.avgScore.toFixed(1) : '—',
                     sub: t('stats.avgScoreSub'),
-                    color: '#1E9E61',
+                    tone: 'green',
                   },
                 ]}
               />

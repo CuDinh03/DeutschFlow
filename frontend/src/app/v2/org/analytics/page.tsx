@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { apiMessage } from '@/lib/api'
 import { getAnalytics, listClasses, type OrgAnalytics, type OrgClass } from '@/lib/orgApi'
-import { GaPageHdr, TkStatStrip, ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { GaPageHdr, GaStatStrip, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { GaSection, GaDonut, GaLegend, GaBarRow, GA_CHART, nfVN } from '../../analyticsShared'
 
 // Option-1: GET /org/analytics is FLAT (no time-series). Reuse getAnalytics + listClasses.
@@ -61,21 +61,21 @@ export default function V2OrgAnalyticsPage() {
           <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
-            <TkStatStrip
+            <GaStatStrip
               items={[
-                { label: t('stats.totalStudents'), value: analytics?.studentCount ?? 0, color: TEAL },
+                { label: t('stats.totalStudents'), value: analytics?.studentCount ?? 0, tone: 'teal' },
                 {
                   label: t('stats.active7d'),
                   value: analytics?.activeStudents7d ?? 0,
                   sub: t('stats.ofStudents', { pct: engagementPct }),
-                  color: '#2F6FC9',
+                  tone: 'blue',
                 },
-                { label: t('stats.openClasses'), value: analytics?.classCount ?? classes.length, color: '#7C56C8' },
+                { label: t('stats.openClasses'), value: analytics?.classCount ?? classes.length, tone: 'violet' },
                 {
                   label: t('stats.tokensThisMonth'),
                   value: analytics ? nfVN.format(analytics.tokensThisMonth) : '—',
                   sub: analytics?.poolUnlimited ? t('stats.poolUnlimited') : analytics && analytics.monthlyTokenPool > 0 ? t('stats.poolPercent', { pct: poolPct }) : t('stats.noPool'),
-                  color: '#1E9E61',
+                  tone: 'green',
                 },
               ]}
             />

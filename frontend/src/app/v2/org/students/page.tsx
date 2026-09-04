@@ -9,7 +9,7 @@ import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { listMembers, getAnalytics, type OrgMember, type OrgAnalytics } from '@/lib/orgApi'
 import { studentsToCsv, downloadTextFile } from '@/lib/orgCsv'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip, TkSearch } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkSearch } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Học viên của tổ chức (GaOrgStudents) — teal, roster LIST.
@@ -81,12 +81,12 @@ export default function V2OrgStudentsPage() {
       />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
-        <TkStatStrip
+        <GaStatStrip
           items={[
             { label: t('stats.totalStudents'), value: analytics?.studentCount ?? members.length, sub: t('stats.usingSeats') },
-            { label: t('stats.active'), value: activeN, sub: t('stats.activeMembers'), color: '#1E9E61' },
-            { label: t('stats.active7d'), value: analytics?.activeStudents7d ?? 0, sub: t('stats.activeRecently'), color: '#2F6FC9' },
-            { label: t('stats.classes'), value: analytics?.classCount ?? 0, sub: t('stats.ofCenter'), color: TEAL },
+            { label: t('stats.active'), value: activeN, sub: t('stats.activeMembers'), tone: 'green' },
+            { label: t('stats.active7d'), value: analytics?.activeStudents7d ?? 0, sub: t('stats.activeRecently'), tone: 'blue' },
+            { label: t('stats.classes'), value: analytics?.classCount ?? 0, sub: t('stats.ofCenter'), tone: 'teal' },
           ]}
         />
 

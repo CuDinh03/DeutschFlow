@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import type { AiUsageByFeatureDto } from '@/lib/adminTokenPie'
-import { AdStatStrip, type AdStatCell, ErrorBanner, LoadingState, GaPageHdr, TkBadge } from '@/components/ui-v2'
+import { GaStatStrip, type GaStatItem, ErrorBanner, LoadingState, GaPageHdr, TkBadge } from '@/components/ui-v2'
 import { GaSection, GaDonut, GaLegend, GaArea, GA_CHART, nfVN } from '../../analyticsShared'
 
 type DailyCostRow = { day: string; tokens: number; costUsd: number; model: string; feature: string }
@@ -86,11 +86,11 @@ export default function V2AdminTokensPage() {
     .sort((a, b) => (Number(b.usageLast30Days) || 0) - (Number(a.usageLast30Days) || 0))
     .slice(0, 8)
 
-  const cells: AdStatCell[] = [
-    { label: t('stats.totalTokens'), value: nfVN.format(totalTokens), color: '#E07B39' },
-    { label: t('stats.cost'), value: `$${totalCost.toFixed(2)}`, color: '#DA291C', sub: t('stats.costSub') },
-    { label: t('stats.aiUsers'), value: nfVN.format(activeUsers), color: '#2F6FC9', sub: t('stats.aiUsersSub') },
-    { label: t('stats.features'), value: nfVN.format(featureSegs.length), color: '#1E9E61', sub: t('stats.featuresSub') },
+  const cells: GaStatItem[] = [
+    { label: t('stats.totalTokens'), value: nfVN.format(totalTokens), tone: 'orange' },
+    { label: t('stats.cost'), value: `$${totalCost.toFixed(2)}`, tone: 'red', sub: t('stats.costSub') },
+    { label: t('stats.aiUsers'), value: nfVN.format(activeUsers), tone: 'blue', sub: t('stats.aiUsersSub') },
+    { label: t('stats.features'), value: nfVN.format(featureSegs.length), tone: 'green', sub: t('stats.featuresSub') },
   ]
 
   return (
@@ -106,7 +106,7 @@ export default function V2AdminTokensPage() {
           <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
-            <AdStatStrip cells={cells} />
+            <GaStatStrip items={cells} />
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[1fr_1.6fr]">
               <GaSection title={t('tokensByFeature')}>

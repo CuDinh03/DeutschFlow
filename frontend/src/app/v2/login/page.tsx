@@ -212,6 +212,7 @@ export default function V2LoginPage() {
         noValidate
       >
         <GaField
+          name="email"
           label={t('login.emailLabel')}
           type="email"
           placeholder={t('login.emailPlaceholder')}
@@ -222,6 +223,7 @@ export default function V2LoginPage() {
           required
         />
         <GaField
+          name="password"
           label={t('login.passwordLabel')}
           type="password"
           placeholder={t('login.passwordPlaceholder')}

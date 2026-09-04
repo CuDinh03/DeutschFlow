@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 
 // Báo cáo phủ phản hồi ngữ pháp (admin) — navy.
 // GET /api/admin/reports/grammar-feedback-coverage?days=N
@@ -103,12 +103,12 @@ export default function V2GrammarFeedbackCoveragePage() {
           </div>
         ) : (
           <>
-            <TkStatStrip
+            <GaStatStrip
               items={[
                 { label: t('statSubmits'), value: totals.submits.toLocaleString(), sub: t('statSubmitsSub', { days }) },
-                { label: t('statItems'), value: totals.items.toLocaleString(), sub: t('statItemsSub'), color: '#2F6FC9' },
-                { label: t('statAvg'), value: `${totals.avg}%`, sub: t('statAvgSub'), color: '#1E9E61' },
-                { label: t('statLatest'), value: `${Math.round(totals.latest)}%`, sub: t('statLatestSub'), color: '#E07B39' },
+                { label: t('statItems'), value: totals.items.toLocaleString(), sub: t('statItemsSub'), tone: 'blue' },
+                { label: t('statAvg'), value: `${totals.avg}%`, sub: t('statAvgSub'), tone: 'green' },
+                { label: t('statLatest'), value: `${Math.round(totals.latest)}%`, sub: t('statLatestSub'), tone: 'orange' },
               ]}
             />
             <div className="mb-3.5 mt-[22px]">

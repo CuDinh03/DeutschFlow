@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
@@ -15,7 +15,15 @@ import { SeedlingWait } from '@/components/practice/SeedlingWait'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { SKILL_COLORS, SKILL_LABELS, SKILL_ICONS } from '@/lib/skills'
-import { GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState, SkillIcon } from '@/components/ui-v2'
+import { GaCap, GaCard, ErrorBanner, LoadingState, SkillIcon } from '@/components/ui-v2'
+import { LessonShell } from '@/components/learn/LessonShell'
+import {
+  clearLessonDraft,
+  practiceScope,
+  pruneStaleLessonDrafts,
+  readLessonDraft,
+  writeLessonDraft,
+} from '@/lib/lesson/lessonDraft'
 import type { Skill } from '@/lib/skills'
 
 /**
@@ -439,6 +447,59 @@ export default function V2StudentPracticeRunnerPage() {
   const [errorInfo, setErrorInfo] = useState<PracticeErrorInfo | null>(null)
   const [answers, setAnswers] = useState<Map<number, { answer: AnswerValue; correct: boolean }>>(new Map())
   const [submitted, setSubmitted] = useState(false)
+  const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null)
+  const [draftRestored, setDraftRestored] = useState(false)
+  const [draftUnavailable, setDraftUnavailable] = useState(false)
+  const tShell = useTranslations('v2.student.lessonShell')
+
+  /**
+   * Nháp bài luyện (S-04 AC-2). ĐO ĐƯỢC trước khi làm: trả lời 2/3 câu rồi tải lại → còn 0.
+   * `answers` chỉ sống trong `useState`, y hệt lỗi mất-trắng của engine thi ở B-13. Khác phòng
+   * thi (đã có autosave server V285), bài luyện chưa có endpoint lưu tạm — localStorage là mức
+   * client làm được ngay, và nhãn nói đúng phạm vi "trên thiết bị này".
+   *
+   * `scope` gắn theo sessionId và nháp mang theo `generation`: sinh thế hệ đề mới thì bản nháp cũ
+   * bị coi như không có, nếu không đáp án của đề cũ sẽ đánh dấu đúng những câu chưa ai trả lời.
+   */
+  const draftScope = session ? practiceScope(nodeId, skill, session.sessionId) : null
+  /** Chặn effect ghi chạy TRƯỚC effect khôi phục — nếu không nó ghi đè nháp bằng một Map rỗng. */
+  const draftReadyRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    pruneStaleLessonDrafts(Date.now())
+  }, [])
+
+  useEffect(() => {
+    if (!session || !draftScope) return
+    if (draftReadyRef.current === draftScope) return
+
+    const saved = readLessonDraft(draftScope, session.generation)
+    if (saved && Object.keys(saved.answers).length > 0) {
+      setAnswers(
+        new Map(
+          Object.entries(saved.answers).map(([idx, a]) => [Number(idx), a] as const),
+        ),
+      )
+      setDraftSavedAt(saved.savedAt)
+      setDraftRestored(true)
+    }
+    draftReadyRef.current = draftScope
+  }, [session, draftScope])
+
+  useEffect(() => {
+    if (!draftScope || draftReadyRef.current !== draftScope || !session) return
+    if (submitted || answers.size === 0) return
+
+    const savedAt = Date.now()
+    const ok = writeLessonDraft({
+      scope: draftScope,
+      generation: session.generation,
+      answers: Object.fromEntries(Array.from(answers.entries()).map(([i, a]) => [String(i), a])),
+      savedAt,
+    })
+    setDraftUnavailable(!ok)
+    if (ok) setDraftSavedAt(savedAt)
+  }, [answers, draftScope, session, submitted])
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null)
   const [generatingNext, setGeneratingNext] = useState(false)
 
@@ -596,6 +657,13 @@ export default function V2StudentPracticeRunnerPage() {
     } catch {
       // v1 vẫn hiện kết quả cục bộ khi submit hỏng — giữ nguyên để học viên không mất công làm bài.
       setSubmitResult({ scorePercent, xpEarned: 0, status: 'COMPLETED' })
+    } finally {
+      // Nộp xong thì nháp hết vai trò — giữ lại chỉ khiến lần luyện sau nhặt lại bài cũ. Xoá ở
+      // `finally` chứ không ở nhánh thành công: kể cả khi submit hỏng, bài đã chấm và đã hiện kết
+      // quả, nên bản nháp không còn là thứ cần khôi phục.
+      if (draftScope) clearLessonDraft(draftScope)
+      setDraftSavedAt(null)
+      setDraftRestored(false)
     }
   }
 
@@ -612,6 +680,12 @@ export default function V2StudentPracticeRunnerPage() {
         setAnswers(new Map())
         setSubmitted(false)
         setSubmitResult(null)
+        // Đề mới ⇒ nháp của đề cũ vô nghĩa. Xoá cả khoá lẫn cờ sẵn-sàng để vòng khôi phục chạy lại
+        // cho scope mới thay vì tưởng mình đã khôi phục rồi.
+        if (draftScope) clearLessonDraft(draftScope)
+        draftReadyRef.current = null
+        setDraftSavedAt(null)
+        setDraftRestored(false)
       } else {
         setError(t('generateError'))
       }
@@ -627,36 +701,48 @@ export default function V2StudentPracticeRunnerPage() {
   const readingPassage =
     session && !Array.isArray(session.exercises) ? session.exercises.reading_passage : undefined
 
+  /**
+   * Câu trạng thái nháp. Phải nêu ĐÚNG phạm vi — "trên thiết bị này" — vì đây là `localStorage` của
+   * một trình duyệt, không phải server (cùng ràng buộc đã áp cho nhãn bài thi ở B-14).
+   */
+  const savedNote = draftUnavailable ? (
+    <span className="text-ga-red">{tShell('saveUnavailable')}</span>
+  ) : draftRestored && !submitted ? (
+    tShell('restoredDraft')
+  ) : draftSavedAt ? (
+    tShell('savedOnDevice', {
+      time: new Date(draftSavedAt).toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    })
+  ) : null
+
   return (
-    <div className="flex min-h-full flex-col">
-      <GaPageHdr
-        accent
-        accentColor={accent}
-        title={`${SKILL_LABELS[skill]} · ${SKILL_LABELS_DE[skill]}`}
-        subtitle={
-          session
-            ? t('headerSubtitle', { node: session.sourceNodeTitleVi, gen: session.generation })
-            : t('subtitle')
-        }
-      />
-      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
-        <div className="mx-auto max-w-2xl space-y-[22px]">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            <button
-              type="button"
-              onClick={() => router.push(`/v2/student/practice/${nodeId}`)}
-              className="ga-ui inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
-            >
-              <ArrowLeft size={15} aria-hidden /> {t('backToSkills')}
-            </button>
-            {/* Thoát giữa chừng: session giữ ACTIVE, quay lại là tiếp — cây không mất gì. */}
-            <Link
-              href={treeHref(nodeId, skill, false)}
-              className="ga-ui inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
-            >
-              <TreeDeciduous size={15} aria-hidden /> {t('backToTree')}
-            </Link>
-          </div>
+    <LessonShell
+      mode="practice"
+      onModeChange={(next) => {
+        if (next === 'learn') router.push(`/v2/student/learn/${nodeId}`)
+      }}
+      chapter={
+        session
+          ? t('headerSubtitle', { node: session.sourceNodeTitleVi, gen: session.generation })
+          : t('subtitle')
+      }
+      title={`${SKILL_LABELS[skill]} · ${SKILL_LABELS_DE[skill]}`}
+      progress={exercises.length > 0 ? { current: answers.size, total: exercises.length } : null}
+      savedNote={savedNote}
+      onExit={() => router.push(`/v2/student/practice/${nodeId}`)}
+    >
+      <>
+          {/* Thoát giữa chừng: session giữ ACTIVE, quay lại là tiếp — cây không mất gì. Vỏ chỉ
+              mang exit về trang kỹ năng, nên đường về CÂY (L3a) đứng trong nội dung. */}
+          <Link
+            href={treeHref(nodeId, skill, false)}
+            className="ga-ui inline-flex min-h-10 items-center gap-1.5 self-start text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
+          >
+            <TreeDeciduous size={15} aria-hidden /> {t('backToTree')}
+          </Link>
 
           {error && (
             <ErrorBanner
@@ -856,8 +942,7 @@ export default function V2StudentPracticeRunnerPage() {
               )}
             </GaCard>
           )}
-        </div>
-      </div>
-    </div>
+      </>
+    </LessonShell>
   )
 }

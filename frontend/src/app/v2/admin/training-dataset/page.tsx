@@ -6,7 +6,7 @@ import { Download, MessageSquare, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { getAccessToken } from '@/lib/authSession'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Training Dataset Export (admin) — navy (W1.7 migrate admin/training-dataset).
@@ -88,11 +88,11 @@ export default function V2AdminTrainingDatasetPage() {
           </div>
         ) : (
           <>
-            <TkStatStrip
+            <GaStatStrip
               items={[
                 { label: t('statConversations'), value: (stats?.total_conversations ?? 0).toLocaleString(), sub: t('statConversationsSub') },
-                { label: t('statMessages'), value: (stats?.total_messages ?? 0).toLocaleString(), sub: t('statMessagesSub'), color: '#2F6FC9' },
-                { label: t('statErrors'), value: (stats?.total_errors ?? 0).toLocaleString(), sub: t('statErrorsSub'), color: '#E07B39' },
+                { label: t('statMessages'), value: (stats?.total_messages ?? 0).toLocaleString(), sub: t('statMessagesSub'), tone: 'blue' },
+                { label: t('statErrors'), value: (stats?.total_errors ?? 0).toLocaleString(), sub: t('statErrorsSub'), tone: 'orange' },
               ]}
             />
 

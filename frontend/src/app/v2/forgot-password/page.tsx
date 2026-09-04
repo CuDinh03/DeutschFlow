@@ -123,6 +123,7 @@ export default function V2ForgotPasswordPage() {
       {step === 'request' ? (
         <form onSubmit={(e) => { e.preventDefault(); void sendCode() }} noValidate>
           <GaField
+            name="email"
             label={t('forgot.emailLabel')}
             type="email"
             placeholder={t('forgot.emailPlaceholder')}
@@ -150,6 +151,7 @@ export default function V2ForgotPasswordPage() {
           </div>
 
           <GaField
+            name="code"
             label={t('forgot.codeLabel')}
             placeholder={t('forgot.codePlaceholder')}
             autoComplete="one-time-code"
@@ -162,6 +164,7 @@ export default function V2ForgotPasswordPage() {
             required
           />
           <GaField
+            name="new-password"
             label={t('forgot.newPasswordLabel')}
             type="password"
             placeholder={t('forgot.newPasswordPlaceholder')}
@@ -184,6 +187,7 @@ export default function V2ForgotPasswordPage() {
             </div>
           )}
           <GaField
+            name="confirm-password"
             label={t('forgot.confirmLabel')}
             type="password"
             placeholder={t('forgot.confirmPlaceholder')}

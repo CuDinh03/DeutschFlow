@@ -99,6 +99,7 @@ export default function V2OnboardingPage() {
   const [placementOffer, setPlacementOffer] = useState(false);
   // Value-first auth inversion (Phase C): a guest runs the funnel + quick win BEFORE signing up.
   const [isGuest, setIsGuest] = useState(false);          // no access token on mount
+  const totalSteps = isGuest ? 5 : 4;
   const [resuming, setResuming] = useState(false);        // authed, replaying a guest draft after signup
   const [quickWinChoice, setQuickWinChoice] = useState<string | null>(null);
 
@@ -336,22 +337,32 @@ export default function V2OnboardingPage() {
 
   return (
     <GaAuthShell wide>
-      <div className="mx-auto w-full max-w-lg">
+      <div className="mx-auto w-full max-w-lg overflow-x-clip">
         <div className="rounded-ga border border-ga-line bg-ga-card p-4 mb-4">
           <p className="ga-ui text-[14px] font-semibold text-ga-ink">{t("intro.title")}</p>
           <p className="mt-1 text-[12.5px] text-ga-muted">{t("intro.subtitle")}</p>
         </div>
-        <div className="flex items-center justify-center gap-2 mb-6">
-          {(isGuest ? [1,2,3,4,5] : [1,2,3,4]).map(s => <div key={s} className={`w-8 h-1.5 rounded-ga-pill ${s <= step ? "bg-ga-yellow" : "bg-ga-line"}`} />)}
+        <div
+          role="progressbar"
+          aria-label="Tiến độ thiết lập lộ trình"
+          aria-valuemin={1}
+          aria-valuemax={totalSteps}
+          aria-valuenow={Math.min(step, totalSteps)}
+          className="mb-6 flex items-center justify-center gap-2"
+        >
+          <span className="sr-only">Bước {Math.min(step, totalSteps)} trên {totalSteps}</span>
+          {Array.from({ length: totalSteps }, (_, index) => index + 1).map(s => (
+            <span aria-hidden="true" key={s} className={`h-1.5 w-8 rounded-ga-pill ${s <= step ? "bg-ga-yellow" : "bg-ga-line"}`} />
+          ))}
         </div>
 
         <AnimatePresence mode="wait">
           {step === 1 && (
             <motion.div key="s1" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("level.heading")}</h2>
+              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("level.heading")}</h1>
               <p className="text-[13.5px] text-ga-muted">{t("level.sub")}</p>
               {LEVELS.map(l => (
-                <button key={l.value} type="button" onClick={() => setCurrentLevel(l.value)} className={sel(currentLevel===l.value)}>
+                <button key={l.value} type="button" aria-pressed={currentLevel===l.value} onClick={() => setCurrentLevel(l.value)} className={sel(currentLevel===l.value)}>
                   <GaIcon name={l.icon} size={22} className="text-ga-muted" />
                   <div className="min-w-0 flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{t(`level.${l.value}.label`)}</p><p className="text-[12px] text-ga-muted">{t(`level.${l.value}.desc`)}</p></div>
                   {currentLevel===l.value && <CheckCircle size={18} className="text-ga-gold" />}
@@ -362,11 +373,11 @@ export default function V2OnboardingPage() {
 
           {step === 2 && (
             <motion.div key="s2" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("goal.heading")}</h2>
+              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("goal.heading")}</h1>
               <p className="text-[13.5px] text-ga-muted">{t("goal.sub")}</p>
               <div className="grid grid-cols-2 gap-2">
                 {MOTIVATIONS.map(m => (
-                  <button key={m.value} type="button" onClick={() => { setMotivation(m.value); setGoalType(m.goal); }}
+                  <button key={m.value} type="button" aria-pressed={motivation===m.value} onClick={() => { setMotivation(m.value); setGoalType(m.goal); }}
                     className={`p-3 rounded-ga border text-center transition-colors duration-150 ${motivation===m.value ? "border-ga-gold bg-ga-yellow-soft" : "border-ga-line hover:border-ga-subtle"}`}>
                     <GaIcon name={m.icon} size={22} className="mx-auto mb-1 text-ga-muted" />
                     <p className="ga-ui text-[12px] font-bold leading-tight text-ga-ink">{t(`goal.${m.value}`)}</p>
@@ -378,7 +389,7 @@ export default function V2OnboardingPage() {
                   <label className="ga-ui block text-[13px] font-semibold text-ga-ink">{t("goal.industryLabel")}</label>
                   <div className="flex flex-wrap gap-1.5">
                     {INDUSTRIES.map(ind => (
-                      <button key={ind} type="button" onClick={() => setIndustry(ind)} className={chip(industry===ind)}>
+                      <button key={ind} type="button" aria-pressed={industry===ind} onClick={() => setIndustry(ind)} className={chip(industry===ind)}>
                         {ind}
                       </button>
                     ))}
@@ -389,7 +400,7 @@ export default function V2OnboardingPage() {
                   <label className="ga-ui block text-[13px] font-semibold text-ga-ink">{t("goal.examLabel")}</label>
                   <div className="flex flex-wrap gap-1.5">
                     {EXAMS.map(ex => (
-                      <button key={ex} type="button" onClick={() => setExamType(ex)} className={chip(examType===ex)}>
+                      <button key={ex} type="button" aria-pressed={examType===ex} onClick={() => setExamType(ex)} className={chip(examType===ex)}>
                         {ex}
                       </button>
                     ))}
@@ -406,7 +417,7 @@ export default function V2OnboardingPage() {
 
           {step === 3 && (
             <motion.div key="s3" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("pace.heading")}</h2>
+              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("pace.heading")}</h1>
               <p className="text-[13.5px] text-ga-muted">{t("pace.sub")}</p>
               {mentor && (
                 <div className="space-y-1.5">
@@ -447,7 +458,7 @@ export default function V2OnboardingPage() {
           {step === 4 && isGuest && (
             <motion.div key="s4qw" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
               <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-3xl mx-auto">🇩🇪</div>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("quickWin.heading")}</h2>
+              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("quickWin.heading")}</h1>
               <p className="text-[13.5px] text-ga-muted">{t("quickWin.prompt")}</p>
               <div className="space-y-2 text-left">
                 {["Guten Morgen","Gute Nacht","Auf Wiedersehen"].map(opt => {
@@ -490,7 +501,7 @@ export default function V2OnboardingPage() {
                   </div>
                 </div>
               )}
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("signup.heading")}</h2>
+              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("signup.heading")}</h1>
               <p className="text-[13.5px] text-ga-muted">
                 {mentor ? t("signup.subWithMentor", { name: mentor.displayName }) : t("signup.sub")}
               </p>
@@ -504,7 +515,7 @@ export default function V2OnboardingPage() {
           {step === 4 && !isGuest && placementOffer && !testResult && questions.length === 0 && (
             <motion.div key="s4offer" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
               <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-ga-gold mx-auto"><GaIcon name="target" size={30} /></div>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("placementOffer.heading")}</h2>
+              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("placementOffer.heading")}</h1>
               <p className="text-[13.5px] text-ga-muted">
                 {t.rich("placementOffer.body", { level: currentLevel, b: (chunks) => <strong>{chunks}</strong> })}
               </p>
@@ -562,7 +573,7 @@ export default function V2OnboardingPage() {
               <div className={`inline-flex w-20 h-20 rounded-ga-pill items-center justify-center mx-auto ${testResult.passed?"bg-ga-green-soft text-ga-green":"bg-ga-red-soft text-ga-red"}`}>
                 {testResult.passed ? <CheckCircle size={40}/> : <XCircle size={40}/>}
               </div>
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">{testResult.passed ? t("result.passed") : t("result.failed")}</h2>
+              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{testResult.passed ? t("result.passed") : t("result.failed")}</h1>
               <p className="text-[13.5px] text-ga-muted">
                 {t.rich("result.score", {
                   correct: testResult.correctCount,

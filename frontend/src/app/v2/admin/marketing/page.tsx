@@ -8,7 +8,7 @@ import {
   getGrowthStats, listLeads, getTeacherClusters,
   type GrowthStats, type MarketingLead, type TeacherCluster,
 } from '@/lib/adminMarketingApi'
-import { GaPageHdr, GaCap, GaBtn, TkStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaCap, GaBtn, GaStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tăng trưởng / Leads (admin) — navy (W1.7 migrate admin/marketing).
@@ -82,12 +82,12 @@ export default function V2AdminMarketingPage() {
           </div>
         ) : (
           <>
-            <TkStatStrip
+            <GaStatStrip
               items={[
                 { label: t('stats.leadsTotal'), value: (stats?.leadsTotal ?? 0).toLocaleString(), sub: t('stats.leadsTotalSub', { count: stats?.leads7d ?? 0 }) },
-                { label: t('stats.leadsToday'), value: stats?.leadsToday ?? 0, sub: t('stats.leadsTodaySub'), color: '#1E9E61' },
-                { label: t('stats.reportsTotal'), value: (stats?.reportsTotal ?? 0).toLocaleString(), sub: t('stats.reportsTotalSub', { count: stats?.reports7d ?? 0 }), color: '#7C56C8' },
-                { label: t('stats.avgScore'), value: stats?.avgScore ?? 0, sub: t('stats.avgScoreSub'), color: '#E07B39' },
+                { label: t('stats.leadsToday'), value: stats?.leadsToday ?? 0, sub: t('stats.leadsTodaySub'), tone: 'green' },
+                { label: t('stats.reportsTotal'), value: (stats?.reportsTotal ?? 0).toLocaleString(), sub: t('stats.reportsTotalSub', { count: stats?.reports7d ?? 0 }), tone: 'violet' },
+                { label: t('stats.avgScore'), value: stats?.avgScore ?? 0, sub: t('stats.avgScoreSub'), tone: 'orange' },
               ]}
             />
 

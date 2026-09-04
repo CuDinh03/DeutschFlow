@@ -1,0 +1,90 @@
+{
+  "webVitalsPostChangeOnly": {
+    "page": "/",
+    "lcpMs": 120,
+    "cls": 0,
+    "note": "post-change only — no pre-Wave-0 baseline"
+  },
+  "fontEvidence": {
+    "gaScopeFontFamily": "__Be_Vietnam_Pro_8d361d, __Be_Vietnam_Pro_Fallback_8d361d, system-ui, ",
+    "italicComputed": "italic",
+    "loadedFaces": {
+      "__Inter_383286/normal": 7,
+      "__Inter_Fallback_383286/normal": 1,
+      "__Newsreader_f9fd81/italic": 3,
+      "__Newsreader_f9fd81/normal": 3,
+      "__Be_Vietnam_Pro_8d361d/normal": 9,
+      "__Be_Vietnam_Pro_Fallback_8d361d/normal": 1
+    }
+  },
+  "focusRing1440": {
+    "tag": "BUTTON",
+    "label": "VI",
+    "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 0px inset, rgb(39, 64, 107) 0px 0px 0px 2px inset, rgba(0, 0, 0, 0) 0"
+  },
+  "touchTargets390": [
+    {
+      "what": "DeutschFlow",
+      "h": 34,
+      "w": 117
+    },
+    {
+      "what": "VI",
+      "h": 44,
+      "w": 44
+    },
+    {
+      "what": "EN",
+      "h": 44,
+      "w": 44
+    },
+    {
+      "what": "DE",
+      "h": 44,
+      "w": 44
+    },
+    {
+      "what": "← Trang chủ",
+      "h": 40,
+      "w": 83
+    },
+    {
+      "what": "INPUT",
+      "h": 50,
+      "w": 358
+    },
+    {
+      "what": "INPUT",
+      "h": 50,
+      "w": 358
+    },
+    {
+      "what": "Hiện mật khẩu",
+      "h": 40,
+      "w": 40
+    },
+    {
+      "what": "Quên mật khẩu?",
+      "h": 40,
+      "w": 107
+    },
+    {
+      "what": "Đăng nhập",
+      "h": 44,
+      "w": 358
+    },
+    {
+      "what": "Đăng ký miễn phí →",
+      "h": 18,
+      "w": 138
+    }
+  ],
+  "portalScope": {
+    "hasGaScopeClass": true,
+    "dataRole": "student",
+    "insideAppScope": false,
+    "backgroundColor": "rgb(255, 255, 255)",
+    "borderColor": "rgb(231, 227, 218)",
+    "accent": "#ffcd00"
+  }
+}

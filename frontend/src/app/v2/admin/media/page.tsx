@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import useAdminData from '@/hooks/useAdminData'
 import { listMedia, type MediaAsset } from '@/lib/mediaApi'
-import { GaPageHdr, GaBtn, AdStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaStatStrip } from '@/components/ui-v2'
 
 // ── Blue header accent (media screen overrides admin-navy chrome) ─────────────
 const BLUE = '#2F6FC9'
@@ -74,13 +74,13 @@ export default function V2AdminMediaPage() {
       />
 
       <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
-        <AdStatStrip
+        <GaStatStrip
           className="mb-6"
-          cells={[
-            { label: t('statTotal'), value: stats.total.toLocaleString('vi-VN'), color: BLUE },
-            { label: t('statSize'), value: fmtSize(stats.size), color: '#E07B39' },
-            { label: t('statAi'), value: stats.ai.toLocaleString('vi-VN'), color: '#7C56C8' },
-            { label: t('statVideo'), value: stats.video.toLocaleString('vi-VN'), color: '#1E9E61' },
+          items={[
+            { label: t('statTotal'), value: stats.total.toLocaleString('vi-VN'), tone: 'blue' },
+            { label: t('statSize'), value: fmtSize(stats.size), tone: 'orange' },
+            { label: t('statAi'), value: stats.ai.toLocaleString('vi-VN'), tone: 'violet' },
+            { label: t('statVideo'), value: stats.video.toLocaleString('vi-VN'), tone: 'green' },
           ]}
         />
 

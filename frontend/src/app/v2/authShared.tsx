@@ -58,7 +58,7 @@ export function GaAuthShell({
           {showBackToLanding && (
             <Link
               href="/"
-              className="ga-ui inline-flex min-h-[40px] items-center whitespace-nowrap text-[13.5px] text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
+              className="ga-ui inline-flex min-h-11 items-center whitespace-nowrap text-[13.5px] text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
             >
               {t('shell.backHome')}
             </Link>
@@ -75,6 +75,8 @@ export function GaAuthShell({
 }
 
 interface GaFieldProps {
+  id?: string
+  name?: string
   label: string
   type?: string
   placeholder?: string
@@ -90,6 +92,8 @@ interface GaFieldProps {
 
 /** Labelled input with focus ring, inline error/hint, and password reveal toggle. */
 export function GaField({
+  id,
+  name,
   label,
   type = 'text',
   placeholder = '',
@@ -103,13 +107,14 @@ export function GaField({
   maxLength,
 }: GaFieldProps) {
   const t = useTranslations('v2.auth')
-  const [focus, setFocus] = useState(false)
-  const [show, setShow] = useState(false)
   // QA 13/08: nhãn nhìn thấy được nhưng KHÔNG nối vào input (không có htmlFor/id), nên trình đọc
   // màn hình chỉ đọc placeholder — mà placeholder biến mất ngay khi người dùng gõ (WCAG 3.3.2).
   // Nối nhãn + mô tả lỗi/gợi ý, và khai `required`/`aria-invalid` cho đúng trạng thái thật.
-  const fieldId = useId()
-  const describedById = `${fieldId}-desc`
+  const generatedId = useId().replace(/:/g, '')
+  const fieldId = id ?? `ga-field-${name ?? generatedId}`
+  const messageId = hint || error ? `${fieldId}-message` : undefined
+  const [focus, setFocus] = useState(false)
+  const [show, setShow] = useState(false)
   const isPw = type === 'password'
   const inputType = isPw && show ? 'text' : type
   const borderColor = error ? 'var(--ga-red)' : focus ? 'var(--ga-ink)' : 'var(--ga-line)'
@@ -122,11 +127,12 @@ export function GaField({
     <div className="mb-4">
       <label htmlFor={fieldId} className="ga-ui mb-[7px] block text-[13px] font-semibold text-ga-ink">
         {label}
-        {required && <span className="text-ga-red"> *</span>}
+        {required && <span aria-hidden="true" className="text-ga-red"> *</span>}
       </label>
       <div className="relative">
         <input
           id={fieldId}
+          name={name}
           type={inputType}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -136,33 +142,30 @@ export function GaField({
           maxLength={maxLength}
           required={required}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error || hint ? describedById : undefined}
+          aria-describedby={messageId}
           onFocus={() => setFocus(true)}
           onBlur={() => setFocus(false)}
           className="ga-ui block w-full rounded-ga bg-ga-card px-[15px] py-3 text-[15px] text-ga-ink outline-none transition-[border-color,box-shadow] duration-150"
-          style={{ border: `1px solid ${borderColor}`, boxShadow: ring, paddingRight: isPw ? 42 : 15 }}
+          style={{ border: `1px solid ${borderColor}`, boxShadow: ring, paddingRight: isPw ? 50 : 15 }}
         />
         {isPw && (
           <button
             type="button"
             onClick={() => setShow((s) => !s)}
             aria-label={show ? t('field.hidePassword') : t('field.showPassword')}
-            className="absolute right-1.5 top-1/2 grid h-[40px] w-[40px] -translate-y-1/2 place-items-center text-ga-muted transition-colors hover:text-ga-ink lg:h-[30px] lg:w-[30px]"
+            aria-controls={fieldId}
+            className="absolute right-1 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center text-ga-muted transition-colors hover:text-ga-ink lg:right-1.5 lg:h-[30px] lg:w-[30px]"
           >
             {show ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         )}
       </div>
       {error ? (
-        <div id={describedById} className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-ga-red">
+        <div id={messageId} role="alert" className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-ga-red">
           <AlertCircle size={14} /> {error}
         </div>
       ) : (
-        hint && (
-          <div id={describedById} className="mt-[5px] text-[12px] text-ga-muted">
-            {hint}
-          </div>
-        )
+        hint && <div id={messageId} className="mt-[5px] text-[12px] text-ga-muted">{hint}</div>
       )}
     </div>
   )

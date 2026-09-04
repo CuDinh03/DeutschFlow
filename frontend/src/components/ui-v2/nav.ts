@@ -397,3 +397,353 @@ export const ROLE_NAV: Record<RoleId, RoleNav> = {
   org: orgNav,
   student: studentNav,
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Wave 1 / S-01 — AREA NAVIGATION (IA-D1, IA-D6, IA-D7)
+
+   Learner/teacher nav không còn phơi module inventory. Persistent nav chỉ còn các
+   AREA theo ý định người dùng; mọi destination cũ trở thành `local` của area chủ sở
+   hữu hoặc `utility` (topbar/account menu). KHÔNG route nào bị xoá — IA-D8: regroup
+   navigation trước, đổi URL sau bằng 307/alias.
+
+   admin/org vẫn dùng `RoleNav` (sections) ở trên: chúng là operational console, không
+   áp learner five-item rule (IA §9) và không nằm trong release gate của Wave 1.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Nhóm con của local nav (B-05, IA §5.3).
+ *
+ * Nhóm chứa item; item KHÔNG chứa nhóm. Ràng buộc "mọi destination cách landing ≤2 cấp" vì thế
+ * là bất biến của KIỂU chứ không phải một quy ước phải nhớ: không có cách nào khai cấp thứ ba.
+ */
+export interface LocalGroup {
+  /** Khoá ổn định: i18n (`v2.nav.localGroups.<id>`), analytics, test. */
+  id: string
+  /** Nhãn tiếng Việt — fallback khi thiếu khoá i18n. */
+  label: string
+  icon: string
+  items: NavItem[]
+}
+
+/**
+ * Một ô CẤP 1 của local nav: hoặc là destination đi thẳng, hoặc là nhóm mở ra menu.
+ * Nhóm chỉ có một destination thì đừng khai nhóm — bắt mở menu để tới đúng một chỗ là chi phí
+ * thừa cho người dùng.
+ */
+export type LocalEntry = NavItem | LocalGroup
+
+export function isLocalGroup(entry: LocalEntry): entry is LocalGroup {
+  return 'items' in entry
+}
+
+/**
+ * Mọi destination của một area, đã trải phẳng qua nhóm — nguồn DUY NHẤT cho các phép kiểm
+ * reachability. Gom nhóm là việc của lớp trình bày; "không mất destination nào" phải đo trên
+ * danh sách phẳng, nếu không việc gom nhóm có thể âm thầm nuốt một route.
+ */
+export function localItems(area: AreaNav): NavItem[] {
+  return (area.local ?? []).flatMap((entry) => (isLocalGroup(entry) ? entry.items : [entry]))
+}
+
+/** Một khu vực cấp cao nhất trong persistent navigation. */
+export interface AreaNav {
+  /** Khoá ổn định: i18n (`v2.nav.areas.<id>`, `v2.nav.areaHelper.<id>`), analytics, test. */
+  id: string
+  /** Nhãn Đức — fallback khi thiếu khoá i18n. */
+  label: string
+  /** Nhãn Việt trợ giúp cho A1–A2 (drawer + accessible description; KHÔNG in hai dòng thường trực). */
+  helper: string
+  /** Landing của area. */
+  href: string
+  icon: string
+  /**
+   * Prefix route thuộc area này — dùng để suy ra area đang active và local nav tương ứng.
+   * Không cần liệt kê `href` (đã ngầm định). Prefix dài đặt trước để khớp chính xác hơn.
+   */
+  match: string[]
+  /** Điều hướng cấp 2 bên trong area (render bởi GaLocalNav dưới top bar). */
+  local?: LocalEntry[]
+  /** Mobile: gộp vào mục "Mehr" thay vì chiếm một ô bottom nav (IA-D7, teacher). */
+  mobileInMore?: boolean
+}
+
+/** Toàn bộ persistent navigation của một role theo mô hình area. */
+export interface RoleAreas {
+  role: RoleId
+  rootHref: string
+  /** Đúng 5 area với student (IA-D1); teacher 5 nhóm (IA-D6). */
+  areas: AreaNav[]
+  /** Utility — KHÔNG ở persistent nav; sống trong account menu / topbar (IA-D3). */
+  utility: NavItem[]
+  /** Inbox tin nhắn trên topbar (null nếu role không có). */
+  inbox?: NavItem
+}
+
+/**
+ * studentAreas — `Heute · Lernen · Sprechen · Prüfung · Fortschritt` (IA-D1).
+ *
+ * Mọi route `/v2/student/**` hiện có đều thuộc đúng một area hoặc là utility — không route
+ * nào mồ côi. Journey (`/roadmap`) là landing của Lernen theo IA-D2; AI Interview nằm trong
+ * Sprechen nhưng đứng ĐẦU local nav để giữ prominence (IA-D4).
+ */
+export const studentAreas: RoleAreas = {
+  role: 'student',
+  rootHref: '/v2/student/dashboard',
+  areas: [
+    {
+      id: 'heute',
+      label: 'Heute',
+      helper: 'Hôm nay',
+      href: '/v2/student/dashboard',
+      icon: 'dashboard',
+      // `beginner` là luồng buổi học đầu tiên — thuộc điều phối hằng ngày, không phải một destination riêng.
+      match: ['/v2/student/beginner'],
+    },
+    {
+      id: 'lernen',
+      label: 'Lernen',
+      helper: 'Học',
+      href: '/v2/student/roadmap',
+      icon: 'route',
+      match: [
+        '/v2/student/roadmap',
+        '/v2/student/learn',
+        '/v2/student/practice',
+        '/v2/student/review',
+        '/v2/student/errors',
+        '/v2/student/vocabulary',
+        '/v2/student/grammar',
+        '/v2/student/exercises',
+        '/v2/student/lessons',
+        '/v2/student/classes',
+        '/v2/student/news',
+        '/v2/student/game',
+      ],
+      // B-05: mười destination phẳng buộc local nav cuộn ngang ngay ở 1440 và bắt người học đọc
+      // hết danh sách mới biết thứ mình cần nằm đâu. Gom về 5 ô cấp 1 theo IA §5.3
+      // (Lernweg · Heute wiederholen · Bibliothek · Meine Klasse · Entdecken). Không destination
+      // nào bị bỏ: `localItems()` trải phẳng lại đúng 10 href, và `navAreaModel.test.ts` đo
+      // reachability trên danh sách phẳng đó.
+      local: [
+        { id: 'roadmap', label: 'Lộ trình', href: '/v2/student/roadmap', icon: 'route' },
+        {
+          id: 'wiederholen',
+          label: 'Ôn tập',
+          icon: 'repeat',
+          items: [
+            { id: 'review-queue', label: 'Ôn tập (SRS)', href: '/v2/student/review', icon: 'repeat' },
+            // Sổ lỗi là ôn tập có chủ đích (ôn đúng chỗ đã sai), không phải tài liệu tra cứu —
+            // nên nó thuộc nhóm ôn tập chứ không thuộc Thư viện.
+            { id: 'st-errors', label: 'Sổ lỗi', href: '/v2/student/errors', icon: 'error' },
+          ],
+        },
+        {
+          id: 'bibliothek',
+          label: 'Thư viện',
+          icon: 'library_books',
+          items: [
+            { id: 'lessons', label: 'Bài học', href: '/v2/student/lessons', icon: 'play_circle' },
+            { id: 'vocabulary', label: 'Từ vựng', href: '/v2/student/vocabulary', icon: 'menu_book' },
+            { id: 'grammar', label: 'Ngữ pháp', href: '/v2/student/grammar', icon: 'spellcheck' },
+            { id: 'exercises', label: 'Bài tập bổ trợ', href: '/v2/student/exercises', icon: 'assignment' },
+          ],
+        },
+        { id: 'my-classes', label: 'Lớp của tôi', href: '/v2/student/classes', icon: 'groups' },
+        {
+          id: 'entdecken',
+          label: 'Khám phá',
+          icon: 'explore',
+          items: [
+            { id: 'news', label: 'Tin tức Đức', href: '/v2/student/news', icon: 'newspaper' },
+            { id: 'game', label: 'Trò chơi', href: '/v2/student/game', icon: 'sports_esports' },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'sprechen',
+      label: 'Sprechen',
+      helper: 'Luyện nói',
+      href: '/v2/student/speaking',
+      icon: 'mic',
+      match: ['/v2/student/interviews', '/v2/student/weekly-speaking', '/v2/student/tutor'],
+      local: [
+        // Interview đứng đầu: khắc phục mismatch giữa lời hứa homepage và sản phẩm (UX-04/IA-D4).
+        { id: 'interviews', label: 'AI Interview', href: '/v2/student/interviews', icon: 'forum' },
+        { id: 'speaking', label: 'Luyện nói AI', href: '/v2/student/speaking', icon: 'mic' },
+        { id: 'weekly-speaking', label: 'Speaking tuần', href: '/v2/student/weekly-speaking', icon: 'calendar_month' },
+        { id: 'speaking-history', label: 'Lịch sử luyện nói', href: '/v2/student/speaking/history', icon: 'history' },
+        ...(MARKETPLACE_ENABLED
+          ? [{ id: 'book-session', label: 'Gia sư 1:1', href: '/v2/student/tutor', icon: 'co_present' }]
+          : []),
+      ],
+    },
+    {
+      id: 'pruefung',
+      label: 'Prüfung',
+      helper: 'Luyện thi',
+      href: '/v2/student/exam',
+      icon: 'school',
+      match: ['/v2/student/mock-exam', '/v2/student/assessment'],
+      local: [
+        { id: 'exam', label: 'Luyện thi', href: '/v2/student/exam', icon: 'school' },
+        { id: 'mock-exam', label: 'Thi thử', href: '/v2/student/mock-exam', icon: 'quiz' },
+        { id: 'b1-assessment', label: 'Đánh giá B1', href: '/v2/student/assessment', icon: 'fact_check' },
+      ],
+    },
+    {
+      id: 'fortschritt',
+      label: 'Fortschritt',
+      helper: 'Tiến bộ',
+      href: '/v2/student/progress',
+      icon: 'trending_up',
+      match: [
+        '/v2/student/stats',
+        '/v2/student/achievements',
+        '/v2/student/exercise-history',
+        '/v2/student/certificates',
+      ],
+      local: [
+        { id: 'st-progress', label: 'Tiến độ', href: '/v2/student/progress', icon: 'checklist' },
+        { id: 'st-stats', label: 'Thống kê', href: '/v2/student/stats', icon: 'query_stats' },
+        { id: 'achievements', label: 'Thành tích', href: '/v2/student/achievements', icon: 'emoji_events' },
+        { id: 'st-exercise-history', label: 'Lịch sử làm bài', href: '/v2/student/exercise-history', icon: 'history' },
+        { id: 'certificates', label: 'Chứng chỉ', href: '/v2/student/certificates', icon: 'workspace_premium' },
+      ],
+    },
+  ],
+  utility: [
+    { id: 'profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
+    { id: 'tuition', label: 'Học phí', href: '/v2/student/tuition', icon: 'payments' },
+    { id: 'welcome', label: 'Hướng dẫn', href: '/v2/student/welcome', icon: 'help' },
+  ],
+  inbox: { id: 'st-messages', label: 'Tin nhắn', href: '/v2/student/messages', icon: 'chat' },
+}
+
+/**
+ * teacherAreas — `Heute · Klassen · Bewerten · Materialien · Berichte` (IA-D6).
+ *
+ * Nhóm theo công việc hằng ngày thay vì module inventory. Công cụ AI trở thành phương thức
+ * TẠO trong Materialien (IA §8.1), không còn là một product area riêng. Mobile: Berichte gộp
+ * vào "Mehr" (IA-D7) vì báo cáo là việc ít làm trên điện thoại.
+ */
+export const teacherAreas: RoleAreas = {
+  role: 'teacher',
+  rootHref: '/v2/teacher',
+  areas: [
+    { id: 'tHeute', label: 'Heute', helper: 'Hôm nay', href: '/v2/teacher', icon: 'dashboard', match: [] },
+    {
+      id: 'tKlassen',
+      label: 'Klassen',
+      helper: 'Lớp học',
+      href: '/v2/teacher/schedule',
+      icon: 'groups',
+      match: ['/v2/teacher/classes', '/v2/teacher/tc-progress', '/v2/teacher/tc-checklist', '/v2/teacher/tc-reports'],
+      local: [
+        { id: 'schedule', label: 'Kế hoạch giảng dạy', href: '/v2/teacher/schedule', icon: 'schedule' },
+        { id: 'tc-progress', label: 'Tiến độ khóa học', href: '/v2/teacher/tc-progress', icon: 'trending_up' },
+        { id: 'tc-checklist', label: 'Nội dung giảng dạy', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
+        { id: 'tc-reports', label: 'Sổ điểm lớp', href: '/v2/teacher/tc-reports', icon: 'assessment' },
+      ],
+    },
+    {
+      id: 'tBewerten',
+      label: 'Bewerten',
+      helper: 'Chấm bài',
+      href: '/v2/teacher/grading',
+      icon: 'grading',
+      match: ['/v2/teacher/grade-image'],
+      local: [
+        { id: 'grading', label: 'Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
+        { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw' },
+      ],
+    },
+    {
+      id: 'tMaterialien',
+      label: 'Materialien',
+      helper: 'Tài liệu',
+      href: '/v2/teacher/materials',
+      icon: 'menu_book',
+      match: ['/v2/teacher/media', '/v2/teacher/grammar-drafts', '/v2/teacher/tools'],
+      local: [
+        { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book' },
+        { id: 'tc-media', label: 'Thư viện ảnh', href: '/v2/teacher/media', icon: 'photo_library' },
+        { id: 'grammar-drafts', label: 'Bài tập ngữ pháp', href: '/v2/teacher/grammar-drafts', icon: 'quiz' },
+        // AI tools = phương thức TẠO trong Materialien, không phải product area (IA §8.1).
+        ...(TEACHER_AI_TOOLS_ENABLED
+          ? [
+              { id: 'grammar-ai', label: 'Ngữ pháp AI', href: '/v2/teacher/tools/grammar', icon: 'spellcheck' },
+              { id: 'materials-ai', label: 'Tạo Tài liệu AI', href: '/v2/teacher/tools/materials', icon: 'description' },
+              { id: 'ai-images', label: 'Tạo ảnh AI', href: '/v2/teacher/tools/images', icon: 'image' },
+            ]
+          : []),
+      ],
+    },
+    {
+      id: 'tBerichte',
+      label: 'Berichte',
+      helper: 'Báo cáo',
+      href: '/v2/teacher/analytics',
+      icon: 'monitoring',
+      match: ['/v2/teacher/tc-timesheet'],
+      mobileInMore: true,
+      local: [
+        { id: 'analytics', label: 'Phân tích giảng dạy', href: '/v2/teacher/analytics', icon: 'monitoring' },
+        { id: 'tc-timesheet', label: 'Chấm công', href: '/v2/teacher/tc-timesheet', icon: 'timer' },
+      ],
+    },
+  ],
+  utility: [{ id: 't-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' }],
+  inbox: { id: 'tc-messages', label: 'Tin nhắn học viên', href: '/v2/teacher/messages', icon: 'chat' },
+}
+
+/** Role nào đã chuyển sang area navigation; role vắng mặt vẫn dùng `ROLE_NAV` (sections). */
+export const ROLE_AREAS: Partial<Record<RoleId, RoleAreas>> = {
+  student: studentAreas,
+  teacher: teacherAreas,
+}
+
+/** Chuẩn hoá pathname: bỏ dấu `/` thừa ở cuối. */
+function normalizePath(pathname: string): string {
+  return pathname.replace(/\/+$/, '') || '/'
+}
+
+/** `path` có thuộc `href` (bằng hoặc là route con) không. */
+export function isUnder(path: string, href: string): boolean {
+  const p = normalizePath(path)
+  return p === href || p.startsWith(href + '/')
+}
+
+/**
+ * Area đang active theo pathname. Ưu tiên prefix DÀI nhất để `/v2/student/speaking/history`
+ * không bị nuốt bởi một area khai prefix ngắn hơn.
+ */
+export function resolveArea(role: RoleAreas, pathname: string): AreaNav | undefined {
+  let best: { area: AreaNav; len: number } | undefined
+  for (const area of role.areas) {
+    for (const prefix of [area.href, ...area.match]) {
+      if (isUnder(pathname, prefix) && (!best || prefix.length > best.len)) {
+        best = { area, len: prefix.length }
+      }
+    }
+  }
+  return best?.area
+}
+
+/**
+ * Route đang ở chế độ toàn màn hình (Exam Room · Interview Room · phiên nói đang chạy):
+ * bottom nav phải ẩn hoàn toàn để không thoát nhầm giữa chừng (IA §10.1, S-13).
+ * Danh sách là route THẬT đang tồn tại — mode shell của Wave 2 sẽ kế thừa quy tắc này.
+ */
+const IMMERSIVE_ROUTES = [
+  '/v2/student/mock-exam/run',
+  '/v2/student/speaking/live',
+  // `/v2/student/interviews` ĐÃ RỜI danh sách này ở B-15: nó là màn CHỦ của Interview (bắt đầu
+  // phiên mới · phiên đang dở · báo cáo cũ), không phải phòng phỏng vấn. Ẩn nav ở đó là ẩn nhầm
+  // chỗ. Phòng thật (`/speaking/live`) vẫn ẩn — và ẩn theo TRẠNG THÁI qua `useImmersiveChrome`,
+  // nên màn tổng kết cuối phiên lấy lại được nav để người dùng đi tiếp.
+]
+
+export function isImmersiveRoute(pathname: string): boolean {
+  return IMMERSIVE_ROUTES.some((r) => isUnder(pathname, r))
+}

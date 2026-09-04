@@ -12,8 +12,17 @@ import {
   type OrgClassDetail, type OrgGradebook, type OrgLessonLog,
 } from '@/lib/orgApi'
 import {
-  GaPageHdr, GaBtn, GaCap, TkStatStrip, TkSearch,
-  TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent, ErrorBanner, LoadingState,
+  GaPageHdr,
+  GaBtn,
+  GaCap,
+  GaStatStrip,
+  TkSearch,
+  TkTabs,
+  TkTabsList,
+  TkTabsTrigger,
+  TkTabsContent,
+  ErrorBanner,
+  LoadingState,
 } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -111,10 +120,10 @@ export default function V2OrgClassDetailPage() {
           </div>
         ) : detail ? (
           <>
-            <TkStatStrip
+            <GaStatStrip
               items={[
                 { label: t('stats.size'), value: detail.studentCount, sub: t('stats.sizeSub') },
-                { label: t('stats.teacher'), value: detail.teacherName || '—', sub: detail.teacherId ? `#${detail.teacherId}` : t('stats.teacherUnassigned'), color: TEAL },
+                { label: t('stats.teacher'), value: detail.teacherName || '—', sub: detail.teacherId ? `#${detail.teacherId}` : t('stats.teacherUnassigned'), tone: 'teal' },
                 { label: t('stats.code'), value: detail.inviteCode || '—', sub: t('stats.codeSub') },
                 { label: t('stats.created'), value: fmtDate(detail.createdAt), sub: t('stats.createdSub') },
               ]}

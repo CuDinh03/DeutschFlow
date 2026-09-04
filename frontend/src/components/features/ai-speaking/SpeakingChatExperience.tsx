@@ -7,7 +7,10 @@ import { useChatStore } from "@/stores/useChatStore";
 import { StreamStatusIndicator } from "@/components/features/ai-speaking/StreamStatusIndicator";
 import { SessionSummary } from "@/components/features/ai-speaking/SessionSummary";
 import { SpeakingChatSidebar } from "@/components/features/ai-speaking/SpeakingChatSidebar";
+import { SpeakingContextRail } from "@/components/features/ai-speaking/SpeakingContextRail";
 import { SpeakingAdaptiveBar } from "@/components/features/ai-speaking/SpeakingAdaptiveBar";
+import { InterviewPhaseBar } from "@/components/interview/InterviewPhaseBar";
+import { useImmersiveChrome } from "@/components/ui-v2/useImmersiveChrome";
 import { SpeakingChatHeader } from "@/components/features/ai-speaking/SpeakingChatHeader";
 import { SpeakingChatEmptyState } from "@/components/features/ai-speaking/SpeakingChatEmptyState";
 import { SpeakingInputDock } from "@/components/features/ai-speaking/SpeakingInputDock";
@@ -29,8 +32,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useTracking } from "@/hooks/useTracking";
 import api from "@/lib/api";
-import { SpeakingPersonaFloat } from "@/components/speaking/SpeakingPersonaFloat";
-import { usePersonaReaction } from "@/hooks/usePersonaReaction";
 import { useStatusBarStyle } from "@/lib/statusBar";
 
 // The live conversation engine (SSE stream + mic + TTS). It used to live inside the legacy
@@ -118,9 +119,6 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   const [showEndPopup, setShowEndPopup] = useState(false);
   const [greetingSpoken, setGreetingSpoken] = useState(false);
   const [mobileCopilotOpen, setMobileCopilotOpen] = useState(false);
-  // J5: panel copilot desktop (rail bên phải) — controlled ở đây để link "Xem N lỗi"
-  // trong bong bóng mở được cả panel desktop lẫn sheet mobile.
-  const [desktopCopilotOpen, setDesktopCopilotOpen] = useState(false);
   const { trackFeatureAction } = useTracking();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -275,8 +273,13 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
       suggestionTimerRef.current = null;
     }
 
+    // `!isListening`: bộ đếm này không hề nhìn ô gõ — nó chỉ đếm từ lúc AI nói xong — nên bản cũ
+    // bật gợi ý ngay giữa lúc người học đang thu âm, tức mời họ đọc một câu viết sẵn đúng vào lúc
+    // họ đang tự nói. Đó là chính cái thứ bậc gõ-trước-nói mà lô 2 vừa đảo ngược. Đồng hồ nay tạm
+    // dừng khi mic đang mở và chạy lại từ đầu khi người học dừng nói.
     if (
       streamStatus === "idle" &&
+      !isListening &&
       messages.length > 0 &&
       messages[messages.length - 1].role === "ai" &&
       !messages[messages.length - 1].isStreaming
@@ -292,7 +295,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
     return () => {
       if (suggestionTimerRef.current) clearTimeout(suggestionTimerRef.current);
     };
-  }, [messages, streamStatus, suggestionDelayMs]);
+  }, [messages, streamStatus, suggestionDelayMs, isListening]);
 
   // ─── Detect interview end (Phase 5 keywords) ──────────────
   useEffect(() => {
@@ -355,22 +358,20 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
             setServerDurationSec(Math.round(ms / 1000));
           }
         }
+        // GR-1 (R-G1/R-G7): phiên COMMUNICATION/LESSON lấy báo cáo AI THẬT (typed) để thay điểm heuristic
+        // bịa. parseReport chỉ đọc JSON đã lưu ở /end (không gọi LLM lại) nên report sẵn sàng ngay.
+        // Lỗi mạng/429 → giữ null → SessionSummary rơi về guard/heuristic cũ (degrade an toàn, không crash).
+        if (sessionMode !== "INTERVIEW") {
+          try {
+            const rep = await aiSpeakingApi.getConversationReport(sid);
+            setConversationReport(rep.data ?? null);
+          } catch {
+            setConversationReport(null);
+          }
+        }
         trackFeatureAction('ai_speaking', 'completed', { mode: sessionMode, messagesCount: messages.length });
       } catch (err) {
         console.error("Failed to end session", err);
-      }
-      // GR-1 (R-G1/R-G7): phiên COMMUNICATION/LESSON lấy báo cáo AI THẬT (typed) để thay điểm heuristic
-      // bịa. parseReport chỉ đọc JSON đã lưu ở /end (không gọi LLM lại) nên report sẵn sàng ngay.
-      // Nằm NGOÀI try của endSession (QA prod 04/08 23:48): /end có thể timeout phía FE trong khi
-      // server vẫn chấm xong — vẫn phải thử lấy report thay vì mất "đánh giá chi tiết" oan.
-      // Lỗi mạng/429 → giữ null → SessionSummary rơi về guard/heuristic cũ (degrade an toàn, không crash).
-      if (sessionMode !== "INTERVIEW") {
-        try {
-          const rep = await aiSpeakingApi.getConversationReport(sid);
-          setConversationReport(rep.data ?? null);
-        } catch {
-          setConversationReport(null);
-        }
       }
     }
     stopSpeaking();
@@ -398,20 +399,23 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   }, [toggleMic, quotaBlocked, setMicError, t]);
 
   const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
-  const lastUserErrors = lastUserMessage?.errors ?? [];
+  /**
+   * `undefined` = lượt vừa gửi, AI CHƯA phân tích. `[]` = đã phân tích và sạch lỗi. Store gán
+   * `errors` cho lượt USER đúng MỘT lần, ở nhánh `onDone` của luồng chat — nên đây là chỗ duy nhất
+   * còn phân biệt được hai trạng thái đó. Hạ về `?? []` ngay tại nguồn (như bản cũ) làm bảng phản
+   * hồi báo "Ngữ pháp: Tốt" cho một câu chưa ai chấm.
+   */
+  const analysedErrors = lastUserMessage?.errors;
+  const lastUserErrors = analysedErrors ?? [];
 
-  const personaReaction = usePersonaReaction({
-    streamStatus,
-    isListening,
-    isSpeaking,
-    lastUserErrors,
-  });
+  /** Phán đoán của AI về lượt vừa rồi — nguồn duy nhất cho chiều "Phù hợp" của bảng phản hồi. */
+  const lastAiFeedback = [...messages]
+    .reverse()
+    .find((m) => m.role === "ai" && !m.isStreaming)?.feedback;
+  const turnStatus = lastAiFeedback?.status ?? null;
+  const turnNote = lastAiFeedback?.feedbackText ?? null;
 
-  const openCopilot = useCallback(() => {
-    // Mở cả hai: chỉ bề mặt khớp breakpoint hiện tại hiển thị (sheet md:hidden, rail hidden md:flex).
-    setMobileCopilotOpen(true);
-    setDesktopCopilotOpen(true);
-  }, []);
+  const openCopilot = useCallback(() => setMobileCopilotOpen(true), []);
 
   const suggestionCount = showSuggestions ? lastSuggestions.length : 0;
   const stripPhonemeScore = phonemeResult?.score ?? null;
@@ -449,6 +453,15 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   }, [abortStream, cleanupMic, stopSpeaking]);
 
   // These hooks MUST be called before any conditional returns to obey Rules of Hooks
+  /**
+   * S-06 AC-4 / S-13: trong lúc phiên đang chạy, chrome của role shell (sidebar · topbar · bottom
+   * nav · local nav) biến mất — không XP, không streak, không nav toàn cục. Trước B-15 route
+   * `/v2/student/speaking/live` KHÔNG nằm trong `isImmersiveRoute()`, nên cả Interview lẫn Studio
+   * vẫn chạy trong role shell đầy đủ. Gắn theo TRẠNG THÁI (`viewMode`) chứ không theo route: màn
+   * tổng kết là báo cáo, người dùng cần nav để đi tiếp.
+   */
+  useImmersiveChrome(viewMode !== "summary");
+
   const interviewPhaseKey = useChatStore((s) => s.interviewPhaseKey);
   const streamErrorMessage = useChatStore((s) => s.streamErrorMessage);
   const interviewHintKey = useChatStore((s) => s.interviewHintKey);
@@ -548,10 +561,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
     .join(" ");
 
   const headerSubtitle = [
-    // QA 09/08 mục H: LESSON từng rơi vào nhánh "Hội thoại" vì chỉ có 2 nhánh.
-    isInterview ? tChat("modeInterview")
-      : sessionMode === "LESSON" ? tChat("modeLesson")
-      : tChat("modeConversation"),
+    isInterview ? tChat("modeInterview") : tChat("modeConversation"),
     selectedCompanion.cefrLevel,
     interviewPhaseLabel,
   ]
@@ -571,11 +581,19 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
         autoTtsEnabled={autoTtsEnabled}
         onAutoTtsChange={setAutoTts}
         onBack={() => {
+          // Thoát có xác nhận (S-06 AC-4). Chỉ hỏi khi ĐÃ có lượt trả lời — hỏi lúc phiên còn
+          // trống chỉ là một bước cản vô nghĩa. Câu chữ nêu đúng hậu quả: lượt đã xong nằm trên
+          // server (đã verify ở B-15), nên rời đi không mất phần đã trả lời.
+          if (messages.length > 0 && !confirm(tChat("confirmLeaveSession"))) return;
           trackFeatureAction("ai_speaking", "quit", { mode: sessionMode, messagesCount: messages.length });
           router.push(routes.setup);
         }}
         onEnd={handleEndSession}
       />
+
+      {/* Tiến độ theo PHA cho phỏng vấn: nhãn pha vốn chỉ nằm lẫn trong subtitle của header, nên
+          người ta biết "đang ở Hard Skills" mà không biết còn mấy chặng nữa. */}
+      {isInterview && <InterviewPhaseBar phase={interviewPhaseKey} />}
 
       <SpeakingAdaptiveBar
         adaptive={adaptiveMeta}
@@ -608,13 +626,24 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
         )
       )}
 
+      {/* Bố cục 3 vùng ở ≥1280 (S-07 §Responsive): ngữ cảnh trái · ghi âm+transcript giữa ·
+          phản hồi phải. Dưới ngưỡng đó dải ngữ cảnh gập lại và header giữ nguyên vai trò cũ. */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
-        {/* Redesign 05/08: sidebar 35% → rail mỏng, chat lấy trọn phần còn lại. */}
-        <main className="relative flex-1 overflow-y-auto p-4 md:p-6 space-y-2 min-h-0">
-          <SpeakingPersonaFloat
-            personaId={selectedCompanion.id}
-            reaction={personaReaction}
-          />
+        <SpeakingContextRail
+          modeLabel={isInterview ? tChat("modeInterview") : tChat("modeConversation")}
+          companionName={selectedCompanion.name}
+          personaRole={personaRole}
+          cefrLevel={selectedCompanion.cefrLevel}
+          sessionTopic={sessionTopic}
+          secondsLabel={formatTime(seconds)}
+        />
+
+        {/* P4-D7 / S-07: KHÔNG còn nhân vật nổi trong phiên đang chạy. Nó là một `motion.div`
+            `aria-hidden` với vầng sáng `repeat: Infinity` (blur + scale 1→1.18) chạy suốt lúc ghi
+            âm — trang trí thuần: trạng thái nó biểu diễn (listening/thinking/talking) screen reader
+            không đọc được, còn CPU thì chất lượng thu âm phụ thuộc vào. Trạng thái thật đã có ở
+            `StreamStatusIndicator` trên header dưới dạng CHỮ. */}
+        <main className="relative flex-1 md:w-[65%] md:flex-none xl:w-auto xl:flex-1 overflow-y-auto p-4 md:p-6 space-y-2 min-h-0">
           <div className="max-w-3xl mx-auto w-full">
             {messages.length === 0 && (
               <SpeakingChatEmptyState
@@ -656,25 +685,20 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
         </main>
 
         <SpeakingChatSidebar
+          suggestionsLoading={suggestionsLoading}
+          onRequestSuggestions={requestSuggestions}
           isListening={isListening}
           inputText={inputText}
           streamStatus={streamStatus}
           isSpeaking={isSpeaking}
           showSuggestions={showSuggestions}
           suggestions={lastSuggestions}
-          lastUserErrors={lastUserErrors}
-          companionName={selectedCompanion.name}
-          personaRole={personaRole}
-          sessionTopic={sessionTopic}
+          analysedErrors={analysedErrors}
+          turnStatus={turnStatus}
+          turnNote={turnNote}
           phonemeResult={phonemeResult}
           phonemeLoading={isEvaluatingPhoneme}
-          suggestionsLoading={suggestionsLoading}
-          onRequestSuggestions={requestSuggestions}
-          hasUserSpoken={messages.some((m) => m.role === "user")}
           onSuggestionSelect={handleSuggestionSelect}
-          onStarterSelect={handleSuggestionSelect}
-          panelOpen={desktopCopilotOpen}
-          onPanelOpenChange={setDesktopCopilotOpen}
         />
       </div>
 
@@ -709,15 +733,17 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
       />
 
       <SpeakingMobileCopilotSheet
+        suggestionsLoading={suggestionsLoading}
+        onRequestSuggestions={requestSuggestions}
         open={mobileCopilotOpen}
         onClose={() => setMobileCopilotOpen(false)}
         showSuggestions={showSuggestions}
         suggestions={lastSuggestions}
-        lastUserErrors={lastUserErrors}
+        analysedErrors={analysedErrors}
+        turnStatus={turnStatus}
+        turnNote={turnNote}
         phonemeResult={phonemeResult}
         phonemeLoading={isEvaluatingPhoneme}
-        suggestionsLoading={suggestionsLoading}
-        onRequestSuggestions={requestSuggestions}
         onSuggestionSelect={handleSuggestionSelect}
       />
 

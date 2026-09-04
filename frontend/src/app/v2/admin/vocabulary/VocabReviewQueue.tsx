@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaBtn, GaCap, AdStatStrip } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 
 // Wires the previously-orphaned admin review endpoints (A-3):
 //   GET  /api/admin/vocabulary/review/queue?limit&cefrLevel&dtype  → { items, total }
@@ -92,17 +92,17 @@ export default function VocabReviewQueue() {
 
   return (
     <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
-      <AdStatStrip
+      <GaStatStrip
         className="mb-6"
-        cells={[
-          { label: t('reviewStatTotal'), value: (totalWords ?? 0).toLocaleString('vi-VN'), color: GREEN },
+        items={[
+          { label: t('reviewStatTotal'), value: (totalWords ?? 0).toLocaleString('vi-VN'), tone: 'green' },
           {
             label: t('reviewStatPending'),
             value: (pending ?? 0).toLocaleString('vi-VN'),
-            color: '#C79A00',
+            tone: 'gold',
             alert: (pending ?? 0) > 0,
           },
-          { label: t('reviewStatReviewed'), value: (reviewed ?? 0).toLocaleString('vi-VN'), color: '#2F6FC9' },
+          { label: t('reviewStatReviewed'), value: (reviewed ?? 0).toLocaleString('vi-VN'), tone: 'blue' },
         ]}
       />
 

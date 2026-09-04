@@ -2,9 +2,14 @@ import { test, expect, type Page } from '@playwright/test'
 import { studentCookies, STUDENT_TOKEN } from '../../helpers/tokens'
 
 /**
- * E2E: tab "Cây học tập" của /v2/student/roadmap.
+ * E2E: cách xem "Cây" của /v2/student/roadmap.
  *
- * Cây đọc đúng `GET /roadmap/me` như tab "Bài học" — không có nguồn dữ liệu riêng — nên toàn bộ
+ * Sau S-03 (Wave 1) cây không còn là một trong ba tab ngang hàng: nó là representation CHÍNH của
+ * Lernweg, và segmented `Cây | Danh sách` chỉ đổi cách nhìn trên cùng một dữ liệu. Mặc định phụ
+ * thuộc khổ màn — desktop mở thẳng vào cây, dưới 768px mở vào danh sách (P4-D4) — nên mọi test
+ * ở đây phải khai RÕ viewport thay vì dựa vào mặc định của Playwright.
+ *
+ * Cây đọc đúng `GET /roadmap/me` như danh sách — không có nguồn dữ liệu riêng — nên toàn bộ
  * test này mock đúng một endpoint đó và kiểm tra cây phản ánh lại nó: đủ node, đúng motif theo
  * `progressStatus`, và mỗi kỹ năng dẫn vào runner chấm điểm thật.
  */
@@ -98,6 +103,9 @@ async function mockSession(page: Page, nodes: unknown[]) {
 }
 
 test.describe('Cây học tập (/v2)', () => {
+  // Khổ desktop: mặc định của segmented là "Cây" — đó chính là hợp đồng các test dưới kiểm.
+  test.use({ viewport: { width: 1280, height: 720 } })
+
   test('mở thẳng vào cây và vẽ đủ node của lộ trình', async ({ page }) => {
     await mockSession(page, a1Roadmap())
     await page.goto('/v2/student/roadmap')
@@ -246,22 +254,18 @@ test.describe('Cây học tập (/v2)', () => {
     expect(page.url()).toContain('node=112')
   })
 
-  // Regression QA prod 17/08: panel cây inactive mang class `flex` đè thuộc tính `hidden` của
-  // Radix ⇒ div rỗng flex-1 vẫn chiếm chỗ, tab Bài học/Giai đoạn hở ~300px trắng trên đầu.
-  test('chuyển tab Bài học: panel cây ẩn hẳn, không để lại khoảng trống', async ({ page }) => {
+  // Regression QA prod 17/08 (gốc: panel Radix inactive vẫn chiếm chỗ). S-03 đổi sang segmented
+  // Cây|Danh sách và panel cây UNMOUNT hẳn khi rời — phép đo mới: rời cây thì group biến mất
+  // khỏi DOM, danh sách hiện ngay, không còn vùng trắng vì không còn panel rỗng nào tồn tại.
+  test('chuyển sang Danh sách: panel cây gỡ hẳn khỏi DOM, danh sách hiện ngay', async ({ page }) => {
     await mockSession(page, a1Roadmap())
     await page.goto('/v2/student/roadmap')
     await expect(page.getByRole('group', { name: 'Cây học tập' })).toBeVisible()
 
-    await page.getByRole('tab', { name: 'Bài học' }).click()
+    await page.getByRole('tab', { name: 'Danh sách' }).click()
 
-    const gap = await page.evaluate(() => {
-      const tablist = document.querySelector('[role="tablist"]')
-      const panel = document.querySelector('[role="tabpanel"][data-state="active"]')
-      if (!tablist || !panel) return Number.NaN
-      return panel.getBoundingClientRect().top - tablist.getBoundingClientRect().bottom
-    })
-    expect(gap).toBeLessThan(60)
+    await expect(page.getByRole('group', { name: 'Cây học tập' })).toHaveCount(0)
+    await expect(page.getByRole('tab', { name: 'Danh sách' })).toHaveAttribute('aria-selected', 'true')
   })
 
   // Đợt 1 (T5): lựa chọn tắt hiệu ứng phải sống qua lần vào sau.
@@ -384,6 +388,10 @@ test.describe('Cây học tập (/v2)', () => {
     await page.setViewportSize({ width: 375, height: 812 })
     await mockSession(page, a1Roadmap())
     await page.goto('/v2/student/roadmap')
+
+    // Dưới 768px mặc định là DANH SÁCH (P4-D4) — cây là lựa chọn chủ động của người học. Test
+    // vẫn phải đo cây ở khổ này: chọn được thì cũng phải dùng được, không tràn ngang.
+    await page.getByRole('tab', { name: 'Cây', exact: true }).click()
 
     await expect(page.getByRole('group', { name: 'Cây học tập' })).toBeVisible()
     const overflow = await page.evaluate(() => {

@@ -86,6 +86,13 @@ export interface NodeSession {
   xpReward: number;
   moduleNumber: number | null;
   moduleTitleVi: string | null;
+  /**
+   * Thời lượng ước tính (phút) — `skill_tree_nodes.estimated_minutes`, cột NULLABLE.
+   * `GET /skill-tree/node/{id}/session` đã trả trường này từ lâu (SkillTreeService.getNodeSession)
+   * nhưng kiểu ở đây không khai nên UI vứt đi im lặng. Nullable thật, nên chỗ hiển thị phải bỏ hẳn
+   * ô khi vắng thay vì in "~0 phút".
+   */
+  estimatedMinutes: number | null;
   sessionType: string;
   content: NodeContent | null;
   hasContent: boolean;

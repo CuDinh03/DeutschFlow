@@ -2,23 +2,34 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { spring } from "@/lib/motion";
-import { X, Lightbulb, AlertCircle, Mic } from "lucide-react";
+import { X, Mic } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Suggestion, ErrorItem } from "@/lib/aiSpeakingApi";
 import type { PhonemeEvalResult } from "@/lib/phonemeApi";
-import { SpeakingPhonemePanel } from "./SpeakingPhonemePanel";
+import type { TurnStatus } from "@/lib/speaking/feedbackModel";
+import { SpeakingFeedbackSummary } from "./SpeakingFeedbackSummary";
 
+/**
+ * Vùng phản hồi ở khổ máy điện thoại (S-07 §Responsive: "feedback trong sheet").
+ *
+ * Dùng CHUNG `SpeakingFeedbackSummary` với sidebar desktop — trước đây sheet này chép lại một bản
+ * rút gọn của cùng ba khối (phoneme · lỗi · gợi ý), nên hai khổ máy nói khác nhau về cùng một lượt:
+ * bản mobile lặng lẽ bỏ mất `ruleViShort` và `exampleCorrectDe`, tức người học trên điện thoại
+ * thấy mình sai ở đâu nhưng không thấy vì sao.
+ */
 interface Props {
   open: boolean;
   onClose: () => void;
   showSuggestions: boolean;
   suggestions: Suggestion[];
-  lastUserErrors: ErrorItem[];
-  phonemeResult: PhonemeEvalResult | null;
-  phonemeLoading?: boolean;
   /** Đ4: gợi ý sinh theo yêu cầu — có mặt ⇒ hiện nút khi chưa có chip nào. */
   suggestionsLoading?: boolean;
   onRequestSuggestions?: () => void;
+  analysedErrors: ErrorItem[] | undefined;
+  turnStatus: TurnStatus | null;
+  turnNote: string | null;
+  phonemeResult: PhonemeEvalResult | null;
+  phonemeLoading?: boolean;
   onSuggestionSelect: (text: string) => void;
 }
 
@@ -27,11 +38,13 @@ export function SpeakingMobileCopilotSheet({
   onClose,
   showSuggestions,
   suggestions,
-  lastUserErrors,
-  phonemeResult,
-  phonemeLoading,
   suggestionsLoading,
   onRequestSuggestions,
+  analysedErrors,
+  turnStatus,
+  turnNote,
+  phonemeResult,
+  phonemeLoading,
   onSuggestionSelect,
 }: Props) {
   const t = useTranslations("speaking.chat");
@@ -40,11 +53,11 @@ export function SpeakingMobileCopilotSheet({
   const showSuggestionRequest =
     showSuggestions && suggestions.length === 0 && !!onRequestSuggestions;
   const hasContent =
-    (showSuggestions && suggestions.length > 0) ||
-    showSuggestionRequest ||
-    lastUserErrors.length > 0 ||
+    analysedErrors !== undefined ||
     !!phonemeResult ||
-    phonemeLoading;
+    !!turnStatus ||
+    showSuggestionRequest ||
+    (showSuggestions && suggestions.length > 0);
 
   return (
     <AnimatePresence>
@@ -80,85 +93,22 @@ export function SpeakingMobileCopilotSheet({
               </button>
             </div>
 
-            <div className="p-4 space-y-4 pb-8">
-              {phonemeResult && (
-                <SpeakingPhonemePanel result={phonemeResult} loading={phonemeLoading} />
-              )}
-
-              {lastUserErrors.length > 0 && (
-                <div className="rounded-ga p-4 border border-ga-red bg-ga-red-soft">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertCircle size={14} className="text-ga-red" />
-                    <span className="text-[10px] font-bold text-ga-red uppercase">
-                      {t("correctionsTitle")}
-                    </span>
-                  </div>
-                  <ul className="space-y-2">
-                    {lastUserErrors.map((err, idx) => (
-                      <li
-                        key={`${err.errorCode}-${idx}`}
-                        className="text-sm bg-ga-card rounded-ga p-2.5 border border-ga-line"
-                      >
-                        {err.wrongSpan && (
-                          <p className="text-ga-red line-through text-[13px]">
-                            &quot;{err.wrongSpan}&quot;
-                          </p>
-                        )}
-                        {err.correctedSpan && (
-                          <p className="text-ga-green font-medium text-[13px]">
-                            → &quot;{err.correctedSpan}&quot;
-                          </p>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {showSuggestionRequest && (
-                <button
-                  type="button"
-                  onClick={onRequestSuggestions}
-                  disabled={suggestionsLoading}
-                  className="w-full flex items-center gap-2 p-3 rounded-ga bg-ga-surface border border-ga-line hover:border-ga-accent transition-colors disabled:opacity-60"
-                >
-                  <Lightbulb size={14} className="text-ga-gold flex-shrink-0" />
-                  <span className="text-[12px] font-semibold text-ga-ink">
-                    {suggestionsLoading ? t("suggestionsLoading") : t("suggestionsRequest")}
-                  </span>
-                </button>
-              )}
-
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Lightbulb size={13} className="text-ga-gold" />
-                    <span className="text-[10px] font-bold text-ga-gold uppercase">
-                      {t("suggestionsTitle")}
-                    </span>
-                  </div>
-                  {suggestions.map((s, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => {
-                        onSuggestionSelect(s.german_text);
-                        onClose();
-                      }}
-                      className="w-full text-left p-3 rounded-ga bg-ga-surface border border-ga-line hover:border-ga-accent transition-colors"
-                    >
-                      <p className="text-sm font-medium text-ga-ink">
-                        {s.german_text}
-                      </p>
-                      {s.vietnamese_translation && (
-                        <p className="text-[12px] text-ga-muted mt-1 italic">
-                          {s.vietnamese_translation}
-                        </p>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="p-4 pb-8">
+              <SpeakingFeedbackSummary
+                analysedErrors={analysedErrors}
+                suggestions={suggestions}
+                suggestionsVisible={showSuggestions}
+                suggestionsLoading={suggestionsLoading}
+                onRequestSuggestions={onRequestSuggestions}
+                phonemeResult={phonemeResult}
+                turnStatus={turnStatus}
+                turnNote={turnNote}
+                phonemeLoading={phonemeLoading}
+                onSuggestionSelect={(text) => {
+                  onSuggestionSelect(text);
+                  onClose();
+                }}
+              />
             </div>
           </motion.div>
         </>

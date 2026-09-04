@@ -7,7 +7,7 @@ import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { getOrgSummary, getPaymentInfo, listMyInvoices, type OrgInvoice, type OrgSummary, type PaymentInfo } from '@/lib/orgApi'
 import { seatMetaOf } from '@/lib/orgSeats'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 import { OrgOwnerOnly } from '../OwnerOnly'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,11 +145,11 @@ function V2OrgBillingInner() {
         ) : (
           <>
             {/* F01: tổng hợp theo chiều NGƯỜI MUA — đã trả / cần trả cho DeutschFlow. */}
-            <TkStatStrip
+            <GaStatStrip
               items={[
-                { label: t('stats.paidToDf'), value: vnd(totalPaid), sub: t('stats.invoiceCount', { count: paid.length }), color: GREEN },
-                { label: t('stats.owedToDf'), value: vnd(totalOwed), sub: t('stats.invoiceCount', { count: unpaid.length }), color: totalOwed > 0 ? '#E07B39' : '#76716A', alert: totalOwed > 0 },
-                { label: t('stats.seatsInUse'), value: summary ? summary.seatUsed.toLocaleString('vi-VN') : '—', sub: !seats ? '—' : seats.unlimited ? t('stats.seatsUnlimited') : t('stats.seatsOfLimit', { limit: summary?.seatLimit ?? 0 }), color: '#7C56C8' },
+                { label: t('stats.paidToDf'), value: vnd(totalPaid), sub: t('stats.invoiceCount', { count: paid.length }), tone: 'green' },
+                { label: t('stats.owedToDf'), value: vnd(totalOwed), sub: t('stats.invoiceCount', { count: unpaid.length }), tone: totalOwed > 0 ? 'orange' : 'neutral', alert: totalOwed > 0 },
+                { label: t('stats.seatsInUse'), value: summary ? summary.seatUsed.toLocaleString('vi-VN') : '—', sub: !seats ? '—' : seats.unlimited ? t('stats.seatsUnlimited') : t('stats.seatsOfLimit', { limit: summary?.seatLimit ?? 0 }), tone: 'violet' },
               ]}
             />
 

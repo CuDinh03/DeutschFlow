@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
 import { getAccessToken } from '@/lib/authSession'
@@ -22,6 +22,7 @@ const LOCALES: ReadonlyArray<{ code: string; label: string }> = [
 export function LanguageToggle() {
   const active = useLocale()
   const router = useRouter()
+  const t = useTranslations('v2.ui')
   const [pending, setPending] = React.useState<string | null>(null)
 
   async function change(code: string) {
@@ -43,9 +44,9 @@ export function LanguageToggle() {
 
   return (
     <div
-      className="flex items-center rounded-ga border border-ga-line p-0.5"
+      className="flex items-center rounded-ga-touch border border-ga-line p-0.5"
       role="group"
-      aria-label="Ngôn ngữ"
+      aria-label={t('language')}
     >
       {LOCALES.map((l) => {
         const isActive = l.code === active
@@ -57,8 +58,10 @@ export function LanguageToggle() {
             aria-pressed={isActive}
             disabled={pending !== null}
             className={
-              'rounded-[6px] px-2 py-1 text-[11px] font-semibold transition-colors ' +
-              (isActive ? 'bg-ga-accent-soft text-ga-accent' : 'text-ga-subtle hover:text-ga-ink')
+              // 44px chạm tay trên mobile (F-06/D8); từ lg trả lại kích thước compact của topbar.
+              'min-h-11 min-w-11 rounded-ga-touch px-2 py-1 text-[11px] font-semibold transition-colors lg:min-h-0 lg:min-w-0 ' +
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset disabled:opacity-50 ' +
+              (isActive ? 'bg-ga-accent-soft text-ga-ink' : 'text-ga-muted hover:text-ga-ink')
             }
           >
             {l.label}

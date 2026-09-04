@@ -13,9 +13,8 @@ import type { RoleId } from './nav'
  *
  * Cùng ngôn ngữ hình ảnh với dropdown chuông: icon tile nhuộm tone theo loại thông báo,
  * thanh nhấn 3px cạnh trái (họ hàng --ga-shadow-selected-bar của nav), tiêu đề serif
- * Newsreader. Sonner render toast trên chính chỗ mount Toaster (root layout) — NGOÀI
- * subtree `.ga-scope` của shell /v2 — nên thẻ tự mang `ga-scope` + `data-role` để token
- * và role accent resolve đúng.
+ * Newsreader. Sonner portal render trên document.body — NGOÀI subtree `.ga-scope` — nên
+ * thẻ tự mang `ga-scope` + `data-role` theo PORTAL SCOPE CONTRACT (W0-C4).
  */
 
 export interface GaNotificationToastLabels {
@@ -92,12 +91,12 @@ export function GaNotificationToast({
           )}
         </div>
 
-        {/* Touch target giữ ≥44px trên mobile — margin âm để hình vẫn gọn trong thẻ. */}
+        {/* Touch target giữ ≥44px trên mobile (F-06/D8) — margin âm để hình vẫn gọn trong thẻ. */}
         <button
           type="button"
           onClick={onClose}
           aria-label={labels.close}
-          className="-mr-0.5 -mt-1.5 grid h-11 w-11 shrink-0 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-accent lg:-mt-1 lg:h-8 lg:w-8"
+          className="-mr-0.5 -mt-1.5 grid h-11 w-11 shrink-0 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus lg:-mt-1 lg:h-8 lg:w-8"
         >
           <GaIcon name="close" size={15} />
         </button>

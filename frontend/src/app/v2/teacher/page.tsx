@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip, TkSearch, ErrorBanner } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkSearch, ErrorBanner } from '@/components/ui-v2'
 
 const VIOLET = '#7C56C8'
 
@@ -162,7 +162,7 @@ export default function V2TeacherDashboardPage() {
             <ErrorBanner message={t('summaryError')} onRetry={() => void load()} />
           </div>
         )}
-        <TkStatStrip
+        <GaStatStrip
           items={[
             // "Lượt ghi danh": tổng theo TỪNG LỚP — học viên học 2 lớp đếm 2 lượt; con số
             // "người duy nhất" nằm ở trang phân tích (overview). Nhãn phải nói đúng phép cộng (F05).
@@ -171,15 +171,15 @@ export default function V2TeacherDashboardPage() {
               label: t('stats.toGrade'),
               value: summaryError ? '—' : summary.pendingReviewCount,
               sub: t('stats.toGradeSub'),
-              color: '#E07B39',
+              tone: 'orange',
               alert: !summaryError && summary.pendingReviewCount > 0,
             },
-            { label: t('stats.assignments'), value: totals.tasks, sub: t('stats.assignmentsSub'), color: '#2F6FC9' },
+            { label: t('stats.assignments'), value: totals.tasks, sub: t('stats.assignmentsSub'), tone: 'blue' },
             {
               label: t('stats.joinRequests'),
               value: summaryError ? '—' : summary.pendingJoinRequests,
               sub: t('stats.joinRequestsSub'),
-              color: '#1E9E61',
+              tone: 'green',
               alert: !summaryError && summary.pendingJoinRequests > 0,
             },
           ]}

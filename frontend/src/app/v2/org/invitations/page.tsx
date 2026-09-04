@@ -11,7 +11,7 @@ import {
   type OrgInvitation, type OrgSummary, type OrgRole,
 } from '@/lib/orgApi'
 import { seatMetaOf } from '@/lib/orgSeats'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lời mời thành viên (GaOrgInvitations) — teal.
@@ -116,15 +116,15 @@ export default function V2OrgInvitationsPage() {
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
       <div className="flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
-        <TkStatStrip
+        <GaStatStrip
           items={[
-            { label: t('stats.pending'), value: pending.length, sub: t('stats.pendingSub'), color: '#E07B39', alert: pending.length > 0 },
-            { label: t('stats.expiring'), value: expiring.length, sub: t('stats.expiringSub', { days: INVITE_EXPIRING_DAYS }), color: '#E07B39', alert: expiring.length > 0 },
+            { label: t('stats.pending'), value: pending.length, sub: t('stats.pendingSub'), tone: 'orange', alert: pending.length > 0 },
+            { label: t('stats.expiring'), value: expiring.length, sub: t('stats.expiringSub', { days: INVITE_EXPIRING_DAYS }), tone: 'orange', alert: expiring.length > 0 },
             {
               label: t('stats.freeSeats'),
               value: !seats ? '—' : seats.unlimited ? t('stats.freeSeatsUnlimited') : (seats.free ?? 0),
               sub: !seats ? t('stats.freeSeatsUnavailable') : seats.unlimited ? t('stats.freeSeatsUnlimitedSub') : t('stats.freeSeatsSub'),
-              color: TEAL,
+              tone: 'teal',
             },
           ]}
         />

@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import useAdminData from '@/hooks/useAdminData'
 import type { VocabularyImageReviewResponse } from '@/lib/vocabularyImageApi'
-import { GaPageHdr, GaBtn, GaCap, AdStatStrip, TkModal } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkModal } from '@/components/ui-v2'
 import VocabReviewQueue from './VocabReviewQueue'
 import GalerieReviewGrid from './GalerieReviewGrid'
 
@@ -127,19 +127,19 @@ export default function V2AdminVocabPage() {
         <VocabReviewQueue />
       ) : (
       <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
-        <AdStatStrip
+        <GaStatStrip
           className="mb-6"
-          cells={[
-            { label: t('statTotal'), value: stats.total.toLocaleString('vi-VN'), color: GREEN },
+          items={[
+            { label: t('statTotal'), value: stats.total.toLocaleString('vi-VN'), tone: 'green' },
             {
               label: t('statMissing'),
               value: stats.missing.toLocaleString('vi-VN'),
-              color: '#E07B39',
+              tone: 'orange',
               sub: t('statMissingSub'),
               alert: stats.missing > 0,
             },
-            { label: t('statPending'), value: stats.missing.toLocaleString('vi-VN'), color: '#C79A00' },
-            { label: t('statAudio'), value: `${stats.audioPct}%`, color: '#2F6FC9' },
+            { label: t('statPending'), value: stats.missing.toLocaleString('vi-VN'), tone: 'gold' },
+            { label: t('statAudio'), value: `${stats.audioPct}%`, tone: 'blue' },
           ]}
         />
 
