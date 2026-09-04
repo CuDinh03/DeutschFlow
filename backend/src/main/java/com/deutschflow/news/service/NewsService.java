@@ -67,7 +67,10 @@ public class NewsService {
     private static final int FAILURE_REASON_MAX_CHARS = 200;
 
     private static final String DW_DE = "https://rss.dw.com/xml/rss-de-all";
-    private static final String TAGESSCHAU = "https://www.tagesschau.de/xml/rss2/";
+    // 09/2026: URL cũ /xml/rss2/ trả 308 Permanent Redirect với body RỖNG — HttpURLConnection
+    // (client của RestTemplate) không theo 308, và 3xx không bị coi là lỗi, nên bản trước-#520
+    // nuốt im lặng: nguồn này chết ẨN không rõ từ bao giờ. Trỏ thẳng URL đích sau redirect.
+    private static final String TAGESSCHAU = "https://www.tagesschau.de/infoservices/alle-meldungen-100~rss2.xml";
     private static final String SPIEGEL = "https://www.spiegel.de/schlagzeilen/tops/index.rss";
 
     /** Trả ngay bản đang có — vài giây đầu sau boot có thể rỗng cho tới lượt refresh nền đầu tiên. */
