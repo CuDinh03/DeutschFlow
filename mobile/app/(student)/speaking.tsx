@@ -432,8 +432,11 @@ export default function SpeakingScreen() {
   }
 
   // Type a suggested reply into the input bar character-by-character, then auto-send.
+  // Phòng thủ tầng 2 (tầng 1 là usableSuggestions lọc lúc render): text rỗng/undefined thì
+  // ĐỨNG IM — nếu để interval mở, tick đầu ném lỗi ở text.slice và dòng clearInterval bên
+  // dưới không bao giờ chạy: interval 26ms dội lỗi liên hồi thành RedBox (bug 04/09).
   function useSuggestion(text: string) {
-    if (busy || !session) return
+    if (busy || !session || !text?.trim()) return
     if (typingRef.current) clearInterval(typingRef.current)
     void Haptics.selectionAsync()
     setTyping(true)

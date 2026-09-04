@@ -66,10 +66,14 @@ export interface InterviewPersona {
   version: number
 }
 
-/** Mirrors `AiSpeakingChatResponse.SuggestionDto`. */
+/**
+ * Mirrors `AiSpeakingChatResponse.SuggestionDto`. NON_NULL trên wire: LLM bỏ trống field nào
+ * thì field đó VẮNG HẲN — germanText/vietnameseTranslation vì vậy KHÔNG được coi là chắc có
+ * (bug 04/09: chip "Dùng →" đưa germanText undefined vào typewriter làm sập phòng nói).
+ */
 export interface SpeakingSuggestion {
-  germanText: string
-  vietnameseTranslation: string
+  germanText?: string | null
+  vietnameseTranslation?: string | null
   level?: string | null
   whyToUse?: string | null
   usageContext?: string | null

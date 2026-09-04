@@ -25,6 +25,22 @@ export interface ChatTurn {
 
 export type ScreenView = 'select' | 'chat' | 'summary'
 
+/**
+ * Suggestion DÙNG ĐƯỢC để render chip "Dùng →" / gõ typewriter.
+ *
+ * Wire là NON_NULL (xem chú thích AiChatResponse trong speakingApi.ts): LLM bỏ trống
+ * `germanText` thì field VẮNG HẲN trong JSON. Trước 04/09 chip "💡 " rỗng vẫn render rồi đưa
+ * `undefined` vào typewriter → `text.slice` ném lỗi MỖI TICK 26ms, dòng clearInterval phía
+ * sau không bao giờ chạy được — RedBox dội hàng chục log. Lọc ở đây để chip hỏng không render
+ * và typewriter không bao giờ nhận text rỗng.
+ */
+export function usableSuggestions<T extends { germanText?: string | null }>(
+  list: T[] | null | undefined,
+  max = 2,
+): T[] {
+  return (list ?? []).filter((s) => !!s.germanText?.trim()).slice(0, max)
+}
+
 // ─── Helpers thuần cho outbox lượt speaking (MB-3) — tách khỏi speaking.tsx để jest test trực tiếp ──
 
 // Nonce ngẫu nhiên sinh MỘT lần mỗi lần app khởi động. Cần cho R-M5: `turn.id` được gửi lên backend
