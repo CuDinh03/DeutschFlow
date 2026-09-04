@@ -80,13 +80,16 @@ Mỗi mục dưới đây có: **vì sao**, **file cụ thể**, **định nghĩ
 
 ## 🟠 P1 — Hoàn tất Wave 1
 
-### B-04. Hợp nhất Lernbaum rồi mới áp contract node cho `TreeNodePanel`
+### ✅ B-04. Áp contract node cho `TreeNodePanel` — XONG 04/09 (PR #524)
 
 **Vì sao:** panel node của cây vẫn có **4 nút kỹ năng 4 màu khác nhau** (Nghe/Đọc/Nói/Viết) và 4 CTA ngang hàng — vi phạm UI-06 (feature colors) và contract S-03 ("1 CTA chính"). Tôi **cố ý chưa chạm** vì đây là file của mảng Lernbaum đang mid-flight (L3c → L2 → L4, PR #376), plan S-03 §Risk yêu cầu hợp nhất trước.
 
 **File:** `frontend/src/components/roadmap-tree/TreeNodePanel.tsx` (+ `SkillTreeCanvas.tsx` nếu chạm màu).
 **Thứ tự:** merge/đóng nhánh Lernbaum → mới sửa → visual regression cây ở 4 breakpoint.
 **Xong khi:** panel có 1 CTA chính + hành động phụ; 4 kỹ năng dùng surface trung tính + một accent; ảnh cây trước/sau không lệch ngoài dự kiến.
+
+**✅ Đã làm (04/09, PR #524):** 1 CTA chính "Học kiến thức/Xem lại" accent ngay dưới header (node khoá giữ nguyên không-mời-gọi); 4 kỹ năng = hàng-là-link trung tính, icon xám, đuôi "▷ Luyện" ghost (nhãn practiceSkill "Học & Luyện"→"Luyện" ×3 locale — Học đã là CTA riêng); panel lên landmark `<aside aria-label="Chi tiết node">` (a11y + e2e scope trong panel, khỏi dính hero CTA); canvas KHÔNG đụng — đối chiếu ảnh 4 breakpoint × (mở/khoá), cây không lệch. Verify: 19/19 e2e cây + 1016 unit + ratchet 0 mới.
+> 🪤 **Bẫy E2E_JWT_SECRET đã DIỆT TẬN GỐC** (thay vì dặn nhớ): `playwright.config.ts` tự nạp từ `.env.local`. Hôm nay nó cắn lần hai — quên export ⇒ middleware 307 về login ⇒ 2 test "fail phi tất định" trông y như bug sản phẩm, mất một buổi chẩn (đã thử cả prefetch/framer/deps trước khi soi log `[WebServer] JWSSignatureVerificationFailed`). Bài học: khi e2e đỏ kiểu bị-đá-về-login, đọc log webServer TRƯỚC, đừng lọc `grep -v WebServer`.
 
 ### ✅ B-05. Gom nhóm local nav của Lernen — XONG 26/08
 

@@ -274,7 +274,7 @@
         },
         "skillsCap": "Aufgaben des Knotens — 4 Fertigkeiten",
         "exerciseCount": "{count} Aufgaben",
-        "practiceSkill": "Lernen & üben",
+        "practiceSkill": "Üben",
         "progressHint": "{percent}% geschafft — alle vier Fertigkeiten, dann wird aus der Blüte ein Blatt.",
         "doneHint": "Alle vier Fertigkeiten geschafft — am Ast dieser Woche ist ein Blatt gewachsen.",
         "review": "Stoff wiederholen",
@@ -289,7 +289,8 @@
         "bestScore": "Bestwert {percent}%",
         "skillsMastered": "{done}/4 Fertigkeiten mit mindestens {threshold}%",
         "unlockCondition": "Schließe {target} ab, damit diese Knospe aufgeht.",
-        "goPrereq": "Zum blockierenden Tag"
+        "goPrereq": "Zum blockierenden Tag",
+        "panelLabel": "Details zum Lernschritt"
       },
       "headerContext": "Aktuelle Phase: {phase}",
       "courseProgressLabel": "Lernwegfortschritt",

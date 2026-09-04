@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowUpLeft, BookOpen, Check, Lock, Play } from 'lucide-react'
-import { SKILL_COLORS, SKILL_ICONS } from '@/lib/skills'
+import { SKILL_ICONS } from '@/lib/skills'
 import { SkillIcon } from '@/components/ui-v2'
 import type { TreeMotif } from '@/lib/roadmap-tree/treeLayout'
 import {
@@ -94,6 +94,18 @@ export function TreeNodePanel({ node, stats, onJumpToNode }: TreeNodePanelProps)
             {node.description}
           </p>
         )}
+        {/* CTA CHÍNH — một và chỉ một (B-04, contract S-03). Nằm trong header để không trôi
+            khi cuộn danh sách kỹ năng; luyện từng kỹ năng là hành động PHỤ ở dưới. */}
+        {!locked && (
+          <Link
+            href={`/v2/student/learn/${node.id}`}
+            prefetch={false}
+            className="ga-ui mt-2.5 flex min-h-11 items-center justify-center gap-1.5 rounded-ga bg-ga-accent px-3 py-2 text-[13.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus lg:min-h-10"
+          >
+            <BookOpen size={15} aria-hidden />
+            {done ? t('tree.review') : t('tree.study')}
+          </Link>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
@@ -127,36 +139,41 @@ export function TreeNodePanel({ node, stats, onJumpToNode }: TreeNodePanelProps)
                 const stat = stats?.[skill]
                 const mastered = isSkillMastered(stat)
                 return (
-                  <li
-                    key={skill}
-                    className="flex items-center gap-2.5 rounded-ga border border-ga-line bg-ga-card px-3 py-2"
-                  >
-                    <SkillIcon paths={SKILL_ICONS[skill]} size={16} color={SKILL_COLORS[skill]} />
-                    <span className="min-w-0 flex-1 text-[13.5px] font-semibold text-ga-ink">
-                      {t(`tree.skillNames.${skill}`)}
-                      {count > 0 && (
-                        <span className="ga-ui ml-1.5 text-[11.5px] font-normal text-ga-subtle">
-                          {t('tree.exerciseCount', { count })}
-                        </span>
-                      )}
-                      {stat?.bestScorePercent != null && (
-                        <span
-                          className={`ga-ui ml-1.5 inline-flex items-center gap-0.5 text-[11.5px] font-semibold ${
-                            mastered ? 'text-ga-green' : 'text-ga-subtle'
-                          }`}
-                        >
-                          {mastered && <Check size={11} aria-hidden />}
-                          {t('tree.bestScore', { percent: stat.bestScorePercent })}
-                        </span>
-                      )}
-                    </span>
+                  <li key={skill}>
+                    {/* Hành động phụ (B-04): cả HÀNG là một link vào runner của kỹ năng đó —
+                        surface trung tính, không màu-theo-kỹ-năng (UI-06); màu chỉ còn nghĩa
+                        ngữ nghĩa: xanh = đã đạt chuẩn. */}
                     <Link
                       href={`/v2/student/practice/${node.id}/${skill}`}
-                      className="ga-ui inline-flex min-h-9 shrink-0 items-center gap-1 rounded-ga px-2.5 py-1.5 text-[12px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90"
-                      style={{ background: SKILL_COLORS[skill] }}
+                      className="group flex min-h-11 items-center gap-2.5 rounded-ga border border-ga-line bg-ga-card px-3 py-2 transition-colors hover:border-ga-subtle hover:bg-ga-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus lg:min-h-0"
                     >
-                      <Play size={12} aria-hidden />
-                      {t('tree.practiceSkill')}
+                      <SkillIcon
+                        paths={SKILL_ICONS[skill]}
+                        size={16}
+                        color={mastered ? 'var(--ga-green)' : 'var(--ga-subtle)'}
+                      />
+                      <span className="min-w-0 flex-1 text-[13.5px] font-semibold text-ga-ink">
+                        {t(`tree.skillNames.${skill}`)}
+                        {count > 0 && (
+                          <span className="ga-ui ml-1.5 text-[11.5px] font-normal text-ga-subtle">
+                            {t('tree.exerciseCount', { count })}
+                          </span>
+                        )}
+                        {stat?.bestScorePercent != null && (
+                          <span
+                            className={`ga-ui ml-1.5 inline-flex items-center gap-0.5 text-[11.5px] font-semibold ${
+                              mastered ? 'text-ga-green' : 'text-ga-subtle'
+                            }`}
+                          >
+                            {mastered && <Check size={11} aria-hidden />}
+                            {t('tree.bestScore', { percent: stat.bestScorePercent })}
+                          </span>
+                        )}
+                      </span>
+                      <span className="ga-ui inline-flex shrink-0 items-center gap-1 text-[12px] font-semibold text-ga-subtle transition-colors group-hover:text-ga-ink">
+                        <Play size={12} aria-hidden />
+                        {t('tree.practiceSkill')}
+                      </span>
                     </Link>
                   </li>
                 )
@@ -183,17 +200,9 @@ export function TreeNodePanel({ node, stats, onJumpToNode }: TreeNodePanelProps)
         )}
       </div>
 
-      <div className="space-y-2 border-t border-dashed border-ga-line px-4 py-3">
+      {/* CTA Học cũ ở đáy đã dời lên header thành CTA chính (B-04) — đáy chỉ còn chú giải. */}
+      <div className="border-t border-dashed border-ga-line px-4 py-3">
         <Legend />
-        {!locked && (
-          <Link
-            href={`/v2/student/learn/${node.id}`}
-            className="ga-ui flex min-h-10 items-center justify-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
-          >
-            <BookOpen size={14} aria-hidden />
-            {done ? t('tree.review') : t('tree.study')}
-          </Link>
-        )}
       </div>
     </div>
   )

@@ -135,10 +135,18 @@ test.describe('Cây học tập (/v2)', () => {
       await expect(page.getByText(`${label}${count} câu`, { exact: false }).first()).toBeVisible()
     }
 
-    // Mỗi kỹ năng là một lối vào runner chấm điểm thật
-    const practice = page.getByRole('link', { name: /Học & Luyện/ })
+    // B-04: MỘT CTA chính (Học) + 4 hàng kỹ năng là hành động phụ — mỗi hàng là một link trọn
+    // hàng vào runner chấm điểm thật. Đếm TRONG landmark panel (trang còn CTA luyện khác ở hero),
+    // match bằng href để không gãy khi đổi chữ.
+    const sidePanel = page.getByRole('complementary', { name: 'Chi tiết node' })
+    await expect(sidePanel.getByRole('link', { name: 'Học kiến thức' })).toHaveAttribute(
+      'href',
+      /\/v2\/student\/learn\/113\/?$/,
+    )
+    const practice = sidePanel.locator('a[href*="/v2/student/practice/113/"]')
     await expect(practice).toHaveCount(4)
     await expect(practice.first()).toHaveAttribute('href', /\/v2\/student\/practice\/113\/hoeren\/?$/)
+    await expect(practice.first()).toContainText('Nghe')
   })
 
   // Đợt 2 (N7): node khoá không nói suông "chưa mở" — nó kể node nào đang chặn và dẫn tới đó.
@@ -152,7 +160,10 @@ test.describe('Cây học tập (/v2)', () => {
     await locked.click()
 
     await expect(page.getByText(/Xong Ngày 29 · Ngày 29 thì nụ này nở/)).toBeVisible()
-    await expect(page.getByRole('link', { name: /Học & Luyện/ })).toHaveCount(0)
+    // Node khoá không mời gọi gì TRONG panel: 0 link luyện VÀ 0 CTA học (B-04 giữ hành vi cũ).
+    const sidePanel = page.getByRole('complementary', { name: 'Chi tiết node' })
+    await expect(sidePanel.locator('a[href*="/v2/student/practice/"]')).toHaveCount(0)
+    await expect(sidePanel.getByRole('link', { name: 'Học kiến thức' })).toHaveCount(0)
 
     // "Tới bài đang chặn" nhảy panel sang node 29 và ghi URL để share được.
     await page.getByRole('button', { name: 'Tới bài đang chặn' }).click()
