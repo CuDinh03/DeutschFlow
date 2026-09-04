@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { ArrowLeft, BookOpen, Check, ChevronRight, Clock, Play, Trophy, X, AlertCircle } from 'lucide-react'
+import { ArrowLeft, BookOpen, Check, ChevronRight, Clock, Loader2, Play, Send, Trophy, X, AlertCircle } from 'lucide-react'
 import api from '@/lib/api'
 import { useTracking } from '@/hooks/useTracking'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
@@ -13,6 +13,14 @@ import { DetailedScoreBreakdown } from '@/components/exam/DetailedScoreBreakdown
 import { ExamFeedback } from '@/components/exam/ExamFeedback'
 import { WeakAreasRecommendation } from '@/components/exam/WeakAreasRecommendation'
 import { GaCap, GaCard, GaPageHdr, LoadingState, TkBadge, TkSeg } from '@/components/ui-v2'
+import { ExamShell, type ExamSaveState } from '@/components/exam/ExamShell'
+import {
+  clearDraft,
+  pruneStaleDrafts,
+  readDraft,
+  remainingSeconds,
+  writeDraft,
+} from '@/lib/exam/examDraft'
 import { ExamRecoveryPanel, ExamTaking, SECTION_COLOR, type ActiveExamData } from './ExamTaking'
 
 /**
@@ -124,7 +132,14 @@ function MockExamRunner() {
   const [activeAttemptId, setActiveAttemptId] = useState<number | null>(null)
   const [currentSectionIdx, setCurrentSectionIdx] = useState(0)
   const [timeLeft, setTimeLeft] = useState(0)
+  /**
+   * Mốc hết giờ TUYỆT ĐỐI (epoch ms) — không phải số giây còn lại. Đây là điểm sửa của B-13:
+   * lưu số giây thì mỗi lần tải lại người thi lại được cấp đủ giờ từ đầu.
+   */
+  const [deadlineAt, setDeadlineAt] = useState<number | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [saveState, setSaveState] = useState<ExamSaveState>('saving')
+  const [savedAt, setSavedAt] = useState<number | undefined>(undefined)
   const [submitting, setSubmitting] = useState(false)
   const submittedByTimerRef = useRef(false)
   const autoStartedRef = useRef(false)
@@ -166,6 +181,8 @@ function MockExamRunner() {
       setSubmitting(true)
       try {
         await api.post(`/mock-exams/attempts/${activeAttemptId}/finish`, { answers })
+        // Nộp xong mới xoá nháp: hỏng ở bước nào thì bài vẫn còn để vào lại.
+        clearDraft(activeAttemptId)
         const finished = await api.get<MockAttempt>(`/mock-exams/attempts/${activeAttemptId}/result`)
         setSelectedAttempt(finished.data)
         setView('result')
@@ -183,12 +200,37 @@ function MockExamRunner() {
     [activeAttemptId, answers, load, t, trackFeatureAction],
   )
 
-  // Interval: one timer per 'taking' session; never re-registers on every tick
+  // Đồng hồ đọc lại từ `deadlineAt` mỗi nhịp thay vì tự trừ dần. Trừ dần sẽ trôi khi tab bị
+  // trình duyệt tiết chế (background throttling) — người thi được thêm giờ mà không ai biết.
   useEffect(() => {
-    if (view !== 'taking') return
-    const timerId = setInterval(() => setTimeLeft((prev) => Math.max(0, prev - 1)), 1000)
+    if (view !== 'taking' || deadlineAt === null) return
+    const tick = () => setTimeLeft(remainingSeconds(deadlineAt, Date.now()))
+    tick()
+    const timerId = setInterval(tick, 1000)
     return () => clearInterval(timerId)
-  }, [view])
+  }, [view, deadlineAt])
+
+  /**
+   * Autosave xuống thiết bị. KHÔNG phải lưu lên server — B-13 đã đo là server không nhận gì
+   * trước `/finish`, và vỏ thi nói đúng phạm vi đó ra màn hình (ràng buộc S-14).
+   */
+  useEffect(() => {
+    if (view !== 'taking' || activeAttemptId === null || deadlineAt === null) return
+    setSaveState('saving')
+    const id = setTimeout(() => {
+      const stamp = Date.now()
+      const ok = writeDraft({
+        attemptId: activeAttemptId,
+        answers,
+        deadlineAt,
+        sectionIdx: currentSectionIdx,
+        savedAt: stamp,
+      })
+      setSaveState(ok ? 'saved' : 'error')
+      if (ok) setSavedAt(stamp)
+    }, 600)
+    return () => clearTimeout(id)
+  }, [view, activeAttemptId, deadlineAt, answers, currentSectionIdx])
 
   // Expiry: submit once when time runs out — side-effects must not live inside state updaters
   useEffect(() => {
@@ -209,7 +251,7 @@ function MockExamRunner() {
    * the /start response carries `time_limit_minutes` for the deep-link path where we don't.
    */
   const startExam = useCallback(
-    async (examId: number, fallbackMinutes?: number, title?: string) => {
+    async (examId: number, fallbackMinutes?: number, title?: string, resumed = false) => {
       try {
         setLoading(true)
         const res = await api.post(`/mock-exams/${examId}/start`)
@@ -227,13 +269,35 @@ function MockExamRunner() {
         }
 
         const minutes = fallbackMinutes ?? (typeof attempt?.time_limit_minutes === 'number' ? attempt.time_limit_minutes : 60)
+        const now = Date.now()
+        pruneStaleDrafts(now)
+
+        // Nháp chỉ dùng được khi CHƯA hết giờ: một bản quá hạn mà khôi phục thì người thi vào
+        // bài với đồng hồ 0:00 và bị nộp ngay, tệ hơn là bắt đầu lại.
+        const stored = readDraft(attempt.id)
+        const draft = stored && stored.deadlineAt > now ? stored : null
+        const deadline = draft ? draft.deadlineAt : now + minutes * 60_000
+        const sectionIdx = draft ? Math.min(draft.sectionIdx, sections.sections.length - 1) : 0
+
         submittedByTimerRef.current = false
         setActiveAttemptId(attempt.id)
         setActiveExamData(sections)
-        setCurrentSectionIdx(0)
-        setTimeLeft(minutes * 60)
-        setAnswers({})
+        setCurrentSectionIdx(Math.max(0, sectionIdx))
+        setDeadlineAt(deadline)
+        setTimeLeft(remainingSeconds(deadline, now))
+        setAnswers(draft ? draft.answers : {})
+        setSaveState(draft ? 'saved' : 'saving')
+        setSavedAt(draft ? draft.savedAt : undefined)
         setView('taking')
+
+        // Nói thật cả hai chiều: khôi phục được thì báo khôi phục được bao nhiêu câu; bấm
+        // "Tiếp tục" mà máy này không có nháp thì báo rõ là làm lại từ đầu, thay vì im lặng
+        // dựng một bài trống rồi để người thi tự phát hiện (đúng lỗi B-13 đã đo).
+        if (draft) {
+          toast.success(t('draftRestored', { count: Object.keys(draft.answers).length }))
+        } else if (resumed) {
+          toast.warning(t('draftMissing'))
+        }
         trackFeatureAction('mock_exam', 'started', { examId, title })
       } catch (err: unknown) {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
@@ -255,8 +319,17 @@ function MockExamRunner() {
 
   const resumeExam = (att: MockAttempt) => {
     const exam = exams.find((e) => e.id === att.exam_id)
-    void startExam(att.exam_id, exam?.time_limit_minutes, exam?.title)
+    void startExam(att.exam_id, exam?.time_limit_minutes, exam?.title, true)
   }
+
+  /**
+   * Thoát giữa bài. Có xác nhận VÀ nêu hậu quả thật: nháp nằm trên thiết bị này, nên "Tiếp tục"
+   * ở máy này quay lại được — còn đồng hồ thì vẫn chạy, thoát không làm nó dừng.
+   */
+  const exitExam = useCallback(() => {
+    if (!confirm(t('confirmExit'))) return
+    setView('list')
+  }, [t])
 
   const viewReview = async (attemptId: number) => {
     setReviewLoading(true)
@@ -286,10 +359,33 @@ function MockExamRunner() {
 
   if (meLoading || !me) return <LoadingState label={t('loading')} />
 
-  // Taking = immersive full-screen overlay (covers the Galerie shell), like the legacy runner.
+  // Taking = ExamShell: layout SONG SONG với role shell (plan §6), không XP/streak/nav/animation.
   if (view === 'taking') {
+    const sections = activeExamData?.sections ?? []
+    const section = sections[currentSectionIdx]
     return (
-      <div className="fixed inset-0 z-50 overflow-hidden bg-ga-bg">
+      <ExamShell
+        sectionLabel={section ? `${section.name} — ${section.label_vi}` : t('title')}
+        sectionIndex={currentSectionIdx}
+        sectionCount={sections.length}
+        answeredCount={answeredCount}
+        totalQuestions={totalQuestions}
+        secondsLeft={timeLeft}
+        saveState={saveState}
+        savedAt={savedAt}
+        onExit={exitExam}
+        submitSlot={
+          <button
+            type="button"
+            onClick={() => submitExam(false)}
+            disabled={submitting}
+            className="ga-ui inline-flex min-h-11 shrink-0 items-center gap-2 rounded-ga bg-ga-green px-3 text-ga-small font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0 lg:px-4 lg:py-2"
+          >
+            {submitting ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Send size={16} aria-hidden />}
+            {t('submit')}
+          </button>
+        }
+      >
         <ErrorBoundary
           onError={(error, info) => {
             // Self-diagnosing: surface the real error + exam context to PostHog so a
@@ -311,7 +407,7 @@ function MockExamRunner() {
               message={t('recoveryRenderDesc')}
               onRetry={reset}
               onSubmit={() => submitExam(true)}
-              onExit={() => setView('list')}
+              onExit={exitExam}
               submitting={submitting}
             />
           )}
@@ -322,15 +418,12 @@ function MockExamRunner() {
             onSectionChange={setCurrentSectionIdx}
             answers={answers}
             onAnswerChange={handleAnswerChange}
-            timeLeft={timeLeft}
             submitting={submitting}
             onSubmit={submitExam}
-            onExit={() => setView('list')}
-            answeredCount={answeredCount}
-            totalQuestions={totalQuestions}
+            onExit={exitExam}
           />
         </ErrorBoundary>
-      </div>
+      </ExamShell>
     )
   }
 

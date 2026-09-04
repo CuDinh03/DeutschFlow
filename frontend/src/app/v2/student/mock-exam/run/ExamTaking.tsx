@@ -2,9 +2,8 @@
 
 import * as React from 'react'
 import { useTranslations } from 'next-intl'
-import { AlertCircle, ChevronRight, Clock, Loader2, Send } from 'lucide-react'
+import { AlertCircle, ChevronRight, Loader2, Send } from 'lucide-react'
 import { AudioPlayer } from '@/components/exam/AudioPlayer'
-import { ExamProgressBar } from '@/components/exam/ExamProgressBar'
 import { SprechenTeil2Simulator } from '@/components/exam/SprechenTeil2Simulator'
 
 // Taking view of the mock-exam runner, ported 1:1 from the legacy /student/mock-exam page
@@ -87,12 +86,6 @@ export function answerWidget(item: ExamQuestionItem): 'MULTIPLE_CHOICE' | 'RICHT
   return null
 }
 
-function formatTime(seconds: number) {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${m}:${s < 10 ? '0' : ''}${s}`
-}
-
 /**
  * Always-clickable recovery UI shown inside the full-screen exam shell whenever the
  * taking view cannot render its content — so the `fixed inset-0` overlay can never
@@ -162,27 +155,26 @@ export interface ExamTakingProps {
   onSectionChange: (idx: number) => void
   answers: Record<string, string>
   onAnswerChange: (questionId: string, value: string) => void
-  timeLeft: number
   submitting: boolean
   /** `auto = true` skips the confirm dialog (timer expiry / recovery panel). */
   onSubmit: (auto: boolean) => void
   onExit: () => void
-  answeredCount: number
-  totalQuestions: number
 }
 
+/**
+ * Nội dung câu hỏi của phiên thi. Từ S-09 đây CHỈ còn nội dung: đồng hồ, tiến độ, trạng thái lưu
+ * và nút thoát đã chuyển hết lên `ExamShell` — hai nơi cùng vẽ chrome thì chúng sẽ trôi khỏi nhau,
+ * và vỏ mới là chỗ duy nhất chịu trách nhiệm về hợp đồng "không XP/streak/nav/animation".
+ */
 export function ExamTaking({
   data,
   currentSectionIdx,
   onSectionChange,
   answers,
   onAnswerChange,
-  timeLeft,
   submitting,
   onSubmit,
   onExit,
-  answeredCount,
-  totalQuestions,
 }: ExamTakingProps) {
   const t = useTranslations('v2.student.mockExamRun')
 
@@ -206,310 +198,240 @@ export function ExamTaking({
     )
   }
 
-  const accent = SECTION_COLOR[currentSection.name] ?? 'var(--ga-accent)'
   const isLastSection = currentSectionIdx >= data.sections.length - 1
 
   return (
-    <div className="flex h-full flex-col bg-ga-bg">
-      {/* Top bar — timer + submit */}
-      <div className="z-10 flex flex-wrap items-center justify-between gap-3 border-b border-ga-line bg-ga-card px-4 py-3 lg:gap-0 lg:px-6 lg:py-4">
-        <div className="flex min-w-0 items-center gap-4">
-          <h2 className="min-w-0 break-words font-ga-display text-[16px] font-medium text-ga-ink sm:text-[18px] lg:text-[20px]">
-            <span style={{ color: accent }}>{currentSection.name}</span> — {currentSection.label_vi}
-          </h2>
-          <div className="hidden gap-2 sm:flex">
-            {data.sections.map((s, idx) => (
-              <span
-                key={s.name ?? idx}
-                title={s.label_vi}
-                aria-hidden
-                className={`h-2.5 w-2.5 rounded-full transition-all ${
-                  idx === currentSectionIdx
-                    ? 'scale-125 bg-ga-accent'
-                    : idx < currentSectionIdx
-                      ? 'bg-ga-muted'
-                      : 'bg-ga-border'
-                }`}
-              />
-            ))}
+    <div className="space-y-7">
+      {/* Vỏ đã in tên phần ở dải trên — ở đây chỉ còn phần thông tin vỏ không mang: thời lượng
+          và điểm tối đa của phần này. */}
+      <p className="ga-ui text-ga-caption text-ga-muted">
+        {t('sectionMeta', { minutes: currentSection.time_minutes, points: currentSection.max_points })}
+      </p>
+
+      {currentSection.teile?.map((teil, tIdx) => (
+        <div key={teil.teil ?? tIdx} className="overflow-hidden rounded-ga border border-ga-line bg-ga-card">
+          <div className="border-b border-ga-line bg-ga-surface px-4 py-3 lg:px-6">
+            <h2 className="ga-ui text-ga-h3 text-ga-ink">{t('teil', { n: teil.teil })}</h2>
+            <p className="ga-ui mt-1 break-words text-ga-small text-ga-muted">{teil.instruction_vi || teil.instruction_de}</p>
+          </div>
+
+          <div className="p-4 lg:p-6">
+            {teil.context && (
+              <div className="ga-ui mb-6 whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-4 text-ga-body text-ga-ink">
+                {teil.context}
+              </div>
+            )}
+            {teil.audio_script && (
+              <AudioPlayer script={teil.audio_script} label={t('hoertext', { n: teil.teil })} />
+            )}
+
+            <div className="space-y-6">
+              {teil.items?.map((item, qIdx) => {
+                const widget = answerWidget(item)
+                return (
+                  <div
+                    key={item.id ?? `${tIdx}-${qIdx}`}
+                    className="border-b border-ga-line pb-6 last:border-0 last:pb-0"
+                  >
+                    {item.audio_script && (
+                      <AudioPlayer
+                        script={item.audio_script}
+                        compact
+                        label={item.person ? t('listenPerson', { person: item.person }) : t('listenDialog')}
+                      />
+                    )}
+                    {item.text && <p className="ga-ui mb-3 break-words text-ga-body italic text-ga-muted">“{item.text}”</p>}
+                    {item.person && <p className="ga-ui mb-3 break-words text-ga-body text-ga-muted">👤 {item.person}</p>}
+
+                    <p className="ga-ui mb-3 break-words text-ga-body-lg font-semibold text-ga-ink">
+                      {qIdx + 1}. {item.question || t('questionFallback')}
+                    </p>
+
+                    {item.options && (
+                      <div className="space-y-2">
+                        {Object.entries(item.options).map(([optKey, optVal]) => {
+                          const picked = answers[item.id] === optKey
+                          return (
+                            <label
+                              key={optKey}
+                              className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-ga border px-3 py-3 transition-colors ${
+                                picked ? 'border-ga-accent bg-ga-accent-soft' : 'border-ga-line bg-ga-card hover:bg-ga-surface'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={item.id}
+                                value={optKey}
+                                checked={picked}
+                                onChange={() => onAnswerChange(item.id, optKey)}
+                                className="h-4 w-4 shrink-0 accent-[var(--ga-accent)]"
+                              />
+                              <span className="ga-ui w-6 shrink-0 text-ga-small font-bold text-ga-subtle">{optKey}</span>
+                              <span className="ga-ui min-w-0 break-words text-ga-body text-ga-ink">{optVal}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {widget === 'RICHTIG_FALSCH' && (
+                      <div className="flex gap-4">
+                        {['richtig', 'falsch'].map((opt) => {
+                          const picked = answers[item.id] === opt
+                          return (
+                            <label
+                              key={opt}
+                              className={`ga-ui flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-ga border py-3 text-ga-small font-semibold transition-colors ${
+                                picked
+                                  ? 'border-ga-accent bg-ga-accent-soft text-ga-accent'
+                                  : 'border-ga-line bg-ga-card text-ga-muted hover:bg-ga-surface'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={item.id}
+                                value={opt}
+                                checked={picked}
+                                onChange={() => onAnswerChange(item.id, opt)}
+                                className="sr-only"
+                              />
+                              {opt.toUpperCase()}
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {widget === 'MATCHING' && (
+                      <div className="flex flex-wrap gap-2">
+                        {MATCHING_OPTIONS.map((opt) => {
+                          const picked = answers[item.id] === opt
+                          return (
+                            <label
+                              key={opt}
+                              className={`ga-ui grid h-12 w-12 cursor-pointer place-items-center rounded-ga border text-ga-body font-bold transition-colors ${
+                                picked
+                                  ? 'border-ga-accent bg-ga-accent text-ga-accent-ink'
+                                  : 'border-ga-line bg-ga-card text-ga-muted hover:bg-ga-surface'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={item.id}
+                                value={opt}
+                                checked={picked}
+                                onChange={() => onAnswerChange(item.id, opt)}
+                                className="sr-only"
+                              />
+                              {opt}
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+              {/* Schreiben Teil 1 — form fields. Answer keys stay `form_<index>` (server contract). */}
+              {teil.form_fields && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {teil.form_fields.map((field, fIdx) => (
+                    <div key={field.field ?? fIdx}>
+                      <label className="ga-ui mb-1 block text-ga-caption font-bold text-ga-muted">
+                        {field.field}{' '}
+                        <span className="font-normal text-ga-subtle">({field.instruction_vi})</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={answers[`form_${fIdx}`] || ''}
+                        onChange={(e) => onAnswerChange(`form_${fIdx}`, e.target.value)}
+                        placeholder={t('formPlaceholder')}
+                        className="ga-ui min-h-11 w-full rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-ga-body text-ga-ink outline-none focus:border-ga-accent"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Schreiben Teil 2 — email. Answer key stays `email_<teil>` (server contract). */}
+              {teil.input_email && (
+                <div className="space-y-4">
+                  <div className="ga-ui whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-4 text-ga-body text-ga-ink">
+                    {teil.input_email}
+                  </div>
+                  <ul className="ga-ui mb-4 list-disc space-y-1 break-words pl-5 text-ga-body text-ga-muted">
+                    {teil.writing_points?.map((pt, idx) => <li key={idx}>{pt}</li>)}
+                  </ul>
+                  <textarea
+                    value={answers[`email_${teil.teil}`] || ''}
+                    onChange={(e) => onAnswerChange(`email_${teil.teil}`, e.target.value)}
+                    placeholder={t('emailPlaceholder')}
+                    className="ga-ui h-40 w-full resize-none rounded-ga border border-ga-line bg-ga-card px-4 py-3 text-ga-body text-ga-ink outline-none focus:border-ga-accent"
+                  />
+                </div>
+              )}
+
+              {/* Sprechen — answer key stays `sprechen_score_<teil>` (server contract). */}
+              {teil.prompt_words && (
+                <div className="space-y-4">
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {teil.prompt_words.map((word, wIdx) => (
+                      <span
+                        key={wIdx}
+                        className="ga-ui rounded-ga bg-ga-orange-soft px-3 py-1.5 text-ga-small font-bold text-ga-orange"
+                      >
+                        {word}
+                      </span>
+                    ))}
+                  </div>
+                  <SprechenTeil2Simulator
+                    onFinish={(score) => onAnswerChange(`sprechen_score_${teil.teil}`, String(score))}
+                  />
+                </div>
+              )}
+
+              {teil.topic_cards && (
+                <div className="space-y-4">
+                  <SprechenTeil2Simulator
+                    onFinish={(score) => onAnswerChange(`sprechen_score_${teil.teil}`, String(score))}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
+      ))}
 
-        <div className="flex shrink-0 items-center gap-3 lg:gap-4">
-          {/* < 5 min left = the visual warning the legacy runner had */}
-          <div
-            className={`flex shrink-0 items-center gap-2 font-mono text-[16px] font-bold lg:text-[20px] ${
-              timeLeft < 300 ? 'animate-pulse text-ga-red' : 'text-ga-ink'
-            }`}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <button
+          type="button"
+          onClick={() => onSectionChange(Math.max(0, currentSectionIdx - 1))}
+          disabled={currentSectionIdx === 0}
+          className="ga-ui min-h-11 rounded-ga border border-ga-line bg-ga-card px-4 text-ga-small font-semibold text-ga-muted transition-colors hover:bg-ga-surface disabled:cursor-not-allowed disabled:opacity-50 lg:px-6"
+        >
+          {t('prevSection')}
+        </button>
+
+        {!isLastSection ? (
+          <button
+            type="button"
+            onClick={() => onSectionChange(Math.min(data.sections.length - 1, currentSectionIdx + 1))}
+            className="ga-ui inline-flex min-h-11 items-center gap-2 rounded-ga bg-ga-accent px-4 text-ga-small font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 lg:px-6"
           >
-            <Clock size={20} className="shrink-0" aria-hidden />
-            {formatTime(timeLeft)}
-          </div>
+            {t('nextSection')} <ChevronRight size={18} aria-hidden />
+          </button>
+        ) : (
           <button
             type="button"
             onClick={() => onSubmit(false)}
             disabled={submitting}
-            className="ga-ui inline-flex shrink-0 items-center gap-2 rounded-ga px-3 py-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:px-4 lg:py-2"
-            style={{ background: 'var(--ga-green)' }}
+            className="ga-ui inline-flex min-h-11 items-center gap-2 rounded-ga bg-ga-green px-4 text-ga-small font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:px-8"
           >
-            {submitting ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Send size={16} aria-hidden />}
-            {t('submit')}
+            {submitting ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <Send size={18} aria-hidden />}
+            {t('submitAll')}
           </button>
-        </div>
-      </div>
-
-      <ExamProgressBar
-        sections={data.sections.map((s) => ({ name: s.name, label_vi: s.label_vi }))}
-        currentSectionIdx={currentSectionIdx}
-        answeredCount={answeredCount}
-        totalQuestions={totalQuestions}
-      />
-
-      {/* min-h-0 is REQUIRED: without it a flex child defaults to min-height:auto and refuses to
-          shrink below its content height, so the exam content overflows the `fixed inset-0` shell
-          instead of scrolling here. The shell's overflow-hidden only clips visually — focusing a
-          below-the-fold answer (the Richtig/Falsch & Matching inputs are `sr-only`) then makes the
-          browser scroll the shell to reveal the input, pushing all content off-screen and leaving a
-          blank overlay. */}
-      <div className="min-h-0 flex-1 overflow-y-auto bg-ga-surface p-4 lg:p-6">
-        <div className="mx-auto max-w-4xl space-y-8 pb-20">
-          <div className="rounded-ga border border-ga-line bg-ga-card p-4 lg:p-6">
-            <h3 className="break-words font-ga-display text-[18px] font-medium text-ga-ink sm:text-[20px] lg:text-[22px]">
-              {currentSection.name} — {currentSection.label_vi}
-            </h3>
-            <p className="ga-ui mt-1 text-[13px] text-ga-muted">
-              {t('sectionMeta', { minutes: currentSection.time_minutes, points: currentSection.max_points })}
-            </p>
-          </div>
-
-          {currentSection.teile?.map((teil, tIdx) => (
-            <div key={teil.teil ?? tIdx} className="overflow-hidden rounded-ga border border-ga-line bg-ga-card">
-              <div className="border-b border-ga-border bg-ga-surface px-4 py-3 lg:px-6">
-                <h4 className="ga-ui text-[14px] font-semibold text-ga-ink">{t('teil', { n: teil.teil })}</h4>
-                <p className="ga-ui mt-1 break-words text-[13px] text-ga-muted">{teil.instruction_vi || teil.instruction_de}</p>
-              </div>
-
-              <div className="p-4 lg:p-6">
-                {teil.context && (
-                  <div className="ga-ui mb-6 whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-4 text-[13.5px] text-ga-ink">
-                    {teil.context}
-                  </div>
-                )}
-                {teil.audio_script && (
-                  <AudioPlayer script={teil.audio_script} label={t('hoertext', { n: teil.teil })} />
-                )}
-
-                <div className="space-y-6">
-                  {teil.items?.map((item, qIdx) => {
-                    const widget = answerWidget(item)
-                    return (
-                      <div
-                        key={item.id ?? `${tIdx}-${qIdx}`}
-                        className="border-b border-ga-border pb-6 last:border-0 last:pb-0"
-                      >
-                        {item.audio_script && (
-                          <AudioPlayer
-                            script={item.audio_script}
-                            compact
-                            label={item.person ? t('listenPerson', { person: item.person }) : t('listenDialog')}
-                          />
-                        )}
-                        {item.text && <p className="ga-ui mb-3 break-words text-[13.5px] italic text-ga-muted">“{item.text}”</p>}
-                        {item.person && <p className="ga-ui mb-3 break-words text-[13.5px] text-ga-muted">👤 {item.person}</p>}
-
-                        <p className="ga-ui mb-3 break-words text-[14.5px] font-semibold text-ga-ink">
-                          {qIdx + 1}. {item.question || t('questionFallback')}
-                        </p>
-
-                        {item.options && (
-                          <div className="space-y-2">
-                            {Object.entries(item.options).map(([optKey, optVal]) => {
-                              const picked = answers[item.id] === optKey
-                              return (
-                                <label
-                                  key={optKey}
-                                  className={`flex cursor-pointer items-center gap-3 rounded-ga border px-3 py-3 transition-colors ${
-                                    picked ? 'border-ga-accent bg-ga-accent-soft' : 'border-ga-line bg-ga-card hover:bg-ga-surface'
-                                  }`}
-                                >
-                                  <input
-                                    type="radio"
-                                    name={item.id}
-                                    value={optKey}
-                                    checked={picked}
-                                    onChange={() => onAnswerChange(item.id, optKey)}
-                                    className="h-4 w-4 shrink-0 accent-[var(--ga-accent)]"
-                                  />
-                                  <span className="ga-ui w-6 shrink-0 text-[13px] font-bold text-ga-subtle">{optKey}</span>
-                                  <span className="ga-ui min-w-0 break-words text-[14px] text-ga-ink">{optVal}</span>
-                                </label>
-                              )
-                            })}
-                          </div>
-                        )}
-
-                        {widget === 'RICHTIG_FALSCH' && (
-                          <div className="flex gap-4">
-                            {['richtig', 'falsch'].map((opt) => {
-                              const picked = answers[item.id] === opt
-                              return (
-                                <label
-                                  key={opt}
-                                  className={`ga-ui flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-ga border py-3 text-[13px] font-semibold transition-colors ${
-                                    picked
-                                      ? 'border-ga-accent bg-ga-accent-soft text-ga-accent'
-                                      : 'border-ga-line bg-ga-card text-ga-muted hover:bg-ga-surface'
-                                  }`}
-                                >
-                                  <input
-                                    type="radio"
-                                    name={item.id}
-                                    value={opt}
-                                    checked={picked}
-                                    onChange={() => onAnswerChange(item.id, opt)}
-                                    className="sr-only"
-                                  />
-                                  {opt.toUpperCase()}
-                                </label>
-                              )
-                            })}
-                          </div>
-                        )}
-
-                        {widget === 'MATCHING' && (
-                          <div className="flex flex-wrap gap-2">
-                            {MATCHING_OPTIONS.map((opt) => {
-                              const picked = answers[item.id] === opt
-                              return (
-                                <label
-                                  key={opt}
-                                  className={`ga-ui grid h-12 w-12 cursor-pointer place-items-center rounded-ga border text-[14px] font-bold transition-colors ${
-                                    picked
-                                      ? 'border-ga-accent bg-ga-accent text-ga-accent-ink'
-                                      : 'border-ga-line bg-ga-card text-ga-muted hover:bg-ga-surface'
-                                  }`}
-                                >
-                                  <input
-                                    type="radio"
-                                    name={item.id}
-                                    value={opt}
-                                    checked={picked}
-                                    onChange={() => onAnswerChange(item.id, opt)}
-                                    className="sr-only"
-                                  />
-                                  {opt}
-                                </label>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-
-                  {/* Schreiben Teil 1 — form fields. Answer keys stay `form_<index>` (server contract). */}
-                  {teil.form_fields && (
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      {teil.form_fields.map((field, fIdx) => (
-                        <div key={field.field ?? fIdx}>
-                          <label className="ga-ui mb-1 block text-[12px] font-bold text-ga-muted">
-                            {field.field}{' '}
-                            <span className="font-normal text-ga-subtle">({field.instruction_vi})</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={answers[`form_${fIdx}`] || ''}
-                            onChange={(e) => onAnswerChange(`form_${fIdx}`, e.target.value)}
-                            placeholder={t('formPlaceholder')}
-                            className="ga-ui w-full rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[14px] text-ga-ink outline-none focus:border-ga-accent"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Schreiben Teil 2 — email. Answer key stays `email_<teil>` (server contract). */}
-                  {teil.input_email && (
-                    <div className="space-y-4">
-                      <div className="ga-ui whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-4 text-[13.5px] text-ga-ink">
-                        {teil.input_email}
-                      </div>
-                      <ul className="ga-ui mb-4 list-disc space-y-1 break-words pl-5 text-[13.5px] text-ga-muted">
-                        {teil.writing_points?.map((pt, idx) => <li key={idx}>{pt}</li>)}
-                      </ul>
-                      <textarea
-                        value={answers[`email_${teil.teil}`] || ''}
-                        onChange={(e) => onAnswerChange(`email_${teil.teil}`, e.target.value)}
-                        placeholder={t('emailPlaceholder')}
-                        className="ga-ui h-40 w-full resize-none rounded-ga border border-ga-line bg-ga-card px-4 py-3 text-[14px] text-ga-ink outline-none focus:border-ga-accent"
-                      />
-                    </div>
-                  )}
-
-                  {/* Sprechen — answer key stays `sprechen_score_<teil>` (server contract). */}
-                  {teil.prompt_words && (
-                    <div className="space-y-4">
-                      <div className="mb-4 flex flex-wrap gap-2">
-                        {teil.prompt_words.map((word, wIdx) => (
-                          <span
-                            key={wIdx}
-                            className="ga-ui rounded-ga px-3 py-1.5 text-[13px] font-bold"
-                            style={{ background: 'var(--ga-orange-soft)', color: 'var(--ga-orange)' }}
-                          >
-                            {word}
-                          </span>
-                        ))}
-                      </div>
-                      <SprechenTeil2Simulator
-                        onFinish={(score) => onAnswerChange(`sprechen_score_${teil.teil}`, String(score))}
-                      />
-                    </div>
-                  )}
-
-                  {teil.topic_cards && (
-                    <div className="space-y-4">
-                      <SprechenTeil2Simulator
-                        onFinish={(score) => onAnswerChange(`sprechen_score_${teil.teil}`, String(score))}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
-            <button
-              type="button"
-              onClick={() => onSectionChange(Math.max(0, currentSectionIdx - 1))}
-              disabled={currentSectionIdx === 0}
-              className="ga-ui rounded-ga border border-ga-line bg-ga-card px-4 py-3 text-[13px] font-semibold text-ga-muted transition-colors hover:bg-ga-surface disabled:cursor-not-allowed disabled:opacity-50 lg:px-6"
-            >
-              {t('prevSection')}
-            </button>
-
-            {!isLastSection ? (
-              <button
-                type="button"
-                onClick={() => onSectionChange(Math.min(data.sections.length - 1, currentSectionIdx + 1))}
-                className="ga-ui inline-flex items-center gap-2 rounded-ga bg-ga-accent px-4 py-3 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 lg:px-6"
-              >
-                {t('nextSection')} <ChevronRight size={18} aria-hidden />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onSubmit(false)}
-                disabled={submitting}
-                className="ga-ui inline-flex items-center gap-2 rounded-ga px-4 py-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:px-8"
-                style={{ background: 'var(--ga-green)' }}
-              >
-                {submitting ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <Send size={18} aria-hidden />}
-                {t('submitAll')}
-              </button>
-            )}
-          </div>
-        </div>
+        )}
       </div>
     </div>
   )
