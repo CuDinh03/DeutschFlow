@@ -19,7 +19,7 @@ import { captureEvent } from '@/lib/analytics'
 import api from '@/lib/api'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
-import { skillTreeApi } from '@/lib/skillTreeApi'
+import { lernwegApi, ROADMAP_ME_QUERY_KEY } from '@/lib/lernwegApi'
 import { messagesApi } from '@/lib/messagesApi'
 import { TodayTasks } from '@/components/home/TodayTasks'
 import { motion, space, radius, useTheme } from '@/lib/theme'
@@ -88,15 +88,16 @@ export default function DashboardScreen() {
     staleTime: 30_000,
   })
 
-  // Roadmap progress (real skill-tree data, shared cache with the roadmap screen)
-  // → the na-home PathCard entry.
-  const { data: treeNodes = [] } = useQuery({
-    queryKey: ['skill-tree'],
-    queryFn: () => skillTreeApi.getMySkillTree(),
+  // Tiến độ lộ trình: CÙNG nguồn /roadmap/me với màn Lernweg (N1, 05/09) — trước đây
+  // card lấy % từ /skill-tree/me còn màn đích vẽ cây demo /roadmap/tree nên hai số
+  // không bao giờ khớp nhau.
+  const { data: roadmapNodes = [] } = useQuery({
+    queryKey: ROADMAP_ME_QUERY_KEY,
+    queryFn: () => lernwegApi.nodes(),
     staleTime: 120_000,
   })
-  const treeTotal = treeNodes.length
-  const treeDone = treeNodes.filter((n) => n.status === 'COMPLETED').length
+  const treeTotal = roadmapNodes.length
+  const treeDone = roadmapNodes.filter((n) => n.progressStatus === 'COMPLETED' || n.state === 'completed').length
   const pathPct = treeTotal > 0 ? Math.round((treeDone / treeTotal) * 100) : 0
 
   const { startTour, activeTourId } = useSpotlightTour()
@@ -371,8 +372,8 @@ export default function DashboardScreen() {
             </SpotlightTarget>
           ) : null}
 
-          {/* Lối vào Lernweg v2 (cụm 3, 02/09) — % vẫn từ skill-tree cũ tới khi
-              nguồn tiến độ hợp nhất; màn đích là cây /roadmap/tree mới. */}
+          {/* Lối vào Lernweg (cụm 3, 02/09; nguồn hợp nhất /roadmap/me từ 05/09) —
+              % ở đây và cây ở màn đích cùng một danh sách node. */}
           {treeTotal > 0 ? (
             <Card
               onPress={() => router.push('/(student)/lernweg')}

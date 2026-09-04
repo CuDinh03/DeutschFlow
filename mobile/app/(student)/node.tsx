@@ -74,6 +74,8 @@ export default function NodeScreen() {
     onSuccess: async () => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       const treeRefresh = qc.invalidateQueries({ queryKey: ['skill-tree'] }).catch(() => {})
+      // Lernweg + card Lộ trình đọc /roadmap/me (N1, 05/09) — làm mới cùng lúc với skill-tree.
+      void qc.invalidateQueries({ queryKey: ['roadmap-me'] }).catch(() => {})
       // Await node-session fully — it flips this screen to done; the mutation stays pending
       // (button loading) until onSuccess settles, so there's no wrong-state flash or re-tap
       // window. Then wait for the fresh tree that feeds "Bài tiếp theo", but cap it so a slow

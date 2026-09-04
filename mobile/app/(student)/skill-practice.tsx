@@ -122,6 +122,8 @@ function SkillPracticeRunner() {
       // Home/roadmap and feeds the derived "Bài tiếp theo".
       qc.invalidateQueries({ queryKey: ['node-session', nodeId] })
       const treeRefresh = qc.invalidateQueries({ queryKey: ['skill-tree'] }).catch(() => {})
+      // Lernweg + card Lộ trình đọc /roadmap/me (N1, 05/09) — làm mới cùng lúc với skill-tree.
+      void qc.invalidateQueries({ queryKey: ['roadmap-me'] }).catch(() => {})
       // On completion, wait for the fresh tree BEFORE revealing the result so the derived
       // nextNode is correct on first render (no transient "hết bài" caption / missing button).
       // `busy` keeps the submit button in its loading state throughout, so nothing flashes.
