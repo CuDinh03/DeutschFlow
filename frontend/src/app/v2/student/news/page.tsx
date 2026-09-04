@@ -24,20 +24,20 @@ interface NewsItem {
   url: string
   publishedAt: string
   sourceName: string
-  sourceType: 'DW_LEARN' | 'DW_VI' | 'TAGESSCHAU' | 'SPIEGEL'
+  sourceType: 'DW_LEARN' | 'TAGESSCHAU' | 'SPIEGEL'
 }
 
 /**
  * Bảng màu theo nguồn của v1 ánh xạ sang tone Galerie (TkBadge không có tone `orange`, nên
  * SPIEGEL — vốn cam ở v1 — dùng `yellow`/gold, sắc gần nhất trong bảng màu Galerie).
+ * Nguồn lạ ngoài bảng (backend thêm nguồn mới trước khi FE kịp cập nhật) rơi về `neutral`.
  */
-type SourceTone = 'blue' | 'violet' | 'yellow' | 'green' | 'neutral'
+type SourceTone = 'blue' | 'violet' | 'yellow' | 'neutral'
 
 const SOURCE_TONE: Record<string, SourceTone> = {
   DW_LEARN: 'blue',
   TAGESSCHAU: 'violet',
   SPIEGEL: 'yellow',
-  DW_VI: 'green',
 }
 
 const DATE_LOCALE: Record<string, string> = { vi: 'vi-VN', en: 'en-US', de: 'de-DE' }
