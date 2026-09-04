@@ -35,7 +35,7 @@ import {
 import { router, usePathname } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
+import Animated, { useAnimatedStyle, useDerivedValue, useSharedValue, withSpring } from 'react-native-reanimated'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { ThemedText, Button } from '@/components/ui'
 import { captureEvent } from '@/lib/analytics'
@@ -47,7 +47,7 @@ import {
   type SpotlightTourId,
   type SpotlightTourParams,
 } from './spotlightTours'
-import { scrimZones, type ScrimZone } from '@/lib/spotlightScrim'
+import { scrimZones, scrimZoneTransform } from '@/lib/spotlightScrim'
 
 // Ink #161513 @ 50% — "lớp mờ nhẹ, chỉ sáng vùng đang chỉ" (owner, QA đợt 0
 // 05/09). Plan §5.1 từng chọn 68%, nhưng lớp mờ chưa từng hiện trên bản public
@@ -325,21 +325,27 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
 
   // Lớp mờ = BỐN tấm quanh ô khoét (trên · dưới · trái · phải), cùng phép chia
   // màn hình với StepBlockers (lib/spotlightScrim). Trước 05/09 là MỘT view
-  // viền khổng lồ (borderWidth 2000, borderRadius 2000+r) — mẹo đó KHÔNG hiện
-  // trên build New Architecture của bản public 17: tour chỉ còn khung vàng, cả
-  // màn vẫn sáng nguyên. Bốn tấm nền phẳng thì không phụ thuộc cách vẽ viền.
-  const scrimTop = useAnimatedStyle(() =>
-    zoneStyle(scrimZones({ x: hx.value, y: hy.value, width: hw.value, height: hh.value }, winW, winH)[0]),
+  // viền khổng lồ (borderWidth 2000) — không hiện trên build New Architecture
+  // của bản public 17. Bản #529 đặt 4 tấm bằng left/top/width/height → mỗi frame
+  // spring là một lần commit layout cho 4 view, trên máy thật owner thấy tour
+  // "giật, không mượt". Nay mỗi tấm cỡ cố định winW×winH và chỉ animate
+  // transform (translate + scale) — chạy trên compositor, không đụng layout;
+  // vùng tính một lần mỗi frame qua useDerivedValue rồi 4 style đọc chung.
+  const zones = useDerivedValue(() =>
+    scrimZones({ x: hx.value, y: hy.value, width: hw.value, height: hh.value }, winW, winH),
   )
-  const scrimBottom = useAnimatedStyle(() =>
-    zoneStyle(scrimZones({ x: hx.value, y: hy.value, width: hw.value, height: hh.value }, winW, winH)[1]),
-  )
-  const scrimLeft = useAnimatedStyle(() =>
-    zoneStyle(scrimZones({ x: hx.value, y: hy.value, width: hw.value, height: hh.value }, winW, winH)[2]),
-  )
-  const scrimRight = useAnimatedStyle(() =>
-    zoneStyle(scrimZones({ x: hx.value, y: hy.value, width: hw.value, height: hh.value }, winW, winH)[3]),
-  )
+  const scrimTop = useAnimatedStyle(() => scrimZoneTransform(zones.value[0], winW, winH))
+  const scrimBottom = useAnimatedStyle(() => scrimZoneTransform(zones.value[1], winW, winH))
+  const scrimLeft = useAnimatedStyle(() => scrimZoneTransform(zones.value[2], winW, winH))
+  const scrimRight = useAnimatedStyle(() => scrimZoneTransform(zones.value[3], winW, winH))
+  const scrimPanel = {
+    position: 'absolute' as const,
+    left: 0,
+    top: 0,
+    width: winW,
+    height: winH,
+    backgroundColor: SCRIM,
+  }
 
   const ringStyle = useAnimatedStyle(() => ({
     position: 'absolute' as const,
@@ -379,10 +385,10 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
           >
             {display.rect ? (
               <>
-                <Animated.View pointerEvents="none" style={scrimTop} />
-                <Animated.View pointerEvents="none" style={scrimBottom} />
-                <Animated.View pointerEvents="none" style={scrimLeft} />
-                <Animated.View pointerEvents="none" style={scrimRight} />
+                <Animated.View pointerEvents="none" style={[scrimPanel, scrimTop]} />
+                <Animated.View pointerEvents="none" style={[scrimPanel, scrimBottom]} />
+                <Animated.View pointerEvents="none" style={[scrimPanel, scrimLeft]} />
+                <Animated.View pointerEvents="none" style={[scrimPanel, scrimRight]} />
                 <Animated.View
                   pointerEvents="none"
                   style={[
@@ -429,19 +435,6 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
       </View>
     </SpotlightCtx.Provider>
   )
-}
-
-/** Style một tấm mờ — gọi từ worklet của useAnimatedStyle (UI thread). */
-function zoneStyle(z: ScrimZone) {
-  'worklet'
-  return {
-    position: 'absolute' as const,
-    left: z.left,
-    top: z.top,
-    width: z.width,
-    height: z.height,
-    backgroundColor: SCRIM,
-  }
 }
 
 // Touch interception. Default: one full-screen blocker (taps on the dim do

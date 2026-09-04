@@ -38,3 +38,25 @@ export function scrimZones(cutout: ScrimRect, winW: number, winH: number): Scrim
     { left: x + w, top: y, width: Math.max(0, winW - x - w), height: h },
   ]
 }
+
+/**
+ * Đặt một tấm mờ cỡ cố định `winW × winH` (neo ở góc 0,0) vào đúng vùng `z` bằng
+ * transform thay vì `left/top/width/height`. Transform chạy trên compositor
+ * (UI thread, không commit layout mỗi frame) — bản đầu (#529) animate thuộc tính
+ * layout của 4 tấm nên trên máy thật owner thấy tour "giật, không mượt" (05/09).
+ * Thứ tự transform: translate rồi scale quanh tâm → tâm tấm = tâm vùng, kích
+ * thước = vùng. Vùng rỗng → scale 0 (ẩn), không bao giờ âm.
+ */
+export function scrimZoneTransform(z: ScrimZone, winW: number, winH: number) {
+  'worklet'
+  const w = Math.max(0, z.width)
+  const h = Math.max(0, z.height)
+  return {
+    transform: [
+      { translateX: z.left + w / 2 - winW / 2 },
+      { translateY: z.top + h / 2 - winH / 2 },
+      { scaleX: winW > 0 ? w / winW : 0 },
+      { scaleY: winH > 0 ? h / winH : 0 },
+    ],
+  }
+}

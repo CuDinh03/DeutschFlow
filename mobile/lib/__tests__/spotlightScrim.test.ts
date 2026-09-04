@@ -1,4 +1,4 @@
-import { scrimZones } from '../spotlightScrim'
+import { scrimZones, scrimZoneTransform } from '../spotlightScrim'
 
 const WIN = { w: 402, h: 874 }
 
@@ -32,5 +32,39 @@ describe('scrimZones', () => {
   test('ô khoét chiếm trọn màn → cả bốn vùng rỗng', () => {
     const zones = scrimZones({ x: 0, y: 0, width: WIN.w, height: WIN.h }, WIN.w, WIN.h)
     for (const z of zones) expect(z.width * z.height).toBe(0)
+  })
+})
+
+/** Suy ngược hình chữ nhật từ transform (tấm gốc winW×winH neo 0,0, scale quanh tâm). */
+function rectOf(t: ReturnType<typeof scrimZoneTransform>, winW: number, winH: number) {
+  const [{ translateX }, { translateY }, { scaleX }, { scaleY }] = t.transform as [
+    { translateX: number }, { translateY: number }, { scaleX: number }, { scaleY: number },
+  ]
+  const w = winW * scaleX
+  const h = winH * scaleY
+  return { left: winW / 2 + translateX - w / 2, top: winH / 2 + translateY - h / 2, width: w, height: h }
+}
+
+describe('scrimZoneTransform', () => {
+  test('transform đặt tấm đúng vùng — cả 4 vùng quanh một ô khoét', () => {
+    const cutout = { x: 40, y: 300, width: 320, height: 120 }
+    for (const z of scrimZones(cutout, WIN.w, WIN.h)) {
+      const r = rectOf(scrimZoneTransform(z, WIN.w, WIN.h), WIN.w, WIN.h)
+      expect(r.left).toBeCloseTo(z.left, 6)
+      expect(r.top).toBeCloseTo(z.top, 6)
+      expect(r.width).toBeCloseTo(z.width, 6)
+      expect(r.height).toBeCloseTo(z.height, 6)
+    }
+  })
+
+  test('vùng rỗng → scale 0, không âm', () => {
+    const t = scrimZoneTransform({ left: 0, top: 0, width: 0, height: -5 }, WIN.w, WIN.h)
+    expect(t.transform[2]).toEqual({ scaleX: 0 })
+    expect(t.transform[3]).toEqual({ scaleY: 0 })
+  })
+
+  test('chỉ dùng transform, không có thuộc tính layout', () => {
+    const t = scrimZoneTransform({ left: 10, top: 20, width: 30, height: 40 }, WIN.w, WIN.h)
+    expect(Object.keys(t)).toEqual(['transform'])
   })
 })
