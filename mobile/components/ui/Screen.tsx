@@ -28,11 +28,15 @@ export function Screen({
   const theme = useTheme()
   const insets = useSafeAreaInsets()
 
+  // Chỉ đặt inset cho cạnh ĐƯỢC chọn. Trước 05/09 cạnh bị loại vẫn ghi `paddingLeft: 0` /
+  // `paddingRight: 0`; Yoga ưu tiên key theo cạnh hơn `paddingHorizontal`, nên
+  // `contentStyle={{ paddingHorizontal }}` của các màn `edges={[]}` (Sửa lỗi, Lernweg,
+  // phòng thi nói, Đổi mật khẩu…) bị vô hiệu → nội dung sát mép màn hình.
   const inset: ViewStyle = {
-    paddingTop: edges.includes('top') ? insets.top : 0,
-    paddingBottom: edges.includes('bottom') ? insets.bottom : 0,
-    paddingLeft: edges.includes('left') ? insets.left : 0,
-    paddingRight: edges.includes('right') ? insets.right : 0,
+    ...(edges.includes('top') ? { paddingTop: insets.top } : null),
+    ...(edges.includes('bottom') ? { paddingBottom: insets.bottom } : null),
+    ...(edges.includes('left') ? { paddingLeft: insets.left } : null),
+    ...(edges.includes('right') ? { paddingRight: insets.right } : null),
   }
 
   const pad: ViewStyle = padded ? { paddingHorizontal: space[5] } : {}
