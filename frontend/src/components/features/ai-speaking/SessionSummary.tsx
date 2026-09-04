@@ -25,7 +25,7 @@ interface InterviewCategory {
   green_flags_vi?: string[]; red_flags_vi?: string[]; comment_vi?: string;
 }
 interface GermanLanguage {
-  grammar_accuracy_pct?: string; vocabulary_level?: string;
+  vocabulary_level?: string;
   fluency_vi?: string; common_errors_vi?: string[];
 }
 interface InterviewReport {
@@ -139,6 +139,21 @@ export function SessionSummary({
 
   const hasAiReport = isInterviewMode && aiReport !== null;
 
+  // Điểm AI /10 cho vòng tròn interview: parse "5.5/10" (chấp nhận dấu phẩy), fallback trung bình
+  // 4 category. Trước đây vòng tròn interview hiện điểm heuristic /100 (client tự tính từ số lượt/lỗi)
+  // còn điểm AI thật chỉ là 1 dòng chữ nhỏ → hai con số đá nhau trên cùng màn hình.
+  const aiOverallScore = useMemo<number | null>(() => {
+    if (!hasAiReport || !aiReport) return null;
+    const m = aiReport.overall_score?.match(/(\d+(?:[.,]\d+)?)/);
+    if (m) {
+      const v = parseFloat(m[1].replace(",", "."));
+      if (Number.isFinite(v) && v >= 0 && v <= 10) return Math.round(v * 10) / 10;
+    }
+    const cats = (aiReport.categories ?? []).filter((c) => Number.isFinite(c.score));
+    if (cats.length === 0) return null;
+    return Math.round((cats.reduce((s, c) => s + c.score, 0) / cats.length) * 10) / 10;
+  }, [hasAiReport, aiReport]);
+
   // Audit 24/07 (R-G1/R-G4): điểm vòng tròn + rubric cho phiên KHÔNG có báo cáo AI được suy ra từ
   // số lượt/số lỗi phía client (computeScoresFromMessages) — KHÔNG phải AI chấm. Với 1 câu 0 lỗi nó
   // ra 68/100 (Từ vựng/Ngữ pháp 10/10) khiến người học tin nhầm trình độ. Chặn con số ảo: dưới ngưỡng
@@ -227,8 +242,20 @@ export function SessionSummary({
                   </div>
                 );
               }
-              // Heuristic /100 (chỉ khi KHÔNG có report AI) — giữ hành vi cũ.
-              if (!hasConversationReport && showScore) {
+              // Interview có report AI: vòng tròn hiện điểm AI /10 — KHÔNG hiện heuristic /100 nữa.
+              if (hasAiReport && aiOverallScore != null) {
+                return (
+                  <div
+                    className="flex flex-col items-center justify-center rounded-full text-center"
+                    style={{ width: size, height: size, background: "var(--ga-surface)", border: "1px solid var(--ga-line)" }}
+                  >
+                    <span className="text-ga-ink font-bold text-4xl leading-none">{aiOverallScore}</span>
+                    <span className="text-[11px] font-semibold mt-1" style={{ color: "var(--ga-subtle)" }}>điểm / 10</span>
+                  </div>
+                );
+              }
+              // Heuristic /100 (chỉ khi KHÔNG có report AI nào) — giữ hành vi cũ.
+              if (!hasConversationReport && !hasAiReport && showScore) {
                 return (
                   <>
                     <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
@@ -279,7 +306,8 @@ export function SessionSummary({
             ))}
           </div>
         </div>
-        {hasAiReport && aiReport?.overall_score && (
+        {/* Điểm AI đã lên vòng tròn chính; chỉ giữ dòng phụ khi overall_score không parse được thành số. */}
+        {hasAiReport && aiOverallScore == null && aiReport?.overall_score && (
           <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--ga-line)" }}>
             <span className="text-xs" style={{ color: "var(--ga-muted)" }}>Đánh giá AI: </span>
             <span className="text-sm font-bold" style={{ color: CYAN }}>{aiReport.overall_score}</span>
@@ -336,13 +364,8 @@ export function SessionSummary({
             <MessageSquare size={14} style={{ color: PURPLE }} />
             <span className="text-ga-ink font-semibold text-sm">Tiếng Đức trong phỏng vấn</span>
           </div>
+          {/* grammar_accuracy_pct đã bỏ: % do LLM tự bịa, độ chính xác giả (report cũ trong DB còn field này nhưng không render nữa). */}
           <div className="grid grid-cols-2 gap-2 mb-3">
-            {aiReport.german_language.grammar_accuracy_pct && (
-              <div className="rounded-xl p-3" style={{ background: "var(--ga-surface)" }}>
-                <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>Độ chính xác ngữ pháp</span>
-                <p className="text-ga-ink font-bold text-sm mt-0.5">{aiReport.german_language.grammar_accuracy_pct}</p>
-              </div>
-            )}
             {aiReport.german_language.vocabulary_level && (
               <div className="rounded-xl p-3" style={{ background: "var(--ga-surface)" }}>
                 <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>Mức từ vựng</span>

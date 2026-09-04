@@ -1,5 +1,5 @@
 import type { AiSpeakingSession, SpeakingSessionMode } from "@/lib/aiSpeakingApi";
-import { useChatStore } from "@/stores/useChatStore";
+import { useChatStore, type ChatMessage } from "@/stores/useChatStore";
 import type { AiCompanion } from "@/types/ai-speaking";
 
 export interface SpeakingSessionBootstrap {
@@ -74,4 +74,49 @@ export function loadSpeakingSessionIntoStore({
       feedbackText: init.feedback ?? null,
     },
   });
+}
+
+export interface SpeakingSessionResume {
+  /**
+   * Chỉ nhận id + schema chứ không nhận cả `AiSpeakingSession`: màn danh sách phỏng vấn đã có sẵn
+   * đủ trường từ lượt `GET /ai-speaking/sessions` đầu tiên, nên đòi cả object chỉ ép nó gọi thêm
+   * một request nữa cho dữ liệu nó đang cầm trong tay.
+   */
+  sessionId: number;
+  responseSchema: string | null | undefined;
+  companion: AiCompanion;
+  sessionMode: SpeakingSessionMode;
+  topic: string | null;
+  experienceLevel?: string | null;
+  /** Lịch sử đã dựng lại — xem `lib/speaking/resumeSession`. */
+  messages: ChatMessage[];
+}
+
+/**
+ * Nạp một phiên ĐANG DỞ vào store rồi trả quyền cho engine (S-06 AC-2, nửa UI).
+ *
+ * Khác `loadSpeakingSessionIntoStore` đúng một điểm nhưng là điểm cốt lõi: phiên mới thì nạp lời
+ * chào `initialAiMessage`, phiên dở thì nạp **toàn bộ lịch sử đã có**. Backend đã ghi từng lượt
+ * ngay khi nó hoàn tất (`InterviewDomainCoordinator.onTurnCompleted → saveTurn`, REQUIRES_NEW —
+ * verify ở B-13/B-15), nên dữ liệu vẫn nguyên; thứ thiếu từ trước tới nay chỉ là đường quay lại.
+ */
+export function resumeSpeakingSessionIntoStore({
+  sessionId,
+  responseSchema,
+  companion,
+  sessionMode,
+  topic,
+  experienceLevel = null,
+  messages,
+}: SpeakingSessionResume): void {
+  const store = useChatStore.getState();
+
+  store.clearChat();
+  store.setSessionId(sessionId);
+  store.setResponseSchema(responseSchema === "V2" ? "V2" : "V1");
+  store.setSelectedCompanion(companion);
+  store.setSessionMode(sessionMode);
+  store.setSessionTopic(topic);
+  store.setExperienceLevel(experienceLevel);
+  store.setMessages(messages);
 }

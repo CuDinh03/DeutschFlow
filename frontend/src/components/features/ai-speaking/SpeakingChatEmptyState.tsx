@@ -34,9 +34,14 @@ export function SpeakingChatEmptyState({
       <p className="font-ga-display text-ga-ink font-medium text-lg mb-1">
         {t("emptyStart", { name: companionName })}
       </p>
-      {personaRole && <p className="ga-ui text-sm text-ga-muted mb-2 max-w-xs">{personaRole}</p>}
+      {/* Từ xl trở lên, vai trò nhân vật và chủ đề phiên đã nằm thường trực ở dải ngữ cảnh trái
+          (S-07 bố cục 3 vùng). Nhắc lại giữa màn hình là nói ba lần cùng một thứ trên cùng một
+          khung nhìn — dải trái, chỗ này, và pill chủ đề ngay dưới. */}
+      {personaRole && (
+        <p className="ga-ui text-sm text-ga-muted mb-2 max-w-xs xl:hidden">{personaRole}</p>
+      )}
       {sessionTopic && (
-        <p className="ga-ui text-xs font-medium text-ga-blue mb-4 px-3 py-1 rounded-ga-pill border border-ga-blue bg-ga-blue-soft">
+        <p className="ga-ui text-xs font-medium text-ga-blue mb-4 px-3 py-1 rounded-ga-pill border border-ga-blue bg-ga-blue-soft xl:hidden">
           {t("sessionMission", { topic: sessionTopic })}
         </p>
       )}

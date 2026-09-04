@@ -50,7 +50,14 @@ export interface AiSpeakingSession {
   responseSchema: SpeakingResponseSchemaId | string | null
   /** COMMUNICATION (default) vs INTERVIEW (simulated job/study interview). */
   sessionMode?: SpeakingSessionMode | string | null
-  status: 'ACTIVE' | 'ENDED'
+  /**
+   * Dây thật là `COMPLETED | IN_PROGRESS`, KHÔNG phải tên enum của backend:
+   * `AiSpeakingServiceImpl.toSessionDto` ánh xạ `SessionStatus.ENDED → "COMPLETED"` và
+   * `ACTIVE → "IN_PROGRESS"` trước khi trả về. Kiểu cũ khai theo enum nội bộ, nên TypeScript sẽ
+   * BÁO LỖI ở phép so đúng (`=== 'COMPLETED'`) và chấp nhận phép so không bao giờ khớp
+   * (`=== 'ENDED'`) — đúng chiều ngược lại của thứ kiểu dữ liệu sinh ra để làm.
+   */
+  status: 'COMPLETED' | 'IN_PROGRESS'
   startedAt: string
   lastActivityAt: string | null
   endedAt: string | null

@@ -49,15 +49,22 @@ export default function SessionRecap({
     confettiStarted.current = true;
   }, []);
 
+  // Đích dự phòng khi caller không truyền onBack/onNext. Trước đây là "/roadmap/tree" (cây v1) —
+  // nay v1 đã bị next.config đá sang v2, nên trỏ thẳng vào đích thật để khỏi tốn một chặng redirect
+  // và để component không còn tham chiếu nào tới cây v1 khi Đợt 3 xoá nó đi.
+  // (Caller /v2 truyền đủ cả hai handler nên nhánh này chỉ chạy cho caller v1.)
+  const ROADMAP_FALLBACK = "/v2/student/roadmap";
+
   const handleBack = () => {
     if (onBack) onBack();
-    else router.push("/roadmap/tree");
+    else router.push(ROADMAP_FALLBACK);
   };
 
+  // `nextNodeTitle` từng rẽ nhánh ở đây nhưng cả hai nhánh đi cùng một chỗ — nó chỉ còn dùng để
+  // hiển thị tên bài kế tiếp trong recap, không quyết định điều hướng nữa.
   const handleNext = () => {
     if (onNext) onNext();
-    else if (nextNodeTitle) router.push("/roadmap/tree");
-    else router.push("/roadmap/tree");
+    else router.push(ROADMAP_FALLBACK);
   };
 
   return (

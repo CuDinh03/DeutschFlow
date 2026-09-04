@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Dumbbell } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import api from '@/lib/api'
 import { useNodeSessionStore } from '@/stores/useNodeSessionStore'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
@@ -16,7 +16,8 @@ import SpeakingView from '@/components/learn/SpeakingView'
 import WritingView from '@/components/learn/WritingView'
 import SessionRecap from '@/components/learn/SessionRecap'
 import PhonemeCoach from '@/components/learn/PhonemeCoach'
-import { GaCap, GaCard, GaPageHdr, LoadingState } from '@/components/ui-v2'
+import { GaCap, GaCard, LoadingState } from '@/components/ui-v2'
+import { LessonShell } from '@/components/learn/LessonShell'
 
 /**
  * /v2/student/learn/[nodeId] — 5 view học của một node (vỏ Galerie).
@@ -194,62 +195,55 @@ export default function V2StudentLearnNodePage() {
     })
   }
 
+  /**
+   * Tiến độ trong BÀI = số tab bắt buộc đã làm xong / tổng tab bắt buộc. Đây là con số có thật
+   * (luật vượt node đã định nghĩa `required`), khác hẳn với thanh vị-trí-trong-lộ-trình ở dưới —
+   * hai thanh đo hai thứ khác nhau nên đứng ở hai chỗ khác nhau và mang hai nhãn khác nhau.
+   */
+  const doneRequired = required.filter(({ tab }) => tabCompletion[tab]).length
+
   return (
-    <div className="flex min-h-full flex-col">
-      <GaPageHdr
-        accent
-        title={session?.titleVi ?? tLearn('lesson')}
-        subtitle={session?.moduleTitleVi ?? tLearn('loadingNode')}
-      />
-      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
-        <div className="mx-auto max-w-3xl space-y-[22px]">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => router.push('/v2/student/roadmap')}
-              className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
-            >
-              <ArrowLeft size={15} aria-hidden /> {tLearn('backToRoadmap')}
-            </button>
-
-            {/* Cửa sang runner luyện 4 kỹ năng của chính node này. */}
-            <button
-              type="button"
-              onClick={() => router.push(`/v2/student/practice/${nodeId}`)}
-              className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-3.5 py-2 text-[12.5px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface lg:min-h-0"
-            >
-              <Dumbbell size={14} aria-hidden /> {t('toPractice')}
-            </button>
-          </div>
-
-          {/* Đầu bài + vị trí trong lộ trình */}
+    <LessonShell
+      mode="learn"
+      onModeChange={(next) => {
+        if (next === 'practice') router.push(`/v2/student/practice/${nodeId}`)
+      }}
+      chapter={
+        session?.moduleNumber != null
+          ? `Module ${session.moduleNumber} · ${session.moduleTitleVi ?? ''}`
+          : (session?.moduleTitleVi ?? null)
+      }
+      title={session?.titleVi ?? tLearn('lesson')}
+      subtitle={session?.titleDe ?? null}
+      objective={session?.content?.overview?.vi ?? null}
+      estimatedMinutes={session?.estimatedMinutes ?? null}
+      progress={required.length > 0 ? { current: doneRequired, total: required.length } : null}
+      onExit={() => router.push('/v2/student/roadmap')}
+    >
+      <>
+          {/* Shell đã mang tiêu đề · tiếng Đức · module · mục tiêu · tiến độ. Chỗ này vì thế chỉ
+              còn hai thứ shell KHÔNG nói — huy hiệu cấp độ, phần thưởng XP — nên nó là một DẢI gọn
+              chứ không phải một thẻ có đệm dày: giữ nguyên thẻ cũ sau khi rút ruột thì còn lại một
+              ô gần như trống, trông như lỗi hơn là như thiết kế. */}
           {session && (
-            <GaCard className="p-5">
-              <div className="flex items-start gap-3">
-                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-ga bg-ga-surface text-[24px]">
-                  {session.emoji}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-ga-display text-[20px] font-medium leading-tight text-ga-ink">
-                    {session.titleVi}
-                  </p>
-                  <p className="ga-ui mt-0.5 text-[13px] italic text-ga-muted">{session.titleDe}</p>
-                  <div className="ga-ui mt-2 flex flex-wrap items-center gap-2 text-[11px]">
-                    <span className="rounded-ga-pill bg-ga-accent-soft px-2 py-0.5 font-bold text-ga-accent">
-                      {session.cefrLevel}
-                    </span>
-                    {session.moduleNumber !== null && (
-                      <span className="text-ga-subtle">
-                        Module {session.moduleNumber} · {session.moduleTitleVi}
-                      </span>
-                    )}
-                    <span className="text-ga-subtle">+{session.xpReward} XP</span>
-                  </div>
-                </div>
-              </div>
+            <div className="ga-ui flex flex-wrap items-center gap-2 text-[11px]">
+              <span aria-hidden className="text-[20px] leading-none">
+                {session.emoji}
+              </span>
+              <span className="rounded-ga-pill bg-ga-accent-soft px-2 py-0.5 font-bold text-ga-accent">
+                {session.cefrLevel}
+              </span>
+              <span className="text-ga-subtle">+{session.xpReward} XP</span>
+            </div>
+          )}
 
-              {roadmapState && (
-                <div className="mt-4 border-t border-ga-line pt-4">
+          {/* Vị trí trong LỘ TRÌNH — khác hẳn thanh tiến độ trong BÀI ở header, nên đứng riêng và
+              mang nhãn riêng để hai con số không bị đọc nhầm thành một. */}
+          {/* Buộc theo `roadmapState`, KHÔNG theo `session`: `/roadmap/me` có thể hỏng hoặc không
+              chứa node này, và một thẻ rỗng trông như lỗi tải hơn là như "không có dữ liệu". */}
+          {roadmapState && (
+            <GaCard className="p-5">
+              <div>
                   {/* `roadmapContext`/`completedInRoadmap` KHÔNG có trong namespace `learn` — trang v1
                       gọi hai khoá này nên next-intl in ra chính tên khoá. Ở đây khai báo trong
                       v2.student.learnNode (đủ 3 locale) thay vì bê nguyên lỗi sang. */}
@@ -271,8 +265,7 @@ export default function V2StudentLearnNodePage() {
                   <p className="ga-ui mt-1 text-[11.5px] text-ga-subtle">
                     {roadmapState.percent}% {t('completedInRoadmap')}
                   </p>
-                </div>
-              )}
+              </div>
             </GaCard>
           )}
 
@@ -420,8 +413,7 @@ export default function V2StudentLearnNodePage() {
               )}
             </>
           )}
-        </div>
-      </div>
+      </>
 
       {/* Recap khi vượt node */}
       {showRecap && session && (
@@ -441,6 +433,6 @@ export default function V2StudentLearnNodePage() {
           }}
         />
       )}
-    </div>
+    </LessonShell>
   )
 }
