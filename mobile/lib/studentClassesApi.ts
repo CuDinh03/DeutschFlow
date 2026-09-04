@@ -273,3 +273,30 @@ export async function submitAssignment(
   )
   return res.data
 }
+
+/** Gương entity AssignmentScenario (backend teacher) — kịch bản nói do giáo viên giao. */
+export interface AssignmentScenario {
+  id: number
+  assignmentId: number
+  topic: string
+  level: string
+  scenarioDescription: string | null
+  followUpQuestions: string | null
+}
+
+/**
+ * Kịch bản của một bài giao SPEAKING_SCENARIO (N2, 05/09). `assignmentId` = id bài của LỚP
+ * (StudentAssignment.assignmentId). Backend tự sinh lại kịch bản nếu lúc tạo bài LLM lỗi.
+ */
+export async function fetchAssignmentScenario(assignmentId: number): Promise<AssignmentScenario> {
+  const res = await api.get<AssignmentScenario>(`/v2/students/assignments/${assignmentId}/scenario`)
+  return res.data
+}
+
+/**
+ * Chuỗi `topic` gửi cho phiên AI — ĐÚNG định dạng web đang gửi (classes/[id]/assignments/[aid]/page.tsx),
+ * để prompt backend nhận cùng một đầu vào trên hai nền tảng. Phần thiếu để trống, không in "null".
+ */
+export function scenarioTopic(sc: Pick<AssignmentScenario, 'topic' | 'scenarioDescription' | 'followUpQuestions'>): string {
+  return `Chủ đề: ${sc.topic ?? ''}\n\nMô tả chi tiết: ${sc.scenarioDescription ?? ''}\n\nGợi ý: ${sc.followUpQuestions ?? ''}`
+}
