@@ -1,7 +1,7 @@
 import { View, Alert, Pressable, Platform } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
-import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2, HelpCircle, Presentation, ShieldCheck, FileText, Lock, Sparkles, CreditCard, RotateCcw } from 'lucide-react-native'
+import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2, HelpCircle, Presentation, ShieldCheck, FileText, Lock, Sparkles, CreditCard, RotateCcw, KeyRound } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
 import api, { apiMessage } from '@/lib/api'
@@ -273,6 +273,9 @@ export default function ProfileScreen() {
             <ListRow icon={User} title="Thông tin cá nhân" onPress={() => router.push('/(student)/settings/profile')} />
             <Divider />
             <ListRow icon={ShieldCheck} title="An toàn & chặn" onPress={() => router.push('/(student)/settings/blocked' as unknown as Href)} />
+            <Divider />
+            {/* N4 (05/09): trước đây người dùng chỉ-mobile phải thoát app đi luồng quên mật khẩu qua email. */}
+            <ListRow icon={KeyRound} title="Đổi mật khẩu" onPress={() => router.push('/(student)/settings/password' as unknown as Href)} />
             <Divider />
             <ListRow icon={Bell} title="Thông báo" onPress={() => router.push('/(student)/notifications')} />
             <Divider />
