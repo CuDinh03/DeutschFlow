@@ -58,13 +58,19 @@ Mỗi mục dưới đây có: **vì sao**, **file cụ thể**, **định nghĩ
 
 ⚠️ `role-area-guard.spec.ts`, `student/messages-inbox.spec.ts`, `student/__tree-analysis-shots.spec.ts` hiện **untracked** (chưa từng commit) — mở PR mà không `git add` thì ba spec này không lên. `__tree-analysis-shots` tự khai "TẠM THỜI… xoá sau khi dùng" và ghi ảnh vào một scratchpad của phiên đã chết ⇒ **đề xuất xoá hẳn** thay vì commit.
 
-### B-03. Mở PR để CI thật sự chạy
+### 🟡 B-03. Mở PR để CI thật sự chạy — ĐÃ SẴN SÀNG 04/09 (dọn WIP + merge main xong)
 
 **Vì sao:** `.github/workflows/frontend-ci.yml` chỉ trigger trên `push` vào `master/main/dev` hoặc `pull_request` **nhắm tới** các nhánh đó. Push vào nhánh feature **không kích hoạt gì**. Nghĩa là step **Design Token Ratchet** thêm ở Wave 0 **chưa từng chạy trên CI** — mới chỉ verify local.
 
 **Việc:** mở PR `feat/roadmap-tree-v2` → `main`, mô tả gộp 3 commit, link 3 báo cáo. Kiểm cả 4 workflow (frontend, backend, security, mobile).
 
 🪤 `gh pr checks` in nhiều dòng cùng tên job — đọc hết, đừng chỉ nhìn dòng cuối.
+
+**✅ Session 04/09 — tiền đề của B-03 đã xong, PR mở ngay sau e2e xanh:**
+- 293 file WIP đã phân loại: **echo của PR-đã-merge** (46 tracked + 26 untracked, gồm cả bản nháp backend audit và `app/v2/messages/` chụp trước #475) đưa vào 4 stash `*-2026-09-04`, KHÔNG cuốn vào nhánh; phần thật chia **3 commit**: `d915114f` (S-09 exam + S-06 interview), `0bd3b087` (speaking studio + lesson shell), `24ea34e3` (chrome B-05→B-12 + i18n + docs).
+- **Merge `origin/main` (352 commit, 56 file conflict) = `1d999f38`.** Nguyên tắc đã dùng: exam bỏ hẳn `lib/exam/examDraft` localStorage, nối vỏ ExamShell vào **autosave server V285/#409** (server sở hữu nháp + đồng hồ; i18n/spec đổi theo — nhãn "trên thiết bị này" chỉ còn ở practice, nơi CHƯA có autosave server); roadmap giữ segmented + nhận **feiern L3a (#376)** và URL-state `?tab=&node=` (link cũ `nodes/phase` map về `list`); learn views lấy chấm-điểm-server F-19/F-21/F-22 + MicDeniedGuide của main làm nền rồi phủ token + LessonShell; speaking giữ studio, port Đ4 gợi-ý-theo-yêu-cầu xuống `SpeakingFeedbackSummary` (sheet + sidebar cùng hưởng); i18n merge ngữ nghĩa 3 chiều theo key (script scratchpad `merge-i18n.mjs`, chỉ 1 key thật sự đụng: `draftRestored` — lấy chữ server của main).
+- Verify sau merge: **tsc sạch · 1016/1016 unit · build prod exit 0 · check-i18n-usage 5680 key OK · cổng fresh-migration PASS (301 migrations → v303, chạy qua PG local :55442 vì Docker chết)**.
+- 🔎 **Việc lộ ra, chưa làm (Wave sau):** (1) nút "gợi ý theo yêu cầu" Đ4 mới có ở sheet/sidebar — `SpeakingContextRail` (desktop) chưa có lối gọi tương đương; (2) `student/__tree-analysis-shots.spec.ts` vẫn untracked, giữ nguyên đề xuất XOÁ; (3) 4 stash echo giữ lại để đối chiếu, dọn sau khi PR merge (`git stash drop` từng cái).
 
 ---
 
