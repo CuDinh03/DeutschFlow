@@ -125,6 +125,34 @@ class NewsServiceTest {
     }
 
     @Test
+    @DisplayName("body không phải XML dài → preview trong log bị cắt đúng 80 ký tự")
+    void longNonXmlBodyPreviewIsCapped() {
+        when(restTemplate.getForObject(anyString(), eq(String.class))).thenReturn("A".repeat(300));
+
+        newsService.refreshCache();
+
+        assertThat(logWatcher.list)
+                .anySatisfy(event -> assertThat(event.getFormattedMessage())
+                        .contains("không phải XML")
+                        .contains("A".repeat(80) + "\"")
+                        .doesNotContain("A".repeat(81)));
+    }
+
+    @Test
+    @DisplayName("message lỗi dài (HTTP error nhúng nguyên body) → log nén còn 200 ký tự + …")
+    void longFailureReasonIsCapped() {
+        when(restTemplate.getForObject(anyString(), eq(String.class)))
+                .thenThrow(new RuntimeException("X".repeat(500)));
+
+        newsService.refreshCache();
+
+        assertThat(logWatcher.list)
+                .anySatisfy(event -> assertThat(event.getFormattedMessage())
+                        .contains("X".repeat(200) + "…")
+                        .doesNotContain("X".repeat(201)));
+    }
+
+    @Test
     @DisplayName("lỗi lặp lại → WARN có throttle: lần 1 và lần 12, KHÔNG phải mỗi lần refresh")
     void repeatedFailureLogsAreThrottled() {
         when(restTemplate.getForObject(anyString(), eq(String.class)))

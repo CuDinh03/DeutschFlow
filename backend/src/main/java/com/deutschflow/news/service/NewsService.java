@@ -59,6 +59,13 @@ public class NewsService {
     /** Body không phải XML thì trích tối đa bấy nhiêu ký tự vào log — đủ chẩn đoán, không tràn. */
     private static final int NON_XML_PREVIEW_CHARS = 80;
 
+    /**
+     * Trần cho MỌI lý do lỗi được log: message của RestTemplate với HTTP 4xx/5xx nhúng nguyên
+     * body lỗi không cắt (DefaultResponseErrorHandler formatValue limitLength=-1) — trang HTML
+     * của CDN/WAF có thể dài hàng chục KB.
+     */
+    private static final int FAILURE_REASON_MAX_CHARS = 200;
+
     private static final String DW_DE = "https://rss.dw.com/xml/rss-de-all";
     private static final String TAGESSCHAU = "https://www.tagesschau.de/xml/rss2/";
     private static final String SPIEGEL = "https://www.spiegel.de/schlagzeilen/tops/index.rss";
@@ -102,10 +109,21 @@ public class NewsService {
         } catch (Exception e) {
             int failures = consecutiveFailures.merge(url, 1, Integer::sum);
             if (failures == 1 || failures % FAILURE_LOG_INTERVAL == 0) {
-                log.warn("RSS {} lỗi lần thứ {} liên tiếp: {}", url, failures, e.getMessage());
+                log.warn("RSS {} lỗi lần thứ {} liên tiếp: {}", url, failures, compact(e.getMessage()));
             }
             return List.of();
         }
+    }
+
+    /** Nén lý do lỗi về một dòng có trần độ dài — không cho body lỗi ngoại lai phình log. */
+    private static String compact(String message) {
+        if (message == null) {
+            return "(không có message)";
+        }
+        String flattened = message.replaceAll("\\s+", " ").trim();
+        return flattened.length() <= FAILURE_REASON_MAX_CHARS
+                ? flattened
+                : flattened.substring(0, FAILURE_REASON_MAX_CHARS) + "…";
     }
 
     private List<NewsItemDto> parseRss(String xmlContent, String sourceName, String sourceType) throws Exception {
