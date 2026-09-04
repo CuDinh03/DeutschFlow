@@ -3,7 +3,7 @@ import {
   Alert, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, View,
 } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams, type Href } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
 import * as DocumentPicker from 'expo-document-picker'
 import * as WebBrowser from 'expo-web-browser'
@@ -20,16 +20,12 @@ import {
 import { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import {
-  fetchAssignmentDetail, fetchAssignmentMaterials, fetchAssignmentMaterialUrl,
-  isAwaitingTeacher, isFinalGrade, isSubmittedStatus,
-  submitAssignment, uploadAssignmentFile,
-  MAX_UPLOAD_BYTES, type AssignmentMaterial, type MaterialKind, type StudentAssignment, type UploadFile,
+  fetchAssignmentDetail, fetchAssignmentMaterials, fetchAssignmentMaterialUrl, isAwaitingTeacher, isFinalGrade, isSubmittedStatus, submitAssignment, uploadAssignmentFile, MAX_UPLOAD_BYTES, type AssignmentMaterial, type MaterialKind, type StudentAssignment, type UploadFile, fetchAssignmentScenario, scenarioTopic,
 } from '@/lib/studentClassesApi'
 import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, ProgressRing,
-  Screen, Skeleton, TextField, ThemedText, YellowSquare,
+  AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, ProgressRing, Screen, Skeleton, TextField, ThemedText, YellowSquare,
 } from '@/components/ui'
 
 const TYPE_LABELS: Record<string, string> = {
@@ -153,7 +149,7 @@ export default function AssignmentDetail() {
           <DescriptionCard assignment={a} />
           <MaterialsCard assignmentId={assignmentId} />
 
-          {showForm && speaking && <SpeakingNotice />}
+          {showForm && speaking && <SpeakingStart assignment={a} />}
           {showForm && !speaking && (
             <SubmitForm
               content={content}
@@ -605,8 +601,38 @@ function fileKindLabel(contentType: string): string {
   return 'Tệp đính kèm'
 }
 
-function SpeakingNotice() {
+/**
+ * N2 (đợt 2, 05/09): bài giao SPEAKING_SCENARIO làm NGAY trong app — trước đây màn này chỉ
+ * bảo "mở ứng dụng web". Gương web classes/[id]/assignments/[aid]: lấy kịch bản
+ * (GET …/{assignmentId}/scenario, id bài của LỚP) → mở màn Speaking với phiên LESSON gắn
+ * `assignmentId` = id DÒNG BÀI của học viên (a.id). Kết thúc buổi nói, backend tự chấm và
+ * đẩy bài sang chờ giáo viên (AI_GRADED / GRADING_FAILED) — không có bước "nộp" riêng.
+ */
+function SpeakingStart({ assignment: a }: { assignment: StudentAssignment }) {
   const c = useTheme().colors
+  const [busy, setBusy] = useState(false)
+  async function start() {
+    if (busy) return
+    setBusy(true)
+    try {
+      const sc = await fetchAssignmentScenario(a.assignmentId)
+      router.push({
+        pathname: '/(student)/speaking',
+        params: {
+          assignmentId: String(a.id),
+          backTo: String(a.assignmentId),
+          topic: scenarioTopic(sc),
+          level: sc.level || 'A2',
+          // nonce: mở lại cùng bài lần sau vẫn tự bắt đầu phiên mới (speaking.tsx khoá theo key này)
+          t: String(Date.now()),
+        },
+      } as unknown as Href)
+    } catch (e) {
+      Alert.alert('Chưa mở được bài nói', apiMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
   return (
     <Card tone="sunken">
       <View style={{ gap: space[3], alignItems: 'center', paddingVertical: space[3] }}>
@@ -624,8 +650,11 @@ function SpeakingNotice() {
         </View>
         <ThemedText variant="title" align="center">Bài tập Luyện Nói AI</ThemedText>
         <ThemedText variant="caption" color="secondary" align="center">
-          Hãy mở ứng dụng web để thực hiện bài Luyện nói AI này — điểm sẽ tự đồng bộ với giáo viên.
+          Trò chuyện với gia sư AI theo tình huống giáo viên giao. Kết thúc buổi nói là bài được nộp và chấm tự động; giáo viên xác nhận điểm sau.
         </ThemedText>
+        <View style={{ alignSelf: 'stretch', paddingTop: space[1] }}>
+          <Button label="Bắt đầu bài nói" onPress={() => void start()} loading={busy} />
+        </View>
       </View>
     </Card>
   )

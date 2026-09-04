@@ -34,6 +34,10 @@ export interface StartArgs {
   cefrLevel: string
   interviewPosition?: string
   experienceLevel?: string
+  /** N2: phiên gắn bài giao — id dòng bài của học viên (StudentAssignment.id). */
+  assignmentId?: number | null
+  /** N2: mã persona gửi backend thay cho persona.id (bài giao dùng 'DEFAULT' = gia sư trung tính như web). */
+  backendPersona?: string
 }
 
 interface CompanionSelectProps {

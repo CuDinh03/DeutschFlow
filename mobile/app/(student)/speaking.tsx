@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   View,
   ScrollView,
@@ -84,7 +85,15 @@ export default function SpeakingScreen() {
   // Onboarding (and deep links) can preselect a speaking mode — e.g. the
   // INTERVIEW_FIRST archetype routes here as `?mode=INTERVIEW`. LESSON đang
   // khoá (quyết định 02/09) nên deep link cũ ?mode=LESSON rơi về mặc định.
-  const { mode: modeParam } = useLocalSearchParams<{ mode?: string }>()
+  const {
+    mode: modeParam,
+    assignmentId: assignmentParam,
+    backTo: backToParam,
+    topic: topicParam,
+    level: levelParam,
+    t: nonceParam,
+  } = useLocalSearchParams<{ mode?: string; assignmentId?: string; backTo?: string; topic?: string; level?: string; t?: string }>()
+  const queryClient = useQueryClient()
   const initialMode: SpeakingSessionMode | undefined =
     modeParam === 'INTERVIEW' || modeParam === 'COMMUNICATION' ? modeParam : undefined
 
@@ -320,15 +329,17 @@ export default function SpeakingScreen() {
     // AI (Groq/OpenAI) — disclose & get consent before the session ever starts.
     if (!(await ensureAiConsent())) return
     setStarting(true)
-    trackFeatureAction('ai_speaking', 'started', { mode: args.sessionMode })
+    trackFeatureAction('ai_speaking', 'started', { mode: args.sessionMode, assignment: args.assignmentId != null })
     try {
       const created = await speakingApi.createSession({
         topic: args.topic,
         cefrLevel: args.cefrLevel,
-        persona: args.persona.id.toUpperCase(),
+        // N2: bài giao gửi 'DEFAULT' (gia sư trung tính, như web) dù stage vẽ một persona có sẵn.
+        persona: args.backendPersona ?? args.persona.id.toUpperCase(),
         sessionMode: args.sessionMode,
         interviewPosition: args.interviewPosition ?? null,
         experienceLevel: args.experienceLevel ?? null,
+        assignmentId: args.assignmentId ?? null,
       })
       const greeting = created.initialAiMessage?.aiSpeechDe ?? 'Hallo! Erzählen Sie mir von sich.'
       // Checklist "Bắt đầu" (§7.1): tick "Thử 1 buổi Speaking" khi tạo phiên thành công.
@@ -357,6 +368,42 @@ export default function SpeakingScreen() {
     } finally {
       setStarting(false)
     }
+  }
+
+  // N2 (đợt 2, 05/09): bài giao SPEAKING_SCENARIO mở màn này kèm ?assignmentId&backTo&topic&level&t
+  // → tự tạo phiên LESSON gắn assignmentId (id dòng bài học viên), persona 'DEFAULT' như web.
+  // Khoá theo `assignmentId:t` để "Luyện lại" (về select) không tự mở phiên nữa, còn mở lại
+  // cùng bài từ màn bài giao (nonce mới) thì có. Kết thúc buổi nói: backend tự chấm + đẩy bài
+  // sang chờ giáo viên; onDone ở tổng kết đưa người dùng về đúng bài giao.
+  const autoStartedRef = useRef<string | null>(null)
+  const assignmentKey = assignmentParam ? `${assignmentParam}:${nonceParam ?? ''}` : null
+  useEffect(() => {
+    if (!assignmentKey) return
+    const aid = Number(assignmentParam)
+    if (!Number.isFinite(aid) || aid <= 0) return
+    if (view !== 'select' || session || starting) return
+    if (autoStartedRef.current === assignmentKey) return
+    autoStartedRef.current = assignmentKey
+    void startSession({
+      persona: PERSONA_TOKENS.lukas,
+      backendPersona: 'DEFAULT',
+      sessionMode: 'LESSON',
+      topic: topicParam ?? '',
+      cefrLevel: levelParam || 'A2',
+      assignmentId: aid,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignmentKey, view, session, starting])
+
+  function finishAssignmentFlow() {
+    const backTo = Number(backToParam)
+    if (Number.isFinite(backTo) && backTo > 0) {
+      void queryClient.invalidateQueries({ queryKey: ['assignment-detail', backTo] })
+    }
+    void queryClient.invalidateQueries({ queryKey: ['class-assignments'] })
+    router.replace(
+      Number.isFinite(backTo) && backTo > 0 ? (`/(student)/assignments/${backTo}` as never) : ('/(student)' as never),
+    )
   }
 
   // Gom side-effect của 1 lượt AI thành công (phase, reaction+TTS+haptics, scroll). Tách để cả
@@ -680,7 +727,11 @@ export default function SpeakingScreen() {
     return (
       <Screen edges={['top']}>
         <ScreenHeader title="Kết quả luyện nói" onClose={resetToSelect} />
-        <ConversationSummary report={convReport} onPracticeAgain={resetToSelect} onDone={() => router.replace('/(student)')} />
+        <ConversationSummary
+          report={convReport}
+          onPracticeAgain={resetToSelect}
+          onDone={() => (assignmentKey ? finishAssignmentFlow() : router.replace('/(student)'))}
+        />
       </Screen>
     )
   }
