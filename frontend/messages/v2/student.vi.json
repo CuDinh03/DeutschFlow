@@ -1220,7 +1220,8 @@
       "errorQuota": "Hôm nay bạn đã dùng hết lượt AI. Bài đã có vẫn làm được; lượt mới sẽ mở lại sau.",
       "errorRateLimited": "Bạn thao tác hơi nhanh — thử lại sau {seconds} giây.",
       "errorAiUnavailable": "Trợ lý AI đang bận, chưa sinh được đề. Thử lại sau ít phút.",
-      "errorJobFailed": "Sinh đề không thành công. Bấm thử lại để ươm đề mới."
+      "errorJobFailed": "Sinh đề không thành công. Bấm thử lại để ươm đề mới.",
+      "metaLine": "{node} · Thế hệ {gen} · {count} câu"
     },
     "learnNode": {
       "roadmapContext": "Vị trí trong lộ trình",

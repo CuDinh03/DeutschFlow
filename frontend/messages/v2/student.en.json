@@ -1220,7 +1220,8 @@
       "errorQuota": "You've used up today's AI allowance. Existing sets still work; new ones unlock later.",
       "errorRateLimited": "That was a bit fast — try again in {seconds} seconds.",
       "errorAiUnavailable": "The AI assistant is busy and couldn't generate a set. Try again in a few minutes.",
-      "errorJobFailed": "Generating the set failed. Hit retry to grow a new one."
+      "errorJobFailed": "Generating the set failed. Hit retry to grow a new one.",
+      "metaLine": "{node} · Generation {gen} · {count} questions"
     },
     "learnNode": {
       "roadmapContext": "Position in roadmap",

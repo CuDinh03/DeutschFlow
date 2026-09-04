@@ -1220,7 +1220,8 @@
       "errorQuota": "Dein KI-Kontingent für heute ist aufgebraucht. Vorhandene Sätze gehen weiter; neue gibt es später.",
       "errorRateLimited": "Das war etwas schnell – versuch es in {seconds} Sekunden noch einmal.",
       "errorAiUnavailable": "Der KI-Assistent ist ausgelastet und konnte keinen Satz erzeugen. Versuch es in ein paar Minuten.",
-      "errorJobFailed": "Das Erzeugen des Satzes ist fehlgeschlagen. Erneut versuchen, um einen neuen auszusäen."
+      "errorJobFailed": "Das Erzeugen des Satzes ist fehlgeschlagen. Erneut versuchen, um einen neuen auszusäen.",
+      "metaLine": "{node} · Generation {gen} · {count} Aufgaben"
     },
     "learnNode": {
       "roadmapContext": "Position im Lernpfad",
