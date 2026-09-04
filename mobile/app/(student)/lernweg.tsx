@@ -1,60 +1,73 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Modal, Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router } from 'expo-router'
+import { router, useFocusEffect, type Href } from 'expo-router'
 import { Check, ChevronRight, Lock, Medal, X } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, Screen, Skeleton, ThemedText, YellowSquare,
 } from '@/components/ui'
-import { lernwegApi, type TreeLeaf, type TreeLevel, type TreeNodeLesson } from '@/lib/lernwegApi'
-import { currentLevel, milestoneLabel, skillPracticeRoute, treeProgress } from '@/lib/lernwegUi'
+import { lernwegApi, ROADMAP_ME_QUERY_KEY } from '@/lib/lernwegApi'
+import { buildLernwegTree, skillLabel, type LernwegLeaf, type LernwegLevel } from '@/lib/lernwegTree'
 
 /**
- * Lernweg v2 (cụm 3/3 — thiết kế đã chốt 02/09): bản đồ cây học tập THẬT từ
- * /roadmap/tree — hợp nhất mental model với web (màn roadmap cũ dùng hệ
- * skill-tree khác, giữ nguyên cho các luồng đang chạy; entry Trang chủ trỏ sang
- * đây). Đợt này là bản đồ tiến độ + lối vào luyện theo kỹ năng; player bài học
- * theo contentKey (web §5) là đợt sau — không completeNode từ mobile khi chưa
- * học thật.
+ * Lernweg — bản đồ lộ trình THẬT từ `GET /roadmap/me` (từ 05/09, N1 plan nâng cấp
+ * mobile): level → tuần → lá = node giáo trình, cùng dữ liệu và cùng sổ tiến độ với
+ * web /v2/student/roadmap và với player node.tsx của chính app. Chạm lá mở thẳng bài
+ * (node.tsx) — không còn "đợt sau"; hoàn thành bài ở đó là lá đổi trạng thái ở đây
+ * (các màn học invalidate ROADMAP_ME_QUERY_KEY, và màn này refetch khi được focus).
+ *
+ * Trước 05/09 màn đọc /roadmap/tree = cây DEMO web đã bỏ từ 03/08 → tài khoản A2
+ * thấy "A0 · Gieo mầm" rỗng (AC-MOBSCR-06 FAIL). Thiết kế thị giác (dấu lá 4
+ * trạng thái, chú giải, sheet) giữ nguyên bản đã chốt 02/09.
  */
 export default function LernwegScreen() {
   const theme = useTheme()
   const c = theme.colors
-  const [sheetLeaf, setSheetLeaf] = useState<TreeLeaf | null>(null)
-  const [sheetLesson, setSheetLesson] = useState<TreeNodeLesson | null>(null)
-  const [sheetLoading, setSheetLoading] = useState(false)
+  const [sheetLeaf, setSheetLeaf] = useState<LernwegLeaf | null>(null)
 
   const treeQ = useQuery({
-    queryKey: ['lernweg-tree'],
-    queryFn: () => lernwegApi.tree(),
-    staleTime: 60_000,
+    queryKey: ROADMAP_ME_QUERY_KEY,
+    queryFn: () => lernwegApi.nodes(),
+    staleTime: 30_000,
   })
 
-  const tree = treeQ.data
-  const progress = treeProgress(tree)
-  const cur = currentLevel(tree)
+  // Màn nằm dưới Tabs nên không unmount khi rời đi — refetch lúc quay lại để lá vừa
+  // học xong đổi trạng thái (react-query trong RN không có focus cửa sổ để tự làm).
+  const refetch = treeQ.refetch
+  useFocusEffect(
+    useCallback(() => {
+      void refetch()
+    }, [refetch]),
+  )
 
-  async function openLeaf(leaf: TreeLeaf) {
-    if (leaf.state === 'locked') return
+  const tree = treeQ.data ? buildLernwegTree(treeQ.data) : null
+
+  function openLeaf(leaf: LernwegLeaf) {
     setSheetLeaf(leaf)
-    setSheetLesson(null)
-    setSheetLoading(true)
-    try {
-      setSheetLesson(await lernwegApi.node(leaf.id))
-    } catch {
-      // Sheet vẫn mở với tiêu đề leaf — thiếu mô tả không chặn lối luyện.
-    } finally {
-      setSheetLoading(false)
-    }
   }
 
   function closeSheet() {
     setSheetLeaf(null)
-    setSheetLesson(null)
   }
 
-  function LeafDot({ leaf }: { leaf: TreeLeaf }) {
+  function goStudy(leaf: LernwegLeaf) {
+    closeSheet()
+    router.push({
+      pathname: '/(student)/node',
+      params: { nodeId: String(leaf.id), title: leaf.title },
+    } as unknown as Href)
+  }
+
+  function goPractice(leaf: LernwegLeaf) {
+    closeSheet()
+    router.push({
+      pathname: '/(student)/skill-practice',
+      params: { nodeId: String(leaf.id) },
+    } as unknown as Href)
+  }
+
+  function LeafDot({ leaf }: { leaf: Pick<LernwegLeaf, 'state'> }) {
     const base = { alignItems: 'center' as const, justifyContent: 'center' as const, borderRadius: radius.full }
     if (leaf.state === 'completed') {
       return (
@@ -84,7 +97,16 @@ export default function LernwegScreen() {
     )
   }
 
-  function LevelSection({ level }: { level: TreeLevel }) {
+  function stateWord(state: LernwegLeaf['state']): string {
+    switch (state) {
+      case 'completed': return 'đã xong'
+      case 'in_progress': return 'đang học'
+      case 'available': return 'học được'
+      default: return 'chưa mở'
+    }
+  }
+
+  function LevelSection({ level }: { level: LernwegLevel }) {
     if (level.status === 'locked') {
       return (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], paddingVertical: space[2] }}>
@@ -92,9 +114,9 @@ export default function LernwegScreen() {
             <Icon icon={Lock} size={12} color="faint" />
           </View>
           <View style={{ flex: 1, gap: 2 }}>
-            <ThemedText variant="bodyStrong" color="muted">{level.level}</ThemedText>
-            {level.milestone?.unlocksWhen ? (
-              <ThemedText variant="caption" color="faint">{level.milestone.unlocksWhen}</ThemedText>
+            <ThemedText variant="bodyStrong" color="muted">{`${level.level} · ${level.total} bài`}</ThemedText>
+            {level.unlocksWhen ? (
+              <ThemedText variant="caption" color="faint">{level.unlocksWhen}</ThemedText>
             ) : null}
           </View>
         </View>
@@ -106,7 +128,7 @@ export default function LernwegScreen() {
           <View style={{ width: 28, height: 28, borderRadius: radius.full, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
             <Icon icon={Medal} size={14} color="onAccent" />
           </View>
-          <ThemedText variant="bodyStrong" style={{ flex: 1 }}>{`${level.level} — đã hoàn thành`}</ThemedText>
+          <ThemedText variant="bodyStrong" style={{ flex: 1 }}>{`${level.level} — đã hoàn thành ${level.done}/${level.total} bài`}</ThemedText>
         </View>
       )
     }
@@ -115,54 +137,40 @@ export default function LernwegScreen() {
       <View style={{ gap: space[3] }}>
         <View style={{ alignSelf: 'center', backgroundColor: c.inkSurface, borderRadius: radius.full, paddingHorizontal: space[4], paddingVertical: space[2], flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <YellowSquare />
-          <ThemedText variant="label" style={{ color: c.onInk }}>{`Đang học · ${level.level}`}</ThemedText>
+          <ThemedText variant="label" style={{ color: c.onInk }}>{`Đang học · ${level.level} · ${level.done}/${level.total}`}</ThemedText>
         </View>
 
-        {level.milestone && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], alignSelf: 'center' }}>
-            <ThemedText variant="caption" color="secondary">{level.milestone.title}</ThemedText>
-            <Pill
-              label={milestoneLabel(level.milestone.state)}
-              tone={level.milestone.state === 'ready' ? 'accent' : level.milestone.state === 'passed' ? 'success' : 'neutral'}
-            />
-          </View>
-        )}
-
         {level.branches.map((branch) => (
-          <View key={branch.skill} style={{ gap: space[2] }}>
+          <View key={branch.key} style={{ gap: space[2] }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-              <Caption style={{ flex: 1 }}>{branch.label}</Caption>
+              <Caption style={{ flex: 1 }}>{`${branch.label} · ${branch.sublabel}`}</Caption>
               <Pill
                 label={branch.status === 'matured' ? 'ĐỦ LÁ' : branch.status === 'growing' ? 'ĐANG LỚN' : 'CHƯA MỞ'}
                 tone={branch.status === 'matured' ? 'success' : branch.status === 'growing' ? 'accent' : 'neutral'}
               />
             </View>
             <Card style={{ gap: space[3] }}>
-              {branch.shoots.map((shoot) => (
-                <View key={shoot.topicId} style={{ gap: space[2] }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                    {shoot.chosenByUser ? <YellowSquare size={5} /> : null}
-                    <ThemedText variant={shoot.chosenByUser ? 'bodyStrong' : 'body'} color={shoot.chosenByUser ? 'primary' : 'secondary'} style={{ flex: 1 }}>
-                      {shoot.topicLabel}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3], alignItems: 'flex-start' }}>
+                {branch.leaves.map((leaf) => (
+                  <Pressable
+                    key={leaf.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${leaf.day != null ? `Ngày ${leaf.day}, ` : ''}${leaf.title} — ${stateWord(leaf.state)}`}
+                    accessibilityState={{ disabled: leaf.state === 'locked' }}
+                    onPress={() => openLeaf(leaf)}
+                    disabled={leaf.state === 'locked'}
+                    hitSlop={6}
+                    style={{ alignItems: 'center', gap: 4, width: 44 }}
+                  >
+                    <View style={{ height: 40, justifyContent: 'center' }}>
+                      <LeafDot leaf={leaf} />
+                    </View>
+                    <ThemedText variant="caption" color={leaf.state === 'locked' ? 'faint' : 'secondary'}>
+                      {leaf.day != null ? String(leaf.day) : leaf.emoji || '·'}
                     </ThemedText>
-                  </View>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2], alignItems: 'center' }}>
-                    {shoot.nodes.map((leaf) => (
-                      <Pressable
-                        key={leaf.id}
-                        accessibilityRole="button"
-                        accessibilityLabel={`${leaf.title} — ${leaf.state === 'completed' ? 'đã xong' : leaf.state === 'locked' ? 'chưa mở' : 'học được'}`}
-                        accessibilityState={{ disabled: leaf.state === 'locked' }}
-                        onPress={() => void openLeaf(leaf)}
-                        disabled={leaf.state === 'locked'}
-                        hitSlop={6}
-                      >
-                        <LeafDot leaf={leaf} />
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              ))}
+                  </Pressable>
+                ))}
+              </View>
             </Card>
           </View>
         ))}
@@ -170,17 +178,19 @@ export default function LernwegScreen() {
     )
   }
 
+  const skills = sheetLeaf ? Object.entries(sheetLeaf.skillCounts).filter(([, n]) => n > 0) : []
+
   return (
     <Screen edges={['top']}>
       <AppHeader
         title="Lernweg"
-        subtitle={tree ? `${tree.user.currentLevel} · con đường của bạn` : undefined}
+        subtitle={tree?.currentLevel ? `${tree.currentLevel} · con đường của bạn` : undefined}
         onBack={() => router.back()}
         right={
-          progress.total > 0 ? (
+          tree && tree.total > 0 ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
               <YellowSquare />
-              <ThemedText variant="label">{`${progress.done}/${progress.total}`}</ThemedText>
+              <ThemedText variant="label">{`${tree.done}/${tree.total}`}</ThemedText>
             </View>
           ) : undefined
         }
@@ -195,9 +205,15 @@ export default function LernwegScreen() {
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <ErrorState onRetry={() => void treeQ.refetch()} />
         </View>
+      ) : tree.total === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[6] }}>
+          <ThemedText variant="body" color="secondary" align="center">
+            Lộ trình của bạn chưa có bài nào — hoàn tất bước chọn trình độ ở Hồ sơ để mở đường học.
+          </ThemedText>
+        </View>
       ) : (
         <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[4], paddingTop: space[2] }}>
-          {tree.path.map((level) => <LevelSection key={level.level} level={level} />)}
+          {tree.levels.map((level) => <LevelSection key={level.level} level={level} />)}
 
           {/* Chú giải — khớp đúng hình vẽ của LeafDot */}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[4], justifyContent: 'center', paddingTop: space[2] }}>
@@ -209,7 +225,7 @@ export default function LernwegScreen() {
             ] as const).map(([label, state]) => (
               <View key={state} style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] + 2 }}>
                 <View style={{ transform: [{ scale: 0.55 }] }}>
-                  <LeafDot leaf={{ id: state, title: label, state }} />
+                  <LeafDot leaf={{ state }} />
                 </View>
                 <ThemedText variant="caption" color="secondary">{label}</ThemedText>
               </View>
@@ -218,7 +234,7 @@ export default function LernwegScreen() {
         </Screen>
       )}
 
-      {/* Sheet chi tiết lá */}
+      {/* Sheet chi tiết lá — một CTA chính (Học bài), luyện 4 kỹ năng là hành động phụ */}
       <Modal visible={sheetLeaf != null} transparent animationType="slide" onRequestClose={closeSheet}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(22,21,19,0.35)' }} accessibilityLabel="Đóng" onPress={closeSheet} />
         <View style={{ backgroundColor: c.bg, borderTopLeftRadius: radius['3xl'], borderTopRightRadius: radius['3xl'], padding: space[5], paddingBottom: space[8], gap: space[4] }}>
@@ -226,40 +242,55 @@ export default function LernwegScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
             {sheetLeaf ? <LeafDot leaf={sheetLeaf} /> : null}
             <View style={{ flex: 1, gap: 2 }}>
-              {sheetLesson?.topicLabel ? <Caption>{sheetLesson.topicLabel}</Caption> : null}
-              <ThemedText variant="titleLg">{sheetLesson?.title ?? sheetLeaf?.title ?? ''}</ThemedText>
+              <Caption>
+                {sheetLeaf?.day != null ? `Ngày ${sheetLeaf.day}` : 'Bài học'}
+                {sheetLeaf?.emoji ? ` ${sheetLeaf.emoji}` : ''}
+              </Caption>
+              <ThemedText variant="titleLg">{sheetLeaf?.title ?? ''}</ThemedText>
+              {sheetLeaf?.titleDe && sheetLeaf.titleDe !== sheetLeaf.title ? (
+                <ThemedText variant="caption" color="secondary">{sheetLeaf.titleDe}</ThemedText>
+              ) : null}
             </View>
             <Pressable accessibilityRole="button" accessibilityLabel="Đóng" onPress={closeSheet} hitSlop={8}>
               <Icon icon={X} size={20} color="secondary" />
             </Pressable>
           </View>
 
-          {sheetLoading ? (
-            <Skeleton height={44} radius="lg" />
-          ) : (
+          {sheetLeaf ? (
             <>
-              {sheetLesson?.skill ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                  <Pill label={sheetLesson.skill} tone="accent" />
-                  {sheetLeaf?.state === 'completed' ? <Pill label="ĐÃ XONG" tone="success" /> : null}
-                </View>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space[2] }}>
+                {sheetLeaf.state === 'completed' ? <Pill label="ĐÃ XONG" tone="success" /> : null}
+                {sheetLeaf.state === 'in_progress' ? <Pill label="ĐANG HỌC" tone="accent" /> : null}
+                {sheetLeaf.xpReward > 0 ? <Pill label={`+${sheetLeaf.xpReward} XP`} tone="neutral" /> : null}
+                {sheetLeaf.lessonsTotal > 0 ? (
+                  <Pill label={`${sheetLeaf.lessonsCompleted}/${sheetLeaf.lessonsTotal} PHẦN`} tone="neutral" />
+                ) : null}
+              </View>
+              {skills.length > 0 ? (
+                <ThemedText variant="caption" color="secondary">
+                  {`Luyện: ${skills.map(([k, n]) => `${skillLabel(k)} ${n}`).join(' · ')}`}
+                </ThemedText>
+              ) : null}
+              {sheetLeaf.description ? (
+                <ThemedText variant="body" color="secondary">{sheetLeaf.description}</ThemedText>
               ) : null}
               <Button
-                label={sheetLeaf?.state === 'completed' ? 'Ôn lại kỹ năng này' : 'Luyện kỹ năng này'}
-                onPress={() => {
-                  const route = skillPracticeRoute(sheetLesson?.skill ?? '')
-                  closeSheet()
-                  router.push(route)
-                }}
+                label={sheetLeaf.state === 'completed' ? 'Ôn lại bài' : 'Học bài'}
+                onPress={() => goStudy(sheetLeaf)}
               />
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                <Icon icon={ChevronRight} size={14} color="faint" />
-                <ThemedText variant="caption" color="faint" style={{ flex: 1 }}>
-                  Bài học đầy đủ của nhánh này đang có trên bản web — app sẽ có ở bản sau.
-                </ThemedText>
-              </View>
+              {skills.length > 0 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Luyện 4 kỹ năng của bài này"
+                  onPress={() => goPractice(sheetLeaf)}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], alignSelf: 'center', paddingVertical: space[1] }}
+                >
+                  <ThemedText variant="caption" color="secondary">Luyện 4 kỹ năng của bài này</ThemedText>
+                  <Icon icon={ChevronRight} size={14} color="secondary" />
+                </Pressable>
+              ) : null}
             </>
-          )}
+          ) : null}
         </View>
       </Modal>
     </Screen>
