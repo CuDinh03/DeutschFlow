@@ -10,7 +10,7 @@ import {
 } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
-import { examSpeakingApi, type BlueprintSummary } from '@/lib/examSpeakingApi'
+import { examSpeakingApi, type BlueprintSummary, type ExamMode } from '@/lib/examSpeakingApi'
 import { getErrorTitle } from '@/lib/errorTaxonomy'
 import { levelsFromBlueprints } from '@/lib/examSpeakingUi'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -21,7 +21,8 @@ export default function SpeakingExamHubScreen() {
   const c = theme.colors
   const { hasProAccess } = usePlanStore()
   const [level, setLevel] = useState<string | null>(null)
-  const [starting, setStarting] = useState(false)
+  // Khoá đang mở phòng: 'MOCK' hoặc `DRILL-<teil>` — mỗi nút chỉ xoay khi đúng là nó đang mở.
+  const [starting, setStarting] = useState<string | null>(null)
 
   const blueprintsQ = useQuery({
     queryKey: ['exam-speaking-blueprints'],
@@ -50,19 +51,24 @@ export default function SpeakingExamHubScreen() {
   const topWeak = (weaknessQ.data?.weakPoints ?? []).slice(0, 2)
   const recent = (resultsQ.data ?? []).slice(0, 3)
 
-  async function startMock() {
+  // N3 (đợt 2, 05/09): ngoài thi thử trọn bài (MOCK), backend nhận mode DRILL + teil để luyện
+  // MỘT Teil — ngắn, chấm riêng, rẻ hơn (ExamSessionService: ~600 token/lượt chấm). Web đã có
+  // thẻ drill từng Teil; mobile trước đây chỉ tạo MOCK.
+  async function startSession(mode: ExamMode, teil?: number) {
     if (!activeLevel || starting) return
-    setStarting(true)
+    const key = mode === 'MOCK' ? 'MOCK' : `DRILL-${teil ?? 0}`
+    setStarting(key)
     try {
-      trackFeatureAction('exam_speaking', 'started', { level: activeLevel })
-      const session = await examSpeakingApi.createSession({ provider: 'GOETHE', level: activeLevel, mode: 'MOCK' })
+      trackFeatureAction('exam_speaking', 'started', { level: activeLevel, mode, teil: teil ?? null })
+      const session = await examSpeakingApi.createSession({ provider: 'GOETHE', level: activeLevel, mode, teil })
       router.push({ pathname: '/(student)/speaking-exam-room', params: { id: String(session.id) } })
     } catch (e) {
       Alert.alert('Không bắt đầu được', apiMessage(e))
     } finally {
-      setStarting(false)
+      setStarting(null)
     }
   }
+  const startMock = () => startSession('MOCK')
 
   if (!hasProAccess) {
     return (
@@ -135,9 +141,10 @@ export default function SpeakingExamHubScreen() {
                 })}
               </View>
               <Button
-                label={starting ? 'Đang mở phòng thi…' : `Bắt đầu bài thi thử ${activeLevel ?? ''}`}
+                label={starting === 'MOCK' ? 'Đang mở phòng thi…' : `Bắt đầu bài thi thử ${activeLevel ?? ''}`}
                 onPress={() => void startMock()}
-                loading={starting}
+                loading={starting === 'MOCK'}
+                disabled={starting !== null && starting !== 'MOCK'}
               />
             </Card>
 
@@ -164,6 +171,15 @@ export default function SpeakingExamHubScreen() {
                           {`~${Math.max(1, Math.round(p.durationSec / 60))} phút${p.hasPartner ? ' · nói cùng partner' : ''}`}
                         </ThemedText>
                       </View>
+                      {/* N3: luyện riêng Teil này (mode DRILL) — không phải thi lại cả bài */}
+                      <Button
+                        label={`Luyện Teil ${p.teilNo}`}
+                        variant="ghost"
+                        size="sm"
+                        loading={starting === `DRILL-${p.teilNo}`}
+                        disabled={starting !== null && starting !== `DRILL-${p.teilNo}`}
+                        onPress={() => void startSession('DRILL', p.teilNo)}
+                      />
                     </View>
                   ))}
                 </Card>

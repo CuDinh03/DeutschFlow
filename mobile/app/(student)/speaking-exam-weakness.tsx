@@ -1,7 +1,11 @@
-import { View } from 'react-native'
+import { useState } from 'react'
+import { ActivityIndicator, Alert, Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { MessageSquareQuote } from 'lucide-react-native'
+import { MessageSquareQuote, Mic } from 'lucide-react-native'
+import { apiMessage } from '@/lib/api'
+import { trackFeatureAction } from '@/lib/analytics'
+import { drillTargets, type DrillTarget } from '@/lib/examSpeakingUi'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Pill, Screen, Skeleton, ThemedText, YellowSquare,
@@ -22,6 +26,25 @@ export default function SpeakingExamWeaknessScreen() {
 
   const weakPoints = weaknessQ.data?.weakPoints ?? []
   const packs = weaknessQ.data?.packs ?? []
+  // N3 (đợt 2, 05/09): màn này từng là ngõ cụt (chỉ có nút quay lại). Gom (level, Teil) hay sai
+  // thành chip "Luyện ngay" → phiên DRILL đúng Teil đó, như web từ yếu điểm bấm là vào DRILL.
+  const targets = drillTargets(weakPoints)
+  const [starting, setStarting] = useState<string | null>(null)
+
+  async function startDrill(t: DrillTarget) {
+    if (starting) return
+    const key = `${t.level}-${t.teilNo}`
+    setStarting(key)
+    try {
+      trackFeatureAction('exam_speaking', 'started', { level: t.level, mode: 'DRILL', teil: t.teilNo, from: 'weakness' })
+      const session = await examSpeakingApi.createSession({ provider: t.provider, level: t.level, mode: 'DRILL', teil: t.teilNo })
+      router.push({ pathname: '/(student)/speaking-exam-room', params: { id: String(session.id) } })
+    } catch (e) {
+      Alert.alert('Không bắt đầu được', apiMessage(e))
+    } finally {
+      setStarting(null)
+    }
+  }
 
   return (
     <Screen edges={['top']}>
@@ -47,6 +70,39 @@ export default function SpeakingExamWeaknessScreen() {
         </View>
       ) : (
         <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[4], paddingTop: space[2] }}>
+
+          {targets.length > 0 && (
+            <View style={{ gap: space[2] }}>
+              <Caption>Luyện ngay đúng Teil hay sai</Caption>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
+                {targets.map((t) => {
+                  const key = `${t.level}-${t.teilNo}`
+                  const busy = starting === key
+                  return (
+                    <Pressable
+                      key={key}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Luyện Teil ${t.teilNo} trình độ ${t.level}, sai ${t.count} lần`}
+                      accessibilityState={{ disabled: starting !== null, busy }}
+                      disabled={starting !== null}
+                      onPress={() => void startDrill(t)}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: space[1] + 2,
+                        borderWidth: 1, borderColor: c.accentText, backgroundColor: c.accentSoft,
+                        borderRadius: radius.full, paddingHorizontal: space[3], paddingVertical: space[2],
+                        opacity: starting !== null && !busy ? 0.5 : 1,
+                      }}
+                    >
+                      {busy ? <ActivityIndicator size="small" color={c.accentText} /> : <Icon icon={Mic} size={14} color="accent" />}
+                      <ThemedText variant="label">{`${t.level} · Teil ${t.teilNo}`}</ThemedText>
+                      <Pill label={`×${t.count}`} tone="neutral" />
+                    </Pressable>
+                  )
+                })}
+              </View>
+              <ThemedText variant="caption" color="faint">Một Teil ngắn, chấm riêng — không phải thi lại cả bài.</ThemedText>
+            </View>
+          )}
 
           {weakPoints.length > 0 && (
             <View style={{ gap: space[2] }}>

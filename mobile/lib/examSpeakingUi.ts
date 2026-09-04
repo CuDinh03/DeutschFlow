@@ -2,7 +2,7 @@
 // (quyết định hiển thị trạng thái/đồng hồ/điểm không được phép sống vô danh
 // trong JSX — bài học F-1 onboarding: logic trong màn không test là logic gãy êm).
 
-import type { BlueprintSummary, ExamSessionState } from './examSpeakingApi'
+import type { BlueprintSummary, ExamSessionState, ExamProvider, WeakPointView } from './examSpeakingApi'
 
 /** Thứ tự trình độ để sort chip level trên hub. */
 const LEVEL_ORDER = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
@@ -124,4 +124,48 @@ export function stimulusDisplay(stimulus: Record<string, unknown> | null | undef
 export const EXAM_VOICE_BY_ROLE: Record<string, string> = {
   PRUEFER: 'ANNA',
   PARTNER: 'THOMAS',
+}
+
+export interface DrillTarget {
+  provider: ExamProvider
+  level: string
+  teilNo: number
+  archetype: string
+  count: number
+}
+
+/**
+ * Gom `contexts` của các lỗi hay mắc (WeaknessView) thành mục tiêu drill theo
+ * provider + level + Teil, cộng dồn số lần, sắp nhiều → ít (hoà thì level thấp
+ * trước, Teil nhỏ trước), cắt `limit`. Web làm cùng phép gom ở màn weakness
+ * (N3, đợt 2 plan nâng cấp mobile 05/09) — mobile trước đây là ngõ cụt chỉ có nút
+ * quay lại.
+ */
+export function drillTargets(
+  weakPoints: readonly Pick<WeakPointView, 'contexts'>[],
+  limit = 4,
+): DrillTarget[] {
+  const byKey = new Map<string, DrillTarget>()
+  for (const w of weakPoints) {
+    for (const ctx of w.contexts ?? []) {
+      if (!ctx.level || !(ctx.teilNo > 0)) continue
+      const n = Math.max(1, ctx.count ?? 1)
+      const key = `${ctx.provider}|${ctx.level}|${ctx.teilNo}`
+      const cur = byKey.get(key)
+      byKey.set(
+        key,
+        cur
+          ? { ...cur, count: cur.count + n }
+          : { provider: ctx.provider, level: ctx.level, teilNo: ctx.teilNo, archetype: ctx.archetype, count: n },
+      )
+    }
+  }
+  return [...byKey.values()]
+    .sort(
+      (a, b) =>
+        b.count - a.count ||
+        LEVEL_ORDER.indexOf(a.level) - LEVEL_ORDER.indexOf(b.level) ||
+        a.teilNo - b.teilNo,
+    )
+    .slice(0, Math.max(0, limit))
 }
