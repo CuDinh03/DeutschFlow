@@ -84,14 +84,74 @@ async function setup(page: Page) {
   await page.route('**/api/mock-exams/attempts/me', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
   )
-  // Trả CÙNG một attempt id mọi lần — đúng như backend làm khi còn attempt IN_PROGRESS.
-  await page.route('**/api/mock-exams/1/start', (r) =>
+  // Mock STATEFUL theo hợp đồng V285 (#409): server giữ nháp + đồng hồ. Trạng thái sống trong
+  // closure Node của Playwright nên qua page.reload() vẫn còn — đúng như server thật.
+  const draftStore: {
+    startedAtMs: number | null
+    version: number
+    answers: Record<string, string>
+    sectionIndex: number
+    finished: boolean
+  } = { startedAtMs: null, version: 0, answers: {}, sectionIndex: 0, finished: false }
+  const remainingSeconds = () =>
+    Math.max(0, 30 * 60 - Math.floor((Date.now() - (draftStore.startedAtMs ?? Date.now())) / 1000))
+
+  await page.route('**/api/mock-exams/attempts/77/draft', async (r) => {
+    const body = r.request().postDataJSON() as {
+      answers?: Record<string, string>
+      sectionIndex?: number
+    }
+    draftStore.answers = body?.answers ?? {}
+    draftStore.sectionIndex = body?.sectionIndex ?? 0
+    draftStore.version += 1
+    await r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ version: draftStore.version, remaining_seconds: remainingSeconds() }),
+    })
+  })
+  await page.route('**/api/mock-exams/attempts/77/finish', async (r) => {
+    draftStore.finished = true
+    draftStore.answers = {}
+    draftStore.version = 0
+    await r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+  })
+  await page.route('**/api/mock-exams/attempts/77/result', (r) =>
     r.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ id: 77, sections_json: JSON.stringify(SECTIONS), time_limit_minutes: 30 }),
+      body: JSON.stringify({ id: 77, exam_id: 1, started_at: new Date().toISOString(), status: 'COMPLETED', total_score: 20, passed: false }),
     }),
   )
+  // Trả CÙNG một attempt id mọi lần — đúng như backend làm khi còn attempt IN_PROGRESS —
+  // kèm nháp server đã autosave và số giây còn lại tính từ lần start ĐẦU TIÊN.
+  await page.route('**/api/mock-exams/1/start', (r) => {
+    if (draftStore.startedAtMs === null || draftStore.finished) {
+      draftStore.startedAtMs = Date.now()
+      draftStore.finished = false
+      draftStore.answers = {}
+      draftStore.version = 0
+    }
+    const hasDraft = Object.keys(draftStore.answers).length > 0
+    return r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 77,
+        sections_json: JSON.stringify(SECTIONS),
+        time_limit_minutes: 30,
+        remaining_seconds: remainingSeconds(),
+        draft: hasDraft
+          ? {
+              answers_json: JSON.stringify(draftStore.answers),
+              section_index: draftStore.sectionIndex,
+              version: draftStore.version,
+              saved_at: new Date().toISOString(),
+            }
+          : undefined,
+      }),
+    })
+  })
 }
 
 /** Đồng hồ của vỏ thi, dạng `m:ss`. */
@@ -123,8 +183,8 @@ test.describe('Prüfung hub (S-09)', () => {
     await expect(page.getByRole('heading', { name: 'Đo mức sẵn sàng B1' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Lịch sử và phiếu điểm' })).toBeVisible()
 
-    // Cảnh báo phạm vi lưu phải nằm TRƯỚC khi vào bài, không phải sau khi mất bài (B-13).
-    await expect(page.getByText(/lưu trên thiết bị này/)).toBeVisible()
+    // Lời hứa autosave phải nằm TRƯỚC khi vào bài và nói đúng sự thật server-side (V285/#409).
+    await expect(page.getByText(/tự động lưu lên hệ thống/)).toBeVisible()
 
     // Ngữ cảnh cấp độ chỉ in khi có dữ liệu thật — mock trả B1.
     await expect(page.getByText(/Goethe B1/)).toBeVisible()
@@ -179,8 +239,8 @@ test.describe('Chống tái phát B-13 — tải lại không được mất bà
     await page.locator('input[name="q1"][value="A"]').check()
     await page.locator('input[name="q2"][value="B"]').check()
 
-    // Chờ đúng cái nhãn nói thật về phạm vi lưu, thay vì chờ theo đồng hồ.
-    await expect(page.getByText(/Đã lưu trên thiết bị này/)).toBeVisible({ timeout: 10000 })
+    // Chờ server XÁC NHẬN lưu (nhãn chỉ đổi sang "Đã lưu" sau onSaved), thay vì chờ theo đồng hồ.
+    await expect(page.getByText(/^Đã lưu/)).toBeVisible({ timeout: 10000 })
     await expect(page.getByText('2/3 câu')).toBeVisible()
 
     await page.waitForTimeout(3000)
@@ -200,17 +260,25 @@ test.describe('Chống tái phát B-13 — tải lại không được mất bà
     expect(after).toBeGreaterThan(before - 30)
   })
 
-  test('nộp xong thì nháp bị dọn — lần thi sau không nhặt lại bài cũ', async ({ page }) => {
+  test('nộp xong thì nháp server bị dọn — lần thi sau không nhặt lại bài cũ', async ({ page }) => {
     await setup(page)
     await enterExam(page)
     await page.locator('input[name="q1"][value="A"]').check()
-    await expect(page.getByText(/Đã lưu trên thiết bị này/)).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText(/^Đã lưu/)).toBeVisible({ timeout: 10000 })
 
-    const stored = () => page.evaluate(() => localStorage.getItem('df.exam.draft.v1.77'))
-    expect(await stored()).not.toBeNull()
-
+    // Nộp: finish phải mang đáp án lên server, và mock dọn nháp như backend thật (#409).
+    const finishReq = page.waitForRequest(
+      (req) => req.url().includes('/mock-exams/attempts/77/finish') && req.method() === 'POST',
+    )
     page.on('dialog', (d) => void d.accept())
     await page.getByRole('button', { name: 'Nộp bài', exact: true }).click()
-    await expect.poll(stored, { timeout: 15000 }).toBeNull()
+    const req = await finishReq
+    expect((req.postDataJSON() as { answers: Record<string, string> }).answers.q1).toBe('A')
+
+    // Sang màn kết quả — rồi vào lại đề: server không còn nháp nên bài mới phải TRỐNG.
+    await expect(page.getByRole('button', { name: /Xem đáp án|đáp án/i })).toBeVisible({ timeout: 15000 })
+    await page.goto('/v2/student/mock-exam/run?examId=1')
+    await expect(page.locator('input[name="q1"]').first()).toBeVisible({ timeout: 30000 })
+    await expect(page.locator('input[name="q1"][value="A"]')).not.toBeChecked()
   })
 })

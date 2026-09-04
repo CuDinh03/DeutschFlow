@@ -15,15 +15,17 @@ import {
 } from 'expo-audio'
 import {
   AlertCircle, Camera, CheckCircle2, Clock, ExternalLink, FileText, Image as ImageIcon,
-  Link2, MessageSquare, Mic, Music, Paperclip, Square, Upload, Video as VideoIcon, X,
+  Link2, MessageSquare, Mic, Music, Paperclip, Square, Upload, Video as VideoIcon, X, RotateCcw,
 } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import {
   fetchAssignmentDetail, fetchAssignmentMaterials, fetchAssignmentMaterialUrl,
+  isAwaitingTeacher, isFinalGrade, isSubmittedStatus,
   submitAssignment, uploadAssignmentFile,
   MAX_UPLOAD_BYTES, type AssignmentMaterial, type MaterialKind, type StudentAssignment, type UploadFile,
 } from '@/lib/studentClassesApi'
+import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, ProgressRing,
@@ -37,8 +39,16 @@ const TYPE_LABELS: Record<string, string> = {
 }
 const typeLabel = (t: string) => TYPE_LABELS[t] ?? 'Bài tập chung'
 
-const isGraded = (status: string) => status === 'GRADED' || status === 'EVALUATED'
-const isSubmitted = (status: string) => status === 'SUBMITTED' || isGraded(status)
+// Phân loại trạng thái dùng chung với classes/[id].tsx — định nghĩa + lý do ở
+// lib/studentClassesApi.ts (gương AssignmentStatus.java backend, F-14 soát 02/09).
+const isGraded = isFinalGrade
+/**
+ * Nộp lại được chừng nào giáo viên CHƯA chốt điểm. AI_GRADED nằm trong nhóm này: AI mới đề xuất điểm
+ * và học viên chưa hề thấy nó. Backend trước đây chặn mọi trạng thái khác PENDING, nên chọn nhầm ảnh
+ * hay thu âm hỏng là vĩnh viễn — không có đường rút hay thay bài nộp.
+ */
+const canResubmit = isAwaitingTeacher
+const isSubmitted = isSubmittedStatus
 
 const MATERIAL_KIND_ICON: Record<MaterialKind, typeof FileText> = {
   PDF: FileText, DOCX: FileText, PPTX: FileText, OTHER: FileText,
@@ -72,6 +82,8 @@ export default function AssignmentDetail() {
 
   const [content, setContent] = useState('')
   const [file, setFile] = useState<UploadFile | null>(null)
+  /** Mở lại ô soạn để nộp bản khác đè lên bản đã nộp. */
+  const [resubmitting, setResubmitting] = useState(false)
 
   const submitMut = useMutation({
     // Upload the attachment (if any) to S3 first, then submit with its URL. isPending covers
@@ -91,6 +103,7 @@ export default function AssignmentDetail() {
       void queryClient.invalidateQueries({ queryKey: ['my-classes'] })
       setContent('')
       setFile(null)
+      setResubmitting(false)
     },
     onError: (e) => Alert.alert('Nộp bài thất bại', apiMessage(e)),
   })
@@ -121,6 +134,7 @@ export default function AssignmentDetail() {
   const a = detailQ.data
   const pending = a.status === 'PENDING'
   const speaking = a.assignmentType === 'SPEAKING_SCENARIO'
+  const showForm = pending || resubmitting
 
   return (
     <Screen>
@@ -139,8 +153,8 @@ export default function AssignmentDetail() {
           <DescriptionCard assignment={a} />
           <MaterialsCard assignmentId={assignmentId} />
 
-          {pending && speaking && <SpeakingNotice />}
-          {pending && !speaking && (
+          {showForm && speaking && <SpeakingNotice />}
+          {showForm && !speaking && (
             <SubmitForm
               content={content}
               setContent={setContent}
@@ -156,7 +170,17 @@ export default function AssignmentDetail() {
               }}
             />
           )}
-          {!pending && <SubmissionView assignment={a} />}
+          {!showForm && (
+            <SubmissionView
+              assignment={a}
+              onResubmit={canResubmit(a.status) ? () => {
+                // Mở lại ô soạn với chính nội dung đã nộp, để sửa chứ không phải gõ lại từ đầu.
+                setContent(a.submissionContent ?? '')
+                setFile(null)
+                setResubmitting(true)
+              } : undefined}
+            />
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -188,7 +212,9 @@ function StatusPill({ status, score }: { status: string; score: number | null })
   if (isGraded(status)) {
     return <Pill tone="success" icon={CheckCircle2} label={`Đã chấm${score != null ? ` · ${score}/100` : ''}`} />
   }
-  if (status === 'SUBMITTED') {
+  // AI_GRADED / GRADING_FAILED hiển thị y như SUBMITTED: backend cố ý không công
+  // bố khâu chấm AI cho học viên; trước đây hai trạng thái này hiện "Chưa nộp" đỏ.
+  if (isAwaitingTeacher(status)) {
     return <Pill tone="info" icon={Upload} label="Đã nộp" />
   }
   return <Pill tone="danger" icon={AlertCircle} label="Chưa nộp" />
@@ -412,6 +438,13 @@ function AttachmentPicker({
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
 
+  // Rời màn giữa lúc ghi âm → dừng mic + thoát record mode (F-9/F-11 soát 02/09).
+  // Bản ghi dở bị bỏ; timer đếm giây phải dừng theo kẻo UI kẹt "Đang ghi…".
+  useRecorderBlurGuard(recorder, () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+    setRecording(false)
+  })
+
   const oversize = () => Alert.alert('File quá lớn', 'Vui lòng chọn tệp dưới 10MB.')
   const tooBig = (size?: number) => size != null && size > MAX_UPLOAD_BYTES
 
@@ -478,6 +511,10 @@ function AttachmentPicker({
     } catch {
       Alert.alert('Lỗi ghi âm', 'Không lưu được bản ghi. Vui lòng thử lại.')
       return
+    } finally {
+      // Audio mode là cấu hình toàn app: quên thoát record mode ở đây làm mọi
+      // phát lại sau đó (TTS từ vựng, video bài học) ra loa trong rất nhỏ (F-11).
+      void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {})
     }
     const uri = recorder.uri
     if (!uri) return
@@ -594,7 +631,7 @@ function SpeakingNotice() {
   )
 }
 
-function SubmissionView({ assignment: a }: { assignment: StudentAssignment }) {
+function SubmissionView({ assignment: a, onResubmit }: { assignment: StudentAssignment; onResubmit?: () => void }) {
   const c = useTheme().colors
   const openFile = async () => {
     if (!a.submissionFileUrl) return
@@ -619,6 +656,14 @@ function SubmissionView({ assignment: a }: { assignment: StudentAssignment }) {
               <ThemedText variant="caption" color="muted">
                 Nộp lúc {new Date(a.submittedAt).toLocaleString('vi-VN')}
               </ThemedText>
+            )}
+            {onResubmit && (
+              <>
+                <Button label="Nộp lại" variant="ghost" size="sm" icon={RotateCcw} fullWidth={false} onPress={onResubmit} />
+                <ThemedText variant="caption" color="muted">
+                  Nộp nhầm bài? Bạn vẫn nộp lại được cho tới khi giáo viên chấm.
+                </ThemedText>
+              </>
             )}
           </View>
         </Card>

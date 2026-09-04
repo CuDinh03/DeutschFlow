@@ -100,6 +100,9 @@ export const weeklySpeakingApi = {
       params: cefrBand ? { cefrBand } : {},
     }),
 
+  /** Band nào có đề ACTIVE tuần này — rỗng = tuần chưa ra đề (ẩn lối vào, QA 09/08 mục I). */
+  getAvailableBands: () => api.get<string[]>('/ai-speaking/weekly/available-bands'),
+
   submit: (body: WeeklySubmissionRequest) =>
     api.post<WeeklySubmissionResponse>('/ai-speaking/weekly/submissions', body),
 

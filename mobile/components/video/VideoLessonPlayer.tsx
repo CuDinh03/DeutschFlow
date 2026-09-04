@@ -5,6 +5,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, cancelAnimation
 import { Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { ThemedText, Icon } from '@/components/ui'
+import { useBlurGuard } from '@/hooks/useBlurGuard'
 import type { VideoTimeline } from '@/lib/videoLessonApi'
 
 const FADE_MS = 350
@@ -26,6 +27,11 @@ export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
 
   const soundRef = useRef<AudioPlayer | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Màn video-lesson nằm trong Tabs — chuyển tab không unmount, thuyết minh cứ
+  // đọc tiếp và cảnh cứ tự trôi. Blur = pause (effect cảnh dọn player + timer);
+  // quay lại người dùng tự bấm Play, đúng ngữ nghĩa trình phát video.
+  useBlurGuard(() => setPlaying(false))
 
   const opacity = useSharedValue(0)
   const scale = useSharedValue(1)
@@ -189,11 +195,21 @@ export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
           paddingVertical: space[5],
         }}
       >
-        <Pressable hitSlop={10} disabled={atStart} onPress={() => setIndex(index - 1)} style={{ opacity: atStart ? 0.3 : 1 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Câu trước"
+          accessibilityState={{ disabled: atStart }}
+          hitSlop={10}
+          disabled={atStart}
+          onPress={() => setIndex(index - 1)}
+          style={{ opacity: atStart ? 0.3 : 1 }}
+        >
           <Icon icon={ChevronLeft} size={28} color="muted" />
         </Pressable>
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={playing ? 'Tạm dừng' : 'Phát'}
           hitSlop={10}
           onPress={onTogglePlay}
           style={{
@@ -208,7 +224,15 @@ export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
           <Icon icon={playing ? Pause : Play} size={28} color="onAccent" />
         </Pressable>
 
-        <Pressable hitSlop={10} disabled={atEnd} onPress={() => setIndex(index + 1)} style={{ opacity: atEnd ? 0.3 : 1 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Câu sau"
+          accessibilityState={{ disabled: atEnd }}
+          hitSlop={10}
+          disabled={atEnd}
+          onPress={() => setIndex(index + 1)}
+          style={{ opacity: atEnd ? 0.3 : 1 }}
+        >
           <Icon icon={ChevronRight} size={28} color="muted" />
         </Pressable>
       </View>

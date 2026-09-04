@@ -94,7 +94,8 @@ export default function VocabularyScreen() {
   // queue; we count it (capped) rather than fabricating learning/mastered totals.
   const { data: dueCount = 0 } = useQuery({
     queryKey: ['srs-due-count'],
-    queryFn: () => api.get<unknown[]>('/srs/due?limit=99').then((r) => (r.data ?? []).length),
+    // Backend /srs/due không nhận `limit` (tự cap phía server) — đừng gửi param chết (F-22).
+    queryFn: () => api.get<unknown[]>('/srs/due').then((r) => (r.data ?? []).length),
     staleTime: 60_000,
   })
 
@@ -106,10 +107,13 @@ export default function VocabularyScreen() {
     }
   }, [debouncedSearch])
 
-  return (
-    <Screen edges={['top']}>
-      <AppHeader title="Từ vựng" subtitle="Wortschatz · Spaced repetition" onBack={() => router.back()} />
-
+  // The whole page scrolls as ONE list: everything above the words lives in
+  // ListHeaderComponent. A static header + nested FlatList squeezed the word
+  // list into the leftover ~2 rows of viewport on small phones (QA build 15).
+  // Kept as a JSX element (not a component) so the TextInput keeps focus
+  // across re-renders.
+  const listHeader = (
+    <>
       {/* SRS due hero (real /srs/due count) — the dashboard's primary call to review. */}
       {dueCount > 0 ? (
         <Card
@@ -261,33 +265,48 @@ export default function VocabularyScreen() {
           </ThemedText>
         ) : null}
       </View>
+    </>
+  )
 
-      {isLoading ? (
-        <View style={{ paddingHorizontal: space[5], gap: space[2] }}>
-          <Skeleton height={60} radius="lg" />
-          <Skeleton height={60} radius="lg" />
-          <Skeleton height={60} radius="lg" />
-        </View>
-      ) : isError ? (
-        <ErrorState onRetry={() => void refetch()} />
-      ) : (
-        <FlatList
-          data={words}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[6], gap: space[2] }}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isFetching && !isLoading}
-              onRefresh={() => void refetch()}
-              tintColor={c.accent}
-              colors={[c.accent]}
-            />
-          }
-          ListEmptyComponent={<EmptyState icon={BookMarked} title="Không tìm thấy từ vựng" message="Thử từ khoá hoặc bộ lọc khác." />}
-          renderItem={({ item }) => <WordRow word={item} />}
-        />
-      )}
+  return (
+    <Screen edges={['top']}>
+      <AppHeader title="Từ vựng" subtitle="Wortschatz · Spaced repetition" onBack={() => router.back()} />
+
+      <FlatList
+        data={isLoading || isError ? [] : words}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: space[6] }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching && !isLoading}
+            onRefresh={() => void refetch()}
+            tintColor={c.accent}
+            colors={[c.accent]}
+          />
+        }
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={{ paddingHorizontal: space[5], gap: space[2] }}>
+              <Skeleton height={60} radius="lg" />
+              <Skeleton height={60} radius="lg" />
+              <Skeleton height={60} radius="lg" />
+            </View>
+          ) : isError ? (
+            <ErrorState onRetry={() => void refetch()} />
+          ) : (
+            <EmptyState icon={BookMarked} title="Không tìm thấy từ vựng" message="Thử từ khoá hoặc bộ lọc khác." />
+          )
+        }
+        renderItem={({ item }) => (
+          <View style={{ marginHorizontal: space[5], marginBottom: space[2] }}>
+            <WordRow word={item} />
+          </View>
+        )}
+      />
     </Screen>
   )
 }

@@ -112,6 +112,15 @@ interface NodeSessionState {
   tabScores: Record<ActiveView, number>;
   markTabCompleted: (tab: ActiveView, score?: number) => void;
   setTabScore: (tab: ActiveView, score: number) => void;
+  /**
+   * Đáp án thô của các mục chấm được, khoá theo `id` — dựng bằng `buildItemAnswers`.
+   * Trang learn gửi nguyên khối này lên `POST /skill-tree/{nodeId}/submit` để MÁY CHỦ chấm
+   * (QA 2026-09-02, F-22: trước đây web không gọi endpoint nào nên node có bài chấm điểm
+   * không bao giờ hoàn thành trên máy chủ).
+   */
+  itemAnswers: Record<string, unknown>;
+  /** `null` = chưa nộp lần nào; `{}` = đã nộp và node không có mục chấm được. */
+  recordItemAnswers: (answers: Record<string, unknown>) => void;
   resetTabCompletion: () => void;
   fetchSession: (nodeId: number) => Promise<void>;
   reset: () => void;
@@ -119,6 +128,7 @@ interface NodeSessionState {
 
 export const useNodeSessionStore = create<NodeSessionState>((set) => ({
   session: null,
+  itemAnswers: {},
   loading: false,
   error: null,
   activeView: "grammar",
@@ -149,8 +159,10 @@ export const useNodeSessionStore = create<NodeSessionState>((set) => ({
     set((state) => ({
       tabScores: { ...state.tabScores, [tab]: score },
     })),
+  recordItemAnswers: (answers) => set({ itemAnswers: answers }),
   resetTabCompletion: () =>
     set({
+      itemAnswers: {},
       tabCompletion: {
         grammar: false,
         reading: false,
@@ -173,6 +185,7 @@ export const useNodeSessionStore = create<NodeSessionState>((set) => ({
     set({
       loading: true,
       error: null,
+      itemAnswers: {},
       tabCompletion: {
         grammar: false, reading: false, listening: false,
         speaking: false, writing: false, phoneme: false,

@@ -22,6 +22,15 @@ spring:
   application:
     name: deutschflow-backend
 
+  # 16 job @Scheduled dùng chung TaskScheduler mặc định của Spring — mặc định CHỈ 1 THREAD.
+  # AiJobWorker còn chạy Whisper (timeout 60s) + LLM inline ngay trên thread đó, nên một job kẹt
+  # là telemetry-flush, cleanup, broadcast… đứng cả đoàn rồi bung ra thành cụm. 4 thread cho job
+  # chồng giờ chạy song song; ShedLock vẫn chống chạy trùng giữa các node/lần.
+  task:
+    scheduling:
+      pool:
+        size: ${SPRING_SCHEDULING_POOL_SIZE:4}
+
   # ── Email / SMTP (for password-reset OTP) ─────────────────────────────────
   # Set MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD in your .env.
   # Recommended: Gmail SMTP (smtp.gmail.com:587) or AWS SES.
@@ -86,8 +95,10 @@ spring:
       max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:600000}
       # Keepalive 30s — AWS RDS idle TCP timeout thường 300s, giữ conn sống
       keepalive-time: ${DB_POOL_KEEPALIVE_MS:30000}
-      # Validate trước khi dùng — phát hiện stale conn ngay
-      connection-test-query: SELECT 1
+      # B5 audit lag 02/09: BỎ connection-test-query. Khai câu SQL ở đây là ép Hikari chạy MỘT
+      # round-trip "SELECT 1" tới RDS mỗi lần mượn connection — thuế cộng vào mọi query của app.
+      # Driver PostgreSQL là JDBC4: không khai thì Hikari validate bằng Connection.isValid()
+      # (rẻ hơn hẳn), và keepalive-time 30s ở trên đã giữ connection không chết trộm giữa chừng.
       validation-timeout: ${DB_POOL_VALIDATION_TIMEOUT_MS:3000}
       # Cảnh báo leak nếu conn giữ > 20s
       leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:20000}
@@ -112,6 +123,15 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        # B3 audit lag 02/09: bật JDBC batching cho saveAll(). LƯU Ý GIỚI HẠN THẬT: mọi entity
+        # hiện dùng GenerationType.IDENTITY — Hibernate KHÔNG batch được INSERT cho IDENTITY
+        # (cần id trả về sau từng câu), nên với user_notifications/user_xp_events cấu hình này
+        # chưa gom INSERT; nó có hiệu lực ngay cho UPDATE/DELETE gom loạt và cho mọi entity
+        # chuyển sang SEQUENCE sau này (follow-up của B3). Vô hại khi chưa áp dụng được.
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
 
   flyway:
     enabled: true
@@ -154,6 +174,16 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+    # Grafana dashboard query http_server_requests_seconds_BUCKET, nhưng Spring mặc định chỉ export
+    # count/sum/max — panel p95/p99 vì thế trống từ ngày đầu. Dùng SLO bucket cố định (7 bucket)
+    # thay vì percentiles-histogram đầy đủ (~60 bucket/serie × mọi uri) để giữ cardinality thấp
+    # trên Prometheus mem_limit 400m. percentiles = gauge p50/p95/p99 tính sẵn per-instance,
+    # đọc trực tiếp không cần histogram_quantile.
+    distribution:
+      slo:
+        "[http.server.requests]": 100ms,300ms,500ms,1s,3s,10s
+      percentiles:
+        "[http.server.requests]": 0.5,0.95,0.99
 
 # Sentry error tracking. Entirely inert when SENTRY_DSN is unset (dev/CI) — no events, no startup
 # change. In prod set SENTRY_DSN; the logback appender then captures ERROR-level logs (incl. the
@@ -195,6 +225,11 @@ server:
     # -1 = đừng chặn size body: khi Spring từ chối multipart >25MB, Tomcat vẫn đọc hết phần còn lại
     # để trả 413 JSON sạch thay vì reset kết nối (nếu không, client thấy connection reset khó hiểu).
     max-swallow-size: -1
+    # Bắt buộc để Micrometer export tomcat_threads_busy_threads / tomcat_threads_config_max_threads.
+    # Không bật thì alert bão hoà thread pool (docker/prometheus/alert.rules.yml) sẽ không bao giờ
+    # kêu — một cảnh báo im lặng còn nguy hơn không có cảnh báo, vì nó tạo cảm giác đã được canh.
+    mbeanregistry:
+      enabled: ${TOMCAT_MBEANREGISTRY_ENABLED:true}
   servlet:
     multipart:
       # Materials Library: nâng 10MB→25MB. Tệp >25MB KHÔNG đi qua backend — dùng presigned PUT thẳng
@@ -210,6 +245,30 @@ server:
     min-response-size: 1024
 
 app:
+  # Mảng Luyện thi Nói (plans/2026-08-19-ke-hoach-luyen-thi-noi.md). allow-text-turns-in-mock CHỈ dev/test:
+  # prod mock phải nhận audio (server phiên âm) để chống dán văn bản.
+  examspeaking:
+    allow-text-turns-in-mock: ${EXAM_SPEAKING_ALLOW_TEXT_MOCK:false}
+    grading-passes: ${EXAM_SPEAKING_GRADING_PASSES:2}
+    turn-max-tokens: ${EXAM_SPEAKING_TURN_MAX_TOKENS:400}
+    drill-eval-max-tokens: ${EXAM_SPEAKING_DRILL_EVAL_MAX_TOKENS:700}
+    grading-max-tokens: ${EXAM_SPEAKING_GRADING_MAX_TOKENS:1800}
+  # Hàng đợi job AI (ai_jobs). max-age-days là chốt chặn kép chống lặp lại sự cố 10/06–23/08 (worker
+  # chết 2,5 tháng ⇒ backlog PENDING khổng lồ): (1) claimPendingJobs bỏ qua job cũ hơn ngưỡng nên
+  # worker không đốt token cho việc đã hết giá trị; (2) StaleAiJobExpirer chuyển chúng sang FAILED
+  # hằng đêm để không kẹt PENDING vĩnh viễn. Đổi ngưỡng là đổi cả hai vế cùng lúc.
+  ai-jobs:
+    max-age-days: ${AI_JOBS_MAX_AGE_DAYS:7}
+    expire-enabled: ${AI_JOBS_EXPIRE_ENABLED:true}
+    expire-cron: ${AI_JOBS_EXPIRE_CRON:0 15 3 * * *}
+  # DeutschFlow Galerie — sinh artwork SVG bằng Anthropic (plan mục 12). Tắt mặc định:
+  # bật cần GALERIE_SVG_ENABLED=true VÀ ANTHROPIC_API_KEY trong môi trường (SDK tự đọc env).
+  # Không bật thì endpoint generate trả 503 AI_NOT_CONFIGURED, phần còn lại của pipeline vẫn chạy.
+  galerie:
+    enabled: ${GALERIE_SVG_ENABLED:false}
+    model: ${GALERIE_SVG_MODEL:claude-fable-5}
+    max-batch: ${GALERIE_SVG_MAX_BATCH:30}
+    max-output-tokens: ${GALERIE_SVG_MAX_OUTPUT_TOKENS:16000}
   async:
     core-pool-size: ${ASYNC_CORE_POOL_SIZE:10}
     max-pool-size: ${ASYNC_MAX_POOL_SIZE:50}
@@ -270,11 +329,25 @@ app:
     # chính mình thêm vào — nên kẻ tấn công KHÔNG thể giả mạo XFF để né rate-limit.
     # 0 = không có proxy (dùng socket address). 1 = một proxy (mặc định). 2 = CloudFront→ALB.
     trusted-proxy-count: ${APP_SECURITY_TRUSTED_PROXY_COUNT:1}
+    # Bearer token TĨNH cho Prometheus scrape /actuator/prometheus (PrometheusScrapeTokenFilter).
+    # RỖNG = tắt (fail-closed, endpoint giữ ADMIN-only → scrape 401 như trước). Bật: sinh chuỗi
+    # ngẫu nhiên ≥32 ký tự, đặt PROMETHEUS_SCRAPE_TOKEN trong .env.production VÀ ghi CÙNG giá trị
+    # vào docker/prometheus/scrape-token trên EC2 (gitignored — prometheus.yml đọc credentials_file).
+    prometheus-scrape-token: ${PROMETHEUS_SCRAPE_TOKEN:}
     # M-2/L-5: fixed-window theo IP cho TOÀN BỘ /api/public/** (Redis, chia sẻ giữa node;
     # Redis chết → fail-open). free-grade vẫn giữ cap riêng chặt hơn của LeadMagnetService.
     public-rate-limit:
       enabled: ${APP_SECURITY_PUBLIC_RATE_LIMIT_ENABLED:true}
       per-minute: ${APP_SECURITY_PUBLIC_RATE_LIMIT_PER_MINUTE:30}
+    # Mở rộng throttle sang các đường permitAll NẰM NGOÀI /api/public/ mà trước đây không có lớp
+    # rate-limit ứng dụng nào (chỉ dựa vào nginx): onboarding preview (khách xem mentor) + media
+    # by-tag (landing, chạm DB). Defense in depth đối xứng với bind-localhost: nếu cổng backend lại
+    # hở ra ngoài thì các đường này vẫn còn một lớp chặn. Ngân sách RIÊNG và RỘNG (120/phút) + key
+    # riêng để không chặn oan lớp học sau NAT / landing tải nhiều media. KHÔNG gồm /api/auth (có
+    # limiter riêng), webhook (bên thứ ba gọi), /actuator/health (uptime monitor).
+    unauth-rate-limit:
+      paths: ${APP_SECURITY_UNAUTH_RATE_LIMIT_PATHS:/api/onboarding/preview/,/api/v2/media/by-tag}
+      per-minute: ${APP_SECURITY_UNAUTH_RATE_LIMIT_PER_MINUTE:120}
 
   # Gói miễn phí cho GV tự do (non-org): hạn mức/ngày cho tính năng AI ĐẮT (checklist D6).
   # Chấm bài text (core) KHÔNG bị cap; chỉ PPTX & OCR-ảnh. GV thuộc org dùng org token-pool.
@@ -298,6 +371,20 @@ app:
       account-name: ${SEPAY_ACCOUNT_NAME:}
 
   auth:
+    # Bulkhead: trần số request CÙNG LÚC được vào vùng chạy BCrypt (login/register).
+    # Khác rate-limit ở trên về mục đích: rate-limit theo IP chặn kẻ tấn công ĐƠN LẺ, còn cái này
+    # chặn kiệt quệ thread pool khi tấn công PHÂN TÁN — mười nghìn IP mỗi cái 1 req/s thì không IP
+    # nào chạm ngưỡng, nhưng tổng lại lấp kín 48 Tomcat thread và kéo sập luôn phần app không liên
+    # quan gì tới auth. Bulkhead khoanh thiệt hại lại trong phạm vi auth.
+    # 8 permit ≈ 17% thread pool — đủ chỗ cho một lớp đăng nhập cùng lúc (30 request qua 8 permit,
+    # mỗi lượt ~70ms ⇒ ~260ms, nằm trong ngân sách 500ms), vẫn chừa 40 thread cho phần còn lại.
+    # acquire-timeout-ms là TRẦN CỨNG và cố ý ngắn: chờ lâu nghĩa là vẫn đang giữ thread, đúng thứ
+    # bulkhead sinh ra để tránh. enabled=false là đường thoát nếu chặn nhầm người dùng thật.
+    bulkhead:
+      enabled: ${APP_AUTH_BULKHEAD_ENABLED:true}
+      max-concurrent: ${APP_AUTH_BULKHEAD_MAX_CONCURRENT:8}
+      acquire-timeout-ms: ${APP_AUTH_BULKHEAD_ACQUIRE_TIMEOUT_MS:500}
+
     # Brute-force / abuse guard cho auth endpoints (in-memory sliding window, per node).
     # Bộ đếm nằm trong RAM → restart/redeploy backend sẽ xoá hết (cách gỡ khoá nhanh nhất).
     # Tăng *-max hoặc giảm *-window nếu người dùng thật bị chặn nhầm
@@ -305,6 +392,20 @@ app:
     rate-limit:
       login-max-per-window: ${APP_AUTH_LOGIN_RL_MAX:5}
       login-window-seconds: ${APP_AUTH_LOGIN_RL_WINDOW:60}
+      # Cap thứ hai cho login, khoá theo IP THÔI (không kèm email). Vì sao cần: budget (IP+email) ở
+      # trên không bao giờ chặn được flood — đổi email mỗi request là có xô mới. Mà mỗi lần login
+      # tốn TRỌN một lần BCrypt kể cả khi email không tồn tại (DaoAuthenticationProvider chạy
+      # mitigateAgainstTimingAttack cho user lạ), ~50-100ms CPU trên t3.medium 2 vCPU ⇒ một IP đủ
+      # sức làm cạn CPU. Cap này là budget không đổi khi email đổi.
+      # Chọn 100/phút CỐ Ý thoáng: một lớp học đăng nhập cùng lúc sau NAT của trường (hoặc CGNAT nhà
+      # mạng) vẫn lọt, trong khi kẻ tấn công từ 1 IP bị ghìm ở ~6% CPU thay vì 100%.
+      # ⚠️ Đây KHÔNG thay được rate limit ở edge — nó chỉ bỏ đòn hạ-server-bằng-một-IP. Mọi cap theo
+      # IP (kể cả cap này) chỉ có nghĩa khi client IP đọc được là THẬT, tức khi app chỉ nhận request
+      # qua reverse proxy tin cậy và app.security.trusted-proxy-count khớp đúng số hop.
+      # Xem docs/SECURITY_PRODUCTION_CHECKLIST.md §3.
+      # Bị chặn nhầm (trường đông, QA chạy tải) → nâng APP_AUTH_LOGIN_IP_RL_MAX.
+      login-ip-max-per-window: ${APP_AUTH_LOGIN_IP_RL_MAX:100}
+      login-ip-window-seconds: ${APP_AUTH_LOGIN_IP_RL_WINDOW:60}
       # Thoáng hơn bản cũ (3 lần / 3600s) — cửa sổ 1 giờ trước đây khoá người gõ nhầm suốt cả giờ.
       register-max-per-window: ${APP_AUTH_REGISTER_RL_MAX:10}
       register-window-seconds: ${APP_AUTH_REGISTER_RL_WINDOW:600}
@@ -330,10 +431,36 @@ app:
       mutate-window-seconds: ${APP_NOTIFICATION_MUTATE_RL_WINDOW:60}
       stream-connect-max-per-window: ${APP_NOTIFICATION_SSE_RL_MAX:20}
       stream-connect-window-seconds: ${APP_NOTIFICATION_SSE_RL_WINDOW:60}
+    # Nightly purge (UserNotificationRetentionJob): delete READ notifications whose read_at is
+    # older than delete-read-older-than-days. Unread rows are never deleted, regardless of age.
     retention:
       enabled: ${APP_NOTIFICATION_RETENTION_ENABLED:true}
       delete-read-older-than-days: ${APP_NOTIFICATION_RETENTION_READ_DAYS:90}
       cron: ${APP_NOTIFICATION_RETENTION_CRON:0 0 4 * * *}
+
+  # Cơ chế bảo trì hệ thống (plans/2026-09-03-thiet-ke-co-che-bao-tri-he-thong.md).
+  # Nguồn sự thật là bảng maintenance_windows — KHÔNG có cờ nào ở đây, chỉ nhịp vận hành.
+  maintenance:
+    # Job vòng đời (nhắc → tự bật → tự tắt → chuông quên tắt), ShedLock giữa các node.
+    job-delay-ms: ${APP_MAINTENANCE_JOB_DELAY_MS:60000}
+    job-initial-delay-ms: ${APP_MAINTENANCE_JOB_INITIAL_DELAY_MS:15000}
+    # Cache trạng thái per-node: admin đổi trạng thái có hiệu lực trên node khác trễ tối đa chừng này.
+    state-refresh-ms: ${APP_MAINTENANCE_STATE_REFRESH_MS:15000}
+    state-initial-delay-ms: ${APP_MAINTENANCE_STATE_INITIAL_DELAY_MS:2000}
+    # Nhắc "sắp bảo trì" trước giờ bắt đầu chừng này phút (đúng một lần mỗi lịch).
+    remind-before-minutes: ${APP_MAINTENANCE_REMIND_BEFORE_MINUTES:60}
+    # ACTIVE quá ends_at chừng này phút thì réo ADMIN_SYSTEM_ALERT (lặp cùng nhịp tới khi xử lý).
+    overdue-alert-minutes: ${APP_MAINTENANCE_OVERDUE_ALERT_MINUTES:30}
+    # Bảo trì định kỳ hằng ngày (khung deploy/job đêm). MẶC ĐỊNH TẮT — bật bằng
+    # APP_MAINTENANCE_DAILY_ENABLED=true rồi redeploy. Job tự tạo cửa sổ SCHEDULED
+    # (auto bật/tắt) cho lần kế tiếp; cửa sổ định kỳ KHÔNG lên banner (khỏi spam mỗi ngày).
+    daily:
+      enabled: ${APP_MAINTENANCE_DAILY_ENABLED:false}
+      time: ${APP_MAINTENANCE_DAILY_TIME:03:00}            # giờ VN (Asia/Ho_Chi_Minh), HH:mm
+      duration-minutes: ${APP_MAINTENANCE_DAILY_DURATION_MIN:15}
+      mode: ${APP_MAINTENANCE_DAILY_MODE:FULL}             # FULL | ANNOUNCE_ONLY
+      notify: ${APP_MAINTENANCE_DAILY_NOTIFY:false}        # true = gửi push mỗi đêm (thường off)
+      materialize-lead-minutes: ${APP_MAINTENANCE_DAILY_LEAD_MIN:180}
 
   speaking:
     adaptive:
@@ -359,6 +486,10 @@ app:
     groq:
       # Optional: only for AI_CHAT_PROVIDER=groq and/or speech-to-text (Whisper).
       api-key: ${GROQ_API_KEY:}
+      # Endpoint chat-completions. Bảo hiểm vendor: trỏ sang một endpoint OpenAI-compatible khác
+      # (OpenRouter, Cerebras, …) chỉ bằng env + restart, không cần sửa code — bài học llama-4-scout
+      # bị khai tử 17/07 và trần free-tier 8000 TPM 04/08 đều là sự cố "chỉ đổi được bằng deploy".
+      base-url: ${GROQ_BASE_URL:https://api.groq.com/openai/v1/chat/completions}
       # Speaking real-time (greeting + chat từng lượt) — ưu tiên TỐC ĐỘ. gpt-oss-20b ~1000 tok/s,
       # rẻ nhất trong nhóm hỗ trợ json_schema strict (mọi call đều ép response_format=json_object,
       # xem GroqChatClient#buildRequestBody nên model BẮT BUỘC phải hỗ trợ JSON mode).
@@ -377,12 +508,92 @@ app:
       # Đo bằng /api/admin/grading-eval rồi tinh chỉnh.
       grading-model: ${GROQ_GRADING_MODEL:openai/gpt-oss-120b}
       whisper-model: ${GROQ_WHISPER_MODEL:whisper-large-v3}
+      # STT đổi nhà cung cấp qua env — cùng "bảo hiểm vendor" với base-url chat ở trên. Bench
+      # Fireworks 08/08/2026 (xem javadoc GroqWhisperClient): audio đi host RIÊNG theo model,
+      # whisper-v3-turbo = https://audio-turbo.us-virginia-1.direct.fireworks.ai/v1/audio/transcriptions
+      # (nhầm host → 401 giả dạng lỗi key). Bearer dùng chung được.
+      whisper-base-url: ${GROQ_WHISPER_BASE_URL:https://api.groq.com/openai/v1/audio/transcriptions}
+      # Gửi expectedText làm prompt định hướng STT. Groq: vô hại. Fireworks: prompt trùng audio bị
+      # NUỐT khỏi transcript (semantics "văn bản đứng trước audio") → chấm phát âm sập điểm với
+      # người đọc ĐÚNG. Trỏ Fireworks thì BẮT BUỘC đặt false.
+      whisper-prompt-enabled: ${GROQ_WHISPER_PROMPT_ENABLED:true}
       # Concurrency caps (fair semaphores). Free tier ~30 RPM: chat 3–4; paid/Dev ~10–20 CCU: chat 6–8, whisper 4–6.
       max-concurrent-chat-requests: ${GROQ_MAX_CONCURRENT_CHAT:5}
       max-concurrent-whisper-requests: ${GROQ_MAX_CONCURRENT_WHISPER:4}
       # Fail-fast khi nghẽn: server phải bỏ cuộc TRƯỚC client (mobile chờ 15–45s). 90s cũ là
       # nguồn 503 dây chuyền đêm 23/07 (audit speaking R-B1).
       semaphore-acquire-timeout-seconds: ${GROQ_SEMAPHORE_ACQUIRE_SEC:10}
+    # ── KHUNG TIER LLM (plans/2026-08-07-ke-hoach-khung-ai-tier.md) ──────────────────────────
+    # Mỗi chức năng gọi AI khai "tầng" thay vì tự chọn model; đổi model/endpoint = đổi config ở
+    # đây (env-overridable), KHÔNG sửa code. P1: mọi tier trỏ đúng model hiện trạng (zero change);
+    # P2 route call site; P3 flip model sau calibration F1.
+    # ⚠️ 09/08/2026: nhà cung cấp đã chuyển Groq → Fireworks bằng env (GROQ_BASE_URL/GROQ_MODEL/
+    # GROQ_GRADING_MODEL trỏ slug `accounts/fireworks/models/...`) và owner BỎ OpenRouter — không
+    # còn tier nào cần base-url/api-key riêng. Hai trường đó vẫn để đấy làm bảo hiểm vendor: muốn
+    # thử một tier trên endpoint khác thì đặt base-url của CHÍNH tier đó, không đụng 7 tier còn lại.
+    # 8/8 tier lấy default qua ${GROQ_MODEL}/${GROQ_GRADING_MODEL} (nói/chấm) ⇒ đổi nhà cung cấp là
+    # sửa 2 env gốc, không phải nhớ tier nào hardcode (bài học FW.c: `batch` + `error-verify` từng
+    # ghim cứng slug Groq nên sau flip sẽ 404 âm thầm cho vocab tagging).
+    llm:
+      base-url: ${AI_LLM_BASE_URL:}
+      api-key: ${AI_LLM_API_KEY:}
+      tiers:
+        # Chat nói real-time — FREE. Model + effort gương env cũ để không ai phải đổi env.
+        chat-free:
+          model: "${AI_LLM_TIER_CHAT_FREE_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
+          reasoning-effort: "${AI_LLM_TIER_CHAT_FREE_EFFORT:${GROQ_REASONING_EFFORT:low}}"
+        # Chat nói — gói trả phí. P1–P3 = FREE. Khu vực G (quyết định #10 09/08): đích là
+        # gpt-oss-120b CÙNG nhà Fireworks (Cerebras chỉ tới được qua OpenRouter — đã bỏ), và CHỈ
+        # ship nếu đo được TTFT chế độ STREAM <1,5s (G1.4); không đạt thì PAID giữ nguyên = FREE.
+        chat-paid:
+          model: "${AI_LLM_TIER_CHAT_PAID_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
+          reasoning-effort: "${AI_LLM_TIER_CHAT_PAID_EFFORT:${GROQ_REASONING_EFFORT:low}}"
+        # Thẩm định errors/suggestions trước khi persist (P4, khu vực C). Quyết định #8 (09/08):
+        # trọng tài = DeepSeek V4 Flash (accounts/fireworks/models/deepseek-v4-flash) — model verify
+        # phải KHÁC HỌ model sinh lỗi, 20b tự xác nhận lỗi của 20b là vô nghĩa. Chưa có caller nên
+        # default vẫn gương ${GROQ_MODEL}; khi bật khu vực C thì đặt AI_LLM_TIER_ERROR_VERIFY_MODEL
+        # + để _EFFORT rỗng nếu model đích không phải họ reasoning (bài học FW.7).
+        error-verify:
+          model: "${AI_LLM_TIER_ERROR_VERIFY_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
+          reasoning-effort: "${AI_LLM_TIER_ERROR_VERIFY_EFFORT:${GROQ_REASONING_EFFORT:low}}"
+        # Chấm có tính PHÁN QUYẾT: mock exam, grammar exam, Teil 2, placement, essay B2B, Schreiben.
+        # P3 flip sau calibration F1 ~100 bài: ứng viên 120b (baseline) vs deepseek-v4-flash vs
+        # qwen3p7-plus vs kimi-k2p6 (quyết định #7 09/08) — đo bằng /api/admin/grading-eval.
+        # GROQ_GRADING_MODEL cũ vẫn ăn.
+        grading-exam:
+          model: "${AI_LLM_TIER_GRADING_EXAM_MODEL:${GROQ_GRADING_MODEL:openai/gpt-oss-120b}}"
+          # gpt-oss là REASONING model: token "nghĩ" ăn CHUNG max_tokens. Không ghìm effort thì
+          # phần nghĩ nuốt hết ngân sách và JSON bị cắt giữa chừng ⇒ parseScore null ⇒ bài về
+          # GRADING_FAILED. Đo 09/08 (Fireworks, 800 tok): không effort hỏng 1–2/10 lượt; low →
+          # 10/10, output 308–427 tok. Model KHÔNG-reasoning (Haiku/Sonnet ở P3) không nhận tham
+          # số này ⇒ khi flip nhớ đặt env rỗng để bỏ gửi.
+          reasoning-effort: "${AI_LLM_TIER_GRADING_EXAM_EFFORT:low}"
+        # Chấm feedback thường nhật (cuối phiên hội thoại/PV) — tách riêng làm đòn bẩy chi phí.
+        grading-daily:
+          model: "${AI_LLM_TIER_GRADING_DAILY_MODEL:${GROQ_GRADING_MODEL:openai/gpt-oss-120b}}"
+          # Cùng lý do grading-exam ở trên (ConversationEval 1000 tok từng chạm 904 khi không ghìm).
+          reasoning-effort: "${AI_LLM_TIER_GRADING_DAILY_EFFORT:low}"
+        # Giải thích lỗi/sửa câu (AiTextService) — học viên ĐỌC phần này để học nên chất lượng có
+        # giá trị sư phạm trực tiếp. P3 đo cùng đợt F1, ứng viên deepseek-v4-flash.
+        explain:
+          model: "${AI_LLM_TIER_EXPLAIN_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
+          # effort=low giữ nguyên hành vi cũ của đường null-model (budget completion nhỏ 512–700 tok).
+          # ⚠️ Khi flip model KHÔNG-reasoning ở P3: xoá/để rỗng effort của tier này (bài học FW.7).
+          reasoning-effort: "${AI_LLM_TIER_EXPLAIN_EFFORT:${GROQ_REASONING_EFFORT:low}}"
+        # Sinh nội dung bài học có cache (SkillTree/PracticeNode). Quyết định #9 (09/08): đích là
+        # kimi-k2p6 cho lần sinh MỚI (không cần chờ F1 — sinh 1 lần rồi cache phục vụ nghìn lượt,
+        # chi phí model xịn khấu hao về ~0); regen toàn cây ở P5 dùng kimi-k3.
+        content:
+          model: "${AI_LLM_TIER_CONTENT_MODEL:${GROQ_MODEL:openai/gpt-oss-20b}}"
+          # Giữ hành vi cũ (đường null-model có effort=low). Flip sang họ khác thì xoá effort.
+          reasoning-effort: "${AI_LLM_TIER_CONTENT_EFFORT:${GROQ_REASONING_EFFORT:low}}"
+        # Batch đêm (tag từ vựng, …) — model CHẤM theo quyết định #10 (chốt tại P2). Tag maxTokens=600
+        # nên effort=low là BẮT BUỘC với họ gpt-oss (token "nghĩ" ăn chung budget completion).
+        # Chain qua ${GROQ_GRADING_MODEL} như grading-*: đây là tier ĐANG có caller thật (vocab
+        # tagging B4.1) nên slug ghim cứng ở đây từng là quả bom 404 âm thầm sau khi flip nhà cung cấp.
+        batch:
+          model: "${AI_LLM_TIER_BATCH_MODEL:${GROQ_GRADING_MODEL:openai/gpt-oss-120b}}"
+          reasoning-effort: "${AI_LLM_TIER_BATCH_EFFORT:${GROQ_REASONING_EFFORT:low}}"
     gemini:
       api-key: ${GEMINI_API_KEY:}
     google:
@@ -445,42 +656,42 @@ app:
     # Từ điển TSV trên classpath — không gọi API; mở rộng bằng cách thêm dòng vào file.
     local-lexicon:
       resource: ${LOCAL_LEXICON_RESOURCE:wordlists/local_lexicon.tsv}
+    # Nguồn DUY NHẤT quyết định cefr_level (CefrLevelResolver). Danh sách Goethe là cộng dồn ⇒ lemma có ở
+    # nhiều danh sách lấy cấp THẤP NHẤT. Từ không nằm trong wordlist nào ⇒ cefr_level = NULL (chưa phân cấp),
+    # KHÔNG đoán theo tần suất như trước 14/08/2026 (BAO_CAO_PHAN_CAP_TU_VUNG_2026-08-14.md).
+    cefr-sources:
+      official-tsv: ${CEFR_SOURCE_OFFICIAL_TSV:wordlists/goethe_official_wordlist.tsv}
+      a1-anki-tsv: ${CEFR_SOURCE_A1_ANKI:wordlists/cefr_a1_patsy.txt}
+      b1-list: ${CEFR_SOURCE_B1_LIST:wordlists/goethe_sorted.txt}
+      # Chưa có danh sách chính thức cho A2/B2/C1/C2 → để trống. Thêm file vào classpath rồi trỏ vào đây
+      # là mở rộng được độ phủ mà không phải sửa code.
+      a2-list: ${CEFR_SOURCE_A2_LIST:}
+      b2-list: ${CEFR_SOURCE_B2_LIST:}
+      c1-list: ${CEFR_SOURCE_C1_LIST:}
+      c2-list: ${CEFR_SOURCE_C2_LIST:}
     goethe:
-      auto-import-on-startup: ${GOETHE_AUTO_IMPORT_ON_STARTUP:true}
+      # Mặc định TẮT: import lúc khởi động ghi lại cefr_level/dtype của cả kho, mỗi lần restart lại dập một
+      # lần — phải là thao tác có chủ đích (POST /api/admin/vocabulary/...), không phải tác dụng phụ của deploy.
+      auto-import-on-startup: ${GOETHE_AUTO_IMPORT_ON_STARTUP:false}
       # Wordlist trích từ PDF Goethe (A1/A2/B1) → goethe_official_wordlist.tsv; nạp ví dụ DE + CEFR.
       official-wordlist:
-        auto-import-on-startup: ${GOETHE_OFFICIAL_WORDLIST_AUTO_IMPORT:true}
+        auto-import-on-startup: ${GOETHE_OFFICIAL_WORDLIST_AUTO_IMPORT:false}
       # classpath = file trong JAR; remote = tải wordlist từ GitHub (HTTP).
       wordlist-source: ${GOETHE_WORDLIST_SOURCE:classpath}
       # local_only = chỉ local_lexicon.tsv; online = DeepL + tuỳ chọn Wiktionary.
       enrich-source: ${GOETHE_ENRICH_SOURCE:local_only}
       enrich-with-deepl: ${GOETHE_ENRICH_WITH_DEEPL:true}
       enrich-with-wiktionary: ${GOETHE_ENRICH_WITH_WIKTIONARY:false}
-    # Wordlist theo cấp A1–C1 (~10k), dedup ưu tiên cấp cao; pad từ de_50k nếu thiếu quota.
+    # Mở rộng kho lên ~10k lemma. Bảng tần suất de_50k chỉ chọn TỪ NÀO vào kho; cấp độ lấy từ cefr-sources.
     cefr-curated:
-      # Nạp từ wordlists/cefr_a1_patsy.txt, goethe_sorted.txt, de_50k.txt khi start (sau Goethe + official TSV).
-      auto-import-on-startup: ${CEFR_CURATED_AUTO_IMPORT_STARTUP:true}
+      # Mặc định TẮT (xem ghi chú ở goethe.auto-import-on-startup).
+      auto-import-on-startup: ${CEFR_CURATED_AUTO_IMPORT_STARTUP:false}
       # false = không enrich (DeepL) lúc bootstrap; bật true nếu muốn làm đầy nghĩa/ví dụ ngay (chậm, tốn quota).
       auto-import-enrich: ${CEFR_CURATED_AUTO_IMPORT_ENRICH:false}
       target-total: ${CEFR_CURATED_TARGET_TOTAL:10000}
-      quota-a1: ${CEFR_CURATED_QUOTA_A1:2000}
-      quota-a2: ${CEFR_CURATED_QUOTA_A2:2000}
-      quota-b1: ${CEFR_CURATED_QUOTA_B1:2000}
-      quota-b2: ${CEFR_CURATED_QUOTA_B2:2000}
-      quota-c1: ${CEFR_CURATED_QUOTA_C1:2000}
       # false = chỉ đọc wordlists trên classpath (offline).
       use-remote-sources: ${CEFR_CURATED_REMOTE_SOURCES:false}
-      classpath-a1: ${CEFR_CURATED_CLASSPATH_A1:wordlists/cefr_a1_patsy.txt}
-      classpath-b1: ${CEFR_CURATED_CLASSPATH_B1:wordlists/goethe_sorted.txt}
       classpath-freq: ${CEFR_CURATED_CLASSPATH_FREQ:wordlists/de_50k.txt}
-      classpath-a2: ${CEFR_CURATED_CLASSPATH_A2:}
-      classpath-b2: ${CEFR_CURATED_CLASSPATH_B2:}
-      classpath-c1: ${CEFR_CURATED_CLASSPATH_C1:}
-      url-a1: ${CEFR_CURATED_URL_A1:}
-      url-a2: ${CEFR_CURATED_URL_A2:}
-      url-b1: ${CEFR_CURATED_URL_B1:}
-      url-b2: ${CEFR_CURATED_URL_B2:}
-      url-c1: ${CEFR_CURATED_URL_C1:}
       fallback-frequency-url: ${CEFR_CURATED_FREQ_URL:}
       enrich-after-upsert: ${CEFR_CURATED_ENRICH_AFTER_UPSERT:true}
       deepl-max-chars-per-run: ${CEFR_CURATED_DEEPL_MAX_CHARS:450000}
@@ -616,6 +827,36 @@ resilience4j:
 #
 # soffice is CPU/RAM-hungry and prod is a t3.medium (2 vCPU) — the three bounds below exist so a big
 # deck cannot starve the request threads. Exceeding any of them degrades to a download link, not a 500.
+# Feature flags — bật/tắt tính năng bằng env, không cần deploy code.
+features:
+  teacher-lesson-plan:
+    # B5 (khung AI tier 07/08, quyết định owner #9): sinh giáo án/PPTX tạm KHOÁ trong đợt
+    # tái cấu trúc model AI. UI v2 không còn lối vào; API trả 403 FEATURE_DISABLED.
+    enabled: ${FEATURE_TEACHER_LESSON_PLAN:false}
+
+# Nhap PDF thanh noi dung giang day (curriculum import).
+# Toan bo chay trong container nay: giao trinh mau la du lieu dong goi san, con sach la thi doc muc
+# luc bang OCR noi bo. KHONG goi dich vu AI nao va KHONG can API key.
+curriculum:
+  import:
+    # Chi quet phan dau sach - noi muc luc nam. Nho tran nay, sach 176 trang ton dung bang sach 20
+    # trang, va phan than sach khong bao gio bi xu ly.
+    max-scan-pages: ${CURRICULUM_IMPORT_MAX_SCAN_PAGES:12}
+    max-document-pages: ${CURRICULUM_IMPORT_MAX_DOC_PAGES:600}
+    ocr:
+      # Vang tesseract KHONG phai loi: luong giao trinh mau van chay, chi sach scan la la khong doc
+      # duoc va giao vien nhan thong bao ro rang.
+      tesseract-path: ${TESSERACT_PATH:tesseract}
+      language: ${CURRICULUM_IMPORT_OCR_LANG:deu}
+      render-dpi: ${CURRICULUM_IMPORT_OCR_DPI:150}
+      # Tran diem anh moi trang khi rasterise. PDF cho phep kho toi 14400pt (200 inch); o 150
+      # DPI mot trang nhu vay la 30000x30000 px ~ 3,3 GB — mot tep 544 byte du ha ca JVM.
+      # 40 MP van om tron moi kho giay that (A0 o 150 DPI ~ 34 MP).
+      max-render-pixels: ${CURRICULUM_IMPORT_OCR_MAX_RENDER_PIXELS:40000000}
+      timeout-seconds: ${CURRICULUM_IMPORT_OCR_TIMEOUT_SEC:60}
+      # Nhan dang ky tu ngon CPU; giu 1 suat de mot dot nhap khong cuop core cua request thuong.
+      max-concurrent: ${CURRICULUM_IMPORT_OCR_MAX_CONCURRENT:1}
+
 materials:
   preview:
     soffice-path: ${SOFFICE_PATH:soffice}

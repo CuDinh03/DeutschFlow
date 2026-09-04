@@ -57,6 +57,11 @@ public class TeacherService {
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassAssignmentRepository assignmentRepository;
     private final AssignmentBackfillService assignmentBackfillService;
+    private final com.deutschflow.teacher.repository.ClassAssignmentRecipientRepository assignmentRecipientRepository;
+    private final com.deutschflow.organization.repository.ClassCurriculumLinkRepository classCurriculumLinkRepositoryPr8;
+    private final com.deutschflow.organization.repository.CurriculumLektionRepository curriculumLektionRepositoryPr8;
+    private final com.deutschflow.organization.repository.CurriculumItemRepository curriculumItemRepositoryPr8;
+    private final com.deutschflow.teacher.repository.ClassSessionRepository classSessionRepositoryPr8;
     private final JdbcTemplate jdbcTemplate;
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final com.deutschflow.speaking.repository.AiSpeakingSessionRepository speakingSessionRepository;
@@ -76,6 +81,9 @@ public class TeacherService {
     private final RunAfterCommitService runAfterCommitService;
     private final ClassDeletionGuard classDeletionGuard;
     private final AuditLogService auditLogService;
+    private final com.deutschflow.organization.service.OrgMembershipService orgMembershipService;
+    /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
+    private final SubmissionFileUrlResolver submissionFileUrlResolver;
 
     /** Tên lớp: bắt buộc, tối đa {@value #MAX_CLASS_NAME_LENGTH} ký tự (cột DB là varchar(255)). */
     private static final int MAX_CLASS_NAME_LENGTH = 255;
@@ -151,12 +159,25 @@ public class TeacherService {
                 "SELECT class_id, COUNT(*) AS cnt FROM class_assignments WHERE class_id IN (" + placeholders + ") GROUP BY class_id",
                 args).forEach(r -> assignmentCounts.put(toLong(r.get("class_id")), toLong(r.get("cnt"))));
 
+        // Bài chờ chấm theo lớp — trạng thái khớp AssignmentStatus.AWAITING_TEACHER (F05: FE đọc
+        // pendingReviewCount trên thẻ lớp từ lâu nhưng DTO chưa từng trả).
+        Map<Long, Long> pendingCounts = new HashMap<>();
+        jdbcTemplate.queryForList(
+                "SELECT ca.class_id AS class_id, COUNT(*) AS cnt FROM student_assignments sa"
+                        + " JOIN class_assignments ca ON ca.id = sa.assignment_id"
+                        + " WHERE ca.class_id IN (" + placeholders + ")"
+                        + " AND sa.status IN ('SUBMITTED','AI_GRADED','GRADING_FAILED')"
+                        + " AND COALESCE(sa.is_deleted, false) = false"
+                        + " GROUP BY ca.class_id",
+                args).forEach(r -> pendingCounts.put(toLong(r.get("class_id")), toLong(r.get("cnt"))));
+
         return classRepository.findAllById(classIds)
                 .stream()
                 .map(c -> {
                     long studentCount = studentCounts.getOrDefault(c.getId(), 0L);
                     long quizCount = assignmentCounts.getOrDefault(c.getId(), 0L);
-                    return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, c.getCreatedAt());
+                    long pendingCount = pendingCounts.getOrDefault(c.getId(), 0L);
+                    return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, pendingCount, c.getCreatedAt());
                 })
                 .collect(Collectors.toList());
     }
@@ -169,6 +190,17 @@ public class TeacherService {
     public void joinClass(Long studentId, String inviteCode) {
         TeacherClass teacherClass = classRepository.findByInviteCode(inviteCode)
                 .orElseThrow(() -> new NotFoundException("Mã lớp học không hợp lệ"));
+
+        // Org isolation — cùng quy tắc với addStudentToClassByEmail: lớp của trung tâm không nhận
+        // người đang thuộc trung tâm khác. Chặn ngay lúc gửi yêu cầu để học viên biết liền, thay vì
+        // để giáo viên bấm duyệt rồi mới vỡ ở ensureStudentSeat. Học viên chưa thuộc trung tâm nào
+        // vẫn được gửi yêu cầu — ghế org_members sẽ được cấp lúc giáo viên duyệt.
+        if (teacherClass.getOrgId() != null) {
+            Long studentOrgId = userRepository.findById(studentId).map(User::getOrgId).orElse(null);
+            if (studentOrgId != null && !studentOrgId.equals(teacherClass.getOrgId())) {
+                throw new BadRequestException("Lớp này thuộc một trung tâm khác với trung tâm của bạn.");
+            }
+        }
 
         if (classStudentRepository.existsByIdClassIdAndIdStudentId(teacherClass.getId(), studentId)) {
             throw new ConflictException("Bạn đã tham gia lớp học này rồi");
@@ -233,9 +265,8 @@ public class TeacherService {
 
     @Transactional
     public void approveJoinRequest(Long teacherId, Long classId, Long requestId) {
-        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ForbiddenException("Bạn không có quyền duyệt học viên lớp này");
-        }
+        // PR B trợ giảng: duyệt HV vào lớp là quản-lý-lớp — chỉ GV phụ trách (ma trận owner 06/08).
+        assertPrimaryTeacher(teacherId, classId);
 
         com.deutschflow.teacher.entity.ClassroomJoinRequest req = joinRequestRepository.findById(requestId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu"));
@@ -246,6 +277,16 @@ public class TeacherService {
 
         if (!"PENDING".equals(req.getStatus())) {
             throw new BadRequestException("Yêu cầu đã được xử lý");
+        }
+
+        TeacherClass teacherClass = classRepository.findById(classId)
+                .orElseThrow(() -> new NotFoundException("Lớp học không tồn tại"));
+
+        // Lớp của trung tâm thì duyệt vào lớp = nhận vào trung tâm: học viên phải có ghế STUDENT
+        // ACTIVE trong org_members. Trước đây bước này bị bỏ qua nên trung tâm có lớp đầy học viên
+        // mà roster/seat của org vẫn 0. Ném lỗi (khác org, hết ghế) → rollback cả lượt duyệt.
+        if (teacherClass.getOrgId() != null) {
+            orgMembershipService.ensureStudentSeat(teacherClass.getOrgId(), req.getStudentId());
         }
 
         req.setStatus("APPROVED");
@@ -266,12 +307,11 @@ public class TeacherService {
         // approve. (There used to be an onTeacherJoinRequestCreated call right here, telling the teacher
         // "X yêu cầu tham gia lớp" immediately after they had approved X. The notification now fires in
         // joinClass, when the request actually arrives.)
-        TeacherClass teacherClass = classRepository.findById(classId).orElse(null);
         User teacher = userRepository.findById(teacherId).orElse(null);
         userNotificationService.onJoinRequestApproved(
             req.getStudentId(),
             classId,
-            teacherClass != null ? teacherClass.getName() : "",
+            teacherClass.getName(),
             teacher != null ? teacher.getDisplayName() : ""
         );
 
@@ -285,9 +325,8 @@ public class TeacherService {
 
     @Transactional
     public void rejectJoinRequest(Long teacherId, Long classId, Long requestId) {
-        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ForbiddenException("Bạn không có quyền duyệt học viên lớp này");
-        }
+        // PR B trợ giảng: từ chối HV cũng là quản-lý-lớp — chỉ GV phụ trách.
+        assertPrimaryTeacher(teacherId, classId);
 
         com.deutschflow.teacher.entity.ClassroomJoinRequest req = joinRequestRepository.findById(requestId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu"));
@@ -371,6 +410,15 @@ public class TeacherService {
     // ─── Co-teaching: quản lý giáo viên trong lớp ────────────────────────────────
 
     /** Trả về ClassTeacher của caller nếu là PRIMARY; ném ForbiddenException nếu không. */
+    /**
+     * Guard PRIMARY-only dùng chung cho service khác (PR B trợ giảng) — ví dụ cấp/thu hồi
+     * chứng nhận ({@code OrgCertificateService}). Trợ giảng (ASSISTANT) bị 403.
+     */
+    @Transactional(readOnly = true)
+    public void assertPrimaryTeacherOfClass(Long teacherId, Long classId) {
+        assertPrimaryTeacher(teacherId, classId);
+    }
+
     private ClassTeacher assertPrimaryTeacher(Long teacherId, Long classId) {
         ClassTeacher membership = classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))
                 .orElseThrow(() -> new ForbiddenException("Bạn không có quyền với lớp học này"));
@@ -448,9 +496,8 @@ public class TeacherService {
 
     @Transactional
     public void addStudentToClassByEmail(Long teacherId, Long classId, String email) {
-        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ForbiddenException("Bạn không có quyền thêm học viên vào lớp này");
-        }
+        // PR B trợ giảng: thêm HV là quản-lý-lớp — chỉ GV phụ trách.
+        assertPrimaryTeacher(teacherId, classId);
 
         // Case-insensitive lookup — the teacher may type the student's email in any case.
         String normalizedEmail = email == null ? "" : email.trim();
@@ -698,9 +745,8 @@ public class TeacherService {
 
     @Transactional
     public ClassAssignmentDto createAssignment(Long teacherId, Long classId, CreateAssignmentRequest req) {
-        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ForbiddenException("Bạn không có quyền thao tác trên lớp này");
-        }
+        // PR B trợ giảng: tạo & giao bài là quản-lý-lớp — chỉ GV phụ trách (trợ giảng vẫn CHẤM bài).
+        assertPrimaryTeacher(teacherId, classId);
         // If linking to a lesson (Phase 1d-D1), it must belong to this class (reject cross-class).
         if (req.lessonId() != null) {
             ClassLesson lesson = lessonRepository.findById(req.lessonId())
@@ -710,18 +756,33 @@ public class TeacherService {
             }
         }
 
+        // PR-8: trạng thái + neo buổi/nội dung + người nhận — validate TRƯỚC khi ghi gì.
+        String status = req.status() == null || req.status().isBlank()
+                ? "PUBLISHED" : req.status().toUpperCase();
+        if (!"DRAFT".equals(status) && !"PUBLISHED".equals(status)) {
+            throw new BadRequestException("Trạng thái bài tập không hợp lệ (DRAFT | PUBLISHED)");
+        }
+        validateAssignmentAnchors(classId, req.sessionId(), req.lektionId(), req.curriculumItemId());
+        List<Long> recipients = validateRecipients(classId, req.recipientStudentIds());
+
         ClassAssignment assignment = ClassAssignment.builder()
                 .classId(classId)
                 .lessonId(req.lessonId())
                 .topic(req.topic())
                 .description(req.description())
                 .assignmentType(req.assignmentType())
-                .skill(req.skill() != null ? req.skill().toUpperCase() : "GENERAL")
+                .skill(normalizeSkill(req.skill()))
                 .referenceId(req.referenceId())
                 .dueDate(req.dueDate())
                 .attachmentUrl(req.attachmentUrl())
+                .status(status)
+                .publishedAt("PUBLISHED".equals(status) ? java.time.LocalDateTime.now() : null)
+                .sessionId(req.sessionId())
+                .lektionId(req.lektionId())
+                .curriculumItemId(req.curriculumItemId())
                 .build();
         ClassAssignment savedAssignment = assignmentRepository.save(assignment);
+        saveRecipients(savedAssignment.getId(), recipients);
 
         // Khởi tạo kịch bản AI nếu là SPEAKING_SCENARIO
         if ("SPEAKING_SCENARIO".equals(req.assignmentType())) {
@@ -743,16 +804,11 @@ public class TeacherService {
             }
         }
 
-        List<ClassStudent> students = classStudentRepository.findByIdClassId(classId);
-        List<StudentAssignment> studentAssignments = students.stream().map(student ->
-            StudentAssignment.builder()
-                .assignmentId(savedAssignment.getId())
-                .studentId(student.getId().getStudentId())
-                .status("PENDING")
-                .build()
-        ).toList();
-
-        studentAssignmentRepository.saveAll(studentAssignments);
+        // P06: bài NHÁP chưa tới tay ai — không StudentAssignment; publish mới fan-out (AC14 theo
+        // đúng người nhận, không recipients = cả lớp).
+        if ("PUBLISHED".equals(status)) {
+            fanOutStudentAssignments(savedAssignment.getId(), classId, recipients);
+        }
 
         User teacher = userRepository.findById(teacherId).orElse(null);
 
@@ -767,17 +823,238 @@ public class TeacherService {
             }
         }
 
-        // Notify all students in class (async batch)
-        TeacherClass teacherClass = classRepository.findById(classId).orElse(null);
-        userNotificationService.onNewClassAssignment(
-            classId,
-            teacherClass != null ? teacherClass.getName() : "",
-            teacher != null ? teacher.getDisplayName() : "",
-            savedAssignment.getId(),
-            savedAssignment.getTopic()
-        );
+        // P06/AC14: chỉ bài CÔNG BỐ mới réo học viên — và chỉ réo đúng người nhận.
+        if ("PUBLISHED".equals(status)) {
+            notifyAssignmentAudience(savedAssignment, teacher, recipients);
+        }
 
         return toAssignmentDto(savedAssignment);
+    }
+
+    /**
+     * P06: công bố một bài NHÁP — fan-out StudentAssignment theo đúng người nhận (AC14) +
+     * notification; từ đây bài xuất hiện với học viên và luật sửa/xoá của bài đã công bố áp dụng.
+     */
+    @Transactional
+    public ClassAssignmentDto publishAssignment(Long teacherId, Long classId, Long assignmentId) {
+        assertPrimaryTeacher(teacherId, classId);
+        ClassAssignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new NotFoundException("Bài tập không tồn tại"));
+        if (!assignment.getClassId().equals(classId)) {
+            throw new ForbiddenException("Bài tập không thuộc lớp này");
+        }
+        if ("PUBLISHED".equals(assignment.getStatus())) {
+            throw new ConflictException("Bài đã được công bố trước đó");
+        }
+        assignment.setStatus("PUBLISHED");
+        assignment.setPublishedAt(java.time.LocalDateTime.now());
+        ClassAssignment saved = assignmentRepository.save(assignment);
+
+        List<Long> recipients = assignmentRecipientRepository.findByIdAssignmentId(assignmentId).stream()
+                .map(r -> r.getId().getStudentId())
+                .toList();
+        fanOutStudentAssignments(assignmentId, classId, recipients);
+        notifyAssignmentAudience(saved, userRepository.findById(teacherId).orElse(null), recipients);
+        return toAssignmentDto(saved);
+    }
+
+    /** Fan-out StudentAssignment PENDING cho đúng đối tượng (rỗng = cả lớp) — idempotent theo khoá. */
+    private void fanOutStudentAssignments(Long assignmentId, Long classId, List<Long> recipients) {
+        List<Long> targets = recipients.isEmpty()
+                ? classStudentRepository.findByIdClassId(classId).stream()
+                        .map(cs -> cs.getId().getStudentId())
+                        .toList()
+                : recipients;
+        List<StudentAssignment> rows = targets.stream().map(studentId ->
+                StudentAssignment.builder()
+                        .assignmentId(assignmentId)
+                        .studentId(studentId)
+                        .status("PENDING")
+                        .build())
+                .toList();
+        studentAssignmentRepository.saveAll(rows);
+    }
+
+    private void notifyAssignmentAudience(ClassAssignment assignment, User teacher, List<Long> recipients) {
+        TeacherClass teacherClass = classRepository.findById(assignment.getClassId()).orElse(null);
+        String className = teacherClass != null ? teacherClass.getName() : "";
+        String teacherName = teacher != null ? teacher.getDisplayName() : "";
+        if (recipients.isEmpty()) {
+            userNotificationService.onNewClassAssignment(assignment.getClassId(), className, teacherName,
+                    assignment.getId(), assignment.getTopic());
+        } else {
+            userNotificationService.onNewClassAssignmentFor(recipients, assignment.getClassId(), className,
+                    teacherName, assignment.getId(), assignment.getTopic());
+        }
+    }
+
+    /** PR-8: buổi phải thuộc lớp; Lektion thuộc phiên bản giáo trình ĐÃ GÁN cho lớp; mục thuộc Lektion. */
+    private void validateAssignmentAnchors(Long classId, Long sessionId, Long lektionId, Long curriculumItemId) {
+        if (sessionId != null) {
+            var session = classSessionRepositoryPr8.findById(sessionId)
+                    .orElseThrow(() -> new NotFoundException("Buổi học không tồn tại"));
+            if (!session.getClassId().equals(classId)) {
+                throw new ForbiddenException("Buổi học không thuộc lớp này");
+            }
+        }
+        if (curriculumItemId != null && lektionId == null) {
+            throw new BadRequestException("Mục giáo trình phải đi kèm Lektion của nó");
+        }
+        if (lektionId != null) {
+            Long versionId = classCurriculumLinkRepositoryPr8.findByClassId(classId)
+                    .map(l -> l.getVersionId())
+                    .orElseThrow(() -> new BadRequestException("Lớp chưa gắn giáo trình — không neo bài vào Lektion được"));
+            var lektion = curriculumLektionRepositoryPr8.findById(lektionId)
+                    .orElseThrow(() -> new NotFoundException("Lektion không tồn tại"));
+            if (!lektion.getVersionId().equals(versionId)) {
+                throw new ForbiddenException("Lektion không thuộc giáo trình đã gán cho lớp");
+            }
+            if (curriculumItemId != null) {
+                var item = curriculumItemRepositoryPr8.findById(curriculumItemId)
+                        .orElseThrow(() -> new NotFoundException("Mục giáo trình không tồn tại"));
+                if (!item.getLektionId().equals(lektionId)) {
+                    throw new BadRequestException("Mục không thuộc Lektion đã chọn");
+                }
+            }
+        }
+    }
+
+    /** AC14: danh sách người nhận (nếu gửi) phải nằm trọn trong roster lớp; trả list đã chuẩn hoá. */
+    private List<Long> validateRecipients(Long classId, List<Long> recipientStudentIds) {
+        if (recipientStudentIds == null || recipientStudentIds.isEmpty()) return List.of();
+        Set<Long> roster = classStudentRepository.findByIdClassId(classId).stream()
+                .map(cs -> cs.getId().getStudentId())
+                .collect(Collectors.toSet());
+        List<Long> cleaned = recipientStudentIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        for (Long id : cleaned) {
+            if (!roster.contains(id)) {
+                throw new BadRequestException("Học viên #" + id + " không thuộc lớp này");
+            }
+        }
+        return cleaned;
+    }
+
+    private void saveRecipients(Long assignmentId, List<Long> recipients) {
+        if (recipients.isEmpty()) return;
+        assignmentRecipientRepository.saveAll(recipients.stream()
+                .map(studentId -> com.deutschflow.teacher.entity.ClassAssignmentRecipient.builder()
+                        .id(new com.deutschflow.teacher.entity.ClassAssignmentRecipient.Id(assignmentId, studentId))
+                        .build())
+                .toList());
+    }
+
+    /**
+     * Bộ kỹ năng hợp lệ của một bài tập lớp. Cố ý viết {@code HOREN} KHÔNG có E: đây là quy ước của
+     * cột {@code class_assignments.skill} — khác {@code can_do_statements.skill_tag} vốn dùng
+     * {@code HOEREN} (xem {@code StudentCompetencyService#toCanDoSkillTag}). Bảng điểm 4 kỹ năng ở cả
+     * hai phía tra đúng chuỗi này, nên ghi sai một chữ là điểm rơi thẳng vào ô "không kỹ năng".
+     */
+    private static final Set<String> ASSIGNMENT_SKILLS =
+            Set.of("GENERAL", "HOREN", "LESEN", "SCHREIBEN", "SPRECHEN");
+
+    /**
+     * Chuẩn hoá kỹ năng do client gửi lên; rác thì từ chối thay vì ghi vào DB.
+     *
+     * <p>Trước đây giá trị được {@code toUpperCase()} rồi ghi thẳng, không kiểm gì — mà cột này là
+     * đầu vào của bảng điểm 4 kỹ năng và của bộ lọc sổ điểm, nên một chuỗi lạ sẽ âm thầm tạo ra một
+     * "kỹ năng" mà không màn hình nào biết cách hiển thị.
+     */
+    private static String normalizeSkill(String raw) {
+        if (raw == null || raw.isBlank()) return "GENERAL";
+        String v = raw.trim().toUpperCase();
+        // Nhận cả cách viết có E của can-do statement để client nào lỡ gửi HOEREN vẫn về đúng ô Nghe.
+        if ("HOEREN".equals(v)) v = "HOREN";
+        if (!ASSIGNMENT_SKILLS.contains(v)) {
+            throw new BadRequestException("Kỹ năng không hợp lệ: " + raw);
+        }
+        return v;
+    }
+
+    /**
+     * Sửa một bài tập đã giao. Chỉ giáo viên chính, và bài phải thuộc đúng lớp trong đường dẫn.
+     *
+     * <p>Cho sửa kể cả khi đã có người nộp: đề bài gõ nhầm, hạn đặt sai hay gắn nhầm bài học là
+     * chuyện thường, và trước đây KHÔNG có đường nào sửa — không PATCH, không DELETE — nên một bài
+     * giao nhầm nằm lại vĩnh viễn trên màn hình của cả lớp. Điểm và bài nộp không bị đụng tới.
+     *
+     * <p>Không bắn thông báo: đây là sửa chính tả/metadata, còn mọi học viên trong lớp đều đã nhận
+     * "📋 Bài tập mới" lúc giao. Nếu sau này {@code dueDate} thực sự được dùng (nhắc hạn, chặn nộp
+     * muộn) thì lúc đó đổi hạn mới đáng một thông báo riêng.
+     */
+    @Transactional
+    public ClassAssignmentDto updateAssignment(Long teacherId, Long classId, Long assignmentId,
+                                               UpdateAssignmentRequest req) {
+        assertPrimaryTeacher(teacherId, classId);
+        ClassAssignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new NotFoundException("Bài tập không tồn tại"));
+        if (!assignment.getClassId().equals(classId)) {
+            throw new ForbiddenException("Bài tập không thuộc lớp này");
+        }
+
+        if (req.topic() != null) {
+            String topic = req.topic().trim();
+            if (topic.isEmpty()) {
+                throw new BadRequestException("Tiêu đề bài tập không được để trống");
+            }
+            assignment.setTopic(topic);
+        }
+        if (req.description() != null) assignment.setDescription(req.description().trim());
+        if (req.skill() != null) assignment.setSkill(normalizeSkill(req.skill()));
+
+        if (Boolean.TRUE.equals(req.clearDueDate())) assignment.setDueDate(null);
+        else if (req.dueDate() != null) assignment.setDueDate(req.dueDate());
+
+        if (Boolean.TRUE.equals(req.clearAttachmentUrl())) assignment.setAttachmentUrl(null);
+        else if (req.attachmentUrl() != null) assignment.setAttachmentUrl(req.attachmentUrl().trim());
+
+        if (Boolean.TRUE.equals(req.clearLessonId())) {
+            assignment.setLessonId(null);
+        } else if (req.lessonId() != null) {
+            // Cùng chốt như lúc tạo: bài học phải thuộc chính lớp này (chặn gắn chéo lớp).
+            ClassLesson lesson = lessonRepository.findById(req.lessonId())
+                    .orElseThrow(() -> new NotFoundException("Bài học không tồn tại"));
+            if (!lesson.getClassId().equals(classId)) {
+                throw new ForbiddenException("Bài học không thuộc lớp này");
+            }
+            assignment.setLessonId(req.lessonId());
+        }
+
+        return toAssignmentDto(assignmentRepository.save(assignment));
+    }
+
+    /**
+     * Xoá một bài tập đã giao — CHỈ khi chưa học viên nào nộp.
+     *
+     * <p>Ranh giới này lấy đúng từ {@link ClassDeletionGuard}: bài tập chưa ai nộp là cấu hình do
+     * chính giáo viên chính tạo và dựng lại được, còn một bài nộp là công của người khác. Ba bảng con
+     * ({@code student_assignments}, {@code class_assignment_scenarios}, tài liệu đính kèm) đều
+     * {@code ON DELETE CASCADE}, nên xoá một bài đã có người nộp sẽ kéo theo bài làm, điểm và nhận
+     * xét — âm thầm và không hoàn tác được. Đã có người nộp thì sửa đề (updateAssignment) hoặc để
+     * nguyên, đừng xoá.
+     */
+    @Transactional
+    public void deleteAssignment(Long teacherId, Long classId, Long assignmentId) {
+        assertPrimaryTeacher(teacherId, classId);
+        ClassAssignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new NotFoundException("Bài tập không tồn tại"));
+        if (!assignment.getClassId().equals(classId)) {
+            throw new ForbiddenException("Bài tập không thuộc lớp này");
+        }
+
+        long submitted = studentAssignmentRepository.findByAssignmentId(assignmentId).stream()
+                .filter(sa -> AssignmentStatus.isSubmitted(sa.getStatus()))
+                .count();
+        if (submitted > 0) {
+            throw new ConflictException(
+                    "Đã có " + submitted + " học viên nộp bài này — xoá sẽ mất bài nộp và điểm. "
+                    + "Hãy sửa lại đề bài thay vì xoá.");
+        }
+
+        // Chỉ còn các dòng PENDING (bài chưa ai đụng tới) — cascade dọn nốt chúng cùng kịch bản AI
+        // và liên kết tài liệu.
+        assignmentRepository.delete(assignment);
+        log.info("[assignments] teacher={} deleted assignment={} of class={} (no submissions)",
+                teacherId, assignmentId, classId);
     }
 
     /**
@@ -908,6 +1185,10 @@ public class TeacherService {
             throw new ConflictException("Học viên không thuộc lớp của bạn");
         }
 
+        // F-QA-01: reviewedAt được đặt ở mọi lần giáo viên lưu đánh giá — còn null nghĩa là lần
+        // chấm ĐẦU TIÊN; đã có giá trị nghĩa là chấm lại (sửa điểm/nhận xét).
+        boolean regrade = session.getReviewedAt() != null;
+
         session.setTeacherScore(req.teacherScore());
         session.setTeacherFeedback(req.teacherFeedback());
         session.setReviewedAt(java.time.LocalDateTime.now());
@@ -920,9 +1201,18 @@ public class TeacherService {
         // i.e. the teacher was told there was work to review about the very session they had just
         // finished reviewing. It was, in fact, the only place that helper was ever called: teachers got
         // no notification when work actually arrived, and one bogus one after they finished.
-        userNotificationService.onAssignmentGraded(
-            session.getUserId(), "SPEAKING", sessionId, req.teacherScore(), req.teacherFeedback()
-        );
+        //
+        // F-QA-01: chấm LẠI không phát thêm "✅ Bài đã chấm" — cập nhật tại chỗ thông báo cũ thành
+        // "🔄 Điểm đã được cập nhật" (một dòng duy nhất, điểm mới nhất).
+        if (regrade) {
+            userNotificationService.onAssignmentRegraded(
+                session.getUserId(), "SPEAKING", sessionId, req.teacherScore(), req.teacherFeedback()
+            );
+        } else {
+            userNotificationService.onAssignmentGraded(
+                session.getUserId(), "SPEAKING", sessionId, req.teacherScore(), req.teacherFeedback()
+            );
+        }
 
         return result;
     }
@@ -942,11 +1232,30 @@ public class TeacherService {
             throw new ConflictException("Bài tập không thuộc lớp của bạn");
         }
 
+        // F12: only handed-in work can be finalized. A PENDING row exists BEFORE the student ever
+        // submits (rows are pre-created/backfilled), so without this guard one valid call turned
+        // "not submitted" into EVALUATED — and notified the student of a grade for work they never
+        // handed in. Re-grading a final row stays allowed: it is the only correction path until a
+        // grade-revision history exists.
+        if (AssignmentStatus.PENDING.equals(assignment.getStatus())) {
+            throw new ConflictException("Bài chưa được nộp, không thể chốt điểm");
+        }
+
         // Scores are graded on a 0-100 scale; reject out-of-range manual entry so it can't pollute
-        // the class/teacher report averages (root cause of the "234.4 average" report bug).
-        if (req.teacherScore() != null && (req.teacherScore() < 0 || req.teacherScore() > 100)) {
+        // the class/teacher report averages (root cause of the "234.4 average" report bug). A null
+        // score is rejected too (F12): EVALUATED is the announce-the-final-grade transition, and a
+        // final grade with no grade both notifies the student of nothing and reads as "not graded"
+        // in every average. Feedback-without-a-grade would be its own state, not a null EVALUATED.
+        if (req.teacherScore() == null) {
+            throw new BadRequestException("Thiếu điểm khi chốt bài (0–100)");
+        }
+        if (req.teacherScore() < 0 || req.teacherScore() > 100) {
             throw new BadRequestException("Điểm phải trong khoảng 0–100");
         }
+
+        // F-QA-01: xác định chấm-lại TRƯỚC khi ghi đè trạng thái — bài đã final (EVALUATED, hoặc
+        // GRADED legacy) tức là học viên ĐÃ được announce điểm một lần rồi.
+        boolean regrade = AssignmentStatus.isFinal(assignment.getStatus());
 
         assignment.setScore(req.teacherScore());
         assignment.setFeedback(req.teacherFeedback());
@@ -954,11 +1263,20 @@ public class TeacherService {
         assignment.setGradedAt(java.time.LocalDateTime.now());
         StudentAssignmentDto result = toStudentAssignmentDto(studentAssignmentRepository.save(assignment));
 
-        // Notify student
-        userNotificationService.onAssignmentGraded(
-            assignment.getStudentId(), "ASSIGNMENT", assignment.getAssignmentId(),
-            req.teacherScore(), req.teacherFeedback()
-        );
+        // Notify student. F-QA-01: chấm LẠI không phát thêm "✅ Bài đã chấm" lần nữa —
+        // AssignmentStatus hứa announce đúng MỘT lần; đường regrade cập nhật tại chỗ thông báo cũ
+        // thành "🔄 Điểm đã được cập nhật" mang điểm mới nhất (không lộ lịch sử dao động điểm).
+        if (regrade) {
+            userNotificationService.onAssignmentRegraded(
+                assignment.getStudentId(), "ASSIGNMENT", assignment.getAssignmentId(),
+                req.teacherScore(), req.teacherFeedback()
+            );
+        } else {
+            userNotificationService.onAssignmentGraded(
+                assignment.getStudentId(), "ASSIGNMENT", assignment.getAssignmentId(),
+                req.teacherScore(), req.teacherFeedback()
+            );
+        }
 
         // Tự đánh dấu ĐÃ ĐỌC "📥 Bài cần xem" (QUIZ_SUBMISSION_RECEIVED) cho MỌI giáo viên của lớp: bài
         // vừa chấm nên không còn "cần xem" với ai trong nhóm co-teaching, kể cả người vào Trung tâm Chấm
@@ -1024,13 +1342,17 @@ public class TeacherService {
     private TeacherClassDto toClassDto(TeacherClass c) {
         long studentCount = classStudentRepository.countByIdClassId(c.getId());
         long quizCount = assignmentRepository.countByClassId(c.getId());
-        return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, c.getCreatedAt());
+        // Chỉ dùng cho lớp VỪA TẠO (createClass) — chưa thể có bài nộp nên pendingReviewCount = 0.
+        return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, 0L, c.getCreatedAt());
     }
 
     private ClassAssignmentDto toAssignmentDto(ClassAssignment a) {
+        int recipientCount = assignmentRecipientRepository.findByIdAssignmentId(a.getId()).size();
         return new ClassAssignmentDto(a.getId(), a.getClassId(), a.getTopic(), a.getDescription(),
-                a.getAssignmentType(), a.getReferenceId(), a.getDueDate(), a.getCreatedAt(),
-                a.getAttachmentUrl(), a.getLessonId());
+                a.getAssignmentType(), a.getSkill(), a.getReferenceId(), a.getDueDate(), a.getCreatedAt(),
+                a.getAttachmentUrl(), a.getLessonId(),
+                a.getStatus(), a.getPublishedAt(), a.getSessionId(), a.getLektionId(),
+                a.getCurriculumItemId(), recipientCount);
     }
 
     private TeacherSpeakingSessionDto toTeacherSpeakingSessionDto(com.deutschflow.speaking.entity.AiSpeakingSession s) {
@@ -1052,7 +1374,7 @@ public class TeacherService {
                 ca != null ? ca.getAssignmentType() : "GENERAL",
                 ca != null ? ca.getDueDate() : null,
                 a.getSubmissionContent(),
-                a.getSubmissionFileUrl(),
+                submissionFileUrlResolver.resolve(a.getSubmissionFileUrl()),
                 ca != null ? ca.getAttachmentUrl() : null,
                 ca != null ? ca.getReferenceId() : null
         );

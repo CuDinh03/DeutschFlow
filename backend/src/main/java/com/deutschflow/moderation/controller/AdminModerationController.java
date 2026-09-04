@@ -1,5 +1,8 @@
 package com.deutschflow.moderation.controller;
 
+import java.util.Map;
+import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.moderation.dto.ModerationDtos.ReportDto;
 import com.deutschflow.moderation.entity.ContentReport.Status;
 import com.deutschflow.moderation.service.ContentReportService;
@@ -20,6 +23,7 @@ import java.util.List;
 public class AdminModerationController {
 
     private final ContentReportService reportService;
+    private final AuditLogService auditLogService;
 
     /** Most recent reports, optionally filtered by status (PENDING / RESOLVED / DISMISSED). */
     @GetMapping("/reports")
@@ -33,6 +37,10 @@ public class AdminModerationController {
                                         @PathVariable Long id,
                                         @RequestParam Status status) {
         reportService.resolve(admin.getId(), id, status);
+        // Audit F-M3 (03/09/2026): phán quyết một báo cáo nội dung là quyết định kiểm duyệt có thể
+        // bị chất vấn về sau (Apple Guideline 1.2) — cần biết ai đã quyết và quyết thế nào.
+        auditLogService.log("admin.moderation.report.resolved", AuditActor.of(admin),
+                "CONTENT_REPORT", String.valueOf(id), Map.of("status", String.valueOf(status)));
         return ResponseEntity.noContent().build();
     }
 }

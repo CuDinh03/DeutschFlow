@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
-import { GaBtn, TkModal } from '@/components/ui-v2'
+import { GaBtn, TkModal, ConfirmDialog } from '@/components/ui-v2'
 import {
   type ClassMode,
   type ClassSession,
@@ -106,6 +106,12 @@ export function EditSessionModal({
         room: mode === 'ONLINE' ? null : room.trim() || null,
         status,
       })
+      // PR-5 (AC18): lớp trung tâm có giáo trình — thay đổi thành ĐỀ XUẤT, lịch chưa đổi.
+      if (result.pendingRequestId != null) {
+        toast.success('Đã gửi đề xuất thay đổi buổi — chờ trung tâm duyệt, lịch hiện tại chưa đổi')
+        onClose()
+        return
+      }
       onSaved(result)
       onClose()
     } catch (e: unknown) {
@@ -123,6 +129,15 @@ export function EditSessionModal({
       description={session ? `${session.className} · ${session.studentCount} học viên` : undefined}
       footer={
         <>
+          {/* PR-7: lối vào màn làm việc theo buổi (điểm danh, xác nhận nội dung, chốt buổi). */}
+          {session && (
+            <a
+              href={`/v2/teacher/session/${session.id}`}
+              className="ga-ui mr-auto inline-flex min-h-[40px] items-center gap-1.5 text-[13px] font-semibold text-ga-accent hover:underline lg:min-h-0"
+            >
+              Vào buổi dạy →
+            </a>
+          )}
           <GaBtn variant="ghost" onClick={onClose} disabled={saving}>
             Huỷ
           </GaBtn>
@@ -222,6 +237,12 @@ export function CreateSessionModal({
         mode,
         room: mode === 'ONLINE' ? null : room.trim() || null,
       })
+      // PR-5 (AC18): buổi bù của lớp trung tâm có giáo trình đi qua duyệt — chưa có buổi nào được tạo.
+      if (result.pendingRequestId != null) {
+        toast.success('Đã gửi đề xuất buổi bù — chờ trung tâm duyệt')
+        onClose()
+        return
+      }
       onSaved(result)
       onClose()
     } catch (e: unknown) {
@@ -328,6 +349,8 @@ export function PatternModal({
   const [effectiveTo, setEffectiveTo] = useState('')
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  // §2.11: pattern chờ người dùng XÁC NHẬN xoá trong dialog (nêu hệ quả) — null = không mở.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
   const loadPatterns = useCallback(async (cid: number) => {
     setLoadingP(true)
@@ -408,11 +431,16 @@ export function PatternModal({
 
       if (savedDays.length > 0) {
         const label = savedDays.map((d) => DOW_LABEL[d - 1]).join(', ')
-        toast.success(
-          `Đã lưu lịch ${label} · sinh ${generated} buổi` +
-            (kept > 0 ? ` · giữ ${kept} buổi đã chỉnh tay` : '') +
-            (skipped > 0 ? ` · bỏ qua ${skipped} buổi trùng lịch` : ''),
-        )
+        // PR-5: lớp gated → mọi ngày đều thành đề xuất (cùng một lớp thì cùng một chế độ).
+        if (lastResult?.pendingRequestId != null) {
+          toast.success(`Đã gửi đề xuất lịch cố định ${label} — chờ trung tâm duyệt, lịch hiện tại chưa đổi`)
+        } else {
+          toast.success(
+            `Đã lưu lịch ${label} · sinh ${generated} buổi` +
+              (kept > 0 ? ` · giữ ${kept} buổi đã chỉnh tay` : '') +
+              (skipped > 0 ? ` · bỏ qua ${skipped} buổi trùng lịch` : ''),
+          )
+        }
       }
       if (failed.length > 0) {
         const label = failed.map((f) => DOW_LABEL[f.dow - 1]).join(', ')
@@ -431,13 +459,20 @@ export function PatternModal({
     }
   }
 
+  // §2.11: xoá qua ConfirmDialog nêu hệ quả — chạy SAU khi người dùng xác nhận.
   const remove = async (patternId: number) => {
     if (deletingId !== null) return // chặn double-click: một lần xoá đang chạy
     setDeletingId(patternId)
     try {
-      await deleteClassPattern(patternId)
-      toast.success('Đã xoá lịch cố định')
+      const r = await deleteClassPattern(patternId)
+      // PR-5 (AC18): lớp trung tâm có giáo trình — việc xoá vào hàng chờ duyệt, chưa gỡ gì.
+      if (r.pendingRequestId != null) {
+        toast.success('Đã gửi đề xuất huỷ lịch cố định — chờ trung tâm duyệt')
+      } else {
+        toast.success(`Đã xoá lịch cố định · gỡ ${r.removedSessions} buổi tương lai chưa chỉnh tay`)
+      }
       if (classId) await loadPatterns(classId)
+      setConfirmDeleteId(null)
     } catch (e: unknown) {
       toast.error(apiMessage(e))
     } finally {
@@ -566,7 +601,7 @@ export function PatternModal({
                     <button
                       type="button"
                       aria-label="Xoá lịch cố định"
-                      onClick={() => remove(p.id)}
+                      onClick={() => setConfirmDeleteId(p.id)}
                       disabled={deletingId !== null}
                       className="grid h-10 w-10 shrink-0 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red disabled:pointer-events-none disabled:opacity-50 lg:h-7 lg:w-7"
                     >
@@ -579,6 +614,23 @@ export function PatternModal({
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmDeleteId != null}
+        onOpenChange={(o) => { if (!o) setConfirmDeleteId(null) }}
+        title="Xoá lịch cố định?"
+        description={(() => {
+          const p = patterns.find((x) => x.id === confirmDeleteId)
+          return p ? `${DOW_LABEL[p.dayOfWeek - 1]} · ${p.startTime.slice(0, 5)} · ${p.durationMinutes}′` : undefined
+        })()}
+        details={[
+          'Mọi buổi tương lai sinh từ lịch này (chưa chỉnh tay) sẽ bị gỡ; buổi đã chỉnh tay được giữ nguyên.',
+          'Lớp trung tâm có giáo trình: việc xoá trở thành đề xuất chờ trung tâm duyệt, chưa gỡ gì ngay.',
+        ]}
+        confirmLabel="Xoá lịch"
+        cancelLabel="Huỷ"
+        loading={deletingId != null}
+        onConfirm={() => { if (confirmDeleteId != null) void remove(confirmDeleteId) }}
+      />
     </TkModal>
   )
 }

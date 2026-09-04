@@ -1,13 +1,29 @@
 name: Mobile CI
 
 on:
+  # `push` vẫn lọc nhánh: nhánh feature đã có sự kiện `pull_request` bên dưới lo, chạy cả hai chỉ tốn
+  # đôi CI cho cùng một commit. `dev` (nhánh chết) và `feat/onboarding-v3` (đã merge trọn vào main) đã
+  # được gỡ 02/09 theo nợ ghi từ 30/08 — giữ lại chỉ gây nhiễu.
   push:
-    branches: [ "main", "dev" ]
+    branches: [ "main" ]
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-ci.yml'
+
+  # `pull_request` KHÔNG lọc base — cố ý, xem frontend-ci.yml cho cùng lý do.
+  #
+  # `branches:` chỉ khớp nhánh ĐÍCH, nên PR xếp chồng (base là một nhánh feature khác) rơi ra ngoài và
+  # workflow này không hề chạy. Nó không đỏ, nó VẮNG MẶT: PR vẫn hiện CLEAN/MERGEABLE vì Backend CI và
+  # Security CI (cả hai để `pull_request:` trần) vẫn xanh. Với mobile thì mất mát nặng hơn frontend —
+  # `type-check-and-test` là cổng duy nhất chặn lỗi TypeScript trôi vào một bản build native, thứ chỉ
+  # lộ ra khi đã lên TestFlight.
+  #
+  # `paths` thì giữ: PR không đụng mobile/** không cần dựng mobile.
+  # `edited` có mặt vì một lý do duy nhất: khi PR base được merge, GitHub trỏ lại base bằng sự kiện
+  # `edited` — không phải `synchronize` — nên nếu thiếu, PR xếp chồng được retarget sang main mà KHÔNG
+  # chạy lại cổng nào. Các job bên dưới lọc lại để bỏ qua lần `edited` chỉ sửa tiêu đề/mô tả.
   pull_request:
-    branches: [ "main", "dev" ]
+    types: [opened, synchronize, reopened, edited]
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-ci.yml'
@@ -20,6 +36,14 @@ jobs:
   type-check-and-test:
     name: 🧪 Type Check & Unit Tests
     runs-on: ubuntu-latest
+    # `edited` bắn cho CẢ sửa tiêu đề/mô tả lẫn đổi base, mà ta chỉ cần vế đổi base. Payload của
+    # GitHub chỉ có `changes.base` khi base thật sự đổi, nên chặn ở đây để một lần sửa mô tả PR không
+    # kéo theo nguyên vòng CI. Điều kiện viết theo hướng an toàn: đoán sai thì job CHẠY thừa, chứ không
+    # bỏ mất lượt chạy cần có.
+    if: >-
+      github.event_name != 'pull_request'
+      || github.event.action != 'edited'
+      || github.event.changes.base != null
     timeout-minutes: 10
 
     steps:
@@ -44,3 +68,53 @@ jobs:
       - name: Unit Tests
         working-directory: ./mobile
         run: npm test
+
+  # Soát 02/09 (F-5): chuỗi OTA từng đứt ÂM THẦM 3 tuần vì không gì canh runtime
+  # fingerprint — PR đổi dep native (vd Sentry 8.17→8.23) trông y như PR JS thường,
+  # nhưng OTA từ sau nó không tới được build đang phát hành nữa. Job này so
+  # fingerprint HEAD vs commit trước và comment lên PR khi runtime ĐỔI.
+  # Informational (continue-on-error) — cảnh báo, không chặn merge.
+  fingerprint-guard:
+    name: 🫆 Fingerprint (cảnh báo đổi runtime)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    # `edited` bắn cho CẢ sửa tiêu đề/mô tả lẫn đổi base, mà ta chỉ cần vế đổi base. Payload của
+    # GitHub chỉ có `changes.base` khi base thật sự đổi, nên chặn ở đây để một lần sửa mô tả PR không
+    # kéo theo nguyên vòng CI. Điều kiện viết theo hướng an toàn: đoán sai thì job CHẠY thừa, chứ không
+    # bỏ mất lượt chạy cần có.
+    if: >-
+      github.event_name != 'pull_request'
+      || github.event.action != 'edited'
+      || github.event.changes.base != null
+    concurrency: mobile-fingerprint-${{ github.event_name != 'pull_request' && 'main' || github.run_id }}
+    permissions:
+      pull-requests: write
+      actions: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Check fingerprint
+        id: fingerprint
+        uses: expo/expo-github-action/fingerprint@v8
+        with:
+          working-directory: ./mobile
+          packager: npm
+
+      - name: Cảnh báo khi runtime đổi
+        if: ${{ steps.fingerprint.outputs.fingerprint-diff != '[]' && steps.fingerprint.outputs.fingerprint-diff != '' }}
+        run: |
+          echo "::warning title=Runtime fingerprint ĐỔI::PR này đổi native fingerprint — OTA từ sau khi merge sẽ KHÔNG tới các build cũ; cần cắt build native mới để giao thay đổi JS tiếp theo."
+          echo '### 🫆 Runtime fingerprint ĐỔI' >> "$GITHUB_STEP_SUMMARY"
+          echo '- previous: `${{ steps.fingerprint.outputs.previous-fingerprint }}`' >> "$GITHUB_STEP_SUMMARY"
+          echo '- current:  `${{ steps.fingerprint.outputs.current-fingerprint }}`' >> "$GITHUB_STEP_SUMMARY"
+          echo 'OTA sau merge sẽ không tới build cũ — lên kế hoạch cắt build native.' >> "$GITHUB_STEP_SUMMARY"

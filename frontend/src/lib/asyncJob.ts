@@ -68,7 +68,20 @@ export async function waitForAsyncJob<T>(
 
     if (data.status === 'COMPLETED') {
       if (!data.resultPayload) throw new AsyncJobError('Job hoàn tất nhưng không có kết quả.')
-      return JSON.parse(data.resultPayload) as T
+      const payload = JSON.parse(data.resultPayload) as T
+      // Lưới an toàn (QA 2026-09-01). Backend từng ghi job HỎNG là COMPLETED với errorMessage rỗng —
+      // sự thật chỉ nằm trong payload. Khi đó nhánh FAILED bên dưới là code chết: câu lỗi tử tế của
+      // backend bị nuốt, người dùng chỉ thấy thông báo chung, và mọi thống kê đếm job hỏng báo 0
+      // trong khi 100% job hỏng ⇒ sự cố model AI 404 chạy âm thầm 11 tiếng không ai hay.
+      // PracticeNodeService nay đã ghi đúng trạng thái; giữ lưới này để job kiểu cũ còn tồn đọng và
+      // mọi call site tương lai lỡ lặp lại khuôn đó không âm thầm hỏng thêm lần nữa.
+      const settled = payload as { status?: unknown; error?: unknown } | null
+      if (settled && settled.status === 'FAILED') {
+        throw new AsyncJobError(
+          typeof settled.error === 'string' && settled.error.trim() ? settled.error : 'Job thất bại.',
+        )
+      }
+      return payload
     }
     if (data.status === 'FAILED') {
       throw new AsyncJobError(data.errorMessage || 'Job thất bại.')

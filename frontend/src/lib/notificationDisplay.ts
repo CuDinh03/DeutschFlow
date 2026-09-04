@@ -106,6 +106,14 @@ export const TYPE_LABEL: Record<string, string> = {
   ADMIN_ORG_INVOICE_PAID: 'Hoá đơn đã thanh toán',
 }
 
+/**
+ * Nền mờ ~13% từ màu tone cho icon tile. Tone là chuỗi `var(--ga-…)` nên không thể nối
+ * hex-alpha kiểu `${tone}1a` (CSS không hợp lệ → browser lặng lẽ bỏ, nền trong suốt).
+ */
+export function toneSoft(tone: string): string {
+  return `color-mix(in srgb, ${tone} 13%, transparent)`
+}
+
 function pick(payload: Record<string, unknown>, ...keys: string[]): string | null {
   for (const k of keys) {
     const v = payload[k]

@@ -1,29 +1,29 @@
 package com.deutschflow.teacher.service;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
 import org.springframework.stereotype.Component;
 
 /**
- * Nguồn DUY NHẤT cho "model chấm bài" — tách hẳn khỏi model NÓI.
+ * Nguồn DUY NHẤT cho "model chấm bài" — từ 08/2026 là ADAPTER đọc tầng
+ * {@link LlmTier#GRADING_EXAM} trong khung tier ({@code app.ai.llm.tiers.grading-exam}).
  *
- * <p>Real-time speaking (greeting, chat turn, sinh câu hỏi phỏng vấn) dùng {@code app.ai.groq.model}
- * (mặc định gpt-oss-20b, nhanh) bằng cách truyền {@code null} vào {@code chatCompletion}. Mọi luồng
- * CHẤM bài (Schreiben qua {@link GradingService}, Sprechen qua {@link TeacherAiGradingService}, và
- * lead-magnet) đọc model từ đây ⇒ đổi 1 chỗ qua env {@code GROQ_GRADING_MODEL}, và không bao giờ
- * vô tình trôi sang model nói.
+ * <p>Đổi model chấm = đổi config tier ({@code AI_LLM_TIER_GRADING_EXAM_MODEL}); env cũ
+ * {@code GROQ_GRADING_MODEL} vẫn ăn qua chuỗi default trong application.yml — không ai phải đổi
+ * env khi nâng cấp. Mọi luồng CHẤM (Schreiben qua {@link GradingService}, Sprechen qua
+ * {@link TeacherAiGradingService}, lead-magnet) đọc model từ đây ⇒ không bao giờ trôi sang model nói.
  */
 @Component
 public class GradingModelConfig {
 
-    private final String model;
+    private final LlmTierResolver tierResolver;
 
-    public GradingModelConfig(
-            @Value("${app.ai.groq.grading-model:openai/gpt-oss-120b}") String model) {
-        this.model = model;
+    public GradingModelConfig(LlmTierResolver tierResolver) {
+        this.tierResolver = tierResolver;
     }
 
-    /** Model dùng để CHẤM bài (khác model nói). */
+    /** Model dùng để CHẤM bài (tầng GRADING_EXAM — khác model nói). */
     public String model() {
-        return model;
+        return tierResolver.model(LlmTier.GRADING_EXAM);
     }
 }

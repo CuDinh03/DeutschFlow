@@ -78,7 +78,25 @@
       "reviewNotesPlaceholder": "Prüfnotiz (optional)…",
       "reviewMarkDone": "Als geprüft markieren",
       "reviewSaving": "Speichern…",
-      "reviewSaved": "\"{word}\" geprüft"
+      "reviewSaved": "\"{word}\" geprüft",
+      "tabGalerie": "Galerie",
+      "galerie": {
+        "statConceptMissing": "Wörter ohne Konzept",
+        "statReady": "Konzepte ohne Artwork",
+        "statShowing": "Angezeigt",
+        "filterLabel": "Status",
+        "statusAll": "Alle",
+        "runConcepts": "Konzepte erzeugen ({count})",
+        "runGenerate": "SVG zeichnen ({count})",
+        "generating": "Zeichnet…",
+        "runDone": "Fertig: {succeeded}/{requested} erfolgreich, {failed} Fehler, {remaining} offen",
+        "decisionOk": "Entscheidung {decision} gespeichert",
+        "approve": "Freigeben",
+        "regenerate": "Neu zeichnen",
+        "reject": "Ablehnen",
+        "noArtwork": "Noch kein Artwork",
+        "empty": "Keine Wörter in diesem Status."
+      }
     },
     "grammarReview": {
       "title": "Grammatikübungen prüfen",

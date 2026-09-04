@@ -188,8 +188,7 @@ public class VideoLessonService {
                     null, 0.7, 900);
             if (res.usage() != null) {
                 ledgerService.record(userId, res.provider(), res.model(),
-                        res.usage().promptTokens(), res.usage().completionTokens(),
-                        res.usage().totalTokens(), "VIDEO_LISTENING", null, null);
+                        res.usage(), "VIDEO_LISTENING", null, null);
             }
             return parseDialogueJson(res.content());
         } catch (Exception e) {

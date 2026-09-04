@@ -41,6 +41,9 @@ class SessionLifecycleReEndDedupTest {
     @Mock ConversationEvaluationService conversationEvaluationService;
     @Mock com.deutschflow.interview.service.InterviewDomainCoordinator interviewDomainCoordinator;
     @Mock com.deutschflow.teacher.service.TeacherAiGradingService teacherAiGradingService;
+    @Mock com.deutschflow.progress.service.PhaseEngineService phaseEngineService;
+    @Mock com.deutschflow.user.service.LearningAnalyticsService learningAnalyticsService;
+    @Mock com.deutschflow.gamification.repository.UserXpEventRepository xpEventRepository;
 
     private static final Long USER = 1L;
     private static final Long SESSION = 7L;
@@ -51,7 +54,8 @@ class SessionLifecycleReEndDedupTest {
                 inv.getArgument(0, TransactionCallback.class).doInTransaction(null));
         return new SessionLifecycleService(transactionTemplate, sessionRepository, xpService,
                 interviewEvaluationService, conversationEvaluationService,
-                interviewDomainCoordinator, teacherAiGradingService);
+                interviewDomainCoordinator, teacherAiGradingService,
+                phaseEngineService, learningAnalyticsService, xpEventRepository);
     }
 
     private AiSpeakingSession session(SessionStatus status, String report) {

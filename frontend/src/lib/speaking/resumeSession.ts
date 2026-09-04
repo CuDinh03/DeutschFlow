@@ -85,7 +85,6 @@ export function companionFromPersonaId(
     name: token.name,
     avatarUrl: `/companions/${token.id}.png`,
     voiceId: token.id.toUpperCase(),
-    voiceFile: token.voiceFile ?? null,
     personality: token.desc,
     cefrLevel: cefrLevel ?? "B1",
   };

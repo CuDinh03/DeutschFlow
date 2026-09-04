@@ -76,7 +76,6 @@ export function normalizeSpeakingPersona(raw: string | null | undefined): Speaki
   if (u === "EMMA") return "EMMA";
   if (u === "ANNA") return "ANNA";
   if (u === "KLAUS") return "KLAUS";
-  if (u === "ANNA") return "ANNA";
   if (u === "LENA") return "LENA";
   if (u === "PETRA") return "PETRA";
   if (u === "TUAN") return "TUAN";
@@ -87,6 +86,12 @@ export function normalizeSpeakingPersona(raw: string | null | undefined): Speaki
   if (u === "NINA") return "NINA";
   if (u === "SCHNEIDER") return "SCHNEIDER";
   if (u === "WEBER") return "WEBER";
+  // QA prod 11/08: 4 persona này THIẾU trong normalize → rơi về DEFAULT → mini-avatar
+  // fallback vẽ LukasCharacter — phiên Sarah hiện mặt Lukas trên header.
+  if (u === "THOMAS") return "THOMAS";
+  if (u === "SARAH") return "SARAH";
+  if (u === "HANNIE") return "HANNIE";
+  if (u === "MINH") return "MINH";
   return "DEFAULT";
 }
 

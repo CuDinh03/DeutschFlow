@@ -2,7 +2,9 @@ package com.deutschflow.organization.service;
 
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.organization.entity.OrgMember;
+import com.deutschflow.organization.repository.OrgAcademicApproverRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
+import com.deutschflow.teacher.repository.TeacherClassRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,8 @@ public class OrgGuard {
     private static final Set<String> FINANCE_ROLES = Set.of("OWNER");
 
     private final OrgMemberRepository memberRepo;
+    private final OrgAcademicApproverRepository academicApproverRepo;
+    private final TeacherClassRepository teacherClassRepository;
 
     /** Asserts the user is an ACTIVE member of the org; returns the membership row. */
     @Transactional(readOnly = true)
@@ -51,6 +55,48 @@ public class OrgGuard {
         OrgMember member = assertMember(userId, orgId);
         if (!"OWNER".equals(member.getRole())) {
             throw new ForbiddenException("Chỉ chủ sở hữu tổ chức mới được thao tác này");
+        }
+    }
+
+    /**
+     * Quyền DUYỆT HỌC VỤ (PR-2, quyết định P01 — spec D13/§6): OWNER (giám đốc) luôn có; ngoài ra
+     * cần một phân công {@code org_academic_approvers} ĐANG hiệu lực phủ đúng phạm vi — scope ORG
+     * phủ mọi lớp của trung tâm, scope CLASS phải đúng {@code classId}; {@code classId} null
+     * (mốc học vụ mức trung tâm) thì chỉ scope ORG đạt.
+     *
+     * <p>MANAGER KHÔNG mặc định có quyền này — tách quyền duyệt học vụ khỏi quyền quản trị/tài
+     * chính (spec §6). Ngoại lệ học Thứ Bảy/Chủ nhật (D14) KHÔNG đi qua đây — luôn dùng
+     * {@link #assertOrgOwner}.
+     */
+    @Transactional(readOnly = true)
+    public void assertAcademicApprover(Long userId, Long orgId, Long classId) {
+        OrgMember member = assertMember(userId, orgId);
+        // Guard tự vệ (security M1): classId do caller truyền PHẢI thuộc đúng trung tâm — áp cho
+        // MỌI vai, kể cả OWNER; không tin caller đã tự xác minh.
+        if (classId != null && !teacherClassRepository.existsByIdAndOrgId(classId, orgId)) {
+            throw new ForbiddenException("Lớp không thuộc trung tâm này");
+        }
+        // Phòng thủ theo chiều sâu (security H1): STUDENT không bao giờ duyệt học vụ — kể cả khi
+        // còn sót một dòng phân công cũ (ví dụ rời org rồi quay lại làm học viên).
+        if ("STUDENT".equals(member.getRole())) {
+            throw new ForbiddenException("Học viên không có quyền duyệt học vụ");
+        }
+        if ("OWNER".equals(member.getRole())) {
+            return;
+        }
+        if (!academicApproverRepo.hasActiveApproval(orgId, userId, classId)) {
+            throw new ForbiddenException("Chỉ giám đốc hoặc giáo viên trưởng được phân công mới duyệt được thay đổi học vụ này");
+        }
+    }
+
+    /** Bản boolean của {@link #assertAcademicApprover} — cho DTO/UI, không ném lỗi. */
+    @Transactional(readOnly = true)
+    public boolean isAcademicApprover(Long userId, Long orgId, Long classId) {
+        try {
+            assertAcademicApprover(userId, orgId, classId);
+            return true;
+        } catch (ForbiddenException ex) {
+            return false;
         }
     }
 

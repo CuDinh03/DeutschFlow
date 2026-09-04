@@ -1,9 +1,35 @@
-import axios, { type AxiosError, type AxiosResponse } from 'axios'
+import axios, { isAxiosError, type AxiosError, type AxiosResponse } from 'axios'
 import { Platform } from 'react-native'
 import { API_BASE_URL } from './constants'
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './auth'
 import { reportApiError } from './observability'
 import { router } from 'expo-router'
+import { runCleanupBestEffort } from './bestEffort'
+import { isMaintenanceError, maintenanceInfoFromProblem } from './maintenance'
+import { useMaintenanceStore } from '@/stores/useMaintenanceStore'
+
+/**
+ * Refresh hỏng: đây có phải phiên bị TỪ CHỐI DỨT KHOÁT không, hay chỉ là trục
+ * trặc hạ tầng thoáng qua?
+ *
+ * Quan trọng vì nhánh retry thoáng qua của interceptor CHỈ áp cho GET, còn
+ * refresh là POST — nên 502/503 lúc blue-green deploy, timeout hay mất sóng đều
+ * rơi vào đúng nhánh catch như refresh token hết hạn thật. Chỉ ca dứt khoát mới
+ * được phép xoá trạng thái per-thiết bị và huỷ lịch nhắc 20:00 trong OS; ca
+ * thoáng qua chỉ dọn token rồi đá về màn đăng nhập, đăng nhập lại là còn nguyên.
+ *
+ * Hàm thuần + export để test được mà không phải dựng cả interceptor (interceptor
+ * đọc `__DEV__`, thứ jest của repo này không định nghĩa).
+ */
+export function isSessionDefinitelyOver(err: unknown): boolean {
+  if (err instanceof Error && err.message === 'no_refresh_token') return true
+  // Server trả 200 nhưng thiếu token — hợp đồng vỡ, coi như phiên kết thúc (giữ token cũ
+  // chỉ sinh vòng 401 mới mỗi request).
+  if (err instanceof Error && err.message === 'invalid_refresh_response') return true
+  if (!isAxiosError(err)) return false
+  const st = err.response?.status
+  return st === 400 || st === 401 || st === 403
+}
 
 export function isAxiosErr(e: unknown): e is AxiosError {
   return axios.isAxiosError(e)
@@ -17,6 +43,11 @@ export function isAxiosErr(e: unknown): e is AxiosError {
 export function isTransientFailure(err: unknown): boolean {
   if (!isAxiosErr(err)) return false
   const status = err.response?.status
+  // Bảo trì CÓ CHỦ ĐÍCH (503 MAINTENANCE): KHÔNG coi là thoáng-qua — outbox speaking/chat
+  // và retry refresh sẽ ngừng nện vào server đang nghỉ; màn chặn tự poll mở lại khi xong.
+  if (isMaintenanceError(status, err.response?.data, err.response?.headers as Record<string, unknown> | undefined)) {
+    return false
+  }
   return status == null || status >= 500
 }
 
@@ -109,11 +140,16 @@ export function shouldReportApiFailure(error: unknown): boolean {
 function reportApiFailure(error: AxiosError): void {
   if (!shouldReportApiFailure(error)) return
 
+  const status = apiStatusLabel(error)
   reportApiError(error, {
     endpoint: normalizeEndpoint(error.config?.url),
     method: error.config?.method?.toUpperCase() ?? 'UNKNOWN',
-    status: apiStatusLabel(error),
+    status,
     aiCode: apiErrorCode(error),
+    // network/timeout = thiết bị người dùng mất mạng — chuyện thường nhật của mobile, vẫn đếm
+    // trên dashboard nhưng KHÔNG réo email high-priority (đêm 03/09: owner tắt wifi thử offline
+    // là 7 email liền). 5xx/429 mới là sức khoẻ hệ thống → giữ mức error.
+    level: status === 'network' || status === 'timeout' ? 'warning' : 'error',
   })
 }
 
@@ -140,6 +176,27 @@ type RefreshResult = { accessToken: string; newRefresh: string }
 // Assign synchronously before any await so concurrent 401s share one refresh request.
 let refreshPromise: Promise<RefreshResult> | null = null
 
+/**
+ * F-15 (soát 02/09): refresh là POST nên không lọt nhánh retry-GET của interceptor —
+ * một 502/503/timeout đúng lúc blue-green deploy từng đá thẳng người còn refresh
+ * token hợp lệ về màn đăng nhập. Thử lại ĐÚNG MỘT lần, chỉ khi lỗi thoáng qua
+ * (không có response hoặc 5xx — isTransientFailure).
+ *
+ * An toàn với refresh-token rotation: ca xấu nhất là server ĐÃ xử lý lần 1 (đã
+ * rotate) nhưng response rớt trên đường về — retry bằng token cũ sẽ bị 401/400,
+ * rơi vào catch ngoài và đăng xuất… tức là ĐÚNG hành vi trước bản vá, không tệ hơn;
+ * còn mọi ca transient thật (server chưa nhận request) thì lần 2 cứu được phiên.
+ */
+async function postRefreshWithOneRetry(refreshToken: string) {
+  try {
+    return await api.post<RefreshResponseData>('/auth/refresh', { refreshToken })
+  } catch (err) {
+    if (!isTransientFailure(err)) throw err
+    await new Promise((resolve) => setTimeout(resolve, 900))
+    return api.post<RefreshResponseData>('/auth/refresh', { refreshToken })
+  }
+}
+
 api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
@@ -151,6 +208,16 @@ api.interceptors.response.use(
       const body = error.response?.data ?? error.message
       // eslint-disable-next-line no-console
       console.warn(`[API] ${cfg?.method?.toUpperCase() ?? '?'} ${cfg?.url ?? '?'} → ${status}`, body)
+    }
+
+    // Bảo trì hệ thống (thiết kế §8): 503 code=MAINTENANCE, hoặc header X-DF-Maintenance từ nginx
+    // tĩnh khi Spring đã chết. Server nghỉ CÓ CHỦ ĐÍCH — bắn tín hiệu vào store (màn chặn hiện
+    // ngay) rồi reject LUÔN, TRƯỚC khối transient-retry (khỏi nhân tải lên server đang nghỉ) và
+    // trước reportApiFailure (khỏi flood Sentry). Store tự probe /public/system/status để xác nhận
+    // và mở lại khi hệ thống sống.
+    if (isMaintenanceError(error.response?.status, error.response?.data, error.response?.headers as Record<string, unknown> | undefined)) {
+      useMaintenanceStore.getState().signal(maintenanceInfoFromProblem(error.response?.data))
+      return Promise.reject(error)
     }
 
     // MB-4 (audit R-M4): thử lại MỘT lần cho GET idempotent khi lỗi thoáng qua — mất mạng, timeout,
@@ -182,7 +249,7 @@ api.interceptors.response.use(
         refreshPromise = (async (): Promise<RefreshResult> => {
           const refreshToken = await getRefreshToken()
           if (!refreshToken) throw new Error('no_refresh_token')
-          const res = await api.post<RefreshResponseData>('/auth/refresh', { refreshToken })
+          const res = await postRefreshWithOneRetry(refreshToken)
           const { accessToken, refreshToken: newRefresh } = res.data
           if (!accessToken || !newRefresh) throw new Error('invalid_refresh_response')
           await setTokens(accessToken, newRefresh)
@@ -192,8 +259,20 @@ api.interceptors.response.use(
       const { accessToken } = await refreshPromise
       original!.headers!.Authorization = `Bearer ${accessToken}`
       return api(original!)
-    } catch {
+    } catch (refreshErr) {
       refreshPromise = null
+
+      // M2 audit lag 02/09: KHÔNG logout oan vì hạ tầng. postRefreshWithOneRetry đã cứu blip
+      // ngắn, nhưng brownout/mất sóng dài hơn hai nhịp vẫn rơi vào catch này — trước đây catch
+      // nào cũng clearTokens + đá về login, nghĩa là backend chập chờn nửa phút là cả cohort
+      // mobile bị đăng xuất (rồi bão re-login dồn thêm tải đúng lúc yếu nhất). Chỉ khi refresh
+      // bị TỪ CHỐI dứt khoát (4xx / không có token) mới kết thúc phiên; lỗi mạng/5xx giữ nguyên
+      // token + user, chỉ reject request gốc — màn hiện tại hiện lỗi tải, request kế tiếp sẽ
+      // thử refresh lại từ đầu.
+      if (!isSessionDefinitelyOver(refreshErr)) {
+        return Promise.reject(error)
+      }
+
       await clearTokens()
       // Reset the auth store too, not just the tokens. Otherwise isLoggedIn stays true after the
       // bounce: the app shows an authenticated shell whose every request 401s, and — because the
@@ -208,6 +287,23 @@ api.interceptors.response.use(
       // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
       const { useAuthStore } = require('@/stores/useAuthStore') as typeof import('@/stores/useAuthStore')
       useAuthStore.getState().setUser(null)
+      // Đây là đường kết thúc phiên PHỔ BIẾN HƠN nút "Đăng xuất" (người dùng bỏ
+      // app lâu hơn tuổi thọ refresh token), và nó không đi qua useAuthStore.logout()
+      // — nên phải tự dọn trạng thái per-thiết bị, kẻo người đã rời đi vẫn bị nhắc
+      // học 20:00 và tài khoản kế tiếp thừa hưởng mục tiêu/tour/checklist của họ.
+      // KHÔNG gọi logout(): nó POST /auth/logout bằng token vừa xoá → 401 → quay
+      // lại chính interceptor này.
+      //
+      // Tới được đây nghĩa là phiên đã bị từ chối DỨT KHOÁT (guard transient ở đầu catch đã
+      // reject sớm mọi ca hạ tầng) — nên luôn dọn trạng thái per-thiết bị, không cần rào thêm.
+      // Lazy require vì cùng lý do với useAuthStore ở trên: import tĩnh
+      // deviceSessionState kéo studyReminder → analytics vào module graph của api.ts.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+      const { clearDeviceSessionState } =
+        require('@/lib/deviceSessionState') as typeof import('@/lib/deviceSessionState')
+      // Hỏng HAY treo đều không được chặn router.replace bên dưới — kẹt ở màn
+      // đã-đăng-nhập với token đã xoá còn tệ hơn là bỏ dở việc dọn.
+      await runCleanupBestEffort(clearDeviceSessionState)
       router.replace('/(auth)/login')
       return Promise.reject(error)
     }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Plus, Check, Loader2, Info, X, Pencil, Trash2, ArrowUp, ArrowDown, FolderPlus } from 'lucide-react'
+import { Plus, Check, Loader2, Info, X, Pencil, Trash2, ArrowUp, ArrowDown, FolderPlus, BookOpen, CalendarRange, FileUp } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
@@ -11,11 +11,13 @@ import { listLessons, createLesson, updateLesson, deleteLesson, reorderLessons, 
 import { listModules, createModule, updateModule, deleteModule, reorderModules, assignLessonModule, type CurriculumModule } from '@/lib/teacherModulesApi'
 import { groupLessonsByModule, swapInOrder, type LessonModuleGroup } from '@/lib/moduleGrouping'
 import { parseKnowledgePoints, resolvePointTexts } from '@/lib/knowledgePoints'
-import { GaPageHdr, GaBtn } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, ErrorBanner, ConfirmDialog } from '@/components/ui-v2'
 import { ClassPicker, useTeacherClasses, pct, classHref } from '../tcShared'
 import { parseIsoDateLocal } from '../lessonPacing'
 import { LessonMaterialsPanel } from './LessonMaterialsPanel'
 import { CanDoEditor, emptyCanDo, seedEditableCanDos, toCanDoPayload, type EditableCanDo } from './CanDoEditor'
+import { AllocationModal } from './AllocationModal'
+import { CurriculumImportWizard } from './CurriculumImportWizard'
 
 /** Parse the estimated-units input to a positive integer, or undefined when empty/invalid. */
 function parseUnits(raw: string): number | undefined {
@@ -175,7 +177,8 @@ function KnowledgePointsEditor({
 
 const CEFR_OPTIONS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
 
-/** CEFR level + planned date + estimated units — shared by the add and edit forms. */
+/** CEFR level + planned date + estimated units — shared by the add and edit forms.
+ *  `cefrDisabled`: bài giáo trình — CEFR do trung tâm ấn định, giáo viên không đổi (PR-4). */
 function LessonMetaFields({
   cefr,
   planned,
@@ -183,6 +186,7 @@ function LessonMetaFields({
   onCefr,
   onPlanned,
   onUnits,
+  cefrDisabled,
 }: {
   cefr: string
   planned: string
@@ -190,13 +194,14 @@ function LessonMetaFields({
   onCefr: (v: string) => void
   onPlanned: (v: string) => void
   onUnits: (v: string) => void
+  cefrDisabled?: boolean
 }) {
   const t = useTranslations('v2.teacher.tcChecklist')
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <div>
         <label className={labelCls}>{t('cefrLabel')}</label>
-        <select aria-label={t('cefrLabel')} value={cefr} onChange={(e) => onCefr(e.target.value)} className={fieldCls}>
+        <select aria-label={t('cefrLabel')} value={cefr} disabled={cefrDisabled} onChange={(e) => onCefr(e.target.value)} className={`${fieldCls} disabled:opacity-60`}>
           <option value="">{t('cefrNone')}</option>
           {CEFR_OPTIONS.map((o) => (
             <option key={o} value={o}>{o}</option>
@@ -228,7 +233,7 @@ export default function V2TcChecklistPage() {
   const t = useTranslations('v2.teacher.tcChecklist')
   const tc = useTranslations('v2.common')
   const router = useRouter()
-  const { classes, classId, setClassId, loadingClasses } = useTeacherClasses()
+  const { classes, classId, setClassId, loadingClasses, classesError, reloadClasses } = useTeacherClasses()
   const [lessons, setLessons] = useState<ClassLesson[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -254,9 +259,31 @@ export default function V2TcChecklistPage() {
   const [savingEdit, setSavingEdit] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [reordering, setReordering] = useState(false)
+  // Xoá luôn qua ConfirmDialog nêu hệ quả (chuẩn §2.11) — không window.confirm.
+  const [confirmLesson, setConfirmLesson] = useState<ClassLesson | null>(null)
+  const [confirmModule, setConfirmModule] = useState<CurriculumModule | null>(null)
+  // Bài giáo trình đang mở màn phân bổ buổi (PR-4).
+  const [allocLesson, setAllocLesson] = useState<ClassLesson | null>(null)
 
   // Modules (Phase 1c)
   const [modules, setModules] = useState<CurriculumModule[]>([])
+  const [importOpen, setImportOpen] = useState(false)
+  // Module đầu tiên vừa nhập — cuộn tới sau khi danh sách tải lại, để giáo viên thấy ngay
+  // kết quả thay vì phải tự tìm trong danh sách dài.
+  const [focusModuleId, setFocusModuleId] = useState<number | null>(null)
+  const importedModuleRef = useRef<HTMLDivElement | null>(null)
+
+  // Sau khi nhập xong và danh sách đã tải lại, đưa module đầu tiên vừa nhập vào tầm nhìn và trao
+  // focus cho nó — người dùng bàn phím/trình đọc màn hình cũng tới được kết quả, không chỉ chuột.
+  useEffect(() => {
+    if (focusModuleId == null) return
+    const el = importedModuleRef.current
+    if (!el) return
+    el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    el.focus({ preventScroll: true })
+    setFocusModuleId(null)
+  }, [focusModuleId, modules])
+
   const [newModuleTitle, setNewModuleTitle] = useState('')
   const [creatingModule, setCreatingModule] = useState(false)
   const [editingModuleId, setEditingModuleId] = useState<number | null>(null)
@@ -297,7 +324,9 @@ export default function V2TcChecklistPage() {
   const progress = pct(lessons)
 
   const toggle = async (l: ClassLesson) => {
-    if (!classId) return
+    // Bài giáo trình: hoàn thành SUY từ xác nhận đã dạy đủ các mục trong buổi (AC07/AC08)
+    // — backend từ chối toggle tay, nên nút cũng bị vô hiệu.
+    if (!classId || l.lektionId != null) return
     setBusy(l.id)
     try {
       const updated = await updateLesson(classId, l.id, { completed: !l.completed })
@@ -372,15 +401,16 @@ export default function V2TcChecklistPage() {
       setModuleBusy(false)
     }
   }
+  // Chạy sau khi người dùng XÁC NHẬN trong ConfirmDialog (không xoá thẳng).
   const removeModule = async (m: CurriculumModule) => {
     if (!classId) return
-    if (typeof window !== 'undefined' && !window.confirm(t('module.deleteConfirm'))) return
     setModuleBusy(true)
     try {
       await deleteModule(classId, m.id)
       // Deleting a module ungroups its lessons (FK SET NULL) → reload both.
       await load(classId)
       toast.success(t('module.deleteSuccess'))
+      setConfirmModule(null)
     } catch (e: unknown) {
       toast.error(apiMessage(e))
     } finally {
@@ -466,10 +496,26 @@ export default function V2TcChecklistPage() {
 
   const saveEdit = async (l: ClassLesson) => {
     if (!classId) return
+    const isCurriculum = l.lektionId != null
     const title = editTitle.trim()
-    if (!title) return
+    if (!title && !isCurriculum) return
     setSavingEdit(true)
     try {
+      // Bài giáo trình: nội dung (tiêu đề, kiến thức, Kann, CEFR) do TRUNG TÂM quản — backend
+      // từ chối các trường đó (AC01), nên chỉ gửi phần phân phối: ngày dự kiến + số tiết.
+      if (isCurriculum) {
+        const body: { plannedDate?: string; estimatedUnits?: number; clearPlannedDate?: boolean; clearEstimatedUnits?: boolean } = {}
+        if (editPlanned) body.plannedDate = editPlanned
+        else if (l.plannedDate) body.clearPlannedDate = true
+        const curUnits = parseUnits(editUnits)
+        if (curUnits !== undefined) body.estimatedUnits = curUnits
+        else if (!editUnits.trim() && l.estimatedUnits != null) body.clearEstimatedUnits = true
+        const updated = await updateLesson(classId, l.id, body)
+        setLessons((prev) => prev.map((x) => (x.id === l.id ? updated : x)))
+        toast.success(t('updateSuccess'))
+        cancelEdit()
+        return
+      }
       // Only send knowledgePoints when they actually changed vs the seeded original — a
       // title-only edit omits them so the PATCH leaves the stored points untouched
       // (avoids needless sub-table churn + a lossy re-serialize of legacy free-text).
@@ -513,15 +559,16 @@ export default function V2TcChecklistPage() {
     }
   }
 
+  // Chạy sau khi người dùng XÁC NHẬN trong ConfirmDialog (không xoá thẳng).
   const removeLesson = async (l: ClassLesson) => {
     if (!classId) return
-    if (typeof window !== 'undefined' && !window.confirm(t('deleteConfirm'))) return
     setDeletingId(l.id)
     try {
       await deleteLesson(classId, l.id)
       setLessons((prev) => prev.filter((x) => x.id !== l.id))
       if (editingId === l.id) cancelEdit()
       toast.success(t('deleteSuccess'))
+      setConfirmLesson(null)
     } catch (e: unknown) {
       toast.error(apiMessage(e))
     } finally {
@@ -541,12 +588,26 @@ export default function V2TcChecklistPage() {
             <span className="ga-ui hidden text-[13px] text-ga-muted sm:inline">
               {t('progress')}: <strong className="font-ga-display text-[16px] text-ga-ink">{progress}%</strong>
             </span>
+            <GaBtn
+              variant="ghost"
+              size="sm"
+              disabled={!classId}
+              onClick={() => setImportOpen(true)}
+            >
+              <FileUp size={14} /> {t('import.openButton')}
+            </GaBtn>
             <GaBtn variant="ghost" size="sm" onClick={() => router.push(classHref('/v2/teacher/tc-progress', classId))}>{t('viewOverview')}</GaBtn>
           </div>
         }
       />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
+        {/* F05: lỗi tải danh sách lớp phải tự hiện — trước đây bị nuốt im lặng. */}
+        {classesError && (
+          <div className="mb-4">
+            <ErrorBanner message={classesError} onRetry={reloadClasses} />
+          </div>
+        )}
         {/* Add lesson: title + knowledge points */}
         <div className="mb-5 border border-ga-line bg-ga-card p-4">
           <label className={labelCls}>{t('lessonTitleLabel')}</label>
@@ -639,7 +700,7 @@ export default function V2TcChecklistPage() {
                         <button type="button" aria-label={t('module.moveUp')} onClick={() => moveModule(i, -1)} disabled={i === 0 || moduleBusy} className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink disabled:pointer-events-none disabled:opacity-30 lg:h-7 lg:w-7"><ArrowUp size={13} /></button>
                         <button type="button" aria-label={t('module.moveDown')} onClick={() => moveModule(i, 1)} disabled={i === orderedModules.length - 1 || moduleBusy} className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink disabled:pointer-events-none disabled:opacity-30 lg:h-7 lg:w-7"><ArrowDown size={13} /></button>
                         <button type="button" aria-label={t('module.rename')} onClick={() => startEditModule(m)} className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink lg:h-7 lg:w-7"><Pencil size={14} /></button>
-                        <button type="button" aria-label={t('module.delete')} onClick={() => removeModule(m)} disabled={moduleBusy} className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red disabled:pointer-events-none disabled:opacity-40 lg:h-7 lg:w-7"><Trash2 size={14} /></button>
+                        <button type="button" aria-label={t('module.delete')} onClick={() => setConfirmModule(m)} disabled={moduleBusy} className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red disabled:pointer-events-none disabled:opacity-40 lg:h-7 lg:w-7"><Trash2 size={14} /></button>
                       </>
                     )}
                   </li>
@@ -666,7 +727,12 @@ export default function V2TcChecklistPage() {
         ) : (
           <div className="flex flex-col gap-4">
             {lessonGroups.map((group) => (
-              <div key={group.module?.id ?? 'ungrouped'} className="border border-ga-line bg-ga-card">
+              <div
+                key={group.module?.id ?? 'ungrouped'}
+                ref={group.module && group.module.id === focusModuleId ? importedModuleRef : undefined}
+                tabIndex={group.module && group.module.id === focusModuleId ? -1 : undefined}
+                className="border border-ga-line bg-ga-card"
+              >
                 <div className="border-b border-ga-line px-4 py-2 text-[12px] font-bold uppercase tracking-[0.06em]" style={{ color: VIOLET, background: 'var(--ga-violet-soft)' }}>
                   {group.module ? group.module.title : t('ungrouped')}
                 </div>
@@ -677,25 +743,39 @@ export default function V2TcChecklistPage() {
                     <div key={l.id} style={{ borderTop: gi ? '1px solid var(--ga-line)' : 'none', background: !isEditing && l.completed ? 'var(--ga-green-soft)' : undefined }}>
                   {isEditing ? (
                     <div className="flex flex-col gap-3 px-4 py-4 lg:px-5">
-                      <div>
-                        <label className={labelCls}>{t('lessonTitleLabel')}</label>
-                        <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className={`${fieldCls} text-[15px]`} />
-                      </div>
-                      <div>
-                        <label className={labelCls}>{t('knowledgeHeading')}</label>
-                        <KnowledgePointsEditor
-                          points={editPoints}
-                          onChange={setEditPoints}
-                          placeholder={t('knowledgePlaceholder')}
-                          addLabel={t('addKnowledge')}
-                          removeLabel={t('removeKnowledge')}
-                          itemLabel={(i) => t('knowledgeItemLabel', { index: i + 1 })}
-                        />
-                      </div>
-                      <div>
-                        <label className={labelCls}>{t('canDo.heading')}</label>
-                        <CanDoEditor value={editCanDos} onChange={setEditCanDos} />
-                      </div>
+                      {l.lektionId != null ? (
+                        // Bài giáo trình: nội dung do trung tâm quản (AC01) — giáo viên chỉ
+                        // chỉnh phần PHÂN PHỐI (ngày dự kiến, số tiết) + tài liệu của lớp.
+                        <>
+                          <div className="flex items-start gap-2 border px-3 py-2.5" style={{ background: 'var(--ga-violet-soft)', borderColor: 'color-mix(in srgb, var(--ga-violet) 25%, transparent)' }}>
+                            <BookOpen size={15} style={{ color: VIOLET }} className="mt-0.5 shrink-0" />
+                            <p className="ga-ui m-0 text-[12.5px] leading-[1.5] text-ga-ink">{t('curriculumLockedNote')}</p>
+                          </div>
+                          <div className="text-[15px] font-semibold text-ga-ink">{l.title}</div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <label className={labelCls}>{t('lessonTitleLabel')}</label>
+                            <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className={`${fieldCls} text-[15px]`} />
+                          </div>
+                          <div>
+                            <label className={labelCls}>{t('knowledgeHeading')}</label>
+                            <KnowledgePointsEditor
+                              points={editPoints}
+                              onChange={setEditPoints}
+                              placeholder={t('knowledgePlaceholder')}
+                              addLabel={t('addKnowledge')}
+                              removeLabel={t('removeKnowledge')}
+                              itemLabel={(i) => t('knowledgeItemLabel', { index: i + 1 })}
+                            />
+                          </div>
+                          <div>
+                            <label className={labelCls}>{t('canDo.heading')}</label>
+                            <CanDoEditor value={editCanDos} onChange={setEditCanDos} />
+                          </div>
+                        </>
+                      )}
                       <LessonMetaFields
                         cefr={editCefr}
                         planned={editPlanned}
@@ -703,11 +783,12 @@ export default function V2TcChecklistPage() {
                         onCefr={setEditCefr}
                         onPlanned={setEditPlanned}
                         onUnits={setEditUnits}
+                        cefrDisabled={l.lektionId != null}
                       />
                       <LessonMaterialsPanel lessonId={l.id} />
                       <div className="flex items-center justify-end gap-2">
                         <GaBtn variant="ghost" size="sm" onClick={cancelEdit} disabled={savingEdit}>{t('cancel')}</GaBtn>
-                        <GaBtn variant="primary" size="sm" onClick={() => saveEdit(l)} disabled={savingEdit || !editTitle.trim()}>
+                        <GaBtn variant="primary" size="sm" onClick={() => saveEdit(l)} disabled={savingEdit || (l.lektionId == null && !editTitle.trim())}>
                           {savingEdit ? <Loader2 size={14} className="animate-spin" /> : t('save')}
                         </GaBtn>
                       </div>
@@ -716,9 +797,10 @@ export default function V2TcChecklistPage() {
                     <div className="flex flex-wrap items-start gap-x-3 gap-y-2 px-4 py-4 lg:flex-nowrap lg:gap-x-3.5 lg:px-5">
                       <button
                         type="button"
-                        aria-label={l.completed ? t('markIncomplete') : t('markComplete')}
+                        aria-label={l.lektionId != null ? t('curriculumCompletionHint') : l.completed ? t('markIncomplete') : t('markComplete')}
+                        title={l.lektionId != null ? t('curriculumCompletionHint') : undefined}
                         onClick={() => toggle(l)}
-                        disabled={busy === l.id}
+                        disabled={busy === l.id || l.lektionId != null}
                         // Vòng tick giữ nguyên 24px (ngôn ngữ thị giác Galerie); vùng chạm được nới
                         // ra 40px bằng pseudo-element trong suốt — không đổi một pixel hiển thị nào,
                         // và tắt hẳn từ lg.
@@ -733,6 +815,14 @@ export default function V2TcChecklistPage() {
                       <div className="min-w-0 grow basis-[calc(100%_-_2.25rem)] lg:basis-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="ga-ui text-[10px] font-bold uppercase tracking-[0.08em] text-ga-subtle">{t('lektion', { index: seqById.get(l.id) ?? 0 })}</span>
+                          {l.lektionId != null && (
+                            <span className="ga-ui flex items-center gap-1 rounded-ga px-1.5 text-[10px] font-bold" style={{ background: 'var(--ga-violet-soft)', color: VIOLET }} title={t('curriculumLockedNote')}>
+                              <BookOpen size={10} aria-hidden /> {t('curriculumBadge')}
+                            </span>
+                          )}
+                          {l.supplementary && (
+                            <span className="ga-ui rounded-ga border border-ga-line px-1.5 text-[10px] font-bold text-ga-muted">{t('supplementaryBadge')}</span>
+                          )}
                           {l.cefrLevel && (
                             <span className="ga-ui rounded-ga px-1.5 text-[10px] font-bold" style={{ background: 'var(--ga-violet-soft)', color: VIOLET }}>{l.cefrLevel}</span>
                           )}
@@ -743,7 +833,7 @@ export default function V2TcChecklistPage() {
                             <span className="ga-ui text-[10px] font-medium text-ga-subtle">· {t('plannedShort', { date: format(parseIsoDateLocal(l.plannedDate), 'dd/MM') })}</span>
                           )}
                           {l.completed && l.completedAt && (
-                            <span className="text-[11px] font-medium" style={{ color: 'var(--ga-green)' }}>✓ {format(new Date(l.completedAt), 'dd/MM/yyyy')}</span>
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: 'var(--ga-green)' }}><Check size={11} aria-hidden /> {format(new Date(l.completedAt), 'dd/MM/yyyy')}</span>
                           )}
                         </div>
                         <div className="mt-0.5 break-words text-[14.5px] font-semibold text-ga-ink">{l.title}</div>
@@ -763,7 +853,7 @@ export default function V2TcChecklistPage() {
                             <ul className="mt-1 flex flex-col gap-1">
                               {l.canDoStatements.map((c) => (
                                 <li key={c.id ?? c.orderIndex} className="flex gap-2 text-[12.5px] leading-[1.5] text-ga-muted">
-                                  <span className="mt-[1px] shrink-0" style={{ color: VIOLET }}>✓</span>
+                                  <Check size={13} aria-hidden className="mt-[2px] shrink-0" style={{ color: VIOLET }} />
                                   <span className="min-w-0 break-words">
                                     {c.text}
                                     {c.cefrLevel && (
@@ -813,6 +903,18 @@ export default function V2TcChecklistPage() {
                         </button>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
+                        {l.lektionId != null && (
+                          <button
+                            type="button"
+                            aria-label={t('allocate')}
+                            title={t('allocate')}
+                            onClick={() => setAllocLesson(l)}
+                            className="grid h-10 w-10 place-items-center rounded-ga transition-colors hover:bg-ga-side-active lg:h-8 lg:w-8"
+                            style={{ color: VIOLET }}
+                          >
+                            <CalendarRange size={15} />
+                          </button>
+                        )}
                         <button
                           type="button"
                           aria-label={t('edit')}
@@ -821,15 +923,18 @@ export default function V2TcChecklistPage() {
                         >
                           <Pencil size={15} />
                         </button>
-                        <button
-                          type="button"
-                          aria-label={t('deleteLesson')}
-                          onClick={() => removeLesson(l)}
-                          disabled={deletingId === l.id}
-                          className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red lg:h-8 lg:w-8"
-                        >
-                          {deletingId === l.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={15} />}
-                        </button>
+                        {/* Bài giáo trình không xoá được khỏi lớp (backend chặn, AC01) → ẩn hẳn nút. */}
+                        {l.lektionId == null && (
+                          <button
+                            type="button"
+                            aria-label={t('deleteLesson')}
+                            onClick={() => setConfirmLesson(l)}
+                            disabled={deletingId === l.id}
+                            className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red lg:h-8 lg:w-8"
+                          >
+                            {deletingId === l.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={15} />}
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -848,6 +953,53 @@ export default function V2TcChecklistPage() {
           </p>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmLesson != null}
+        onOpenChange={(o) => { if (!o) setConfirmLesson(null) }}
+        title={t('deleteDialogTitle')}
+        description={confirmLesson?.title}
+        details={[t('deleteConfirm')]}
+        confirmLabel={t('deleteDialogConfirm')}
+        cancelLabel={t('cancel')}
+        loading={deletingId != null}
+        onConfirm={() => { if (confirmLesson) void removeLesson(confirmLesson) }}
+      />
+      <ConfirmDialog
+        open={confirmModule != null}
+        onOpenChange={(o) => { if (!o) setConfirmModule(null) }}
+        title={t('module.deleteDialogTitle')}
+        description={confirmModule?.title}
+        details={[t('module.deleteConfirm')]}
+        confirmLabel={t('module.deleteDialogConfirm')}
+        cancelLabel={t('cancel')}
+        loading={moduleBusy}
+        onConfirm={() => { if (confirmModule) void removeModule(confirmModule) }}
+      />
+      {classId != null && (
+        <CurriculumImportWizard
+          classId={classId}
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          onImported={({ modulesCreated, lessonsCreated, firstModuleId }) => {
+            setImportOpen(false)
+            setFocusModuleId(firstModuleId ?? null)
+            toast.success(t('import.toastImported', { modules: modulesCreated, lessons: lessonsCreated }))
+            void load(classId)
+          }}
+        />
+      )}
+      {allocLesson && classId != null && (
+        <AllocationModal
+          classId={classId}
+          lesson={allocLesson}
+          onClose={() => {
+            setAllocLesson(null)
+            // Xác nhận trong modal có thể vừa làm bài hoàn thành/mở lại (AC07/AC08) → nạp lại list.
+            void load(classId)
+          }}
+        />
+      )}
     </div>
   )
 }

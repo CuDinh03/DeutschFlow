@@ -31,14 +31,13 @@ public class GoetheVocabularyAutoImportService {
             "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/de/de_50k.txt";
     private static final String GOETHE_AUTO_TAG = "GOETHE_AUTO";
 
-    // Cumulative targets requested by user
-    private static final int TARGET_A1_TOTAL = 500;
-    private static final int TARGET_A2_TOTAL = 1000;
-    private static final int TARGET_B1_TOTAL = 2000;
-    private static final int TARGET_B2_TOTAL = 4000;
-    private static final int TARGET_C1_TOTAL = 8000;
+    /** Trần số lemma mà trình import này quản lý (GOETHE_AUTO). Không còn hạn mức theo cấp: cấp do wordlist quyết. */
+    private static final int IMPORT_CAP = 8000;
+    /** Nguồn nhỏ hơn ngần này là dấu hiệu wordlist hỏng/tải thiếu — dừng sớm thay vì import rác. */
+    private static final int MIN_SOURCE_WORDS = 4000;
 
     private final JdbcTemplate jdbcTemplate;
+    private final CefrLevelResolver cefrLevelResolver;
     private final WiktionaryScraperService wiktionaryScraperService;
     private final DeepLTranslationService deepLTranslationService;
     private final LocalLexiconService localLexiconService;
@@ -76,9 +75,9 @@ public class GoetheVocabularyAutoImportService {
         }
         List<String> ordered = new ArrayList<>(unique.values());
 
-        if (ordered.size() < TARGET_B2_TOTAL) {
+        if (ordered.size() < MIN_SOURCE_WORDS) {
             throw new IllegalStateException(
-                    "Vocabulary source too small. Need at least " + TARGET_B2_TOTAL + " words, got " + ordered.size()
+                    "Vocabulary source too small. Need at least " + MIN_SOURCE_WORDS + " words, got " + ordered.size()
             );
         }
 
@@ -90,19 +89,14 @@ public class GoetheVocabularyAutoImportService {
         int unchanged = 0;
         int duplicatesSkipped = 0;
         int managedUniqueCount = 0;
-        Map<String, Integer> levelInserted = new LinkedHashMap<>(Map.of(
-                "A1", 0, "A2", 0, "B1", 0, "B2", 0, "C1", 0
-        ));
-        Map<String, Integer> levelUpdated = new LinkedHashMap<>(Map.of(
-                "A1", 0, "A2", 0, "B1", 0, "B2", 0, "C1", 0
-        ));
-        Map<String, Integer> levelUnchanged = new LinkedHashMap<>(Map.of(
-                "A1", 0, "A2", 0, "B1", 0, "B2", 0, "C1", 0
-        ));
+        int ungraded = 0;
+        Map<String, Integer> levelCounts = new LinkedHashMap<>();
 
         for (String word : ordered) {
-            if (managedUniqueCount >= TARGET_C1_TOTAL) break;
-            String level = levelForIndex(managedUniqueCount);
+            if (managedUniqueCount >= IMPORT_CAP) break;
+            // Cấp độ CHỈ từ wordlist chính thức. Trước 14/08/2026 chỗ này gán theo VỊ TRÍ trong danh sách
+            // (500 từ đầu = A1, …) — xem BAO_CAO_PHAN_CAP_TU_VUNG_2026-08-14.md.
+            String level = cefrLevelResolver.resolve(word).orElse(null);
 
             UpsertResult rs = upsertWord(word, level, tagId);
             boolean newlyTagged = attachWordToTag(rs.wordId(), tagId);
@@ -111,27 +105,25 @@ public class GoetheVocabularyAutoImportService {
                 continue;
             }
             managedUniqueCount++;
+            if (level == null) {
+                ungraded++;
+            } else {
+                levelCounts.merge(level, 1, Integer::sum);
+            }
             if (rs.inserted()) {
                 inserted++;
-                levelInserted.put(level, levelInserted.get(level) + 1);
             } else if (rs.updated()) {
                 updated++;
-                levelUpdated.put(level, levelUpdated.get(level) + 1);
             } else {
                 unchanged++;
-                levelUnchanged.put(level, levelUnchanged.get(level) + 1);
             }
         }
-
-        Map<String, Integer> managedPerLevel = managedCountsByLevel(tagId);
-        Map<String, Integer> managedCumulative = cumulativeCounts(managedPerLevel);
-        validateMinimums(managedCumulative);
 
         Map<String, Object> globalPerLevel = jdbcTemplate.query(
                 """
                 SELECT cefr_level, COUNT(*) AS total
                 FROM words
-                WHERE cefr_level IN ('A1','A2','B1','B2','C1')
+                WHERE cefr_level IN ('A1','A2','B1','B2','C1','C2')
                 GROUP BY cefr_level
                 """,
                 rs -> {
@@ -147,26 +139,18 @@ public class GoetheVocabularyAutoImportService {
         response.put("source", "Goethe B1 core + German frequency extension");
         response.put("goetheCoreWords", goetheCore.size());
         response.put("collectedWords", ordered.size());
-        response.put("importTarget", TARGET_C1_TOTAL);
+        response.put("importCap", IMPORT_CAP);
         response.put("managedUniqueImported", managedUniqueCount);
         response.put("duplicatesSkipped", duplicatesSkipped);
         response.put("inserted", inserted);
         response.put("updated", updated);
         response.put("unchanged", unchanged);
-        response.put("insertedByLevel", levelInserted);
-        response.put("updatedByLevel", levelUpdated);
-        response.put("unchangedByLevel", levelUnchanged);
-        response.put("managedLevelCounts", managedPerLevel);
-        response.put("managedCumulativeCounts", managedCumulative);
+        response.put("gradedByLevel", levelCounts);
+        response.put("ungraded", ungraded);
+        response.put("managedLevelCounts", managedCountsByLevel(tagId));
         response.put("globalDbCountsByLevel", globalPerLevel);
-        response.put("targets", Map.of(
-                "A1", TARGET_A1_TOTAL,
-                "A2", TARGET_A2_TOTAL,
-                "B1", TARGET_B1_TOTAL,
-                "B2", TARGET_B2_TOTAL,
-                "C1", TARGET_C1_TOTAL
-        ));
-        response.put("note", "Cumulative targets are guaranteed for GOETHE_AUTO managed vocabulary.");
+        response.put("wordlistCounts", cefrLevelResolver.countsByLevel());
+        response.put("note", "Cấp độ chỉ lấy từ wordlist chính thức; từ ngoài wordlist để CHƯA PHÂN CẤP.");
         return response;
     }
 
@@ -201,7 +185,9 @@ public class GoetheVocabularyAutoImportService {
             enrichGoetheWord(existingId, baseForm);
             return new UpsertResult(existingId, false, false);
         }
-        if (!level.equalsIgnoreCase(String.valueOf(currentLevel))) {
+        // level == null ⇒ wordlist chính thức không có từ này: giữ nguyên cấp hiện có, không đoán và không xoá
+        // (dọn cấp cũ sai là việc của OfficialCefrVocabularyImportService.reclassifyAllWords()).
+        if (level != null && !level.equalsIgnoreCase(String.valueOf(currentLevel))) {
             jdbcTemplate.update("UPDATE words SET cefr_level = ?, updated_at = NOW() WHERE id = ?", level, existingId);
             enrichGoetheWord(existingId, baseForm);
             return new UpsertResult(existingId, false, true);
@@ -536,14 +522,6 @@ public class GoetheVocabularyAutoImportService {
         unique.putIfAbsent(key, word);
     }
 
-    private String levelForIndex(int index) {
-        if (index < TARGET_A1_TOTAL) return "A1";
-        if (index < TARGET_A2_TOTAL) return "A2";
-        if (index < TARGET_B1_TOTAL) return "B1";
-        if (index < TARGET_B2_TOTAL) return "B2";
-        return "C1";
-    }
-
     private long ensureGoetheAutoTag() {
         jdbcTemplate.update(
                 "INSERT INTO tags (name, color) VALUES (?, ?) ON CONFLICT (name) DO UPDATE SET color = EXCLUDED.color",
@@ -611,40 +589,6 @@ public class GoetheVocabularyAutoImportService {
         );
         out.putAll(result);
         return out;
-    }
-
-    private Map<String, Integer> cumulativeCounts(Map<String, Integer> levelCounts) {
-        int a1 = levelCounts.getOrDefault("A1", 0);
-        int a2 = a1 + levelCounts.getOrDefault("A2", 0);
-        int b1 = a2 + levelCounts.getOrDefault("B1", 0);
-        int b2 = b1 + levelCounts.getOrDefault("B2", 0);
-        int c1 = b2 + levelCounts.getOrDefault("C1", 0);
-        Map<String, Integer> out = new LinkedHashMap<>();
-        out.put("A1", a1);
-        out.put("A2", a2);
-        out.put("B1", b1);
-        out.put("B2", b2);
-        out.put("C1", c1);
-        return out;
-    }
-
-    private void validateMinimums(Map<String, Integer> cumulative) {
-        Map<String, Integer> targets = new LinkedHashMap<>();
-        targets.put("A1", TARGET_A1_TOTAL);
-        targets.put("A2", TARGET_A2_TOTAL);
-        targets.put("B1", TARGET_B1_TOTAL);
-        targets.put("B2", TARGET_B2_TOTAL);
-
-        List<String> errors = new ArrayList<>();
-        for (Map.Entry<String, Integer> entry : targets.entrySet()) {
-            int actual = cumulative.getOrDefault(entry.getKey(), 0);
-            if (actual < entry.getValue()) {
-                errors.add(entry.getKey() + ": " + actual + "/" + entry.getValue());
-            }
-        }
-        if (!errors.isEmpty()) {
-            throw new IllegalStateException("Import finished but minimum targets not met: " + String.join(", ", errors));
-        }
     }
 
     private String fetchText(String url) {

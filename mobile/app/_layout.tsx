@@ -34,6 +34,8 @@ import { initCertPinning } from '@/lib/certPinning'
 import { initDeviceIntegrity } from '@/lib/deviceIntegrity'
 import { ThemeProvider, useTheme } from '@/lib/theme'
 import { SplashAnimated } from '@/components/SplashAnimated'
+import { MaintenanceOverlay } from '@/components/MaintenanceOverlay'
+import { useMaintenanceStore } from '@/stores/useMaintenanceStore'
 import { AiConsentHost } from '@/components/AiConsentSheet'
 import { PostHogProvider } from 'posthog-react-native'
 import { posthog, setSubscriptionTier } from '@/lib/analytics'
@@ -144,6 +146,9 @@ function RootLayout() {
     void useSrsOfflineStore.getState().sync()
     // Flush any chat messages that were queued (or failed to send) before a kill/restart.
     useChatOutboxStore.getState().flush()
+    // Thăm dò bảo trì lúc khởi động — KHÔNG cần token (khách ở màn đăng nhập cũng phải
+    // thấy màn chặn thay vì form login lỗi). Probe fetch trần, không đụng interceptor.
+    void useMaintenanceStore.getState().refresh()
   }, [])
 
   useEffect(() => {
@@ -156,6 +161,8 @@ function RootLayout() {
         void useSrsOfflineStore.getState().sync()
         // Retry chat sends that were queued or failed while the app was backgrounded/offline.
         useChatOutboxStore.getState().flush()
+        // Bắt kịp trạng thái bảo trì khi quay lại app (bật/tắt trong lúc nền).
+        void useMaintenanceStore.getState().refresh()
       }
     })
     return () => sub.remove()
@@ -219,6 +226,9 @@ function RootLayout() {
           </QueryClientProvider>
         </ThemeProvider>
       </SafeAreaProvider>
+      {/* Màn chặn bảo trì — sibling absolute-fill (zIndex 900) như splash (999), nên splash
+          thắng lúc khởi động, còn overlay hiện khi bảo trì đang bật. KHÔNG router.replace. */}
+      <MaintenanceOverlay />
       {splashDone ? null : <SplashAnimated ready={appReady} onDone={() => setSplashDone(true)} />}
     </GestureHandlerRootView>
   )

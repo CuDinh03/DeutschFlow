@@ -13,7 +13,7 @@ public class VocabularyQualityDailyJob {
 
     private final WordQueryService wordQueryService;
 
-    @Scheduled(cron = "${app.quality.daily-cron:0 15 2 * * *}")
+    @Scheduled(cron = "${app.quality.daily-cron:0 15 2 * * *}", zone = "Asia/Ho_Chi_Minh")
     @SchedulerLock(name = "vocabularyQualityDaily", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
     public void runDailySnapshot() {
         var nounCoverage = wordQueryService.coverage();

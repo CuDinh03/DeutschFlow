@@ -87,13 +87,13 @@ export interface ErrorItem {
   exampleCorrectDe: string | null
 }
 
-/** Adaptive hints from backend (`meta.adaptive` on chat / SSE done). */
+/**
+ * Adaptive hints from backend (`meta.adaptive` on chat / SSE done).
+ * Server chỉ còn gửi phần dành cho NGƯỜI HỌC — cefrEffective/focusCodes/targetStructures/
+ * difficultyKnob là cơ chế nội bộ, đã bị lộ ra UI 2 lần (04/08, 09/08) nên bị cắt từ DTO.
+ */
 export interface AdaptiveMeta {
   enabled: boolean
-  cefrEffective: string
-  difficultyKnob: number
-  focusCodes: string[]
-  targetStructures: string[]
   topicSuggestion: string | null
   forceRepairBeforeContinue: boolean
   primaryRepairErrorCode: string | null
@@ -520,6 +520,29 @@ export const aiSpeakingApi = {
   chat: (sessionId: number, userMessage: string) =>
     api.post<AiChatResponse>(`/ai-speaking/sessions/${sessionId}/chat`, { userMessage }),
 
+  /**
+   * Đ4 (04/08): gợi ý theo yêu cầu cho câu hỏi gần nhất của AI — backend mặc định không sinh
+   * suggestions trong lượt chat nữa. Endpoint trả SuggestionDto camelCase; map về snake_case
+   * của type Suggestion (hình dạng meta stream) để mọi UI hiện có dùng lại nguyên xi.
+   */
+  fetchSuggestions: (sessionId: number) =>
+    api.post<{ suggestions: Array<{
+      germanText: string
+      vietnameseTranslation: string | null
+      level: string | null
+      whyToUse: string | null
+      usageContext: string | null
+      legoStructure: string | null
+    }> }>(`/ai-speaking/sessions/${sessionId}/suggestions`, {}, { timeout: 30000 })
+      .then(r => (r.data.suggestions ?? []).map((s): Suggestion => ({
+        german_text: s.germanText,
+        vietnamese_translation: s.vietnameseTranslation ?? '',
+        level: s.level ?? '',
+        why_to_use: s.whyToUse ?? '',
+        usage_context: s.usageContext ?? '',
+        lego_structure: s.legoStructure ?? '',
+      }))),
+
   transcribe: (audioBlob: Blob) => {
     const mime = String(audioBlob.type || '').toLowerCase()
     const ext =
@@ -550,7 +573,10 @@ export const aiSpeakingApi = {
     api.get<SessionsPage>('/ai-speaking/sessions', { params: { page, size } }),
 
   endSession: (sessionId: number) =>
-    api.patch<AiSpeakingSession>(`/ai-speaking/sessions/${sessionId}/end`),
+    // /end SINH report LLM đồng bộ phía server (ConversationEvaluationService) — trên free tier
+    // Groq có thể mất >8s (retry/backoff). Timeout mặc định 8s làm FE bỏ cuộc giữa chừng và
+    // học viên mất "đánh giá chi tiết" dù server chấm xong (QA prod 04/08 23:48).
+    api.patch<AiSpeakingSession>(`/ai-speaking/sessions/${sessionId}/end`, undefined, { timeout: 45000 }),
 
   /**
    * Báo cáo AI cuối buổi cho phiên COMMUNICATION/LESSON (GR-1). Backend `parseReport` chỉ ĐỌC JSON

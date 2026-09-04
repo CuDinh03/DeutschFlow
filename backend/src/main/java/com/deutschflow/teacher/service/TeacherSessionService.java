@@ -1,5 +1,8 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.teacher.dto.TeacherSessionDto;
@@ -19,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +33,7 @@ public class TeacherSessionService {
 
     private final TeacherSessionRepository sessionRepository;
     private final TeacherProfileRepository profileRepository;
+    private final AuditLogService auditLogService;
 
     // ── Student: book a session ───────────────────────────────────────────────
 
@@ -110,20 +115,49 @@ public class TeacherSessionService {
         }
 
         Status target = Status.valueOf(newStatus.toUpperCase());
+        Status current = session.getStatus();
 
-        // Transition guard
+        // Vai trò: chỉ giáo viên mới xác nhận/hoàn thành.
         if (target == Status.CONFIRMED && !isTeacher) throw new ForbiddenException("Chỉ giáo viên mới có thể xác nhận");
         if (target == Status.COMPLETED && !isTeacher) throw new ForbiddenException("Chỉ giáo viên mới có thể hoàn thành");
+
+        // Audit R-H2: máy trạng thái tường minh. Trước đây không ràng buộc chuyển trạng thái nên
+        // giáo viên PATCH lại COMPLETED trên một phiên đã hoàn thành + đã chi trả → payoutStatus bị
+        // lật về PENDING vô điều kiện (xem dưới) → phiên đã trả tiền quay lại pending-payouts và bị
+        // trả LẦN HAI; học viên cũng huỷ được phiên đã hoàn thành, để lại payout treo. COMPLETED và
+        // CANCELLED là trạng thái cuối — không rời khỏi được.
+        if (!isValidTransition(current, target)) {
+            throw new BadRequestException(
+                    "Không thể chuyển phiên học từ " + current + " sang " + target + ".");
+        }
 
         session.setStatus(target);
         if (teacherNotes != null) session.setTeacherNotes(teacherNotes);
 
-        // Mark payout eligible when completed
-        if (target == Status.COMPLETED) {
+        // Đủ điều kiện chi trả khi hoàn thành — nhưng KHÔNG bao giờ hạ một payout đã PROCESSED/SKIPPED
+        // trở lại PENDING. Máy trạng thái ở trên đã chặn re-COMPLETED; guard này là hàng rào thứ hai
+        // phòng khi có đường khác gọi tới updateStatus.
+        if (target == Status.COMPLETED
+                && session.getPayoutStatus() != PayoutStatus.PROCESSED
+                && session.getPayoutStatus() != PayoutStatus.SKIPPED) {
             session.setPayoutStatus(PayoutStatus.PENDING);
         }
 
         return TeacherSessionDto.from(sessionRepository.save(session));
+    }
+
+    /**
+     * Chuyển trạng thái hợp lệ cho phiên học 1:1:
+     * PENDING → CONFIRMED | CANCELLED; CONFIRMED → COMPLETED | CANCELLED.
+     * COMPLETED và CANCELLED là trạng thái CUỐI (không chuyển đi đâu, kể cả về chính nó).
+     * Chặn re-COMPLETED chính là chốt chống double-payout của R-H2.
+     */
+    private boolean isValidTransition(Status from, Status to) {
+        return switch (from) {
+            case PENDING -> to == Status.CONFIRMED || to == Status.CANCELLED;
+            case CONFIRMED -> to == Status.COMPLETED || to == Status.CANCELLED;
+            case COMPLETED, CANCELLED -> false;
+        };
     }
 
     // ── Student: submit review ────────────────────────────────────────────────
@@ -166,13 +200,38 @@ public class TeacherSessionService {
     }
 
     @Transactional
-    public void markPayoutProcessed(List<Long> sessionIds) {
+    /**
+     * Audit F-M3 (03/09/2026): đây là thao tác TIỀN — đánh dấu đã chi trả cho giáo viên — và trước
+     * đây không để lại vết nào. Vết ghi ở SERVICE chứ không ở controller vì hai lẽ: nó nằm trong
+     * cùng transaction nghiệp vụ (rollback thì vết cũng biến mất, chỉ lần chi trả THÀNH CÔNG mới
+     * để lại dấu), và một entry point khác gọi thẳng service sau này vẫn tự động có vết.
+     *
+     * <p>Ghi một dòng cho cả lô, kèm danh sách id đã đổi trạng thái THẬT (id không tồn tại hoặc đã
+     * PROCESSED không được đếm) — vết phải nói đúng cái đã xảy ra, không phải cái được yêu cầu.
+     */
+    public void markPayoutProcessed(List<Long> sessionIds, AuditActor actor) {
+        List<Long> processed = new ArrayList<>();
         for (Long id : sessionIds) {
             sessionRepository.findById(id).ifPresent(s -> {
+                if (s.getPayoutStatus() == PayoutStatus.PROCESSED) {
+                    return;
+                }
                 s.setPayoutStatus(PayoutStatus.PROCESSED);
                 s.setPayoutProcessedAt(LocalDateTime.now());
                 sessionRepository.save(s);
+                processed.add(id);
             });
         }
+        auditLogService.log(
+                "admin.teacher_session.payout.marked_paid",
+                actor,
+                "TEACHER_SESSION",
+                null,
+                Map.of(
+                        "requestedCount", sessionIds == null ? 0 : sessionIds.size(),
+                        "processedCount", processed.size(),
+                        "processedSessionIds", processed
+                )
+        );
     }
 }

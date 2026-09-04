@@ -21,18 +21,28 @@ Notifications.setNotificationHandler({
 })
 
 /**
- * Requests notification permission (and sets the Android channel). Runs on every
- * platform — including the iOS Simulator — so notification *display* can be
- * exercised with `xcrun simctl push` even though an Expo push *token* is only
- * obtainable on a physical device.
+ * Đảm bảo có quyền thông báo để lấy push token.
+ *
+ * iOS: KHÔNG hỏi ở đây — chỉ đọc quyền hiện có. iOS chỉ cho hiện hộp thoại quyền
+ * đúng MỘT lần cho cả vòng đời cài đặt, nên "đốt" nó ở đường khởi động (effect
+ * keyed [userId] chạy ngay khi đăng ký/đăng nhập xong) làm hộp thoại bật đè lên
+ * bảng câu hỏi onboarding — vô ngữ cảnh, tỉ lệ từ chối cao, và người từ chối thì
+ * mất luôn tính năng nhắc học 20:00 vĩnh viễn (QA 2026-08-20, F-14).
+ * Nơi hỏi quyền DUY NHẤT trên iOS giờ là sheet nhắc học (lib/studyReminder.ts),
+ * đúng theo thiết kế pre-permission của onboarding v1 §7.2. Ai đã cấp quyền từ
+ * trước — hoặc vừa cấp qua sheet — vẫn đăng ký token bình thường ở đây.
+ *
+ * Android: giữ nguyên hỏi lúc khởi động. Android cho hỏi lại nhiều lần và học
+ * viên Android đang phụ thuộc push cho chat/chấm bài; siết lại là quyết định
+ * riêng, không gộp vào bản vá này.
  */
 async function ensureNotificationPermission(): Promise<boolean> {
-  const { status: existingStatus } = await Notifications.getPermissionsAsync()
-  let finalStatus = existingStatus
+  const existing = await Notifications.getPermissionsAsync()
+  let granted = existing.granted
 
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync()
-    finalStatus = status
+  if (!granted && Platform.OS === 'android') {
+    const asked = await Notifications.requestPermissionsAsync()
+    granted = asked.granted
   }
 
   if (Platform.OS === 'android') {
@@ -44,7 +54,7 @@ async function ensureNotificationPermission(): Promise<boolean> {
     })
   }
 
-  return finalStatus === 'granted'
+  return granted
 }
 
 /** Dev-only push diagnostics. `__DEV__` blocks are stripped from production bundles. */
@@ -83,6 +93,29 @@ async function registerForPushNotifications(): Promise<string | null> {
   }
 }
 
+/**
+ * Lấy push token và gửi lên backend — chỉ khi quyền ĐÃ được cấp (trên iOS hàm này
+ * không bao giờ tự bật hộp thoại; xem ensureNotificationPermission).
+ *
+ * Gọi ở hai chỗ: (1) mỗi lần đăng nhập / đổi tài khoản, để user đã cấp quyền từ
+ * trước không mất gì; (2) ngay sau khi user bật nhắc học trên sheet — đó là lúc
+ * quyền vừa được cấp, và nếu không gọi lại thì thiết bị phải chờ tới lần đăng
+ * nhập kế tiếp mới có token.
+ *
+ * Không bao giờ throw — hỏng push không được phép làm hỏng app.
+ */
+export async function registerPushTokenIfGranted(): Promise<void> {
+  const token = await registerForPushNotifications()
+  if (!token) return
+  try {
+    await api.post('/profile/me/push-token', { token, platform: Platform.OS })
+    logPush('token registered with backend')
+  } catch (error) {
+    // non-critical — push token registration failure must not break the app
+    logPush('failed to send token to /profile/me/push-token', error)
+  }
+}
+
 export function usePushNotifications() {
   // Key registration on the logged-in user's id, NOT a boolean. An Expo push token identifies the
   // DEVICE, so when a DIFFERENT account logs in on this phone the token must be re-registered for
@@ -97,16 +130,7 @@ export function usePushNotifications() {
 
   useEffect(() => {
     if (!userId) return
-    void registerForPushNotifications().then(async (token) => {
-      if (!token) return
-      try {
-        await api.post('/profile/me/push-token', { token, platform: Platform.OS })
-        logPush('token registered with backend')
-      } catch (error) {
-        // non-critical — push token registration failure must not break the app
-        logPush('failed to send token to /profile/me/push-token', error)
-      }
-    })
+    void registerPushTokenIfGranted()
   }, [userId])
 
   // Display/routing listeners are auth-independent (tap-routing lands on a screen

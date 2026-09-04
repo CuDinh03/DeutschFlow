@@ -1,5 +1,6 @@
 "use client";
 
+import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide';
 import { useState, useRef } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { scoreAttempt } from "@/lib/scoring/textScoring";
@@ -115,6 +116,7 @@ export default function ErrorRepairDrill({
       style={{ background: "rgba(22, 21, 19, 0.45)" }}
     >
       <div className="w-full max-w-md rounded-ga p-6 shadow-ga-panel border border-ga-line bg-ga-card">
+        <MicDeniedGuide className="mb-3" />
         <h3 className="font-ga-display text-ga-ink font-medium text-lg mb-1">{snippet.title}</h3>
         <p className="text-xs font-mono text-ga-gold mb-2">{errorCode}</p>
         <p className="text-sm text-ga-ink mb-1">{snippet.rule}</p>

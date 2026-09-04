@@ -49,6 +49,7 @@ public class AiSessionController {
     private static final long STT_ESTIMATED_TOKENS = 200L;
 
     private final AiSpeakingService aiSpeakingService;
+    private final com.deutschflow.speaking.service.SpeakingSuggestionService speakingSuggestionService;
     private final com.deutschflow.speaking.ai.GroqWhisperClient groqWhisperClient;
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
@@ -91,7 +92,7 @@ public class AiSessionController {
             @AuthenticationPrincipal User user,
             @RequestBody @Valid CreateSessionRequest request) {
         var auth = SecurityContextHolder.getContext().getAuthentication();
-        log.info("AI speaking createSession request path=/api/ai-speaking/sessions userId={} email={} authorities={} role={} topic={} cefrLevel={} persona={} responseSchema={} sessionMode={} interviewPosition={} experienceLevel={} assignmentId={}",
+        log.debug("AI speaking createSession request path=/api/ai-speaking/sessions userId={} email={} authorities={} role={} topic={} cefrLevel={} persona={} responseSchema={} sessionMode={} interviewPosition={} experienceLevel={} assignmentId={}",
                 user != null ? user.getId() : null,
                 user != null ? user.getEmail() : null,
                 auth != null ? auth.getAuthorities() : null,
@@ -122,12 +123,13 @@ public class AiSessionController {
             @RequestParam("audio") MultipartFile file) throws IOException {
         quotaService.assertAllowed(user.getId(), Instant.now(), STT_ESTIMATED_TOKENS);
         orgPoolGuard.assertOrgPoolAvailable(user.getId(), STT_ESTIMATED_TOKENS);
-        // Per-user request-rate guard on top of the quota wallet. Whisper costs ~$0.006/min and
-        // the wallet's audit lags by one call; without this, a single tight loop could rack up
-        // significant spend and pin the Whisper API before the quota even debits.
+        // Per-user request-rate guard on top of the quota wallet. STT is billed per audio minute
+        // (Fireworks whisper-v3-turbo $0.0009/min since 09/08/2026 — nguồn sự thật:
+        // AiCostEstimator.WHISPER_USD_PER_SEC) and the wallet's audit lags by one call; without
+        // this, a single tight loop could pin the STT endpoint before the quota even debits.
         requireAiBudget(Bucket.TRANSCRIBE, user.getId(), "Too many transcribe requests. Please slow down.");
         byte[] audio = readValidatedAudio(file);
-        log.info("Transcribing audio file: {} ({} bytes)", file.getOriginalFilename(), audio.length);
+        log.debug("Transcribing audio file: {} ({} bytes)", file.getOriginalFilename(), audio.length);
         TranscribeResult stt = groqWhisperClient.transcribe(
                 audio,
                 file.getOriginalFilename(),
@@ -137,6 +139,22 @@ public class AiSessionController {
         ledgerService.recordStt(user.getId(), "STT_TRANSCRIBE", groqWhisperClient.getWhisperModel(), stt.durationSeconds());
         return new TranscribeDto(stt.text());
     }
+
+    /**
+     * Đ4 (04/08): 2 gợi ý trả lời cho câu hỏi gần nhất của trợ lý — sinh THEO YÊU CẦU thay vì kèm
+     * mọi lượt chat (config {@code speaking.suggestionsMode}, mặc định on_demand). Dùng chung
+     * bucket CHAT + quota ví như lượt chat; client cache theo messageId để bấm lại không gọi lại.
+     */
+    @PostMapping("/sessions/{id}/suggestions")
+    public SpeakingSuggestionsResponse suggestions(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
+        requireAiBudget(Bucket.CHAT, user.getId(), "Too many suggestion requests. Please slow down.");
+        return new SpeakingSuggestionsResponse(speakingSuggestionService.suggestForLastAiTurn(user.getId(), id));
+    }
+
+    /** Envelope cho {@link #suggestions} — cùng hình dạng SuggestionDto với response lượt chat. */
+    public record SpeakingSuggestionsResponse(java.util.List<AiSpeakingChatResponse.SuggestionDto> suggestions) {}
 
     @PostMapping("/sessions/{id}/chat")
     public AiSpeakingChatResponse chat(

@@ -53,16 +53,19 @@ class UserLearningProfileServicePreviewMentorTest {
 
     private void onPlan(String code) {
         when(quotaService.resolvePlanBadge(anyLong(), any()))
-                .thenReturn(new PlanBadge(code, "BASIC", null, null));
+                .thenReturn(new PlanBadge(code, "BASIC", null, null, false, null));
     }
 
     @Test
-    @DisplayName("FREE + WORK/IT → assigned ANNA, upsell LUKAS")
+    @DisplayName("FREE + WORK/IT → assigned JONAS (mentor nhập môn ngành IT), upsell LUKAS")
     void free_it_hasUpsell() {
         onPlan("FREE");
         OnboardingMentorResponse r = service.previewMentor(user(), "WORK", "IT", "B2");
-        assertThat(r.code()).isEqualTo("ANNA");
-        assertThat(r.displayName()).isEqualTo("Anna");
+        // F-15: trước đây họ IT không có persona BEGINNER nên tài khoản FREE nhận
+        // ANNA — thẻ mentor trong onboarding vì thế giống hệt nhau ở mọi lĩnh vực.
+        assertThat(r.code()).isEqualTo("JONAS");
+        assertThat(r.displayName()).isEqualTo("Jonas");
+        // Upsell vẫn trỏ tới chuyên gia của ngành, nên động lực lên PRO không mất.
         assertThat(r.upsellCode()).isEqualTo("LUKAS");
         assertThat(r.upsellDisplayName()).isEqualTo("Lukas");
     }

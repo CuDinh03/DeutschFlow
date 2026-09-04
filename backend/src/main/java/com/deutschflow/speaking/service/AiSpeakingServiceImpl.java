@@ -154,6 +154,11 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             SpeakingPersona persona = SpeakingPersona.fromApi(personaRaw);
             SpeakingResponseSchema responseSchema = SpeakingResponseSchema.fromApi(responseSchemaRaw);
             SpeakingSessionMode sessionMode = SpeakingSessionMode.fromApi(sessionModeRaw);
+            // Owner chốt 11/08: phỏng vấn xin việc yêu cầu trình độ TỪ B1 TRỞ LÊN — hồ sơ A0/A1
+            // từng kéo cả phiên phỏng vấn xuống A1 (câu hỏi lẫn đánh giá đều lệch ngữ cảnh tuyển dụng).
+            if (sessionMode == SpeakingSessionMode.INTERVIEW) {
+                resolved = com.deutschflow.speaking.util.SpeakingCefrSupport.floorAtBand(resolved, "B1");
+            }
             validateCreateSessionRequest(sessionMode, interviewPosition, experienceLevel, personaRaw, responseSchemaRaw);
             session = buildSpeakingSession(userId, topic, resolved, persona, responseSchema,
                     sessionMode, interviewPosition, experienceLevel, assignmentId);
@@ -303,8 +308,12 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         InterviewPromptContext interviewContext = chatPrepService.buildGreetingInterviewContext(sessionMode, sessionRow, persona);
         String systemPrompt = chatPrepService.buildGreetingSystemPrompt(profile, knownInterests, topic, weakPoints, cefrLevel, policy,
                 persona, responseSchema, sessionMode, sessionRow, interviewContext);
-        List<ChatMessage> messages = chatPrepService.buildGreetingMessages(systemPrompt, persona, topic, weakPoints, sessionMode,
-                sessionRow, interviewContext);
+        // Đ2: system prompt greeting giờ là bản TĨNH (làm ấm prefix-cache cho các lượt chat sau);
+        // learner context + adaptive policy đi qua khối động riêng. INTERVIEW: dynamic=null như cũ.
+        String greetingDynamicContext = chatPrepService.buildGreetingDynamicContext(
+                profile, knownInterests, weakPoints, cefrLevel, policy, sessionMode);
+        List<ChatMessage> messages = ChatPrepService.buildGreetingMessages(systemPrompt, greetingDynamicContext,
+                persona, topic, weakPoints, sessionMode, sessionRow, interviewContext, profile.getIndustry());
         int greetMaxTokens = chatPrepService.resolveGreetingMaxTokens(userId);
 
         AiChatCompletionResult result = openAiChatClient.chatCompletion(
@@ -313,13 +322,15 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         AiResponseDto parsed = parseGreetingResponse(result, responseSchema, userId, sessionId, policy, systemPrompt,
                 cefrLevel, topic, sessionMode, interviewContext, greetMaxTokens, persona);
 
+        // QA 09/08 (J6): greeting là lượt AI MỞ ĐẦU — học viên chưa nói gì nên feedback kiểu
+        // "Bạn làm tốt" là khen vào khoảng không, làm phản hồi mất giá trị. Bỏ hẳn ở greeting.
         AiSpeakingMessage msg = messageRepository.save(AiSpeakingMessage.builder()
                 .sessionId(sessionId)
                 .role(MessageRole.ASSISTANT)
                 .aiSpeechDe(parsed.aiSpeechDe())
                 .explanationVi(parsed.explanationVi())
                 .assistantAction(parsed.action())
-                .assistantFeedback(parsed.feedback())
+                .assistantFeedback(null)
                 .createdAt(LocalDateTime.now())
                 .build());
 
@@ -351,7 +362,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                 null,
                 parsed.status(),
                 parsed.similarityScore(),
-                parsed.feedback(),
+                null,
                 List.of(),
                 responseSchema.name(),
                 parsed.action(),
@@ -479,7 +490,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
 
         turnSideEffectsService.applyTurnSideEffects(prep, userMessage, parsed, reliableParse, ai, assistantMsg.getId(), effectiveProfile, profile, session, ledgerPurpose);
 
-        AdaptiveMetaDto adaptive = AdaptiveMetaDto.fromPolicyAndResponse(prep.policy(), parsed);
+        AdaptiveMetaDto adaptive = AdaptiveMetaDto.fromPolicyAndResponse(prep.policy(), parsed, prep.topic());
         if (adaptive != null && adaptive.forceRepairBeforeContinue()) {
             speakingMetrics.recordForceRepair();
         }
@@ -637,7 +648,12 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     }
 
     private ErrorItemDto toErrorItemDto(UserGrammarError e) {
-        String code = e.getErrorCode() != null ? e.getErrorCode() : e.getGrammarPoint();
+        // QA 09/08 mục G: đây là đường rò mã thô ra UI — fallback grammarPoint là TEXT TỰ DO của
+        // model ("V2_main_clause") và không qua chốt catalog nào (khác đường chat đi qua
+        // AiResponseParser). Chỉ phát mã đã chuẩn hoá về catalog; ngoài catalog → null để client
+        // dùng nhãn người-đọc-được (ruleViShort / nhãn chung).
+        String code = com.deutschflow.speaking.ai.ErrorCatalog.normalize(
+                e.getErrorCode() != null ? e.getErrorCode() : e.getGrammarPoint());
         return new ErrorItemDto(
                 code,
                 e.getSeverity(),

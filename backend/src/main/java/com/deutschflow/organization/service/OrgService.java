@@ -1,8 +1,10 @@
 package com.deutschflow.organization.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.dto.OrgClassDetailDto;
+import com.deutschflow.organization.dto.OrgClassTeacherDto;
 import com.deutschflow.organization.dto.OrgClassDto;
 import com.deutschflow.organization.dto.OrgClassStudentDto;
 import com.deutschflow.organization.dto.OrgMemberDto;
@@ -29,6 +31,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -152,6 +155,108 @@ public class OrgService {
     }
 
     /**
+     * Đổi giáo viên phụ trách của một lớp đã tồn tại (nút "Phân công" trang GV org).
+     *
+     * <p>404 nếu lớp không thuộc {@code orgId} (chống IDOR). {@code teacherId} phải là TEACHER
+     * ACTIVE của chính org — cùng rule với {@link #createClass}. Đồng bộ {@code class_teachers}:
+     * GV cũ KHÔNG bị gỡ khỏi lớp mà hạ vai xuống ASSISTANT (quyết định owner 05/08 — giữ GV cũ
+     * làm trợ giảng); GV mới upsert PRIMARY (đang là ASSISTANT thì thăng vai — hoán đổi hai chiều).
+     * Muốn GV cũ rời hẳn lớp, org-admin gỡ trợ giảng qua {@link #removeAssistantTeacher}.
+     * Gán lại chính GV đang phụ trách là no-op idempotent.
+     */
+    @Transactional
+    public OrgClassDto assignClassTeacher(Long orgId, Long classId, Long teacherId) {
+        if (teacherId == null) {
+            throw new BadRequestException("Phải chọn giáo viên phụ trách");
+        }
+        TeacherClass tc = teacherClassRepository.findById(classId)
+                .filter(c -> orgId.equals(c.getOrgId()))
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp trong tổ chức"));
+        OrgMember teacherMember = memberRepo.findByIdOrgIdAndIdUserId(orgId, teacherId)
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()) && ROLE_TEACHER.equals(m.getRole()))
+                .orElseThrow(() -> new BadRequestException("Giáo viên không hợp lệ hoặc không thuộc tổ chức"));
+
+        Long newTeacherId = teacherMember.getId().getUserId();
+        Long oldTeacherId = tc.getTeacherId();
+        if (newTeacherId.equals(oldTeacherId)) {
+            return toClassDto(tc);
+        }
+
+        tc.setTeacherId(newTeacherId);
+        TeacherClass saved = teacherClassRepository.save(tc);
+
+        if (oldTeacherId != null) {
+            classTeacherRepository.findById(new ClassTeacherId(classId, oldTeacherId))
+                    .filter(ct -> "PRIMARY".equals(ct.getRole()))
+                    .ifPresent(ct -> {
+                        ct.setRole("ASSISTANT");
+                        classTeacherRepository.save(ct);
+                    });
+        }
+        ClassTeacher primaryRow = classTeacherRepository.findById(new ClassTeacherId(classId, newTeacherId))
+                .orElseGet(() -> ClassTeacher.builder()
+                        .id(new ClassTeacherId(classId, newTeacherId))
+                        .build());
+        primaryRow.setRole("PRIMARY");
+        classTeacherRepository.save(primaryRow);
+
+        return toClassDto(saved);
+    }
+
+    /**
+     * Thêm một trợ giảng (ASSISTANT) vào lớp từ console tổ chức (PR A trợ giảng).
+     *
+     * <p>404 nếu lớp không thuộc {@code orgId}; 400 nếu {@code teacherId} không phải TEACHER
+     * ACTIVE của org; 409 nếu giáo viên đã tham gia lớp (PRIMARY hoặc ASSISTANT). Đối xứng với
+     * luồng giáo viên chính tự thêm trợ giảng ({@code TeacherService.addCoTeacher}) nhưng quyền
+     * là org-admin thay vì PRIMARY của lớp.
+     */
+    @Transactional
+    public OrgClassTeacherDto addAssistantTeacher(Long orgId, Long classId, Long teacherId) {
+        if (teacherId == null) {
+            throw new BadRequestException("Phải chọn giáo viên");
+        }
+        teacherClassRepository.findById(classId)
+                .filter(c -> orgId.equals(c.getOrgId()))
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp trong tổ chức"));
+        OrgMember member = memberRepo.findByIdOrgIdAndIdUserId(orgId, teacherId)
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()) && ROLE_TEACHER.equals(m.getRole()))
+                .orElseThrow(() -> new BadRequestException("Giáo viên không hợp lệ hoặc không thuộc tổ chức"));
+
+        Long resolvedId = member.getId().getUserId();
+        if (classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, resolvedId)) {
+            throw new ConflictException("Giáo viên này đã tham gia lớp");
+        }
+        classTeacherRepository.save(ClassTeacher.builder()
+                .id(new ClassTeacherId(classId, resolvedId))
+                .role("ASSISTANT")
+                .build());
+
+        User u = userRepository.findById(resolvedId).orElse(null);
+        return new OrgClassTeacherDto(resolvedId,
+                u != null ? u.getEmail() : null,
+                u != null ? u.getDisplayName() : null,
+                "ASSISTANT");
+    }
+
+    /**
+     * Gỡ một trợ giảng khỏi lớp từ console tổ chức. Không gỡ được PRIMARY — muốn thay giáo viên
+     * phụ trách phải dùng {@link #assignClassTeacher} (giữ bất biến: lớp luôn có đúng 1 PRIMARY).
+     */
+    @Transactional
+    public void removeAssistantTeacher(Long orgId, Long classId, Long teacherId) {
+        teacherClassRepository.findById(classId)
+                .filter(c -> orgId.equals(c.getOrgId()))
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp trong tổ chức"));
+        ClassTeacher row = classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))
+                .orElseThrow(() -> new NotFoundException("Giáo viên không thuộc lớp này"));
+        if ("PRIMARY".equals(row.getRole())) {
+            throw new BadRequestException("Không thể gỡ giáo viên phụ trách — hãy đổi giáo viên phụ trách trước");
+        }
+        classTeacherRepository.delete(row);
+    }
+
+    /**
      * Chi tiết một lớp thuộc tổ chức (B1.1): tên giáo viên + roster học viên (kèm skill_*).
      * 404 nếu lớp không tồn tại hoặc không thuộc {@code orgId} (chống IDOR — không lộ lớp org khác).
      */
@@ -184,9 +289,26 @@ public class OrgService {
                 })
                 .toList();
 
+        // PR A trợ giảng: toàn bộ giáo viên của lớp (PRIMARY trước), batch-load user để tránh N+1.
+        List<ClassTeacher> teacherRows = classTeacherRepository.findByIdClassId(classId);
+        Map<Long, User> teacherUsers = userRepository.findAllById(
+                        teacherRows.stream().map(ct -> ct.getId().getTeacherId()).toList()).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+        List<OrgClassTeacherDto> teachers = teacherRows.stream()
+                .sorted(Comparator.comparing((ClassTeacher ct) -> !"PRIMARY".equals(ct.getRole())))
+                .map(ct -> {
+                    User u = teacherUsers.get(ct.getId().getTeacherId());
+                    return new OrgClassTeacherDto(
+                            ct.getId().getTeacherId(),
+                            u != null ? u.getEmail() : null,
+                            u != null ? u.getDisplayName() : null,
+                            ct.getRole());
+                })
+                .toList();
+
         return new OrgClassDetailDto(
                 tc.getId(), tc.getName(), tc.getInviteCode(), tc.getTeacherId(),
-                teacherName, tc.getCreatedAt(), students.size(), students);
+                teacherName, tc.getCreatedAt(), students.size(), students, teachers);
     }
 
     /**

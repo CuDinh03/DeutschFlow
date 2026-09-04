@@ -18,7 +18,6 @@ export interface AiCompanion {
   name: string;           // VD: "Lukas", "Emma"
   avatarUrl: string;      // URL hình ảnh nhân vật
   voiceId: string;        // ID giọng đọc cho TTS (browser fallback)
-  voiceFile?: string | null; // Local voice file name (e.g. "lukas.wav") under /public/voices/
   personality: string;    // Tính cách (VD: "Nghiêm túc, hay sửa lỗi", "Thân thiện, động viên")
   cefrLevel: string;      // VD: "A1-A2", "B1-B2"
 }

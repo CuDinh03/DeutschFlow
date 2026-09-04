@@ -56,6 +56,15 @@ public class ClassLessonController {
         return ResponseEntity.noContent().build();
     }
 
+    /** PR-4: mục bắt buộc của Lektion mà bài sinh từ — nguồn cho màn phân bổ theo buổi. */
+    @GetMapping("/{lessonId}/curriculum-items")
+    public ResponseEntity<List<ClassLessonService.CurriculumItemLiteDto>> curriculumItems(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long classId,
+            @PathVariable Long lessonId) {
+        return ResponseEntity.ok(lessonService.curriculumItems(user.getId(), classId, lessonId));
+    }
+
     @PostMapping("/reorder")
     public ResponseEntity<List<ClassLessonDto>> reorder(
             @AuthenticationPrincipal User user,

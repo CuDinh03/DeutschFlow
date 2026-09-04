@@ -3,6 +3,7 @@ package com.deutschflow.speaking.ai;
 import com.deutschflow.interview.prompt.InterviewPromptBuilder;
 import com.deutschflow.speaking.contract.SpeakingResponseSchema;
 import com.deutschflow.speaking.contract.SpeakingSessionMode;
+import com.deutschflow.speaking.dto.SpeakingPromptRequest;
 import com.deutschflow.speaking.interview.PersonaInterviewRegistry;
 import com.deutschflow.speaking.persona.SpeakingPersona;
 import com.deutschflow.system.service.SystemConfigService;
@@ -51,8 +52,10 @@ class SystemPromptBuilderRegressionTest {
 
     @Test
     void communicationPrompt_includesTopicAndPersonaAnchors() {
-        String prompt = builder.buildSystemPrompt(
-                profile(), List.of("coding", "debugging"), "DevOps", List.of(), "B1", SpeakingPersona.LUKAS);
+        String prompt = builder.buildSystemPrompt(SpeakingPromptRequest.builder()
+                .profile(profile()).knownInterests(List.of("coding", "debugging"))
+                .topic("DevOps").sessionCefrLevel("B1").persona(SpeakingPersona.LUKAS)
+                .build());
 
         assertThat(prompt).contains("Target_Topic: DevOps");
         assertThat(prompt).contains("PERSONA (Lukas");
@@ -61,10 +64,13 @@ class SystemPromptBuilderRegressionTest {
 
     @Test
     void interviewPrompt_includesTurnDirectiveAndClosingRules() {
-        String prompt = builder.buildSystemPrompt(
-                profile(), List.of("architecture"), "Interview", List.of(), "B2",
-                null, SpeakingPersona.LUKAS, SpeakingResponseSchema.V1, SpeakingSessionMode.INTERVIEW,
-                "Senior Backend Developer", "5Y", 3);
+        String prompt = builder.buildSystemPrompt(SpeakingPromptRequest.builder()
+                .profile(profile()).knownInterests(List.of("architecture"))
+                .topic("Interview").sessionCefrLevel("B2")
+                .persona(SpeakingPersona.LUKAS).responseSchema(SpeakingResponseSchema.V1)
+                .sessionMode(SpeakingSessionMode.INTERVIEW)
+                .interviewPosition("Senior Backend Developer").experienceLevel("5Y").turnCount(3)
+                .build());
 
         assertThat(prompt).contains("TURN_DIRECTIVE");
         assertThat(prompt).contains("CHALLENGE-PFLICHT");
@@ -74,10 +80,13 @@ class SystemPromptBuilderRegressionTest {
 
     @Test
     void interviewPromptForVietnamesePersona_keepsVietnameseInterviewInstructions() {
-        String prompt = builder.buildSystemPrompt(
-                profile(), List.of("architecture"), "Interview", List.of(), "B2",
-                null, SpeakingPersona.TUAN, SpeakingResponseSchema.V1, SpeakingSessionMode.INTERVIEW,
-                "Kỹ sư backend", "5Y", 3);
+        String prompt = builder.buildSystemPrompt(SpeakingPromptRequest.builder()
+                .profile(profile()).knownInterests(List.of("architecture"))
+                .topic("Interview").sessionCefrLevel("B2")
+                .persona(SpeakingPersona.TUAN).responseSchema(SpeakingResponseSchema.V1)
+                .sessionMode(SpeakingSessionMode.INTERVIEW)
+                .interviewPosition("Kỹ sư backend").experienceLevel("5Y").turnCount(3)
+                .build());
 
         assertThat(prompt).contains("TURN_DIRECTIVE");
         assertThat(prompt).contains("tiếng VIỆT");
@@ -86,8 +95,10 @@ class SystemPromptBuilderRegressionTest {
 
     @Test
     void lessonPromptForVietnamesePersona_keepsVietnameseInstructions() {
-        String prompt = builder.buildSystemPrompt(
-                profile(), List.of(), "Alphabet", List.of(), "A1", SpeakingPersona.TUAN);
+        String prompt = builder.buildSystemPrompt(SpeakingPromptRequest.builder()
+                .profile(profile()).topic("Alphabet").sessionCefrLevel("A1")
+                .persona(SpeakingPersona.TUAN)
+                .build());
 
         assertThat(prompt).contains("CHẾ ĐỘ GIAO TIẾP");
         assertThat(prompt).contains("tiếng VIỆT");

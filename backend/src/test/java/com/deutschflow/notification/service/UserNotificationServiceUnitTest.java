@@ -49,6 +49,9 @@ class UserNotificationServiceUnitTest {
     @Mock ScheduledBroadcastRepository scheduledBroadcastRepository;
     @Mock ExpoPushSenderService expoPushSenderService;
     @Spy NotificationContentRenderer contentRenderer = new NotificationContentRenderer();
+    @Spy com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+    /** Guard THẬT (mỗi test một instance mới → cửa sổ sạch) — mock trả false mặc định sẽ chặn nhầm mọi lượt gửi. */
+    @Spy BroadcastDedupeGuard dedupeGuard = new BroadcastDedupeGuard(300);
 
     @InjectMocks
     UserNotificationService service;
@@ -76,6 +79,57 @@ class UserNotificationServiceUnitTest {
         verify(scheduledBroadcastRepository, never()).save(any());
     }
 
+    // ── C1/F-M9 + R-M6: cửa sổ chống gửi-trùng ─────────────────────────────────────
+
+    @Test
+    @DisplayName("C1: broadcast giống hệt lần hai trong cửa sổ dedupe → 409, KHÔNG fan-out lần nữa")
+    void broadcast_duplicateWithinWindow_throwsConflict() {
+        User active = org.mockito.Mockito.mock(User.class);
+        when(active.getId()).thenReturn(42L);
+        when(userRepository.findByActiveTrue()).thenReturn(List.of(active));
+
+        service.broadcastToAudience(allAudience(null)); // lượt đầu: gửi thật
+
+        assertThatThrownBy(() -> service.broadcastToAudience(allAudience(null)))
+                .isInstanceOf(com.deutschflow.common.exception.ConflictException.class)
+                .hasMessageContaining("trùng lặp");
+        // Fan-out chỉ xảy ra ĐÚNG MỘT lần — double-click không thành hai lượt push toàn hệ.
+        verify(notificationRepository, org.mockito.Mockito.times(1)).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("R-M6: cùng (windowId, kind) bảo trì lần hai trong cửa sổ → bỏ qua ÊM (trả 0, không ném)")
+    void maintenanceBroadcast_duplicateWindowKind_skipsSilently() {
+        User active = org.mockito.Mockito.mock(User.class);
+        when(active.getId()).thenReturn(42L);
+        when(userRepository.findByActiveTrue()).thenReturn(List.of(active));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("kind", "UPDATED");
+        payload.put("windowId", 7L);
+        payload.put("title", "Bảo trì hệ thống");
+
+        int first = service.broadcastSystemMaintenance(payload, false);
+        int second = service.broadcastSystemMaintenance(payload, false);
+
+        assertThat(first).isEqualTo(1);
+        assertThat(second).isZero(); // PATCH đổi giờ liên tiếp không thành chuỗi push lặp
+        verify(notificationRepository, org.mockito.Mockito.times(1)).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("R-M6: kind khác nhau của cùng window là các mốc vòng đời — không chặn lẫn nhau")
+    void maintenanceBroadcast_differentKinds_bothSend() {
+        User active = org.mockito.Mockito.mock(User.class);
+        when(active.getId()).thenReturn(42L);
+        when(userRepository.findByActiveTrue()).thenReturn(List.of(active));
+        Map<String, Object> scheduled = new LinkedHashMap<>(Map.of("kind", "SCHEDULED", "windowId", 7L, "title", "T"));
+        Map<String, Object> updated = new LinkedHashMap<>(Map.of("kind", "UPDATED", "windowId", 7L, "title", "T"));
+
+        assertThat(service.broadcastSystemMaintenance(scheduled, false)).isEqualTo(1);
+        assertThat(service.broadcastSystemMaintenance(updated, false)).isEqualTo(1);
+        verify(notificationRepository, org.mockito.Mockito.times(2)).saveAll(any());
+    }
+
     @Test
     @DisplayName("immediate broadcast sends an Expo push to recipients that have a push token")
     void broadcast_immediate_sendsExpoPush() {
@@ -88,9 +142,43 @@ class UserNotificationServiceUnitTest {
 
         // Regression: deliverBroadcast previously omitted the push fan-out, so admin
         // and scheduled broadcasts (which carry real title/body) never reached mobile.
-        verify(expoPushSenderService).sendAsync(eq("ExponentPushToken[abc]"), eq("Title"), eq("Body"), any());
+        // B3: fan-out đi qua Expo batch API — một sendBatchAsync mang message đã render.
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ExpoPushSenderService.PushMessage>> pushCaptor =
+                ArgumentCaptor.forClass((Class) List.class);
+        verify(expoPushSenderService).sendBatchAsync(pushCaptor.capture());
+        assertThat(pushCaptor.getValue()).singleElement().satisfies(msg -> {
+            assertThat(msg.token()).isEqualTo("ExponentPushToken[abc]");
+            assertThat(msg.title()).isEqualTo("Title");
+            assertThat(msg.body()).isEqualTo("Body");
+        });
         // ...and prove the push text comes through the shared renderer, not raw payload reads.
         verify(contentRenderer).render(eq(NotificationType.ADMIN_BROADCAST), any());
+    }
+
+    @Test
+    @DisplayName("B3: fan-out cả lớp = MỘT findAllById + MỘT sendBatchAsync (không sendAsync lẻ nào)")
+    void classFanOut_batchesRecipientLoadAndPush() {
+        when(jdbcTemplate.queryForList(contains("class_students"), eq(Long.class), eq(10L)))
+                .thenReturn(List.of(200L, 300L));
+        when(jdbcTemplate.queryForList(contains("class_teachers"), eq(Long.class), eq(10L)))
+                .thenReturn(List.of());
+        User u200 = activeUser(200L);
+        when(u200.getPushToken()).thenReturn("ExponentPushToken[a]");
+        User u300 = activeUser(300L);
+        when(u300.getPushToken()).thenReturn("ExponentPushToken[b]");
+        when(userRepository.findAllById(any())).thenReturn(List.of(u200, u300));
+
+        service.notifyClassChannelMessage(10L, "A1", 100L, "An", "hi");
+
+        verify(userRepository, org.mockito.Mockito.times(1)).findAllById(any());
+        verify(userRepository, never()).findById(any());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ExpoPushSenderService.PushMessage>> pushCaptor =
+                ArgumentCaptor.forClass((Class) List.class);
+        verify(expoPushSenderService, org.mockito.Mockito.times(1)).sendBatchAsync(pushCaptor.capture());
+        assertThat(pushCaptor.getValue()).hasSize(2);
+        verify(expoPushSenderService, never()).sendAsync(any(), any(), any(), any());
     }
 
     @Test
@@ -119,15 +207,13 @@ class UserNotificationServiceUnitTest {
                 .thenReturn(List.of(100L, 200L, 300L));
         when(jdbcTemplate.queryForList(contains("class_teachers"), eq(Long.class), eq(10L)))
                 .thenReturn(List.of(5L));
-        // Build the recipient mocks BEFORE stubbing findById — activeUser() itself calls when(),
+        // Build the recipient mocks BEFORE stubbing findAllById — activeUser() itself calls when(),
         // and nesting that inside a when(...).thenReturn(...) argument trips Mockito's strict
-        // UnfinishedStubbing check.
+        // UnfinishedStubbing check. B3: fan-out nạp người nhận bằng MỘT findAllById.
         User u200 = activeUser(200L);
         User u300 = activeUser(300L);
         User u5 = activeUser(5L);
-        when(userRepository.findById(200L)).thenReturn(Optional.of(u200));
-        when(userRepository.findById(300L)).thenReturn(Optional.of(u300));
-        when(userRepository.findById(5L)).thenReturn(Optional.of(u5));
+        when(userRepository.findAllById(any())).thenReturn(List.of(u200, u300, u5));
 
         service.notifyClassChannelMessage(10L, "A1 Sáng", senderId, "An", "chào cả lớp");
 
@@ -332,6 +418,71 @@ class UserNotificationServiceUnitTest {
 
         service.onAccountDeleted(99L, "gone@x.com", "Gone");
 
+        verify(notificationRepository, never()).save(any());
+    }
+
+    // ── F-QA-01: chấm lại không phát thêm thông báo — cập nhật tại chỗ ───
+
+    @Test
+    @DisplayName("F-QA-01: onAssignmentRegraded cập nhật TẠI CHỖ dòng cũ — không insert dòng mới, không push Expo")
+    void onAssignmentRegraded_refreshesInPlace_noNewRowNoPush() {
+        User student = org.mockito.Mockito.mock(User.class);
+        when(student.isActive()).thenReturn(true);
+        when(userRepository.findById(200L)).thenReturn(Optional.of(student));
+        when(notificationRepository.refreshLatestByContext(eq(200L), eq("ASSIGNMENT_GRADED"), any(), any()))
+                .thenReturn(1);
+
+        service.onAssignmentRegraded(200L, "ASSIGNMENT", 10L, 90, "sửa lại");
+
+        ArgumentCaptor<String> matchCap = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> payloadCap = ArgumentCaptor.forClass(String.class);
+        verify(notificationRepository).refreshLatestByContext(
+                eq(200L), eq("ASSIGNMENT_GRADED"), matchCap.capture(), payloadCap.capture());
+        // Khớp đúng bài (type + referenceId), payload mới mang điểm hiện tại + cờ updated.
+        assertThat(matchCap.getValue()).contains("\"assignmentType\":\"ASSIGNMENT\"").contains("\"referenceId\":10");
+        assertThat(payloadCap.getValue()).contains("\"score\":90").contains("\"updated\":true");
+        // Không có dòng mới (hết spam 3-tin/1-phút), không push Expo cho lần sửa — chỉ badge SSE.
+        verify(notificationRepository, never()).save(any());
+        verify(expoPushSenderService, never()).sendAsync(any(), any(), any(), any());
+        verify(unreadPushCoordinator).afterCommit(200L);
+    }
+
+    @Test
+    @DisplayName("F-QA-01: hộp thư không còn dòng của bài → onAssignmentRegraded chèn MỘT dòng 'đã cập nhật' (kèm push copy mới)")
+    void onAssignmentRegraded_noPriorRow_insertsSingleUpdatedRow() {
+        User student = activeUser(200L);
+        when(student.getPushToken()).thenReturn("ExponentPushToken[r]");
+        when(userRepository.findById(200L)).thenReturn(Optional.of(student));
+        when(notificationRepository.refreshLatestByContext(eq(200L), eq("ASSIGNMENT_GRADED"), any(), any()))
+                .thenReturn(0);
+        when(notificationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.onAssignmentRegraded(200L, "ASSIGNMENT", 10L, 90, "sửa lại");
+
+        UserNotification saved = captureSaved();
+        assertThat(saved.getType()).isEqualTo(NotificationType.ASSIGNMENT_GRADED);
+        assertThat(saved.getPayload())
+                .containsEntry("referenceId", 10L)
+                .containsEntry("score", 90)
+                .containsEntry("updated", true);
+        // Push (nếu có token) phải mang copy regrade, không phải "✅ Bài đã chấm" lần nữa.
+        verify(expoPushSenderService).sendAsync(
+                eq("ExponentPushToken[r]"),
+                eq("🔄 Điểm đã được cập nhật"),
+                eq("Điểm bài tập của bạn đã được cập nhật — Điểm: 90. Xem phản hồi."),
+                any());
+    }
+
+    @Test
+    @DisplayName("F-QA-01: học viên không còn active → onAssignmentRegraded không làm gì")
+    void onAssignmentRegraded_inactiveStudent_doesNothing() {
+        User student = org.mockito.Mockito.mock(User.class);
+        when(student.isActive()).thenReturn(false);
+        when(userRepository.findById(200L)).thenReturn(Optional.of(student));
+
+        service.onAssignmentRegraded(200L, "ASSIGNMENT", 10L, 90, "sửa lại");
+
+        verify(notificationRepository, never()).refreshLatestByContext(org.mockito.ArgumentMatchers.anyLong(), any(), any(), any());
         verify(notificationRepository, never()).save(any());
     }
 

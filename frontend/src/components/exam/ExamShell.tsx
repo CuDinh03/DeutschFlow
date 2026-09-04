@@ -21,9 +21,10 @@ import { useImmersiveChrome } from '@/components/ui-v2/useImmersiveChrome'
  *  · **Cảnh báo ≤5 phút** đổi màu + đổi chữ, **không nhấp nháy**. Bản cũ dùng `animate-pulse` —
  *    vừa là animation trang trí bị DS §7 cấm trong vỏ thi, vừa gây khó chịu đúng lúc người ta
  *    đang căng thẳng nhất.
- *  · **Trạng thái lưu** là chữ, không phải chấm màu. Và chữ phải nói đúng phạm vi: bài lưu trên
- *    THIẾT BỊ NÀY, không phải trên server (B-13 đã đo: server không nhận gì trước `/finish`).
- *    Ràng buộc S-14 — cấm hiển thị "Đã lưu" trống không.
+ *  · **Trạng thái lưu** là chữ, không phải chấm màu — và chỉ nói "Đã lưu" khi server ĐÃ xác
+ *    nhận (V285 autosave server-side, #409). B-13 từng đo server không nhận gì trước `/finish`;
+ *    nay autosave server là nguồn sự thật, nhãn đi theo callback onSaved chứ không phỏng đoán
+ *    (ràng buộc S-14 — cấm hiển thị "Đã lưu" khi chưa lưu thật).
  */
 export type ExamSaveState = 'saved' | 'saving' | 'error'
 

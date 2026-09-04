@@ -4,10 +4,11 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
-import { ArrowLeft, RotateCcw } from 'lucide-react'
+import { ArrowLeft, RotateCcw, Trophy } from 'lucide-react'
 import api from '@/lib/api'
 import { primeGermanVoices } from '@/lib/speechDe'
 import { shuffle, type WordListResponse } from '@/lib/vocabWords'
+import { EMPTY_TALLY, hasUnsaved, markWordLearned, tally, type SaveTally } from '../progress'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { useTracking } from '@/hooks/useTracking'
 import { GaBtn, GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState, TkSeg } from '@/components/ui-v2'
@@ -48,6 +49,9 @@ function SwipeCards() {
   const [reviewIds, setReviewIds] = useState<Set<number>>(new Set())
   const [showComplete, setShowComplete] = useState(false)
   const [mode, setMode] = useState<CardMode>('flip')
+  // Vuốt phải = "đã thuộc" nay ghi về server. Lưu hỏng không chặn lượt vuốt, nhưng được đếm lại
+  // và nói ra ở màn hình kết thúc — im lặng là mất tiến độ mà người học không hề biết.
+  const [saves, setSaves] = useState<SaveTally>(EMPTY_TALLY)
 
   useEffect(() => {
     primeGermanVoices()
@@ -60,10 +64,12 @@ function SwipeCards() {
     setLoadError('')
     ;(async () => {
       try {
-        const wordsRes = await api.get<WordListResponse>('/words', {
+        // /words/deck thay cho /words?page=0: trang 0 của danh sách sắp theo cấp rồi alphabet nên bộ thẻ
+        // trước đây bất biến — trộn phía client cũng chỉ trộn trong đúng 20 từ đầu bảng chữ cái.
+        const wordsRes = await api.get<WordListResponse>('/words/deck', {
           params: {
+            mode: 'SWIPE',
             size: 20,
-            page: 0,
             locale: uiLocale || 'de',
             cefr: deckCefr,
             ...(urlTagQ ? { tag: urlTagQ } : {}),
@@ -72,7 +78,9 @@ function SwipeCards() {
         if (cancelled) return
         const loc = uiLocale || 'de'
         setPoolTotal(Number.isFinite(wordsRes.data.total) ? wordsRes.data.total : null)
-        const cards = shuffle((wordsRes.data.items ?? []).map((w) => mapWordToSwipe(w, loc)))
+        // KHÔNG shuffle nữa: server đã xếp đến-hạn-ôn trước rồi tới từ chưa học theo dải tần suất,
+        // trộn lại phía client là phá đúng thứ tự sư phạm vừa dựng.
+        const cards = (wordsRes.data.items ?? []).map((w) => mapWordToSwipe(w, loc))
         setDeck(cards)
         if (cards.length > 0) {
           trackFeatureAction('swipe_cards', 'started', { cefr: deckCefr, tag: urlTagQ, mode })
@@ -117,9 +125,19 @@ function SwipeCards() {
     [currentCard, learnedIds.size, mode, remaining.length, reviewIds.size, trackFeatureAction],
   )
 
+  /** Ghi tiến độ ngay lúc người học quyết định — không chờ animation thoát thẻ chạy xong. */
+  const handleDecided = useCallback(
+    (dir: 'learned' | 'unlearned') => {
+      if (dir !== 'learned' || !currentCard) return
+      void markWordLearned(currentCard.id).then((ok) => setSaves((st) => tally(st, ok)))
+    },
+    [currentCard],
+  )
+
   const restart = useCallback(() => {
     setLearnedIds(new Set())
     setReviewIds(new Set())
+    setSaves(EMPTY_TALLY)
     setShowComplete(false)
     setDeck((d) => shuffle(d))
   }, [])
@@ -196,9 +214,7 @@ function SwipeCards() {
           ) : showComplete ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <GaCard className="flex flex-col items-center gap-4 px-4 py-8 lg:px-6">
-                <span className="text-[40px]" aria-hidden>
-                  🏆
-                </span>
+                <Trophy size={40} strokeWidth={1.4} className="text-ga-accent" aria-hidden />
                 <p className="font-ga-display text-[24px] font-medium text-ga-ink">{t('sessionEnd')}</p>
                 <div className="grid w-full grid-cols-3 gap-2 text-center">
                   {[
@@ -214,6 +230,11 @@ function SwipeCards() {
                     </div>
                   ))}
                 </div>
+                {hasUnsaved(saves) && (
+                  <p className="ga-ui w-full rounded-ga border border-ga-red bg-ga-red-soft px-3 py-2 text-center text-[12.5px] text-ga-ink">
+                    {t('saveFailed', { count: saves.failed })}
+                  </p>
+                )}
                 <GaBtn variant="primary" size="lg" className="w-full" onClick={restart}>
                   <RotateCcw size={16} aria-hidden /> {t('again')}
                 </GaBtn>
@@ -231,6 +252,7 @@ function SwipeCards() {
                       card={card}
                       stackIndex={stackPos}
                       onSwipe={handleSwipe}
+                      onDecided={handleDecided}
                       mode={mode}
                       t={t}
                     />

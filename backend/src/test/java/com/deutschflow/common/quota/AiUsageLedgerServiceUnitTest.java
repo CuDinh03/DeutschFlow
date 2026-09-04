@@ -3,22 +3,29 @@ package com.deutschflow.common.quota;
 import com.deutschflow.organization.service.OrgQuotaService;
 import com.deutschflow.organization.service.OrgQuotaService.OrgMembership;
 import com.deutschflow.organization.service.OrgQuotaService.OrgReservation;
+import com.deutschflow.speaking.ai.TokenUsage;
+import com.deutschflow.testsupport.FixedClockTestConfig;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.invocation.Invocation;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.time.Instant;
+import java.time.Clock;
+import java.time.ZoneOffset;
+import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,8 +45,16 @@ class AiUsageLedgerServiceUnitTest {
     @Mock QuotaService quotaService;
     @Mock OrgQuotaService orgQuotaService;
 
-    @InjectMocks
     AiUsageLedgerService service;
+
+    @BeforeEach
+    void setUp() {
+        // Dựng tường minh thay vì @InjectMocks: Clock không phải mock nên @InjectMocks sẽ để null
+        // và clock.instant() ném NPE. Đồng hồ ghim cũng cho phép assert ĐÚNG mốc mà service
+        // chuyển xuống applyUsageDebit, thay vì chấp nhận "một Instant nào đó".
+        service = new AiUsageLedgerService(jdbcTemplate, quotaService, orgQuotaService,
+                Clock.fixed(FixedClockTestConfig.FIXED_NOW, ZoneOffset.UTC));
+    }
 
     @AfterEach
     void clearHolder() {
@@ -51,6 +66,84 @@ class AiUsageLedgerServiceUnitTest {
         assertThat(service).isNotNull();
     }
 
+    // ── V270: ghi phần prompt được cache để COGS thôi khai vống (~3× với chat) ──
+
+    /**
+     * Tham số của lệnh INSERT ledger (bỏ chuỗi SQL): userId, provider, model, prompt, cached,
+     * completion, total, feature, requestId, sessionId, userId.
+     *
+     * <p>Đọc thẳng invocation của mock thay vì {@code ArgumentCaptor}/stub: tham số thứ hai của
+     * {@code JdbcTemplate.update} là varargs, và matcher varargs của Mockito không khớp nổi 11 đối
+     * số rời (cách kẹp còn đổi theo phiên bản). Quét invocation không cần matcher nào nên không
+     * phụ thuộc chi tiết đó, và cũng không đụng giá trị trả về của các lệnh khác mà test còn lại
+     * đang verify.
+     */
+    private Object[] ledgerInsertArgs() {
+        for (Invocation inv : mockingDetails(jdbcTemplate).getInvocations()) {
+            Object[] raw = inv.getArguments();
+            if (raw.length > 0 && String.valueOf(raw[0]).contains("INSERT INTO ai_token_usage_events")) {
+                return (raw.length == 2 && raw[1] instanceof Object[] arr)
+                        ? arr
+                        : Arrays.copyOfRange(raw, 1, raw.length);
+            }
+        }
+        return null;
+    }
+
+    private Object[] insertArgs() {
+        Object[] args = ledgerInsertArgs();
+        assertThat(args).as("ledger INSERT phải được gọi").isNotNull();
+        return args;
+    }
+
+    @Test
+    @DisplayName("overload TokenUsage ghi cached_prompt_tokens vào ledger")
+    void record_fromTokenUsage_writesCachedTokens() {
+        when(orgQuotaService.resolveActiveMembership(7L)).thenReturn(null);
+
+        service.record(7L, "GROQ", "model-x",
+                TokenUsage.exact(1_151, 120, 1_271, 1_150), "SPEAKING_CHAT", null, null);
+
+        // Thứ tự tham số: userId, provider, model, prompt, cached, completion, total, …
+        Object[] args = insertArgs();
+        assertThat(args[3]).isEqualTo(1_151);
+        assertThat(args[4]).isEqualTo(1_150);
+        assertThat(args[5]).isEqualTo(120);
+        assertThat(args[6]).isEqualTo(1_271);
+        // Ví vẫn trừ theo TỔNG token như trước — cache làm đổi GIÁ, không đổi số token đã tiêu.
+        verify(quotaService).applyUsageDebit(eq(7L), eq(1_271L), eq(FixedClockTestConfig.FIXED_NOW));
+    }
+
+    @Test
+    @DisplayName("chữ ký cũ (không có số cache) ghi cached=0 ⇒ định giá y như trước, không viết lại lịch sử")
+    void record_legacySignature_writesZeroCached() {
+        when(orgQuotaService.resolveActiveMembership(7L)).thenReturn(null);
+
+        service.record(7L, "GROQ", "model-x", 100, 400, 500, "TEACHER_AI_GRADING", null, null);
+
+        assertThat(insertArgs()[4]).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("cached > prompt (upstream báo vô lý) bị kẹp về prompt — không tạo hàng tự mâu thuẫn")
+    void record_clampsCachedAbovePrompt() {
+        when(orgQuotaService.resolveActiveMembership(7L)).thenReturn(null);
+
+        service.record(7L, "GROQ", "model-x",
+                TokenUsage.exact(100, 50, 150, 9_999), "SPEAKING_CHAT", null, null);
+
+        assertThat(insertArgs()[4]).isEqualTo(100);
+    }
+
+    @Test
+    @DisplayName("usage null: không ghi ledger, không trừ gì (call site chỉ cần kiểm null một lần)")
+    void record_nullUsage_noOp() {
+        service.record(7L, "GROQ", "model-x", (TokenUsage) null, "SPEAKING_CHAT", null, null);
+
+        assertThat(ledgerInsertArgs()).as("usage null thì không được ghi ledger").isNull();
+        verify(quotaService, never()).applyUsageDebit(anyLong(), anyLong(), any());
+    }
+
     // ── Kênh 1: B2C + STUDENT org — ví cá nhân, KHÔNG đụng counter pool ──
 
     @Test
@@ -60,7 +153,7 @@ class AiUsageLedgerServiceUnitTest {
 
         service.record(7L, "GROQ", "llama", 100, 400, 500, "TEACHER_AI_GRADING", null, null);
 
-        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), any(Instant.class));
+        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), eq(FixedClockTestConfig.FIXED_NOW));
         verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
     }
 
@@ -71,7 +164,7 @@ class AiUsageLedgerServiceUnitTest {
 
         service.record(7L, "GROQ", "llama", 100, 400, 500, "SPEAKING_CHAT", null, null);
 
-        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), any(Instant.class));
+        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), eq(FixedClockTestConfig.FIXED_NOW));
         verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
     }
 
@@ -84,7 +177,7 @@ class AiUsageLedgerServiceUnitTest {
 
         service.record(7L, "GROQ", "llama", 100, 400, 500, "SPEAKING_CHAT", null, null);
 
-        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), any(Instant.class));
+        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), eq(FixedClockTestConfig.FIXED_NOW));
         verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
         // Suất còn nguyên cho OrgReservationRefundFilter — không bị nuốt mất rồi lệch pool.
         assertThat(OrgReservationHolder.take()).isEqualTo(stale);
@@ -135,7 +228,7 @@ class AiUsageLedgerServiceUnitTest {
 
         service.recordStt(42L, "STT_TRANSCRIBE", "whisper-large-v3", 10.0);
 
-        verify(quotaService).applyUsageDebit(eq(42L), eq(200L), any(Instant.class));
+        verify(quotaService).applyUsageDebit(eq(42L), eq(200L), eq(FixedClockTestConfig.FIXED_NOW));
         verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
     }
 

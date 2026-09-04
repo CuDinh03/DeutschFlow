@@ -7,6 +7,7 @@ import Link from 'next/link'
 import api from '@/lib/api'
 import { setTokens } from '@/lib/authSession'
 import { useUserStore } from '@/stores/useUserStore'
+import { isValidVnPhone, normalizeVnPhone } from '@/lib/vnPhone'
 import { useTracking } from '@/hooks/useTracking'
 import { GaCap, GaBtn } from '@/components/ui-v2'
 import { GaAuthShell, GaField, AuthErrorBanner, EMAIL_RE, pwStrength } from '../authShared'
@@ -30,13 +31,13 @@ import { GaAuthShell, GaField, AuthErrorBanner, EMAIL_RE, pwStrength } from '../
 // ─────────────────────────────────────────────────────────────────────────────
 
 type FieldErrors = Record<string, string>
-const PHONE_RE = /^0[35789]\d{8}$/
 
 export default function V2RegisterPage() {
   const t = useTranslations('v2.auth')
   const router = useRouter()
   const { trackEvent, identifyUser } = useTracking()
   const setOrg = useUserStore((s) => s.setOrg)
+  const setUser = useUserStore((s) => s.setUser)
   // Mặc định ô "ngôn ngữ" = ngôn ngữ ĐANG hiển thị, không phải 'vi' cứng. GaAuthShell nay có
   // LanguageToggle, nên khách EN/DE đổi giao diện rồi đăng ký: nếu vẫn gửi locale='vi' thì tài khoản
   // bị ghim tiếng Việt, và ngay dòng dưới ta lại ghi đè cookie `locale=vi` → giao diện lật về tiếng
@@ -57,7 +58,10 @@ export default function V2RegisterPage() {
     if (!f.email.trim()) e.email = t('register.emailRequired')
     else if (!EMAIL_RE.test(f.email)) e.email = t('register.emailInvalid')
     if (!f.phone.trim()) e.phone = t('register.phoneRequired')
-    else if (!PHONE_RE.test(f.phone)) e.phone = t('register.phoneInvalid')
+    // Chuẩn hoá TRƯỚC khi kiểm (F-07/F-08): `0912 345 678` và `+84912345678` là cách người dùng
+    // thật vẫn gõ — và cũng là cách autofill trình duyệt chèn. Backend vốn đã `.trim()`, nên form
+    // không được phép chặt hơn backend.
+    else if (!isValidVnPhone(f.phone)) e.phone = t('register.phoneInvalid')
     if (!f.pw) e.pw = t('register.passwordRequired')
     else if (f.pw.length < 8) e.pw = t('register.passwordTooShort')
     setErrs(e)
@@ -70,7 +74,8 @@ export default function V2RegisterPage() {
       const displayName = `${f.first.trim()} ${f.last.trim()}`.trim()
       const { data } = await api.post('/auth/register', {
         email: f.email.trim(),
-        phoneNumber: f.phone.trim(),
+        // Gửi đúng giá trị ĐÃ chuẩn hoá — cùng chuỗi mà isValidVnPhone() vừa chấp nhận.
+        phoneNumber: normalizeVnPhone(f.phone),
         password: f.pw,
         displayName,
         locale: f.locale,
@@ -82,6 +87,19 @@ export default function V2RegisterPage() {
       }
 
       const { data: user } = await api.get('/auth/me')
+      // Nạp danh tính vào store NGAY sau khi đăng ký — /v2/login đã làm, trang này thì chưa (F-16).
+      // Store dùng zustand persist, nên thiếu bước này nó giữ nguyên danh tính của PHIÊN TRƯỚC:
+      // QA 2026-09-01 thấy sidebar hiện tên + email của một giáo viên cũ cho tài khoản học viên vừa
+      // đăng ký. Trên máy dùng chung (quán net, phòng máy, máy mượn) đó là rò dữ liệu cá nhân giữa
+      // hai người, và mọi UI rẽ nhánh theo `user.roles` cũng đọc sai vai.
+      setUser({
+        // AuthResponse phơi id ở `userId` chứ không phải `id` — đọc nhầm sẽ lưu chuỗi "undefined".
+        id: String(user.userId),
+        email: user.email,
+        roles: [String(user.role)],
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+      })
       switch (user.role) {
         case 'ADMIN':
           router.replace('/v2/admin/users')

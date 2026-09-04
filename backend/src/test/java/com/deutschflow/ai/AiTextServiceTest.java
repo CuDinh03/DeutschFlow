@@ -18,7 +18,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
+import com.deutschflow.ai.tier.TierSpec;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -35,18 +39,29 @@ class AiTextServiceTest {
     @Mock
     private OpenAiChatClient chatClient;
 
+    @Mock
+    private LlmTierResolver llmTierResolver;
+
     @InjectMocks
     private AiTextService aiTextService;
 
+    @org.junit.jupiter.api.BeforeEach
+    void stubTier() {
+        // lenient: vài test không chạm LLM (MockitoExtension strict-stubs)
+        org.mockito.Mockito.lenient().when(llmTierResolver.spec(LlmTier.EXPLAIN)).thenReturn(
+                new TierSpec(LlmTier.EXPLAIN, "openai/gpt-oss-20b",
+                        null, null, null, null, null, null, "low", false, false));
+    }
+
     private void stubReply(String content) {
-        when(chatClient.chatCompletion(any(), isNull(), anyDouble(), anyInt()))
+        when(chatClient.chatCompletionForTier(any(), any(TierSpec.class), anyDouble(), anyInt(), anyBoolean()))
                 .thenReturn(new AiChatCompletionResult(content, null, "test", "test-model"));
     }
 
     @SuppressWarnings("unchecked")
     private List<ChatMessage> capturedMessages() {
         ArgumentCaptor<List<ChatMessage>> captor = ArgumentCaptor.forClass(List.class);
-        verify(chatClient).chatCompletion(captor.capture(), isNull(), anyDouble(), anyInt());
+        verify(chatClient).chatCompletionForTier(captor.capture(), any(TierSpec.class), anyDouble(), anyInt(), anyBoolean());
         return captor.getValue();
     }
 
@@ -104,7 +119,7 @@ class AiTextServiceTest {
     @DisplayName("Lỗi provider giữ nguyên AiServiceException (→ 503), không bọc lại thành 500")
     void providerFailure_propagatesAiServiceException() {
         AiServiceException original = new AiServiceException("Groq đang bận.");
-        when(chatClient.chatCompletion(any(), isNull(), anyDouble(), anyInt())).thenThrow(original);
+        when(chatClient.chatCompletionForTier(any(), any(TierSpec.class), anyDouble(), anyInt(), anyBoolean())).thenThrow(original);
 
         AiServiceException thrown = assertThrows(AiServiceException.class,
                 () -> aiTextService.correctGrammar("Ich bin."));
@@ -115,7 +130,7 @@ class AiTextServiceTest {
     @Test
     @DisplayName("Lỗi lạ (server tự host chết) cũng thành AiServiceException tiếng Việt")
     void unexpectedFailure_becomesAiServiceException() {
-        when(chatClient.chatCompletion(any(), isNull(), anyDouble(), anyInt()))
+        when(chatClient.chatCompletionForTier(any(), any(TierSpec.class), anyDouble(), anyInt(), anyBoolean()))
                 .thenThrow(new IllegalStateException("Connection refused: localhost:8000"));
 
         AiServiceException thrown = assertThrows(AiServiceException.class,

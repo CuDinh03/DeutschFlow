@@ -78,8 +78,10 @@ describe('GaLanding — menu mobile', () => {
   it('CTA phụ dẫn tới nội dung thật thay vì giả làm video demo', () => {
     render(<GaLanding />)
 
-    const cta = screen.getByRole('link', { name: 'Xem cách hoạt động' })
-    expect(cta).toHaveAttribute('href', '#how-it-works')
+    // Bản funnel value-first: CTA demo duy nhất là bảng giáo viên và trỏ route thật,
+    // không còn nút giả làm video ("Xem demo 90 giây" đã bị gỡ từ P0.2).
+    const cta = screen.getByRole('link', { name: 'Xem demo bảng giáo viên →' })
+    expect(cta).toHaveAttribute('href', '/v2/login')
     expect(screen.queryByText('Xem demo 90 giây')).not.toBeInTheDocument()
   })
 

@@ -8,8 +8,15 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 public interface MessageRepository extends JpaRepository<Message, Long> {
+
+    /**
+     * Tra idempotency key: bản ghi đã tồn tại của một lượt gửi (senderId + clientTempId) — dùng để
+     * REPLAY một POST retry thay vì tạo tin trùng (F-13). Được UNIQUE index V300 bảo chứng ≤ 1 kết quả.
+     */
+    Optional<Message> findBySenderIdAndClientTempId(Long senderId, String clientTempId);
 
     /** Full thread between two users, oldest → newest. */
     List<Message> findBySenderIdAndRecipientIdOrSenderIdAndRecipientIdOrderByIdAsc(

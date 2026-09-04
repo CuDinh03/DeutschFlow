@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -84,6 +85,37 @@ class AuthServiceRefreshTest {
 
         assertTrue(oldToken.isRevoked(), "old token should be revoked");
         assertNotEquals("old-token", response.refreshToken(), "new refresh token should be rotated");
+    }
+
+    /**
+     * Audit F-H2 (03/09/2026): login chặn tài khoản bị khóa qua {@code User#isEnabled}
+     * (DaoAuthenticationProvider), nhưng refresh thì không kiểm gì — nên tài khoản bị admin khóa
+     * vẫn tự gia hạn phiên tới hết vòng đời refresh token (7 ngày). Đây là ca chặn điều đó.
+     */
+    @Test
+    void refreshShouldFailWhenUserDeactivated() {
+        User user = User.builder()
+                .id(100L)
+                .email("locked@deutschflow.app")
+                .displayName("Locked")
+                .passwordHash("hash")
+                .role(User.Role.STUDENT)
+                .locale(User.Locale.vi)
+                .active(false)
+                .build();
+        RefreshToken liveToken = RefreshToken.builder()
+                .id(1L)
+                .token("live-token")
+                .user(user)
+                .expiresAt(LocalDateTime.now().plusDays(1))
+                .revoked(false)
+                .build();
+
+        when(refreshTokenRepository.findByToken("live-token")).thenReturn(Optional.of(liveToken));
+
+        assertThrows(BadRequestException.class, () -> authService.refresh("live-token"));
+        // Chặn thôi chưa đủ: revoke nốt phần còn lại để không thử tiếp bằng token khác cùng tài khoản.
+        verify(refreshTokenRepository).revokeAllByUserId(100L);
     }
 
     @Test

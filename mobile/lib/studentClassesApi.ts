@@ -72,6 +72,32 @@ export interface StudentAssignment {
   referenceId?: number | null
 }
 
+/**
+ * Phân loại trạng thái bài giao cho UI học viên — GƯƠNG của
+ * backend/teacher/entity/AssignmentStatus.java (soát 02/09, F-14):
+ *
+ *   PENDING → SUBMITTED → AI_GRADED → EVALUATED   (GRADING_FAILED: AI lỗi, chờ GV)
+ *
+ * AI_GRADED và GRADING_FAILED là chuyện NỘI BỘ của khâu chấm AI ("AI mới đề xuất
+ * điểm; chưa ai xác nhận" / "AI chấm lỗi, GV sẽ chấm tay") — với học viên cả hai
+ * đều nghĩa là "bài ĐÃ nộp, đang chờ giáo viên", và backend cố ý KHÔNG công bố
+ * điểm AI. Trước bản vá này, hai trạng thái đó rơi vào nhánh else của StatusPill
+ * và hiện pill đỏ "Chưa nộp" ngay cạnh nút "Nộp bản khác" — màn tự mâu thuẫn.
+ */
+export const AWAITING_TEACHER_STATUSES = ['SUBMITTED', 'AI_GRADED', 'GRADING_FAILED'] as const
+
+/** Đã nộp, giáo viên chưa chốt điểm — nhóm còn được phép "Nộp bản khác". */
+export const isAwaitingTeacher = (status: string): boolean =>
+  (AWAITING_TEACHER_STATUSES as readonly string[]).includes(status)
+
+/** Điểm đã chốt và công bố (GRADED là hàng đời cũ trước khi có AI_GRADED). */
+export const isFinalGrade = (status: string): boolean =>
+  status === 'GRADED' || status === 'EVALUATED'
+
+/** Học viên đã nộp bài, bất kể sau đó nó đang ở khâu nào. */
+export const isSubmittedStatus = (status: string): boolean =>
+  isAwaitingTeacher(status) || isFinalGrade(status)
+
 export interface SubmitAssignmentPayload {
   submissionContent?: string
   submissionFileUrl?: string
@@ -120,6 +146,10 @@ export interface MySkillReport {
   sprechen: number | null
   total: number | null
   grade: string
+  /** Nhận xét bằng lời của giáo viên về học viên này trong lớp này; null khi chưa viết. */
+  teacherComment: string | null
+  /** Thời điểm giáo viên lưu đánh giá; null khi chưa từng lưu. */
+  evaluatedAt: string | null
 }
 
 export async function fetchMyClasses(): Promise<MyClassroom[]> {

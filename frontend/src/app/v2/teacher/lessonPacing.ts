@@ -69,3 +69,29 @@ export function parseIsoDateLocal(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
+
+// ── Phân bổ nội dung theo buổi (PR-4) ────────────────────────────────────────
+
+export interface AllocatedContent {
+  plannedMinutes: number | null
+  status: string
+  remainingMinutes: number | null
+}
+
+export interface AllocationSummary {
+  /** Tổng phút đã xếp vào buổi (mọi dòng, kể cả chuyển tiếp). */
+  plannedTotal: number
+  /** Số phút vượt khung phút HỌC của buổi (0 khi còn vừa). */
+  overBudget: number
+  /** Tổng phút còn dở (PARTIAL) của buổi — sẽ chuyển tiếp sang buổi kế. */
+  partialRemaining: number
+}
+
+/** Cộng dồn kế hoạch của một buổi so với khung phút học — thuần để unit-test. */
+export function allocationSummary(contents: AllocatedContent[], teachingMinutes: number): AllocationSummary {
+  const plannedTotal = contents.reduce((sum, c) => sum + (c.plannedMinutes ?? 0), 0)
+  const partialRemaining = contents
+    .filter((c) => c.status === 'PARTIAL')
+    .reduce((sum, c) => sum + (c.remainingMinutes ?? 0), 0)
+  return { plannedTotal, overBudget: Math.max(0, plannedTotal - teachingMinutes), partialRemaining }
+}

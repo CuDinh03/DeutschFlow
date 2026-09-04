@@ -104,9 +104,6 @@ public class SrsController {
         if (reviews == null || reviews.isEmpty()) {
             return ResponseEntity.ok(List.of());
         }
-        List<VocabReviewCard> results = reviews.stream()
-                .map(req -> srsService.recordReview(user.getId(), req))
-                .toList();
-        return ResponseEntity.ok(results);
+        return ResponseEntity.ok(srsService.recordReviewBatch(user.getId(), reviews));
     }
 }

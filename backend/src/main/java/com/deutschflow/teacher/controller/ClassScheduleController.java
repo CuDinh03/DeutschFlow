@@ -2,12 +2,19 @@ package com.deutschflow.teacher.controller;
 
 import com.deutschflow.teacher.dto.ClassSchedulePatternDto;
 import com.deutschflow.teacher.dto.ClassSessionDto;
+import com.deutschflow.teacher.dto.DeletePatternResult;
 import com.deutschflow.teacher.dto.CreateSessionRequest;
 import com.deutschflow.teacher.dto.SessionSaveResult;
 import com.deutschflow.teacher.dto.UpdateSessionRequest;
 import com.deutschflow.teacher.dto.UpsertPatternRequest;
 import com.deutschflow.teacher.dto.UpsertPatternResult;
+import com.deutschflow.teacher.dto.ScheduleChangeRequestDto;
 import com.deutschflow.teacher.service.ClassScheduleService;
+import com.deutschflow.teacher.dto.ScheduleForecastDto;
+import com.deutschflow.teacher.service.ScheduleChangeRequestService;
+import com.deutschflow.teacher.service.ScheduleForecastService;
+import com.deutschflow.teacher.service.SessionWorkspaceService;
+import com.deutschflow.teacher.dto.SessionWorkspaceDto;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -29,6 +36,9 @@ import java.util.List;
 public class ClassScheduleController {
 
     private final ClassScheduleService service;
+    private final ScheduleChangeRequestService changeRequestService;
+    private final ScheduleForecastService forecastService;
+    private final SessionWorkspaceService workspaceService;
 
     /** Lịch tuần buổi lớp của giáo viên hiện tại. */
     @GetMapping("/week")
@@ -54,9 +64,12 @@ public class ClassScheduleController {
         return service.upsertPattern(teacher.getId(), classId, req);
     }
 
-    /** Xoá lịch cố định (giữ buổi đã chỉnh tay). */
+    /**
+     * Xoá lịch cố định (giữ buổi đã chỉnh tay). PR-5: trả object thay số nguyên trần — lớp trung
+     * tâm có giáo trình thì việc xoá vào hàng chờ duyệt ({@code pendingRequestId}), chưa gỡ gì.
+     */
     @DeleteMapping("/patterns/{patternId}")
-    public int deletePattern(@AuthenticationPrincipal User teacher, @PathVariable Long patternId) {
+    public DeletePatternResult deletePattern(@AuthenticationPrincipal User teacher, @PathVariable Long patternId) {
         return service.deletePattern(teacher.getId(), patternId);
     }
 
@@ -74,5 +87,42 @@ public class ClassScheduleController {
                                            @PathVariable Long id,
                                            @RequestBody UpdateSessionRequest req) {
         return service.updateSession(teacher.getId(), id, req);
+    }
+
+    /** PR-5: đề xuất thay đổi lịch của lớp (mọi trạng thái) — giáo viên theo dõi tiến trình duyệt. */
+    @GetMapping("/classes/{classId}/change-requests")
+    public List<ScheduleChangeRequestDto> changeRequests(@AuthenticationPrincipal User teacher,
+                                                         @PathVariable Long classId) {
+        return changeRequestService.listForTeacher(teacher.getId(), classId);
+    }
+
+    /** PR-6 (AC09/AC17): dự báo tiến độ theo phân bổ — ngày học xong dự kiến, phần thiếu khung, mốc rủi ro. */
+    @GetMapping("/classes/{classId}/forecast")
+    public ScheduleForecastDto forecast(@AuthenticationPrincipal User teacher, @PathVariable Long classId) {
+        return forecastService.forecastForTeacher(teacher.getId(), classId);
+    }
+
+    /** PR-7 (spec §8): màn làm việc theo buổi — một response gom Trước/Trong/Sau. */
+    @GetMapping("/sessions/{sessionId}/workspace")
+    public SessionWorkspaceDto workspace(@AuthenticationPrincipal User teacher, @PathVariable Long sessionId) {
+        return workspaceService.workspace(teacher.getId(), sessionId);
+    }
+
+    /** PR-7 (spec §2.3): CHỐT buổi — buổi qua giờ không tự thành "đã dạy", giáo viên xác nhận mới tính. */
+    @PostMapping("/sessions/{sessionId}/complete")
+    public SessionWorkspaceDto complete(@AuthenticationPrincipal User teacher, @PathVariable Long sessionId) {
+        return workspaceService.complete(teacher.getId(), sessionId);
+    }
+
+    /** PR-7: bỏ chốt — đi qua cửa sổ sửa hồi tố P07. */
+    @DeleteMapping("/sessions/{sessionId}/complete")
+    public SessionWorkspaceDto uncomplete(@AuthenticationPrincipal User teacher, @PathVariable Long sessionId) {
+        return workspaceService.uncomplete(teacher.getId(), sessionId);
+    }
+
+    /** PR-5: giáo viên rút đề xuất của CHÍNH MÌNH khi còn PENDING. */
+    @DeleteMapping("/change-requests/{requestId}")
+    public void cancelChangeRequest(@AuthenticationPrincipal User teacher, @PathVariable Long requestId) {
+        changeRequestService.cancel(teacher.getId(), requestId);
     }
 }

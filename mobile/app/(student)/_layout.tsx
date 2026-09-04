@@ -1,16 +1,33 @@
-import { Tabs } from 'expo-router'
+import { Redirect, Tabs } from 'expo-router'
 import { TabBar } from '@/components/ui/TabBar'
 import { SpotlightTourProvider } from '@/components/guide/SpotlightTour'
 import { ScreenTimeTracker } from '@/components/analytics/ScreenTimeTracker'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 export default function StudentLayout() {
+  // F-28 (soát 02/09): chặn TRƯỚC thay vì phản ứng. Trước đây nhóm (student) chỉ
+  // dựa interceptor 401 đá về login — deep link vào thẳng một màn (student)/* khi
+  // chưa đăng nhập vẫn mount màn đó một nhịp. Gương đúng logic gate của
+  // app/index.tsx (declarative <Redirect>, chờ isLoading kẻo đá nhầm lúc khôi
+  // phục phiên khi mở app).
+  const isLoading = useAuthStore((s) => s.isLoading)
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
+  if (isLoading) return null
+  if (!isLoggedIn) return <Redirect href="/(auth)/login" />
+
   return (
     <SpotlightTourProvider>
       <Tabs
-        screenOptions={{ headerShown: false }}
+        // M1 audit lag 02/09: 31 màn cùng sống trong một Tabs và KHÔNG unmount khi chuyển tab —
+        // mọi store update vẫn re-render những màn không ai nhìn. freezeOnBlur (react-native-screens,
+        // thuần JS → OTA-safe) đóng băng render của màn blur; nó KHÔNG thay được kỷ luật blur sẵn có
+        // (useBlurGuard/useRecorderBlurGuard cho tiếng+mic, gate refetchInterval cho poll — những thứ
+        // chạy ngoài render), chỉ cắt phần render thừa. onBlur/onFocus của useFocusEffect vẫn bắn
+        // bình thường quanh nhịp freeze.
+        screenOptions={{ headerShown: false, freezeOnBlur: true }}
         tabBar={(props) => <TabBar {...props} />}
       >
-        <Tabs.Screen name="index" options={{ title: 'Trang chủ' }} />
+        <Tabs.Screen name="index" options={{ title: 'Heute' }} />
         <Tabs.Screen name="learn" options={{ title: 'Học' }} />
         <Tabs.Screen name="speaking" options={{ title: 'Speaking' }} />
         <Tabs.Screen name="profile" options={{ title: 'Hồ sơ' }} />
@@ -35,6 +52,12 @@ export default function StudentLayout() {
         <Tabs.Screen name="weekly-detail" options={{ href: null }} />
         <Tabs.Screen name="classes" options={{ href: null }} />
         <Tabs.Screen name="assignments" options={{ href: null }} />
+        <Tabs.Screen name="speaking-exam" options={{ href: null }} />
+        <Tabs.Screen name="speaking-exam-room" options={{ href: null }} />
+        <Tabs.Screen name="speaking-exam-result" options={{ href: null }} />
+        <Tabs.Screen name="speaking-exam-weakness" options={{ href: null }} />
+        <Tabs.Screen name="error-repair" options={{ href: null }} />
+        <Tabs.Screen name="lernweg" options={{ href: null }} />
       </Tabs>
 
       {/* Emits feature_session per screen across the whole student area. */}

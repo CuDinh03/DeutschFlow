@@ -6,6 +6,8 @@ import { ChevronLeft, ChevronRight, Users } from 'lucide-react'
 import api, { apiMessage } from '@/lib/api'
 import { fmtLocalIso, type ClassSession } from '@/lib/classScheduleApi'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { ApprovalQueue } from './ApprovalQueue'
+import { RecordUnlockSection } from './RecordUnlockSection'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lịch trung tâm (G-3) — OWNER/MANAGER xem lịch buổi lớp TOÀN tổ chức (chỉ-đọc).
@@ -80,6 +82,10 @@ export default function V2OrgSchedulePage() {
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
+        {/* PR-6: hàng chờ duyệt thay đổi lịch — tự ẩn khi trống/không có quyền duyệt. */}
+        <ApprovalQueue />
+        {/* PR-7 (P07): cấp mở khóa sửa hồi tố 24h — thu gọn mặc định. */}
+        <RecordUnlockSection />
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="font-ga-display text-[17px] font-medium text-ga-ink lg:text-[20px]">

@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useTranslations } from 'next-intl'
-import { AlertCircle, ChevronRight, Loader2, Send } from 'lucide-react'
+import { AlertCircle, ChevronRight, Loader2, Send, User } from 'lucide-react'
 import { AudioPlayer } from '@/components/exam/AudioPlayer'
 import { SprechenTeil2Simulator } from '@/components/exam/SprechenTeil2Simulator'
 
@@ -241,7 +241,7 @@ export function ExamTaking({
                       />
                     )}
                     {item.text && <p className="ga-ui mb-3 break-words text-ga-body italic text-ga-muted">“{item.text}”</p>}
-                    {item.person && <p className="ga-ui mb-3 break-words text-ga-body text-ga-muted">👤 {item.person}</p>}
+                    {item.person && <p className="ga-ui mb-3 flex items-center gap-1.5 break-words text-ga-body text-ga-muted"><User size={13} className="shrink-0" aria-hidden /> {item.person}</p>}
 
                     <p className="ga-ui mb-3 break-words text-ga-body-lg font-semibold text-ga-ink">
                       {qIdx + 1}. {item.question || t('questionFallback')}

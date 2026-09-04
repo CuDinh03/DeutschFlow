@@ -13,6 +13,7 @@ import com.deutschflow.teacher.dto.UpdateLessonRequest;
 import com.deutschflow.teacher.entity.CanDoStatement;
 import com.deutschflow.teacher.entity.ClassLesson;
 import com.deutschflow.teacher.entity.LessonKnowledgePoint;
+import com.deutschflow.organization.repository.ClassCurriculumLinkRepository;
 import com.deutschflow.teacher.repository.CanDoStatementRepository;
 import com.deutschflow.teacher.repository.ClassLessonRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
@@ -47,6 +48,8 @@ class ClassLessonServiceTest {
     @Mock private LessonKnowledgePointRepository knowledgePointRepository;
     @Mock private CurriculumModuleRepository moduleRepository;
     @Mock private CanDoStatementRepository canDoRepository;
+    @Mock private ClassCurriculumLinkRepository classCurriculumLinkRepository;
+    @Mock private com.deutschflow.organization.repository.CurriculumItemRepository curriculumItemRepository;
 
     private ClassLessonService service;
 
@@ -57,7 +60,7 @@ class ClassLessonServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ClassLessonService(lessonRepository, classTeacherRepository, classStudentRepository, knowledgePointRepository, moduleRepository, canDoRepository);
+        service = new ClassLessonService(lessonRepository, classTeacherRepository, classStudentRepository, knowledgePointRepository, moduleRepository, canDoRepository, classCurriculumLinkRepository, curriculumItemRepository);
     }
 
     @Test
@@ -682,5 +685,125 @@ class ClassLessonServiceTest {
         assertThat(out).hasSize(2);
         assertThat(out.get(0).title()).isEqualTo("A");
         assertThat(out.get(1).completed()).isTrue();
+    }
+
+    // ── AC01: bài sinh từ giáo trình trung tâm là bất biến với giáo viên (PR-1) ──
+
+    private ClassLesson linkedLesson() {
+        return ClassLesson.builder()
+                .id(LESSON_ID).classId(CLASS_ID).orderIndex(0)
+                .title("Lektion 1 — Hallo").lektionId(900L).supplementary(false)
+                .completed(false).build();
+    }
+
+    @Test
+    @DisplayName("AC01: update title của bài gắn giáo trình → Forbidden, không save")
+    void update_curriculumLesson_rejectsTitleChange() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(lessonRepository.findById(LESSON_ID)).thenReturn(java.util.Optional.of(linkedLesson()));
+
+        assertThatThrownBy(() -> service.update(TEACHER_ID, CLASS_ID, LESSON_ID,
+                new UpdateLessonRequest("Đổi tên", null, null, null, null, null, null, null, null, null, null)))
+                .isInstanceOf(ForbiddenException.class);
+        verify(lessonRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("AC01: update canDoStatements/knowledgePoints của bài gắn giáo trình → Forbidden")
+    void update_curriculumLesson_rejectsContentChange() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(lessonRepository.findById(LESSON_ID)).thenReturn(java.util.Optional.of(linkedLesson()));
+
+        assertThatThrownBy(() -> service.update(TEACHER_ID, CLASS_ID, LESSON_ID,
+                new UpdateLessonRequest(null, null, null, null, null, null,
+                        List.of(new KnowledgePointInput("x", null, null)), null, null, null, null)))
+                .isInstanceOf(ForbiddenException.class);
+
+        assertThatThrownBy(() -> service.update(TEACHER_ID, CLASS_ID, LESSON_ID,
+                new UpdateLessonRequest(null, null, null, null, null, null, null, null, null, null,
+                        List.of(new CanDoStatementInput(null, "Ich kann …", null, null)))))
+                .isInstanceOf(ForbiddenException.class);
+        verify(lessonRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("AC01/AC07: bài gắn giáo trình đổi được plannedDate; completed KHÔNG toggle tay (suy từ xác nhận mục)")
+    void update_curriculumLesson_allowsDistributionFields() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(lessonRepository.findById(LESSON_ID)).thenReturn(java.util.Optional.of(linkedLesson()));
+        when(lessonRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ClassLessonDto dto = service.update(TEACHER_ID, CLASS_ID, LESSON_ID,
+                new UpdateLessonRequest(null, null, null, null, LocalDate.of(2026, 9, 8), null, null, null, null, null, null));
+
+        assertThat(dto.plannedDate()).isEqualTo(LocalDate.of(2026, 9, 8));
+        assertThat(dto.lektionId()).isEqualTo(900L);
+
+        // PR-4 (AC07): completed của bài giáo trình là trạng thái SUY RA — toggle tay bị chặn.
+        assertThatThrownBy(() -> service.update(TEACHER_ID, CLASS_ID, LESSON_ID,
+                new UpdateLessonRequest(null, null, true, null, null, null, null, null, null, null, null)))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("AC01: delete bài gắn giáo trình → Forbidden, không delete")
+    void delete_curriculumLesson_rejected() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(lessonRepository.findById(LESSON_ID)).thenReturn(java.util.Optional.of(linkedLesson()));
+
+        assertThatThrownBy(() -> service.delete(TEACHER_ID, CLASS_ID, LESSON_ID))
+                .isInstanceOf(ForbiddenException.class);
+        verify(lessonRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("AC01/D02: lớp gắn giáo trình — bài GV tự thêm là supplementary, vẫn được phép")
+    void create_inLinkedClass_marksSupplementary() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(classCurriculumLinkRepository.existsByClassId(CLASS_ID)).thenReturn(true);
+        when(lessonRepository.findMaxOrderIndex(CLASS_ID)).thenReturn(5);
+        when(lessonRepository.save(any())).thenAnswer(inv -> {
+            ClassLesson l = inv.getArgument(0);
+            l.setId(77L);
+            return l;
+        });
+
+        ClassLessonDto dto = service.create(TEACHER_ID, CLASS_ID,
+                new CreateLessonRequest("Bài bổ trợ: Zahlenbingo", "Luyện số 0–20", null, null, null, null, null));
+
+        assertThat(dto.supplementary()).isTrue();
+        assertThat(dto.lektionId()).isNull();
+    }
+
+    @Test
+    @DisplayName("AC01/D06: reorder đổi thứ tự tương đối các bài gắn giáo trình → Forbidden")
+    void reorder_curriculumLessons_relativeOrderLocked() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        ClassLesson l1 = ClassLesson.builder().id(1L).classId(CLASS_ID).orderIndex(0).title("L1").lektionId(901L).build();
+        ClassLesson l2 = ClassLesson.builder().id(2L).classId(CLASS_ID).orderIndex(1).title("L2").lektionId(902L).build();
+        ClassLesson free = ClassLesson.builder().id(3L).classId(CLASS_ID).orderIndex(2).title("Bổ trợ").supplementary(true).build();
+        when(lessonRepository.findByClassIdOrderByOrderIndexAsc(CLASS_ID)).thenReturn(List.of(l1, l2, free));
+
+        // Đảo L2 lên trước L1 → chặn
+        assertThatThrownBy(() -> service.reorder(TEACHER_ID, CLASS_ID,
+                new ReorderLessonsRequest(List.of(2L, 1L, 3L))))
+                .isInstanceOf(ForbiddenException.class);
+        verify(lessonRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("AC01/D06: reorder chèn bài bổ trợ giữa các Lektion (giữ thứ tự tương đối) → OK")
+    void reorder_supplementaryBetweenLektionen_allowed() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        ClassLesson l1 = ClassLesson.builder().id(1L).classId(CLASS_ID).orderIndex(0).title("L1").lektionId(901L).build();
+        ClassLesson l2 = ClassLesson.builder().id(2L).classId(CLASS_ID).orderIndex(1).title("L2").lektionId(902L).build();
+        ClassLesson free = ClassLesson.builder().id(3L).classId(CLASS_ID).orderIndex(2).title("Bổ trợ").supplementary(true).build();
+        when(lessonRepository.findByClassIdOrderByOrderIndexAsc(CLASS_ID)).thenReturn(List.of(l1, l2, free));
+        when(lessonRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.reorder(TEACHER_ID, CLASS_ID, new ReorderLessonsRequest(List.of(1L, 3L, 2L)));
+
+        assertThat(free.getOrderIndex()).isEqualTo(1);
+        assertThat(l2.getOrderIndex()).isEqualTo(2);
     }
 }

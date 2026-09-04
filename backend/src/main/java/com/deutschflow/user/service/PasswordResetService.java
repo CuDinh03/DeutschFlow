@@ -50,7 +50,7 @@ public class PasswordResetService {
 
         // Only create/send if the account exists (silently no-ops for unknown emails).
         int count = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM users WHERE lower(email) = lower(?) AND active = TRUE",
+                "SELECT COUNT(*) FROM users WHERE lower(email) = lower(?) AND is_active = TRUE",
                 Integer.class, email.trim()
         );
         if (count == 0) {
@@ -106,7 +106,7 @@ public class PasswordResetService {
         // referenced a non-existent column, so every OTP reset threw a SQL error AFTER the token was
         // already consumed: the password never changed yet the user believed it had → "wrong password".
         Long userId = jdbc.query(
-                "SELECT id FROM users WHERE lower(email) = lower(?) AND active = TRUE",
+                "SELECT id FROM users WHERE lower(email) = lower(?) AND is_active = TRUE",
                 rs -> rs.next() ? rs.getLong(1) : null, email.trim());
         if (userId == null) {
             throw new BadRequestException("Không tìm thấy tài khoản.");

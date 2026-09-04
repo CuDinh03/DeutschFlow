@@ -38,10 +38,17 @@ export function GaAuthShell({
   return (
     <div className="flex min-h-screen flex-col bg-ga-bg text-ga-ink">
       <header className="flex items-center justify-between gap-3 border-b border-ga-line bg-ga-card px-4 py-5 sm:px-6 lg:gap-0 lg:px-10 lg:py-6">
-        {/* Brand name — not translated on purpose. */}
-        <Link href="/" aria-label="DeutschFlow" className="inline-flex min-w-0 shrink-0">
-          <GaLogo markOnly size={30} className="sm:hidden" />
-          <GaLogo className="hidden sm:inline-flex" />
+        {/* Brand name — not translated on purpose.
+            QA 13/08: chữ "myDeutschFlow" rộng 161px, cụm phải (chuyển ngôn ngữ + về trang chủ)
+            rộng ~181px và khai `shrink-0`; cộng padding 32px thì header cần ~374px mới đủ.
+            Ở 320px hai bên ĐÈ LÊN NHAU 54px — chữ chồng chữ, đọc không ra. Ở 375px chỉ hở 1px,
+            tức là mọi máy hẹp hơn (360px của phần lớn Android, 320px máy cũ) đều hỏng, và 375px
+            thì chỉ cần người dùng phóng to cỡ chữ là hỏng theo.
+            Dưới 390px chỉ hiện dấu hiệu thương hiệu — vẫn là link về trang chủ, vẫn giữ nguyên
+            aria-label. Từ 390px (iPhone 14/15/16 trở lên) chữ hiện lại đầy đủ, còn dư ~16px. */}
+        <Link href="/" aria-label="DeutschFlow" className="inline-flex min-w-0 shrink">
+          <GaLogo className="max-[389px]:hidden" />
+          <GaLogo markOnly className="hidden max-[389px]:inline-flex" />
         </Link>
         <div className="flex shrink-0 items-center gap-2 lg:gap-4">
           {/* The locale cookie is otherwise only written at login (from user.locale) or by the
@@ -100,6 +107,9 @@ export function GaField({
   maxLength,
 }: GaFieldProps) {
   const t = useTranslations('v2.auth')
+  // QA 13/08: nhãn nhìn thấy được nhưng KHÔNG nối vào input (không có htmlFor/id), nên trình đọc
+  // màn hình chỉ đọc placeholder — mà placeholder biến mất ngay khi người dùng gõ (WCAG 3.3.2).
+  // Nối nhãn + mô tả lỗi/gợi ý, và khai `required`/`aria-invalid` cho đúng trạng thái thật.
   const generatedId = useId().replace(/:/g, '')
   const fieldId = id ?? `ga-field-${name ?? generatedId}`
   const messageId = hint || error ? `${fieldId}-message` : undefined

@@ -4,7 +4,7 @@ import com.deutschflow.common.exception.RateLimitExceededException;
 import com.deutschflow.grammar.dto.GrammarExplainRequest;
 import com.deutschflow.grammar.dto.GrammarExplanationDto;
 import com.deutschflow.grammar.dto.GrammarPracticeRequest;
-import com.deutschflow.grammar.dto.GrammarPracticeSuggestionDto;
+import com.deutschflow.grammar.dto.GrammarPracticeSuggestionsDto;
 import com.deutschflow.grammar.service.AIGrammarService;
 import com.deutschflow.grammar.service.AIGrammarService.GrammarCorrectionResult;
 import com.deutschflow.grammar.service.AIGrammarService.GrammarAnalysisResult;
@@ -17,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -90,22 +91,34 @@ public class AIGrammarController {
     }
 
     /**
-     * Get practice suggestions for specific error type
+     * Practice suggestions. Two modes (QA F-7):
+     *   - CEFR mode (web default tab): body {cefrLevel, count} → structured {suggestions:[{topic,
+     *     description, example}]}.
+     *   - Legacy error mode: body {errorType} → the same shape, wrapping the AI text as one item.
      * POST /api/grammar/ai/practice-suggestions
      */
     @PostMapping("/practice-suggestions")
-    public ResponseEntity<GrammarPracticeSuggestionDto> suggestPractice(
+    public ResponseEntity<GrammarPracticeSuggestionsDto> suggestPractice(
             @AuthenticationPrincipal User user,
             @RequestBody GrammarPracticeRequest request) {
-        String errorType = request.errorType();
-
-        if (errorType == null || errorType.trim().isEmpty()) {
+        boolean hasCefr = request.cefrLevel() != null && !request.cefrLevel().isBlank();
+        boolean hasErrorType = request.errorType() != null && !request.errorType().isBlank();
+        if (!hasCefr && !hasErrorType) {
             return ResponseEntity.badRequest().build();
         }
 
         requireTextBudget(user);
+
+        if (hasCefr) {
+            return ResponseEntity.ok(
+                    aiGrammarService.suggestPracticeByCefr(request.cefrLevel(), request.count()));
+        }
+
+        // Legacy error-type path — return in the unified shape so a single client contract holds.
+        String errorType = request.errorType();
         String suggestions = aiGrammarService.suggestPractice(errorType);
-        return ResponseEntity.ok(new GrammarPracticeSuggestionDto(errorType, suggestions));
+        return ResponseEntity.ok(new GrammarPracticeSuggestionsDto(
+                List.of(new GrammarPracticeSuggestionsDto.Suggestion(errorType, suggestions, ""))));
     }
 
     /** Per-user request-rate guard on raw LLM grammar helpers (cost control on top of the quota wallet). */

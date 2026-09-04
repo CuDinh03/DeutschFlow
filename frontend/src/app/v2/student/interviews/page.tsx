@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Briefcase, Calendar, Download, Loader2, MessageSquare, Play, Plus, Target } from 'lucide-react'
+import { ArrowLeft, Briefcase, Calendar, Download, Loader2, MessageSquare, Play, Plus, Target, Check, X } from 'lucide-react'
 import api from '@/lib/api'
 import { aiSpeakingApi } from '@/lib/aiSpeakingApi'
 import { aiMessagesToChatMessages, companionFromPersonaId } from '@/lib/speaking/resumeSession'
@@ -332,8 +332,8 @@ export default function V2StudentInterviewsPage() {
                       {strengths.length > 0 && (
                         <ul className="mb-1 space-y-0.5">
                           {strengths.map((s, i) => (
-                            <li key={i} className="ga-ui text-[11px] text-ga-green">
-                              ✓ {s}
+                            <li key={i} className="ga-ui flex items-start gap-1 text-[11px] text-ga-green">
+                              <Check size={11} className="mt-[2px] shrink-0" aria-hidden /> {s}
                             </li>
                           ))}
                         </ul>
@@ -341,8 +341,8 @@ export default function V2StudentInterviewsPage() {
                       {weaknesses.length > 0 && (
                         <ul className="space-y-0.5">
                           {weaknesses.map((w, i) => (
-                            <li key={i} className="ga-ui text-[11px] text-ga-red">
-                              ✗ {w}
+                            <li key={i} className="ga-ui flex items-start gap-1 text-[11px] text-ga-red">
+                              <X size={11} className="mt-[2px] shrink-0" aria-hidden /> {w}
                             </li>
                           ))}
                         </ul>

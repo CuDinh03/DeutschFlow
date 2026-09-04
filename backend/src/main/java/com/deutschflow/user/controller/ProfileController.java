@@ -8,6 +8,7 @@ import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.user.service.AccountDeletionService;
 import com.deutschflow.user.service.AuthService;
+import com.deutschflow.user.service.UserAvatarService;
 import com.deutschflow.user.service.UserLearningProfileService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -17,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Profile settings endpoints for authenticated students.
@@ -33,6 +35,7 @@ public class ProfileController {
     private final UserLearningProfileRepository learningProfileRepository;
     private final AccountDeletionService accountDeletionService;
     private final UserNotificationService userNotificationService;
+    private final UserAvatarService userAvatarService;
 
     /**
      * PATCH /api/profile/me
@@ -80,6 +83,26 @@ public class ProfileController {
             @AuthenticationPrincipal User user,
             @Valid @RequestBody ChangePasswordRequest request) {
         authService.changePassword(user, request);
+    }
+
+    record AvatarResponse(String avatarUrl) {}
+
+    /**
+     * POST /api/profile/me/avatar
+     * Upload ảnh đại diện (multipart "file", ảnh chuẩn ≤5MB). Thay ảnh cũ nếu có.
+     */
+    @PostMapping("/me/avatar")
+    public AvatarResponse uploadAvatar(
+            @AuthenticationPrincipal User user,
+            @RequestParam("file") MultipartFile file) {
+        return new AvatarResponse(userAvatarService.updateAvatar(user, file));
+    }
+
+    /** DELETE /api/profile/me/avatar — gỡ ảnh đại diện, quay về chữ cái tắt. */
+    @DeleteMapping("/me/avatar")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAvatar(@AuthenticationPrincipal User user) {
+        userAvatarService.removeAvatar(user);
     }
 
     record PushTokenRequest(

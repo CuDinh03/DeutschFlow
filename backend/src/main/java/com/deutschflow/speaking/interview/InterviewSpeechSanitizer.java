@@ -12,9 +12,12 @@ public class InterviewSpeechSanitizer {
     /** Hard cap on the full reply length — keeps the interviewer concise without scrubbing tone. */
     private static final int MAX_SPEECH_CHARS = 600;
 
+    // L2 (QA 10/08): "stellen sie sich kurz vor" từng nằm trong regex này — nhưng đó là NGUYÊN VĂN
+    // câu hỏi INTRO hợp lệ của question bank, khiến 25/30 greeting prod bị leakSafeFallback nuốt mất
+    // lời tự giới thiệu persona (mở màn bằng "Danke." lơ lửng). Chỉ giữ các marker chỉ-dẫn nội bộ thật.
     private static final Pattern PROMPT_LEAK = Pattern.compile(
             "(?i)(der kandidat antwortete|fordern sie|pflichtfrage|kein lob|challenge-pflicht|antwortregeln|sprachniveau-kontrolle|anti-off-topic guard|"
-                    + "bitte stellen sie sich kurz vor|stellen sie sich kurz vor|fragen sie direkt|bitte den kandidaten)");
+                    + "fragen sie direkt|bitte den kandidaten)");
 
     public String sanitize(String aiSpeechDe, InterviewTurnPlan plan, int userTurn) {
         if (aiSpeechDe == null || aiSpeechDe.isBlank()) {
@@ -30,7 +33,10 @@ public class InterviewSpeechSanitizer {
         text = collapseRepeatedAck(text);
         // Coverage fallback (Phase 1 only — removed in Phase 2 when the LLM drives follow-ups):
         // ensure the turn still advances if the model produced no question at all.
-        if (plan != null && plan.mandatoryQuestionDe() != null && !containsQuestion(text)) {
+        // L4 (QA 10/08): lượt FAREWELL miễn luật này — lời chào tạm biệt tự nhiên không có "?" từng bị
+        // đè bằng bản canned + "Verstehe." lạc lõng.
+        if (plan != null && plan.mandatoryQuestionDe() != null && !containsQuestion(text)
+                && plan.directiveType() != InterviewDirectiveType.CLOSING_FAREWELL) {
             text = shortAck(userTurn) + " " + plan.mandatoryQuestionDe();
         }
         if (text.length() > MAX_SPEECH_CHARS) {
@@ -76,8 +82,16 @@ public class InterviewSpeechSanitizer {
         return userTurn <= 2 ? "Danke." : "Verstehe.";
     }
 
+    // F2 (QA 10/08 hậu-F): câu hỏi phỏng vấn kiểu MỆNH LỆNH ("Erzählen Sie…", "Bitte stellen Sie
+    // sich vor…") không có "?" — coverage-fallback từng coi là "chưa hỏi gì" và đè trọn lời chào
+    // (kể cả phần tự giới thiệu persona) bằng shortAck + câu bank. Đây là thủ phạm chính của
+    // greeting "Danke." (regex L2 chỉ là một nửa gốc rễ).
+    private static final Pattern IMPERATIVE_ASK = Pattern.compile(
+            "(?i)(erzählen sie|beschreiben sie|nennen sie|stellen sie sich|berichten sie|"
+                    + "geben sie ein beispiel|schildern sie)");
+
     private static boolean containsQuestion(String text) {
-        return text.contains("?");
+        return text.contains("?") || IMPERATIVE_ASK.matcher(text).find();
     }
 
     private static String collapseRepeatedAck(String text) {

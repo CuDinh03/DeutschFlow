@@ -6,7 +6,8 @@
  */
 
 .rt-scope {
-  --tree-ink: #3a2a20;
+  /* Mực nâu ấm hơi xám (Lernbaum v2 §15) — tránh cảm giác viền đen icon. */
+  --tree-ink: #3a302a;
   --tree-bark: #8a6350;
   --tree-canopy: #eef7ea;
   --tree-paper: #fffdf8;
@@ -16,10 +17,16 @@
   --tree-bud: #eaf6ec;
   --tree-flower: var(--ga-yellow, #ffcd00);
   --tree-flower-lit: #ffd940;
+  /* Aura nhịp thở quanh hoa: vàng đậm hơn cánh (F4BE24) + cam đất cho gợn thứ hai. */
+  --tree-aura: #f4be24;
+  --tree-aura-2: #e89b2c;
   --tree-nub: #f0ece7;
   --tree-nub-line: #b9aea6;
   --tree-ghost: #cdc3ba;
   --tree-label-mute: #8b837c;
+  /* Tán tuần vừa khép: đậm thêm một tông so với --tree-canopy (bậc 3). */
+  --tree-canopy-deep: #d4e9c6;
+  --tree-label-done: #4e7f41;
 }
 
 /* ── Chuyển động nền ─────────────────────────────────────────────────── */
@@ -34,26 +41,63 @@
   }
 }
 
-@keyframes rtPulse {
+/* Nhịp thở 5 lớp lệch pha của node đang học (Lernbaum v2):
+ * 1) vòng gạch xoay rất chậm, 2) chính nó "hít–thở" bất đối xứng (phồng 55% chu kỳ / xẹp 45% —
+ * giống hơi thở thật hơn sin đều), 3) hào quang mềm thở NGƯỢC pha bên trong, 4) hai gợn lan
+ * so le nửa chu kỳ, 5) ba đốm phấn nhấp nháy lệch nhịp. Tất cả transform/opacity. */
+@keyframes rtSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rtBreath {
   0%,
   100% {
-    transform: scale(1);
-    opacity: 0.9;
+    transform: scale(0.955);
+    opacity: 0.55;
   }
-  50% {
-    transform: scale(1.08);
-    opacity: 0.45;
+  55% {
+    transform: scale(1.09);
+    opacity: 0.95;
+  }
+}
+
+@keyframes rtGlowBreath {
+  0%,
+  100% {
+    transform: scale(1.05);
+    opacity: 0.16;
+  }
+  55% {
+    transform: scale(0.94);
+    opacity: 0.05;
   }
 }
 
 @keyframes rtRing {
   0% {
-    transform: scale(0.72);
-    opacity: 0.85;
+    transform: scale(0.74);
+    opacity: 0.7;
+  }
+  70% {
+    opacity: 0.18;
   }
   100% {
-    transform: scale(1.35);
+    transform: scale(1.42);
     opacity: 0;
+  }
+}
+
+@keyframes rtSpark {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  45% {
+    opacity: 0.9;
+    transform: scale(1);
   }
 }
 
@@ -63,16 +107,50 @@
   animation: rtSway 9s ease-in-out infinite;
 }
 
+.rt-ring-spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rtSpin 26s linear infinite;
+}
+
 .rt-ring-pulse {
   transform-box: fill-box;
   transform-origin: center;
-  animation: rtPulse 2.4s ease-in-out infinite;
+  animation: rtBreath 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.rt-ring-glow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rtGlowBreath 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 .rt-ring-out {
   transform-box: fill-box;
   transform-origin: center;
-  animation: rtRing 2.4s ease-out infinite;
+  animation: rtRing 3.4s ease-out infinite;
+}
+
+/* Delay ÂM: gợn thứ hai vào giữa chu kỳ ngay từ frame đầu — delay dương sẽ để lộ
+ * một vòng tròn tĩnh trong 1,7s đầu tiên trước khi animation bắt đầu. */
+.rt-ring-out.rt-r2 {
+  animation-delay: -1.7s;
+}
+
+.rt-spark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rtSpark 2.6s ease-in-out infinite;
+}
+
+.rt-spark.rt-s2 {
+  animation-duration: 3.4s;
+  animation-delay: -0.9s;
+}
+
+.rt-spark.rt-s3 {
+  animation-duration: 3.1s;
+  animation-delay: -1.8s;
 }
 
 /* Cây đứng yên ngay khi người học chạm tới: một node đang đung đưa là một node khó bấm trúng —
@@ -83,17 +161,233 @@
   animation-play-state: paused;
 }
 
-/* Tắt chuyển động: người dùng bật giảm chuyển động, hoặc tự bấm nút tắt hiệu ứng. */
+/* Tắt chuyển động: người dùng bật giảm chuyển động, hoặc tự bấm nút tắt hiệu ứng.
+ * Đốm phấn ẩn hẳn khi tĩnh — một chấm vàng đứng yên cạnh hoa trông như vết bẩn. */
 .rt-still .rt-sway,
+.rt-still .rt-ring-spin,
 .rt-still .rt-ring-pulse,
-.rt-still .rt-ring-out {
+.rt-still .rt-ring-glow,
+.rt-still .rt-ring-out,
+.rt-still .rt-spark {
   animation: none;
+}
+
+.rt-still .rt-spark {
+  opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .rt-sway,
+  .rt-ring-spin,
   .rt-ring-pulse,
-  .rt-ring-out {
+  .rt-ring-glow,
+  .rt-ring-out,
+  .rt-spark {
+    animation: none;
+  }
+
+  .rt-spark {
+    opacity: 0;
+  }
+}
+
+
+/* ── Nghi thức trở về (Lernbaum v2 — 3 bậc, ≤2,5s) ───────────────────────
+ * Gắn class theo RitualPlan trong ≤2,5s rồi gỡ. Mốc thời gian khớp RITUAL_TIMELINE (ritual.ts):
+ * bậc 1 cánh bung 0–0,7s → bậc 2 hoa khép 0,7–1,2s / lá mở 1,0–1,5s / nụ kế nở 1,3–1,9s →
+ * bậc 3 tán tuần đậm 1,6–2,4s + phấn bay 1,6–2,5s. Chỉ transform/opacity. Dưới .rt-still và
+ * prefers-reduced-motion các class này KHÔNG được gắn (tab bỏ qua nghi thức), nhưng vẫn chặn
+ * phòng hờ ở cuối file. */
+
+@keyframes rtPetalGain {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes rtPetalNudge {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes rtPollen {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(6px, -26px);
+    opacity: 0;
+  }
+}
+
+@keyframes rtFlowerOut {
+  0% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.68) rotate(-8deg);
+  }
+}
+
+@keyframes rtLeafIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes rtBudOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes rtFlowerIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes rtCanopyClose {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes rtWeekPollen {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(28px, -40px);
+    opacity: 0;
+  }
+}
+
+.rt-rit-petal-gain {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: rtPetalGain 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.rt-rit-petal-nudge {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: rtPetalNudge 0.5s ease-in-out both;
+}
+
+.rt-rit-pollen {
+  animation: rtPollen 0.9s ease-out 0.3s both;
+}
+
+.rt-rit-pollen.rt-p2 {
+  animation-delay: 0.45s;
+  animation-duration: 1s;
+}
+
+.rt-rit-flower-out {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rtFlowerOut 0.5s ease-in 0.7s both;
+}
+
+.rt-rit-leaf-in {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rtLeafIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1s both;
+}
+
+.rt-rit-bud-out {
+  transform-box: fill-box;
+  transform-origin: 50% 90%;
+  animation: rtBudOut 0.4s ease-in 1.3s both;
+}
+
+.rt-rit-flower-in {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rtFlowerIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 1.4s both;
+}
+
+.rt-rit-canopy-close {
+  animation: rtCanopyClose 0.8s ease-out 1.6s both;
+}
+
+.rt-rit-week-pollen {
+  animation: rtWeekPollen 0.9s ease-out 1.6s both;
+}
+
+.rt-rit-week-pollen.rt-p2 {
+  animation-delay: 1.75s;
+}
+
+.rt-rit-week-pollen.rt-p3 {
+  animation-delay: 1.9s;
+}
+
+.rt-rit-week-pollen.rt-p4 {
+  animation-delay: 2.05s;
+}
+
+.rt-rit-week-pollen.rt-p5 {
+  animation-delay: 2.2s;
+}
+
+.rt-still [class*='rt-rit-'] {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*='rt-rit-'] {
     animation: none;
   }
 }

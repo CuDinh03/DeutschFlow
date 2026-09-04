@@ -2,7 +2,7 @@
   "expo": {
     "name": "MyDeutschFlow",
     "slug": "deutschflow",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "runtimeVersion": {
       "policy": "fingerprint"
     },
@@ -12,7 +12,7 @@
     "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "cover",
@@ -37,7 +37,7 @@
         "NSPrivacyCollectedDataTypes": [
           {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeProductInteraction",
-            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
             "NSPrivacyCollectedDataTypePurposes": [
               "NSPrivacyCollectedDataTypePurposeAnalytics"
@@ -45,7 +45,7 @@
           },
           {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUsageData",
-            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
             "NSPrivacyCollectedDataTypePurposes": [
               "NSPrivacyCollectedDataTypePurposeAnalytics"
@@ -131,7 +131,7 @@
       "@sentry/react-native"
     ],
     "extra": {
-      "sentryDsn": "",
+      "sentryDsn": "https://db78a5780def4f168ee8b6a0e1f26632@o4512015085207552.ingest.us.sentry.io/4512015099428864",
       "posthogKey": "phc_vFERGwkAxSWCTagc39wk3uevgueqhZsXvjcc5dDSKoHB",
       "posthogHost": "https://us.i.posthog.com",
       "router": {},

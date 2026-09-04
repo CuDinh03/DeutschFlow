@@ -182,7 +182,7 @@ export default function V2TeacherSessionsPage() {
               items={[
                 { label: 'Chờ xác nhận', value: pending.length, sub: 'cần phản hồi', tone: 'orange', alert: pending.length > 0 },
                 { label: 'Đã hoàn thành', value: completed.length, sub: `${completedHours.toFixed(1)} giờ dạy`, tone: 'blue' },
-                { label: 'Đánh giá TB', value: avgRating ? `${avgRating.toFixed(1)}★` : '—', sub: `${rated.length} lượt`, tone: 'green' },
+                { label: 'Đánh giá TB', value: avgRating ? <span className="inline-flex items-center gap-1">{avgRating.toFixed(1)}<Star size={14} aria-hidden /></span> : '—', sub: `${rated.length} lượt`, tone: 'green' },
                 { label: 'Thu nhập ròng', value: earnings ? compactVnd(earnings.netEarningsVnd) : '—', sub: 'sau phí nền tảng', tone: 'violet' },
               ]}
             />

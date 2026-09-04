@@ -119,4 +119,49 @@ class JwtServiceUnitTest {
         assertThrows(IllegalStateException.class, () ->
             new JwtService("", "", 1000, "iss", "aud", false, "HS256", "", "", ""));
     }
+
+    // ── R-M10: require-iss-aud=true phải enforce CẢ issuer LẪN audience ──────────────
+
+    @Test
+    void requireIssAud_acceptsMatchingIssuerAndAudience() {
+        JwtService jwt = new JwtService(SECRET_32_PLUS, "", 3_600_000L,
+                "deutschflow-api", "deutschflow-app", true,
+                "HS256", "", "", "");
+        String token = jwt.generateAccessToken(student());
+        assertTrue(jwt.isTokenValid(token), "token đúng iss+aud phải hợp lệ khi bật require-iss-aud");
+        assertEquals("a@b.com", jwt.extractEmail(token));
+    }
+
+    @Test
+    void requireIssAud_rejectsWrongAudience_evenWithValidSignatureAndIssuer() {
+        // Cùng secret (chữ ký verify được) + cùng issuer, chỉ khác AUDIENCE. Trước R-M10, verifier
+        // chỉ requireIssuer nên token vẫn lọt dù aud sai — đúng khoảng trống mà tên cấu hình che.
+        JwtService issuer = new JwtService(SECRET_32_PLUS, "", 3_600_000L,
+                "deutschflow-api", "deutschflow-app", true,
+                "HS256", "", "", "");
+        JwtService verifierOtherAud = new JwtService(SECRET_32_PLUS, "", 3_600_000L,
+                "deutschflow-api", "some-other-service", true,
+                "HS256", "", "", "");
+        String token = issuer.generateAccessToken(student()); // aud = deutschflow-app
+
+        assertFalse(verifierOtherAud.isTokenValid(token),
+                "token mang aud khác phải bị từ chối khi require-iss-aud=true");
+        assertThrows(io.jsonwebtoken.JwtException.class,
+                () -> verifierOtherAud.extractClaims(token));
+    }
+
+    @Test
+    void audienceNotEnforced_whenRequireIssAudOff() {
+        // Cổng enforce là chính flag: tắt thì audience khác vẫn qua (giữ tương thích ngược trước cutover).
+        JwtService issuer = new JwtService(SECRET_32_PLUS, "", 3_600_000L,
+                "deutschflow-api", "deutschflow-app", false,
+                "HS256", "", "", "");
+        JwtService verifierOtherAud = new JwtService(SECRET_32_PLUS, "", 3_600_000L,
+                "deutschflow-api", "some-other-service", false,
+                "HS256", "", "", "");
+        String token = issuer.generateAccessToken(student());
+
+        assertTrue(verifierOtherAud.isTokenValid(token),
+                "require-iss-aud=false thì không enforce audience");
+    }
 }

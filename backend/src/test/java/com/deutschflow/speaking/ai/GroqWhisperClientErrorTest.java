@@ -128,19 +128,81 @@ class GroqWhisperClientErrorTest {
                 });
     }
 
+    // ── Hạn mức 429 (Đ6 04/08 — cùng khuôn chat #288/#291) ───────────────────
+
+    @Test
+    @DisplayName("429 → RATE_LIMITED + Retry-After của upstream, câu chữ trung tính")
+    void rateLimit429IsClassifiedWithRetryAfter() {
+        respondWith(429, "{\"error\":{\"message\":\"rate limit\"}}",
+                java.util.Map.of("Retry-After", "45", "x-ratelimit-remaining-requests", "0"));
+
+        assertThatThrownBy(() -> client().transcribe(AUDIO, "a.webm", "de", null))
+                .isInstanceOfSatisfying(AiServiceException.class, ex -> {
+                    assertThat(ex.getCode()).isEqualTo(AiErrorCode.RATE_LIMITED);
+                    assertThat(ex.getRetryAfterSeconds()).isEqualTo(45);
+                    assertThat(ex.getMessage())
+                            .doesNotContain("Whisper").doesNotContain("Groq")
+                            .doesNotContain("429").doesNotContain("rate limit");
+                });
+    }
+
+    @Test
+    @DisplayName("429 không kèm Retry-After → gợi ý mặc định 60s")
+    void rateLimitWithoutHeaderGetsDefaultHint() {
+        respondWith(429, "{\"error\":{\"message\":\"rate limit\"}}");
+
+        assertThatThrownBy(() -> client().transcribeVerbose(AUDIO, "a.webm", "de", null))
+                .isInstanceOfSatisfying(AiServiceException.class, ex -> {
+                    assertThat(ex.getCode()).isEqualTo(AiErrorCode.RATE_LIMITED);
+                    assertThat(ex.getRetryAfterSeconds()).isEqualTo(60);
+                });
+    }
+
+    @Test
+    @DisplayName("429 liên tiếp KHÔNG mở breaker groqWhisper — hạn mức không thành 503 toàn phần")
+    void repeatedRateLimitsDoNotTripWhisperBreaker() {
+        respondWith(429, "{\"error\":{\"message\":\"rate limit\"}}");
+        GroqWhisperClient tightBreakerClient = clientWithBreakerOpeningAfter(2);
+
+        for (int i = 0; i < 4; i++) {
+            assertThatThrownBy(() -> tightBreakerClient.transcribe(AUDIO, "a.webm", "de", null))
+                    .isInstanceOfSatisfying(AiServiceException.class, ex ->
+                            // AI_BUSY = breaker OPEN (hành vi cũ) — 429 phải giữ nguyên RATE_LIMITED.
+                            assertThat(ex.getCode()).isEqualTo(AiErrorCode.RATE_LIMITED));
+        }
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private void respondWith(int status, String body) {
+        respondWith(status, body, java.util.Map.of());
+    }
+
+    private void respondWith(int status, String body, java.util.Map<String, String> headers) {
         server.createContext("/stt", exchange -> {
             exchange.getRequestBody().readAllBytes();
             byte[] payload = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
+            headers.forEach((name, value) -> exchange.getResponseHeaders().add(name, value));
             exchange.sendResponseHeaders(status, payload.length);
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(payload);
             }
         });
         server.start();
+    }
+
+    /** Breaker ngưỡng thấp nhất — hành vi cũ sẽ OPEN từ lượt 3 và trả AI_BUSY thay vì RATE_LIMITED. */
+    private GroqWhisperClient clientWithBreakerOpeningAfter(int minimumCalls) {
+        CircuitBreakers breakers = new CircuitBreakers(CircuitBreakerRegistry.of(
+                CircuitBreakerConfig.custom()
+                        .slidingWindowSize(Math.max(minimumCalls, 2))
+                        .minimumNumberOfCalls(minimumCalls)
+                        .failureRateThreshold(50f)
+                        .waitDurationInOpenState(Duration.ofSeconds(30))
+                        .build()));
+        return new GroqWhisperClient("test-key", STT_MODEL, new ObjectMapper(),
+                new GroqConcurrencyLimiter(new GroqProperties()), breakers, endpointUrl);
     }
 
     private GroqWhisperClient client() {

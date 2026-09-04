@@ -1,11 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
-import { ArrowLeft, BookOpen, Check, Mic, RefreshCw, Sparkles, Trophy, Volume2, X } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
+import { ArrowLeft, BookOpen, Check, Lightbulb, Mic, RefreshCw, Sparkles, TreeDeciduous, Trophy, Volume2, X } from 'lucide-react'
 import api from '@/lib/api'
 import { isAsyncJobAccepted, waitForAsyncJob } from '@/lib/asyncJob'
+import { pickExplanation } from '@/lib/practice/explanation'
+import { classifyPracticeError, type PracticeErrorInfo } from '@/lib/practice/practiceError'
+import { MASTERY_PERCENT } from '@/lib/roadmap-tree/practiceStats'
+import { LeafProgress } from '@/components/practice/LeafProgress'
+import { SeedlingWait } from '@/components/practice/SeedlingWait'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { SKILL_COLORS, SKILL_LABELS, SKILL_ICONS } from '@/lib/skills'
@@ -49,12 +55,21 @@ const SKILL_LABELS_DE: Record<Skill, string> = {
   schreiben: 'Schreiben',
 }
 
+/**
+ * Đường về cây (L3a/L3b): luôn mang `feiern=<skill>` — tab cây tự đối chiếu điểm để diễn bậc 0
+ * (dưới ngưỡng: cánh nhún) hay bậc 1–3 (đạt: cánh nhận màu → hoa hoá lá → tuần khép tán).
+ */
+const treeHref = (nodeId: number, skill: Skill, feiern: boolean) =>
+  `/v2/student/roadmap?tab=tree&node=${nodeId}${feiern ? `&feiern=${skill}` : ''}`
+
 /** Các dạng bài "nói" — không chấm tự động, học viên tự xác nhận đã đọc (giữ nguyên v1). */
 const SPEAKING_TYPES = ['SPEAKING_REPEAT', 'SPEAKING_RESPONSE', 'ROLE_PLAY', 'SPEAKING_DESCRIBE']
 
 interface Exercise {
   type: string
-  instruction_vi: string
+  /** Hợp đồng mới 18/08: đề 100% tiếng Đức. Field `*_vi` chỉ còn ở session sinh trước ngày đổi. */
+  instruction_de?: string
+  instruction_vi?: string
   audio_transcript?: string
   question_vi?: string
   sentence_with_blank?: string
@@ -65,15 +80,18 @@ interface Exercise {
   grading_keywords?: string[]
   focus_sounds?: string[]
   scenario_vi?: string
+  scenario_de?: string
   partner_line_de?: string
   expected_response?: string
   situation_vi?: string
+  situation_de?: string
   expected_phrases?: string[]
   statement_de?: string
   words?: string[]
   correct_order?: string[]
   translation_vi?: string
   hint_vi?: string
+  hint_de?: string
   grammar_rule_vi?: string
   prompt_vi?: string
   prompt_de?: string
@@ -84,12 +102,40 @@ interface Exercise {
   correct_answer?: string | boolean
   accept_also?: string[]
   explanation_vi?: string
+  explanation_en?: string
+  explanation_de?: string
   pairs?: { de: string; vi: string }[]
 }
 
 type ExercisePayload =
   | Exercise[]
-  | { reading_passage?: { text_type?: string; text_de?: string }; exercises?: Exercise[] }
+  | {
+      reading_passage?: { text_type?: string; text_de?: string }
+      exercises?: Exercise[]
+      /** Vỏ LLM tự bọc (đã bóc ở backend từ V275) — giữ để render được session sót. */
+      content?: Exercise[]
+    }
+
+/**
+ * Lấy mảng bài tập ra khỏi payload session.
+ *
+ * Dạng chuẩn là `{ exercises: [...] }` (Lesen kèm `reading_passage`). Các dạng còn lại đến từ
+ * session sinh TRƯỚC bản vá prompt, khi model bị kẹt giữa "prompt đòi mảng" và
+ * `response_format: json_object` (chế độ CẤM mảng top-level) nên tự bọc mảng lại: vỏ
+ * `{"type":"object","content":[...]}` (prod 17–18/08, backend đã bóc từ V275) hoặc một khoá
+ * model tự đặt như `uebungen` (prod 25/08, node 114 Hören). Bắt mảng-đối-tượng đầu tiên nên
+ * cứu được cả hai kiểu vỏ mà không phải liệt kê tên khoá, thay vì hiện "0 câu" cụt đường.
+ */
+function extractExercises(payload: ExercisePayload | undefined): Exercise[] {
+  if (Array.isArray(payload)) return payload
+  if (!payload || typeof payload !== 'object') return []
+  if (Array.isArray(payload.exercises)) return payload.exercises
+  const rescued = Object.values(payload as Record<string, unknown>).find(
+    (value): value is Exercise[] =>
+      Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null,
+  )
+  return rescued ?? []
+}
 
 interface SessionDetail {
   sessionId: number
@@ -127,6 +173,7 @@ function ExerciseCard({
   onAnswer,
   answered,
   isCorrect,
+  revealExplanations,
 }: {
   exercise: Exercise
   index: number
@@ -134,10 +181,14 @@ function ExerciseCard({
   onAnswer: (answer: AnswerValue) => void
   answered: boolean
   isCorrect: boolean | null
+  /** Chỉ true SAU khi nộp bài — mọi giải thích/dịch nghĩa (VI/EN) giấu đến lúc đó (product 18/08). */
+  revealExplanations: boolean
 }) {
   const t = useTranslations('v2.student.practiceRunner')
+  const locale = useLocale()
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
   const [textInput, setTextInput] = useState('')
+  const explanation = pickExplanation(exercise, locale)
 
   const isSpeaking = SPEAKING_TYPES.includes(exercise.type)
   const isReadingType = ['READ_AND_CHOOSE', 'READ_TRUE_FALSE', 'READ_AND_FILL'].includes(exercise.type)
@@ -162,7 +213,23 @@ function ExerciseCard({
         </span>
       </div>
 
-      <p className="ga-ui mb-3 break-words text-[14px] font-semibold text-ga-ink">{exercise.instruction_vi}</p>
+      <p className="ga-ui mb-3 break-words text-[14px] font-semibold text-ga-ink">
+        {exercise.instruction_de ?? exercise.instruction_vi}
+      </p>
+
+      {/* Nói: tình huống / kịch bản (hợp đồng DE-only 18/08) */}
+      {(exercise.situation_de || exercise.scenario_de) && (
+        <div className="mb-4 rounded-ga border border-ga-line bg-ga-surface px-4 py-3">
+          <p className="ga-ui break-words text-[13.5px] leading-relaxed text-ga-ink">
+            {exercise.situation_de ?? exercise.scenario_de}
+          </p>
+          {exercise.partner_line_de && (
+            <p className="ga-ui mt-1 break-words text-[13.5px] italic text-ga-muted">
+              &laquo;{exercise.partner_line_de}&raquo;
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Nghe: phát transcript bằng TTS */}
       {exercise.audio_transcript && (
@@ -188,6 +255,9 @@ function ExerciseCard({
       {exercise.sentence_with_blank && (
         <div className="mb-4 rounded-ga border border-ga-line bg-ga-surface px-4 py-3">
           <p className="ga-ui break-words text-[14px] font-medium text-ga-ink">{exercise.sentence_with_blank}</p>
+          {exercise.hint_de && (
+            <p className="ga-ui mt-1 flex items-start gap-1.5 text-[12.5px] text-ga-muted"><Lightbulb size={13} className="mt-[2px] shrink-0" aria-hidden /> {exercise.hint_de}</p>
+          )}
         </div>
       )}
 
@@ -195,7 +265,8 @@ function ExerciseCard({
       {exercise.sentence_de && (exercise.type === 'SPEAKING_REPEAT' || exercise.type === 'SPEAKING_RESPONSE') && (
         <div className="mb-4 rounded-ga border border-ga-line bg-ga-surface px-4 py-3">
           <p className="break-words font-ga-display text-[17px] font-medium text-ga-ink">{exercise.sentence_de}</p>
-          {exercise.sentence_vi && (
+          {/* Dịch nghĩa (session cũ) chỉ lộ sau khi nộp — trong bài là 100% tiếng Đức. */}
+          {revealExplanations && exercise.sentence_vi && (
             <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">{exercise.sentence_vi}</p>
           )}
           <button
@@ -209,7 +280,8 @@ function ExerciseCard({
         </div>
       )}
 
-      {exercise.question_vi && !exercise.audio_transcript && (
+      {/* Câu hỏi VI: chỉ session cũ mới có — session mới hỏi bằng question_de. */}
+      {exercise.question_vi && !exercise.question_de && !exercise.audio_transcript && (
         <p className="ga-ui mb-3 text-[13.5px] text-ga-muted">{exercise.question_vi}</p>
       )}
       {exercise.question_de && (
@@ -324,8 +396,9 @@ function ExerciseCard({
         </button>
       )}
 
-      {/* Giải thích sau khi trả lời */}
-      {answered && exercise.explanation_vi && (
+      {/* Giải thích: CHỈ sau khi nộp cả bài (product 18/08) — trong bài đề 100% tiếng Đức,
+          phản hồi đúng/sai tức thời vẫn có qua màu viền/đáp án. */}
+      {revealExplanations && answered && explanation && (
         <div
           className="mt-3 rounded-ga border px-4 py-3"
           style={{
@@ -339,7 +412,7 @@ function ExerciseCard({
           >
             {isCorrect ? t('correct') : t('incorrect')}
           </p>
-          <p className="ga-ui break-words text-[13.5px] text-ga-muted">{exercise.explanation_vi}</p>
+          <p className="ga-ui break-words text-[13.5px] text-ga-muted">{explanation}</p>
           {!isCorrect && typeof exercise.correct_answer === 'string' && (
             <p className="ga-ui mt-1 break-words text-[13.5px] font-semibold text-ga-ink">
               {t('answerIs')} {exercise.correct_answer}
@@ -371,20 +444,19 @@ export default function V2StudentPracticeRunnerPage() {
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [errorInfo, setErrorInfo] = useState<PracticeErrorInfo | null>(null)
   const [answers, setAnswers] = useState<Map<number, { answer: AnswerValue; correct: boolean }>>(new Map())
   const [submitted, setSubmitted] = useState(false)
-  const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null)
-  const [generatingNext, setGeneratingNext] = useState(false)
   const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null)
   const [draftRestored, setDraftRestored] = useState(false)
   const [draftUnavailable, setDraftUnavailable] = useState(false)
-
-  const accent = SKILL_COLORS[skill]
   const tShell = useTranslations('v2.student.lessonShell')
 
   /**
    * Nháp bài luyện (S-04 AC-2). ĐO ĐƯỢC trước khi làm: trả lời 2/3 câu rồi tải lại → còn 0.
-   * `answers` chỉ sống trong `useState`, y hệt lỗi mất-trắng của engine thi ở B-13.
+   * `answers` chỉ sống trong `useState`, y hệt lỗi mất-trắng của engine thi ở B-13. Khác phòng
+   * thi (đã có autosave server V285), bài luyện chưa có endpoint lưu tạm — localStorage là mức
+   * client làm được ngay, và nhãn nói đúng phạm vi "trên thiết bị này".
    *
    * `scope` gắn theo sessionId và nháp mang theo `generation`: sinh thế hệ đề mới thì bản nháp cũ
    * bị coi như không có, nếu không đáp án của đề cũ sẽ đánh dấu đúng những câu chưa ai trả lời.
@@ -428,13 +500,36 @@ export default function V2StudentPracticeRunnerPage() {
     setDraftUnavailable(!ok)
     if (ok) setDraftSavedAt(savedAt)
   }, [answers, draftScope, session, submitted])
+  const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null)
+  const [generatingNext, setGeneratingNext] = useState(false)
+
+  const accent = SKILL_COLORS[skill]
+
+  /** Đ0b: tách nhánh 409 / quota / AI 503 / job FAILED thay vì nuốt hết thành "không tải được". */
+  const failWith = useCallback(
+    (err: unknown, fallbackKey: 'loadError' | 'generateError') => {
+      const info = classifyPracticeError(err)
+      setErrorInfo(info)
+      const base =
+        info.kind === 'conflict'
+          ? t('errorConflict')
+          : info.kind === 'quota'
+            ? info.retryAfterSeconds
+              ? t('errorRateLimited', { seconds: info.retryAfterSeconds })
+              : t('errorQuota')
+            : info.kind === 'aiUnavailable'
+              ? t('errorAiUnavailable')
+              : info.kind === 'jobFailed'
+                ? t('errorJobFailed')
+                : t(fallbackKey)
+      setError(info.detail && info.kind !== 'generic' ? `${base} ${info.detail}` : base)
+    },
+    [t],
+  )
 
   const applyDetail = useCallback((detail: SessionDetail) => {
     setSession(detail)
-    const payload = detail.exercises
-    if (Array.isArray(payload)) setExercises(payload)
-    else if (Array.isArray(payload?.exercises)) setExercises(payload.exercises)
-    else setExercises([])
+    setExercises(extractExercises(detail.exercises))
   }, [])
 
   const loadDetail = useCallback(
@@ -464,6 +559,7 @@ export default function V2StudentPracticeRunnerPage() {
     if (!nodeId || !skill) return
     setLoading(true)
     setError(null)
+    setErrorInfo(null)
     try {
       const { data } = await api.post<
         { sessions?: Array<{ id: number; skill_type: string }>; sessionId?: number } | unknown
@@ -508,12 +604,12 @@ export default function V2StudentPracticeRunnerPage() {
       }
 
       setError(t('noSession'))
-    } catch {
-      setError(t('loadError'))
+    } catch (err) {
+      failWith(err, 'loadError')
     } finally {
       setLoading(false)
     }
-  }, [nodeId, skill, skillUpper, loadDetail, generateSkillSession, t])
+  }, [nodeId, skill, skillUpper, loadDetail, generateSkillSession, failWith, t])
 
   useEffect(() => {
     if (me && nodeId && skill) void fetchSession()
@@ -575,25 +671,26 @@ export default function V2StudentPracticeRunnerPage() {
     if (!nodeId) return
     setGeneratingNext(true)
     setError(null)
+    setErrorInfo(null)
     try {
       // `next` LUÔN trả 202 + jobId → bắt buộc phải poll (v1 thiếu bước này nên nút không chạy).
       const sessionId = await generateSkillSession()
       if (sessionId) {
+        await loadDetail(sessionId)
+        setAnswers(new Map())
+        setSubmitted(false)
+        setSubmitResult(null)
         // Đề mới ⇒ nháp của đề cũ vô nghĩa. Xoá cả khoá lẫn cờ sẵn-sàng để vòng khôi phục chạy lại
         // cho scope mới thay vì tưởng mình đã khôi phục rồi.
         if (draftScope) clearLessonDraft(draftScope)
         draftReadyRef.current = null
         setDraftSavedAt(null)
         setDraftRestored(false)
-        await loadDetail(sessionId)
-        setAnswers(new Map())
-        setSubmitted(false)
-        setSubmitResult(null)
       } else {
         setError(t('generateError'))
       }
-    } catch {
-      setError(t('generateError'))
+    } catch (err) {
+      failWith(err, 'generateError')
     } finally {
       setGeneratingNext(false)
     }
@@ -638,32 +735,86 @@ export default function V2StudentPracticeRunnerPage() {
       onExit={() => router.push(`/v2/student/practice/${nodeId}`)}
     >
       <>
-          {error && <ErrorBanner message={error} onRetry={() => void fetchSession()} />}
+          {/* Thoát giữa chừng: session giữ ACTIVE, quay lại là tiếp — cây không mất gì. Vỏ chỉ
+              mang exit về trang kỹ năng, nên đường về CÂY (L3a) đứng trong nội dung. */}
+          <Link
+            href={treeHref(nodeId, skill, false)}
+            className="ga-ui inline-flex min-h-10 items-center gap-1.5 self-start text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
+          >
+            <TreeDeciduous size={15} aria-hidden /> {t('backToTree')}
+          </Link>
 
-          {/* Điểm hiện tại. Tiêu đề kỹ năng, node và thế hệ đã nằm trên header của LessonShell —
-              thẻ này giữ đúng thứ header KHÔNG nói: số câu ĐÚNG. Nó khác thanh tiến độ ở header
-              (đó là số câu ĐÃ TRẢ LỜI), nên hai con số phải đứng rời và mang hai nhãn khác nhau. */}
+          {error && (
+            <ErrorBanner
+              message={error}
+              // Quota/giới hạn tần suất: thử lại ngay chỉ ăn thêm 429 — để học viên tự quay lại sau.
+              onRetry={errorInfo?.kind === 'quota' ? undefined : () => void fetchSession()}
+            />
+          )}
+
+          {/* Đầu bài + điểm hiện tại */}
           {session && (
             <GaCard className="flex items-center gap-3 p-4 lg:gap-4 lg:p-5">
               <span
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-full"
+                className="grid h-12 w-12 shrink-0 place-items-center rounded-full"
                 style={{ background: accent }}
               >
-                <SkillIcon paths={SKILL_ICONS[skill]} size={20} color="#FFFFFF" strokeWidth={2.4} />
+                <SkillIcon paths={SKILL_ICONS[skill]} size={22} color="#FFFFFF" strokeWidth={2.4} />
               </span>
-              <p className="ga-ui min-w-0 flex-1 truncate text-[12.5px] text-ga-muted">
-                {t('exerciseCount', { count: exercises.length })}
-              </p>
-              <div className="shrink-0 text-center">
-                <p className="whitespace-nowrap font-ga-display text-[18px] font-medium lg:text-[22px]" style={{ color: accent }}>
-                  {correctCount}/{exercises.length}
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-[15px] font-semibold text-ga-ink">
+                  {SKILL_LABELS[skill]} · {SKILL_LABELS_DE[skill]}
                 </p>
-                <p className="ga-ui text-[11px] text-ga-subtle">{t('correctLabel')}</p>
+                <p className="ga-ui truncate text-[12.5px] text-ga-muted">
+                  {t('metaLine', {
+                    node: session.sourceNodeTitleVi,
+                    gen: session.generation,
+                    count: exercises.length,
+                  })}
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                <LeafProgress
+                  total={exercises.length}
+                  answered={answers.size}
+                  accent={accent}
+                  label={t('progressLabel', { answered: answers.size, total: exercises.length })}
+                />
+                <p className="ga-ui whitespace-nowrap text-[11px] text-ga-subtle">
+                  <span className="font-ga-display text-[15px] font-medium" style={{ color: accent }}>
+                    {correctCount}/{exercises.length}
+                  </span>{' '}
+                  {t('correctLabel')}
+                </p>
               </div>
             </GaCard>
           )}
 
-          {loading && <LoadingState label={t('generatingExercises')} />}
+          {/* Đang sinh đề (202 + job nền) — nghi thức ươm mầm thay spinner chung. */}
+          {(loading || generatingNext) && !error && <SeedlingWait label={t('seeding')} accent={accent} />}
+
+          {/* Session không có bài nào: cho lối thoát thay vì màn hình cụt (không nộp được,
+              cũng không có nút sinh lại vì nút đó chỉ hiện sau khi nộp). */}
+          {!loading && session && exercises.length === 0 && (
+            <GaCard className="p-5 text-center lg:p-6" style={{ borderColor: 'var(--ga-orange)' }}>
+              <p className="ga-ui text-[14px] font-semibold text-ga-ink">{t('emptySession')}</p>
+              <p className="ga-ui mt-1 text-[13px] text-ga-muted">{t('emptySessionHint')}</p>
+              <button
+                type="button"
+                onClick={() => void handleGenerateNext()}
+                disabled={generatingNext}
+                className="ga-ui mt-4 inline-flex min-h-10 items-center gap-2 rounded-ga px-5 py-2.5 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0"
+                style={{ background: accent }}
+              >
+                {generatingNext ? (
+                  <RefreshCw size={14} className="animate-spin" aria-hidden />
+                ) : (
+                  <Sparkles size={14} aria-hidden />
+                )}
+                {generatingNext ? t('generating') : t('regenerate')}
+              </button>
+            </GaCard>
+          )}
 
           {/* Bài đọc (LESEN) */}
           {readingPassage && (
@@ -690,6 +841,7 @@ export default function V2StudentPracticeRunnerPage() {
                   onAnswer={(answer) => handleAnswer(idx, answer)}
                   answered={answers.has(idx)}
                   isCorrect={answers.get(idx)?.correct ?? null}
+                  revealExplanations={submitted}
                 />
               ))}
             </div>
@@ -737,13 +889,35 @@ export default function V2StudentPracticeRunnerPage() {
                 </p>
               )}
 
+              {/* ≥70%: "Về cây" là CTA chính — phần thưởng là cây lớn lên, đi xem nó. Dưới ngưỡng:
+                  làm thêm bài mới là việc chính, cây vẫn ở đó. */}
               <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <Link
+                  href={treeHref(nodeId, skill, true)}
+                  data-testid="back-to-tree"
+                  className={
+                    submitResult.scorePercent >= MASTERY_PERCENT
+                      ? 'ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga bg-ga-accent px-5 py-2.5 text-[13.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 lg:min-h-0'
+                      : 'ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga border-2 border-ga-line bg-ga-card px-5 py-2.5 text-[13.5px] font-semibold text-ga-muted transition-colors hover:bg-ga-surface lg:min-h-0'
+                  }
+                >
+                  <TreeDeciduous size={14} aria-hidden />
+                  {submitResult.scorePercent >= MASTERY_PERCENT ? t('backToTreeGrow') : t('backToTree')}
+                </Link>
                 <button
                   type="button"
                   onClick={() => void handleGenerateNext()}
                   disabled={generatingNext}
-                  className="ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga px-5 py-2.5 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0"
-                  style={{ background: accent }}
+                  className={
+                    submitResult.scorePercent >= MASTERY_PERCENT
+                      ? 'ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga border-2 bg-ga-card px-5 py-2.5 text-[13.5px] font-semibold transition-colors hover:bg-ga-surface disabled:opacity-60 lg:min-h-0'
+                      : 'ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga px-5 py-2.5 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0'
+                  }
+                  style={
+                    submitResult.scorePercent >= MASTERY_PERCENT
+                      ? { borderColor: accent, color: accent }
+                      : { background: accent }
+                  }
                 >
                   {generatingNext ? (
                     <RefreshCw size={14} className="animate-spin" aria-hidden />

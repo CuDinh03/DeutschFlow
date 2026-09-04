@@ -1,5 +1,9 @@
 package com.deutschflow.admin.controller;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.deutschflow.user.entity.User;
+import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.teacher.dto.GradingEvalRequest;
 import com.deutschflow.teacher.dto.GradingEvalResponse;
 import com.deutschflow.teacher.service.GradingEvalService;
@@ -11,9 +15,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Admin: đo model AI nào chấm Schreiben chuẩn nhất so với điểm giám khảo (checklist — chọn model chấm).
+ * Admin: đo model AI nào chấm Schreiben chuẩn nhất so với điểm giám khảo (harness F1, khung AI tier).
  *
- * <p>Gọi AI thật (tốn token) ⇒ chỉ ADMIN, dùng one-off để chọn/tinh chỉnh {@code GROQ_GRADING_MODEL}.
+ * <p>Gọi AI thật (tốn token) ⇒ chỉ ADMIN, dùng one-off khi chọn model cho tầng chấm.
+ *
+ * <p>⚠️ So model LẠ thì phải truyền {@code maxTokens} tường minh: ứng viên mới dài dòng gấp 4–10×
+ * {@code gpt-oss-120b} nên để ngân sách mặc định là biến phép đo thành "model nào ít bị cắt JSON
+ * hơn" (số đo: {@code BAO_CAO_CONTRACT_TEST_TIER_2026-08-09.md}). Đọc {@code feedbackMissing} trong
+ * kết quả TRƯỚC khi đọc MAE.
  */
 @RestController
 @RequestMapping("/api/admin/grading-eval")
@@ -22,10 +31,41 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminGradingEvalController {
 
     private final GradingEvalService gradingEvalService;
+    private final AuditLogService auditLogService;
 
-    /** POST /api/admin/grading-eval — body: {models?, cases:[{topic?,essay,referenceScore}]}. */
+    /**
+     * POST /api/admin/grading-eval — body:
+     * {models?, tier?, maxTokens?, parallelism?, cases:[{topic?,essay,referenceScore}]}.
+     */
     @PostMapping
-    public GradingEvalResponse evaluate(@RequestBody GradingEvalRequest request) {
-        return gradingEvalService.run(request);
+    public GradingEvalResponse evaluate(@RequestBody GradingEvalRequest request,
+                                        @AuthenticationPrincipal User actor) {
+        GradingEvalResponse response = gradingEvalService.run(request);
+        auditEval(actor, request, "json");
+        return response;
+    }
+
+    /** Như trên nhưng trả CSV một dòng mỗi model — dán thẳng vào báo cáo calibration (F1.4). */
+    @PostMapping(path = "/csv", produces = "text/csv;charset=UTF-8")
+    public String evaluateCsv(@RequestBody GradingEvalRequest request,
+                              @AuthenticationPrincipal User actor) {
+        String csv = GradingEvalService.toCsv(gradingEvalService.run(request));
+        auditEval(actor, request, "csv");
+        return csv;
+    }
+
+    /**
+     * Audit F-M3 (03/09/2026): mỗi lần chạy hiệu chuẩn là một loạt lời gọi mô hình có tính phí,
+     * số lượng do người gọi tự đặt (models × cases) — và trước đây không để lại vết nào, nên một
+     * hoá đơn AI tăng vọt không truy ngược được về đây.
+     */
+    private void auditEval(User actor, GradingEvalRequest request, String format) {
+        auditLogService.log("admin.grading_eval.run", AuditActor.of(actor),
+                "GRADING_EVAL", format,
+                java.util.Map.of(
+                        "caseCount", request.cases() == null ? 0 : request.cases().size(),
+                        "modelCount", request.models() == null ? 0 : request.models().size(),
+                        "tier", String.valueOf(request.tier())
+                ));
     }
 }

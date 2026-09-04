@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { Zap, BookOpen, Flame, PartyPopper } from "lucide-react";
 
 interface SessionRecapProps {
   xpEarned: number;
@@ -89,7 +90,7 @@ export default function SessionRecap({
             className="px-6 pt-8 pb-6 text-center"
             style={{ background: "linear-gradient(135deg, #121212 0%, #1E293B 100%)" }}
           >
-            <div className="text-5xl mb-3">🎉</div>
+            <PartyPopper size={44} strokeWidth={1.6} className="mx-auto mb-3 text-white" aria-hidden />
             <h2 className="text-white text-xl font-bold">Hoàn thành!</h2>
             <p className="text-white/70 text-sm mt-1">Bạn đã học xong bài này</p>
           </div>
@@ -99,7 +100,7 @@ export default function SessionRecap({
             {/* XP */}
             <div className="flex items-center justify-between rounded-2xl bg-[#FFFBEA] border border-[#FFCD00]/40 px-4 py-3">
               <div className="flex items-center gap-2">
-                <span className="text-2xl">⚡</span>
+                <Zap size={22} className="text-[#92400E]" aria-hidden />
                 <span className="text-sm font-medium text-[#92400E]">XP kiếm được</span>
               </div>
               <motion.span
@@ -115,7 +116,7 @@ export default function SessionRecap({
             {/* Vocab */}
             <div className="flex items-center justify-between rounded-2xl bg-[#F0FDF4] border border-[#22C55E]/30 px-4 py-3">
               <div className="flex items-center gap-2">
-                <span className="text-2xl">📖</span>
+                <BookOpen size={22} className="text-[#166534]" aria-hidden />
                 <span className="text-sm font-medium text-[#166534]">Từ vựng mới</span>
               </div>
               <motion.span
@@ -131,7 +132,7 @@ export default function SessionRecap({
             {/* Streak */}
             <div className="flex items-center justify-between rounded-2xl bg-[#FFF7ED] border border-[#F97316]/30 px-4 py-3">
               <div className="flex items-center gap-2">
-                <span className="text-2xl">🔥</span>
+                <Flame size={22} className="text-[#9A3412]" aria-hidden />
                 <span className="text-sm font-medium text-[#9A3412]">Chuỗi ngày học</span>
               </div>
               <motion.span

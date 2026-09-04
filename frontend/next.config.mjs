@@ -49,7 +49,10 @@ const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()' },
+  // microphone=(self): mọi tính năng luyện nói web (exam, AI-speaking, weekly, phoneme…) cần
+  // getUserMedia ở chính origin. `microphone=()` (03/06–25/08) đã CHẶN mic toàn site bất kể người
+  // dùng cấp quyền gì — Permissions API trả denied vĩnh viễn. Vẫn cấm iframe bên thứ ba (self ≠ *).
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=(), browsing-topics=()' },
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
 ];
 
@@ -84,22 +87,21 @@ const nextConfig = {
   // được biên dịch vào routes-manifest và Amplify áp dụng ở tầng CDN, nên nó bắt được cả lượt truy
   // cập từ cache. Middleware vẫn giữ một lớp bounce nữa (defence-in-depth).
   //
-  // `permanent: false` (307) là CỐ Ý: 301/308 bị trình duyệt cache vĩnh viễn, nếu phải rollback thì
-  // người dùng vẫn kẹt ở redirect cũ. Cây v1 vẫn còn sống nguyên trong đợt này → giữ đường lui.
-  // Đến đợt xoá hẳn cây v1 mới nâng lên permanent (kèm bảng redirect đầy đủ).
+  // `permanent: true` (308) TỪ ĐỢT 3: trước đó là 307 để giữ đường lui khi cây v1 còn nằm trên đĩa.
+  // Đợt 3 đã xoá hẳn cây v1 — không còn gì để rollback về — nên các redirect này là vĩnh viễn.
   //
   // Query string được Next giữ nguyên khi redirect (nên `?next=` đi xuyên qua an toàn).
   // trailingSlash: true → khai báo source KHÔNG có dấu "/" cuối; Next tự chuẩn hoá cả hai dạng.
   async redirects() {
     return [
-      { source: '/login', destination: '/v2/login', permanent: false },
-      { source: '/register', destination: '/v2/register', permanent: false },
+      { source: '/login', destination: '/v2/login', permanent: true },
+      { source: '/register', destination: '/v2/register', permanent: true },
       // Dashboard học viên legacy: v2 đã có bản đầy đủ và không nơi nào trong /v2 trỏ ngược về đây.
-      { source: '/dashboard', destination: '/v2/student/dashboard', permanent: false },
+      { source: '/dashboard', destination: '/v2/student/dashboard', permanent: true },
 
-      // Phần còn lại của cây v1 (04/08). Điều kiện đã đủ để đóng cửa: lượt grep toàn bộ `src/app/v2`
-      // cho thấy /v2 CHỈ còn trỏ ra ba trang công khai `/free-grade`, `/privacy`, `/terms` — không
-      // còn deep-link nào vào trang vai trò v1 nữa, nên ghi chú "chưa port" ở đợt 0 đã hết hiệu lực.
+      // Phần còn lại của cây v1. Từ Đợt 3 các trang đích v1 KHÔNG CÒN TỒN TẠI trên đĩa, nên bảng
+      // này là thứ DUY NHẤT giữ cho bookmark/lịch sử/backlink cũ không rơi vào 404 — đừng xoá entry
+      // nào khỏi đây kèm theo việc xoá trang.
       // Bảng ánh xạ + danh sách trang CỐ Ý giữ lại: ./legacy-redirects.mjs
       ...legacyV1Redirects,
     ];

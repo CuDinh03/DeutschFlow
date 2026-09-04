@@ -34,6 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AdminMockExamPackControllerTest {
 
     @Mock AdminMockExamPackService adminMockExamPackService;
+    // F-M3: controller nay ghi vết audit — thiếu mock thì @InjectMocks tiêm null và NPE thành 500.
+    @Mock com.deutschflow.common.audit.AuditLogService auditLogService;
     @InjectMocks AdminMockExamPackController controller;
 
     private final ObjectMapper objectMapper = new ObjectMapper();

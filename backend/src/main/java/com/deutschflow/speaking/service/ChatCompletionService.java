@@ -117,8 +117,14 @@ public class ChatCompletionService {
         }
         InterviewTurnPlan plan = prep.interviewContext().plan();
         int userTurn = plan.userTurn();
+        // L3 (QA 10/08): lượt CLOSING_ANSWER/FAREWELL — nội dung chính (câu trả lời cho ứng viên /
+        // lời chào) nằm trong ai_speech_de; composeFromMeta chỉ ghép ack+question nên từng VỨT trọn
+        // câu trả lời ("Alles klar. Gibt es noch etwas?" thay vì trả lời ngày làm việc điển hình).
+        boolean preferFullSpeech = (plan.directiveType() == com.deutschflow.speaking.interview.InterviewDirectiveType.CLOSING_ANSWER
+                || plan.directiveType() == com.deutschflow.speaking.interview.InterviewDirectiveType.CLOSING_FAREWELL)
+                && base.aiSpeechDe() != null && !base.aiSpeechDe().isBlank();
         String speech;
-        if (base.interviewMeta() != null) {
+        if (base.interviewMeta() != null && !preferFullSpeech) {
             speech = interviewSpeechSanitizer.composeFromMeta(
                     base.interviewMeta().ackDe(), base.interviewMeta().questionDe(), plan, userTurn);
         } else {

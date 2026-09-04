@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { parseFeiernParam } from '@/lib/roadmap-tree/ritual'
+import type { Skill } from '@/lib/skills'
 import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import { phaseApi, type PhaseStateResponse } from '@/lib/phaseApi'
@@ -56,6 +58,38 @@ export default function V2StudentRoadmapPage() {
   // (lần sơn đầu / SSR) → hiển thị danh sách vì nó đúng cho cả hai khổ và rẻ hơn.
   const [narrow, setNarrow] = useState<boolean | null>(null)
   const [view, setView] = useState<'tree' | 'list' | null>(null)
+  const [urlNodeId, setUrlNodeId] = useState<number | null>(null)
+  /** Nghi thức trở về (L3a): `?feiern=<skill>` đọc MỘT lần rồi xoá khỏi URL — refresh không diễn lại. */
+  const [feiern, setFeiern] = useState<{ nodeId: number; skill: Skill } | null>(null)
+
+  const patchQuery = useCallback((patch: Record<string, string | null>) => {
+    const params = new URLSearchParams(window.location.search)
+    for (const [key, value] of Object.entries(patch)) {
+      if (value == null) params.delete(key)
+      else params.set(key, value)
+    }
+    const qs = params.toString()
+    window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
+  }, [])
+
+  // URL-as-state (T7): `?tab=&node=` để refresh/share giữ đúng ngữ cảnh. Đọc qua
+  // window.location + history.replaceState thay vì useSearchParams — trang render lần đầu trên
+  // server không có query, đọc trong initializer sẽ lệch hydration, còn useSearchParams đòi bọc
+  // Suspense khi prerender. Link cũ 3-tab (`nodes`/`phase`) đổ về `list` để share cũ không gãy.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const urlTab = params.get('tab')
+    if (urlTab === 'tree' || urlTab === 'list') setView(urlTab)
+    else if (urlTab === 'nodes' || urlTab === 'phase') setView('list')
+    const nodeParam = Number(params.get('node'))
+    const hasNode = Number.isInteger(nodeParam) && nodeParam > 0
+    if (hasNode) setUrlNodeId(nodeParam)
+    const feiernSkill = parseFeiernParam(params.get('feiern'))
+    if (params.has('feiern')) {
+      if (hasNode && feiernSkill) setFeiern({ nodeId: nodeParam, skill: feiernSkill })
+      patchQuery({ feiern: null })
+    }
+  }, [patchQuery])
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 767px)')
     const sync = () => setNarrow(mq.matches)
@@ -115,7 +149,7 @@ export default function V2StudentRoadmapPage() {
               <TkSeg
                 aria-label={t('viewLabel')}
                 value={effectiveView}
-                onValueChange={(v) => setView(v)}
+                onValueChange={(v) => { setView(v); patchQuery({ tab: v }) }}
                 options={[
                   { value: 'tree', label: t('viewTree') },
                   { value: 'list', label: t('viewList') },
@@ -125,7 +159,12 @@ export default function V2StudentRoadmapPage() {
 
             {effectiveView === 'tree' ? (
               <div className="flex min-h-0 flex-1 flex-col">
-                <RoadmapTreeTab nodes={nodes} />
+                <RoadmapTreeTab
+                  nodes={nodes}
+                  initialSelectedId={urlNodeId}
+                  onSelectedIdChange={(id) => patchQuery({ node: String(id) })}
+                  initialFeiern={feiern}
+                />
               </div>
             ) : (
               <div className="min-h-0 flex-1 overflow-auto">

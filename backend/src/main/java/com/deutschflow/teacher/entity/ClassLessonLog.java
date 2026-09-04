@@ -28,6 +28,14 @@ public class ClassLessonLog {
     @Column(name = "lesson_id")
     private Long lessonId;
 
+    /**
+     * Buổi lịch (class_sessions.id) mà nhật ký này ghi cho — PR-4/V293 (AC05: hai buổi sáng/chiều
+     * cùng ngày = hai nhật ký riêng, hết phụ thuộc "số buổi" nhập tay). NULL = nhật ký legacy
+     * hoặc lớp không dùng lịch buổi; nhóm đó vẫn chốt trùng theo (ngày, số buổi) như cũ.
+     */
+    @Column(name = "session_id")
+    private Long sessionId;
+
     @Column(name = "session_date", nullable = false)
     private LocalDate sessionDate;
 

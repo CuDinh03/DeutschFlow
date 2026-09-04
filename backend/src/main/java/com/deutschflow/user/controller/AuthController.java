@@ -7,10 +7,12 @@ import com.deutschflow.user.dto.RegisterRequest;
 import com.deutschflow.user.dto.UpdateLocaleRequest;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.service.AuthService;
+import com.deutschflow.user.service.AuthConcurrencyLimiter;
 import com.deutschflow.user.service.AuthRateLimiterService;
 import com.deutschflow.user.service.PasswordResetService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.RateLimitExceededException;
+import com.deutschflow.common.security.ClientIpResolver;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
+import java.util.function.Supplier;
 
 /**
  * Auth endpoints: login, register, refresh, logout, me.
@@ -43,17 +46,16 @@ public class AuthController {
 
     private static final String REFRESH_TOKEN_COOKIE = "refresh_token";
 
+    private static final String BUSY_MESSAGE = "Server is busy. Please try again in a moment.";
+
     private final AuthService authService;
     private final AuthRateLimiterService authRateLimiterService;
+    private final AuthConcurrencyLimiter authConcurrencyLimiter;
     private final PasswordResetService passwordResetService;
+    private final ClientIpResolver clientIpResolver;
 
     @Value("${app.jwt.refresh-token-expiry-ms}")
     private long refreshTokenExpiryMs;
-
-    /** Number of trusted reverse proxies in front of the app (ALB/CloudFront/nginx). Drives
-     *  spoof-resistant client-IP resolution for rate limiting. 0 = no proxy (use socket addr). */
-    @Value("${app.security.trusted-proxy-count:1}")
-    private int trustedProxyCount;
 
     // ─── Public endpoints ──────────────────────────────────────────────────────
 
@@ -69,7 +71,7 @@ public class AuthController {
                     "Too many registration attempts. Please try again later.",
                     authRateLimiterService.registerRetryAfterSeconds());
         }
-        AuthResponse authResp = authService.register(request);
+        AuthResponse authResp = withAuthBulkhead(() -> authService.register(request));
         setRefreshTokenCookie(authResp.refreshToken(), httpResponse);
         return isMobileRequest(httpRequest) ? authResp : stripRefreshToken(authResp);
     }
@@ -80,12 +82,22 @@ public class AuthController {
                               HttpServletRequest httpRequest,
                               HttpServletResponse httpResponse) {
         String ip = resolveClientIp(httpRequest);
+        // Per-IP budget FIRST, and before anything expensive. A login attempt costs a full BCrypt
+        // hash even when the email does not exist (DaoAuthenticationProvider's timing-attack
+        // mitigation hashes against a dummy for unknown users), so this guard is only worth having
+        // if it short-circuits before authService.login(). The (IP + email) budget below cannot do
+        // that job on its own — rotating the email mints a fresh bucket on every request.
+        if (!authRateLimiterService.allowLoginPerIp(ip)) {
+            throw new RateLimitExceededException(
+                    "Too many login attempts. Please try again later.",
+                    authRateLimiterService.loginIpRetryAfterSeconds());
+        }
         if (!authRateLimiterService.allow(ip, request.email())) {
             throw new RateLimitExceededException(
                     "Too many login attempts. Please try again later.",
                     authRateLimiterService.retryAfterSeconds());
         }
-        AuthResponse authResp = authService.login(request);
+        AuthResponse authResp = withAuthBulkhead(() -> authService.login(request));
         setRefreshTokenCookie(authResp.refreshToken(), httpResponse);
         // Native mobile clients (Capacitor) cannot use HttpOnly cookies cross-origin.
         // They send X-Platform header and receive the refresh token in the body instead.
@@ -260,7 +272,8 @@ public class AuthController {
                 resp.learningTargetLevel(),
                 resp.industry(),
                 resp.orgId(),
-                resp.orgRole()
+                resp.orgRole(),
+                resp.avatarUrl()
         );
     }
 
@@ -273,27 +286,38 @@ public class AuthController {
     }
 
     /**
-     * Resolve the client IP for rate limiting in a spoof-resistant way.
+     * Chạy phần đắt (BCrypt) bên trong bulkhead.
      *
-     * <p>X-Forwarded-For is appended left→right as a request traverses proxies, so the LEFTMOST
-     * token is the client-supplied value an attacker can freely forge to rotate fake IPs and evade
-     * IP-based rate limits. Only the rightmost entries are appended by our own trusted proxies.
-     * We therefore read the entry at {@code (length - trustedProxyCount)} — the hop our outermost
-     * trusted proxy actually observed. {@code trustedProxyCount=0} ignores XFF entirely and uses the
-     * socket address (correct when the app is reached directly with no proxy).
+     * <p>Rate-limit theo IP ở trên chặn kẻ tấn công ĐƠN LẺ. Nó không chặn được tấn công phân tán:
+     * mười nghìn IP mỗi cái một request/giây thì không IP nào chạm ngưỡng, nhưng tổng lại lấp kín
+     * cả 48 Tomcat thread bằng BCrypt và kéo sập luôn những endpoint chẳng liên quan gì tới auth.
+     * Bulkhead khoanh thiệt hại: quá tải thì auth trả 429, phần còn lại của app vẫn còn thread chạy.
+     *
+     * <p>release() nằm trong finally — rò rỉ một permit là khoá cứng auth vĩnh viễn cho tới lần
+     * restart sau, nên đây là chỗ không được phép sai.
      */
-    private String resolveClientIp(HttpServletRequest request) {
-        if (request == null) return "";
-        if (trustedProxyCount > 0) {
-            String forwarded = request.getHeader("X-Forwarded-For");
-            if (forwarded != null && !forwarded.isBlank()) {
-                String[] parts = forwarded.split(",");
-                int idx = parts.length - trustedProxyCount;
-                if (idx < 0) idx = 0;
-                String ip = parts[idx].trim();
-                if (!ip.isBlank()) return ip;
-            }
+    private <T> T withAuthBulkhead(Supplier<T> expensive) {
+        boolean acquired;
+        try {
+            acquired = authConcurrencyLimiter.tryAcquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RateLimitExceededException(
+                    BUSY_MESSAGE, authConcurrencyLimiter.retryAfterSeconds());
         }
-        return request.getRemoteAddr();
+        if (!acquired) {
+            throw new RateLimitExceededException(
+                    BUSY_MESSAGE, authConcurrencyLimiter.retryAfterSeconds());
+        }
+        try {
+            return expensive.get();
+        } finally {
+            authConcurrencyLimiter.release();
+        }
+    }
+
+    /** Uỷ quyền cho {@link ClientIpResolver} — logic chống giả mạo X-Forwarded-For chỉ nên có MỘT bản. */
+    private String resolveClientIp(HttpServletRequest request) {
+        return clientIpResolver.resolve(request);
     }
 }

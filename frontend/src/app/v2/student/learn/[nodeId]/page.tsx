@@ -1,9 +1,23 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft } from 'lucide-react'
+import {
+  ArrowLeft,
+  AudioLines,
+  BookOpen,
+  BookOpenText,
+  Check,
+  GraduationCap,
+  Headphones,
+  Mic,
+  PenLine,
+  type LucideIcon,
+} from 'lucide-react'
+import { completeTheoryNode } from '@/lib/theoryNodeCompletion'
+import { submitNodeExercises } from '@/lib/nodeSubmission'
+import { collectExercises, isScored } from '@/lib/nodeExercises'
 import api from '@/lib/api'
 import { useNodeSessionStore } from '@/stores/useNodeSessionStore'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
@@ -36,13 +50,14 @@ import { LessonShell } from '@/components/learn/LessonShell'
 
 type ViewKey = 'grammar' | 'reading' | 'listening' | 'speaking' | 'writing' | 'phoneme'
 
-const VIEW_TABS: { key: ViewKey; tKey: string; emoji: string }[] = [
-  { key: 'grammar', tKey: 'grammar', emoji: '📖' },
-  { key: 'reading', tKey: 'reading', emoji: '📚' },
-  { key: 'listening', tKey: 'listening', emoji: '🎧' },
-  { key: 'speaking', tKey: 'speaking', emoji: '🎤' },
-  { key: 'writing', tKey: 'writing', emoji: '✍️' },
-  { key: 'phoneme', tKey: 'phoneme', emoji: '🗣️' },
+// Icon nét Lucide — cùng bộ với menu (GaIcon/GaShellNav), thay emoji để đồng bộ theme.
+const VIEW_TABS: { key: ViewKey; tKey: string; icon: LucideIcon }[] = [
+  { key: 'grammar', tKey: 'grammar', icon: BookOpen },
+  { key: 'reading', tKey: 'reading', icon: BookOpenText },
+  { key: 'listening', tKey: 'listening', icon: Headphones },
+  { key: 'speaking', tKey: 'speaking', icon: Mic },
+  { key: 'writing', tKey: 'writing', icon: PenLine },
+  { key: 'phoneme', tKey: 'phoneme', icon: AudioLines },
 ]
 
 interface RoadmapState {
@@ -85,9 +100,15 @@ export default function V2StudentLearnNodePage() {
     reset,
     tabCompletion,
     tabScores,
+    itemAnswers,
     markTabCompleted,
     resetTabCompletion,
   } = useNodeSessionStore()
+
+  // Ghi nhận hoàn thành lên máy chủ chỉ MỘT lần cho mỗi node (F-19). Effect hoàn thành chạy lại mỗi
+  // khi tabScores đổi, nên thiếu chốt này là bắn trùng và lần thứ hai ăn 400 "đã hoàn thành rồi".
+  const completionSentForRef = useRef<number | null>(null)
+  const [completionNotice, setCompletionNotice] = useState<string | null>(null)
 
   const [showRecap, setShowRecap] = useState(false)
   const [phonemeSuccess, setPhonemeSuccess] = useState<Set<number>>(new Set())
@@ -120,6 +141,28 @@ export default function V2StudentLearnNodePage() {
 
     if (allAttempted && allPassed) {
       setShowRecap(true)
+      // Hoàn thành node trước đây chỉ đổi state trong trình duyệt, không hề gọi máy chủ, nên lộ
+      // trình đứng im ở 0/46 (F-19/F-22). Hai đường, backend đã tách sẵn và cố tình chặn chéo:
+      //   · node CÓ mục chấm được  → `POST /skill-tree/{nodeId}/submit`, máy chủ tự chấm lại
+      //     `item_answers` theo đáp án gốc (client không tự khai điểm để mở khoá được);
+      //   · node lý thuyết thuần   → `POST /skill-tree/{nodeId}/complete`.
+      // Gọi nhầm đường sẽ ăn 400 và HIỆN ra, chứ không im lặng.
+      if (completionSentForRef.current !== nodeId) {
+        completionSentForRef.current = nodeId
+        const coMucChamDuoc = collectExercises(session?.content?.exercises).some(isScored)
+        const ketQua = coMucChamDuoc
+          ? submitNodeExercises(nodeId, itemAnswers, tabScores.grammar ?? 0).then((r) =>
+              r.outcome === 'notPassed'
+                ? { outcome: 'failed' as const, message: t('scoreBelowThreshold', { score: r.scorePercent ?? 0 }) }
+                : { outcome: r.outcome === 'failed' ? ('failed' as const) : ('saved' as const), message: r.message },
+            )
+          : completeTheoryNode(nodeId)
+        void ketQua.then((result) => {
+          // Chỉ 'alreadyDone' và 'saved' là im lặng. Mọi thứ khác phải hiện — nuốt ở đây là tái lập
+          // đúng bẫy F-18: học viên tưởng đã lưu, thực ra chưa.
+          if (result.outcome === 'failed') setCompletionNotice(result.message)
+        })
+      }
       trackFeatureAction('lesson', 'completed', {
         node_id: nodeId,
         node_title: session?.titleVi,
@@ -166,8 +209,12 @@ export default function V2StudentLearnNodePage() {
     }
   }, [nodeId])
 
+  // W3 audit lag 02/09: fetchSession từng chờ `me` (hook auth xong) — nội dung bài học xếp hàng
+  // sau 2 nhịp mạng dù chỉ cần nodeId. Giờ bắn ngay khi mount: người chưa đăng nhập nhận 401 và
+  // hook vẫn đá về /login như cũ (phí đúng 1 request), còn mọi học viên hợp lệ được tải bài học
+  // song song với /auth/me. UI vẫn chờ `me` mới render — chỉ REQUEST là chạy trước.
   useEffect(() => {
-    if (!me || !nodeId) return
+    if (!nodeId) return
     reset()
     void fetchSession(nodeId)
     trackFeatureAction('lesson', 'started', { node_id: nodeId, cefr: targetLevel })
@@ -289,8 +336,8 @@ export default function V2StudentLearnNodePage() {
           {/* Node A2/B1 chưa có nội dung */}
           {session && !session.hasContent && !loading && !error && (
             <GaCard className="px-6 py-12 text-center">
-              <span className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-ga-surface text-[32px]">
-                {session.emoji || '📖'}
+              <span className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-ga-surface text-ga-ink">
+                <GraduationCap size={30} aria-hidden />
               </span>
               <span className="ga-ui mb-2 inline-block rounded-ga-pill bg-ga-accent-soft px-2 py-0.5 text-[11px] font-bold text-ga-accent">
                 {session.cefrLevel}
@@ -332,7 +379,7 @@ export default function V2StudentLearnNodePage() {
                             : 'text-ga-muted hover:bg-ga-card hover:text-ga-ink'
                       }`}
                     >
-                      <span aria-hidden>{isDone ? '✅' : tab.emoji}</span>
+                      {isDone ? <Check size={14} aria-hidden /> : <tab.icon size={14} aria-hidden />}
                       <span className="hidden sm:inline">{tLearn(tab.tKey as never)}</span>
                     </button>
                   )
@@ -412,6 +459,16 @@ export default function V2StudentLearnNodePage() {
                 <p className="ga-ui text-center text-[12.5px] text-ga-subtle">{tLearn('completionHint')}</p>
               )}
             </>
+          )}
+
+          {/* Ghi nhận hoàn thành lên máy chủ thất bại — nói thẳng, đừng để học viên tưởng đã lưu. */}
+          {completionNotice && (
+            <div
+              role="alert"
+              className="border border-ga-red/40 bg-ga-red-soft px-4 py-3 text-[14px] text-ga-ink"
+            >
+              <strong className="font-semibold">{t('progressNotSaved')}</strong> {completionNotice}
+            </div>
           )}
       </>
 

@@ -21,6 +21,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -70,7 +71,7 @@ class SepayWebhookServiceTest {
         assertThat(org.getValidUntil()).isNotNull();
         verify(invoiceRepo).save(inv);
         verify(organizationRepository).save(org);
-        verify(adminOrgService).activateEntitlements(5L);
+        verify(adminOrgService).activateEntitlements(eq(5L), any());
         ArgumentCaptor<OrgPaymentEvent> ev = ArgumentCaptor.forClass(OrgPaymentEvent.class);
         verify(eventRepo).save(ev.capture());
         assertThat(ev.getValue().isMatched()).isTrue();

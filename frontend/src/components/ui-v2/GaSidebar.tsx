@@ -206,9 +206,18 @@ export function GaSidebar({ nav }: GaSidebarProps) {
         {!roleAreas && (
           <div className="mt-auto border-t border-ga-line pt-4">
             <div className="flex items-center gap-3">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-ga-pill bg-ga-accent text-[13px] font-semibold text-ga-accent-ink">
-                {initials(displayName)}
-              </span>
+              {user?.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- URL S3 ngoài, không qua next/image (giống GaMedia)
+                <img
+                  src={user.avatarUrl}
+                  alt=""
+                  className="h-9 w-9 shrink-0 rounded-ga-pill border border-ga-line object-cover"
+                />
+              ) : (
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-ga-pill bg-ga-accent text-[13px] font-semibold text-ga-accent-ink">
+                  {initials(displayName)}
+                </span>
+              )}
               <div className="min-w-0">
                 <p className="truncate text-[13px] font-semibold text-ga-ink">{displayName}</p>
                 {email && <p className="truncate text-[12px] text-ga-muted">{email}</p>}

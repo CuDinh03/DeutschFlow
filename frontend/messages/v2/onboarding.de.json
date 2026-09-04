@@ -1,0 +1,99 @@
+{
+  "onboarding": {
+    "intro": {
+      "title": "In 2 Minuten startklar",
+      "subtitle": "Wähle Niveau, Ziel und Lerntempo und erhalte sofort deinen persönlichen Lernweg."
+    },
+    "level": {
+      "heading": "Auf welchem Niveau bist du?",
+      "sub": "Wähle, was am besten passt.",
+      "A0": { "label": "Absoluter Anfang", "desc": "Start beim Alphabet" },
+      "A1": { "label": "Grundlagen (A1)", "desc": "Begrüßen und vorstellen" },
+      "A2": { "label": "Elementar (A2)", "desc": "Einfache Alltagsgespräche" },
+      "B1": { "label": "Mittelstufe (B1)", "desc": "Diskutieren und Meinung äußern" },
+      "B2": { "label": "Obere Mittelstufe (B2)", "desc": "Komplexe Texte verstehen" }
+    },
+    "goal": {
+      "heading": "Warum lernst du Deutsch?",
+      "sub": "Damit wir den passenden Mentor und Lernweg für dich wählen.",
+      "industryLabel": "Branche",
+      "examLabel": "Zertifikatstyp",
+      "targetLevelLabel": "Zielniveau",
+      "JOB": "Arbeiten in Deutschland",
+      "AUSBILDUNG": "Ausbildung",
+      "STUDY": "Studium im Ausland",
+      "IMMIGRATION": "Einwanderung / Familiennachzug",
+      "EXAM": "Zertifikatsprüfung",
+      "HOBBY": "Persönliches Interesse"
+    },
+    "pace": {
+      "heading": "Wie viel möchtest du lernen?",
+      "sub": "Dein Wochenziel bestimmt die personalisierten Zusatzthemen.",
+      "mentorLabel": "Dein Mentor",
+      "mentorFallbackTagline": "Dein Lernbegleiter",
+      "upsell": "🔓 Mentor <b>{name}</b>{tagline} mit PRO freischalten →",
+      "w3": { "label": "3 Lektionen/Woche", "desc": "~15 Min./Tag" },
+      "w5": { "label": "5 Lektionen/Woche", "desc": "~20 Min./Tag" },
+      "w7": { "label": "7 Lektionen/Woche", "desc": "Jeden Tag eine Lektion" },
+      "noteA0": "🌱 Deine ersten Schritte sind <b>Alphabet, Aussprache und Begrüßungen</b>.",
+      "notePlacement": "📝 Du kannst einen <b>optionalen 5-Minuten-Test</b> machen, um auf dem richtigen Niveau zu starten — oder direkt loslegen."
+    },
+    "quickWin": {
+      "heading": "Probier deinen ersten Satz!",
+      "prompt": "Wie sagt man „Guten Morgen“ auf Deutsch?",
+      "correct": "Richtig! 🎉 Du hast gerade dein erstes Wort gelernt.",
+      "wrong": "Noch nicht ganz — versuch es nochmal!"
+    },
+    "signup": {
+      "heading": "Sichere deinen Lernweg",
+      "subWithMentor": "Erstelle ein kostenloses Konto, um Fortschritt und Mentor {name} zu behalten — dauert 30 Sekunden.",
+      "sub": "Erstelle ein kostenloses Konto, um deinen Fortschritt zu behalten — dauert 30 Sekunden.",
+      "cta": "Konto erstellen & Lernweg sichern",
+      "haveAccount": "Schon ein Konto?",
+      "login": "Anmelden"
+    },
+    "placementOffer": {
+      "heading": "Genau auf deinem Niveau starten?",
+      "body": "Du hast dich selbst mit <b>{level}</b> eingeschätzt. Mach den ~5-Minuten-Test, damit dein Lernweg genau passt — oder starte jetzt und justiere später.",
+      "take": "5-Minuten-Test machen",
+      "skip": "Jetzt loslegen →"
+    },
+    "test": {
+      "heading": "Einstufungstest",
+      "skillHoeren": "🎧 Hören",
+      "skillSprechen": "🎤 Sprechen",
+      "skillLesen": "📚 Lesen",
+      "skillSchreiben": "✍️ Schreiben",
+      "writePlaceholder": "Schreibe deine Antwort auf Deutsch...",
+      "prev": "Zurück",
+      "next": "Weiter",
+      "submit": "Abgeben"
+    },
+    "result": {
+      "passed": "Super — du bist bereit!",
+      "failed": "Wir haben gefunden, was du wiederholen solltest",
+      "score": "Ergebnis: <b>{correct}/{total}</b> ({percent}%)",
+      "weakModules": "📋 Zu wiederholende Module: {modules}",
+      "retryAfter": "Neuer Versuch in {days} Tagen möglich.",
+      "ctaPassed": "Personalisierten Lernweg starten →",
+      "ctaFailed": "Passenden Lernweg ansehen →",
+      "pricingCta": "PRO entdecken und alles freischalten →"
+    },
+    "nav": {
+      "back": "Zurück",
+      "continue": "Weiter",
+      "startRoadmap": "Lernweg starten"
+    },
+    "loader": {
+      "title": "Dein Lernweg wird erstellt…",
+      "sub": "Ziel und Mentor werden gespeichert."
+    },
+    "error": {
+      "offline": "Verbindung verloren — dein Profil wurde nicht gespeichert. Prüfe dein Netz und versuch es erneut.",
+      "saveProfile": "Lernprofil konnte nicht gespeichert werden. Bitte versuch es erneut.",
+      "createTest": "Test konnte nicht erstellt werden.",
+      "submitTest": "Abgabe fehlgeschlagen.",
+      "resumeKeepsDraft": "Profil konnte nicht gespeichert werden — deine Antworten bleiben erhalten. Bitte versuch es erneut."
+    }
+  }
+}

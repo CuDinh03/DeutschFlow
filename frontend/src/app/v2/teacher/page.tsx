@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkSearch } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkSearch, ErrorBanner } from '@/components/ui-v2'
 
 const VIOLET = '#7C56C8'
 
@@ -71,37 +71,46 @@ export default function V2TeacherDashboardPage() {
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  // F05: lỗi tải summary/queue từng bị nuốt thành 0/rỗng — "hết bài cần chấm" giả. Mỗi nguồn
+  // giữ cờ lỗi riêng để vùng tương ứng hiện lỗi + retry thay vì hiện số 0.
+  const [summaryError, setSummaryError] = useState(false)
+  const [queueError, setQueueError] = useState(false)
   const [newClass, setNewClass] = useState('')
   const [creating, setCreating] = useState(false)
   const [query, setQuery] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
-    try {
-      const [cls, sum, q] = await Promise.all([
-        api.get('/v2/teacher/classes'),
-        api.get('/v2/teacher/dashboard/summary').catch(() => ({ data: {} })),
-        api.get('/v2/teacher/grading/queue').catch(() => ({ data: [] })),
-      ])
-      setClasses(((cls.data ?? []) as Record<string, unknown>[]).map(normalizeClass))
-      const s = (sum.data ?? {}) as Record<string, unknown>
+    const [cls, sum, q] = await Promise.allSettled([
+      api.get('/v2/teacher/classes'),
+      api.get('/v2/teacher/dashboard/summary'),
+      api.get('/v2/teacher/grading/queue'),
+    ])
+    if (cls.status === 'fulfilled') {
+      setClasses(((cls.value.data ?? []) as Record<string, unknown>[]).map(normalizeClass))
+      setError('')
+    } else {
+      setError(apiMessage(cls.reason))
+    }
+    setSummaryError(sum.status === 'rejected')
+    if (sum.status === 'fulfilled') {
+      const s = (sum.value.data ?? {}) as Record<string, unknown>
       setSummary({
         pendingReviewCount: Number(s.pendingReviewCount) || 0,
         pendingJoinRequests: Number(s.pendingJoinRequests) || 0,
       })
-      setQueue(((q.data ?? []) as Record<string, unknown>[]).slice(0, 5).map((r) => ({
+    }
+    setQueueError(q.status === 'rejected')
+    if (q.status === 'fulfilled') {
+      setQueue(((q.value.data ?? []) as Record<string, unknown>[]).slice(0, 5).map((r) => ({
         id: Number(r.id),
         studentName: String(r.studentName ?? '—'),
         topic: String(r.topic ?? ''),
         assignmentType: String(r.assignmentType ?? 'GENERAL'),
         submittedAt: (r.submittedAt as string) ?? null,
       })))
-      setError('')
-    } catch (e: unknown) {
-      setError(apiMessage(e))
-    } finally {
-      setLoading(false)
     }
+    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -148,23 +157,30 @@ export default function V2TeacherDashboardPage() {
       />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-8 lg:px-[52px] lg:py-[30px]">
+        {summaryError && (
+          <div className="mb-4">
+            <ErrorBanner message={t('summaryError')} onRetry={() => void load()} />
+          </div>
+        )}
         <GaStatStrip
           items={[
+            // "Lượt ghi danh": tổng theo TỪNG LỚP — học viên học 2 lớp đếm 2 lượt; con số
+            // "người duy nhất" nằm ở trang phân tích (overview). Nhãn phải nói đúng phép cộng (F05).
             { label: t('stats.students'), value: totals.students, sub: t('stats.studentsSub', { count: classes.length }) },
             {
               label: t('stats.toGrade'),
-              value: summary.pendingReviewCount,
+              value: summaryError ? '—' : summary.pendingReviewCount,
               sub: t('stats.toGradeSub'),
               tone: 'orange',
-              alert: summary.pendingReviewCount > 0,
+              alert: !summaryError && summary.pendingReviewCount > 0,
             },
             { label: t('stats.assignments'), value: totals.tasks, sub: t('stats.assignmentsSub'), tone: 'blue' },
             {
               label: t('stats.joinRequests'),
-              value: summary.pendingJoinRequests,
+              value: summaryError ? '—' : summary.pendingJoinRequests,
               sub: t('stats.joinRequestsSub'),
               tone: 'green',
-              alert: summary.pendingJoinRequests > 0,
+              alert: !summaryError && summary.pendingJoinRequests > 0,
             },
           ]}
         />
@@ -268,13 +284,9 @@ export default function V2TeacherDashboardPage() {
                         >
                           {t('enterClass')}
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => toast(t('aiMaterialsComing'))}
-                          className="min-h-[40px] rounded-ga border border-ga-line px-3 py-[7px] text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
-                        >
-                          {t('aiMaterials')}
-                        </button>
+                        {/* A6/F13: nút "Tài liệu AI" chỉ toast "sắp có" đã bị gỡ — hành động không
+                            dẫn tới kết quả thì không được đứng cạnh nút thật; công cụ AI quay lại
+                            qua sidebar khi TEACHER_AI_TOOLS_ENABLED bật. */}
                       </div>
                       {c.code && (
                         <code className="bg-ga-ink px-2.5 py-1.5 text-[12px] font-semibold tracking-[0.08em] text-ga-yellow">
@@ -294,7 +306,9 @@ export default function V2TeacherDashboardPage() {
               <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5">
                   <GaCap>{t('toGradeCap')}</GaCap>
-                  {summary.pendingReviewCount > 0 && (
+                  {/* Cùng gate summaryError như stat strip — reload lỗi thì summary là giá trị CŨ,
+                      badge không được lặng lẽ hiển thị số cũ mâu thuẫn với ô "—" ngay bên trên. */}
+                  {!summaryError && summary.pendingReviewCount > 0 && (
                     <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: VIOLET, background: 'var(--ga-violet-soft)' }}>
                       {summary.pendingReviewCount}
                     </span>
@@ -309,7 +323,10 @@ export default function V2TeacherDashboardPage() {
                   {t('toGradeLink')}
                 </button>
               </div>
-              {queue.length === 0 ? (
+              {queueError ? (
+                // F05: lỗi tải hàng chờ phải hiện là LỖI — "queueEmpty" ở đây từng đọc như "hết bài cần chấm".
+                <ErrorBanner message={t('queueError')} onRetry={() => void load()} />
+              ) : queue.length === 0 ? (
                 <p className="py-3 text-[13px] text-ga-muted">{t('queueEmpty')}</p>
               ) : (
                 <div className="flex flex-col">
@@ -343,7 +360,7 @@ export default function V2TeacherDashboardPage() {
             <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
               <GaCap className="mb-3.5 block">{t('joinRequestsCap')}</GaCap>
               <div className="font-ga-display text-[22px] font-medium leading-none text-ga-ink sm:text-[26px] lg:text-[32px]">
-                {summary.pendingJoinRequests}
+                {summaryError ? '—' : summary.pendingJoinRequests}
               </div>
               <p className="mt-2 text-[12.5px] text-ga-muted">{t('joinRequestsWaiting')}</p>
             </div>

@@ -30,6 +30,9 @@ interface Props {
   isSpeaking: boolean;
   showSuggestions: boolean;
   suggestions: Suggestion[];
+  /** Đ4: gợi ý sinh theo yêu cầu — có mặt ⇒ hiện nút khi chưa có chip nào. */
+  suggestionsLoading?: boolean;
+  onRequestSuggestions?: () => void;
   /**
    * Lỗi của lượt nói gần nhất — `undefined` khi lượt đó CHƯA được AI phân tích, `[]` khi đã phân
    * tích và sạch lỗi. Giữ nguyên `undefined` thay vì `?? []`: gộp hai thứ lại thì màn hình sẽ báo
@@ -61,6 +64,8 @@ export function SpeakingChatSidebar({
   isSpeaking,
   showSuggestions,
   suggestions,
+  suggestionsLoading,
+  onRequestSuggestions,
   analysedErrors,
   turnStatus,
   turnNote,
@@ -85,7 +90,8 @@ export function SpeakingChatSidebar({
     analysedErrors !== undefined ||
     !!phonemeResult ||
     !!turnStatus ||
-    (showSuggestions && suggestions.length > 0);
+    (showSuggestions && suggestions.length > 0) ||
+    (showSuggestions && suggestions.length === 0 && !!onRequestSuggestions);
 
   return (
     <aside
@@ -151,6 +157,8 @@ export function SpeakingChatSidebar({
             analysedErrors={analysedErrors}
             suggestions={suggestions}
             suggestionsVisible={showSuggestions}
+            suggestionsLoading={suggestionsLoading}
+            onRequestSuggestions={onRequestSuggestions}
             phonemeResult={phonemeResult ?? null}
             turnStatus={turnStatus}
             turnNote={turnNote}

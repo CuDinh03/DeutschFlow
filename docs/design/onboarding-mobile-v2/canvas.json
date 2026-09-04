@@ -1,0 +1,20 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",          "title": "01 · Mục tiêu",             "x": 0,    "y": 0,    "w": 390, "h": 844 },
+    { "file": "Level.dc.html",         "title": "02 · Trình độ",             "x": 480,  "y": 0,    "w": 390, "h": 844 },
+    { "file": "Rhythm.dc.html",        "title": "03 · Nhịp học",             "x": 960,  "y": 0,    "w": 390, "h": 844 },
+    { "file": "Mentor.dc.html",        "title": "04 · Lĩnh vực + Mentor",    "x": 1440, "y": 0,    "w": 390, "h": 844 },
+    { "file": "Exam.dc.html",          "title": "04B · Nhánh thi chứng chỉ", "x": 1920, "y": 0,    "w": 390, "h": 844 },
+    { "file": "QuickWin.dc.html",      "title": "05 · Quick win + Đăng ký",  "x": 0,    "y": 1120, "w": 390, "h": 844 },
+    { "file": "Creating.dc.html",      "title": "06 · Tạo lộ trình",         "x": 480,  "y": 1120, "w": 390, "h": 844 },
+    { "file": "FirstSentence.dc.html", "title": "07 · Câu đầu tiên",         "x": 960,  "y": 1120, "w": 390, "h": 844 },
+    { "file": "Celebrate.dc.html",     "title": "08 · Ăn mừng",              "x": 1440, "y": 1120, "w": 390, "h": 844 }
+  ],
+  "annotations": [
+    { "id": "note-funnel", "x": 0, "y": -210, "w": 640, "text": "PHỄU KHÁCH — 4 bước, CHƯA cần tài khoản (value-first).\nMỗi lựa chọn cập nhật thẻ mentor qua GET /onboarding/preview/mentor; trả lời lưu draft trên máy (TTL 30 phút), chỉ POST /onboarding/profile sau khi đăng ký.\nDữ liệu: motivation → goalType (WORK/CERT) · currentLevel A0–B2 (mặc định A0) · targetLevel A1–C2 · dailyGoalMinutes 5–20 · industry hoặc examType." },
+    { "id": "note-exam", "x": 1920, "y": -140, "w": 390, "text": "Nhánh CERT: chọn „Thi chứng chỉ“ ở bước 1 → bước 4 đổi thành chọn kỳ thi; mentor cố định là Anna (luyện thi)." },
+    { "id": "note-postsignup", "x": 0, "y": 930, "w": 640, "text": "SAU PHỄU: quick win (không thể thất bại) → „Tạo tài khoản & lưu lộ trình“ → /register → replay draft → màn „Câu đầu tiên“ (TTS + micro; nói sai vẫn động viên, từ chối micro → biến thể nghe–lặp lại) → ăn mừng → Trang chủ (spotlight tour 5 bước + checklist tuần đầu)." },
+    { "id": "note-tokens", "x": 2400, "y": 0, "w": 340, "text": "Ngôn ngữ Galerie v2 (na-theme):\nnền #FBFAF7 · giấy #F6F3EC · thẻ #FFFFFF · mực #161513 · viền #E7E3DA\nvàng #FFCD00 · gold #C79A00 · đỏ #DA291C · xanh #1E9E61\nphụ (token NA): hair #EDEAE2 · subtle #B3ADA5 · dương #2F6FC9 · tím #7C56C8 · cam #E07B39\nTiêu đề Newsreader 500, -0.02em · UI Instrument Sans · bo góc 4px · motif ô vuông vàng 7px.\nIcon SVG nét 1.8, không emoji (avatar mentor = monogram serif trên nền mực).\nVùng chạm ≥ 44px. Không vẽ status bar/keyboard giả." }
+  ],
+  "launch": { "view": "canvas" }
+}

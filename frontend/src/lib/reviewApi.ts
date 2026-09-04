@@ -15,6 +15,16 @@ export interface VocabReviewCard {
   nextReviewAt: string // ISO datetime
 }
 
+/** Payload for POST /api/srs/schedule — vocabId is the card identity, the rest is denormalized card content. */
+export interface ScheduleVocabRequest {
+  nodeId?: number
+  vocabId: string
+  german?: string
+  meaning?: string
+  exampleDe?: string
+  speakDe?: string
+}
+
 // ─────────────────────────────────────────────
 // Types — Error Review Tasks (grammar, /api/review-tasks)
 // ─────────────────────────────────────────────
@@ -51,6 +61,10 @@ export const reviewApi = {
    */
   gradeVocab: (vocabId: string, quality: number) =>
     api.post('/srs/review', { vocabId, quality }).then(r => r.data),
+
+  /** POST /api/srs/schedule — add a vocab item to the review deck (idempotent server-side). */
+  scheduleVocab: (req: ScheduleVocabRequest) =>
+    api.post('/srs/schedule', req).then(() => undefined),
 
   /** GET /api/review-tasks/me/today — grammar error tasks due today. */
   getTodayTasks: () =>

@@ -49,10 +49,13 @@ public class MessageController {
         return messageService.getThread(user.getId(), userId, afterId);
     }
 
-    /** Send a message (recipient must share a class with the caller). */
+    /**
+     * Send a message (recipient must share a class with the caller). {@code clientTempId} tuỳ chọn
+     * là idempotency key — retry cùng key trả lại bản ghi cũ thay vì tạo tin trùng (F-13).
+     */
     @PostMapping
     public MessageDto send(@AuthenticationPrincipal User user, @Valid @RequestBody SendMessageRequest body) {
-        return messageService.send(user.getId(), body.recipientId(), body.body());
+        return messageService.send(user.getId(), body.recipientId(), body.body(), body.clientTempId());
     }
 
     /** Explicitly mark a thread read (e.g. on swipe), without fetching it. */

@@ -1,6 +1,9 @@
 package com.deutschflow.grammar.service;
 
 import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
+import com.deutschflow.ai.tier.TierSpec;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
@@ -27,13 +30,18 @@ class AiExamEvaluatorServiceTest {
     @Mock
     private OpenAiChatClient chatClient;
     @Mock
+    private LlmTierResolver llmTierResolver;
+    @Mock
     private AiUsageLedgerService ledgerService;
 
     private AiExamEvaluatorService evaluatorService;
 
     @BeforeEach
     void setUp() {
-        evaluatorService = new AiExamEvaluatorService(chatClient, ledgerService);
+        evaluatorService = new AiExamEvaluatorService(chatClient, llmTierResolver, ledgerService);
+        // lenient: vài test đi nhánh early-return không chạm LLM (MockitoExtension strict-stubs)
+        org.mockito.Mockito.lenient().when(llmTierResolver.spec(LlmTier.GRADING_EXAM))
+                .thenReturn(new TierSpec(LlmTier.GRADING_EXAM, "openai/gpt-oss-120b", null, null, null, null, null, null, null, false, false));
     }
 
     @Test
@@ -53,7 +61,7 @@ class AiExamEvaluatorServiceTest {
               "improvements_vi": ["Dùng từ vựng phong phú hơn"]
             }
             """;
-        when(chatClient.chatCompletion(anyList(), isNull(), anyDouble(), anyInt()))
+        when(chatClient.chatCompletionForTier(anyList(), any(TierSpec.class), anyDouble(), anyInt()))
             .thenReturn(new AiChatCompletionResult(aiResponse, null, "GROQ", "test-model"));
 
         Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(1L,
@@ -107,7 +115,7 @@ class AiExamEvaluatorServiceTest {
               "improvements_vi": []
             }
             """;
-        when(chatClient.chatCompletion(anyList(), isNull(), anyDouble(), anyInt()))
+        when(chatClient.chatCompletionForTier(anyList(), any(TierSpec.class), anyDouble(), anyInt()))
             .thenReturn(new AiChatCompletionResult(aiResponse, null, "GROQ", "test-model"));
 
         Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(1L,"Some email content here.", null);
@@ -123,7 +131,7 @@ class AiExamEvaluatorServiceTest {
     @Test
     @DisplayName("handles malformed JSON gracefully")
     void evaluateSchreibenEmail_malformedJson_returnsPending() {
-        when(chatClient.chatCompletion(anyList(), isNull(), anyDouble(), anyInt()))
+        when(chatClient.chatCompletionForTier(anyList(), any(TierSpec.class), anyDouble(), anyInt()))
             .thenReturn(new AiChatCompletionResult("not valid json at all {{{{", null, "GROQ", "test-model"));
 
         Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(1L,"Some valid email.", null);
@@ -151,7 +159,7 @@ class AiExamEvaluatorServiceTest {
             }
             ```
             """;
-        when(chatClient.chatCompletion(anyList(), isNull(), anyDouble(), anyInt()))
+        when(chatClient.chatCompletionForTier(anyList(), any(TierSpec.class), anyDouble(), anyInt()))
             .thenReturn(new AiChatCompletionResult(aiResponse, null, "GROQ", "test-model"));
 
         Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(1L,"Email text here.", null);
@@ -163,7 +171,7 @@ class AiExamEvaluatorServiceTest {
     @Test
     @DisplayName("handles AI service exception gracefully")
     void evaluateSchreibenEmail_aiServiceThrows_returnsPending() {
-        when(chatClient.chatCompletion(anyList(), isNull(), anyDouble(), anyInt()))
+        when(chatClient.chatCompletionForTier(anyList(), any(TierSpec.class), anyDouble(), anyInt()))
             .thenThrow(new RuntimeException("Service unavailable"));
 
         Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(1L,"Some email content.", null);

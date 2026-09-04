@@ -37,8 +37,8 @@ const log: ClassLessonLog = {
   note: null,
   createdAt: '2026-07-01T00:00:00',
   attendance: [
-    { studentId: 1, name: 'Anh', email: 'anh@x.com', status: 'PRESENT', note: null },
-    { studentId: 99, name: 'Đã rời lớp', email: 'gone@x.com', status: 'ABSENT', note: null },
+    { studentId: 1, name: 'Anh', email: 'anh@x.com', status: 'PRESENT', note: null, needsMakeup: false },
+    { studentId: 99, name: 'Đã rời lớp', email: 'gone@x.com', status: 'ABSENT', note: null, needsMakeup: true },
   ],
 }
 

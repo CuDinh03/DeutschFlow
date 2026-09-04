@@ -9,6 +9,9 @@ export { GaLogo } from './GaLogo'
 export { GaBtn } from './GaBtn'
 export { GaCap } from './GaCap'
 export { GaIcon } from './GaIcon'
+export { GaGlyph } from './GaGlyph'
+export type { GaGlyphProps, GaGlyphSize, GaGlyphTone } from './GaGlyph'
+export { iconNameForEmoji, EMOJI_ICON } from './emojiIconMap'
 export { GaMedia } from './GaMedia'
 export { GaCard, GaCardHeader, GaCardTitle, GaCardBody } from './GaCard'
 export { TkBadge } from './TkBadge'
@@ -45,6 +48,8 @@ export {
   GaSelectLabel,
   GaSelectSeparator,
 } from './GaSelect'
+export { ConfirmDialog } from './ConfirmDialog'
+export type { ConfirmDialogProps } from './ConfirmDialog'
 export { ROLE_NAV, teacherNav, adminNav, orgNav, managerNav } from './nav'
 export type { RoleId, RoleNav, NavSection, NavItem } from './nav'
 // ── Wave 1 / S-01 + S-13: area navigation (IA-D1/D6/D7)

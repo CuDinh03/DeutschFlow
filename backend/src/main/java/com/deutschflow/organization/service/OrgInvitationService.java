@@ -288,6 +288,13 @@ public class OrgInvitationService {
      * @throws BadRequestException if the password is missing or does not match
      */
     private User requireOwnership(User existing, AcceptInviteRequest body) {
+        // Audit R-M5 (03/09/2026): một tài khoản đã bị ADMIN khóa (is_active=false) vẫn nhớ mật khẩu,
+        // nên nếu chỉ kiểm mật khẩu thì nó vẫn accept được lời mời — ghi org_members/role và nhận về
+        // cặp token (dù token chết trong ≤60s nhờ JwtAuthFilter, phần GHI DB thì đã xảy ra). Chặn ngay
+        // ở đây, đối xứng với AuthService.login vốn từ chối tài khoản bị khóa.
+        if (!existing.isActive()) {
+            throw new BadRequestException("Tài khoản này đang bị khóa. Vui lòng liên hệ quản trị viên.");
+        }
         String password = body == null ? null : body.password();
         if (password == null || password.isBlank()
                 || !passwordEncoder.matches(password, existing.getPasswordHash())) {

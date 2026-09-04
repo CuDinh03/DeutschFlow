@@ -132,6 +132,49 @@ public class NotificationContentRenderer {
                     "Hoá đơn " + nonBlankOr(str(p, "paymentCode"), "") + " của tổ chức \""
                             + nonBlankOr(str(p, "orgName"), "(không tên)") + "\" đã được thanh toán"
                             + amountSuffix(p) + ".");
+
+            // ── Bảo trì hệ thống ─────────────────────────────────────────────
+            case SYSTEM_MAINTENANCE -> renderSystemMaintenance(p);
+        };
+    }
+
+    /**
+     * Vòng đời bảo trì theo {@code payload.kind}; giờ hiển thị (VN) được service render
+     * sẵn vào {@code startsAtDisplay}/{@code endsAtDisplay} — renderer giữ pure, không
+     * đụng timezone. {@code note} của admin (nếu có) nối vào cuối, nguyên văn.
+     */
+    private RenderedContent renderSystemMaintenance(Map<String, Object> p) {
+        String starts = str(p, "startsAtDisplay");
+        String ends = str(p, "endsAtDisplay");
+        String note = str(p, "note");
+        String noteSuffix = note.isBlank() ? "" : " " + note;
+        return switch (str(p, "kind")) {
+            case "SCHEDULED" -> new RenderedContent(
+                    "🔧 Lịch bảo trì hệ thống",
+                    "Hệ thống sẽ bảo trì từ " + starts
+                            + (ends.isBlank() ? "" : " đến " + ends) + "." + noteSuffix);
+            case "UPDATED" -> new RenderedContent(
+                    "🔧 Cập nhật lịch bảo trì",
+                    "Lịch bảo trì đổi thành: từ " + starts
+                            + (ends.isBlank() ? "" : " đến " + ends) + "." + noteSuffix);
+            case "REMINDER" -> new RenderedContent(
+                    "⏰ Sắp bảo trì hệ thống",
+                    "Hệ thống sẽ bảo trì lúc " + starts + ". Hãy lưu bài đang làm dở trước giờ đó.");
+            case "STARTED" -> new RenderedContent(
+                    "🔧 Đang bảo trì hệ thống",
+                    ends.isBlank()
+                            ? "Hệ thống tạm dừng để bảo trì, sẽ thông báo khi hoạt động trở lại."
+                            : "Hệ thống tạm dừng để bảo trì, dự kiến xong lúc " + ends + ".");
+            case "COMPLETED" -> new RenderedContent(
+                    "✅ Hệ thống đã hoạt động trở lại",
+                    "Bảo trì đã hoàn tất. Cảm ơn bạn đã chờ — chúc bạn học vui!");
+            case "CANCELLED" -> new RenderedContent(
+                    "❎ Huỷ lịch bảo trì",
+                    "Lịch bảo trì " + (starts.isBlank() ? "" : "(" + starts + ") ")
+                            + "đã được huỷ. Hệ thống hoạt động bình thường.");
+            default -> new RenderedContent(
+                    "🔧 Bảo trì hệ thống",
+                    nonBlankOr(note, "Có cập nhật về bảo trì hệ thống."));
         };
     }
 
@@ -187,6 +230,13 @@ public class NotificationContentRenderer {
         // Scores are on a 0–100 scale (AI + teacher grading). Render scale-agnostically
         // (matching the prior web wording) — never a fixed "/10" denominator.
         String scorePart = score != null ? " — Điểm: " + score + "." : ".";
+        // F-QA-01: regrade refreshes the announcement in place with the `updated` flag — the copy
+        // says the grade CHANGED and carries only the CURRENT score (no old→new fluctuation trail).
+        if (Boolean.TRUE.equals(p.get("updated")) || "true".equals(str(p, "updated"))) {
+            return new RenderedContent(
+                    "🔄 Điểm đã được cập nhật",
+                    "Điểm bài " + typeLabel + " của bạn đã được cập nhật" + scorePart + " Xem phản hồi.");
+        }
         return new RenderedContent(
                 "✅ Bài đã chấm",
                 "Bài " + typeLabel + " của bạn đã được chấm" + scorePart + " Xem phản hồi.");

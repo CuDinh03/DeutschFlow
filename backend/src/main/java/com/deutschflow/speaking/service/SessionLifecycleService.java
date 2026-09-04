@@ -1,14 +1,19 @@
 package com.deutschflow.speaking.service;
 
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.gamification.entity.UserXpEvent.XpEventType;
+import com.deutschflow.gamification.repository.UserXpEventRepository;
+import com.deutschflow.progress.service.PhaseEngineService;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.speaking.entity.AiSpeakingSession.SessionStatus;
 import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import com.deutschflow.gamification.service.XpService;
+import com.deutschflow.user.service.LearningAnalyticsService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -31,6 +36,12 @@ public class SessionLifecycleService {
     private final ConversationEvaluationService conversationEvaluationService;
     private final com.deutschflow.interview.service.InterviewDomainCoordinator interviewDomainCoordinator;
     private final com.deutschflow.teacher.service.TeacherAiGradingService teacherAiGradingService;
+    private final PhaseEngineService phaseEngineService;
+    private final LearningAnalyticsService learningAnalyticsService;
+    private final UserXpEventRepository xpEventRepository;
+
+    // Fallback per-session minutes when a session lacks reliable timestamps — mirrors PhaseEngine.
+    private static final int FALLBACK_MINUTES_PER_SESSION = 15;
 
     public SessionLifecycleService(
             TransactionTemplate transactionTemplate,
@@ -39,7 +50,10 @@ public class SessionLifecycleService {
             InterviewEvaluationService interviewEvaluationService,
             ConversationEvaluationService conversationEvaluationService,
             com.deutschflow.interview.service.InterviewDomainCoordinator interviewDomainCoordinator,
-            com.deutschflow.teacher.service.TeacherAiGradingService teacherAiGradingService) {
+            com.deutschflow.teacher.service.TeacherAiGradingService teacherAiGradingService,
+            PhaseEngineService phaseEngineService,
+            LearningAnalyticsService learningAnalyticsService,
+            UserXpEventRepository xpEventRepository) {
         this.transactionTemplate = transactionTemplate;
         this.sessionRepository = sessionRepository;
         this.xpService = xpService;
@@ -47,6 +61,9 @@ public class SessionLifecycleService {
         this.conversationEvaluationService = conversationEvaluationService;
         this.interviewDomainCoordinator = interviewDomainCoordinator;
         this.teacherAiGradingService = teacherAiGradingService;
+        this.phaseEngineService = phaseEngineService;
+        this.learningAnalyticsService = learningAnalyticsService;
+        this.xpEventRepository = xpEventRepository;
     }
 
     /**
@@ -63,18 +80,69 @@ public class SessionLifecycleService {
         // end whose generation FAILED (report == null) is still allowed to retry.
         AiSpeakingSession existing = Objects.requireNonNull(transactionTemplate.execute(
                 status -> loadSessionForUser(userId, sessionId)));
-        if (existing.getStatus() == SessionStatus.ENDED && existing.getInterviewReportJson() != null) {
+        // Đợt A (10/08): report EVAL_FAILED là trạng thái RETRYABLE — lần end kế được chấm lại.
+        // Report thật và INSUFFICIENT_DATA vẫn short-circuit như cũ (phiên đã ENDED thì dữ liệu
+        // không đổi, INSUFFICIENT chấm lại cũng chỉ tốn quota cho cùng kết quả).
+        if (existing.getStatus() == SessionStatus.ENDED && existing.getInterviewReportJson() != null
+                && !com.deutschflow.speaking.interview.InterviewReportValidator
+                        .isRetryableFailure(existing.getInterviewReportJson())) {
             return existing;
         }
 
         AiSpeakingSession closedSession = Objects.requireNonNull(transactionTemplate.execute(
                 status -> closeSpeakingSession(userId, sessionId)));
 
+        // Authoritative "this session just completed for the first time" signal — the same one XP uses
+        // for idempotency. Capture it BEFORE persistCompletionSideEffects awards SESSION_COMPLETE so a
+        // client retry / auto-close-then-manual-end does not double-count progress metrics.
+        boolean firstCompletion = sessionId == null
+                || !xpEventRepository.existsByUserIdAndEventTypeAndRefSessionId(
+                        userId, XpEventType.SESSION_COMPLETE, sessionId);
+
         String report = generateEndOfSessionReport(closedSession, userId, sessionId);
         AiSpeakingSession finalSession = persistCompletionSideEffects(userId, sessionId, report);
         triggerTeacherAutoGrading(sessionId);
 
+        if (firstCompletion) {
+            recordProgressMetrics(userId, finalSession);
+        }
+
         return finalSession;
+    }
+
+    /**
+     * Feed the two progress ledgers that the speaking flow previously never updated (QA F-3):
+     * <ul>
+     *   <li>{@link PhaseEngineService#recompute} — pull-based, idempotent; drives the dashboard
+     *       "Giai đoạn học" block, the first-session CTA gate, and B1 readiness.</li>
+     *   <li>{@link LearningAnalyticsService#recordDailyStats} — increments today's row that powers
+     *       the Thống kê page (speaking minutes + sessions completed).</li>
+     * </ul>
+     * Best-effort: a failure here must never fail the learner's session close (XP + report already
+     * persisted). Only called on the first completion of a session so the increment cannot double-count.
+     */
+    private void recordProgressMetrics(Long userId, AiSpeakingSession session) {
+        try {
+            phaseEngineService.recompute(userId);
+        } catch (Exception e) {
+            log.warn("[Progress] phase recompute skipped for user {}: {}", userId, e.getMessage());
+        }
+        try {
+            int minutes = estimateSessionMinutes(session);
+            double accuracy = session.getAiScore() != null ? session.getAiScore() : 0.0;
+            learningAnalyticsService.recordDailyStats(userId, 0, 0, minutes, 1, accuracy, 0.0);
+        } catch (Exception e) {
+            log.warn("[Progress] analytics record skipped for user {}: {}", userId, e.getMessage());
+        }
+    }
+
+    /** Real elapsed minutes when both timestamps exist (min 1), else the conservative fallback. */
+    private int estimateSessionMinutes(AiSpeakingSession session) {
+        if (session.getStartedAt() != null && session.getEndedAt() != null) {
+            long minutes = Duration.between(session.getStartedAt(), session.getEndedAt()).toMinutes();
+            return (int) Math.max(1, Math.min(minutes, 180));
+        }
+        return FALLBACK_MINUTES_PER_SESSION;
     }
 
     private AiSpeakingSession closeSpeakingSession(Long userId, Long sessionId) {

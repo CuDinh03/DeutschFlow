@@ -1,11 +1,16 @@
 package com.deutschflow.training.controller;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.user.entity.User;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.training.service.TrainingDatasetService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
@@ -23,6 +28,7 @@ import java.util.Map;
 public class TrainingDatasetController {
 
     private final TrainingDatasetService trainingDatasetService;
+    private final AuditLogService auditLogService;
 
     /**
      * GET /api/admin/training-dataset/stats
@@ -46,12 +52,18 @@ public class TrainingDatasetController {
     public ResponseEntity<byte[]> exportConversations(
             @RequestParam(required = false) String cefrLevel,
             @RequestParam(defaultValue = "false") boolean errorsOnly,
-            @RequestParam(defaultValue = "5000") int limit
+            @RequestParam(defaultValue = "5000") int limit,
+            @AuthenticationPrincipal User actor
     ) {
-        String jsonl = trainingDatasetService.exportAlpacaJsonl(cefrLevel, errorsOnly, Math.min(limit, 50_000));
+        int safeLimit = Math.min(limit, 50_000);
+        String jsonl = trainingDatasetService.exportAlpacaJsonl(cefrLevel, errorsOnly, safeLimit);
         String filename = buildFilename("conversations", cefrLevel, errorsOnly);
+        auditExport("conversations", actor, cefrLevel, errorsOnly, safeLimit, jsonl);
 
+        // C2 (F-M10, 03/09/2026): corpus hội thoại thô của người học — cấm mọi tầng cache (proxy,
+        // browser disk) giữ lại một bản PII sau khi tải.
         return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .contentType(MediaType.parseMediaType("application/jsonl+json"))
                 .body(jsonl.getBytes(StandardCharsets.UTF_8));
@@ -68,12 +80,16 @@ public class TrainingDatasetController {
     @GetMapping("/export/errors")
     public ResponseEntity<byte[]> exportErrors(
             @RequestParam(required = false) String cefrLevel,
-            @RequestParam(defaultValue = "5000") int limit
+            @RequestParam(defaultValue = "5000") int limit,
+            @AuthenticationPrincipal User actor
     ) {
-        String jsonl = trainingDatasetService.exportErrorSamplesJsonl(cefrLevel, Math.min(limit, 50_000));
+        int safeLimit = Math.min(limit, 50_000);
+        String jsonl = trainingDatasetService.exportErrorSamplesJsonl(cefrLevel, safeLimit);
         String filename = buildFilename("error_samples", cefrLevel, false);
+        auditExport("error_samples", actor, cefrLevel, false, safeLimit, jsonl);
 
         return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .contentType(MediaType.parseMediaType("application/jsonl+json"))
                 .body(jsonl.getBytes(StandardCharsets.UTF_8));
@@ -82,6 +98,29 @@ public class TrainingDatasetController {
     // -----------------------------------------------------------------------
     // Private helpers
     // -----------------------------------------------------------------------
+
+    /**
+     * Audit F-M3/F-M10 (03/09/2026): hai endpoint này kéo ra tới 50.000 dòng hội thoại TỰ DO của
+     * người học — dữ liệu cá nhân ở dạng thô nhất mà hệ thống có — và trước đây rời máy chủ mà
+     * không để lại vết nào. Không ai trả lời được "ai đã tải, bao nhiêu, lúc nào" khi cần.
+     *
+     * <p>Ghi số DÒNG thật đã xuất, không phải limit yêu cầu: đó mới là lượng dữ liệu đã ra ngoài.
+     */
+    private void auditExport(String dataset, User actor,
+                             String cefrLevel, boolean errorsOnly, int limit, String jsonl) {
+        auditLogService.log(
+                "admin.training_dataset.exported",
+                AuditActor.of(actor),
+                "TRAINING_DATASET",
+                dataset,
+                Map.of(
+                        "cefrLevel", String.valueOf(cefrLevel),
+                        "errorsOnly", errorsOnly,
+                        "limit", limit,
+                        "rowsExported", jsonl.isEmpty() ? 0 : jsonl.split("\n", -1).length - (jsonl.endsWith("\n") ? 1 : 0),
+                        "bytes", jsonl.getBytes(StandardCharsets.UTF_8).length
+                ));
+    }
 
     private String buildFilename(String type, String cefrLevel, boolean errorsOnly) {
         StringBuilder sb = new StringBuilder("deutschflow_");

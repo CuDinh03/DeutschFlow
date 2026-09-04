@@ -30,7 +30,8 @@ const clampTo = (v: number, min: number, max: number): number =>
 
 export default function V2AdminAiConfigPage() {
   const t = useTranslations('v2.adminContent.aiConfig')
-  const { data, loading, reload } = useAdminData<AiConfig>({
+  const tc = useTranslations('v2.common')
+  const { data, loading, error, lastSyncedAt, reload } = useAdminData<AiConfig>({
     initialData: DEFAULT_CONFIG,
     errorMessage: t('loadDataError'),
     fetchData: async () => {
@@ -45,14 +46,25 @@ export default function V2AdminAiConfigPage() {
   const [topP, setTopP] = useState(0.9)
   const [saving, setSaving] = useState(false)
 
-  // Sync editable state once the config loads.
+  /**
+   * Audit F-M7 (03/09/2026): TRƯỚC ĐÂY điều kiện ở đây chỉ là `if (loading) return`, và trang không
+   * hề đọc `error` của useAdminData. Khi GET /admin/ai-config lỗi, hook giữ nguyên `initialData` =
+   * DEFAULT_CONFIG (prompt rỗng), loading về false, nên editable state bị nạp prompt RỖNG mà màn
+   * hình không báo gì. Bấm Lưu một cái là system prompt production bị ghi đè bằng chuỗi rỗng.
+   *
+   * `lastSyncedAt` chỉ khác null sau một lượt tải THÀNH CÔNG, nên đây là tín hiệu đúng để đồng bộ
+   * — không phải `!loading` (lần tải hỏng cũng thoả).
+   */
+  /** Đã có ít nhất một lượt tải thành công. Chưa `loaded` thì KHÔNG cho lưu và không cho sửa
+   *  textarea: nội dung trên form lúc đó là default rỗng, lưu là xoá trắng prompt production. */
+  const loaded = lastSyncedAt !== null
   useEffect(() => {
-    if (loading) return
+    if (!loaded) return
     setPrompt(data.prompt ?? '')
     setTemperature(data.temperature ?? 0.7)
     setMaxTokens(data.maxTokens ?? 1024)
     setTopP(data.topP ?? 0.9)
-  }, [loading, data])
+  }, [loaded, data])
 
   const save = async () => {
     setSaving(true)
@@ -94,12 +106,29 @@ export default function V2AdminAiConfigPage() {
         title={t('title')}
         subtitle={t('subtitle')}
         right={
-          <GaBtn variant="yellow" disabled={saving || loading} onClick={save}>
+          <GaBtn variant="yellow" disabled={saving || loading || !loaded} onClick={save}>
             <span aria-hidden className="inline-block h-[7px] w-[7px] bg-ga-ink" />
             {saving ? t('saving') : t('saveConfig')}
           </GaBtn>
         }
       />
+
+      {error && (
+        <div
+          role="alert"
+          className="mx-4 mt-4 border border-ga-line bg-ga-card px-4 py-4 sm:mx-6 lg:mx-9"
+        >
+          <h2 className="font-ga-display text-[16px] font-medium leading-[1.2] text-ga-red lg:text-[18px]">
+            {t('loadDataError')}
+          </h2>
+          <p className="ga-ui mb-3 mt-2 break-words text-[14px] text-ga-muted">
+            {error} <code className="break-words font-mono text-[12px] text-ga-accent">GET /api/admin/ai-config</code>
+          </p>
+          <GaBtn variant="primary" onClick={() => reload({ silent: false })}>
+            {tc('retry')}
+          </GaBtn>
+        </div>
+      )}
 
       <div className="grid flex-1 lg:overflow-hidden lg:grid-cols-[1fr_320px]">
         {/* Left — system prompt */}
@@ -109,7 +138,7 @@ export default function V2AdminAiConfigPage() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={9}
-            disabled={loading}
+            disabled={loading || !loaded}
             className="block w-full resize-y rounded-ga border border-ga-line bg-ga-bg px-[18px] py-4 font-mono text-[14.5px] leading-[1.7] text-ga-ink outline-none"
           />
           <div

@@ -67,8 +67,7 @@
       "org-schedule": "Lịch trung tâm",
       "org-teachers": "Giáo viên",
       "org-analytics": "Phân tích",
-      "org-finance": "Tài chính",
-      "org-billing": "Gói & Giấy phép",
+      "org-billing": "Gói & Thanh toán",
       "org-invitations": "Lời mời",
       "org-roles": "Phân quyền",
       "org-profile": "Hồ sơ",
@@ -82,7 +81,10 @@
       "org-timesheets": "Chấm công",
       "tc-timesheet": "Chấm công",
       "interviews": "AI Interview",
-      "speaking-history": "Lịch sử luyện nói"
+      "speaking-history": "Lịch sử luyện nói",
+      "admin-maintenance": "Bảo trì",
+      "org-curricula": "Giáo trình",
+      "admin-exam-golden": "Golden set Nói"
     },
     "sections": {
       "classMgmt": "Quản lý lớp",
@@ -207,5 +209,21 @@
     "more": "Thêm",
     "areaNav": "Điều hướng khu vực",
     "sectionNav": "Điều hướng trong khu vực"
+  },
+  "maintenance": {
+    "overlayTitle": "Hệ thống đang bảo trì",
+    "overlayNote": "Chúng tôi đang nâng cấp hệ thống — bài học và tiến độ của bạn được giữ nguyên.",
+    "etaCountdown": "còn {minutes} phút",
+    "etaOverdue": "đang hoàn tất, chờ thêm chút nữa…",
+    "etaUnknown": "Sẽ thông báo ngay khi hệ thống hoạt động trở lại.",
+    "retryNow": "Thử lại ngay",
+    "retryChecking": "Đang kiểm tra…",
+    "autoRetry": "tự kiểm tra lại sau 30 giây",
+    "reloadPage": "Tải lại trang",
+    "restoredToast": "Hệ thống đã hoạt động trở lại. Chúc bạn học vui!",
+    "bannerUpcoming": "Bảo trì lúc {time}",
+    "bannerCountdownHours": "còn {hours} giờ {minutes} phút",
+    "bannerCountdownMinutes": "còn {minutes} phút",
+    "bannerDismiss": "Ẩn thông báo này"
   }
 }

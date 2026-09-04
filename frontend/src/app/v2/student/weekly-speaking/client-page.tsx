@@ -11,6 +11,7 @@ import {
   type WeeklySubmissionDetailDto,
   type WeeklySubmissionListItem,
 } from '@/lib/weeklySpeakingApi'
+import { getMyLearningProfile } from '@/lib/profileApi'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { EmptyState, GaCap, GaCard, GaPageHdr, LoadingState, TkBadge, TkSeg } from '@/components/ui-v2'
 
@@ -100,8 +101,14 @@ export default function WeeklySpeakingClient() {
       return planFallback
     })
     const p = planRes.data?.plan
-    const cur = typeof p?.currentLevel === 'string' ? p.currentLevel : null
+    let cur = typeof p?.currentLevel === 'string' ? p.currentLevel : null
     const tgt = typeof p?.targetLevel === 'string' ? p.targetLevel : 'A2'
+    if (!cur) {
+      // QA 09/08 mục I: /plan/me không có currentLevel ⇒ trang mở ở A1 dù học viên B1,
+      // che mất đề đã ra cho band thật. Hồ sơ học tập là nguồn dự phòng.
+      const prof = await getMyLearningProfile().catch(() => null)
+      cur = prof?.currentLevel ?? null
+    }
     setCurrentLevel(cur)
     setTargetLevel(tgt)
 

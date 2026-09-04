@@ -23,8 +23,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class InterviewQuestionBankSeedParityTest {
 
-    private static final String MIGRATION =
-            "db/migration/V187__seed_persona_topic_pools.sql";
+    /** V187 seed gốc + V271 (Đợt E1 10/08) seed 3 câu gen_* mới — parity đọc GỘP cả hai. */
+    private static final List<String> MIGRATIONS = List.of(
+            "db/migration/V187__seed_persona_topic_pools.sql",
+            "db/migration/V271__seed_gen_hard_skills_depth.sql");
 
     /** Personas whose HARD_SKILLS questions were migrated, plus DEFAULT (the generic branch). */
     private static final List<SpeakingPersona> SEEDED_PERSONAS = List.of(
@@ -36,7 +38,8 @@ class InterviewQuestionBankSeedParityTest {
 
     @Test
     void everyHardSkillsBankQuestionIsSeededVerbatim() {
-        String sql = readMigration();
+        String sql = MIGRATIONS.stream().map(InterviewQuestionBankSeedParityTest::readMigration)
+                .reduce("", (a, b) -> a + "\n" + b);
 
         for (SpeakingPersona persona : SEEDED_PERSONAS) {
             List<InterviewQuestionDef> hardSkills = InterviewQuestionBank
@@ -50,18 +53,18 @@ class InterviewQuestionBankSeedParityTest {
 
             for (InterviewQuestionDef q : hardSkills) {
                 assertThat(sql)
-                        .as("V187 must seed id '%s' (persona %s)", q.id(), persona.name())
+                        .as("migration seed must contain id '%s' (persona %s)", q.id(), persona.name())
                         .contains("'" + q.id() + "'");
                 assertThat(sql)
-                        .as("V187 must seed verbatim text for '%s'", q.id())
+                        .as("migration seed must contain verbatim text for '%s'", q.id())
                         .contains(q.questionDe());
             }
         }
     }
 
-    private static String readMigration() {
+    private static String readMigration(String migration) {
         try (InputStream is = InterviewQuestionBankSeedParityTest.class.getClassLoader()
-                .getResourceAsStream(MIGRATION)) {
+                .getResourceAsStream(migration)) {
             if (is != null) {
                 return new String(is.readAllBytes(), StandardCharsets.UTF_8);
             }
@@ -69,9 +72,9 @@ class InterviewQuestionBankSeedParityTest {
             // fall through to filesystem
         }
         try {
-            return Files.readString(Path.of("src/main/resources/" + MIGRATION), StandardCharsets.UTF_8);
+            return Files.readString(Path.of("src/main/resources/" + migration), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw new UncheckedIOException("Cannot read " + MIGRATION, e);
+            throw new UncheckedIOException("Cannot read " + migration, e);
         }
     }
 }

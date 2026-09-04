@@ -187,10 +187,6 @@ describe("useSpeakingChat", () => {
         makeAiResponse({
           adaptive: {
             enabled: true,
-            cefrEffective: "A2",
-            difficultyKnob: 0,
-            focusCodes: [],
-            targetStructures: [],
             topicSuggestion: null,
             forceRepairBeforeContinue: true,
             primaryRepairErrorCode: "CASE_ERROR",
@@ -239,10 +235,6 @@ describe("useSpeakingChat", () => {
         makeAiResponse({
           adaptive: {
             enabled: true,
-            cefrEffective: "A2",
-            difficultyKnob: 0,
-            focusCodes: [],
-            targetStructures: [],
             topicSuggestion: null,
             forceRepairBeforeContinue: true,
             primaryRepairErrorCode: "CASE_ERROR",
@@ -292,10 +284,6 @@ describe("mapResponseToBubble", () => {
     const response = makeAiResponse({
       adaptive: {
         enabled: true,
-        cefrEffective: "B1",
-        difficultyKnob: 2,
-        focusCodes: ["CASE_ERROR"],
-        targetStructures: ["Dativ"],
         topicSuggestion: "Arbeit",
         forceRepairBeforeContinue: false,
         primaryRepairErrorCode: null,
@@ -303,8 +291,8 @@ describe("mapResponseToBubble", () => {
     });
 
     const bubble = mapResponseToBubble(response);
-    expect(bubble.adaptive?.cefrEffective).toBe("B1");
-    expect(bubble.adaptive?.focusCodes).toContain("CASE_ERROR");
+    expect(bubble.adaptive?.topicSuggestion).toBe("Arbeit");
+    expect(bubble.adaptive?.forceRepairBeforeContinue).toBe(false);
   });
 
   it("returns undefined for adaptive when adaptive is null", () => {

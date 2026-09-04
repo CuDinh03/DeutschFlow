@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
   Mic, PenLine, FileText, BookOpen, SpellCheck, Sparkles, Save, Loader2,
-  CheckCircle2, AlertCircle, AlertTriangle, Play, ExternalLink, Clock,
+  CheckCircle2, AlertCircle, AlertTriangle, Play, ExternalLink, Clock, X,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -99,10 +100,18 @@ interface Draft { score: number | ''; feedback: string }
 const seedFeedback = (status: string, feedback: string | null): string =>
   status === 'GRADING_FAILED' ? '' : (feedback ?? '')
 
-export default function V2TeacherGradingPage() {
+function V2TeacherGradingPage() {
   const t = useTranslations('v2.teacher.grading')
   const tc = useTranslations('v2.common')
+  const sp = useSearchParams()
+  const router = useRouter()
   const BUCKETS: TkSegOption<Bucket>[] = BUCKET_VALUES.map((value) => ({ value, label: t(`buckets.${value}`) }))
+  // A6/F13: đến từ "Xem bài nộp" của một lớp thì giữ NGỮ CẢNH lớp đó (?classId=) thay vì bắt
+  // giáo viên tự tìm lại trong hàng chờ chung. Queue API vốn đã hỗ trợ classId — chỉ FE chưa dùng.
+  const [classScope, setClassScope] = useState<number | null>(() => {
+    const v = Number(sp.get('classId'))
+    return Number.isFinite(v) && v > 0 ? v : null
+  })
   const [queue, setQueue] = useState<GradingQueueItem[]>([])
   const [stats, setStats] = useState<GradingStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -135,7 +144,7 @@ export default function V2TeacherGradingPage() {
     setLoading(true)
     try {
       const [q, s] = await Promise.all([
-        api.get<GradingQueueItem[]>('/v2/teacher/grading/queue'),
+        api.get<GradingQueueItem[]>(`/v2/teacher/grading/queue${classScope != null ? `?classId=${classScope}` : ''}`),
         api.get<GradingStats>('/v2/teacher/grading/stats').catch(() => ({ data: null })),
       ])
       const rows = q.data ?? []
@@ -148,12 +157,16 @@ export default function V2TeacherGradingPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [classScope])
 
   useEffect(() => {
     void load()
-    return () => { pollRef.current = false }
   }, [load])
+
+  // pollRef hủy poll chấm AI đang chạy — chỉ khi UNMOUNT. Không gắn vào effect [load]: từ khi load
+  // phụ thuộc classScope, đổi bộ lọc lớp sẽ chạy cleanup và giết oan poll của bài đang chấm dở
+  // (spinner kẹt vô hạn vì nhánh return sớm không reset aiLoading).
+  useEffect(() => () => { pollRef.current = false }, [])
 
   const filtered = useMemo(
     () => queue.filter((g) => filter === 'all' || bucketOf(g.assignmentType) === filter),
@@ -316,6 +329,27 @@ export default function V2TeacherGradingPage() {
         <div className="flex max-h-[50vh] flex-col overflow-y-auto border-b border-ga-line bg-ga-card lg:max-h-none lg:overflow-auto lg:border-b-0 lg:border-r">
           <div className="px-3.5 pb-2.5 pt-3.5">
             <GaCap className="mb-2.5 block">{t('queueCap')}</GaCap>
+            {classScope != null && (
+              <button
+                type="button"
+                onClick={() => {
+                  setClassScope(null)
+                  // Gỡ cả ?classId= khỏi URL — nếu không, reload/bookmark hồi sinh bộ lọc vừa bỏ.
+                  router.replace('/v2/teacher/grading', { scroll: false })
+                }}
+                className="ga-ui mb-2 inline-flex max-w-full items-center gap-1.5 px-2 py-1 text-[11.5px] font-semibold"
+                style={{ color: '#7C56C8', background: 'var(--ga-violet-soft)' }}
+                aria-label={t('clearClassScope')}
+              >
+                <span className="truncate">
+                  {t('classScope', {
+                    name: stats?.byClass.find((c) => c.classId === classScope)?.className
+                      ?? queue[0]?.className ?? `#${classScope}`,
+                  })}
+                </span>
+                <X size={13} aria-hidden />
+              </button>
+            )}
             <TkSeg options={BUCKETS} value={filter} onValueChange={setFilter} className="w-full [&>button]:flex-1" aria-label={t('filterAria')} />
           </div>
 
@@ -733,5 +767,14 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
         <Save size={16} /> {t('saveNext')}
       </GaBtn>
     </>
+  )
+}
+
+// useSearchParams đòi Suspense boundary trong app router — bọc ở default export.
+export default function V2TeacherGradingPageRoute() {
+  return (
+    <Suspense fallback={null}>
+      <V2TeacherGradingPage />
+    </Suspense>
   )
 }

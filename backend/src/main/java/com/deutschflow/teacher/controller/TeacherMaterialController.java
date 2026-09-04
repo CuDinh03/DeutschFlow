@@ -44,6 +44,15 @@ public class TeacherMaterialController {
     private static final long MAX_FILE_SIZE = 20L * 1024 * 1024; // 20MB
 
     /**
+     * B5 (checklist khung AI tier 07/08, quyết định owner #9): sinh giáo án/PPTX tạm KHOÁ.
+     * Mặc định false — bật lại bằng env {@code FEATURE_TEACHER_LESSON_PLAN=true}, không cần
+     * deploy code. UI v2 không còn lối vào tính năng này (cây v1 đã redirect 307), nhưng API
+     * vẫn gọi thẳng được nên phải khoá ở đây — đây cũng là tính năng AI đắt nhất (~40K token/lần).
+     */
+    @org.springframework.beans.factory.annotation.Value("${app.features.teacher-lesson-plan.enabled:false}")
+    private boolean lessonPlanEnabled;
+
+    /**
      * Ước lượng token cho 1 lần tạo PPTX (Gemini multimodal đọc tài liệu + sinh slide) —
      * dùng để hard-cap pool token cấp-org TRƯỚC khi chạy job async. Tính nhỉnh để bảo vệ
      * biên lợi nhuận: PPTX là tính năng AI đắt nhất và không đi qua QuotaService như speaking.
@@ -54,6 +63,11 @@ public class TeacherMaterialController {
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<?> generatePptxAsync(@AuthenticationPrincipal User user,
                                                @RequestParam("file") MultipartFile file) {
+        if (!lessonPlanEnabled) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "FEATURE_DISABLED",
+                    "message", "Tính năng tạo giáo án đang tạm khoá để nâng cấp. Vui lòng quay lại sau."));
+        }
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
         }

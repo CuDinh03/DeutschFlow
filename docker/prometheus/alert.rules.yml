@@ -27,3 +27,128 @@ groups:
         annotations:
           summary: "High HTTP Error Rate"
           description: "More than 5% of requests are returning 5xx status codes over the last 2 minutes."
+
+      # "Alert canh alert": scrape chết thì MỌI rule phía trên mù mà không ai hay. Đã xảy ra thật —
+      # target cũ `backend:8080` không resolve được từ network của Prometheus nên toàn bộ dashboard
+      # + alert backend câm lặng từ đầu. Hai rule này bảo đảm sự cố scrape tự lên tiếng.
+      - alert: BackendScrapeDown
+        expr: up{job="deutschflow-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus không scrape được backend"
+          description: "Target deutschflow-backend:8080 down >2 phút — backend chết HOẶC sai network/tên container. Kiểm: docker network inspect + docker exec deutschflow-prometheus wget -qO- deutschflow-backend:8080/actuator/prometheus."
+
+      - alert: BackendScrapeAbsent
+        expr: absent(up{job="deutschflow-backend"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Job deutschflow-backend biến mất khỏi Prometheus"
+          description: "Không còn serie up{} nào cho job này — scrape config bị sửa/xoá hoặc Prometheus mất state. up==0 không bắt được ca này nên cần absent() riêng."
+
+  # ── Phát hiện lạm dụng / tấn công ────────────────────────────────────────────
+  # Nhóm này KHÔNG bắt lỗi ứng dụng mà bắt hành vi bất thường từ bên ngoài. Lý do tách riêng:
+  # khi bị dội, triệu chứng đầu tiên KHÔNG phải 5xx (app vẫn trả 429 đúng chuẩn, không hề lỗi) —
+  # nên HighErrorRate ở nhóm trên sẽ im lặng suốt trong khi server đang bị bào. Cần tín hiệu riêng.
+  #
+  # Mục tiêu là biết trong VÀI PHÚT thay vì phát hiện khi người dùng phàn nàn. Ngưỡng đặt theo
+  # nguyên tắc: thà kêu hơi sớm còn hơn ngủ quên, nhưng không được kêu vặt hằng ngày — cảnh báo
+  # bị chai là cảnh báo vô dụng.
+  - name: deutschflow_abuse
+    rules:
+      - alert: RateLimitSurge
+        # 429 lác đác là bình thường (người dùng bấm nhanh, mobile retry). Cả một dòng 429 LIÊN TỤC
+        # trong 3 phút thì không còn là ngẫu nhiên nữa.
+        expr: sum(rate(http_server_requests_seconds_count{status="429"}[2m])) > 3
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rate limit đang chặn liên tục (>3 req/s bị 429)"
+          description: "Có thể đang bị dội, hoặc một client (app mobile?) kẹt vòng lặp retry. Soi log nginx + WARN [PublicRateLimit]/[AuthBulkhead] để biết IP nào."
+
+      - alert: AuthEndpointFlood
+        # Đăng nhập là hành vi thưa: người thật đăng nhập một lần rồi dùng refresh token hàng giờ.
+        # 20 req/s LIÊN TỤC trên /api/auth/** không phải hình dạng của lưu lượng thật.
+        expr: sum(rate(http_server_requests_seconds_count{uri=~"/api/auth/.*"}[5m])) > 20
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Lưu lượng /api/auth/** bất thường (>20 req/s)"
+          description: "Mỗi request login tốn trọn một lần BCrypt kể cả với email không tồn tại. Kiểm cap login theo IP và bulkhead còn hiệu lực không; cân nhắc siết limit_req ở nginx."
+
+      - alert: TomcatThreadPoolSaturated
+        # Cần server.tomcat.mbeanregistry.enabled=true, nếu không metric này KHÔNG tồn tại và
+        # alert sẽ im lặng vĩnh viễn.
+        expr: tomcat_threads_busy_threads / tomcat_threads_config_max_threads > 0.8
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Tomcat thread pool đã dùng >80%"
+          description: "Hết thread là toàn bộ API ngừng phản hồi, không riêng phần đang bị dội. Nếu đi kèm AuthEndpointFlood thì bulkhead auth đang bị vượt — hạ APP_AUTH_BULKHEAD_MAX_CONCURRENT."
+
+      - alert: SustainedHighCpu
+        # EC2 là t3.medium — burstable. CPU cao kéo dài làm CẠN CPU credit, và khi cạn thì box bị
+        # bóp về baseline HÀNG GIỜ sau khi tải đã hết. Cảnh báo này để kịp can thiệp trước lúc đó.
+        expr: process_cpu_usage > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU backend >85% suốt 10 phút"
+          description: "Trên t3 burstable, kéo dài sẽ cạn CPU credit và server bị throttle về baseline hàng giờ SAU KHI tải đã hết. Kiểm CPUCreditBalance trên CloudWatch."
+
+      # ── H3 (audit lag 02/09) — alert mở rộng trên node-exporter + JVM/breaker ─────────────
+      # Cert expiry CHƯA có rule: cần blackbox exporter probe HTTPS (thêm ~30MB RAM + service
+      # mới) — để đợt sau; certbot auto-renew vẫn là tuyến phòng thủ chính.
+
+      - alert: HostDiskSpaceLow
+        # node-exporter chạy với --path.rootfs=/host nên mountpoint="/" là đĩa gốc EC2 (30GB,
+        # đang ~59%). 15% ≈ 4.5GB — dưới mức đó một lần build image (cần ~2-3GB tạm) sẽ thất
+        # bại, và bước prune khẩn của deploy script bắt đầu phải dọn đồ thật.
+        expr: (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}) < 0.15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Dia goc EC2 con duoi 15%"
+          description: "Kiem tra: docker system df, log container (da co rotation 50mx3), volume loki (retention 15 ngay tu H2). Duoi 10% la deploy fail."
+
+      - alert: HostMemoryPressure
+        # RAM available ~1.2GB khi đủ backend + observability (đo 02/09). Dưới 300MB là vùng
+        # nguy hiểm: kernel bắt đầu reclaim mạnh, swap 2G nóng dần, mọi thứ chậm theo kiểu
+        # "không thấy gì cháy nhưng cái gì cũng ì" — đúng hình dạng lag đang truy.
+        expr: node_memory_MemAvailable_bytes < 300 * 1024 * 1024
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RAM available cua host duoi 300MB"
+          description: "Blue-green dang chay 2 JVM? Container nao vuot mem_limit? Xem docker stats. Swap dung nhieu keo dai = can can nhac nang instance."
+
+      - alert: HighJvmGcPause
+        # Tỉ lệ thời gian dừng GC trên thời gian thật. >5% kéo dài nghĩa là heap thiếu hoặc có
+        # allocation storm — p95/p99 API sẽ nhiễm răng cưa đúng chu kỳ GC.
+        expr: sum(rate(jvm_gc_pause_seconds_sum[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM dung vi GC >5% thoi gian (10 phut lien)"
+          description: "Xem jvm_memory_used_bytes theo pool tren Grafana. Heap tran 65% cua cgroup 2200m — neu old-gen day lien tuc thi tim allocation storm truoc khi tang RAM."
+
+      - alert: CircuitBreakerOpen
+        # resilience4j: breaker mở nghĩa là một dịch vụ ngoài (AI provider, TTS…) đang hỏng và
+        # backend đã tự ngắt để bảo vệ mình — người dùng đang nhận lỗi ở tính năng đó.
+        expr: resilience4j_circuitbreaker_state{state="open"} == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Circuit breaker {{ $labels.name }} dang OPEN"
+          description: "Dich vu ngoai sau breaker nay dang hong lien tuc. Kiem tra provider tuong ung (Groq/Fireworks/TTS) va log loi gan nhat."

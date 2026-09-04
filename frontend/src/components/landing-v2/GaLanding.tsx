@@ -7,7 +7,8 @@ import { GaLogo, GaBtn, GaCap } from '@/components/ui-v2'
 /**
  * GaLanding — public marketing landing (proto-landing.jsx + proto-landing-sections.jsx).
  * Canonical homepage: rendered at `/` AND at `/v2` (each route wraps it in `.ga-scope`).
- * Full-bleed (no role shell). CTAs route to the real /v2/register · /v2/login · /v2/teacher.
+ * Full-bleed (no role shell). CTA học viên → /v2/onboarding (phễu value-first, xem START_HREF);
+ * CTA B2B + đăng nhập giữ /v2/register · /v2/login · /v2/teacher.
  * Editorial Galerie style: 1px-divided grids, Newsreader display, yellow brand accent.
  */
 
@@ -62,16 +63,41 @@ const EXAM_PARTS = [
   { de: 'Schreiben', vi: 'Viết', time: '60 phút', body: 'Email và nêu ý kiến — nộp qua ảnh, AI chấm bố cục và ngữ pháp.' },
   { de: 'Sprechen', vi: 'Nói', time: '15 phút', body: 'Phỏng vấn cặp đôi — luyện trực tiếp với AI HR trước ngày thi.' },
 ]
+// P0.2 (audit 2026-08-28, H-01): thay testimonial bịa tên người/bệnh viện thật bằng
+// audience card — mô tả sản phẩm làm gì cho từng nhóm, không dựng nhân chứng giả.
+const AUDIENCES = [
+  { title: 'Điều dưỡng sang Đức', de: 'Pflegekräfte', color: 'var(--ga-red)', body: 'Luyện trả lời câu hỏi tình huống chăm sóc bệnh nhân bằng tiếng Đức — đúng dạng câu hỏi nhà tuyển dụng ngành Pflege hay dùng nhất, kèm sửa phát âm từng câu.' },
+  { title: 'Kỹ sư & IT', de: 'IT & Ingenieurwesen', color: 'var(--ga-blue)', body: 'Tập trình bày dự án, giải thích giải pháp kỹ thuật và trả lời phỏng vấn chuyên môn bằng tiếng Đức trước khi ngồi trước HR thật.' },
+  { title: 'Nhà bếp & dịch vụ', de: 'Gastronomie & Service', color: 'var(--ga-green)', body: 'Luyện giao tiếp ca làm, quy trình vệ sinh và phỏng vấn xin việc ở trình độ A2–B1 bằng ngôn ngữ thực tế trong bếp và nhà hàng Đức.' },
+]
 const TEACH_VALUE = [
   { t: 'Quản lý lớp học', s: 'Tạo lớp bằng mã, theo dõi tiến độ từng học viên theo thời gian thực.' },
   { t: 'Chấm bài bằng AI', s: 'AI chấm Speaking và nhận bài viết qua ảnh — tiết kiệm hàng giờ mỗi tuần.' },
   { t: 'Tạo tài liệu AI', s: 'Sinh bài tập, quiz và đề kiểm tra theo chủ đề chỉ trong vài giây.' },
   { t: 'Báo cáo tiến độ', s: 'Phân tích điểm mạnh – yếu của lớp và từng cá nhân để dạy đúng trọng tâm.' },
 ]
+// Copy gói phải khớp entitlement thật (audit H-01): backend áp hạn mức token AI theo ngày,
+// nên không hứa "không giới hạn"; không nêu con số quota cứng vì cấu hình chỉnh được runtime.
+/**
+ * Đích của mọi CTA "học thử / miễn phí" cho HỌC VIÊN.
+ *
+ * QA 2026-09-01 (F-13): trang này có 19 link, trong đó 8 CTA đều trỏ thẳng `/v2/register`, KHÔNG
+ * một CTA nào trỏ `/v2/onboarding` — trong khi `/v2/onboarding` là trang CÔNG KHAI, đã dịch đủ ba
+ * thứ tiếng, có ghép mentor, có "quick win" và đủ event PostHog. Chú thích trong chính trang đó
+ * viết: "a GUEST runs the whole funnel here before signing up". Thực tế khách lạ bấm "Học thử miễn
+ * phí" rơi thẳng vào form 5 ô kèm số điện thoại bắt buộc, chưa nhận được chút giá trị nào — nên
+ * toàn bộ phễu value-first nằm không và dashboard funnel gần như không có dữ liệu.
+ *
+ * Phễu tự đưa khách sang `/v2/register` ở bước cuối (kèm bản nháp lộ trình), nên đây là THÊM một
+ * chặng giá trị trước tường đăng ký chứ không phải thay thế nó. CTA B2B ("Nhận tư vấn…") giữ
+ * nguyên: phễu này dành cho học viên, không dành cho trung tâm.
+ */
+const START_HREF = '/v2/onboarding'
+
 const PLANS = [
-  { name: 'Miễn phí', price: '0₫', features: ['3 buổi phỏng vấn AI/tháng', 'Phản hồi cơ bản', '1 ngành nghề'], cta: 'Bắt đầu ngay', highlight: false },
-  { name: 'Pro', price: '299.000₫', sub: '/tháng', features: ['Không giới hạn phỏng vấn', 'Phân tích phát âm chi tiết', '12 ngành nghề', 'Luyện thi Goethe B1/B2'], cta: 'Dùng thử 7 ngày miễn phí', highlight: true },
-  { name: 'Giáo viên', price: 'Liên hệ', features: ['Quản lý lớp học', 'Tạo tài liệu AI', 'Chấm bài Speaking', 'Báo cáo tiến độ học viên'], cta: 'Nhận tư vấn', highlight: false },
+  { name: 'Miễn phí', price: '0₫', features: ['Học từ vựng & ngữ pháp A1–B1', 'Ôn tập ngắt quãng (SRS) mỗi ngày', 'Trải nghiệm phỏng vấn AI có hạn mức'], cta: 'Bắt đầu ngay', href: START_HREF, highlight: false },
+  { name: 'Pro', price: '299.000₫', sub: '/tháng', features: ['Phỏng vấn AI hạn mức cao mỗi ngày', 'Phân tích phát âm & ngữ pháp chi tiết', 'Đủ bộ ngành nghề phỏng vấn', 'Luyện thi Goethe A1–B2'], cta: 'Dùng thử 7 ngày miễn phí', href: START_HREF, highlight: true },
+  { name: 'Giáo viên', price: 'Liên hệ', features: ['Quản lý lớp học', 'Tạo tài liệu AI', 'Chấm bài Speaking', 'Báo cáo tiến độ học viên'], cta: 'Nhận tư vấn', href: '/v2/register', highlight: false },
 ]
 const INDUSTRIES = [
   {
@@ -114,23 +140,25 @@ export function GaLanding() {
   return (
     <div className="min-h-screen overflow-x-clip scroll-smooth bg-ga-bg font-ga-ui text-ga-ink">
       {/* Nav */}
-      <nav className="sticky top-0 z-50 border-b border-ga-border bg-ga-bg/90 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-ga-border bg-ga-bg/90 backdrop-blur-md">
         <div className="flex h-16 items-center justify-between gap-2 px-5 sm:px-8 md:h-[78px] xl:px-[60px]">
           <GaLogo size={26} className="shrink-0 md:hidden" />
           <GaLogo className="hidden shrink-0 md:inline-flex" />
-          <div className="hidden gap-7 lg:flex xl:gap-9">
+          <nav aria-label="Điều hướng chính" className="hidden gap-7 lg:flex xl:gap-9">
             {NAV_LINKS.map(([l, id]) => (
               <a key={id} href={`#${id}`} className="whitespace-nowrap text-[14.5px] font-medium text-ga-muted transition-colors hover:text-ga-ink">
                 {l}
               </a>
             ))}
-          </div>
+          </nav>
           <div className="flex items-center gap-2 sm:gap-4 md:gap-5">
             <Link href="/v2/login" className="hidden text-[14.5px] font-semibold text-ga-ink hover:opacity-80 sm:block">
               Đăng nhập
             </Link>
+            {/* h-11 (44px) ở mọi bề ngang — trước là h-9 (36px) trên máy nhỏ, dưới mức tối thiểu
+                44pt của Apple HIG, mà đây là nút chuyển đổi chính nằm ngay cạnh nút menu. */}
             <GaBtn asChild variant="ink" size="lg" className="h-11 px-3.5 text-[13px] sm:px-6 sm:text-[14.5px]">
-              <Link href="/v2/register">
+              <Link href={START_HREF}>
                 <YellowSq />
                 <span className="sm:hidden">Học thử</span>
                 <span className="hidden sm:inline">Học thử miễn phí</span>
@@ -176,14 +204,18 @@ export function GaLanding() {
                 Đăng nhập
               </Link>
               <GaBtn asChild variant="ink" size="lg" className="mt-5 w-full">
-                <Link href="/v2/register" onClick={() => setMenuOpen(false)}>
+                <Link href={START_HREF} onClick={() => setMenuOpen(false)}>
                   <YellowSq />Học thử miễn phí
                 </Link>
               </GaBtn>
             </div>
           </div>
         )}
-      </nav>
+      </header>
+
+      {/* QA 13/08: trang thiếu landmark <main> nên VoiceOver/rotor không có "nội dung chính"
+          để nhảy tới — người dùng trình đọc màn hình phải lướt qua cả thanh điều hướng mỗi lần. */}
+      <main>
 
       {/* Hero */}
       <section className="mx-auto grid max-w-[1240px] items-center gap-12 px-5 pb-14 pt-10 sm:px-8 sm:pt-14 lg:grid-cols-[1.15fr_1fr] lg:gap-20 lg:px-[60px] lg:pb-[72px] lg:pt-[90px]">
@@ -202,14 +234,14 @@ export function GaLanding() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:gap-3.5">
             <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
-              <Link href="/v2/register"><YellowSq />Bắt đầu miễn phí</Link>
+              <Link href={START_HREF}><YellowSq />Bắt đầu miễn phí</Link>
             </GaBtn>
             <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-              <a href="#how-it-works">Xem cách hoạt động</a>
+              <Link href="/v2/login">Đăng nhập để trải nghiệm</Link>
             </GaBtn>
           </div>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 sm:mt-[38px]">
-            {['Lộ trình A1–C1', '12 ngành nghề', 'Không cần thẻ tín dụng'].map((t) => (
+            {['AI hỏi đúng ngành của bạn', 'Luyện đủ 4 kỹ năng Goethe', 'Không cần thẻ tín dụng'].map((t) => (
               <span key={t} className="flex items-center gap-1.5 text-[13px] text-ga-muted">
                 <span className="inline-block h-[5px] w-[5px] bg-ga-yellow" />{t}
               </span>
@@ -248,9 +280,10 @@ export function GaLanding() {
         </div>
       </section>
 
-      {/* Stats bar */}
+      {/* Stats bar — chỉ nêu năng lực sản phẩm kiểm chứng được, không số liệu xã hội
+          không có nguồn (audit 2026-08-28, H-01: 2.400+/92%/4.9 không có provenance). */}
       <div className="grid border-y border-ga-border sm:grid-cols-3">
-        {[['A1–C1', 'lộ trình theo trình độ'], ['12 ngành nghề', 'tình huống luyện theo mục tiêu'], ['Sau từng lượt', 'phản hồi cụ thể để cải thiện']].map(([n, l], i) => (
+        {[['A1–B2', 'lộ trình học theo khung CEFR'], ['4 kỹ năng', 'Lesen · Hören · Schreiben · Sprechen'], ['24/7', 'AI phỏng vấn sẵn sàng mọi lúc']].map(([n, l], i) => (
           <div key={l} className={`py-6 text-center sm:py-8 ${i ? 'border-t border-ga-border sm:border-l sm:border-t-0' : ''}`}>
             <div className="font-ga-display text-[34px] font-medium sm:text-[42px]">{n}</div>
             <div className="mt-1.5 text-[14px] text-ga-muted sm:mt-[9px]">{l}</div>
@@ -273,7 +306,7 @@ export function GaLanding() {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="scroll-mt-[78px] border-y border-ga-border bg-ga-card">
+      <section className="border-y border-ga-border bg-ga-card">
         <div className={SECTION}>
           <GaCap className="mb-[18px]">Cách hoạt động</GaCap>
           <h2 className={`${H2} mb-12`}>Ba bước đến phỏng vấn thành công</h2>
@@ -393,7 +426,7 @@ export function GaLanding() {
         </div>
         <div className="mt-[18px] flex items-center gap-2.5 text-[14px] text-ga-muted">
           <span className="inline-block h-[7px] w-[7px] bg-ga-yellow" />
-          Ngoài 4 ngành trên, DeutschFlow còn hỗ trợ <strong className="text-ga-ink">Văn phòng</strong> và nhiều ngành khác — tổng cộng 12 bộ câu hỏi.
+          Ngoài 4 ngành trên, DeutschFlow còn hỗ trợ <strong className="text-ga-ink">Văn phòng, bán lẻ</strong> và nhiều vị trí khác — bộ câu hỏi được AI tạo theo đúng ngành bạn chọn.
         </div>
       </section>
 
@@ -417,8 +450,26 @@ export function GaLanding() {
             <div className="font-ga-display text-[19px] font-medium leading-[1.35] sm:text-[21px]">Biết ngay mình ở đâu so với chuẩn B1 — trước khi tốn tiền thi thật.</div>
           </div>
           <GaBtn asChild variant="yellow" size="lg" className="w-full sm:w-auto">
-            <Link href="/v2/register"><YellowSq dark />Làm thử miễn phí</Link>
+            <Link href={START_HREF}><YellowSq dark />Làm thử miễn phí</Link>
           </GaBtn>
+        </div>
+      </section>
+
+      {/* Audiences — thay khối testimonial: nói sản phẩm làm gì cho từng nhóm người học */}
+      <section className="border-y border-ga-border bg-ga-card">
+        <div className={SECTION}>
+          <GaCap className="mb-[18px]">Dành cho ai</GaCap>
+          <h2 className={`${H2} mb-12`}>Sinh ra cho hành trình đi Đức của bạn</h2>
+          <div className="grid border border-ga-border md:grid-cols-3">
+            {AUDIENCES.map((a, i) => (
+              <div key={a.title} className={`p-6 sm:p-[36px_40px] ${i ? 'border-t border-ga-border md:border-l md:border-l-ga-border md:border-t-0' : ''}`}>
+                <span className="mb-4 inline-block h-[11px] w-[11px]" style={{ background: a.color }} />
+                <div className="text-[18px] font-bold">{a.title}</div>
+                <div className="mb-4 mt-1 font-ga-display text-[14px] italic text-ga-subtle">{a.de}</div>
+                <p className="text-[15px] leading-[1.72] text-ga-muted">{a.body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -445,7 +496,7 @@ export function GaLanding() {
                 <Link href="/v2/register"><YellowSq />Nhận tư vấn cho trung tâm</Link>
               </GaBtn>
               <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-                <Link href="/v2/register">Dùng thử cho giáo viên →</Link>
+                <Link href="/v2/login">Xem demo bảng giáo viên →</Link>
               </GaBtn>
             </div>
           </div>
@@ -486,7 +537,7 @@ export function GaLanding() {
                 ))}
               </div>
               <GaBtn asChild variant={p.highlight ? 'yellow' : 'ink'} size="md" className="w-full md:w-auto">
-                <Link href="/v2/register">{p.cta}</Link>
+                <Link href={p.href}>{p.cta}</Link>
               </GaBtn>
             </div>
           ))}
@@ -501,10 +552,12 @@ export function GaLanding() {
             <h2 className="font-ga-display text-[34px] font-medium leading-[1.15] sm:text-[42px] md:text-[50px] md:leading-[1.1]">Sẵn sàng cho phỏng vấn tiếng Đức của bạn?</h2>
           </div>
           <GaBtn asChild variant="yellow" size="lg" className="w-full md:w-auto">
-            <Link href="/v2/register"><YellowSq dark />Học thử miễn phí</Link>
+            <Link href={START_HREF}><YellowSq dark />Học thử miễn phí</Link>
           </GaBtn>
         </div>
       </section>
+
+      </main>
 
       {/* Site footer — brand + legal/support links */}
       <footer className="border-t border-ga-border bg-ga-bg">

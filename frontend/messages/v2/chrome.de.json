@@ -67,8 +67,7 @@
       "org-schedule": "Zentrumsplan",
       "org-teachers": "Lehrkräfte",
       "org-analytics": "Analysen",
-      "org-finance": "Finanzen",
-      "org-billing": "Tarife & Lizenzen",
+      "org-billing": "Tarif & Zahlung",
       "org-invitations": "Einladungen",
       "org-roles": "Rollen",
       "org-profile": "Profil",
@@ -82,7 +81,10 @@
       "org-timesheets": "Arbeitszeit",
       "tc-timesheet": "Arbeitszeit",
       "interviews": "AI Interview",
-      "speaking-history": "Sprechverlauf"
+      "speaking-history": "Sprechverlauf",
+      "admin-maintenance": "Wartung",
+      "org-curricula": "Lehrplan",
+      "admin-exam-golden": "Golden-Set Sprechen"
     },
     "sections": {
       "classMgmt": "Kursverwaltung",
@@ -207,5 +209,21 @@
     "more": "Mehr",
     "areaNav": "Bereichsnavigation",
     "sectionNav": "Navigation im Bereich"
+  },
+  "maintenance": {
+    "overlayTitle": "Systemwartung läuft",
+    "overlayNote": "Wir verbessern gerade das System — deine Lektionen und dein Fortschritt bleiben erhalten.",
+    "etaCountdown": "noch {minutes} Minuten",
+    "etaOverdue": "gleich geschafft…",
+    "etaUnknown": "Wir melden uns, sobald es weitergeht.",
+    "retryNow": "Jetzt erneut versuchen",
+    "retryChecking": "Wird geprüft…",
+    "autoRetry": "automatische Prüfung in 30 Sekunden",
+    "reloadPage": "Seite neu laden",
+    "restoredToast": "Wir sind wieder da. Viel Spaß beim Lernen!",
+    "bannerUpcoming": "Wartung um {time}",
+    "bannerCountdownHours": "noch {hours} Std. {minutes} Min.",
+    "bannerCountdownMinutes": "noch {minutes} Minuten",
+    "bannerDismiss": "Ausblenden"
   }
 }

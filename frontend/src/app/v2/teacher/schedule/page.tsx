@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { CalendarClock, ChevronLeft, ChevronRight, Clock, Plus, Users } from 'lucide-react'
+import { CalendarClock, ChevronLeft, ChevronRight, Clock, Flag, Plus, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import {
@@ -16,6 +16,8 @@ import {
 import { assignLanes } from '@/lib/scheduleLayout'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 import { CLASS_STATUS, CreateSessionModal, EditSessionModal, MODE_LABEL, PatternModal } from './scheduleClassParts'
+import { TeacherRequestsPanel } from './TeacherRequestsPanel'
+import { MilestonesModal } from './MilestonesModal'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lịch dạy (v2) — CHỈ buổi lớp tại trung tâm. Buổi 1:1 (marketplace B2C) nằm ở
@@ -51,6 +53,7 @@ export default function V2TeacherSchedulePage() {
   const [editTarget, setEditTarget] = useState<ClassSession | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [showPattern, setShowPattern] = useState(false)
+  const [showMilestones, setShowMilestones] = useState(false)
 
   const monday = useMemo(() => mondayOf(weekOffset), [weekOffset])
   const weekEnd = useMemo(() => {
@@ -127,6 +130,9 @@ export default function V2TeacherSchedulePage() {
                   <GaBtn variant="ghost" size="sm" onClick={() => setShowPattern(true)}>
                     <CalendarClock size={14} /> {t('fixedSchedule')}
                   </GaBtn>
+                  <GaBtn variant="ghost" size="sm" onClick={() => setShowMilestones(true)}>
+                    <Flag size={14} /> {t('milestonesButton')}
+                  </GaBtn>
                   <span className="mx-1 h-5 w-px bg-ga-line" aria-hidden />
                   <GaBtn variant="ghost" size="sm" aria-label={t('prevWeek')} onClick={() => setWeekOffset((w) => w - 1)}>
                     <ChevronLeft size={15} />
@@ -145,6 +151,8 @@ export default function V2TeacherSchedulePage() {
               ) : (
                 <WeekGrid classSessions={classSessions} monday={monday} onSessionClick={setEditTarget} />
               )}
+
+              <TeacherRequestsPanel classes={classes} />
             </div>
 
             <aside className="min-w-0">
@@ -189,6 +197,7 @@ export default function V2TeacherSchedulePage() {
       <EditSessionModal session={editTarget} onClose={() => setEditTarget(null)} onSaved={handleSaved} />
       <CreateSessionModal open={showCreate} classes={classes} onClose={() => setShowCreate(false)} onSaved={handleSaved} />
       <PatternModal open={showPattern} classes={classes} onClose={() => setShowPattern(false)} onSaved={() => void loadClassWeek(monday)} />
+      <MilestonesModal open={showMilestones} classes={classes} onClose={() => setShowMilestones(false)} />
     </div>
   )
 }

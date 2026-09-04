@@ -1,0 +1,626 @@
+{
+  "id": "netzwerk-neu-a1",
+  "title": "Netzwerk neu A1",
+  "level": "A1",
+  "pageOffset": 1,
+  "defaultSessionsPerChapter": 3,
+  "defaultUnitsPerSession": 4,
+  "units": [
+    {
+      "number": 1,
+      "title": "Guten Tag!",
+      "kind": "CHAPTER",
+      "bookPageFrom": 8,
+      "bookPageTo": 17,
+      "goals": [
+        "grüßen und verabschieden",
+        "sich und andere vorstellen",
+        "nach dem Befinden fragen und darauf reagieren",
+        "über sich und andere sprechen",
+        "Zahlen bis 20 nennen",
+        "Telefonnummer und E-Mail-Adresse nennen",
+        "buchstabieren",
+        "über Länder und Sprachen sprechen"
+      ],
+      "content": {
+        "WORTSCHATZ": [
+          "Zahlen von 1–20",
+          "Länder und Sprachen"
+        ],
+        "GRAMMATIK": [
+          "W-Frage",
+          "Aussagesatz",
+          "Verben und Personalpronomen",
+          "Personalpronomen in Texten"
+        ],
+        "AUSSPRACHE": [
+          "Alphabet"
+        ],
+        "STRATEGIE": [
+          "E-Mail-Adresse schreiben und sagen"
+        ],
+        "LANDESKUNDE": [
+          "Länder und Sprachen"
+        ],
+        "REDEMITTEL": [
+          "Ich bin Anna.",
+          "Willkommen, Anna!",
+          "Und deine Nummer?"
+        ]
+      }
+    },
+    {
+      "number": 2,
+      "title": "Freunde, Kollegen und ich",
+      "kind": "CHAPTER",
+      "bookPageFrom": 18,
+      "bookPageTo": 27,
+      "goals": [
+        "über Hobbys sprechen",
+        "sich verabreden",
+        "Wochentage benennen",
+        "über Arbeit, Berufe und Arbeitszeiten sprechen",
+        "Zahlen ab 20 nennen",
+        "ein Formular ausfüllen"
+      ],
+      "content": {
+        "WORTSCHATZ": [
+          "Hobbys",
+          "Wochentage",
+          "Zahlen ab 20",
+          "Berufe"
+        ],
+        "GRAMMATIK": [
+          "unregelmäßige Verben und Personalpronomen",
+          "Ja-/Nein-Frage",
+          "bestimmter Artikel: der, das, die",
+          "Nomen: Singular und Plural",
+          "Verben haben und sein"
+        ],
+        "AUSSPRACHE": [
+          "Satzmelodie: Fragen und Antworten"
+        ],
+        "STRATEGIE": [
+          "Artikel lernen"
+        ],
+        "LANDESKUNDE": [
+          "Neu im Club"
+        ],
+        "REDEMITTEL": [
+          "Gehen wir zusammen?",
+          "Wo arbeitest du?"
+        ]
+      }
+    },
+    {
+      "number": 3,
+      "title": "In Hamburg",
+      "kind": "CHAPTER",
+      "bookPageFrom": 28,
+      "bookPageTo": 37,
+      "goals": [
+        "Plätze und Gebäude benennen",
+        "Fragen zu Orten stellen und antworten",
+        "Verkehrsmittel benennen",
+        "nach Dingen fragen",
+        "nach dem Weg fragen und einen Weg beschreiben",
+        "Jahreszeiten und Monate benennen",
+        "über Hobbys sprechen"
+      ],
+      "content": {
+        "WORTSCHATZ": [
+          "Plätze und Gebäude",
+          "Verkehrsmittel",
+          "Richtungen",
+          "Monate und Jahreszeiten"
+        ],
+        "GRAMMATIK": [
+          "unbestimmter Artikel: ein, ein, eine",
+          "Negationsartikel: kein, kein, keine",
+          "Imperativ mit Sie",
+          "Adjektiv mit sein"
+        ],
+        "AUSSPRACHE": [
+          "lange und kurze Vokale"
+        ],
+        "STRATEGIE": [
+          "Texte mit internationalen Wörtern verstehen"
+        ],
+        "LANDESKUNDE": [
+          "Events in Hamburg",
+          "Jahreszeiten in D-A-CH"
+        ],
+        "REDEMITTEL": [
+          "Die Stadttour in München",
+          "Entschuldigung, wo ist der Viktualienmarkt?"
+        ]
+      }
+    },
+    {
+      "number": 1,
+      "title": "Plattform 1",
+      "kind": "REVIEW",
+      "bookPageFrom": 38,
+      "bookPageTo": 43,
+      "goals": [
+        "Wortschatz und Grammatik aus Kapitel 1–3 wiederholen",
+        "gelernte Redemittel im Gespräch anwenden",
+        "Lernfortschritt selbst einschätzen"
+      ],
+      "content": {
+        "WORTSCHATZ": [],
+        "GRAMMATIK": [],
+        "AUSSPRACHE": [],
+        "STRATEGIE": [
+          "wiederholen und trainieren"
+        ],
+        "LANDESKUNDE": [
+          "berühmte Personen",
+          "Städte in D-A-CH"
+        ],
+        "REDEMITTEL": []
+      }
+    },
+    {
+      "number": 4,
+      "title": "Guten Appetit!",
+      "kind": "CHAPTER",
+      "bookPageFrom": 44,
+      "bookPageTo": 53,
+      "goals": [
+        "einen Einkauf planen",
+        "Gespräche beim Einkauf führen",
+        "Gespräche beim Essen führen",
+        "über Vorlieben beim Essen sprechen",
+        "über Essen sprechen"
+      ],
+      "content": {
+        "WORTSCHATZ": [
+          "Mahlzeiten",
+          "Lebensmittel",
+          "Getränke",
+          "Geschäfte"
+        ],
+        "GRAMMATIK": [
+          "Akkusativ",
+          "Verben mit Akkusativ",
+          "Verben mögen und möchten",
+          "Positionen im Satz"
+        ],
+        "AUSSPRACHE": [
+          "Umlaute ä, ö, ü"
+        ],
+        "STRATEGIE": [
+          "Wörter ordnen und lernen",
+          "mit W-Fragen Texte verstehen"
+        ],
+        "LANDESKUNDE": [
+          "Berufe rund ums Essen"
+        ],
+        "REDEMITTEL": [
+          "Beas Idee",
+          "Der WG-Nachmittag"
+        ]
+      }
+    },
+    {
+      "number": 5,
+      "title": "Alltag und Familie",
+      "kind": "CHAPTER",
+      "bookPageFrom": 54,
+      "bookPageTo": 63,
+      "goals": [
+        "die Uhrzeit verstehen und nennen",
+        "Zeitangaben machen",
+        "über Familie sprechen",
+        "sich verabreden",
+        "einen Termin telefonisch vereinbaren",
+        "sich für eine Verspätung entschuldigen und darauf reagieren"
+      ],
+      "content": {
+        "WORTSCHATZ": [
+          "Tagesablauf",
+          "Uhrzeiten",
+          "Familie"
+        ],
+        "GRAMMATIK": [
+          "Zeitangaben: am, um, von … bis",
+          "Possessivartikel im Nominativ und Akkusativ",
+          "Modalverben müssen, können, wollen",
+          "Modalverben im Satz: Satzklammer"
+        ],
+        "AUSSPRACHE": [
+          "r im Wort und am Wortende"
+        ],
+        "STRATEGIE": [
+          "ein Telefongespräch vorbereiten"
+        ],
+        "LANDESKUNDE": [
+          "Pünktlichkeit?"
+        ],
+        "REDEMITTEL": [
+          "Wir gehen joggen.",
+          "Wo ist Max?",
+          "Mmh, lecker."
+        ]
+      }
+    },
+    {
+      "number": 6,
+      "title": "Zeit mit Freunden",
+      "kind": "CHAPTER",
+      "bookPageFrom": 64,
+      "bookPageTo": 73,
+      "goals": [
+        "über Freizeit sprechen",
+        "das Datum verstehen und nennen",
+        "über Geburtstage sprechen",
+        "eine Einladung verstehen und schreiben",
+        "Essen und Getränke bestellen und bezahlen",
+        "über ein Ereignis sprechen",
+        "Veranstaltungstipps im Radio verstehen"
+      ],
+      "content": {
+        "WORTSCHATZ": [
+          "Ordinalzahlen",
+          "Freizeitaktivitäten",
+          "Essen und Getränke",
+          "Veranstaltungen"
+        ],
+        "GRAMMATIK": [
+          "Datumsangaben: am …",
+          "trennbare Verben",
+          "Personalpronomen im Akkusativ mich, dich …",
+          "Präposition für + Akkusativ",
+          "Präteritum von haben und sein"
+        ],
+        "AUSSPRACHE": [
+          "ei, eu, au"
+        ],
+        "STRATEGIE": [
+          "beim Lesen und Hören wichtige Informationen verstehen"
+        ],
+        "LANDESKUNDE": [
+          "Kneipen & Co in D-A-CH",
+          "Veranstaltungen in D-A-CH"
+        ],
+        "REDEMITTEL": [
+          "Luca hat Geburtstag.",
+          "Lucas Einladung",
+          "Essen für Bea"
+        ]
+      }
+    },
+    {
+      "number": 2,
+      "title": "Plattform 2",
+      "kind": "REVIEW",
+      "bookPageFrom": 74,
+      "bookPageTo": 79,
+      "goals": [
+        "Wortschatz und Grammatik aus Kapitel 4–6 wiederholen",
+        "gelernte Redemittel im Gespräch anwenden",
+        "Lernfortschritt selbst einschätzen"
+      ],
+      "content": {
+        "WORTSCHATZ": [],
+        "GRAMMATIK": [],
+        "AUSSPRACHE": [],
+        "STRATEGIE": [
+          "wiederholen und trainieren"
+        ],
+        "LANDESKUNDE": [
+          "Essen in D-A-CH"
+        ],
+        "REDEMITTEL": []
+      }
+    },
+    {
+      "number": 7,
+      "title": "Arbeitsalltag",
+      "kind": "CHAPTER",
+      "bookPageFrom": 80,
+      "bookPageTo": 89,
+      "goals": [
+        "einen Blogbeitrag verstehen",
+        "über den (Arbeits-)Alltag schreiben",
+        "Gespräche am Arbeitsplatz verstehen",
+        "Ortsangaben machen",
+        "Abläufe beschreiben",
+        "Briefe verstehen und beantworten",
+        "Small Talk machen"
+      ],
+      "content": {
+        "WORTSCHATZ": [
+          "Büroalltag",
+          "Ortsangaben",
+          "Bank",
+          "Medien"
+        ],
+        "GRAMMATIK": [
+          "Sätze verbinden: und, oder, aber",
+          "Artikel im Dativ",
+          "Präposition mit + Dativ",
+          "Ortsangaben: Präpositionen mit Dativ"
+        ],
+        "AUSSPRACHE": [
+          "s und sch, st"
+        ],
+        "STRATEGIE": [
+          "Briefe schreiben"
+        ],
+        "LANDESKUNDE": [
+          "Small Talk im Büro"
+        ],
+        "REDEMITTEL": [
+          "Was für ein Stress!",
+          "Kannst du das bitte drucken?"
+        ]
+      }
+    },
+    {
+      "number": 8,
+      "title": "Fit und gesund",
+      "kind": "CHAPTER",
+      "bookPageFrom": 90,
+      "bookPageTo": 99,
+      "goals": [
+        "Aufforderungen verstehen und ausdrücken",
+        "persönliche Angaben machen",
+        "Körperteile nennen",
+        "Anweisungen wiedergeben",
+        "Gespräche beim Arzt führen",
+        "Anweisungen verstehen und geben",
+        "Gesundheitstipps verstehen und geben"
+      ],
+      "content": {
+        "WORTSCHATZ": [
+          "Körperteile",
+          "Krankheiten",
+          "Medikamente",
+          "Berufe im Krankenhaus"
+        ],
+        "GRAMMATIK": [
+          "Imperativ mit du, ihr und Sie",
+          "Imperativsätze",
+          "Modalverben sollen, müssen, (nicht) dürfen"
+        ],
+        "AUSSPRACHE": [
+          "p und b, t und d, k und g"
+        ],
+        "STRATEGIE": [
+          "Wörter erschließen"
+        ],
+        "LANDESKUNDE": [
+          "Hausmittel gegen Krankheiten"
+        ],
+        "REDEMITTEL": [
+          "Aua!",
+          "Hol bitte …!",
+          "Der arme Luca"
+        ]
+      }
+    },
+    {
+      "number": 9,
+      "title": "Meine Wohnung",
+      "kind": "CHAPTER",
+      "bookPageFrom": 100,
+      "bookPageTo": 109,
+      "goals": [
+        "Wohnungsanzeigen verstehen",
+        "eine Wohnung beschreiben",
+        "die Wohnungseinrichtung planen",
+        "eine Einladung beantworten",
+        "über eine Wohnungseinrichtung sprechen",
+        "Ortsangaben machen",
+        "Gefallen und Missfallen ausdrücken",
+        "Farben nennen",
+        "über Wohnformen sprechen",
+        "einen Text über eine Wohnung schreiben"
+      ],
+      "content": {
+        "WORTSCHATZ": [
+          "Zimmer",
+          "Möbel und Geräte",
+          "Farben",
+          "Wohnformen"
+        ],
+        "GRAMMATIK": [
+          "sein + Adjektiv",
+          "Präposition in + Akkusativ",
+          "Wechselpräpositionen mit Dativ"
+        ],
+        "AUSSPRACHE": [
+          "langes und kurzes e"
+        ],
+        "STRATEGIE": [
+          "mit Textbausteinen schreiben"
+        ],
+        "LANDESKUNDE": [
+          "Wohnformen in D-A-CH"
+        ],
+        "REDEMITTEL": [
+          "Unsere Wohnung",
+          "Ich habe eine Idee."
+        ]
+      }
+    },
+    {
+      "number": 3,
+      "title": "Plattform 3",
+      "kind": "REVIEW",
+      "bookPageFrom": 110,
+      "bookPageTo": 115,
+      "goals": [
+        "Wortschatz und Grammatik aus Kapitel 7–9 wiederholen",
+        "gelernte Redemittel im Gespräch anwenden",
+        "Lernfortschritt selbst einschätzen"
+      ],
+      "content": {
+        "WORTSCHATZ": [],
+        "GRAMMATIK": [],
+        "AUSSPRACHE": [],
+        "STRATEGIE": [
+          "wiederholen und trainieren"
+        ],
+        "LANDESKUNDE": [
+          "Wohntypen"
+        ],
+        "REDEMITTEL": []
+      }
+    },
+    {
+      "number": 10,
+      "title": "Studium und Beruf",
+      "kind": "CHAPTER",
+      "bookPageFrom": 116,
+      "bookPageTo": 125,
+      "goals": [
+        "einen Tagesablauf beschreiben",
+        "über Vergangenes sprechen",
+        "Aussagen über die Jobsuche verstehen",
+        "von einem Tag berichten",
+        "telefonieren und nachfragen",
+        "über Jobs sprechen"
+      ],
+      "content": {
+        "WORTSCHATZ": [
+          "Berufe und Jobs",
+          "Arbeitsorte",
+          "Studium",
+          "Bewerbungen"
+        ],
+        "GRAMMATIK": [
+          "Perfekt: Satzklammer",
+          "Partizip II: regelmäßige und unregelmäßige Verben, Verben auf -ieren",
+          "Perfekt mit haben und sein"
+        ],
+        "AUSSPRACHE": [
+          "h"
+        ],
+        "STRATEGIE": [
+          "telefonieren"
+        ],
+        "LANDESKUNDE": [
+          "Jobs rund ums Jahr"
+        ],
+        "REDEMITTEL": [
+          "Und wie ist dein Job?",
+          "Frag nicht!"
+        ]
+      }
+    },
+    {
+      "number": 11,
+      "title": "Die Jacke gefällt mir!",
+      "kind": "CHAPTER",
+      "bookPageFrom": 126,
+      "bookPageTo": 135,
+      "goals": [
+        "über Kleidung sprechen",
+        "Komplimente verstehen",
+        "über Vergangenes berichten",
+        "Gespräche beim Kleiderkauf führen",
+        "sich im Kaufhaus orientieren",
+        "nach Auskunft fragen und antworten",
+        "Informationen über Berlin verstehen und recherchieren"
+      ],
+      "content": {
+        "WORTSCHATZ": [
+          "Kleidung",
+          "im Kaufhaus",
+          "Geschäfte"
+        ],
+        "GRAMMATIK": [
+          "Welcher? Welches? Welche?",
+          "dieser, dieses, diese",
+          "Partizip II: trennbare und nicht trennbare Verben",
+          "Personalpronomen im Dativ",
+          "Verben mit Dativ"
+        ],
+        "AUSSPRACHE": [
+          "Betonung von Verben mit Präfix"
+        ],
+        "STRATEGIE": [
+          "Informationen auf Tafeln verstehen"
+        ],
+        "LANDESKUNDE": [
+          "Trendstadt Berlin"
+        ],
+        "REDEMITTEL": [
+          "Was ziehe ich an?",
+          "Das steht dir gut."
+        ]
+      }
+    },
+    {
+      "number": 12,
+      "title": "Ab in den Urlaub!",
+      "kind": "CHAPTER",
+      "bookPageFrom": 136,
+      "bookPageTo": 145,
+      "goals": [
+        "Vorschläge für eine Stadttour machen",
+        "eine Wegbeschreibung verstehen",
+        "einen Weg beschreiben",
+        "eine Postkarte schreiben",
+        "Reiseberichte verstehen und schreiben",
+        "Fragen zu einer Reise stellen und beantworten",
+        "das Wetter beschreiben",
+        "über Reiseziele sprechen und schreiben"
+      ],
+      "content": {
+        "WORTSCHATZ": [
+          "Urlaubsarten und Reiseziele",
+          "Sehenswürdigkeiten",
+          "Himmelsrichtungen",
+          "Wetter"
+        ],
+        "GRAMMATIK": [
+          "Pronomen man",
+          "Sätze verbinden: denn",
+          "Fragewörter Wer? Wen? Wem? Was? …",
+          "Zeitangaben: Präpositionen mit Dativ"
+        ],
+        "AUSSPRACHE": [
+          "f, v, w"
+        ],
+        "STRATEGIE": [
+          "über einen Text berichten"
+        ],
+        "LANDESKUNDE": [
+          "Reiseziele in Deutschland"
+        ],
+        "REDEMITTEL": [
+          "Endlich Ferien!",
+          "Auf dem Bauernhof"
+        ]
+      }
+    },
+    {
+      "number": 4,
+      "title": "Plattform 4",
+      "kind": "REVIEW",
+      "bookPageFrom": 146,
+      "bookPageTo": 151,
+      "goals": [
+        "Wortschatz und Grammatik aus Kapitel 10–12 wiederholen",
+        "gelernte Redemittel im Gespräch anwenden",
+        "Lernfortschritt selbst einschätzen"
+      ],
+      "content": {
+        "WORTSCHATZ": [],
+        "GRAMMATIK": [],
+        "AUSSPRACHE": [],
+        "STRATEGIE": [
+          "wiederholen und trainieren"
+        ],
+        "LANDESKUNDE": [
+          "eine Reise durch D-A-CH"
+        ],
+        "REDEMITTEL": []
+      }
+    }
+  ]
+}

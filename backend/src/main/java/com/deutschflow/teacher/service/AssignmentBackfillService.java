@@ -32,6 +32,7 @@ public class AssignmentBackfillService {
 
     private final ClassAssignmentRepository assignmentRepository;
     private final StudentAssignmentRepository studentAssignmentRepository;
+    private final com.deutschflow.teacher.repository.ClassAssignmentRecipientRepository recipientRepository;
 
     /**
      * Ensure {@code studentId} has a PENDING StudentAssignment row for every assignment in {@code classId}.
@@ -40,8 +41,19 @@ public class AssignmentBackfillService {
      */
     @Transactional
     public int ensureAssignmentsForStudent(Long classId, Long studentId) {
-        List<Long> assignmentIds = assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId)
-                .stream().map(ClassAssignment::getId).toList();
+        // PR-8: backfill CHỈ áp bài đã CÔNG BỐ giao CẢ LỚP — bài nháp chưa tới tay ai (P06), bài có
+        // danh sách người nhận thuộc về đúng những người đó (AC14), người vào sau không tự nhận.
+        List<ClassAssignment> published = assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId)
+                .stream().filter(a -> "PUBLISHED".equals(a.getStatus())).toList();
+        if (published.isEmpty()) return 0;
+        java.util.Set<Long> targeted = recipientRepository.findByIdAssignmentIdIn(
+                        published.stream().map(ClassAssignment::getId).toList()).stream()
+                .map(r -> r.getId().getAssignmentId())
+                .collect(java.util.stream.Collectors.toSet());
+        List<Long> assignmentIds = published.stream()
+                .map(ClassAssignment::getId)
+                .filter(id -> !targeted.contains(id))
+                .toList();
         if (assignmentIds.isEmpty()) return 0;
 
         Set<Long> alreadyHas = studentAssignmentRepository

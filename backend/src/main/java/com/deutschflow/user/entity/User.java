@@ -35,6 +35,10 @@ public class User implements UserDetails {
     @Column(name = "display_name", nullable = false)
     private String displayName;
 
+    /** URL public của ảnh đại diện tự tải lên (S3 prefix avatar/); null = chưa đặt. */
+    @Column(name = "avatar_url", length = 500)
+    private String avatarUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;

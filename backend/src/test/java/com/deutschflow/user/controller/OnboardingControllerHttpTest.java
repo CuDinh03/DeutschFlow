@@ -41,13 +41,15 @@ class OnboardingControllerHttpTest {
     @Mock UserLearningProfileService learningProfileService;
     @Mock UserLearningProfileRepository learningProfileRepository;
     @Mock OnboardingTypeResolver onboardingTypeResolver;
+    @Mock com.deutschflow.user.onboarding.service.GuestOnboardingService guestOnboardingService;
 
     private MockMvc mvc;
 
     @BeforeEach
     void setUp() {
         var controller = new OnboardingController(
-                learningPlanService, learningProfileService, learningProfileRepository, onboardingTypeResolver);
+                learningPlanService, learningProfileService, learningProfileRepository, onboardingTypeResolver,
+                guestOnboardingService);
         mvc = MockMvcWithValidation.standalone(controller, new GlobalExceptionHandler(), mock(User.class));
     }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { View, RefreshControl, Pressable } from 'react-native'
+import { View, RefreshControl, Pressable, Alert, Linking } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useFocusEffect } from 'expo-router'
 import { MotiView } from 'moti'
@@ -14,12 +14,14 @@ import { StarterChecklist } from '@/components/guide/StarterChecklist'
 import { ReminderSheet } from '@/components/guide/ReminderSheet'
 import { getDailyGoalMinutes } from '@/lib/dailyGoal'
 import { enableStudyReminder } from '@/lib/studyReminder'
+import { registerPushTokenIfGranted } from '@/hooks/usePushNotifications'
 import { captureEvent } from '@/lib/analytics'
 import api from '@/lib/api'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
 import { skillTreeApi } from '@/lib/skillTreeApi'
 import { messagesApi } from '@/lib/messagesApi'
+import { TodayTasks } from '@/components/home/TodayTasks'
 import { motion, space, radius, useTheme } from '@/lib/theme'
 import {
   Screen,
@@ -33,6 +35,7 @@ import {
   ErrorState,
   Caption,
   ProgressBar,
+  useTabBarClearance,
 } from '@/components/ui'
 
 // Only the fields the home actually uses from the (plan-oriented) dashboard.
@@ -50,6 +53,8 @@ function greetingFor(hour: number): string {
 
 export default function DashboardScreen() {
   const theme = useTheme()
+  // Thanh tab liquid-glass nổi đè lên nội dung — chừa đáy cho mục cuối.
+  const tabClearance = useTabBarClearance()
   const { user } = useAuthStore()
   const { isPro } = usePlanStore()
 
@@ -103,12 +108,15 @@ export default function DashboardScreen() {
   // lần đầu (sau wow moment), delay ~500ms — không auto-mở đè app như tour cũ.
   useFocusEffect(
     useCallback(() => {
-      if (!tourHydrated || tourDone.home || activeTourId) return
+      // Chờ dashboard render xong: bước 1 neo vào thẻ chuỗi học, mà thẻ đó chỉ
+      // tồn tại khi hết isLoading. Mạng chậm thì waitForRect (1.8s) hết hạn và
+      // tour rơi về "màn mờ phẳng + tooltip giữa màn", mất hiệu ứng khoét sáng (F-11).
+      if (!tourHydrated || tourDone.home || activeTourId || isLoading) return
       const t = setTimeout(() => {
         void getDailyGoalMinutes().then((m) => startTour('home', 'auto', { dailyGoalMinutes: m }))
       }, 500)
       return () => clearTimeout(t)
-    }, [tourHydrated, tourDone.home, activeTourId, startTour]),
+    }, [tourHydrated, tourDone.home, activeTourId, isLoading, startTour]),
   )
 
   // ── Tuần đầu (Phase D): checklist "Bắt đầu" + sheet nhắc học 20:00 ─────────
@@ -139,12 +147,17 @@ export default function DashboardScreen() {
   )
 
   const firstActivityDone = treeDone > 0 || starterSrsReviews > 0 || speakingStarted
+  // Cửa vào Phase D (checklist tuần đầu + sheet nhắc học). OR chứ không chỉ
+  // first_sentence: cờ đó đặt ở CUỐI màn wow, mà lối vào lại màn wow nằm trong
+  // chính checklist bị nó khoá — thoát app giữa chừng là khoá vĩnh viễn (F-2).
+  // first_sentence giữ trong biểu thức để tài khoản tạo trước bản vá không mất gì.
+  const onboardedV1 = tourDone.profile_done || tourDone.first_sentence
 
   // §7.2: pre-permission — sheet ngữ cảnh chỉ SAU khi user hoàn thành hoạt động
   // đầu tiên, không xin quyền lúc mở app. Từ chối sheet → hỏi lại sau cooldown.
   useFocusEffect(
     useCallback(() => {
-      if (!starterHydrated || !tourHydrated || !tourDone.first_sentence) return
+      if (!starterHydrated || !tourHydrated || !onboardedV1) return
       if (reminderEnabled || reminderOpen || activeTourId || !firstActivityDone) return
       if (reminderDeclinedAt && Date.now() - reminderDeclinedAt < REMINDER_COOLDOWN_MS) return
       const t = setTimeout(() => {
@@ -155,7 +168,7 @@ export default function DashboardScreen() {
     }, [
       starterHydrated,
       tourHydrated,
-      tourDone.first_sentence,
+      onboardedV1,
       reminderEnabled,
       reminderOpen,
       activeTourId,
@@ -167,14 +180,31 @@ export default function DashboardScreen() {
 
   async function acceptReminder() {
     setReminderBusy(true)
-    const ok = await enableStudyReminder(goalMinutes)
+    const outcome = await enableStudyReminder(goalMinutes)
     setReminderBusy(false)
     setReminderOpen(false)
-    if (ok) {
+
+    if (outcome === 'granted') {
       useStarterStore.getState().markReminderEnabled()
-    } else {
-      // OS từ chối → cũng vào cooldown, không hỏi dồn dập.
-      useStarterStore.getState().declineReminderSheet(Date.now())
+      // Quyền vừa được cấp → lấy push token luôn. Không gọi ở đây thì thiết bị
+      // phải chờ tới lần đăng nhập kế tiếp mới đăng ký được (F-14).
+      void registerPushTokenIfGranted()
+      return
+    }
+
+    // Vào cooldown ở cả 2 nhánh còn lại, không hỏi dồn dập.
+    useStarterStore.getState().declineReminderSheet(Date.now())
+
+    if (outcome === 'blocked') {
+      // OS không cho hỏi nữa — hỏi lại là vô nghĩa, phải chỉ đường vào Cài đặt.
+      Alert.alert(
+        'Thông báo đang tắt',
+        'Bạn đã tắt thông báo cho MyDeutschFlow. Mở Cài đặt để bật lại thì mới nhắc học buổi tối được nhé.',
+        [
+          { text: 'Để sau', style: 'cancel' },
+          { text: 'Mở Cài đặt', onPress: () => void Linking.openSettings() },
+        ],
+      )
     }
   }
 
@@ -204,7 +234,7 @@ export default function DashboardScreen() {
     <Screen
       scroll
       edges={['top']}
-      contentStyle={{ paddingBottom: space[8] }}
+      contentStyle={{ paddingBottom: tabClearance }}
       refreshing={isRefetching}
       onRefresh={onRefresh}
     >
@@ -290,9 +320,14 @@ export default function DashboardScreen() {
             </View>
           </View>
 
+          {/* Heute (cụm 2, thiết kế 02/09): việc hôm nay từ /today/me — sửa lỗi
+              đến hạn + nói/từ vựng theo gợi ý. Thẻ Ôn SRS ngay dưới là "việc"
+              thứ tư, giữ nguyên vì nó là mỏ neo tour (homeSrsCard). */}
+          <TodayTasks />
+
           {/* Tuần đầu (§7.1): checklist "Bắt đầu" — chỉ cho user đã qua onboarding v1,
               tự biến mất vĩnh viễn khi hoàn thành đủ. */}
-          {tourDone.first_sentence ? (
+          {onboardedV1 ? (
             <StarterChecklist
               lessonDone={treeDone > 0}
               onEnableReminder={() => {
@@ -336,10 +371,11 @@ export default function DashboardScreen() {
             </SpotlightTarget>
           ) : null}
 
-          {/* Roadmap progress entry (na-home PathCard) — real skill-tree % to B2. */}
+          {/* Lối vào Lernweg v2 (cụm 3, 02/09) — % vẫn từ skill-tree cũ tới khi
+              nguồn tiến độ hợp nhất; màn đích là cây /roadmap/tree mới. */}
           {treeTotal > 0 ? (
             <Card
-              onPress={() => router.push('/(student)/roadmap')}
+              onPress={() => router.push('/(student)/lernweg')}
               accessibilityLabel={`Lộ trình đến B2, ${pathPct}%`}
               style={{ marginHorizontal: space[5], marginTop: space[4], gap: space[3] }}
             >

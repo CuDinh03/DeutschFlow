@@ -51,8 +51,8 @@ public class DataRetentionJob {
         this.maxRowsPerRun = Math.max(this.batchSize, maxRowsPerRun);
     }
 
-    /** Runs nightly at 03:30 (after the 03:00 FSRS optimizer). */
-    @Scheduled(cron = "${app.retention.cron:0 30 3 * * *}")
+    /** Runs nightly at 03:30 VN (after the 03:00 FSRS optimizer). Container clock là UTC — không ghim zone thì 03:30 UTC = 10:30 sáng VN, DELETE nửa triệu dòng ngay giờ cao điểm. */
+    @Scheduled(cron = "${app.retention.cron:0 30 3 * * *}", zone = "Asia/Ho_Chi_Minh")
     @SchedulerLock(name = "dataRetentionPurge", lockAtMostFor = "PT1H", lockAtLeastFor = "PT1M")
     public void purgeOldEvents() {
         if (!enabled) {

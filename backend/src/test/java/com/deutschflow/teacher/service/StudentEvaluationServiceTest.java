@@ -30,6 +30,7 @@ import static org.mockito.Mockito.*;
 class StudentEvaluationServiceTest {
 
     @Mock private ClassStudentRepository classStudentRepository;
+    @Mock private AssignmentAudienceService assignmentAudienceService;
     @Mock private ClassTeacherRepository classTeacherRepository;
     @Mock private ClassLessonLogRepository lessonLogRepository;
     @Mock private ClassAttendanceRepository attendanceRepository;
@@ -46,8 +47,13 @@ class StudentEvaluationServiceTest {
 
     @BeforeEach
     void setUp() {
+        // PR-8: audience mock cho QUA hết (mọi bài giao cả lớp, PUBLISHED) — hành vi trước PR-8;
+        // các ca lọc theo người nhận/nháp nằm ở AssignmentAudienceServiceTest + IT.
+        org.mockito.Mockito.lenient().when(assignmentAudienceService.visibleTo(
+                        org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyList()))
+                .thenAnswer(inv -> inv.getArgument(1));
         service = new StudentEvaluationService(
-                classStudentRepository, classTeacherRepository,
+                classStudentRepository, assignmentAudienceService, classTeacherRepository,
                 lessonLogRepository, attendanceRepository,
                 assignmentRepository, studentAssignmentRepository,
                 classRepository, userRepository);
@@ -385,6 +391,7 @@ class StudentEvaluationServiceTest {
         sa.setAssignmentId(1L);
         sa.setStudentId(STUDENT_ID);
         sa.setScore(80);   // assignment scores are 0–100 (GradingService)
+        sa.setStatus(AssignmentStatus.EVALUATED);   // fallback only counts CONFIRMED grades
         when(studentAssignmentRepository.findByAssignmentIds(List.of(1L))).thenReturn(List.of(sa));
 
         SkillReportDto report = service.skillReport(TEACHER_ID, CLASS_ID);
@@ -394,6 +401,68 @@ class StudentEvaluationServiceTest {
         assertThat(row.lesen()).isNull();
         assertThat(row.schreiben()).isNull();
         assertThat(row.sprechen()).isNull();
+    }
+
+    /**
+     * F01: the fallback used to accept any row with a score — and the AI writes its PROPOSAL into
+     * {@code score} at AI_GRADED (GradingService). So a student could show "Hören 9/10" from a grade
+     * no teacher ever confirmed, while the gradebook still said "chờ xác nhận". Same final-only rule
+     * as the certificate gate and every average in TeacherReportService.
+     */
+    @Test
+    @DisplayName("skillReport fallback ignores an unconfirmed AI proposal (AI_GRADED)")
+    void skillReport_unconfirmedAiScore_isNotUsed() {
+        allowAccess();
+        when(classRepository.findById(CLASS_ID)).thenReturn(Optional.of(buildClass(CLASS_ID, "A1")));
+        when(classStudentRepository.findByIdClassId(CLASS_ID))
+                .thenReturn(List.of(buildClassStudent(CLASS_ID, STUDENT_ID)));
+        when(userRepository.findAllById(any()))
+                .thenReturn(List.of(buildUser(STUDENT_ID, "Test Student", "t@test.com")));
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID))
+                .thenReturn(List.of(buildAssignment(1L, CLASS_ID, "HOREN")));
+
+        StudentAssignment sa = new StudentAssignment();
+        sa.setAssignmentId(1L);
+        sa.setStudentId(STUDENT_ID);
+        sa.setScore(90);
+        sa.setStatus(AssignmentStatus.AI_GRADED);   // proposal — nobody signed it off
+        when(studentAssignmentRepository.findByAssignmentIds(List.of(1L))).thenReturn(List.of(sa));
+
+        SkillReportDto.StudentSkillRow row = service.skillReport(TEACHER_ID, CLASS_ID).students().get(0);
+
+        assertThat(row.horen()).isNull();     // NOT 9.0
+        assertThat(row.total()).isNull();
+    }
+
+    @Test
+    @DisplayName("skillReport fallback: a real confirmed 0 stays 0 (not 'no data'), AI proposals beside it don't count")
+    void skillReport_mixedStatuses_onlyFinalCounted() {
+        allowAccess();
+        when(classRepository.findById(CLASS_ID)).thenReturn(Optional.of(buildClass(CLASS_ID, "A1")));
+        when(classStudentRepository.findByIdClassId(CLASS_ID))
+                .thenReturn(List.of(buildClassStudent(CLASS_ID, STUDENT_ID)));
+        when(userRepository.findAllById(any()))
+                .thenReturn(List.of(buildUser(STUDENT_ID, "Test Student", "t@test.com")));
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID))
+                .thenReturn(List.of(buildAssignment(1L, CLASS_ID, "HOREN"),
+                        buildAssignment(2L, CLASS_ID, "HOREN")));
+
+        StudentAssignment confirmedZero = new StudentAssignment();
+        confirmedZero.setAssignmentId(1L);
+        confirmedZero.setStudentId(STUDENT_ID);
+        confirmedZero.setScore(0);                                  // a true zero, teacher-confirmed
+        confirmedZero.setStatus(AssignmentStatus.EVALUATED);
+        StudentAssignment aiProposal = new StudentAssignment();
+        aiProposal.setAssignmentId(2L);
+        aiProposal.setStudentId(STUDENT_ID);
+        aiProposal.setScore(100);                                   // must not lift the average
+        aiProposal.setStatus(AssignmentStatus.AI_GRADED);
+        when(studentAssignmentRepository.findByAssignmentIds(List.of(1L, 2L)))
+                .thenReturn(List.of(confirmedZero, aiProposal));
+
+        SkillReportDto.StudentSkillRow row = service.skillReport(TEACHER_ID, CLASS_ID).students().get(0);
+
+        assertThat(row.horen()).isEqualTo(0.0);   // 0/100 → 0.0, NOT (0+100)/2 → 5.0, NOT null
     }
 
     @Test
@@ -544,8 +613,10 @@ class StudentEvaluationServiceTest {
 
         StudentAssignment mine = new StudentAssignment();
         mine.setAssignmentId(1L); mine.setStudentId(STUDENT_ID); mine.setScore(80);   // 0–100 scale
+        mine.setStatus(AssignmentStatus.EVALUATED);
         StudentAssignment other = new StudentAssignment();
         other.setAssignmentId(1L); other.setStudentId(OTHER); other.setScore(20);   // must NOT count
+        other.setStatus(AssignmentStatus.EVALUATED);
         when(studentAssignmentRepository.findByAssignmentIds(List.of(1L)))
                 .thenReturn(List.of(mine, other));
 
@@ -554,6 +625,58 @@ class StudentEvaluationServiceTest {
         assertThat(report.horen()).isEqualTo(8.0);   // H-4: 80/100→8.0, mine only (not (80+20)/2)
         assertThat(report.lesen()).isNull();
         assertThat(report.total()).isEqualTo(8.0);
+    }
+
+    @Test
+    @DisplayName("mySkillReport hands the teacher's written comment back to the student it is about")
+    void mySkillReport_returnsTeacherComment() {
+        when(classStudentRepository.existsById(new ClassStudentId(CLASS_ID, STUDENT_ID))).thenReturn(true);
+        ClassStudent cs = buildClassStudent(CLASS_ID, STUDENT_ID);
+        cs.setTeacherComment("Phát âm tiến bộ rõ, cần luyện thêm Perfekt.");
+        LocalDateTime evaluatedAt = LocalDateTime.of(2026, 8, 20, 9, 30);
+        cs.setEvaluatedAt(evaluatedAt);
+        when(classStudentRepository.findById(new ClassStudentId(CLASS_ID, STUDENT_ID)))
+                .thenReturn(Optional.of(cs));
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID)).thenReturn(List.of());
+
+        var report = service.mySkillReport(STUDENT_ID, CLASS_ID);
+
+        assertThat(report.teacherComment()).isEqualTo("Phát âm tiến bộ rõ, cần luyện thêm Perfekt.");
+        assertThat(report.evaluatedAt()).isEqualTo(evaluatedAt);
+    }
+
+    @Test
+    @DisplayName("mySkillReport returns a null comment when the teacher has not written one (never another student's)")
+    void mySkillReport_noComment_returnsNull() {
+        when(classStudentRepository.existsById(new ClassStudentId(CLASS_ID, STUDENT_ID))).thenReturn(true);
+        when(classStudentRepository.findById(new ClassStudentId(CLASS_ID, STUDENT_ID)))
+                .thenReturn(Optional.of(buildClassStudent(CLASS_ID, STUDENT_ID)));
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID)).thenReturn(List.of());
+
+        var report = service.mySkillReport(STUDENT_ID, CLASS_ID);
+
+        assertThat(report.teacherComment()).isNull();
+        assertThat(report.evaluatedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("mySkillReport (student view) also ignores an unconfirmed AI proposal")
+    void mySkillReport_unconfirmedAiScore_isNotUsed() {
+        when(classStudentRepository.existsById(new ClassStudentId(CLASS_ID, STUDENT_ID))).thenReturn(true);
+        when(classStudentRepository.findById(new ClassStudentId(CLASS_ID, STUDENT_ID)))
+                .thenReturn(Optional.of(buildClassStudent(CLASS_ID, STUDENT_ID)));   // no manual scores
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID))
+                .thenReturn(List.of(buildAssignment(1L, CLASS_ID, "HOREN")));
+
+        StudentAssignment mine = new StudentAssignment();
+        mine.setAssignmentId(1L); mine.setStudentId(STUDENT_ID); mine.setScore(90);
+        mine.setStatus(AssignmentStatus.AI_GRADED);   // the student was never told this score
+        when(studentAssignmentRepository.findByAssignmentIds(List.of(1L))).thenReturn(List.of(mine));
+
+        var report = service.mySkillReport(STUDENT_ID, CLASS_ID);
+
+        assertThat(report.horen()).isNull();
+        assertThat(report.total()).isNull();
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

@@ -114,7 +114,11 @@ frontend/public/voices/
 # WORD DATA & SCRIPTS — Dữ liệu thô nội bộ
 # (PDF, TSV, HTML scrapes, Python extract scripts)
 # ============================================================
+# PDF Wortliste Goethe gốc — nguồn của scripts/extract_goethe_pdfs.py, không phát hành lại.
 wordsDeutsch/
+# Bytecode của script trích PDF (từng bị commit nhầm).
+__pycache__/
+*.pyc
 
 # ============================================================
 # TEMP / DEBUG files
@@ -147,6 +151,9 @@ frontend/test-results/
 
 # Alertmanager config thật chứa Telegram bot token — chỉ commit .example
 docker/alertmanager/alertmanager.yml
+
+# Token scrape Prometheus (cùng giá trị PROMETHEUS_SCRAPE_TOKEN trong .env.production)
+docker/prometheus/scrape-token
 
 # ============================================================
 # COMPANION IMAGES — nếu dùng ảnh lớn (>1MB) thì dùng Git LFS
@@ -192,6 +199,12 @@ test-*.js
 # break prebuild (icon "cannot access file" / ENOENT). Re-include the app assets:
 !mobile/assets/
 !mobile/assets/**
+
+# …và icon PWA của web cũng vậy: manifest.json trỏ thẳng tới 2 file này, nên rule
+# *.png ở trên mà nuốt mất là icon 404 trên production. Sinh lại từ public/icon.svg
+# bằng `node scripts/generate-web-icons.mjs` (frontend/) mỗi khi logo đổi.
+!frontend/public/icon-192.png
+!frontend/public/icon-512.png
 
 # Scratch/temp scripts — thường chứa key hardcode, không commit
 scratch/

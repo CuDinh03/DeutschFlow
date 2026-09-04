@@ -2,6 +2,8 @@ package com.deutschflow.ai;
 
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.exception.AiServiceException;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +50,9 @@ public class AiTextService {
             """;
 
     private final OpenAiChatClient chatClient;
+    // Khung tier B2: sửa câu + giải thích lỗi dạy QUY TẮC cho học viên → tier EXPLAIN
+    // (P2 giữ model hiện trạng, P3 flip Haiku sau calibration).
+    private final LlmTierResolver llmTierResolver;
 
     /**
      * Free-form generation. {@code instruction} becomes the system prompt, {@code input} the user
@@ -58,29 +63,35 @@ public class AiTextService {
         List<ChatMessage> messages = (input == null || input.isBlank())
                 ? List.of(new ChatMessage("user", instruction))
                 : List.of(new ChatMessage("system", instruction), new ChatMessage("user", input));
-        return complete(messages, temperature, maxTokens);
+        // JSON output preserved: generate() callers (e.g. GrammarSyllabusService) parse the result as JSON.
+        return complete(messages, temperature, maxTokens, true);
     }
 
-    /** Corrected version of {@code germanText} (returned unchanged when already correct). */
+    /**
+     * Corrected version of {@code germanText} (returned unchanged when already correct).
+     * Plain-text output (forceJson=false): the prompt asks for the bare corrected sentence — under
+     * forced JSON mode the model returned {@code {"type":"object"}} instead of the sentence (QA F-8).
+     */
     public String correctGrammar(String germanText) {
         return complete(
                 List.of(new ChatMessage("system", CORRECT_SYSTEM_PROMPT),
                         new ChatMessage("user", germanText)),
-                GRAMMAR_TEMPERATURE, CORRECTION_MAX_TOKENS);
+                GRAMMAR_TEMPERATURE, CORRECTION_MAX_TOKENS, false);
     }
 
-    /** Vietnamese explanation of the grammar at play in {@code germanText}. */
+    /** Vietnamese explanation of the grammar at play in {@code germanText}. Plain-text (see F-8). */
     public String explainGrammar(String germanText) {
         return complete(
                 List.of(new ChatMessage("system", EXPLAIN_SYSTEM_PROMPT),
                         new ChatMessage("user", germanText)),
-                GRAMMAR_TEMPERATURE, EXPLANATION_MAX_TOKENS);
+                GRAMMAR_TEMPERATURE, EXPLANATION_MAX_TOKENS, false);
     }
 
-    private String complete(List<ChatMessage> messages, double temperature, int maxTokens) {
+    private String complete(List<ChatMessage> messages, double temperature, int maxTokens, boolean forceJson) {
         AiChatCompletionResult result;
         try {
-            result = chatClient.chatCompletion(messages, null, temperature, maxTokens);
+            result = chatClient.chatCompletionForTier(
+                    messages, llmTierResolver.spec(LlmTier.EXPLAIN), temperature, maxTokens, forceJson);
         } catch (AiServiceException e) {
             throw e;
         } catch (Exception e) {

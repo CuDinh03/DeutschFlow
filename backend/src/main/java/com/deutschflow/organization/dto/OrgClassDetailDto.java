@@ -15,5 +15,7 @@ public record OrgClassDetailDto(
         String teacherName,
         LocalDateTime createdAt,
         int studentCount,
-        List<OrgClassStudentDto> students
+        List<OrgClassStudentDto> students,
+        /** Toàn bộ giáo viên của lớp, PRIMARY trước rồi tới ASSISTANT (PR A trợ giảng). */
+        List<OrgClassTeacherDto> teachers
 ) {}

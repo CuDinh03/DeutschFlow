@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,6 +29,7 @@ class ScheduledBroadcastJobTest {
 
     @Mock ScheduledBroadcastRepository scheduledBroadcastRepository;
     @Mock UserNotificationService userNotificationService;
+    @Mock com.deutschflow.common.audit.AuditLogService auditLogService;
 
     @InjectMocks
     ScheduledBroadcastJob job;
@@ -91,5 +93,46 @@ class ScheduledBroadcastJobTest {
 
         verify(scheduledBroadcastRepository, never()).save(any());
         verify(userNotificationService, never()).dispatchScheduledBroadcast(any());
+    }
+
+    // ── R-M7: dispatch thật (thành công/thất bại) phải để lại vết trong audit_logs ──────
+
+    @Test
+    @DisplayName("R-M7: gửi thành công ghi admin.notification.broadcast.dispatched status=sent")
+    @SuppressWarnings("unchecked")
+    void dispatch_success_writesAudit() {
+        ScheduledBroadcast broadcast = pending();
+        when(scheduledBroadcastRepository
+                .findByStatusAndScheduledAtLessThanEqualOrderByScheduledAtAsc(eq(ScheduledBroadcast.Status.PENDING), any()))
+                .thenReturn(List.of(broadcast));
+        when(userNotificationService.dispatchScheduledBroadcast(broadcast)).thenReturn(12);
+
+        job.dispatchDueBroadcasts();
+
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("admin.notification.broadcast.dispatched"),
+                any(com.deutschflow.common.audit.AuditActor.class), eq("NOTIFICATION"), eq("1"), meta.capture());
+        assertThat(meta.getValue()).containsEntry("status", "sent")
+                .containsEntry("recipientCount", 12).containsEntry("scheduledId", 1L);
+    }
+
+    @Test
+    @DisplayName("R-M7: gửi thất bại vẫn ghi vết status=failed kèm lỗi (không mất vết vì tx rollback)")
+    @SuppressWarnings("unchecked")
+    void dispatch_failure_writesFailedAudit() {
+        ScheduledBroadcast broadcast = pending();
+        when(scheduledBroadcastRepository
+                .findByStatusAndScheduledAtLessThanEqualOrderByScheduledAtAsc(eq(ScheduledBroadcast.Status.PENDING), any()))
+                .thenReturn(List.of(broadcast));
+        when(userNotificationService.dispatchScheduledBroadcast(broadcast))
+                .thenThrow(new IllegalStateException("boom"));
+
+        job.dispatchDueBroadcasts();
+
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("admin.notification.broadcast.dispatched"),
+                any(com.deutschflow.common.audit.AuditActor.class), eq("NOTIFICATION"), eq("1"), meta.capture());
+        assertThat(meta.getValue()).containsEntry("status", "failed");
+        assertThat(String.valueOf(meta.getValue().get("error"))).contains("boom");
     }
 }

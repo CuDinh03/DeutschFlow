@@ -9,7 +9,7 @@ import {
 import { apiMessage } from '@/lib/api'
 import {
   fetchClassAssignments, fetchClassDetail, fetchClassLessons,
-  fetchMyAttendance, fetchMySkillReport,
+  fetchMyAttendance, fetchMySkillReport, isAwaitingTeacher, isFinalGrade,
   type ClassLesson, type ClassroomDetail, type MySkillReport, type StudentAssignment,
   type StudentAttendance, type TeacherSummary,
 } from '@/lib/studentClassesApi'
@@ -353,10 +353,12 @@ function AssignmentsTab({
 }
 
 function StatusPill({ status, score }: { status: string; score: number | null }) {
-  if (status === 'GRADED' || status === 'EVALUATED') {
+  if (isFinalGrade(status)) {
     return <Pill tone="success" icon={CheckCircle2} label={`Đã chấm${score != null ? ` · ${score}` : ''}`} />
   }
-  if (status === 'SUBMITTED') {
+  // AI_GRADED / GRADING_FAILED = bài ĐÃ nộp, đang chờ giáo viên (F-14 soát 02/09) —
+  // trước đây rơi nhánh else và hiện "Chưa nộp" đỏ cho bài học viên vừa nộp xong.
+  if (isAwaitingTeacher(status)) {
     return <Pill tone="info" icon={Upload} label="Đã nộp" />
   }
   return <Pill tone="danger" icon={AlertCircle} label="Chưa nộp" />
@@ -368,7 +370,7 @@ function GradesTab({
   const theme = useTheme()
   const c = theme.colors
   const graded = useMemo(
-    () => assignments.filter((a) => a.status === 'GRADED' || a.status === 'EVALUATED'),
+    () => assignments.filter((a) => isFinalGrade(a.status)),
     [assignments],
   )
   if (assignments.length === 0 && isError) {
@@ -493,6 +495,19 @@ function EvaluationTab({ classId }: { classId: number }) {
       </View>
 
       <View style={{ gap: space[3] }}>
+        <SectionHeader title="Nhận xét của giáo viên" />
+        {report?.teacherComment ? (
+          <TeacherCommentCard comment={report.teacherComment} evaluatedAt={report.evaluatedAt} />
+        ) : (
+          <EmptyState
+            icon={MessagesSquare}
+            title="Chưa có nhận xét"
+            message="Giáo viên chưa viết nhận xét cho bạn. Nhận xét sẽ hiện ở đây khi có."
+          />
+        )}
+      </View>
+
+      <View style={{ gap: space[3] }}>
         <SectionHeader title="Điểm danh" />
         {attendanceQ.isError ? (
           <ErrorState title="Không tải được điểm danh" onRetry={() => void attendanceQ.refetch()} />
@@ -563,6 +578,22 @@ function SkillReportCard({ report }: { report: MySkillReport }) {
           )
         })}
       </View>
+    </Card>
+  )
+}
+
+/**
+ * Nhận xét bằng lời của giáo viên. Trước đây `teacher_comment` chỉ đi ra DTO phía giáo viên: thầy cô
+ * viết trong sổ điểm và không đường nào trả nó về cho chính học viên được nhận xét.
+ */
+function TeacherCommentCard({ comment, evaluatedAt }: { comment: string; evaluatedAt: string | null }) {
+  const c = useTheme().colors
+  return (
+    <Card style={{ gap: space[2], borderLeftWidth: 3, borderLeftColor: c.accentText }}>
+      <ThemedText variant="body" style={{ lineHeight: 22 }}>{comment}</ThemedText>
+      {evaluatedAt ? (
+        <Caption>Nhận xét ngày {new Date(evaluatedAt).toLocaleDateString('vi-VN')}</Caption>
+      ) : null}
     </Card>
   )
 }

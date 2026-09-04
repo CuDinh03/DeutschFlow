@@ -5,12 +5,15 @@ import { isAxiosErr } from '@/lib/api'
 import { messagesApi } from '@/lib/messagesApi'
 import { classChannelApi } from '@/lib/classChannelApi'
 import {
+  collectUsedServerIds,
+  findRetryEcho,
   isAutoRetryable,
   markConfirmed,
   markFailed,
   type OutboxItem,
   type OutboxKind,
   reconcileConfirmed,
+  RETRY_ECHO_CLOCK_SKEW_MS,
   setItemStatus,
   upsertItem,
 } from '@/lib/chatOutbox'
@@ -29,9 +32,13 @@ const KEY = 'outbox_v1'
 const inFlight = new Set<string>()
 
 let seq = 0
+// tempId giờ kiêm luôn idempotency key gửi lên server (F-13) nên phải là duy nhất THEO NGƯỜI GỬI,
+// kể cả giữa hai thiết bị cùng tài khoản: seq reset theo mỗi lần mở app, nên thêm hậu tố ngẫu
+// nhiên để hai máy cùng bấm gửi trong cùng một mili-giây không thể sinh trùng key (trùng = máy
+// sau nhận nhầm bản ghi của máy trước thay vì tạo tin mới).
 function newTempId(): string {
   seq += 1
-  return `tmp-${Date.now()}-${seq}`
+  return `tmp-${Date.now()}-${seq}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 function load(): OutboxItem[] {
@@ -64,6 +71,15 @@ interface ChatOutboxState {
   flush: () => void
   /** Drop confirmed shadows a real server fetch now contains — called with the fetched ids. */
   reconcile: (kind: OutboxKind, targetId: number, serverIds: readonly number[]) => void
+  /**
+   * Xoá SẠCH outbox (MMKV + state) — gọi khi phiên kết thúc (logout / refresh
+   * token chết), qua clearDeviceSessionState. Item không gắn userId nên tin chưa
+   * gửi được của tài khoản A mà còn nằm lại sẽ hiện thành bong bóng "của tôi"
+   * kèm nút "Gửi lại" dưới tài khoản B trên cùng máy — lộ nguyên văn tin nhắn và
+   * mở đường gửi lại dưới danh nghĩa người khác (soát 02/09, F-23). Tin nháp
+   * chưa gửi của A bị bỏ có chủ đích: không được phép giữ hộ cho người sau.
+   */
+  clear: () => void
 }
 
 export const useChatOutboxStore = create<ChatOutboxState>((set, get) => {
@@ -72,16 +88,67 @@ export const useChatOutboxStore = create<ChatOutboxState>((set, get) => {
     set({ items: next })
   }
 
-  async function attempt(item: OutboxItem): Promise<void> {
+  /**
+   * F-13 (soát 02/09): trước khi RESEND một item từng thất bại thoáng qua, hỏi
+   * server xem tin đã nằm đó chưa — POST timeout/502 không có nghĩa server chưa
+   * lưu, và resend mù là người nhận thấy tin ĐÔI. Fix GỐC giờ nằm ở backend
+   * (clientTempId idempotency key, V300: attempt() gửi kèm tempId, server thấy
+   * key đã dùng thì trả lại bản ghi cũ); lớp echo này giữ lại làm chống đỡ khi
+   * app chạy trước backend mới (OTA đến trước deploy) và để khỏi tốn một POST
+   * thừa khi echo đã thấy tin:
+   *  - class: GET channel messages (không có side effect đánh dấu đã-đọc) → khớp
+   *    echo chính xác theo mine+body+thời gian → markConfirmed(id thật).
+   *  - dm: conversations() làm bước NGHI VẤN rẻ (summary không có id, không side
+   *    effect); chỉ khi lastMessage trùng body mới gọi thread() lấy id chính xác
+   *    (thread() đánh dấu tin đến là đã-đọc — chấp nhận trong ca hẹp này, người
+   *    dùng vừa nhắn trong thread đó xong).
+   * Trả true = đã xác nhận echo, KHÔNG POST nữa. Mọi lỗi fetch → false (cứ POST
+   * như thường — đúng lúc offline thì đường resend cũ vẫn phải chạy).
+   * Giới hạn còn lại (ghi nhận): dm mà echo KHÔNG phải tin cuối của thread
+   * (người kia nhắn chen vào giữa timeout và flush) thì bước nghi vấn bỏ sót →
+   * hành vi như trước bản vá.
+   */
+  async function confirmedByServerEcho(item: OutboxItem): Promise<boolean> {
+    try {
+      if (item.kind === 'class') {
+        const msgs = await classChannelApi.list(item.targetId)
+        const echo = findRetryEcho(item, msgs, collectUsedServerIds(get().items))
+        if (echo == null) return false
+        commit(markConfirmed(get().items, item.tempId, echo))
+        return true
+      }
+      const convs = await messagesApi.conversations()
+      const conv = convs.find((c) => c.userId === item.targetId)
+      const suspicious =
+        conv?.lastMessage === item.body &&
+        conv.lastAt != null &&
+        new Date(conv.lastAt).getTime() >= new Date(item.createdAt).getTime() - RETRY_ECHO_CLOCK_SKEW_MS
+      if (!suspicious) return false
+      const msgs = await messagesApi.thread(item.targetId)
+      const echo = findRetryEcho(item, msgs, collectUsedServerIds(get().items))
+      if (echo == null) return false
+      commit(markConfirmed(get().items, item.tempId, echo))
+      void queryClient.invalidateQueries({ queryKey: ['conversations'] })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  async function attempt(item: OutboxItem, opts?: { retry?: boolean }): Promise<void> {
     if (inFlight.has(item.tempId)) return
     inFlight.add(item.tempId)
     // Reflect the (re)try in the UI: an item that was 'failed' shows as 'sending' again.
     commit(setItemStatus(get().items, item.tempId, 'sending'))
     try {
+      if (opts?.retry && (await confirmedByServerEcho(item))) return
+      // tempId đi kèm làm idempotency key (F-13 fix gốc): server thấy key đã dùng thì trả lại
+      // đúng bản ghi cũ — retry sau timeout không bao giờ tạo tin trùng, kể cả khi bước echo
+      // ở trên bỏ sót (DM mà echo không phải tin cuối thread).
       const real =
         item.kind === 'dm'
-          ? await messagesApi.send(item.targetId, item.body)
-          : await classChannelApi.post(item.targetId, item.body)
+          ? await messagesApi.send(item.targetId, item.body, item.tempId)
+          : await classChannelApi.post(item.targetId, item.body, item.tempId)
       // Keep the acknowledged message as a shadow (keyed by its real id) until a genuine poll
       // surfaces it — never write it into the query cache ourselves, so a stale in-flight refetch
       // resolving late can't clobber it out of existence.
@@ -116,12 +183,28 @@ export const useChatOutboxStore = create<ChatOutboxState>((set, get) => {
 
     retry: (tempId) => {
       const item = get().items.find((i) => i.tempId === tempId)
-      if (item) void attempt(item)
+      if (item) void attempt(item, { retry: true })
     },
 
     flush: () => {
-      for (const item of get().items) {
-        if (!inFlight.has(item.tempId) && isAutoRetryable(item)) void attempt(item)
+      // Gom theo thread và xử lý TUẦN TỰ trong mỗi thread: hai item trùng body
+      // cùng thread mà check echo song song có thể cùng nhận một echo → một tin
+      // biến mất. Tuần tự + usedServerIds (đọc lại sau mỗi confirm) ghép 1-1 đúng.
+      const pending = get().items.filter((i) => !inFlight.has(i.tempId) && isAutoRetryable(i))
+      const byThread = new Map<string, OutboxItem[]>()
+      for (const item of pending) {
+        const key = `${item.kind}:${item.targetId}`
+        const group = byThread.get(key)
+        if (group) group.push(item)
+        else byThread.set(key, [item])
+      }
+      for (const group of byThread.values()) {
+        void (async () => {
+          const ordered = [...group].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+          for (const item of ordered) {
+            await attempt(item, { retry: true })
+          }
+        })()
       }
     },
 
@@ -129,6 +212,12 @@ export const useChatOutboxStore = create<ChatOutboxState>((set, get) => {
       const cur = get().items
       const next = reconcileConfirmed(cur, kind, targetId, serverIds)
       if (next !== cur) commit(next)
+    },
+
+    clear: () => {
+      // Attempt đang bay (nếu có) settle vào danh sách rỗng: markConfirmed/markFailed
+      // map trên items hiện tại nên item đã xoá chỉ là no-op, không hồi sinh.
+      commit([])
     },
   }
 })

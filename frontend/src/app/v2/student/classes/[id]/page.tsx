@@ -16,17 +16,26 @@ import {
 import { resolvePointTexts } from '@/lib/knowledgePoints'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 import { LessonMaterials } from './LessonMaterials'
+import { EvaluationTab } from './EvaluationTab'
+import { ScheduleTab } from './ScheduleTab'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chi tiết lớp — học viên (GaClassStudent, proto-classroom.jsx) — DETAIL, yellow.
-// Backed tabs: Tổng quan · Bài tập · Lộ trình. Each lesson in Lộ trình now shows the materials the
-// teacher attached to it (LessonMaterials, lazy-loaded) — the student-facing read path added in wave 3.
-// Still proto-only (no backend): feed / members roster / rank. "Nhắn giáo viên" → toast.
+// Backed tabs: Tổng quan · Bài tập · Lộ trình · Đánh giá · Lịch học. Each lesson in Lộ trình shows the
+// materials the teacher attached to it (LessonMaterials, lazy-loaded).
+//
+// Đánh giá + Lịch học đọc ba endpoint own-data-only đã có sẵn từ P4 (my-skill-report, my-attendance,
+// sessions) mà bản web chưa từng gọi — chỉ mobile gọi — nên học viên dùng web không thấy điểm kỹ năng,
+// chuyên cần hay lịch buổi. Cả hai tab lazy-load: chỉ gọi API khi học viên mở đúng tab đó.
+//
+// Still proto-only (no backend): feed / members roster / rank.
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Tab = 'overview' | 'tasks' | 'lessons'
-const TABS: [Tab, 'tabOverview' | 'tabTasks' | 'tabLessons'][] = [
+type Tab = 'overview' | 'tasks' | 'lessons' | 'evaluation' | 'schedule'
+type TabLabelKey = 'tabOverview' | 'tabTasks' | 'tabLessons' | 'tabEvaluation' | 'tabSchedule'
+const TABS: [Tab, TabLabelKey][] = [
   ['overview', 'tabOverview'], ['tasks', 'tabTasks'], ['lessons', 'tabLessons'],
+  ['evaluation', 'tabEvaluation'], ['schedule', 'tabSchedule'],
 ]
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 
@@ -267,6 +276,10 @@ export default function V2ClassStudentPage() {
               })}
             </div>
           )
+        ) : tab === 'evaluation' ? (
+          <EvaluationTab classId={classId} />
+        ) : tab === 'schedule' ? (
+          <ScheduleTab classId={classId} />
         ) : (
           // lessons / lộ trình
           lessons.length === 0 ? (
@@ -306,7 +319,7 @@ export default function V2ClassStudentPage() {
                               const mastered = st === 'MASTERED'
                               return (
                                 <li key={c.id ?? c.orderIndex} className="flex flex-wrap items-start gap-2 text-[12.5px] leading-[1.5] lg:flex-nowrap">
-                                  <span className="mt-[2px] shrink-0" style={{ color: mastered ? 'var(--ga-green)' : 'var(--ga-violet)' }}>✓</span>
+                                  <Check size={13} aria-hidden className="mt-[3px] shrink-0" style={{ color: mastered ? 'var(--ga-green)' : 'var(--ga-violet)' }} />
                                   <span className="min-w-0 flex-1 break-words" style={{ color: 'var(--ga-violet)' }}>
                                     {c.text}
                                     {c.id != null && competencySourceMap[c.id] === 'GRADING' && (

@@ -57,6 +57,13 @@ public class XttsPersonaVoiceResolver {
         m.put(SpeakingPersona.PETRA, "de-anna_women");
         m.put(SpeakingPersona.SARAH, "de-anna_women");
         m.put(SpeakingPersona.WEBER, "de-anna_women");
+        // Mentor nhập môn (F-15) — không map thì resolve() trả empty và mất giọng streaming.
+        m.put(SpeakingPersona.JONAS, "de-lukas_man");
+        m.put(SpeakingPersona.TIM, "de-lukas_man");
+        m.put(SpeakingPersona.FELIX, "de-lukas_man");
+        m.put(SpeakingPersona.MARIE, "de-anna_women");
+        m.put(SpeakingPersona.JULIA, "de-emma_women");
+        m.put(SpeakingPersona.MIA, "de-emma_women");
         // TUAN / LAN / MINH: intentionally unmapped (Vietnamese tutors → on-device, Phase 1)
         return m;
     }

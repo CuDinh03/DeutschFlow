@@ -3,7 +3,7 @@
 import { NodeContent, WordTimestamp, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useTranslations } from "next-intl";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { Play, Pause, RotateCcw, Volume2, CheckCircle, Mic } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, CheckCircle, Mic, Headphones, PartyPopper, ThumbsUp, CircleX, RefreshCw, CircleCheck } from "lucide-react";
 import { PronunciationFeedback } from "@/components/speaking/PronunciationFeedback";
 
 export default function ListeningView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
@@ -127,7 +127,7 @@ export default function ListeningView({ content, isLocked = false }: { content: 
   if (!audio?.url) {
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-ga-card rounded-ga border border-ga-line">
-        <span className="text-4xl mb-3">🎧</span>
+        <Headphones size={40} className="mb-3 text-ga-subtle" aria-hidden />
         <p className="text-sm text-ga-muted">Audio chưa có cho bài học này.</p>
       </div>
     );
@@ -287,14 +287,14 @@ export default function ListeningView({ content, isLocked = false }: { content: 
             {score}
             <span className="text-lg font-medium">/100</span>
           </div>
-          <p className={`text-sm font-bold ${
+          <p className={`flex items-center justify-center gap-1.5 text-sm font-bold ${
             score >= 100 ? "text-ga-green" :
             score >= 80  ? "text-ga-orange" :
             "text-ga-red"
           }`}>
-            {score >= 100 ? "🎉 Hoàn hảo! Đúng tất cả!" :
-             score >= 80  ? "👍 Khá tốt! Đủ điều kiện vượt qua" :
-             "❌ Chưa đạt – Cần làm lại (yêu cầu 100% để vượt node)"}
+            {score >= 100 ? <><PartyPopper size={15} aria-hidden /> Hoàn hảo! Đúng tất cả!</> :
+             score >= 80  ? <><ThumbsUp size={15} aria-hidden /> Khá tốt! Đủ điều kiện vượt qua</> :
+             <><CircleX size={15} className="shrink-0" aria-hidden /> Chưa đạt – Cần làm lại (yêu cầu 100% để vượt node)</>}
           </p>
           <p className="text-xs text-ga-muted">
             Đúng {correctCount}/{blankIndices.size} từ
@@ -304,7 +304,7 @@ export default function ListeningView({ content, isLocked = false }: { content: 
               onClick={() => { setSubmitted(false); setScore(null); setFillBlanks({}); setCorrectCount(0); }}
               className="mt-2 px-5 py-2 rounded-ga bg-ga-ink text-white text-sm font-bold hover:bg-ga-ink transition-colors"
             >
-              🔄 Thử lại
+              <span className="inline-flex items-center gap-1.5"><RefreshCw size={14} aria-hidden /> Thử lại</span>
             </button>
           )}
         </div>
@@ -335,7 +335,7 @@ export default function ListeningView({ content, isLocked = false }: { content: 
       {/* ── Completion Status ── */}
       {isCompleted && !submitted && timestamps.length > 0 && (
         <div className="rounded-ga bg-ga-green-soft border border-ga-green/40 p-4 text-center">
-          <p className="text-sm font-bold text-ga-green">✅ {tLearn("listeningSuccess")}</p>
+          <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-ga-green"><CircleCheck size={15} aria-hidden /> {tLearn("listeningSuccess")}</p>
         </div>
       )}
 
@@ -352,7 +352,10 @@ export default function ListeningView({ content, isLocked = false }: { content: 
                 : "bg-ga-green hover:bg-ga-green text-white"
             }`}
           >
-            {isCompleted ? `✅ ${tLearn("completed")}` : `✅ ${tLearn("listenedAndUnderstood")}`}
+            <span className="inline-flex items-center gap-1.5">
+              <CircleCheck size={15} aria-hidden />
+              {isCompleted ? tLearn("completed") : tLearn("listenedAndUnderstood")}
+            </span>
           </button>
         </div>
       )}

@@ -24,6 +24,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -48,6 +49,9 @@ class OrgBillingServiceTest {
     private static final Long OTHER_ORG_ID = 99L;
     private static final Long INVOICE_ID = 42L;
     private static final Long CREATED_BY = 7L;
+    /** F-M3: createInvoice nay nhận AuditActor để ghi vết lúc TẠO hoá đơn, không chỉ id. */
+    private static final com.deutschflow.common.audit.AuditActor CREATED_BY_ACTOR =
+            new com.deutschflow.common.audit.AuditActor(CREATED_BY, "admin@x.com", "ADMIN");
 
     @BeforeEach
     void setUp() {
@@ -91,7 +95,7 @@ class OrgBillingServiceTest {
         when(invoiceRepo.save(any(OrgInvoice.class))).thenReturn(persisted);
 
         CreateInvoiceRequest req = aRequest();
-        OrgInvoiceDto dto = service.createInvoice(ORG_ID, req, CREATED_BY);
+        OrgInvoiceDto dto = service.createInvoice(ORG_ID, req, CREATED_BY_ACTOR);
 
         ArgumentCaptor<OrgInvoice> captor = ArgumentCaptor.forClass(OrgInvoice.class);
         verify(invoiceRepo).save(captor.capture());
@@ -119,7 +123,7 @@ class OrgBillingServiceTest {
 
         CreateInvoiceRequest req = new CreateInvoiceRequest(
                 LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31), 0, 5_000_000L, "auto-seat");
-        service.createInvoice(ORG_ID, req, CREATED_BY);
+        service.createInvoice(ORG_ID, req, CREATED_BY_ACTOR);
 
         ArgumentCaptor<OrgInvoice> captor = ArgumentCaptor.forClass(OrgInvoice.class);
         verify(invoiceRepo).save(captor.capture());
@@ -134,7 +138,7 @@ class OrgBillingServiceTest {
 
         CreateInvoiceRequest req = new CreateInvoiceRequest(
                 LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31), 50, 5_000_000L, "explicit-seat");
-        service.createInvoice(ORG_ID, req, CREATED_BY);
+        service.createInvoice(ORG_ID, req, CREATED_BY_ACTOR);
 
         ArgumentCaptor<OrgInvoice> captor = ArgumentCaptor.forClass(OrgInvoice.class);
         verify(invoiceRepo).save(captor.capture());
@@ -269,7 +273,7 @@ class OrgBillingServiceTest {
         CreateInvoiceRequest zero = new CreateInvoiceRequest(
                 LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31), 10, 0L, "free?");
 
-        assertThatThrownBy(() -> service.createInvoice(ORG_ID, zero, CREATED_BY))
+        assertThatThrownBy(() -> service.createInvoice(ORG_ID, zero, CREATED_BY_ACTOR))
                 .isInstanceOf(BadRequestException.class);
         verify(invoiceRepo, org.mockito.Mockito.never()).save(any());
     }
@@ -293,7 +297,7 @@ class OrgBillingServiceTest {
 
         assertThatThrownBy(() -> service.updateStatus(ORG_ID, INVOICE_ID, "PAID", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE))
                 .isInstanceOf(BadRequestException.class);
-        verify(adminOrgService, org.mockito.Mockito.never()).activateForPaidInvoice(any());
+        verify(adminOrgService, org.mockito.Mockito.never()).activateForPaidInvoice(any(), any());
     }
 
     // ------------------------------------------------------------------ M-16: manual PAID activates the org
@@ -307,7 +311,7 @@ class OrgBillingServiceTest {
 
         service.updateStatus(ORG_ID, INVOICE_ID, "PAID", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE);
 
-        verify(adminOrgService).activateForPaidInvoice(inv);
+        verify(adminOrgService).activateForPaidInvoice(eq(inv), any());
         verify(userNotificationService).onOrgInvoicePaid(org.mockito.ArgumentMatchers.eq(ORG_ID),
                 any(), any(), org.mockito.ArgumentMatchers.anyLong());
     }
@@ -321,6 +325,6 @@ class OrgBillingServiceTest {
 
         service.updateStatus(ORG_ID, INVOICE_ID, "PAID", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE);
 
-        verify(adminOrgService, org.mockito.Mockito.never()).activateForPaidInvoice(any());
+        verify(adminOrgService, org.mockito.Mockito.never()).activateForPaidInvoice(any(), any());
     }
 }

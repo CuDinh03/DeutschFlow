@@ -6,9 +6,11 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.exception.PrivilegedActionBlockedException;
 import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
+import com.deutschflow.organization.repository.OrgAcademicApproverRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
@@ -48,9 +50,19 @@ public class OrgMembershipService {
     private static final Set<String> ASSIGNABLE_ROLES = Set.of("MANAGER", "TEACHER");
 
     private final OrgMemberRepository memberRepo;
+    private final OrgAcademicApproverRepository academicApproverRepo;
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
     private final AuditLogService auditLogService;
+
+    /**
+     * True if the user currently holds an ACTIVE membership in any org. Callers use this to route
+     * a platform-role change through the org flow instead of overwriting {@code users.role} directly
+     * (which would leave {@code org_members.role} out of sync).
+     */
+    public boolean hasActiveMembership(Long userId) {
+        return memberRepo.existsByIdUserIdAndStatus(userId, STATUS_ACTIVE);
+    }
 
     /**
      * Inserts a new org membership or reactivates an existing one, sets {@code users.org_id},
@@ -69,6 +81,40 @@ public class OrgMembershipService {
         }
 
         Optional<OrgMember> existingOpt = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId);
+
+        // Audit R-M1/R-M3 (03/09/2026): bất biến "một org đúng một OWNER ACTIVE" đặt tại CHOKEPOINT
+        // chung này — không chỉ ở AdminOrgService.addMember — nên đường nhận-lời-mời và mọi caller
+        // khác đều chịu chung. upsertMember vốn ghi đè vai trò vô điều kiện, để hở hai lỗ:
+        //   (R-M1) nhận một lời mời TEACHER cũ có thể hạ role của một OWNER đang hoạt động xuống
+        //          TEACHER (comment "upsert never downgrades platform role" chỉ đúng với ADMIN);
+        //   (R-M3) hai lượt thêm-OWNER chạy song song cùng đọc countActiveOwners()==0 rồi cùng ghi
+        //          → 2 OWNER (TOCTOU).
+        // transferOwnership/changeRole đổi chủ trên đường riêng, KHÔNG đi qua đây.
+        boolean existingIsActiveOwner = existingOpt
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
+                .map(m -> ROLE_OWNER.equals(m.getRole()))
+                .orElse(false);
+        if (ROLE_OWNER.equals(role) || existingIsActiveOwner) {
+            // Khóa dòng org để mọi thay đổi quyền sở hữu cùng org tuần tự hóa (đóng TOCTOU mà một
+            // phép đọc countActiveOwners() trần để hở) — cùng cơ chế FOR UPDATE với seat-gate dưới.
+            jdbcTemplate.query("SELECT id FROM organizations WHERE id = ? FOR UPDATE",
+                    rs -> rs.next() ? rs.getLong(1) : null, orgId);
+            // Audit R-M9: subtype mang chất liệu audit — GlobalExceptionHandler ghi vết SAU rollback.
+            // Chokepoint này còn hứng cả đường KHÔNG-admin (nhận lời mời): actor khi đó là null/ẩn
+            // danh, meta vẫn mang đủ (orgId, userId, role xin) để nhận diện lần thử.
+            if (existingIsActiveOwner && !ROLE_OWNER.equals(role)) {
+                throw new PrivilegedActionBlockedException(
+                        "Không thể hạ vai trò của chủ sở hữu — hãy chuyển quyền sở hữu cho người khác trước.",
+                        "org.owner_invariant.blocked", "ORG", String.valueOf(orgId),
+                        Map.of("reason", "demote_owner", "targetUserId", userId, "requestedRole", role));
+            }
+            if (ROLE_OWNER.equals(role) && !existingIsActiveOwner && countActiveOwners(orgId) > 0) {
+                throw new PrivilegedActionBlockedException(
+                        "Tổ chức đã có chủ sở hữu — mỗi tổ chức chỉ một OWNER. Hãy dùng chuyển quyền sở hữu.",
+                        "org.owner_invariant.blocked", "ORG", String.valueOf(orgId),
+                        Map.of("reason", "second_owner", "targetUserId", userId, "requestedRole", role));
+            }
+        }
 
         // Seat-limit gate (ORG-1): centralized here so EVERY add path (admin add, roster import,
         // invitation accept) enforces it, and race-safe — a `SELECT ... FOR UPDATE` on the org row
@@ -112,6 +158,33 @@ public class OrgMembershipService {
         user.setOrgId(orgId);
         syncPlatformRole(user, role);
         userRepository.save(user);
+    }
+
+    /**
+     * Bảo đảm học viên có ghế STUDENT ACTIVE trong tổ chức {@code orgId} — cửa vào cho đường
+     * "vào trung tâm qua lớp học" (học viên nhập mã lớp, giáo viên duyệt). Đường duyệt lớp trước
+     * đây chỉ tạo {@code class_students} mà không đụng {@code org_members}, nên trung tâm có lớp
+     * đầy học viên trong khi trang "Học viên của tổ chức" đếm 0 và ghế không bị tính tiền.
+     *
+     * <p>Đã là thành viên ACTIVE của chính org này (bất kỳ vai trò) → no-op: giáo viên/quản lý của
+     * trung tâm vào một lớp không bị hạ xuống STUDENT. Đang ACTIVE ở org KHÁC → từ chối: move-semantics
+     * của STUDENT chỉ dành cho roster do org chủ động ghi (import/thêm tay), không re-home âm thầm
+     * chỉ vì học viên gõ một mã lớp. Trường hợp còn lại đi qua {@link #upsertMember} nên chịu đủ
+     * seat-limit gate — hết ghế thì lượt duyệt thất bại với thông báo rõ ràng.
+     */
+    @Transactional
+    public void ensureStudentSeat(Long orgId, Long userId) {
+        boolean activeInThisOrg = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId)
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
+                .isPresent();
+        if (activeInThisOrg) {
+            return;
+        }
+        if (memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(userId, STATUS_ACTIVE, orgId)) {
+            throw new BadRequestException(
+                    "Học viên đang thuộc một trung tâm khác — không thể thêm vào trung tâm này qua lớp học.");
+        }
+        upsertMember(orgId, userId, ROLE_STUDENT);
     }
 
     /**
@@ -316,6 +389,10 @@ public class OrgMembershipService {
         member.setStatus(status);
         member.setLeftAt(Instant.now());
         memberRepo.save(member);
+        // Security H1 (PR-2): quyền duyệt học vụ không sống lâu hơn tư cách thành viên — thu hồi
+        // soft mọi phân công đang hiệu lực, để nếu người này quay lại org (ví dụ ensureStudentSeat
+        // tái kích hoạt membership với vai trò STUDENT) thì phân công cũ KHÔNG sống lại theo.
+        academicApproverRepo.revokeAllActiveFor(orgId, userId, java.time.LocalDateTime.now(), null);
         detachUser(orgId, userId);
         return role;
     }

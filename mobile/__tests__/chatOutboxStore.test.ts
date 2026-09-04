@@ -23,7 +23,7 @@ describe('useChatOutboxStore', () => {
   })
 
   it('send → sending → confirmed(serverId) on ack, keeping the message as a shadow', async () => {
-    jest.spyOn(messagesApi, 'send').mockResolvedValue(serverMsg(100, 'hi'))
+    const sendSpy = jest.spyOn(messagesApi, 'send').mockResolvedValue(serverMsg(100, 'hi'))
     useChatOutboxStore.getState().send('dm', 5, 'hi')
 
     // Optimistic immediately: one 'sending' item.
@@ -35,6 +35,10 @@ describe('useChatOutboxStore', () => {
     items = useChatOutboxStore.getState().items
     expect(items).toHaveLength(1) // NOT removed — kept as a shadow so a late poll can't lose it
     expect(items[0]).toMatchObject({ status: 'confirmed', serverId: 100 })
+    // tempId đi kèm làm idempotency key ngay từ lượt POST đầu (F-13 fix gốc), đúng format mới
+    // có hậu tố ngẫu nhiên (chống trùng key giữa hai thiết bị cùng tài khoản).
+    expect(sendSpy).toHaveBeenCalledWith(5, 'hi', items[0].tempId)
+    expect(items[0].tempId).toMatch(/^tmp-\d+-\d+-[a-z0-9]+$/)
   })
 
   it('classifies a network failure as retryable and a 4xx as permanent', async () => {
@@ -59,16 +63,61 @@ describe('useChatOutboxStore', () => {
         { tempId: 't-ok', kind: 'dm', targetId: 5, body: 'c', createdAt: '3', status: 'confirmed', serverId: 100 },
       ],
     })
+    // F-13: retry giờ hỏi server trước (bước nghi vấn rẻ qua conversations) —
+    // thread trống nghĩa là không có echo → vẫn phải RESEND như trước.
+    jest.spyOn(messagesApi, 'conversations').mockResolvedValue([])
     const sendSpy = jest.spyOn(messagesApi, 'send').mockResolvedValue(serverMsg(200, 'a'))
     useChatOutboxStore.getState().flush()
     await settle()
 
     expect(sendSpy).toHaveBeenCalledTimes(1) // only the transient-failed 'a' re-attempted
-    expect(sendSpy).toHaveBeenCalledWith(5, 'a')
+    // Retry gửi lại CÙNG key (tempId của item) — server replay thay vì tạo tin trùng.
+    expect(sendSpy).toHaveBeenCalledWith(5, 'a', 't-net')
     const items = useChatOutboxStore.getState().items
     expect(items.find((i) => i.tempId === 't-net')).toMatchObject({ status: 'confirmed', serverId: 200 })
     expect(items.find((i) => i.tempId === 't-403')).toMatchObject({ status: 'failed', retryable: false })
     expect(items.find((i) => i.tempId === 't-ok')).toMatchObject({ status: 'confirmed', serverId: 100 })
+  })
+
+  it('F-13 dm: retry thấy tin ĐÃ nằm trên server (POST timeout nhưng server lưu) → confirm bằng id thật, KHÔNG resend', async () => {
+    const sentAt = '2026-09-02T10:00:00.000Z'
+    useChatOutboxStore.setState({
+      items: [
+        { tempId: 't-echo', kind: 'dm', targetId: 5, body: 'hallo', createdAt: sentAt, status: 'failed', retryable: true },
+      ],
+    })
+    jest.spyOn(messagesApi, 'conversations').mockResolvedValue([
+      { userId: 5, displayName: 'GV', email: 'gv@x.de', lastMessage: 'hallo', lastAt: '2026-09-02T10:00:05.000Z', unread: 0 },
+    ])
+    jest
+      .spyOn(messagesApi, 'thread')
+      .mockResolvedValue([{ ...serverMsg(777, 'hallo'), createdAt: '2026-09-02T10:00:05.000Z' }])
+    const sendSpy = jest.spyOn(messagesApi, 'send').mockResolvedValue(serverMsg(999, 'hallo'))
+
+    useChatOutboxStore.getState().flush()
+    await settle()
+
+    expect(sendSpy).not.toHaveBeenCalled() // resend mù = người nhận thấy tin đôi
+    expect(useChatOutboxStore.getState().items[0]).toMatchObject({ status: 'confirmed', serverId: 777 })
+  })
+
+  it('F-13 class: retry khớp echo trong channel (GET không side-effect) → confirm, không post lại', async () => {
+    const sentAt = '2026-09-02T10:00:00.000Z'
+    useChatOutboxStore.setState({
+      items: [
+        { tempId: 't-c', kind: 'class', targetId: 42, body: 'cả lớp ơi', createdAt: sentAt, status: 'failed', retryable: true },
+      ],
+    })
+    jest
+      .spyOn(classChannelApi, 'list')
+      .mockResolvedValue([{ ...serverClassMsg(555, 'cả lớp ơi'), createdAt: '2026-09-02T10:00:03.000Z' }])
+    const postSpy = jest.spyOn(classChannelApi, 'post').mockResolvedValue(serverClassMsg(556, 'cả lớp ơi'))
+
+    useChatOutboxStore.getState().flush()
+    await settle()
+
+    expect(postSpy).not.toHaveBeenCalled()
+    expect(useChatOutboxStore.getState().items[0]).toMatchObject({ status: 'confirmed', serverId: 555 })
   })
 
   it('reconcile retires only the confirmed shadows a real fetch surfaced', () => {
@@ -87,7 +136,7 @@ describe('useChatOutboxStore', () => {
     const post = jest.spyOn(classChannelApi, 'post').mockResolvedValue(serverClassMsg(300, 'cả lớp ơi'))
     useChatOutboxStore.getState().send('class', 42, 'cả lớp ơi')
     await settle()
-    expect(post).toHaveBeenCalledWith(42, 'cả lớp ơi')
+    expect(post).toHaveBeenCalledWith(42, 'cả lớp ơi', expect.stringMatching(/^tmp-/))
     expect(useChatOutboxStore.getState().items[0]).toMatchObject({ status: 'confirmed', serverId: 300 })
   })
 })

@@ -104,6 +104,10 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
 
   return (
     <motion.button
+      // QA 09/08 (J7): thẻ persona là button với minh hoạ SVG — trình đọc màn hình cần tên +
+      // vai trò thay vì chỉ "button".
+      aria-label={`${persona.name} — ${persona.role}`}
+      aria-pressed={isSelected}
       className="flex flex-col rounded-ga overflow-hidden relative cursor-pointer text-left transition-shadow duration-150 hover:shadow-ga-card-hover"
       style={{
         width: "100%",

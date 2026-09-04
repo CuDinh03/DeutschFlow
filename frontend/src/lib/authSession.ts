@@ -10,6 +10,8 @@
 // expo-secure-store (Keychain/Keystore) via its own mobile/lib/auth.ts. isNative()/getPlatform()
 // are kept as web-only stubs so existing callers (e.g. lib/api.ts) keep compiling.
 
+import { clearOnboardingDraft } from './onboardingDraft'
+
 // ─── Storage keys ─────────────────────────────────────────────────────────────
 const ACCESS_TOKEN_KEY   = 'accessToken'
 const REFRESH_TOKEN_KEY  = 'refreshToken'
@@ -212,6 +214,22 @@ export async function logout(): Promise<void> {
     // ignore network errors — still clear locally
   }
   clearTokens()
+  // Draft onboarding KHÔNG gắn userId, mà effect resume ở /v2/onboarding chạy cho
+  // bất kỳ tài khoản nào đã đăng nhập ghé qua. Bỏ lại draft khi đăng xuất là để
+  // tài khoản thứ hai trên cùng máy bị GHI ĐÈ hồ sơ học bằng câu trả lời của
+  // người trước (QA 2026-08-20, F-3) — không chỉ nhìn thấy, mà bị POST đè thật.
+  //
+  // Đặt ở logout() chứ KHÔNG ở clearTokens(): clearTokens() không phải tín hiệu
+  // "phiên kết thúc" — cả /v2/login lẫn /login đều gọi nó ngay TRƯỚC POST
+  // /auth/login chỉ để dọn token cũ. Móc dọn draft vào đó là buộc vòng đời của
+  // draft vào một việc chẳng liên quan, và chặn sẵn đường "khách điền phễu →
+  // đăng nhập tài khoản sẵn có → resume" nếu sau này link đăng nhập ở bước 5 của
+  // /v2/onboarding có lưu draft (hiện nó chưa lưu).
+  //
+  // Còn hở: các đường thoát phiên không đi qua logout() — refresh token hết hạn,
+  // middleware redirect, đóng trình duyệt — vẫn để lại draft. TTL 30 phút trong
+  // onboardingDraft.ts là thứ chặn hậu quả ở những đường đó.
+  clearOnboardingDraft()
   // Full cutover: land on the v2 login (the legacy /login is being retired).
   window.location.href = '/v2/login'
 }

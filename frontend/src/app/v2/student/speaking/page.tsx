@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { MessageCircle, Briefcase, CalendarDays, ArrowRight, History, Mic } from 'lucide-react'
+import { MessageCircle, Briefcase, CalendarDays, ArrowRight, History, Mic, GraduationCap } from 'lucide-react'
 import { todayApi, type TodayPlan } from '@/lib/todayApi'
+import { weeklySpeakingApi } from '@/lib/weeklySpeakingApi'
 import { GaPageHdr, GaCard, GaCap, LoadingState } from '@/components/ui-v2'
 
 // Speaking launcher (v2). The live conversation engine (mic streaming + SSE + TTS) now runs on
@@ -62,6 +63,7 @@ const MODES = [
     href: SETUP_HREF,
     tone: 'var(--ga-violet)',
     weekly: false,
+    exam: false,
   },
   {
     icon: Briefcase,
@@ -70,6 +72,7 @@ const MODES = [
     href: `${SETUP_HREF}?mode=INTERVIEW`,
     tone: 'var(--ga-blue)',
     weekly: false,
+    exam: false,
   },
   {
     icon: CalendarDays,
@@ -78,6 +81,19 @@ const MODES = [
     href: WEEKLY_HREF,
     tone: 'var(--ga-teal)',
     weekly: true,
+    exam: false,
+  },
+  // Phòng luyện thi nói (mảng Luyện thi Nói — kế hoạch 2026-08-19): drill từng Teil / thi thử trọn gói
+  // theo đúng format Goethe/telc, chấm theo bộ tiêu chí của từng hệ. Route riêng, KHÔNG qua engine
+  // hội thoại tự do → không gắn ?return (cờ `exam: true`).
+  {
+    icon: GraduationCap,
+    titleKey: 'modes.examTitle',
+    descKey: 'modes.examDesc',
+    href: '/v2/student/speaking/exam',
+    tone: 'var(--ga-gold)',
+    weekly: false,
+    exam: true,
   },
 ]
 
@@ -85,6 +101,10 @@ export default function V2StudentSpeakingPage() {
   const t = useTranslations('v2.student.speaking')
   const [today, setToday] = useState<TodayPlan | null>(null)
   const [loading, setLoading] = useState(true)
+  // QA 09/08 mục I (owner chốt): tuần không có đề ở BẤT KỲ band nào thì ẩn ô "Chủ đề theo
+  // tuần" — không dẫn học viên vào ngõ cụt. Mặc định hiện (true) để không giật layout khi
+  // đang tải / lỗi mạng; chỉ ẩn khi backend xác nhận danh sách rỗng.
+  const [weekHasPrompts, setWeekHasPrompts] = useState(true)
 
   useEffect(() => {
     todayApi
@@ -92,6 +112,10 @@ export default function V2StudentSpeakingPage() {
       .then((r) => setToday(r.data))
       .catch(() => {})
       .finally(() => setLoading(false))
+    weeklySpeakingApi
+      .getAvailableBands()
+      .then((r) => setWeekHasPrompts((r.data ?? []).length > 0))
+      .catch(() => {})
   }, [])
 
   return (
@@ -144,14 +168,16 @@ export default function V2StudentSpeakingPage() {
         {loading && <LoadingState label={t('loading')} />}
 
         <GaCap className="mb-3 block">{t('modesCap')}</GaCap>
-        <div className="grid grid-cols-1 gap-[18px] md:grid-cols-3">
-          {MODES.map((m) => {
+        <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2 xl:grid-cols-4">
+          {MODES.filter((m) => !m.weekly || weekHasPrompts).map((m) => {
             const Icon = m.icon
             // Ô "Speaking tuần" → trang nộp bài tuần (kèm ?cefBand gợi ý nếu backend có trả),
             // các ô còn lại → engine luyện nói (kèm ?return để thoát về đúng launcher này).
             const href = m.weekly
               ? toWeeklyHref(today?.recommendedWeeklySpeaking?.href)
-              : withReturn(m.href)
+              : m.exam
+                ? m.href
+                : withReturn(m.href)
             return (
               <a key={m.titleKey} href={href}>
                 <GaCard hover className="group h-full p-5">

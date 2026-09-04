@@ -8,31 +8,37 @@
 // chặn, không hỏi lại (App Store 5.1.1: ensureAiConsent TRƯỚC mọi thu âm).
 
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Pressable, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
 import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio'
-import { Mic, Square, Volume2 } from 'lucide-react-native'
+import { BookOpen, Compass, Flame, Mic, Square, Volume2 } from 'lucide-react-native'
+import type { LucideIcon as LucideIconType } from 'lucide-react-native'
 import api from '@/lib/api'
 import { speakingApi } from '@/lib/speakingApi'
 import { speakGerman, stopGermanSpeech, setGermanRecordingActive } from '@/lib/germanTts'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import { evaluateFirstSentence } from '@/lib/firstSentence'
-import { MENTOR_META, mentorEmoji, mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
+import { MENTOR_META, mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useTourStore } from '@/stores/useTourStore'
+import { useBlockBackNavigation } from '@/hooks/useBlockBackNavigation'
+import { useReducedMotion } from '@/lib/useReducedMotion'
 import { useStarterStore } from '@/stores/useStarterStore'
 import { captureEvent } from '@/lib/analytics'
-import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, ThemedText, Button, Icon } from '@/components/ui'
+import { fonts, motion, radius, space, useTheme } from '@/lib/theme'
+import { Button, Caption, Card, Icon, Screen, ThemedText, YellowSquare } from '@/components/ui'
+import { MentorMonogram } from '@/components/onboarding/MentorMonogram'
 import { ConfettiBurst } from '@/components/guide/ConfettiBurst'
 
 const TRANSCRIBE_TIMEOUT_MS = 6000
 
 type CelebrateKind = 'real' | 'soft' | 'echo'
 
-type SkipReason = 'consent' | 'mic' | 'later' | 'error'
+// `no_mic_choice`: user chủ động chọn đường "chỉ nghe — lặp lại" (UI v2) — khác
+// `mic` (bị hệ thống từ chối quyền) để phễu phân biệt được hai chuyện.
+type SkipReason = 'consent' | 'mic' | 'later' | 'error' | 'no_mic_choice'
 
 function transcribeWithTimeout(uri: string): Promise<string> {
   return Promise.race([
@@ -59,6 +65,10 @@ export default function FirstSentenceScreen() {
   const attemptsRef = useRef(0)
   const recordingRef = useRef(false)
   const doneRef = useRef(false)
+
+  // Màn này chỉ tới được sau khi đã lưu hồ sơ ⇒ luôn đang đăng nhập. Lùi khỏi đây
+  // là rơi vào màn Đăng nhập (F-5). Muốn bỏ qua thì đã có nút "Để sau".
+  useBlockBackNavigation(true)
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
 
@@ -101,7 +111,14 @@ export default function FirstSentenceScreen() {
       void stopGermanSpeech()
       if (recordingRef.current) {
         setGermanRecordingActive(false)
-        void recorder.stop().catch(() => undefined)
+        void recorder
+          .stop()
+          .catch(() => undefined)
+          .finally(() => {
+            // Thoát record mode kẻo audio mode toàn app kẹt allowsRecording và
+            // mọi phát lại sau đó ra loa trong rất nhỏ (F-11 soát 02/09).
+            void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {})
+          })
       }
     },
     [recorder],
@@ -111,6 +128,9 @@ export default function FirstSentenceScreen() {
     if (doneRef.current) return
     doneRef.current = true
     void useTourStore.getState().markDone('first_sentence')
+    // Idempotent — che ca user vào lại màn này từ checklist mà cờ profile_done
+    // chưa từng được đặt (tài khoản tạo trước bản vá F-2).
+    void useTourStore.getState().markDone('profile_done')
     // Checklist "Bắt đầu" (§7.1): tick "Nói câu đầu tiên" khi user đã đi tới
     // màn ăn mừng (kể cả biến thể nghe–lặp lại) — skip "Để sau" không tính,
     // checklist sẽ mời làm lại.
@@ -184,7 +204,7 @@ export default function FirstSentenceScreen() {
       } else if (attemptsRef.current === 0) {
         attemptsRef.current = 1
         captureEvent('onb_first_sentence_retried', {})
-        setRetryMsg('Gần lắm rồi! Nghe lại rồi thử nhé 👇')
+        setRetryMsg('Gần lắm rồi! Nghe lại rồi thử thêm lần nữa nhé.')
         void speakGerman(sentence)
       } else {
         // Lần 2 bất kể kết quả → success-tone. Không bao giờ fail.
@@ -205,16 +225,25 @@ export default function FirstSentenceScreen() {
     return (
       <Screen edges={['top', 'bottom']}>
         <ConfettiBurst />
-        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[6], gap: space[5] }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: 'center',
+            paddingHorizontal: space[6],
+            paddingVertical: space[5],
+          }}
+          showsVerticalScrollIndicator={false}
+        >
           <MotiView
             from={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', ...motion.spring.bouncy }}
             style={{ alignItems: 'center', gap: space[4] }}
           >
-            <MentorAvatar emoji={mentorEmoji(mentor)} />
+            <MentorAvatar mentor={mentor} />
             <ThemedText variant="display" style={{ textAlign: 'center' }}>
-              Du hast es geschafft! 🎉
+              Du hast es geschafft!
             </ThemedText>
             <ThemedText variant="body" color="secondary" style={{ textAlign: 'center' }}>
               {isEcho
@@ -222,9 +251,34 @@ export default function FirstSentenceScreen() {
                 : 'Bạn vừa nói câu tiếng Đức đầu tiên của mình.'}
             </ThemedText>
             <SentenceCard sentence={sentence} onPlay={() => void speakGerman(sentence)} />
+
+            {/* Thành quả đầu tiên — chuỗi ngày + câu đầu (artboard 08) */}
+            <View style={{ flexDirection: 'row', gap: space[2], flexWrap: 'wrap', justifyContent: 'center' }}>
+              <AchievementPill icon={Flame} color={c.orange} label="Chuỗi ngày 1 bắt đầu" />
+              <AchievementPill color={c.accentText} label="Câu đầu: Hallo" />
+            </View>
+
+            {/* Tuần đầu của bạn — nối thẳng vào tour + checklist ở Trang chủ */}
+            <Card padded={false} style={{ alignSelf: 'stretch' }}>
+              <View style={{ paddingHorizontal: space[4], paddingVertical: space[3], borderBottomWidth: 1, borderBottomColor: c.border }}>
+                <Caption>Tuần đầu của bạn</Caption>
+              </View>
+              <NextStepRow icon={Compass} title="Tour trang chủ — 1 phút" sub="Biết chỗ học, chỗ luyện nói, chỗ xem chuỗi ngày" />
+              <NextStepRow icon={Mic} title={`Buổi luyện nói đầu với ${mName}`} sub="Tình huống chào hỏi ngắn" />
+              <NextStepRow icon={BookOpen} title="Chặng 1 trên lộ trình của bạn" sub="Bắt đầu từ Trang chủ" last />
+            </Card>
           </MotiView>
-        </View>
-        <View style={{ paddingHorizontal: space[6], paddingBottom: space[2] }}>
+        </ScrollView>
+        <View
+          style={{
+            borderTopWidth: 1,
+            borderTopColor: c.border,
+            backgroundColor: c.surface,
+            paddingHorizontal: space[6],
+            paddingTop: space[4],
+            paddingBottom: space[2],
+          }}
+        >
           <Button label="Vào hành trình của tôi" onPress={finishToHome} />
         </View>
       </Screen>
@@ -234,7 +288,16 @@ export default function FirstSentenceScreen() {
   // ── Mentor chào + mời nói ──────────────────────────────────────────────────
   return (
     <Screen edges={['top', 'bottom']}>
-      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: space[5], paddingTop: space[2] }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: space[5],
+          paddingTop: space[2],
+        }}
+      >
+        <Caption>Khoảnh khắc đầu tiên</Caption>
         <Pressable accessibilityRole="button" accessibilityLabel="Để sau" hitSlop={8} onPress={() => skip('later')}>
           <ThemedText variant="bodyStrong" color="faint">
             Để sau
@@ -249,7 +312,7 @@ export default function FirstSentenceScreen() {
           transition={{ type: 'timing', duration: motion.duration.slow }}
           style={{ alignItems: 'center', gap: space[4] }}
         >
-          <MentorAvatar emoji={mentorEmoji(mentor)} speaking={!recording && !processing} />
+          <MentorAvatar mentor={mentor} speaking={!recording && !processing} />
           <View style={{ gap: space[1], alignItems: 'center' }}>
             <ThemedText variant="caption" color="muted">
               {mentor ? MENTOR_META[mentor.code]?.tagline ?? 'Mentor của bạn' : 'Mentor của bạn'}
@@ -285,7 +348,7 @@ export default function FirstSentenceScreen() {
 
         <View style={{ alignItems: 'center', gap: space[3] }}>
           {processing ? (
-            <View style={{ alignItems: 'center', gap: space[2], height: 96, justifyContent: 'center' }}>
+            <View style={{ alignItems: 'center', gap: space[2], height: 132, justifyContent: 'center' }}>
               <ActivityIndicator size="large" color={c.accent} />
               <ThemedText variant="caption" color="muted">
                 {`${mName} đang lắng nghe…`}
@@ -293,28 +356,59 @@ export default function FirstSentenceScreen() {
             </View>
           ) : (
             <>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={recording ? 'Dừng ghi âm' : 'Bấm để nói'}
-                onPress={() => void (recording ? stopRecording() : startRecording())}
+              <View
                 style={{
-                  width: 76,
-                  height: 76,
+                  width: 108,
+                  height: 108,
                   borderRadius: radius.full,
-                  backgroundColor: recording ? c.danger : c.accent,
+                  backgroundColor: c.accentSoft,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                {recording ? (
-                  <Square size={28} color={c.onBrand} fill={c.onBrand} />
-                ) : (
-                  <Mic size={30} color={c.onAccent} strokeWidth={2.2} />
-                )}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={recording ? 'Dừng ghi âm' : 'Bấm để nói'}
+                  onPress={() => void (recording ? stopRecording() : startRecording())}
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: radius.full,
+                    backgroundColor: recording ? c.danger : c.accent,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {recording ? (
+                    <Square size={28} color={c.onBrand} fill={c.onBrand} />
+                  ) : (
+                    <Mic size={32} color={c.onAccent} strokeWidth={2.2} />
+                  )}
+                </Pressable>
+              </View>
+              <View style={{ alignItems: 'center', gap: 2 }}>
+                <ThemedText variant="bodyStrong">
+                  {recording ? 'Đang nghe… bấm để dừng' : 'Chạm & nói câu trên'}
+                </ThemedText>
+                <ThemedText variant="caption" color="muted">
+                  Sai cũng không sao — cứ thử thoải mái.
+                </ThemedText>
+              </View>
+              {/* Đường chủ động không dùng micro (UI v2) — cùng biến thể nghe–lặp
+                  lại như khi bị từ chối quyền, nhưng phễu tách được hai lý do. */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Chỉ nghe rồi lặp lại, không dùng micro"
+                hitSlop={10}
+                onPress={() => skip('no_mic_choice', 'echo')}
+                style={{ paddingVertical: space[2] }}
+              >
+                {/* textDecorationLine thay gạch-chân giả bằng border: border chỉ
+                    vẽ dưới dòng CUỐI khi label xuống dòng trên máy hẹp. */}
+                <ThemedText variant="label" color="secondary" style={{ textDecorationLine: 'underline' }}>
+                  Chỉ nghe — lặp lại (không dùng micro)
+                </ThemedText>
               </Pressable>
-              <ThemedText variant="caption" color="muted">
-                {recording ? 'Đang nghe… bấm để dừng' : 'Bấm micro rồi nói'}
-              </ThemedText>
             </>
           )}
         </View>
@@ -323,11 +417,17 @@ export default function FirstSentenceScreen() {
   )
 }
 
-function MentorAvatar({ emoji, speaking }: { emoji: string; speaking?: boolean }) {
+function MentorAvatar({ mentor, speaking }: { mentor: OnboardingMentor | null; speaking?: boolean }) {
   const c = useTheme().colors
+  // Vòng sáng lặp vô hạn: chạm WCAG 2.2.2 (chuyển động > 5 giây, không nút dừng).
+  // Giảm chuyển động → avatar tĩnh (F-7).
+  // Gọi hook vô điều kiện: `speaking && !useReducedMotion()` sẽ đoản mạch và bỏ
+  // qua lời gọi hook khi speaking falsy — vi phạm rules-of-hooks.
+  const reducedMotion = useReducedMotion()
+  const pulsing = speaking && !reducedMotion
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-      {speaking ? (
+      {pulsing ? (
         <MotiView
           from={{ scale: 1, opacity: 0.45 }}
           animate={{ scale: 1.35, opacity: 0 }}
@@ -341,22 +441,91 @@ function MentorAvatar({ emoji, speaking }: { emoji: string; speaking?: boolean }
           }}
         />
       ) : null}
+      {/* UI v2: monogram serif trên ô mực (bỏ avatar emoji — icon system v2). */}
+      <MentorMonogram mentor={mentor} size={84} />
+    </View>
+  )
+}
+
+/**
+ * Pill thành quả trên màn ăn mừng — nền dịu lấy từ chính màu token (hex + alpha).
+ * `color` PHẢI là hex 6 chữ số (vd theme.colors.orange/accentText); truyền chuỗi
+ * `rgba(...)` sẽ ghép thành màu không hợp lệ và nền lặng lẽ biến mất.
+ */
+function AchievementPill({ icon, color, label }: { icon?: LucideIconType; color: string; label: string }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: space[1],
+        backgroundColor: `${color}24`,
+        borderRadius: radius.sm,
+        paddingHorizontal: space[2] + 2,
+        paddingVertical: space[2],
+      }}
+    >
+      {icon ? <IconGlyph icon={icon} color={color} /> : <YellowSquare size={7} color={color} />}
+      <ThemedText
+        variant="caption"
+        style={{ fontFamily: fonts.bodySemi, fontSize: 10, lineHeight: 12, letterSpacing: 0.9, textTransform: 'uppercase', color }}
+      >
+        {label}
+      </ThemedText>
+    </View>
+  )
+}
+
+/** Một dòng trong thẻ "Tuần đầu của bạn". */
+function NextStepRow({
+  icon,
+  title,
+  sub,
+  last = false,
+}: {
+  icon: LucideIconType
+  title: string
+  sub: string
+  last?: boolean
+}) {
+  const c = useTheme().colors
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: space[3],
+        paddingHorizontal: space[4],
+        paddingVertical: space[3],
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: c.border,
+      }}
+    >
       <View
         style={{
-          width: 96,
-          height: 96,
-          borderRadius: radius.full,
-          backgroundColor: c.accentSoft,
-          borderWidth: 1.5,
-          borderColor: c.accent,
+          width: 34,
+          height: 34,
+          borderRadius: radius.md,
+          backgroundColor: c.surfaceSunken,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <ThemedText style={{ fontSize: 44, lineHeight: 54 }}>{emoji}</ThemedText>
+        <Icon icon={icon} size={17} color="secondary" strokeWidth={1.8} />
+      </View>
+      <View style={{ flex: 1, gap: 1 }}>
+        <ThemedText variant="bodyStrong">{title}</ThemedText>
+        <ThemedText variant="caption" color="secondary">
+          {sub}
+        </ThemedText>
       </View>
     </View>
   )
+}
+
+/** Icon nhỏ tô màu tuỳ ý (ngoài các role của <Icon/>). */
+function IconGlyph({ icon: LucideComponent, color }: { icon: LucideIconType; color: string }) {
+  return <LucideComponent size={13} color={color} strokeWidth={2} />
 }
 
 function SentenceCard({ sentence, hint, onPlay }: { sentence: string; hint?: string; onPlay: () => void }) {

@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 public class StudentClassroomService {
 
     private final TeacherClassRepository classRepository;
+    private final AssignmentAudienceService assignmentAudienceService;
     private final ClassStudentRepository classStudentRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassAssignmentRepository assignmentRepository;
@@ -47,6 +48,8 @@ public class StudentClassroomService {
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final ClassSessionRepository classSessionRepository;
     private final UserRepository userRepository;
+    /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
+    private final SubmissionFileUrlResolver submissionFileUrlResolver;
 
     @Transactional(readOnly = true)
     public List<MyClassroomDto> listMyClasses(Long studentId) {
@@ -117,7 +120,9 @@ public class StudentClassroomService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp học"));
 
         List<TeacherSummaryDto> teachers = teachersForClasses(List.of(classId)).getOrDefault(classId, List.of());
-        List<ClassAssignment> classAssignments = assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId);
+        // PR-8 (P06/AC14): thống kê chỉ tính bài học viên NÀY được thấy — nháp/bài của người khác vô hình.
+        List<ClassAssignment> classAssignments = assignmentAudienceService.visibleTo(studentId,
+                assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId));
         Map<Long, StudentAssignment> myByAssignmentId = classAssignments.isEmpty()
                 ? Map.of()
                 : studentAssignmentRepository.findByAssignmentIds(
@@ -166,7 +171,10 @@ public class StudentClassroomService {
         // they could not open. Left-join each assignment with the student's row and synthesise a
         // not-yet-started entry where none exists. AssignmentBackfillService keeps the rows in sync going
         // forward; this net covers any that are still missing (e.g. a pre-V260 join not yet backfilled).
-        List<ClassAssignment> classAssignments = assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId);
+        // PR-8 (P06/AC14): học viên chỉ thấy bài PUBLISHED giao cho MÌNH (không recipients = cả lớp)
+        // — lọc TRƯỚC synthesise, nếu không dòng not-started tự sinh sẽ làm lộ bài nháp/bài người khác.
+        List<ClassAssignment> classAssignments = assignmentAudienceService.visibleTo(studentId,
+                assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId));
         if (classAssignments.isEmpty()) return List.of();
 
         List<Long> assignmentIds = classAssignments.stream().map(ClassAssignment::getId).toList();
@@ -270,18 +278,10 @@ public class StudentClassroomService {
     }
 
     private StudentAssignmentDto toDto(StudentAssignment a, ClassAssignment ca) {
-        return new StudentAssignmentDto(
-                a.getId(), a.getAssignmentId(), a.getStudentId(), a.getStatus(),
-                a.getScore(), a.getFeedback(), a.getSubmittedAt(), a.getCreatedAt(),
-                ca != null ? ca.getTopic() : "",
-                ca != null ? ca.getDescription() : "",
-                ca != null ? ca.getAssignmentType() : "GENERAL",
-                ca != null ? ca.getDueDate() : null,
-                a.getSubmissionContent(),
-                a.getSubmissionFileUrl(),
-                ca != null ? ca.getAttachmentUrl() : null,
-                ca != null ? ca.getReferenceId() : null
-        );
+        // Student-facing: forStudent masks score/feedback until the grade is final (F01); file URL
+        // đi qua resolver vì bucket private (URL trần đã lưu không mở được).
+        return StudentAssignmentDto.forStudent(
+                a, ca, submissionFileUrlResolver.resolve(a.getSubmissionFileUrl()));
     }
 
     /**

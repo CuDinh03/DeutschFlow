@@ -1,0 +1,131 @@
+package com.deutschflow.ai.queue;
+
+import com.deutschflow.testsupport.AbstractPostgresIntegrationTest;
+import com.deutschflow.user.entity.User;
+import com.deutschflow.user.repository.UserRepository;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Chốt chặn chống lặp lại sự cố 10/06–23/08: khi AiJobWorker chết một thời gian dài, backlog job
+ * PENDING tích lại; lúc worker sống lại nó sẽ gọi AI thật cho những job đã hết giá trị.
+ *
+ * Hai lớp phòng vệ được kiểm ở đây:
+ *   1. claimPendingJobs KHÔNG nhận job quá hạn  → worker không đốt token.
+ *   2. StaleAiJobExpirer (logic thật: StaleAiJobMaintenance) đánh dấu FAILED job quá hạn → không
+ *      kẹt PENDING vĩnh viễn.
+ */
+@SpringBootTest
+class StaleAiJobGuardIntegrationTest extends AbstractPostgresIntegrationTest {
+
+    @Autowired private AiJobWorker worker;
+    // Bean LOGIC của expirer — xem lý do không autowire StaleAiJobExpirer ở expirerFailsOnlyStaleJobs.
+    @Autowired private StaleAiJobMaintenance maintenance;
+    @Autowired private AiJobRepository aiJobRepository;
+    @Autowired private UserRepository userRepository;
+    @Autowired private JdbcTemplate jdbcTemplate;
+
+    private Long newJobAgedDays(int days) {
+        User u = userRepository.save(User.builder()
+                .email("stale-guard-" + System.nanoTime() + "@local.test")
+                .passwordHash("$2a$10$h").displayName("Stale Guard IT").role(User.Role.STUDENT).build());
+        AiJob job = aiJobRepository.save(AiJob.builder()
+                .jobType("UNKNOWN_TYPE_FOR_TEST").userId(u.getId()).payload(Map.of("x", 1)).build());
+        // created_at là updatable=false ở tầng JPA → lùi tuổi bằng SQL trực tiếp.
+        jdbcTemplate.update("UPDATE ai_jobs SET created_at = NOW() - make_interval(days => ?) WHERE id = ?",
+                days, job.getId());
+        return job.getId();
+    }
+
+    @Test
+    @DisplayName("worker KHÔNG claim job PENDING quá hạn — không gọi AI cho backlog cũ")
+    void workerSkipsStalePendingJob() {
+        Long staleId = newJobAgedDays(30);
+
+        worker.processPendingJobs();
+
+        AiJob after = aiJobRepository.findById(staleId).orElseThrow();
+        assertThat(after.getStatus()).isEqualTo(AiJob.STATUS_PENDING);
+        assertThat(after.getResult()).isNull();
+    }
+
+    @Test
+    @DisplayName("worker VẪN claim job PENDING còn hạn — hàng đợi bình thường không bị ảnh hưởng")
+    void workerStillClaimsFreshJob() {
+        Long freshId = newJobAgedDays(1);
+
+        // CÔ LẬP DỮ LIỆU: 209 IT dùng chung MỘT Postgres, suite khác có thể để lại job PENDING.
+        // Batch claim LIMIT 5 ORDER BY created_at ASC mà gặp ≥5 job cũ hơn là job của test rớt khỏi
+        // batch → một lần gọi không claim tới nó (tái hiện được tất định bằng cách seed 5 job lùi
+        // 2 ngày). Đánh FAILED mọi job PENDING không phải của test trước khi claim.
+        jdbcTemplate.update(
+                "UPDATE ai_jobs SET status = 'FAILED', error_msg = 'IT_SWEEP_COMPETING_PENDING' "
+                        + "WHERE status = 'PENDING' AND id <> ?", freshId);
+
+        AiJob after = processUntilCompleted(freshId);
+
+        assertThat(after.getStatus()).isEqualTo(AiJob.STATUS_COMPLETED);
+    }
+
+    /**
+     * Gọi processPendingJobs LẶP CÓ THỜI HẠN thay vì đúng một lần — chống race SKIP LOCKED:
+     * processPendingJobs KHÔNG mang @SchedulerLock, scheduler 2s của MỌI Spring context còn sống
+     * trong context-cache CI đều claim trên cùng DB. Tick của context khác giữ FOR UPDATE đúng lúc
+     * test claim → lời gọi của test bị SKIP LOCKED bỏ qua, còn assert đọc READ COMMITTED trước khi
+     * tx kia commit nên vẫn thấy PENDING (đỏ chỉ trên CI chậm; local tái hiện ~30% khi ép claim tx
+     * ngoài giữ khoá kéo dài). Dù context nào claim, job loại lạ đều kết thúc COMPLETED — chờ tới
+     * trạng thái đích, assertion giữ nguyên COMPLETED, không nới.
+     */
+    private AiJob processUntilCompleted(Long jobId) {
+        long deadline = System.currentTimeMillis() + 15_000;
+        while (true) {
+            worker.processPendingJobs();
+            AiJob job = aiJobRepository.findById(jobId).orElseThrow();
+            if (AiJob.STATUS_COMPLETED.equals(job.getStatus()) || System.currentTimeMillis() >= deadline) {
+                return job;
+            }
+            try {
+                Thread.sleep(150);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return job;
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("expirer đánh dấu FAILED job quá hạn và bỏ qua job còn hạn")
+    void expirerFailsOnlyStaleJobs() {
+        Long staleId = newJobAgedDays(30);
+        Long freshId = newJobAgedDays(1);
+
+        // Gọi thẳng bean LOGIC, KHÔNG qua entry point @SchedulerLock (StaleAiJobExpirer): khoá
+        // 'staleAiJobExpire' nằm trong bảng shedlock của DB dùng chung — cron 03:15 UTC của một
+        // context khác còn sống trong context-cache (CI hay khởi động đúng cửa sổ 03:14–03:16),
+        // hoặc lần chạy suite trước đó <60s trên cùng DB (lockAtLeastFor=PT1M), làm lời gọi tay bị
+        // skip im lặng → stale job vẫn PENDING → đỏ giả (đã tái hiện bằng chạy lặp <60s). Ràng buộc
+        // "method @SchedulerLock phải trả void" mà bài này từng phủ ké đã chuyển về
+        // SchedulerLockVoidContractTest — quét bytecode toàn bộ entry point, không đụng ShedLock.
+        maintenance.expireStalePending();
+
+        AiJob stale = aiJobRepository.findById(staleId).orElseThrow();
+        assertThat(stale.getStatus()).isEqualTo(AiJob.STATUS_FAILED);
+        assertThat(stale.getErrorMsg()).contains("STALE_PENDING_EXPIRED");
+        AiJob fresh = aiJobRepository.findById(freshId).orElseThrow();
+        // CHỐNG FLAKY: AiJobWorker @Scheduled(2s) chạy trong context IT có thể claim job còn hạn
+        // giữa chừng (PENDING → PROCESSING/COMPLETED) — đó là hành vi ĐÚNG của hàng đợi, không phải
+        // lỗi của expirer. Hợp đồng cần kiểm ở đây chỉ là: expirer KHÔNG đánh FAILED job còn hạn.
+        assertThat(fresh.getStatus()).isNotEqualTo(AiJob.STATUS_FAILED);
+        assertThat(fresh.getErrorMsg() == null || !fresh.getErrorMsg().contains("STALE_PENDING_EXPIRED"))
+                .as("expirer không được đụng job còn hạn (errorMsg=%s)", fresh.getErrorMsg())
+                .isTrue();
+    }
+
+}

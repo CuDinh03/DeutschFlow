@@ -78,7 +78,25 @@
       "reviewNotesPlaceholder": "Ghi chú duyệt (tuỳ chọn)…",
       "reviewMarkDone": "Đã duyệt",
       "reviewSaving": "Đang lưu…",
-      "reviewSaved": "Đã duyệt \"{word}\""
+      "reviewSaved": "Đã duyệt \"{word}\"",
+      "tabGalerie": "Galerie",
+      "galerie": {
+        "statConceptMissing": "Từ chờ concept",
+        "statReady": "Concept chờ vẽ",
+        "statShowing": "Đang hiển thị",
+        "filterLabel": "Trạng thái",
+        "statusAll": "Tất cả",
+        "runConcepts": "Sinh concept ({count})",
+        "runGenerate": "Vẽ SVG ({count})",
+        "generating": "Đang vẽ…",
+        "runDone": "Xong: {succeeded}/{requested} thành công, {failed} lỗi, còn {remaining} chờ",
+        "decisionOk": "Đã ghi quyết định {decision}",
+        "approve": "Duyệt",
+        "regenerate": "Vẽ lại",
+        "reject": "Loại",
+        "noArtwork": "Chưa có tranh",
+        "empty": "Không có từ nào ở trạng thái này."
+      }
     },
     "grammarReview": {
       "title": "Duyệt bài tập ngữ pháp",

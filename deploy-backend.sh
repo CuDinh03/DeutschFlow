@@ -240,13 +240,33 @@ error()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 EC2_DIR="/home/ubuntu/DeutschFlow"
 ENV_FILE="$EC2_DIR/.env.production"
 
+# Materialize token scrape Prometheus từ .env.production — MỘT nguồn sự thật, không có bước tạo
+# file bằng tay. prometheus.yml đọc credentials_file MỖI lần scrape nên đổi token không cần
+# restart prometheus. File nằm trong .gitignore ⇒ sống sót qua git reset --hard ở bước [2/6].
+PROM_TOKEN=$(grep -E '^PROMETHEUS_SCRAPE_TOKEN=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- || true)
+if [ -n "$PROM_TOKEN" ]; then
+  printf '%s' "$PROM_TOKEN" > "$EC2_DIR/docker/prometheus/scrape-token"
+  # 644, KHÔNG PHẢI 600: container prometheus chạy user nobody (65534) — 600 chủ ubuntu làm
+  # credentials_file đọc fail ⇒ scrape down ("Get ...: unable to read authorization credentials
+  # file ... permission denied", sự cố 02/09 ngay sau deploy #468). World-readable chấp nhận
+  # được: file chỉ gác endpoint metrics, và ai đọc được host thì cũng đọc được .env.production.
+  chmod 644 "$EC2_DIR/docker/prometheus/scrape-token"
+  info "Scrape token Prometheus: đã ghi docker/prometheus/scrape-token"
+else
+  warn "PROMETHEUS_SCRAPE_TOKEN chưa có trong .env.production — scrape /actuator/prometheus sẽ 401 (fail-closed)"
+fi
+
 # ── [1/6] Disk space check ────────────────────────────────────
 echo ""
 info "[1/6] Kiểm tra disk space..."
 DISK_PCT=$(df / | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
 if [ "$DISK_PCT" -gt 90 ]; then
   warn "Disk ${DISK_PCT}% — dọn dẹp Docker trước khi build..."
-  sudo docker system prune -f --volumes 2>/dev/null || true
+  # H2 audit lag 02/09: KHÔNG --volumes. Prune volume chỉ xoá volume "không được container nào
+  # dùng" — nghĩa là đúng lúc observability stack lỡ down (compose down/sự cố) thì lần deploy
+  # disk-đầy kế tiếp sẽ xoá sạch prometheus_data/grafana_data/loki_data không lời báo trước.
+  # Dữ liệu dashboard + lịch sử metric là thứ đang dùng để chẩn lag — không phải rác dọn được.
+  sudo docker system prune -f 2>/dev/null || true
 elif [ "$DISK_PCT" -gt 80 ]; then
   warn "Disk ${DISK_PCT}% — dọn images cũ..."
   sudo docker image prune -f 2>/dev/null || true
@@ -364,6 +384,11 @@ DOCKER_ARGS=(
   # native+heap trôi tự do tới lúc bị giết (image không set JAVA_OPTS nào trước đây).
   --memory="2200m"
   -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=65.0"
+  # H2 audit lag 02/09: chặn log container phình vô hạn trên đĩa 59% — json-file mặc định KHÔNG
+  # rotate. Đặt ngay tại docker run (không cần sửa daemon.json + restart dockerd). 50m × 3 file
+  # ≈ trần 150MB cho backend; promtail vẫn đọc được vì nó tail file hiện hành.
+  --log-opt max-size=50m
+  --log-opt max-file=3
 )
 if [ "$HAS_GOOGLE_SA" = "true" ] && [ -f /home/ubuntu/google-sa.json ]; then
   DOCKER_ARGS+=(-v /home/ubuntu/google-sa.json:/run/secrets/google-sa.json:ro)
@@ -373,11 +398,19 @@ else
 fi
 
 # Khởi động GREEN
+# 127.0.0.1: chỉ hở cổng cho chính máy này, KHÔNG hở ra mạng ngoài — cùng khuôn mẫu với Redis ở trên.
+# Docker publish mặc định bind 0.0.0.0 VÀ tự chèn rule iptables đứng TRƯỚC ufw, nên "ufw deny 8081"
+# không cứu được; ràng buộc phải đặt ngay tại chỗ publish này.
+# Vì sao an toàn — đã rà từng đường phụ thuộc:
+#   • health-check + warm-up bên dưới curl localhost:8081 — chạy TRÊN host ⇒ vẫn tới.
+#   • nginx cũng chạy trên host, proxy_pass tới localhost ⇒ vẫn tới.
+#   • Prometheus scrape 'backend:8080' qua DNS mạng deutschflow-net, KHÔNG qua cổng publish này.
+#   • EDGE_TTS_URL=172.17.0.1:5050 là chiều container→host, không liên quan.
 sudo docker rm -f deutschflow-backend-green 2>/dev/null || true
 sudo docker run -d \
   --name deutschflow-backend-green \
   "${DOCKER_ARGS[@]}" \
-  -p 8081:8080 \
+  -p 127.0.0.1:8081:8080 \
   deutschflow-backend:new
 
 # Gắn GREEN vào deutschflow-net để resolve DNS 'deutschflow-redis'. Default bridge vẫn là primary
@@ -449,50 +482,101 @@ docker_force_remove() {
   return 0
 }
 
-# Graceful stop BLUE (must free name before promote)
+# Thứ tự promote — GREEN phải gỡ TRƯỚC BLUE (sự cố 25/08: GREEN kẹt dockerd "removal in
+# progress" SAU khi BLUE đã gỡ ⇒ :8080 trống ~15-20'). GREEN chỉ là instance kiểm chứng,
+# image :new đã chứng minh boot được; nếu dockerd kẹt thì abort ngay khi BLUE còn phục vụ.
+info "  Gỡ GREEN (instance kiểm chứng) trước khi đụng BLUE..."
+if ! docker_force_remove deutschflow-backend-green; then
+  error "GREEN không gỡ được (dockerd kẹt?) — BLUE VẪN phục vụ :8080, hủy promote an toàn."
+  error "Chờ vài phút cho dockerd nhả container rồi chạy lại script."
+  exit 1
+fi
+success "  GREEN đã gỡ — dockerd thao tác container bình thường"
+
+# Graceful stop BLUE (must free name + :8080 before promote)
 info "  Graceful stop BLUE (timeout 30s)..."
 if ! docker_force_remove deutschflow-backend; then
-  error "BLUE chưa được gỡ — giữ GREEN trên :8081, hủy promote."
+  error "BLUE chưa được gỡ — :8080 vẫn do BLUE giữ, hủy promote."
   exit 1
 fi
 success "  BLUE đã dừng và gỡ"
 
-# Promote GREEN → port 8080
-if ! docker_force_remove deutschflow-backend-green; then
-  error "GREEN chưa được gỡ — kiểm tra thủ công trên EC2."
-  exit 1
-fi
-
+# 127.0.0.1 — xem ghi chú ở khối GREEN. Backend CHỈ được tiếp nhận request qua nginx: mọi rate-limit
+# theo IP (ở app lẫn ở nginx) đọc client IP từ X-Forwarded-For do chính nginx thêm vào. Nếu request
+# tới thẳng container thì header đó do người gọi tự khai ⇒ throttle mất sạch hiệu lực.
 if ! sudo docker run -d \
   --name deutschflow-backend \
   "${DOCKER_ARGS[@]}" \
-  -p 8080:8080 \
+  -p 127.0.0.1:8080:8080 \
   --restart unless-stopped \
   deutschflow-backend:new; then
   error "Không khởi động được deutschflow-backend trên :8080"
   sudo docker ps -a --filter name=deutschflow-backend --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+  # BLUE đã gỡ ở trên ⇒ :8080 đang trống. Thử tự cứu bằng image cũ (:latest chưa bị re-tag
+  # ở bước này — vẫn là bản đang chạy trước deploy) thay vì để prod chết chờ người.
+  warn "Thử khôi phục bản CŨ từ image deutschflow-backend:latest..."
+  sudo docker rm -f deutschflow-backend 2>/dev/null || true
+  if sudo docker run -d \
+    --name deutschflow-backend \
+    "${DOCKER_ARGS[@]}" \
+    -p 127.0.0.1:8080:8080 \
+    --restart unless-stopped \
+    deutschflow-backend:latest 2>/dev/null; then
+    sudo docker network connect deutschflow-net deutschflow-backend 2>/dev/null || true
+    warn "Đã khôi phục BẢN CŨ trên :8080 — deploy THẤT BẠI nhưng prod không trống."
+  else
+    error ":8080 ĐANG TRỐNG (khôi phục bản cũ cũng thất bại) — xử lý tay NGAY trên EC2."
+  fi
   exit 1
 fi
 
 # Gắn container production vào deutschflow-net (Redis DNS). Default bridge vẫn primary → EDGE_TTS giữ nguyên.
 sudo docker network connect deutschflow-net deutschflow-backend 2>/dev/null || true
 
-# Tag + cleanup
+# Prometheus (docker-compose) nằm trên network CÓ PREFIX project (thường deutschflow_deutschflow-net),
+# khác network trên ⇒ scrape backend chết im lặng: dashboard + alert không có dữ liệu backend nào.
+# Tự dò network thật của prometheus rồi gắn backend vào đó; prometheus.yml scrape deutschflow-backend:8080.
+PROM_NET=$(sudo docker inspect deutschflow-prometheus --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}' 2>/dev/null | head -n1 || true)
+if [ -n "$PROM_NET" ] && [ "$PROM_NET" != "deutschflow-net" ]; then
+  sudo docker network connect "$PROM_NET" deutschflow-backend 2>/dev/null \
+    && info "  Backend đã vào network Prometheus ($PROM_NET) — scrape hoạt động" || true
+fi
+# Nạp lại scrape config + alert rules: thư mục docker/prometheus được bind-mount từ repo — bước
+# [2/6] git pull đã cập nhật FILE trên đĩa, nhưng prometheus đang chạy vẫn giữ config CŨ trong RAM
+# (target cũ `backend:8080` chết) cho tới khi được SIGHUP/restart. SIGHUP không đụng TSDB.
+sudo docker kill -s HUP deutschflow-prometheus >/dev/null 2>&1 \
+  && info "  Prometheus đã nạp lại config (SIGHUP)" \
+  || { sudo docker restart deutschflow-prometheus >/dev/null 2>&1 \
+       && info "  Prometheus restart để nạp config" || true; }
+
+# Giữ bản ĐANG CHẠY trước deploy dưới tag :prev — thiếu nó thì `image prune` bên dưới xoá image cũ
+# ngay giữa deploy, và khi bản mới hỏng (pass health nhưng lỗi nghiệp vụ) không còn đường rollback
+# nào ngoài rebuild ~10 phút trên máy 2 vCPU. Rollback tay:
+#   sudo docker rm -f deutschflow-backend && chạy lại docker run như trên với image deutschflow-backend:prev
+sudo docker tag deutschflow-backend:latest deutschflow-backend:prev 2>/dev/null || true
+
+# Tag + cleanup (:prev vừa gắn giữ image cũ sống qua prune)
 sudo docker tag deutschflow-backend:new deutschflow-backend:latest 2>/dev/null || true
 sudo docker rmi deutschflow-backend:new 2>/dev/null || true
 sudo docker image prune -f 2>/dev/null || true
 
-# Final health check (tối đa 90s)
-info "  Chờ backend healthy trên port 8080 (tối đa 90s)..."
+# Final health check — 300s, KHÔNG phải 90s: JVM boot mất ~2 phút, cửa sổ 90s từng báo
+# "DEPLOY THẤT BẠI" oan (25/08) trong khi container --restart unless-stopped vẫn tự lên sau.
+# Đồng bộ với cửa sổ health-check GREEN (300s) ở trên.
+info "  Chờ backend healthy trên port 8080 (tối đa 300s — JVM boot ~2 phút)..."
 FINAL_HEALTH=""
-for i in $(seq 1 18); do
+for i in $(seq 1 60); do
   sleep 5
   FINAL_HEALTH=$(curl -sf http://localhost:8080/actuator/health 2>/dev/null || echo "")
   if echo "$FINAL_HEALTH" | grep -q '"UP"'; then
     success "  Backend healthy sau $((i * 5))s"
     break
   fi
-  echo "    Chờ... ($((i * 5))s / 90s)"
+  if ! sudo docker ps --format '{{.Names}}' | grep -qx "deutschflow-backend"; then
+    warn "  Container không chạy — chờ restart policy kéo lên... ($((i * 5))s / 300s)"
+  else
+    echo "    Chờ... ($((i * 5))s / 300s)"
+  fi
 done
 
 # ── Final Report ──────────────────────────────────────────────
@@ -521,7 +605,10 @@ if echo "$FINAL_HEALTH" | grep -q '"UP"'; then
   echo "════════════════════════════════════════════════"
 else
   echo "════════════════════════════════════════════════"
-  echo -e "  \033[0;31mDEPLOY THẤT BẠI! Backend không healthy.\033[0m"
+  echo -e "  \033[0;31mDEPLOY THẤT BẠI! Backend không healthy sau 300s.\033[0m"
+  echo "  Container có --restart unless-stopped — kiểm tra lại"
+  echo "  curl https://api.mydeutschflow.com/actuator/health sau vài phút"
+  echo "  trước khi can thiệp tay."
   echo "════════════════════════════════════════════════"
   echo ""
   echo "=== Backend logs (50 dòng cuối) ==="

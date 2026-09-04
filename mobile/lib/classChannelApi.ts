@@ -21,9 +21,15 @@ export const classChannelApi = {
   list: (classId: number) =>
     api.get<ClassMessage[]>(`/v2/classes/${classId}/channel/messages`).then((r) => r.data ?? []),
 
-  /** Post a message to the class channel. */
-  post: (classId: number, body: string) =>
-    api.post<ClassMessage>(`/v2/classes/${classId}/channel/messages`, { body }).then((r) => r.data),
+  /**
+   * Post a message to the class channel. `clientTempId` (tuỳ chọn) là idempotency key — outbox
+   * truyền tempId của item, server thấy key đã dùng thì trả lại đúng bản ghi cũ thay vì tạo tin
+   * trùng (F-13). Bỏ trống thì JSON.stringify tự lược field — hợp đồng với backend cũ không đổi.
+   */
+  post: (classId: number, body: string, clientTempId?: string) =>
+    api
+      .post<ClassMessage>(`/v2/classes/${classId}/channel/messages`, { body, clientTempId })
+      .then((r) => r.data),
 
   /** Soft-delete a message (own, or any if the caller is a teacher). */
   remove: (classId: number, messageId: number) =>

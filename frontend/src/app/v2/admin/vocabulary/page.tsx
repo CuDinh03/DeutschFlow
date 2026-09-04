@@ -9,6 +9,7 @@ import useAdminData from '@/hooks/useAdminData'
 import type { VocabularyImageReviewResponse } from '@/lib/vocabularyImageApi'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkModal } from '@/components/ui-v2'
 import VocabReviewQueue from './VocabReviewQueue'
+import GalerieReviewGrid from './GalerieReviewGrid'
 
 // ── Green header accent (vocab screen overrides the admin-navy chrome) ────────
 const GREEN = '#1E9E61'
@@ -57,7 +58,7 @@ export default function V2AdminVocabPage() {
   const t = useTranslations('v2.adminContent.vocabulary')
   const tc = useTranslations('v2.common')
   const [target, setTarget] = useState<VocabWord | null>(null)
-  const [tab, setTab] = useState<'images' | 'review'>('images')
+  const [tab, setTab] = useState<'images' | 'review' | 'galerie'>('images')
 
   const { data, loading, error, reload } = useAdminData<VocabWord[]>({
     initialData: [],
@@ -103,7 +104,7 @@ export default function V2AdminVocabPage() {
       />
 
       <div className="border-b border-ga-line px-4 pt-4 sm:px-6 lg:px-10" role="tablist">
-        {(['images', 'review'] as const).map((k) => (
+        {(['images', 'review', 'galerie'] as const).map((k) => (
           <button
             key={k}
             type="button"
@@ -115,12 +116,14 @@ export default function V2AdminVocabPage() {
             }`}
             style={tab === k ? { borderColor: GREEN } : undefined}
           >
-            {t(k === 'images' ? 'tabImages' : 'tabReview')}
+            {t(k === 'images' ? 'tabImages' : k === 'review' ? 'tabReview' : 'tabGalerie')}
           </button>
         ))}
       </div>
 
-      {tab === 'review' ? (
+      {tab === 'galerie' ? (
+        <GalerieReviewGrid />
+      ) : tab === 'review' ? (
         <VocabReviewQueue />
       ) : (
       <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">

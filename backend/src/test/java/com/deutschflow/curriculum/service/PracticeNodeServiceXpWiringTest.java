@@ -61,6 +61,7 @@ class PracticeNodeServiceXpWiringTest {
         service = new PracticeNodeService(
                 jdbcTemplate,
                 groqChatClient,
+                org.mockito.Mockito.mock(com.deutschflow.ai.tier.LlmTierResolver.class),
                 aiUsageLedgerService,
                 objectMapper,
                 asyncJobService,

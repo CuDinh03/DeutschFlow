@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({
   recordTokenRefresh: vi.fn(),
   clearTokens: vi.fn(),
   setNeedsReauth: vi.fn(),
+  maintenanceSignal: vi.fn(),
 }))
 
 vi.mock('@/lib/authSession', () => ({
@@ -26,6 +27,11 @@ vi.mock('@/stores/useAuthRecoveryStore', () => ({
   useAuthRecoveryStore: { getState: () => ({ setNeedsReauth: h.setNeedsReauth }) },
 }))
 
+// Store bảo trì: mock spy — signal() thật sẽ tự probe (fetch mạng) trong môi trường test.
+vi.mock('@/stores/useMaintenanceStore', () => ({
+  useMaintenanceStore: { getState: () => ({ signal: h.maintenanceSignal }) },
+}))
+
 type AdapterPlan = {
   // Count of POST /auth/refresh calls the adapter has seen.
   refreshCount: number
@@ -36,7 +42,9 @@ type AdapterPlan = {
  * that routes by URL. A rejected promise with a `.response` is how axios surfaces an HTTP error to the
  * interceptor — resolving would be treated as success.
  */
-async function bootstrap(route: (url: string, plan: AdapterPlan) => { status: number; data?: unknown }) {
+async function bootstrap(
+  route: (url: string, plan: AdapterPlan) => { status: number; data?: unknown; headers?: Record<string, string> },
+) {
   vi.resetModules()
   h.getAccessToken.mockReturnValue(null)
   h.getRefreshToken.mockReturnValue(null)
@@ -50,7 +58,7 @@ async function bootstrap(route: (url: string, plan: AdapterPlan) => { status: nu
     const url = `${config.baseURL ?? ''}${config.url ?? ''}`
     if (url.includes('/auth/refresh')) plan.refreshCount += 1
     const out = route(url, plan)
-    const response = { status: out.status, statusText: '', data: out.data ?? {}, headers: {}, config }
+    const response = { status: out.status, statusText: '', data: out.data ?? {}, headers: out.headers ?? {}, config }
     if (out.status >= 200 && out.status < 300) {
       return response as never
     }
@@ -68,6 +76,7 @@ beforeEach(() => {
   h.recordTokenRefresh.mockClear()
   h.clearTokens.mockClear()
   h.setNeedsReauth.mockClear()
+  h.maintenanceSignal.mockClear()
 })
 
 describe('api interceptor — refresh-storm latch', () => {
@@ -140,4 +149,104 @@ describe('api interceptor — refresh-storm latch', () => {
     expect(h.recordTokenRefresh).toHaveBeenCalledTimes(1)
     expect(h.clearTokens).not.toHaveBeenCalled()
   })
+})
+
+// W6 audit lag 02/09 — kỷ luật retry: 1 lần, và CHỈ cho 502/503 (+ lỗi mạng). 500 là bug xác
+// định — retry chỉ nhân đôi thời gian chờ và tải; 504 nghĩa là upstream đã treo hết một vòng
+// timeout của nginx rồi.
+describe('api interceptor — transient-only retry (W6)', () => {
+  it('does NOT retry a 500 (deterministic server bug)', async () => {
+    let calls = 0
+    const { api } = await bootstrap(() => {
+      calls += 1
+      return { status: 500, data: { message: 'boom' } }
+    })
+
+    await expect(api.get('/anything')).rejects.toMatchObject({ response: { status: 500 } })
+    expect(calls).toBe(1)
+  })
+
+  it('retries a 503 exactly ONCE then surfaces the error', async () => {
+    let calls = 0
+    const { api } = await bootstrap(() => {
+      calls += 1
+      return { status: 503, data: { message: 'brownout' } }
+    })
+
+    await expect(api.get('/anything')).rejects.toMatchObject({ response: { status: 503 } })
+    expect(calls).toBe(2)
+  }, 10_000)
+
+  it('a 502 recovers on the single retry (deploy promote window)', async () => {
+    let calls = 0
+    const { api } = await bootstrap(() => {
+      calls += 1
+      return calls === 1 ? { status: 502, data: {} } : { status: 200, data: { ok: true } }
+    })
+
+    const res = await api.get<{ ok: boolean }>('/anything')
+    expect(res.data).toEqual({ ok: true })
+    expect(calls).toBe(2)
+  }, 10_000)
+
+  it('never retries a POST, even on 503', async () => {
+    let calls = 0
+    const { api } = await bootstrap(() => {
+      calls += 1
+      return { status: 503, data: {} }
+    })
+
+    await expect(api.post('/grade', { x: 1 })).rejects.toMatchObject({ response: { status: 503 } })
+    expect(calls).toBe(1)
+  })
+})
+
+// Thiết kế plans/2026-09-03 §7: 503 bảo trì là server nghỉ CÓ CHỦ ĐÍCH — interceptor
+// (đăng ký TRƯỚC retry) bắn tín hiệu vào store và retry KHÔNG được lặp lại request.
+describe('api interceptor — maintenance mode', () => {
+  const MAINTENANCE_BODY = {
+    type: 'https://deutschflow.com/errors/maintenance',
+    status: 503,
+    detail: 'Hệ thống đang bảo trì, dự kiến hoạt động lại lúc 23:30.',
+    extensions: { code: 'MAINTENANCE', windowId: 12, title: 'Nâng cấp CSDL', endsAtUtc: '2026-09-10T16:30:00Z' },
+  }
+
+  it('503 code=MAINTENANCE: signal store + KHÔNG retry (khác 503 thường vốn retry 1 lần)', async () => {
+    let calls = 0
+    const { api } = await bootstrap(() => {
+      calls += 1
+      return { status: 503, data: MAINTENANCE_BODY }
+    })
+
+    await expect(api.get('/anything')).rejects.toMatchObject({ response: { status: 503 } })
+    expect(calls).toBe(1) // không nhân tải lên server đang nghỉ
+    expect(h.maintenanceSignal).toHaveBeenCalledTimes(1)
+    expect(h.maintenanceSignal).toHaveBeenCalledWith(
+      expect.objectContaining({ windowId: 12, title: 'Nâng cấp CSDL', endsAtUtc: '2026-09-10T16:30:00Z' }),
+    )
+  })
+
+  it('nhánh nginx tĩnh: header X-DF-Maintenance cũng là tín hiệu, kể cả body không parse được', async () => {
+    let calls = 0
+    const { api } = await bootstrap(() => {
+      calls += 1
+      return { status: 503, data: 'Service Unavailable', headers: { 'x-df-maintenance': '1' } }
+    })
+
+    await expect(api.get('/anything')).rejects.toMatchObject({ response: { status: 503 } })
+    expect(calls).toBe(1)
+    expect(h.maintenanceSignal).toHaveBeenCalledTimes(1)
+  })
+
+  it('503 thường (không mã bảo trì) giữ nguyên hành vi retry-một-lần, không signal', async () => {
+    let calls = 0
+    const { api } = await bootstrap(() => {
+      calls += 1
+      return { status: 503, data: { message: 'brownout' } }
+    })
+
+    await expect(api.get('/anything')).rejects.toMatchObject({ response: { status: 503 } })
+    expect(calls).toBe(2)
+    expect(h.maintenanceSignal).not.toHaveBeenCalled()
+  }, 10_000)
 })

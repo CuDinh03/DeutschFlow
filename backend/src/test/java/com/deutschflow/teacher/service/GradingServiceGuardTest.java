@@ -28,6 +28,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import com.deutschflow.media.service.S3StorageService;
+import static org.mockito.Mockito.mock;
 
 /**
  * D1 regression: {@code aiGradeAssignment} PHẢI có status-guard — AI chấm không được ghi đè điểm GV
@@ -46,14 +48,24 @@ class GradingServiceGuardTest {
     @Mock OpenAiChatClient openAiChatClient;
     @Mock AiUsageLedgerService aiUsageLedgerService;
     @Mock GradingModelConfig gradingModelConfig;
+    @Mock com.deutschflow.ai.tier.LlmTierResolver llmTierResolver;
     @Mock com.deutschflow.material.service.MaterialService materialService;
 
     private GradingService gradingService() {
+        org.mockito.Mockito.lenient()
+                .when(llmTierResolver.spec(com.deutschflow.ai.tier.LlmTier.GRADING_EXAM))
+                .thenReturn(new com.deutschflow.ai.tier.TierSpec(
+                        com.deutschflow.ai.tier.LlmTier.GRADING_EXAM, "openai/gpt-oss-120b",
+                        null, null, null, null, null, null, "low", false, false));
         return new GradingService(
                 studentAssignmentRepository, classAssignmentRepository, classStudentRepository,
                 classTeacherRepository, teacherClassRepository, userRepository,
                 userNotificationService, openAiChatClient, aiUsageLedgerService, gradingModelConfig,
-                materialService);
+                llmTierResolver, materialService,
+                // Bucket private ⇒ link file bài nộp phải được ký lại. Truyền resolver THẬT với
+                // S3 mock: objectKeyFromOwnUrl trả null ⇒ resolve() nhả nguyên URL đã lưu, tức
+                // đúng hành vi các test này vốn khẳng định.
+                new SubmissionFileUrlResolver(mock(S3StorageService.class)));
     }
 
     @Test
@@ -104,7 +116,7 @@ class GradingServiceGuardTest {
         when(studentAssignmentRepository.findById(7L)).thenReturn(Optional.of(sa));
         when(classAssignmentRepository.findById(9L)).thenReturn(Optional.empty());
         when(gradingModelConfig.model()).thenReturn("llama-3.3-70b-versatile");
-        when(openAiChatClient.chatCompletion(any(), any(), anyDouble(), any()))
+        when(openAiChatClient.chatCompletionForTier(any(), any(), anyDouble(), any()))
                 .thenReturn(new AiChatCompletionResult(
                         "{\"score\":82,\"feedback\":\"gut\"}", null, "groq", "llama-3.3-70b-versatile"));
 
@@ -156,7 +168,7 @@ class GradingServiceGuardTest {
         when(studentAssignmentRepository.findById(8L)).thenReturn(Optional.of(sa));
         when(classAssignmentRepository.findById(9L)).thenReturn(Optional.empty());
         when(gradingModelConfig.model()).thenReturn("llama-3.3-70b-versatile");
-        when(openAiChatClient.chatCompletion(any(), any(), anyDouble(), any()))
+        when(openAiChatClient.chatCompletionForTier(any(), any(), anyDouble(), any()))
                 .thenReturn(new AiChatCompletionResult(
                         "{\"score\":60,\"feedback\":\"ok\"}", null, "groq", "llama-3.3-70b-versatile"));
 

@@ -136,7 +136,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   const handleSpeak = useCallback(
     (text: string) => {
       if (selectedCompanion) {
-        speakWithPersona(text, selectedCompanion.id, selectedCompanion.voiceFile);
+        speakWithPersona(text, selectedCompanion.id);
       } else {
         speak(text);
       }
@@ -163,6 +163,8 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   const {
     messages,
     lastSuggestions,
+    suggestionsLoading,
+    requestSuggestions,
     quota,
     quotaBlocked,
     autoTtsEnabled,
@@ -683,6 +685,8 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
         </main>
 
         <SpeakingChatSidebar
+          suggestionsLoading={suggestionsLoading}
+          onRequestSuggestions={requestSuggestions}
           isListening={isListening}
           inputText={inputText}
           streamStatus={streamStatus}
@@ -729,6 +733,8 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
       />
 
       <SpeakingMobileCopilotSheet
+        suggestionsLoading={suggestionsLoading}
+        onRequestSuggestions={requestSuggestions}
         open={mobileCopilotOpen}
         onClose={() => setMobileCopilotOpen(false)}
         showSuggestions={showSuggestions}

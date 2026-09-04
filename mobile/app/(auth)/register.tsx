@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { View, KeyboardAvoidingView, Platform, Alert, ScrollView, Pressable } from 'react-native'
 import { router, Link } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
 import { Check } from 'lucide-react-native'
-import api from '@/lib/api'
+import api, { apiMessage } from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { setTokens } from '@/lib/auth'
 import { captureEvent } from '@/lib/analytics'
+import { clearOnboardingDraft } from '@/lib/onboardingDraft'
 import { passwordStrength } from '@/lib/passwordStrength'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { motion, radius, space, useTheme } from '@/lib/theme'
@@ -22,10 +23,24 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('')
   const [agree, setAgree] = useState(false)
   const [loading, setLoading] = useState(false)
+  // Đăng ký thành công hay không quyết định số phận của draft khách khi màn này
+  // rời khỏi ngăn xếp — xem effect dọn dẹp bên dưới (F-3).
+  const signedUpRef = useRef(false)
   const { fetchMe } = useAuthStore()
   const { fetchPlan } = usePlanStore()
 
   const strength = useMemo(() => passwordStrength(password), [password])
+
+  // Khách bỏ ngang ở màn này (vuốt lùi, đổi ý, kill app rồi mở lại) thì draft
+  // phễu phải chết theo. Không dọn thì nó nằm lại và người ĐĂNG KÝ KẾ TIẾP trên
+  // cùng máy sẽ bị replay im lặng câu trả lời của người trước, không hề thấy
+  // bảng câu hỏi (QA 2026-08-20, F-3).
+  useEffect(
+    () => () => {
+      if (!signedUpRef.current) void clearOnboardingDraft()
+    },
+    [],
+  )
 
   async function handleRegister() {
     const phoneTrimmed = phone.trim()
@@ -62,12 +77,18 @@ export default function RegisterScreen() {
       await fetchPlan()
       captureEvent('register_success')
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      // Đặt TRƯỚC khi điều hướng: replace làm màn này unmount ngay, và effect dọn
+      // dẹp phải thấy được là đã đăng ký xong để không xoá mất draft sắp replay.
+      signedUpRef.current = true
       // New learners go through onboarding before reaching the app.
       router.replace('/(auth)/onboarding')
-    } catch {
+    } catch (e) {
       captureEvent('register_failed')
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      Alert.alert('Đăng ký thất bại', 'Email có thể đã được sử dụng.')
+      // Đừng đoán hộ nguyên nhân: mất mạng, 500, email sai định dạng đều từng bị
+      // gộp thành "Email có thể đã được sử dụng" (F-9). apiMessage đọc `detail`
+      // của ProblemDetail, đúng như phần còn lại của app.
+      Alert.alert('Đăng ký thất bại', apiMessage(e))
     } finally {
       setLoading(false)
     }
@@ -169,16 +190,19 @@ export default function RegisterScreen() {
                 ) : null}
               </View>
 
-              {/* Terms agreement — gates the submit, matching the v2 auth mockup. */}
-              <Pressable
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: agree }}
-                accessibilityLabel="Đồng ý với Điều khoản sử dụng và Chính sách bảo mật"
-                onPress={() => setAgree((a) => !a)}
-                hitSlop={6}
-                style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}
-              >
-                <View
+              {/* Terms agreement — gates the submit, matching the v2 auth mockup.
+                  QA 14/08: ô tích và phần chữ phải là HAI vùng chạm TÁCH BIỆT. Trước đây hai link
+                  pháp lý nằm LỒNG trong <Pressable> của ô tích, nên chạm vào chúng tranh chấp
+                  responder với Pressable cha: đo trên máy ảo thì lần nào cũng bật/tắt ô đồng ý,
+                  còn tài liệu thì hầu như không mở. Người dùng muốn đọc thứ mình sắp đồng ý lại
+                  vô tình đảo ngược chính lựa chọn đó — mà không có dấu hiệu gì. */}
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: agree }}
+                  accessibilityLabel="Đồng ý với Điều khoản sử dụng và Chính sách bảo mật"
+                  onPress={() => setAgree((a) => !a)}
+                  hitSlop={11}
                   style={{
                     width: 22,
                     height: 22,
@@ -192,31 +216,44 @@ export default function RegisterScreen() {
                   }}
                 >
                   {agree ? <Icon icon={Check} size={15} color="accent" /> : null}
+                </Pressable>
+                {/* Mỗi liên kết là một <Pressable> RIÊNG, không phải <Text onPress> lồng trong
+                    <Text>: trên RN 0.81 + New Architecture (Fabric), onPress của Text lồng KHÔNG
+                    kích hoạt — đo trên máy ảo thì `openTermsOfUse` không hề được gọi (không có log
+                    nào), nên hai tài liệu pháp lý không bao giờ mở ở màn đăng ký.
+                    Dùng hàng flexWrap để câu vẫn xuống dòng tự nhiên như cũ. */}
+                <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <ThemedText variant="caption" color="secondary" style={{ lineHeight: 18 }}>
+                    Tôi đồng ý với{' '}
+                  </ThemedText>
+                  <Pressable onPress={openTermsOfUse} accessibilityRole="link" hitSlop={8}>
+                    <ThemedText
+                      variant="caption"
+                      color="primary"
+                      style={{ textDecorationLine: 'underline', lineHeight: 18 }}
+                    >
+                      Điều khoản sử dụng
+                    </ThemedText>
+                  </Pressable>
+                  <ThemedText variant="caption" color="secondary" style={{ lineHeight: 18 }}>
+                    {' '}
+                    và{' '}
+                  </ThemedText>
+                  <Pressable onPress={openPrivacyPolicy} accessibilityRole="link" hitSlop={8}>
+                    <ThemedText
+                      variant="caption"
+                      color="primary"
+                      style={{ textDecorationLine: 'underline', lineHeight: 18 }}
+                    >
+                      Chính sách bảo mật
+                    </ThemedText>
+                  </Pressable>
+                  <ThemedText variant="caption" color="secondary" style={{ lineHeight: 18 }}>
+                    {' '}
+                    của MyDeutschFlow.
+                  </ThemedText>
                 </View>
-                <ThemedText variant="caption" color="secondary" style={{ flex: 1, lineHeight: 18 }}>
-                  Tôi đồng ý với{' '}
-                  <ThemedText
-                    variant="caption"
-                    color="primary"
-                    style={{ textDecorationLine: 'underline' }}
-                    onPress={openTermsOfUse}
-                    accessibilityRole="link"
-                  >
-                    Điều khoản sử dụng
-                  </ThemedText>{' '}
-                  và{' '}
-                  <ThemedText
-                    variant="caption"
-                    color="primary"
-                    style={{ textDecorationLine: 'underline' }}
-                    onPress={openPrivacyPolicy}
-                    accessibilityRole="link"
-                  >
-                    Chính sách bảo mật
-                  </ThemedText>{' '}
-                  của MyDeutschFlow.
-                </ThemedText>
-              </Pressable>
+              </View>
 
               <Button
                 label="Tạo tài khoản"

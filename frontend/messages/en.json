@@ -193,7 +193,6 @@
     "continueType": "{type}",
     "continueMeta": "{minutes} min · {skills} · Difficulty {difficulty}",
     "continueNoPlan": "No learning plan yet",
-    "continueOnboardingHint": "Finish onboarding to generate your plan.",
     "progressPlan": "Plan progress",
     "progressSessionLine": "Session {session} / {perWeek} this week",
     "weekObjectives": "Week {week} · Goals",
@@ -697,6 +696,8 @@
     "weeklyAlreadySubmitted": "You already submitted for this week's prompt.",
     "weeklyRecordingHint": "Recording… tap mic again to stop.",
     "weeklyNoPrompt": "No weekly prompt for your level yet. Try another band or wait for admins to publish one.",
+    "weeklyNoPromptWeek": "No weekly speaking prompt has been published yet this week. It will appear here as soon as one is available.",
+    "weeklyNoPromptOtherBands": "This week has prompts for band {bands} — pick one of those bands above.",
     "weeklyLoadFailed": "Couldn't load this week's prompt. Check your connection and try again.",
     "weeklyRetry": "Try again",
     "weeklyYourTranscript": "Your submission",
@@ -707,6 +708,7 @@
     "chat": {
       "modeConversation": "Conversation",
       "modeInterview": "Interview",
+      "modeLesson": "Practice",
       "emptyStart": "Start your conversation with {name}",
       "connectionError": "Sorry, a connection error occurred.",
       "inputPlaceholder": "Message {name}...",
@@ -727,6 +729,9 @@
       "composing": "Composing",
       "correctionsTitle": "Issues in your last message",
       "suggestionsTitle": "Suggested replies",
+      "suggestionsRequest": "Suggest replies for me",
+      "closePanel": "Close panel",
+      "suggestionsLoading": "Thinking of suggestions…",
       "emptyTitle": "Learning copilot",
       "emptyHint": "Record, type, or pick a starter to chat with {name}",
       "startersTitle": "Suggested openers",
@@ -804,45 +809,9 @@
       "feedbackEmptyHint": "Feedback appears here after your first spoken turn."
     },
     "continueToSettings": "Continue to settings",
-    "backToModeAndPersona": "Back to mode & companion"
-  },
-  "onboarding": {
-    "title": "Personalize your learning plan",
-    "subtitle": "Answer a few questions so we can tailor an effective plan for you.",
-    "goalType": "Goal",
-    "goalWork": "For work",
-    "goalCert": "For certification",
-    "targetLevel": "Target CEFR level",
-    "currentLevel": "Current level (self-assessed)",
-    "ageRange": "Age range",
-    "industry": "Industry / Field",
-    "interests": "Interests",
-    "learningSpeed": "Learning speed",
-    "sessionsPerWeek": "Sessions per week",
-    "minutesPerSession": "Minutes per session",
-    "examType": "Exam type (optional)",
-    "submit": "Create plan",
-    "submitting": "Creating plan...",
-    "error": "Could not create plan. Please try again.",
-    "industryPlaceholder": "e.g. IT, nursing, tourism…",
-    "examTypePlaceholder": "e.g. Goethe, telc…",
-    "intensityLine": "Intensity: {sessions} sessions/week · {minutes} min",
-    "weeklyTotalLine": "Total: {total} min/week",
-    "learningSpeedSlow": "Slow",
-    "learningSpeedNormal": "Normal",
-    "learningSpeedFast": "Fast",
-    "interestsLabels": {
-      "TRAVEL": "Travel",
-      "BUSINESS": "Business",
-      "TECH": "Technology",
-      "HEALTH": "Health",
-      "EDUCATION": "Education"
-    },
-    "age_UNDER_18": "Under 18",
-    "age_AGE_18_24": "18–24",
-    "age_AGE_25_34": "25–34",
-    "age_AGE_35_44": "35–44",
-    "age_AGE_45_PLUS": "45+"
+    "backToModeAndPersona": "Back to mode & companion",
+    "personaTopicHint": "This topic fits better with:",
+    "personaTopicHintDismiss": "Dismiss suggestion"
   },
   "adminOverview": {
     "title": "Overview",
@@ -1432,7 +1401,7 @@
     "plans": {
       "FREE": {
         "name": "Free",
-        "badge": null,
+        "badge": "",
         "features": [
           "✅ A1–B1 vocabulary",
           "✅ Up to 20 review cards/day",

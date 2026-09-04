@@ -3,12 +3,13 @@ package com.deutschflow.common.quota;
 import com.deutschflow.organization.service.OrgQuotaService;
 import com.deutschflow.organization.service.OrgQuotaService.OrgMembership;
 import com.deutschflow.organization.service.OrgQuotaService.OrgReservation;
+import com.deutschflow.speaking.ai.TokenUsage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
+import java.time.Clock;
 
 @Service
 @RequiredArgsConstructor
@@ -17,6 +18,13 @@ public class AiUsageLedgerService {
     private final JdbcTemplate jdbcTemplate;
     private final QuotaService quotaService;
     private final OrgQuotaService orgQuotaService;
+    /**
+     * Mốc "bây giờ" của bước trừ ví. Đọc qua bean ({@link com.deutschflow.common.config.ClockConfig})
+     * chứ không gọi {@code Instant.now()} tĩnh: ví cộng dồn theo NGÀY LỊCH giờ VN, nên test phải ghim
+     * được cùng một mốc cho cả dữ liệu dựng sẵn lẫn lời gọi này, thay vì hên xui theo giờ CI chạy.
+     * Chi tiết: {@code backend/QUOTA_CLOCK_TESTING.md}.
+     */
+    private final Clock clock;
 
     /**
      * Token-tương-đương cho mỗi giây audio STT. Whisper bị Groq tính theo giây (không theo
@@ -47,11 +55,54 @@ public class AiUsageLedgerService {
         }
     }
 
+    /**
+     * Ghi ledger từ {@link TokenUsage} của chính lượt gọi — <b>overload nên dùng</b> cho mọi call
+     * site đang có {@code AiChatCompletionResult} trong tay.
+     *
+     * <p>Vì sao tồn tại thay vì cứ truyền 4 số: nó mang theo {@code cachedPromptTokens} mà không
+     * bắt call site nhớ thứ tự 4 tham số int liền nhau (dễ đặt lệch slot), và bảo đảm mọi luồng
+     * đều ghi phần cache. Nhà cung cấp tính token cache rẻ hơn 2–10× nên thiếu nó là báo cáo COGS
+     * khai vống (đo 09/08: cache hit ~99% ở cả 8 tier — xem V270).
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void record(long userId,
+                       String provider,
+                       String model,
+                       TokenUsage usage,
+                       String feature,
+                       String requestId,
+                       Long sessionId) {
+        if (usage == null) {
+            return;
+        }
+        record(userId, provider, model, usage.promptTokens(), usage.cachedPromptTokens(),
+                usage.completionTokens(), usage.totalTokens(), feature, requestId, sessionId);
+    }
+
+    /**
+     * Chữ ký cũ (không có số liệu cache) — giữ cho call site tự dựng số bằng tay (sinh ảnh, ước
+     * lượng). Phần prompt sẽ được định giá TOÀN BỘ theo giá input thường, tức ước CAO.
+     */
     @Transactional(rollbackFor = Exception.class)
     public void record(long userId,
                        String provider,
                        String model,
                        int promptTokens,
+                       int completionTokens,
+                       int totalTokens,
+                       String feature,
+                       String requestId,
+                       Long sessionId) {
+        record(userId, provider, model, promptTokens, 0, completionTokens, totalTokens,
+                feature, requestId, sessionId);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void record(long userId,
+                       String provider,
+                       String model,
+                       int promptTokens,
+                       int cachedPromptTokens,
                        int completionTokens,
                        int totalTokens,
                        String feature,
@@ -64,18 +115,21 @@ public class AiUsageLedgerService {
         jdbcTemplate.update("""
                         INSERT INTO ai_token_usage_events (
                           user_id, org_id, provider, model,
-                          prompt_tokens, completion_tokens, total_tokens,
+                          prompt_tokens, cached_prompt_tokens, completion_tokens, total_tokens,
                           feature, request_id, session_id
                         )
                         SELECT ?,
                                (SELECT om.org_id FROM org_members om
                                  WHERE om.user_id = u.id AND om.status = 'ACTIVE'
                                  ORDER BY (om.role = 'STUDENT'), om.org_id LIMIT 1),
-                               ?, ?, ?, ?, ?, ?, ?, ?
+                               ?, ?, ?, ?, ?, ?, ?, ?, ?
                         FROM users u WHERE u.id = ?
                         """,
                 userId, provider, model,
-                promptTokens, completionTokens, totalTokens,
+                // cached_prompt_tokens là phần CON của prompt_tokens (V270) — kẹp lại để một
+                // upstream báo số vô lý không tạo ra hàng ledger tự mâu thuẫn (và cost âm).
+                promptTokens, Math.max(0, Math.min(cachedPromptTokens, promptTokens)),
+                completionTokens, totalTokens,
                 feature, requestId, sessionId,
                 userId
         );
@@ -115,7 +169,7 @@ public class AiUsageLedgerService {
         }
         OrgMembership membership = orgQuotaService.resolveActiveMembership(userId);
         if (membership == null || !membership.staff()) {
-            quotaService.applyUsageDebit(userId, totalTokens, Instant.now());
+            quotaService.applyUsageDebit(userId, totalTokens, clock.instant());
             return;
         }
 

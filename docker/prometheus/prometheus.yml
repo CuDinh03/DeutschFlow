@@ -18,7 +18,26 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
+  # Target là TÊN CONTAINER thật (docker run --name deutschflow-backend trong deploy-backend.sh).
+  # Alias `backend` cũ chỉ tồn tại cho service backend của docker-compose — container prod KHÔNG do
+  # compose tạo, nên scrape này chết im lặng từ đầu (dashboard/alert không có dữ liệu backend).
+  # deploy-backend.sh giờ tự gắn container vào network của prometheus ở bước promote; áp config
+  # mới bằng: sudo docker restart deutschflow-prometheus (thư mục này được bind-mount).
   - job_name: 'deutschflow-backend'
     metrics_path: '/actuator/prometheus'
+    # /actuator/prometheus được bảo vệ bằng bearer token tĩnh ở tầng app (401 nếu thiếu/sai).
+    # Tạo file token MỘT LẦN trên EC2 (gitignored, cùng giá trị với PROMETHEUS_SCRAPE_TOKEN
+    # trong .env.production):  printf '%s' "<token>" > docker/prometheus/scrape-token
+    # File thiếu → target down với lỗi đọc file (alert BackendScrapeDown sẽ kêu), prometheus vẫn chạy.
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/scrape-token
     static_configs:
-      - targets: ['backend:8080']
+      - targets: ['deutschflow-backend:8080']
+
+  # H3 audit lag 02/09: số đo HOST (CPU/RAM/disk/swap/network của cả EC2 — nginx, redis, dockerd
+  # đều nằm ngoài tầm /actuator). Service node-exporter trong docker-compose.prod.yml, scrape qua
+  # DNS nội mạng deutschflow-net, không publish cổng nào.
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']

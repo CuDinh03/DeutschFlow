@@ -14,8 +14,8 @@ import {
 import { createAudioPlayer, useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync, type AudioPlayer } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Haptics from 'expo-haptics'
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
-import { Mic, Send, ChevronRight, Flame, X, Flag, RotateCcw } from 'lucide-react-native'
+import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router'
+import { Mic, Send, X, Flag, RotateCcw } from 'lucide-react-native'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -25,6 +25,8 @@ import Animated, {
 } from 'react-native-reanimated'
 import { handleAiError } from '@/lib/upsell'
 import { ensureAiConsent } from '@/lib/aiConsent'
+import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
+import { useBlurGuard } from '@/hooks/useBlurGuard'
 import {
   speakingApi,
   isUnlimitedQuota,
@@ -80,14 +82,23 @@ export default function SpeakingScreen() {
   const { hasProAccess } = usePlanStore()
 
   // Onboarding (and deep links) can preselect a speaking mode — e.g. the
-  // INTERVIEW_FIRST archetype routes here as `?mode=INTERVIEW`.
+  // INTERVIEW_FIRST archetype routes here as `?mode=INTERVIEW`. LESSON đang
+  // khoá (quyết định 02/09) nên deep link cũ ?mode=LESSON rơi về mặc định.
   const { mode: modeParam } = useLocalSearchParams<{ mode?: string }>()
   const initialMode: SpeakingSessionMode | undefined =
-    modeParam === 'INTERVIEW' || modeParam === 'LESSON' || modeParam === 'COMMUNICATION'
-      ? modeParam
-      : undefined
+    modeParam === 'INTERVIEW' || modeParam === 'COMMUNICATION' ? modeParam : undefined
 
   const [view, setView] = useState<ScreenView>('select')
+
+  // Thanh tab liquid-glass giờ NỔI ĐÈ lên nội dung (overlay) — trong phiên nói
+  // (chat/tổng kết) nó sẽ đè lên dock nhập liệu/nút Xong, và giữa buổi nói cũng
+  // không nên mời gọi chuyển tab (lớp lỗi F-9). Ẩn bar khi rời màn chọn; TabBar
+  // đọc cờ này qua descriptor options.
+  const navigation = useNavigation()
+  useEffect(() => {
+    navigation.setOptions({ tabBarStyle: view === 'select' ? undefined : { display: 'none' } })
+  }, [navigation, view])
+
   const [session, setSession] = useState<AiSpeakingSession | null>(null)
   const [messages, setMessages] = useState<ChatTurn[]>([])
   // Async gửi/nhận đóng băng `messages` trong closure → dùng ref để retryTurn đọc turn hiện tại (MB-3).
@@ -141,6 +152,25 @@ export default function SpeakingScreen() {
   const speakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pulseAnim = useSharedValue(1)
 
+  // F-9 (soát 02/09): màn này là bottom-tab — chuyển tab KHÔNG unmount, nên nếu
+  // đang ghi mà người dùng đi tab khác thì mic ghi tiếp vô thời hạn. Guard theo
+  // blur tự dừng recorder + thoát record mode; bản ghi dở bị bỏ, UI trả về idle.
+  useRecorderBlurGuard(recorder, () => {
+    cancelAnimation(pulseAnim)
+    pulseAnim.value = 1
+    setIsRecording(false)
+    setStage('idle')
+  })
+
+  // Cùng lớp với F-9 nhưng cho LOA: mic đã có guard, còn giọng AI đang phát thì
+  // không — chuyển tab là persona cứ nói tiếp. Blur = dừng tiếng ngay; player bị
+  // remove() sẽ không bao giờ bắn didJustFinish → onDone của lượt đó không chạy,
+  // nên phải tự chốt stage về idle kẻo persona kẹt "đang nói" khi quay lại.
+  const focusedRef = useBlurGuard(() => {
+    void stopSpeech()
+    setStage((s) => (s === 'speaking' ? 'idle' : s))
+  })
+
   // Offer to resume an interrupted session left over from a previous app run.
   useEffect(() => {
     let active = true
@@ -178,6 +208,12 @@ export default function SpeakingScreen() {
   //   3. Timed delay paced by text length
   // The persona "talks" for the audio duration, then runs onDone.
   async function speakGerman(text: string, onDone: () => void, personaOverride?: string | null) {
+    if (!focusedRef.current) {
+      // Phản hồi AI về sau khi người dùng đã sang tab khác: không phát tiếng,
+      // chốt luồng ngay để transcript/reaction vẫn tự settle trong nền.
+      onDone()
+      return
+    }
     setStage('speaking')
     setReaction(null)
     let done = false
@@ -722,7 +758,13 @@ export default function SpeakingScreen() {
           </View>
         ) : null}
 
-        <CompanionSelect isPro={hasProAccess} starting={starting} onStart={startSession} initialMode={initialMode} />
+        <CompanionSelect
+          isPro={hasProAccess}
+          starting={starting}
+          onStart={startSession}
+          onOpenExam={() => router.push('/(student)/speaking-exam')}
+          initialMode={initialMode}
+        />
       </Screen>
     )
   }

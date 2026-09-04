@@ -40,6 +40,7 @@ public class SkillTreeController {
     private static final long STT_ESTIMATED_TOKENS              =   200L;
 
     private final SkillTreeService skillTreeService;
+    private final com.deutschflow.ai.tier.LlmTierResolver llmTierResolver;
     private final PlacementTestService placementTestService;
     private final GroqWhisperClient groqWhisperClient;
     private final AiUsageLedgerService ledgerService;
@@ -293,11 +294,13 @@ public class SkillTreeController {
                     new com.deutschflow.speaking.ai.ChatMessage("system", "Bạn là giáo viên tiếng Đức. Trả lời bằng JSON."),
                     new com.deutschflow.speaking.ai.ChatMessage("user", prompt)
             );
-            var result = skillTreeService.getGroqClient().chatCompletion(messages, null, 0.2, 2048);
+            // Khung tier B1.7 (phát hiện khi route P2): CORRECT_WRITING là luồng CHẤM bài viết —
+            // mis-route thứ 5 (null → model nói). Tier GRADING_EXAM như các luồng chấm khác.
+            var result = skillTreeService.getChatClient().chatCompletionForTier(
+                    messages, llmTierResolver.spec(com.deutschflow.ai.tier.LlmTier.GRADING_EXAM), 0.2, 2048);
             if (result.usage() != null) {
                 ledgerService.record(user.getId(), result.provider(), result.model(),
-                        result.usage().promptTokens(), result.usage().completionTokens(),
-                        result.usage().totalTokens(), "CORRECT_WRITING", null, null);
+                        result.usage(), "CORRECT_WRITING", null, null);
             }
             var parsed = new com.fasterxml.jackson.databind.ObjectMapper().readTree(result.content());
             return ResponseEntity.ok(new com.fasterxml.jackson.databind.ObjectMapper().convertValue(parsed, Map.class));

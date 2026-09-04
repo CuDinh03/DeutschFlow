@@ -101,10 +101,10 @@ function SectionCard({ section, data }: { section: string; data: SectionScore })
         </div>
 
         {isPending && (
-          <p className="text-xs text-amber-600 mt-2 bg-amber-50 rounded-lg px-2 py-1.5">
+          <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-2 bg-amber-50 rounded-lg px-2 py-1.5">
             {section === 'SCHREIBEN'
-              ? '✍️ Phần viết email sẽ được AI chấm điểm'
-              : '🎤 Phần nói cần giáo viên chấm thủ công'}
+              ? <><PenTool size={12} className="shrink-0" aria-hidden /> Phần viết email sẽ được AI chấm điểm</>
+              : <><Mic2 size={12} className="shrink-0" aria-hidden /> Phần nói cần giáo viên chấm thủ công</>}
           </p>
         )}
       </div>

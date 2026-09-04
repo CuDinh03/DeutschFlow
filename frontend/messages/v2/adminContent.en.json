@@ -78,7 +78,25 @@
       "reviewNotesPlaceholder": "Review note (optional)…",
       "reviewMarkDone": "Mark reviewed",
       "reviewSaving": "Saving…",
-      "reviewSaved": "Reviewed \"{word}\""
+      "reviewSaved": "Reviewed \"{word}\"",
+      "tabGalerie": "Galerie",
+      "galerie": {
+        "statConceptMissing": "Words awaiting concept",
+        "statReady": "Concepts awaiting artwork",
+        "statShowing": "Showing",
+        "filterLabel": "Status",
+        "statusAll": "All",
+        "runConcepts": "Generate concepts ({count})",
+        "runGenerate": "Draw SVG ({count})",
+        "generating": "Drawing…",
+        "runDone": "Done: {succeeded}/{requested} succeeded, {failed} failed, {remaining} remaining",
+        "decisionOk": "Decision {decision} saved",
+        "approve": "Approve",
+        "regenerate": "Redraw",
+        "reject": "Reject",
+        "noArtwork": "No artwork yet",
+        "empty": "No words in this status."
+      }
     },
     "grammarReview": {
       "title": "Review grammar exercises",

@@ -1,5 +1,6 @@
 package com.deutschflow.notification.service;
 
+import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.notification.NotificationType;
 import com.deutschflow.notification.dto.BroadcastNotificationRequest;
 import com.deutschflow.notification.dto.BroadcastNotificationResponse;
@@ -15,6 +16,8 @@ import com.deutschflow.notification.repository.UserNotificationRepository;
 import com.deutschflow.notification.sse.NotificationUnreadPushCoordinator;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -47,6 +50,8 @@ public class UserNotificationService {
     private final ScheduledBroadcastRepository scheduledBroadcastRepository;
     private final ExpoPushSenderService expoPushSenderService;
     private final NotificationContentRenderer contentRenderer;
+    private final ObjectMapper objectMapper;
+    private final BroadcastDedupeGuard dedupeGuard;
 
     /** A scheduledAt within this window of "now" is treated as immediate delivery. */
     private static final long SCHEDULE_THRESHOLD_SECONDS = 30;
@@ -468,6 +473,56 @@ public class UserNotificationService {
     }
 
     /**
+     * Chấm LẠI một bài đã final (F-QA-01): KHÔNG phát thêm "✅ Bài đã chấm" — {@code AssignmentStatus}
+     * hứa announce đúng MỘT lần. Thay vào đó cập nhật TẠI CHỖ thông báo chấm bài hiện có của đúng bài
+     * đó ({@code assignmentType + referenceId}) sang bản sao "🔄 Điểm đã được cập nhật" mang điểm mới
+     * nhất (cờ {@code updated} trong payload — renderer đổi copy), và trả dòng về CHƯA ĐỌC để
+     * chuông/badge báo. N lần sửa điểm liên tiếp gộp thành đúng MỘT dòng hộp thư: không spam, không
+     * lộ lịch sử dao động điểm.
+     *
+     * <p>Không bắn Expo push cho lần sửa — sửa điểm là tin thụ động, badge/SSE là đủ; push lặp cho
+     * mỗi lần gõ lại điểm chính là spam QA đã báo. Chỉ khi hộp thư không còn dòng nào của bài
+     * (thông báo cũ đã bị job dọn thu hồi) mới chèn MỘT dòng "đã cập nhật" mới (kèm push) để học
+     * viên không mất thông tin điểm thay đổi.
+     */
+    @Transactional
+    public void onAssignmentRegraded(Long studentId, String assignmentType, Long referenceId,
+                                     Integer score, String feedback) {
+        User student = userRepository.findById(studentId).orElse(null);
+        if (student == null || !student.isActive()) return;
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("assignmentType", assignmentType);
+        payload.put("referenceId", referenceId);
+        payload.put("score", score);
+        payload.put("feedback", feedback != null ? feedback : "");
+        payload.put("updated", true);
+
+        Map<String, Object> match = new LinkedHashMap<>();
+        match.put("assignmentType", assignmentType);
+        match.put("referenceId", referenceId);
+
+        try {
+            int rows = notificationRepository.refreshLatestByContext(
+                    studentId, NotificationType.ASSIGNMENT_GRADED.name(),
+                    objectMapper.writeValueAsString(match), objectMapper.writeValueAsString(payload));
+            if (rows > 0) {
+                unreadPushCoordinator.afterCommit(studentId);
+                log.info("[notifications] ASSIGNMENT_GRADED refreshed in place (regrade) → student={} type={} score={}",
+                        studentId, assignmentType, score);
+                return;
+            }
+        } catch (JsonProcessingException e) {
+            // Map String/Long/Integer/Boolean không thể fail serialize; nếu có thì rơi xuống chèn mới.
+            log.warn("[notifications] cannot serialize regrade payload for student={}: {}", studentId, e.toString());
+        }
+
+        insert(student, NotificationType.ASSIGNMENT_GRADED, payload);
+        log.info("[notifications] ASSIGNMENT_GRADED (regrade, no prior row) → student={} type={} score={}",
+                studentId, assignmentType, score);
+    }
+
+    /**
      * Called when a teacher creates a new ClassAssignment (non-quiz) for a class.
      * Batch-inserts notifications for all students in the class.
      */
@@ -479,7 +534,18 @@ public class UserNotificationService {
             "SELECT student_id FROM class_students WHERE class_id = ?",
             Long.class, classId);
 
-        if (studentIds.isEmpty()) return;
+        onNewClassAssignmentFor(studentIds, classId, className, teacherName, assignmentId, topic);
+    }
+
+    /**
+     * PR-8 (AC14): biến thể giao-theo-người-nhận — chỉ những {@code studentIds} này nhận thông báo
+     * (bài có danh sách người nhận không được réo cả lớp). Vẫn async như bản cả-lớp.
+     */
+    @Async("taskExecutor")
+    @Transactional
+    public void onNewClassAssignmentFor(List<Long> studentIds, Long classId, String className,
+                                        String teacherName, Long assignmentId, String topic) {
+        if (studentIds == null || studentIds.isEmpty()) return;
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("classId", classId);
@@ -489,23 +555,16 @@ public class UserNotificationService {
         payload.put("topic", topic);
 
         List<UserNotification> notifications = new ArrayList<>();
-        for (Long studentId : studentIds) {
-            User student = userRepository.findById(studentId).orElse(null);
-            if (student != null && student.isActive()) {
-                notifications.add(UserNotification.builder()
-                    .recipient(student)
-                    .type(NotificationType.NEW_CLASS_ASSIGNMENT)
-                    .payload(new LinkedHashMap<>(payload))
-                    .build());
-            }
+        for (User student : loadActiveRecipients(studentIds)) {
+            notifications.add(UserNotification.builder()
+                .recipient(student)
+                .type(NotificationType.NEW_CLASS_ASSIGNMENT)
+                .payload(new LinkedHashMap<>(payload))
+                .build());
         }
 
         if (!notifications.isEmpty()) {
-            notificationRepository.saveAll(notifications);
-            for (UserNotification n : notifications) {
-                unreadPushCoordinator.afterCommit(n.getRecipient().getId());
-                pushForNotification(n);
-            }
+            saveAndPushAll(notifications);
             log.info("[notifications] NEW_CLASS_ASSIGNMENT → {} students in class={}", notifications.size(), classId);
         }
     }
@@ -557,6 +616,20 @@ public class UserNotificationService {
     public int deliverBroadcast(BroadcastNotificationRequest request) {
         NotificationType notificationType = resolveNotificationType(request.type());
 
+        // Audit C1/F-M9 (03/09/2026): idempotency theo (đối tượng + tiêu đề + nội dung) trong cửa sổ
+        // ngắn. Không có chốt này, một cú double-click hoặc retry của client là hai lượt push cho
+        // toàn bộ audience. Đặt ở deliverBroadcast — chokepoint chung — nên phủ CẢ đường gửi ngay
+        // lẫn đường job gửi broadcast đã lên lịch (lượt dispatch trùng bị đánh FAILED kèm lý do rõ).
+        String dedupeKey = String.join("|", "admin-broadcast",
+                String.valueOf(request.audienceType()), String.valueOf(request.tier()),
+                String.valueOf(request.role()), String.valueOf(request.targetEmail()),
+                request.payload().title(), request.payload().body());
+        if (!dedupeGuard.tryAcquire(dedupeKey)) {
+            throw new ConflictException(
+                    "Broadcast trùng lặp — một broadcast giống hệt (đối tượng + tiêu đề + nội dung)"
+                            + " vừa được gửi trong cửa sổ chống trùng. Chờ vài phút hoặc đổi nội dung.");
+        }
+
         List<User> recipients = resolveAudience(request);
         if (recipients.isEmpty()) {
             log.warn("[notifications] broadcast skipped — no recipients for audience={}", request.audienceType());
@@ -577,12 +650,54 @@ public class UserNotificationService {
                     .build());
         }
 
-        notificationRepository.saveAll(notifications);
-        for (UserNotification n : notifications) {
-            unreadPushCoordinator.afterCommit(n.getRecipient().getId());
-            pushForNotification(n);
-        }
+        saveAndPushAll(notifications);
         log.info("[notifications] {} broadcast → {} recipients, audience={}", notificationType, notifications.size(), request.audienceType());
+        return notifications.size();
+    }
+
+    /**
+     * Fan-out một thông báo vòng đời bảo trì ({@code SYSTEM_MAINTENANCE}) tới TOÀN BỘ
+     * user đang active — gọi từ {@code MaintenanceWindowService} (plans/2026-09-03 §5.6).
+     * Đi cùng đường batch với broadcast admin (MỘT saveAll + Expo push batch);
+     * {@code withPush=false} cho kind STARTED: màn chặn đã nói điều đó, chỉ ghi in-app.
+     *
+     * @return số người nhận
+     */
+    @Transactional
+    public int broadcastSystemMaintenance(Map<String, Object> payload, boolean withPush) {
+        // Audit R-M6 (03/09/2026): mỗi PATCH đổi giờ một window đã announce lại bắn một lượt UPDATED
+        // tới TOÀN BỘ user — chuỗi chỉnh sửa liên tiếp thành chuỗi push lặp. Cùng (windowId, kind)
+        // trong cửa sổ dedupe chỉ gửi MỘT lần; bỏ qua ÊM (không ném) vì bản thân mutation sửa lịch
+        // vẫn phải thành công, chỉ phần re-spam bị chặn. Kind khác nhau (SCHEDULED→UPDATED→...) là
+        // khoá khác nhau nên các mốc vòng đời không chặn lẫn nhau.
+        String dedupeKey = "maintenance|" + payload.get("windowId") + "|" + payload.get("kind");
+        if (!dedupeGuard.tryAcquire(dedupeKey)) {
+            log.info("[notifications] SYSTEM_MAINTENANCE kind={} windowId={} trùng trong cửa sổ dedupe — bỏ qua push lặp",
+                    payload.get("kind"), payload.get("windowId"));
+            return 0;
+        }
+        List<User> recipients = userRepository.findByActiveTrue();
+        if (recipients.isEmpty()) {
+            return 0;
+        }
+        List<UserNotification> notifications = new ArrayList<>(recipients.size());
+        for (User user : recipients) {
+            notifications.add(UserNotification.builder()
+                    .recipient(user)
+                    .type(NotificationType.SYSTEM_MAINTENANCE)
+                    .payload(new LinkedHashMap<>(payload))
+                    .build());
+        }
+        if (withPush) {
+            saveAndPushAll(notifications);
+        } else {
+            notificationRepository.saveAll(notifications);
+            for (UserNotification n : notifications) {
+                unreadPushCoordinator.afterCommit(n.getRecipient().getId());
+            }
+        }
+        log.info("[notifications] SYSTEM_MAINTENANCE kind={} → {} recipients (push={})",
+                payload.get("kind"), notifications.size(), withPush);
         return notifications.size();
     }
 
@@ -647,24 +762,15 @@ public class UserNotificationService {
         payload.put("message", message);
 
         List<UserNotification> notifications = new ArrayList<>(studentIds.size());
-        for (Long studentId : studentIds) {
-            User student = userRepository.findById(studentId).orElse(null);
-            if (student != null && student.isActive()) {
-                notifications.add(UserNotification.builder()
-                        .recipient(student)
-                        .type(NotificationType.TEACHER_ANNOUNCEMENT)
-                        .payload(new LinkedHashMap<>(payload))
-                        .build());
-            }
+        for (User student : loadActiveRecipients(studentIds)) {
+            notifications.add(UserNotification.builder()
+                    .recipient(student)
+                    .type(NotificationType.TEACHER_ANNOUNCEMENT)
+                    .payload(new LinkedHashMap<>(payload))
+                    .build());
         }
 
-        if (!notifications.isEmpty()) {
-            notificationRepository.saveAll(notifications);
-            for (UserNotification n : notifications) {
-                unreadPushCoordinator.afterCommit(n.getRecipient().getId());
-                pushForNotification(n);
-            }
-        }
+        saveAndPushAll(notifications);
         log.info("[notifications] TEACHER_ANNOUNCEMENT → {} students in class={}", notifications.size(), classId);
         return notifications.size();
     }
@@ -682,6 +788,24 @@ public class UserNotificationService {
      *             {@code CLASS_SESSION_RESCHEDULED}
      * @return the number of students notified
      */
+    /**
+     * Gửi MỘT thông báo tới MỘT người dùng — ĐỒNG BỘ, dành cho outbox worker (PR-5/G2): worker đã
+     * đứng ngoài giao dịch nghiệp vụ nên không cần (và không được) @Async; ghi notification + push
+     * trong giao dịch của dòng outbox để SENT và notification nguyên tử với nhau.
+     */
+    @Transactional
+    public void deliverToUser(Long recipientId, NotificationType type, Map<String, Object> payload) {
+        User recipient = userRepository.findById(recipientId).orElse(null);
+        if (recipient == null || !recipient.isActive()) return;
+        UserNotification n = notificationRepository.save(UserNotification.builder()
+                .recipient(recipient)
+                .type(type)
+                .payload(new LinkedHashMap<>(payload))
+                .build());
+        unreadPushCoordinator.afterCommit(recipient.getId());
+        pushForNotification(n);
+    }
+
     @Async("taskExecutor")
     @Transactional
     public void notifyClassScheduleEvent(NotificationType type, Long classId, String className,
@@ -705,24 +829,15 @@ public class UserNotificationService {
         payload.put("message", message);
 
         List<UserNotification> notifications = new ArrayList<>(studentIds.size());
-        for (Long studentId : studentIds) {
-            User student = userRepository.findById(studentId).orElse(null);
-            if (student != null && student.isActive()) {
-                notifications.add(UserNotification.builder()
-                        .recipient(student)
-                        .type(type)
-                        .payload(new LinkedHashMap<>(payload))
-                        .build());
-            }
+        for (User student : loadActiveRecipients(studentIds)) {
+            notifications.add(UserNotification.builder()
+                    .recipient(student)
+                    .type(type)
+                    .payload(new LinkedHashMap<>(payload))
+                    .build());
         }
 
-        if (!notifications.isEmpty()) {
-            notificationRepository.saveAll(notifications);
-            for (UserNotification n : notifications) {
-                unreadPushCoordinator.afterCommit(n.getRecipient().getId());
-                pushForNotification(n);
-            }
-        }
+        saveAndPushAll(notifications);
         log.info("[notifications] {} → {} students in class={}", type, notifications.size(), classId);
     }
 
@@ -763,25 +878,25 @@ public class UserNotificationService {
         payload.put("preview", preview);
 
         List<UserNotification> notifications = new ArrayList<>(recipientIds.size());
-        for (Long recipientId : recipientIds) {
-            User recipient = userRepository.findById(recipientId).orElse(null);
-            if (recipient != null && recipient.isActive()) {
-                notifications.add(UserNotification.builder()
-                        .recipient(recipient)
-                        .type(NotificationType.CLASS_CHANNEL_MESSAGE)
-                        .payload(new LinkedHashMap<>(payload))
-                        .build());
-            }
+        for (User recipient : loadActiveRecipients(recipientIds)) {
+            notifications.add(UserNotification.builder()
+                    .recipient(recipient)
+                    .type(NotificationType.CLASS_CHANNEL_MESSAGE)
+                    .payload(new LinkedHashMap<>(payload))
+                    .build());
         }
 
-        if (!notifications.isEmpty()) {
-            notificationRepository.saveAll(notifications);
-            for (UserNotification n : notifications) {
-                unreadPushCoordinator.afterCommit(n.getRecipient().getId());
-                pushForNotification(n);
-            }
-        }
+        saveAndPushAll(notifications);
         log.info("[notifications] CLASS_CHANNEL_MESSAGE → {} members in class={}", notifications.size(), classId);
+    }
+
+    /**
+     * How many active users a broadcast would reach — powers the admin confirm dialog (A-1) so a
+     * "Gửi tới tất cả" click shows the real headcount before fanning out an irreversible push.
+     */
+    @Transactional(readOnly = true)
+    public long countAudience(BroadcastNotificationRequest request) {
+        return resolveAudience(request).size();
     }
 
     private List<User> resolveAudience(BroadcastNotificationRequest request) {
@@ -845,8 +960,16 @@ public class UserNotificationService {
 
     /** Fire-and-forget Expo push for a persisted notification, if the recipient has a token. */
     private void pushForNotification(UserNotification n) {
+        ExpoPushSenderService.PushMessage msg = buildPushMessage(n);
+        if (msg != null) {
+            expoPushSenderService.sendAsync(msg.token(), msg.title(), msg.body(), msg.data());
+        }
+    }
+
+    /** Render một dòng notification thành push message; null nếu người nhận không có token. */
+    private ExpoPushSenderService.PushMessage buildPushMessage(UserNotification n) {
         String token = n.getRecipient().getPushToken();
-        if (token == null || token.isBlank()) return;
+        if (token == null || token.isBlank()) return null;
         Map<String, Object> p = n.getPayload() != null ? n.getPayload() : Map.of();
         // Use the shared renderer so the push text matches the in-app content exactly,
         // instead of the old raw-enum title / empty body fallback.
@@ -859,7 +982,33 @@ public class UserNotificationService {
         // (mobile POST /notifications/{id}/read). Without it the badge stays elevated until the user
         // opens the inbox and taps the row. Backward-safe: older clients ignore the extra field.
         data.put("notificationId", n.getId());
-        expoPushSenderService.sendAsync(token, rendered.title(), rendered.body(), data);
+        return new ExpoPushSenderService.PushMessage(token, rendered.title(), rendered.body(), data);
+    }
+
+    /**
+     * B3 audit lag 02/09 — đường fan-out chung: lưu cả loạt bằng MỘT saveAll (batch INSERT thật
+     * nhờ hibernate.jdbc.batch_size), đăng ký badge/SSE sau-commit từng người, và đẩy push qua
+     * Expo batch API (≤100 message/request) thay vì N POST riêng lẻ.
+     */
+    private void saveAndPushAll(List<UserNotification> notifications) {
+        if (notifications.isEmpty()) return;
+        notificationRepository.saveAll(notifications);
+        List<ExpoPushSenderService.PushMessage> pushes = new ArrayList<>(notifications.size());
+        for (UserNotification n : notifications) {
+            unreadPushCoordinator.afterCommit(n.getRecipient().getId());
+            ExpoPushSenderService.PushMessage msg = buildPushMessage(n);
+            if (msg != null) pushes.add(msg);
+        }
+        expoPushSenderService.sendBatchAsync(pushes);
+    }
+
+    /**
+     * Nạp người nhận active bằng MỘT findAllById (B3) — thay vòng lặp findById từng người
+     * (N query cho một lần fan-out cả lớp). Thứ tự theo danh sách trả về của repository.
+     */
+    private List<User> loadActiveRecipients(java.util.Collection<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) return List.of();
+        return userRepository.findAllById(userIds).stream().filter(User::isActive).toList();
     }
 
     private static int normalizeSize(int size) {

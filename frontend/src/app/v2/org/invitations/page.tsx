@@ -7,21 +7,29 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import {
-  listInvitations, inviteTeacher, revokeInvitation, getOrgSummary,
+  listInvitations, inviteTeacher, revokeInvitation, rotateInvitation, getOrgSummary,
   type OrgInvitation, type OrgSummary, type OrgRole,
 } from '@/lib/orgApi'
+import { seatMetaOf } from '@/lib/orgSeats'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lời mời thành viên (GaOrgInvitations) — teal.
-// Plumbing reused 1:1 (zero backend): listInvitations + inviteTeacher + revokeInvitation
-//   + getOrgSummary (free seats). Option-1: backend has only a TEACHER invite endpoint —
-//   students self-join via the org code → the "Học viên" tab points there (no fake invite).
-//   "Gửi lại" has no endpoint → toast.
+// Plumbing reused 1:1: listInvitations + inviteTeacher + revokeInvitation + getOrgSummary.
+//   Backend chỉ có endpoint mời TEACHER — học viên tự tham gia bằng mã tổ chức.
+// Đợt 0 OWNER (báo cáo 31/08):
+//   - F03: "Gửi lại" giờ gọi POST /org/invitations/{id}/rotate THẬT — xoay token (link cũ
+//     vô hiệu ngay), backend tự gửi email link mới.
+//   - F05: bỏ KPI "Đã tham gia" (GET /org/invitations chỉ trả PENDING nên số đó vĩnh viễn 0)
+//     → thay bằng "Sắp hết hạn"; ghế trống đi qua orgSeats để org không giới hạn không bị
+//     hiển thị "0 ghế còn trống".
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEAL = '#11888A'
+/** Ngưỡng "sắp hết hạn" — đồng bộ với ManagerDashboard.INVITE_EXPIRING_DAYS. */
+const INVITE_EXPIRING_DAYS = 3
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
+const daysUntil = (iso: string): number => Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000)
 
 export default function V2OrgInvitationsPage() {
   const t = useTranslations('v2.org.invitations')
@@ -83,9 +91,25 @@ export default function V2OrgInvitationsPage() {
     }
   }
 
+  // F03: xoay token — link cũ vô hiệu NGAY, backend gửi lại email với link mới.
+  const resend = async (iv: OrgInvitation) => {
+    setBusy(iv.id)
+    try {
+      await rotateInvitation(iv.id)
+      toast.success(t('resendDone', { email: iv.email }))
+      await load()
+    } catch (err: unknown) {
+      toast.error(apiMessage(err))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const pending = invites.filter((i) => i.status === 'PENDING')
-  const accepted = invites.filter((i) => i.status === 'ACCEPTED').length
-  const freeSeats = summary ? Math.max(0, summary.seatLimit - summary.seatUsed) : 0
+  const expiring = pending.filter((i) => daysUntil(i.expiresAt) <= INVITE_EXPIRING_DAYS)
+  // summary lỗi/chưa về (getOrgSummary bị .catch(()=>null) ở load) → seats=null: hiển thị
+  // "chưa tải được", KHÔNG giả vờ "không giới hạn" (review O-1, finding HIGH).
+  const seats = seatMetaOf(summary)
 
   return (
     <div className="flex min-h-full flex-col">
@@ -95,8 +119,13 @@ export default function V2OrgInvitationsPage() {
         <GaStatStrip
           items={[
             { label: t('stats.pending'), value: pending.length, sub: t('stats.pendingSub'), tone: 'orange', alert: pending.length > 0 },
-            { label: t('stats.accepted'), value: accepted, sub: t('stats.acceptedSub'), tone: 'green' },
-            { label: t('stats.freeSeats'), value: freeSeats, sub: t('stats.freeSeatsSub'), tone: 'teal' },
+            { label: t('stats.expiring'), value: expiring.length, sub: t('stats.expiringSub', { days: INVITE_EXPIRING_DAYS }), tone: 'orange', alert: expiring.length > 0 },
+            {
+              label: t('stats.freeSeats'),
+              value: !seats ? '—' : seats.unlimited ? t('stats.freeSeatsUnlimited') : (seats.free ?? 0),
+              sub: !seats ? t('stats.freeSeatsUnavailable') : seats.unlimited ? t('stats.freeSeatsUnlimitedSub') : t('stats.freeSeatsSub'),
+              tone: 'teal',
+            },
           ]}
         />
 
@@ -162,7 +191,7 @@ export default function V2OrgInvitationsPage() {
                   </span>
                   {isPending && (
                     <div className="flex w-full shrink-0 justify-end gap-1.5 lg:w-auto">
-                      <button type="button" onClick={() => toast(t('resendSoon'))} className="ga-ui inline-flex min-h-[40px] items-center justify-center border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0">{t('resend')}</button>
+                      <button type="button" disabled={busy === iv.id} onClick={() => resend(iv)} className="ga-ui inline-flex min-h-[40px] items-center justify-center border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-50 lg:min-h-0">{t('resend')}</button>
                       <button type="button" disabled={busy === iv.id} onClick={() => revoke(iv.id)} className="ga-ui inline-flex min-h-[40px] items-center justify-center border px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50 lg:min-h-0" style={{ color: 'var(--ga-red)', borderColor: 'color-mix(in srgb, var(--ga-red) 35%, transparent)' }}>{t('revoke')}</button>
                     </div>
                   )}

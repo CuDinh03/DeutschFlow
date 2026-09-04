@@ -12,6 +12,31 @@
 
 version: '3.8'
 
+# ── Vì sao MỌI publish dưới đây đều bind 127.0.0.1 ──────────────────────────
+# Docker publish mặc định bind 0.0.0.0 (hở ra Internet nếu security group cho phép) VÀ tự chèn rule
+# iptables đứng TRƯỚC ufw — nên "ufw deny <cổng>" KHÔNG chặn được container. Ràng buộc phải đặt
+# ngay tại chỗ publish; đây là nơi duy nhất chắc chắn có tác dụng.
+#
+# backend/frontend: chỉ được tiếp nhận request qua nginx (chạy trên host, proxy tới localhost).
+#   Đi thẳng vào container là bỏ qua nginx — mà mọi rate-limit theo IP đều đọc client IP từ
+#   X-Forwarded-For do chính nginx thêm vào; request đi thẳng thì header đó do người gọi tự khai
+#   ⇒ throttle mất sạch hiệu lực.
+# prometheus/grafana/alertmanager/loki: bảng điều khiển vận hành, không có lý do hở ra Internet.
+#   Muốn xem từ máy cá nhân thì mở SSH tunnel forward cổng tương ứng (Grafana 3001, Prometheus 9090)
+#   về localhost, rồi mở trình duyệt vào localhost.
+#
+# Giao tiếp GIỮA các container KHÔNG đi qua các cổng này mà qua DNS của mạng deutschflow-net
+# (prometheus.yml scrape 'backend:8080'), nên đổi binding không ảnh hưởng.
+
+# H2 audit lag 02/09: json-file mặc định KHÔNG rotate — log container lớn dần vô hạn trên đĩa
+# đang 59%. Anchor này gắn cho từng service bên dưới (50m × 3 ≈ trần 150MB/container); backend
+# prod chạy bằng docker run trong deploy-backend.sh nên nhận cùng cấu hình qua --log-opt ở đó.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
 services:
   # ── Spring Boot Backend ──────────────────────────────────
   backend:
@@ -21,11 +46,12 @@ services:
       dockerfile: Dockerfile
     container_name: deutschflow-backend
     restart: unless-stopped
+    logging: *default-logging
     # EC2 is t3.medium (4GB). Cap so blue-green's 2nd JVM + observability can't overcommit → OOM.
     # Mirrors deploy-backend.sh's --memory=1500m. JVM heap = 75% (MaxRAMPercentage) ≈ 1.1GB.
     mem_limit: 1500m
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     env_file:
       - .env.production    # File thật (không commit). MoMo sandbox: tham khảo env.momo.sandbox.example ở root repo
     environment:
@@ -83,9 +109,10 @@ services:
         NEXT_PUBLIC_POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
     container_name: deutschflow-frontend
     restart: unless-stopped
+    logging: *default-logging
     mem_limit: 512m
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - NODE_ENV=production
       # Nếu Next.js cần gọi backend qua internal network
@@ -104,9 +131,10 @@ services:
     image: prom/prometheus:latest
     container_name: deutschflow-prometheus
     restart: unless-stopped
+    logging: *default-logging
     mem_limit: 400m
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
       - ./docker/prometheus:/etc/prometheus
       - prometheus_data:/prometheus
@@ -123,9 +151,10 @@ services:
     image: prom/alertmanager:latest
     container_name: deutschflow-alertmanager
     restart: unless-stopped
+    logging: *default-logging
     mem_limit: 128m
     ports:
-      - "9093:9093"
+      - "127.0.0.1:9093:9093"
     volumes:
       - ./docker/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager
@@ -139,9 +168,10 @@ services:
     image: grafana/loki:3.0.0
     container_name: deutschflow-loki
     restart: unless-stopped
+    logging: *default-logging
     mem_limit: 256m
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     volumes:
       - ./docker/loki:/etc/loki
       - loki_data:/loki
@@ -153,11 +183,32 @@ services:
     image: grafana/promtail:3.0.0
     container_name: deutschflow-promtail
     restart: unless-stopped
+    logging: *default-logging
     mem_limit: 128m
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./docker/promtail:/etc/promtail
+      # H2: positions phải sống qua restart container — để trong /tmp của container là mỗi lần
+      # promtail restart nó đọc lại TOÀN BỘ log từ đầu (đẩy trùng vào Loki, tốn CPU + đĩa).
+      - promtail_positions:/positions
     command: -config.file=/etc/promtail/config.yml
+    networks:
+      - deutschflow-net
+
+  # ── node-exporter — số đo HOST (CPU/RAM/disk/network) cho Prometheus (H3, audit lag 02/09).
+  # JVM metrics đã có qua /actuator/prometheus nhưng không nói gì về phần còn lại của EC2
+  # (nginx, redis, đĩa, swap). ~20MB RAM. Không publish cổng: chỉ Prometheus scrape nội mạng.
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: deutschflow-node-exporter
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    command:
+      - '--path.rootfs=/host'
     networks:
       - deutschflow-net
 
@@ -165,9 +216,10 @@ services:
     image: grafana/grafana:latest
     container_name: deutschflow-grafana
     restart: unless-stopped
+    logging: *default-logging
     mem_limit: 256m
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
@@ -186,3 +238,4 @@ volumes:
   loki_data:
   grafana_data:
   alertmanager_data:
+  promtail_positions:

@@ -73,6 +73,25 @@ class NotificationContentRendererUnitTest {
         assertThat(noScore.body()).contains("tập").doesNotContain("Điểm");
     }
 
+    /**
+     * F-QA-01: chấm lại cập nhật thông báo tại chỗ với cờ {@code updated} — copy phải nói rõ điểm
+     * ĐƯỢC CẬP NHẬT (không phải "đã chấm" lần nữa) và chỉ mang điểm HIỆN TẠI, không lộ điểm cũ.
+     */
+    @Test
+    @DisplayName("assignment graded with updated flag renders the regrade copy (current score only)")
+    void assignmentGraded_updatedFlag_rendersRegradeCopy() {
+        RenderedContent updated = renderer.render(NotificationType.ASSIGNMENT_GRADED,
+                Map.of("assignmentType", "WRITING", "score", 90, "updated", true));
+        assertThat(updated.title()).isEqualTo("🔄 Điểm đã được cập nhật");
+        assertThat(updated.body()).isEqualTo("Điểm bài tập của bạn đã được cập nhật — Điểm: 90. Xem phản hồi.");
+
+        // jsonb đọc lại thường trả Boolean, nhưng chuỗi "true" cũng phải nhận (phòng payload cũ/khác kiểu).
+        RenderedContent updatedStr = renderer.render(NotificationType.ASSIGNMENT_GRADED,
+                Map.of("assignmentType", "SPEAKING", "score", 85, "updated", "true"));
+        assertThat(updatedStr.title()).isEqualTo("🔄 Điểm đã được cập nhật");
+        assertThat(updatedStr.body()).contains("nói").contains("Điểm: 85.");
+    }
+
     @Test
     @DisplayName("user registered distinguishes self-signup from staff-created (via)")
     void userRegistered_distinguishesSource() {
@@ -183,5 +202,45 @@ class NotificationContentRendererUnitTest {
             assertThat(c.title()).isNotEqualTo(type.name());
             assertThat(c.title()).isNotEqualTo(type.name().replace('_', ' '));
         }
+    }
+
+    // ── SYSTEM_MAINTENANCE — vòng đời bảo trì theo payload.kind ──────────────
+
+    @Test
+    @DisplayName("maintenance SCHEDULED renders the window with pre-formatted VN times + admin note verbatim")
+    void systemMaintenance_scheduled() {
+        RenderedContent c = renderer.render(NotificationType.SYSTEM_MAINTENANCE, Map.of(
+                "kind", "SCHEDULED",
+                "startsAtDisplay", "23:00 ngày 10/09",
+                "endsAtDisplay", "23:30 ngày 10/09",
+                "note", "Nâng cấp cơ sở dữ liệu."));
+        assertThat(c.title()).contains("Lịch bảo trì");
+        assertThat(c.body()).contains("từ 23:00 ngày 10/09").contains("đến 23:30 ngày 10/09")
+                .contains("Nâng cấp cơ sở dữ liệu.");
+    }
+
+    @Test
+    @DisplayName("maintenance REMINDER tells the user to save work before the start time")
+    void systemMaintenance_reminder() {
+        RenderedContent c = renderer.render(NotificationType.SYSTEM_MAINTENANCE, Map.of(
+                "kind", "REMINDER", "startsAtDisplay", "23:00 ngày 10/09"));
+        assertThat(c.title()).contains("Sắp bảo trì");
+        assertThat(c.body()).contains("23:00 ngày 10/09").contains("lưu bài");
+    }
+
+    @Test
+    @DisplayName("maintenance STARTED without endsAt promises a completion notice instead of a time")
+    void systemMaintenance_startedWithoutEnd() {
+        RenderedContent c = renderer.render(NotificationType.SYSTEM_MAINTENANCE, Map.of("kind", "STARTED"));
+        assertThat(c.body()).contains("thông báo khi hoạt động trở lại");
+    }
+
+    @Test
+    @DisplayName("maintenance COMPLETED / CANCELLED close the loop for the user")
+    void systemMaintenance_completedAndCancelled() {
+        assertThat(renderer.render(NotificationType.SYSTEM_MAINTENANCE, Map.of("kind", "COMPLETED")).title())
+                .contains("hoạt động trở lại");
+        assertThat(renderer.render(NotificationType.SYSTEM_MAINTENANCE, Map.of("kind", "CANCELLED")).body())
+                .contains("đã được huỷ");
     }
 }

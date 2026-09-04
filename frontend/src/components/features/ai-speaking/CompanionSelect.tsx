@@ -3,12 +3,14 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ChevronRight, ArrowLeft, Briefcase, BookOpen, Lock, MessageCircle, GraduationCap } from "lucide-react";
+import { Sparkles, ChevronRight, ArrowLeft, Briefcase, BookOpen, Lock, MessageCircle, GraduationCap, Check } from "lucide-react";
 import { PERSONA_LIST, PERSONA_GROUPS, PersonaId, PersonaGroup, PERSONA_TOKENS } from "@/lib/personas";
+import { GaIcon } from "@/components/ui-v2";
 import { personaInk, personaSoft } from "@/lib/personaPaper";
 import { PersonaCard } from "./PersonaCard";
 import { aiSpeakingApi, SpeakingSessionMode } from "@/lib/aiSpeakingApi";
 import { interviewDomainApi, InterviewPersonaInfo } from "@/lib/interviewDomainApi";
+import { getMyLearningProfile } from "@/lib/profileApi";
 import { apiMessage, httpStatus } from "@/lib/api";
 import { toastApiError } from "@/lib/toastApiError";
 import { useTranslations } from "next-intl";
@@ -21,7 +23,6 @@ import { spring } from "@/lib/motion";
 import { useStatusBarStyle } from "@/lib/statusBar";
 import { lightImpact, mediumImpact } from "@/lib/haptics";
 
-const CEFR_LEVELS = ["A1", "A2", "B1", "B2"];
 
 const MODE_TABS = [
   { mode: "COMMUNICATION" as SpeakingSessionMode, label: "Hội thoại", icon: MessageCircle },
@@ -86,8 +87,28 @@ export function CompanionSelect({
     const topic = searchParams.get('topic')
     const cefr = searchParams.get('cefr')
     if (topic) setLessonScenario(topic)
-    if (cefr && ['A1', 'A2', 'B1', 'B2'].includes(cefr)) setCefrLevel(cefr)
+    if (cefr && ['A1', 'A2', 'B1', 'B2'].includes(cefr)) {
+      cefrFromUrlRef.current = true
+      setCefrLevel(cefr)
+    }
   }, [searchParams])
+
+  // Mặc định CEFR theo trình độ THẬT trong hồ sơ thay vì hằng "B1" (QA 09/08 mục F):
+  // màn này không có bộ chọn CEFR nên giá trị mặc định là thứ duy nhất học viên nhận được.
+  // URL ?cefr= (deep-link từ lộ trình) vẫn được ưu tiên.
+  const cefrFromUrlRef = useRef(false)
+  useEffect(() => {
+    getMyLearningProfile()
+      .then((p) => {
+        if (cefrFromUrlRef.current || !p.currentLevel) return
+        const clamped = p.currentLevel === 'A0' ? 'A1'
+          : ['A1', 'A2', 'B1', 'B2'].includes(p.currentLevel) ? p.currentLevel
+          : 'B2' // C1/C2 trong hồ sơ — trần luyện tập của app là B2
+        setCefrLevel(clamped)
+      })
+      .catch(() => {}) // giữ mặc định B1 khi chưa có hồ sơ
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Mode from the URL (?mode=INTERVIEW|LESSON). The /v2 speaking launcher has one card per mode,
   // so the card can land directly on the right tab. Applied ONCE on mount — otherwise every
@@ -116,12 +137,9 @@ export function CompanionSelect({
     }
   }, [sessionMode, dbPersonas.length])
 
-  // Auto-set interview position from DB persona when a persona is selected
-  useEffect(() => {
-    if (sessionMode !== "INTERVIEW" || !selected) return;
-    const match = dbPersonas.find(p => p.code === selected.toUpperCase());
-    if (match) setInterviewPosition(match.roleTitle);
-  }, [selected, dbPersonas, sessionMode])
+  // QA 09/08 mục E: KHÔNG auto-gán vị trí ứng tuyển. Bản cũ gán roleTitle của NGƯỜI PHỎNG VẤN
+  // ("Senior Tech Lead") — ngược vai với vị trí ỨNG VIÊN ứng tuyển, vượt qua cổng isReady và
+  // ghi sai vào lịch sử. Học viên phải tự chọn; chưa chọn thì CTA giữ trạng thái nhắc.
 
   const isPersonaLocked = (personaId: string) => {
     if (!quota || quota.planCode !== "FREE") return false;
@@ -179,9 +197,15 @@ export function CompanionSelect({
         : sessionMode === "INTERVIEW" ? interviewPosition
         : "Alltag";
 
+      // QA 09/08 mục H: mọi persona LESSON (Tuấn/Lan/Minh) dạy band A1 cho người mới —
+      // phiên LESSON chốt A1 thay vì cefrLevel hồ sơ (header từng ghi "· B1" trong bài A1).
+      const sessionCefr = sessionMode === "LESSON" ? "A1" : cefrLevel;
+
       const res = await aiSpeakingApi.createSession(
         topicForApi ?? "Alltag",
-        sessionMode === "INTERVIEW" ? "C1" : cefrLevel,
+        // QA 09/08 mục F: bản cũ hardcode "C1" cho mọi phiên phỏng vấn — học viên B1 bị hỏi ở
+        // mức C1 (mức không thể tự chọn) và kết quả kém làm ô nhiễm SpeakingUserState.
+        sessionCefr,
         selected.toUpperCase(),
         "V1",
         sessionMode,
@@ -197,9 +221,8 @@ export function CompanionSelect({
         name: token.name,
         avatarUrl: `/companions/${token.id}.png`,
         voiceId: token.id.toUpperCase(),
-        voiceFile: token.voiceFile ?? null,
         personality: token.desc,
-        cefrLevel: sessionMode === "INTERVIEW" ? "C1" : cefrLevel,
+        cefrLevel: sessionCefr,
       };
 
       // Same store bootstrap as the class-assignment entry point (lib/speakingSessionBootstrap).
@@ -319,6 +342,8 @@ export function CompanionSelect({
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
             {filteredGroups.map((g) => (
               <motion.button key={g.id} onClick={() => { setActiveGroup(g.id); setSelected(null); }}
+                aria-label={g.label}
+                aria-pressed={activeGroup === g.id}
                 className={`ga-ui flex items-center gap-1.5 px-3 py-1.5 rounded-ga-pill border text-xs font-semibold whitespace-nowrap transition-colors ${
                   activeGroup === g.id
                     ? "border-ga-yellow bg-ga-yellow-soft text-ga-gold"
@@ -326,7 +351,7 @@ export function CompanionSelect({
                 }`}
                 whileTap={{ scale: 0.95 }}
               >
-                <span>{g.icon}</span>
+                <GaIcon name={g.icon} size={13} />
                 <span>{g.label}</span>
               </motion.button>
             ))}
@@ -397,7 +422,7 @@ export function CompanionSelect({
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Briefcase size={14} style={{ color: selectedInk }} />
-                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>Vị trí ứng tuyển</span>
+                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>Bạn ứng tuyển vị trí nào?</span>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {(() => {
@@ -418,7 +443,7 @@ export function CompanionSelect({
                         </div>
                         {interviewPosition === pos.label && (
                           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedInk }}>
-                            <span className="text-white text-xs">✓</span>
+                            <Check size={12} className="text-white" aria-hidden />
                           </motion.div>
                         )}
                       </motion.button>
@@ -477,7 +502,7 @@ export function CompanionSelect({
                       </div>
                       {lessonScenario === sc.label && (
                         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedInk }}>
-                          <span className="text-white text-xs">✓</span>
+                          <Check size={12} className="text-white" aria-hidden />
                         </motion.div>
                       )}
                     </motion.button>

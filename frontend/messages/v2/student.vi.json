@@ -94,6 +94,7 @@
       "subtitle": "Học từ theo màu giống — der (xanh) · die (đỏ) · das (lục)",
       "searchPlaceholder": "Tìm từ / nghĩa…",
       "all": "Tất cả",
+      "ungraded": "Chưa phân cấp",
       "loadError": "Không thể tải từ vựng.",
       "loading": "Đang tải từ vựng…",
       "emptyTitle": "Không có từ nào",
@@ -119,6 +120,34 @@
           "title": "Thống kê từ vựng",
           "desc": "Độ phủ danh từ có giống & động từ đã chia."
         }
+      },
+      "filters": {
+        "statusCap": "Trạng thái học",
+        "typeCap": "Từ loại",
+        "topicCap": "Chủ đề",
+        "levelLabel": "Cấp độ",
+        "clear": "Xoá bộ lọc",
+        "status": {
+          "NEW": "Chưa học",
+          "LEARNING": "Đang học",
+          "MASTERED": "Đã thuộc"
+        },
+        "dtype": {
+          "Noun": "Danh từ",
+          "Verb": "Động từ",
+          "Adjective": "Tính từ",
+          "Word": "Khác"
+        }
+      },
+      "cta": {
+        "cap": "Việc hôm nay",
+        "due": "Ôn {count} từ đến hạn",
+        "dueDesc": "Ôn đúng hạn là cách nhớ lâu nhất — làm trước khi học từ mới.",
+        "fresh": "Học 20 từ mới",
+        "freshDesc": "Không còn từ nào đến hạn ôn. Nhận bộ thẻ mới theo mức độ hay gặp."
+      },
+      "lookup": {
+        "cap": "Tra cứu"
       }
     },
     "grammar": {
@@ -237,6 +266,12 @@
           "nub": "chấm xám = khoá"
         },
         "lockedHint": "Node này chưa mở. Hoàn thành ngày trước để nụ này nở.",
+        "skillNames": {
+          "hoeren": "Nghe",
+          "lesen": "Đọc",
+          "sprechen": "Nói",
+          "schreiben": "Viết"
+        },
         "skillsCap": "Bài tập của node — 4 kỹ năng",
         "exerciseCount": "{count} câu",
         "practiceSkill": "Học & Luyện",
@@ -244,11 +279,17 @@
         "doneHint": "Đã đạt cả 4 kỹ năng — lá đã mọc trên cành tuần này.",
         "review": "Xem lại kiến thức",
         "study": "Học kiến thức",
+        "focusCurrent": "Về bài đang học",
         "futureTip": "ngọn nét đứt = cấp kế tiếp",
         "summary": "{days} ngày · {weeks} tuần",
         "doneCount": "{done}/{total} đã xong",
         "motionOn": "Bật hiệu ứng",
-        "motionOff": "Tắt hiệu ứng"
+        "motionOff": "Tắt hiệu ứng",
+        "continueCta": "Học tiếp: {target} · {skill}",
+        "bestScore": "tốt nhất {percent}%",
+        "skillsMastered": "{done}/4 kỹ năng đạt từ {threshold}% trở lên",
+        "unlockCondition": "Xong {target} thì nụ này nở.",
+        "goPrereq": "Tới bài đang chặn"
       },
       "headerContext": "Giai đoạn hiện tại: {phase}",
       "courseProgressLabel": "Tiến độ lộ trình",
@@ -281,7 +322,9 @@
         "interviewTitle": "Luyện phỏng vấn",
         "interviewDesc": "Mô phỏng phỏng vấn xin việc với HR người Đức.",
         "weeklyTitle": "Chủ đề theo tuần",
-        "weeklyDesc": "Bài luyện nói có chủ đề, cập nhật mỗi tuần."
+        "weeklyDesc": "Bài luyện nói có chủ đề, cập nhật mỗi tuần.",
+        "examTitle": "Phòng luyện thi nói",
+        "examDesc": "Luyện từng phần hoặc thi thử theo đúng format Goethe / telc, chấm theo tiêu chí của kỳ thi."
       },
       "interviewResults": "Kết quả phỏng vấn",
       "historyCta": "Lịch sử"
@@ -321,7 +364,7 @@
       "simCap": "Prüfungssimulation",
       "simTitle": "Bài thi đầy đủ, có giờ",
       "simDesc": "Đúng định dạng đề thật, có đồng hồ và chấm điểm. Làm khi bạn muốn biết mình đứng ở đâu trong điều kiện giống ngày thi.",
-      "simSaveNotice": "Bài làm được lưu trên thiết bị này trong lúc thi, nên tải lại trang hay rớt mạng không mất bài. Đổi máy hoặc xoá dữ liệu trình duyệt thì không khôi phục được.",
+      "simSaveNotice": "Bài làm tự động lưu lên hệ thống trong lúc thi — tải lại trang, rớt mạng hay đổi máy đều tiếp tục được đúng chỗ cũ. Hết giờ hệ thống sẽ tự nộp.",
       "simCta": "Chọn đề và bắt đầu",
       "readinessCap": "B1-Bereitschaft",
       "readinessTitle": "Đo mức sẵn sàng B1",
@@ -363,6 +406,8 @@
       "tabOverview": "Tổng quan",
       "tabTasks": "Bài tập",
       "tabLessons": "Lộ trình",
+      "tabEvaluation": "Đánh giá",
+      "tabSchedule": "Lịch học",
       "invalidClassId": "Mã lớp không hợp lệ",
       "titleFallback": "Chi tiết lớp",
       "titleLoading": "Đang tải…",
@@ -417,6 +462,65 @@
         "empty": "Chưa có tài liệu cho bài này.",
         "loadError": "Không tải được tài liệu.",
         "openError": "Không mở được tài liệu."
+      },
+      "evaluation": {
+        "loading": "Đang tải đánh giá…",
+        "skillsCap": "Bảng điểm 4 kỹ năng",
+        "totalCap": "Điểm tổng",
+        "noScore": "Chưa có",
+        "skill": {
+          "horen": "Nghe (Hören)",
+          "lesen": "Đọc (Lesen)",
+          "schreiben": "Viết (Schreiben)",
+          "sprechen": "Nói (Sprechen)"
+        },
+        "noSkillsTitle": "Chưa có điểm kỹ năng",
+        "noSkillsBody": "Giáo viên chưa chấm điểm 4 kỹ năng cho bạn trong lớp này.",
+        "commentCap": "Nhận xét của giáo viên",
+        "evaluatedAt": "Nhận xét ngày {date}",
+        "noCommentTitle": "Chưa có nhận xét",
+        "noCommentBody": "Giáo viên chưa viết nhận xét cho bạn. Nhận xét sẽ hiện ở đây khi có.",
+        "attendanceCap": "Điểm danh",
+        "rate": "Chuyên cần {pct}%",
+        "presentCount": "Có mặt: {count}",
+        "lateCount": "Đi muộn: {count}",
+        "absentCount": "Vắng: {count}",
+        "sessionNo": "Buổi {no}",
+        "noTopic": "Chưa ghi chủ đề",
+        "noAttendanceTitle": "Chưa có buổi học nào",
+        "noAttendanceBody": "Lớp chưa có buổi học nào được ghi nhận điểm danh.",
+        "status": {
+          "PRESENT": "Có mặt",
+          "LATE": "Đi muộn",
+          "ABSENT": "Vắng",
+          "UNMARKED": "Chưa điểm danh"
+        }
+      },
+      "schedule": {
+        "loading": "Đang tải lịch học…",
+        "emptyTitle": "Chưa có lịch học",
+        "emptyBody": "Giáo viên chưa xếp buổi học nào cho lớp này.",
+        "upcomingCap": "Buổi sắp tới ({count})",
+        "noUpcoming": "Không còn buổi nào sắp tới.",
+        "pastCap": "Buổi đã học ({count})",
+        "modeOnline": "Trực tuyến",
+        "modeOffline": "Tại lớp",
+        "room": "Phòng {room}",
+        "duration": "{minutes} phút",
+        "status": {
+          "SCHEDULED": "Theo lịch",
+          "MOVED": "Đã dời",
+          "CANCELLED": "Đã huỷ"
+        },
+        "weekday": {
+          "0": "CN",
+          "1": "T2",
+          "2": "T3",
+          "3": "T4",
+          "4": "T5",
+          "5": "T6",
+          "6": "T7"
+        }
       }
     },
     "assignment": {
@@ -470,7 +574,12 @@
         "submittedAt": "Nộp lúc",
         "score": "Điểm"
       },
-      "gradedDone": "Bài đã được chấm xong"
+      "gradedDone": "Bài đã được chấm xong",
+      "resubmit": "Nộp lại",
+      "resubmitHint": "Nộp nhầm bài? Bạn vẫn nộp lại được cho tới khi giáo viên chấm.",
+      "resubmitCap": "Nộp bản khác",
+      "resubmitWarning": "Bản nộp mới sẽ thay hoàn toàn bản trước đó.",
+      "submitReplacement": "Nộp bản này"
     },
     "progress": {
       "title": "Tiến độ khóa học",
@@ -492,7 +601,7 @@
     },
     "messages": {
       "title": "Tin nhắn",
-      "subtitle": "Trao đổi trực tiếp với giáo viên của bạn"
+      "subtitle": "Tin nhắn nhóm lớp và trao đổi riêng với giáo viên"
     },
     "achievements": {
       "title": "Thành tích",
@@ -555,15 +664,14 @@
       "progressLabel": "Tiến độ bài thi",
       "answered": "{done}/{total} câu",
       "saveSaving": "Đang lưu…",
-      "saveSaved": "Đã lưu trên thiết bị này",
-      "saveSavedAt": "Đã lưu trên thiết bị này · {time}",
-      "saveError": "Không lưu được — đừng đóng tab",
+      "saveSaved": "Đã lưu",
+      "saveSavedAt": "Đã lưu · {time}",
+      "saveError": "Không lưu được — hệ thống sẽ tự thử lại",
       "timeLeftAnnounce": "Còn {minutes} phút"
     },
     "mockExamRun": {
-      "draftRestored": "Đã khôi phục {count} câu bạn đã trả lời trên thiết bị này.",
-      "draftMissing": "Thiết bị này không có bài làm đã lưu — bạn sẽ bắt đầu lại từ đầu.",
-      "confirmExit": "Thoát khỏi bài thi? Bài làm được giữ trên thiết bị này nên bạn vào lại được, nhưng đồng hồ vẫn tiếp tục chạy.",
+      "draftRestored": "Đã khôi phục bài làm — {count} câu đã trả lời trước đó.",
+      "confirmExit": "Thoát khỏi bài thi? Bài làm đã được lưu tự động nên bạn vào lại được, nhưng đồng hồ vẫn tiếp tục chạy.",
       "title": "Thi thử Goethe",
       "subtitle": "Làm bài theo format Goethe-Institut chính thức, chấm điểm tự động",
       "loading": "Đang tải…",
@@ -619,7 +727,9 @@
       "reviewTotal": "Tổng điểm: {score}",
       "notAnswered": "Chưa trả lời",
       "yourAnswer": "Câu trả lời của bạn",
-      "correctAnswer": "Đáp án đúng"
+      "correctAnswer": "Đáp án đúng",
+      "draftConflict": "Bài làm vừa được cập nhật từ thiết bị khác — đã tải bản mới nhất.",
+      "draftExpired": "Đã hết giờ làm bài — hệ thống đang nộp bài của bạn."
     },
     "grammarPractice": {
       "title": "Luyện ngữ pháp",
@@ -697,7 +807,10 @@
       "correction": "Sửa lỗi: ",
       "explanation": "Giải thích: ",
       "grammarErrors": "{count} lỗi ngữ pháp",
-      "details": "Chi tiết"
+      "details": "Chi tiết",
+      "groupToday": "Hôm nay",
+      "groupThisWeek": "Tuần này",
+      "groupOlder": "Cũ hơn"
     },
     "exerciseHistory": {
       "title": "Lịch sử bài tập lộ trình",
@@ -870,7 +983,8 @@
         "A2": "Sơ cấp — Goethe-Zertifikat A2",
         "B1": "Trung cấp — Goethe-Zertifikat B1",
         "B2": "Trung cấp cao — Goethe-Zertifikat B2",
-        "C1": "Cao cấp — Goethe-Zertifikat C1"
+        "C1": "Cao cấp — Goethe-Zertifikat C1",
+        "C2": "Thành thạo — Goethe-Zertifikat C2"
       }
     },
     "assessment": {
@@ -1003,7 +1117,8 @@
       "swipeHint": "Vuốt phải = đã thuộc · Vuốt trái = ôn sau",
       "sessionEnd": "Hết bộ thẻ!",
       "score": "Tỉ lệ",
-      "again": "Xáo lại"
+      "again": "Xáo lại",
+      "saveFailed": "Chưa lưu được {count} từ lên máy chủ. Tiến độ của các từ đó có thể mất — thử lại khi mạng ổn định."
     },
     "articleQuiz": {
       "title": "Quiz mạo từ",
@@ -1025,7 +1140,8 @@
       "good": "Tốt lắm!",
       "keepPracticing": "Luyện thêm nhé!",
       "again": "Làm lại quiz",
-      "lastResult": "Kết quả lượt trước: {score}/{total}"
+      "lastResult": "Kết quả lượt trước: {score}/{total}",
+      "saveFailed": "Chưa lưu được {count} từ lên máy chủ. Tiến độ của các từ đó có thể mất — thử lại khi mạng ổn định."
     },
     "vocabAnalytics": {
       "title": "Thống kê từ vựng",
@@ -1092,7 +1208,19 @@
       "generating": "Đang sinh…",
       "otherSkill": "Chọn kỹ năng khác",
       "totalSeen": "Tổng cộng đã luyện {count} câu không lặp lại",
-      "exerciseCount": "{count} câu trong bài"
+      "exerciseCount": "{count} câu trong bài",
+      "emptySession": "Bài tập này chưa có câu hỏi nào.",
+      "emptySessionHint": "AI chưa sinh được đề cho lượt này. Bấm nút bên dưới để sinh lại đề mới.",
+      "regenerate": "Sinh lại đề",
+      "backToTree": "Về cây",
+      "backToTreeGrow": "Về cây — xem nó lớn lên",
+      "seeding": "Đang ươm đề cho riêng bạn…",
+      "progressLabel": "Đã trả lời {answered}/{total} câu",
+      "errorConflict": "Một đề khác đang được sinh cho kỹ năng này — chờ một lát rồi thử lại.",
+      "errorQuota": "Hôm nay bạn đã dùng hết lượt AI. Bài đã có vẫn làm được; lượt mới sẽ mở lại sau.",
+      "errorRateLimited": "Bạn thao tác hơi nhanh — thử lại sau {seconds} giây.",
+      "errorAiUnavailable": "Trợ lý AI đang bận, chưa sinh được đề. Thử lại sau ít phút.",
+      "errorJobFailed": "Sinh đề không thành công. Bấm thử lại để ươm đề mới."
     },
     "learnNode": {
       "roadmapContext": "Vị trí trong lộ trình",
@@ -1101,7 +1229,9 @@
       "contentPendingDesc": "Bài học {level} sẽ sớm được cập nhật. Hãy hoàn thành các bài A1 trước!",
       "retryTitle": "⚠️ Chưa đủ điều kiện vượt node",
       "retryDesc": "Nghe/Đọc yêu cầu 100% • Nói/Phát âm/Viết yêu cầu ≥ 80 điểm",
-      "retryCta": "🔄 Làm lại"
+      "retryCta": "🔄 Làm lại",
+      "progressNotSaved": "Chưa lưu được tiến độ lên máy chủ.",
+      "scoreBelowThreshold": "Máy chủ chấm được {score}% — chưa đạt ngưỡng qua bài nên tiến độ chưa được ghi nhận."
     },
     "stats": {
       "title": "Thống kê học tập",
@@ -1189,6 +1319,283 @@
       "savedOnDevice": "Đã lưu trên thiết bị này lúc {time}",
       "saveUnavailable": "Không lưu được bài làm trên thiết bị này",
       "restoredDraft": "Đã khôi phục bài làm dở trên thiết bị này"
+    },
+    "examSpeaking": {
+      "catalog": {
+        "title": "Phòng luyện thi nói",
+        "subtitle": "Mô phỏng phần thi nói Goethe / telc — luyện từng Teil hoặc thi thử trọn gói",
+        "back": "Về luyện nói",
+        "dismiss": "Đóng",
+        "providerLabel": "Hệ chứng chỉ",
+        "levelLabel": "Cấp độ",
+        "soon": "sắp có",
+        "loading": "Đang tải đề thi…",
+        "noBlueprint": "Chưa có đề cho lựa chọn này.",
+        "mockCap": "Thi thử trọn gói",
+        "duration": "{min} phút",
+        "prep": "Chuẩn bị {min} phút",
+        "partnerAi": "AI làm giám khảo + bạn thi",
+        "scale": "Thang {scale}, tối đa {max} điểm",
+        "scaleVhn": "đủ / nửa / 0",
+        "mockDesc": "Đúng trình tự và đồng hồ như thi thật; không sửa lỗi giữa chừng; kết thúc nhận phiếu điểm theo tiêu chí của kỳ thi.",
+        "starting": "Đang mở phòng…",
+        "startMock": "Thi thử ngay",
+        "drillCap": "Luyện từng phần",
+        "archetype": {
+          "SELF_INTRO": "Tự giới thiệu theo từ khóa, đánh vần, đọc số",
+          "CARD_QA": "Hỏi – đáp theo thẻ chủ đề với bạn thi",
+          "REQUEST_RESPOND": "Đưa ra lời đề nghị theo hình và phản ứng",
+          "ABOUT_ME": "Kể về bản thân theo gợi ý",
+          "PLAN_NEGOTIATE": "Cùng lên kế hoạch / hẹn lịch với bạn thi",
+          "TOPIC_EXCHANGE": "Làm quen và trao đổi về một chủ đề",
+          "PRESENT": "Thuyết trình có cấu trúc",
+          "FEEDBACK_FOLLOWUP": "Nhận xét bài của bạn thi và đặt câu hỏi",
+          "DISCUSS": "Thảo luận ủng hộ / phản đối",
+          "PICTURE": "Mô tả hình và nói về hình"
+        },
+        "startDrill": "Luyện phần này",
+        "levelSoon": "Cấp {level} sẽ mở ở đợt tiếp theo.",
+        "recentCap": "Kết quả gần đây",
+        "passed": "Đạt",
+        "failed": "Chưa đạt",
+        "disclaimer": "Mô phỏng theo định dạng đề thi công khai; không liên kết với Goethe-Institut hay telc. Điểm chỉ mang tính tham khảo (sai số điển hình ±1 bậc so với giám khảo), không phải chứng nhận.",
+        "prepModeLabel": "Chuẩn bị",
+        "prepShort": "5′ rút gọn",
+        "prepFull": "{min}′ chuẩn thi thật",
+        "weaknessTitle": "Ôn yếu điểm",
+        "weaknessDesc": "Xem lỗi hay mắc trong phòng luyện thi theo dạng bài + gói Redemittel gợi ý"
+      },
+      "room": {
+        "loading": "Đang vào phòng thi…",
+        "notFound": "Không tìm thấy phiên thi.",
+        "retry": "Thử lại",
+        "modeMock": "Thi thử",
+        "modeDrill": "Luyện phần",
+        "timeLeft": "Còn",
+        "unmute": "Bật tiếng",
+        "mute": "Tắt tiếng",
+        "dismiss": "Đóng",
+        "audioTooLarge": "Bản ghi quá dài nên không gửi được. Mỗi lượt nói tối đa 3 phút — hãy thu lại ngắn hơn.",
+        "prepCap": "Thời gian chuẩn bị",
+        "prepDesc": "Ghi chú gạch đầu dòng; bạn được dùng ghi chú trong lúc thi. Hết giờ sẽ tự vào phòng.",
+        "prepLeft": "Chuẩn bị",
+        "notesPlaceholder": "Ghi chú của bạn (Konzeptpapier)…",
+        "enterExam": "Vào thi",
+        "teilCap": "Teil {n}",
+        "step": "Bước {i}/{n}",
+        "myNotes": "Ghi chú của tôi",
+        "skipPart": "Sang phần kế",
+        "finishMock": "Kết thúc & chấm",
+        "finishDrill": "Kết thúc",
+        "action": {
+          "ASK": "Đến lượt bạn ĐẶT CÂU HỎI / đưa lời đề nghị. Bấm để nói.",
+          "ANSWER": "Đến lượt bạn TRẢ LỜI. Bấm để nói.",
+          "SPEAK": "Đến lượt bạn nói. Bấm để bắt đầu.",
+          "REACT": "Phản hồi bạn thi. Bấm để nói."
+        },
+        "grading": "Giám khảo đang chấm…",
+        "gradingDesc": "Hai lượt chấm độc lập theo tiêu chí của kỳ thi, thường mất dưới một phút.",
+        "gradingFailed": "Chấm điểm bị lỗi — bài thi của bạn vẫn còn nguyên.",
+        "gradingFailedDesc": "Hệ thống chấm gặp sự cố (quá tải hoặc gián đoạn). Toàn bộ phần thi đã được lưu; bấm \"Chấm lại\" để gửi chấm lần nữa — không phải thi lại.",
+        "regradeCta": "Chấm lại",
+        "resultLoadFailed": "Không tải được phiếu điểm. Kết quả đã có trên máy chủ — thử tải lại.",
+        "retryResult": "Tải lại phiếu điểm",
+        "aborted": "Phiên đã bị hủy.",
+        "again": "Luyện tiếp",
+        "backToCatalog": "Về phòng luyện thi",
+        "you": "Bạn",
+        "pruefer": "Giám khảo",
+        "partner": "Bạn thi",
+        "score": "{score}/10",
+        "redemittel": "Gợi ý cách nói",
+        "chooseOne": "Chọn 1 chủ đề",
+        "chosen": "Đã chọn phương án {n}",
+        "option": "Phương án {n}",
+        "drillTimeUp": "Hết giờ khuyến nghị của phần này — trong chế độ luyện bạn vẫn nói tiếp được, hoặc bấm \"Sang phần kế\".",
+        "hints": {
+          "INTRO_SPELL": "Giới thiệu bản thân theo các từ khóa trên thẻ (tên, tuổi, nước, nơi ở, ngôn ngữ, nghề, sở thích).",
+          "SPELL_WORD": "Đánh vần từ giám khảo yêu cầu (buchstabieren).",
+          "READ_NUMBER": "Đọc số/điện thoại/mã bưu điện giám khảo yêu cầu.",
+          "INTRO_CARD": "Giới thiệu bản thân theo các từ khóa trên thẻ — nói thành câu đầy đủ.",
+          "ANSWER_FOLLOWUP": "Trả lời câu hỏi thêm của giám khảo.",
+          "ASK_PERSON": "Đặt MỘT câu hỏi cho bạn thi về từ khóa trên thẻ (vd. Geburtstag? → Wann hast du Geburtstag?).",
+          "ASK_QWORD": "Đặt MỘT câu hỏi về chủ đề, bắt đầu bằng từ hỏi trên thẻ.",
+          "ASK_REQUEST": "Nhìn hình và đưa ra một lời đề nghị/yêu cầu (Bitte) cho bạn thi.",
+          "ASK_CARD": "Đặt MỘT câu hỏi về từ trên thẻ cho bạn thi.",
+          "REACT_REQUEST": "Phản ứng với lời đề nghị của bạn thi (đồng ý/từ chối lịch sự).",
+          "ANSWER_PARTNER": "Trả lời câu hỏi bạn thi vừa đặt (thẻ của bạn thi hiện ở đây).",
+          "PRESENT_LONG": "Trình bày theo đề (mở đầu – nội dung – kết). Nói liền mạch 3–4 phút, dùng ghi chú nếu có.",
+          "PRESENT_SHORT": "Trình bày/kể theo đề. Nói liền mạch, có mở đầu – nội dung – kết.",
+          "ANSWER_PARTNER_PRESENTATION": "Trả lời câu hỏi của bạn thi về bài trình bày.",
+          "ANSWER_QUESTION": "Trả lời câu hỏi vừa được đặt.",
+          "CONTACT_THEN_PRUEFER": "Phản hồi bạn thi; sau đó giám khảo sẽ hỏi thêm một câu.",
+          "ANSWER_PRUEFER": "Trả lời câu hỏi của giám khảo.",
+          "OPEN_CALENDAR": "Mở đầu: đề xuất một ngày/giờ còn trống trong lịch CỦA BẠN (bạn thi có lịch khác).",
+          "OPEN_VORLAGE": "Thuật lại cho bạn thi: Vorlage của bạn nói gì (chủ đề, số liệu chính)?",
+          "OPEN_CONTACT": "Mở đầu: chào hỏi, giới thiệu và hỏi bạn thi về một chủ đề trên thẻ.",
+          "OPEN_DEBATE": "Mở đầu: nêu rõ quan điểm của bạn về câu hỏi và một lý do chính.",
+          "OPEN_DEFAULT": "Mở đầu: đưa đề xuất/quan điểm đầu tiên.",
+          "CLOSE_CALENDAR": "Chốt lại: nhắc lại ngày giờ đã thống nhất.",
+          "CLOSE_DEBATE": "Kết: tóm tắt hai luồng ý kiến rồi nói rõ bạn nghiêng về dafür oder dagegen.",
+          "CLOSE_DEFAULT": "Kết: tóm tắt điều hai bên thống nhất.",
+          "REACT_CALENDAR": "Phản hồi: đồng ý nếu bạn rảnh, nếu không thì từ chối có lý do và đề xuất giờ khác.",
+          "REACT_VORLAGE": "Phản hồi Vorlage của bạn thi; nói về trải nghiệm/ý kiến của bạn và hỏi lại.",
+          "REACT_CONTACT": "Trả lời và hỏi lại bạn thi về một chủ đề khác trên thẻ.",
+          "REACT_DEBATE": "Phản biện lập luận vừa nghe (nhượng bộ một phần rồi đưa lý lẽ ngược lại).",
+          "REACT_DEFAULT": "Phản hồi bạn thi: đồng ý/phản đối có lý do, đề xuất tiếp.",
+          "FEEDBACK_COMMENT": "Cho bạn thi một nhận xét về bài trình bày (hay/mới/thú vị ở đâu) và đặt MỘT câu hỏi.",
+          "ANSWER_PRUEFER_TOPIC": "Trả lời câu hỏi của giám khảo về chủ đề."
+        },
+        "partnerAi": "Bạn thi · AI",
+        "turn": {
+          "prueferSpeaking": "Giám khảo đang nói — hãy lắng nghe, chưa đến lượt bạn.",
+          "partnerSpeaking": "Bạn thi (AI) đang nói — chờ bạn ấy nói xong nhé.",
+          "processing": "Đang xử lý lượt nói của bạn…",
+          "yourTurn": "Đến lượt bạn nói!",
+          "waitHint": "Chờ đến lượt bạn…"
+        },
+        "audioRetained": "Phiên này được ghi âm để phục vụ hiệu chuẩn chấm điểm (bạn đã đồng ý). Bạn có thể rút lại đồng ý bất cứ lúc nào — audio sẽ bị xoá."
+      },
+      "mic": {
+        "sending": "Đang gửi và chờ phản hồi…",
+        "recording": "Đang thu · còn",
+        "textPlaceholder": "Gõ câu trả lời tiếng Đức…",
+        "send": "Gửi",
+        "useMic": "Dùng mic",
+        "stopSend": "Dừng & gửi",
+        "start": "Bấm để nói",
+        "useText": "Gõ thay vì nói",
+        "errors": {
+          "denied": "Trình duyệt chặn micro. Hãy cấp quyền rồi thử lại.",
+          "no-device": "Không tìm thấy micro.",
+          "busy": "Micro đang bị ứng dụng khác dùng.",
+          "insecure": "Micro cần HTTPS.",
+          "unsupported": "Trình duyệt không hỗ trợ thu âm.",
+          "unknown": "Không thu âm được. Hãy thử lại."
+        },
+        "retry": "Thử lại với micro",
+        "deniedSteps": {
+          "site": "Bấm biểu tượng 🎤/ổ khoá cạnh thanh địa chỉ → cho phép Micro cho trang này.",
+          "browser": "Không thấy? Vào cài đặt trình duyệt → Quyền → Microphone → bỏ chặn trang này.",
+          "os": "macOS/Windows: bật quyền micro cho trình duyệt trong cài đặt hệ thống, rồi mở lại trình duyệt."
+        }
+      },
+      "stimulus": {
+        "none": "Không có thẻ đề ở bước này — nghe giám khảo.",
+        "partnerCard": "Thẻ của bạn thi",
+        "yourCard": "Thẻ của bạn",
+        "thema": "Chủ đề",
+        "wort": "Từ",
+        "pictureHint": "Đưa ra một lời đề nghị / yêu cầu với đồ vật này.",
+        "spell": "Đánh vần",
+        "number": "Đọc số",
+        "keyword": "Từ khóa",
+        "personAskHint": "Đặt một câu hỏi cho bạn thi về từ khóa này.",
+        "personAnswerHint": "Bạn thi hỏi bạn về từ khóa này — hãy trả lời.",
+        "questionWord": "Từ hỏi",
+        "promptHint": "Kể về bản thân theo câu hỏi; dùng các gợi ý nếu cần. Khoảng một phút.",
+        "situation": "Tình huống",
+        "yourCalendar": "Lịch của bạn",
+        "partnerHasOtherCalendar": "Bạn thi có lịch khác — hãy hỏi và cùng tìm giờ hai bên đều rảnh.",
+        "planningHint": "Đề xuất, phản hồi đề xuất của bạn thi và cùng quyết định từng điểm.",
+        "topic": "Chủ đề",
+        "partnerTopic": "Chủ đề bài trình bày của bạn thi",
+        "feedbackHint": "Nghe bạn thi trình bày, sau đó nhận xét và đặt một câu hỏi.",
+        "vorlageA": "Vorlage của bạn",
+        "yourTopic": "Chủ đề của bạn",
+        "debate": "Tranh luận",
+        "debateHint": "Nêu quan điểm, phản hồi bạn thi, rồi tóm lại: ủng hộ hay phản đối?"
+      },
+      "result": {
+        "sheetCap": "Phiếu kết quả mô phỏng",
+        "range": "Khoảng {range} từ {passes} lượt chấm độc lập",
+        "noThreshold": "Không có ngưỡng riêng",
+        "passed": "Đạt",
+        "failed": "Chưa đạt",
+        "reducedMax": "Một số tiêu chí chưa chấm được → tính trên {max}/{official}; đỗ/trượt quy đổi tỉ lệ.",
+        "teil": "Teil {n}",
+        "zeroed": "Erfüllung ở bậc thấp nhất → cả Teil 0 điểm (luật của hệ).",
+        "global": "Tiêu chí chấm chung",
+        "errors": "Lỗi đã phát hiện ({n})",
+        "disclaimer": "Điểm mô phỏng — sai số điển hình ±1 bậc so với giám khảo người; không phải chứng nhận.",
+        "notScored": "Chưa chấm",
+        "confidence": {
+          "high": "tin cậy cao",
+          "medium": "tin cậy vừa",
+          "low": "ước lượng",
+          "none": "—"
+        },
+        "evidence": "Bằng chứng",
+        "multiPassNote": "Band là trung vị, điểm là trung bình của {passes} lượt chấm độc lập — nên band và điểm có thể chênh nhau nhẹ.",
+        "bandMedianTitle": "Band = trung vị {passes} lượt chấm; điểm = trung bình — hai con số có thể lệch nhau.",
+        "msg": {
+          "silentTeil": "Teil {teil}: thí sinh không nói gì → 0 điểm cho Teil này.",
+          "llmInvalidTeil": "Teil {teil}: AI không trả kết quả hợp lệ → tiêu chí của Teil chưa chấm được.",
+          "erfuellungZero": "Teil {teil}: Erfüllung = {band} → toàn bộ Teil 0 điểm (luật của hệ {scheme}).",
+          "unscoredCount": "{count} tiêu chí/nhiệm vụ chưa chấm được.",
+          "passSpeakingOnly": "Ngưỡng nói riêng ≥{min}/{max} (kỳ thi đầy đủ còn đòi phần viết đạt ngưỡng riêng).",
+          "passModule": "Modul đỗ khi ≥{min}/{max}.",
+          "passNoThreshold": "Hệ này không có ngưỡng nói riêng — điểm nói cộng vào tổng kỳ thi.",
+          "noAssessment": "Không có đánh giá cho mục này.",
+          "silentTeilCriterion": "Thí sinh không nói gì trong Teil này.",
+          "itemNotMentioned": "AI không nhắc tới nhiệm vụ này → coi như không thực hiện.",
+          "llmInvalid": "AI không trả kết quả hợp lệ.",
+          "llmInvalidBand": "AI trả band không hợp lệ: {band}.",
+          "criterionNotGraded": "AI không chấm tiêu chí {criterion}.",
+          "lexMetrics": "Đo được: {words} từ, TTR {ttr}, {inList}% trong wordlist Goethe, {above} từ vượt cấp.",
+          "cohesionMetrics": "Đo được: {connectors} liên từ, {subordinators} mệnh đề phụ.",
+          "errorDensity": "Mật độ lỗi đếm được: {density} lỗi/100 từ ({errors} lỗi, {words} từ) → band {band}.",
+          "llmProposedBand": "AI đề xuất band {band} — band cuối do bảng ngưỡng mật độ lỗi quyết định.",
+          "fluencyBlend": "Flüssigkeit đo được: {wpm} từ/phút, {pauses} khoảng lặng dài, MLR {mlr} → band {fluencyBand}; gộp với AI ({llmBand}) → {band}.",
+          "sttConfidence": "Ước lượng từ độ tự tin STT (avg_logprob {logprob}) — tầng 1/3, tin cậy thấp.",
+          "noAudioTextOnly": "Chưa chấm được: không có audio/độ tự tin STT (text-only)."
+        }
+      },
+      "drill": {
+        "cap": "Điểm nhanh trung bình",
+        "turns": "{n} lượt đã chấm",
+        "toReview": "Lỗi cần ôn",
+        "note": "Điểm nhanh để luyện; điểm theo tiêu chí kỳ thi chỉ có ở chế độ thi thử."
+      },
+      "weakness": {
+        "title": "Ôn yếu điểm",
+        "subtitle": "Lỗi phát hiện trong phòng luyện thi, gộp theo mã lỗi và dạng bài — kèm Redemittel để luyện lại",
+        "back": "Về phòng luyện thi",
+        "dismiss": "Đóng",
+        "loading": "Đang tải yếu điểm…",
+        "filterLabel": "Lọc theo dạng bài",
+        "filterAll": "Tất cả dạng bài",
+        "empty": "Chưa có lỗi nào được ghi nhận từ phòng luyện thi.",
+        "emptyHint": "Luyện một Teil bất kỳ (Drill) hoặc thi thử trọn gói (Mock) — lỗi phát hiện sẽ tự xuất hiện ở đây để ôn lại.",
+        "seenCount": "Gặp {count} lần trong phòng thi",
+        "severity": {
+          "BLOCKING": "Nặng",
+          "MAJOR": "Đáng chú ý",
+          "MINOR": "Nhẹ"
+        },
+        "drillCta": "Luyện lại Teil này",
+        "starting": "Đang tạo phiên…",
+        "redemittelCap": "Redemittel theo dạng bài",
+        "totalCountNote": "tổng {count} lần trong mọi bài luyện nói"
+      },
+      "micCheck": {
+        "title": "Kiểm tra micro trước khi vào thi",
+        "desc": "Thi thử chỉ nhận audio và đồng hồ chạy như thi thật — hãy chắc micro hoạt động trước.",
+        "start": "Kiểm tra micro",
+        "speakNow": "Nói thử một câu…",
+        "heard": "Nghe thấy bạn rồi!",
+        "passed": "Micro sẵn sàng.",
+        "failed": {
+          "denied": "Trình duyệt chặn micro — làm theo hướng dẫn cấp quyền phía trên rồi kiểm tra lại.",
+          "other": "Không mở được micro. Kiểm tra thiết bị rồi thử lại."
+        }
+      }
+    },
+    "micGuide": {
+      "title": "Micro đang bị trình duyệt chặn — hãy mở quyền trước khi nói",
+      "site": "Bấm biểu tượng 🎤/ổ khoá cạnh thanh địa chỉ → cho phép Micro cho trang này.",
+      "browser": "Không thấy? Cài đặt trình duyệt → Quyền → Microphone → bỏ chặn trang này.",
+      "os": "macOS/Windows: bật quyền micro cho trình duyệt trong cài đặt hệ thống, rồi mở lại trình duyệt."
     }
   }
 }

@@ -217,6 +217,18 @@ public class UserLearningProfileService {
         if (req.targetLevel() != null) {
             profile.setTargetLevel(parseEnum(UserLearningProfile.TargetLevel.class, req.targetLevel(), "targetLevel"));
         }
+        if (req.currentLevel() != null) {
+            UserLearningProfile.CurrentLevel newLevel =
+                    parseEnum(UserLearningProfile.CurrentLevel.class, req.currentLevel(), "currentLevel");
+            if (newLevel != profile.getCurrentLevel()) {
+                profile.setCurrentLevel(newLevel);
+                // Người dùng tự chỉnh → kết quả placement (nếu có) không còn là nguồn của currentLevel.
+                profile.setLevelSource("SELF");
+            }
+        }
+        if (req.examType() != null) {
+            profile.setExamType(blankToNull(req.examType()));
+        }
         if (req.industry() != null) {
             profile.setIndustry(blankToNull(req.industry()));
         }

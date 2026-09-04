@@ -175,7 +175,8 @@ class OrgInvitationServiceTest {
                 userId, "teacher@school.edu", "Existing Teacher",
                 "TEACHER", "vi",
                 null, null,
-                ORG_ID, "TEACHER"
+                ORG_ID, "TEACHER",
+                null
         );
     }
 
@@ -311,6 +312,35 @@ class OrgInvitationServiceTest {
         verify(authService, never()).issueSession(any(User.class));
         assertThat(invitation.getStatus()).isEqualTo("PENDING");
         verify(invitationRepository, never()).save(any());
+    }
+
+    // ---------------------------------------------------- R-M5: tài khoản bị khóa không accept được
+
+    @Test
+    @DisplayName("R-M5: accept với tài khoản bị khóa (is_active=false) — chặn, không ghi DB, không mint session")
+    void accept_inactiveExistingUser_throwsBeforeAnyWrite() {
+        Instant future = Instant.now().plus(7, ChronoUnit.DAYS);
+        String email = "locked@school.edu";
+        OrgInvitation invitation = pendingInvitation(email, future);
+
+        User locked = existingTeacherUser(50L, email);
+        locked.setActive(false); // ADMIN đã khóa tài khoản này
+        when(invitationRepository.findByTokenAndStatus(TOKEN, "PENDING"))
+                .thenReturn(Optional.of(invitation));
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(locked));
+
+        // Ngay cả khi mật khẩu đúng, tài khoản bị khóa vẫn không được accept.
+        assertThatThrownBy(() -> service.accept(TOKEN, new AcceptInviteRequest(null, "Correct1!")))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("bị khóa");
+
+        // Phần GHI DB (membership/role) và mint token đều KHÔNG được chạm.
+        verify(membershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+        verify(authService, never()).issueSession(any(User.class));
+        assertThat(invitation.getStatus()).isEqualTo("PENDING");
+        verify(invitationRepository, never()).save(any());
+        // Không cần đến bước kiểm mật khẩu — chặn trước đó.
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
     }
 
     // ------------------------------------------------------------------ expired token

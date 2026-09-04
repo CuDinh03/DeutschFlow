@@ -1,6 +1,8 @@
 package com.deutschflow.common.config;
 
 import com.deutschflow.common.security.JwtAuthFilter;
+import com.deutschflow.common.security.MaintenanceModeFilter;
+import com.deutschflow.common.security.PrometheusScrapeTokenFilter;
 import com.deutschflow.common.security.SecurityExceptionLoggingHandler;
 import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,8 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final MaintenanceModeFilter maintenanceModeFilter;
+    private final PrometheusScrapeTokenFilter prometheusScrapeTokenFilter;
     private final UserDetailsService userDetailsService; // inject từ UserDetailsServiceConfig
     private final Environment environment;
     private final SecurityExceptionLoggingHandler securityExceptionLoggingHandler;
@@ -76,6 +80,13 @@ public class SecurityConfig {
                         auth.requestMatchers("/api/quiz/*/join").permitAll();  // guest join
                         // Value-first onboarding: guests preview their mentor before signup (read-only, non-sensitive)
                         auth.requestMatchers(HttpMethod.GET, "/api/onboarding/preview/**").permitAll();
+                        // Value-first onboarding: khách chạy hết phễu TRƯỚC khi có tài khoản, nên
+                        // hai đầu này phải mở. Có rate-limit theo IP trong GuestOnboardingController
+                        // (bề mặt public mới ⇒ không để trần). Không đầu nào đọc/ghi dữ liệu của
+                        // user đã tồn tại: sessionId là UUID ngẫu nhiên, và phiên đã claim thì
+                        // PATCH bị từ chối.
+                        auth.requestMatchers(HttpMethod.POST, "/api/onboarding/guest-session").permitAll();
+                        auth.requestMatchers(HttpMethod.PATCH, "/api/onboarding/guest-session/*").permitAll();
                         // MoMo IPN webhook: called by MoMo servers (no JWT), secured via HMAC-SHA256 signature verification
                         auth.requestMatchers("/api/payments/momo/ipn").permitAll();
                         // Stripe webhook: called by Stripe servers (no JWT), secured via HMAC-SHA256 signature verification
@@ -107,7 +118,10 @@ public class SecurityConfig {
                                 auth.requestMatchers("/actuator/prometheus").permitAll();
                                 auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
                         } else {
-                                auth.requestMatchers("/actuator/prometheus").hasRole("ADMIN");
+                                // ROLE_PROMETHEUS do PrometheusScrapeTokenFilter cấp khi scrape mang
+                                // đúng bearer token tĩnh (PROMETHEUS_SCRAPE_TOKEN). Token rỗng → filter
+                                // bất hoạt → thực tế chỉ còn ADMIN (fail-closed, đúng hành vi cũ).
+                                auth.requestMatchers("/actuator/prometheus").hasAnyRole("ADMIN", "PROMETHEUS");
                                 auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").hasRole("ADMIN");
                         }
 
@@ -118,10 +132,22 @@ public class SecurityConfig {
                         // method-security is a second layer, not the sole one.
                         auth.requestMatchers("/api/admin/**").hasRole("ADMIN");
 
+                        // Audit F-H1 (03/09/2026): cùng lý do như trên cho namespace admin của /v2.
+                        // Trước đây prefix này KHÔNG có backstop URL, nên một endpoint quên annotation
+                        // (review GET đang để isAuthenticated()) là mọi STUDENT gọi được. Toàn bộ
+                        // controller dưới prefix này là quản trị nội dung → ADMIN-only.
+                        auth.requestMatchers("/api/v2/admin/**").hasRole("ADMIN");
+
                         auth.anyRequest().authenticated();
                 })
                 .authenticationProvider(authenticationProvider())
+                // Scrape-token filter đứng TRƯỚC jwt filter: set auth ROLE_PROMETHEUS xong thì
+                // JwtAuthFilter thấy "already set" và bỏ qua (token tĩnh không phải JWT).
+                .addFilterBefore(prometheusScrapeTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // Bảo trì đứng SAU jwt filter (đọc được role → admin bypass) và TRƯỚC
+                // authorization: user thường nhận 503 MAINTENANCE thay vì lời từ chối quyền.
+                .addFilterAfter(maintenanceModeFilter, JwtAuthFilter.class)
                 .build();
     }
 

@@ -16,6 +16,7 @@ import {
   Trophy,
   Volume2,
   XCircle,
+  Check,
 } from 'lucide-react'
 import api from '@/lib/api'
 import { getAccessToken } from '@/lib/authSession'
@@ -102,7 +103,7 @@ function VocabPractice() {
 
   const buildWordsParams = useCallback(
     (size: string): Record<string, string> => {
-      const params: Record<string, string> = { cefr: selCefr, locale, size, page: '0' }
+      const params: Record<string, string> = { cefr: selCefr, locale, size }
       if (selTag) params.tag = selTag
       if (urlTopic) params.topic = urlTopic
       if (urlFocus) params.focus = urlFocus
@@ -168,7 +169,11 @@ function VocabPractice() {
     setLoading(true)
     setError(null)
     try {
-      const res = await api.get<WordListResponse>('/words', { params: buildWordsParams('30') })
+      // /words/deck: thứ tự sư phạm (đến hạn ôn → chưa học theo dải tần suất) thay cho trang 0 của
+      // danh sách vốn sắp alphabet. Ô đếm ở trên vẫn dùng /words vì nó hỏi kích thước hồ, không phải bộ bài.
+      const res = await api.get<WordListResponse>('/words/deck', {
+        params: { ...buildWordsParams('30'), mode: 'SPEAK' },
+      })
       const list = res.data.items ?? []
       if (list.length === 0) {
         setError(t('noWords'))
@@ -299,8 +304,8 @@ function VocabPractice() {
         subtitle={t('subtitle')}
         right={
           screen === 'practicing' ? (
-            <span className="ga-ui text-[13px] font-semibold text-ga-muted">
-              {idx + 1}/{words.length} · ✓ {score}
+            <span className="ga-ui inline-flex items-center gap-1 text-[13px] font-semibold text-ga-muted">
+              {idx + 1}/{words.length} · <Check size={13} aria-hidden /> {score}
             </span>
           ) : null
         }
@@ -499,8 +504,8 @@ function VocabPractice() {
                   </p>
                 )}
                 {heard && verdict === 'correct' && (
-                  <p className="ga-ui mt-4 text-[12.5px]" style={{ color: 'var(--ga-green)' }}>
-                    “{heard}” ✓
+                  <p className="ga-ui mt-4 inline-flex items-center gap-1 text-[12.5px]" style={{ color: 'var(--ga-green)' }}>
+                    “{heard}” <Check size={13} aria-hidden />
                   </p>
                 )}
               </GaCard>

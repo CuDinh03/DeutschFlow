@@ -219,7 +219,9 @@ public class TeacherLessonPlanService {
             if (userId != null) {
                 try {
                     aiUsageLedgerService.record(
-                            userId, "GOOGLE", "gemini-1.5-flash",
+                            // Nhãn phải khớp model THẬT GeminiApiClient gọi (gemini-2.5-flash) — nhãn 1.5 cũ làm
+                            // AiCostEstimator tra nhầm rate ⇒ COGS sai (checklist khung tier, mục E.5).
+                            userId, "GOOGLE", "gemini-2.5-flash",
                             0, (int) PPTX_CHARGED_TOKENS, (int) PPTX_CHARGED_TOKENS,
                             "TEACHER_PPTX_GEN", null, null);
                 } catch (Exception e) {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { UserPlus } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import { listAllTeacherStudents, type RosterStudent } from '@/lib/teacherMessagingApi'
@@ -19,6 +20,8 @@ interface ComposePickerProps {
  * first open. Rendered inside the inbox's conversation-list header.
  */
 export function ComposePicker({ onPick }: ComposePickerProps) {
+  // A6/F13: chuỗi Việt hardcode cuối cùng của inbox — về i18n như phần còn lại của /v2.
+  const t = useTranslations('v2.teacher.composePicker')
   const [open, setOpen] = useState(false)
   const [students, setStudents] = useState<RosterStudent[]>([])
   const [loading, setLoading] = useState(false)
@@ -62,32 +65,30 @@ export function ComposePicker({ onPick }: ComposePickerProps) {
   return (
     <>
       <GaBtn variant="ghost" size="sm" onClick={() => setOpen(true)}>
-        <UserPlus size={14} /> Nhắn học viên
+        <UserPlus size={14} /> {t('trigger')}
       </GaBtn>
 
       <TkModal
         open={open}
         onOpenChange={setOpen}
-        title="Nhắn học viên"
-        description="Chọn một học viên trong lớp của bạn để bắt đầu trò chuyện riêng."
+        title={t('title')}
+        description={t('description')}
         size="sm"
       >
         <div className="flex flex-col gap-3">
           <TkSearch
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Tìm theo tên hoặc email…"
+            placeholder={t('searchPlaceholder')}
           />
 
           {loading ? (
-            <LoadingState label="Đang tải danh sách học viên…" />
+            <LoadingState label={t('loadingRoster')} />
           ) : error ? (
             <p className="ga-ui py-6 text-center text-[13px] text-ga-red">{error}</p>
           ) : rows.length === 0 ? (
             <p className="ga-ui py-8 text-center text-[13px] text-ga-muted">
-              {students.length === 0
-                ? 'Bạn chưa có học viên nào trong lớp. Hãy tạo lớp và thêm học viên trước.'
-                : 'Không tìm thấy học viên phù hợp.'}
+              {students.length === 0 ? t('emptyNoStudents') : t('emptyNoMatch')}
             </p>
           ) : (
             <div className="-mx-1 max-h-[52vh] overflow-y-auto">

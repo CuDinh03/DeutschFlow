@@ -3,6 +3,7 @@ package com.deutschflow.admin.service;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.common.exception.PrivilegedActionBlockedException;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.organization.service.OrgMembershipService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,6 +27,7 @@ import com.deutschflow.vocabulary.service.EnrichmentSuspendGate;
 import com.deutschflow.vocabulary.service.TranslationUsageMeter;
 import com.deutschflow.vocabulary.service.WordQueryService;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.user.repository.RefreshTokenRepository;
 import com.deutschflow.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -74,6 +76,7 @@ public class AdminManagementService {
     private final PasswordEncoder passwordEncoder;
     private final OrgMembershipService orgMembershipService;
     private final OrganizationRepository organizationRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional(readOnly = true)
     public Map<String, Object> overview() {
@@ -362,6 +365,7 @@ public class AdminManagementService {
                         SELECT COALESCE(NULLIF(TRIM(feature), ''), 'UNKNOWN') AS feature,
                                COALESCE(model, 'unknown')                     AS model,
                                COALESCE(SUM(prompt_tokens), 0)::bigint        AS prompt_tokens,
+                               COALESCE(SUM(cached_prompt_tokens), 0)::bigint AS cached_prompt_tokens,
                                COALESCE(SUM(completion_tokens), 0)::bigint    AS completion_tokens,
                                COALESCE(SUM(total_tokens), 0)::bigint         AS total_tokens,
                                COUNT(*)::bigint                               AS requests
@@ -378,6 +382,9 @@ public class AdminManagementService {
             String feature = String.valueOf(row.get("feature"));
             String model = String.valueOf(row.get("model"));
             long prompt = toLong(row.get("prompt_tokens"));
+            // Phần prompt được nhà cung cấp phục vụ từ cache — rẻ hơn input thường 2–10×
+            // (V270). Hàng ledger cũ không có số này ⇒ 0 ⇒ định giá y như trước.
+            long cachedPrompt = toLong(row.get("cached_prompt_tokens"));
             long completion = toLong(row.get("completion_tokens"));
             long total = toLong(row.get("total_tokens"));
             long requests = toLong(row.get("requests"));
@@ -386,7 +393,7 @@ public class AdminManagementService {
             acc[1] += completion;
             acc[2] += total;
             acc[3] += requests;
-            costByFeature.merge(feature, aiCostEstimator.costUsd(model, prompt, completion), Double::sum);
+            costByFeature.merge(feature, aiCostEstimator.costUsd(model, prompt, cachedPrompt, completion), Double::sum);
         }
 
         long totalTokensSum = 0L;
@@ -442,6 +449,7 @@ public class AdminManagementService {
                     COALESCE(model, 'unknown')                             AS model,
                     COALESCE(NULLIF(TRIM(feature), ''), 'UNKNOWN')         AS feature,
                     SUM(prompt_tokens)::bigint                             AS prompt_tokens,
+                    SUM(cached_prompt_tokens)::bigint                      AS cached_prompt_tokens,
                     SUM(completion_tokens)::bigint                         AS completion_tokens,
                     SUM(total_tokens)::bigint                              AS tokens
                 FROM ai_token_usage_events
@@ -457,10 +465,13 @@ public class AdminManagementService {
         List<Map<String, Object>> daily = new ArrayList<>(rows.size());
         for (Map<String, Object> row : rows) {
             long prompt = toLong(row.get("prompt_tokens"));
+            // Phần prompt được nhà cung cấp phục vụ từ cache — rẻ hơn input thường 2–10×
+            // (V270). Hàng ledger cũ không có số này ⇒ 0 ⇒ định giá y như trước.
+            long cachedPrompt = toLong(row.get("cached_prompt_tokens"));
             long completion = toLong(row.get("completion_tokens"));
             long tokens = toLong(row.get("tokens"));
             String model = String.valueOf(row.get("model"));
-            double costUsd = aiCostEstimator.costUsd(model, prompt, completion);
+            double costUsd = aiCostEstimator.costUsd(model, prompt, cachedPrompt, completion);
             totalTokens += tokens;
             totalCostUsd += costUsd;
 
@@ -511,6 +522,7 @@ public class AdminManagementService {
                     COALESCE(model, 'unknown')                     AS model,
                     COALESCE(NULLIF(TRIM(feature), ''), 'UNKNOWN') AS feature,
                     SUM(prompt_tokens)::bigint                     AS prompt_tokens,
+                    SUM(cached_prompt_tokens)::bigint              AS cached_prompt_tokens,
                     SUM(completion_tokens)::bigint                 AS completion_tokens,
                     SUM(total_tokens)::bigint                      AS total_tokens,
                     COUNT(*)::bigint                               AS requests
@@ -542,10 +554,13 @@ public class AdminManagementService {
             String model = String.valueOf(row.get("model"));
             String feature = String.valueOf(row.get("feature"));
             long prompt = toLong(row.get("prompt_tokens"));
+            // Phần prompt được nhà cung cấp phục vụ từ cache — rẻ hơn input thường 2–10×
+            // (V270). Hàng ledger cũ không có số này ⇒ 0 ⇒ định giá y như trước.
+            long cachedPrompt = toLong(row.get("cached_prompt_tokens"));
             long completion = toLong(row.get("completion_tokens"));
             long total = toLong(row.get("total_tokens"));
             long requests = toLong(row.get("requests"));
-            double costUsd = aiCostEstimator.costUsd(model, prompt, completion);
+            double costUsd = aiCostEstimator.costUsd(model, prompt, cachedPrompt, completion);
 
             accumulate(byModelTokens, byModelCost, model, prompt, completion, total, requests, costUsd);
             accumulate(byFeatureTokens, byFeatureCost, feature, prompt, completion, total, requests, costUsd);
@@ -658,6 +673,35 @@ public class AdminManagementService {
         return list;
     }
 
+    /**
+     * Bất biến "hệ thống luôn còn ít nhất một ADMIN hoạt động" (audit F-M1, 03/09/2026).
+     *
+     * <p>Controller đã chặn admin TỰ hạ quyền / tự khóa mình, nhưng chặn ở đó không đủ: hai admin
+     * vẫn tước quyền hoặc khóa lẫn nhau được, và kết cục là 0 admin — khoá cứng toàn hệ thống, chỉ
+     * gỡ được bằng cách sửa thẳng DB. Guard đặt ở service nên MỌI đường ghi đều đi qua, kể cả
+     * endpoint thêm sau này quên tự rào.
+     *
+     * <p>Chỉ đếm ADMIN còn {@code is_active=true}: một admin đã bị khóa không cứu được hệ thống.
+     *
+     * <p>Audit R-M2 (03/09/2026): đếm DƯỚI khóa {@code FOR UPDATE} thay vì đọc trần. Phép đọc-rồi-
+     * quyết trước đây để hở TOCTOU — hai admin hạ quyền/khóa lẫn nhau đồng thời cùng thấy count==2
+     * rồi cùng ghi, kết cục 0 admin. Khóa các dòng admin đang hoạt động buộc hai giao dịch tuần tự
+     * hóa: giao dịch sau chỉ chạy sau khi giao dịch trước commit, nên số đếm nó thấy đã trừ đi admin
+     * vừa bị hạ. Chạy trong giao dịch ghi của updateUserRole/setUserActive nên khóa giữ tới hết tx.
+     */
+    private void requireNotLastActiveAdmin(User target, String message, String attemptedAction) {
+        if (!target.isActive()) {
+            return; // đã không nằm trong số admin hoạt động thì không phải người cuối cùng
+        }
+        if (userRepository.lockActiveIdsByRoleForUpdate(User.Role.ADMIN.name()).size() <= 1) {
+            // Audit R-M9: ném subtype mang chất liệu audit — GlobalExceptionHandler ghi vết SAU khi
+            // transaction rollback (ghi ở đây thì vết rollback theo, lần thử dò vô hình mãi mãi).
+            throw new PrivilegedActionBlockedException(message,
+                    "admin.user.last_admin.blocked", "USER", String.valueOf(target.getId()),
+                    Map.of("attemptedAction", attemptedAction, "targetEmail", target.getEmail()));
+        }
+    }
+
     @Transactional
     public Map<String, Object> updateUserRole(Long userId, String role) {
         User user = userRepository.findById(userId)
@@ -666,13 +710,32 @@ public class AdminManagementService {
         if (!List.of("ADMIN", "TEACHER", "STUDENT").contains(normalized)) {
             throw new BadRequestException("Invalid role");
         }
+        // Overwriting users.role here bypasses OrgMembershipService, which is the only writer that
+        // keeps org_members.role in lock-step. For an org member that silently desyncs the two, so
+        // force the change through the org console instead (A-5).
+        if (orgMembershipService.hasActiveMembership(userId)) {
+            throw new BadRequestException(
+                    "Người dùng đang thuộc một tổ chức. Hãy đổi vai trò qua Console tổ chức để giữ đồng bộ org_members.");
+        }
+        if (user.getRole() == User.Role.ADMIN && !"ADMIN".equals(normalized)) {
+            requireNotLastActiveAdmin(user, "Không thể hạ quyền quản trị viên hoạt động cuối cùng.", "role.update");
+        }
+        // Audit F-M4 (03/09/2026): vết admin.user.role.updated chỉ ghi vai trò MỚI, nên nhật ký
+        // không nói được đã đổi TỪ đâu — muốn biết phải suy ngược qua các vết trước đó. Trả về
+        // vai trò cũ để controller ghi kèm.
+        String previousRole = user.getRole().name();
         user.setRole(User.Role.valueOf(normalized));
         userRepository.save(user);
+        // Audit F-H3 (03/09/2026): đổi vai trò xong phải cắt phiên cũ. Access token đang lưu hành
+        // mang authorities của vai trò CŨ và JwtAuthFilter cache UserDetails 60s, nên nếu không
+        // revoke thì người vừa bị hạ quyền còn giữ quyền cũ tới hết vòng đời refresh token (7 ngày).
+        refreshTokenRepository.revokeAllByUserId(userId);
         return Map.of(
                 "id", user.getId(),
                 "email", user.getEmail(),
                 "displayName", user.getDisplayName(),
-                "role", user.getRole().name()
+                "role", user.getRole().name(),
+                "previousRole", previousRole
         );
     }
 
@@ -688,7 +751,9 @@ public class AdminManagementService {
         String normEmail = email == null ? "" : email.trim().toLowerCase();
         if (normEmail.isBlank()) throw new BadRequestException("Email không được để trống.");
         if (displayName == null || displayName.isBlank()) throw new BadRequestException("Tên hiển thị không được để trống.");
-        if (rawPassword == null || rawPassword.length() < 6) throw new BadRequestException("Mật khẩu tối thiểu 6 ký tự.");
+        // C10/F-L4 (03/09/2026): sàn 8 ký tự khớp mọi nơi khác (register, setUserPassword, quên mật
+        // khẩu) — trước đây admin-create lệch xuống 6, tạo tài khoản yếu hơn chuẩn chung.
+        if (rawPassword == null || rawPassword.length() < 8) throw new BadRequestException("Mật khẩu tối thiểu 8 ký tự.");
         String normRole = role == null ? "" : role.trim().toUpperCase();
         if (!List.of("ADMIN", "TEACHER", "STUDENT", "MANAGER").contains(normRole)) throw new BadRequestException("Vai trò không hợp lệ.");
         if (userRepository.existsByEmailIgnoreCase(normEmail)) throw new ConflictException("Email này đã có tài khoản.");
@@ -746,8 +811,17 @@ public class AdminManagementService {
     public Map<String, Object> setUserActive(Long userId, boolean active) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
+        if (!active && user.getRole() == User.Role.ADMIN) {
+            requireNotLastActiveAdmin(user, "Không thể khóa quản trị viên hoạt động cuối cùng.", "deactivate");
+        }
         user.setActive(active);
         userRepository.save(user);
+        // Audit F-H3 (03/09/2026): khóa tài khoản mà không revoke thì phiên đang chạy vẫn sống —
+        // AuthService#refresh nay cũng chặn user bị khóa, nhưng revoke ở đây cắt ngay thay vì đợi
+        // access token hết hạn rồi mới chặn ở lần refresh kế tiếp.
+        if (!active) {
+            refreshTokenRepository.revokeAllByUserId(userId);
+        }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", user.getId());
         out.put("email", user.getEmail());
@@ -770,6 +844,10 @@ public class AdminManagementService {
                 .orElseThrow(() -> new NotFoundException("User not found"));
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
         userRepository.save(user);
+        // Audit F-H3 (03/09/2026): đổi mật khẩu qua self-service và qua OTP quên-mật-khẩu đều revoke
+        // session; riêng đường admin đặt lại hộ thì không — bất đối xứng đúng ở tình huống cần nhất
+        // (gỡ credential mặc định, thu hồi tài khoản bị chiếm). Revoke cho khớp hai đường kia.
+        refreshTokenRepository.revokeAllByUserId(userId);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", user.getId());
         out.put("email", user.getEmail());
@@ -814,8 +892,12 @@ public class AdminManagementService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> listClasses() {
         return jdbcTemplate.queryForList("""
-                SELECT c.id, c.name, c.teacher_id AS teacherId, u.display_name AS teacherName, c.created_at AS createdAt,
-                       (SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = c.id) AS studentCount
+                -- Quote the camelCase aliases: Postgres folds UNquoted aliases to lowercase, so
+                -- the JSON keys became teachername/studentcount and the admin FE (which reads
+                -- c.teacherName / c.studentCount) showed every class as "chưa phân công · 0 HV"
+                -- despite the INNER JOIN guaranteeing a teacher (A-12).
+                SELECT c.id, c.name, c.teacher_id AS "teacherId", u.display_name AS "teacherName", c.created_at AS "createdAt",
+                       (SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = c.id) AS "studentCount"
                 FROM teacher_classes c
                 JOIN users u ON u.id = c.teacher_id
                 ORDER BY c.created_at DESC
@@ -856,7 +938,10 @@ public class AdminManagementService {
                 SELECT
                   u.id AS studentId,
                   u.display_name AS name,
-                  lp.plan_json AS planJson,
+                  -- plan_json is JSONB: cast to text so JdbcTemplate returns a String, not a
+                  -- PGobject (which the (String) cast below would choke on → 500 for the whole
+                  -- reports page). CAST(... AS text) avoids the `::` form that Hibernate mangles.
+                  CAST(lp.plan_json AS text) AS planJson,
                   COALESCE(c.completedSessions, 0) AS completedSessions,
                   lc.week_number AS lastCompletedWeek,
                   lc.session_index AS lastCompletedSession,

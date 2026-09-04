@@ -24,3 +24,13 @@ export async function getDailyGoalMinutes(): Promise<number | null> {
     return null
   }
 }
+
+/** Xoá mục tiêu phút/ngày khỏi máy — gọi lúc đăng xuất (F-4): copy bước streak
+ * của tour không được đọc mục tiêu của tài khoản trước. */
+export async function clearDailyGoalMinutes(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(KEY)
+  } catch {
+    /* best-effort */
+  }
+}

@@ -1,11 +1,31 @@
 import { View, FlatList, Pressable, RefreshControl, Alert } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { Bell, CheckCheck } from 'lucide-react-native'
+import {
+  BadgeCheck,
+  Bell,
+  CalendarClock,
+  CalendarPlus,
+  CalendarX2,
+  CheckCheck,
+  CheckSquare,
+  ClipboardList,
+  Flame,
+  GraduationCap,
+  Megaphone,
+  MessageCircle,
+  Repeat,
+  TrendingUp,
+  Trophy,
+  UserCheck,
+  UserX,
+  Wrench,
+  type LucideIcon,
+} from 'lucide-react-native'
 import { formatDistanceToNow, isToday, isYesterday } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import api, { apiMessage } from '@/lib/api'
-import { space, useTheme } from '@/lib/theme'
+import { radius, space, useTheme } from '@/lib/theme'
 import {
   Screen,
   Card,
@@ -18,8 +38,47 @@ import {
   ErrorState,
   Skeleton,
 } from '@/components/ui'
-import { mapNotification, notificationTypeLabel, type Notification, type NotificationPage } from '@/lib/notificationsApi'
+import {
+  mapNotification,
+  notificationIconKey,
+  notificationTypeLabel,
+  stripLeadingEmoji,
+  type Notification,
+  type NotificationIconKey,
+  type NotificationPage,
+} from '@/lib/notificationsApi'
 import { resolveNotificationRoute } from '@/lib/notificationRoute'
+
+// Themed icon per notification type — replaces the emoji the backend bakes into titles (stripped
+// via stripLeadingEmoji). The type→key decision is a PURE function in lib/notificationsApi so it can
+// be unit-tested against the full list of student-facing types; here we only bind key → component.
+//
+// QA 13/08: trước đây bảng này chỉ liệt kê 8 loại, nên "được duyệt vào lớp", "thêm vào lớp",
+// "thông báo từ giáo viên"… vừa bị cắt emoji vừa chỉ còn chuông chung — ít thông tin hơn cả
+// trước khi cắt emoji. Nay mọi loại học viên nhận được đều có icon riêng.
+const ICON_BY_KEY: Record<NotificationIconKey, LucideIcon> = {
+  trophy: Trophy,
+  levelUp: TrendingUp,
+  review: Repeat,
+  streak: Flame,
+  assignment: ClipboardList,
+  graded: CheckSquare,
+  classJoinOk: UserCheck,
+  classJoinNo: UserX,
+  classAdded: GraduationCap,
+  announcement: Megaphone,
+  message: MessageCircle,
+  calendarAdd: CalendarPlus,
+  calendarCancel: CalendarX2,
+  calendarMove: CalendarClock,
+  plan: BadgeCheck,
+  maintenance: Wrench,
+  bell: Bell,
+}
+
+function notificationTypeIcon(type: string): LucideIcon {
+  return ICON_BY_KEY[notificationIconKey(type)]
+}
 
 // Presentation-only: editorial date buckets (HÔM NAY / HÔM QUA / TRƯỚC ĐÓ)
 // derived from the already-fetched list. No extra fetch.
@@ -166,16 +225,28 @@ export default function NotificationsScreen() {
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
-                  {!item.isRead ? (
-                    <YellowSquare size={9} style={{ marginTop: 5 }} />
-                  ) : (
-                    <View style={{ width: 9 }} />
-                  )}
+                  {/* Type icon tile — surface-on-yellow when unread (card bg is
+                      accentSoft), soft-yellow-on-white when read. */}
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: radius.md,
+                      backgroundColor: item.isRead ? c.accentSoft : c.surface,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon icon={notificationTypeIcon(item.type)} size={20} color="accent" />
+                  </View>
                   <View style={{ flex: 1, gap: 3 }}>
-                    <Caption color={item.isRead ? c.textFaint : c.accentText}>
-                      {notificationTypeLabel(item.type)}
-                    </Caption>
-                    <ThemedText variant="bodyStrong">{item.title}</ThemedText>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                      {!item.isRead ? <YellowSquare size={8} /> : null}
+                      <Caption color={item.isRead ? c.textFaint : c.accentText}>
+                        {notificationTypeLabel(item.type)}
+                      </Caption>
+                    </View>
+                    <ThemedText variant="bodyStrong">{stripLeadingEmoji(item.title)}</ThemedText>
                     {item.body ? (
                       <ThemedText variant="caption" color="secondary">
                         {item.body}

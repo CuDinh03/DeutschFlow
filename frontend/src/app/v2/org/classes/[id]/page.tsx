@@ -6,8 +6,9 @@ import { useTranslations } from 'next-intl'
 import { ArrowLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
+import { toast } from 'sonner'
 import {
-  getOrgClassDetail, getOrgClassGradebook, getOrgClassLessonLogs,
+  getOrgClassDetail, getOrgClassGradebook, getOrgClassLessonLogs, removeOrgClassAssistant,
   type OrgClassDetail, type OrgGradebook, type OrgLessonLog,
 } from '@/lib/orgApi'
 import {
@@ -55,6 +56,8 @@ export default function V2OrgClassDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
+  // PR C trợ giảng: teacherId đang bị gỡ khỏi lớp (disable nút trong lúc chờ).
+  const [removingTeacher, setRemovingTeacher] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -64,6 +67,19 @@ export default function V2OrgClassDetailPage() {
     finally { setLoading(false) }
   }, [id, t])
   useEffect(() => { void load() }, [load])
+
+  const removeAssistant = useCallback(async (teacherId: number) => {
+    setRemovingTeacher(teacherId)
+    try {
+      await removeOrgClassAssistant(id, teacherId)
+      toast.success(t('assistantRemoved'))
+      await load()
+    } catch (e: unknown) {
+      toast.error(apiMessage(e))
+    } finally {
+      setRemovingTeacher(null)
+    }
+  }, [id, t, load])
 
   const rows = useMemo(() => {
     const students = detail?.students ?? []
@@ -158,14 +174,25 @@ export default function V2OrgClassDetailPage() {
               <div className="flex flex-col gap-[18px]">
                 <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
                   <GaCap className="mb-3.5 block">{t('teacherCap')}</GaCap>
-                  {detail.teacherName ? (
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-10 w-10 shrink-0 place-items-center font-ga-display text-[15px] font-medium" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>{initial(detail.teacherName)}</span>
-                      <div className="min-w-0">
-                        <div className="truncate text-[14px] font-semibold text-ga-ink">{detail.teacherName}</div>
-                        <div className="text-[12px] text-ga-muted">{detail.teacherId ? t('teacherRef', { id: detail.teacherId }) : ''}</div>
-                      </div>
-                    </div>
+                  {(detail.teachers ?? []).length > 0 ? (
+                    <ul className="flex flex-col gap-3">
+                      {(detail.teachers ?? []).map((tt) => (
+                        <li key={tt.teacherId} className="flex items-center gap-3">
+                          <span className="grid h-10 w-10 shrink-0 place-items-center font-ga-display text-[15px] font-medium" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>{initial(tt.displayName)}</span>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-[14px] font-semibold text-ga-ink">{tt.displayName || tt.email || '—'}</div>
+                            <div className="text-[11px] font-bold uppercase tracking-[0.04em]" style={{ color: tt.role === 'PRIMARY' ? 'var(--ga-green)' : 'var(--ga-violet)' }}>
+                              {tt.role === 'PRIMARY' ? t('rolePrimary') : t('roleAssistant')}
+                            </div>
+                          </div>
+                          {tt.role !== 'PRIMARY' && (
+                            <button type="button" disabled={removingTeacher !== null} onClick={() => removeAssistant(tt.teacherId)} className="ga-ui inline-flex min-h-[36px] shrink-0 items-center justify-center border px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50" style={{ color: 'var(--ga-red)', borderColor: 'color-mix(in srgb, var(--ga-red) 35%, transparent)' }}>
+                              {removingTeacher === tt.teacherId ? t('removingAssistant') : t('removeAssistant')}
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
                   ) : (
                     <button type="button" onClick={() => router.push('/v2/org/teachers')} className="ga-ui min-h-[40px] w-full border px-3 py-3 text-[12px] font-bold lg:min-h-0" style={{ color: 'var(--ga-red)', background: 'var(--ga-red-soft)', borderColor: 'color-mix(in srgb, var(--ga-red) 30%, transparent)' }}>{t('assignTeacher')}</button>
                   )}

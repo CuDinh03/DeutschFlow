@@ -54,6 +54,36 @@ public interface UserNotificationRepository extends JpaRepository<UserNotificati
                           @Param("readAt") LocalDateTime readAt);
 
     /**
+     * Regrade (F-QA-01): cập nhật TẠI CHỖ thông báo {@code type} MỚI NHẤT của {@code userId} có payload
+     * CHỨA {@code matchJson} — thay nguyên payload bằng {@code payloadJson} (điểm/nhận xét mới + cờ
+     * {@code updated}) và trả dòng về CHƯA ĐỌC để chuông/badge báo có thay đổi. Nhờ đó N lần sửa điểm
+     * gộp thành đúng MỘT dòng hộp thư thay vì N dòng "✅ Bài đã chấm" với dãy điểm dao động.
+     *
+     * <p>Chỉ đụng dòng mới nhất ({@code ORDER BY id DESC LIMIT 1}): các dòng trùng lịch sử đã phát
+     * trước fix cứ để job dọn thông báo-đã-đọc thu hồi dần. Native query vì cần jsonb {@code @>};
+     * CAST() thay cho {@code ::jsonb} vì Hibernate nuốt dấu {@code ::} trong native SQL.
+     *
+     * @return 1 nếu tìm thấy và cập nhật, 0 nếu người dùng không còn thông báo nào của bài đó
+     */
+    @Modifying
+    @Query(value = """
+            UPDATE user_notifications
+               SET payload_json = CAST(:payloadJson AS jsonb),
+                   read_at = NULL
+             WHERE id = (
+                   SELECT id FROM user_notifications
+                    WHERE recipient_user_id = :userId
+                      AND notification_type = :type
+                      AND payload_json @> CAST(:matchJson AS jsonb)
+                    ORDER BY id DESC
+                    LIMIT 1)
+            """, nativeQuery = true)
+    int refreshLatestByContext(@Param("userId") long userId,
+                               @Param("type") String type,
+                               @Param("matchJson") String matchJson,
+                               @Param("payloadJson") String payloadJson);
+
+    /**
      * Đánh dấu đã đọc theo TYPE (không lọc payload): mọi thông báo chưa đọc của {@code userId} thuộc
      * {@code types}. Dùng cho loại nên đọc bất kể payload (ví dụ nhắc ôn tập khi đã học trong ngày).
      */

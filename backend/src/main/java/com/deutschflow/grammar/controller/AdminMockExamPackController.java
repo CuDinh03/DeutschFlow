@@ -1,5 +1,9 @@
 package com.deutschflow.grammar.controller;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.deutschflow.user.entity.User;
+import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.grammar.dto.CreateMockExamPackRequest;
 import com.deutschflow.grammar.dto.MockExamPackAdminDto;
 import com.deutschflow.grammar.dto.UpdateMockExamPackRequest;
@@ -21,6 +25,7 @@ import java.util.List;
 public class AdminMockExamPackController {
 
     private final AdminMockExamPackService adminMockExamPackService;
+    private final AuditLogService auditLogService;
 
     @GetMapping
     public List<MockExamPackAdminDto> list() {
@@ -28,18 +33,35 @@ public class AdminMockExamPackController {
     }
 
     @PostMapping
-    public MockExamPackAdminDto create(@RequestBody CreateMockExamPackRequest request) {
-        return adminMockExamPackService.create(request);
+    public MockExamPackAdminDto create(@RequestBody CreateMockExamPackRequest request,
+                                       @AuthenticationPrincipal User actor) {
+        MockExamPackAdminDto created = adminMockExamPackService.create(request);
+        audit("admin.mock_exam_pack.created", actor, created.id());
+        return created;
     }
 
     @PatchMapping("/{id}")
-    public MockExamPackAdminDto update(@PathVariable Long id, @RequestBody UpdateMockExamPackRequest request) {
-        return adminMockExamPackService.update(id, request);
+    public MockExamPackAdminDto update(@PathVariable Long id, @RequestBody UpdateMockExamPackRequest request,
+                                       @AuthenticationPrincipal User actor) {
+        MockExamPackAdminDto updated = adminMockExamPackService.update(id, request);
+        audit("admin.mock_exam_pack.updated", actor, id);
+        return updated;
     }
 
     /** Soft-delete: retire the pack from the student catalog. */
     @DeleteMapping("/{id}")
-    public MockExamPackAdminDto deactivate(@PathVariable Long id) {
-        return adminMockExamPackService.deactivate(id);
+    public MockExamPackAdminDto deactivate(@PathVariable Long id, @AuthenticationPrincipal User actor) {
+        MockExamPackAdminDto deactivated = adminMockExamPackService.deactivate(id);
+        audit("admin.mock_exam_pack.deactivated", actor, id);
+        return deactivated;
+    }
+
+    /**
+     * Audit F-M3 (03/09/2026): gói đề thi thử là catalog học viên mua/dùng; gỡ một gói khỏi catalog
+     * là thay đổi nhìn thấy được với mọi người mà trước đây không truy được ai làm.
+     */
+    private void audit(String event, User actor, Long packId) {
+        auditLogService.log(event, AuditActor.of(actor),
+                "MOCK_EXAM_PACK", String.valueOf(packId), java.util.Map.of());
     }
 }

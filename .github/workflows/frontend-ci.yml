@@ -1,18 +1,54 @@
 name: Frontend CI
 
 on:
+  # `push` vẫn lọc nhánh: mỗi lần push lên nhánh feature đã có sự kiện `pull_request` bên dưới lo,
+  # chạy cả hai chỉ tốn đôi CI cho cùng một commit.
+  #
+  # Danh sách này còn nợ dọn, nhưng để nguyên vì gỡ nhầm thì mất cổng: `feat/onboarding-v3` nay ĐÃ merge
+  # trọn vào main (kiểm 02/09 bằng `git merge-base --is-ancestor`) nên gỡ được; `dev` thì KHÔNG — nó vẫn
+  # còn 19 commit chưa lên main, dù mobile-ci.yml đã gỡ `dev` với lý do "nhánh chết".
   push:
-    branches: [ "master", "main", "dev" ]
+    branches: [ "master", "main", "dev", "feat/onboarding-v3" ]
     paths:
       - 'frontend/**'
+      - 'backend/src/main/java/com/deutschflow/user/mentor/**'
+      - '.github/workflows/frontend-ci.yml'
+
+  # `pull_request` KHÔNG lọc base — cố ý.
+  #
+  # `branches:` ở đây chỉ khớp nhánh ĐÍCH, nên mọi PR xếp chồng (PR có base là một nhánh feature
+  # khác) rơi ra ngoài và workflow này không hề chạy. Nó không đỏ, nó VẮNG MẶT: PR vẫn hiện
+  # CLEAN/MERGEABLE vì Backend CI và Security CI (cả hai để `pull_request:` trần) vẫn xanh, nên
+  # nhìn qua tưởng đã qua cổng đầy đủ. Ngăn xếp 5 PR ngày 02/09/2026 (#445→#449→#455→#457→#458)
+  # merge được mà chưa từng chạy tsc, lint, i18n guard hay bản build thật một lần nào trên CI —
+  # đúng lúc cần nhất, vì bốn PR trong đó sửa frontend.
+  #
+  # `paths` thì giữ: PR chỉ đụng backend không cần dựng frontend. Ngoài `frontend/**` còn theo dõi
+  # catalog mentor ở backend vì `src/__tests__/mentorMeta.test.ts` đọc thẳng FixedMentorResolver.java
+  # làm nguồn chuẩn — một PR CHỈ đụng backend mà thêm mentor sẽ không kích hoạt workflow này và guard
+  # trở thành vô dụng; đó chính là hình dạng của commit 63e406cb, thứ đã để 6 mentor nhập môn trôi
+  # mất trên web. Và chính file workflow này cũng nằm trong danh sách, để sửa cổng thì cổng tự chạy.
+  # `edited` có mặt vì một lý do duy nhất: khi PR base được merge, GitHub trỏ lại base bằng sự kiện
+  # `edited` — không phải `synchronize` — nên nếu thiếu, PR xếp chồng được retarget sang main mà KHÔNG
+  # chạy lại cổng nào. Job bên dưới lọc lại để bỏ qua các lần `edited` chỉ sửa tiêu đề/mô tả.
   pull_request:
-    branches: [ "master", "main", "dev" ]
+    types: [opened, synchronize, reopened, edited]
     paths:
       - 'frontend/**'
+      - 'backend/src/main/java/com/deutschflow/user/mentor/**'
+      - '.github/workflows/frontend-ci.yml'
 
 jobs:
   build-and-lint:
     runs-on: ubuntu-latest
+    # `edited` bắn cho CẢ sửa tiêu đề/mô tả lẫn đổi base, mà ta chỉ cần vế đổi base. Payload của
+    # GitHub chỉ có `changes.base` khi base thật sự đổi, nên chặn ở đây để một lần sửa mô tả PR không
+    # kéo theo nguyên vòng CI. Điều kiện viết theo hướng an toàn: đoán sai thì job CHẠY thừa, chứ không
+    # bỏ mất lượt chạy cần có.
+    if: >-
+      github.event_name != 'pull_request'
+      || github.event.action != 'edited'
+      || github.event.changes.base != null
 
     steps:
       - name: Checkout Code
@@ -59,3 +95,20 @@ jobs:
         run: |
           chmod +x scripts/i18n/check_i18n.py
           ./scripts/i18n/check_i18n.py || (echo "i18n Check Failed: Hardcoded strings found! Please extract them using t() hook." && exit 1)
+
+      # Typecheck and unit tests never execute static generation, so a page can pass every
+      # gate above and still emit i18n resolution errors (MISSING_MESSAGE) or fail outright
+      # when the production artifact is built. Build the real artifact here and treat
+      # MISSING_MESSAGE as a failure — next-intl logs it but exits 0, and the raw key path
+      # leaks into the rendered page.
+      - name: Production Build (gate on MISSING_MESSAGE)
+        working-directory: ./frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log
+          if grep -n "MISSING_MESSAGE" build.log; then
+            echo "::error::next-intl MISSING_MESSAGE in production build — an i18n key fails to resolve (see lines above)"
+            exit 1
+          fi

@@ -24,9 +24,17 @@ public enum IndustryFamily {
      * Best-effort keyword match of a free-text industry string (vi / de / en) to a
      * family. Returns {@link #EDUCATION} when the input is blank or unrecognized.
      *
-     * <p>Keyword lists are intentionally kept disjoint so match order does not change
-     * the result. This is a heuristic default — the learner can override their mentor
-     * in the Speaking module afterwards.
+     * <p><b>Match order matters</b> and is asserted by {@code IndustryFamilyTest}.
+     * The keyword lists are <i>not</i> disjoint: {@code "tech"} is a substring of
+     * {@code "technik"} (Kỹ thuật) and of {@code "medizintechnik"}. The IT
+     * substring branch is therefore evaluated <b>last</b>, after every more
+     * specific family has had its turn — otherwise "Technik" lands on an IT
+     * mentor and "Medizintechnik" never reaches HEALTHCARE (QA 2026-08-20, F-6).
+     * The two whole-token checks stay first: they are exact, so nothing can
+     * shadow them.
+     *
+     * <p>This is a heuristic default — the learner can override their mentor in
+     * the Speaking module afterwards.
      */
     /** Longest input we bother scanning — real industry strings are short (request DTO caps at 100). */
     private static final int MAX_SCAN_LENGTH = 200;
@@ -49,23 +57,22 @@ public enum IndustryFamily {
             return MEDIA;
         }
 
-        // Longer, distinctive keywords are matched as substrings.
-        if (containsAny(s, "informatik", "software", "developer", "entwickler", "lập trình", "công nghệ", "programm", "tech")) {
-            return IT;
-        }
+        // Longer, distinctive keywords are matched as substrings, most specific first.
         if (containsAny(s, "health", "mediz", "medic", "doctor", "arzt", "nurse", "pflege", "y tế", "y khoa", "bác sĩ", "điều dưỡng", "clinic", "klinik", "krankenhaus", "hautarzt", "augenarzt")) {
             return HEALTHCARE;
         }
         if (containsAny(s, "gastro", "koch", "küche", "kuche", "chef", "kitchen", "bếp", "đầu bếp", "nhà hàng", "cook", "restaurant")) {
             return GASTRONOMY;
         }
-        if (containsAny(s, "bäcker", "baecker", "metzger", "verkauf", "retail", "einzelhandel", "supermarkt", "laden", "bán lẻ", "cửa hàng", "tạp hóa", "siêu thị", "bakery", "bäckerei")) {
+        // "handel" also covers "einzelhandel"; the web funnel sends the bare "Handel".
+        if (containsAny(s, "bäcker", "baecker", "metzger", "verkauf", "retail", "handel", "supermarkt", "laden", "bán lẻ", "cửa hàng", "tạp hóa", "siêu thị", "bakery", "bäckerei")) {
             return RETAIL;
         }
-        if (containsAny(s, "maschin", "cnc", "fräs", "fras", "mechanic", "cơ khí", "vận hành máy", "operator", "operations", "produktion", "fabrik", "industrie")) {
+        // Must precede the IT branch: "technik" contains "tech".
+        if (containsAny(s, "maschin", "cnc", "fräs", "fras", "mechanic", "cơ khí", "vận hành máy", "operator", "operations", "produktion", "fabrik", "industrie", "technik", "kỹ thuật")) {
             return OPERATIONS;
         }
-        if (containsAny(s, "hotel", "kellner", "rezeption", "phục vụ", "lễ tân", "khách sạn", "waiter", "reception", "hospitality")) {
+        if (containsAny(s, "hotel", "kellner", "rezeption", "phục vụ", "lễ tân", "khách sạn", "waiter", "reception", "hospitality", "tourismus", "tourism", "du lịch", "reise")) {
             return SERVICE;
         }
         if (containsAny(s, "media", "medien", "moderator", "truyền thông", "journalis", "rundfunk", "entertainment")) {
@@ -73,6 +80,10 @@ public enum IndustryFamily {
         }
         if (containsAny(s, "business", "office", "büro", "buro", "manage", "kinh doanh", "văn phòng", "marketing", "consult", "vertrieb", "sales")) {
             return BUSINESS;
+        }
+        // LAST on purpose — "tech" is a substring of several other families' keywords.
+        if (containsAny(s, "informatik", "software", "developer", "entwickler", "lập trình", "công nghệ", "programm", "tech")) {
+            return IT;
         }
         return EDUCATION;
     }

@@ -1,8 +1,9 @@
 "use client";
 
+import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide';
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Mic, Square, RotateCcw, Loader2 } from "lucide-react";
+import { Mic, Square, RotateCcw, Loader2, PartyPopper, Bot, Lightbulb, Check, TriangleAlert, X, CircleCheck } from "lucide-react";
 import { AudioButton } from "./LearnComponents";
 import api from "@/lib/api";
 import { useTranslations } from "next-intl";
@@ -225,7 +226,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
   if (drills.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-ga-card rounded-ga border border-ga-line">
-        <span className="text-4xl mb-3">🎤</span>
+        <Mic size={40} className="mb-3 text-ga-subtle" aria-hidden />
         <p className="text-sm text-ga-muted">Chưa có bài luyện nói cho bài học này.</p>
       </div>
     );
@@ -233,6 +234,8 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
 
   return (
     <div className="space-y-4">
+      <MicDeniedGuide />
+      <MicDeniedGuide />
       {/* ── Current drill card ── */}
       <div className="rounded-ga bg-gradient-to-br from-ga-ink to-ga-ink p-4 lg:p-6 space-y-4">
         <div className="flex items-center justify-between gap-2">
@@ -304,8 +307,8 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
         )}
       </div>
 
-      {recording && <p className="text-center text-xs text-ga-red animate-pulse">🎙️ Đang ghi âm...</p>}
-      {evaluating && <p className="text-center text-xs text-ga-muted">🤖 Đang đánh giá phát âm...</p>}
+      {recording && <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ga-red animate-pulse"><Mic size={13} aria-hidden /> Đang ghi âm...</p>}
+      {evaluating && <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ga-muted"><Bot size={13} aria-hidden /> Đang đánh giá phát âm...</p>}
       {error && <p className="text-center text-xs text-ga-red">{error}</p>}
 
       {/* ── Feedback ── */}
@@ -321,14 +324,14 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
             </div>
             <div>
               <p className="text-sm font-bold text-ga-ink">
-                {feedback.overall_score >= 80 ? "Rất tốt! 🎉" : feedback.overall_score >= 50 ? "Khá! Cần cải thiện" : "Cần luyện thêm"}
+                {feedback.overall_score >= 80 ? <span className="inline-flex items-center gap-1.5">Rất tốt! <PartyPopper size={14} aria-hidden /></span> : feedback.overall_score >= 50 ? "Khá! Cần cải thiện" : "Cần luyện thêm"}
               </p>
               <p className="text-xs text-ga-muted">Điểm phát âm</p>
             </div>
           </div>
           
           <div className="bg-ga-surface rounded-ga p-3 border border-ga-line">
-            <p className="text-xs font-bold text-ga-muted uppercase mb-1">🎙️ Hệ thống nghe được:</p>
+            <p className="flex items-center gap-1.5 text-xs font-bold text-ga-muted uppercase mb-1"><Mic size={12} aria-hidden /> Hệ thống nghe được:</p>
             {feedback.transcribed ? (
               <p className="text-sm italic text-ga-ink">{'"'}{feedback.transcribed}{'"'}</p>
             ) : (
@@ -351,9 +354,9 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
                 title={w.feedback}
               >
                 {w.word}
-                {w.score === "correct" && " ✓"}
-                {w.score === "minor_error" && " ⚠"}
-                {w.score === "major_error" && " ✕"}
+                {w.score === "correct" && <Check size={13} aria-hidden />}
+                {w.score === "minor_error" && <TriangleAlert size={13} aria-hidden />}
+                {w.score === "major_error" && <X size={13} aria-hidden />}
               </span>
             ))}
           </div>
@@ -361,7 +364,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
           {/* Tips */}
           {feedback.tips.length > 0 && (
             <div className="bg-ga-yellow-soft rounded-ga p-3 space-y-1">
-              <p className="text-xs font-bold text-ga-orange">💡 Gợi ý:</p>
+              <p className="flex items-center gap-1.5 text-xs font-bold text-ga-orange"><Lightbulb size={12} aria-hidden /> Gợi ý:</p>
               {feedback.tips.map((tip, i) => (
                 <p key={i} className="text-xs text-ga-orange">• {tip}</p>
               ))}
@@ -384,7 +387,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
       {/* ── Completion Status ── */}
       {isCompleted && (
         <div className="mt-4 rounded-ga bg-ga-green-soft border border-ga-green/40 p-4 text-center">
-          <p className="text-sm font-bold text-ga-green">✅ {tLearn("speakingSuccess")}</p>
+          <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-ga-green"><CircleCheck size={15} aria-hidden /> {tLearn("speakingSuccess")}</p>
         </div>
       )}
     </div>

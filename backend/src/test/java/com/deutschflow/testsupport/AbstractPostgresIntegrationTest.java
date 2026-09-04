@@ -15,8 +15,10 @@ public abstract class AbstractPostgresIntegrationTest {
 
     @BeforeAll
     static void assumePostgresAvailable() {
+        // availableOrFailWhenMandatory() NÉM lỗi khi DEUTSCHFLOW_IT_REQUIRE_DB=true mà không có DB
+        // → CI đỏ. Máy dev không đặt cờ thì vẫn skip êm như cũ.
         Assumptions.assumeTrue(
-                PostgresIntegrationDb.usesExternalJdbcUrl() || PostgresIntegrationDb.isDockerAvailable(),
+                PostgresIntegrationDb.availableOrFailWhenMandatory(),
                 () -> "Skipping PostgreSQL integration tests: Docker/Testcontainers is unavailable and "
                         + PostgresIntegrationDb.ENV_JDBC_URL + " is not configured.");
     }

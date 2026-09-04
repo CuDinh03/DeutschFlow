@@ -94,6 +94,7 @@
       "subtitle": "Wörter nach Genusfarbe lernen — der (blau) · die (rot) · das (grün)",
       "searchPlaceholder": "Wort / Bedeutung suchen…",
       "all": "Alle",
+      "ungraded": "Ohne Stufe",
       "loadError": "Wortschatz konnte nicht geladen werden.",
       "loading": "Wortschatz wird geladen…",
       "emptyTitle": "Keine Wörter gefunden",
@@ -119,6 +120,34 @@
           "title": "Vokabel-Statistik",
           "desc": "Abdeckung: Nomen mit Genus & konjugierte Verben."
         }
+      },
+      "filters": {
+        "statusCap": "Lernstand",
+        "typeCap": "Wortart",
+        "topicCap": "Thema",
+        "levelLabel": "Niveau",
+        "clear": "Filter zurücksetzen",
+        "status": {
+          "NEW": "Noch nicht gelernt",
+          "LEARNING": "Wird gelernt",
+          "MASTERED": "Beherrscht"
+        },
+        "dtype": {
+          "Noun": "Nomen",
+          "Verb": "Verb",
+          "Adjective": "Adjektiv",
+          "Word": "Sonstige"
+        }
+      },
+      "cta": {
+        "cap": "Heute dran",
+        "due": "{count} fällige Wörter wiederholen",
+        "dueDesc": "Pünktliches Wiederholen lässt Wörter sitzen — erst das, dann Neues.",
+        "fresh": "20 neue Wörter lernen",
+        "freshDesc": "Nichts ist fällig. Hol dir ein neues Kartenset, häufigste Wörter zuerst."
+      },
+      "lookup": {
+        "cap": "Nachschlagen"
       }
     },
     "grammar": {
@@ -237,6 +266,12 @@
           "nub": "grauer Punkt = gesperrt"
         },
         "lockedHint": "Dieser Knoten ist noch gesperrt. Schließe den Vortag ab, damit diese Knospe aufgeht.",
+        "skillNames": {
+          "hoeren": "Hören",
+          "lesen": "Lesen",
+          "sprechen": "Sprechen",
+          "schreiben": "Schreiben"
+        },
         "skillsCap": "Aufgaben des Knotens — 4 Fertigkeiten",
         "exerciseCount": "{count} Aufgaben",
         "practiceSkill": "Lernen & üben",
@@ -244,11 +279,17 @@
         "doneHint": "Alle vier Fertigkeiten geschafft — am Ast dieser Woche ist ein Blatt gewachsen.",
         "review": "Stoff wiederholen",
         "study": "Stoff lernen",
+        "focusCurrent": "Zur aktuellen Lektion",
         "futureTip": "gestrichelte Spitze = nächstes Niveau",
         "summary": "{days} Tage · {weeks} Wochen",
         "doneCount": "{done}/{total} fertig",
         "motionOn": "Animation an",
-        "motionOff": "Animation aus"
+        "motionOff": "Animation aus",
+        "continueCta": "Weiterlernen: {target} · {skill}",
+        "bestScore": "Bestwert {percent}%",
+        "skillsMastered": "{done}/4 Fertigkeiten mit mindestens {threshold}%",
+        "unlockCondition": "Schließe {target} ab, damit diese Knospe aufgeht.",
+        "goPrereq": "Zum blockierenden Tag"
       },
       "headerContext": "Aktuelle Phase: {phase}",
       "courseProgressLabel": "Lernwegfortschritt",
@@ -281,7 +322,9 @@
         "interviewTitle": "Vorstellungsgespräch üben",
         "interviewDesc": "Simuliere ein Vorstellungsgespräch mit einer deutschen HR-Person.",
         "weeklyTitle": "Wöchentliche Themen",
-        "weeklyDesc": "Thematische Sprechübung, jede Woche aktualisiert."
+        "weeklyDesc": "Thematische Sprechübung, jede Woche aktualisiert.",
+        "examTitle": "Prüfungsraum Sprechen",
+        "examDesc": "Einzelne Teile üben oder die ganze Prüfung simulieren — im Goethe-/telc-Format, bewertet nach den Kriterien der Prüfung."
       },
       "interviewResults": "Interview-Ergebnisse",
       "historyCta": "Verlauf"
@@ -321,7 +364,7 @@
       "simCap": "Prüfungssimulation",
       "simTitle": "Vollständige Prüfung mit Zeit",
       "simDesc": "Das echte Prüfungsformat, mit Uhr und Bewertung. Für den Moment, in dem du deinen Stand unter Prüfungsbedingungen wissen willst.",
-      "simSaveNotice": "Deine Antworten werden während der Prüfung auf diesem Gerät gespeichert — ein Neuladen oder Verbindungsabbruch kostet dich nichts. Ein Gerätewechsel oder gelöschte Websitedaten schon.",
+      "simSaveNotice": "Deine Antworten werden während der Prüfung automatisch in deinem Konto gespeichert — Neuladen, Verbindungsabbruch oder Gerätewechsel setzen genau dort fort. Läuft die Zeit ab, wird automatisch abgegeben.",
       "simCta": "Prüfung wählen und starten",
       "readinessCap": "B1-Bereitschaft",
       "readinessTitle": "B1-Bereitschaft prüfen",
@@ -363,6 +406,8 @@
       "tabOverview": "Übersicht",
       "tabTasks": "Aufgaben",
       "tabLessons": "Lernpfad",
+      "tabEvaluation": "Bewertung",
+      "tabSchedule": "Stundenplan",
       "invalidClassId": "Ungültige Kurs-ID",
       "titleFallback": "Kursdetails",
       "titleLoading": "Wird geladen…",
@@ -417,6 +462,65 @@
         "empty": "Noch keine Materialien für diese Lektion.",
         "loadError": "Materialien konnten nicht geladen werden.",
         "openError": "Material konnte nicht geöffnet werden."
+      },
+      "evaluation": {
+        "loading": "Bewertung wird geladen…",
+        "skillsCap": "Bewertung der vier Fertigkeiten",
+        "totalCap": "Gesamt",
+        "noScore": "Nicht bewertet",
+        "skill": {
+          "horen": "Hören",
+          "lesen": "Lesen",
+          "schreiben": "Schreiben",
+          "sprechen": "Sprechen"
+        },
+        "noSkillsTitle": "Noch keine Bewertung",
+        "noSkillsBody": "Deine Lehrkraft hat deine vier Fertigkeiten in diesem Kurs noch nicht bewertet.",
+        "commentCap": "Kommentar der Lehrkraft",
+        "evaluatedAt": "Verfasst am {date}",
+        "noCommentTitle": "Noch kein Kommentar",
+        "noCommentBody": "Deine Lehrkraft hat noch keinen Kommentar geschrieben. Er erscheint hier, sobald es so weit ist.",
+        "attendanceCap": "Anwesenheit",
+        "rate": "{pct}% Anwesenheit",
+        "presentCount": "Anwesend: {count}",
+        "lateCount": "Verspätet: {count}",
+        "absentCount": "Abwesend: {count}",
+        "sessionNo": "Sitzung {no}",
+        "noTopic": "Kein Thema erfasst",
+        "noAttendanceTitle": "Noch keine Sitzungen",
+        "noAttendanceBody": "Für diesen Kurs wurde noch keine Anwesenheit erfasst.",
+        "status": {
+          "PRESENT": "Anwesend",
+          "LATE": "Verspätet",
+          "ABSENT": "Abwesend",
+          "UNMARKED": "Nicht erfasst"
+        }
+      },
+      "schedule": {
+        "loading": "Stundenplan wird geladen…",
+        "emptyTitle": "Noch kein Stundenplan",
+        "emptyBody": "Deine Lehrkraft hat für diesen Kurs noch keine Sitzung geplant.",
+        "upcomingCap": "Kommende Sitzungen ({count})",
+        "noUpcoming": "Keine kommenden Sitzungen.",
+        "pastCap": "Vergangene Sitzungen ({count})",
+        "modeOnline": "Online",
+        "modeOffline": "Im Kurs",
+        "room": "Raum {room}",
+        "duration": "{minutes} Min.",
+        "status": {
+          "SCHEDULED": "Geplant",
+          "MOVED": "Verschoben",
+          "CANCELLED": "Abgesagt"
+        },
+        "weekday": {
+          "0": "So",
+          "1": "Mo",
+          "2": "Di",
+          "3": "Mi",
+          "4": "Do",
+          "5": "Fr",
+          "6": "Sa"
+        }
       }
     },
     "assignment": {
@@ -470,7 +574,12 @@
         "submittedAt": "Abgegeben um",
         "score": "Note"
       },
-      "gradedDone": "Diese Aufgabe wurde bewertet"
+      "gradedDone": "Diese Aufgabe wurde bewertet",
+      "resubmit": "Erneut abgeben",
+      "resubmitHint": "Das Falsche abgegeben? Bis zur Bewertung kannst du es noch ersetzen.",
+      "resubmitCap": "Neue Abgabe",
+      "resubmitWarning": "Die neue Abgabe ersetzt die vorherige vollständig.",
+      "submitReplacement": "Diese Fassung abgeben"
     },
     "progress": {
       "title": "Kursfortschritt",
@@ -492,7 +601,7 @@
     },
     "messages": {
       "title": "Nachrichten",
-      "subtitle": "Chatte direkt mit deiner Lehrkraft"
+      "subtitle": "Klassen-Gruppenchats und private Nachrichten an deine Lehrkraft"
     },
     "achievements": {
       "title": "Erfolge",
@@ -555,15 +664,14 @@
       "progressLabel": "Prüfungsfortschritt",
       "answered": "{done}/{total} beantwortet",
       "saveSaving": "Wird gespeichert…",
-      "saveSaved": "Auf diesem Gerät gespeichert",
-      "saveSavedAt": "Auf diesem Gerät gespeichert · {time}",
-      "saveError": "Speichern fehlgeschlagen — Tab offen lassen",
+      "saveSaved": "Gespeichert",
+      "saveSavedAt": "Gespeichert · {time}",
+      "saveError": "Speichern fehlgeschlagen — es wird automatisch erneut versucht",
       "timeLeftAnnounce": "Noch {minutes} Minuten"
     },
     "mockExamRun": {
-      "draftRestored": "{count} auf diesem Gerät gespeicherte Antworten wiederhergestellt.",
-      "draftMissing": "Auf diesem Gerät sind keine Antworten gespeichert — du beginnst von vorn.",
-      "confirmExit": "Prüfung verlassen? Deine Antworten bleiben auf diesem Gerät, aber die Zeit läuft weiter.",
+      "draftRestored": "Entwurf wiederhergestellt — {count} zuvor gespeicherte Antworten.",
+      "confirmExit": "Prüfung verlassen? Deine Antworten sind automatisch gespeichert und du kannst zurückkehren — die Uhr läuft aber weiter.",
       "title": "Goethe-Prüfungssimulation",
       "subtitle": "Im offiziellen Goethe-Institut-Format mit automatischer Bewertung",
       "loading": "Wird geladen…",
@@ -619,7 +727,9 @@
       "reviewTotal": "Gesamtpunktzahl: {score}",
       "notAnswered": "Nicht beantwortet",
       "yourAnswer": "Ihre Antwort",
-      "correctAnswer": "Richtige Antwort"
+      "correctAnswer": "Richtige Antwort",
+      "draftConflict": "Dieser Versuch wurde gerade auf einem anderen Gerät aktualisiert — neuester Entwurf geladen.",
+      "draftExpired": "Die Zeit ist abgelaufen — deine Prüfung wird jetzt abgegeben."
     },
     "grammarPractice": {
       "title": "Grammatiktraining",
@@ -697,7 +807,10 @@
       "correction": "Korrektur: ",
       "explanation": "Erklärung: ",
       "grammarErrors": "{count} Grammatikfehler",
-      "details": "Details"
+      "details": "Details",
+      "groupToday": "Heute",
+      "groupThisWeek": "Diese Woche",
+      "groupOlder": "Älter"
     },
     "exerciseHistory": {
       "title": "Versuchs-Historie (Lektionen)",
@@ -870,7 +983,8 @@
         "A2": "Grundstufe — Goethe-Zertifikat A2",
         "B1": "Mittelstufe — Goethe-Zertifikat B1",
         "B2": "Obere Mittelstufe — Goethe-Zertifikat B2",
-        "C1": "Fortgeschritten — Goethe-Zertifikat C1"
+        "C1": "Fortgeschritten — Goethe-Zertifikat C1",
+        "C2": "Muttersprachnah — Goethe-Zertifikat C2"
       }
     },
     "assessment": {
@@ -1003,7 +1117,8 @@
       "swipeHint": "Nach rechts wischen = gelernt · Nach links = später wiederholen",
       "sessionEnd": "Runde fertig!",
       "score": "Quote",
-      "again": "Neu mischen"
+      "again": "Neu mischen",
+      "saveFailed": "{count} Wort/Wörter konnten nicht gespeichert werden. Dieser Fortschritt geht möglicherweise verloren — bitte bei stabiler Verbindung erneut versuchen."
     },
     "articleQuiz": {
       "title": "Artikel-Quiz",
@@ -1025,7 +1140,8 @@
       "good": "Gut gemacht!",
       "keepPracticing": "Weiter üben!",
       "again": "Quiz wiederholen",
-      "lastResult": "Letzte Runde: {score}/{total}"
+      "lastResult": "Letzte Runde: {score}/{total}",
+      "saveFailed": "{count} Wort/Wörter konnten nicht gespeichert werden. Dieser Fortschritt geht möglicherweise verloren — bitte bei stabiler Verbindung erneut versuchen."
     },
     "vocabAnalytics": {
       "title": "Vokabel-Statistik",
@@ -1092,7 +1208,19 @@
       "generating": "Wird erzeugt…",
       "otherSkill": "Andere Fertigkeit wählen",
       "totalSeen": "Insgesamt {count} Aufgaben ohne Wiederholung geübt",
-      "exerciseCount": "{count} Aufgaben in dieser Runde"
+      "exerciseCount": "{count} Aufgaben in dieser Runde",
+      "emptySession": "Diese Übung enthält keine Aufgaben.",
+      "emptySessionHint": "Die KI konnte für diese Runde keine Aufgaben erzeugen. Unten neue Aufgaben erzeugen.",
+      "regenerate": "Neu erzeugen",
+      "backToTree": "Zurück zum Baum",
+      "backToTreeGrow": "Zurück zum Baum – sieh ihn wachsen",
+      "seeding": "Deine Aufgaben werden gerade ausgesät…",
+      "progressLabel": "{answered}/{total} Fragen beantwortet",
+      "errorConflict": "Für diese Fertigkeit wird gerade ein anderer Satz erzeugt – kurz warten und erneut versuchen.",
+      "errorQuota": "Dein KI-Kontingent für heute ist aufgebraucht. Vorhandene Sätze gehen weiter; neue gibt es später.",
+      "errorRateLimited": "Das war etwas schnell – versuch es in {seconds} Sekunden noch einmal.",
+      "errorAiUnavailable": "Der KI-Assistent ist ausgelastet und konnte keinen Satz erzeugen. Versuch es in ein paar Minuten.",
+      "errorJobFailed": "Das Erzeugen des Satzes ist fehlgeschlagen. Erneut versuchen, um einen neuen auszusäen."
     },
     "learnNode": {
       "roadmapContext": "Position im Lernpfad",
@@ -1101,7 +1229,9 @@
       "contentPendingDesc": "Die {level}-Lektion folgt bald. Schließe zuerst die A1-Lektionen ab!",
       "retryTitle": "⚠️ Node noch nicht bestanden",
       "retryDesc": "Hören/Lesen erfordern 100 % • Sprechen/Aussprache/Schreiben erfordern ≥ 80 Punkte",
-      "retryCta": "🔄 Erneut versuchen"
+      "retryCta": "🔄 Erneut versuchen",
+      "progressNotSaved": "Dein Fortschritt konnte nicht auf dem Server gespeichert werden.",
+      "scoreBelowThreshold": "Der Server hat {score}% gewertet — unter der Bestehensgrenze, dein Fortschritt wurde nicht gespeichert."
     },
     "stats": {
       "title": "Lernstatistik",
@@ -1189,6 +1319,283 @@
       "savedOnDevice": "Auf diesem Gerät gespeichert um {time}",
       "saveUnavailable": "Deine Eingaben können auf diesem Gerät nicht gespeichert werden",
       "restoredDraft": "Nicht abgeschlossene Arbeit von diesem Gerät wiederhergestellt"
+    },
+    "examSpeaking": {
+      "catalog": {
+        "title": "Prüfungsraum Sprechen",
+        "subtitle": "Simuliert die mündliche Prüfung Goethe / telc — einen Teil üben oder die ganze Prüfung",
+        "back": "Zurück zum Sprechen",
+        "dismiss": "Schließen",
+        "providerLabel": "Prüfungsanbieter",
+        "levelLabel": "Niveau",
+        "soon": "bald",
+        "loading": "Prüfungen werden geladen…",
+        "noBlueprint": "Für diese Auswahl gibt es noch keine Prüfung.",
+        "mockCap": "Komplette Prüfungssimulation",
+        "duration": "{min} Min.",
+        "prep": "{min} Min. Vorbereitung",
+        "partnerAi": "KI als Prüfer/in + Partner/in",
+        "scale": "Skala {scale}, max. {max} Punkte",
+        "scaleVhn": "voll / halb / null",
+        "mockDesc": "Echter Ablauf und echte Zeit; keine Korrekturen zwischendurch; am Ende ein Bewertungsbogen nach den Kriterien der Prüfung.",
+        "starting": "Raum wird geöffnet…",
+        "startMock": "Prüfung starten",
+        "drillCap": "Einen Teil üben",
+        "archetype": {
+          "SELF_INTRO": "Sich vorstellen, buchstabieren, eine Zahl nennen",
+          "CARD_QA": "Mit Themenkarten Fragen stellen und beantworten",
+          "REQUEST_RESPOND": "Bitten formulieren und darauf reagieren",
+          "ABOUT_ME": "Von sich erzählen",
+          "PLAN_NEGOTIATE": "Gemeinsam etwas planen / einen Termin finden",
+          "TOPIC_EXCHANGE": "Kontakt aufnehmen und über ein Thema sprechen",
+          "PRESENT": "Strukturiert präsentieren",
+          "FEEDBACK_FOLLOWUP": "Rückmeldung geben und nachfragen",
+          "DISCUSS": "Diskutieren: dafür oder dagegen",
+          "PICTURE": "Ein Bild beschreiben"
+        },
+        "startDrill": "Diesen Teil üben",
+        "levelSoon": "Niveau {level} folgt in der nächsten Ausbaustufe.",
+        "recentCap": "Letzte Ergebnisse",
+        "passed": "Bestanden",
+        "failed": "Nicht bestanden",
+        "disclaimer": "Simulation öffentlich dokumentierter Prüfungsformate; keine Verbindung zum Goethe-Institut oder zu telc. Punkte sind Richtwerte (typische Abweichung ±1 Stufe), kein Zertifikat.",
+        "prepModeLabel": "Vorbereitung",
+        "prepShort": "5 Min. kurz",
+        "prepFull": "{min} Min. wie in der Prüfung",
+        "weaknessTitle": "Schwächen wiederholen",
+        "weaknessDesc": "Häufige Fehler aus dem Prüfungsraum nach Aufgabentyp, mit passenden Redemittel-Paketen"
+      },
+      "room": {
+        "loading": "Prüfungsraum wird betreten…",
+        "notFound": "Sitzung nicht gefunden.",
+        "retry": "Erneut versuchen",
+        "modeMock": "Prüfungssimulation",
+        "modeDrill": "Übung",
+        "timeLeft": "Rest",
+        "unmute": "Ton an",
+        "mute": "Ton aus",
+        "dismiss": "Schließen",
+        "audioTooLarge": "Die Aufnahme ist zu lang zum Senden. Pro Redebeitrag sind höchstens 3 Minuten möglich — bitte kürzer aufnehmen.",
+        "prepCap": "Vorbereitungszeit",
+        "prepDesc": "Stichpunkte notieren; die Notizen dürfen in der Prüfung benutzt werden. Nach Ablauf der Zeit geht es automatisch los.",
+        "prepLeft": "Vorbereitung",
+        "notesPlaceholder": "Ihre Notizen (Konzeptpapier)…",
+        "enterExam": "Prüfung beginnen",
+        "teilCap": "Teil {n}",
+        "step": "Schritt {i}/{n}",
+        "myNotes": "Meine Notizen",
+        "skipPart": "Nächster Teil",
+        "finishMock": "Beenden & bewerten",
+        "finishDrill": "Beenden",
+        "action": {
+          "ASK": "Sie sind dran: eine FRAGE stellen / eine Bitte formulieren. Zum Sprechen tippen.",
+          "ANSWER": "Sie sind dran: ANTWORTEN. Zum Sprechen tippen.",
+          "SPEAK": "Sie sind dran. Zum Starten tippen.",
+          "REACT": "Auf Ihre/n Partner/in reagieren. Zum Sprechen tippen."
+        },
+        "grading": "Die Prüfer bewerten…",
+        "gradingDesc": "Zwei unabhängige Bewertungen nach den Kriterien der Prüfung — meist unter einer Minute.",
+        "gradingFailed": "Bewertung fehlgeschlagen — deine Prüfung ist gespeichert.",
+        "gradingFailedDesc": "Der Bewertungsdienst hatte ein Problem (Überlastung oder Unterbrechung). Alles Gesagte ist gespeichert; tippe auf „Erneut bewerten“, um die Bewertung neu zu starten — du musst nicht neu antreten.",
+        "regradeCta": "Erneut bewerten",
+        "resultLoadFailed": "Ergebnisbogen konnte nicht geladen werden. Das Ergebnis liegt auf dem Server — bitte erneut laden.",
+        "retryResult": "Ergebnisbogen neu laden",
+        "aborted": "Die Sitzung wurde abgebrochen.",
+        "again": "Weiter üben",
+        "backToCatalog": "Zurück zum Prüfungsraum",
+        "you": "Sie",
+        "pruefer": "Prüfer/in",
+        "partner": "Partner/in",
+        "score": "{score}/10",
+        "redemittel": "Redemittel",
+        "chooseOne": "Ein Thema wählen",
+        "chosen": "Option {n} gewählt",
+        "option": "Option {n}",
+        "drillTimeUp": "Die empfohlene Zeit für diesen Teil ist um — im Übungsmodus kannst du weitersprechen oder zum nächsten Teil gehen.",
+        "hints": {
+          "INTRO_SPELL": "Stell dich mit den Stichwörtern auf der Karte vor (Name, Alter, Land, Wohnort, Sprachen, Beruf, Hobby).",
+          "SPELL_WORD": "Buchstabiere das Wort, nach dem der/die Prüfer/in fragt.",
+          "READ_NUMBER": "Lies die Nummer/Telefonnummer/Postleitzahl vor, nach der gefragt wird.",
+          "INTRO_CARD": "Stell dich mit den Stichwörtern auf der Karte vor — sprich in ganzen Sätzen.",
+          "ANSWER_FOLLOWUP": "Beantworte die Zusatzfrage des Prüfers / der Prüferin.",
+          "ASK_PERSON": "Stell deinem/deiner Partner/in EINE Frage zum Stichwort auf der Karte (z. B. Geburtstag? → Wann hast du Geburtstag?).",
+          "ASK_QWORD": "Stell EINE Frage zum Thema — beginne mit dem Fragewort auf der Karte.",
+          "ASK_REQUEST": "Sieh dir das Bild an und formuliere eine Bitte an deine/n Partner/in.",
+          "ASK_CARD": "Stell deinem/deiner Partner/in EINE Frage zum Wort auf der Karte.",
+          "REACT_REQUEST": "Reagiere auf die Bitte deines Partners / deiner Partnerin (höflich zusagen oder ablehnen).",
+          "ANSWER_PARTNER": "Beantworte die Frage, die dein/e Partner/in gerade gestellt hat (seine/ihre Karte siehst du hier).",
+          "PRESENT_LONG": "Präsentiere dein Thema (Einleitung – Inhalt – Schluss). Sprich 3–4 Minuten zusammenhängend; nutze deine Notizen.",
+          "PRESENT_SHORT": "Präsentiere/erzähle zum Thema. Sprich zusammenhängend mit Einleitung, Inhalt und Schluss.",
+          "ANSWER_PARTNER_PRESENTATION": "Beantworte die Frage deines Partners / deiner Partnerin zu deiner Präsentation.",
+          "ANSWER_QUESTION": "Beantworte die Frage, die dir gerade gestellt wurde.",
+          "CONTACT_THEN_PRUEFER": "Reagiere auf deine/n Partner/in; danach stellt der/die Prüfer/in noch eine Frage.",
+          "ANSWER_PRUEFER": "Beantworte die Frage des Prüfers / der Prüferin.",
+          "OPEN_CALENDAR": "Anfang: Schlag einen freien Termin aus DEINEM Kalender vor (dein/e Partner/in hat einen anderen).",
+          "OPEN_VORLAGE": "Berichte deinem/deiner Partner/in, was in DEINER Vorlage steht (Thema, wichtige Zahlen).",
+          "OPEN_CONTACT": "Anfang: Begrüße, stell dich vor und frag deine/n Partner/in zu einem Thema auf der Karte.",
+          "OPEN_DEBATE": "Anfang: Nenne klar deinen Standpunkt zur Frage und einen Hauptgrund.",
+          "OPEN_DEFAULT": "Anfang: Mach den ersten Vorschlag / nenne deine Meinung.",
+          "CLOSE_CALENDAR": "Abschluss: Wiederhole den vereinbarten Termin.",
+          "CLOSE_DEBATE": "Schluss: Fasse beide Seiten zusammen und sag klar, ob du dafür oder dagegen bist.",
+          "CLOSE_DEFAULT": "Schluss: Fasse zusammen, worauf ihr euch geeinigt habt.",
+          "REACT_CALENDAR": "Reagiere: Sag zu, wenn du frei bist; sonst lehne mit Begründung ab und schlag eine andere Zeit vor.",
+          "REACT_VORLAGE": "Reagiere auf die Vorlage deines Partners / deiner Partnerin; erzähle von deiner Erfahrung/Meinung und frag zurück.",
+          "REACT_CONTACT": "Antworte und frag deine/n Partner/in zu einem anderen Thema auf der Karte.",
+          "REACT_DEBATE": "Widersprich dem gehörten Argument (räume einen Punkt ein, argumentiere dann dagegen).",
+          "REACT_DEFAULT": "Reagiere auf deine/n Partner/in: Stimme mit Begründung zu / widersprich und mach den nächsten Vorschlag.",
+          "FEEDBACK_COMMENT": "Gib deinem/deiner Partner/in eine Rückmeldung zur Präsentation (was war gut/neu/interessant) und stell EINE Frage.",
+          "ANSWER_PRUEFER_TOPIC": "Beantworte die Frage des Prüfers / der Prüferin zum Thema."
+        },
+        "partnerAi": "Partner/in · KI",
+        "turn": {
+          "prueferSpeaking": "Der Prüfer / die Prüferin spricht — hör zu, du bist noch nicht dran.",
+          "partnerSpeaking": "Dein Partner / deine Partnerin (KI) spricht — warte, bis er/sie fertig ist.",
+          "processing": "Dein Beitrag wird verarbeitet…",
+          "yourTurn": "Du bist dran — sprich jetzt!",
+          "waitHint": "Warte, bis du dran bist…"
+        },
+        "audioRetained": "Diese Sitzung wird zur Bewertungs-Kalibrierung aufgezeichnet (mit deiner Einwilligung). Du kannst die Einwilligung jederzeit widerrufen — das Audio wird gelöscht."
+      },
+      "mic": {
+        "sending": "Wird gesendet, Antwort folgt…",
+        "recording": "Aufnahme · noch",
+        "textPlaceholder": "Antwort auf Deutsch tippen…",
+        "send": "Senden",
+        "useMic": "Mikrofon benutzen",
+        "stopSend": "Stoppen & senden",
+        "start": "Zum Sprechen tippen",
+        "useText": "Tippen statt sprechen",
+        "errors": {
+          "denied": "Mikrofon vom Browser blockiert. Zugriff erlauben und erneut versuchen.",
+          "no-device": "Kein Mikrofon gefunden.",
+          "busy": "Das Mikrofon wird von einer anderen App benutzt.",
+          "insecure": "Das Mikrofon braucht HTTPS.",
+          "unsupported": "Dieser Browser kann keine Audioaufnahme.",
+          "unknown": "Aufnahme fehlgeschlagen. Bitte erneut versuchen."
+        },
+        "retry": "Mikrofon erneut versuchen",
+        "deniedSteps": {
+          "site": "Klicke auf das 🎤-/Schloss-Symbol neben der Adressleiste → Mikrofon für diese Seite erlauben.",
+          "browser": "Nicht zu sehen? Browser-Einstellungen → Berechtigungen → Mikrofon → Blockierung für diese Seite aufheben.",
+          "os": "macOS/Windows: Mikrofonzugriff für den Browser in den Systemeinstellungen aktivieren und den Browser neu starten."
+        }
+      },
+      "stimulus": {
+        "none": "In diesem Schritt gibt es keine Karte — hören Sie auf die Prüferin.",
+        "partnerCard": "Karte des Partners",
+        "yourCard": "Ihre Karte",
+        "thema": "Thema",
+        "wort": "Wort",
+        "pictureHint": "Formulieren Sie eine Bitte mit diesem Gegenstand.",
+        "spell": "Buchstabieren",
+        "number": "Zahl nennen",
+        "keyword": "Stichwort",
+        "personAskHint": "Stellen Sie Ihrem Partner eine Frage zu diesem Stichwort.",
+        "personAnswerHint": "Ihr Partner fragt Sie zu diesem Stichwort — antworten Sie.",
+        "questionWord": "Fragewort",
+        "promptHint": "Erzählen Sie von sich zu dieser Frage; die Stichpunkte helfen. Etwa eine Minute.",
+        "situation": "Situation",
+        "yourCalendar": "Ihr Kalender",
+        "partnerHasOtherCalendar": "Ihr Partner hat einen anderen Kalender — fragen Sie nach und finden Sie gemeinsam eine Zeit.",
+        "planningHint": "Machen Sie Vorschläge, reagieren Sie auf die Ihres Partners und entscheiden Sie jeden Punkt gemeinsam.",
+        "topic": "Thema",
+        "partnerTopic": "Thema des Vortrags Ihres Partners",
+        "feedbackHint": "Hören Sie zu, geben Sie dann eine Rückmeldung und stellen Sie eine Frage.",
+        "vorlageA": "Ihre Vorlage",
+        "yourTopic": "Ihr Thema",
+        "debate": "Diskussion",
+        "debateHint": "Nennen Sie Ihren Standpunkt, reagieren Sie auf Ihre Partnerin oder Ihren Partner und fassen Sie zusammen: dafür oder dagegen?"
+      },
+      "result": {
+        "sheetCap": "Simulierter Bewertungsbogen",
+        "range": "Spanne {range} aus {passes} unabhängigen Bewertungen",
+        "noThreshold": "Keine eigene Bestehensgrenze",
+        "passed": "Bestanden",
+        "failed": "Nicht bestanden",
+        "reducedMax": "Einige Kriterien konnten nicht bewertet werden → berechnet auf {max}/{official}; Bestehen anteilig umgerechnet.",
+        "teil": "Teil {n}",
+        "zeroed": "Erfüllung auf der niedrigsten Stufe → ganzer Teil 0 Punkte (Prüfungsregel).",
+        "global": "Übergreifende Kriterien",
+        "errors": "Gefundene Fehler ({n})",
+        "disclaimer": "Simulierte Bewertung — typische Abweichung ±1 Stufe gegenüber menschlichen Prüfern; kein Zertifikat.",
+        "notScored": "Nicht bewertet",
+        "confidence": {
+          "high": "hohe Sicherheit",
+          "medium": "mittlere Sicherheit",
+          "low": "Schätzung",
+          "none": "—"
+        },
+        "evidence": "Belege",
+        "multiPassNote": "Band ist der Median, Punkte sind der Mittelwert aus {passes} unabhängigen Bewertungsdurchläufen — beide können leicht abweichen.",
+        "bandMedianTitle": "Band = Median aus {passes} Durchläufen; Punkte = Mittelwert — beide können abweichen.",
+        "msg": {
+          "silentTeil": "Teil {teil}: keine Äußerung → 0 Punkte für diesen Teil.",
+          "llmInvalidTeil": "Teil {teil}: Die KI hat kein gültiges Ergebnis geliefert → Kriterien dieses Teils konnten nicht bewertet werden.",
+          "erfuellungZero": "Teil {teil}: Erfüllung = {band} → der ganze Teil erhält 0 Punkte (Regel des Systems {scheme}).",
+          "unscoredCount": "{count} Kriterien/Aufgaben konnten nicht bewertet werden.",
+          "passSpeakingOnly": "Bestehensgrenze nur Sprechen ≥{min}/{max} (die vollständige Prüfung verlangt zusätzlich das Schreiben).",
+          "passModule": "Modul bestanden ab ≥{min}/{max}.",
+          "passNoThreshold": "Dieses System hat keine eigene Sprechgrenze — die Sprechpunkte zählen zur Gesamtprüfung.",
+          "noAssessment": "Keine Bewertung für diesen Punkt.",
+          "silentTeilCriterion": "Keine Äußerung in diesem Teil.",
+          "itemNotMentioned": "Die KI hat diese Aufgabe nicht erwähnt → gilt als nicht erfüllt.",
+          "llmInvalid": "Die KI hat kein gültiges Ergebnis geliefert.",
+          "llmInvalidBand": "Die KI hat ein ungültiges Band geliefert: {band}.",
+          "criterionNotGraded": "Die KI hat das Kriterium {criterion} nicht bewertet.",
+          "lexMetrics": "Gemessen: {words} Wörter, TTR {ttr}, {inList}% in der Goethe-Wortliste, {above} Wörter über dem Niveau.",
+          "cohesionMetrics": "Gemessen: {connectors} Konnektoren, {subordinators} Nebensätze.",
+          "errorDensity": "Gemessene Fehlerdichte: {density} Fehler/100 Wörter ({errors} Fehler, {words} Wörter) → Band {band}.",
+          "llmProposedBand": "Die KI schlug Band {band} vor — das endgültige Band bestimmt die Fehlerdichte-Tabelle.",
+          "fluencyBlend": "Flüssigkeit gemessen: {wpm} Wörter/Min., {pauses} lange Pausen, MLR {mlr} → Band {fluencyBand}; kombiniert mit KI ({llmBand}) → {band}.",
+          "sttConfidence": "Geschätzt aus der STT-Konfidenz (avg_logprob {logprob}) — Stufe 1/3, geringe Zuverlässigkeit.",
+          "noAudioTextOnly": "Nicht bewertbar: kein Audio/keine STT-Konfidenz (nur Text)."
+        }
+      },
+      "drill": {
+        "cap": "Durchschnittliche Schnellbewertung",
+        "turns": "{n} Beiträge bewertet",
+        "toReview": "Fehler zum Wiederholen",
+        "note": "Schnellbewertung zum Üben; eine Bewertung nach Prüfungskriterien gibt es nur in der Prüfungssimulation."
+      },
+      "weakness": {
+        "title": "Schwächen wiederholen",
+        "subtitle": "Im Prüfungsraum erkannte Fehler, gruppiert nach Fehlercode und Aufgabentyp — mit Redemitteln zum Weiterüben",
+        "back": "Zurück zum Prüfungsraum",
+        "dismiss": "Schließen",
+        "loading": "Schwächen werden geladen…",
+        "filterLabel": "Nach Aufgabentyp filtern",
+        "filterAll": "Alle Aufgabentypen",
+        "empty": "Noch keine Fehler aus dem Prüfungsraum erfasst.",
+        "emptyHint": "Übe einen beliebigen Teil (Drill) oder mache eine komplette Probeprüfung — erkannte Fehler erscheinen hier zur Wiederholung.",
+        "seenCount": "{count}× im Prüfungsraum",
+        "severity": {
+          "BLOCKING": "Schwerwiegend",
+          "MAJOR": "Auffällig",
+          "MINOR": "Leicht"
+        },
+        "drillCta": "Diesen Teil erneut üben",
+        "starting": "Sitzung wird gestartet…",
+        "redemittelCap": "Redemittel nach Aufgabentyp",
+        "totalCountNote": "insgesamt {count}× in allen Sprechübungen"
+      },
+      "micCheck": {
+        "title": "Mikrofon-Check vor dem Betreten",
+        "desc": "Die Prüfungssimulation nimmt nur Audio an und läuft mit echter Zeit — prüfe vorher dein Mikrofon.",
+        "start": "Mikrofon prüfen",
+        "speakNow": "Sag etwas…",
+        "heard": "Wir hören dich!",
+        "passed": "Mikrofon bereit.",
+        "failed": {
+          "denied": "Der Browser blockiert das Mikrofon — folge den Schritten oben und prüfe erneut.",
+          "other": "Mikrofon konnte nicht geöffnet werden. Prüfe dein Gerät und versuche es erneut."
+        }
+      }
+    },
+    "micGuide": {
+      "title": "Dein Browser blockiert das Mikrofon — erlaube den Zugriff, bevor du sprichst",
+      "site": "Klicke auf das 🎤-/Schloss-Symbol neben der Adressleiste → Mikrofon für diese Seite erlauben.",
+      "browser": "Nicht zu sehen? Browser-Einstellungen → Berechtigungen → Mikrofon → Blockierung aufheben.",
+      "os": "macOS/Windows: Mikrofonzugriff für den Browser in den Systemeinstellungen aktivieren und den Browser neu starten."
     }
   }
 }

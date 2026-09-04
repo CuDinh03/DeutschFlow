@@ -95,6 +95,10 @@ export interface ClassLesson {
   orderIndex: number
   /** Curriculum module this lesson belongs to; null = ungrouped (Phase 1c). */
   moduleId: number | null
+  /** Lektion giáo trình trung tâm sinh ra bài này (PR-4); null = bài giáo viên tự soạn. */
+  lektionId: number | null
+  /** Bài BỔ TRỢ giáo viên thêm ngoài giáo trình — không tính vào %% hoàn thành giáo trình. */
+  supplementary: boolean
   title: string
   description: string | null
   /** Structured knowledge points (Phase 1b); may be empty (then fall back to description). */
@@ -209,4 +213,71 @@ export async function setCompetency(
     { status },
   )
   return res.data
+}
+
+// ── Own evaluation: skills + teacher comment + attendance (P4) ───────────────
+// The student side of what the teacher records in the gradebook (/v2/teacher/tc-reports). Every one of
+// these is own-data-only and enforced server-side by enrollment; a non-member gets 404, never another
+// student's row. The three endpoints below already existed and were already consumed by the mobile app
+// — the web client simply never called them, so a student on the web saw no attendance, no skill marks
+// and no schedule at all.
+
+/** One session's attendance for the requesting student. {@code status} is null when not marked. */
+export interface StudentAttendance {
+  lessonLogId: number
+  sessionDate: string
+  sessionNumber: number | null
+  topic: string | null
+  status: 'PRESENT' | 'ABSENT' | 'LATE' | null
+  note: string | null
+}
+
+/**
+ * The student's OWN evaluation row. Skills are on the 0–10 scale (teacher-entered, or their own
+ * skill-tagged assignment averages converted from 0–100); null when there is no data for that skill.
+ * `teacherComment` is the teacher's written feedback about this student in this class.
+ */
+export interface MySkillReport {
+  horen: number | null
+  lesen: number | null
+  schreiben: number | null
+  sprechen: number | null
+  total: number | null
+  grade: string
+  teacherComment: string | null
+  evaluatedAt: string | null
+}
+
+/** One class session as shown to a student: when, how long, where, and whether it still stands. */
+export interface ClassSession {
+  id: number
+  startAt: string
+  durationMinutes: number
+  mode: 'ONLINE' | 'OFFLINE' | null
+  room: string | null
+  status: 'SCHEDULED' | 'CANCELLED' | 'MOVED' | null
+}
+
+/** The student's own attendance for a class (one row per session log). */
+export async function fetchMyAttendance(classId: number): Promise<StudentAttendance[]> {
+  const res = await api.get<StudentAttendance[]>(`/v2/students/classes/${classId}/my-attendance`)
+  return res.data ?? []
+}
+
+/** The student's own 4-skill report row plus the teacher's comment (never the class list). */
+export async function fetchMySkillReport(classId: number): Promise<MySkillReport> {
+  const res = await api.get<MySkillReport>(`/v2/students/classes/${classId}/my-skill-report`)
+  return res.data
+}
+
+/**
+ * The class's session schedule (ordered by time) for the enrolled student.
+ *
+ * Opening this list is what marks the CLASS_SESSION_SCHEDULED / _CANCELLED / _RESCHEDULED
+ * notifications for this class as read (server-side, after commit) — so the bell clears once the
+ * student has actually seen the current schedule.
+ */
+export async function fetchClassSessions(classId: number): Promise<ClassSession[]> {
+  const res = await api.get<ClassSession[]>(`/v2/students/classes/${classId}/sessions`)
+  return res.data ?? []
 }

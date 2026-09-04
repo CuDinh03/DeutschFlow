@@ -82,6 +82,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         log.debug("[JwtAuthFilter] Token found for request: {}", requestUri);
         log.debug("[JwtAuthFilter] Token length: {}", token.length());
 
+        // Check TRƯỚC khi validate: filter đứng trước có thể đã xác thực bằng credential không phải
+        // JWT (PrometheusScrapeTokenFilter với bearer token tĩnh) — validate tiếp vừa parse thừa vừa
+        // spam WARN "INVALID TOKEN" mỗi lần scrape 15s.
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            log.debug("[JwtAuthFilter] Authentication already set for {}", requestUri);
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         boolean isTokenValid = jwtService.isTokenValid(token);
         log.debug("[JwtAuthFilter] Token valid: {} for {}", isTokenValid, requestUri);
 
@@ -91,18 +100,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (SecurityContextHolder.getContext().getAuthentication() != null) {
-            log.debug("[JwtAuthFilter] Authentication already set for {}", requestUri);
-            filterChain.doFilter(request, response);
-            return;
-        }
-
         final String subject = jwtService.extractEmail(token);
         log.debug("[JwtAuthFilter] Extracted email/subject from token: {} for request: {}", subject, requestUri);
 
         // Guest token (subject = "guest:nickname") — không load từ DB; pin trong claim phục vụ quiz submit.
         if (subject != null && subject.startsWith("guest:")) {
-            log.info("[JwtAuthFilter] Setting up GUEST authentication for: {} on {}", subject, requestUri);
+            log.debug("[JwtAuthFilter] Setting up GUEST authentication for: {} on {}", subject, requestUri);
             var claims  = jwtService.extractClaims(token);
             var pinCode = claims.get("pinCode", String.class);
             var auth = new UsernamePasswordAuthenticationToken(
@@ -113,7 +116,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             request.setAttribute("guestPinCode", pinCode);
             SecurityContextHolder.getContext().setAuthentication(auth);
-            log.info("[JwtAuthFilter] ✓ GUEST authentication set for {} on {}", subject, requestUri);
+            log.debug("[JwtAuthFilter] ✓ GUEST authentication set for {} on {}", subject, requestUri);
             filterChain.doFilter(request, response);
             return;
         }
@@ -139,11 +142,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                                HttpServletResponse response) throws IOException {
         try {
             var userDetails = userCache.get(subject, userDetailsService::loadUserByUsername);
+            // Audit F-H2 (03/09/2026): filter tự dựng Authentication nên KHÔNG đi qua
+            // AccountStatusUserDetailsChecker của DaoAuthenticationProvider — trước đây một tài khoản
+            // bị admin khoá vẫn dùng tiếp access token đang cầm cho tới khi hết hạn. Kiểm tường minh
+            // ở đây; độ trễ tối đa là TTL 60s của userCache bên trên.
+            if (!userDetails.isEnabled()) {
+                log.warn("[JwtAuthFilter] Tài khoản đã bị khóa vẫn trình token: {} trên {}",
+                        subject, request.getRequestURI());
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Account is disabled");
+                return false;
+            }
             var auth = new UsernamePasswordAuthenticationToken(
                     userDetails, null, userDetails.getAuthorities());
             auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(auth);
-            log.info("[JwtAuthFilter] ✓ USER AUTHENTICATION SET for {} with authorities {} on {}",
+            // DEBUG, không phải INFO: dòng này bắn MỖI request đã đăng nhập (kèm email) — ở INFO nó
+            // là dòng log nhiều nhất hệ thống, đổ thẳng vào promtail/Loki chạy cùng máy 2 vCPU.
+            log.debug("[JwtAuthFilter] ✓ USER AUTHENTICATION SET for {} with authorities {} on {}",
                     subject, userDetails.getAuthorities(), request.getRequestURI());
             return true;
         } catch (UsernameNotFoundException ex) {

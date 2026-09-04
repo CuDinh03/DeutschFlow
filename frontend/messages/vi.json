@@ -193,7 +193,6 @@
     "continueType": "{type}",
     "continueMeta": "{minutes} phút · {skills} · Độ khó {difficulty}",
     "continueNoPlan": "Chưa có lộ trình",
-    "continueOnboardingHint": "Hoàn tất onboarding để tạo lộ trình học.",
     "progressPlan": "Tiến độ lộ trình",
     "progressSessionLine": "Buổi {session} / {perWeek} trong tuần",
     "weekObjectives": "Tuần {week} · Mục tiêu",
@@ -699,6 +698,8 @@
     "weeklyAlreadySubmitted": "Bạn đã gửi bài cho chủ đề tuần này.",
     "weeklyRecordingHint": "Đang ghi âm… nhấn lại mic để dừng.",
     "weeklyNoPrompt": "Chưa có đề nói tuần này cho trình độ của bạn. Thử chỉnh band CEFR hoặc đợi admin cập nhật.",
+    "weeklyNoPromptWeek": "Tuần này trung tâm chưa ra đề nói. Đề mới sẽ xuất hiện tại đây ngay khi có.",
+    "weeklyNoPromptOtherBands": "Band {bands} đang có đề tuần này — chọn band ở trên để làm bài.",
     "weeklyLoadFailed": "Không tải được đề nói tuần này. Kiểm tra kết nối rồi thử lại.",
     "weeklyRetry": "Thử lại",
     "weeklyYourTranscript": "Nộp dựng của bạn",
@@ -709,6 +710,7 @@
     "chat": {
       "modeConversation": "Hội thoại",
       "modeInterview": "Phỏng vấn",
+      "modeLesson": "Luyện tập",
       "emptyStart": "Hãy bắt đầu cuộc hội thoại với {name}",
       "connectionError": "Xin lỗi, đã xảy ra lỗi kết nối.",
       "inputPlaceholder": "Nhắn tin với {name}...",
@@ -729,6 +731,9 @@
       "composing": "Đang soạn tin",
       "correctionsTitle": "Lỗi vừa phát hiện",
       "suggestionsTitle": "Gợi ý trả lời",
+      "suggestionsRequest": "Gợi ý trả lời cho mình",
+      "closePanel": "Đóng bảng",
+      "suggestionsLoading": "Đang nghĩ gợi ý…",
       "emptyTitle": "Trợ lý học bên cạnh",
       "emptyHint": "Ghi âm, gõ tin hoặc chọn câu mở đầu để chat với {name}",
       "startersTitle": "Câu mở đầu gợi ý",
@@ -806,45 +811,9 @@
       "feedbackEmptyHint": "Phản hồi sẽ xuất hiện ở đây sau lượt nói đầu tiên của bạn."
     },
     "continueToSettings": "Tiếp tục tới cài đặt",
-    "backToModeAndPersona": "Quay lại chọn chế độ & nhân vật"
-  },
-  "onboarding": {
-    "title": "Cá nhân hoá lộ trình học",
-    "subtitle": "Trả lời vài câu hỏi để hệ thống tạo lộ trình phù hợp với bạn.",
-    "goalType": "Mục tiêu học",
-    "goalWork": "Phục vụ công việc",
-    "goalCert": "Ôn thi chứng chỉ",
-    "targetLevel": "Mục tiêu CEFR",
-    "currentLevel": "Trình độ hiện tại (tự đánh giá)",
-    "ageRange": "Độ tuổi",
-    "industry": "Chuyên ngành / Lĩnh vực",
-    "interests": "Sở thích",
-    "learningSpeed": "Khả năng tiếp thu",
-    "sessionsPerWeek": "Số buổi/tuần",
-    "minutesPerSession": "Phút/buổi",
-    "examType": "Loại chứng chỉ (tuỳ chọn)",
-    "submit": "Tạo lộ trình",
-    "submitting": "Đang tạo lộ trình...",
-    "error": "Không thể tạo lộ trình. Vui lòng thử lại.",
-    "industryPlaceholder": "VD: IT, Điều dưỡng, Du lịch...",
-    "examTypePlaceholder": "VD: Goethe, telc...",
-    "intensityLine": "Cường độ: {sessions} buổi/tuần · {minutes} phút",
-    "weeklyTotalLine": "Tổng: {total} phút/tuần",
-    "learningSpeedSlow": "Chậm",
-    "learningSpeedNormal": "Bình thường",
-    "learningSpeedFast": "Nhanh",
-    "interestsLabels": {
-      "TRAVEL": "Du lịch",
-      "BUSINESS": "Công việc",
-      "TECH": "Công nghệ",
-      "HEALTH": "Sức khoẻ",
-      "EDUCATION": "Giáo dục"
-    },
-    "age_UNDER_18": "Dưới 18",
-    "age_AGE_18_24": "18–24",
-    "age_AGE_25_34": "25–34",
-    "age_AGE_35_44": "35–44",
-    "age_AGE_45_PLUS": "45+"
+    "backToModeAndPersona": "Quay lại chọn chế độ & nhân vật",
+    "personaTopicHint": "Chủ đề này hợp hơn với:",
+    "personaTopicHintDismiss": "Ẩn gợi ý"
   },
   "adminOverview": {
     "title": "Tổng quan",
@@ -1434,7 +1403,7 @@
     "plans": {
       "FREE": {
         "name": "Miễn Phí",
-        "badge": null,
+        "badge": "",
         "features": [
           "✅ Học từ vựng A1–B1",
           "✅ Tối đa 20 thẻ ôn tập/ngày",

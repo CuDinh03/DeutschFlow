@@ -3,6 +3,8 @@ package com.deutschflow.vocabulary.service;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.RequestContext;
 import com.deutschflow.speaking.ai.ChatMessage;
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,6 +32,8 @@ public class VocabularyAutoTaggingService {
 
     private final JdbcTemplate jdbc;
     private final OpenAiChatClient llmClient;
+    // Khung tier B4: tag CEFR điều khiển lịch SRS → tier BATCH (120b theo quyết định #10).
+    private final LlmTierResolver llmTierResolver;
     private final ObjectMapper objectMapper;
     private final TagQueryService tagQueryService;
     private final TopicKeywordRuleService topicKeywordRuleService;
@@ -188,10 +192,10 @@ public class VocabularyAutoTaggingService {
 
         try {
             int maxTokens = 600;
-            var ai = llmClient.chatCompletion(
+            var ai = llmClient.chatCompletionForTier(
                     List.of(new ChatMessage("system", systemPrompt),
                             new ChatMessage("user", userPrompt)),
-                    null, 0.0, maxTokens);
+                    llmTierResolver.spec(LlmTier.BATCH), 0.0, maxTokens);
             String raw = ai.content();
 
             try {
@@ -200,9 +204,7 @@ public class VocabularyAutoTaggingService {
                             actorUserId,
                             ai.provider(),
                             ai.model(),
-                            ai.usage().promptTokens(),
-                            ai.usage().completionTokens(),
-                            ai.usage().totalTokens(),
+                            ai.usage(),
                             "VOCAB_AUTO_TAG",
                             RequestContext.requestIdOrNull(),
                             null

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { AlertTriangle, Check, ChevronDown, ChevronUp, Circle } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Circle , Lightbulb } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import {
@@ -42,13 +42,22 @@ const LEVEL_CHIP: Record<FeedbackLevel, string> = {
 interface Props extends FeedbackInput {
   onSuggestionSelect: (text: string) => void;
   phonemeLoading?: boolean;
+  /** Đ4: gợi ý sinh theo yêu cầu — có mặt ⇒ hiện nút khi chưa có chip nào. */
+  suggestionsLoading?: boolean;
+  onRequestSuggestions?: () => void;
 }
 
-export function SpeakingFeedbackSummary({ onSuggestionSelect, phonemeLoading, ...input }: Props) {
+export function SpeakingFeedbackSummary({ onSuggestionSelect, phonemeLoading, suggestionsLoading, onRequestSuggestions, ...input }: Props) {
   const t = useTranslations("speaking.chat");
   const dimensions = buildFeedbackDimensions(input);
 
-  if (dimensions.length === 0) return null;
+  // Đ4: chưa có chip nhưng có nút yêu cầu ⇒ vẫn có nội dung để hiện.
+  const showSuggestionRequest =
+    (input.suggestionsVisible ?? false) &&
+    (input.suggestions?.length ?? 0) === 0 &&
+    !!onRequestSuggestions;
+
+  if (dimensions.length === 0 && !showSuggestionRequest) return null;
 
   return (
     <section aria-labelledby="speaking-feedback-title" className="space-y-2">
@@ -69,6 +78,19 @@ export function SpeakingFeedbackSummary({ onSuggestionSelect, phonemeLoading, ..
           </li>
         ))}
       </ul>
+      {showSuggestionRequest && (
+        <button
+          type="button"
+          onClick={onRequestSuggestions}
+          disabled={suggestionsLoading}
+          className="flex w-full items-center gap-2 rounded-ga border border-ga-line bg-ga-surface p-3 transition-colors hover:border-ga-accent disabled:opacity-60"
+        >
+          <Lightbulb size={14} className="shrink-0 text-ga-gold" aria-hidden />
+          <span className="text-[12px] font-semibold text-ga-ink">
+            {suggestionsLoading ? t("suggestionsLoading") : t("suggestionsRequest")}
+          </span>
+        </button>
+      )}
     </section>
   );
 }

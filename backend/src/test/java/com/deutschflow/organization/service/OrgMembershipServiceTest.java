@@ -48,6 +48,7 @@ class OrgMembershipServiceTest {
     @Mock private OrgMemberRepository memberRepo;
     @Mock private UserRepository userRepository;
     @Mock private JdbcTemplate jdbcTemplate;
+    @Mock private com.deutschflow.organization.repository.OrgAcademicApproverRepository academicApproverRepo;
 
     @Mock private AuditLogService auditLogService;
 
@@ -59,7 +60,7 @@ class OrgMembershipServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new OrgMembershipService(memberRepo, userRepository, jdbcTemplate, auditLogService);
+        service = new OrgMembershipService(memberRepo, academicApproverRepo, userRepository, jdbcTemplate, auditLogService);
     }
 
     private User studentUser() {
@@ -106,6 +107,58 @@ class OrgMembershipServiceTest {
         service.upsertMember(ORG_ID, USER_ID, "STUDENT");
 
         verify(memberRepo).save(any());
+    }
+
+    // ── R-M1/R-M3: bất biến 1-OWNER tại chokepoint upsertMember ───────────────────
+
+    @Test
+    @DisplayName("R-M1: upsertMember từ chối HẠ một OWNER đang hoạt động (nhận lời mời TEACHER cũ)")
+    void upsertMember_demotingActiveOwner_rejected() {
+        // Đường lạm dụng: một OWNER đang hoạt động bấm nhận một lời mời TEACHER cũ → upsert(TEACHER).
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member("OWNER", "ACTIVE")));
+
+        // R-M9: subtype mang event để GlobalExceptionHandler ghi vết lần thử sau rollback —
+        // chokepoint này hứng cả đường nhận-lời-mời (không phải admin console).
+        assertThatThrownBy(() -> service.upsertMember(ORG_ID, USER_ID, "TEACHER"))
+                .isInstanceOf(com.deutschflow.common.exception.PrivilegedActionBlockedException.class)
+                .hasMessageContaining("chủ sở hữu")
+                .extracting("auditEvent").isEqualTo("org.owner_invariant.blocked");
+
+        verify(memberRepo, never()).save(any());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("R-M3: upsertMember từ chối tạo OWNER thứ hai khi org đã có OWNER (dưới khóa FOR UPDATE)")
+    void upsertMember_secondOwner_rejected() {
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepo.countByIdOrgIdAndRoleAndStatus(ORG_ID, "OWNER", "ACTIVE")).thenReturn(1L); // đã có 1 OWNER
+
+        assertThatThrownBy(() -> service.upsertMember(ORG_ID, USER_ID, "OWNER"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("đã có chủ sở hữu");
+
+        // Khóa dòng org PHẢI được lấy trước khi đếm — chống TOCTOU.
+        verify(jdbcTemplate).query(anyString(), any(ResultSetExtractor.class), eq(ORG_ID));
+        verify(memberRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("R-M3: upsertMember CHO PHÉP tạo OWNER đầu tiên khi org có 0 OWNER (đường tạo org)")
+    void upsertMember_firstOwner_allowed() {
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepo.countByIdOrgIdAndRoleAndStatus(ORG_ID, "OWNER", "ACTIVE")).thenReturn(0L); // chưa có OWNER
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(userWith(USER_ID, User.Role.OWNER)));
+
+        service.upsertMember(ORG_ID, USER_ID, "OWNER");
+
+        ArgumentCaptor<OrgMember> saved = ArgumentCaptor.forClass(OrgMember.class);
+        verify(memberRepo).save(saved.capture());
+        assertThat(saved.getValue().getRole()).isEqualTo("OWNER");
     }
 
     private OrgMember member(String role, String status) {
@@ -177,6 +230,63 @@ class OrgMembershipServiceTest {
         // The 1-ACTIVE guard is never even queried for STUDENT.
         verify(memberRepo, never()).existsByIdUserIdAndStatusAndIdOrgIdNot(any(), any(), any());
         verify(memberRepo).save(any());
+    }
+
+    // ----------------------------------------------------------------- ensureStudentSeat (vào TT qua lớp)
+
+    @Test
+    @DisplayName("ensureStudentSeat: non-member is upserted as an ACTIVE STUDENT (gets a seat)")
+    void ensureStudentSeat_nonMember_upsertsStudent() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(studentUser()));
+
+        service.ensureStudentSeat(ORG_ID, USER_ID);
+
+        ArgumentCaptor<OrgMember> saved = ArgumentCaptor.forClass(OrgMember.class);
+        verify(memberRepo).save(saved.capture());
+        assertThat(saved.getValue().getRole()).isEqualTo("STUDENT");
+        assertThat(saved.getValue().getStatus()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    @DisplayName("ensureStudentSeat: an ACTIVE member of this org (any role) is a no-op — staff is not demoted")
+    void ensureStudentSeat_activeStaffSameOrg_noop() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member("TEACHER", "ACTIVE")));
+
+        service.ensureStudentSeat(ORG_ID, USER_ID);
+
+        verify(memberRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("ensureStudentSeat: rejects a user ACTIVE in another org — no silent re-homing via class code")
+    void ensureStudentSeat_activeElsewhere_throwsBadRequest() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.ensureStudentSeat(ORG_ID, USER_ID))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("trung tâm khác");
+
+        verify(memberRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("ensureStudentSeat: a LEFT/REVOKED member is reactivated through upsertMember (seat gate applies)")
+    void ensureStudentSeat_formerMember_reactivatedViaUpsert() {
+        OrgMember former = member("STUDENT", "LEFT");
+        former.setLeftAt(Instant.now());
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(former));
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(studentUser()));
+
+        service.ensureStudentSeat(ORG_ID, USER_ID);
+
+        assertThat(former.getStatus()).isEqualTo("ACTIVE");
+        assertThat(former.getLeftAt()).isNull();
+        verify(memberRepo).save(former);
     }
 
     // ----------------------------------------------------------------- removeMember (admin revoke)

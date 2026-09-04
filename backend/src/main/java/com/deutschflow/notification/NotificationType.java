@@ -82,5 +82,15 @@ public enum NotificationType {
     /** Admin audit: a new organization was created. Materialized for each active admin. */
     ADMIN_ORG_CREATED,
     /** Admin audit: an organization invoice was marked paid. Materialized for each active admin. */
-    ADMIN_ORG_INVOICE_PAID
+    ADMIN_ORG_INVOICE_PAID,
+
+    // ── Bảo trì hệ thống (plans/2026-09-03) ─────────────────────────────
+
+    /**
+     * System maintenance lifecycle notice, broadcast to EVERY active user. Payload:
+     * {@code kind} (SCHEDULED|UPDATED|REMINDER|STARTED|COMPLETED|CANCELLED),
+     * {@code windowId}, {@code title}, {@code note?}, {@code startsAtUtc}/{@code endsAtUtc?}
+     * (ISO) + {@code startsAtDisplay}/{@code endsAtDisplay?} (giờ VN, render sẵn).
+     */
+    SYSTEM_MAINTENANCE
 }

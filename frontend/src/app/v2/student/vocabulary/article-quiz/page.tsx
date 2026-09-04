@@ -42,8 +42,11 @@ export default function V2StudentArticleQuizPage() {
     setLoading(true)
     setError(null)
     try {
-      const { data } = await api.get<WordListResponse>('/words', {
-        params: { cefr, dtype: 'NOUN', size: 20, locale: apiLocale },
+      // /words/deck?mode=ARTICLE: server lo phần "chỉ danh từ CÓ mạo từ" và bốc theo thứ tự sư phạm
+      // (đến hạn ôn → chưa học theo dải tần suất → còn lại), trộn theo ngày. Trước đây gọi
+      // /words?page=0&size=20 rồi lọc phía client: trang 0 sắp alphabet nên lượt nào cũng đúng 20 từ ấy.
+      const { data } = await api.get<WordListResponse>('/words/deck', {
+        params: { mode: 'ARTICLE', size: 20, cefr, locale: apiLocale },
       })
       // Chỉ giữ danh từ CÓ giống — quiz mạo từ vô nghĩa nếu thiếu der/die/das.
       const nouns = (data.items ?? []).flatMap((it) => {

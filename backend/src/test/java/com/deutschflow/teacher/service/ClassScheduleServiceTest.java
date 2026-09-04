@@ -50,6 +50,8 @@ class ClassScheduleServiceTest {
     @Mock private ClassStudentRepository classStudentRepo;
     @Mock private ClassTeacherRepository classTeacherRepo;
     @Mock private UserNotificationService notificationService;
+    @Mock private com.deutschflow.organization.repository.ClassCurriculumLinkRepository classCurriculumLinkRepository;
+    @Mock private ScheduleChangeQueue changeQueue;
 
     private ClassScheduleService service;
 
@@ -60,7 +62,8 @@ class ClassScheduleServiceTest {
     @BeforeEach
     void setUp() {
         service = new ClassScheduleService(
-                patternRepo, sessionRepo, classRepo, classStudentRepo, classTeacherRepo, notificationService);
+                patternRepo, sessionRepo, classRepo, classStudentRepo, classTeacherRepo, notificationService,
+                classCurriculumLinkRepository, changeQueue);
     }
 
     // ── weekForTeacher ───────────────────────────────────────────────────────
@@ -175,17 +178,18 @@ class ClassScheduleServiceTest {
 
         UpsertPatternResult res = service.upsertPattern(TEACHER_ID, CLASS_ID, req);
 
-        // only the non-overridden future session is deleted
-        ArgumentCaptor<List<ClassSession>> delCap = listCaptor();
-        verify(sessionRepo).deleteAll(delCap.capture());
-        assertThat(delCap.getValue()).extracting(ClassSession::getId).containsExactly(501L);
+        // PR-3 (AC16/G1): buổi thường ĐÚNG ô (id 501, thứ Hai đầu) được GIỮ NGUYÊN — upsert-giữ-id
+        // không xoá gì (pattern không đổi giờ/phòng nên bản ghi đó cũng không cần cập nhật).
+        verify(sessionRepo, never()).deleteAll(any());
 
-        // generated = Mondays in window EXCEPT the kept override date
+        // generated = các thứ Hai còn TRỐNG trong cửa sổ: +2w, +3w (nextMon đã có 501 giữ chỗ;
+        // keptDate do buổi override chiếm ô).
         ArgumentCaptor<List<ClassSession>> saveCap = listCaptor();
         verify(sessionRepo).saveAll(saveCap.capture());
         List<ClassSession> generated = saveCap.getValue();
-        assertThat(generated).hasSize(3);
+        assertThat(generated).hasSize(2);
         assertThat(generated).noneMatch(s -> s.getStartAt().toLocalDate().equals(keptDate));
+        assertThat(generated).noneMatch(s -> s.getStartAt().toLocalDate().equals(nextMon));
         assertThat(generated).allSatisfy(s -> {
             assertThat(s.getPatternId()).isEqualTo(99L);
             assertThat(s.isOverridden()).isFalse();
@@ -194,7 +198,7 @@ class ClassScheduleServiceTest {
         });
 
         assertThat(res.patternId()).isEqualTo(99L);
-        assertThat(res.generated()).isEqualTo(3);
+        assertThat(res.generated()).isEqualTo(2);
         assertThat(res.keptOverridden()).isEqualTo(1);
     }
 
@@ -249,7 +253,7 @@ class ClassScheduleServiceTest {
     void updateSession_notOwner_forbidden() {
         ClassSession s = session(5L, CLASS_ID, LocalDateTime.now().plusDays(1), "P.302", false);
         when(sessionRepo.findById(5L)).thenReturn(Optional.of(s));
-        when(classTeacherRepo.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(false);
+        when(classTeacherRepo.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(false);
 
         assertThatThrownBy(() -> service.updateSession(TEACHER_ID, 5L,
                 new UpdateSessionRequest(null, null, null, "P.303", null)))
@@ -296,7 +300,7 @@ class ClassScheduleServiceTest {
         when(sessionRepo.findByPatternIdAndStartAtGreaterThanEqual(eq(99L), any()))
                 .thenReturn(List.of(ov, st));
 
-        int removed = service.deletePattern(TEACHER_ID, 99L);
+        int removed = service.deletePattern(TEACHER_ID, 99L).removedSessions();
 
         ArgumentCaptor<List<ClassSession>> delCap = listCaptor();
         verify(sessionRepo).deleteAll(delCap.capture());
@@ -316,6 +320,8 @@ class ClassScheduleServiceTest {
                 .thenReturn(List.of(classTeacher(CLASS_ID), classTeacher(OTHER_CLASS_ID)));
         ClassSession busy = session(700L, OTHER_CLASS_ID, start.plusMinutes(30), null, false);
         when(sessionRepo.findTeacherTimeConflicts(anyList(), any(), any(), any())).thenReturn(List.of(busy));
+        // PR-5: gate duyệt đọc lớp trước (isOrgClass) — lớp cá nhân → đi tiếp đường trực tiếp.
+        when(classRepo.findById(CLASS_ID)).thenReturn(Optional.of(teacherClass(CLASS_ID, "K30")));
         when(classRepo.findById(OTHER_CLASS_ID)).thenReturn(Optional.of(teacherClass(OTHER_CLASS_ID, "A2 tối")));
 
         assertThatThrownBy(() -> service.createSession(TEACHER_ID, CLASS_ID,
@@ -362,6 +368,8 @@ class ClassScheduleServiceTest {
                 .thenReturn(List.of(classTeacher(CLASS_ID), classTeacher(OTHER_CLASS_ID)));
         ClassSession busy = session(800L, OTHER_CLASS_ID, newStart.plusMinutes(15), null, false);
         when(sessionRepo.findTeacherTimeConflicts(anyList(), any(), any(), eq(5L))).thenReturn(List.of(busy));
+        // PR-5: gate duyệt đọc lớp trước (isOrgClass) — lớp cá nhân → đi tiếp đường trực tiếp.
+        when(classRepo.findById(CLASS_ID)).thenReturn(Optional.of(teacherClass(CLASS_ID, "K30")));
         when(classRepo.findById(OTHER_CLASS_ID)).thenReturn(Optional.of(teacherClass(OTHER_CLASS_ID, "A2")));
 
         assertThatThrownBy(() -> service.updateSession(TEACHER_ID, 5L,
@@ -629,7 +637,8 @@ class ClassScheduleServiceTest {
     }
 
     private void allowOwner() {
-        when(classTeacherRepo.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        // PR B trợ giảng: mọi mutation lịch đòi PRIMARY — helper stub theo gate mới.
+        when(classTeacherRepo.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(true);
     }
 
     private static ClassTeacher classTeacher(Long classId) {

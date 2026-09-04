@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { xpApi, type XpSummaryDto, type LeaderboardEntry, type AchievementDto } from '@/lib/xpApi'
 import { useUserStore } from '@/stores/useUserStore'
-import { GaPageHdr, GaStatStrip, GaCap, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import { GaPageHdr, GaStatStrip, GaCap, GaIcon, LoadingState, ErrorBanner } from '@/components/ui-v2'
 
 const RARITY: Record<string, { labelKey: string; color: string }> = {
   COMMON: { labelKey: 'rarity.common', color: '#76716A' },
@@ -23,8 +23,11 @@ function AchievementCard({ a }: { a: AchievementDto }) {
       }`}
       style={a.unlocked ? { borderColor: `${r.color}55` } : undefined}
     >
-      <span className={`grid h-14 w-14 place-items-center rounded-full text-[28px] ${a.unlocked ? '' : 'grayscale'}`} style={{ background: `${r.color}14` }}>
-        {a.unlocked ? a.iconEmoji : '🔒'}
+      {/* Huy hiệu đã mở giữ emoji: `achievements.icon_emoji` là NHẬN DIỆN của từng huy hiệu
+          (mỗi cái một emoji riêng), không phải icon giao diện. Ô khoá thì ngược lại — nó là
+          trạng thái, nên dùng icon Lucide cho khớp nét với phần còn lại. */}
+      <span className={`grid h-14 w-14 place-items-center rounded-full text-[28px] ${a.unlocked ? '' : 'text-ga-subtle'}`} style={{ background: `${r.color}14` }}>
+        {a.unlocked ? a.iconEmoji : <GaIcon name="lock" size={24} />}
       </span>
       <p className="text-[13.5px] font-semibold leading-tight text-ga-ink break-words">{a.nameVi}</p>
       <p className="ga-ui line-clamp-2 break-words text-[11.5px] text-ga-muted">{a.descriptionVi}</p>

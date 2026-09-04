@@ -5,11 +5,11 @@ import jakarta.validation.constraints.NotBlank;
 
 public record LoginRequest(
 
-        @Email(message = "Invalid email format")
-        @NotBlank(message = "Email is required")
+        @Email(message = "Email không hợp lệ.")
+        @NotBlank(message = "Vui lòng nhập email.")
         String email,
 
-        @NotBlank(message = "Password is required")
+        @NotBlank(message = "Vui lòng nhập mật khẩu.")
         String password
 ) {
     // Trim the email BEFORE Bean Validation runs. @Email rejects leading/trailing whitespace, so a

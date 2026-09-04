@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, useAnimation, useMotionValue, useTransform } from 'framer-motion'
 import { Check, RefreshCw, Volume2, X } from 'lucide-react'
 import { speakGerman } from '@/lib/speechDe'
-import { ARTICLE_COLOR, type WordListItem } from '@/lib/vocabWords'
+import { ARTICLE_COLOR, cleanExample, type WordListItem } from '@/lib/vocabWords'
 
 /**
  * SwipeCard — thẻ vuốt der/die/das (port từ /student/swipe-cards, giữ nguyên cơ chế).
@@ -14,7 +14,8 @@ import { ARTICLE_COLOR, type WordListItem } from '@/lib/vocabWords'
  * ⚠️ Mạo từ der/die/das là phần bắt buộc của đáp án — không được lược bỏ.
  */
 
-export type CardType = 'masculine' | 'feminine' | 'neuter' | 'verb' | 'adjective'
+/** 'unknown' = từ chưa đủ dữ liệu để nói nó thuộc loại nào — KHÔNG được mượn nhãn của loại khác. */
+export type CardType = 'masculine' | 'feminine' | 'neuter' | 'verb' | 'adjective' | 'unknown'
 export type CardMode = 'flip' | 'type'
 
 export type SwipeCardData = {
@@ -79,21 +80,40 @@ export const CARD_COLOR: Record<
     label: 'Adjektiv',
     tag: 'adj.',
   },
+  // Trung tính có chủ đích: thẻ không khẳng định từ loại khi dữ liệu chưa đủ.
+  unknown: {
+    primary: '#76716A',
+    light: '#F3F0E8',
+    gradient: 'linear-gradient(145deg, #76716A 0%, #4A463F 100%)',
+    glow: 'rgba(118,113,106,0.35)',
+    label: 'Wort',
+    tag: '—',
+  },
 }
 
 /** Map WordListItem (GET /words) → thẻ vuốt. Giữ nguyên logic v1 (kể cả chọn nghĩa theo locale). */
 export function mapWordToSwipe(w: WordListItem, locale: string): SwipeCardData {
   const dtype = (w.dtype || 'Noun').toLowerCase()
-  let type: CardType = 'masculine'
+  // QA F-5: mạo từ + badge giống (Maskulin/Feminin/Neutrum) CHỈ suy từ TÍN HIỆU giống thật —
+  // article hoặc gender. Không có tín hiệu ⇒ coi như không phải danh từ hiển thị được: không bịa
+  // 'der', không gắn badge giống. Xử lý luôn data seed gán nhầm dtype='Noun' cho từ khác loại (vd.
+  // tính từ "ähnlich", gender/article đều null) — trước đây rơi vào mặc định 'masculine' → "Der ähnlich".
+  const nounArticle =
+    (w.article || '').toLowerCase() ||
+    (w.gender === 'DER' ? 'der' : w.gender === 'DIE' ? 'die' : w.gender === 'DAS' ? 'das' : '')
+  const isNounWord = dtype === 'noun' && nounArticle !== ''
+
+  let type: CardType
   if (dtype === 'verb') type = 'verb'
   else if (dtype === 'adjective') type = 'adjective'
-  else if (w.gender === 'DIE') type = 'feminine'
-  else if (w.gender === 'DAS') type = 'neuter'
+  else if (isNounWord) type = nounArticle === 'die' ? 'feminine' : nounArticle === 'das' ? 'neuter' : 'masculine'
+  // Danh từ thiếu dữ liệu giống rơi vào nhóm trung tính. Trước 02/09/2026 nhánh này gán 'adjective',
+  // nên thẻ dán nhãn "Adjektiv" lên danh từ — sai kiến thức, và trúng ~39% số từ trong kho vì rất nhiều
+  // danh từ chưa có dòng trong bảng nouns. Không hiển thị được mạo từ là một chuyện; khẳng định sai từ
+  // loại lại là chuyện khác.
+  else type = 'unknown'
 
-  const art =
-    type === 'masculine' || type === 'feminine' || type === 'neuter'
-      ? (w.article ?? (type === 'masculine' ? 'der' : type === 'feminine' ? 'die' : 'das'))
-      : undefined
+  const art = isNounWord ? nounArticle : undefined
   const articleCap = art ? art.charAt(0).toUpperCase() + art.slice(1) : undefined
 
   const loc = locale.toLowerCase()
@@ -107,7 +127,7 @@ export function mapWordToSwipe(w: WordListItem, locale: string): SwipeCardData {
     word: w.baseForm,
     english: english || w.baseForm,
     phonetic: w.phonetic?.trim() || '',
-    sentence: w.exampleDe ?? w.example ?? '',
+    sentence: cleanExample(w.exampleDe ?? w.example),
     sentenceEN: w.exampleEn ?? '',
     emoji: EMOJIS[Math.abs(w.id) % EMOJIS.length],
     level: (w.cefrLevel ?? 'A1').toUpperCase(),
@@ -124,12 +144,15 @@ export function SwipeCard({
   card,
   stackIndex,
   onSwipe,
+  onDecided,
   mode,
   t,
 }: {
   card: SwipeCardData
   stackIndex: 0 | 1 | 2
   onSwipe: (dir: 'learned' | 'unlearned') => void
+  /** Gọi ngay khi người học quyết định, KHÔNG chờ animation — dùng cho việc ghi tiến độ. */
+  onDecided?: (dir: 'learned' | 'unlearned') => void
   mode: CardMode
   t: (key: string) => string
 }) {
@@ -152,6 +175,11 @@ export function SwipeCard({
 
   const swipeAway = useCallback(
     async (dir: 'learned' | 'unlearned') => {
+      // Báo quyết định NGAY, trước animation: việc ghi tiến độ về server không được phụ thuộc vào việc
+      // animation thoát thẻ có chạy xong hay không. Tab bị ẩn (rAF bị throttle), người học chuyển trang
+      // giữa chừng, hay máy bật giảm chuyển động — animation không kết thúc thì onSwipe bên dưới cũng
+      // không chạy, và tiến độ biến mất không dấu vết.
+      onDecided?.(dir)
       await controls.start({
         x: dir === 'learned' ? 700 : -700,
         rotate: dir === 'learned' ? 22 : -22,
@@ -160,7 +188,7 @@ export function SwipeCard({
       })
       onSwipe(dir)
     },
-    [controls, onSwipe],
+    [controls, onSwipe, onDecided],
   )
 
   useEffect(() => {

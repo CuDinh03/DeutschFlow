@@ -50,6 +50,8 @@ import java.util.stream.Collectors;
 public class TeacherTimesheetService {
 
     private final TeacherSessionRecordRepository recordRepository;
+    private final com.deutschflow.organization.service.OrgSettingsService orgSettingsService;
+    private final com.deutschflow.teacher.repository.TeacherClassRepository teacherClassRepositoryP04;
     private final ClassSessionRepository sessionRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final TeacherClassRepository classRepository;
@@ -116,8 +118,25 @@ public class TeacherTimesheetService {
                 .sorted(Comparator.comparing(ClassSession::getStartAt))
                 .map(s -> new SuggestionDto(
                         s.getId(), s.getClassId(), classNames.get(s.getClassId()),
-                        s.getStartAt(), s.getDurationMinutes()))
+                        s.getStartAt(), suggestedMinutes(s)))
                 .toList();
+    }
+
+    /**
+     * P04 (PR-10): phút công GỢI Ý cho một buổi. Chính sách theo trung tâm —
+     * {@code timesheet_break_included} default true = trọn thời lượng chiếm lịch (195′, hành vi
+     * trước giờ); tắt đi thì gợi ý PHÚT HỌC (180′; buổi legacy chưa tách phút giữ duration).
+     * Chỉ áp cho GỢI Ý — bản ghi công là con số giáo viên xác nhận, không hồi tố record cũ.
+     */
+    private int suggestedMinutes(ClassSession s) {
+        Long orgId = teacherClassRepositoryP04.findById(s.getClassId())
+                .map(c -> c.getOrgId()).orElse(null);
+        boolean breakIncluded = orgSettingsService.getBoolean(orgId,
+                com.deutschflow.organization.service.OrgSettingsService.TIMESHEET_BREAK_INCLUDED);
+        if (breakIncluded || s.getTeachingMinutes() == null) {
+            return s.getDurationMinutes();
+        }
+        return s.getTeachingMinutes();
     }
 
     /** Ghi nhận một buổi đã dạy. Snapshot mọi giá trị dùng để tính công. */
@@ -146,9 +165,10 @@ public class TeacherTimesheetService {
         if (duration == null || duration <= 0) {
             throw new BadRequestException("Thời lượng buổi dạy phải lớn hơn 0 phút.");
         }
+        assertDurationWithinCap(duration);
         assertTeachesClass(teacherId, classId);
         assertNotInFuture(startedAt);
-        assertNoDoubleCount(teacherId, startedAt, null);
+        assertNoOverlap(teacherId, startedAt, duration, null);
         // Kỳ đã nộp trở đi thì đóng băng: không thêm công vào một kỳ manager đang xem hoặc đã duyệt.
         periodService.assertRecordEditable(teacherId, startedAt.toLocalDate());
 
@@ -182,7 +202,6 @@ public class TeacherTimesheetService {
 
         if (req.startedAt() != null && !req.startedAt().equals(rec.getStartedAt())) {
             assertNotInFuture(req.startedAt());
-            assertNoDoubleCount(teacherId, req.startedAt(), recordId);
             // …và kỳ ĐÍCH cũng vậy, nếu không đây là đường chuyển công vào một kỳ đã chốt.
             periodService.assertRecordEditable(teacherId, req.startedAt().toLocalDate());
             rec.setStartedAt(req.startedAt());
@@ -191,10 +210,15 @@ public class TeacherTimesheetService {
             if (req.durationMinutes() <= 0) {
                 throw new BadRequestException("Thời lượng buổi dạy phải lớn hơn 0 phút.");
             }
+            assertDurationWithinCap(req.durationMinutes());
             rec.setDurationMinutes(req.durationMinutes());
         }
         if (req.teacherRole() != null) rec.setTeacherRole(parseRole(req.teacherRole()));
         if (req.note() != null) rec.setNote(req.note());
+
+        // Kiểm chồng giờ theo GIÁ TRỊ SAU SỬA (dời giờ lẫn kéo dài thời lượng đều có thể tạo chồng),
+        // loại trừ chính dòng đang sửa.
+        assertNoOverlap(teacherId, rec.getStartedAt(), rec.getDurationMinutes(), recordId);
 
         TeacherSessionRecord saved = recordRepository.save(rec);
         auditLogService.log("teacher_session_record_updated", actor,
@@ -250,9 +274,29 @@ public class TeacherTimesheetService {
         return rec;
     }
 
+    /**
+     * PR B trợ giảng (quyết định owner 06/08: trợ giảng KHÔNG tính công): chỉ GV phụ trách
+     * (PRIMARY) của lớp mới được ghi công cho lớp đó. Trước đây gate chỉ đòi "có tên trong lớp"
+     * nên trợ giảng vẫn tự khai công được — đó chính là lỗ hổng phải đóng.
+     */
     private void assertTeachesClass(Long teacherId, Long classId) {
-        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ForbiddenException("Bạn không dạy lớp này");
+        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(classId, teacherId, "PRIMARY")) {
+            throw new ForbiddenException("Chỉ giáo viên phụ trách lớp mới được ghi công cho lớp này");
+        }
+    }
+
+    /**
+     * Trần thời lượng một dòng công. Không phải quy tắc nghiệp vụ tùy hứng: cửa sổ truy vấn 24h
+     * của {@link #assertNoOverlap} CHỈ đúng khi không dòng công nào dài quá một ngày — một bản ghi
+     * 2000 phút (gõ thừa chữ số) sẽ thò đuôi ra ngoài cửa sổ và các dòng sau đè lên nó mà không bị
+     * phát hiện.
+     */
+    private static final int MAX_DURATION_MINUTES = 24 * 60;
+
+    private static void assertDurationWithinCap(int durationMinutes) {
+        if (durationMinutes > MAX_DURATION_MINUTES) {
+            throw new BadRequestException(
+                    "Thời lượng buổi dạy không quá 24 giờ (" + MAX_DURATION_MINUTES + " phút).");
         }
     }
 
@@ -264,15 +308,26 @@ public class TeacherTimesheetService {
     }
 
     /**
-     * Một giáo viên không thể đứng hai lớp cùng một thời điểm, nên một mốc bắt đầu chỉ được có một
-     * dòng công. Đây là chốt chặn trả thừa công, soi đúng unique index {@code uq_tsr_teacher_start}.
+     * Chặn dòng công CHỒNG GIỜ với dòng đã có (A4/F03). So khớp đúng mốc bắt đầu là chưa đủ:
+     * 18:00–19:30 và 18:30–20:00 vẫn được trả công đôi 60 phút (đúng-mốc-bắt-đầu vẫn còn được
+     * unique index {@code uq_tsr_teacher_start} chốt ở tầng DB). Cửa sổ truy vấn lùi 24h — giả
+     * định này được {@link #MAX_DURATION_MINUTES} bảo đảm, không phải phỏng đoán. Chỉ chặn bản
+     * ghi MỚI/SỬA — dữ liệu chồng lấn lịch sử (nếu có) giữ nguyên, không backfill.
      */
-    private void assertNoDoubleCount(Long teacherId, LocalDateTime startedAt, Long selfRecordId) {
-        recordRepository.findByTeacherIdAndStartedAt(teacherId, startedAt)
+    private void assertNoOverlap(Long teacherId, LocalDateTime startedAt, int durationMinutes,
+                                 Long selfRecordId) {
+        LocalDateTime end = startedAt.plusMinutes(durationMinutes);
+        recordRepository
+                .findByTeacherIdAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAt(
+                        teacherId, startedAt.minusHours(24), end)
+                .stream()
                 .filter(existing -> !existing.getId().equals(selfRecordId))
+                .filter(existing -> existing.getStartedAt()
+                        .plusMinutes(existing.getDurationMinutes()).isAfter(startedAt))
+                .findFirst()
                 .ifPresent(existing -> {
-                    throw new ConflictException(
-                            "Bạn đã ghi công cho buổi bắt đầu lúc " + startedAt + ".");
+                    throw new ConflictException("Bạn đã có dòng công lúc " + existing.getStartedAt()
+                            + " (" + existing.getDurationMinutes() + " phút) chồng giờ với buổi này.");
                 });
     }
 
@@ -281,8 +336,14 @@ public class TeacherTimesheetService {
         if (!to.isAfter(from)) throw new BadRequestException("Kỳ công không hợp lệ.");
     }
 
+    /**
+     * Chỉ lớp giáo viên PHỤ TRÁCH (PRIMARY) — cùng gate với {@link #assertTeachesClass} (PR B:
+     * trợ giảng không tính công). Trước đây lấy mọi lớp trong class_teachers nên trợ giảng thấy
+     * gợi ý ghi công cho lớp mình phụ, bấm xác nhận là 403 — hàng gợi ý chết (A4/F03).
+     */
     private List<Long> teacherClassIds(Long teacherId) {
         return classTeacherRepository.findByIdTeacherId(teacherId).stream()
+                .filter(ct -> "PRIMARY".equals(ct.getRole()))
                 .map(ct -> ct.getId().getClassId())
                 .distinct()
                 .toList();
@@ -296,6 +357,11 @@ public class TeacherTimesheetService {
 
     private static TeacherSessionRecord.TeacherRole parseRole(String raw) {
         if (raw == null || raw.isBlank()) return TeacherSessionRecord.TeacherRole.PRIMARY;
+        // PR B: trợ giảng không tính công → vai ASSISTANT không còn hợp lệ trên dòng công.
+        // SUBSTITUTE (dạy thay) vẫn giữ — dạy thay là có công thật.
+        if ("ASSISTANT".equalsIgnoreCase(raw.trim())) {
+            throw new BadRequestException("Trợ giảng không tính công — không thể ghi dòng công với vai ASSISTANT.");
+        }
         try {
             return TeacherSessionRecord.TeacherRole.valueOf(raw.trim().toUpperCase());
         } catch (IllegalArgumentException e) {

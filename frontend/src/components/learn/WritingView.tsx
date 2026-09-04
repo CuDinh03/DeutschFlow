@@ -2,7 +2,7 @@
 
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, PenLine, CircleCheck } from "lucide-react";
 import api from "@/lib/api";
 
 interface CorrectionResult {
@@ -83,7 +83,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
   if (!prompt) {
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-ga-card rounded-ga border border-ga-line space-y-4">
-        <span className="text-4xl mb-3">✍️</span>
+        <PenLine size={40} className="mb-3 text-ga-subtle" aria-hidden />
         <p className="text-sm text-ga-muted">Bài viết chưa có cho bài học này.</p>
         <button
           onClick={() => markTabCompleted("writing")}
@@ -94,7 +94,10 @@ export default function WritingView({ content, isLocked = false }: { content: No
               : "bg-ga-green hover:bg-ga-green text-white"
           }`}
         >
-          {isCompleted ? "✅ Đã hoàn thành" : "✅ Bỏ qua & Đánh dấu hoàn thành"}
+          <span className="inline-flex items-center gap-1.5">
+            <CircleCheck size={15} aria-hidden />
+            {isCompleted ? "Đã hoàn thành" : "Bỏ qua & Đánh dấu hoàn thành"}
+          </span>
         </button>
       </div>
     );
@@ -105,7 +108,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
       {/* ── Prompt card ── */}
       <div className="rounded-ga bg-gradient-to-br from-ga-ink to-ga-ink p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded bg-ga-yellow text-ga-ink flex items-center justify-center text-xs font-bold">✍️</span>
+          <span className="w-6 h-6 rounded bg-ga-yellow text-ga-ink flex items-center justify-center"><PenLine size={13} aria-hidden /></span>
           <span className="text-sm font-bold text-white">Aufgabe</span>
         </div>
         <p className="text-sm text-white/90">{prompt.task_de}</p>
@@ -232,7 +235,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
       {/* ── Completion status ── */}
       {isCompleted && (
         <div className="mt-4 rounded-ga bg-ga-green-soft border border-ga-green/40 p-4 text-center">
-          <p className="text-sm font-bold text-ga-green">✅ Đã hoàn thành phần Viết (≥ 80 điểm)</p>
+          <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-ga-green"><CircleCheck size={15} aria-hidden /> Đã hoàn thành phần Viết (≥ 80 điểm)</p>
         </div>
       )}
     </div>

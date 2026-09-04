@@ -1,0 +1,135 @@
+[
+  { "archetype": "SELF_INTRO", "band": "A1_A2", "phrases": [
+    "Ich heiße … / Mein Name ist …",
+    "Ich komme aus … und wohne in …",
+    "Ich bin … Jahre alt.",
+    "Ich arbeite als … / Ich bin … von Beruf.",
+    "Meine Hobbys sind …",
+    "Ich spreche Vietnamesisch, Englisch und ein bisschen Deutsch."
+  ]},
+  { "archetype": "SELF_INTRO", "band": "B1_B2", "phrases": [
+    "Darf ich mich kurz vorstellen?",
+    "Zu meiner Person: Ich bin … und komme ursprünglich aus …",
+    "Beruflich bin ich als … tätig.",
+    "In meiner Freizeit beschäftige ich mich gern mit …",
+    "Ich lerne Deutsch, weil …"
+  ]},
+  { "archetype": "CARD_QA", "band": "A1_A2", "phrases": [
+    "Wie heißt du? / Wie heißen Sie?",
+    "Wo wohnst du? / Woher kommen Sie?",
+    "Was ist dein Lieblingsessen?",
+    "Entschuldigung, können Sie das bitte wiederholen?",
+    "Wie bitte? Ich habe das nicht verstanden.",
+    "Kannst du das bitte buchstabieren?"
+  ]},
+  { "archetype": "CARD_QA", "band": "B1_B2", "phrases": [
+    "Darf ich dich etwas fragen?",
+    "Mich würde interessieren, ob …",
+    "Könnten Sie mir sagen, wie …?",
+    "Was meinst du damit genau?"
+  ]},
+  { "archetype": "REQUEST_RESPOND", "band": "A1_A2", "phrases": [
+    "Kannst du mir bitte … geben?",
+    "Können Sie bitte das Fenster öffnen?",
+    "Ja, gern. / Natürlich, hier bitte.",
+    "Tut mir leid, das geht leider nicht.",
+    "Vielen Dank! – Bitte schön."
+  ]},
+  { "archetype": "REQUEST_RESPOND", "band": "B1_B2", "phrases": [
+    "Wären Sie so nett, … zu …?",
+    "Dürfte ich Sie um … bitten?",
+    "Kein Problem, das mache ich sofort.",
+    "Es tut mir leid, aber das ist im Moment schwierig, weil …"
+  ]},
+  { "archetype": "ABOUT_ME", "band": "A1_A2", "phrases": [
+    "Ich erzähle etwas über mein/e …",
+    "Bei mir ist das so: …",
+    "Zum Beispiel …",
+    "Am Wochenende … ich oft …",
+    "Das mache ich sehr gern, weil …"
+  ]},
+  { "archetype": "ABOUT_ME", "band": "B1_B2", "phrases": [
+    "Aus meiner Erfahrung kann ich sagen, dass …",
+    "Bei uns in Vietnam ist es üblich, dass …",
+    "Früher habe ich …, heute dagegen …",
+    "Was mich betrifft, so …"
+  ]},
+  { "archetype": "PLAN_NEGOTIATE", "band": "A1_A2", "phrases": [
+    "Hast du am Montag Zeit?",
+    "Passt es dir um … Uhr?",
+    "Da kann ich leider nicht. Da habe ich einen Termin.",
+    "Wollen wir uns um … treffen?",
+    "Ja, das passt mir gut. Bis dann!"
+  ]},
+  { "archetype": "PLAN_NEGOTIATE", "band": "B1_B2", "phrases": [
+    "Wie wäre es, wenn wir …?",
+    "Ich schlage vor, dass wir …",
+    "Das ist eine gute Idee, aber …",
+    "Könnten wir das nicht anders machen?",
+    "Einverstanden, dann machen wir es so."
+  ]},
+  { "archetype": "TOPIC_EXCHANGE", "band": "A1_A2", "phrases": [
+    "Was denkst du über …?",
+    "Ich finde … gut / nicht so gut.",
+    "Ich auch! / Ich nicht.",
+    "Und wie ist das bei dir?"
+  ]},
+  { "archetype": "TOPIC_EXCHANGE", "band": "B1_B2", "phrases": [
+    "Was hältst du von …?",
+    "Meiner Meinung nach …",
+    "Da stimme ich dir völlig zu.",
+    "Das sehe ich ein bisschen anders, weil …",
+    "Und wie sind deine Erfahrungen damit?"
+  ]},
+  { "archetype": "PRESENT", "band": "A1_A2", "phrases": [
+    "Mein Thema ist …",
+    "Zuerst … / Dann … / Zum Schluss …",
+    "Das ist wichtig für mich, weil …",
+    "Danke fürs Zuhören!"
+  ]},
+  { "archetype": "PRESENT", "band": "B1_B2", "phrases": [
+    "In meiner Präsentation geht es um …",
+    "Zuerst möchte ich über … sprechen, danach …",
+    "Ein wichtiger Punkt ist meiner Meinung nach …",
+    "Ein Beispiel dafür ist …",
+    "Zusammenfassend kann man sagen, dass …",
+    "Vielen Dank für Ihre Aufmerksamkeit."
+  ]},
+  { "archetype": "FEEDBACK_FOLLOWUP", "band": "A1_A2", "phrases": [
+    "Danke, das war interessant.",
+    "Ich habe eine Frage: …?",
+    "Das finde ich auch."
+  ]},
+  { "archetype": "FEEDBACK_FOLLOWUP", "band": "B1_B2", "phrases": [
+    "Vielen Dank für deinen Vortrag.",
+    "Besonders interessant fand ich, dass …",
+    "Dazu habe ich noch eine Frage: …",
+    "Könntest du das genauer erklären?",
+    "Gute Frage! Ich denke, dass …"
+  ]},
+  { "archetype": "DISCUSS", "band": "A1_A2", "phrases": [
+    "Ich finde das gut, weil …",
+    "Das stimmt. / Das stimmt nicht.",
+    "Vielleicht können wir …"
+  ]},
+  { "archetype": "DISCUSS", "band": "B1_B2", "phrases": [
+    "Ich bin der Meinung, dass …",
+    "Einerseits …, andererseits …",
+    "Da muss ich dir leider widersprechen.",
+    "Ein wichtiges Argument dafür ist …",
+    "Auf der einen Seite hast du recht, aber …",
+    "Können wir uns darauf einigen, dass …?"
+  ]},
+  { "archetype": "PICTURE", "band": "A1_A2", "phrases": [
+    "Auf dem Bild sehe ich …",
+    "Im Vordergrund ist …, im Hintergrund …",
+    "Vielleicht ist das …",
+    "Das Bild gefällt mir, weil …"
+  ]},
+  { "archetype": "PICTURE", "band": "B1_B2", "phrases": [
+    "Das Bild zeigt …",
+    "Ich vermute, dass die Personen …",
+    "Das Foto erinnert mich an …",
+    "Die Situation wirkt auf mich …"
+  ]}
+]

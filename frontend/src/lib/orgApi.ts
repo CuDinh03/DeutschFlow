@@ -71,7 +71,15 @@ export interface OrgClassStudent {
   skillSprechen: number | null
 }
 
-/** GET /org/classes/{id} — class detail: teacher name + full roster (B1.1). */
+/** Một giáo viên trong lớp (class_teachers): PRIMARY = phụ trách, ASSISTANT = trợ giảng. */
+export interface OrgClassTeacher {
+  teacherId: number
+  email: string | null
+  displayName: string | null
+  role: string
+}
+
+/** GET /org/classes/{id} — class detail: teachers đủ vai (PRIMARY trước) + full roster (B1.1). */
 export interface OrgClassDetail {
   id: number
   name: string
@@ -81,6 +89,7 @@ export interface OrgClassDetail {
   createdAt: string | null
   studentCount: number
   students: OrgClassStudent[]
+  teachers: OrgClassTeacher[]
 }
 
 /** A class (within this org) a student is enrolled in. */
@@ -264,6 +273,16 @@ export async function revokeInvitation(id: number): Promise<void> {
   await api.delete(`/org/invitations/${id}`)
 }
 
+/**
+ * POST /org/invitations/{id}/rotate — xoay token lời mời PENDING (L-2): link cũ vô hiệu
+ * NGAY LẬP TỨC, hạn dùng đặt lại, backend TỰ GỬI email mời với link mới. Đây là nút
+ * "Gửi lại" của trang Lời mời (Đợt 0 OWNER, F03).
+ */
+export async function rotateInvitation(id: number): Promise<OrgInvitation> {
+  const res = await api.post<OrgInvitation>(`/org/invitations/${id}/rotate`)
+  return res.data
+}
+
 /** DELETE /org/members/{userId} — admin removes a member (membership → REVOKED). */
 export async function removeMember(userId: number): Promise<void> {
   await api.delete(`/org/members/${userId}`)
@@ -298,6 +317,29 @@ export async function createOrgClass(body: {
 }): Promise<OrgClass> {
   const res = await api.post<OrgClass>('/org/classes', body)
   return res.data
+}
+
+/**
+ * PATCH /org/classes/{id}/teacher — đổi giáo viên phụ trách của lớp đã tồn tại (nút "Phân công").
+ * teacherId phải là giáo viên TEACHER ACTIVE của org (backend verify — chống IDOR).
+ */
+export async function assignClassTeacher(classId: number, teacherId: number): Promise<OrgClass> {
+  const res = await api.patch<OrgClass>(`/org/classes/${classId}/teacher`, { teacherId })
+  return res.data
+}
+
+/**
+ * POST /org/classes/{id}/teachers — org-admin thêm trợ giảng (ASSISTANT) vào lớp.
+ * 409 nếu giáo viên đã tham gia lớp; 400 nếu không phải TEACHER ACTIVE của org.
+ */
+export async function addOrgClassAssistant(classId: number, teacherId: number): Promise<OrgClassTeacher> {
+  const res = await api.post<OrgClassTeacher>(`/org/classes/${classId}/teachers`, { teacherId })
+  return res.data
+}
+
+/** DELETE /org/classes/{id}/teachers/{teacherId} — gỡ trợ giảng (400 nếu là PRIMARY). */
+export async function removeOrgClassAssistant(classId: number, teacherId: number): Promise<void> {
+  await api.delete(`/org/classes/${classId}/teachers/${teacherId}`)
 }
 
 /** GET /org/classes/{id} — class detail (teacher + roster). 404 if not in caller's org (B1.1). */

@@ -22,11 +22,18 @@ export interface ClassSession {
   status: ClassSessionStatus
   overridden: boolean
   studentCount: number
+  /** PR-3 (D04): phút HỌC — durationMinutes vẫn là phút CHIẾM LỊCH (kiểm trùng giờ). */
+  teachingMinutes: number
+  /** PR-3 (D04): phút GIẢI LAO trong buổi (lớp trung tâm: 15). */
+  breakMinutes: number
 }
 
 export interface SessionSaveResult {
-  session: ClassSession
+  /** null khi thay đổi vào hàng chờ duyệt (chưa có buổi mới nào được tạo). */
+  session: ClassSession | null
   roomWarnings: string[]
+  /** PR-5 (AC18): khác null = lớp trung tâm có giáo trình — thay đổi thành ĐỀ XUẤT chờ duyệt, lịch CHƯA đổi. */
+  pendingRequestId: number | null
 }
 
 export interface ClassSchedulePattern {
@@ -39,14 +46,19 @@ export interface ClassSchedulePattern {
   defaultRoom: string | null
   effectiveFrom: string
   effectiveTo: string | null
+  /** PR-3 (D04): phút học/nghỉ mỗi buổi sinh từ pattern (lớp trung tâm 195' → 180 + 15). */
+  teachingMinutes: number
+  breakMinutes: number
 }
 
 export interface UpsertPatternResult {
-  patternId: number
+  patternId: number | null
   generated: number
   keptOverridden: number
   /** Buổi bị bỏ qua vì trùng lịch dạy của giáo viên (lớp khác) — FE cảnh báo, không chặn. */
   skipped: number
+  /** PR-5 (AC18): khác null = đề xuất chờ duyệt, pattern CHƯA đổi (các số trên là 0). */
+  pendingRequestId: number | null
 }
 
 export interface TeacherClassLite {
@@ -106,6 +118,9 @@ export interface UpsertPatternBody {
   defaultRoom: string | null
   effectiveFrom: string
   effectiveTo: string | null
+  /** PR-3: bỏ trống để BE tự suy (lớp trung tâm buổi 195' → 180 + 15); khai thì teaching + break = duration. */
+  teachingMinutes?: number | null
+  breakMinutes?: number | null
 }
 
 export async function upsertClassPattern(classId: number, body: UpsertPatternBody): Promise<UpsertPatternResult> {
@@ -113,8 +128,14 @@ export async function upsertClassPattern(classId: number, body: UpsertPatternBod
   return res.data
 }
 
-export async function deleteClassPattern(patternId: number): Promise<number> {
-  const res = await api.delete<number>(`/v2/teacher/class-schedule/patterns/${patternId}`)
+export interface DeletePatternResult {
+  removedSessions: number
+  /** PR-5 (AC18): khác null = việc xoá vào hàng chờ duyệt, CHƯA gỡ gì. */
+  pendingRequestId: number | null
+}
+
+export async function deleteClassPattern(patternId: number): Promise<DeletePatternResult> {
+  const res = await api.delete<DeletePatternResult>(`/v2/teacher/class-schedule/patterns/${patternId}`)
   return res.data
 }
 

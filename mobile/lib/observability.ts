@@ -66,6 +66,14 @@ export type ApiErrorContext = {
   status: string
   /** `extensions.code` của RFC-7807 (AI_BUSY, QUOTA_EXCEEDED…) nếu backend có gửi. */
   aiCode?: string
+  /**
+   * Mức Sentry. Mặc định 'error'. Đêm owner QA offline 03/09: mỗi lần một thiết bị mất mạng là
+   * MỘT LOẠT AxiosError level error → email "high priority" — trong khi mất mạng là chuyện
+   * thường nhật của mobile (thang máy, tàu điện), không phải sự cố hệ thống. Network/timeout
+   * giờ đi mức 'warning': vẫn ĐẾM được tần suất trên dashboard (mục đích gốc R-M6, đêm 23/07)
+   * nhưng không còn réo email; 5xx/429 giữ nguyên 'error'.
+   */
+  level?: 'error' | 'warning'
 }
 
 /**
@@ -79,6 +87,7 @@ export type ApiErrorContext = {
  */
 export function reportApiError(error: unknown, context: ApiErrorContext): void {
   sentry?.captureException(error, {
+    level: context.level ?? 'error',
     tags: {
       endpoint: context.endpoint,
       method: context.method,

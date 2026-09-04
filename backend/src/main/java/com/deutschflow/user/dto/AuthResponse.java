@@ -19,5 +19,7 @@ public record AuthResponse(
         /** Primary org id (B2B tenant); null for B2C users not in any org */
         Long orgId,
         /** Role within the org (OWNER|ADMIN|TEACHER|STUDENT); null when no active membership */
-        String orgRole
+        String orgRole,
+        /** Public URL of the user's uploaded avatar ({@code users.avatar_url}); null if unset */
+        String avatarUrl
 ) {}

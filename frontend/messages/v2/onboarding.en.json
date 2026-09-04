@@ -1,0 +1,99 @@
+{
+  "onboarding": {
+    "intro": {
+      "title": "Get started in 2 minutes",
+      "subtitle": "Pick your level, goal and pace to get a personalised roadmap right away."
+    },
+    "level": {
+      "heading": "What's your level?",
+      "sub": "Choose the one that fits you best.",
+      "A0": { "label": "Complete beginner", "desc": "Start from the alphabet" },
+      "A1": { "label": "Basic (A1)", "desc": "Can greet and introduce yourself" },
+      "A2": { "label": "Elementary (A2)", "desc": "Simple everyday conversations" },
+      "B1": { "label": "Intermediate (B1)", "desc": "Discuss and express opinions" },
+      "B2": { "label": "Upper-intermediate (B2)", "desc": "Handle complex texts" }
+    },
+    "goal": {
+      "heading": "Why are you learning German?",
+      "sub": "So we can pick the right mentor and roadmap for you.",
+      "industryLabel": "Industry",
+      "examLabel": "Certificate type",
+      "targetLevelLabel": "Target level",
+      "JOB": "Work in Germany",
+      "AUSBILDUNG": "Vocational training (Ausbildung)",
+      "STUDY": "Study abroad",
+      "IMMIGRATION": "Move / family reunion",
+      "EXAM": "Take a certificate exam",
+      "HOBBY": "Personal interest"
+    },
+    "pace": {
+      "heading": "How much do you want to study?",
+      "sub": "Your weekly target shapes the personalised extra topics.",
+      "mentorLabel": "Your mentor",
+      "mentorFallbackTagline": "Your learning companion",
+      "upsell": "🔓 Unlock mentor <b>{name}</b>{tagline} with PRO →",
+      "w3": { "label": "3 lessons/week", "desc": "~15 min/day" },
+      "w5": { "label": "5 lessons/week", "desc": "~20 min/day" },
+      "w7": { "label": "7 lessons/week", "desc": "One lesson every day" },
+      "noteA0": "🌱 Your first steps will be <b>the alphabet, pronunciation and greetings</b>.",
+      "notePlacement": "📝 You can take an <b>optional 5-minute test</b> to land on the right level — or just start learning."
+    },
+    "quickWin": {
+      "heading": "Try your first sentence!",
+      "prompt": "How do you say \"Good morning\" in German?",
+      "correct": "Richtig! 🎉 You just learned your first word.",
+      "wrong": "Not quite — give it another go!"
+    },
+    "signup": {
+      "heading": "Save your roadmap",
+      "subWithMentor": "Create a free account to keep your progress and mentor {name} — takes 30 seconds.",
+      "sub": "Create a free account to keep your progress — takes 30 seconds.",
+      "cta": "Create account & save roadmap",
+      "haveAccount": "Already have an account?",
+      "login": "Log in"
+    },
+    "placementOffer": {
+      "heading": "Land on exactly the right level?",
+      "body": "You rated yourself <b>{level}</b>. Take the ~5-minute test so your roadmap matches precisely — or start learning now and fine-tune later.",
+      "take": "Take the 5-minute test",
+      "skip": "Start learning now →"
+    },
+    "test": {
+      "heading": "Placement test",
+      "skillHoeren": "🎧 Listening",
+      "skillSprechen": "🎤 Speaking",
+      "skillLesen": "📚 Reading",
+      "skillSchreiben": "✍️ Writing",
+      "writePlaceholder": "Write your answer in German...",
+      "prev": "Back",
+      "next": "Next",
+      "submit": "Submit"
+    },
+    "result": {
+      "passed": "Nice — you're ready!",
+      "failed": "We found what to review",
+      "score": "Result: <b>{correct}/{total}</b> ({percent}%)",
+      "weakModules": "📋 Modules to review: {modules}",
+      "retryAfter": "You can retry in {days} days.",
+      "ctaPassed": "Start my personalised roadmap →",
+      "ctaFailed": "See the roadmap that fits →",
+      "pricingCta": "Explore PRO to unlock everything →"
+    },
+    "nav": {
+      "back": "Back",
+      "continue": "Continue",
+      "startRoadmap": "Start roadmap"
+    },
+    "loader": {
+      "title": "Building your roadmap…",
+      "sub": "Saving the goal and mentor you just picked."
+    },
+    "error": {
+      "offline": "Connection lost — your profile wasn't saved. Check your network and try again.",
+      "saveProfile": "Couldn't save your learning profile. Please try again.",
+      "createTest": "Couldn't create the test.",
+      "submitTest": "Submitting failed.",
+      "resumeKeepsDraft": "Couldn't save your profile — your answers are still kept. Please try again."
+    }
+  }
+}

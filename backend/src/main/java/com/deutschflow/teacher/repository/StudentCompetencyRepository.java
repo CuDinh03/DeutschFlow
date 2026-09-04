@@ -16,4 +16,7 @@ public interface StudentCompetencyRepository extends JpaRepository<StudentCompet
 
     /** All students' rows for a set of can-dos (teacher class-competency overview, Phase 2c). */
     List<StudentCompetency> findByCanDoStatementIdIn(List<Long> canDoStatementIds);
+
+    /** Số bản ghi năng lực gắn các can-do cho trước — dấu vết chặn đổi/gỡ giáo trình (PR-1). */
+    long countByCanDoStatementIdIn(List<Long> canDoStatementIds);
 }

@@ -13,6 +13,7 @@ import api from '@/lib/api'
 import * as FileSystem from 'expo-file-system/legacy'
 import {
   fetchAssignmentDetail, fetchClassSessions, fetchMyAttendance, fetchMySkillReport,
+  isAwaitingTeacher, isFinalGrade, isSubmittedStatus,
   submitAssignment, uploadAssignmentFile, type StudentAssignment,
 } from '@/lib/studentClassesApi'
 
@@ -117,11 +118,28 @@ describe('P4 evaluation reads', () => {
   })
 
   it('fetchMySkillReport hits the per-class my-skill-report endpoint', async () => {
-    get.mockResolvedValue({ data: { horen: 8, lesen: null, schreiben: null, sprechen: null, total: 8, grade: 'Giỏi' } })
+    get.mockResolvedValue({
+      data: {
+        horen: 8, lesen: null, schreiben: null, sprechen: null, total: 8, grade: 'Giỏi',
+        teacherComment: null, evaluatedAt: null,
+      },
+    })
     const r = await fetchMySkillReport(10)
     expect(get).toHaveBeenCalledWith('/v2/students/classes/10/my-skill-report')
     expect(r.grade).toBe('Giỏi')
     expect(r.horen).toBe(8)
+  })
+
+  it("fetchMySkillReport carries the teacher's written comment through to the student", async () => {
+    get.mockResolvedValue({
+      data: {
+        horen: 7, lesen: 8, schreiben: null, sprechen: null, total: 7.5, grade: 'Khá',
+        teacherComment: 'Cần luyện thêm Perfekt.', evaluatedAt: '2026-08-20T09:30:00',
+      },
+    })
+    const r = await fetchMySkillReport(10)
+    expect(r.teacherComment).toBe('Cần luyện thêm Perfekt.')
+    expect(r.evaluatedAt).toBe('2026-08-20T09:30:00')
   })
 })
 
@@ -130,5 +148,28 @@ describe('fetchClassSessions (P5 schedule)', () => {
     get.mockResolvedValue({ data: undefined })
     expect(await fetchClassSessions(10)).toEqual([])
     expect(get).toHaveBeenCalledWith('/v2/students/classes/10/sessions')
+  })
+})
+
+// Gương AssignmentStatus.java backend — hợp đồng hiển thị cho học viên
+// (soát 02/09, F-14): AI_GRADED/GRADING_FAILED là bài ĐÃ NỘP đang chờ giáo
+// viên; trước bản vá chúng rơi nhánh else và hiện pill đỏ "Chưa nộp".
+describe('phân loại trạng thái bài giao', () => {
+  test.each([
+    // [status, awaitingTeacher, finalGrade, submitted]
+    ['PENDING', false, false, false],
+    ['SUBMITTED', true, false, true],
+    ['AI_GRADED', true, false, true],
+    ['GRADING_FAILED', true, false, true],
+    ['GRADED', false, true, true],
+    ['EVALUATED', false, true, true],
+  ])('%s → awaiting=%s, final=%s, submitted=%s', (status, awaiting, final_, submitted) => {
+    expect(isAwaitingTeacher(status)).toBe(awaiting)
+    expect(isFinalGrade(status)).toBe(final_)
+    expect(isSubmittedStatus(status)).toBe(submitted)
+  })
+
+  test('AI_GRADED không bao giờ được tính là điểm đã chốt — backend cố ý giấu điểm AI', () => {
+    expect(isFinalGrade('AI_GRADED')).toBe(false)
   })
 })

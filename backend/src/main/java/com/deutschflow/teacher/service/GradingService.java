@@ -1,5 +1,8 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
+import com.deutschflow.ai.tier.TierSpec;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
@@ -47,8 +50,18 @@ public class GradingService {
     private final AiUsageLedgerService aiUsageLedgerService;
     /** Model chấm bài (tách hẳn model nói) — xem {@link GradingModelConfig}. */
     private final GradingModelConfig gradingModelConfig;
+    /** Nguồn tham số tầng GRADING_EXAM (model + reasoning_effort + endpoint). */
+    private final LlmTierResolver llmTierResolver;
     /** Đọc tiêu đề tài liệu thư viện đính kèm bài tập để đưa vào ngữ cảnh chấm. */
     private final com.deutschflow.material.service.MaterialService materialService;
+
+    /**
+     * Ngân sách token một lượt chấm. 800 cũ là mức của thời model KHÔNG reasoning; với gpt-oss,
+     * phần "nghĩ" ăn chung ngân sách nên 800 nằm sát mép (đo 09/08: lượt hỏng đụng đúng trần 800).
+     * {@code reasoning_effort=low} của tầng mới là tuyến phòng thủ chính (kéo output về 308–427);
+     * 1500 là đai an toàn thứ hai và gần như không tốn thêm vì chỉ trả tiền token thực sinh.
+     */
+    static final int GRADING_MAX_TOKENS = 1500;
 
     /** Student-/teacher-safe note when AI grading fails — the raw cause stays in logs/admin alerts only (D8). */
     private static final String GRADING_FAILED_FEEDBACK = "Chưa chấm tự động được, giáo viên sẽ chấm lại.";
@@ -56,6 +69,8 @@ public class GradingService {
     /** Throttle admin AI-grading alerts so a systemic outage (LLM env down) can't flood the bell. */
     private static final long GRADING_ALERT_COOLDOWN_MS = 10 * 60 * 1000L;
     private final AtomicLong lastGradingAlertMs = new AtomicLong(0);
+    /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
+    private final SubmissionFileUrlResolver submissionFileUrlResolver;
 
     /**
      * Lấy toàn bộ bài nộp cần chấm (status=SUBMITTED) thuộc các lớp của giáo viên.
@@ -127,7 +142,7 @@ public class GradingService {
             item.put("status", sa.getStatus());
             item.put("submittedAt", sa.getSubmittedAt());
             item.put("submissionContent", sa.getSubmissionContent());
-            item.put("submissionFileUrl", sa.getSubmissionFileUrl());
+            item.put("submissionFileUrl", submissionFileUrlResolver.resolve(sa.getSubmissionFileUrl()));
             item.put("score", sa.getScore());
             item.put("feedback", sa.getFeedback());
             item.put("attachmentUrl", ca != null ? ca.getAttachmentUrl() : null);
@@ -251,7 +266,7 @@ public class GradingService {
                 item.put("submittedAt", sa.getSubmittedAt());
                 item.put("gradedAt", sa.getGradedAt());
                 item.put("submissionContent", sa.getSubmissionContent());
-                item.put("submissionFileUrl", sa.getSubmissionFileUrl());
+                item.put("submissionFileUrl", submissionFileUrlResolver.resolve(sa.getSubmissionFileUrl()));
             } else {
                 item.put("submissionId", null);
                 item.put("status", "NOT_SUBMITTED");
@@ -347,10 +362,37 @@ public class GradingService {
     }
 
     /**
+     * Như trên nhưng chọn được tầng + ngân sách token — dùng bởi harness calibration F1
+     * ({@code /api/admin/grading-eval}); xem lý do ở overload nhận {@code AssignmentGradingContext}.
+     */
+    public EssayGrade gradeGermanEssay(String topic, String content, String modelOverride,
+                                       LlmTier tier, int maxTokens) {
+        return gradeGermanEssay(AssignmentGradingContext.ofTopic(topic), content, modelOverride, tier, maxTokens);
+    }
+
+    /**
      * Lõi chấm — nhận NGỮ CẢNH bài tập đầy đủ (tiêu đề + đề bài + loại + tài liệu). Nguồn sự thật DUY NHẤT
      * cho cả chấm bài-tập (async, ngữ cảnh đầy đủ) lẫn lead-magnet/eval/OCR (chỉ tiêu đề, qua {@code ofTopic}).
      */
     public EssayGrade gradeGermanEssay(AssignmentGradingContext ctx, String content, String modelOverride) {
+        return gradeGermanEssay(ctx, content, modelOverride, LlmTier.GRADING_EXAM, GRADING_MAX_TOKENS);
+    }
+
+    /**
+     * Như trên nhưng chọn được TẦNG và NGÂN SÁCH TOKEN — chỉ dùng bởi harness calibration
+     * ({@code /api/admin/grading-eval}).
+     *
+     * <p>Vì sao harness cần đặt ngân sách: đo 09/08 cho thấy các ứng viên model mới dài dòng gấp
+     * 4–10× {@code gpt-oss-120b} (V4 Flash ~1040–1200 token, Qwen 3.7 Plus ~1929, Kimi K2.6 ~2925
+     * so với ~292 của 120b). Chấm chúng ở ngân sách của model cũ thì phép đo biến thành "model nào
+     * ít bị cắt JSON hơn" chứ không còn đo chất lượng chấm — và cắt JSON ở đây hỏng ÂM THẦM: điểm
+     * vẫn đọc được bằng regex fallback, chỉ nhận xét biến mất (FW.7).
+     *
+     * @param tier      tầng lấy model/endpoint/knob (harness thường dùng GRADING_EXAM hoặc GRADING_DAILY)
+     * @param maxTokens ngân sách completion; {@code <= 0} ⇒ dùng {@link #GRADING_MAX_TOKENS}
+     */
+    public EssayGrade gradeGermanEssay(AssignmentGradingContext ctx, String content, String modelOverride,
+                                       LlmTier tier, int maxTokens) {
         String systemPrompt = buildGradingPrompt(ctx);
 
         // Neutralize the delimiter in student content so a submission can't close the <submission> tag
@@ -361,7 +403,15 @@ public class GradingService {
         messages.add(new ChatMessage("system", systemPrompt));
         messages.add(new ChatMessage("user", "<submission>" + safeContent + "</submission>"));
 
-        AiChatCompletionResult result = openAiChatClient.chatCompletion(messages, modelOverride, 0.3, 800);
+        // Đi ĐƯỜNG TẦNG (GRADING_EXAM) thay cho chatCompletion(model,...) như trước: đường cũ không
+        // mang được tham số per-tier, mà thiếu `reasoning_effort` thì model reasoning (gpt-oss) tiêu
+        // ngân sách vào phần "nghĩ" rồi trả JSON CỤT ⇒ parseScore null ⇒ bài về GRADING_FAILED, giáo
+        // viên phải bấm chấm lại. Đo 09/08 sau khi chuyển nhà cung cấp: 800 token không effort hỏng
+        // 1–2/10 lượt; effort=low thì 10/10 và chỉ tiêu 308–427 token. `withModel` giữ nguyên khả năng
+        // so sánh model của /api/admin/grading-eval — chỉ đổi model, các knob khác vẫn của tầng.
+        TierSpec spec = llmTierResolver.spec(tier).withModel(modelOverride);
+        AiChatCompletionResult result = openAiChatClient.chatCompletionForTier(
+                messages, spec, 0.3, maxTokens > 0 ? maxTokens : GRADING_MAX_TOKENS);
         if (result == null || result.content() == null) {
             return new EssayGrade(null, null, result);
         }
@@ -522,9 +572,7 @@ public class GradingService {
                     teacherUserId,
                     result.provider() != null ? result.provider() : "GROQ",
                     result.model() != null ? result.model() : "unknown",
-                    result.usage().promptTokens(),
-                    result.usage().completionTokens(),
-                    result.usage().totalTokens(),
+                    result.usage(),
                     "TEACHER_AI_GRADING",
                     null,
                     null

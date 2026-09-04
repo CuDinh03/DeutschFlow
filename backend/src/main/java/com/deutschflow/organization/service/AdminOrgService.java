@@ -1,8 +1,11 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.exception.PrivilegedActionBlockedException;
 import com.deutschflow.organization.dto.AddMemberRequest;
 import com.deutschflow.organization.dto.CreateOrgRequest;
 import com.deutschflow.organization.dto.OrgDetailDto;
@@ -64,6 +67,7 @@ public class AdminOrgService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserNotificationService userNotificationService;
+    private final AuditLogService auditLogService;
 
     /**
      * Creates an organization with a unique slug. If {@code ownerEmail} resolves to an existing
@@ -71,7 +75,7 @@ public class AdminOrgService {
      * issues a pending invitation so the owner can self-register.
      */
     @Transactional
-    public OrgDto createOrganization(CreateOrgRequest request) {
+    public OrgDto createOrganization(CreateOrgRequest request, AuditActor actor) {
         if (request.name() == null || request.name().isBlank()) {
             throw new BadRequestException("Tên tổ chức là bắt buộc");
         }
@@ -93,6 +97,17 @@ public class AdminOrgService {
         org = organizationRepository.save(org);
 
         attachOwner(org.getId(), request.ownerEmail(), request.ownerName(), request.ownerPassword());
+
+        // Audit F-M3 (03/09/2026): dựng một tổ chức mới là tạo ra một tenant — kèm gói, giới hạn
+        // ghế và một tài khoản OWNER — mà trước đây không để lại vết nào.
+        auditLogService.log("admin.org.created", actor, "ORG", String.valueOf(org.getId()),
+                Map.of(
+                        "name", String.valueOf(org.getName()),
+                        "slug", String.valueOf(org.getSlug()),
+                        "planCode", String.valueOf(org.getPlanCode()),
+                        "seatLimit", org.getSeatLimit(),
+                        "ownerEmail", String.valueOf(request.ownerEmail())
+                ));
 
         userNotificationService.onOrgCreated(org.getId(), org.getName(), org.getSlug());
         return toOrgDto(org);
@@ -133,7 +148,7 @@ public class AdminOrgService {
      * back to {@code ACTIVE} re-grants them.
      */
     @Transactional
-    public OrgDto updateOrganization(Long id, UpdateOrgRequest request) {
+    public OrgDto updateOrganization(Long id, UpdateOrgRequest request, AuditActor actor) {
         Organization org = organizationRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: " + id));
         if (request.status() != null && !VALID_ORG_STATUSES.contains(request.status())) {
@@ -161,6 +176,18 @@ public class AdminOrgService {
         }
         org = organizationRepository.save(org);
         applyStatusTransition(org, previousStatus, request.status());
+        // Audit F-M3 (03/09/2026): đây là chỗ đổi gói, giới hạn ghế, hạn dùng và hạn mức token của
+        // cả một tổ chức — và một lần đổi status sang SUSPENDED sẽ thu hồi quyền lợi của MỌI học
+        // viên. Ghi cả trạng thái trước lẫn sau vì chính bước chuyển đó mới là thứ có hệ quả.
+        auditLogService.log("admin.org.updated", actor, "ORG", String.valueOf(org.getId()),
+                Map.of(
+                        "fromStatus", String.valueOf(previousStatus),
+                        "toStatus", String.valueOf(org.getStatus()),
+                        "planCode", String.valueOf(org.getPlanCode()),
+                        "seatLimit", org.getSeatLimit(),
+                        "monthlyTokenPool", org.getMonthlyTokenPool(),
+                        "poolUnlimited", org.isPoolUnlimited()
+                ));
         return toOrgDto(org);
     }
 
@@ -216,9 +243,19 @@ public class AdminOrgService {
                 .toList();
     }
 
-    /** Manually assigns an existing user as OWNER/MANAGER (or any valid member role) of the org. */
+    /**
+     * Manually assigns an existing user as OWNER/MANAGER (or any valid member role) of the org.
+     *
+     * <p>Audit F-M2 (03/09/2026): đường này gọi thẳng {@code upsertMember}, thứ chỉ ghi đè vai trò
+     * chứ không biết gì về bất biến 1-OWNER. Mọi đường khác đều giữ bất biến đó —
+     * {@code OrgMembershipService.changeRole} từ chối đụng OWNER, {@code removeMember}/
+     * {@code selfLeave} từ chối gỡ OWNER, và OWNER chỉ được (tái) tạo qua
+     * {@code transferOwnership} (thăng + giáng nguyên tử). Riêng endpoint admin này hạ được OWNER
+     * duy nhất xuống TEACHER (org còn 0 OWNER) hoặc dựng thêm OWNER thứ hai. Hai guard dưới đây
+     * khép lại lỗ đó; đổi chủ vẫn phải đi qua transferOwnership.
+     */
     @Transactional
-    public OrgMemberDto addMember(Long orgId, String email, String role) {
+    public OrgMemberDto addMember(Long orgId, String email, String role, AuditActor actor) {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: " + orgId));
         if (email == null || email.isBlank()) {
@@ -233,6 +270,30 @@ public class AdminOrgService {
         User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng: " + normalizedEmail));
 
+        OrgMember existing = orgMemberRepository.findByIdOrgIdAndIdUserId(org.getId(), user.getId())
+                .orElse(null);
+        boolean targetIsActiveOwner = existing != null
+                && ROLE_OWNER.equals(existing.getRole())
+                && STATUS_ACTIVE.equals(existing.getStatus());
+
+        // Audit R-M9: ném subtype mang chất liệu audit — vết ghi ở GlobalExceptionHandler SAU khi
+        // transaction rollback, nên lần thử phá bất biến 1-OWNER không còn vô hình trong audit_logs.
+        if (targetIsActiveOwner && !ROLE_OWNER.equals(normalizedRole)) {
+            throw new PrivilegedActionBlockedException(
+                    "Không thể hạ vai trò của chủ sở hữu — hãy chuyển quyền sở hữu cho người khác trước.",
+                    "admin.org.owner_invariant.blocked", "ORG", String.valueOf(org.getId()),
+                    Map.of("reason", "demote_owner", "targetUserId", user.getId(), "requestedRole", normalizedRole));
+        }
+        if (ROLE_OWNER.equals(normalizedRole) && !targetIsActiveOwner
+                && orgMembershipService.countActiveOwners(org.getId()) > 0) {
+            throw new PrivilegedActionBlockedException(
+                    "Tổ chức đã có chủ sở hữu — mỗi tổ chức chỉ một OWNER. Hãy dùng chuyển quyền sở hữu.",
+                    "admin.org.owner_invariant.blocked", "ORG", String.valueOf(org.getId()),
+                    Map.of("reason", "second_owner", "targetUserId", user.getId(), "requestedRole", normalizedRole));
+        }
+
+        String previousRole = existing == null ? null : existing.getRole();
+
         // Seat-limit enforcement (including the concurrent-add race) is centralized in
         // OrgMembershipService.upsertMember (ORG-1): it locks the org row and rejects a brand-new
         // STUDENT over seat_limit, so every add path inherits one race-safe gate.
@@ -240,6 +301,20 @@ public class AdminOrgService {
 
         OrgMember member = orgMemberRepository.findByIdOrgIdAndIdUserId(org.getId(), user.getId())
                 .orElseThrow(() -> new NotFoundException("Không tạo được thành viên tổ chức"));
+
+        // Gán vai trò trong tổ chức là thao tác đặc quyền — trước đây không để lại vết nào.
+        auditLogService.log(
+                "admin.org.member.upserted",
+                actor,
+                "ORG",
+                String.valueOf(org.getId()),
+                java.util.Map.of(
+                        "targetUserId", user.getId(),
+                        "targetEmail", user.getEmail(),
+                        "fromRole", String.valueOf(previousRole),
+                        "toRole", normalizedRole
+                )
+        );
         return new OrgMemberDto(
                 user.getId(),
                 user.getEmail(),
@@ -256,7 +331,7 @@ public class AdminOrgService {
      * Returns the number of students processed.
      */
     @Transactional
-    public int activateEntitlements(Long orgId) {
+    public int activateEntitlements(Long orgId, AuditActor actor) {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: " + orgId));
         List<OrgMember> students =
@@ -267,6 +342,9 @@ public class AdminOrgService {
             granted++;
         }
         log.info("[ORG-ADMIN] Re-activated entitlements for {} student(s) in org {}", granted, orgId);
+        // Audit F-M3 (03/09/2026): cấp lại quyền lợi hàng loạt = cấp phát có giá trị tiền tệ.
+        auditLogService.log("admin.org.entitlements.activated", actor, "ORG", String.valueOf(orgId),
+                Map.of("grantedCount", granted, "planCode", String.valueOf(org.getPlanCode())));
         return granted;
     }
 
@@ -277,7 +355,7 @@ public class AdminOrgService {
      * {@code validUntil} to the paid period end (never shorten), and re-grant member entitlements.
      */
     @Transactional
-    public void activateForPaidInvoice(OrgInvoice invoice) {
+    public void activateForPaidInvoice(OrgInvoice invoice, AuditActor actor) {
         Organization org = organizationRepository.findById(invoice.getOrgId()).orElse(null);
         if (org == null) {
             log.warn("[ORG-ADMIN] paid invoice {} references missing org {}", invoice.getId(), invoice.getOrgId());
@@ -292,7 +370,17 @@ public class AdminOrgService {
             }
         }
         organizationRepository.save(org);
-        activateEntitlements(org.getId());
+        // Audit F-M3 (03/09/2026): đường thủ công đối ứng với webhook SePay — một hoá đơn được đánh
+        // đã thu bằng tay sẽ kích hoạt giấy phép và gia hạn validUntil. Actor truyền từ đường gọi:
+        // admin đánh dấu thì là admin đó, còn webhook tự chạy thì actor rỗng (đúng bản chất).
+        auditLogService.log("admin.org.licence.activated_by_invoice", actor,
+                "ORG", String.valueOf(org.getId()),
+                Map.of(
+                        "invoiceId", invoice.getId(),
+                        "periodEnd", String.valueOf(invoice.getPeriodEnd()),
+                        "validUntil", String.valueOf(org.getValidUntil())
+                ));
+        activateEntitlements(org.getId(), actor);
     }
 
     /**

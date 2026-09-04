@@ -3,6 +3,7 @@ package com.deutschflow.common.quota;
 import com.deutschflow.organization.service.OrgQuotaService;
 import com.deutschflow.speaking.exception.AiErrorCode;
 import com.deutschflow.testsupport.AbstractPostgresIntegrationTest;
+import com.deutschflow.testsupport.FixedClockTestConfig;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.sql.Date;
@@ -29,8 +31,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * </ul>
  * Không outer {@code @Transactional} ({@code assertAllowed}/{@code tryReserve} dùng REQUIRES_NEW);
  * dọn dữ liệu tường minh theo prefix email.
+ *
+ * <p>Đồng hồ ghim ({@link FixedClockTestConfig}) vì kênh ví chạy theo ngày lịch giờ VN: gói và ví
+ * dựng sẵn ở đây phải rơi cùng ngày với lúc {@code AiUsageLedgerService} trừ ví, kẻo qua nửa đêm
+ * giờ VN ví được cộng dồn thêm một ngày. Kênh pool trung tâm không dùng đồng hồ Java (mốc tháng
+ * lấy từ {@code now()} phía Postgres) nên không bị mốc ghim này ảnh hưởng.
  */
 @SpringBootTest
+@Import(FixedClockTestConfig.class)
 class TwoChannelTokenPoolIntegrationTest extends AbstractPostgresIntegrationTest {
 
     private static final String EMAIL_PREFIX = "twoch-it-";
@@ -64,7 +72,7 @@ class TwoChannelTokenPoolIntegrationTest extends AbstractPostgresIntegrationTest
         long uid = newUser("staff-pass", User.Role.TEACHER);
         addMember(orgId, uid, "TEACHER");
 
-        QuotaSnapshot snap = quotaService.assertAllowed(uid, Instant.now(), 500L);
+        QuotaSnapshot snap = quotaService.assertAllowed(uid, FixedClockTestConfig.FIXED_NOW, 500L);
 
         assertThat(snap).isNotNull();
         assertThat(counter(orgId)).as("suất giữ chỗ H-3 đã cộng trước est").isEqualTo(500L);
@@ -77,7 +85,7 @@ class TwoChannelTokenPoolIntegrationTest extends AbstractPostgresIntegrationTest
         long uid = newUser("staff-nocfg", User.Role.TEACHER);
         addMember(orgId, uid, "TEACHER");
 
-        assertThatThrownBy(() -> quotaService.assertAllowed(uid, Instant.now(), 500L))
+        assertThatThrownBy(() -> quotaService.assertAllowed(uid, FixedClockTestConfig.FIXED_NOW, 500L))
                 .isInstanceOfSatisfying(QuotaExceededException.class, ex -> {
                     assertThat(ex.getCode()).isEqualTo(AiErrorCode.ORG_BUDGET_NOT_CONFIGURED);
                     assertThat(ex.getMessage()).contains("chưa được cấp");
@@ -95,7 +103,7 @@ class TwoChannelTokenPoolIntegrationTest extends AbstractPostgresIntegrationTest
                         VALUES (?, date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, 1000)
                         """, orgId);
 
-        assertThatThrownBy(() -> quotaService.assertAllowed(uid, Instant.now(), 500L))
+        assertThatThrownBy(() -> quotaService.assertAllowed(uid, FixedClockTestConfig.FIXED_NOW, 500L))
                 .isInstanceOfSatisfying(QuotaExceededException.class, ex -> {
                     assertThat(ex.getCode()).isEqualTo(AiErrorCode.ORG_BUDGET_EXHAUSTED);
                     assertThat(ex.getMessage()).contains("đã hết");
@@ -108,7 +116,7 @@ class TwoChannelTokenPoolIntegrationTest extends AbstractPostgresIntegrationTest
         long orgId = newOrg(10_000L, false);
         long uid = newUser("staff-charge", User.Role.TEACHER);
         addMember(orgId, uid, "TEACHER");
-        insertSubscription(uid, "PRO", Instant.now().minusSeconds(600), null);
+        insertSubscription(uid, "PRO", FixedClockTestConfig.FIXED_NOW.minusSeconds(600), null);
         insertWalletAccruedToday(uid, 50L); // ví gần cạn — trước đây debit 500 sẽ downgrade oan
 
         aiUsageLedgerService.record(uid, "GROQ", "m", 0, 500, 500, "TEACHER_AI_GRADING", null, null);
@@ -127,10 +135,10 @@ class TwoChannelTokenPoolIntegrationTest extends AbstractPostgresIntegrationTest
         long orgId = newOrg(0L, false); // đúng trạng thái org 7 hôm 26/07
         long uid = newUser("hv-pro", User.Role.STUDENT);
         addMember(orgId, uid, "STUDENT");
-        insertSubscription(uid, "PRO", Instant.now().minusSeconds(600), null);
+        insertSubscription(uid, "PRO", FixedClockTestConfig.FIXED_NOW.minusSeconds(600), null);
         insertWalletAccruedToday(uid, 400_000L);
 
-        QuotaSnapshot snap = quotaService.assertAllowed(uid, Instant.now(), 500L);
+        QuotaSnapshot snap = quotaService.assertAllowed(uid, FixedClockTestConfig.FIXED_NOW, 500L);
 
         assertThat(snap.remainingSpendable()).isEqualTo(400_000L);
         assertThat(counter(orgId)).as("HV không giữ chỗ pool").isZero();
@@ -144,7 +152,7 @@ class TwoChannelTokenPoolIntegrationTest extends AbstractPostgresIntegrationTest
         addMember(orgId, uid, "STUDENT");
         // Không subscription → DEFAULT, remainingSpendable = 0
 
-        assertThatThrownBy(() -> quotaService.assertAllowed(uid, Instant.now(), 500L))
+        assertThatThrownBy(() -> quotaService.assertAllowed(uid, FixedClockTestConfig.FIXED_NOW, 500L))
                 .isInstanceOfSatisfying(QuotaExceededException.class,
                         ex -> assertThat(ex.getCode()).isEqualTo(AiErrorCode.QUOTA_EXCEEDED));
     }
@@ -155,7 +163,7 @@ class TwoChannelTokenPoolIntegrationTest extends AbstractPostgresIntegrationTest
         long orgId = newOrg(10_000L, false);
         long uid = newUser("hv-charge", User.Role.STUDENT);
         addMember(orgId, uid, "STUDENT");
-        insertSubscription(uid, "PRO", Instant.now().minusSeconds(600), null);
+        insertSubscription(uid, "PRO", FixedClockTestConfig.FIXED_NOW.minusSeconds(600), null);
         insertWalletAccruedToday(uid, 400_000L);
 
         aiUsageLedgerService.record(uid, "GROQ", "m", 0, 500, 500, "SPEAKING_CHAT", null, null);
@@ -238,7 +246,7 @@ class TwoChannelTokenPoolIntegrationTest extends AbstractPostgresIntegrationTest
                         INSERT INTO user_ai_token_wallets (user_id, balance, last_accrual_local_date)
                         VALUES (?, ?, ?)
                         """,
-                userId, balance, Date.valueOf(QuotaVnCalendar.localDateOf(Instant.now())));
+                userId, balance, Date.valueOf(QuotaVnCalendar.localDateOf(FixedClockTestConfig.FIXED_NOW)));
     }
 
     private long counter(long orgId) {

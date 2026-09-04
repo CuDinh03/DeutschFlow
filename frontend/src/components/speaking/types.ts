@@ -30,10 +30,6 @@ export interface Suggestion {
 /** Re-export shape from AI speaking API (`meta.adaptive` on chat / SSE done). */
 export interface AdaptiveMetaBubble {
   enabled: boolean;
-  cefrEffective: string;
-  difficultyKnob: number;
-  focusCodes: string[];
-  targetStructures: string[];
   topicSuggestion: string | null;
   forceRepairBeforeContinue: boolean;
   primaryRepairErrorCode: string | null;

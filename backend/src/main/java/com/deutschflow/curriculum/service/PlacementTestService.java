@@ -2,7 +2,6 @@ package com.deutschflow.curriculum.service;
 
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
-import com.deutschflow.speaking.ai.GroqChatClient;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -33,7 +32,6 @@ public class PlacementTestService {
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
-    private final GroqChatClient groqChatClient;
 
     private static final int PASS_THRESHOLD = 7;  // >= 7/10
     private static final int RETRY_DAYS = 3;

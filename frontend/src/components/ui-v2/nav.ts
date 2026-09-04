@@ -161,9 +161,14 @@ export const adminNav: RoleNav = {
         { id: 'admin-media', label: 'Ảnh', href: '/v2/admin/media', icon: 'photo_library' },
         { id: 'admin-ai', label: 'Cấu hình AI', href: '/v2/admin/ai-config', icon: 'tune' },
         { id: 'admin-broadcast', label: 'Thông báo', href: '/v2/admin/broadcast', icon: 'campaign' },
+        { id: 'admin-maintenance', label: 'Bảo trì', href: '/v2/admin/maintenance', icon: 'build' },
         { id: 'admin-marketing', label: 'Tăng trưởng', href: '/v2/admin/marketing', icon: 'trending_up' },
         { id: 'admin-analytics', label: 'Phân tích', href: '/v2/admin/analytics', icon: 'monitoring' },
         { id: 'admin-weekly', label: 'Speaking tuần', href: '/v2/admin/weekly-speaking', icon: 'mic' },
+        // G.1 Golden set: giám khảo người chấm tay phiên mock → đồng thuận máy↔người (gate ra mắt).
+        { id: 'admin-exam-golden', label: 'Golden set Nói', href: '/v2/admin/exam-golden', icon: 'grading' },
+        // Đ5b-A: ngân hàng đề Luyện thi Nói — CRUD đề + ma trận pool, hết cảnh viết migration tay.
+        { id: 'admin-exam-bank', label: 'Ngân hàng đề Nói', href: '/v2/admin/exam-bank', icon: 'quiz' },
         { id: 'admin-reports', label: 'Báo cáo', href: '/v2/admin/reports', icon: 'assessment' },
         { id: 'admin-personas', label: 'Persona', href: '/v2/admin/personas', icon: 'record_voice_over' },
         { id: 'admin-interviews', label: 'Phỏng vấn', href: '/v2/admin/interviews', icon: 'forum' },
@@ -193,11 +198,14 @@ const ORG_ITEM = {
   overview: { id: 'org', label: 'Tổng quan', href: '/v2/org', icon: 'dashboard' },
   students: { id: 'org-students', label: 'Học viên', href: '/v2/org/students', icon: 'school' },
   classes: { id: 'org-classes', label: 'Lớp học', href: '/v2/org/classes', icon: 'groups' },
+  curricula: { id: 'org-curricula', label: 'Giáo trình', href: '/v2/org/curricula', icon: 'menu_book' },
   schedule: { id: 'org-schedule', label: 'Lịch trung tâm', href: '/v2/org/schedule', icon: 'schedule' },
   teachers: { id: 'org-teachers', label: 'Giáo viên', href: '/v2/org/teachers', icon: 'badge' },
   analytics: { id: 'org-analytics', label: 'Phân tích', href: '/v2/org/analytics', icon: 'monitoring' },
-  finance: { id: 'org-finance', label: 'Tài chính', href: '/v2/org/finance', icon: 'account_balance', ownerOnly: true },
-  billing: { id: 'org-billing', label: 'Gói & Giấy phép', href: '/v2/org/billing', icon: 'receipt', ownerOnly: true },
+  // "Tài chính" đã gỡ (Đợt 0 OWNER, F01): trang cũ chỉ là hóa đơn license đội lốt doanh thu.
+  // Slot này để dành cho Tài chính trung tâm THẬT (học phí/thu chi) ở Đợt 2; /v2/org/finance
+  // hiện redirect sang billing.
+  billing: { id: 'org-billing', label: 'Gói & Thanh toán', href: '/v2/org/billing', icon: 'receipt', ownerOnly: true },
   invitations: { id: 'org-invitations', label: 'Lời mời', href: '/v2/org/invitations', icon: 'mail' },
   timesheets: { id: 'org-timesheets', label: 'Chấm công', href: '/v2/org/timesheets', icon: 'timer' },
   roles: { id: 'org-roles', label: 'Phân quyền', href: '/v2/org/roles', icon: 'admin_panel_settings' },
@@ -207,10 +215,10 @@ const ORG_ITEM = {
 /**
  * orgNav — giám đốc trung tâm (org OWNER).
  *
- * Một nhóm chính (tổng quan, học viên, lớp, lịch trung tâm, giáo viên, phân tích, tài chính,
- * gói & giấy phép, lời mời, phân quyền) + nhóm "Tài khoản".
+ * Một nhóm chính (tổng quan, học viên, lớp, lịch trung tâm, giáo viên, phân tích,
+ * gói & thanh toán, lời mời, phân quyền) + nhóm "Tài khoản".
  *
- * Phân quyền: item gắn `ownerOnly: true` (tài chính, gói & giấy phép) CHỈ OWNER thấy. Sidebar vẫn
+ * Phân quyền: item gắn `ownerOnly: true` (gói & thanh toán) CHỈ OWNER thấy. Sidebar vẫn
  * lọc `ownerOnly` như một lớp phòng thủ thứ hai, kể cả khi MANAGER đã được chuyển sang `managerNav`.
  */
 export const orgNav: RoleNav = {
@@ -222,10 +230,10 @@ export const orgNav: RoleNav = {
         ORG_ITEM.overview,
         ORG_ITEM.students,
         ORG_ITEM.classes,
+        ORG_ITEM.curricula,
         ORG_ITEM.schedule,
         ORG_ITEM.teachers,
         ORG_ITEM.analytics,
-        ORG_ITEM.finance,
         ORG_ITEM.billing,
         ORG_ITEM.invitations,
         ORG_ITEM.timesheets,
@@ -259,7 +267,7 @@ export const managerNav: RoleNav = {
     {
       label: 'Vận hành',
       labelKey: 'ops',
-      items: [ORG_ITEM.overview, ORG_ITEM.schedule, ORG_ITEM.classes, ORG_ITEM.students],
+      items: [ORG_ITEM.overview, ORG_ITEM.schedule, ORG_ITEM.classes, ORG_ITEM.curricula, ORG_ITEM.students],
     },
     {
       label: 'Nhân sự',
@@ -310,8 +318,11 @@ export const studentNav: RoleNav = {
         // KHÁC 'review-queue': trang đó chỉ có flashcard SRS + task ngữ pháp ĐẾN HẠN (nút "Xong"),
         // không có toàn bộ sổ lỗi, không tìm kiếm, không luyện sửa.
         { id: 'st-errors', label: 'Sổ lỗi', href: '/v2/student/errors', icon: 'error' },
-        // "Bài học" = thư viện VIDEO (mediaApi) — KHÁC 'roadmap' (lộ trình node có runner).
-        { id: 'lessons', label: 'Bài học', href: '/v2/student/lessons', icon: 'play_circle' },
+        // "Bài học" (thư viện video mediaApi) đã GỠ khỏi nav học viên: endpoint GET /v2/media chỉ
+        // cấp cho TEACHER/ADMIN và bảng media KHÔNG tách theo tổ chức (trộn chung ảnh giáo viên tự
+        // upload), nên mở cho học viên sẽ lộ dữ liệu chéo. Trang luôn báo lỗi 403 với mọi HV (QA
+        // F-11). Route /v2/student/lessons giờ redirect về roadmap. Khi có thư viện nội dung học
+        // riêng cho HV (scope curated) thì thêm lại mục này.
         { id: 'roadmap', label: 'Lộ trình', href: '/v2/student/roadmap', icon: 'route' },
         { id: 'game', label: 'Trò chơi', href: '/v2/student/game', icon: 'sports_esports' },
         // Tin tức báo Đức (GET /news) — trang learner-shared: GV/admin cũng vào được

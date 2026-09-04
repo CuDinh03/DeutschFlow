@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Send, Mic, MicOff, Loader2, Keyboard, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
@@ -60,6 +60,15 @@ export function SpeakingInputDock({
 }: Props) {
   const t = useTranslations("speaking");
   const tChat = useTranslations("speaking.chat");
+  // Redesign R1 (05/08): textarea rows=1 không tự cao — câu dài/transcript mic bị cắt dòng 2.
+  // Auto-grow theo scrollHeight, trần max-h (~5 dòng) rồi mới scroll trong ô.
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [inputText]);
   const micBusy = isTranscribing || isEvaluatingPhoneme;
   const inputDisabled = quotaBlocked || repairBlocking;
   // Show the blocked affordance only when idle (not while recording/working).
@@ -152,6 +161,7 @@ export function SpeakingInputDock({
             >
               <div className="flex flex-1 items-end gap-2 rounded-ga border border-ga-line bg-ga-surface px-2 py-1.5 transition-colors focus-within:border-ga-accent focus-within:ring-1 focus-within:ring-ga-accent">
                 <textarea
+                  ref={textareaRef}
                   value={inputText}
                   autoFocus
                   onChange={(e) => onInputChange(e.target.value)}

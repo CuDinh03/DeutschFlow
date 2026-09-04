@@ -5,7 +5,17 @@ import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { ArrowLeft, BookOpen, Check, ChevronRight, Clock, Loader2, Play, Send, Trophy, X, AlertCircle } from 'lucide-react'
-import api from '@/lib/api'
+import api, { httpStatus, isAxiosErr } from '@/lib/api'
+import { getAccessToken } from '@/lib/authSession'
+import {
+  classifyDraftSaveError,
+  createDraftAutosaver,
+  parseDraftAnswers,
+  resyncCountdown,
+  type DraftAutosaver,
+  type DraftSaveResult,
+  type ServerDraft,
+} from '@/lib/exam/examDraftSync'
 import { useTracking } from '@/hooks/useTracking'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -14,13 +24,6 @@ import { ExamFeedback } from '@/components/exam/ExamFeedback'
 import { WeakAreasRecommendation } from '@/components/exam/WeakAreasRecommendation'
 import { GaCap, GaCard, GaPageHdr, LoadingState, TkBadge, TkSeg } from '@/components/ui-v2'
 import { ExamShell, type ExamSaveState } from '@/components/exam/ExamShell'
-import {
-  clearDraft,
-  pruneStaleDrafts,
-  readDraft,
-  remainingSeconds,
-  writeDraft,
-} from '@/lib/exam/examDraft'
 import { ExamRecoveryPanel, ExamTaking, SECTION_COLOR, type ActiveExamData } from './ExamTaking'
 
 /**
@@ -94,6 +97,50 @@ interface ReviewData {
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
+/** /start response (V285): full attempt metadata + server countdown + autosaved draft. */
+interface ExamStartResponse {
+  id: number
+  exam_id?: number
+  started_at?: string
+  status?: string
+  sections_json?: unknown
+  time_limit_minutes?: number
+  server_now?: string
+  deadline_at?: string
+  remaining_seconds?: number
+  draft?: {
+    answers_json?: string | null
+    section_index?: number | null
+    question_index?: number | null
+    version: number
+    saved_at?: string
+  }
+}
+
+/** PATCH …/draft transport, mapped onto the autosaver's result union. */
+async function saveDraftRequest(
+  attemptId: number,
+  payload: { answers: Record<string, string>; sectionIndex: number },
+  baseVersion: number,
+): Promise<DraftSaveResult> {
+  try {
+    const res = await api.patch(`/mock-exams/attempts/${attemptId}/draft`, {
+      answers: payload.answers,
+      sectionIndex: payload.sectionIndex,
+      baseVersion,
+    })
+    const data = res.data as { version?: number; remaining_seconds?: number | null }
+    return {
+      kind: 'saved',
+      version: typeof data?.version === 'number' ? data.version : baseVersion + 1,
+      remainingSeconds: typeof data?.remaining_seconds === 'number' ? data.remaining_seconds : null,
+    }
+  } catch (err) {
+    if (isAxiosErr(err) && err.response) return classifyDraftSaveError(httpStatus(err), err.response.data)
+    return { kind: 'error' }
+  }
+}
+
 /** Tolerates both a JSON string and an already-parsed object (the API has shipped both). */
 function parseSections(raw: unknown): ActiveExamData | null {
   if (!raw) return null
@@ -132,17 +179,20 @@ function MockExamRunner() {
   const [activeAttemptId, setActiveAttemptId] = useState<number | null>(null)
   const [currentSectionIdx, setCurrentSectionIdx] = useState(0)
   const [timeLeft, setTimeLeft] = useState(0)
-  /**
-   * Mốc hết giờ TUYỆT ĐỐI (epoch ms) — không phải số giây còn lại. Đây là điểm sửa của B-13:
-   * lưu số giây thì mỗi lần tải lại người thi lại được cấp đủ giờ từ đầu.
-   */
-  const [deadlineAt, setDeadlineAt] = useState<number | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [saveState, setSaveState] = useState<ExamSaveState>('saving')
   const [savedAt, setSavedAt] = useState<number | undefined>(undefined)
   const [submitting, setSubmitting] = useState(false)
   const submittedByTimerRef = useRef(false)
   const autoStartedRef = useRef(false)
+
+  // V285 autosave (audit C-02): server sở hữu bản nháp lẫn đồng hồ đếm ngược. Vỏ thi chỉ còn
+  // TƯỜNG THUẬT trạng thái lưu (saveState/savedAt) — không còn đường localStorage của B-14:
+  // server-side đến sau (#409) và thắng, vì nó sống sót cả khi đổi máy/đổi trình duyệt.
+  const autosaverRef = useRef<DraftAutosaver | null>(null)
+  const draftBaseVersionRef = useRef(0)
+  const submittingRef = useRef(false)
+  const submitExamRef = useRef<() => void>(() => {})
 
   // Sync the level filter with the user's target level once it loads — unless the deep link
   // already pinned one (the catalog knows which level the user picked).
@@ -179,10 +229,9 @@ function MockExamRunner() {
       if (!autoSubmit && !confirm(t('confirmSubmit'))) return
 
       setSubmitting(true)
+      submittingRef.current = true // autosave tạm dừng khi finish đang bay
       try {
         await api.post(`/mock-exams/attempts/${activeAttemptId}/finish`, { answers })
-        // Nộp xong mới xoá nháp: hỏng ở bước nào thì bài vẫn còn để vào lại.
-        clearDraft(activeAttemptId)
         const finished = await api.get<MockAttempt>(`/mock-exams/attempts/${activeAttemptId}/result`)
         setSelectedAttempt(finished.data)
         setView('result')
@@ -195,42 +244,120 @@ function MockExamRunner() {
         toast.error(t('submitError'))
       } finally {
         setSubmitting(false)
+        submittingRef.current = false
       }
     },
     [activeAttemptId, answers, load, t, trackFeatureAction],
   )
 
-  // Đồng hồ đọc lại từ `deadlineAt` mỗi nhịp thay vì tự trừ dần. Trừ dần sẽ trôi khi tab bị
-  // trình duyệt tiết chế (background throttling) — người thi được thêm giờ mà không ai biết.
   useEffect(() => {
-    if (view !== 'taking' || deadlineAt === null) return
-    const tick = () => setTimeLeft(remainingSeconds(deadlineAt, Date.now()))
-    tick()
-    const timerId = setInterval(tick, 1000)
-    return () => clearInterval(timerId)
-  }, [view, deadlineAt])
+    submitExamRef.current = () => void submitExam(true)
+  }, [submitExam])
 
-  /**
-   * Autosave xuống thiết bị. KHÔNG phải lưu lên server — B-13 đã đo là server không nhận gì
-   * trước `/finish`, và vỏ thi nói đúng phạm vi đó ra màn hình (ràng buộc S-14).
-   */
+  // Đồng hồ trừ dần từng giây; mỗi lần server nhận autosave nó trả `remaining_seconds` và
+  // resyncCountdown kéo đồng hồ về sự thật của server — tab bị throttle cũng không trôi lâu.
   useEffect(() => {
-    if (view !== 'taking' || activeAttemptId === null || deadlineAt === null) return
+    if (view !== 'taking') return
+    const timerId = setInterval(() => setTimeLeft((prev) => Math.max(0, prev - 1)), 1000)
+    return () => clearInterval(timerId)
+  }, [view])
+
+  // V285 autosave lifecycle: một autosaver cho mỗi phiên làm bài. Conflict thì nhận bản server
+  // mới hơn (thiết bị khác thắng), hết hạn thì tự nộp, mỗi lần lưu resync lại đồng hồ.
+  useEffect(() => {
+    if (view !== 'taking' || !activeAttemptId) return
+    const attemptId = activeAttemptId
+    const autosaver = createDraftAutosaver({
+      save: async (payload, baseVersion) => {
+        if (submittingRef.current) return { kind: 'saved', version: baseVersion, remainingSeconds: null }
+        return saveDraftRequest(attemptId, payload, baseVersion)
+      },
+      onSaved: ({ version, remainingSeconds }) => {
+        // Đổ version khoá vào ref để autosaver dựng lại (effect re-run) tiếp tục từ version
+        // thật thay vì giá trị chụp lúc /start.
+        draftBaseVersionRef.current = version
+        setSaveState('saved')
+        setSavedAt(Date.now())
+        if (typeof remainingSeconds === 'number') {
+          setTimeLeft((prev) => resyncCountdown(prev, remainingSeconds))
+        }
+      },
+      onConflict: ({ serverVersion, draft }: { serverVersion: number; draft: ServerDraft | null }) => {
+        if (submittingRef.current) return
+        draftBaseVersionRef.current = serverVersion
+        autosaverRef.current?.adoptVersion(serverVersion)
+        if (draft?.answersJson) {
+          const serverAnswers = parseDraftAnswers(draft.answersJson)
+          setAnswers(serverAnswers)
+          if (typeof draft.sectionIndex === 'number' && draft.sectionIndex >= 0) {
+            setCurrentSectionIdx(draft.sectionIndex)
+          }
+        }
+        setSaveState('saved')
+        setSavedAt(Date.now())
+        toast.info(t('draftConflict'))
+      },
+      onExpired: () => {
+        if (submittedByTimerRef.current) return
+        submittedByTimerRef.current = true
+        toast.info(t('draftExpired'))
+        submitExamRef.current()
+      },
+    })
+    autosaver.adoptVersion(draftBaseVersionRef.current)
+    autosaverRef.current = autosaver
+    return () => {
+      autosaver.dispose()
+      if (autosaverRef.current === autosaver) autosaverRef.current = null
+    }
+  }, [view, activeAttemptId, t])
+
+  // Mỗi thay đổi đáp án/vị trí đổ vào autosave debounce; vỏ thi hiện "Đang lưu…" cho tới khi
+  // server xác nhận (onSaved) — không bao giờ nói "Đã lưu" khi chưa lưu thật (S-14).
+  useEffect(() => {
+    if (view !== 'taking') return
     setSaveState('saving')
-    const id = setTimeout(() => {
-      const stamp = Date.now()
-      const ok = writeDraft({
-        attemptId: activeAttemptId,
-        answers,
-        deadlineAt,
-        sectionIdx: currentSectionIdx,
-        savedAt: stamp,
-      })
-      setSaveState(ok ? 'saved' : 'error')
-      if (ok) setSavedAt(stamp)
-    }, 600)
-    return () => clearTimeout(id)
-  }, [view, activeAttemptId, deadlineAt, answers, currentSectionIdx])
+    autosaverRef.current?.notifyChange({ answers, sectionIndex: currentSectionIdx })
+  }, [view, answers, currentSectionIdx])
+
+  // Rời trang (đóng tab, chuyển app) flush thay đổi chưa lưu bằng PATCH keepalive —
+  // axios không sống lâu hơn document, fetch(keepalive) thì có.
+  useEffect(() => {
+    if (view !== 'taking' || !activeAttemptId) return
+    const attemptId = activeAttemptId
+    const flushKeepalive = () => {
+      const snap = autosaverRef.current?.getSnapshot()
+      if (!snap) return
+      const token = getAccessToken()
+      try {
+        void fetch(`${api.defaults.baseURL ?? ''}/mock-exams/attempts/${attemptId}/draft`, {
+          method: 'PATCH',
+          keepalive: true,
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            answers: snap.payload.answers,
+            sectionIndex: snap.payload.sectionIndex,
+            baseVersion: snap.baseVersion,
+          }),
+        })
+      } catch {
+        // fire-and-forget: nháp còn dirty thì phiên sau resume từ lần lưu gần nhất
+      }
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushKeepalive()
+    }
+    window.addEventListener('pagehide', flushKeepalive)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('pagehide', flushKeepalive)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [view, activeAttemptId])
 
   // Expiry: submit once when time runs out — side-effects must not live inside state updaters
   useEffect(() => {
@@ -251,10 +378,10 @@ function MockExamRunner() {
    * the /start response carries `time_limit_minutes` for the deep-link path where we don't.
    */
   const startExam = useCallback(
-    async (examId: number, fallbackMinutes?: number, title?: string, resumed = false) => {
+    async (examId: number, fallbackMinutes?: number, title?: string) => {
       try {
         setLoading(true)
-        const res = await api.post(`/mock-exams/${examId}/start`)
+        const res = await api.post<ExamStartResponse>(`/mock-exams/${examId}/start`)
         const attempt = res.data
 
         let sections = parseSections(attempt?.sections_json)
@@ -269,36 +396,34 @@ function MockExamRunner() {
         }
 
         const minutes = fallbackMinutes ?? (typeof attempt?.time_limit_minutes === 'number' ? attempt.time_limit_minutes : 60)
-        const now = Date.now()
-        pruneStaleDrafts(now)
-
-        // Nháp chỉ dùng được khi CHƯA hết giờ: một bản quá hạn mà khôi phục thì người thi vào
-        // bài với đồng hồ 0:00 và bị nộp ngay, tệ hơn là bắt đầu lại.
-        const stored = readDraft(attempt.id)
-        const draft = stored && stored.deadlineAt > now ? stored : null
-        const deadline = draft ? draft.deadlineAt : now + minutes * 60_000
-        const sectionIdx = draft ? Math.min(draft.sectionIdx, sections.sections.length - 1) : 0
+        // V285 (audit C-02): đồng hồ đi theo server (started_at + limit). Trước đây mỗi lần
+        // resume/reload client tự đặt lại full giờ — đúng lỗi B-13 đã đo.
+        const remaining = typeof attempt?.remaining_seconds === 'number' ? attempt.remaining_seconds : minutes * 60
+        // Resume khôi phục bản nháp server đã autosave — đáp án, vị trí và version khoá.
+        const draft = attempt?.draft
+        const restoredAnswers = parseDraftAnswers(draft?.answers_json)
+        const restoredCount = Object.keys(restoredAnswers).length
+        const sectionCount = sections.sections?.length ?? 0
+        const restoredSection =
+          typeof draft?.section_index === 'number' && draft.section_index >= 0 && draft.section_index < sectionCount
+            ? draft.section_index
+            : 0
+        const restoredSavedAt = draft?.saved_at ? Date.parse(draft.saved_at) : NaN
 
         submittedByTimerRef.current = false
+        draftBaseVersionRef.current = draft?.version ?? 0
         setActiveAttemptId(attempt.id)
         setActiveExamData(sections)
-        setCurrentSectionIdx(Math.max(0, sectionIdx))
-        setDeadlineAt(deadline)
-        setTimeLeft(remainingSeconds(deadline, now))
-        setAnswers(draft ? draft.answers : {})
-        setSaveState(draft ? 'saved' : 'saving')
-        setSavedAt(draft ? draft.savedAt : undefined)
+        setCurrentSectionIdx(restoredSection)
+        setTimeLeft(remaining)
+        setAnswers(restoredAnswers)
+        setSaveState(restoredCount > 0 ? 'saved' : 'saving')
+        setSavedAt(restoredCount > 0 ? (Number.isNaN(restoredSavedAt) ? Date.now() : restoredSavedAt) : undefined)
         setView('taking')
-
-        // Nói thật cả hai chiều: khôi phục được thì báo khôi phục được bao nhiêu câu; bấm
-        // "Tiếp tục" mà máy này không có nháp thì báo rõ là làm lại từ đầu, thay vì im lặng
-        // dựng một bài trống rồi để người thi tự phát hiện (đúng lỗi B-13 đã đo).
-        if (draft) {
-          toast.success(t('draftRestored', { count: Object.keys(draft.answers).length }))
-        } else if (resumed) {
-          toast.warning(t('draftMissing'))
-        }
-        trackFeatureAction('mock_exam', 'started', { examId, title })
+        // Nói thật: khôi phục được thì báo khôi phục bao nhiêu câu (nháp giờ nằm trên server,
+        // nên "Tiếp tục" luôn được hậu thuẫn bằng lưu thật — ràng buộc B-13 §3b đã thành sự thật).
+        if (restoredCount > 0) toast.success(t('draftRestored', { count: restoredCount }))
+        trackFeatureAction('mock_exam', 'started', { examId, title, resumedAnswers: restoredCount })
       } catch (err: unknown) {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
         toast.error(msg ?? t('startError'))
@@ -319,12 +444,12 @@ function MockExamRunner() {
 
   const resumeExam = (att: MockAttempt) => {
     const exam = exams.find((e) => e.id === att.exam_id)
-    void startExam(att.exam_id, exam?.time_limit_minutes, exam?.title, true)
+    void startExam(att.exam_id, exam?.time_limit_minutes, exam?.title)
   }
 
   /**
-   * Thoát giữa bài. Có xác nhận VÀ nêu hậu quả thật: nháp nằm trên thiết bị này, nên "Tiếp tục"
-   * ở máy này quay lại được — còn đồng hồ thì vẫn chạy, thoát không làm nó dừng.
+   * Thoát giữa bài. Có xác nhận VÀ nêu hậu quả thật: bài đã autosave lên server nên "Tiếp tục"
+   * ở bất kỳ máy nào cũng quay lại được — còn đồng hồ thì vẫn chạy, thoát không làm nó dừng.
    */
   const exitExam = useCallback(() => {
     if (!confirm(t('confirmExit'))) return

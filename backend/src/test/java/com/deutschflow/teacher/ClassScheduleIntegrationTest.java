@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -141,14 +142,23 @@ class ClassScheduleIntegrationTest extends AbstractPostgresIntegrationTest {
         edited.setRoom("P.999");
         sessionRepo.saveAndFlush(edited);
 
+        // PR-3 (AC16/G1): regenerate nay là UPSERT-GIỮ-ID — hai buổi thường được cập nhật tại chỗ
+        // (generated = 0, id giữ nguyên), buổi chỉnh tay vẫn sticky như cũ.
+        Set<Long> plainIdsBefore = gen.stream()
+                .filter(s -> !s.isOverridden())
+                .map(ClassSession::getId)
+                .collect(java.util.stream.Collectors.toSet());
+
         UpsertPatternResult r2 = service.upsertPattern(t.getId(), c.getId(), req);
         assertThat(r2.keptOverridden()).isEqualTo(1);
-        assertThat(r2.generated()).isEqualTo(2);
+        assertThat(r2.generated()).isZero();
 
         List<ClassSession> after = sessionRepo.findByClassIdAndStartAtBetweenOrderByStartAt(
                 c.getId(), from.atStartOfDay(), to.plusDays(1).atStartOfDay());
         assertThat(after).hasSize(3);
         assertThat(after).anyMatch(s -> "P.999".equals(s.getRoom()) && s.isOverridden());
+        assertThat(after.stream().filter(s -> !s.isOverridden()).map(ClassSession::getId))
+                .containsExactlyInAnyOrderElementsOf(plainIdsBefore);
     }
 
     @Test

@@ -31,7 +31,13 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
       const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY || 'phc_dummy'
       const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com'
 
-      if (!posthog.__loaded) {
+      // W7 audit lag 02/09: init PostHog TRONG requestIdleCallback thay vì ngay nhịp effect
+      // đầu — init đồng bộ (dựng autocapture + recorder + XHR flush) từng tranh main thread với
+      // hydrate + fetch dữ liệu đầu trang của chính người dùng. Analytics là việc nhàn rỗi:
+      // để trình duyệt rảnh mới chạy, trần 3s để vẫn kịp bắt app_opened của phiên rời sớm.
+      // Event trước lúc init (pageview đầu, error sớm) do chính posthog-js queue lại như cũ.
+      const idleInit = () => {
+        if (posthog.__loaded) return
         posthog.init(posthogKey, {
           api_host: posthogHost,
           person_profiles: 'always',
@@ -51,6 +57,14 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
           hour_of_day: new Date().getHours(),
           day_of_week: new Date().toLocaleDateString('en', { weekday: 'long' }),
         })
+      }
+      if (!posthog.__loaded) {
+        if (typeof window.requestIdleCallback === 'function') {
+          window.requestIdleCallback(idleInit, { timeout: 3000 })
+        } else {
+          // Safari cũ chưa có rIC — lùi một nhịp macrotask là đủ nhường đường hydrate.
+          window.setTimeout(idleInit, 1)
+        }
       }
 
       // Bắt lỗi JS để ghi nhận lên PostHog (kèm session recording nếu có)

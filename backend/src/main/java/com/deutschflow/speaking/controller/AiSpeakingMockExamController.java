@@ -2,6 +2,8 @@ package com.deutschflow.speaking.controller;
 
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.organization.service.OrgPoolGuard;
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.dto.MockExamEvalDto;
@@ -30,6 +32,7 @@ public class AiSpeakingMockExamController {
     private static final long MOCK_EVAL_ESTIMATED_TOKENS = 800L;
 
     private final OpenAiChatClient chatClient;
+    private final LlmTierResolver llmTierResolver;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final com.deutschflow.speaking.service.SprechenTeil2Service sprechenTeil2Service;
@@ -94,11 +97,11 @@ public class AiSpeakingMockExamController {
         var messages = List.of(new ChatMessage("user", prompt));
 
         try {
-            // model = null → configured default speaking model (app.ai.groq.model). JSON output is
-            // already forced by GroqChatClient's response_format; passing "json_object" here would be
-            // sent as the MODEL name → Groq HTTP 400 → this catch → mock-exam eval silently fails.
-            // (Same bug family as the SprechenTeil2 / #94 grading fix.)
-            var response = chatClient.chatCompletion(messages, null, 0.3, 1200);
+            // Tier GRADING_EXAM (khung plans/2026-08-07, mục B1.1): đây là CHẤM THI — trước đây
+            // model=null rơi ngầm về model NÓI gpt-oss-20b (một trong 4 luồng chấm mis-route).
+            // JSON output vẫn do client ép response_format như cũ.
+            var response = chatClient.chatCompletionForTier(
+                    messages, llmTierResolver.spec(LlmTier.GRADING_EXAM), 0.3, 1200);
             Map<String, Object> result = objectMapper.readValue(response.content(), Map.class);
 
             // ── Validate LLM output ─────────────────────────────

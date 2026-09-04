@@ -4,11 +4,14 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.vocabulary.dto.WordCoverageHistoryResponse;
 import com.deutschflow.vocabulary.dto.WordCoverageResponse;
 import com.deutschflow.vocabulary.dto.WordAdjectiveDetails;
+import com.deutschflow.vocabulary.dto.WordFacetsResponse;
 import com.deutschflow.vocabulary.dto.WordListItem;
+import com.deutschflow.vocabulary.dto.WordLevelCountsResponse;
 import com.deutschflow.vocabulary.dto.WordListResponse;
 import com.deutschflow.vocabulary.dto.WordNounDeclensionItem;
 import com.deutschflow.vocabulary.dto.WordNounDetails;
 import com.deutschflow.vocabulary.dto.WordTranslationCoverageHistoryResponse;
+import com.deutschflow.vocabulary.dto.WordTopicFacet;
 import com.deutschflow.vocabulary.dto.WordTranslationCoverageResponse;
 import com.deutschflow.vocabulary.dto.WordVerbConjugationItem;
 import com.deutschflow.vocabulary.dto.WordVerbDetails;
@@ -20,7 +23,9 @@ import java.util.ArrayList;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -34,15 +39,120 @@ public class WordQueryService {
 
     private static final Set<String> ALLOWED_DTYPES = Set.of("Noun", "Verb", "Adjective", "Word");
     private static final Set<String> ALLOWED_GENDERS = Set.of("DER", "DIE", "DAS");
+    private static final List<String> ALLOWED_CEFR_ORDER = List.of("A1", "A2", "B1", "B2", "C1", "C2");
     private static final Set<String> ALLOWED_CEFR = Set.of("A1", "A2", "B1", "B2", "C1", "C2");
+    /** Từ chưa có trong wordlist chính thức ⇒ {@code cefr_level IS NULL} (xem CefrLevelResolver). */
+    private static final String UNGRADED = "UNGRADED";
     private static final Set<String> ALLOWED_SRS_STATUS = Set.of("NEW", "LEARNING", "MASTERED");
     /** Canonical "mastered" boundary — interval >= 21d (matches VocabReviewRepository.countMastered). */
     private static final int MASTERED_INTERVAL_DAYS = 21;
     /** Lowercase lemma only between slashes — not real IPA (from old backfill). */
     private static final Pattern PSEUDO_IPA_LEMMA = Pattern.compile("^/[a-zA-ZäöüÄÖÜß\\s\\-]+/$");
 
+    /** Join lịch SRS của người dùng — {@code ?} đầu tiên của MỌI câu truy vấn từ vựng là userId. */
+    private static final String SRS_JOIN =
+            " LEFT JOIN vocab_review_schedule srs ON srs.vocab_id = ('word_' || w.id) AND srs.user_id = ? ";
+    /** Phần SELECT + JOIN dùng chung cho danh sách từ và cho bộ bài luyện. Hai {@code ?} đầu: userId, locale. */
+    private static final String WORD_SELECT_SQL = """
+            SELECT
+              w.id,
+              w.dtype,
+              w.base_form,
+              w.cefr_level,
+              w.phonetic,
+              w.usage_note,
+              w.image_url,
+              COALESCE(t_loc.meaning, t_en.meaning, t_de.meaning) AS meaning,
+              t_en.meaning AS meaning_en,
+              COALESCE(t_loc.example, t_en.example) AS example,
+              t_de.example AS example_de,
+              t_en.example AS example_en,
+              n.gender,
+              STRING_AGG(DISTINCT tg_all.name, '|' ORDER BY tg_all.name) AS tags,
+              CASE
+                WHEN srs.vocab_id IS NULL THEN 'NEW'
+                WHEN srs.interval_days >= 21 THEN 'MASTERED'
+                ELSE 'LEARNING'
+              END AS srs_status
+            FROM words w
+            LEFT JOIN vocab_review_schedule srs
+              ON srs.vocab_id = ('word_' || w.id) AND srs.user_id = ?
+            LEFT JOIN word_translations t_loc
+              ON t_loc.word_id = w.id AND t_loc.locale = ?
+            LEFT JOIN word_translations t_de
+              ON t_de.word_id = w.id AND t_de.locale = 'de'
+            LEFT JOIN word_translations t_en
+              ON t_en.word_id = w.id AND t_en.locale = 'en'
+            LEFT JOIN nouns n
+              ON n.id = w.id
+            LEFT JOIN word_tags wt_all
+              ON wt_all.word_id = w.id
+            LEFT JOIN tags tg_all
+              ON tg_all.id = wt_all.tag_id
+            """;
+
+    /** {@code next_review_at} và {@code frequency_rank} nằm đây để bộ bài xếp theo lịch ôn và tần suất. */
+    private static final String WORD_GROUP_BY = """
+            GROUP BY
+              w.id, w.dtype, w.base_form, w.cefr_level, w.phonetic, w.usage_note, w.image_url,
+              w.frequency_rank,
+              t_loc.meaning, t_en.meaning, t_de.meaning,
+              t_loc.example, t_en.example, t_de.example, n.gender,
+              srs.vocab_id, srs.interval_days, srs.next_review_at
+            """;
+
+    /** Biểu thức suy trạng thái SRS — dùng chung cho cột trả về và cho bộ đếm facet. */
+    private static final String SRS_STATUS_EXPR =
+            "CASE WHEN srs.vocab_id IS NULL THEN 'NEW'"
+                    + " WHEN srs.interval_days >= " + MASTERED_INTERVAL_DAYS + " THEN 'MASTERED'"
+                    + " ELSE 'LEARNING' END";
+    /**
+     * Nhóm từ loại chuẩn hoá.
+     *
+     * <p>Cột {@code words.dtype} trộn hai cách viết ('Noun' của trình import và 'NOUN' của migration seed)
+     * và còn nhiều nhãn cũ ngoài danh mục (PRONOUN, NUMBER, PHRASE, INTERJECTION). So sánh thẳng
+     * {@code dtype = 'Noun'} chỉ bắt được một phần danh từ và bỏ rơi hẳn các nhãn cũ — đo trên bản migration
+     * sạch: 63/154 danh từ, 22 từ không thuộc chip nào. Quy tất cả về bốn nhóm, nhãn lạ vào 'Word'.
+     */
+    private static final String DTYPE_GROUP_EXPR =
+            "CASE UPPER(w.dtype)"
+                    + " WHEN 'NOUN' THEN 'Noun'"
+                    + " WHEN 'VERB' THEN 'Verb'"
+                    + " WHEN 'ADJECTIVE' THEN 'Adjective'"
+                    + " ELSE 'Word' END";
+    /**
+     * Biểu thức ĐẾM của trục từ loại — phải khớp từng chữ với thứ mà bộ lọc trả về.
+     *
+     * <p>Phải khớp TỪNG CHỮ với vế lọc tương ứng, nếu không chip nói dối: 02/09/2026 chip "Danh từ" ghi 151 mà
+     * bấm vào chỉ ra 60, vì bộ lọc còn kèm ràng buộc "phải có mạo từ" mà bộ đếm không tính. Ràng buộc đó nay
+     * thuộc về {@code /words/deck?mode=ARTICLE}, nên hai bên lại dùng chung một biểu thức.
+     */
+    private static final String DTYPE_FACET_EXPR = DTYPE_GROUP_EXPR;
+    /** Thứ tự hiển thị chip — Set kiểm tra hợp lệ ở trên không có thứ tự. */
+    private static final List<String> DTYPE_FACET_ORDER = List.of("Noun", "Verb", "Adjective", "Word");
+    private static final List<String> GENDER_FACET_ORDER = List.of("DER", "DIE", "DAS");
+    private static final List<String> SRS_STATUS_FACET_ORDER = List.of("NEW", "LEARNING", "MASTERED");
+
+    /** Bộ lọc đã chuẩn hoá của một truy vấn từ vựng — dùng chung cho danh sách và bộ đếm facet. */
+    private record WordFilters(
+            String cefr, boolean cefrExact, String query, String focus,
+            String tag, String dtype, String gender, String status, String locale) {}
+
+    /** Mệnh đề WHERE kèm tham số đúng thứ tự dấu {@code ?} bên trong nó. */
+    private record FilterSql(String where, List<Object> params) {}
+
+    /**
+     * Trục facet đang được đếm.
+     *
+     * <p>Đếm cho trục nào thì BỎ chính bộ lọc của trục đó ra khỏi WHERE — con số trên mỗi chip phải trả
+     * lời "chọn chip này thì còn bao nhiêu từ". Nếu giữ nguyên, mọi chip không được chọn sẽ về 0 và
+     * người học kẹt lại ở lựa chọn hiện tại.
+     */
+    private enum FacetAxis { NONE, CEFR, DTYPE, GENDER, STATUS, TAG }
+
     public WordListResponse listWords(Long userId,
                                      String cefr,
+                                     boolean cefrExact,
                                      String q,
                                      String topic,
                                      String focus,
@@ -53,6 +163,221 @@ public class WordQueryService {
                                      String locale,
                                      int page,
                                      int size) {
+        WordFilters filters = normalizeFilters(cefr, cefrExact, q, topic, focus, tag, dtype, gender, status, locale);
+        String normalizedLocale = filters.locale();
+        String query = filters.query();
+
+        if (page < 0) page = 0;
+        if (size < 1) size = 20;
+        if (size > 100) size = 100;
+
+        // A dictionary word is "in the user's SRS" iff a schedule row exists with vocab_id
+        // 'word_{id}' (see VocabularyService.markWordLearned) — an exact key, no text matching.
+        // -1 (no such user) makes every word resolve to NEW for an unexpected null principal.
+        long uid = userId != null ? userId : -1L;
+
+        FilterSql filter = buildFilter(filters, FacetAxis.NONE);
+        String where = filter.where();
+        List<Object> filterParams = filter.params();
+
+        // Both the count and the page query carry the srs join so the status filter resolves
+        // and pagination/total stay consistent. The join's userId '?' is the FIRST bound param.
+        long total = jdbcTemplate.queryForObject(
+                "SELECT COUNT(DISTINCT w.id) FROM words w LEFT JOIN nouns n ON n.id = w.id" + SRS_JOIN + where,
+                prependUserId(uid, filterParams),
+                Long.class
+        );
+
+        int offset = page * size;
+        List<Object> queryParams = new ArrayList<>();
+        queryParams.add(uid);              // srs join (first '?', placed before t_loc below)
+        queryParams.add(normalizedLocale); // t_loc locale
+        queryParams.addAll(filterParams);
+
+        // Có từ khoá thì xếp theo CHẤT LƯỢNG KHỚP trước, rồi mới tới cấp độ và alphabet: khớp tuyệt đối →
+        // khớp đầu từ → khớp giữa từ (từ ghép tiếng Đức sống nhờ bậc này) → chỉ khớp ở phần nghĩa.
+        // Tham số của ORDER BY nằm SAU filterParams vì ORDER BY đứng sau WHERE trong câu SQL.
+        String matchRankOrder = "";
+        if (query != null) {
+            matchRankOrder = """
+                      CASE
+                        WHEN LOWER(w.base_form) = ? THEN 0
+                        WHEN LOWER(w.base_form) LIKE ? THEN 1
+                        WHEN LOWER(w.base_form) LIKE ? THEN 2
+                        ELSE 3
+                      END,
+                    """;
+            queryParams.add(query.toLowerCase(Locale.ROOT));
+            queryParams.add(likePrefix(query));
+            queryParams.add(likeContains(query));
+        }
+
+        String sql = WORD_SELECT_SQL + where + WORD_GROUP_BY + """
+                ORDER BY
+                """ + matchRankOrder + """
+                  CASE w.cefr_level
+                    WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3 WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6
+                    ELSE 99 END,
+                  w.base_form
+                LIMIT ? OFFSET ?
+                """;
+        queryParams.add(size);
+        queryParams.add(offset);
+
+        List<WordListItem> items = jdbcTemplate.query(sql, queryParams.toArray(), (rs, rowNum) -> mapWordRow(rs));
+
+        return new WordListResponse(items, page, size, total);
+    }
+
+    /** Ánh xạ một dòng của {@link #WORD_SELECT_SQL} — dùng chung cho danh sách từ và bộ bài luyện. */
+    private WordListItem mapWordRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        long id = rs.getLong("id");
+        String rsDtype = rs.getString("dtype");
+        String baseForm = rs.getString("base_form");
+        String cefrLevel = rs.getString("cefr_level");
+        String phonetic = rs.getString("phonetic");
+        String usageNote = rs.getString("usage_note");
+        String imageUrl = rs.getString("image_url");
+        String meaning = rs.getString("meaning");
+        String meaningEn = rs.getString("meaning_en");
+        String example = rs.getString("example");
+        String exampleDe = rs.getString("example_de");
+        String exampleEn = rs.getString("example_en");
+        String nounGender = rs.getString("gender");
+        String tagsRaw = rs.getString("tags");
+        String srsStatus = rs.getString("srs_status");
+
+        String article = null;
+        String genderColor = null;
+        if (nounGender != null) {
+            article = switch (nounGender) {
+                case "DER" -> "der";
+                case "DIE" -> "die";
+                case "DAS" -> "das";
+                default -> null;
+            };
+            genderColor = genderColorService.colorForNounGender(nounGender);
+        }
+
+        WordNounDetails nounDetails = loadNounDetails(id);
+        WordVerbDetails verbDetails = loadVerbDetails(id);
+        WordAdjectiveDetails adjectiveDetails = loadAdjectiveDetails(id);
+        String normalizedPhonetic = normalizePhonetic(phonetic, baseForm);
+        String normalizedUsageNote = normalizeUsageNote(usageNote, rsDtype, baseForm, article);
+        String cleanedMeaning = sanitizeMeaning(meaning, baseForm);
+        String cleanedMeaningEn = sanitizeMeaning(meaningEn, baseForm);
+        String cleanedExample = sanitizeExampleText(example);
+        String cleanedExampleDe = sanitizeExampleText(exampleDe);
+        String cleanedExampleEn = sanitizeExampleText(exampleEn);
+        if (cleanedExampleEn != null && cleanedExampleDe != null && cleanedExampleEn.trim().equalsIgnoreCase(cleanedExampleDe.trim())) {
+            cleanedExampleEn = null;
+        }
+
+        return new WordListItem(
+                id,
+                rsDtype,
+                baseForm,
+                cefrLevel,
+                normalizedPhonetic,
+                cleanedMeaning,
+                cleanedMeaningEn,
+                cleanedExample,
+                cleanedExampleDe,
+                cleanedExampleEn,
+                normalizedUsageNote,
+                nounGender,
+                article,
+                genderColor,
+                parseTags(tagsRaw),
+                nounDetails,
+                verbDetails,
+                adjectiveDetails,
+                imageUrl,
+                srsStatus
+        );
+    }
+
+    /** Bề rộng một dải tần suất. Trong cùng dải thì trộn theo ngày, nên bộ bài vẫn bám dải hữu ích nhất. */
+    private static final int FREQUENCY_BAND = 500;
+    /** Giá trị mặc định của cột {@code frequency_rank} (V151) — nghĩa là "chưa biết hạng", không phải hạng 10000. */
+    private static final int UNRANKED_SENTINEL = 10000;
+    /** Bộ bài chỉ nhận danh từ có mạo từ ở chế độ này — quiz der/die/das không hỏi được từ thiếu giống. */
+    private static final String DECK_MODE_ARTICLE = "ARTICLE";
+
+    /**
+     * Bộ thẻ cho một lượt luyện.
+     *
+     * <p>Thứ tự sư phạm: <b>đến hạn ôn</b> (quá hạn lâu nhất trước) → <b>chưa học</b> theo dải tần suất → phần
+     * còn lại. Trong cùng một bậc thì trộn theo cặp (người dùng, ngày): hai lượt trong cùng ngày ra cùng bộ,
+     * hôm sau đổi bộ.
+     *
+     * <p>Thay cho kiểu gọi cũ {@code /words?page=0&size=20}: server sắp theo cấp rồi alphabet nên trang 0 là
+     * bất biến, ba bài luyện vì thế lặp lại đúng một bộ thẻ và luôn bắt đầu từ chữ A.
+     */
+    public WordListResponse deck(Long userId, String mode, int size, String cefr, boolean cefrExact,
+                                String topic, String focus, String tag, String locale) {
+        // Mặc định CỘNG DỒN (A2 = A1+A2) — ba bài luyện vốn nhận một mức sàn, không phải đúng một cấp.
+        WordFilters base = normalizeFilters(cefr, cefrExact, null, topic, focus, tag, null, null, null, locale);
+        boolean articleMode = DECK_MODE_ARTICLE.equalsIgnoreCase(mode == null ? "" : mode.trim());
+        // Ràng buộc "danh từ có mạo từ" thuộc về bộ bài quiz, không thuộc bộ lọc tra cứu chung — nhờ vậy chip
+        // "Danh từ" ở hub đếm được cả danh từ chưa gán giống.
+        WordFilters filters = articleMode
+                ? new WordFilters(base.cefr(), base.cefrExact(), base.query(), base.focus(), base.tag(),
+                        "Noun", null, null, base.locale())
+                : base;
+
+        if (size < 1) size = 20;
+        if (size > 100) size = 100;
+        long uid = userId != null ? userId : -1L;
+
+        FilterSql filter = buildFilter(filters, FacetAxis.NONE);
+        StringBuilder where = new StringBuilder(filter.where());
+        List<Object> filterParams = new ArrayList<>(filter.params());
+        if (articleMode) {
+            where.append(" AND n.gender IN ('DER','DIE','DAS') ");
+        }
+
+        Long total = jdbcTemplate.queryForObject(
+                "SELECT COUNT(DISTINCT w.id) FROM words w LEFT JOIN nouns n ON n.id = w.id" + SRS_JOIN + where,
+                prependUserId(uid, filterParams),
+                Long.class);
+
+        String sql = WORD_SELECT_SQL + where + WORD_GROUP_BY + """
+                ORDER BY
+                  CASE
+                    WHEN srs.vocab_id IS NOT NULL AND srs.next_review_at <= NOW() THEN 0
+                    WHEN srs.vocab_id IS NULL THEN 1
+                    ELSE 2
+                  END,
+                  CASE WHEN srs.vocab_id IS NOT NULL AND srs.next_review_at <= NOW()
+                       THEN srs.next_review_at END ASC NULLS LAST,
+                  CASE WHEN srs.vocab_id IS NULL
+                       THEN COALESCE(NULLIF(w.frequency_rank, ?), 1000000) / ? END ASC NULLS LAST,
+                  MD5(w.id::text || ?)
+                LIMIT ?
+                """;
+
+        List<Object> params = new ArrayList<>();
+        params.add(uid);              // SRS_JOIN
+        params.add(filters.locale()); // t_loc
+        params.addAll(filterParams);
+        params.add(UNRANKED_SENTINEL);
+        params.add(FREQUENCY_BAND);
+        params.add(dailyShuffleSeed(uid));
+        params.add(size);
+
+        List<WordListItem> items = jdbcTemplate.query(sql, params.toArray(), (rs, rowNum) -> mapWordRow(rs));
+        return new WordListResponse(items, 0, size, total == null ? 0L : total);
+    }
+
+    /** Hạt trộn theo cặp (người dùng, ngày) — ổn định trong ngày, đổi bộ vào hôm sau. */
+    private String dailyShuffleSeed(long userId) {
+        return userId + ":" + LocalDate.now();
+    }
+
+    /** Chuẩn hoá và kiểm tra hợp lệ tham số lọc. Ném {@link BadRequestException} y như trước. */
+    private WordFilters normalizeFilters(String cefr, boolean cefrExact, String q, String topic, String focus,
+                                         String tag, String dtype, String gender, String status, String locale) {
         String normalizedLocale = (locale == null || locale.isBlank()) ? "vi" : locale.trim().toLowerCase(Locale.ROOT);
         String normalizedCefr = (cefr == null || cefr.isBlank()) ? null : cefr.trim().toUpperCase(Locale.ROOT);
         String normalizedDtype = (dtype == null || dtype.isBlank()) ? null : dtype.trim();
@@ -68,7 +393,7 @@ public class WordQueryService {
         if (normalizedDtype != null && !ALLOWED_DTYPES.contains(normalizedDtype)) {
             throw new BadRequestException("Invalid dtype");
         }
-        if (normalizedCefr != null && !ALLOWED_CEFR.contains(normalizedCefr)) {
+        if (normalizedCefr != null && !ALLOWED_CEFR.contains(normalizedCefr) && !UNGRADED.equals(normalizedCefr)) {
             throw new BadRequestException("Invalid cefr");
         }
         if (normalizedGender != null && !ALLOWED_GENDERS.contains(normalizedGender)) {
@@ -77,44 +402,60 @@ public class WordQueryService {
         if (normalizedStatus != null && !ALLOWED_SRS_STATUS.contains(normalizedStatus)) {
             throw new BadRequestException("Invalid status");
         }
-        if (page < 0) page = 0;
-        if (size < 1) size = 20;
-        if (size > 100) size = 100;
+        return new WordFilters(normalizedCefr, cefrExact, query, focus,
+                normalizedTag, normalizedDtype, normalizedGender, normalizedStatus, normalizedLocale);
+    }
 
-        // A dictionary word is "in the user's SRS" iff a schedule row exists with vocab_id
-        // 'word_{id}' (see VocabularyService.markWordLearned) — an exact key, no text matching.
-        // -1 (no such user) makes every word resolve to NEW for an unexpected null principal.
-        long uid = userId != null ? userId : -1L;
-        String srsJoin = " LEFT JOIN vocab_review_schedule srs "
-                + " ON srs.vocab_id = ('word_' || w.id) AND srs.user_id = ? ";
-
-        List<Object> filterParams = new ArrayList<>();
+    /** Mệnh đề WHERE dùng chung; {@code omit} là trục đang đếm (xem {@link FacetAxis}). */
+    private FilterSql buildFilter(WordFilters f, FacetAxis omit) {
+        List<Object> params = new ArrayList<>();
         StringBuilder where = new StringBuilder(" WHERE 1=1 ");
 
-        if (normalizedCefr != null) {
-            // Cumulative mode: A2 includes A1+A2, B1 includes A1+A2+B1, ...
-            // Build IN (...) in Java (clean parameter binding for Postgres).
-            List<String> cumulative = cumulativeCefrLevelsIncluding(normalizedCefr);
-            where.append(" AND w.cefr_level IN (");
-            where.append(String.join(",", Collections.nCopies(cumulative.size(), "?")));
-            where.append(") ");
-            filterParams.addAll(cumulative);
-        }
-
-        if (normalizedDtype != null) {
-            where.append(" AND w.dtype = ? ");
-            filterParams.add(normalizedDtype);
-            if ("Noun".equals(normalizedDtype)) {
-                where.append(" AND n.gender IN ('DER','DIE','DAS') ");
+        if (omit != FacetAxis.CEFR) {
+            if (UNGRADED.equals(f.cefr())) {
+                where.append(" AND w.cefr_level IS NULL ");
+            } else if (f.cefr() != null && f.cefrExact()) {
+                // Đúng một cấp — chip cấp độ ở /v2 dùng chế độ này, để nhãn chip khớp badge trên từng thẻ từ.
+                where.append(" AND w.cefr_level = ? ");
+                params.add(f.cefr());
+            } else if (f.cefr() != null) {
+                // Cumulative mode: A2 includes A1+A2, B1 includes A1+A2+B1, ...
+                // Build IN (...) in Java (clean parameter binding for Postgres).
+                List<String> cumulative = cumulativeCefrLevelsIncluding(f.cefr());
+                where.append(" AND w.cefr_level IN (");
+                where.append(String.join(",", Collections.nCopies(cumulative.size(), "?")));
+                where.append(") ");
+                params.addAll(cumulative);
             }
         }
 
-        if (query != null) {
-            where.append(" AND w.base_form LIKE ? ");
-            filterParams.add("%" + query + "%");
+        if (omit != FacetAxis.DTYPE && f.dtype() != null) {
+            where.append(" AND ").append(DTYPE_GROUP_EXPR).append(" = ? ");
+            params.add(f.dtype());
         }
 
-        String focusTail = focusCodeTail(focus);
+        // Ô tìm hứa "Tìm từ / nghĩa" nên phải chạm cả word_translations; LIKE của Postgres phân biệt
+        // hoa/thường nên hai vế đều hạ chữ. Ký tự đại diện trong chuỗi người dùng gõ đã được thoát ở
+        // likeContains() — một dấu '%' phải là một dấu phần trăm, không phải "trả về cả kho".
+        if (f.query() != null) {
+            where.append("""
+                     AND (
+                       LOWER(w.base_form) LIKE ?
+                       OR EXISTS (
+                         SELECT 1 FROM word_translations wt_q
+                         WHERE wt_q.word_id = w.id
+                           AND wt_q.locale IN (?, 'en')
+                           AND LOWER(wt_q.meaning) LIKE ?
+                       )
+                     )
+                    """);
+            String contains = likeContains(f.query());
+            params.add(contains);
+            params.add(f.locale());
+            params.add(contains);
+        }
+
+        String focusTail = focusCodeTail(f.focus());
         if (focusTail != null) {
             where.append("""
                     AND (
@@ -127,11 +468,11 @@ public class WordQueryService {
                     )
                     """);
             String pat = "%" + focusTail.toLowerCase(Locale.ROOT) + "%";
-            filterParams.add(pat);
-            filterParams.add(pat);
+            params.add(pat);
+            params.add(pat);
         }
 
-        if (normalizedTag != null) {
+        if (omit != FacetAxis.TAG && f.tag() != null) {
             where.append("""
                      AND EXISTS (
                        SELECT 1
@@ -140,160 +481,126 @@ public class WordQueryService {
                        WHERE wt_filter.word_id = w.id AND tg_filter.name = ?
                      )
                     """);
-            filterParams.add(normalizedTag);
+            params.add(f.tag());
         }
 
-        if (normalizedGender != null) {
+        // Giống là facet CON của từ loại (chỉ danh từ mới có der/die/das): đếm trục từ loại thì phải bỏ
+        // cả bộ lọc giống, nếu không "Động từ" luôn ra 0 khi người học đang đứng ở "Danh từ · der".
+        if (omit != FacetAxis.GENDER && omit != FacetAxis.DTYPE && f.gender() != null) {
             where.append(" AND n.gender = ? ");
-            filterParams.add(normalizedGender);
+            params.add(f.gender());
         }
 
         // SRS status filter — resolves against the srs LEFT JOIN (no param, threshold is a constant).
-        if (normalizedStatus != null) {
-            switch (normalizedStatus) {
+        if (omit != FacetAxis.STATUS && f.status() != null) {
+            switch (f.status()) {
                 case "NEW" -> where.append(" AND srs.vocab_id IS NULL ");
                 case "LEARNING" -> where.append(
                         " AND srs.vocab_id IS NOT NULL AND srs.interval_days < " + MASTERED_INTERVAL_DAYS + " ");
                 case "MASTERED" -> where.append(
                         " AND srs.vocab_id IS NOT NULL AND srs.interval_days >= " + MASTERED_INTERVAL_DAYS + " ");
-                default -> { /* unreachable — validated above */ }
+                default -> { /* unreachable — validated in normalizeFilters */ }
             }
         }
 
-        // Both the count and the page query carry the srs join so the status filter resolves
-        // and pagination/total stay consistent. The join's userId '?' is the FIRST bound param.
-        long total = jdbcTemplate.queryForObject(
-                "SELECT COUNT(DISTINCT w.id) FROM words w LEFT JOIN nouns n ON n.id = w.id" + srsJoin + where,
-                prependUserId(uid, filterParams),
-                Long.class
-        );
+        return new FilterSql(where.toString(), params);
+    }
 
-        int offset = page * size;
-        List<Object> queryParams = new ArrayList<>();
-        queryParams.add(uid);              // srs join (first '?', placed before t_loc below)
-        queryParams.add(normalizedLocale); // t_loc locale
-        queryParams.addAll(filterParams);
+    /**
+     * Số từ theo TỪNG TRỤC lọc, mỗi trục đã tính giao với các bộ lọc khác đang bật.
+     *
+     * <p>Thay {@link #levelCounts()} ở hub /v2: trước đây UI chỉ có một trục — cấp độ CEFR — mà đó lại là
+     * trục dữ liệu yếu nhất, trong khi trạng thái học, từ loại/mạo từ và chủ đề đều đã có sẵn tham số lọc.
+     */
+    public WordFacetsResponse facets(Long userId, String cefr, boolean cefrExact, String q, String topic,
+                                     String focus, String tag, String dtype, String gender, String status,
+                                     String locale) {
+        WordFilters f = normalizeFilters(cefr, cefrExact, q, topic, focus, tag, dtype, gender, status, locale);
+        long uid = userId != null ? userId : -1L;
 
-        String sql = """
-                SELECT
-                  w.id,
-                  w.dtype,
-                  w.base_form,
-                  w.cefr_level,
-                  w.phonetic,
-                  w.usage_note,
-                  w.image_url,
-                  COALESCE(t_loc.meaning, t_en.meaning, t_de.meaning) AS meaning,
-                  t_en.meaning AS meaning_en,
-                  COALESCE(t_loc.example, t_en.example) AS example,
-                  t_de.example AS example_de,
-                  t_en.example AS example_en,
-                  n.gender,
-                  STRING_AGG(DISTINCT tg_all.name, '|' ORDER BY tg_all.name) AS tags,
-                  CASE
-                    WHEN srs.vocab_id IS NULL THEN 'NEW'
-                    WHEN srs.interval_days >= 21 THEN 'MASTERED'
-                    ELSE 'LEARNING'
-                  END AS srs_status
-                FROM words w
-                LEFT JOIN vocab_review_schedule srs
-                  ON srs.vocab_id = ('word_' || w.id) AND srs.user_id = ?
-                LEFT JOIN word_translations t_loc
-                  ON t_loc.word_id = w.id AND t_loc.locale = ?
-                LEFT JOIN word_translations t_de
-                  ON t_de.word_id = w.id AND t_de.locale = 'de'
-                LEFT JOIN word_translations t_en
-                  ON t_en.word_id = w.id AND t_en.locale = 'en'
-                LEFT JOIN nouns n
-                  ON n.id = w.id
-                LEFT JOIN word_tags wt_all
-                  ON wt_all.word_id = w.id
-                LEFT JOIN tags tg_all
-                  ON tg_all.id = wt_all.tag_id
-                """ + where + """
-                GROUP BY
-                  w.id, w.dtype, w.base_form, w.cefr_level, w.phonetic, w.usage_note, w.image_url,
-                  t_loc.meaning, t_en.meaning, t_de.meaning,
-                  t_loc.example, t_en.example, t_de.example, n.gender,
-                  srs.vocab_id, srs.interval_days
-                ORDER BY
-                  CASE w.cefr_level
-                    WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3 WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6
-                    ELSE 99 END,
-                  w.base_form
-                LIMIT ? OFFSET ?
-                """;
-        queryParams.add(size);
-        queryParams.add(offset);
+        FilterSql all = buildFilter(f, FacetAxis.NONE);
+        Long total = jdbcTemplate.queryForObject(
+                "SELECT COUNT(DISTINCT w.id) FROM words w LEFT JOIN nouns n ON n.id = w.id" + SRS_JOIN + all.where(),
+                prependUserId(uid, all.params()),
+                Long.class);
 
-        List<WordListItem> items = jdbcTemplate.query(sql, queryParams.toArray(), (rs, rowNum) -> {
-            long id = rs.getLong("id");
-            String rsDtype = rs.getString("dtype");
-            String baseForm = rs.getString("base_form");
-            String cefrLevel = rs.getString("cefr_level");
-            String phonetic = rs.getString("phonetic");
-            String usageNote = rs.getString("usage_note");
-            String imageUrl = rs.getString("image_url");
-            String meaning = rs.getString("meaning");
-            String meaningEn = rs.getString("meaning_en");
-            String example = rs.getString("example");
-            String exampleDe = rs.getString("example_de");
-            String exampleEn = rs.getString("example_en");
-            String nounGender = rs.getString("gender");
-            String tagsRaw = rs.getString("tags");
-            String srsStatus = rs.getString("srs_status");
+        List<String> cefrKeys = new ArrayList<>(ALLOWED_CEFR_ORDER);
+        cefrKeys.add(UNGRADED);
 
-            String article = null;
-            String genderColor = null;
-            if (nounGender != null) {
-                article = switch (nounGender) {
-                    case "DER" -> "der";
-                    case "DIE" -> "die";
-                    case "DAS" -> "das";
-                    default -> null;
-                };
-                genderColor = genderColorService.colorForNounGender(nounGender);
+        return new WordFacetsResponse(
+                total == null ? 0L : total,
+                countByKey(uid, buildFilter(f, FacetAxis.STATUS), SRS_STATUS_EXPR, SRS_STATUS_FACET_ORDER),
+                countByKey(uid, buildFilter(f, FacetAxis.DTYPE), DTYPE_FACET_EXPR, DTYPE_FACET_ORDER),
+                countByKey(uid, buildFilter(f, FacetAxis.GENDER), "n.gender", GENDER_FACET_ORDER),
+                countByKey(uid, buildFilter(f, FacetAxis.CEFR),
+                        "COALESCE(w.cefr_level, '" + UNGRADED + "')", cefrKeys),
+                countTopics(uid, buildFilter(f, FacetAxis.TAG), f.locale()));
+    }
+
+    /**
+     * Đếm theo một biểu thức khoá. {@code keyExpr} và {@code knownKeys} chỉ đến từ hằng số trong lớp này —
+     * không bao giờ từ tham số người dùng — nên nối chuỗi ở đây là an toàn.
+     */
+    private Map<String, Long> countByKey(long uid, FilterSql filter, String keyExpr, List<String> knownKeys) {
+        Map<String, Long> out = new LinkedHashMap<>();
+        for (String key : knownKeys) {
+            out.put(key, 0L);
+        }
+        String sql = "SELECT " + keyExpr + " AS facet_key, COUNT(DISTINCT w.id) AS total"
+                + " FROM words w LEFT JOIN nouns n ON n.id = w.id" + SRS_JOIN + filter.where()
+                + " GROUP BY 1";
+        jdbcTemplate.query(sql, prependUserId(uid, filter.params()), rs -> {
+            String key = rs.getString("facet_key");
+            // Khoá lạ (dtype ngoài danh mục, giống rác) không được tự sinh chip.
+            if (key != null && out.containsKey(key)) {
+                out.put(key, rs.getLong("total"));
             }
-
-            WordNounDetails nounDetails = loadNounDetails(id);
-            WordVerbDetails verbDetails = loadVerbDetails(id);
-            WordAdjectiveDetails adjectiveDetails = loadAdjectiveDetails(id);
-            String normalizedPhonetic = normalizePhonetic(phonetic, baseForm);
-            String normalizedUsageNote = normalizeUsageNote(usageNote, rsDtype, baseForm, article);
-            String cleanedMeaning = sanitizeMeaning(meaning, baseForm);
-            String cleanedMeaningEn = sanitizeMeaning(meaningEn, baseForm);
-            String cleanedExample = sanitizeExampleText(example);
-            String cleanedExampleDe = sanitizeExampleText(exampleDe);
-            String cleanedExampleEn = sanitizeExampleText(exampleEn);
-            if (cleanedExampleEn != null && cleanedExampleDe != null && cleanedExampleEn.trim().equalsIgnoreCase(cleanedExampleDe.trim())) {
-                cleanedExampleEn = null;
-            }
-
-            return new WordListItem(
-                    id,
-                    rsDtype,
-                    baseForm,
-                    cefrLevel,
-                    normalizedPhonetic,
-                    cleanedMeaning,
-                    cleanedMeaningEn,
-                    cleanedExample,
-                    cleanedExampleDe,
-                    cleanedExampleEn,
-                    normalizedUsageNote,
-                    nounGender,
-                    article,
-                    genderColor,
-                    parseTags(tagsRaw),
-                    nounDetails,
-                    verbDetails,
-                    adjectiveDetails,
-                    imageUrl,
-                    srsStatus
-            );
         });
+        return out;
+    }
 
-        return new WordListResponse(items, page, size, total);
+    /** Chỉ trả chủ đề CÓ từ — chip rỗng là chip dẫn tới danh sách rỗng. */
+    private List<WordTopicFacet> countTopics(long uid, FilterSql filter, String locale) {
+        String sql = """
+                SELECT tg.name AS name,
+                       COALESCE(tt.label, tg.name) AS label,
+                       COUNT(DISTINCT w.id) AS total
+                FROM words w
+                LEFT JOIN nouns n ON n.id = w.id
+                """ + SRS_JOIN + """
+                JOIN word_tags wt_facet ON wt_facet.word_id = w.id
+                JOIN tags tg ON tg.id = wt_facet.tag_id AND tg.is_topic_taxonomy IS TRUE
+                LEFT JOIN tag_translations tt ON tt.tag_id = tg.id AND tt.locale = ?
+                """ + filter.where() + """
+                GROUP BY tg.name, COALESCE(tt.label, tg.name)
+                ORDER BY COUNT(DISTINCT w.id) DESC, 2
+                """;
+        List<Object> params = new ArrayList<>();
+        params.add(uid);     // SRS_JOIN
+        params.add(locale);  // tag_translations
+        params.addAll(filter.params());
+        return jdbcTemplate.query(sql, params.toArray(), (rs, rowNum) ->
+                new WordTopicFacet(rs.getString("name"), rs.getString("label"), rs.getLong("total")));
+    }
+
+    /**
+     * Số từ theo từng cấp (kể cả {@code UNGRADED} = chưa phân cấp) — UI dựng chip cấp độ từ đây thay vì
+     * hardcode A1–C2, nên không còn chip rỗng như chip C2 trước 14/08/2026.
+     */
+    public WordLevelCountsResponse levelCounts() {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        for (String level : ALLOWED_CEFR_ORDER) {
+            counts.put(level, 0L);
+        }
+        counts.put(UNGRADED, 0L);
+        jdbcTemplate.query(
+                "SELECT COALESCE(cefr_level, '" + UNGRADED + "') AS lvl, COUNT(*) AS total FROM words GROUP BY 1",
+                rs -> {
+                    counts.merge(rs.getString("lvl"), rs.getLong("total"), Long::sum);
+                }
+        );
+        long total = counts.values().stream().mapToLong(Long::longValue).sum();
+        return new WordLevelCountsResponse(counts, total);
     }
 
     /** Last segment of an error code (e.g. {@code VERB.CONJ} → {@code conj}) for loose tag/word match. */
@@ -308,6 +615,30 @@ public class WordQueryService {
             return null;
         }
         return tail.length() > 48 ? tail.substring(0, 48) : tail;
+    }
+
+    /**
+     * Chuỗi người dùng gõ, hạ chữ và THOÁT ký tự đại diện của LIKE.
+     *
+     * <p>Không thoát thì một dấu {@code %} khớp cả kho và {@code _} khớp mọi ký tự đơn — người học gõ
+     * "50%" hay "ăn_uống" sẽ nhận về kết quả vô nghĩa. Postgres mặc định lấy {@code \\} làm ký tự thoát
+     * của LIKE nên không cần mệnh đề {@code ESCAPE}.
+     */
+    private static String escapeLikeWildcards(String raw) {
+        return raw.toLowerCase(Locale.ROOT)
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+    }
+
+    /** Mẫu LIKE khớp GIỮA từ — từ ghép tiếng Đức (Kranken<b>haus</b>) phụ thuộc vào bậc này. */
+    private static String likeContains(String raw) {
+        return "%" + escapeLikeWildcards(raw) + "%";
+    }
+
+    /** Mẫu LIKE khớp ĐẦU từ — chỉ dùng để xếp hạng, không dùng để lọc. */
+    private static String likePrefix(String raw) {
+        return escapeLikeWildcards(raw) + "%";
     }
 
     /** Prepends the srs-join userId param ahead of the shared filter params (count query). */

@@ -55,6 +55,19 @@ public enum SpeakingPersona {
     // ── Medien / MC (Truyền thông) ──
     HANNIE,    // Moderatorin / MC, 20 Jahre, A2-B2
 
+    // ── Mentor nhập môn (BEGINNER, A1-A2) ──
+    // Mỗi họ ngành phải có ít nhất một persona BEGINNER, nếu không tài khoản FREE
+    // (= mọi người vừa đăng ký) rơi hết về ANNA và thẻ "Mentor của bạn" ở onboarding
+    // bất động dù chọn lĩnh vực nào (QA 2026-08-20, F-15).
+    // Đều là VAI NHẬP MÔN thật sự — cùng tinh thần với LENA/THOMAS/NIKLAS đã có:
+    // đồng nghiệp mới vào nghề, nói tiếng Đức đơn giản, chứ không phải sếp hay chuyên gia.
+    JONAS,     // IT-Support / Helpdesk, A1-A2
+    MARIE,     // Pflegehelferin, A1-A2
+    TIM,       // Küchenhilfe, A1-A2
+    JULIA,     // Produktionshelferin, A1-A2
+    FELIX,     // Bürokaufmann (Azubi), A1-A2
+    MIA,       // Social-Media-Assistentin, A1-A2
+
     // ── Special Vietnamese tutors (LESSON mode) ──
     TUAN,      // "Anh bạn học nghề"
     LAN,       // "Chị đi trước"
@@ -69,6 +82,39 @@ public enum SpeakingPersona {
         } catch (IllegalArgumentException e) {
             return DEFAULT;
         }
+    }
+
+    /**
+     * Nghề/vai của persona trong hội thoại GIAO TIẾP — nguồn cho khối "DEINE IDENTITÄT"
+     * (chống nhận nhầm nghề của học viên, xem BAO_CAO_KIEM_TRA_PERSONA_2026-08-06).
+     * Chuỗi khớp role_title seed V163 để danh tính chat thường ăn khớp danh tính interview.
+     * {@code null} = persona không mang nghề Đức cố định (DEFAULT tutor, bộ ba tutor Việt).
+     */
+    public String communicationRole() {
+        return switch (this) {
+            case DEFAULT, TUAN, LAN, MINH -> null;
+            case LUKAS -> "Senior-Softwareentwickler (Tech Lead) in einem Berliner Startup";
+            case EMMA -> "Business Development Managerin";
+            case ANNA -> "Studienberaterin und Karriere-Coach";
+            case KLAUS -> "Küchenchef";
+            case LENA -> "Supermarktmitarbeiterin";
+            case THOMAS -> "Bäcker";
+            case PETRA -> "Metzgerin";
+            case SARAH -> "Medizinische Fachangestellte";
+            case SCHNEIDER -> "Augenarzt";
+            case WEBER -> "Dermatologin";
+            case MAX -> "Maschinenbediener";
+            case OLIVER -> "CNC-Fräser";
+            case NIKLAS -> "Kellner";
+            case NINA -> "Rezeptionistin im Hotel";
+            case HANNIE -> "Moderatorin und MC";
+            case JONAS -> "IT-Support-Mitarbeiter im Helpdesk";
+            case MARIE -> "Pflegehelferin im Altenheim";
+            case TIM -> "Küchenhilfe im Restaurant";
+            case JULIA -> "Produktionshelferin in der Fertigung";
+            case FELIX -> "Bürokaufmann in der Ausbildung";
+            case MIA -> "Social-Media-Assistentin";
+        };
     }
 
     /** Human-readable name for use in prompts. */
@@ -90,6 +136,12 @@ public enum SpeakingPersona {
             case NIKLAS -> "Niklas";
             case NINA -> "Nina";
             case HANNIE -> "Hannie";
+            case JONAS -> "Jonas";
+            case MARIE -> "Marie";
+            case TIM -> "Tim";
+            case JULIA -> "Julia";
+            case FELIX -> "Felix";
+            case MIA -> "Mia";
             case TUAN -> "Tuấn";
             case LAN -> "Lan";
             case MINH -> "Minh";
@@ -117,6 +169,18 @@ public enum SpeakingPersona {
             case NIKLAS -> serviceSection("Niklas", "Kellner", "Restaurant, Speisekarte, Bestellung, Rechnung, Tischreservierung", userLevel);
             case NINA -> serviceSection("Nina", "Rezeptionistin", "Hotel, Check-in, Zimmer, Frühstück, Schlüsselkarte", userLevel);
             case HANNIE -> hannieSection(userLevel);
+            case JONAS -> einstiegSection("Jonas", "IT-Support-Mitarbeiter im Helpdesk",
+                    "Büro, Computer, Passwort, Drucker, Internet, Ticket, Kollege", userLevel);
+            case MARIE -> einstiegSection("Marie", "Pflegehelferin im Altenheim",
+                    "Altenheim, Bewohner, Frühstück, Waschen, Schicht, Kollegin", userLevel);
+            case TIM -> einstiegSection("Tim", "Küchenhilfe im Restaurant",
+                    "Küche, Gemüse, Spülen, Vorbereiten, Schicht, Pause", userLevel);
+            case JULIA -> einstiegSection("Julia", "Produktionshelferin in der Fertigung",
+                    "Halle, Band, Karton, Palette, Schicht, Sicherheitsschuhe", userLevel);
+            case FELIX -> einstiegSection("Felix", "Bürokaufmann in der Ausbildung",
+                    "Büro, Termin, Telefon, E-Mail, Ordner, Kollege", userLevel);
+            case MIA -> einstiegSection("Mia", "Social-Media-Assistentin",
+                    "Foto, Video, Beitrag, Kommentar, Kanal, Termin", userLevel);
             case TUAN -> tuanSection(userLevel);
             case LAN -> lanSection(userLevel);
             case MINH -> minhSection(userLevel);
@@ -154,6 +218,7 @@ public enum SpeakingPersona {
             case MAX, OLIVER -> maschinenbauGreeting(this, t, industry, weakPointsStr);
             case NIKLAS, NINA -> serviceGreeting(this, t, industry, weakPointsStr);
             case HANNIE -> hannieGreeting(t, industry, weakPointsStr);
+            case JONAS, MARIE, TIM, JULIA, FELIX, MIA -> einstiegGreeting(this, t, weakPointsStr);
             case TUAN -> specialViGreeting("Tuấn", "mình", "bạn", t);
             case LAN -> specialViGreeting("chị Lan", "chị", "em", t);
             case MINH -> specialViGreeting("Minh", "mình", "bạn", t);
@@ -174,6 +239,14 @@ public enum SpeakingPersona {
             case MAX, OLIVER -> maschinenbauInterviewGreeting(p, pos, industry, weakPointsStr);
             case NIKLAS, NINA -> serviceInterviewGreeting(p, pos, industry, weakPointsStr);
             case HANNIE -> hannieInterviewGreeting(pos, industry, weakPointsStr);
+            // Mentor nhập môn: dùng lại khuôn phỏng vấn của họ ngành gần nhất để giữ
+            // đúng bối cảnh nghề; giọng "nhập môn" đã nằm ở personaPromptSection.
+            case MARIE -> medizinInterviewGreeting(p, pos, industry, weakPointsStr);
+            case TIM -> klausInterviewGreeting(pos, industry, weakPointsStr);
+            case JULIA -> maschinenbauInterviewGreeting(p, pos, industry, weakPointsStr);
+            case JONAS -> lukasInterviewGreeting(pos, industry, weakPointsStr);
+            case FELIX -> emmaInterviewGreeting(pos, industry, weakPointsStr);
+            case MIA -> hannieInterviewGreeting(pos, industry, weakPointsStr);
             // Special personas do not support INTERVIEW mode — fall back to default
             case TUAN, LAN, MINH -> defaultInterviewGreeting(pos, industry, weakPointsStr);
         };
@@ -441,6 +514,25 @@ public enum SpeakingPersona {
                 """.formatted(name, role, name, role, vocab, userLevel);
     }
 
+    /**
+     * Khuôn prompt cho mentor NHẬP MÔN (BEGINNER). Khác các khuôn theo ngành ở chỗ
+     * ràng buộc độ khó ngôn ngữ một cách tường minh: người dùng của những persona này
+     * là học viên A1-A2 vừa qua onboarding, câu dài là mất hút ngay.
+     */
+    private static String einstiegSection(String name, String role, String vocab, String userLevel) {
+        return """
+                PERSONA (%s — %s, Einstiegsniveau):
+                - Rolle: Du bist %s und arbeitest als %s in Deutschland. Du bist selbst noch
+                  nicht lange dabei, deshalb erklärst du gern und ohne Fachjargon.
+                - Stimmung: freundlich, geduldig, kollegial — wie jemand am ersten Arbeitstag.
+                - Szenario-Anker: %s.
+                - ai_speech_de: SEHR einfaches Deutsch (A1-A2), kurze Hauptsätze, Alltagswörter.
+                  Keine Fachbegriffe ohne sofortige Erklärung. User_Level: %s. Immer EINE
+                  einfache Folgefrage — nie mehrere auf einmal.
+                - Lob & feedback (Vietnamesisch): sehr ermutigend; kleine Fortschritte ausdrücklich loben.
+                """.formatted(name, role, name, role, vocab, userLevel);
+    }
+
     // ── Special Vietnamese Tutor Sections ───
 
     private static String tuanSection(String userLevel) {
@@ -525,6 +617,17 @@ public enum SpeakingPersona {
                 """.formatted(p.displayName(), topic, weakPointsStr);
     }
 
+    private static String einstiegGreeting(SpeakingPersona p, String topic, String weakPointsStr) {
+        return """
+                COMMUNICATION MODE — Lockeres Gespräch mit einem neuen Kollegen als %s (%s).
+                Begrüße auf SEHR einfachem Deutsch (JSON ai_speech_de), kurze Sätze.
+                Thema: "%s". Grammatik kurz: "%s".
+                Stelle EINE einfache, offene Frage — wie beim ersten Kennenlernen am Arbeitsplatz.
+                KEIN Interview. Die suggestions sollen ganz kurze Alltagsantworten sein (A1-A2).
+                WICHTIG: NUR JSON.
+                """.formatted(p.displayName(), p.communicationRole(), topic, weakPointsStr);
+    }
+
     private static String specialViGreeting(String name, String selfPronoun, String userPronoun, String topic) {
         return """
                 COMMUNICATION MODE — Cuộc trò chuyện giới thiệu nước Đức.
@@ -596,45 +699,49 @@ public enum SpeakingPersona {
 
     // ── LESSON Mode Greetings (Special Vietnamese Personas) ───
 
+    // QA prod 10/08: các bản cũ dặn "ai_speech_de: chỉ chứa từ/cụm Đức đang dạy" — mâu thuẫn
+    // với hợp đồng LESSON (ai_speech_de = câu tiếng Việt dẫn dắt) và UI render aiSpeechDe làm
+    // bong bóng chính ⇒ lời chào cụt còn đúng "A, B, C". Ba bản dưới thống nhất: ai_speech_de
+    // là 2-4 câu tiếng Việt hoàn chỉnh, dữ kiện lấy từ khối DỮ KIỆN BẮT BUỘC (nếu có).
+
     private static String tuanLessonGreeting(String topic) {
         return """
-                CHẾ ĐỘ LESSON — Kiểm tra từ vựng cơ bản.
+                CHẾ ĐỘ LESSON — lượt MỞ BÀI đầu tiên của phiên.
                 Tuấn xưng 'mình', gọi user 'bạn'. Ngôn ngữ: tiếng VIỆT là chính.
                 Chủ đề bài học: "%s".
-                Hãy bắt đầu bằng lời chào vui vẻ, giới thiệu chủ đề hôm nay, rồi dạy 2-3 từ/khái niệm đầu tiên.
-                Dùng ví dụ thực tế "sinh tồn" (đi siêu thị, đăng ký tạm trú, tìm nhà).
-                Sau khi dạy, hỏi user đọc lại hoặc đánh vần.
-                ai_speech_de: chỉ chứa từ/cụm Đức đang dạy. feedback: tiếng Việt giải thích.
-                suggestions: 3 lựa chọn trả lời gợi ý bằng tiếng Việt + từ Đức.
+                ai_speech_de PHẢI là 2-4 câu tiếng Việt HOÀN CHỈNH: chào vui vẻ, giới thiệu chủ đề hôm nay,
+                dạy 2-3 mục ĐẦU TIÊN (kèm cách đọc — nếu system prompt có DỮ KIỆN BẮT BUỘC thì chỉ lấy từ đó),
+                rồi mời bạn đọc lại. CẤM liệt kê từ Đức trơ trọi (SAI: "A, B, C").
+                Dạng đúng: 'Chào bạn! Hôm nay mình học bảng chữ cái nhé. Chữ A đọc là "a", chữ B đọc là "bê". Bạn thử đọc lại xem!'
+                Văn bản thuần, không markdown. suggestions: đúng số lượng và định dạng schema yêu cầu.
                 WICHTIG: NUR JSON.
                 """.formatted(topic);
     }
 
     private static String lanLessonGreeting(String topic) {
         return """
-                CHẾ ĐỘ LESSON — Luyện phát âm và từ vựng cơ bản.
+                CHẾ ĐỘ LESSON — lượt MỞ BÀI đầu tiên của phiên, trọng tâm phát âm.
                 Chị Lan xưng 'chị', gọi user 'em'. Ngôn ngữ: tiếng VIỆT là chính.
                 Chủ đề: "%s".
-                Bắt đầu ân cần, giới thiệu chủ đề, rồi dạy 2-3 từ kèm hướng dẫn phát âm chi tiết
-                (khẩu hình miệng, so sánh với tiếng Việt).
-                Lồng ghép mẹo văn hóa nhỏ (bắt tay, nhìn vào mắt khi chào).
-                Sau khi dạy, nhờ em đọc lại.
-                ai_speech_de: từ/cụm Đức đang dạy. feedback: tiếng Việt giải thích phát âm.
-                suggestions: 3 lựa chọn trả lời.
+                ai_speech_de PHẢI là 2-4 câu tiếng Việt HOÀN CHỈNH: chào ân cần, giới thiệu chủ đề,
+                dạy 2-3 mục đầu tiên kèm hướng dẫn khẩu hình/so sánh với tiếng Việt
+                (nếu system prompt có DỮ KIỆN BẮT BUỘC thì chỉ lấy từ đó), rồi nhờ em đọc lại.
+                CẤM liệt kê từ Đức trơ trọi không có câu dẫn.
+                Văn bản thuần, không markdown. suggestions: đúng số lượng và định dạng schema yêu cầu.
                 WICHTIG: NUR JSON.
                 """.formatted(topic);
     }
 
     private static String minhLessonGreeting(String topic) {
         return """
-                CHẾ ĐỘ LESSON — Học từ vựng qua đường phố Đức.
+                CHẾ ĐỘ LESSON — lượt MỞ BÀI đầu tiên của phiên, bối cảnh đường phố Đức.
                 Minh xưng 'mình', gọi user 'bạn'. Ngôn ngữ: tiếng VIỆT là chính.
                 Chủ đề: "%s".
-                Bắt đầu năng lượng cao, mô tả cảnh đường phố Đức (biển báo, ga tàu, tên đường),
-                rồi dạy 2-3 từ liên quan. Ví dụ thực tế: đọc biển báo, tìm Gleis, số nhà.
-                Sau khi dạy, thách user đọc lại hoặc đánh vần tên đường.
-                ai_speech_de: từ/cụm Đức ngắn. feedback: tiếng Việt vui nhộn.
-                suggestions: 3 lựa chọn trả lời.
+                ai_speech_de PHẢI là 2-4 câu tiếng Việt HOÀN CHỈNH: mở đầu năng lượng cao bằng một cảnh
+                đường phố (biển báo, ga tàu, tên đường), dạy 2-3 mục đầu tiên kèm cách đọc
+                (nếu system prompt có DỮ KIỆN BẮT BUỘC thì chỉ lấy từ đó), rồi thách bạn đọc lại.
+                CẤM liệt kê từ Đức trơ trọi không có câu dẫn.
+                Văn bản thuần, không markdown. suggestions: đúng số lượng và định dạng schema yêu cầu.
                 WICHTIG: NUR JSON.
                 """.formatted(topic);
     }

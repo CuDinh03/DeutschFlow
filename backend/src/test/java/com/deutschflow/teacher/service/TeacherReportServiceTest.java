@@ -9,6 +9,8 @@ import com.deutschflow.teacher.dto.SkillDistributionDto;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
+import com.deutschflow.teacher.entity.ClassTeacher;
+import com.deutschflow.teacher.entity.ClassTeacherId;
 import com.deutschflow.teacher.entity.StudentAssignment;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
@@ -75,6 +77,21 @@ class TeacherReportServiceTest {
                 studentAssignmentRepository,
                 userRepository
         );
+    }
+
+    /**
+     * F04: các báo cáo tổng hợp đọc lớp theo PHÂN CÔNG (class_teachers) — cùng tập với danh sách
+     * lớp và guard per-class — chứ không theo cột giáo viên tạo lớp. Helper này stub đúng đường đó.
+     */
+    private void assignTeacher(Long teacherId, TeacherClass... classes) {
+        List<ClassTeacher> links = Arrays.stream(classes)
+                .map(c -> ClassTeacher.builder()
+                        .id(new ClassTeacherId(c.getId(), teacherId))
+                        .role("PRIMARY")
+                        .build())
+                .toList();
+        when(classTeacherRepository.findByIdTeacherId(teacherId)).thenReturn(links);
+        when(classRepository.findAllById(anyList())).thenReturn(Arrays.asList(classes));
     }
 
     // ─── gradebook ───────────────────────────────────────────────────────────────
@@ -232,8 +249,7 @@ class TeacherReportServiceTest {
     @Test
     void overview_countsDistinctStudents_andAveragesConfirmedGradesOnly() {
         Long teacherId = 1L;
-        when(classRepository.findByTeacherId(teacherId)).thenReturn(List.of(
-                TeacherClass.builder().id(100L).name("A1").build()));
+        assignTeacher(teacherId, TeacherClass.builder().id(100L).name("A1").build());
         when(classStudentRepository.findByIdClassIdIn(anyList())).thenReturn(List.of(
                 ClassStudent.builder().id(new ClassStudentId(100L, 1L)).build(),
                 ClassStudent.builder().id(new ClassStudentId(100L, 2L)).build()));
@@ -251,14 +267,38 @@ class TeacherReportServiceTest {
         assertEquals(70.0, result.get("avgScore")); // only student 1 has a confirmed grade
     }
 
+    /**
+     * F04 lõi: lớp do NGƯỜI KHÁC tạo (cột teacher_classes.teacher_id = 99) nhưng caller được phân
+     * công ASSISTANT vẫn phải xuất hiện trong tổng hợp — trước đây 4 aggregate đọc thẳng cột người
+     * tạo (findByTeacherId, nay đã gỡ hẳn khỏi TeacherClassRepository) nên trợ giảng thấy lớp,
+     * chấm bài được, mà analytics thì rỗng. Query đó không còn tồn tại để gọi nhầm nữa.
+     */
+    @Test
+    @DisplayName("F04: overview gồm cả lớp được phân công ASSISTANT, không đọc cột người tạo lớp")
+    void overview_includesCoTaughtClasses_neverReadsCreatorColumn() {
+        Long assistantId = 5L;
+        TeacherClass someoneElses = TeacherClass.builder().id(100L).name("A1").teacherId(99L).build();
+        when(classTeacherRepository.findByIdTeacherId(assistantId)).thenReturn(List.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, assistantId)).role("ASSISTANT").build()));
+        when(classRepository.findAllById(anyList())).thenReturn(List.of(someoneElses));
+        when(classStudentRepository.findByIdClassIdIn(anyList())).thenReturn(List.of(
+                ClassStudent.builder().id(new ClassStudentId(100L, 1L)).build()));
+        when(assignmentRepository.findByClassIdIn(anyList())).thenReturn(List.of());
+
+        Map<String, Object> result = service.overview(assistantId);
+
+        assertEquals(1, result.get("classCount"));
+        assertEquals(1, result.get("studentCount"));
+    }
+
     // ─── classesSummary: one batched pass, per-class rows ─────────────────────────
 
     @Test
     void classesSummary_buildsPerClassRows_withConfirmedOnlyAverages() {
         Long teacherId = 1L;
-        when(classRepository.findByTeacherId(teacherId)).thenReturn(List.of(
+        assignTeacher(teacherId,
                 TeacherClass.builder().id(100L).name("A1").build(),
-                TeacherClass.builder().id(200L).name("A2").build()));
+                TeacherClass.builder().id(200L).name("A2").build());
         when(classStudentRepository.findByIdClassIdIn(anyList())).thenReturn(List.of(
                 ClassStudent.builder().id(new ClassStudentId(100L, 1L)).build(),
                 ClassStudent.builder().id(new ClassStudentId(100L, 2L)).build(),
@@ -287,9 +327,52 @@ class TeacherReportServiceTest {
         assertEquals(60.0, a2Row.avgScore());
     }
 
+    /**
+     * F05: 0.0 từng vừa là "trung bình 0 thật" vừa là "chưa có điểm" — FE phải đoán bằng
+     * {@code > 0} nên lớp điểm 0 thật bị coi là không có dữ liệu. Nay chưa-có-điểm = null.
+     */
+    @Test
+    @DisplayName("F05: avgScore là null khi chưa có điểm chốt — không còn 0.0 canh gác")
+    void avgScore_nullWhenNoConfirmedGrade_zeroStaysZero() {
+        Long teacherId = 1L;
+        assignTeacher(teacherId,
+                TeacherClass.builder().id(100L).name("A1").build(),
+                TeacherClass.builder().id(200L).name("A2").build());
+        when(classStudentRepository.findByIdClassIdIn(anyList())).thenReturn(List.of(
+                ClassStudent.builder().id(new ClassStudentId(100L, 1L)).build(),
+                ClassStudent.builder().id(new ClassStudentId(200L, 2L)).build()));
+        ClassAssignment a1 = ClassAssignment.builder().id(10L).classId(100L).topic("x").assignmentType("GENERAL").build();
+        ClassAssignment a2 = ClassAssignment.builder().id(20L).classId(200L).topic("y").assignmentType("GENERAL").build();
+        when(assignmentRepository.findByClassIdIn(anyList())).thenReturn(List.of(a1, a2));
+        when(studentAssignmentRepository.findByAssignmentIds(anyList())).thenReturn(List.of(
+                // Lớp 100: chỉ đề xuất AI chưa duyệt → KHÔNG có điểm chốt → null.
+                StudentAssignment.builder().assignmentId(10L).studentId(1L).status("AI_GRADED").score(90).build(),
+                // Lớp 200: một điểm 0 THẬT đã chốt → 0.0, không phải null.
+                StudentAssignment.builder().assignmentId(20L).studentId(2L).status("EVALUATED").score(0).build()));
+
+        List<ClassSummaryDto> rows = service.classesSummary(teacherId);
+        assertNull(rows.get(0).avgScore());
+        assertEquals(0.0, rows.get(1).avgScore());
+
+        Map<String, Object> overview = service.overview(teacherId);
+        assertEquals(0.0, overview.get("avgScore")); // toàn cục vẫn có 1 điểm chốt (0 thật)
+    }
+
+    @Test
+    void overview_avgScoreNull_whenNothingConfirmedAnywhere() {
+        Long teacherId = 1L;
+        assignTeacher(teacherId, TeacherClass.builder().id(100L).name("A1").build());
+        when(classStudentRepository.findByIdClassIdIn(anyList())).thenReturn(List.of());
+        when(assignmentRepository.findByClassIdIn(anyList())).thenReturn(List.of(
+                ClassAssignment.builder().id(10L).classId(100L).topic("x").assignmentType("GENERAL").build()));
+        when(studentAssignmentRepository.findByAssignmentIds(anyList())).thenReturn(List.of());
+
+        assertNull(service.overview(teacherId).get("avgScore"));
+    }
+
     @Test
     void classesSummary_emptyWhenTeacherHasNoClasses() {
-        when(classRepository.findByTeacherId(1L)).thenReturn(List.of());
+        when(classTeacherRepository.findByIdTeacherId(1L)).thenReturn(List.of());
 
         assertTrue(service.classesSummary(1L).isEmpty());
         verify(assignmentRepository, never()).findByClassIdIn(any());
@@ -300,9 +383,9 @@ class TeacherReportServiceTest {
     @Test
     void weeklyTrends_assemblesSortedBuckets_andAlignsSeriesWithGapsAsNull() {
         Long teacherId = 1L;
-        when(classRepository.findByTeacherId(teacherId)).thenReturn(List.of(
+        assignTeacher(teacherId,
                 TeacherClass.builder().id(100L).name("A1").build(),
-                TeacherClass.builder().id(200L).name("A2").build()));
+                TeacherClass.builder().id(200L).name("A2").build());
         // A1 has data in two weeks; A2 only in the later week → its earlier value must be null.
         when(studentAssignmentRepository.findWeeklyConfirmedAverages(anyList())).thenReturn(List.of(
                 new Object[]{100L, "2026-W23", 70.0, 2L},
@@ -323,7 +406,7 @@ class TeacherReportServiceTest {
 
     @Test
     void weeklyTrends_emptyWhenNoClasses() {
-        when(classRepository.findByTeacherId(1L)).thenReturn(List.of());
+        when(classTeacherRepository.findByIdTeacherId(1L)).thenReturn(List.of());
 
         ClassTrendDto trend = service.weeklyTrends(1L);
 
@@ -337,8 +420,7 @@ class TeacherReportServiceTest {
     @Test
     void skillDistribution_averagesEachSkillOverRatedStudents() {
         Long teacherId = 1L;
-        when(classRepository.findByTeacherId(teacherId)).thenReturn(List.of(
-                TeacherClass.builder().id(100L).name("A1").build()));
+        assignTeacher(teacherId, TeacherClass.builder().id(100L).name("A1").build());
         when(classStudentRepository.findByIdClassIdIn(anyList())).thenReturn(List.of(
                 ClassStudent.builder().id(new ClassStudentId(100L, 1L))
                         .skillHoren(BigDecimal.valueOf(8.0)).skillLesen(BigDecimal.valueOf(6.0))
@@ -359,9 +441,9 @@ class TeacherReportServiceTest {
     @Test
     void skillDistribution_countsAMultiClassStudentOnce() {
         Long teacherId = 1L;
-        when(classRepository.findByTeacherId(teacherId)).thenReturn(List.of(
+        assignTeacher(teacherId,
                 TeacherClass.builder().id(100L).name("A1").build(),
-                TeacherClass.builder().id(200L).name("A2").build()));
+                TeacherClass.builder().id(200L).name("A2").build());
         // Student 1 is enrolled in BOTH classes (Hören 8.0 in A1, 4.0 in A2); student 2 only in A1 (8.0).
         // Student 1 collapses to a single mean 6.0 → distribution Hören = (6.0 + 8.0) / 2 = 7.0.
         // Without dedup it would be (8 + 4 + 8) / 3 = 6.7 and ratedCount 3 — proving the fix.
@@ -378,7 +460,7 @@ class TeacherReportServiceTest {
 
     @Test
     void skillDistribution_emptyWhenNoClasses() {
-        when(classRepository.findByTeacherId(1L)).thenReturn(List.of());
+        when(classTeacherRepository.findByIdTeacherId(1L)).thenReturn(List.of());
 
         SkillDistributionDto dist = service.skillDistribution(1L);
 

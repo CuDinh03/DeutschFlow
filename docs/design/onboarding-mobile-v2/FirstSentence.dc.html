@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&amp;family=Instrument+Sans:wght@400;500;600;700&amp;display=swap">
+  <style>
+    body { margin: 0; font-family: 'Instrument Sans', system-ui, -apple-system, sans-serif; color: #161513; -webkit-font-smoothing: antialiased; }
+    a { color: #C79A00; text-decoration: none; }
+    a:hover { color: #161513; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #FBFAF7; position: relative; overflow: hidden; display: flex; flex-direction: column;">
+
+  <!-- header: cap + skip -->
+  <div style="padding-top: 58px; flex-shrink: 0;">
+    <div style="display: flex; align-items: center; justify-content: space-between; height: 40px; padding: 0 24px;">
+      <div style="font: 600 10.5px/1.3 'Instrument Sans', sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #76716A;">Khoảnh khắc đầu tiên</div>
+      <span style="font: 600 13.5px/1 'Instrument Sans', sans-serif; color: #76716A;">Để sau</span>
+    </div>
+  </div>
+
+  <div style="flex: 1; padding: 14px 24px 12px; overflow: hidden; display: flex; flex-direction: column; gap: 18px;">
+
+    <!-- mentor greets -->
+    <div style="display: flex; align-items: flex-start; gap: 13px;">
+      <div style="width: 56px; height: 56px; border-radius: 4px; background: #161513; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <span style="font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 27px; color: #FFCD00;">J</span>
+      </div>
+      <div style="flex: 1; background: #FFFFFF; border: 1px solid #E7E3DA; border-radius: 4px; padding: 15px 16px; display: flex; flex-direction: column; gap: 9px;">
+        <div style="display: flex; align-items: flex-start; gap: 10px;">
+          <span style="flex: 1; font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 18.5px; line-height: 1.32;">„Hallo! Ich bin Jonas. Und wie heißt du?“</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C79A00" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 3px;">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+        </div>
+        <span style="font-size: 12.5px; color: #76716A; line-height: 1.45;">Chào bạn! Mình là Jonas. Còn bạn tên gì?</span>
+      </div>
+    </div>
+
+    <!-- your sentence -->
+    <div style="background: #FFFFFF; border: 1px solid #E7E3DA; border-radius: 4px; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div style="font: 600 10.5px/1.3 'Instrument Sans', sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #76716A;">Câu của bạn</div>
+        <div style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid #E7E3DA; background: #FBFAF7; display: flex; align-items: center; justify-content: center;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#161513" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 7px;">
+        <span style="font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 26px; line-height: 1.2; letter-spacing: -0.01em;">„Hallo, ich bin Cự!“</span>
+        <span style="font-size: 13px; color: #76716A;">ha-LÔ · ích bin CỰ</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 7px; border-top: 1px solid #EDEAE2; padding-top: 11px;">
+        <span style="width: 7px; height: 7px; background: #FFCD00; display: inline-block; flex-shrink: 0;"></span>
+        <span style="font-size: 12px; color: #76716A;">Nghe mẫu trước, rồi nói theo cách của bạn.</span>
+      </div>
+    </div>
+
+    <!-- mic zone -->
+    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;">
+      <div style="width: 116px; height: 116px; border-radius: 50%; background: rgba(255, 205, 0, 0.14); display: flex; align-items: center; justify-content: center;">
+        <div style="width: 86px; height: 86px; border-radius: 50%; background: #FFCD00; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(199, 154, 0, 0.35);">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#161513" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="22"></line>
+          </svg>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+        <span style="font-size: 15px; font-weight: 600;">Chạm &amp; nói câu trên</span>
+        <span style="font-size: 12.5px; color: #76716A;">Sai cũng không sao — cứ thử thoải mái.</span>
+      </div>
+    </div>
+
+    <!-- no-mic variant entry -->
+    <div style="flex-shrink: 0; display: flex; justify-content: center; padding-bottom: 22px;">
+      <span style="font: 600 13px/1 'Instrument Sans', sans-serif; color: #76716A; border-bottom: 1px solid #E7E3DA; padding-bottom: 3px;">Chỉ nghe — lặp lại (không dùng micro)</span>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

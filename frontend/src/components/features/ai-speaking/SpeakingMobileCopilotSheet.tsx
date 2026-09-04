@@ -22,6 +22,9 @@ interface Props {
   onClose: () => void;
   showSuggestions: boolean;
   suggestions: Suggestion[];
+  /** Đ4: gợi ý sinh theo yêu cầu — có mặt ⇒ hiện nút khi chưa có chip nào. */
+  suggestionsLoading?: boolean;
+  onRequestSuggestions?: () => void;
   analysedErrors: ErrorItem[] | undefined;
   turnStatus: TurnStatus | null;
   turnNote: string | null;
@@ -35,6 +38,8 @@ export function SpeakingMobileCopilotSheet({
   onClose,
   showSuggestions,
   suggestions,
+  suggestionsLoading,
+  onRequestSuggestions,
   analysedErrors,
   turnStatus,
   turnNote,
@@ -44,10 +49,14 @@ export function SpeakingMobileCopilotSheet({
 }: Props) {
   const t = useTranslations("speaking.chat");
 
+  // Đ4: chưa có chip nhưng có nút yêu cầu ⇒ sheet vẫn có nội dung để mở.
+  const showSuggestionRequest =
+    showSuggestions && suggestions.length === 0 && !!onRequestSuggestions;
   const hasContent =
     analysedErrors !== undefined ||
     !!phonemeResult ||
     !!turnStatus ||
+    showSuggestionRequest ||
     (showSuggestions && suggestions.length > 0);
 
   return (
@@ -89,6 +98,8 @@ export function SpeakingMobileCopilotSheet({
                 analysedErrors={analysedErrors}
                 suggestions={suggestions}
                 suggestionsVisible={showSuggestions}
+                suggestionsLoading={suggestionsLoading}
+                onRequestSuggestions={onRequestSuggestions}
                 phonemeResult={phonemeResult}
                 turnStatus={turnStatus}
                 turnNote={turnNote}

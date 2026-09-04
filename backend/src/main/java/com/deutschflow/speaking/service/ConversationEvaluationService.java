@@ -10,7 +10,8 @@ import com.deutschflow.speaking.dto.ConversationReportDto;
 import com.deutschflow.speaking.entity.AiSpeakingMessage;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
-import com.deutschflow.teacher.service.GradingModelConfig;
+import com.deutschflow.ai.tier.LlmTier;
+import com.deutschflow.ai.tier.LlmTierResolver;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -42,7 +43,9 @@ public class ConversationEvaluationService {
     private final QuotaService quotaService;
     private final AiUsageLedgerService ledgerService;
     private final ObjectMapper objectMapper;
-    private final GradingModelConfig gradingModelConfig;
+    // Khung tier B1.4: chấm hội thoại thường nhật = GRADING_DAILY (tách khỏi GRADING_EXAM
+    // làm đòn bẩy chi phí — quyết định owner 07/08).
+    private final LlmTierResolver llmTierResolver;
 
     /** Generates the evaluation JSON for a conversation/lesson session. Null when there is nothing to assess. */
     public String generateReport(AiSpeakingSession session, Long userId) {
@@ -70,13 +73,12 @@ public class ConversationEvaluationService {
             // cố định để JSON luôn đóng đủ. R-G6: dùng MODEL CHẤM (gpt-oss-120b) thay model nói.
             quotaService.assertAllowed(userId, Instant.now(), 1L);
 
-            AiChatCompletionResult result = openAiChatClient.chatCompletion(
-                    aiMessages, gradingModelConfig.model(), EVAL_TEMPERATURE, EVAL_MAX_TOKENS);
+            AiChatCompletionResult result = openAiChatClient.chatCompletionForTier(
+                    aiMessages, llmTierResolver.spec(LlmTier.GRADING_DAILY), EVAL_TEMPERATURE, EVAL_MAX_TOKENS);
 
             if (result.usage() != null) {
                 ledgerService.record(userId, result.provider(), result.model(),
-                        result.usage().promptTokens(), result.usage().completionTokens(),
-                        result.usage().totalTokens(), "CONVERSATION_EVAL", null, session.getId());
+                        result.usage(), "CONVERSATION_EVAL", null, session.getId());
             }
 
             String raw = result.content();

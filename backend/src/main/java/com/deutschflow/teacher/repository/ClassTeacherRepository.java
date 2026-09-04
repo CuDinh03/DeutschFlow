@@ -13,5 +13,6 @@ public interface ClassTeacherRepository extends JpaRepository<ClassTeacher, Clas
     List<ClassTeacher> findByIdClassId(Long classId);
     List<ClassTeacher> findByIdClassIdIn(List<Long> classIds);
     boolean existsByIdClassIdAndIdTeacherId(Long classId, Long teacherId);
+    boolean existsByIdClassIdAndIdTeacherIdAndRole(Long classId, Long teacherId, String role);
     void deleteByIdClassId(Long classId);
 }

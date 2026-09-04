@@ -61,8 +61,16 @@ export function colorForArticle(article: string | null | undefined): string | nu
   return a === 'der' || a === 'die' || a === 'das' ? ARTICLE_COLOR[a] : null
 }
 
+/** True nếu loại từ là danh từ (chỉ danh từ mới có mạo từ der/die/das). */
+function isNoun(dtype?: string | null): boolean {
+  return !dtype || dtype.toLowerCase() === 'noun'
+}
+
 /** Suy mạo từ từ mã giống (DER→der …). Trả null cho từ không phải danh từ. */
-export function articleOf(word: Pick<WordListItem, 'article' | 'gender'>): ArticleLower | null {
+export function articleOf(word: Pick<WordListItem, 'article' | 'gender'> & { dtype?: string | null }): ArticleLower | null {
+  // Chỉ danh từ mới có mạo từ. Dữ liệu seed gán nhầm giống cho một số từ KHÔNG phải danh từ (vd. tính
+  // từ "ähnlich" bị đánh DIE) — chặn ở đây để không bao giờ hiện "die ähnlich"/màu giống sai (QA F-5).
+  if (!isNoun(word.dtype)) return null
   if (word.article && ARTICLE_COLOR[word.article]) return word.article
   if (word.gender === 'DER') return 'der'
   if (word.gender === 'DIE') return 'die'
@@ -71,15 +79,24 @@ export function articleOf(word: Pick<WordListItem, 'article' | 'gender'>): Artic
 }
 
 /** Màu hiển thị theo giống; fallback về mực nếu không phải danh từ. */
-export function genderColor(word: Pick<WordListItem, 'article' | 'gender'>): string {
+export function genderColor(word: Pick<WordListItem, 'article' | 'gender'> & { dtype?: string | null }): string {
   const a = articleOf(word)
   return a ? ARTICLE_COLOR[a] : 'var(--ga-ink)'
 }
 
 /** Chuỗi đọc/hiển thị đầy đủ: "der Tisch" (danh từ) hoặc "gehen" (động/tính từ). */
-export function wordWithArticle(word: Pick<WordListItem, 'article' | 'gender' | 'baseForm'>): string {
+export function wordWithArticle(word: Pick<WordListItem, 'article' | 'gender' | 'baseForm'> & { dtype?: string | null }): string {
   const a = articleOf(word)
   return a ? `${a} ${word.baseForm}` : word.baseForm
+}
+
+/**
+ * Dọn câu ví dụ để hiển thị: bỏ số thứ tự "1. " / "2) " ở đầu do pipeline sinh dữ liệu để sót
+ * (QA F-5). Không đụng nội dung còn lại — chỉ cắt tiền tố đánh số.
+ */
+export function cleanExample(example: string | null | undefined): string {
+  if (!example) return ''
+  return example.replace(/^\s*\d+\s*[.)]\s*/, '').trim()
 }
 
 /** Fisher–Yates — không đụng mảng gốc (immutable). */
