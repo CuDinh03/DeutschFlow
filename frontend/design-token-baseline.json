@@ -17,11 +17,14 @@
   },
   "src/app/v2/admin/ai-config/page.tsx": {
     "arbitrary-font-size": {
+      "text-[16px]": 1,
+      "text-[18px]": 2,
+      "text-[14px]": 1,
+      "text-[12px]": 1,
       "text-[14.5px]": 1,
       "text-[11px]": 1,
       "text-[13.5px]": 1,
-      "text-[13px]": 2,
-      "text-[18px]": 1
+      "text-[13px]": 2
     }
   },
   "src/app/v2/admin/analytics/page.tsx": {
@@ -52,7 +55,7 @@
       "text-[11.5px]": 2,
       "text-[12.5px]": 5,
       "text-[14.5px]": 4,
-      "text-[15px]": 2,
+      "text-[15px]": 1,
       "text-[14px]": 1,
       "text-[9px]": 2,
       "text-[13px]": 1,
@@ -70,6 +73,34 @@
       "text-[13px]": 1,
       "text-[11px]": 1,
       "text-[13.5px]": 1
+    }
+  },
+  "src/app/v2/admin/exam-bank/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 3,
+      "text-[13.5px]": 1,
+      "text-[12px]": 10,
+      "text-[12.5px]": 5,
+      "text-[11px]": 1
+    }
+  },
+  "src/app/v2/admin/exam-golden/[id]/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 3,
+      "text-[14px]": 1,
+      "text-[13.5px]": 1,
+      "text-[11px]": 1,
+      "text-[12.5px]": 2,
+      "text-[11.5px]": 1
+    }
+  },
+  "src/app/v2/admin/exam-golden/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 4,
+      "text-[13.5px]": 4,
+      "text-[12px]": 7,
+      "text-[12.5px]": 2,
+      "text-[28px]": 2
     }
   },
   "src/app/v2/admin/free-teachers/page.tsx": {
@@ -97,6 +128,31 @@
     },
     "arbitrary-font-size": {
       "text-[14px]": 5
+    }
+  },
+  "src/app/v2/admin/maintenance/page.tsx": {
+    "hex-literal": {
+      "#488": 1,
+      "#FFF3BF": 1,
+      "#8A6C00": 1,
+      "#FAE6E2": 2,
+      "#A8241C": 3,
+      "#E1F0E3": 1,
+      "#2E6E41": 1,
+      "#EFEBDD": 1,
+      "#6A6149": 1,
+      "#E8C7C0": 1,
+      "#7C1D16": 1
+    },
+    "arbitrary-font-size": {
+      "text-[14.5px]": 2,
+      "text-[14px]": 3,
+      "text-[12.5px]": 2,
+      "text-[20px]": 1,
+      "text-[10.5px]": 1,
+      "text-[11px]": 2,
+      "text-[12px]": 1,
+      "text-[13.5px]": 3
     }
   },
   "src/app/v2/admin/marketing/page.tsx": {
@@ -347,6 +403,27 @@
       "rounded-[3px]": 2
     }
   },
+  "src/app/v2/admin/vocabulary/GalerieReviewGrid.tsx": {
+    "hex-literal": {
+      "#C79A00": 1,
+      "#1E9E61": 1,
+      "#DA291C": 1,
+      "#2F6FC9": 1,
+      "#8A8578": 2,
+      "#F6F3EC": 1
+    },
+    "arbitrary-font-size": {
+      "text-[13px]": 2,
+      "text-[14.5px]": 1,
+      "text-[18px]": 1,
+      "text-[12px]": 1,
+      "text-[10px]": 1,
+      "text-[15px]": 1,
+      "text-[11px]": 2,
+      "text-[12.5px]": 1,
+      "text-[11.5px]": 3
+    }
+  },
   "src/app/v2/admin/vocabulary/VocabReviewQueue.tsx": {
     "hex-literal": {
       "#1E9E61": 1
@@ -409,7 +486,6 @@
       "#161513": 1
     },
     "arbitrary-font-size": {
-      "text-[17px]": 1,
       "text-[20px]": 1,
       "text-[13px]": 2
     },
@@ -568,15 +644,15 @@
       "#11888A": 1
     },
     "arbitrary-font-size": {
-      "text-[20px]": 3,
+      "text-[20px]": 4,
       "text-[24px]": 1,
       "text-[14px]": 2,
+      "text-[13.5px]": 6,
       "text-[13px]": 2,
       "text-[15px]": 1,
-      "text-[26px]": 1,
-      "text-[12.5px]": 2,
+      "text-[26px]": 2,
+      "text-[12.5px]": 4,
       "text-[12px]": 2,
-      "text-[13.5px]": 4,
       "text-[11.5px]": 1,
       "text-[11px]": 1
     }
@@ -599,18 +675,22 @@
   "src/app/v2/org/billing/page.tsx": {
     "hex-literal": {
       "#1E9E61": 1,
-      "#A39E94": 3
+      "#A39E94": 4
     },
     "arbitrary-font-size": {
+      "text-[11px]": 1,
       "text-[20px]": 1,
       "text-[24px]": 1,
-      "text-[14px]": 4,
+      "text-[14px]": 5,
       "text-[22px]": 2,
       "text-[26px]": 2,
       "text-[28px]": 1,
-      "text-[13px]": 2,
+      "text-[13px]": 4,
       "text-[32px]": 1,
-      "text-[13.5px]": 1,
+      "text-[13.5px]": 5,
+      "text-[9.5px]": 1,
+      "text-[12px]": 1,
+      "text-[15px]": 1,
       "text-[10px]": 1,
       "text-[12.5px]": 1
     }
@@ -627,12 +707,13 @@
       "text-[20px]": 1,
       "text-[24px]": 1,
       "text-[14px]": 10,
-      "text-[12px]": 3,
+      "text-[12px]": 2,
       "text-[10px]": 5,
       "text-[13px]": 6,
       "text-[11.5px]": 3,
       "text-[12.5px]": 4,
-      "text-[15px]": 1
+      "text-[15px]": 1,
+      "text-[11px]": 2
     }
   },
   "src/app/v2/org/classes/page.tsx": {
@@ -650,15 +731,37 @@
       "text-[12.5px]": 1
     }
   },
-  "src/app/v2/org/finance/page.tsx": {
-    "hex-literal": {
-      "#1E9E61": 1
-    },
+  "src/app/v2/org/curricula/AssignModal.tsx": {
     "arbitrary-font-size": {
-      "text-[14px]": 3,
-      "text-[10px]": 1,
-      "text-[13.5px]": 1,
+      "text-[11.5px]": 1,
       "text-[13px]": 2,
+      "text-[12.5px]": 1
+    }
+  },
+  "src/app/v2/org/curricula/ImportModal.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 1,
+      "text-[12px]": 1,
+      "text-[12.5px]": 1
+    }
+  },
+  "src/app/v2/org/curricula/LektionEditor.tsx": {
+    "arbitrary-font-size": {
+      "text-[15px]": 1,
+      "text-[13px]": 4,
+      "text-[12px]": 3,
+      "text-[14px]": 1,
+      "text-[11.5px]": 3,
+      "text-[12.5px]": 2
+    }
+  },
+  "src/app/v2/org/curricula/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[14px]": 1,
+      "text-[12px]": 3,
+      "text-[17px]": 1,
+      "text-[11.5px]": 2,
+      "text-[13px]": 3,
       "text-[12.5px]": 1
     }
   },
@@ -676,6 +779,17 @@
       "text-[11px]": 2
     }
   },
+  "src/app/v2/org/roles/ApproverSection.tsx": {
+    "arbitrary-font-size": {
+      "text-[12.5px]": 2,
+      "text-[13px]": 5,
+      "text-[10px]": 1,
+      "text-[13.5px]": 1,
+      "text-[12px]": 2,
+      "text-[11px]": 4,
+      "text-[11.5px]": 1
+    }
+  },
   "src/app/v2/org/roles/page.tsx": {
     "hex-literal": {
       "#143": 1
@@ -689,6 +803,22 @@
       "text-[11px]": 1
     }
   },
+  "src/app/v2/org/schedule/ApprovalQueue.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 1,
+      "text-[13.5px]": 2,
+      "text-[12px]": 4,
+      "text-[12.5px]": 4,
+      "text-[11px]": 1
+    }
+  },
+  "src/app/v2/org/schedule/RecordUnlockSection.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 1,
+      "text-[12px]": 1,
+      "text-[12.5px]": 2
+    }
+  },
   "src/app/v2/org/schedule/page.tsx": {
     "arbitrary-font-size": {
       "text-[17px]": 1,
@@ -698,6 +828,12 @@
       "text-[12px]": 2,
       "text-[11px]": 3,
       "text-[10px]": 1
+    }
+  },
+  "src/app/v2/org/settings/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[13.5px]": 5,
+      "text-[12px]": 2
     }
   },
   "src/app/v2/org/students/[id]/page.tsx": {
@@ -726,6 +862,14 @@
       "text-[10.5px]": 1,
       "text-[12.5px]": 1,
       "text-[11px]": 1
+    }
+  },
+  "src/app/v2/org/teachers/AssignClassModal.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 1,
+      "text-[14px]": 1,
+      "text-[11.5px]": 3,
+      "text-[10px]": 2
     }
   },
   "src/app/v2/org/teachers/CreateTeacherModal.tsx": {
@@ -773,6 +917,13 @@
       "text-[12px]": 1
     }
   },
+  "src/app/v2/profile/AvatarSection.tsx": {
+    "arbitrary-font-size": {
+      "text-[12px]": 2,
+      "text-[22px]": 1,
+      "text-[13px]": 1
+    }
+  },
   "src/app/v2/profile/page.tsx": {
     "arbitrary-font-size": {
       "text-[12px]": 2,
@@ -798,6 +949,11 @@
       "text-[11px]": 1,
       "text-[12px]": 1,
       "text-[11.5px]": 1
+    }
+  },
+  "src/app/v2/sectionShared.tsx": {
+    "arbitrary-font-size": {
+      "text-[17px]": 1
     }
   },
   "src/app/v2/student/achievements/page.tsx": {
@@ -876,11 +1032,33 @@
       "text-[11.5px]": 1
     }
   },
+  "src/app/v2/student/classes/[id]/EvaluationTab.tsx": {
+    "arbitrary-font-size": {
+      "text-[14px]": 2,
+      "text-[34px]": 1,
+      "text-[15px]": 1,
+      "text-[12px]": 2,
+      "text-[13px]": 2,
+      "text-[14.5px]": 1,
+      "text-[20px]": 1,
+      "text-[12.5px]": 3
+    }
+  },
   "src/app/v2/student/classes/[id]/LessonMaterials.tsx": {
     "arbitrary-font-size": {
       "text-[12px]": 3,
       "text-[12.5px]": 1,
       "text-[11px]": 1
+    }
+  },
+  "src/app/v2/student/classes/[id]/ScheduleTab.tsx": {
+    "arbitrary-font-size": {
+      "text-[14px]": 1,
+      "text-[15px]": 1,
+      "text-[12px]": 1,
+      "text-[14.5px]": 1,
+      "text-[12.5px]": 2,
+      "text-[13.5px]": 1
     }
   },
   "src/app/v2/student/classes/[id]/assignments/[aid]/AssignmentMaterials.tsx": {
@@ -901,12 +1079,12 @@
       "text-[11.5px]": 1,
       "text-[14px]": 6,
       "text-[15px]": 1,
-      "text-[13px]": 6,
+      "text-[13px]": 7,
       "text-[14.5px]": 3,
       "text-[28px]": 1,
       "text-[32px]": 1,
       "text-[40px]": 1,
-      "text-[12.5px]": 2,
+      "text-[12.5px]": 3,
       "text-[13.5px]": 1
     }
   },
@@ -1038,18 +1216,8 @@
     }
   },
   "src/app/v2/student/grammar/page.tsx": {
-    "hex-literal": {
-      "#1E9E61": 1,
-      "#2F6FC9": 1,
-      "#7C56C8": 1,
-      "#E07B39": 1
-    },
     "arbitrary-font-size": {
-      "text-[13px]": 5,
-      "text-[20px]": 1,
-      "text-[15px]": 1,
-      "text-[10px]": 1,
-      "text-[13.5px]": 1
+      "text-[16px]": 2
     }
   },
   "src/app/v2/student/grammar/practice/page.tsx": {
@@ -1082,23 +1250,13 @@
   "src/app/v2/student/learn/[nodeId]/page.tsx": {
     "arbitrary-font-size": {
       "text-[11px]": 2,
+      "text-[20px]": 3,
       "text-[12px]": 1,
       "text-[11.5px]": 2,
-      "text-[20px]": 3,
       "text-[13.5px]": 6,
       "text-[13px]": 1,
       "text-[12.5px]": 6,
-      "text-[32px]": 1
-    }
-  },
-  "src/app/v2/student/lessons/page.tsx": {
-    "arbitrary-font-size": {
-      "text-[12.5px]": 2,
-      "text-[20px]": 1,
-      "text-[14px]": 1,
-      "text-[13px]": 1,
-      "text-[11.5px]": 1,
-      "text-[12px]": 2
+      "text-[14px]": 1
     }
   },
   "src/app/v2/student/mock-exam/page.tsx": {
@@ -1126,6 +1284,9 @@
     }
   },
   "src/app/v2/student/mock-exam/run/page.tsx": {
+    "hex-literal": {
+      "#409": 1
+    },
     "arbitrary-font-size": {
       "text-[13px]": 6,
       "text-[18px]": 3,
@@ -1154,14 +1315,13 @@
     "arbitrary-font-size": {
       "text-[11px]": 3,
       "text-[10px]": 1,
-      "text-[14px]": 7,
-      "text-[13px]": 2,
-      "text-[13.5px]": 9,
+      "text-[14px]": 8,
+      "text-[13.5px]": 15,
+      "text-[13px]": 4,
+      "text-[12.5px]": 4,
       "text-[17px]": 1,
-      "text-[12.5px]": 3,
       "text-[12px]": 3,
-      "text-[18px]": 1,
-      "text-[22px]": 1,
+      "text-[15px]": 2,
       "text-[24px]": 1,
       "text-[30px]": 1
     },
@@ -1181,8 +1341,7 @@
       "text-[11px]": 2,
       "text-[15px]": 1,
       "text-[12.5px]": 1,
-      "text-[12px]": 1,
-      "text-[34px]": 1
+      "text-[12px]": 1
     }
   },
   "src/app/v2/student/progress/page.tsx": {
@@ -1215,13 +1374,41 @@
       "text-[13px]": 2,
       "text-[28px]": 1,
       "text-[32px]": 1,
-      "text-[40px]": 2,
+      "text-[40px]": 1,
       "text-[20px]": 1,
       "text-[14.5px]": 1,
       "text-[13.5px]": 1,
       "text-[22px]": 1,
       "text-[14px]": 2,
       "text-[12px]": 2
+    }
+  },
+  "src/app/v2/student/speaking/exam/page.tsx": {
+    "hex-literal": {
+      "#A39E94": 4
+    },
+    "arbitrary-font-size": {
+      "text-[13px]": 5,
+      "text-[10px]": 1,
+      "text-[22px]": 1,
+      "text-[26px]": 1,
+      "text-[13.5px]": 1,
+      "text-[12.5px]": 2,
+      "text-[18px]": 2,
+      "text-[14.5px]": 1,
+      "text-[14px]": 2,
+      "text-[12px]": 1
+    }
+  },
+  "src/app/v2/student/speaking/exam/weakness/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 3,
+      "text-[12.5px]": 1,
+      "text-[14px]": 1,
+      "text-[12px]": 1,
+      "text-[11.5px]": 1,
+      "text-[13.5px]": 2,
+      "text-[16px]": 1
     }
   },
   "src/app/v2/student/speaking/history/page.tsx": {
@@ -1308,7 +1495,7 @@
       "text-[38px]": 1,
       "text-[44px]": 1,
       "text-[14px]": 2,
-      "text-[12.5px]": 1,
+      "text-[12.5px]": 2,
       "text-[12px]": 1,
       "text-[11px]": 1,
       "text-[24px]": 1,
@@ -1324,14 +1511,32 @@
       "text-[13px]": 1
     }
   },
+  "src/app/v2/student/vocabulary/dueCount.ts": {
+    "hex-literal": {
+      "#443": 1
+    }
+  },
+  "src/app/v2/student/vocabulary/facets.test.ts": {
+    "hex-literal": {
+      "#2F6FC9": 1,
+      "#DA291C": 1,
+      "#1E9E61": 1
+    }
+  },
   "src/app/v2/student/vocabulary/page.tsx": {
     "arbitrary-font-size": {
-      "text-[14.5px]": 1,
-      "text-[12.5px]": 4,
+      "text-[10px]": 2,
+      "text-[12.5px]": 8,
+      "text-[11px]": 1,
+      "text-[21px]": 1,
+      "text-[25px]": 1,
+      "text-[13px]": 1,
       "text-[20px]": 1,
       "text-[14px]": 2,
-      "text-[19px]": 1,
-      "text-[10px]": 1
+      "text-[19px]": 1
+    },
+    "arbitrary-shadow": {
+      "shadow-[0_12px_30px_rgba(22,21,19,0.16)]": 1
     }
   },
   "src/app/v2/student/vocabulary/practice/page.tsx": {
@@ -1370,7 +1575,10 @@
       "#6D25B3": 1,
       "#F2994A": 2,
       "#FEF3E8": 1,
-      "#C26B1A": 1
+      "#C26B1A": 1,
+      "#76716A": 2,
+      "#F3F0E8": 1,
+      "#4A463F": 1
     },
     "arbitrary-font-size": {
       "text-[16px]": 2,
@@ -1398,8 +1606,8 @@
       "text-[19px]": 1,
       "text-[22px]": 1,
       "text-[11px]": 2,
-      "text-[12px]": 1,
-      "text-[40px]": 1
+      "text-[12.5px]": 1,
+      "text-[12px]": 1
     }
   },
   "src/app/v2/student/weekly-speaking/client-page.tsx": {
@@ -1478,14 +1686,14 @@
       "text-[11px]": 3,
       "text-[8px]": 1,
       "text-[24px]": 1,
-      "text-[14px]": 10,
-      "text-[12px]": 2,
-      "text-[13px]": 13,
-      "text-[12.5px]": 3,
-      "text-[11.5px]": 4,
-      "text-[10px]": 5,
+      "text-[14px]": 11,
+      "text-[12px]": 4,
+      "text-[13px]": 15,
+      "text-[12.5px]": 4,
+      "text-[11.5px]": 5,
+      "text-[10px]": 7,
       "text-[10.5px]": 1,
-      "text-[13.5px]": 3,
+      "text-[13.5px]": 4,
       "text-[16px]": 1,
       "text-[22px]": 1,
       "text-[26px]": 1,
@@ -1522,11 +1730,13 @@
   },
   "src/app/v2/teacher/grading/page.tsx": {
     "hex-literal": {
+      "#7C56C8": 1,
       "#8B7000": 1,
       "#fff": 1
     },
     "arbitrary-font-size": {
       "text-[12.5px]": 5,
+      "text-[11.5px]": 3,
       "text-[13px]": 7,
       "text-[14px]": 4,
       "text-[11px]": 5,
@@ -1539,7 +1749,6 @@
       "text-[15.5px]": 1,
       "text-[13.5px]": 3,
       "text-[15px]": 3,
-      "text-[11.5px]": 2,
       "text-[20px]": 1
     }
   },
@@ -1589,6 +1798,17 @@
       "text-[12px]": 1
     }
   },
+  "src/app/v2/teacher/objectives/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[13.5px]": 1,
+      "text-[14px]": 1,
+      "text-[13px]": 2,
+      "text-[12.5px]": 1,
+      "text-[11px]": 3,
+      "text-[9.5px]": 1,
+      "text-[12px]": 1
+    }
+  },
   "src/app/v2/teacher/page.tsx": {
     "hex-literal": {
       "#7C56C8": 1
@@ -1603,7 +1823,7 @@
       "text-[12px]": 3,
       "text-[15.5px]": 1,
       "text-[13px]": 4,
-      "text-[11.5px]": 4,
+      "text-[11.5px]": 3,
       "text-[10px]": 2,
       "text-[22px]": 1,
       "text-[32px]": 1,
@@ -1627,6 +1847,19 @@
       "text-[11.5px]": 1
     }
   },
+  "src/app/v2/teacher/schedule/MilestonesModal.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 3,
+      "text-[12.5px]": 1,
+      "text-[11px]": 2
+    }
+  },
+  "src/app/v2/teacher/schedule/TeacherRequestsPanel.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 4,
+      "text-[12px]": 1
+    }
+  },
   "src/app/v2/teacher/schedule/page.tsx": {
     "arbitrary-font-size": {
       "text-[20px]": 2,
@@ -1644,7 +1877,19 @@
     "arbitrary-font-size": {
       "text-[13.5px]": 3,
       "text-[12px]": 4,
-      "text-[13px]": 3
+      "text-[13px]": 4
+    }
+  },
+  "src/app/v2/teacher/session/[id]/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 10,
+      "text-[14px]": 1,
+      "text-[13.5px]": 1,
+      "text-[10px]": 1,
+      "text-[11px]": 1,
+      "text-[11.5px]": 1,
+      "text-[12px]": 4,
+      "text-[12.5px]": 1
     }
   },
   "src/app/v2/teacher/sessions/availabilityPanel.tsx": {
@@ -1680,12 +1925,43 @@
       "text-[13px]": 1
     }
   },
+  "src/app/v2/teacher/tc-checklist/AllocationModal.tsx": {
+    "hex-literal": {
+      "#7C56C8": 2
+    },
+    "arbitrary-font-size": {
+      "text-[12.5px]": 3,
+      "text-[13.5px]": 1,
+      "text-[13px]": 5,
+      "text-[12px]": 4,
+      "text-[11.5px]": 1,
+      "text-[10px]": 1,
+      "text-[11px]": 1
+    }
+  },
   "src/app/v2/teacher/tc-checklist/CanDoEditor.tsx": {
     "arbitrary-font-size": {
       "text-[13.5px]": 1,
       "text-[12px]": 1,
       "text-[12.5px]": 1,
       "text-[13px]": 1
+    }
+  },
+  "src/app/v2/teacher/tc-checklist/CurriculumImportWizard.tsx": {
+    "arbitrary-font-size": {
+      "text-[12px]": 5,
+      "text-[13.5px]": 4,
+      "text-[14px]": 3,
+      "text-[13px]": 4,
+      "text-[12.5px]": 3
+    }
+  },
+  "src/app/v2/teacher/tc-checklist/ImportPreviewEditor.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 1,
+      "text-[11.5px]": 6,
+      "text-[11px]": 1,
+      "text-[12px]": 1
     }
   },
   "src/app/v2/teacher/tc-checklist/LessonMaterialsPanel.tsx": {
@@ -1703,13 +1979,13 @@
     "arbitrary-font-size": {
       "text-[12px]": 3,
       "text-[13.5px]": 2,
-      "text-[12.5px]": 4,
+      "text-[12.5px]": 5,
       "text-[13px]": 3,
       "text-[16px]": 1,
-      "text-[15px]": 2,
+      "text-[15px]": 3,
       "text-[14px]": 4,
       "text-[24px]": 1,
-      "text-[10px]": 6,
+      "text-[10px]": 8,
       "text-[11px]": 2,
       "text-[14.5px]": 1,
       "text-[9px]": 1
@@ -1731,7 +2007,7 @@
       "text-[54px]": 1,
       "text-[15px]": 1,
       "text-[12px]": 9,
-      "text-[10px]": 2,
+      "text-[10px]": 3,
       "text-[14.5px]": 1
     }
   },
@@ -1763,6 +2039,13 @@
       "text-[13px]": 4,
       "text-[14px]": 2,
       "text-[12px]": 12
+    }
+  },
+  "src/app/v2/teacher/tc-reports/FourAxisPanel.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 1,
+      "text-[14px]": 1,
+      "text-[12px]": 1
     }
   },
   "src/app/v2/teacher/tc-reports/GradebookCellBadge.tsx": {
@@ -1827,9 +2110,10 @@
   },
   "src/app/v2/teacher/tc-timesheet/page.tsx": {
     "arbitrary-font-size": {
-      "text-[12.5px]": 2,
-      "text-[13px]": 4,
-      "text-[12px]": 1,
+      "text-[14px]": 1,
+      "text-[12.5px]": 6,
+      "text-[13px]": 5,
+      "text-[12px]": 2,
       "text-[22px]": 1
     }
   },
@@ -1868,6 +2152,7 @@
       "#7C56C8": 1
     },
     "arbitrary-font-size": {
+      "text-[13px]": 1,
       "text-[13.5px]": 2,
       "text-[12px]": 1,
       "text-[11.5px]": 1,
@@ -1875,6 +2160,11 @@
       "text-[22px]": 1,
       "text-[14px]": 1,
       "text-[12.5px]": 1
+    }
+  },
+  "src/components/ui-v2/ConfirmDialog.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 1
     }
   },
   "src/components/ui-v2/DataTable.tsx": {
@@ -1920,6 +2210,13 @@
   "src/components/ui-v2/GaMedia.tsx": {
     "arbitrary-font-size": {
       "text-[11px]": 1
+    }
+  },
+  "src/components/ui-v2/GaNotificationToast.tsx": {
+    "arbitrary-font-size": {
+      "text-[10.5px]": 1,
+      "text-[15px]": 1,
+      "text-[12.5px]": 1
     }
   },
   "src/components/ui-v2/GaPageHdr.tsx": {
@@ -2009,19 +2306,19 @@
       "text-[44px]": 1,
       "text-[14.5px]": 5,
       "text-[13px]": 6,
-      "text-[15px]": 10,
+      "text-[15px]": 11,
       "text-[11px]": 3,
       "text-[40px]": 2,
       "text-[54px]": 1,
       "text-[68px]": 1,
-      "text-[18px]": 4,
+      "text-[18px]": 5,
       "text-[16px]": 2,
       "text-[12.5px]": 6,
       "text-[11.5px]": 2,
       "text-[26px]": 1,
       "text-[34px]": 2,
       "text-[42px]": 3,
-      "text-[14px]": 6,
+      "text-[14px]": 7,
       "text-[20px]": 1,
       "text-[22px]": 1,
       "text-[56px]": 1,
