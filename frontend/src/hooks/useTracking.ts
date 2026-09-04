@@ -43,7 +43,10 @@ export function useTracking() {
    */
   const trackFeatureAction = useCallback((
     feature: string,
-    action: 'started' | 'completed' | 'quit' | 'latency' | 'paywall_viewed' | 'checkout_started' | 'checkout_completed' | 'checkout_abandoned' | 'paywall_gate_viewed' | 'clicked',
+    // 'resumed' tách riêng khỏi 'started' có chủ ý: gộp chúng lại thì số phiên bắt đầu bị thổi
+    // lên bởi những lần mở lại một phiên cũ, và không còn cách nào đo xem nút "Tiếp tục" có ai
+    // dùng hay không — mà đó chính là câu hỏi khiến nó được làm (S-06 AC-2).
+    action: 'started' | 'resumed' | 'completed' | 'quit' | 'latency' | 'paywall_viewed' | 'checkout_started' | 'checkout_completed' | 'checkout_abandoned' | 'paywall_gate_viewed' | 'clicked',
     metadata?: Record<string, any>
   ) => {
     if (posthog) {

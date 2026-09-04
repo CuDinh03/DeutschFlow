@@ -67,7 +67,13 @@ export default function V2StudentRoadmapPage() {
   const effectiveView: 'tree' | 'list' = view ?? (narrow === false ? 'tree' : 'list')
 
   const completion = useMemo(() => courseCompletion(nodes), [nodes])
-  const phaseLabel = phase ? t(`phases.${phase.currentPhase.toLowerCase()}Label`) : null
+  // Header phải ĐỨNG được kể cả khi `/phase/current` trả 200 với thân không như hợp đồng: kiểu
+  // `PhaseStateResponse` khai `currentPhase` bắt buộc, nhưng kiểu chỉ là lời hứa lúc biên dịch —
+  // một object rỗng (hoặc một phase mới backend thêm sau) từng đủ để ném
+  // `Cannot read properties of undefined` và đá CẢ trang lộ trình vào error boundary. `.catch`
+  // ở trên chỉ bắt lỗi mạng, không bắt được lệch shape.
+  const phaseKey = phase?.currentPhase ? `phases.${phase.currentPhase.toLowerCase()}Label` : null
+  const phaseLabel = phaseKey && t.has(phaseKey) ? t(phaseKey) : null
 
   return (
     <div className="flex h-full flex-col">

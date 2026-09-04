@@ -85,7 +85,7 @@ describe('focus contract — ui-v2 source', () => {
   })
 
   it('static component KHÔNG tự thêm tabindex/focus ring để đạt count (W0-C3)', () => {
-    for (const f of ['GaCard.tsx', 'GaCap.tsx', 'GaPageHdr.tsx', 'TkStatStrip.tsx', 'AdStat.tsx']) {
+    for (const f of ['GaCard.tsx', 'GaCap.tsx', 'GaPageHdr.tsx', 'GaStatStrip.tsx']) {
       const src = readUi(f)
       expect(src.includes('tabIndex'), `${f} không được thêm tabIndex`).toBe(false)
       expect(src.includes('ring-ga-focus'), `${f} không cần focus ring`).toBe(false)

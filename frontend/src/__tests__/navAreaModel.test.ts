@@ -15,6 +15,8 @@ import {
   resolveArea,
   isUnder,
   isImmersiveRoute,
+  isLocalGroup,
+  localItems,
   studentNav,
   teacherNav,
   type RoleAreas,
@@ -49,7 +51,7 @@ function ownedPrefixes(role: RoleAreas): string[] {
   const out: string[] = []
   for (const a of role.areas) {
     out.push(a.href, ...a.match)
-    for (const l of a.local ?? []) out.push(l.href)
+    for (const l of localItems(a)) out.push(l.href)
   }
   for (const u of role.utility) out.push(u.href)
   if (role.inbox) out.push(role.inbox.href)
@@ -77,7 +79,7 @@ describe('S-01 — student: đúng 5 area, không mất destination', () => {
     const real = Array.from(new Set([...realRoutes('student'), '/v2/profile', '/v2/notifications']))
     const hrefs = [
       ...studentAreas.areas.map((a) => a.href),
-      ...studentAreas.areas.flatMap((a) => (a.local ?? []).map((l) => l.href)),
+      ...studentAreas.areas.flatMap((a) => localItems(a).map((l) => l.href)),
       ...studentAreas.utility.map((u) => u.href),
       studentAreas.inbox!.href,
     ]
@@ -91,7 +93,7 @@ describe('S-01 — student: đúng 5 area, không mất destination', () => {
     expect(byId.lernen.href).toBe('/v2/student/roadmap')
     expect(byId.fortschritt.href).toBe('/v2/student/progress')
     // stats/achievements/history/certificates trở thành subsection của Fortschritt.
-    expect(byId.fortschritt.local?.map((l) => l.href)).toEqual(
+    expect(localItems(byId.fortschritt).map((l) => l.href)).toEqual(
       expect.arrayContaining([
         '/v2/student/stats',
         '/v2/student/achievements',
@@ -103,7 +105,7 @@ describe('S-01 — student: đúng 5 area, không mất destination', () => {
 
   it('AI Interview thuộc Sprechen và đứng ĐẦU local nav (IA-D4)', () => {
     const sprechen = studentAreas.areas.find((a) => a.id === 'sprechen')!
-    expect(sprechen.local![0].href).toBe('/v2/student/interviews')
+    expect(localItems(sprechen)[0].href).toBe('/v2/student/interviews')
     // Không tạo top-level thứ 6.
     expect(studentAreas.areas.some((a) => a.href.includes('interview'))).toBe(false)
   })
@@ -113,7 +115,7 @@ describe('S-01 — student: đúng 5 area, không mất destination', () => {
     expect(utilityHrefs).toEqual(
       expect.arrayContaining(['/v2/profile', '/v2/student/tuition', '/v2/student/welcome']),
     )
-    const areaHrefs = studentAreas.areas.flatMap((a) => [a.href, ...(a.local ?? []).map((l) => l.href)])
+    const areaHrefs = studentAreas.areas.flatMap((a) => [a.href, ...localItems(a).map((l) => l.href)])
     for (const u of utilityHrefs) expect(areaHrefs).not.toContain(u)
   })
 
@@ -165,6 +167,67 @@ describe('S-01 — teacher: 5 nhóm theo việc hằng ngày (IA-D6)', () => {
   })
 })
 
+describe('B-05 — local nav gom nhóm (IA §5.3)', () => {
+  const lernen = studentAreas.areas.find((a) => a.id === 'lernen')!
+
+  it('Lernen còn ĐÚNG 5 ô cấp 1, theo thứ tự IA', () => {
+    expect((lernen.local ?? []).map((e) => e.id)).toEqual([
+      'roadmap',
+      'wiederholen',
+      'bibliothek',
+      'my-classes',
+      'entdecken',
+    ])
+  })
+
+  it('gom nhóm KHÔNG nuốt destination nào — vẫn đủ 10 href như lúc còn phẳng', () => {
+    expect(localItems(lernen).map((i) => i.href)).toEqual([
+      '/v2/student/roadmap',
+      '/v2/student/review',
+      '/v2/student/errors',
+      '/v2/student/lessons',
+      '/v2/student/vocabulary',
+      '/v2/student/grammar',
+      '/v2/student/exercises',
+      '/v2/student/classes',
+      '/v2/student/news',
+      '/v2/student/game',
+    ])
+  })
+
+  it('MỌI area đều ≤5 ô cấp 1 — quy tắc áp cho cả role, không riêng Lernen', () => {
+    for (const areas of [studentAreas, teacherAreas]) {
+      for (const a of areas.areas) {
+        expect((a.local ?? []).length, `${areas.role}/${a.id}`).toBeLessThanOrEqual(5)
+      }
+    }
+  })
+
+  it('nhóm nào cũng có ≥2 destination — nhóm một item bắt người dùng mở menu để tới đúng một chỗ', () => {
+    for (const areas of [studentAreas, teacherAreas]) {
+      for (const a of areas.areas) {
+        for (const entry of a.local ?? []) {
+          if (isLocalGroup(entry)) expect(entry.items.length, entry.id).toBeGreaterThan(1)
+        }
+      }
+    }
+  })
+
+  it('id nhóm không đụng id item — hai bên tra i18n ở namespace khác nhau, trùng là dịch nhầm', () => {
+    const groupIds = new Set<string>()
+    const itemIds = new Set<string>()
+    for (const areas of [studentAreas, teacherAreas]) {
+      for (const a of areas.areas) {
+        for (const entry of a.local ?? []) {
+          if (isLocalGroup(entry)) groupIds.add(entry.id)
+        }
+        for (const item of localItems(a)) itemIds.add(item.id)
+      }
+    }
+    expect(Array.from(groupIds).filter((id) => itemIds.has(id))).toEqual([])
+  })
+})
+
 describe('resolveArea — suy ra area theo pathname', () => {
   const cases: Array<[string, string]> = [
     ['/v2/student/dashboard', 'heute'],
@@ -208,10 +271,13 @@ describe('resolveArea — suy ra area theo pathname', () => {
 })
 
 describe('isImmersiveRoute — ẩn bottom nav trong mode toàn màn hình (S-13)', () => {
-  it('bật cho Exam Room / Interview Room / phiên nói đang chạy', () => {
+  it('bật cho Exam Room và phiên nói đang chạy', () => {
     expect(isImmersiveRoute('/v2/student/mock-exam/run')).toBe(true)
     expect(isImmersiveRoute('/v2/student/speaking/live')).toBe(true)
-    expect(isImmersiveRoute('/v2/student/interviews')).toBe(true)
+  })
+
+  it('TẮT cho màn chủ Interview — đó là hub, không phải phòng phỏng vấn (B-15)', () => {
+    expect(isImmersiveRoute('/v2/student/interviews')).toBe(false)
   })
 
   it('tắt cho màn thường (kể cả trang chuẩn bị của cùng area)', () => {

@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 
 // Báo cáo chất lượng từ vựng (admin) — navy.
 // GET /api/admin/reports/vocabulary-quality?days=N
@@ -134,12 +134,12 @@ export default function V2VocabularyQualityPage() {
           </div>
         ) : (
           <>
-            <TkStatStrip
+            <GaStatStrip
               items={[
                 { label: t('statTotal'), value: (latestNoun?.totalWords ?? latestTrans?.totalWords ?? 0).toLocaleString() },
-                { label: t('statNounGender'), value: pct(latestNoun?.nounCoveragePercent), sub: t('statNounGenderSub'), color: '#1E9E61' },
-                { label: t('statTranslationVi'), value: pct(latestTrans?.viCoveragePercent), sub: t('statTranslationViSub'), color: '#2F6FC9' },
-                { label: t('statAllLocales'), value: pct(latestTrans?.allLocalesCoveragePercent), sub: t('statAllLocalesSub'), color: '#E07B39' },
+                { label: t('statNounGender'), value: pct(latestNoun?.nounCoveragePercent), sub: t('statNounGenderSub'), tone: 'green' },
+                { label: t('statTranslationVi'), value: pct(latestTrans?.viCoveragePercent), sub: t('statTranslationViSub'), tone: 'blue' },
+                { label: t('statAllLocales'), value: pct(latestTrans?.allLocalesCoveragePercent), sub: t('statAllLocalesSub'), tone: 'orange' },
               ]}
             />
 

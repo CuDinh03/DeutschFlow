@@ -14,7 +14,7 @@ import {
   type StudentCompetency, type CompetencyStatus,
 } from '@/lib/studentClassesApi'
 import { resolvePointTexts } from '@/lib/knowledgePoints'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 import { LessonMaterials } from './LessonMaterials'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -196,11 +196,11 @@ export default function V2ClassStudentPage() {
           <div className="flex flex-col gap-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="ga-shimmer h-[64px] border border-ga-line" aria-hidden />)}</div>
         ) : tab === 'overview' ? (
           <>
-            <TkStatStrip
+            <GaStatStrip
               items={[
-                { label: t('stats.lessonProgress'), value: `${lessonPct}%`, sub: t('stats.lessonProgressSub', { done: cls?.lessonCompleted ?? 0, total: cls?.lessonTotal ?? 0 }), color: '#1E9E61' },
-                { label: t('stats.assignments'), value: cls?.assignmentCount ?? 0, sub: t('stats.assignmentsSub', { count: cls?.pendingCount ?? 0 }), color: '#E07B39', alert: (cls?.pendingCount ?? 0) > 0 },
-                { label: t('stats.graded'), value: cls?.gradedCount ?? 0, sub: t('stats.gradedSub'), color: '#2F6FC9' },
+                { label: t('stats.lessonProgress'), value: `${lessonPct}%`, sub: t('stats.lessonProgressSub', { done: cls?.lessonCompleted ?? 0, total: cls?.lessonTotal ?? 0 }), tone: 'green' },
+                { label: t('stats.assignments'), value: cls?.assignmentCount ?? 0, sub: t('stats.assignmentsSub', { count: cls?.pendingCount ?? 0 }), tone: 'orange', alert: (cls?.pendingCount ?? 0) > 0 },
+                { label: t('stats.graded'), value: cls?.gradedCount ?? 0, sub: t('stats.gradedSub'), tone: 'blue' },
                 { label: t('stats.avgScore'), value: cls?.avgScore != null ? `${Math.round(cls.avgScore)}/100` : '—', sub: t('stats.avgScoreSub') },
               ]}
             />

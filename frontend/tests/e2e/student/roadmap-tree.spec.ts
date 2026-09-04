@@ -2,9 +2,14 @@ import { test, expect, type Page } from '@playwright/test'
 import { studentCookies, STUDENT_TOKEN } from '../../helpers/tokens'
 
 /**
- * E2E: tab "Cây học tập" của /v2/student/roadmap.
+ * E2E: cách xem "Cây" của /v2/student/roadmap.
  *
- * Cây đọc đúng `GET /roadmap/me` như tab "Bài học" — không có nguồn dữ liệu riêng — nên toàn bộ
+ * Sau S-03 (Wave 1) cây không còn là một trong ba tab ngang hàng: nó là representation CHÍNH của
+ * Lernweg, và segmented `Cây | Danh sách` chỉ đổi cách nhìn trên cùng một dữ liệu. Mặc định phụ
+ * thuộc khổ màn — desktop mở thẳng vào cây, dưới 768px mở vào danh sách (P4-D4) — nên mọi test
+ * ở đây phải khai RÕ viewport thay vì dựa vào mặc định của Playwright.
+ *
+ * Cây đọc đúng `GET /roadmap/me` như danh sách — không có nguồn dữ liệu riêng — nên toàn bộ
  * test này mock đúng một endpoint đó và kiểm tra cây phản ánh lại nó: đủ node, đúng motif theo
  * `progressStatus`, và mỗi kỹ năng dẫn vào runner chấm điểm thật.
  */
@@ -71,6 +76,9 @@ async function mockSession(page: Page, nodes: unknown[]) {
 }
 
 test.describe('Cây học tập (/v2)', () => {
+  // Khổ desktop: mặc định của segmented là "Cây" — đó chính là hợp đồng các test dưới kiểm.
+  test.use({ viewport: { width: 1280, height: 720 } })
+
   test('mở thẳng vào cây và vẽ đủ node của lộ trình', async ({ page }) => {
     await mockSession(page, a1Roadmap())
     await page.goto('/v2/student/roadmap')
@@ -141,6 +149,10 @@ test.describe('Cây học tập (/v2)', () => {
     await page.setViewportSize({ width: 375, height: 812 })
     await mockSession(page, a1Roadmap())
     await page.goto('/v2/student/roadmap')
+
+    // Dưới 768px mặc định là DANH SÁCH (P4-D4) — cây là lựa chọn chủ động của người học. Test
+    // vẫn phải đo cây ở khổ này: chọn được thì cũng phải dùng được, không tràn ngang.
+    await page.getByRole('tab', { name: 'Cây', exact: true }).click()
 
     await expect(page.getByRole('group', { name: 'Cây học tập' })).toBeVisible()
     const overflow = await page.evaluate(() => {

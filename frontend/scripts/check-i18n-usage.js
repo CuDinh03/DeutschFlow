@@ -133,6 +133,22 @@ function keyCallRe(varName) {
 }
 
 /**
+ * Khoá GHÉP LÚC CHẠY — t(`recorder.${viz}`).
+ *
+ * Bản đầu của guard này chỉ soi chuỗi literal, nên mọi khoá dựng bằng template literal đi lọt. Đó
+ * không phải góc hẹp: SpeakingChatSidebar đọc `recorder.*` từ namespace `speaking.chat` thay vì
+ * `speaking`, và vì next-intl in thẳng đường dẫn khoá ra màn hình chứ không ném lỗi, panel trạng
+ * thái đã hiện chuỗi thô "speaking.chat.recorder.aiSpeaking" cho người dùng thật — CI vẫn xanh.
+ *
+ * Không kiểm trọn khoá động được, nhưng phần TĨNH trước ${ thì kiểm được: nó phải giải ra một NHÓM
+ * trong catalog. Sai namespace, gõ nhầm tên nhóm, hoặc đổi tên nhóm mà quên call site — cả ba đều
+ * lộ. Khoá không có phần tĩnh nào thì bỏ qua, cùng tinh thần với t.has.
+ */
+function templateKeyCallRe(varName) {
+  return new RegExp('\\b' + varName + '(\\.rich|\\.raw|\\.markup)?\\(\\s*`([^`$]*)\\$\\{', 'g')
+}
+
+/**
  * `.raw` is the escape hatch for structured messages — `t.raw('page.faq') as FaqItem[]` pulls an
  * array out on purpose. So `.raw` requires the key to EXIST but may resolve to any type; every
  * other accessor renders text and a group there would surface as "[object Object]".
@@ -173,6 +189,20 @@ function scanSource(rawText, catalog, rel) {
       else if (mustBeRenderable(call[1]) && typeof node === 'object' && node !== null)
         badKeys.push({ rel, ns, key, why: 'resolves to a group, not a message' })
     }
+
+    for (const call of src.matchAll(templateKeyCallRe(varName))) {
+      const head = call[2]
+      const lastDot = head.lastIndexOf('.')
+      if (lastDot <= 0) continue // không có phần tĩnh nào để kiểm
+      const groupPath = head.slice(0, lastDot)
+      checkedKeys++
+      const node = resolve(nsNode, groupPath)
+      const shown = `${head}\${…}`
+      if (node === undefined)
+        badKeys.push({ rel, ns, key: shown, why: `static prefix "${groupPath}" not found` })
+      else if (typeof node !== 'object' || node === null)
+        badKeys.push({ rel, ns, key: shown, why: `static prefix "${groupPath}" is a message, not a group` })
+    }
   }
   return { badNamespaces, badKeys, checkedNamespaces, checkedKeys }
 }
@@ -205,6 +235,11 @@ function selfTest() {
     { name: 'ignores a URL that looks like a comment', src: `const u = 'https://x/y'\nconst t = useTranslations('real')\nt('greet')`, ns: 0, keys: 0 },
     { name: 'handles double quotes', src: `const t = useTranslations("real")\nt("nope")`, ns: 0, keys: 1 },
     { name: 'tracks a second binding separately', src: `const t = useTranslations('real')\nconst tx = useTranslations('real')\ntx('nope')`, ns: 0, keys: 1 },
+    // Khoá ghép lúc chạy — lớp lỗi đã để lọt "speaking.chat.recorder.aiSpeaking" ra màn hình thật.
+    { name: 'catches a dynamic key whose static prefix is missing', src: "const t = useTranslations('real')\nt(`ghost.${x}`)", ns: 0, keys: 1 },
+    { name: 'catches a dynamic key whose static prefix is a message', src: "const t = useTranslations('real')\nt(`greet.${x}`)", ns: 0, keys: 1 },
+    { name: 'accepts a dynamic key under a real group', src: "const t = useTranslations('real')\nt(`group.${x}`)", ns: 0, keys: 0 },
+    { name: 'ignores a dynamic key with no static prefix', src: "const t = useTranslations('real')\nt(`${x}`)", ns: 0, keys: 0 },
   ]
 
   const failures = []

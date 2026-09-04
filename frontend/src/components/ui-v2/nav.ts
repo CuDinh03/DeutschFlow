@@ -399,6 +399,41 @@ export const ROLE_NAV: Record<RoleId, RoleNav> = {
    áp learner five-item rule (IA §9) và không nằm trong release gate của Wave 1.
    ══════════════════════════════════════════════════════════════════════════════ */
 
+/**
+ * Nhóm con của local nav (B-05, IA §5.3).
+ *
+ * Nhóm chứa item; item KHÔNG chứa nhóm. Ràng buộc "mọi destination cách landing ≤2 cấp" vì thế
+ * là bất biến của KIỂU chứ không phải một quy ước phải nhớ: không có cách nào khai cấp thứ ba.
+ */
+export interface LocalGroup {
+  /** Khoá ổn định: i18n (`v2.nav.localGroups.<id>`), analytics, test. */
+  id: string
+  /** Nhãn tiếng Việt — fallback khi thiếu khoá i18n. */
+  label: string
+  icon: string
+  items: NavItem[]
+}
+
+/**
+ * Một ô CẤP 1 của local nav: hoặc là destination đi thẳng, hoặc là nhóm mở ra menu.
+ * Nhóm chỉ có một destination thì đừng khai nhóm — bắt mở menu để tới đúng một chỗ là chi phí
+ * thừa cho người dùng.
+ */
+export type LocalEntry = NavItem | LocalGroup
+
+export function isLocalGroup(entry: LocalEntry): entry is LocalGroup {
+  return 'items' in entry
+}
+
+/**
+ * Mọi destination của một area, đã trải phẳng qua nhóm — nguồn DUY NHẤT cho các phép kiểm
+ * reachability. Gom nhóm là việc của lớp trình bày; "không mất destination nào" phải đo trên
+ * danh sách phẳng, nếu không việc gom nhóm có thể âm thầm nuốt một route.
+ */
+export function localItems(area: AreaNav): NavItem[] {
+  return (area.local ?? []).flatMap((entry) => (isLocalGroup(entry) ? entry.items : [entry]))
+}
+
 /** Một khu vực cấp cao nhất trong persistent navigation. */
 export interface AreaNav {
   /** Khoá ổn định: i18n (`v2.nav.areas.<id>`, `v2.nav.areaHelper.<id>`), analytics, test. */
@@ -416,7 +451,7 @@ export interface AreaNav {
    */
   match: string[]
   /** Điều hướng cấp 2 bên trong area (render bởi GaLocalNav dưới top bar). */
-  local?: NavItem[]
+  local?: LocalEntry[]
   /** Mobile: gộp vào mục "Mehr" thay vì chiếm một ô bottom nav (IA-D7, teacher). */
   mobileInMore?: boolean
 }
@@ -473,17 +508,45 @@ export const studentAreas: RoleAreas = {
         '/v2/student/news',
         '/v2/student/game',
       ],
+      // B-05: mười destination phẳng buộc local nav cuộn ngang ngay ở 1440 và bắt người học đọc
+      // hết danh sách mới biết thứ mình cần nằm đâu. Gom về 5 ô cấp 1 theo IA §5.3
+      // (Lernweg · Heute wiederholen · Bibliothek · Meine Klasse · Entdecken). Không destination
+      // nào bị bỏ: `localItems()` trải phẳng lại đúng 10 href, và `navAreaModel.test.ts` đo
+      // reachability trên danh sách phẳng đó.
       local: [
         { id: 'roadmap', label: 'Lộ trình', href: '/v2/student/roadmap', icon: 'route' },
-        { id: 'review-queue', label: 'Ôn tập (SRS)', href: '/v2/student/review', icon: 'repeat' },
-        { id: 'st-errors', label: 'Sổ lỗi', href: '/v2/student/errors', icon: 'error' },
-        { id: 'vocabulary', label: 'Từ vựng', href: '/v2/student/vocabulary', icon: 'menu_book' },
-        { id: 'grammar', label: 'Ngữ pháp', href: '/v2/student/grammar', icon: 'spellcheck' },
-        { id: 'exercises', label: 'Bài tập bổ trợ', href: '/v2/student/exercises', icon: 'assignment' },
-        { id: 'lessons', label: 'Bài học', href: '/v2/student/lessons', icon: 'play_circle' },
+        {
+          id: 'wiederholen',
+          label: 'Ôn tập',
+          icon: 'repeat',
+          items: [
+            { id: 'review-queue', label: 'Ôn tập (SRS)', href: '/v2/student/review', icon: 'repeat' },
+            // Sổ lỗi là ôn tập có chủ đích (ôn đúng chỗ đã sai), không phải tài liệu tra cứu —
+            // nên nó thuộc nhóm ôn tập chứ không thuộc Thư viện.
+            { id: 'st-errors', label: 'Sổ lỗi', href: '/v2/student/errors', icon: 'error' },
+          ],
+        },
+        {
+          id: 'bibliothek',
+          label: 'Thư viện',
+          icon: 'library_books',
+          items: [
+            { id: 'lessons', label: 'Bài học', href: '/v2/student/lessons', icon: 'play_circle' },
+            { id: 'vocabulary', label: 'Từ vựng', href: '/v2/student/vocabulary', icon: 'menu_book' },
+            { id: 'grammar', label: 'Ngữ pháp', href: '/v2/student/grammar', icon: 'spellcheck' },
+            { id: 'exercises', label: 'Bài tập bổ trợ', href: '/v2/student/exercises', icon: 'assignment' },
+          ],
+        },
         { id: 'my-classes', label: 'Lớp của tôi', href: '/v2/student/classes', icon: 'groups' },
-        { id: 'news', label: 'Tin tức Đức', href: '/v2/student/news', icon: 'newspaper' },
-        { id: 'game', label: 'Trò chơi', href: '/v2/student/game', icon: 'sports_esports' },
+        {
+          id: 'entdecken',
+          label: 'Khám phá',
+          icon: 'explore',
+          items: [
+            { id: 'news', label: 'Tin tức Đức', href: '/v2/student/news', icon: 'newspaper' },
+            { id: 'game', label: 'Trò chơi', href: '/v2/student/game', icon: 'sports_esports' },
+          ],
+        },
       ],
     },
     {
@@ -664,7 +727,10 @@ export function resolveArea(role: RoleAreas, pathname: string): AreaNav | undefi
 const IMMERSIVE_ROUTES = [
   '/v2/student/mock-exam/run',
   '/v2/student/speaking/live',
-  '/v2/student/interviews',
+  // `/v2/student/interviews` ĐÃ RỜI danh sách này ở B-15: nó là màn CHỦ của Interview (bắt đầu
+  // phiên mới · phiên đang dở · báo cáo cũ), không phải phòng phỏng vấn. Ẩn nav ở đó là ẩn nhầm
+  // chỗ. Phòng thật (`/speaking/live`) vẫn ẩn — và ẩn theo TRẠNG THÁI qua `useImmersiveChrome`,
+  // nên màn tổng kết cuối phiên lấy lại được nav để người dùng đi tiếp.
 ]
 
 export function isImmersiveRoute(pathname: string): boolean {

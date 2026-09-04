@@ -316,24 +316,30 @@
     },
     "exam": {
       "title": "Luyện thi Goethe",
-      "subtitle": "Chuẩn bị cho kỳ thi chứng chỉ tiếng Đức theo từng cấp độ",
-      "heroCap": "Sẵn sàng kiểm tra?",
-      "heroTitle": "Làm bài thi thử có chấm điểm AI",
-      "heroDesc": "Mô phỏng định dạng đề thật, nhận điểm và phản hồi tức thì.",
-      "heroCta": "Bắt đầu thi thử",
-      "levelsCap": "Các cấp độ",
-      "levels": {
-        "a1Desc": "Giao tiếp cơ bản hằng ngày, giới thiệu bản thân.",
-        "a2Desc": "Tình huống quen thuộc, nhu cầu trực tiếp.",
-        "b1Desc": "Tự xoay sở khi du lịch, viết & nói về chủ đề quen.",
-        "b2Desc": "Hiểu văn bản phức tạp, giao tiếp trôi chảy."
-      },
-      "skillsCap": "Luyện theo kỹ năng",
+      "subtitle": "Ba việc khác nhau: thi thử có giờ, đo mức sẵn sàng, và xem lại kết quả",
+      "preparingFor": "Bạn đang chuẩn bị: <strong>Goethe {level}</strong>",
+      "simCap": "Prüfungssimulation",
+      "simTitle": "Bài thi đầy đủ, có giờ",
+      "simDesc": "Đúng định dạng đề thật, có đồng hồ và chấm điểm. Làm khi bạn muốn biết mình đứng ở đâu trong điều kiện giống ngày thi.",
+      "simSaveNotice": "Bài làm được lưu trên thiết bị này trong lúc thi, nên tải lại trang hay rớt mạng không mất bài. Đổi máy hoặc xoá dữ liệu trình duyệt thì không khôi phục được.",
+      "simCta": "Chọn đề và bắt đầu",
+      "readinessCap": "B1-Bereitschaft",
+      "readinessTitle": "Đo mức sẵn sàng B1",
+      "readinessDesc": "Không phải một bài thi. Đây là bản đánh giá theo 5 tiêu chí để biết bạn đã đủ điều kiện dự thi B1 chưa.",
+      "reportsCap": "Prüfungsberichte",
+      "reportsTitle": "Lịch sử và phiếu điểm",
+      "reportsDesc": "Các lần thi đã làm, điểm từng phần và bài chữa chi tiết.",
+      "skillsCap": "Đề thi gồm những gì",
       "skills": {
-        "listening": "Nghe (Hören)",
-        "reading": "Đọc & Viết (Lesen/Schreiben)",
-        "speaking": "Nói (Sprechen)",
-        "mock": "Thi thử tổng hợp"
+        "lesenName": "Lesen",
+        "lesenDesc": "Đọc hiểu văn bản, biển báo, email.",
+        "hoerenName": "Hören",
+        "hoerenDesc": "Nghe hội thoại và thông báo.",
+        "schreibenName": "Schreiben",
+        "schreibenDesc": "Điền biểu mẫu và viết thư ngắn.",
+        "sprechenName": "Sprechen",
+        "sprechenDesc": "Giới thiệu bản thân, hỏi đáp, trình bày.",
+        "sprechenLink": "Vào phòng luyện nói"
       }
     },
     "classes": {
@@ -543,7 +549,21 @@
         "beginnerDesc": "Ngày 1: từ vựng cơ bản và câu chào hỏi đầu tiên"
       }
     },
+    "examShell": {
+      "sectionOf": "Phần {index}/{total}",
+      "exit": "Thoát",
+      "progressLabel": "Tiến độ bài thi",
+      "answered": "{done}/{total} câu",
+      "saveSaving": "Đang lưu…",
+      "saveSaved": "Đã lưu trên thiết bị này",
+      "saveSavedAt": "Đã lưu trên thiết bị này · {time}",
+      "saveError": "Không lưu được — đừng đóng tab",
+      "timeLeftAnnounce": "Còn {minutes} phút"
+    },
     "mockExamRun": {
+      "draftRestored": "Đã khôi phục {count} câu bạn đã trả lời trên thiết bị này.",
+      "draftMissing": "Thiết bị này không có bài làm đã lưu — bạn sẽ bắt đầu lại từ đầu.",
+      "confirmExit": "Thoát khỏi bài thi? Bài làm được giữ trên thiết bị này nên bạn vào lại được, nhưng đồng hồ vẫn tiếp tục chạy.",
       "title": "Thi thử Goethe",
       "subtitle": "Làm bài theo format Goethe-Institut chính thức, chấm điểm tự động",
       "loading": "Đang tải…",
@@ -644,7 +664,15 @@
       "downloadReport": "Tải báo cáo",
       "generatingReport": "AI đang phân tích buổi phỏng vấn của bạn…",
       "reportTimeout": "Hết thời gian chờ báo cáo — vui lòng thử lại",
-      "phaseCap": "Kết quả theo Phase"
+      "phaseCap": "Kết quả theo Phase",
+      "whatCap": "Phỏng vấn AI là gì",
+      "whatDesc": "Một buổi phỏng vấn mô phỏng bằng tiếng Đức: có nhà tuyển dụng, có vị trí ứng tuyển, đi qua năm chặng từ giới thiệu tới kết thúc, và cuối buổi có báo cáo đánh giá.",
+      "whatVsStudio": "Khác với Luyện nói AI — ở đó bạn chọn tình huống đời thường và luyện tự do, không bị đánh giá theo tiêu chí tuyển dụng.",
+      "incompleteSaved": "Các lượt đã trả lời đã được lưu",
+      "resume": "Tiếp tục phiên",
+      "resuming": "Đang mở lại…",
+      "resumeFailed": "Không mở lại được phiên này. Kiểm tra kết nối rồi thử lại.",
+      "resumeUnknownPersona": "Không nhận ra người phỏng vấn của phiên này nên không mở lại được. Báo cáo vẫn xem được."
     },
     "speakingHistory": {
       "title": "Lịch sử luyện nói",
@@ -1044,7 +1072,6 @@
       "loading": "Đang tải…",
       "subtitle": "Đang tải…",
       "headerSubtitle": "{node} · Thế hệ {gen}",
-      "metaLine": "{node} · Thế hệ {gen} · {count} câu",
       "backToSkills": "Quay lại chọn kỹ năng",
       "loadError": "Không thể tải bài tập. Vui lòng thử lại.",
       "noSession": "Chưa có bài tập cho kỹ năng này.",
@@ -1064,10 +1091,10 @@
       "generateNext": "Làm thêm bài mới",
       "generating": "Đang sinh…",
       "otherSkill": "Chọn kỹ năng khác",
-      "totalSeen": "Tổng cộng đã luyện {count} câu không lặp lại"
+      "totalSeen": "Tổng cộng đã luyện {count} câu không lặp lại",
+      "exerciseCount": "{count} câu trong bài"
     },
     "learnNode": {
-      "toPractice": "Luyện 4 kỹ năng",
       "roadmapContext": "Vị trí trong lộ trình",
       "completedInRoadmap": "lộ trình đã hoàn thành",
       "contentPendingTitle": "⚡ Nội dung đang được chuẩn bị",
@@ -1137,6 +1164,31 @@
       "allDone": "Bạn đã hoàn thành tất cả bài ôn tập hôm nay!",
       "completedCap": "Đã hoàn thành ({count})",
       "times": "{count} lần"
+    },
+    "interviewShell": {
+      "phaseProgressLabel": "Tiến độ buổi phỏng vấn",
+      "phaseOf": "Chặng {index}/{total}",
+      "notStarted": "Chưa bắt đầu",
+      "phases": {
+        "INTRO": "Giới thiệu",
+        "ICE_BREAKER": "Làm quen",
+        "HARD_SKILLS": "Chuyên môn",
+        "STAR_SOFT": "Tình huống",
+        "CLOSING": "Kết thúc"
+      }
+    },
+    "lessonShell": {
+      "exit": "Thoát",
+      "modeLabel": "Chế độ bài",
+      "modeLearn": "Học",
+      "modePractice": "Luyện",
+      "minutes": "~{n} phút",
+      "objective": "Mục tiêu",
+      "progressLabel": "Tiến độ bài",
+      "step": "Bước {current}/{total}",
+      "savedOnDevice": "Đã lưu trên thiết bị này lúc {time}",
+      "saveUnavailable": "Không lưu được bài làm trên thiết bị này",
+      "restoredDraft": "Đã khôi phục bài làm dở trên thiết bị này"
     }
   }
 }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import api from '@/lib/api'
-import { AdStatStrip, type AdStatCell, ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { GaStatStrip, type GaStatItem, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { GaPageHdr } from '@/components/ui-v2'
 import { GaSection, GaBars, GaDonut, GaLegend, GA_CHART, fmtVnd, fmtDateTime, nfVN } from '../../analyticsShared'
 
@@ -90,19 +90,19 @@ export default function V2AdminRevenuePage() {
   const latest = chart.length > 0 ? chart[chart.length - 1] : null
   const mrr = latest?.netVnd ?? overview?.netVnd ?? 0
 
-  const cells: AdStatCell[] = [
-    { label: t('stats.mrr'), value: fmtVnd(mrr), color: '#1E9E61', sub: latest ? latest.period : '—' },
-    { label: t('stats.arr'), value: fmtVnd(mrr * 12), color: '#2F6FC9', sub: t('stats.arrSub') },
+  const cells: GaStatItem[] = [
+    { label: t('stats.mrr'), value: fmtVnd(mrr), tone: 'green', sub: latest ? latest.period : '—' },
+    { label: t('stats.arr'), value: fmtVnd(mrr * 12), tone: 'blue', sub: t('stats.arrSub') },
     {
       label: t('stats.subscribers'),
       value: latest ? nfVN.format(latest.subscribers) : '—',
-      color: '#7C56C8',
+      tone: 'violet',
       sub: t('stats.subscribersSub'),
     },
     {
       label: t('stats.margin'),
       value: overview ? `${overview.marginPct.toFixed(1)}%` : '—',
-      color: overview && overview.marginPct >= 50 ? '#1E9E61' : '#E07B39',
+      tone: overview && overview.marginPct >= 50 ? 'green' : 'orange',
       sub: t('stats.marginSub'),
     },
   ]
@@ -131,7 +131,7 @@ export default function V2AdminRevenuePage() {
           <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
-            <AdStatStrip cells={cells} />
+            <GaStatStrip items={cells} />
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[2fr_1fr]">
               <GaSection title={t('netByPeriod')}>

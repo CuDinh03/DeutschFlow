@@ -9,7 +9,7 @@ import {
   getOrgSummary, getAnalytics, listClasses, listInvitations,
   type OrgSummary, type OrgAnalytics, type OrgClass, type OrgInvitation,
 } from '@/lib/orgApi'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Org dashboard OWNER (GaOrgDashboard) — teal (role=org). Góc nhìn GIÁM ĐỐC: sức khoẻ trung tâm
@@ -107,12 +107,12 @@ export function OrgOwnerDashboard() {
       />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
-        <TkStatStrip
+        <GaStatStrip
           items={[
-            { label: t('stats.seatsUsed'), value: summary ? `${summary.seatUsed}/${summary.seatLimit}` : '—', sub: t('stats.capacity', { pct: seatPct }), color: TEAL },
-            { label: t('stats.totalStudents'), value: loading ? '—' : (analytics?.studentCount ?? summary?.studentCount ?? 0), sub: t('stats.active7d', { count: analytics?.activeStudents7d ?? 0 }), color: '#2F6FC9' },
-            { label: t('stats.openClasses'), value: loading ? '—' : (analytics?.classCount ?? classes.length), sub: loading ? '—' : t('stats.teacherCount', { count: summary?.teacherCount ?? 0 }), color: '#7C56C8' },
-            { label: t('stats.tokensThisMonth'), value: analytics ? analytics.tokensThisMonth.toLocaleString('vi-VN') : '—', sub: analytics?.poolUnlimited ? t('stats.poolUnlimited') : analytics && analytics.monthlyTokenPool > 0 ? t('stats.poolPercent', { pct: Math.round(analytics.poolUsagePercent) }) : t('stats.noPool'), color: '#1E9E61' },
+            { label: t('stats.seatsUsed'), value: summary ? `${summary.seatUsed}/${summary.seatLimit}` : '—', sub: t('stats.capacity', { pct: seatPct }), tone: 'teal' },
+            { label: t('stats.totalStudents'), value: loading ? '—' : (analytics?.studentCount ?? summary?.studentCount ?? 0), sub: t('stats.active7d', { count: analytics?.activeStudents7d ?? 0 }), tone: 'blue' },
+            { label: t('stats.openClasses'), value: loading ? '—' : (analytics?.classCount ?? classes.length), sub: loading ? '—' : t('stats.teacherCount', { count: summary?.teacherCount ?? 0 }), tone: 'violet' },
+            { label: t('stats.tokensThisMonth'), value: analytics ? analytics.tokensThisMonth.toLocaleString('vi-VN') : '—', sub: analytics?.poolUnlimited ? t('stats.poolUnlimited') : analytics && analytics.monthlyTokenPool > 0 ? t('stats.poolPercent', { pct: Math.round(analytics.poolUsagePercent) }) : t('stats.noPool'), tone: 'green' },
           ]}
         />
 

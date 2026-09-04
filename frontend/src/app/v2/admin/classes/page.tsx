@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaCap, GaBtn, TkSearch, TkStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaCap, GaBtn, TkSearch, GaStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Quản lý lớp học toàn hệ thống (admin) — navy, LIST (W1.7 migrate admin/classes).
@@ -57,11 +57,11 @@ export default function V2AdminClassesPage() {
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
-        <TkStatStrip
+        <GaStatStrip
           items={[
             { label: t('stats.totalClasses'), value: items.length, sub: t('stats.totalClassesSub') },
-            { label: t('stats.totalStudents'), value: totalStudents.toLocaleString(), sub: t('stats.totalStudentsSub'), color: '#2F6FC9' },
-            { label: t('stats.unassigned'), value: unassigned, sub: t('stats.unassignedSub'), color: unassigned ? 'var(--ga-red)' : undefined },
+            { label: t('stats.totalStudents'), value: totalStudents.toLocaleString(), sub: t('stats.totalStudentsSub'), tone: 'blue' },
+            { label: t('stats.unassigned'), value: unassigned, sub: t('stats.unassignedSub'), tone: unassigned ? 'red' : undefined },
           ]}
         />
 

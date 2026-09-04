@@ -117,6 +117,11 @@
       "tBerichte": "Berichte",
       "more": "Mehr"
     },
+    "localGroups": {
+      "wiederholen": "Ôn tập",
+      "bibliothek": "Thư viện",
+      "entdecken": "Khám phá"
+    },
     "areaHelper": {
       "heute": "Hôm nay",
       "lernen": "Học",
@@ -148,6 +153,16 @@
     "confirm": "Xác nhận",
     "search": "Tìm kiếm"
   },
+  "error": {
+    "title": "Trang gặp lỗi",
+    "desc": "Trang dừng lại giữa chừng khi đang hiển thị. Thử lại thường là đủ; nếu vẫn vậy, gửi phần chi tiết bên dưới cho đội kỹ thuật.",
+    "staleTitle": "Trình duyệt đang giữ bản cũ",
+    "staleDesc": "Tệp của bản triển khai trước không còn trên máy chủ. Tải lại trang để lấy bản mới nhất.",
+    "detailsCap": "Chi tiết kỹ thuật",
+    "digestLabel": "Mã lỗi",
+    "noMessage": "Không có thông báo lỗi.",
+    "reload": "Tải lại trang"
+  },
   "ui": {
     "openNav": "Mở menu điều hướng",
     "closeNav": "Đóng menu",
@@ -175,6 +190,9 @@
     "viewAllNotifications": "Xem tất cả thông báo →",
     "view": "Xem",
     "unread": "chưa đọc",
+    "notifToastJustNow": "vừa xong",
+    "notifToastView": "Xem chi tiết",
+    "notifToastClose": "Đóng thông báo",
     "roleChipAdmin": "● Hệ thống ổn định",
     "roleChipTeacher": "Khu vực giáo viên",
     "roleChipOrg": "Khu vực tổ chức",

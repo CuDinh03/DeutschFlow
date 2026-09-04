@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { ChevronRight, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Báo cáo hệ thống (admin) — navy HUB, condensed (W1.7 migrate admin/reports).
@@ -47,6 +47,8 @@ export default function V2AdminReportsPage() {
   const [gate, setGate] = useState<GateDay[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  // A-11: cảnh báo mềm khi một vài báo cáo con lỗi nhưng trang vẫn dựng được (không nuốt lỗi).
+  const [partialWarn, setPartialWarn] = useState('')
 
   const [onlyUnder20, setOnlyUnder20] = useState(false)
   const [sortBy, setSortBy] = useState<SortBy>('lastStudyDesc')
@@ -57,21 +59,35 @@ export default function V2AdminReportsPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    try {
-      const [ov, pr, pc, gr, rs, gt] = await Promise.all([
-        api.get<Overview>('/admin/reports/overview'),
-        api.get<ProgressRow[]>('/admin/reports/student-plan-progress'),
-        api.get<Percentiles>('/admin/reports/api-telemetry/percentiles', { params: { days: 7, endpoint: '/api/plan/sessions/submit' } }),
-        api.get<GrammarDay[]>('/admin/reports/grammar-feedback-coverage', { params: { days: 14 } }),
-        api.get<Ruleset>('/admin/reports/personalization-ruleset'),
-        api.get<GateDay[]>('/admin/reports/gate-checklist', { params: { days: 14, endpoint: '/api/plan/sessions/submit' } }),
-      ])
-      setOverview(ov.data ?? null); setProgress(pr.data ?? []); setPercentiles(pc.data ?? null)
-      setGrammar(gr.data ?? []); setRuleset(rs.data ?? null); setGate(gt.data ?? [])
+    // A-11: đọc 6 báo cáo độc lập bằng allSettled — trước đây Promise.all khiến MỘT endpoint 500
+    // (student-plan-progress) kéo sập CẢ trang. Giờ hiển thị những báo cáo tải được, chỉ báo lỗi
+    // cứng khi "overview" (khung trang) hỏng, còn lại cảnh báo mềm.
+    const results = await Promise.allSettled([
+      api.get<Overview>('/admin/reports/overview'),
+      api.get<ProgressRow[]>('/admin/reports/student-plan-progress'),
+      api.get<Percentiles>('/admin/reports/api-telemetry/percentiles', { params: { days: 7, endpoint: '/api/plan/sessions/submit' } }),
+      api.get<GrammarDay[]>('/admin/reports/grammar-feedback-coverage', { params: { days: 14 } }),
+      api.get<Ruleset>('/admin/reports/personalization-ruleset'),
+      api.get<GateDay[]>('/admin/reports/gate-checklist', { params: { days: 14, endpoint: '/api/plan/sessions/submit' } }),
+    ])
+    const [ov, pr, pc, gr, rs, gt] = results
+    if (ov.status === 'fulfilled') setOverview(ov.value.data ?? null)
+    if (pr.status === 'fulfilled') setProgress(pr.value.data ?? [])
+    if (pc.status === 'fulfilled') setPercentiles(pc.value.data ?? null)
+    if (gr.status === 'fulfilled') setGrammar(gr.value.data ?? [])
+    if (rs.status === 'fulfilled') setRuleset(rs.value.data ?? null)
+    if (gt.status === 'fulfilled') setGate(gt.value.data ?? [])
+
+    const failedCount = results.filter((r) => r.status === 'rejected').length
+    if (ov.status === 'rejected') {
+      setError(apiMessage(ov.reason))
+      setPartialWarn('')
+    } else {
       setError('')
-    } catch (e: unknown) { setError(apiMessage(e)) }
-    finally { setLoading(false) }
-  }, [])
+      setPartialWarn(failedCount > 0 ? t('partialError', { count: failedCount }) : '')
+    }
+    setLoading(false)
+  }, [t])
   useEffect(() => { void load() }, [load])
 
   const runWiktionary = async () => {
@@ -123,6 +139,11 @@ export default function V2AdminReportsPage() {
           <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">{t('noData')}</div>
         ) : (
           <>
+            {partialWarn && (
+              <div role="status" className="mb-4 border border-ga-line bg-ga-card px-4 py-3 text-[13px] text-ga-red">
+                {partialWarn}
+              </div>
+            )}
             {/* Action signals */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {signals.map((s) => (
@@ -138,11 +159,11 @@ export default function V2AdminReportsPage() {
 
             {/* Overview */}
             <div className="mt-[22px]">
-              <TkStatStrip items={[
+              <GaStatStrip items={[
                 { label: t('statUsers'), value: (overview.userCount ?? 0).toLocaleString() },
-                { label: t('statTeacherStudent'), value: `${overview.teacherCount ?? 0} / ${overview.studentCount ?? 0}`, color: '#2F6FC9' },
-                { label: t('statClasses'), value: overview.classCount ?? 0, color: '#11888A' },
-                { label: t('statAvgQuiz'), value: Number(overview.avgQuizScore ?? 0).toFixed(2), color: '#E07B39' },
+                { label: t('statTeacherStudent'), value: `${overview.teacherCount ?? 0} / ${overview.studentCount ?? 0}`, tone: 'blue' },
+                { label: t('statClasses'), value: overview.classCount ?? 0, tone: 'teal' },
+                { label: t('statAvgQuiz'), value: Number(overview.avgQuizScore ?? 0).toFixed(2), tone: 'orange' },
               ]} />
             </div>
 

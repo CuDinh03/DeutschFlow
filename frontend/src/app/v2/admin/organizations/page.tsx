@@ -14,7 +14,7 @@ import {
   type AdminOrg,
   type OrgInvoice,
 } from '@/lib/adminOrgApi'
-import { GaPageHdr, GaBtn, GaCap, AdStatStrip, DataTable, TkModal, type DataTableColumn } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip, DataTable, TkModal, type DataTableColumn } from '@/components/ui-v2'
 import { CreateOrgModal } from './CreateOrgModal'
 
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
@@ -286,24 +286,24 @@ export default function V2AdminOrgsPage() {
           </p>
         </div>
 
-        <AdStatStrip
+        <GaStatStrip
           className="mb-6"
-          cells={[
-            { label: t('stats.issuedRevenue'), value: vndCompact(stats.revenue), color: '#1E9E61', sub: t('stats.issuedRevenueSub') },
+          items={[
+            { label: t('stats.issuedRevenue'), value: vndCompact(stats.revenue), tone: 'green', sub: t('stats.issuedRevenueSub') },
             {
               label: t('stats.totalSeats'),
               value: stats.seats.toLocaleString('vi-VN'),
-              color: '#7C56C8',
+              tone: 'violet',
               sub: t('stats.totalSeatsSub', { count: stats.count }),
             },
             {
               label: t('stats.unpaidInvoices'),
               value: stats.unpaid,
-              color: '#E07B39',
+              tone: 'orange',
               sub: t('stats.unpaidInvoicesSub'),
               alert: stats.unpaid > 0,
             },
-            { label: t('stats.pendingActivation'), value: stats.pending, color: '#2F6FC9', alert: stats.pending > 0 },
+            { label: t('stats.pendingActivation'), value: stats.pending, tone: 'blue', alert: stats.pending > 0 },
           ]}
         />
 

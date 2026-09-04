@@ -186,6 +186,14 @@
   .ga-scope .ga-shimmer { animation: none; }
 }
 
+/* Mode shell (ExamShell S-09 · InterviewShell S-06 · StudioShell S-07): trong lúc một mode shell
+   mở, chrome của role shell biến mất HOÀN TOÀN — không chỉ bị lớp phủ che. `display:none` gỡ nó
+   khỏi tab order và khỏi cây accessibility, nên hợp đồng "0 nav toàn cục trong mode shell" đúng
+   cả khi kiểm bằng DOM lẫn khi đi bằng bàn phím. Cờ do `useImmersiveChrome()` bật. */
+body[data-immersive-mode='on'] [data-ga-chrome] {
+  display: none;
+}
+
 /* Learning tree (Cây học tập) — glow on open leaves + ready milestones. */
 .lt-node { outline: none; cursor: pointer; }
 /* Suppress the ring on pointer focus, but keep a clear keyboard focus indicator (WCAG 2.4.7). */

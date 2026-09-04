@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl'
 import { AlertCircle, ChevronRight, ShieldAlert, Trophy } from 'lucide-react'
 import api from '@/lib/api'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
-import { GaBtn, GaCap, GaPageHdr, LoadingState, ErrorBanner, TkBadge, TkStatStrip } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaPageHdr, LoadingState, ErrorBanner, TkBadge, GaStatStrip } from '@/components/ui-v2'
 import { GaSection, GaMultiBars, GaArea, GaBarRow } from '../../analyticsShared'
 
 /**
@@ -164,16 +164,16 @@ export default function V2StudentStatsPage() {
               {failed && <ErrorBanner message={t('partialError')} onRetry={load} />}
 
               {/* KPI 7 ngày */}
-              <TkStatStrip
+              <GaStatStrip
                 items={[
-                  { label: t('kpi.learned'), value: analytics.totalWordsLearned, sub: t('kpi.thisWeek'), color: '#2F6FC9' },
-                  { label: t('kpi.reviewed'), value: analytics.totalWordsReviewed, sub: t('kpi.words'), color: '#1E9E61' },
-                  { label: t('kpi.speaking'), value: `${analytics.totalSpeakingMinutes}′`, sub: t('kpi.thisWeek'), color: '#E07B39' },
+                  { label: t('kpi.learned'), value: analytics.totalWordsLearned, sub: t('kpi.thisWeek'), tone: 'blue' },
+                  { label: t('kpi.reviewed'), value: analytics.totalWordsReviewed, sub: t('kpi.words'), tone: 'green' },
+                  { label: t('kpi.speaking'), value: `${analytics.totalSpeakingMinutes}′`, sub: t('kpi.thisWeek'), tone: 'orange' },
                   {
                     label: t('kpi.due'),
                     value: analytics.wordsDueForReview,
                     sub: t('kpi.toReview'),
-                    color: '#DA291C',
+                    tone: 'red',
                     alert: analytics.wordsDueForReview > 0,
                   },
                 ]}

@@ -315,25 +315,31 @@
       "noExams": "This pack has no exams yet."
     },
     "exam": {
-      "title": "Goethe Exam Prep",
-      "subtitle": "Prepare for the German certification exam at each level",
-      "heroCap": "Ready to test yourself?",
-      "heroTitle": "Take a mock exam with AI scoring",
-      "heroDesc": "Simulate the real exam format and get scores and instant feedback.",
-      "heroCta": "Start a mock exam",
-      "levelsCap": "Levels",
-      "levels": {
-        "a1Desc": "Basic everyday communication, introducing yourself.",
-        "a2Desc": "Familiar situations and immediate needs.",
-        "b1Desc": "Manage while traveling, write & speak on familiar topics.",
-        "b2Desc": "Understand complex texts, communicate fluently."
-      },
-      "skillsCap": "Practice by skill",
+      "title": "Goethe exam prep",
+      "subtitle": "Three different things: a timed mock exam, a readiness check, and your past results",
+      "preparingFor": "You are preparing for: <strong>Goethe {level}</strong>",
+      "simCap": "Prüfungssimulation",
+      "simTitle": "Full exam, on the clock",
+      "simDesc": "The real exam format, timed and scored. Take it when you want to know where you stand under exam-day conditions.",
+      "simSaveNotice": "Your answers are saved on this device while you work, so a reload or a dropped connection will not lose them. Switching devices or clearing site data will.",
+      "simCta": "Pick a paper and start",
+      "readinessCap": "B1-Bereitschaft",
+      "readinessTitle": "B1 readiness check",
+      "readinessDesc": "Not an exam. A five-criteria assessment of whether you are ready to sit the B1 exam.",
+      "reportsCap": "Prüfungsberichte",
+      "reportsTitle": "History and score sheets",
+      "reportsDesc": "Past attempts, per-section scores and detailed corrections.",
+      "skillsCap": "What the exam covers",
       "skills": {
-        "listening": "Listening (Hören)",
-        "reading": "Reading & Writing (Lesen/Schreiben)",
-        "speaking": "Speaking (Sprechen)",
-        "mock": "Full mock exam"
+        "lesenName": "Lesen",
+        "lesenDesc": "Reading texts, signs and emails.",
+        "hoerenName": "Hören",
+        "hoerenDesc": "Listening to conversations and announcements.",
+        "schreibenName": "Schreiben",
+        "schreibenDesc": "Filling forms and writing short letters.",
+        "sprechenName": "Sprechen",
+        "sprechenDesc": "Introducing yourself, asking, presenting.",
+        "sprechenLink": "Open the speaking room"
       }
     },
     "classes": {
@@ -543,7 +549,21 @@
         "beginnerDesc": "Day 1: core words and your first greeting phrases"
       }
     },
+    "examShell": {
+      "sectionOf": "Section {index}/{total}",
+      "exit": "Exit",
+      "progressLabel": "Exam progress",
+      "answered": "{done}/{total} answered",
+      "saveSaving": "Saving…",
+      "saveSaved": "Saved on this device",
+      "saveSavedAt": "Saved on this device · {time}",
+      "saveError": "Could not save — keep this tab open",
+      "timeLeftAnnounce": "{minutes} minutes left"
+    },
     "mockExamRun": {
+      "draftRestored": "Restored {count} answers saved on this device.",
+      "draftMissing": "No saved work on this device — you are starting over.",
+      "confirmExit": "Leave the exam? Your work stays on this device so you can come back, but the clock keeps running.",
       "title": "Goethe mock exam",
       "subtitle": "Sit the official Goethe-Institut format with automatic scoring",
       "loading": "Loading…",
@@ -644,7 +664,15 @@
       "downloadReport": "Download report",
       "generatingReport": "AI is analysing your interview…",
       "reportTimeout": "Report timed out — please try again",
-      "phaseCap": "Results by phase"
+      "phaseCap": "Results by phase",
+      "whatCap": "What an AI interview is",
+      "whatDesc": "A simulated job interview in German: a recruiter, a role you are applying for, five stages from introduction to closing, and an assessment report at the end.",
+      "whatVsStudio": "Different from AI Speaking — there you pick an everyday scenario and practise freely, without being judged against hiring criteria.",
+      "incompleteSaved": "Answered turns are saved",
+      "resume": "Resume session",
+      "resuming": "Reopening…",
+      "resumeFailed": "Could not reopen this session. Check your connection and try again.",
+      "resumeUnknownPersona": "The interviewer for this session is not recognised, so it cannot be reopened. The report is still available."
     },
     "speakingHistory": {
       "title": "Speaking History",
@@ -1044,7 +1072,6 @@
       "loading": "Loading…",
       "subtitle": "Loading…",
       "headerSubtitle": "{node} · Generation {gen}",
-      "metaLine": "{node} · Generation {gen} · {count} questions",
       "backToSkills": "Back to skill picker",
       "loadError": "Could not load the exercises. Please try again.",
       "noSession": "No exercises yet for this skill.",
@@ -1064,10 +1091,10 @@
       "generateNext": "Practise a new set",
       "generating": "Generating…",
       "otherSkill": "Pick another skill",
-      "totalSeen": "You have practised {count} non-repeating questions in total"
+      "totalSeen": "You have practised {count} non-repeating questions in total",
+      "exerciseCount": "{count} exercises in this set"
     },
     "learnNode": {
-      "toPractice": "Practice 4 skills",
       "roadmapContext": "Position in roadmap",
       "completedInRoadmap": "of the roadmap completed",
       "contentPendingTitle": "⚡ Content is being prepared",
@@ -1137,6 +1164,31 @@
       "allDone": "You have completed all review tasks for today!",
       "completedCap": "Completed ({count})",
       "times": "{count} times"
+    },
+    "interviewShell": {
+      "phaseProgressLabel": "Interview progress",
+      "phaseOf": "Stage {index}/{total}",
+      "notStarted": "Not started",
+      "phases": {
+        "INTRO": "Introduction",
+        "ICE_BREAKER": "Ice breaker",
+        "HARD_SKILLS": "Hard skills",
+        "STAR_SOFT": "Situational",
+        "CLOSING": "Closing"
+      }
+    },
+    "lessonShell": {
+      "exit": "Exit",
+      "modeLabel": "Lesson mode",
+      "modeLearn": "Learn",
+      "modePractice": "Practice",
+      "minutes": "~{n} min",
+      "objective": "Goal",
+      "progressLabel": "Lesson progress",
+      "step": "Step {current}/{total}",
+      "savedOnDevice": "Saved on this device at {time}",
+      "saveUnavailable": "Cannot save your work on this device",
+      "restoredDraft": "Restored your unfinished work from this device"
     }
   }
 }

@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip, TkSearch } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkSearch } from '@/components/ui-v2'
 
 const VIOLET = '#7C56C8'
 
@@ -148,22 +148,22 @@ export default function V2TeacherDashboardPage() {
       />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-8 lg:px-[52px] lg:py-[30px]">
-        <TkStatStrip
+        <GaStatStrip
           items={[
             { label: t('stats.students'), value: totals.students, sub: t('stats.studentsSub', { count: classes.length }) },
             {
               label: t('stats.toGrade'),
               value: summary.pendingReviewCount,
               sub: t('stats.toGradeSub'),
-              color: '#E07B39',
+              tone: 'orange',
               alert: summary.pendingReviewCount > 0,
             },
-            { label: t('stats.assignments'), value: totals.tasks, sub: t('stats.assignmentsSub'), color: '#2F6FC9' },
+            { label: t('stats.assignments'), value: totals.tasks, sub: t('stats.assignmentsSub'), tone: 'blue' },
             {
               label: t('stats.joinRequests'),
               value: summary.pendingJoinRequests,
               sub: t('stats.joinRequestsSub'),
-              color: '#1E9E61',
+              tone: 'green',
               alert: summary.pendingJoinRequests > 0,
             },
           ]}

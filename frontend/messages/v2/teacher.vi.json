@@ -475,9 +475,6 @@
     "messages": {
       "title": "Tin nhắn",
       "subtitle": "Nhắn riêng từng học viên hoặc cả nhóm lớp",
-      "modeAria": "Chế độ nhắn tin",
-      "modeDirect": "Trực tiếp",
-      "modeClass": "Nhóm lớp",
       "emptyDirect": "Chưa có hội thoại. Nhấn \"Nhắn học viên\" ở trên để bắt đầu trò chuyện riêng với học viên."
     },
     "analytics": {

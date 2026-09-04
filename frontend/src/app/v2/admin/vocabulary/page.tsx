@@ -7,7 +7,8 @@ import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import useAdminData from '@/hooks/useAdminData'
 import type { VocabularyImageReviewResponse } from '@/lib/vocabularyImageApi'
-import { GaPageHdr, GaBtn, GaCap, AdStatStrip, TkModal } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkModal } from '@/components/ui-v2'
+import VocabReviewQueue from './VocabReviewQueue'
 
 // ── Green header accent (vocab screen overrides the admin-navy chrome) ────────
 const GREEN = '#1E9E61'
@@ -56,6 +57,7 @@ export default function V2AdminVocabPage() {
   const t = useTranslations('v2.adminContent.vocabulary')
   const tc = useTranslations('v2.common')
   const [target, setTarget] = useState<VocabWord | null>(null)
+  const [tab, setTab] = useState<'images' | 'review'>('images')
 
   const { data, loading, error, reload } = useAdminData<VocabWord[]>({
     initialData: [],
@@ -100,20 +102,41 @@ export default function V2AdminVocabPage() {
         }
       />
 
+      <div className="border-b border-ga-line px-4 pt-4 sm:px-6 lg:px-10" role="tablist">
+        {(['images', 'review'] as const).map((k) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={tab === k}
+            onClick={() => setTab(k)}
+            className={`-mb-px min-h-[40px] border-b-2 px-4 py-2 text-[13px] font-semibold transition-colors ${
+              tab === k ? 'text-ga-ink' : 'border-transparent text-ga-muted hover:text-ga-ink'
+            }`}
+            style={tab === k ? { borderColor: GREEN } : undefined}
+          >
+            {t(k === 'images' ? 'tabImages' : 'tabReview')}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'review' ? (
+        <VocabReviewQueue />
+      ) : (
       <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
-        <AdStatStrip
+        <GaStatStrip
           className="mb-6"
-          cells={[
-            { label: t('statTotal'), value: stats.total.toLocaleString('vi-VN'), color: GREEN },
+          items={[
+            { label: t('statTotal'), value: stats.total.toLocaleString('vi-VN'), tone: 'green' },
             {
               label: t('statMissing'),
               value: stats.missing.toLocaleString('vi-VN'),
-              color: '#E07B39',
+              tone: 'orange',
               sub: t('statMissingSub'),
               alert: stats.missing > 0,
             },
-            { label: t('statPending'), value: stats.missing.toLocaleString('vi-VN'), color: '#C79A00' },
-            { label: t('statAudio'), value: `${stats.audioPct}%`, color: '#2F6FC9' },
+            { label: t('statPending'), value: stats.missing.toLocaleString('vi-VN'), tone: 'gold' },
+            { label: t('statAudio'), value: `${stats.audioPct}%`, tone: 'blue' },
           ]}
         />
 
@@ -202,8 +225,9 @@ export default function V2AdminVocabPage() {
           </p>
         )}
       </div>
+      )}
 
-      {target && (
+      {tab === 'images' && target && (
         <AttachImageModal
           word={target}
           onClose={() => setTarget(null)}

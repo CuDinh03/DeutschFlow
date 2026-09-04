@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { getOrgSummary, listMyInvoices, type OrgSummary, type OrgInvoice } from '@/lib/orgApi'
-import { GaPageHdr, TkStatStrip, ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { GaPageHdr, GaStatStrip, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { GaSection, GaBars, fmtVnd, nfVN } from '../../analyticsShared'
 import { OrgOwnerOnly } from '../OwnerOnly'
 
@@ -77,17 +77,17 @@ function V2OrgFinanceInner() {
           <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
-            <TkStatStrip
+            <GaStatStrip
               items={[
-                { label: t('stats.paid'), value: fmtVnd(totalPaid), sub: t('stats.invoiceCount', { count: paid.length }), color: GREEN },
+                { label: t('stats.paid'), value: fmtVnd(totalPaid), sub: t('stats.invoiceCount', { count: paid.length }), tone: 'green' },
                 {
                   label: t('stats.outstanding'),
                   value: fmtVnd(totalOutstanding),
                   sub: t('stats.invoiceCount', { count: sent.length }),
-                  color: totalOutstanding > 0 ? '#E07B39' : '#76716A',
+                  tone: totalOutstanding > 0 ? 'orange' : 'neutral',
                 },
-                { label: t('stats.totalInvoices'), value: nfVN.format(issued.length), color: '#2F6FC9' },
-                { label: t('stats.seatsSold'), value: summary ? nfVN.format(summary.seatUsed) : '—', sub: t('stats.seatsSuffix', { limit: summary?.seatLimit ?? 0 }), color: '#7C56C8' },
+                { label: t('stats.totalInvoices'), value: nfVN.format(issued.length), tone: 'blue' },
+                { label: t('stats.seatsSold'), value: summary ? nfVN.format(summary.seatUsed) : '—', sub: t('stats.seatsSuffix', { limit: summary?.seatLimit ?? 0 }), tone: 'violet' },
               ]}
             />
 

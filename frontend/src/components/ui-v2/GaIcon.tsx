@@ -46,6 +46,8 @@ import {
   ClipboardList,
   Database,
   Repeat,
+  Compass,
+  ChevronDown,
   PlayCircle,
   Route,
   Trophy,
@@ -56,6 +58,14 @@ import {
   History,
   Menu,
   X,
+  CalendarDays,
+  CalendarX,
+  CalendarClock,
+  UserX,
+  BanknoteX,
+  AlertTriangle,
+  Building,
+  CircleDollarSign,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -125,9 +135,23 @@ const ICONS: Record<string, LucideIcon> = {
   // Dùng bởi nav item `st-exercise-history` + EmptyState của /v2/student/exercise-history.
   // Thiếu khoá này thì GaIcon rơi về fallback `Circle` (một vòng tròn trống) — trông như lỗi UI.
   history: History,
+  // Chevron của nhóm local nav (B-05) — dấu hiệu "mở ra menu", phân biệt với ô đi thẳng.
+  expand_more: ChevronDown,
+  // Nhóm "Khám phá" của local nav Lernen (B-05). Thiếu khoá này thì nhóm rơi về `Circle`.
+  explore: Compass,
   // Điều hướng mobile: mở/đóng ngăn kéo sidebar (GaTopBar hamburger + GaSidebar nút đóng).
   menu: Menu,
   close: X,
+  // Bộ TYPE_ICON của notifications (notificationDisplay.ts) — thiếu khoá nào thì bell/toast
+  // rơi về Circle rỗng trông như lỗi UI.
+  event: CalendarDays,
+  event_busy: CalendarX,
+  edit_calendar: CalendarClock,
+  person_off: UserX,
+  money_off: BanknoteX,
+  warning: AlertTriangle,
+  apartment: Building,
+  paid: CircleDollarSign,
 }
 
 export interface GaIconProps {

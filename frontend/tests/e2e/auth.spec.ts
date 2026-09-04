@@ -152,8 +152,11 @@ test.describe('Authentication Flow', () => {
     // 2. Go to student dashboard
     await page.goto('/v2/student/dashboard');
 
-    // 3. Click logout. The v2 shell (GaSidebar) keeps it in the sidebar footer, always visible —
-    // there is no user menu to open first, unlike the legacy StudentShell.
+    // 3. Log out. B-06 collapsed the duplicate: for area-nav roles (student/teacher) the ONLY
+    // logout lives in the topbar account menu. The sidebar footer that used to carry a second copy
+    // now renders for admin/org alone — they have no account menu, so there it is the only way out.
+    // The panel is a Radix popover that mounts only while open, hence the two clicks.
+    await page.getByRole('button', { name: 'Tài khoản', exact: true }).click();
     await page.getByRole('button', { name: /Đăng xuất/i }).click();
 
     // 4. Verify it redirects to the v2 login (authSession.logout() hard-navigates there)

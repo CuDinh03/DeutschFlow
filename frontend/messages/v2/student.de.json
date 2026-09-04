@@ -316,24 +316,30 @@
     },
     "exam": {
       "title": "Goethe-Prüfungsvorbereitung",
-      "subtitle": "Bereite dich auf die deutsche Sprachprüfung nach Niveau vor",
-      "heroCap": "Bereit für einen Test?",
-      "heroTitle": "Mach eine Probeprüfung mit KI-Bewertung",
-      "heroDesc": "Simuliere das echte Prüfungsformat und erhalte Punkte und sofortiges Feedback.",
-      "heroCta": "Probeprüfung starten",
-      "levelsCap": "Niveaus",
-      "levels": {
-        "a1Desc": "Grundlegende Alltagskommunikation, sich vorstellen.",
-        "a2Desc": "Vertraute Situationen und unmittelbare Bedürfnisse.",
-        "b1Desc": "Auf Reisen zurechtkommen, über vertraute Themen schreiben & sprechen.",
-        "b2Desc": "Komplexe Texte verstehen, fließend kommunizieren."
-      },
-      "skillsCap": "Nach Fertigkeit üben",
+      "subtitle": "Drei verschiedene Dinge: Simulation mit Zeit, Bereitschaftscheck und deine Ergebnisse",
+      "preparingFor": "Du bereitest dich vor auf: <strong>Goethe {level}</strong>",
+      "simCap": "Prüfungssimulation",
+      "simTitle": "Vollständige Prüfung mit Zeit",
+      "simDesc": "Das echte Prüfungsformat, mit Uhr und Bewertung. Für den Moment, in dem du deinen Stand unter Prüfungsbedingungen wissen willst.",
+      "simSaveNotice": "Deine Antworten werden während der Prüfung auf diesem Gerät gespeichert — ein Neuladen oder Verbindungsabbruch kostet dich nichts. Ein Gerätewechsel oder gelöschte Websitedaten schon.",
+      "simCta": "Prüfung wählen und starten",
+      "readinessCap": "B1-Bereitschaft",
+      "readinessTitle": "B1-Bereitschaft prüfen",
+      "readinessDesc": "Keine Prüfung. Eine Einschätzung nach fünf Kriterien, ob du für die B1-Prüfung bereit bist.",
+      "reportsCap": "Prüfungsberichte",
+      "reportsTitle": "Verlauf und Ergebnisbögen",
+      "reportsDesc": "Bisherige Versuche, Punkte je Teil und ausführliche Korrekturen.",
+      "skillsCap": "Was die Prüfung umfasst",
       "skills": {
-        "listening": "Hören",
-        "reading": "Lesen & Schreiben",
-        "speaking": "Sprechen",
-        "mock": "Vollständige Probeprüfung"
+        "lesenName": "Lesen",
+        "lesenDesc": "Texte, Schilder und E-Mails verstehen.",
+        "hoerenName": "Hören",
+        "hoerenDesc": "Gespräche und Durchsagen verstehen.",
+        "schreibenName": "Schreiben",
+        "schreibenDesc": "Formulare ausfüllen, kurze Briefe schreiben.",
+        "sprechenName": "Sprechen",
+        "sprechenDesc": "Sich vorstellen, fragen, präsentieren.",
+        "sprechenLink": "Zum Sprechtraining"
       }
     },
     "classes": {
@@ -543,7 +549,21 @@
         "beginnerDesc": "Tag 1: Grundwortschatz und erste Begrüßungen"
       }
     },
+    "examShell": {
+      "sectionOf": "Teil {index}/{total}",
+      "exit": "Verlassen",
+      "progressLabel": "Prüfungsfortschritt",
+      "answered": "{done}/{total} beantwortet",
+      "saveSaving": "Wird gespeichert…",
+      "saveSaved": "Auf diesem Gerät gespeichert",
+      "saveSavedAt": "Auf diesem Gerät gespeichert · {time}",
+      "saveError": "Speichern fehlgeschlagen — Tab offen lassen",
+      "timeLeftAnnounce": "Noch {minutes} Minuten"
+    },
     "mockExamRun": {
+      "draftRestored": "{count} auf diesem Gerät gespeicherte Antworten wiederhergestellt.",
+      "draftMissing": "Auf diesem Gerät sind keine Antworten gespeichert — du beginnst von vorn.",
+      "confirmExit": "Prüfung verlassen? Deine Antworten bleiben auf diesem Gerät, aber die Zeit läuft weiter.",
       "title": "Goethe-Prüfungssimulation",
       "subtitle": "Im offiziellen Goethe-Institut-Format mit automatischer Bewertung",
       "loading": "Wird geladen…",
@@ -644,7 +664,15 @@
       "downloadReport": "Bericht herunterladen",
       "generatingReport": "Die KI analysiert Ihr Vorstellungsgespräch…",
       "reportTimeout": "Zeitüberschreitung beim Bericht — bitte erneut versuchen",
-      "phaseCap": "Ergebnisse nach Phase"
+      "phaseCap": "Ergebnisse nach Phase",
+      "whatCap": "Was ein KI-Interview ist",
+      "whatDesc": "Ein simuliertes Vorstellungsgespräch auf Deutsch: mit Recruiter, mit Zielposition, in fünf Phasen von der Vorstellung bis zum Abschluss — und einem Bericht am Ende.",
+      "whatVsStudio": "Anders als das Sprechtraining: dort wählst du Alltagssituationen und übst frei, ohne Bewertung nach Einstellungskriterien.",
+      "incompleteSaved": "Beantwortete Runden sind gespeichert",
+      "resume": "Sitzung fortsetzen",
+      "resuming": "Wird geöffnet…",
+      "resumeFailed": "Diese Sitzung konnte nicht erneut geöffnet werden. Prüfe die Verbindung und versuche es noch einmal.",
+      "resumeUnknownPersona": "Die interviewende Person dieser Sitzung ist unbekannt, sie kann daher nicht erneut geöffnet werden. Der Bericht bleibt verfügbar."
     },
     "speakingHistory": {
       "title": "Sprechverlauf",
@@ -1044,7 +1072,6 @@
       "loading": "Lädt…",
       "subtitle": "Lädt…",
       "headerSubtitle": "{node} · Generation {gen}",
-      "metaLine": "{node} · Generation {gen} · {count} Aufgaben",
       "backToSkills": "Zurück zur Fertigkeitsauswahl",
       "loadError": "Die Übungen konnten nicht geladen werden. Bitte erneut versuchen.",
       "noSession": "Für diese Fertigkeit gibt es noch keine Übungen.",
@@ -1064,10 +1091,10 @@
       "generateNext": "Neue Übung machen",
       "generating": "Wird erzeugt…",
       "otherSkill": "Andere Fertigkeit wählen",
-      "totalSeen": "Insgesamt {count} Aufgaben ohne Wiederholung geübt"
+      "totalSeen": "Insgesamt {count} Aufgaben ohne Wiederholung geübt",
+      "exerciseCount": "{count} Aufgaben in dieser Runde"
     },
     "learnNode": {
-      "toPractice": "4 Fertigkeiten üben",
       "roadmapContext": "Position im Lernpfad",
       "completedInRoadmap": "des Lernpfads abgeschlossen",
       "contentPendingTitle": "⚡ Inhalt wird vorbereitet",
@@ -1137,6 +1164,31 @@
       "allDone": "Du hast alle Wiederholungsaufgaben für heute abgeschlossen!",
       "completedCap": "Abgeschlossen ({count})",
       "times": "{count} Mal"
+    },
+    "interviewShell": {
+      "phaseProgressLabel": "Interviewfortschritt",
+      "phaseOf": "Phase {index}/{total}",
+      "notStarted": "Nicht begonnen",
+      "phases": {
+        "INTRO": "Vorstellung",
+        "ICE_BREAKER": "Warmlaufen",
+        "HARD_SKILLS": "Fachwissen",
+        "STAR_SOFT": "Situationen",
+        "CLOSING": "Abschluss"
+      }
+    },
+    "lessonShell": {
+      "exit": "Beenden",
+      "modeLabel": "Lernmodus",
+      "modeLearn": "Lernen",
+      "modePractice": "Üben",
+      "minutes": "~{n} Min.",
+      "objective": "Ziel",
+      "progressLabel": "Lernfortschritt",
+      "step": "Schritt {current}/{total}",
+      "savedOnDevice": "Auf diesem Gerät gespeichert um {time}",
+      "saveUnavailable": "Deine Eingaben können auf diesem Gerät nicht gespeichert werden",
+      "restoredDraft": "Nicht abgeschlossene Arbeit von diesem Gerät wiederhergestellt"
     }
   }
 }

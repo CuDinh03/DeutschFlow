@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { studentCookies, STUDENT_TOKEN } from '../../helpers/tokens';
 
 /**
- * E2E: tab "Bài học" và trạng thái rỗng của /v2/student/roadmap.
+ * E2E: cách xem "Danh sách" và trạng thái rỗng của /v2/student/roadmap.
  *
  * Tệp này trước đây trỏ vào `/student/roadmap` (v1) và có 3 test. Chỉ 1 test được port; 2 test
  * kia BỊ XOÁ vì chúng kiểm thử một mô hình dữ liệu đã không còn tồn tại, chứ không phải một
@@ -14,9 +14,15 @@ import { studentCookies, STUDENT_TOKEN } from '../../helpers/tokens';
  *   · "unlock job slow before completing" — bấm mở khoá node vệ tinh qua `POST /skill-tree/{id}/unlock`
  *     rồi poll `/async-jobs/{id}`. Luồng mở khoá bằng AI này không tồn tại trên /v2.
  *
- * Bù lại, tab "Cây học tập" (mặc định) đã được phủ riêng và kỹ ở `roadmap-tree.spec.ts` — cùng
- * nguồn `GET /roadmap/me`. Tệp này giữ phần còn lại của hợp đồng trang: tab "Bài học" và
- * trạng thái rỗng.
+ * S-03 (Wave 1) bỏ BA tab ngang hàng (Cây học tập · Bài học · Giai đoạn) — ba mental model cạnh
+ * tranh — và thay bằng MỘT segmented control `Cây | Danh sách` chỉ đổi CÁCH NHÌN trên cùng một
+ * dữ liệu:
+ *
+ *   · Cây là representation chính trên desktop — phủ riêng và kỹ ở `roadmap-tree.spec.ts`.
+ *   · Danh sách là bản thay thế ACCESSIBLE của cùng `GET /roadmap/me`, và là mặc định dưới 768px.
+ *   · "Giai đoạn" không còn là tab: ngữ cảnh phase được hấp thụ vào header của màn.
+ *
+ * Tệp này giữ phần còn lại của hợp đồng trang: cách xem danh sách và trạng thái rỗng.
  */
 
 const STUDENT_ME = {
@@ -74,25 +80,29 @@ async function mockRoadmap(page: Page, nodes: unknown[]) {
 }
 
 test.describe('Lộ trình học viên (/v2)', () => {
-  test('backend không trả node nào thì báo lộ trình rỗng', async ({ page }) => {
+  // Giá trị mặc định của segmented PHỤ THUỘC khổ màn (desktop → Cây, <768px → Danh sách), nên
+  // viewport phải khai RÕ ở đây thay vì dựa vào mặc định của Playwright.
+  test.use({ viewport: { width: 1280, height: 720 } });
+
+  test('backend không trả node nào thì báo lộ trình rỗng và không mời đổi cách xem', async ({ page }) => {
     await mockRoadmap(page, []);
     await page.goto('/v2/student/roadmap');
 
-    // Tab mặc định ("Cây học tập") và tab "Bài học" dùng CHUNG một trạng thái rỗng.
     await expect(page.getByText('Chưa có bài học nào')).toBeVisible();
     await expect(
       page.getByText('Hoàn thành phần khảo sát đầu vào để nhận lộ trình cá nhân hoá.'),
     ).toBeVisible();
 
-    await page.getByRole('tab', { name: 'Bài học' }).click();
-    await expect(page.getByText('Chưa có bài học nào')).toBeVisible();
+    // Không có node thì không có gì để nhìn theo hai cách — segmented control phải vắng mặt,
+    // chứ không phải hiện ra rồi dẫn vào một khung rỗng thứ hai.
+    await expect(page.getByRole('tab')).toHaveCount(0);
   });
 
-  test('tab "Bài học" liệt kê node kèm tiến độ và hai cửa vào bài', async ({ page }) => {
+  test('cách xem "Danh sách" liệt kê node kèm tiến độ và hai cửa vào bài', async ({ page }) => {
     await mockRoadmap(page, [node(1, 'completed'), node(2, 'current'), node(3, 'locked')]);
     await page.goto('/v2/student/roadmap');
 
-    await page.getByRole('tab', { name: 'Bài học' }).click();
+    await page.getByRole('tab', { name: 'Danh sách', exact: true }).click();
 
     await expect(page.getByText('Ngày 1', { exact: true })).toBeVisible();
     await expect(page.getByText('3/3 bài')).toBeVisible();
@@ -104,6 +114,12 @@ test.describe('Lộ trình học viên (/v2)', () => {
       /\/v2\/student\/learn\/101\/?$/,
     );
     await expect(page.getByRole('link', { name: 'Luyện 4 kỹ năng' })).toHaveCount(2);
-    await expect(page.getByText('Chưa mở')).toBeVisible();
+
+    // Compact overview của mobile vẫn nằm trong DOM ở desktop (`md:hidden`) và dùng CHUNG nhãn
+    // "Chưa mở" với badge của danh sách → phải bám vào phần tử ĐANG HIỆN, nếu không sẽ dính
+    // strict-mode vì hai kết quả.
+    await expect(page.getByText('Chưa mở').filter({ visible: true })).toHaveCount(1);
+    // Node khoá nói rõ ĐIỀU KIỆN MỞ bằng câu chữ, không chỉ một ổ khoá (plan S-03).
+    await expect(page.getByText('Hoàn thành «Ngày 2» để mở chặng này.')).toBeVisible();
   });
 });

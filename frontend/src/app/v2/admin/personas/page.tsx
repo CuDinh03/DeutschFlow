@@ -12,7 +12,7 @@ import {
   type InterviewPersonaInfo,
   type InterviewAnalytics,
 } from '@/lib/interviewDomainApi'
-import { GaPageHdr, GaBtn, GaCap, AdStatStrip, TkModal, TkSeg, type TkSegOption } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkModal, TkSeg, type TkSegOption } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 
 // Tier-colored badge (BEGINNER green / INTERMEDIATE blue / ADVANCED violet; CEFR-aware).
@@ -218,13 +218,13 @@ export default function V2AdminPersonasPage() {
       />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10 lg:py-[26px]">
-        <AdStatStrip
+        <GaStatStrip
           className="mb-6"
-          cells={[
-            { label: t('statTotal'), value: stats.total, color: VIOLET },
-            { label: t('statActive'), value: `${stats.activeN}/${stats.total}`, color: '#1E9E61', sub: t('statActiveSub') },
-            { label: t('statIndustries'), value: stats.industries, color: '#2F6FC9' },
-            { label: t('statSessions'), value: stats.sessions.toLocaleString('vi-VN'), color: '#E07B39' },
+          items={[
+            { label: t('statTotal'), value: stats.total, tone: 'violet' },
+            { label: t('statActive'), value: `${stats.activeN}/${stats.total}`, tone: 'green', sub: t('statActiveSub') },
+            { label: t('statIndustries'), value: stats.industries, tone: 'blue' },
+            { label: t('statSessions'), value: stats.sessions.toLocaleString('vi-VN'), tone: 'orange' },
           ]}
         />
 

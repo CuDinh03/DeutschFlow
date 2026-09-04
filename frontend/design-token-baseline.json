@@ -51,8 +51,8 @@
       "text-[11px]": 1,
       "text-[11.5px]": 2,
       "text-[12.5px]": 5,
-      "text-[15px]": 2,
       "text-[14.5px]": 4,
+      "text-[15px]": 2,
       "text-[14px]": 1,
       "text-[9px]": 2,
       "text-[13px]": 1,
@@ -61,9 +61,6 @@
     }
   },
   "src/app/v2/admin/classes/page.tsx": {
-    "hex-literal": {
-      "#2F6FC9": 1
-    },
     "arbitrary-font-size": {
       "text-[20px]": 1,
       "text-[24px]": 1,
@@ -96,21 +93,13 @@
   },
   "src/app/v2/admin/interviews/page.tsx": {
     "hex-literal": {
-      "#2F6FC9": 2,
-      "#1E9E61": 1,
-      "#7C56C8": 1,
-      "#E07B39": 1
+      "#2F6FC9": 1
     },
     "arbitrary-font-size": {
       "text-[14px]": 5
     }
   },
   "src/app/v2/admin/marketing/page.tsx": {
-    "hex-literal": {
-      "#1E9E61": 1,
-      "#7C56C8": 1,
-      "#E07B39": 1
-    },
     "arbitrary-font-size": {
       "text-[13.5px]": 4,
       "text-[16px]": 1,
@@ -127,9 +116,9 @@
   "src/app/v2/admin/media/page.tsx": {
     "hex-literal": {
       "#2F6FC9": 2,
-      "#1E9E61": 2,
-      "#7C56C8": 2,
-      "#E07B39": 2,
+      "#1E9E61": 1,
+      "#7C56C8": 1,
+      "#E07B39": 1,
       "#11888A": 1,
       "#DA291C": 1,
       "#76716A": 1
@@ -164,10 +153,7 @@
   },
   "src/app/v2/admin/organizations/page.tsx": {
     "hex-literal": {
-      "#7C56C8": 2,
-      "#1E9E61": 1,
-      "#E07B39": 1,
-      "#2F6FC9": 1
+      "#7C56C8": 1
     },
     "arbitrary-font-size": {
       "text-[18px]": 2,
@@ -187,12 +173,10 @@
   "src/app/v2/admin/page.tsx": {
     "hex-literal": {
       "#2F6FC9": 1,
-      "#7C56C8": 2,
+      "#7C56C8": 1,
       "#DA291C": 1,
       "#76716A": 1,
-      "#27406B": 2,
-      "#1E9E61": 1,
-      "#E07B39": 1
+      "#27406B": 1
     },
     "arbitrary-font-size": {
       "text-[12.5px]": 1,
@@ -201,10 +185,7 @@
   },
   "src/app/v2/admin/personas/page.tsx": {
     "hex-literal": {
-      "#7C56C8": 1,
-      "#1E9E61": 1,
-      "#2F6FC9": 1,
-      "#E07B39": 1
+      "#7C56C8": 1
     },
     "arbitrary-font-size": {
       "text-[20px]": 1,
@@ -243,11 +224,6 @@
     }
   },
   "src/app/v2/admin/reports/grammar-feedback-coverage/page.tsx": {
-    "hex-literal": {
-      "#2F6FC9": 1,
-      "#1E9E61": 1,
-      "#E07B39": 1
-    },
     "arbitrary-font-size": {
       "text-[12px]": 3,
       "text-[20px]": 1,
@@ -257,11 +233,6 @@
     }
   },
   "src/app/v2/admin/reports/page.tsx": {
-    "hex-literal": {
-      "#2F6FC9": 1,
-      "#11888A": 1,
-      "#E07B39": 1
-    },
     "arbitrary-font-size": {
       "text-[12px]": 10,
       "text-[20px]": 2,
@@ -289,11 +260,6 @@
     }
   },
   "src/app/v2/admin/reports/vocabulary-quality/page.tsx": {
-    "hex-literal": {
-      "#1E9E61": 1,
-      "#2F6FC9": 1,
-      "#E07B39": 1
-    },
     "arbitrary-font-size": {
       "text-[12px]": 2,
       "text-[12.5px]": 1,
@@ -305,10 +271,7 @@
   },
   "src/app/v2/admin/revenue/page.tsx": {
     "hex-literal": {
-      "#1E9E61": 3,
-      "#2F6FC9": 1,
-      "#7C56C8": 1,
-      "#E07B39": 1
+      "#1E9E61": 1
     },
     "arbitrary-font-size": {
       "text-[12px]": 4,
@@ -328,10 +291,7 @@
   },
   "src/app/v2/admin/tokens/page.tsx": {
     "hex-literal": {
-      "#E07B39": 2,
-      "#DA291C": 1,
-      "#2F6FC9": 1,
-      "#1E9E61": 1
+      "#E07B39": 1
     },
     "arbitrary-font-size": {
       "text-[14px]": 4,
@@ -341,10 +301,6 @@
     }
   },
   "src/app/v2/admin/training-dataset/page.tsx": {
-    "hex-literal": {
-      "#2F6FC9": 1,
-      "#E07B39": 1
-    },
     "arbitrary-font-size": {
       "text-[20px]": 1,
       "text-[24px]": 1,
@@ -378,13 +334,10 @@
       "#DA291C": 1
     },
     "arbitrary-font-size": {
-      "text-[10px]": 2,
-      "text-[24px]": 1,
-      "text-[28px]": 1,
-      "text-[36px]": 1,
-      "text-[13px]": 2,
+      "text-[13px]": 1,
       "text-[14px]": 1,
       "text-[12px]": 3,
+      "text-[10px]": 1,
       "text-[13.5px]": 1,
       "text-[11px]": 2,
       "text-[12.5px]": 2,
@@ -396,9 +349,7 @@
   },
   "src/app/v2/admin/vocabulary/VocabReviewQueue.tsx": {
     "hex-literal": {
-      "#1E9E61": 1,
-      "#C79A00": 1,
-      "#2F6FC9": 1
+      "#1E9E61": 1
     },
     "arbitrary-font-size": {
       "text-[14px]": 1,
@@ -414,10 +365,7 @@
       "#1E9E61": 1,
       "#3b82f6": 1,
       "#ef4444": 1,
-      "#22c55e": 1,
-      "#E07B39": 1,
-      "#C79A00": 1,
-      "#2F6FC9": 1
+      "#22c55e": 1
     },
     "arbitrary-font-size": {
       "text-[13px]": 3,
@@ -602,10 +550,7 @@
   },
   "src/app/v2/org/ManagerDashboard.tsx": {
     "hex-literal": {
-      "#11888A": 1,
-      "#7C56C8": 1,
-      "#2F6FC9": 1,
-      "#1E9E61": 1
+      "#11888A": 1
     },
     "arbitrary-font-size": {
       "text-[20px]": 1,
@@ -620,10 +565,7 @@
   },
   "src/app/v2/org/OwnerDashboard.tsx": {
     "hex-literal": {
-      "#11888A": 1,
-      "#2F6FC9": 1,
-      "#7C56C8": 1,
-      "#1E9E61": 1
+      "#11888A": 1
     },
     "arbitrary-font-size": {
       "text-[20px]": 3,
@@ -641,10 +583,7 @@
   },
   "src/app/v2/org/analytics/page.tsx": {
     "hex-literal": {
-      "#11888A": 1,
-      "#2F6FC9": 1,
-      "#7C56C8": 1,
-      "#1E9E61": 1
+      "#11888A": 1
     },
     "arbitrary-font-size": {
       "text-[14px]": 3,
@@ -713,11 +652,7 @@
   },
   "src/app/v2/org/finance/page.tsx": {
     "hex-literal": {
-      "#1E9E61": 1,
-      "#E07B39": 1,
-      "#76716A": 1,
-      "#2F6FC9": 1,
-      "#7C56C8": 1
+      "#1E9E61": 1
     },
     "arbitrary-font-size": {
       "text-[14px]": 3,
@@ -729,9 +664,7 @@
   },
   "src/app/v2/org/invitations/page.tsx": {
     "hex-literal": {
-      "#11888A": 1,
-      "#E07B39": 1,
-      "#1E9E61": 1
+      "#11888A": 1
     },
     "arbitrary-font-size": {
       "text-[14.5px]": 1,
@@ -745,11 +678,7 @@
   },
   "src/app/v2/org/roles/page.tsx": {
     "hex-literal": {
-      "#143": 1,
-      "#27406B": 1,
-      "#7C56C8": 1,
-      "#2F6FC9": 1,
-      "#11888A": 1
+      "#143": 1
     },
     "arbitrary-font-size": {
       "text-[10px]": 1,
@@ -784,9 +713,7 @@
   },
   "src/app/v2/org/students/page.tsx": {
     "hex-literal": {
-      "#11888A": 1,
-      "#1E9E61": 1,
-      "#2F6FC9": 1
+      "#11888A": 1
     },
     "arbitrary-font-size": {
       "text-[20px]": 1,
@@ -876,10 +803,9 @@
   "src/app/v2/student/achievements/page.tsx": {
     "hex-literal": {
       "#76716A": 1,
-      "#2F6FC9": 2,
-      "#7C56C8": 2,
-      "#C79A00": 3,
-      "#1E9E61": 1,
+      "#2F6FC9": 1,
+      "#7C56C8": 1,
+      "#C79A00": 2,
       "#9BA3AF": 1,
       "#CD7F32": 1
     },
@@ -932,12 +858,11 @@
   },
   "src/app/v2/student/certificates/page.tsx": {
     "hex-literal": {
-      "#1E9E61": 2,
-      "#2F6FC9": 2,
+      "#1E9E61": 1,
+      "#2F6FC9": 1,
       "#7C56C8": 1,
       "#E07B39": 1,
       "#DA291C": 1,
-      "#C79A00": 1,
       "#A39E94": 2
     },
     "arbitrary-font-size": {
@@ -987,9 +912,7 @@
   },
   "src/app/v2/student/classes/[id]/page.tsx": {
     "hex-literal": {
-      "#2F6FC9": 2,
-      "#1E9E61": 1,
-      "#E07B39": 1,
+      "#2F6FC9": 1,
       "#7C56C8": 1
     },
     "arbitrary-font-size": {
@@ -1038,22 +961,6 @@
       "text-[16px]": 1,
       "text-[13.5px]": 1,
       "text-[11px]": 1
-    }
-  },
-  "src/app/v2/student/exam/page.tsx": {
-    "hex-literal": {
-      "#1E9E61": 1,
-      "#2F6FC9": 1,
-      "#7C56C8": 1,
-      "#E07B39": 1,
-      "#A39E94": 2
-    },
-    "arbitrary-font-size": {
-      "text-[24px]": 1,
-      "text-[14px]": 3,
-      "text-[18px]": 1,
-      "text-[15px]": 1,
-      "text-[13px]": 1
     }
   },
   "src/app/v2/student/exercise-history/page.tsx": {
@@ -1174,14 +1081,13 @@
   },
   "src/app/v2/student/learn/[nodeId]/page.tsx": {
     "arbitrary-font-size": {
-      "text-[13px]": 3,
-      "text-[12.5px]": 7,
-      "text-[24px]": 1,
-      "text-[20px]": 3,
       "text-[11px]": 2,
       "text-[12px]": 1,
       "text-[11.5px]": 2,
+      "text-[20px]": 3,
       "text-[13.5px]": 6,
+      "text-[13px]": 1,
+      "text-[12.5px]": 6,
       "text-[32px]": 1
     }
   },
@@ -1215,15 +1121,8 @@
   },
   "src/app/v2/student/mock-exam/run/ExamTaking.tsx": {
     "arbitrary-font-size": {
-      "text-[20px]": 4,
-      "text-[13px]": 13,
-      "text-[16px]": 2,
-      "text-[18px]": 2,
-      "text-[22px]": 1,
-      "text-[14px]": 5,
-      "text-[13.5px]": 5,
-      "text-[14.5px]": 1,
-      "text-[12px]": 1
+      "text-[20px]": 1,
+      "text-[13px]": 4
     }
   },
   "src/app/v2/student/mock-exam/run/page.tsx": {
@@ -1256,12 +1155,11 @@
       "text-[11px]": 3,
       "text-[10px]": 1,
       "text-[14px]": 7,
-      "text-[13px]": 3,
+      "text-[13px]": 2,
       "text-[13.5px]": 9,
       "text-[17px]": 1,
       "text-[12.5px]": 3,
       "text-[12px]": 3,
-      "text-[15px]": 1,
       "text-[18px]": 1,
       "text-[22px]": 1,
       "text-[24px]": 1,
@@ -1277,14 +1175,14 @@
     },
     "arbitrary-font-size": {
       "text-[13px]": 1,
-      "text-[34px]": 1,
       "text-[20px]": 2,
       "text-[22px]": 1,
       "text-[13.5px]": 5,
       "text-[11px]": 2,
       "text-[15px]": 1,
       "text-[12.5px]": 1,
-      "text-[12px]": 1
+      "text-[12px]": 1,
+      "text-[34px]": 1
     }
   },
   "src/app/v2/student/progress/page.tsx": {
@@ -1353,10 +1251,10 @@
   },
   "src/app/v2/student/stats/page.tsx": {
     "hex-literal": {
-      "#2F6FC9": 3,
-      "#1E9E61": 3,
-      "#E07B39": 3,
-      "#DA291C": 3
+      "#2F6FC9": 2,
+      "#1E9E61": 2,
+      "#E07B39": 2,
+      "#DA291C": 2
     },
     "arbitrary-font-size": {
       "text-[13.5px]": 3,
@@ -1496,12 +1394,12 @@
       "text-[14px]": 1,
       "text-[13px]": 1,
       "text-[20px]": 1,
-      "text-[40px]": 1,
       "text-[24px]": 1,
       "text-[19px]": 1,
       "text-[22px]": 1,
       "text-[11px]": 2,
-      "text-[12px]": 1
+      "text-[12px]": 1,
+      "text-[40px]": 1
     }
   },
   "src/app/v2/student/weekly-speaking/client-page.tsx": {
@@ -1532,11 +1430,10 @@
   },
   "src/app/v2/teacher/analytics/page.tsx": {
     "hex-literal": {
-      "#7C56C8": 2,
-      "#2F6FC9": 2,
-      "#1E9E61": 2,
-      "#C79A00": 1,
-      "#11888A": 1
+      "#2F6FC9": 1,
+      "#1E9E61": 1,
+      "#7C56C8": 1,
+      "#C79A00": 1
     },
     "arbitrary-font-size": {
       "text-[12px]": 2,
@@ -1570,11 +1467,11 @@
   "src/app/v2/teacher/classes/[id]/page.tsx": {
     "hex-literal": {
       "#7C56C8": 1,
-      "#1E9E61": 4,
-      "#2F6FC9": 2,
+      "#1E9E61": 3,
       "#F5B301": 1,
       "#E8830C": 1,
       "#fff": 1,
+      "#2F6FC9": 1,
       "#E07B39": 1
     },
     "arbitrary-font-size": {
@@ -1599,9 +1496,7 @@
   },
   "src/app/v2/teacher/classes/[id]/students/[studentId]/page.tsx": {
     "hex-literal": {
-      "#7C56C8": 1,
-      "#2F6FC9": 1,
-      "#1E9E61": 1
+      "#7C56C8": 1
     },
     "arbitrary-font-size": {
       "text-[14px]": 6,
@@ -1696,10 +1591,7 @@
   },
   "src/app/v2/teacher/page.tsx": {
     "hex-literal": {
-      "#7C56C8": 1,
-      "#E07B39": 1,
-      "#2F6FC9": 1,
-      "#1E9E61": 1
+      "#7C56C8": 1
     },
     "arbitrary-font-size": {
       "text-[15px]": 1,
@@ -1772,9 +1664,6 @@
   "src/app/v2/teacher/sessions/page.tsx": {
     "hex-literal": {
       "#7C56C8": 1,
-      "#E07B39": 1,
-      "#2F6FC9": 1,
-      "#1E9E61": 1,
       "#E0A23A": 1
     },
     "arbitrary-font-size": {
@@ -1988,18 +1877,6 @@
       "text-[12.5px]": 1
     }
   },
-  "src/components/ui-v2/AdStat.tsx": {
-    "hex-literal": {
-      "#1E9E61": 1
-    },
-    "arbitrary-font-size": {
-      "text-[11px]": 1,
-      "text-[24px]": 1,
-      "text-[28px]": 1,
-      "text-[36px]": 1,
-      "text-[13px]": 1
-    }
-  },
   "src/components/ui-v2/DataTable.tsx": {
     "arbitrary-font-size": {
       "text-[20px]": 1,
@@ -2066,7 +1943,6 @@
   },
   "src/components/ui-v2/GaTopBar.tsx": {
     "arbitrary-font-size": {
-      "text-[14px]": 1,
       "text-[12.5px]": 2
     }
   },
@@ -2116,15 +1992,6 @@
       "text-[12.5px]": 1
     }
   },
-  "src/components/ui-v2/TkStatStrip.tsx": {
-    "arbitrary-font-size": {
-      "text-[11px]": 1,
-      "text-[22px]": 1,
-      "text-[26px]": 1,
-      "text-[32px]": 1,
-      "text-[12.5px]": 2
-    }
-  },
   "src/components/ui-v2/TkTabs.tsx": {
     "arbitrary-font-size": {
       "text-[13px]": 1
@@ -2134,18 +2001,17 @@
     "hex-literal": {
       "#D8D3C8": 2,
       "#A39E94": 3,
-      "#E7E3DA": 1,
       "#76716A": 1
     },
     "arbitrary-font-size": {
       "text-[32px]": 1,
       "text-[38px]": 1,
       "text-[44px]": 1,
-      "text-[14.5px]": 6,
-      "text-[13px]": 7,
+      "text-[14.5px]": 5,
+      "text-[13px]": 6,
       "text-[15px]": 10,
       "text-[11px]": 3,
-      "text-[40px]": 3,
+      "text-[40px]": 2,
       "text-[54px]": 1,
       "text-[68px]": 1,
       "text-[18px]": 4,
@@ -2159,7 +2025,7 @@
       "text-[20px]": 1,
       "text-[22px]": 1,
       "text-[56px]": 1,
-      "text-[17px]": 5,
+      "text-[17px]": 4,
       "text-[36px]": 2,
       "text-[9.5px]": 1,
       "text-[15.5px]": 2,

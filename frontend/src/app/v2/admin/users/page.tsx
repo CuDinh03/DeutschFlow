@@ -11,6 +11,7 @@ import {
   GaBtn,
   TkSearch,
   DataTable,
+  GaStatStrip,
   type DataTableColumn,
 } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
@@ -95,42 +96,6 @@ function quotaColor(pct: number): string {
   if (pct >= 90) return 'var(--ga-red)'
   if (pct >= 70) return 'var(--ga-orange)'
   return 'var(--ga-green)'
-}
-
-// ── AdStat strip cell ─────────────────────────────────────────────────────────
-function AdStat({
-  label,
-  value,
-  color,
-  sub,
-  alert,
-}: {
-  label: string
-  value: number
-  color: string
-  sub?: string
-  alert?: boolean
-}) {
-  return (
-    <div
-      className="relative min-w-0 border-l border-t border-ga-border px-4 py-4 lg:border-t-0 lg:px-6 lg:py-[22px]"
-      style={{ background: `${color}0e` }}
-    >
-      <div className="absolute inset-x-0 top-0 h-[5px]" style={{ background: color }} />
-      <p className="ga-ui mb-[10px] text-[10px] font-semibold uppercase tracking-[0.08em] text-ga-muted">
-        {label}
-      </p>
-      <p className="font-ga-display text-[24px] font-medium leading-none sm:text-[28px] lg:text-[36px]" style={{ color }}>
-        {value}
-      </p>
-      {sub && (
-        <p className={cn('ga-ui mt-2 flex items-center gap-1.5 text-[13px]', alert ? 'text-ga-red' : 'text-ga-muted')}>
-          {alert && <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-ga-red" />}
-          {sub}
-        </p>
-      )}
-    </div>
-  )
 }
 
 export default function V2AdminUsersPage() {
@@ -317,25 +282,24 @@ export default function V2AdminUsersPage() {
       />
 
       <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
-        {/* AdStat strip — always visible (0 when loading) */}
-        {/*
-          Lưới KPI: mobile 1 cột → sm 2 cột → lg đúng 4 cột như thiết kế gốc (khớp AdStatStrip
-          dùng chung ở admin/organizations · revenue · tokens). Vách ngăn ngang: khi ô xếp chồng,
-          đường kẻ `border-l` biến mất nên mỗi ô tự vẽ `border-t` và khung ngoài tắt `border-t`;
-          từ lg đảo lại đúng như cũ.
-        */}
-        <div className="mb-[22px] grid grid-cols-1 border border-ga-border border-l-0 border-t-0 sm:grid-cols-2 lg:grid-cols-4 lg:border-t">
-          <AdStat label={t('stats.totalUsers')} value={counts.total} color="var(--ga-navy)" />
-          <AdStat label={t('stats.students')} value={counts.student} color="var(--ga-blue)" />
-          <AdStat label={t('stats.teachers')} value={counts.teacher} color="var(--ga-violet)" />
-          <AdStat
-            label={t('stats.paused')}
-            value={counts.paused}
-            color="var(--ga-orange)"
-            sub={counts.paused > 0 ? t('stats.pausedReview') : t('stats.pausedNone')}
-            alert={counts.paused > 0}
-          />
-        </div>
+        {/* Dải KPI — luôn hiện (0 khi đang tải). Từ B-08 dùng chung GaStatStrip với mọi màn
+            khác; bản chép tay ở đây từng lệch cả nhãn (10px/0.08em thay vì 11px/0.16em) lẫn nền
+            tint — nó truyền `var(--ga-navy)` vào chuỗi `${color}0e` nên nền là CSS vô nghĩa. */}
+        <GaStatStrip
+          className="mb-[22px]"
+          items={[
+            { label: t('stats.totalUsers'), value: counts.total, tone: 'navy' },
+            { label: t('stats.students'), value: counts.student, tone: 'blue' },
+            { label: t('stats.teachers'), value: counts.teacher, tone: 'violet' },
+            {
+              label: t('stats.paused'),
+              value: counts.paused,
+              tone: 'orange',
+              sub: counts.paused > 0 ? t('stats.pausedReview') : t('stats.pausedNone'),
+              alert: counts.paused > 0,
+            },
+          ]}
+        />
 
         {/* Role filter */}
         <div className="mb-[18px] flex flex-wrap gap-2">

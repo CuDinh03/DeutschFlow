@@ -86,6 +86,7 @@ export function GaSidebar({ nav }: GaSidebarProps) {
 
       <aside
         id="ga-shell-sidebar"
+        data-ga-chrome
         aria-label={t('shell.mainNav')}
         className={cn(
           // Mobile: ngăn kéo trượt cố định, NGOÀI luồng flex → nội dung chiếm trọn chiều ngang.
@@ -113,72 +114,47 @@ export function GaSidebar({ nav }: GaSidebarProps) {
 
         {/* ── Area navigation (student/teacher — Wave 1 / S-01) ────────────────
             Persistent nav chỉ còn các AREA theo ý định người dùng; destination cũ nằm ở
-            GaLocalNav (cấp 2) và account menu. Dưới md, danh sách area được ẩn vì bottom
-            nav đã phủ — ngăn kéo lúc đó chỉ còn utility (IA §10.1). */}
-        {roleAreas ? (
-          <>
-            <nav
-              className="hidden flex-1 space-y-0.5 overflow-y-auto md:block"
-              aria-label={t('ui.areaNav')}
-            >
-              {roleAreas.areas.map((area) => {
-                const active = activeArea?.id === area.id
-                return (
-                  <Link
-                    key={area.id}
-                    href={area.href}
-                    onClick={close}
-                    aria-current={active ? 'page' : undefined}
-                    // Nhãn Đức + nghĩa tiếng Việt trong accessible name (song ngữ theo trình độ,
-                    // không tooltip-only và không in hai dòng thường trực).
-                    aria-label={`${t(`nav.areas.${area.id}`)} — ${t(`nav.areaHelper.${area.id}`)}`}
-                    className={cn(
-                      'flex min-h-11 items-center gap-3 rounded-ga px-3 py-2.5 transition-colors lg:min-h-0',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset',
-                      active
-                        ? 'bg-ga-accent-soft font-semibold text-ga-accent shadow-ga-selected-bar'
-                        : 'font-medium text-ga-muted hover:bg-ga-surface hover:text-ga-ink',
-                    )}
-                  >
-                    <GaIcon name={area.icon} size={18} className={active ? 'text-ga-accent' : 'text-ga-subtle'} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-ga-body leading-tight">
-                        {t(`nav.areas.${area.id}`)}
-                      </span>
-                      <span className="block truncate text-ga-caption font-normal text-ga-subtle">
-                        {t(`nav.areaHelper.${area.id}`)}
-                      </span>
-                    </span>
-                  </Link>
-                )
-              })}
-            </nav>
+            GaLocalNav (cấp 2) và account menu.
 
-            {/* Utility: dưới md đây là toàn bộ nội dung ngăn kéo. */}
-            <nav className="mt-4 flex-1 space-y-0.5 md:mt-6 md:flex-none" aria-label={t('ui.account')}>
-              <p className="px-3 pb-2 text-ga-eyebrow uppercase text-ga-subtle">{t('ui.account')}</p>
-              {roleAreas.utility.map((item) => (
+            B-06: danh sách area hiện ở MỌI khổ màn, kể cả dưới md. Trước đây nó `hidden md:block`
+            với lý do "bottom nav đã phủ", nhưng nút **Mehr** của bottom nav lại `setOpen(true)`
+            mở đúng ngăn kéo này — nên dưới 768px giáo viên bấm Mehr chỉ thấy một ngăn kéo KHÔNG
+            có Berichte: area `mobileInMore` thành ngõ cụt. Ngăn kéo giờ luôn là danh sách area
+            đầy đủ, và cũng nhờ vậy nó không bao giờ rỗng sau khi utility dọn sang account menu. */}
+        {roleAreas ? (
+          <nav className="flex-1 space-y-0.5 overflow-y-auto" aria-label={t('ui.areaNav')}>
+            {roleAreas.areas.map((area) => {
+              const active = activeArea?.id === area.id
+              return (
                 <Link
-                  key={item.id}
-                  href={item.href}
+                  key={area.id}
+                  href={area.href}
                   onClick={close}
-                  aria-current={isActive(item.href, resolved.rootHref, pathname) ? 'page' : undefined}
+                  aria-current={active ? 'page' : undefined}
+                  // Nhãn Đức + nghĩa tiếng Việt trong accessible name (song ngữ theo trình độ,
+                  // không tooltip-only và không in hai dòng thường trực).
+                  aria-label={`${t(`nav.areas.${area.id}`)} — ${t(`nav.areaHelper.${area.id}`)}`}
                   className={cn(
-                    'flex min-h-11 items-center gap-3 rounded-ga px-3 py-2.5 text-ga-body font-medium transition-colors lg:min-h-0',
+                    'flex min-h-11 items-center gap-3 rounded-ga px-3 py-2.5 transition-colors lg:min-h-0',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset',
-                    isActive(item.href, resolved.rootHref, pathname)
-                      ? 'bg-ga-accent-soft font-semibold text-ga-accent'
-                      : 'text-ga-muted hover:bg-ga-surface hover:text-ga-ink',
+                    active
+                      ? 'bg-ga-accent-soft font-semibold text-ga-accent shadow-ga-selected-bar'
+                      : 'font-medium text-ga-muted hover:bg-ga-surface hover:text-ga-ink',
                   )}
                 >
-                  <GaIcon name={item.icon} size={18} className="text-ga-subtle" />
-                  <span className="truncate">
-                    {t.has(`nav.items.${item.id}`) ? t(`nav.items.${item.id}`) : item.label}
+                  <GaIcon name={area.icon} size={18} className={active ? 'text-ga-accent' : 'text-ga-subtle'} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-ga-body leading-tight">
+                      {t(`nav.areas.${area.id}`)}
+                    </span>
+                    <span className="block truncate text-ga-caption font-normal text-ga-subtle">
+                      {t(`nav.areaHelper.${area.id}`)}
+                    </span>
                   </span>
                 </Link>
-              ))}
-            </nav>
-          </>
+              )
+            })}
+          </nav>
         ) : (
         <nav className="flex-1 space-y-5 overflow-y-auto" aria-label={t('shell.mainNav')}>
           {resolved.sections.map((section, si) => (
@@ -222,25 +198,32 @@ export function GaSidebar({ nav }: GaSidebarProps) {
         </nav>
         )}
 
-        <div className="mt-auto border-t border-ga-line pt-4">
-          <div className="flex items-center gap-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-ga-pill bg-ga-accent text-[13px] font-semibold text-ga-accent-ink">
-              {initials(displayName)}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-[13px] font-semibold text-ga-ink">{displayName}</p>
-              {email && <p className="truncate text-[12px] text-ga-muted">{email}</p>}
+        {/* Footer danh tính + đăng xuất — CHỈ cho role chưa có account menu (admin/org). Với
+            student/teacher, GaAccountMenu trên topbar đã mang đúng hồ sơ/học phí/hướng dẫn/đăng
+            xuất; giữ thêm một bản sao ở đây là hai nơi cùng nói một chuyện và người dùng phải
+            đoán nơi nào là thật (B-06). Ở admin/org KHÔNG có account menu, nên khối này là lối
+            đăng xuất duy nhất — xoá luôn thì họ mất đường ra. */}
+        {!roleAreas && (
+          <div className="mt-auto border-t border-ga-line pt-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-ga-pill bg-ga-accent text-[13px] font-semibold text-ga-accent-ink">
+                {initials(displayName)}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-semibold text-ga-ink">{displayName}</p>
+                {email && <p className="truncate text-[12px] text-ga-muted">{email}</p>}
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={() => { close(); void logout() }}
+              className="mt-3 flex min-h-11 w-full items-center gap-3 rounded-ga px-3 py-2.5 text-[14.5px] font-medium text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset lg:min-h-0"
+            >
+              <GaIcon name="logout" size={18} className="text-ga-subtle" />
+              <span>{t('shell.logout')}</span>
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => { close(); void logout() }}
-            className="mt-3 flex min-h-11 w-full items-center gap-3 rounded-ga px-3 py-2.5 text-[14.5px] font-medium text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset lg:min-h-0"
-          >
-            <GaIcon name="logout" size={18} className="text-ga-subtle" />
-            <span>{t('shell.logout')}</span>
-          </button>
-        </div>
+        )}
       </aside>
     </>
   )

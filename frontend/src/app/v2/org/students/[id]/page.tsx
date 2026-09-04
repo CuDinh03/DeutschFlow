@@ -7,7 +7,7 @@ import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { getOrgStudentDetail, type OrgStudentDetail } from '@/lib/orgApi'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chi tiết học viên của tổ chức (GaOrgStudentDetail) — teal, read-only org-admin (W1.4).
@@ -85,10 +85,10 @@ export default function V2OrgStudentDetailPage() {
               </div>
             </div>
 
-            <TkStatStrip
+            <GaStatStrip
               items={[
-                { label: t('stats.role'), value: t.has(`roles.${detail.role}`) ? t(`roles.${detail.role}`) : detail.role, color: TEAL },
-                { label: t('stats.status'), value: detail.status === 'ACTIVE' ? t('stats.statusActive') : t('stats.statusRemoved'), color: detail.status === 'ACTIVE' ? 'var(--ga-green)' : undefined },
+                { label: t('stats.role'), value: t.has(`roles.${detail.role}`) ? t(`roles.${detail.role}`) : detail.role, tone: 'teal' },
+                { label: t('stats.status'), value: detail.status === 'ACTIVE' ? t('stats.statusActive') : t('stats.statusRemoved'), tone: detail.status === 'ACTIVE' ? 'green' : undefined },
                 { label: t('stats.joined'), value: fmtDate(detail.joinedAt), sub: t('stats.joinedSub') },
                 { label: t('stats.classCount'), value: detail.classes.length, sub: t('stats.classCountSub') },
               ]}

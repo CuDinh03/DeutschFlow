@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { interviewDomainApi, type InterviewAnalytics } from '@/lib/interviewDomainApi'
-import { AdStatStrip, type AdStatCell, ErrorBanner, LoadingState, GaPageHdr } from '@/components/ui-v2'
+import { GaStatStrip, type GaStatItem, ErrorBanner, LoadingState, GaPageHdr } from '@/components/ui-v2'
 import { GaSection, GaDonut, GaLegend, GaBarRow, GA_CHART, nfVN } from '../../analyticsShared'
 
 function avgOfValues(rec: Record<string, number>): number {
@@ -43,19 +43,19 @@ export default function V2AdminInterviewsPage() {
   const phaseMax = data ? data.phaseDropOff.reduce((m, p) => Math.max(m, p.sessionsReached), 0) : 0
   const avgScore = data ? avgOfValues(data.avgScoreByIndustry) : 0
 
-  const cells: AdStatCell[] = [
-    { label: t('statTotal'), value: data ? nfVN.format(data.totalSessions) : '—', color: '#2F6FC9' },
+  const cells: GaStatItem[] = [
+    { label: t('statTotal'), value: data ? nfVN.format(data.totalSessions) : '—', tone: 'blue' },
     {
       label: t('statCompletion'),
       value: data ? `${Math.round(data.completionRate * (data.completionRate <= 1 ? 100 : 1))}%` : '—',
-      color: '#1E9E61',
+      tone: 'green',
       sub: data ? t('statCompletionSub', { count: nfVN.format(data.completedSessions) }) : undefined,
     },
-    { label: t('statAvgScore'), value: avgScore > 0 ? avgScore.toFixed(1) : '—', color: '#7C56C8', sub: t('statAvgScoreSub') },
+    { label: t('statAvgScore'), value: avgScore > 0 ? avgScore.toFixed(1) : '—', tone: 'violet', sub: t('statAvgScoreSub') },
     {
       label: t('statVariants'),
       value: data ? nfVN.format(Object.keys(data.variantDistribution).length) : '—',
-      color: '#E07B39',
+      tone: 'orange',
       sub: t('statVariantsSub'),
     },
   ]
@@ -77,7 +77,7 @@ export default function V2AdminInterviewsPage() {
           <LoadingState label={t('loading')} />
         ) : data ? (
           <div className="space-y-[22px]">
-            <AdStatStrip cells={cells} />
+            <GaStatStrip items={cells} />
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[1.4fr_1fr]">
               <GaSection title={t('phaseDropOffTitle')}>

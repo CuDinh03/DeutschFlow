@@ -1,4 +1,5 @@
 import createNextIntlPlugin from 'next-intl/plugin';
+import { legacyV1Redirects } from './legacy-redirects.mjs';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
@@ -94,9 +95,13 @@ const nextConfig = {
       { source: '/login', destination: '/v2/login', permanent: false },
       { source: '/register', destination: '/v2/register', permanent: false },
       // Dashboard học viên legacy: v2 đã có bản đầy đủ và không nơi nào trong /v2 trỏ ngược về đây.
-      // (Các trang v1 khác — /speaking, /student/mock-exam… — CHƯA được redirect: /v2 vẫn đang
-      // deep-link vào chúng vì tính năng chưa port. Chúng chỉ bị xoá/redirect ở đợt sau.)
       { source: '/dashboard', destination: '/v2/student/dashboard', permanent: false },
+
+      // Phần còn lại của cây v1 (04/08). Điều kiện đã đủ để đóng cửa: lượt grep toàn bộ `src/app/v2`
+      // cho thấy /v2 CHỈ còn trỏ ra ba trang công khai `/free-grade`, `/privacy`, `/terms` — không
+      // còn deep-link nào vào trang vai trò v1 nữa, nên ghi chú "chưa port" ở đợt 0 đã hết hiệu lực.
+      // Bảng ánh xạ + danh sách trang CỐ Ý giữ lại: ./legacy-redirects.mjs
+      ...legacyV1Redirects,
     ];
   },
 

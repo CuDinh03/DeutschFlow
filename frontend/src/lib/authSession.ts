@@ -100,13 +100,24 @@ export function getRefreshToken(): string | null {
   return null
 }
 
-/** Current app role from cookie or JWT (defaults to STUDENT). */
-export function getAuthRole(): string {
+/**
+ * Vai trò đã XÁC ĐỊNH của phiên hiện tại, hoặc null khi CHƯA BIẾT — không có cookie auth_role và
+ * không có access token (người dùng quay lại sau khi đóng trình duyệt: chỉ còn refresh cookie
+ * HttpOnly, client chưa khôi phục token). Khác getAuthRole() ở chỗ KHÔNG mặc định 'STUDENT' — cổng
+ * vai trò client (RoleAreaGuard) cần phân biệt "chưa biết" với "là học viên" để không đá nhầm một
+ * admin đang chờ interceptor 401-refresh khôi phục token.
+ */
+export function getKnownAuthRole(): string | null {
   const fromCookie = normalizeRole(readCookie(AUTH_ROLE_COOKIE))
   if (fromCookie) return fromCookie
   const token = getAccessToken()
   if (token) return getRoleFromToken(token)
-  return 'STUDENT'
+  return null
+}
+
+/** Current app role from cookie or JWT (defaults to STUDENT). */
+export function getAuthRole(): string {
+  return getKnownAuthRole() ?? 'STUDENT'
 }
 
 /**

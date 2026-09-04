@@ -395,6 +395,10 @@
       "bodyPlaceholder": "Notification content…",
       "sendTimeLabel": "Send time",
       "sendNow": "Send now",
+      "confirmTitle": "Confirm broadcast",
+      "confirmBody": "This will notify {count} user(s) ({audience}).",
+      "confirmCancel": "Cancel",
+      "confirmIrreversible": "Sending cannot be undone.",
       "schedule": "Schedule",
       "sending": "Sending…",
       "scheduleSend": "Schedule send",
@@ -411,6 +415,7 @@
     "settings": {
       "title": "System settings",
       "subtitle": "Overview of admin operating configuration (read-only)",
+      "readonlyBanner": "This page is a read-only overview — nothing is edited here. Detailed configuration happens in each corresponding module (or environment variables).",
       "footer": "Edit details through each corresponding module.",
       "sections": {
         "platform": {

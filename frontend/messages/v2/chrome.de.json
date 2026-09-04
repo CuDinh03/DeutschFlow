@@ -117,6 +117,11 @@
       "tBerichte": "Berichte",
       "more": "Mehr"
     },
+    "localGroups": {
+      "wiederholen": "Wiederholen",
+      "bibliothek": "Bibliothek",
+      "entdecken": "Entdecken"
+    },
     "areaHelper": {
       "heute": "Heute",
       "lernen": "Lernen",
@@ -148,6 +153,16 @@
     "confirm": "Bestätigen",
     "search": "Suchen"
   },
+  "error": {
+    "title": "Auf dieser Seite ist ein Fehler aufgetreten",
+    "desc": "Die Seite wurde beim Aufbau abgebrochen. Meist hilft ein neuer Versuch; falls nicht, schicke die Details unten an das Team.",
+    "staleTitle": "Der Browser hält eine alte Version",
+    "staleDesc": "Dateien des vorherigen Deployments liegen nicht mehr auf dem Server. Lade die Seite neu, um die neueste Version zu holen.",
+    "detailsCap": "Technische Details",
+    "digestLabel": "Fehlercode",
+    "noMessage": "Keine Fehlermeldung.",
+    "reload": "Seite neu laden"
+  },
   "ui": {
     "openNav": "Navigationsmenü öffnen",
     "closeNav": "Menü schließen",
@@ -175,6 +190,9 @@
     "viewAllNotifications": "Alle Benachrichtigungen ansehen →",
     "view": "Ansehen",
     "unread": "ungelesen",
+    "notifToastJustNow": "gerade eben",
+    "notifToastView": "Details ansehen",
+    "notifToastClose": "Benachrichtigung schließen",
     "roleChipAdmin": "● System stabil",
     "roleChipTeacher": "Lehrerbereich",
     "roleChipOrg": "Organisationsbereich",

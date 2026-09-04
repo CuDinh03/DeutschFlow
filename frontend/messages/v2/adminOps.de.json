@@ -395,6 +395,10 @@
       "bodyPlaceholder": "Benachrichtigungsinhalt…",
       "sendTimeLabel": "Sendezeitpunkt",
       "sendNow": "Sofort senden",
+      "confirmTitle": "Broadcast bestätigen",
+      "confirmBody": "Es werden {count} Nutzer benachrichtigt ({audience}).",
+      "confirmCancel": "Abbrechen",
+      "confirmIrreversible": "Das Senden kann nicht rückgängig gemacht werden.",
       "schedule": "Planen",
       "sending": "Wird gesendet…",
       "scheduleSend": "Versand planen",
@@ -411,6 +415,7 @@
     "settings": {
       "title": "Systemkonfiguration",
       "subtitle": "Überblick über die Admin-Betriebskonfiguration (schreibgeschützt)",
+      "readonlyBanner": "Diese Seite ist eine reine Übersicht — hier wird nichts bearbeitet. Die Detailkonfiguration erfolgt im jeweiligen Modul (oder über Umgebungsvariablen).",
       "footer": "Details über das jeweils zuständige Modul bearbeiten.",
       "sections": {
         "platform": {

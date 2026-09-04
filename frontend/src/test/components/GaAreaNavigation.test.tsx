@@ -108,21 +108,46 @@ describe('GaBottomNav (S-13)', () => {
 })
 
 describe('GaLocalNav (S-01, điều hướng cấp 2)', () => {
-  it('Lernen: hiện đủ local nav, đánh dấu mục đang mở', () => {
+  it('Lernen: 5 ô cấp 1 — 2 destination đi thẳng + 3 nhóm mở menu (B-05)', () => {
     pathname = '/v2/student/vocabulary'
     render(<GaLocalNav role="student" />)
-    const links = screen.getAllByRole('link')
-    expect(links.length).toBeGreaterThanOrEqual(9)
-    const current = screen.getByRole('link', { current: 'page' })
-    expect(current.getAttribute('href')).toBe('/v2/student/vocabulary')
+    expect(screen.getAllByRole('link')).toHaveLength(2)
+    expect(screen.getAllByRole('button')).toHaveLength(3)
   })
 
-  it('route con vẫn giữ mục cha active (vocabulary/swipe)', () => {
+  it('đang ở trong nhóm thì thấy được NGAY, không phải mở menu ra mới biết', () => {
+    pathname = '/v2/student/vocabulary'
+    render(<GaLocalNav role="student" />)
+    const current = screen.getByRole('button', { current: true })
+    expect(current.textContent).toContain('Thư viện')
+    // Trạng thái không chỉ nằm ở màu: gạch chân accent là dấu hiệu hình khối.
+    expect(current.className).toContain('border-ga-accent')
+  })
+
+  it('route con vẫn giữ NHÓM cha active (vocabulary/swipe)', () => {
     pathname = '/v2/student/vocabulary/swipe'
     render(<GaLocalNav role="student" />)
+    expect(screen.getByRole('button', { current: true }).textContent).toContain('Thư viện')
+  })
+
+  it('mở nhóm ra là tới được cả 4 destination, đúng cái đang mở được đánh dấu', () => {
+    pathname = '/v2/student/vocabulary'
+    render(<GaLocalNav role="student" />)
+    fireEvent.click(screen.getByRole('button', { current: true }))
+
+    const hrefs = screen.getAllByRole('link').map((l) => l.getAttribute('href'))
+    expect(hrefs).toEqual(
+      expect.arrayContaining([
+        '/v2/student/lessons',
+        '/v2/student/vocabulary',
+        '/v2/student/grammar',
+        '/v2/student/exercises',
+      ]),
+    )
     expect(screen.getByRole('link', { current: 'page' }).getAttribute('href')).toBe(
       '/v2/student/vocabulary',
     )
+    cleanup()
   })
 
   it('Heute không có local nav → không render', () => {
@@ -132,17 +157,32 @@ describe('GaLocalNav (S-01, điều hướng cấp 2)', () => {
   })
 
   it('ẩn trong route toàn màn hình', () => {
-    pathname = '/v2/student/interviews'
+    pathname = '/v2/student/speaking/live'
     const { container } = render(<GaLocalNav role="student" />)
     expect(container.firstChild).toBeNull()
   })
 
-  it('mọi mục ≥44px và có focus ring', () => {
+  it('VẪN hiện ở màn chủ Interview — đó là hub, không phải phòng phỏng vấn (B-15)', () => {
+    pathname = '/v2/student/interviews'
+    const { container } = render(<GaLocalNav role="student" />)
+    expect(container.firstChild).not.toBeNull()
+  })
+
+  it('mọi ô ≥44px và có focus ring — nhóm cũng như link', () => {
     pathname = '/v2/student/exam'
     render(<GaLocalNav role="student" />)
     for (const l of screen.getAllByRole('link')) {
       expect(l.className).toContain('min-h-11')
       expect(l.className).toContain('ring-ga-focus')
+    }
+    cleanup()
+
+    // Lernen là area DUY NHẤT có nhóm; trigger của nhóm phải theo cùng contract chạm/focus.
+    pathname = '/v2/student/roadmap'
+    render(<GaLocalNav role="student" />)
+    for (const b of screen.getAllByRole('button')) {
+      expect(b.className).toContain('min-h-11')
+      expect(b.className).toContain('ring-ga-focus')
     }
   })
 })

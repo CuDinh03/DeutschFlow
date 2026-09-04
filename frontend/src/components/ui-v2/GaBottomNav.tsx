@@ -39,6 +39,7 @@ export function GaBottomNav({ role }: { role: RoleId }) {
 
   return (
     <nav
+      data-ga-chrome
       aria-label={t('ui.areaNav')}
       className="flex shrink-0 items-stretch gap-0.5 border-t border-ga-line bg-ga-card px-1 pb-[env(safe-area-inset-bottom)] md:hidden"
     >
