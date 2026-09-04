@@ -5,7 +5,7 @@ import { radius, space, useTheme } from '@/lib/theme'
 import { ThemedText, Pill } from '@/components/ui'
 import { RevealText } from '@/components/speaking/RevealText'
 import { PersonaBubbleAvatar } from '@/components/speaking/PersonaBubbleAvatar'
-import type { ChatTurn } from '@/lib/speakingChat'
+import { usableSuggestions, type ChatTurn } from '@/lib/speakingChat'
 import type { PersonaId } from '@/lib/personas'
 
 export const MessageBubble = memo(function MessageBubble({
@@ -28,7 +28,9 @@ export const MessageBubble = memo(function MessageBubble({
   // Correction belongs to what the LEARNER said → render under the user bubble.
   // Suggestions answer the AI's latest question → render under the assistant bubble.
   const showCorrection = isUser && !!fb?.correction
-  const suggestions = !isUser ? fb?.suggestions?.slice(0, 2) ?? [] : []
+  // Wire NON_NULL: suggestion có thể thiếu germanText (LLM bỏ trống) — lọc trước khi render,
+  // chip "💡 " rỗng vừa vô nghĩa vừa là đường đưa undefined vào typewriter (RedBox 04/09).
+  const suggestions = !isUser ? usableSuggestions(fb?.suggestions) : []
 
   const inner = (
     <View style={{ flex: isUser ? undefined : 1, alignItems: isUser ? 'flex-end' : 'flex-start', gap: space[2] }}>
@@ -104,7 +106,11 @@ export const MessageBubble = memo(function MessageBubble({
           {suggestions.map((s, i) => (
             <Pressable
               key={i}
-              onPress={() => onUseSuggestion?.(s.germanText)}
+              onPress={() => {
+                // usableSuggestions đã lọc, nhưng TS không narrow qua filter — guard tại chỗ.
+                const text = s.germanText
+                if (text) onUseSuggestion?.(text)
+              }}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
