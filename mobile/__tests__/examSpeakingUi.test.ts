@@ -3,6 +3,7 @@
 
 import {
   criterionRatio,
+  drillTargets,
   formatClock,
   levelsFromBlueprints,
   nextPrueferAnnouncement,
@@ -108,5 +109,33 @@ describe('nextPrueferAnnouncement — chặn lặp câu dẫn giám khảo (dire
     expect(nextPrueferAnnouncement(INTRO, null)).toBeNull()
     expect(nextPrueferAnnouncement(null, undefined)).toBeNull()
     expect(nextPrueferAnnouncement(null, '   ')).toBeNull()
+  })
+})
+
+describe('drillTargets — gom contexts lỗi thành mục tiêu drill theo level + Teil', () => {
+  const ctx = (level: string, teilNo: number, count: number) => ({
+    provider: 'GOETHE' as const, level, teilNo, archetype: 'X', count, lastSeenAt: '2026-09-05T00:00:00Z',
+  })
+  test('cộng dồn cùng level+Teil qua nhiều lỗi, sắp nhiều → ít, hoà thì level thấp rồi Teil nhỏ', () => {
+    const out = drillTargets([
+      { contexts: [ctx('B1', 2, 2), ctx('A2', 1, 1)] },
+      { contexts: [ctx('B1', 2, 3), ctx('B1', 1, 5), ctx('B2', 3, 1)] },
+    ])
+    expect(out.map((t) => [t.level, t.teilNo, t.count])).toEqual([
+      ['B1', 1, 5],
+      ['B1', 2, 5],
+      ['A2', 1, 1],
+      ['B2', 3, 1],
+    ])
+  })
+  test('cắt limit; bỏ context thiếu level/Teil; count null coi như 1; rỗng → []', () => {
+    const out = drillTargets(
+      [{ contexts: [ctx('B1', 1, 9), ctx('B1', 2, 8), { ...ctx('', 3, 7) }, { ...ctx('A1', 0, 6) }, { ...ctx('A1', 1, 1), count: null as unknown as number }] }],
+      2,
+    )
+    expect(out.map((t) => `${t.level}-${t.teilNo}`)).toEqual(['B1-1', 'B1-2'])
+    expect(drillTargets([{ contexts: [{ ...ctx('A1', 1, 1), count: null as unknown as number }] }])[0].count).toBe(1)
+    expect(drillTargets([])).toEqual([])
+    expect(drillTargets([{ contexts: [] }])).toEqual([])
   })
 })
