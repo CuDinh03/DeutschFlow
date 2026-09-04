@@ -58,13 +58,15 @@ Mỗi mục dưới đây có: **vì sao**, **file cụ thể**, **định nghĩ
 
 ⚠️ `role-area-guard.spec.ts`, `student/messages-inbox.spec.ts`, `student/__tree-analysis-shots.spec.ts` hiện **untracked** (chưa từng commit) — mở PR mà không `git add` thì ba spec này không lên. `__tree-analysis-shots` tự khai "TẠM THỜI… xoá sau khi dùng" và ghi ảnh vào một scratchpad của phiên đã chết ⇒ **đề xuất xoá hẳn** thay vì commit.
 
-### 🟡 B-03. Mở PR để CI thật sự chạy — ĐÃ SẴN SÀNG 04/09 (dọn WIP + merge main xong)
+### ✅ B-03. Mở PR để CI thật sự chạy — MERGED 04/09
 
 **Vì sao:** `.github/workflows/frontend-ci.yml` chỉ trigger trên `push` vào `master/main/dev` hoặc `pull_request` **nhắm tới** các nhánh đó. Push vào nhánh feature **không kích hoạt gì**. Nghĩa là step **Design Token Ratchet** thêm ở Wave 0 **chưa từng chạy trên CI** — mới chỉ verify local.
 
 **Việc:** mở PR `feat/roadmap-tree-v2` → `main`, mô tả gộp 3 commit, link 3 báo cáo. Kiểm cả 4 workflow (frontend, backend, security, mobile).
 
 🪤 `gh pr checks` in nhiều dòng cùng tên job — đọc hết, đừng chỉ nhìn dòng cuối.
+
+**✅✅ KẾT QUẢ CUỐI (04/09 chiều): PR #519 SQUASH-MERGED vào main = `1f80f16e`** (owner lệnh; xác minh `merge-base --is-ancestor` ✓, nhánh remote đã xoá, 4 stash echo đã drop). CI 3 vòng: ①  fail thiếu dep `@radix-ui/react-select`/`react-tooltip` (local pass nhờ node_modules sót gói cũ — vá + prune 340 gói) → ② fail Design Token Ratchet ĐÚNG THIẾT KẾ (416 nợ sẵn của 53 file gốc-main vào tầm quét; nợ nhánh GIẢM 41) → owner `APPROVE_BASELINE_INCREASE=1` chốt baseline 196 file/2605 → ③ XANH TOÀN BỘ, CLEAN. Ratchet từ nay GÁC TRÊN MAIN cho mọi PR.
 
 **✅ Session 04/09 — tiền đề của B-03 đã xong, PR mở ngay sau e2e xanh:**
 - 293 file WIP đã phân loại: **echo của PR-đã-merge** (46 tracked + 26 untracked, gồm cả bản nháp backend audit và `app/v2/messages/` chụp trước #475) đưa vào 4 stash `*-2026-09-04`, KHÔNG cuốn vào nhánh; phần thật chia **3 commit**: `d915114f` (S-09 exam + S-06 interview), `0bd3b087` (speaking studio + lesson shell), `24ea34e3` (chrome B-05→B-12 + i18n + docs).
