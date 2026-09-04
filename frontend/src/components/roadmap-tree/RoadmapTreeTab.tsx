@@ -65,7 +65,7 @@ export function RoadmapTreeTab({
       return !on
     })
   }, [])
-  const panelRef = useRef<HTMLDivElement | null>(null)
+  const panelRef = useRef<HTMLElement | null>(null)
 
   const layout = useMemo(() => buildTreeLayout(nodes), [nodes])
   const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes])
@@ -313,8 +313,11 @@ export function RoadmapTreeTab({
             autoFocusId={initialFeiern?.nodeId ?? focusNodeId}
           />
         </div>
-        <div
+        {/* Landmark riêng (B-04): panel là vùng bổ trợ của cây — có tên để screen reader
+            nhảy thẳng tới, và để e2e đếm hành động TRONG panel không dính CTA ngoài trang. */}
+        <aside
           ref={panelRef}
+          aria-label={t('tree.panelLabel')}
           className="min-h-0 shrink-0 bg-ga-surface lg:h-[calc(100vh-22rem)] lg:max-h-[640px] lg:min-h-[400px] lg:w-[300px] lg:overflow-auto"
         >
           <TreeNodePanel
@@ -322,7 +325,7 @@ export function RoadmapTreeTab({
             stats={selectedId != null ? practiceStats.get(selectedId) ?? null : null}
             onJumpToNode={handleUserSelect}
           />
-        </div>
+        </aside>
       </div>
     </div>
   )

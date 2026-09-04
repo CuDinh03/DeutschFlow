@@ -274,7 +274,7 @@
         },
         "skillsCap": "Bài tập của node — 4 kỹ năng",
         "exerciseCount": "{count} câu",
-        "practiceSkill": "Học & Luyện",
+        "practiceSkill": "Luyện",
         "progressHint": "Đã đạt {percent}% — đủ cả 4 kỹ năng thì hoa hoá lá.",
         "doneHint": "Đã đạt cả 4 kỹ năng — lá đã mọc trên cành tuần này.",
         "review": "Xem lại kiến thức",
@@ -289,7 +289,8 @@
         "bestScore": "tốt nhất {percent}%",
         "skillsMastered": "{done}/4 kỹ năng đạt từ {threshold}% trở lên",
         "unlockCondition": "Xong {target} thì nụ này nở.",
-        "goPrereq": "Tới bài đang chặn"
+        "goPrereq": "Tới bài đang chặn",
+        "panelLabel": "Chi tiết node"
       },
       "headerContext": "Giai đoạn hiện tại: {phase}",
       "courseProgressLabel": "Tiến độ lộ trình",

@@ -1,4 +1,20 @@
 import { defineConfig, devices } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+// E2E_JWT_SECRET phải KHỚP JWT_SECRET của dev server (.env.local): tokens.ts ký HS256 bằng nó,
+// middleware verify bằng JWT_SECRET — lệch là mọi trang gated bị 307 về /v2/login và ~30 test
+// fail "giả" (đã cắn hai lần: 26/08 và 04/09, lần sau mất cả buổi chẩn vì tưởng bug sản phẩm).
+// Tự nạp tại đây để chạy `playwright test` trần vẫn đúng; export tay vẫn thắng nếu cần override.
+if (!process.env.E2E_JWT_SECRET) {
+  try {
+    const envLocal = readFileSync(join(process.cwd(), '.env.local'), 'utf8');
+    const m = envLocal.match(/^JWT_SECRET=(.*)$/m);
+    if (m) process.env.E2E_JWT_SECRET = m[1].trim();
+  } catch {
+    // Không có .env.local (CI chẳng hạn): tokens.ts rơi về secret mặc định như trước.
+  }
+}
 
 export default defineConfig({
   testDir: './tests/e2e',

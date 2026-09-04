@@ -274,7 +274,7 @@
         },
         "skillsCap": "Node exercises — 4 skills",
         "exerciseCount": "{count} items",
-        "practiceSkill": "Learn & practise",
+        "practiceSkill": "Practice",
         "progressHint": "{percent}% so far — clear all four skills and the flower turns into a leaf.",
         "doneHint": "All four skills cleared — a leaf has grown on this week's branch.",
         "review": "Review the material",
@@ -289,7 +289,8 @@
         "bestScore": "best {percent}%",
         "skillsMastered": "{done}/4 skills at {threshold}% or higher",
         "unlockCondition": "Finish {target} to open this bud.",
-        "goPrereq": "Go to the blocking day"
+        "goPrereq": "Go to the blocking day",
+        "panelLabel": "Node details"
       },
       "headerContext": "Current stage: {phase}",
       "courseProgressLabel": "Path progress",
