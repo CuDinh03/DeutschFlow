@@ -47,13 +47,13 @@ import {
   type SpotlightTourId,
   type SpotlightTourParams,
 } from './spotlightTours'
+import { scrimZones, type ScrimZone } from '@/lib/spotlightScrim'
 
-// Ink #161513 @ ~68% — plan §5.1. Fixed (not theme.overlay): the spotlight look
-// is the same in both themes.
-const SCRIM = 'rgba(22, 21, 19, 0.68)'
-// Oversized border that paints the scrim around the transparent cutout. Must
-// exceed any screen dimension.
-const SCRIM_REACH = 2000
+// Ink #161513 @ 50% — "lớp mờ nhẹ, chỉ sáng vùng đang chỉ" (owner, QA đợt 0
+// 05/09). Plan §5.1 từng chọn 68%, nhưng lớp mờ chưa từng hiện trên bản public
+// (xem ghi chú ở scrim bên dưới) nên chưa ai nhìn thấy mức đó. Fixed (not
+// theme.overlay): the spotlight look is the same in both themes.
+const SCRIM = 'rgba(22, 21, 19, 0.5)'
 const CUTOUT_PAD = 8
 const CUTOUT_RADIUS = radius['2xl']
 const RING_WIDTH = 1.5
@@ -323,16 +323,23 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
     [registerTarget, unregisterTarget, startTour, active],
   )
 
-  const scrimStyle = useAnimatedStyle(() => ({
-    position: 'absolute' as const,
-    left: hx.value - SCRIM_REACH,
-    top: hy.value - SCRIM_REACH,
-    width: hw.value + SCRIM_REACH * 2,
-    height: hh.value + SCRIM_REACH * 2,
-    borderWidth: SCRIM_REACH,
-    borderRadius: SCRIM_REACH + CUTOUT_RADIUS,
-    borderColor: SCRIM,
-  }))
+  // Lớp mờ = BỐN tấm quanh ô khoét (trên · dưới · trái · phải), cùng phép chia
+  // màn hình với StepBlockers (lib/spotlightScrim). Trước 05/09 là MỘT view
+  // viền khổng lồ (borderWidth 2000, borderRadius 2000+r) — mẹo đó KHÔNG hiện
+  // trên build New Architecture của bản public 17: tour chỉ còn khung vàng, cả
+  // màn vẫn sáng nguyên. Bốn tấm nền phẳng thì không phụ thuộc cách vẽ viền.
+  const scrimTop = useAnimatedStyle(() =>
+    zoneStyle(scrimZones({ x: hx.value, y: hy.value, width: hw.value, height: hh.value }, winW, winH)[0]),
+  )
+  const scrimBottom = useAnimatedStyle(() =>
+    zoneStyle(scrimZones({ x: hx.value, y: hy.value, width: hw.value, height: hh.value }, winW, winH)[1]),
+  )
+  const scrimLeft = useAnimatedStyle(() =>
+    zoneStyle(scrimZones({ x: hx.value, y: hy.value, width: hw.value, height: hh.value }, winW, winH)[2]),
+  )
+  const scrimRight = useAnimatedStyle(() =>
+    zoneStyle(scrimZones({ x: hx.value, y: hy.value, width: hw.value, height: hh.value }, winW, winH)[3]),
+  )
 
   const ringStyle = useAnimatedStyle(() => ({
     position: 'absolute' as const,
@@ -372,7 +379,10 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
           >
             {display.rect ? (
               <>
-                <Animated.View pointerEvents="none" style={scrimStyle} />
+                <Animated.View pointerEvents="none" style={scrimTop} />
+                <Animated.View pointerEvents="none" style={scrimBottom} />
+                <Animated.View pointerEvents="none" style={scrimLeft} />
+                <Animated.View pointerEvents="none" style={scrimRight} />
                 <Animated.View
                   pointerEvents="none"
                   style={[
@@ -421,6 +431,19 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
   )
 }
 
+/** Style một tấm mờ — gọi từ worklet của useAnimatedStyle (UI thread). */
+function zoneStyle(z: ScrimZone) {
+  'worklet'
+  return {
+    position: 'absolute' as const,
+    left: z.left,
+    top: z.top,
+    width: z.width,
+    height: z.height,
+    backgroundColor: SCRIM,
+  }
+}
+
 // Touch interception. Default: one full-screen blocker (taps on the dim do
 // nothing — plan §5.1). Tap-through step: four blockers AROUND the cutout so
 // only the spotlighted element receives the tap.
@@ -428,16 +451,16 @@ function StepBlockers({ rect, winW, winH }: { rect: TargetRect | null; winW: num
   if (!rect) {
     return <Pressable accessible={false} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
   }
-  const x = rect.x - CUTOUT_PAD
-  const y = rect.y - CUTOUT_PAD
-  const w = rect.width + CUTOUT_PAD * 2
-  const h = rect.height + CUTOUT_PAD * 2
-  const zones: ViewStyle[] = [
-    { position: 'absolute', left: 0, top: 0, width: winW, height: Math.max(0, y) },
-    { position: 'absolute', left: 0, top: y + h, width: winW, height: Math.max(0, winH - y - h) },
-    { position: 'absolute', left: 0, top: y, width: Math.max(0, x), height: h },
-    { position: 'absolute', left: x + w, top: y, width: Math.max(0, winW - x - w), height: h },
-  ]
+  const zones: ViewStyle[] = scrimZones(
+    {
+      x: rect.x - CUTOUT_PAD,
+      y: rect.y - CUTOUT_PAD,
+      width: rect.width + CUTOUT_PAD * 2,
+      height: rect.height + CUTOUT_PAD * 2,
+    },
+    winW,
+    winH,
+  ).map((z) => ({ position: 'absolute', ...z }))
   return (
     <>
       {zones.map((z, i) => (
