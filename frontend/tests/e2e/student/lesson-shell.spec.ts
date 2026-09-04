@@ -81,7 +81,9 @@ test.describe('LessonShell — một vỏ, hai chế độ (S-04 AC-1)', () => {
     await expect(page.getByRole('tab', { name: 'Luyện' })).toHaveAttribute('aria-selected', 'true');
 
     // Runner CŨ không báo tiến độ gì cả — nút nộp chỉ hiện khi đã trả lời hết.
-    const bar = page.getByRole('progressbar');
+    // Trang luyện có HAI progressbar sau merge Lernbaum: thanh của vỏ + dải lá LeafProgress.
+    // Spec này canh HỢP ĐỒNG CỦA VỎ nên trỏ đích danh thanh 'Tiến độ bài'.
+    const bar = page.getByRole('progressbar', { name: 'Tiến độ bài' });
     await expect(bar).toHaveAttribute('aria-valuenow', '0');
     await expect(page.getByText(`Bước 0/${EXERCISES.length}`)).toBeVisible();
 
@@ -114,7 +116,7 @@ test.describe('LessonShell — một vỏ, hai chế độ (S-04 AC-1)', () => {
     await expect(page.getByText('Nói về công việc hằng ngày')).toBeVisible();
     await expect(page.getByText('~12 phút')).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Học' })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByRole('progressbar')).toBeVisible();
+    await expect(page.getByRole('progressbar', { name: 'Tiến độ bài' })).toBeVisible();
   });
 
   test('bài HỌC: thiếu thời lượng/mục tiêu thì BỎ HẲN ô, không in ô rỗng', async ({ page }) => {

@@ -101,7 +101,8 @@ test.describe('UI 2.0 (/v2) smoke', () => {
     // original "Dashboard & Lớp học" until 2026-08-04). It is a generic heading, so pair it with a
     // teacher-only element below — otherwise a bounce to some other page could pass this test.
     await expect(page.locator('h1')).toContainText('Trang chủ')
-    await expect(page.getByText('Tổng học viên')).toBeVisible()
+    // Nhãn mới sau merge main: 'Lượt ghi danh' (một học viên 2 lớp đếm 2 — nói thật hơn 'Tổng học viên').
+    await expect(page.getByText('Lượt ghi danh')).toBeVisible()
 
     // Giáo viên cũng đã chuyển sang area nav ở S-01: Heute · Klassen · Bewerten · Materialien ·
     // Berichte. Cùng một hợp đồng 5 khu vực, khác bộ nhãn.

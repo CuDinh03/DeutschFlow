@@ -254,22 +254,18 @@ test.describe('Cây học tập (/v2)', () => {
     expect(page.url()).toContain('node=112')
   })
 
-  // Regression QA prod 17/08: panel cây inactive mang class `flex` đè thuộc tính `hidden` của
-  // Radix ⇒ div rỗng flex-1 vẫn chiếm chỗ, tab Bài học/Giai đoạn hở ~300px trắng trên đầu.
-  test('chuyển tab Bài học: panel cây ẩn hẳn, không để lại khoảng trống', async ({ page }) => {
+  // Regression QA prod 17/08 (gốc: panel Radix inactive vẫn chiếm chỗ). S-03 đổi sang segmented
+  // Cây|Danh sách và panel cây UNMOUNT hẳn khi rời — phép đo mới: rời cây thì group biến mất
+  // khỏi DOM, danh sách hiện ngay, không còn vùng trắng vì không còn panel rỗng nào tồn tại.
+  test('chuyển sang Danh sách: panel cây gỡ hẳn khỏi DOM, danh sách hiện ngay', async ({ page }) => {
     await mockSession(page, a1Roadmap())
     await page.goto('/v2/student/roadmap')
     await expect(page.getByRole('group', { name: 'Cây học tập' })).toBeVisible()
 
-    await page.getByRole('tab', { name: 'Bài học' }).click()
+    await page.getByRole('tab', { name: 'Danh sách' }).click()
 
-    const gap = await page.evaluate(() => {
-      const tablist = document.querySelector('[role="tablist"]')
-      const panel = document.querySelector('[role="tabpanel"][data-state="active"]')
-      if (!tablist || !panel) return Number.NaN
-      return panel.getBoundingClientRect().top - tablist.getBoundingClientRect().bottom
-    })
-    expect(gap).toBeLessThan(60)
+    await expect(page.getByRole('group', { name: 'Cây học tập' })).toHaveCount(0)
+    await expect(page.getByRole('tab', { name: 'Danh sách' })).toHaveAttribute('aria-selected', 'true')
   })
 
   // Đợt 1 (T5): lựa chọn tắt hiệu ứng phải sống qua lần vào sau.
