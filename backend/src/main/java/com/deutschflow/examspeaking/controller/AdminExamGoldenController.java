@@ -38,6 +38,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminExamGoldenController {
 
+    /** Byte Order Mark UTF-8 cho file CSV tải về (Excel Windows nhận diện UTF-8). */
+    static final String UTF8_BOM = "\uFEFF";
+
     private final ExamGoldenService goldenService;
     private final AuditLogService auditLogService;
 
@@ -74,11 +77,13 @@ public class AdminExamGoldenController {
         auditLogService.log("admin.exam_golden.exported", AuditActor.of(user),
                 "EXAM_GOLDEN", null,
                 Map.of("provider", String.valueOf(provider), "level", String.valueOf(level)));
+        // BOM UTF-8 (U+FEFF) đứng đầu: Excel trên Windows mở CSV không BOM theo ANSI → tên người
+        // chấm tiếng Việt ("Prüferin", "Nguyễn…") thành mojibake. Cùng cách với web `lib/orgCsv.ts`.
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .contentType(MediaType.parseMediaType("text/csv; charset=utf-8"))
                 .header("Content-Disposition", "attachment; filename=\"golden-set.csv\"")
-                .body(csv);
+                .body(UTF8_BOM + csv);
     }
 
     /** Regression: chấm LẠI phiên trên transcript đóng băng — không ghi đè kết quả lưu. */

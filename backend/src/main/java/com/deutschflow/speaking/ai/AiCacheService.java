@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
+import java.nio.charset.StandardCharsets;
 
 @Service
 @RequiredArgsConstructor
@@ -37,7 +38,9 @@ public class AiCacheService {
             for (ChatMessage msg : messages) {
                 sb.append(msg.role()).append(":").append(msg.content()).append("|");
             }
-            byte[] hash = digest.digest(sb.toString().getBytes());
+            // UTF-8 tường minh: getBytes() không charset ăn theo file.encoding của JVM (Java 17 chưa
+            // mặc định UTF-8) → khoá cache có thể trùng giữa các prompt chỉ khác ký tự có dấu.
+            byte[] hash = digest.digest(sb.toString().getBytes(StandardCharsets.UTF_8));
             StringBuilder hexString = new StringBuilder();
             for (byte b : hash) {
                 String hex = Integer.toHexString(0xff & b);

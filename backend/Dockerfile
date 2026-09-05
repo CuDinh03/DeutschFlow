@@ -84,4 +84,10 @@ EXPOSE 8080
 # -XX:MaxGCPauseMillis=200 => Target GC pause ≤ 200ms
 # -XX:+UseStringDeduplication => Giảm heap cho chuỗi trùng lặp (vocab, prompts)
 # -Djava.security.egd=...  => Tăng tốc khởi động bằng /dev/urandom
-ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=${JVM_MAX_RAM_PCT:-65.0} -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom $JAVA_OPTS -jar app.jar \"$@\""]
+# -Dfile.encoding=UTF-8    => Java 17 chưa có JEP 400 (UTF-8 mặc định từ JDK 18): charset mặc định
+# -Dsun.jnu.encoding=UTF-8    ăn theo LANG của image. eclipse-temurin đặt en_US.UTF-8 nên hôm nay
+#                             đúng, nhưng đổi base image (distroless/alpine không locale) là
+#                             getBytes()/InputStreamReader không charset + tên file có dấu vỡ âm
+#                             thầm. Chốt cứng ở đây để không phụ thuộc image (audit UTF-8 06/09/2026).
+ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
+ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=${JVM_MAX_RAM_PCT:-65.0} -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 $JAVA_OPTS -jar app.jar \"$@\""]

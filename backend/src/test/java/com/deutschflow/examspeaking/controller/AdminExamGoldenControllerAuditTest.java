@@ -46,4 +46,17 @@ class AdminExamGoldenControllerAuditTest {
         verify(auditLogService).log(eq("admin.exam_golden.exported"), any(AuditActor.class),
                 eq("EXAM_GOLDEN"), eq(null), any());
     }
+
+    @Test
+    @DisplayName("exportCsv: body mở đầu bằng BOM UTF-8 + Content-Type charset=utf-8 (Excel Windows đọc đúng tiếng Việt)")
+    void exportCsv_prefixesUtf8Bom() {
+        when(goldenService.exportCsv("goethe", "A1")).thenReturn("session,rater,band\n1,Prüferin Anna,B1\n");
+        var controller = new AdminExamGoldenController(goldenService, auditLogService);
+
+        ResponseEntity<String> response = controller.exportCsv("goethe", "A1", admin());
+
+        assertThat(response.getBody()).startsWith("\uFEFF" + "session,rater,band");
+        assertThat(response.getBody()).contains("Prüferin Anna");
+        assertThat(String.valueOf(response.getHeaders().getContentType())).contains("charset=utf-8");
+    }
 }
