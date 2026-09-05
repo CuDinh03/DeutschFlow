@@ -379,10 +379,24 @@ export default function SpeakingScreen() {
   const assignmentKey = assignmentParam ? `${assignmentParam}:${nonceParam ?? ''}` : null
   useEffect(() => {
     if (!assignmentKey) return
+    if (autoStartedRef.current === assignmentKey) return
     const aid = Number(assignmentParam)
     if (!Number.isFinite(aid) || aid <= 0) return
-    if (view !== 'select' || session || starting) return
-    if (autoStartedRef.current === assignmentKey) return
+    if (starting) return
+    if (session) {
+      // Đang trong một phiên (tab Speaking không unmount): không cắt ngang; coi như đã dùng
+      // nonce này để lúc phiên đó kết thúc không tự mở phiên mới đè lên màn tổng kết.
+      autoStartedRef.current = assignmentKey
+      return
+    }
+    if (view === 'summary') {
+      // Smoke 05/09 (AC-ASSIGN-SPK-M-03): mở lại bài giao khi màn còn tổng kết của phiên trước
+      // → effect từng dừng ở đây và người dùng thấy lại tổng kết cũ. Dọn về 'select' rồi nhánh
+      // dưới tạo phiên mới ở lần render kế.
+      resetToSelect()
+      return
+    }
+    if (view !== 'select') return
     autoStartedRef.current = assignmentKey
     void startSession({
       persona: PERSONA_TOKENS.lukas,

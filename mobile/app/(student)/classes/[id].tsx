@@ -7,6 +7,7 @@ import {
   Copy, GraduationCap, MessageCircle, MessagesSquare, Sparkles, Upload, Users, X,
 } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import {
   fetchClassAssignments, fetchClassDetail, fetchClassLessons,
   fetchMyAttendance, fetchMySkillReport, isAwaitingTeacher, isFinalGrade,
@@ -35,12 +36,9 @@ export default function StudentClassDetail() {
     ],
   })
 
-  const refetch = () => {
-    void detailQ.refetch()
-    void assignmentsQ.refetch()
-    void lessonsQ.refetch()
-  }
-  const isRefetching = detailQ.isRefetching || assignmentsQ.isRefetching || lessonsQ.isRefetching
+  const pull = usePullRefresh(async () => {
+    await Promise.all([detailQ.refetch(), assignmentsQ.refetch(), lessonsQ.refetch()])
+  })
 
   if (detailQ.isLoading) {
     return (
@@ -94,7 +92,7 @@ export default function StudentClassDetail() {
           paddingBottom: space[8],
           gap: space[4],
         }}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+        refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={() => void pull.onRefresh()} />}
       >
         <HeaderCard detail={detail} />
         <ProgressStrip detail={detail} />
