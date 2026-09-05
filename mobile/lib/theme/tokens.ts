@@ -1,7 +1,7 @@
 // Mode-independent design scales. Semantic color mapping lives in themes.ts.
 //
 // v2 "Galerie" design language (2026-06-28): warm-paper editorial — Newsreader
-// serif large-titles, Instrument Sans UI, hairline borders, SHARP corners (~4px),
+// serif large-titles, Plus Jakarta Sans UI, hairline borders, SHARP corners (~4px),
 // yellow-square motif. Token KEYS are kept stable across the v1→v2 reskin so every
 // screen/component keeps compiling; only the VALUES changed.
 
@@ -33,18 +33,21 @@ export const radius = {
 } as const
 
 // Font family names as registered by @expo-google-fonts loaders in _layout.tsx.
-// v2: display/titles = Newsreader (serif), UI/body = Instrument Sans. Keys kept
+// v2: display/titles = Newsreader (serif), UI/body = Plus Jakarta Sans. Keys kept
 // stable (displayBlack/…/monoBold) so the type scale + any direct refs still resolve.
+// 06/09/2026: body đổi từ Instrument Sans → Plus Jakarta Sans vì Instrument Sans thiếu
+// 50/70 glyph tiếng Việt (ơ ư ạ ả ấ ầ ẩ … ỹ Ư Ơ, kiểm bảng cmap TTF) → hệ điều hành
+// fallback từng ký tự, chữ Việt lẫn hai kiểu nét. Newsreader đủ glyph nên giữ nguyên.
 export const fonts = {
   displayBlack: 'Newsreader_700Bold',
   displayBold: 'Newsreader_600SemiBold',
   displaySemi: 'Newsreader_500Medium',
-  bodyRegular: 'InstrumentSans_400Regular',
-  bodyMedium: 'InstrumentSans_500Medium',
-  bodySemi: 'InstrumentSans_600SemiBold',
-  bodyBold: 'InstrumentSans_700Bold',
+  bodyRegular: 'PlusJakartaSans_400Regular',
+  bodyMedium: 'PlusJakartaSans_500Medium',
+  bodySemi: 'PlusJakartaSans_600SemiBold',
+  bodyBold: 'PlusJakartaSans_700Bold',
   // "mono" role retired in v2 — numbers use the serif; map to keep refs valid.
-  monoMedium: 'InstrumentSans_500Medium',
+  monoMedium: 'PlusJakartaSans_500Medium',
   monoBold: 'Newsreader_600SemiBold',
 } as const
 

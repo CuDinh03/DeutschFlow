@@ -367,7 +367,9 @@
     "aiConfig": "AI Config",
     "settings": "Settings",
     "logout": "Logout",
-    "lastUpdated": "Last updated"
+    "lastUpdated": "Last updated",
+    "refresh": "Refresh",
+    "refreshing": "Loading..."
   },
   "plan": {
     "loading": "Loading plan...",
