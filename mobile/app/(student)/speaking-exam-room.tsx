@@ -4,20 +4,24 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Haptics from 'expo-haptics'
-import { Check, Flag, Mic, Square, RotateCcw, ChevronRight, X } from 'lucide-react-native'
+import { Check, Flag, Mic, Square, RotateCcw, ChevronRight, X, Volume2, VolumeX } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
+import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, Screen, Skeleton, ThemedText, YellowSquare,
+  AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, Screen, Skeleton, TextField, ThemedText, YellowSquare,
 } from '@/components/ui'
 import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { useBlurGuard } from '@/hooks/useBlurGuard'
 import {
   examSpeakingApi, type ExamSessionView, type TurnResponse,
 } from '@/lib/examSpeakingApi'
-import { formatClock, nextPrueferAnnouncement, remainingSec, stateLabel, stimulusDisplay } from '@/lib/examSpeakingUi'
-import { speakExamSequence, stopExamTts } from '@/lib/examTts'
+import {
+  drillSummary, formatClock, gradingFailedCopy, isRetryableTurnError, newClientTurnId, nextPrueferAnnouncement,
+  providerName, remainingSec, stateLabel, stimulusDisplay, type DrillTurnEval,
+} from '@/lib/examSpeakingUi'
+import { isExamTtsMuted, setExamTtsMuted, speakExamSequence, stopExamTts } from '@/lib/examTts'
 import { trackFeatureAction } from '@/lib/analytics'
 
 const GRADING_POLL_MS = 3000
@@ -27,6 +31,14 @@ interface RoomLine {
   id: number
   role: 'CANDIDATE' | 'PRUEFER' | 'PARTNER'
   text: string
+  /** Chấm nhanh của lượt DRILL (điểm 0–10, sửa lỗi, Redemittel) — web hiện từ Đợt 1, mobile trước đây bỏ. */
+  eval?: DrillTurnEval | null
+}
+
+/** Lượt nói gửi thất bại mà server có thể đã xử lý: giữ file + khoá idempotency để gửi lại đúng lượt đó (F-06). */
+interface PendingTurn {
+  uri: string
+  clientTurnId: string
 }
 
 /** Đồng hồ đếm ngược neo theo giờ SERVER (đồng hồ máy lệch không làm sai giờ thi). */
@@ -74,6 +86,11 @@ export default function SpeakingExamRoomScreen() {
   const [busy, setBusy] = useState(false)
   const [recording, setRecording] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [pendingTurn, setPendingTurn] = useState<PendingTurn | null>(null)
+  const [muted, setMuted] = useState(isExamTtsMuted())
+  const [notes, setNotes] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+  const notesSeededRef = useRef(false)
   const lineSeq = useRef(0)
   // Lời PRUEFER cuối cùng ĐÃ vào transcript (trim) — bất kể tới từ aiTurns hay
   // từ directive echo. Là chốt chặn duy nhất cho lỗi lặp câu dẫn giám khảo:
@@ -98,14 +115,18 @@ export default function SpeakingExamRoomScreen() {
     },
   )
 
-  const pushLine = useCallback((role: RoomLine['role'], text: string) => {
+  const pushLine = useCallback((role: RoomLine['role'], text: string, evalJson?: DrillTurnEval | null) => {
     lineSeq.current += 1
-    setLines((prev) => [...prev.slice(-11), { id: lineSeq.current, role, text }])
+    setLines((prev) => [...prev.slice(-11), { id: lineSeq.current, role, text, eval: evalJson ?? null }])
   }, [])
 
   /** Cập nhật snapshot + nói/ghi lời giám khảo khi sang Teil/câu dẫn mới. */
   const applySession = useCallback((data: ExamSessionView, speak: boolean) => {
     setSession(data)
+    if (!notesSeededRef.current) {
+      notesSeededRef.current = true
+      setNotes(data.notesText ?? '')
+    }
     if (data.state === 'RESULTS') {
       stopExamTts()
       // Người dùng đang ở tab khác thì KHÔNG giật họ sang màn kết quả giữa
@@ -140,8 +161,10 @@ export default function SpeakingExamRoomScreen() {
     setSession(null)
     setLines([])
     setLoadError(false)
+    setPendingTurn(null)
     lastPrueferRef.current = null
     pendingResultsNav.current = false
+    notesSeededRef.current = false
     void (async () => {
       try {
         const data = await examSpeakingApi.getSession(sessionId)
@@ -194,9 +217,26 @@ export default function SpeakingExamRoomScreen() {
     }
   }
 
+  async function saveNotes() {
+    setSavingNotes(true)
+    try {
+      setSession(await examSpeakingApi.saveNotes(sessionId, notes.trim()))
+    } catch (e) {
+      Alert.alert('Lỗi', apiMessage(e))
+    } finally {
+      setSavingNotes(false)
+    }
+  }
+
+  function toggleMute() {
+    const next = !muted
+    setExamTtsMuted(next)
+    setMuted(next)
+  }
+
   async function doFinish() {
     if (busy || uploading) return
-    Alert.alert('Kết thúc bài thi?', 'Bài của bạn sẽ được chấm theo rubric Goethe. Không quay lại nói tiếp được.', [
+    Alert.alert('Kết thúc bài thi?', `Bài của bạn sẽ được chấm theo bộ tiêu chí ${providerName(session?.provider ?? 'GOETHE')}. Không quay lại nói tiếp được.`, [
       { text: 'Ở lại', style: 'cancel' },
       {
         text: 'Kết thúc & chấm',
@@ -280,14 +320,55 @@ export default function SpeakingExamRoomScreen() {
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })
       const uri = recorder.uri
       if (!uri) throw new Error('no_uri')
-      let turn: TurnResponse
-      try {
-        turn = await examSpeakingApi.audioTurn(sessionId, uri)
-      } finally {
-        // Server đã (hoặc đã cố) nhận audio — file tạm hết việc (F-17).
-        void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {})
+      await submitTurnFile({ uri, clientTurnId: newClientTurnId() })
+    } catch (e) {
+      Alert.alert('Lỗi lượt nói', apiMessage(e))
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  /** "Gửi lại" đúng lượt vừa thất bại — cùng clientTurnId nên backend không bao giờ tính thành lượt thứ hai. */
+  async function retryPendingTurn() {
+    const p = pendingTurn
+    if (!p || uploading || busy) return
+    setUploading(true)
+    try {
+      await submitTurnFile(p)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  function discardPendingTurn() {
+    const p = pendingTurn
+    setPendingTurn(null)
+    if (p) void FileSystem.deleteAsync(p.uri, { idempotent: true }).catch(() => {})
+  }
+
+  async function submitTurnFile(p: PendingTurn) {
+    let turn: TurnResponse
+    try {
+      turn = await examSpeakingApi.audioTurn(sessionId, p.uri, p.clientTurnId)
+    } catch (e) {
+      if (isRetryableTurnError(e)) {
+        // Timeout/rớt mạng/5xx/"đang xử lý": server có thể đã xử lý xong — GIỮ file + khoá để gửi lại,
+        // không xoá (trước đây xoá vô điều kiện → phải thu lại = lượt mới, trừ quota đôi).
+        setPendingTurn(p)
+        Alert.alert('Chưa gửi được lượt nói', `${apiMessage(e)}\n\nBản ghi vẫn còn trên máy — gửi lại sẽ không bị tính thành lượt mới.`, [
+          { text: 'Bỏ lượt này', style: 'destructive', onPress: () => discardPendingTurn() },
+          { text: 'Gửi lại', onPress: () => { void retryPendingTurn() } },
+        ])
+        return
       }
-      if (turn.transcript?.trim()) pushLine('CANDIDATE', turn.transcript.trim())
+      void FileSystem.deleteAsync(p.uri, { idempotent: true }).catch(() => {})
+      throw e
+    }
+    // Server đã nhận audio — file tạm hết việc (F-17).
+    setPendingTurn(null)
+    void FileSystem.deleteAsync(p.uri, { idempotent: true }).catch(() => {})
+    try {
+      if (turn.transcript?.trim()) pushLine('CANDIDATE', turn.transcript.trim(), turn.turnEval as DrillTurnEval | null)
       const aiTurns = (turn.aiTurns ?? []).filter((t) => t.text?.trim())
       for (const t of aiTurns) {
         const role = t.role === 'PARTNER' ? 'PARTNER' : 'PRUEFER'
@@ -304,8 +385,6 @@ export default function SpeakingExamRoomScreen() {
       if (aiTurns.length > 0 && focusedRef.current) void speakExamSequence(aiTurns)
     } catch (e) {
       Alert.alert('Lỗi lượt nói', apiMessage(e))
-    } finally {
-      setUploading(false)
     }
   }
 
@@ -347,10 +426,23 @@ export default function SpeakingExamRoomScreen() {
           router.back()
         }}
         right={
-          inPart || session.state === 'BETWEEN' ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Kết thúc và chấm bài" onPress={() => void doFinish()} hitSlop={8}>
-              <Icon icon={Flag} size={20} color="secondary" />
-            </Pressable>
+          inPart || session.state === 'BETWEEN' || session.state === 'PREP' ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={muted ? 'Bật tiếng giám khảo' : 'Tắt tiếng giám khảo'}
+                accessibilityState={{ selected: muted }}
+                onPress={toggleMute}
+                hitSlop={8}
+              >
+                <Icon icon={muted ? VolumeX : Volume2} size={20} color="secondary" />
+              </Pressable>
+              {session.state !== 'PREP' && (
+                <Pressable accessibilityRole="button" accessibilityLabel="Kết thúc và chấm bài" onPress={() => void doFinish()} hitSlop={8}>
+                  <Icon icon={Flag} size={20} color="secondary" />
+                </Pressable>
+              )}
+            </View>
           ) : undefined
         }
       />
@@ -448,6 +540,20 @@ export default function SpeakingExamRoomScreen() {
             </View>
           ))}
 
+          {/* Konzeptpapier — parity web: ghi chú lúc chuẩn bị, dùng lại trong lúc thi */}
+          <View style={{ gap: space[2] }}>
+            <Caption>Ghi chú của bạn (Konzeptpapier)</Caption>
+            <Card style={{ gap: space[3] }}>
+              <TextField
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Gạch ý cho bài nói…"
+                multiline
+              />
+              <Button label={savingNotes ? 'Đang lưu…' : 'Lưu ghi chú'} variant="ghost" size="sm" onPress={() => void saveNotes()} loading={savingNotes} />
+            </Card>
+          </View>
+
           <Button
             label={busy ? 'Đang vào…' : 'Vào thi ngay'}
             onPress={() => void doAdvance()}
@@ -487,6 +593,12 @@ export default function SpeakingExamRoomScreen() {
                 {d.hintVi ? (
                   <ThemedText variant="caption" color="muted">{d.hintVi}</ThemedText>
                 ) : null}
+                {session.notesText ? (
+                  <View style={{ backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[2] + 2, gap: 2 }}>
+                    <Caption>Ghi chú của bạn</Caption>
+                    <ThemedText variant="caption" color="secondary">{session.notesText}</ThemedText>
+                  </View>
+                ) : null}
               </Card>
             )}
 
@@ -518,8 +630,20 @@ export default function SpeakingExamRoomScreen() {
                 <ThemedText variant="body" style={l.role === 'CANDIDATE' ? { color: c.onInk } : undefined}>
                   {l.text}
                 </ThemedText>
+                {l.eval ? <DrillEvalBlock ev={l.eval} /> : null}
               </View>
             ))}
+
+            {pendingTurn && !uploading && (
+              <Card style={{ gap: space[2], borderColor: c.danger }}>
+                <ThemedText variant="bodyStrong">Lượt vừa rồi chưa gửi được</ThemedText>
+                <ThemedText variant="caption" color="secondary">Bản ghi vẫn còn trên máy — gửi lại sẽ không bị tính thành lượt mới.</ThemedText>
+                <View style={{ flexDirection: 'row', gap: space[2] }}>
+                  <Button label="Gửi lại" size="sm" onPress={() => void retryPendingTurn()} />
+                  <Button label="Bỏ lượt này" size="sm" variant="ghost" onPress={discardPendingTurn} />
+                </View>
+              </Card>
+            )}
 
             {uploading && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: space[1] }}>
@@ -567,19 +691,48 @@ export default function SpeakingExamRoomScreen() {
         </View>
       )}
 
-      {/* ── DONE (đã nói xong, chưa chấm) ── */}
-      {session.state === 'DONE' && (
-        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[5], gap: space[4] }}>
-          <Card style={{ alignItems: 'center', gap: space[3], paddingVertical: space[7] }}>
-            <Icon icon={Check} size={28} color="success" />
-            <ThemedText variant="title">Bạn đã nói xong bài thi</ThemedText>
-            <ThemedText variant="caption" color="secondary" align="center">
-              Gửi bài để giám khảo AI chấm theo rubric 4 tiêu chí Goethe.
+      {/* ── DONE: chỉ xảy ra với DRILL (mock đi thẳng GRADING) → tổng kết luyện, parity web DrillSummary.
+             Trước đây màn này mời "Chấm bài" và gọi finish trên phiên đã đóng — nút không làm gì. ── */}
+      {session.state === 'DONE' && (() => {
+        const summary = drillSummary(lines.filter((l) => l.role === 'CANDIDATE').map((l) => l.eval))
+        return (
+          <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[4], paddingTop: space[2] }}>
+            <Card style={{ alignItems: 'center', gap: space[3], paddingVertical: space[6] }}>
+              <Icon icon={Check} size={28} color="success" />
+              <ThemedText variant="title">Xong phần luyện</ThemedText>
+              <ThemedText variant="displayLg">{summary.avgScore != null ? `${summary.avgScore}/10` : '—'}</ThemedText>
+              <ThemedText variant="caption" color="secondary" align="center">
+                {summary.turns > 0
+                  ? `Điểm chấm nhanh trung bình của ${summary.turns} lượt nói (0–10, không phải điểm thi).`
+                  : 'Chưa có lượt nào được chấm nhanh — hãy nói thêm ở lần luyện sau.'}
+              </ThemedText>
+            </Card>
+            {summary.corrections.length > 0 && (
+              <View style={{ gap: space[2] }}>
+                <Caption>{`Lỗi cần xem lại · ${summary.corrections.length}`}</Caption>
+                <Card padded={false}>
+                  {summary.corrections.slice(0, 12).map((cx, i) => (
+                    <View key={`${cx.code}-${i}`} style={{ paddingHorizontal: space[4], paddingVertical: space[3], borderTopWidth: i === 0 ? 0 : 1, borderTopColor: c.border, gap: 2 }}>
+                      <ThemedText variant="body">
+                        <ThemedText variant="body" style={{ textDecorationLine: 'line-through' }} color="muted">{cx.original}</ThemedText>
+                        {'  →  '}
+                        <ThemedText variant="bodyStrong">{cx.correction}</ThemedText>
+                      </ThemedText>
+                    </View>
+                  ))}
+                </Card>
+              </View>
+            )}
+            <View style={{ gap: space[2] }}>
+              <Button label="Luyện lại Teil này" onPress={() => router.back()} />
+              <Button label="Ôn yếu điểm + Redemittel" variant="ghost" onPress={() => router.push('/(student)/speaking-exam-weakness')} />
+            </View>
+            <ThemedText variant="caption" color="faint">
+              Chấm nhanh chỉ để luyện; điểm thi thử theo bộ tiêu chí của hệ chỉ có ở chế độ thi thử trọn gói.
             </ThemedText>
-            <Button label="Chấm bài" onPress={() => void doFinish()} loading={busy} />
-          </Card>
-        </View>
-      )}
+          </Screen>
+        )
+      })()}
 
       {/* ── GRADING ── */}
       {session.state === 'GRADING' && (
@@ -593,21 +746,25 @@ export default function SpeakingExamRoomScreen() {
         </View>
       )}
 
-      {/* ── GRADING_FAILED ── */}
-      {session.state === 'GRADING_FAILED' && (
-        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[5] }}>
-          <Card style={{ gap: space[3], borderColor: c.danger }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-              <Icon icon={X} size={20} color="danger" />
-              <ThemedText variant="title">Chấm bài gặp lỗi</ThemedText>
-            </View>
-            <ThemedText variant="caption" color="secondary">
-              Bài nói của bạn vẫn còn nguyên — chỉ khâu chấm bị lỗi. Bấm chấm lại, không phải thi lại.
-            </ThemedText>
-            <Button label="Chấm lại" onPress={() => void doRegrade()} loading={busy} />
-          </Card>
-        </View>
-      )}
+      {/* ── GRADING_FAILED — F-08: hết quota ≠ job chết ── */}
+      {session.state === 'GRADING_FAILED' && (() => {
+        const copy = gradingFailedCopy(session.gradingError)
+        return (
+          <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[5] }}>
+            <Card style={{ gap: space[3], borderColor: c.danger }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                <Icon icon={X} size={20} color="danger" />
+                <ThemedText variant="title">{copy.title}</ThemedText>
+              </View>
+              <ThemedText variant="caption" color="secondary">{copy.message}</ThemedText>
+              {copy.topUp && PAYWALL_ENABLED && (
+                <Button label="Xem gói / nạp thêm" variant="secondary" onPress={() => router.push('/(student)/upgrade')} />
+              )}
+              <Button label="Chấm lại" onPress={() => void doRegrade()} loading={busy} />
+            </Card>
+          </View>
+        )
+      })()}
 
       {/* ── ABORTED ── */}
       {session.state === 'ABORTED' && (
@@ -620,5 +777,36 @@ export default function SpeakingExamRoomScreen() {
         </View>
       )}
     </Screen>
+  )
+}
+
+/** Chấm nhanh một lượt DRILL dưới bong bóng thí sinh (parity web `drill-eval`): điểm, nhận xét, sửa lỗi, Redemittel. */
+function DrillEvalBlock({ ev }: { ev: DrillTurnEval }) {
+  const theme = useTheme()
+  const c = theme.colors
+  if (ev.error) {
+    return <ThemedText variant="caption" style={{ color: c.onInkMuted }}>{ev.error}</ThemedText>
+  }
+  return (
+    <View style={{ gap: 4, marginTop: 4 }}>
+      {typeof ev.score === 'number' && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <Pill label={`${ev.score}/10`} tone={ev.score >= 8 ? 'success' : ev.score >= 5 ? 'accent' : 'danger'} solid />
+          {ev.feedbackVi ? (
+            <ThemedText variant="caption" style={{ color: c.onInkMuted, flex: 1 }}>{ev.feedbackVi}</ThemedText>
+          ) : null}
+        </View>
+      )}
+      {(ev.corrections ?? []).slice(0, 3).map((cx, i) => (
+        <ThemedText key={i} variant="caption" style={{ color: c.onInk }}>
+          <ThemedText variant="caption" style={{ color: c.onInkMuted, textDecorationLine: 'line-through' }}>{cx.original}</ThemedText>
+          {'  →  '}
+          <ThemedText variant="caption" style={{ color: c.onInk, fontWeight: '700' }}>{cx.correction}</ThemedText>
+        </ThemedText>
+      ))}
+      {(ev.redemittel ?? []).length > 0 && (
+        <ThemedText variant="caption" style={{ color: c.onInkMuted }}>{`Gợi ý cách nói: ${(ev.redemittel ?? []).slice(0, 2).join(' · ')}`}</ThemedText>
+      )}
+    </View>
   )
 }

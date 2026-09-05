@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, View } from 'react-native'
+import { Alert, Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import { ChevronRight, Crosshair } from 'lucide-react-native'
@@ -9,7 +9,7 @@ import {
   AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, Screen, Skeleton, TextField, ThemedText, YellowSquare,
 } from '@/components/ui'
 import { examSpeakingApi, type CriterionResult } from '@/lib/examSpeakingApi'
-import { criterionRatio, ratioTone } from '@/lib/examSpeakingUi'
+import { criterionRatio, ratioTone, rubricCaption, verdict, verdictLabel, verdictTone } from '@/lib/examSpeakingUi'
 
 /** Phiếu điểm phần Nói — gương Ergebnisbogen web, tối giản cho màn dọc. */
 export default function SpeakingExamResultScreen() {
@@ -45,6 +45,7 @@ export default function SpeakingExamResultScreen() {
   const r = resultQ.data
   const sheet = r?.scoreSheet
   const toneColor = { success: c.success, gold: c.accentText, orange: c.orange } as const
+  const v = r ? verdict({ passed: r.passed, borderline: r.borderline ?? sheet?.borderline }) : 'NONE'
 
   async function saveNotes() {
     setSavingNotes(true)
@@ -61,6 +62,8 @@ export default function SpeakingExamResultScreen() {
   function CriterionRow({ cr }: { cr: CriterionResult }) {
     const ratio = criterionRatio(cr.points, cr.max)
     const barColor = toneColor[ratioTone(ratio)]
+    const [open, setOpen] = useState(false)
+    const evidence = (cr.evidence ?? []).filter((e) => e && e.trim())
     return (
       <View style={{ gap: space[1] + 2 }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space[2] }}>
@@ -74,6 +77,21 @@ export default function SpeakingExamResultScreen() {
         <View style={{ height: 6, borderRadius: radius.full, backgroundColor: c.surfaceSunken, overflow: 'hidden' }}>
           <View style={{ width: `${Math.round(ratio * 100)}%`, height: 6, backgroundColor: barColor }} />
         </View>
+        {!cr.scored ? (
+          <ThemedText variant="caption" color="muted">Chưa chấm được tiêu chí này (thiếu tín hiệu) — không tính vào mẫu số.</ThemedText>
+        ) : evidence.length > 0 ? (
+          // Parity web: trích dẫn bằng chứng của giám khảo AI (tiếng Đức, nguyên văn) — mở khi cần.
+          <Pressable accessibilityRole="button" accessibilityLabel={`${open ? 'Ẩn' : 'Xem'} bằng chứng ${cr.label || cr.code}`} onPress={() => setOpen((o) => !o)}>
+            <ThemedText variant="caption" color="accent">{open ? 'Ẩn bằng chứng' : `Bằng chứng (${evidence.length})`}</ThemedText>
+            {open ? (
+              <View style={{ gap: 2, marginTop: 4 }}>
+                {evidence.slice(0, 4).map((e, i) => (
+                  <ThemedText key={i} variant="caption" color="secondary">{`„${e}“`}</ThemedText>
+                ))}
+              </View>
+            ) : null}
+          </Pressable>
+        ) : null}
       </View>
     )
   }
@@ -111,12 +129,17 @@ export default function SpeakingExamResultScreen() {
               <ThemedText variant="caption" style={{ color: c.onInkMuted }}>Điểm phần Nói</ThemedText>
             </View>
             <View style={{ flex: 1, gap: space[2], alignItems: 'flex-start' }}>
-              {r.passed != null && (
-                <Pill label={r.passed ? 'ĐỦ ĐIỂM ĐỖ' : 'CHƯA ĐỦ ĐIỂM'} tone={r.passed ? 'success' : 'danger'} solid />
+              {v !== 'NONE' && (
+                <Pill label={verdictLabel(v)} tone={verdictTone(v)} solid />
               )}
               {r.totalLow != null && r.totalHigh != null && (
                 <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
                   {`Dải tin cậy: ${Math.round(r.totalLow)}–${Math.round(r.totalHigh)} điểm`}
+                </ThemedText>
+              )}
+              {v === 'BORDERLINE' && (
+                <ThemedText variant="caption" style={{ color: c.onInk }}>
+                  Hai lượt chấm vắt qua ngưỡng đỗ — giám khảo thật có thể quyết theo cả hai hướng. Hãy xem là "cần thêm luyện", không phải kết luận.
                 </ThemedText>
               )}
             </View>
@@ -125,7 +148,7 @@ export default function SpeakingExamResultScreen() {
           {/* Tiêu chí chung */}
           {sheet.global.length > 0 && (
             <View style={{ gap: space[2] }}>
-              <Caption>Theo tiêu chí Goethe</Caption>
+              <Caption>{rubricCaption(r.provider)}</Caption>
               <Card style={{ gap: space[4] }}>
                 {sheet.global.map((cr) => <CriterionRow key={cr.code} cr={cr} />)}
               </Card>
@@ -183,6 +206,22 @@ export default function SpeakingExamResultScreen() {
               </Card>
             </View>
           )}
+
+          {/* Ghi chú backend (Teil im lặng, tiêu chí thiếu tín hiệu…) — phiếu web hiện, mobile trước đây bỏ */}
+          {sheet.notes.length > 0 && (
+            <View style={{ gap: 2, paddingHorizontal: space[1] }}>
+              {sheet.notes.slice(0, 6).map((n, i) => (
+                <ThemedText key={i} variant="caption" color="muted">{`• ${n}`}</ThemedText>
+              ))}
+            </View>
+          )}
+
+          {/* Disclaimer — parity web Ergebnisbogen: điểm mô phỏng, không phải chứng nhận */}
+          <View style={{ backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>
+            <ThemedText variant="caption" color="secondary">
+              Điểm mô phỏng theo bộ tiêu chí công khai của kỳ thi, đang hiệu chuẩn với giám khảo người (beta) — sai số khoảng ±1 bậc; không phải chứng nhận và không liên kết với Goethe-Institut hay telc.
+            </ThemedText>
+          </View>
 
           {/* Ghi chú của tôi */}
           <View style={{ gap: space[2] }}>
