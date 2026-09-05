@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
@@ -12,6 +12,8 @@ import {
 } from '@/components/ui'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { getErrorTitle } from '@/lib/errorTaxonomy'
+import { examParentHref } from '@/lib/examSpeakingNav'
+import { useHardwareBack } from '@/hooks/useHardwareBack'
 
 /** Ôn yếu điểm (Đợt 5a backend): mã lỗi hay mắc trong phòng thi + gói Redemittel theo dạng bài. */
 export default function SpeakingExamWeaknessScreen() {
@@ -31,6 +33,10 @@ export default function SpeakingExamWeaknessScreen() {
   const targets = drillTargets(weakPoints)
   const [starting, setStarting] = useState<string | null>(null)
 
+  // Back về hub Luyện thi Nói (màn cha) — điều hướng tường minh, vì GO_BACK của Tabs (firstRoute) về Heute.
+  const goBack = useCallback(() => router.navigate(examParentHref('weakness')), [])
+  useHardwareBack(goBack)
+
   async function startDrill(t: DrillTarget) {
     if (starting) return
     const key = `${t.level}-${t.teilNo}`
@@ -48,7 +54,7 @@ export default function SpeakingExamWeaknessScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Ôn yếu điểm" subtitle="Lỗi hay mắc trong phòng thi Nói" onBack={() => router.back()} />
+      <AppHeader title="Ôn yếu điểm" subtitle="Lỗi hay mắc trong phòng thi Nói" onBack={goBack} />
       {weaknessQ.isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
           <Skeleton height={120} radius="2xl" />
@@ -65,7 +71,7 @@ export default function SpeakingExamWeaknessScreen() {
             title="Chưa có dữ liệu điểm yếu"
             message="Thi thử vài lượt là hệ thống gom được lỗi bạn hay mắc để ôn đúng chỗ."
             actionLabel="Về Luyện thi Nói"
-            onAction={() => router.back()}
+            onAction={goBack}
           />
         </View>
       ) : (

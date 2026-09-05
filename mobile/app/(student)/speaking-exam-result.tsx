@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Alert, Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -10,6 +10,8 @@ import {
 } from '@/components/ui'
 import { examSpeakingApi, type CriterionResult } from '@/lib/examSpeakingApi'
 import { criterionRatio, ratioTone, rubricCaption, verdict, verdictLabel, verdictTone } from '@/lib/examSpeakingUi'
+import { examParentHref } from '@/lib/examSpeakingNav'
+import { useHardwareBack } from '@/hooks/useHardwareBack'
 
 /** Phiếu điểm phần Nói — gương Ergebnisbogen web, tối giản cho màn dọc. */
 export default function SpeakingExamResultScreen() {
@@ -20,6 +22,10 @@ export default function SpeakingExamResultScreen() {
   const [notes, setNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
   const [notesSeeded, setNotesSeeded] = useState(false)
+
+  // Back về hub Luyện thi Nói (màn cha) — điều hướng tường minh, vì GO_BACK của Tabs (firstRoute) về Heute.
+  const goBack = useCallback(() => router.navigate(examParentHref('result')), [])
+  useHardwareBack(goBack)
 
   const resultQ = useQuery({
     queryKey: ['exam-speaking-result', sessionId],
@@ -101,7 +107,7 @@ export default function SpeakingExamResultScreen() {
       <AppHeader
         title="Kết quả phần Nói"
         subtitle={r ? `Sprechen ${r.level} · ${new Date(r.createdAt).toLocaleDateString('vi-VN')}` : undefined}
-        onBack={() => router.back()}
+        onBack={goBack}
       />
       {resultQ.isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
