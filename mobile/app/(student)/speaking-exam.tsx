@@ -1,32 +1,36 @@
 import { useMemo, useState } from 'react'
-import { Alert, Pressable, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { ChevronRight, Crosshair, Lock, Mic } from 'lucide-react-native'
-import { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Button, Caption, Card, EmptyState, ErrorState, Pill, Screen, Skeleton, ThemedText, YellowSquare, Icon,
 } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
-import { examSpeakingApi, type BlueprintSummary, type ExamMode } from '@/lib/examSpeakingApi'
+import { examSpeakingApi, type BlueprintSummary, type ExamMode, type ExamProvider } from '@/lib/examSpeakingApi'
 import { getErrorTitle } from '@/lib/errorTaxonomy'
-import { levelsFromBlueprints } from '@/lib/examSpeakingUi'
+import { levelsFromBlueprints, providerName, verdict, verdictLabel, verdictTone } from '@/lib/examSpeakingUi'
 import { trackFeatureAction } from '@/lib/analytics'
+import { handleAiError } from '@/lib/upsell'
 
 /** Hub Luyện thi Nói — thiết kế canvas 02/09 (đã chốt): hero chọn level, cấu trúc đề, điểm yếu, kết quả gần đây. */
 export default function SpeakingExamHubScreen() {
   const theme = useTheme()
   const c = theme.colors
   const { hasProAccess } = usePlanStore()
+  // Parity web 05/09: mobile trước đây khoá cứng Goethe — telc có đủ blueprint A1–B2 từ V277.
+  const [provider, setProvider] = useState<ExamProvider>('GOETHE')
   const [level, setLevel] = useState<string | null>(null)
+  // Vorbereitungszeit: 5′ rút gọn (mặc định) hoặc chuẩn thi thật theo blueprint (B1/B2).
+  const [prepMode, setPrepMode] = useState<'SHORT' | 'FULL'>('SHORT')
   // Khoá đang mở phòng: 'MOCK' hoặc `DRILL-<teil>` — mỗi nút chỉ xoay khi đúng là nó đang mở.
   const [starting, setStarting] = useState<string | null>(null)
 
   const blueprintsQ = useQuery({
-    queryKey: ['exam-speaking-blueprints'],
-    queryFn: () => examSpeakingApi.listBlueprints({ provider: 'GOETHE' }),
+    queryKey: ['exam-speaking-blueprints', provider],
+    queryFn: () => examSpeakingApi.listBlueprints({ provider }),
     enabled: hasProAccess,
     staleTime: 60_000 * 30,
   })
@@ -59,11 +63,18 @@ export default function SpeakingExamHubScreen() {
     const key = mode === 'MOCK' ? 'MOCK' : `DRILL-${teil ?? 0}`
     setStarting(key)
     try {
-      trackFeatureAction('exam_speaking', 'started', { level: activeLevel, mode, teil: teil ?? null })
-      const session = await examSpeakingApi.createSession({ provider: 'GOETHE', level: activeLevel, mode, teil })
+      trackFeatureAction('exam_speaking', 'started', { level: activeLevel, mode, teil: teil ?? null, provider })
+      const session = await examSpeakingApi.createSession({
+        provider,
+        level: activeLevel,
+        mode,
+        teil,
+        prepMode: mode === 'MOCK' && (activeBlueprint?.prepSec ?? 0) > 0 ? prepMode : undefined,
+      })
       router.push({ pathname: '/(student)/speaking-exam-room', params: { id: String(session.id) } })
     } catch (e) {
-      Alert.alert('Không bắt đầu được', apiMessage(e))
+      // F-08: tạo MOCK giữ chỗ ngân sách chấm — hết quota là lý do thường gặp nhất, dẫn thẳng tới nâng cấp.
+      handleAiError(e, 'Không bắt đầu được')
     } finally {
       setStarting(null)
     }
@@ -73,12 +84,12 @@ export default function SpeakingExamHubScreen() {
   if (!hasProAccess) {
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Luyện thi Nói" subtitle="Goethe-Zertifikat · Sprechen" onBack={() => router.back()} />
+        <AppHeader title="Luyện thi Nói" subtitle="Goethe · telc · Sprechen" onBack={() => router.back()} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
             icon={Lock}
             title="Tính năng PRO"
-            message="Thi thử phần Nói với giám khảo AI, chấm theo đúng rubric Goethe."
+            message="Thi thử phần Nói với giám khảo AI, chấm theo đúng bộ tiêu chí Goethe hoặc telc."
             actionLabel={PAYWALL_ENABLED ? 'Xem PRO' : undefined}
             onAction={PAYWALL_ENABLED ? () => router.push('/(student)/upgrade') : undefined}
           />
@@ -89,8 +100,30 @@ export default function SpeakingExamHubScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Luyện thi Nói" subtitle="Goethe-Zertifikat · Sprechen" onBack={() => router.back()} />
+      <AppHeader title="Luyện thi Nói" subtitle={`${providerName(provider)} · Sprechen · Beta`} onBack={() => router.back()} />
       <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[4], paddingTop: space[2] }}>
+        {/* Hệ chứng chỉ — parity web (catalog có Goethe/telc từ Đợt 1) */}
+        <View style={{ flexDirection: 'row', gap: space[2] }} accessibilityRole="radiogroup" accessibilityLabel="Hệ chứng chỉ">
+          {(['GOETHE', 'TELC'] as const).map((p) => {
+            const active = p === provider
+            return (
+              <Pressable
+                key={p}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`Hệ ${providerName(p)}`}
+                onPress={() => { setProvider(p); setLevel(null) }}
+                style={{
+                  flex: 1, alignItems: 'center', paddingVertical: space[3], borderRadius: radius.md,
+                  borderWidth: 1, borderColor: active ? c.inkSurface : c.border,
+                  backgroundColor: active ? c.inkSurface : c.surface,
+                }}
+              >
+                <ThemedText variant="label" style={active ? { color: c.onInk } : undefined}>{providerName(p)}</ThemedText>
+              </Pressable>
+            )
+          })}
+        </View>
 
         {blueprintsQ.isLoading ? (
           <Skeleton height={260} radius="3xl" />
@@ -108,13 +141,13 @@ export default function SpeakingExamHubScreen() {
             <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface, gap: space[4] }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
                 <YellowSquare />
-                <Caption color={c.onInkMuted}>Bài thi thử · phần Nói</Caption>
+                <Caption color={c.onInkMuted}>Bài thi thử · phần Nói · Beta</Caption>
               </View>
               <ThemedText variant="display" style={{ color: c.onInk }}>
                 Nói như trong phòng thi thật
               </ThemedText>
               <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
-                Giám khảo AI dẫn bạn qua đủ các Teil của đề Goethe, chấm theo đúng rubric 4 tiêu chí.
+                {`Giám khảo AI dẫn bạn qua đủ các Teil của đề ${providerName(provider)}, chấm theo đúng bộ tiêu chí của hệ.`}
               </ThemedText>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
                 {levels.map((lv) => {
@@ -140,6 +173,35 @@ export default function SpeakingExamHubScreen() {
                   )
                 })}
               </View>
+              {(activeBlueprint?.prepSec ?? 0) > 0 && (
+                <View style={{ gap: space[2] }}>
+                  <Caption color={c.onInkMuted}>Thời gian chuẩn bị</Caption>
+                  <View style={{ flexDirection: 'row', gap: space[2] }} accessibilityRole="radiogroup" accessibilityLabel="Thời gian chuẩn bị">
+                    {([
+                      { v: 'SHORT' as const, label: '5′ rút gọn' },
+                      { v: 'FULL' as const, label: `${Math.round((activeBlueprint?.prepSec ?? 0) / 60)}′ chuẩn thi thật` },
+                    ]).map((opt) => {
+                      const active = prepMode === opt.v
+                      return (
+                        <Pressable
+                          key={opt.v}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: active }}
+                          accessibilityLabel={opt.label}
+                          onPress={() => setPrepMode(opt.v)}
+                          style={{
+                            borderRadius: radius.full, paddingHorizontal: space[4], paddingVertical: space[2] + 2,
+                            backgroundColor: active ? c.accent : 'transparent',
+                            borderWidth: active ? 0 : 1, borderColor: '#3A3833',
+                          }}
+                        >
+                          <ThemedText variant="caption" style={{ color: active ? c.onAccent : c.onInkMuted }}>{opt.label}</ThemedText>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+                </View>
+              )}
               <Button
                 label={starting === 'MOCK' ? 'Đang mở phòng thi…' : `Bắt đầu bài thi thử ${activeLevel ?? ''}`}
                 onPress={() => void startMock()}
@@ -219,16 +281,13 @@ export default function SpeakingExamHubScreen() {
               >
                 <ThemedText variant="monoLg">{r.total != null ? String(Math.round(r.total)) : '—'}</ThemedText>
                 <View style={{ flex: 1, gap: 2 }}>
-                  <ThemedText variant="bodyStrong">{`Sprechen ${r.level}`}</ThemedText>
+                  <ThemedText variant="bodyStrong">{`${providerName(r.provider)} ${r.level}`}</ThemedText>
                   <ThemedText variant="caption" color="secondary">
                     {new Date(r.createdAt).toLocaleDateString('vi-VN')}
-                    {r.passed === true ? ' · đủ điểm đỗ phần Nói' : r.passed === false ? ' · chưa đủ điểm đỗ' : ''}
+                    {verdict(r) === 'BORDERLINE' ? ' · sát ngưỡng, chưa kết luận' : r.passed === true ? ' · đủ điểm đỗ phần Nói' : r.passed === false ? ' · chưa đủ điểm đỗ' : ''}
                   </ThemedText>
                 </View>
-                <Pill
-                  label={r.passed === false ? 'CHƯA ĐẠT' : 'ĐÃ CHẤM'}
-                  tone={r.passed === false ? 'danger' : 'success'}
-                />
+                <Pill label={verdictLabel(verdict(r))} tone={verdictTone(verdict(r))} />
               </Card>
             ))}
           </View>
@@ -241,6 +300,10 @@ export default function SpeakingExamHubScreen() {
             Bài thi dùng microphone; bản ghi được gửi tới máy chủ và đối tác AI để phiên âm, chấm điểm.
           </ThemedText>
         </View>
+        {/* Disclaimer — parity web catalog: điểm mô phỏng, đang hiệu chuẩn, không liên kết Goethe/telc */}
+        <ThemedText variant="caption" color="faint" style={{ paddingHorizontal: space[1] }}>
+          Mô phỏng theo định dạng đề thi công khai, đang hiệu chuẩn với giám khảo người (beta) — điểm chỉ để tham khảo, sai số ±1 bậc, không phải chứng nhận; không liên kết với Goethe-Institut hay telc.
+        </ThemedText>
       </Screen>
     </Screen>
   )

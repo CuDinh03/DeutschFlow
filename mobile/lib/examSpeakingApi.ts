@@ -81,6 +81,8 @@ export interface ExamSessionView {
   resultAvailable: boolean
   /** true = phiên ĐANG được ghi âm phục vụ hiệu chuẩn chấm — UI PHẢI nói rõ. */
   retainAudio?: boolean
+  /** Lý do khi state = GRADING_FAILED: QUOTA_EXCEEDED (nạp rồi chấm lại) | JOB_FAILED | JOB_STUCK; null với phiên cũ. */
+  gradingError?: string | null
 }
 
 export interface AiTurn { role: string; text: string }
@@ -126,6 +128,8 @@ export interface ScoreSheet {
   passRule: string
   errors: { code: string; original: string; correction: string; severity: string; teilNo: number }[]
   notes: string[]
+  /** F-17: khoảng [totalLow, totalHigh] vắt qua ngưỡng đỗ → hiện "sát ngưỡng" thay đỗ/trượt (phiếu cũ: thiếu). */
+  borderline?: boolean
 }
 
 export interface ExamResultView {
@@ -138,6 +142,8 @@ export interface ExamResultView {
   totalHigh: number | null
   max: number | null
   passed: boolean | null
+  /** F-17 — xem ScoreSheet.borderline; phiếu cũ không có → false. */
+  borderline?: boolean
   scoreSheet: ScoreSheet
   createdAt: string
 }
@@ -176,7 +182,8 @@ export const examSpeakingApi = {
   listBlueprints: (params?: { provider?: ExamProvider; level?: string }) =>
     api.get<BlueprintSummary[]>('/speaking/exam/blueprints', { params }).then((r) => r.data ?? []),
 
-  createSession: (body: { provider: ExamProvider; level: string; mode: ExamMode; teil?: number }) =>
+  /** `prepMode`: SHORT (mặc định, 5′ rút gọn) | FULL (Vorbereitungszeit chuẩn thi thật) — chỉ có nghĩa khi blueprint có prep. */
+  createSession: (body: { provider: ExamProvider; level: string; mode: ExamMode; teil?: number; prepMode?: 'SHORT' | 'FULL' }) =>
     api
       .post<ExamSessionView>('/speaking/exam/sessions', body, { timeout: SESSION_TIMEOUT_MS })
       .then((r) => r.data),
@@ -193,8 +200,9 @@ export const examSpeakingApi = {
   /**
    * MOCK: lượt nói dạng audio (.m4a của expo-audio) — server phiên âm và trả
    * transcript + các lượt AI kế tiếp. Pattern multipart RN như speakingApi.transcribe.
+   * `clientTurnId` (F-06): gửi lại CÙNG khoá sau timeout/rớt mạng → backend replay, không thành lượt thứ hai.
    */
-  audioTurn: (id: number, audioUri: string) => {
+  audioTurn: (id: number, audioUri: string, clientTurnId?: string) => {
     const form = new FormData()
     form.append('audio', {
       uri: audioUri,
@@ -204,7 +212,7 @@ export const examSpeakingApi = {
     return api
       .post<TurnResponse>(`/speaking/exam/sessions/${id}/turns`, form, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        params: { lang: 'vi' },
+        params: clientTurnId ? { lang: 'vi', clientTurnId } : { lang: 'vi' },
         timeout: TURN_TIMEOUT_MS,
       })
       .then((r) => r.data)

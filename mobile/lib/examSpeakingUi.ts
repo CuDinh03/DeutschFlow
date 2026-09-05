@@ -169,3 +169,109 @@ export function drillTargets(
     )
     .slice(0, Math.max(0, limit))
 }
+
+// ── Đợt parity 05/09 (drill chấm nhanh, sát ngưỡng, hết quota, retry idempotent) ─────────────
+
+/** Chấm nhanh một lượt DRILL do backend trả (`TurnResponse.turnEval`) — cùng shape với web. */
+export interface DrillTurnEval {
+  score?: number
+  feedbackVi?: string
+  corrections?: { code: string; original: string; correction: string; severity?: string }[]
+  redemittel?: string[]
+  error?: string
+}
+
+export interface DrillSummary {
+  turns: number
+  avgScore: number | null
+  /** Lỗi cần xem lại, khử trùng theo câu gốc (giữ lần cuối). */
+  corrections: { code: string; original: string; correction: string }[]
+}
+
+/** Tổng kết drill cho màn DONE (web `DrillSummary`): trung bình điểm các lượt có điểm + gom lỗi. */
+export function drillSummary(evals: readonly (DrillTurnEval | null | undefined)[]): DrillSummary {
+  const scored = evals.filter((e): e is DrillTurnEval => !!e && typeof e.score === 'number')
+  const avg = scored.length ? scored.reduce((s, e) => s + (e.score ?? 0), 0) / scored.length : null
+  const byOriginal = new Map<string, { code: string; original: string; correction: string }>()
+  for (const e of scored) {
+    for (const c of e.corrections ?? []) {
+      if (!c.original?.trim()) continue
+      byOriginal.set(c.original.trim().toLowerCase(), { code: c.code, original: c.original, correction: c.correction })
+    }
+  }
+  return { turns: scored.length, avgScore: avg === null ? null : Math.round(avg * 10) / 10, corrections: [...byOriginal.values()] }
+}
+
+export type Verdict = 'PASS' | 'FAIL' | 'BORDERLINE' | 'NONE'
+
+/** Kết luận hiển thị: sát ngưỡng thắng đỗ/trượt (F-17); không ngưỡng (A1) → NONE. */
+export function verdict(r: { passed: boolean | null; borderline?: boolean | null }): Verdict {
+  if (r.borderline) return 'BORDERLINE'
+  if (r.passed === true) return 'PASS'
+  if (r.passed === false) return 'FAIL'
+  return 'NONE'
+}
+
+export function verdictLabel(v: Verdict): string {
+  switch (v) {
+    case 'PASS': return 'ĐỦ ĐIỂM ĐỖ'
+    case 'FAIL': return 'CHƯA ĐỦ ĐIỂM'
+    case 'BORDERLINE': return 'SÁT NGƯỠNG'
+    default: return 'ĐÃ CHẤM'
+  }
+}
+
+export function verdictTone(v: Verdict): 'success' | 'danger' | 'accent' | 'neutral' {
+  switch (v) {
+    case 'PASS': return 'success'
+    case 'FAIL': return 'danger'
+    case 'BORDERLINE': return 'accent'
+    default: return 'neutral'
+  }
+}
+
+export function providerName(p: ExamProvider | string): string {
+  return p === 'TELC' ? 'telc' : 'Goethe'
+}
+
+/** Nhãn bộ tiêu chí theo hệ — trước đây hard-code "Goethe" dù phiên telc. */
+export function rubricCaption(p: ExamProvider | string): string {
+  return p === 'TELC' ? 'Theo tiêu chí telc (A–D)' : 'Theo tiêu chí Goethe'
+}
+
+/** Thông điệp màn GRADING_FAILED theo lý do backend (F-08): hết quota ≠ job chết. */
+export function gradingFailedCopy(gradingError?: string | null): { title: string; message: string; topUp: boolean } {
+  if (gradingError === 'QUOTA_EXCEEDED') {
+    return {
+      title: 'Chưa chấm được: hết ngân sách AI',
+      message: 'Bài nói của bạn vẫn còn nguyên. Nạp thêm hoặc chờ kỳ mới rồi bấm "Chấm lại" — không phải thi lại.',
+      topUp: true,
+    }
+  }
+  return {
+    title: 'Chấm bài gặp lỗi',
+    message: 'Bài nói của bạn vẫn còn nguyên — chỉ khâu chấm bị lỗi. Bấm chấm lại, không phải thi lại.',
+    topUp: false,
+  }
+}
+
+/** Khoá idempotency một lượt nói (F-06) — sinh một lần, dùng lại nguyên khoá khi "Gửi lại". */
+export function newClientTurnId(): string {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto
+  if (c && typeof c.randomUUID === 'function') return c.randomUUID()
+  return `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+/**
+ * Lượt nói thất bại mà server CÓ THỂ đã xử lý → giữ file + khoá để gửi lại cùng khoá. Không có
+ * response (timeout/mất mạng), 5xx, hoặc 409 "đang được xử lý" là gửi lại được; 4xx khác thì không.
+ */
+export function isRetryableTurnError(e: unknown): boolean {
+  const status = (e as { response?: { status?: number } } | null)?.response?.status
+  if (!status) return true
+  if (status >= 500) return true
+  if (status !== 409) return false
+  const detail = (e as { response?: { data?: { detail?: unknown; message?: unknown } } }).response?.data
+  const text = String(detail?.detail ?? detail?.message ?? '')
+  return /đang được xử lý|in progress/i.test(text)
+}
