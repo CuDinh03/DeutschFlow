@@ -283,15 +283,15 @@ export async function fetchClassSessions(classId: number): Promise<ClassSession[
 }
 
 /**
- * Trần `topic` của phiên AI speaking = `CreateSessionRequest.topic @Size(max = 200)` + cột
- * `ai_speaking_sessions.topic` VARCHAR(200). Kịch bản AI sinh cho bài SPEAKING_SCENARIO thường dài
- * hơn, mà trước 05/09 trang bài giao ghép nguyên chuỗi → backend 400 "One or more fields are
- * invalid" ngay khi bấm bắt đầu (phát hiện khi smoke mobile N2 — mobile gương đúng hàm này).
+ * Trần `topic` của phiên AI speaking = `CreateSessionRequest.topic @Size(max = 2000)` + cột
+ * `ai_speaking_sessions.topic` VARCHAR(2000) từ backend V304 (#541). Trước đó 200: kịch bản AI
+ * sinh cho bài SPEAKING_SCENARIO dài hơn → 400 ngay khi bấm bắt đầu (#537 phải cắt, mất mô tả/gợi ý).
+ * Vẫn giữ nhánh cắt phòng kịch bản dài bất thường (mobile gương đúng hàm này).
  */
-export const SESSION_TOPIC_MAX = 200
+export const SESSION_TOPIC_MAX = 2000
 
 /**
- * Chuỗi `topic` gửi cho phiên AI của bài giao nói: ≤ 200 thì giữ nguyên định dạng
+ * Chuỗi `topic` gửi cho phiên AI của bài giao nói: ≤ 2000 thì giữ nguyên định dạng
  * "Chủ đề / Mô tả chi tiết / Gợi ý"; vượt thì giữ chủ đề + đầu mô tả (kết thúc …), bỏ Gợi ý.
  */
 export function scenarioTopic(
