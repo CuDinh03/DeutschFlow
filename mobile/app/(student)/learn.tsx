@@ -65,7 +65,7 @@ export default function LearnScreen() {
 
   const tiles: { icon: LucideIcon; label: string; count: string; onPress: () => void }[] = [
     { icon: BookOpen, label: 'SRS Flashcards', count: `${completed} đã học`, onPress: () => router.push('/(student)/srs') },
-    { icon: Map, label: 'Lộ trình', count: `Ngày ${nextStudyDay(nodes)}`, onPress: () => router.push('/(student)/roadmap') },
+    { icon: Map, label: 'Lộ trình', count: `Ngày ${nextStudyDay(nodes)}`, onPress: () => router.push('/(student)/lernweg') },
     { icon: FlaskConical, label: 'Từ vựng', count: 'Tìm & luyện', onPress: () => router.push('/(student)/vocabulary') },
     { icon: Trophy, label: 'Thi thử', count: 'Mock Exam', onPress: () => router.push('/(student)/exam') },
     { icon: BookMarked, label: 'Ngữ pháp', count: 'Casus & quy tắc', onPress: () => router.push('/(student)/grammar') },
@@ -132,7 +132,7 @@ export default function LearnScreen() {
       {inProgress.length > 0 ? (
         <FadeIn delay={140}>
           <View style={{ paddingHorizontal: space[5], marginTop: space[6] }}>
-            <SectionHeader title="Đang học" actionLabel="Xem tất cả" onAction={() => router.push('/(student)/roadmap')} />
+            <SectionHeader title="Đang học" actionLabel="Xem tất cả" onAction={() => router.push('/(student)/lernweg')} />
             <View style={{ gap: space[2] }}>
               {inProgress.map((node) => (
                 <NodeCard key={node.id} node={node} />
@@ -145,7 +145,7 @@ export default function LearnScreen() {
       {available.length > 0 ? (
         <FadeIn delay={220}>
           <View style={{ paddingHorizontal: space[5], marginTop: space[6] }}>
-            <SectionHeader title="Tiếp theo" actionLabel="Xem tất cả" onAction={() => router.push('/(student)/roadmap')} />
+            <SectionHeader title="Tiếp theo" actionLabel="Xem tất cả" onAction={() => router.push('/(student)/lernweg')} />
             <View style={{ gap: space[2] }}>
               {available.map((node) => (
                 <NodeCard key={node.id} node={node} />

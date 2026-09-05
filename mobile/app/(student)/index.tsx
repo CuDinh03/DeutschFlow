@@ -410,14 +410,6 @@ export default function DashboardScreen() {
                 subtitle="Hội thoại với AI coach"
                 onPress={() => router.push('/(student)/speaking')}
               />
-              <Divider />
-              <ListRow
-                icon={Map}
-                iconTone="success"
-                title="Lộ trình học"
-                subtitle="Skill tree A1 đến B2"
-                onPress={() => router.push('/(student)/roadmap')}
-              />
             </Card>
           </View>
 

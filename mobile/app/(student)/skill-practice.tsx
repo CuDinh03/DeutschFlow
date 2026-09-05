@@ -153,7 +153,7 @@ function SkillPracticeRunner() {
       <AppHeader
         title={params.title ?? data?.titleVi ?? 'Luyện 4 kỹ năng'}
         subtitle="Nghe · Nói · Đọc · Viết"
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)/roadmap'))}
+        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)/lernweg'))}
       />
 
       {isLoading ? (
@@ -203,7 +203,7 @@ function SkillPracticeRunner() {
                         } as unknown as Href)
                     : undefined
                 }
-                onRoadmap={() => router.replace('/(student)/roadmap')}
+                onRoadmap={() => router.replace('/(student)/lernweg')}
               />
             )}
           </Screen>
