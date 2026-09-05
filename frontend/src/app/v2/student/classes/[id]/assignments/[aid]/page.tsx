@@ -10,7 +10,7 @@ import api, { apiMessage } from '@/lib/api'
 import { aiSpeakingApi } from '@/lib/aiSpeakingApi'
 import { loadSpeakingSessionIntoStore } from '@/lib/speakingSessionBootstrap'
 import { useChatStore } from '@/stores/useChatStore'
-import { fetchClassAssignments, type StudentAssignment } from '@/lib/studentClassesApi'
+import { fetchClassAssignments, scenarioTopic, type StudentAssignment } from '@/lib/studentClassesApi'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 import { AssignmentMaterials } from './AssignmentMaterials'
 import type { AiCompanion } from '@/types/ai-speaking'
@@ -124,7 +124,8 @@ export default function V2AssignmentPage() {
     setBusy(true)
     try {
       const { data: sc } = await api.get(`/v2/students/assignments/${a.assignmentId}/scenario`)
-      const fullTopic = `Chủ đề: ${sc.topic}\n\nMô tả chi tiết: ${sc.scenarioDescription}\n\nGợi ý: ${sc.followUpQuestions}`
+      // ≤ 200 ký tự theo trần backend — chuỗi nguyên (kịch bản AI sinh) từng làm 400 ngay khi bấm bắt đầu.
+      const fullTopic = scenarioTopic(sc)
       const session = await aiSpeakingApi.createSession(fullTopic, sc.level, 'DEFAULT', 'V1', 'LESSON', null, null, a.id)
       // Bài tập nói của lớp KHÔNG cho chọn nhân vật (persona DEFAULT = gia sư trung tính), nhưng
       // engine bắt buộc phải có selectedCompanion trong store — thiếu là nó đá ngược về màn chọn
