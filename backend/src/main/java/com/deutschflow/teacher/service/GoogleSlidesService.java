@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Tạo Google Slides presentation chuyên nghiệp qua Google Slides API,
@@ -84,7 +85,7 @@ public class GoogleSlidesService {
         try {
             InputStream credStream;
             if (serviceAccountJsonPath.trim().startsWith("{")) {
-                credStream = new ByteArrayInputStream(serviceAccountJsonPath.getBytes());
+                credStream = new ByteArrayInputStream(serviceAccountJsonPath.getBytes(StandardCharsets.UTF_8));
             } else {
                 credStream = Files.newInputStream(Paths.get(serviceAccountJsonPath));
             }
