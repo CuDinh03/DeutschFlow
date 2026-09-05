@@ -186,11 +186,11 @@ export default function AdminExamGoldenRatePage() {
             </GaBtn>
             {!saved && (
               <div className="space-y-1.5" data-testid="blind-mode">
-                <p className="ga-ui text-[12px] text-ga-muted">{t('blindHint')}</p>
+                <p className="ga-ui text-ga-caption text-ga-muted">{t('blindHint')}</p>
                 <button
                   type="button"
                   onClick={() => setRevealMachine((v) => !v)}
-                  className="ga-ui text-[12.5px] font-semibold text-ga-ink underline underline-offset-2"
+                  className="ga-ui text-ga-caption font-semibold text-ga-ink underline underline-offset-2"
                   data-testid="reveal-machine"
                 >
                   {revealMachine ? t('hideMachine') : t('revealMachine')}

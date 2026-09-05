@@ -50,7 +50,7 @@ export default function AdminAiUsagePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const inputCls = 'ga-ui h-10 rounded-ga border border-ga-line bg-ga-card px-3 text-[13px] text-ga-ink'
+  const inputCls = 'ga-ui h-10 rounded-ga border border-ga-line bg-ga-card px-3 text-ga-small text-ga-ink'
 
   return (
     <div className="flex min-h-full flex-col">
@@ -59,7 +59,7 @@ export default function AdminAiUsagePage() {
         title={t('title')}
         subtitle={t('subtitle')}
         right={
-          <a href="/v2/admin" className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink hover:bg-ga-surface">
+          <a href="/v2/admin" className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-ga-small font-semibold text-ga-ink hover:bg-ga-surface">
             <ArrowLeft size={14} aria-hidden /> {t('back')}
           </a>
         }
@@ -75,15 +75,15 @@ export default function AdminAiUsagePage() {
           }}
           data-testid="ai-usage-filters"
         >
-          <label className="ga-ui flex flex-col gap-1 text-[12px] text-ga-muted">
+          <label className="ga-ui flex flex-col gap-1 text-ga-caption text-ga-muted">
             {t('from')}
             <input type="date" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} data-testid="ai-usage-from" />
           </label>
-          <label className="ga-ui flex flex-col gap-1 text-[12px] text-ga-muted">
+          <label className="ga-ui flex flex-col gap-1 text-ga-caption text-ga-muted">
             {t('to')}
             <input type="date" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} data-testid="ai-usage-to" />
           </label>
-          <label className="ga-ui flex flex-col gap-1 text-[12px] text-ga-muted">
+          <label className="ga-ui flex flex-col gap-1 text-ga-caption text-ga-muted">
             {t('featurePrefix')}
             <input type="text" className={`${inputCls} w-56`} value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder={DEFAULT_PREFIX} data-testid="ai-usage-prefix" />
           </label>
@@ -106,11 +106,11 @@ export default function AdminAiUsagePage() {
             <GaCard className="overflow-x-auto p-4">
               <GaCap className="mb-3 block">{t('byFeature')}</GaCap>
               {report.rows.length === 0 ? (
-                <p className="ga-ui text-[13px] text-ga-muted">{t('empty')}</p>
+                <p className="ga-ui text-ga-small text-ga-muted">{t('empty')}</p>
               ) : (
-                <table className="ga-ui w-full min-w-[760px] text-left text-[13px]" data-testid="ai-usage-rows">
+                <table className="ga-ui w-full min-w-[760px] text-left text-ga-small" data-testid="ai-usage-rows">
                   <thead>
-                    <tr className="text-[11.5px] uppercase tracking-wide text-ga-muted">
+                    <tr className="text-ga-eyebrow uppercase text-ga-muted">
                       <th className="py-2 pr-3">{t('colFeature')}</th>
                       <th className="py-2 pr-3">{t('colModel')}</th>
                       <th className="py-2 pr-3 text-right">{t('colCalls')}</th>
@@ -143,11 +143,11 @@ export default function AdminAiUsagePage() {
               <GaCard className="overflow-x-auto p-4">
                 <GaCap className="mb-3 block">{t('stt')}</GaCap>
                 {report.stt.length === 0 ? (
-                  <p className="ga-ui text-[13px] text-ga-muted">{t('empty')}</p>
+                  <p className="ga-ui text-ga-small text-ga-muted">{t('empty')}</p>
                 ) : (
-                  <table className="ga-ui w-full text-left text-[13px]" data-testid="ai-usage-stt">
+                  <table className="ga-ui w-full text-left text-ga-small" data-testid="ai-usage-stt">
                     <thead>
-                      <tr className="text-[11.5px] uppercase tracking-wide text-ga-muted">
+                      <tr className="text-ga-eyebrow uppercase text-ga-muted">
                         <th className="py-2 pr-3">{t('colFeature')}</th>
                         <th className="py-2 pr-3 text-right">{t('colCalls')}</th>
                         <th className="py-2 pr-3 text-right">{t('colSeconds')}</th>
@@ -170,13 +170,13 @@ export default function AdminAiUsagePage() {
 
               <GaCard className="overflow-x-auto p-4">
                 <GaCap className="mb-3 block">{t('sessions')}</GaCap>
-                <p className="ga-ui mb-2 text-[12.5px] text-ga-muted">{t('sessionsHint')}</p>
+                <p className="ga-ui mb-2 text-ga-caption text-ga-muted">{t('sessionsHint')}</p>
                 {report.sessions.length === 0 ? (
-                  <p className="ga-ui text-[13px] text-ga-muted">{t('empty')}</p>
+                  <p className="ga-ui text-ga-small text-ga-muted">{t('empty')}</p>
                 ) : (
-                  <table className="ga-ui w-full text-left text-[13px]" data-testid="ai-usage-sessions">
+                  <table className="ga-ui w-full text-left text-ga-small" data-testid="ai-usage-sessions">
                     <thead>
-                      <tr className="text-[11.5px] uppercase tracking-wide text-ga-muted">
+                      <tr className="text-ga-eyebrow uppercase text-ga-muted">
                         <th className="py-2 pr-3">{t('colSession')}</th>
                         <th className="py-2 pr-3">{t('colFeatures')}</th>
                         <th className="py-2 pr-3 text-right">{t('colCalls')}</th>
@@ -210,8 +210,8 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   return (
     <GaCard className="p-4">
       <GaCap className="block">{label}</GaCap>
-      <p className="font-ga-display mt-1 text-[26px] font-semibold leading-none text-ga-ink">{value}</p>
-      {sub && <p className="ga-ui mt-1 text-[12px] text-ga-muted">{sub}</p>}
+      <p className="font-ga-display mt-1 text-ga-stat-m font-semibold leading-none text-ga-ink">{value}</p>
+      {sub && <p className="ga-ui mt-1 text-ga-caption text-ga-muted">{sub}</p>}
     </GaCard>
   )
 }

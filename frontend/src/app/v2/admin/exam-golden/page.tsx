@@ -129,7 +129,7 @@ export default function AdminExamGoldenPage() {
         {batch && (
           <GaCard className="border-2 border-ga-accent p-4" data-testid="golden-regrade-batch-result">
             <GaCap className="mb-1 block">{t('regradeBatchCap')}</GaCap>
-            <p className="ga-ui text-[13.5px] text-ga-ink">
+            <p className="ga-ui text-ga-small text-ga-ink">
               {t('regradeBatchDone', {
                 regraded: batch.regraded, requested: batch.requested, failed: batch.failed,
                 passFlips: batch.passFlips, avgDelta: batch.avgTotalDelta, bandChanges: batch.totalBandChanges,
