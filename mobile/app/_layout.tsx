@@ -14,13 +14,15 @@ import {
   Newsreader_600SemiBold,
   Newsreader_700Bold,
 } from '@expo-google-fonts/newsreader'
+// Body/UI = Plus Jakarta Sans (đủ 70/70 glyph tiếng Việt). Instrument Sans cũ chỉ có 20/70
+// (thiếu ơ ư ạ ả ấ ầ … ỹ) → iOS/Android fallback từng ký tự sang SF/Roboto, chữ Việt lẫn nét.
 import {
   useFonts as useSans,
-  InstrumentSans_400Regular,
-  InstrumentSans_500Medium,
-  InstrumentSans_600SemiBold,
-  InstrumentSans_700Bold,
-} from '@expo-google-fonts/instrument-sans'
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+} from '@expo-google-fonts/plus-jakarta-sans'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
@@ -126,10 +128,10 @@ function RootLayout() {
     Newsreader_700Bold,
   })
   const [sansLoaded] = useSans({
-    InstrumentSans_400Regular,
-    InstrumentSans_500Medium,
-    InstrumentSans_600SemiBold,
-    InstrumentSans_700Bold,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
   })
   const fontsReady = serifLoaded && sansLoaded
 
