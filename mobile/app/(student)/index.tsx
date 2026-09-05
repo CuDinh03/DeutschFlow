@@ -41,7 +41,7 @@ import {
 } from '@/components/ui'
 
 // Only the fields the home actually uses from the (plan-oriented) dashboard.
-// XP/level come from /xp/me, due-SRS from /srs/count, unread from /notifications.
+// XP/level come from /xp/me, SRS due + reviewedCards from /srs/stats, unread from /notifications.
 interface DashboardData {
   streakDays: number
   weeklyXp: number
@@ -77,9 +77,17 @@ export default function DashboardScreen() {
     staleTime: 60_000,
   })
 
-  const { data: srs, refetch: refetchSrs } = useQuery({
+  const {
+    data: srs,
+    refetch: refetchSrs,
+    isSuccess: srsLoaded,
+    isError: srsFailed,
+  } = useQuery({
     queryKey: ['srs-count'],
-    queryFn: () => api.get<{ dueCount: number }>('/srs/count').then((r) => r.data),
+    // /srs/stats thay /srs/count (05/09): cùng dueCount, thêm reviewedCards (số thẻ đã
+    // ôn ≥ 1 lần) để coach mark SRS chỉ tự nổ cho người CHƯA TỪNG ôn. Backend cũ chưa
+    // trả trường này → undefined → tourEligibility rơi về gate cũ.
+    queryFn: () => api.get<{ dueCount: number; reviewedCards?: number }>('/srs/stats').then((r) => r.data),
     staleTime: 30_000,
   })
 
@@ -161,9 +169,10 @@ export default function DashboardScreen() {
   }, [])
 
   // Q3: coach mark SRS tách khỏi tour chính — bắn 1 lần khi thẻ "Ôn tập hôm nay"
-  // render thật (dueSrs > 0) sau khi tour chính đã xong trên máy này. Tour chính
-  // chỉ tự nổ cho tài khoản mới (xem trên), nên coach mark này cũng chỉ tới họ —
-  // /srs/stats không có số lượt đã ôn để gate riêng theo "chưa từng dùng".
+  // render thật (dueSrs > 0). Owner 05/09: chỉ cho người CHƯA TỪNG ôn — tín hiệu
+  // server /srs/stats reviewedCards === 0 (lib/tourEligibility); backend chưa có
+  // trường thì rơi về gate cũ "tour chính đã xem trên máy này".
+  const reviewedCards = srs?.reviewedCards
   useFocusEffect(
     useCallback(() => {
       const allowed = canAutoStartSrsIntro({
@@ -173,11 +182,23 @@ export default function DashboardScreen() {
         tourBusy: activeTourId !== null,
         sheetOpen: reminderOpen,
         dueCount: dueForIntro,
+        reviewed: { status: probeStatus(srsLoaded, srsFailed), count: reviewedCards ?? null },
       })
       if (!allowed) return
       const t = setTimeout(() => startTour('srs_intro', 'auto', { dueCount: dueForIntro }), 600)
       return () => clearTimeout(t)
-    }, [tourHydrated, tourDone.home, tourDone.srs_intro, activeTourId, reminderOpen, dueForIntro, startTour]),
+    }, [
+      tourHydrated,
+      tourDone.home,
+      tourDone.srs_intro,
+      activeTourId,
+      reminderOpen,
+      dueForIntro,
+      srsLoaded,
+      srsFailed,
+      reviewedCards,
+      startTour,
+    ]),
   )
 
   const firstActivityDone = treeDone > 0 || starterSrsReviews > 0 || speakingStarted

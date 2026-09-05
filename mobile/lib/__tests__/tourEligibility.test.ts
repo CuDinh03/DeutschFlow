@@ -52,6 +52,27 @@ describe('canAutoStartSrsIntro — sau tour chính trên máy này, có thẻ đ
     expect(canAutoStartSrsIntro({ ...base, sheetOpen: true })).toBe(false)
     expect(canAutoStartSrsIntro({ ...base, tourBusy: true })).toBe(false)
   })
+
+  describe('có tín hiệu server reviewedCards (backend mới)', () => {
+    test('chưa từng ôn thẻ nào (0) → nổ, kể cả tài khoản cũ chưa xem tour chính trên máy này', () => {
+      expect(canAutoStartSrsIntro({ ...base, doneHome: false, reviewed: { status: 'success', count: 0 } })).toBe(true)
+    })
+    test('đã ôn ≥ 1 thẻ → không nổ dù tour chính đã xem', () => {
+      expect(canAutoStartSrsIntro({ ...base, doneHome: true, reviewed: { status: 'success', count: 3 } })).toBe(false)
+    })
+    test('dò chưa về / lỗi → không nổ', () => {
+      expect(canAutoStartSrsIntro({ ...base, reviewed: { status: 'pending', count: null } })).toBe(false)
+      expect(canAutoStartSrsIntro({ ...base, reviewed: { status: 'error', count: null } })).toBe(false)
+    })
+    test('backend cũ không có trường (count null) → rơi về gate tour chính đã xem', () => {
+      expect(canAutoStartSrsIntro({ ...base, doneHome: true, reviewed: { status: 'success', count: null } })).toBe(true)
+      expect(canAutoStartSrsIntro({ ...base, doneHome: false, reviewed: { status: 'success', count: null } })).toBe(false)
+    })
+    test('vẫn cần thẻ đến hạn và cờ máy chưa đặt', () => {
+      expect(canAutoStartSrsIntro({ ...base, dueCount: 0, reviewed: { status: 'success', count: 0 } })).toBe(false)
+      expect(canAutoStartSrsIntro({ ...base, doneSrs: true, reviewed: { status: 'success', count: 0 } })).toBe(false)
+    })
+  })
 })
 
 describe('canAutoStartSpeakingIntro — chỉ khi chưa từng có phiên nói', () => {
