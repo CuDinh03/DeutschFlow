@@ -42,6 +42,7 @@ parity, page NOT yet wired to `useTranslations` — mechanical wiring remains) �
 
 ### Foundation
 - ✅ `messages/v2/` per-area structure + `request.ts` merge (`V2_AREAS`)
+- ✅ 06/09 `scripts/check-i18n-v2.js` gác luôn catalog gốc `messages/{vi,en,de}.json` (area `base`) — audit UTF-8/i18n phát hiện en.json thiếu `adminNav.refresh/refreshing` mà script chỉ quét `messages/v2/`. Báo cáo: `plans/2026-09-06-bao-cao-soat-utf8-i18n.md` (F-I18N-05).
 - ✅ Shared chrome — `v2.nav` (all 4 roles' sidebar items + section headings + role pills),
   `v2.shell` (logout, aria), `v2.common` (generic buttons). `nav.ts` gained `NavSection.labelKey`;
   `GaSidebar` renders via `useTranslations('v2')` with VN fallback (`t.has` guard).
