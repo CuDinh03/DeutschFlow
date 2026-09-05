@@ -296,7 +296,23 @@ export async function fetchAssignmentScenario(assignmentId: number): Promise<Ass
 /**
  * Chuỗi `topic` gửi cho phiên AI — ĐÚNG định dạng web đang gửi (classes/[id]/assignments/[aid]/page.tsx),
  * để prompt backend nhận cùng một đầu vào trên hai nền tảng. Phần thiếu để trống, không in "null".
+ * Trần 200 ký tự = `CreateSessionRequest.topic @Size(max = 200)` + cột `ai_speaking_sessions.topic`
+ * VARCHAR(200); kịch bản AI sinh thường dài hơn nên phải cắt, nếu không backend trả 400 và bài
+ * không bao giờ bắt đầu được (web hiện cũng gửi chuỗi không cắt — cùng lỗi tiềm ẩn).
  */
-export function scenarioTopic(sc: Pick<AssignmentScenario, 'topic' | 'scenarioDescription' | 'followUpQuestions'>): string {
-  return `Chủ đề: ${sc.topic ?? ''}\n\nMô tả chi tiết: ${sc.scenarioDescription ?? ''}\n\nGợi ý: ${sc.followUpQuestions ?? ''}`
+export const SESSION_TOPIC_MAX = 200
+
+export function scenarioTopic(
+  sc: Pick<AssignmentScenario, 'topic' | 'scenarioDescription' | 'followUpQuestions'>,
+  max = SESSION_TOPIC_MAX,
+): string {
+  const full = `Chủ đề: ${sc.topic ?? ''}\n\nMô tả chi tiết: ${sc.scenarioDescription ?? ''}\n\nGợi ý: ${sc.followUpQuestions ?? ''}`
+  if (full.length <= max) return full
+  // Quá trần: giữ chủ đề + phần đầu mô tả, bỏ "Gợi ý" (backend từ chối cả body khi topic > 200 —
+  // smoke 05/09: "One or more fields are invalid" ngay khi bấm "Bắt đầu bài nói").
+  const head = `Chủ đề: ${sc.topic ?? ''}\n\nMô tả chi tiết: `
+  const room = max - head.length - 1
+  if (room <= 0) return full.slice(0, max)
+  const desc = (sc.scenarioDescription ?? '').trim()
+  return head + (desc.length > room ? `${desc.slice(0, room).trimEnd()}…` : desc)
 }
