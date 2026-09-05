@@ -119,6 +119,14 @@ export default function DashboardScreen() {
   const treeDone = roadmapNodes.filter((n) => n.progressStatus === 'COMPLETED' || n.state === 'completed').length
   const pathPct = treeTotal > 0 ? Math.round((treeDone / treeTotal) * 100) : 0
 
+  // Khai báo trước các gate tour: đang kéo-làm-mới thì RefreshControl đè lên
+  // scrollTo/đo neo của spotlight → coach mark nổ đúng lúc đó rơi về tooltip giữa
+  // màn không khoét sáng (F-SRS-COACH-01, QA tài khoản mới 05/09). Gate coi
+  // `refreshing` là bận, làm mới xong effect chạy lại và nổ bình thường.
+  const pull = usePullRefresh(async () => {
+    await Promise.all([refetch(), refetchXp(), refetchSrs(), refetchUnread(), refetchMsgUnread()])
+  })
+
   const { startTour, activeTourId } = useSpotlightTour()
   const tourHydrated = useTourStore((s) => s.hydrated)
   const tourDone = useTourStore((s) => s.done)
@@ -135,6 +143,7 @@ export default function DashboardScreen() {
     hydrated: tourHydrated,
     doneHome: tourDone.home,
     tourBusy: activeTourId !== null,
+    refreshing: pull.refreshing,
     // Chờ dashboard render xong: bước 1 neo vào thẻ chuỗi học, mà thẻ đó chỉ
     // tồn tại khi hết isLoading. Mạng chậm thì waitForRect (1.8s) hết hạn và
     // tour rơi về "màn mờ phẳng + tooltip giữa màn", mất hiệu ứng khoét sáng (F-11).
@@ -180,6 +189,7 @@ export default function DashboardScreen() {
         doneHome: tourDone.home,
         doneSrs: tourDone.srs_intro,
         tourBusy: activeTourId !== null,
+        refreshing: pull.refreshing,
         sheetOpen: reminderOpen,
         dueCount: dueForIntro,
         reviewed: { status: probeStatus(srsLoaded, srsFailed), count: reviewedCards ?? null },
@@ -193,6 +203,7 @@ export default function DashboardScreen() {
       tourDone.srs_intro,
       activeTourId,
       reminderOpen,
+      pull.refreshing,
       dueForIntro,
       srsLoaded,
       srsFailed,
@@ -277,9 +288,6 @@ export default function DashboardScreen() {
   const dueSrs = srs?.dueCount ?? 0
   const unread = unreadData?.unreadCount ?? 0
 
-  const pull = usePullRefresh(async () => {
-    await Promise.all([refetch(), refetchXp(), refetchSrs(), refetchUnread(), refetchMsgUnread()])
-  })
   const onRefresh = () => void pull.onRefresh()
 
   return (
