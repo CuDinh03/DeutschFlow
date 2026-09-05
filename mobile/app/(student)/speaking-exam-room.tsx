@@ -503,6 +503,9 @@ export default function SpeakingExamRoomScreen() {
                         {disp.headline ? (
                           <ThemedText variant={m.choiceRequired ? 'bodyStrong' : 'title'}>{disp.headline}</ThemedText>
                         ) : null}
+                        {disp.lines.slice(0, 3).map((ln, li) => (
+                          <ThemedText key={`l${li}`} variant="caption" color="secondary">{ln}</ThemedText>
+                        ))}
                         {disp.bullets.slice(0, 6).map((b, bi) => (
                           <View key={bi} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
                             <YellowSquare size={5} />
@@ -581,7 +584,10 @@ export default function SpeakingExamRoomScreen() {
                   return (
                     <View style={{ gap: space[1] }}>
                       {disp.headline ? <ThemedText variant="title">{disp.headline}</ThemedText> : null}
-                      {disp.bullets.slice(0, 6).map((b, bi) => (
+                      {disp.lines.slice(0, 3).map((ln, li) => (
+                        <ThemedText key={`l${li}`} variant="body" color="secondary">{ln}</ThemedText>
+                      ))}
+                      {disp.bullets.slice(0, 8).map((b, bi) => (
                         <View key={bi} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
                           <YellowSquare size={5} />
                           <ThemedText variant="caption" color="secondary" style={{ flex: 1 }}>{b}</ThemedText>

@@ -97,27 +97,85 @@ export function ratioTone(ratio: number): 'success' | 'gold' | 'orange' {
  */
 export interface StimulusDisplay {
   headline: string | null
+  /** Dòng phụ (đề bài, bối cảnh, mục tiêu, đoạn văn nguồn) — hiện dưới headline, trên gạch đầu dòng. */
+  lines: string[]
   bullets: string[]
 }
 
+/**
+ * QA simulator 06/09: bản cũ chỉ hiểu thema/prompt/keyword… nên B1 T2 (FOLIEN_DECK: topic+folien), B1 T3
+ * (PARTNER_PRESENTATION: topic+instruction), telc CONTACT_CARD (instruction+topics), PLANNING_CARD (prompts),
+ * B2 TOPIC_CHOICE/DEBATE_*, TOPIC_GRAPHIC_PAIR, CALENDAR_PAIR… hiện ô TRỐNG ở cả PREP lẫn phòng thi.
+ * Bảng khoá theo seed V277–V306 (15 kiểu thẻ); khoá `partner*` không bao giờ hiện (server đã lược, đây là
+ * chốt thứ hai). Kiểu lạ vẫn degrade êm: có gì hiện nấy.
+ */
 export function stimulusDisplay(stimulus: Record<string, unknown> | null | undefined): StimulusDisplay {
-  if (!stimulus) return { headline: null, bullets: [] }
+  if (!stimulus) return { headline: null, lines: [], bullets: [] }
   const s = stimulus as Record<string, unknown>
+  const str = (k: string): string | null => {
+    if (k.startsWith('partner')) return null
+    const v = s[k]
+    if (typeof v === 'string' && v.trim()) return v.trim()
+    if (typeof v === 'number') return String(v)
+    return null
+  }
   const first = (...keys: string[]): string | null => {
     for (const k of keys) {
-      const v = s[k]
-      if (typeof v === 'string' && v.trim()) return v
-      if (typeof v === 'number') return String(v)
+      const v = str(k)
+      if (v) return v
     }
     return null
   }
-  const headline = first('thema', 'prompt', 'keyword', 'wort', 'questionWord', 'situation', 'spell', 'number', 'title')
+  const lines: string[] = []
   const bullets: string[] = []
-  for (const k of ['keywords', 'hints', 'points', 'bullets']) {
+  const pushList = (k: string) => {
     const v = s[k]
-    if (Array.isArray(v)) for (const item of v) if (typeof item === 'string') bullets.push(item)
+    if (Array.isArray(v)) for (const item of v) if (typeof item === 'string' && item.trim()) bullets.push(item.trim())
   }
-  return { headline, bullets }
+  /** Bảng {label: value | string[]} (lịch tuần, biểu đồ) → "label: v1, v2"; mảng {label,value} cũng vậy. */
+  const pushTable = (k: string) => {
+    const v = s[k]
+    if (Array.isArray(v)) {
+      for (const row of v) {
+        if (row && typeof row === 'object') {
+          const r = row as Record<string, unknown>
+          const label = typeof r.label === 'string' ? r.label : typeof r.name === 'string' ? r.name : null
+          const value = r.value ?? r.count ?? r.percent
+          if (label && value !== undefined && value !== null) bullets.push(`${label}: ${String(value)}`)
+        }
+      }
+      return
+    }
+    if (v && typeof v === 'object') {
+      for (const [label, val] of Object.entries(v as Record<string, unknown>)) {
+        const text = Array.isArray(val) ? val.filter((x) => typeof x === 'string').join(', ') : typeof val === 'string' || typeof val === 'number' ? String(val) : ''
+        if (text) bullets.push(`${label}: ${text}`)
+      }
+    }
+  }
+
+  // Bildkarte A1: "der Apfel" là cả headline.
+  const article = str('article')
+  const object = str('object')
+  // Thẻ A1 Teil 1 (KEYWORD_CARD): từ khoá là nội dung chính, spell/number chỉ là dòng phụ — không làm headline.
+  const headline = article && object ? `${article} ${object}` : first('topic', 'thema', 'question', 'situation', 'prompt', 'keyword', 'title')
+
+  const wort = str('wort')
+  if (wort) lines.push(`Wort: ${wort}`)
+  const qw = str('questionWord')
+  if (qw) lines.push(`Fragewort: ${qw}`)
+  const spell = str('spell')
+  if (spell) lines.push(`Buchstabieren: ${spell}`)
+  const number = str('number')
+  if (number) lines.push(`Nummer: ${number}`)
+  for (const k of ['instruction', 'context', 'goal', 'candidateText', 'text', 'structureHint']) {
+    const v = str(k)
+    if (v && v !== headline) lines.push(v)
+  }
+  for (const k of ['keywords', 'hints', 'points', 'bullets', 'folien', 'topics', 'prompts', 'aspects']) pushList(k)
+  pushTable('candidateCalendar')
+  pushTable('candidateChart')
+  return { headline, lines, bullets }
 }
 
 /** Giọng TTS theo vai trong phòng thi — đồng bộ web examTts.ts. */

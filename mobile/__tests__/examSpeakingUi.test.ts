@@ -81,3 +81,58 @@ describe('provider labels', () => {
     expect(rubricCaption('GOETHE')).toMatch(/Goethe/)
   })
 })
+
+describe('stimulusDisplay — đủ 15 kiểu thẻ (QA simulator 06/09: B1 T2/T3 từng hiện ô trống)', () => {
+  const { stimulusDisplay } = require('@/lib/examSpeakingUi') as typeof import('@/lib/examSpeakingUi')
+
+  it('FOLIEN_DECK: topic làm headline, folien thành gạch đầu dòng', () => {
+    const d = stimulusDisplay({ type: 'FOLIEN_DECK', topic: 'Lernen mit dem Computer oder mit Büchern?', folien: ['Thema vorstellen', 'Eigene Erfahrung'] })
+    expect(d.headline).toBe('Lernen mit dem Computer oder mit Büchern?')
+    expect(d.bullets).toEqual(['Thema vorstellen', 'Eigene Erfahrung'])
+  })
+
+  it('PARTNER_PRESENTATION: topic + instruction; partnerPresentation KHÔNG BAO GIỜ lộ', () => {
+    const d = stimulusDisplay({ type: 'PARTNER_PRESENTATION', topic: 'Online einkaufen', instruction: 'Hören Sie zu.', partnerPresentation: 'BÍ MẬT' })
+    expect(d.headline).toBe('Online einkaufen')
+    expect(d.lines).toEqual(['Hören Sie zu.'])
+    expect(JSON.stringify(d)).not.toContain('BÍ MẬT')
+  })
+
+  it('CONTACT_CARD / PLANNING_CARD / TOPIC_CHOICE: instruction/context/goal là dòng phụ, topics/prompts/aspects là gạch đầu dòng', () => {
+    expect(stimulusDisplay({ type: 'CONTACT_CARD', instruction: 'Lernen Sie sich kennen.', topics: ['Name', 'Herkunft'] }))
+      .toEqual({ headline: null, lines: ['Lernen Sie sich kennen.'], bullets: ['Name', 'Herkunft'] })
+    const p = stimulusDisplay({ type: 'PLANNING_CARD', situation: 'Sie möchten zusammen an einem Sportlauf teilnehmen.', prompts: ['Wann trainieren?', 'Wo anmelden?'] })
+    expect(p.headline).toMatch(/Sportlauf/)
+    expect(p.bullets).toEqual(['Wann trainieren?', 'Wo anmelden?'])
+    const t = stimulusDisplay({ type: 'TOPIC_CHOICE', topic: 'Homeoffice', context: 'Debattierclub', instruction: 'Halten Sie einen Vortrag.', aspects: ['Vorteile', 'Nachteile'], structureHint: 'Einleitung – Hauptteil – Schluss' })
+    expect(t.headline).toBe('Homeoffice')
+    expect(t.lines).toEqual(['Halten Sie einen Vortrag.', 'Debattierclub', 'Einleitung – Hauptteil – Schluss'])
+    expect(t.bullets).toEqual(['Vorteile', 'Nachteile'])
+  })
+
+  it('CALENDAR_PAIR / TOPIC_GRAPHIC_PAIR: lịch và biểu đồ của THÍ SINH thành dòng "nhãn: giá trị"; phần partner bị bỏ', () => {
+    const c = stimulusDisplay({ type: 'CALENDAR_PAIR', situation: 'Kino', goal: 'Termin finden', candidateCalendar: { Montag: ['frei'], Dienstag: ['8–16 Arbeit', '19 Sport'] }, partnerCalendar: { Montag: ['Arbeit'] } })
+    expect(c.headline).toBe('Kino')
+    expect(c.lines).toEqual(['Termin finden'])
+    expect(c.bullets).toEqual(['Montag: frei', 'Dienstag: 8–16 Arbeit, 19 Sport'])
+    const g = stimulusDisplay({ type: 'TOPIC_GRAPHIC_PAIR', thema: 'Ferien und Reisen', instruction: 'Berichten Sie.', candidateText: 'Umfrage 2025', candidateChart: [{ label: 'Meer', value: '45 %' }, { label: 'Berge', value: '30 %' }], partnerText: 'GEHEIM' })
+    expect(g.headline).toBe('Ferien und Reisen')
+    expect(g.lines).toEqual(['Berichten Sie.', 'Umfrage 2025'])
+    expect(g.bullets).toEqual(['Meer: 45 %', 'Berge: 30 %'])
+    expect(JSON.stringify(g)).not.toContain('GEHEIM')
+  })
+
+  it('A1/A2: THEME_CARD, PICTURE_CARD, QUESTION_WORD_CARD, KEYWORD_CARD, DEBATE_TEXT', () => {
+    expect(stimulusDisplay({ type: 'THEME_CARD', thema: 'Essen', wort: 'Brot' })).toEqual({ headline: 'Essen', lines: ['Wort: Brot'], bullets: [] })
+    expect(stimulusDisplay({ type: 'PICTURE_CARD', article: 'der', object: 'Apfel', iconKey: 'apple' }).headline).toBe('der Apfel')
+    expect(stimulusDisplay({ type: 'QUESTION_WORD_CARD', thema: 'Freizeit', questionWord: 'Wann' }).lines).toEqual(['Fragewort: Wann'])
+    const k = stimulusDisplay({ type: 'KEYWORD_CARD', keywords: ['Name?', 'Alter?'], spell: 'Nguyen', number: '0176 123' })
+    expect(k.bullets).toEqual(['Name?', 'Alter?'])
+    expect(k.lines).toEqual(['Buchstabieren: Nguyen', 'Nummer: 0176 123'])
+    const d = stimulusDisplay({ type: 'DEBATE_TEXT', question: 'Handyverbot an Schulen?', text: 'Immer mehr Schulen…', instruction: 'Diskutieren Sie.', partnerStance: 'dagegen' })
+    expect(d.headline).toBe('Handyverbot an Schulen?')
+    expect(d.lines).toEqual(['Diskutieren Sie.', 'Immer mehr Schulen…'])
+    expect(JSON.stringify(d)).not.toContain('dagegen')
+    expect(stimulusDisplay(null)).toEqual({ headline: null, lines: [], bullets: [] })
+  })
+})
