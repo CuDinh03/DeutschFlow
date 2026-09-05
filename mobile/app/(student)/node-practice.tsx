@@ -138,7 +138,7 @@ function NodePracticeRunner() {
     <Screen edges={['top']}>
       <AppHeader
         title={params.title ?? data?.titleVi ?? 'Luyện tập'}
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)/roadmap'))}
+        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)/lernweg'))}
       />
 
       {isLoading ? (
@@ -255,7 +255,7 @@ function NodePracticeRunner() {
                       } as unknown as Href)
                   : undefined
               }
-              onRoadmap={() => router.replace('/(student)/roadmap')}
+              onRoadmap={() => router.replace('/(student)/lernweg')}
             />
           )}
         </Screen>

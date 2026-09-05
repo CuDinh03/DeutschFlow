@@ -91,7 +91,7 @@ export default function NodeScreen() {
       <AppHeader
         title={params.title ?? data?.titleVi ?? 'Bài học'}
         subtitle={data?.cefrLevel ? `${data.cefrLevel}${data.titleDe ? ` · ${data.titleDe}` : ''}` : undefined}
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)/roadmap'))}
+        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)/lernweg'))}
       />
 
       {isLoading ? (
@@ -215,7 +215,7 @@ export default function NodeScreen() {
                         } as unknown as Href)
                     : undefined
                 }
-                onRoadmap={() => router.replace('/(student)/roadmap')}
+                onRoadmap={() => router.replace('/(student)/lernweg')}
               />
             </View>
           ) : hasSkillExercises ? (
