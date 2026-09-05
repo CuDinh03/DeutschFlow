@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { View } from 'react-native'
 import { useQuery, useMutation } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
 import { Trophy, Clock, Lock, ChevronRight } from 'lucide-react-native'
 import { Alert } from 'react-native'
@@ -20,7 +21,7 @@ export default function ExamScreen() {
 
   const [level, setLevel] = useState<string>('B1')
 
-  const { data: variants = [], isLoading, isError, refetch, isFetching } = useQuery({
+  const { data: variants = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['exam-variants', level],
     queryFn: () =>
       api.get<RawMockExam[]>('/mock-exams', { params: { cefrLevel: level } }).then((r) => r.data.map(mapExam)),
@@ -40,6 +41,9 @@ export default function ExamScreen() {
     queryFn: () => examApi.listAttempts(),
     enabled: hasProAccess,
     staleTime: 60_000,
+  })
+  const pull = usePullRefresh(async () => {
+    await Promise.all([refetch(), refetchAttempts()])
   })
 
   const completedAttempts = attempts.filter((a) => a.status === 'COMPLETED').slice(0, 5)
@@ -128,11 +132,8 @@ export default function ExamScreen() {
           scroll
           edges={[]}
           contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[6], gap: space[3], paddingTop: space[2] }}
-          refreshing={isFetching && !isLoading}
-          onRefresh={() => {
-            void refetch()
-            void refetchAttempts()
-          }}
+          refreshing={pull.refreshing}
+          onRefresh={() => void pull.onRefresh()}
         >
           {/* Orientation hero — editorial ink card framing the section (no data dependency) */}
           <Card style={{ backgroundColor: theme.colors.inkSurface, borderColor: theme.colors.inkSurface }}>

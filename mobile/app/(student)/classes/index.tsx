@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, RefreshControl, View } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router } from 'expo-router'
 import {
   BookOpen, ChevronRight, Clock, Plus, Presentation, Sparkles,
@@ -21,11 +22,12 @@ export default function StudentClassesIndex() {
 
   const [joinOpen, setJoinOpen] = useState(false)
 
-  const { data: classes, isLoading, isRefetching, refetch, error } = useQuery({
+  const { data: classes, isLoading, refetch, error } = useQuery({
     queryKey: ['my-classes'],
     queryFn: fetchMyClasses,
     staleTime: 30_000,
   })
+  const pull = usePullRefresh(refetch)
 
   return (
     <Screen>
@@ -91,8 +93,8 @@ export default function StudentClassesIndex() {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={() => void refetch()}
+              refreshing={pull.refreshing}
+              onRefresh={() => void pull.onRefresh()}
               tintColor={theme.colors.accent}
             />
           }

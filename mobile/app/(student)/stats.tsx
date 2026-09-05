@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router } from 'expo-router'
 import {
   Flame,
@@ -64,7 +65,7 @@ interface SkillsShape {
 }
 
 export default function StatsScreen() {
-  const { data: stats, isLoading, isError, refetch: refetchStats, isFetching } = useQuery({
+  const { data: stats, isLoading, isError, refetch: refetchStats } = useQuery({
     queryKey: ['stats'],
     queryFn: () => api.get<StatsData>('/student/stats').then((r) => r.data),
     staleTime: 60_000,
@@ -109,14 +110,10 @@ export default function StatsScreen() {
     }
   }, [xp?.pendingBadges?.length])
 
-  const onRefresh = () => {
-    void refetchStats()
-    void refetchOverview()
-    void refetchSessions()
-    void refetchXp()
-    void refetchErrors()
-    void refetchLeaderboard()
-  }
+  const pull = usePullRefresh(async () => {
+    await Promise.all([refetchStats(), refetchOverview(), refetchSessions(), refetchXp(), refetchErrors(), refetchLeaderboard()])
+  })
+  const onRefresh = () => void pull.onRefresh()
 
   const topErrors = [...errorSkills]
     .filter((e) => !e.resolved)
@@ -142,7 +139,7 @@ export default function StatsScreen() {
           scroll
           edges={[]}
           contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], paddingTop: space[2], gap: space[3] }}
-          refreshing={isFetching && !isLoading}
+          refreshing={pull.refreshing}
           onRefresh={onRefresh}
         >
           {/* Streak hero + totals — editorial ink card (the day-one metric) */}

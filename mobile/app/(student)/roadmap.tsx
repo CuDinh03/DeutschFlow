@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Pressable, SectionList, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
 import { Lock, Check, RefreshCw } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
@@ -38,11 +39,12 @@ export default function RoadmapScreen() {
   const [filterTopic, setFilterTopic] = useState<TopicGroupKey | null>(null)
   const [filterSkill, setFilterSkill] = useState<number | null>(null)
   const { companion, setCompanion } = useCompanion()
-  const { data: nodes = [], isLoading, isError, refetch, isFetching } = useQuery({
+  const { data: nodes = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['skill-tree'],
     queryFn: () => skillTreeApi.getMySkillTree(),
     staleTime: 120_000,
   })
+  const pull = usePullRefresh(refetch)
 
   const grouped = nodes.reduce<Record<string, SkillNode[]>>((acc, node) => {
     const key = node.cefrLevel
@@ -133,8 +135,8 @@ export default function RoadmapScreen() {
           keyExtractor={(item) => String(item.id)}
           stickySectionHeadersEnabled={false}
           showsVerticalScrollIndicator={false}
-          refreshing={isFetching && !isLoading}
-          onRefresh={() => void refetch()}
+          refreshing={pull.refreshing}
+          onRefresh={() => void pull.onRefresh()}
           contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], flexGrow: 1 }}
           ListHeaderComponent={total > 0 ? <PhaseStepper nodes={nodes} /> : null}
           ListEmptyComponent={
