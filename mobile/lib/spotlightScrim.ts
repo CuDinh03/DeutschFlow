@@ -60,3 +60,39 @@ export function scrimZoneTransform(z: ScrimZone, winW: number, winH: number) {
     ],
   }
 }
+
+/**
+ * Bốn miếng vá góc, thứ tự trên-trái · trên-phải · dưới-trái · dưới-phải: mỗi
+ * miếng là ô `r × r` nằm TRONG ô khoét, đúng góc. Bốn tấm mờ ở trên để lại ô
+ * khoét vuông góc trong khi khung vàng bo tròn bán kính `r` — owner nhìn thấy
+ * "ô bo góc nhưng phần sáng lại vuông" (QA 05/09). Miếng vá phủ mờ phần góc
+ * nằm ngoài cung tròn (xem `scrimCornerRingOffset`), cũng chỉ animate bằng
+ * translate như 4 tấm mờ. Toạ độ = góc trên-trái của miếng (window).
+ */
+export function scrimCornerOffsets(cutout: ScrimRect, r: number): { x: number; y: number }[] {
+  'worklet'
+  const right = cutout.x + cutout.width - r
+  const bottom = cutout.y + cutout.height - r
+  return [
+    { x: cutout.x, y: cutout.y },
+    { x: right, y: cutout.y },
+    { x: cutout.x, y: bottom },
+    { x: right, y: bottom },
+  ]
+}
+
+/**
+ * Vị trí (left/top, toạ độ trong miếng vá `i`) của một vòng khuyên màu mờ cỡ
+ * `4r × 4r` (borderRadius 2r, borderWidth r ⇒ lỗ bán kính r) sao cho tâm vòng
+ * trùng góc TRONG của ô khoét: TL → (r, r), TR → (0, r), BL → (r, 0), BR → (0, 0).
+ * Trong ô r×r, điểm cách tâm hơn r nằm trên vành (mờ), gần hơn r nằm trong lỗ
+ * (sáng) — đúng hình "góc bo tròn ngược". Góc xa nhất cách tâm r·√2 < 2r nên
+ * vành phủ kín, không hở; miếng vá `overflow: hidden` cắt phần vành thừa để
+ * không chồng lên 4 tấm mờ. Không thể khoét lỗ tròn bằng View thường, còn mẹo
+ * "viền khổng lồ" thì không hiện trên New Architecture (xem đầu file).
+ */
+export function scrimCornerRingOffset(i: number, r: number): { left: number; top: number } {
+  const centerX = i % 2 === 0 ? r : 0
+  const centerY = i < 2 ? r : 0
+  return { left: centerX - 2 * r, top: centerY - 2 * r }
+}

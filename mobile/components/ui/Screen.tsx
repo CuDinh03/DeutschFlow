@@ -1,10 +1,11 @@
 // Themed screen container. Fills the background, applies safe-area insets, and
 // optionally scrolls. Edges are configurable so headers/tab bars can opt out.
 
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { RefreshControl, ScrollView, View, type ViewStyle, type StyleProp } from 'react-native'
 import { useSafeAreaInsets, type Edge } from 'react-native-safe-area-context'
 import { space, useTheme } from '@/lib/theme'
+import { SpotlightScrollHostProvider } from '@/components/guide/spotlightScrollHost'
 
 interface ScreenProps {
   children: ReactNode
@@ -27,6 +28,9 @@ export function Screen({
 }: ScreenProps) {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
+  // Neo spotlight nằm trong màn cuộn được tour host cuộn vào tầm nhìn trước khi
+  // chiếu sáng — host lấy ScrollView qua context này (components/guide).
+  const scrollRef = useRef<ScrollView | null>(null)
 
   // Chỉ đặt inset cho cạnh ĐƯỢC chọn. Trước 05/09 cạnh bị loại vẫn ghi `paddingLeft: 0` /
   // `paddingRight: 0`; Yoga ưu tiên key theo cạnh hơn `paddingHorizontal`, nên
@@ -44,6 +48,7 @@ export function Screen({
   if (scroll) {
     return (
       <ScrollView
+        ref={scrollRef}
         style={{ flex: 1, backgroundColor: theme.colors.bg }}
         contentContainerStyle={[inset, pad, contentStyle]}
         showsVerticalScrollIndicator={false}
@@ -59,7 +64,7 @@ export function Screen({
           ) : undefined
         }
       >
-        {children}
+        <SpotlightScrollHostProvider value={scrollRef}>{children}</SpotlightScrollHostProvider>
       </ScrollView>
     )
   }
