@@ -3,7 +3,8 @@ package com.deutschflow.speaking.dto;
 import jakarta.validation.constraints.Size;
 
 public record CreateSessionRequest(
-        @Size(max = 200) String topic,
+        /** 2000 (V304): bài giao SPEAKING_SCENARIO gửi "Chủ đề / Mô tả chi tiết / Gợi ý" ghép từ kịch bản AI. */
+        @Size(max = 2000) String topic,
         @Size(max = 8)   String cefrLevel,
         /** Optional: DEFAULT | LUKAS | EMMA | HANNA | KLAUS (case-insensitive). Unknown → DEFAULT. */
         @Size(max = 32)  String persona,
