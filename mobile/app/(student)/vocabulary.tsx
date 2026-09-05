@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { View, TextInput, FlatList, RefreshControl } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { Search, BookMarked, Plus, Check, Film, ChevronRight, Repeat, Layers, BarChart3 } from 'lucide-react-native'
@@ -75,7 +76,7 @@ export default function VocabularyScreen() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const debouncedSearch = useDebounce(search, 350)
 
-  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['words', debouncedSearch, statusFilter],
     queryFn: () => {
       const params = new URLSearchParams({ page: '0', size: '30' })
@@ -87,6 +88,7 @@ export default function VocabularyScreen() {
     },
     staleTime: 30_000,
   })
+  const pull = usePullRefresh(refetch)
 
   const words = data ?? []
 
@@ -281,8 +283,8 @@ export default function VocabularyScreen() {
         keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl
-            refreshing={isFetching && !isLoading}
-            onRefresh={() => void refetch()}
+            refreshing={pull.refreshing}
+            onRefresh={() => void pull.onRefresh()}
             tintColor={c.accent}
             colors={[c.accent]}
           />

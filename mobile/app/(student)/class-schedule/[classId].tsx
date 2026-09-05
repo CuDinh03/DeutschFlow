@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, useLocalSearchParams } from 'expo-router'
 import { CalendarClock, Clock, MapPin, Video } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
@@ -21,6 +22,7 @@ export default function ClassScheduleScreen() {
     enabled: Number.isFinite(classId),
     staleTime: 60_000,
   })
+  const pull = usePullRefresh(q.refetch)
 
   const { upcoming, past } = useMemo(() => {
     const now = Date.now()
@@ -58,8 +60,8 @@ export default function ClassScheduleScreen() {
           scroll
           edges={[]}
           contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[4], paddingTop: space[2] }}
-          refreshing={q.isRefetching}
-          onRefresh={() => void q.refetch()}
+          refreshing={pull.refreshing}
+          onRefresh={() => void pull.onRefresh()}
         >
           {upcoming.length > 0 ? (
             <View style={{ gap: space[2] }}>

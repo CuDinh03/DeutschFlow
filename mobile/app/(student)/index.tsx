@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { View, RefreshControl, Pressable, Alert, Linking } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, useFocusEffect } from 'expo-router'
 import { MotiView } from 'moti'
 import { Flame, BookOpen, Mic, Star, Map, Bell, Zap, MessageCircle, type LucideIcon } from 'lucide-react-native'
@@ -58,7 +59,7 @@ export default function DashboardScreen() {
   const { user } = useAuthStore()
   const { isPro } = usePlanStore()
 
-  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => api.get<DashboardData>('/student/dashboard').then((r) => r.data),
     staleTime: 60_000,
@@ -223,20 +224,17 @@ export default function DashboardScreen() {
   const dueSrs = srs?.dueCount ?? 0
   const unread = unreadData?.unreadCount ?? 0
 
-  const onRefresh = () => {
-    void refetch()
-    void refetchXp()
-    void refetchSrs()
-    void refetchUnread()
-    void refetchMsgUnread()
-  }
+  const pull = usePullRefresh(async () => {
+    await Promise.all([refetch(), refetchXp(), refetchSrs(), refetchUnread(), refetchMsgUnread()])
+  })
+  const onRefresh = () => void pull.onRefresh()
 
   return (
     <Screen
       scroll
       edges={['top']}
       contentStyle={{ paddingBottom: tabClearance }}
-      refreshing={isRefetching}
+      refreshing={pull.refreshing}
       onRefresh={onRefresh}
     >
       <View

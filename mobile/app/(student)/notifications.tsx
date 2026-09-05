@@ -1,5 +1,6 @@
 import { View, FlatList, Pressable, RefreshControl, Alert } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router } from 'expo-router'
 import {
   BadgeCheck,
@@ -112,7 +113,7 @@ export default function NotificationsScreen() {
   const c = theme.colors
   const qc = useQueryClient()
 
-  const { data: notifs = [], isLoading, isError, refetch, isFetching } = useQuery({
+  const { data: notifs = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['notifications'],
     queryFn: () =>
       api
@@ -120,6 +121,7 @@ export default function NotificationsScreen() {
         .then((r) => r.data.items.map(mapNotification)),
     staleTime: 30_000,
   })
+  const pull = usePullRefresh(refetch)
 
   const markAllRead = useMutation({
     mutationFn: () => api.post('/notifications/read-all'),
@@ -186,8 +188,8 @@ export default function NotificationsScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={isFetching && !isLoading}
-              onRefresh={() => void refetch()}
+              refreshing={pull.refreshing}
+              onRefresh={() => void pull.onRefresh()}
               tintColor={c.accent}
               colors={[c.accent]}
             />

@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, useFocusEffect } from 'expo-router'
 import { ChevronRight, MessageCircle, Users } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
@@ -34,6 +35,8 @@ export default function MessagesHubScreen() {
   const refetchConv = conv.refetch
   // Re-fetch each time the list regains focus (e.g. after reading a thread) so unread clears.
   useFocusEffect(useCallback(() => { void refetchConv() }, [refetchConv]))
+  const pullConv = usePullRefresh(conv.refetch)
+  const pullClasses = usePullRefresh(classes.refetch)
 
   const totalUnread = (conv.data ?? []).reduce((sum, c) => sum + c.unread, 0)
 
@@ -81,8 +84,8 @@ export default function MessagesHubScreen() {
         scroll
         edges={[]}
         contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[2], paddingTop: space[2] }}
-        refreshing={conv.isRefetching}
-        onRefresh={() => void conv.refetch()}
+        refreshing={pullConv.refreshing}
+        onRefresh={() => void pullConv.onRefresh()}
       >
         {conv.data!.map((c) => (
           <ConversationRow key={c.userId} conv={c} />
@@ -112,8 +115,8 @@ export default function MessagesHubScreen() {
         scroll
         edges={[]}
         contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[2], paddingTop: space[2] }}
-        refreshing={classes.isRefetching}
-        onRefresh={() => void classes.refetch()}
+        refreshing={pullClasses.refreshing}
+        onRefresh={() => void pullClasses.onRefresh()}
       >
         {classes.data!.map((k) => (
           <ClassChannelRow key={k.id} klass={k} />

@@ -1,5 +1,6 @@
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
 import {
   BookOpen,
@@ -51,11 +52,12 @@ function openNode(node: SkillNode) {
 export default function LearnScreen() {
   // Thanh tab liquid-glass nổi đè lên nội dung — chừa đáy cho mục cuối.
   const tabClearance = useTabBarClearance()
-  const { data: nodes = [], refetch, isFetching, isError } = useQuery({
+  const { data: nodes = [], refetch, isError } = useQuery({
     queryKey: ['skill-tree'],
     queryFn: () => skillTreeApi.getMySkillTree(),
     staleTime: 120_000,
   })
+  const pull = usePullRefresh(refetch)
 
   const completed = nodes.filter((n) => n.status === 'COMPLETED').length
   const inProgress = nodes.filter((n) => n.status === 'IN_PROGRESS').slice(0, 3)
@@ -78,8 +80,8 @@ export default function LearnScreen() {
         scroll
         edges={['top']}
         contentStyle={{ paddingBottom: tabClearance }}
-        refreshing={isFetching}
-        onRefresh={() => void refetch()}
+        refreshing={pull.refreshing}
+        onRefresh={() => void pull.onRefresh()}
       >
         <LearnHeader />
         <ErrorState onRetry={() => void refetch()} />
@@ -97,8 +99,8 @@ export default function LearnScreen() {
       scroll
       edges={['top']}
       contentStyle={{ paddingBottom: tabClearance }}
-      refreshing={isFetching}
-      onRefresh={() => void refetch()}
+      refreshing={pull.refreshing}
+      onRefresh={() => void pull.onRefresh()}
     >
       <LearnHeader />
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { View, Pressable } from 'react-native'
 import { useQuery, useQueries } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
 import { ChevronDown, ChevronUp, Check, Film, Lock } from 'lucide-react-native'
 import api from '@/lib/api'
@@ -90,7 +91,9 @@ export default function GrammarScreen() {
     })),
   })
   const topicByLevel = new Map(levels.map((l, i) => [l.level, topicQueries[i] as TopicQueryLike]))
-  const isFetching = treeQuery.isFetching || topicQueries.some((q) => q.isFetching)
+  const pull = usePullRefresh(async () => {
+    await Promise.all([treeQuery.refetch(), ...topicQueries.map((q) => q.refetch())])
+  })
   const refetchAll = () => {
     void treeQuery.refetch()
     topicQueries.forEach((q) => void q.refetch())
@@ -104,8 +107,8 @@ export default function GrammarScreen() {
         scroll
         edges={[]}
         contentStyle={{ paddingBottom: space[8] }}
-        refreshing={isFetching && !treeQuery.isLoading}
-        onRefresh={refetchAll}
+        refreshing={pull.refreshing}
+        onRefresh={() => void pull.onRefresh()}
       >
         {/* Editorial ink hero — the Kasus system is the conceptual anchor of this screen */}
         <View style={{ paddingHorizontal: space[5], marginTop: space[1], marginBottom: space[5] }}>

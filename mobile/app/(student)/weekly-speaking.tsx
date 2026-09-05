@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { View, Alert, Linking, Pressable, ActivityIndicator } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
 import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio'
 import * as Haptics from 'expo-haptics'
@@ -46,7 +47,7 @@ export default function WeeklySpeakingScreen() {
   })
   const band = bands == null ? null : bands.includes('B1') ? 'B1' : bands[0] ?? null
 
-  const { data: prompt, isLoading: promptLoading, isError: promptError, refetch: refetchPrompt, isFetching } = useQuery({
+  const { data: prompt, isLoading: promptLoading, isError: promptError, refetch: refetchPrompt } = useQuery({
     queryKey: ['weekly-prompt', band],
     queryFn: () =>
       api
@@ -66,6 +67,9 @@ export default function WeeklySpeakingScreen() {
         .then((r) => r.data.content ?? []),
     enabled: hasProAccess,
     staleTime: 60_000,
+  })
+  const pull = usePullRefresh(async () => {
+    await Promise.all([refetchPrompt(), refetchHistory()])
   })
 
   if (!hasProAccess) {
@@ -93,11 +97,8 @@ export default function WeeklySpeakingScreen() {
         scroll
         edges={[]}
         contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], gap: space[4], paddingTop: space[2] }}
-        refreshing={isFetching && !promptLoading}
-        onRefresh={() => {
-          void refetchPrompt()
-          void refetchHistory()
-        }}
+        refreshing={pull.refreshing}
+        onRefresh={() => void pull.onRefresh()}
       >
         {bandsLoading || (band != null && promptLoading) ? (
           <Skeleton height={170} radius="2xl" />
