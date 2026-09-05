@@ -7,6 +7,7 @@ import type { Conversation } from '@/lib/messagesApi'
 import { GaCap, LoadingState } from '@/components/ui-v2'
 import { isSameSelection, type ChannelClass, type Selection } from './types'
 import { initial } from './ThreadShell'
+import { useTranslations } from 'next-intl'
 
 const fmtTime = (d: string | null | undefined) => (d ? format(new Date(d), 'HH:mm') : '')
 
@@ -76,13 +77,14 @@ export function ConversationList({
   headerAction,
   emptyDirectText,
 }: ConversationListProps) {
+  const t = useTranslations('v2.inbox')
   const totalUnread = conversations.reduce((s, c) => s + (c.unread || 0), 0)
 
   return (
     <>
       <div className="flex items-center justify-between gap-2 px-4 py-3">
         <div className="flex items-center gap-2">
-          <GaCap>Tin nhắn</GaCap>
+          <GaCap>{t('inboxCap')}</GaCap>
           {totalUnread > 0 && (
             <span className="rounded-full bg-ga-accent px-2 py-0.5 text-[11px] font-bold text-ga-accent-ink">
               {totalUnread}
@@ -94,16 +96,16 @@ export function ConversationList({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loading ? (
-          <LoadingState label="Đang tải tin nhắn…" />
+          <LoadingState label={t('loading')} />
         ) : (
           <>
             {/* Class group channels */}
             <div className="border-b border-ga-line bg-ga-surface px-4 py-1.5">
-              <GaCap>Nhóm lớp</GaCap>
+              <GaCap>{t('groupsCap')}</GaCap>
             </div>
             {classes.length === 0 ? (
               <p className="ga-ui px-4 py-4 text-[12.5px] text-ga-muted">
-                Bạn chưa tham gia lớp nào.
+                {t('noClasses')}
               </p>
             ) : (
               classes.map((c) => (

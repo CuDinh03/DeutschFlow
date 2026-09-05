@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // stable reference; a fresh function each render would loop the effect.
 vi.mock('next-intl', () => {
   const t = (k: string) => k
-  return { useTranslations: () => t }
+  return { useLocale: () => 'vi', useTranslations: () => t }
 })
 
 vi.mock('next/link', () => ({

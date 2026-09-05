@@ -8,7 +8,9 @@
 import React from 'react'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
+import { NextIntlClientProvider, type AbstractIntlMessages } from 'next-intl'
 import { GaLanding } from '@/components/landing-v2/GaLanding'
+import landingVi from '../../../messages/v2/landing.vi.json'
 
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
@@ -32,11 +34,22 @@ vi.mock('@/components/ui-v2', () => ({
   },
 }))
 
+// 06/09/2026 (F-I18N-02a): landing đọc catalog v2.landing → render trong provider với bản vi
+// (nguồn sự thật); LanguageToggle (VI/EN/DE) mock để không kéo router/api vào jsdom.
+vi.mock('@/components/ui-v2/LanguageToggle', () => ({ LanguageToggle: () => <span data-testid="lang-toggle" /> }))
+
+const renderLanding = () =>
+  render(
+    <NextIntlClientProvider locale="vi" messages={{ v2: { ...landingVi } } as unknown as AbstractIntlMessages}>
+      <GaLanding />
+    </NextIntlClientProvider>,
+  )
+
 const menuPanel = () => document.getElementById('ga-mobile-menu')
 
 describe('GaLanding — menu mobile', () => {
   it('mở và đóng menu bằng nút hamburger, đồng bộ aria-expanded', () => {
-    render(<GaLanding />)
+    renderLanding()
 
     expect(menuPanel()).toBeNull()
     const openBtn = screen.getByRole('button', { name: 'Mở menu' })
@@ -52,7 +65,7 @@ describe('GaLanding — menu mobile', () => {
   })
 
   it('đóng menu khi chọn một liên kết điều hướng', () => {
-    render(<GaLanding />)
+    renderLanding()
 
     fireEvent.click(screen.getByRole('button', { name: 'Mở menu' }))
     const panel = menuPanel()
@@ -63,7 +76,7 @@ describe('GaLanding — menu mobile', () => {
   })
 
   it('menu chứa đủ liên kết điều hướng, Đăng nhập và CTA Học thử', () => {
-    render(<GaLanding />)
+    renderLanding()
 
     fireEvent.click(screen.getByRole('button', { name: 'Mở menu' }))
     const panel = within(menuPanel() as HTMLElement)
@@ -76,7 +89,7 @@ describe('GaLanding — menu mobile', () => {
   })
 
   it('CTA phụ dẫn tới nội dung thật thay vì giả làm video demo', () => {
-    render(<GaLanding />)
+    renderLanding()
 
     // Bản funnel value-first: CTA demo duy nhất là bảng giáo viên và trỏ route thật,
     // không còn nút giả làm video ("Xem demo 90 giây" đã bị gỡ từ P0.2).
@@ -86,14 +99,14 @@ describe('GaLanding — menu mobile', () => {
   })
 
   it('các control chính trên header mobile có vùng chạm tối thiểu 44px', () => {
-    render(<GaLanding />)
+    renderLanding()
 
     expect(screen.getByRole('button', { name: 'Mở menu' }).className).toContain('h-11')
     expect(screen.getByRole('link', { name: /Học thử Học thử miễn phí/ }).className).toContain('h-11')
   })
 
   it('không dùng số liệu hoặc lời chứng thực chưa có nguồn', () => {
-    render(<GaLanding />)
+    renderLanding()
 
     expect(screen.queryByText('92%')).not.toBeInTheDocument()
     expect(screen.queryByText('2.400+')).not.toBeInTheDocument()

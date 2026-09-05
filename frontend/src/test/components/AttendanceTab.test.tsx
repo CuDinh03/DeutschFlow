@@ -19,7 +19,7 @@ const createLessonLog = vi.fn()
 const updateLessonLog = vi.fn()
 const deleteLessonLog = vi.fn()
 
-vi.mock('next-intl', () => ({ useTranslations: () => (k: string) => k }))
+vi.mock('next-intl', () => ({ useLocale: () => 'vi', useTranslations: () => (k: string) => k }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/lib/teacherLessonLogApi', () => ({
   createLessonLog: (...a: unknown[]) => createLessonLog(...a),

@@ -6,7 +6,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import api from '@/lib/api'
 import { GaStatStrip, type GaStatItem, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { GaPageHdr } from '@/components/ui-v2'
-import { GaSection, GaBars, GaDonut, GaLegend, GA_CHART, fmtVnd, fmtDateTime, nfVN } from '../../analyticsShared'
+import { GaSection, GaBars, GaDonut, GaLegend, GA_CHART } from '../../analyticsShared'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // ── Real shape of GET /admin/analytics/revenue (AdminAnalyticsController) ────────
 interface RevenueOverview {
@@ -59,6 +60,7 @@ function StatusDot({ status }: { status: string }) {
 
 export default function V2AdminRevenuePage() {
   const t = useTranslations('v2.adminOps.revenue')
+  const fmt = useFmt()
   const [data, setData] = useState<RevenueResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -91,11 +93,11 @@ export default function V2AdminRevenuePage() {
   const mrr = latest?.netVnd ?? overview?.netVnd ?? 0
 
   const cells: GaStatItem[] = [
-    { label: t('stats.mrr'), value: fmtVnd(mrr), tone: 'green', sub: latest ? latest.period : '—' },
-    { label: t('stats.arr'), value: fmtVnd(mrr * 12), tone: 'blue', sub: t('stats.arrSub') },
+    { label: t('stats.mrr'), value: fmt.vndCompact(mrr), tone: 'green', sub: latest ? latest.period : '—' },
+    { label: t('stats.arr'), value: fmt.vndCompact(mrr * 12), tone: 'blue', sub: t('stats.arrSub') },
     {
       label: t('stats.subscribers'),
-      value: latest ? nfVN.format(latest.subscribers) : '—',
+      value: latest ? fmt.num(latest.subscribers) : '—',
       tone: 'violet',
       sub: t('stats.subscribersSub'),
     },
@@ -140,7 +142,7 @@ export default function V2AdminRevenuePage() {
                     data={chart.map((r) => ({ label: r.period, value: r.netVnd }))}
                     color="#1E9E61"
                     height={180}
-                    valueFmt={fmtVnd}
+                    valueFmt={fmt.vndCompact}
                   />
                 ) : (
                   <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">{t('noPeriodData')}</p>
@@ -152,7 +154,7 @@ export default function V2AdminRevenuePage() {
                   <div className="flex flex-col items-center gap-5 sm:flex-row">
                     <GaDonut segments={breakdownSegs} />
                     <div className="w-full min-w-0 flex-1">
-                      <GaLegend items={breakdownSegs.map((s) => ({ ...s, display: fmtVnd(s.value) }))} />
+                      <GaLegend items={breakdownSegs.map((s) => ({ ...s, display: fmt.vndCompact(s.value) }))} />
                     </div>
                   </div>
                 ) : (
@@ -165,7 +167,7 @@ export default function V2AdminRevenuePage() {
               title={t('recentTransactions')}
               right={
                 tx ? (
-                  <span className="ga-ui text-[12.5px] text-ga-muted">{t('txCount', { count: nfVN.format(tx.totalElements) })}</span>
+                  <span className="ga-ui text-[12.5px] text-ga-muted">{t('txCount', { count: fmt.num(tx.totalElements) })}</span>
                 ) : null
               }
               bodyClassName="p-0"
@@ -211,7 +213,7 @@ export default function V2AdminRevenuePage() {
                               {r.planCode || '—'}
                             </span>
                           </td>
-                          <td className="px-5 py-3 text-[13.5px] font-semibold text-ga-ink">{fmtVnd(r.amount)}</td>
+                          <td className="px-5 py-3 text-[13.5px] font-semibold text-ga-ink">{fmt.vndCompact(r.amount)}</td>
                           <td className="px-5 py-3">
                             <StatusDot status={r.status} />
                           </td>
@@ -219,7 +221,7 @@ export default function V2AdminRevenuePage() {
                             {r.providerTransactionId || '—'}
                           </td>
                           <td className="whitespace-nowrap px-5 py-3 text-[12.5px] text-ga-muted">
-                            {fmtDateTime(r.createdAt)}
+                            {fmt.dateTime(r.createdAt)}
                           </td>
                         </tr>
                       ))

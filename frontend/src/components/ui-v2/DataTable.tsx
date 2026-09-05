@@ -6,6 +6,7 @@ import { ArrowDown, ArrowUp, ChevronRight, ChevronsUpDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { GaBtn } from './GaBtn'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 /**
  * DataTable — stateful list pattern-setter (70-admin-users hi-fi).
@@ -87,6 +88,7 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   // i18n contract (W0-C8): default copy từ v2.ui, prop override (itemNoun).
   const t = useTranslations('v2.ui')
+  const fmt = useFmt()
   const noun = itemNoun ?? t('item')
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
@@ -310,7 +312,7 @@ export function DataTable<T>({
       {paginate && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ga-line px-4 py-3 lg:flex-nowrap lg:gap-0 lg:px-5 lg:py-3.5">
           <span className="ga-ui text-[13px] text-ga-muted">
-            {t('tableFooter', { from, to, total: sorted.length.toLocaleString('vi-VN'), noun })}
+            {t('tableFooter', { from, to, total: fmt.num(sorted.length), noun })}
           </span>
           <div className="flex flex-wrap gap-1.5 lg:flex-nowrap">
             <PagerBtn ariaLabel={t('prevPage')} disabled={current === 1} onClick={() => setPage(current - 1)}>‹</PagerBtn>

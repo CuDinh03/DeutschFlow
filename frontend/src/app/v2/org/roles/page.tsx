@@ -8,8 +8,9 @@ import { apiMessage } from '@/lib/api'
 import { changeMemberRole, listMembers, removeMember, type OrgMember, type OrgRole } from '@/lib/orgApi'
 import { getOrgRole } from '@/lib/authSession'
 import { GaPageHdr, GaStatStrip, TkBadge, ErrorBanner, LoadingState, ConfirmDialog } from '@/components/ui-v2'
-import { GaSection, nfVN } from '../../sectionShared'
+import { GaSection } from '../../sectionShared'
 import { ApproverSection } from './ApproverSection'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // listMembers() (all roles) + real mutations: changeMemberRole (PATCH /org/members/{id}/role,
 // OWNER-only, MANAGER↔TEACHER) and removeMember (DELETE → REVOKED). Both backed by #143.
@@ -26,6 +27,7 @@ const ROLE_TONE: Record<OrgRole, 'red' | 'navy' | 'violet' | 'blue'> = {
 
 export default function V2OrgRolesPage() {
   const t = useTranslations('v2.org.roles')
+  const fmt = useFmt()
   const [members, setMembers] = useState<OrgMember[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -203,7 +205,7 @@ export default function V2OrgRolesPage() {
             <ApproverSection isOwner={isOwner} members={members} />
 
             <p className="ga-ui text-[12px] text-ga-subtle">
-              {isOwner ? t('footerOwner', { count: nfVN.format(members.length) }) : t('footerMember', { count: nfVN.format(members.length) })}
+              {isOwner ? t('footerOwner', { count: fmt.num(members.length) }) : t('footerMember', { count: fmt.num(members.length) })}
             </p>
           </div>
         )}

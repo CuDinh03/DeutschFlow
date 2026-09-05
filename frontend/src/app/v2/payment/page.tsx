@@ -4,6 +4,7 @@ import { Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { GaPageHdr, GaBtn } from '@/components/ui-v2'
 import { RoleShell } from '../RoleShell'
+import { formatVnd } from '@/lib/i18n/format'
 
 // v1.0: PRO only (ULTRA deferred). Web self-serve payment (SePay "gói N ngày") ships in v1.1;
 // until then the paid card shows a "coming soon" CTA. MoMo/Stripe removed per the locked billing
@@ -42,7 +43,7 @@ const PLANS: Plan[] = [
 
 function PaymentBody() {
   const t = useTranslations('v2.account.payment')
-  const vnd = (n: number) => (n === 0 ? t('priceFree') : `${n.toLocaleString('vi-VN')}₫`)
+  const vnd = (n: number) => (n === 0 ? t('priceFree') : `${formatVnd(n)}`)
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />

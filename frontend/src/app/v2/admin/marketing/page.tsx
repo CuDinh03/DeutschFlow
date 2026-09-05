@@ -9,16 +9,14 @@ import {
   type GrowthStats, type MarketingLead, type TeacherCluster,
 } from '@/lib/adminMarketingApi'
 import { GaPageHdr, GaCap, GaBtn, GaStatStrip } from '@/components/ui-v2'
+import { useFmt, type Fmt } from '@/lib/i18n/useFmt'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tăng trưởng / Leads (admin) — navy (W1.7 migrate admin/marketing).
 // Plumbing reused 1:1: adminMarketingApi.getGrowthStats + listLeads(30,200) + getTeacherClusters(3).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const fmtDate = (iso: string) => {
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
+const fmtDate = (f: Fmt, iso: string) => f.date(iso)
 
 function SplitCard({ icon, label, value, total, tone }: { icon: React.ReactNode; label: string; value: number; total: number; tone: string }) {
   const t = useTranslations('v2.adminOps.marketing')
@@ -37,6 +35,7 @@ function SplitCard({ icon, label, value, total, tone }: { icon: React.ReactNode;
 
 export default function V2AdminMarketingPage() {
   const t = useTranslations('v2.adminOps.marketing')
+  const fmt = useFmt()
   const tc = useTranslations('v2.common')
   const [stats, setStats] = useState<GrowthStats | null>(null)
   const [leads, setLeads] = useState<MarketingLead[]>([])
@@ -121,7 +120,7 @@ export default function V2AdminMarketingPage() {
                     </span>
                     <span className="truncate text-[12.5px] text-ga-muted">{l.topic || '—'}</span>
                     <span className="text-[13px] font-semibold">{l.score != null ? <span className="text-ga-ink">{l.score}</span> : <span className="text-[11px] text-ga-red">{t('aiError')}</span>}</span>
-                    <span className="text-[12px] text-ga-muted">{fmtDate(l.createdAt)}</span>
+                    <span className="text-[12px] text-ga-muted">{fmtDate(fmt, l.createdAt)}</span>
                   </div>
                 ))}
               </div>

@@ -602,7 +602,8 @@
     },
     "messages": {
       "title": "Messages",
-      "subtitle": "Class group chats and private messages with your teacher"
+      "subtitle": "Class group chats and private messages with your teacher",
+      "emptyDirect": "No direct conversations yet. Open a class page and tap “Message teacher” to start."
     },
     "achievements": {
       "title": "Achievements",
@@ -1610,6 +1611,107 @@
       "site": "Click the 🎤/lock icon next to the address bar → allow Microphone for this site.",
       "browser": "Can't see it? Browser settings → Permissions → Microphone → unblock this site.",
       "os": "macOS/Windows: enable microphone access for your browser in system settings, then restart the browser."
+    },
+    "sprechenTeil2": {
+      "loadCardFailed": "Could not load the exam card.",
+      "micFailed": "Could not access the microphone.",
+      "sttEmpty": "No speech recognised. Please try again.",
+      "evalFailed": "Analysis failed. Please try again.",
+      "preparing": "Preparing your card...",
+      "yourCard": "Your card",
+      "askPrompt": "Ask <b>one question</b> related to this card.",
+      "aiAsking": "The AI partner is asking a question...",
+      "aiQuestion": "AI question",
+      "answerPrompt": "Give <b>your answer</b>.",
+      "recording": "Recording... release to submit",
+      "scoring": "Scoring...",
+      "holdToTalk": "Hold to speak",
+      "resultsTitle": "AI assessment",
+      "turnAsk": "Turn 1: you asked",
+      "turnAnswer": "Turn 2: you answered",
+      "points": "{score}/10 points",
+      "feedback": "Feedback:",
+      "doneTitle": "Teil 2 complete!",
+      "doneBody": "You completed both turns. Review the detailed AI feedback above.",
+      "retry": "Retake this part"
+    },
+    "learnViews": {
+      "speaking": {
+        "micDenied": "Could not access the microphone. Please allow access.",
+        "evalFailed": "Assessment failed. Please try again.",
+        "empty": "No speaking exercise for this lesson yet.",
+        "recording": "Recording...",
+        "evaluating": "Assessing pronunciation...",
+        "great": "Excellent!",
+        "okay": "Good! Room to improve",
+        "weak": "Keep practising",
+        "pronScore": "Pronunciation score",
+        "heard": "What we heard:",
+        "noVoice": "[No speech captured — please speak louder and more clearly]",
+        "tip": "Tip:",
+        "next": "Next lesson →"
+      },
+      "phoneme": {
+        "micDenied": "Could not access the microphone. Check your browser permissions.",
+        "evalFailed": "Could not assess pronunciation. Please try again.",
+        "title": "Pronunciation practice",
+        "listenSlow": "Listen (slow)",
+        "recording": "● Recording... tap to stop",
+        "analyzing": "Analysing pronunciation...",
+        "heard": "Heard:",
+        "heardEmpty": "Heard: [empty / no speech captured]",
+        "perWord": "Word-by-word analysis",
+        "retry": "Try again",
+        "replay": "Play again"
+      },
+      "listening": {
+        "empty": "No audio for this lesson yet.",
+        "fillHint": "Fill in the blanks, then press <b>Submit</b>",
+        "submit": "Submit",
+        "fillAll": "Fill all {count} blanks to submit",
+        "perfect": "Perfect! All correct!",
+        "good": "Good! Enough to pass",
+        "fail": "Not yet – try again (100% needed to pass this node)",
+        "correctCount": "{correct}/{total} words correct",
+        "retry": "Try again",
+        "shadowing": "Practise the passage (shadowing)",
+        "collapse": "▲ Collapse",
+        "expand": "▼ Expand",
+        "noTranscript": "No transcript yet. Listen and practise..."
+      },
+      "writing": {
+        "empty": "No writing task for this lesson yet.",
+        "completed": "Completed",
+        "skipComplete": "Skip & mark as complete",
+        "minWords": "Minimum: {count} words",
+        "placeholder": "Write your German text here...",
+        "wordCount": "{count}/{min} words",
+        "checking": "Checking...",
+        "checked": "Checked",
+        "errorsFound": "{count} issues found",
+        "errGrammar": "Grammar",
+        "errSpelling": "Spelling",
+        "errStyle": "Style",
+        "submit": "Submit writing",
+        "done": "Writing part complete (≥ 80 points)"
+      },
+      "reading": {
+        "close": "Close",
+        "saved": "Saved",
+        "saveFlashcard": "Save flashcard",
+        "empty": "No reading text for this lesson yet.",
+        "readingCap": "Reading",
+        "selectHint": "Highlight any word to see its meaning",
+        "questionsCap": "Questions",
+        "essayPlaceholder": "Write your answer (free text)...",
+        "answerPlaceholder": "Enter your answer",
+        "check": "Check answers",
+        "result": "You got {score}/{total} right. You need 100% to pass!",
+        "retry": "Try again",
+        "noQuestions": "No questions for this text yet.",
+        "completed": "Completed 100%",
+        "markDone": "Read & understood (100%)"
+      }
     }
   }
 }

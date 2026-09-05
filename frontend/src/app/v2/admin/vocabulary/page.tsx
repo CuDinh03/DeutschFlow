@@ -10,6 +10,7 @@ import type { VocabularyImageReviewResponse } from '@/lib/vocabularyImageApi'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkModal } from '@/components/ui-v2'
 import VocabReviewQueue from './VocabReviewQueue'
 import GalerieReviewGrid from './GalerieReviewGrid'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // ── Green header accent (vocab screen overrides the admin-navy chrome) ────────
 const GREEN = '#1E9E61'
@@ -56,6 +57,7 @@ function normalizeWord(r: Record<string, unknown>): VocabWord {
 
 export default function V2AdminVocabPage() {
   const t = useTranslations('v2.adminContent.vocabulary')
+  const fmt = useFmt()
   const tc = useTranslations('v2.common')
   const [target, setTarget] = useState<VocabWord | null>(null)
   const [tab, setTab] = useState<'images' | 'review' | 'galerie'>('images')
@@ -130,15 +132,15 @@ export default function V2AdminVocabPage() {
         <GaStatStrip
           className="mb-6"
           items={[
-            { label: t('statTotal'), value: stats.total.toLocaleString('vi-VN'), tone: 'green' },
+            { label: t('statTotal'), value: fmt.num(stats.total), tone: 'green' },
             {
               label: t('statMissing'),
-              value: stats.missing.toLocaleString('vi-VN'),
+              value: fmt.num(stats.missing),
               tone: 'orange',
               sub: t('statMissingSub'),
               alert: stats.missing > 0,
             },
-            { label: t('statPending'), value: stats.missing.toLocaleString('vi-VN'), tone: 'gold' },
+            { label: t('statPending'), value: fmt.num(stats.missing), tone: 'gold' },
             { label: t('statAudio'), value: `${stats.audioPct}%`, tone: 'blue' },
           ]}
         />
@@ -224,7 +226,7 @@ export default function V2AdminVocabPage() {
         )}
         {!loading && !error && queue.length > QUEUE_CAP && (
           <p className="mt-4 text-center text-[13px] text-ga-muted">
-            {t('queueMore', { cap: QUEUE_CAP, rest: (queue.length - QUEUE_CAP).toLocaleString('vi-VN') })}
+            {t('queueMore', { cap: QUEUE_CAP, rest: fmt.num((queue.length - QUEUE_CAP)) })}
           </p>
         )}
       </div>

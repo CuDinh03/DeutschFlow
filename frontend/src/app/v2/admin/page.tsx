@@ -6,7 +6,8 @@ import { useTranslations } from 'next-intl'
 import { ArrowRight } from 'lucide-react'
 import api from '@/lib/api'
 import { GaStatStrip, type GaStatItem, ErrorBanner, LoadingState, GaPageHdr } from '@/components/ui-v2'
-import { GaSection, GaBars, GaDonut, GaLegend, fmtVnd, nfVN } from '../analyticsShared'
+import { GaSection, GaBars, GaDonut, GaLegend } from '../analyticsShared'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 type OverviewUser = { id: number; role?: string; isActive?: boolean; isactive?: boolean; usageLast30Days?: number }
 type ChartRow = { period: string; netVnd: number; subscribers: number }
@@ -18,6 +19,7 @@ const ROLE_COLOR: Record<string, string> = { STUDENT: '#2F6FC9', TEACHER: '#7C56
 
 export default function V2AdminOverviewPage() {
   const t = useTranslations('v2.adminOps.overview')
+  const fmt = useFmt()
   const [users, setUsers] = useState<OverviewUser[]>([])
   const [revenue, setRevenue] = useState<RevenueResponse | null>(null)
   const [daily, setDaily] = useState<DailyCostDto | null>(null)
@@ -59,10 +61,10 @@ export default function V2AdminOverviewPage() {
   const pausedUsers = users.filter((u) => u.isActive === false || u.isactive === false).length
 
   const cells: GaStatItem[] = [
-    { label: t('stats.totalUsers'), value: nfVN.format(users.length), tone: 'navy' },
-    { label: t('stats.mrr'), value: fmtVnd(mrr), tone: 'green', sub: latest?.period },
+    { label: t('stats.totalUsers'), value: fmt.num(users.length), tone: 'navy' },
+    { label: t('stats.mrr'), value: fmt.vndCompact(mrr), tone: 'green', sub: latest?.period },
     { label: t('stats.aiCost'), value: `$${aiCost.toFixed(2)}`, tone: 'orange', sub: t('stats.aiCostSub') },
-    { label: t('stats.aiActivity'), value: nfVN.format(activeUsers), tone: 'violet', sub: t('stats.aiActivitySub') },
+    { label: t('stats.aiActivity'), value: fmt.num(activeUsers), tone: 'violet', sub: t('stats.aiActivitySub') },
   ]
 
   const todo: { text: string; href: string }[] = [
@@ -101,7 +103,7 @@ export default function V2AdminOverviewPage() {
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
                     <GaDonut segments={roleSegs} />
                     <div className="min-w-0 flex-1">
-                      <GaLegend items={roleSegs.map((s) => ({ ...s, display: nfVN.format(s.value) }))} />
+                      <GaLegend items={roleSegs.map((s) => ({ ...s, display: fmt.num(s.value) }))} />
                     </div>
                   </div>
                 ) : (

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import api, { apiMessage, isAxiosErr } from "@/lib/api";
 import { BookOpen, Brain, Briefcase, Flame, Lock, Mic, Star, Target, Trophy, Unlock, X, ChevronDown, ChevronUp, MessageSquare, Calendar, Save, Pencil, Check, Bot, User } from "lucide-react";
 import { CompleteBauhausLogo } from "@/components/BauhausLogo";
+import { useFmt } from '@/lib/i18n/useFmt'
 
 const P = {
   navy: "#121212", navyLt: "#EBF2FA", blue: "#2D9CDB", blueLt: "#EBF5FB",
@@ -36,9 +37,6 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "interview", label: "Phỏng vấn", icon: <Briefcase size={14} /> },
 ];
 
-function fmt(n: number | undefined | null) {
-  return Number(n ?? 0).toLocaleString("vi-VN");
-}
 
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
@@ -238,6 +236,7 @@ const RARITY_STYLE: Record<string, { bg: string; color: string; label: string }>
 };
 
 function XpTab({ d }: { d: LearningDetail }) {
+  const fmt = useFmt()
   const xp = d.xpGamification;
   const s = d.streak;
   const totalXp = Number(xp.totalXp ?? 0);
@@ -251,10 +250,10 @@ function XpTab({ d }: { d: LearningDetail }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Total XP" value={fmt(totalXp)} color={P.purple} />
+        <Stat label="Total XP" value={fmt.num(totalXp)} color={P.purple} />
         <Stat label="Level" value={String(level)} color={P.blue} />
         <Stat label="Streak" value={`${s.currentStreak ?? 0} ngày`} color={P.orange} />
-        <Stat label="Sessions" value={fmt(Number(s.totalCompletedSessions ?? 0))} color={P.green} />
+        <Stat label="Sessions" value={fmt.num(Number(s.totalCompletedSessions ?? 0))} color={P.green} />
       </div>
       <SectionCard title="Tiến độ Level" icon={<Star size={14} style={{ color: P.yellow }} />}>
         <div className="mb-2 flex justify-between text-[10px] font-bold" style={{ color: P.muted }}>
@@ -324,6 +323,7 @@ function XpTab({ d }: { d: LearningDetail }) {
 }
 
 function SpeakingTab({ d }: { d: LearningDetail }) {
+  const fmt = useFmt()
   const sp = d.speakingAi;
   const weakPoints = Array.isArray(sp.topWeakPoints) ? (sp.topWeakPoints as { grammarPoint: string; count: number }[]) : [];
   const recentErrors = Array.isArray(sp.recentErrors) ? (sp.recentErrors as Record<string, unknown>[]) : [];
@@ -331,8 +331,8 @@ function SpeakingTab({ d }: { d: LearningDetail }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <Stat label="Phiên nói" value={fmt(Number(sp.totalSessions ?? 0))} color={P.blue} />
-        <Stat label="Tin nhắn" value={fmt(Number(sp.totalMessages ?? 0))} color={P.purple} />
+        <Stat label="Phiên nói" value={fmt.num(Number(sp.totalSessions ?? 0))} color={P.blue} />
+        <Stat label="Tin nhắn" value={fmt.num(Number(sp.totalMessages ?? 0))} color={P.purple} />
       </div>
       {weakPoints.length > 0 && (
         <SectionCard title="Điểm yếu ngữ pháp (Top 5)" icon={<Target size={14} style={{ color: P.red }} />}>
@@ -403,6 +403,7 @@ function SpeakingTab({ d }: { d: LearningDetail }) {
 }
 
 function VocabTab({ d }: { d: LearningDetail }) {
+  const fmt = useFmt()
   const v = d.vocabularySrs;
   const total = Number(v.totalItems ?? 0);
   const mastered = Number(v.mastered ?? 0);
@@ -412,10 +413,10 @@ function VocabTab({ d }: { d: LearningDetail }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Tổng mục" value={fmt(total)} color={P.navy} />
-        <Stat label="Cần ôn hôm nay" value={fmt(due)} color={P.red} />
-        <Stat label="Đã thuộc" value={fmt(mastered)} color={P.green} />
-        <Stat label="Đang học" value={fmt(learning)} color={P.blue} />
+        <Stat label="Tổng mục" value={fmt.num(total)} color={P.navy} />
+        <Stat label="Cần ôn hôm nay" value={fmt.num(due)} color={P.red} />
+        <Stat label="Đã thuộc" value={fmt.num(mastered)} color={P.green} />
+        <Stat label="Đang học" value={fmt.num(learning)} color={P.blue} />
       </div>
       {total > 0 && (
         <SectionCard title="Phân bố" icon={<Brain size={14} style={{ color: P.purple }} />}>
@@ -430,8 +431,8 @@ function VocabTab({ d }: { d: LearningDetail }) {
             <span style={{ color: P.muted }}>■ Mới ({newItems})</span>
           </div>
           <div className="grid grid-cols-2 gap-3 mt-3">
-            <Stat label="Từ vựng" value={fmt(Number(v.wordCount ?? 0))} color={P.purple} />
-            <Stat label="Ngữ pháp" value={fmt(Number(v.grammarCount ?? 0))} color={P.orange} />
+            <Stat label="Từ vựng" value={fmt.num(Number(v.wordCount ?? 0))} color={P.purple} />
+            <Stat label="Ngữ pháp" value={fmt.num(Number(v.grammarCount ?? 0))} color={P.orange} />
           </div>
         </SectionCard>
       )}
@@ -467,6 +468,7 @@ type TranscriptMessage = {
 };
 
 function InterviewTab({ userId }: { userId: number }) {
+  const fmt = useFmt()
   const [sessions, setSessions] = useState<InterviewSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -552,7 +554,7 @@ function InterviewTab({ userId }: { userId: number }) {
                   {date && (
                     <span className="flex items-center gap-1">
                       <Calendar size={10} />
-                      {date.toLocaleDateString('vi-VN')} — {date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                      {fmt.date(date)} — {fmt.time(date, { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   )}
                   <span className="flex items-center gap-1">

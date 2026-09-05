@@ -7,6 +7,7 @@ import api from '@/lib/api'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { GaCap, GaCard, GaPageHdr, LoadingState, TkBadge } from '@/components/ui-v2'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 /**
  * /v2/student/speaking/history — lịch sử hội thoại luyện nói (vỏ Galerie).
@@ -193,6 +194,7 @@ function MessageBubble({ msg }: { msg: SessionMessage }) {
 export default function V2StudentSpeakingHistoryPage() {
   usePageTimeTracker('speaking_history')
   const t = useTranslations('v2.student.speakingHistory')
+  const fmt = useFmt()
 
   const [sessions, setSessions] = useState<SpeakingSession[]>([])
   const [selected, setSelected] = useState<SpeakingSession | null>(null)
@@ -346,8 +348,8 @@ export default function V2StudentSpeakingHistoryPage() {
                             {date && (
                               <span className="inline-flex items-center gap-1">
                                 <Calendar size={11} aria-hidden />
-                                {date.toLocaleDateString('vi-VN')} —{' '}
-                                {date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                {fmt.date(date)} —{' '}
+                                {fmt.time(date, { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             )}
                             <span className="inline-flex items-center gap-1">

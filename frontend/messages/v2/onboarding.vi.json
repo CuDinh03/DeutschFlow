@@ -7,11 +7,26 @@
     "level": {
       "heading": "Bạn đang ở trình độ nào?",
       "sub": "Chọn trình độ phù hợp nhất.",
-      "A0": { "label": "Chưa biết gì", "desc": "Bắt đầu từ bảng chữ cái" },
-      "A1": { "label": "Cơ bản (A1)", "desc": "Biết chào hỏi, giới thiệu" },
-      "A2": { "label": "Sơ cấp (A2)", "desc": "Giao tiếp đơn giản" },
-      "B1": { "label": "Trung cấp (B1)", "desc": "Thảo luận, diễn đạt ý kiến" },
-      "B2": { "label": "Cao cấp (B2)", "desc": "Đọc hiểu phức tạp" }
+      "A0": {
+        "label": "Chưa biết gì",
+        "desc": "Bắt đầu từ bảng chữ cái"
+      },
+      "A1": {
+        "label": "Cơ bản (A1)",
+        "desc": "Biết chào hỏi, giới thiệu"
+      },
+      "A2": {
+        "label": "Sơ cấp (A2)",
+        "desc": "Giao tiếp đơn giản"
+      },
+      "B1": {
+        "label": "Trung cấp (B1)",
+        "desc": "Thảo luận, diễn đạt ý kiến"
+      },
+      "B2": {
+        "label": "Cao cấp (B2)",
+        "desc": "Đọc hiểu phức tạp"
+      }
     },
     "goal": {
       "heading": "Vì sao bạn học tiếng Đức?",
@@ -32,9 +47,18 @@
       "mentorLabel": "Mentor của bạn",
       "mentorFallbackTagline": "Người đồng hành học tập",
       "upsell": "🔓 Mở khoá mentor <b>{name}</b>{tagline} với PRO →",
-      "w3": { "label": "3 bài/tuần", "desc": "~15 phút/ngày" },
-      "w5": { "label": "5 bài/tuần", "desc": "~20 phút/ngày" },
-      "w7": { "label": "7 bài/tuần", "desc": "Mỗi ngày một bài" },
+      "w3": {
+        "label": "3 bài/tuần",
+        "desc": "~15 phút/ngày"
+      },
+      "w5": {
+        "label": "5 bài/tuần",
+        "desc": "~20 phút/ngày"
+      },
+      "w7": {
+        "label": "7 bài/tuần",
+        "desc": "Mỗi ngày một bài"
+      },
       "noteA0": "🌱 Bước đầu tiên của bạn sẽ là <b>Bảng chữ cái, Phát âm và Chào hỏi</b>.",
       "notePlacement": "📝 Có thể làm <b>bài kiểm tra 5 phút (tùy chọn)</b> để vào đúng trình độ — hoặc bắt đầu học ngay."
     },
@@ -94,6 +118,37 @@
       "createTest": "Không thể tạo bài test.",
       "submitTest": "Nộp bài thất bại.",
       "resumeKeepsDraft": "Không lưu được hồ sơ — câu trả lời của bạn vẫn được giữ. Vui lòng thử lại."
+    },
+    "mockExam": {
+      "sttEmpty": "Không nhận diện được giọng nói. Hãy thử lại và nói rõ ràng hơn.",
+      "quota": "Bạn đã vượt giới hạn sử dụng AI hôm nay. Hãy thử lại vào ngày mai.",
+      "analyzeFailed": "Có lỗi xảy ra khi phân tích. Hãy thử lại.",
+      "micDenied": "Bạn cần cho phép truy cập microphone để làm bài test.",
+      "micFailed": "Không thể kết nối microphone. Hãy thử lại.",
+      "transcribing": "Đang nhận diện giọng nói...",
+      "analyzing": "AI đang phân tích trình độ...",
+      "transcribingSub": "AI đang chuyển âm thanh thành văn bản...",
+      "analyzingSub": "Đang đánh giá ngữ pháp, từ vựng, phát âm và độ trôi chảy của bạn.",
+      "errorTitle": "Có lỗi xảy ra",
+      "retry": "Thử lại",
+      "toDashboard": "Về Dashboard",
+      "backToDashboard": "Quay lại Dashboard",
+      "cap": "Bài kiểm tra nói",
+      "title": "Bài Test Nói 3 Phút",
+      "intro": "Hãy nói tiếng Đức tự do trong 3 phút. AI sẽ phân tích <b>ngữ pháp</b>, <b>từ vựng</b>, <b>phát âm</b> và <b>độ trôi chảy</b> để xác định trình độ CEFR và lập hồ sơ điểm yếu của bạn.",
+      "hintsCap": "Gợi ý nội dung",
+      "hints": [
+        "Giới thiệu bản thân (tên, tuổi, quê quán)",
+        "Kể về công việc hoặc ngành học",
+        "Mô tả sở thích, thói quen hàng ngày",
+        "Lý do bạn muốn học tiếng Đức"
+      ],
+      "start": "Bắt đầu ghi âm",
+      "micNote": "Cần cho phép truy cập microphone. Dữ liệu âm thanh chỉ được xử lý để đánh giá và không được lưu lại.",
+      "recording": "Đang ghi âm...",
+      "recordingHint": "Hãy nói tự do bằng tiếng Đức. AI đang lắng nghe và sẽ phân tích sau khi bạn hoàn thành.",
+      "submit": "Nộp bài",
+      "timeLeft": "⏰ Còn {seconds} giây — bài sẽ tự động nộp khi hết giờ!"
     }
   }
 }

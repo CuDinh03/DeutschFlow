@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl'
 import { apiMessage } from '@/lib/api'
 import { getAnalytics, listClasses, type OrgAnalytics, type OrgClass } from '@/lib/orgApi'
 import { GaPageHdr, GaStatStrip, ErrorBanner, LoadingState } from '@/components/ui-v2'
-import { GaSection, GaDonut, GaLegend, GaBarRow, GA_CHART, nfVN } from '../../analyticsShared'
+import { GaSection, GaDonut, GaLegend, GaBarRow, GA_CHART } from '../../analyticsShared'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // Option-1: GET /org/analytics is FLAT (no time-series). Reuse getAnalytics + listClasses.
 // Proto's monthly trend + per-class performance comparison have no backing endpoint → dropped.
@@ -14,6 +15,7 @@ const TEAL = '#11888A'
 
 export default function V2OrgAnalyticsPage() {
   const t = useTranslations('v2.org.analytics')
+  const fmt = useFmt()
   const [analytics, setAnalytics] = useState<OrgAnalytics | null>(null)
   const [classes, setClasses] = useState<OrgClass[]>([])
   const [loading, setLoading] = useState(true)
@@ -73,7 +75,7 @@ export default function V2OrgAnalyticsPage() {
                 { label: t('stats.openClasses'), value: analytics?.classCount ?? classes.length, tone: 'violet' },
                 {
                   label: t('stats.tokensThisMonth'),
-                  value: analytics ? nfVN.format(analytics.tokensThisMonth) : '—',
+                  value: analytics ? fmt.num(analytics.tokensThisMonth) : '—',
                   sub: analytics?.poolUnlimited ? t('stats.poolUnlimited') : analytics && analytics.monthlyTokenPool > 0 ? t('stats.poolPercent', { pct: poolPct }) : t('stats.noPool'),
                   tone: 'green',
                 },
@@ -86,7 +88,7 @@ export default function V2OrgAnalyticsPage() {
                   <div className="flex flex-col items-center gap-5 sm:flex-row">
                     <GaDonut segments={cefrSegs} />
                     <div className="w-full min-w-0 sm:w-auto sm:flex-1">
-                      <GaLegend items={cefrSegs.map((s) => ({ ...s, display: nfVN.format(s.value) }))} />
+                      <GaLegend items={cefrSegs.map((s) => ({ ...s, display: fmt.num(s.value) }))} />
                     </div>
                   </div>
                 ) : (
@@ -110,7 +112,7 @@ export default function V2OrgAnalyticsPage() {
                       <div className="ga-ui mb-1.5 flex items-baseline justify-between text-[13px]">
                         <span className="text-ga-ink">{t('tokenPool')}</span>
                         <span className="font-medium text-ga-muted">
-                          {nfVN.format(analytics.tokensThisMonth)} / {nfVN.format(analytics.monthlyTokenPool)}
+                          {fmt.num(analytics.tokensThisMonth)} / {fmt.num(analytics.monthlyTokenPool)}
                         </span>
                       </div>
                       <div className="h-2.5 overflow-hidden rounded-[3px] bg-ga-border">

@@ -602,7 +602,8 @@
     },
     "messages": {
       "title": "Tin nhắn",
-      "subtitle": "Tin nhắn nhóm lớp và trao đổi riêng với giáo viên"
+      "subtitle": "Tin nhắn nhóm lớp và trao đổi riêng với giáo viên",
+      "emptyDirect": "Chưa có hội thoại riêng. Mở trang lớp và nhấn “Nhắn giáo viên” để bắt đầu."
     },
     "achievements": {
       "title": "Thành tích",
@@ -1610,6 +1611,107 @@
       "site": "Bấm biểu tượng 🎤/ổ khoá cạnh thanh địa chỉ → cho phép Micro cho trang này.",
       "browser": "Không thấy? Cài đặt trình duyệt → Quyền → Microphone → bỏ chặn trang này.",
       "os": "macOS/Windows: bật quyền micro cho trình duyệt trong cài đặt hệ thống, rồi mở lại trình duyệt."
+    },
+    "sprechenTeil2": {
+      "loadCardFailed": "Không thể tải thẻ bài thi.",
+      "micFailed": "Không thể truy cập Microphone.",
+      "sttEmpty": "Không nhận diện được giọng nói. Hãy thử lại.",
+      "evalFailed": "Lỗi phân tích. Hãy thử lại.",
+      "preparing": "Đang chuẩn bị thẻ bài...",
+      "yourCard": "Thẻ bài của bạn",
+      "askPrompt": "Hãy đặt <b>một câu hỏi</b> liên quan đến thẻ này.",
+      "aiAsking": "AI Partner đang đặt câu hỏi...",
+      "aiQuestion": "Câu hỏi của AI",
+      "answerPrompt": "Hãy đưa ra <b>câu trả lời</b> của bạn.",
+      "recording": "Đang thu âm... Thả ra để nộp",
+      "scoring": "Đang chấm điểm...",
+      "holdToTalk": "Nhấn giữ để nói",
+      "resultsTitle": "Kết quả đánh giá AI",
+      "turnAsk": "Lượt 1: Bạn đặt câu hỏi",
+      "turnAnswer": "Lượt 2: Bạn trả lời",
+      "points": "{score}/10 điểm",
+      "feedback": "Phản hồi:",
+      "doneTitle": "Hoàn thành Teil 2!",
+      "doneBody": "Bạn đã hoàn thành tốt cả 2 lượt tương tác. Hãy xem lại phản hồi chi tiết của AI ở trên.",
+      "retry": "Thi lại phần này"
+    },
+    "learnViews": {
+      "speaking": {
+        "micDenied": "Không thể truy cập microphone. Vui lòng cấp quyền.",
+        "evalFailed": "Đánh giá thất bại. Vui lòng thử lại.",
+        "empty": "Chưa có bài luyện nói cho bài học này.",
+        "recording": "Đang ghi âm...",
+        "evaluating": "Đang đánh giá phát âm...",
+        "great": "Rất tốt!",
+        "okay": "Khá! Cần cải thiện",
+        "weak": "Cần luyện thêm",
+        "pronScore": "Điểm phát âm",
+        "heard": "Hệ thống nghe được:",
+        "noVoice": "[Không thu được tiếng — Vui lòng nói to và rõ hơn]",
+        "tip": "Gợi ý:",
+        "next": "Bài tiếp theo →"
+      },
+      "phoneme": {
+        "micDenied": "Không thể truy cập microphone. Hãy kiểm tra quyền trình duyệt.",
+        "evalFailed": "Không thể đánh giá phát âm. Vui lòng thử lại.",
+        "title": "Luyện phát âm",
+        "listenSlow": "Nghe mẫu (chậm)",
+        "recording": "● Đang ghi âm... Nhấn để dừng",
+        "analyzing": "Đang phân tích phát âm...",
+        "heard": "Nghe được:",
+        "heardEmpty": "Nghe được: [Trống / Không thu được tiếng]",
+        "perWord": "Phân tích từng từ",
+        "retry": "Thử lại",
+        "replay": "Nghe lại"
+      },
+      "listening": {
+        "empty": "Audio chưa có cho bài học này.",
+        "fillHint": "Điền vào ô trống, sau đó bấm <b>Nộp bài</b>",
+        "submit": "Nộp bài",
+        "fillAll": "Điền đủ {count} ô trống để nộp bài",
+        "perfect": "Hoàn hảo! Đúng tất cả!",
+        "good": "Khá tốt! Đủ điều kiện vượt qua",
+        "fail": "Chưa đạt – Cần làm lại (yêu cầu 100% để vượt node)",
+        "correctCount": "Đúng {correct}/{total} từ",
+        "retry": "Thử lại",
+        "shadowing": "Luyện phát âm đoạn văn (shadowing)",
+        "collapse": "▲ Thu gọn",
+        "expand": "▼ Mở rộng",
+        "noTranscript": "Transcript chưa có. Đang nghe và luyện tập..."
+      },
+      "writing": {
+        "empty": "Bài viết chưa có cho bài học này.",
+        "completed": "Đã hoàn thành",
+        "skipComplete": "Bỏ qua & Đánh dấu hoàn thành",
+        "minWords": "Yêu cầu tối thiểu: {count} từ",
+        "placeholder": "Viết bài tiếng Đức tại đây...",
+        "wordCount": "{count}/{min} từ",
+        "checking": "Đang kiểm tra...",
+        "checked": "Đã kiểm tra",
+        "errorsFound": "Phát hiện {count} lỗi",
+        "errGrammar": "Ngữ pháp",
+        "errSpelling": "Chính tả",
+        "errStyle": "Phong cách",
+        "submit": "Nộp bài viết",
+        "done": "Đã hoàn thành phần Viết (≥ 80 điểm)"
+      },
+      "reading": {
+        "close": "Đóng",
+        "saved": "Đã lưu",
+        "saveFlashcard": "Lưu Flashcard",
+        "empty": "Bài đọc chưa có cho bài học này.",
+        "readingCap": "Bài đọc",
+        "selectHint": "Bôi đen từ bất kỳ để xem nghĩa",
+        "questionsCap": "Câu hỏi",
+        "essayPlaceholder": "Viết câu trả lời (tự luận)...",
+        "answerPlaceholder": "Nhập câu trả lời",
+        "check": "Kiểm tra đáp án",
+        "result": "Bạn trả lời đúng {score}/{total}. Cần đúng 100% để qua bài!",
+        "retry": "Làm lại",
+        "noQuestions": "Chưa có câu hỏi cho bài đọc này.",
+        "completed": "Đã hoàn thành 100%",
+        "markDone": "Đã đọc & Hiểu (100%)"
+      }
     }
   }
 }

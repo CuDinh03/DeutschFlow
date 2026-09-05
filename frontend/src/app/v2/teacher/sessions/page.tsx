@@ -7,6 +7,8 @@ import Link from 'next/link'
 import api, { apiMessage } from '@/lib/api'
 import { GaPageHdr, GaBtn, GaCap, TkSeg, GaStatStrip, type TkSegOption } from '@/components/ui-v2'
 import { AvailabilityPanel } from './availabilityPanel'
+import { useFmt } from '@/lib/i18n/useFmt'
+import { formatVnd } from '@/lib/i18n/format'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Buổi học 1:1 (GaSessions) — violet. Week-calendar + list. Plumbing reused 1:1
@@ -58,7 +60,7 @@ const END_HOUR = 22
 const GRID_H = 560
 const initial = (n: string) => (n.trim()[0] ?? '?').toUpperCase()
 const compactVnd = (v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k₫` : `${v}₫`)
-const fullVnd = (v: number) => `${v.toLocaleString('vi-VN')} ₫`
+const fullVnd = (v: number) => `${formatVnd(v)}`
 
 // Monday 00:00 of the current week (local time).
 function weekStart(): Date {
@@ -277,6 +279,7 @@ function WeekGrid({ sessions }: { sessions: Session[] }) {
 
 // ── List view ────────────────────────────────────────────────────────────────
 function SessionList({ sessions, busy, onUpdate }: { sessions: Session[]; busy: number | null; onUpdate: (id: number, status: string) => void }) {
+  const fmt = useFmt()
   const ordered = [...sessions].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
   if (ordered.length === 0) {
     return <div className="border border-dashed border-ga-line px-4 py-10 text-center text-[14px] text-ga-muted sm:px-6 lg:px-10 lg:py-[52px]">Chưa có buổi học nào được đặt.</div>
@@ -299,7 +302,7 @@ function SessionList({ sessions, busy, onUpdate }: { sessions: Session[]; busy: 
               </div>
               <div className="mt-1 truncate text-[13px] text-ga-muted">{s.title}</div>
               <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-ga-subtle">
-                <span className="flex items-center gap-1"><Clock size={11} /> {d.toLocaleDateString('vi-VN')} · {d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="flex items-center gap-1"><Clock size={11} /> {fmt.date(d)} · {fmt.time(d, { hour: '2-digit', minute: '2-digit' })}</span>
                 <span>{s.durationMinutes} phút</span>
                 <span className="font-semibold text-ga-ink">{fullVnd(s.priceVnd)}</span>
                 {s.teacherRating != null && (

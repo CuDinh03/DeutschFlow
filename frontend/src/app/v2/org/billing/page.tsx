@@ -9,6 +9,8 @@ import { getOrgSummary, getPaymentInfo, listMyInvoices, type OrgInvoice, type Or
 import { seatMetaOf } from '@/lib/orgSeats'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 import { OrgOwnerOnly } from '../OwnerOnly'
+import { useFmt } from '@/lib/i18n/useFmt'
+import { formatVnd } from '@/lib/i18n/format'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gói DeutschFlow & thanh toán — Đợt 0 OWNER (F01/F02/F03/F05, báo cáo 31/08).
@@ -29,7 +31,7 @@ const billingAccent = {
   '--ga-hdr-line': 'rgba(30,158,97,0.20)',
 } as React.CSSProperties
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
-const vnd = (n: number) => `${Math.round(n).toLocaleString('vi-VN')}₫`
+const vnd = (n: number) => `${formatVnd(n)}`
 // Invoice status → color + catalog key for the label (resolved via t('status.<key>')).
 const INV_STATUS: Record<string, { key: 'paid' | 'sent' | 'draft' | 'void'; c: string }> = {
   PAID: { key: 'paid', c: 'var(--ga-green)' },
@@ -62,6 +64,7 @@ function CopyBtn({ text, copyLabel, copiedLabel }: { text: string; copyLabel: st
 
 function V2OrgBillingInner() {
   const t = useTranslations('v2.org.billing')
+  const fmt = useFmt()
   const tc = useTranslations('v2.common')
   const [summary, setSummary] = useState<OrgSummary | null>(null)
   const [invoices, setInvoices] = useState<OrgInvoice[]>([])
@@ -149,7 +152,7 @@ function V2OrgBillingInner() {
               items={[
                 { label: t('stats.paidToDf'), value: vnd(totalPaid), sub: t('stats.invoiceCount', { count: paid.length }), tone: 'green' },
                 { label: t('stats.owedToDf'), value: vnd(totalOwed), sub: t('stats.invoiceCount', { count: unpaid.length }), tone: totalOwed > 0 ? 'orange' : 'neutral', alert: totalOwed > 0 },
-                { label: t('stats.seatsInUse'), value: summary ? summary.seatUsed.toLocaleString('vi-VN') : '—', sub: !seats ? '—' : seats.unlimited ? t('stats.seatsUnlimited') : t('stats.seatsOfLimit', { limit: summary?.seatLimit ?? 0 }), tone: 'violet' },
+                { label: t('stats.seatsInUse'), value: summary ? fmt.num(summary.seatUsed) : '—', sub: !seats ? '—' : seats.unlimited ? t('stats.seatsUnlimited') : t('stats.seatsOfLimit', { limit: summary?.seatLimit ?? 0 }), tone: 'violet' },
               ]}
             />
 

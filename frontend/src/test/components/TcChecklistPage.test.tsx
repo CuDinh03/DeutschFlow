@@ -21,7 +21,7 @@ const deleteLesson = vi.fn()
 const toastSuccess = vi.fn()
 const toastError = vi.fn()
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', () => ({ useLocale: () => 'vi',
   // labels resolve to their key; supports t.rich used for the info note
   useTranslations: () => {
     const f = (k: string) => k

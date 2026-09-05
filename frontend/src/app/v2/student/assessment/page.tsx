@@ -17,6 +17,7 @@ import { assessmentApi, type B1ReadinessResponse } from '@/lib/assessmentApi'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useTracking } from '@/hooks/useTracking'
 import { GaBtn, GaCap, GaPageHdr, ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /v2/student/assessment — B1 readiness (Galerie shell).
@@ -47,6 +48,7 @@ const CRITERIA = [
 export default function V2StudentAssessmentPage() {
   usePageTimeTracker('b1_assessment')
   const t = useTranslations('v2.student.assessment')
+  const fmt = useFmt()
   const { trackFeatureAction } = useTracking()
 
   const [readiness, setReadiness] = useState<B1ReadinessResponse | null>(null)
@@ -222,7 +224,7 @@ export default function V2StudentAssessmentPage() {
               </GaBtn>
               {readiness?.lastAssessmentAt && (
                 <p className="ga-ui text-[12.5px] text-ga-muted">
-                  {t('lastAssessment', { at: new Date(readiness.lastAssessmentAt).toLocaleString('vi-VN') })}
+                  {t('lastAssessment', { at: fmt.dateTime(readiness.lastAssessmentAt) })}
                 </p>
               )}
             </div>

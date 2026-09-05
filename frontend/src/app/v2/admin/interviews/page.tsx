@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { interviewDomainApi, type InterviewAnalytics } from '@/lib/interviewDomainApi'
 import { GaStatStrip, type GaStatItem, ErrorBanner, LoadingState, GaPageHdr } from '@/components/ui-v2'
-import { GaSection, GaDonut, GaLegend, GaBarRow, GA_CHART, nfVN } from '../../analyticsShared'
+import { GaSection, GaDonut, GaLegend, GaBarRow, GA_CHART } from '../../analyticsShared'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 function avgOfValues(rec: Record<string, number>): number {
   const vals = Object.values(rec).filter((v) => Number.isFinite(v))
@@ -20,6 +21,7 @@ function recToSegs(rec: Record<string, number>): { label: string; value: number;
 
 export default function V2AdminInterviewsPage() {
   const t = useTranslations('v2.adminContent.interviews')
+  const fmt = useFmt()
   const [data, setData] = useState<InterviewAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,17 +46,17 @@ export default function V2AdminInterviewsPage() {
   const avgScore = data ? avgOfValues(data.avgScoreByIndustry) : 0
 
   const cells: GaStatItem[] = [
-    { label: t('statTotal'), value: data ? nfVN.format(data.totalSessions) : '—', tone: 'blue' },
+    { label: t('statTotal'), value: data ? fmt.num(data.totalSessions) : '—', tone: 'blue' },
     {
       label: t('statCompletion'),
       value: data ? `${Math.round(data.completionRate * (data.completionRate <= 1 ? 100 : 1))}%` : '—',
       tone: 'green',
-      sub: data ? t('statCompletionSub', { count: nfVN.format(data.completedSessions) }) : undefined,
+      sub: data ? t('statCompletionSub', { count: fmt.num(data.completedSessions) }) : undefined,
     },
     { label: t('statAvgScore'), value: avgScore > 0 ? avgScore.toFixed(1) : '—', tone: 'violet', sub: t('statAvgScoreSub') },
     {
       label: t('statVariants'),
-      value: data ? nfVN.format(Object.keys(data.variantDistribution).length) : '—',
+      value: data ? fmt.num(Object.keys(data.variantDistribution).length) : '—',
       tone: 'orange',
       sub: t('statVariantsSub'),
     },
@@ -90,7 +92,7 @@ export default function V2AdminInterviewsPage() {
                         value={p.sessionsReached}
                         max={phaseMax}
                         color="#2F6FC9"
-                        display={`${nfVN.format(p.sessionsReached)} · ${Math.round(
+                        display={`${fmt.num(p.sessionsReached)} · ${Math.round(
                           p.reachRate * (p.reachRate <= 1 ? 100 : 1),
                         )}%`}
                       />
@@ -115,7 +117,7 @@ export default function V2AdminInterviewsPage() {
                           color={GA_CHART[i % GA_CHART.length]}
                           display={
                             <>
-                              {t('sessionsSuffix', { count: nfVN.format(sess) })}
+                              {t('sessionsSuffix', { count: fmt.num(sess) })}
                               {Number.isFinite(score) && <span className="text-ga-subtle"> · {score.toFixed(1)}đ</span>}
                             </>
                           }
@@ -135,7 +137,7 @@ export default function V2AdminInterviewsPage() {
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
                     <GaDonut segments={industrySegs} />
                     <div className="min-w-0 flex-1">
-                      <GaLegend items={industrySegs.map((s) => ({ ...s, display: nfVN.format(s.value) }))} />
+                      <GaLegend items={industrySegs.map((s) => ({ ...s, display: fmt.num(s.value) }))} />
                     </div>
                   </div>
                 ) : (

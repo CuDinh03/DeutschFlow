@@ -7,11 +7,26 @@
     "level": {
       "heading": "Auf welchem Niveau bist du?",
       "sub": "Wähle, was am besten passt.",
-      "A0": { "label": "Absoluter Anfang", "desc": "Start beim Alphabet" },
-      "A1": { "label": "Grundlagen (A1)", "desc": "Begrüßen und vorstellen" },
-      "A2": { "label": "Elementar (A2)", "desc": "Einfache Alltagsgespräche" },
-      "B1": { "label": "Mittelstufe (B1)", "desc": "Diskutieren und Meinung äußern" },
-      "B2": { "label": "Obere Mittelstufe (B2)", "desc": "Komplexe Texte verstehen" }
+      "A0": {
+        "label": "Absoluter Anfang",
+        "desc": "Start beim Alphabet"
+      },
+      "A1": {
+        "label": "Grundlagen (A1)",
+        "desc": "Begrüßen und vorstellen"
+      },
+      "A2": {
+        "label": "Elementar (A2)",
+        "desc": "Einfache Alltagsgespräche"
+      },
+      "B1": {
+        "label": "Mittelstufe (B1)",
+        "desc": "Diskutieren und Meinung äußern"
+      },
+      "B2": {
+        "label": "Obere Mittelstufe (B2)",
+        "desc": "Komplexe Texte verstehen"
+      }
     },
     "goal": {
       "heading": "Warum lernst du Deutsch?",
@@ -32,9 +47,18 @@
       "mentorLabel": "Dein Mentor",
       "mentorFallbackTagline": "Dein Lernbegleiter",
       "upsell": "🔓 Mentor <b>{name}</b>{tagline} mit PRO freischalten →",
-      "w3": { "label": "3 Lektionen/Woche", "desc": "~15 Min./Tag" },
-      "w5": { "label": "5 Lektionen/Woche", "desc": "~20 Min./Tag" },
-      "w7": { "label": "7 Lektionen/Woche", "desc": "Jeden Tag eine Lektion" },
+      "w3": {
+        "label": "3 Lektionen/Woche",
+        "desc": "~15 Min./Tag"
+      },
+      "w5": {
+        "label": "5 Lektionen/Woche",
+        "desc": "~20 Min./Tag"
+      },
+      "w7": {
+        "label": "7 Lektionen/Woche",
+        "desc": "Jeden Tag eine Lektion"
+      },
       "noteA0": "🌱 Deine ersten Schritte sind <b>Alphabet, Aussprache und Begrüßungen</b>.",
       "notePlacement": "📝 Du kannst einen <b>optionalen 5-Minuten-Test</b> machen, um auf dem richtigen Niveau zu starten — oder direkt loslegen."
     },
@@ -94,6 +118,37 @@
       "createTest": "Test konnte nicht erstellt werden.",
       "submitTest": "Abgabe fehlgeschlagen.",
       "resumeKeepsDraft": "Profil konnte nicht gespeichert werden — deine Antworten bleiben erhalten. Bitte versuch es erneut."
+    },
+    "mockExam": {
+      "sttEmpty": "Es wurde keine Sprache erkannt. Versuchen Sie es erneut und sprechen Sie deutlicher.",
+      "quota": "Sie haben das heutige KI-Limit erreicht. Versuchen Sie es morgen erneut.",
+      "analyzeFailed": "Bei der Auswertung ist ein Fehler aufgetreten. Bitte erneut versuchen.",
+      "micDenied": "Für den Test müssen Sie den Mikrofonzugriff erlauben.",
+      "micFailed": "Keine Verbindung zum Mikrofon. Bitte erneut versuchen.",
+      "transcribing": "Sprache wird erkannt...",
+      "analyzing": "Die KI bewertet Ihr Niveau...",
+      "transcribingSub": "Die KI wandelt Ihre Aufnahme in Text um...",
+      "analyzingSub": "Grammatik, Wortschatz, Aussprache und Redefluss werden bewertet.",
+      "errorTitle": "Ein Fehler ist aufgetreten",
+      "retry": "Erneut versuchen",
+      "toDashboard": "Zum Dashboard",
+      "backToDashboard": "Zurück zum Dashboard",
+      "cap": "Sprechtest",
+      "title": "3-Minuten-Sprechtest",
+      "intro": "Sprechen Sie 3 Minuten frei auf Deutsch. Die KI analysiert <b>Grammatik</b>, <b>Wortschatz</b>, <b>Aussprache</b> und <b>Redefluss</b>, um Ihr GER-Niveau zu bestimmen und Ihr Schwächenprofil anzulegen.",
+      "hintsCap": "Worüber Sie sprechen können",
+      "hints": [
+        "Stellen Sie sich vor (Name, Alter, Heimatort)",
+        "Erzählen Sie von Ihrer Arbeit oder Ihrem Studium",
+        "Beschreiben Sie Hobbys und Ihren Tagesablauf",
+        "Warum Sie Deutsch lernen möchten"
+      ],
+      "start": "Aufnahme starten",
+      "micNote": "Mikrofonzugriff ist erforderlich. Die Aufnahme wird nur zur Bewertung verarbeitet und nicht gespeichert.",
+      "recording": "Aufnahme läuft...",
+      "recordingHint": "Sprechen Sie frei auf Deutsch. Die KI hört zu und wertet aus, sobald Sie fertig sind.",
+      "submit": "Abgeben",
+      "timeLeft": "⏰ Noch {seconds} Sekunden — der Test wird automatisch abgegeben, wenn die Zeit abläuft!"
     }
   }
 }

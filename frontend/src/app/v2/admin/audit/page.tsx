@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { GaPageHdr, GaBtn, GaCap, GaIcon } from '@/components/ui-v2'
 import api from '@/lib/api'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 /**
  * admin-audit (/v2/admin/audit) — GaAdminAudit (proto-admin-extra.jsx). Navy.
@@ -36,6 +37,7 @@ const CAT_LABEL_KEY: Record<string, string> = {
 
 export default function AdminAuditPage() {
   const t = useTranslations('v2.adminContent.audit')
+  const fmt = useFmt()
   const relTime = (iso: string | null): string => {
     if (!iso) return '—'
     const d = new Date(iso)
@@ -45,7 +47,7 @@ export default function AdminAuditPage() {
     if (m < 60) return t('relMinutes', { count: m })
     const h = Math.round(m / 60)
     if (h < 24) return t('relHours', { count: h })
-    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    return fmt.date(d, { day: '2-digit', month: '2-digit', year: 'numeric' })
   }
   const [rows, setRows] = useState<AuditRow[]>([])
   const [total, setTotal] = useState(0)
@@ -192,7 +194,7 @@ export default function AdminAuditPage() {
 
         {!loading && !error && total > rows.length && (
           <p className="ga-ui mt-3 text-[12.5px] text-ga-muted">
-            {t('footerCount', { shown: rows.length, total: total.toLocaleString('vi-VN') })}
+            {t('footerCount', { shown: rows.length, total: fmt.num(total) })}
           </p>
         )}
       </div>

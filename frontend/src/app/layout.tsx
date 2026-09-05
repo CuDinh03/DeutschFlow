@@ -79,7 +79,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   //   - auth + onboarding + account: các trang v2 lẻ ngoài khu.
   //   - org.accept: trang (public)/org/accept nhận lời mời.
   //   - student.micGuide: MicDeniedGuide render trong onboarding/mock-exam.
-  const messages = await messagesForV2Areas('auth', 'onboarding', 'account', 'org.accept', 'student.micGuide')
+  //   - landing: trang chủ `/` (GaLanding) — 06/09/2026 dịch vi/en/de (F-I18N-02a).
+  const messages = await messagesForV2Areas('auth', 'onboarding', 'account', 'org.accept', 'student.micGuide', 'landing')
 
   return (
     <html

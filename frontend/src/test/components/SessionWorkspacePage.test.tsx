@@ -39,7 +39,7 @@ vi.mock('sonner', () => ({
   toast: { success: (...a: unknown[]) => toastSuccess(...a), error: vi.fn() },
 }))
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', () => ({ useLocale: () => 'vi',
   useTranslations: (ns: string) => {
     const t = (key: string) => `${ns}.${key}`.replace('v2.teacher.sessionWorkspace.', '')
     return t as unknown as ReturnType<typeof import('next-intl').useTranslations>

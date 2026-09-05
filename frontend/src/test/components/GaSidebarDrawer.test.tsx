@@ -28,7 +28,7 @@ vi.mock('next/link', () => ({
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/v2/student/dashboard' }))
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', () => ({ useLocale: () => 'vi',
   useTranslations: () => {
     const f = (k: string) => k
     ;(f as unknown as { has: (k: string) => boolean }).has = () => false

@@ -79,6 +79,17 @@
       "comingSoon": "Coming soon",
       "comingSoonNote": "Payment via SePay will be available soon.",
       "defaultPlan": "Default plan"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "subtitleUnread": "{count} unread",
+      "subtitleAllRead": "All caught up",
+      "markAll": "Mark all as read",
+      "loadError": "Could not load notifications.",
+      "markedAll": "All notifications marked as read.",
+      "emptyTitle": "No notifications yet",
+      "emptyBody": "New updates will show up here.",
+      "unreadAria": "unread"
     }
   }
 }

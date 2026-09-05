@@ -30,11 +30,12 @@ import { cn } from '@/lib/utils'
  * W7 (FE-09, audit lag 02/09): GaSection + formatter TÁCH sang sectionShared.tsx (không
  * recharts) — trang chỉ cần khung section import bên đó để khỏi gánh chart machinery.
  * Re-export dưới đây giữ nguyên hợp đồng cho 7 trang analytics đang import từ file này
- * (import rồi export lại — không dùng cú pháp `export {} from` vì chart bên dưới cũng cần nfVN).
+ * (06/09/2026 F-I18N-04: formatter theo locale nay ở lib/i18n/useFmt — file này chỉ còn re-export GaSection).
  */
-import { fmtVnd, fmtDateTime, nfVN, GaSection } from './sectionShared'
+import { GaSection } from './sectionShared'
+import { useFmt } from '@/lib/i18n/useFmt'
 
-export { fmtVnd, fmtDateTime, nfVN, GaSection }
+export { GaSection }
 
 /** Accent family (matches galerie.css --ga-blue/violet/teal/orange/green/navy/gold/red). */
 export const GA_CHART = [
@@ -247,6 +248,7 @@ export interface DonutSeg {
 }
 
 export function GaDonut({ segments, size = 150 }: { segments: DonutSeg[]; size?: number }) {
+  const fmt = useFmt()
   const total = segments.reduce((s, x) => s + x.value, 0)
   return (
     <div style={{ width: size, height: size }} className="relative shrink-0">
@@ -267,12 +269,12 @@ export function GaDonut({ segments, size = 150 }: { segments: DonutSeg[]; size?:
               <Cell key={i} fill={s.color} />
             ))}
           </Pie>
-          <Tooltip formatter={(v: number) => nfVN.format(v)} contentStyle={TOOLTIP_STYLE} />
+          <Tooltip formatter={(v: number) => fmt.num(v)} contentStyle={TOOLTIP_STYLE} />
         </PieChart>
       </ResponsiveContainer>
       {total > 0 && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <span className="font-ga-display text-[20px] font-medium text-ga-ink">{nfVN.format(total)}</span>
+          <span className="font-ga-display text-[20px] font-medium text-ga-ink">{fmt.num(total)}</span>
         </div>
       )}
     </div>

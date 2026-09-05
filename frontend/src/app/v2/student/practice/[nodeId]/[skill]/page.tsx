@@ -25,6 +25,7 @@ import {
   writeLessonDraft,
 } from '@/lib/lesson/lessonDraft'
 import type { Skill } from '@/lib/skills'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 /**
  * /v2/student/practice/[nodeId]/[skill] — RUNNER luyện kỹ năng CÓ CHẤM ĐIỂM (vỏ Galerie).
@@ -430,6 +431,7 @@ function ExerciseCard({
 export default function V2StudentPracticeRunnerPage() {
   usePageTimeTracker('practice_session')
   const t = useTranslations('v2.student.practiceRunner')
+  const fmt = useFmt()
   const params = useParams()
   const router = useRouter()
 
@@ -711,7 +713,7 @@ export default function V2StudentPracticeRunnerPage() {
     tShell('restoredDraft')
   ) : draftSavedAt ? (
     tShell('savedOnDevice', {
-      time: new Date(draftSavedAt).toLocaleTimeString('vi-VN', {
+      time: fmt.time(draftSavedAt, {
         hour: '2-digit',
         minute: '2-digit',
       }),

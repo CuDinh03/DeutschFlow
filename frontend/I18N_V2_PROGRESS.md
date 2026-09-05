@@ -42,6 +42,9 @@ parity, page NOT yet wired to `useTranslations` — mechanical wiring remains) �
 
 ### Foundation
 - ✅ `messages/v2/` per-area structure + `request.ts` merge (`V2_AREAS`)
+- ✅ 06/09 (đợt 2 audit UTF-8/i18n, F-I18N-04) `lib/i18n/format.ts` + hook `useFmt()` — mọi định dạng ngày/giờ/số trong /v2 theo locale UI (vi→vi-VN, en→en-GB, de→de-DE); VND giữ quy ước Việt (`fmt.vnd`, `fmt.vndCompact`). `sectionShared` không còn export `fmtDateTime/nfVN/fmtVnd`. Đừng gọi `toLocale*('vi-VN')` mới.
+- ✅ 06/09 (F-I18N-02a) Trang chủ `/` (`GaLanding`) — area `landing` (`messages/v2/landing.*`), provider gốc cấp `landing`; header có `LanguageToggle`.
+- ✅ 06/09 (F-I18N-02c) chrome core thêm `notif` (nhãn loại/thời gian thông báo — `notificationDisplay` nhận translator) + `inbox` (hộp thư dùng chung student/teacher); `account.notifications`; `onboarding.mockExam`; `student.learnViews.{speaking,phoneme,listening,writing,reading}`, `student.sprechenTeil2`; `org.classes.createModal`, `org.teachers.createModal`. `lib/api.ts` câu dự phòng theo cookie `locale` (`lib/i18n/clientLocale.ts`).
 - ✅ 06/09 `scripts/check-i18n-v2.js` gác luôn catalog gốc `messages/{vi,en,de}.json` (area `base`) — audit UTF-8/i18n phát hiện en.json thiếu `adminNav.refresh/refreshing` mà script chỉ quét `messages/v2/`. Báo cáo: `plans/2026-09-06-bao-cao-soat-utf8-i18n.md` (F-I18N-05).
 - ✅ Shared chrome — `v2.nav` (all 4 roles' sidebar items + section headings + role pills),
   `v2.shell` (logout, aria), `v2.common` (generic buttons). `nav.ts` gained `NavSection.labelKey`;

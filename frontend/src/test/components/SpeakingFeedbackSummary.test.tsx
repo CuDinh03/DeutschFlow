@@ -15,7 +15,7 @@ import { SpeakingFeedbackSummary } from '@/components/features/ai-speaking/Speak
 import type { ErrorItem, Suggestion } from '@/lib/aiSpeakingApi'
 import type { PhonemeEvalResult } from '@/lib/phonemeApi'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (k: string) => k }))
+vi.mock('next-intl', () => ({ useLocale: () => 'vi', useTranslations: () => (k: string) => k }))
 // `next/dynamic` nạp bất đồng bộ nên bảng phoneme sẽ không có mặt ngay ở lượt render đầu; thay
 // bằng stub để phép đo nói về hành vi mở/đóng bằng chứng chứ không về thời điểm nạp chunk.
 vi.mock('next/dynamic', () => ({

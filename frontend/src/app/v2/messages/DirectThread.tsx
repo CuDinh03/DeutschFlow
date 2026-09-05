@@ -7,6 +7,7 @@ import { usePollWhileVisible } from '@/hooks/usePollWhileVisible'
 import { LoadingState } from '@/components/ui-v2'
 import { Composer } from './Composer'
 import { ThreadShell, fmtDay, initial } from './ThreadShell'
+import { useTranslations } from 'next-intl'
 
 /** Active thread refresh cadence — snappier than the list so an incoming reply appears near-live. */
 const POLL_MS = 5_000
@@ -21,6 +22,7 @@ interface DirectThreadProps {
 
 /** 1-1 student ↔ teacher thread. Fetching also marks incoming messages read server-side. */
 export function DirectThread({ userId, name, onBack, onSent }: DirectThreadProps) {
+  const t = useTranslations('v2.inbox')
   const [thread, setThread] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -65,19 +67,19 @@ export function DirectThread({ userId, name, onBack, onSent }: DirectThreadProps
           {initial(name)}
         </span>
       }
-      title={name || `Người dùng #${userId}`}
+      title={name || t('userFallback', { id: userId })}
       onBack={onBack}
       scrollKey={`${userId}:${thread.length}`}
       error={error}
       footer={
-        <Composer placeholder="Nhập tin nhắn… (Enter để gửi, Shift+Enter xuống dòng)" onSend={send} />
+        <Composer placeholder={t('directPlaceholder')} onSend={send} />
       }
     >
       {loading ? (
-        <LoadingState label="Đang tải tin nhắn…" />
+        <LoadingState label={t('loading')} />
       ) : thread.length === 0 ? (
         <p className="ga-ui py-8 text-center text-[13px] text-ga-muted">
-          Chưa có tin nhắn — gửi lời chào đầu tiên 👋
+          {t('directEmpty')}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
