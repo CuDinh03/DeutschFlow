@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   View,
   ScrollView,
@@ -70,6 +70,7 @@ import {
 import { isTransientFailure } from '@/lib/api'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useTourStore } from '@/stores/useTourStore'
+import { canAutoStartSpeakingIntro, probeStatus } from '@/lib/tourEligibility'
 import { useStarterStore } from '@/stores/useStarterStore'
 import { useSpotlightTour } from '@/components/guide/SpotlightTour'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -138,17 +139,37 @@ export default function SpeakingScreen() {
   const [pendingResume, setPendingResume] = useState<ActiveSessionRef | null>(null)
   const [resuming, setResuming] = useState(false)
 
-  // Coach mark ngữ cảnh (onboarding v1 §6): lần đầu vào tab Speaking sau tour
-  // chính → 1 spotlight chỉ vào hàng chọn cách luyện. Bắn đúng 1 lần.
+  // Coach mark ngữ cảnh (onboarding v1 §6): 1 spotlight chỉ vào hàng chọn cách
+  // luyện, bắn đúng 1 lần. Owner 05/09: chỉ tự nổ khi CHƯA TỪNG dùng Speaking —
+  // tín hiệu server (0 phiên AI speaking, lib/tourEligibility), không còn dựa vào
+  // cờ tour chính theo máy (bị xoá khi đăng xuất → tài khoản cũ từng bị nổ lại).
+  // Chỉ hỏi 1 phiên gần nhất, và chỉ khi cờ chưa đặt.
   const { startTour, activeTourId } = useSpotlightTour()
   const tourHydrated = useTourStore((s) => s.hydrated)
   const tourDone = useTourStore((s) => s.done)
+  const {
+    data: recentSessions,
+    isSuccess: sessionsLoaded,
+    isError: sessionsFailed,
+  } = useQuery({
+    queryKey: ['ai-speaking-sessions-probe'],
+    queryFn: () => speakingApi.listSessions(1),
+    enabled: view === 'select' && tourHydrated && !tourDone.speaking_intro,
+    staleTime: Infinity,
+  })
+  const speakingIntroAllowed = canAutoStartSpeakingIntro({
+    onSelectView: view === 'select',
+    hydrated: tourHydrated,
+    doneSpeaking: tourDone.speaking_intro,
+    tourBusy: activeTourId !== null,
+    sessions: { status: probeStatus(sessionsLoaded, sessionsFailed), count: recentSessions?.length ?? 0 },
+  })
   useFocusEffect(
     useCallback(() => {
-      if (view !== 'select' || !tourHydrated || !tourDone.home || tourDone.speaking_intro || activeTourId) return
+      if (!speakingIntroAllowed) return
       const t = setTimeout(() => startTour('speaking_intro', 'auto'), 600)
       return () => clearTimeout(t)
-    }, [view, tourHydrated, tourDone.home, tourDone.speaking_intro, activeTourId, startTour]),
+    }, [speakingIntroAllowed, startTour]),
   )
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)

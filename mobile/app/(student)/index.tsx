@@ -8,6 +8,7 @@ import { Flame, BookOpen, Mic, Star, Map, Bell, Zap, MessageCircle, type LucideI
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useTourStore } from '@/stores/useTourStore'
+import { canAutoStartHomeTour, canAutoStartSrsIntro, probeStatus } from '@/lib/tourEligibility'
 import { useStarterStore } from '@/stores/useStarterStore'
 import { SpotlightTarget, useSpotlightTour } from '@/components/guide/SpotlightTour'
 import { SPOTLIGHT_TARGETS } from '@/components/guide/spotlightTours'
@@ -65,7 +66,12 @@ export default function DashboardScreen() {
     staleTime: 60_000,
   })
 
-  const { data: xp, refetch: refetchXp } = useQuery({
+  const {
+    data: xp,
+    refetch: refetchXp,
+    isSuccess: xpLoaded,
+    isError: xpFailed,
+  } = useQuery({
     queryKey: ['xp-summary'],
     queryFn: () => gamificationApi.getXpSummary(),
     staleTime: 60_000,
@@ -92,7 +98,11 @@ export default function DashboardScreen() {
   // Tiến độ lộ trình: CÙNG nguồn /roadmap/me với màn Lernweg (N1, 05/09) — trước đây
   // card lấy % từ /skill-tree/me còn màn đích vẽ cây demo /roadmap/tree nên hai số
   // không bao giờ khớp nhau.
-  const { data: roadmapNodes = [] } = useQuery({
+  const {
+    data: roadmapNodes = [],
+    isSuccess: roadmapLoaded,
+    isError: roadmapFailed,
+  } = useQuery({
     queryKey: ROADMAP_ME_QUERY_KEY,
     queryFn: () => lernwegApi.nodes(),
     staleTime: 120_000,
@@ -108,17 +118,30 @@ export default function DashboardScreen() {
 
   // Q4 (plan onboarding v1): tour spotlight chỉ nổ khi user đáp xuống Trang chủ
   // lần đầu (sau wow moment), delay ~500ms — không auto-mở đè app như tour cũ.
+  // Owner 05/09: CHỈ tự nổ với tài khoản MỚI đăng ký (chưa có hoạt động: 0 XP,
+  // 0 chặng hoàn thành — tín hiệu server, lib/tourEligibility). Cờ "đã xem" nằm
+  // trong SecureStore theo máy và bị xoá khi đăng xuất, nên trước đây tài khoản
+  // cũ đăng nhập lại hoặc sang máy mới bị tour đè lên. Xem lại theo ý muốn vẫn
+  // qua Hướng dẫn (replay).
+  const homeTourAllowed = canAutoStartHomeTour({
+    hydrated: tourHydrated,
+    doneHome: tourDone.home,
+    tourBusy: activeTourId !== null,
+    // Chờ dashboard render xong: bước 1 neo vào thẻ chuỗi học, mà thẻ đó chỉ
+    // tồn tại khi hết isLoading. Mạng chậm thì waitForRect (1.8s) hết hạn và
+    // tour rơi về "màn mờ phẳng + tooltip giữa màn", mất hiệu ứng khoét sáng (F-11).
+    dashboardLoading: isLoading,
+    xp: { status: probeStatus(xpLoaded, xpFailed), totalXp: xp?.totalXp ?? 0 },
+    roadmap: { status: probeStatus(roadmapLoaded, roadmapFailed), completedCount: treeDone },
+  })
   useFocusEffect(
     useCallback(() => {
-      // Chờ dashboard render xong: bước 1 neo vào thẻ chuỗi học, mà thẻ đó chỉ
-      // tồn tại khi hết isLoading. Mạng chậm thì waitForRect (1.8s) hết hạn và
-      // tour rơi về "màn mờ phẳng + tooltip giữa màn", mất hiệu ứng khoét sáng (F-11).
-      if (!tourHydrated || tourDone.home || activeTourId || isLoading) return
+      if (!homeTourAllowed) return
       const t = setTimeout(() => {
         void getDailyGoalMinutes().then((m) => startTour('home', 'auto', { dailyGoalMinutes: m }))
       }, 500)
       return () => clearTimeout(t)
-    }, [tourHydrated, tourDone.home, activeTourId, isLoading, startTour]),
+    }, [homeTourAllowed, startTour]),
   )
 
   // ── Tuần đầu (Phase D): checklist "Bắt đầu" + sheet nhắc học 20:00 ─────────
@@ -138,11 +161,20 @@ export default function DashboardScreen() {
   }, [])
 
   // Q3: coach mark SRS tách khỏi tour chính — bắn 1 lần khi thẻ "Ôn tập hôm nay"
-  // render thật (dueSrs > 0) sau khi tour chính đã xong.
+  // render thật (dueSrs > 0) sau khi tour chính đã xong trên máy này. Tour chính
+  // chỉ tự nổ cho tài khoản mới (xem trên), nên coach mark này cũng chỉ tới họ —
+  // /srs/stats không có số lượt đã ôn để gate riêng theo "chưa từng dùng".
   useFocusEffect(
     useCallback(() => {
-      if (!tourHydrated || !tourDone.home || tourDone.srs_intro || activeTourId || reminderOpen || dueForIntro <= 0)
-        return
+      const allowed = canAutoStartSrsIntro({
+        hydrated: tourHydrated,
+        doneHome: tourDone.home,
+        doneSrs: tourDone.srs_intro,
+        tourBusy: activeTourId !== null,
+        sheetOpen: reminderOpen,
+        dueCount: dueForIntro,
+      })
+      if (!allowed) return
       const t = setTimeout(() => startTour('srs_intro', 'auto', { dueCount: dueForIntro }), 600)
       return () => clearTimeout(t)
     }, [tourHydrated, tourDone.home, tourDone.srs_intro, activeTourId, reminderOpen, dueForIntro, startTour]),
