@@ -28,6 +28,11 @@ export interface HomeTourInput {
   tourBusy: boolean
   /** Dashboard còn đang tải — thẻ Chuỗi học (neo bước 1) chưa tồn tại (F-11). */
   dashboardLoading: boolean
+  /**
+   * Màn đang kéo-làm-mới (RefreshControl): scrollTo/đo neo của spotlight bị đè
+   * → nổ lúc này rơi về tooltip giữa màn (F-SRS-COACH-01). Chờ xong mới nổ.
+   */
+  refreshing?: boolean
   /** /xp/me — tổng XP; 0 = chưa hoạt động gì. */
   xp: { status: ProbeStatus; totalXp: number }
   /** /roadmap/me — số chặng đã hoàn thành. */
@@ -40,7 +45,7 @@ export interface HomeTourInput {
  * tài khoản mới mở app lần sau vẫn còn cơ hội vì cờ chưa đặt.
  */
 export function canAutoStartHomeTour(i: HomeTourInput): boolean {
-  if (!i.hydrated || i.doneHome || i.tourBusy || i.dashboardLoading) return false
+  if (!i.hydrated || i.doneHome || i.tourBusy || i.dashboardLoading || i.refreshing) return false
   if (i.xp.status !== 'success' || i.roadmap.status !== 'success') return false
   return i.xp.totalXp <= 0 && i.roadmap.completedCount <= 0
 }
@@ -52,6 +57,8 @@ export interface SrsIntroInput {
   tourBusy: boolean
   /** Sheet nhắc học đang mở — không chồng coach mark lên sheet. */
   sheetOpen: boolean
+  /** Đang kéo-làm-mới — xem HomeTourInput.refreshing (F-SRS-COACH-01). */
+  refreshing?: boolean
   dueCount: number
   /**
    * /srs/stats `reviewedCards` — số thẻ đã ôn ≥ 1 lần (backend từ PR "srs stats
@@ -69,7 +76,7 @@ export interface SrsIntroInput {
  * đã xem trên máy này (chỉ tài khoản mới hoặc chính người dùng replay).
  */
 export function canAutoStartSrsIntro(i: SrsIntroInput): boolean {
-  if (!i.hydrated || i.doneSrs || i.tourBusy || i.sheetOpen || i.dueCount <= 0) return false
+  if (!i.hydrated || i.doneSrs || i.tourBusy || i.sheetOpen || i.refreshing || i.dueCount <= 0) return false
   const r = i.reviewed
   if (r && r.status !== 'success') return false
   if (r && r.count !== null) return r.count === 0

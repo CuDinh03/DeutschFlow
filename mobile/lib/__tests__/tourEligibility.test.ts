@@ -36,6 +36,11 @@ describe('canAutoStartHomeTour — chỉ tài khoản mới đăng ký', () => {
     expect(canAutoStartHomeTour({ ...fresh, dashboardLoading: true })).toBe(false)
     expect(canAutoStartHomeTour({ ...fresh, hydrated: false })).toBe(false)
   })
+
+  test('đang kéo-làm-mới → chưa nổ (RefreshControl đè cuộn/đo neo); làm mới xong → nổ', () => {
+    expect(canAutoStartHomeTour({ ...fresh, refreshing: true })).toBe(false)
+    expect(canAutoStartHomeTour({ ...fresh, refreshing: false })).toBe(true)
+  })
 })
 
 describe('canAutoStartSrsIntro — sau tour chính trên máy này, có thẻ đến hạn', () => {
@@ -67,6 +72,11 @@ describe('canAutoStartSrsIntro — sau tour chính trên máy này, có thẻ đ
     test('backend cũ không có trường (count null) → rơi về gate tour chính đã xem', () => {
       expect(canAutoStartSrsIntro({ ...base, doneHome: true, reviewed: { status: 'success', count: null } })).toBe(true)
       expect(canAutoStartSrsIntro({ ...base, doneHome: false, reviewed: { status: 'success', count: null } })).toBe(false)
+    })
+    test('đang kéo-làm-mới → chưa nổ dù chưa từng ôn; làm mới xong → nổ (F-SRS-COACH-01)', () => {
+      const neverReviewed = { status: 'success' as const, count: 0 }
+      expect(canAutoStartSrsIntro({ ...base, refreshing: true, reviewed: neverReviewed })).toBe(false)
+      expect(canAutoStartSrsIntro({ ...base, refreshing: false, reviewed: neverReviewed })).toBe(true)
     })
     test('vẫn cần thẻ đến hạn và cờ máy chưa đặt', () => {
       expect(canAutoStartSrsIntro({ ...base, dueCount: 0, reviewed: { status: 'success', count: 0 } })).toBe(false)
