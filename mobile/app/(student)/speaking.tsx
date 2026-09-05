@@ -383,17 +383,18 @@ export default function SpeakingScreen() {
     const aid = Number(assignmentParam)
     if (!Number.isFinite(aid) || aid <= 0) return
     if (starting) return
+    if (view === 'summary') {
+      // Smoke 05/09 (AC-ASSIGN-SPK-M-03): mở lại bài giao khi màn còn tổng kết của phiên trước
+      // → người dùng thấy lại tổng kết cũ. Phải xét 'summary' TRƯỚC `session`: finishSession chỉ
+      // clear store, state `session` cục bộ vẫn còn ở tổng kết (#538 xét `session` trước nên nuốt
+      // nonce, vẫn kẹt). Dọn về 'select' rồi nhánh dưới tạo phiên mới ở lần render kế.
+      resetToSelect()
+      return
+    }
     if (session) {
       // Đang trong một phiên (tab Speaking không unmount): không cắt ngang; coi như đã dùng
       // nonce này để lúc phiên đó kết thúc không tự mở phiên mới đè lên màn tổng kết.
       autoStartedRef.current = assignmentKey
-      return
-    }
-    if (view === 'summary') {
-      // Smoke 05/09 (AC-ASSIGN-SPK-M-03): mở lại bài giao khi màn còn tổng kết của phiên trước
-      // → effect từng dừng ở đây và người dùng thấy lại tổng kết cũ. Dọn về 'select' rồi nhánh
-      // dưới tạo phiên mới ở lần render kế.
-      resetToSelect()
       return
     }
     if (view !== 'select') return
