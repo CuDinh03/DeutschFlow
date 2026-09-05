@@ -11,8 +11,8 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
-import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -23,6 +23,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -91,79 +93,8 @@ public class CertificateController {
         int score         = ((Number) cert.get("exam_score")).intValue();
         String issuedDate = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
 
-        try (PDDocument doc = new PDDocument()) {
-            PDPage page = new PDPage(PDRectangle.A4);
-            doc.addPage(page);
-
-            try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
-                float w = PDRectangle.A4.getWidth();
-                float h = PDRectangle.A4.getHeight();
-
-                cs.setNonStrokingColor(0.98f, 0.98f, 1f);
-                cs.addRect(0, 0, w, h);
-                cs.fill();
-
-                cs.setStrokingColor(0.24f, 0.27f, 0.98f);
-                cs.setLineWidth(3f);
-                cs.addRect(30, 30, w - 60, h - 60);
-                cs.stroke();
-
-                cs.setLineWidth(1f);
-                cs.addRect(38, 38, w - 76, h - 76);
-                cs.stroke();
-
-                var bold   = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
-                var normal = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
-                var italic = new PDType1Font(Standard14Fonts.FontName.HELVETICA_OBLIQUE);
-
-                cs.setNonStrokingColor(0.24f, 0.27f, 0.98f);
-                centerText(cs, bold, 28, "DEUTSCHFLOW", w, h - 120);
-
-                cs.setNonStrokingColor(0.1f, 0.1f, 0.1f);
-                centerText(cs, normal, 14, "CERTIFICATE OF ACHIEVEMENT", w, h - 150);
-
-                cs.setStrokingColor(0.85f, 0.85f, 0.85f);
-                cs.setLineWidth(0.8f);
-                cs.moveTo(80, h - 170); cs.lineTo(w - 80, h - 170); cs.stroke();
-
-                cs.setNonStrokingColor(0.4f, 0.4f, 0.4f);
-                centerText(cs, italic, 13, "This certifies that", w, h - 210);
-
-                cs.setNonStrokingColor(0.05f, 0.05f, 0.05f);
-                centerText(cs, bold, 26, name, w, h - 260);
-
-                cs.setNonStrokingColor(0.4f, 0.4f, 0.4f);
-                centerText(cs, italic, 13, "has successfully passed the DeutschFlow", w, h - 295);
-                centerText(cs, italic, 13, "standardized proficiency assessment at level", w, h - 315);
-
-                cs.setNonStrokingColor(0.24f, 0.27f, 0.98f);
-                centerText(cs, bold, 56, cefrLevel, w, h - 390);
-
-                cs.setNonStrokingColor(0.3f, 0.3f, 0.3f);
-                centerText(cs, normal, 13, "Exam Score: " + score + " / 100", w, h - 420);
-
-                cs.setStrokingColor(0.85f, 0.85f, 0.85f);
-                cs.moveTo(80, h - 450); cs.lineTo(w - 80, h - 450); cs.stroke();
-
-                cs.setNonStrokingColor(0.5f, 0.5f, 0.5f);
-                cs.beginText();
-                cs.setFont(normal, 10);
-                cs.newLineAtOffset(60, 80);
-                cs.showText("Certificate Code: " + code);
-                cs.endText();
-
-                cs.beginText();
-                cs.setFont(normal, 10);
-                cs.newLineAtOffset(w - 200, 80);
-                cs.showText("Issued: " + issuedDate);
-                cs.endText();
-
-                centerText(cs, italic, 10, "This certificate is issued by DeutschFlow and is verified by the DeutschFlow platform.", w, 55);
-            }
-
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            doc.save(baos);
-            byte[] pdfBytes = baos.toByteArray();
+        try {
+            byte[] pdfBytes = renderPdf(name, cefrLevel, score, code, issuedDate);
 
             String filename = "DeutschFlow-Certificate-" + cefrLevel + "-" + code + ".pdf";
             HttpHeaders headers = new HttpHeaders();
@@ -236,7 +167,115 @@ public class CertificateController {
         }
     }
 
-    private void centerText(PDPageContentStream cs, PDType1Font font, float size, String text, float pageWidth, float y) throws Exception {
+
+    /**
+     * Vẽ PDF chứng nhận. Font nhúng Plus Jakarta Sans (OFL, {@code src/main/resources/fonts}) thay
+     * Helvetica Standard-14: Helvetica chỉ mã hoá WinAnsi nên tên học viên có dấu tiếng Việt
+     * ("Nguyễn", "Đức", ơ/ư…) làm PDFBox ném IllegalArgumentException → tải chứng nhận trả 500
+     * (audit UTF-8 06/09/2026, F-UTF-03). Ký tự font không có glyph (chữ Hán, emoji…) được thay
+     * bằng '?' qua {@link #safeText} thay vì vỡ cả file.
+     */
+    static byte[] renderPdf(String name, String cefrLevel, int score, String code, String issuedDate) throws Exception {
+        try (PDDocument doc = new PDDocument()) {
+            PDPage page = new PDPage(PDRectangle.A4);
+            doc.addPage(page);
+
+            try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+                float w = PDRectangle.A4.getWidth();
+                float h = PDRectangle.A4.getHeight();
+
+                cs.setNonStrokingColor(0.98f, 0.98f, 1f);
+                cs.addRect(0, 0, w, h);
+                cs.fill();
+
+                cs.setStrokingColor(0.24f, 0.27f, 0.98f);
+                cs.setLineWidth(3f);
+                cs.addRect(30, 30, w - 60, h - 60);
+                cs.stroke();
+
+                cs.setLineWidth(1f);
+                cs.addRect(38, 38, w - 76, h - 76);
+                cs.stroke();
+
+                PDFont bold   = loadFont(doc, "PlusJakartaSans-Bold.ttf");
+                PDFont normal = loadFont(doc, "PlusJakartaSans-Regular.ttf");
+                PDFont italic = loadFont(doc, "PlusJakartaSans-Italic.ttf");
+
+                cs.setNonStrokingColor(0.24f, 0.27f, 0.98f);
+                centerText(cs, bold, 28, "DEUTSCHFLOW", w, h - 120);
+
+                cs.setNonStrokingColor(0.1f, 0.1f, 0.1f);
+                centerText(cs, normal, 14, "CERTIFICATE OF ACHIEVEMENT", w, h - 150);
+
+                cs.setStrokingColor(0.85f, 0.85f, 0.85f);
+                cs.setLineWidth(0.8f);
+                cs.moveTo(80, h - 170); cs.lineTo(w - 80, h - 170); cs.stroke();
+
+                cs.setNonStrokingColor(0.4f, 0.4f, 0.4f);
+                centerText(cs, italic, 13, "This certifies that", w, h - 210);
+
+                cs.setNonStrokingColor(0.05f, 0.05f, 0.05f);
+                centerText(cs, bold, 26, name, w, h - 260);
+
+                cs.setNonStrokingColor(0.4f, 0.4f, 0.4f);
+                centerText(cs, italic, 13, "has successfully passed the DeutschFlow", w, h - 295);
+                centerText(cs, italic, 13, "standardized proficiency assessment at level", w, h - 315);
+
+                cs.setNonStrokingColor(0.24f, 0.27f, 0.98f);
+                centerText(cs, bold, 56, cefrLevel, w, h - 390);
+
+                cs.setNonStrokingColor(0.3f, 0.3f, 0.3f);
+                centerText(cs, normal, 13, "Exam Score: " + score + " / 100", w, h - 420);
+
+                cs.setStrokingColor(0.85f, 0.85f, 0.85f);
+                cs.moveTo(80, h - 450); cs.lineTo(w - 80, h - 450); cs.stroke();
+
+                cs.setNonStrokingColor(0.5f, 0.5f, 0.5f);
+                cs.beginText();
+                cs.setFont(normal, 10);
+                cs.newLineAtOffset(60, 80);
+                cs.showText("Certificate Code: " + code);
+                cs.endText();
+
+                cs.beginText();
+                cs.setFont(normal, 10);
+                cs.newLineAtOffset(w - 200, 80);
+                cs.showText("Issued: " + issuedDate);
+                cs.endText();
+
+                centerText(cs, italic, 10, "This certificate is issued by DeutschFlow and is verified by the DeutschFlow platform.", w, 55);
+            }
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            doc.save(baos);
+            return baos.toByteArray();
+        }
+    }
+
+    private static PDFont loadFont(PDDocument doc, String file) throws IOException {
+        try (InputStream in = CertificateController.class.getResourceAsStream("/fonts/" + file)) {
+            if (in == null) throw new IllegalStateException("Thiếu font nhúng /fonts/" + file);
+            return PDType0Font.load(doc, in);
+        }
+    }
+
+    /** Thay code point mà font không mã hoá được bằng '?' để showText/getStringWidth không ném lỗi. */
+    static String safeText(PDFont font, String text) {
+        StringBuilder sb = new StringBuilder(text.length());
+        text.codePoints().forEach(cp -> {
+            String ch = new String(Character.toChars(cp));
+            try {
+                font.encode(ch);
+                sb.append(ch);
+            } catch (Exception e) {
+                sb.append('?');
+            }
+        });
+        return sb.toString();
+    }
+
+    private static void centerText(PDPageContentStream cs, PDFont font, float size, String text, float pageWidth, float y) throws Exception {
+        text = safeText(font, text);
         float tw = font.getStringWidth(text) / 1000 * size;
         cs.beginText();
         cs.setFont(font, size);
