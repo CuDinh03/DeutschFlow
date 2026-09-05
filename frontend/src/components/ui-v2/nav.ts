@@ -169,6 +169,8 @@ export const adminNav: RoleNav = {
         { id: 'admin-exam-golden', label: 'Golden set Nói', href: '/v2/admin/exam-golden', icon: 'grading' },
         // Đ5b-A: ngân hàng đề Luyện thi Nói — CRUD đề + ma trận pool, hết cảnh viết migration tay.
         { id: 'admin-exam-bank', label: 'Ngân hàng đề Nói', href: '/v2/admin/exam-bank', icon: 'quiz' },
+        // N0.6/T.3: chi phí AI thật theo feature × model × phiên (token, giây STT, USD/VND ước tính) từ ledger.
+        { id: 'admin-ai-usage', label: 'AI usage', href: '/v2/admin/ai-usage', icon: 'query_stats' },
         { id: 'admin-reports', label: 'Báo cáo', href: '/v2/admin/reports', icon: 'assessment' },
         { id: 'admin-personas', label: 'Persona', href: '/v2/admin/personas', icon: 'record_voice_over' },
         { id: 'admin-interviews', label: 'Phỏng vấn', href: '/v2/admin/interviews', icon: 'forum' },

@@ -742,7 +742,18 @@
       "audio": {
         "playLabel": "Beitrag aus Teil {teil} anhören",
         "transcriptOnly": "Für diese Sitzung ist kein Audio gespeichert — Bewertung anhand des Transkripts."
-      }
+      },
+      "borderline": "Grenzfall",
+      "machineBorderline": "Maschine „Grenzfall“",
+      "machineBorderlineSub": "nicht im Nenner Bestanden/Nicht bestanden — Gate braucht ≤20 %",
+      "regradeBatch": "Set neu bewerten",
+      "regradeBatchRunning": "Neubewertung läuft…",
+      "regradeBatchCap": "Ergebnis der Batch-Neubewertung",
+      "regradeBatchConfirm": "Alle von Menschen bewerteten Sitzungen in diesem Filter neu bewerten (max. {max}, ≈12k Token je Sitzung, Lernenden-Ergebnisse werden NICHT überschrieben). Fortfahren?",
+      "regradeBatchDone": "{regraded}/{requested} Sitzungen neu bewertet (Fehler {failed}) · Bestehen gewechselt: {passFlips} · mittlere Gesamtdifferenz: {avgDelta} · Band-Änderungen: {bandChanges}.",
+      "blindHint": "Blindbewertung: Maschinen-Bands bleiben bis zum Speichern verborgen (Gate-Dokument §4.1).",
+      "revealMachine": "Maschinen-Bands zeigen (Blindbewertung aufheben)",
+      "hideMachine": "Maschinen-Bands verbergen"
     },
     "examBank": {
       "title": "Aufgabenbank Sprechprüfung",
@@ -783,6 +794,38 @@
       "save": "Speichern",
       "saving": "Speichert…",
       "cancel": "Abbrechen"
+    },
+    "aiUsage": {
+      "title": "KI-Nutzung",
+      "subtitle": "Token, STT-Sekunden und geschätzte Kosten nach Feature × Modell × Sitzung — aus dem echten Ledger",
+      "back": "Zurück zur Verwaltung",
+      "dismiss": "Schließen",
+      "from": "Von",
+      "to": "Bis",
+      "featurePrefix": "Feature-Präfix",
+      "apply": "Anwenden",
+      "loading": "Wird zusammengefasst…",
+      "empty": "Keine Daten in diesem Zeitraum.",
+      "totalCalls": "Aufrufe",
+      "totalTokens": "Token gesamt",
+      "totalStt": "STT-Sekunden",
+      "totalCost": "Geschätzte Kosten",
+      "rateNote": "Kurs {rate} ₫/USD",
+      "byFeature": "Nach Feature × Modell",
+      "colFeature": "Feature",
+      "colModel": "Modell",
+      "colCalls": "Aufrufe",
+      "colPrompt": "Prompt",
+      "colCached": "Cache",
+      "colCompletion": "Antwort",
+      "colTotal": "Token gesamt",
+      "colCost": "Kosten",
+      "colSeconds": "Sekunden",
+      "stt": "Transkription (STT)",
+      "sessions": "Teuerste Sitzungen",
+      "sessionsHint": "Eine B1-Probeprüfung ≈ Summe der EXAM_SPEAKING_*-Zeilen derselben Sitzung (Plan N0.6: A1 20–30k, B1 50–80k Token).",
+      "colSession": "Sitzung",
+      "colFeatures": "Features"
     }
   }
 }

@@ -85,7 +85,12 @@ export interface ExamSessionView {
   resultAvailable: boolean
   /** true = phiên đang được ghi âm để hiệu chuẩn chấm điểm (đã có đồng ý) — UI phải nói rõ. */
   retainAudio?: boolean
+  /** Lý do khi state = GRADING_FAILED: QUOTA_EXCEEDED (nạp rồi chấm lại) | JOB_FAILED | JOB_STUCK; null với phiên cũ. */
+  gradingError?: string | null
 }
+
+/** Khoá idempotency do client sinh cho MỘT lượt nói logic; retry (timeout/rớt mạng) gửi lại CÙNG khoá (F-06). */
+export type ClientTurnId = string
 
 export interface AiTurn {
   role: string
@@ -155,6 +160,8 @@ export interface ScoreSheet {
   /** N1c-3: bản structured của notes (phiếu cũ: thiếu → hiện notes VI). */
   noteMsgs?: SheetMsg[]
   passes: number
+  /** F-17: khoảng [totalLow, totalHigh] vắt qua ngưỡng đỗ → UI hiện "sát ngưỡng" thay vì đỗ/trượt (phiếu cũ: thiếu). */
+  borderline?: boolean
 }
 
 export interface ExamResultView {
@@ -167,6 +174,8 @@ export interface ExamResultView {
   totalHigh: number | null
   max: number | null
   passed: boolean | null
+  /** F-17: xem ScoreSheet.borderline (backend mới); phiếu cũ không có → false. */
+  borderline?: boolean
   scoreSheet: ScoreSheet
   createdAt: string
 }

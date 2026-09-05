@@ -179,8 +179,22 @@ public class RubricScorer {
             }
             double low = lowOverride == null ? total : lowOverride;
             double high = highOverride == null ? total : highOverride;
+            // F-17: các pass cho kết luận khác nhau quanh ngưỡng → "sát ngưỡng", không tuyên bố dứt khoát.
+            Double threshold = rubric.speakingOnlyMin() != null ? rubric.speakingOnlyMin() : rubric.passMin();
+            boolean borderline = false;
+            if (threshold != null && maxPoints > 0 && low < high) {
+                double lowN = low * officialMax / maxPoints;
+                double highN = high * officialMax / maxPoints;
+                borderline = lowN + 1e-9 < threshold && highN + 1e-9 >= threshold;
+            }
+            if (borderline) {
+                notes.add("Khoảng điểm " + fmt(round2(low)) + "–" + fmt(round2(high)) + " vắt qua ngưỡng "
+                        + fmt(threshold) + " — kết luận đỗ/trượt chưa chắc chắn.");
+                noteMsgs.add(Msg.of("borderline", "low", fmt(round2(low)), "high", fmt(round2(high)),
+                        "min", fmt(threshold)));
+            }
             return new Ergebnisbogen(ref, parts, global, total, low, high, maxPoints, officialMax, passed, rule,
-                    errors, notes, passes, ruleMsg, noteMsgs);
+                    errors, notes, passes, ruleMsg, noteMsgs, borderline);
         }
 
         static double roundHalfUp(double v) {

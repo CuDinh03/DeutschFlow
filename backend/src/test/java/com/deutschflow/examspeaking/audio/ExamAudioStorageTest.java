@@ -37,7 +37,10 @@ class ExamAudioStorageTest {
         assertThat(storage.isEnabled()).isFalse();
         assertThat(storage.store(1L, 0, new byte[]{1, 2, 3}, "turn.webm")).isNull();
         assertThat(storage.playbackUrl("any/key")).isNull();
-        assertThat(storage.purge(List.of("a", "b"))).isZero();
+        // S3 chưa cấu hình: không có object để xoá → coi như đã xoá (không key nào "thất bại" để giữ lại).
+        ExamAudioStorage.PurgeOutcome outcome = storage.purge(List.of("a", "b"));
+        assertThat(outcome.deleted()).containsExactly("a", "b");
+        assertThat(outcome.failed()).isEmpty();
         verifyNoInteractions(s3);
     }
 

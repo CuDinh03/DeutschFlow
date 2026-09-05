@@ -47,7 +47,7 @@ class DefaultExamGradingServiceTest {
     void setUp() {
         GoetheWordlist wl = new GoetheWordlist();
         wl.load();
-        ExamSpeakingProperties props = new ExamSpeakingProperties(true, 1, 400, 600, 1800);
+        ExamSpeakingProperties props = new ExamSpeakingProperties(true, 1, 400, 600, 1800, 0.3);
         service = new DefaultExamGradingService(catalog, chat, mock(LlmTierResolver.class), mapper,
                 new FluencyMetricExtractor(), new LexicalProfiler(wl), new FluencyBandMapper(), new ErrorDensityBandMapper(),
                 new IntelligibilityBandMapper(), new GradingPromptBuilder(), new RubricScorer(), new ScoreAggregator(),

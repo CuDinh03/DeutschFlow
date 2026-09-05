@@ -1365,7 +1365,10 @@
         "prepShort": "5 Min. kurz",
         "prepFull": "{min} Min. wie in der Prüfung",
         "weaknessTitle": "Schwächen wiederholen",
-        "weaknessDesc": "Häufige Fehler aus dem Prüfungsraum nach Aufgabentyp, mit passenden Redemittel-Paketen"
+        "weaknessDesc": "Häufige Fehler aus dem Prüfungsraum nach Aufgabentyp, mit passenden Redemittel-Paketen",
+        "beta": "Beta",
+        "betaDesc": "Beta — simulierte Punkte, Kalibrierung mit menschlichen Prüfer/innen läuft",
+        "borderline": "Grenzfall"
       },
       "room": {
         "loading": "Prüfungsraum wird betreten…",
@@ -1456,7 +1459,13 @@
           "yourTurn": "Du bist dran — sprich jetzt!",
           "waitHint": "Warte, bis du dran bist…"
         },
-        "audioRetained": "Diese Sitzung wird zur Bewertungs-Kalibrierung aufgezeichnet (mit deiner Einwilligung). Du kannst die Einwilligung jederzeit widerrufen — das Audio wird gelöscht."
+        "audioRetained": "Diese Sitzung wird zur Bewertungs-Kalibrierung aufgezeichnet (mit deiner Einwilligung). Du kannst die Einwilligung jederzeit widerrufen — das Audio wird gelöscht.",
+        "beta": "Beta",
+        "retryTurn": "Letzten Beitrag erneut senden",
+        "retryTurnHint": "Aufnahme/Antwort liegt noch auf deinem Gerät — erneutes Senden zählt nicht als neuer Beitrag.",
+        "gradingFailedQuota": "Noch nicht bewertet: dein KI-Budget ist aufgebraucht — deine Prüfung ist gespeichert.",
+        "gradingFailedQuotaDesc": "Alles Gesagte bleibt erhalten. Lade auf oder warte auf die nächste Periode und drücke dann „Neu bewerten“ — keine Wiederholung nötig.",
+        "upgradeCta": "Tarife ansehen / aufladen"
       },
       "mic": {
         "sending": "Wird gesendet, Antwort folgt…",
@@ -1550,8 +1559,11 @@
           "llmProposedBand": "Die KI schlug Band {band} vor — das endgültige Band bestimmt die Fehlerdichte-Tabelle.",
           "fluencyBlend": "Flüssigkeit gemessen: {wpm} Wörter/Min., {pauses} lange Pausen, MLR {mlr} → Band {fluencyBand}; kombiniert mit KI ({llmBand}) → {band}.",
           "sttConfidence": "Geschätzt aus der STT-Konfidenz (avg_logprob {logprob}) — Stufe 1/3, geringe Zuverlässigkeit.",
-          "noAudioTextOnly": "Nicht bewertbar: kein Audio/keine STT-Konfidenz (nur Text)."
-        }
+          "noAudioTextOnly": "Nicht bewertbar: kein Audio/keine STT-Konfidenz (nur Text).",
+          "borderline": "Punktespanne {low}–{high} liegt um die Grenze {min} — Bestehen ist unsicher."
+        },
+        "borderline": "Grenzfall — kein Urteil",
+        "borderlineNote": "Die zwei Bewertungsdurchgänge ergaben {low}–{high} Punkte, genau um die Bestehensgrenze: Prüfer/innen könnten beides entscheiden. Lies es als „weiter üben“, nicht als Urteil."
       },
       "drill": {
         "cap": "Durchschnittliche Schnellbewertung",

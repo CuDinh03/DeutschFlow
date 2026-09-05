@@ -29,6 +29,7 @@ const api = vi.hoisted(() => ({
   saveNotes: vi.fn(),
 }))
 vi.mock('@/lib/examSpeakingApi', () => ({ examSpeakingApi: api }))
+vi.mock('@/lib/exam/clientTurnId', () => ({ newClientTurnId: () => 'turn-test' }))
 
 vi.mock('@/components/features/exam-speaking/examTts', () => ({
   speakExamLine: vi.fn(async () => {}),
@@ -102,6 +103,17 @@ describe('ExamRoom — chấm nền thất bại (GRADING_FAILED)', () => {
     expect(api.regrade).toHaveBeenCalledWith(601)
     expect(await screen.findByTestId('exam-grading')).toBeInTheDocument()
     expect(screen.queryByTestId('exam-grading-failed')).not.toBeInTheDocument()
+  })
+
+  it('F-08: gradingError=QUOTA_EXCEEDED → thông điệp hết ngân sách + link nạp/nâng cấp, vẫn có nút Chấm lại', async () => {
+    api.getSession.mockResolvedValue({ data: session('GRADING_FAILED', { gradingError: 'QUOTA_EXCEEDED' }) })
+    renderRoom()
+
+    expect(await screen.findByTestId('exam-grading-failed')).toBeInTheDocument()
+    expect(screen.getByText(/ngân sách AI của bạn đã hết/)).toBeInTheDocument()
+    expect(screen.queryByText(/Chấm điểm bị lỗi/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('quota-upgrade-link')).toHaveAttribute('href', '/v2/student/tuition')
+    expect(screen.getByTestId('regrade-btn')).toBeEnabled()
   })
 
   it('regrade lỗi (409/mạng) → banner lỗi, vẫn còn nút để thử tiếp', async () => {

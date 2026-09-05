@@ -36,6 +36,11 @@ public class SpeakingExamSession {
     public static final String STATE_GRADING_FAILED = "GRADING_FAILED";
     public static final String STATE_ABORTED = "ABORTED";
 
+    /** Lý do phiên ở GRADING_FAILED — client hiện đúng thông điệp (F-08: hết quota ≠ job chết). */
+    public static final String GRADING_ERROR_QUOTA = "QUOTA_EXCEEDED";
+    public static final String GRADING_ERROR_JOB_FAILED = "JOB_FAILED";
+    public static final String GRADING_ERROR_JOB_STUCK = "JOB_STUCK";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -79,6 +84,19 @@ public class SpeakingExamSession {
 
     @Column(name = "grading_job_id")
     private Long gradingJobId;
+
+    /** Lý do GRADING_FAILED (QUOTA_EXCEEDED | JOB_FAILED | JOB_STUCK); null khi không lỗi. Regrade xoá. */
+    @Column(name = "grading_error", length = 64)
+    private String gradingError;
+
+    /**
+     * Khoá lạc quan (audit 31/08 F-05): hai finish/lượt nói song song cùng phiên → lần commit sau ném
+     * ObjectOptimisticLockingFailureException (409), không còn hai job chấm cùng lúc. Hibernate tự
+     * khởi tạo 0 khi insert.
+     */
+    @jakarta.persistence.Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
     /** Vorbereitungszeit hiệu lực (giây): rút gọn 5′ mặc định hoặc chuẩn thi thật theo blueprint. */
     /**

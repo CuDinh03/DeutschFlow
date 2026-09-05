@@ -1365,7 +1365,10 @@
         "prepShort": "5′ rút gọn",
         "prepFull": "{min}′ chuẩn thi thật",
         "weaknessTitle": "Ôn yếu điểm",
-        "weaknessDesc": "Xem lỗi hay mắc trong phòng luyện thi theo dạng bài + gói Redemittel gợi ý"
+        "weaknessDesc": "Xem lỗi hay mắc trong phòng luyện thi theo dạng bài + gói Redemittel gợi ý",
+        "beta": "Beta",
+        "betaDesc": "Bản beta — điểm mô phỏng, đang hiệu chuẩn với giám khảo người",
+        "borderline": "Sát ngưỡng"
       },
       "room": {
         "loading": "Đang vào phòng thi…",
@@ -1456,7 +1459,13 @@
           "yourTurn": "Đến lượt bạn nói!",
           "waitHint": "Chờ đến lượt bạn…"
         },
-        "audioRetained": "Phiên này được ghi âm để phục vụ hiệu chuẩn chấm điểm (bạn đã đồng ý). Bạn có thể rút lại đồng ý bất cứ lúc nào — audio sẽ bị xoá."
+        "audioRetained": "Phiên này được ghi âm để phục vụ hiệu chuẩn chấm điểm (bạn đã đồng ý). Bạn có thể rút lại đồng ý bất cứ lúc nào — audio sẽ bị xoá.",
+        "beta": "Beta",
+        "retryTurn": "Gửi lại lượt vừa rồi",
+        "retryTurnHint": "Bản ghi/câu trả lời vẫn còn trên máy bạn — gửi lại sẽ không bị tính thành lượt mới.",
+        "gradingFailedQuota": "Chưa chấm được vì ngân sách AI của bạn đã hết — bài thi vẫn còn nguyên.",
+        "gradingFailedQuotaDesc": "Toàn bộ phần đã nói được giữ lại. Nạp thêm hoặc chờ kỳ mới, rồi bấm \"Chấm lại\" — không phải thi lại.",
+        "upgradeCta": "Xem gói / nạp thêm"
       },
       "mic": {
         "sending": "Đang gửi và chờ phản hồi…",
@@ -1550,8 +1559,11 @@
           "llmProposedBand": "AI đề xuất band {band} — band cuối do bảng ngưỡng mật độ lỗi quyết định.",
           "fluencyBlend": "Flüssigkeit đo được: {wpm} từ/phút, {pauses} khoảng lặng dài, MLR {mlr} → band {fluencyBand}; gộp với AI ({llmBand}) → {band}.",
           "sttConfidence": "Ước lượng từ độ tự tin STT (avg_logprob {logprob}) — tầng 1/3, tin cậy thấp.",
-          "noAudioTextOnly": "Chưa chấm được: không có audio/độ tự tin STT (text-only)."
-        }
+          "noAudioTextOnly": "Chưa chấm được: không có audio/độ tự tin STT (text-only).",
+          "borderline": "Khoảng điểm {low}–{high} vắt qua ngưỡng {min} — kết luận đỗ/trượt chưa chắc chắn."
+        },
+        "borderline": "Sát ngưỡng — chưa kết luận",
+        "borderlineNote": "Hai lượt chấm cho {low}–{high} điểm, vắt qua ngưỡng đỗ: giám khảo thật có thể quyết theo cả hai hướng. Hãy xem đây là \"cần thêm luyện\" hơn là một kết luận."
       },
       "drill": {
         "cap": "Điểm nhanh trung bình",

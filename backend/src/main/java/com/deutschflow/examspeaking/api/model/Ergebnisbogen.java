@@ -27,8 +27,22 @@ public record Ergebnisbogen(
         List<String> notes,
         int passes,
         Msg passRuleMsg,
-        List<Msg> noteMsgs
+        List<Msg> noteMsgs,
+        /**
+         * F-17: khoảng [totalLow, totalHigh] vắt qua ngưỡng đỗ — {@code passed} vẫn chốt theo điểm tâm
+         * (thống kê/golden cần một kết luận), nhưng UI phải hiện "sát ngưỡng" thay vì đỗ/trượt dứt khoát.
+         */
+        boolean borderline
 ) {
+    /** Tương thích: không có cờ borderline (mặc định false). */
+    public Ergebnisbogen(RubricRef rubricRef, List<PartResult> parts, List<CriterionResult> global,
+                         double total, double totalLow, double totalHigh, double maxPoints, double officialMax,
+                         Boolean passed, String passRule, List<ErrorItem> errors, List<String> notes, int passes,
+                         Msg passRuleMsg, List<Msg> noteMsgs) {
+        this(rubricRef, parts, global, total, totalLow, totalHigh, maxPoints, officialMax, passed, passRule,
+                errors, notes, passes, passRuleMsg, noteMsgs, false);
+    }
+
     public Ergebnisbogen {
         parts = parts == null ? List.of() : List.copyOf(parts);
         global = global == null ? List.of() : List.copyOf(global);

@@ -742,7 +742,18 @@
       "audio": {
         "playLabel": "Nghe lại lượt nói Teil {teil}",
         "transcriptOnly": "Phiên này không lưu audio — chấm trên bản gỡ băng."
-      }
+      },
+      "borderline": "Sát ngưỡng",
+      "machineBorderline": "Máy \"sát ngưỡng\"",
+      "machineBorderlineSub": "loại khỏi mẫu số đạt/trượt — gate cần ≤20%",
+      "regradeBatch": "Regrade cả bộ",
+      "regradeBatchRunning": "Đang regrade…",
+      "regradeBatchCap": "Kết quả regrade batch",
+      "regradeBatchConfirm": "Chấm lại toàn bộ phiên đã có giám khảo người trong bộ lọc này (tối đa {max} phiên, ≈12k token/phiên, KHÔNG ghi đè kết quả học viên). Tiếp tục?",
+      "regradeBatchDone": "Đã regrade {regraded}/{requested} phiên (lỗi {failed}) · đổi kết luận đỗ/trượt: {passFlips} · lệch điểm tổng trung bình: {avgDelta} · số band đổi: {bandChanges}.",
+      "blindHint": "Chấm mù: band máy được ẩn cho tới khi bạn lưu phiếu (tài liệu gate §4.1).",
+      "revealMachine": "Hiện band máy (phá chấm mù)",
+      "hideMachine": "Ẩn band máy"
     },
     "examBank": {
       "title": "Ngân hàng đề Luyện thi Nói",
@@ -783,6 +794,38 @@
       "save": "Lưu",
       "saving": "Đang lưu…",
       "cancel": "Huỷ"
+    },
+    "aiUsage": {
+      "title": "AI usage",
+      "subtitle": "Token, giây STT và chi phí ước tính theo feature × model × phiên — đọc từ ledger thật",
+      "back": "Về quản trị",
+      "dismiss": "Đóng",
+      "from": "Từ ngày",
+      "to": "Đến ngày",
+      "featurePrefix": "Tiền tố feature",
+      "apply": "Áp dụng",
+      "loading": "Đang tổng hợp…",
+      "empty": "Không có dữ liệu trong cửa sổ này.",
+      "totalCalls": "Lượt gọi",
+      "totalTokens": "Tổng token",
+      "totalStt": "Giây STT",
+      "totalCost": "Chi phí ước tính",
+      "rateNote": "tỉ giá {rate} ₫/USD",
+      "byFeature": "Theo feature × model",
+      "colFeature": "Feature",
+      "colModel": "Model",
+      "colCalls": "Gọi",
+      "colPrompt": "Prompt",
+      "colCached": "Cache",
+      "colCompletion": "Trả lời",
+      "colTotal": "Tổng token",
+      "colCost": "Chi phí",
+      "colSeconds": "Giây",
+      "stt": "Phiên âm (STT)",
+      "sessions": "Top phiên tốn nhất",
+      "sessionsHint": "Một mock B1 ≈ tổng các dòng EXAM_SPEAKING_* của cùng phiên (kế hoạch N0.6 ước A1 20–30k, B1 50–80k token).",
+      "colSession": "Phiên",
+      "colFeatures": "Feature"
     }
   }
 }

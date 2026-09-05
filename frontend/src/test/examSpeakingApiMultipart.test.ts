@@ -45,6 +45,19 @@ function contentType(config: InternalAxiosRequestConfig): unknown {
   return config.headers.getContentType()
 }
 
+describe('audioTurn — clientTurnId (F-06)', () => {
+  it('gửi clientTurnId + lang qua query để backend replay khi retry; không có khoá thì không gửi param rỗng', async () => {
+    await examSpeakingApi.audioTurn(7, new Blob([new Uint8Array(8)], { type: 'audio/webm' }), 'turn.webm', 'vi', 'turn-abc')
+    expect(captured!.params).toEqual({ lang: 'vi', clientTurnId: 'turn-abc' })
+
+    await examSpeakingApi.textTurn(7, 'Hallo', 'de', 'turn-xyz')
+    expect(captured!.params).toEqual({ lang: 'de', clientTurnId: 'turn-xyz' })
+
+    await examSpeakingApi.textTurn(7, 'Hallo')
+    expect(captured!.params).toBeUndefined()
+  })
+})
+
 describe('audioTurn — multipart', () => {
   it('giữ nguyên FormData tới adapter (KHÔNG bị transformRequest JSON-hoá)', async () => {
     const blob = new Blob([new Uint8Array(2048)], { type: 'audio/mp4' })

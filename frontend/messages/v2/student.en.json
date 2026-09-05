@@ -1365,7 +1365,10 @@
         "prepShort": "5 min short",
         "prepFull": "{min} min as in the exam",
         "weaknessTitle": "Review weak points",
-        "weaknessDesc": "See your frequent exam-room mistakes by task type, with suggested Redemittel packs"
+        "weaknessDesc": "See your frequent exam-room mistakes by task type, with suggested Redemittel packs",
+        "beta": "Beta",
+        "betaDesc": "Beta — simulated score, being calibrated against human examiners",
+        "borderline": "Borderline"
       },
       "room": {
         "loading": "Entering the exam room…",
@@ -1456,7 +1459,13 @@
           "yourTurn": "Your turn — speak now!",
           "waitHint": "Wait for your turn…"
         },
-        "audioRetained": "This session is recorded for scoring calibration (you consented). You can withdraw consent at any time — the audio will be deleted."
+        "audioRetained": "This session is recorded for scoring calibration (you consented). You can withdraw consent at any time — the audio will be deleted.",
+        "beta": "Beta",
+        "retryTurn": "Resend last turn",
+        "retryTurnHint": "Your recording/answer is still on this device — resending will not count as a new turn.",
+        "gradingFailedQuota": "Not graded yet: your AI budget ran out — your exam answers are safe.",
+        "gradingFailedQuotaDesc": "Everything you said is kept. Top up or wait for the next period, then press \"Regrade\" — no need to retake.",
+        "upgradeCta": "See plans / top up"
       },
       "mic": {
         "sending": "Sending and waiting for the reply…",
@@ -1550,8 +1559,11 @@
           "llmProposedBand": "The AI proposed band {band} — the final band is decided by the error-density thresholds.",
           "fluencyBlend": "Fluency measured: {wpm} words/min, {pauses} long pauses, MLR {mlr} → band {fluencyBand}; blended with AI ({llmBand}) → {band}.",
           "sttConfidence": "Estimated from STT confidence (avg_logprob {logprob}) — tier 1/3, low confidence.",
-          "noAudioTextOnly": "Not gradable: no audio/STT confidence (text-only)."
-        }
+          "noAudioTextOnly": "Not gradable: no audio/STT confidence (text-only).",
+          "borderline": "Score range {low}–{high} straddles the {min} threshold — pass/fail is uncertain."
+        },
+        "borderline": "Borderline — no verdict",
+        "borderlineNote": "The two grading passes gave {low}–{high} points, straddling the pass mark: a real examiner could go either way. Read this as \"keep practising\" rather than a verdict."
       },
       "drill": {
         "cap": "Average quick score",
