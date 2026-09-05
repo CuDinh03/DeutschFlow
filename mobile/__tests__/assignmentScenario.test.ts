@@ -53,14 +53,21 @@ describe('speakingApi.createSession — assignmentId đi vào body (id dòng bà
   })
 })
 
-describe('scenarioTopic — trần 200 ký tự của backend (CreateSessionRequest.topic @Size 200)', () => {
+describe('scenarioTopic — trần 2000 ký tự của backend (CreateSessionRequest.topic @Size 2000, V304)', () => {
   test('ngắn → giữ nguyên định dạng web', () => {
     const s = scenarioTopic({ topic: 'Im Restaurant', scenarioDescription: 'Bestellen.', followUpQuestions: 'Was?' })
     expect(s).toBe('Chủ đề: Im Restaurant\n\nMô tả chi tiết: Bestellen.\n\nGợi ý: Was?')
     expect(s.length).toBeLessThanOrEqual(SESSION_TOPIC_MAX)
   })
-  test('dài → ≤ 200 ký tự, giữ chủ đề + đầu mô tả có dấu …, bỏ Gợi ý', () => {
+  test('kịch bản AI thường (~400 ký tự) → gửi TRỌN, không cắt', () => {
     const desc = 'Sie sind im Restaurant und möchten bestellen. '.repeat(8)
+    const s = scenarioTopic({ topic: 'Im Restaurant bestellen', scenarioDescription: desc, followUpQuestions: 'Was möchten Sie trinken?' })
+    expect(s.length).toBeGreaterThan(200)
+    expect(s).toContain('Gợi ý: Was möchten Sie trinken?')
+    expect(s.endsWith('…')).toBe(false)
+  })
+  test('dài bất thường → ≤ 2000 ký tự, giữ chủ đề + đầu mô tả có dấu …, bỏ Gợi ý', () => {
+    const desc = 'Sie sind im Restaurant und möchten bestellen. '.repeat(60)
     const s = scenarioTopic({ topic: 'Im Restaurant bestellen', scenarioDescription: desc, followUpQuestions: 'Was möchten Sie trinken?' })
     expect(s.length).toBeLessThanOrEqual(SESSION_TOPIC_MAX)
     expect(s.startsWith('Chủ đề: Im Restaurant bestellen\n\nMô tả chi tiết: Sie sind im Restaurant')).toBe(true)
