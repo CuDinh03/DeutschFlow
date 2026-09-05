@@ -16,6 +16,7 @@ import {
 } from '@/lib/adminOrgApi'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip, DataTable, TkModal, type DataTableColumn } from '@/components/ui-v2'
 import { CreateOrgModal } from './CreateOrgModal'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 
@@ -75,15 +76,6 @@ function rollup(invoices: OrgInvoice[]): OrgFinance {
   return { totalInvoiced, outstanding, invoiceCount, pay }
 }
 
-// ── VND formatting (compact tr₫ for headline, full ₫ for the debt sub) ────────
-function vndCompact(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace('.', ',')}tr₫`
-  if (n <= 0) return '0₫'
-  return `${n.toLocaleString('vi-VN')}₫`
-}
-function vndFull(n: number): string {
-  return `${Math.round(n).toLocaleString('vi-VN')}₫`
-}
 
 // Enum → catalog-key maps (labels resolved via t('status.<KEY>') / t('pay.<key>')).
 const STATUS_KEYS = ['ACTIVE', 'SUSPENDED', 'PENDING'] as const
@@ -96,6 +88,7 @@ const PAY_TONE: Record<OrgPay, { c: string; s: string }> = {
 
 export default function V2AdminOrgsPage() {
   const t = useTranslations('v2.adminOps.organizations')
+  const fmt = useFmt()
   const [activating, setActivating] = useState<number | null>(null)
   const [detail, setDetail] = useState<OrgRow | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -169,7 +162,7 @@ export default function V2AdminOrgsPage() {
           <div className="min-w-0">
             <p className="text-[15px] font-bold leading-[1.25] text-ga-ink">{org.name}</p>
             <p className="mt-0.5 text-[12.5px] text-ga-muted">
-              {org.planCode || t('noPlan')} · {t('studentsSuffix', { count: Number(org.studentCount ?? 0).toLocaleString('vi-VN') })}
+              {org.planCode || t('noPlan')} · {t('studentsSuffix', { count: fmt.num(Number(org.studentCount ?? 0)) })}
             </p>
           </div>
         </div>
@@ -181,7 +174,7 @@ export default function V2AdminOrgsPage() {
       className: 'w-[120px]',
       render: ({ org }) => (
         <p className="font-ga-display text-[18px] font-medium text-ga-ink">
-          {Number(org.seatLimit ?? 0).toLocaleString('vi-VN')}{' '}
+          {fmt.num(Number(org.seatLimit ?? 0))}{' '}
           <span className="ga-ui text-[12.5px] text-ga-muted">{t('seatsUnit')}</span>
         </p>
       ),
@@ -192,11 +185,11 @@ export default function V2AdminOrgsPage() {
       className: 'w-[180px]',
       render: ({ finance }) => (
         <div>
-          <p className="text-[14px] font-semibold text-ga-ink">{vndCompact(finance.totalInvoiced)}</p>
+          <p className="text-[14px] font-semibold text-ga-ink">{fmt.vndCompact(finance.totalInvoiced)}</p>
           <p className="mt-0.5 text-[11.5px] text-ga-muted">
             {t('issuedInvoices')}
             {finance.outstanding > 0 && (
-              <span style={{ color: 'var(--ga-red)' }}>{t('debtSuffix', { amount: vndFull(finance.outstanding) })}</span>
+              <span style={{ color: 'var(--ga-red)' }}>{t('debtSuffix', { amount: fmt.vnd(finance.outstanding) })}</span>
             )}
           </p>
         </div>
@@ -289,10 +282,10 @@ export default function V2AdminOrgsPage() {
         <GaStatStrip
           className="mb-6"
           items={[
-            { label: t('stats.issuedRevenue'), value: vndCompact(stats.revenue), tone: 'green', sub: t('stats.issuedRevenueSub') },
+            { label: t('stats.issuedRevenue'), value: fmt.vndCompact(stats.revenue), tone: 'green', sub: t('stats.issuedRevenueSub') },
             {
               label: t('stats.totalSeats'),
-              value: stats.seats.toLocaleString('vi-VN'),
+              value: fmt.num(stats.seats),
               tone: 'violet',
               sub: t('stats.totalSeatsSub', { count: stats.count }),
             },
@@ -346,6 +339,7 @@ const LOCKED_FIELD_KEYS = ['students', 'classes', 'scores', 'progress'] as const
 
 function OrgFinanceModal({ row, onClose }: { row: OrgRow | null; onClose: () => void }) {
   const t = useTranslations('v2.adminOps.organizations')
+  const fmt = useFmt()
   if (!row) return null
   const { org, finance, invoices } = row
   const issued = [...invoices]
@@ -354,9 +348,9 @@ function OrgFinanceModal({ row, onClose }: { row: OrgRow | null; onClose: () => 
 
   const facts: [string, React.ReactNode][] = [
     [t('modal.facts.plan'), org.planCode || t('noPlan')],
-    [t('modal.facts.seats'), `${(org.seatUsed ?? 0).toLocaleString('vi-VN')}/${(org.seatLimit ?? 0).toLocaleString('vi-VN')}`],
-    [t('modal.facts.issuedRevenue'), vndCompact(finance.totalInvoiced)],
-    [t('modal.facts.debt'), finance.outstanding > 0 ? vndFull(finance.outstanding) : '—'],
+    [t('modal.facts.seats'), `${fmt.num((org.seatUsed ?? 0))}/${fmt.num((org.seatLimit ?? 0))}`],
+    [t('modal.facts.issuedRevenue'), fmt.vndCompact(finance.totalInvoiced)],
+    [t('modal.facts.debt'), finance.outstanding > 0 ? fmt.vnd(finance.outstanding) : '—'],
     [t('modal.facts.payMethod'), t(`pay.${finance.pay}`)],
     [t('modal.facts.renewUntil'), fmtDate(org.validUntil)],
   ]
@@ -401,7 +395,7 @@ function OrgFinanceModal({ row, onClose }: { row: OrgRow | null; onClose: () => 
                   <div key={inv.id} className="grid min-w-[440px] grid-cols-[1fr_64px_110px_92px] items-center gap-2 px-3.5 py-2.5 text-[12.5px] lg:min-w-0" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                     <span className="text-ga-ink">{fmtDate(inv.periodStart)} – {fmtDate(inv.periodEnd)}</span>
                     <span className="text-right text-ga-muted">{inv.seats}</span>
-                    <span className="text-right font-semibold text-ga-ink">{vndFull(inv.amountVnd)}</span>
+                    <span className="text-right font-semibold text-ga-ink">{fmt.vnd(inv.amountVnd)}</span>
                     <span className="text-right">
                       <span className="px-1.5 py-0.5 text-[10.5px] font-bold" style={{ color: tone.c, background: tone.s }}>{stLabel}</span>
                     </span>

@@ -22,7 +22,7 @@ vi.mock('next/link', () => ({
   ),
 }))
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', () => ({ useLocale: () => 'vi',
   useTranslations: () => {
     const f = (k: string, v?: Record<string, unknown>) => (v ? `${k}:${Object.values(v).join(',')}` : k)
     ;(f as unknown as { has: (k: string) => boolean }).has = () => false

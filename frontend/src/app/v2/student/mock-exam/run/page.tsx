@@ -25,6 +25,7 @@ import { WeakAreasRecommendation } from '@/components/exam/WeakAreasRecommendati
 import { GaCap, GaCard, GaPageHdr, LoadingState, TkBadge, TkSeg } from '@/components/ui-v2'
 import { ExamShell, type ExamSaveState } from '@/components/exam/ExamShell'
 import { ExamRecoveryPanel, ExamTaking, SECTION_COLOR, type ActiveExamData } from './ExamTaking'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 /**
  * /v2/student/mock-exam/run — the Goethe mock-exam RUNNER (Galerie shell).
@@ -154,6 +155,7 @@ function parseSections(raw: unknown): ActiveExamData | null {
 
 function MockExamRunner() {
   const t = useTranslations('v2.student.mockExamRun')
+  const fmt = useFmt()
   const searchParams = useSearchParams()
   const deepLinkExamId = Number(searchParams.get('examId')) || null
   // `|| null` (không phải `??`): catalog phát `?level=` RỖNG khi pack thiếu cefrLevel — `??` sẽ
@@ -759,7 +761,7 @@ function MockExamRunner() {
                             {att.passed ? t('passed') : att.status === 'COMPLETED' ? t('failed') : t('inProgress')}
                           </p>
                           <p className="ga-ui mt-0.5 text-[12px] text-ga-subtle">
-                            {new Date(att.started_at).toLocaleString('vi-VN', {
+                            {fmt.dateTime(att.started_at, {
                               hour: '2-digit',
                               minute: '2-digit',
                               day: '2-digit',

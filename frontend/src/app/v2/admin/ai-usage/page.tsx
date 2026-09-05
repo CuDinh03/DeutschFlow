@@ -6,6 +6,7 @@ import { ArrowLeft, Search } from 'lucide-react'
 import { adminAiUsageApi, type AiUsageReport } from '@/lib/adminAiUsageApi'
 import { apiMessage } from '@/lib/api'
 import { GaPageHdr, GaCard, GaCap, GaBtn, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 const DEFAULT_PREFIX = 'EXAM_SPEAKING'
 
@@ -15,7 +16,6 @@ function isoDaysAgo(days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-const nf = new Intl.NumberFormat('vi-VN')
 const usd = (v: number) => `$${v.toFixed(v < 1 ? 4 : 2)}`
 
 /**
@@ -24,6 +24,7 @@ const usd = (v: number) => `$${v.toFixed(v < 1 ? 4 : 2)}`
  */
 export default function AdminAiUsagePage() {
   const t = useTranslations('v2.adminOps.aiUsage')
+  const fmt = useFmt()
   const [from, setFrom] = useState(isoDaysAgo(30))
   const [to, setTo] = useState(isoDaysAgo(0))
   const [prefix, setPrefix] = useState(DEFAULT_PREFIX)
@@ -97,10 +98,10 @@ export default function AdminAiUsagePage() {
         ) : report ? (
           <>
             <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="ai-usage-totals">
-              <Stat label={t('totalCalls')} value={nf.format(report.totals.calls)} />
-              <Stat label={t('totalTokens')} value={nf.format(report.totals.totalTokens)} />
-              <Stat label={t('totalStt')} value={`${nf.format(Math.round(report.totals.sttSeconds))} s`} />
-              <Stat label={t('totalCost')} value={`${nf.format(report.totals.estVnd)} ₫`} sub={`${usd(report.totals.estUsd)} · ${t('rateNote', { rate: nf.format(report.usdVndRate) })}`} />
+              <Stat label={t('totalCalls')} value={fmt.num(report.totals.calls)} />
+              <Stat label={t('totalTokens')} value={fmt.num(report.totals.totalTokens)} />
+              <Stat label={t('totalStt')} value={`${fmt.num(Math.round(report.totals.sttSeconds))} s`} />
+              <Stat label={t('totalCost')} value={`${fmt.num(report.totals.estVnd)} ₫`} sub={`${usd(report.totals.estUsd)} · ${t('rateNote', { rate: fmt.num(report.usdVndRate) })}`} />
             </section>
 
             <GaCard className="overflow-x-auto p-4">
@@ -126,12 +127,12 @@ export default function AdminAiUsagePage() {
                       <tr key={i}>
                         <td className="py-2 pr-3 font-semibold text-ga-ink">{r.feature || '—'}</td>
                         <td className="py-2 pr-3 text-ga-muted">{r.model || '—'}</td>
-                        <td className="py-2 pr-3 text-right tabular-nums">{nf.format(r.calls)}</td>
-                        <td className="py-2 pr-3 text-right tabular-nums">{nf.format(r.promptTokens)}</td>
-                        <td className="py-2 pr-3 text-right tabular-nums">{nf.format(r.cachedPromptTokens)}</td>
-                        <td className="py-2 pr-3 text-right tabular-nums">{nf.format(r.completionTokens)}</td>
-                        <td className="py-2 pr-3 text-right tabular-nums">{nf.format(r.totalTokens)}</td>
-                        <td className="py-2 pr-3 text-right tabular-nums">{nf.format(r.estVnd)} ₫ <span className="text-ga-muted">({usd(r.estUsd)})</span></td>
+                        <td className="py-2 pr-3 text-right tabular-nums">{fmt.num(r.calls)}</td>
+                        <td className="py-2 pr-3 text-right tabular-nums">{fmt.num(r.promptTokens)}</td>
+                        <td className="py-2 pr-3 text-right tabular-nums">{fmt.num(r.cachedPromptTokens)}</td>
+                        <td className="py-2 pr-3 text-right tabular-nums">{fmt.num(r.completionTokens)}</td>
+                        <td className="py-2 pr-3 text-right tabular-nums">{fmt.num(r.totalTokens)}</td>
+                        <td className="py-2 pr-3 text-right tabular-nums">{fmt.num(r.estVnd)} ₫ <span className="text-ga-muted">({usd(r.estUsd)})</span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -158,9 +159,9 @@ export default function AdminAiUsagePage() {
                       {report.stt.map((r, i) => (
                         <tr key={i}>
                           <td className="py-2 pr-3 font-semibold text-ga-ink">{r.feature || '—'}</td>
-                          <td className="py-2 pr-3 text-right tabular-nums">{nf.format(r.calls)}</td>
-                          <td className="py-2 pr-3 text-right tabular-nums">{nf.format(Math.round(r.seconds))}</td>
-                          <td className="py-2 pr-3 text-right tabular-nums">{nf.format(r.estVnd)} ₫</td>
+                          <td className="py-2 pr-3 text-right tabular-nums">{fmt.num(r.calls)}</td>
+                          <td className="py-2 pr-3 text-right tabular-nums">{fmt.num(Math.round(r.seconds))}</td>
+                          <td className="py-2 pr-3 text-right tabular-nums">{fmt.num(r.estVnd)} ₫</td>
                         </tr>
                       ))}
                     </tbody>
@@ -189,9 +190,9 @@ export default function AdminAiUsagePage() {
                         <tr key={r.sessionId}>
                           <td className="py-2 pr-3 font-semibold text-ga-ink">#{r.sessionId}</td>
                           <td className="py-2 pr-3 text-ga-muted">{r.features}</td>
-                          <td className="py-2 pr-3 text-right tabular-nums">{nf.format(r.calls)}</td>
-                          <td className="py-2 pr-3 text-right tabular-nums">{nf.format(r.totalTokens)}</td>
-                          <td className="py-2 pr-3 text-right tabular-nums">{nf.format(r.estVnd)} ₫</td>
+                          <td className="py-2 pr-3 text-right tabular-nums">{fmt.num(r.calls)}</td>
+                          <td className="py-2 pr-3 text-right tabular-nums">{fmt.num(r.totalTokens)}</td>
+                          <td className="py-2 pr-3 text-right tabular-nums">{fmt.num(r.estVnd)} ₫</td>
                         </tr>
                       ))}
                     </tbody>

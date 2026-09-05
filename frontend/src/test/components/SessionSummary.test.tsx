@@ -10,7 +10,7 @@ import { SessionSummary } from '@/components/features/ai-speaking/SessionSummary
 import type { ChatMessage } from '@/stores/useChatStore'
 import type { ConversationReport } from '@/lib/aiSpeakingApi'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (k: string) => k }))
+vi.mock('next-intl', () => ({ useLocale: () => 'vi', useTranslations: () => (k: string) => k }))
 
 const userTurns = (n: number): ChatMessage[] =>
   Array.from({ length: n }, (_, i) => ({ id: `u${i}`, role: 'user', contentDe: `Satz ${i}` })) as ChatMessage[]

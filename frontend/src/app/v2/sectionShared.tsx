@@ -13,23 +13,9 @@ import { cn } from '@/lib/utils'
  */
 
 // ── Formatters ────────────────────────────────────────────────────────────────
-export function fmtVnd(n: number): string {
-  if (!Number.isFinite(n)) return '—'
-  if (Math.abs(n) >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}tỷ₫`
-  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}tr₫`
-  if (Math.abs(n) >= 1_000) return `${Math.round(n / 1_000)}k₫`
-  return `${Math.round(n)}₫`
-}
-
-export function fmtDateTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
-  } catch {
-    return iso
-  }
-}
-
-export const nfVN = new Intl.NumberFormat('vi-VN')
+// 06/09/2026 (F-I18N-04): fmtVnd / fmtDateTime / nfVN ép 'vi-VN' đã chuyển sang lib/i18n/format.ts
+// (hàm thuần) + hook useFmt() (theo locale UI). Trang dùng `const fmt = useFmt()` →
+// fmt.num / fmt.date / fmt.dateTime / fmt.vnd / fmt.vndCompact.
 
 // ── Section card (= proto AdSection) ────────────────────────────────────────────
 export function GaSection({

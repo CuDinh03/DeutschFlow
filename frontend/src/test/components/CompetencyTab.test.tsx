@@ -9,7 +9,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { CompetencyTab } from '@/app/v2/teacher/tc-reports/CompetencyTab'
 import type { ClassCompetency } from '@/lib/teacherCompetencyApi'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (k: string) => k }))
+vi.mock('next-intl', () => ({ useLocale: () => 'vi', useTranslations: () => (k: string) => k }))
 
 describe('CompetencyTab', () => {
   it('shows the empty state when there are no can-dos', () => {

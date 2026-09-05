@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import useAdminData from '@/hooks/useAdminData'
 import { listMedia, type MediaAsset } from '@/lib/mediaApi'
 import { GaPageHdr, GaBtn, GaStatStrip } from '@/components/ui-v2'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // ── Blue header accent (media screen overrides admin-navy chrome) ─────────────
 const BLUE = '#2F6FC9'
@@ -35,6 +36,7 @@ function fmtSize(bytes: number): string {
 
 export default function V2AdminMediaPage() {
   const t = useTranslations('v2.adminContent.media')
+  const fmt = useFmt()
   const tc = useTranslations('v2.common')
   const { data, loading, error, reload } = useAdminData<MediaAsset[]>({
     initialData: [],
@@ -77,10 +79,10 @@ export default function V2AdminMediaPage() {
         <GaStatStrip
           className="mb-6"
           items={[
-            { label: t('statTotal'), value: stats.total.toLocaleString('vi-VN'), tone: 'blue' },
+            { label: t('statTotal'), value: fmt.num(stats.total), tone: 'blue' },
             { label: t('statSize'), value: fmtSize(stats.size), tone: 'orange' },
-            { label: t('statAi'), value: stats.ai.toLocaleString('vi-VN'), tone: 'violet' },
-            { label: t('statVideo'), value: stats.video.toLocaleString('vi-VN'), tone: 'green' },
+            { label: t('statAi'), value: fmt.num(stats.ai), tone: 'violet' },
+            { label: t('statVideo'), value: fmt.num(stats.video), tone: 'green' },
           ]}
         />
 

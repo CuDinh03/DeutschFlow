@@ -6,6 +6,7 @@ import { ChevronRight, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import api, { apiMessage } from '@/lib/api'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Báo cáo hệ thống (admin) — navy HUB, condensed (W1.7 migrate admin/reports).
@@ -37,6 +38,7 @@ const CHILD_REPORTS = [
 
 export default function V2AdminReportsPage() {
   const t = useTranslations('v2.adminContent.reports')
+  const fmt = useFmt()
   const tc = useTranslations('v2.common')
   const router = useRouter()
   const [overview, setOverview] = useState<Overview | null>(null)
@@ -248,7 +250,7 @@ export default function V2AdminReportsPage() {
                   <span className="text-[12.5px] text-ga-muted">W{r.currentWeek}·S{r.currentSessionIndex}</span>
                   <span className="text-[13px] text-ga-ink">{r.completedSessions}</span>
                   <span><span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-accent)', background: 'var(--ga-side-active)' }}>{r.planProgressPercent}%</span></span>
-                  <span className="text-[12px] text-ga-muted">{r.lastStudyAt ? new Date(r.lastStudyAt).toLocaleDateString('vi-VN') : '—'}</span>
+                  <span className="text-[12px] text-ga-muted">{r.lastStudyAt ? fmt.date(r.lastStudyAt) : '—'}</span>
                 </div>
               ))}
             </div>

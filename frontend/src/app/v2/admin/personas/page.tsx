@@ -14,6 +14,7 @@ import {
 } from '@/lib/interviewDomainApi'
 import { GaPageHdr, GaBtn, GaCap, GaIcon, GaStatStrip, TkModal, TkSeg, type TkSegOption } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // Tier-colored badge (BEGINNER green / INTERMEDIATE blue / ADVANCED violet; CEFR-aware).
 function tierTone(d: string | null | undefined): { c: string; s: string } {
@@ -97,6 +98,7 @@ function parseWeightsPct(weightJson: string): Record<string, number> {
 
 export default function V2AdminPersonasPage() {
   const t = useTranslations('v2.adminContent.personas')
+  const fmt = useFmt()
   const tc = useTranslations('v2.common')
   const criterionLabel = (k: string): string =>
     CRITERION_KEY[k] ? t(CRITERION_KEY[k]) : k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
@@ -224,7 +226,7 @@ export default function V2AdminPersonasPage() {
             { label: t('statTotal'), value: stats.total, tone: 'violet' },
             { label: t('statActive'), value: `${stats.activeN}/${stats.total}`, tone: 'green', sub: t('statActiveSub') },
             { label: t('statIndustries'), value: stats.industries, tone: 'blue' },
-            { label: t('statSessions'), value: stats.sessions.toLocaleString('vi-VN'), tone: 'orange' },
+            { label: t('statSessions'), value: fmt.num(stats.sessions), tone: 'orange' },
           ]}
         />
 
@@ -290,7 +292,7 @@ export default function V2AdminPersonasPage() {
                             <span className="inline-flex items-center gap-1"><MessageSquareText size={12} className="text-ga-subtle" /> {p.questionStyle}</span>
                           )}
                           {p.tone && <span className="inline-flex items-center gap-1"><Mic size={12} className="text-ga-subtle" /> {p.tone}</span>}
-                          <span className="inline-flex items-center gap-1"><Users size={12} className="text-ga-subtle" /> {t('sessionsSuffix', { count: (data.sessionsByPersona[p.code] ?? 0).toLocaleString('vi-VN') })}</span>
+                          <span className="inline-flex items-center gap-1"><Users size={12} className="text-ga-subtle" /> {t('sessionsSuffix', { count: fmt.num((data.sessionsByPersona[p.code] ?? 0)) })}</span>
                         </div>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-2">

@@ -12,6 +12,7 @@ import {
 } from '@/lib/orgApi'
 import { seatMetaOf } from '@/lib/orgSeats'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Org dashboard OWNER (GaOrgDashboard) — teal (role=org). Góc nhìn GIÁM ĐỐC: sức khoẻ trung tâm
@@ -34,6 +35,7 @@ type Src<T> = { state: 'loading' } | { state: 'ok'; data: T } | { state: 'error'
 
 export function OrgOwnerDashboard() {
   const t = useTranslations('v2.org.overview')
+  const fmt = useFmt()
   const tc = useTranslations('v2.common')
   const router = useRouter()
   const [summary, setSummary] = useState<OrgSummary | null>(null)
@@ -134,7 +136,7 @@ export function OrgOwnerDashboard() {
           items={[
             {
               label: t('stats.seatsUsed'),
-              value: summary && seats ? (seats.unlimited ? summary.seatUsed.toLocaleString('vi-VN') : `${summary.seatUsed}/${summary.seatLimit}`) : '—',
+              value: summary && seats ? (seats.unlimited ? fmt.num(summary.seatUsed) : `${summary.seatUsed}/${summary.seatLimit}`) : '—',
               // seats=null (summary chưa về) KHÔNG hiển thị "không giới hạn" — chỉ '—'.
               sub: seats ? (seats.unlimited ? t('stats.capacityUnlimited') : t('stats.capacity', { pct: seats.pct ?? 0 })) : '—',
               tone: 'teal',
@@ -153,7 +155,7 @@ export function OrgOwnerDashboard() {
             },
             {
               label: t('stats.tokensThisMonth'),
-              value: an ? an.tokensThisMonth.toLocaleString('vi-VN') : analytics.state === 'error' ? '—' : '…',
+              value: an ? fmt.num(an.tokensThisMonth) : analytics.state === 'error' ? '—' : '…',
               sub: analytics.state === 'error' ? t('statUnavailable') : an?.poolUnlimited ? t('stats.poolUnlimited') : an && an.monthlyTokenPool > 0 ? t('stats.poolPercent', { pct: Math.round(an.poolUsagePercent) }) : t('stats.noPool'),
               tone: 'green',
             },
@@ -225,7 +227,7 @@ export function OrgOwnerDashboard() {
                 <GaCap className="mb-2 mt-5 block">{t('tokenPoolCap')}</GaCap>
                 <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 lg:flex-nowrap lg:gap-x-0">
                   <span className="font-ga-display text-[20px] font-medium text-ga-ink">{Math.round(an.poolUsagePercent)}%</span>
-                  <span className="min-w-0 break-words text-[12px] text-ga-muted">{an.tokensThisMonth.toLocaleString('vi-VN')} / {an.monthlyTokenPool.toLocaleString('vi-VN')}</span>
+                  <span className="min-w-0 break-words text-[12px] text-ga-muted">{fmt.num(an.tokensThisMonth)} / {fmt.num(an.monthlyTokenPool)}</span>
                 </div>
                 <span className="block h-2 bg-ga-bg"><span className="block h-full" style={{ width: `${Math.min(100, an.poolUsagePercent)}%`, background: an.poolUsagePercent >= 90 ? 'var(--ga-red)' : an.poolUsagePercent >= 70 ? 'var(--ga-orange)' : 'var(--ga-green)' }} /></span>
                 {/* 2 kênh token (26/07): pool giờ thuần chi phí GV — nói rõ để OWNER khỏi tưởng HV tiêu vào đây */}
