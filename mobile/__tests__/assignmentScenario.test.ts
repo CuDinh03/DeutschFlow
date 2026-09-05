@@ -13,7 +13,7 @@ jest.mock('expo-file-system/legacy', () => ({
 }))
 
 import api from '@/lib/api'
-import { fetchAssignmentScenario, scenarioTopic } from '@/lib/studentClassesApi'
+import { fetchAssignmentScenario, scenarioTopic, SESSION_TOPIC_MAX } from '@/lib/studentClassesApi'
 import { speakingApi } from '@/lib/speakingApi'
 
 const get = api.get as unknown as jest.Mock
@@ -50,5 +50,28 @@ describe('speakingApi.createSession — assignmentId đi vào body (id dòng bà
     expect(post.mock.calls[0][1]).toMatchObject({ sessionMode: 'LESSON', persona: 'DEFAULT', assignmentId: 777 })
     await speakingApi.createSession({ topic: 't', cefrLevel: 'A2', persona: 'LUKAS', sessionMode: 'COMMUNICATION' })
     expect(post.mock.calls[1][1]).toMatchObject({ assignmentId: null })
+  })
+})
+
+describe('scenarioTopic — trần 200 ký tự của backend (CreateSessionRequest.topic @Size 200)', () => {
+  test('ngắn → giữ nguyên định dạng web', () => {
+    const s = scenarioTopic({ topic: 'Im Restaurant', scenarioDescription: 'Bestellen.', followUpQuestions: 'Was?' })
+    expect(s).toBe('Chủ đề: Im Restaurant\n\nMô tả chi tiết: Bestellen.\n\nGợi ý: Was?')
+    expect(s.length).toBeLessThanOrEqual(SESSION_TOPIC_MAX)
+  })
+  test('dài → ≤ 200 ký tự, giữ chủ đề + đầu mô tả có dấu …, bỏ Gợi ý', () => {
+    const desc = 'Sie sind im Restaurant und möchten bestellen. '.repeat(8)
+    const s = scenarioTopic({ topic: 'Im Restaurant bestellen', scenarioDescription: desc, followUpQuestions: 'Was möchten Sie trinken?' })
+    expect(s.length).toBeLessThanOrEqual(SESSION_TOPIC_MAX)
+    expect(s.startsWith('Chủ đề: Im Restaurant bestellen\n\nMô tả chi tiết: Sie sind im Restaurant')).toBe(true)
+    expect(s.endsWith('…')).toBe(true)
+    expect(s).not.toContain('Gợi ý')
+  })
+  test('mô tả vừa khít trần → không thêm …', () => {
+    const head = 'Chủ đề: T\n\nMô tả chi tiết: '
+    const desc = 'x'.repeat(SESSION_TOPIC_MAX - head.length - 1)
+    const s = scenarioTopic({ topic: 'T', scenarioDescription: desc, followUpQuestions: 'nhiều gợi ý làm vượt trần' })
+    expect(s).toBe(head + desc)
+    expect(s.length).toBeLessThanOrEqual(SESSION_TOPIC_MAX)
   })
 })
