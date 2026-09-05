@@ -12,8 +12,18 @@ import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { openManageSubscriptions, openRefundRequest } from '@/lib/iapManage'
 import { getAiConsent, resetAiConsent, setAiConsent } from '@/lib/aiConsent'
 import { Screen, Card, ThemedText, Icon, Pill, ListRow, Caption, FadeIn, useTabBarClearance } from '@/components/ui'
+import * as Application from 'expo-application'
+import * as Updates from 'expo-updates'
+import { formatAppVersion } from '@/lib/appVersion'
 
 export default function ProfileScreen() {
+  // Phiên bản thật của bản cài + OTA đang chạy (trước đây gõ cứng "v1.0.0" — lệch bản 1.0.1).
+  const appVersionLabel = formatAppVersion({
+    version: Application.nativeApplicationVersion,
+    build: Application.nativeBuildVersion,
+    updateId: Updates.updateId,
+    isEmbeddedLaunch: Updates.isEmbeddedLaunch,
+  })
   const theme = useTheme()
   const c = theme.colors
   // Thanh tab liquid-glass nổi đè lên nội dung — chừa đáy cho mục cuối.
@@ -357,7 +367,7 @@ export default function ProfileScreen() {
         </View>
 
         <ThemedText variant="caption" color="faint" align="center">
-          MyDeutschFlow v1.0.0 • iOS/Android
+          {appVersionLabel}
         </ThemedText>
       </FadeIn>
     </Screen>
