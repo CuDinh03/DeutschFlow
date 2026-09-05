@@ -18,6 +18,7 @@ import {
   Link2, MessageSquare, Mic, Music, Paperclip, Square, Upload, Video as VideoIcon, X, RotateCcw,
 } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import {
   fetchAssignmentDetail, fetchAssignmentMaterials, fetchAssignmentMaterialUrl, isAwaitingTeacher, isFinalGrade, isSubmittedStatus, submitAssignment, uploadAssignmentFile, MAX_UPLOAD_BYTES, type AssignmentMaterial, type MaterialKind, type StudentAssignment, type UploadFile, fetchAssignmentScenario, scenarioTopic,
@@ -75,6 +76,7 @@ export default function AssignmentDetail() {
     enabled: Number.isFinite(assignmentId),
     staleTime: 30_000,
   })
+  const pull = usePullRefresh(detailQ.refetch)
 
   const [content, setContent] = useState('')
   const [file, setFile] = useState<UploadFile | null>(null)
@@ -141,7 +143,7 @@ export default function AssignmentDetail() {
       >
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], gap: space[5] }}
-          refreshControl={<RefreshControl refreshing={detailQ.isRefetching} onRefresh={() => void detailQ.refetch()} />}
+          refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={() => void pull.onRefresh()} />}
           keyboardShouldPersistTaps="handled"
         >
           <StatusRow assignment={a} />
