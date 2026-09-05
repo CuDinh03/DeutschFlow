@@ -337,11 +337,16 @@ export default function DashboardScreen() {
           ) : null}
 
           {dueSrs > 0 ? (
-            <SpotlightTarget id={SPOTLIGHT_TARGETS.homeSrsCard}>
+            // Lề đặt trên neo, không trên Card: neo đo đúng thẻ nên khung vàng của
+            // tour SRS ôm sát thẻ thay vì ôm cả lề màn hình (QA 05/09).
+            <SpotlightTarget
+              id={SPOTLIGHT_TARGETS.homeSrsCard}
+              style={{ marginHorizontal: space[5], marginTop: space[4] }}
+            >
             <Card
               onPress={() => router.push('/(student)/srs')}
               bordered
-              style={{ marginHorizontal: space[5], marginTop: space[4], borderColor: theme.colors.accentSoft }}
+              style={{ borderColor: theme.colors.accentSoft }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>

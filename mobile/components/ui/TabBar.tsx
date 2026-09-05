@@ -346,7 +346,6 @@ function TabItem({ icon: LucideComponent, label, focused, onPress, onLayout, spo
 
   return (
     <Pressable
-      ref={spotlightRef}
       onPress={onPress}
       onLayout={onLayout}
       onPressIn={() => {
@@ -365,12 +364,17 @@ function TabItem({ icon: LucideComponent, label, focused, onPress, onLayout, spo
         height: BAR_HEIGHT,
       }}
     >
-      <Animated.View style={iconStyle}>
-        <LucideComponent size={23} color={tint} strokeWidth={focused ? 2.3 : 1.9} />
-      </Animated.View>
-      <ThemedText variant="caption" style={{ color: tint, fontSize: 11 }}>
-        {label}
-      </ThemedText>
+      {/* Neo spotlight = cụm icon + nhãn, không phải cả ô flex:1 cao bằng pill:
+          khung vàng của tour ôm sát phần đang giới thiệu và nằm gọn trong kính
+          (trước 05/09 khung tràn ra ngoài mép pill 8pt mỗi phía). */}
+      <View ref={spotlightRef} collapsable={false} style={{ alignItems: 'center', gap: 3 }}>
+        <Animated.View style={iconStyle}>
+          <LucideComponent size={23} color={tint} strokeWidth={focused ? 2.3 : 1.9} />
+        </Animated.View>
+        <ThemedText variant="caption" style={{ color: tint, fontSize: 11 }}>
+          {label}
+        </ThemedText>
+      </View>
     </Pressable>
   )
 }

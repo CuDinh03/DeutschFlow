@@ -8,10 +8,17 @@
 // cutout lets the user's tap reach the real UI, ending the tour with a real
 // action (finish is detected via the pathname change).
 //
-// The scrim + cutout are plain Views (oversized-border trick) animated with
-// Reanimated. Deliberately NOT an SVG mask: animated SVG attribute updates are
-// unreliable on Fabric in this repo (see the skill-tree <G> transform gotcha).
-// Not a Modal either — tap-through needs touches to reach the app underneath.
+// The scrim is four plain panels around the cutout plus four small corner
+// patches that round the cutout to match the ring (lib/spotlightScrim), all
+// animated with Reanimated transforms. Deliberately NOT an SVG mask: animated
+// SVG attribute updates are unreliable on Fabric in this repo (see the
+// skill-tree <G> transform gotcha). Not a Modal either — tap-through needs
+// touches to reach the app underneath.
+//
+// Anchors below the fold: a scrolling screen registers its ScrollView through
+// SpotlightScrollHostProvider (Screen does this), so the host scrolls the
+// anchor into view BEFORE measuring the cutout (lib/spotlightReveal) instead
+// of falling back to a centered tooltip nobody can act on.
 
 import {
   createContext,
@@ -29,15 +36,17 @@ import {
   Pressable,
   View,
   useWindowDimensions,
+  type ScrollView,
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
 import { router, usePathname } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
 import Animated, { useAnimatedStyle, useDerivedValue, useSharedValue, withSpring } from 'react-native-reanimated'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { ThemedText, Button } from '@/components/ui'
+import { ThemedText, Button, useTabBarClearance } from '@/components/ui'
 import { captureEvent } from '@/lib/analytics'
 import { useTourStore } from '@/stores/useTourStore'
 import { useReducedMotion } from '@/lib/useReducedMotion'
@@ -47,7 +56,9 @@ import {
   type SpotlightTourId,
   type SpotlightTourParams,
 } from './spotlightTours'
-import { scrimZones, scrimZoneTransform } from '@/lib/spotlightScrim'
+import { scrimZones, scrimZoneTransform, scrimCornerOffsets, scrimCornerRingOffset } from '@/lib/spotlightScrim'
+import { revealScrollOffset } from '@/lib/spotlightReveal'
+import { useSpotlightScrollHost, type SpotlightScrollHostRef } from './spotlightScrollHost'
 
 // Ink #161513 @ 50% — "lớp mờ nhẹ, chỉ sáng vùng đang chỉ" (owner, QA đợt 0
 // 05/09). Plan §5.1 từng chọn 68%, nhưng lớp mờ chưa từng hiện trên bản public
@@ -59,6 +70,11 @@ const CUTOUT_RADIUS = radius['2xl']
 const RING_WIDTH = 1.5
 const CARD_ESTIMATE = 210 // rough tooltip height used to pick above/below placement
 const CARET = 12
+// Chờ ScrollView cuộn xong rồi mới đo lại neo (iOS animated ≈ 300ms): đo lặp
+// tới khi hai lần liên tiếp bằng nhau, trần REVEAL_SETTLE_MS.
+const REVEAL_FIRST_POLL_MS = 120
+const REVEAL_POLL_MS = 70
+const REVEAL_SETTLE_MS = 900
 
 interface TargetRect {
   x: number
@@ -81,8 +97,19 @@ interface StepDisplay {
   rect: TargetRect | null
 }
 
+/** Anchor + the ScrollView (if any) that can bring it into view. */
+interface TargetEntry {
+  ref: RefObject<View | null>
+  scroll: SpotlightScrollHostRef | null
+}
+
+interface MeasuredTarget {
+  rect: TargetRect
+  entry: TargetEntry
+}
+
 interface SpotlightContextValue {
-  registerTarget: (id: string, ref: RefObject<View | null>) => void
+  registerTarget: (id: string, ref: RefObject<View | null>, scroll: SpotlightScrollHostRef | null) => void
   unregisterTarget: (id: string, ref: RefObject<View | null>) => void
   startTour: (tourId: SpotlightTourId, source: TourSource, params?: SpotlightTourParams) => void
   activeTourId: SpotlightTourId | null
@@ -93,12 +120,15 @@ const SpotlightCtx = createContext<SpotlightContextValue | null>(null)
 /** Register (and keep registered) an anchor for the given target id. */
 export function useSpotlightTarget(id?: string): RefObject<View | null> {
   const ctx = useContext(SpotlightCtx)
+  // Nearest scrolling ancestor (Screen scroll / SpotlightScrollHostProvider) —
+  // lets the host scroll this anchor into view before measuring it.
+  const scroll = useSpotlightScrollHost()
   const ref = useRef<View | null>(null)
   useEffect(() => {
     if (!id || !ctx) return
-    ctx.registerTarget(id, ref)
+    ctx.registerTarget(id, ref, scroll)
     return () => ctx.unregisterTarget(id, ref)
-  }, [ctx, id])
+  }, [ctx, id, scroll])
   return ref
 }
 
@@ -133,7 +163,20 @@ export function useSpotlightTour(): Pick<SpotlightContextValue, 'startTour' | 'a
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-function measureView(view: View | null): Promise<TargetRect | null> {
+/** ScrollView's content container — its window-y slides with the scroll offset. */
+function innerViewOf(host: ScrollView): View | null {
+  // Runtime method of RN's ScrollView (Libraries/Components/ScrollView/ScrollView.js)
+  // that the bundled .d.ts leaves out — guard instead of trusting the cast.
+  const h = host as unknown as { getInnerViewRef?: () => View | null }
+  return typeof h.getInnerViewRef === 'function' ? h.getInnerViewRef() : null
+}
+
+function cornerTransform(c: { x: number; y: number }) {
+  'worklet'
+  return { transform: [{ translateX: c.x }, { translateY: c.y }] }
+}
+
+function measureView(view: Pick<View, 'measureInWindow'> | null): Promise<TargetRect | null> {
   return new Promise((resolve) => {
     if (!view) return resolve(null)
     view.measureInWindow((x, y, width, height) => {
@@ -149,6 +192,9 @@ function measureView(view: View | null): Promise<TargetRect | null> {
 export function SpotlightTourProvider({ children }: { children: ReactNode }) {
   const theme = useTheme()
   const { width: winW, height: winH } = useWindowDimensions()
+  const insets = useSafeAreaInsets()
+  // Thanh tab kính nổi đè lên nội dung: neo phải được cuộn lên TRÊN nó.
+  const tabClearance = useTabBarClearance()
   const pathname = usePathname()
   // Giảm chuyển động: khung khoét sáng nhảy thẳng sang bước kế thay vì bay bằng
   // spring. Tour vẫn dùng được y nguyên, chỉ bỏ phần chuyển động (F-7).
@@ -156,7 +202,7 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
   const reducedMotionRef = useRef(reducedMotion)
   reducedMotionRef.current = reducedMotion
 
-  const targetsRef = useRef(new Map<string, RefObject<View | null>[]>())
+  const targetsRef = useRef(new Map<string, TargetEntry[]>())
   const [active, setActive] = useState<ActiveTour | null>(null)
   const [display, setDisplay] = useState<StepDisplay | null>(null)
   const activeRef = useRef<ActiveTour | null>(null)
@@ -177,41 +223,84 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
     void useTourStore.getState().hydrate()
   }, [])
 
-  const registerTarget = useCallback((id: string, ref: RefObject<View | null>) => {
-    const list = targetsRef.current.get(id) ?? []
-    targetsRef.current.set(id, [...list.filter((r) => r !== ref), ref])
-  }, [])
+  const registerTarget = useCallback(
+    (id: string, ref: RefObject<View | null>, scroll: SpotlightScrollHostRef | null) => {
+      const list = targetsRef.current.get(id) ?? []
+      targetsRef.current.set(id, [...list.filter((e) => e.ref !== ref), { ref, scroll }])
+    },
+    [],
+  )
 
   const unregisterTarget = useCallback((id: string, ref: RefObject<View | null>) => {
     const list = targetsRef.current.get(id) ?? []
     targetsRef.current.set(
       id,
-      list.filter((r) => r !== ref),
+      list.filter((e) => e.ref !== ref),
     )
   }, [])
 
-  const measureTarget = useCallback(async (id: string): Promise<TargetRect | null> => {
-    const refs = targetsRef.current.get(id) ?? []
+  const measureTarget = useCallback(async (id: string): Promise<MeasuredTarget | null> => {
+    const entries = targetsRef.current.get(id) ?? []
     // Most recently registered first — remounted screens replace stale anchors.
-    for (let i = refs.length - 1; i >= 0; i--) {
-      const rect = await measureView(refs[i].current)
-      if (rect) return rect
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const rect = await measureView(entries[i].ref.current)
+      if (rect) return { rect, entry: entries[i] }
     }
     return null
   }, [])
 
   /** Poll for the target (it may still be mounting after a tab switch). */
-  const waitForRect = useCallback(
-    async (id: string, timeoutMs: number): Promise<TargetRect | null> => {
+  const waitForTarget = useCallback(
+    async (id: string, timeoutMs: number): Promise<MeasuredTarget | null> => {
       const deadline = Date.now() + timeoutMs
       for (;;) {
-        const rect = await measureTarget(id)
-        if (rect) return rect
+        const found = await measureTarget(id)
+        if (found) return found
         if (Date.now() > deadline) return null
         await sleep(90)
       }
     },
     [measureTarget],
+  )
+
+  // Neo nằm ngoài dải nhìn thấy (dưới thanh tab, trên safe-area) mà màn có
+  // ScrollView → cuộn để neo về giữa dải rồi đo lại. Trước 05/09 bước như vậy
+  // rơi về "màn mờ phẳng + tooltip giữa màn", người dùng không biết bấm đâu.
+  // Offset hiện tại suy từ mép ScrollView − mép khung nội dung (lib/spotlightReveal),
+  // không cần theo dõi onScroll ở từng màn.
+  const revealTarget = useCallback(
+    async ({ rect, entry }: MeasuredTarget): Promise<TargetRect> => {
+      const host = entry.scroll?.current
+      if (!host) return rect
+      const viewport = await measureView(host.getNativeScrollRef?.() ?? null)
+      const inner = await measureView(innerViewOf(host))
+      if (!viewport || !inner) return rect
+      const y = revealScrollOffset({
+        cutout: { y: rect.y - CUTOUT_PAD, height: rect.height + CUTOUT_PAD * 2 },
+        band: {
+          top: Math.max(viewport.y, insets.top),
+          bottom: Math.min(viewport.y + viewport.height, winH - tabClearance),
+        },
+        margin: space[3],
+        viewportTop: viewport.y,
+        innerTop: inner.y,
+      })
+      if (y === null) return rect
+      host.scrollTo({ y, animated: !reducedMotionRef.current })
+      // Đo tới khi hai lần liên tiếp trùng nhau (cuộn + layout đã yên); hết
+      // trần thì lấy lần đo cuối.
+      const deadline = Date.now() + REVEAL_SETTLE_MS
+      await sleep(REVEAL_FIRST_POLL_MS)
+      let prev = await measureView(entry.ref.current)
+      for (;;) {
+        await sleep(REVEAL_POLL_MS)
+        const cur = await measureView(entry.ref.current)
+        if (cur && prev && Math.abs(cur.y - prev.y) < 0.5 && Math.abs(cur.x - prev.x) < 0.5) return cur
+        if (Date.now() > deadline) return cur ?? prev ?? rect
+        prev = cur
+      }
+    },
+    [insets.top, tabClearance, winH],
   )
 
   const finish = useCallback((reason: 'completed' | 'skipped') => {
@@ -238,9 +327,14 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
       if (!step) return
       if (step.route) router.navigate(step.route)
       // Cross-screen targets need mount time; same-screen ones resolve on the first poll.
-      const raw = await waitForRect(step.targetId, step.route ? 4000 : 1800)
+      const found = await waitForTarget(step.targetId, step.route ? 4000 : 1800)
       if (runId !== runIdRef.current || activeRef.current !== tour) return
-      // Off-screen (e.g. below the fold in a ScrollView) → centered-tooltip fallback.
+      // Anchor below the fold (SRS card on Heute…) → scroll its ScrollView so the
+      // anchor sits mid-screen, then measure again. No-op without a scroll host
+      // (tab bar) or when it is already in view.
+      const raw = found ? await revealTarget(found) : null
+      if (runId !== runIdRef.current || activeRef.current !== tour) return
+      // Still off-screen (unscrollable / no host) → centered-tooltip fallback.
       const usable =
         raw && raw.y + raw.height > space[10] && raw.y < winH - space[10] && raw.x < winW && raw.x + raw.width > 0
           ? raw
@@ -275,7 +369,7 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
         `Bước ${index + 1} trên ${tour.steps.length}. ${step.title}. ${step.desc}`,
       )
     },
-    [waitForRect, winH, winW, hx, hy, hw, hh],
+    [waitForTarget, revealTarget, winH, winW, hx, hy, hw, hh],
   )
 
   const startTour = useCallback(
@@ -338,6 +432,33 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
   const scrimBottom = useAnimatedStyle(() => scrimZoneTransform(zones.value[1], winW, winH))
   const scrimLeft = useAnimatedStyle(() => scrimZoneTransform(zones.value[2], winW, winH))
   const scrimRight = useAnimatedStyle(() => scrimZoneTransform(zones.value[3], winW, winH))
+  // Bo tròn ô khoét: 4 tấm mờ để lại góc VUÔNG trong khi khung vàng bo góc
+  // (owner QA 05/09). Mỗi góc = miếng vá r×r (overflow hidden) chứa vòng khuyên
+  // màu mờ, tâm trùng góc trong → phần góc ngoài cung tròn bị phủ mờ, vùng sáng
+  // ôm đúng khung. Cũng chỉ animate translate như 4 tấm.
+  const corners = useDerivedValue(() =>
+    scrimCornerOffsets({ x: hx.value, y: hy.value, width: hw.value, height: hh.value }, CUTOUT_RADIUS),
+  )
+  const cornerTL = useAnimatedStyle(() => cornerTransform(corners.value[0]))
+  const cornerTR = useAnimatedStyle(() => cornerTransform(corners.value[1]))
+  const cornerBL = useAnimatedStyle(() => cornerTransform(corners.value[2]))
+  const cornerBR = useAnimatedStyle(() => cornerTransform(corners.value[3]))
+  const cornerPatch = {
+    position: 'absolute' as const,
+    left: 0,
+    top: 0,
+    width: CUTOUT_RADIUS,
+    height: CUTOUT_RADIUS,
+    overflow: 'hidden' as const,
+  }
+  const cornerRing = {
+    position: 'absolute' as const,
+    width: CUTOUT_RADIUS * 4,
+    height: CUTOUT_RADIUS * 4,
+    borderRadius: CUTOUT_RADIUS * 2,
+    borderWidth: CUTOUT_RADIUS,
+    borderColor: SCRIM,
+  }
   const scrimPanel = {
     position: 'absolute' as const,
     left: 0,
@@ -389,6 +510,11 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
                 <Animated.View pointerEvents="none" style={[scrimPanel, scrimBottom]} />
                 <Animated.View pointerEvents="none" style={[scrimPanel, scrimLeft]} />
                 <Animated.View pointerEvents="none" style={[scrimPanel, scrimRight]} />
+                {[cornerTL, cornerTR, cornerBL, cornerBR].map((cornerStyle, i) => (
+                  <Animated.View key={i} pointerEvents="none" style={[cornerPatch, cornerStyle]}>
+                    <View style={[cornerRing, scrimCornerRingOffset(i, CUTOUT_RADIUS)]} />
+                  </Animated.View>
+                ))}
                 <Animated.View
                   pointerEvents="none"
                   style={[

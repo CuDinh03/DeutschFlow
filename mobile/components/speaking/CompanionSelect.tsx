@@ -5,7 +5,7 @@
 // hub thi, không phải một sessionMode); "Luyện tập" (LESSON) đang KHOÁ theo
 // quyết định 02/09 — mở lại khi luồng lesson được làm mới.
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { MotiView } from 'moti'
 import { useQuery } from '@tanstack/react-query'
@@ -18,6 +18,7 @@ import { radius, space, useTheme } from '@/lib/theme'
 import { ThemedText, Icon, Button, useTabBarClearance } from '@/components/ui'
 import { SpotlightTarget } from '@/components/guide/SpotlightTour'
 import { SPOTLIGHT_TARGETS } from '@/components/guide/spotlightTours'
+import { SpotlightScrollHostProvider } from '@/components/guide/spotlightScrollHost'
 import {
   PERSONA_LIST,
   PERSONA_GROUPS,
@@ -83,6 +84,8 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
   // Thanh tab liquid-glass nổi đè lên nội dung — nút "Bắt đầu" cuối trang phải
   // nằm trên kính, không bị pill che.
   const tabClearance = useTabBarClearance(space[6])
+  // Cho tour host cuộn hàng mode vào tầm nhìn trước khi chiếu sáng (màn nhỏ).
+  const scrollRef = useRef<ScrollView | null>(null)
   // LESSON đang khoá — deep link cũ ?mode=LESSON rơi êm về Hội thoại.
   const [mode, setMode] = useState<SpeakingSessionMode>(
     initialMode && initialMode !== 'LESSON' ? initialMode : 'COMMUNICATION',
@@ -164,6 +167,7 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={{ flex: 1 }}
       contentContainerStyle={{ paddingBottom: tabClearance }}
       showsVerticalScrollIndicator={false}
@@ -175,10 +179,13 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
         </ThemedText>
       </View>
 
-      {/* Mode tabs — anchor cho coach mark speaking_intro (onboarding v1 §6) */}
+      {/* Mode tabs — anchor cho coach mark speaking_intro (onboarding v1 §6).
+          marginHorizontal thay paddingHorizontal: neo đo đúng hàng 4 ô nên khung
+          vàng ôm sát các ô thay vì ôm cả lề màn hình (QA 05/09). */}
+      <SpotlightScrollHostProvider value={scrollRef}>
       <SpotlightTarget
         id={SPOTLIGHT_TARGETS.speakingModeTabs}
-        style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: space[5], marginTop: space[4] }}
+        style={{ flexDirection: 'row', gap: space[2], marginHorizontal: space[5], marginTop: space[4] }}
       >
         {MODES.map((m) => {
           const active = mode === m.key
@@ -221,6 +228,7 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
           )
         })}
       </SpotlightTarget>
+      </SpotlightScrollHostProvider>
 
       {/* Group chips */}
       <ScrollView
