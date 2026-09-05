@@ -12,10 +12,13 @@ import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState
 import { usePlanStore } from '@/stores/usePlanStore'
 import { mapExam, examApi, type RawMockExam, type ExamVariant, type ExamAttempt } from '@/lib/examApi'
 import { trackFeatureAction } from '@/lib/analytics'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 const EXAM_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
 export default function ExamScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   const theme = useTheme()
   const { hasProAccess } = usePlanStore()
 
@@ -76,7 +79,7 @@ export default function ExamScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Thi thử Goethe" onBack={() => router.back()} />
+      <AppHeader title="Thi thử Goethe" onBack={goBack} />
 
       {hasProAccess ? (
         <View style={{ paddingHorizontal: space[5], paddingTop: space[2], paddingBottom: space[3], gap: space[2] }}>

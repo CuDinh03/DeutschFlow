@@ -22,6 +22,8 @@ import {
 import { attemptTotalScore, parseLesenItems, type AttemptResultDto, type ExamObjItem } from '@/lib/examApi'
 import { pollAsyncJob, AsyncJobFailedError, AsyncJobTimeoutError } from '@/lib/asyncJobs'
 import { trackFeatureAction } from '@/lib/analytics'
+import { useHardwareBack } from '@/hooks/useHardwareBack'
+import { PARENT_OF } from '@/lib/screenParents'
 
 // Auto-scored objective reading (Lesen) attempt. Listening/Writing/Speaking are
 // scored on the web; the app covers the true/false + single-choice items so a
@@ -64,12 +66,14 @@ export default function ExamAttemptScreen() {
     if (hasUnsavedAttempt) {
       confirmLeave(() => {
         allowLeaveRef.current = true
-        router.back()
+        router.navigate(PARENT_OF['exam-attempt'])
       })
       return
     }
-    router.back()
+    router.navigate(PARENT_OF['exam-attempt'])
   }, [hasUnsavedAttempt, confirmLeave])
+  // Back cứng Android cũng qua hộp xác nhận rời bài (Tabs không có stack nên beforeRemove không bắn).
+  useHardwareBack(handleBack)
 
   // Guard the swipe-back / hardware-back gesture too, not just the header button.
   useEffect(() => {
@@ -123,7 +127,7 @@ export default function ExamAttemptScreen() {
         Alert.alert(
           'Đang chấm bài',
           'Bài của bạn đã nộp thành công nhưng chấm đang lâu hơn bình thường. Điểm sẽ hiện trong Lịch sử thi ít phút nữa.',
-          [{ text: 'Đã hiểu', onPress: () => router.back() }],
+          [{ text: 'Đã hiểu', onPress: () => router.navigate(PARENT_OF['exam-attempt']) }],
         )
       } else if (e instanceof AsyncJobFailedError) {
         Alert.alert('Chấm bài thất bại', 'Hệ thống chấm gặp lỗi. Bạn hãy thử nộp lại.')
@@ -191,7 +195,7 @@ export default function ExamAttemptScreen() {
               }
             />
             <View style={{ alignItems: 'center', marginTop: space[1] }}>
-              <ThemedText variant="label" color="muted" onPress={() => router.back()}>
+              <ThemedText variant="label" color="muted" onPress={handleBack}>
                 Xong
               </ThemedText>
             </View>

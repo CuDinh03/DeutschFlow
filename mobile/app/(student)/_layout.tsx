@@ -1,4 +1,5 @@
 import { Redirect, Tabs } from 'expo-router'
+import { noteFocusedRoute } from '@/lib/screenParents'
 import { TabBar } from '@/components/ui/TabBar'
 import { SpotlightTourProvider } from '@/components/guide/SpotlightTour'
 import { ScreenTimeTracker } from '@/components/analytics/ScreenTimeTracker'
@@ -26,6 +27,14 @@ export default function StudentLayout() {
         // bình thường quanh nhịp freeze.
         screenOptions={{ headerShown: false, freezeOnBlur: true }}
         tabBar={(props) => <TabBar {...props} />}
+        // Nhớ tab chính đang mở để nút back của màn ẩn (href: null) quay về ĐÚNG tab đó thay vì
+        // Heute (backBehavior mặc định firstRoute) — xem lib/screenParents + hooks/useBackTo.
+        screenListeners={({ navigation }) => ({
+          state: () => {
+            const s = navigation.getState()
+            noteFocusedRoute(s.routes[s.index]?.name)
+          },
+        })}
       >
         <Tabs.Screen name="index" options={{ title: 'Heute' }} />
         <Tabs.Screen name="learn" options={{ title: 'Học' }} />

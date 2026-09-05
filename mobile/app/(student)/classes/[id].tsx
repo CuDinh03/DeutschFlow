@@ -19,10 +19,14 @@ import {
   AppHeader, Button, Caption, Card, EmptyState, ErrorState, Icon, IconButton, Pill, ProgressBar,
   Screen, SectionHeader, Skeleton, ThemedText, YellowSquare,
 } from '@/components/ui'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 type Tab = 'assignments' | 'grades' | 'teachers' | 'progress' | 'evaluation'
 
 export default function StudentClassDetail() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['classes/[id]'])
   const { id } = useLocalSearchParams<{ id: string }>()
   const classId = Number(id)
 
@@ -43,7 +47,7 @@ export default function StudentClassDetail() {
   if (detailQ.isLoading) {
     return (
       <Screen>
-        <AppHeader title="Đang tải lớp…" onBack={() => router.back()} />
+        <AppHeader title="Đang tải lớp…" onBack={goBack} />
         <View style={{ paddingHorizontal: space[5], gap: space[3] }}>
           <Skeleton height={120} />
           <Skeleton height={180} />
@@ -54,7 +58,7 @@ export default function StudentClassDetail() {
   if (detailQ.error || !detailQ.data) {
     return (
       <Screen>
-        <AppHeader title="Không mở được lớp" onBack={() => router.back()} />
+        <AppHeader title="Không mở được lớp" onBack={goBack} />
         <ErrorState
           message={detailQ.error ? apiMessage(detailQ.error) : 'Không tìm thấy lớp.'}
           onRetry={() => void detailQ.refetch()}
@@ -72,7 +76,7 @@ export default function StudentClassDetail() {
       <AppHeader
         title={detail.name}
         subtitle={`${detail.studentCount} học viên · ${detail.assignmentCount} bài tập`}
-        onBack={() => router.back()}
+        onBack={goBack}
         right={
           <IconButton
             icon={MessagesSquare}
@@ -109,7 +113,7 @@ export default function StudentClassDetail() {
         />
         <TabBar tab={tab} setTab={setTab} />
         {tab === 'assignments' && (
-          <AssignmentsTab
+          <AssignmentsTab classId={id}
             assignments={assignments}
             isError={assignmentsQ.isError}
             onRetry={() => void assignmentsQ.refetch()}
@@ -300,8 +304,8 @@ function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
 }
 
 function AssignmentsTab({
-  assignments, isError, onRetry,
-}: { assignments: StudentAssignment[]; isError: boolean; onRetry: () => void }) {
+  assignments, isError, onRetry, classId,
+}: { assignments: StudentAssignment[]; isError: boolean; onRetry: () => void; classId: string }) {
   if (assignments.length === 0 && isError) {
     return (
       <ErrorState
@@ -323,7 +327,7 @@ function AssignmentsTab({
         {assignments.map((a) => (
           <Card
             key={a.id}
-            onPress={() => router.push(`/(student)/assignments/${a.assignmentId}` as never)}
+            onPress={() => router.push({ pathname: '/(student)/assignments/[id]', params: { id: String(a.assignmentId), classId } })}
             accessibilityLabel={`Mở bài tập ${a.topic || 'bài tập'}`}
           >
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>

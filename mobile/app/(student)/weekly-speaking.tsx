@@ -15,6 +15,7 @@ import { radius, space, useTheme } from '@/lib/theme'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 interface WeeklyPrompt {
   id: number
@@ -32,6 +33,8 @@ interface WeeklySubmission {
 }
 
 export default function WeeklySpeakingScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   const theme = useTheme()
   const c = theme.colors
   const { hasProAccess } = usePlanStore()
@@ -75,7 +78,7 @@ export default function WeeklySpeakingScreen() {
   if (!hasProAccess) {
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Weekly Speaking" onBack={() => router.back()} />
+        <AppHeader title="Weekly Speaking" onBack={goBack} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
             icon={Lock}
@@ -91,7 +94,7 @@ export default function WeeklySpeakingScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Weekly Speaking" onBack={() => router.back()} />
+      <AppHeader title="Weekly Speaking" onBack={goBack} />
 
       <Screen
         scroll

@@ -11,6 +11,7 @@ import { Screen, Card, ThemedText, Icon, Pill, AppHeader, SectionHeader, Caption
 import { mapGrammarTopic, type GrammarTopic, type RawGrammarTopic } from '@/lib/grammarApi'
 import { skillTreeApi } from '@/lib/skillTreeApi'
 import { levelsFromTree, type CefrLevelState, type LevelState } from '@/lib/levelState'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 // Minimal shape of a useQueries result element the level block reads (avoids importing
 // the full UseQueryResult generic; the real element is structurally compatible).
@@ -49,6 +50,8 @@ const GENDER_HEX: ((c: ThemeColors) => string)[] = [
 ]
 
 export default function GrammarScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   const theme = useTheme()
   const c = theme.colors
   const [expandedCase, setExpandedCase] = useState<string | null>('nominativ')
@@ -101,7 +104,7 @@ export default function GrammarScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Ngữ pháp tiếng Đức" onBack={() => router.back()} />
+      <AppHeader title="Ngữ pháp tiếng Đức" onBack={goBack} />
 
       <Screen
         scroll
@@ -216,7 +219,7 @@ export default function GrammarScreen() {
                     onPress={() =>
                       router.push({
                         pathname: '/(student)/video-lesson',
-                        params: { caseName: kasus.key, title: `Video: ${kasus.label}` },
+                        params: { caseName: kasus.key, title: `Video: ${kasus.label}`, from: 'grammar' },
                       } as unknown as Href)
                     }
                     style={{

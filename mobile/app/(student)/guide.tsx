@@ -10,8 +10,12 @@ import { getDailyGoalMinutes } from '@/lib/dailyGoal'
 import { captureEvent } from '@/lib/analytics'
 import { GUIDE_ITEMS, FAQ, toneStyles, type GuideItem } from '@/components/guide/tourContent'
 import { PRO_UNLOCKED_FREE } from '@/lib/paywall'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 export default function GuideScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['guide'])
   const c = useTheme().colors
   const { startTour } = useSpotlightTour()
   // The iOS free build ships with no commercial PRO surface, so drop FAQ entries that mention it.
@@ -22,7 +26,7 @@ export default function GuideScreen() {
       <AppHeader
         title="Hướng dẫn"
         subtitle="Sổ tay học viên"
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)'))}
+        onBack={goBack}
       />
       <Screen scroll edges={[]} contentStyle={{ paddingBottom: space[10] }}>
       <View style={{ paddingHorizontal: space[5], paddingTop: space[4], gap: space[6] }}>

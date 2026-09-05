@@ -4,7 +4,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
+import { useFocusEffect, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { MessageCircle, MoreVertical, Send } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
@@ -20,6 +20,8 @@ import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Caption, EmptyState, ErrorState, Icon, Screen, Skeleton, ThemedText,
 } from '@/components/ui'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 // The open thread polls so a teacher's reply appears live. A NEW_MESSAGE push already invalidates
 // this query on arrival (usePushNotifications), so polling is the fallback for a missed foreground
@@ -28,6 +30,8 @@ import {
 // thread is idle (adaptivePollMs) — snappy when active, calm when quiet, to save battery + data.
 
 export default function MessageThreadScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['messages/[userId]'])
   const c = useTheme().colors
   const insets = useSafeAreaInsets()
   const qc = useQueryClient()
@@ -120,7 +124,7 @@ export default function MessageThreadScreen() {
       <AppHeader
         title={name}
         subtitle="Nhắn tin với giáo viên"
-        onBack={() => router.back()}
+        onBack={goBack}
         right={
           <Pressable
             accessibilityRole="button"
@@ -129,7 +133,7 @@ export default function MessageThreadScreen() {
             onPress={() =>
               userSafetyMenu(userId, name, () => {
                 void qc.invalidateQueries({ queryKey: ['conversations'] })
-                router.back()
+                goBack()
               })
             }
             style={{ padding: space[2] }}

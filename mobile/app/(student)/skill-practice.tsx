@@ -62,6 +62,8 @@ import { speakGerman, stopGermanSpeech, setGermanRecordingActive } from '@/lib/g
 import { useBlurGuard } from '@/hooks/useBlurGuard'
 import { findNextNode } from '@/lib/nextNode'
 import { LessonCompleteNav } from '@/components/LessonCompleteNav'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 type Result = { scorePercent: number; completed: boolean; xp: number } | null
 // Cap how long we hold the loading state waiting for the fresh tree before revealing the
@@ -77,6 +79,8 @@ export default function SkillPracticeScreen() {
 }
 
 function SkillPracticeRunner() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['skill-practice'])
   const c = useTheme().colors
   const qc = useQueryClient()
   const params = useLocalSearchParams<{ nodeId: string; title?: string }>()
@@ -153,7 +157,7 @@ function SkillPracticeRunner() {
       <AppHeader
         title={params.title ?? data?.titleVi ?? 'Luyện 4 kỹ năng'}
         subtitle="Nghe · Nói · Đọc · Viết"
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)/lernweg'))}
+        onBack={goBack}
       />
 
       {isLoading ? (

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Alert, KeyboardAvoidingView, Platform, View } from 'react-native'
-import { router } from 'expo-router'
 import { useMutation } from '@tanstack/react-query'
 import { KeyRound } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
@@ -8,6 +7,8 @@ import { space } from '@/lib/theme'
 import { profileApi, validatePasswordChange, PASSWORD_MIN_LENGTH } from '@/lib/profileApi'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { AppHeader, Button, Caption, Card, Icon, Screen, TextField, ThemedText } from '@/components/ui'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 /**
  * Đổi mật khẩu trong app (N4, đợt 2 plan nâng cấp mobile 05/09). Trước đây người
@@ -16,6 +17,8 @@ import { AppHeader, Button, Caption, Card, Icon, Screen, TextField, ThemedText }
  * kẻo người dùng kẹt với token đã chết tới lần gọi API kế.
  */
 export default function ChangePasswordScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['settings/password'])
   const logout = useAuthStore((s) => s.logout)
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
@@ -50,7 +53,7 @@ export default function ChangePasswordScreen() {
   return (
     <Screen edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <AppHeader title="Đổi mật khẩu" subtitle="Bảo mật tài khoản" onBack={() => router.back()} />
+        <AppHeader title="Đổi mật khẩu" subtitle="Bảo mật tài khoản" onBack={goBack} />
 
         <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingTop: space[2], paddingBottom: space[8], gap: space[5] }}>
           <Card tone="sunken" style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>

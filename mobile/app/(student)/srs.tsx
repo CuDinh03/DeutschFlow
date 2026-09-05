@@ -21,6 +21,7 @@ import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { Screen, ThemedText, Icon, ProgressBar, AppHeader, EmptyState, ErrorState, Skeleton, Caption, YellowSquare, VocabGlyphTile } from '@/components/ui'
 import type { ThemeColors } from '@/lib/theme'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 interface DueCard {
   id: string
@@ -62,6 +63,8 @@ const SWIPE_THRESHOLD = 80
 const SWIPE_OUT = 400
 
 export default function SrsScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   const theme = useTheme()
   const c = theme.colors
   const [flipped, setFlipped] = useState(false)
@@ -187,7 +190,7 @@ export default function SrsScreen() {
   if (isLoading) {
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Ôn tập SRS" onBack={() => router.back()} />
+        <AppHeader title="Ôn tập SRS" onBack={goBack} />
         <View style={{ paddingHorizontal: space[5], gap: space[4], paddingTop: space[2] }}>
           <Skeleton height={6} radius="full" />
           <Skeleton height={360} radius="3xl" />
@@ -199,7 +202,7 @@ export default function SrsScreen() {
   if (isError) {
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Ôn tập SRS" onBack={() => router.back()} />
+        <AppHeader title="Ôn tập SRS" onBack={goBack} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <ErrorState onRetry={() => void refetch()} />
         </View>
@@ -211,7 +214,7 @@ export default function SrsScreen() {
     const done = cards.length > 0
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Ôn tập SRS" onBack={() => router.back()} />
+        <AppHeader title="Ôn tập SRS" onBack={goBack} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
             icon={PartyPopper}
@@ -222,7 +225,7 @@ export default function SrsScreen() {
                 : 'Học bài mới là từ vựng sẽ tự vào hàng chờ ôn ở đây.'
             }
             actionLabel={done ? 'Quay lại' : 'Học từ mới ngay'}
-            onAction={() => (done ? router.back() : router.navigate('/(student)/learn'))}
+            onAction={() => (done ? goBack() : router.navigate('/(student)/learn'))}
           />
         </View>
       </Screen>
@@ -235,7 +238,7 @@ export default function SrsScreen() {
     <Screen edges={['top']}>
       <AppHeader
         title={`${currentIndex + 1} / ${cards.length}`}
-        onBack={() => router.back()}
+        onBack={goBack}
         right={
           <Pressable accessibilityRole="button" accessibilityLabel="Bắt đầu lại" onPress={() => { setCurrentIndex(0); void refetch() }} hitSlop={8}>
             <Icon icon={RotateCcw} size={20} color="secondary" />

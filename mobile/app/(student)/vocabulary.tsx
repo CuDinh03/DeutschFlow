@@ -26,6 +26,7 @@ import {
   VocabGlyphTile,
 } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 // Display shape used by WordRow.
 interface Word {
@@ -70,6 +71,8 @@ const FILTER_LABEL: Record<StatusFilter, string> = {
 }
 
 export default function VocabularyScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   const theme = useTheme()
   const c = theme.colors
   const [search, setSearch] = useState('')
@@ -219,7 +222,7 @@ export default function VocabularyScreen() {
 
       {/* Video review entry — sharp paper card with the yellow-square motif */}
       <Card
-        onPress={() => router.push('/(student)/video-lesson' as unknown as Href)}
+        onPress={() => router.push({ pathname: '/(student)/video-lesson', params: { from: 'vocabulary' } } as unknown as Href)}
         accessibilityLabel="Xem video ôn tập"
         style={{ marginHorizontal: space[5], marginBottom: space[5], borderColor: c.accentSoft }}
       >
@@ -272,7 +275,7 @@ export default function VocabularyScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Từ vựng" subtitle="Wortschatz · Spaced repetition" onBack={() => router.back()} />
+      <AppHeader title="Từ vựng" subtitle="Wortschatz · Spaced repetition" onBack={goBack} />
 
       <FlatList
         data={isLoading || isError ? [] : words}

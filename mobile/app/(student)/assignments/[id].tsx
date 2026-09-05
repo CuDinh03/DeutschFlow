@@ -28,6 +28,7 @@ import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, ProgressRing, Screen, Skeleton, TextField, ThemedText, YellowSquare,
 } from '@/components/ui'
+import { useBackTo } from '@/hooks/useBackTo'
 
 const TYPE_LABELS: Record<string, string> = {
   ESSAY: 'Viết luận',
@@ -66,7 +67,10 @@ async function openInApp(url: string, errMsg = 'Không mở được tài liệu
 }
 
 export default function AssignmentDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const { id, classId } = useLocalSearchParams<{ id: string; classId?: string }>()
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  // classId có khi mở từ trang lớp; từ thông báo / sau phiên nói thì về danh sách lớp.
+  const goBack = useBackTo(() => (classId ? { pathname: '/(student)/classes/[id]', params: { id: classId } } : '/(student)/classes'))
   const assignmentId = Number(id)
   const queryClient = useQueryClient()
 
@@ -109,7 +113,7 @@ export default function AssignmentDetail() {
   if (detailQ.isLoading) {
     return (
       <Screen>
-        <AppHeader title="Đang tải bài tập…" onBack={() => router.back()} />
+        <AppHeader title="Đang tải bài tập…" onBack={goBack} />
         <View style={{ paddingHorizontal: space[5], gap: space[3] }}>
           <Skeleton height={120} />
           <Skeleton height={160} />
@@ -120,7 +124,7 @@ export default function AssignmentDetail() {
   if (detailQ.error || !detailQ.data) {
     return (
       <Screen>
-        <AppHeader title="Không mở được bài tập" onBack={() => router.back()} />
+        <AppHeader title="Không mở được bài tập" onBack={goBack} />
         <ErrorState
           message={detailQ.error ? apiMessage(detailQ.error) : 'Không tìm thấy bài tập này.'}
           onRetry={() => void detailQ.refetch()}
@@ -136,7 +140,7 @@ export default function AssignmentDetail() {
 
   return (
     <Screen>
-      <AppHeader title={a.topic || 'Chi tiết bài tập'} subtitle={typeLabel(a.assignmentType)} onBack={() => router.back()} />
+      <AppHeader title={a.topic || 'Chi tiết bài tập'} subtitle={typeLabel(a.assignmentType)} onBack={goBack} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

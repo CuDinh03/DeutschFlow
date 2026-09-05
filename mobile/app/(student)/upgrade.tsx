@@ -11,6 +11,7 @@ import { openManageSubscriptions } from '@/lib/iapManage'
 import { useAppleIap } from '@/hooks/useAppleIap'
 import { metaForProductId } from '@/lib/iapProducts'
 import { trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
   { icon: Mic, label: 'AI Speaking không giới hạn' },
@@ -21,6 +22,8 @@ const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
 ]
 
 export default function UpgradeScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   useEffect(() => {
     // v1.0 iOS free build: there is no PRO surface at all, so this route should never be reachable —
     // if something links here, bounce straight home rather than show any commercial screen (2.1(b)).
@@ -50,7 +53,7 @@ export default function UpgradeScreen() {
   if (!PAYWALL_ENABLED) {
     return (
       <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
-        <AppHeader title="MyDeutschFlow PRO" onBack={() => router.back()} />
+        <AppHeader title="MyDeutschFlow PRO" onBack={goBack} />
         <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
           <ProHero
             eyebrow="Tài khoản nâng cao"
@@ -72,7 +75,7 @@ export default function UpgradeScreen() {
   // Android: PRO is managed on the web; this screen explains the value.
   return (
     <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
-      <AppHeader title="MyDeutschFlow PRO" onBack={() => router.back()} />
+      <AppHeader title="MyDeutschFlow PRO" onBack={goBack} />
       <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
         <ProHero
           eyebrow="Nâng cấp tài khoản"
@@ -93,6 +96,7 @@ export default function UpgradeScreen() {
 
 /** Real StoreKit paywall: fetches products from the store, purchases, and restores. */
 function IapPaywall() {
+  const goBack = useBackToMainTab()
   const c = useTheme().colors
   const { connected, products, phase, activeSku, error, succeeded, buy, restore } = useAppleIap(true)
   const isBusy = phase === 'purchasing' || phase === 'restoring'
@@ -104,7 +108,7 @@ function IapPaywall() {
 
   return (
     <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
-      <AppHeader title="MyDeutschFlow PRO" onBack={() => router.back()} />
+      <AppHeader title="MyDeutschFlow PRO" onBack={goBack} />
       <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
         <ProHero
           eyebrow="Nâng cấp tài khoản"
@@ -130,7 +134,7 @@ function IapPaywall() {
             <ThemedText variant="body" color="muted">
               Cảm ơn bạn. Toàn bộ tính năng nâng cao đã được mở khoá.
             </ThemedText>
-            <Button label="Tiếp tục học" onPress={() => router.back()} />
+            <Button label="Tiếp tục học" onPress={goBack} />
             <Button
               label="Quản lý gói đăng ký"
               variant="ghost"
