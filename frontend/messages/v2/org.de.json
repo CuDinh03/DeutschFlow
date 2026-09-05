@@ -192,7 +192,23 @@
       "colCreated": "Erstellt",
       "unassigned": "Nicht zugewiesen",
       "assigned": "Zugewiesen",
-      "detail": "Details"
+      "detail": "Details",
+      "createModal": {
+        "title": "Klasse anlegen",
+        "description": "Klasse für das Zentrum anlegen und eine verantwortliche Lehrkraft zuweisen",
+        "cancel": "Abbrechen",
+        "submit": "Klasse anlegen",
+        "nameRequired": "Klassennamen eingeben.",
+        "teacherRequired": "Verantwortliche Lehrkraft wählen.",
+        "created": "Klasse {name} angelegt.",
+        "noTeachers": "Das Zentrum hat noch keine Lehrkräfte. Fügen Sie zuerst eine Lehrkraft hinzu.",
+        "nameLabel": "Klassenname",
+        "namePlaceholder": "z. B. A1.1 — Mo/Mi/Fr abends",
+        "teacherLabel": "Verantwortliche Lehrkraft",
+        "teacherLoading": "Lehrkräfte werden geladen…",
+        "teacherPick": "Lehrkraft wählen…",
+        "teacherHint": "Die Klasse gehört dem Zentrum und wird von dieser Lehrkraft geleitet."
+      }
     },
     "classDetail": {
       "titleFallback": "Kursdetails",
@@ -374,6 +390,21 @@
         "assistantBadge": "Assistenz",
         "addAssistantBtn": "Als Assistenz hinzufügen",
         "assistantAdded": "Als Assistenz zu {className} hinzugefügt."
+      },
+      "createModal": {
+        "title": "Lehrkraft hinzufügen",
+        "description": "Lehrkräfte-Konto für das Zentrum direkt anlegen",
+        "cancel": "Abbrechen",
+        "submit": "Lehrkraft hinzufügen",
+        "invalid": "E-Mail, Anzeigename und ein Passwort mit mindestens 6 Zeichen eingeben.",
+        "created": "Lehrkraft {email} hinzugefügt.",
+        "emailLabel": "E-Mail",
+        "emailPlaceholder": "lehrkraft@zentrum.de",
+        "nameLabel": "Anzeigename",
+        "namePlaceholder": "Nguyễn Văn A",
+        "passwordLabel": "Passwort",
+        "passwordPlaceholder": "≥ 6 Zeichen",
+        "passwordHint": "Die Lehrkraft meldet sich mit diesem Passwort an. Das Konto gehört der Lehrkraft und bleibt nach dem Verlassen des Zentrums bestehen."
       }
     },
     "analytics": {

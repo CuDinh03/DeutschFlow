@@ -9,7 +9,7 @@ import { subscribeNotificationUnread } from '@/lib/notificationStream'
 import { TYPE_TONE, TYPE_ICON, notifTitle, notifBody, relTime, resolveNotificationHref, toneSoft } from '@/lib/notificationDisplay'
 import { GaPopover, GaPopoverContent, GaPopoverTrigger } from './GaPopover'
 import { showGaNotificationToast } from './GaNotificationToast'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import type { RoleId } from './nav'
 
 /**
@@ -25,6 +25,8 @@ export function NotificationBell({ role }: { role: RoleId }) {
   const router = useRouter()
   // i18n primitive contract (W0-C8): copy qua namespace chung v2.ui.
   const t = useTranslations('v2.ui')
+  const tn = useTranslations('v2.notif')
+  const locale = useLocale()
   const [open, setOpen] = React.useState(false)
   const [unread, setUnread] = React.useState(0)
   const [items, setItems] = React.useState<NotificationItem[]>([])
@@ -94,7 +96,7 @@ export function NotificationBell({ role }: { role: RoleId }) {
       const href = resolveNotificationHref(top, role)
       showGaNotificationToast({
         type: top.type,
-        title: notifTitle(top),
+        title: notifTitle(top, tn),
         body: notifBody(top),
         role,
         labels: {
@@ -257,9 +259,9 @@ export function NotificationBell({ role }: { role: RoleId }) {
                     <GaIcon name={TYPE_ICON[n.type] ?? 'notifications'} size={16} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-semibold capitalize text-ga-ink">{notifTitle(n)}</p>
+                    <p className="truncate text-[13px] font-semibold capitalize text-ga-ink">{notifTitle(n, tn)}</p>
                     {body && <p className="mt-0.5 line-clamp-2 text-[12px] text-ga-muted">{body}</p>}
-                    <p className="mt-1 text-[11px] text-ga-subtle">{relTime(n.createdAtUtc)}</p>
+                    <p className="mt-1 text-[11px] text-ga-subtle">{relTime(n.createdAtUtc, tn, locale)}</p>
                   </div>
                   {!n.read && (
                     <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-ga-accent" aria-label={t('unread')} />

@@ -3,6 +3,7 @@
 import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide';
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { ArrowLeft, Mic, AlertTriangle } from 'lucide-react'
 import api from '@/lib/api'
@@ -27,6 +28,7 @@ const DASHBOARD_ROUTE = '/v2/student/dashboard'
 
 export default function V2OnboardingMockExamPage() {
   const router = useRouter()
+  const t = useTranslations('v2.onboarding.mockExam')
   const [phase, setPhase] = useState<ExamPhase>('INTRO')
   const [timeLeft, setTimeLeft] = useState(EXAM_SECONDS)
   const [transcript, setTranscript] = useState('')
@@ -95,7 +97,7 @@ export default function V2OnboardingMockExamPage() {
       const realTranscript = sttResult.transcript
 
       if (!realTranscript || realTranscript.trim().length < 5) {
-        setErrorMsg('Không nhận diện được giọng nói. Hãy thử lại và nói rõ ràng hơn.')
+        setErrorMsg(t('sttEmpty'))
         setPhase('ERROR')
         return
       }
@@ -121,12 +123,12 @@ export default function V2OnboardingMockExamPage() {
       const status = (err as { response?: { status?: number } })?.response?.status
       setErrorMsg(
         status === 429
-          ? 'Bạn đã vượt giới hạn sử dụng AI hôm nay. Hãy thử lại vào ngày mai.'
-          : 'Có lỗi xảy ra khi phân tích. Hãy thử lại.',
+          ? t('quota')
+          : t('analyzeFailed'),
       )
       setPhase('ERROR')
     }
-  }, [router])
+  }, [router, t])
 
   // ─── Start Recording ──────────────────────────────────────
   const startExam = useCallback(async () => {
@@ -160,12 +162,12 @@ export default function V2OnboardingMockExamPage() {
       console.error('Microphone error:', err)
       setErrorMsg(
         (err as { name?: string })?.name === 'NotAllowedError'
-          ? 'Bạn cần cho phép truy cập microphone để làm bài test.'
-          : 'Không thể kết nối microphone. Hãy thử lại.',
+          ? t('micDenied')
+          : t('micFailed'),
       )
       setPhase('ERROR')
     }
-  }, [drawWaveform, handleRecordingComplete])
+  }, [drawWaveform, handleRecordingComplete, t])
 
   // ─── Stop Recording Early ─────────────────────────────────
   const stopEarly = useCallback(() => {
@@ -203,12 +205,12 @@ export default function V2OnboardingMockExamPage() {
         <div className="flex flex-col items-center text-center">
           <div className="mb-7 h-16 w-16 animate-spin rounded-ga-pill border-4 border-ga-line border-t-ga-accent" />
           <h2 className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[26px]">
-            {phase === 'TRANSCRIBING' ? 'Đang nhận diện giọng nói...' : 'AI đang phân tích trình độ...'}
+            {phase === 'TRANSCRIBING' ? t('transcribing') : t('analyzing')}
           </h2>
           <p className="mt-3 text-[14px] text-ga-muted">
             {phase === 'TRANSCRIBING'
-              ? 'AI đang chuyển âm thanh thành văn bản...'
-              : 'Đang đánh giá ngữ pháp, từ vựng, phát âm và độ trôi chảy của bạn.'}
+              ? t('transcribingSub')
+              : t('analyzingSub')}
           </p>
           {transcript && phase === 'ANALYZING' && (
             <GaCard className="mt-6 max-w-full break-words p-4 text-[13.5px] italic text-ga-muted">
@@ -228,7 +230,7 @@ export default function V2OnboardingMockExamPage() {
           <div className="mb-6 grid h-16 w-16 place-items-center rounded-ga-pill bg-ga-red-soft">
             <AlertTriangle size={30} className="text-ga-red" />
           </div>
-          <h2 className="mb-2 font-ga-display text-[20px] font-medium text-ga-ink lg:text-[26px]">Có lỗi xảy ra</h2>
+          <h2 className="mb-2 font-ga-display text-[20px] font-medium text-ga-ink lg:text-[26px]">{t('errorTitle')}</h2>
           <p className="mb-8 text-[14px] text-ga-muted">{errorMsg}</p>
           <div className="flex flex-wrap justify-center gap-3">
             <GaBtn
@@ -236,10 +238,10 @@ export default function V2OnboardingMockExamPage() {
               size="lg"
               onClick={() => { setPhase('INTRO'); setTimeLeft(EXAM_SECONDS); setErrorMsg('') }}
             >
-              Thử lại
+              {t('retry')}
             </GaBtn>
             <GaBtn variant="ghost" size="lg" asChild>
-              <Link href={DASHBOARD_ROUTE}>Về Dashboard</Link>
+              <Link href={DASHBOARD_ROUTE}>{t('toDashboard')}</Link>
             </GaBtn>
           </div>
         </div>
@@ -253,39 +255,36 @@ export default function V2OnboardingMockExamPage() {
       <GaAuthShell showBackToLanding={false}>
         <div className="space-y-6 text-center">
           <Link href={DASHBOARD_ROUTE} className="ga-ui inline-flex items-center gap-2 text-[13px] text-ga-muted transition-colors hover:text-ga-ink">
-            <ArrowLeft size={16} /> Quay lại Dashboard
+            <ArrowLeft size={16} /> {t('backToDashboard')}
           </Link>
 
           <div className="mx-auto grid h-20 w-20 place-items-center rounded-ga-pill bg-ga-yellow-soft">
             <Mic size={36} className="text-ga-gold" />
           </div>
 
-          <GaCap>Bài kiểm tra nói</GaCap>
+          <GaCap>{t('cap')}</GaCap>
           <h1 className="m-0 font-ga-display text-[26px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[30px] lg:text-[38px]">
-            Bài Test Nói 3 Phút
+            {t('title')}
           </h1>
           <p className="text-[15px] leading-relaxed text-ga-muted">
-            Hãy nói tiếng Đức tự do trong 3 phút. AI sẽ phân tích <strong>ngữ pháp</strong>,{' '}
-            <strong>từ vựng</strong>, <strong>phát âm</strong> và <strong>độ trôi chảy</strong> để
-            xác định trình độ CEFR và lập hồ sơ điểm yếu của bạn.
+            {t.rich('intro', { b: (chunks) => <strong>{chunks}</strong> })}
           </p>
 
           <GaCard className="space-y-3 p-4 text-left lg:p-5">
-            <GaCap className="flex items-center gap-1.5"><GaIcon name="lightbulb" size={12} /> Gợi ý nội dung</GaCap>
+            <GaCap className="flex items-center gap-1.5"><GaIcon name="lightbulb" size={12} /> {t('hintsCap')}</GaCap>
             <ul className="space-y-2 text-[13.5px] text-ga-muted">
-              <li>• Giới thiệu bản thân (tên, tuổi, quê quán)</li>
-              <li>• Kể về công việc hoặc ngành học</li>
-              <li>• Mô tả sở thích, thói quen hàng ngày</li>
-              <li>• Lý do bạn muốn học tiếng Đức</li>
+              {(t.raw('hints') as string[]).map((h) => (
+                <li key={h}>• {h}</li>
+              ))}
             </ul>
           </GaCard>
 
           <GaBtn variant="yellow" size="lg" className="w-full" onClick={startExam}>
-            Bắt đầu ghi âm
+            {t('start')}
           </GaBtn>
 
           <p className="text-[12px] text-ga-subtle">
-            Cần cho phép truy cập microphone. Dữ liệu âm thanh chỉ được xử lý để đánh giá và không được lưu lại.
+            {t('micNote')}
           </p>
         </div>
       </GaAuthShell>
@@ -319,22 +318,22 @@ export default function V2OnboardingMockExamPage() {
           {/* Recording Indicator */}
           <div className="mb-6 flex items-center gap-3">
             <div className="h-3 w-3 animate-pulse rounded-ga-pill bg-ga-red" />
-            <span className="ga-ui text-[13px] font-semibold text-ga-red">Đang ghi âm...</span>
+            <span className="ga-ui text-[13px] font-semibold text-ga-red">{t('recording')}</span>
           </div>
 
           <p className="mb-6 text-center text-[13.5px] leading-relaxed text-ga-muted">
-            Hãy nói tự do bằng tiếng Đức. AI đang lắng nghe và sẽ phân tích sau khi bạn hoàn thành.
+            {t('recordingHint')}
           </p>
 
           {/* Stop Button */}
           <GaBtn variant="ink" size="lg" className="w-full" onClick={stopEarly}>
             <span aria-hidden className="h-3.5 w-3.5 bg-current" />
-            Nộp bài
+            {t('submit')}
           </GaBtn>
 
           {timeLeft <= 30 && (
             <p className="mt-3 animate-pulse text-[12px] font-medium text-ga-red">
-              ⏰ Còn {timeLeft} giây — bài sẽ tự động nộp khi hết giờ!
+              {t('timeLeft', { seconds: timeLeft })}
             </p>
           )}
         </div>

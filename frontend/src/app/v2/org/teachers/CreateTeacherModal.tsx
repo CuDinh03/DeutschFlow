@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { createOrgTeacher } from '@/lib/orgApi'
@@ -16,6 +17,7 @@ const INPUT_CLS =
   'ga-ui mt-1 w-full rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] text-ga-ink outline-none placeholder:text-ga-subtle focus:border-ga-accent'
 
 export function CreateTeacherModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const t = useTranslations('v2.org.teachers.createModal')
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
@@ -25,13 +27,13 @@ export function CreateTeacherModal({ onClose, onCreated }: { onClose: () => void
   const submit = async () => {
     setError('')
     if (!email.trim() || !displayName.trim() || password.length < 6) {
-      setError('Nhập email, tên hiển thị và mật khẩu ít nhất 6 ký tự.')
+      setError(t('invalid'))
       return
     }
     setSaving(true)
     try {
       await createOrgTeacher({ email: email.trim(), displayName: displayName.trim(), password })
-      toast.success(`Đã thêm giáo viên ${email.trim()}.`)
+      toast.success(t('created', { email: email.trim() }))
       onCreated()
       onClose()
     } catch (e: unknown) {
@@ -46,15 +48,15 @@ export function CreateTeacherModal({ onClose, onCreated }: { onClose: () => void
       open
       onOpenChange={(o) => !o && onClose()}
       size="md"
-      title="Thêm giáo viên"
-      description="Tạo thẳng tài khoản giáo viên cho trung tâm"
+      title={t('title')}
+      description={t('description')}
       footer={
         <>
           <GaBtn variant="ghost" onClick={onClose}>
-            Hủy
+            {t('cancel')}
           </GaBtn>
           <GaBtn variant="primary" loading={saving} onClick={submit}>
-            Thêm giáo viên
+            {t('submit')}
           </GaBtn>
         </>
       }
@@ -63,32 +65,32 @@ export function CreateTeacherModal({ onClose, onCreated }: { onClose: () => void
 
       <div className="space-y-4">
         <label className="block">
-          <GaCap>Email</GaCap>
+          <GaCap>{t('emailLabel')}</GaCap>
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"
             autoComplete="off"
-            placeholder="giaovien@trungtam.com"
+            placeholder={t('emailPlaceholder')}
             className={INPUT_CLS}
           />
         </label>
         <label className="block">
-          <GaCap>Tên hiển thị</GaCap>
-          <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Nguyễn Văn A" className={INPUT_CLS} />
+          <GaCap>{t('nameLabel')}</GaCap>
+          <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t('namePlaceholder')} className={INPUT_CLS} />
         </label>
         <label className="block">
-          <GaCap>Mật khẩu</GaCap>
+          <GaCap>{t('passwordLabel')}</GaCap>
           <input
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             type="text"
             autoComplete="new-password"
-            placeholder="≥ 6 ký tự"
+            placeholder={t('passwordPlaceholder')}
             className={INPUT_CLS}
           />
           <p className="ga-ui mt-1 text-[12px] text-ga-subtle">
-            Giáo viên đăng nhập bằng mật khẩu này. Tài khoản thuộc về giáo viên — rời trung tâm vẫn còn.
+            {t('passwordHint')}
           </p>
         </label>
       </div>

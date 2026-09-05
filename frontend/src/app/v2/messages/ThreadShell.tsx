@@ -3,6 +3,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { format } from 'date-fns'
+import { useTranslations } from 'next-intl'
 
 export const fmtDay = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM HH:mm') : '')
 export const initial = (n: string | null | undefined) => ((n ?? '?').trim()[0] ?? '?').toUpperCase()
@@ -36,6 +37,7 @@ export function ThreadShell({
   footer,
   error,
 }: ThreadShellProps) {
+  const t = useTranslations('v2.inbox')
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export function ThreadShell({
           type="button"
           onClick={onBack}
           className="-ml-1 grid h-10 w-10 shrink-0 place-items-center md:hidden"
-          aria-label="Quay lại"
+          aria-label={t('back')}
         >
           <ArrowLeft size={18} className="text-ga-muted" />
         </button>

@@ -602,7 +602,8 @@
     },
     "messages": {
       "title": "Nachrichten",
-      "subtitle": "Klassen-Gruppenchats und private Nachrichten an deine Lehrkraft"
+      "subtitle": "Klassen-Gruppenchats und private Nachrichten an deine Lehrkraft",
+      "emptyDirect": "Noch keine Direktnachrichten. Öffnen Sie eine Klassenseite und tippen Sie auf „Lehrkraft anschreiben“."
     },
     "achievements": {
       "title": "Erfolge",
@@ -1610,6 +1611,107 @@
       "site": "Klicke auf das 🎤-/Schloss-Symbol neben der Adressleiste → Mikrofon für diese Seite erlauben.",
       "browser": "Nicht zu sehen? Browser-Einstellungen → Berechtigungen → Mikrofon → Blockierung aufheben.",
       "os": "macOS/Windows: Mikrofonzugriff für den Browser in den Systemeinstellungen aktivieren und den Browser neu starten."
+    },
+    "sprechenTeil2": {
+      "loadCardFailed": "Prüfungskarte konnte nicht geladen werden.",
+      "micFailed": "Kein Zugriff auf das Mikrofon.",
+      "sttEmpty": "Keine Sprache erkannt. Bitte erneut versuchen.",
+      "evalFailed": "Auswertung fehlgeschlagen. Bitte erneut versuchen.",
+      "preparing": "Karte wird vorbereitet...",
+      "yourCard": "Ihre Karte",
+      "askPrompt": "Stellen Sie <b>eine Frage</b> zu dieser Karte.",
+      "aiAsking": "Der KI-Partner stellt eine Frage...",
+      "aiQuestion": "Frage der KI",
+      "answerPrompt": "Geben Sie <b>Ihre Antwort</b>.",
+      "recording": "Aufnahme läuft... loslassen zum Abgeben",
+      "scoring": "Wird bewertet...",
+      "holdToTalk": "Zum Sprechen gedrückt halten",
+      "resultsTitle": "KI-Bewertung",
+      "turnAsk": "Runde 1: Ihre Frage",
+      "turnAnswer": "Runde 2: Ihre Antwort",
+      "points": "{score}/10 Punkte",
+      "feedback": "Feedback:",
+      "doneTitle": "Teil 2 geschafft!",
+      "doneBody": "Sie haben beide Runden abgeschlossen. Sehen Sie sich das ausführliche KI-Feedback oben an.",
+      "retry": "Diesen Teil wiederholen"
+    },
+    "learnViews": {
+      "speaking": {
+        "micDenied": "Kein Zugriff auf das Mikrofon. Bitte Zugriff erlauben.",
+        "evalFailed": "Bewertung fehlgeschlagen. Bitte erneut versuchen.",
+        "empty": "Noch keine Sprechübung für diese Lektion.",
+        "recording": "Aufnahme läuft...",
+        "evaluating": "Aussprache wird bewertet...",
+        "great": "Sehr gut!",
+        "okay": "Gut! Noch Luft nach oben",
+        "weak": "Weiter üben",
+        "pronScore": "Aussprache-Punkte",
+        "heard": "Erkannt wurde:",
+        "noVoice": "[Keine Sprache erfasst — bitte lauter und deutlicher sprechen]",
+        "tip": "Tipp:",
+        "next": "Nächste Lektion →"
+      },
+      "phoneme": {
+        "micDenied": "Kein Zugriff auf das Mikrofon. Prüfen Sie die Browser-Berechtigungen.",
+        "evalFailed": "Aussprache konnte nicht bewertet werden. Bitte erneut versuchen.",
+        "title": "Ausspracheübung",
+        "listenSlow": "Anhören (langsam)",
+        "recording": "● Aufnahme läuft... zum Stoppen tippen",
+        "analyzing": "Aussprache wird analysiert...",
+        "heard": "Erkannt:",
+        "heardEmpty": "Erkannt: [leer / keine Sprache erfasst]",
+        "perWord": "Analyse Wort für Wort",
+        "retry": "Erneut versuchen",
+        "replay": "Noch einmal anhören"
+      },
+      "listening": {
+        "empty": "Noch kein Audio für diese Lektion.",
+        "fillHint": "Lücken ausfüllen, dann <b>Abgeben</b> drücken",
+        "submit": "Abgeben",
+        "fillAll": "Alle {count} Lücken ausfüllen, um abzugeben",
+        "perfect": "Perfekt! Alles richtig!",
+        "good": "Gut! Reicht zum Bestehen",
+        "fail": "Noch nicht – bitte wiederholen (100 % nötig, um diesen Knoten zu bestehen)",
+        "correctCount": "{correct}/{total} Wörter richtig",
+        "retry": "Erneut versuchen",
+        "shadowing": "Den Text nachsprechen (Shadowing)",
+        "collapse": "▲ Einklappen",
+        "expand": "▼ Ausklappen",
+        "noTranscript": "Noch kein Transkript. Hören und üben..."
+      },
+      "writing": {
+        "empty": "Noch keine Schreibaufgabe für diese Lektion.",
+        "completed": "Abgeschlossen",
+        "skipComplete": "Überspringen & als erledigt markieren",
+        "minWords": "Mindestens: {count} Wörter",
+        "placeholder": "Schreiben Sie hier Ihren deutschen Text...",
+        "wordCount": "{count}/{min} Wörter",
+        "checking": "Wird geprüft...",
+        "checked": "Geprüft",
+        "errorsFound": "{count} Fehler gefunden",
+        "errGrammar": "Grammatik",
+        "errSpelling": "Rechtschreibung",
+        "errStyle": "Stil",
+        "submit": "Text abgeben",
+        "done": "Schreibteil abgeschlossen (≥ 80 Punkte)"
+      },
+      "reading": {
+        "close": "Schließen",
+        "saved": "Gespeichert",
+        "saveFlashcard": "Als Karteikarte speichern",
+        "empty": "Noch kein Lesetext für diese Lektion.",
+        "readingCap": "Lesetext",
+        "selectHint": "Ein Wort markieren, um die Bedeutung zu sehen",
+        "questionsCap": "Fragen",
+        "essayPlaceholder": "Antwort schreiben (Freitext)...",
+        "answerPlaceholder": "Antwort eingeben",
+        "check": "Antworten prüfen",
+        "result": "{score}/{total} richtig. Für das Bestehen sind 100 % nötig!",
+        "retry": "Noch einmal",
+        "noQuestions": "Noch keine Fragen zu diesem Text.",
+        "completed": "100 % abgeschlossen",
+        "markDone": "Gelesen & verstanden (100 %)"
+      }
     }
   }
 }

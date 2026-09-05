@@ -7,11 +7,26 @@
     "level": {
       "heading": "What's your level?",
       "sub": "Choose the one that fits you best.",
-      "A0": { "label": "Complete beginner", "desc": "Start from the alphabet" },
-      "A1": { "label": "Basic (A1)", "desc": "Can greet and introduce yourself" },
-      "A2": { "label": "Elementary (A2)", "desc": "Simple everyday conversations" },
-      "B1": { "label": "Intermediate (B1)", "desc": "Discuss and express opinions" },
-      "B2": { "label": "Upper-intermediate (B2)", "desc": "Handle complex texts" }
+      "A0": {
+        "label": "Complete beginner",
+        "desc": "Start from the alphabet"
+      },
+      "A1": {
+        "label": "Basic (A1)",
+        "desc": "Can greet and introduce yourself"
+      },
+      "A2": {
+        "label": "Elementary (A2)",
+        "desc": "Simple everyday conversations"
+      },
+      "B1": {
+        "label": "Intermediate (B1)",
+        "desc": "Discuss and express opinions"
+      },
+      "B2": {
+        "label": "Upper-intermediate (B2)",
+        "desc": "Handle complex texts"
+      }
     },
     "goal": {
       "heading": "Why are you learning German?",
@@ -32,9 +47,18 @@
       "mentorLabel": "Your mentor",
       "mentorFallbackTagline": "Your learning companion",
       "upsell": "🔓 Unlock mentor <b>{name}</b>{tagline} with PRO →",
-      "w3": { "label": "3 lessons/week", "desc": "~15 min/day" },
-      "w5": { "label": "5 lessons/week", "desc": "~20 min/day" },
-      "w7": { "label": "7 lessons/week", "desc": "One lesson every day" },
+      "w3": {
+        "label": "3 lessons/week",
+        "desc": "~15 min/day"
+      },
+      "w5": {
+        "label": "5 lessons/week",
+        "desc": "~20 min/day"
+      },
+      "w7": {
+        "label": "7 lessons/week",
+        "desc": "One lesson every day"
+      },
       "noteA0": "🌱 Your first steps will be <b>the alphabet, pronunciation and greetings</b>.",
       "notePlacement": "📝 You can take an <b>optional 5-minute test</b> to land on the right level — or just start learning."
     },
@@ -94,6 +118,37 @@
       "createTest": "Couldn't create the test.",
       "submitTest": "Submitting failed.",
       "resumeKeepsDraft": "Couldn't save your profile — your answers are still kept. Please try again."
+    },
+    "mockExam": {
+      "sttEmpty": "We could not recognise any speech. Try again and speak more clearly.",
+      "quota": "You have reached today's AI limit. Try again tomorrow.",
+      "analyzeFailed": "Something went wrong while analysing. Please try again.",
+      "micDenied": "You need to allow microphone access to take the test.",
+      "micFailed": "Could not connect to the microphone. Please try again.",
+      "transcribing": "Recognising speech...",
+      "analyzing": "AI is assessing your level...",
+      "transcribingSub": "AI is turning your audio into text...",
+      "analyzingSub": "Assessing your grammar, vocabulary, pronunciation and fluency.",
+      "errorTitle": "Something went wrong",
+      "retry": "Try again",
+      "toDashboard": "Back to dashboard",
+      "backToDashboard": "Back to dashboard",
+      "cap": "Speaking test",
+      "title": "3-Minute Speaking Test",
+      "intro": "Speak freely in German for 3 minutes. The AI analyses your <b>grammar</b>, <b>vocabulary</b>, <b>pronunciation</b> and <b>fluency</b> to place your CEFR level and build your weakness profile.",
+      "hintsCap": "What to talk about",
+      "hints": [
+        "Introduce yourself (name, age, hometown)",
+        "Talk about your job or studies",
+        "Describe your hobbies and daily routine",
+        "Why you want to learn German"
+      ],
+      "start": "Start recording",
+      "micNote": "Microphone access is required. Audio is only processed for the assessment and is not stored.",
+      "recording": "Recording...",
+      "recordingHint": "Speak freely in German. The AI is listening and will analyse once you finish.",
+      "submit": "Submit",
+      "timeLeft": "⏰ {seconds} seconds left — the test submits automatically when time is up!"
     }
   }
 }

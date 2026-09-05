@@ -11,25 +11,32 @@ import type { ChannelClass } from './types'
  * identity, so an inline arrow would refetch on every render.
  */
 
+/** Nhãn phụ đề theo locale (từ `v2.inbox`) — loader chạy ngoài React nên nhận qua tham số. */
+export interface ChannelLabels {
+  teacherPrefix: (names: string) => string
+  noTeacher: string
+  students: (count: number) => string
+}
+
 /** Classes the student is enrolled in; subtitled with the teachers they can also DM. */
-export async function loadStudentChannelClasses(): Promise<ChannelClass[]> {
+export async function loadStudentChannelClasses(labels: ChannelLabels): Promise<ChannelClass[]> {
   const classes = await fetchMyClasses()
   return classes.map((c) => ({
     id: c.id,
     name: c.name,
     subtitle:
       c.teachers.length > 0
-        ? `GV: ${c.teachers.map((t) => t.displayName).join(', ')}`
-        : 'Chưa có giáo viên',
+        ? labels.teacherPrefix(c.teachers.map((t) => t.displayName).join(', '))
+        : labels.noTeacher,
   }))
 }
 
 /** Classes the teacher owns or co-teaches; subtitled with the roster size. */
-export async function loadTeacherChannelClasses(): Promise<ChannelClass[]> {
+export async function loadTeacherChannelClasses(labels: ChannelLabels): Promise<ChannelClass[]> {
   const classes = await listTeacherClasses()
   return classes.map((c) => ({
     id: c.id,
     name: c.name,
-    subtitle: `${c.studentCount} học viên`,
+    subtitle: labels.students(c.studentCount),
   }))
 }

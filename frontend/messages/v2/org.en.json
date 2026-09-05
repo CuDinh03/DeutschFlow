@@ -192,7 +192,23 @@
       "colCreated": "Created",
       "unassigned": "Unassigned",
       "assigned": "Assigned",
-      "detail": "Details"
+      "detail": "Details",
+      "createModal": {
+        "title": "Create class",
+        "description": "Create a class for the centre and assign a lead teacher",
+        "cancel": "Cancel",
+        "submit": "Create class",
+        "nameRequired": "Enter a class name.",
+        "teacherRequired": "Pick the lead teacher.",
+        "created": "Class {name} created.",
+        "noTeachers": "The centre has no teachers yet. Add a teacher first, then create the class.",
+        "nameLabel": "Class name",
+        "namePlaceholder": "e.g. A1.1 — Mon/Wed/Fri evenings",
+        "teacherLabel": "Lead teacher",
+        "teacherLoading": "Loading teachers…",
+        "teacherPick": "Pick a teacher…",
+        "teacherHint": "The class belongs to the centre and is run by this teacher."
+      }
     },
     "classDetail": {
       "titleFallback": "Class detail",
@@ -374,6 +390,21 @@
         "assistantBadge": "Assistant",
         "addAssistantBtn": "Add as assistant",
         "assistantAdded": "Added as assistant on {className}."
+      },
+      "createModal": {
+        "title": "Add teacher",
+        "description": "Create a teacher account for the centre directly",
+        "cancel": "Cancel",
+        "submit": "Add teacher",
+        "invalid": "Enter an email, a display name and a password of at least 6 characters.",
+        "created": "Teacher {email} added.",
+        "emailLabel": "Email",
+        "emailPlaceholder": "teacher@centre.com",
+        "nameLabel": "Display name",
+        "namePlaceholder": "Nguyễn Văn A",
+        "passwordLabel": "Password",
+        "passwordPlaceholder": "≥ 6 characters",
+        "passwordHint": "The teacher signs in with this password. The account belongs to the teacher and stays after leaving the centre."
       }
     },
     "analytics": {

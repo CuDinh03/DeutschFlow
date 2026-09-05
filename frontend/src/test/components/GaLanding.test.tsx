@@ -8,7 +8,7 @@
 import React from 'react'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import { NextIntlClientProvider } from 'next-intl'
+import { NextIntlClientProvider, type AbstractIntlMessages } from 'next-intl'
 import { GaLanding } from '@/components/landing-v2/GaLanding'
 import landingVi from '../../../messages/v2/landing.vi.json'
 
@@ -40,7 +40,7 @@ vi.mock('@/components/ui-v2/LanguageToggle', () => ({ LanguageToggle: () => <spa
 
 const renderLanding = () =>
   render(
-    <NextIntlClientProvider locale="vi" messages={{ v2: { ...landingVi } }}>
+    <NextIntlClientProvider locale="vi" messages={{ v2: { ...landingVi } } as unknown as AbstractIntlMessages}>
       <GaLanding />
     </NextIntlClientProvider>,
   )

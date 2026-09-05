@@ -192,7 +192,23 @@
       "colCreated": "Ngày tạo",
       "unassigned": "Chưa phân công",
       "assigned": "Đã phân công",
-      "detail": "Chi tiết"
+      "detail": "Chi tiết",
+      "createModal": {
+        "title": "Tạo lớp",
+        "description": "Tạo lớp cho trung tâm và gán giáo viên phụ trách",
+        "cancel": "Hủy",
+        "submit": "Tạo lớp",
+        "nameRequired": "Nhập tên lớp.",
+        "teacherRequired": "Chọn giáo viên phụ trách.",
+        "created": "Đã tạo lớp {name}.",
+        "noTeachers": "Trung tâm chưa có giáo viên nào. Hãy thêm giáo viên trước rồi mới tạo lớp.",
+        "nameLabel": "Tên lớp",
+        "namePlaceholder": "VD: A1.1 — Tối T2-T4-T6",
+        "teacherLabel": "Giáo viên phụ trách",
+        "teacherLoading": "Đang tải giáo viên…",
+        "teacherPick": "Chọn giáo viên…",
+        "teacherHint": "Lớp sẽ thuộc về trung tâm và do giáo viên này phụ trách."
+      }
     },
     "classDetail": {
       "titleFallback": "Chi tiết lớp",
@@ -374,6 +390,21 @@
         "assistantBadge": "Trợ giảng",
         "addAssistantBtn": "Thêm trợ giảng",
         "assistantAdded": "Đã thêm làm trợ giảng lớp {className}."
+      },
+      "createModal": {
+        "title": "Thêm giáo viên",
+        "description": "Tạo thẳng tài khoản giáo viên cho trung tâm",
+        "cancel": "Hủy",
+        "submit": "Thêm giáo viên",
+        "invalid": "Nhập email, tên hiển thị và mật khẩu ít nhất 6 ký tự.",
+        "created": "Đã thêm giáo viên {email}.",
+        "emailLabel": "Email",
+        "emailPlaceholder": "giaovien@trungtam.com",
+        "nameLabel": "Tên hiển thị",
+        "namePlaceholder": "Nguyễn Văn A",
+        "passwordLabel": "Mật khẩu",
+        "passwordPlaceholder": "≥ 6 ký tự",
+        "passwordHint": "Giáo viên đăng nhập bằng mật khẩu này. Tài khoản thuộc về giáo viên — rời trung tâm vẫn còn."
       }
     },
     "analytics": {
