@@ -6,6 +6,7 @@ import com.deutschflow.ai.queue.AiJobWorker;
 import com.deutschflow.ai.queue.StaleAiJobMaintenance;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.quota.QuotaExceededException;
+import com.deutschflow.common.quota.QuotaVnCalendar;
 import com.deutschflow.speaking.ai.GroqWhisperClient;
 import com.deutschflow.examspeaking.dto.CreateExamSessionRequest;
 import com.deutschflow.examspeaking.dto.ExamSessionView;
@@ -222,9 +223,13 @@ class ExamGradingFailurePathIntegrationTest extends AbstractPostgresIntegrationT
     @Test
     @DisplayName("F-08: tạo MOCK đòi ngân sách chấm ngay lúc tạo — ví mỏng bị từ chối trước khi thi; DRILL vẫn tạo được")
     void mockCreationRequiresGradingBudget() {
-        // Ví 1.000 token ĐÃ tích luỹ tới hôm nay (last_accrual = CURRENT_DATE, nếu để NULL snapshot sẽ dự phóng
-        // tích luỹ hằng ngày lên trần ví): dưới ngân sách chấm (12k + lượt) nhưng đủ cho MỘT lượt drill (700).
-        jdbcTemplate.update("UPDATE user_ai_token_wallets SET balance = 1000, last_accrual_local_date = CURRENT_DATE WHERE user_id = ?", userId);
+        // Ví 1.000 token ĐÃ tích luỹ tới hôm nay (nếu để last_accrual NULL, snapshot sẽ dự phóng tích luỹ
+        // hằng ngày lên trần ví): dưới ngân sách chấm (12k + lượt) nhưng đủ cho MỘT lượt drill (700).
+        // "Hôm nay" PHẢI là ngày lịch Asia/Ho_Chi_Minh mà QuotaService dùng (QuotaVnCalendar), KHÔNG phải
+        // CURRENT_DATE của Postgres (UTC trên CI): từ 17:00 UTC (00:00 VN) ngày UTC còn là hôm qua → ví
+        // được cộng dồn thêm một ngày → không còn "mỏng" → assert QuotaExceededException đỏ (06/09/2026).
+        jdbcTemplate.update("UPDATE user_ai_token_wallets SET balance = 1000, last_accrual_local_date = ? WHERE user_id = ?",
+                java.sql.Date.valueOf(QuotaVnCalendar.localDateOf(Instant.now())), userId);
         assertThatThrownBy(() -> sessionService.create(userId, new CreateExamSessionRequest("GOETHE", "A1", "MOCK", null)))
                 .isInstanceOf(QuotaExceededException.class);
         assertThat(sessionService.create(userId, new CreateExamSessionRequest("GOETHE", "A1", "DRILL", 2)).state())
