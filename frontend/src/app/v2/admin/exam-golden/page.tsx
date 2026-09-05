@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Download, ChevronRight, Scale, Mic, Trash2, Plus } from 'lucide-react'
+import { ArrowLeft, Download, ChevronRight, Scale, Mic, Trash2, Plus, RefreshCw } from 'lucide-react'
 import {
   adminExamGoldenApi,
+  REGRADE_BATCH_MAX,
   type GoldenCompareReport,
   type GoldenParticipant,
+  type GoldenRegradeBatchResult,
   type GoldenSessionRow,
 } from '@/lib/adminExamGoldenApi'
 import { apiMessage } from '@/lib/api'
@@ -26,6 +28,8 @@ export default function AdminExamGoldenPage() {
   const [report, setReport] = useState<GoldenCompareReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [batch, setBatch] = useState<GoldenRegradeBatchResult | null>(null)
+  const [batching, setBatching] = useState(false)
 
   const params = useCallback(
     () => ({ ...(provider ? { provider } : {}), ...(level ? { level } : {}) }),
@@ -48,6 +52,23 @@ export default function AdminExamGoldenPage() {
       alive = false
     }
   }, [params])
+
+  /** Regression harness (gate §6.3): chỉ phiên đã có giám khảo người chấm; tốn token thật nên hỏi trước. */
+  const regradeBatch = async () => {
+    if (!window.confirm(t('regradeBatchConfirm', { max: REGRADE_BATCH_MAX }))) return
+    setBatching(true)
+    setError(null)
+    try {
+      const { data } = await adminExamGoldenApi.regradeBatch({ ...params(), ratedOnly: true, limit: REGRADE_BATCH_MAX })
+      setBatch(data)
+      const { data: fresh } = await adminExamGoldenApi.compare(params())
+      setReport(fresh)
+    } catch (e) {
+      setError(apiMessage(e))
+    } finally {
+      setBatching(false)
+    }
+  }
 
   const downloadCsv = async () => {
     try {
@@ -100,7 +121,22 @@ export default function AdminExamGoldenPage() {
           <GaBtn variant="ghost" size="sm" onClick={() => void downloadCsv()} data-testid="golden-csv">
             <Download size={14} aria-hidden className="mr-1.5" /> {t('exportCsv')}
           </GaBtn>
+          <GaBtn variant="ghost" size="sm" onClick={() => void regradeBatch()} disabled={batching} data-testid="golden-regrade-batch">
+            <RefreshCw size={14} aria-hidden className={`mr-1.5 ${batching ? 'animate-spin' : ''}`} /> {batching ? t('regradeBatchRunning') : t('regradeBatch')}
+          </GaBtn>
         </div>
+
+        {batch && (
+          <GaCard className="border-2 border-ga-accent p-4" data-testid="golden-regrade-batch-result">
+            <GaCap className="mb-1 block">{t('regradeBatchCap')}</GaCap>
+            <p className="ga-ui text-[13.5px] text-ga-ink">
+              {t('regradeBatchDone', {
+                regraded: batch.regraded, requested: batch.requested, failed: batch.failed,
+                passFlips: batch.passFlips, avgDelta: batch.avgTotalDelta, bandChanges: batch.totalBandChanges,
+              })}
+            </p>
+          </GaCard>
+        )}
 
         {loading ? (
           <LoadingState label={t('loading')} />
@@ -112,6 +148,7 @@ export default function AdminExamGoldenPage() {
                 <GateCard label={t('passAgree')} pct={report.passAgreePct} gate={GATE_PASS_PCT} t={t} />
                 <GateCard label={t('within1')} pct={report.within1BandPct} gate={GATE_WITHIN1_PCT} t={t} />
                 <StatCard label={t('exactBand')} value={report.exactBandPct === null ? '—' : `${report.exactBandPct}%`} sub={t('exactBandSub')} />
+                <StatCard label={t('machineBorderline')} value={`${report.machineBorderline ?? 0}`} sub={t('machineBorderlineSub')} />
               </section>
             )}
 
@@ -140,7 +177,7 @@ export default function AdminExamGoldenPage() {
                         <td className="py-2 pr-3">{r.provider} {r.level}</td>
                         <td className="py-2 pr-3">{r.rater}</td>
                         <td className="py-2 pr-3 tabular-nums">
-                          {r.machine.total} / {r.machine.max} <PassBadge passed={r.machine.passed} t={t} />
+                          {r.machine.total} / {r.machine.max} <PassBadge passed={r.machine.passed} borderline={r.machine.borderline} t={t} />
                         </td>
                         <td className="py-2 pr-3 tabular-nums">
                           {r.human.total} / {r.human.max} <PassBadge passed={r.human.passed} t={t} />
@@ -331,7 +368,8 @@ function GateCard({ label, pct, gate, t }: { label: string; pct: number | null; 
   )
 }
 
-function PassBadge({ passed, t }: { passed: boolean | null; t: ReturnType<typeof useTranslations> }) {
+function PassBadge({ passed, borderline, t }: { passed: boolean | null; borderline?: boolean | null; t: ReturnType<typeof useTranslations> }) {
+  if (borderline) return <TkBadge tone="yellow">{t('borderline')}</TkBadge>
   if (passed === null) return <TkBadge tone="neutral">{t('noThreshold')}</TkBadge>
   return <TkBadge tone={passed ? 'green' : 'red'}>{passed ? t('passed') : t('failed')}</TkBadge>
 }

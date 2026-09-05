@@ -29,6 +29,9 @@ export default function AdminExamGoldenRatePage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState<GoldenSaveResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Chấm mù (tài liệu gate §4.1): band máy chỉ hiện SAU khi giám khảo lưu phiếu, hoặc khi chủ động bật.
+  const [revealMachine, setRevealMachine] = useState(false)
+  const showMachine = saved !== null || revealMachine
 
   useEffect(() => {
     let alive = true
@@ -97,7 +100,7 @@ export default function AdminExamGoldenRatePage() {
               {t('savedHuman')}: <strong className="tabular-nums">{saved.human.total} / {saved.human.max}</strong>{' '}
               <Pass passed={saved.human.passed} t={t} /> · {t('savedMachine')}:{' '}
               <strong className="tabular-nums">{saved.machine.total} / {saved.machine.max}</strong>{' '}
-              <Pass passed={saved.machine.passed} t={t} />
+              <Pass passed={saved.machine.passed} borderline={saved.machine.borderline} t={t} />
             </p>
             <p className="ga-ui mt-1 text-[13px] text-ga-muted">
               {t('savedAgree', {
@@ -155,7 +158,7 @@ export default function AdminExamGoldenRatePage() {
                     c={c}
                     bands={detail.sheet.bands}
                     value={bands[keyOf(p.teilNo, c.code)]}
-                    machine={detail.machineBands[keyOf(p.teilNo, c.code)]}
+                    machine={showMachine ? detail.machineBands[keyOf(p.teilNo, c.code)] : undefined}
                     onPick={(b) => setBands((prev) => ({ ...prev, [keyOf(p.teilNo, c.code)]: b }))}
                     t={t}
                   />
@@ -171,7 +174,7 @@ export default function AdminExamGoldenRatePage() {
                     c={c}
                     bands={detail.sheet.bands}
                     value={bands[keyOf(0, c.code)]}
-                    machine={detail.machineBands[keyOf(0, c.code)]}
+                    machine={showMachine ? detail.machineBands[keyOf(0, c.code)] : undefined}
                     onPick={(b) => setBands((prev) => ({ ...prev, [keyOf(0, c.code)]: b }))}
                     t={t}
                   />
@@ -181,6 +184,19 @@ export default function AdminExamGoldenRatePage() {
             <GaBtn variant="ink" size="lg" onClick={() => void save()} disabled={saving || Object.keys(bands).length === 0} data-testid="golden-save">
               <Save size={15} aria-hidden className="mr-1.5" /> {saving ? t('saving') : t('save')}
             </GaBtn>
+            {!saved && (
+              <div className="space-y-1.5" data-testid="blind-mode">
+                <p className="ga-ui text-[12px] text-ga-muted">{t('blindHint')}</p>
+                <button
+                  type="button"
+                  onClick={() => setRevealMachine((v) => !v)}
+                  className="ga-ui text-[12.5px] font-semibold text-ga-ink underline underline-offset-2"
+                  data-testid="reveal-machine"
+                >
+                  {revealMachine ? t('hideMachine') : t('revealMachine')}
+                </button>
+              </div>
+            )}
           </aside>
         </div>
       </div>
@@ -226,7 +242,8 @@ function CriterionRow({
   )
 }
 
-function Pass({ passed, t }: { passed: boolean | null; t: ReturnType<typeof useTranslations> }) {
+function Pass({ passed, borderline, t }: { passed: boolean | null; borderline?: boolean | null; t: ReturnType<typeof useTranslations> }) {
+  if (borderline) return <TkBadge tone="yellow">{t('borderline')}</TkBadge>
   if (passed === null) return <TkBadge tone="neutral">{t('noThreshold')}</TkBadge>
   return <TkBadge tone={passed ? 'green' : 'red'}>{passed ? t('passed') : t('failed')}</TkBadge>
 }

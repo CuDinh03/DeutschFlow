@@ -742,7 +742,18 @@
       "audio": {
         "playLabel": "Replay Teil {teil} turn",
         "transcriptOnly": "This session has no stored audio — graded on the transcript."
-      }
+      },
+      "borderline": "Borderline",
+      "machineBorderline": "Machine \"borderline\"",
+      "machineBorderlineSub": "excluded from pass/fail denominator — gate needs ≤20%",
+      "regradeBatch": "Regrade set",
+      "regradeBatchRunning": "Regrading…",
+      "regradeBatchCap": "Regrade batch result",
+      "regradeBatchConfirm": "Regrade every human-rated session in this filter (max {max} sessions, ≈12k tokens each, learner results are NOT overwritten). Continue?",
+      "regradeBatchDone": "Regraded {regraded}/{requested} sessions (failed {failed}) · pass/fail flips: {passFlips} · mean total delta: {avgDelta} · band changes: {bandChanges}.",
+      "blindHint": "Blind rating: machine bands stay hidden until you save (gate doc §4.1).",
+      "revealMachine": "Show machine bands (breaks blind rating)",
+      "hideMachine": "Hide machine bands"
     },
     "examBank": {
       "title": "Speaking exam task bank",
@@ -783,6 +794,38 @@
       "save": "Save",
       "saving": "Saving…",
       "cancel": "Cancel"
+    },
+    "aiUsage": {
+      "title": "AI usage",
+      "subtitle": "Tokens, STT seconds and estimated cost by feature × model × session — from the real ledger",
+      "back": "Back to admin",
+      "dismiss": "Dismiss",
+      "from": "From",
+      "to": "To",
+      "featurePrefix": "Feature prefix",
+      "apply": "Apply",
+      "loading": "Aggregating…",
+      "empty": "No data in this window.",
+      "totalCalls": "Calls",
+      "totalTokens": "Total tokens",
+      "totalStt": "STT seconds",
+      "totalCost": "Estimated cost",
+      "rateNote": "rate {rate} ₫/USD",
+      "byFeature": "By feature × model",
+      "colFeature": "Feature",
+      "colModel": "Model",
+      "colCalls": "Calls",
+      "colPrompt": "Prompt",
+      "colCached": "Cached",
+      "colCompletion": "Completion",
+      "colTotal": "Total tokens",
+      "colCost": "Cost",
+      "colSeconds": "Seconds",
+      "stt": "Transcription (STT)",
+      "sessions": "Most expensive sessions",
+      "sessionsHint": "One B1 mock ≈ the sum of EXAM_SPEAKING_* rows for that session (plan N0.6 estimated A1 20–30k, B1 50–80k tokens).",
+      "colSession": "Session",
+      "colFeatures": "Features"
     }
   }
 }

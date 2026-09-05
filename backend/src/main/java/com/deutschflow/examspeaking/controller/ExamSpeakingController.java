@@ -38,6 +38,7 @@ public class ExamSpeakingController {
     private final ExamBlueprintCatalog catalog;
     private final ExamSessionService sessionService;
     private final ExamWeaknessService weaknessService;
+    private final com.deutschflow.examspeaking.session.ExamTurnIdempotencyService idempotency;
 
     @Value("${app.ai.transcribe.max-bytes:8388608}")
     private long transcribeMaxBytes;
@@ -71,20 +72,35 @@ public class ExamSpeakingController {
         return sessionService.get(user.getId(), id);
     }
 
-    /** Drill (và mock khi dev bật allow-text-turns-in-mock): lượt nói dạng text. */
+    /**
+     * Drill (và mock khi dev bật allow-text-turns-in-mock): lượt nói dạng text.
+     * {@code clientTurnId} (tuỳ chọn, F-06): retry cùng khoá trong 15′ trả lại phản hồi đầu, không xử lý lại.
+     */
     @PostMapping(value = "/sessions/{id}/turns", consumes = MediaType.APPLICATION_JSON_VALUE)
     public TurnResponse textTurn(@AuthenticationPrincipal User user, @PathVariable long id,
                                  @RequestBody Map<String, String> body,
-                                 @RequestParam(value = "lang", required = false) String lang) {
-        return sessionService.submitTextTurn(user.getId(), id, body == null ? null : body.get("transcript"), lang);
+                                 @RequestParam(value = "lang", required = false) String lang,
+                                 @RequestParam(value = "clientTurnId", required = false) String clientTurnId) {
+        String transcript = body == null ? null : body.get("transcript");
+        return idempotency.execute(user.getId(), id, clientTurnId,
+                () -> sessionService.submitTextTurn(user.getId(), id, transcript, lang),
+                cached -> sessionService.withFreshSession(user.getId(), id, cached));
     }
 
-    /** Mock: lượt nói dạng audio — server phiên âm verbose (word-timestamps + logprob) và phát hành transcript. */
+    /**
+     * Mock: lượt nói dạng audio — server phiên âm verbose (word-timestamps + logprob) và phát hành transcript.
+     * Audio được đọc/validate TRƯỚC khoá idempotency để 400 (định dạng/kích thước) không chiếm khoá.
+     */
     @PostMapping(value = "/sessions/{id}/turns", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public TurnResponse audioTurn(@AuthenticationPrincipal User user, @PathVariable long id,
                                   @RequestParam("audio") MultipartFile file,
-                                  @RequestParam(value = "lang", required = false) String lang) throws IOException {
-        return sessionService.submitAudioTurn(user.getId(), id, readValidatedAudio(file), file.getOriginalFilename(), lang);
+                                  @RequestParam(value = "lang", required = false) String lang,
+                                  @RequestParam(value = "clientTurnId", required = false) String clientTurnId) throws IOException {
+        byte[] audio = readValidatedAudio(file);
+        String filename = file.getOriginalFilename();
+        return idempotency.execute(user.getId(), id, clientTurnId,
+                () -> sessionService.submitAudioTurn(user.getId(), id, audio, filename, lang),
+                cached -> sessionService.withFreshSession(user.getId(), id, cached));
     }
 
     /** Chọn chủ đề cho Teil "1 trong N" (Goethe B1/B2 T2): trong PREP (mock) hoặc ngay đầu Teil (drill). */

@@ -5,6 +5,8 @@ import com.deutschflow.ai.queue.AiJobRepository;
 import com.deutschflow.ai.queue.AiJobWorker;
 import com.deutschflow.ai.queue.StaleAiJobMaintenance;
 import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.common.quota.QuotaExceededException;
+import com.deutschflow.speaking.ai.GroqWhisperClient;
 import com.deutschflow.examspeaking.dto.CreateExamSessionRequest;
 import com.deutschflow.examspeaking.dto.ExamSessionView;
 import com.deutschflow.examspeaking.entity.SpeakingExamSession;
@@ -74,6 +76,8 @@ class ExamGradingFailurePathIntegrationTest extends AbstractPostgresIntegrationT
     @Autowired private UserRepository userRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
     @MockBean private OpenAiChatClient chatClient;
+    /** F-22: Whisper là bean thật (HTTP) — mock để chứng minh phiên đã đóng KHÔNG đốt một lần STT. */
+    @MockBean private GroqWhisperClient whisperClient;
 
     private long userId;
 
@@ -186,6 +190,59 @@ class ExamGradingFailurePathIntegrationTest extends AbstractPostgresIntegrationT
     @DisplayName("regrade khi phiên chưa từng chấm lỗi (IN_PART) → 409, không enqueue gì")
     void regradeRejectedOutsideFailedState() {
         llmHealthy();
+        regradeRejectedOutsideFailedStateBody();
+    }
+
+    @Test
+    @DisplayName("F-08: ví cạn giữa chừng → finish đóng phiên GRADING_FAILED/QUOTA_EXCEEDED (không job); nạp ví → Chấm lại → RESULTS")
+    void quotaExhaustedAtFinishGivesRecoverableFailure() throws Exception {
+        llmHealthy();
+        ExamSessionView s = sessionService.create(userId, new CreateExamSessionRequest("GOETHE", "A1", "MOCK", null));
+        sessionService.submitTextTurn(userId, s.id(), "Ich heiße Minh und ich komme aus Vietnam.");
+        // Ví tụt xuống dưới ngân sách chấm (12k) SAU khi đã tạo phiên (lúc tạo đã giữ chỗ đủ).
+        jdbcTemplate.update("UPDATE user_ai_token_wallets SET balance = 100 WHERE user_id = ?", userId);
+        while (!SpeakingExamSession.STATE_GRADING_FAILED.equals(s.state()) && !SpeakingExamSession.STATE_GRADING.equals(s.state())) {
+            s = sessionService.advance(userId, s.id());
+        }
+        assertThat(s.state()).isEqualTo(SpeakingExamSession.STATE_GRADING_FAILED);
+        assertThat(s.gradingError()).isEqualTo(SpeakingExamSession.GRADING_ERROR_QUOTA);
+        assertThat(s.gradingJobId()).as("không được sinh job khi chưa có ngân sách").isNull();
+
+        long sid = s.id();
+        assertThatThrownBy(() -> sessionService.regrade(userId, sid)).isInstanceOf(QuotaExceededException.class);
+
+        jdbcTemplate.update("UPDATE user_ai_token_wallets SET balance = 1000000 WHERE user_id = ?", userId);
+        ExamSessionView after = sessionService.regrade(userId, sid);
+        assertThat(after.state()).isEqualTo(SpeakingExamSession.STATE_GRADING);
+        assertThat(after.gradingError()).isNull();
+        awaitState(sid, SpeakingExamSession.STATE_RESULTS);
+        assertThat(sessionService.result(userId, sid).scoreSheet()).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("F-08: tạo MOCK đòi ngân sách chấm ngay lúc tạo — ví mỏng bị từ chối trước khi thi; DRILL vẫn tạo được")
+    void mockCreationRequiresGradingBudget() {
+        // Ví 1.000 token ĐÃ tích luỹ tới hôm nay (last_accrual = CURRENT_DATE, nếu để NULL snapshot sẽ dự phóng
+        // tích luỹ hằng ngày lên trần ví): dưới ngân sách chấm (12k + lượt) nhưng đủ cho MỘT lượt drill (700).
+        jdbcTemplate.update("UPDATE user_ai_token_wallets SET balance = 1000, last_accrual_local_date = CURRENT_DATE WHERE user_id = ?", userId);
+        assertThatThrownBy(() -> sessionService.create(userId, new CreateExamSessionRequest("GOETHE", "A1", "MOCK", null)))
+                .isInstanceOf(QuotaExceededException.class);
+        assertThat(sessionService.create(userId, new CreateExamSessionRequest("GOETHE", "A1", "DRILL", 2)).state())
+                .isEqualTo(SpeakingExamSession.STATE_IN_PART);
+    }
+
+    @Test
+    @DisplayName("F-22: audio tới phiên đã đóng → 409 TRƯỚC khi gọi Whisper (không đốt STT + ledger cho lượt vô nghĩa)")
+    void closedSessionRejectsAudioBeforeStt() {
+        llmHealthy();
+        ExamSessionView s = mockWithOneTurnToGrading();
+        long sid = s.id();
+        assertThatThrownBy(() -> sessionService.submitAudioTurn(userId, sid, new byte[]{1, 2, 3}, "turn.webm"))
+                .isInstanceOf(ConflictException.class);
+        org.mockito.Mockito.verifyNoInteractions(whisperClient);
+    }
+
+    private void regradeRejectedOutsideFailedStateBody() {
         ExamSessionView s = sessionService.create(userId, new CreateExamSessionRequest("GOETHE", "A1", "MOCK", null));
         long jobsBefore = aiJobRepository.count();
         assertThatThrownBy(() -> sessionService.regrade(userId, s.id())).isInstanceOf(ConflictException.class);

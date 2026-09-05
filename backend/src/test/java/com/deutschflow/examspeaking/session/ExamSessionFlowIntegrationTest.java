@@ -281,7 +281,8 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='A2' AND provider='GOETHE' AND teil_no=1", Integer.class)).isEqualTo(22);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='A2' AND provider='GOETHE' AND teil_no=2", Integer.class)).isEqualTo(12);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='A2' AND provider IS NULL AND teil_no=3", Integer.class)).isEqualTo(10);
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='A2' AND provider='TELC' AND teil_no=1", Integer.class)).isEqualTo(3);
+        // V306 (05/09): bơm pool mỏng telc A2 T1 3 → 10 (audit F-13).
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='A2' AND provider='TELC' AND teil_no=1", Integer.class)).isEqualTo(10);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='A2' AND provider='TELC' AND teil_no=2", Integer.class)).isEqualTo(24);
         String parts = jdbcTemplate.queryForObject("SELECT parts_json::text FROM speaking_exam_blueprints WHERE provider='GOETHE' AND level='A2'", String.class);
         assertThat(parts).contains("PERSON_CARD");
@@ -337,7 +338,8 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='GOETHE' AND teil_no=1", Integer.class)).isEqualTo(8);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='GOETHE' AND teil_no=2", Integer.class)).isEqualTo(12);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='GOETHE' AND teil_no=3", Integer.class)).isEqualTo(8);
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=1", Integer.class)).isEqualTo(3);
+        // V306 (05/09): bơm pool mỏng telc B1 T1 3 → 10 (audit F-13).
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=1", Integer.class)).isEqualTo(10);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=2", Integer.class)).isEqualTo(8);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=3", Integer.class)).isEqualTo(8);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_name='speaking_exam_sessions' AND column_name='prep_sec'", Integer.class)).isEqualTo(1);

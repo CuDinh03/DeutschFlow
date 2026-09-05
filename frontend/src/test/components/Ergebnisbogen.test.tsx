@@ -105,6 +105,30 @@ describe('Ergebnisbogen — N1c-3 msg structured', () => {
   })
 })
 
+describe('Ergebnisbogen — F-17 sát ngưỡng', () => {
+  it('borderline=true → badge "Sát ngưỡng" thay cho đỗ/trượt + dòng giải thích khoảng điểm + msg dịch', () => {
+    renderSheet({
+      ...baseSheet,
+      total: 61,
+      totalLow: 58,
+      totalHigh: 64,
+      passed: true,
+      borderline: true,
+      noteMsgs: [{ code: 'borderline', params: { low: '58', high: '64', min: '60' } }],
+    })
+    expect(screen.getByTestId('result-borderline')).toHaveTextContent('Sát ngưỡng')
+    expect(screen.queryByTestId('result-passed')).not.toBeInTheDocument()
+    expect(screen.getByTestId('result-borderline-note')).toHaveTextContent('58–64')
+    expect(screen.getByText('Khoảng điểm 58–64 vắt qua ngưỡng 60 — kết luận đỗ/trượt chưa chắc chắn.')).toBeInTheDocument()
+  })
+
+  it('phiếu cũ không có borderline → vẫn hiện đỗ/trượt như trước', () => {
+    renderSheet({ ...baseSheet, passed: true })
+    expect(screen.getByTestId('result-passed')).toBeInTheDocument()
+    expect(screen.queryByTestId('result-borderline')).not.toBeInTheDocument()
+  })
+})
+
 describe('Ergebnisbogen — fallback phiếu cũ (trước N1c-3)', () => {
   const oldSheet: ScoreSheet = {
     ...baseSheet,

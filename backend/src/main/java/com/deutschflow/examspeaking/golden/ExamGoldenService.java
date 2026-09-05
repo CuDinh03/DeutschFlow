@@ -56,6 +56,8 @@ import java.util.stream.Collectors;
 public class ExamGoldenService {
 
     private static final int LIST_LIMIT = 200;
+    /** Trần regrade batch — ngân sách gate (tài liệu §6.4): 100 phiên ≈ 1,2M token. */
+    public static final int REGRADE_BATCH_MAX = 100;
 
     private final SpeakingExamResultRepository resultRepository;
     private final SpeakingExamTurnRepository turnRepository;
@@ -149,6 +151,7 @@ public class ExamGoldenService {
         int bandPairs = 0;
         int bandExact = 0;
         int bandWithin1 = 0;
+        int machineBorderline = 0;
         Set<Long> ratedSessions = new java.util.HashSet<>();
 
         for (SpeakingExamResult result : results) {
@@ -164,7 +167,11 @@ public class ExamGoldenService {
             for (Map.Entry<Long, List<SpeakingExamGoldenRating>> e : byRater.entrySet()) {
                 Ergebnisbogen human = scoreHuman(result, rubric, e.getValue());
                 GoldenView.AgreementStats stats = bandAgreement(machineBands, bandsByKey(human), rubric.scale());
-                Boolean agree = passAgree(machine.passed(), human.passed());
+                // F-17: máy "sát ngưỡng" thì không có kết luận để so — đếm riêng, loại khỏi mẫu số đạt/trượt.
+                Boolean agree = machine.borderline() ? null : passAgree(machine.passed(), human.passed());
+                if (machine.borderline()) {
+                    machineBorderline++;
+                }
                 rows.add(new GoldenView.CompareRow(result.getSessionId(), result.getProvider(), result.getLevel(),
                         raterNames.getOrDefault(e.getKey(), "#" + e.getKey()),
                         summary(machine), summary(human), stats));
@@ -181,14 +188,57 @@ public class ExamGoldenService {
             }
         }
         return new GoldenView.CompareReport(ratedSessions.size(), rows.size(),
-                pct(passAgree, passPairs), pct(bandExact, bandPairs), pct(bandWithin1, bandPairs), rows);
+                pct(passAgree, passPairs), pct(bandExact, bandPairs), pct(bandWithin1, bandPairs), rows,
+                machineBorderline);
+    }
+
+    /**
+     * Regression harness (tài liệu gate §6.3): regrade nhiều phiên trên transcript đóng băng, KHÔNG ghi đè
+     * kết quả học viên đã thấy. Mặc định chỉ phiên ĐÃ có giám khảo người chấm (bộ golden); trần cứng 100
+     * phiên/lần vì mỗi phiên ≈ 12k token. Lỗi từng phiên được ghi vào dòng, không dừng cả batch.
+     */
+    public GoldenView.RegradeBatchResult regradeBatch(String provider, String level, boolean ratedOnly, int limit,
+                                                      long callerUserId) {
+        int cap = Math.max(1, Math.min(limit, REGRADE_BATCH_MAX));
+        List<SpeakingExamResult> results = filteredResults(provider, level);
+        Map<Long, List<SpeakingExamGoldenRating>> ratings = ratedOnly ? ratingsBySession(results) : Map.of();
+        List<SpeakingExamResult> targets = results.stream()
+                .filter(r -> !ratedOnly || !ratings.getOrDefault(r.getSessionId(), List.of()).isEmpty())
+                .limit(cap)
+                .toList();
+        List<GoldenView.RegradeBatchRow> rows = new ArrayList<>();
+        int regraded = 0;
+        int failed = 0;
+        int passFlips = 0;
+        int bandChanges = 0;
+        double deltaSum = 0;
+        for (SpeakingExamResult r : targets) {
+            try {
+                GoldenView.RegradeResult one = regrade(r.getSessionId(), callerUserId);
+                regraded++;
+                deltaSum += one.totalDelta();
+                bandChanges += one.bandChanges().size();
+                if (one.passedChanged()) {
+                    passFlips++;
+                }
+                rows.add(new GoldenView.RegradeBatchRow(r.getSessionId(), r.getProvider(), r.getLevel(),
+                        one.stored().total(), one.fresh().total(), one.totalDelta(), one.passedChanged(),
+                        one.bandChanges().size(), null));
+            } catch (RuntimeException e) {
+                failed++;
+                rows.add(new GoldenView.RegradeBatchRow(r.getSessionId(), r.getProvider(), r.getLevel(),
+                        num(r.getTotalPoints()), null, 0, false, 0, e.getMessage()));
+            }
+        }
+        double avg = regraded == 0 ? 0 : round2(deltaSum / regraded);
+        return new GoldenView.RegradeBatchResult(targets.size(), regraded, failed, passFlips, avg, bandChanges, rows);
     }
 
     /** CSV phẳng cho phân tích ngoài (một dòng = một tiêu chí × giám khảo). */
     @Transactional(readOnly = true)
     public String exportCsv(String provider, String level) {
         StringBuilder sb = new StringBuilder("session_id,provider,level,rater,key,machine_band,human_band,"
-                + "machine_total,human_total,machine_passed,human_passed\n");
+                + "machine_total,human_total,machine_passed,human_passed,machine_borderline\n");
         List<SpeakingExamResult> results = filteredResults(provider, level);
         Map<Long, List<SpeakingExamGoldenRating>> bySession = ratingsBySession(results);
         Map<Long, String> names = raterNames(bySession);
@@ -212,7 +262,8 @@ public class ExamGoldenService {
                             .append(result.getLevel()).append(',').append(csv(rater)).append(',').append(k).append(',')
                             .append(nvl(machineBands.get(k))).append(',').append(nvl(humanBands.get(k))).append(',')
                             .append(nvl(machine.total())).append(',').append(nvl(human.total())).append(',')
-                            .append(nvl(machine.passed())).append(',').append(nvl(human.passed())).append('\n');
+                            .append(nvl(machine.passed())).append(',').append(nvl(human.passed())).append(',')
+                            .append(machine.borderline()).append('\n');
                 }
             }
         }
@@ -380,7 +431,7 @@ public class ExamGoldenService {
     }
 
     private static GoldenView.Summary summary(Ergebnisbogen sheet) {
-        return new GoldenView.Summary(sheet.total(), sheet.maxPoints(), sheet.passed());
+        return new GoldenView.Summary(sheet.total(), sheet.maxPoints(), sheet.passed(), sheet.borderline());
     }
 
     static Set<String> validKeys(RubricDefinition rubric) {
@@ -480,19 +531,28 @@ public class ExamGoldenService {
         return deleted;
     }
 
-    /** Xoá vĩnh viễn audio của một phiên; transcript giữ nguyên. */
+    /**
+     * Xoá vĩnh viễn audio của một phiên; transcript giữ nguyên. F-12: chỉ xoá {@code audio_ref} của key
+     * S3 ĐÃ xoá thật; key thất bại giữ nguyên tham chiếu (và giữ cờ retain) để purge lại — không để object
+     * mồ côi trên S3 mà DB đã mất dấu.
+     */
     @Transactional
     public GoldenView.PurgeResult purgeAudio(long sessionId) {
         List<SpeakingExamTurn> turns = turnRepository.findBySessionIdOrderBySeqAsc(sessionId);
         List<String> keys = turns.stream().map(SpeakingExamTurn::getAudioRef).filter(k -> k != null && !k.isBlank()).toList();
-        int deleted = audioStorage.purge(keys);
-        turns.forEach(t -> t.setAudioRef(null));
+        ExamAudioStorage.PurgeOutcome outcome = audioStorage.purge(keys);
+        Set<String> failed = new java.util.HashSet<>(outcome.failed());
+        turns.stream()
+                .filter(t -> t.getAudioRef() == null || !failed.contains(t.getAudioRef()))
+                .forEach(t -> t.setAudioRef(null));
         turnRepository.saveAll(turns);
-        sessionRepository.findById(sessionId).ifPresent(s -> {
-            s.setRetainAudio(false);
-            sessionRepository.save(s);
-        });
-        return new GoldenView.PurgeResult(sessionId, deleted);
+        if (failed.isEmpty()) {
+            sessionRepository.findById(sessionId).ifPresent(s -> {
+                s.setRetainAudio(false);
+                sessionRepository.save(s);
+            });
+        }
+        return new GoldenView.PurgeResult(sessionId, outcome.deleted().size(), failed.size());
     }
 
 }

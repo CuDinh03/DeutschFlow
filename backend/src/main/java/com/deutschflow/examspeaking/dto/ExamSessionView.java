@@ -25,7 +25,9 @@ public record ExamSessionView(
         Long gradingJobId,
         boolean resultAvailable,
         /** true = phiên này ĐANG ghi âm để phục vụ hiệu chuẩn chấm điểm — UI phải nói rõ cho thí sinh. */
-        boolean retainAudio
+        boolean retainAudio,
+        /** Lý do khi state = GRADING_FAILED: QUOTA_EXCEEDED | JOB_FAILED | JOB_STUCK (null với phiên khác). */
+        String gradingError
 ) {
     /** Tài liệu chuẩn bị cho một Teil (chỉ phần thí sinh được xem; chọn 1 trong N nếu choiceRequired). */
     public record PrepMaterial(

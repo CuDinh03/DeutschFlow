@@ -43,8 +43,11 @@ public final class GoldenView {
     /** Người học đã đồng ý cho lưu audio phục vụ hiệu chuẩn. */
     public record Participant(long userId, String displayName, String email, java.time.Instant consentedAt, String note) {}
 
-    /** Kết quả purge audio của một phiên (rút lại đồng ý / dọn dẹp). */
-    public record PurgeResult(long sessionId, int deleted) {}
+    /**
+     * Kết quả purge audio của một phiên (rút lại đồng ý / dọn dẹp). {@code failed > 0} = S3 từ chối xoá
+     * một số key; tham chiếu được GIỮ để xoá lại (F-12) — admin phải thử lại, không coi là đã sạch.
+     */
+    public record PurgeResult(long sessionId, int deleted, int failed) {}
 
     public record RatingRow(int teilNo, String criterionCode, String band) {}
 
@@ -61,7 +64,8 @@ public final class GoldenView {
             List<RatingRow> myRatings
     ) {}
 
-    public record Summary(Double total, Double max, Boolean passed) {}
+    /** {@code borderline}: khoảng điểm máy vắt qua ngưỡng (F-17) — đối chiếu đạt/trượt bỏ qua phiên này. */
+    public record Summary(Double total, Double max, Boolean passed, Boolean borderline) {}
 
     /** Kết quả sau khi lưu phiếu: điểm người chấm (RubricScorer tính từ band) + đối chiếu nhanh. */
     public record SaveResult(Summary human, Summary machine, Boolean passAgree, AgreementStats bands) {}
@@ -79,15 +83,27 @@ public final class GoldenView {
             AgreementStats bands
     ) {}
 
-    /** Báo cáo gate: đạt/trượt ≥85%, ±1 band ≥90% (kế hoạch mục G). */
+    /**
+     * Báo cáo gate: đạt/trượt ≥85%, ±1 band ≥90% (kế hoạch mục G). {@code machineBorderline} = số cặp
+     * mà máy trả "sát ngưỡng" — loại khỏi mẫu số đạt/trượt, báo riêng để gate theo dõi (≤20%).
+     */
     public record CompareReport(
             int sessions,
             int ratedPairs,
             Double passAgreePct,
             Double exactBandPct,
             Double within1BandPct,
-            List<CompareRow> rows
+            List<CompareRow> rows,
+            int machineBorderline
     ) {}
+
+    /** Một phiên trong regrade batch (regression harness — tài liệu gate §6.3). */
+    public record RegradeBatchRow(long sessionId, String provider, String level, Double storedTotal, Double freshTotal,
+                                  double totalDelta, boolean passedChanged, int bandChanges, String error) {}
+
+    /** Tổng kết regrade batch: chạy lại pipeline chấm trên transcript đóng băng của nhiều phiên, không ghi đè. */
+    public record RegradeBatchResult(int requested, int regraded, int failed, int passFlips, double avgTotalDelta,
+                                     int totalBandChanges, List<RegradeBatchRow> rows) {}
 
     public record BandChange(String key, String before, String after) {}
 

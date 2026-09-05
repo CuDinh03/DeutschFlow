@@ -83,7 +83,7 @@ export default function V2ExamSpeakingCatalogPage() {
       <GaPageHdr
         accent
         title={t('title')}
-        subtitle={t('subtitle')}
+        subtitle={`${t('subtitle')} · ${t('betaDesc')}`}
         right={
           <a href="/v2/student/speaking" className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink hover:bg-ga-surface lg:min-h-0">
             <ArrowLeft size={14} aria-hidden /> {t('back')}
@@ -134,7 +134,7 @@ export default function V2ExamSpeakingCatalogPage() {
           <>
             <div className="mb-[22px] flex flex-col items-start gap-4 bg-ga-ink p-5 text-ga-bg md:flex-row md:items-center md:justify-between lg:p-7">
               <div className="min-w-0">
-                <GaCap className="mb-2 block" style={{ color: '#A39E94' }}>{t('mockCap')}</GaCap>
+                <GaCap className="mb-2 block" style={{ color: '#A39E94' }}>{t('mockCap')} · <span data-testid="catalog-beta">{t('beta')}</span></GaCap>
                 <p className="font-ga-display text-[22px] font-medium lg:text-[26px]">{blueprint.title}</p>
                 <p className="ga-ui mt-1.5 flex flex-wrap gap-x-4 text-[13.5px]" style={{ color: '#A39E94' }}>
                   <span className="inline-flex items-center gap-1"><Clock size={13} aria-hidden /> {t('duration', { min: Math.round(blueprint.parts.reduce((s, p) => s + p.durationSec, 0) / 60) })}</span>
@@ -228,8 +228,14 @@ export default function V2ExamSpeakingCatalogPage() {
                     </span>
                     <span className="flex items-center gap-2">
                       <span className="ga-ui text-[14px] font-semibold tabular-nums text-ga-ink">{r.total ?? '–'} / {r.max ?? '–'}</span>
-                      {r.passed === true && <TkBadge tone="green">{t('passed')}</TkBadge>}
-                      {r.passed === false && <TkBadge tone="red">{t('failed')}</TkBadge>}
+                      {r.borderline ? (
+                        <TkBadge tone="yellow">{t('borderline')}</TkBadge>
+                      ) : (
+                        <>
+                          {r.passed === true && <TkBadge tone="green">{t('passed')}</TkBadge>}
+                          {r.passed === false && <TkBadge tone="red">{t('failed')}</TkBadge>}
+                        </>
+                      )}
                     </span>
                   </a>
                 </li>

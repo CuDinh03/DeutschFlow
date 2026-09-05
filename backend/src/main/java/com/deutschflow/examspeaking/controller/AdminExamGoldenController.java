@@ -87,6 +87,28 @@ public class AdminExamGoldenController {
         return goldenService.regrade(id, user.getId());
     }
 
+    /**
+     * Regression harness (tài liệu gate §6.3): regrade cả bộ golden của một hệ×cấp. TỐN token thật
+     * (≈12k/phiên) nên trần cứng {@link ExamGoldenService#REGRADE_BATCH_MAX} và để lại vết audit.
+     */
+    @PostMapping("/regrade-batch")
+    public GoldenView.RegradeBatchResult regradeBatch(@AuthenticationPrincipal User user,
+                                                      @RequestParam(required = false) String provider,
+                                                      @RequestParam(required = false) String level,
+                                                      @RequestParam(defaultValue = "true") boolean ratedOnly,
+                                                      @RequestParam(defaultValue = "100") int limit) {
+        if (limit < 1 || limit > ExamGoldenService.REGRADE_BATCH_MAX) {
+            throw new BadRequestException("limit phải trong 1.." + ExamGoldenService.REGRADE_BATCH_MAX + " (ngân sách gate).");
+        }
+        GoldenView.RegradeBatchResult out = goldenService.regradeBatch(provider, level, ratedOnly, limit, user.getId());
+        auditLogService.log("admin.exam_golden.regrade_batch", AuditActor.of(user),
+                "EXAM_GOLDEN", null,
+                Map.of("provider", String.valueOf(provider), "level", String.valueOf(level),
+                        "ratedOnly", ratedOnly, "requested", out.requested(), "regraded", out.regraded(),
+                        "failed", out.failed()));
+        return out;
+    }
+
     // ── Chiến dịch hiệu chuẩn: người đồng ý lưu audio + dọn audio ───────────────────────────
 
     @GetMapping("/participants")

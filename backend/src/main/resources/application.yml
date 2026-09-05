@@ -253,6 +253,9 @@ app:
     turn-max-tokens: ${EXAM_SPEAKING_TURN_MAX_TOKENS:400}
     drill-eval-max-tokens: ${EXAM_SPEAKING_DRILL_EVAL_MAX_TOKENS:700}
     grading-max-tokens: ${EXAM_SPEAKING_GRADING_MAX_TOKENS:1800}
+    # F-07: phiếu phát hành mà ≥30% tiêu chí không chấm được (provider/JSON lỗi một phần) → thông báo
+    # in-app cho ADMIN (throttle 10′/loại). Job chấm chết/kẹt/hết quota cũng đi cùng kênh.
+    alert-unscored-ratio: ${EXAM_SPEAKING_ALERT_UNSCORED_RATIO:0.3}
   # Hàng đợi job AI (ai_jobs). max-age-days là chốt chặn kép chống lặp lại sự cố 10/06–23/08 (worker
   # chết 2,5 tháng ⇒ backlog PENDING khổng lồ): (1) claimPendingJobs bỏ qua job cũ hơn ngưỡng nên
   # worker không đốt token cho việc đã hết giá trị; (2) StaleAiJobExpirer chuyển chúng sang FAILED

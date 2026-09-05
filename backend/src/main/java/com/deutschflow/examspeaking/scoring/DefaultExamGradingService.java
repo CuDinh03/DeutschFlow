@@ -67,6 +67,11 @@ public class DefaultExamGradingService implements ExamGradingService {
 
     @Override
     public Ergebnisbogen grade(long userId, ParticipantBundle bundle, RubricRef ref) {
+        return grade(userId, bundle, ref, null);
+    }
+
+    @Override
+    public Ergebnisbogen grade(long userId, ParticipantBundle bundle, RubricRef ref, Long sessionId) {
         ExamBlueprint bp = catalog.find(ref.provider(), ref.level())
                 .orElseThrow(() -> new IllegalArgumentException("Blueprint not found: " + ref.provider() + " " + ref.level()));
         RubricDefinition rubric = bp.rubric();
@@ -74,11 +79,11 @@ public class DefaultExamGradingService implements ExamGradingService {
         List<Ergebnisbogen> passes = new ArrayList<>();
         int n = props.passes();
         for (int i = 0; i < n; i++) {
-            passes.add(rubricScorer.score(ref, rubric, assessOnePass(userId, bundle, ref, rubric, PASS_TEMPERATURES[i])));
+            passes.add(rubricScorer.score(ref, rubric, assessOnePass(userId, sessionId, bundle, ref, rubric, PASS_TEMPERATURES[i])));
         }
         if (n == 2 && !aggregator.divergentCriteria(rubric, passes).isEmpty()) {
             log.info("[ExamGrading] divergent criteria → arbiter pass (user={})", userId);
-            passes.add(rubricScorer.score(ref, rubric, assessOnePass(userId, bundle, ref, rubric, PASS_TEMPERATURES[2])));
+            passes.add(rubricScorer.score(ref, rubric, assessOnePass(userId, sessionId, bundle, ref, rubric, PASS_TEMPERATURES[2])));
         }
         Ergebnisbogen combined = aggregator.combine(ref, rubric, passes);
         long scored = combined.parts().stream().flatMap(p -> p.criteria().stream()).filter(Ergebnisbogen.CriterionResult::scored).count()
@@ -93,6 +98,11 @@ public class DefaultExamGradingService implements ExamGradingService {
 
     PassAssessment assessOnePass(long userId, ParticipantBundle bundle, RubricRef ref, RubricDefinition rubric,
                                  double temperature) {
+        return assessOnePass(userId, null, bundle, ref, rubric, temperature);
+    }
+
+    PassAssessment assessOnePass(long userId, Long sessionId, ParticipantBundle bundle, RubricRef ref,
+                                 RubricDefinition rubric, double temperature) {
         Map<Integer, PassAssessment.PartAssessment> parts = new HashMap<>();
         List<Ergebnisbogen.ErrorItem> errors = new ArrayList<>();
         List<String> notes = new ArrayList<>();
@@ -111,7 +121,7 @@ public class DefaultExamGradingService implements ExamGradingService {
             }
             ParticipantBundle.PartTranscript pt = ptOpt.get();
             allCandidate.addAll(pt.candidate());
-            Optional<JsonNode> json = callJson(userId, promptBuilder.partPrompt(ref.provider(), ref.level(), rubric, rp, pt,
+            Optional<JsonNode> json = callJson(userId, sessionId, promptBuilder.partPrompt(ref.provider(), ref.level(), rubric, rp, pt,
                     bundle.partnerKind()), temperature);
             if (json.isEmpty()) {
                 notes.add("Teil " + rp.teilNo() + ": AI không trả kết quả hợp lệ → tiêu chí của Teil chưa chấm được.");
@@ -135,7 +145,7 @@ public class DefaultExamGradingService implements ExamGradingService {
             }
         }
         if (!llmGlobal.isEmpty() && !allCandidate.isEmpty()) {
-            Optional<JsonNode> json = callJson(userId, promptBuilder.globalPrompt(ref.provider(), ref.level(), rubric, llmGlobal, bundle),
+            Optional<JsonNode> json = callJson(userId, sessionId, promptBuilder.globalPrompt(ref.provider(), ref.level(), rubric, llmGlobal, bundle),
                     temperature);
             int wordCount = lexicalProfiler.profile(allCandidate, ref.level()).tokenCount();
             for (RubricDefinition.RubricCriterion c : llmGlobal) {
@@ -294,14 +304,14 @@ public class DefaultExamGradingService implements ExamGradingService {
         return out;
     }
 
-    private Optional<JsonNode> callJson(long userId, List<ChatMessage> messages, double temperature) {
+    private Optional<JsonNode> callJson(long userId, Long sessionId, List<ChatMessage> messages, double temperature) {
         try {
             AiChatCompletionResult res = chatClient.chatCompletionForTier(messages,
                     tierResolver.spec(LlmTier.GRADING_EXAM), temperature, props.gradingTokens(), true);
             if (res == null) {
                 return Optional.empty();
             }
-            ledger.record(userId, res.provider(), res.model(), res.usage(), FEATURE, null, null);
+            ledger.record(userId, res.provider(), res.model(), res.usage(), FEATURE, null, sessionId);
             return LlmJson.parse(objectMapper, res.content());
         } catch (RuntimeException e) {
             log.warn("[ExamGrading] LLM call failed: {}", e.getMessage());
