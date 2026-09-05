@@ -36,15 +36,18 @@ describe('trang chủ dẫn khách vào phễu onboarding', () => {
   })
 
   it('bảng giá lấy đích theo từng gói, không dùng chung một href cứng', () => {
-    expect(code).toMatch(/href=\{p\.href\}/)
-    expect(code).toMatch(/cta: 'Bắt đầu ngay', href: START_HREF/)
-    expect(code).toMatch(/cta: 'Dùng thử 7 ngày miễn phí', href: START_HREF/)
+    // 06/09/2026 (i18n): nhãn gói nằm trong catalog v2.landing; đích/highlight ở PLAN_META cùng
+    // thứ tự (Miễn phí, Pro → phễu; Giáo viên → /v2/register).
+    expect(code).toMatch(/href=\{meta\.href\}/)
+    const planMeta = code.match(/const PLAN_META = \[([\s\S]*?)\]/)?.[1] ?? ''
+    expect(planMeta.match(/href: START_HREF/g)).toHaveLength(2)
+    expect(planMeta.match(/href: '\/v2\/register'/g)).toHaveLength(1)
   })
 
   it('CTA B2B KHÔNG bị đẩy vào phễu học viên', () => {
     // Gói "Giáo viên" và nút tư vấn trung tâm phục vụ trung tâm, không phải người học.
-    expect(code).toMatch(/cta: 'Nhận tư vấn', href: '\/v2\/register'/)
-    expect(code).toMatch(/href="\/v2\/register"><YellowSq \/>Nhận tư vấn cho trung tâm/)
+    expect(code).toMatch(/\{ href: '\/v2\/register', highlight: false \}/)
+    expect(code).toMatch(/href="\/v2\/register"><YellowSq \/>\{t\('teachers\.ctaConsult'\)\}/)
   })
 
   it('chỉ còn đúng một href /v2/register hard-code trong JSX — nút tư vấn trung tâm', () => {
