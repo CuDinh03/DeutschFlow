@@ -281,3 +281,28 @@ export async function fetchClassSessions(classId: number): Promise<ClassSession[
   const res = await api.get<ClassSession[]>(`/v2/students/classes/${classId}/sessions`)
   return res.data ?? []
 }
+
+/**
+ * Trần `topic` của phiên AI speaking = `CreateSessionRequest.topic @Size(max = 200)` + cột
+ * `ai_speaking_sessions.topic` VARCHAR(200). Kịch bản AI sinh cho bài SPEAKING_SCENARIO thường dài
+ * hơn, mà trước 05/09 trang bài giao ghép nguyên chuỗi → backend 400 "One or more fields are
+ * invalid" ngay khi bấm bắt đầu (phát hiện khi smoke mobile N2 — mobile gương đúng hàm này).
+ */
+export const SESSION_TOPIC_MAX = 200
+
+/**
+ * Chuỗi `topic` gửi cho phiên AI của bài giao nói: ≤ 200 thì giữ nguyên định dạng
+ * "Chủ đề / Mô tả chi tiết / Gợi ý"; vượt thì giữ chủ đề + đầu mô tả (kết thúc …), bỏ Gợi ý.
+ */
+export function scenarioTopic(
+  sc: { topic?: string | null; scenarioDescription?: string | null; followUpQuestions?: string | null },
+  max = SESSION_TOPIC_MAX,
+): string {
+  const full = `Chủ đề: ${sc.topic ?? ''}\n\nMô tả chi tiết: ${sc.scenarioDescription ?? ''}\n\nGợi ý: ${sc.followUpQuestions ?? ''}`
+  if (full.length <= max) return full
+  const head = `Chủ đề: ${sc.topic ?? ''}\n\nMô tả chi tiết: `
+  const room = max - head.length - 1
+  if (room <= 0) return full.slice(0, max)
+  const desc = (sc.scenarioDescription ?? '').trim()
+  return head + (desc.length > room ? `${desc.slice(0, room).trimEnd()}…` : desc)
+}
