@@ -48,6 +48,13 @@ public interface VocabReviewRepository extends JpaRepository<VocabReviewSchedule
     long countByUserId(Long userId);
 
     /**
+     * Số thẻ người dùng đã ôn ít nhất một lần ({@code last_review_at} khác null) — tín hiệu
+     * "đã từng dùng SRS" cho {@code GET /api/srs/stats} (mobile gate coach mark, owner 05/09).
+     * Không có nhật ký từng lượt ôn và đường FSRS không tăng {@code repetitions}, nên đếm thẻ.
+     */
+    long countByUserIdAndLastReviewAtIsNotNull(Long userId);
+
+    /**
      * Count of "mastered" cards — those scheduled at a long-term interval (>= 21 days).
      * 21 days is the canonical SM-2 "mature card" boundary and applies to FSRS cards too
      * (both algorithms write {@code interval_days}). Used as the real vocabulary-mastery
