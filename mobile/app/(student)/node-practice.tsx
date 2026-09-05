@@ -19,6 +19,8 @@ import {
 } from '@/lib/skillTreeApi'
 import { findNextNode } from '@/lib/nextNode'
 import { LessonCompleteNav } from '@/components/LessonCompleteNav'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 type Answer = { choice?: number; text?: string }
 const SCORED = new Set(['MULTIPLE_CHOICE', 'FILL_BLANK'])
@@ -35,6 +37,8 @@ export default function NodePracticeScreen() {
 }
 
 function NodePracticeRunner() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['node-practice'])
   const c = useTheme().colors
   const qc = useQueryClient()
   const params = useLocalSearchParams<{ nodeId: string; title?: string }>()
@@ -138,7 +142,7 @@ function NodePracticeRunner() {
     <Screen edges={['top']}>
       <AppHeader
         title={params.title ?? data?.titleVi ?? 'Luyện tập'}
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)/lernweg'))}
+        onBack={goBack}
       />
 
       {isLoading ? (

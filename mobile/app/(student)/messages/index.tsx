@@ -11,6 +11,7 @@ import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Pill, Screen, SelectableChip, Skeleton, ThemedText,
 } from '@/components/ui'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 // Unified inbox (QA build 15): personal 1:1 threads and class group channels
 // live under ONE "Tin nhắn" entry, split by tab — mirrors the web unified
@@ -19,6 +20,8 @@ import {
 type InboxTab = 'personal' | 'class'
 
 export default function MessagesHubScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   const [tab, setTab] = useState<InboxTab>('personal')
 
   const conv = useQuery({
@@ -42,7 +45,7 @@ export default function MessagesHubScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Tin nhắn" subtitle="Cá nhân · Nhóm lớp" onBack={() => router.back()} />
+      <AppHeader title="Tin nhắn" subtitle="Cá nhân · Nhóm lớp" onBack={goBack} />
 
       <View style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: space[5], marginBottom: space[3] }}>
         <SelectableChip label="Tin nhắn cá nhân" selected={tab === 'personal'} onPress={() => setTab('personal')}>
@@ -134,7 +137,7 @@ function ClassChannelRow({ klass }: { klass: MyClassroom }) {
       onPress={() =>
         router.push({
           pathname: '/(student)/class-chat/[classId]',
-          params: { classId: String(klass.id), className: klass.name },
+          params: { classId: String(klass.id), className: klass.name, from: 'messages' },
         })
       }
       accessibilityLabel={`Kênh chat lớp ${klass.name}`}

@@ -49,6 +49,7 @@ import {
   type NotificationPage,
 } from '@/lib/notificationsApi'
 import { resolveNotificationRoute } from '@/lib/notificationRoute'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 // Themed icon per notification type — replaces the emoji the backend bakes into titles (stripped
 // via stripLeadingEmoji). The type→key decision is a PURE function in lib/notificationsApi so it can
@@ -109,6 +110,8 @@ function buildEntries(notifs: Notification[]): ListEntry[] {
 }
 
 export default function NotificationsScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   const theme = useTheme()
   const c = theme.colors
   const qc = useQueryClient()
@@ -158,7 +161,7 @@ export default function NotificationsScreen() {
     <Screen edges={['top']}>
       <AppHeader
         title="Thông báo"
-        onBack={() => router.back()}
+        onBack={goBack}
         right={
           <Pressable
             accessibilityRole="button"

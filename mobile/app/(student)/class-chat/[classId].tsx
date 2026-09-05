@@ -4,7 +4,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
+import { useFocusEffect, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { MessagesSquare, Send } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
@@ -20,12 +20,19 @@ import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Caption, EmptyState, ErrorState, Icon, Screen, Skeleton, ThemedText,
 } from '@/components/ui'
+import { useBackTo } from '@/hooks/useBackTo'
 
 export default function ClassChatScreen() {
   const c = useTheme().colors
   const insets = useSafeAreaInsets()
   const qc = useQueryClient()
-  const params = useLocalSearchParams<{ classId: string; className?: string }>()
+  const params = useLocalSearchParams<{ classId: string; className?: string; from?: string }>()
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(() =>
+    params.from === 'messages'
+      ? '/(student)/messages'
+      : { pathname: '/(student)/classes/[id]', params: { id: params.classId } },
+  )
   const classId = Number(params.classId)
   const className = params.className ?? 'Chat lớp'
   const [draft, setDraft] = useState('')
@@ -126,7 +133,7 @@ export default function ClassChatScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title={className} subtitle="Kênh chat lớp" onBack={() => router.back()} />
+      <AppHeader title={className} subtitle="Kênh chat lớp" onBack={goBack} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

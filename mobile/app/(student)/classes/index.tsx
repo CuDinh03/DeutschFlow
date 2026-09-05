@@ -15,8 +15,12 @@ import {
   AppHeader, Button, Caption, Card, EmptyState, ErrorState, FadeIn, Icon,
   ProgressBar, Screen, Skeleton, TextField, ThemedText, YellowSquare,
 } from '@/components/ui'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 export default function StudentClassesIndex() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['classes/index'])
   const theme = useTheme()
   const qc = useQueryClient()
 
@@ -38,7 +42,7 @@ export default function StudentClassesIndex() {
             ? `Đang tham gia ${classes.length} lớp`
             : 'Lớp bạn đã tham gia'
         }
-        onBack={() => router.back()}
+        onBack={goBack}
         right={
           <Pressable
             accessibilityRole="button"

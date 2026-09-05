@@ -30,6 +30,8 @@ import {
 import { hasAnySkillExercise } from '@/lib/skillExercises'
 import { findNextNode } from '@/lib/nextNode'
 import { LessonCompleteNav } from '@/components/LessonCompleteNav'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 // Cap how long markLearned holds the button loading while waiting for the fresh tree that
 // feeds "Bài tiếp theo"; a slow tree refetch reveals anyway and nextNode self-heals.
@@ -39,6 +41,8 @@ const REVEAL_TREE_CAP_MS = 3000
 // Nodes with exercises open the practice runner (node-practice.tsx); theory-only nodes
 // (no gradeable exercises) complete via the "Đánh dấu đã học" action below.
 export default function NodeScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['node'])
   const c = useTheme().colors
   const params = useLocalSearchParams<{ nodeId: string; title?: string }>()
   const nodeId = Number(params.nodeId)
@@ -91,7 +95,7 @@ export default function NodeScreen() {
       <AppHeader
         title={params.title ?? data?.titleVi ?? 'Bài học'}
         subtitle={data?.cefrLevel ? `${data.cefrLevel}${data.titleDe ? ` · ${data.titleDe}` : ''}` : undefined}
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)/lernweg'))}
+        onBack={goBack}
       />
 
       {isLoading ? (

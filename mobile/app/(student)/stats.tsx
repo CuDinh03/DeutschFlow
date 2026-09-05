@@ -39,6 +39,7 @@ import {
   SkillRadar,
   Button,
 } from '@/components/ui'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 interface StatsData {
   streakDays: number
@@ -65,6 +66,8 @@ interface SkillsShape {
 }
 
 export default function StatsScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   const { data: stats, isLoading, isError, refetch: refetchStats } = useQuery({
     queryKey: ['stats'],
     queryFn: () => api.get<StatsData>('/student/stats').then((r) => r.data),
@@ -122,7 +125,7 @@ export default function StatsScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Tiến độ học tập" onBack={() => router.back()} />
+      <AppHeader title="Tiến độ học tập" onBack={goBack} />
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
           <View style={{ flexDirection: 'row', gap: space[3] }}>

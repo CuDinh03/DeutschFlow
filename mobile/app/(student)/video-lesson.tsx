@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { View, ActivityIndicator, Alert, Share } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { Film, Download } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, AppHeader, ThemedText, Icon, EmptyState, ErrorState, SelectableChip } from '@/components/ui'
 import { apiMessage } from '@/lib/api'
 import { videoLessonApi } from '@/lib/videoLessonApi'
 import { VideoLessonPlayer } from '@/components/video/VideoLessonPlayer'
+import { useBackTo } from '@/hooks/useBackTo'
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
@@ -21,7 +22,9 @@ const LISTEN_TOPICS = [
 
 export default function VideoLessonScreen() {
   const c = useTheme().colors
-  const params = useLocalSearchParams<{ level?: string; type?: string; caseName?: string; title?: string }>()
+  const params = useLocalSearchParams<{ level?: string; type?: string; caseName?: string; title?: string; from?: string }>()
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(() => (params.from === 'vocabulary' ? '/(student)/vocabulary' : '/(student)/grammar'))
   const isGrammar = !!params.caseName
   const initialLevel = LEVELS.find((l) => l === params.level) ?? 'A1'
   const [level, setLevel] = useState<string>(initialLevel)
@@ -95,7 +98,7 @@ export default function VideoLessonScreen() {
     <Screen edges={['top']}>
       <AppHeader
         title={isGrammar ? (params.title ?? 'Video ngữ pháp') : 'Video ôn tập'}
-        onBack={() => router.back()}
+        onBack={goBack}
       />
 
       {!isGrammar && (

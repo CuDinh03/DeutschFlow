@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import { View, Pressable, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
-import { router } from 'expo-router'
 import { Check, Lock } from 'lucide-react-native'
 import { useMutation } from '@tanstack/react-query'
 import { useAuthStore } from '@/stores/useAuthStore'
 import api from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, ThemedText, Icon, AppHeader, TextField, Card, Caption } from '@/components/ui'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 export default function EditProfileScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['settings/profile'])
   const theme = useTheme()
   const c = theme.colors
   const { user, setUser } = useAuthStore()
@@ -19,7 +22,7 @@ export default function EditProfileScreen() {
     onSuccess: (res, name) => {
       if (user) setUser({ ...user, displayName: res.data?.displayName ?? name })
       Alert.alert('Đã lưu', 'Thông tin của bạn đã được cập nhật.')
-      router.back()
+      goBack()
     },
     onError: () => {
       Alert.alert('Lỗi', 'Không thể lưu thay đổi. Vui lòng thử lại.')
@@ -40,7 +43,7 @@ export default function EditProfileScreen() {
       <AppHeader
         title="Chỉnh sửa hồ sơ"
         subtitle="Thông tin cá nhân"
-        onBack={() => router.back()}
+        onBack={goBack}
         right={
           <Pressable
             accessibilityRole="button"

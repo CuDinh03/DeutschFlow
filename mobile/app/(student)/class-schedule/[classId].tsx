@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { CalendarClock, Clock, MapPin, Video } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { fetchClassSessions, type ClassSession } from '@/lib/studentClassesApi'
@@ -10,9 +10,12 @@ import { space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Pill, Screen, Skeleton, ThemedText,
 } from '@/components/ui'
+import { useBackTo } from '@/hooks/useBackTo'
 
 export default function ClassScheduleScreen() {
   const params = useLocalSearchParams<{ classId: string; className?: string }>()
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(() => ({ pathname: '/(student)/classes/[id]', params: { id: params.classId } }))
   const classId = Number(params.classId)
   const className = params.className ?? 'Lịch học'
 
@@ -37,7 +40,7 @@ export default function ClassScheduleScreen() {
       <AppHeader
         title={className}
         subtitle="Lịch buổi học"
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)'))}
+        onBack={goBack}
       />
 
       {q.isLoading ? (

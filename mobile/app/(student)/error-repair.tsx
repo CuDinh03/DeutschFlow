@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Alert, View } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { router } from 'expo-router'
 import { Check, Wrench } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
@@ -11,6 +10,7 @@ import {
 import { drillPass, errorSkillsApi, todayApi, type ErrorSkill } from '@/lib/todayApi'
 import { getErrorTitle } from '@/lib/errorTaxonomy'
 import { trackFeatureAction } from '@/lib/analytics'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 /**
  * Sửa lỗi đến hạn (cụm Heute — thiết kế đã chốt 02/09). Drill "gõ lại câu đúng"
@@ -18,6 +18,8 @@ import { trackFeatureAction } from '@/lib/analytics'
  * pass → POST repair-attempt (semantics backend: đánh dấu RESOLVED sau drill).
  */
 export default function ErrorRepairScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   const theme = useTheme()
   const c = theme.colors
   const queryClient = useQueryClient()
@@ -41,7 +43,7 @@ export default function ErrorRepairScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Sửa lỗi đến hạn" subtitle="Lỗi bạn hay mắc, ôn theo lịch giãn cách" onBack={() => router.back()} />
+      <AppHeader title="Sửa lỗi đến hạn" subtitle="Lỗi bạn hay mắc, ôn theo lịch giãn cách" onBack={goBack} />
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
           <Skeleton height={150} radius="2xl" />
@@ -58,7 +60,7 @@ export default function ErrorRepairScreen() {
             title="Không có lỗi nào đến hạn"
             message="Cứ luyện nói tiếp — lỗi mới (nếu có) sẽ vào lịch ôn ở đây."
             actionLabel="Quay lại"
-            onAction={() => router.back()}
+            onAction={goBack}
           />
         </View>
       ) : (

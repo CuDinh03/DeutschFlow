@@ -9,6 +9,7 @@ import {
 } from '@/components/ui'
 import { lernwegApi, ROADMAP_ME_QUERY_KEY } from '@/lib/lernwegApi'
 import { buildLernwegTree, skillLabel, type LernwegLeaf, type LernwegLevel } from '@/lib/lernwegTree'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 /**
  * Lernweg — bản đồ lộ trình THẬT từ `GET /roadmap/me` (từ 05/09, N1 plan nâng cấp
@@ -22,6 +23,8 @@ import { buildLernwegTree, skillLabel, type LernwegLeaf, type LernwegLevel } fro
  * trạng thái, chú giải, sheet) giữ nguyên bản đã chốt 02/09.
  */
 export default function LernwegScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   const theme = useTheme()
   const c = theme.colors
   const [sheetLeaf, setSheetLeaf] = useState<LernwegLeaf | null>(null)
@@ -185,7 +188,7 @@ export default function LernwegScreen() {
       <AppHeader
         title="Lernweg"
         subtitle={tree?.currentLevel ? `${tree.currentLevel} · con đường của bạn` : undefined}
-        onBack={() => router.back()}
+        onBack={goBack}
         right={
           tree && tree.total > 0 ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
