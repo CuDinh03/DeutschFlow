@@ -296,11 +296,11 @@ export async function fetchAssignmentScenario(assignmentId: number): Promise<Ass
 /**
  * Chuỗi `topic` gửi cho phiên AI — ĐÚNG định dạng web đang gửi (classes/[id]/assignments/[aid]/page.tsx),
  * để prompt backend nhận cùng một đầu vào trên hai nền tảng. Phần thiếu để trống, không in "null".
- * Trần 200 ký tự = `CreateSessionRequest.topic @Size(max = 200)` + cột `ai_speaking_sessions.topic`
- * VARCHAR(200); kịch bản AI sinh thường dài hơn nên phải cắt, nếu không backend trả 400 và bài
- * không bao giờ bắt đầu được (web hiện cũng gửi chuỗi không cắt — cùng lỗi tiềm ẩn).
+ * Trần 2000 ký tự = `CreateSessionRequest.topic @Size(max = 2000)` + cột `ai_speaking_sessions.topic`
+ * VARCHAR(2000) từ backend V304 (#541). Trước đó 200 → kịch bản AI sinh bị cắt mất mô tả/gợi ý
+ * (#536); vẫn giữ nhánh cắt phòng kịch bản dài bất thường, nếu không backend trả 400.
  */
-export const SESSION_TOPIC_MAX = 200
+export const SESSION_TOPIC_MAX = 2000
 
 export function scenarioTopic(
   sc: Pick<AssignmentScenario, 'topic' | 'scenarioDescription' | 'followUpQuestions'>,
