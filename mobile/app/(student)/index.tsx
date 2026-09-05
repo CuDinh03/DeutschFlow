@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { View, RefreshControl, Pressable, Alert, Linking } from 'react-native'
+import { View, Pressable, Alert, Linking } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, useFocusEffect } from 'expo-router'
