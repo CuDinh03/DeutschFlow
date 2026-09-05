@@ -23,6 +23,8 @@ import {
 } from '@/lib/examSpeakingUi'
 import { isExamTtsMuted, setExamTtsMuted, speakExamSequence, stopExamTts } from '@/lib/examTts'
 import { trackFeatureAction } from '@/lib/analytics'
+import { examParentHref } from '@/lib/examSpeakingNav'
+import { useHardwareBack } from '@/hooks/useHardwareBack'
 
 const GRADING_POLL_MS = 3000
 
@@ -114,6 +116,14 @@ export default function SpeakingExamRoomScreen() {
       }
     },
   )
+
+  // Rời phòng thi = về hub Luyện thi Nói (màn cha) và tắt giọng giám khảo. Điều hướng tường minh:
+  // GO_BACK của Tabs (student) (backBehavior=firstRoute) đẩy về Heute. Back cứng Android đi cùng đường.
+  const leaveRoom = useCallback(() => {
+    stopExamTts()
+    router.navigate(examParentHref('room'))
+  }, [])
+  useHardwareBack(leaveRoom)
 
   const pushLine = useCallback((role: RoomLine['role'], text: string, evalJson?: DrillTurnEval | null) => {
     lineSeq.current += 1
@@ -393,7 +403,7 @@ export default function SpeakingExamRoomScreen() {
   if (loadError) {
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Phòng thi" onBack={() => router.back()} />
+        <AppHeader title="Phòng thi" onBack={leaveRoom} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <ErrorState onRetry={() => { setLoadError(false); void examSpeakingApi.getSession(sessionId).then((d) => applySession(d, true)).catch(() => setLoadError(true)) }} />
         </View>
@@ -404,7 +414,7 @@ export default function SpeakingExamRoomScreen() {
   if (!session) {
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Phòng thi" onBack={() => router.back()} />
+        <AppHeader title="Phòng thi" onBack={leaveRoom} />
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
           <Skeleton height={90} radius="2xl" />
           <Skeleton height={240} radius="2xl" />
@@ -421,10 +431,7 @@ export default function SpeakingExamRoomScreen() {
       <AppHeader
         title={inPart && d ? `Teil ${d.teilNo} · ${d.title}` : stateLabel(session.state)}
         subtitle={`Sprechen ${session.level} · ${session.mode === 'MOCK' ? 'thi thử' : 'luyện Teil'}`}
-        onBack={() => {
-          stopExamTts()
-          router.back()
-        }}
+        onBack={leaveRoom}
         right={
           inPart || session.state === 'BETWEEN' || session.state === 'PREP' ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
@@ -730,7 +737,7 @@ export default function SpeakingExamRoomScreen() {
               </View>
             )}
             <View style={{ gap: space[2] }}>
-              <Button label="Luyện lại Teil này" onPress={() => router.back()} />
+              <Button label="Luyện lại Teil này" onPress={leaveRoom} />
               <Button label="Ôn yếu điểm + Redemittel" variant="ghost" onPress={() => router.push('/(student)/speaking-exam-weakness')} />
             </View>
             <ThemedText variant="caption" color="faint">
@@ -778,7 +785,7 @@ export default function SpeakingExamRoomScreen() {
           <Card style={{ alignItems: 'center', gap: space[3], paddingVertical: space[6] }}>
             <Icon icon={RotateCcw} size={22} color="secondary" />
             <ThemedText variant="title">Phiên đã kết thúc</ThemedText>
-            <Button label="Về Luyện thi Nói" variant="ghost" onPress={() => router.back()} />
+            <Button label="Về Luyện thi Nói" variant="ghost" onPress={leaveRoom} />
           </Card>
         </View>
       )}

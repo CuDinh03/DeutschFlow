@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
@@ -14,6 +14,8 @@ import { getErrorTitle } from '@/lib/errorTaxonomy'
 import { levelsFromBlueprints, providerName, verdict, verdictLabel, verdictTone } from '@/lib/examSpeakingUi'
 import { trackFeatureAction } from '@/lib/analytics'
 import { handleAiError } from '@/lib/upsell'
+import { examParentHref } from '@/lib/examSpeakingNav'
+import { useHardwareBack } from '@/hooks/useHardwareBack'
 
 /** Hub Luyện thi Nói — thiết kế canvas 02/09 (đã chốt): hero chọn level, cấu trúc đề, điểm yếu, kết quả gần đây. */
 export default function SpeakingExamHubScreen() {
@@ -81,10 +83,14 @@ export default function SpeakingExamHubScreen() {
   }
   const startMock = () => startSession('MOCK')
 
+  // Back về tab Speaking (màn cha) — điều hướng tường minh, vì GO_BACK của Tabs (firstRoute) về Heute.
+  const goBack = useCallback(() => router.navigate(examParentHref('hub')), [])
+  useHardwareBack(goBack)
+
   if (!hasProAccess) {
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Luyện thi Nói" subtitle="Goethe · telc · Sprechen" onBack={() => router.back()} />
+        <AppHeader title="Luyện thi Nói" subtitle="Goethe · telc · Sprechen" onBack={goBack} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
             icon={Lock}
@@ -100,7 +106,7 @@ export default function SpeakingExamHubScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Luyện thi Nói" subtitle={`${providerName(provider)} · Sprechen · Beta`} onBack={() => router.back()} />
+      <AppHeader title="Luyện thi Nói" subtitle={`${providerName(provider)} · Sprechen · Beta`} onBack={goBack} />
       <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[4], paddingTop: space[2] }}>
         {/* Hệ chứng chỉ — parity web (catalog có Goethe/telc từ Đợt 1) */}
         <View style={{ flexDirection: 'row', gap: space[2] }} accessibilityRole="radiogroup" accessibilityLabel="Hệ chứng chỉ">
