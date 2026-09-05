@@ -53,15 +53,27 @@ export interface SrsIntroInput {
   /** Sheet nhắc học đang mở — không chồng coach mark lên sheet. */
   sheetOpen: boolean
   dueCount: number
+  /**
+   * /srs/stats `reviewedCards` — số thẻ đã ôn ≥ 1 lần (backend từ PR "srs stats
+   * review count", 05/09). `count: null` = backend chưa trả trường này → rơi về
+   * gate cũ "tour chính đã xem trên máy".
+   */
+  reviewed?: { status: ProbeStatus; count: number | null }
 }
 
 /**
- * Coach mark SRS: `/srs/stats` không có số lượt đã ôn để biết "chưa từng dùng",
- * nên giữ gate "tour chính đã xem trên máy này" — tour chính chỉ tự nổ cho tài
- * khoản mới (hoặc do chính người dùng replay), nên coach mark này cũng chỉ tới họ.
+ * Coach mark SRS: có tín hiệu server "chưa từng ôn" (`reviewedCards === 0`) thì
+ * dùng nó — kể cả tài khoản cũ chưa từng ôn thẻ nào (owner 05/09: chưa từng dùng
+ * chức năng đó); đã ôn ≥ 1 thẻ thì không bao giờ tự nổ. Dò chưa xong / dò lỗi →
+ * không nổ (chưa biết thì thôi). Backend cũ không có trường → gate cũ: tour chính
+ * đã xem trên máy này (chỉ tài khoản mới hoặc chính người dùng replay).
  */
 export function canAutoStartSrsIntro(i: SrsIntroInput): boolean {
-  return i.hydrated && i.doneHome && !i.doneSrs && !i.tourBusy && !i.sheetOpen && i.dueCount > 0
+  if (!i.hydrated || i.doneSrs || i.tourBusy || i.sheetOpen || i.dueCount <= 0) return false
+  const r = i.reviewed
+  if (r && r.status !== 'success') return false
+  if (r && r.count !== null) return r.count === 0
+  return i.doneHome
 }
 
 export interface SpeakingIntroInput {
