@@ -53,7 +53,7 @@ describe('attemptTotalScore (F-10a soát 02/09)', () => {
 // ── AC-MOBFIX-03 (06/09): sanitizer backend (từ 06/2026) strip `correct` và sinh `type`
 // (MULTIPLE_CHOICE / RICHTIG_FALSCH / MATCHING); options trong seed là OBJECT {A,B,C}.
 // Parser cũ chỉ nhận options MẢNG hoặc `correct` richtig/falsch → 0 nhóm → mọi đề "Chưa hỗ trợ trên app".
-import { itemChoices, parseLesenItems } from '@/lib/examApi'
+import { itemChoices, parseLesenItems, parseMatchingContext } from '@/lib/examApi'
 
 const SANITIZED = JSON.stringify({
   sections: [
@@ -72,7 +72,13 @@ const SANITIZED = JSON.stringify({
           context: 'Artikel: Homeoffice – Fluch oder Segen?',
           items: [{ id: 'L1-1', question: 'Jeder dritte Arbeitnehmer arbeitet von zu Hause.', points: 1, type: 'RICHTIG_FALSCH' }],
         },
-        { teil: 2, type: 'MATCH_PERSON', items: [{ id: 'L2-1', person: 'Kenji hat Informatik studiert.', points: 1, type: 'MATCHING' }] },
+        {
+          teil: 2,
+          type: 'MATCH_PERSON',
+          instruction_vi: 'Ghép mỗi người với tin tuyển dụng phù hợp',
+          context: 'A=Grafikdesigner/in gesucht, Vollzeit, Hamburg. B=Pflegefachkraft für Altersheim, Berlin. C=IT-Support Techniker, Teilzeit möglich, München.',
+          items: [{ id: 'L2-1', person: 'Kenji hat Informatik studiert.', points: 1, type: 'MATCHING' }],
+        },
         {
           teil: 3,
           type: 'MULTIPLE_CHOICE',
@@ -87,16 +93,34 @@ const SANITIZED = JSON.stringify({
 describe('parseLesenItems — dữ liệu đã qua sanitizer (không có correct, options object)', () => {
   const parsed = parseLesenItems(SANITIZED)
 
-  it('bóc được Teil 1 (richtig/falsch theo type) và Teil 3 (trắc nghiệm options object); bỏ MATCHING', () => {
-    expect(parsed.groups.map((g) => g.title)).toEqual(['Teil 1', 'Teil 3'])
+  it('bóc được Teil 1 (richtig/falsch theo type), Teil 2 (ghép người ↔ tin từ context) và Teil 3 (trắc nghiệm options object)', () => {
+    expect(parsed.groups.map((g) => g.title)).toEqual(['Teil 1', 'Teil 2', 'Teil 3'])
     expect(parsed.groups[0].instruction).toBe('Đọc bài và chọn Richtig/Falsch')
     expect(parsed.groups[0].passage).toBe('Artikel: Homeoffice – Fluch oder Segen?')
     expect(parsed.groups[0].items[0].passage).toBeUndefined() // bài đọc ở cấp nhóm, không lặp từng câu
     expect(parsed.skippedSections).toEqual(['HOEREN'])
   })
 
+  it('ghép người ↔ tin (MATCHING): câu hỏi = person, lựa chọn bóc từ context "A=… B=…", nộp chữ cái; context không lặp thành bài đọc', () => {
+    const g = parsed.groups[1]
+    expect(g.instruction).toBe('Ghép mỗi người với tin tuyển dụng phù hợp')
+    expect(g.passage).toBeUndefined()
+    const m = g.items[0]
+    expect(m.question).toBe('Kenji hat Informatik studiert.')
+    expect(m.optionKeys).toEqual(['A', 'B', 'C'])
+    expect(m.options).toEqual(['Grafikdesigner/in gesucht, Vollzeit, Hamburg', 'Pflegefachkraft für Altersheim, Berlin', 'IT-Support Techniker, Teilzeit möglich, München'])
+    expect(itemChoices(m)[2]).toEqual({ value: 'C', label: 'C. IT-Support Techniker, Teilzeit möglich, München' })
+  })
+
+  it('MATCHING không có context → vẫn hiện, lựa chọn là chữ cái A–E như web', () => {
+    const noCtx = JSON.stringify({ sections: [{ name: 'LESEN', teile: [{ teil: 2, items: [{ id: 'L2-1', person: 'Frau Becker sucht etwas für das Kind.', type: 'MATCHING' }] }] }] })
+    const item = parseLesenItems(noCtx).groups[0].items[0]
+    expect(item.optionKeys).toEqual(['A', 'B', 'C', 'D', 'E'])
+    expect(itemChoices(item)[0]).toEqual({ value: 'A', label: 'A' })
+  })
+
   it('trắc nghiệm: nhãn = giá trị object, khoá chữ cái giữ riêng để nộp', () => {
-    const mc = parsed.groups[1].items[0]
+    const mc = parsed.groups[2].items[0]
     expect(mc.options).toEqual(['Zwei Wochen', 'Drei Wochen', 'Einen Monat'])
     expect(mc.optionKeys).toEqual(['A', 'B', 'C'])
   })
@@ -137,5 +161,21 @@ describe('itemChoices — giá trị nộp khớp ExamScoringService.equalsIgnor
       { value: 'x', label: 'x' },
       { value: 'y', label: 'y' },
     ])
+  })
+})
+
+describe('parseMatchingContext', () => {
+  it('tách "A=… . B=… ." thành cặp chữ cái → nội dung (bỏ dấu chấm cuối)', () => {
+    const pairs = parseMatchingContext('A=Haushaltshilfe gesucht, 3x/Woche, 15€/h. B=Gitarrenunterricht für Kinder ab 8 Jahren, 25€/Stunde. C=Verkaufe Kinderwagen, fast neu, 60€.')
+    expect(pairs).toEqual([
+      { key: 'A', text: 'Haushaltshilfe gesucht, 3x/Woche, 15€/h' },
+      { key: 'B', text: 'Gitarrenunterricht für Kinder ab 8 Jahren, 25€/Stunde' },
+      { key: 'C', text: 'Verkaufe Kinderwagen, fast neu, 60€' },
+    ])
+  })
+  it('không phải định dạng ghép (bài đọc thường / rỗng) → []', () => {
+    expect(parseMatchingContext('Artikel: Homeoffice – Fluch oder Segen? Immer mehr…')).toEqual([])
+    expect(parseMatchingContext(undefined)).toEqual([])
+    expect(parseMatchingContext('A=nur eins.')).toEqual([])
   })
 })
