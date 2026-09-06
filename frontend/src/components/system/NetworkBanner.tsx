@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 // Slide-down banner shown whenever the device loses connectivity mid-session.
 // Uses the browser's online/offline events (navigator.onLine) — the Capacitor @capacitor/network
 // dependency was retired (S20b); its web behaviour was already navigator.onLine under the hood.
 export function NetworkBanner() {
+  const t = useTranslations('v2.system')
   const [offline, setOffline] = useState(false)
 
   useEffect(() => {
@@ -36,7 +38,7 @@ export function NetworkBanner() {
       <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636L5.636 18.364m12.728 0L5.636 5.636M12 18.5a.5.5 0 100-1 .5.5 0 000 1z" />
       </svg>
-      <span>Mất kết nối mạng — một số tính năng tạm thời không khả dụng</span>
+      <span>{t('offlineBanner')}</span>
     </div>
   )
 }

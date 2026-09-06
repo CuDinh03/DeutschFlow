@@ -288,5 +288,10 @@
     "teacherPrefix": "Lehrkraft: {names}",
     "noTeacher": "Noch keine Lehrkraft",
     "studentsCount": "{count} Lernende"
+  },
+  "system": {
+    "sessionExpiredTitle": "Deine Sitzung ist abgelaufen",
+    "sessionExpiredBody": "Deine Sitzung ist abgelaufen oder konnte nicht automatisch erneuert werden. Bitte melde dich erneut an, um fortzufahren.",
+    "offlineBanner": "Keine Netzwerkverbindung — einige Funktionen sind vorübergehend nicht verfügbar"
   }
 }

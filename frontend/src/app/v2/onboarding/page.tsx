@@ -71,6 +71,17 @@ interface PQ { id: number; skillSection: string; type: string; questionDe: strin
 export default function V2OnboardingPage() {
   const router = useRouter();
   const t = useTranslations("v2.onboarding");
+  // Tagline mentor theo locale (onboarding.mentorTaglines.<mã> — đợt 3 audit i18n 06/09/2026):
+  // mã chưa có trong catalog rơi về bảng MENTOR_META (tiếng Việt); không có nốt → câu chung.
+  const mentorTagline = (code: string | null | undefined): string | null => {
+    if (!code) return null;
+    if (t.has(`mentorTaglines.${code}`)) return t(`mentorTaglines.${code}`);
+    return MENTOR_META[code]?.tagline ?? null;
+  };
+  const mentorTaglineSuffix = (code: string): string => {
+    const tagline = mentorTagline(code);
+    return tagline ? ` (${tagline})` : "";
+  };
   const { trackOnboardingStep, trackEvent } = useTracking();
   // A/B: the mentor PRO-upsell nudge is gated behind a PostHog feature flag. Default-on
   // (undefined = flag not configured → shown), so no regression until an experiment is run.
@@ -344,13 +355,13 @@ export default function V2OnboardingPage() {
         </div>
         <div
           role="progressbar"
-          aria-label="Tiến độ thiết lập lộ trình"
+          aria-label={t("nav.progressAria")}
           aria-valuemin={1}
           aria-valuemax={totalSteps}
           aria-valuenow={Math.min(step, totalSteps)}
           className="mb-6 flex items-center justify-center gap-2"
         >
-          <span className="sr-only">Bước {Math.min(step, totalSteps)} trên {totalSteps}</span>
+          <span className="sr-only">{t("nav.stepOf", { step: Math.min(step, totalSteps), total: totalSteps })}</span>
           {Array.from({ length: totalSteps }, (_, index) => index + 1).map(s => (
             <span aria-hidden="true" key={s} className={`h-1.5 w-8 rounded-ga-pill ${s <= step ? "bg-ga-yellow" : "bg-ga-line"}`} />
           ))}
@@ -426,7 +437,7 @@ export default function V2OnboardingPage() {
                     <div className="min-w-0">
                       <p className="ga-ui text-[10.5px] uppercase tracking-[0.08em] text-ga-muted font-semibold">{t("pace.mentorLabel")}</p>
                       <p className="ga-ui text-[13.5px] font-bold text-ga-ink">{mentor.displayName}</p>
-                      <p className="text-[12px] text-ga-muted">{MENTOR_META[mentor.code]?.tagline ?? t("pace.mentorFallbackTagline")}</p>
+                      <p className="text-[12px] text-ga-muted">{mentorTagline(mentor.code) ?? t("mentorTaglines.fallback")}</p>
                     </div>
                   </div>
                   {mentor.upsellCode && mentorUpsellEnabled && (
@@ -435,7 +446,7 @@ export default function V2OnboardingPage() {
                       className="w-full text-left text-[12px] text-ga-ink bg-ga-yellow-soft border border-dashed border-ga-gold rounded-ga px-3 py-2">
                       {t.rich("pace.upsell", {
                         name: mentor.upsellDisplayName ?? "",
-                        tagline: MENTOR_META[mentor.upsellCode]?.tagline ? ` (${MENTOR_META[mentor.upsellCode].tagline})` : "",
+                        tagline: mentorTaglineSuffix(mentor.upsellCode),
                         b: (chunks) => <strong>{chunks}</strong>,
                       })}
                     </button>
@@ -497,7 +508,7 @@ export default function V2OnboardingPage() {
                   <div className="min-w-0">
                     <p className="ga-ui text-[10.5px] uppercase tracking-[0.08em] text-ga-muted font-semibold">{t("pace.mentorLabel")}</p>
                     <p className="ga-ui text-[13.5px] font-bold text-ga-ink">{mentor.displayName}</p>
-                    <p className="text-[12px] text-ga-muted">{MENTOR_META[mentor.code]?.tagline ?? t("pace.mentorFallbackTagline")}</p>
+                    <p className="text-[12px] text-ga-muted">{mentorTagline(mentor.code) ?? t("mentorTaglines.fallback")}</p>
                   </div>
                 </div>
               )}

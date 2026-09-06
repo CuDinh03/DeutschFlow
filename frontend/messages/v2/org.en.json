@@ -75,7 +75,9 @@
       "seatsUnlimitedSuffix": "students using seats · unlimited",
       "sectionError": "Could not load this section.",
       "todoSourceError": "Some data (classes/invitations) failed to load — this list may be incomplete.",
-      "statUnavailable": "could not load"
+      "statUnavailable": "could not load",
+      "checkingOwner": "Checking permissions…",
+      "loadingDashboard": "Loading dashboard…"
     },
     "manager": {
       "title": "Operations board",
@@ -149,7 +151,13 @@
       "statusLeft": "Left",
       "profile": "Profile",
       "exportEmpty": "No rows to export.",
-      "exportDone": "Exported {count} students to CSV."
+      "exportDone": "Exported {count} students to CSV.",
+      "csv": {
+        "displayName": "Display name",
+        "email": "Email",
+        "status": "Status",
+        "joinedAt": "Joined on"
+      }
     },
     "studentDetail": {
       "titleFallback": "Student detail",

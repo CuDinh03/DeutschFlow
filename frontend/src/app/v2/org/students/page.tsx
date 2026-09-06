@@ -71,7 +71,7 @@ export default function V2OrgStudentsPage() {
             disabled={loading}
             onClick={() => {
               if (rows.length === 0) { toast(t('exportEmpty')); return }
-              downloadTextFile(`hoc-vien-${format(new Date(), 'yyyy-MM-dd')}.csv`, studentsToCsv(rows))
+              downloadTextFile(`hoc-vien-${format(new Date(), 'yyyy-MM-dd')}.csv`, studentsToCsv(rows, [t('csv.displayName'), t('csv.email'), t('csv.status'), t('csv.joinedAt')]))
               toast.success(t('exportDone', { count: rows.length }))
             }}
           >

@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { getOrgRole } from '@/lib/authSession'
 import { LoadingState } from '@/components/ui-v2'
 
@@ -40,6 +41,7 @@ export function useIsOrgOwner(): boolean | null {
 }
 
 export function OrgOwnerOnly({ children }: { children: React.ReactNode }) {
+  const t = useTranslations('v2.org.overview')
   const router = useRouter()
   const [state, setState] = React.useState<'checking' | 'owner'>('checking')
 
@@ -51,6 +53,6 @@ export function OrgOwnerOnly({ children }: { children: React.ReactNode }) {
     }
   }, [router])
 
-  if (state !== 'owner') return <LoadingState label="Đang kiểm tra quyền…" />
+  if (state !== 'owner') return <LoadingState label={t('checkingOwner')} />
   return <>{children}</>
 }
