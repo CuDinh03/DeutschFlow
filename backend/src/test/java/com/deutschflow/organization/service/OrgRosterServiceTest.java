@@ -42,6 +42,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.util.List;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("OrgRosterService Unit Tests")
@@ -97,6 +100,41 @@ class OrgRosterServiceTest {
         // CLASS_ID belongs to ORG_ID by default so the existing classId tests pass the IDOR guard.
         lenient().when(teacherClassRepository.findById(CLASS_ID))
                 .thenReturn(Optional.of(TeacherClass.builder().id(CLASS_ID).orgId(ORG_ID).build()));
+    }
+
+    @Test
+    @DisplayName("PR-A5b: ô bọc ngoặc kép — tên có dấu phẩy và \"\" bên trong tách đúng, header bọc ngoặc vẫn được bỏ qua")
+    void importStudents_parsesQuotedFieldsPerRfc4180() {
+        stubOrg(org(0, "PRO"));
+        String csv = "\"email\",\"displayName\",\"phone\"\n"
+                + "\"an@x.com\",\"Nguyễn, An\",\"0912\"\n"
+                + "binh@x.com,\"Trần \"\"Bình\"\" Văn\",\n";
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User created = inv.getArgument(0);
+            created.setId(100L);
+            return created;
+        });
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertEquals(2, result.total(), "header bọc ngoặc phải bị bỏ qua, còn đúng 2 dòng dữ liệu");
+        assertEquals(0, result.failed(), () -> "không dòng nào được coi là lỗi: " + result.errors());
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        verify(userRepository, times(2)).save(saved.capture());
+        assertEquals(List.of("Nguyễn, An", "Trần \"Bình\" Văn"),
+                saved.getAllValues().stream().map(User::getDisplayName).toList());
+        assertEquals(List.of("an@x.com", "binh@x.com"),
+                saved.getAllValues().stream().map(User::getEmail).toList());
+    }
+
+    @Test
+    @DisplayName("PR-A5b: splitCsvLine — ô thường, ô bọc ngoặc, ngoặc không đóng không làm nổ")
+    void splitCsvLine_edgeCases() {
+        assertArrayEquals(new String[]{"a@x.com", "A", ""}, OrgRosterService.splitCsvLine("a@x.com,A,"));
+        assertArrayEquals(new String[]{"a@x.com", "Nguyễn, An"}, OrgRosterService.splitCsvLine("a@x.com,\"Nguyễn, An\""));
+        assertArrayEquals(new String[]{"", ""}, OrgRosterService.splitCsvLine(","));
+        assertArrayEquals(new String[]{"a@x.com", "chưa đóng, ngoặc"}, OrgRosterService.splitCsvLine("a@x.com,\"chưa đóng, ngoặc"));
     }
 
     @Test

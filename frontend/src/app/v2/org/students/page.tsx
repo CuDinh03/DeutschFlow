@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Download, Clock } from 'lucide-react'
+import { Download, Clock, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { listMembers, getAnalytics, type OrgMember, type OrgAnalytics } from '@/lib/orgApi'
 import { studentsToCsv, downloadTextFile } from '@/lib/orgCsv'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkSearch } from '@/components/ui-v2'
+import { ImportRosterModal } from './ImportRosterModal'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Học viên của tổ chức (GaOrgStudents) — teal, roster LIST.
@@ -34,6 +35,7 @@ export default function V2OrgStudentsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
+  const [showImport, setShowImport] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -65,6 +67,11 @@ export default function V2OrgStudentsPage() {
         title={t('title')}
         subtitle={t('subtitle')}
         right={
+          <div className="flex flex-wrap items-center gap-2">
+          {/* PR-A5 (BF-07): nối importRoster đã có từ lâu vào UI — hết cảnh nhập từng học viên bằng tay. */}
+          <GaBtn variant="yellow" size="sm" onClick={() => setShowImport(true)} data-testid="roster-open">
+            <Upload size={15} /> {t('importCsv')}
+          </GaBtn>
           <GaBtn
             variant="ghost"
             size="sm"
@@ -77,8 +84,12 @@ export default function V2OrgStudentsPage() {
           >
             <Download size={15} /> {t('exportList')}
           </GaBtn>
+          </div>
         }
       />
+      {showImport && (
+        <ImportRosterModal onClose={() => setShowImport(false)} onImported={() => void load()} />
+      )}
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         <GaStatStrip

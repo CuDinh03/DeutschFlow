@@ -88,14 +88,16 @@ public class OrgRosterService {
             // Audit L-3: strip a leading UTF-8 BOM (U+FEFF). Excel/Google-Sheets exports prepend it
             // to the first line, which otherwise makes the header cell read "﻿email" — the
             // header check fails, the header is parsed as a data row, and (with no header) the first
-            // real email is corrupted. NOTE: fields quoted to contain commas are still not handled.
+            // real email is corrupted. PR-A5b (07/09/2026): ô bọc ngoặc kép (tên có dấu phẩy, ngoặc kép
+            // kép "" bên trong) được tách đúng theo RFC 4180 qua splitCsvLine — Excel/Sheets luôn xuất
+            // như vậy với tên kiểu "Nguyễn, An".
             String line = rawLine.startsWith("\uFEFF") ? rawLine.substring(1) : rawLine;
             // Skip a header line: only the first non-empty line, and only when its FIRST column is
             // literally "email". Checking the whole line for "email" would wrongly drop a data row
             // whose address (e.g. "emailguy@x.com") or name contains the substring.
             if (first) {
                 first = false;
-                if (col(line.split(",", -1), 0).trim().equalsIgnoreCase("email")) {
+                if (col(splitCsvLine(line), 0).trim().equalsIgnoreCase("email")) {
                     continue;
                 }
             }
@@ -103,7 +105,7 @@ public class OrgRosterService {
             total++;
             int rowNum = total;
             try {
-                String[] cols = line.split(",", -1);
+                String[] cols = splitCsvLine(line);
                 String email = normalizeEmail(col(cols, 0));
                 if (email.isBlank() || !EMAIL_PATTERN.matcher(email).matches()) {
                     failed++;
@@ -181,6 +183,41 @@ public class OrgRosterService {
 
     private static String col(String[] cols, int idx) {
         return idx < cols.length ? cols[idx] : "";
+    }
+
+    /**
+     * Tách một dòng CSV theo RFC 4180: dấu phẩy trong ô bọc ngoặc kép không tách cột, {@code ""} trong ô
+     * bọc ngoặc là một dấu ngoặc kép, ô không bọc giữ nguyên. Dòng không hợp lệ (ngoặc mở không đóng)
+     * vẫn trả phần đã đọc — dòng đó sẽ rơi vào nhánh email không hợp lệ thay vì nổ cả lần import.
+     */
+    static String[] splitCsvLine(String line) {
+        List<String> out = new ArrayList<>();
+        StringBuilder cur = new StringBuilder();
+        boolean quoted = false;
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (quoted) {
+                if (c == '"') {
+                    if (i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                        cur.append('"');
+                        i++;
+                    } else {
+                        quoted = false;
+                    }
+                } else {
+                    cur.append(c);
+                }
+            } else if (c == '"' && cur.length() == 0) {
+                quoted = true;
+            } else if (c == ',') {
+                out.add(cur.toString());
+                cur.setLength(0);
+            } else {
+                cur.append(c);
+            }
+        }
+        out.add(cur.toString());
+        return out.toArray(new String[0]);
     }
 
     private static String normalizeEmail(String email) {
