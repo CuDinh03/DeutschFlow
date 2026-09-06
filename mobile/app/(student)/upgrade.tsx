@@ -60,7 +60,7 @@ export default function UpgradeScreen() {
           <ProHero
             eyebrow="Tài khoản nâng cao"
             title="MyDeutschFlow PRO"
-            body="Tài khoản PRO mở khoá các tính năng nâng cao như AI Speaking không giới hạn, Mock Exam và lộ trình học đầy đủ."
+            body="Tài khoản PRO mở khoá các tính năng nâng cao như AI Speaking với hạn mức cao mỗi ngày, Mock Exam và lộ trình học đầy đủ."
           />
 
           <Caption style={{ marginTop: space[7], marginBottom: space[3] }}>Bao gồm trong PRO</Caption>
@@ -82,7 +82,7 @@ export default function UpgradeScreen() {
         <ProHero
           eyebrow="Nâng cấp tài khoản"
           title="Mở khoá toàn bộ"
-          body="Học tiếng Đức không giới hạn với AI coach và lộ trình cá nhân hoá."
+          body="Học tiếng Đức mỗi ngày với AI coach và lộ trình cá nhân hoá."
         />
 
         <Caption style={{ marginTop: space[7], marginBottom: space[3] }}>Bạn sẽ nhận được</Caption>
@@ -115,7 +115,7 @@ function IapPaywall() {
         <ProHero
           eyebrow="Nâng cấp tài khoản"
           title="Mở khoá toàn bộ"
-          body="Học tiếng Đức không giới hạn với AI coach và lộ trình cá nhân hoá."
+          body="Học tiếng Đức mỗi ngày với AI coach và lộ trình cá nhân hoá."
         />
 
         {plan?.isTrial ? (
