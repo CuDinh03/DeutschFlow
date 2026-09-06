@@ -1711,6 +1711,134 @@
         "noQuestions": "Noch keine Fragen zu diesem Text.",
         "completed": "100 % abgeschlossen",
         "markDone": "Gelesen & verstanden (100 %)"
+      },
+      "common": {
+        "tapToFlip": "Zum Umdrehen tippen",
+        "listenPronunciation": "Aussprache anhören"
+      },
+      "grammar": {
+        "correctCap": "Richtig",
+        "wrongCap": "Falsch",
+        "ruleTag": "REGEL",
+        "exampleTag": "BEISPIEL",
+        "collapse": "▲ Einklappen",
+        "expand": "▼ Mehr anzeigen",
+        "theoryCount": "Theorie ({count})",
+        "filter": "Filter:",
+        "allTag": "Alle",
+        "pageOf": "Seite {page} / {total}",
+        "phrasesCap": "Häufige Wendungen",
+        "examplesCap": "Beispiele aus dem Alltag",
+        "quizCap": "Verständnis prüfen",
+        "answerPlaceholder": "Antwort eingeben",
+        "questionN": "Frage {n}",
+        "check": "Antworten prüfen",
+        "noPractice": "Keine Übungen für diesen Abschnitt. Markiere ihn als abgeschlossen, wenn du die Theorie verstanden hast.",
+        "result": "{score}/{total} richtig. Für das Bestehen sind 100 % nötig!",
+        "retry": "Noch einmal"
+      },
+      "selfCheck": {
+        "reorder": "Satz ordnen",
+        "translate": "Satz übersetzen",
+        "notScored": "Selbstkontrolle · zählt nicht zur Punktzahl",
+        "showAnswer": "Lösung anzeigen"
+      },
+      "recap": {
+        "doneTitle": "Geschafft!",
+        "doneDesc": "Du hast diese Lektion abgeschlossen",
+        "xpEarned": "XP verdient",
+        "newVocab": "Neue Vokabeln",
+        "wordCount": "{n} Wörter",
+        "streak": "Lernserie",
+        "dayCount": "{n} Tage",
+        "nextLesson": "Nächste Lektion:",
+        "nextCta": "Weiter: {title} →",
+        "backCta": "Zum Lernweg",
+        "backToRoadmap": "Zurück zum Lernweg"
+      },
+      "pronunciation": {
+        "verdict": {
+          "CORRECT": "Richtig",
+          "CLOSE": "Fast richtig",
+          "MISSING": "Nicht gehört"
+        },
+        "micDenied": "Kein Zugriff auf das Mikrofon. Bitte Mikrofonzugriff erlauben.",
+        "scoreFailed": "Aussprache konnte nicht bewertet werden. Bitte erneut versuchen.",
+        "networkError": "Verbindungsfehler. Bitte erneut versuchen.",
+        "readCap": "Lies den folgenden Satz:",
+        "close": "Schließen",
+        "startRecording": "Aufnahme starten",
+        "stopAndScore": "Stoppen & bewerten",
+        "retry": "Erneut versuchen",
+        "pronScore": "Aussprache-Punkte",
+        "heard": "Erkannt wurde:",
+        "perWordCap": "Wort für Wort:",
+        "wordsToPractice": "Wörter zum Üben:"
+      }
+    },
+    "examResult": {
+      "parts": {
+        "LESEN": "Leseverstehen",
+        "HOEREN": "Hörverstehen",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
+      },
+      "audioPlayer": {
+        "status": {
+          "idle": "Audio abspielen",
+          "loading": "Stimme wird geladen...",
+          "playing": "Wird abgespielt...",
+          "paused": "Pausiert",
+          "done": "Noch einmal abspielen",
+          "unsupported": "Dein Browser unterstützt kein Audio"
+        },
+        "play": "Audio abspielen",
+        "stop": "Stopp",
+        "defaultLabel": "Hörtext — Goethe A1",
+        "unsupportedHint": "Browser nicht unterstützt. Bitte Chrome oder Safari verwenden."
+      },
+      "scoreBreakdown": {
+        "pending": "Bewertung ausstehend",
+        "passed": "Bestanden",
+        "failed": "Nicht bestanden",
+        "pendingWriting": "Die E-Mail wird von der KI bewertet",
+        "pendingSpeaking": "Der Sprechteil wird von einer Lehrkraft manuell bewertet",
+        "title": "Punkte nach Prüfungsteil",
+        "threshold": "Bestehensgrenze (60 %)",
+        "provisionalTotal": "Gesamtpunktzahl (vorläufig)",
+        "officialNote": "Offizielle Punktzahl nach Abschluss der Bewertung"
+      },
+      "examFeedback": {
+        "rubric": {
+          "aufgabenerfuellung": "Aufgabenerfüllung",
+          "kohaerenz": "Kohärenz & Aufbau",
+          "wortschatz": "Wortschatz",
+          "strukturen": "Grammatik & Satzstrukturen"
+        },
+        "pendingTitle": "Die KI bewertet deinen Text gerade",
+        "pendingFallback": "Die E-Mail wurde noch nicht abgegeben oder wird noch verarbeitet.",
+        "aiGraded": "Von der KI bewertet",
+        "officialRubric": "Offizielles Goethe-A1-Bewertungsraster",
+        "detailCap": "Punkte im Detail",
+        "emailTotal": "Gesamtpunkte E-Mail",
+        "overallCap": "Gesamteindruck",
+        "strengths": "Stärken",
+        "improvements": "Verbesserungsbedarf",
+        "title": "Bewertung des Schreibteils (SCHREIBEN Teil 2)"
+      },
+      "weakAreas": {
+        "tips": {
+          "LESEN": "Lies täglich kurze deutsche Texte und achte auf Wortschatz aus dem Alltag.",
+          "HOEREN": "Höre Deutsch-A1-Podcasts und Alltagsgespräche, um dich an den Klang des Deutschen zu gewöhnen.",
+          "SCHREIBEN": "Übe kurze E-Mails im Goethe-Format: Vorstellung, Nachfrage, Schlussformel. Achte auf Grammatik und Satzbau.",
+          "SPRECHEN": "Übe, dich vorzustellen und einfache Gespräche zu führen. Nutze das KI-Interview, um Feedback zu deiner Aussprache zu bekommen."
+        },
+        "noneTitle": "Ausgezeichnet! Keine Schwächen",
+        "noneDesc": "Du hast in allen Teilen die 60-%-Grenze überschritten. Weiter so – fordere dich mit einer schwereren Prüfung heraus!",
+        "title": "Deine Schwachpunkte",
+        "below60": "Unter 60 %",
+        "practiceNow": "Jetzt üben",
+        "footer": "Übe regelmäßig jeden Tag — nach 2 Wochen wirst du deutliche Fortschritte sehen"
       }
     }
   }

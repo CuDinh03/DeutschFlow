@@ -1711,6 +1711,134 @@
         "noQuestions": "No questions for this text yet.",
         "completed": "Completed 100%",
         "markDone": "Read & understood (100%)"
+      },
+      "common": {
+        "tapToFlip": "Tap to flip",
+        "listenPronunciation": "Listen to pronunciation"
+      },
+      "grammar": {
+        "correctCap": "Correct",
+        "wrongCap": "Wrong",
+        "ruleTag": "RULE",
+        "exampleTag": "EXAMPLE",
+        "collapse": "▲ Collapse",
+        "expand": "▼ Show more",
+        "theoryCount": "Theory ({count})",
+        "filter": "Filter:",
+        "allTag": "All",
+        "pageOf": "Page {page} / {total}",
+        "phrasesCap": "Common phrases",
+        "examplesCap": "Real-life examples",
+        "quizCap": "Check your understanding",
+        "answerPlaceholder": "Enter your answer",
+        "questionN": "Question {n}",
+        "check": "Check answers",
+        "noPractice": "No practice exercises for this section. Mark it as complete once you understand the theory.",
+        "result": "You got {score}/{total} right. You need 100% to pass!",
+        "retry": "Try again"
+      },
+      "selfCheck": {
+        "reorder": "Reorder the sentence",
+        "translate": "Translate the sentence",
+        "notScored": "Self-check · not scored",
+        "showAnswer": "Show answer"
+      },
+      "recap": {
+        "doneTitle": "Done!",
+        "doneDesc": "You have finished this lesson",
+        "xpEarned": "XP earned",
+        "newVocab": "New vocabulary",
+        "wordCount": "{n} words",
+        "streak": "Day streak",
+        "dayCount": "{n} days",
+        "nextLesson": "Next lesson:",
+        "nextCta": "Next: {title} →",
+        "backCta": "Back to roadmap",
+        "backToRoadmap": "Back to learning path"
+      },
+      "pronunciation": {
+        "verdict": {
+          "CORRECT": "Correct",
+          "CLOSE": "Close",
+          "MISSING": "Not heard"
+        },
+        "micDenied": "Could not access the microphone. Please allow microphone access.",
+        "scoreFailed": "Could not score your pronunciation. Please try again.",
+        "networkError": "Connection error. Please try again.",
+        "readCap": "Read the following sentence:",
+        "close": "Close",
+        "startRecording": "Start recording",
+        "stopAndScore": "Stop & score",
+        "retry": "Try again",
+        "pronScore": "Pronunciation score",
+        "heard": "What we heard:",
+        "perWordCap": "Word by word:",
+        "wordsToPractice": "Words to practise:"
+      }
+    },
+    "examResult": {
+      "parts": {
+        "LESEN": "Reading",
+        "HOEREN": "Listening",
+        "SCHREIBEN": "Writing",
+        "SPRECHEN": "Speaking"
+      },
+      "audioPlayer": {
+        "status": {
+          "idle": "Play audio",
+          "loading": "Loading voice...",
+          "playing": "Playing...",
+          "paused": "Paused",
+          "done": "Play again",
+          "unsupported": "Your browser does not support audio"
+        },
+        "play": "Play audio",
+        "stop": "Stop",
+        "defaultLabel": "Hörtext — Goethe A1",
+        "unsupportedHint": "Browser not supported. Use Chrome or Safari."
+      },
+      "scoreBreakdown": {
+        "pending": "Awaiting grading",
+        "passed": "Pass",
+        "failed": "Fail",
+        "pendingWriting": "The email will be graded by AI",
+        "pendingSpeaking": "The speaking part is graded manually by a teacher",
+        "title": "Scores by section",
+        "threshold": "Pass threshold (60%)",
+        "provisionalTotal": "Total score (provisional)",
+        "officialNote": "Official score once grading is complete"
+      },
+      "examFeedback": {
+        "rubric": {
+          "aufgabenerfuellung": "Task completion",
+          "kohaerenz": "Coherence & structure",
+          "wortschatz": "Vocabulary",
+          "strukturen": "Grammar & sentence structure"
+        },
+        "pendingTitle": "Waiting for AI to grade your text",
+        "pendingFallback": "The email has not been submitted yet or is still being processed.",
+        "aiGraded": "Graded by AI",
+        "officialRubric": "Official Goethe A1 rubric",
+        "detailCap": "Score details",
+        "emailTotal": "Email total",
+        "overallCap": "Overall feedback",
+        "strengths": "Strengths",
+        "improvements": "Needs improvement",
+        "title": "Writing assessment (SCHREIBEN Teil 2)"
+      },
+      "weakAreas": {
+        "tips": {
+          "LESEN": "Read short German texts every day and focus on everyday-life vocabulary.",
+          "HOEREN": "Listen to Deutsch A1 podcasts and everyday conversations to get used to German intonation.",
+          "SCHREIBEN": "Practise writing short emails in the Goethe format: introduction, questions, closing. Mind your grammar and sentence structure.",
+          "SPRECHEN": "Practise introducing yourself and simple conversations. Use the AI interview feature to get feedback on your pronunciation."
+        },
+        "noneTitle": "Excellent! No weak areas",
+        "noneDesc": "You passed the 60% threshold in every section. Keep it up and challenge yourself with a harder exam!",
+        "title": "Areas to improve",
+        "below60": "Below 60%",
+        "practiceNow": "Practise now",
+        "footer": "Practise a little every day — you will see clear progress within 2 weeks"
       }
     }
   }

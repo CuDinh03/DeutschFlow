@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Sparkles, ThumbsUp, TrendingUp, PenTool, Clock, Check } from 'lucide-react'
 
 interface AiEmailEvaluation {
@@ -22,11 +23,12 @@ interface ExamFeedbackProps {
   detailedScores: Record<string, unknown>
 }
 
-const RUBRIC_LABELS: Record<string, { labelVi: string; max: number }> = {
-  aufgabenerfuellung: { labelVi: 'Hoàn thành nhiệm vụ', max: 5 },
-  kohaerenz: { labelVi: 'Mạch lạc & cấu trúc', max: 4 },
-  wortschatz: { labelVi: 'Từ vựng', max: 3 },
-  strukturen: { labelVi: 'Ngữ pháp & cấu trúc câu', max: 3 },
+// labelKey tương đối trong namespace `v2.student.examResult.examFeedback`.
+const RUBRIC_LABELS: Record<string, { labelKey: string; max: number }> = {
+  aufgabenerfuellung: { labelKey: 'rubric.aufgabenerfuellung', max: 5 },
+  kohaerenz: { labelKey: 'rubric.kohaerenz', max: 4 },
+  wortschatz: { labelKey: 'rubric.wortschatz', max: 3 },
+  strukturen: { labelKey: 'rubric.strukturen', max: 3 },
 }
 
 function RubricBar({ label, score, max }: { label: string; score: number; max: number }) {
@@ -49,13 +51,14 @@ function RubricBar({ label, score, max }: { label: string; score: number; max: n
 }
 
 function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
+  const t = useTranslations('v2.student.examResult.examFeedback')
   if (evalData.status === 'PENDING_AI_EVALUATION') {
     return (
       <div className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-2xl p-4">
         <Clock size={18} className="text-amber-500 shrink-0 mt-0.5" />
         <div>
-          <p className="font-bold text-amber-800 text-sm">Đang chờ AI chấm bài viết</p>
-          <p className="text-xs text-amber-600 mt-0.5">{evalData.feedback_vi || 'Phần email chưa được nộp hoặc đang xử lý.'}</p>
+          <p className="font-bold text-amber-800 text-sm">{t('pendingTitle')}</p>
+          <p className="text-xs text-amber-600 mt-0.5">{evalData.feedback_vi || t('pendingFallback')}</p>
         </div>
       </div>
     )
@@ -69,27 +72,27 @@ function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex shrink-0 items-center gap-1.5 bg-violet-50 border border-violet-100 rounded-full px-3 py-1">
           <Sparkles size={13} className="text-violet-500" />
-          <span className="text-xs font-bold text-violet-700">Được chấm bởi AI</span>
+          <span className="text-xs font-bold text-violet-700">{t('aiGraded')}</span>
         </div>
-        <span className="min-w-0 text-xs text-[#94A3B8]">Rubric Goethe A1 chính thức</span>
+        <span className="min-w-0 text-xs text-[#94A3B8]">{t('officialRubric')}</span>
       </div>
 
       {/* Rubric breakdown */}
       <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 space-y-3">
-        <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide mb-3">Điểm chi tiết</p>
+        <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide mb-3">{t('detailCap')}</p>
         {Object.entries(RUBRIC_LABELS).map(([key, meta]) => {
           const score = evalData[key as keyof AiEmailEvaluation] as number ?? 0
           return (
             <RubricBar
               key={key}
-              label={meta.labelVi}
+              label={t(meta.labelKey)}
               score={score}
               max={meta.max}
             />
           )
         })}
         <div className="pt-2 border-t border-[#F1F5F9] flex justify-between items-center gap-2">
-          <span className="min-w-0 text-sm font-bold text-[#0F172A]">Tổng điểm email</span>
+          <span className="min-w-0 text-sm font-bold text-[#0F172A]">{t('emailTotal')}</span>
           <span className="shrink-0 text-lg font-black text-[#6366F1]">
             {evalData.total ?? 0}<span className="text-sm font-semibold text-[#94A3B8]">/15</span>
           </span>
@@ -99,7 +102,7 @@ function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
       {/* Feedback text */}
       {evalData.feedback_vi && (
         <div className="bg-slate-50 rounded-2xl border border-[#E2E8F0] p-4">
-          <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide mb-2">Nhận xét tổng quan</p>
+          <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide mb-2">{t('overallCap')}</p>
           <p className="text-sm text-[#334155] leading-relaxed">{evalData.feedback_vi}</p>
         </div>
       )}
@@ -109,7 +112,7 @@ function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
         <div className="space-y-2">
           <div className="flex items-center gap-1.5">
             <ThumbsUp size={14} className="text-emerald-500" />
-            <p className="text-xs font-bold text-emerald-700">Điểm mạnh</p>
+            <p className="text-xs font-bold text-emerald-700">{t('strengths')}</p>
           </div>
           <ul className="space-y-1">
             {evalData.strengths.map((s, i) => (
@@ -127,7 +130,7 @@ function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
         <div className="space-y-2">
           <div className="flex items-center gap-1.5">
             <TrendingUp size={14} className="text-blue-500" />
-            <p className="text-xs font-bold text-blue-700">Cần cải thiện</p>
+            <p className="text-xs font-bold text-blue-700">{t('improvements')}</p>
           </div>
           <ul className="space-y-1">
             {evalData.improvements.map((s, i) => (
@@ -144,6 +147,7 @@ function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
 }
 
 export function ExamFeedback({ detailedScores }: ExamFeedbackProps) {
+  const t = useTranslations('v2.student.examResult.examFeedback')
   const schreiben = detailedScores['SCHREIBEN'] as Record<string, unknown> | undefined
   const teil2Raw = schreiben?.['teil2_email']
 
@@ -155,7 +159,7 @@ export function ExamFeedback({ detailedScores }: ExamFeedbackProps) {
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <PenTool size={16} className="text-[#10B981]" />
-        <h3 className="font-bold text-[#0F172A] text-sm">Đánh giá bài viết (SCHREIBEN Teil 2)</h3>
+        <h3 className="font-bold text-[#0F172A] text-sm">{t('title')}</h3>
       </div>
       <SchreibenFeedback eval={teil2} />
     </div>

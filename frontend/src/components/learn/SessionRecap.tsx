@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import { Zap, BookOpen, Flame, PartyPopper } from "lucide-react";
 
@@ -43,6 +44,7 @@ export default function SessionRecap({
   onNext,
   onBack,
 }: SessionRecapProps) {
+  const t = useTranslations("v2.student.learnViews.recap");
   const router = useRouter();
   const confettiStarted = useRef(false);
 
@@ -91,8 +93,8 @@ export default function SessionRecap({
             style={{ background: "linear-gradient(135deg, #121212 0%, #1E293B 100%)" }}
           >
             <PartyPopper size={44} strokeWidth={1.6} className="mx-auto mb-3 text-white" aria-hidden />
-            <h2 className="text-white text-xl font-bold">Hoàn thành!</h2>
-            <p className="text-white/70 text-sm mt-1">Bạn đã học xong bài này</p>
+            <h2 className="text-white text-xl font-bold">{t("doneTitle")}</h2>
+            <p className="text-white/70 text-sm mt-1">{t("doneDesc")}</p>
           </div>
 
           {/* Stats */}
@@ -101,7 +103,7 @@ export default function SessionRecap({
             <div className="flex items-center justify-between rounded-2xl bg-[#FFFBEA] border border-[#FFCD00]/40 px-4 py-3">
               <div className="flex items-center gap-2">
                 <Zap size={22} className="text-[#92400E]" aria-hidden />
-                <span className="text-sm font-medium text-[#92400E]">XP kiếm được</span>
+                <span className="text-sm font-medium text-[#92400E]">{t("xpEarned")}</span>
               </div>
               <motion.span
                 initial={{ opacity: 0, x: 10 }}
@@ -117,7 +119,7 @@ export default function SessionRecap({
             <div className="flex items-center justify-between rounded-2xl bg-[#F0FDF4] border border-[#22C55E]/30 px-4 py-3">
               <div className="flex items-center gap-2">
                 <BookOpen size={22} className="text-[#166534]" aria-hidden />
-                <span className="text-sm font-medium text-[#166534]">Từ vựng mới</span>
+                <span className="text-sm font-medium text-[#166534]">{t("newVocab")}</span>
               </div>
               <motion.span
                 initial={{ opacity: 0, x: 10 }}
@@ -125,7 +127,7 @@ export default function SessionRecap({
                 transition={{ delay: 0.45 }}
                 className="text-2xl font-black text-[#166534]"
               >
-                {vocabCount} từ
+                {t("wordCount", { n: vocabCount })}
               </motion.span>
             </div>
 
@@ -133,7 +135,7 @@ export default function SessionRecap({
             <div className="flex items-center justify-between rounded-2xl bg-[#FFF7ED] border border-[#F97316]/30 px-4 py-3">
               <div className="flex items-center gap-2">
                 <Flame size={22} className="text-[#9A3412]" aria-hidden />
-                <span className="text-sm font-medium text-[#9A3412]">Chuỗi ngày học</span>
+                <span className="text-sm font-medium text-[#9A3412]">{t("streak")}</span>
               </div>
               <motion.span
                 initial={{ opacity: 0, x: 10 }}
@@ -141,13 +143,13 @@ export default function SessionRecap({
                 transition={{ delay: 0.6 }}
                 className="text-2xl font-black text-[#9A3412]"
               >
-                {streakDays} ngày
+                {t("dayCount", { n: streakDays })}
               </motion.span>
             </div>
 
             {nextNodeTitle && (
               <p className="text-xs text-center text-[#64748B] pt-1">
-                Bài tiếp theo: <span className="font-semibold text-[#121212]">{nextNodeTitle}</span>
+                {t("nextLesson")} <span className="font-semibold text-[#121212]">{nextNodeTitle}</span>
               </p>
             )}
           </div>
@@ -160,14 +162,14 @@ export default function SessionRecap({
               className="w-full py-3 rounded-2xl font-bold text-sm text-white transition-transform active:scale-95"
               style={{ background: "linear-gradient(135deg, #121212 0%, #1E293B 100%)" }}
             >
-              {nextNodeTitle ? `Tiếp theo: ${nextNodeTitle} →` : `Về lộ trình`}
+              {nextNodeTitle ? t("nextCta", { title: nextNodeTitle }) : t("backCta")}
             </button>
             <button
               type="button"
               onClick={handleBack}
               className="w-full py-2.5 rounded-2xl font-medium text-sm text-[#64748B] hover:text-[#121212] hover:bg-[#F1F5F9] transition-colors"
             >
-              Về lộ trình học
+              {t("backToRoadmap")}
             </button>
           </div>
         </motion.div>
