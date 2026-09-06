@@ -15,7 +15,8 @@ import { trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
 import { useBackToMainTab } from '@/hooks/useBackTo'
 
 const PRO_FEATURES: { glyph: GlyphName; label: string }[] = [
-  { glyph: 'speaking', label: 'AI Speaking không giới hạn' },
+  // PR-A7 (07/09/2026): không hứa "không giới hạn" — hạn mức AI theo gói vẫn có (lib/upsell.ts báo hết lượt).
+  { glyph: 'speaking', label: 'AI Speaking với hạn mức PRO mỗi ngày' },
   { glyph: 'thithu', label: 'Mock Exam Goethe chuẩn' },
   { glyph: 'xp', label: 'Weekly Speaking Challenge' },
   { glyph: 'lernweg', label: 'Toàn bộ lộ trình A1 đến B2' },
