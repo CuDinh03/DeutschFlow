@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import api, { apiMessage, isAxiosErr } from "@/lib/api";
 import { BookOpen, Brain, Briefcase, Flame, Lock, Mic, Star, Target, Trophy, Unlock, X, ChevronDown, ChevronUp, MessageSquare, Calendar, Save, Pencil, Check, Bot, User } from "lucide-react";
 import { CompleteBauhausLogo } from "@/components/BauhausLogo";
@@ -29,12 +30,12 @@ type LearningDetail = {
 
 type Tab = "profile" | "xp" | "speaking" | "vocab" | "interview";
 
-const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
-  { key: "profile", label: "Hồ sơ", icon: <BookOpen size={14} /> },
-  { key: "xp", label: "XP & Streak", icon: <Flame size={14} /> },
-  { key: "speaking", label: "Speaking AI", icon: <Mic size={14} /> },
-  { key: "vocab", label: "Từ vựng SRS", icon: <Brain size={14} /> },
-  { key: "interview", label: "Phỏng vấn", icon: <Briefcase size={14} /> },
+const TABS: { key: Tab; labelKey: string; icon: React.ReactNode }[] = [
+  { key: "profile", labelKey: "tabs.profile", icon: <BookOpen size={14} /> },
+  { key: "xp", labelKey: "tabs.xp", icon: <Flame size={14} /> },
+  { key: "speaking", labelKey: "tabs.speaking", icon: <Mic size={14} /> },
+  { key: "vocab", labelKey: "tabs.vocab", icon: <Brain size={14} /> },
+  { key: "interview", labelKey: "tabs.interview", icon: <Briefcase size={14} /> },
 ];
 
 
@@ -63,6 +64,7 @@ type EditProfileForm = {
 };
 
 function ProfileTab({ d, userId, onSaved }: { d: LearningDetail; userId: number; onSaved: () => void }) {
+  const t = useTranslations('v2.adminOps.learningDetail');
   const p = d.learningProfile;
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -109,46 +111,46 @@ function ProfileTab({ d, userId, onSaved }: { d: LearningDetail; userId: number;
       <div className="space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>MỤC TIÊU</p>
+            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>{t('profile.goalCap')}</p>
             <select value={form.goalType} onChange={fld('goalType')} className={selCls} style={selStyle}>
-              <option value="WORK">Công việc</option>
-              <option value="CERT">Lấy chứng chỉ</option>
+              <option value="WORK">{t('profile.goal.WORK')}</option>
+              <option value="CERT">{t('profile.goal.CERT')}</option>
             </select>
           </div>
           <div>
-            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>TỐC ĐỘ HỌC</p>
+            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>{t('profile.speedCap')}</p>
             <select value={form.learningSpeed} onChange={fld('learningSpeed')} className={selCls} style={selStyle}>
-              <option value="SLOW">Chậm</option>
-              <option value="NORMAL">Bình thường</option>
-              <option value="FAST">Nhanh</option>
+              <option value="SLOW">{t('profile.speed.SLOW')}</option>
+              <option value="NORMAL">{t('profile.speed.NORMAL')}</option>
+              <option value="FAST">{t('profile.speed.FAST')}</option>
             </select>
           </div>
           <div>
-            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>CẤP ĐỘ HIỆN TẠI</p>
+            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>{t('profile.currentLevelCap')}</p>
             <select value={form.currentLevel} onChange={fld('currentLevel')} className={selCls} style={selStyle}>
               {['A0','A1','A2','B1','B2','C1','C2'].map(l => <option key={l}>{l}</option>)}
             </select>
           </div>
           <div>
-            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>MỤC TIÊU CẤP ĐỘ</p>
+            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>{t('profile.targetLevelCap')}</p>
             <select value={form.targetLevel} onChange={fld('targetLevel')} className={selCls} style={selStyle}>
               {['A1','A2','B1','B2','C1','C2'].map(l => <option key={l}>{l}</option>)}
             </select>
           </div>
           <div>
-            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>BUỔI/TUẦN</p>
+            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>{t('profile.sessionsPerWeekCap')}</p>
             <input type="number" min={1} max={14} value={form.sessionsPerWeek} onChange={fld('sessionsPerWeek')}
               className={selCls} style={selStyle} />
           </div>
           <div>
-            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>PHÚT/BUỔI</p>
+            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>{t('profile.minutesPerSessionCap')}</p>
             <input type="number" min={10} max={180} value={form.minutesPerSession} onChange={fld('minutesPerSession')}
               className={selCls} style={selStyle} />
           </div>
         </div>
         <div>
-          <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>NGÀNH NGHỀ</p>
-          <input type="text" value={form.industry} onChange={fld('industry')} placeholder="IT, MEDICINE, EDUCATION..."
+          <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>{t('profile.industryCap')}</p>
+          <input type="text" value={form.industry} onChange={fld('industry')} placeholder={t('profile.industryPlaceholder')}
             className={selCls} style={selStyle} />
         </div>
         {saveErr && <p className="text-xs font-medium" style={{ color: P.red }}>{saveErr}</p>}
@@ -156,49 +158,52 @@ function ProfileTab({ d, userId, onSaved }: { d: LearningDetail; userId: number;
           <button onClick={handleSave} disabled={saving}
             className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-[10px] text-xs font-bold transition-opacity"
             style={{ background: P.navy, color: P.white, opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Đang lưu…' : <><Save size={13} aria-hidden /> Lưu hồ sơ</>}
+            {saving ? t('profile.saving') : <><Save size={13} aria-hidden /> {t('profile.save')}</>}
           </button>
           <button onClick={() => { setEditing(false); setSaveErr(''); }}
             className="px-4 py-2 rounded-[10px] text-xs font-bold"
             style={{ background: P.bg, color: P.muted, border: `1px solid ${P.border}` }}>
-            Hủy
+            {t('profile.cancel')}
           </button>
         </div>
       </div>
     );
   }
 
+  const speedKey = p.learningSpeed === 'SLOW' || p.learningSpeed === 'FAST' ? p.learningSpeed : 'NORMAL';
+  const goalLabel = p.goalType === 'WORK' || p.goalType === 'CERT' ? t(`profile.goal.${p.goalType}`) : String(p.goalType ?? '—');
+
   return (
     <div className="space-y-4">
       {p.notConfigured ? (
         <div className="rounded-[14px] p-5 text-center" style={{ border: `2px dashed ${P.border}` }}>
-          <p className="text-sm font-medium mb-1" style={{ color: P.muted }}>Người dùng chưa thiết lập hồ sơ học tập.</p>
-          <p className="text-xs mb-3" style={{ color: P.muted }}>Admin có thể tạo hồ sơ thay cho người dùng.</p>
+          <p className="text-sm font-medium mb-1" style={{ color: P.muted }}>{t('profile.notConfigured')}</p>
+          <p className="text-xs mb-3" style={{ color: P.muted }}>{t('profile.adminCanCreate')}</p>
           <button onClick={() => setEditing(true)}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] text-xs font-bold"
             style={{ background: P.navy, color: P.white }}>
-            <Pencil size={13} aria-hidden /> Tạo hồ sơ học tập
+            <Pencil size={13} aria-hidden /> {t('profile.create')}
           </button>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <Stat label="Cấp hiện tại" value={String(p.currentLevel ?? '—')} color={P.blue} />
-            <Stat label="Mục tiêu" value={String(p.targetLevel ?? '—')} color={P.green} />
-            <Stat label="Tốc độ" value={p.learningSpeed === 'SLOW' ? 'Chậm' : p.learningSpeed === 'FAST' ? 'Nhanh' : 'TB'} color={P.orange} />
+            <Stat label={t('profile.stat.currentLevel')} value={String(p.currentLevel ?? '—')} color={P.blue} />
+            <Stat label={t('profile.stat.target')} value={String(p.targetLevel ?? '—')} color={P.green} />
+            <Stat label={t('profile.stat.speed')} value={t(`profile.speedShort.${speedKey}`)} color={P.orange} />
           </div>
           <div className="overflow-x-auto rounded-[10px] border" style={{ borderColor: P.border }}>
             <table className="w-full text-xs">
               <tbody>{([
-                ['Mục tiêu', p.goalType === 'WORK' ? 'Công việc' : p.goalType === 'CERT' ? 'Lấy chứng chỉ' : String(p.goalType ?? '—')],
-                ['Cấp độ hiện tại', p.currentLevel ?? '—'],
-                ['Cấp độ mục tiêu', p.targetLevel ?? '—'],
-                ['Ngành nghề', p.industry ?? '—'],
-                ['Kỳ thi', p.examType ?? '—'],
-                ['Buổi/tuần', p.sessionsPerWeek ?? '—'],
-                ['Phút/buổi', p.minutesPerSession ?? '—'],
-                ['Tốc độ học', p.learningSpeed === 'SLOW' ? 'Chậm' : p.learningSpeed === 'FAST' ? 'Nhanh' : 'Bình thường'],
-                ['Độ tuổi', String(p.ageRange ?? '—').replace('_', ' ')],
+                [t('profile.row.goal'), goalLabel],
+                [t('profile.row.currentLevel'), p.currentLevel ?? '—'],
+                [t('profile.row.targetLevel'), p.targetLevel ?? '—'],
+                [t('profile.row.industry'), p.industry ?? '—'],
+                [t('profile.row.exam'), p.examType ?? '—'],
+                [t('profile.row.sessionsPerWeek'), p.sessionsPerWeek ?? '—'],
+                [t('profile.row.minutesPerSession'), p.minutesPerSession ?? '—'],
+                [t('profile.row.speed'), t(`profile.speed.${speedKey}`)],
+                [t('profile.row.ageRange'), String(p.ageRange ?? '—').replace('_', ' ')],
               ] as [string, string][]).map(([k, v], i) => (
                 <tr key={String(k)} style={{ background: i % 2 === 0 ? P.white : '#FAFCFF' }}>
                   <td className="px-3 py-2 font-semibold" style={{ color: P.muted }}>{k}</td>
@@ -209,7 +214,7 @@ function ProfileTab({ d, userId, onSaved }: { d: LearningDetail; userId: number;
           </div>
           {Array.isArray(p.interests) && (p.interests as string[]).length > 0 && (
             <div>
-              <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: P.muted }}>Sở thích</p>
+              <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: P.muted }}>{t('profile.interests')}</p>
               <div className="flex flex-wrap gap-1.5">{(p.interests as string[]).map(i => (
                 <span key={i} className="px-2 py-1 rounded-full text-[10px] font-bold" style={{ background: '#F4EDFF', color: P.purple }}>{i}</span>
               ))}</div>
@@ -219,7 +224,7 @@ function ProfileTab({ d, userId, onSaved }: { d: LearningDetail; userId: number;
             <button onClick={() => setEditing(true)}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] text-xs font-bold transition-all hover:opacity-80"
               style={{ background: P.navyLt, color: P.navy, border: `1px solid ${P.navy}30` }}>
-              <Pencil size={13} aria-hidden /> Chỉnh sửa hồ sơ
+              <Pencil size={13} aria-hidden /> {t('profile.edit')}
             </button>
           </div>
         </>
@@ -228,15 +233,16 @@ function ProfileTab({ d, userId, onSaved }: { d: LearningDetail; userId: number;
   );
 }
 
-const RARITY_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  COMMON:    { bg: '#F1F5F9', color: '#64748B', label: 'Thường' },
-  RARE:      { bg: '#EFF6FF', color: '#2D9CDB', label: 'Hiếm' },
-  EPIC:      { bg: '#F4EDFF', color: '#9B51E0', label: 'Epic' },
-  LEGENDARY: { bg: '#FFF8E1', color: '#F59E0B', label: 'Huyền thoại' },
+const RARITY_STYLE: Record<string, { bg: string; color: string; labelKey: string }> = {
+  COMMON:    { bg: '#F1F5F9', color: '#64748B', labelKey: 'xp.rarity.COMMON' },
+  RARE:      { bg: '#EFF6FF', color: '#2D9CDB', labelKey: 'xp.rarity.RARE' },
+  EPIC:      { bg: '#F4EDFF', color: '#9B51E0', labelKey: 'xp.rarity.EPIC' },
+  LEGENDARY: { bg: '#FFF8E1', color: '#F59E0B', labelKey: 'xp.rarity.LEGENDARY' },
 };
 
 function XpTab({ d }: { d: LearningDetail }) {
   const fmt = useFmt()
+  const t = useTranslations('v2.adminOps.learningDetail');
   const xp = d.xpGamification;
   const s = d.streak;
   const totalXp = Number(xp.totalXp ?? 0);
@@ -250,12 +256,12 @@ function XpTab({ d }: { d: LearningDetail }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Total XP" value={fmt.num(totalXp)} color={P.purple} />
-        <Stat label="Level" value={String(level)} color={P.blue} />
-        <Stat label="Streak" value={`${s.currentStreak ?? 0} ngày`} color={P.orange} />
-        <Stat label="Sessions" value={fmt.num(Number(s.totalCompletedSessions ?? 0))} color={P.green} />
+        <Stat label={t('xp.stat.totalXp')} value={fmt.num(totalXp)} color={P.purple} />
+        <Stat label={t('xp.stat.level')} value={String(level)} color={P.blue} />
+        <Stat label={t('xp.stat.streak')} value={t('xp.streakDays', { n: String(s.currentStreak ?? 0) })} color={P.orange} />
+        <Stat label={t('xp.stat.sessions')} value={fmt.num(Number(s.totalCompletedSessions ?? 0))} color={P.green} />
       </div>
-      <SectionCard title="Tiến độ Level" icon={<Star size={14} style={{ color: P.yellow }} />}>
+      <SectionCard title={t('xp.levelProgress')} icon={<Star size={14} style={{ color: P.yellow }} />}>
         <div className="mb-2 flex justify-between text-[10px] font-bold" style={{ color: P.muted }}>
           <span>Lv.{level}</span><span>{progress}/{needed} XP ({pct}%)</span><span>Lv.{level + 1}</span>
         </div>
@@ -264,16 +270,16 @@ function XpTab({ d }: { d: LearningDetail }) {
         </div>
       </SectionCard>
 
-      <SectionCard title={`Thành tựu — ${unlocked.length} / ${achievements.length > 0 ? achievements.length : (xp.achievementsTotal ?? 14)} đã mở khóa`} icon={<Trophy size={14} style={{ color: P.orange }} />}>
+      <SectionCard title={t('xp.achievementsTitle', { unlocked: String(unlocked.length), total: String(achievements.length > 0 ? achievements.length : (xp.achievementsTotal ?? 14)) })} icon={<Trophy size={14} style={{ color: P.orange }} />}>
         {achievements.length === 0 ? (
-          <p className="text-xs italic" style={{ color: P.muted }}>Đang tải dữ liệu thành tựu…</p>
+          <p className="text-xs italic" style={{ color: P.muted }}>{t('xp.achievementsLoading')}</p>
         ) : (
           <div className="space-y-3">
             {/* Unlocked */}
             {unlocked.length > 0 && (
               <div>
                 <p className="text-[10px] font-bold uppercase mb-2 flex items-center gap-1" style={{ color: P.green }}>
-                  <Unlock size={10} /> Đã mở khóa ({unlocked.length})
+                  <Unlock size={10} /> {t('xp.unlocked', { n: String(unlocked.length) })}
                 </p>
                 <div className="grid grid-cols-1 gap-1.5">
                   {unlocked.map(a => {
@@ -286,7 +292,7 @@ function XpTab({ d }: { d: LearningDetail }) {
                           <p className="text-[10px] truncate" style={{ color: P.muted }}>{a.descriptionVi}</p>
                         </div>
                         <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: rs.color + '20', color: rs.color }}>{rs.label}</span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: rs.color + '20', color: rs.color }}>{t(rs.labelKey)}</span>
                           <span className="text-[9px] font-bold" style={{ color: P.purple }}>+{a.xpReward} XP</span>
                         </div>
                       </div>
@@ -299,7 +305,7 @@ function XpTab({ d }: { d: LearningDetail }) {
             {locked.length > 0 && (
               <div>
                 <p className="text-[10px] font-bold uppercase mb-2 flex items-center gap-1" style={{ color: P.muted }}>
-                  <Lock size={10} /> Chưa mở ({locked.length})
+                  <Lock size={10} /> {t('xp.locked', { n: String(locked.length) })}
                 </p>
                 <div className="grid grid-cols-1 gap-1.5">
                   {locked.map(a => (
@@ -324,6 +330,7 @@ function XpTab({ d }: { d: LearningDetail }) {
 
 function SpeakingTab({ d }: { d: LearningDetail }) {
   const fmt = useFmt()
+  const t = useTranslations('v2.adminOps.learningDetail');
   const sp = d.speakingAi;
   const weakPoints = Array.isArray(sp.topWeakPoints) ? (sp.topWeakPoints as { grammarPoint: string; count: number }[]) : [];
   const recentErrors = Array.isArray(sp.recentErrors) ? (sp.recentErrors as Record<string, unknown>[]) : [];
@@ -331,11 +338,11 @@ function SpeakingTab({ d }: { d: LearningDetail }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <Stat label="Phiên nói" value={fmt.num(Number(sp.totalSessions ?? 0))} color={P.blue} />
-        <Stat label="Tin nhắn" value={fmt.num(Number(sp.totalMessages ?? 0))} color={P.purple} />
+        <Stat label={t('speaking.stat.sessions')} value={fmt.num(Number(sp.totalSessions ?? 0))} color={P.blue} />
+        <Stat label={t('speaking.stat.messages')} value={fmt.num(Number(sp.totalMessages ?? 0))} color={P.purple} />
       </div>
       {weakPoints.length > 0 && (
-        <SectionCard title="Điểm yếu ngữ pháp (Top 5)" icon={<Target size={14} style={{ color: P.red }} />}>
+        <SectionCard title={t('speaking.weakPointsTitle')} icon={<Target size={14} style={{ color: P.red }} />}>
           <div className="space-y-2">{weakPoints.map((wp, i) => (
             <div key={i} className="flex items-center justify-between gap-2 text-xs">
               <span className="min-w-0 break-words font-semibold" style={{ color: P.text }}>{wp.grammarPoint}</span>
@@ -345,7 +352,7 @@ function SpeakingTab({ d }: { d: LearningDetail }) {
         </SectionCard>
       )}
       {errorSkills.length > 0 && (
-        <SectionCard title="Trạng thái sửa lỗi" icon={<Star size={14} style={{ color: P.orange }} />}>
+        <SectionCard title={t('speaking.errorSkillsTitle')} icon={<Star size={14} style={{ color: P.orange }} />}>
           <div className="space-y-2">{errorSkills.map((s, i) => {
             const openCount = Number(s.openCount ?? 0);
             const resolvedCount = Number(s.resolvedCount ?? 0);
@@ -360,7 +367,7 @@ function SpeakingTab({ d }: { d: LearningDetail }) {
                   <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full`}
                     style={{ background: isResolved ? P.greenLt : P.redLt, color: isResolved ? P.green : P.red }}
                   >
-                    {isResolved ? <><Check size={9} aria-hidden /> Đã sửa</> : <><X size={9} aria-hidden /> Chưa sửa ({openCount})</>}
+                    {isResolved ? <><Check size={9} aria-hidden /> {t('speaking.fixed')}</> : <><X size={9} aria-hidden /> {t('speaking.unfixed', { n: String(openCount) })}</>}
                   </span>
                 </div>
               </div>
@@ -369,14 +376,14 @@ function SpeakingTab({ d }: { d: LearningDetail }) {
         </SectionCard>
       )}
       {recentErrors.length > 0 && (
-        <SectionCard title="Lỗi gần đây" icon={<Mic size={14} style={{ color: P.orange }} />}>
+        <SectionCard title={t('speaking.recentErrorsTitle')} icon={<Mic size={14} style={{ color: P.orange }} />}>
           <div className="overflow-x-auto rounded-[10px] border" style={{ borderColor: P.border }}>
             <table className="w-full min-w-[420px] lg:min-w-0 text-[11px]">
               <thead style={{ background: P.navyLt }}>
                 <tr>
-                  <th className="px-3 py-2 text-left font-bold" style={{ color: P.navy }}>Lỗi</th>
-                  <th className="px-3 py-2 text-left font-bold" style={{ color: P.navy }}>Sai → Đúng</th>
-                  <th className="px-3 py-2 text-left font-bold" style={{ color: P.navy }}>Mức</th>
+                  <th className="px-3 py-2 text-left font-bold" style={{ color: P.navy }}>{t('speaking.col.error')}</th>
+                  <th className="px-3 py-2 text-left font-bold" style={{ color: P.navy }}>{t('speaking.col.wrongToRight')}</th>
+                  <th className="px-3 py-2 text-left font-bold" style={{ color: P.navy }}>{t('speaking.col.severity')}</th>
                 </tr>
               </thead>
               <tbody>{recentErrors.map((e, i) => (
@@ -404,6 +411,7 @@ function SpeakingTab({ d }: { d: LearningDetail }) {
 
 function VocabTab({ d }: { d: LearningDetail }) {
   const fmt = useFmt()
+  const t = useTranslations('v2.adminOps.learningDetail');
   const v = d.vocabularySrs;
   const total = Number(v.totalItems ?? 0);
   const mastered = Number(v.mastered ?? 0);
@@ -413,30 +421,30 @@ function VocabTab({ d }: { d: LearningDetail }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Tổng mục" value={fmt.num(total)} color={P.navy} />
-        <Stat label="Cần ôn hôm nay" value={fmt.num(due)} color={P.red} />
-        <Stat label="Đã thuộc" value={fmt.num(mastered)} color={P.green} />
-        <Stat label="Đang học" value={fmt.num(learning)} color={P.blue} />
+        <Stat label={t('vocab.stat.total')} value={fmt.num(total)} color={P.navy} />
+        <Stat label={t('vocab.stat.dueToday')} value={fmt.num(due)} color={P.red} />
+        <Stat label={t('vocab.stat.mastered')} value={fmt.num(mastered)} color={P.green} />
+        <Stat label={t('vocab.stat.learning')} value={fmt.num(learning)} color={P.blue} />
       </div>
       {total > 0 && (
-        <SectionCard title="Phân bố" icon={<Brain size={14} style={{ color: P.purple }} />}>
+        <SectionCard title={t('vocab.distributionTitle')} icon={<Brain size={14} style={{ color: P.purple }} />}>
           <div className="h-4 rounded-full overflow-hidden flex" style={{ background: P.bg }}>
-            {mastered > 0 && <div style={{ width: `${(mastered / total) * 100}%`, background: P.green }} title={`Đã thuộc: ${mastered}`} />}
-            {learning > 0 && <div style={{ width: `${(learning / total) * 100}%`, background: P.blue }} title={`Đang học: ${learning}`} />}
-            {newItems > 0 && <div style={{ width: `${(newItems / total) * 100}%`, background: P.muted }} title={`Mới: ${newItems}`} />}
+            {mastered > 0 && <div style={{ width: `${(mastered / total) * 100}%`, background: P.green }} title={t('vocab.barMastered', { n: String(mastered) })} />}
+            {learning > 0 && <div style={{ width: `${(learning / total) * 100}%`, background: P.blue }} title={t('vocab.barLearning', { n: String(learning) })} />}
+            {newItems > 0 && <div style={{ width: `${(newItems / total) * 100}%`, background: P.muted }} title={t('vocab.barNew', { n: String(newItems) })} />}
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] font-bold">
-            <span style={{ color: P.green }}>■ Thuộc ({mastered})</span>
-            <span style={{ color: P.blue }}>■ Đang học ({learning})</span>
-            <span style={{ color: P.muted }}>■ Mới ({newItems})</span>
+            <span style={{ color: P.green }}>{t('vocab.legendMastered', { n: String(mastered) })}</span>
+            <span style={{ color: P.blue }}>{t('vocab.legendLearning', { n: String(learning) })}</span>
+            <span style={{ color: P.muted }}>{t('vocab.legendNew', { n: String(newItems) })}</span>
           </div>
           <div className="grid grid-cols-2 gap-3 mt-3">
-            <Stat label="Từ vựng" value={fmt.num(Number(v.wordCount ?? 0))} color={P.purple} />
-            <Stat label="Ngữ pháp" value={fmt.num(Number(v.grammarCount ?? 0))} color={P.orange} />
+            <Stat label={t('vocab.stat.words')} value={fmt.num(Number(v.wordCount ?? 0))} color={P.purple} />
+            <Stat label={t('vocab.stat.grammar')} value={fmt.num(Number(v.grammarCount ?? 0))} color={P.orange} />
           </div>
         </SectionCard>
       )}
-      {total === 0 && <p className="text-sm italic" style={{ color: P.muted }}>Chưa có mục SRS nào.</p>}
+      {total === 0 && <p className="text-sm italic" style={{ color: P.muted }}>{t('vocab.empty')}</p>}
     </div>
   );
 }
@@ -469,6 +477,7 @@ type TranscriptMessage = {
 
 function InterviewTab({ userId }: { userId: number }) {
   const fmt = useFmt()
+  const t = useTranslations('v2.adminOps.learningDetail');
   const [sessions, setSessions] = useState<InterviewSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -504,12 +513,12 @@ function InterviewTab({ userId }: { userId: number }) {
     }
   };
 
-  if (loading) return <p className="text-xs animate-pulse" style={{ color: P.muted }}>Đang tải phỏng vấn...</p>;
+  if (loading) return <p className="text-xs animate-pulse" style={{ color: P.muted }}>{t('interview.loading')}</p>;
   if (error) return <p className="text-xs" style={{ color: P.red }}>{error}</p>;
   if (sessions.length === 0) return (
     <div className="rounded-[14px] p-6 text-center" style={{ border: `2px dashed ${P.border}` }}>
       <Briefcase size={32} className="mx-auto mb-2 opacity-30" />
-      <p className="text-sm font-medium" style={{ color: P.muted }}>Chưa có cuộc phỏng vấn nào.</p>
+      <p className="text-sm font-medium" style={{ color: P.muted }}>{t('interview.empty')}</p>
     </div>
   );
 
@@ -517,7 +526,7 @@ function InterviewTab({ userId }: { userId: number }) {
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <MessageSquare size={14} style={{ color: P.blue }} />
-        <span className="text-xs font-bold" style={{ color: P.muted }}>{sessions.length} cuộc phỏng vấn</span>
+        <span className="text-xs font-bold" style={{ color: P.muted }}>{t('interview.count', { n: String(sessions.length) })}</span>
       </div>
       {sessions.map(s => {
         const isExpanded = expandedId === s.id;
@@ -532,7 +541,7 @@ function InterviewTab({ userId }: { userId: number }) {
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <span className="font-bold text-sm truncate" style={{ color: P.text }}>
-                    {s.interviewPosition ?? 'Không xác định'}
+                    {s.interviewPosition ?? t('interview.unknownPosition')}
                   </span>
                   {s.experienceLevel && (
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: P.blueLt, color: P.blue }}>
@@ -547,7 +556,7 @@ function InterviewTab({ userId }: { userId: number }) {
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full`}
                     style={{ background: s.status === 'COMPLETED' ? P.greenLt : P.orangeLt, color: s.status === 'COMPLETED' ? P.green : P.orange }}
                   >
-                    {s.status === 'COMPLETED' ? 'Đã xong' : 'Chưa xong'}
+                    {s.status === 'COMPLETED' ? t('interview.statusDone') : t('interview.statusPending')}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]" style={{ color: P.muted }}>
@@ -558,7 +567,7 @@ function InterviewTab({ userId }: { userId: number }) {
                     </span>
                   )}
                   <span className="flex items-center gap-1">
-                    <MessageSquare size={10} /> {s.messageCount ?? 0} tin nhắn
+                    <MessageSquare size={10} /> {t('interview.messageCount', { n: String(s.messageCount ?? 0) })}
                   </span>
                 </div>
               </div>
@@ -569,9 +578,9 @@ function InterviewTab({ userId }: { userId: number }) {
             {isExpanded && (
               <div className="border-t px-4 py-3 space-y-2" style={{ borderColor: P.border, background: '#FAFCFF' }}>
                 {transcriptLoading ? (
-                  <p className="text-xs animate-pulse text-center py-4" style={{ color: P.muted }}>Đang tải hội thoại...</p>
+                  <p className="text-xs animate-pulse text-center py-4" style={{ color: P.muted }}>{t('interview.transcriptLoading')}</p>
                 ) : transcript.length === 0 ? (
-                  <p className="text-xs text-center py-4 italic" style={{ color: P.muted }}>Không có tin nhắn.</p>
+                  <p className="text-xs text-center py-4 italic" style={{ color: P.muted }}>{t('interview.noMessages')}</p>
                 ) : (
                   transcript.map((msg) => {
                     const isAi = msg.role === 'ASSISTANT' || msg.role === 'AI';
@@ -589,7 +598,7 @@ function InterviewTab({ userId }: { userId: number }) {
                           }}
                         >
                           <span className="flex items-center gap-1 text-[9px] font-bold mb-0.5" style={{ color: isAi ? P.navy : P.blue }}>
-                            {isAi ? <><Bot size={9} aria-hidden /> AI</> : <><User size={9} aria-hidden /> User</>}
+                            {isAi ? <><Bot size={9} aria-hidden /> {t('interview.roleAi')}</> : <><User size={9} aria-hidden /> {t('interview.roleUser')}</>}
                           </span>
                           {content}
                         </div>
@@ -607,24 +616,26 @@ function InterviewTab({ userId }: { userId: number }) {
 }
 
 export default function LearningDetailModal({ userId, userName, onClose }: { userId: number; userName: string; onClose: () => void }) {
+  const t = useTranslations('v2.adminOps.learningDetail');
   const [tab, setTab] = useState<Tab>("profile");
   const [detail, setDetail] = useState<LearningDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Timeout giữ dạng cờ, dịch lúc render — effect không gọi t nên deps vẫn chỉ [userId].
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
     let cancel = false;
     setLoading(true);
     setError(null);
+    setTimedOut(false);
     api.get(`/admin/users/${userId}/learning-detail`, { timeout: 8000 })
       .then(r => { if (!cancel) setDetail(r.data) })
       .catch(e => {
         if (!cancel) {
           const isTimeout = isAxiosErr(e) && e.code === 'ECONNABORTED';
-          setError(isTimeout
-            ? 'Backend đang tải dữ liệu, vui lòng thử lại.'
-            : apiMessage(e)
-          );
+          setTimedOut(isTimeout);
+          if (!isTimeout) setError(apiMessage(e));
         }
       })
       .finally(() => { if (!cancel) setLoading(false) });
@@ -638,7 +649,7 @@ export default function LearningDetailModal({ userId, userName, onClose }: { use
         {/* Header */}
         <div className="flex items-center justify-between gap-2 px-4 lg:px-6 py-4 border-b" style={{ borderColor: P.border }}>
           <div className="min-w-0">
-            <h3 className="font-bold text-base" style={{ color: P.text }}>Hồ sơ học tập</h3>
+            <h3 className="font-bold text-base" style={{ color: P.text }}>{t('title')}</h3>
             <p className="text-xs break-words" style={{ color: P.muted }}>#{userId} · {userName}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400">
@@ -648,11 +659,11 @@ export default function LearningDetailModal({ userId, userName, onClose }: { use
 
         {/* Tabs */}
         <div className="flex gap-1 px-4 lg:px-6 py-2 border-b overflow-x-auto" style={{ borderColor: P.border, background: P.bg }}>
-          {TABS.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
+          {TABS.map(item => (
+            <button key={item.key} onClick={() => setTab(item.key)}
               className="flex shrink-0 items-center gap-1.5 min-h-[40px] lg:min-h-0 px-3 py-2 rounded-[10px] text-xs font-bold whitespace-nowrap transition-all"
-              style={{ background: tab === t.key ? P.navy : "transparent", color: tab === t.key ? P.white : P.muted }}
-            >{t.icon}{t.label}</button>
+              style={{ background: tab === item.key ? P.navy : "transparent", color: tab === item.key ? P.white : P.muted }}
+            >{item.icon}{t(item.labelKey)}</button>
           ))}
         </div>
 
@@ -661,14 +672,14 @@ export default function LearningDetailModal({ userId, userName, onClose }: { use
           {loading && (
             <div className="flex flex-col items-center justify-center py-12 gap-4">
               <CompleteBauhausLogo variant="icon-only" size={120} animated />
-              <p className="text-xs font-medium animate-pulse" style={{ color: P.muted }}>Đang tải hồ sơ học tập...</p>
+              <p className="text-xs font-medium animate-pulse" style={{ color: P.muted }}>{t('loading')}</p>
             </div>
           )}
-          {error && <p className="text-sm text-center py-8" style={{ color: P.red }}>{error}</p>}
+          {(error || timedOut) && <p className="text-sm text-center py-8" style={{ color: P.red }}>{timedOut ? t('backendBusy') : error}</p>}
           {detail && !loading && (
             <>
               {tab === "profile" && <ProfileTab d={detail} userId={userId} onSaved={() => {
-                setDetail(null); setLoading(true); setError(null);
+                setDetail(null); setLoading(true); setError(null); setTimedOut(false);
                 api.get(`/admin/users/${userId}/learning-detail`, { timeout: 8000 })
                   .then(r => setDetail(r.data))
                   .catch(e => setError(apiMessage(e)))

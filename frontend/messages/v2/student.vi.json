@@ -330,6 +330,249 @@
       "interviewResults": "Kết quả phỏng vấn",
       "historyCta": "Lịch sử"
     },
+    "companionSelect": {
+      "title": "Luyện nói",
+      "subtitle": "Chọn cách luyện và người đồng hành",
+      "home": "Trang chủ",
+      "modes": {
+        "communication": "Hội thoại",
+        "interview": "Phỏng vấn",
+        "lesson": "Luyện tập"
+      },
+      "experience": {
+        "upTo6Months": "0–6 tháng",
+        "sixTo12Months": "6–12 tháng",
+        "oneToTwoYears": "1–2 năm",
+        "threeYears": "3 năm",
+        "fivePlusYears": "5+ năm"
+      },
+      "suggestedTopic": "Chủ đề đề xuất: {topic}",
+      "emptyGroup": "Không có nhân vật nào cho chế độ này trong nhóm đã chọn.",
+      "pro": {
+        "title": "Nhân vật PRO",
+        "desc": "Nhân vật cấp độ ADVANCED chỉ dành cho gói PRO/ULTRA. Nâng cấp để luyện phỏng vấn chuyên sâu.",
+        "upgrade": "Nâng cấp →"
+      },
+      "positionLabel": "Bạn ứng tuyển vị trí nào?",
+      "experienceLabel": "Số năm kinh nghiệm",
+      "scenarioLabel": "Chủ đề bài học",
+      "cta": {
+        "interview": "Phỏng vấn với {name}",
+        "lesson": "Luyện tập với {name}",
+        "start": "Bắt đầu với {name}"
+      },
+      "hint": {
+        "pickPersona": "Vui lòng chọn một nhân vật",
+        "pickPosition": "Chọn vị trí và kinh nghiệm",
+        "pickScenario": "Chọn chủ đề bài học"
+      },
+      "errors": {
+        "sessionExpired": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+        "forbidden": "Bạn không có quyền tạo phiên luyện nói.",
+        "tooSoon": "Vui lòng chờ vài giây trước khi tạo phiên mới.",
+        "server": "Máy chủ đang gặp sự cố. Vui lòng thử lại sau.",
+        "generic": "Không thể tạo phiên luyện nói. Vui lòng thử lại!"
+      }
+    },
+    "personas": {
+      "groups": {
+        "it": "IT / Startup",
+        "verkauf": "Bán hàng",
+        "medizin": "Y khoa",
+        "maschinenbau": "Cơ khí",
+        "service": "Phục vụ",
+        "medien": "Truyền thông",
+        "special": "Bạn Việt"
+      },
+      "lukas": {
+        "role": "Senior Tech Mentor",
+        "tag": "Backend Dev · Berlin",
+        "desc": "Erklärt Grammatik wie sauberen Code. Strukturiert, logisch, präzise.",
+        "positions": {
+          "frontend_dev": "Frontend Developer",
+          "backend_dev": "Backend Developer",
+          "devops": "DevOps Engineer",
+          "data_analyst": "Data Analyst",
+          "qa_engineer": "QA Engineer"
+        }
+      },
+      "emma": {
+        "role": "Berlin Culture Guide",
+        "tag": "Künstlerin · Neukölln",
+        "desc": "Bringt dir Deutsch durch Kunst, Kultur und Berliner Flair bei.",
+        "positions": {
+          "marketing_mgr": "Marketing Manager",
+          "sales_exec": "Sales Executive",
+          "cs_manager": "Customer Success Manager",
+          "hr_coordinator": "HR Coordinator",
+          "project_mgr": "Project Manager"
+        }
+      },
+      "anna": {
+        "role": "Everyday Life Guide",
+        "tag": "Sprachlehrerin · Hamburg",
+        "desc": "Begleitet dich durch den deutschen Alltag – warm, geduldig und praktisch.",
+        "positions": {
+          "werkstudent": "Werkstudent",
+          "praktikant": "Praktikant",
+          "research_asst": "Research Assistant",
+          "student_coord": "Student Coordinator",
+          "teaching_asst": "Teaching Assistant"
+        }
+      },
+      "klaus": {
+        "role": "Culinary Expert",
+        "tag": "Head Chef · München",
+        "desc": "Luyện tiếng Đức qua chủ đề ẩm thực, nhà bếp và giao tiếp nhóm.",
+        "positions": {
+          "line_cook": "Koch (Line Cook)",
+          "sous_chef": "Sous Chef",
+          "head_chef": "Küchenchef",
+          "servicekraft": "Servicekraft",
+          "restaurant_mgr": "Restaurantleiter"
+        }
+      },
+      "lena": {
+        "role": "Supermarktmitarbeiterin",
+        "tag": "Supermarkt · A1-A2",
+        "desc": "Thân thiện, năng động, hỗ trợ mua sắm tại siêu thị Đức.",
+        "positions": {
+          "kassierer": "Thu ngân (Kassierer)",
+          "verkaufer": "Nhân viên bán hàng",
+          "lagerist": "Thủ kho"
+        }
+      },
+      "thomas": {
+        "role": "Bäcker",
+        "tag": "Bäckerei · A1-A2",
+        "desc": "Ấm áp, nhiệt tình, tự hào về các loại bánh truyền thống Đức.",
+        "positions": {
+          "baker": "Thợ bánh (Bäcker)",
+          "konditor": "Thợ bánh ngọt",
+          "verkauf_bakery": "Bán hàng bánh"
+        }
+      },
+      "petra": {
+        "role": "Metzger",
+        "tag": "Metzgerei · A1-A2",
+        "desc": "Chuyên nghiệp, am hiểu về các loại thịt, thẳng thắn.",
+        "positions": {
+          "metzger": "Đồ tể (Metzger)",
+          "fleischverkauf": "Bán thịt"
+        }
+      },
+      "sarah": {
+        "role": "Med. Fachangestellte",
+        "tag": "Arztpraxis · A2-B1",
+        "desc": "Chuyên nghiệp, tổ chức tốt, thân thiện tại phòng khám.",
+        "positions": {
+          "mfa": "Trợ lý Y khoa (MFA)",
+          "rezeption_praxis": "Lễ tân phòng khám"
+        }
+      },
+      "schneider": {
+        "role": "Augenarzt",
+        "tag": "Augenklinik · B1-B2",
+        "desc": "Chính xác, kỹ lưỡng, giải thích rõ ràng các quy trình kiểm tra.",
+        "positions": {
+          "augenarzt": "Bác sĩ mắt",
+          "mta_auge": "MTA Mắt"
+        }
+      },
+      "weber": {
+        "role": "Dermatologin",
+        "tag": "Hautarzt · B1-B2",
+        "desc": "Tận tâm, giải thích cặn kẽ về các vấn đề da liễu.",
+        "positions": {
+          "hautarzt": "Bác sĩ da liễu",
+          "mta_derm": "MTA Da liễu"
+        }
+      },
+      "max": {
+        "role": "Maschinenbediener",
+        "tag": "Werkstatt · B1-B2",
+        "desc": "Thực tế, am hiểu vận hành và bảo trì máy móc.",
+        "positions": {
+          "maschinenbediener": "Thợ vận hành máy",
+          "industriemechaniker": "Thợ cơ khí CN"
+        }
+      },
+      "oliver": {
+        "role": "CNC-Fräser",
+        "tag": "CNC · B2",
+        "desc": "Chính xác, logic, am hiểu lập trình và vận hành máy CNC.",
+        "positions": {
+          "cnc_fraser": "Thợ CNC",
+          "cnc_programmierer": "Lập trình CNC"
+        }
+      },
+      "niklas": {
+        "role": "Kellner",
+        "tag": "Restaurant · A2-B1",
+        "desc": "Lịch sự, chu đáo, phục vụ tại nhà hàng sang trọng.",
+        "positions": {
+          "kellner": "Phục vụ bàn",
+          "barkeeper": "Pha chế",
+          "serviceleitung": "Quản lý phục vụ"
+        }
+      },
+      "nina": {
+        "role": "Rezeptionistin",
+        "tag": "Hotel · A2-B1",
+        "desc": "Chuyên nghiệp, thân thiện, tiếp tân khách sạn.",
+        "positions": {
+          "rezeptionist": "Lễ tân khách sạn",
+          "concierge": "Concierge"
+        }
+      },
+      "hannie": {
+        "role": "Moderatorin & MC",
+        "tag": "Medien · 20 Jahre",
+        "desc": "20 tuổi, người Đức năng động vui tươi. Dẫn chương trình, sự kiện, truyền thông.",
+        "positions": {
+          "moderatorin": "Moderatorin / MC",
+          "redakteurin": "Redakteurin",
+          "social_media_mgr": "Social Media Manager",
+          "pr_specialist": "PR Specialist",
+          "content_creator": "Content Creator",
+          "event_manager": "Event Manager"
+        }
+      },
+      "tuan": {
+        "role": "Anh bạn học nghề",
+        "tag": "Ausbildung · A1",
+        "desc": "Vui vẻ, tháo vát, dạy tiếng Đức 'sinh tồn' bằng tiếng Việt.",
+        "scenarios": {
+          "alphabet": "Bảng chữ cái (Buchstabieren)",
+          "numbers": "Số đếm (Zahlen 1-100)",
+          "anmeldung": "Đăng ký tạm trú (Anmeldung)"
+        }
+      },
+      "lan": {
+        "role": "Người đi trước",
+        "tag": "Hội nhập · A1",
+        "desc": "Ân cần, kiên nhẫn, dạy phát âm chuẩn và mẹo văn hóa Đức.",
+        "scenarios": {
+          "umlaut": "Umlaut (ä, ö, ü)",
+          "emergency_numbers": "Số khẩn cấp (110, 112)",
+          "pronunciation": "Phát âm cơ bản"
+        }
+      },
+      "minh": {
+        "role": "Cạ cứng đường phố",
+        "tag": "Đường phố · A1",
+        "desc": "Năng lượng cao, học tiếng Đức qua biển báo và đường phố.",
+        "scenarios": {
+          "street_names": "Tên đường phố (Straßennamen)",
+          "train_station": "Ga tàu (Bahnhof/Gleis)",
+          "speed_signs": "Biển báo tốc độ (Geschwindigkeit)"
+        }
+      }
+    },
+    "chatBubble": {
+      "whyThisSentence": "Tại sao dùng câu này?",
+      "usageContext": "Hoàn cảnh sử dụng:"
+    },
     "weeklySpeaking": {
       "title": "Chủ đề nói hằng tuần",
       "subtitle": "Bài nói có rubric chấm điểm — tách khỏi luyện nói chat với AI.",
@@ -813,6 +1056,59 @@
       "groupToday": "Hôm nay",
       "groupThisWeek": "Tuần này",
       "groupOlder": "Cũ hơn"
+    },
+    "sessionSummary": {
+      "interviewEndedTitle": "Phỏng vấn kết thúc!",
+      "sessionEndedTitle": "Buổi luyện nói kết thúc!",
+      "scoreOutOf10": "điểm / 10",
+      "circleTooEarlyLine1": "Kết thúc quá sớm",
+      "circleTooEarlyLine2": "chưa đủ để chấm",
+      "circleNotScoredLine1": "Chưa chấm được",
+      "circleNotScoredLine2": "điểm phiên này",
+      "circleSpeakMoreLine1": "Nói thêm vài câu",
+      "circleSpeakMoreLine2": "để nhận đánh giá",
+      "statDuration": "Thời gian",
+      "statTurns": "Lượt nói",
+      "statPerfect": "Hoàn hảo",
+      "statErrors": "Lỗi",
+      "aiScoreLabel": "Đánh giá AI: ",
+      "detailedAiTitle": "Đánh giá chi tiết (AI)",
+      "germanInInterviewTitle": "Tiếng Đức trong phỏng vấn",
+      "vocabularyLevel": "Mức từ vựng",
+      "commonErrorsCap": "Lỗi thường gặp",
+      "remediationTitle": "Giải pháp khắc phục",
+      "answerUpgradesTitle": "Nên nói thế nào",
+      "youSaid": "Bạn nói: ",
+      "betterSay": "Nên nói: ",
+      "nextStepsTitle": "Bước tiếp theo cho bạn",
+      "nextStepRetrySamePosition": "Phỏng vấn lại vị trí này",
+      "nextStepPracticeStar": "Luyện kể tình huống STAR",
+      "nextStepDrillErrors": "Ôn lại lỗi của phiên này",
+      "nextStepExpandAnswers": "Tập trả lời 3–4 câu",
+      "nextStepFachVocab": "Luyện từ vựng chuyên ngành",
+      "strengthsTitle": "Điểm mạnh",
+      "improvementsTitle": "Cần cải thiện",
+      "grammarTitle": "Ngữ pháp",
+      "recommendedNextTitle": "Luyện tiếp theo",
+      "noReportTitle": "Buổi luyện nói đã hoàn thành!",
+      "noReportBody": "Lần này chưa có đánh giá chi tiết, nhưng mỗi câu bạn nói đều là một bước tiến. Tiếp tục luyện nhé!",
+      "interviewTooEarlyTitle": "Buổi phỏng vấn kết thúc quá sớm",
+      "interviewNotScoredTitle": "Chưa chấm được phiên này",
+      "interviewTooEarlyBody": "Bạn mới trả lời {n} câu. Hãy trả lời ít nhất {min} câu (khoảng {words} từ trở lên) rồi kết thúc — hệ thống chỉ chấm điểm thật dựa trên những gì bạn đã nói, không ước lượng thay.",
+      "interviewNotScoredBody": "Hệ thống chưa tạo được bản đánh giá đạt chuẩn cho phiên này. Bấm \"Kết thúc\" lần nữa để chấm lại — nếu vẫn không được, thử lại sau ít phút.",
+      "notEnoughTitle": "Chưa đủ để chấm điểm",
+      "notEnoughBody": "Bạn mới nói {n} câu. Hãy trò chuyện thêm ít nhất {min} câu để nhận đánh giá sát trình độ hơn — một hai câu chưa đủ để chấm công bằng.",
+      "quickSelfAssessTitle": "Tự đánh giá nhanh",
+      "quickSelfAssessHint": "(ước lượng theo số lỗi ghi nhận)",
+      "rubricVocabulary": "Từ vựng",
+      "rubricGrammar": "Ngữ pháp & Cú pháp",
+      "rubricTask": "Hoàn thành nhiệm vụ",
+      "rubricFluency": "Độ trôi chảy",
+      "errorsToReviewTitle": "Lỗi cần ôn lại sau buổi nói",
+      "reviewErrorsCta": "Ôn lại các lỗi này",
+      "grammarErrorFallback": "Lỗi ngữ pháp",
+      "restart": "Luyện lại",
+      "exitHome": "Về trang chủ"
     },
     "exerciseHistory": {
       "title": "Lịch sử bài tập lộ trình",
@@ -1711,6 +2007,134 @@
         "noQuestions": "Chưa có câu hỏi cho bài đọc này.",
         "completed": "Đã hoàn thành 100%",
         "markDone": "Đã đọc & Hiểu (100%)"
+      },
+      "common": {
+        "tapToFlip": "Bấm để lật",
+        "listenPronunciation": "Nghe phát âm"
+      },
+      "grammar": {
+        "correctCap": "Đúng",
+        "wrongCap": "Sai",
+        "ruleTag": "QUY TẮC",
+        "exampleTag": "VÍ DỤ",
+        "collapse": "▲ Thu gọn",
+        "expand": "▼ Xem thêm",
+        "theoryCount": "Lý thuyết ({count})",
+        "filter": "Lọc:",
+        "allTag": "Tất cả",
+        "pageOf": "Trang {page} / {total}",
+        "phrasesCap": "Cụm từ thường dùng",
+        "examplesCap": "Ví dụ thực tế",
+        "quizCap": "Kiểm tra mức độ hiểu bài",
+        "answerPlaceholder": "Nhập câu trả lời",
+        "questionN": "Câu {n}",
+        "check": "Kiểm tra đáp án",
+        "noPractice": "Không có bài tập thực hành cho phần này. Hãy đánh dấu hoàn thành nếu bạn đã hiểu rõ lý thuyết.",
+        "result": "Bạn trả lời đúng {score}/{total}. Cần đúng 100% để qua bài!",
+        "retry": "Làm lại"
+      },
+      "selfCheck": {
+        "reorder": "Sắp xếp câu",
+        "translate": "Dịch câu",
+        "notScored": "Tự kiểm tra · không tính điểm",
+        "showAnswer": "Xem đáp án"
+      },
+      "recap": {
+        "doneTitle": "Hoàn thành!",
+        "doneDesc": "Bạn đã học xong bài này",
+        "xpEarned": "XP kiếm được",
+        "newVocab": "Từ vựng mới",
+        "wordCount": "{n} từ",
+        "streak": "Chuỗi ngày học",
+        "dayCount": "{n} ngày",
+        "nextLesson": "Bài tiếp theo:",
+        "nextCta": "Tiếp theo: {title} →",
+        "backCta": "Về lộ trình",
+        "backToRoadmap": "Về lộ trình học"
+      },
+      "pronunciation": {
+        "verdict": {
+          "CORRECT": "Chính xác",
+          "CLOSE": "Gần đúng",
+          "MISSING": "Chưa nghe thấy"
+        },
+        "micDenied": "Không thể truy cập microphone. Vui lòng cho phép quyền mic.",
+        "scoreFailed": "Không thể chấm điểm phát âm. Vui lòng thử lại.",
+        "networkError": "Lỗi kết nối. Vui lòng thử lại.",
+        "readCap": "Đọc câu sau:",
+        "close": "Đóng",
+        "startRecording": "Bắt đầu ghi âm",
+        "stopAndScore": "Dừng & chấm điểm",
+        "retry": "Thử lại",
+        "pronScore": "Điểm phát âm",
+        "heard": "Hệ thống nghe được:",
+        "perWordCap": "Chi tiết từng từ:",
+        "wordsToPractice": "Từ cần luyện tập:"
+      }
+    },
+    "examResult": {
+      "parts": {
+        "LESEN": "Đọc hiểu",
+        "HOEREN": "Nghe hiểu",
+        "SCHREIBEN": "Viết",
+        "SPRECHEN": "Nói"
+      },
+      "audioPlayer": {
+        "status": {
+          "idle": "Nghe audio",
+          "loading": "Đang tải giọng...",
+          "playing": "Đang phát...",
+          "paused": "Tạm dừng",
+          "done": "Phát lại",
+          "unsupported": "Trình duyệt không hỗ trợ audio"
+        },
+        "play": "Phát audio",
+        "stop": "Dừng",
+        "defaultLabel": "Hörtext — Goethe A1",
+        "unsupportedHint": "Trình duyệt không hỗ trợ. Dùng Chrome hoặc Safari."
+      },
+      "scoreBreakdown": {
+        "pending": "Chờ chấm",
+        "passed": "Đạt",
+        "failed": "Chưa đạt",
+        "pendingWriting": "Phần viết email sẽ được AI chấm điểm",
+        "pendingSpeaking": "Phần nói cần giáo viên chấm thủ công",
+        "title": "Điểm chi tiết theo phần",
+        "threshold": "Ngưỡng đạt (60%)",
+        "provisionalTotal": "Tổng điểm (tạm tính)",
+        "officialNote": "Điểm chính thức sau khi chấm xong"
+      },
+      "examFeedback": {
+        "rubric": {
+          "aufgabenerfuellung": "Hoàn thành nhiệm vụ",
+          "kohaerenz": "Mạch lạc & cấu trúc",
+          "wortschatz": "Từ vựng",
+          "strukturen": "Ngữ pháp & cấu trúc câu"
+        },
+        "pendingTitle": "Đang chờ AI chấm bài viết",
+        "pendingFallback": "Phần email chưa được nộp hoặc đang xử lý.",
+        "aiGraded": "Được chấm bởi AI",
+        "officialRubric": "Rubric Goethe A1 chính thức",
+        "detailCap": "Điểm chi tiết",
+        "emailTotal": "Tổng điểm email",
+        "overallCap": "Nhận xét tổng quan",
+        "strengths": "Điểm mạnh",
+        "improvements": "Cần cải thiện",
+        "title": "Đánh giá bài viết (SCHREIBEN Teil 2)"
+      },
+      "weakAreas": {
+        "tips": {
+          "LESEN": "Luyện đọc văn bản tiếng Đức ngắn hàng ngày, chú ý từ vựng chủ đề sinh hoạt hàng ngày.",
+          "HOEREN": "Nghe podcast Deutsch A1 và hội thoại giao tiếp hàng ngày để quen âm điệu tiếng Đức.",
+          "SCHREIBEN": "Thực hành viết email ngắn theo format Goethe: giới thiệu, hỏi thăm, lời kết. Chú ý ngữ pháp và cấu trúc câu.",
+          "SPRECHEN": "Luyện tự giới thiệu và hội thoại đơn giản. Dùng tính năng phỏng vấn AI để nhận phản hồi về phát âm."
+        },
+        "noneTitle": "Xuất sắc! Không có điểm yếu",
+        "noneDesc": "Bạn đã vượt ngưỡng 60% ở tất cả các phần. Tiếp tục duy trì và thử thách bản thân với đề khó hơn!",
+        "title": "Điểm yếu cần cải thiện",
+        "below60": "Dưới 60%",
+        "practiceNow": "Luyện tập ngay",
+        "footer": "Luyện tập đều đặn mỗi ngày — kết quả sẽ cải thiện rõ rệt sau 2 tuần"
       }
     }
   }

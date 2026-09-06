@@ -458,6 +458,133 @@
         }
       }
     },
+    "learningDetail": {
+      "title": "Lernprofil",
+      "loading": "Lernprofil wird geladen...",
+      "backendBusy": "Das Backend lädt noch Daten, bitte versuchen Sie es erneut.",
+      "tabs": {
+        "profile": "Profil",
+        "xp": "XP & Streak",
+        "speaking": "Speaking AI",
+        "vocab": "SRS-Vokabeln",
+        "interview": "Interviews"
+      },
+      "profile": {
+        "goalCap": "ZIEL",
+        "speedCap": "LERNTEMPO",
+        "currentLevelCap": "AKTUELLES NIVEAU",
+        "targetLevelCap": "ZIELNIVEAU",
+        "sessionsPerWeekCap": "EINHEITEN/WOCHE",
+        "minutesPerSessionCap": "MINUTEN/EINHEIT",
+        "industryCap": "BRANCHE",
+        "industryPlaceholder": "IT, MEDICINE, EDUCATION...",
+        "goal": {
+          "WORK": "Beruf",
+          "CERT": "Zertifikat"
+        },
+        "speed": {
+          "SLOW": "Langsam",
+          "NORMAL": "Normal",
+          "FAST": "Schnell"
+        },
+        "speedShort": {
+          "SLOW": "Langsam",
+          "NORMAL": "Normal",
+          "FAST": "Schnell"
+        },
+        "saving": "Wird gespeichert…",
+        "save": "Profil speichern",
+        "cancel": "Abbrechen",
+        "notConfigured": "Diese Person hat noch kein Lernprofil eingerichtet.",
+        "adminCanCreate": "Ein Admin kann das Profil stellvertretend anlegen.",
+        "create": "Lernprofil anlegen",
+        "edit": "Profil bearbeiten",
+        "stat": {
+          "currentLevel": "Aktuelles Niveau",
+          "target": "Ziel",
+          "speed": "Tempo"
+        },
+        "row": {
+          "goal": "Ziel",
+          "currentLevel": "Aktuelles Niveau",
+          "targetLevel": "Zielniveau",
+          "industry": "Branche",
+          "exam": "Prüfung",
+          "sessionsPerWeek": "Einheiten/Woche",
+          "minutesPerSession": "Minuten/Einheit",
+          "speed": "Lerntempo",
+          "ageRange": "Altersgruppe"
+        },
+        "interests": "Interessen"
+      },
+      "xp": {
+        "stat": {
+          "totalXp": "XP gesamt",
+          "level": "Level",
+          "streak": "Streak",
+          "sessions": "Sitzungen"
+        },
+        "streakDays": "{n} Tage",
+        "levelProgress": "Level-Fortschritt",
+        "achievementsTitle": "Erfolge — {unlocked} / {total} freigeschaltet",
+        "achievementsLoading": "Erfolge werden geladen…",
+        "unlocked": "Freigeschaltet ({n})",
+        "locked": "Gesperrt ({n})",
+        "rarity": {
+          "COMMON": "Gewöhnlich",
+          "RARE": "Selten",
+          "EPIC": "Episch",
+          "LEGENDARY": "Legendär"
+        }
+      },
+      "speaking": {
+        "stat": {
+          "sessions": "Sprechsitzungen",
+          "messages": "Nachrichten"
+        },
+        "weakPointsTitle": "Grammatik-Schwächen (Top 5)",
+        "errorSkillsTitle": "Fehlerbehebungsstatus",
+        "fixed": "Behoben",
+        "unfixed": "Offen ({n})",
+        "recentErrorsTitle": "Letzte Fehler",
+        "col": {
+          "error": "Fehler",
+          "wrongToRight": "Falsch → Richtig",
+          "severity": "Schwere"
+        }
+      },
+      "vocab": {
+        "stat": {
+          "total": "Einträge gesamt",
+          "dueToday": "Heute fällig",
+          "mastered": "Beherrscht",
+          "learning": "Wird gelernt",
+          "words": "Wortschatz",
+          "grammar": "Grammatik"
+        },
+        "distributionTitle": "Verteilung",
+        "barMastered": "Beherrscht: {n}",
+        "barLearning": "Wird gelernt: {n}",
+        "barNew": "Neu: {n}",
+        "legendMastered": "■ Beherrscht ({n})",
+        "legendLearning": "■ Wird gelernt ({n})",
+        "legendNew": "■ Neu ({n})",
+        "empty": "Noch keine SRS-Einträge."
+      },
+      "interview": {
+        "loading": "Interviews werden geladen...",
+        "empty": "Noch keine Interviews.",
+        "count": "{n} Interviews",
+        "unknownPosition": "Unbekannt",
+        "statusDone": "Abgeschlossen",
+        "statusPending": "Nicht abgeschlossen",
+        "messageCount": "{n} Nachrichten",
+        "transcriptLoading": "Gespräch wird geladen...",
+        "noMessages": "Keine Nachrichten.",
+        "roleAi": "KI",
+        "roleUser": "Nutzer"
+      }
+    },
     "classes": {
       "title": "Klassenverwaltung",
       "subtitle": "Alle Klassen im System — in Echtzeit mit der Datenbank synchronisiert",

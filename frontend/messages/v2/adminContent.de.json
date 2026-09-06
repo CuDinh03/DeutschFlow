@@ -125,6 +125,14 @@
       "catPersona": "HR-Avatar",
       "catAvatar": "Nutzer-Avatar",
       "catMarketing": "Marketingbild",
+      "catLanding": "Startseiten-Bilder",
+      "catLesson": "Lektionsbilder",
+      "catAchievement": "Erfolgsbilder",
+      "catNews": "Nachrichtenbilder",
+      "catVocabulary": "Vokabelbilder",
+      "catTeacherMaterial": "Lehrmaterial",
+      "catAssignment": "Aufgabenbilder",
+      "catGeneral": "Allgemein",
       "catOther": "Sonstige",
       "title": "Bild- & Medienbibliothek (S3)",
       "subtitle": "Vokabelbilder, KI-Bilder und Lektions-Videoszenen",
@@ -254,7 +262,8 @@
       "noIndustryData": "Noch keine Branchendaten.",
       "avgScoreByIndustryTitle": "Durchschnittswert nach Branche",
       "noScoreByIndustry": "Noch kein Wert nach Branche.",
-      "noData": "Keine Daten."
+      "noData": "Keine Daten.",
+      "scorePts": "{n} Pkt."
     },
     "audit": {
       "catUser": "Nutzer",

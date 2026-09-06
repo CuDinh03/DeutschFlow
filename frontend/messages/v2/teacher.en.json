@@ -9,6 +9,10 @@
       "emptyNoStudents": "You have no students yet. Create a class and add students first.",
       "emptyNoMatch": "No matching students."
     },
+    "tcShared": {
+      "classFallback": "Class #{id}",
+      "noClasses": "No classes yet"
+    },
     "toolsMaterials": {
       "prototypeNotice": "UI prototype — no generation backend exists yet, the create button is disabled. This screen is for design feedback only and produces no real materials."
     },
@@ -132,6 +136,81 @@
         "deleteConfirm": "Delete",
         "deleteSuccess": "Milestone deleted",
         "cancel": "Cancel"
+      },
+      "mode": {
+        "ONLINE": "Online",
+        "OFFLINE": "In class"
+      },
+      "status": {
+        "SCHEDULED": "Scheduled",
+        "CANCELLED": "Cancelled",
+        "MOVED": "Moved"
+      },
+      "dow": {
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "sun": "Sunday"
+      },
+      "field": {
+        "class": "Class",
+        "classOption": "{name} · {count} students",
+        "start": "Start",
+        "startTime": "Start time",
+        "duration": "Duration (min)",
+        "mode": "Format",
+        "room": "Room",
+        "roomOnline": "Not needed (online)",
+        "roomPlaceholder": "e.g. R.302",
+        "status": "Status",
+        "weekdays": "Weekdays",
+        "weekdaysAria": "Select weekdays",
+        "effectiveFrom": "Effective from",
+        "effectiveTo": "Until (blank = no end date)"
+      },
+      "saving": "Saving…",
+      "classRequired": "Select a class",
+      "startRequired": "Select a start time",
+      "editSession": {
+        "title": "Edit session",
+        "description": "{className} · {count} students",
+        "enter": "Enter the session →",
+        "save": "Save session",
+        "durationPositive": "Duration must be greater than 0",
+        "pending": "Session change request submitted — awaiting center approval, the current schedule is unchanged",
+        "overrideNote": "Editing marks this session as “manually edited” — later changes to the fixed schedule will not overwrite it."
+      },
+      "createSession": {
+        "title": "Add class session",
+        "description": "One-off session — not part of the fixed schedule.",
+        "noClasses": "You have no classes to add a session to yet.",
+        "pending": "Make-up session request submitted — awaiting center approval"
+      },
+      "pattern": {
+        "title": "Fixed class schedule",
+        "description": "Set a recurring schedule by weekday — future sessions are generated automatically; manually edited sessions are kept.",
+        "save": "Save fixed schedule",
+        "noClasses": "You have no classes yet.",
+        "existingCap": "Existing fixed schedules",
+        "empty": "No fixed schedule for this class yet.",
+        "weekdayRequired": "Select at least one weekday",
+        "startAndFromRequired": "Enter a start time and an effective-from date",
+        "savePending": "Fixed schedule request for {days} submitted — awaiting center approval, the current schedule is unchanged",
+        "saved": "Schedule saved for {days} · {n} sessions generated",
+        "savedKept": "{n} manually edited sessions kept",
+        "savedSkipped": "{n} conflicting sessions skipped",
+        "saveFailed": "Could not save {days}: {detail}",
+        "saveFailedGeneric": "schedule conflict or invalid details",
+        "delete": "Delete fixed schedule",
+        "deleteTitle": "Delete fixed schedule?",
+        "deleteDetailSessions": "All future sessions generated from this schedule (not manually edited) will be removed; manually edited sessions are kept.",
+        "deleteDetailGated": "Center class with a curriculum: the deletion becomes a request awaiting center approval — nothing is removed right away.",
+        "deleteConfirm": "Delete schedule",
+        "deletePending": "Fixed schedule removal request submitted — awaiting center approval",
+        "deleted": "Fixed schedule deleted · {n} future sessions (not manually edited) removed"
       }
     },
     "tcProgress": {
@@ -738,6 +817,7 @@
       "teachersPrimaryOnly": "Only the lead teacher can add or remove assistants.",
       "coTeacherAccessNote": "Assistants have full access to run the class: grading, assignments, reports and class chat.",
       "titleFallback": "Class details",
+      "classFallback": "Class #{id}",
       "subtitle": "Class code: {code} · {count} students joined",
       "subtitleLoading": "Loading…",
       "backToClasses": "Classes",

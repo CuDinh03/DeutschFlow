@@ -15,7 +15,7 @@ import {
 } from '@/lib/classScheduleApi'
 import { assignLanes } from '@/lib/scheduleLayout'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
-import { CLASS_STATUS, CreateSessionModal, EditSessionModal, MODE_LABEL, PatternModal } from './scheduleClassParts'
+import { CLASS_STATUS, CreateSessionModal, EditSessionModal, MODE_LABEL_KEY, PatternModal } from './scheduleClassParts'
 import { TeacherRequestsPanel } from './TeacherRequestsPanel'
 import { MilestonesModal } from './MilestonesModal'
 
@@ -168,7 +168,7 @@ export default function V2TeacherSchedulePage() {
                   upcoming.map((s) => {
                     const d = new Date(s.startAt)
                     const c = CLASS_STATUS[s.status]
-                    const place = s.mode === 'ONLINE' ? MODE_LABEL.ONLINE : s.room ?? t('atClass')
+                    const place = s.mode === 'ONLINE' ? t(MODE_LABEL_KEY.ONLINE) : s.room ?? t('atClass')
                     return (
                       <button
                         key={s.id}
@@ -296,7 +296,7 @@ function WeekGrid({
 
               {laid.map(({ item: { s, d: dt }, lane, lanes }) => {
                 const c = CLASS_STATUS[s.status]
-                const place = s.mode === 'ONLINE' ? MODE_LABEL.ONLINE : s.room ?? t('atClass')
+                const place = s.mode === 'ONLINE' ? t(MODE_LABEL_KEY.ONLINE) : s.room ?? t('atClass')
                 const laneW = 100 / lanes
                 return (
                   <button

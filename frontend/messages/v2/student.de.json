@@ -330,6 +330,249 @@
       "interviewResults": "Interview-Ergebnisse",
       "historyCta": "Verlauf"
     },
+    "companionSelect": {
+      "title": "Sprechen üben",
+      "subtitle": "Wähle Übungsart und Begleiter",
+      "home": "Startseite",
+      "modes": {
+        "communication": "Gespräch",
+        "interview": "Interview",
+        "lesson": "Übung"
+      },
+      "experience": {
+        "upTo6Months": "0–6 Monate",
+        "sixTo12Months": "6–12 Monate",
+        "oneToTwoYears": "1–2 Jahre",
+        "threeYears": "3 Jahre",
+        "fivePlusYears": "5+ Jahre"
+      },
+      "suggestedTopic": "Vorgeschlagenes Thema: {topic}",
+      "emptyGroup": "In dieser Gruppe gibt es keine Figur für diesen Modus.",
+      "pro": {
+        "title": "PRO-Figur",
+        "desc": "ADVANCED-Figuren gibt es nur im PRO/ULTRA-Tarif. Upgrade für intensives Interview-Training.",
+        "upgrade": "Upgrade →"
+      },
+      "positionLabel": "Auf welche Stelle bewirbst du dich?",
+      "experienceLabel": "Berufserfahrung",
+      "scenarioLabel": "Lektionsthema",
+      "cta": {
+        "interview": "Interview mit {name}",
+        "lesson": "Üben mit {name}",
+        "start": "Mit {name} starten"
+      },
+      "hint": {
+        "pickPersona": "Bitte wähle eine Figur",
+        "pickPosition": "Wähle Stelle und Erfahrung",
+        "pickScenario": "Wähle ein Lektionsthema"
+      },
+      "errors": {
+        "sessionExpired": "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.",
+        "forbidden": "Du hast keine Berechtigung, eine Sprechsitzung zu erstellen.",
+        "tooSoon": "Bitte warte ein paar Sekunden, bevor du eine neue Sitzung startest.",
+        "server": "Der Server hat gerade Probleme. Bitte versuche es später noch einmal.",
+        "generic": "Die Sprechsitzung konnte nicht erstellt werden. Bitte versuche es noch einmal!"
+      }
+    },
+    "personas": {
+      "groups": {
+        "it": "IT / Start-up",
+        "verkauf": "Verkauf",
+        "medizin": "Medizin",
+        "maschinenbau": "Maschinenbau",
+        "service": "Service",
+        "medien": "Medien",
+        "special": "Vietnamesische Buddys"
+      },
+      "lukas": {
+        "role": "Senior Tech Mentor",
+        "tag": "Backend Dev · Berlin",
+        "desc": "Erklärt Grammatik wie sauberen Code. Strukturiert, logisch, präzise.",
+        "positions": {
+          "frontend_dev": "Frontend-Entwickler/in",
+          "backend_dev": "Backend-Entwickler/in",
+          "devops": "DevOps-Ingenieur/in",
+          "data_analyst": "Datenanalyst/in",
+          "qa_engineer": "Qualitätssicherung"
+        }
+      },
+      "emma": {
+        "role": "Berliner Kulturguide",
+        "tag": "Künstlerin · Neukölln",
+        "desc": "Bringt dir Deutsch durch Kunst, Kultur und Berliner Flair bei.",
+        "positions": {
+          "marketing_mgr": "Marketingleiter/in",
+          "sales_exec": "Vertriebsmitarbeiter/in",
+          "cs_manager": "Kundenerfolgsmanager/in",
+          "hr_coordinator": "Personalkoordinator/in",
+          "project_mgr": "Projektmanager/in"
+        }
+      },
+      "anna": {
+        "role": "Alltagsbegleiterin",
+        "tag": "Sprachlehrerin · Hamburg",
+        "desc": "Begleitet dich durch den deutschen Alltag – warm, geduldig und praktisch.",
+        "positions": {
+          "werkstudent": "Werkstudent/in",
+          "praktikant": "Praktikant/in",
+          "research_asst": "Wissenschaftliche Hilfskraft",
+          "student_coord": "Studienkoordinator/in",
+          "teaching_asst": "Tutor/in"
+        }
+      },
+      "klaus": {
+        "role": "Kulinarik-Experte",
+        "tag": "Küchenchef · München",
+        "desc": "Übe Deutsch rund um Küche, Kulinarik und Teamkommunikation.",
+        "positions": {
+          "line_cook": "Koch/Köchin",
+          "sous_chef": "Sous Chef",
+          "head_chef": "Küchenchef/in",
+          "servicekraft": "Servicekraft",
+          "restaurant_mgr": "Restaurantleiter/in"
+        }
+      },
+      "lena": {
+        "role": "Supermarktmitarbeiterin",
+        "tag": "Supermarkt · A1-A2",
+        "desc": "Freundlich und energiegeladen – hilft dir beim Einkaufen im deutschen Supermarkt.",
+        "positions": {
+          "kassierer": "Kassierer/in",
+          "verkaufer": "Verkäufer/in",
+          "lagerist": "Lagerist/in"
+        }
+      },
+      "thomas": {
+        "role": "Bäcker",
+        "tag": "Bäckerei · A1-A2",
+        "desc": "Herzlich, begeistert und stolz auf traditionelles deutsches Gebäck.",
+        "positions": {
+          "baker": "Bäcker/in",
+          "konditor": "Konditor/in",
+          "verkauf_bakery": "Bäckereiverkäufer/in"
+        }
+      },
+      "petra": {
+        "role": "Metzgerin",
+        "tag": "Metzgerei · A1-A2",
+        "desc": "Professionell, kennt sich mit Fleisch aus, direkt.",
+        "positions": {
+          "metzger": "Metzger/in",
+          "fleischverkauf": "Fleischverkäufer/in"
+        }
+      },
+      "sarah": {
+        "role": "Med. Fachangestellte",
+        "tag": "Arztpraxis · A2-B1",
+        "desc": "Professionell, gut organisiert und freundlich in der Praxis.",
+        "positions": {
+          "mfa": "Med. Fachangestellte/r",
+          "rezeption_praxis": "Praxisrezeption"
+        }
+      },
+      "schneider": {
+        "role": "Augenarzt",
+        "tag": "Augenklinik · B1-B2",
+        "desc": "Präzise, gründlich, erklärt jede Untersuchung verständlich.",
+        "positions": {
+          "augenarzt": "Augenarzt/-ärztin",
+          "mta_auge": "MTA Augenheilkunde"
+        }
+      },
+      "weber": {
+        "role": "Dermatologin",
+        "tag": "Hautarzt · B1-B2",
+        "desc": "Einfühlsam, erklärt Hautprobleme ausführlich.",
+        "positions": {
+          "hautarzt": "Dermatolog/in",
+          "mta_derm": "MTA Dermatologie"
+        }
+      },
+      "max": {
+        "role": "Maschinenbediener",
+        "tag": "Werkstatt · B1-B2",
+        "desc": "Praktisch veranlagt, kennt Bedienung und Wartung von Maschinen.",
+        "positions": {
+          "maschinenbediener": "Maschinenbediener/in",
+          "industriemechaniker": "Industriemechaniker/in"
+        }
+      },
+      "oliver": {
+        "role": "CNC-Fräser",
+        "tag": "CNC · B2",
+        "desc": "Präzise, logisch, kennt CNC-Programmierung und -Bedienung.",
+        "positions": {
+          "cnc_fraser": "CNC-Fräser/in",
+          "cnc_programmierer": "CNC-Programmierer/in"
+        }
+      },
+      "niklas": {
+        "role": "Kellner",
+        "tag": "Restaurant · A2-B1",
+        "desc": "Höflich, aufmerksam, serviert in einem gehobenen Restaurant.",
+        "positions": {
+          "kellner": "Kellner/in",
+          "barkeeper": "Barkeeper/in",
+          "serviceleitung": "Serviceleitung"
+        }
+      },
+      "nina": {
+        "role": "Rezeptionistin",
+        "tag": "Hotel · A2-B1",
+        "desc": "Professionelle, freundliche Hotelrezeptionistin.",
+        "positions": {
+          "rezeptionist": "Rezeptionist/in",
+          "concierge": "Concierge"
+        }
+      },
+      "hannie": {
+        "role": "Moderatorin & MC",
+        "tag": "Medien · 20 Jahre",
+        "desc": "20 Jahre, lebhaft und fröhlich. Moderiert Shows, Events und Medien.",
+        "positions": {
+          "moderatorin": "Moderator/in",
+          "redakteurin": "Redakteur/in",
+          "social_media_mgr": "Social-Media-Manager/in",
+          "pr_specialist": "PR-Spezialist/in",
+          "content_creator": "Content Creator",
+          "event_manager": "Eventmanager/in"
+        }
+      },
+      "tuan": {
+        "role": "Azubi-Kumpel",
+        "tag": "Ausbildung · A1",
+        "desc": "Fröhlich, findig, bringt dir Überlebensdeutsch auf Vietnamesisch bei.",
+        "scenarios": {
+          "alphabet": "Das Alphabet",
+          "numbers": "Zahlen",
+          "anmeldung": "Anmeldung"
+        }
+      },
+      "lan": {
+        "role": "Erfahrene Mentorin",
+        "tag": "Integration · A1",
+        "desc": "Fürsorglich, geduldig, vermittelt saubere Aussprache und Kulturtipps.",
+        "scenarios": {
+          "umlaut": "Umlaute",
+          "emergency_numbers": "Notrufnummern",
+          "pronunciation": "Aussprache"
+        }
+      },
+      "minh": {
+        "role": "Straßen-Kumpel",
+        "tag": "Straße · A1",
+        "desc": "Voller Energie – Deutsch lernen über Schilder und Straßen.",
+        "scenarios": {
+          "street_names": "Straßennamen",
+          "train_station": "Bahnhof",
+          "speed_signs": "Verkehrszeichen"
+        }
+      }
+    },
+    "chatBubble": {
+      "whyThisSentence": "Warum dieser Satz?",
+      "usageContext": "Verwendung:"
+    },
     "weeklySpeaking": {
       "title": "Thema dieser Woche",
       "subtitle": "Bewertete Aufgabe mit Rubrik — nicht dasselbe wie die Chat-Übung.",
@@ -813,6 +1056,59 @@
       "groupToday": "Heute",
       "groupThisWeek": "Diese Woche",
       "groupOlder": "Älter"
+    },
+    "sessionSummary": {
+      "interviewEndedTitle": "Interview beendet!",
+      "sessionEndedTitle": "Sprechübung beendet!",
+      "scoreOutOf10": "Punkte / 10",
+      "circleTooEarlyLine1": "Zu früh beendet",
+      "circleTooEarlyLine2": "zu wenig zum Bewerten",
+      "circleNotScoredLine1": "Keine Bewertung",
+      "circleNotScoredLine2": "für diese Sitzung",
+      "circleSpeakMoreLine1": "Sag noch ein paar Sätze",
+      "circleSpeakMoreLine2": "für eine Bewertung",
+      "statDuration": "Dauer",
+      "statTurns": "Runden",
+      "statPerfect": "Perfekt",
+      "statErrors": "Fehler",
+      "aiScoreLabel": "KI-Bewertung: ",
+      "detailedAiTitle": "Detaillierte Bewertung (KI)",
+      "germanInInterviewTitle": "Deutsch im Interview",
+      "vocabularyLevel": "Wortschatzniveau",
+      "commonErrorsCap": "Häufige Fehler",
+      "remediationTitle": "Verbesserungsvorschläge",
+      "answerUpgradesTitle": "So sagst du es besser",
+      "youSaid": "Du hast gesagt: ",
+      "betterSay": "Besser: ",
+      "nextStepsTitle": "Deine nächsten Schritte",
+      "nextStepRetrySamePosition": "Interview für diese Stelle wiederholen",
+      "nextStepPracticeStar": "STAR-Situationen üben",
+      "nextStepDrillErrors": "Fehler dieser Sitzung wiederholen",
+      "nextStepExpandAnswers": "Antworten mit 3–4 Sätzen üben",
+      "nextStepFachVocab": "Fachwortschatz üben",
+      "strengthsTitle": "Stärken",
+      "improvementsTitle": "Verbesserungsbedarf",
+      "grammarTitle": "Grammatik",
+      "recommendedNextTitle": "Als Nächstes üben",
+      "noReportTitle": "Sprechübung abgeschlossen!",
+      "noReportBody": "Diesmal gibt es keine ausführliche Bewertung, aber jeder Satz, den du sprichst, ist ein Schritt nach vorn. Bleib dran!",
+      "interviewTooEarlyTitle": "Das Interview wurde zu früh beendet",
+      "interviewNotScoredTitle": "Diese Sitzung konnte nicht bewertet werden",
+      "interviewTooEarlyBody": "Du hast bisher erst {n} Antworten gegeben. Gib mindestens {min} Antworten (etwa {words} Wörter oder mehr), bevor du beendest — bewertet wird nur, was du wirklich gesagt hast, geschätzt wird nichts.",
+      "interviewNotScoredBody": "Das System konnte für diese Sitzung keine gültige Bewertung erstellen. Tippe erneut auf „Beenden“, um neu zu bewerten — falls es weiterhin nicht klappt, versuche es in ein paar Minuten noch einmal.",
+      "notEnoughTitle": "Noch zu wenig für eine Bewertung",
+      "notEnoughBody": "Du hast bisher erst {n} Sätze gesagt. Sprich mindestens {min} Sätze, damit die Bewertung dein Niveau besser widerspiegelt — ein oder zwei Sätze reichen für eine faire Bewertung nicht aus.",
+      "quickSelfAssessTitle": "Schnelle Selbsteinschätzung",
+      "quickSelfAssessHint": "(geschätzt anhand der erfassten Fehler)",
+      "rubricVocabulary": "Wortschatz",
+      "rubricGrammar": "Grammatik & Syntax",
+      "rubricTask": "Aufgabenerfüllung",
+      "rubricFluency": "Flüssigkeit",
+      "errorsToReviewTitle": "Fehler zum Wiederholen nach der Sitzung",
+      "reviewErrorsCta": "Diese Fehler wiederholen",
+      "grammarErrorFallback": "Grammatikfehler",
+      "restart": "Noch einmal üben",
+      "exitHome": "Zur Startseite"
     },
     "exerciseHistory": {
       "title": "Versuchs-Historie (Lektionen)",
@@ -1711,6 +2007,134 @@
         "noQuestions": "Noch keine Fragen zu diesem Text.",
         "completed": "100 % abgeschlossen",
         "markDone": "Gelesen & verstanden (100 %)"
+      },
+      "common": {
+        "tapToFlip": "Zum Umdrehen tippen",
+        "listenPronunciation": "Aussprache anhören"
+      },
+      "grammar": {
+        "correctCap": "Richtig",
+        "wrongCap": "Falsch",
+        "ruleTag": "REGEL",
+        "exampleTag": "BEISPIEL",
+        "collapse": "▲ Einklappen",
+        "expand": "▼ Mehr anzeigen",
+        "theoryCount": "Theorie ({count})",
+        "filter": "Filter:",
+        "allTag": "Alle",
+        "pageOf": "Seite {page} / {total}",
+        "phrasesCap": "Häufige Wendungen",
+        "examplesCap": "Beispiele aus dem Alltag",
+        "quizCap": "Verständnis prüfen",
+        "answerPlaceholder": "Antwort eingeben",
+        "questionN": "Frage {n}",
+        "check": "Antworten prüfen",
+        "noPractice": "Keine Übungen für diesen Abschnitt. Markiere ihn als abgeschlossen, wenn du die Theorie verstanden hast.",
+        "result": "{score}/{total} richtig. Für das Bestehen sind 100 % nötig!",
+        "retry": "Noch einmal"
+      },
+      "selfCheck": {
+        "reorder": "Satz ordnen",
+        "translate": "Satz übersetzen",
+        "notScored": "Selbstkontrolle · zählt nicht zur Punktzahl",
+        "showAnswer": "Lösung anzeigen"
+      },
+      "recap": {
+        "doneTitle": "Geschafft!",
+        "doneDesc": "Du hast diese Lektion abgeschlossen",
+        "xpEarned": "XP verdient",
+        "newVocab": "Neue Vokabeln",
+        "wordCount": "{n} Wörter",
+        "streak": "Lernserie",
+        "dayCount": "{n} Tage",
+        "nextLesson": "Nächste Lektion:",
+        "nextCta": "Weiter: {title} →",
+        "backCta": "Zum Lernweg",
+        "backToRoadmap": "Zurück zum Lernweg"
+      },
+      "pronunciation": {
+        "verdict": {
+          "CORRECT": "Richtig",
+          "CLOSE": "Fast richtig",
+          "MISSING": "Nicht gehört"
+        },
+        "micDenied": "Kein Zugriff auf das Mikrofon. Bitte Mikrofonzugriff erlauben.",
+        "scoreFailed": "Aussprache konnte nicht bewertet werden. Bitte erneut versuchen.",
+        "networkError": "Verbindungsfehler. Bitte erneut versuchen.",
+        "readCap": "Lies den folgenden Satz:",
+        "close": "Schließen",
+        "startRecording": "Aufnahme starten",
+        "stopAndScore": "Stoppen & bewerten",
+        "retry": "Erneut versuchen",
+        "pronScore": "Aussprache-Punkte",
+        "heard": "Erkannt wurde:",
+        "perWordCap": "Wort für Wort:",
+        "wordsToPractice": "Wörter zum Üben:"
+      }
+    },
+    "examResult": {
+      "parts": {
+        "LESEN": "Leseverstehen",
+        "HOEREN": "Hörverstehen",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
+      },
+      "audioPlayer": {
+        "status": {
+          "idle": "Audio abspielen",
+          "loading": "Stimme wird geladen...",
+          "playing": "Wird abgespielt...",
+          "paused": "Pausiert",
+          "done": "Noch einmal abspielen",
+          "unsupported": "Dein Browser unterstützt kein Audio"
+        },
+        "play": "Audio abspielen",
+        "stop": "Stopp",
+        "defaultLabel": "Hörtext — Goethe A1",
+        "unsupportedHint": "Browser nicht unterstützt. Bitte Chrome oder Safari verwenden."
+      },
+      "scoreBreakdown": {
+        "pending": "Bewertung ausstehend",
+        "passed": "Bestanden",
+        "failed": "Nicht bestanden",
+        "pendingWriting": "Die E-Mail wird von der KI bewertet",
+        "pendingSpeaking": "Der Sprechteil wird von einer Lehrkraft manuell bewertet",
+        "title": "Punkte nach Prüfungsteil",
+        "threshold": "Bestehensgrenze (60 %)",
+        "provisionalTotal": "Gesamtpunktzahl (vorläufig)",
+        "officialNote": "Offizielle Punktzahl nach Abschluss der Bewertung"
+      },
+      "examFeedback": {
+        "rubric": {
+          "aufgabenerfuellung": "Aufgabenerfüllung",
+          "kohaerenz": "Kohärenz & Aufbau",
+          "wortschatz": "Wortschatz",
+          "strukturen": "Grammatik & Satzstrukturen"
+        },
+        "pendingTitle": "Die KI bewertet deinen Text gerade",
+        "pendingFallback": "Die E-Mail wurde noch nicht abgegeben oder wird noch verarbeitet.",
+        "aiGraded": "Von der KI bewertet",
+        "officialRubric": "Offizielles Goethe-A1-Bewertungsraster",
+        "detailCap": "Punkte im Detail",
+        "emailTotal": "Gesamtpunkte E-Mail",
+        "overallCap": "Gesamteindruck",
+        "strengths": "Stärken",
+        "improvements": "Verbesserungsbedarf",
+        "title": "Bewertung des Schreibteils (SCHREIBEN Teil 2)"
+      },
+      "weakAreas": {
+        "tips": {
+          "LESEN": "Lies täglich kurze deutsche Texte und achte auf Wortschatz aus dem Alltag.",
+          "HOEREN": "Höre Deutsch-A1-Podcasts und Alltagsgespräche, um dich an den Klang des Deutschen zu gewöhnen.",
+          "SCHREIBEN": "Übe kurze E-Mails im Goethe-Format: Vorstellung, Nachfrage, Schlussformel. Achte auf Grammatik und Satzbau.",
+          "SPRECHEN": "Übe, dich vorzustellen und einfache Gespräche zu führen. Nutze das KI-Interview, um Feedback zu deiner Aussprache zu bekommen."
+        },
+        "noneTitle": "Ausgezeichnet! Keine Schwächen",
+        "noneDesc": "Du hast in allen Teilen die 60-%-Grenze überschritten. Weiter so – fordere dich mit einer schwereren Prüfung heraus!",
+        "title": "Deine Schwachpunkte",
+        "below60": "Unter 60 %",
+        "practiceNow": "Jetzt üben",
+        "footer": "Übe regelmäßig jeden Tag — nach 2 Wochen wirst du deutliche Fortschritte sehen"
       }
     }
   }

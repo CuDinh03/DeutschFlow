@@ -288,5 +288,10 @@
     "teacherPrefix": "GV: {names}",
     "noTeacher": "Chưa có giáo viên",
     "studentsCount": "{count} học viên"
+  },
+  "system": {
+    "sessionExpiredTitle": "Phiên đăng nhập đã hết hạn",
+    "sessionExpiredBody": "Phiên đăng nhập của bạn đã hết hạn hoặc không thể tự làm mới. Vui lòng đăng nhập lại để tiếp tục.",
+    "offlineBanner": "Mất kết nối mạng — một số tính năng tạm thời không khả dụng"
   }
 }

@@ -75,7 +75,9 @@
       "seatsUnlimitedSuffix": "Schüler belegen Plätze · unbegrenzt",
       "sectionError": "Dieser Bereich konnte nicht geladen werden.",
       "todoSourceError": "Einige Daten (Klassen/Einladungen) konnten nicht geladen werden — die Liste kann unvollständig sein.",
-      "statUnavailable": "nicht geladen"
+      "statUnavailable": "nicht geladen",
+      "checkingOwner": "Berechtigung wird geprüft…",
+      "loadingDashboard": "Dashboard wird geladen…"
     },
     "manager": {
       "title": "Betriebsübersicht",
@@ -149,7 +151,13 @@
       "statusLeft": "Ausgetreten",
       "profile": "Profil",
       "exportEmpty": "Keine Zeilen zum Exportieren.",
-      "exportDone": "{count} Schüler als CSV exportiert."
+      "exportDone": "{count} Schüler als CSV exportiert.",
+      "csv": {
+        "displayName": "Anzeigename",
+        "email": "E-Mail",
+        "status": "Status",
+        "joinedAt": "Beitrittsdatum"
+      }
     },
     "studentDetail": {
       "titleFallback": "Schülerdetails",

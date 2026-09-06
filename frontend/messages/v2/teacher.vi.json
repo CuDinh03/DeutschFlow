@@ -9,6 +9,10 @@
       "emptyNoStudents": "Bạn chưa có học viên nào trong lớp. Hãy tạo lớp và thêm học viên trước.",
       "emptyNoMatch": "Không tìm thấy học viên phù hợp."
     },
+    "tcShared": {
+      "classFallback": "Lớp #{id}",
+      "noClasses": "Chưa có lớp"
+    },
     "toolsMaterials": {
       "prototypeNotice": "Bản dựng thử giao diện — chưa có backend sinh tài liệu, nút tạo đang tắt. Màn này chỉ để góp ý thiết kế, không tạo ra tài liệu thật."
     },
@@ -132,6 +136,81 @@
         "deleteConfirm": "Xoá mốc",
         "deleteSuccess": "Đã xoá mốc",
         "cancel": "Huỷ"
+      },
+      "mode": {
+        "ONLINE": "Online",
+        "OFFLINE": "Tại lớp"
+      },
+      "status": {
+        "SCHEDULED": "Đã lên lịch",
+        "CANCELLED": "Đã huỷ",
+        "MOVED": "Đã dời"
+      },
+      "dow": {
+        "mon": "Thứ 2",
+        "tue": "Thứ 3",
+        "wed": "Thứ 4",
+        "thu": "Thứ 5",
+        "fri": "Thứ 6",
+        "sat": "Thứ 7",
+        "sun": "Chủ nhật"
+      },
+      "field": {
+        "class": "Lớp",
+        "classOption": "{name} · {count} HV",
+        "start": "Bắt đầu",
+        "startTime": "Giờ bắt đầu",
+        "duration": "Thời lượng (phút)",
+        "mode": "Hình thức",
+        "room": "Phòng",
+        "roomOnline": "Không cần (online)",
+        "roomPlaceholder": "VD: P.302",
+        "status": "Trạng thái",
+        "weekdays": "Các thứ trong tuần",
+        "weekdaysAria": "Chọn các thứ trong tuần",
+        "effectiveFrom": "Áp dụng từ",
+        "effectiveTo": "Đến (để trống = vô thời hạn)"
+      },
+      "saving": "Đang lưu…",
+      "classRequired": "Chọn lớp",
+      "startRequired": "Chọn thời gian bắt đầu",
+      "editSession": {
+        "title": "Sửa buổi học",
+        "description": "{className} · {count} học viên",
+        "enter": "Vào buổi dạy →",
+        "save": "Lưu buổi",
+        "durationPositive": "Thời lượng phải lớn hơn 0",
+        "pending": "Đã gửi đề xuất thay đổi buổi — chờ trung tâm duyệt, lịch hiện tại chưa đổi",
+        "overrideNote": "Sửa buổi sẽ đánh dấu buổi này là “đã chỉnh tay” — đổi lịch cố định của lớp sau đó sẽ không ghi đè buổi này."
+      },
+      "createSession": {
+        "title": "Thêm buổi lớp",
+        "description": "Buổi lẻ — không theo lịch cố định.",
+        "noClasses": "Bạn chưa có lớp nào để thêm buổi.",
+        "pending": "Đã gửi đề xuất buổi bù — chờ trung tâm duyệt"
+      },
+      "pattern": {
+        "title": "Lịch cố định của lớp",
+        "description": "Đặt lịch định kỳ theo các thứ trong tuần — buổi tương lai sẽ tự sinh; buổi đã chỉnh tay được giữ nguyên.",
+        "save": "Lưu lịch cố định",
+        "noClasses": "Bạn chưa có lớp nào.",
+        "existingCap": "Lịch cố định hiện có",
+        "empty": "Chưa có lịch cố định cho lớp này.",
+        "weekdayRequired": "Chọn ít nhất một thứ",
+        "startAndFromRequired": "Nhập giờ bắt đầu và ngày áp dụng",
+        "savePending": "Đã gửi đề xuất lịch cố định {days} — chờ trung tâm duyệt, lịch hiện tại chưa đổi",
+        "saved": "Đã lưu lịch {days} · sinh {n} buổi",
+        "savedKept": "giữ {n} buổi đã chỉnh tay",
+        "savedSkipped": "bỏ qua {n} buổi trùng lịch",
+        "saveFailed": "Không lưu được {days}: {detail}",
+        "saveFailedGeneric": "trùng lịch hoặc thông tin không hợp lệ",
+        "delete": "Xoá lịch cố định",
+        "deleteTitle": "Xoá lịch cố định?",
+        "deleteDetailSessions": "Mọi buổi tương lai sinh từ lịch này (chưa chỉnh tay) sẽ bị gỡ; buổi đã chỉnh tay được giữ nguyên.",
+        "deleteDetailGated": "Lớp trung tâm có giáo trình: việc xoá trở thành đề xuất chờ trung tâm duyệt, chưa gỡ gì ngay.",
+        "deleteConfirm": "Xoá lịch",
+        "deletePending": "Đã gửi đề xuất huỷ lịch cố định — chờ trung tâm duyệt",
+        "deleted": "Đã xoá lịch cố định · gỡ {n} buổi tương lai chưa chỉnh tay"
       }
     },
     "tcProgress": {
@@ -738,6 +817,7 @@
       "teachersPrimaryOnly": "Chỉ giáo viên chính mới thêm hoặc gỡ trợ giảng.",
       "coTeacherAccessNote": "Trợ giảng có toàn quyền vận hành lớp: chấm bài, giao bài, xem báo cáo và nhắn tin lớp.",
       "titleFallback": "Chi tiết lớp",
+      "classFallback": "Lớp #{id}",
       "subtitle": "Mã lớp: {code} · {count} học viên đã tham gia",
       "subtitleLoading": "Đang tải…",
       "backToClasses": "Lớp học",

@@ -16,16 +16,10 @@ import { PatternModal } from '@/app/v2/teacher/schedule/scheduleClassParts'
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
-// Wave 0: TkModal dùng useTranslations('v2.ui') cho nhãn nút đóng (i18n contract W0-C8)
-// → test phải mock next-intl như các test component v2 khác.
-vi.mock('next-intl', () => ({
-  useTranslations: () => {
-    const f = (k: string) => k
-    ;(f as unknown as { has: (k: string) => boolean }).has = () => false
-    return f
-  },
-  useLocale: () => 'vi',
-}))
+// i18n đợt 3 (06/09/2026): scheduleClassParts đọc chữ từ catalog v2.teacher.schedule (TkModal đọc v2.ui)
+// → mock next-intl bằng translator đọc catalog THẬT để test vẫn khẳng định theo chữ nhìn thấy
+// (Thứ 4, Áp dụng từ, Lưu lịch cố định, sinh 12 buổi…) đúng như người dùng VI.
+vi.mock('next-intl', async () => (await import('@/test/intlCatalog')).nextIntlCatalogMock())
 
 const upsertMock = vi.fn()
 const getPatternsMock = vi.fn()

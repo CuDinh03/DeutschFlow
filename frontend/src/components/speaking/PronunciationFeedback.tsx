@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Mic, MicOff, RotateCcw, Volume2, X } from "lucide-react";
 
 interface WordResult {
@@ -28,13 +29,15 @@ const VERDICT_STYLE: Record<string, string> = {
   MISSING: "bg-red-100 text-red-700 border-red-200 line-through",
 };
 
-const VERDICT_LABEL: Record<string, string> = {
-  CORRECT: "Chính xác",
-  CLOSE:   "Gần đúng",
-  MISSING: "Chưa nghe thấy",
+// Khoá tương đối trong namespace `v2.student.learnViews.pronunciation`.
+const VERDICT_LABEL_KEY: Record<string, string> = {
+  CORRECT: "verdict.CORRECT",
+  CLOSE:   "verdict.CLOSE",
+  MISSING: "verdict.MISSING",
 };
 
 export function PronunciationFeedback({ expectedText, onClose }: PronunciationFeedbackProps) {
+  const t = useTranslations("v2.student.learnViews.pronunciation");
   const [recording, setRecording] = useState(false);
   const [result, setResult] = useState<PronunciationScore | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -61,9 +64,9 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
       setResult(null);
       setError(null);
     } catch {
-      setError("Không thể truy cập microphone. Vui lòng cho phép quyền mic.");
+      setError(t("micDenied"));
     }
-  }, [expectedText]);
+  }, [expectedText, t]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorder && mediaRecorder.state !== "inactive") {
@@ -86,10 +89,10 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
       if (res.ok) {
         setResult(await res.json());
       } else {
-        setError("Không thể chấm điểm phát âm. Vui lòng thử lại.");
+        setError(t("scoreFailed"));
       }
     } catch {
-      setError("Lỗi kết nối. Vui lòng thử lại.");
+      setError(t("networkError"));
     }
   };
 
@@ -104,11 +107,11 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
       {/* Target sentence */}
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Đọc câu sau:</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t("readCap")}</p>
           <p className="text-lg font-semibold text-[#0F172A]">{expectedText}</p>
         </div>
         {onClose && (
-          <button onClick={onClose} aria-label="Đóng" className="text-gray-400 hover:text-gray-600 shrink-0"><X size={16} aria-hidden /></button>
+          <button onClick={onClose} aria-label={t("close")} className="text-gray-400 hover:text-gray-600 shrink-0"><X size={16} aria-hidden /></button>
         )}
       </div>
 
@@ -119,14 +122,14 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
             onClick={startRecording}
             className="flex items-center gap-2 rounded-xl bg-indigo-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-indigo-700"
           >
-            <Mic size={16} /> Bắt đầu ghi âm
+            <Mic size={16} /> {t("startRecording")}
           </button>
         ) : (
           <button
             onClick={stopRecording}
             className="flex items-center gap-2 rounded-xl bg-red-500 text-white px-4 py-2.5 text-sm font-semibold hover:bg-red-600 animate-pulse"
           >
-            <MicOff size={16} /> Dừng & chấm điểm
+            <MicOff size={16} /> {t("stopAndScore")}
           </button>
         )}
         {result && (
@@ -134,7 +137,7 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
             onClick={() => { setResult(null); setError(null); }}
             className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50"
           >
-            <RotateCcw size={14} /> Thử lại
+            <RotateCcw size={14} /> {t("retry")}
           </button>
         )}
       </div>
@@ -150,7 +153,7 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
               {result.overallScore}
             </div>
             <div>
-              <p className="text-xs text-gray-500">Điểm phát âm</p>
+              <p className="text-xs text-gray-500">{t("pronScore")}</p>
               <div className="mt-1 h-2 w-32 rounded-full bg-gray-200">
                 <div
                   className={`h-full rounded-full transition-all ${
@@ -166,13 +169,13 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
 
           {/* Transcribed text */}
           <div>
-            <p className="text-xs text-gray-400 mb-1">Hệ thống nghe được:</p>
+            <p className="text-xs text-gray-400 mb-1">{t("heard")}</p>
             <p className="text-sm text-gray-600 italic">&ldquo;{result.transcribedText}&rdquo;</p>
           </div>
 
           {/* Per-word breakdown */}
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Chi tiết từng từ:</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("perWordCap")}</p>
             <div className="flex flex-wrap gap-2">
               {result.words.map((w, i) => (
                 <div key={i} className="relative group">
@@ -181,7 +184,7 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
                   </span>
                   {/* Tooltip */}
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:flex whitespace-nowrap rounded-lg bg-gray-900 text-white text-xs px-2 py-1 z-10">
-                    {VERDICT_LABEL[w.verdict]}
+                    {t(VERDICT_LABEL_KEY[w.verdict])}
                     {w.transcribed && w.verdict !== "CORRECT" && ` → "${w.transcribed}"`}
                   </div>
                 </div>
@@ -192,7 +195,7 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
           {/* Tips based on missing words */}
           {result.words.some(w => w.verdict === "MISSING") && (
             <div className="rounded-xl bg-rose-50 border border-rose-100 p-3">
-              <p className="text-xs font-semibold text-rose-700 mb-1">Từ cần luyện tập:</p>
+              <p className="text-xs font-semibold text-rose-700 mb-1">{t("wordsToPractice")}</p>
               <div className="flex flex-wrap gap-1">
                 {result.words.filter(w => w.verdict === "MISSING").map((w, i) => (
                   <span key={i} className="text-xs font-medium text-rose-800 bg-rose-100 rounded px-1.5 py-0.5">
