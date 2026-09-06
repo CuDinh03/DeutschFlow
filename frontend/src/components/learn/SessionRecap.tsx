@@ -7,6 +7,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Zap, BookOpen, Flame, PartyPopper } from "lucide-react";
 
 interface SessionRecapProps {
+  /**
+   * Kỹ năng đầu tiên của node này chưa đạt ngưỡng (L3c). Có giá trị thì màn tổng kết mời luyện
+   * đúng kỹ năng đó thay vì để người học tự đoán nên làm gì tiếp; null thì hàng nút không hiện.
+   */
+  practiceSkillLabel?: string | null
+  onPractice?: () => void;
   xpEarned: number;
   vocabCount: number;
   streakDays: number;
@@ -43,6 +49,8 @@ export default function SessionRecap({
   nextNodeTitle,
   onNext,
   onBack,
+  practiceSkillLabel,
+  onPractice,
 }: SessionRecapProps) {
   const t = useTranslations("v2.student.learnViews.recap");
   const router = useRouter();
@@ -164,6 +172,15 @@ export default function SessionRecap({
             >
               {nextNodeTitle ? t("nextCta", { title: nextNodeTitle }) : t("backCta")}
             </button>
+            {practiceSkillLabel && onPractice && (
+              <button
+                type="button"
+                onClick={onPractice}
+                className="w-full py-2.5 rounded-2xl border border-[#E2E8F0] font-semibold text-sm text-[#121212] transition-colors hover:bg-[#F1F5F9]"
+              >
+                {t("practiceCta", { skill: practiceSkillLabel })}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleBack}

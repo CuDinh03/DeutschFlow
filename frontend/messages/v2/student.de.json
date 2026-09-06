@@ -1530,7 +1530,8 @@
       "retryDesc": "Hören/Lesen erfordern 100 % • Sprechen/Aussprache/Schreiben erfordern ≥ 80 Punkte",
       "retryCta": "🔄 Erneut versuchen",
       "progressNotSaved": "Dein Fortschritt konnte nicht auf dem Server gespeichert werden.",
-      "scoreBelowThreshold": "Der Server hat {score}% gewertet — unter der Bestehensgrenze, dein Fortschritt wurde nicht gespeichert."
+      "scoreBelowThreshold": "Der Server hat {score}% gewertet — unter der Bestehensgrenze, dein Fortschritt wurde nicht gespeichert.",
+      "dayPrefix": "Tag {n} · {title}"
     },
     "stats": {
       "title": "Lernstatistik",
@@ -2050,7 +2051,8 @@
         "nextLesson": "Nächste Lektion:",
         "nextCta": "Weiter: {title} →",
         "backCta": "Zum Lernweg",
-        "backToRoadmap": "Zurück zum Lernweg"
+        "backToRoadmap": "Zurück zum Lernweg",
+        "practiceCta": "{skill} jetzt üben"
       },
       "pronunciation": {
         "verdict": {
