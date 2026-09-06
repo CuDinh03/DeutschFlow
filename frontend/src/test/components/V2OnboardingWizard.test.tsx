@@ -25,10 +25,11 @@ vi.mock("next/navigation", () => ({
 // Trả về chính KEY cho cả t() lẫn t.rich(): page dùng t.rich cho các chuỗi có <b>,
 // và một mock chỉ có t() sẽ ném "t.rich is not a function" thay vì fail có nghĩa.
 // Vì thế mọi truy vấn bên dưới tìm theo KEY, không phải theo tiếng Việt — copy nay
-// nằm ở messages/v2/onboarding.<locale>.json (GĐ 4).
+// nằm ở messages/v2/onboarding.<locale>.json (GĐ 4). t.has (tagline mentor theo locale,
+// đợt 3 i18n 06/09/2026) trả true để nhánh đọc catalog cũng hiện KEY như mọi chuỗi khác.
 vi.mock("next-intl", () => {
   const translate = (key: string) => key;
-  const t = Object.assign(translate, { rich: translate });
+  const t = Object.assign(translate, { rich: translate, has: () => true });
   return { useTranslations: () => t, useLocale: () => "vi" };
 });
 

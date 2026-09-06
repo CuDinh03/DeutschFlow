@@ -288,5 +288,10 @@
     "teacherPrefix": "Teacher: {names}",
     "noTeacher": "No teacher yet",
     "studentsCount": "{count} students"
+  },
+  "system": {
+    "sessionExpiredTitle": "Your session has expired",
+    "sessionExpiredBody": "Your session has expired or could not be refreshed automatically. Please sign in again to continue.",
+    "offlineBanner": "No network connection — some features are temporarily unavailable"
   }
 }

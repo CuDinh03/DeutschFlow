@@ -75,7 +75,9 @@
       "seatsUnlimitedSuffix": "học viên đang dùng ghế · không giới hạn",
       "sectionError": "Chưa tải được dữ liệu vùng này.",
       "todoSourceError": "Chưa tải được đủ dữ liệu (lớp/lời mời) — danh sách dưới có thể thiếu việc.",
-      "statUnavailable": "chưa tải được"
+      "statUnavailable": "chưa tải được",
+      "checkingOwner": "Đang kiểm tra quyền…",
+      "loadingDashboard": "Đang tải bảng điều hành…"
     },
     "manager": {
       "title": "Bảng vận hành",
@@ -149,7 +151,13 @@
       "statusLeft": "Đã rời",
       "profile": "Hồ sơ",
       "exportEmpty": "Không có dòng nào để xuất.",
-      "exportDone": "Đã xuất {count} học viên ra CSV."
+      "exportDone": "Đã xuất {count} học viên ra CSV.",
+      "csv": {
+        "displayName": "Tên hiển thị",
+        "email": "Email",
+        "status": "Trạng thái",
+        "joinedAt": "Ngày tham gia"
+      }
     },
     "studentDetail": {
       "titleFallback": "Chi tiết học viên",

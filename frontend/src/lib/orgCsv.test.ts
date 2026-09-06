@@ -31,4 +31,11 @@ describe('studentsToCsv', () => {
     const csv = studentsToCsv([member({ displayName: null })])
     expect(csv.slice(1).split('\r\n')[1]).toBe(',a@b.vn,ACTIVE,2026-08-01T00:00:00Z')
   })
+
+  test('dùng header tuỳ biến khi truyền vào (trang Students truyền bản dịch theo locale)', () => {
+    const csv = studentsToCsv([member({})], ['Display name', 'Email', 'Status', 'Joined on'])
+    const lines = csv.slice(1).split('\r\n')
+    expect(lines[0]).toBe('Display name,Email,Status,Joined on')
+    expect(lines[1]).toBe('Nguyễn Văn A,a@b.vn,ACTIVE,2026-08-01T00:00:00Z')
+  })
 })

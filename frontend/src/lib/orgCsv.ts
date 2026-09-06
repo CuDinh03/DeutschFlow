@@ -14,11 +14,16 @@ function cell(v: string): string {
 }
 
 /**
- * Sinh nội dung CSV (kèm BOM để Excel nhận UTF-8 tiếng Việt).
- * Cột cố định: Tên hiển thị, Email, Trạng thái, Ngày tham gia (ISO).
+ * Header mặc định (tiếng Việt) — trang Students truyền header đã dịch theo locale UI
+ * (v2.org.students.csv; đợt 3 audit UTF-8/i18n 06/09/2026).
  */
-export function studentsToCsv(members: OrgMember[]): string {
-  const header = ['Tên hiển thị', 'Email', 'Trạng thái', 'Ngày tham gia']
+const DEFAULT_HEADER: readonly string[] = ['Tên hiển thị', 'Email', 'Trạng thái', 'Ngày tham gia']
+
+/**
+ * Sinh nội dung CSV (kèm BOM để Excel nhận UTF-8 tiếng Việt).
+ * Cột cố định: Tên hiển thị, Email, Trạng thái, Ngày tham gia (ISO) — nhãn cột lấy từ `header`.
+ */
+export function studentsToCsv(members: OrgMember[], header: readonly string[] = DEFAULT_HEADER): string {
   const rows = members.map((m) => [m.displayName ?? '', m.email, m.status, m.joinedAt ?? ''])
   return '﻿' + [header, ...rows].map((r) => r.map(cell).join(',')).join('\r\n')
 }

@@ -1,4 +1,5 @@
 import { getAccessToken } from './authSession';
+import { uiText } from '@/lib/i18n/clientLocale';
 
 // Mirror the same baseURL logic as api.ts so the SSE fetch goes directly to Spring Boot,
 // not to the Next.js server (which has no /api route handler for SSE streams).
@@ -79,7 +80,14 @@ export function subscribeToJobSse<T>(
       }
     } catch (e: any) {
       if (e.name !== 'AbortError') {
-        onError(e.message || 'Mất kết nối với máy chủ');
+        onError(
+          e.message ||
+            uiText({
+              vi: 'Mất kết nối với máy chủ',
+              en: 'Connection to the server lost',
+              de: 'Verbindung zum Server verloren',
+            }),
+        );
       }
     }
   })();
