@@ -155,6 +155,9 @@ function parseSections(raw: unknown): ActiveExamData | null {
 
 function MockExamRunner() {
   const t = useTranslations('v2.student.mockExamRun')
+  // Nhãn phần thi: backend chỉ trả `label_vi` (LESEN/HOEREN/SCHREIBEN/SPRECHEN, xem seed V183/V184/V217),
+  // nên vỏ thi lấy nhãn từ catalog dùng chung với màn kết quả; pack lạ thì rơi về nhãn backend.
+  const tParts = useTranslations('v2.student.examResult.parts')
   const fmt = useFmt()
   const searchParams = useSearchParams()
   const deepLinkExamId = Number(searchParams.get('examId')) || null
@@ -492,7 +495,7 @@ function MockExamRunner() {
     const section = sections[currentSectionIdx]
     return (
       <ExamShell
-        sectionLabel={section ? `${section.name} — ${section.label_vi}` : t('title')}
+        sectionLabel={section ? `${section.name} — ${tParts.has(section.name) ? tParts(section.name) : section.label_vi}` : t('title')}
         sectionIndex={currentSectionIdx}
         sectionCount={sections.length}
         answeredCount={answeredCount}

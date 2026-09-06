@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { getAvailability, putAvailability, type AvailabilitySlot } from '@/lib/teacherAvailabilityApi'
@@ -14,7 +15,9 @@ import { GaBtn, GaCap } from '@/components/ui-v2'
 // ─────────────────────────────────────────────────────────────────────────────
 
 const VIOLET = '#7C56C8'
-const DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+/** Khoá thứ trong tuần theo thứ tự backend (0 = thứ Hai). Nhãn ngắn lấy từ `v2.common.dowShort`
+ *  để lưới lịch hiển thị đúng ngôn ngữ đang chọn (vi T2… · en Mon… · de Mo…). */
+const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
 const pad2 = (n: number) => String(n).padStart(2, '0')
 const AV_HOURS = Array.from({ length: 16 }, (_, i) => i + 6) // 06:00 … 21:00
 const avKey = (day: number, hour: number) => `${day}:${hour}`
@@ -51,6 +54,7 @@ function coalesce(cells: Set<string>): AvailabilitySlot[] {
 const sameSet = (a: Set<string>, b: Set<string>) => a.size === b.size && Array.from(a).every((k) => b.has(k))
 
 export function AvailabilityPanel() {
+  const tc = useTranslations('v2.common')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -141,23 +145,24 @@ export function AvailabilityPanel() {
           style={{ display: 'grid', gridTemplateColumns: '64px repeat(7, minmax(0, 1fr))', gap: '4px' }}
         >
           <div />
-          {DAYS.map((d) => (
-            <div key={d} className="pb-1 text-center text-[11.5px] font-bold text-ga-ink">
-              {d}
+          {DAY_KEYS.map((dk) => (
+            <div key={dk} className="pb-1 text-center text-[11.5px] font-bold text-ga-ink">
+              {tc(`dowShort.${dk}`)}
             </div>
           ))}
 
           {AV_HOURS.map((h) => (
             <div key={h} className="contents">
               <div className="flex items-center justify-end pr-2 text-[11px] font-semibold text-ga-muted">{pad2(h)}:00</div>
-              {DAYS.map((_, day) => {
+              {DAY_KEYS.map((dk, day) => {
                 const on = selected.has(avKey(day, h))
+                const dayLabel = tc(`dowShort.${dk}`)
                 return (
                   <button
                     key={avKey(day, h)}
                     type="button"
                     aria-pressed={on}
-                    aria-label={`${DAYS[day]} ${pad2(h)}:00`}
+                    aria-label={`${dayLabel} ${pad2(h)}:00`}
                     onClick={() => toggle(day, h)}
                     className="h-10 rounded-ga border text-[12px] font-bold transition-colors sm:h-[34px]"
                     style={{

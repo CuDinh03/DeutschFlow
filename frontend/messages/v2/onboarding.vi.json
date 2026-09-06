@@ -45,7 +45,6 @@
       "heading": "Bạn muốn học bao nhiêu?",
       "sub": "Weekly target ảnh hưởng đến chủ đề mở rộng cá nhân hóa.",
       "mentorLabel": "Mentor của bạn",
-      "mentorFallbackTagline": "Người đồng hành học tập",
       "upsell": "🔓 Mở khoá mentor <b>{name}</b>{tagline} với PRO →",
       "w3": {
         "label": "3 bài/tuần",

@@ -45,7 +45,6 @@
       "heading": "How much do you want to study?",
       "sub": "Your weekly target shapes the personalised extra topics.",
       "mentorLabel": "Your mentor",
-      "mentorFallbackTagline": "Your learning companion",
       "upsell": "🔓 Unlock mentor <b>{name}</b>{tagline} with PRO →",
       "w3": {
         "label": "3 lessons/week",

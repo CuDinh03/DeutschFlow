@@ -27,7 +27,9 @@ import { MilestonesModal } from './MilestonesModal'
 // Không cần hồ sơ marketplace công khai → giáo viên thuộc trung tâm (org) dùng bình thường.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+/** Khoá thứ trong tuần theo thứ tự backend (0 = thứ Hai). Nhãn ngắn lấy từ `v2.common.dowShort`
+ *  để lưới lịch hiển thị đúng ngôn ngữ đang chọn (vi T2… · en Mon… · de Mo…). */
+const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
 const pad2 = (n: number) => String(n).padStart(2, '0')
 const fmtDate = (d: Date) => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`
 const fmtTime = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
@@ -233,6 +235,7 @@ function WeekGrid({
   onSessionClick: (s: ClassSession) => void
 }) {
   const t = useTranslations('v2.teacher.schedule')
+  const tc = useTranslations('v2.common')
   const end = useMemo(() => {
     const d = new Date(monday)
     d.setDate(d.getDate() + 7)
@@ -257,14 +260,14 @@ function WeekGrid({
       {/* Lưới tuần 8 cột: dưới lg thì cuộn ngang (min-w) thay vì bóp nát cột ngày. */}
       <div className="grid min-w-[700px] lg:min-w-0" style={{ gridTemplateColumns: '56px repeat(7,1fr)' }}>
         <div className="border-b border-r border-ga-line" />
-        {DAYS.map((d, i) => {
+        {DAY_KEYS.map((dk, i) => {
           const date = new Date(monday)
           date.setDate(date.getDate() + i)
           const weekend = i >= 5
           return (
-            <div key={d} className={`border-b border-ga-line py-3 text-center ${i < 6 ? 'border-r' : ''}`}>
+            <div key={dk} className={`border-b border-ga-line py-3 text-center ${i < 6 ? 'border-r' : ''}`}>
               <div className="ga-ui text-[12px] font-bold tracking-[0.08em]" style={{ color: weekend ? 'var(--ga-muted)' : 'var(--ga-ink)' }}>
-                {d}
+                {tc(`dowShort.${dk}`)}
               </div>
               <div className="ga-ui mt-1 text-[11px] text-ga-subtle">{fmtDate(date)}</div>
             </div>
@@ -279,7 +282,7 @@ function WeekGrid({
             </div>
           ))}
         </div>
-        {DAYS.map((d, di) => {
+        {DAY_KEYS.map((dk, di) => {
           // Buổi trùng giờ trong cùng ngày phải nằm cạnh nhau (mỗi buổi 1 làn),
           // không đè lên nhau. assignLanes trả về { lane, lanes } để chia bề rộng cột.
           const dayItems = weekClass.filter(({ d: dt }) => (dt.getDay() + 6) % 7 === di)
@@ -289,7 +292,7 @@ function WeekGrid({
             ({ d: dt, s }) => startMinuteOfDay(dt) + s.durationMinutes,
           )
           return (
-            <div key={d} className={`relative ${di < 6 ? 'border-r border-ga-line' : ''}`} style={{ background: di >= 5 ? 'var(--ga-bg)' : undefined }}>
+            <div key={dk} className={`relative ${di < 6 ? 'border-r border-ga-line' : ''}`} style={{ background: di >= 5 ? 'var(--ga-bg)' : undefined }}>
               {Array.from({ length: hours.length - 1 }).map((_, r) => (
                 <div key={r} className="absolute inset-x-0 border-t border-ga-line opacity-50" style={{ top: (GRID_H / hours.length) * (r + 1) }} />
               ))}
