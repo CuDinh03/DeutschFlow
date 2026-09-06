@@ -330,6 +330,249 @@
       "interviewResults": "Interview results",
       "historyCta": "History"
     },
+    "companionSelect": {
+      "title": "Speaking practice",
+      "subtitle": "Choose how to practice and who to practice with",
+      "home": "Home",
+      "modes": {
+        "communication": "Conversation",
+        "interview": "Interview",
+        "lesson": "Practice"
+      },
+      "experience": {
+        "upTo6Months": "0–6 months",
+        "sixTo12Months": "6–12 months",
+        "oneToTwoYears": "1–2 years",
+        "threeYears": "3 years",
+        "fivePlusYears": "5+ years"
+      },
+      "suggestedTopic": "Suggested topic: {topic}",
+      "emptyGroup": "No characters for this mode in the selected group.",
+      "pro": {
+        "title": "PRO character",
+        "desc": "ADVANCED characters are only available on the PRO/ULTRA plans. Upgrade for in-depth interview practice.",
+        "upgrade": "Upgrade →"
+      },
+      "positionLabel": "Which position are you applying for?",
+      "experienceLabel": "Years of experience",
+      "scenarioLabel": "Lesson topic",
+      "cta": {
+        "interview": "Interview with {name}",
+        "lesson": "Practice with {name}",
+        "start": "Start with {name}"
+      },
+      "hint": {
+        "pickPersona": "Please pick a character",
+        "pickPosition": "Choose a position and your experience",
+        "pickScenario": "Choose a lesson topic"
+      },
+      "errors": {
+        "sessionExpired": "Your session has expired. Please sign in again.",
+        "forbidden": "You don't have permission to create a speaking session.",
+        "tooSoon": "Please wait a few seconds before starting a new session.",
+        "server": "The server is having trouble. Please try again later.",
+        "generic": "Couldn't create the speaking session. Please try again!"
+      }
+    },
+    "personas": {
+      "groups": {
+        "it": "IT / Startup",
+        "verkauf": "Retail",
+        "medizin": "Medical",
+        "maschinenbau": "Engineering",
+        "service": "Hospitality",
+        "medien": "Media",
+        "special": "Vietnamese buddies"
+      },
+      "lukas": {
+        "role": "Senior Tech Mentor",
+        "tag": "Backend Dev · Berlin",
+        "desc": "Explains grammar like clean code. Structured, logical, precise.",
+        "positions": {
+          "frontend_dev": "Frontend Developer",
+          "backend_dev": "Backend Developer",
+          "devops": "DevOps Engineer",
+          "data_analyst": "Data Analyst",
+          "qa_engineer": "QA Engineer"
+        }
+      },
+      "emma": {
+        "role": "Berlin Culture Guide",
+        "tag": "Artist · Neukölln",
+        "desc": "Teaches you German through art, culture and Berlin flair.",
+        "positions": {
+          "marketing_mgr": "Marketing Manager",
+          "sales_exec": "Sales Executive",
+          "cs_manager": "Customer Success Manager",
+          "hr_coordinator": "HR Coordinator",
+          "project_mgr": "Project Manager"
+        }
+      },
+      "anna": {
+        "role": "Everyday Life Guide",
+        "tag": "Language teacher · Hamburg",
+        "desc": "Guides you through everyday life in Germany – warm, patient and practical.",
+        "positions": {
+          "werkstudent": "Working student (Werkstudent)",
+          "praktikant": "Intern (Praktikant)",
+          "research_asst": "Research Assistant",
+          "student_coord": "Student Coordinator",
+          "teaching_asst": "Teaching Assistant"
+        }
+      },
+      "klaus": {
+        "role": "Culinary Expert",
+        "tag": "Head Chef · München",
+        "desc": "Practice German around food, the kitchen and team communication.",
+        "positions": {
+          "line_cook": "Line cook (Koch)",
+          "sous_chef": "Sous Chef",
+          "head_chef": "Head chef (Küchenchef)",
+          "servicekraft": "Service staff (Servicekraft)",
+          "restaurant_mgr": "Restaurant manager"
+        }
+      },
+      "lena": {
+        "role": "Supermarket assistant",
+        "tag": "Supermarket · A1-A2",
+        "desc": "Friendly and energetic – helps you shop at a German supermarket.",
+        "positions": {
+          "kassierer": "Cashier (Kassierer)",
+          "verkaufer": "Sales assistant",
+          "lagerist": "Warehouse worker"
+        }
+      },
+      "thomas": {
+        "role": "Baker",
+        "tag": "Bakery · A1-A2",
+        "desc": "Warm and enthusiastic, proud of traditional German baking.",
+        "positions": {
+          "baker": "Baker (Bäcker)",
+          "konditor": "Pastry chef",
+          "verkauf_bakery": "Bakery sales"
+        }
+      },
+      "petra": {
+        "role": "Butcher",
+        "tag": "Butcher's shop · A1-A2",
+        "desc": "Professional, knows her meat, straight-talking.",
+        "positions": {
+          "metzger": "Butcher (Metzger)",
+          "fleischverkauf": "Meat counter sales"
+        }
+      },
+      "sarah": {
+        "role": "Medical assistant",
+        "tag": "Doctor's office · A2-B1",
+        "desc": "Professional, well organized and friendly at the practice.",
+        "positions": {
+          "mfa": "Medical assistant (MFA)",
+          "rezeption_praxis": "Practice receptionist"
+        }
+      },
+      "schneider": {
+        "role": "Ophthalmologist",
+        "tag": "Eye clinic · B1-B2",
+        "desc": "Precise and thorough, explains every examination clearly.",
+        "positions": {
+          "augenarzt": "Ophthalmologist",
+          "mta_auge": "Ophthalmic technician (MTA)"
+        }
+      },
+      "weber": {
+        "role": "Dermatologist",
+        "tag": "Dermatology · B1-B2",
+        "desc": "Caring, explains skin conditions in detail.",
+        "positions": {
+          "hautarzt": "Dermatologist",
+          "mta_derm": "Dermatology technician (MTA)"
+        }
+      },
+      "max": {
+        "role": "Machine operator",
+        "tag": "Workshop · B1-B2",
+        "desc": "Hands-on, knows how to run and maintain machines.",
+        "positions": {
+          "maschinenbediener": "Machine operator",
+          "industriemechaniker": "Industrial mechanic"
+        }
+      },
+      "oliver": {
+        "role": "CNC machinist",
+        "tag": "CNC · B2",
+        "desc": "Precise and logical, knows CNC programming and operation.",
+        "positions": {
+          "cnc_fraser": "CNC machinist",
+          "cnc_programmierer": "CNC programmer"
+        }
+      },
+      "niklas": {
+        "role": "Waiter",
+        "tag": "Restaurant · A2-B1",
+        "desc": "Polite and attentive, serves at an upscale restaurant.",
+        "positions": {
+          "kellner": "Waiter",
+          "barkeeper": "Bartender",
+          "serviceleitung": "Service manager"
+        }
+      },
+      "nina": {
+        "role": "Receptionist",
+        "tag": "Hotel · A2-B1",
+        "desc": "Professional and friendly hotel receptionist.",
+        "positions": {
+          "rezeptionist": "Hotel receptionist",
+          "concierge": "Concierge"
+        }
+      },
+      "hannie": {
+        "role": "Presenter & MC",
+        "tag": "Media · age 20",
+        "desc": "20 years old, a lively and cheerful German. Hosts shows, events and media.",
+        "positions": {
+          "moderatorin": "Presenter / MC",
+          "redakteurin": "Editor",
+          "social_media_mgr": "Social Media Manager",
+          "pr_specialist": "PR Specialist",
+          "content_creator": "Content Creator",
+          "event_manager": "Event Manager"
+        }
+      },
+      "tuan": {
+        "role": "Apprentice buddy",
+        "tag": "Apprenticeship · A1",
+        "desc": "Cheerful and resourceful, teaches 'survival' German in Vietnamese.",
+        "scenarios": {
+          "alphabet": "The alphabet (Buchstabieren)",
+          "numbers": "Numbers (Zahlen 1-100)",
+          "anmeldung": "Address registration (Anmeldung)"
+        }
+      },
+      "lan": {
+        "role": "Been-there mentor",
+        "tag": "Integration · A1",
+        "desc": "Caring and patient, teaches clear pronunciation and German culture tips.",
+        "scenarios": {
+          "umlaut": "Umlaut (ä, ö, ü)",
+          "emergency_numbers": "Emergency numbers (110, 112)",
+          "pronunciation": "Basic pronunciation"
+        }
+      },
+      "minh": {
+        "role": "Street-smart buddy",
+        "tag": "Streets · A1",
+        "desc": "High energy – learn German from street signs and the city.",
+        "scenarios": {
+          "street_names": "Street names (Straßennamen)",
+          "train_station": "Train station (Bahnhof/Gleis)",
+          "speed_signs": "Speed signs (Geschwindigkeit)"
+        }
+      }
+    },
+    "chatBubble": {
+      "whyThisSentence": "Why use this sentence?",
+      "usageContext": "When to use it:"
+    },
     "weeklySpeaking": {
       "title": "Weekly themed speaking",
       "subtitle": "Graded assignment with a rubric — distinct from conversational AI practice.",
