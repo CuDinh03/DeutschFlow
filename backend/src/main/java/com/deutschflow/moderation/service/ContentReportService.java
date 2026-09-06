@@ -9,6 +9,8 @@ import com.deutschflow.moderation.dto.ModerationDtos.ReportRequest;
 import com.deutschflow.moderation.entity.ContentReport;
 import com.deutschflow.moderation.entity.ContentReport.Status;
 import com.deutschflow.moderation.repository.ContentReportRepository;
+import com.deutschflow.teacher.repository.ClassStudentRepository;
+import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,8 @@ public class ContentReportService {
     private final ContentReportRepository reportRepository;
     private final MessageRepository messageRepository;
     private final ClassChannelMessageRepository classChannelMessageRepository;
+    private final ClassStudentRepository classStudentRepository;
+    private final ClassTeacherRepository classTeacherRepository;
 
     /** Files a report by {@code reporterId}. Returns the created report id. */
     @Transactional
@@ -97,6 +101,14 @@ public class ContentReportService {
                 }
                 var m = classChannelMessageRepository.findById(req.classMessageId())
                         .orElseThrow(() -> new NotFoundException("Không tìm thấy tin nhắn lớp."));
+                // Cùng phép kiểm thành viên với kênh lớp (ClassChannelService.assertMember): người
+                // ngoài lớp không được report tin của lớp — report sao chép nội dung tin vào
+                // snapshot, nên thiếu bước này là một đường đọc tin lớp khác bằng ID (GAP-12).
+                boolean member = classStudentRepository.existsByIdClassIdAndIdStudentId(m.getClassId(), reporterId)
+                        || classTeacherRepository.existsByIdClassIdAndIdTeacherId(m.getClassId(), reporterId);
+                if (!member) {
+                    throw new BadRequestException("Bạn không có quyền báo cáo tin nhắn này.");
+                }
                 yield new ContextResolution(m.getSenderId(), m.getBody());
             }
             case USER -> {
