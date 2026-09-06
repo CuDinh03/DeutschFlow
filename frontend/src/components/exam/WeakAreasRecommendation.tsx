@@ -1,35 +1,30 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { AlertTriangle, BookOpen, Headphones, PenTool, Mic2, ArrowRight, PartyPopper } from 'lucide-react'
 
-const SECTION_META: Record<string, { icon: React.ReactNode; label: string; color: string; studyLink: string; tipVi: string }> = {
+// Nhãn phần thi + lời khuyên lấy từ catalog `v2.student.examResult`: `parts.<section>` (dùng chung với
+// DetailedScoreBreakdown) và `weakAreas.tips.<section>`.
+const SECTION_META: Record<string, { icon: React.ReactNode; color: string; studyLink: string }> = {
   LESEN: {
     icon: <BookOpen size={16} />,
-    label: 'Đọc hiểu',
     color: '#6366F1',
     studyLink: '/student/grammar-practice',
-    tipVi: 'Luyện đọc văn bản tiếng Đức ngắn hàng ngày, chú ý từ vựng chủ đề sinh hoạt hàng ngày.',
   },
   HOEREN: {
     icon: <Headphones size={16} />,
-    label: 'Nghe hiểu',
     color: '#0EA5E9',
     studyLink: '/student/practice',
-    tipVi: 'Nghe podcast Deutsch A1 và hội thoại giao tiếp hàng ngày để quen âm điệu tiếng Đức.',
   },
   SCHREIBEN: {
     icon: <PenTool size={16} />,
-    label: 'Viết',
     color: '#10B981',
     studyLink: '/student/assignments',
-    tipVi: 'Thực hành viết email ngắn theo format Goethe: giới thiệu, hỏi thăm, lời kết. Chú ý ngữ pháp và cấu trúc câu.',
   },
   SPRECHEN: {
     icon: <Mic2 size={16} />,
-    label: 'Nói',
     color: '#F59E0B',
     studyLink: '/student/interviews',
-    tipVi: 'Luyện tự giới thiệu và hội thoại đơn giản. Dùng tính năng phỏng vấn AI để nhận phản hồi về phát âm.',
   },
 }
 
@@ -38,6 +33,7 @@ interface WeakAreasRecommendationProps {
 }
 
 export function WeakAreasRecommendation({ weakAreas }: WeakAreasRecommendationProps) {
+  const t = useTranslations('v2.student.examResult')
   if (!weakAreas || weakAreas.length === 0) {
     return (
       <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-start gap-3">
@@ -45,9 +41,9 @@ export function WeakAreasRecommendation({ weakAreas }: WeakAreasRecommendationPr
           <PartyPopper size={18} className="text-emerald-700" aria-hidden />
         </div>
         <div>
-          <p className="font-bold text-emerald-800 text-sm">Xuất sắc! Không có điểm yếu</p>
+          <p className="font-bold text-emerald-800 text-sm">{t('weakAreas.noneTitle')}</p>
           <p className="text-xs text-emerald-600 mt-0.5">
-            Bạn đã vượt ngưỡng 60% ở tất cả các phần. Tiếp tục duy trì và thử thách bản thân với đề khó hơn!
+            {t('weakAreas.noneDesc')}
           </p>
         </div>
       </div>
@@ -58,7 +54,7 @@ export function WeakAreasRecommendation({ weakAreas }: WeakAreasRecommendationPr
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <AlertTriangle size={16} className="text-amber-500" />
-        <h3 className="font-bold text-[#0F172A] text-sm">Điểm yếu cần cải thiện</h3>
+        <h3 className="font-bold text-[#0F172A] text-sm">{t('weakAreas.title')}</h3>
       </div>
 
       <div className="space-y-2">
@@ -80,21 +76,21 @@ export function WeakAreasRecommendation({ weakAreas }: WeakAreasRecommendationPr
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="min-w-0 font-bold text-sm text-[#0F172A]">{section} — {meta.label}</p>
+                    <p className="min-w-0 font-bold text-sm text-[#0F172A]">{section} — {t(`parts.${section}`)}</p>
                     <span
                       className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0"
                       style={{ background: meta.color + '18', color: meta.color }}
                     >
-                      Dưới 60%
+                      {t('weakAreas.below60')}
                     </span>
                   </div>
-                  <p className="text-xs text-[#64748B] mt-1.5 leading-relaxed">{meta.tipVi}</p>
+                  <p className="text-xs text-[#64748B] mt-1.5 leading-relaxed">{t(`weakAreas.tips.${section}`)}</p>
                   <a
                     href={meta.studyLink}
                     className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold transition-colors"
                     style={{ color: meta.color }}
                   >
-                    Luyện tập ngay <ArrowRight size={12} strokeWidth={2.5} />
+                    {t('weakAreas.practiceNow')} <ArrowRight size={12} strokeWidth={2.5} />
                   </a>
                 </div>
               </div>
@@ -104,7 +100,7 @@ export function WeakAreasRecommendation({ weakAreas }: WeakAreasRecommendationPr
       </div>
 
       <p className="text-xs text-[#94A3B8] text-center pt-1">
-        Luyện tập đều đặn mỗi ngày — kết quả sẽ cải thiện rõ rệt sau 2 tuần
+        {t('weakAreas.footer')}
       </p>
     </div>
   )

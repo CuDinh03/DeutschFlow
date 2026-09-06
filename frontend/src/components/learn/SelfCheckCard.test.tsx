@@ -6,6 +6,8 @@ import SelfCheckCard from '@/components/learn/SelfCheckCard'
 import type { SelfCheckItem } from '@/lib/nodeExercises'
 
 vi.mock('@/lib/haptics', () => ({ lightImpact: vi.fn() }))
+// Thẻ đọc nhãn từ catalog thật (v2.student.learnViews.selfCheck) — giữ khẳng định theo CHỮ tiếng Việt.
+vi.mock('next-intl', async () => (await import('@/test/intlCatalog')).nextIntlCatalogMock())
 
 /**
  * Bài học từ QA 2026-09-02: hai loại này TỪNG được render nhưng ra thành dòng TRỐNG (chúng không có

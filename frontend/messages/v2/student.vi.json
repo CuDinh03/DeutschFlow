@@ -1711,6 +1711,134 @@
         "noQuestions": "Chưa có câu hỏi cho bài đọc này.",
         "completed": "Đã hoàn thành 100%",
         "markDone": "Đã đọc & Hiểu (100%)"
+      },
+      "common": {
+        "tapToFlip": "Bấm để lật",
+        "listenPronunciation": "Nghe phát âm"
+      },
+      "grammar": {
+        "correctCap": "Đúng",
+        "wrongCap": "Sai",
+        "ruleTag": "QUY TẮC",
+        "exampleTag": "VÍ DỤ",
+        "collapse": "▲ Thu gọn",
+        "expand": "▼ Xem thêm",
+        "theoryCount": "Lý thuyết ({count})",
+        "filter": "Lọc:",
+        "allTag": "Tất cả",
+        "pageOf": "Trang {page} / {total}",
+        "phrasesCap": "Cụm từ thường dùng",
+        "examplesCap": "Ví dụ thực tế",
+        "quizCap": "Kiểm tra mức độ hiểu bài",
+        "answerPlaceholder": "Nhập câu trả lời",
+        "questionN": "Câu {n}",
+        "check": "Kiểm tra đáp án",
+        "noPractice": "Không có bài tập thực hành cho phần này. Hãy đánh dấu hoàn thành nếu bạn đã hiểu rõ lý thuyết.",
+        "result": "Bạn trả lời đúng {score}/{total}. Cần đúng 100% để qua bài!",
+        "retry": "Làm lại"
+      },
+      "selfCheck": {
+        "reorder": "Sắp xếp câu",
+        "translate": "Dịch câu",
+        "notScored": "Tự kiểm tra · không tính điểm",
+        "showAnswer": "Xem đáp án"
+      },
+      "recap": {
+        "doneTitle": "Hoàn thành!",
+        "doneDesc": "Bạn đã học xong bài này",
+        "xpEarned": "XP kiếm được",
+        "newVocab": "Từ vựng mới",
+        "wordCount": "{n} từ",
+        "streak": "Chuỗi ngày học",
+        "dayCount": "{n} ngày",
+        "nextLesson": "Bài tiếp theo:",
+        "nextCta": "Tiếp theo: {title} →",
+        "backCta": "Về lộ trình",
+        "backToRoadmap": "Về lộ trình học"
+      },
+      "pronunciation": {
+        "verdict": {
+          "CORRECT": "Chính xác",
+          "CLOSE": "Gần đúng",
+          "MISSING": "Chưa nghe thấy"
+        },
+        "micDenied": "Không thể truy cập microphone. Vui lòng cho phép quyền mic.",
+        "scoreFailed": "Không thể chấm điểm phát âm. Vui lòng thử lại.",
+        "networkError": "Lỗi kết nối. Vui lòng thử lại.",
+        "readCap": "Đọc câu sau:",
+        "close": "Đóng",
+        "startRecording": "Bắt đầu ghi âm",
+        "stopAndScore": "Dừng & chấm điểm",
+        "retry": "Thử lại",
+        "pronScore": "Điểm phát âm",
+        "heard": "Hệ thống nghe được:",
+        "perWordCap": "Chi tiết từng từ:",
+        "wordsToPractice": "Từ cần luyện tập:"
+      }
+    },
+    "examResult": {
+      "parts": {
+        "LESEN": "Đọc hiểu",
+        "HOEREN": "Nghe hiểu",
+        "SCHREIBEN": "Viết",
+        "SPRECHEN": "Nói"
+      },
+      "audioPlayer": {
+        "status": {
+          "idle": "Nghe audio",
+          "loading": "Đang tải giọng...",
+          "playing": "Đang phát...",
+          "paused": "Tạm dừng",
+          "done": "Phát lại",
+          "unsupported": "Trình duyệt không hỗ trợ audio"
+        },
+        "play": "Phát audio",
+        "stop": "Dừng",
+        "defaultLabel": "Hörtext — Goethe A1",
+        "unsupportedHint": "Trình duyệt không hỗ trợ. Dùng Chrome hoặc Safari."
+      },
+      "scoreBreakdown": {
+        "pending": "Chờ chấm",
+        "passed": "Đạt",
+        "failed": "Chưa đạt",
+        "pendingWriting": "Phần viết email sẽ được AI chấm điểm",
+        "pendingSpeaking": "Phần nói cần giáo viên chấm thủ công",
+        "title": "Điểm chi tiết theo phần",
+        "threshold": "Ngưỡng đạt (60%)",
+        "provisionalTotal": "Tổng điểm (tạm tính)",
+        "officialNote": "Điểm chính thức sau khi chấm xong"
+      },
+      "examFeedback": {
+        "rubric": {
+          "aufgabenerfuellung": "Hoàn thành nhiệm vụ",
+          "kohaerenz": "Mạch lạc & cấu trúc",
+          "wortschatz": "Từ vựng",
+          "strukturen": "Ngữ pháp & cấu trúc câu"
+        },
+        "pendingTitle": "Đang chờ AI chấm bài viết",
+        "pendingFallback": "Phần email chưa được nộp hoặc đang xử lý.",
+        "aiGraded": "Được chấm bởi AI",
+        "officialRubric": "Rubric Goethe A1 chính thức",
+        "detailCap": "Điểm chi tiết",
+        "emailTotal": "Tổng điểm email",
+        "overallCap": "Nhận xét tổng quan",
+        "strengths": "Điểm mạnh",
+        "improvements": "Cần cải thiện",
+        "title": "Đánh giá bài viết (SCHREIBEN Teil 2)"
+      },
+      "weakAreas": {
+        "tips": {
+          "LESEN": "Luyện đọc văn bản tiếng Đức ngắn hàng ngày, chú ý từ vựng chủ đề sinh hoạt hàng ngày.",
+          "HOEREN": "Nghe podcast Deutsch A1 và hội thoại giao tiếp hàng ngày để quen âm điệu tiếng Đức.",
+          "SCHREIBEN": "Thực hành viết email ngắn theo format Goethe: giới thiệu, hỏi thăm, lời kết. Chú ý ngữ pháp và cấu trúc câu.",
+          "SPRECHEN": "Luyện tự giới thiệu và hội thoại đơn giản. Dùng tính năng phỏng vấn AI để nhận phản hồi về phát âm."
+        },
+        "noneTitle": "Xuất sắc! Không có điểm yếu",
+        "noneDesc": "Bạn đã vượt ngưỡng 60% ở tất cả các phần. Tiếp tục duy trì và thử thách bản thân với đề khó hơn!",
+        "title": "Điểm yếu cần cải thiện",
+        "below60": "Dưới 60%",
+        "practiceNow": "Luyện tập ngay",
+        "footer": "Luyện tập đều đặn mỗi ngày — kết quả sẽ cải thiện rõ rệt sau 2 tuần"
       }
     }
   }

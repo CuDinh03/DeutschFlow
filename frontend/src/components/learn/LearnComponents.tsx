@@ -4,6 +4,7 @@ import { VocabItem } from "@/stores/useNodeSessionStore";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { playTTS } from "@/lib/tts";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 
 // ── Gender Badge (Accessibility: color + letter) ──
 export function GenderBadge({ gender, label }: { gender: string | null; label: string | null }) {
@@ -44,6 +45,7 @@ export function VocabTag({
 
 // ── Audio Button with states ──
 export function AudioButton({ text, compact }: { text: string; compact?: boolean }) {
+  const t = useTranslations("v2.student.learnViews.common");
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
 
   const play = useCallback(async () => {
@@ -67,7 +69,7 @@ export function AudioButton({ text, compact }: { text: string; compact?: boolean
       className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
         compact ? "w-7 h-7" : "w-8 h-8"
       } ${state === "playing" ? "bg-[#FFCD00] text-[#121212]" : "bg-[#F1F5F9] text-[#64748B] hover:bg-[#FFCD00]/20"}`}
-      title="Nghe phát âm"
+      title={t("listenPronunciation")}
     >
       {state === "loading" && (
         <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
@@ -91,6 +93,7 @@ export function AudioButton({ text, compact }: { text: string; compact?: boolean
 
 // ── Vocabulary Card ──
 export function VocabCard({ vocab, autoPlay = false }: { vocab: VocabItem; autoPlay?: boolean }) {
+  const t = useTranslations("v2.student.learnViews.common");
   const [isFlipped, setIsFlipped] = useState(false);
   const hasAutoPlayed = useRef(false);
 
@@ -133,7 +136,7 @@ export function VocabCard({ vocab, autoPlay = false }: { vocab: VocabItem; autoP
           {vocab.ai_speech_hints?.ipa_target && (
             <span className="max-w-full text-xs text-[#64748B] font-mono mt-1 break-all">{vocab.ai_speech_hints.ipa_target}</span>
           )}
-          <div className="absolute bottom-2 text-[10px] text-slate-400 font-medium">Bấm để lật</div>
+          <div className="absolute bottom-2 text-[10px] text-slate-400 font-medium">{t("tapToFlip")}</div>
         </div>
 
         {/* Mặt sau: Nghĩa và ví dụ */}
