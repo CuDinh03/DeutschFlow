@@ -6,6 +6,7 @@
 // khi mount ngoài cây provider. Hồi phục = TỰ HẠ MÀN, không ép reload/điều hướng.
 
 import { useEffect, useState } from 'react'
+import { GaGlyph } from '@/components/ui'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { fonts } from '@/lib/theme/tokens'
 import { useMaintenanceStore } from '@/stores/useMaintenanceStore'
@@ -71,7 +72,7 @@ export function MaintenanceOverlay() {
     <View style={styles.root} pointerEvents="auto">
       <View style={styles.card}>
         <View style={styles.iconCircle}>
-          <Text style={styles.iconText}>🔧</Text>
+          <GaGlyph name="sualoi" size={30} />
         </View>
         <Text style={styles.title}>{info?.title || 'Hệ thống đang bảo trì'}</Text>
         {/* Sản phẩm dạy tiếng Đức — giữ một câu Đức làm giọng, mọi ngôn ngữ. */}
@@ -127,7 +128,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 18,
   },
-  iconText: { fontSize: 26 },
   title: { fontFamily: fonts.displayBold, fontSize: 23, lineHeight: 29, color: INK, textAlign: 'center' },
   de: { fontFamily: fonts.bodySemi, fontSize: 13, color: GOLD, marginTop: 4 },
   note: { fontFamily: fonts.bodyRegular, fontSize: 14.5, lineHeight: 21, color: MUTED, textAlign: 'center', marginTop: 12 },

@@ -16,7 +16,7 @@ import { createAudioPlayer, useAudioRecorder, AudioModule, RecordingPresets, set
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Haptics from 'expo-haptics'
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router'
-import { Mic, Send, X, Flag, RotateCcw } from 'lucide-react-native'
+import { Send, X, Flag, RotateCcw } from 'lucide-react-native'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -46,7 +46,7 @@ import {
 } from '@/lib/activeSession'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, GaGlyph } from '@/components/ui'
 import { SessionSummary } from '@/components/speaking/SessionSummary'
 import { ConversationSummary } from '@/components/speaking/ConversationSummary'
 import { CompanionSelect, type StartArgs } from '@/components/speaking/CompanionSelect'
@@ -975,7 +975,7 @@ export default function SpeakingScreen() {
             {transcribing ? (
               <ActivityIndicator color={c.textMuted} size="small" />
             ) : (
-              <Icon icon={Mic} size={20} color={isRecording ? 'onAccent' : 'muted'} />
+              <GaGlyph name="speaking" size={20} ink={isRecording ? 'onAccent' : 'muted'} gold={isRecording ? 'ink' : 'accent'} />
             )}
           </Pressable>
         </Animated.View>

@@ -12,6 +12,8 @@ import Animated, {
 } from 'react-native-reanimated'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { Icon } from './Icon'
+import { GaGlyph } from './GaGlyph'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { ThemedText } from './ThemedText'
 import { YellowSquare } from './YellowSquare'
 
@@ -24,6 +26,8 @@ interface ButtonProps {
   variant?: Variant
   size?: Size
   icon?: LucideIcon
+  /** Glyph Galerie (ưu tiên hơn `icon`). */
+  glyph?: GlyphName
   iconRight?: boolean
   loading?: boolean
   disabled?: boolean
@@ -41,6 +45,7 @@ export function Button({
   variant = 'primary',
   size = 'md',
   icon,
+  glyph,
   iconRight = false,
   loading = false,
   disabled = false,
@@ -121,11 +126,19 @@ export function Button({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           {variant === 'primary' ? <YellowSquare size={7} /> : null}
           {variant === 'yellow' ? <YellowSquare size={7} color={theme.colors.inkSurface} /> : null}
-          {icon && !iconRight ? <Icon icon={icon} size={size === 'sm' ? 16 : 18} color={iconColor} /> : null}
+          {!iconRight && glyph ? (
+            <GaGlyph name={glyph} size={size === 'sm' ? 16 : 18} ink={iconColor} gold={variant === 'yellow' ? 'ink' : 'accent'} />
+          ) : !iconRight && icon ? (
+            <Icon icon={icon} size={size === 'sm' ? 16 : 18} color={iconColor} />
+          ) : null}
           <ThemedText variant="bodyStrong" color={textColor}>
             {label}
           </ThemedText>
-          {icon && iconRight ? <Icon icon={icon} size={size === 'sm' ? 16 : 18} color={iconColor} /> : null}
+          {iconRight && glyph ? (
+            <GaGlyph name={glyph} size={size === 'sm' ? 16 : 18} ink={iconColor} gold={variant === 'yellow' ? 'ink' : 'accent'} />
+          ) : iconRight && icon ? (
+            <Icon icon={icon} size={size === 'sm' ? 16 : 18} color={iconColor} />
+          ) : null}
         </View>
       )}
     </AnimatedPressable>

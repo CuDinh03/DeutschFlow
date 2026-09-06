@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { View, Pressable } from 'react-native'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
-import { PlayCircle, ChevronDown, ArrowUpRight } from 'lucide-react-native'
+import { ChevronDown, ArrowUpRight } from 'lucide-react-native'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Caption, SectionHeader, FadeIn, AppHeader } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Caption, SectionHeader, FadeIn, AppHeader, GaGlyph } from '@/components/ui'
 import { useSpotlightTour } from '@/components/guide/SpotlightTour'
 import { getDailyGoalMinutes } from '@/lib/dailyGoal'
 import { captureEvent } from '@/lib/analytics'
@@ -62,7 +62,7 @@ export default function GuideScreen() {
                   justifyContent: 'center',
                 }}
               >
-                <Icon icon={PlayCircle} size={26} color="accent" />
+                <GaGlyph name="huongdan" size={26} ink="primary" />
               </View>
               <View style={{ flex: 1, gap: space[1] }}>
                 <Caption color={c.accent}>Tour nhanh</Caption>

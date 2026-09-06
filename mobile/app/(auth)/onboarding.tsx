@@ -1,30 +1,11 @@
 import { useEffect, useState } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { AccessibilityInfo, View, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
 import type { LucideIcon } from 'lucide-react-native'
-import {
-  ArrowRight,
-  Award,
-  Bell,
-  Briefcase,
-  Check,
-  ChevronLeft,
-  Clock,
-  Compass,
-  FileCheck,
-  GraduationCap,
-  HeartPulse,
-  Home,
-  Monitor,
-  Settings,
-  ShoppingBag,
-  Sparkles,
-  Utensils,
-  Volume2,
-  Wrench,
-} from 'lucide-react-native'
+import { ArrowRight, Check, ChevronLeft, Volume2 } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { fonts, motion, radius, space, useTheme } from '@/lib/theme'
@@ -41,7 +22,7 @@ import {
 } from '@/lib/onboardingSteps'
 import { useTourStore } from '@/stores/useTourStore'
 import { useBlockBackNavigation } from '@/hooks/useBlockBackNavigation'
-import { BrandMark, Button, Caption, Card, Icon, Pill, Screen, SelectableChip, ThemedText, YellowSquare } from '@/components/ui'
+import { BrandMark, Button, Caption, Card, Icon, Pill, Screen, SelectableChip, ThemedText, YellowSquare, GaGlyph } from '@/components/ui'
 import { MentorMonogram } from '@/components/onboarding/MentorMonogram'
 import { StepHeader } from '@/components/onboarding/StepHeader'
 
@@ -81,29 +62,29 @@ const CURRENT_LEVELS: { value: string; label: string }[] = [
   { value: 'B2', label: 'B2' },
 ]
 
-const INDUSTRIES: { value: string; label: string; icon: LucideIcon }[] = [
-  { value: 'IT', label: 'CNTT', icon: Monitor },
-  { value: 'Pflege', label: 'Điều dưỡng', icon: HeartPulse },
-  { value: 'Gastronomie', label: 'Nhà hàng', icon: Utensils },
-  { value: 'Verkauf', label: 'Bán hàng', icon: ShoppingBag },
-  { value: 'Tourismus', label: 'Du lịch', icon: Compass },
-  { value: 'Technik', label: 'Kỹ thuật', icon: Settings },
+const INDUSTRIES: { value: string; label: string; glyph: GlyphName }[] = [
+  { value: 'IT', label: 'CNTT', glyph: 'laptop' },
+  { value: 'Pflege', label: 'Điều dưỡng', glyph: 't_health' },
+  { value: 'Gastronomie', label: 'Nhà hàng', glyph: 't_food' },
+  { value: 'Verkauf', label: 'Bán hàng', glyph: 't_shopping' },
+  { value: 'Tourismus', label: 'Du lịch', glyph: 't_travel' },
+  { value: 'Technik', label: 'Kỹ thuật', glyph: 'banhrang' },
 ]
 
-const EXAMS: { value: string; label: string; desc: string; icon: LucideIcon }[] = [
-  { value: 'GOETHE', label: 'Goethe-Zertifikat', desc: 'Chứng chỉ phổ biến nhất', icon: Award },
-  { value: 'TELC', label: 'telc Deutsch', desc: 'Được công nhận ngang Goethe', icon: FileCheck },
-  { value: 'TESTDAF', label: 'TestDaF', desc: 'Dành cho du học đại học', icon: GraduationCap },
+const EXAMS: { value: string; label: string; desc: string; glyph: GlyphName }[] = [
+  { value: 'GOETHE', label: 'Goethe-Zertifikat', desc: 'Chứng chỉ phổ biến nhất', glyph: 'thinoi' },
+  { value: 'TELC', label: 'telc Deutsch', desc: 'Được công nhận ngang Goethe', glyph: 'baigiao' },
+  { value: 'TESTDAF', label: 'TestDaF', desc: 'Dành cho du học đại học', glyph: 't_exam' },
 ]
 
 // "Vì sao bạn học?" — the emotional anchor; derives a coarse goalType (EXAM → CERT, else WORK).
-const MOTIVATIONS: { value: string; label: string; desc: string; icon: LucideIcon; goal: GoalType }[] = [
-  { value: 'JOB', label: 'Đi làm tại Đức', desc: 'Việc làm, nghề nghiệp', icon: Briefcase, goal: 'WORK' },
-  { value: 'AUSBILDUNG', label: 'Học nghề', desc: 'Ausbildung tại Đức', icon: Wrench, goal: 'WORK' },
-  { value: 'STUDY', label: 'Du học', desc: 'Vào đại học Đức', icon: GraduationCap, goal: 'WORK' },
-  { value: 'IMMIGRATION', label: 'Định cư · đoàn tụ', desc: 'Cuộc sống gia đình', icon: Home, goal: 'WORK' },
-  { value: 'EXAM', label: 'Thi chứng chỉ', desc: 'Goethe · telc · TestDaF', icon: Award, goal: 'CERT' },
-  { value: 'HOBBY', label: 'Sở thích', desc: 'Học cho chính mình', icon: Sparkles, goal: 'WORK' },
+const MOTIVATIONS: { value: string; label: string; desc: string; glyph: GlyphName; goal: GoalType }[] = [
+  { value: 'JOB', label: 'Đi làm tại Đức', desc: 'Việc làm, nghề nghiệp', glyph: 'phongvan', goal: 'WORK' },
+  { value: 'AUSBILDUNG', label: 'Học nghề', desc: 'Ausbildung tại Đức', glyph: 'lophoc', goal: 'WORK' },
+  { value: 'STUDY', label: 'Du học', desc: 'Vào đại học Đức', glyph: 't_exam', goal: 'WORK' },
+  { value: 'IMMIGRATION', label: 'Định cư · đoàn tụ', desc: 'Cuộc sống gia đình', glyph: 't_home', goal: 'WORK' },
+  { value: 'EXAM', label: 'Thi chứng chỉ', desc: 'Goethe · telc · TestDaF', glyph: 'thinoi', goal: 'CERT' },
+  { value: 'HOBBY', label: 'Sở thích', desc: 'Học cho chính mình', glyph: 't_hobby', goal: 'WORK' },
 ]
 
 // Daily study goal (minutes) — the streak anchor.
@@ -396,7 +377,7 @@ export default function OnboardingScreen() {
                     key={m.value}
                     label={m.label}
                     desc={m.desc}
-                    icon={m.icon}
+                    glyph={m.glyph}
                     selected={motivation === m.value}
                     onPress={() =>
                       pick(() => {
@@ -454,7 +435,7 @@ export default function OnboardingScreen() {
                       paddingTop: space[3],
                     }}
                   >
-                    <Icon icon={Clock} size={15} color="secondary" />
+                    <GaGlyph name="thoigian" size={15} ink="secondary" />
                     <ThemedText variant="caption" color="secondary" style={{ flex: 1 }}>
                       {estimate
                         ? `Lộ trình ${estimate.nodes} chặng · khoảng ${estimate.weeks} tuần với nhịp đều đặn.`
@@ -485,7 +466,7 @@ export default function OnboardingScreen() {
                 ))}
               </View>
               <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-                <IconTile icon={Bell} />
+                <IconTile glyph="thongbao" />
                 <View style={{ flex: 1, gap: 2 }}>
                   <ThemedText variant="bodyStrong">Nhắc học 20:00 mỗi tối</ThemedText>
                   <ThemedText variant="caption" color="secondary">
@@ -510,7 +491,7 @@ export default function OnboardingScreen() {
                       <IndustryTile
                         key={it.value}
                         label={it.label}
-                        icon={it.icon}
+                        glyph={it.glyph}
                         selected={industry === it.value}
                         onPress={() => pick(() => setIndustry(industry === it.value ? null : it.value))}
                       />
@@ -530,7 +511,7 @@ export default function OnboardingScreen() {
                         key={ex.value}
                         label={ex.label}
                         desc={ex.desc}
-                        icon={ex.icon}
+                        glyph={ex.glyph}
                         selected={examType === ex.value}
                         onPress={() => pick(() => setExamType(examType === ex.value ? null : ex.value))}
                       />
@@ -612,7 +593,7 @@ function RadioDot({ selected, color }: { selected: boolean; color?: 'accent' | '
 }
 
 /** Ô icon 40px nền giấy chìm (hoặc mực khi selected) cho các hàng/tile. */
-function IconTile({ icon, selected = false, size = 40 }: { icon: LucideIcon; selected?: boolean; size?: number }) {
+function IconTile({ glyph, selected = false, size = 40 }: { glyph: GlyphName; selected?: boolean; size?: number }) {
   const c = useTheme().colors
   return (
     <View
@@ -625,7 +606,7 @@ function IconTile({ icon, selected = false, size = 40 }: { icon: LucideIcon; sel
         justifyContent: 'center',
       }}
     >
-      <Icon icon={icon} size={Math.round(size * 0.5)} color={selected ? 'accent' : 'secondary'} strokeWidth={1.8} />
+      <GaGlyph name={glyph} size={Math.round(size * 0.5)} ink={selected ? 'onInk' : 'secondary'} />
     </View>
   )
 }
@@ -633,13 +614,13 @@ function IconTile({ icon, selected = false, size = 40 }: { icon: LucideIcon; sel
 function OptionTile({
   label,
   desc,
-  icon,
+  glyph,
   selected,
   onPress,
 }: {
   label: string
   desc: string
-  icon: LucideIcon
+  glyph: GlyphName
   selected: boolean
   onPress: () => void
 }) {
@@ -661,7 +642,7 @@ function OptionTile({
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <IconTile icon={icon} selected={selected} size={38} />
+        <IconTile glyph={glyph} selected={selected} size={38} />
         <RadioDot selected={selected} />
       </View>
       <View style={{ gap: 2 }}>
@@ -759,12 +740,12 @@ function MinuteTile({
 
 function IndustryTile({
   label,
-  icon,
+  glyph,
   selected,
   onPress,
 }: {
   label: string
-  icon: LucideIcon
+  glyph: GlyphName
   selected: boolean
   onPress: () => void
 }) {
@@ -788,7 +769,7 @@ function IndustryTile({
         backgroundColor: selected ? c.accentSoft : c.surface,
       }}
     >
-      <Icon icon={icon} size={19} color={selected ? 'primary' : 'secondary'} strokeWidth={1.8} />
+      <GaGlyph name={glyph} size={19} ink={selected ? 'primary' : 'secondary'} />
       <ThemedText variant="label" color={selected ? 'primary' : 'secondary'}>
         {label}
       </ThemedText>
@@ -799,13 +780,13 @@ function IndustryTile({
 function ExamRow({
   label,
   desc,
-  icon,
+  glyph,
   selected,
   onPress,
 }: {
   label: string
   desc: string
-  icon: LucideIcon
+  glyph: GlyphName
   selected: boolean
   onPress: () => void
 }) {
@@ -826,7 +807,7 @@ function ExamRow({
         backgroundColor: selected ? c.accentSoft : c.surface,
       }}
     >
-      <IconTile icon={icon} selected={selected} />
+      <IconTile glyph={glyph} selected={selected} />
       <View style={{ flex: 1, gap: 2 }}>
         <ThemedText style={{ fontFamily: fonts.displaySemi, fontSize: 16.5, lineHeight: 20 }}>{label}</ThemedText>
         <ThemedText variant="caption" color="secondary">

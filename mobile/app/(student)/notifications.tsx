@@ -1,28 +1,9 @@
 import { View, FlatList, Pressable, RefreshControl, Alert } from 'react-native'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router } from 'expo-router'
-import {
-  BadgeCheck,
-  Bell,
-  CalendarClock,
-  CalendarPlus,
-  CalendarX2,
-  CheckCheck,
-  CheckSquare,
-  ClipboardList,
-  Flame,
-  GraduationCap,
-  Megaphone,
-  MessageCircle,
-  Repeat,
-  TrendingUp,
-  Trophy,
-  UserCheck,
-  UserX,
-  Wrench,
-  type LucideIcon,
-} from 'lucide-react-native'
+import { CheckCheck } from 'lucide-react-native'
 import { formatDistanceToNow, isToday, isYesterday } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import api, { apiMessage } from '@/lib/api'
@@ -37,8 +18,7 @@ import {
   AppHeader,
   EmptyState,
   ErrorState,
-  Skeleton,
-} from '@/components/ui'
+  Skeleton, GaGlyph } from '@/components/ui'
 import {
   mapNotification,
   notificationIconKey,
@@ -58,27 +38,27 @@ import { useBackToMainTab } from '@/hooks/useBackTo'
 // QA 13/08: trước đây bảng này chỉ liệt kê 8 loại, nên "được duyệt vào lớp", "thêm vào lớp",
 // "thông báo từ giáo viên"… vừa bị cắt emoji vừa chỉ còn chuông chung — ít thông tin hơn cả
 // trước khi cắt emoji. Nay mọi loại học viên nhận được đều có icon riêng.
-const ICON_BY_KEY: Record<NotificationIconKey, LucideIcon> = {
-  trophy: Trophy,
-  levelUp: TrendingUp,
-  review: Repeat,
-  streak: Flame,
-  assignment: ClipboardList,
-  graded: CheckSquare,
-  classJoinOk: UserCheck,
-  classJoinNo: UserX,
-  classAdded: GraduationCap,
-  announcement: Megaphone,
-  message: MessageCircle,
-  calendarAdd: CalendarPlus,
-  calendarCancel: CalendarX2,
-  calendarMove: CalendarClock,
-  plan: BadgeCheck,
-  maintenance: Wrench,
-  bell: Bell,
+const ICON_BY_KEY: Record<NotificationIconKey, GlyphName> = {
+  trophy: 'thithu',
+  levelUp: 'thongke',
+  review: 'srs',
+  streak: 'chuoi',
+  assignment: 'baigiao',
+  graded: 'hoanthanh',
+  classJoinOk: 'hoanthanh',
+  classJoinNo: 'canhbao',
+  classAdded: 't_exam',
+  announcement: 'thongbao',
+  message: 'hoithoai',
+  calendarAdd: 'lich',
+  calendarCancel: 'lich',
+  calendarMove: 'lich',
+  plan: 'thinoi',
+  maintenance: 'sualoi',
+  bell: 'thongbao',
 }
 
-function notificationTypeIcon(type: string): LucideIcon {
+function notificationTypeIcon(type: string): GlyphName {
   return ICON_BY_KEY[notificationIconKey(type)]
 }
 
@@ -208,7 +188,7 @@ export default function NotificationsScreen() {
             ) : null
           }
           ListEmptyComponent={
-            <EmptyState icon={Bell} title="Chưa có thông báo" message="Thông báo mới sẽ xuất hiện ở đây." />
+            <EmptyState glyph="thongbao" title="Chưa có thông báo" message="Thông báo mới sẽ xuất hiện ở đây." />
           }
           renderItem={({ item: entry }) => {
             if (entry.kind === 'header') {
@@ -242,7 +222,7 @@ export default function NotificationsScreen() {
                       justifyContent: 'center',
                     }}
                   >
-                    <Icon icon={notificationTypeIcon(item.type)} size={20} color="accent" />
+                    <GaGlyph name={notificationTypeIcon(item.type)} size={20} />
                   </View>
                   <View style={{ flex: 1, gap: 3 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>

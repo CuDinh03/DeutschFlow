@@ -1,11 +1,11 @@
 // Error state with retry. Distinct from EmptyState: something failed and the
 // user can act on it. Message should be human, never a raw stack.
 
-import { TriangleAlert } from 'lucide-react-native'
 import { View } from 'react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Button } from './Button'
 import { Icon } from './Icon'
+import { GaGlyph } from './GaGlyph'
 import { ThemedText } from './ThemedText'
 
 interface ErrorStateProps {
@@ -33,7 +33,7 @@ export function ErrorState({
           justifyContent: 'center',
         }}
       >
-        <Icon icon={TriangleAlert} size={28} color="danger" />
+        <GaGlyph name="canhbao" size={28} ink="danger" gold="danger" />
       </View>
       <ThemedText variant="title" align="center">
         {title}

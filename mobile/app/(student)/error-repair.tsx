@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Alert, View } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Wrench } from 'lucide-react-native'
+import { Check } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Button, Caption, Card, EmptyState, ErrorState, Icon, Pill, Screen, Skeleton, TextField, ThemedText, YellowSquare,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { drillPass, errorSkillsApi, todayApi, type ErrorSkill } from '@/lib/todayApi'
 import { getErrorTitle } from '@/lib/errorTaxonomy'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -193,7 +193,7 @@ function DrillCard({ skill, intervalDays, onResolved }: { skill: ErrorSkill; int
         </>
       ) : (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <Icon icon={Wrench} size={14} color="muted" />
+          <GaGlyph name="sualoi" size={14} ink="muted" />
           <ThemedText variant="caption" color="muted" style={{ flex: 1 }}>
             Chưa có câu mẫu cho lỗi này — luyện nói thêm để hệ thống bắt được ví dụ.
           </ThemedText>

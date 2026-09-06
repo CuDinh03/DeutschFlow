@@ -2,11 +2,11 @@ import { useCallback, useMemo, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { ChevronRight, Crosshair, Lock, Mic } from 'lucide-react-native'
+import { ChevronRight } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Button, Caption, Card, EmptyState, ErrorState, Pill, Screen, Skeleton, ThemedText, YellowSquare, Icon,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { examSpeakingApi, type BlueprintSummary, type ExamMode, type ExamProvider } from '@/lib/examSpeakingApi'
@@ -93,7 +93,7 @@ export default function SpeakingExamHubScreen() {
         <AppHeader title="Luyện thi Nói" subtitle="Goethe · telc · Sprechen" onBack={goBack} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={Lock}
+            glyph="khoa"
             title="Tính năng PRO"
             message="Thi thử phần Nói với giám khảo AI, chấm theo đúng bộ tiêu chí Goethe hoặc telc."
             actionLabel={PAYWALL_ENABLED ? 'Xem PRO' : undefined}
@@ -263,7 +263,7 @@ export default function SpeakingExamHubScreen() {
             accessibilityLabel="Xem điểm yếu của bạn"
             style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}
           >
-            <Icon icon={Crosshair} size={20} color="accent" />
+            <GaGlyph name="thinoi" size={20} ink="primary" />
             <View style={{ flex: 1, gap: 2 }}>
               <ThemedText variant="bodyStrong">Điểm yếu của bạn</ThemedText>
               <ThemedText variant="caption" color="secondary" numberOfLines={1}>
@@ -301,7 +301,7 @@ export default function SpeakingExamHubScreen() {
 
         {/* Ghi chú mic cho người mới */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingHorizontal: space[1] }}>
-          <Icon icon={Mic} size={14} color="faint" />
+          <GaGlyph name="speaking" size={14} ink="faint" />
           <ThemedText variant="caption" color="faint" style={{ flex: 1 }}>
             Bài thi dùng microphone; bản ghi được gửi tới máy chủ và đối tác AI để phiên âm, chấm điểm.
           </ThemedText>

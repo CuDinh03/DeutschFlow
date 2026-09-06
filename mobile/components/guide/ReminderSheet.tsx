@@ -5,9 +5,8 @@
 import { Modal, Pressable, View } from 'react-native'
 import { MotiView } from 'moti'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Bell } from 'lucide-react-native'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { ThemedText, Button, Icon } from '@/components/ui'
+import { ThemedText, Button, GaGlyph } from '@/components/ui'
 import { REMINDER_HOUR } from '@/lib/studyReminder'
 
 export function ReminderSheet({
@@ -59,7 +58,7 @@ export function ReminderSheet({
                 justifyContent: 'center',
               }}
             >
-              <Icon icon={Bell} size={26} color="accent" />
+              <GaGlyph name="thongbao" size={26} ink="primary" />
             </View>
             <View style={{ gap: space[2] }}>
               <ThemedText variant="titleLg">Giữ chuỗi bằng một lời nhắc nhẹ</ThemedText>

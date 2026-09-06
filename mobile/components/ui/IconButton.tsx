@@ -9,6 +9,8 @@ import { Pressable, type StyleProp, type ViewStyle } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { useTheme } from '@/lib/theme'
 import { Icon } from './Icon'
+import { GaGlyph } from './GaGlyph'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 
 type IconColorRole =
   | 'primary'
@@ -23,7 +25,9 @@ type IconColorRole =
   | 'onAccent'
 
 interface IconButtonProps {
-  icon: LucideIcon
+  /** Icon Lucide (điều khiển: đóng, gửi…). Biểu tượng nhận diện (mic Speaking…) dùng `glyph`. */
+  icon?: LucideIcon
+  glyph?: GlyphName
   /** REQUIRED — assistive-tech announcement; e.g. "Đóng", "Gửi câu trả lời". */
   accessibilityLabel: string
   /** Optional hint announced after the label. */
@@ -39,6 +43,7 @@ interface IconButtonProps {
 
 export function IconButton({
   icon,
+  glyph,
   accessibilityLabel,
   accessibilityHint,
   onPress,
@@ -67,7 +72,11 @@ export function IconButton({
         style,
       ]}
     >
-      <Icon icon={icon} size={size} color={color} />
+      {glyph ? (
+        <GaGlyph name={glyph} size={size} ink={color} gold={color === 'onAccent' ? 'ink' : 'accent'} />
+      ) : icon ? (
+        <Icon icon={icon} size={size} color={color} />
+      ) : null}
     </Pressable>
   )
 }

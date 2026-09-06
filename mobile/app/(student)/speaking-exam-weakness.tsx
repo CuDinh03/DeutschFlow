@@ -2,14 +2,13 @@ import { useCallback, useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { MessageSquareQuote, Mic } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { drillTargets, type DrillTarget } from '@/lib/examSpeakingUi'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Pill, Screen, Skeleton, ThemedText, YellowSquare,
-} from '@/components/ui'
+  AppHeader, Caption, Card, EmptyState, ErrorState, Pill, Screen, Skeleton, ThemedText, YellowSquare,
+GaGlyph } from '@/components/ui'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { getErrorTitle } from '@/lib/errorTaxonomy'
 import { examParentHref } from '@/lib/examSpeakingNav'
@@ -67,7 +66,7 @@ export default function SpeakingExamWeaknessScreen() {
       ) : weakPoints.length === 0 && packs.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={MessageSquareQuote}
+            glyph="hoithoai"
             title="Chưa có dữ liệu điểm yếu"
             message="Thi thử vài lượt là hệ thống gom được lỗi bạn hay mắc để ôn đúng chỗ."
             actionLabel="Về Luyện thi Nói"
@@ -99,7 +98,7 @@ export default function SpeakingExamWeaknessScreen() {
                         opacity: starting !== null && !busy ? 0.5 : 1,
                       }}
                     >
-                      {busy ? <ActivityIndicator size="small" color={c.accentText} /> : <Icon icon={Mic} size={14} color="accent" />}
+                      {busy ? <ActivityIndicator size="small" color={c.accentText} /> : <GaGlyph name="noi" size={14} ink="primary" />}
                       <ThemedText variant="label">{`${t.level} · Teil ${t.teilNo}`}</ThemedText>
                       <Pill label={`×${t.count}`} tone="neutral" />
                     </Pressable>
@@ -155,7 +154,7 @@ export default function SpeakingExamWeaknessScreen() {
               {packs.map((p) => (
                 <Card key={p.archetype} style={{ gap: space[3] }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                    <Icon icon={MessageSquareQuote} size={16} color="accent" />
+                    <GaGlyph name="hoithoai" size={16} ink="primary" />
                     <ThemedText variant="bodyStrong" style={{ flex: 1 }}>{p.archetype}</ThemedText>
                   </View>
                   <View style={{ gap: space[2] }}>

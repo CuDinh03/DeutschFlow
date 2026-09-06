@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { View, Pressable, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
-import { Check, Lock } from 'lucide-react-native'
+import { Check } from 'lucide-react-native'
 import { useMutation } from '@tanstack/react-query'
 import { useAuthStore } from '@/stores/useAuthStore'
 import api from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, ThemedText, Icon, AppHeader, TextField, Card, Caption } from '@/components/ui'
+import { Screen, ThemedText, Icon, AppHeader, TextField, Card, Caption, GaGlyph } from '@/components/ui'
 import { useBackTo } from '@/hooks/useBackTo'
 import { PARENT_OF } from '@/lib/screenParents'
 
@@ -122,7 +122,7 @@ export default function EditProfileScreen() {
                 justifyContent: 'center',
               }}
             >
-              <Icon icon={Lock} size={16} color="muted" />
+              <GaGlyph name="khoa" size={16} ink="muted" />
             </View>
             <ThemedText variant="bodyLg" color="muted" style={{ flex: 1 }} numberOfLines={1}>
               {user?.email}

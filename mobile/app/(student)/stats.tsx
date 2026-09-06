@@ -1,22 +1,10 @@
 import { useEffect, useRef } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router } from 'expo-router'
-import {
-  Flame,
-  Star,
-  BookOpen,
-  Mic,
-  Headphones,
-  PenTool,
-  MessageSquare,
-  Clock,
-  Trophy,
-  Target,
-  ArrowRight,
-  type LucideIcon,
-} from 'lucide-react-native'
+import { ArrowRight } from 'lucide-react-native'
 import api from '@/lib/api'
 import { progressApi, type SkillData, type WeeklyPoint } from '@/lib/progressApi'
 import { speakingApi, type AiSpeakingSession } from '@/lib/speakingApi'
@@ -38,7 +26,7 @@ import {
   Skeleton,
   SkillRadar,
   Button,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { useBackToMainTab } from '@/hooks/useBackTo'
 
 interface StatsData {
@@ -51,11 +39,11 @@ interface StatsData {
   weeklyProgress: number[]
 }
 
-const SKILLS: { key: keyof SkillsShape; label: string; icon: LucideIcon }[] = [
-  { key: 'lesen', label: 'Đọc hiểu', icon: BookOpen },
-  { key: 'hoeren', label: 'Nghe hiểu', icon: Headphones },
-  { key: 'schreiben', label: 'Viết', icon: PenTool },
-  { key: 'sprechen', label: 'Nói', icon: Mic },
+const SKILLS: { key: keyof SkillsShape; label: string; glyph: GlyphName }[] = [
+  { key: 'lesen', label: 'Đọc hiểu', glyph: 'doc' },
+  { key: 'hoeren', label: 'Nghe hiểu', glyph: 'nghe' },
+  { key: 'schreiben', label: 'Viết', glyph: 'viet' },
+  { key: 'sprechen', label: 'Nói', glyph: 'noi' },
 ]
 
 interface SkillsShape {
@@ -190,12 +178,12 @@ export default function StatsScreen() {
               />
               {/* 2×2 score grid below the radar (mockup pairs the radar with skill figures). */}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {SKILLS.map(({ key, label, icon }) => {
+                {SKILLS.map(({ key, label, glyph }) => {
                   const score = Math.round(overview.skills?.[key]?.score ?? 0)
                   return (
                     <View key={key} style={{ width: '50%', paddingVertical: space[2], gap: 2 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                        <Icon icon={icon} size={14} color="muted" />
+                        <GaGlyph name={glyph} size={14} ink="muted" />
                         <ThemedText variant="label" color="secondary">
                           {label}
                         </ThemedText>
@@ -331,14 +319,14 @@ function SessionRow({ session, isLast }: { session: AiSpeakingSession; isLast: b
           justifyContent: 'center',
         }}
       >
-        <Icon icon={session.sessionMode === 'INTERVIEW' ? MessageSquare : Mic} size={18} color="accent" />
+        <GaGlyph name={session.sessionMode === 'INTERVIEW' ? 'phongvan' : 'hoithoai'} size={18} />
       </View>
       <View style={{ flex: 1, gap: 2 }}>
         <ThemedText variant="bodyStrong" numberOfLines={1}>
           {session.interviewPosition || session.topic || 'Buổi luyện nói'}
         </ThemedText>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <Icon icon={Clock} size={12} color="faint" />
+          <GaGlyph name="thoigian" size={12} ink="faint" />
           <ThemedText variant="caption" color="muted">
             {shortDate(session.startedAt)} • {mode}
           </ThemedText>
@@ -383,7 +371,7 @@ function StreakHeroCard({
             justifyContent: 'center',
           }}
         >
-          <Icon icon={Flame} size={30} color="accent" fill />
+          <GaGlyph name="chuoi" size={30} ink="accent" />
         </View>
         <View style={{ flex: 1, gap: 4 }}>
           <Caption color={colors.accent}>Chuỗi học</Caption>
@@ -392,7 +380,7 @@ function StreakHeroCard({
               {String(streakDays)}
             </ThemedText>
             <ThemedText variant="bodyStrong" style={{ color: colors.onInkMuted }}>
-              ngày 🔥
+              ngày
             </ThemedText>
           </View>
         </View>
@@ -461,7 +449,7 @@ function XpLevelCard({
             {totalXp} XP tích luỹ
           </ThemedText>
         </View>
-        <Icon icon={Star} size={20} color="accent" fill />
+        <GaGlyph name="capdo" size={20} ink="primary" />
       </View>
       <View style={{ gap: 4 }}>
         <ProgressBar value={ratio} />
@@ -482,7 +470,7 @@ function AchievementsCard({ achievements, pending }: { achievements: Achievement
         <View style={{ gap: 4 }}>
           <Caption>Huy hiệu</Caption>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <Icon icon={Trophy} size={18} color="accent" />
+            <GaGlyph name="thithu" size={18} ink="primary" />
             <ThemedText variant="title">Thành tựu</ThemedText>
           </View>
         </View>
@@ -556,7 +544,7 @@ function LeaderboardCard({ entries, meId }: { entries: LeaderboardEntry[]; meId?
       <View style={{ gap: 4, marginBottom: space[1] }}>
         <Caption>Cộng đồng</Caption>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <Icon icon={Trophy} size={18} color="accent" />
+          <GaGlyph name="thithu" size={18} ink="primary" />
           <ThemedText variant="title">Bảng xếp hạng</ThemedText>
         </View>
       </View>
@@ -600,7 +588,7 @@ function ErrorSkillsCard({ errors }: { errors: ErrorSkill[] }) {
       <View style={{ gap: 4 }}>
         <Caption color={colors.danger}>Trọng tâm ôn tập</Caption>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <Icon icon={Target} size={18} color="danger" />
+          <GaGlyph name="muctieu" size={18} ink="danger" gold="danger" />
           <ThemedText variant="title">Cần cải thiện</ThemedText>
         </View>
       </View>

@@ -1,14 +1,15 @@
 import { useState } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { View } from 'react-native'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
-import { Trophy, Clock, Lock, ChevronRight } from 'lucide-react-native'
+import { ChevronRight } from 'lucide-react-native'
 import { Alert } from 'react-native'
 import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton, Caption, SelectableChip } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton, Caption, SelectableChip, GaGlyph } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { mapExam, examApi, type RawMockExam, type ExamVariant, type ExamAttempt } from '@/lib/examApi'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -116,7 +117,7 @@ export default function ExamScreen() {
       {!hasProAccess ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={Lock}
+            glyph="khoa"
             title="Tính năng PRO"
             message="Thi thử theo format Goethe chính thức, xem điểm chi tiết và phân tích điểm yếu."
             actionLabel={PAYWALL_ENABLED ? 'Xem PRO' : undefined}
@@ -152,7 +153,7 @@ export default function ExamScreen() {
           {variants.length > 0 ? <Caption style={{ marginTop: space[2] }}>Đề thi {level}</Caption> : null}
 
           {variants.length === 0 ? (
-            <EmptyState icon={Trophy} title="Chưa có đề thi" message={`Chưa có đề thi ${level}. Thử cấp độ khác.`} />
+            <EmptyState glyph="thithu" title="Chưa có đề thi" message={`Chưa có đề thi ${level}. Thử cấp độ khác.`} />
           ) : null}
           {variants.map((variant) => {
             const isRec = variant.isRecommended || variant.id === recommendedId
@@ -171,9 +172,9 @@ export default function ExamScreen() {
                     </ThemedText>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[4] }}>
                       {variant.totalQuestions > 0 ? (
-                        <MetaItem icon={Trophy} label={`${variant.totalQuestions} câu`} />
+                        <MetaItem glyph="thithu" label={`${variant.totalQuestions} câu`} />
                       ) : null}
-                      <MetaItem icon={Clock} label={`${variant.timeLimitMinutes} phút`} />
+                      <MetaItem glyph="thoigian" label={`${variant.timeLimitMinutes} phút`} />
                     </View>
                   </View>
                   <Icon icon={ChevronRight} size={18} color="faint" />
@@ -233,10 +234,10 @@ function shortDate(iso: string | null): string {
   return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : ''
 }
 
-function MetaItem({ icon, label }: { icon: typeof Trophy; label: string }) {
+function MetaItem({ glyph, label }: { glyph: GlyphName; label: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
-      <Icon icon={icon} size={13} color="muted" />
+      <GaGlyph name={glyph} size={13} ink="muted" />
       <ThemedText variant="caption" color="muted">
         {label}
       </ThemedText>

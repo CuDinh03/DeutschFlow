@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Alert } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams, useNavigation, type Href } from 'expo-router'
-import { Check, BookOpen } from 'lucide-react-native'
+import { Check } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
@@ -18,7 +18,7 @@ import {
   Caption,
   ProgressBar,
   SelectableRow,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { attemptTotalScore, parseLesenItems, type AttemptResultDto, type ExamObjItem, itemChoices } from '@/lib/examApi'
 import { pollAsyncJob, AsyncJobFailedError, AsyncJobTimeoutError } from '@/lib/asyncJobs'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -204,7 +204,7 @@ export default function ExamAttemptScreen() {
       ) : !parsed || parsed.groups.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={BookOpen}
+            glyph="doc"
             title="Chưa hỗ trợ trên app"
             message="Đề này gồm phần Nghe/Viết/Nói — hãy làm trên web. App hỗ trợ các đề có phần Đọc trắc nghiệm."
           />
@@ -237,7 +237,7 @@ export default function ExamAttemptScreen() {
               padding: space[3],
             }}
           >
-            <Icon icon={BookOpen} size={18} color="info" />
+            <GaGlyph name="doc" size={18} ink="info" gold="info" />
             <ThemedText variant="caption" color="info" style={{ flex: 1 }}>
               Phần Đọc trắc nghiệm. Nghe/Viết/Nói làm trên web để có điểm đầy đủ.
             </ThemedText>

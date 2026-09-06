@@ -1,9 +1,10 @@
 import { useEffect } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { ActivityIndicator, View } from 'react-native'
 import { router } from 'expo-router'
-import { Star, Zap, Mic, Trophy, BookOpen, Check, type LucideIcon } from 'lucide-react-native'
+import { Check } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, AppHeader, Caption, YellowSquare, Button, Pill } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, AppHeader, Caption, YellowSquare, Button, Pill, GaGlyph } from '@/components/ui'
 import { trackFeatureAction } from '@/lib/analytics'
 import { IAP_ENABLED, PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
@@ -13,12 +14,12 @@ import { metaForProductId } from '@/lib/iapProducts'
 import { trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
 import { useBackToMainTab } from '@/hooks/useBackTo'
 
-const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
-  { icon: Mic, label: 'AI Speaking không giới hạn' },
-  { icon: Trophy, label: 'Mock Exam Goethe chuẩn' },
-  { icon: Zap, label: 'Weekly Speaking Challenge' },
-  { icon: BookOpen, label: 'Toàn bộ lộ trình A1 đến B2' },
-  { icon: Star, label: 'Phân tích lỗi chi tiết' },
+const PRO_FEATURES: { glyph: GlyphName; label: string }[] = [
+  { glyph: 'speaking', label: 'AI Speaking không giới hạn' },
+  { glyph: 'thithu', label: 'Mock Exam Goethe chuẩn' },
+  { glyph: 'xp', label: 'Weekly Speaking Challenge' },
+  { glyph: 'lernweg', label: 'Toàn bộ lộ trình A1 đến B2' },
+  { glyph: 'sualoi', label: 'Phân tích lỗi chi tiết' },
 ]
 
 export default function UpgradeScreen() {
@@ -261,7 +262,7 @@ function ProHero({ eyebrow, title, body }: { eyebrow: string; title: string; bod
           justifyContent: 'center',
         }}
       >
-        <Icon icon={Star} size={28} color="accent" fill />
+        <GaGlyph name="goipro" size={28} ink="primary" />
       </View>
       <View style={{ gap: space[2] }}>
         <Caption color={c.accent}>{eyebrow}</Caption>

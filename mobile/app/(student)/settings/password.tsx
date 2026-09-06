@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { Alert, KeyboardAvoidingView, Platform, View } from 'react-native'
 import { useMutation } from '@tanstack/react-query'
-import { KeyRound } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { space } from '@/lib/theme'
 import { profileApi, validatePasswordChange, PASSWORD_MIN_LENGTH } from '@/lib/profileApi'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { AppHeader, Button, Caption, Card, Icon, Screen, TextField, ThemedText } from '@/components/ui'
+import { AppHeader, Button, Caption, Card, Screen, TextField, ThemedText, GaGlyph } from '@/components/ui'
 import { useBackTo } from '@/hooks/useBackTo'
 import { PARENT_OF } from '@/lib/screenParents'
 
@@ -57,7 +56,7 @@ export default function ChangePasswordScreen() {
 
         <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingTop: space[2], paddingBottom: space[8], gap: space[5] }}>
           <Card tone="sunken" style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-            <Icon icon={KeyRound} size={20} color="accent" />
+            <GaGlyph name="matkhau" size={20} ink="primary" />
             <ThemedText variant="caption" color="secondary" style={{ flex: 1 }}>
               {`Mật khẩu mới cần ít nhất ${PASSWORD_MIN_LENGTH} ký tự. Sau khi đổi, bạn sẽ được đưa về màn đăng nhập.`}
             </ThemedText>
