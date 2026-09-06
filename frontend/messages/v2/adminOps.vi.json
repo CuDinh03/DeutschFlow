@@ -458,6 +458,133 @@
         }
       }
     },
+    "learningDetail": {
+      "title": "Hồ sơ học tập",
+      "loading": "Đang tải hồ sơ học tập...",
+      "backendBusy": "Backend đang tải dữ liệu, vui lòng thử lại.",
+      "tabs": {
+        "profile": "Hồ sơ",
+        "xp": "XP & Streak",
+        "speaking": "Speaking AI",
+        "vocab": "Từ vựng SRS",
+        "interview": "Phỏng vấn"
+      },
+      "profile": {
+        "goalCap": "MỤC TIÊU",
+        "speedCap": "TỐC ĐỘ HỌC",
+        "currentLevelCap": "CẤP ĐỘ HIỆN TẠI",
+        "targetLevelCap": "MỤC TIÊU CẤP ĐỘ",
+        "sessionsPerWeekCap": "BUỔI/TUẦN",
+        "minutesPerSessionCap": "PHÚT/BUỔI",
+        "industryCap": "NGÀNH NGHỀ",
+        "industryPlaceholder": "IT, MEDICINE, EDUCATION...",
+        "goal": {
+          "WORK": "Công việc",
+          "CERT": "Lấy chứng chỉ"
+        },
+        "speed": {
+          "SLOW": "Chậm",
+          "NORMAL": "Bình thường",
+          "FAST": "Nhanh"
+        },
+        "speedShort": {
+          "SLOW": "Chậm",
+          "NORMAL": "TB",
+          "FAST": "Nhanh"
+        },
+        "saving": "Đang lưu…",
+        "save": "Lưu hồ sơ",
+        "cancel": "Hủy",
+        "notConfigured": "Người dùng chưa thiết lập hồ sơ học tập.",
+        "adminCanCreate": "Admin có thể tạo hồ sơ thay cho người dùng.",
+        "create": "Tạo hồ sơ học tập",
+        "edit": "Chỉnh sửa hồ sơ",
+        "stat": {
+          "currentLevel": "Cấp hiện tại",
+          "target": "Mục tiêu",
+          "speed": "Tốc độ"
+        },
+        "row": {
+          "goal": "Mục tiêu",
+          "currentLevel": "Cấp độ hiện tại",
+          "targetLevel": "Cấp độ mục tiêu",
+          "industry": "Ngành nghề",
+          "exam": "Kỳ thi",
+          "sessionsPerWeek": "Buổi/tuần",
+          "minutesPerSession": "Phút/buổi",
+          "speed": "Tốc độ học",
+          "ageRange": "Độ tuổi"
+        },
+        "interests": "Sở thích"
+      },
+      "xp": {
+        "stat": {
+          "totalXp": "Total XP",
+          "level": "Level",
+          "streak": "Streak",
+          "sessions": "Sessions"
+        },
+        "streakDays": "{n} ngày",
+        "levelProgress": "Tiến độ Level",
+        "achievementsTitle": "Thành tựu — {unlocked} / {total} đã mở khóa",
+        "achievementsLoading": "Đang tải dữ liệu thành tựu…",
+        "unlocked": "Đã mở khóa ({n})",
+        "locked": "Chưa mở ({n})",
+        "rarity": {
+          "COMMON": "Thường",
+          "RARE": "Hiếm",
+          "EPIC": "Epic",
+          "LEGENDARY": "Huyền thoại"
+        }
+      },
+      "speaking": {
+        "stat": {
+          "sessions": "Phiên nói",
+          "messages": "Tin nhắn"
+        },
+        "weakPointsTitle": "Điểm yếu ngữ pháp (Top 5)",
+        "errorSkillsTitle": "Trạng thái sửa lỗi",
+        "fixed": "Đã sửa",
+        "unfixed": "Chưa sửa ({n})",
+        "recentErrorsTitle": "Lỗi gần đây",
+        "col": {
+          "error": "Lỗi",
+          "wrongToRight": "Sai → Đúng",
+          "severity": "Mức"
+        }
+      },
+      "vocab": {
+        "stat": {
+          "total": "Tổng mục",
+          "dueToday": "Cần ôn hôm nay",
+          "mastered": "Đã thuộc",
+          "learning": "Đang học",
+          "words": "Từ vựng",
+          "grammar": "Ngữ pháp"
+        },
+        "distributionTitle": "Phân bố",
+        "barMastered": "Đã thuộc: {n}",
+        "barLearning": "Đang học: {n}",
+        "barNew": "Mới: {n}",
+        "legendMastered": "■ Thuộc ({n})",
+        "legendLearning": "■ Đang học ({n})",
+        "legendNew": "■ Mới ({n})",
+        "empty": "Chưa có mục SRS nào."
+      },
+      "interview": {
+        "loading": "Đang tải phỏng vấn...",
+        "empty": "Chưa có cuộc phỏng vấn nào.",
+        "count": "{n} cuộc phỏng vấn",
+        "unknownPosition": "Không xác định",
+        "statusDone": "Đã xong",
+        "statusPending": "Chưa xong",
+        "messageCount": "{n} tin nhắn",
+        "transcriptLoading": "Đang tải hội thoại...",
+        "noMessages": "Không có tin nhắn.",
+        "roleAi": "AI",
+        "roleUser": "User"
+      }
+    },
     "classes": {
       "title": "Quản lý lớp học",
       "subtitle": "Tất cả lớp trên hệ thống — đồng bộ realtime với database",

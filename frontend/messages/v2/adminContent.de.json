@@ -254,7 +254,8 @@
       "noIndustryData": "Noch keine Branchendaten.",
       "avgScoreByIndustryTitle": "Durchschnittswert nach Branche",
       "noScoreByIndustry": "Noch kein Wert nach Branche.",
-      "noData": "Keine Daten."
+      "noData": "Keine Daten.",
+      "scorePts": "{n} Pkt."
     },
     "audit": {
       "catUser": "Nutzer",

@@ -118,7 +118,7 @@ export default function V2AdminInterviewsPage() {
                           display={
                             <>
                               {t('sessionsSuffix', { count: fmt.num(sess) })}
-                              {Number.isFinite(score) && <span className="text-ga-subtle"> · {score.toFixed(1)}đ</span>}
+                              {Number.isFinite(score) && <span className="text-ga-subtle"> · {t('scorePts', { n: score.toFixed(1) })}</span>}
                             </>
                           }
                         />
@@ -157,7 +157,7 @@ export default function V2AdminInterviewsPage() {
                           value={score}
                           max={100}
                           color={GA_CHART[i % GA_CHART.length]}
-                          display={`${score.toFixed(1)}đ`}
+                          display={t('scorePts', { n: score.toFixed(1) })}
                         />
                       ))}
                   </div>

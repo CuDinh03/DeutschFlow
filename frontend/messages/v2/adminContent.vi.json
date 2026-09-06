@@ -254,7 +254,8 @@
       "noIndustryData": "Chưa có dữ liệu ngành.",
       "avgScoreByIndustryTitle": "Điểm trung bình theo ngành",
       "noScoreByIndustry": "Chưa có điểm theo ngành.",
-      "noData": "Không có dữ liệu."
+      "noData": "Không có dữ liệu.",
+      "scorePts": "{n}đ"
     },
     "audit": {
       "catUser": "Người dùng",

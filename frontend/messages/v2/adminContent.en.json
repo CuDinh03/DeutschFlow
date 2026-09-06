@@ -254,7 +254,8 @@
       "noIndustryData": "No industry data yet.",
       "avgScoreByIndustryTitle": "Average score by industry",
       "noScoreByIndustry": "No score by industry yet.",
-      "noData": "No data."
+      "noData": "No data.",
+      "scorePts": "{n} pts"
     },
     "audit": {
       "catUser": "User",

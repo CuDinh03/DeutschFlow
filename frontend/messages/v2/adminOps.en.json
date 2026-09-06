@@ -458,6 +458,133 @@
         }
       }
     },
+    "learningDetail": {
+      "title": "Learning profile",
+      "loading": "Loading learning profile...",
+      "backendBusy": "The backend is still loading data, please try again.",
+      "tabs": {
+        "profile": "Profile",
+        "xp": "XP & Streak",
+        "speaking": "Speaking AI",
+        "vocab": "SRS vocabulary",
+        "interview": "Interviews"
+      },
+      "profile": {
+        "goalCap": "GOAL",
+        "speedCap": "LEARNING PACE",
+        "currentLevelCap": "CURRENT LEVEL",
+        "targetLevelCap": "TARGET LEVEL",
+        "sessionsPerWeekCap": "SESSIONS/WEEK",
+        "minutesPerSessionCap": "MINUTES/SESSION",
+        "industryCap": "INDUSTRY",
+        "industryPlaceholder": "IT, MEDICINE, EDUCATION...",
+        "goal": {
+          "WORK": "Work",
+          "CERT": "Certificate"
+        },
+        "speed": {
+          "SLOW": "Slow",
+          "NORMAL": "Normal",
+          "FAST": "Fast"
+        },
+        "speedShort": {
+          "SLOW": "Slow",
+          "NORMAL": "Normal",
+          "FAST": "Fast"
+        },
+        "saving": "Saving…",
+        "save": "Save profile",
+        "cancel": "Cancel",
+        "notConfigured": "This user has not set up a learning profile yet.",
+        "adminCanCreate": "An admin can create the profile on their behalf.",
+        "create": "Create learning profile",
+        "edit": "Edit profile",
+        "stat": {
+          "currentLevel": "Current level",
+          "target": "Target",
+          "speed": "Pace"
+        },
+        "row": {
+          "goal": "Goal",
+          "currentLevel": "Current level",
+          "targetLevel": "Target level",
+          "industry": "Industry",
+          "exam": "Exam",
+          "sessionsPerWeek": "Sessions/week",
+          "minutesPerSession": "Minutes/session",
+          "speed": "Learning pace",
+          "ageRange": "Age range"
+        },
+        "interests": "Interests"
+      },
+      "xp": {
+        "stat": {
+          "totalXp": "Total XP",
+          "level": "Level",
+          "streak": "Streak",
+          "sessions": "Sessions"
+        },
+        "streakDays": "{n} days",
+        "levelProgress": "Level progress",
+        "achievementsTitle": "Achievements — {unlocked} / {total} unlocked",
+        "achievementsLoading": "Loading achievements…",
+        "unlocked": "Unlocked ({n})",
+        "locked": "Locked ({n})",
+        "rarity": {
+          "COMMON": "Common",
+          "RARE": "Rare",
+          "EPIC": "Epic",
+          "LEGENDARY": "Legendary"
+        }
+      },
+      "speaking": {
+        "stat": {
+          "sessions": "Speaking sessions",
+          "messages": "Messages"
+        },
+        "weakPointsTitle": "Grammar weak points (Top 5)",
+        "errorSkillsTitle": "Error fix status",
+        "fixed": "Fixed",
+        "unfixed": "Open ({n})",
+        "recentErrorsTitle": "Recent errors",
+        "col": {
+          "error": "Error",
+          "wrongToRight": "Wrong → Correct",
+          "severity": "Severity"
+        }
+      },
+      "vocab": {
+        "stat": {
+          "total": "Total items",
+          "dueToday": "Due today",
+          "mastered": "Mastered",
+          "learning": "Learning",
+          "words": "Vocabulary",
+          "grammar": "Grammar"
+        },
+        "distributionTitle": "Distribution",
+        "barMastered": "Mastered: {n}",
+        "barLearning": "Learning: {n}",
+        "barNew": "New: {n}",
+        "legendMastered": "■ Mastered ({n})",
+        "legendLearning": "■ Learning ({n})",
+        "legendNew": "■ New ({n})",
+        "empty": "No SRS items yet."
+      },
+      "interview": {
+        "loading": "Loading interviews...",
+        "empty": "No interviews yet.",
+        "count": "{n} interviews",
+        "unknownPosition": "Unknown",
+        "statusDone": "Completed",
+        "statusPending": "In progress",
+        "messageCount": "{n} messages",
+        "transcriptLoading": "Loading transcript...",
+        "noMessages": "No messages.",
+        "roleAi": "AI",
+        "roleUser": "User"
+      }
+    },
     "classes": {
       "title": "Class management",
       "subtitle": "All classes in the system — synced in realtime with the database",
