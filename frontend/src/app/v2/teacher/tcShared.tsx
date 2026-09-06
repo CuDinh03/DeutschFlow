@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ChevronDown } from 'lucide-react'
 import api, { apiMessage } from '@/lib/api'
 import type { ClassLesson } from '@/lib/teacherLessonsApi'
@@ -23,12 +24,14 @@ export interface TeacherClass {
  * {@link classHref}).
  */
 export function useTeacherClasses() {
+  const t = useTranslations('v2.teacher.tcShared')
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const urlClassId = searchParams.get('classId')
 
-  const [classes, setClasses] = useState<TeacherClass[]>([])
+  // Tên thô từ API (null = backend không trả tên); tên dự phòng "Lớp #id" dựng lúc render theo locale.
+  const [rawClasses, setRawClasses] = useState<{ id: number; name: string | null }[]>([])
   const [classId, setClassIdState] = useState<number | null>(urlClassId ? Number(urlClassId) : null)
   const [loadingClasses, setLoadingClasses] = useState(true)
   // F05: lỗi tải danh sách lớp từng bị nuốt ("surfaced by the lessons fetch") — nhưng khi KHÔNG có
@@ -44,8 +47,8 @@ export function useTeacherClasses() {
       .get('/v2/teacher/classes')
       .then((res) => {
         if (!active) return
-        const list = ((res.data ?? []) as Record<string, unknown>[]).map((c) => ({ id: Number(c.id), name: String(c.name ?? `Lớp #${c.id}`) }))
-        setClasses(list)
+        const list = ((res.data ?? []) as Record<string, unknown>[]).map((c) => ({ id: Number(c.id), name: c.name == null ? null : String(c.name) }))
+        setRawClasses(list)
         // Honour a valid ?classId= from the URL; otherwise fall back to the first class.
         setClassIdState((prev) => {
           const fromUrl = urlClassId ? Number(urlClassId) : null
@@ -60,6 +63,12 @@ export function useTeacherClasses() {
   }, [reloadToken])
 
   const reloadClasses = useCallback(() => setReloadToken((n) => n + 1), [])
+
+  // i18n đợt 3: dựng tên dự phòng ngoài effect tải lớp để đổi ngôn ngữ không kéo theo tải lại danh sách.
+  const classes = useMemo<TeacherClass[]>(
+    () => rawClasses.map((c) => ({ id: c.id, name: c.name ?? t('classFallback', { id: c.id }) })),
+    [rawClasses, t],
+  )
 
   // Selecting a class writes it to the URL so a later screen change (or reload) keeps it.
   const setClassId = useCallback((id: number) => {
@@ -99,6 +108,7 @@ export function ClassPicker({
   onChange: (id: number) => void
   disabled?: boolean
 }) {
+  const t = useTranslations('v2.teacher.tcShared')
   return (
     <div className="relative max-w-full">
       <select
@@ -107,7 +117,7 @@ export function ClassPicker({
         disabled={disabled || classes.length === 0}
         className="ga-ui min-h-[40px] max-w-full appearance-none border border-ga-line bg-ga-card py-2 pl-3.5 pr-9 text-[13px] font-semibold text-ga-ink outline-none focus:border-ga-accent disabled:opacity-60 lg:min-h-0"
       >
-        {classes.length === 0 ? <option value="">Chưa có lớp</option> : classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        {classes.length === 0 ? <option value="">{t('noClasses')}</option> : classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
       <ChevronDown size={15} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ga-muted" />
     </div>

@@ -1,4 +1,5 @@
 import api from '@/lib/api'
+import { uiText } from '@/lib/i18n/clientLocale'
 
 // Typed fetchers for the teacher "Phân tích giảng dạy" page. Every field is parsed defensively
 // (num()/String()) because the axios response shape is untrusted at the boundary.
@@ -72,7 +73,7 @@ export async function getClassesSummary(): Promise<ClassSummary[]> {
     const r = record(raw)
     return {
       id: num(r.id),
-      name: String(r.name ?? `Lớp #${r.id}`),
+      name: String(r.name ?? uiText({ vi: `Lớp #${r.id}`, en: `Class #${r.id}`, de: `Klasse #${r.id}` })),
       studentCount: num(r.studentCount),
       assignmentCount: num(r.assignmentCount),
       avgScore: optNum(r.avgScore),

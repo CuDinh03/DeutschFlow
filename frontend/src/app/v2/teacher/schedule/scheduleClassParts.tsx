@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
@@ -22,15 +23,17 @@ import {
 
 // ── Nhãn + màu dùng chung (page render thẻ buổi lớp) ─────────────────────────
 // Buổi lớp dùng tông teal (theo token --ga-teal) để phân biệt với buổi 1:1.
-export const MODE_LABEL: Record<ClassMode, string> = { ONLINE: 'Online', OFFLINE: 'Tại lớp' }
+// Nhãn là KHOÁ tương đối của namespace `v2.teacher.schedule` (i18n đợt 3) — nơi render gọi t(labelKey).
+export const MODE_LABEL_KEY: Record<ClassMode, string> = { ONLINE: 'mode.ONLINE', OFFLINE: 'mode.OFFLINE' }
 
-export const CLASS_STATUS: Record<ClassSessionStatus, { label: string; fg: string; bg: string }> = {
-  SCHEDULED: { label: 'Đã lên lịch', fg: 'var(--ga-teal)', bg: 'var(--ga-teal-soft)' },
-  CANCELLED: { label: 'Đã huỷ', fg: 'var(--ga-red)', bg: 'var(--ga-red-soft)' },
-  MOVED: { label: 'Đã dời', fg: 'var(--ga-orange)', bg: 'var(--ga-orange-soft)' },
+export const CLASS_STATUS: Record<ClassSessionStatus, { labelKey: string; fg: string; bg: string }> = {
+  SCHEDULED: { labelKey: 'status.SCHEDULED', fg: 'var(--ga-teal)', bg: 'var(--ga-teal-soft)' },
+  CANCELLED: { labelKey: 'status.CANCELLED', fg: 'var(--ga-red)', bg: 'var(--ga-red-soft)' },
+  MOVED: { labelKey: 'status.MOVED', fg: 'var(--ga-orange)', bg: 'var(--ga-orange-soft)' },
 }
 
-export const DOW_LABEL = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật']
+/** Khoá nhãn thứ trong tuần theo ISO dayOfWeek 1–7 (index = dayOfWeek − 1). */
+export const DOW_LABEL_KEY = ['dow.mon', 'dow.tue', 'dow.wed', 'dow.thu', 'dow.fri', 'dow.sat', 'dow.sun']
 
 const inputCls =
   'h-[38px] w-full rounded-ga border border-ga-line bg-ga-bg px-3 text-[13.5px] text-ga-ink outline-none focus:border-ga-accent'
@@ -71,6 +74,8 @@ export function EditSessionModal({
   onClose: () => void
   onSaved: (r: SessionSaveResult) => void
 }) {
+  const t = useTranslations('v2.teacher.schedule')
+  const tc = useTranslations('v2.common')
   const [startAt, setStartAt] = useState('')
   const [duration, setDuration] = useState(90)
   const [mode, setMode] = useState<ClassMode>('OFFLINE')
@@ -90,11 +95,11 @@ export function EditSessionModal({
   const save = async () => {
     if (!session) return
     if (!startAt) {
-      toast.error('Chọn thời gian bắt đầu')
+      toast.error(t('startRequired'))
       return
     }
     if (duration <= 0) {
-      toast.error('Thời lượng phải lớn hơn 0')
+      toast.error(t('editSession.durationPositive'))
       return
     }
     setSaving(true)
@@ -108,7 +113,7 @@ export function EditSessionModal({
       })
       // PR-5 (AC18): lớp trung tâm có giáo trình — thay đổi thành ĐỀ XUẤT, lịch chưa đổi.
       if (result.pendingRequestId != null) {
-        toast.success('Đã gửi đề xuất thay đổi buổi — chờ trung tâm duyệt, lịch hiện tại chưa đổi')
+        toast.success(t('editSession.pending'))
         onClose()
         return
       }
@@ -125,8 +130,8 @@ export function EditSessionModal({
     <TkModal
       open={session !== null}
       onOpenChange={(o) => !o && onClose()}
-      title="Sửa buổi học"
-      description={session ? `${session.className} · ${session.studentCount} học viên` : undefined}
+      title={t('editSession.title')}
+      description={session ? t('editSession.description', { className: session.className, count: session.studentCount }) : undefined}
       footer={
         <>
           {/* PR-7: lối vào màn làm việc theo buổi (điểm danh, xác nhận nội dung, chốt buổi). */}
@@ -135,23 +140,23 @@ export function EditSessionModal({
               href={`/v2/teacher/session/${session.id}`}
               className="ga-ui mr-auto inline-flex min-h-[40px] items-center gap-1.5 text-[13px] font-semibold text-ga-accent hover:underline lg:min-h-0"
             >
-              Vào buổi dạy →
+              {t('editSession.enter')}
             </a>
           )}
           <GaBtn variant="ghost" onClick={onClose} disabled={saving}>
-            Huỷ
+            {tc('cancel')}
           </GaBtn>
           <GaBtn variant="primary" onClick={save} disabled={saving}>
-            {saving ? 'Đang lưu…' : 'Lưu buổi'}
+            {saving ? t('saving') : t('editSession.save')}
           </GaBtn>
         </>
       }
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Bắt đầu">
+        <Field label={t('field.start')}>
           <input type="datetime-local" className={inputCls} value={startAt} onChange={(e) => setStartAt(e.target.value)} />
         </Field>
-        <Field label="Thời lượng (phút)">
+        <Field label={t('field.duration')}>
           <input
             type="number"
             min={1}
@@ -160,36 +165,36 @@ export function EditSessionModal({
             onChange={(e) => setDuration(Number(e.target.value))}
           />
         </Field>
-        <Field label="Hình thức">
+        <Field label={t('field.mode')}>
           <select className={inputCls} value={mode} onChange={(e) => setMode(e.target.value as ClassMode)}>
             {MODE_OPTS.map((m) => (
               <option key={m} value={m}>
-                {MODE_LABEL[m]}
+                {t(MODE_LABEL_KEY[m])}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Phòng">
+        <Field label={t('field.room')}>
           <input
             className={inputCls}
             value={mode === 'ONLINE' ? '' : room}
             disabled={mode === 'ONLINE'}
-            placeholder={mode === 'ONLINE' ? 'Không cần (online)' : 'VD: P.302'}
+            placeholder={mode === 'ONLINE' ? t('field.roomOnline') : t('field.roomPlaceholder')}
             onChange={(e) => setRoom(e.target.value)}
           />
         </Field>
-        <Field label="Trạng thái">
+        <Field label={t('field.status')}>
           <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value as ClassSessionStatus)}>
             {STATUS_OPTS.map((s) => (
               <option key={s} value={s}>
-                {CLASS_STATUS[s].label}
+                {t(CLASS_STATUS[s].labelKey)}
               </option>
             ))}
           </select>
         </Field>
       </div>
       <p className="ga-ui mt-4 text-[12px] text-ga-subtle">
-        Sửa buổi sẽ đánh dấu buổi này là “đã chỉnh tay” — đổi lịch cố định của lớp sau đó sẽ không ghi đè buổi này.
+        {t('editSession.overrideNote')}
       </p>
     </TkModal>
   )
@@ -209,6 +214,8 @@ export function CreateSessionModal({
   onClose: () => void
   onSaved: (r: SessionSaveResult) => void
 }) {
+  const t = useTranslations('v2.teacher.schedule')
+  const tc = useTranslations('v2.common')
   const [classId, setClassId] = useState<number | null>(null)
   const [startAt, setStartAt] = useState('')
   const [duration, setDuration] = useState(90)
@@ -222,11 +229,11 @@ export function CreateSessionModal({
 
   const save = async () => {
     if (!classId) {
-      toast.error('Chọn lớp')
+      toast.error(t('classRequired'))
       return
     }
     if (!startAt) {
-      toast.error('Chọn thời gian bắt đầu')
+      toast.error(t('startRequired'))
       return
     }
     setSaving(true)
@@ -239,7 +246,7 @@ export function CreateSessionModal({
       })
       // PR-5 (AC18): buổi bù của lớp trung tâm có giáo trình đi qua duyệt — chưa có buổi nào được tạo.
       if (result.pendingRequestId != null) {
-        toast.success('Đã gửi đề xuất buổi bù — chờ trung tâm duyệt')
+        toast.success(t('createSession.pending'))
         onClose()
         return
       }
@@ -256,25 +263,25 @@ export function CreateSessionModal({
     <TkModal
       open={open}
       onOpenChange={(o) => !o && onClose()}
-      title="Thêm buổi lớp"
-      description="Buổi lẻ — không theo lịch cố định."
+      title={t('createSession.title')}
+      description={t('createSession.description')}
       footer={
         <>
           <GaBtn variant="ghost" onClick={onClose} disabled={saving}>
-            Huỷ
+            {tc('cancel')}
           </GaBtn>
           <GaBtn variant="primary" onClick={save} disabled={saving || classes.length === 0}>
-            {saving ? 'Đang lưu…' : 'Thêm buổi'}
+            {saving ? t('saving') : t('addSession')}
           </GaBtn>
         </>
       }
     >
       {classes.length === 0 ? (
-        <p className="ga-ui text-[13.5px] text-ga-muted">Bạn chưa có lớp nào để thêm buổi.</p>
+        <p className="ga-ui text-[13.5px] text-ga-muted">{t('createSession.noClasses')}</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="col-span-1 sm:col-span-2">
-            <Field label="Lớp">
+            <Field label={t('field.class')}>
               <select
                 className={inputCls}
                 value={classId ?? ''}
@@ -282,16 +289,16 @@ export function CreateSessionModal({
               >
                 {classes.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} · {c.studentCount} HV
+                    {t('field.classOption', { name: c.name, count: c.studentCount })}
                   </option>
                 ))}
               </select>
             </Field>
           </div>
-          <Field label="Bắt đầu">
+          <Field label={t('field.start')}>
             <input type="datetime-local" className={inputCls} value={startAt} onChange={(e) => setStartAt(e.target.value)} />
           </Field>
-          <Field label="Thời lượng (phút)">
+          <Field label={t('field.duration')}>
             <input
               type="number"
               min={1}
@@ -300,21 +307,21 @@ export function CreateSessionModal({
               onChange={(e) => setDuration(Number(e.target.value))}
             />
           </Field>
-          <Field label="Hình thức">
+          <Field label={t('field.mode')}>
             <select className={inputCls} value={mode} onChange={(e) => setMode(e.target.value as ClassMode)}>
               {MODE_OPTS.map((m) => (
                 <option key={m} value={m}>
-                  {MODE_LABEL[m]}
+                  {t(MODE_LABEL_KEY[m])}
                 </option>
               ))}
             </select>
           </Field>
-          <Field label="Phòng">
+          <Field label={t('field.room')}>
             <input
               className={inputCls}
               value={mode === 'ONLINE' ? '' : room}
               disabled={mode === 'ONLINE'}
-              placeholder={mode === 'ONLINE' ? 'Không cần (online)' : 'VD: P.302'}
+              placeholder={mode === 'ONLINE' ? t('field.roomOnline') : t('field.roomPlaceholder')}
               onChange={(e) => setRoom(e.target.value)}
             />
           </Field>
@@ -336,6 +343,9 @@ export function PatternModal({
   onClose: () => void
   onSaved: (r: UpsertPatternResult) => void
 }) {
+  const t = useTranslations('v2.teacher.schedule')
+  const tc = useTranslations('v2.common')
+  const dowLabel = (dow: number) => t(DOW_LABEL_KEY[dow - 1])
   const [classId, setClassId] = useState<number | null>(null)
   const [patterns, setPatterns] = useState<ClassSchedulePattern[]>([])
   const [loadingP, setLoadingP] = useState(false)
@@ -385,16 +395,16 @@ export function PatternModal({
 
   const save = async () => {
     if (!classId) {
-      toast.error('Chọn lớp')
+      toast.error(t('classRequired'))
       return
     }
     const selected = Array.from(days).sort((a, b) => a - b)
     if (selected.length === 0) {
-      toast.error('Chọn ít nhất một thứ')
+      toast.error(t('pattern.weekdayRequired'))
       return
     }
     if (!startTime || !effectiveFrom) {
-      toast.error('Nhập giờ bắt đầu và ngày áp dụng')
+      toast.error(t('pattern.startAndFromRequired'))
       return
     }
     setSaving(true)
@@ -430,25 +440,29 @@ export function PatternModal({
       }
 
       if (savedDays.length > 0) {
-        const label = savedDays.map((d) => DOW_LABEL[d - 1]).join(', ')
+        const label = savedDays.map(dowLabel).join(', ')
         // PR-5: lớp gated → mọi ngày đều thành đề xuất (cùng một lớp thì cùng một chế độ).
         if (lastResult?.pendingRequestId != null) {
-          toast.success(`Đã gửi đề xuất lịch cố định ${label} — chờ trung tâm duyệt, lịch hiện tại chưa đổi`)
+          toast.success(t('pattern.savePending', { days: label }))
         } else {
           toast.success(
-            `Đã lưu lịch ${label} · sinh ${generated} buổi` +
-              (kept > 0 ? ` · giữ ${kept} buổi đã chỉnh tay` : '') +
-              (skipped > 0 ? ` · bỏ qua ${skipped} buổi trùng lịch` : ''),
+            [
+              t('pattern.saved', { days: label, n: generated }),
+              kept > 0 ? t('pattern.savedKept', { n: kept }) : null,
+              skipped > 0 ? t('pattern.savedSkipped', { n: skipped }) : null,
+            ]
+              .filter(Boolean)
+              .join(' · '),
           )
         }
       }
       if (failed.length > 0) {
-        const label = failed.map((f) => DOW_LABEL[f.dow - 1]).join(', ')
+        const label = failed.map((f) => dowLabel(f.dow)).join(', ')
         // Only attach a specific reason when every failed day failed for the SAME reason;
         // otherwise a generic message avoids misattributing day A's cause to day B.
         const reasons = Array.from(new Set(failed.map((f) => f.msg)))
-        const detail = reasons.length === 1 ? reasons[0] : 'trùng lịch hoặc thông tin không hợp lệ'
-        toast.error(`Không lưu được ${label}: ${detail}`)
+        const detail = reasons.length === 1 ? reasons[0] : t('pattern.saveFailedGeneric')
+        toast.error(t('pattern.saveFailed', { days: label, detail }))
       }
       if (lastResult) onSaved(lastResult)
       await loadPatterns(classId)
@@ -467,9 +481,9 @@ export function PatternModal({
       const r = await deleteClassPattern(patternId)
       // PR-5 (AC18): lớp trung tâm có giáo trình — việc xoá vào hàng chờ duyệt, chưa gỡ gì.
       if (r.pendingRequestId != null) {
-        toast.success('Đã gửi đề xuất huỷ lịch cố định — chờ trung tâm duyệt')
+        toast.success(t('pattern.deletePending'))
       } else {
-        toast.success(`Đã xoá lịch cố định · gỡ ${r.removedSessions} buổi tương lai chưa chỉnh tay`)
+        toast.success(t('pattern.deleted', { n: r.removedSessions }))
       }
       if (classId) await loadPatterns(classId)
       setConfirmDeleteId(null)
@@ -484,42 +498,43 @@ export function PatternModal({
     <TkModal
       open={open}
       onOpenChange={(o) => !o && onClose()}
-      title="Lịch cố định của lớp"
-      description="Đặt lịch định kỳ theo các thứ trong tuần — buổi tương lai sẽ tự sinh; buổi đã chỉnh tay được giữ nguyên."
+      title={t('pattern.title')}
+      description={t('pattern.description')}
       size="lg"
       footer={
         <>
           <GaBtn variant="ghost" onClick={onClose} disabled={saving}>
-            Đóng
+            {tc('close')}
           </GaBtn>
           <GaBtn variant="primary" onClick={save} disabled={saving || classes.length === 0}>
-            {saving ? 'Đang lưu…' : 'Lưu lịch cố định'}
+            {saving ? t('saving') : t('pattern.save')}
           </GaBtn>
         </>
       }
     >
       {classes.length === 0 ? (
-        <p className="ga-ui text-[13.5px] text-ga-muted">Bạn chưa có lớp nào.</p>
+        <p className="ga-ui text-[13.5px] text-ga-muted">{t('pattern.noClasses')}</p>
       ) : (
         <div className="grid gap-5">
-          <Field label="Lớp">
+          <Field label={t('field.class')}>
             <select className={inputCls} value={classId ?? ''} onChange={(e) => onClassChange(Number(e.target.value))}>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name} · {c.studentCount} HV
+                  {t('field.classOption', { name: c.name, count: c.studentCount })}
                 </option>
               ))}
             </select>
           </Field>
 
-          <FieldGroup label="Các thứ trong tuần">
-            <div role="group" aria-label="Chọn các thứ trong tuần" className="flex flex-wrap gap-2">
-              {DOW_LABEL.map((d, i) => {
+          <FieldGroup label={t('field.weekdays')}>
+            <div role="group" aria-label={t('field.weekdaysAria')} className="flex flex-wrap gap-2">
+              {DOW_LABEL_KEY.map((key, i) => {
                 const dow = i + 1
                 const on = days.has(dow)
+                const d = t(key)
                 return (
                   <button
-                    key={d}
+                    key={key}
                     type="button"
                     aria-pressed={on}
                     onClick={() => toggleDay(dow)}
@@ -537,10 +552,10 @@ export function PatternModal({
           </FieldGroup>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Giờ bắt đầu">
+            <Field label={t('field.startTime')}>
               <input type="time" className={inputCls} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
             </Field>
-            <Field label="Thời lượng (phút)">
+            <Field label={t('field.duration')}>
               <input
                 type="number"
                 min={1}
@@ -549,43 +564,43 @@ export function PatternModal({
                 onChange={(e) => setDuration(Number(e.target.value))}
               />
             </Field>
-            <Field label="Hình thức">
+            <Field label={t('field.mode')}>
               <select className={inputCls} value={mode} onChange={(e) => setMode(e.target.value as ClassMode)}>
                 {MODE_OPTS.map((m) => (
                   <option key={m} value={m}>
-                    {MODE_LABEL[m]}
+                    {t(MODE_LABEL_KEY[m])}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Phòng">
+            <Field label={t('field.room')}>
               <input
                 className={inputCls}
                 value={mode === 'ONLINE' ? '' : room}
                 disabled={mode === 'ONLINE'}
-                placeholder={mode === 'ONLINE' ? 'Không cần (online)' : 'VD: P.302'}
+                placeholder={mode === 'ONLINE' ? t('field.roomOnline') : t('field.roomPlaceholder')}
                 onChange={(e) => setRoom(e.target.value)}
               />
             </Field>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Áp dụng từ">
+            <Field label={t('field.effectiveFrom')}>
               <input type="date" className={inputCls} value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
             </Field>
-            <Field label="Đến (để trống = vô thời hạn)">
+            <Field label={t('field.effectiveTo')}>
               <input type="date" className={inputCls} value={effectiveTo} onChange={(e) => setEffectiveTo(e.target.value)} />
             </Field>
           </div>
 
           <div>
             <div className="ga-ui mb-2 text-[12px] font-bold uppercase tracking-[0.05em] text-ga-muted">
-              Lịch cố định hiện có
+              {t('pattern.existingCap')}
             </div>
             {loadingP ? (
               <div className="ga-shimmer h-[60px] border border-ga-line" aria-hidden />
             ) : patterns.length === 0 ? (
-              <p className="ga-ui text-[13px] text-ga-subtle">Chưa có lịch cố định cho lớp này.</p>
+              <p className="ga-ui text-[13px] text-ga-subtle">{t('pattern.empty')}</p>
             ) : (
               <ul className="flex flex-col gap-2">
                 {patterns.map((p) => (
@@ -594,13 +609,13 @@ export function PatternModal({
                     className="flex items-center justify-between gap-2 border border-ga-line bg-ga-bg px-3.5 py-2.5 text-[13px] text-ga-ink"
                   >
                     <span className="min-w-0 break-words">
-                      <b>{DOW_LABEL[p.dayOfWeek - 1]}</b> · {p.startTime.slice(0, 5)} · {p.durationMinutes}′ ·{' '}
-                      {MODE_LABEL[p.defaultMode]}
+                      <b>{dowLabel(p.dayOfWeek)}</b> · {p.startTime.slice(0, 5)} · {p.durationMinutes}′ ·{' '}
+                      {t(MODE_LABEL_KEY[p.defaultMode])}
                       {p.defaultRoom ? ` · ${p.defaultRoom}` : ''}
                     </span>
                     <button
                       type="button"
-                      aria-label="Xoá lịch cố định"
+                      aria-label={t('pattern.delete')}
                       onClick={() => setConfirmDeleteId(p.id)}
                       disabled={deletingId !== null}
                       className="grid h-10 w-10 shrink-0 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red disabled:pointer-events-none disabled:opacity-50 lg:h-7 lg:w-7"
@@ -617,17 +632,14 @@ export function PatternModal({
       <ConfirmDialog
         open={confirmDeleteId != null}
         onOpenChange={(o) => { if (!o) setConfirmDeleteId(null) }}
-        title="Xoá lịch cố định?"
+        title={t('pattern.deleteTitle')}
         description={(() => {
           const p = patterns.find((x) => x.id === confirmDeleteId)
-          return p ? `${DOW_LABEL[p.dayOfWeek - 1]} · ${p.startTime.slice(0, 5)} · ${p.durationMinutes}′` : undefined
+          return p ? `${dowLabel(p.dayOfWeek)} · ${p.startTime.slice(0, 5)} · ${p.durationMinutes}′` : undefined
         })()}
-        details={[
-          'Mọi buổi tương lai sinh từ lịch này (chưa chỉnh tay) sẽ bị gỡ; buổi đã chỉnh tay được giữ nguyên.',
-          'Lớp trung tâm có giáo trình: việc xoá trở thành đề xuất chờ trung tâm duyệt, chưa gỡ gì ngay.',
-        ]}
-        confirmLabel="Xoá lịch"
-        cancelLabel="Huỷ"
+        details={[t('pattern.deleteDetailSessions'), t('pattern.deleteDetailGated')]}
+        confirmLabel={t('pattern.deleteConfirm')}
+        cancelLabel={tc('cancel')}
         loading={deletingId != null}
         onConfirm={() => { if (confirmDeleteId != null) void remove(confirmDeleteId) }}
       />

@@ -176,8 +176,8 @@ export default function V2ClassDetailPage() {
       const cls = ((clsList.data ?? []) as Record<string, unknown>[]).find((c) => Number(c.id) === id)
       setInfo(
         cls
-          ? { id, name: String(cls.name ?? `Lớp #${id}`), code: String(cls.inviteCode ?? cls.code ?? ''), studentCount: Number(cls.studentCount) || 0 }
-          : { id, name: `Lớp #${id}`, code: '', studentCount: 0 },
+          ? { id, name: String(cls.name ?? t('classFallback', { id })), code: String(cls.inviteCode ?? cls.code ?? ''), studentCount: Number(cls.studentCount) || 0 }
+          : { id, name: t('classFallback', { id }), code: '', studentCount: 0 },
       )
       setStudents((st.data ?? []) as Student[])
       setAssignments((asg.data ?? []) as Assignment[])
