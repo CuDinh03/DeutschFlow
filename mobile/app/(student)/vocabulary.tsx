@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { Search, BookMarked, Plus, Check, Film, ChevronRight, Repeat, Layers, BarChart3 } from 'lucide-react-native'
+import { Search, Plus, Check, ChevronRight } from 'lucide-react-native'
 import api from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { learningApi } from '@/lib/learningApi'
@@ -24,7 +24,7 @@ import {
   SelectableChip,
   Button,
   VocabGlyphTile,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useBackToMainTab } from '@/hooks/useBackTo'
 
@@ -142,7 +142,7 @@ export default function VocabularyScreen() {
                 </ThemedText>
               </View>
             </View>
-            <Icon icon={Repeat} size={28} color="secondary" />
+            <GaGlyph name="srs" size={28} ink="secondary" />
           </View>
           <Button
             variant="yellow"
@@ -159,7 +159,7 @@ export default function VocabularyScreen() {
           accessibilityLabel="Học thẻ"
           style={{ flex: 1, gap: space[2] }}
         >
-          <Icon icon={Layers} size={20} color="accent" />
+          <GaGlyph name="tuvung" size={20} ink="primary" />
           <ThemedText variant="bodyStrong">Học thẻ (vuốt)</ThemedText>
           <ThemedText variant="caption" color="muted">
             Vuốt biết / chưa biết
@@ -170,7 +170,7 @@ export default function VocabularyScreen() {
           accessibilityLabel="Thống kê SRS"
           style={{ flex: 1, gap: space[2] }}
         >
-          <Icon icon={BarChart3} size={20} color="accent" />
+          <GaGlyph name="thongke" size={20} ink="primary" />
           <ThemedText variant="bodyStrong">Thống kê SRS</ThemedText>
           <ThemedText variant="caption" color="muted">
             Tiến độ ghi nhớ
@@ -237,7 +237,7 @@ export default function VocabularyScreen() {
               justifyContent: 'center',
             }}
           >
-            <Icon icon={Film} size={20} color="accent" />
+            <GaGlyph name="video" size={20} ink="primary" />
           </View>
           <View style={{ flex: 1, gap: 3 }}>
             <Caption color={c.accentText}>Video ôn tập</Caption>
@@ -303,7 +303,7 @@ export default function VocabularyScreen() {
           ) : isError ? (
             <ErrorState onRetry={() => void refetch()} />
           ) : (
-            <EmptyState icon={BookMarked} title="Không tìm thấy từ vựng" message="Thử từ khoá hoặc bộ lọc khác." />
+            <EmptyState glyph="srs" title="Không tìm thấy từ vựng" message="Thử từ khoá hoặc bộ lọc khác." />
           )
         }
         renderItem={({ item }) => (

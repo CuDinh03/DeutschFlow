@@ -1,9 +1,9 @@
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { ChevronRight, Mic, Wrench } from 'lucide-react-native'
+import { ChevronRight } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Caption, Card, Icon, Pill, ThemedText, YellowSquare } from '@/components/ui'
+import { Caption, Card, Icon, Pill, ThemedText, YellowSquare, GaGlyph } from '@/components/ui'
 import { dueRepairChipLabels, errorSkillsApi, todayApi, todayHrefToRoute } from '@/lib/todayApi'
 
 /**
@@ -60,7 +60,7 @@ export function TodayTasks() {
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
             <View style={{ width: 40, height: 40, borderRadius: radius.md, backgroundColor: c.dangerSoft, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon icon={Wrench} size={20} color="danger" />
+              <GaGlyph name="sualoi" size={20} ink="danger" gold="danger" />
             </View>
             <View style={{ flex: 1, gap: 2 }}>
               <ThemedText variant="bodyStrong">Sửa lỗi đến hạn</ThemedText>
@@ -90,7 +90,7 @@ export function TodayTasks() {
           style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}
         >
           <View style={{ width: 40, height: 40, borderRadius: radius.md, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon icon={Mic} size={20} color="accent" />
+            <GaGlyph name="noi" size={20} ink="primary" />
           </View>
           <View style={{ flex: 1, gap: 2 }}>
             <ThemedText variant="bodyStrong">

@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { Alert, Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
-import { ChevronRight, Crosshair } from 'lucide-react-native'
+import { ChevronRight } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, Screen, Skeleton, TextField, ThemedText, YellowSquare,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { examSpeakingApi, type CriterionResult } from '@/lib/examSpeakingApi'
 import { criterionRatio, ratioTone, rubricCaption, verdict, verdictLabel, verdictTone } from '@/lib/examSpeakingUi'
 import { examParentHref } from '@/lib/examSpeakingNav'
@@ -206,7 +206,7 @@ export default function SpeakingExamResultScreen() {
                 accessibilityLabel="Ôn các điểm yếu này"
                 style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}
               >
-                <Icon icon={Crosshair} size={18} color="accent" />
+                <GaGlyph name="thinoi" size={18} ink="primary" />
                 <ThemedText variant="bodyStrong" style={{ flex: 1 }}>Ôn yếu điểm + Redemittel</ThemedText>
                 <Icon icon={ChevronRight} size={16} color="muted" />
               </Card>

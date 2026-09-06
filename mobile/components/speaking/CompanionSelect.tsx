@@ -6,16 +6,13 @@
 // quyết định 02/09 — mở lại khi luồng lesson được làm mới.
 
 import { useMemo, useRef, useState } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { Pressable, ScrollView, View } from 'react-native'
 import { MotiView } from 'moti'
 import { useQuery } from '@tanstack/react-query'
-import {
-  MessageCircle, GraduationCap, Briefcase, Lock, Check, Award,
-  Laptop, ShoppingBag, Stethoscope, Wrench, UtensilsCrossed, Mic, Languages,
-  type LucideIcon,
-} from 'lucide-react-native'
+import { Check } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { ThemedText, Icon, Button, useTabBarClearance } from '@/components/ui'
+import { ThemedText, Icon, Button, useTabBarClearance, GaGlyph } from '@/components/ui'
 import { SpotlightTarget } from '@/components/guide/SpotlightTour'
 import { SPOTLIGHT_TARGETS } from '@/components/guide/spotlightTours'
 import { SpotlightScrollHostProvider } from '@/components/guide/spotlightScrollHost'
@@ -52,21 +49,21 @@ interface CompanionSelectProps {
 }
 
 /** 'EXAM' là ô điều hướng (không phải sessionMode); `locked` = ô hiển thị nhưng chưa mở. */
-const MODES: { key: SpeakingSessionMode | 'EXAM'; label: string; icon: LucideIcon; locked?: boolean }[] = [
-  { key: 'COMMUNICATION', label: 'Hội thoại', icon: MessageCircle },
-  { key: 'INTERVIEW', label: 'Phỏng vấn', icon: Briefcase },
-  { key: 'EXAM', label: 'Thi nói', icon: Award },
-  { key: 'LESSON', label: 'Luyện tập', icon: GraduationCap, locked: true },
+const MODES: { key: SpeakingSessionMode | 'EXAM'; label: string; glyph: GlyphName; locked?: boolean }[] = [
+  { key: 'COMMUNICATION', label: 'Hội thoại', glyph: 'hoithoai' },
+  { key: 'INTERVIEW', label: 'Phỏng vấn', glyph: 'phongvan' },
+  { key: 'EXAM', label: 'Thi nói', glyph: 'thinoi' },
+  { key: 'LESSON', label: 'Luyện tập', glyph: 'hoc', locked: true },
 ]
 
-const GROUP_ICONS: Record<PersonaGroup, LucideIcon> = {
-  it: Laptop,
-  verkauf: ShoppingBag,
-  medizin: Stethoscope,
-  maschinenbau: Wrench,
-  service: UtensilsCrossed,
-  medien: Mic,
-  special: Languages,
+const GROUP_ICONS: Record<PersonaGroup, GlyphName> = {
+  it: 'laptop',
+  verkauf: 't_shopping',
+  medizin: 't_health',
+  maschinenbau: 'banhrang',
+  service: 't_food',
+  medien: 'speaking',
+  special: 'ngonngu',
 }
 
 const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1']
@@ -216,7 +213,7 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
                 opacity: locked ? 0.45 : 1,
               }}
             >
-              <Icon icon={locked ? Lock : m.icon} size={20} color={active ? 'onAccent' : 'secondary'} />
+              <GaGlyph name={locked ? 'khoa' : m.glyph} size={20} ink={active ? 'onAccent' : 'secondary'} gold={active ? 'ink' : 'accent'} />
               <ThemedText
                 variant="label"
                 numberOfLines={1}
@@ -257,7 +254,7 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
                 borderColor: active ? theme.colors.accent : theme.colors.border,
               }}
             >
-              <Icon icon={GROUP_ICONS[g.id]} size={15} color={active ? 'accent' : 'secondary'} />
+              <GaGlyph name={GROUP_ICONS[g.id]} size={15} ink={active ? 'accentText' : 'secondary'} />
               <ThemedText
                 variant="label"
                 style={{ color: active ? theme.colors.accentText : theme.colors.textSecondary }}
@@ -446,7 +443,7 @@ function PersonaCard({
         {/* Badge */}
         {locked ? (
           <View style={{ position: 'absolute', top: space[2], right: space[2], backgroundColor: theme.colors.surfaceSunken, borderRadius: radius.full, padding: 5 }}>
-            <Icon icon={Lock} size={14} color="faint" />
+            <GaGlyph name="khoa" size={14} ink="faint" />
           </View>
         ) : selected ? (
           <View

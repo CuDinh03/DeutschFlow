@@ -17,7 +17,6 @@
 import { BlurView } from 'expo-blur'
 import * as Haptics from 'expo-haptics'
 import { useEffect, useState } from 'react'
-import { Home, BookOpen, Mic, User, type LucideIcon } from 'lucide-react-native'
 import { type LayoutChangeEvent, Pressable, StyleSheet, View, type ViewStyle } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, {
@@ -33,12 +32,15 @@ import { captureEvent } from '@/lib/analytics'
 import { tabIndexForX } from '@/lib/tabGesture'
 import { useSpotlightTarget } from '@/components/guide/SpotlightTour'
 import { ThemedText } from './ThemedText'
+import { GaGlyph } from './GaGlyph'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 
-const ICONS: Record<string, LucideIcon> = {
-  index: Home,
-  learn: BookOpen,
-  speaking: Mic,
-  profile: User,
+// Biểu tượng nhận diện của 4 tab = bộ Galerie (mobile/GALERIE_GLYPHS.md).
+const ICONS: Record<string, GlyphName> = {
+  index: 'heute',
+  learn: 'hoc',
+  speaking: 'speaking',
+  profile: 'hoso',
 }
 
 // Fallback khi route chưa khai `title` trong Tabs.Screen — nguồn nhãn chính là
@@ -319,7 +321,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 }
 
 interface TabItemProps {
-  icon: LucideIcon
+  icon: GlyphName
   label: string
   focused: boolean
   onPress: () => void
@@ -328,7 +330,7 @@ interface TabItemProps {
   spotlightId?: string
 }
 
-function TabItem({ icon: LucideComponent, label, focused, onPress, onLayout, spotlightId }: TabItemProps) {
+function TabItem({ icon, label, focused, onPress, onLayout, spotlightId }: TabItemProps) {
   const theme = useTheme()
   const spotlightRef = useSpotlightTarget(spotlightId)
   const iconScale = useSharedValue(focused ? 1 : 0.9)
@@ -369,7 +371,7 @@ function TabItem({ icon: LucideComponent, label, focused, onPress, onLayout, spo
           (trước 05/09 khung tràn ra ngoài mép pill 8pt mỗi phía). */}
       <View ref={spotlightRef} collapsable={false} style={{ alignItems: 'center', gap: 3 }}>
         <Animated.View style={iconStyle}>
-          <LucideComponent size={23} color={tint} strokeWidth={focused ? 2.3 : 1.9} />
+          <GaGlyph name={icon} size={23} ink={focused ? 'accentText' : 'muted'} strokeWidth={focused ? 2.1 : 1.75} />
         </Animated.View>
         <ThemedText variant="caption" style={{ color: tint, fontSize: 11 }}>
           {label}

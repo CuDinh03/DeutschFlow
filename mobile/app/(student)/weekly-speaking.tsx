@@ -5,7 +5,7 @@ import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
 import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio'
 import * as Haptics from 'expo-haptics'
-import { Flame, Lock, Mic, Square, RotateCcw, ChevronRight } from 'lucide-react-native'
+import { Square, RotateCcw, ChevronRight } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
@@ -13,7 +13,7 @@ import { speakingApi } from '@/lib/speakingApi'
 import { weeklyApi, rubricScore } from '@/lib/weeklyApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton, GaGlyph } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useBackToMainTab } from '@/hooks/useBackTo'
 
@@ -81,7 +81,7 @@ export default function WeeklySpeakingScreen() {
         <AppHeader title="Weekly Speaking" onBack={goBack} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={Lock}
+            glyph="khoa"
             title="Tính năng PRO"
             message="Nộp bài nói hàng tuần và nhận phản hồi AI chi tiết."
             actionLabel={PAYWALL_ENABLED ? 'Xem PRO' : undefined}
@@ -121,7 +121,7 @@ export default function WeeklySpeakingScreen() {
         ) : prompt ? (
           <Card style={{ borderColor: c.info + '66' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[3] }}>
-              <Icon icon={Flame} size={16} color="info" />
+              <GaGlyph name="chuoi" size={16} ink="info" gold="info" />
               <ThemedText variant="label" color="info">
                 Thử thách tuần này
               </ThemedText>
@@ -335,7 +335,7 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
         gap: space[2],
       }}
     >
-      <Icon icon={isRec ? Square : Mic} size={20} color="onAccent" fill={isRec} />
+      {isRec ? <Icon icon={Square} size={20} color="onAccent" fill /> : <GaGlyph name="speaking" size={20} ink="onAccent" gold="ink" />}
       <ThemedText variant="bodyStrong" color="onAccent">
         {isRec ? 'Dừng & nộp bài' : 'Ghi âm trả lời'}
       </ThemedText>

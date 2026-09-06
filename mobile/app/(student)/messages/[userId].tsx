@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { MessageCircle, MoreVertical, Send } from 'lucide-react-native'
+import { MoreVertical, Send } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { messagesApi, type Message } from '@/lib/messagesApi'
 import { adaptivePollMs, maxMessageId, mergeThreadById } from '@/lib/chatDelta'
@@ -156,7 +156,7 @@ export default function MessageThreadScreen() {
         ) : bubbles.length === 0 ? (
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <EmptyState
-              icon={MessageCircle}
+              glyph="hoithoai"
               title="Chưa có tin nhắn"
               message={`Gửi tin nhắn đầu tiên cho ${name}.`}
             />

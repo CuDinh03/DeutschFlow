@@ -3,13 +3,13 @@ import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { useLocalSearchParams } from 'expo-router'
-import { CalendarClock, Clock, MapPin, Video } from 'lucide-react-native'
+import { MapPin, Video } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { fetchClassSessions, type ClassSession } from '@/lib/studentClassesApi'
 import { space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Pill, Screen, Skeleton, ThemedText,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { useBackTo } from '@/hooks/useBackTo'
 
 export default function ClassScheduleScreen() {
@@ -53,7 +53,7 @@ export default function ClassScheduleScreen() {
       ) : (q.data?.length ?? 0) === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={CalendarClock}
+            glyph="lich"
             title="Chưa có lịch học"
             message="Lớp chưa có buổi học nào được xếp lịch."
           />
@@ -107,7 +107,7 @@ function SessionRow({ session, past }: { session: ClassSession; past?: boolean }
         </View>
         <View style={{ flex: 1, gap: 4 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <Icon icon={Clock} size={13} color="muted" />
+            <GaGlyph name="thoigian" size={13} ink="muted" />
             <ThemedText
               variant="bodyStrong"
               style={cancelled ? { textDecorationLine: 'line-through' } : undefined}

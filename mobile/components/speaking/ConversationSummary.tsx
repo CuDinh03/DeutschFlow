@@ -3,9 +3,9 @@
 // improvements, grammar/vocabulary/fluency notes, next steps, and encouragement.
 
 import { View, ScrollView } from 'react-native'
-import { CheckCircle2, AlertTriangle, Target, TrendingUp, Sparkles, BookOpen } from 'lucide-react-native'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { space, useTheme } from '@/lib/theme'
-import { Card, ThemedText, Icon, Pill, Button } from '@/components/ui'
+import { Card, ThemedText, Icon, Pill, Button, GaGlyph } from '@/components/ui'
 import type { ConversationReport } from '@/lib/speakingApi'
 
 interface ConversationSummaryProps {
@@ -16,14 +16,14 @@ interface ConversationSummaryProps {
 
 type Tone = 'success' | 'danger' | 'accent' | 'info'
 
-function BulletList({ items, tone, icon }: { items: string[]; tone: Tone; icon: typeof CheckCircle2 }) {
+function BulletList({ items, tone, glyph }: { items: string[]; tone: Tone; glyph: GlyphName }) {
   if (items.length === 0) return null
   return (
     <View style={{ gap: space[2] }}>
       {items.map((item, i) => (
         <View key={`${i}-${item.slice(0, 12)}`} style={{ flexDirection: 'row', gap: space[2], alignItems: 'flex-start' }}>
           <View style={{ paddingTop: 2 }}>
-            <Icon icon={icon} size={16} color={tone} />
+            <GaGlyph name={glyph} size={16} ink={tone} gold={tone} />
           </View>
           <ThemedText variant="body" color="secondary" style={{ flex: 1 }}>
             {item}
@@ -73,7 +73,7 @@ export function ConversationSummary({ report, onPracticeAgain, onDone }: Convers
           ) : null}
           {!hasAnyContent ? (
             <ThemedText variant="body" color="muted" align="center">
-              Buổi luyện nói đã hoàn thành! 🎉{'\n'}Lần này chưa có đánh giá chi tiết, nhưng mỗi câu bạn nói đều là một bước tiến. Tiếp tục luyện nhé!
+              Buổi luyện nói đã hoàn thành!{'\n'}Lần này chưa có đánh giá chi tiết, nhưng mỗi câu bạn nói đều là một bước tiến. Tiếp tục luyện nhé!
             </ThemedText>
           ) : null}
         </View>
@@ -83,7 +83,7 @@ export function ConversationSummary({ report, onPracticeAgain, onDone }: Convers
         <Card>
           <View style={{ gap: space[3] }}>
             <ThemedText variant="bodyStrong">Điểm mạnh</ThemedText>
-            <BulletList items={report.strengths} tone="success" icon={CheckCircle2} />
+            <BulletList items={report.strengths} tone="success" glyph="hoanthanh" />
           </View>
         </Card>
       ) : null}
@@ -92,7 +92,7 @@ export function ConversationSummary({ report, onPracticeAgain, onDone }: Convers
         <Card>
           <View style={{ gap: space[3] }}>
             <ThemedText variant="bodyStrong">Cần cải thiện</ThemedText>
-            <BulletList items={report.improvements} tone="danger" icon={AlertTriangle} />
+            <BulletList items={report.improvements} tone="danger" glyph="canhbao" />
           </View>
         </Card>
       ) : null}
@@ -104,7 +104,7 @@ export function ConversationSummary({ report, onPracticeAgain, onDone }: Convers
               <ThemedText variant="bodyStrong">Ngữ pháp</ThemedText>
               {report.grammarAccuracy ? <Pill label={report.grammarAccuracy} tone="accent" /> : null}
             </View>
-            <BulletList items={report.commonErrors} tone="danger" icon={AlertTriangle} />
+            <BulletList items={report.commonErrors} tone="danger" glyph="canhbao" />
           </View>
         </Card>
       ) : null}
@@ -115,7 +115,7 @@ export function ConversationSummary({ report, onPracticeAgain, onDone }: Convers
             {report.vocabulary ? (
               <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'flex-start' }}>
                 <View style={{ paddingTop: 2 }}>
-                  <Icon icon={BookOpen} size={16} color="info" />
+                  <GaGlyph name="hoc" size={16} ink="info" gold="info" />
                 </View>
                 <ThemedText variant="body" color="secondary" style={{ flex: 1 }}>
                   {report.vocabulary}
@@ -125,7 +125,7 @@ export function ConversationSummary({ report, onPracticeAgain, onDone }: Convers
             {report.fluency ? (
               <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'flex-start' }}>
                 <View style={{ paddingTop: 2 }}>
-                  <Icon icon={Sparkles} size={16} color="accent" />
+                  <GaGlyph name="dulieuai" size={16} ink="primary" />
                 </View>
                 <ThemedText variant="body" color="secondary" style={{ flex: 1 }}>
                   {report.fluency}
@@ -140,7 +140,7 @@ export function ConversationSummary({ report, onPracticeAgain, onDone }: Convers
         <Card>
           <View style={{ gap: space[3] }}>
             <ThemedText variant="bodyStrong">Luyện tiếp theo</ThemedText>
-            <BulletList items={report.recommendedNext} tone="accent" icon={Target} />
+            <BulletList items={report.recommendedNext} tone="accent" glyph="muctieu" />
           </View>
         </Card>
       ) : null}
@@ -149,7 +149,7 @@ export function ConversationSummary({ report, onPracticeAgain, onDone }: Convers
         <Card tone="elevated">
           <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'flex-start' }}>
             <View style={{ paddingTop: 2 }}>
-              <Icon icon={Sparkles} size={18} color="accent" />
+              <GaGlyph name="dulieuai" size={18} ink="primary" />
             </View>
             <ThemedText variant="body" color="primary" style={{ flex: 1 }}>
               {report.encouragement}
@@ -159,7 +159,7 @@ export function ConversationSummary({ report, onPracticeAgain, onDone }: Convers
       ) : null}
 
       <View style={{ gap: space[3], marginTop: space[2] }}>
-        <Button label="Luyện lại" onPress={onPracticeAgain} icon={TrendingUp} />
+        <Button label="Luyện lại" onPress={onPracticeAgain} glyph="thongke" />
         <Button label="Xong" variant="secondary" onPress={onDone} />
       </View>
     </ScrollView>

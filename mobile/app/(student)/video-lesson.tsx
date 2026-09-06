@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { View, ActivityIndicator, Alert, Share } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { useLocalSearchParams } from 'expo-router'
-import { Film, Download } from 'lucide-react-native'
+import { Download } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, AppHeader, ThemedText, Icon, EmptyState, ErrorState, SelectableChip } from '@/components/ui'
 import { apiMessage } from '@/lib/api'
@@ -247,7 +247,7 @@ export default function VideoLessonScreen() {
         <ErrorState onRetry={() => void refetch()} />
       ) : !data || data.scenes.length === 0 ? (
         <EmptyState
-          icon={Film}
+          glyph="video"
           title="Chưa có video"
           message={
             isGrammar

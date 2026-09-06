@@ -21,7 +21,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import * as FileSystem from 'expo-file-system/legacy'
-import { Check, X, Trophy, Volume2, Mic, Square } from 'lucide-react-native'
+import { Check, X, Volume2, Square } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -39,7 +39,7 @@ import {
   Skeleton,
   Caption,
   SelectableRow,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { skillTreeApi, type SkillExerciseItem } from '@/lib/skillTreeApi'
 import {
   activeSkills,
@@ -54,7 +54,7 @@ import {
   isSpeaking,
   hiddenPromptOf,
   SKILL_LABEL,
-  SKILL_EMOJI,
+  SKILL_GLYPH,
   type SkillKey,
   type SkillAnswer,
 } from '@/lib/skillExercises'
@@ -169,7 +169,7 @@ function SkillPracticeRunner() {
         <ErrorState onRetry={() => void refetch()} />
       ) : skills.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
-          <EmptyState icon={Trophy} title="Chưa có bài tập" message="Bài học này chưa có bài luyện 4 kỹ năng." />
+          <EmptyState glyph="thithu" title="Chưa có bài tập" message="Bài học này chưa có bài luyện 4 kỹ năng." />
         </View>
       ) : (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -239,7 +239,7 @@ function ResultHero({ result, hasNext }: { result: NonNullable<Result>; hasNext:
               justifyContent: 'center',
             }}
           >
-            <Icon icon={Trophy} size={18} color="accent" fill />
+            <GaGlyph name="thithu" size={18} ink="primary" />
           </View>
           <ThemedText variant="title" style={{ flex: 1, color: c.onInk }}>
             {`Tuyệt vời! +${result.xp} XP`}
@@ -287,7 +287,7 @@ function SkillSection({
   return (
     <View style={{ gap: space[3], marginTop: space[2] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <ThemedText variant="title">{SKILL_EMOJI[skill]}</ThemedText>
+        <GaGlyph name={SKILL_GLYPH[skill]} size={22} />
         <ThemedText variant="title" style={{ flex: 1 }}>
           {SKILL_LABEL[skill]}
         </ThemedText>
@@ -372,7 +372,7 @@ function SkillItemCard({
 
       {submitted && item.explanation_vi ? (
         <ThemedText variant="caption" color="muted">
-          💡 {item.explanation_vi}
+          Giải thích: {item.explanation_vi}
         </ThemedText>
       ) : null}
     </Card>
@@ -534,7 +534,7 @@ function TextAnswerInput({
       {item.sentence_with_blank ? <ThemedText variant="body">{item.sentence_with_blank}</ThemedText> : null}
       {item.hint_vi ? (
         <ThemedText variant="caption" color="faint">
-          💡 {item.hint_vi}
+          Gợi ý: {item.hint_vi}
         </ThemedText>
       ) : null}
       <TextInput
@@ -867,11 +867,13 @@ function SpeakingInput({
         {preparing ? (
           <ActivityIndicator size="small" color={c.accent} />
         ) : (
-          <Icon
-            icon={recording ? Square : done ? Check : Mic}
-            size={16}
-            color={recording ? 'danger' : done ? 'success' : 'accent'}
-          />
+          recording ? (
+            <Icon icon={Square} size={16} color="danger" />
+          ) : done ? (
+            <Icon icon={Check} size={16} color="success" />
+          ) : (
+            <GaGlyph name="speaking" size={16} ink="accentText" />
+          )
         )}
         <ThemedText variant="label" color={recording ? 'danger' : done ? 'success' : 'accent'}>
           {recording ? 'Đang ghi… Chạm để dừng' : done ? 'Đã ghi âm — ghi lại' : 'Nhấn để nói theo'}

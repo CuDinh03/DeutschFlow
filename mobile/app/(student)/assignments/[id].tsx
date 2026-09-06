@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import {
   Alert, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, View,
 } from 'react-native'
@@ -13,10 +14,7 @@ import {
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
 } from 'expo-audio'
-import {
-  AlertCircle, Camera, CheckCircle2, Clock, ExternalLink, FileText, Image as ImageIcon,
-  Link2, MessageSquare, Mic, Music, Paperclip, Square, Upload, Video as VideoIcon, X, RotateCcw,
-} from 'lucide-react-native'
+import { Camera, ExternalLink, FileText, Image as ImageIcon, Link2, Mic, Music, Paperclip, Square, Upload, Video as VideoIcon, X, RotateCcw } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { ensureAiConsent } from '@/lib/aiConsent'
@@ -27,7 +25,7 @@ import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, ProgressRing, Screen, Skeleton, TextField, ThemedText, YellowSquare,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { useBackTo } from '@/hooks/useBackTo'
 
 const TYPE_LABELS: Record<string, string> = {
@@ -198,7 +196,7 @@ function StatusRow({ assignment: a }: { assignment: StudentAssignment }) {
         <StatusPill status={a.status} score={a.teacherScore} />
         {a.dueDate && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
-            <Icon icon={Clock} size={12} color="muted" />
+            <GaGlyph name="thoigian" size={12} ink="muted" />
             <ThemedText variant="caption" color="secondary">
               Hạn {new Date(a.dueDate).toLocaleDateString('vi-VN')}
             </ThemedText>
@@ -212,14 +210,14 @@ function StatusRow({ assignment: a }: { assignment: StudentAssignment }) {
 
 function StatusPill({ status, score }: { status: string; score: number | null }) {
   if (isGraded(status)) {
-    return <Pill tone="success" icon={CheckCircle2} label={`Đã chấm${score != null ? ` · ${score}/100` : ''}`} />
+    return <Pill tone="success" glyph="hoanthanh" label={`Đã chấm${score != null ? ` · ${score}/100` : ''}`} />
   }
   // AI_GRADED / GRADING_FAILED hiển thị y như SUBMITTED: backend cố ý không công
   // bố khâu chấm AI cho học viên; trước đây hai trạng thái này hiện "Chưa nộp" đỏ.
   if (isAwaitingTeacher(status)) {
     return <Pill tone="info" icon={Upload} label="Đã nộp" />
   }
-  return <Pill tone="danger" icon={AlertCircle} label="Chưa nộp" />
+  return <Pill tone="danger" glyph="canhbao" label="Chưa nộp" />
 }
 
 // Editorial ink hero for the graded result — the screen's primary metric.
@@ -407,7 +405,7 @@ function SubmitForm({
           <AttachmentPicker file={file} setFile={setFile} disabled={loading} />
           <Button
             label={loading ? 'Đang nộp…' : 'Xác nhận nộp bài'}
-            icon={CheckCircle2}
+            glyph="hoanthanh"
             loading={loading}
             disabled={!canSubmit}
             onPress={onSubmit}
@@ -531,7 +529,7 @@ function AttachmentPicker({
           backgroundColor: c.dangerSoft, borderRadius: radius.md, padding: space[3],
         }}
       >
-        <Icon icon={Mic} size={16} color="danger" />
+        <GaGlyph name="speaking" size={16} ink="danger" gold="danger" />
         <ThemedText variant="bodyStrong" style={{ flex: 1, color: c.danger }}>
           Đang ghi… {formatSeconds(seconds)}
         </ThemedText>
@@ -573,18 +571,18 @@ function AttachmentPicker({
         <PickButton icon={Camera} label="Chụp ảnh" disabled={disabled} onPress={() => void pickImage(true)} />
         <PickButton icon={ImageIcon} label="Ảnh" disabled={disabled} onPress={() => void pickImage(false)} />
         <PickButton icon={Paperclip} label="File" disabled={disabled} onPress={() => void pickDocument()} />
-        <PickButton icon={Mic} label="Ghi âm" disabled={disabled} onPress={() => void startRecording()} />
+        <PickButton glyph="speaking" label="Ghi âm" disabled={disabled} onPress={() => void startRecording()} />
       </View>
     </View>
   )
 }
 
 function PickButton({
-  icon, label, disabled, onPress,
+  icon, glyph, label, disabled, onPress,
 }: {
-  icon: typeof Camera; label: string; disabled: boolean; onPress: () => void
+  icon?: typeof Camera; glyph?: GlyphName; label: string; disabled: boolean; onPress: () => void
 }) {
-  return <Button label={label} icon={icon} variant="secondary" size="sm" fullWidth={false} disabled={disabled} onPress={onPress} />
+  return <Button label={label} icon={icon} glyph={glyph} variant="secondary" size="sm" fullWidth={false} disabled={disabled} onPress={onPress} />
 }
 
 function formatSeconds(s: number): string {
@@ -652,7 +650,7 @@ function SpeakingStart({ assignment: a }: { assignment: StudentAssignment }) {
             justifyContent: 'center',
           }}
         >
-          <Icon icon={MessageSquare} size={26} color="accent" />
+          <GaGlyph name="hoithoai" size={26} ink="primary" />
         </View>
         <ThemedText variant="title" align="center">Bài tập Luyện Nói AI</ThemedText>
         <ThemedText variant="caption" color="secondary" align="center">
@@ -676,7 +674,7 @@ function SubmissionView({ assignment: a, onResubmit }: { assignment: StudentAssi
     <View style={{ gap: space[5] }}>
       <View style={{ gap: space[3] }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <Icon icon={CheckCircle2} size={14} color="success" />
+          <GaGlyph name="hoanthanh" size={14} ink="success" gold="success" />
           <Caption>Bài đã nộp</Caption>
         </View>
         <Card>

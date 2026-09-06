@@ -1,11 +1,10 @@
 import { useState } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, RefreshControl, View } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router } from 'expo-router'
-import {
-  BookOpen, ChevronRight, Clock, Plus, Presentation, Sparkles,
-} from 'lucide-react-native'
+import { ChevronRight, Plus } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import {
   fetchMyClasses, joinClassByInviteCode, type MyClassroom,
@@ -14,7 +13,7 @@ import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Button, Caption, Card, EmptyState, ErrorState, FadeIn, Icon,
   ProgressBar, Screen, Skeleton, TextField, ThemedText, YellowSquare,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { useBackTo } from '@/hooks/useBackTo'
 import { PARENT_OF } from '@/lib/screenParents'
 
@@ -78,7 +77,7 @@ export default function StudentClassesIndex() {
       ) : !classes || classes.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={Presentation}
+            glyph="lophoc"
             title="Chưa có lớp nào"
             message="Nhập mã mời từ giáo viên để gửi yêu cầu tham gia lớp. Giáo viên sẽ duyệt trước khi bạn vào lớp."
             actionLabel="Tham gia lớp"
@@ -169,7 +168,7 @@ function ClassCard({ classroom }: { classroom: MyClassroom }) {
             justifyContent: 'center',
           }}
         >
-          <Icon icon={Presentation} size={20} color="accent" />
+          <GaGlyph name="lophoc" size={20} ink="primary" />
         </View>
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
           <Caption color={c.accentText}>Lớp học</Caption>
@@ -187,16 +186,16 @@ function ClassCard({ classroom }: { classroom: MyClassroom }) {
 
       {/* Mini-stats — hairline sharp tiles */}
       <View style={{ flexDirection: 'row', borderBottomWidth: classroom.lessonTotal > 0 || classroom.latestAssignmentTopic ? 1 : 0, borderBottomColor: c.border }}>
-        <MiniStat icon={BookOpen} label="Bài tập" value={String(classroom.assignmentCount)} />
+        <MiniStat glyph="baigiao" label="Bài tập" value={String(classroom.assignmentCount)} />
         <MiniStat
-          icon={Clock}
+          glyph="thoigian"
           label="Chưa nộp"
           value={String(classroom.pendingCount)}
           tone={classroom.pendingCount > 0 ? 'danger' : undefined}
           divider
         />
         <MiniStat
-          icon={Sparkles}
+          glyph="dulieuai"
           label="Điểm TB"
           value={classroom.avgScore != null ? classroom.avgScore.toFixed(1) : '–'}
           divider
@@ -245,9 +244,9 @@ function ClassCard({ classroom }: { classroom: MyClassroom }) {
 }
 
 function MiniStat({
-  icon, label, value, tone, divider,
+  glyph, label, value, tone, divider,
 }: {
-  icon: typeof BookOpen
+  glyph: GlyphName
   label: string
   value: string
   tone?: 'danger'
@@ -268,7 +267,7 @@ function MiniStat({
         borderLeftColor: c.border,
       }}
     >
-      <Icon icon={icon} size={14} color={isDanger ? 'danger' : 'muted'} />
+      <GaGlyph name={glyph} size={14} ink={isDanger ? 'danger' : 'muted'} gold={isDanger ? 'danger' : 'accent'} />
       <ThemedText variant="monoLg" color={isDanger ? 'danger' : 'primary'}>
         {value}
       </ThemedText>

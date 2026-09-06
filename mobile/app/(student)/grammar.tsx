@@ -3,11 +3,11 @@ import { View, Pressable } from 'react-native'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
-import { ChevronDown, ChevronUp, Check, Film, Lock } from 'lucide-react-native'
+import { ChevronDown, ChevronUp, Check } from 'lucide-react-native'
 import api from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, SectionHeader, Caption, Skeleton, ErrorState } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, SectionHeader, Caption, Skeleton, ErrorState, GaGlyph } from '@/components/ui'
 import { mapGrammarTopic, type GrammarTopic, type RawGrammarTopic } from '@/lib/grammarApi'
 import { skillTreeApi } from '@/lib/skillTreeApi'
 import { levelsFromTree, type CefrLevelState, type LevelState } from '@/lib/levelState'
@@ -235,7 +235,7 @@ export default function GrammarScreen() {
                       backgroundColor: c.accentSoft,
                     }}
                   >
-                    <Icon icon={Film} size={16} color="accent" />
+                    <GaGlyph name="video" size={16} ink="primary" />
                     <ThemedText variant="label" color="accent">
                       Xem video ngữ pháp
                     </ThemedText>
@@ -297,7 +297,7 @@ function LevelBlock({ level, state, query }: { level: string; state: LevelState;
         <Pill label={level} tone={tone} />
         {locked ? (
           <>
-            <Icon icon={Lock} size={13} color="faint" />
+            <GaGlyph name="khoa" size={13} ink="faint" />
             <ThemedText variant="caption" color="faint">
               Mở khi đạt {level}
             </ThemedText>

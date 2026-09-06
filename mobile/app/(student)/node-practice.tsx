@@ -1,13 +1,14 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { View, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { Check, X, Eye, Trophy, ListChecks, PenLine, type LucideIcon } from 'lucide-react-native'
+import { Check, X, Eye } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, Button, AppHeader, EmptyState, ErrorState, Skeleton, Caption, SelectableRow } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, Button, AppHeader, EmptyState, ErrorState, Skeleton, Caption, SelectableRow, GaGlyph } from '@/components/ui'
 import {
   skillTreeApi,
   isFillCorrect,
@@ -154,7 +155,7 @@ function NodePracticeRunner() {
         <ErrorState onRetry={() => void refetch()} />
       ) : exercises.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
-          <EmptyState icon={Trophy} title="Chưa có bài tập" message="Bài học này chưa có bài tập trên app." />
+          <EmptyState glyph="thithu" title="Chưa có bài tập" message="Bài học này chưa có bài tập trên app." />
         </View>
       ) : (
         <KeyboardAvoidingView
@@ -185,7 +186,7 @@ function NodePracticeRunner() {
                       justifyContent: 'center',
                     }}
                   >
-                    <Icon icon={Trophy} size={18} color="accent" fill />
+                    <GaGlyph name="thithu" size={18} ink="primary" />
                   </View>
                   <ThemedText variant="title" style={{ flex: 1, color: c.onInk }}>
                     {`Tuyệt vời! +${result.xp} XP`}
@@ -286,9 +287,9 @@ function ExerciseCard({
 }) {
   switch (exercise.type) {
     case 'MULTIPLE_CHOICE':
-      return <McCard index={index} ex={exercise as ExerciseMultipleChoice} answer={answer} submitted={submitted} onChoice={onChoice} icon={EXERCISE_ICON.MULTIPLE_CHOICE} />
+      return <McCard index={index} ex={exercise as ExerciseMultipleChoice} answer={answer} submitted={submitted} onChoice={onChoice} glyph={EXERCISE_ICON.MULTIPLE_CHOICE} />
     case 'FILL_BLANK':
-      return <FillCard index={index} ex={exercise as ExerciseFillBlank} answer={answer} submitted={submitted} onText={onText} icon={EXERCISE_ICON.FILL_BLANK} />
+      return <FillCard index={index} ex={exercise as ExerciseFillBlank} answer={answer} submitted={submitted} onText={onText} glyph={EXERCISE_ICON.FILL_BLANK} />
     case 'TRANSLATE':
       return <RevealCard index={index} prompt={(exercise as ExerciseTranslate).sentence} answer={(exercise as ExerciseTranslate).answer} kind="Dịch" />
     case 'REORDER':
@@ -308,16 +309,16 @@ function ExerciseCard({
 // Exercise-type glyph — a quiet leading cue for the recognition tasks (MC/Fill),
 // which otherwise carry no type marker. TRANSLATE/REORDER keep their existing
 // "Dịch"/"Sắp xếp" text badge, so an icon there would just duplicate it.
-const EXERCISE_ICON: Record<'MULTIPLE_CHOICE' | 'FILL_BLANK', LucideIcon> = {
-  MULTIPLE_CHOICE: ListChecks,
-  FILL_BLANK: PenLine,
+const EXERCISE_ICON: Record<'MULTIPLE_CHOICE' | 'FILL_BLANK', GlyphName> = {
+  MULTIPLE_CHOICE: 'baigiao',
+  FILL_BLANK: 'viet',
 }
 
-function Prompt({ index, text, badge, icon }: { index: number; text?: string; badge?: string; icon?: LucideIcon }) {
+function Prompt({ index, text, badge, glyph }: { index: number; text?: string; badge?: string; glyph?: GlyphName }) {
   const c = useTheme().colors
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
-      {icon ? (
+      {glyph ? (
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
@@ -330,7 +331,7 @@ function Prompt({ index, text, badge, icon }: { index: number; text?: string; ba
             justifyContent: 'center',
           }}
         >
-          <Icon icon={icon} size={13} color="muted" />
+          <GaGlyph name={glyph} size={13} ink="muted" />
         </View>
       ) : null}
       <ThemedText variant="label" color="faint">
@@ -350,19 +351,19 @@ function McCard({
   answer,
   submitted,
   onChoice,
-  icon,
+  glyph,
 }: {
   index: number
   ex: ExerciseMultipleChoice
   answer?: Answer
   submitted: boolean
   onChoice: (v: number) => void
-  icon?: LucideIcon
+  glyph?: GlyphName
 }) {
   const c = useTheme().colors
   return (
     <Card style={{ gap: space[3] }}>
-      <Prompt index={index} text={ex.question_vi ?? ex.question} icon={icon} />
+      <Prompt index={index} text={ex.question_vi ?? ex.question} glyph={glyph} />
       <View style={{ gap: space[2] }}>
         {ex.options.map((opt, i) => {
           const selected = answer?.choice === i
@@ -409,23 +410,23 @@ function FillCard({
   answer,
   submitted,
   onText,
-  icon,
+  glyph,
 }: {
   index: number
   ex: ExerciseFillBlank
   answer?: Answer
   submitted: boolean
   onText: (v: string) => void
-  icon?: LucideIcon
+  glyph?: GlyphName
 }) {
   const c = useTheme().colors
   const ok = submitted && isFillCorrect(answer?.text ?? '', ex)
   return (
     <Card style={{ gap: space[2] }}>
-      <Prompt index={index} text={ex.sentence_de ?? ex.question_vi} icon={icon} />
+      <Prompt index={index} text={ex.sentence_de ?? ex.question_vi} glyph={glyph} />
       {ex.hint_vi ? (
         <ThemedText variant="caption" color="faint">
-          💡 {ex.hint_vi}
+          Gợi ý: {ex.hint_vi}
         </ThemedText>
       ) : null}
       <TextInput

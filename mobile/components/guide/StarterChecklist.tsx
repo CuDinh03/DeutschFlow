@@ -3,14 +3,14 @@
 // VĨNH VIỄN sau khi hoàn thành đủ 5 mục (mini celebration trước khi ẩn).
 
 import { useEffect, useRef, useState } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { Pressable, View } from 'react-native'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
 import Svg, { Circle } from 'react-native-svg'
-import { Check, Mic, BookOpen, Brain, Bell, GitBranch, type LucideIcon } from 'lucide-react-native'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Card, ThemedText, Caption } from '@/components/ui'
+import { Card, ThemedText, Caption, GaGlyph } from '@/components/ui'
 import { captureEvent } from '@/lib/analytics'
 import { useStarterStore, SRS_CHECKLIST_TARGET } from '@/stores/useStarterStore'
 
@@ -18,7 +18,7 @@ const CELEBRATE_MS = 2400
 
 interface ChecklistItem {
   key: string
-  icon: LucideIcon
+  glyph: GlyphName
   label: string
   done: boolean
   onPress: () => void
@@ -41,35 +41,35 @@ export function StarterChecklist({
   const items: ChecklistItem[] = [
     {
       key: 'speak',
-      icon: Mic,
+      glyph: 'noi',
       label: 'Nói câu tiếng Đức đầu tiên',
       done: starter.spokeFirstSentence,
       onPress: () => router.push('/(auth)/first-sentence'),
     },
     {
       key: 'lesson',
-      icon: GitBranch,
+      glyph: 'lernweg',
       label: 'Học chặng đầu tiên',
       done: lessonDone,
       onPress: () => router.navigate('/(student)/learn'),
     },
     {
       key: 'srs',
-      icon: BookOpen,
+      glyph: 'hoc',
       label: `Ôn ${SRS_CHECKLIST_TARGET} thẻ SRS (${Math.min(starter.srsReviews, SRS_CHECKLIST_TARGET)}/${SRS_CHECKLIST_TARGET})`,
       done: starter.srsReviews >= SRS_CHECKLIST_TARGET,
       onPress: () => router.push('/(student)/srs'),
     },
     {
       key: 'speaking',
-      icon: Brain,
+      glyph: 'speaking',
       label: 'Thử 1 buổi Speaking',
       done: starter.speakingSessionStarted,
       onPress: () => router.navigate('/(student)/speaking'),
     },
     {
       key: 'reminder',
-      icon: Bell,
+      glyph: 'thongbao',
       label: 'Bật nhắc học mỗi tối',
       done: starter.reminderEnabled,
       onPress: onEnableReminder,
@@ -104,7 +104,7 @@ export function StarterChecklist({
         style={{ marginHorizontal: space[5], marginTop: space[4] }}
       >
         <Card style={{ alignItems: 'center', gap: space[2], borderColor: theme.colors.accent }}>
-          <ThemedText variant="display">🎉</ThemedText>
+          <GaGlyph name="hoanthanh" size={56} ink="onAccent" gold="accent" accessibilityLabel="Hoàn thành tuần đầu" />
           <ThemedText variant="title">Khởi động hoàn hảo!</ThemedText>
           <ThemedText variant="caption" color="muted">
             Bạn đã thử hết các công cụ chính — giờ chỉ cần đều đặn mỗi ngày.
@@ -155,9 +155,9 @@ export function StarterChecklist({
               }}
             >
               {item.done ? (
-                <Check size={15} color={theme.colors.success} strokeWidth={3} />
+                <GaGlyph name="hoanthanh" size={16} ink="onAccent" gold="success" />
               ) : (
-                <item.icon size={14} color={theme.colors.textMuted} strokeWidth={2.2} />
+                <GaGlyph name={item.glyph} size={15} ink="muted" />
               )}
             </View>
             <ThemedText

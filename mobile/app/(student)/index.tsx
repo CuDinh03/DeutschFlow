@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { View, Pressable, Alert, Linking } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, useFocusEffect } from 'expo-router'
 import { MotiView } from 'moti'
-import { Flame, BookOpen, Mic, Star, Map, Bell, Zap, MessageCircle, type LucideIcon } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useTourStore } from '@/stores/useTourStore'
@@ -38,7 +38,7 @@ import {
   Caption,
   ProgressBar,
   useTabBarClearance,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 
 // Only the fields the home actually uses from the (plan-oriented) dashboard.
 // XP/level come from /xp/me, SRS due + reviewedCards from /srs/stats, unread from /notifications.
@@ -314,13 +314,13 @@ export default function DashboardScreen() {
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <HeaderIconButton
-            icon={MessageCircle}
+            glyph="hoithoai"
             label={msgUnread > 0 ? `Tin nhắn, ${msgUnread} chưa đọc` : 'Tin nhắn'}
             badge={msgUnread}
             onPress={() => router.push('/(student)/messages')}
           />
           <HeaderIconButton
-            icon={Bell}
+            glyph="thongbao"
             label={unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'}
             badge={unread}
             onPress={() => router.push('/(student)/notifications')}
@@ -353,7 +353,7 @@ export default function DashboardScreen() {
                     justifyContent: 'center',
                   }}
                 >
-                  <Icon icon={Flame} size={30} color="accent" fill />
+                  <GaGlyph name="chuoi" size={30} ink="accent" />
                 </View>
                 <View style={{ flex: 1, gap: 4 }}>
                   <Caption color={theme.colors.accent}>Chuỗi học</Caption>
@@ -362,7 +362,7 @@ export default function DashboardScreen() {
                       {String(data?.streakDays ?? 0)}
                     </ThemedText>
                     <ThemedText variant="bodyStrong" style={{ color: theme.colors.onInkMuted }}>
-                      ngày 🔥
+                      ngày
                     </ThemedText>
                   </View>
                   <ThemedText variant="caption" style={{ color: theme.colors.onInkMuted }}>
@@ -375,8 +375,8 @@ export default function DashboardScreen() {
 
             {/* Secondary stats */}
             <View style={{ flexDirection: 'row', gap: space[3], marginTop: space[3] }}>
-              <StatCard icon={Star} accent="accent" value={`Lv ${level}`} label={`${totalXp} XP`} />
-              <StatCard icon={Zap} accent="info" value={`+${weeklyXp}`} label="XP tuần này" />
+              <StatCard glyph="capdo" accent="accent" value={`Lv ${level}`} label={`${totalXp} XP`} />
+              <StatCard glyph="xp" accent="info" value={`+${weeklyXp}`} label="XP tuần này" />
             </View>
           </View>
 
@@ -421,7 +421,7 @@ export default function DashboardScreen() {
                       justifyContent: 'center',
                     }}
                   >
-                    <Icon icon={BookOpen} size={20} color="accent" />
+                    <GaGlyph name="hoc" size={20} ink="primary" />
                   </View>
                   <View style={{ gap: 2 }}>
                     <ThemedText variant="bodyStrong">Ôn tập hôm nay</ThemedText>
@@ -449,7 +449,7 @@ export default function DashboardScreen() {
                   <Caption>Lộ trình đến B2</Caption>
                   <ThemedText variant="display">{pathPct}%</ThemedText>
                 </View>
-                <Icon icon={Map} size={24} color="muted" />
+                <GaGlyph name="lernweg" size={24} ink="muted" />
               </View>
               <ProgressBar value={pathPct / 100} />
               <ThemedText variant="caption" color="muted">
@@ -462,7 +462,7 @@ export default function DashboardScreen() {
             <SectionHeader title="Hoạt động" />
             <Card padded={false} style={{ paddingHorizontal: space[4] }}>
               <ListRow
-                icon={BookOpen}
+                glyph="hoc"
                 iconTone="accent"
                 title="Luyện từ vựng SRS"
                 subtitle="Flashcard lặp lại ngắt quãng"
@@ -470,7 +470,7 @@ export default function DashboardScreen() {
               />
               <Divider />
               <ListRow
-                icon={Mic}
+                glyph="speaking"
                 iconTone="info"
                 title="AI Speaking"
                 subtitle="Hội thoại với AI coach"
@@ -487,7 +487,7 @@ export default function DashboardScreen() {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[3] }}>
                 <View style={{ flex: 1, gap: space[1] }}>
-                  <Pill label="MyDeutschFlow PRO" tone="accent" icon={Star} />
+                  <Pill label="MyDeutschFlow PRO" tone="accent" glyph="goipro" />
                   <ThemedText variant="title">Mở khoá toàn bộ tính năng</ThemedText>
                   <ThemedText variant="caption" color="muted">
                     Speaking AI, Mock Exam, Weekly Challenge
@@ -524,9 +524,9 @@ export default function DashboardScreen() {
 
 // Header action: a bordered icon button with an optional unread badge (bell + messages).
 function HeaderIconButton({
-  icon, label, badge, onPress,
+  glyph, label, badge, onPress,
 }: {
-  icon: LucideIcon
+  glyph: GlyphName
   label: string
   badge: number
   onPress: () => void
@@ -546,7 +546,7 @@ function HeaderIconButton({
           justifyContent: 'center',
         }}
       >
-        <Icon icon={icon} size={20} color="secondary" />
+        <GaGlyph name={glyph} size={20} ink="secondary" />
         {badge > 0 ? (
           <View
             style={{
@@ -575,12 +575,12 @@ function HeaderIconButton({
 }
 
 function StatCard({
-  icon,
+  glyph,
   accent,
   value,
   label,
 }: {
-  icon: typeof Flame
+  glyph: GlyphName
   accent: 'accent' | 'info'
   value: string
   label: string
@@ -600,7 +600,7 @@ function StatCard({
             justifyContent: 'center',
           }}
         >
-          <Icon icon={icon} size={20} color={accent} />
+          <GaGlyph name={glyph} size={20} ink={accent === 'accent' ? 'primary' : accent} gold={accent} />
         </View>
         <View style={{ gap: 2 }}>
           <ThemedText variant="monoLg">{value}</ThemedText>

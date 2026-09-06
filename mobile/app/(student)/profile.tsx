@@ -1,7 +1,7 @@
 import { View, Alert, Pressable, Platform } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
-import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2, HelpCircle, Presentation, ShieldCheck, FileText, Lock, Sparkles, CreditCard, RotateCcw, KeyRound } from 'lucide-react-native'
+import { ChevronRight } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
 import api, { apiMessage } from '@/lib/api'
@@ -11,7 +11,7 @@ import { radius, space, useTheme } from '@/lib/theme'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { openManageSubscriptions, openRefundRequest } from '@/lib/iapManage'
 import { getAiConsent, resetAiConsent, setAiConsent } from '@/lib/aiConsent'
-import { Screen, Card, ThemedText, Icon, Pill, ListRow, Caption, FadeIn, useTabBarClearance } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, ListRow, Caption, FadeIn, useTabBarClearance, GaGlyph } from '@/components/ui'
 import * as Application from 'expo-application'
 import * as Updates from 'expo-updates'
 import { formatAppVersion } from '@/lib/appVersion'
@@ -175,7 +175,7 @@ export default function ProfileScreen() {
                     hitSlop={8}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
                   >
-                    <Icon icon={Star} size={13} color="accent" fill />
+                    <GaGlyph name="capdo" size={13} ink="primary" />
                     <ThemedText variant="label" style={{ color: c.onInkMuted }}>
                       Cấp {xp.level} · {xp.totalXp} XP
                     </ThemedText>
@@ -202,7 +202,7 @@ export default function ProfileScreen() {
                   justifyContent: 'center',
                 }}
               >
-                <Icon icon={Star} size={20} color="accent" fill />
+                <GaGlyph name="goipro" size={20} ink="primary" />
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <ThemedText variant="bodyStrong">Nâng cấp lên PRO</ThemedText>
@@ -233,7 +233,7 @@ export default function ProfileScreen() {
                     justifyContent: 'center',
                   }}
                 >
-                  <Icon icon={Star} size={20} color="accent" fill />
+                  <GaGlyph name="goipro" size={20} ink="primary" />
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <ThemedText variant="bodyStrong">
@@ -254,21 +254,21 @@ export default function ProfileScreen() {
             </Card>
             <Card padded={false} style={{ paddingHorizontal: space[4] }}>
               <ListRow
-                icon={Star}
+                glyph="goipro"
                 title={isUltra ? 'Xem & đổi gói' : 'Nâng cấp / đổi gói'}
                 subtitle={isUltra ? 'Đổi kỳ hạn thanh toán' : 'Lên ULTRA hoặc đổi kỳ hạn'}
                 onPress={() => router.push('/(student)/upgrade')}
               />
               <Divider />
               <ListRow
-                icon={CreditCard}
+                glyph="thanhtoan"
                 title="Quản lý & huỷ gói"
                 subtitle="Đổi hoặc huỷ gói trong App Store"
                 onPress={() => void openManageSubscriptions()}
               />
               <Divider />
               <ListRow
-                icon={RotateCcw}
+                glyph="hoantien"
                 title="Yêu cầu hoàn tiền"
                 subtitle="Hoàn tiền do Apple xử lý"
                 onPress={confirmRefund}
@@ -280,16 +280,16 @@ export default function ProfileScreen() {
         <View style={{ gap: space[3] }}>
           <Caption>Tài khoản</Caption>
           <Card padded={false} style={{ paddingHorizontal: space[4] }}>
-            <ListRow icon={User} title="Thông tin cá nhân" onPress={() => router.push('/(student)/settings/profile')} />
+            <ListRow glyph="hoso" title="Thông tin cá nhân" onPress={() => router.push('/(student)/settings/profile')} />
             <Divider />
-            <ListRow icon={ShieldCheck} title="An toàn & chặn" onPress={() => router.push('/(student)/settings/blocked' as unknown as Href)} />
+            <ListRow glyph="antoan" title="An toàn & chặn" onPress={() => router.push('/(student)/settings/blocked' as unknown as Href)} />
             <Divider />
             {/* N4 (05/09): trước đây người dùng chỉ-mobile phải thoát app đi luồng quên mật khẩu qua email. */}
-            <ListRow icon={KeyRound} title="Đổi mật khẩu" onPress={() => router.push('/(student)/settings/password' as unknown as Href)} />
+            <ListRow glyph="matkhau" title="Đổi mật khẩu" onPress={() => router.push('/(student)/settings/password' as unknown as Href)} />
             <Divider />
-            <ListRow icon={Bell} title="Thông báo" onPress={() => router.push('/(student)/notifications')} />
+            <ListRow glyph="thongbao" title="Thông báo" onPress={() => router.push('/(student)/notifications')} />
             <Divider />
-            <ListRow icon={HelpCircle} title="Hướng dẫn sử dụng" onPress={() => router.push('/(student)/guide' as unknown as Href)} />
+            <ListRow glyph="huongdan" title="Hướng dẫn sử dụng" onPress={() => router.push('/(student)/guide' as unknown as Href)} />
           </Card>
         </View>
 
@@ -297,16 +297,16 @@ export default function ProfileScreen() {
           <Caption>Học tập</Caption>
           <Card padded={false} style={{ paddingHorizontal: space[4] }}>
             <ListRow
-              icon={Globe}
+              glyph="ngonngu"
               title="Ngôn ngữ giao diện"
               trailing={<ThemedText variant="caption" color="faint">Tiếng Việt</ThemedText>}
               onPress={() => Alert.alert('Sắp ra mắt', 'Tuỳ chọn đổi ngôn ngữ giao diện sẽ có trong bản cập nhật tới.')}
             />
             <Divider />
-            <ListRow icon={BarChart3} title="Tiến trình & thống kê" onPress={() => router.push('/(student)/stats')} />
+            <ListRow glyph="thongke" title="Tiến trình & thống kê" onPress={() => router.push('/(student)/stats')} />
             <Divider />
             <ListRow
-              icon={Presentation}
+              glyph="lophoc"
               title="Lớp của tôi"
               subtitle="Lớp đang tham gia, bài tập, tiến độ"
               onPress={() => router.push('/(student)/classes' as never)}
@@ -320,22 +320,22 @@ export default function ProfileScreen() {
           <Caption>Quyền riêng tư & pháp lý</Caption>
           <Card padded={false} style={{ paddingHorizontal: space[4] }}>
             <ListRow
-              icon={Sparkles}
+              glyph="dulieuai"
               title="Dữ liệu & tính năng AI"
               subtitle="Xem hoặc thay đổi lựa chọn chia sẻ dữ liệu với đối tác AI"
               onPress={manageAiConsent}
             />
             <Divider />
-            <ListRow icon={Lock} title="Chính sách bảo mật" onPress={openPrivacyPolicy} />
+            <ListRow glyph="khoa" title="Chính sách bảo mật" onPress={openPrivacyPolicy} />
             <Divider />
-            <ListRow icon={FileText} title="Điều khoản sử dụng" onPress={openTermsOfUse} />
+            <ListRow glyph="dieukhoan" title="Điều khoản sử dụng" onPress={openTermsOfUse} />
           </Card>
         </View>
 
         <View style={{ gap: space[3] }}>
           <Card onPress={confirmLogout} elevation="flat">
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-              <Icon icon={LogOut} size={18} color="danger" />
+              <GaGlyph name="dangxuat" size={18} ink="danger" gold="danger" />
               <ThemedText variant="bodyStrong" color="danger">
                 Đăng xuất
               </ThemedText>
@@ -352,7 +352,7 @@ export default function ProfileScreen() {
             style={{ backgroundColor: c.dangerSoft, borderColor: c.danger }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-              <Icon icon={Trash2} size={18} color="danger" />
+              <GaGlyph name="xoa" size={18} ink="danger" gold="danger" />
               <View style={{ flex: 1, gap: 2 }}>
                 <ThemedText variant="bodyStrong" color="danger">
                   Xoá tài khoản

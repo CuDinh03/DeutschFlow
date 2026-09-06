@@ -2,10 +2,7 @@ import { useMemo, useState } from 'react'
 import { Alert, Pressable, RefreshControl, ScrollView, Share, View } from 'react-native'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
-import {
-  AlertCircle, BarChart3, BookOpen, CalendarCheck, CalendarClock, CheckCircle2, Circle, Clock,
-  Copy, GraduationCap, MessageCircle, MessagesSquare, Sparkles, Upload, Users, X,
-} from 'lucide-react-native'
+import { Copy, Upload } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import {
@@ -18,7 +15,7 @@ import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Button, Caption, Card, EmptyState, ErrorState, Icon, IconButton, Pill, ProgressBar,
   Screen, SectionHeader, Skeleton, ThemedText, YellowSquare,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { useBackTo } from '@/hooks/useBackTo'
 import { PARENT_OF } from '@/lib/screenParents'
 
@@ -79,7 +76,7 @@ export default function StudentClassDetail() {
         onBack={goBack}
         right={
           <IconButton
-            icon={MessagesSquare}
+            glyph="hoithoai"
             accessibilityLabel="Chat lớp"
             onPress={() =>
               router.push({
@@ -103,7 +100,7 @@ export default function StudentClassDetail() {
         <Button
           label="Xem lịch buổi học"
           variant="secondary"
-          icon={CalendarClock}
+          glyph="lich"
           onPress={() =>
             router.push({
               pathname: '/(student)/class-schedule/[classId]',
@@ -317,7 +314,7 @@ function AssignmentsTab({
   }
   if (assignments.length === 0) {
     return (
-      <EmptyState icon={BookOpen} title="Chưa có bài tập" message="Lớp này chưa có bài tập nào." />
+      <EmptyState glyph="baigiao" title="Chưa có bài tập" message="Lớp này chưa có bài tập nào." />
     )
   }
   return (
@@ -338,7 +335,7 @@ function AssignmentsTab({
                 </ThemedText>
                 {a.dueDate && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1], marginTop: space[1] }}>
-                    <Icon icon={Clock} size={11} color="muted" />
+                    <GaGlyph name="thoigian" size={11} ink="muted" />
                     <ThemedText variant="caption" color="muted">
                       Hạn {new Date(a.dueDate).toLocaleString('vi-VN')}
                     </ThemedText>
@@ -356,14 +353,14 @@ function AssignmentsTab({
 
 function StatusPill({ status, score }: { status: string; score: number | null }) {
   if (isFinalGrade(status)) {
-    return <Pill tone="success" icon={CheckCircle2} label={`Đã chấm${score != null ? ` · ${score}` : ''}`} />
+    return <Pill tone="success" glyph="hoanthanh" label={`Đã chấm${score != null ? ` · ${score}` : ''}`} />
   }
   // AI_GRADED / GRADING_FAILED = bài ĐÃ nộp, đang chờ giáo viên (F-14 soát 02/09) —
   // trước đây rơi nhánh else và hiện "Chưa nộp" đỏ cho bài học viên vừa nộp xong.
   if (isAwaitingTeacher(status)) {
     return <Pill tone="info" icon={Upload} label="Đã nộp" />
   }
-  return <Pill tone="danger" icon={AlertCircle} label="Chưa nộp" />
+  return <Pill tone="danger" glyph="canhbao" label="Chưa nộp" />
 }
 
 function GradesTab({
@@ -385,7 +382,7 @@ function GradesTab({
     )
   }
   if (graded.length === 0) {
-    return <EmptyState icon={Sparkles} title="Chưa có điểm" message="Chưa có bài nào được chấm." />
+    return <EmptyState glyph="dulieuai" title="Chưa có điểm" message="Chưa có bài nào được chấm." />
   }
   return (
     <View style={{ gap: space[4] }}>
@@ -489,7 +486,7 @@ function EvaluationTab({ classId }: { classId: number }) {
           <SkillReportCard report={report} />
         ) : (
           <EmptyState
-            icon={BarChart3}
+            glyph="thongke"
             title="Chưa có điểm kỹ năng"
             message="Giáo viên chưa chấm điểm 4 kỹ năng cho bạn."
           />
@@ -502,7 +499,7 @@ function EvaluationTab({ classId }: { classId: number }) {
           <TeacherCommentCard comment={report.teacherComment} evaluatedAt={report.evaluatedAt} />
         ) : (
           <EmptyState
-            icon={MessagesSquare}
+            glyph="hoithoai"
             title="Chưa có nhận xét"
             message="Giáo viên chưa viết nhận xét cho bạn. Nhận xét sẽ hiện ở đây khi có."
           />
@@ -515,7 +512,7 @@ function EvaluationTab({ classId }: { classId: number }) {
           <ErrorState title="Không tải được điểm danh" onRetry={() => void attendanceQ.refetch()} />
         ) : attendance.length === 0 ? (
           <EmptyState
-            icon={CalendarCheck}
+            glyph="lich"
             title="Chưa có buổi học"
             message="Lớp chưa có buổi học nào được ghi nhận."
           />
@@ -639,13 +636,13 @@ function SummaryStat({ label, value, tone }: { label: string; value: number; ton
 function attendanceStatus(status: StudentAttendance['status']) {
   switch (status) {
     case 'PRESENT':
-      return { label: 'Có mặt', tone: 'success' as const, color: 'success' as const, icon: CheckCircle2 }
+      return { label: 'Có mặt', tone: 'success' as const, color: 'success' as const, glyph: 'hoanthanh' as const }
     case 'LATE':
-      return { label: 'Muộn', tone: 'accent' as const, color: 'accent' as const, icon: Clock }
+      return { label: 'Muộn', tone: 'accent' as const, color: 'accent' as const, glyph: 'thoigian' as const }
     case 'ABSENT':
-      return { label: 'Vắng', tone: 'danger' as const, color: 'danger' as const, icon: X }
+      return { label: 'Vắng', tone: 'danger' as const, color: 'danger' as const, glyph: 'canhbao' as const }
     default:
-      return { label: 'Chưa điểm danh', tone: 'neutral' as const, color: 'muted' as const, icon: Circle }
+      return { label: 'Chưa điểm danh', tone: 'neutral' as const, color: 'muted' as const, glyph: 'danghoc' as const }
   }
 }
 
@@ -656,7 +653,7 @@ function AttendanceRow({ row }: { row: StudentAttendance }) {
   return (
     <Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <Icon icon={s.icon} size={18} color={s.color} />
+        <GaGlyph name={s.glyph} size={18} ink={s.color} gold={s.color === 'muted' ? 'accent' : s.color} />
         <View style={{ flex: 1, gap: 2 }}>
           <ThemedText variant="bodyStrong" numberOfLines={1}>
             {row.topic || (row.sessionNumber != null ? `Buổi ${row.sessionNumber}` : 'Buổi học')}
@@ -675,7 +672,7 @@ function AttendanceRow({ row }: { row: StudentAttendance }) {
 function TeachersTab({ teachers }: { teachers: TeacherSummary[] }) {
   const theme = useTheme()
   if (teachers.length === 0) {
-    return <EmptyState icon={Users} title="Chưa có giáo viên" message="Lớp này chưa có giáo viên nào." />
+    return <EmptyState glyph="lophoc" title="Chưa có giáo viên" message="Lớp này chưa có giáo viên nào." />
   }
   return (
     <View style={{ gap: space[4] }}>
@@ -695,7 +692,7 @@ function TeachersTab({ teachers }: { teachers: TeacherSummary[] }) {
                     justifyContent: 'center',
                   }}
                 >
-                  <Icon icon={GraduationCap} size={20} color="accent" />
+                  <GaGlyph name="t_exam" size={20} ink="primary" />
                 </View>
                 <View style={{ flex: 1, gap: space[1] }}>
                   <ThemedText variant="bodyStrong" numberOfLines={1}>
@@ -711,7 +708,7 @@ function TeachersTab({ teachers }: { teachers: TeacherSummary[] }) {
               </View>
               <Button
                 label="Nhắn tin"
-                icon={MessageCircle}
+                glyph="hoithoai"
                 variant="secondary"
                 size="sm"
                 onPress={() =>
@@ -744,7 +741,7 @@ function ProgressTab({
         />
       ) : lessons.length === 0 ? (
         <EmptyState
-          icon={BookOpen}
+          glyph="baigiao"
           title="Chưa có checklist"
           message="Giáo viên chưa tạo danh sách buổi học. Tiến độ lớp sẽ hiển thị tại đây khi có."
         />
@@ -781,10 +778,11 @@ function LessonRow({ lesson, index }: { lesson: ClassLesson; index: number }) {
   return (
     <Card tone={lesson.completed ? 'sunken' : 'surface'}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
-        <Icon
-          icon={lesson.completed ? CheckCircle2 : Circle}
+        <GaGlyph
+          name={lesson.completed ? 'hoanthanh' : 'danghoc'}
           size={20}
-          color={lesson.completed ? 'success' : 'muted'}
+          ink={lesson.completed ? 'onAccent' : 'muted'}
+          gold={lesson.completed ? 'success' : 'accent'}
         />
         <View style={{ flex: 1, gap: space[1] }}>
           <Caption>Buổi {index + 1}</Caption>

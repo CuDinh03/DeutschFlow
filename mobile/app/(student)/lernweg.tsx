@@ -2,11 +2,11 @@ import { useCallback, useState } from 'react'
 import { Modal, Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useFocusEffect, type Href } from 'expo-router'
-import { Check, ChevronRight, Lock, Medal, X } from 'lucide-react-native'
+import { ChevronRight, X } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, Screen, Skeleton, ThemedText, YellowSquare,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { lernwegApi, ROADMAP_ME_QUERY_KEY } from '@/lib/lernwegApi'
 import { buildLernwegTree, skillLabel, type LernwegLeaf, type LernwegLevel } from '@/lib/lernwegTree'
 import { useBackToMainTab } from '@/hooks/useBackTo'
@@ -75,7 +75,7 @@ export default function LernwegScreen() {
     if (leaf.state === 'completed') {
       return (
         <View style={[base, { width: 34, height: 34, backgroundColor: c.accent, borderWidth: 1.5, borderColor: c.accentText }]}>
-          <Icon icon={Check} size={16} color="onAccent" strokeWidth={3} />
+          <GaGlyph name="hoanthanh" size={16} ink="onAccent" gold="accent" />
         </View>
       )
     }
@@ -95,7 +95,7 @@ export default function LernwegScreen() {
     }
     return (
       <View style={[base, { width: 28, height: 28, backgroundColor: c.surfaceSunken, borderWidth: 1, borderColor: c.borderStrong }]}>
-        <Icon icon={Lock} size={11} color="faint" />
+        <GaGlyph name="khoa" size={11} ink="faint" />
       </View>
     )
   }
@@ -114,7 +114,7 @@ export default function LernwegScreen() {
       return (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], paddingVertical: space[2] }}>
           <View style={{ width: 28, height: 28, borderRadius: radius.full, backgroundColor: c.surfaceSunken, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon icon={Lock} size={12} color="faint" />
+            <GaGlyph name="khoa" size={12} ink="faint" />
           </View>
           <View style={{ flex: 1, gap: 2 }}>
             <ThemedText variant="bodyStrong" color="muted">{`${level.level} · ${level.total} bài`}</ThemedText>
@@ -129,7 +129,7 @@ export default function LernwegScreen() {
       return (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], paddingVertical: space[2] }}>
           <View style={{ width: 28, height: 28, borderRadius: radius.full, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon icon={Medal} size={14} color="onAccent" />
+            <GaGlyph name="thinoi" size={14} ink="onAccent" gold="ink" />
           </View>
           <ThemedText variant="bodyStrong" style={{ flex: 1 }}>{`${level.level} — đã hoàn thành ${level.done}/${level.total} bài`}</ThemedText>
         </View>

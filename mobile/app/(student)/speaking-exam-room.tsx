@@ -4,14 +4,13 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Haptics from 'expo-haptics'
-import { Check, Flag, Mic, Square, RotateCcw, ChevronRight, X, Volume2, VolumeX } from 'lucide-react-native'
+import { Check, Flag, Square, RotateCcw, ChevronRight, X, Volume2, VolumeX } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, Screen, Skeleton, TextField, ThemedText, YellowSquare,
-} from '@/components/ui'
+  AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, Screen, Skeleton, TextField, ThemedText, YellowSquare, GaGlyph } from '@/components/ui'
 import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { useBlurGuard } from '@/hooks/useBlurGuard'
 import {
@@ -690,7 +689,11 @@ export default function SpeakingExamRoomScreen() {
                     opacity: uploading || busy ? 0.5 : 1,
                   }}
                 >
-                  <Icon icon={recording ? Square : Mic} size={20} color={recording ? 'onInk' : 'onAccent'} />
+                  {recording ? (
+                    <Icon icon={Square} size={20} color="onInk" />
+                  ) : (
+                    <GaGlyph name="speaking" size={20} ink="onAccent" gold="ink" />
+                  )}
                   <ThemedText variant="bodyStrong" style={{ color: recording ? c.onBrand : c.onAccent }}>
                     {uploading ? 'Đang gửi…' : recording ? 'Dừng & gửi' : 'Nhấn để nói'}
                   </ThemedText>

@@ -1,5 +1,7 @@
 export { ThemedText } from './ThemedText'
 export { Icon } from './Icon'
+export { GaGlyph, GaGlyphTile } from './GaGlyph'
+export type { GlyphInkRole, GlyphGold, GlyphTileTone } from './GaGlyph'
 export { IconButton } from './IconButton'
 export { Screen } from './Screen'
 export { Card } from './Card'

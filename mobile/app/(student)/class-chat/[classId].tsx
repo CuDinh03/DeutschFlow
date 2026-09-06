@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { MessagesSquare, Send } from 'lucide-react-native'
+import { Send } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { classChannelApi, type ClassMessage } from '@/lib/classChannelApi'
 import { adaptivePollMs } from '@/lib/chatDelta'
@@ -148,7 +148,7 @@ export default function ClassChatScreen() {
         ) : bubbles.length === 0 ? (
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <EmptyState
-              icon={MessagesSquare}
+              glyph="hoithoai"
               title="Chưa có tin nhắn"
               message="Hãy gửi tin nhắn đầu tiên cho cả lớp."
             />

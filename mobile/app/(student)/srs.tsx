@@ -13,7 +13,7 @@ import Animated, {
 import { GestureDetector, Gesture } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
-import { RotateCcw, Check, X, Minus, PartyPopper } from 'lucide-react-native'
+import { RotateCcw, Check, X, Minus } from 'lucide-react-native'
 import api, { apiMessage, isTransientFailure } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { useStarterStore } from '@/stores/useStarterStore'
@@ -217,7 +217,7 @@ export default function SrsScreen() {
         <AppHeader title="Ôn tập SRS" onBack={goBack} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={PartyPopper}
+            glyph="hoanthanh"
             title={done ? 'Xong rồi!' : 'Chưa có thẻ đến hạn'}
             message={
               done

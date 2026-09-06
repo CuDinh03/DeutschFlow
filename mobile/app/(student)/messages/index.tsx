@@ -3,14 +3,14 @@ import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, useFocusEffect } from 'expo-router'
-import { ChevronRight, MessageCircle, Users } from 'lucide-react-native'
+import { ChevronRight } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { messagesApi, type Conversation } from '@/lib/messagesApi'
 import { fetchMyClasses, type MyClassroom } from '@/lib/studentClassesApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Pill, Screen, SelectableChip, Skeleton, ThemedText,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { useBackToMainTab } from '@/hooks/useBackTo'
 
 // Unified inbox (QA build 15): personal 1:1 threads and class group channels
@@ -73,7 +73,7 @@ export default function MessagesHubScreen() {
       return (
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={MessageCircle}
+            glyph="hoithoai"
             title="Chưa có tin nhắn"
             message="Mở trang lớp học → tab Giáo viên → Nhắn tin để bắt đầu trò chuyện."
             actionLabel="Xem lớp của tôi"
@@ -104,7 +104,7 @@ export default function MessagesHubScreen() {
       return (
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={Users}
+            glyph="lophoc"
             title="Chưa vào lớp nào"
             message="Vào một lớp học để trò chuyện cùng cả lớp trong kênh nhóm."
             actionLabel="Xem lớp của tôi"
@@ -153,7 +153,7 @@ function ClassChannelRow({ klass }: { klass: MyClassroom }) {
             justifyContent: 'center',
           }}
         >
-          <Icon icon={Users} size={20} color="accent" />
+          <GaGlyph name="lophoc" size={20} ink="primary" />
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <ThemedText variant="bodyStrong" numberOfLines={1}>
