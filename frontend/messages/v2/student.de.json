@@ -330,6 +330,249 @@
       "interviewResults": "Interview-Ergebnisse",
       "historyCta": "Verlauf"
     },
+    "companionSelect": {
+      "title": "Sprechen üben",
+      "subtitle": "Wähle Übungsart und Begleiter",
+      "home": "Startseite",
+      "modes": {
+        "communication": "Gespräch",
+        "interview": "Interview",
+        "lesson": "Übung"
+      },
+      "experience": {
+        "upTo6Months": "0–6 Monate",
+        "sixTo12Months": "6–12 Monate",
+        "oneToTwoYears": "1–2 Jahre",
+        "threeYears": "3 Jahre",
+        "fivePlusYears": "5+ Jahre"
+      },
+      "suggestedTopic": "Vorgeschlagenes Thema: {topic}",
+      "emptyGroup": "In dieser Gruppe gibt es keine Figur für diesen Modus.",
+      "pro": {
+        "title": "PRO-Figur",
+        "desc": "ADVANCED-Figuren gibt es nur im PRO/ULTRA-Tarif. Upgrade für intensives Interview-Training.",
+        "upgrade": "Upgrade →"
+      },
+      "positionLabel": "Auf welche Stelle bewirbst du dich?",
+      "experienceLabel": "Berufserfahrung",
+      "scenarioLabel": "Lektionsthema",
+      "cta": {
+        "interview": "Interview mit {name}",
+        "lesson": "Üben mit {name}",
+        "start": "Mit {name} starten"
+      },
+      "hint": {
+        "pickPersona": "Bitte wähle eine Figur",
+        "pickPosition": "Wähle Stelle und Erfahrung",
+        "pickScenario": "Wähle ein Lektionsthema"
+      },
+      "errors": {
+        "sessionExpired": "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.",
+        "forbidden": "Du hast keine Berechtigung, eine Sprechsitzung zu erstellen.",
+        "tooSoon": "Bitte warte ein paar Sekunden, bevor du eine neue Sitzung startest.",
+        "server": "Der Server hat gerade Probleme. Bitte versuche es später noch einmal.",
+        "generic": "Die Sprechsitzung konnte nicht erstellt werden. Bitte versuche es noch einmal!"
+      }
+    },
+    "personas": {
+      "groups": {
+        "it": "IT / Start-up",
+        "verkauf": "Verkauf",
+        "medizin": "Medizin",
+        "maschinenbau": "Maschinenbau",
+        "service": "Service",
+        "medien": "Medien",
+        "special": "Vietnamesische Buddys"
+      },
+      "lukas": {
+        "role": "Senior Tech Mentor",
+        "tag": "Backend Dev · Berlin",
+        "desc": "Erklärt Grammatik wie sauberen Code. Strukturiert, logisch, präzise.",
+        "positions": {
+          "frontend_dev": "Frontend-Entwickler/in",
+          "backend_dev": "Backend-Entwickler/in",
+          "devops": "DevOps-Ingenieur/in",
+          "data_analyst": "Datenanalyst/in",
+          "qa_engineer": "Qualitätssicherung"
+        }
+      },
+      "emma": {
+        "role": "Berliner Kulturguide",
+        "tag": "Künstlerin · Neukölln",
+        "desc": "Bringt dir Deutsch durch Kunst, Kultur und Berliner Flair bei.",
+        "positions": {
+          "marketing_mgr": "Marketingleiter/in",
+          "sales_exec": "Vertriebsmitarbeiter/in",
+          "cs_manager": "Kundenerfolgsmanager/in",
+          "hr_coordinator": "Personalkoordinator/in",
+          "project_mgr": "Projektmanager/in"
+        }
+      },
+      "anna": {
+        "role": "Alltagsbegleiterin",
+        "tag": "Sprachlehrerin · Hamburg",
+        "desc": "Begleitet dich durch den deutschen Alltag – warm, geduldig und praktisch.",
+        "positions": {
+          "werkstudent": "Werkstudent/in",
+          "praktikant": "Praktikant/in",
+          "research_asst": "Wissenschaftliche Hilfskraft",
+          "student_coord": "Studienkoordinator/in",
+          "teaching_asst": "Tutor/in"
+        }
+      },
+      "klaus": {
+        "role": "Kulinarik-Experte",
+        "tag": "Küchenchef · München",
+        "desc": "Übe Deutsch rund um Küche, Kulinarik und Teamkommunikation.",
+        "positions": {
+          "line_cook": "Koch/Köchin",
+          "sous_chef": "Sous Chef",
+          "head_chef": "Küchenchef/in",
+          "servicekraft": "Servicekraft",
+          "restaurant_mgr": "Restaurantleiter/in"
+        }
+      },
+      "lena": {
+        "role": "Supermarktmitarbeiterin",
+        "tag": "Supermarkt · A1-A2",
+        "desc": "Freundlich und energiegeladen – hilft dir beim Einkaufen im deutschen Supermarkt.",
+        "positions": {
+          "kassierer": "Kassierer/in",
+          "verkaufer": "Verkäufer/in",
+          "lagerist": "Lagerist/in"
+        }
+      },
+      "thomas": {
+        "role": "Bäcker",
+        "tag": "Bäckerei · A1-A2",
+        "desc": "Herzlich, begeistert und stolz auf traditionelles deutsches Gebäck.",
+        "positions": {
+          "baker": "Bäcker/in",
+          "konditor": "Konditor/in",
+          "verkauf_bakery": "Bäckereiverkäufer/in"
+        }
+      },
+      "petra": {
+        "role": "Metzgerin",
+        "tag": "Metzgerei · A1-A2",
+        "desc": "Professionell, kennt sich mit Fleisch aus, direkt.",
+        "positions": {
+          "metzger": "Metzger/in",
+          "fleischverkauf": "Fleischverkäufer/in"
+        }
+      },
+      "sarah": {
+        "role": "Med. Fachangestellte",
+        "tag": "Arztpraxis · A2-B1",
+        "desc": "Professionell, gut organisiert und freundlich in der Praxis.",
+        "positions": {
+          "mfa": "Med. Fachangestellte/r",
+          "rezeption_praxis": "Praxisrezeption"
+        }
+      },
+      "schneider": {
+        "role": "Augenarzt",
+        "tag": "Augenklinik · B1-B2",
+        "desc": "Präzise, gründlich, erklärt jede Untersuchung verständlich.",
+        "positions": {
+          "augenarzt": "Augenarzt/-ärztin",
+          "mta_auge": "MTA Augenheilkunde"
+        }
+      },
+      "weber": {
+        "role": "Dermatologin",
+        "tag": "Hautarzt · B1-B2",
+        "desc": "Einfühlsam, erklärt Hautprobleme ausführlich.",
+        "positions": {
+          "hautarzt": "Dermatolog/in",
+          "mta_derm": "MTA Dermatologie"
+        }
+      },
+      "max": {
+        "role": "Maschinenbediener",
+        "tag": "Werkstatt · B1-B2",
+        "desc": "Praktisch veranlagt, kennt Bedienung und Wartung von Maschinen.",
+        "positions": {
+          "maschinenbediener": "Maschinenbediener/in",
+          "industriemechaniker": "Industriemechaniker/in"
+        }
+      },
+      "oliver": {
+        "role": "CNC-Fräser",
+        "tag": "CNC · B2",
+        "desc": "Präzise, logisch, kennt CNC-Programmierung und -Bedienung.",
+        "positions": {
+          "cnc_fraser": "CNC-Fräser/in",
+          "cnc_programmierer": "CNC-Programmierer/in"
+        }
+      },
+      "niklas": {
+        "role": "Kellner",
+        "tag": "Restaurant · A2-B1",
+        "desc": "Höflich, aufmerksam, serviert in einem gehobenen Restaurant.",
+        "positions": {
+          "kellner": "Kellner/in",
+          "barkeeper": "Barkeeper/in",
+          "serviceleitung": "Serviceleitung"
+        }
+      },
+      "nina": {
+        "role": "Rezeptionistin",
+        "tag": "Hotel · A2-B1",
+        "desc": "Professionelle, freundliche Hotelrezeptionistin.",
+        "positions": {
+          "rezeptionist": "Rezeptionist/in",
+          "concierge": "Concierge"
+        }
+      },
+      "hannie": {
+        "role": "Moderatorin & MC",
+        "tag": "Medien · 20 Jahre",
+        "desc": "20 Jahre, lebhaft und fröhlich. Moderiert Shows, Events und Medien.",
+        "positions": {
+          "moderatorin": "Moderator/in",
+          "redakteurin": "Redakteur/in",
+          "social_media_mgr": "Social-Media-Manager/in",
+          "pr_specialist": "PR-Spezialist/in",
+          "content_creator": "Content Creator",
+          "event_manager": "Eventmanager/in"
+        }
+      },
+      "tuan": {
+        "role": "Azubi-Kumpel",
+        "tag": "Ausbildung · A1",
+        "desc": "Fröhlich, findig, bringt dir Überlebensdeutsch auf Vietnamesisch bei.",
+        "scenarios": {
+          "alphabet": "Das Alphabet",
+          "numbers": "Zahlen",
+          "anmeldung": "Anmeldung"
+        }
+      },
+      "lan": {
+        "role": "Erfahrene Mentorin",
+        "tag": "Integration · A1",
+        "desc": "Fürsorglich, geduldig, vermittelt saubere Aussprache und Kulturtipps.",
+        "scenarios": {
+          "umlaut": "Umlaute",
+          "emergency_numbers": "Notrufnummern",
+          "pronunciation": "Aussprache"
+        }
+      },
+      "minh": {
+        "role": "Straßen-Kumpel",
+        "tag": "Straße · A1",
+        "desc": "Voller Energie – Deutsch lernen über Schilder und Straßen.",
+        "scenarios": {
+          "street_names": "Straßennamen",
+          "train_station": "Bahnhof",
+          "speed_signs": "Verkehrszeichen"
+        }
+      }
+    },
+    "chatBubble": {
+      "whyThisSentence": "Warum dieser Satz?",
+      "usageContext": "Verwendung:"
+    },
     "weeklySpeaking": {
       "title": "Thema dieser Woche",
       "subtitle": "Bewertete Aufgabe mit Rubrik — nicht dasselbe wie die Chat-Übung.",
