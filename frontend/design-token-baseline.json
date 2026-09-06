@@ -2332,8 +2332,7 @@
       "text-[21px]": 1,
       "text-[30px]": 1,
       "text-[16.5px]": 1,
-      "text-[10.5px]": 1,
-      "text-[50px]": 1
+      "text-[10.5px]": 1
     },
     "arbitrary-shadow": {
       "shadow-[0_16px_40px_rgba(22,21,19,0.1)]": 1,
