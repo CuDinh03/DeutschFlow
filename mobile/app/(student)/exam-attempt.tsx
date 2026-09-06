@@ -246,6 +246,19 @@ export default function ExamAttemptScreen() {
           {parsed.groups.map((group, gi) => (
             <View key={gi} style={{ gap: space[3] }}>
               <Caption>{group.title}</Caption>
+              {group.instruction ? (
+                <ThemedText variant="body" color="secondary">
+                  {group.instruction}
+                </ThemedText>
+              ) : null}
+              {group.passage ? (
+                <View style={{ gap: space[2], backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>
+                  <Caption>Bài đọc</Caption>
+                  <ThemedText variant="body" color="secondary">
+                    {group.passage}
+                  </ThemedText>
+                </View>
+              ) : null}
               {group.items.map((item) => (
                 <QuestionCard
                   key={item.id}

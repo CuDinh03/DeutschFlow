@@ -46,6 +46,10 @@ export interface ExamObjItem {
 
 export interface ExamObjGroup {
   title: string
+  /** Hướng dẫn của Teil (instruction_vi, fallback instruction_de). */
+  instruction?: string
+  /** Bài đọc chung của Teil (teil.text hoặc teil.context trong seed) — hiện MỘT lần đầu nhóm. */
+  passage?: string
   items: ExamObjItem[]
 }
 
@@ -155,7 +159,12 @@ export function parseLesenItems(sectionsJson: string): ParsedExam {
       for (const teil of asArray(section.teile)) {
         const type = String(teil.type ?? '')
         if (type.includes('AUDIO')) continue
-        const teilPassage = typeof teil.text === 'string' ? teil.text : undefined
+        const teilPassage =
+          typeof teil.text === 'string' ? teil.text : typeof teil.context === 'string' ? teil.context : undefined
+        const instruction =
+          typeof teil.instruction_vi === 'string' ? teil.instruction_vi : typeof teil.instruction_de === 'string' ? teil.instruction_de : undefined
+        const title =
+          typeof teil.title === 'string' ? teil.title : teil.teil != null ? `Teil ${String(teil.teil)}` : 'Đọc hiểu'
         const rawItems = Array.isArray(teil.items) ? (teil.items as Record<string, unknown>[]) : []
         const items: ExamObjItem[] = []
         for (const it of rawItems) {
@@ -178,11 +187,11 @@ export function parseLesenItems(sectionsJson: string): ParsedExam {
           const correct = typeof it.correct === 'string' ? it.correct.toLowerCase() : ''
           const isTrueFalse = derived === 'RICHTIG_FALSCH' || TF.has(correct)
           if (!options && !isTrueFalse) continue // MATCHING / viết / tự luận: chưa hỗ trợ trên app
-          const passage = typeof it.text === 'string' ? it.text : teilPassage
+          const passage = typeof it.text === 'string' ? it.text : undefined
           items.push({ id, question, passage, options, optionKeys })
         }
         if (items.length > 0) {
-          groups.push({ title: String(teil.title ?? 'Đọc hiểu'), items })
+          groups.push({ title, instruction, passage: teilPassage, items })
         }
       }
     }

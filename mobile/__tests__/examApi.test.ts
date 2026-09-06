@@ -64,7 +64,14 @@ const SANITIZED = JSON.stringify({
     {
       name: 'LESEN',
       teile: [
-        { teil: 1, type: 'MATCH', title: 'Teil 1', items: [{ id: 'L1-1', question: 'Jeder dritte Arbeitnehmer arbeitet von zu Hause.', points: 1, type: 'RICHTIG_FALSCH' }] },
+        {
+          teil: 1,
+          type: 'MATCH',
+          instruction_de: 'Lesen Sie die Texte.',
+          instruction_vi: 'Đọc bài và chọn Richtig/Falsch',
+          context: 'Artikel: Homeoffice – Fluch oder Segen?',
+          items: [{ id: 'L1-1', question: 'Jeder dritte Arbeitnehmer arbeitet von zu Hause.', points: 1, type: 'RICHTIG_FALSCH' }],
+        },
         { teil: 2, type: 'MATCH_PERSON', items: [{ id: 'L2-1', person: 'Kenji hat Informatik studiert.', points: 1, type: 'MATCHING' }] },
         {
           teil: 3,
@@ -82,6 +89,9 @@ describe('parseLesenItems — dữ liệu đã qua sanitizer (không có correct
 
   it('bóc được Teil 1 (richtig/falsch theo type) và Teil 3 (trắc nghiệm options object); bỏ MATCHING', () => {
     expect(parsed.groups.map((g) => g.title)).toEqual(['Teil 1', 'Teil 3'])
+    expect(parsed.groups[0].instruction).toBe('Đọc bài và chọn Richtig/Falsch')
+    expect(parsed.groups[0].passage).toBe('Artikel: Homeoffice – Fluch oder Segen?')
+    expect(parsed.groups[0].items[0].passage).toBeUndefined() // bài đọc ở cấp nhóm, không lặp từng câu
     expect(parsed.skippedSections).toEqual(['HOEREN'])
   })
 
