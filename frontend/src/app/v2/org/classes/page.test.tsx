@@ -18,7 +18,8 @@ vi.mock('next-intl', () => ({
   },
 }))
 
-import V2OrgClassesPage, { CLASSES_PAGE_SIZE } from '@/app/v2/org/classes/page'
+import V2OrgClassesPage from '@/app/v2/org/classes/page'
+import { CLASSES_PAGE_SIZE } from '@/app/v2/org/classes/pagination'
 
 const klass = (id: number, teacherId: number | null) => ({
   id, name: `Lớp ${id}`, inviteCode: null, teacherId, createdAt: '2026-09-01T00:00:00',

@@ -10,6 +10,7 @@ import { apiMessage } from '@/lib/api'
 import { listClasses, type OrgClass } from '@/lib/orgApi'
 import { GaPageHdr, GaBtn, GaCap, TkSearch } from '@/components/ui-v2'
 import { CreateClassModal } from './CreateClassModal'
+import { CLASSES_PAGE_SIZE } from './pagination'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lớp học của tổ chức (GaOrgClasses) — teal, class LIST.
@@ -23,8 +24,6 @@ import { CreateClassModal } from './CreateClassModal'
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEAL = '#11888A'
-/** Cỡ trang: đủ cho trung tâm nhỏ trong một lượt, vẫn buộc "Tải thêm" tường minh khi lớn hơn. */
-export const CLASSES_PAGE_SIZE = 50
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 
 export default function V2OrgClassesPage() {
