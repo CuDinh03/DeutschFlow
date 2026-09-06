@@ -40,6 +40,8 @@ export interface ExamObjItem {
   question: string
   passage?: string
   options?: string[] // present = MCQ; absent = true/false (richtig/falsch)
+  /** Khoá A/B/C khi options gốc là object — giá trị NỘP (backend so `equalsIgnoreCase(correct)` với chữ cái). */
+  optionKeys?: string[]
 }
 
 export interface ExamObjGroup {
@@ -119,7 +121,26 @@ function asArray(teile: unknown): Record<string, unknown>[] {
   return []
 }
 
-/** Parse a mock-exam `sections_json` string into the renderable objective items. */
+/** Lựa chọn hiển thị + giá trị nộp của một câu. */
+export function itemChoices(item: ExamObjItem): { value: string; label: string }[] {
+  if (item.options && item.optionKeys && item.optionKeys.length === item.options.length) {
+    return item.options.map((label, i) => ({ value: item.optionKeys![i], label: `${item.optionKeys![i]}. ${label}` }))
+  }
+  if (item.options) return item.options.map((o) => ({ value: o, label: o }))
+  return [
+    { value: 'richtig', label: 'Richtig' },
+    { value: 'falsch', label: 'Falsch' },
+  ]
+}
+
+/**
+ * Parse a mock-exam `sections_json` string into the renderable objective items.
+ *
+ * Dữ liệu tới client đã qua `ExamQuestionSanitizer` (backend, từ 06/2026): `correct` bị strip,
+ * thay bằng `type` (MULTIPLE_CHOICE / RICHTIG_FALSCH / MATCHING / UNKNOWN); `options` trong seed
+ * là OBJECT {A: …, B: …}. Parser cũ chỉ nhận options mảng hoặc `correct` richtig/falsch nên bóc
+ * được 0 câu → mọi đề hiện "Chưa hỗ trợ trên app" (AC-MOBFIX-03, 06/09/2026).
+ */
 export function parseLesenItems(sectionsJson: string): ParsedExam {
   const groups: ExamObjGroup[] = []
   const skipped = new Set<string>()
@@ -142,11 +163,23 @@ export function parseLesenItems(sectionsJson: string): ParsedExam {
           if (!id) continue
           const question = (it.question ?? it.prompt) as string | undefined
           if (!question) continue
-          const options = Array.isArray(it.options) ? (it.options as string[]) : undefined
+          let options: string[] | undefined
+          let optionKeys: string[] | undefined
+          if (Array.isArray(it.options)) {
+            options = it.options.map(String)
+          } else if (it.options && typeof it.options === 'object') {
+            const entries = Object.entries(it.options as Record<string, unknown>)
+            if (entries.length > 0) {
+              optionKeys = entries.map(([k]) => k)
+              options = entries.map(([, v]) => String(v))
+            }
+          }
+          const derived = String(it.type ?? '')
           const correct = typeof it.correct === 'string' ? it.correct.toLowerCase() : ''
-          if (!options && !TF.has(correct)) continue // skip writing/match/free-text
+          const isTrueFalse = derived === 'RICHTIG_FALSCH' || TF.has(correct)
+          if (!options && !isTrueFalse) continue // MATCHING / viết / tự luận: chưa hỗ trợ trên app
           const passage = typeof it.text === 'string' ? it.text : teilPassage
-          items.push({ id, question, passage, options })
+          items.push({ id, question, passage, options, optionKeys })
         }
         if (items.length > 0) {
           groups.push({ title: String(teil.title ?? 'Đọc hiểu'), items })
