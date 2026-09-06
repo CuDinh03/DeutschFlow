@@ -19,11 +19,21 @@ const mediaAccentVars = {
 // Category → labelKey + accent (mirrors proto AD_MEDIA tag colours). labelKey resolves
 // via t(`cat${labelKey}`); unknown categories fall back to the raw value or catOther.
 const CAT: Record<string, { labelKey: string; color: string }> = {
+  // 10 giá trị của backend MediaCategory (audit i18n 06/09/2026: 8/10 từng hiện raw enum vì map chỉ có
+  // các category của prototype). Các khoá prototype giữ phía dưới để dữ liệu cũ (nếu có) vẫn có nhãn.
+  LANDING: { labelKey: 'Landing', color: '#DA291C' },
+  LESSON: { labelKey: 'Lesson', color: '#2F6FC9' },
+  PERSONA: { labelKey: 'Persona', color: '#E07B39' },
+  ACHIEVEMENT: { labelKey: 'Achievement', color: '#B8860B' },
+  NEWS: { labelKey: 'News', color: '#5E9150' },
+  VOCABULARY: { labelKey: 'Vocabulary', color: '#1E9E61' },
+  TEACHER_MATERIAL: { labelKey: 'TeacherMaterial', color: '#7C56C8' },
+  ASSIGNMENT: { labelKey: 'Assignment', color: '#8257D8' },
+  AVATAR: { labelKey: 'Avatar', color: '#11888A' },
+  GENERAL: { labelKey: 'General', color: '#76716A' },
   WORD_IMAGE: { labelKey: 'WordImage', color: '#1E9E61' },
   AI_IMAGE: { labelKey: 'AiImage', color: '#7C56C8' },
   VIDEO_SCENE: { labelKey: 'VideoScene', color: '#2F6FC9' },
-  PERSONA: { labelKey: 'Persona', color: '#E07B39' },
-  AVATAR: { labelKey: 'Avatar', color: '#11888A' },
   MARKETING: { labelKey: 'Marketing', color: '#DA291C' },
 }
 
