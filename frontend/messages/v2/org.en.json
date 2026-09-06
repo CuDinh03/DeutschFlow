@@ -137,7 +137,8 @@
         "active7d": "Used AI in 7 days",
         "activeRecently": "used AI recently",
         "classes": "Enrolled classes",
-        "ofCenter": "of the center"
+        "ofCenter": "of the center",
+        "unavailable": "stats unavailable"
       },
       "count": "{count} students",
       "searchPlaceholder": "Search students / email…",
@@ -157,7 +158,8 @@
         "email": "Email",
         "status": "Status",
         "joinedAt": "Joined on"
-      }
+      },
+      "analyticsError": "Could not load center-wide statistics (GET /api/org/analytics). Cells marked \"—\" have no value yet; they are not zero."
     },
     "studentDetail": {
       "titleFallback": "Student detail",
@@ -216,7 +218,12 @@
         "teacherLoading": "Loading teachers…",
         "teacherPick": "Pick a teacher…",
         "teacherHint": "The class belongs to the centre and is run by this teacher."
-      }
+      },
+      "loadMore": "Load more ({remaining} remaining)",
+      "loadedOf": "Loaded {loaded}/{total} classes",
+      "searchHint": "Searching only the loaded classes — use \"Load more\" to widen.",
+      "unassignedBadgePartial": "{count} without a teacher (of {loaded} loaded)",
+      "loadMoreError": "Could not load more classes."
     },
     "classDetail": {
       "titleFallback": "Class detail",

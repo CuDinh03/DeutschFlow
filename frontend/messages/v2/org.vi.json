@@ -137,7 +137,8 @@
         "active7d": "Có dùng AI 7 ngày",
         "activeRecently": "có dùng AI gần đây",
         "classes": "Lớp đang học",
-        "ofCenter": "của trung tâm"
+        "ofCenter": "của trung tâm",
+        "unavailable": "chưa tải được số liệu"
       },
       "count": "{count} học viên",
       "searchPlaceholder": "Tìm học viên / email…",
@@ -157,7 +158,8 @@
         "email": "Email",
         "status": "Trạng thái",
         "joinedAt": "Ngày tham gia"
-      }
+      },
+      "analyticsError": "Không tải được số liệu toàn trung tâm (GET /api/org/analytics). Ô đánh dấu \"—\" là chưa có số, không phải bằng 0."
     },
     "studentDetail": {
       "titleFallback": "Chi tiết học viên",
@@ -216,7 +218,12 @@
         "teacherLoading": "Đang tải giáo viên…",
         "teacherPick": "Chọn giáo viên…",
         "teacherHint": "Lớp sẽ thuộc về trung tâm và do giáo viên này phụ trách."
-      }
+      },
+      "loadMore": "Tải thêm ({remaining} lớp còn lại)",
+      "loadedOf": "Đã tải {loaded}/{total} lớp",
+      "searchHint": "Chỉ tìm trong các lớp đã tải — bấm \"Tải thêm\" để mở rộng.",
+      "unassignedBadgePartial": "{count} chưa có GV (trong {loaded} lớp đã tải)",
+      "loadMoreError": "Không tải thêm được lớp."
     },
     "classDetail": {
       "titleFallback": "Chi tiết lớp",
