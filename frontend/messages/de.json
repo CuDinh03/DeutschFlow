@@ -617,6 +617,7 @@
     "summaryExit": "Beenden & zur Übersicht",
     "repairNow": "Jetzt üben (2 Min)",
     "drillPrompt": "Schreib den korrekten Satz auf Deutsch:",
+    "drillPromptHint": "(Tippen oder laut vorlesen)",
     "drillSubmit": "Prüfen",
     "drillClose": "Schließen",
     "drillCloseBlocked": "Nach der Übung schließen",

@@ -645,6 +645,7 @@
     "summaryExit": "Kết thúc & xem tóm tắt",
     "repairNow": "Sửa ngay (2 phút)",
     "drillPrompt": "Viết lại câu đúng bằng tiếng Đức:",
+    "drillPromptHint": "(Gõ phím hoặc Đọc to)",
     "drillSubmit": "Kiểm tra",
     "drillClose": "Đóng",
     "drillCloseBlocked": "Đóng sau khi sửa xong",

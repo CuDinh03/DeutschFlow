@@ -129,7 +129,7 @@ export default function ErrorRepairDrill({
 
         <div className="flex items-center justify-between mb-2">
           <label className="block text-xs font-semibold text-ga-muted">
-            {t("drillPrompt")} (Gõ phím hoặc Đọc to)
+            {t("drillPrompt")} {t("drillPromptHint")}
           </label>
         </div>
         

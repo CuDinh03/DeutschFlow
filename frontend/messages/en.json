@@ -645,6 +645,7 @@
     "summaryExit": "End & view summary",
     "repairNow": "Fix now (2 min)",
     "drillPrompt": "Rewrite the correct sentence in German:",
+    "drillPromptHint": "(Type or read aloud)",
     "drillSubmit": "Check",
     "drillClose": "Close",
     "drillCloseBlocked": "Close after repair",

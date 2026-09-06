@@ -1,7 +1,8 @@
 /**
  * QA cho GR-1: SessionSummary render báo cáo AI THẬT (ConversationReport) cho COMMUNICATION/LESSON
  * thay điểm heuristic bịa. Phủ: có report đủ điểm, report rỗng, không report (degrade), min-turn
- * guard, và không đụng luồng INTERVIEW. next-intl mock trả key (parity các test hiện có).
+ * guard, và không đụng luồng INTERVIEW. next-intl mock đọc catalog THẬT (i18n đợt 3, 06/09) để giữ
+ * khẳng định theo chữ nhìn thấy sau khi chuỗi Việt cứng chuyển sang v2.student.sessionSummary.
  */
 import React from 'react'
 import { render, screen } from '@testing-library/react'
@@ -10,7 +11,7 @@ import { SessionSummary } from '@/components/features/ai-speaking/SessionSummary
 import type { ChatMessage } from '@/stores/useChatStore'
 import type { ConversationReport } from '@/lib/aiSpeakingApi'
 
-vi.mock('next-intl', () => ({ useLocale: () => 'vi', useTranslations: () => (k: string) => k }))
+vi.mock('next-intl', async () => (await import('@/test/intlCatalog')).nextIntlCatalogMock())
 
 const userTurns = (n: number): ChatMessage[] =>
   Array.from({ length: n }, (_, i) => ({ id: `u${i}`, role: 'user', contentDe: `Satz ${i}` })) as ChatMessage[]
