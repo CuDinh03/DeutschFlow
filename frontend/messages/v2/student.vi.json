@@ -1530,7 +1530,8 @@
       "retryDesc": "Nghe/Đọc yêu cầu 100% • Nói/Phát âm/Viết yêu cầu ≥ 80 điểm",
       "retryCta": "🔄 Làm lại",
       "progressNotSaved": "Chưa lưu được tiến độ lên máy chủ.",
-      "scoreBelowThreshold": "Máy chủ chấm được {score}% — chưa đạt ngưỡng qua bài nên tiến độ chưa được ghi nhận."
+      "scoreBelowThreshold": "Máy chủ chấm được {score}% — chưa đạt ngưỡng qua bài nên tiến độ chưa được ghi nhận.",
+      "dayPrefix": "Ngày {n} · {title}"
     },
     "stats": {
       "title": "Thống kê học tập",
@@ -2050,7 +2051,8 @@
         "nextLesson": "Bài tiếp theo:",
         "nextCta": "Tiếp theo: {title} →",
         "backCta": "Về lộ trình",
-        "backToRoadmap": "Về lộ trình học"
+        "backToRoadmap": "Về lộ trình học",
+        "practiceCta": "Luyện {skill} ngay"
       },
       "pronunciation": {
         "verdict": {
