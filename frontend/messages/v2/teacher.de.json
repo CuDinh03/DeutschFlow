@@ -9,6 +9,10 @@
       "emptyNoStudents": "Noch keine Lernenden. Erstelle zuerst eine Klasse und füge Lernende hinzu.",
       "emptyNoMatch": "Keine passenden Lernenden."
     },
+    "tcShared": {
+      "classFallback": "Klasse #{id}",
+      "noClasses": "Noch keine Klasse"
+    },
     "toolsMaterials": {
       "prototypeNotice": "UI-Prototyp — es gibt noch kein Generierungs-Backend, der Erstellen-Button ist deaktiviert. Dieser Bildschirm dient nur dem Design-Feedback und erzeugt keine echten Materialien."
     },
@@ -132,6 +136,81 @@
         "deleteConfirm": "Löschen",
         "deleteSuccess": "Meilenstein gelöscht",
         "cancel": "Abbrechen"
+      },
+      "mode": {
+        "ONLINE": "Online",
+        "OFFLINE": "Im Kurs"
+      },
+      "status": {
+        "SCHEDULED": "Geplant",
+        "CANCELLED": "Abgesagt",
+        "MOVED": "Verschoben"
+      },
+      "dow": {
+        "mon": "Montag",
+        "tue": "Dienstag",
+        "wed": "Mittwoch",
+        "thu": "Donnerstag",
+        "fri": "Freitag",
+        "sat": "Samstag",
+        "sun": "Sonntag"
+      },
+      "field": {
+        "class": "Klasse",
+        "classOption": "{name} · {count} Lernende",
+        "start": "Beginn",
+        "startTime": "Startzeit",
+        "duration": "Dauer (Min.)",
+        "mode": "Form",
+        "room": "Raum",
+        "roomOnline": "Nicht nötig (online)",
+        "roomPlaceholder": "z. B. R.302",
+        "status": "Status",
+        "weekdays": "Wochentage",
+        "weekdaysAria": "Wochentage auswählen",
+        "effectiveFrom": "Gültig ab",
+        "effectiveTo": "Bis (leer = unbefristet)"
+      },
+      "saving": "Wird gespeichert…",
+      "classRequired": "Wähle eine Klasse",
+      "startRequired": "Wähle eine Startzeit",
+      "editSession": {
+        "title": "Stunde bearbeiten",
+        "description": "{className} · {count} Lernende",
+        "enter": "Zur Unterrichtsstunde →",
+        "save": "Stunde speichern",
+        "durationPositive": "Die Dauer muss größer als 0 sein",
+        "pending": "Änderungsantrag für die Stunde gesendet — wartet auf Genehmigung des Zentrums, der aktuelle Plan bleibt unverändert",
+        "overrideNote": "Beim Bearbeiten wird diese Stunde als „manuell angepasst“ markiert — spätere Änderungen am festen Termin überschreiben sie nicht."
+      },
+      "createSession": {
+        "title": "Klassenstunde hinzufügen",
+        "description": "Einzelne Stunde — außerhalb des festen Termins.",
+        "noClasses": "Du hast noch keine Klasse, für die du eine Stunde hinzufügen könntest.",
+        "pending": "Antrag auf Nachholtermin gesendet — wartet auf Genehmigung des Zentrums"
+      },
+      "pattern": {
+        "title": "Fester Termin der Klasse",
+        "description": "Lege einen wiederkehrenden Termin nach Wochentagen fest — künftige Stunden werden automatisch erzeugt; manuell angepasste Stunden bleiben erhalten.",
+        "save": "Festen Termin speichern",
+        "noClasses": "Du hast noch keine Klasse.",
+        "existingCap": "Bestehende feste Termine",
+        "empty": "Für diese Klasse gibt es noch keinen festen Termin.",
+        "weekdayRequired": "Wähle mindestens einen Wochentag",
+        "startAndFromRequired": "Gib Startzeit und Gültig-ab-Datum ein",
+        "savePending": "Antrag auf festen Termin für {days} gesendet — wartet auf Genehmigung des Zentrums, der aktuelle Plan bleibt unverändert",
+        "saved": "Plan für {days} gespeichert · {n} Stunden erzeugt",
+        "savedKept": "{n} manuell angepasste Stunden beibehalten",
+        "savedSkipped": "{n} Stunden wegen Terminkonflikt übersprungen",
+        "saveFailed": "Speichern für {days} fehlgeschlagen: {detail}",
+        "saveFailedGeneric": "Terminkonflikt oder ungültige Angaben",
+        "delete": "Festen Termin löschen",
+        "deleteTitle": "Festen Termin löschen?",
+        "deleteDetailSessions": "Alle künftigen Stunden aus diesem Termin (nicht manuell angepasst) werden entfernt; manuell angepasste Stunden bleiben erhalten.",
+        "deleteDetailGated": "Zentrumsklasse mit Curriculum: Das Löschen wird zum Antrag, der auf die Genehmigung des Zentrums wartet — vorerst wird nichts entfernt.",
+        "deleteConfirm": "Termin löschen",
+        "deletePending": "Antrag auf Aufhebung des festen Termins gesendet — wartet auf Genehmigung des Zentrums",
+        "deleted": "Fester Termin gelöscht · {n} künftige, nicht manuell angepasste Stunden entfernt"
       }
     },
     "tcProgress": {
@@ -738,6 +817,7 @@
       "teachersPrimaryOnly": "Nur die Hauptlehrkraft kann Assistenzen hinzufügen oder entfernen.",
       "coTeacherAccessNote": "Assistenzen haben vollen Zugriff auf die Klasse: Bewertung, Aufgaben, Berichte und Klassenchat.",
       "titleFallback": "Klassendetails",
+      "classFallback": "Klasse #{id}",
       "subtitle": "Klassencode: {code} · {count} Lernende beigetreten",
       "subtitleLoading": "Wird geladen…",
       "backToClasses": "Klassen",
