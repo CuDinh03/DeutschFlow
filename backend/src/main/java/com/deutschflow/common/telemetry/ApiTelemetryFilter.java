@@ -16,6 +16,7 @@ import org.springframework.web.servlet.HandlerMapping;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -32,6 +33,14 @@ public class ApiTelemetryFilter extends OncePerRequestFilter {
     /** Đoạn đường dẫn là UUID — chưa route nào dùng, rào sẵn để khỏi lặp lại cùng lỗi. */
     private static final Pattern UUID_SEGMENT = Pattern.compile(
             "/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?=/|$)");
+
+    /**
+     * Mẫu bắt-tất-cả. Đường dẫn không khớp controller nào rơi vào handler tài nguyên tĩnh, và
+     * `BEST_MATCHING_PATTERN_ATTRIBUTE` khi đó là `/**` — ghi nguyên si thì MỌI request 404 gộp
+     * thành một dòng vô nghĩa và mất sạch đường dẫn thật (đo trên prod 08/09: `/api/onboarding/
+     * preview/mentor/12345` bị ghi thành `/**`). Những ca này quay về che định danh trong URI thô.
+     */
+    private static final Set<String> CATCH_ALL_PATTERNS = Set.of("/**", "/*", "/");
 
     private final ApiTelemetryService apiTelemetryService;
     private final JwtService jwtService;
@@ -106,7 +115,8 @@ public class ApiTelemetryFilter extends OncePerRequestFilter {
      */
     private String resolveEndpoint(HttpServletRequest request) {
         Object bestMatch = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
-        if (bestMatch instanceof String pattern && !pattern.isBlank()) {
+        if (bestMatch instanceof String pattern && !pattern.isBlank()
+                && !CATCH_ALL_PATTERNS.contains(pattern)) {
             return truncate(pattern);
         }
         return truncate(maskPathVariables(request.getRequestURI()));
