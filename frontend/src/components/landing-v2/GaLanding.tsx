@@ -571,7 +571,7 @@ export function GaLanding() {
         <div className="mx-auto grid max-w-[1240px] items-center gap-8 px-5 py-14 sm:px-8 md:grid-cols-[1fr_auto] md:gap-[60px] md:py-[72px] lg:px-[60px]">
           <div>
             <GaCap className="mb-[18px] text-[#76716A]">{t('cta.cap')}</GaCap>
-            <h2 className="font-ga-display text-[34px] font-medium leading-[1.15] sm:text-[42px] md:text-[50px] md:leading-[1.1]">{t('cta.title')}</h2>
+            <h2 className="text-balance font-ga-display text-[34px] font-medium leading-[1.15] sm:text-[42px] md:leading-[1.1]">{t('cta.title')}</h2>
           </div>
           <GaBtn asChild variant="yellow" size="lg" className="w-full md:w-auto">
             <Link href={START_HREF}><YellowSq dark />{t('cta.button')}</Link>
