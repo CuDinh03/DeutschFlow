@@ -153,7 +153,16 @@
     "back": "Back",
     "next": "Next",
     "confirm": "Confirm",
-    "search": "Search"
+    "search": "Search",
+    "dowShort": {
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat",
+      "sun": "Sun"
+    }
   },
   "error": {
     "title": "This page hit an error",

@@ -45,7 +45,6 @@
       "heading": "Wie viel möchtest du lernen?",
       "sub": "Dein Wochenziel bestimmt die personalisierten Zusatzthemen.",
       "mentorLabel": "Dein Mentor",
-      "mentorFallbackTagline": "Dein Lernbegleiter",
       "upsell": "🔓 Mentor <b>{name}</b>{tagline} mit PRO freischalten →",
       "w3": {
         "label": "3 Lektionen/Woche",

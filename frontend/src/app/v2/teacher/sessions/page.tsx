@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Clock, Check, X, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -54,7 +55,9 @@ const STATUS: Record<string, { label: string; fg: string; bg: string }> = {
 }
 const statusOf = (s: string) => STATUS[s] ?? { label: s, fg: 'var(--ga-muted)', bg: 'var(--ga-side-active)' }
 
-const DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+/** Khoá thứ trong tuần theo thứ tự backend (0 = thứ Hai). Nhãn ngắn lấy từ `v2.common.dowShort`
+ *  để lưới lịch hiển thị đúng ngôn ngữ đang chọn (vi T2… · en Mon… · de Mo…). */
+const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
 const START_HOUR = 7
 const END_HOUR = 22
 const GRID_H = 560
@@ -219,6 +222,7 @@ export default function V2TeacherSessionsPage() {
 
 // ── Week calendar (real scheduledAt + duration; current week only) ───────────
 function WeekGrid({ sessions }: { sessions: Session[] }) {
+  const tc = useTranslations('v2.common')
   const monday = weekStart()
   const end = new Date(monday); end.setDate(end.getDate() + 7)
   const hours = Array.from({ length: (END_HOUR - START_HOUR) / 2 + 1 }, (_, i) => START_HOUR + i * 2)
@@ -231,12 +235,12 @@ function WeekGrid({ sessions }: { sessions: Session[] }) {
     <div className="overflow-x-auto border border-ga-line bg-ga-card lg:overflow-hidden">
       <div className="grid min-w-[620px] lg:min-w-0" style={{ gridTemplateColumns: '56px repeat(7,1fr)' }}>
         <div className="border-b border-r border-ga-line" />
-        {DAYS.map((d, i) => {
+        {DAY_KEYS.map((dk, i) => {
           const date = new Date(monday); date.setDate(date.getDate() + i)
           const weekend = i >= 5
           return (
-            <div key={d} className={`border-b border-ga-line py-3 text-center ${i < 6 ? 'border-r' : ''}`}>
-              <div className="ga-ui text-[12px] font-bold tracking-[0.08em]" style={{ color: weekend ? 'var(--ga-muted)' : 'var(--ga-ink)' }}>{d}</div>
+            <div key={dk} className={`border-b border-ga-line py-3 text-center ${i < 6 ? 'border-r' : ''}`}>
+              <div className="ga-ui text-[12px] font-bold tracking-[0.08em]" style={{ color: weekend ? 'var(--ga-muted)' : 'var(--ga-ink)' }}>{tc(`dowShort.${dk}`)}</div>
               <div className="ga-ui mt-1 text-[11px] text-ga-subtle">{String(date.getDate()).padStart(2, '0')}/{String(date.getMonth() + 1).padStart(2, '0')}</div>
             </div>
           )
@@ -248,8 +252,8 @@ function WeekGrid({ sessions }: { sessions: Session[] }) {
             <div key={h} className="ga-ui px-2 py-1 text-right text-[11px] text-ga-muted" style={{ height: GRID_H / hours.length }}>{h}:00</div>
           ))}
         </div>
-        {DAYS.map((d, di) => (
-          <div key={d} className={`relative ${di < 6 ? 'border-r border-ga-line' : ''}`} style={{ background: di >= 5 ? 'var(--ga-bg)' : undefined }}>
+        {DAY_KEYS.map((dk, di) => (
+          <div key={dk} className={`relative ${di < 6 ? 'border-r border-ga-line' : ''}`} style={{ background: di >= 5 ? 'var(--ga-bg)' : undefined }}>
             {Array.from({ length: hours.length - 1 }).map((_, r) => (
               <div key={r} className="absolute inset-x-0 border-t border-ga-line opacity-50" style={{ top: (GRID_H / hours.length) * (r + 1) }} />
             ))}

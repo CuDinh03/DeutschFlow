@@ -153,7 +153,16 @@
     "back": "Quay lại",
     "next": "Tiếp tục",
     "confirm": "Xác nhận",
-    "search": "Tìm kiếm"
+    "search": "Tìm kiếm",
+    "dowShort": {
+      "mon": "T2",
+      "tue": "T3",
+      "wed": "T4",
+      "thu": "T5",
+      "fri": "T6",
+      "sat": "T7",
+      "sun": "CN"
+    }
   },
   "error": {
     "title": "Trang gặp lỗi",

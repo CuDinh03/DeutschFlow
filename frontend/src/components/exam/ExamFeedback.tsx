@@ -1,7 +1,8 @@
 'use client'
 
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Sparkles, ThumbsUp, TrendingUp, PenTool, Clock, Check } from 'lucide-react'
+import { pickExamFeedback } from '@/lib/exam/examFeedbackLocale'
 
 interface AiEmailEvaluation {
   status: string
@@ -52,13 +53,16 @@ function RubricBar({ label, score, max }: { label: string; score: number; max: n
 
 function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
   const t = useTranslations('v2.student.examResult.examFeedback')
+  const locale = useLocale()
+  // Backend sinh song song feedback_vi + feedback_de; chọn theo locale thay vì luôn đọc bản Việt.
+  const feedback = pickExamFeedback(evalData, locale)
   if (evalData.status === 'PENDING_AI_EVALUATION') {
     return (
       <div className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-2xl p-4">
         <Clock size={18} className="text-amber-500 shrink-0 mt-0.5" />
         <div>
           <p className="font-bold text-amber-800 text-sm">{t('pendingTitle')}</p>
-          <p className="text-xs text-amber-600 mt-0.5">{evalData.feedback_vi || t('pendingFallback')}</p>
+          <p className="text-xs text-amber-600 mt-0.5">{feedback || t('pendingFallback')}</p>
         </div>
       </div>
     )
@@ -100,10 +104,10 @@ function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
       </div>
 
       {/* Feedback text */}
-      {evalData.feedback_vi && (
+      {feedback && (
         <div className="bg-slate-50 rounded-2xl border border-[#E2E8F0] p-4">
           <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide mb-2">{t('overallCap')}</p>
-          <p className="text-sm text-[#334155] leading-relaxed">{evalData.feedback_vi}</p>
+          <p className="text-sm text-[#334155] leading-relaxed">{feedback}</p>
         </div>
       )}
 
