@@ -19,7 +19,7 @@ import {
   ProgressBar,
   SelectableRow,
 } from '@/components/ui'
-import { attemptTotalScore, parseLesenItems, type AttemptResultDto, type ExamObjItem } from '@/lib/examApi'
+import { attemptTotalScore, parseLesenItems, type AttemptResultDto, type ExamObjItem, itemChoices } from '@/lib/examApi'
 import { pollAsyncJob, AsyncJobFailedError, AsyncJobTimeoutError } from '@/lib/asyncJobs'
 import { trackFeatureAction } from '@/lib/analytics'
 import { useHardwareBack } from '@/hooks/useHardwareBack'
@@ -246,6 +246,19 @@ export default function ExamAttemptScreen() {
           {parsed.groups.map((group, gi) => (
             <View key={gi} style={{ gap: space[3] }}>
               <Caption>{group.title}</Caption>
+              {group.instruction ? (
+                <ThemedText variant="body" color="secondary">
+                  {group.instruction}
+                </ThemedText>
+              ) : null}
+              {group.passage ? (
+                <View style={{ gap: space[2], backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>
+                  <Caption>Bài đọc</Caption>
+                  <ThemedText variant="body" color="secondary">
+                    {group.passage}
+                  </ThemedText>
+                </View>
+              ) : null}
               {group.items.map((item) => (
                 <QuestionCard
                   key={item.id}
@@ -279,8 +292,8 @@ function QuestionCard({
   onSelect: (val: string) => void
 }) {
   const { colors } = useTheme()
-  const choices = item.options ?? ['richtig', 'falsch']
-  const labelFor = (v: string) => (v === 'richtig' ? 'Richtig' : v === 'falsch' ? 'Falsch' : v)
+  // Giá trị nộp tách khỏi nhãn: trắc nghiệm options object nộp chữ cái A/B/C (AC-MOBFIX-03).
+  const choices = itemChoices(item)
   return (
     <Card style={{ gap: space[4] }}>
       {item.passage ? (
@@ -301,7 +314,7 @@ function QuestionCard({
       <ThemedText variant="title">{item.question}</ThemedText>
       <View style={{ gap: space[2] }}>
         {choices.map((choice) => (
-          <Choice key={choice} label={labelFor(choice)} active={selected === choice} onPress={() => onSelect(choice)} />
+          <Choice key={choice.value} label={choice.label} active={selected === choice.value} onPress={() => onSelect(choice.value)} />
         ))}
       </View>
     </Card>
