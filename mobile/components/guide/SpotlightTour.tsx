@@ -8,12 +8,17 @@
 // cutout lets the user's tap reach the real UI, ending the tour with a real
 // action (finish is detected via the pathname change).
 //
-// The scrim is four plain panels around the cutout plus four small corner
-// patches that round the cutout to match the ring (lib/spotlightScrim), all
-// animated with Reanimated transforms. Deliberately NOT an SVG mask: animated
-// SVG attribute updates are unreliable on Fabric in this repo (see the
-// skill-tree <G> transform gotcha). Not a Modal either — tap-through needs
-// touches to reach the app underneath.
+// The scrim is ONE full-screen SVG path with an even-odd rounded-rect hole
+// (lib/spotlightHole); its `d` is driven per frame by Reanimated
+// `useAnimatedProps` — the same SVG-prop animation this app already runs on
+// Fabric (ProgressRing strokeDashoffset, SplashAnimated). Earlier builds cut
+// the hole with four scrim panels + four corner patches (View, overflow
+// hidden): the patches rendered on the simulator but NOT on the owner's device
+// (06/09/2026), leaving a square lit area under a rounded ring. The only
+// animated-SVG prop known to be unreliable here is `<G transform>` (skill-tree
+// gotcha) — there is no G in this overlay. As a safety net the settled hole is
+// also written from JS as a plain `d` prop after every step (see commitHole).
+// Not a Modal either — tap-through needs touches to reach the app underneath.
 //
 // Anchors below the fold: a scrolling screen registers its ScrollView through
 // SpotlightScrollHostProvider (Screen does this), so the host scrolls the
@@ -44,7 +49,8 @@ import { router, usePathname } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
-import Animated, { useAnimatedStyle, useDerivedValue, useSharedValue, withSpring } from 'react-native-reanimated'
+import Animated, { runOnJS, useAnimatedProps, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
+import Svg, { Path } from 'react-native-svg'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { ThemedText, Button, useTabBarClearance } from '@/components/ui'
 import { captureEvent } from '@/lib/analytics'
@@ -56,7 +62,7 @@ import {
   type SpotlightTourId,
   type SpotlightTourParams,
 } from './spotlightTours'
-import { scrimZones, scrimZoneTransform, scrimCornerOffsets, scrimCornerRingOffset } from '@/lib/spotlightScrim'
+import { scrimZones, spotlightHolePath } from '@/lib/spotlightHole'
 import { revealScrollOffset } from '@/lib/spotlightReveal'
 import { useSpotlightScrollHost, type SpotlightScrollHostRef } from './spotlightScrollHost'
 
@@ -75,6 +81,8 @@ const CARET = 12
 const REVEAL_FIRST_POLL_MS = 120
 const REVEAL_POLL_MS = 70
 const REVEAL_SETTLE_MS = 900
+
+const AnimatedPath = Animated.createAnimatedComponent(Path)
 
 interface TargetRect {
   x: number
@@ -171,11 +179,6 @@ function innerViewOf(host: ScrollView): View | null {
   return typeof h.getInnerViewRef === 'function' ? h.getInnerViewRef() : null
 }
 
-function cornerTransform(c: { x: number; y: number }) {
-  'worklet'
-  return { transform: [{ translateX: c.x }, { translateY: c.y }] }
-}
-
 function measureView(view: Pick<View, 'measureInWindow'> | null): Promise<TargetRect | null> {
   return new Promise((resolve) => {
     if (!view) return resolve(null)
@@ -218,6 +221,18 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
   const hy = useSharedValue(0)
   const hw = useSharedValue(0)
   const hh = useSharedValue(0)
+  // Bản "đã yên" của lỗ khoét, ghi từ JS khi spring kết thúc (hoặc ngay khi
+  // nhảy thẳng). Lưới an toàn: nếu animated prop `d` không áp trên một build
+  // nào đó, lỗ vẫn về đúng chỗ sau mỗi bước — chỉ mất phần bay.
+  const [settledHole, setSettledHole] = useState(() =>
+    spotlightHolePath(winW, winH, { x: 0, y: 0, width: 0, height: 0 }, CUTOUT_RADIUS),
+  )
+  const commitHole = useCallback(
+    (to: { x: number; y: number; w: number; h: number }) => {
+      setSettledHole(spotlightHolePath(winW, winH, { x: to.x, y: to.y, width: to.w, height: to.h }, CUTOUT_RADIUS))
+    },
+    [winW, winH],
+  )
 
   useEffect(() => {
     void useTourStore.getState().hydrate()
@@ -354,13 +369,17 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
           hx.value = withSpring(to.x, motion.spring.snappy)
           hy.value = withSpring(to.y, motion.spring.snappy)
           hw.value = withSpring(to.w, motion.spring.snappy)
-          hh.value = withSpring(to.h, motion.spring.snappy)
+          // Spring cuối xong (không bị bước kế cắt ngang) → ghi bản "đã yên".
+          hh.value = withSpring(to.h, motion.spring.snappy, (finished) => {
+            if (finished) runOnJS(commitHole)(to)
+          })
         } else {
           hx.value = to.x
           hy.value = to.y
           hw.value = to.w
           hh.value = to.h
           hasRectRef.current = true
+          commitHole(to)
         }
       }
       captureEvent('guide_tour_step_viewed', { tour: tour.tourId, step: step.id, index })
@@ -369,7 +388,7 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
         `Bước ${index + 1} trên ${tour.steps.length}. ${step.title}. ${step.desc}`,
       )
     },
-    [waitForTarget, revealTarget, winH, winW, hx, hy, hw, hh],
+    [waitForTarget, revealTarget, winH, winW, hx, hy, hw, hh, commitHole],
   )
 
   const startTour = useCallback(
@@ -417,56 +436,17 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
     [registerTarget, unregisterTarget, startTour, active],
   )
 
-  // Lớp mờ = BỐN tấm quanh ô khoét (trên · dưới · trái · phải), cùng phép chia
-  // màn hình với StepBlockers (lib/spotlightScrim). Trước 05/09 là MỘT view
-  // viền khổng lồ (borderWidth 2000) — không hiện trên build New Architecture
-  // của bản public 17. Bản #529 đặt 4 tấm bằng left/top/width/height → mỗi frame
-  // spring là một lần commit layout cho 4 view, trên máy thật owner thấy tour
-  // "giật, không mượt". Nay mỗi tấm cỡ cố định winW×winH và chỉ animate
-  // transform (translate + scale) — chạy trên compositor, không đụng layout;
-  // vùng tính một lần mỗi frame qua useDerivedValue rồi 4 style đọc chung.
-  const zones = useDerivedValue(() =>
-    scrimZones({ x: hx.value, y: hy.value, width: hw.value, height: hh.value }, winW, winH),
-  )
-  const scrimTop = useAnimatedStyle(() => scrimZoneTransform(zones.value[0], winW, winH))
-  const scrimBottom = useAnimatedStyle(() => scrimZoneTransform(zones.value[1], winW, winH))
-  const scrimLeft = useAnimatedStyle(() => scrimZoneTransform(zones.value[2], winW, winH))
-  const scrimRight = useAnimatedStyle(() => scrimZoneTransform(zones.value[3], winW, winH))
-  // Bo tròn ô khoét: 4 tấm mờ để lại góc VUÔNG trong khi khung vàng bo góc
-  // (owner QA 05/09). Mỗi góc = miếng vá r×r (overflow hidden) chứa vòng khuyên
-  // màu mờ, tâm trùng góc trong → phần góc ngoài cung tròn bị phủ mờ, vùng sáng
-  // ôm đúng khung. Cũng chỉ animate translate như 4 tấm.
-  const corners = useDerivedValue(() =>
-    scrimCornerOffsets({ x: hx.value, y: hy.value, width: hw.value, height: hh.value }, CUTOUT_RADIUS),
-  )
-  const cornerTL = useAnimatedStyle(() => cornerTransform(corners.value[0]))
-  const cornerTR = useAnimatedStyle(() => cornerTransform(corners.value[1]))
-  const cornerBL = useAnimatedStyle(() => cornerTransform(corners.value[2]))
-  const cornerBR = useAnimatedStyle(() => cornerTransform(corners.value[3]))
-  const cornerPatch = {
-    position: 'absolute' as const,
-    left: 0,
-    top: 0,
-    width: CUTOUT_RADIUS,
-    height: CUTOUT_RADIUS,
-    overflow: 'hidden' as const,
-  }
-  const cornerRing = {
-    position: 'absolute' as const,
-    width: CUTOUT_RADIUS * 4,
-    height: CUTOUT_RADIUS * 4,
-    borderRadius: CUTOUT_RADIUS * 2,
-    borderWidth: CUTOUT_RADIUS,
-    borderColor: SCRIM,
-  }
-  const scrimPanel = {
-    position: 'absolute' as const,
-    left: 0,
-    top: 0,
-    width: winW,
-    height: winH,
-    backgroundColor: SCRIM,
-  }
+  // Lớp mờ = MỘT path SVG phủ cả màn, khoét lỗ bo tròn bằng luật even-odd
+  // (lib/spotlightHole). `d` tính mỗi frame từ hx/hy/hw/hh trong worklet —
+  // cùng cơ chế animated-prop SVG mà ProgressRing/SplashAnimated đã chạy trên
+  // Fabric. Trước 06/09 là 4 tấm mờ + 4 miếng vá góc (View, overflow hidden):
+  // miếng vá hiện trên simulator nhưng KHÔNG hiện trên máy thật của owner →
+  // "khung bo góc mà phần sáng vuông". Lỗ dùng CÙNG bán kính với khung vàng nên
+  // vùng sáng ôm đúng khung ở mọi bước; StepBlockers vẫn chia vùng bằng
+  // scrimZones để bước tap-through chỉ cho chạm vào phần tử được chiếu sáng.
+  const holeProps = useAnimatedProps(() => ({
+    d: spotlightHolePath(winW, winH, { x: hx.value, y: hy.value, width: hw.value, height: hh.value }, CUTOUT_RADIUS),
+  }))
 
   const ringStyle = useAnimatedStyle(() => ({
     position: 'absolute' as const,
@@ -506,15 +486,14 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
           >
             {display.rect ? (
               <>
-                <Animated.View pointerEvents="none" style={[scrimPanel, scrimTop]} />
-                <Animated.View pointerEvents="none" style={[scrimPanel, scrimBottom]} />
-                <Animated.View pointerEvents="none" style={[scrimPanel, scrimLeft]} />
-                <Animated.View pointerEvents="none" style={[scrimPanel, scrimRight]} />
-                {[cornerTL, cornerTR, cornerBL, cornerBR].map((cornerStyle, i) => (
-                  <Animated.View key={i} pointerEvents="none" style={[cornerPatch, cornerStyle]}>
-                    <View style={[cornerRing, scrimCornerRingOffset(i, CUTOUT_RADIUS)]} />
-                  </Animated.View>
-                ))}
+                <Svg
+                  pointerEvents="none"
+                  width={winW}
+                  height={winH}
+                  style={{ position: 'absolute', left: 0, top: 0, width: winW, height: winH }}
+                >
+                  <AnimatedPath d={settledHole} animatedProps={holeProps} fill={SCRIM} fillRule="evenodd" />
+                </Svg>
                 <Animated.View
                   pointerEvents="none"
                   style={[
