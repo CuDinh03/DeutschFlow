@@ -21,7 +21,8 @@ import { AssignClassModal } from './AssignClassModal'
 //   listInvitations (pending invites) + revokeInvitation.
 // Option-1: OrgMember has no per-teacher classes/students/RATING → dropped. The proto's
 // "chờ duyệt" teachers map to pending INVITATIONS (members are already ACTIVE once joined).
-// "Mời giáo viên" → org-invitations (not built) toasts; "Phân công" → toast.
+// "Mời giáo viên" → CreateTeacherModal / lời mời org THẬT (listInvitations + revokeInvitation);
+// "Phân công" → AssignClassModal (PATCH /org/classes/{id}/teacher) — không còn toast giả (PR-A6 sửa ghi chú cũ).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEAL = '#11888A'

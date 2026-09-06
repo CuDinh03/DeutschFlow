@@ -10,8 +10,9 @@ import { LoadingState } from '@/components/ui-v2'
  * Owner-only client guard for org sub-pages (Gói DeutschFlow & thanh toán; trang Tài chính cũ
  * đã gỡ ở Đợt 0 OWNER — /v2/org/finance giờ redirect về billing).
  *
- * MANAGER (nhân sự) is an org admin for day-to-day ops — mời giáo viên, import/xoá học viên, xem
- * lớp · học viên · phân tích — but NOT for finance/billing: those are OWNER (giám đốc) only. The
+ * MANAGER (nhân sự) is an org admin for day-to-day ops — mời giáo viên, phân công lớp, gỡ thành viên,
+ * xem lớp · học viên · phân tích (nhập CSV học viên: UI ở PR-A5) — but NOT for finance/billing and
+ * cài đặt trung tâm (/v2/org/settings): those are OWNER (giám đốc) only. The
  * backend enforces it (OrgGuard.assertOrgFinance = OWNER); this guard is the UX layer — it hides
  * the page from a MANAGER who reaches the URL directly and bounces them to the org dashboard.
  *
