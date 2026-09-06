@@ -486,14 +486,18 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
           >
             {display.rect ? (
               <>
-                <Svg
+                {/* Bọc trong View thường `pointerEvents="none"`: RN bỏ qua cả cây con
+                    khi hit-test, còn RNSVG tự hit-test theo hình vẽ và KHÔNG tôn trọng
+                    prop này trên Fabric — thiếu lớp bọc thì bước tap-through bị lớp mờ
+                    nuốt chạm (bắt được trên simulator 06/09, preview 01a076d2). */}
+                <View
                   pointerEvents="none"
-                  width={winW}
-                  height={winH}
                   style={{ position: 'absolute', left: 0, top: 0, width: winW, height: winH }}
                 >
-                  <AnimatedPath d={settledHole} animatedProps={holeProps} fill={SCRIM} fillRule="evenodd" />
-                </Svg>
+                  <Svg pointerEvents="none" width={winW} height={winH}>
+                    <AnimatedPath d={settledHole} animatedProps={holeProps} fill={SCRIM} fillRule="evenodd" />
+                  </Svg>
+                </View>
                 <Animated.View
                   pointerEvents="none"
                   style={[
