@@ -116,7 +116,7 @@ export function TodayTasks() {
           style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}
         >
           <View style={{ width: 40, height: 40, borderRadius: radius.md, backgroundColor: c.surfaceSunken, alignItems: 'center', justifyContent: 'center' }}>
-            <YellowSquare size={10} />
+            <GaGlyph name="tuvung" size={20} />
           </View>
           <View style={{ flex: 1, gap: 2 }}>
             <ThemedText variant="bodyStrong">
