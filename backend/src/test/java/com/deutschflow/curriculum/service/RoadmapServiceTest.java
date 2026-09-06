@@ -166,6 +166,36 @@ class RoadmapServiceTest {
         }
 
         @Test
+        @DisplayName("the node right after a COMPLETED one is AVAILABLE — the learner is never dead-ended (06/09)")
+        void nodeAfterCompletedPredecessorIsAvailable() {
+            // QA 06/09: Tesst2 finished D01 (100%) but the Lernweg kept D02 LOCKED while the Học tab
+            // already offered "Ngày 2". Nothing writes D02's UNLOCKED row on completion, so the
+            // service must derive availability at read time like SkillTreeService does.
+            givenRows(List.of(row("D01", 1, "COMPLETED"), row("D02", 2, "LOCKED"), row("D03", 3, "LOCKED")));
+            List<RoadmapNodeDto> nodes = service.generateRoadmapForUser(USER_ID);
+
+            assertThat(nodes.get(0).progressStatus()).isEqualTo("COMPLETED");
+            assertThat(nodes.get(1).state()).isEqualTo("current");
+            assertThat(nodes.get(1).progressStatus()).isEqualTo("AVAILABLE");
+            assertThat(nodes.get(2).progressStatus()).isEqualTo("LOCKED"); // only ONE bud is offered
+        }
+
+        @Test
+        @DisplayName("a prerequisite listed in prerequisites_json counts as met once that node is COMPLETED")
+        void prerequisiteSatisfiedByCompletedNodeIsAvailable() {
+            Map<String, Object> second = row("D02", 2, "LOCKED");
+            second.put("prerequisites_json", "[\"D01\"]");
+            Map<String, Object> third = row("D03", 3, "LOCKED");
+            third.put("prerequisites_json", "[\"D02\"]");
+
+            givenRows(List.of(row("D01", 1, "COMPLETED"), second, third));
+            List<RoadmapNodeDto> nodes = service.generateRoadmapForUser(USER_ID);
+
+            assertThat(nodes.get(1).progressStatus()).isEqualTo("AVAILABLE");
+            assertThat(nodes.get(2).progressStatus()).isEqualTo("LOCKED");
+        }
+
+        @Test
         @DisplayName("the entry node of a brand-new learner is AVAILABLE, not IN_PROGRESS")
         void freshLearnerEntryNodeIsAvailable() {
             // No progress row anywhere: the service infers the entry node is where to start. That is
