@@ -125,10 +125,34 @@ function asArray(teile: unknown): Record<string, unknown>[] {
   return []
 }
 
+const MATCHING_FALLBACK_KEYS = ['A', 'B', 'C', 'D', 'E']
+
+/**
+ * Teil ghép (MATCH_PERSON / type=MATCHING): seed để các tin ở `teil.context` dạng
+ * "A=… . B=… . C=… ." — tách thành cặp chữ cái → nội dung để render như trắc nghiệm.
+ * Trả [] khi không phải định dạng này (hoặc < 2 mục).
+ */
+export function parseMatchingContext(context: unknown): { key: string; text: string }[] {
+  if (typeof context !== 'string') return []
+  const re = /(?:^|\s)([A-H])=/g
+  const marks: { key: string; start: number; end: number }[] = []
+  for (let m = re.exec(context); m; m = re.exec(context)) {
+    marks.push({ key: m[1], start: m.index, end: m.index + m[0].length })
+  }
+  if (marks.length < 2) return []
+  return marks.map((mark, i) => {
+    const raw = context.slice(mark.end, i + 1 < marks.length ? marks[i + 1].start : undefined).trim()
+    return { key: mark.key, text: raw.replace(/\.$/, '').trim() }
+  })
+}
+
 /** Lựa chọn hiển thị + giá trị nộp của một câu. */
 export function itemChoices(item: ExamObjItem): { value: string; label: string }[] {
   if (item.options && item.optionKeys && item.optionKeys.length === item.options.length) {
-    return item.options.map((label, i) => ({ value: item.optionKeys![i], label: `${item.optionKeys![i]}. ${label}` }))
+    return item.options.map((label, i) => {
+      const key = item.optionKeys![i]
+      return { value: key, label: label === key ? key : `${key}. ${label}` }
+    })
   }
   if (item.options) return item.options.map((o) => ({ value: o, label: o }))
   return [
@@ -166,11 +190,13 @@ export function parseLesenItems(sectionsJson: string): ParsedExam {
         const title =
           typeof teil.title === 'string' ? teil.title : teil.teil != null ? `Teil ${String(teil.teil)}` : 'Đọc hiểu'
         const rawItems = Array.isArray(teil.items) ? (teil.items as Record<string, unknown>[]) : []
+        const matchingPairs = parseMatchingContext(teil.context)
+        let usedMatchingContext = false
         const items: ExamObjItem[] = []
         for (const it of rawItems) {
           const id = it.id != null ? String(it.id) : null
           if (!id) continue
-          const question = (it.question ?? it.prompt) as string | undefined
+          const question = (it.question ?? it.prompt ?? it.person) as string | undefined
           if (!question) continue
           let options: string[] | undefined
           let optionKeys: string[] | undefined
@@ -186,12 +212,24 @@ export function parseLesenItems(sectionsJson: string): ParsedExam {
           const derived = String(it.type ?? '')
           const correct = typeof it.correct === 'string' ? it.correct.toLowerCase() : ''
           const isTrueFalse = derived === 'RICHTIG_FALSCH' || TF.has(correct)
-          if (!options && !isTrueFalse) continue // MATCHING / viết / tự luận: chưa hỗ trợ trên app
+          const isMatching = !options && !isTrueFalse && (derived === 'MATCHING' || typeof it.person === 'string' || /^[a-h]$/.test(correct))
+          if (isMatching) {
+            if (matchingPairs.length >= 2) {
+              optionKeys = matchingPairs.map((pr) => pr.key)
+              options = matchingPairs.map((pr) => pr.text)
+              usedMatchingContext = true
+            } else {
+              optionKeys = [...MATCHING_FALLBACK_KEYS]
+              options = [...MATCHING_FALLBACK_KEYS]
+            }
+          }
+          if (!options && !isTrueFalse) continue // viết / tự luận: chưa hỗ trợ trên app
           const passage = typeof it.text === 'string' ? it.text : undefined
           items.push({ id, question, passage, options, optionKeys })
         }
         if (items.length > 0) {
-          groups.push({ title, instruction, passage: teilPassage, items })
+          // Teil ghép: context đã thành lựa chọn — không lặp lại thành bài đọc.
+          groups.push({ title, instruction, passage: usedMatchingContext ? undefined : teilPassage, items })
         }
       }
     }
