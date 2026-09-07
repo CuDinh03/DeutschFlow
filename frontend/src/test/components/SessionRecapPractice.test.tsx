@@ -55,3 +55,43 @@ describe('SessionRecap — lời mời luyện kỹ năng còn yếu', () => {
     expect(screen.queryByRole('button', { name: /Luyện Viết ngay/i })).not.toBeInTheDocument()
   })
 })
+
+/**
+ * Cổng giữ: màn tổng kết không được phát cảnh báo trùng key của React.
+ *
+ * Sự cố 07/09/2026 (thấy khi chạy `LearnNodeExits.test.tsx`): `AnimatePresence` có HAI con trực
+ * tiếp — lớp phủ và khối `<style jsx global>` chứa keyframes confetti — mà không con nào có key.
+ * framer-motion gán key rỗng cho cả hai nên React kêu "Encountered two children with the same
+ * key, ``". Khối style là stylesheet toàn cục, không phải phần tử có vòng đời xuất/hiện, nên nó
+ * không thuộc về AnimatePresence.
+ *
+ * Vì sao đáng chặn: khi con của AnimatePresence đụng key nhau, React được phép gộp hoặc bỏ bớt
+ * con — tức lớp phủ có thể bị bỏ qua trong một lần vẽ lại. Hôm nay chưa vỡ vì mỗi lần mở là mount
+ * mới, nhưng đó là may chứ không phải thiết kế.
+ */
+describe('SessionRecap — không rò cảnh báo key của React', () => {
+  it('dựng màn tổng kết không sinh cảnh báo trùng key', () => {
+    const loi = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(<SessionRecap {...baseProps} practiceSkillLabel="Đọc" onPractice={() => {}} />)
+
+    const canhBaoKey = loi.mock.calls
+      .map((args) => args.map(String).join(' '))
+      .filter((dong) => /same key/i.test(dong))
+    expect(canhBaoKey).toEqual([])
+
+    loi.mockRestore()
+  })
+
+  it('vẫn giữ keyframes confetti — vá cảnh báo không được làm mất hiệu ứng', () => {
+    const { container } = render(<SessionRecap {...baseProps} />)
+
+    // Nhắm ĐÚNG khối @keyframes, không phải chuỗi 'confettiFall' trong style nội tuyến của các
+    // mảnh — kiểm bằng đột biến: khẳng định lỏng hơn vẫn xanh sau khi xoá sạch khối keyframes.
+    const cssToanCuc = Array.from(container.querySelectorAll('style'), (el) => el.textContent ?? '')
+    expect(cssToanCuc.some((css) => /@keyframes\s+confettiFall/.test(css))).toBe(true)
+
+    // Và đủ 24 mảnh để rơi.
+    expect(container.querySelectorAll('[style*="confettiFall"]')).toHaveLength(24)
+  })
+})
