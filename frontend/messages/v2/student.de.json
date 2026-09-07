@@ -2107,7 +2107,7 @@
         },
         "play": "Audio abspielen",
         "stop": "Stopp",
-        "defaultLabel": "Hörtext — Goethe A1",
+        "defaultLabel": "Hörtext",
         "unsupportedHint": "Browser nicht unterstützt. Bitte Chrome oder Safari verwenden."
       },
       "scoreBreakdown": {
@@ -2131,13 +2131,14 @@
         "pendingTitle": "Die KI bewertet deinen Text gerade",
         "pendingFallback": "Die E-Mail wurde noch nicht abgegeben oder wird noch verarbeitet.",
         "aiGraded": "Von der KI bewertet",
-        "officialRubric": "Offizielles Goethe-A1-Bewertungsraster",
+        "officialRubric": "Offizielles Goethe-Raster",
         "detailCap": "Punkte im Detail",
         "emailTotal": "Gesamtpunkte E-Mail",
         "overallCap": "Gesamteindruck",
         "strengths": "Stärken",
         "improvements": "Verbesserungsbedarf",
-        "title": "Bewertung des Schreibteils (SCHREIBEN Teil 2)"
+        "title": "Bewertung des Schreibteils (SCHREIBEN Teil 2)",
+        "officialRubricLevel": "Offizielles Goethe-Raster {level}"
       },
       "weakAreas": {
         "tips": {

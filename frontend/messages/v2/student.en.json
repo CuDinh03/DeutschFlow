@@ -2107,7 +2107,7 @@
         },
         "play": "Play audio",
         "stop": "Stop",
-        "defaultLabel": "Hörtext — Goethe A1",
+        "defaultLabel": "Hörtext",
         "unsupportedHint": "Browser not supported. Use Chrome or Safari."
       },
       "scoreBreakdown": {
@@ -2131,13 +2131,14 @@
         "pendingTitle": "Waiting for AI to grade your text",
         "pendingFallback": "The email has not been submitted yet or is still being processed.",
         "aiGraded": "Graded by AI",
-        "officialRubric": "Official Goethe A1 rubric",
+        "officialRubric": "Official Goethe rubric",
         "detailCap": "Score details",
         "emailTotal": "Email total",
         "overallCap": "Overall feedback",
         "strengths": "Strengths",
         "improvements": "Needs improvement",
-        "title": "Writing assessment (SCHREIBEN Teil 2)"
+        "title": "Writing assessment (SCHREIBEN Teil 2)",
+        "officialRubricLevel": "Official Goethe {level} rubric"
       },
       "weakAreas": {
         "tips": {

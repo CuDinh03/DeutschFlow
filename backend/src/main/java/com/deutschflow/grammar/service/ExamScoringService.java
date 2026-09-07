@@ -92,7 +92,7 @@ public class ExamScoringService {
      * chờ chấm (nhiệm vụ đó rời khỏi mẫu số, không kéo điểm học viên xuống).
      */
     public Map<String, Object> scoreSchreibenSection(long userId, Map<String, Object> answers,
-                                                     Map<String, Object> section) {
+                                                     Map<String, Object> section, String cefrLevel) {
         int max = sectionMax(section);
         List<Map<String, Object>> forms = new ArrayList<>();
         List<Map<String, Object>> writings = new ArrayList<>();
@@ -131,7 +131,8 @@ public class ExamScoringService {
                 tasks.add(taskDetail(teil, "WRITING", weight, 0, STATUS_COMPLETED));
                 continue;
             }
-            Map<String, Object> ai = aiEvaluator.evaluateSchreibenEmail(userId, text, taskPrompt(teil));
+            Map<String, Object> ai = aiEvaluator.evaluateSchreibenEmail(
+                    userId, text, taskPrompt(teil), examLevel(section, cefrLevel));
             if (firstAiEval == null) firstAiEval = ai;
             if (isPending(ai)) {
                 tasks.add(taskDetail(teil, "WRITING", weight, 0, STATUS_PENDING));
@@ -184,11 +185,39 @@ public class ExamScoringService {
         return "";
     }
 
+    /**
+     * Đề bài đầy đủ gửi cho AI: câu lệnh + tình huống/chủ đề + CÁC Ý BẮT BUỘC.
+     *
+     * <p>Trước 07/09/2026 hàm này trả về trường đầu tiên tìm thấy, mà {@code instruction_vi} luôn
+     * đứng trước — nên AI chỉ nhận một dòng tiếng Việt kiểu "Viết bài đăng diễn đàn ~80 từ", còn
+     * chủ đề ({@code input_email}/{@code prompt}) và các ý bắt buộc ({@code writing_points}) không
+     * bao giờ tới nơi. Tiêu chí {@code aufgabenerfuellung} đúng nghĩa là "có nêu đủ các ý yêu cầu
+     * không", nên nó chấm mà không có gì để đối chiếu.
+     */
     private String taskPrompt(Map<String, Object> teil) {
-        for (String key : List.of("instruction_vi", "instruction_de", "prompt", "instructions")) {
-            if (teil.get(key) instanceof String s && !s.isBlank()) return s;
+        StringBuilder task = new StringBuilder();
+        // Câu lệnh: ưu tiên tiếng Đức vì phần còn lại của prompt là Đức/Anh.
+        appendFirst(task, teil, List.of("instruction_de", "instruction_vi"));
+        // Chủ đề hoặc tình huống của đề.
+        appendFirst(task, teil, List.of("input_email", "prompt", "instructions"));
+        if (teil.get("writing_points") instanceof List<?> points && !points.isEmpty()) {
+            task.append("\nDiese Punkte müssen im Text vorkommen:");
+            int i = 1;
+            for (Object point : points) {
+                if (point != null) task.append("\n").append(i++).append(". ").append(point);
+            }
         }
-        return "";
+        return task.toString().trim();
+    }
+
+    private void appendFirst(StringBuilder target, Map<String, Object> teil, List<String> keys) {
+        for (String key : keys) {
+            if (teil.get(key) instanceof String value && !value.isBlank()) {
+                if (target.length() > 0) target.append("\n");
+                target.append(value.trim());
+                return;
+            }
+        }
     }
 
     private Map<String, Object> taskDetail(Map<String, Object> teil, String kind,
@@ -209,7 +238,7 @@ public class ExamScoringService {
      * thì phần này là "chờ chấm" — bị loại khỏi tổng điểm thay vì tính 0.
      */
     public Map<String, Object> scoreSprechenSection(long userId, Map<String, Object> answers,
-                                                    Map<String, Object> section) {
+                                                    Map<String, Object> section, String cefrLevel) {
         int max = sectionMax(section);
         String transcript = extractTranscript(answers);
         if (transcript.isBlank()) {
@@ -217,7 +246,7 @@ public class ExamScoringService {
         }
 
         Map<String, Object> ai = aiEvaluator.evaluateSprechen(
-                userId, transcript, extractSprechenTaskPrompt(section), extractCefrLevel(section));
+                userId, transcript, extractSprechenTaskPrompt(section), examLevel(section, cefrLevel));
         if (isPending(ai)) {
             Map<String, Object> pending = scoredSection(0, max, STATUS_PENDING);
             pending.put("ai_evaluation", ai);
@@ -243,7 +272,14 @@ public class ExamScoringService {
         return teile.isEmpty() ? "" : taskPrompt(teile.get(0));
     }
 
-    private String extractCefrLevel(Map<String, Object> section) {
+    /**
+     * Trình độ dùng để chọn rubric AI: ưu tiên trình độ của ĐỀ (cột {@code mock_exams.cefr_level}),
+     * sau đó tới trường trong chính phần thi, cuối cùng mới mặc định B1. Trước 07/09/2026 nhánh
+     * chấm Viết không nhận trình độ nào và prompt đóng cứng A1, còn nhánh chấm Nói chỉ đọc trường
+     * trong phần thi — mà seed không có trường đó, nên mọi đề đều rơi về mặc định.
+     */
+    private String examLevel(Map<String, Object> section, String cefrLevel) {
+        if (cefrLevel != null && !cefrLevel.isBlank()) return cefrLevel;
         for (String key : List.of("cefr_level", "cefrLevel")) {
             if (section.get(key) instanceof String s && !s.isBlank()) return s;
         }
