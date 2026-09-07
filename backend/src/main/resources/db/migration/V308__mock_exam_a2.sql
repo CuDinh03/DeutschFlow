@@ -65,10 +65,10 @@ VALUES
             "instruction_vi": "Đọc bài viết và chọn đáp án đúng",
             "context": "Zeitungstext: Arbeiten im Homeoffice\nSeit einigen Jahren arbeiten viele Menschen in Deutschland auch zu Hause. Besonders in Büroberufen ist das möglich. Eine Umfrage zeigt: Zwei von drei Beschäftigten möchten mindestens einen Tag pro Woche zu Hause arbeiten. Sie sparen so Zeit für den Weg und können ruhiger arbeiten. Aber es gibt auch Probleme. Viele vermissen den Kontakt zu den Kollegen, und manche Wohnungen sind zu klein für einen Arbeitsplatz. Firmen berichten, dass Teams am besten funktionieren, wenn sich alle mindestens einmal pro Woche im Büro treffen.",
             "items": [
-              {"id":"L4-1","question":"Worum geht es in dem Text?","options":{"A":"Um Arbeit zu Hause","B":"Um neue Büromöbel","C":"Um Urlaub im Ausland"},"correct":"A","explanation_vi":"Cả bài nói về làm việc tại nhà (Homeoffice)."},
+              {"id":"L4-1","question":"Worum geht es in dem Text?","options":{"A":"Um Urlaub im Ausland","B":"Um neue Büromöbel","C":"Um Arbeit zu Hause"},"correct":"C","explanation_vi":"Cả bài nói về làm việc tại nhà (Homeoffice)."},
               {"id":"L4-2","question":"Wie viele Beschäftigte möchten zu Hause arbeiten?","options":{"A":"Einer von drei","B":"Zwei von drei","C":"Alle"},"correct":"B","explanation_vi":"Zwei von drei Beschäftigten = hai trong ba người."},
-              {"id":"L4-3","question":"Welchen Vorteil nennt der Text?","options":{"A":"Man verdient mehr Geld","B":"Man spart Zeit für den Weg","C":"Man bekommt mehr Urlaub"},"correct":"B","explanation_vi":"Sie sparen so Zeit für den Weg."},
-              {"id":"L4-4","question":"Welches Problem wird genannt?","options":{"A":"Der Computer ist zu langsam","B":"Die Kollegen fehlen","C":"Die Arbeit ist zu leicht"},"correct":"B","explanation_vi":"Viele vermissen den Kontakt zu den Kollegen."},
+              {"id":"L4-3","question":"Welchen Vorteil nennt der Text?","options":{"A":"Man spart Zeit für den Weg","B":"Man verdient mehr Geld","C":"Man bekommt mehr Urlaub"},"correct":"A","explanation_vi":"Sie sparen so Zeit für den Weg."},
+              {"id":"L4-4","question":"Welches Problem wird genannt?","options":{"A":"Die Kollegen fehlen","B":"Der Computer ist zu langsam","C":"Die Arbeit ist zu leicht"},"correct":"A","explanation_vi":"Viele vermissen den Kontakt zu den Kollegen."},
               {"id":"L4-5","question":"Was empfehlen die Firmen?","options":{"A":"Nie ins Büro kommen","B":"Jeden Tag ins Büro kommen","C":"Sich einmal pro Woche im Büro treffen"},"correct":"C","explanation_vi":"mindestens einmal pro Woche im Büro treffen."}
             ]
           }
@@ -86,11 +86,11 @@ VALUES
             "instruction_de": "Hören Sie die Gespräche und wählen Sie die richtige Antwort.",
             "instruction_vi": "Nghe hội thoại ngắn và chọn đáp án đúng",
             "items": [
-              {"id":"H1-1","audio_script":"A: Herr Schmidt, können Sie am Freitag die Schicht von Frau Klein übernehmen? B: Am Freitag habe ich schon einen Arzttermin, aber am Samstag geht es.","question":"Wann kann Herr Schmidt arbeiten?","options":{"A":"Am Freitag","B":"Am Samstag","C":"Gar nicht"},"correct":"B","explanation_vi":"aber am Samstag geht es = thứ Bảy thì được."},
-              {"id":"H1-2","audio_script":"A: Wie komme ich zur Firma Berger? B: Nehmen Sie die Linie 4 bis Marktplatz, dann sind es noch fünf Minuten zu Fuß.","question":"Wie kommt man zur Firma Berger?","options":{"A":"Mit der Linie 4 und dann zu Fuß","B":"Nur zu Fuß","C":"Mit dem Taxi"},"correct":"A","explanation_vi":"Đi tuyến 4 rồi đi bộ 5 phút."},
-              {"id":"H1-3","audio_script":"A: Ich brauche für morgen noch die Unterschrift vom Chef. B: Der Chef ist bis Mittwoch auf einer Messe. Frau Berg kann auch unterschreiben.","question":"Wer kann unterschreiben?","options":{"A":"Der Chef","B":"Niemand","C":"Frau Berg"},"correct":"C","explanation_vi":"Sếp đi hội chợ, bà Berg ký thay được."},
-              {"id":"H1-4","audio_script":"A: Wann ist die Mittagspause bei euch? B: Von zwölf bis halb eins, aber im Sommer machen wir eine Stunde Pause.","question":"Wie lange dauert die Pause normalerweise?","options":{"A":"Eine halbe Stunde","B":"Eine Stunde","C":"Zwei Stunden"},"correct":"A","explanation_vi":"Von zwölf bis halb eins = 30 phút."},
-              {"id":"H1-5","audio_script":"A: Hast du das Formular für die Krankenkasse schon abgegeben? B: Nein, ich schicke es heute Abend per Post.","question":"Wie schickt die Person das Formular?","options":{"A":"Per E-Mail","B":"Per Post","C":"Sie bringt es persönlich"},"correct":"B","explanation_vi":"per Post = gửi qua bưu điện."}
+              {"id":"H1-1","audio_script":"A: Herr Schmidt, können Sie am Freitag die Schicht von Frau Klein übernehmen? B: Am Freitag habe ich schon einen Arzttermin, aber am Samstag geht es.","question":"Wann kann Herr Schmidt arbeiten?","options":{"A":"Am Freitag","B":"Gar nicht","C":"Am Samstag"},"correct":"C","explanation_vi":"aber am Samstag geht es = thứ Bảy thì được."},
+              {"id":"H1-2","audio_script":"A: Wie komme ich zur Firma Berger? B: Nehmen Sie die Linie 4 bis Marktplatz, dann sind es noch fünf Minuten zu Fuß.","question":"Wie kommt man zur Firma Berger?","options":{"A":"Nur zu Fuß","B":"Mit der Linie 4 und dann zu Fuß","C":"Mit dem Taxi"},"correct":"B","explanation_vi":"Đi tuyến 4 rồi đi bộ 5 phút."},
+              {"id":"H1-3","audio_script":"A: Ich brauche für morgen noch die Unterschrift vom Chef. B: Der Chef ist bis Mittwoch auf einer Messe. Frau Berg kann auch unterschreiben.","question":"Wer kann unterschreiben?","options":{"A":"Frau Berg","B":"Niemand","C":"Der Chef"},"correct":"A","explanation_vi":"Sếp đi hội chợ, bà Berg ký thay được."},
+              {"id":"H1-4","audio_script":"A: Wann ist die Mittagspause bei euch? B: Von zwölf bis halb eins, aber im Sommer machen wir eine Stunde Pause.","question":"Wie lange dauert die Pause normalerweise?","options":{"A":"Zwei Stunden","B":"Eine Stunde","C":"Eine halbe Stunde"},"correct":"C","explanation_vi":"Von zwölf bis halb eins = 30 phút."},
+              {"id":"H1-5","audio_script":"A: Hast du das Formular für die Krankenkasse schon abgegeben? B: Nein, ich schicke es heute Abend per Post.","question":"Wie schickt die Person das Formular?","options":{"A":"Per Post","B":"Per E-Mail","C":"Sie bringt es persönlich"},"correct":"A","explanation_vi":"per Post = gửi qua bưu điện."}
             ]
           },
           {
@@ -117,8 +117,8 @@ VALUES
               {"id":"H3-1","question":"Wie lange arbeitet Herr Tran schon in Hamburg?","options":{"A":"Seit einem Jahr","B":"Seit zwei Jahren","C":"Seit vier Jahren"},"correct":"B","explanation_vi":"seit zwei Jahren als Koch."},
               {"id":"H3-2","question":"Was war am Anfang schwierig?","options":{"A":"Die Sprache","B":"Der Weg zur Arbeit","C":"Das Geld"},"correct":"A","explanation_vi":"die Sprache war das größte Problem."},
               {"id":"H3-3","question":"Was macht Herr Tran heute?","options":{"A":"Er lernt noch in der Schule","B":"Er leitet ein kleines Team","C":"Er sucht eine neue Stelle"},"correct":"B","explanation_vi":"Heute leite ich ein kleines Team von vier Personen."},
-              {"id":"H3-4","question":"Was findet er schwierig?","options":{"A":"Die Gäste","B":"Die Kollegen","C":"Die Arbeit am Wochenende"},"correct":"C","explanation_vi":"Schwierig sind die Arbeitszeiten am Wochenende."},
-              {"id":"H3-5","question":"Was rät Herr Tran anderen Menschen?","options":{"A":"Vorher einen Sprachkurs machen","B":"In einer anderen Stadt arbeiten","C":"Nur am Wochenende arbeiten"},"correct":"A","explanation_vi":"Einen Sprachkurs machen, bevor man anfängt."}
+              {"id":"H3-4","question":"Was findet er schwierig?","options":{"A":"Die Arbeit am Wochenende","B":"Die Kollegen","C":"Die Gäste"},"correct":"A","explanation_vi":"Schwierig sind die Arbeitszeiten am Wochenende."},
+              {"id":"H3-5","question":"Was rät Herr Tran anderen Menschen?","options":{"A":"In einer anderen Stadt arbeiten","B":"Vorher einen Sprachkurs machen","C":"Nur am Wochenende arbeiten"},"correct":"B","explanation_vi":"Einen Sprachkurs machen, bevor man anfängt."}
             ]
           },
           {
@@ -268,11 +268,11 @@ VALUES
             "instruction_vi": "Đọc bài viết và chọn đáp án đúng",
             "context": "Zeitungstext: Podcasts werden immer beliebter\nImmer mehr Menschen hören Podcasts, also Radiosendungen zum Herunterladen. Besonders beliebt sind sie bei jungen Leuten zwischen 20 und 35 Jahren. Die meisten hören unterwegs, zum Beispiel im Bus oder beim Sport. Viele sagen, dass sie so Zeit besser nutzen können. Am häufigsten gehört werden Sendungen über Nachrichten, Sprachen und Gesundheit. Kritisch ist nur: Wer den ganzen Tag Kopfhörer trägt, hört seine Umgebung schlechter. Fachleute empfehlen deshalb Pausen und eine nicht zu hohe Lautstärke.",
             "items": [
-              {"id":"L4-1","question":"Was ist ein Podcast laut Text?","options":{"A":"Eine Zeitung","B":"Eine Sendung zum Herunterladen","C":"Ein Konzert"},"correct":"B","explanation_vi":"Radiosendungen zum Herunterladen."},
-              {"id":"L4-2","question":"Wer hört besonders oft Podcasts?","options":{"A":"Kinder unter zehn","B":"Junge Leute zwischen 20 und 35","C":"Menschen über 70"},"correct":"B","explanation_vi":"beliebt bei jungen Leuten zwischen 20 und 35."},
-              {"id":"L4-3","question":"Wo hören die meisten Menschen Podcasts?","options":{"A":"Unterwegs","B":"Nur zu Hause","C":"Im Büro"},"correct":"A","explanation_vi":"Die meisten hören unterwegs."},
+              {"id":"L4-1","question":"Was ist ein Podcast laut Text?","options":{"A":"Eine Zeitung","B":"Ein Konzert","C":"Eine Sendung zum Herunterladen"},"correct":"C","explanation_vi":"Radiosendungen zum Herunterladen."},
+              {"id":"L4-2","question":"Wer hört besonders oft Podcasts?","options":{"A":"Junge Leute zwischen 20 und 35","B":"Kinder unter zehn","C":"Menschen über 70"},"correct":"A","explanation_vi":"beliebt bei jungen Leuten zwischen 20 und 35."},
+              {"id":"L4-3","question":"Wo hören die meisten Menschen Podcasts?","options":{"A":"Im Büro","B":"Nur zu Hause","C":"Unterwegs"},"correct":"C","explanation_vi":"Die meisten hören unterwegs."},
               {"id":"L4-4","question":"Welches Thema wird im Text genannt?","options":{"A":"Kochen","B":"Autos","C":"Gesundheit"},"correct":"C","explanation_vi":"Nachrichten, Sprachen und Gesundheit."},
-              {"id":"L4-5","question":"Was empfehlen die Fachleute?","options":{"A":"Lauter hören","B":"Pausen machen","C":"Nur abends hören"},"correct":"B","explanation_vi":"Fachleute empfehlen Pausen und âm lượng vừa phải."}
+              {"id":"L4-5","question":"Was empfehlen die Fachleute?","options":{"A":"Lauter hören","B":"Nur abends hören","C":"Pausen machen"},"correct":"C","explanation_vi":"Fachleute empfehlen Pausen und âm lượng vừa phải."}
             ]
           }
         ]
@@ -289,11 +289,11 @@ VALUES
             "instruction_de": "Hören Sie die Gespräche und wählen Sie die richtige Antwort.",
             "instruction_vi": "Nghe hội thoại ngắn và chọn đáp án đúng",
             "items": [
-              {"id":"H1-1","audio_script":"A: Wollen wir am Freitag ins Konzert gehen? B: Freitag kann ich nicht, ich habe Training. Samstag hätte ich Zeit.","question":"Wann hat die zweite Person Zeit?","options":{"A":"Am Freitag","B":"Am Samstag","C":"Am Sonntag"},"correct":"B","explanation_vi":"Samstag hätte ich Zeit."},
-              {"id":"H1-2","audio_script":"A: Was kostet der Eintritt für Studenten? B: Normal zwölf Euro, mit Studentenausweis nur sieben Euro.","question":"Wie viel zahlen Studenten?","options":{"A":"Sieben Euro","B":"Zwölf Euro","C":"Neunzehn Euro"},"correct":"A","explanation_vi":"mit Studentenausweis nur sieben Euro."},
+              {"id":"H1-1","audio_script":"A: Wollen wir am Freitag ins Konzert gehen? B: Freitag kann ich nicht, ich habe Training. Samstag hätte ich Zeit.","question":"Wann hat die zweite Person Zeit?","options":{"A":"Am Samstag","B":"Am Freitag","C":"Am Sonntag"},"correct":"A","explanation_vi":"Samstag hätte ich Zeit."},
+              {"id":"H1-2","audio_script":"A: Was kostet der Eintritt für Studenten? B: Normal zwölf Euro, mit Studentenausweis nur sieben Euro.","question":"Wie viel zahlen Studenten?","options":{"A":"Neunzehn Euro","B":"Zwölf Euro","C":"Sieben Euro"},"correct":"C","explanation_vi":"mit Studentenausweis nur sieben Euro."},
               {"id":"H1-3","audio_script":"A: Wie war der Film gestern? B: Die Bilder waren toll, aber die Geschichte war mir zu langweilig.","question":"Wie fand die Person den Film?","options":{"A":"Ganz schlecht","B":"Perfekt","C":"Schöne Bilder, langweilige Geschichte"},"correct":"C","explanation_vi":"Khen hình ảnh, chê cốt truyện chán."},
               {"id":"H1-4","audio_script":"A: Ich suche ein Geschenk für meinen Bruder. Er spielt gern Gitarre. B: Wie wäre es mit einem Buch über Musik oder Konzertkarten?","question":"Was schlägt die zweite Person vor?","options":{"A":"Konzertkarten oder ein Buch","B":"Eine neue Gitarre","C":"Einen Gutschein für Kleidung"},"correct":"A","explanation_vi":"ein Buch über Musik oder Konzertkarten."},
-              {"id":"H1-5","audio_script":"A: Wann fängt der Sprachkurs an? B: Der Kurs beginnt am 5. September und dauert bis Dezember.","question":"Wann beginnt der Kurs?","options":{"A":"Im Juli","B":"Im September","C":"Im Dezember"},"correct":"B","explanation_vi":"Der Kurs beginnt am 5. September."}
+              {"id":"H1-5","audio_script":"A: Wann fängt der Sprachkurs an? B: Der Kurs beginnt am 5. September und dauert bis Dezember.","question":"Wann beginnt der Kurs?","options":{"A":"Im September","B":"Im Juli","C":"Im Dezember"},"correct":"A","explanation_vi":"Der Kurs beginnt am 5. September."}
             ]
           },
           {
@@ -317,11 +317,11 @@ VALUES
             "instruction_vi": "Nghe cuộc trò chuyện rồi chọn đáp án đúng",
             "audio_script": "Moderator: Heute spreche ich mit Frau Özdemir. Sie organisiert einen Filmclub. Frau Özdemir: Ja, wir treffen uns jeden zweiten Freitag in der Bibliothek. Moderator: Wie viele Leute kommen? Frau Özdemir: Meistens zwölf bis fünfzehn. Wir sehen einen Film und sprechen danach eine halbe Stunde darüber. Moderator: Welche Filme wählen Sie? Frau Özdemir: Die Mitglieder schlagen Filme vor und wir stimmen ab. Am liebsten sehen wir Filme aus Europa mit Untertiteln. Moderator: Kostet das etwas? Frau Özdemir: Nein, aber wir sammeln freiwillig Geld für Getränke.",
             "items": [
-              {"id":"H3-1","question":"Wie oft trifft sich der Filmclub?","options":{"A":"Jeden Tag","B":"Jeden zweiten Freitag","C":"Einmal im Jahr"},"correct":"B","explanation_vi":"jeden zweiten Freitag = hai tuần một lần vào thứ Sáu."},
-              {"id":"H3-2","question":"Wo trifft sich der Club?","options":{"A":"Im Kino","B":"In der Bibliothek","C":"Im Café"},"correct":"B","explanation_vi":"in der Bibliothek."},
-              {"id":"H3-3","question":"Wie viele Personen kommen meistens?","options":{"A":"Zwei bis fünf","B":"Zwölf bis fünfzehn","C":"Über dreißig"},"correct":"B","explanation_vi":"Meistens zwölf bis fünfzehn."},
-              {"id":"H3-4","question":"Wie wählt der Club die Filme aus?","options":{"A":"Die Bibliothek entscheidet","B":"Die Mitglieder stimmen ab","C":"Der Zufall entscheidet"},"correct":"B","explanation_vi":"Die Mitglieder schlagen Filme vor und wir stimmen ab."},
-              {"id":"H3-5","question":"Was sagt Frau Özdemir über die Kosten?","options":{"A":"Es ist kostenlos","B":"Es kostet zehn Euro","C":"Nur Mitglieder zahlen"},"correct":"A","explanation_vi":"Nein, không mất phí, chỉ góp tự nguyện tiền nước."}
+              {"id":"H3-1","question":"Wie oft trifft sich der Filmclub?","options":{"A":"Jeden Tag","B":"Einmal im Jahr","C":"Jeden zweiten Freitag"},"correct":"C","explanation_vi":"jeden zweiten Freitag = hai tuần một lần vào thứ Sáu."},
+              {"id":"H3-2","question":"Wo trifft sich der Club?","options":{"A":"Im Kino","B":"Im Café","C":"In der Bibliothek"},"correct":"C","explanation_vi":"in der Bibliothek."},
+              {"id":"H3-3","question":"Wie viele Personen kommen meistens?","options":{"A":"Zwölf bis fünfzehn","B":"Zwei bis fünf","C":"Über dreißig"},"correct":"A","explanation_vi":"Meistens zwölf bis fünfzehn."},
+              {"id":"H3-4","question":"Wie wählt der Club die Filme aus?","options":{"A":"Die Mitglieder stimmen ab","B":"Die Bibliothek entscheidet","C":"Der Zufall entscheidet"},"correct":"A","explanation_vi":"Die Mitglieder schlagen Filme vor und wir stimmen ab."},
+              {"id":"H3-5","question":"Was sagt Frau Özdemir über die Kosten?","options":{"A":"Nur Mitglieder zahlen","B":"Es kostet zehn Euro","C":"Es ist kostenlos"},"correct":"C","explanation_vi":"Nein, không mất phí, chỉ góp tự nguyện tiền nước."}
             ]
           },
           {
@@ -472,10 +472,10 @@ VALUES
             "context": "Zeitungstext: Frühstück ja oder nein?\nLange galt: Ein gutes Frühstück ist die wichtigste Mahlzeit des Tages. Neue Studien zeigen ein anderes Bild. Wichtiger als die Uhrzeit ist, was und wie viel man isst. Wer morgens keinen Hunger hat, muss nicht essen, sollte dann aber mittags nicht zu Süßigkeiten greifen. Fachleute empfehlen Vollkornbrot, Joghurt oder Obst statt süßer Frühstücksflocken. Kinder dagegen brauchen am Morgen Energie für die Schule, hier raten Ärzte weiter zu einem kleinen Frühstück. Am Ende gilt für alle: genug trinken, am besten Wasser.",
             "items": [
               {"id":"L4-1","question":"Was sagt der Text über das Frühstück?","options":{"A":"Alle müssen morgens viel essen","B":"Wichtiger ist, was und wie viel man isst","C":"Frühstück ist verboten"},"correct":"B","explanation_vi":"Wichtiger als die Uhrzeit ist, was und wie viel man isst."},
-              {"id":"L4-2","question":"Was soll man tun, wenn man morgens keinen Hunger hat?","options":{"A":"Trotzdem viel essen","B":"Mittags keine Süßigkeiten essen","C":"Den ganzen Tag nichts essen"},"correct":"B","explanation_vi":"Không ăn sáng thì trưa đừng ăn nhiều đồ ngọt."},
-              {"id":"L4-3","question":"Was empfehlen die Fachleute?","options":{"A":"Süße Flocken","B":"Vollkornbrot und Obst","C":"Nur Kaffee"},"correct":"B","explanation_vi":"Vollkornbrot, Joghurt oder Obst."},
-              {"id":"L4-4","question":"Was gilt für Kinder?","options":{"A":"Sie sollen ein kleines Frühstück essen","B":"Sie sollen nichts essen","C":"Sie sollen erst mittags essen"},"correct":"A","explanation_vi":"Ärzte raten weiter zu einem kleinen Frühstück."},
-              {"id":"L4-5","question":"Was gilt für alle?","options":{"A":"Genug trinken","B":"Viel Kaffee trinken","C":"Nie Obst essen"},"correct":"A","explanation_vi":"genug trinken, am besten Wasser."}
+              {"id":"L4-2","question":"Was soll man tun, wenn man morgens keinen Hunger hat?","options":{"A":"Mittags keine Süßigkeiten essen","B":"Trotzdem viel essen","C":"Den ganzen Tag nichts essen"},"correct":"A","explanation_vi":"Không ăn sáng thì trưa đừng ăn nhiều đồ ngọt."},
+              {"id":"L4-3","question":"Was empfehlen die Fachleute?","options":{"A":"Vollkornbrot und Obst","B":"Süße Flocken","C":"Nur Kaffee"},"correct":"A","explanation_vi":"Vollkornbrot, Joghurt oder Obst."},
+              {"id":"L4-4","question":"Was gilt für Kinder?","options":{"A":"Sie sollen nichts essen","B":"Sie sollen ein kleines Frühstück essen","C":"Sie sollen erst mittags essen"},"correct":"B","explanation_vi":"Ärzte raten weiter zu einem kleinen Frühstück."},
+              {"id":"L4-5","question":"Was gilt für alle?","options":{"A":"Nie Obst essen","B":"Viel Kaffee trinken","C":"Genug trinken"},"correct":"C","explanation_vi":"genug trinken, am besten Wasser."}
             ]
           }
         ]
@@ -493,10 +493,10 @@ VALUES
             "instruction_vi": "Nghe hội thoại ngắn và chọn đáp án đúng",
             "items": [
               {"id":"H1-1","audio_script":"A: Guten Tag, ich hätte gern einen Termin. B: Diese Woche ist alles voll. Nächsten Montag um 9 Uhr 30 wäre frei.","question":"Wann bekommt die Person einen Termin?","options":{"A":"Diese Woche","B":"Nächsten Montag","C":"Heute Abend"},"correct":"B","explanation_vi":"Nächsten Montag um 9 Uhr 30."},
-              {"id":"H1-2","audio_script":"A: Nehmen Sie die Tropfen morgens und abends. B: Und vor oder nach dem Essen? A: Immer nach dem Essen.","question":"Wann soll der Patient die Tropfen nehmen?","options":{"A":"Vor dem Essen","B":"Nach dem Essen","C":"Nur mittags"},"correct":"B","explanation_vi":"Immer nach dem Essen."},
-              {"id":"H1-3","audio_script":"A: Ich möchte gern Sport machen, aber ich habe wenig Zeit. B: Dann probier es mit zwanzig Minuten am Morgen, das reicht am Anfang.","question":"Was empfiehlt die zweite Person?","options":{"A":"Zwei Stunden am Abend","B":"Zwanzig Minuten am Morgen","C":"Gar keinen Sport"},"correct":"B","explanation_vi":"zwanzig Minuten am Morgen."},
-              {"id":"H1-4","audio_script":"A: Was möchten Sie bestellen? B: Die Gemüsesuppe, bitte. Aber ohne Sahne, ich vertrage keine Milch.","question":"Was möchte der Gast nicht?","options":{"A":"Gemüse","B":"Suppe","C":"Milchprodukte"},"correct":"C","explanation_vi":"ich vertrage keine Milch = không hợp sữa."},
-              {"id":"H1-5","audio_script":"A: Wie oft trainierst du im Fitnessstudio? B: Früher jeden Tag, jetzt nur noch zweimal pro Woche.","question":"Wie oft trainiert die Person jetzt?","options":{"A":"Jeden Tag","B":"Zweimal pro Woche","C":"Einmal im Monat"},"correct":"B","explanation_vi":"jetzt nur noch zweimal pro Woche."}
+              {"id":"H1-2","audio_script":"A: Nehmen Sie die Tropfen morgens und abends. B: Und vor oder nach dem Essen? A: Immer nach dem Essen.","question":"Wann soll der Patient die Tropfen nehmen?","options":{"A":"Nach dem Essen","B":"Vor dem Essen","C":"Nur mittags"},"correct":"A","explanation_vi":"Immer nach dem Essen."},
+              {"id":"H1-3","audio_script":"A: Ich möchte gern Sport machen, aber ich habe wenig Zeit. B: Dann probier es mit zwanzig Minuten am Morgen, das reicht am Anfang.","question":"Was empfiehlt die zweite Person?","options":{"A":"Zwanzig Minuten am Morgen","B":"Zwei Stunden am Abend","C":"Gar keinen Sport"},"correct":"A","explanation_vi":"zwanzig Minuten am Morgen."},
+              {"id":"H1-4","audio_script":"A: Was möchten Sie bestellen? B: Die Gemüsesuppe, bitte. Aber ohne Sahne, ich vertrage keine Milch.","question":"Was möchte der Gast nicht?","options":{"A":"Gemüse","B":"Milchprodukte","C":"Suppe"},"correct":"B","explanation_vi":"ich vertrage keine Milch = không hợp sữa."},
+              {"id":"H1-5","audio_script":"A: Wie oft trainierst du im Fitnessstudio? B: Früher jeden Tag, jetzt nur noch zweimal pro Woche.","question":"Wie oft trainiert die Person jetzt?","options":{"A":"Jeden Tag","B":"Einmal im Monat","C":"Zweimal pro Woche"},"correct":"C","explanation_vi":"jetzt nur noch zweimal pro Woche."}
             ]
           },
           {
@@ -520,11 +520,11 @@ VALUES
             "instruction_vi": "Nghe cuộc trò chuyện rồi chọn đáp án đúng",
             "audio_script": "Moderatorin: Frau Doktor Weiss, viele Menschen schlafen schlecht. Was raten Sie? Ärztin: Zuerst feste Zeiten. Wer jeden Tag zur gleichen Zeit ins Bett geht, schläft meistens besser. Moderatorin: Und das Handy? Ärztin: Eine Stunde vor dem Schlafen sollte man den Bildschirm weglegen. Das Licht macht wach. Moderatorin: Hilft Sport? Ärztin: Ja, aber nicht direkt vor dem Schlafen. Am besten am Nachmittag. Moderatorin: Was ist mit Kaffee? Ärztin: Nach 16 Uhr besser keinen mehr. Und das Schlafzimmer sollte kühl und dunkel sein.",
             "items": [
-              {"id":"H3-1","question":"Was ist der erste Rat der Ärztin?","options":{"A":"Feste Schlafzeiten","B":"Mehr Kaffee","C":"Später ins Bett gehen"},"correct":"A","explanation_vi":"Zuerst feste Zeiten."},
-              {"id":"H3-2","question":"Was sagt sie über das Handy?","options":{"A":"Es hilft beim Einschlafen","B":"Eine Stunde vorher weglegen","C":"Es ist egal"},"correct":"B","explanation_vi":"Eine Stunde vor dem Schlafen den Bildschirm weglegen."},
-              {"id":"H3-3","question":"Wann soll man Sport machen?","options":{"A":"Direkt vor dem Schlafen","B":"Am Nachmittag","C":"Nie"},"correct":"B","explanation_vi":"Am besten am Nachmittag."},
-              {"id":"H3-4","question":"Bis wann darf man Kaffee trinken?","options":{"A":"Bis 16 Uhr","B":"Bis 20 Uhr","C":"Ohne Grenze"},"correct":"A","explanation_vi":"Nach 16 Uhr besser keinen mehr."},
-              {"id":"H3-5","question":"Wie soll das Schlafzimmer sein?","options":{"A":"Warm und hell","B":"Kühl und dunkel","C":"Laut"},"correct":"B","explanation_vi":"kühl und dunkel."}
+              {"id":"H3-1","question":"Was ist der erste Rat der Ärztin?","options":{"A":"Mehr Kaffee","B":"Feste Schlafzeiten","C":"Später ins Bett gehen"},"correct":"B","explanation_vi":"Zuerst feste Zeiten."},
+              {"id":"H3-2","question":"Was sagt sie über das Handy?","options":{"A":"Eine Stunde vorher weglegen","B":"Es hilft beim Einschlafen","C":"Es ist egal"},"correct":"A","explanation_vi":"Eine Stunde vor dem Schlafen den Bildschirm weglegen."},
+              {"id":"H3-3","question":"Wann soll man Sport machen?","options":{"A":"Direkt vor dem Schlafen","B":"Nie","C":"Am Nachmittag"},"correct":"C","explanation_vi":"Am besten am Nachmittag."},
+              {"id":"H3-4","question":"Bis wann darf man Kaffee trinken?","options":{"A":"Bis 20 Uhr","B":"Bis 16 Uhr","C":"Ohne Grenze"},"correct":"B","explanation_vi":"Nach 16 Uhr besser keinen mehr."},
+              {"id":"H3-5","question":"Wie soll das Schlafzimmer sein?","options":{"A":"Kühl und dunkel","B":"Warm und hell","C":"Laut"},"correct":"A","explanation_vi":"kühl und dunkel."}
             ]
           },
           {
@@ -675,8 +675,8 @@ VALUES
             "context": "Zeitungstext: Mit dem Zug statt mit dem Auto\nImmer mehr Menschen in Deutschland lassen für kurze Reisen das Auto stehen. Ein Grund sind die günstigen Monatstickets für Busse und Bahnen. Wer in der Stadt wohnt, spart damit oft Geld und Zeit, weil er keinen Parkplatz suchen muss. Auf dem Land ist die Lage anders: Dort fahren Busse manchmal nur zweimal am Tag. Fachleute fordern deshalb bessere Verbindungen am Abend und am Wochenende. Auch der Preis spielt eine Rolle: Familien reisen mit dem Auto oft billiger als mit vier Bahntickets.",
             "items": [
               {"id":"L4-1","question":"Worum geht es im Text?","options":{"A":"Um Reisen mit Bus und Bahn","B":"Um neue Automodelle","C":"Um Flugreisen"},"correct":"A","explanation_vi":"Bài nói về đi tàu xe thay vì ô tô."},
-              {"id":"L4-2","question":"Warum lassen viele das Auto stehen?","options":{"A":"Wegen der günstigen Monatstickets","B":"Weil Autos verboten sind","C":"Weil es keine Straßen gibt"},"correct":"A","explanation_vi":"Ein Grund sind die günstigen Monatstickets."},
-              {"id":"L4-3","question":"Welchen Vorteil nennt der Text für Stadtbewohner?","options":{"A":"Sie müssen keinen Parkplatz suchen","B":"Sie bekommen ein Auto geschenkt","C":"Sie fahren immer erster Klasse"},"correct":"A","explanation_vi":"keinen Parkplatz suchen müssen."},
+              {"id":"L4-2","question":"Warum lassen viele das Auto stehen?","options":{"A":"Weil es keine Straßen gibt","B":"Weil Autos verboten sind","C":"Wegen der günstigen Monatstickets"},"correct":"C","explanation_vi":"Ein Grund sind die günstigen Monatstickets."},
+              {"id":"L4-3","question":"Welchen Vorteil nennt der Text für Stadtbewohner?","options":{"A":"Sie bekommen ein Auto geschenkt","B":"Sie müssen keinen Parkplatz suchen","C":"Sie fahren immer erster Klasse"},"correct":"B","explanation_vi":"keinen Parkplatz suchen müssen."},
               {"id":"L4-4","question":"Wie ist die Lage auf dem Land?","options":{"A":"Es fahren sehr viele Busse","B":"Busse fahren manchmal nur zweimal am Tag","C":"Es gibt gar keine Busse"},"correct":"B","explanation_vi":"Dort fahren Busse manchmal nur zweimal am Tag."},
               {"id":"L4-5","question":"Was sagt der Text über Familien?","options":{"A":"Sie fahren mit dem Auto oft billiger","B":"Sie zahlen nie für Tickets","C":"Sie reisen nie"},"correct":"A","explanation_vi":"Familien reisen mit dem Auto oft billiger."}
             ]
@@ -695,8 +695,8 @@ VALUES
             "instruction_de": "Hören Sie die Gespräche und wählen Sie die richtige Antwort.",
             "instruction_vi": "Nghe hội thoại ngắn và chọn đáp án đúng",
             "items": [
-              {"id":"H1-1","audio_script":"A: Eine Fahrkarte nach Bremen, bitte. B: Einfach oder hin und zurück? A: Hin und zurück, bitte. B: Das macht 48 Euro.","question":"Was kauft der Kunde?","options":{"A":"Eine einfache Fahrt","B":"Eine Hin- und Rückfahrt","C":"Eine Monatskarte"},"correct":"B","explanation_vi":"Hin und zurück = khứ hồi."},
-              {"id":"H1-2","audio_script":"A: Entschuldigung, hält dieser Bus am Krankenhaus? B: Nein, Sie müssen an der Post umsteigen, dann Linie 9.","question":"Was soll der Fahrgast tun?","options":{"A":"Sitzen bleiben","B":"An der Post umsteigen","C":"Zu Fuß gehen"},"correct":"B","explanation_vi":"an der Post umsteigen, dann Linie 9."},
+              {"id":"H1-1","audio_script":"A: Eine Fahrkarte nach Bremen, bitte. B: Einfach oder hin und zurück? A: Hin und zurück, bitte. B: Das macht 48 Euro.","question":"Was kauft der Kunde?","options":{"A":"Eine einfache Fahrt","B":"Eine Monatskarte","C":"Eine Hin- und Rückfahrt"},"correct":"C","explanation_vi":"Hin und zurück = khứ hồi."},
+              {"id":"H1-2","audio_script":"A: Entschuldigung, hält dieser Bus am Krankenhaus? B: Nein, Sie müssen an der Post umsteigen, dann Linie 9.","question":"Was soll der Fahrgast tun?","options":{"A":"Sitzen bleiben","B":"Zu Fuß gehen","C":"An der Post umsteigen"},"correct":"C","explanation_vi":"an der Post umsteigen, dann Linie 9."},
               {"id":"H1-3","audio_script":"A: Wir wollen im Juli nach Italien fahren. B: Im Juli ist alles voll. Nehmt lieber Ende August, da ist es ruhiger.","question":"Was empfiehlt die zweite Person?","options":{"A":"Im Juli fahren","B":"Ende August fahren","C":"Zu Hause bleiben"},"correct":"B","explanation_vi":"Nehmt lieber Ende August."},
               {"id":"H1-4","audio_script":"A: Ist das Zimmer noch frei? B: Ja, aber nur bis Freitag. Ab Samstag ist das Hotel ausgebucht.","question":"Bis wann ist das Zimmer frei?","options":{"A":"Bis Mittwoch","B":"Bis Freitag","C":"Bis Sonntag"},"correct":"B","explanation_vi":"nur bis Freitag."},
               {"id":"H1-5","audio_script":"A: Wie komme ich am schnellsten zum Museum? B: Mit dem Rad zehn Minuten, zu Fuß eine halbe Stunde.","question":"Wie lange dauert es mit dem Rad?","options":{"A":"Zehn Minuten","B":"Zwanzig Minuten","C":"Eine halbe Stunde"},"correct":"A","explanation_vi":"Mit dem Rad zehn Minuten."}
@@ -723,11 +723,11 @@ VALUES
             "instruction_vi": "Nghe cuộc trò chuyện rồi chọn đáp án đúng",
             "audio_script": "Angestellte: Reisebüro Weitblick, guten Tag. Kunde: Guten Tag, ich möchte im Oktober eine Woche nach Wien. Angestellte: Mit dem Zug oder mit dem Flugzeug? Kunde: Lieber mit dem Zug, das ist bequemer. Angestellte: Dann empfehle ich den Nachtzug, Abfahrt 21 Uhr, Ankunft 8 Uhr. Kunde: Und was kostet das mit Hotel? Angestellte: Zug hin und zurück plus fünf Nächte im Zentrum, zusammen 520 Euro pro Person. Kunde: Gut, aber ich brauche ein ruhiges Zimmer. Angestellte: Kein Problem, ich notiere Zimmer zum Hof.",
             "items": [
-              {"id":"H3-1","question":"Wann möchte der Kunde reisen?","options":{"A":"Im August","B":"Im Oktober","C":"Im Dezember"},"correct":"B","explanation_vi":"im Oktober eine Woche nach Wien."},
+              {"id":"H3-1","question":"Wann möchte der Kunde reisen?","options":{"A":"Im August","B":"Im Dezember","C":"Im Oktober"},"correct":"C","explanation_vi":"im Oktober eine Woche nach Wien."},
               {"id":"H3-2","question":"Wie möchte er reisen?","options":{"A":"Mit dem Zug","B":"Mit dem Flugzeug","C":"Mit dem Auto"},"correct":"A","explanation_vi":"Lieber mit dem Zug."},
               {"id":"H3-3","question":"Wann fährt der Nachtzug ab?","options":{"A":"Um 8 Uhr","B":"Um 21 Uhr","C":"Um 23 Uhr"},"correct":"B","explanation_vi":"Abfahrt 21 Uhr."},
-              {"id":"H3-4","question":"Was kostet die Reise pro Person?","options":{"A":"250 Euro","B":"420 Euro","C":"520 Euro"},"correct":"C","explanation_vi":"zusammen 520 Euro pro Person."},
-              {"id":"H3-5","question":"Was wünscht sich der Kunde im Hotel?","options":{"A":"Ein ruhiges Zimmer","B":"Ein Zimmer mit Balkon","C":"Ein Zimmer im Erdgeschoss"},"correct":"A","explanation_vi":"ich brauche ein ruhiges Zimmer."}
+              {"id":"H3-4","question":"Was kostet die Reise pro Person?","options":{"A":"520 Euro","B":"420 Euro","C":"250 Euro"},"correct":"A","explanation_vi":"zusammen 520 Euro pro Person."},
+              {"id":"H3-5","question":"Was wünscht sich der Kunde im Hotel?","options":{"A":"Ein Zimmer mit Balkon","B":"Ein ruhiges Zimmer","C":"Ein Zimmer im Erdgeschoss"},"correct":"B","explanation_vi":"ich brauche ein ruhiges Zimmer."}
             ]
           },
           {
@@ -877,11 +877,11 @@ VALUES
             "instruction_vi": "Đọc bài viết và chọn đáp án đúng",
             "context": "Zeitungstext: Gemeinsam wohnen im Alter\nIn vielen deutschen Städten entstehen Wohnprojekte, in denen ältere und jüngere Menschen zusammenleben. Jede Familie hat eine eigene Wohnung, dazu gibt es Gemeinschaftsräume, zum Beispiel eine große Küche und einen Garten. Die Bewohner helfen sich gegenseitig: Jüngere gehen einkaufen, Ältere passen manchmal auf die Kinder auf. Ein Nachteil ist der Preis, denn solche Projekte sind oft nicht billig. Wichtig ist auch, dass alle Regeln gemeinsam beschlossen werden. Wer keine Lust auf Diskussionen hat, ist hier falsch.",
             "items": [
-              {"id":"L4-1","question":"Was ist das Thema des Textes?","options":{"A":"Wohnprojekte für verschiedene Generationen","B":"Neue Bürogebäude","C":"Ferienhäuser am Meer"},"correct":"A","explanation_vi":"Bài nói về mô hình nhiều thế hệ sống chung."},
-              {"id":"L4-2","question":"Was hat jede Familie?","options":{"A":"Nur ein Zimmer","B":"Eine eigene Wohnung","C":"Ein eigenes Haus"},"correct":"B","explanation_vi":"Jede Familie hat eine eigene Wohnung."},
+              {"id":"L4-1","question":"Was ist das Thema des Textes?","options":{"A":"Neue Bürogebäude","B":"Wohnprojekte für verschiedene Generationen","C":"Ferienhäuser am Meer"},"correct":"B","explanation_vi":"Bài nói về mô hình nhiều thế hệ sống chung."},
+              {"id":"L4-2","question":"Was hat jede Familie?","options":{"A":"Eine eigene Wohnung","B":"Nur ein Zimmer","C":"Ein eigenes Haus"},"correct":"A","explanation_vi":"Jede Familie hat eine eigene Wohnung."},
               {"id":"L4-3","question":"Wie helfen sich die Bewohner?","options":{"A":"Sie arbeiten in derselben Firma","B":"Jüngere kaufen ein, Ältere passen auf Kinder auf","C":"Sie putzen nie"},"correct":"B","explanation_vi":"Đúng như câu về giúp đỡ lẫn nhau."},
               {"id":"L4-4","question":"Welchen Nachteil nennt der Text?","options":{"A":"Es ist oft teuer","B":"Es gibt keinen Garten","C":"Es ist zu ruhig"},"correct":"A","explanation_vi":"solche Projekte sind oft nicht billig."},
-              {"id":"L4-5","question":"Für wen ist so ein Projekt nicht geeignet?","options":{"A":"Für Menschen mit Kindern","B":"Für Menschen ohne Auto","C":"Für Menschen, die nicht diskutieren möchten"},"correct":"C","explanation_vi":"Wer keine Lust auf Diskussionen hat, ist hier falsch."}
+              {"id":"L4-5","question":"Für wen ist so ein Projekt nicht geeignet?","options":{"A":"Für Menschen mit Kindern","B":"Für Menschen, die nicht diskutieren möchten","C":"Für Menschen ohne Auto"},"correct":"B","explanation_vi":"Wer keine Lust auf Diskussionen hat, ist hier falsch."}
             ]
           }
         ]
@@ -898,11 +898,11 @@ VALUES
             "instruction_de": "Hören Sie die Gespräche und wählen Sie die richtige Antwort.",
             "instruction_vi": "Nghe hội thoại ngắn và chọn đáp án đúng",
             "items": [
-              {"id":"H1-1","audio_script":"A: Guten Tag, ich interessiere mich für die Wohnung in der Lindenstraße. B: Die hat 62 Quadratmeter und kostet 720 Euro warm.","question":"Wie groß ist die Wohnung?","options":{"A":"52 Quadratmeter","B":"62 Quadratmeter","C":"72 Quadratmeter"},"correct":"B","explanation_vi":"62 Quadratmeter."},
-              {"id":"H1-2","audio_script":"A: Wann kann ich die Wohnung ansehen? B: Morgen um 17 Uhr oder am Samstagvormittag.","question":"Wann sind Besichtigungen möglich?","options":{"A":"Nur morgen","B":"Morgen oder am Samstag","C":"Erst nächste Woche"},"correct":"B","explanation_vi":"Có hai lựa chọn: mai 17 giờ hoặc sáng thứ Bảy."},
+              {"id":"H1-1","audio_script":"A: Guten Tag, ich interessiere mich für die Wohnung in der Lindenstraße. B: Die hat 62 Quadratmeter und kostet 720 Euro warm.","question":"Wie groß ist die Wohnung?","options":{"A":"52 Quadratmeter","B":"72 Quadratmeter","C":"62 Quadratmeter"},"correct":"C","explanation_vi":"62 Quadratmeter."},
+              {"id":"H1-2","audio_script":"A: Wann kann ich die Wohnung ansehen? B: Morgen um 17 Uhr oder am Samstagvormittag.","question":"Wann sind Besichtigungen möglich?","options":{"A":"Morgen oder am Samstag","B":"Nur morgen","C":"Erst nächste Woche"},"correct":"A","explanation_vi":"Có hai lựa chọn: mai 17 giờ hoặc sáng thứ Bảy."},
               {"id":"H1-3","audio_script":"A: Der Nachbar hört immer nachts laut Musik. B: Sprich zuerst freundlich mit ihm. Wenn das nicht hilft, schreib der Hausverwaltung.","question":"Was soll die Person zuerst tun?","options":{"A":"Die Polizei rufen","B":"Mit dem Nachbarn sprechen","C":"Sofort ausziehen"},"correct":"B","explanation_vi":"Sprich zuerst freundlich mit ihm."},
               {"id":"H1-4","audio_script":"A: Ist die Wohnung möbliert? B: Nein, nur die Küche ist eingebaut, alles andere müssen Sie mitbringen.","question":"Was ist in der Wohnung vorhanden?","options":{"A":"Alle Möbel","B":"Nur die Küche","C":"Nichts"},"correct":"B","explanation_vi":"nur die Küche ist eingebaut."},
-              {"id":"H1-5","audio_script":"A: Wann muss ich die Kaution bezahlen? B: Vor dem Einzug, spätestens am Tag der Schlüsselübergabe.","question":"Wann ist die Kaution fällig?","options":{"A":"Nach einem Monat","B":"Spätestens bei der Schlüsselübergabe","C":"Nie"},"correct":"B","explanation_vi":"spätestens am Tag der Schlüsselübergabe."}
+              {"id":"H1-5","audio_script":"A: Wann muss ich die Kaution bezahlen? B: Vor dem Einzug, spätestens am Tag der Schlüsselübergabe.","question":"Wann ist die Kaution fällig?","options":{"A":"Spätestens bei der Schlüsselübergabe","B":"Nach einem Monat","C":"Nie"},"correct":"A","explanation_vi":"spätestens am Tag der Schlüsselübergabe."}
             ]
           },
           {
@@ -926,10 +926,10 @@ VALUES
             "instruction_vi": "Nghe cuộc trò chuyện rồi chọn đáp án đúng",
             "audio_script": "Makler: Guten Tag, schön dass Sie da sind. Das ist also die Wohnung. Interessentin: Sehr hell. Wie hoch sind die Nebenkosten? Makler: 180 Euro im Monat, Heizung und Wasser sind dabei, Strom nicht. Interessentin: Und gibt es einen Keller? Makler: Ja, ein Kellerraum mit sechs Quadratmetern gehört dazu. Interessentin: Wann könnte ich einziehen? Makler: Die Wohnung ist ab dem ersten Nächsten frei. Interessentin: Darf ich einen Hund halten? Makler: Kleine Hunde sind erlaubt, große müssen Sie vorher anmelden.",
             "items": [
-              {"id":"H3-1","question":"Wie hoch sind die Nebenkosten?","options":{"A":"80 Euro","B":"180 Euro","C":"280 Euro"},"correct":"B","explanation_vi":"180 Euro im Monat."},
-              {"id":"H3-2","question":"Was ist in den Nebenkosten nicht enthalten?","options":{"A":"Heizung","B":"Wasser","C":"Strom"},"correct":"C","explanation_vi":"Strom nicht = không gồm tiền điện."},
-              {"id":"H3-3","question":"Was gehört zur Wohnung?","options":{"A":"Ein Kellerraum","B":"Eine Garage","C":"Ein Balkon"},"correct":"A","explanation_vi":"ein Kellerraum mit sechs Quadratmetern."},
-              {"id":"H3-4","question":"Ab wann ist die Wohnung frei?","options":{"A":"Sofort heute","B":"Ab dem ersten nächsten Monat","C":"Erst in einem Jahr"},"correct":"B","explanation_vi":"ab dem ersten Nächsten = đầu tháng sau."},
+              {"id":"H3-1","question":"Wie hoch sind die Nebenkosten?","options":{"A":"180 Euro","B":"80 Euro","C":"280 Euro"},"correct":"A","explanation_vi":"180 Euro im Monat."},
+              {"id":"H3-2","question":"Was ist in den Nebenkosten nicht enthalten?","options":{"A":"Strom","B":"Wasser","C":"Heizung"},"correct":"A","explanation_vi":"Strom nicht = không gồm tiền điện."},
+              {"id":"H3-3","question":"Was gehört zur Wohnung?","options":{"A":"Ein Balkon","B":"Eine Garage","C":"Ein Kellerraum"},"correct":"C","explanation_vi":"ein Kellerraum mit sechs Quadratmetern."},
+              {"id":"H3-4","question":"Ab wann ist die Wohnung frei?","options":{"A":"Ab dem ersten nächsten Monat","B":"Sofort heute","C":"Erst in einem Jahr"},"correct":"A","explanation_vi":"ab dem ersten Nächsten = đầu tháng sau."},
               {"id":"H3-5","question":"Was sagt der Makler über Hunde?","options":{"A":"Hunde sind verboten","B":"Kleine Hunde sind erlaubt","C":"Nur große Hunde sind erlaubt"},"correct":"B","explanation_vi":"Kleine Hunde sind erlaubt."}
             ]
           },
