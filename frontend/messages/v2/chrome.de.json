@@ -84,7 +84,9 @@
       "speaking-history": "Sprechverlauf",
       "admin-maintenance": "Wartung",
       "org-curricula": "Lehrplan",
-      "admin-exam-golden": "Golden-Set Sprechen"
+      "admin-exam-golden": "Golden-Set Sprechen",
+      "objectives": "Lernzielmatrix",
+      "org-settings": "Zentrumseinstellungen"
     },
     "sections": {
       "classMgmt": "Kursverwaltung",

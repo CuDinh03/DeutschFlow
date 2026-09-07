@@ -84,7 +84,9 @@
       "speaking-history": "Lịch sử luyện nói",
       "admin-maintenance": "Bảo trì",
       "org-curricula": "Giáo trình",
-      "admin-exam-golden": "Golden set Nói"
+      "admin-exam-golden": "Golden set Nói",
+      "objectives": "Ma trận mục tiêu",
+      "org-settings": "Cài đặt trung tâm"
     },
     "sections": {
       "classMgmt": "Quản lý lớp",
