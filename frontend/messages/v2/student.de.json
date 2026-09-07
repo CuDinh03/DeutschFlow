@@ -1546,12 +1546,11 @@
         "reviewed": "Wiederholt",
         "speaking": "Sprechen",
         "due": "Fällig",
-        "thisWeek": "diese Woche",
         "words": "Wörter",
-        "toReview": "zu wiederholen"
+        "toReview": "zu wiederholen",
+        "last7Days": "letzte 7 Tage"
       },
-      "weeklyTitle": "Aktivität (7 Tage)",
-      "noActivity": "Diese Woche keine Aktivität.",
+      "noActivity": "Keine Aktivität in den letzten 7 Tagen.",
       "series": {
         "learned": "Neu gelernt",
         "reviewed": "Wiederholt",
@@ -1567,7 +1566,13 @@
       "recommendationsTitle": "Empfehlungen für dich",
       "badgesCap": "Abzeichen",
       "badgesHint": "Alle freigeschalteten Abzeichen findest du unter Erfolge.",
-      "badgesCta": "Abzeichen ansehen"
+      "badgesCta": "Abzeichen ansehen",
+      "vocabTitle": "Wortschatz (7 Tage)",
+      "vocabTitleRange": "Wortschatz · {range}",
+      "speakingTitle": "Sprechen (7 Tage)",
+      "speakingTitleRange": "Sprechen · {range}",
+      "unitWords": "Einheit: Wörter",
+      "unitMinutes": "Einheit: Minuten"
     },
     "errors": {
       "title": "Fehlerbibliothek",
