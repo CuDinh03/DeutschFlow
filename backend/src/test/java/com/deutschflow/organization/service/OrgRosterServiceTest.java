@@ -42,6 +42,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.util.List;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("OrgRosterService Unit Tests")
@@ -97,6 +100,41 @@ class OrgRosterServiceTest {
         // CLASS_ID belongs to ORG_ID by default so the existing classId tests pass the IDOR guard.
         lenient().when(teacherClassRepository.findById(CLASS_ID))
                 .thenReturn(Optional.of(TeacherClass.builder().id(CLASS_ID).orgId(ORG_ID).build()));
+    }
+
+    @Test
+    @DisplayName("PR-A5b: ô bọc ngoặc kép — tên có dấu phẩy và \"\" bên trong tách đúng, header bọc ngoặc vẫn được bỏ qua")
+    void importStudents_parsesQuotedFieldsPerRfc4180() {
+        stubOrg(org(0, "PRO"));
+        String csv = "\"email\",\"displayName\",\"phone\"\n"
+                + "\"an@x.com\",\"Nguyễn, An\",\"0912\"\n"
+                + "binh@x.com,\"Trần \"\"Bình\"\" Văn\",\n";
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User created = inv.getArgument(0);
+            created.setId(100L);
+            return created;
+        });
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertEquals(2, result.total(), "header bọc ngoặc phải bị bỏ qua, còn đúng 2 dòng dữ liệu");
+        assertEquals(0, result.failed(), () -> "không dòng nào được coi là lỗi: " + result.errors());
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        verify(userRepository, times(2)).save(saved.capture());
+        assertEquals(List.of("Nguyễn, An", "Trần \"Bình\" Văn"),
+                saved.getAllValues().stream().map(User::getDisplayName).toList());
+        assertEquals(List.of("an@x.com", "binh@x.com"),
+                saved.getAllValues().stream().map(User::getEmail).toList());
+    }
+
+    @Test
+    @DisplayName("PR-A5b: splitCsvLine — ô thường, ô bọc ngoặc, ngoặc không đóng không làm nổ")
+    void splitCsvLine_edgeCases() {
+        assertArrayEquals(new String[]{"a@x.com", "A", ""}, OrgRosterService.splitCsvLine("a@x.com,A,"));
+        assertArrayEquals(new String[]{"a@x.com", "Nguyễn, An"}, OrgRosterService.splitCsvLine("a@x.com,\"Nguyễn, An\""));
+        assertArrayEquals(new String[]{"", ""}, OrgRosterService.splitCsvLine(","));
+        assertArrayEquals(new String[]{"a@x.com", "chưa đóng, ngoặc"}, OrgRosterService.splitCsvLine("a@x.com,\"chưa đóng, ngoặc"));
     }
 
     @Test
@@ -477,5 +515,52 @@ class OrgRosterServiceTest {
                 .isInstanceOf(BadRequestException.class);
 
         verify(membershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("PR-A5c: ô bọc ngoặc kép chứa xuống dòng vẫn là MỘT bản ghi, không chẻ đôi")
+    void splitNonEmptyLines_quotedNewlineStaysOneRecord() {
+        List<OrgRosterService.CsvRecord> recs = OrgRosterService.splitNonEmptyLines("foo@x.com,\"Dòng1\nDòng2\",0912");
+
+        assertThat(recs).hasSize(1);
+        assertThat(OrgRosterService.splitCsvLine(recs.get(0).text()))
+                .containsExactly("foo@x.com", "Dòng1\nDòng2", "0912");
+    }
+
+    @Test
+    @DisplayName("PR-A5c: nhiều bản ghi, một bản trải hai dòng — không sinh dòng lỗi ma")
+    void splitNonEmptyLines_mixedRecords() {
+        List<OrgRosterService.CsvRecord> recs = OrgRosterService.splitNonEmptyLines(
+                "a@x.com,A,1\r\nb@x.com,\"B1\nB2\",2\r\n\r\nc@x.com,C,3");
+
+        assertThat(recs).hasSize(3);
+        assertThat(OrgRosterService.splitCsvLine(recs.get(1).text()))
+                .containsExactly("b@x.com", "B1\nB2", "2");
+    }
+
+    @Test
+    @DisplayName("PR-A5c: ngoặc kép escape trong ô nhiều dòng về đúng một dấu ngoặc")
+    void splitNonEmptyLines_escapedQuoteInsideMultilineCell() {
+        List<OrgRosterService.CsvRecord> recs = OrgRosterService.splitNonEmptyLines("a@x.com,\"nói \"\"xin chào\"\"\nrồi đi\"");
+
+        assertThat(recs).hasSize(1);
+        assertThat(OrgRosterService.splitCsvLine(recs.get(0).text())[1]).isEqualTo("nói \"xin chào\"\nrồi đi");
+    }
+
+    @Test
+    @DisplayName("PR-A5c: ngoặc kép không đóng tới cuối tệp không làm mất dữ liệu")
+    void splitNonEmptyLines_unclosedQuoteKeepsRest() {
+        List<OrgRosterService.CsvRecord> recs = OrgRosterService.splitNonEmptyLines("a@x.com,\"chưa đóng\nb@x.com,B,2");
+
+        assertThat(recs).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("PR-A5c: số dòng báo lỗi là dòng VẬT LÝ trong tệp, tính cả header")
+    void splitNonEmptyLines_reportsPhysicalLineNumber() {
+        List<OrgRosterService.CsvRecord> recs = OrgRosterService.splitNonEmptyLines(
+                "email,displayName,phone\na@x.com,A,1\nb@x.com,\"B1\nB2\",2\nc@x.com,C,3");
+
+        assertThat(recs).extracting(OrgRosterService.CsvRecord::line).containsExactly(1, 2, 3, 5);
     }
 }

@@ -39,3 +39,134 @@ export function downloadTextFile(filename: string, content: string, mime = 'text
   // Hoãn revoke một nhịp: WebKit có thể chưa kịp bắt đầu tải nếu revoke đồng bộ ngay sau click.
   setTimeout(() => URL.revokeObjectURL(url), 0)
 }
+
+// ─── Nhập roster CSV (PR-A5, 07/09/2026) ─────────────────────────────────────
+// Backend `POST /org/students/import` nhận `email,displayName[,phone]` và trả lỗi từng dòng; phần
+// dưới chỉ để XEM TRƯỚC phía client (đếm dòng, báo email sai sớm) — không thay kiểm tra của máy chủ.
+
+export interface RosterRow {
+  email: string
+  displayName: string
+  phone: string
+  /** Số dòng trong file gốc (1-based, tính cả header/dòng trống) — để người dùng dò lại trong Excel. */
+  line: number
+}
+
+export interface RosterParse {
+  hasHeader: boolean
+  rows: RosterRow[]
+  /** Số dòng có email không hợp lệ theo kiểm tra sơ bộ phía client. */
+  invalidEmails: number
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** Tách một dòng CSV theo RFC 4180 (dấu phẩy trong ô bọc ngoặc kép không tách cột; `""` = một dấu `"`). */
+export function parseCsvLine(line: string): string[] {
+  const out: string[] = []
+  let cur = ''
+  let quoted = false
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i]
+    if (quoted) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++ } else quoted = false
+      } else cur += c
+    } else if (c === '"' && cur === '') {
+      quoted = true
+    } else if (c === ',') {
+      out.push(cur); cur = ''
+    } else cur += c
+  }
+  out.push(cur)
+  return out
+}
+
+/** Một bản ghi CSV kèm số dòng VẬT LÝ nơi nó bắt đầu (1-based, tính cả header). */
+export interface CsvRecord {
+  text: string
+  line: number
+}
+
+/**
+ * Tách văn bản CSV thành từng BẢN GHI, tôn trọng ô bọc nháy.
+ *
+ * Vì sao không dùng `split(/\r?\n/)`: RFC 4180 cho phép ô bọc nháy CHỨA ký tự xuống dòng, ví dụ
+ * `foo@x.com,"Dòng1<LF>Dòng2",0912`. Cắt theo ký tự xuống dòng trước rồi mới tách cột sẽ chẻ ô đó
+ * làm đôi: nửa đầu vẫn có email hợp lệ nên **âm thầm tạo tài khoản với tên cụt**, nửa sau thành một
+ * dòng lỗi ma không tương ứng dữ liệu nào. Đây là sai lệch dữ liệu im lặng, không phải lỗi lộ ra.
+ *
+ * `line` là dòng vật lý nơi bản ghi BẮT ĐẦU, để người dùng dò lại đúng chỗ trong Excel. Bản ghi
+ * trải nhiều dòng thì vẫn báo dòng đầu của nó.
+ */
+export function splitCsvRecords(src: string): CsvRecord[] {
+  const out: CsvRecord[] = []
+  let cur = ''
+  let quoted = false
+  let physicalLine = 1
+  let recordStart = 1
+
+  const flush = () => {
+    if (cur.trim() !== '') out.push({ text: cur, line: recordStart })
+    cur = ''
+  }
+
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i]
+
+    if (quoted) {
+      if (c === '"') {
+        // `""` là một dấu nháy nằm TRONG ô — giữ nguyên cả hai ký tự cho parseCsvLine xử lý.
+        if (src[i + 1] === '"') { cur += '""'; i++ } else { quoted = false; cur += c }
+      } else {
+        if (c === '\n') physicalLine++
+        cur += c
+      }
+      continue
+    }
+
+    if (c === '"') { quoted = true; cur += c; continue }
+
+    if (c === '\r' || c === '\n') {
+      if (c === '\r' && src[i + 1] === '\n') i++
+      flush()
+      physicalLine++
+      recordStart = physicalLine
+      continue
+    }
+
+    cur += c
+  }
+  flush()
+  return out
+}
+
+/** Đọc văn bản CSV roster: bỏ BOM, bỏ dòng trống, nhận header khi ô đầu là `email`. */
+export function parseRosterCsv(text: string): RosterParse {
+  const src = text.startsWith('\uFEFF') ? text.slice(1) : text
+  const rows: RosterRow[] = []
+  let hasHeader = false
+  let first = true
+  let invalidEmails = 0
+  splitCsvRecords(src).forEach((rec) => {
+    const cols = parseCsvLine(rec.text.trim())
+    if (first) {
+      first = false
+      if ((cols[0] ?? '').trim().toLowerCase() === 'email') { hasHeader = true; return }
+    }
+    const email = (cols[0] ?? '').trim().toLowerCase()
+    if (!EMAIL_RE.test(email)) invalidEmails++
+    rows.push({ email, displayName: (cols[1] ?? '').trim(), phone: (cols[2] ?? '').trim(), line: rec.line })
+  })
+  return { hasHeader, rows, invalidEmails }
+}
+
+/** File mẫu tải về (BOM cho Excel): đúng 3 cột backend nhận, có ví dụ tên chứa dấu phẩy. */
+export function rosterTemplateCsv(): string {
+  return '\uFEFF' + ['email,displayName,phone', 'hocvien@example.com,Nguyễn Văn A,0912345678', 'hocvien2@example.com,"Trần, Bình",'].join('\r\n') + '\r\n'
+}
+
+/** Danh sách lỗi từng dòng do backend trả → CSV một cột để tải về đối soát. */
+export function rosterErrorsCsv(errors: string[]): string {
+  return '\uFEFF' + ['error', ...errors.map(cell)].join('\r\n') + '\r\n'
+}
