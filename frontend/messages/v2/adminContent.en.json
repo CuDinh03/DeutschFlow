@@ -49,7 +49,7 @@
       "statAudio": "Has audio (TTS)",
       "queueCap": "Vocabulary review queue ({count})",
       "loadError": "Could not load vocabulary",
-      "queueDone": "Queue fully reviewed 🎉",
+      "queueDone": "Queue fully reviewed",
       "missingImage": "Missing image",
       "attachImage": "Attach image",
       "approveNeedsImage": "Attach an image before approving",
@@ -314,7 +314,7 @@
       "statErrorsSub": "with corrections",
       "exportCap": "Export data",
       "downloadJson": "Download JSON",
-      "anonymizedNote": "⚠️ Data is anonymized — for AI model improvement only, not for external sharing."
+      "anonymizedNote": "Data is anonymized — for AI model improvement only, not for external sharing."
     },
     "reports": {
       "childGrammar": "Grammar feedback",

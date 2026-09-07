@@ -37,6 +37,16 @@ import { GaAuthShell } from "../authShared";
 // `icon` là khoá của GaIcon. Năm mức KHÔNG dùng chung một icon sách như bộ emoji cũ
 // (📗📘📙📕 chỉ khác màu — đổi sang icon một màu là năm ô giống hệt nhau): mỗi mức lấy
 // một icon nói đúng việc làm được ở mức đó, để đọc lướt vẫn thấy tiến độ.
+// Chip kỹ năng của bài kiểm tra đầu vào. Nhãn trong catalog TỪNG mang emoji dẫn đầu
+// (🎧 Nghe · 🎤 Nói · 📚 Đọc · ✍️ Viết) — tức icon giả nằm trong chuỗi dịch, mỗi máy vẽ một kiểu
+// và dịch giả có thể vô tình xoá. Nay chuỗi chỉ còn chữ, hình do GaIcon vẽ.
+const TEST_SKILL_CHIP: Record<string, { icon: string; labelKey: string; cls: string }> = {
+  HOEREN:    { icon: "headphones",         labelKey: "test.skillHoeren",    cls: "bg-ga-blue-soft text-ga-blue" },
+  SPRECHEN:  { icon: "mic",                labelKey: "test.skillSprechen",  cls: "bg-ga-red-soft text-ga-red" },
+  LESEN:     { icon: "menu_book",          labelKey: "test.skillLesen",     cls: "bg-ga-green-soft text-ga-green" },
+  SCHREIBEN: { icon: "draw",               labelKey: "test.skillSchreiben", cls: "bg-ga-violet-soft text-ga-violet" },
+};
+
 const LEVELS = [
   { value: "A0", icon: "eco" },
   { value: "A1", icon: "menu_book" },
@@ -548,11 +558,12 @@ export default function V2OnboardingPage() {
               </div>
               <div className="flex gap-1">{questions.map((_,i) => <div key={i} className={`flex-1 h-1 rounded-ga-pill ${i<currentQ?"bg-ga-green":i===currentQ?"bg-ga-yellow":"bg-ga-line"}`} />)}</div>
               {/* Skill chip: same four sections as v1 (HOEREN/SPRECHEN/LESEN/SCHREIBEN), retokenized. */}
-              <span className={`ga-ui inline-block text-[10px] font-bold px-2 py-0.5 rounded-ga-pill ${
-                questions[currentQ].skillSection==="HOEREN"?"bg-ga-blue-soft text-ga-blue":
-                questions[currentQ].skillSection==="SPRECHEN"?"bg-ga-red-soft text-ga-red":
-                questions[currentQ].skillSection==="LESEN"?"bg-ga-green-soft text-ga-green":"bg-ga-violet-soft text-ga-violet"
-              }`}>{questions[currentQ].skillSection==="HOEREN"?t("test.skillHoeren"):questions[currentQ].skillSection==="SPRECHEN"?t("test.skillSprechen"):questions[currentQ].skillSection==="LESEN"?t("test.skillLesen"):t("test.skillSchreiben")}</span>
+              <span className={`ga-ui inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-ga-pill ${
+                (TEST_SKILL_CHIP[questions[currentQ].skillSection] ?? TEST_SKILL_CHIP.SCHREIBEN).cls
+              }`}>
+                <GaIcon name={(TEST_SKILL_CHIP[questions[currentQ].skillSection] ?? TEST_SKILL_CHIP.SCHREIBEN).icon} size={11} />
+                {t((TEST_SKILL_CHIP[questions[currentQ].skillSection] ?? TEST_SKILL_CHIP.SCHREIBEN).labelKey as never)}
+              </span>
               {questions[currentQ].audioTranscript && <div className="flex items-start gap-1.5 rounded-ga bg-ga-surface p-3 text-[12px] text-ga-muted italic"><GaIcon name="volume_up" size={13} className="mt-[2px]" /><span>&quot;{questions[currentQ].audioTranscript}&quot;</span></div>}
               <p className="text-[13.5px] font-medium text-ga-ink whitespace-pre-line break-words">{questions[currentQ].questionDe}</p>
               {questions[currentQ].questionVi && <p className="text-[12px] text-ga-subtle">{questions[currentQ].questionVi}</p>}

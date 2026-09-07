@@ -45,7 +45,7 @@
       "heading": "Wie viel möchtest du lernen?",
       "sub": "Dein Wochenziel bestimmt die personalisierten Zusatzthemen.",
       "mentorLabel": "Dein Mentor",
-      "upsell": "🔓 Mentor <b>{name}</b>{tagline} mit PRO freischalten →",
+      "upsell": "Mentor <b>{name}</b>{tagline} mit PRO freischalten →",
       "w3": {
         "label": "3 Lektionen/Woche",
         "desc": "~15 Min./Tag"
@@ -58,13 +58,13 @@
         "label": "7 Lektionen/Woche",
         "desc": "Jeden Tag eine Lektion"
       },
-      "noteA0": "🌱 Deine ersten Schritte sind <b>Alphabet, Aussprache und Begrüßungen</b>.",
-      "notePlacement": "📝 Du kannst einen <b>optionalen 5-Minuten-Test</b> machen, um auf dem richtigen Niveau zu starten — oder direkt loslegen."
+      "noteA0": "Deine ersten Schritte sind <b>Alphabet, Aussprache und Begrüßungen</b>.",
+      "notePlacement": "Du kannst einen <b>optionalen 5-Minuten-Test</b> machen, um auf dem richtigen Niveau zu starten — oder direkt loslegen."
     },
     "quickWin": {
       "heading": "Probier deinen ersten Satz!",
       "prompt": "Wie sagt man „Guten Morgen“ auf Deutsch?",
-      "correct": "Richtig! 🎉 Du hast gerade dein erstes Wort gelernt.",
+      "correct": "Richtig! Du hast gerade dein erstes Wort gelernt.",
       "wrong": "Noch nicht ganz — versuch es nochmal!"
     },
     "signup": {
@@ -83,10 +83,10 @@
     },
     "test": {
       "heading": "Einstufungstest",
-      "skillHoeren": "🎧 Hören",
-      "skillSprechen": "🎤 Sprechen",
-      "skillLesen": "📚 Lesen",
-      "skillSchreiben": "✍️ Schreiben",
+      "skillHoeren": "Hören",
+      "skillSprechen": "Sprechen",
+      "skillLesen": "Lesen",
+      "skillSchreiben": "Schreiben",
       "writePlaceholder": "Schreibe deine Antwort auf Deutsch...",
       "prev": "Zurück",
       "next": "Weiter",
@@ -96,7 +96,7 @@
       "passed": "Super — du bist bereit!",
       "failed": "Wir haben gefunden, was du wiederholen solltest",
       "score": "Ergebnis: <b>{correct}/{total}</b> ({percent}%)",
-      "weakModules": "📋 Zu wiederholende Module: {modules}",
+      "weakModules": "Zu wiederholende Module: {modules}",
       "retryAfter": "Neuer Versuch in {days} Tagen möglich.",
       "ctaPassed": "Personalisierten Lernweg starten →",
       "ctaFailed": "Passenden Lernweg ansehen →",

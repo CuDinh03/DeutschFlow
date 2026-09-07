@@ -290,7 +290,7 @@
     "noClasses": "Bạn chưa tham gia lớp nào.",
     "userFallback": "Người dùng #{id}",
     "directPlaceholder": "Nhập tin nhắn… (Enter để gửi, Shift+Enter xuống dòng)",
-    "directEmpty": "Chưa có tin nhắn — gửi lời chào đầu tiên 👋",
+    "directEmpty": "Chưa có tin nhắn — gửi lời chào đầu tiên",
     "listAria": "Danh sách tin nhắn",
     "pickHint": "Chọn một hội thoại hoặc nhóm lớp để bắt đầu nhắn tin.",
     "back": "Quay lại",

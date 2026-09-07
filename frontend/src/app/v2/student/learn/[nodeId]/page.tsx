@@ -11,8 +11,11 @@ import {
   Check,
   GraduationCap,
   Headphones,
+  Hourglass,
   Mic,
   PenLine,
+  RotateCcw,
+  TriangleAlert,
   type LucideIcon,
 } from 'lucide-react'
 import { completeTheoryNode } from '@/lib/theoryNodeCompletion'
@@ -32,7 +35,7 @@ import SessionRecap from '@/components/learn/SessionRecap'
 import { nextSkillToPractice, parsePracticeOverview } from '@/lib/roadmap-tree/practiceStats'
 import type { Skill } from '@/lib/skills'
 import PhonemeCoach from '@/components/learn/PhonemeCoach'
-import { GaCap, GaCard, LoadingState } from '@/components/ui-v2'
+import { GaCap, GaCard, GaGlyph, LoadingState } from '@/components/ui-v2'
 import { LessonShell } from '@/components/learn/LessonShell'
 
 /**
@@ -316,9 +319,11 @@ export default function V2StudentLearnNodePage() {
               ô gần như trống, trông như lỗi hơn là như thiết kế. */}
           {session && (
             <div className="ga-ui flex flex-wrap items-center gap-2 text-[11px]">
-              <span aria-hidden className="text-[20px] leading-none">
-                {session.emoji}
-              </span>
+              {/* `session.emoji` là DỮ LIỆU (`skill_tree_nodes.emoji`), không phải lựa chọn giao diện:
+                  in thẳng ra thì mỗi hệ điều hành vẽ một kiểu, luôn nhiều màu và không nhận
+                  `currentColor` — lệch hẳn nét với icon Lucide của chính trang này. Dịch sang icon
+                  qua `emojiIconMap` (xem GaGlyph). */}
+              <GaGlyph emoji={session.emoji} size="sm" />
               <span className="rounded-ga-pill bg-ga-accent-soft px-2 py-0.5 font-bold text-ga-accent">
                 {session.cefrLevel}
               </span>
@@ -392,7 +397,10 @@ export default function V2StudentLearnNodePage() {
                 </p>
               )}
               <div className="mx-auto mt-5 max-w-sm rounded-ga border border-ga-line bg-ga-yellow-soft px-5 py-4">
-                <p className="ga-ui text-[13.5px] font-semibold text-ga-ink">{t('contentPendingTitle')}</p>
+                <p className="ga-ui flex items-center justify-center gap-1.5 text-[13.5px] font-semibold text-ga-ink">
+                  <Hourglass size={14} aria-hidden />
+                  {t('contentPendingTitle')}
+                </p>
                 <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">
                   {t('contentPendingDesc', { level: session.cefrLevel })}
                 </p>
@@ -431,7 +439,10 @@ export default function V2StudentLearnNodePage() {
               {showRetryBanner && (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-ga border border-ga-line bg-ga-yellow-soft p-4">
                   <div className="min-w-0">
-                    <p className="ga-ui text-[13.5px] font-semibold text-ga-ink">{t('retryTitle')}</p>
+                    <p className="ga-ui flex items-center gap-1.5 text-[13.5px] font-semibold text-ga-ink">
+                      <TriangleAlert size={14} aria-hidden />
+                      {t('retryTitle')}
+                    </p>
                     <p className="ga-ui mt-0.5 text-[12.5px] text-ga-muted">{t('retryDesc')}</p>
                   </div>
                   <button
@@ -440,8 +451,9 @@ export default function V2StudentLearnNodePage() {
                       resetTabCompletion()
                       setPhonemeSuccess(new Set())
                     }}
-                    className="ga-ui inline-flex min-h-[40px] shrink-0 items-center rounded-ga bg-ga-accent px-4 py-2 text-[12.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 lg:min-h-0"
+                    className="ga-ui inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-ga bg-ga-accent px-4 py-2 text-[12.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 lg:min-h-0"
                   >
+                    <RotateCcw size={14} aria-hidden />
                     {t('retryCta')}
                   </button>
                 </div>

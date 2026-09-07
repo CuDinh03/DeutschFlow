@@ -45,7 +45,7 @@
       "heading": "Bạn muốn học bao nhiêu?",
       "sub": "Weekly target ảnh hưởng đến chủ đề mở rộng cá nhân hóa.",
       "mentorLabel": "Mentor của bạn",
-      "upsell": "🔓 Mở khoá mentor <b>{name}</b>{tagline} với PRO →",
+      "upsell": "Mở khoá mentor <b>{name}</b>{tagline} với PRO →",
       "w3": {
         "label": "3 bài/tuần",
         "desc": "~15 phút/ngày"
@@ -58,13 +58,13 @@
         "label": "7 bài/tuần",
         "desc": "Mỗi ngày một bài"
       },
-      "noteA0": "🌱 Bước đầu tiên của bạn sẽ là <b>Bảng chữ cái, Phát âm và Chào hỏi</b>.",
-      "notePlacement": "📝 Có thể làm <b>bài kiểm tra 5 phút (tùy chọn)</b> để vào đúng trình độ — hoặc bắt đầu học ngay."
+      "noteA0": "Bước đầu tiên của bạn sẽ là <b>Bảng chữ cái, Phát âm và Chào hỏi</b>.",
+      "notePlacement": "Có thể làm <b>bài kiểm tra 5 phút (tùy chọn)</b> để vào đúng trình độ — hoặc bắt đầu học ngay."
     },
     "quickWin": {
       "heading": "Thử ngay câu đầu tiên!",
       "prompt": "\"Chào buổi sáng\" trong tiếng Đức là gì?",
-      "correct": "Richtig! 🎉 Bạn vừa học từ đầu tiên.",
+      "correct": "Richtig! Bạn vừa học từ đầu tiên.",
       "wrong": "Chưa đúng — thử lại nhé!"
     },
     "signup": {
@@ -83,10 +83,10 @@
     },
     "test": {
       "heading": "Bài kiểm tra xếp lớp",
-      "skillHoeren": "🎧 Nghe",
-      "skillSprechen": "🎤 Nói",
-      "skillLesen": "📚 Đọc",
-      "skillSchreiben": "✍️ Viết",
+      "skillHoeren": "Nghe",
+      "skillSprechen": "Nói",
+      "skillLesen": "Đọc",
+      "skillSchreiben": "Viết",
       "writePlaceholder": "Viết câu trả lời bằng tiếng Đức...",
       "prev": "Trước",
       "next": "Tiếp",
@@ -96,7 +96,7 @@
       "passed": "Tốt rồi, bạn đã sẵn sàng!",
       "failed": "Mình đã tìm ra chỗ cần ôn",
       "score": "Kết quả: <b>{correct}/{total}</b> ({percent}%)",
-      "weakModules": "📋 Module cần ôn: {modules}",
+      "weakModules": "Module cần ôn: {modules}",
       "retryAfter": "Làm lại sau {days} ngày.",
       "ctaPassed": "Bắt đầu lộ trình cá nhân hóa →",
       "ctaFailed": "Xem lộ trình phù hợp →",

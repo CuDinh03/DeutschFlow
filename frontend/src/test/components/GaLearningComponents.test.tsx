@@ -141,6 +141,15 @@ describe('NodeList (S-03) — mật độ giảm, trạng thái đọc được'
     expect(locked.querySelector('a')).toBeNull()
   })
 
+  it('ô đầu dòng vẽ ICON, không in emoji của dữ liệu', () => {
+    // `emoji` là cột dữ liệu (`skill_tree_nodes.emoji`) — in thẳng thì mỗi máy vẽ một kiểu và luôn
+    // nhiều màu, đứng cạnh ổ khoá/dấu tích Lucide của chính danh sách này là lộ ngay.
+    const { container } = render(<NodeList nodes={nodes} />)
+    const inProgress = container.querySelectorAll('li')[1]
+    expect(inProgress.textContent).not.toContain('\u{1F4D8}')
+    expect(inProgress.querySelector('svg')).not.toBeNull()
+  })
+
   it('trạng thái có NHÃN CHỮ, không chỉ màu/icon', () => {
     render(<NodeList nodes={nodes} />)
     expect(screen.getByText('nodeStatus.completed')).toBeInTheDocument()
