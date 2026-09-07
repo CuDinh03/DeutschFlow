@@ -1,5 +1,5 @@
 /**
- * Hợp đồng CATALOG: chuỗi dịch của /v2 không được mang emoji.
+ * Hợp đồng CATALOG: chuỗi dịch không được mang emoji — cả `/v2` LẪN catalog gốc.
  *
  * VÌ SAO CẦN TEST NÀY: chính sách icon (02/09/2026) cấm emoji làm icon giao diện, nhưng lần quét
  * đó chỉ soi JSX. Emoji nằm TRONG chuỗi dịch ("⚡ Nội dung đang được chuẩn bị", "✅ Chính xác!",
@@ -9,7 +9,12 @@
  * đổi emoji, và không có gì báo.
  *
  * Ngoại lệ được liệt kê TỪNG KHOÁ ở dưới, không phải theo ký tự: thêm một emoji mới ở bất kỳ đâu
- * khác trong catalog /v2 sẽ làm test này đỏ, và người thêm phải nói rõ vì sao nó là NỘI DUNG.
+ * khác trong catalog sẽ làm test này đỏ, và người thêm phải nói rõ vì sao nó là NỘI DUNG.
+ *
+ * Catalog GỐC canh riêng và KHÔNG có ngoại lệ nào. Nó từng giấu một 🎤 trong `personaNameHannie` —
+ * khoá chết từ thời v1 (tên persona thật đến từ `lib/personas.ts`), nên không màn hình nào hiện nó
+ * mà mỗi lượt tải trang vẫn chở đi. Lời chào persona có emoji thì nằm trong `lib/personas.ts`, là
+ * lời NHÂN VẬT nói trong bong bóng chat — không thuộc phạm vi phép kiểm này.
  */
 import { describe, expect, it } from 'vitest'
 import { catalogMessages, type UiLocale } from '@/test/intlCatalog'
@@ -63,6 +68,17 @@ function walk(node: unknown, path: string, out: string[]): void {
     }
   }
 }
+
+describe('catalog GỐC — không emoji, không ngoại lệ', () => {
+  for (const locale of ['vi', 'en', 'de'] as UiLocale[]) {
+    it(`messages/${locale}.json sạch emoji`, () => {
+      const found: string[] = []
+      const { v2: _v2, ...base } = catalogMessages(locale) as Record<string, unknown>
+      walk(base, '', found)
+      expect(found).toEqual([])
+    })
+  }
+})
 
 describe('catalog /v2 — emoji không được đóng vai icon', () => {
   for (const locale of ['vi', 'en', 'de'] as UiLocale[]) {
