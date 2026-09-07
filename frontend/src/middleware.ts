@@ -199,12 +199,15 @@ async function verifyAccessToken(token: string): Promise<VerifiedClaims | null> 
 // (report-uri + Reporting-Endpoints below) — before 2026-09 there was no report directive,
 // so violations went nowhere.
 //
-// Enforce flip (gated — do not do casually): keep the next.config floor as-is and ALSO send
-// this policy as `Content-Security-Policy`. Two CSP headers AND-intersect; the floor is
-// strictly looser, so this policy decides — and every inline script already carries the
-// nonce, so nothing legitimate breaks. Flip only after the collector shows the main flows
-// clean for 72h, behind an env kill-switch, keeping the Report-Only header in parallel
-// for comparison.
+// Enforce flip (gated — do not do casually): CSP_ENFORCE=1 sends this policy as a real
+// `Content-Security-Policy`. MEASURED locally (E4.0, `next start` 2026-09-07): setting the
+// same header key here REPLACES the next.config floor value on these responses — the browser
+// sees exactly ONE Content-Security-Policy header, this strict one (NOT two AND-intersecting
+// headers as previously assumed). That is safe: directive-by-directive this policy is
+// equal-or-tighter than the floor, and the floor still covers any response middleware does
+// not touch (e.g. future prerendered pages). Every inline script already carries the nonce,
+// so legitimate flows survive. Flip only after the collector shows the main flows clean for
+// 72h, keeping the Report-Only header in parallel for comparison.
 const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/api\/?$/, '')
 const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com'
 const cloudfront = process.env.NEXT_PUBLIC_CLOUDFRONT_URL || ''
@@ -213,6 +216,15 @@ const cloudfront = process.env.NEXT_PUBLIC_CLOUDFRONT_URL || ''
 // (its delivery preflights, which the backend's global /api/** CORS already answers).
 // Empty backendOrigin (local dev without env) → both directives are simply omitted.
 const cspReportCollector = backendOrigin ? `${backendOrigin}/api/public/csp-report` : ''
+// E4 kill-switch: CSP_ENFORCE=1 (env server, đọc lúc khởi động instance compute) gửi chính sách
+// strict ở dưới như Content-Security-Policy THẬT, song song với bản Report-Only (giữ ~1 tuần đầu
+// sau khi bật để đối chiếu). MẶC ĐỊNH TẮT — merge code này không đổi hành vi prod. Bật/tắt = đặt/gỡ
+// env trên Amplify + redeploy (~10 phút). Đo E4.0 (07/09, local): header set ở đây THAY THẾ giá trị
+// floor cùng key của next.config trên các response qua middleware — browser thấy đúng MỘT header
+// CSP là bản strict (chặt hơn/bằng floor ở mọi directive nên không mất lớp nào); floor vẫn phủ mọi
+// response không qua middleware. CHỈ bật sau khi collector /api/public/csp-report cho thấy các
+// flow chính sạch vi phạm 72h liên tục (gate Q2 — plan hạ tầng biên 07/09, cần owner gật).
+const cspEnforceEnabled = process.env.CSP_ENFORCE === '1'
 
 function buildCsp(nonce: string): string {
   const connectSrc = ["'self'", backendOrigin, posthogHost, cloudfront, 'https:']
@@ -265,6 +277,9 @@ export async function middleware(request: NextRequest) {
 
   // Attach the Report-Only CSP to every response we return.
   const secure = <T extends NextResponse>(res: T): T => {
+    if (cspEnforceEnabled) {
+      res.headers.set('Content-Security-Policy', csp)
+    }
     res.headers.set('Content-Security-Policy-Report-Only', csp)
     if (cspReportCollector) {
       // Names the "csp" endpoint group that the policy's `report-to csp` directive points at.
