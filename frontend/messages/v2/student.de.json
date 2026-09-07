@@ -1574,7 +1574,12 @@
       "unitWords": "Einheit: Wörter",
       "unitMinutes": "Einheit: Minuten",
       "recommendationsLoadError": "Vorschläge konnten nicht geladen werden. Das heißt nicht, dass nichts mehr zu tun ist.",
-      "errorTrendLoadError": "Fehlerverlauf konnte nicht geladen werden. Das heißt nicht, dass alle Fehler behoben sind."
+      "errorTrendLoadError": "Fehlerverlauf konnte nicht geladen werden. Das heißt nicht, dass alle Fehler behoben sind.",
+      "showTable": "Daten als Tabelle anzeigen",
+      "colDay": "Tag",
+      "colErrorCount": "Fehler",
+      "vocabDesc": "Neu gelernte Wörter und Wiederholungen pro Tag.",
+      "speakingDesc": "Sprechübungsminuten pro Tag."
     },
     "errors": {
       "title": "Fehlerbibliothek",
