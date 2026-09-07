@@ -223,6 +223,25 @@ class ExamScoringServiceTest {
         assertThat(level.getValue()).isEqualTo("A1"); // sprechenSection() khai cefr_level = A1
     }
 
+    @Test
+    @DisplayName("đề bài gửi cho AI mang cả chủ đề lẫn các ý bắt buộc, không chỉ một dòng tiếng Việt")
+    void scoreSchreibenSection_sendsFullTaskAndRequiredPoints() {
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString()))
+                .thenReturn(aiScore(12, "AI_EVALUATED"));
+        Map<String, Object> answers = new HashMap<>(Map.of("email_2", "Hallo Sara, ich wohne jetzt in Berlin."));
+
+        service.scoreSchreibenSection(7L, answers, schreibenSection(), "A1");
+
+        org.mockito.ArgumentCaptor<String> task = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(aiEvaluator).evaluateSchreibenEmail(anyLong(), anyString(), task.capture(), anyString());
+        assertThat(task.getValue())
+                .as("tiêu chí aufgabenerfuellung cần chủ đề và các ý bắt buộc để đối chiếu")
+                .contains("Betreff: Neue Wohnung")
+                .contains("Wo du jetzt wohnst")
+                .contains("Wann Sara dich besuchen kann")
+                .contains("Schreiben Sie eine Antwort"); // câu lệnh tiếng Đức đứng trước bản tiếng Việt
+    }
+
     // ─── Nói ─────────────────────────────────────────────────────────────────
 
     @Test
@@ -334,8 +353,11 @@ class ExamScoringServiceTest {
                 Map.of("teil", 1, "type", "FILL_FORM", "form_fields", List.of(
                         Map.of("field", "Vorname"), Map.of("field", "Nachname"),
                         Map.of("field", "Wohnort"), Map.of("field", "Geburtsjahr"))),
-                Map.of("teil", 2, "type", "WRITE_EMAIL", "input_email", "Liebe Grüße",
-                        "instruction_vi", "Viết email ~30 từ")));
+                Map.of("teil", 2, "type", "WRITE_EMAIL",
+                        "input_email", "Betreff: Neue Wohnung. Wo wohnst du jetzt?",
+                        "instruction_de", "Schreiben Sie eine Antwort (circa 30 Wörter).",
+                        "instruction_vi", "Viết email ~30 từ",
+                        "writing_points", List.of("Wo du jetzt wohnst", "Wann Sara dich besuchen kann"))));
         return section;
     }
 

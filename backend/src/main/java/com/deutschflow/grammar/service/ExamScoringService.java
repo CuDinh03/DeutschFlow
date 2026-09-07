@@ -185,11 +185,39 @@ public class ExamScoringService {
         return "";
     }
 
+    /**
+     * Đề bài đầy đủ gửi cho AI: câu lệnh + tình huống/chủ đề + CÁC Ý BẮT BUỘC.
+     *
+     * <p>Trước 07/09/2026 hàm này trả về trường đầu tiên tìm thấy, mà {@code instruction_vi} luôn
+     * đứng trước — nên AI chỉ nhận một dòng tiếng Việt kiểu "Viết bài đăng diễn đàn ~80 từ", còn
+     * chủ đề ({@code input_email}/{@code prompt}) và các ý bắt buộc ({@code writing_points}) không
+     * bao giờ tới nơi. Tiêu chí {@code aufgabenerfuellung} đúng nghĩa là "có nêu đủ các ý yêu cầu
+     * không", nên nó chấm mà không có gì để đối chiếu.
+     */
     private String taskPrompt(Map<String, Object> teil) {
-        for (String key : List.of("instruction_vi", "instruction_de", "prompt", "instructions")) {
-            if (teil.get(key) instanceof String s && !s.isBlank()) return s;
+        StringBuilder task = new StringBuilder();
+        // Câu lệnh: ưu tiên tiếng Đức vì phần còn lại của prompt là Đức/Anh.
+        appendFirst(task, teil, List.of("instruction_de", "instruction_vi"));
+        // Chủ đề hoặc tình huống của đề.
+        appendFirst(task, teil, List.of("input_email", "prompt", "instructions"));
+        if (teil.get("writing_points") instanceof List<?> points && !points.isEmpty()) {
+            task.append("\nDiese Punkte müssen im Text vorkommen:");
+            int i = 1;
+            for (Object point : points) {
+                if (point != null) task.append("\n").append(i++).append(". ").append(point);
+            }
         }
-        return "";
+        return task.toString().trim();
+    }
+
+    private void appendFirst(StringBuilder target, Map<String, Object> teil, List<String> keys) {
+        for (String key : keys) {
+            if (teil.get(key) instanceof String value && !value.isBlank()) {
+                if (target.length() > 0) target.append("\n");
+                target.append(value.trim());
+                return;
+            }
+        }
     }
 
     private Map<String, Object> taskDetail(Map<String, Object> teil, String kind,
