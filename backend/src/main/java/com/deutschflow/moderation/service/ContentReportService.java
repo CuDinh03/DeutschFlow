@@ -89,9 +89,11 @@ public class ContentReportService {
                     throw new BadRequestException("Thiếu messageId cho báo cáo tin nhắn.");
                 }
                 var m = messageRepository.findById(req.messageId())
-                        .orElseThrow(() -> new NotFoundException("Không tìm thấy tin nhắn."));
-                if (!reporterId.equals(m.getRecipientId()) && !reporterId.equals(m.getSenderId())) {
-                    throw new BadRequestException("Bạn không có quyền báo cáo tin nhắn này.");
+                        .orElse(null);
+                // Cùng lý do GAP-12b như nhánh CLASS_MESSAGE bên dưới: không xác nhận sự tồn tại
+                // của một tin nhắn mà người gọi không có phần trong đó.
+                if (m == null || (!reporterId.equals(m.getRecipientId()) && !reporterId.equals(m.getSenderId()))) {
+                    throw new NotFoundException("Không tìm thấy tin nhắn.");
                 }
                 yield new ContextResolution(m.getSenderId(), m.getBody());
             }
@@ -99,15 +101,20 @@ public class ContentReportService {
                 if (req.classMessageId() == null) {
                     throw new BadRequestException("Thiếu classMessageId cho báo cáo tin lớp.");
                 }
-                var m = classChannelMessageRepository.findById(req.classMessageId())
-                        .orElseThrow(() -> new NotFoundException("Không tìm thấy tin nhắn lớp."));
                 // Cùng phép kiểm thành viên với kênh lớp (ClassChannelService.assertMember): người
                 // ngoài lớp không được report tin của lớp — report sao chép nội dung tin vào
                 // snapshot, nên thiếu bước này là một đường đọc tin lớp khác bằng ID (GAP-12).
-                boolean member = classStudentRepository.existsByIdClassIdAndIdStudentId(m.getClassId(), reporterId)
-                        || classTeacherRepository.existsByIdClassIdAndIdTeacherId(m.getClassId(), reporterId);
+                //
+                // GAP-12b: KHÔNG phân biệt "không tồn tại" với "tồn tại nhưng ngoài lớp". Ném lỗi
+                // khác nhau cho hai ca đó biến endpoint thành máy dò ID: người ngoài quét ID tuần tự
+                // sẽ biết ID nào có thật ở lớp khác. Cùng PR này đã chọn đúng nguyên tắc ấy cho
+                // AsyncJobService (404 trước 403, không xác nhận sự tồn tại) — đây là chỗ còn sót.
+                var m = classChannelMessageRepository.findById(req.classMessageId()).orElse(null);
+                boolean member = m != null
+                        && (classStudentRepository.existsByIdClassIdAndIdStudentId(m.getClassId(), reporterId)
+                                || classTeacherRepository.existsByIdClassIdAndIdTeacherId(m.getClassId(), reporterId));
                 if (!member) {
-                    throw new BadRequestException("Bạn không có quyền báo cáo tin nhắn này.");
+                    throw new NotFoundException("Không tìm thấy tin nhắn lớp.");
                 }
                 yield new ContextResolution(m.getSenderId(), m.getBody());
             }
