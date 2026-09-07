@@ -242,6 +242,22 @@ class ExamScoringServiceTest {
                 .contains("Schreiben Sie eine Antwort"); // câu lệnh tiếng Đức đứng trước bản tiếng Việt
     }
 
+    @Test
+    @DisplayName("phiếu AI thiếu tiêu chí: điểm phần Viết tính theo thang đã co, không mất điểm oan")
+    void scoreSchreibenSection_shrunkAiMax_scoresOnThatScale() {
+        // 12/12 (mô hình bỏ sót strukturen) phải là điểm tuyệt đối của nhiệm vụ viết, không phải 12/15.
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString()))
+                .thenReturn(Map.of("total", 12, "max", 12, "status", "AI_EVALUATED"));
+        Map<String, Object> answers = new HashMap<>(Map.of(
+                "form_0", "Anna", "form_1", "Müller", "form_2", "Hanoi", "form_3", "1999",
+                "email_2", "Liebe Anna, ..."));
+
+        Map<String, Object> result = service.scoreSchreibenSection(7L, answers, schreibenSection(), "B1");
+
+        assertThat(result.get("total")).isEqualTo(25); // form 10/10 + bài viết 15/15 quy từ 12/12
+        assertThat(result.get("max")).isEqualTo(25);
+    }
+
     // ─── Nói ─────────────────────────────────────────────────────────────────
 
     @Test

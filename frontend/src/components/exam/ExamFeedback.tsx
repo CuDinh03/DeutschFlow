@@ -11,6 +11,7 @@ interface AiEmailEvaluation {
   wortschatz?: number
   strukturen?: number
   total?: number
+  /** Thang thô của phiếu; co lại khi AI bỏ sót tiêu chí (lượt cũ không có ⇒ 15). */
   max?: number
   percentage?: number
   feedback_vi?: string
@@ -20,6 +21,8 @@ interface AiEmailEvaluation {
   email_content?: string
   /** Trình độ bài viết được chấm theo (backend gửi từ 07/09/2026; lượt cũ không có). */
   level?: string
+  /** Tiêu chí AI không chấm — không vẽ thanh 0 điểm cho chúng. */
+  missing_criteria?: string[]
 }
 
 interface ExamFeedbackProps {
@@ -89,23 +92,23 @@ function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
       <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 space-y-3">
         <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide mb-3">{t('detailCap')}</p>
         {Object.entries(RUBRIC_LABELS).map(([key, meta]) => {
-          const score = evalData[key as keyof AiEmailEvaluation] as number ?? 0
-          return (
-            <RubricBar
-              key={key}
-              label={t(meta.labelKey)}
-              score={score}
-              max={meta.max}
-            />
-          )
+          const score = evalData[key as keyof AiEmailEvaluation]
+          // Tiêu chí AI không chấm thì KHÔNG vẽ: thanh 0/3 đọc thành "bị điểm liệt" trong khi
+          // thực ra chưa ai chấm nó (ca strukturen 0/3 quan sát trên prod 07/09/2026).
+          if (typeof score !== 'number') return null
+          return <RubricBar key={key} label={t(meta.labelKey)} score={score} max={meta.max} />
         })}
         <div className="pt-2 border-t border-[#F1F5F9] flex justify-between items-center gap-2">
           <span className="min-w-0 text-sm font-bold text-[#0F172A]">{t('emailTotal')}</span>
           <span className="shrink-0 text-lg font-black text-[#6366F1]">
-            {evalData.total ?? 0}<span className="text-sm font-semibold text-[#94A3B8]">/15</span>
+            {evalData.total ?? 0}<span className="text-sm font-semibold text-[#94A3B8]">/{evalData.max ?? 15}</span>
           </span>
         </div>
       </div>
+
+      {evalData.missing_criteria && evalData.missing_criteria.length > 0 && (
+        <p className="text-xs text-[#94A3B8]">{t('missingCriteria', { count: evalData.missing_criteria.length })}</p>
+      )}
 
       {/* Feedback text */}
       {feedback && (

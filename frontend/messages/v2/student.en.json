@@ -2138,7 +2138,8 @@
         "strengths": "Strengths",
         "improvements": "Needs improvement",
         "title": "Writing assessment (SCHREIBEN Teil 2)",
-        "officialRubricLevel": "Official Goethe {level} rubric"
+        "officialRubricLevel": "Official Goethe {level} rubric",
+        "missingCriteria": "The AI did not score {count} criterion/criteria — the scale was reduced accordingly, not counted as zero."
       },
       "weakAreas": {
         "tips": {

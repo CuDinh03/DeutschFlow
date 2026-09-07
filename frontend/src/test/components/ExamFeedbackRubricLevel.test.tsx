@@ -43,6 +43,28 @@ describe('Phiếu chấm bài viết — nhãn rubric theo trình độ', () => 
     expect(screen.queryByText(/Goethe A1/)).not.toBeInTheDocument()
   })
 
+  it('tiêu chí AI không chấm thì không vẽ thanh 0 điểm, thang tổng co theo', () => {
+    intl.locale = 'vi'
+    render(
+      <ExamFeedback
+        detailedScores={{
+          SCHREIBEN: {
+            teil2_email: {
+              status: 'AI_EVALUATED', level: 'B2',
+              aufgabenerfuellung: 5, kohaerenz: 4, wortschatz: 3,
+              total: 12, max: 12, missing_criteria: ['strukturen'],
+              feedback_vi: 'Ngữ pháp ở mức B2, chỉ vài lỗi nhỏ.',
+            },
+          },
+        }}
+      />,
+    )
+    expect(screen.getByText('/12')).toBeInTheDocument() // tổng chia theo thang đã co, không phải /15
+    expect(screen.queryByText('0/3')).not.toBeInTheDocument()
+    expect(screen.queryByText('Ngữ pháp & cấu trúc câu')).not.toBeInTheDocument()
+    expect(screen.getByText(/AI không chấm 1 tiêu chí/)).toBeInTheDocument()
+  })
+
   it('bản tiếng Đức cũng nêu bậc', () => {
     intl.locale = 'de'
     render(<ExamFeedback detailedScores={danhGia({ level: 'C1' })} />)

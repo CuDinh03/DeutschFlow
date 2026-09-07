@@ -39,9 +39,9 @@ public class ExamScoringService {
     private static final int WEAK_AREA_PERCENT = 60;
     /** Phần Viết có cả form lẫn bài viết: form giữ tỉ trọng 40% (đúng thang 10/25 dùng từ trước). */
     private static final double FORM_SHARE = 0.4;
-    /** Thang điểm thô của {@link AiExamEvaluatorService#evaluateSchreibenEmail}. */
+    /** Thang thô mặc định của {@link AiExamEvaluatorService#evaluateSchreibenEmail} khi phiếu không nói rõ. */
     private static final double AI_EMAIL_MAX = 15;
-    /** Thang điểm thô của {@link AiExamEvaluatorService#evaluateSprechen}. */
+    /** Thang thô mặc định của {@link AiExamEvaluatorService#evaluateSprechen} khi phiếu không nói rõ. */
     private static final double AI_SPRECHEN_MAX = 18;
 
     private final AiExamEvaluatorService aiEvaluator;
@@ -138,7 +138,7 @@ public class ExamScoringService {
                 tasks.add(taskDetail(teil, "WRITING", weight, 0, STATUS_PENDING));
                 continue;
             }
-            double ratio = clamp01(numberOf(ai.get("total")) / AI_EMAIL_MAX);
+            double ratio = clamp01(numberOf(ai.get("total")) / aiMax(ai, AI_EMAIL_MAX));
             earned += weight * ratio;
             scorable += weight;
             tasks.add(taskDetail(teil, "WRITING", weight, weight * ratio, STATUS_COMPLETED));
@@ -253,7 +253,7 @@ public class ExamScoringService {
             return pending;
         }
 
-        int points = (int) Math.round(max * clamp01(numberOf(ai.get("total")) / AI_SPRECHEN_MAX));
+        int points = (int) Math.round(max * clamp01(numberOf(ai.get("total")) / aiMax(ai, AI_SPRECHEN_MAX)));
         Map<String, Object> out = scoredSection(points, max, STATUS_COMPLETED);
         out.put("ai_evaluation", ai);
         return out;
@@ -370,6 +370,16 @@ public class ExamScoringService {
     private static boolean isPending(Map<String, Object> section) {
         Object status = section.get("status");
         return status != null && status.toString().contains("PENDING");
+    }
+
+    /**
+     * Thang thô của phiếu AI. Khi mô hình bỏ sót một tiêu chí, evaluator loại tiêu chí đó khỏi cả
+     * tử số lẫn mẫu số và trả {@code max} nhỏ hơn — chia theo hằng số cũ sẽ biến thiếu dữ liệu
+     * thành mất điểm.
+     */
+    private static double aiMax(Map<String, Object> ai, double macDinh) {
+        double max = numberOf(ai.get("max"));
+        return max > 0 ? max : macDinh;
     }
 
     private static double numberOf(Object value) {
