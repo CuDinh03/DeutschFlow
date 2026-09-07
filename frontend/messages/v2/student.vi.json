@@ -191,7 +191,10 @@
       "taskDoneBtn": "Xong",
       "taskTypes": {
         "REWRITE": "Viết lại"
-      }
+      },
+      "emptyDeck": "Bộ thẻ ôn của bạn đang trống",
+      "emptyDeckHint": "Thêm từ vào bộ thẻ rồi hệ thống sẽ nhắc bạn ôn đúng lúc.",
+      "emptyDeckCta": "Học từ vựng"
     },
     "lessons": {
       "title": "Thư viện bài học",

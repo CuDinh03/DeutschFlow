@@ -191,7 +191,10 @@
       "taskDoneBtn": "Fertig",
       "taskTypes": {
         "REWRITE": "Umschreiben"
-      }
+      },
+      "emptyDeck": "Dein Wiederholungsstapel ist leer",
+      "emptyDeckHint": "Füge Wörter hinzu, dann erinnern wir dich zum richtigen Zeitpunkt ans Wiederholen.",
+      "emptyDeckCta": "Wortschatz lernen"
     },
     "lessons": {
       "title": "Lektionsbibliothek",
