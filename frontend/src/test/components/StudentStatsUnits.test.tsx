@@ -39,7 +39,7 @@ const ANALYTICS = {
   totalWordsReviewed: 30,
   totalSpeakingMinutes: 18,
   totalSessionsCompleted: 4,
-  wordsDueForReview: 3,
+  wordsDueForReview: 99,
   weeklyBreakdown: Array.from({ length: 7 }, (_, i) => ({
     date: `2026-09-0${i + 1}`,
     wordsLearned: i,
@@ -97,7 +97,9 @@ describe('Student stats — khoảng thời gian và đơn vị (G1.2)', () => {
     renderPage()
 
     await waitFor(() => expect(screen.getByText('Đến hạn')).toBeInTheDocument())
-    expect(screen.getByText('3')).toBeInTheDocument()
+    // 99 cố ý không trùng số nào trong bảng dữ liệu 7 ngày bên dưới: từ khi biểu đồ có bảng đọc số
+    // kèm theo (G3), một giá trị nhỏ như "3" xuất hiện ở nhiều nơi và phép tìm theo text mất nghĩa.
+    expect(screen.getByText('99')).toBeInTheDocument()
   })
 
   it('thiếu rangeStart/rangeEnd (backend cũ): vẫn nói "7 ngày gần nhất", không bịa ngày', async () => {

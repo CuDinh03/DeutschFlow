@@ -1574,7 +1574,12 @@
       "unitWords": "đơn vị: từ",
       "unitMinutes": "đơn vị: phút",
       "recommendationsLoadError": "Không tải được gợi ý. Đây không có nghĩa là bạn không còn việc cần làm.",
-      "errorTrendLoadError": "Không tải được xu hướng lỗi. Đây không có nghĩa là bạn đã sửa hết lỗi."
+      "errorTrendLoadError": "Không tải được xu hướng lỗi. Đây không có nghĩa là bạn đã sửa hết lỗi.",
+      "showTable": "Xem số liệu dạng bảng",
+      "colDay": "Ngày",
+      "colErrorCount": "Số lỗi",
+      "vocabDesc": "Số từ học mới và số lượt ôn lại mỗi ngày.",
+      "speakingDesc": "Số phút luyện nói mỗi ngày."
     },
     "errors": {
       "title": "Sổ lỗi ngữ pháp",

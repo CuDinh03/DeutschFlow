@@ -443,7 +443,12 @@
       "unassigned": "Chưa phân",
       "assigned": "Đã có GV",
       "classesPartial": "Đang xem {shown} trong {total} lớp",
-      "classesSeeAll": "Xem tất cả lớp →"
+      "classesSeeAll": "Xem tất cả lớp →",
+      "showTable": "Xem số liệu dạng bảng",
+      "colLevel": "Trình độ",
+      "colStudents": "Học viên",
+      "cefrDesc": "Số học viên theo trình độ CEFR, trên tổng {total} học viên — ảnh chụp hiện tại, không phải theo kỳ.",
+      "usageDesc": "Token AI đã dùng trong tháng này; hạn mức là của giáo viên, học viên không tiêu vào đây."
     },
     "billing": {
       "title": "Gói DeutschFlow & thanh toán",

@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { apiMessage } from '@/lib/api'
 import { getAnalytics, listClasses, type OrgAnalytics, type OrgClass } from '@/lib/orgApi'
 import { GaPageHdr, GaStatStrip, ErrorBanner, LoadingState } from '@/components/ui-v2'
-import { GaSection, GaDonut, GaLegend, GaBarRow, GA_CHART } from '../../analyticsShared'
+import { GaSection, GaChartData, GaDonut, GaLegend, GaBarRow, GA_CHART } from '../../analyticsShared'
 import { useFmt } from '@/lib/i18n/useFmt'
 
 // Option-1: GET /org/analytics is FLAT (no time-series). Reuse getAnalytics + listClasses.
@@ -103,20 +103,30 @@ export default function V2OrgAnalyticsPage() {
             />
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[1fr_1fr]">
-              <GaSection title={t('cefrTitle')}>
+              <GaSection
+                title={t('cefrTitle')}
+                description={t('cefrDesc', { total: fmt.num(analytics?.studentCount ?? 0) })}
+              >
                 {cefrSegs.length > 0 ? (
-                  <div className="flex flex-col items-center gap-5 sm:flex-row">
-                    <GaDonut segments={cefrSegs} />
-                    <div className="w-full min-w-0 sm:w-auto sm:flex-1">
-                      <GaLegend items={cefrSegs.map((s) => ({ ...s, display: fmt.num(s.value) }))} />
+                  <>
+                    <div className="flex flex-col items-center gap-5 sm:flex-row">
+                      <GaDonut segments={cefrSegs} />
+                      <div className="w-full min-w-0 sm:w-auto sm:flex-1">
+                        <GaLegend items={cefrSegs.map((s) => ({ ...s, display: fmt.num(s.value) }))} />
+                      </div>
                     </div>
-                  </div>
+                    <GaChartData
+                      summaryLabel={t('showTable')}
+                      columns={[t('colLevel'), t('colStudents')]}
+                      rows={cefrSegs.map((seg) => ({ label: seg.label, values: [fmt.num(seg.value)] }))}
+                    />
+                  </>
                 ) : (
                   <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">{t('cefrEmpty')}</p>
                 )}
               </GaSection>
 
-              <GaSection title={t('usageTitle')}>
+              <GaSection title={t('usageTitle')} description={t('usageDesc')}>
                 <div className="space-y-5 py-1">
                   <div>
                     <div className="ga-ui mb-1.5 flex items-baseline justify-between text-[13px]">

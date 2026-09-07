@@ -1574,7 +1574,12 @@
       "unitWords": "unit: words",
       "unitMinutes": "unit: minutes",
       "recommendationsLoadError": "Could not load suggestions. This does not mean you have nothing left to do.",
-      "errorTrendLoadError": "Could not load the error trend. This does not mean all your errors are fixed."
+      "errorTrendLoadError": "Could not load the error trend. This does not mean all your errors are fixed.",
+      "showTable": "View data as a table",
+      "colDay": "Day",
+      "colErrorCount": "Errors",
+      "vocabDesc": "New words learned and review passes per day.",
+      "speakingDesc": "Speaking practice minutes per day."
     },
     "errors": {
       "title": "Error book",

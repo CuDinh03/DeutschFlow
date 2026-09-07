@@ -8,7 +8,7 @@ import { AlertCircle, ChevronRight, ShieldAlert, Trophy } from 'lucide-react'
 import api from '@/lib/api'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { GaBtn, GaCap, GaPageHdr, LoadingState, ErrorBanner, TkBadge, GaStatStrip } from '@/components/ui-v2'
-import { GaSection, GaBars, GaMultiBars, GaArea, GaBarRow } from '../../analyticsShared'
+import { GaSection, GaBars, GaChartData, GaMultiBars, GaArea, GaBarRow } from '../../analyticsShared'
 import { useFmt } from '@/lib/i18n/useFmt'
 
 /**
@@ -227,7 +227,10 @@ export default function V2StudentStatsPage() {
                   tức chung một trục Y. Cột "5 từ" và cột "5 phút" cao bằng nhau, mời người đọc so
                   sánh hai đại lượng không so sánh được. Tách thành hai biểu đồ, mỗi cái một trục. */}
               <div className="grid gap-[22px] lg:grid-cols-2">
-                <GaSection title={rangeLabel ? t('vocabTitleRange', { range: rangeLabel }) : t('vocabTitle')}>
+                <GaSection
+                  title={rangeLabel ? t('vocabTitleRange', { range: rangeLabel }) : t('vocabTitle')}
+                  description={t('vocabDesc')}
+                >
                   {weekly.length === 0 ? (
                     <p className="ga-ui py-8 text-center text-ga-small text-ga-muted">{t('noActivity')}</p>
                   ) : (
@@ -251,11 +254,19 @@ export default function V2StudentStatsPage() {
                         ))}
                       </div>
                       <p className="ga-ui mt-2 text-center text-ga-caption text-ga-muted">{t('unitWords')}</p>
+                      <GaChartData
+                        summaryLabel={t('showTable')}
+                        columns={[t('colDay'), t('series.learned'), t('series.reviewed')]}
+                        rows={weekly.map((d) => ({ label: d.label, values: [fmt.num(d.learned), fmt.num(d.reviewed)] }))}
+                      />
                     </>
                   )}
                 </GaSection>
 
-                <GaSection title={rangeLabel ? t('speakingTitleRange', { range: rangeLabel }) : t('speakingTitle')}>
+                <GaSection
+                  title={rangeLabel ? t('speakingTitleRange', { range: rangeLabel }) : t('speakingTitle')}
+                  description={t('speakingDesc')}
+                >
                   {weekly.length === 0 ? (
                     <p className="ga-ui py-8 text-center text-ga-small text-ga-muted">{t('noActivity')}</p>
                   ) : (
@@ -267,6 +278,11 @@ export default function V2StudentStatsPage() {
                         valueFmt={(v) => `${fmt.num(v)}′`}
                       />
                       <p className="ga-ui mt-2 text-center text-ga-caption text-ga-muted">{t('unitMinutes')}</p>
+                      <GaChartData
+                        summaryLabel={t('showTable')}
+                        columns={[t('colDay'), t('series.speaking')]}
+                        rows={weekly.map((d) => ({ label: d.label, values: [`${fmt.num(d.speaking)}′`] }))}
+                      />
                     </>
                   )}
                 </GaSection>
@@ -333,6 +349,11 @@ export default function V2StudentStatsPage() {
                   }
                 >
                   <GaArea data={trend} color="#DA291C" />
+                  <GaChartData
+                    summaryLabel={t('showTable')}
+                    columns={[t('colDay'), t('colErrorCount')]}
+                    rows={trend.map((d) => ({ label: d.label, values: [fmt.num(d.value)] }))}
+                  />
                 </GaSection>
               )}
 

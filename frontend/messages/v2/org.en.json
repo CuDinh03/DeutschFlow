@@ -443,7 +443,12 @@
       "unassigned": "Unassigned",
       "assigned": "Assigned",
       "classesPartial": "Showing {shown} of {total} classes",
-      "classesSeeAll": "See all classes →"
+      "classesSeeAll": "See all classes →",
+      "showTable": "View data as a table",
+      "colLevel": "Level",
+      "colStudents": "Students",
+      "cefrDesc": "Students by CEFR level, out of {total} total — a current snapshot, not a period series.",
+      "usageDesc": "AI tokens used this month; the pool is for teachers, students do not draw from it."
     },
     "billing": {
       "title": "DeutschFlow Plan & Payments",

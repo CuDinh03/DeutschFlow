@@ -443,7 +443,12 @@
       "unassigned": "Nicht zugewiesen",
       "assigned": "Zugewiesen",
       "classesPartial": "{shown} von {total} Klassen angezeigt",
-      "classesSeeAll": "Alle Klassen anzeigen →"
+      "classesSeeAll": "Alle Klassen anzeigen →",
+      "showTable": "Daten als Tabelle anzeigen",
+      "colLevel": "Niveau",
+      "colStudents": "Lernende",
+      "cefrDesc": "Lernende nach GER-Niveau, von insgesamt {total} — Momentaufnahme, keine Zeitreihe.",
+      "usageDesc": "Diesen Monat verbrauchte KI-Token; das Kontingent gilt für Lehrkräfte, Lernende nutzen es nicht."
     },
     "billing": {
       "title": "DeutschFlow-Tarif & Zahlungen",
