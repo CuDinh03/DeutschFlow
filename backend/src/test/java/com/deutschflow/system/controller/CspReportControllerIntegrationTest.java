@@ -107,6 +107,17 @@ class CspReportControllerIntegrationTest extends AbstractPostgresIntegrationTest
     }
 
     @Test
+    @DisplayName("body RỖNG → 204 (không 500), đếm _unparseable")
+    void emptyBody_neverErrors() throws Exception {
+        // Hồi quy prod 07/09: @RequestBody mặc định required=true nên Content-Length: 0 ném
+        // HttpMessageNotReadableException; không có handler riêng ⇒ catch-all trả 500 ra ngoài.
+        double before = counted("_unparseable", "_unparseable");
+        mockMvc.perform(post(PATH).contentType("application/csp-report").content(new byte[0]))
+                .andExpect(status().isNoContent());
+        assertThat(counted("_unparseable", "_unparseable")).isEqualTo(before + 1.0d);
+    }
+
+    @Test
     @DisplayName("body quá 16KB → 413")
     void oversizedBody_returns413() throws Exception {
         byte[] big = new byte[CspReportController.MAX_BODY_BYTES + 1];

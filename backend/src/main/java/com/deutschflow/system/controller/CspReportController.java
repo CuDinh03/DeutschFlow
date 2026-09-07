@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>CORS: giao hàng của Reporting API ({@code application/reports+json}) có preflight —
  * mapping {@code /api/**} trong WebConfig trả lời sẵn; giao hàng report-uri cũ miễn CORS.
  *
- * <p>Hợp đồng trả về: 204 cho MỌI payload lọt cap kích thước (kể cả rác — service đếm
+ * <p>Hợp đồng trả về: 204 cho MỌI payload lọt cap kích thước (kể cả rác VÀ body rỗng — service đếm
  * {@code _unparseable} rồi bỏ; 4xx/5xx với trình duyệt chỉ sinh noise chứ không ai đọc);
  * duy nhất body quá cỡ trả 413 để cắt sớm kẻ nhồi.
  */
@@ -34,11 +34,16 @@ public class CspReportController {
     @PostMapping(
             value = "/api/public/csp-report",
             consumes = {"application/csp-report", "application/reports+json", MediaType.APPLICATION_JSON_VALUE})
-    public ResponseEntity<Void> receive(@RequestBody byte[] body) {
-        if (body.length > MAX_BODY_BYTES) {
+    public ResponseEntity<Void> receive(@RequestBody(required = false) byte[] body) {
+        // required=false: body rỗng (Content-Length: 0) làm Spring ném HttpMessageNotReadableException,
+        // và không có handler riêng nên nó rơi vào catch-all 500 — trái hợp đồng "không bao giờ 5xx"
+        // của điểm thu này (đo thấy trên prod 07/09 ngay sau chuyến deploy đầu). Coi rỗng = rác:
+        // service đã đếm _unparseable cho MissingNode nên chỉ cần đưa mảng rỗng xuống là đủ.
+        byte[] payload = body != null ? body : new byte[0];
+        if (payload.length > MAX_BODY_BYTES) {
             return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).build();
         }
-        ingestService.ingest(body);
+        ingestService.ingest(payload);
         return ResponseEntity.noContent().build();
     }
 }
