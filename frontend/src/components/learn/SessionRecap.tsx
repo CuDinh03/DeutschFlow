@@ -80,7 +80,13 @@ export default function SessionRecap({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      {/* Con DUY NHẤT của AnimatePresence, và có key riêng.
+          Trước 07/09/2026 khối <style> keyframes nằm cạnh div này, tức AnimatePresence có HAI con
+          đều không key → framer-motion gán key rỗng cho cả hai → React cảnh báo "two children with
+          the same key" và ĐƯỢC PHÉP bỏ bớt một con khi vẽ lại. Chưa vỡ chỉ vì mỗi lần mở là mount
+          mới. Keyframes là stylesheet toàn cục nên đặt đâu trong cây cũng có tác dụng như nhau —
+          chuyển vào trong lớp phủ để AnimatePresence trở lại đúng hình dạng nó cần. */}
+      <div key="recap-overlay" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         {/* Confetti */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {CONFETTI.map((c, i) => (
@@ -190,15 +196,15 @@ export default function SessionRecap({
             </button>
           </div>
         </motion.div>
-      </div>
 
-      {/* CSS-only confetti animation */}
-      <style jsx global>{`
-        @keyframes confettiFall {
-          0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(600px) rotate(720deg); opacity: 0; }
-        }
-      `}</style>
+        {/* CSS-only confetti animation */}
+        <style jsx global>{`
+          @keyframes confettiFall {
+            0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(600px) rotate(720deg); opacity: 0; }
+          }
+        `}</style>
+      </div>
     </AnimatePresence>
   );
 }
