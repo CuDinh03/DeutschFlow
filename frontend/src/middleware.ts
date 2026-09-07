@@ -188,20 +188,31 @@ async function verifyAccessToken(token: string): Promise<VerifiedClaims | null> 
 }
 
 // ─── Content Security Policy (per-request nonce) ────────────────────────────────
-// This is the STRICT, nonce-based policy, kept Report-Only. The ENFORCED production floor
-// lives in next.config.mjs `headers()` instead, because Amplify serves most routes from the
-// CloudFront cache without running middleware — so this header never reaches those users
-// (verified: prod HTML has no nonce, no middleware CSP header). The enforced policy is set on
-// the *request* header so Next.js stamps its <script> tags with the nonce; only the
-// Report-Only variant is sent to the browser.
+// This is the STRICT, nonce-based policy, kept Report-Only for now. Re-measured on prod
+// 2026-09-07: middleware runs on EVERY page route (src/i18n/request.ts reads the locale
+// cookie, so the whole tree renders dynamically — nothing is served prerendered) and Next
+// stamps this nonce into every <script> tag it emits (verified 35/35 on `/`, 38/38 on
+// /v2/login/). The old note here claiming middleware never runs on Amplify was STALE.
 //
-// Do NOT flip this to enforced while the next.config floor is also enforced: two CSP headers
-// AND-intersect, so this nonce policy would block the floor's (necessarily non-nonce'd) inline
-// scripts and white-screen the dynamic routes where middleware DOES run. The real upgrade path
-// is to make middleware execute on Amplify, then drop the next.config floor and enforce here.
+// The policy is set on the *request* header so Next.js nonces its inline scripts; the
+// browser only receives the Report-Only variant. Violations POST to the backend collector
+// (report-uri + Reporting-Endpoints below) — before 2026-09 there was no report directive,
+// so violations went nowhere.
+//
+// Enforce flip (gated — do not do casually): keep the next.config floor as-is and ALSO send
+// this policy as `Content-Security-Policy`. Two CSP headers AND-intersect; the floor is
+// strictly looser, so this policy decides — and every inline script already carries the
+// nonce, so nothing legitimate breaks. Flip only after the collector shows the main flows
+// clean for 72h, behind an env kill-switch, keeping the Report-Only header in parallel
+// for comparison.
 const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/api\/?$/, '')
 const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com'
 const cloudfront = process.env.NEXT_PUBLIC_CLOUDFRONT_URL || ''
+// CSP violation collector (backend Spring endpoint). `report-uri` is the legacy CSP2
+// delivery (CORS-exempt); `Reporting-Endpoints` + `report-to` is the modern Reporting API
+// (its delivery preflights, which the backend's global /api/** CORS already answers).
+// Empty backendOrigin (local dev without env) → both directives are simply omitted.
+const cspReportCollector = backendOrigin ? `${backendOrigin}/api/public/csp-report` : ''
 
 function buildCsp(nonce: string): string {
   const connectSrc = ["'self'", backendOrigin, posthogHost, cloudfront, 'https:']
@@ -226,6 +237,12 @@ function buildCsp(nonce: string): string {
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",
+    // Workers: a strict-dynamic + nonce policy cannot nonce a Worker/SW script URL, so an
+    // explicit worker-src is required the day this flips to enforced (an installed /sw.js
+    // updates itself outside page CSP, but a `new Worker()` would fall back to script-src
+    // where 'self' is ignored under strict-dynamic — and die).
+    "worker-src 'self' blob:",
+    ...(cspReportCollector ? [`report-uri ${cspReportCollector}`, 'report-to csp'] : []),
   ].join('; ')
 }
 
@@ -249,6 +266,10 @@ export async function middleware(request: NextRequest) {
   // Attach the Report-Only CSP to every response we return.
   const secure = <T extends NextResponse>(res: T): T => {
     res.headers.set('Content-Security-Policy-Report-Only', csp)
+    if (cspReportCollector) {
+      // Names the "csp" endpoint group that the policy's `report-to csp` directive points at.
+      res.headers.set('Reporting-Endpoints', `csp="${cspReportCollector}"`)
+    }
     return res
   }
   const passThrough = () => secure(NextResponse.next({ request: { headers: requestHeaders } }))
