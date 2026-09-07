@@ -45,6 +45,7 @@ class OrgServiceDetailTest {
     private static final long ORG_ID = 10L;
 
     @Mock private OrgMembershipService membershipService;
+    @Mock private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     @Mock private OrgMemberRepository memberRepo;
     @Mock private OrganizationRepository organizationRepository;
     @Mock private TeacherClassRepository teacherClassRepository;
@@ -56,7 +57,7 @@ class OrgServiceDetailTest {
 
     @BeforeEach
     void setUp() {
-        orgService = new OrgService(membershipService, memberRepo, organizationRepository,
+        orgService = new OrgService(membershipService, jdbcTemplate, memberRepo, organizationRepository,
                 teacherClassRepository, classTeacherRepository, userRepository, classStudentRepository);
     }
 

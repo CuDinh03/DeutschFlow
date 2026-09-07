@@ -47,6 +47,10 @@ public class OrgInvoice {
     @Column
     private String note;
 
+    /** Hạn thanh toán = lúc chuyển sang SENT + 7 ngày (Q4). NULL khi hoá đơn còn ở DRAFT. */
+    @Column(name = "due_date")
+    private Instant dueDate;
+
     @Column(name = "created_by")
     private Long createdBy;
 

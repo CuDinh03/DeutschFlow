@@ -253,17 +253,27 @@ function V2OrgBillingInner() {
                 <p className="py-6 text-center text-[13px] text-ga-muted">{t('noIssued')}</p>
               ) : (
                 <div className="overflow-x-auto lg:overflow-visible">
-                  <div className="grid min-w-[640px] gap-2 border-b border-ga-line pb-2.5 text-[10px] font-bold uppercase tracking-[0.08em] text-ga-muted lg:min-w-0" style={{ gridTemplateColumns: '1.4fr 1fr 1fr 140px' }}>
-                    <span>{t('colPeriod')}</span><span>{t('colIssued')}</span><span>{t('colAmount')}</span><span className="text-right">{t('colStatus')}</span>
+                  <div className="grid min-w-[760px] gap-2 border-b border-ga-line pb-2.5 text-[10px] font-bold uppercase tracking-[0.08em] text-ga-muted lg:min-w-0" style={{ gridTemplateColumns: '1.4fr 1fr 1fr 1fr 140px' }}>
+                    <span>{t('colPeriod')}</span><span>{t('colIssued')}</span><span>{t('colDue')}</span><span>{t('colAmount')}</span><span className="text-right">{t('colStatus')}</span>
                   </div>
                   {issued.map((inv) => {
                     const st = INV_STATUS[(inv.status ?? '').toUpperCase()]
                     const stLabel = st ? t(`status.${st.key}`) : inv.status
                     const stColor = st ? st.c : 'var(--ga-muted)'
+                    // Quá hạn = có hạn, đã qua, và CHƯA thanh toán. Hoá đơn đã trả thì hạn chỉ còn là
+                    // dữ kiện lịch sử, tô đỏ nó là báo động giả.
+                    const overdue = inv.dueDate != null
+                      && (inv.status ?? '').toUpperCase() === 'SENT'
+                      && new Date(inv.dueDate).getTime() < Date.now()
                     return (
-                      <div key={inv.id} className="grid min-w-[640px] items-center gap-2 border-t border-ga-line py-3 text-[14px] lg:min-w-0" style={{ gridTemplateColumns: '1.4fr 1fr 1fr 140px' }}>
+                      <div key={inv.id} className="grid min-w-[760px] items-center gap-2 border-t border-ga-line py-3 text-[14px] lg:min-w-0" style={{ gridTemplateColumns: '1.4fr 1fr 1fr 1fr 140px' }}>
                         <span className="font-semibold text-ga-ink">{fmtDate(inv.periodStart)} – {fmtDate(inv.periodEnd)}</span>
                         <span className="text-ga-muted">{fmtDate(inv.createdAt)}</span>
+                        <span className={overdue ? 'font-semibold text-ga-red' : 'text-ga-muted'}>
+                          {/* Hoá đơn chưa gửi thì chưa có hạn — hiện dấu gạch, KHÔNG hiện ngày bịa. */}
+                          {inv.dueDate ? fmtDate(inv.dueDate) : '—'}
+                          {overdue ? ` · ${t('overdue')}` : ''}
+                        </span>
                         <span className="font-ga-display font-medium text-ga-ink">{vnd(inv.amountVnd)}</span>
                         <span className="flex items-center justify-end gap-1.5 text-[12.5px]" style={{ color: stColor }}>
                           <span className="h-1.5 w-1.5 rounded-full" style={{ background: stColor }} /> {stLabel}

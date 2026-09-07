@@ -18,6 +18,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +39,9 @@ public class OrgBillingService {
 
     private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_PAID = "PAID";
+    private static final String STATUS_SENT = "SENT";
+    /** Q4 owner chốt 07/09/2026: hoá đơn đến hạn sau 7 ngày kể từ lúc gửi. */
+    private static final long DUE_DAYS_AFTER_SENT = 7;
     private static final Set<String> VALID_STATUSES = Set.of("DRAFT", "SENT", "PAID", "VOID");
 
     /**
@@ -158,6 +163,11 @@ public class OrgBillingService {
                     "Không thể chuyển trạng thái hoá đơn từ " + current + " sang " + status);
         }
         boolean nowPaid = STATUS_PAID.equals(status) && !STATUS_PAID.equals(current);
+        // Q4 (owner 07/09): hạn = lúc GỬI + 7 ngày. Chỉ đặt khi thực sự BƯỚC VÀO trạng thái SENT và
+        // chưa có hạn — gửi lại một hoá đơn đã gửi không được đẩy hạn ra xa thêm bảy ngày nữa.
+        if (STATUS_SENT.equals(status) && invoice.getDueDate() == null) {
+            invoice.setDueDate(Instant.now().plus(DUE_DAYS_AFTER_SENT, ChronoUnit.DAYS));
+        }
         invoice.setStatus(status);
         OrgInvoiceDto dto = toDto(invoiceRepo.save(invoice));
         Map<String, Object> auditMeta = new HashMap<>();
@@ -199,6 +209,7 @@ public class OrgBillingService {
                 invoice.getStatus(),
                 invoice.getPaymentCode(),
                 invoice.getNote(),
-                invoice.getCreatedAt());
+                invoice.getCreatedAt(),
+                invoice.getDueDate());
     }
 }

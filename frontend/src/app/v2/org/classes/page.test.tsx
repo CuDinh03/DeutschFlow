@@ -4,7 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const listClasses = vi.fn()
-vi.mock('@/lib/orgApi', () => ({ listClasses: (...a: unknown[]) => listClasses(...a) }))
+const getOrgSummary = vi.fn()
+vi.mock('@/lib/orgApi', () => ({
+  listClasses: (...a: unknown[]) => listClasses(...a),
+  getOrgSummary: () => getOrgSummary(),
+}))
 vi.mock('@/lib/api', () => ({ apiMessage: (e: unknown) => (e instanceof Error ? e.message : 'Lỗi không xác định') }))
 vi.mock('sonner', () => ({ toast: Object.assign(() => undefined, { success: () => undefined, error: () => undefined }) }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -29,53 +33,80 @@ const page = (content: ReturnType<typeof klass>[], number: number, totalElements
   totalPages: Math.max(1, Math.ceil(totalElements / CLASSES_PAGE_SIZE)), first: number === 0, last,
 })
 
-beforeEach(() => listClasses.mockReset())
+beforeEach(() => {
+  listClasses.mockReset()
+  getOrgSummary.mockReset()
+  // Số "thiếu GV" nay đến từ máy chủ, đếm trên TOÀN trung tâm — mặc định 0 cho ca không quan tâm.
+  getOrgSummary.mockResolvedValue({ classesWithoutTeacher: 0 })
+})
 
-/** BF-03 / AC-ORG-UI-02: hết trần cứng 100 lớp — phân trang thật, đếm và huy hiệu nói rõ phần đã tải. */
+/**
+ * BF-03 / AC-ORG-UI-02: hết trần cứng 100 lớp — phân trang thật.
+ *
+ * PR-A3 (07/09/2026) đổi hai điều mà ca cũ từng khoá lại theo hành vi cũ:
+ *   · tìm kiếm chạy PHÍA MÁY CHỦ (`q`), không lọc lại ở trình duyệt và không còn lời nhắc
+ *     "chỉ tìm trong phần đã tải" — câu đó nay sai;
+ *   · huy hiệu "thiếu GV" lấy số THẬT từ `getOrgSummary()`, đếm trên toàn trung tâm. Số cũ tính từ
+ *     `teacherId == null` mà cột đó NOT NULL trong CSDL, nên huy hiệu im lặng hiện 0 từ đầu.
+ */
 describe('V2OrgClassesPage — phân trang', () => {
-  it('trang đầu chưa hết → "đã tải N/M", huy hiệu thiếu GV theo phần đã tải, Tải thêm nối trang kế rồi đếm đủ', async () => {
+  it('trang đầu chưa hết → "đã tải N/M", Tải thêm nối trang kế rồi đếm đủ', async () => {
     listClasses
-      .mockResolvedValueOnce(page([klass(1, null), klass(2, 7)], 0, 3, false))
-      .mockResolvedValueOnce(page([klass(3, null)], 1, 3, true))
+      .mockResolvedValueOnce(page([klass(1, 7), klass(2, 7)], 0, 3, false))
+      .mockResolvedValueOnce(page([klass(3, 7)], 1, 3, true))
 
     render(<V2OrgClassesPage />)
 
     await waitFor(() => expect(screen.getByText('Lớp 1')).toBeTruthy())
-    expect(listClasses).toHaveBeenCalledWith(0, CLASSES_PAGE_SIZE)
+    expect(listClasses).toHaveBeenCalledWith(0, CLASSES_PAGE_SIZE, { q: '' })
     expect(screen.getByText('v2.org.classes.loadedOf:{"loaded":2,"total":3}')).toBeTruthy()
-    expect(screen.getByText('v2.org.classes.unassignedBadgePartial:{"count":1,"loaded":2}')).toBeTruthy()
 
     await userEvent.click(screen.getByRole('button', { name: 'v2.org.classes.loadMore:{"remaining":1}' }))
 
     await waitFor(() => expect(screen.getByText('Lớp 3')).toBeTruthy())
-    expect(listClasses).toHaveBeenLastCalledWith(1, CLASSES_PAGE_SIZE)
+    expect(listClasses).toHaveBeenLastCalledWith(1, CLASSES_PAGE_SIZE, { q: '' })
     expect(screen.getByText('v2.org.classes.count:{"count":3}')).toBeTruthy()
-    expect(screen.getByText('v2.org.classes.unassignedBadge:{"count":2}')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /loadMore/ })).toBeNull()
   })
 
-  it('tìm kiếm khi chưa tải hết → nhắc chỉ tìm trong phần đã tải; lọc client trên phần đã tải', async () => {
+  it('tìm kiếm gửi `q` lên máy chủ và KHÔNG lọc lại ở trình duyệt', async () => {
     listClasses.mockResolvedValueOnce(page([klass(1, 7), klass(2, 7)], 0, 5, false))
 
     render(<V2OrgClassesPage />)
     await waitFor(() => expect(screen.getByText('Lớp 2')).toBeTruthy())
-    expect(screen.queryByText('v2.org.classes.searchHint')).toBeNull()
 
-    await userEvent.type(screen.getByPlaceholderText('v2.org.classes.searchPlaceholder'), 'Lớp 2')
+    // Máy chủ trả về đúng một lớp cho từ khoá — kể cả lớp nằm ngoài phần đã tải.
+    listClasses.mockResolvedValueOnce(page([klass(9, 7)], 0, 1, true))
+    await userEvent.type(screen.getByPlaceholderText('v2.org.classes.searchPlaceholder'), 'Lớp 9')
 
-    expect(screen.getByText('v2.org.classes.searchHint')).toBeTruthy()
+    await waitFor(() => expect(listClasses).toHaveBeenLastCalledWith(0, CLASSES_PAGE_SIZE, { q: 'Lớp 9' }))
+    await waitFor(() => expect(screen.getByText('Lớp 9')).toBeTruthy())
+    // Không lọc lại ở trình duyệt: "Lớp 9" không chứa chuỗi nào khớp danh sách cũ mà vẫn phải hiện.
     expect(screen.queryByText('Lớp 1')).toBeNull()
-    expect(screen.getByText('Lớp 2')).toBeTruthy()
+    // Lời nhắc "chỉ tìm trong phần đã tải" đã gỡ — giữ lại là nói sai.
+    expect(screen.queryByText('v2.org.classes.searchHint')).toBeNull()
   })
 
-  it('một trang duy nhất → không có nút Tải thêm, đếm và huy hiệu như thường', async () => {
-    listClasses.mockResolvedValueOnce(page([klass(1, null)], 0, 1, true))
+  it('huy hiệu thiếu GV lấy số toàn trung tâm từ máy chủ, không đếm phần đã tải', async () => {
+    listClasses.mockResolvedValueOnce(page([klass(1, 7)], 0, 1, true))
+    // Trang chỉ tải 1 lớp, nhưng cả trung tâm có 4 lớp không còn ai dạy.
+    getOrgSummary.mockResolvedValue({ classesWithoutTeacher: 4 })
 
     render(<V2OrgClassesPage />)
     await waitFor(() => expect(screen.getByText('Lớp 1')).toBeTruthy())
+
+    await waitFor(() => expect(screen.getByText('v2.org.classes.unassignedBadge:{"count":4}')).toBeTruthy())
     expect(screen.getByText('v2.org.classes.count:{"count":1}')).toBeTruthy()
-    expect(screen.getByText('v2.org.classes.unassignedBadge:{"count":1}')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /loadMore/ })).toBeNull()
-    expect(listClasses).toHaveBeenCalledTimes(1)
+  })
+
+  it('trung tâm không thiếu GV thì KHÔNG hiện huy hiệu', async () => {
+    listClasses.mockResolvedValueOnce(page([klass(1, 7)], 0, 1, true))
+    getOrgSummary.mockResolvedValue({ classesWithoutTeacher: 0 })
+
+    render(<V2OrgClassesPage />)
+    await waitFor(() => expect(screen.getByText('Lớp 1')).toBeTruthy())
+
+    expect(screen.queryByText(/unassignedBadge/)).toBeNull()
   })
 })

@@ -255,8 +255,6 @@
       },
       "loadMore": "Tải thêm ({remaining} lớp còn lại)",
       "loadedOf": "Đã tải {loaded}/{total} lớp",
-      "searchHint": "Chỉ tìm trong các lớp đã tải — bấm \"Tải thêm\" để mở rộng.",
-      "unassignedBadgePartial": "{count} chưa có GV (trong {loaded} lớp đã tải)",
       "loadMoreError": "Không tải thêm được lớp."
     },
     "classDetail": {
@@ -535,7 +533,9 @@
       "copy": "Chép",
       "copied": "Đã chép",
       "payInfoError": "Chưa tải được hướng dẫn thanh toán.",
-      "payNotConfigured": "Chưa có thông tin tài khoản nhận — liên hệ DeutschFlow để được hướng dẫn thanh toán."
+      "payNotConfigured": "Chưa có thông tin tài khoản nhận — liên hệ DeutschFlow để được hướng dẫn thanh toán.",
+      "colDue": "Đến hạn",
+      "overdue": "quá hạn"
     },
     "invitations": {
       "title": "Lời mời thành viên",

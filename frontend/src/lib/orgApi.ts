@@ -20,6 +20,10 @@ export interface OrgSummary {
   seatLimit: number
   teacherCount: number
   studentCount: number
+  /** Đếm trên TOÀN trung tâm (PR-A3) — trước đây bảng điều khiển cộng tay trang đầu 50 lớp. */
+  classCount: number
+  /** Lớp chưa có ai dạy: không có giáo viên phụ trách VÀ không có ai trong class_teachers. */
+  classesWithoutTeacher: number
 }
 
 /** GET /org/seats — seat usage (ghế = học viên ACTIVE; remaining null = không giới hạn). */
@@ -163,6 +167,8 @@ export interface OrgInvoice {
   paymentCode: string | null
   note: string | null
   createdAt: string
+  /** Hạn thanh toán = lúc gửi + 7 ngày (Q4). null = hoá đơn còn nháp nên chưa có hạn. */
+  dueDate: string | null
 }
 
 /** Bank-transfer instructions for paying invoices (C3). */
@@ -300,9 +306,26 @@ export async function changeMemberRole(userId: number, role: OrgRole): Promise<O
 }
 
 /** GET /org/classes — read-only paginated list of the org's classes. */
-export async function listClasses(page = 0, size = 20): Promise<Page<OrgClass>> {
+/**
+ * GET /org/classes — lọc PHÍA MÁY CHỦ (PR-A3).
+ *
+ * `q` lọc theo tên lớp không phân biệt hoa thường, `withoutTeacher` chỉ lấy lớp chưa có ai dạy.
+ * Trước đợt này trang chỉ lọc trên phần đã tải, nên tìm một lớp ở trang 3 sẽ ra rỗng và người dùng
+ * tưởng lớp đó không tồn tại.
+ */
+export async function listClasses(
+  page = 0,
+  size = 20,
+  opts: { q?: string; withoutTeacher?: boolean } = {},
+): Promise<Page<OrgClass>> {
+  const q = opts.q?.trim()
   const res = await api.get<Page<OrgClass>>('/org/classes', {
-    params: { page, size },
+    params: {
+      page,
+      size,
+      ...(q ? { q } : {}),
+      ...(opts.withoutTeacher ? { withoutTeacher: true } : {}),
+    },
   })
   return res.data
 }
