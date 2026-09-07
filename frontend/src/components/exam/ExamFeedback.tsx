@@ -18,6 +18,8 @@ interface AiEmailEvaluation {
   strengths?: string[]
   improvements?: string[]
   email_content?: string
+  /** Trình độ bài viết được chấm theo (backend gửi từ 07/09/2026; lượt cũ không có). */
+  level?: string
 }
 
 interface ExamFeedbackProps {
@@ -78,7 +80,9 @@ function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
           <Sparkles size={13} className="text-violet-500" />
           <span className="text-xs font-bold text-violet-700">{t('aiGraded')}</span>
         </div>
-        <span className="min-w-0 text-xs text-[#94A3B8]">{t('officialRubric')}</span>
+        <span className="min-w-0 text-xs text-[#94A3B8]">
+          {evalData.level ? t('officialRubricLevel', { level: evalData.level }) : t('officialRubric')}
+        </span>
       </div>
 
       {/* Rubric breakdown */}

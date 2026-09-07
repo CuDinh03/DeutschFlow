@@ -320,15 +320,16 @@ public class MockExamController {
 
         // Chấm từng phần — mỗi phần tự quy về thang max_points của nó (xem ExamScoringService).
         Map<String, Object> detailedScores = new LinkedHashMap<>();
+        String examLevel = (String) exam.get("cefr_level");
         for (Map<String, Object> section : sections) {
             String sectionName = (String) section.get("name");
             switch (sectionName) {
                 case "LESEN", "HOEREN" ->
                         detailedScores.put(sectionName, scoringService.scoreObjectiveSection(answers, section));
                 case "SCHREIBEN" ->
-                        detailedScores.put(sectionName, scoringService.scoreSchreibenSection(uid, answers, section));
+                        detailedScores.put(sectionName, scoringService.scoreSchreibenSection(uid, answers, section, examLevel));
                 case "SPRECHEN" ->
-                        detailedScores.put(sectionName, scoringService.scoreSprechenSection(uid, answers, section));
+                        detailedScores.put(sectionName, scoringService.scoreSprechenSection(uid, answers, section, examLevel));
                 default -> log.warn("[MockExam] Đề {} có phần lạ '{}' — không chấm phần này", examId, sectionName);
             }
         }
@@ -364,7 +365,7 @@ public class MockExamController {
         // Best-effort post-exam updates (phase recompute + B1 graduation)
         try {
             phaseEngineService.recompute(uid);
-            String cefr = (String) exam.get("cefr_level");
+            String cefr = examLevel;
             if ("B1".equalsIgnoreCase(cefr) && caller instanceof com.deutschflow.user.entity.User user) {
                 b1ReadinessService.recordMockExamResult(user, totals.passed());
             }

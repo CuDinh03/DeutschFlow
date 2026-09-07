@@ -2097,7 +2097,7 @@
         },
         "play": "Phát audio",
         "stop": "Dừng",
-        "defaultLabel": "Hörtext — Goethe A1",
+        "defaultLabel": "Hörtext",
         "unsupportedHint": "Trình duyệt không hỗ trợ. Dùng Chrome hoặc Safari."
       },
       "scoreBreakdown": {
@@ -2121,13 +2121,14 @@
         "pendingTitle": "Đang chờ AI chấm bài viết",
         "pendingFallback": "Phần email chưa được nộp hoặc đang xử lý.",
         "aiGraded": "Được chấm bởi AI",
-        "officialRubric": "Rubric Goethe A1 chính thức",
+        "officialRubric": "Rubric Goethe chính thức",
         "detailCap": "Điểm chi tiết",
         "emailTotal": "Tổng điểm email",
         "overallCap": "Nhận xét tổng quan",
         "strengths": "Điểm mạnh",
         "improvements": "Cần cải thiện",
-        "title": "Đánh giá bài viết (SCHREIBEN Teil 2)"
+        "title": "Đánh giá bài viết (SCHREIBEN Teil 2)",
+        "officialRubricLevel": "Rubric Goethe {level} chính thức"
       },
       "weakAreas": {
         "tips": {
