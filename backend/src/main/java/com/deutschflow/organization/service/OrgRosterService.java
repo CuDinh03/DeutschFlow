@@ -74,7 +74,7 @@ public class OrgRosterService {
             }
         }
 
-        List<String> rows = splitNonEmptyLines(csvText);
+        List<CsvRecord> rows = splitNonEmptyLines(csvText);
         List<String> errors = new ArrayList<>();
         int total = 0;
         int created = 0;
@@ -84,7 +84,8 @@ public class OrgRosterService {
         boolean seatLimitHit = false;
 
         boolean first = true;
-        for (String rawLine : rows) {
+        for (CsvRecord record : rows) {
+            String rawLine = record.text();
             // Audit L-3: strip a leading UTF-8 BOM (U+FEFF). Excel/Google-Sheets exports prepend it
             // to the first line, which otherwise makes the header cell read "﻿email" — the
             // header check fails, the header is parsed as a data row, and (with no header) the first
@@ -103,7 +104,8 @@ public class OrgRosterService {
             }
 
             total++;
-            int rowNum = total;
+            // Số dòng VẬT LÝ trong tệp (tính cả header) để người dùng dò đúng chỗ trong Excel.
+            int rowNum = record.line();
             try {
                 String[] cols = splitCsvLine(line);
                 String email = normalizeEmail(col(cols, 0));
@@ -168,17 +170,81 @@ public class OrgRosterService {
         return new RosterImportResultDto(total, created, linked, enrolled, failed, errors);
     }
 
-    private static List<String> splitNonEmptyLines(String csvText) {
-        List<String> out = new ArrayList<>();
+    /**
+     * Một bản ghi CSV kèm số dòng VẬT LÝ nơi nó bắt đầu (1-based, TÍNH CẢ dòng header).
+     *
+     * <p>Trước PR-A5c thông báo lỗi đánh số theo thứ tự dòng DỮ LIỆU (bỏ qua header), nên với tệp có
+     * header thì "Dòng 3" của máy chủ thực ra là dòng thứ 4 trong Excel — người dùng dò không ra chỗ
+     * cần sửa, đúng lúc tính năng tải tệp lỗi cần chính xác nhất. Nay dùng số dòng vật lý, khớp với
+     * trường {@code line} mà phía web tính.
+     */
+    record CsvRecord(String text, int line) {}
+
+    /**
+     * Tách CSV thành từng BẢN GHI, tôn trọng ô bọc ngoặc kép.
+     *
+     * <p>Trước PR-A5c dùng {@code csvText.split("\\r?\\n")}, tức cắt dòng TRƯỚC khi tách cột. RFC 4180
+     * cho phép ô bọc ngoặc kép chứa ký tự xuống dòng, nên một dòng hợp lệ như
+     * {@code foo@x.com,"Dòng1<LF>Dòng2",0912} bị chẻ làm đôi: nửa đầu vẫn có email hợp lệ nên ÂM THẦM
+     * tạo tài khoản với tên cụt và mất số điện thoại, nửa sau thành một dòng lỗi ma không tương ứng
+     * dữ liệu nào. Đây là sai lệch dữ liệu im lặng — nguy hiểm hơn hẳn một lỗi lộ ra ngoài.
+     *
+     * <p>Ngoặc kép không đóng tới cuối tệp thì phần còn lại được coi là một bản ghi, thay vì mất dữ liệu.
+     */
+    static List<CsvRecord> splitNonEmptyLines(String csvText) {
+        List<CsvRecord> out = new ArrayList<>();
         if (csvText == null) {
             return out;
         }
-        for (String line : csvText.split("\\r?\\n")) {
-            if (!line.isBlank()) {
-                out.add(line.strip());
+        StringBuilder cur = new StringBuilder();
+        boolean quoted = false;
+        int[] lineState = {1, 1}; // [0] = dòng vật lý đang đọc, [1] = dòng bắt đầu bản ghi hiện tại
+        for (int i = 0; i < csvText.length(); i++) {
+            char c = csvText.charAt(i);
+            if (quoted) {
+                if (c == '"') {
+                    // `""` là một dấu ngoặc kép NẰM TRONG ô — giữ nguyên cả hai ký tự cho splitCsvLine.
+                    if (i + 1 < csvText.length() && csvText.charAt(i + 1) == '"') {
+                        cur.append("\"\"");
+                        i++;
+                    } else {
+                        quoted = false;
+                        cur.append(c);
+                    }
+                } else {
+                    if (c == '\n') {
+                        lineState[0]++;
+                    }
+                    cur.append(c);
+                }
+                continue;
             }
+            if (c == '"') {
+                quoted = true;
+                cur.append(c);
+                continue;
+            }
+            if (c == '\r' || c == '\n') {
+                if (c == '\r' && i + 1 < csvText.length() && csvText.charAt(i + 1) == '\n') {
+                    i++;
+                }
+                flushRecord(cur, out, lineState);
+                lineState[0]++;
+                lineState[1] = lineState[0];
+                continue;
+            }
+            cur.append(c);
         }
+        flushRecord(cur, out, lineState);
         return out;
+    }
+
+    private static void flushRecord(StringBuilder cur, List<CsvRecord> out, int[] lineState) {
+        String rec = cur.toString();
+        if (!rec.isBlank()) {
+            out.add(new CsvRecord(rec.strip(), lineState[1]));
+        }
+        cur.setLength(0);
     }
 
     private static String col(String[] cols, int idx) {
