@@ -2138,7 +2138,8 @@
         "strengths": "Stärken",
         "improvements": "Verbesserungsbedarf",
         "title": "Bewertung des Schreibteils (SCHREIBEN Teil 2)",
-        "officialRubricLevel": "Offizielles Goethe-Raster {level}"
+        "officialRubricLevel": "Offizielles Goethe-Raster {level}",
+        "missingCriteria": "Die KI hat {count} Kriterium/Kriterien nicht bewertet — die Skala wurde entsprechend verkleinert, nicht als 0 gewertet."
       },
       "weakAreas": {
         "tips": {

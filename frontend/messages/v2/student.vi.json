@@ -2138,7 +2138,8 @@
         "strengths": "Điểm mạnh",
         "improvements": "Cần cải thiện",
         "title": "Đánh giá bài viết (SCHREIBEN Teil 2)",
-        "officialRubricLevel": "Rubric Goethe {level} chính thức"
+        "officialRubricLevel": "Rubric Goethe {level} chính thức",
+        "missingCriteria": "AI không chấm {count} tiêu chí — thang điểm đã trừ phần đó, bài không bị tính 0."
       },
       "weakAreas": {
         "tips": {
