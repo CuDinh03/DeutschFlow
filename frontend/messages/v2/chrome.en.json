@@ -84,7 +84,9 @@
       "speaking-history": "Speaking history",
       "admin-maintenance": "Maintenance",
       "org-curricula": "Curriculum",
-      "admin-exam-golden": "Speaking golden set"
+      "admin-exam-golden": "Speaking golden set",
+      "objectives": "Objective matrix",
+      "org-settings": "Center settings"
     },
     "sections": {
       "classMgmt": "Class Management",

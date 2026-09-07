@@ -19,7 +19,10 @@ import {
   localItems,
   studentNav,
   teacherNav,
+  orgNav,
+  managerNav,
   type RoleAreas,
+  type RoleNav,
 } from '@/components/ui-v2/nav'
 
 const APP_V2 = join(__dirname, '../app/v2')
@@ -47,7 +50,13 @@ function realRoutes(sub: string): string[] {
 }
 
 /** Mọi prefix mà một RoleAreas tuyên bố sở hữu (area href + match + local href + utility + inbox). */
-function ownedPrefixes(role: RoleAreas): string[] {
+/**
+ * Prefix mà nav "sở hữu". `root` (vd. `/v2/teacher`) bị LOẠI: area Heute của giáo viên có href
+ * đúng bằng gốc khu, mà `isUnder(r, '/v2/teacher')` đúng với MỌI route con nên test orphan trước
+ * đây không bao giờ đỏ — `/v2/teacher/objectives` (ma trận mục tiêu, PR-9) nằm ngoài nav suốt từ
+ * khi ra đời mà không ai biết (PR-A6, 07/09/2026). Route gốc được coi là reachable theo định nghĩa.
+ */
+function ownedPrefixes(role: RoleAreas, root: string): string[] {
   const out: string[] = []
   for (const a of role.areas) {
     out.push(a.href, ...a.match)
@@ -55,7 +64,20 @@ function ownedPrefixes(role: RoleAreas): string[] {
   }
   for (const u of role.utility) out.push(u.href)
   if (role.inbox) out.push(role.inbox.href)
-  return out
+  return out.filter((p) => p !== root)
+}
+
+/**
+ * Mọi href mà một RoleNav (sidebar cổ điển) trỏ tới — dùng cho khu org chưa có area model.
+ *
+ * `root` (vd. `/v2/org`) bị LOẠI vì đúng cùng lý do như `ownedPrefixes`: mục "Tổng quan" của org có
+ * href bằng gốc khu, mà `isUnder(r, '/v2/org')` đúng với MỌI route con — giữ nó lại thì phép đếm
+ * orphan luôn ra rỗng và test mất hết tác dụng. Đo bằng thực nghiệm (PR-A6b, 07/09/2026): thêm một
+ * trang mồ côi dưới `/v2/org` mà cả 43 test vẫn xanh. Route gốc coi như reachable theo định nghĩa.
+ */
+function navHrefs(nav: RoleNav, root?: string): string[] {
+  const out = nav.sections.flatMap((sec) => sec.items.map((i) => i.href))
+  return root ? out.filter((h) => h !== root) : out
 }
 
 describe('S-01 — student: đúng 5 area, không mất destination', () => {
@@ -70,8 +92,8 @@ describe('S-01 — student: đúng 5 area, không mất destination', () => {
   })
 
   it('mọi route /v2/student thật đều reachable (area hoặc utility) — 0 orphan', () => {
-    const prefixes = ownedPrefixes(studentAreas)
-    const orphans = realRoutes('student').filter((r) => !prefixes.some((p) => isUnder(r, p)))
+    const prefixes = ownedPrefixes(studentAreas, '/v2/student')
+    const orphans = realRoutes('student').filter((r) => r !== '/v2/student' && !prefixes.some((p) => isUnder(r, p)))
     expect(orphans).toEqual([])
   })
 
@@ -140,14 +162,23 @@ describe('S-01 — teacher: 5 nhóm theo việc hằng ngày (IA-D6)', () => {
   })
 
   it('mọi route /v2/teacher thật đều reachable — 0 orphan', () => {
-    const prefixes = ownedPrefixes(teacherAreas)
+    const prefixes = ownedPrefixes(teacherAreas, '/v2/teacher')
     // `/v2/teacher/sessions` + `/v2/teacher/profile` là tàn dư v1 đã bị gỡ khỏi nav từ trước
     // Wave 1 (hồ sơ dùng chung `/v2/profile`) — không phải regression của đợt này.
     const known = ['/v2/teacher/sessions', '/v2/teacher/profile']
     const orphans = realRoutes('teacher').filter(
-      (r) => !prefixes.some((p) => isUnder(r, p)) && !known.includes(r),
+      (r) => r !== '/v2/teacher' && !prefixes.some((p) => isUnder(r, p)) && !known.includes(r),
     )
     expect(orphans).toEqual([])
+  })
+
+  it('PR-A6: ma trận mục tiêu nằm trong Klassen và test orphan thật sự bắt được route ngoài nav', () => {
+    const klassen = teacherAreas.areas.find((a) => a.id === 'tKlassen')!
+    expect(klassen.match).toContain('/v2/teacher/objectives')
+    expect(localItems(klassen).map((i) => i.href)).toContain('/v2/teacher/objectives')
+    // Gốc khu không còn "nuốt" mọi route con.
+    expect(ownedPrefixes(teacherAreas, '/v2/teacher')).not.toContain('/v2/teacher')
+    expect(ownedPrefixes(teacherAreas, '/v2/teacher').some((p) => isUnder('/v2/teacher/route-khong-ton-tai', p))).toBe(false)
   })
 
   it('AI tools là phương thức tạo trong Materialien, không phải area riêng', () => {
@@ -296,5 +327,22 @@ describe('không phá cấu hình cũ', () => {
   it('RoleNav legacy của student/teacher vẫn export được (không xoá route/khai báo)', () => {
     expect(studentNav.sections.length).toBeGreaterThan(0)
     expect(teacherNav.sections.length).toBeGreaterThan(0)
+  })
+})
+
+describe('PR-A6 — org console: mọi route /v2/org thật đều có mục nav', () => {
+  it('orgNav (OWNER) phủ mọi route thật; managerNav không thấy mục ownerOnly', () => {
+    const hrefs = navHrefs(orgNav, '/v2/org')
+    // `/v2/org/finance` chỉ redirect sang billing (Đợt 0 OWNER) — không cần mục nav riêng.
+    const known = ['/v2/org/finance']
+    const orphans = realRoutes('org').filter(
+      (r) => r !== '/v2/org' && !hrefs.some((h) => isUnder(r, h)) && !known.includes(r),
+    )
+    expect(orphans).toEqual([])
+    expect(hrefs).toContain('/v2/org/settings')
+    const settings = orgNav.sections.flatMap((s) => s.items).find((i) => i.href === '/v2/org/settings')!
+    expect(settings.ownerOnly).toBe(true)
+    expect(navHrefs(managerNav)).not.toContain('/v2/org/settings')
+    expect(navHrefs(managerNav)).not.toContain('/v2/org/billing')
   })
 })

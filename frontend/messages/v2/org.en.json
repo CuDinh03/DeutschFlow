@@ -137,7 +137,8 @@
         "active7d": "Used AI in 7 days",
         "activeRecently": "used AI recently",
         "classes": "Enrolled classes",
-        "ofCenter": "of the center"
+        "ofCenter": "of the center",
+        "unavailable": "stats unavailable"
       },
       "count": "{count} students",
       "searchPlaceholder": "Search students / email…",
@@ -190,7 +191,8 @@
         "errorsTitle": "Failed rows",
         "downloadErrors": "Download errors (CSV)",
         "noErrors": "No failed rows."
-      }
+      },
+      "analyticsError": "Could not load center-wide statistics (GET /api/org/analytics). Cells marked \"—\" have no value yet; they are not zero."
     },
     "studentDetail": {
       "titleFallback": "Student detail",
@@ -249,7 +251,12 @@
         "teacherLoading": "Loading teachers…",
         "teacherPick": "Pick a teacher…",
         "teacherHint": "The class belongs to the centre and is run by this teacher."
-      }
+      },
+      "loadMore": "Load more ({remaining} remaining)",
+      "loadedOf": "Loaded {loaded}/{total} classes",
+      "searchHint": "Searching only the loaded classes — use \"Load more\" to widen.",
+      "unassignedBadgePartial": "{count} without a teacher (of {loaded} loaded)",
+      "loadMoreError": "Could not load more classes."
     },
     "classDetail": {
       "titleFallback": "Class detail",
@@ -474,7 +481,14 @@
       "colTeacher": "Teacher",
       "emptyClasses": "No classes yet.",
       "unassigned": "Unassigned",
-      "assigned": "Assigned"
+      "assigned": "Assigned",
+      "classesPartial": "Showing {shown} of {total} classes",
+      "classesSeeAll": "See all classes →",
+      "showTable": "View data as a table",
+      "colLevel": "Level",
+      "colStudents": "Students",
+      "cefrDesc": "Students by CEFR level, out of {total} total — a current snapshot, not a period series.",
+      "usageDesc": "AI tokens used this month; the pool is for teachers, students do not draw from it."
     },
     "billing": {
       "title": "DeutschFlow Plan & Payments",

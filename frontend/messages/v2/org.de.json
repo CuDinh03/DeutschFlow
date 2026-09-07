@@ -137,7 +137,8 @@
         "active7d": "KI-Nutzung in 7 Tagen",
         "activeRecently": "kürzlich KI genutzt",
         "classes": "Belegte Kurse",
-        "ofCenter": "des Zentrums"
+        "ofCenter": "des Zentrums",
+        "unavailable": "Kennzahl nicht geladen"
       },
       "count": "{count} Schüler",
       "searchPlaceholder": "Schüler / E-Mail suchen…",
@@ -190,7 +191,8 @@
         "errorsTitle": "Fehlerhafte Zeilen",
         "downloadErrors": "Fehler herunterladen (CSV)",
         "noErrors": "Keine fehlerhaften Zeilen."
-      }
+      },
+      "analyticsError": "Zentrumsweite Kennzahlen konnten nicht geladen werden (GET /api/org/analytics). Mit „—“ markierte Felder haben noch keinen Wert; sie sind nicht null."
     },
     "studentDetail": {
       "titleFallback": "Schülerdetails",
@@ -249,7 +251,12 @@
         "teacherLoading": "Lehrkräfte werden geladen…",
         "teacherPick": "Lehrkraft wählen…",
         "teacherHint": "Die Klasse gehört dem Zentrum und wird von dieser Lehrkraft geleitet."
-      }
+      },
+      "loadMore": "Mehr laden ({remaining} verbleibend)",
+      "loadedOf": "{loaded}/{total} Kurse geladen",
+      "searchHint": "Suche nur in den geladenen Kursen — mit „Mehr laden“ erweitern.",
+      "unassignedBadgePartial": "{count} ohne Lehrkraft (von {loaded} geladenen)",
+      "loadMoreError": "Weitere Kurse konnten nicht geladen werden."
     },
     "classDetail": {
       "titleFallback": "Kursdetails",
@@ -474,7 +481,14 @@
       "colTeacher": "Lehrkraft",
       "emptyClasses": "Noch keine Kurse.",
       "unassigned": "Nicht zugewiesen",
-      "assigned": "Zugewiesen"
+      "assigned": "Zugewiesen",
+      "classesPartial": "{shown} von {total} Klassen angezeigt",
+      "classesSeeAll": "Alle Klassen anzeigen →",
+      "showTable": "Daten als Tabelle anzeigen",
+      "colLevel": "Niveau",
+      "colStudents": "Lernende",
+      "cefrDesc": "Lernende nach GER-Niveau, von insgesamt {total} — Momentaufnahme, keine Zeitreihe.",
+      "usageDesc": "Diesen Monat verbrauchte KI-Token; das Kontingent gilt für Lehrkräfte, Lernende nutzen es nicht."
     },
     "billing": {
       "title": "DeutschFlow-Tarif & Zahlungen",

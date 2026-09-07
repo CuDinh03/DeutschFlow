@@ -191,7 +191,10 @@
       "taskDoneBtn": "Xong",
       "taskTypes": {
         "REWRITE": "Viết lại"
-      }
+      },
+      "emptyDeck": "Bộ thẻ ôn của bạn đang trống",
+      "emptyDeckHint": "Thêm từ vào bộ thẻ rồi hệ thống sẽ nhắc bạn ôn đúng lúc.",
+      "emptyDeckCta": "Học từ vựng"
     },
     "lessons": {
       "title": "Thư viện bài học",
@@ -916,7 +919,10 @@
     },
     "mockExamRun": {
       "draftRestored": "Đã khôi phục bài làm — {count} câu đã trả lời trước đó.",
-      "confirmExit": "Thoát khỏi bài thi? Bài làm đã được lưu tự động nên bạn vào lại được, nhưng đồng hồ vẫn tiếp tục chạy.",
+      "confirmExitTitle": "Thoát khỏi bài thi?",
+      "confirmExit": "Bài làm đã được lưu tự động nên bạn vào lại làm tiếp được — bài vẫn ở dạng nháp, chưa nộp.",
+      "confirmExitDetail": "Đồng hồ vẫn tiếp tục chạy sau khi bạn thoát.",
+      "confirmExitAction": "Thoát bài thi",
       "title": "Thi thử Goethe",
       "subtitle": "Làm bài theo format Goethe-Institut chính thức, chấm điểm tự động",
       "loading": "Đang tải…",
@@ -938,7 +944,9 @@
       "submitAll": "Nộp bài thi hoàn chỉnh",
       "submitting": "Đang nộp…",
       "submitNow": "Nộp bài ngay",
-      "confirmSubmit": "Bạn có chắc chắn muốn nộp bài?",
+      "confirmSubmitTitle": "Nộp bài thi?",
+      "confirmSubmit": "Nộp xong bạn không sửa được câu trả lời nữa và bài chuyển sang chấm điểm.",
+      "confirmSubmitAnswered": "Bạn đã trả lời {answered}/{total} câu — câu bỏ trống tính 0 điểm.",
       "prevSection": "Phần trước",
       "nextSection": "Phần tiếp theo",
       "sectionMeta": "Thời gian làm bài: {minutes} phút · Điểm tối đa: {points}",
@@ -1530,7 +1538,8 @@
       "retryDesc": "Nghe/Đọc yêu cầu 100% • Nói/Phát âm/Viết yêu cầu ≥ 80 điểm",
       "retryCta": "🔄 Làm lại",
       "progressNotSaved": "Chưa lưu được tiến độ lên máy chủ.",
-      "scoreBelowThreshold": "Máy chủ chấm được {score}% — chưa đạt ngưỡng qua bài nên tiến độ chưa được ghi nhận."
+      "scoreBelowThreshold": "Máy chủ chấm được {score}% — chưa đạt ngưỡng qua bài nên tiến độ chưa được ghi nhận.",
+      "dayPrefix": "Ngày {n} · {title}"
     },
     "stats": {
       "title": "Thống kê học tập",
@@ -1545,12 +1554,11 @@
         "reviewed": "Đã ôn",
         "speaking": "Luyện nói",
         "due": "Đến hạn",
-        "thisWeek": "tuần này",
         "words": "từ vựng",
-        "toReview": "cần ôn lại"
+        "toReview": "cần ôn lại",
+        "last7Days": "7 ngày gần nhất"
       },
-      "weeklyTitle": "Hoạt động 7 ngày",
-      "noActivity": "Chưa có hoạt động nào trong tuần.",
+      "noActivity": "Chưa có hoạt động nào trong 7 ngày gần nhất.",
       "series": {
         "learned": "Học mới",
         "reviewed": "Ôn lại",
@@ -1566,7 +1574,20 @@
       "recommendationsTitle": "Gợi ý cho bạn",
       "badgesCap": "Huy hiệu",
       "badgesHint": "Xem toàn bộ huy hiệu đã mở khoá ở trang Thành tích.",
-      "badgesCta": "Xem huy hiệu"
+      "badgesCta": "Xem huy hiệu",
+      "vocabTitle": "Từ vựng (7 ngày)",
+      "vocabTitleRange": "Từ vựng · {range}",
+      "speakingTitle": "Luyện nói (7 ngày)",
+      "speakingTitleRange": "Luyện nói · {range}",
+      "unitWords": "đơn vị: từ",
+      "unitMinutes": "đơn vị: phút",
+      "recommendationsLoadError": "Không tải được gợi ý. Đây không có nghĩa là bạn không còn việc cần làm.",
+      "errorTrendLoadError": "Không tải được xu hướng lỗi. Đây không có nghĩa là bạn đã sửa hết lỗi.",
+      "showTable": "Xem số liệu dạng bảng",
+      "colDay": "Ngày",
+      "colErrorCount": "Số lỗi",
+      "vocabDesc": "Số từ học mới và số lượt ôn lại mỗi ngày.",
+      "speakingDesc": "Số phút luyện nói mỗi ngày."
     },
     "errors": {
       "title": "Sổ lỗi ngữ pháp",
@@ -2050,7 +2071,8 @@
         "nextLesson": "Bài tiếp theo:",
         "nextCta": "Tiếp theo: {title} →",
         "backCta": "Về lộ trình",
-        "backToRoadmap": "Về lộ trình học"
+        "backToRoadmap": "Về lộ trình học",
+        "practiceCta": "Luyện {skill} ngay"
       },
       "pronunciation": {
         "verdict": {
@@ -2090,7 +2112,7 @@
         },
         "play": "Phát audio",
         "stop": "Dừng",
-        "defaultLabel": "Hörtext — Goethe A1",
+        "defaultLabel": "Hörtext",
         "unsupportedHint": "Trình duyệt không hỗ trợ. Dùng Chrome hoặc Safari."
       },
       "scoreBreakdown": {
@@ -2114,13 +2136,15 @@
         "pendingTitle": "Đang chờ AI chấm bài viết",
         "pendingFallback": "Phần email chưa được nộp hoặc đang xử lý.",
         "aiGraded": "Được chấm bởi AI",
-        "officialRubric": "Rubric Goethe A1 chính thức",
+        "officialRubric": "Rubric Goethe chính thức",
         "detailCap": "Điểm chi tiết",
         "emailTotal": "Tổng điểm email",
         "overallCap": "Nhận xét tổng quan",
         "strengths": "Điểm mạnh",
         "improvements": "Cần cải thiện",
-        "title": "Đánh giá bài viết (SCHREIBEN Teil 2)"
+        "title": "Đánh giá bài viết (SCHREIBEN Teil 2)",
+        "officialRubricLevel": "Rubric Goethe {level} chính thức",
+        "missingCriteria": "AI không chấm {count} tiêu chí — thang điểm đã trừ phần đó, bài không bị tính 0."
       },
       "weakAreas": {
         "tips": {

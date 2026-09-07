@@ -85,6 +85,7 @@ export const teacherNav: RoleNav = {
         { id: 'grading', label: 'Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
         { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw' },
         { id: 'tc-reports', label: 'Sổ điểm lớp', href: '/v2/teacher/tc-reports', icon: 'assessment' },
+        { id: 'objectives', label: 'Ma trận mục tiêu', href: '/v2/teacher/objectives', icon: 'target' },
         { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book' },
         { id: 'tc-timesheet', label: 'Chấm công', href: '/v2/teacher/tc-timesheet', icon: 'timer' },
         // "Thư viện ảnh" (media asset S3) ≠ "Thư viện tài liệu" (file tài liệu): ảnh minh hoạ cho
@@ -211,6 +212,9 @@ const ORG_ITEM = {
   invitations: { id: 'org-invitations', label: 'Lời mời', href: '/v2/org/invitations', icon: 'mail' },
   timesheets: { id: 'org-timesheets', label: 'Chấm công', href: '/v2/org/timesheets', icon: 'timer' },
   roles: { id: 'org-roles', label: 'Phân quyền', href: '/v2/org/roles', icon: 'admin_panel_settings' },
+  // PR-A6 (07/09/2026): trang /v2/org/settings (chính sách tính công, ngưỡng gợi ý hỗ trợ) từng KHÔNG có mục
+  // nav nào — OWNER chỉ tới được bằng cách gõ URL. Backend gác assertOrgOwner; ownerOnly là lớp UX.
+  settings: { id: 'org-settings', label: 'Cài đặt trung tâm', href: '/v2/org/settings', icon: 'settings', ownerOnly: true },
   profile: { id: 'org-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
 } satisfies Record<string, NavItem>
 
@@ -218,9 +222,9 @@ const ORG_ITEM = {
  * orgNav — giám đốc trung tâm (org OWNER).
  *
  * Một nhóm chính (tổng quan, học viên, lớp, lịch trung tâm, giáo viên, phân tích,
- * gói & thanh toán, lời mời, phân quyền) + nhóm "Tài khoản".
+ * gói & thanh toán, lời mời, chấm công, phân quyền, cài đặt trung tâm) + nhóm "Tài khoản".
  *
- * Phân quyền: item gắn `ownerOnly: true` (gói & thanh toán) CHỈ OWNER thấy. Sidebar vẫn
+ * Phân quyền: item gắn `ownerOnly: true` (gói & thanh toán, cài đặt trung tâm) CHỈ OWNER thấy. Sidebar vẫn
  * lọc `ownerOnly` như một lớp phòng thủ thứ hai, kể cả khi MANAGER đã được chuyển sang `managerNav`.
  */
 export const orgNav: RoleNav = {
@@ -240,6 +244,7 @@ export const orgNav: RoleNav = {
         ORG_ITEM.invitations,
         ORG_ITEM.timesheets,
         ORG_ITEM.roles,
+        ORG_ITEM.settings,
       ],
     },
     {
@@ -640,12 +645,13 @@ export const teacherAreas: RoleAreas = {
       helper: 'Lớp học',
       href: '/v2/teacher/schedule',
       icon: 'groups',
-      match: ['/v2/teacher/classes', '/v2/teacher/tc-progress', '/v2/teacher/tc-checklist', '/v2/teacher/tc-reports'],
+      match: ['/v2/teacher/classes', '/v2/teacher/tc-progress', '/v2/teacher/tc-checklist', '/v2/teacher/tc-reports', '/v2/teacher/objectives'],
       local: [
         { id: 'schedule', label: 'Kế hoạch giảng dạy', href: '/v2/teacher/schedule', icon: 'schedule' },
         { id: 'tc-progress', label: 'Tiến độ khóa học', href: '/v2/teacher/tc-progress', icon: 'trending_up' },
         { id: 'tc-checklist', label: 'Nội dung giảng dạy', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
         { id: 'tc-reports', label: 'Sổ điểm lớp', href: '/v2/teacher/tc-reports', icon: 'assessment' },
+        { id: 'objectives', label: 'Ma trận mục tiêu', href: '/v2/teacher/objectives', icon: 'target' },
       ],
     },
     {

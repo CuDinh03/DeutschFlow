@@ -94,19 +94,21 @@ public class VideoLessonController {
     /** Phase B — start an async .mp4 render of the vocab timeline; poll {@code GET /render/{jobId}}. */
     @PostMapping("/vocab/render")
     public ResponseEntity<Map<String, String>> renderVocab(
+            @AuthenticationPrincipal User user,
             @RequestParam(defaultValue = "A1") String level,
             @RequestParam(defaultValue = "8") int limit) {
         if (!videoRenderService.isFfmpegAvailable()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Video rendering (ffmpeg) is not available");
         }
-        AsyncJob job = asyncJobService.createJob("VIDEO_RENDER_VOCAB");
+        AsyncJob job = asyncJobService.createJob("VIDEO_RENDER_VOCAB", user.getId());
         videoRenderService.renderVocabAsync(job.getId(), level, Math.min(Math.max(limit, 1), 10));
         return ResponseEntity.accepted().body(Map.of("jobId", job.getId().toString()));
     }
 
     @GetMapping("/render/{jobId}")
-    public ResponseEntity<RenderStatusDto> renderStatus(@PathVariable UUID jobId) {
-        AsyncJob job = asyncJobService.getJob(jobId)
+    public ResponseEntity<RenderStatusDto> renderStatus(@AuthenticationPrincipal User user, @PathVariable UUID jobId) {
+        // Chỉ chủ job (hoặc ADMIN) đọc được URL video đã render — job người khác là 404 (GAP-11).
+        AsyncJob job = asyncJobService.getJobForUser(jobId, user)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Render job not found"));
         String url = AsyncJob.Status.COMPLETED.name().equals(job.getStatus()) ? job.getResultPayload() : null;
         return ResponseEntity.ok(new RenderStatusDto(job.getStatus(), url, job.getErrorMessage()));

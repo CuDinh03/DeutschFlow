@@ -191,7 +191,10 @@
       "taskDoneBtn": "Fertig",
       "taskTypes": {
         "REWRITE": "Umschreiben"
-      }
+      },
+      "emptyDeck": "Dein Wiederholungsstapel ist leer",
+      "emptyDeckHint": "Füge Wörter hinzu, dann erinnern wir dich zum richtigen Zeitpunkt ans Wiederholen.",
+      "emptyDeckCta": "Wortschatz lernen"
     },
     "lessons": {
       "title": "Lektionsbibliothek",
@@ -916,7 +919,10 @@
     },
     "mockExamRun": {
       "draftRestored": "Entwurf wiederhergestellt — {count} zuvor gespeicherte Antworten.",
-      "confirmExit": "Prüfung verlassen? Deine Antworten sind automatisch gespeichert und du kannst zurückkehren — die Uhr läuft aber weiter.",
+      "confirmExitTitle": "Prüfung verlassen?",
+      "confirmExit": "Deine Antworten sind automatisch gespeichert, du kannst später weitermachen — die Prüfung bleibt ein Entwurf und ist nicht abgegeben.",
+      "confirmExitDetail": "Die Uhr läuft nach dem Verlassen weiter.",
+      "confirmExitAction": "Prüfung verlassen",
       "title": "Goethe-Prüfungssimulation",
       "subtitle": "Im offiziellen Goethe-Institut-Format mit automatischer Bewertung",
       "loading": "Wird geladen…",
@@ -938,7 +944,9 @@
       "submitAll": "Gesamte Prüfung abgeben",
       "submitting": "Wird abgegeben…",
       "submitNow": "Jetzt abgeben",
-      "confirmSubmit": "Möchten Sie die Prüfung wirklich abgeben?",
+      "confirmSubmitTitle": "Prüfung abgeben?",
+      "confirmSubmit": "Nach dem Abgeben kannst du deine Antworten nicht mehr ändern; die Prüfung geht in die Bewertung.",
+      "confirmSubmitAnswered": "Du hast {answered}/{total} Aufgaben beantwortet — leere Antworten zählen 0 Punkte.",
       "prevSection": "Vorheriger Teil",
       "nextSection": "Nächster Teil",
       "sectionMeta": "Zeit: {minutes} Min. · Maximale Punktzahl: {points}",
@@ -1530,7 +1538,8 @@
       "retryDesc": "Hören/Lesen erfordern 100 % • Sprechen/Aussprache/Schreiben erfordern ≥ 80 Punkte",
       "retryCta": "🔄 Erneut versuchen",
       "progressNotSaved": "Dein Fortschritt konnte nicht auf dem Server gespeichert werden.",
-      "scoreBelowThreshold": "Der Server hat {score}% gewertet — unter der Bestehensgrenze, dein Fortschritt wurde nicht gespeichert."
+      "scoreBelowThreshold": "Der Server hat {score}% gewertet — unter der Bestehensgrenze, dein Fortschritt wurde nicht gespeichert.",
+      "dayPrefix": "Tag {n} · {title}"
     },
     "stats": {
       "title": "Lernstatistik",
@@ -1545,12 +1554,11 @@
         "reviewed": "Wiederholt",
         "speaking": "Sprechen",
         "due": "Fällig",
-        "thisWeek": "diese Woche",
         "words": "Wörter",
-        "toReview": "zu wiederholen"
+        "toReview": "zu wiederholen",
+        "last7Days": "letzte 7 Tage"
       },
-      "weeklyTitle": "Aktivität (7 Tage)",
-      "noActivity": "Diese Woche keine Aktivität.",
+      "noActivity": "Keine Aktivität in den letzten 7 Tagen.",
       "series": {
         "learned": "Neu gelernt",
         "reviewed": "Wiederholt",
@@ -1566,7 +1574,20 @@
       "recommendationsTitle": "Empfehlungen für dich",
       "badgesCap": "Abzeichen",
       "badgesHint": "Alle freigeschalteten Abzeichen findest du unter Erfolge.",
-      "badgesCta": "Abzeichen ansehen"
+      "badgesCta": "Abzeichen ansehen",
+      "vocabTitle": "Wortschatz (7 Tage)",
+      "vocabTitleRange": "Wortschatz · {range}",
+      "speakingTitle": "Sprechen (7 Tage)",
+      "speakingTitleRange": "Sprechen · {range}",
+      "unitWords": "Einheit: Wörter",
+      "unitMinutes": "Einheit: Minuten",
+      "recommendationsLoadError": "Vorschläge konnten nicht geladen werden. Das heißt nicht, dass nichts mehr zu tun ist.",
+      "errorTrendLoadError": "Fehlerverlauf konnte nicht geladen werden. Das heißt nicht, dass alle Fehler behoben sind.",
+      "showTable": "Daten als Tabelle anzeigen",
+      "colDay": "Tag",
+      "colErrorCount": "Fehler",
+      "vocabDesc": "Neu gelernte Wörter und Wiederholungen pro Tag.",
+      "speakingDesc": "Sprechübungsminuten pro Tag."
     },
     "errors": {
       "title": "Fehlerbibliothek",
@@ -2050,7 +2071,8 @@
         "nextLesson": "Nächste Lektion:",
         "nextCta": "Weiter: {title} →",
         "backCta": "Zum Lernweg",
-        "backToRoadmap": "Zurück zum Lernweg"
+        "backToRoadmap": "Zurück zum Lernweg",
+        "practiceCta": "{skill} jetzt üben"
       },
       "pronunciation": {
         "verdict": {
@@ -2090,7 +2112,7 @@
         },
         "play": "Audio abspielen",
         "stop": "Stopp",
-        "defaultLabel": "Hörtext — Goethe A1",
+        "defaultLabel": "Hörtext",
         "unsupportedHint": "Browser nicht unterstützt. Bitte Chrome oder Safari verwenden."
       },
       "scoreBreakdown": {
@@ -2114,13 +2136,15 @@
         "pendingTitle": "Die KI bewertet deinen Text gerade",
         "pendingFallback": "Die E-Mail wurde noch nicht abgegeben oder wird noch verarbeitet.",
         "aiGraded": "Von der KI bewertet",
-        "officialRubric": "Offizielles Goethe-A1-Bewertungsraster",
+        "officialRubric": "Offizielles Goethe-Raster",
         "detailCap": "Punkte im Detail",
         "emailTotal": "Gesamtpunkte E-Mail",
         "overallCap": "Gesamteindruck",
         "strengths": "Stärken",
         "improvements": "Verbesserungsbedarf",
-        "title": "Bewertung des Schreibteils (SCHREIBEN Teil 2)"
+        "title": "Bewertung des Schreibteils (SCHREIBEN Teil 2)",
+        "officialRubricLevel": "Offizielles Goethe-Raster {level}",
+        "missingCriteria": "Die KI hat {count} Kriterium/Kriterien nicht bewertet — die Skala wurde entsprechend verkleinert, nicht als 0 gewertet."
       },
       "weakAreas": {
         "tips": {

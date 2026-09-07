@@ -7,6 +7,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Zap, BookOpen, Flame, PartyPopper } from "lucide-react";
 
 interface SessionRecapProps {
+  /**
+   * Kỹ năng đầu tiên của node này chưa đạt ngưỡng (L3c). Có giá trị thì màn tổng kết mời luyện
+   * đúng kỹ năng đó thay vì để người học tự đoán nên làm gì tiếp; null thì hàng nút không hiện.
+   */
+  practiceSkillLabel?: string | null
+  onPractice?: () => void;
   xpEarned: number;
   vocabCount: number;
   streakDays: number;
@@ -43,6 +49,8 @@ export default function SessionRecap({
   nextNodeTitle,
   onNext,
   onBack,
+  practiceSkillLabel,
+  onPractice,
 }: SessionRecapProps) {
   const t = useTranslations("v2.student.learnViews.recap");
   const router = useRouter();
@@ -72,7 +80,13 @@ export default function SessionRecap({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      {/* Con DUY NHẤT của AnimatePresence, và có key riêng.
+          Trước 07/09/2026 khối <style> keyframes nằm cạnh div này, tức AnimatePresence có HAI con
+          đều không key → framer-motion gán key rỗng cho cả hai → React cảnh báo "two children with
+          the same key" và ĐƯỢC PHÉP bỏ bớt một con khi vẽ lại. Chưa vỡ chỉ vì mỗi lần mở là mount
+          mới. Keyframes là stylesheet toàn cục nên đặt đâu trong cây cũng có tác dụng như nhau —
+          chuyển vào trong lớp phủ để AnimatePresence trở lại đúng hình dạng nó cần. */}
+      <div key="recap-overlay" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         {/* Confetti */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {CONFETTI.map((c, i) => (
@@ -164,6 +178,15 @@ export default function SessionRecap({
             >
               {nextNodeTitle ? t("nextCta", { title: nextNodeTitle }) : t("backCta")}
             </button>
+            {practiceSkillLabel && onPractice && (
+              <button
+                type="button"
+                onClick={onPractice}
+                className="w-full py-2.5 rounded-2xl border border-[#E2E8F0] font-semibold text-sm text-[#121212] transition-colors hover:bg-[#F1F5F9]"
+              >
+                {t("practiceCta", { skill: practiceSkillLabel })}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleBack}
@@ -173,15 +196,15 @@ export default function SessionRecap({
             </button>
           </div>
         </motion.div>
-      </div>
 
-      {/* CSS-only confetti animation */}
-      <style jsx global>{`
-        @keyframes confettiFall {
-          0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(600px) rotate(720deg); opacity: 0; }
-        }
-      `}</style>
+        {/* CSS-only confetti animation */}
+        <style jsx global>{`
+          @keyframes confettiFall {
+            0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(600px) rotate(720deg); opacity: 0; }
+          }
+        `}</style>
+      </div>
     </AnimatePresence>
   );
 }

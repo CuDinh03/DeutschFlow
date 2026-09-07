@@ -77,7 +77,7 @@
       "upcomingCap": "Kommende Klassenstunden",
       "noUpcoming": "Keine kommenden Klassenstunden.",
       "atClass": "Im Kurs",
-      "emptyWeekPrefix": "Diese Woche gibt es noch keine Klassenstunden. Tippe auf",
+      "emptyWeekPrefix": "Tippe auf",
       "emptyWeekMid": "oder",
       "emptyWeekSuffix": "zum Hinzufügen.",
       "sessionTitle": "{className} · {place} · {time} · {count} Lernende",
@@ -211,7 +211,8 @@
         "deleteConfirm": "Termin löschen",
         "deletePending": "Antrag auf Aufhebung des festen Termins gesendet — wartet auf Genehmigung des Zentrums",
         "deleted": "Fester Termin gelöscht · {n} künftige, nicht manuell angepasste Stunden entfernt"
-      }
+      },
+      "emptyWeekRange": "Keine Unterrichtsstunden von {from} bis {to}."
     },
     "tcProgress": {
       "ungrouped": "Ohne Modul",
@@ -654,7 +655,8 @@
       "aiStillProcessing": "Die KI verarbeitet noch. Bitte versuche es gleich erneut.",
       "aiCallError": "Fehler beim Aufruf der KI-Bewertung",
       "aiFailedWithReason": "KI-Bewertung fehlgeschlagen: {reason}",
-      "aiFailedGeneric": "KI-Bewertung fehlgeschlagen. Bitte manuell bewerten."
+      "aiFailedGeneric": "KI-Bewertung fehlgeschlagen. Bitte manuell bewerten.",
+      "clearFilter": "Filter zurücksetzen"
     },
     "gradeImage": {
       "title": "Nach Bild bewerten",

@@ -73,6 +73,19 @@ class ApiTelemetryFilterUnitTest {
     }
 
     @Test
+    void khongGhiMauBatTatCaKhiDuongDanKhongKhopController() throws Exception {
+        // Đo trên prod 08/09: `/api/onboarding/preview/mentor/12345` (404) bị ghi thành `/**` vì
+        // Spring khớp nó với handler tài nguyên tĩnh. Ghi vậy thì MỌI lượt 404 gộp làm một dòng và
+        // mất sạch đường dẫn thật — phải quay về URI thô đã che định danh.
+        MockHttpServletRequest request =
+                new MockHttpServletRequest("GET", "/api/onboarding/preview/mentor/12345");
+        request.setAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE, "/**");
+
+        assertThat(recordedEvent(request).endpoint())
+                .isEqualTo("/api/onboarding/preview/mentor/{id}");
+    }
+
+    @Test
     void khongCheDoanChuaChuCai() {
         assertThat(ApiTelemetryFilter.maskPathVariables("/api/v2/students/classes"))
                 .isEqualTo("/api/v2/students/classes");

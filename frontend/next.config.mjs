@@ -8,25 +8,28 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 // app is the Expo `mobile/` project. This config now targets only the Amplify SSR
 // web build, which handles dynamic routes like /teacher/dashboard/[id] natively.
 //
-// CSP (P0-7): this is the ENFORCED, production-effective policy. The stricter nonce-based
-// CSP lives in middleware.ts, but Amplify serves most routes from the CloudFront cache
-// WITHOUT invoking middleware (verified: served HTML carries no per-request nonce and no
-// middleware CSP header), so the middleware policy never reaches those users. next.config
-// `headers()` IS applied by Amplify at the CDN layer (these other headers prove it), so the
-// floor below is what actually protects production on every route.
+// CSP (P0-7, re-measured 2026-09-07): this static policy is the FLOOR — defense in depth
+// for any response that might ever bypass middleware (e.g. future prerendered pages).
+// Measured on prod 07/09: every page route currently IS dynamic (src/i18n/request.ts reads
+// the locale cookie, which opts the whole tree out of prerendering), middleware runs on all
+// of them, and Next stamps its per-request nonce into every <script> tag (35/35 on `/`).
+// The old note here claiming "Amplify serves most routes from cache without middleware"
+// was verified STALE on that date. The strict nonce-based policy lives in middleware.ts
+// (Report-Only today; the enforce flip is a later, gated step — see buildCsp() there).
 //
-// A static header cannot carry a per-request nonce, so script-src must allow 'unsafe-inline'.
-// To stay non-breaking on a revenue app we allow `https:` for resource loads (scripts,
-// styles, images, fonts, media, XHR/SSE/WebSocket) while still hard-locking the high-value
-// injection vectors: default-src 'self', base-uri 'self' (blocks <base> hijacking),
-// object-src 'none' (no plugins), frame-ancestors 'none' (anti-clickjacking), and no http:.
-// Follow-up for a strong nonce-based CSP: make middleware actually execute on Amplify, then
-// the middleware policy supersedes this floor.
+// A build-time header cannot carry a per-request nonce, so script-src here must allow
+// 'unsafe-inline'. We allow `https:` for resource loads while still hard-locking the
+// high-value injection vectors: default-src 'self', base-uri 'self' (blocks <base>
+// hijacking), object-src 'none' (no plugins), frame-ancestors 'none' (anti-clickjacking),
+// form-action 'self' (form-action has NO default-src fallback — omitting it lets any
+// injected <form> POST credentials anywhere), and no http:. Tightening the `https:`
+// blanket to named hosts is planned once the CSP violation collector has real data.
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
+  "form-action 'self'",
   "script-src 'self' 'unsafe-inline' https:",
   "style-src 'self' 'unsafe-inline' https:",
   "img-src 'self' data: blob: https:",
@@ -52,13 +55,41 @@ const securityHeaders = [
   // microphone=(self): mọi tính năng luyện nói web (exam, AI-speaking, weekly, phoneme…) cần
   // getUserMedia ở chính origin. `microphone=()` (03/06–25/08) đã CHẶN mic toàn site bất kể người
   // dùng cấp quyền gì — Permissions API trả denied vĩnh viễn. Vẫn cấm iframe bên thứ ba (self ≠ *).
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=(), browsing-topics=()' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=(), payment=(), usb=(), browsing-topics=()' },
+  // COOP/CORP (2026-09-07): audited before adding — every window.open() in src passes
+  // 'noopener,noreferrer', there is no OAuth/payment popup flow, and no third party
+  // legitimately embeds our resources cross-origin, so same-origin is safe for both.
+  // COEP is deliberately NOT set: require-corp would break cross-origin S3/CloudFront
+  // media and nothing here needs SharedArrayBuffer.
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+  { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
 ];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   trailingSlash: true,
+
+  // Bộ kiểm chữ ký JWT của middleware — NHÚNG LÚC DỰNG, cố ý.
+  //
+  // Đo 07/09/2026: `process.env.JWT_RSA_PUBLIC_KEY` trong `src/middleware.ts` KHÔNG được Next
+  // nhúng sẵn, dù truyền biến qua shell hay qua `.env.production`; gói
+  // `.next/server/src/middleware.js` giữ nguyên 3 lượt tra cứu lúc chạy. Trên Amplify, biến của
+  // console chỉ sống trong container dựng nên tầng compute không thấy gì → `hasVerifierForV2`
+  // false → `passThrough()` → cổng vai trò tầng biên tắt LẶNG với mọi người đã đăng nhập
+  // (học viên mở được vỏ `/v2/admin`). Backend `@PreAuthorize` và `RoleAreaGuard` vẫn gác dữ
+  // liệu, nhưng lớp biên thì mất.
+  //
+  // Khai báo ở đây buộc Next thay thế bằng giá trị thật lúc dựng, nên giá trị nằm ngay trong
+  // gói middleware — không phụ thuộc việc Amplify có chuyển biến xuống môi trường chạy hay
+  // không. `JWT_RSA_PUBLIC_KEY` là khoá CÔNG KHAI và gói này chạy phía máy chủ, không gửi
+  // xuống trình duyệt.
+  //
+  // Giá trị giữ nguyên dạng PEM một dòng với `\n` thoát — middleware tự đổi lại. `?? ''` để
+  // build cục bộ không có biến vẫn chạy (cổng vai trò tự tắt đúng như nhánh degrade sẵn có).
+  env: {
+    JWT_RSA_PUBLIC_KEY: process.env.JWT_RSA_PUBLIC_KEY ?? '',
+  },
 
   // Image optimization stays ON for the Amplify web/SSR build so <Image> is actually optimized. (P1-5)
   images: {

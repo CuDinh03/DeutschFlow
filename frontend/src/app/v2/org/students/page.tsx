@@ -20,11 +20,20 @@ import { ImportRosterModal } from './ImportRosterModal'
 // real org-wide stats from /org/analytics instead).
 // Đợt 0 OWNER (F03): "Xuất danh sách" xuất CSV THẬT từ đúng các dòng đang hiển thị
 // (danh sách tải trọn qua GET /org/members, không phân trang) — hết toast "sắp ra mắt".
+// PR-A2 (BF-03, 07/09/2026): số liệu toàn trung tâm có trạng thái RIÊNG loading/ok/error.
+// Trước đây `getAnalytics().catch(() => null)` rồi `?? 0` — API lỗi hiện ra như trung tâm
+// "không lớp / không ai dùng AI". Nay lỗi → ô KPI hiện "—" + banner thử lại; 0 thật vẫn là 0.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEAL = '#11888A'
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 const initial = (n: string | null) => ((n ?? '?').trim()[0] ?? '?').toUpperCase()
+
+/** Nguồn số liệu toàn trung tâm — tách khỏi danh sách để một API lỗi không kéo cả trang. */
+type AnalyticsState = 'loading' | 'ok' | 'error'
+
+/** Dấu "chưa có số" — KHÔNG phải 0. Dùng khi analytics chưa tải hoặc lỗi. */
+const NO_VALUE = '—'
 
 export default function V2OrgStudentsPage() {
   const t = useTranslations('v2.org.students')
@@ -32,6 +41,7 @@ export default function V2OrgStudentsPage() {
   const router = useRouter()
   const [members, setMembers] = useState<OrgMember[]>([])
   const [analytics, setAnalytics] = useState<OrgAnalytics | null>(null)
+  const [analyticsState, setAnalyticsState] = useState<AnalyticsState>('loading')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
@@ -40,9 +50,7 @@ export default function V2OrgStudentsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [ms, an] = await Promise.all([listMembers('STUDENT'), getAnalytics().catch(() => null)])
-      setMembers(ms)
-      setAnalytics(an)
+      setMembers(await listMembers('STUDENT'))
       setError('')
     } catch (e: unknown) {
       setError(apiMessage(e))
@@ -51,7 +59,18 @@ export default function V2OrgStudentsPage() {
     }
   }, [])
 
-  useEffect(() => { void load() }, [load])
+  const loadAnalytics = useCallback(async () => {
+    setAnalyticsState('loading')
+    try {
+      setAnalytics(await getAnalytics())
+      setAnalyticsState('ok')
+    } catch {
+      setAnalytics(null)
+      setAnalyticsState('error')
+    }
+  }, [])
+
+  useEffect(() => { void load(); void loadAnalytics() }, [load, loadAnalytics])
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -59,6 +78,33 @@ export default function V2OrgStudentsPage() {
   }, [members, query])
 
   const activeN = members.filter((m) => m.status === 'ACTIVE').length
+
+  /**
+   * Ô KPI có nguồn từ DANH SÁCH thành viên: loading → shimmer; lỗi tải danh sách → "—" + chú thích.
+   *
+   * Vì sao cần: `members` khởi tạo là `[]`, nên khi `listMembers` hỏng thì `members.length` là 0 —
+   * đúng cái "lỗi biến thành 0" mà PR này đi chữa cho nhánh analytics, nhưng còn sót ở nhánh danh
+   * sách. Hậu quả thấy được: backend sập thì dải KPI hiện "Tổng học viên: 0" đứng cạnh "Có dùng AI
+   * 7 ngày: —", tự mâu thuẫn ngay trên cùng một hàng.
+   */
+  const memberCell = (value: number, sub: string) => {
+    if (loading) {
+      return { value: <span className="ga-shimmer inline-block h-6 w-12 align-middle" aria-label={tc('loading')} />, sub, alert: false }
+    }
+    if (error) return { value: NO_VALUE, sub: t('stats.unavailable'), alert: true }
+    return { value, sub, alert: false }
+  }
+
+  /** Ô KPI chỉ có nguồn từ analytics: loading → shimmer; error → "—" + chú thích đỏ; ok → số thật (kể cả 0). */
+  const analyticsCell = (value: number | undefined, sub: string) => {
+    if (analyticsState === 'ok' && value != null) return { value, sub, alert: false }
+    if (analyticsState === 'loading') {
+      return { value: <span className="ga-shimmer inline-block h-6 w-12 align-middle" aria-label={tc('loading')} />, sub, alert: false }
+    }
+    return { value: NO_VALUE, sub: t('stats.unavailable'), alert: true }
+  }
+  const active7d = analyticsCell(analytics?.activeStudents7d, t('stats.activeRecently'))
+  const classCount = analyticsCell(analytics?.classCount, t('stats.ofCenter'))
 
   return (
     <div className="flex min-h-full flex-col">
@@ -94,12 +140,25 @@ export default function V2OrgStudentsPage() {
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         <GaStatStrip
           items={[
-            { label: t('stats.totalStudents'), value: analytics?.studentCount ?? members.length, sub: t('stats.usingSeats') },
-            { label: t('stats.active'), value: activeN, sub: t('stats.activeMembers'), tone: 'green' },
-            { label: t('stats.active7d'), value: analytics?.activeStudents7d ?? 0, sub: t('stats.activeRecently'), tone: 'blue' },
-            { label: t('stats.classes'), value: analytics?.classCount ?? 0, sub: t('stats.ofCenter'), tone: 'teal' },
+            // Analytics ok thì lấy số của nó; ngược lại rơi về danh sách, nhưng danh sách LỖI thì "—".
+            ...(analyticsState === 'ok' && analytics
+              ? [{ label: t('stats.totalStudents'), value: analytics.studentCount, sub: t('stats.usingSeats'), alert: false }]
+              : [{ label: t('stats.totalStudents'), ...memberCell(members.length, t('stats.usingSeats')) }]),
+            { label: t('stats.active'), ...memberCell(activeN, t('stats.activeMembers')), tone: 'green' as const },
+            { label: t('stats.active7d'), value: active7d.value, sub: active7d.sub, alert: active7d.alert, tone: 'blue' },
+            { label: t('stats.classes'), value: classCount.value, sub: classCount.sub, alert: classCount.alert, tone: 'teal' },
           ]}
         />
+        {analyticsState === 'error' && (
+          <div
+            role="status"
+            className="mt-3 flex flex-wrap items-center gap-3 border border-dashed px-3 py-2"
+            style={{ borderColor: 'color-mix(in srgb, var(--ga-red) 40%, transparent)' }}
+          >
+            <p className="ga-ui min-w-0 flex-1 text-ga-caption text-ga-red">{t('analyticsError')}</p>
+            <GaBtn variant="ghost" size="sm" onClick={loadAnalytics}>{tc('retry')}</GaBtn>
+          </div>
+        )}
 
         <div className="mb-3.5 mt-[22px] flex flex-wrap items-center justify-between gap-3">
           <GaCap>{t('count', { count: rows.length })}</GaCap>

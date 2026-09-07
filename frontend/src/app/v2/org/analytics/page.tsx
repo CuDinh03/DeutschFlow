@@ -1,11 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { apiMessage } from '@/lib/api'
 import { getAnalytics, listClasses, type OrgAnalytics, type OrgClass } from '@/lib/orgApi'
 import { GaPageHdr, GaStatStrip, ErrorBanner, LoadingState } from '@/components/ui-v2'
-import { GaSection, GaDonut, GaLegend, GaBarRow, GA_CHART } from '../../analyticsShared'
+import { GaSection, GaChartData, GaDonut, GaLegend, GaBarRow, GA_CHART } from '../../analyticsShared'
 import { useFmt } from '@/lib/i18n/useFmt'
 
 // Option-1: GET /org/analytics is FLAT (no time-series). Reuse getAnalytics + listClasses.
@@ -16,27 +17,46 @@ const TEAL = '#11888A'
 export default function V2OrgAnalyticsPage() {
   const t = useTranslations('v2.org.analytics')
   const fmt = useFmt()
+  const CLASSES_PAGE_SIZE = 100
+
   const [analytics, setAnalytics] = useState<OrgAnalytics | null>(null)
-  const [classes, setClasses] = useState<OrgClass[]>([])
+  const [classes, setClasses] = useState<OrgClass[] | null>(null)
+  const [classesTotal, setClassesTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // F08: hai nguồn dữ liệu, hai trạng thái lỗi. Trước đây `listClasses(...).catch(() => [])` biến
+  // MỌI lỗi tải lớp thành mảng rỗng, và bảng bên dưới kết luận "Chưa có lớp nào" — một câu khẳng
+  // định về dữ liệu, dựng từ chỗ không có dữ liệu nào. Trung tâm mới nhìn vào đó tưởng lớp của mình
+  // biến mất. Nay lỗi của khối lớp hiện ở đúng khối đó và thử lại được, còn analytics vẫn dùng bình
+  // thường nếu nó thành công (và ngược lại).
+  const [classesError, setClassesError] = useState<string | null>(null)
+
+  const loadClasses = useCallback(async () => {
+    setClassesError(null)
+    try {
+      const page = await listClasses(0, CLASSES_PAGE_SIZE)
+      setClasses(page.content)
+      setClassesTotal(page.totalElements)
+    } catch (e: unknown) {
+      setClasses(null)
+      setClassesError(apiMessage(e))
+    }
+  }, [])
+
+  const loadAnalytics = useCallback(async () => {
+    setError(null)
+    try {
+      setAnalytics(await getAnalytics())
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+    }
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
-    setError(null)
-    try {
-      const [a, c] = await Promise.all([
-        getAnalytics(),
-        listClasses(0, 100).then((p) => p.content).catch(() => [] as OrgClass[]),
-      ])
-      setAnalytics(a)
-      setClasses(c)
-    } catch (e: unknown) {
-      setError(apiMessage(e))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+    await Promise.all([loadAnalytics(), loadClasses()])
+    setLoading(false)
+  }, [loadAnalytics, loadClasses])
 
   useEffect(() => { void load() }, [load])
 
@@ -72,7 +92,7 @@ export default function V2OrgAnalyticsPage() {
                   sub: t('stats.ofStudents', { pct: engagementPct }),
                   tone: 'blue',
                 },
-                { label: t('stats.openClasses'), value: analytics?.classCount ?? classes.length, tone: 'violet' },
+                { label: t('stats.openClasses'), value: analytics?.classCount ?? (classes?.length ?? '—'), tone: 'violet' },
                 {
                   label: t('stats.tokensThisMonth'),
                   value: analytics ? fmt.num(analytics.tokensThisMonth) : '—',
@@ -83,20 +103,30 @@ export default function V2OrgAnalyticsPage() {
             />
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[1fr_1fr]">
-              <GaSection title={t('cefrTitle')}>
+              <GaSection
+                title={t('cefrTitle')}
+                description={t('cefrDesc', { total: fmt.num(analytics?.studentCount ?? 0) })}
+              >
                 {cefrSegs.length > 0 ? (
-                  <div className="flex flex-col items-center gap-5 sm:flex-row">
-                    <GaDonut segments={cefrSegs} />
-                    <div className="w-full min-w-0 sm:w-auto sm:flex-1">
-                      <GaLegend items={cefrSegs.map((s) => ({ ...s, display: fmt.num(s.value) }))} />
+                  <>
+                    <div className="flex flex-col items-center gap-5 sm:flex-row">
+                      <GaDonut segments={cefrSegs} />
+                      <div className="w-full min-w-0 sm:w-auto sm:flex-1">
+                        <GaLegend items={cefrSegs.map((s) => ({ ...s, display: fmt.num(s.value) }))} />
+                      </div>
                     </div>
-                  </div>
+                    <GaChartData
+                      summaryLabel={t('showTable')}
+                      columns={[t('colLevel'), t('colStudents')]}
+                      rows={cefrSegs.map((seg) => ({ label: seg.label, values: [fmt.num(seg.value)] }))}
+                    />
+                  </>
                 ) : (
                   <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">{t('cefrEmpty')}</p>
                 )}
               </GaSection>
 
-              <GaSection title={t('usageTitle')}>
+              <GaSection title={t('usageTitle')} description={t('usageDesc')}>
                 <div className="space-y-5 py-1">
                   <div>
                     <div className="ga-ui mb-1.5 flex items-baseline justify-between text-[13px]">
@@ -150,7 +180,13 @@ export default function V2OrgAnalyticsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {classes.length === 0 ? (
+                    {classesError ? (
+                      <tr>
+                        <td colSpan={3} className="px-5 py-6">
+                          <ErrorBanner message={classesError} onRetry={() => void loadClasses()} />
+                        </td>
+                      </tr>
+                    ) : !classes || classes.length === 0 ? (
                       <tr>
                         <td colSpan={3} className="ga-ui px-5 py-10 text-center text-[14px] text-ga-muted">
                           {t('emptyClasses')}
@@ -182,6 +218,21 @@ export default function V2OrgAnalyticsPage() {
                   </tbody>
                 </table>
               </div>
+              {/* Trang này chỉ lấy trang đầu. Trước đây không nói gì, nên một trung tâm có 150 lớp
+                  đọc bảng này như thể đó là toàn bộ danh sách. */}
+              {classes && classesTotal > classes.length && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ga-border px-5 py-3">
+                  <p className="ga-ui text-ga-caption text-ga-muted">
+                    {t('classesPartial', { shown: fmt.num(classes.length), total: fmt.num(classesTotal) })}
+                  </p>
+                  <Link
+                    href="/v2/org/classes"
+                    className="ga-ui text-ga-caption font-semibold text-ga-accent underline-offset-2 hover:underline"
+                  >
+                    {t('classesSeeAll')}
+                  </Link>
+                </div>
+              )}
             </GaSection>
           </div>
         )}

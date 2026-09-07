@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useTracking } from '@/hooks/useTracking'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { GaLogo, GaBtn, GaCap } from '@/components/ui-v2'
@@ -146,6 +147,21 @@ export function GaLanding() {
 
   const [indIdx, setIndIdx] = React.useState(0)
   const [menuOpen, setMenuOpen] = React.useState(false)
+  const { trackEvent } = useTracking()
+  /**
+   * Điểm vào của phễu. Ba chặng sau đã đo được từ trước — `register_success`,
+   * `onboarding_completed`, `feature_lesson_completed` — nhưng chặng ĐẦU thì không: cả 7 CTA đều là
+   * <Link> trần, nên chỉ còn $autocapture của PostHog, thứ không phân biệt được CTA phễu với 19
+   * link khác trên trang và không nói CTA nằm ở đâu. Thiếu chặng này thì không tính được tỉ lệ từ
+   * CTA sang đăng ký — chính phép đo mà G5 đặt làm điều kiện cho baseline.
+   *
+   * `placement` là vị trí trên trang, không phải nhãn nút: nhãn đổi theo ngôn ngữ và theo mỗi lần
+   * viết lại copy, còn vị trí thì bền qua các lần thử biến thể.
+   */
+  const trackCta = React.useCallback(
+    (placement: string) => trackEvent('landing_cta_clicked', { placement }),
+    [trackEvent],
+  )
   const ind = INDUSTRY_META[indIdx]
   const indCopy = industries[indIdx]
 
@@ -171,7 +187,7 @@ export function GaLanding() {
             {/* h-11 (44px) ở mọi bề ngang — trước là h-9 (36px) trên máy nhỏ, dưới mức tối thiểu
                 44pt của Apple HIG, mà đây là nút chuyển đổi chính nằm ngay cạnh nút menu. */}
             <GaBtn asChild variant="ink" size="lg" className="h-11 px-3.5 text-[13px] sm:px-6 sm:text-[14.5px]">
-              <Link href={START_HREF}>
+              <Link href={START_HREF} onClick={() => trackCta('header')}>
                 <YellowSq />
                 <span className="sm:hidden">{t('header.tryShort')}</span>
                 <span className="hidden sm:inline">{t('header.tryFree')}</span>
@@ -220,7 +236,7 @@ export function GaLanding() {
                 <LanguageToggle />
               </div>
               <GaBtn asChild variant="ink" size="lg" className="mt-5 w-full">
-                <Link href={START_HREF} onClick={() => setMenuOpen(false)}>
+                <Link href={START_HREF} onClick={() => { trackCta('mobile_menu'); setMenuOpen(false) }}>
                   <YellowSq />{t('header.tryFree')}
                 </Link>
               </GaBtn>
@@ -250,7 +266,7 @@ export function GaLanding() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:gap-3.5">
             <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
-              <Link href={START_HREF}><YellowSq />{t('hero.ctaStart')}</Link>
+              <Link href={START_HREF} onClick={() => trackCta('hero')}><YellowSq />{t('hero.ctaStart')}</Link>
             </GaBtn>
             <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
               <Link href="/v2/login">{t('hero.ctaLogin')}</Link>
@@ -469,7 +485,7 @@ export function GaLanding() {
             <div className="font-ga-display text-[19px] font-medium leading-[1.35] sm:text-[21px]">{t('exam.bannerTitle')}</div>
           </div>
           <GaBtn asChild variant="yellow" size="lg" className="w-full sm:w-auto">
-            <Link href={START_HREF}><YellowSq dark />{t('exam.cta')}</Link>
+            <Link href={START_HREF} onClick={() => trackCta('exam_section')}><YellowSq dark />{t('exam.cta')}</Link>
           </GaBtn>
         </div>
       </section>
@@ -558,7 +574,7 @@ export function GaLanding() {
                   ))}
                 </div>
                 <GaBtn asChild variant={meta.highlight ? 'yellow' : 'ink'} size="md" className="w-full md:w-auto">
-                  <Link href={meta.href}>{p.cta}</Link>
+                  <Link href={meta.href} onClick={() => trackCta(`pricing_plan_${i + 1}`)}>{p.cta}</Link>
                 </GaBtn>
               </div>
             )
@@ -568,13 +584,13 @@ export function GaLanding() {
 
       {/* CTA footer */}
       <section className="bg-ga-ink text-ga-bg">
-        <div className="mx-auto grid max-w-[1240px] items-center gap-8 px-5 py-14 sm:px-8 md:grid-cols-[1fr_auto] md:gap-[60px] md:py-[72px] lg:px-[60px]">
+        <div className="mx-auto grid max-w-[1240px] items-center gap-8 px-5 py-14 sm:px-8 md:py-[72px] lg:px-[60px] min-[1240px]:grid-cols-[1fr_auto] min-[1240px]:gap-[60px]">
           <div>
             <GaCap className="mb-[18px] text-[#76716A]">{t('cta.cap')}</GaCap>
             <h2 className="text-balance font-ga-display text-[34px] font-medium leading-[1.15] sm:text-[42px] md:leading-[1.1]">{t('cta.title')}</h2>
           </div>
-          <GaBtn asChild variant="yellow" size="lg" className="w-full md:w-auto">
-            <Link href={START_HREF}><YellowSq dark />{t('cta.button')}</Link>
+          <GaBtn asChild variant="yellow" size="lg" className="w-full justify-self-start sm:w-auto">
+            <Link href={START_HREF} onClick={() => trackCta('footer_cta')}><YellowSq dark />{t('cta.button')}</Link>
           </GaBtn>
         </div>
       </section>

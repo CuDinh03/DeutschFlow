@@ -16,7 +16,6 @@ import com.deutschflow.grammar.dto.ExamReviewDto;
 import com.deutschflow.grammar.dto.ExamStartDto;
 import com.deutschflow.grammar.dto.ExamStatDto;
 import com.deutschflow.grammar.dto.ExamSummaryDto;
-import com.deutschflow.grammar.service.AiExamEvaluatorService;
 import com.deutschflow.grammar.service.ExamGenerationService;
 import com.deutschflow.grammar.service.ExamQuestionSanitizer;
 import com.deutschflow.grammar.service.ExamScoringService;
@@ -51,7 +50,6 @@ public class MockExamController {
 
     private final JdbcTemplate jdbcTemplate;
     private final ExamScoringService scoringService;
-    private final AiExamEvaluatorService aiEvaluator;
     private final ExamGenerationService generationService;
     private final ExamQuestionSanitizer questionSanitizer;
     private final com.deutschflow.assessment.service.B1ReadinessService b1ReadinessService;
@@ -66,7 +64,7 @@ public class MockExamController {
     @Autowired private MockExamDraftService draftService;
 
     public MockExamController(JdbcTemplate jdbcTemplate, ExamScoringService scoringService,
-                               AiExamEvaluatorService aiEvaluator, ExamGenerationService generationService,
+                               ExamGenerationService generationService,
                                ExamQuestionSanitizer questionSanitizer,
                                com.deutschflow.assessment.service.B1ReadinessService b1ReadinessService,
                                com.deutschflow.progress.service.PhaseEngineService phaseEngineService,
@@ -74,7 +72,6 @@ public class MockExamController {
                                OrgPoolGuard orgPoolGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.scoringService = scoringService;
-        this.aiEvaluator = aiEvaluator;
         this.generationService = generationService;
         this.questionSanitizer = questionSanitizer;
         this.b1ReadinessService = b1ReadinessService;
@@ -296,9 +293,9 @@ public class MockExamController {
 
         long examId = ((Number) attempt.get("exam_id")).longValue();
 
-        // Get exam structure
+        // Cấu trúc đề + ngưỡng đỗ của CHÍNH đề (pass_points/total_points) thay cho hằng 60.
         var exam = jdbcTemplate.queryForMap("""
-            SELECT sections_json::text AS sections_json
+            SELECT sections_json::text AS sections_json, total_points, pass_points, cefr_level
             FROM mock_exams WHERE id = ?
             """, examId);
 
@@ -321,81 +318,28 @@ public class MockExamController {
         }
         answers = effective.answers();
 
-        // Calculate scores for each section using real rubrics
-        Map<String, Object> detailedScores = new HashMap<>();
-        int lesenScore = 0;
-        int hoerenScore = 0;
-        Map<String, Object> schreibenScores = new HashMap<>();
-
+        // Chấm từng phần — mỗi phần tự quy về thang max_points của nó (xem ExamScoringService).
+        Map<String, Object> detailedScores = new LinkedHashMap<>();
+        String examLevel = (String) exam.get("cefr_level");
         for (Map<String, Object> section : sections) {
             String sectionName = (String) section.get("name");
-
             switch (sectionName) {
-                case "LESEN" -> {
-                    lesenScore = scoringService.scoreLesenSection(answers, section);
-                    detailedScores.put("LESEN", Map.of(
-                        "total", lesenScore,
-                        "max", 25,
-                        "percentage", (lesenScore * 100) / 25,
-                        "status", "COMPLETED"
-                    ));
-                }
-                case "HOEREN" -> {
-                    hoerenScore = scoringService.scoreHoerenSection(answers, section);
-                    detailedScores.put("HOEREN", Map.of(
-                        "total", hoerenScore,
-                        "max", 25,
-                        "percentage", (hoerenScore * 100) / 25,
-                        "status", "COMPLETED"
-                    ));
-                }
-                case "SCHREIBEN" -> {
-                    schreibenScores = scoringService.scoreSchreibenSection(answers, section);
-
-                    // AI-evaluate the email Teil 2 if content was submitted
-                    Object teil2Raw = schreibenScores.get("teil2_email");
-                    String emailContent = null;
-                    String taskPrompt = null;
-                    if (teil2Raw instanceof Map<?,?> t2Map) {
-                        Object ec = t2Map.get("email_content");
-                        emailContent = ec instanceof String s ? s : null;
-                    }
-                    // Try to get task prompt from section structure
-                    if (section.get("teile") instanceof List<?> teile) {
-                        for (Object t : teile) {
-                            if (t instanceof Map<?,?> tm && "WRITE_EMAIL".equals(tm.get("type"))) {
-                                Object inst = tm.get("instruction_vi");
-                                if (inst == null) inst = tm.get("instruction_de");
-                                if (inst instanceof String s) taskPrompt = s;
-                            }
-                        }
-                    }
-
-                    if (emailContent != null && !emailContent.isBlank()) {
-                        Map<String, Object> aiResult = aiEvaluator.evaluateSchreibenEmail(uid, emailContent, taskPrompt);
-                        schreibenScores = new HashMap<>(schreibenScores);
-                        schreibenScores.put("teil2_email", aiResult);
-                        int aiScore = ((Number) aiResult.get("total")).intValue();
-                        int teil1 = schreibenScores.containsKey("teil1_form")
-                            ? ((Number) schreibenScores.get("teil1_form")).intValue() : 0;
-                        schreibenScores.put("total_provisional", teil1 + aiScore);
-                    }
-                    detailedScores.put("SCHREIBEN", schreibenScores);
-                }
-                case "SPRECHEN" -> {
-                    Map<String, Object> sprechenScores = scoringService.scoreSperechenSection(uid, answers, section);
-                    detailedScores.put("SPRECHEN", sprechenScores);
-                }
+                case "LESEN", "HOEREN" ->
+                        detailedScores.put(sectionName, scoringService.scoreObjectiveSection(answers, section));
+                case "SCHREIBEN" ->
+                        detailedScores.put(sectionName, scoringService.scoreSchreibenSection(uid, answers, section, examLevel));
+                case "SPRECHEN" ->
+                        detailedScores.put(sectionName, scoringService.scoreSprechenSection(uid, answers, section, examLevel));
+                default -> log.warn("[MockExam] Đề {} có phần lạ '{}' — không chấm phần này", examId, sectionName);
             }
         }
 
-        // Calculate total score (provisional — Speaking requires manual eval)
-        int totalScore = lesenScore + hoerenScore;
-        if (schreibenScores.containsKey("total_provisional")) {
-            totalScore += ((Number) schreibenScores.get("total_provisional")).intValue();
-        }
+        Integer passPoints = exam.get("pass_points") instanceof Number n ? n.intValue() : null;
+        Integer totalPoints = exam.get("total_points") instanceof Number m ? m.intValue() : null;
+        int passPercent = ExamScoringService.passPercent(passPoints, totalPoints);
+        ExamScoringService.ExamTotals totals = scoringService.summarize(detailedScores, passPercent);
+        int totalScore = totals.totalScore();
 
-        // Identify weak areas
         List<String> weakAreas = scoringService.identifyWeakAreas(detailedScores);
 
         // Save results
@@ -407,23 +351,23 @@ public class MockExamController {
             SET status = 'COMPLETED',
                 finished_at = NOW(),
                 total_score = ?,
-                passed = (? >= 60),
+                passed = ?,
                 detailed_scores_json = ?::jsonb,
                 weak_areas = ?::jsonb,
                 answers_submitted_json = ?::jsonb
             WHERE id = ? AND user_id = ?
-            """, totalScore, totalScore, detailedScoresJson, weakAreasJson,
+            """, totalScore, totals.passed(), detailedScoresJson, weakAreasJson,
             om.writeValueAsString(answers), attemptId, uid);
 
-        log.info("[MockExam] Exam {} finished for user {} with score {}", attemptId, uid, totalScore);
+        log.info("[MockExam] Exam {} finished for user {} — {}/100 trên {} điểm chấm được, ngưỡng {}%, đỗ={}",
+                attemptId, uid, totalScore, totals.scoredMax(), passPercent, totals.passed());
 
         // Best-effort post-exam updates (phase recompute + B1 graduation)
         try {
             phaseEngineService.recompute(uid);
-            String cefr = jdbcTemplate.queryForObject(
-                    "SELECT cefr_level FROM mock_exams WHERE id = ?", String.class, examId);
+            String cefr = examLevel;
             if ("B1".equalsIgnoreCase(cefr) && caller instanceof com.deutschflow.user.entity.User user) {
-                b1ReadinessService.recordMockExamResult(user, totalScore >= 60);
+                b1ReadinessService.recordMockExamResult(user, totals.passed());
             }
         } catch (Exception ex) {
             log.warn("[MockExam] Post-exam phase/B1 update failed for attempt {}: {}",
@@ -433,7 +377,9 @@ public class MockExamController {
         return Map.of(
             "attemptId", attemptId,
             "totalScore", totalScore,
-            "passed", totalScore >= 60,
+            "scoredMax", totals.scoredMax(),
+            "passPercent", passPercent,
+            "passed", totals.passed(),
             "detailedScores", detailedScores,
             "weakAreas", weakAreas
         );

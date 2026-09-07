@@ -172,10 +172,10 @@
   "src/app/v2/admin/media/page.tsx": {
     "hex-literal": {
       "#2F6FC9": 2,
-      "#1E9E61": 1,
-      "#7C56C8": 1,
       "#E07B39": 1,
       "#11888A": 1,
+      "#1E9E61": 1,
+      "#7C56C8": 1,
       "#DA291C": 1,
       "#76716A": 1
     },
@@ -1440,12 +1440,11 @@
     "hex-literal": {
       "#2F6FC9": 2,
       "#1E9E61": 2,
-      "#E07B39": 2,
+      "#E07B39": 1,
       "#DA291C": 2
     },
     "arbitrary-font-size": {
-      "text-[13.5px]": 3,
-      "text-[12px]": 1,
+      "text-[13.5px]": 2,
       "text-[14px]": 2,
       "text-[10px]": 1,
       "text-[12.5px]": 1,

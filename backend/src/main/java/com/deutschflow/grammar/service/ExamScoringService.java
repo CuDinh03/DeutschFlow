@@ -1,18 +1,48 @@
 package com.deutschflow.grammar.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
-import java.util.*;
-import java.util.stream.Collectors;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Realistic exam scoring service based on Goethe official rubrics.
- * Scores LESEN and HOEREN automatically (binary correct/incorrect).
- * SCHREIBEN and SPRECHEN are AI-evaluated via AiExamEvaluatorService.
+ * Chấm bài thi thử 4 kỹ năng (Goethe/telc) — mỗi phần quy về thang điểm của chính đề
+ * ({@code max_points} trong {@code sections_json}, mặc định 25).
+ *
+ * <p>Ba luật chấm, sửa ngày 07/09/2026 (gap AC-EXAM-05):
+ * <ul>
+ *   <li><b>Đọc/Nghe:</b> tỉ lệ câu đúng trên tổng số câu CÓ TRONG ĐỀ. Trước đây mẫu số bị đóng
+ *       cứng 25 nên đề 15 câu có trả lời đúng hết cũng chỉ được 15/25 = 60%.</li>
+ *   <li><b>Viết:</b> mỗi Teil là một nhiệm vụ — điền form chấm tự động theo số ô đã điền, bài viết
+ *       chấm bằng AI. Bài viết đọc đúng khoá trình chạy gửi lên ({@code email_<teil>}); khoá cũ
+ *       {@code email_section} không bên nào ghi nên phần Viết luôn 0 điểm.</li>
+ *   <li><b>Nói:</b> cần transcript; không có thì phần này là "chờ chấm" chứ không phải 0 điểm.</li>
+ * </ul>
+ *
+ * <p>Phần đang chờ chấm KHÔNG vào tử số lẫn mẫu số của tổng điểm ({@link #summarize}) — học viên
+ * không bị trừ điểm vì hạ tầng AI hỏng, và tổng vẫn là thang 100 để so với ngưỡng đỗ của đề.
  */
 @Service
 public class ExamScoringService {
-    private static final ObjectMapper om = new ObjectMapper();
+
+    /** Phần đã chấm xong — vào cả tử số lẫn mẫu số của tổng điểm. */
+    public static final String STATUS_COMPLETED = "COMPLETED";
+    /** Phần chưa chấm được (thiếu dữ liệu hoặc AI hỏng) — bị loại khỏi tổng điểm. */
+    public static final String STATUS_PENDING = "PENDING_AI_EVALUATION";
+
+    private static final List<String> SECTION_ORDER = List.of("LESEN", "HOEREN", "SCHREIBEN", "SPRECHEN");
+    private static final int DEFAULT_SECTION_MAX = 25;
+    private static final int DEFAULT_PASS_PERCENT = 60;
+    private static final int WEAK_AREA_PERCENT = 60;
+    /** Phần Viết có cả form lẫn bài viết: form giữ tỉ trọng 40% (đúng thang 10/25 dùng từ trước). */
+    private static final double FORM_SHARE = 0.4;
+    /** Thang thô mặc định của {@link AiExamEvaluatorService#evaluateSchreibenEmail} khi phiếu không nói rõ. */
+    private static final double AI_EMAIL_MAX = 15;
+    /** Thang thô mặc định của {@link AiExamEvaluatorService#evaluateSprechen} khi phiếu không nói rõ. */
+    private static final double AI_SPRECHEN_MAX = 18;
 
     private final AiExamEvaluatorService aiEvaluator;
 
@@ -20,263 +50,348 @@ public class ExamScoringService {
         this.aiEvaluator = aiEvaluator;
     }
 
+    // ─── Đọc / Nghe ──────────────────────────────────────────────────────────
+
     /**
-     * Score LESEN section - auto-evaluate reading comprehension
-     * Each correct answer = 1 point (binary scoring)
+     * Chấm một phần khách quan (LESEN/HOEREN): mỗi câu đúng 1 điểm thô, so khớp không phân biệt
+     * hoa thường, rồi quy về thang điểm của phần.
      */
-    public int scoreLesenSection(Map<String, Object> answers, Map<String, Object> examSection) {
-        return scoreObjectiveTeile(answers, examSection, 25);
+    public Map<String, Object> scoreObjectiveSection(Map<String, Object> answers, Map<String, Object> section) {
+        int max = sectionMax(section);
+        int correct = 0;
+        int itemCount = 0;
+
+        for (Map<String, Object> teil : teileList(section)) {
+            if (!(teil.get("items") instanceof List<?> items)) continue;
+            for (Object itemObj : items) {
+                if (!(itemObj instanceof Map<?, ?> raw)) continue;
+                Map<String, Object> item = castMap(raw);
+                Object id = item.get("id");
+                Object expected = item.get("correct");
+                if (id == null || expected == null) continue;
+                itemCount++;
+                Object given = answers.get(id.toString());
+                if (given != null && given.toString().trim().equalsIgnoreCase(expected.toString().trim())) {
+                    correct++;
+                }
+            }
+        }
+
+        int points = itemCount > 0 ? (int) Math.round(max * (double) correct / itemCount) : 0;
+        Map<String, Object> out = scoredSection(points, max, STATUS_COMPLETED);
+        out.put("correct_items", correct);
+        out.put("total_items", itemCount);
+        return out;
+    }
+
+    // ─── Viết ────────────────────────────────────────────────────────────────
+
+    /**
+     * Chấm phần Viết. Mỗi Teil là một nhiệm vụ: có {@code form_fields} thì chấm tự động theo số ô
+     * đã điền, còn lại là bài viết chấm bằng AI. Bỏ trống = 0 điểm (học viên không làm); AI hỏng =
+     * chờ chấm (nhiệm vụ đó rời khỏi mẫu số, không kéo điểm học viên xuống).
+     */
+    public Map<String, Object> scoreSchreibenSection(long userId, Map<String, Object> answers,
+                                                     Map<String, Object> section, String cefrLevel) {
+        int max = sectionMax(section);
+        List<Map<String, Object>> forms = new ArrayList<>();
+        List<Map<String, Object>> writings = new ArrayList<>();
+        for (Map<String, Object> teil : teileList(section)) {
+            if (teil.get("form_fields") instanceof List<?> fields && !fields.isEmpty()) {
+                forms.add(teil);
+            } else {
+                writings.add(teil);
+            }
+        }
+        if (forms.isEmpty() && writings.isEmpty()) {
+            return scoredSection(0, max, STATUS_PENDING);
+        }
+
+        double formPool = forms.isEmpty() ? 0 : (writings.isEmpty() ? max : max * FORM_SHARE);
+        double writePool = max - formPool;
+
+        List<Map<String, Object>> tasks = new ArrayList<>();
+        Map<String, Object> firstAiEval = null;
+        double earned = 0;
+        double scorable = 0;
+
+        for (Map<String, Object> teil : forms) {
+            double weight = formPool / forms.size();
+            double ratio = formRatio(answers, teil);
+            earned += weight * ratio;
+            scorable += weight;
+            tasks.add(taskDetail(teil, "FORM", weight, weight * ratio, STATUS_COMPLETED));
+        }
+
+        for (Map<String, Object> teil : writings) {
+            double weight = writePool / writings.size();
+            String text = writingAnswer(answers, teil);
+            if (text.isBlank()) {
+                scorable += weight;
+                tasks.add(taskDetail(teil, "WRITING", weight, 0, STATUS_COMPLETED));
+                continue;
+            }
+            Map<String, Object> ai = aiEvaluator.evaluateSchreibenEmail(
+                    userId, text, taskPrompt(teil), examLevel(section, cefrLevel));
+            if (firstAiEval == null) firstAiEval = ai;
+            if (isPending(ai)) {
+                tasks.add(taskDetail(teil, "WRITING", weight, 0, STATUS_PENDING));
+                continue;
+            }
+            double ratio = clamp01(numberOf(ai.get("total")) / aiMax(ai, AI_EMAIL_MAX));
+            earned += weight * ratio;
+            scorable += weight;
+            tasks.add(taskDetail(teil, "WRITING", weight, weight * ratio, STATUS_COMPLETED));
+        }
+
+        boolean allPending = scorable <= 0;
+        Map<String, Object> out = scoredSection(
+                allPending ? 0 : (int) Math.round(earned),
+                allPending ? max : (int) Math.round(scorable),
+                allPending ? STATUS_PENDING : STATUS_COMPLETED);
+        out.put("tasks", tasks);
+        // Khoá cũ: màn nhận xét AI phần Viết (ExamFeedback) đọc `teil2_email`.
+        if (firstAiEval != null) out.put("teil2_email", firstAiEval);
+        return out;
+    }
+
+    /** Tỉ lệ ô đã điền của một Teil dạng form; khoá câu trả lời là {@code form_<chỉ số ô>}. */
+    private double formRatio(Map<String, Object> answers, Map<String, Object> teil) {
+        if (!(teil.get("form_fields") instanceof List<?> fields) || fields.isEmpty()) return 0;
+        int filled = 0;
+        for (int i = 0; i < fields.size(); i++) {
+            Object value = answers.get("form_" + i);
+            if (value != null && !value.toString().isBlank()) filled++;
+        }
+        return (double) filled / fields.size();
     }
 
     /**
-     * Score HOEREN section - auto-evaluate listening comprehension
-     * Each correct answer = 1 point (binary scoring)
+     * Bài viết của một Teil. Trình chạy web gửi khoá {@code email_<teil>}; giữ thêm
+     * {@code schreiben_<teil>} và khoá cũ {@code email_section} cho các bản ghi lịch sử.
      */
-    public int scoreHoerenSection(Map<String, Object> answers, Map<String, Object> examSection) {
-        return scoreObjectiveTeile(answers, examSection, 25);
+    private String writingAnswer(Map<String, Object> answers, Map<String, Object> teil) {
+        Object teilNo = teil.get("teil");
+        List<String> keys = new ArrayList<>();
+        if (teilNo != null) {
+            keys.add("email_" + teilNo);
+            keys.add("schreiben_" + teilNo);
+        }
+        keys.add("email_section");
+        for (String key : keys) {
+            Object value = answers.get(key);
+            if (value != null && !value.toString().isBlank()) return value.toString();
+        }
+        return "";
     }
 
     /**
-     * Normalize a section's {@code teile} to a list of teil maps. Tolerant of how
-     * it is serialized — a JSON array (most exams) or an object map — which
-     * previously caused ClassCastExceptions ("ArrayList cannot be cast to Map"
-     * and vice-versa) when finishing exams.
+     * Đề bài đầy đủ gửi cho AI: câu lệnh + tình huống/chủ đề + CÁC Ý BẮT BUỘC.
+     *
+     * <p>Trước 07/09/2026 hàm này trả về trường đầu tiên tìm thấy, mà {@code instruction_vi} luôn
+     * đứng trước — nên AI chỉ nhận một dòng tiếng Việt kiểu "Viết bài đăng diễn đàn ~80 từ", còn
+     * chủ đề ({@code input_email}/{@code prompt}) và các ý bắt buộc ({@code writing_points}) không
+     * bao giờ tới nơi. Tiêu chí {@code aufgabenerfuellung} đúng nghĩa là "có nêu đủ các ý yêu cầu
+     * không", nên nó chấm mà không có gì để đối chiếu.
      */
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> teileList(Map<String, Object> examSection) {
-        Object raw = examSection.get("teile");
-        Collection<Object> values;
+    private String taskPrompt(Map<String, Object> teil) {
+        StringBuilder task = new StringBuilder();
+        // Câu lệnh: ưu tiên tiếng Đức vì phần còn lại của prompt là Đức/Anh.
+        appendFirst(task, teil, List.of("instruction_de", "instruction_vi"));
+        // Chủ đề hoặc tình huống của đề.
+        appendFirst(task, teil, List.of("input_email", "prompt", "instructions"));
+        if (teil.get("writing_points") instanceof List<?> points && !points.isEmpty()) {
+            task.append("\nDiese Punkte müssen im Text vorkommen:");
+            int i = 1;
+            for (Object point : points) {
+                if (point != null) task.append("\n").append(i++).append(". ").append(point);
+            }
+        }
+        return task.toString().trim();
+    }
+
+    private void appendFirst(StringBuilder target, Map<String, Object> teil, List<String> keys) {
+        for (String key : keys) {
+            if (teil.get(key) instanceof String value && !value.isBlank()) {
+                if (target.length() > 0) target.append("\n");
+                target.append(value.trim());
+                return;
+            }
+        }
+    }
+
+    private Map<String, Object> taskDetail(Map<String, Object> teil, String kind,
+                                           double weight, double points, String status) {
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("teil", teil.get("teil"));
+        detail.put("kind", kind);
+        detail.put("max", (int) Math.round(weight));
+        detail.put("total", (int) Math.round(points));
+        detail.put("status", status);
+        return detail;
+    }
+
+    // ─── Nói ─────────────────────────────────────────────────────────────────
+
+    /**
+     * Chấm phần Nói bằng AI khi có transcript. Không có transcript (trình chạy web hiện chưa gửi)
+     * thì phần này là "chờ chấm" — bị loại khỏi tổng điểm thay vì tính 0.
+     */
+    public Map<String, Object> scoreSprechenSection(long userId, Map<String, Object> answers,
+                                                    Map<String, Object> section, String cefrLevel) {
+        int max = sectionMax(section);
+        String transcript = extractTranscript(answers);
+        if (transcript.isBlank()) {
+            return scoredSection(0, max, STATUS_PENDING);
+        }
+
+        Map<String, Object> ai = aiEvaluator.evaluateSprechen(
+                userId, transcript, extractSprechenTaskPrompt(section), examLevel(section, cefrLevel));
+        if (isPending(ai)) {
+            Map<String, Object> pending = scoredSection(0, max, STATUS_PENDING);
+            pending.put("ai_evaluation", ai);
+            return pending;
+        }
+
+        int points = (int) Math.round(max * clamp01(numberOf(ai.get("total")) / aiMax(ai, AI_SPRECHEN_MAX)));
+        Map<String, Object> out = scoredSection(points, max, STATUS_COMPLETED);
+        out.put("ai_evaluation", ai);
+        return out;
+    }
+
+    private String extractTranscript(Map<String, Object> answers) {
+        for (String key : List.of("sprechen_transcript", "transcript", "speaking_transcript", "audio_transcript")) {
+            Object value = answers.get(key);
+            if (value instanceof String s && !s.isBlank()) return s;
+        }
+        return "";
+    }
+
+    private String extractSprechenTaskPrompt(Map<String, Object> section) {
+        List<Map<String, Object>> teile = teileList(section);
+        return teile.isEmpty() ? "" : taskPrompt(teile.get(0));
+    }
+
+    /**
+     * Trình độ dùng để chọn rubric AI: ưu tiên trình độ của ĐỀ (cột {@code mock_exams.cefr_level}),
+     * sau đó tới trường trong chính phần thi, cuối cùng mới mặc định B1. Trước 07/09/2026 nhánh
+     * chấm Viết không nhận trình độ nào và prompt đóng cứng A1, còn nhánh chấm Nói chỉ đọc trường
+     * trong phần thi — mà seed không có trường đó, nên mọi đề đều rơi về mặc định.
+     */
+    private String examLevel(Map<String, Object> section, String cefrLevel) {
+        if (cefrLevel != null && !cefrLevel.isBlank()) return cefrLevel;
+        for (String key : List.of("cefr_level", "cefrLevel")) {
+            if (section.get(key) instanceof String s && !s.isBlank()) return s;
+        }
+        return "B1";
+    }
+
+    // ─── Tổng kết ────────────────────────────────────────────────────────────
+
+    /** Tổng điểm quy về thang 100 trên các phần đã chấm được, kèm kết luận đỗ/trượt. */
+    public record ExamTotals(int totalScore, int rawPoints, int scoredMax, boolean passed) {}
+
+    /**
+     * Cộng các phần đã chấm xong: {@code totalScore} là thang 100 trên đúng phần chấm được, nên
+     * một bài chưa chấm được phần Nói vẫn có thể đỗ nếu 3 phần kia đạt ngưỡng.
+     */
+    public ExamTotals summarize(Map<String, Object> detailedScores, int passPercent) {
+        int raw = 0;
+        int scoredMax = 0;
+        for (String name : SECTION_ORDER) {
+            if (!(detailedScores.get(name) instanceof Map<?, ?> rawSection)) continue;
+            Map<String, Object> section = castMap(rawSection);
+            if (isPending(section)) continue;
+            raw += (int) numberOf(section.get("total"));
+            scoredMax += (int) numberOf(section.get("max"));
+        }
+        int total = scoredMax > 0 ? (int) Math.round(raw * 100.0 / scoredMax) : 0;
+        return new ExamTotals(total, raw, scoredMax, scoredMax > 0 && total >= passPercent);
+    }
+
+    /** Ngưỡng đỗ của đề tính theo phần trăm ({@code pass_points}/{@code total_points}). */
+    public static int passPercent(Integer passPoints, Integer totalPoints) {
+        if (passPoints == null || totalPoints == null || totalPoints <= 0) return DEFAULT_PASS_PERCENT;
+        return (int) Math.round(passPoints * 100.0 / totalPoints);
+    }
+
+    /** Các phần đã chấm mà dưới 60% — phần chờ chấm không bị gọi là điểm yếu. */
+    public List<String> identifyWeakAreas(Map<String, Object> detailedScores) {
+        List<String> weakAreas = new ArrayList<>();
+        for (String name : SECTION_ORDER) {
+            if (!(detailedScores.get(name) instanceof Map<?, ?> rawSection)) continue;
+            Map<String, Object> section = castMap(rawSection);
+            if (isPending(section)) continue;
+            int max = (int) numberOf(section.get("max"));
+            if (max <= 0) continue;
+            int percentage = (int) Math.round(numberOf(section.get("total")) * 100.0 / max);
+            if (percentage < WEAK_AREA_PERCENT) weakAreas.add(name);
+        }
+        return weakAreas;
+    }
+
+    // ─── Trợ giúp ────────────────────────────────────────────────────────────
+
+    private Map<String, Object> scoredSection(int points, int max, String status) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("total", points);
+        out.put("max", max);
+        out.put("percentage", max > 0 ? (int) Math.round(points * 100.0 / max) : 0);
+        out.put("status", status);
+        return out;
+    }
+
+    private int sectionMax(Map<String, Object> section) {
+        double max = numberOf(section.get("max_points"));
+        return max > 0 ? (int) Math.round(max) : DEFAULT_SECTION_MAX;
+    }
+
+    /**
+     * Chuẩn hoá {@code teile} về danh sách. Chấp nhận cả mảng JSON (hầu hết đề) lẫn object map —
+     * trước đây khác kiểu là ném ClassCastException ngay lúc nộp bài.
+     */
+    private List<Map<String, Object>> teileList(Map<String, Object> section) {
+        Object raw = section.get("teile");
+        Collection<?> values;
         if (raw instanceof List<?> list) {
-            values = new ArrayList<>(list);
+            values = list;
         } else if (raw instanceof Map<?, ?> map) {
-            values = new ArrayList<>(((Map<String, Object>) map).values());
+            values = map.values();
         } else {
             return List.of();
         }
         List<Map<String, Object>> out = new ArrayList<>();
-        for (Object o : values) {
-            if (o instanceof Map<?, ?> m) out.add((Map<String, Object>) m);
+        for (Object value : values) {
+            if (value instanceof Map<?, ?> m) out.add(castMap(m));
         }
         return out;
     }
 
-    /** Auto-score true/false + single-choice items (1 pt each). */
-    private int scoreObjectiveTeile(Map<String, Object> answers, Map<String, Object> examSection, int max) {
-        int score = 0;
-        for (Map<String, Object> teil : teileList(examSection)) {
-            Object itemsRaw = teil.get("items");
-            if (!(itemsRaw instanceof List<?> items)) continue;
-            for (Object itemObj : items) {
-                if (!(itemObj instanceof Map<?, ?> item)) continue;
-                Object id = item.get("id");
-                Object correct = item.get("correct");
-                if (id == null || correct == null) continue;
-                Object userAnswer = answers.get(id.toString());
-                if (userAnswer != null && userAnswer.toString().equalsIgnoreCase(correct.toString())) {
-                    score += 1;
-                }
-            }
-        }
-        return Math.min(score, max);
+    private static boolean isPending(Map<String, Object> section) {
+        Object status = section.get("status");
+        return status != null && status.toString().contains("PENDING");
     }
 
     /**
-     * Score SCHREIBEN section - partially auto, partially AI-evaluated
-     * Teil 1 (FILL_FORM): Auto-validate required fields (0-10 points)
-     * Teil 2 (WRITE_EMAIL): Requires AI evaluation (0-15 points)
+     * Thang thô của phiếu AI. Khi mô hình bỏ sót một tiêu chí, evaluator loại tiêu chí đó khỏi cả
+     * tử số lẫn mẫu số và trả {@code max} nhỏ hơn — chia theo hằng số cũ sẽ biến thiếu dữ liệu
+     * thành mất điểm.
      */
-    public Map<String, Object> scoreSchreibenSection(
-            Map<String, Object> answers,
-            Map<String, Object> examSection) {
-
-        Map<String, Object> result = new HashMap<>();
-        int teil1Score = scoreFormFields(answers, examSection);
-
-        // Teil 2 requires AI evaluation - return template
-        Map<String, Object> teil2Template = new HashMap<>();
-        teil2Template.put("score", 0);
-        teil2Template.put("max", 15);
-        teil2Template.put("status", "PENDING_AI_EVALUATION");
-        teil2Template.put("email_content", answers.get("email_section"));
-
-        result.put("teil1_form", teil1Score);
-        result.put("teil1_max", 10);
-        result.put("teil2_email", teil2Template);
-        result.put("total_provisional", teil1Score); // Will be updated after AI evaluation
-        result.put("total_max", 25);
-
-        return result;
+    private static double aiMax(Map<String, Object> ai, double macDinh) {
+        double max = numberOf(ai.get("max"));
+        return max > 0 ? max : macDinh;
     }
 
-    /**
-     * Auto-score form fields - check required fields are filled
-     */
-    private int scoreFormFields(Map<String, Object> answers, Map<String, Object> examSection) {
-        int score = 0;
-        int requiredFields = 0;
-
-        for (Map<String, Object> teil : teileList(examSection)) {
-            if ("FILL_FORM".equals(teil.get("type"))) {
-                Object fieldsRaw = teil.get("form_fields");
-                if (fieldsRaw instanceof List<?> fields) {
-                    requiredFields = fields.size();
-                    for (int i = 0; i < fields.size(); i++) {
-                        Object fieldAnswer = answers.get("form_" + i);
-                        if (fieldAnswer instanceof String s && !s.trim().isEmpty()) {
-                            score += 1;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Scale score to 10 points max
-        return requiredFields > 0 ? (score * 10) / requiredFields : 0;
+    private static double numberOf(Object value) {
+        return value instanceof Number n ? n.doubleValue() : 0;
     }
 
-    /**
-     * Score SPRECHEN section using AI evaluation when a transcript is available.
-     * Falls back to manual evaluation template if no transcript is found.
-     */
-    public Map<String, Object> scoreSperechenSection(
-            long userId,
-            Map<String, Object> answers,
-            Map<String, Object> examSection) {
-
-        // Try to find the student's spoken transcript from answers
-        String transcript = extractTranscript(answers);
-        String taskPrompt = extractSprechenTaskPrompt(examSection);
-        String cefrLevel = extractCefrLevel(examSection);
-
-        Map<String, Object> aiEval = aiEvaluator.evaluateSprechen(userId, transcript, taskPrompt, cefrLevel);
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("ai_evaluation", aiEval);
-        result.put("total_provisional", aiEval.getOrDefault("total", 0));
-        result.put("total_max", 25);
-        result.put("status", aiEval.getOrDefault("status", "PENDING_AI_EVALUATION"));
-
-        return result;
+    private static double clamp01(double value) {
+        return Math.max(0, Math.min(1, value));
     }
 
-    private String extractTranscript(Map<String, Object> answers) {
-        // Check common transcript keys
-        for (String key : List.of("sprechen_transcript", "transcript", "speaking_transcript", "audio_transcript")) {
-            Object val = answers.get(key);
-            if (val instanceof String s && !s.isBlank()) {
-                return s;
-            }
-        }
-        return "";
-    }
-
-    private String extractSprechenTaskPrompt(Map<String, Object> examSection) {
-        List<Map<String, Object>> teile = teileList(examSection);
-        if (!teile.isEmpty()) {
-            Object prompt = teile.get(0).get("prompt");
-            if (prompt instanceof String s) return s;
-            Object instructions = teile.get(0).get("instructions");
-            if (instructions instanceof String s) return s;
-        }
-        return "";
-    }
-
-    private String extractCefrLevel(Map<String, Object> examSection) {
-        Object level = examSection.get("cefr_level");
-        if (level instanceof String s && !s.isBlank()) return s;
-        Object level2 = examSection.get("cefrLevel");
-        if (level2 instanceof String s && !s.isBlank()) return s;
-        return "B1";
-    }
-
-    /**
-     * Calculate total exam score from all sections
-     */
-    public int calculateTotalScore(Map<String, Object> detailedScores) {
-        int total = 0;
-
-        for (String section : List.of("LESEN", "HOEREN", "SCHREIBEN", "SPRECHEN")) {
-            Map<String, Object> sectionScore = (Map<String, Object>) detailedScores.get(section);
-            if (sectionScore != null && sectionScore.containsKey("total")) {
-                Object scoreObj = sectionScore.get("total");
-                if (scoreObj instanceof Integer) {
-                    total += (Integer) scoreObj;
-                } else if (scoreObj instanceof Double) {
-                    total += ((Double) scoreObj).intValue();
-                }
-            }
-        }
-
-        return total;
-    }
-
-    /**
-     * Determine if exam passed (>= 60 points out of 100)
-     */
-    public boolean isPassed(int totalScore) {
-        return totalScore >= 60;
-    }
-
-    /**
-     * Identify weak areas - sections where user scored < 60%
-     */
-    public List<String> identifyWeakAreas(Map<String, Object> detailedScores) {
-        List<String> weakAreas = new ArrayList<>();
-
-        for (String section : List.of("LESEN", "HOEREN", "SCHREIBEN", "SPRECHEN")) {
-            Map<String, Object> sectionScore = (Map<String, Object>) detailedScores.get(section);
-            if (sectionScore != null) {
-                Object totalObj = sectionScore.get("total");
-                Object maxObj = sectionScore.get("max");
-
-                if (totalObj != null && maxObj != null) {
-                    int total = ((Number) totalObj).intValue();
-                    int max = ((Number) maxObj).intValue();
-                    int percentage = max > 0 ? (total * 100) / max : 0;
-
-                    if (percentage < 60) {
-                        weakAreas.add(section);
-                    }
-                }
-            }
-        }
-
-        return weakAreas;
-    }
-
-    /**
-     * Generate comprehensive detailed scores JSON
-     */
-    public Map<String, Object> buildDetailedScoresJson(
-            int lesenScore,
-            int hoerenScore,
-            Map<String, Object> schreibenScores,
-            Map<String, Object> sprechenScores) {
-
-        Map<String, Object> result = new HashMap<>();
-
-        // LESEN
-        result.put("LESEN", Map.of(
-            "total", lesenScore,
-            "max", 25,
-            "percentage", (lesenScore * 100) / 25,
-            "status", "COMPLETED"
-        ));
-
-        // HOEREN
-        result.put("HOEREN", Map.of(
-            "total", hoerenScore,
-            "max", 25,
-            "percentage", (hoerenScore * 100) / 25,
-            "status", "COMPLETED"
-        ));
-
-        // SCHREIBEN
-        result.put("SCHREIBEN", schreibenScores);
-
-        // SPRECHEN
-        result.put("SPRECHEN", sprechenScores);
-
-        return result;
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> castMap(Map<?, ?> map) {
+        return (Map<String, Object>) map;
     }
 }

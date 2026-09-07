@@ -8,7 +8,8 @@ import { AlertCircle, ChevronRight, ShieldAlert, Trophy } from 'lucide-react'
 import api from '@/lib/api'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { GaBtn, GaCap, GaPageHdr, LoadingState, ErrorBanner, TkBadge, GaStatStrip } from '@/components/ui-v2'
-import { GaSection, GaMultiBars, GaArea, GaBarRow } from '../../analyticsShared'
+import { GaSection, GaBars, GaChartData, GaMultiBars, GaArea, GaBarRow } from '../../analyticsShared'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 /**
  * /v2/student/stats — thống kê học tập cá nhân (vỏ Galerie).
@@ -43,6 +44,9 @@ type AnalyticsSummary = {
   totalSpeakingMinutes: number
   totalSessionsCompleted: number
   wordsDueForReview: number
+  /** Khoảng thống kê do backend chốt theo ngày lịch VN — không tự suy từ đồng hồ máy khách. */
+  rangeStart?: string
+  rangeEnd?: string
   weeklyBreakdown: DayStats[]
   errorsByType: Record<string, number>
   topWeakPoints: string[]
@@ -98,6 +102,7 @@ const shortErrorLabel = (code: string) => code.split('.').pop()?.replace(/_/g, '
 export default function V2StudentStatsPage() {
   usePageTimeTracker('stats')
   const t = useTranslations('v2.student.stats')
+  const fmt = useFmt()
   const router = useRouter()
 
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null)
@@ -105,30 +110,69 @@ export default function V2StudentStatsPage() {
   const [errorAnalytics, setErrorAnalytics] = useState<ErrorAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
+  const [recError, setRecError] = useState(false)
+  const [errError, setErrError] = useState(false)
+
+  // F09: ba nguồn độc lập ⇒ ba trạng thái lỗi độc lập. Bản cũ chỉ bật cờ `failed` khi /user/analytics
+  // hỏng; hai nguồn kia lỗi thì state giữ giá trị khởi tạo (mảng rỗng / null) và khối tương ứng
+  // BIẾN MẤT khỏi trang mà không nói gì. Người học không phân biệt được "chưa có gợi ý nào" với
+  // "không tải được gợi ý", và không có cách nào thử lại ngoài F5 cả trang.
+  const loadRecommendations = useCallback(async () => {
+    setRecError(false)
+    try {
+      const res = await api.get<Recommendations>('/user/recommendations')
+      setRecommendations(res.data.items ?? [])
+    } catch {
+      setRecommendations([])
+      setRecError(true)
+    }
+  }, [])
+
+  const loadErrorAnalytics = useCallback(async () => {
+    setErrError(false)
+    try {
+      const res = await api.get<ErrorAnalytics>('/user/error-analytics')
+      setErrorAnalytics(res.data)
+    } catch {
+      setErrorAnalytics(null)
+      setErrError(true)
+    }
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
     setFailed(false)
-    const [analyticsRes, recRes, errRes] = await Promise.allSettled([
-      api.get<AnalyticsSummary>('/user/analytics'),
-      api.get<Recommendations>('/user/recommendations'),
-      api.get<ErrorAnalytics>('/user/error-analytics'),
+    const [analyticsRes] = await Promise.all([
+      api.get<AnalyticsSummary>('/user/analytics').then(
+        (r) => ({ ok: true as const, data: r.data }),
+        () => ({ ok: false as const, data: null }),
+      ),
+      loadRecommendations(),
+      loadErrorAnalytics(),
     ])
-    if (analyticsRes.status === 'fulfilled') setAnalytics(analyticsRes.value.data)
+    if (analyticsRes.ok) setAnalytics(analyticsRes.data)
     else setFailed(true)
-    if (recRes.status === 'fulfilled') setRecommendations(recRes.value.data.items ?? [])
-    if (errRes.status === 'fulfilled') setErrorAnalytics(errRes.value.data)
     setLoading(false)
-  }, [])
+  }, [loadRecommendations, loadErrorAnalytics])
 
   useEffect(() => { void load() }, [load])
 
+  // Nhãn ngày phải theo locale ĐANG CHỌN trên giao diện. `toLocaleDateString(undefined, …)` lấy
+  // locale của trình duyệt, nên người đang xem bản tiếng Đức trên máy cài tiếng Việt thấy "Th 2".
   const weekly = (analytics?.weeklyBreakdown ?? []).map((d) => ({
-    label: new Date(d.date).toLocaleDateString(undefined, { weekday: 'short' }),
+    label: fmt.date(d.date, { weekday: 'short' }),
     learned: d.wordsLearned,
     reviewed: d.wordsReviewed,
     speaking: d.speakingMinutes,
   }))
+
+  // F05: khoảng thực sự là today−6..today theo lịch VN (LearningAnalyticsService.BUSINESS_ZONE),
+  // không phải "tuần này" — một tuần lịch bắt đầu từ thứ Hai và co lại vào đầu tuần. Hiện đúng
+  // khoảng backend đã cộng, thay vì để người đọc tự đoán.
+  const rangeLabel =
+    analytics?.rangeStart && analytics?.rangeEnd
+      ? `${fmt.date(analytics.rangeStart, { day: '2-digit', month: '2-digit' })} – ${fmt.date(analytics.rangeEnd, { day: '2-digit', month: '2-digit' })}`
+      : null
 
   const topErrors = Object.entries(analytics?.errorsByType ?? {})
     .sort(([, a], [, b]) => b - a)
@@ -166,9 +210,9 @@ export default function V2StudentStatsPage() {
               {/* KPI 7 ngày */}
               <GaStatStrip
                 items={[
-                  { label: t('kpi.learned'), value: analytics.totalWordsLearned, sub: t('kpi.thisWeek'), tone: 'blue' },
+                  { label: t('kpi.learned'), value: analytics.totalWordsLearned, sub: rangeLabel ?? t('kpi.last7Days'), tone: 'blue' },
                   { label: t('kpi.reviewed'), value: analytics.totalWordsReviewed, sub: t('kpi.words'), tone: 'green' },
-                  { label: t('kpi.speaking'), value: `${analytics.totalSpeakingMinutes}′`, sub: t('kpi.thisWeek'), tone: 'orange' },
+                  { label: t('kpi.speaking'), value: `${analytics.totalSpeakingMinutes}′`, sub: rangeLabel ?? t('kpi.last7Days'), tone: 'orange' },
                   {
                     label: t('kpi.due'),
                     value: analytics.wordsDueForReview,
@@ -179,35 +223,70 @@ export default function V2StudentStatsPage() {
                 ]}
               />
 
-              {/* Hoạt động 7 ngày */}
-              <GaSection title={t('weeklyTitle')}>
-                {weekly.length === 0 ? (
-                  <p className="ga-ui py-8 text-center text-[13.5px] text-ga-muted">{t('noActivity')}</p>
-                ) : (
-                  <>
-                    <GaMultiBars
-                      data={weekly}
-                      series={[
-                        { key: 'learned', name: t('series.learned'), color: '#2F6FC9' },
-                        { key: 'reviewed', name: t('series.reviewed'), color: '#1E9E61' },
-                        { key: 'speaking', name: t('series.speaking'), color: '#E07B39' },
-                      ]}
-                    />
-                    <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2">
-                      {[
-                        ['#2F6FC9', t('series.learned')],
-                        ['#1E9E61', t('series.reviewed')],
-                        ['#E07B39', t('series.speaking')],
-                      ].map(([color, label]) => (
-                        <span key={label} className="ga-ui flex items-center gap-1.5 text-[12px] text-ga-muted">
-                          <span className="h-2.5 w-2.5 rounded-[2px]" style={{ background: color }} />
-                          {label}
-                        </span>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </GaSection>
+              {/* F07: từ vựng (đơn vị TỪ) và luyện nói (đơn vị PHÚT) từng nằm chung một GaMultiBars,
+                  tức chung một trục Y. Cột "5 từ" và cột "5 phút" cao bằng nhau, mời người đọc so
+                  sánh hai đại lượng không so sánh được. Tách thành hai biểu đồ, mỗi cái một trục. */}
+              <div className="grid gap-[22px] lg:grid-cols-2">
+                <GaSection
+                  title={rangeLabel ? t('vocabTitleRange', { range: rangeLabel }) : t('vocabTitle')}
+                  description={t('vocabDesc')}
+                >
+                  {weekly.length === 0 ? (
+                    <p className="ga-ui py-8 text-center text-ga-small text-ga-muted">{t('noActivity')}</p>
+                  ) : (
+                    <>
+                      <GaMultiBars
+                        data={weekly}
+                        series={[
+                          { key: 'learned', name: t('series.learned'), color: '#2F6FC9' },
+                          { key: 'reviewed', name: t('series.reviewed'), color: '#1E9E61' },
+                        ]}
+                      />
+                      <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2">
+                        {[
+                          ['#2F6FC9', t('series.learned')],
+                          ['#1E9E61', t('series.reviewed')],
+                        ].map(([color, label]) => (
+                          <span key={label} className="ga-ui flex items-center gap-1.5 text-ga-caption text-ga-muted">
+                            <span className="h-2.5 w-2.5 rounded-[2px]" style={{ background: color }} />
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="ga-ui mt-2 text-center text-ga-caption text-ga-muted">{t('unitWords')}</p>
+                      <GaChartData
+                        summaryLabel={t('showTable')}
+                        columns={[t('colDay'), t('series.learned'), t('series.reviewed')]}
+                        rows={weekly.map((d) => ({ label: d.label, values: [fmt.num(d.learned), fmt.num(d.reviewed)] }))}
+                      />
+                    </>
+                  )}
+                </GaSection>
+
+                <GaSection
+                  title={rangeLabel ? t('speakingTitleRange', { range: rangeLabel }) : t('speakingTitle')}
+                  description={t('speakingDesc')}
+                >
+                  {weekly.length === 0 ? (
+                    <p className="ga-ui py-8 text-center text-ga-small text-ga-muted">{t('noActivity')}</p>
+                  ) : (
+                    <>
+                      <GaBars
+                        data={weekly.map((d) => ({ label: d.label, value: d.speaking }))}
+                        color="#E07B39"
+                        height={190}
+                        valueFmt={(v) => `${fmt.num(v)}′`}
+                      />
+                      <p className="ga-ui mt-2 text-center text-ga-caption text-ga-muted">{t('unitMinutes')}</p>
+                      <GaChartData
+                        summaryLabel={t('showTable')}
+                        columns={[t('colDay'), t('series.speaking')]}
+                        rows={weekly.map((d) => ({ label: d.label, values: [`${fmt.num(d.speaking)}′`] }))}
+                      />
+                    </>
+                  )}
+                </GaSection>
+              </div>
 
               <div className="grid gap-[22px] md:grid-cols-2">
                 {/* Lỗi thường gặp (7 ngày) */}
@@ -251,7 +330,12 @@ export default function V2StudentStatsPage() {
               </div>
 
               {/* Xu hướng lỗi 30 ngày */}
-              {trend.length > 0 && (
+              {errError && (
+                <GaSection title={t('errorTrendTitle')}>
+                  <ErrorBanner message={t('errorTrendLoadError')} onRetry={() => void loadErrorAnalytics()} />
+                </GaSection>
+              )}
+              {!errError && trend.length > 0 && (
                 <GaSection
                   title={t('errorTrendTitle')}
                   right={
@@ -265,11 +349,21 @@ export default function V2StudentStatsPage() {
                   }
                 >
                   <GaArea data={trend} color="#DA291C" />
+                  <GaChartData
+                    summaryLabel={t('showTable')}
+                    columns={[t('colDay'), t('colErrorCount')]}
+                    rows={trend.map((d) => ({ label: d.label, values: [fmt.num(d.value)] }))}
+                  />
                 </GaSection>
               )}
 
               {/* Gợi ý (RecommendationService) */}
-              {recommendations.length > 0 && (
+              {recError && (
+                <GaSection title={t('recommendationsTitle')}>
+                  <ErrorBanner message={t('recommendationsLoadError')} onRetry={() => void loadRecommendations()} />
+                </GaSection>
+              )}
+              {!recError && recommendations.length > 0 && (
                 <GaSection title={t('recommendationsTitle')} bodyClassName="p-0">
                   <ul>
                     {recommendations.map((item, i) => {
