@@ -168,6 +168,7 @@
         "readError": "Datei konnte nicht gelesen werden. Als CSV (UTF-8) speichern.",
         "preview": "Vorschau: {count} Zeilen",
         "previewMore": "… und {count} weitere",
+        "colLine": "Zeile",
         "colEmail": "E-Mail",
         "colName": "Anzeigename",
         "colPhone": "Telefon",

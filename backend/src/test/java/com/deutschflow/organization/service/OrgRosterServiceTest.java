@@ -516,4 +516,51 @@ class OrgRosterServiceTest {
 
         verify(membershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
     }
+
+    @Test
+    @DisplayName("PR-A5c: ô bọc ngoặc kép chứa xuống dòng vẫn là MỘT bản ghi, không chẻ đôi")
+    void splitNonEmptyLines_quotedNewlineStaysOneRecord() {
+        List<OrgRosterService.CsvRecord> recs = OrgRosterService.splitNonEmptyLines("foo@x.com,\"Dòng1\nDòng2\",0912");
+
+        assertThat(recs).hasSize(1);
+        assertThat(OrgRosterService.splitCsvLine(recs.get(0).text()))
+                .containsExactly("foo@x.com", "Dòng1\nDòng2", "0912");
+    }
+
+    @Test
+    @DisplayName("PR-A5c: nhiều bản ghi, một bản trải hai dòng — không sinh dòng lỗi ma")
+    void splitNonEmptyLines_mixedRecords() {
+        List<OrgRosterService.CsvRecord> recs = OrgRosterService.splitNonEmptyLines(
+                "a@x.com,A,1\r\nb@x.com,\"B1\nB2\",2\r\n\r\nc@x.com,C,3");
+
+        assertThat(recs).hasSize(3);
+        assertThat(OrgRosterService.splitCsvLine(recs.get(1).text()))
+                .containsExactly("b@x.com", "B1\nB2", "2");
+    }
+
+    @Test
+    @DisplayName("PR-A5c: ngoặc kép escape trong ô nhiều dòng về đúng một dấu ngoặc")
+    void splitNonEmptyLines_escapedQuoteInsideMultilineCell() {
+        List<OrgRosterService.CsvRecord> recs = OrgRosterService.splitNonEmptyLines("a@x.com,\"nói \"\"xin chào\"\"\nrồi đi\"");
+
+        assertThat(recs).hasSize(1);
+        assertThat(OrgRosterService.splitCsvLine(recs.get(0).text())[1]).isEqualTo("nói \"xin chào\"\nrồi đi");
+    }
+
+    @Test
+    @DisplayName("PR-A5c: ngoặc kép không đóng tới cuối tệp không làm mất dữ liệu")
+    void splitNonEmptyLines_unclosedQuoteKeepsRest() {
+        List<OrgRosterService.CsvRecord> recs = OrgRosterService.splitNonEmptyLines("a@x.com,\"chưa đóng\nb@x.com,B,2");
+
+        assertThat(recs).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("PR-A5c: số dòng báo lỗi là dòng VẬT LÝ trong tệp, tính cả header")
+    void splitNonEmptyLines_reportsPhysicalLineNumber() {
+        List<OrgRosterService.CsvRecord> recs = OrgRosterService.splitNonEmptyLines(
+                "email,displayName,phone\na@x.com,A,1\nb@x.com,\"B1\nB2\",2\nc@x.com,C,3");
+
+        assertThat(recs).extracting(OrgRosterService.CsvRecord::line).containsExactly(1, 2, 3, 5);
+    }
 }

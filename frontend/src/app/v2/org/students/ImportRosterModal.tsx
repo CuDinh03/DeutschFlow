@@ -145,6 +145,7 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
                 <table className="w-full text-ga-small">
                   <thead>
                     <tr className="text-left text-ga-muted">
+                      <th className="px-3 py-1.5 font-semibold">{t('colLine')}</th>
                       <th className="px-3 py-1.5 font-semibold">{t('colEmail')}</th>
                       <th className="px-3 py-1.5 font-semibold">{t('colName')}</th>
                       <th className="px-3 py-1.5 font-semibold">{t('colPhone')}</th>
@@ -153,6 +154,8 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
                   <tbody>
                     {rows.slice(0, PREVIEW_ROWS).map((r) => (
                       <tr key={r.line} className="border-t border-ga-line">
+                        {/* Số dòng vật lý trong tệp — người dùng dò lại đúng chỗ trong Excel khi có lỗi. */}
+                        <td className="px-3 py-1.5 font-mono text-ga-muted tabular-nums">{r.line}</td>
                         <td className="px-3 py-1.5 font-mono text-ga-ink">{r.email || '—'}</td>
                         <td className="px-3 py-1.5 text-ga-ink">{r.displayName || '—'}</td>
                         <td className="px-3 py-1.5 text-ga-muted">{r.phone || '—'}</td>
