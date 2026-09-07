@@ -22,7 +22,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { DetailedScoreBreakdown } from '@/components/exam/DetailedScoreBreakdown'
 import { ExamFeedback } from '@/components/exam/ExamFeedback'
 import { WeakAreasRecommendation } from '@/components/exam/WeakAreasRecommendation'
-import { GaCap, GaCard, GaPageHdr, LoadingState, TkBadge, TkSeg } from '@/components/ui-v2'
+import { ConfirmDialog, GaCap, GaCard, GaPageHdr, LoadingState, TkBadge, TkSeg } from '@/components/ui-v2'
 import { ExamShell, type ExamSaveState } from '@/components/exam/ExamShell'
 import { ExamRecoveryPanel, ExamTaking, SECTION_COLOR, type ActiveExamData } from './ExamTaking'
 import { useFmt } from '@/lib/i18n/useFmt'
@@ -158,6 +158,8 @@ function MockExamRunner() {
   // Nhãn phần thi: backend chỉ trả `label_vi` (LESEN/HOEREN/SCHREIBEN/SPRECHEN, xem seed V183/V184/V217),
   // nên vỏ thi lấy nhãn từ catalog dùng chung với màn kết quả; pack lạ thì rơi về nhãn backend.
   const tParts = useTranslations('v2.student.examResult.parts')
+  // Nhãn Huỷ của hộp thoại xác nhận dùng chung với mọi màn /v2 — không tự đặt khoá riêng.
+  const tc = useTranslations('v2.common')
   const fmt = useFmt()
   const searchParams = useSearchParams()
   const deepLinkExamId = Number(searchParams.get('examId')) || null
@@ -188,6 +190,9 @@ function MockExamRunner() {
   const [saveState, setSaveState] = useState<ExamSaveState>('saving')
   const [savedAt, setSavedAt] = useState<number | undefined>(undefined)
   const [submitting, setSubmitting] = useState(false)
+  // Hộp thoại xác nhận đang mở (null = không có). Chỉ hai lối người dùng CHỦ ĐỘNG chọn đi qua đây;
+  // tự nộp khi hết giờ không hỏi lại.
+  const [confirmKind, setConfirmKind] = useState<'submit' | 'exit' | null>(null)
   const submittedByTimerRef = useRef(false)
   const autoStartedRef = useRef(false)
 
@@ -228,10 +233,13 @@ function MockExamRunner() {
     if (me) void load()
   }, [me, load])
 
-  const submitExam = useCallback(
-    async (autoSubmit = false) => {
+  /**
+   * Nộp bài THẬT — không hỏi lại. Ba lối vào dùng chung đường này: người dùng đã bấm xác nhận
+   * trong ConfirmDialog, hết giờ (tự nộp), và bảng phục hồi khi trình chạy lỗi render.
+   */
+  const performSubmit = useCallback(
+    async () => {
       if (!activeAttemptId) return
-      if (!autoSubmit && !confirm(t('confirmSubmit'))) return
 
       setSubmitting(true)
       submittingRef.current = true // autosave tạm dừng khi finish đang bay
@@ -255,9 +263,27 @@ function MockExamRunner() {
     [activeAttemptId, answers, load, t, trackFeatureAction],
   )
 
+  /**
+   * `autoSubmit` = true → nộp thẳng (hết giờ, bảng phục hồi). false → MỞ ConfirmDialog thay vì
+   * `window.confirm`: hộp thoại gốc khoá luồng render của cả tab (quan sát prod 07/09/2026: trang
+   * treo hoàn toàn với công cụ tự động) và không nêu được hệ quả theo hệ thiết kế Galerie.
+   */
+  const submitExam = useCallback(
+    (autoSubmit = false) => {
+      if (!activeAttemptId) return
+      if (autoSubmit) {
+        void performSubmit()
+        return
+      }
+      setConfirmKind('submit')
+    },
+    [activeAttemptId, performSubmit],
+  )
+
+  // Hết hạn draft (server chốt) — đường tự nộp, không đi qua hộp thoại.
   useEffect(() => {
-    submitExamRef.current = () => void submitExam(true)
-  }, [submitExam])
+    submitExamRef.current = () => void performSubmit()
+  }, [performSubmit])
 
   // Đồng hồ trừ dần từng giây; mỗi lần server nhận autosave nó trả `remaining_seconds` và
   // resyncCountdown kéo đồng hồ về sự thật của server — tab bị throttle cũng không trôi lâu.
@@ -368,9 +394,9 @@ function MockExamRunner() {
   useEffect(() => {
     if (view === 'taking' && timeLeft === 0 && !submittedByTimerRef.current) {
       submittedByTimerRef.current = true
-      void submitExam(true)
+      void performSubmit()
     }
-  }, [view, timeLeft, submitExam])
+  }, [view, timeLeft, performSubmit])
 
   useEffect(() => {
     return () => {
@@ -456,10 +482,20 @@ function MockExamRunner() {
    * Thoát giữa bài. Có xác nhận VÀ nêu hậu quả thật: bài đã autosave lên server nên "Tiếp tục"
    * ở bất kỳ máy nào cũng quay lại được — còn đồng hồ thì vẫn chạy, thoát không làm nó dừng.
    */
-  const exitExam = useCallback(() => {
-    if (!confirm(t('confirmExit'))) return
+  const exitExam = useCallback(() => setConfirmKind('exit'), [])
+
+  // Người dùng đã xác nhận trong hộp thoại. Nộp: giữ hộp thoại ở trạng thái `loading` cho tới khi
+  // request xong — nộp được thì view đổi sang 'result' (hộp thoại tự rời cây), lỗi thì đóng lại
+  // để toast lỗi hiện ra và học viên làm tiếp.
+  const confirmSubmit = useCallback(async () => {
+    await performSubmit()
+    setConfirmKind(null)
+  }, [performSubmit])
+
+  const confirmExit = useCallback(() => {
+    setConfirmKind(null)
     setView('list')
-  }, [t])
+  }, [])
 
   const viewReview = async (attemptId: number) => {
     setReviewLoading(true)
@@ -494,66 +530,101 @@ function MockExamRunner() {
     const sections = activeExamData?.sections ?? []
     const section = sections[currentSectionIdx]
     return (
-      <ExamShell
-        sectionLabel={section ? `${section.name} — ${tParts.has(section.name) ? tParts(section.name) : section.label_vi}` : t('title')}
-        sectionIndex={currentSectionIdx}
-        sectionCount={sections.length}
-        answeredCount={answeredCount}
-        totalQuestions={totalQuestions}
-        secondsLeft={timeLeft}
-        saveState={saveState}
-        savedAt={savedAt}
-        onExit={exitExam}
-        submitSlot={
-          <button
-            type="button"
-            onClick={() => submitExam(false)}
-            disabled={submitting}
-            className="ga-ui inline-flex min-h-11 shrink-0 items-center gap-2 rounded-ga bg-ga-green px-3 text-ga-small font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0 lg:px-4 lg:py-2"
-          >
-            {submitting ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Send size={16} aria-hidden />}
-            {t('submit')}
-          </button>
-        }
-      >
-        <ErrorBoundary
-          onError={(error, info) => {
-            // Self-diagnosing: surface the real error + exam context to PostHog so a
-            // recurrence is actionable (the route-level boundary only exposes a digest).
-            posthog?.capture('mock_exam_render_error', {
-              feature: 'mock_exam',
-              surface: 'v2',
-              attempt_id: activeAttemptId,
-              section_index: currentSectionIdx,
-              answered_count: answeredCount,
-              message: error.message,
-              stack: error.stack,
-              component_stack: info.componentStack,
-            })
-          }}
-          fallback={(reset) => (
-            <ExamRecoveryPanel
-              title={t('recoveryRenderTitle')}
-              message={t('recoveryRenderDesc')}
-              onRetry={reset}
-              onSubmit={() => submitExam(true)}
-              onExit={exitExam}
-              submitting={submitting}
-            />
-          )}
+      <>
+        <ExamShell
+          sectionLabel={section ? `${section.name} — ${tParts.has(section.name) ? tParts(section.name) : section.label_vi}` : t('title')}
+          sectionIndex={currentSectionIdx}
+          sectionCount={sections.length}
+          answeredCount={answeredCount}
+          totalQuestions={totalQuestions}
+          secondsLeft={timeLeft}
+          saveState={saveState}
+          savedAt={savedAt}
+          onExit={exitExam}
+          submitSlot={
+            <button
+              type="button"
+              onClick={() => submitExam(false)}
+              disabled={submitting}
+              className="ga-ui inline-flex min-h-11 shrink-0 items-center gap-2 rounded-ga bg-ga-green px-3 text-ga-small font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0 lg:px-4 lg:py-2"
+            >
+              {submitting ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Send size={16} aria-hidden />}
+              {t('submit')}
+            </button>
+          }
         >
-          <ExamTaking
-            data={activeExamData}
-            currentSectionIdx={currentSectionIdx}
-            onSectionChange={setCurrentSectionIdx}
-            answers={answers}
-            onAnswerChange={handleAnswerChange}
-            submitting={submitting}
-            onSubmit={submitExam}
-            onExit={exitExam}
-          />
-        </ErrorBoundary>
-      </ExamShell>
+          <ErrorBoundary
+            onError={(error, info) => {
+              // Self-diagnosing: surface the real error + exam context to PostHog so a
+              // recurrence is actionable (the route-level boundary only exposes a digest).
+              posthog?.capture('mock_exam_render_error', {
+                feature: 'mock_exam',
+                surface: 'v2',
+                attempt_id: activeAttemptId,
+                section_index: currentSectionIdx,
+                answered_count: answeredCount,
+                message: error.message,
+                stack: error.stack,
+                component_stack: info.componentStack,
+              })
+            }}
+            fallback={(reset) => (
+              <ExamRecoveryPanel
+                title={t('recoveryRenderTitle')}
+                message={t('recoveryRenderDesc')}
+                onRetry={reset}
+                onSubmit={() => submitExam(true)}
+                onExit={exitExam}
+                submitting={submitting}
+              />
+            )}
+          >
+            <ExamTaking
+              data={activeExamData}
+              currentSectionIdx={currentSectionIdx}
+              onSectionChange={setCurrentSectionIdx}
+              answers={answers}
+              onAnswerChange={handleAnswerChange}
+              submitting={submitting}
+              onSubmit={submitExam}
+              onExit={exitExam}
+            />
+          </ErrorBoundary>
+        </ExamShell>
+
+        {/* Nộp bài & thoát: ConfirmDialog dùng chung (§2.11) thay `window.confirm`. Hộp thoại gốc
+            khoá luồng render của cả tab và chỉ hỏi trống không — ở đây nêu thẳng hệ quả. Đặt NGOÀI
+            ErrorBoundary để bảng phục hồi (khi ExamTaking lỗi render) vẫn mở được hộp thoại thoát.
+            Đường tự nộp khi hết giờ KHÔNG đi qua đây. */}
+        <ConfirmDialog
+          open={confirmKind === 'submit'}
+          onOpenChange={(o) => {
+            if (!o) setConfirmKind(null)
+          }}
+          title={t('confirmSubmitTitle')}
+          description={t('confirmSubmit')}
+          details={totalQuestions > 0 ? [t('confirmSubmitAnswered', { answered: answeredCount, total: totalQuestions })] : undefined}
+          confirmLabel={t('submit')}
+          cancelLabel={tc('cancel')}
+          destructive={false}
+          loading={submitting}
+          onConfirm={() => void confirmSubmit()}
+        />
+
+        <ConfirmDialog
+          open={confirmKind === 'exit'}
+          onOpenChange={(o) => {
+            if (!o) setConfirmKind(null)
+          }}
+          title={t('confirmExitTitle')}
+          description={t('confirmExit')}
+          details={[t('confirmExitDetail')]}
+          confirmLabel={t('confirmExitAction')}
+          cancelLabel={tc('cancel')}
+          destructive={false}
+          onConfirm={confirmExit}
+        />
+      </>
     )
   }
 
