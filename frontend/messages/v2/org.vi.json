@@ -178,7 +178,7 @@
         "classNone": "Không gắn lớp",
         "classTruncated": "Chỉ hiện 50 lớp đầu — lớp khác gắn sau ở trang Lớp học.",
         "idempotentNote": "Nhập lại cùng file không tạo trùng: email đã có chỉ được liên kết, không tạo tài khoản mới.",
-        "planNote": "Học viên đang có gói cá nhân sẽ dùng gói trung tâm trong thời gian là thành viên (gói cá nhân đang hoạt động bị thay thế cho tới khi chính sách tạm dừng/khôi phục được triển khai).",
+        "planNote": "Học viên đang có gói cá nhân sẽ dùng gói trung tâm trong thời gian là thành viên. Gói cá nhân đã trả tiền được TẠM DỪNG và giữ nguyên phần thời hạn còn lại — rời trung tâm là nhận lại đầy đủ, thời gian ở đây không bị tính vào gói đó.",
         "cancel": "Hủy",
         "submit": "Nhập {count} dòng",
         "close": "Đóng",

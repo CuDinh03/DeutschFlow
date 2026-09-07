@@ -1,5 +1,6 @@
 package com.deutschflow.common.quota;
 
+import com.deutschflow.organization.service.OrgEntitlementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -28,11 +29,13 @@ public class SubscriptionReconcileJob {
 
     private final JdbcTemplate jdbcTemplate;
     private final QuotaService quotaService;
+    private final OrgEntitlementService orgEntitlementService;
 
     @Scheduled(cron = "0 */10 * * * *")
     @SchedulerLock(name = "subscriptionReconcile", lockAtMostFor = "PT9M", lockAtLeastFor = "PT0S")
     public void reconcileStaleSubscriptions() {
         Instant now = Instant.now();
+        expireOrgEntitlements(now);
 
         // Users with subscriptions that likely need reconciliation:
         // - FREE with no ends_at (trial never got expiry set)
@@ -65,5 +68,37 @@ public class SubscriptionReconcileJob {
         }
         log.info("[SubscriptionReconcileJob] Reconciled {}/{} subscriptions ({} failed)",
                 succeeded, userIds.size(), failed);
+    }
+
+    /**
+     * Giấy phép trung tâm hết hạn (DEC-09, PR-A4): kết thúc quyền lợi ORG rồi khôi phục gói cá nhân
+     * đang tạm dừng.
+     *
+     * <p>Phải là vòng quét RIÊNG chứ không ghép vào truy vấn bên dưới: truy vấn đó lọc theo
+     * {@code plan_code}, mà gói của trung tâm mang chính plan_code PRO/ULTRA nên sẽ rơi vào nhánh
+     * "hết hạn nhưng còn ví thì gia hạn ân huệ" — nhánh ấy giữ dòng ORG sống thêm và không bao giờ
+     * trả gói cá nhân về.
+     */
+    private void expireOrgEntitlements(Instant now) {
+        List<Long> userIds = jdbcTemplate.queryForList("""
+                SELECT DISTINCT user_id FROM user_subscriptions
+                WHERE source = 'ORG' AND status = 'ACTIVE'
+                  AND ends_at IS NOT NULL AND ends_at <= ?
+                LIMIT 500
+                """, Long.class, Timestamp.from(now));
+        if (userIds.isEmpty()) {
+            return;
+        }
+        int done = 0;
+        for (Long userId : userIds) {
+            try {
+                orgEntitlementService.expireAndResume(userId);
+                done++;
+            } catch (Exception e) {
+                log.warn("[SubscriptionReconcileJob][ORG] userId={}: {}", userId, e.getMessage());
+            }
+        }
+        log.info("[SubscriptionReconcileJob][ORG] Hết hạn giấy phép trung tâm: xử lý {}/{} người dùng",
+                done, userIds.size());
     }
 }
