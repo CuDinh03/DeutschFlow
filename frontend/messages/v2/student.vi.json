@@ -1572,7 +1572,9 @@
       "speakingTitle": "Luyện nói (7 ngày)",
       "speakingTitleRange": "Luyện nói · {range}",
       "unitWords": "đơn vị: từ",
-      "unitMinutes": "đơn vị: phút"
+      "unitMinutes": "đơn vị: phút",
+      "recommendationsLoadError": "Không tải được gợi ý. Đây không có nghĩa là bạn không còn việc cần làm.",
+      "errorTrendLoadError": "Không tải được xu hướng lỗi. Đây không có nghĩa là bạn đã sửa hết lỗi."
     },
     "errors": {
       "title": "Sổ lỗi ngữ pháp",

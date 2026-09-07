@@ -1572,7 +1572,9 @@
       "speakingTitle": "Sprechen (7 Tage)",
       "speakingTitleRange": "Sprechen · {range}",
       "unitWords": "Einheit: Wörter",
-      "unitMinutes": "Einheit: Minuten"
+      "unitMinutes": "Einheit: Minuten",
+      "recommendationsLoadError": "Vorschläge konnten nicht geladen werden. Das heißt nicht, dass nichts mehr zu tun ist.",
+      "errorTrendLoadError": "Fehlerverlauf konnte nicht geladen werden. Das heißt nicht, dass alle Fehler behoben sind."
     },
     "errors": {
       "title": "Fehlerbibliothek",

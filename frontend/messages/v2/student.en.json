@@ -1572,7 +1572,9 @@
       "speakingTitle": "Speaking (7 days)",
       "speakingTitleRange": "Speaking · {range}",
       "unitWords": "unit: words",
-      "unitMinutes": "unit: minutes"
+      "unitMinutes": "unit: minutes",
+      "recommendationsLoadError": "Could not load suggestions. This does not mean you have nothing left to do.",
+      "errorTrendLoadError": "Could not load the error trend. This does not mean all your errors are fixed."
     },
     "errors": {
       "title": "Error book",
