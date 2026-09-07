@@ -1546,12 +1546,11 @@
         "reviewed": "Reviewed",
         "speaking": "Speaking",
         "due": "Due",
-        "thisWeek": "this week",
         "words": "words",
-        "toReview": "to review"
+        "toReview": "to review",
+        "last7Days": "last 7 days"
       },
-      "weeklyTitle": "Activity (7 days)",
-      "noActivity": "No activity this week.",
+      "noActivity": "No activity in the last 7 days.",
       "series": {
         "learned": "Newly learned",
         "reviewed": "Reviewed",
@@ -1567,7 +1566,13 @@
       "recommendationsTitle": "Recommended for you",
       "badgesCap": "Badges",
       "badgesHint": "See every badge you have unlocked on the Achievements page.",
-      "badgesCta": "View badges"
+      "badgesCta": "View badges",
+      "vocabTitle": "Vocabulary (7 days)",
+      "vocabTitleRange": "Vocabulary · {range}",
+      "speakingTitle": "Speaking (7 days)",
+      "speakingTitleRange": "Speaking · {range}",
+      "unitWords": "unit: words",
+      "unitMinutes": "unit: minutes"
     },
     "errors": {
       "title": "Error book",

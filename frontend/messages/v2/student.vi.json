@@ -1546,12 +1546,11 @@
         "reviewed": "Đã ôn",
         "speaking": "Luyện nói",
         "due": "Đến hạn",
-        "thisWeek": "tuần này",
         "words": "từ vựng",
-        "toReview": "cần ôn lại"
+        "toReview": "cần ôn lại",
+        "last7Days": "7 ngày gần nhất"
       },
-      "weeklyTitle": "Hoạt động 7 ngày",
-      "noActivity": "Chưa có hoạt động nào trong tuần.",
+      "noActivity": "Chưa có hoạt động nào trong 7 ngày gần nhất.",
       "series": {
         "learned": "Học mới",
         "reviewed": "Ôn lại",
@@ -1567,7 +1566,13 @@
       "recommendationsTitle": "Gợi ý cho bạn",
       "badgesCap": "Huy hiệu",
       "badgesHint": "Xem toàn bộ huy hiệu đã mở khoá ở trang Thành tích.",
-      "badgesCta": "Xem huy hiệu"
+      "badgesCta": "Xem huy hiệu",
+      "vocabTitle": "Từ vựng (7 ngày)",
+      "vocabTitleRange": "Từ vựng · {range}",
+      "speakingTitle": "Luyện nói (7 ngày)",
+      "speakingTitleRange": "Luyện nói · {range}",
+      "unitWords": "đơn vị: từ",
+      "unitMinutes": "đơn vị: phút"
     },
     "errors": {
       "title": "Sổ lỗi ngữ pháp",

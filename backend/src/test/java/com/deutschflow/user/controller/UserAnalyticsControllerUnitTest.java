@@ -52,13 +52,17 @@ class UserAnalyticsControllerUnitTest {
     @Test
     void getAnalytics_returnsOkWithSummary() throws Exception {
         var summary = new LearningAnalyticsSummaryDto(
+                "2026-09-01", "2026-09-07",
                 120, 85, 45, 7, 12L, List.of(), Map.of(), List.of("Artikel", "Dativ"));
         when(analyticsService.getWeeklySummary(eq(1L))).thenReturn(summary);
 
         mvc.perform(get("/api/user/analytics"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalWordsLearned").value(120))
-                .andExpect(jsonPath("$.totalSessionsCompleted").value(7));
+                .andExpect(jsonPath("$.totalSessionsCompleted").value(7))
+                // Khoảng thống kê đi kèm payload để giao diện khỏi tự suy từ đồng hồ máy khách.
+                .andExpect(jsonPath("$.rangeStart").value("2026-09-01"))
+                .andExpect(jsonPath("$.rangeEnd").value("2026-09-07"));
     }
 
     @Test
