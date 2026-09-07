@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Plus } from 'lucide-react'
 import { format } from 'date-fns'
+import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { listClasses, type OrgClass } from '@/lib/orgApi'
 import { GaPageHdr, GaBtn, GaCap, TkSearch } from '@/components/ui-v2'
 import { CreateClassModal } from './CreateClassModal'
+import { CLASSES_PAGE_SIZE } from './pagination'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lớp học của tổ chức (GaOrgClasses) — teal, class LIST.
@@ -16,6 +18,9 @@ import { CreateClassModal } from './CreateClassModal'
 //   "Tạo lớp" → POST /org/classes (chọn tên + giáo viên phụ trách, CreateClassModal).
 // Option-1: OrgClass has no teacher NAME / LEVEL / student count / avg score → dropped
 //   (the proto's level/students/avg columns aren't backed).
+// PR-A2 (BF-03, 07/09/2026): phân trang thật thay `listClasses(0, 100)` cứng. Trang đầu PAGE_SIZE
+//   lớp, nút "Tải thêm" nối trang kế; đếm "đã tải N/M"; tìm kiếm + huy hiệu "chưa có GV" nói rõ
+//   chỉ tính trên phần đã tải. Tìm kiếm phía máy chủ (`q`) thuộc PR-A3 (O-2 backend).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEAL = '#11888A'
@@ -26,7 +31,10 @@ export default function V2OrgClassesPage() {
   const tc = useTranslations('v2.common')
   const router = useRouter()
   const [classes, setClasses] = useState<OrgClass[]>([])
+  const [total, setTotal] = useState(0)
+  const [nextPage, setNextPage] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [showCreate, setShowCreate] = useState(false)
@@ -34,8 +42,10 @@ export default function V2OrgClassesPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const page = await listClasses(0, 100)
+      const page = await listClasses(0, CLASSES_PAGE_SIZE)
       setClasses(page.content ?? [])
+      setTotal(page.totalElements ?? (page.content ?? []).length)
+      setNextPage(page.last === false ? (page.number ?? 0) + 1 : null)
       setError('')
     } catch (e: unknown) {
       setError(apiMessage(e))
@@ -44,10 +54,30 @@ export default function V2OrgClassesPage() {
     }
   }, [])
 
+  const loadMore = useCallback(async () => {
+    if (nextPage == null || loadingMore) return
+    setLoadingMore(true)
+    try {
+      const page = await listClasses(nextPage, CLASSES_PAGE_SIZE)
+      setClasses((prev) => {
+        const seen = new Set(prev.map((c) => c.id))
+        return [...prev, ...(page.content ?? []).filter((c) => !seen.has(c.id))]
+      })
+      setTotal(page.totalElements ?? total)
+      setNextPage(page.last === false ? (page.number ?? nextPage) + 1 : null)
+    } catch (e: unknown) {
+      toast.error(`${t('loadMoreError')} ${apiMessage(e)}`)
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [nextPage, loadingMore, total, t])
+
   useEffect(() => { void load() }, [load])
 
   const rows = useMemo(() => classes.filter((c) => c.name.toLowerCase().includes(query.trim().toLowerCase())), [classes, query])
   const unassigned = classes.filter((c) => c.teacherId == null).length
+  const allLoaded = nextPage == null
+  const remaining = Math.max(total - classes.length, 0)
 
   return (
     <div className="flex min-h-full flex-col">
@@ -65,15 +95,18 @@ export default function V2OrgClassesPage() {
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <GaCap>{t('count', { count: rows.length })}</GaCap>
+            <GaCap>{allLoaded ? t('count', { count: rows.length }) : t('loadedOf', { loaded: classes.length, total })}</GaCap>
             {unassigned > 0 && (
               <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-red)', background: 'var(--ga-red-soft)' }}>
-                {t('unassignedBadge', { count: unassigned })}
+                {allLoaded ? t('unassignedBadge', { count: unassigned }) : t('unassignedBadgePartial', { count: unassigned, loaded: classes.length })}
               </span>
             )}
           </div>
           <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchPlaceholder')} containerClassName="w-full sm:w-[220px]" />
         </div>
+        {!allLoaded && query.trim() !== '' && (
+          <p className="ga-ui mb-3 text-ga-caption text-ga-muted">{t('searchHint')}</p>
+        )}
 
         {loading ? (
           <div className="flex flex-col gap-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="ga-shimmer h-[54px] border border-ga-line" aria-hidden />)}</div>
@@ -114,6 +147,14 @@ export default function V2OrgClassesPage() {
                 </button>
               </div>
             ))}
+          </div>
+        )}
+
+        {!loading && !error && !allLoaded && (
+          <div className="mt-3 flex justify-center">
+            <GaBtn variant="ghost" size="sm" disabled={loadingMore} onClick={loadMore}>
+              {loadingMore ? tc('loading') : t('loadMore', { remaining })}
+            </GaBtn>
           </div>
         )}
       </div>
