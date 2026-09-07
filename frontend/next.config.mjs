@@ -70,6 +70,27 @@ const securityHeaders = [
 const nextConfig = {
   trailingSlash: true,
 
+  // Bộ kiểm chữ ký JWT của middleware — NHÚNG LÚC DỰNG, cố ý.
+  //
+  // Đo 07/09/2026: `process.env.JWT_RSA_PUBLIC_KEY` trong `src/middleware.ts` KHÔNG được Next
+  // nhúng sẵn, dù truyền biến qua shell hay qua `.env.production`; gói
+  // `.next/server/src/middleware.js` giữ nguyên 3 lượt tra cứu lúc chạy. Trên Amplify, biến của
+  // console chỉ sống trong container dựng nên tầng compute không thấy gì → `hasVerifierForV2`
+  // false → `passThrough()` → cổng vai trò tầng biên tắt LẶNG với mọi người đã đăng nhập
+  // (học viên mở được vỏ `/v2/admin`). Backend `@PreAuthorize` và `RoleAreaGuard` vẫn gác dữ
+  // liệu, nhưng lớp biên thì mất.
+  //
+  // Khai báo ở đây buộc Next thay thế bằng giá trị thật lúc dựng, nên giá trị nằm ngay trong
+  // gói middleware — không phụ thuộc việc Amplify có chuyển biến xuống môi trường chạy hay
+  // không. `JWT_RSA_PUBLIC_KEY` là khoá CÔNG KHAI và gói này chạy phía máy chủ, không gửi
+  // xuống trình duyệt.
+  //
+  // Giá trị giữ nguyên dạng PEM một dòng với `\n` thoát — middleware tự đổi lại. `?? ''` để
+  // build cục bộ không có biến vẫn chạy (cổng vai trò tự tắt đúng như nhánh degrade sẵn có).
+  env: {
+    JWT_RSA_PUBLIC_KEY: process.env.JWT_RSA_PUBLIC_KEY ?? '',
+  },
+
   // Image optimization stays ON for the Amplify web/SSR build so <Image> is actually optimized. (P1-5)
   images: {
     remotePatterns: [
