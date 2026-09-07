@@ -1,6 +1,5 @@
 package com.deutschflow.moderation.service;
 
-import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.messaging.entity.ClassChannelMessage;
 import com.deutschflow.messaging.repository.ClassChannelMessageRepository;
 import com.deutschflow.messaging.repository.MessageRepository;
@@ -25,6 +24,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.deutschflow.common.exception.NotFoundException;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * GAP-12: report tin nhắn lớp chỉ dành cho thành viên lớp. Report sao chép nội dung tin vào
@@ -70,8 +71,25 @@ class ContentReportServiceTest {
         when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, REPORTER)).thenReturn(false);
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, REPORTER)).thenReturn(false);
 
-        assertThrows(BadRequestException.class, () -> service.report(REPORTER, classReport()));
+        // GAP-12b: người ngoài lớp nhận ĐÚNG lỗi như khi ID không tồn tại — không có cách nào
+        // phân biệt "ID có thật ở lớp khác" với "ID không tồn tại".
+        assertThrows(NotFoundException.class, () -> service.report(REPORTER, classReport()));
 
+        verify(reportRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("GAP-12b: ID không tồn tại và ID thuộc lớp khác ném CÙNG loại lỗi — không dò được ID")
+    void unknownIdAndOutsiderAreIndistinguishable() {
+        when(classChannelMessageRepository.findById(MSG)).thenReturn(Optional.empty());
+        Throwable unknown = assertThrows(NotFoundException.class, () -> service.report(REPORTER, classReport()));
+
+        stubMessage();
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, REPORTER)).thenReturn(false);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, REPORTER)).thenReturn(false);
+        Throwable outsider = assertThrows(NotFoundException.class, () -> service.report(REPORTER, classReport()));
+
+        assertThat(unknown.getMessage()).isEqualTo(outsider.getMessage());
         verify(reportRepository, never()).save(any());
     }
 
