@@ -40,10 +40,15 @@ export interface ExamTeil {
   audio_script?: string
   items?: ExamQuestionItem[]
   form_fields?: Array<{ field: string; instruction_vi: string }>
+  /** Đề bài phần Viết/Nói của các đề B1+ (seed dùng `prompt` thay cho `input_email`). */
+  prompt?: string
   input_email?: string
   writing_points?: string[]
   prompt_words?: string[]
-  topic_cards?: string[]
+  /** Thẻ chủ đề phần Nói (seed A1/A2): trước đây chỉ dùng để bật simulator, nội dung không hiện. */
+  topic_cards?: Array<{ card?: string; question_to_ask?: string }>
+  /** Thẻ tình huống phần Nói Teil 3 của seed A1 — không có nhánh render nên Teil 3 ra ô trống. */
+  scenario_cards?: Array<{ situation?: string; request?: string }>
 }
 
 export interface ExamSection {
@@ -208,7 +213,18 @@ export function ExamTaking({
         {t('sectionMeta', { minutes: currentSection.time_minutes, points: currentSection.max_points })}
       </p>
 
-      {currentSection.teile?.map((teil, tIdx) => (
+      {currentSection.teile?.map((teil, tIdx) => {
+        // Đề bài của một Teil viết: seed A1/A2 dùng `input_email`, seed B1+ dùng `prompt`.
+        // Thiếu nhánh `prompt` là phần Viết của đề B1/B2 không có ô nhập nào để gõ.
+        const writingStimulus =
+          currentSection.name === 'SCHREIBEN' && !teil.form_fields
+            ? teil.input_email ?? teil.prompt
+            : teil.input_email
+        const speakingPrompt =
+          currentSection.name === 'SPRECHEN' && !teil.prompt_words && !teil.topic_cards
+            ? teil.prompt
+            : undefined
+        return (
         <div key={teil.teil ?? tIdx} className="overflow-hidden rounded-ga border border-ga-line bg-ga-card">
           <div className="border-b border-ga-line bg-ga-surface px-4 py-3 lg:px-6">
             <h2 className="ga-ui text-ga-h3 text-ga-ink">{t('teil', { n: teil.teil })}</h2>
@@ -355,10 +371,10 @@ export function ExamTaking({
               )}
 
               {/* Schreiben Teil 2 — email. Answer key stays `email_<teil>` (server contract). */}
-              {teil.input_email && (
+              {writingStimulus && (
                 <div className="space-y-4">
                   <div className="ga-ui whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-4 text-ga-body text-ga-ink">
-                    {teil.input_email}
+                    {writingStimulus}
                   </div>
                   <ul className="ga-ui mb-4 list-disc space-y-1 break-words pl-5 text-ga-body text-ga-muted">
                     {teil.writing_points?.map((pt, idx) => <li key={idx}>{pt}</li>)}
@@ -393,15 +409,41 @@ export function ExamTaking({
 
               {teil.topic_cards && (
                 <div className="space-y-4">
+                  <ul className="ga-ui space-y-2 rounded-ga border border-ga-line bg-ga-surface p-4 text-ga-body text-ga-ink">
+                    {teil.topic_cards.map((card, cIdx) => (
+                      <li key={card.card ?? cIdx} className="break-words">
+                        <span className="font-semibold">{card.card}</span>
+                        {card.question_to_ask ? ` — ${card.question_to_ask}` : null}
+                      </li>
+                    ))}
+                  </ul>
                   <SprechenTeil2Simulator
                     onFinish={(score) => onAnswerChange(`sprechen_score_${teil.teil}`, String(score))}
                   />
                 </div>
               )}
+
+              {teil.scenario_cards && (
+                <ul className="ga-ui space-y-2 rounded-ga border border-ga-line bg-ga-surface p-4 text-ga-body text-ga-ink">
+                  {teil.scenario_cards.map((card, cIdx) => (
+                    <li key={card.situation ?? cIdx} className="break-words">
+                      <span className="font-semibold">{card.situation}</span>
+                      {card.request ? ` — ${card.request}` : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {speakingPrompt && (
+                <div className="ga-ui whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-4 text-ga-body text-ga-ink">
+                  {speakingPrompt}
+                </div>
+              )}
             </div>
           </div>
         </div>
-      ))}
+        )
+      })}
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
         <button

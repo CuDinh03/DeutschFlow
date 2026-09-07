@@ -1,241 +1,333 @@
 package com.deutschflow.grammar.service;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-@DisplayName("Exam Scoring Service")
+/**
+ * Chấm điểm thi thử: quy về thang của chính đề, đọc đúng khoá bài viết, phần chưa chấm được thì
+ * rời khỏi tổng thay vì kéo điểm xuống 0 (gap AC-EXAM-05, sửa 07/09/2026).
+ */
+@ExtendWith(MockitoExtension.class)
+@DisplayName("ExamScoringService")
 class ExamScoringServiceTest {
 
-    private ExamScoringService scoringService;
+    @Mock AiExamEvaluatorService aiEvaluator;
+    @InjectMocks ExamScoringService service;
 
-    @BeforeEach
-    void setUp() {
-        scoringService = new ExamScoringService(null);
+    // ─── Đọc / Nghe ──────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("đúng 3/4 câu trên thang 25 ra 19 điểm")
+    void scoreObjectiveSection_partiallyCorrect_scalesToSectionMax() {
+        Map<String, Object> answers = new HashMap<>(Map.of(
+                "L1-1", "richtig", "L1-2", "falsch", "L1-3", "richtig", "L1-4", "falsch"));
+        Map<String, Object> section = objectiveSection(25, List.of(
+                Map.of("id", "L1-1", "correct", "richtig"),
+                Map.of("id", "L1-2", "correct", "falsch"),
+                Map.of("id", "L1-3", "correct", "richtig"),
+                Map.of("id", "L1-4", "correct", "richtig")));
+
+        Map<String, Object> result = service.scoreObjectiveSection(answers, section);
+
+        assertThat(result.get("total")).isEqualTo(19); // 25 × 3/4
+        assertThat(result.get("max")).isEqualTo(25);
+        assertThat(result.get("correct_items")).isEqualTo(3);
+        assertThat(result.get("total_items")).isEqualTo(4);
+        assertThat(result.get("status")).isEqualTo(ExamScoringService.STATUS_COMPLETED);
     }
 
     @Test
-    @DisplayName("scores LESEN section correctly")
-    void scoreLesenSection_correctAnswers_returnsCorrectScore() {
-        // Arrange
+    @DisplayName("đề 15 câu làm đúng hết được trọn 25 điểm (trước đây kẹt ở 15)")
+    void scoreObjectiveSection_fifteenItemsAllCorrect_returnsFullSectionMax() {
         Map<String, Object> answers = new HashMap<>();
-        answers.put("L1-1", "richtig");
-        answers.put("L1-2", "falsch");
-        answers.put("L1-3", "richtig");
-
-        Map<String, Object> examSection = new HashMap<>();
-        Map<String, Object> teil = new HashMap<>();
-        teil.put("items", List.of(
-            Map.of("id", "L1-1", "correct", "richtig"),
-            Map.of("id", "L1-2", "correct", "falsch"),
-            Map.of("id", "L1-3", "correct", "richtig"),
-            Map.of("id", "L1-4", "correct", "richtig")
-        ));
-        examSection.put("teile", Map.of("1", teil));
-
-        // Act
-        int score = scoringService.scoreLesenSection(answers, examSection);
-
-        // Assert
-        assertEquals(3, score, "Should score 3/4 correct answers");
-    }
-
-    @Test
-    @DisplayName("caps LESEN score at 25 points maximum")
-    void scoreLesenSection_manyQuestions_cappedAtMax() {
-        // Arrange
-        Map<String, Object> answers = new HashMap<>();
-        Map<String, Object> examSection = new HashMap<>();
-        Map<String, Object> teil = new HashMap<>();
-
         List<Map<String, Object>> items = new ArrayList<>();
-        for (int i = 0; i < 30; i++) {
+        for (int i = 1; i <= 15; i++) {
             items.add(Map.of("id", "L-" + i, "correct", "A"));
             answers.put("L-" + i, "A");
         }
-        teil.put("items", items);
-        examSection.put("teile", Map.of("1", teil));
 
-        // Act
-        int score = scoringService.scoreLesenSection(answers, examSection);
+        Map<String, Object> result = service.scoreObjectiveSection(answers, objectiveSection(25, items));
 
-        // Assert
-        assertEquals(25, score, "Score should be capped at 25");
+        assertThat(result.get("total")).isEqualTo(25);
+        assertThat(result.get("percentage")).isEqualTo(100);
     }
 
     @Test
-    @DisplayName("scores HOEREN section correctly")
-    void scoreHoerenSection_correctAnswers_returnsCorrectScore() {
-        // Arrange
-        Map<String, Object> answers = new HashMap<>();
-        answers.put("H1-1", "B");
-        answers.put("H1-2", "C");
-        answers.put("H1-3", "C");
+    @DisplayName("tôn trọng max_points riêng của phần")
+    void scoreObjectiveSection_customMaxPoints_scalesToThatMax() {
+        Map<String, Object> answers = new HashMap<>(Map.of("H-1", "A", "H-2", "B"));
+        Map<String, Object> section = objectiveSection(20, List.of(
+                Map.of("id", "H-1", "correct", "A"),
+                Map.of("id", "H-2", "correct", "B"),
+                Map.of("id", "H-3", "correct", "C"),
+                Map.of("id", "H-4", "correct", "A")));
 
-        Map<String, Object> examSection = new HashMap<>();
-        Map<String, Object> teil = new HashMap<>();
-        teil.put("items", List.of(
-            Map.of("id", "H1-1", "correct", "B"),
-            Map.of("id", "H1-2", "correct", "C"),
-            Map.of("id", "H1-3", "correct", "C")
-        ));
-        examSection.put("teile", List.of(teil));
+        Map<String, Object> result = service.scoreObjectiveSection(answers, section);
 
-        // Act
-        int score = scoringService.scoreHoerenSection(answers, examSection);
-
-        // Assert
-        assertEquals(3, score, "Should score 3/3 correct answers");
+        assertThat(result.get("total")).isEqualTo(10); // 20 × 2/4
+        assertThat(result.get("max")).isEqualTo(20);
     }
 
     @Test
-    @DisplayName("identifies weak areas correctly")
-    void identifyWeakAreas_lowScores_returnsWeakSections() {
-        // Arrange
-        Map<String, Object> detailedScores = new HashMap<>();
-        detailedScores.put("LESEN", Map.of("total", 20, "max", 25)); // 80% - strong
-        detailedScores.put("HOEREN", Map.of("total", 12, "max", 25)); // 48% - weak
-        detailedScores.put("SCHREIBEN", Map.of("total", 15, "max", 25)); // 60% - borderline
-        detailedScores.put("SPRECHEN", Map.of("total", 8, "max", 25)); // 32% - weak
+    @DisplayName("so khớp không phân biệt hoa thường và khoảng trắng thừa")
+    void scoreObjectiveSection_caseAndSpacing_stillMatches() {
+        Map<String, Object> answers = new HashMap<>(Map.of("L-1", " RICHTIG ", "L-2", "Falsch"));
+        Map<String, Object> section = objectiveSection(25, List.of(
+                Map.of("id", "L-1", "correct", "richtig"),
+                Map.of("id", "L-2", "correct", "falsch")));
 
-        // Act
-        List<String> weakAreas = scoringService.identifyWeakAreas(detailedScores);
-
-        // Assert
-        assertTrue(weakAreas.contains("HOEREN"), "HOEREN should be identified as weak");
-        assertTrue(weakAreas.contains("SPRECHEN"), "SPRECHEN should be identified as weak");
-        assertFalse(weakAreas.contains("LESEN"), "LESEN should not be weak");
+        assertThat(service.scoreObjectiveSection(answers, section).get("total")).isEqualTo(25);
     }
 
     @Test
-    @DisplayName("calculates total score correctly")
-    void calculateTotalScore_allSections_returnsSumOfScores() {
-        // Arrange
-        Map<String, Object> detailedScores = new HashMap<>();
-        detailedScores.put("LESEN", Map.of("total", 23, "max", 25));
-        detailedScores.put("HOEREN", Map.of("total", 25, "max", 25));
-        detailedScores.put("SCHREIBEN", Map.of("total", 18, "max", 25));
-        detailedScores.put("SPRECHEN", Map.of("total", 20, "max", 25));
+    @DisplayName("phần không có câu nào ra 0 điểm, không chia cho 0")
+    void scoreObjectiveSection_noItems_returnsZero() {
+        Map<String, Object> result = service.scoreObjectiveSection(new HashMap<>(), objectiveSection(25, List.of()));
 
-        // Act
-        int total = scoringService.calculateTotalScore(detailedScores);
-
-        // Assert
-        assertEquals(86, total, "Total should be 23+25+18+20=86");
+        assertThat(result.get("total")).isEqualTo(0);
+        assertThat(result.get("total_items")).isEqualTo(0);
     }
 
     @Test
-    @DisplayName("determines pass/fail correctly")
-    void isPassed_scoresAboveAndBelow60_returnsCorrectResult() {
-        // Assert
-        assertTrue(scoringService.isPassed(60), "Score 60 should pass");
-        assertTrue(scoringService.isPassed(75), "Score 75 should pass");
-        assertFalse(scoringService.isPassed(59), "Score 59 should fail");
-        assertFalse(scoringService.isPassed(0), "Score 0 should fail");
+    @DisplayName("teile lưu dạng object map vẫn chấm được")
+    void scoreObjectiveSection_teileAsMap_stillScores() {
+        Map<String, Object> section = new HashMap<>();
+        section.put("max_points", 25);
+        section.put("teile", Map.of("1", Map.of("items", List.of(Map.of("id", "L-1", "correct", "A")))));
+
+        Map<String, Object> result = service.scoreObjectiveSection(new HashMap<>(Map.of("L-1", "A")), section);
+
+        assertThat(result.get("total")).isEqualTo(25);
+    }
+
+    // ─── Viết ────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("bài viết đọc khoá email_<teil> mà trình chạy web gửi lên")
+    void scoreSchreibenSection_emailKeyFromRunner_isEvaluated() {
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString()))
+                .thenReturn(aiScore(12, "AI_EVALUATED"));
+        Map<String, Object> answers = new HashMap<>(Map.of(
+                "form_0", "Anna", "form_1", "Müller", "form_2", "Hanoi",
+                "email_2", "Liebe Anna, ich komme am Montag..."));
+
+        Map<String, Object> result = service.scoreSchreibenSection(7L, answers, schreibenSection());
+
+        // form 10 × 3/4 = 7.5 + bài viết 15 × 12/15 = 12 ⇒ 19.5 → 20
+        assertThat(result.get("total")).isEqualTo(20);
+        assertThat(result.get("max")).isEqualTo(25);
+        assertThat(result.get("status")).isEqualTo(ExamScoringService.STATUS_COMPLETED);
+        assertThat(result.get("teil2_email")).isNotNull(); // khoá cũ cho màn nhận xét AI
     }
 
     @Test
-    @DisplayName("scores form fields correctly")
-    void scoreSchreibenSection_formFields_returnsCorrectScore() {
-        // Arrange
-        Map<String, Object> answers = new HashMap<>();
-        answers.put("form_0", "Anna");
-        answers.put("form_1", "Müller");
-        answers.put("form_2", "1990-05-15");
-        // form_3 is missing
+    @DisplayName("bỏ trống bài viết là 0 điểm và không gọi AI")
+    void scoreSchreibenSection_blankEmail_scoresZeroWithoutAi() {
+        Map<String, Object> answers = new HashMap<>(Map.of("form_0", "Anna", "form_1", "Müller"));
 
-        Map<String, Object> examSection = new HashMap<>();
-        Map<String, Object> teil = new HashMap<>();
-        teil.put("type", "FILL_FORM");
-        teil.put("form_fields", List.of(
-            Map.of("field", "Vorname"),
-            Map.of("field", "Nachname"),
-            Map.of("field", "Geburtsdatum"),
-            Map.of("field", "Wohnort")
-        ));
-        examSection.put("teile", List.of(teil));
+        Map<String, Object> result = service.scoreSchreibenSection(7L, answers, schreibenSection());
 
-        // Act
-        Map<String, Object> scores = scoringService.scoreSchreibenSection(answers, examSection);
-
-        // Assert
-        assertNotNull(scores.get("teil1_form"), "Should have teil1 form score");
-        assertTrue((Integer) scores.get("teil1_form") > 0, "Should have partial score for 3/4 filled");
-        Map<String, Object> teil2 = (Map<String, Object>) scores.get("teil2_email");
-        assertEquals("PENDING_AI_EVALUATION", teil2.get("status"), "Teil2 should be pending AI");
+        assertThat(result.get("total")).isEqualTo(5); // 10 × 2/4, bài viết 0
+        assertThat(result.get("max")).isEqualTo(25);
+        verify(aiEvaluator, never()).evaluateSchreibenEmail(anyLong(), anyString(), anyString());
     }
 
     @Test
-    @DisplayName("builds detailed scores JSON structure")
-    void buildDetailedScoresJson_allSections_returnsProperStructure() {
-        // Arrange
-        int lesenScore = 23;
-        int hoerenScore = 25;
-        Map<String, Object> schreibenScores = Map.of("total", 18, "max", 25);
-        Map<String, Object> sprechenScores = Map.of("total", 20, "max", 25);
+    @DisplayName("AI chấm hỏng thì nhiệm vụ đó rời khỏi mẫu số, không trừ điểm học viên")
+    void scoreSchreibenSection_aiPending_dropsTaskFromMax() {
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString()))
+                .thenReturn(aiScore(0, ExamScoringService.STATUS_PENDING));
+        Map<String, Object> answers = new HashMap<>(Map.of(
+                "form_0", "Anna", "form_1", "Müller", "form_2", "Hanoi", "form_3", "1999",
+                "email_2", "Liebe Anna, ..."));
 
-        // Act
-        Map<String, Object> result = scoringService.buildDetailedScoresJson(
-            lesenScore, hoerenScore, schreibenScores, sprechenScores);
+        Map<String, Object> result = service.scoreSchreibenSection(7L, answers, schreibenSection());
 
-        // Assert
-        assertNotNull(result.get("LESEN"), "Should have LESEN section");
-        assertNotNull(result.get("HOEREN"), "Should have HOEREN section");
-        assertNotNull(result.get("SCHREIBEN"), "Should have SCHREIBEN section");
-        assertNotNull(result.get("SPRECHEN"), "Should have SPRECHEN section");
-
-        Map<String, Object> lesenData = (Map<String, Object>) result.get("LESEN");
-        assertEquals(23, lesenData.get("total"), "LESEN total should be 23");
-        assertEquals(92, lesenData.get("percentage"), "LESEN percentage should be 92");
+        assertThat(result.get("total")).isEqualTo(10); // form đủ 4/4
+        assertThat(result.get("max")).isEqualTo(10);   // 15 điểm bài viết chờ chấm bị loại
+        assertThat(result.get("status")).isEqualTo(ExamScoringService.STATUS_COMPLETED);
     }
 
     @Test
-    @DisplayName("handles case-insensitive answer comparison")
-    void scoreLesenSection_caseInsensitive_scoresCorrectly() {
-        // Arrange
-        Map<String, Object> answers = new HashMap<>();
-        answers.put("L1-1", "RICHTIG");
-        answers.put("L1-2", "Falsch");
+    @DisplayName("đề chỉ có bài viết (B1/B2) chia đều thang điểm cho từng bài")
+    void scoreSchreibenSection_writingOnly_splitsMaxEvenly() {
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString()))
+                .thenReturn(aiScore(15, "AI_EVALUATED"));
+        Map<String, Object> section = new HashMap<>();
+        section.put("max_points", 25);
+        section.put("teile", List.of(
+                Map.of("teil", 1, "input_email", "Forumsbeitrag", "instruction_vi", "Viết bài diễn đàn"),
+                Map.of("teil", 2, "input_email", "E-Mail", "instruction_vi", "Viết thư")));
+        Map<String, Object> answers = new HashMap<>(Map.of("email_1", "Text eins", "email_2", "Text zwei"));
 
-        Map<String, Object> examSection = new HashMap<>();
-        Map<String, Object> teil = new HashMap<>();
-        teil.put("items", List.of(
-            Map.of("id", "L1-1", "correct", "richtig"),
-            Map.of("id", "L1-2", "correct", "falsch")
-        ));
-        examSection.put("teile", Map.of("1", teil));
+        Map<String, Object> result = service.scoreSchreibenSection(7L, answers, section);
 
-        // Act
-        int score = scoringService.scoreLesenSection(answers, examSection);
-
-        // Assert
-        assertEquals(2, score, "Should handle case-insensitive comparison");
+        assertThat(result.get("total")).isEqualTo(25);
+        assertThat(result.get("max")).isEqualTo(25);
     }
 
     @Test
-    @DisplayName("handles missing answers gracefully")
-    void scoreLesenSection_missingAnswers_scoresOnlyProvided() {
-        // Arrange
-        Map<String, Object> answers = new HashMap<>();
-        answers.put("L1-1", "A");
-        // L1-2 not answered
+    @DisplayName("khoá cũ email_section trong dữ liệu lịch sử vẫn chấm được")
+    void scoreSchreibenSection_legacyEmailSectionKey_stillEvaluated() {
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString()))
+                .thenReturn(aiScore(15, "AI_EVALUATED"));
+        Map<String, Object> answers = new HashMap<>(Map.of("email_section", "Liebe Anna, ..."));
 
-        Map<String, Object> examSection = new HashMap<>();
-        Map<String, Object> teil = new HashMap<>();
-        teil.put("items", List.of(
-            Map.of("id", "L1-1", "correct", "A"),
-            Map.of("id", "L1-2", "correct", "B")
-        ));
-        examSection.put("teile", Map.of("1", teil));
+        Map<String, Object> result = service.scoreSchreibenSection(7L, answers, schreibenSection());
 
-        // Act
-        int score = scoringService.scoreLesenSection(answers, examSection);
+        assertThat(result.get("total")).isEqualTo(15); // form trống 0 + bài viết trọn 15
+    }
 
-        // Assert
-        assertEquals(1, score, "Should only score provided answers");
+    // ─── Nói ─────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("không có transcript thì phần Nói là chờ chấm, không phải 0 điểm")
+    void scoreSprechenSection_noTranscript_isPending() {
+        Map<String, Object> result = service.scoreSprechenSection(7L, new HashMap<>(), sprechenSection());
+
+        assertThat(result.get("status")).isEqualTo(ExamScoringService.STATUS_PENDING);
+        assertThat(result.get("total")).isEqualTo(0);
+        verify(aiEvaluator, never()).evaluateSprechen(anyLong(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("có transcript thì quy điểm AI (thang 18) về thang phần")
+    void scoreSprechenSection_withTranscript_scalesAiScore() {
+        when(aiEvaluator.evaluateSprechen(anyLong(), anyString(), anyString(), anyString()))
+                .thenReturn(aiScore(15, "AI_EVALUATED"));
+        Map<String, Object> answers = new HashMap<>(Map.of("sprechen_transcript", "Ich heiße Anna..."));
+
+        Map<String, Object> result = service.scoreSprechenSection(7L, answers, sprechenSection());
+
+        assertThat(result.get("total")).isEqualTo(21); // 25 × 15/18
+        assertThat(result.get("status")).isEqualTo(ExamScoringService.STATUS_COMPLETED);
+    }
+
+    // ─── Tổng kết ────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("phần chờ chấm rời khỏi cả tử số lẫn mẫu số nên bài vẫn có thể đỗ")
+    void summarize_pendingSectionExcluded_examStillPassable() {
+        Map<String, Object> detailed = new LinkedHashMap<>();
+        detailed.put("LESEN", scored(25, 25));
+        detailed.put("HOEREN", scored(20, 25));
+        detailed.put("SCHREIBEN", scored(15, 25));
+        detailed.put("SPRECHEN", pending(25));
+
+        ExamScoringService.ExamTotals totals = service.summarize(detailed, 60);
+
+        assertThat(totals.rawPoints()).isEqualTo(60);
+        assertThat(totals.scoredMax()).isEqualTo(75);
+        assertThat(totals.totalScore()).isEqualTo(80); // 60/75 quy về thang 100
+        assertThat(totals.passed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("dưới ngưỡng thì trượt")
+    void summarize_belowThreshold_fails() {
+        Map<String, Object> detailed = new LinkedHashMap<>();
+        detailed.put("LESEN", scored(10, 25));
+        detailed.put("HOEREN", scored(10, 25));
+
+        ExamScoringService.ExamTotals totals = service.summarize(detailed, 60);
+
+        assertThat(totals.totalScore()).isEqualTo(40);
+        assertThat(totals.passed()).isFalse();
+    }
+
+    @Test
+    @DisplayName("chưa chấm được phần nào thì 0 điểm và không kết luận đỗ")
+    void summarize_allPending_returnsZeroAndNotPassed() {
+        Map<String, Object> detailed = new LinkedHashMap<>();
+        detailed.put("LESEN", pending(25));
+        detailed.put("SPRECHEN", pending(25));
+
+        ExamScoringService.ExamTotals totals = service.summarize(detailed, 60);
+
+        assertThat(totals.totalScore()).isZero();
+        assertThat(totals.scoredMax()).isZero();
+        assertThat(totals.passed()).isFalse();
+    }
+
+    @Test
+    @DisplayName("ngưỡng đỗ lấy theo pass_points/total_points của đề")
+    void passPercent_readsExamThreshold() {
+        assertThat(ExamScoringService.passPercent(60, 100)).isEqualTo(60);
+        assertThat(ExamScoringService.passPercent(45, 75)).isEqualTo(60);
+        assertThat(ExamScoringService.passPercent(70, 100)).isEqualTo(70);
+        assertThat(ExamScoringService.passPercent(null, 100)).isEqualTo(60);
+        assertThat(ExamScoringService.passPercent(60, 0)).isEqualTo(60);
+    }
+
+    @Test
+    @DisplayName("điểm yếu chỉ tính phần đã chấm dưới 60%")
+    void identifyWeakAreas_ignoresPendingSections() {
+        Map<String, Object> detailed = new LinkedHashMap<>();
+        detailed.put("LESEN", scored(20, 25));    // 80%
+        detailed.put("HOEREN", scored(12, 25));   // 48%
+        detailed.put("SPRECHEN", pending(25));
+
+        List<String> weak = service.identifyWeakAreas(detailed);
+
+        assertThat(weak).containsExactly("HOEREN");
+    }
+
+    // ─── Dữ liệu dựng sẵn ────────────────────────────────────────────────────
+
+    private Map<String, Object> objectiveSection(int maxPoints, List<Map<String, Object>> items) {
+        Map<String, Object> section = new HashMap<>();
+        section.put("max_points", maxPoints);
+        section.put("teile", List.of(Map.of("teil", 1, "items", items)));
+        return section;
+    }
+
+    /** Phần Viết kiểu A1/A2: Teil 1 điền form 4 ô, Teil 2 viết thư. */
+    private Map<String, Object> schreibenSection() {
+        Map<String, Object> section = new HashMap<>();
+        section.put("max_points", 25);
+        section.put("teile", List.of(
+                Map.of("teil", 1, "type", "FILL_FORM", "form_fields", List.of(
+                        Map.of("field", "Vorname"), Map.of("field", "Nachname"),
+                        Map.of("field", "Wohnort"), Map.of("field", "Geburtsjahr"))),
+                Map.of("teil", 2, "type", "WRITE_EMAIL", "input_email", "Liebe Grüße",
+                        "instruction_vi", "Viết email ~30 từ")));
+        return section;
+    }
+
+    private Map<String, Object> sprechenSection() {
+        Map<String, Object> section = new HashMap<>();
+        section.put("max_points", 25);
+        section.put("cefr_level", "A1");
+        section.put("teile", List.of(Map.of("teil", 1, "instruction_vi", "Giới thiệu bản thân")));
+        return section;
+    }
+
+    private Map<String, Object> aiScore(int total, String status) {
+        return Map.of("total", total, "status", status);
+    }
+
+    private Map<String, Object> scored(int total, int max) {
+        return Map.of("total", total, "max", max, "status", ExamScoringService.STATUS_COMPLETED);
+    }
+
+    private Map<String, Object> pending(int max) {
+        return Map.of("total", 0, "max", max, "status", ExamScoringService.STATUS_PENDING);
     }
 }
