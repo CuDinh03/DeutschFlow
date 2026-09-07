@@ -168,6 +168,7 @@
         "readError": "Could not read the file. Save it as CSV (UTF-8).",
         "preview": "Preview {count} rows",
         "previewMore": "… and {count} more",
+        "colLine": "Line",
         "colEmail": "Email",
         "colName": "Display name",
         "colPhone": "Phone",

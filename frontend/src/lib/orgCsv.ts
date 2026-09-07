@@ -82,6 +82,65 @@ export function parseCsvLine(line: string): string[] {
   return out
 }
 
+/** Một bản ghi CSV kèm số dòng VẬT LÝ nơi nó bắt đầu (1-based, tính cả header). */
+export interface CsvRecord {
+  text: string
+  line: number
+}
+
+/**
+ * Tách văn bản CSV thành từng BẢN GHI, tôn trọng ô bọc nháy.
+ *
+ * Vì sao không dùng `split(/\r?\n/)`: RFC 4180 cho phép ô bọc nháy CHỨA ký tự xuống dòng, ví dụ
+ * `foo@x.com,"Dòng1<LF>Dòng2",0912`. Cắt theo ký tự xuống dòng trước rồi mới tách cột sẽ chẻ ô đó
+ * làm đôi: nửa đầu vẫn có email hợp lệ nên **âm thầm tạo tài khoản với tên cụt**, nửa sau thành một
+ * dòng lỗi ma không tương ứng dữ liệu nào. Đây là sai lệch dữ liệu im lặng, không phải lỗi lộ ra.
+ *
+ * `line` là dòng vật lý nơi bản ghi BẮT ĐẦU, để người dùng dò lại đúng chỗ trong Excel. Bản ghi
+ * trải nhiều dòng thì vẫn báo dòng đầu của nó.
+ */
+export function splitCsvRecords(src: string): CsvRecord[] {
+  const out: CsvRecord[] = []
+  let cur = ''
+  let quoted = false
+  let physicalLine = 1
+  let recordStart = 1
+
+  const flush = () => {
+    if (cur.trim() !== '') out.push({ text: cur, line: recordStart })
+    cur = ''
+  }
+
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i]
+
+    if (quoted) {
+      if (c === '"') {
+        // `""` là một dấu nháy nằm TRONG ô — giữ nguyên cả hai ký tự cho parseCsvLine xử lý.
+        if (src[i + 1] === '"') { cur += '""'; i++ } else { quoted = false; cur += c }
+      } else {
+        if (c === '\n') physicalLine++
+        cur += c
+      }
+      continue
+    }
+
+    if (c === '"') { quoted = true; cur += c; continue }
+
+    if (c === '\r' || c === '\n') {
+      if (c === '\r' && src[i + 1] === '\n') i++
+      flush()
+      physicalLine++
+      recordStart = physicalLine
+      continue
+    }
+
+    cur += c
+  }
+  flush()
+  return out
+}
+
 /** Đọc văn bản CSV roster: bỏ BOM, bỏ dòng trống, nhận header khi ô đầu là `email`. */
 export function parseRosterCsv(text: string): RosterParse {
   const src = text.startsWith('\uFEFF') ? text.slice(1) : text
@@ -89,17 +148,15 @@ export function parseRosterCsv(text: string): RosterParse {
   let hasHeader = false
   let first = true
   let invalidEmails = 0
-  src.split(/\r?\n/).forEach((raw, idx) => {
-    const line = raw.trim()
-    if (!line) return
-    const cols = parseCsvLine(line)
+  splitCsvRecords(src).forEach((rec) => {
+    const cols = parseCsvLine(rec.text.trim())
     if (first) {
       first = false
       if ((cols[0] ?? '').trim().toLowerCase() === 'email') { hasHeader = true; return }
     }
     const email = (cols[0] ?? '').trim().toLowerCase()
     if (!EMAIL_RE.test(email)) invalidEmails++
-    rows.push({ email, displayName: (cols[1] ?? '').trim(), phone: (cols[2] ?? '').trim(), line: idx + 1 })
+    rows.push({ email, displayName: (cols[1] ?? '').trim(), phone: (cols[2] ?? '').trim(), line: rec.line })
   })
   return { hasHeader, rows, invalidEmails }
 }
