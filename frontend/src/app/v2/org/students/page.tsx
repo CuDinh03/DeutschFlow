@@ -77,6 +77,22 @@ export default function V2OrgStudentsPage() {
 
   const activeN = members.filter((m) => m.status === 'ACTIVE').length
 
+  /**
+   * Ô KPI có nguồn từ DANH SÁCH thành viên: loading → shimmer; lỗi tải danh sách → "—" + chú thích.
+   *
+   * Vì sao cần: `members` khởi tạo là `[]`, nên khi `listMembers` hỏng thì `members.length` là 0 —
+   * đúng cái "lỗi biến thành 0" mà PR này đi chữa cho nhánh analytics, nhưng còn sót ở nhánh danh
+   * sách. Hậu quả thấy được: backend sập thì dải KPI hiện "Tổng học viên: 0" đứng cạnh "Có dùng AI
+   * 7 ngày: —", tự mâu thuẫn ngay trên cùng một hàng.
+   */
+  const memberCell = (value: number, sub: string) => {
+    if (loading) {
+      return { value: <span className="ga-shimmer inline-block h-6 w-12 align-middle" aria-label={tc('loading')} />, sub, alert: false }
+    }
+    if (error) return { value: NO_VALUE, sub: t('stats.unavailable'), alert: true }
+    return { value, sub, alert: false }
+  }
+
   /** Ô KPI chỉ có nguồn từ analytics: loading → shimmer; error → "—" + chú thích đỏ; ok → số thật (kể cả 0). */
   const analyticsCell = (value: number | undefined, sub: string) => {
     if (analyticsState === 'ok' && value != null) return { value, sub, alert: false }
@@ -113,9 +129,11 @@ export default function V2OrgStudentsPage() {
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         <GaStatStrip
           items={[
-            // Tổng học viên có nguồn thay thế THẬT (độ dài danh sách) nên không cần "—".
-            { label: t('stats.totalStudents'), value: analyticsState === 'ok' && analytics ? analytics.studentCount : members.length, sub: t('stats.usingSeats') },
-            { label: t('stats.active'), value: activeN, sub: t('stats.activeMembers'), tone: 'green' },
+            // Analytics ok thì lấy số của nó; ngược lại rơi về danh sách, nhưng danh sách LỖI thì "—".
+            ...(analyticsState === 'ok' && analytics
+              ? [{ label: t('stats.totalStudents'), value: analytics.studentCount, sub: t('stats.usingSeats'), alert: false }]
+              : [{ label: t('stats.totalStudents'), ...memberCell(members.length, t('stats.usingSeats')) }]),
+            { label: t('stats.active'), ...memberCell(activeN, t('stats.activeMembers')), tone: 'green' as const },
             { label: t('stats.active7d'), value: active7d.value, sub: active7d.sub, alert: active7d.alert, tone: 'blue' },
             { label: t('stats.classes'), value: classCount.value, sub: classCount.sub, alert: classCount.alert, tone: 'teal' },
           ]}
