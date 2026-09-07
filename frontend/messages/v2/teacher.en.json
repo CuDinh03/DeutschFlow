@@ -77,7 +77,7 @@
       "upcomingCap": "Upcoming class sessions",
       "noUpcoming": "No upcoming class sessions.",
       "atClass": "In class",
-      "emptyWeekPrefix": "No class sessions this week yet. Tap",
+      "emptyWeekPrefix": "Tap",
       "emptyWeekMid": "or",
       "emptyWeekSuffix": "to add.",
       "sessionTitle": "{className} · {place} · {time} · {count} students",
@@ -211,7 +211,8 @@
         "deleteConfirm": "Delete schedule",
         "deletePending": "Fixed schedule removal request submitted — awaiting center approval",
         "deleted": "Fixed schedule deleted · {n} future sessions (not manually edited) removed"
-      }
+      },
+      "emptyWeekRange": "No class sessions from {from} to {to}."
     },
     "tcProgress": {
       "ungrouped": "Ungrouped",
@@ -654,7 +655,8 @@
       "aiStillProcessing": "AI is still processing. Please try again shortly.",
       "aiCallError": "Error calling AI grading",
       "aiFailedWithReason": "AI grading failed: {reason}",
-      "aiFailedGeneric": "AI grading failed. Please grade manually."
+      "aiFailedGeneric": "AI grading failed. Please grade manually.",
+      "clearFilter": "Clear filter"
     },
     "gradeImage": {
       "title": "Grade by image",

@@ -248,9 +248,18 @@ function WeekGrid({
     .filter(({ d }) => d >= monday && d < end)
 
   if (weekClass.length === 0) {
+    // Lưới này chỉ chứa buổi của MỘT tuần (lọc `d >= monday && d < end`), mà người dùng lật được
+    // sang tuần trước/sau bằng weekOffset. Câu cũ ghi "Tuần này chưa có buổi lớp nào" kể cả khi
+    // đang xem tuần khác — nói sai phạm vi của chính thứ đang trống. Nêu đúng khoảng đang xem.
+    const sunday = new Date(end)
+    sunday.setDate(sunday.getDate() - 1)
     return (
       <div className="border border-dashed border-ga-line bg-ga-card px-4 py-10 text-center text-[14px] text-ga-muted lg:px-10 lg:py-[52px]">
-        {t('emptyWeekPrefix')} <b>{t('addSession')}</b> {t('emptyWeekMid')} <b>{t('fixedSchedule')}</b> {t('emptyWeekSuffix')}
+        <p>{t('emptyWeekRange', { from: fmtDate(monday), to: fmtDate(sunday) })}</p>
+        <p className="mt-1.5">
+          {t('emptyWeekPrefix')} <b>{t('addSession')}</b> {t('emptyWeekMid')} <b>{t('fixedSchedule')}</b>{' '}
+          {t('emptyWeekSuffix')}
+        </p>
       </div>
     )
   }

@@ -357,7 +357,22 @@ function V2TeacherGradingPage() {
             Array.from({ length: 5 }).map((_, i) => <div key={i} className="ga-shimmer mx-3.5 mb-2 h-[52px]" aria-hidden />)
           ) : filtered.length === 0 ? (
             <div className="px-4 py-6 text-center text-[13px] text-ga-muted">
-              {queue.length === 0 ? t('queueEmpty') : t('queueEmptyFiltered')}
+              {queue.length === 0 ? (
+                t('queueEmpty')
+              ) : (
+                <>
+                  {/* Hàng đợi CÓ bài, chỉ là bộ lọc đang giấu chúng. Nói vậy thôi chưa đủ: lối ra
+                      phải nằm ngay đây, chứ không bắt người dùng tự nhớ mình đã lọc gì. */}
+                  {t('queueEmptyFiltered')}{' '}
+                  <button
+                    type="button"
+                    onClick={() => setFilter('all')}
+                    className="ga-ui font-semibold text-ga-accent underline-offset-2 hover:underline"
+                  >
+                    {t('clearFilter')}
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             filtered.map((g) => {

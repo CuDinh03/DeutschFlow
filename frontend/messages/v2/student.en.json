@@ -191,7 +191,10 @@
       "taskDoneBtn": "Done",
       "taskTypes": {
         "REWRITE": "Rewrite"
-      }
+      },
+      "emptyDeck": "Your review deck is empty",
+      "emptyDeckHint": "Add words to your deck and we will remind you to review them at the right time.",
+      "emptyDeckCta": "Learn vocabulary"
     },
     "lessons": {
       "title": "Lesson library",

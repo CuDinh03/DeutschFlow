@@ -77,7 +77,7 @@
       "upcomingCap": "Buổi lớp sắp tới",
       "noUpcoming": "Chưa có buổi lớp sắp tới.",
       "atClass": "Tại lớp",
-      "emptyWeekPrefix": "Tuần này chưa có buổi lớp nào. Bấm",
+      "emptyWeekPrefix": "Bấm",
       "emptyWeekMid": "hoặc",
       "emptyWeekSuffix": "để thêm.",
       "sessionTitle": "{className} · {place} · {time} · {count} HV",
@@ -211,7 +211,8 @@
         "deleteConfirm": "Xoá lịch",
         "deletePending": "Đã gửi đề xuất huỷ lịch cố định — chờ trung tâm duyệt",
         "deleted": "Đã xoá lịch cố định · gỡ {n} buổi tương lai chưa chỉnh tay"
-      }
+      },
+      "emptyWeekRange": "Không có buổi lớp nào từ {from} đến {to}."
     },
     "tcProgress": {
       "ungrouped": "Chưa xếp chương",
@@ -654,7 +655,8 @@
       "aiStillProcessing": "AI vẫn đang xử lý. Vui lòng thử lại sau giây lát.",
       "aiCallError": "Lỗi khi gọi AI chấm bài",
       "aiFailedWithReason": "AI chấm bài thất bại: {reason}",
-      "aiFailedGeneric": "AI chấm bài thất bại. Vui lòng tự chấm điểm."
+      "aiFailedGeneric": "AI chấm bài thất bại. Vui lòng tự chấm điểm.",
+      "clearFilter": "Xoá bộ lọc"
     },
     "gradeImage": {
       "title": "Chấm bài qua ảnh",
