@@ -67,9 +67,17 @@ function ownedPrefixes(role: RoleAreas, root: string): string[] {
   return out.filter((p) => p !== root)
 }
 
-/** Mọi href mà một RoleNav (sidebar cổ điển) trỏ tới — dùng cho khu org chưa có area model. */
-function navHrefs(nav: RoleNav): string[] {
-  return nav.sections.flatMap((sec) => sec.items.map((i) => i.href))
+/**
+ * Mọi href mà một RoleNav (sidebar cổ điển) trỏ tới — dùng cho khu org chưa có area model.
+ *
+ * `root` (vd. `/v2/org`) bị LOẠI vì đúng cùng lý do như `ownedPrefixes`: mục "Tổng quan" của org có
+ * href bằng gốc khu, mà `isUnder(r, '/v2/org')` đúng với MỌI route con — giữ nó lại thì phép đếm
+ * orphan luôn ra rỗng và test mất hết tác dụng. Đo bằng thực nghiệm (PR-A6b, 07/09/2026): thêm một
+ * trang mồ côi dưới `/v2/org` mà cả 43 test vẫn xanh. Route gốc coi như reachable theo định nghĩa.
+ */
+function navHrefs(nav: RoleNav, root?: string): string[] {
+  const out = nav.sections.flatMap((sec) => sec.items.map((i) => i.href))
+  return root ? out.filter((h) => h !== root) : out
 }
 
 describe('S-01 — student: đúng 5 area, không mất destination', () => {
@@ -324,7 +332,7 @@ describe('không phá cấu hình cũ', () => {
 
 describe('PR-A6 — org console: mọi route /v2/org thật đều có mục nav', () => {
   it('orgNav (OWNER) phủ mọi route thật; managerNav không thấy mục ownerOnly', () => {
-    const hrefs = navHrefs(orgNav)
+    const hrefs = navHrefs(orgNav, '/v2/org')
     // `/v2/org/finance` chỉ redirect sang billing (Đợt 0 OWNER) — không cần mục nav riêng.
     const known = ['/v2/org/finance']
     const orphans = realRoutes('org').filter(
