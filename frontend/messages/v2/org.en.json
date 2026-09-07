@@ -441,7 +441,9 @@
       "colTeacher": "Teacher",
       "emptyClasses": "No classes yet.",
       "unassigned": "Unassigned",
-      "assigned": "Assigned"
+      "assigned": "Assigned",
+      "classesPartial": "Showing {shown} of {total} classes",
+      "classesSeeAll": "See all classes →"
     },
     "billing": {
       "title": "DeutschFlow Plan & Payments",

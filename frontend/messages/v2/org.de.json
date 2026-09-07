@@ -441,7 +441,9 @@
       "colTeacher": "Lehrkraft",
       "emptyClasses": "Noch keine Kurse.",
       "unassigned": "Nicht zugewiesen",
-      "assigned": "Zugewiesen"
+      "assigned": "Zugewiesen",
+      "classesPartial": "{shown} von {total} Klassen angezeigt",
+      "classesSeeAll": "Alle Klassen anzeigen →"
     },
     "billing": {
       "title": "DeutschFlow-Tarif & Zahlungen",

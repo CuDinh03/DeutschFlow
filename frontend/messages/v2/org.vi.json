@@ -441,7 +441,9 @@
       "colTeacher": "Giáo viên",
       "emptyClasses": "Chưa có lớp nào.",
       "unassigned": "Chưa phân",
-      "assigned": "Đã có GV"
+      "assigned": "Đã có GV",
+      "classesPartial": "Đang xem {shown} trong {total} lớp",
+      "classesSeeAll": "Xem tất cả lớp →"
     },
     "billing": {
       "title": "Gói DeutschFlow & thanh toán",

@@ -110,21 +110,50 @@ export default function V2StudentStatsPage() {
   const [errorAnalytics, setErrorAnalytics] = useState<ErrorAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
+  const [recError, setRecError] = useState(false)
+  const [errError, setErrError] = useState(false)
+
+  // F09: ba nguồn độc lập ⇒ ba trạng thái lỗi độc lập. Bản cũ chỉ bật cờ `failed` khi /user/analytics
+  // hỏng; hai nguồn kia lỗi thì state giữ giá trị khởi tạo (mảng rỗng / null) và khối tương ứng
+  // BIẾN MẤT khỏi trang mà không nói gì. Người học không phân biệt được "chưa có gợi ý nào" với
+  // "không tải được gợi ý", và không có cách nào thử lại ngoài F5 cả trang.
+  const loadRecommendations = useCallback(async () => {
+    setRecError(false)
+    try {
+      const res = await api.get<Recommendations>('/user/recommendations')
+      setRecommendations(res.data.items ?? [])
+    } catch {
+      setRecommendations([])
+      setRecError(true)
+    }
+  }, [])
+
+  const loadErrorAnalytics = useCallback(async () => {
+    setErrError(false)
+    try {
+      const res = await api.get<ErrorAnalytics>('/user/error-analytics')
+      setErrorAnalytics(res.data)
+    } catch {
+      setErrorAnalytics(null)
+      setErrError(true)
+    }
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
     setFailed(false)
-    const [analyticsRes, recRes, errRes] = await Promise.allSettled([
-      api.get<AnalyticsSummary>('/user/analytics'),
-      api.get<Recommendations>('/user/recommendations'),
-      api.get<ErrorAnalytics>('/user/error-analytics'),
+    const [analyticsRes] = await Promise.all([
+      api.get<AnalyticsSummary>('/user/analytics').then(
+        (r) => ({ ok: true as const, data: r.data }),
+        () => ({ ok: false as const, data: null }),
+      ),
+      loadRecommendations(),
+      loadErrorAnalytics(),
     ])
-    if (analyticsRes.status === 'fulfilled') setAnalytics(analyticsRes.value.data)
+    if (analyticsRes.ok) setAnalytics(analyticsRes.data)
     else setFailed(true)
-    if (recRes.status === 'fulfilled') setRecommendations(recRes.value.data.items ?? [])
-    if (errRes.status === 'fulfilled') setErrorAnalytics(errRes.value.data)
     setLoading(false)
-  }, [])
+  }, [loadRecommendations, loadErrorAnalytics])
 
   useEffect(() => { void load() }, [load])
 
@@ -285,7 +314,12 @@ export default function V2StudentStatsPage() {
               </div>
 
               {/* Xu hướng lỗi 30 ngày */}
-              {trend.length > 0 && (
+              {errError && (
+                <GaSection title={t('errorTrendTitle')}>
+                  <ErrorBanner message={t('errorTrendLoadError')} onRetry={() => void loadErrorAnalytics()} />
+                </GaSection>
+              )}
+              {!errError && trend.length > 0 && (
                 <GaSection
                   title={t('errorTrendTitle')}
                   right={
@@ -303,7 +337,12 @@ export default function V2StudentStatsPage() {
               )}
 
               {/* Gợi ý (RecommendationService) */}
-              {recommendations.length > 0 && (
+              {recError && (
+                <GaSection title={t('recommendationsTitle')}>
+                  <ErrorBanner message={t('recommendationsLoadError')} onRetry={() => void loadRecommendations()} />
+                </GaSection>
+              )}
+              {!recError && recommendations.length > 0 && (
                 <GaSection title={t('recommendationsTitle')} bodyClassName="p-0">
                   <ul>
                     {recommendations.map((item, i) => {
