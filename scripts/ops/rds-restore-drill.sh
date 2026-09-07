@@ -37,7 +37,25 @@ done
 [ -n "$TARGET" ] || { echo "Cần --target <id instance tạm> (vd deutschflow-drill-$(date +%Y%m%d))" >&2; exit 1; }
 case "$TARGET" in *drill*) ;; *) echo "Tên --target phải chứa 'drill' để không nhầm với production." >&2; exit 1;; esac
 now_utc() { date -u +%Y-%m-%dT%H:%M:%SZ; }
-epoch() { date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "$1" +%s 2>/dev/null || date -u -d "$1" +%s; }
+
+# Đổi mốc thời gian ISO-8601 sang epoch, chạy được trên cả BSD date (macOS) lẫn GNU date (Linux).
+#
+# Bẫy đã trả giá: bản trước cắt phần lẻ giây bằng `${point%%.*}` rồi nối "Z". AWS trả
+# LatestRestorableTime/SnapshotCreateTime dạng `2026-09-07T05:00:00+00:00`; khi mốc rơi đúng giây
+# tròn thì KHÔNG có dấu chấm nào để cắt, chuỗi thành `...05:00:00+00:00Z` — BSD date parse hỏng, rơi
+# xuống nhánh `date -u -d` vốn là cú pháp GNU KHÔNG tồn tại trên macOS, hàm trả rỗng, và phép
+# $(( )) ngay sau đó làm shell báo lỗi biểu thức rồi DỪNG script. Điểm đau: dừng SAU khi instance
+# khôi phục đã tạo xong và đang tính phí, nên người chạy mất luôn dòng nhắc `--cleanup`.
+#
+# Nay chuẩn hoá trước: bỏ phần lẻ giây và mọi hậu tố múi giờ (Z hoặc ±HH:MM), rồi thử BSD trước,
+# GNU sau. Mọi mốc AWS trả về đều là UTC nên bỏ hậu tố không làm lệch kết quả.
+epoch() {
+  local raw="$1" norm
+  norm=$(printf '%s' "$raw" | sed -E 's/\.[0-9]+//; s/(Z|[+-][0-9]{2}:?[0-9]{2})$//')
+  date -u -j -f "%Y-%m-%dT%H:%M:%S" "$norm" +%s 2>/dev/null \
+    || date -u -d "${norm}Z" +%s 2>/dev/null \
+    || { echo "Không đọc được mốc thời gian: $raw" >&2; return 1; }
+}
 
 if [ "$CLEANUP" -eq 1 ]; then
   echo "[$(now_utc)] XOÁ instance tạm $TARGET (skip final snapshot, xoá automated backups của NÓ)."
@@ -82,7 +100,9 @@ if [ -n "$MODE" ]; then
   T1=$(now_utc)
   ep=$(aws rds describe-db-instances --region "$REGION" --db-instance-identifier "$TARGET" --query 'DBInstances[0].Endpoint.Address' --output text)
   rto_prov=$(( $(epoch "$T1") - $(epoch "$T0") ))
-  rpo=$(( $(epoch "$T0") - $(epoch "${point%%.*}Z" 2>/dev/null || echo "$point") ))
+  # Không để lỗi đọc mốc làm dừng script SAU khi instance đã tạo xong: báo "?" rồi vẫn in bước kế.
+  point_epoch=$(epoch "$point" || echo "")
+  if [ -n "$point_epoch" ]; then rpo=$(( $(epoch "$T0") - point_epoch )); else rpo="?"; fi
   echo "[$T1] $TARGET AVAILABLE. endpoint=$ep"
   echo "RTO_provision_seconds=$rto_prov  RPO_seconds=$rpo  (điểm khôi phục: $point)"
   echo "Bước kế: chạy lại với --target $TARGET --verify-psql (cần PGPASSWORD) để đo RTO tới lúc đọc được dữ liệu."
