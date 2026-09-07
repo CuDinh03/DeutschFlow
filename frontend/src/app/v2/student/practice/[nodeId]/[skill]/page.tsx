@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowLeft, BookOpen, Check, Lightbulb, Mic, RefreshCw, Sparkles, TreeDeciduous, Trophy, Volume2, X } from 'lucide-react'
+import { ArrowLeft, BookOpen, Check, CircleCheck, CircleX, Lightbulb, Mic, RefreshCw, Sparkles, TreeDeciduous, Trophy, Volume2, X } from 'lucide-react'
 import api from '@/lib/api'
 import { isAsyncJobAccepted, waitForAsyncJob } from '@/lib/asyncJob'
 import { pickExplanation } from '@/lib/practice/explanation'
@@ -408,9 +408,10 @@ function ExerciseCard({
           }}
         >
           <p
-            className="ga-ui mb-1 text-[12px] font-semibold"
+            className="ga-ui mb-1 flex items-center gap-1.5 text-[12px] font-semibold"
             style={{ color: isCorrect ? 'var(--ga-green)' : 'var(--ga-orange)' }}
           >
+            {isCorrect ? <CircleCheck size={14} aria-hidden /> : <CircleX size={14} aria-hidden />}
             {isCorrect ? t('correct') : t('incorrect')}
           </p>
           <p className="ga-ui break-words text-[13.5px] text-ga-muted">{explanation}</p>

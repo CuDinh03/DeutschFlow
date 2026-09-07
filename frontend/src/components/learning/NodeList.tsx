@@ -4,7 +4,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { BookOpen, Check, Dumbbell, Lock } from 'lucide-react'
-import { GaProgress, TkBadge } from '@/components/ui-v2'
+import { GaIcon, GaProgress, iconNameForEmoji, TkBadge } from '@/components/ui-v2'
 import { nodeStatus, nodeProgressPercent } from '@/lib/learning/currentNode'
 import type { RoadmapNode } from '@/lib/roadmap-tree/types'
 
@@ -45,7 +45,15 @@ export function NodeList({ nodes }: { nodes: RoadmapNode[] }) {
                   locked ? 'bg-ga-locked-bg' : 'bg-ga-surface',
                 ].join(' ')}
               >
-                {locked ? <Lock size={18} className="text-ga-locked-fg" /> : done ? <Check size={20} className="text-ga-green" /> : node.emoji}
+                {locked ? (
+                  <Lock size={18} className="text-ga-locked-fg" />
+                ) : done ? (
+                  <Check size={20} className="text-ga-green" />
+                ) : (
+                  // `node.emoji` là dữ liệu backend; in thẳng thì mỗi máy vẽ một kiểu và luôn
+                  // nhiều màu, cạnh ổ khoá/dấu tích Lucide ngay bên trên là lộ.
+                  <GaIcon name={iconNameForEmoji(node.emoji)} size={20} className="text-ga-muted" />
+                )}
               </span>
 
               <div className="min-w-0 flex-1">

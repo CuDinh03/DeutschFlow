@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
-import { Plus, Pencil, Siren, Wrench } from 'lucide-react'
+import { Check, Plus, Pencil, Siren, Wrench } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { GaPageHdr, GaBtn, GaCap, TkModal, ConfirmDialog } from '@/components/ui-v2'
@@ -352,8 +352,16 @@ export default function V2AdminMaintenancePage() {
                   <div className="ga-ui mt-1 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] text-ga-muted">
                     <span>{t('row.starts', { time: fmtWhen(fmt, w.startsAtUtc) })}</span>
                     {w.endsAtUtc && <span>{t('row.ends', { time: fmtWhen(fmt, w.endsAtUtc) })}</span>}
-                    {w.notifiedScheduleAtUtc && <span>✓ {t('row.notified')}</span>}
-                    {w.notifiedBeforeAtUtc && <span>✓ {t('row.reminded')}</span>}
+                    {w.notifiedScheduleAtUtc && (
+                      <span className="inline-flex items-center gap-1">
+                        <Check size={12} aria-hidden /> {t('row.notified')}
+                      </span>
+                    )}
+                    {w.notifiedBeforeAtUtc && (
+                      <span className="inline-flex items-center gap-1">
+                        <Check size={12} aria-hidden /> {t('row.reminded')}
+                      </span>
+                    )}
                     <span className="text-ga-subtle">{w.createdBy}</span>
                   </div>
                   {w.note && <p className="mt-1 line-clamp-2 text-[12.5px] italic text-ga-subtle">{w.note}</p>}

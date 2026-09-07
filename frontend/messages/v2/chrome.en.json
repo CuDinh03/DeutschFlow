@@ -292,7 +292,7 @@
     "noClasses": "You have not joined any class yet.",
     "userFallback": "User #{id}",
     "directPlaceholder": "Type a message… (Enter to send, Shift+Enter for a new line)",
-    "directEmpty": "No messages yet — say hello first 👋",
+    "directEmpty": "No messages yet — say hello first",
     "listAria": "Conversation list",
     "pickHint": "Pick a conversation or class group to start messaging.",
     "back": "Back",

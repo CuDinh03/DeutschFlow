@@ -144,7 +144,10 @@ export default function V2TcProgressPage() {
                     <span className="min-w-0 break-words font-ga-display text-[17px] font-medium text-ga-bg">{next.title}</span>
                   </div>
                 ) : (
-                  <div className="mb-3.5 font-ga-display text-[17px] font-medium text-ga-bg">{t('allDone')}</div>
+                  <div className="mb-3.5 flex items-center gap-2 font-ga-display text-[17px] font-medium text-ga-bg">
+                    <CircleCheck size={18} className="shrink-0" aria-hidden />
+                    {t('allDone')}
+                  </div>
                 )}
                 <div className="mb-3.5 flex flex-wrap items-baseline gap-2.5 lg:flex-nowrap">
                   <span className="font-ga-display text-[36px] font-medium leading-none sm:text-[44px] lg:text-[54px]">{progress}%</span>

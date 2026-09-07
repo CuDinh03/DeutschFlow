@@ -12,7 +12,7 @@ import {
   useDroppable,
 } from '@dnd-kit/core'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Heart, Lightbulb, Trophy, Volume2 } from 'lucide-react'
+import { ArrowLeft, CircleCheck, CircleX, Heart, Lightbulb, Trophy, Volume2 } from 'lucide-react'
 import api from '@/lib/api'
 import { speakGerman } from '@/lib/speechDe'
 import {
@@ -436,9 +436,14 @@ export default function V2StudentLegoGamePage() {
                   }}
                 >
                   <p
-                    className="ga-ui text-[13.5px] font-semibold"
+                    className="ga-ui flex items-center gap-1.5 text-[13.5px] font-semibold"
                     style={{ color: checked === 'correct' ? 'var(--ga-green)' : 'var(--ga-red)' }}
                   >
+                    {checked === 'correct' ? (
+                      <CircleCheck size={15} aria-hidden />
+                    ) : (
+                      <CircleX size={15} aria-hidden />
+                    )}
                     {checked === 'correct' ? t('correct') : t('wrongGeneric')}
                   </p>
                   {validatorErrors.map((msg, i) => (

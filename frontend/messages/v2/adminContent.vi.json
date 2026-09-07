@@ -49,7 +49,7 @@
       "statAudio": "Đã có audio (TTS)",
       "queueCap": "Hàng đợi duyệt từ vựng ({count})",
       "loadError": "Không tải được từ vựng",
-      "queueDone": "Đã duyệt hết hàng đợi 🎉",
+      "queueDone": "Đã duyệt hết hàng đợi",
       "missingImage": "Thiếu ảnh",
       "attachImage": "Gắn ảnh",
       "approveNeedsImage": "Cần gắn ảnh trước khi duyệt",
@@ -314,7 +314,7 @@
       "statErrorsSub": "có correction",
       "exportCap": "Xuất dữ liệu",
       "downloadJson": "Tải xuống JSON",
-      "anonymizedNote": "⚠️ Dữ liệu đã ẩn danh hoá — chỉ dùng cải thiện AI model, không chia sẻ ra ngoài."
+      "anonymizedNote": "Dữ liệu đã ẩn danh hoá — chỉ dùng cải thiện AI model, không chia sẻ ra ngoài."
     },
     "reports": {
       "childGrammar": "Phản hồi ngữ pháp",

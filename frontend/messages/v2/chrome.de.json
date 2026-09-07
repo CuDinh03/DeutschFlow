@@ -292,7 +292,7 @@
     "noClasses": "Sie sind noch keiner Klasse beigetreten.",
     "userFallback": "Nutzer #{id}",
     "directPlaceholder": "Nachricht eingeben… (Enter zum Senden, Shift+Enter für neue Zeile)",
-    "directEmpty": "Noch keine Nachrichten — sagen Sie zuerst Hallo 👋",
+    "directEmpty": "Noch keine Nachrichten — sagen Sie zuerst Hallo",
     "listAria": "Unterhaltungsliste",
     "pickHint": "Wählen Sie eine Unterhaltung oder Klassengruppe, um zu schreiben.",
     "back": "Zurück",

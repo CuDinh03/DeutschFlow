@@ -71,6 +71,22 @@ test.describe('Runner luyện tập — giữ bài khi rời trang (S-04 AC-2)',
   });
 });
 
+test.describe('Bài HỌC — biểu tượng chủ đề là icon, không phải emoji', () => {
+  test('emoji của node không lọt ra chữ; chỗ đó là icon vẽ bằng SVG', async ({ page }) => {
+    await mockLearnNode(page);
+    await page.goto(`/v2/student/learn/${LEARN_NODE_ID}`);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
+
+    // `skill_tree_nodes.emoji` là DỮ LIỆU: mock trả '💼'. In thẳng ra thì mỗi hệ điều hành vẽ một
+    // kiểu và luôn nhiều màu — lệch hẳn với icon Lucide của chính trang này (tab kỹ năng, nút thoát).
+    await expect(page.locator('body')).not.toContainText('💼');
+
+    // Ô biểu tượng của GaGlyph (grid + rounded-ga + nền accent) phải chứa một <svg>.
+    const glyph = page.locator('span.grid.rounded-ga.bg-ga-accent-soft').first();
+    await expect(glyph.locator('svg')).toBeVisible();
+  });
+});
+
 test.describe('LessonShell — một vỏ, hai chế độ (S-04 AC-1)', () => {
   test('bài LUYỆN: vỏ có thoát · tiến độ theo bước · segmented Học|Luyện', async ({ page }) => {
     await mockPracticeRunner(page);

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { AlertCircle, ChevronRight, ShieldAlert, Trophy } from 'lucide-react'
+import { AlertCircle, Check, ChevronRight, ShieldAlert, Trophy } from 'lucide-react'
 import api from '@/lib/api'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { GaBtn, GaCap, GaPageHdr, LoadingState, ErrorBanner, TkBadge, GaStatStrip } from '@/components/ui-v2'
@@ -344,7 +344,9 @@ export default function V2StudentStatsPage() {
                         <ShieldAlert size={12} aria-hidden /> {t('openErrors', { count: errorAnalytics!.openErrors })}
                       </TkBadge>
                     ) : (
-                      <TkBadge tone="green">{t('allFixed')}</TkBadge>
+                      <TkBadge tone="green">
+                        <Check size={12} aria-hidden /> {t('allFixed')}
+                      </TkBadge>
                     )
                   }
                 >

@@ -45,7 +45,7 @@
       "heading": "How much do you want to study?",
       "sub": "Your weekly target shapes the personalised extra topics.",
       "mentorLabel": "Your mentor",
-      "upsell": "🔓 Unlock mentor <b>{name}</b>{tagline} with PRO →",
+      "upsell": "Unlock mentor <b>{name}</b>{tagline} with PRO →",
       "w3": {
         "label": "3 lessons/week",
         "desc": "~15 min/day"
@@ -58,13 +58,13 @@
         "label": "7 lessons/week",
         "desc": "One lesson every day"
       },
-      "noteA0": "🌱 Your first steps will be <b>the alphabet, pronunciation and greetings</b>.",
-      "notePlacement": "📝 You can take an <b>optional 5-minute test</b> to land on the right level — or just start learning."
+      "noteA0": "Your first steps will be <b>the alphabet, pronunciation and greetings</b>.",
+      "notePlacement": "You can take an <b>optional 5-minute test</b> to land on the right level — or just start learning."
     },
     "quickWin": {
       "heading": "Try your first sentence!",
       "prompt": "How do you say \"Good morning\" in German?",
-      "correct": "Richtig! 🎉 You just learned your first word.",
+      "correct": "Richtig! You just learned your first word.",
       "wrong": "Not quite — give it another go!"
     },
     "signup": {
@@ -83,10 +83,10 @@
     },
     "test": {
       "heading": "Placement test",
-      "skillHoeren": "🎧 Listening",
-      "skillSprechen": "🎤 Speaking",
-      "skillLesen": "📚 Reading",
-      "skillSchreiben": "✍️ Writing",
+      "skillHoeren": "Listening",
+      "skillSprechen": "Speaking",
+      "skillLesen": "Reading",
+      "skillSchreiben": "Writing",
       "writePlaceholder": "Write your answer in German...",
       "prev": "Back",
       "next": "Next",
@@ -96,7 +96,7 @@
       "passed": "Nice — you're ready!",
       "failed": "We found what to review",
       "score": "Result: <b>{correct}/{total}</b> ({percent}%)",
-      "weakModules": "📋 Modules to review: {modules}",
+      "weakModules": "Modules to review: {modules}",
       "retryAfter": "You can retry in {days} days.",
       "ctaPassed": "Start my personalised roadmap →",
       "ctaFailed": "See the roadmap that fits →",

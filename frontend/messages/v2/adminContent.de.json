@@ -49,7 +49,7 @@
       "statAudio": "Mit Audio (TTS)",
       "queueCap": "Prüfungswarteschlange Vokabeln ({count})",
       "loadError": "Vokabeln konnten nicht geladen werden",
-      "queueDone": "Warteschlange vollständig geprüft 🎉",
+      "queueDone": "Warteschlange vollständig geprüft",
       "missingImage": "Bild fehlt",
       "attachImage": "Bild zuordnen",
       "approveNeedsImage": "Vor dem Freigeben ein Bild zuordnen",
@@ -314,7 +314,7 @@
       "statErrorsSub": "mit Korrektur",
       "exportCap": "Daten exportieren",
       "downloadJson": "JSON herunterladen",
-      "anonymizedNote": "⚠️ Daten sind anonymisiert — nur zur Verbesserung von KI-Modellen, nicht zur externen Weitergabe."
+      "anonymizedNote": "Daten sind anonymisiert — nur zur Verbesserung von KI-Modellen, nicht zur externen Weitergabe."
     },
     "reports": {
       "childGrammar": "Grammatik-Feedback",
