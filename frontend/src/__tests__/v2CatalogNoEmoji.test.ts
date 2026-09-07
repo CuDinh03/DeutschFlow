@@ -14,8 +14,26 @@
 import { describe, expect, it } from 'vitest'
 import { catalogMessages, type UiLocale } from '@/test/intlCatalog'
 
-/** Dải emoji + ký hiệu tô màu; KHÔNG gồm mũi tên (→ ⇒) vốn là dấu câu trong bản tiếng Việt. */
-const EMOJI = /[\u{1F300}-\u{1FAFF}\u{1F000}-\u{1F2FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u
+/**
+ * Dải emoji + ký hiệu tô màu; KHÔNG gồm mũi tên (→ ⇒) vốn là dấu câu trong bản tiếng Việt.
+ * Duyệt theo CODE POINT chứ không bằng regex cờ `u`: tsconfig không đặt `target` (⇒ ES5) nên cờ đó
+ * là lỗi biên dịch TS1501 — đỏ trên CI dù vitest chạy được.
+ */
+const RANGES: [number, number][] = [
+  [0x1f000, 0x1f2ff], // thẻ bài, chữ trong ô — gồm cả cờ (regional indicator)
+  [0x1f300, 0x1faff], // khối emoji chính
+  [0x2600, 0x27bf], // ☀ ✅ ❌ ✓ ✗ ✨ …
+  [0x2b00, 0x2bff], // mũi tên/khối tô đậm
+]
+
+function hasEmoji(text: string): boolean {
+  for (let i = 0; i < text.length; i += 1) {
+    const cp = text.codePointAt(i) ?? 0
+    if (RANGES.some(([lo, hi]) => cp >= lo && cp <= hi)) return true
+    if (cp > 0xffff) i += 1 // đã ăn cả cặp surrogate
+  }
+  return false
+}
 
 /**
  * Khoá được miễn — emoji ở đó là NỘI DUNG, không phải icon của giao diện:
@@ -32,7 +50,7 @@ const ALLOW = new Set([
 
 function walk(node: unknown, path: string, out: string[]): void {
   if (typeof node === 'string') {
-    if (EMOJI.test(node) && !ALLOW.has(path)) out.push(`${path} = ${node}`)
+    if (hasEmoji(node) && !ALLOW.has(path)) out.push(`${path} = ${node}`)
     return
   }
   if (Array.isArray(node)) {
@@ -63,7 +81,7 @@ describe('catalog /v2 — emoji không được đóng vai icon', () => {
     const withoutAllow: string[] = []
     const walkAll = (node: unknown, path: string): void => {
       if (typeof node === 'string') {
-        if (EMOJI.test(node)) withoutAllow.push(path)
+        if (hasEmoji(node)) withoutAllow.push(path)
         return
       }
       if (node && typeof node === 'object') {
