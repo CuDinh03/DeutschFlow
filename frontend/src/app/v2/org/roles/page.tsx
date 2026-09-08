@@ -172,7 +172,8 @@ export default function V2OrgRolesPage() {
                             </td>
                             <td className="px-5 py-3 text-[13px] text-ga-muted">{fmtDate(m.joinedAt)}</td>
                             <td className="px-5 py-3 text-right">
-                              {m.role !== 'OWNER' && (
+                              {/* Backend chỉ cho OWNER gỡ MANAGER (V-14): đừng mở hộp thoại rồi mới ăn 403. */}
+                              {m.role !== 'OWNER' && (isOwner || m.role !== 'MANAGER') && (
                                 <button
                                   type="button"
                                   disabled={busy === m.userId}

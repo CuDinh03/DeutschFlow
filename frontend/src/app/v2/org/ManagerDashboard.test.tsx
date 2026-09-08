@@ -71,7 +71,7 @@ async function statTile(i: number): Promise<HTMLElement> {
 }
 
 describe('OrgManagerDashboard — lỗi không được thành số 0 (V-02)', () => {
-  it('analytics chết ⇒ ô Học viên hiện "—" + "chưa tải được", KHÔNG hiện 0', async () => {
+  it('analytics chết ⇒ ô Học viên lùi về số của summary và ghi "chưa tải được", KHÔNG hiện 0', async () => {
     getAnalytics.mockRejectedValue(new Error('502'))
     getOrgSummary.mockResolvedValue({ ...summary(0), studentCount: 0 })
 

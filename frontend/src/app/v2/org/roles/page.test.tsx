@@ -83,3 +83,27 @@ describe('V2OrgRolesPage — nhánh "Đã gỡ" là mã chết (V-12b)', () => {
     expect(screen.getAllByRole('button', { name: 'v2.org.roles.remove' })).toHaveLength(1)
   })
 })
+
+describe('V2OrgRolesPage — chỉ OWNER mới gỡ được MANAGER (V-14)', () => {
+  it('MANAGER không thấy nút gỡ trên hàng MANAGER khác, nhưng vẫn gỡ được TEACHER', async () => {
+    getOrgRole.mockReturnValue('MANAGER')
+    listMembers.mockResolvedValue([member(1, 'OWNER'), member(2, 'MANAGER'), member(3, 'TEACHER')])
+
+    render(<V2OrgRolesPage />)
+
+    await waitFor(() => expect(screen.getByText('Người 3')).toBeTruthy())
+    // Backend trả 403 khi MANAGER gỡ MANAGER, nên nút phải vắng mặt chứ không phải
+    // mở ConfirmDialog rồi mới báo lỗi. Chỉ còn đúng một nút gỡ: hàng TEACHER.
+    expect(screen.getAllByRole('button', { name: 'v2.org.roles.remove' })).toHaveLength(1)
+  })
+
+  it('OWNER vẫn gỡ được cả MANAGER lẫn TEACHER', async () => {
+    getOrgRole.mockReturnValue('OWNER')
+    listMembers.mockResolvedValue([member(1, 'OWNER'), member(2, 'MANAGER'), member(3, 'TEACHER')])
+
+    render(<V2OrgRolesPage />)
+
+    await waitFor(() => expect(screen.getByText('Người 3')).toBeTruthy())
+    expect(screen.getAllByRole('button', { name: 'v2.org.roles.remove' })).toHaveLength(2)
+  })
+})

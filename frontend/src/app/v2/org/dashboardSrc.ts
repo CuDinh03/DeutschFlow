@@ -15,7 +15,3 @@ export function srcOf<T>(r: PromiseSettledResult<T>): Src<T> {
   return r.status === 'fulfilled' ? { state: 'ok', data: r.value } : { state: 'error' }
 }
 
-/** Dữ liệu khi nguồn đã về, `null` khi còn chờ hoặc lỗi — dùng cho nhánh hiển thị "—". */
-export function dataOf<T>(s: Src<T>): T | null {
-  return s.state === 'ok' ? s.data : null
-}
