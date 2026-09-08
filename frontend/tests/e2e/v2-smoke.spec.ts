@@ -45,6 +45,21 @@ async function mockApi(page: import('@playwright/test').Page, me: Record<string,
   )
 }
 
+/**
+ * Khoá i18n THÔ trên màn hình — lớp lỗi riêng của việc cắt catalog theo khu (`pickV2Messages`).
+ *
+ * next-intl không ném khi provider của khu thiếu nhánh chứa khoá: nó in thẳng đường dẫn ra chỗ lẽ
+ * ra là chữ ("v2.shell.logout", "speaking.chat.inputPlaceholder"). Đã ra prod đúng như vậy một lần.
+ * `check-i18n-providers.mjs` canh việc này tĩnh; đây là phép đo ở runtime, trên trang thật.
+ */
+const RAW_KEY = /\b(?:v2|speaking|learn|nav)\.[a-z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)+/
+
+async function expectNoRawKeys(page: import('@playwright/test').Page) {
+  const text = await page.locator('body').innerText()
+  const hit = text.match(RAW_KEY)
+  expect(hit?.[0] ?? null, `khoá i18n thô lọt ra màn hình: ${hit?.[0] ?? ''}`).toBeNull()
+}
+
 test.describe('UI 2.0 (/v2) smoke', () => {
   // Shell chrome khác nhau theo breakpoint (sidebar area list ≥768px, bottom nav <768px) → khai RÕ
   // viewport thay vì dựa vào mặc định của Playwright.
@@ -111,6 +126,26 @@ test.describe('UI 2.0 (/v2) smoke', () => {
     await expect(page.getByPlaceholder('Tìm bài học, từ vựng, lớp…')).toHaveCount(0)
 
     await expect(page.getByText('Có lỗi xảy ra')).toHaveCount(0)
+  })
+
+  test('không màn nào in khoá i18n thô thay cho chữ (cắt catalog theo khu)', async ({ page }) => {
+    await page.goto('/v2')
+    await expectNoRawKeys(page)
+
+    await page.context().addCookies(studentCookies())
+    await page.addInitScript((t) => localStorage.setItem('accessToken', t), STUDENT_TOKEN)
+    await mockApi(page, ME)
+    await page.goto('/v2/student/dashboard')
+    await expect(page.locator('h1')).toBeVisible()
+    await expectNoRawKeys(page)
+
+    await page.context().clearCookies()
+    await page.context().addCookies(teacherCookies())
+    await page.addInitScript((t) => localStorage.setItem('accessToken', t), TEACHER_TOKEN)
+    await mockApi(page, { ...ME, role: 'TEACHER' })
+    await page.goto('/v2/teacher')
+    await expect(page.locator('h1')).toBeVisible()
+    await expectNoRawKeys(page)
   })
 })
 

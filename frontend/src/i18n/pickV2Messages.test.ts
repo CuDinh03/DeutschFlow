@@ -3,7 +3,11 @@ import realChromeVi from '../../messages/v2/chrome.vi.json'
 
 /**
  * W2 audit lag 02/09: mỗi provider chỉ được mang lõi chrome + phần khu của nó — test này khoá
- * hợp đồng cắt catalog (giữ base nguyên vẹn, loại khu lạ, pick được nhánh sâu).
+ * hợp đồng cắt catalog (loại khu lạ, pick được nhánh sâu).
+ *
+ * 07/09: base cũng cắt theo khai báo `base:<ns>`. Trước đó base đi kèm nguyên vẹn ở MỌI provider,
+ * mà `speaking` một mình đã 14KB và chỉ khu student đọc — landing/đăng nhập/teacher/org/admin cõng
+ * không công trong HTML từng lượt tải.
  *
  * ⚠️ Hình dạng mock PHẢI phản chiếu request.ts THẬT: chrome.<locale>.json được merge PHẲNG vào
  * root `v2` (các nhóm nav/shell/common/error/maintenance nằm NGANG với student/teacher/…), KHÔNG
@@ -43,10 +47,27 @@ import { messagesForV2Areas } from './pickV2Messages'
 type M = Record<string, unknown>
 
 describe('messagesForV2Areas', () => {
-  it('giữ nguyên base (catalog legacy) ở mọi provider', async () => {
+  it('base KHÔNG tự đi kèm — không khai `base:` thì provider không mang catalog gốc', async () => {
+    // Hợp đồng đổi 07/09: `speaking` (14KB) chỉ khu student cần, nhưng trước đó mọi trang —
+    // landing, đăng nhập, teacher, org, admin — đều cõng nguyên base trong HTML.
     const m = (await messagesForV2Areas('student')) as M
+    expect(m.learn).toBeUndefined()
+    expect(m.nav).toBeUndefined()
+  })
+
+  it("khai 'base:<ns>' thì đúng namespace đó có mặt, các namespace gốc khác thì không", async () => {
+    const m = (await messagesForV2Areas('student', 'base:learn')) as M
+    expect(m.learn).toEqual({ title: 'bài học' })
+    expect(m.nav).toBeUndefined()
+    // Khai base không được lẫn vào phần v2.
+    expect((m.v2 as M).learn).toBeUndefined()
+  })
+
+  it('nhiều namespace gốc cùng lúc, và tên lạ thì bỏ qua êm', async () => {
+    const m = (await messagesForV2Areas('student', 'base:learn', 'base:nav', 'base:khongCo')) as M
     expect(m.learn).toEqual({ title: 'bài học' })
     expect(m.nav).toEqual({ home: 'trang chủ' })
+    expect('khongCo' in m).toBe(false)
   })
 
   it('luôn kèm lõi chrome (nav/shell/common/error), pick đúng khu được nêu, loại khu lạ', async () => {
