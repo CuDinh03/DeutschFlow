@@ -36,12 +36,15 @@ export function TodayTasks() {
 
   const dueTasks = plan.dueRepairTasks ?? []
   const speaking = plan.recommendedSpeaking
+  // V-12c: backend vẫn gợi ý Thử thách nói tuần này (TodayPlanDto.recommendedWeeklySpeaking) và web
+  // đã render từ lâu — app nhận rồi vứt đi, nên một "việc hôm nay" biến mất khỏi máy điện thoại.
+  const weekly = plan.recommendedWeeklySpeaking
   const vocab = plan.recommendedVocabPractice
   // Nhãn người-đọc-được (ruleViShort → errorTaxonomy), đã khử trùng lặp —
   // tuyệt đối không rơi về mã thô kiểu WORD_ORDER.V2_MAIN_CLAUSE.
   const chipLabels = dueRepairChipLabels(dueTasks, skillsQ.data ?? [])
 
-  const hasAnything = dueTasks.length > 0 || speaking || vocab
+  const hasAnything = dueTasks.length > 0 || speaking || weekly || vocab
   if (!hasAnything) return null
 
   return (
@@ -108,7 +111,30 @@ export function TodayTasks() {
         </Card>
       )}
 
-      {/* 3. Từ vựng gợi ý */}
+      {/* 3. Bài nói theo tuần — todayHrefToRoute đưa href 'weekly…' về /(student)/weekly-speaking.
+          Nhãn lấy đúng câu web dùng cho cùng việc này (v2.student.dashboard.today.weekly). */}
+      {weekly && (
+        <Card
+          onPress={() => router.push(todayHrefToRoute(weekly.href))}
+          accessibilityLabel="Làm bài nói theo tuần"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}
+        >
+          <View style={{ width: 40, height: 40, borderRadius: radius.md, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <GaGlyph name="muctieu" size={20} ink="primary" />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <ThemedText variant="bodyStrong">
+              {weekly.topic ? `Bài nói theo tuần · ${weekly.topic}` : 'Bài nói theo tuần'}
+            </ThemedText>
+            {weekly.cefrLevel ? (
+              <ThemedText variant="caption" color="muted">{`Trình độ ${weekly.cefrLevel}`}</ThemedText>
+            ) : null}
+          </View>
+          <Icon icon={ChevronRight} size={16} color="muted" />
+        </Card>
+      )}
+
+      {/* 4. Từ vựng gợi ý */}
       {vocab && (
         <Card
           onPress={() => router.push(todayHrefToRoute(vocab.href))}
