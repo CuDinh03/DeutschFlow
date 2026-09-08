@@ -114,18 +114,29 @@ nhưng nếu sau này có ai đặt trang lỗi tùy biến trả 200 thì keywo
 
 ### Bước 3 — Nối cảnh báo về Telegram (kênh đang dùng)
 
-Dùng **cùng bot và cùng chat id** mà Alertmanager đang dùng, để tất cả cảnh báo hạ tầng về một chỗ.
+Tin về **cùng một chat id** với Alertmanager để mọi cảnh báo hạ tầng đổ về một chỗ — nhưng
+**tạo một bot RIÊNG cho monitor ngoài**, đừng dùng lại bot của Alertmanager.
 
-1. Lấy token + chat id từ **EC2**: `docker/alertmanager/alertmanager.yml` (file thật, gitignored).
-   ⛔ Không copy hai giá trị này vào repo, vào issue, vào chat, hay vào tài liệu này.
-2. Trong dịch vụ monitor, tạo *alert contact* kiểu **Webhook** (POST hoặc GET đều được):
-   - URL: `https://api.telegram.org/bot<BOT_TOKEN>/sendMessage`
+🔑 **Vì sao phải tách bot.** Webhook URL của dịch vụ bên thứ ba mang token ngay trên đường dẫn, và
+URL kiểu đó bị ghi log ở nhiều chỗ ngoài tầm kiểm soát: log gửi webhook, log lỗi, màn hình cấu hình,
+bản xuất cấu hình. Token Telegram rò ở đó cho phép người khác **gửi cảnh báo giả vào đúng kênh vận
+hành** và đọc nội dung kênh qua `getUpdates`. Bot riêng thì rò một bên không mất bên kia, và thu hồi
+được độc lập bằng `/revoke` với @BotFather.
+
+1. Chat với **@BotFather** → `/newbot` → đặt tên kiểu `DeutschFlow Uptime` → nhận token MỚI.
+2. Mời bot mới vào đúng nhóm/kênh đang nhận cảnh báo, rồi lấy `chat_id` (giống chat id Alertmanager
+   đang dùng — đọc từ **EC2**: `docker/alertmanager/alertmanager.yml`, file thật, gitignored).
+   ⛔ Không copy token hay chat id vào repo, vào issue, vào chat, hay vào chính tài liệu này.
+3. Trong dịch vụ monitor, tạo *alert contact* kiểu **Webhook** (POST hoặc GET đều được):
+   - URL: `https://api.telegram.org/bot<TOKEN_BOT_MONITOR>/sendMessage`
    - Tham số: `chat_id=<CHAT_ID>`, `text=` chuỗi mẫu của dịch vụ (thường có biến kiểu
      `*monitorFriendlyName* is *alertTypeFriendlyName*`).
-3. Nếu dịch vụ có sẵn tích hợp Telegram thì dùng thẳng, khỏi webhook.
-4. Bật thêm **email** làm kênh dự phòng: nếu sự cố là "mất Internet ra ngoài" thì Telegram của
+   - Nếu sau này nghi token rò: `/revoke` ở @BotFather, dán token mới vào dịch vụ. Alertmanager
+     **không bị ảnh hưởng** vì nó dùng bot khác.
+4. Nếu dịch vụ có sẵn tích hợp Telegram thì dùng thẳng, khỏi webhook — vẫn dùng bot riêng.
+5. Bật thêm **email** làm kênh dự phòng: nếu sự cố là "mất Internet ra ngoài" thì Telegram của
    Alertmanager câm, nhưng monitor bên ngoài vẫn gửi được — hai đường độc lập mới có giá trị.
-5. Đặt "alert khi khôi phục" (resolved) = BẬT, khớp `send_resolved: true` của Alertmanager.
+6. Đặt "alert khi khôi phục" (resolved) = BẬT, khớp `send_resolved: true` của Alertmanager.
 
 ### Bước 4 — Ghi lại
 
