@@ -178,7 +178,7 @@
         "classNone": "Kein Kurs",
         "classTruncated": "Nur die ersten 50 Kurse werden angezeigt — weitere später auf der Kursseite zuordnen.",
         "idempotentNote": "Erneuter Import derselben Datei erzeugt keine Duplikate: vorhandene E-Mails werden nur zugeordnet.",
-        "planNote": "Schüler mit persönlichem Tarif nutzen während der Mitgliedschaft den Zentrumstarif (ein aktiver persönlicher Tarif wird ersetzt, bis die Pausieren/Wiederherstellen-Regel ausgeliefert ist).",
+        "planNote": "Schüler mit persönlichem Tarif nutzen während der Mitgliedschaft den Zentrumstarif. Ein bezahlter persönlicher Tarif wird PAUSIERT und behält seine Restlaufzeit — beim Austritt kommt er vollständig zurück, die Zeit im Zentrum wird nicht angerechnet.",
         "cancel": "Abbrechen",
         "submit": "{count} Zeilen importieren",
         "close": "Schließen",

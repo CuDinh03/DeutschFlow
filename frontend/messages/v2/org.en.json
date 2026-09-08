@@ -178,7 +178,7 @@
         "classNone": "No class",
         "classTruncated": "Only the first 50 classes are listed — assign others later on the Classes page.",
         "idempotentNote": "Re-importing the same file creates no duplicates: existing emails are only linked.",
-        "planNote": "Students with a personal plan use the center plan while they are members (an active personal plan is replaced until the pause/restore policy ships).",
+        "planNote": "Students with a personal plan use the centre plan while they are members. A paid personal plan is PAUSED with its remaining time preserved — it comes back in full when they leave, and time spent here does not count against it.",
         "cancel": "Cancel",
         "submit": "Import {count} rows",
         "close": "Close",
