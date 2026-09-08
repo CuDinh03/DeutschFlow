@@ -94,6 +94,11 @@ public interface ClassStudentRepository extends JpaRepository<ClassStudent, Clas
      * <p>Cần thiết vì các đường thêm học viên dựng một {@code ClassStudent} mới rồi {@code save()};
      * với khoá chính đã tồn tại thì đó là một lần merge và mọi cột không được gán (teacher_comment,
      * skill_*) bị ghi đè NULL.
+     *
+     * <p>🔑 Chỉ mở lại {@code ENDED} và {@code TRANSFERRED}. Người đang {@code RESERVED} (bảo lưu)
+     * KHÔNG bị lật về ACTIVE: bảo lưu là một quyết định có chủ ý của trung tâm (D1), mà đường dễ vấp
+     * nhất là nhập lại roster CSV — một học viên đang bảo lưu có tên trong tệp sẽ âm thầm mất trạng
+     * thái đó. Trả 0 nghĩa là "lượt này không đưa ai (trở) vào lớp", đúng cho cờ {@code enrolled}.
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
@@ -101,7 +106,7 @@ public interface ClassStudentRepository extends JpaRepository<ClassStudent, Clas
             SET    cs.status = 'ACTIVE', cs.endedAt = null, cs.endReason = null,
                    cs.transferredToClassId = null
             WHERE  cs.id.classId = :classId AND cs.id.studentId = :studentId
-              AND  cs.status <> 'ACTIVE'
+              AND  cs.status IN ('ENDED', 'TRANSFERRED')
             """)
     int reopenEnrollment(@Param("classId") Long classId, @Param("studentId") Long studentId);
 }

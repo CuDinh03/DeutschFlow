@@ -44,9 +44,16 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_class_students_transferred_to') THEN
         ALTER TABLE class_students
             ADD CONSTRAINT fk_class_students_transferred_to
-            FOREIGN KEY (transferred_to_class_id) REFERENCES teacher_classes(id);
+            FOREIGN KEY (transferred_to_class_id) REFERENCES teacher_classes(id)
+            ON DELETE SET NULL;
     END IF;
 END $$;
+
+-- Cột FK cần index riêng: không có nó thì MỖI lần xoá lớp Postgres phải seq-scan class_students để
+-- kiểm ràng buộc. Partial vì đại đa số dòng để NULL.
+CREATE INDEX IF NOT EXISTS idx_class_students_transferred_to
+    ON class_students (transferred_to_class_id)
+    WHERE transferred_to_class_id IS NOT NULL;
 
 COMMENT ON COLUMN class_students.status     IS 'ACTIVE | RESERVED (bảo lưu, vẫn giữ chỗ) | ENDED | TRANSFERRED';
 COMMENT ON COLUMN class_students.ended_at   IS 'Thời điểm rời lớp; NULL khi còn ghi danh';

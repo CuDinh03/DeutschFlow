@@ -237,9 +237,20 @@ public class GradingService {
 
         List<StudentAssignment> submissions = studentAssignmentRepository.findByAssignmentId(assignmentId);
 
-        // Lấy tất cả học viên trong lớp để hiển thị cả người chưa nộp
-        List<Long> classStudentIds = classStudentRepository.findByIdClassId(classId)
-                .stream().map(cs -> cs.getId().getStudentId()).collect(Collectors.toList());
+        // Sổ điểm = sĩ số hiện tại HỢP với mọi người đã thực sự nộp bài.
+        //
+        // Vế đầu để hiện cả người chưa nộp. Vế sau là bắt buộc từ khi ghi danh có vòng đời (V316):
+        // `findByIdClassId` chỉ trả người còn chiếm chỗ, nên một học viên bị gỡ giữa khoá sẽ rơi
+        // khỏi danh sách và bài họ ĐÃ NỘP thành không mở ra chấm được nữa — trong khi D2 nói rõ dữ
+        // liệu học tập phải giữ nguyên. Giữ nguyên trong cơ sở dữ liệu mà không còn lối vào thì
+        // cũng như mất.
+        List<Long> classStudentIds = new ArrayList<>();
+        classStudentRepository.findByIdClassId(classId)
+                .forEach(cs -> classStudentIds.add(cs.getId().getStudentId()));
+        submissions.stream()
+                .map(StudentAssignment::getStudentId)
+                .filter(id -> id != null && !classStudentIds.contains(id))
+                .forEach(classStudentIds::add);
 
         Map<Long, StudentAssignment> submissionByStudent = submissions.stream()
                 .collect(Collectors.toMap(StudentAssignment::getStudentId, sa -> sa, (a, b) -> a));

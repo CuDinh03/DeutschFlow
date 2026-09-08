@@ -209,6 +209,27 @@ class ClassEnrollmentLifecycleIntegrationTest extends AbstractPostgresIntegratio
     }
 
     @Test
+    @DisplayName("D1: enroll() KHÔNG được huỷ bảo lưu — người đang RESERVED giữ nguyên trạng thái")
+    void enroll_doesNotCancelReservation() {
+        Fixture f = fixture();
+        Long classId = f.orgClass.getId();
+        enrollmentService.enroll(classId, f.student.getId());
+        ClassStudentId key = new ClassStudentId(classId, f.student.getId());
+
+        // Đặt bảo lưu thẳng trên cơ sở dữ liệu: đợt này chưa có API bảo lưu, nhưng cột đã tồn tại
+        // và nhập lại roster CSV là đường sẽ vấp ngay khi đợt sau mở API.
+        jdbcTemplate.update("UPDATE class_students SET status = 'RESERVED' "
+                + "WHERE class_id = ? AND student_id = ?", classId, f.student.getId());
+
+        // Gọi lại enroll như khi nhập lại roster: KHÔNG được lật về ACTIVE, và phải trả false
+        // ("lượt này không đưa ai trở lại lớp") để cờ `enrolled` của kết quả nhập đếm đúng.
+        assertThat(enrollmentService.enroll(classId, f.student.getId())).isFalse();
+
+        ClassStudent after = classStudentRepository.findById(key).orElseThrow();
+        assertThat(after.getStatus()).isEqualTo(ClassStudent.STATUS_RESERVED);
+    }
+
+    @Test
     @DisplayName("G-02: trợ giảng bị chặn; org-admin gỡ được; lớp trung tâm KHÁC trả 404 (chống IDOR)")
     void removalAuthorization() {
         Fixture f = fixture();
