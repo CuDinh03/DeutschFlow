@@ -149,9 +149,12 @@ public class TeacherService {
         String placeholders = classIds.stream().map(ignored -> "?").collect(Collectors.joining(","));
         Object[] args = classIds.toArray();
 
+        // Sĩ số PHẢI khớp countByIdClassId (chỉ người còn chiếm ghế: ACTIVE + RESERVED, D1) — nếu
+        // không, thẻ lớp ở danh sách và trang chi tiết lớp trả hai con số khác nhau.
         Map<Long, Long> studentCounts = new HashMap<>();
         jdbcTemplate.queryForList(
-                "SELECT class_id, COUNT(*) AS cnt FROM class_students WHERE class_id IN (" + placeholders + ") GROUP BY class_id",
+                "SELECT class_id, COUNT(*) AS cnt FROM class_students WHERE class_id IN (" + placeholders + ")"
+                        + " AND status IN ('ACTIVE', 'RESERVED') GROUP BY class_id",
                 args).forEach(r -> studentCounts.put(toLong(r.get("class_id")), toLong(r.get("cnt"))));
 
         Map<Long, Long> assignmentCounts = new HashMap<>();

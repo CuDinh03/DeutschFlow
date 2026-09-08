@@ -19,6 +19,9 @@ import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.teacher.service.ClassEnrollmentService;
 import com.deutschflow.teacher.service.StudentClassroomService;
+import com.deutschflow.teacher.service.TeacherService;
+import com.deutschflow.admin.service.AdminManagementService;
+import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.testsupport.AbstractPostgresIntegrationTest;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
@@ -54,6 +57,9 @@ class ClassEnrollmentLifecycleIntegrationTest extends AbstractPostgresIntegratio
     @Autowired private OrgMemberRepository memberRepo;
     @Autowired private OrgMembershipService membershipService;
     @Autowired private StudentClassroomService studentClassroomService;
+    @Autowired private TeacherService teacherService;
+    @Autowired private UserNotificationService userNotificationService;
+    @Autowired private AdminManagementService adminManagementService;
     @Autowired private UserRepository userRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -279,6 +285,75 @@ class ClassEnrollmentLifecycleIntegrationTest extends AbstractPostgresIntegratio
                 .existsByIdClassIdAndIdStudentId(f.orgClass.getId(), f.student.getId())).isFalse();
         assertThat(classStudentRepository
                 .existsByIdClassIdAndIdStudentId(other.orgClass.getId(), f.student.getId())).isTrue();
+    }
+
+    // ── G-01b: các đường KHÔNG đi qua repository (SQL trần) cũng phải lọc ────
+
+    @Test
+    @DisplayName("G-01b: người đã bị gỡ khỏi lớp KHÔNG còn nhận thông báo của lớp; bảo lưu thì vẫn nhận")
+    void announcement_skipsRemovedStudent_keepsReserved() {
+        Fixture f = fixture();
+        Long classId = f.orgClass.getId();
+        enrollmentService.enroll(classId, f.student.getId());
+        enrollmentService.enroll(classId, f.student2.getId());
+        enrollmentService.enroll(classId, f.student3.getId());
+        setStatus(classId, f.student2.getId(), ClassStudent.STATUS_RESERVED);
+        enrollmentService.endByTeacher(f.teacher.getId(), classId, f.student3.getId(), actor(f.teacher));
+
+        int sent = userNotificationService.announceToClass(
+                f.teacher.getId(), "GV", classId, "A1", "Mai nghỉ học");
+
+        // student1 (ACTIVE) + student2 (RESERVED, D1 vẫn xem được) = 2; student3 đã rời lớp thì KHÔNG.
+        assertThat(sent).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM user_notifications WHERE recipient_user_id = ?",
+                Long.class, f.student3.getId())).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM user_notifications WHERE recipient_user_id = ?",
+                Long.class, f.student2.getId())).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("G-01b: sĩ số trên THẺ LỚP (SQL trần) khớp countByIdClassId sau khi gỡ học viên")
+    void classCardStudentCount_matchesRepositoryCount() {
+        Fixture f = fixture();
+        Long classId = f.orgClass.getId();
+        enrollmentService.enroll(classId, f.student.getId());
+        enrollmentService.enroll(classId, f.student2.getId());
+        enrollmentService.endByTeacher(f.teacher.getId(), classId, f.student2.getId(), actor(f.teacher));
+
+        long fromCard = teacherService.getClassesForTeacher(f.teacher.getId()).stream()
+                .filter(c -> c.id().equals(classId))
+                .findFirst().orElseThrow().studentCount();
+
+        assertThat(fromCard).isEqualTo(1L);
+        assertThat(fromCard).isEqualTo(classStudentRepository.countByIdClassId(classId));
+    }
+
+    @Test
+    @DisplayName("G-01b: admin nền tảng xếp lại học viên đã rời lớp thì MỞ LẠI dòng cũ, không im lặng bỏ qua")
+    void adminBulkAssign_reopensEndedEnrollment() {
+        Fixture f = fixture();
+        Long classId = f.orgClass.getId();
+        enrollmentService.enroll(classId, f.student.getId());
+        ClassStudentId key = new ClassStudentId(classId, f.student.getId());
+        ClassStudent graded = classStudentRepository.findById(key).orElseThrow();
+        graded.setSkillLesen(new java.math.BigDecimal("6.5"));
+        classStudentRepository.saveAndFlush(graded);
+        enrollmentService.endByTeacher(f.teacher.getId(), classId, f.student.getId(), actor(f.teacher));
+
+        Object assigned = adminManagementService
+                .bulkAssignStudents(classId, List.of(f.student.getId())).get("assignedCount");
+
+        assertThat(assigned).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT status FROM class_students WHERE class_id = ? AND student_id = ?",
+                String.class, classId, f.student.getId())).isEqualTo(ClassStudent.STATUS_ACTIVE);
+        // D2: mở lại KHÔNG được xoá điểm cũ.
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT skill_lesen FROM class_students WHERE class_id = ? AND student_id = ?",
+                java.math.BigDecimal.class, classId, f.student.getId()))
+                .isEqualByComparingTo("6.5");
     }
 
     // ── fixtures ─────────────────────────────────────────────────────────────

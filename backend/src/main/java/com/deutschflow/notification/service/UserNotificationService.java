@@ -530,8 +530,11 @@ public class UserNotificationService {
     @Transactional
     public void onNewClassAssignment(Long classId, String className, String teacherName,
                                       Long assignmentId, String topic) {
+        // Cùng biên với fan-out bài tập (TeacherService.fanOutStudentAssignments): CHỈ người đang
+        // học. Người bảo lưu / đã rời lớp không có dòng StudentAssignment nào, báo cho họ là báo về
+        // một bài họ mở không ra.
         List<Long> studentIds = jdbcTemplate.queryForList(
-            "SELECT student_id FROM class_students WHERE class_id = ?",
+            "SELECT student_id FROM class_students WHERE class_id = ? AND status = 'ACTIVE'",
             Long.class, classId);
 
         onNewClassAssignmentFor(studentIds, classId, className, teacherName, assignmentId, topic);
@@ -745,8 +748,10 @@ public class UserNotificationService {
      */
     @Transactional
     public int announceToClass(Long teacherId, String teacherName, Long classId, String className, String message) {
+        // Chỉ người CÒN ghi danh (ACTIVE + RESERVED — bảo lưu vẫn xem được nội dung lớp, D1).
+        // Người đã rời lớp hoặc rời trung tâm không được nhận nguyên văn thông báo của giáo viên.
         List<Long> studentIds = jdbcTemplate.queryForList(
-                "SELECT student_id FROM class_students WHERE class_id = ?",
+                "SELECT student_id FROM class_students WHERE class_id = ? AND status IN ('ACTIVE', 'RESERVED')",
                 Long.class, classId);
 
         if (studentIds.isEmpty()) {
@@ -810,8 +815,10 @@ public class UserNotificationService {
     @Transactional
     public void notifyClassScheduleEvent(NotificationType type, Long classId, String className,
                                          Long teacherId, String message) {
+        // Chỉ người CÒN ghi danh (ACTIVE + RESERVED, D1) — lịch của lớp không còn liên quan tới
+        // người đã rời lớp/rời trung tâm.
         List<Long> studentIds = jdbcTemplate.queryForList(
-                "SELECT student_id FROM class_students WHERE class_id = ?",
+                "SELECT student_id FROM class_students WHERE class_id = ? AND status IN ('ACTIVE', 'RESERVED')",
                 Long.class, classId);
         if (studentIds.isEmpty()) {
             log.info("[notifications] {} skipped — no students in class={}", type, classId);
@@ -860,8 +867,10 @@ public class UserNotificationService {
                                           String senderName, String preview) {
         // Union of enrolled students + the class's teachers, minus the sender. LinkedHashSet keeps
         // a stable order and dedupes a user who is somehow both roles in the class (defensive).
+        // Chỉ người CÒN ghi danh (ACTIVE + RESERVED, D1): preview mang nguyên văn tin nhắn kênh
+        // lớp, không được đẩy tới người đã bị gỡ khỏi lớp hay đã rời trung tâm.
         LinkedHashSet<Long> recipientIds = new LinkedHashSet<>(jdbcTemplate.queryForList(
-                "SELECT student_id FROM class_students WHERE class_id = ?", Long.class, classId));
+                "SELECT student_id FROM class_students WHERE class_id = ? AND status IN ('ACTIVE', 'RESERVED')", Long.class, classId));
         recipientIds.addAll(jdbcTemplate.queryForList(
                 "SELECT teacher_id FROM class_teachers WHERE class_id = ?", Long.class, classId));
         recipientIds.remove(senderId);
