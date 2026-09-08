@@ -18,7 +18,7 @@ import { TkModal, GaBtn, ErrorBanner, TkSearch } from '@/components/ui-v2'
  * không phụ trách) — backend không trả role ở đây nên so với teacherId của lớp.
  */
 
-type RowState = 'primary' | 'assistant' | 'unassigned' | 'taken'
+type RowState = 'primary' | 'assistant' | 'unassigned' | 'taken' | 'unknown'
 
 export function AssignClassModal({
   teacher,
@@ -34,14 +34,16 @@ export function AssignClassModal({
   const [memberIds, setMemberIds] = useState<Set<number> | null>(null)
   // V-01: "lớp chưa ai dạy" từng suy từ `teacherId == null` — cột NOT NULL nên KHÔNG BAO GIỜ đúng,
   // và mọi lớp trống giáo viên đều hiện là "đã có người khác dạy". Nay hỏi máy chủ tập id thật.
-  const [teacherlessIds, setTeacherlessIds] = useState<Set<number>>(new Set())
+  // null = CHƯA BIẾT (nguồn chưa về hoặc hỏng). Không được rơi về `new Set()`: tập rỗng đọc ra
+  // đúng bằng lời khẳng định cũ "lớp nào cũng đã có người khác dạy" — chính lỗi đợt này đi sửa.
+  const [teacherlessIds, setTeacherlessIds] = useState<Set<number> | null>(null)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState<number | null>(null)
 
   useEffect(() => {
     let alive = true
-    Promise.all([listClasses(0, 100), getOrgTeacherClasses(teacher.userId), getTeacherlessClassIds().catch(() => new Set<number>())])
+    Promise.all([listClasses(0, 100), getOrgTeacherClasses(teacher.userId), getTeacherlessClassIds().then((v) => v, () => null)])
       .then(([page, mine, teacherless]) => {
         if (!alive) return
         setClasses(page.content ?? [])
@@ -61,6 +63,7 @@ export function AssignClassModal({
   const stateOf = (c: OrgClass): RowState => {
     if (c.teacherId === teacher.userId) return 'primary'
     if (memberIds?.has(c.id)) return 'assistant'
+    if (teacherlessIds == null) return 'unknown'
     return teacherlessIds.has(c.id) ? 'unassigned' : 'taken'
   }
 
@@ -70,7 +73,7 @@ export function AssignClassModal({
       const updated = await assignClassTeacher(cls.id, teacher.userId)
       setClasses((cur) => (cur ?? []).map((c) => (c.id === updated.id ? updated : c)))
       setMemberIds((cur) => { const next = new Set(cur); next.add(cls.id); return next })
-      setTeacherlessIds((cur) => { const next = new Set(cur); next.delete(cls.id); return next })
+      setTeacherlessIds((cur) => { if (cur == null) return cur; const next = new Set(cur); next.delete(cls.id); return next })
       toast.success(t('success', { className: cls.name }))
       onAssigned()
     } catch (e: unknown) {
@@ -85,7 +88,7 @@ export function AssignClassModal({
     try {
       await addOrgClassAssistant(cls.id, teacher.userId)
       setMemberIds((cur) => { const next = new Set(cur); next.add(cls.id); return next })
-      setTeacherlessIds((cur) => { const next = new Set(cur); next.delete(cls.id); return next })
+      setTeacherlessIds((cur) => { if (cur == null) return cur; const next = new Set(cur); next.delete(cls.id); return next })
       toast.success(t('assistantAdded', { className: cls.name }))
       onAssigned()
     } catch (e: unknown) {
@@ -126,6 +129,7 @@ export function AssignClassModal({
                     {state === 'primary' ? t('statusCurrent')
                       : state === 'assistant' ? t('statusAssistant')
                       : state === 'unassigned' ? t('statusUnassigned')
+                      : state === 'unknown' ? '—'
                       : t('statusTaken')}
                   </div>
                 </div>
