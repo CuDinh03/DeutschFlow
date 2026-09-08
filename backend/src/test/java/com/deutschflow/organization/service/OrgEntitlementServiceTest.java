@@ -317,6 +317,28 @@ class OrgEntitlementServiceTest {
     }
 
     @Test
+    @DisplayName("grantStudentOnRestore: trung tâm ĐÌNH CHỈ vẫn cấp được — đường bật lại không tự khoá mình")
+    void grantStudentOnRestore_suspendedOrg_stillGrants() {
+        Organization org = orgWithStatus("SUSPENDED", null);
+
+        service.grantStudentOnRestore(USER_ID, org);
+
+        verify(subscriptionActivationService).activateOrg(
+                eq(USER_ID), eq("PRO"), any(Instant.class), any(Instant.class));
+    }
+
+    @Test
+    @DisplayName("grantStudentOnRestore: hết hạn quá ân hạn vẫn cấp — hoá đơn truy thu không nới validUntil")
+    void grantStudentOnRestore_expiredPastGrace_stillGrants() {
+        Organization org = orgWithStatus("ACTIVE", Instant.now().minus(30, ChronoUnit.DAYS));
+
+        service.grantStudentOnRestore(USER_ID, org);
+
+        verify(subscriptionActivationService).activateOrg(
+                eq(USER_ID), eq("PRO"), any(Instant.class), any(Instant.class));
+    }
+
+    @Test
     @DisplayName("revokeStudent KHÔNG đi qua cổng — trung tâm đình chỉ vẫn thu hồi/khôi phục được")
     void revokeStudent_notGated() {
         service.revokeStudent(USER_ID);

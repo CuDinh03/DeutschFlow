@@ -211,7 +211,10 @@ public class AdminOrgService {
             List<OrgMember> students = orgMemberRepository
                     .findByIdOrgIdAndRoleAndStatus(org.getId(), ROLE_STUDENT, STATUS_ACTIVE);
             for (OrgMember member : students) {
-                orgEntitlementService.grantStudent(member.getId().getUserId(), org);
+                // Đường KHÔI PHỤC: không đi qua cổng D5. Admin bật lại status = ACTIVE nhưng
+                // validUntil có thể vẫn còn quá hạn (chỉ đổi trạng thái, không gia hạn) — dùng
+                // grantStudent ở đây thì chính thao tác bật lại bị chế độ chỉ đọc khoá và rollback.
+                orgEntitlementService.grantStudentOnRestore(member.getId().getUserId(), org);
             }
             log.info("[ORG-ADMIN] Reactivated org {}: granted entitlements for {} student(s)",
                     org.getId(), students.size());
@@ -338,7 +341,10 @@ public class AdminOrgService {
                 orgMemberRepository.findByIdOrgIdAndRoleAndStatus(orgId, ROLE_STUDENT, STATUS_ACTIVE);
         int granted = 0;
         for (OrgMember member : students) {
-            orgEntitlementService.grantStudent(member.getId().getUserId(), org);
+            // Đường KHÔI PHỤC (admin bấm tay, hoặc SePay báo hoá đơn đã thu): không đi qua cổng D5.
+            // Hoá đơn truy thu kỳ đã qua không nới validUntil, nên trung tâm vẫn "quá hạn" tại đây;
+            // dùng grantStudent thì webhook ngân hàng ném và rollback cả lần ghi nhận thanh toán.
+            orgEntitlementService.grantStudentOnRestore(member.getId().getUserId(), org);
             granted++;
         }
         log.info("[ORG-ADMIN] Re-activated entitlements for {} student(s) in org {}", granted, orgId);
