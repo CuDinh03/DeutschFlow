@@ -258,7 +258,7 @@ export function OrgManagerDashboard() {
               <div className="ga-shimmer h-[200px]" aria-hidden />
             ) : sessions.state === 'error' ? (
               <div className="py-8 text-center">
-                <p className="ga-ui mb-3 text-[13.5px] text-ga-red">{t('sectionError')}</p>
+                <p className="ga-ui mb-3 text-ga-small text-ga-red">{t('sectionError')}</p>
                 <GaBtn variant="ghost" size="sm" onClick={load}>{tc('retry')}</GaBtn>
               </div>
             ) : todaySessions.length === 0 ? (
@@ -304,7 +304,7 @@ export function OrgManagerDashboard() {
             <GaCap className="mb-3.5 block">{t('todoCap')}</GaCap>
             {todoSourceFailed && !loading && (
               <div className="mb-2 flex flex-wrap items-center gap-3 border border-dashed px-3 py-2" style={{ borderColor: 'color-mix(in srgb, var(--ga-red) 40%, transparent)' }}>
-                <p className="ga-ui min-w-0 flex-1 text-[12.5px] text-ga-red">{t('todoSourceError')}</p>
+                <p className="ga-ui min-w-0 flex-1 text-ga-caption text-ga-red">{t('todoSourceError')}</p>
                 <GaBtn variant="ghost" size="sm" onClick={load}>{tc('retry')}</GaBtn>
               </div>
             )}
@@ -342,7 +342,7 @@ export function OrgManagerDashboard() {
               <div className="ga-shimmer h-[120px]" aria-hidden />
             ) : classes.state === 'error' ? (
               <div className="py-6 text-center">
-                <p className="ga-ui mb-3 text-[13.5px] text-ga-red">{t('sectionError')}</p>
+                <p className="ga-ui mb-3 text-ga-small text-ga-red">{t('sectionError')}</p>
                 <GaBtn variant="ghost" size="sm" onClick={load}>{tc('retry')}</GaBtn>
               </div>
             ) : classList.length === 0 ? (
@@ -384,7 +384,7 @@ export function OrgManagerDashboard() {
               <div className="ga-shimmer h-[120px]" aria-hidden />
             ) : students.state === 'error' ? (
               <div className="py-6 text-center">
-                <p className="ga-ui mb-3 text-[13.5px] text-ga-red">{t('sectionError')}</p>
+                <p className="ga-ui mb-3 text-ga-small text-ga-red">{t('sectionError')}</p>
                 <GaBtn variant="ghost" size="sm" onClick={load}>{tc('retry')}</GaBtn>
               </div>
             ) : newStudents.length === 0 ? (

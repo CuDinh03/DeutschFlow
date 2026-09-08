@@ -189,7 +189,7 @@ export default function V2OrgClassesPage() {
                 <span>
                   {teacherlessOf(c.id) === null ? (
                     // Chưa biết thì nói là chưa biết — không được mặc định thành "đã phân công".
-                    <span className="text-[13px] text-ga-subtle">—</span>
+                    <span className="text-ga-small text-ga-subtle">—</span>
                   ) : teacherlessOf(c.id) ? (
                     <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-red)', background: 'var(--ga-red-soft)' }}>{t('unassigned')}</span>
                   ) : (

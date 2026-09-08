@@ -117,7 +117,7 @@ export default function V2OrgTeachersPage() {
             {/* Lời mời chưa tải được: nói rõ, KHÔNG để im lặng thành "không có lời mời nào". */}
             {invitesError && (
               <div className="mb-6 flex flex-wrap items-center gap-3 border border-dashed px-4 py-3" style={{ borderColor: 'color-mix(in srgb, var(--ga-red) 40%, transparent)' }}>
-                <p className="ga-ui min-w-0 flex-1 text-[13px] text-ga-red">{t('invitesError')} {invitesError}</p>
+                <p className="ga-ui min-w-0 flex-1 text-ga-small text-ga-red">{t('invitesError')} {invitesError}</p>
                 <GaBtn variant="ghost" size="sm" onClick={load}>{tc('retry')}</GaBtn>
               </div>
             )}
