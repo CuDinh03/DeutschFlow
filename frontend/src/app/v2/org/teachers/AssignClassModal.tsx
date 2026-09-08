@@ -70,6 +70,17 @@ export function AssignClassModal({
     return teacherlessIds.has(c.id) ? 'unassigned' : 'taken'
   }
 
+  /**
+   * Lớp này có ai đang phụ trách để mà bị HẠ xuống trợ giảng không.
+   *
+   * KHÔNG hỏi `stateOf(c) === 'taken'`: khi chính giáo viên đang mở modal đã là trợ giảng của lớp,
+   * `stateOf` trả 'assistant' TRƯỚC khi kịp xét `c.teacherId` — mà đó lại là trường hợp phổ biến
+   * nhất của trợ giảng (lớp gần như luôn có người phụ trách). Hỏi bằng `stateOf` thì hộp thoại nói
+   * "không ai bị hạ vai" đúng lúc có người bị hạ vai. Nút chỉ hiện khi giáo viên CHƯA phụ trách lớp,
+   * nên `teacherId != null` đã đủ nghĩa "người khác đang phụ trách".
+   */
+  const willDemote = (c: OrgClass): boolean => c.teacherId != null && c.teacherId !== teacher.userId
+
   const assignPrimary = async (cls: OrgClass) => {
     setBusy(cls.id)
     try {
@@ -155,7 +166,7 @@ export function AssignClassModal({
                       onClick={() => setConfirmPrimary(c)}
                       className="ga-ui inline-flex min-h-[36px] items-center justify-center border border-ga-line px-3 py-1.5 text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-50"
                     >
-                      {busy === c.id ? t('assigning') : state === 'taken' ? t('assignBtnReplace') : t('assignBtn')}
+                      {busy === c.id ? t('assigning') : willDemote(c) ? t('assignBtnReplace') : t('assignBtn')}
                     </button>
                     {state !== 'assistant' && (
                       <button
@@ -186,13 +197,13 @@ export function AssignClassModal({
           className: confirmPrimary.name,
         })}
         details={
-          stateOf(confirmPrimary) === 'taken'
+          willDemote(confirmPrimary)
             // Lớp đang có người phụ trách: đây mới là hệ quả bất ngờ mà nhãn nút không nói.
             ? [t('assignConfirmDemote'), t('assignConfirmStays')]
             : [t('assignConfirmNoCurrent')]
         }
-        destructive={stateOf(confirmPrimary) === 'taken'}
-        confirmLabel={stateOf(confirmPrimary) === 'taken' ? t('assignBtnReplace') : t('assignBtn')}
+        destructive={willDemote(confirmPrimary)}
+        confirmLabel={willDemote(confirmPrimary) ? t('assignBtnReplace') : t('assignBtn')}
         cancelLabel={t('cancelBtn')}
         loading={busy === confirmPrimary.id}
         onConfirm={() => void assignPrimary(confirmPrimary)}

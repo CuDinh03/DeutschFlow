@@ -715,7 +715,7 @@
       "lockConfirmDesc": "Khoá kỳ {from} → {to} của {teacher}.",
       "lockConfirmFinal": "Đây là trạng thái CUỐI: kỳ đã khoá không mở lại, không duyệt lại, không trả lại được.",
       "lockConfirmSessions": "Chốt {sessions} buổi · {hours} làm căn cứ trả lương.",
-      "lockConfirmRecords": "Giáo viên không thêm, sửa hay xoá buổi dạy nào trong kỳ này nữa."
+      "lockConfirmRecords": "Dòng công trong kỳ đã bị khoá từ lúc giáo viên nộp; khoá kỳ làm việc đó thành vĩnh viễn — không còn đường \"trả lại\" để họ sửa."
     },
     "curricula": {
       "title": "Giáo trình trung tâm",

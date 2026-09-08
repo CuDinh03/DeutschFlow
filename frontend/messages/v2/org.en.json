@@ -715,7 +715,7 @@
       "lockConfirmDesc": "Lock the {from} → {to} period for {teacher}.",
       "lockConfirmFinal": "This is the FINAL state: a locked period cannot be reopened, re-approved or rejected.",
       "lockConfirmSessions": "Freezes {sessions} sessions · {hours} as the basis for payroll.",
-      "lockConfirmRecords": "The teacher can no longer add, edit or delete any session in this period."
+      "lockConfirmRecords": "Timesheet entries in this period have been frozen since the teacher submitted; locking makes that permanent — there is no \"reject\" path left for them to edit."
     },
     "curricula": {
       "title": "Center curriculum",

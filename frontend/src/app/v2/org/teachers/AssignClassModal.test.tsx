@@ -129,6 +129,24 @@ describe('AssignClassModal — xác nhận trước khi hạ giáo viên cũ xu�
     expect(assignClassTeacher).not.toHaveBeenCalled()
   })
 
+  /**
+   * Trợ giảng của một lớp ĐANG có giáo viên phụ trách — trường hợp phổ biến nhất của trợ giảng.
+   * `stateOf` trả 'assistant' trước khi kịp xét teacherId, nên nếu hộp thoại hỏi bằng `stateOf`
+   * thì nó nói "không ai bị hạ vai" đúng lúc có người sắp bị hạ vai.
+   */
+  it('trợ giảng của lớp ĐANG có người phụ trách: vẫn phải nêu việc hạ vai, không nói "không ai bị hạ"', async () => {
+    listClasses.mockResolvedValue(pageOf([cls(3, 77)]))
+    getOrgTeacherClasses.mockResolvedValue([{ id: 3, name: 'Lớp 3', role: 'ASSISTANT' }])
+    renderModal()
+
+    const btn = await screen.findByRole('button', { name: 'v2.org.teachers.assignModal.assignBtnReplace' })
+    await userEvent.click(btn)
+
+    expect(screen.getByText('v2.org.teachers.assignModal.assignConfirmDemote')).toBeTruthy()
+    expect(screen.queryByText('v2.org.teachers.assignModal.assignConfirmNoCurrent')).toBeNull()
+    expect(assignClassTeacher).not.toHaveBeenCalled()
+  })
+
   it('Huỷ trong hộp thoại KHÔNG phân công', async () => {
     listClasses.mockResolvedValue(pageOf([cls(1)]))
     getTeacherlessClassIds.mockResolvedValue(new Set<number>())

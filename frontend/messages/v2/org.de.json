@@ -715,7 +715,7 @@
       "lockConfirmDesc": "Zeitraum {from} → {to} von {teacher} sperren.",
       "lockConfirmFinal": "Das ist der ENDZUSTAND: ein gesperrter Zeitraum lässt sich nicht wieder öffnen, freigeben oder zurückweisen.",
       "lockConfirmSessions": "Friert {sessions} Einheiten · {hours} als Grundlage der Lohnabrechnung ein.",
-      "lockConfirmRecords": "Die Lehrkraft kann in diesem Zeitraum keine Einheit mehr anlegen, ändern oder löschen."
+      "lockConfirmRecords": "Die Arbeitszeiteinträge des Zeitraums sind seit der Einreichung gesperrt; das Sperren macht das endgültig — es gibt keinen \"Zurückweisen\"-Weg mehr zum Bearbeiten."
     },
     "curricula": {
       "title": "Lehrplan des Zentrums",
