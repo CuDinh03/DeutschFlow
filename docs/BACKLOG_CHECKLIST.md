@@ -62,6 +62,7 @@
 - [ ] **P1-13** `TIMESTAMP`→`TIMESTAMPTZ` trên `user_subscriptions`/`payment_transactions`/`ai_token_usage_events` (biên quota ngày VN sai TZ) · migrations · **M**
 - [ ] **P1-14** XP lost-update (duplicate level-up) → atomic `user_xp_summary` / advisory lock; **enum thay VARCHAR** cho `PaymentTransaction.status`… · `XpService`, entities · **M**
 - [ ] **P1-16** Observability — **deploy** Prometheus/Grafana/Loki (alert rules đã viết) **hoặc xoá** config chết; thêm error tracking backend · `docker-compose.prod.yml`, `deploy-backend.sh` · **M**
+  - [ ] **P1-16b (V-09) Giám sát NGOÀI hộp** — cả Prometheus lẫn Alertmanager đang chạy trên **chính con EC2 mà chúng giám sát** ⇒ máy chết là không ai được báo. Hiện trạng + các bước đăng ký uptime monitor bên thứ ba (5 phút, cảnh báo về Telegram đang dùng) + cách tự kiểm cảnh báo có thật sự gửi được: **[`UPTIME_MONITOR_RUNBOOK.md`](UPTIME_MONITOR_RUNBOOK.md)**. Kiểm nhanh endpoint: `scripts/ops/uptime-check.sh`. Phần đăng ký dịch vụ **cần owner bấm**; bảng nghiệm thu AC-MON-01…07 đang **NOT_RUN** · **XS**
 
 ---
 
@@ -101,4 +102,4 @@
 
 **Cụm 5 — Nợ kiến trúc (L, làm khi rảnh):** P1-7 (tách god-class) · P2-1/P2-2/P2-3 (hợp nhất curriculum/pronunciation/SRS).
 
-**External (cần bạn, không chặn dev):** P0-11 (`eas init`) · P0-3b (rotate MoMo key) · P1-11 (IAP mobile — sau khi có eas).
+**External (cần bạn, không chặn dev):** P0-11 (`eas init`) · P0-3b (rotate MoMo key) · P1-11 (IAP mobile — sau khi có eas) · P1-16b (đăng ký uptime monitor ngoài — [runbook](UPTIME_MONITOR_RUNBOOK.md), ~15').
