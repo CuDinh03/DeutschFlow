@@ -528,7 +528,7 @@
         "markAllPresent": "Alle als anwesend markieren",
         "unmarkedCount": "{count} nicht erfasst",
         "saveError": "Stunde konnte nicht gespeichert werden. Bitte erneut versuchen.",
-        "deleteConfirm": "Diese Stunde löschen?",
+        "deleteConfirm": "Das Unterrichtsprotokoll vom {date} aus diesem Kurs löschen.",
         "deleteError": "Stunde konnte nicht gelöscht werden. Bitte erneut versuchen.",
         "empty": "Noch keine Stunden protokolliert. Klicke auf „Stunde hinzufügen“, um zu beginnen.",
         "presentCount": "{count} anwesend",
@@ -551,7 +551,11 @@
         "printHomeworkColumn": "Hausaufgaben",
         "printTeacherSign": "Unterschrift Lehrkraft: ___________________________",
         "printHeadSign": "Bestätigung Fachleitung: ___________________________",
-        "rosterUnavailable": "Die Teilnehmerliste konnte nicht geladen werden, daher ist die Anwesenheit derzeit nicht erfassbar. Thema und Hausaufgabe lassen sich weiterhin speichern — bitte die Seite neu laden."
+        "rosterUnavailable": "Die Teilnehmerliste konnte nicht geladen werden, daher ist die Anwesenheit derzeit nicht erfassbar. Thema und Hausaufgabe lassen sich weiterhin speichern — bitte die Seite neu laden.",
+        "deleteConfirmTitle": "Einheit löschen?",
+        "deleteConfirmAttendance": "Die Anwesenheit von {count} Schülern in dieser Einheit wird mitgelöscht.",
+        "deleteConfirmTimesheet": "Diese Einheit zählt nicht mehr für Ihre Arbeitszeit.",
+        "deleteConfirmIrreversible": "In der Oberfläche gibt es kein Rückgängig — die Einheit müsste neu erfasst werden."
       },
       "evaluation": {
         "helperText": "Abschlussbewertung für jede:n Lernende:n",
@@ -689,8 +693,8 @@
       "pickFile": "Bitte wähle eine Datei.",
       "enterTitle": "Bitte gib einen Titel ein.",
       "uploadSuccess": "Material hochgeladen.",
-      "archiveConfirm": "\"{title}\" archivieren?",
-      "archiveConfirmAttached": "„{title}\" archivieren? Es ist an {lessons} Lektionen, {classes} Klassen und {assignments} Aufgaben angehängt — beim Archivieren wird es dort entfernt (später wiederherstellbar).",
+      "archiveConfirm": "\"{title}\" archivieren — das Material verlässt die aktive Liste.",
+      "archiveConfirmAttached": "Angehängt an {lessons} Lektionen, {classes} Kurse und {assignments} Aufgaben — beim Archivieren wird es überall gelöst.",
       "unarchive": "Wiederherstellen",
       "unarchiveSuccess": "Wiederhergestellt.",
       "viewActive": "Aktiv",
@@ -725,7 +729,10 @@
       "openExternal": "Link öffnen",
       "download": "Herunterladen",
       "retry": "Erneut versuchen",
-      "close": "Schließen"
+      "close": "Schließen",
+      "archiveConfirmTitle": "Material archivieren?",
+      "archiveConfirmUnattached": "Dieses Material ist an keine Lektion, keinen Kurs und keine Aufgabe angehängt.",
+      "archiveConfirmRestorable": "Es lässt sich später in der Ansicht „Archiviert\" wiederherstellen."
     },
     "messages": {
       "title": "Nachrichten",

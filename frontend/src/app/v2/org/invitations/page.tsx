@@ -11,7 +11,7 @@ import {
   type OrgInvitation, type OrgSummary, type OrgRole,
 } from '@/lib/orgApi'
 import { seatMetaOf } from '@/lib/orgSeats'
-import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip, ConfirmDialog } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lời mời thành viên (GaOrgInvitations) — teal.
@@ -44,6 +44,9 @@ export default function V2OrgInvitationsPage() {
   const [email, setEmail] = useState('')
   const [sending, setSending] = useState(false)
   const [busy, setBusy] = useState<number | null>(null)
+  // Lời mời đang chờ xác nhận. Cả hai thao tác đều GIẾT link đang lưu hành: thu hồi vô hiệu vĩnh
+  // viễn, gửi lại xoay token nên link cũ chết ngay — không thao tác nào được chạy thẳng khi bấm.
+  const [confirming, setConfirming] = useState<{ kind: 'revoke' | 'resend'; invite: OrgInvitation } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -83,6 +86,7 @@ export default function V2OrgInvitationsPage() {
     try {
       await revokeInvitation(id)
       toast.success(t('revoked'))
+      setConfirming(null)
       await load()
     } catch (err: unknown) {
       toast.error(apiMessage(err))
@@ -97,12 +101,19 @@ export default function V2OrgInvitationsPage() {
     try {
       await rotateInvitation(iv.id)
       toast.success(t('resendDone', { email: iv.email }))
+      setConfirming(null)
       await load()
     } catch (err: unknown) {
       toast.error(apiMessage(err))
     } finally {
       setBusy(null)
     }
+  }
+
+  const runConfirmed = () => {
+    if (!confirming) return
+    if (confirming.kind === 'revoke') void revoke(confirming.invite.id)
+    else void resend(confirming.invite)
   }
 
   const pending = invites.filter((i) => i.status === 'PENDING')
@@ -191,8 +202,8 @@ export default function V2OrgInvitationsPage() {
                   </span>
                   {isPending && (
                     <div className="flex w-full shrink-0 justify-end gap-1.5 lg:w-auto">
-                      <button type="button" disabled={busy === iv.id} onClick={() => resend(iv)} className="ga-ui inline-flex min-h-[40px] items-center justify-center border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-50 lg:min-h-0">{t('resend')}</button>
-                      <button type="button" disabled={busy === iv.id} onClick={() => revoke(iv.id)} className="ga-ui inline-flex min-h-[40px] items-center justify-center border px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50 lg:min-h-0" style={{ color: 'var(--ga-red)', borderColor: 'color-mix(in srgb, var(--ga-red) 35%, transparent)' }}>{t('revoke')}</button>
+                      <button type="button" disabled={busy === iv.id} onClick={() => setConfirming({ kind: 'resend', invite: iv })} className="ga-ui inline-flex min-h-[40px] items-center justify-center border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-50 lg:min-h-0">{t('resend')}</button>
+                      <button type="button" disabled={busy === iv.id} onClick={() => setConfirming({ kind: 'revoke', invite: iv })} className="ga-ui inline-flex min-h-[40px] items-center justify-center border px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50 lg:min-h-0" style={{ color: 'var(--ga-red)', borderColor: 'color-mix(in srgb, var(--ga-red) 35%, transparent)' }}>{t('revoke')}</button>
                     </div>
                   )}
                 </div>
@@ -201,6 +212,30 @@ export default function V2OrgInvitationsPage() {
           </div>
         )}
       </div>
+
+      {confirming && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => { if (!o) setConfirming(null) }}
+          title={confirming.kind === 'revoke' ? t('revokeConfirmTitle') : t('resendConfirmTitle')}
+          description={
+            confirming.kind === 'revoke'
+              ? t('revokeConfirmDesc', { email: confirming.invite.email })
+              : t('resendConfirmDesc', { email: confirming.invite.email })
+          }
+          details={
+            confirming.kind === 'revoke'
+              ? [t('revokeConfirmLinkDead'), t('revokeConfirmReinvite')]
+              : [t('resendConfirmRotate'), t('resendConfirmExpiry'), t('resendConfirmEmail')]
+          }
+          // Gửi lại KHÔNG phá dữ liệu nhưng vẫn giết link cũ — cảnh báo màu vàng thay vì đỏ.
+          destructive={confirming.kind === 'revoke'}
+          confirmLabel={confirming.kind === 'revoke' ? t('revoke') : t('resend')}
+          cancelLabel={tc('cancel')}
+          loading={busy === confirming.invite.id}
+          onConfirm={runConfirmed}
+        />
+      )}
     </div>
   )
 }

@@ -96,7 +96,7 @@ function AuditInner() {
                   key={c}
                   type="button"
                   onClick={() => applyCat(c)}
-                  className={`ga-ui min-h-[40px] border px-3.5 py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0 ${
+                  className={`ga-ui min-h-[40px] border px-3.5 py-2 text-ga-caption font-semibold transition-colors lg:min-h-0 ${
                     on
                       ? 'border-ga-ink bg-ga-ink text-ga-bg'
                       : 'border-ga-line bg-ga-card text-ga-muted hover:text-ga-ink'
@@ -114,7 +114,7 @@ function AuditInner() {
               onChange={(e) => applyQuery(e.target.value)}
               placeholder={t('searchPlaceholder')}
               aria-label={t('searchPlaceholder')}
-              className="ga-ui w-full min-w-0 border-none bg-transparent text-[13px] text-ga-ink outline-none placeholder:text-ga-subtle sm:w-[260px]"
+              className="ga-ui w-full min-w-0 border-none bg-transparent text-ga-small text-ga-ink outline-none placeholder:text-ga-subtle sm:w-[260px]"
             />
           </div>
         </div>
@@ -126,7 +126,7 @@ function AuditInner() {
         ) : (
           <>
             <div className="overflow-x-auto border border-ga-line bg-ga-card">
-              <table className="w-full min-w-[720px] border-collapse text-[13px]">
+              <table className="w-full min-w-[720px] border-collapse text-ga-small">
                 <thead>
                   <tr className="bg-ga-side-active">
                     <Th>{t('colTime')}</Th>
@@ -138,7 +138,7 @@ function AuditInner() {
                 <tbody>
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-3 py-10 text-center text-[13.5px] text-ga-muted">
+                      <td colSpan={4} className="px-3 py-10 text-center text-ga-small text-ga-muted">
                         {query.trim() || cat !== ALL ? t('emptyFiltered') : t('empty')}
                       </td>
                     </tr>
@@ -168,7 +168,7 @@ function AuditInner() {
             </div>
 
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-              <p className="ga-ui text-[12.5px] text-ga-muted">
+              <p className="ga-ui text-ga-caption text-ga-muted">
                 {t('pageOf', { page: page + 1, pages: totalPages, total: fmt.num(total) })}
               </p>
               <div className="flex gap-2">

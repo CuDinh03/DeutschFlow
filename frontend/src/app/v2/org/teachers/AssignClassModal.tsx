@@ -8,7 +8,7 @@ import {
   addOrgClassAssistant, assignClassTeacher, getOrgTeacherClasses, getTeacherlessClassIds, listClasses,
   type OrgClass, type OrgMember,
 } from '@/lib/orgApi'
-import { TkModal, GaBtn, ErrorBanner, TkSearch } from '@/components/ui-v2'
+import { TkModal, GaBtn, ErrorBanner, TkSearch, ConfirmDialog } from '@/components/ui-v2'
 
 /**
  * Org-admin (OWNER/MANAGER) giao lớp cho một giáo viên (nút "Phân công" trang GV).
@@ -40,6 +40,9 @@ export function AssignClassModal({
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState<number | null>(null)
+  // Lớp đang chờ xác nhận "giao phụ trách". Với lớp ĐÃ CÓ giáo viên phụ trách, một cú bấm sẽ HẠ
+  // giáo viên đó xuống trợ giảng (OrgService.assignClassTeacher) — hệ quả phải nói ra trước.
+  const [confirmPrimary, setConfirmPrimary] = useState<OrgClass | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -75,6 +78,7 @@ export function AssignClassModal({
       setMemberIds((cur) => { const next = new Set(cur); next.add(cls.id); return next })
       setTeacherlessIds((cur) => { if (cur == null) return cur; const next = new Set(cur); next.delete(cls.id); return next })
       toast.success(t('success', { className: cls.name }))
+      setConfirmPrimary(null)
       onAssigned()
     } catch (e: unknown) {
       toast.error(apiMessage(e))
@@ -99,6 +103,7 @@ export function AssignClassModal({
   }
 
   return (
+    <>
     <TkModal
       open
       onOpenChange={(o) => !o && onClose()}
@@ -147,10 +152,10 @@ export function AssignClassModal({
                     <button
                       type="button"
                       disabled={busy != null}
-                      onClick={() => assignPrimary(c)}
+                      onClick={() => setConfirmPrimary(c)}
                       className="ga-ui inline-flex min-h-[36px] items-center justify-center border border-ga-line px-3 py-1.5 text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-50"
                     >
-                      {busy === c.id ? t('assigning') : t('assignBtn')}
+                      {busy === c.id ? t('assigning') : state === 'taken' ? t('assignBtnReplace') : t('assignBtn')}
                     </button>
                     {state !== 'assistant' && (
                       <button
@@ -170,5 +175,29 @@ export function AssignClassModal({
         </ul>
       )}
     </TkModal>
+
+    {confirmPrimary && (
+      <ConfirmDialog
+        open
+        onOpenChange={(o) => { if (!o) setConfirmPrimary(null) }}
+        title={t('assignConfirmTitle')}
+        description={t('assignConfirmDesc', {
+          name: teacher.displayName || teacher.email || '',
+          className: confirmPrimary.name,
+        })}
+        details={
+          stateOf(confirmPrimary) === 'taken'
+            // Lớp đang có người phụ trách: đây mới là hệ quả bất ngờ mà nhãn nút không nói.
+            ? [t('assignConfirmDemote'), t('assignConfirmStays')]
+            : [t('assignConfirmNoCurrent')]
+        }
+        destructive={stateOf(confirmPrimary) === 'taken'}
+        confirmLabel={stateOf(confirmPrimary) === 'taken' ? t('assignBtnReplace') : t('assignBtn')}
+        cancelLabel={t('cancelBtn')}
+        loading={busy === confirmPrimary.id}
+        onConfirm={() => void assignPrimary(confirmPrimary)}
+      />
+    )}
+    </>
   )
 }

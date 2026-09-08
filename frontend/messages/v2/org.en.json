@@ -322,7 +322,11 @@
       "roleAssistant": "Assistant",
       "removeAssistant": "Remove",
       "removingAssistant": "Removing…",
-      "assistantRemoved": "Assistant removed from the class."
+      "assistantRemoved": "Assistant removed from the class.",
+      "removeAssistantConfirmTitle": "Remove this assistant?",
+      "removeAssistantConfirmDesc": "Remove {name} from {className}.",
+      "removeAssistantConfirmAccess": "They lose access to this class: gradebook, attendance and lesson logs.",
+      "removeAssistantConfirmKeeps": "Recorded sessions and grades stay; you can add them back as assistant at any time."
     },
     "schedule": {
       "title": "Center schedule",
@@ -443,7 +447,14 @@
         "statusAssistant": "Already an assistant on this class",
         "assistantBadge": "Assistant",
         "addAssistantBtn": "Add as assistant",
-        "assistantAdded": "Added as assistant on {className}."
+        "assistantAdded": "Added as assistant on {className}.",
+        "assignBtnReplace": "Replace lead teacher",
+        "assignConfirmTitle": "Make this the lead teacher?",
+        "assignConfirmDesc": "Make {name} the lead teacher of {className}.",
+        "assignConfirmDemote": "The current lead teacher is DEMOTED to assistant of this class.",
+        "assignConfirmStays": "They do not leave the class — to remove them entirely, open the class and remove the assistant.",
+        "assignConfirmNoCurrent": "The class has no lead teacher yet — nobody gets demoted.",
+        "cancelBtn": "Cancel"
       },
       "createModal": {
         "title": "Add teacher",
@@ -459,7 +470,11 @@
         "passwordLabel": "Password",
         "passwordPlaceholder": "≥ 6 characters",
         "passwordHint": "The teacher signs in with this password. The account belongs to the teacher and stays after leaving the centre."
-      }
+      },
+      "revokeConfirmTitle": "Revoke this invitation?",
+      "revokeConfirmDesc": "Revoke the invitation sent to {email}.",
+      "revokeConfirmLinkDead": "The link in their inbox dies immediately — clicking it will no longer let them join.",
+      "revokeConfirmReinvite": "To invite them again you must send a brand-new invitation."
     },
     "analytics": {
       "title": "Organization analytics",
@@ -581,7 +596,16 @@
       "statusRevoked": "Revoked",
       "resend": "Resend",
       "revoke": "Revoke",
-      "resendDone": "New invite link sent to {email} — the old link is now invalid."
+      "resendDone": "New invite link sent to {email} — the old link is now invalid.",
+      "revokeConfirmTitle": "Revoke this invitation?",
+      "revokeConfirmDesc": "Revoke the invitation sent to {email}.",
+      "revokeConfirmLinkDead": "The link in their inbox dies immediately — clicking it will no longer let them join.",
+      "revokeConfirmReinvite": "To invite them again you must send a brand-new invitation.",
+      "resendConfirmTitle": "Resend this invitation?",
+      "resendConfirmDesc": "Resend the invitation to {email}.",
+      "resendConfirmRotate": "The link already sent dies IMMEDIATELY — whoever holds it can no longer use it.",
+      "resendConfirmExpiry": "The invitation expiry is reset from now.",
+      "resendConfirmEmail": "The system sends a fresh email with the new link to this address."
     },
     "roles": {
       "title": "Roles",
@@ -686,7 +710,12 @@
       "statusREJECTED": "Sent back",
       "statusLOCKED": "Locked",
       "noMoneyNote": "The system only settles worked units. Rates and amounts are handled outside by payroll.",
-      "export": "Export CSV"
+      "export": "Export CSV",
+      "lockConfirmTitle": "Lock this period?",
+      "lockConfirmDesc": "Lock the {from} → {to} period for {teacher}.",
+      "lockConfirmFinal": "This is the FINAL state: a locked period cannot be reopened, re-approved or rejected.",
+      "lockConfirmSessions": "Freezes {sessions} sessions · {hours} as the basis for payroll.",
+      "lockConfirmRecords": "The teacher can no longer add, edit or delete any session in this period."
     },
     "curricula": {
       "title": "Center curriculum",

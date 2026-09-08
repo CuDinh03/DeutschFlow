@@ -16,7 +16,7 @@ import {
   type MaterialScope,
 } from '@/lib/materialApi'
 import { getOrgRole } from '@/lib/authSession'
-import { GaPageHdr, TkBadge, ErrorBanner, LoadingState, GaBtn } from '@/components/ui-v2'
+import { GaPageHdr, TkBadge, ErrorBanner, LoadingState, GaBtn, ConfirmDialog } from '@/components/ui-v2'
 import { GaSection } from '../../sectionShared'
 import { MaterialPreviewModal } from './MaterialPreviewModal'
 
@@ -37,12 +37,16 @@ const fmtSize = (b: number | null) =>
 
 export default function V2TeacherMaterialsPage() {
   const t = useTranslations('v2.teacher.materials')
+  const tc = useTranslations('v2.common')
   const [materials, setMaterials] = useState<Material[]>([])
   const [view, setView] = useState<'active' | 'archived'>('active')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<number | null>(null)
   const [previewing, setPreviewing] = useState<Material | null>(null)
+  // Tài liệu đang chờ xác nhận lưu trữ, kèm số nơi đang gắn (đã đếm xong). Trước đây dùng
+  // window.confirm — trái quy ước ConfirmDialog của dự án.
+  const [archiving, setArchiving] = useState<{ material: Material; lessons: number; classes: number; assignments: number } | null>(null)
 
   const [title, setTitle] = useState('')
   const [scope, setScope] = useState<MaterialScope>('PERSONAL')
@@ -84,20 +88,29 @@ export default function V2TeacherMaterialsPage() {
     }
   }
 
-  const handleArchive = async (m: Material) => {
+  // Đếm số nơi đang gắn TRƯỚC khi hỏi: lưu trữ gỡ tài liệu khỏi mọi bài học đang gắn nó
+  // (listForLesson bỏ bản ghi không ACTIVE), nên "Lưu trữ" không phải thao tác dọn dẹp vô hại như
+  // tên gọi. Nó có thể khôi phục lại được — hộp thoại nói cả điều đó.
+  const openArchive = async (m: Material) => {
     setBusy(m.id)
     try {
-      // Warn with the real attachment count first: archiving pulls the material out of every lesson it
-      // is attached to (listForLesson drops non-ACTIVE), so "Lưu trữ" is not the harmless tidy-up it
-      // sounds like. It IS reversible now (Restore), which the message also says.
       const { lessons, classes, assignments } = await fetchMaterialAttachments(m.id)
-      const attached = lessons + classes + assignments
-      const msg = attached > 0
-        ? t('archiveConfirmAttached', { title: m.title, lessons, classes, assignments })
-        : t('archiveConfirm', { title: m.title })
-      if (!window.confirm(msg)) return
+      setArchiving({ material: m, lessons, classes, assignments })
+    } catch (err: unknown) {
+      toast.error(apiMessage(err))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const confirmArchive = async () => {
+    if (!archiving) return
+    const m = archiving.material
+    setBusy(m.id)
+    try {
       await archiveMaterial(m.id)
       toast.success(t('archiveSuccess'))
+      setArchiving(null)
       await load()
     } catch (err: unknown) {
       toast.error(apiMessage(err))
@@ -236,7 +249,7 @@ export default function V2TeacherMaterialsPage() {
                             <button
                               type="button"
                               disabled={busy === m.id}
-                              onClick={() => handleArchive(m)}
+                              onClick={() => void openArchive(m)}
                               className="ga-ui rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-red hover:text-ga-red disabled:opacity-40"
                             >
                               {t('archive')}
@@ -254,6 +267,31 @@ export default function V2TeacherMaterialsPage() {
       </div>
 
       <MaterialPreviewModal material={previewing} onClose={() => setPreviewing(null)} />
+
+      {archiving && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => { if (!o) setArchiving(null) }}
+          title={t('archiveConfirmTitle')}
+          description={t('archiveConfirm', { title: archiving.material.title })}
+          details={
+            archiving.lessons + archiving.classes + archiving.assignments > 0
+              ? [
+                  t('archiveConfirmAttached', {
+                    lessons: archiving.lessons,
+                    classes: archiving.classes,
+                    assignments: archiving.assignments,
+                  }),
+                  t('archiveConfirmRestorable'),
+                ]
+              : [t('archiveConfirmUnattached'), t('archiveConfirmRestorable')]
+          }
+          confirmLabel={t('archive')}
+          cancelLabel={tc('cancel')}
+          loading={busy === archiving.material.id}
+          onConfirm={() => void confirmArchive()}
+        />
+      )}
     </div>
   )
 }

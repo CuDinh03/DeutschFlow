@@ -11,7 +11,7 @@ import {
   listMembers, listInvitations, revokeInvitation, getOrgTeacherClasses,
   type OrgMember, type OrgInvitation, type OrgTeacherClass,
 } from '@/lib/orgApi'
-import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, ConfirmDialog } from '@/components/ui-v2'
 import { CreateTeacherModal } from './CreateTeacherModal'
 import { AssignClassModal } from './AssignClassModal'
 
@@ -48,6 +48,9 @@ export default function V2OrgTeachersPage() {
   // GV đang mở modal "Phân công lớp"; panelVersion bump để panel lớp refetch sau khi gán.
   const [assignFor, setAssignFor] = useState<OrgMember | null>(null)
   const [panelVersion, setPanelVersion] = useState(0)
+  // Lời mời đang chờ xác nhận thu hồi — link trong hộp thư giáo viên chết vĩnh viễn, phải mời lại
+  // từ đầu, nên nút không được chạy thẳng.
+  const [revoking, setRevoking] = useState<OrgInvitation | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -82,6 +85,7 @@ export default function V2OrgTeachersPage() {
     try {
       await revokeInvitation(id)
       toast.success(t('revoked'))
+      setRevoking(null)
       await load()
     } catch (e: unknown) {
       toast.error(apiMessage(e))
@@ -137,7 +141,7 @@ export default function V2OrgTeachersPage() {
                         <div className="truncate text-[14px] font-semibold text-ga-ink">{inv.email}</div>
                         <div className="text-[11.5px] text-ga-muted">{t('awaitingAccept', { date: fmtDate(inv.expiresAt) })}</div>
                       </div>
-                      <button type="button" disabled={busy === inv.id} onClick={() => revoke(inv.id)} className="ga-ui inline-flex min-h-[40px] shrink-0 items-center justify-center border px-2.5 py-1.5 text-[11.5px] font-semibold disabled:opacity-50 lg:min-h-0" style={{ color: 'var(--ga-red)', borderColor: 'color-mix(in srgb, var(--ga-red) 35%, transparent)' }}>
+                      <button type="button" disabled={busy === inv.id} onClick={() => setRevoking(inv)} className="ga-ui inline-flex min-h-[40px] shrink-0 items-center justify-center border px-2.5 py-1.5 text-[11.5px] font-semibold disabled:opacity-50 lg:min-h-0" style={{ color: 'var(--ga-red)', borderColor: 'color-mix(in srgb, var(--ga-red) 35%, transparent)' }}>
                         {t('revoke')}
                       </button>
                     </div>
@@ -191,6 +195,20 @@ export default function V2OrgTeachersPage() {
           teacher={assignFor}
           onClose={() => setAssignFor(null)}
           onAssigned={() => setPanelVersion((v) => v + 1)}
+        />
+      )}
+
+      {revoking && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => { if (!o) setRevoking(null) }}
+          title={t('revokeConfirmTitle')}
+          description={t('revokeConfirmDesc', { email: revoking.email })}
+          details={[t('revokeConfirmLinkDead'), t('revokeConfirmReinvite')]}
+          confirmLabel={t('revoke')}
+          cancelLabel={tc('cancel')}
+          loading={busy === revoking.id}
+          onConfirm={() => void revoke(revoking.id)}
         />
       )}
     </div>

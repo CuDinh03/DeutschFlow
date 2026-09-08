@@ -528,7 +528,7 @@
         "markAllPresent": "Mark all present",
         "unmarkedCount": "{count} not marked",
         "saveError": "Could not save the session. Please try again.",
-        "deleteConfirm": "Delete this session?",
+        "deleteConfirm": "Delete the lesson log for {date} from this class.",
         "deleteError": "Could not delete the session. Please try again.",
         "empty": "No sessions logged yet. Click \"Add session\" to start.",
         "presentCount": "{count} present",
@@ -551,7 +551,11 @@
         "printHomeworkColumn": "Homework (Hausaufgaben)",
         "printTeacherSign": "Teacher signature: ___________________________",
         "printHeadSign": "Head teacher approval: ___________________________",
-        "rosterUnavailable": "The class roster could not be loaded, so attendance cannot be marked right now. You can still save the session topic and homework — reload the page to mark attendance."
+        "rosterUnavailable": "The class roster could not be loaded, so attendance cannot be marked right now. You can still save the session topic and homework — reload the page to mark attendance.",
+        "deleteConfirmTitle": "Delete this session?",
+        "deleteConfirmAttendance": "Attendance for {count} students in this session is deleted with it.",
+        "deleteConfirmTimesheet": "This session no longer counts toward your timesheet.",
+        "deleteConfirmIrreversible": "There is no undo in the UI — getting it back means entering the session again."
       },
       "evaluation": {
         "helperText": "End-of-course evaluation for each student",
@@ -689,8 +693,8 @@
       "pickFile": "Please choose a file.",
       "enterTitle": "Please enter a title.",
       "uploadSuccess": "Material uploaded.",
-      "archiveConfirm": "Archive \"{title}\"?",
-      "archiveConfirmAttached": "Archive \"{title}\"? It is attached to {lessons} lessons, {classes} classes and {assignments} assignments — archiving removes it from those (you can restore it later).",
+      "archiveConfirm": "Archive \"{title}\" — it leaves the active list.",
+      "archiveConfirmAttached": "Attached to {lessons} lessons, {classes} classes and {assignments} assignments — archiving detaches it from all of them.",
       "unarchive": "Restore",
       "unarchiveSuccess": "Restored.",
       "viewActive": "Active",
@@ -725,7 +729,10 @@
       "openExternal": "Open link",
       "download": "Download",
       "retry": "Try again",
-      "close": "Close"
+      "close": "Close",
+      "archiveConfirmTitle": "Archive this material?",
+      "archiveConfirmUnattached": "This material is not attached to any lesson, class or assignment.",
+      "archiveConfirmRestorable": "You can restore it later from the Archived view."
     },
     "messages": {
       "title": "Messages",
