@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { getOrgSummary, getPaymentInfo, listMyInvoices, type OrgInvoice, type OrgSummary, type PaymentInfo } from '@/lib/orgApi'
 import { seatMetaOf } from '@/lib/orgSeats'
+import { isInvoiceOverdue } from '@/lib/orgInvoice'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 import { OrgOwnerOnly } from '../OwnerOnly'
 import { useFmt } from '@/lib/i18n/useFmt'
@@ -260,11 +261,8 @@ function V2OrgBillingInner() {
                     const st = INV_STATUS[(inv.status ?? '').toUpperCase()]
                     const stLabel = st ? t(`status.${st.key}`) : inv.status
                     const stColor = st ? st.c : 'var(--ga-muted)'
-                    // Quá hạn = có hạn, đã qua, và CHƯA thanh toán. Hoá đơn đã trả thì hạn chỉ còn là
-                    // dữ kiện lịch sử, tô đỏ nó là báo động giả.
-                    const overdue = inv.dueDate != null
-                      && (inv.status ?? '').toUpperCase() === 'SENT'
-                      && new Date(inv.dueDate).getTime() < Date.now()
+                    // Định nghĩa "quá hạn" nằm ở lib/orgInvoice — dùng chung với bảng admin.
+                    const overdue = isInvoiceOverdue(inv)
                     return (
                       <div key={inv.id} className="grid min-w-[760px] items-center gap-2 border-t border-ga-line py-3 text-[14px] lg:min-w-0" style={{ gridTemplateColumns: '1.4fr 1fr 1fr 1fr 140px' }}>
                         <span className="font-semibold text-ga-ink">{fmtDate(inv.periodStart)} – {fmtDate(inv.periodEnd)}</span>

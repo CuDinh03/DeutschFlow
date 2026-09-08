@@ -25,7 +25,14 @@ import { JourneyPreview } from '@/components/learning/JourneyPreview'
  *             →  Streak/XP (một hàng nhỏ)  →  Lernweg preview  →  gợi ý phụ
  *
  * Guardrail dữ liệu (P4-D2): mọi con số đều có nguồn thật —
- *   `/roadmap/me` (node lộ trình) · `/today/me` (việc hôm nay, streak) · `/xp/me` (thưởng).
+ *   `/roadmap/me` (node lộ trình) · `/today/me` (việc hôm nay) · `/xp/me` (thưởng)
+ *   · `/student/dashboard` (chuỗi ngày học).
+ *
+ * V-12b (08/09/2026): chuỗi ngày học từng đọc `today.progress.streakDays`, mà `TodayPlanDto` của
+ * backend KHÔNG có trường `progress` — nên `streakDays` luôn `undefined` và HabitStrip im lặng
+ * không vẽ ngọn lửa nào. Nay lấy từ `/student/dashboard.streakDays`, cùng nguồn màn luyện tập đã
+ * dùng. Việc "sửa lỗi hay sai" (`progress.topWeakErrorCode`) cũng là mã chết theo và đã gỡ — Sổ lỗi
+ * vẫn tới được qua nav và qua Fortschritt.
  * Stat strip 4 ô cũ bị giải thể: "độ chính xác"/"từ đã thuộc" là chỉ số tiến bộ, thuộc về
  * Fortschritt (S-10) — vẫn tới được qua `/v2/student/stats` trong local nav của Fortschritt.
  * Khối `phase` cũ cũng chuyển sang Fortschritt; không nhân bản ở đây.
@@ -40,6 +47,7 @@ export default function V2StudentDashboardPage() {
   const [today, setToday] = useState<TodayPlan | null>(null)
   const [phase, setPhase] = useState<PhaseStateResponse | null>(null)
   const [xp, setXp] = useState<XpSummaryDto | null>(null)
+  const [streakDays, setStreakDays] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -51,14 +59,17 @@ export default function V2StudentDashboardPage() {
       todayApi.getMe(),
       phaseApi.getCurrent(),
       xpApi.getMyXp(),
+      api.get<{ streakDays?: number }>('/student/dashboard'),
     ])
-      .then(([r, t2, p, x]) => {
+      .then(([r, t2, p, x, d]) => {
         if (r.status === 'fulfilled') setNodes(Array.isArray(r.value.data) ? r.value.data : [])
         if (t2.status === 'fulfilled') setToday(t2.value.data)
         if (p.status === 'fulfilled') setPhase(p.value.data)
         if (x.status === 'fulfilled') setXp(x.value)
+        // Lỗi ⇒ để null: HabitStrip bỏ hẳn ngọn lửa, KHÔNG vẽ "0 ngày liên tiếp" từ chỗ không biết.
+        if (d.status === 'fulfilled' && typeof d.value.data?.streakDays === 'number') setStreakDays(d.value.data.streakDays)
         // Chỉ báo lỗi toàn màn khi KHÔNG khối nào tải được — lỗi lẻ đã tự xử ở từng khối.
-        if ([r, t2, p, x].every((s) => s.status === 'rejected')) setError(t('loadError'))
+        if ([r, t2, p, x, d].every((s) => s.status === 'rejected')) setError(t('loadError'))
       })
       .finally(() => setLoading(false))
   }, [t])
@@ -97,16 +108,6 @@ export default function V2StudentDashboardPage() {
       href: today.recommendedWeeklySpeaking.href || '/v2/student/weekly-speaking',
     })
   }
-  if (today?.progress?.topWeakErrorCode) {
-    tasks.push({
-      id: 'repair',
-      icon: 'repair',
-      label: t('today.repair'),
-      meta: today.progress.topWeakErrorCode,
-      href: '/v2/student/errors',
-    })
-  }
-
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr
@@ -135,7 +136,7 @@ export default function V2StudentDashboardPage() {
             <TodayList tasks={tasks} />
 
             <HabitStrip
-              streakDays={today?.progress?.streakDays}
+              streakDays={streakDays ?? undefined}
               xp={
                 xp
                   ? { level: xp.level, progressInLevel: xp.progressInLevel, xpNeededForNext: xp.xpNeededForNext }

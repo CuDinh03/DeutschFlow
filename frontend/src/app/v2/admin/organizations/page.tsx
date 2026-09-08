@@ -14,6 +14,7 @@ import {
   type AdminOrg,
   type OrgInvoice,
 } from '@/lib/adminOrgApi'
+import { isInvoiceOverdue } from '@/lib/orgInvoice'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip, DataTable, TkModal, type DataTableColumn } from '@/components/ui-v2'
 import { CreateOrgModal } from './CreateOrgModal'
 import { useFmt } from '@/lib/i18n/useFmt'
@@ -30,7 +31,9 @@ const orgsAccentVars = {
 
 // ── Finance rollup (from existing per-org invoices — no new endpoint) ─────────
 // "Đã xuất HĐ" = issued (SENT + PAID); DRAFT not issued, VOID cancelled → excluded.
-// Overdue = a SENT invoice whose period_end is already in the past (real field).
+// Quá hạn: dùng chung `isInvoiceOverdue` với /v2/org/billing (V-12b). Trước đó màn này đo bằng
+// `periodEnd` (ngày kết thúc KỲ DỊCH VỤ), nên một hoá đơn gửi cuối kỳ — còn nguyên 7 ngày để trả —
+// đã bị gắn cờ đỏ ở đây trong khi trung tâm nhìn màn của mình thấy "chưa tới hạn".
 type OrgPay = 'paid' | 'pending' | 'overdue' | 'none'
 interface OrgFinance {
   totalInvoiced: number
@@ -45,8 +48,6 @@ interface OrgRow {
 }
 
 function rollup(invoices: OrgInvoice[]): OrgFinance {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
   let totalInvoiced = 0
   let outstanding = 0
   let invoiceCount = 0
@@ -60,8 +61,7 @@ function rollup(invoices: OrgInvoice[]): OrgFinance {
     invoiceCount += 1
     if (st === 'SENT') {
       outstanding += amt
-      const due = inv.periodEnd ? new Date(inv.periodEnd) : null
-      if (due && !Number.isNaN(due.getTime()) && due < today) hasOverdue = true
+      if (isInvoiceOverdue(inv)) hasOverdue = true
     } else if (st === 'PAID') {
       paidCount += 1
     }
