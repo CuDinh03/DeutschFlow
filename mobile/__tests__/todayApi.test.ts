@@ -7,7 +7,7 @@ jest.mock('@/lib/api', () => ({
 }))
 
 import api from '@/lib/api'
-import { drillPass, dueRepairChipLabels, errorSkillsApi, normalizeDrillAnswer, todayApi, todayHrefToRoute } from '@/lib/todayApi'
+import { drillPass, dueRepairChipLabels, errorSkillsApi, normalizeDrillAnswer, todayApi, todayHrefToRoute, WEEKLY_SPEAKING_ROUTE } from '@/lib/todayApi'
 
 const get = api.get as unknown as jest.Mock
 const post = api.post as unknown as jest.Mock
@@ -43,6 +43,15 @@ describe('todayHrefToRoute — href backend là đường WEB, map an toàn', ()
     ['https://la.la/route-la', '/(student)/speaking'],
   ])('%s → %s', (href, route) => {
     expect(todayHrefToRoute(href)).toBe(route)
+  })
+
+  // Soát 09/09: href THẬT của recommendedWeeklySpeaking do backend sinh
+  // (AdaptivePolicyService.computeTodayPlan → WebRoutes.STUDENT_SPEAKING + "?cefBand=") KHÔNG chứa
+  // 'weekly'. Ai đưa nó qua todayHrefToRoute là đẩy thẻ "Bài nói theo tuần" về màn luyện nói
+  // thường — trùng đích với thẻ ngay trên nó. Vì vậy thẻ ấy dùng WEEKLY_SPEAKING_ROUTE.
+  test('href tuần THẬT của backend không tự map về màn nói-theo-tuần', () => {
+    expect(todayHrefToRoute('/v2/student/speaking?cefBand=B1')).toBe('/(student)/speaking')
+    expect(WEEKLY_SPEAKING_ROUTE).toBe('/(student)/weekly-speaking')
   })
 })
 

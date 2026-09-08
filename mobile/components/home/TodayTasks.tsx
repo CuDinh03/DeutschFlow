@@ -4,7 +4,7 @@ import { router } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Caption, Card, Icon, Pill, ThemedText, YellowSquare, GaGlyph } from '@/components/ui'
-import { dueRepairChipLabels, errorSkillsApi, todayApi, todayHrefToRoute } from '@/lib/todayApi'
+import { dueRepairChipLabels, errorSkillsApi, todayApi, todayHrefToRoute, WEEKLY_SPEAKING_ROUTE } from '@/lib/todayApi'
 
 /**
  * Khối "Việc hôm nay" trên Trang chủ (cụm Heute — thiết kế đã chốt 02/09).
@@ -111,11 +111,13 @@ export function TodayTasks() {
         </Card>
       )}
 
-      {/* 3. Bài nói theo tuần — todayHrefToRoute đưa href 'weekly…' về /(student)/weekly-speaking.
-          Nhãn lấy đúng câu web dùng cho cùng việc này (v2.student.dashboard.today.weekly). */}
+      {/* 3. Bài nói theo tuần — đích CỐ ĐỊNH là màn nói-theo-tuần của app. KHÔNG dùng
+          todayHrefToRoute ở đây: href backend gửi kèm là `/v2/student/speaking?cefBand=…` (web v2
+          chưa có màn này), map qua đó ra đúng /(student)/speaking — trùng đích với thẻ luyện nói
+          ngay phía trên. Nhãn lấy đúng câu web dùng cho cùng việc (v2.student.dashboard.today.weekly). */}
       {weekly && (
         <Card
-          onPress={() => router.push(todayHrefToRoute(weekly.href))}
+          onPress={() => router.push(WEEKLY_SPEAKING_ROUTE)}
           accessibilityLabel="Làm bài nói theo tuần"
           style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}
         >
