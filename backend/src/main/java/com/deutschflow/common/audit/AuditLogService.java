@@ -30,11 +30,34 @@ public class AuditLogService {
      * @return envelope {@code {items: List<AuditLogDto>, total, page, size}}
      */
     public Map<String, Object> readAuditLogs(String q, String cat, int page, int size) {
+        return read(null, q, cat, page, size);
+    }
+
+    /**
+     * Sổ hoạt động của MỘT trung tâm (C6) — chỉ những vết do thành viên trung tâm đó tạo ra.
+     *
+     * <p>Lọc bằng cột {@code org_id} chụp lúc ghi vết, KHÔNG join sang trạng thái hiện tại của
+     * actor: người rời trung tâm rồi thì vết cũ vẫn thuộc về trung tâm cũ, đúng ngữ nghĩa bằng
+     * chứng. Dòng không có org (hoạt động B2C) không bao giờ lọt vào đây vì {@code org_id = ?}
+     * loại NULL.
+     */
+    public Map<String, Object> readOrgAuditLogs(Long orgId, String q, String cat, int page, int size) {
+        if (orgId == null) {
+            throw new IllegalArgumentException("orgId is required");
+        }
+        return read(orgId, q, cat, page, size);
+    }
+
+    private Map<String, Object> read(Long orgId, String q, String cat, int page, int size) {
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         int safePage = Math.max(page, 0);
 
         StringBuilder where = new StringBuilder(" WHERE 1=1");
         List<Object> args = new ArrayList<>();
+        if (orgId != null) {
+            where.append(" AND org_id = ?");
+            args.add(orgId);
+        }
         if (cat != null && !cat.isBlank()) {
             where.append(" AND target_type = ?");
             args.add(cat.trim());
@@ -109,6 +132,10 @@ public class AuditLogService {
             String targetId,
             Map<String, Object> metadata
     ) {
+        // org_id lấy TRONG CÂU INSERT từ users.org_id của actor (C6). Làm ở đây thay vì bắt ~60 điểm
+        // gọi tự truyền: mọi vết cũ và mới đều có tổ chức mà không đổi một chữ nào ở phía gọi.
+        // Đây là ẢNH CHỤP lúc ghi — actor rời trung tâm sau này thì vết cũ vẫn thuộc trung tâm cũ.
+        // actor null (job nền, hệ thống) hoặc actor B2C ⇒ subquery trả NULL, đúng như mong đợi.
         jdbcTemplate.update("""
                 INSERT INTO audit_logs (
                   event_name,
@@ -117,8 +144,9 @@ public class AuditLogService {
                   actor_role,
                   target_type,
                   target_id,
-                  metadata_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                  metadata_json,
+                  org_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT org_id FROM users WHERE id = ?))
                 """,
                 eventName,
                 actorUserId,
@@ -126,7 +154,8 @@ public class AuditLogService {
                 actorRole,
                 targetType,
                 targetId,
-                toJson(metadata)
+                toJson(metadata),
+                actorUserId
         );
     }
 
