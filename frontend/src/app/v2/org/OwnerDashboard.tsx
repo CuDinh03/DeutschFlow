@@ -149,7 +149,9 @@ export function OrgOwnerDashboard() {
             },
             {
               label: t('stats.openClasses'),
-              value: loading ? '—' : (an?.classCount ?? (classes.state === 'ok' ? classes.data.length : '—')),
+              // `summary.classCount` đếm TOÀN trung tâm. Nhánh cũ `classes.data.length` chỉ đếm
+              // trang đầu 50 lớp — trung tâm 60 lớp hiện "50" mà không dấu hiệu nào cho biết là thiếu.
+              value: loading ? '—' : (an?.classCount ?? summary?.classCount ?? '—'),
               sub: loading ? '—' : t('stats.teacherCount', { count: summary?.teacherCount ?? 0 }),
               tone: 'violet',
             },

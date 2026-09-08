@@ -15,6 +15,7 @@ import com.deutschflow.organization.dto.OrgSummaryDto;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassTeacher;
@@ -54,6 +55,7 @@ public class OrgService {
     private static final String ROLE_STUDENT = "STUDENT";
 
     private final OrgMembershipService membershipService;
+    private final JdbcTemplate jdbcTemplate;
     private final OrgMemberRepository memberRepo;
     private final OrganizationRepository organizationRepository;
     private final TeacherClassRepository teacherClassRepository;
@@ -74,7 +76,46 @@ public class OrgService {
                 studentCount,            // seat used = active students
                 org.getSeatLimit(),
                 teacherCount,
-                studentCount);
+                studentCount,
+                countClasses(orgId),
+                countClassesWithoutTeacher(orgId));
+    }
+
+    /** Tổng số lớp của trung tâm — đếm ở máy chủ, không phải cộng tay trang đầu. */
+    private long countClasses(Long orgId) {
+        Long n = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM teacher_classes WHERE org_id = ?", Long.class, orgId);
+        return n == null ? 0 : n;
+    }
+
+    /**
+     * Lớp "thiếu giáo viên" = KHÔNG còn ai đang là TEACHER ACTIVE của trung tâm đứng lớp đó.
+     *
+     * <p>🔴 Định nghĩa này KHÁC kế hoạch B2B, và cố ý. Kế hoạch ghi "thiếu GV = {@code teacher_id}
+     * rỗng và không có ai trong {@code class_teachers}" — nhưng đo trên schema thật (07/09/2026)
+     * thì cột {@code teacher_id} là <b>NOT NULL</b>: một lớp KHÔNG THỂ tồn tại mà thiếu nó. Đếm
+     * theo định nghĩa cũ sẽ luôn trả 0, tức một con số vô dụng nhưng trông như đã hoạt động.
+     * (Huy hiệu "chưa có GV" trên trang lớp cũng dựa vào chính giả định sai đó — xem
+     * {@code classes/page.tsx}.)
+     *
+     * <p>Cái trung tâm thật sự cần biết là lớp nào không còn người dạy: giáo viên đã rời trung tâm,
+     * bị hạ vai trò, hoặc bị vô hiệu hoá. Xét CẢ {@code teacher_id} (chủ nhiệm) lẫn
+     * {@code class_teachers} (đồng giảng dạy) — còn bất kỳ ai trong hai nguồn đang là TEACHER ACTIVE
+     * thì lớp vẫn có người đứng.
+     */
+    private long countClassesWithoutTeacher(Long orgId) {
+        Long n = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM teacher_classes tc
+                WHERE tc.org_id = ?
+                  AND NOT EXISTS (
+                      SELECT 1 FROM org_members om
+                       WHERE om.org_id = tc.org_id
+                         AND om.status = 'ACTIVE' AND om.role = 'TEACHER'
+                         AND (om.user_id = tc.teacher_id
+                              OR om.user_id IN (SELECT ct.teacher_id FROM class_teachers ct WHERE ct.class_id = tc.id))
+                  )
+                """, Long.class, orgId);
+        return n == null ? 0 : n;
     }
 
     /**
@@ -114,7 +155,24 @@ public class OrgService {
     /** Read-only org class roster, paginated, queried by {@code teacher_classes.org_id}. */
     @Transactional(readOnly = true)
     public Page<OrgClassDto> listClasses(Long orgId, Pageable pageable) {
-        return teacherClassRepository.findByOrgId(orgId, pageable).map(this::toClassDto);
+        return listClasses(orgId, pageable, null, false);
+    }
+
+    /**
+     * Danh sách lớp có lọc PHÍA MÁY CHỦ (PR-A3).
+     *
+     * <p>Trước đợt này trang lớp chỉ lọc trên những gì đã tải về, nên trung tâm nhiều lớp gõ tên một
+     * lớp ở trang 3 sẽ không tìm thấy gì và tưởng lớp đó không tồn tại.
+     *
+     * @param q             lọc theo tên lớp, không phân biệt hoa thường; rỗng/null = không lọc
+     * @param withoutTeacher chỉ lấy lớp chưa có ai dạy (cùng định nghĩa với {@code classesWithoutTeacher})
+     */
+    @Transactional(readOnly = true)
+    public Page<OrgClassDto> listClasses(Long orgId, Pageable pageable, String q, boolean withoutTeacher) {
+        String needle = q == null ? "" : q.trim();
+        return teacherClassRepository
+                .searchByOrg(orgId, needle.isEmpty() ? null : needle, withoutTeacher, pageable)
+                .map(this::toClassDto);
     }
 
     /**

@@ -195,11 +195,20 @@ public class OrgController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Danh sách lớp của trung tâm, lọc phía máy chủ (PR-A3).
+     *
+     * @param q              lọc theo tên lớp, không phân biệt hoa thường
+     * @param withoutTeacher chỉ lấy lớp chưa có ai dạy
+     */
     @GetMapping("/classes")
-    public Page<OrgClassDto> listClasses(@AuthenticationPrincipal User user, Pageable pageable) {
+    public Page<OrgClassDto> listClasses(@AuthenticationPrincipal User user,
+                                         Pageable pageable,
+                                         @RequestParam(required = false) String q,
+                                         @RequestParam(required = false, defaultValue = "false") boolean withoutTeacher) {
         Long orgId = requireOrgId(user);
         orgGuard.assertOrgAdmin(user.getId(), orgId);
-        return orgService.listClasses(orgId, pageable);
+        return orgService.listClasses(orgId, pageable, q, withoutTeacher);
     }
 
     /**

@@ -7,7 +7,7 @@ import { Plus } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
-import { listClasses, type OrgClass } from '@/lib/orgApi'
+import { getOrgSummary, listClasses, type OrgClass, type OrgSummary } from '@/lib/orgApi'
 import { GaPageHdr, GaBtn, GaCap, TkSearch } from '@/components/ui-v2'
 import { CreateClassModal } from './CreateClassModal'
 import { CLASSES_PAGE_SIZE } from './pagination'
@@ -20,7 +20,9 @@ import { CLASSES_PAGE_SIZE } from './pagination'
 //   (the proto's level/students/avg columns aren't backed).
 // PR-A2 (BF-03, 07/09/2026): phân trang thật thay `listClasses(0, 100)` cứng. Trang đầu PAGE_SIZE
 //   lớp, nút "Tải thêm" nối trang kế; đếm "đã tải N/M"; tìm kiếm + huy hiệu "chưa có GV" nói rõ
-//   chỉ tính trên phần đã tải. Tìm kiếm phía máy chủ (`q`) thuộc PR-A3 (O-2 backend).
+//   chỉ tính trên phần đã tải.
+// PR-A3 (07/09/2026): tìm kiếm chạy PHÍA MÁY CHỦ (`q`) — gõ tên một lớp ở trang 3 nay tìm thấy,
+//   trước đó chỉ lọc trên phần đã tải nên ra rỗng và người dùng tưởng lớp không tồn tại.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEAL = '#11888A'
@@ -38,11 +40,16 @@ export default function V2OrgClassesPage() {
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [summary, setSummary] = useState<OrgSummary | null>(null)
+
+  // Từ khoá ĐÃ CHỐT để gửi lên máy chủ (hoãn sau khi ngừng gõ) — tách khỏi `query` là thứ ô nhập
+  // hiển thị, để mỗi phím gõ không thành một request.
+  const [appliedQuery, setAppliedQuery] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const page = await listClasses(0, CLASSES_PAGE_SIZE)
+      const page = await listClasses(0, CLASSES_PAGE_SIZE, { q: appliedQuery })
       setClasses(page.content ?? [])
       setTotal(page.totalElements ?? (page.content ?? []).length)
       setNextPage(page.last === false ? (page.number ?? 0) + 1 : null)
@@ -52,13 +59,13 @@ export default function V2OrgClassesPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [appliedQuery])
 
   const loadMore = useCallback(async () => {
     if (nextPage == null || loadingMore) return
     setLoadingMore(true)
     try {
-      const page = await listClasses(nextPage, CLASSES_PAGE_SIZE)
+      const page = await listClasses(nextPage, CLASSES_PAGE_SIZE, { q: appliedQuery })
       setClasses((prev) => {
         const seen = new Set(prev.map((c) => c.id))
         return [...prev, ...(page.content ?? []).filter((c) => !seen.has(c.id))]
@@ -70,12 +77,28 @@ export default function V2OrgClassesPage() {
     } finally {
       setLoadingMore(false)
     }
-  }, [nextPage, loadingMore, total, t])
+  }, [nextPage, loadingMore, total, t, appliedQuery])
+
+  // 300 ms sau khi ngừng gõ mới hỏi máy chủ. `load` phụ thuộc `appliedQuery` nên effect dưới tự chạy lại.
+  useEffect(() => {
+    const id = setTimeout(() => setAppliedQuery(query.trim()), 300)
+    return () => clearTimeout(id)
+  }, [query])
+
+  // Số "thiếu GV" đếm trên TOÀN trung tâm nên không phụ thuộc phân trang hay từ khoá — nạp một lần.
+  useEffect(() => {
+    getOrgSummary().then(setSummary).catch(() => setSummary(null))
+  }, [])
 
   useEffect(() => { void load() }, [load])
 
-  const rows = useMemo(() => classes.filter((c) => c.name.toLowerCase().includes(query.trim().toLowerCase())), [classes, query])
-  const unassigned = classes.filter((c) => c.teacherId == null).length
+  // Máy chủ đã lọc theo `appliedQuery` (PR-A3) nên KHÔNG lọc lại ở đây. Lọc hai lần sẽ làm mất kết
+  // quả trong khoảng 300 ms chờ: `query` mới còn `classes` vẫn là kết quả của từ khoá cũ.
+  const rows = classes
+  // `teacherId == null` KHÔNG BAO GIỜ đúng: cột teacher_id là NOT NULL trong CSDL, nên huy hiệu này
+  // đã im lặng hiện 0 từ đầu. Nay lấy số THẬT từ máy chủ (PR-A3): "thiếu GV" = không còn ai đang là
+  // giáo viên ACTIVE của trung tâm đứng lớp đó — giáo viên đã rời thì lớp cần người mới.
+  const unassigned = summary?.classesWithoutTeacher ?? 0
   const allLoaded = nextPage == null
   const remaining = Math.max(total - classes.length, 0)
 
@@ -98,15 +121,14 @@ export default function V2OrgClassesPage() {
             <GaCap>{allLoaded ? t('count', { count: rows.length }) : t('loadedOf', { loaded: classes.length, total })}</GaCap>
             {unassigned > 0 && (
               <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-red)', background: 'var(--ga-red-soft)' }}>
-                {allLoaded ? t('unassignedBadge', { count: unassigned }) : t('unassignedBadgePartial', { count: unassigned, loaded: classes.length })}
+                {t('unassignedBadge', { count: unassigned })}
               </span>
             )}
           </div>
           <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchPlaceholder')} containerClassName="w-full sm:w-[220px]" />
         </div>
-        {!allLoaded && query.trim() !== '' && (
-          <p className="ga-ui mb-3 text-ga-caption text-ga-muted">{t('searchHint')}</p>
-        )}
+        {/* ĐÃ GỠ lời nhắc "chỉ tìm trong phần đã tải": từ PR-A3 máy chủ tìm trên TOÀN trung tâm,
+            giữ câu đó lại là nói sai với người dùng. Khoá `searchHint` cũng đã gỡ khỏi catalog. */}
 
         {loading ? (
           <div className="flex flex-col gap-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="ga-shimmer h-[54px] border border-ga-line" aria-hidden />)}</div>

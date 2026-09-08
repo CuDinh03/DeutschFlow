@@ -255,8 +255,6 @@
       },
       "loadMore": "Mehr laden ({remaining} verbleibend)",
       "loadedOf": "{loaded}/{total} Kurse geladen",
-      "searchHint": "Suche nur in den geladenen Kursen — mit „Mehr laden“ erweitern.",
-      "unassignedBadgePartial": "{count} ohne Lehrkraft (von {loaded} geladenen)",
       "loadMoreError": "Weitere Kurse konnten nicht geladen werden."
     },
     "classDetail": {
@@ -535,7 +533,9 @@
       "copy": "Kopieren",
       "copied": "Kopiert",
       "payInfoError": "Zahlungsanleitung konnte nicht geladen werden.",
-      "payNotConfigured": "Kein Empfängerkonto hinterlegt — bitte DeutschFlow für die Zahlung kontaktieren."
+      "payNotConfigured": "Kein Empfängerkonto hinterlegt — bitte DeutschFlow für die Zahlung kontaktieren.",
+      "colDue": "Fällig",
+      "overdue": "überfällig"
     },
     "invitations": {
       "title": "Mitgliedereinladungen",

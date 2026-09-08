@@ -255,8 +255,6 @@
       },
       "loadMore": "Load more ({remaining} remaining)",
       "loadedOf": "Loaded {loaded}/{total} classes",
-      "searchHint": "Searching only the loaded classes — use \"Load more\" to widen.",
-      "unassignedBadgePartial": "{count} without a teacher (of {loaded} loaded)",
       "loadMoreError": "Could not load more classes."
     },
     "classDetail": {
@@ -535,7 +533,9 @@
       "copy": "Copy",
       "copied": "Copied",
       "payInfoError": "Could not load payment instructions.",
-      "payNotConfigured": "No receiving account configured — contact DeutschFlow for payment instructions."
+      "payNotConfigured": "No receiving account configured — contact DeutschFlow for payment instructions.",
+      "colDue": "Due",
+      "overdue": "overdue"
     },
     "invitations": {
       "title": "Member invitations",
