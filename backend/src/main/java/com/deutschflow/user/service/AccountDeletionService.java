@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
  * in dependency order, within the same transaction.
  *
  * Required for App Store Guideline 5.1.1(v): in-app account deletion.
+ *
+ * <p>Thành viên trung tâm KHÔNG đi qua được đường này — xem {@link AccountDeletionGuard} (D6).
  */
 @Slf4j
 @Service
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AccountDeletionService {
 
     private final JdbcTemplate jdbc;
+    private final AccountDeletionGuard deletionGuard;
 
     /** Tables with a non-cascading FK to users(id) that must be cleared first. */
     private static final String[] NON_CASCADING_BY_USER_ID = {
@@ -34,6 +37,10 @@ public class AccountDeletionService {
 
     @Transactional
     public void deleteAccount(long userId) {
+        // D6 (owner chốt 08/09/2026) — chốt đặt Ở ĐÂY chứ không ở controller: đây là chỗ DUY NHẤT
+        // xoá dòng users, nên mọi đường xoá tài khoản về sau đều chịu chung một hàng rào. Ném 409
+        // kèm hướng dẫn cụ thể; @Transactional nên không có gì bị xoá dở.
+        deletionGuard.assertDeletable(userId);
         // Table name is concatenated from the compile-time constant array above (never user input),
         // so this is not an injection vector; the userId is always a bound parameter.
         for (String table : NON_CASCADING_BY_USER_ID) {
