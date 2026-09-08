@@ -322,7 +322,11 @@
       "roleAssistant": "Trợ giảng",
       "removeAssistant": "Gỡ",
       "removingAssistant": "Đang gỡ…",
-      "assistantRemoved": "Đã gỡ trợ giảng khỏi lớp."
+      "assistantRemoved": "Đã gỡ trợ giảng khỏi lớp.",
+      "removeAssistantConfirmTitle": "Gỡ trợ giảng khỏi lớp?",
+      "removeAssistantConfirmDesc": "Gỡ {name} khỏi lớp {className}.",
+      "removeAssistantConfirmAccess": "Họ mất quyền vào lớp này: sổ điểm, điểm danh và nhật ký buổi dạy của lớp.",
+      "removeAssistantConfirmKeeps": "Buổi dạy đã ghi và điểm đã chấm giữ nguyên; có thể thêm lại làm trợ giảng bất cứ lúc nào."
     },
     "schedule": {
       "title": "Lịch trung tâm",
@@ -443,7 +447,14 @@
         "statusAssistant": "Đang là trợ giảng của lớp này",
         "assistantBadge": "Trợ giảng",
         "addAssistantBtn": "Thêm trợ giảng",
-        "assistantAdded": "Đã thêm làm trợ giảng lớp {className}."
+        "assistantAdded": "Đã thêm làm trợ giảng lớp {className}.",
+        "assignBtnReplace": "Thay giáo viên phụ trách",
+        "assignConfirmTitle": "Giao phụ trách lớp?",
+        "assignConfirmDesc": "Giao {name} làm giáo viên phụ trách lớp {className}.",
+        "assignConfirmDemote": "Giáo viên đang phụ trách bị HẠ xuống trợ giảng của lớp này.",
+        "assignConfirmStays": "Họ không rời lớp — muốn gỡ hẳn phải vào chi tiết lớp để gỡ trợ giảng.",
+        "assignConfirmNoCurrent": "Lớp chưa có giáo viên phụ trách — không ai bị hạ vai.",
+        "cancelBtn": "Huỷ"
       },
       "createModal": {
         "title": "Thêm giáo viên",
@@ -459,7 +470,11 @@
         "passwordLabel": "Mật khẩu",
         "passwordPlaceholder": "≥ 6 ký tự",
         "passwordHint": "Giáo viên đăng nhập bằng mật khẩu này. Tài khoản thuộc về giáo viên — rời trung tâm vẫn còn."
-      }
+      },
+      "revokeConfirmTitle": "Thu hồi lời mời?",
+      "revokeConfirmDesc": "Thu hồi lời mời đã gửi tới {email}.",
+      "revokeConfirmLinkDead": "Link trong hộp thư của họ chết ngay — bấm vào sẽ không tham gia được nữa.",
+      "revokeConfirmReinvite": "Muốn mời lại phải gửi một lời mời mới từ đầu."
     },
     "analytics": {
       "title": "Phân tích tổ chức",
@@ -581,7 +596,16 @@
       "statusRevoked": "Đã thu hồi",
       "resend": "Gửi lại",
       "revoke": "Thu hồi",
-      "resendDone": "Đã gửi link mời mới tới {email} — link cũ hết hiệu lực."
+      "resendDone": "Đã gửi link mời mới tới {email} — link cũ hết hiệu lực.",
+      "revokeConfirmTitle": "Thu hồi lời mời?",
+      "revokeConfirmDesc": "Thu hồi lời mời đã gửi tới {email}.",
+      "revokeConfirmLinkDead": "Link trong hộp thư của họ chết ngay — bấm vào sẽ không tham gia được nữa.",
+      "revokeConfirmReinvite": "Muốn mời lại phải gửi một lời mời mới từ đầu.",
+      "resendConfirmTitle": "Gửi lại lời mời?",
+      "resendConfirmDesc": "Gửi lại lời mời cho {email}.",
+      "resendConfirmRotate": "Link cũ đã gửi chết NGAY LẬP TỨC — ai đang giữ link đó không dùng được nữa.",
+      "resendConfirmExpiry": "Hạn dùng của lời mời được đặt lại từ bây giờ.",
+      "resendConfirmEmail": "Hệ thống tự gửi email mới kèm link mới tới địa chỉ này."
     },
     "roles": {
       "title": "Phân quyền",
@@ -686,7 +710,12 @@
       "statusREJECTED": "Đã trả lại",
       "statusLOCKED": "Đã khoá",
       "noMoneyNote": "Hệ thống chỉ chốt số công. Đơn giá và thành tiền do kế toán xử lý bên ngoài.",
-      "export": "Xuất CSV"
+      "export": "Xuất CSV",
+      "lockConfirmTitle": "Khoá kỳ công?",
+      "lockConfirmDesc": "Khoá kỳ {from} → {to} của {teacher}.",
+      "lockConfirmFinal": "Đây là trạng thái CUỐI: kỳ đã khoá không mở lại, không duyệt lại, không trả lại được.",
+      "lockConfirmSessions": "Chốt {sessions} buổi · {hours} làm căn cứ trả lương.",
+      "lockConfirmRecords": "Dòng công trong kỳ đã bị khoá từ lúc giáo viên nộp; khoá kỳ làm việc đó thành vĩnh viễn — không còn đường \"trả lại\" để họ sửa."
     },
     "curricula": {
       "title": "Giáo trình trung tâm",
@@ -811,6 +840,22 @@
       "supportHint": "Chỉ là gợi ý hiển thị trên ma trận mục tiêu — hệ thống không tự dời giáo trình.",
       "save": "Lưu cấu hình",
       "saveSuccess": "Đã lưu cấu hình trung tâm"
+    },
+    "audit": {
+      "title": "Sổ hoạt động",
+      "subtitle": "Ai đã làm gì trong trung tâm — bằng chứng vận hành, chỉ giám đốc xem được.",
+      "filterAll": "Tất cả",
+      "searchPlaceholder": "Tìm theo hành động, email người thực hiện, mã đối tượng…",
+      "colTime": "Thời gian",
+      "colActor": "Người thực hiện",
+      "colAction": "Hành động",
+      "colTarget": "Đối tượng",
+      "system": "Hệ thống",
+      "empty": "Trung tâm chưa có hoạt động nào được ghi lại.",
+      "emptyFiltered": "Không có hoạt động nào khớp từ khoá hoặc bộ lọc đang chọn.",
+      "pageOf": "Trang {page}/{pages} · {total} hoạt động",
+      "prevPage": "Trang trước",
+      "nextPage": "Trang sau"
     }
   }
 }

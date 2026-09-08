@@ -14,7 +14,7 @@ import {
   type LessonLogAttendanceEntry,
   type LessonLogRequest,
 } from '@/lib/teacherLessonLogApi'
-import { GaBtn, GaCap, TkBadge } from '@/components/ui-v2'
+import { GaBtn, GaCap, TkBadge, ConfirmDialog } from '@/components/ui-v2'
 import { ReportPrintHeader } from './reportShared'
 
 export interface AttendanceTabProps {
@@ -129,6 +129,10 @@ export function AttendanceTab(props: AttendanceTabProps) {
   const [attendanceDraft, setAttendanceDraft] = useState<Record<number, DraftStatus>>({})
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  // Buổi học đang chờ xác nhận xoá. Trước đây dùng window.confirm với câu "Xoá buổi học này?" —
+  // vừa trái quy ước ConfirmDialog, vừa không nói ra hai hệ quả thật: điểm danh của buổi bị xoá
+  // theo, và buổi này biến khỏi căn cứ tính công.
+  const [deleting, setDeleting] = useState<ClassLessonLog | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
 
   const openAddForm = (): void => {
@@ -222,10 +226,10 @@ export function AttendanceTab(props: AttendanceTabProps) {
   }
 
   const handleDelete = async (log: ClassLessonLog): Promise<void> => {
-    if (typeof window !== 'undefined' && !window.confirm(t('attendance.deleteConfirm'))) return
     setDeletingId(log.id)
     try {
       await deleteLessonLog(classId, log.id)
+      setDeleting(null)
       onLessonLogsChange((prev) => prev.filter((l) => l.id !== log.id))
       // If the row being edited was just deleted, close the form so a later Save can't
       // PUT to a now-missing id.
@@ -438,7 +442,7 @@ export function AttendanceTab(props: AttendanceTabProps) {
                     <button
                       type="button"
                       aria-label={t('attendance.delete')}
-                      onClick={() => handleDelete(log)}
+                      onClick={() => setDeleting(log)}
                       disabled={deletingId === log.id}
                       className={deleteBtnCls}
                     >
@@ -571,6 +575,26 @@ export function AttendanceTab(props: AttendanceTabProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {deleting && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => { if (!o) setDeleting(null) }}
+          title={t('attendance.deleteConfirmTitle')}
+          description={t('attendance.deleteConfirm', {
+            date: format(new Date(deleting.sessionDate), 'dd/MM/yyyy'),
+          })}
+          details={[
+            t('attendance.deleteConfirmAttendance', { count: deleting.attendance.length }),
+            t('attendance.deleteConfirmTimesheet'),
+            t('attendance.deleteConfirmIrreversible'),
+          ]}
+          confirmLabel={t('attendance.delete')}
+          cancelLabel={tc('cancel')}
+          loading={deletingId === deleting.id}
+          onConfirm={() => void handleDelete(deleting)}
+        />
       )}
     </div>
   )

@@ -322,7 +322,11 @@
       "roleAssistant": "Assistenz",
       "removeAssistant": "Entfernen",
       "removingAssistant": "Wird entfernt…",
-      "assistantRemoved": "Assistenz aus dem Kurs entfernt."
+      "assistantRemoved": "Assistenz aus dem Kurs entfernt.",
+      "removeAssistantConfirmTitle": "Assistenz entfernen?",
+      "removeAssistantConfirmDesc": "{name} aus {className} entfernen.",
+      "removeAssistantConfirmAccess": "Der Zugriff auf diesen Kurs entfällt: Notenbuch, Anwesenheit und Unterrichtsprotokolle.",
+      "removeAssistantConfirmKeeps": "Erfasste Einheiten und Noten bleiben erhalten; die Assistenz kann jederzeit wieder hinzugefügt werden."
     },
     "schedule": {
       "title": "Zentrumsplan",
@@ -443,7 +447,14 @@
         "statusAssistant": "Bereits Assistenz in diesem Kurs",
         "assistantBadge": "Assistenz",
         "addAssistantBtn": "Als Assistenz hinzufügen",
-        "assistantAdded": "Als Assistenz zu {className} hinzugefügt."
+        "assistantAdded": "Als Assistenz zu {className} hinzugefügt.",
+        "assignBtnReplace": "Hauptlehrkraft ersetzen",
+        "assignConfirmTitle": "Als Hauptlehrkraft einsetzen?",
+        "assignConfirmDesc": "{name} als Hauptlehrkraft von {className} einsetzen.",
+        "assignConfirmDemote": "Die bisherige Hauptlehrkraft wird zur Assistenz dieses Kurses HERABGESTUFT.",
+        "assignConfirmStays": "Sie verlässt den Kurs nicht — für ein vollständiges Entfernen die Assistenz in der Kursansicht entfernen.",
+        "assignConfirmNoCurrent": "Der Kurs hat noch keine Hauptlehrkraft — niemand wird herabgestuft.",
+        "cancelBtn": "Abbrechen"
       },
       "createModal": {
         "title": "Lehrkraft hinzufügen",
@@ -459,7 +470,11 @@
         "passwordLabel": "Passwort",
         "passwordPlaceholder": "≥ 6 Zeichen",
         "passwordHint": "Die Lehrkraft meldet sich mit diesem Passwort an. Das Konto gehört der Lehrkraft und bleibt nach dem Verlassen des Zentrums bestehen."
-      }
+      },
+      "revokeConfirmTitle": "Einladung zurückziehen?",
+      "revokeConfirmDesc": "Die an {email} gesendete Einladung zurückziehen.",
+      "revokeConfirmLinkDead": "Der Link im Postfach wird sofort ungültig — ein Klick führt zu keinem Beitritt mehr.",
+      "revokeConfirmReinvite": "Für einen erneuten Beitritt muss eine ganz neue Einladung verschickt werden."
     },
     "analytics": {
       "title": "Organisationsanalyse",
@@ -581,7 +596,16 @@
       "statusRevoked": "Zurückgezogen",
       "resend": "Erneut senden",
       "revoke": "Zurückziehen",
-      "resendDone": "Neuer Einladungslink an {email} gesendet — der alte Link ist ungültig."
+      "resendDone": "Neuer Einladungslink an {email} gesendet — der alte Link ist ungültig.",
+      "revokeConfirmTitle": "Einladung zurückziehen?",
+      "revokeConfirmDesc": "Die an {email} gesendete Einladung zurückziehen.",
+      "revokeConfirmLinkDead": "Der Link im Postfach wird sofort ungültig — ein Klick führt zu keinem Beitritt mehr.",
+      "revokeConfirmReinvite": "Für einen erneuten Beitritt muss eine ganz neue Einladung verschickt werden.",
+      "resendConfirmTitle": "Einladung erneut senden?",
+      "resendConfirmDesc": "Die Einladung erneut an {email} senden.",
+      "resendConfirmRotate": "Der bereits versendete Link wird SOFORT ungültig — wer ihn hat, kann ihn nicht mehr nutzen.",
+      "resendConfirmExpiry": "Die Gültigkeitsdauer der Einladung beginnt ab jetzt neu.",
+      "resendConfirmEmail": "Das System sendet automatisch eine neue E-Mail mit dem neuen Link an diese Adresse."
     },
     "roles": {
       "title": "Rollen",
@@ -686,7 +710,12 @@
       "statusREJECTED": "Zurückgegeben",
       "statusLOCKED": "Gesperrt",
       "noMoneyNote": "Das System erfasst nur Arbeitseinheiten. Sätze und Beträge werden extern abgerechnet.",
-      "export": "CSV exportieren"
+      "export": "CSV exportieren",
+      "lockConfirmTitle": "Zeitraum sperren?",
+      "lockConfirmDesc": "Zeitraum {from} → {to} von {teacher} sperren.",
+      "lockConfirmFinal": "Das ist der ENDZUSTAND: ein gesperrter Zeitraum lässt sich nicht wieder öffnen, freigeben oder zurückweisen.",
+      "lockConfirmSessions": "Friert {sessions} Einheiten · {hours} als Grundlage der Lohnabrechnung ein.",
+      "lockConfirmRecords": "Die Arbeitszeiteinträge des Zeitraums sind seit der Einreichung gesperrt; das Sperren macht das endgültig — es gibt keinen \"Zurückweisen\"-Weg mehr zum Bearbeiten."
     },
     "curricula": {
       "title": "Lehrplan des Zentrums",
@@ -811,6 +840,22 @@
       "supportHint": "Nur Anzeige-Hinweise auf der Zielmatrix — das System verschiebt das Curriculum nie selbst.",
       "save": "Speichern",
       "saveSuccess": "Einstellungen gespeichert"
+    },
+    "audit": {
+      "title": "Aktivitätsprotokoll",
+      "subtitle": "Wer im Zentrum was getan hat — Betriebsnachweis, nur für die Leitung sichtbar.",
+      "filterAll": "Alle",
+      "searchPlaceholder": "Nach Aktion, E-Mail der handelnden Person oder Ziel-ID suchen…",
+      "colTime": "Zeit",
+      "colActor": "Handelnde Person",
+      "colAction": "Aktion",
+      "colTarget": "Ziel",
+      "system": "System",
+      "empty": "Für dieses Zentrum wurde noch keine Aktivität aufgezeichnet.",
+      "emptyFiltered": "Keine Aktivität passt zur aktuellen Suche oder Filterung.",
+      "pageOf": "Seite {page}/{pages} · {total} Einträge",
+      "prevPage": "Zurück",
+      "nextPage": "Weiter"
     }
   }
 }

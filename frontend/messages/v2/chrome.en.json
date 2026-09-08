@@ -86,7 +86,8 @@
       "org-curricula": "Curriculum",
       "admin-exam-golden": "Speaking golden set",
       "objectives": "Objective matrix",
-      "org-settings": "Center settings"
+      "org-settings": "Center settings",
+      "org-audit": "Activity log"
     },
     "sections": {
       "classMgmt": "Class Management",

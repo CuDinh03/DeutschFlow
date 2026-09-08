@@ -346,4 +346,16 @@ describe('PR-A6 — org console: mọi route /v2/org thật đều có mục nav
     expect(navHrefs(managerNav)).not.toContain('/v2/org/settings')
     expect(navHrefs(managerNav)).not.toContain('/v2/org/billing')
   })
+
+  /**
+   * V-03 (08/09/2026): sổ hoạt động (C6) lên production mà không có mục nav — OWNER chỉ tới được
+   * bằng cách gõ URL, tức là màn hình coi như không tồn tại. Đây là ca khoá lại điều đó.
+   */
+  it('sổ hoạt động có mục nav OWNER-only, MANAGER không thấy', () => {
+    const item = orgNav.sections.flatMap((s) => s.items).find((i) => i.href === '/v2/org/audit')
+    expect(item).toBeTruthy()
+    expect(item!.id).toBe('org-audit')
+    expect(item!.ownerOnly).toBe(true)
+    expect(navHrefs(managerNav)).not.toContain('/v2/org/audit')
+  })
 })

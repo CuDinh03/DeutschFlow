@@ -528,7 +528,7 @@
         "markAllPresent": "Đánh dấu tất cả có mặt",
         "unmarkedCount": "{count} chưa điểm danh",
         "saveError": "Lưu buổi học thất bại. Vui lòng thử lại.",
-        "deleteConfirm": "Xoá buổi học này?",
+        "deleteConfirm": "Xoá nhật ký buổi dạy ngày {date} khỏi lớp này.",
         "deleteError": "Xoá buổi học thất bại. Vui lòng thử lại.",
         "empty": "Chưa có buổi học nào. Nhấn “Thêm buổi học” để bắt đầu ghi nhật ký.",
         "presentCount": "{count} có mặt",
@@ -551,7 +551,11 @@
         "printHomeworkColumn": "Bài tập về nhà (Hausaufgaben)",
         "printTeacherSign": "Ký tên giáo viên: ___________________________",
         "printHeadSign": "Tổ trưởng xác nhận: ___________________________",
-        "rosterUnavailable": "Không tải được danh sách học viên của lớp, nên tạm thời chưa điểm danh được. Bạn vẫn lưu được chủ đề và bài tập của buổi học; hãy tải lại trang để điểm danh."
+        "rosterUnavailable": "Không tải được danh sách học viên của lớp, nên tạm thời chưa điểm danh được. Bạn vẫn lưu được chủ đề và bài tập của buổi học; hãy tải lại trang để điểm danh.",
+        "deleteConfirmTitle": "Xoá buổi học?",
+        "deleteConfirmAttendance": "Điểm danh của {count} học viên trong buổi này bị xoá theo.",
+        "deleteConfirmTimesheet": "Buổi này không còn được tính vào bảng chấm công của bạn.",
+        "deleteConfirmIrreversible": "Giao diện không có hoàn tác — muốn có lại phải nhập buổi này từ đầu."
       },
       "evaluation": {
         "helperText": "Phiếu đánh giá cuối khóa cho từng học viên",
@@ -689,8 +693,8 @@
       "pickFile": "Hãy chọn một tệp.",
       "enterTitle": "Hãy nhập tiêu đề.",
       "uploadSuccess": "Đã tải tài liệu lên.",
-      "archiveConfirm": "Lưu trữ \"{title}\"?",
-      "archiveConfirmAttached": "Lưu trữ \"{title}\"? Tài liệu đang gắn ở {lessons} bài học, {classes} lớp và {assignments} bài tập — lưu trữ sẽ gỡ khỏi các nơi đó (có thể khôi phục lại sau).",
+      "archiveConfirm": "Lưu trữ \"{title}\" — tài liệu rời khỏi danh sách đang dùng.",
+      "archiveConfirmAttached": "Đang gắn ở {lessons} bài học, {classes} lớp và {assignments} bài tập — lưu trữ sẽ gỡ khỏi tất cả những nơi đó.",
       "unarchive": "Khôi phục",
       "unarchiveSuccess": "Đã khôi phục.",
       "viewActive": "Đang dùng",
@@ -725,7 +729,10 @@
       "openExternal": "Mở liên kết",
       "download": "Tải về",
       "retry": "Thử lại",
-      "close": "Đóng"
+      "close": "Đóng",
+      "archiveConfirmTitle": "Lưu trữ tài liệu?",
+      "archiveConfirmUnattached": "Tài liệu chưa gắn ở bài học, lớp hay bài tập nào.",
+      "archiveConfirmRestorable": "Có thể khôi phục lại sau ở mục Đã lưu trữ."
     },
     "messages": {
       "title": "Tin nhắn",
