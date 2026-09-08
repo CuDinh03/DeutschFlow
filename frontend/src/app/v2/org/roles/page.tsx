@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
-import { apiMessage } from '@/lib/api'
+import { apiMessage, refreshAccessToken } from '@/lib/api'
 import { changeMemberRole, listMembers, removeMember, transferOwnership, type OrgMember, type OrgRole } from '@/lib/orgApi'
 import { getOrgRole } from '@/lib/authSession'
 import { GaPageHdr, GaStatStrip, TkBadge, ErrorBanner, LoadingState, ConfirmDialog } from '@/components/ui-v2'
@@ -121,6 +121,17 @@ export default function V2OrgRolesPage() {
       // vì mời người dùng bấm tiếp rồi ăn 403 từ OrgGuard.
       setIsOwner(false)
       setDemotedTo(name)
+      // Hạ cờ tại chỗ mới chỉ sửa TRANG NÀY. Sidebar, OwnerOnly và trang tổng quan đều đọc cookie
+      // auth_org_role, nên tới khi token được làm mới thì cả ứng dụng vẫn nói người này là OWNER —
+      // họ vào được /v2/org/billing rồi ăn 403 thay vì bị đá ra sạch sẽ. `/auth/refresh` dựng lại
+      // orgRole TỪ BẢNG membership ACTIVE nên token mới mang đúng vai ngay, khỏi bắt đăng nhập lại.
+      // Trong khối try riêng: refresh hỏng thì việc chuyển quyền VẪN đã thành công, không được nuốt
+      // ngược thành lỗi — dòng nhắc đăng nhập lại trên màn hình là lưới an toàn.
+      try {
+        await refreshAccessToken()
+      } catch {
+        /* giữ nguyên: đã có dòng role="status" nhắc đăng nhập lại */
+      }
       await load()
     } catch (e: unknown) {
       toast.error(apiMessage(e))
