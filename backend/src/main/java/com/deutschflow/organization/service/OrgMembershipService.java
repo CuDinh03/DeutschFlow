@@ -12,6 +12,7 @@ import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
 import com.deutschflow.organization.repository.OrgAcademicApproverRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
+import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +55,8 @@ public class OrgMembershipService {
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
     private final AuditLogService auditLogService;
+    private final OrganizationRepository organizationRepository;
+    private final OrgEntitlementService orgEntitlementService;
 
     /**
      * True if the user currently holds an ACTIVE membership in any org. Callers use this to route
@@ -171,6 +174,12 @@ public class OrgMembershipService {
      * của STUDENT chỉ dành cho roster do org chủ động ghi (import/thêm tay), không re-home âm thầm
      * chỉ vì học viên gõ một mã lớp. Trường hợp còn lại đi qua {@link #upsertMember} nên chịu đủ
      * seat-limit gate — hết ghế thì lượt duyệt thất bại với thông báo rõ ràng.
+     *
+     * <p>V-05: sau khi có ghế thì CẤP LUÔN gói của trung tâm, đúng như đường org chủ động thêm
+     * ({@code OrgRosterRowImporter} và {@code AdminOrgService.addMember} đều gọi
+     * {@link OrgEntitlementService#grantStudent} ngay sau {@link #upsertMember}). Thiếu bước này thì
+     * học viên vào lớp bằng mã mời CHIẾM một ghế có tính tiền của trung tâm nhưng vẫn bị chặn hạn
+     * mức như người dùng miễn phí. Nhánh no-op phía trên đã {@code return} nên không cấp gói hai lần.
      */
     @Transactional
     public void ensureStudentSeat(Long orgId, Long userId) {
@@ -185,16 +194,20 @@ public class OrgMembershipService {
                     "Học viên đang thuộc một trung tâm khác — không thể thêm vào trung tâm này qua lớp học.");
         }
         upsertMember(orgId, userId, ROLE_STUDENT);
+        organizationRepository.findById(orgId)
+                .ifPresent(org -> orgEntitlementService.grantStudent(userId, org));
     }
 
     /**
      * Admin-initiated removal: marks the membership REVOKED (stamps {@code left_at}) and detaches
      * the user (clears {@code users.org_id}, demotes TEACHER → STUDENT when no active teaching
      * membership remains).
+     *
+     * <p>OWNER không bao giờ bị gỡ qua đây; MANAGER chỉ OWNER mới gỡ được (V-14).
      */
     @Transactional
     public void removeMember(Long orgId, Long userId, AuditActor actor) {
-        String role = deactivate(orgId, userId, STATUS_REVOKED);
+        String role = deactivate(orgId, userId, STATUS_REVOKED, actor);
         audit("org_member_removed", actor, orgId, userId, meta("role", role, "status", STATUS_REVOKED));
     }
 
@@ -371,7 +384,7 @@ public class OrgMembershipService {
                 member.getJoinedAt());
     }
 
-    private String deactivate(Long orgId, Long userId, String status) {
+    private String deactivate(Long orgId, Long userId, String status, AuditActor actor) {
         OrgMember member = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId)
                 .orElseThrow(() -> new NotFoundException("Thành viên không tồn tại trong tổ chức."));
         // Owner-protection (mirrors selfLeave/changeRole): the OWNER is NEVER removed through the
@@ -385,6 +398,14 @@ public class OrgMembershipService {
             throw new BadRequestException(
                     "Không thể gỡ chủ sở hữu khỏi tổ chức — hãy chuyển quyền sở hữu cho người khác trước.");
         }
+        // V-14: bất biến trên chỉ che OWNER, nên một MANAGER (cũng qua được OrgGuard.assertOrgAdmin)
+        // gỡ được MỌI MANAGER khác — ban quản lý tự thanh trừng nhau mà giám đốc không hay biết.
+        // Gỡ MANAGER là thao tác cấp chủ sở hữu: chỉ OWNER ĐANG HOẠT ĐỘNG của chính org này mới làm
+        // được. Đường OWNER gỡ MANAGER không bị chặn; các vai còn lại (TEACHER, STUDENT) không đổi.
+        if (ROLE_MANAGER.equals(member.getRole()) && !isActiveOwner(orgId, actor)) {
+            throw new ForbiddenException(
+                    "Chỉ chủ sở hữu mới được gỡ quản lý khỏi tổ chức.");
+        }
         String role = member.getRole();
         member.setStatus(status);
         member.setLeftAt(Instant.now());
@@ -395,6 +416,17 @@ public class OrgMembershipService {
         academicApproverRepo.revokeAllActiveFor(orgId, userId, java.time.LocalDateTime.now(), null);
         detachUser(orgId, userId);
         return role;
+    }
+
+    /** True khi {@code actor} là OWNER ĐANG HOẠT ĐỘNG của org — đọc lại từ DB, không tin vai trong token. */
+    private boolean isActiveOwner(Long orgId, AuditActor actor) {
+        if (actor == null || actor.id() == null) {
+            return false;
+        }
+        return memberRepo.findByIdOrgIdAndIdUserId(orgId, actor.id())
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
+                .map(m -> ROLE_OWNER.equals(m.getRole()))
+                .orElse(false);
     }
 
     /**
