@@ -7,9 +7,10 @@ import { useTranslations } from 'next-intl'
 import { ChevronRight, UserPlus } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import {
-  getOrgSummary, getAnalytics, listClasses, listInvitations,
+  getOrgSummary, getAnalytics, getTeacherlessClassIds, listClasses, listInvitations,
   type OrgSummary, type OrgAnalytics, type OrgClass, type OrgInvitation,
 } from '@/lib/orgApi'
+import { srcOf, type Src } from './dashboardSrc'
 import { seatMetaOf } from '@/lib/orgSeats'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 import { useFmt } from '@/lib/i18n/useFmt'
@@ -25,13 +26,14 @@ import { useFmt } from '@/lib/i18n/useFmt'
 //     "sắp ra mắt". Nút "Mua thêm ghế" giả đã gỡ.
 //   - F05: seatLimit=0 = KHÔNG GIỚI HẠN (orgSeats), không phải 0% sức chứa; nhãn hoạt động 7
 //     ngày đổi thành "có dùng AI" cho đúng nguồn số (ai_token_usage_events).
-//   - Trần 50 lớp của cảnh báo thiếu GV vẫn còn — O-2 chuyển aggregate về backend.
+//   - V-01 (08/09): cảnh báo thiếu GV hết trần 50 lớp — số lấy từ `summary.classesWithoutTeacher`
+//     (đếm toàn trung tâm), nhãn từng dòng lấy từ `getTeacherlessClassIds()`. `teacherId == null`
+//     là mã chết: cột `teacher_id` NOT NULL nên điều kiện đó không bao giờ đúng.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEAL = '#11888A'
-
-/** Trạng thái một nguồn dữ liệu phụ: còn chờ / đã có / lỗi. */
-type Src<T> = { state: 'loading' } | { state: 'ok'; data: T } | { state: 'error' }
+/** Bấm vào cảnh báo thiếu GV phải ra ĐÚNG danh sách đó, không phải toàn bộ lớp. */
+const TEACHERLESS_HREF = '/v2/org/classes?withoutTeacher=1'
 
 export function OrgOwnerDashboard() {
   const t = useTranslations('v2.org.overview')
@@ -42,6 +44,7 @@ export function OrgOwnerDashboard() {
   const [analytics, setAnalytics] = useState<Src<OrgAnalytics>>({ state: 'loading' })
   const [classes, setClasses] = useState<Src<OrgClass[]>>({ state: 'loading' })
   const [invites, setInvites] = useState<Src<OrgInvitation[]>>({ state: 'loading' })
+  const [teacherlessIds, setTeacherlessIds] = useState<Src<Set<number>>>({ state: 'loading' })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -50,6 +53,7 @@ export function OrgOwnerDashboard() {
     setAnalytics({ state: 'loading' })
     setClasses({ state: 'loading' })
     setInvites({ state: 'loading' })
+    setTeacherlessIds({ state: 'loading' })
     try {
       // Summary là xương sống của trang — lỗi thì cả trang là lỗi (panel dưới).
       const s = await getOrgSummary()
@@ -61,15 +65,17 @@ export function OrgOwnerDashboard() {
       return
     }
     // F02: các nguồn phụ tách trạng thái riêng — lỗi hiển thị là lỗi, không thành 0.
-    const [a, c, inv] = await Promise.allSettled([
+    const [a, c, inv, tl] = await Promise.allSettled([
       getAnalytics(),
-      // O-2 sẽ thay bằng aggregate backend; tạm giữ trang đầu 50 lớp (trần cũ, đã ghi nhận F05).
+      // Danh sách 5 lớp gần nhất của thẻ bên phải; con số toàn trung tâm đã ở `summary`.
       listClasses(0, 50).then((p) => p.content),
       listInvitations(),
+      getTeacherlessClassIds(),
     ])
-    setAnalytics(a.status === 'fulfilled' ? { state: 'ok', data: a.value } : { state: 'error' })
-    setClasses(c.status === 'fulfilled' ? { state: 'ok', data: c.value } : { state: 'error' })
-    setInvites(inv.status === 'fulfilled' ? { state: 'ok', data: inv.value } : { state: 'error' })
+    setAnalytics(srcOf(a))
+    setClasses(srcOf(c))
+    setInvites(srcOf(inv))
+    setTeacherlessIds(srcOf(tl))
     setLoading(false)
   }, [])
 
@@ -80,14 +86,15 @@ export function OrgOwnerDashboard() {
   const an = analytics.state === 'ok' ? analytics.data : null
 
   // "Cần xử lý" chỉ tổng hợp từ nguồn ĐÃ tải được; nguồn lỗi → nói rõ, không im lặng bỏ qua.
-  const todoSourceFailed = classes.state === 'error' || invites.state === 'error'
+  // Số lớp thiếu GV nay đến từ `summary` (nguồn bắt buộc), nên chỉ lời mời còn có thể hỏng lẻ.
+  const todoSourceFailed = invites.state === 'error'
   const todos: { key: string; label: string; tone: string; href: string }[] = []
   if (seats && !seats.unlimited && (seats.free ?? 0) > 0) {
     todos.push({ key: 'seats', label: t('todo.freeSeats', { count: seats.free ?? 0 }), tone: 'var(--ga-yellow)', href: '/v2/org/invitations' })
   }
-  if (classes.state === 'ok') {
-    const teacherless = classes.data.filter((c) => c.teacherId == null).length
-    if (teacherless > 0) todos.push({ key: 'teacherless', label: t('todo.teacherless', { count: teacherless }), tone: 'var(--ga-red)', href: '/v2/org/classes' })
+  const teacherless = summary?.classesWithoutTeacher ?? 0
+  if (teacherless > 0) {
+    todos.push({ key: 'teacherless', label: t('todo.teacherless', { count: teacherless }), tone: 'var(--ga-red)', href: TEACHERLESS_HREF })
   }
   if (invites.state === 'ok') {
     const pending = invites.data.filter((i) => i.status === 'PENDING').length
@@ -152,8 +159,9 @@ export function OrgOwnerDashboard() {
               // `summary.classCount` đếm TOÀN trung tâm. Nhánh cũ `classes.data.length` chỉ đếm
               // trang đầu 50 lớp — trung tâm 60 lớp hiện "50" mà không dấu hiệu nào cho biết là thiếu.
               value: loading ? '—' : (an?.classCount ?? summary?.classCount ?? '—'),
-              sub: loading ? '—' : t('stats.teacherCount', { count: summary?.teacherCount ?? 0 }),
+              sub: loading ? '—' : teacherless > 0 ? t('stats.teacherless', { count: teacherless }) : t('stats.teacherCount', { count: summary?.teacherCount ?? 0 }),
               tone: 'violet',
+              alert: teacherless > 0,
             },
             {
               label: t('stats.tokensThisMonth'),
@@ -287,7 +295,10 @@ export function OrgOwnerDashboard() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[13.5px] font-semibold text-ga-ink">{c.name}</div>
-                    <div className="text-[11.5px] text-ga-muted">{c.teacherId == null ? t('classNoTeacher') : t('classHasTeacher')}</div>
+                    {/* Nhãn từng dòng theo tập id THẬT; nguồn chưa về thì '—', không đoán bừa. */}
+                    <div className="text-[11.5px]" style={{ color: teacherlessIds.state === 'ok' && teacherlessIds.data.has(c.id) ? 'var(--ga-red)' : 'var(--ga-muted)' }}>
+                      {teacherlessIds.state !== 'ok' ? '—' : teacherlessIds.data.has(c.id) ? t('classNoTeacher') : t('classHasTeacher')}
+                    </div>
                   </div>
                   {c.inviteCode && <code className="shrink-0 bg-ga-ink px-2 py-1 text-[11px] font-semibold tracking-[0.06em] text-ga-yellow">{c.inviteCode}</code>}
                 </div>

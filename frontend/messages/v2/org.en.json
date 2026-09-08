@@ -47,6 +47,7 @@
         "active7d": "{count} used AI in 7 days",
         "openClasses": "Open classes",
         "teacherCount": "{count} teachers",
+        "teacherless": "{count} classes without a teacher",
         "tokensThisMonth": "Teacher AI tokens this month",
         "poolUnlimited": "unlimited budget",
         "poolPercent": "{pct}% of budget",
@@ -87,6 +88,9 @@
       "viewAll": "View all",
       "loadError": "Could not load the operations board",
       "loadErrorDesc": "Please try again in a moment.",
+      "statUnavailable": "Data unavailable",
+      "sectionError": "This section could not be loaded",
+      "todoSourceError": "A source failed to load — the list below may be missing items.",
       "stats": {
         "sessionsToday": "Sessions today",
         "sessionsDisrupted": "{count} cancelled/moved",
@@ -236,6 +240,8 @@
       "colCreated": "Created",
       "unassigned": "Unassigned",
       "assigned": "Assigned",
+      "unassignedFilterOn": "Filtered: no teacher · clear",
+      "emptyTeacherless": "Every class has a teacher assigned.",
       "detail": "Details",
       "createModal": {
         "title": "Create class",
@@ -458,6 +464,7 @@
       "title": "Organization analytics",
       "subtitle": "Level distribution, engagement and AI token usage",
       "loading": "Loading analytics…",
+      "statUnavailable": "Data unavailable",
       "stats": {
         "totalStudents": "Total students",
         "active7d": "Used AI in 7 days",

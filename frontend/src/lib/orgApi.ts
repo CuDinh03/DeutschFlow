@@ -330,6 +330,22 @@ export async function listClasses(
   return res.data
 }
 
+/** Trần số lớp "chưa ai dạy" nạp về để gắn nhãn từng dòng — số này là cảnh báo nên luôn nhỏ. */
+export const TEACHERLESS_PROBE_SIZE = 200
+
+/**
+ * Tập id các lớp CHƯA CÓ AI DẠY — nguồn THẬT cho nhãn "thiếu giáo viên" trên từng dòng.
+ *
+ * Vì sao phải hỏi máy chủ: `OrgClass.teacherId` ánh xạ cột `teacher_id` NOT NULL, nên
+ * `teacherId == null` KHÔNG BAO GIỜ đúng và mọi nhãn dựng từ nó đã im lặng sai từ đầu. Máy chủ
+ * định nghĩa "chưa ai dạy" = không còn ai là TEACHER ACTIVE của trung tâm đứng lớp đó (xét CẢ
+ * `teacher_id` lẫn `class_teachers`) — cùng định nghĩa với `OrgSummary.classesWithoutTeacher`.
+ */
+export async function getTeacherlessClassIds(size = TEACHERLESS_PROBE_SIZE): Promise<Set<number>> {
+  const page = await listClasses(0, size, { withoutTeacher: true })
+  return new Set((page.content ?? []).map((c) => c.id))
+}
+
 /**
  * POST /org/classes — org-admin (OWNER/MANAGER) tạo lớp cho trung tâm.
  * teacherId bắt buộc (teacher_id NOT NULL) và phải là giáo viên TEACHER ACTIVE của org.

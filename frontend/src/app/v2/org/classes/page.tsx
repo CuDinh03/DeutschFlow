@@ -7,7 +7,7 @@ import { Plus } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
-import { getOrgSummary, listClasses, type OrgClass, type OrgSummary } from '@/lib/orgApi'
+import { getOrgSummary, getTeacherlessClassIds, listClasses, type OrgClass, type OrgSummary } from '@/lib/orgApi'
 import { GaPageHdr, GaBtn, GaCap, TkSearch } from '@/components/ui-v2'
 import { CreateClassModal } from './CreateClassModal'
 import { CLASSES_PAGE_SIZE } from './pagination'
@@ -23,6 +23,10 @@ import { CLASSES_PAGE_SIZE } from './pagination'
 //   chỉ tính trên phần đã tải.
 // PR-A3 (07/09/2026): tìm kiếm chạy PHÍA MÁY CHỦ (`q`) — gõ tên một lớp ở trang 3 nay tìm thấy,
 //   trước đó chỉ lọc trên phần đã tải nên ra rỗng và người dùng tưởng lớp không tồn tại.
+// V-01 (08/09/2026): nhãn "chưa phân công" TỪNG DÒNG bỏ `teacherId == null` (cột NOT NULL, không
+//   bao giờ đúng) và lấy từ `getTeacherlessClassIds()` — cùng định nghĩa với con số tổng. Huy hiệu
+//   thiếu GV nay BẤM ĐƯỢC: bật bộ lọc `withoutTeacher` của máy chủ để ra đúng danh sách lớp đó,
+//   và `?withoutTeacher=1` mở sẵn bộ lọc khi tới từ bảng điều khiển.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEAL = '#11888A'
@@ -41,6 +45,9 @@ export default function V2OrgClassesPage() {
   const [query, setQuery] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [summary, setSummary] = useState<OrgSummary | null>(null)
+  // null = chưa biết (chưa tải xong / lỗi) — KHÔNG được đọc thành "lớp nào cũng đã có GV".
+  const [teacherlessIds, setTeacherlessIds] = useState<Set<number> | null>(null)
+  const [onlyTeacherless, setOnlyTeacherless] = useState(false)
 
   // Từ khoá ĐÃ CHỐT để gửi lên máy chủ (hoãn sau khi ngừng gõ) — tách khỏi `query` là thứ ô nhập
   // hiển thị, để mỗi phím gõ không thành một request.
@@ -49,7 +56,7 @@ export default function V2OrgClassesPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const page = await listClasses(0, CLASSES_PAGE_SIZE, { q: appliedQuery })
+      const page = await listClasses(0, CLASSES_PAGE_SIZE, { q: appliedQuery, ...(onlyTeacherless ? { withoutTeacher: true } : {}) })
       setClasses(page.content ?? [])
       setTotal(page.totalElements ?? (page.content ?? []).length)
       setNextPage(page.last === false ? (page.number ?? 0) + 1 : null)
@@ -59,13 +66,13 @@ export default function V2OrgClassesPage() {
     } finally {
       setLoading(false)
     }
-  }, [appliedQuery])
+  }, [appliedQuery, onlyTeacherless])
 
   const loadMore = useCallback(async () => {
     if (nextPage == null || loadingMore) return
     setLoadingMore(true)
     try {
-      const page = await listClasses(nextPage, CLASSES_PAGE_SIZE, { q: appliedQuery })
+      const page = await listClasses(nextPage, CLASSES_PAGE_SIZE, { q: appliedQuery, ...(onlyTeacherless ? { withoutTeacher: true } : {}) })
       setClasses((prev) => {
         const seen = new Set(prev.map((c) => c.id))
         return [...prev, ...(page.content ?? []).filter((c) => !seen.has(c.id))]
@@ -77,7 +84,7 @@ export default function V2OrgClassesPage() {
     } finally {
       setLoadingMore(false)
     }
-  }, [nextPage, loadingMore, total, t, appliedQuery])
+  }, [nextPage, loadingMore, total, t, appliedQuery, onlyTeacherless])
 
   // 300 ms sau khi ngừng gõ mới hỏi máy chủ. `load` phụ thuộc `appliedQuery` nên effect dưới tự chạy lại.
   useEffect(() => {
@@ -85,9 +92,18 @@ export default function V2OrgClassesPage() {
     return () => clearTimeout(id)
   }, [query])
 
-  // Số "thiếu GV" đếm trên TOÀN trung tâm nên không phụ thuộc phân trang hay từ khoá — nạp một lần.
-  useEffect(() => {
+  // Số "thiếu GV" đếm trên TOÀN trung tâm nên không phụ thuộc phân trang hay từ khoá.
+  const loadOrgWide = useCallback(() => {
     getOrgSummary().then(setSummary).catch(() => setSummary(null))
+    getTeacherlessClassIds().then(setTeacherlessIds).catch(() => setTeacherlessIds(null))
+  }, [])
+  useEffect(() => { loadOrgWide() }, [loadOrgWide])
+
+  // Deep-link từ bảng điều khiển: `?withoutTeacher=1` mở thẳng danh sách lớp chưa ai dạy. Đọc bằng
+  // `window.location` chứ không `useSearchParams()` để trang không phải bọc Suspense khi prerender.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (new URLSearchParams(window.location.search).get('withoutTeacher') === '1') setOnlyTeacherless(true)
   }, [])
 
   useEffect(() => { void load() }, [load])
@@ -99,6 +115,9 @@ export default function V2OrgClassesPage() {
   // đã im lặng hiện 0 từ đầu. Nay lấy số THẬT từ máy chủ (PR-A3): "thiếu GV" = không còn ai đang là
   // giáo viên ACTIVE của trung tâm đứng lớp đó — giáo viên đã rời thì lớp cần người mới.
   const unassigned = summary?.classesWithoutTeacher ?? 0
+  // Khi bộ lọc đang bật thì MỌI dòng trả về đều là lớp chưa ai dạy — khỏi phụ thuộc trần của tập id.
+  const teacherlessOf = (id: number): boolean | null =>
+    onlyTeacherless ? true : teacherlessIds == null ? null : teacherlessIds.has(id)
   const allLoaded = nextPage == null
   const remaining = Math.max(total - classes.length, 0)
 
@@ -119,10 +138,22 @@ export default function V2OrgClassesPage() {
         <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <GaCap>{allLoaded ? t('count', { count: rows.length }) : t('loadedOf', { loaded: classes.length, total })}</GaCap>
-            {unassigned > 0 && (
-              <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-red)', background: 'var(--ga-red-soft)' }}>
-                {t('unassignedBadge', { count: unassigned })}
-              </span>
+            {(unassigned > 0 || onlyTeacherless) && (
+              // Bấm vào con số là ra ĐÚNG danh sách đó (bộ lọc `withoutTeacher` phía máy chủ) — trước
+              // đây con số đứng im, người dùng không có đường nào đi từ cảnh báo tới việc cần làm.
+              <button
+                type="button"
+                aria-pressed={onlyTeacherless}
+                onClick={() => setOnlyTeacherless((v) => !v)}
+                className="ga-ui inline-flex min-h-[32px] items-center border px-2 py-0.5 text-[11px] font-bold transition-colors"
+                style={{
+                  color: 'var(--ga-red)',
+                  background: onlyTeacherless ? 'transparent' : 'var(--ga-red-soft)',
+                  borderColor: onlyTeacherless ? 'var(--ga-red)' : 'transparent',
+                }}
+              >
+                {onlyTeacherless ? t('unassignedFilterOn') : t('unassignedBadge', { count: unassigned })}
+              </button>
             )}
           </div>
           <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchPlaceholder')} containerClassName="w-full sm:w-[220px]" />
@@ -140,7 +171,7 @@ export default function V2OrgClassesPage() {
           </div>
         ) : rows.length === 0 ? (
           <div className="border border-dashed border-ga-line px-4 py-8 text-center text-[14px] text-ga-muted sm:px-8 lg:px-10 lg:py-[40px]">
-            {classes.length === 0 ? t('emptyOrg') : t('emptySearch')}
+            {onlyTeacherless ? t('emptyTeacherless') : classes.length === 0 ? t('emptyOrg') : t('emptySearch')}
           </div>
         ) : (
           <div className="overflow-x-auto border border-ga-line bg-ga-card lg:overflow-visible">
@@ -156,7 +187,10 @@ export default function V2OrgClassesPage() {
                   <span className="min-w-0 truncate text-[14px] font-semibold text-ga-ink">{c.name}</span>
                 </div>
                 <span>
-                  {c.teacherId == null ? (
+                  {teacherlessOf(c.id) === null ? (
+                    // Chưa biết thì nói là chưa biết — không được mặc định thành "đã phân công".
+                    <span className="text-[13px] text-ga-subtle">—</span>
+                  ) : teacherlessOf(c.id) ? (
                     <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-red)', background: 'var(--ga-red-soft)' }}>{t('unassigned')}</span>
                   ) : (
                     <span className="text-[13px] text-ga-muted">{t('assigned')}</span>
@@ -182,7 +216,7 @@ export default function V2OrgClassesPage() {
       </div>
 
       {showCreate && (
-        <CreateClassModal onClose={() => setShowCreate(false)} onCreated={() => void load()} />
+        <CreateClassModal onClose={() => setShowCreate(false)} onCreated={() => { void load(); loadOrgWide() }} />
       )}
     </div>
   )

@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import {
-  addOrgClassAssistant, assignClassTeacher, getOrgTeacherClasses, listClasses,
+  addOrgClassAssistant, assignClassTeacher, getOrgTeacherClasses, getTeacherlessClassIds, listClasses,
   type OrgClass, type OrgMember,
 } from '@/lib/orgApi'
 import { TkModal, GaBtn, ErrorBanner, TkSearch } from '@/components/ui-v2'
@@ -32,17 +32,21 @@ export function AssignClassModal({
   const t = useTranslations('v2.org.teachers.assignModal')
   const [classes, setClasses] = useState<OrgClass[] | null>(null)
   const [memberIds, setMemberIds] = useState<Set<number> | null>(null)
+  // V-01: "lớp chưa ai dạy" từng suy từ `teacherId == null` — cột NOT NULL nên KHÔNG BAO GIỜ đúng,
+  // và mọi lớp trống giáo viên đều hiện là "đã có người khác dạy". Nay hỏi máy chủ tập id thật.
+  const [teacherlessIds, setTeacherlessIds] = useState<Set<number>>(new Set())
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState<number | null>(null)
 
   useEffect(() => {
     let alive = true
-    Promise.all([listClasses(0, 100), getOrgTeacherClasses(teacher.userId)])
-      .then(([page, mine]) => {
+    Promise.all([listClasses(0, 100), getOrgTeacherClasses(teacher.userId), getTeacherlessClassIds().catch(() => new Set<number>())])
+      .then(([page, mine, teacherless]) => {
         if (!alive) return
         setClasses(page.content ?? [])
         setMemberIds(new Set(mine.map((c) => c.id)))
+        setTeacherlessIds(teacherless)
         setError('')
       })
       .catch((e: unknown) => { if (alive) setError(apiMessage(e)) })
@@ -57,7 +61,7 @@ export function AssignClassModal({
   const stateOf = (c: OrgClass): RowState => {
     if (c.teacherId === teacher.userId) return 'primary'
     if (memberIds?.has(c.id)) return 'assistant'
-    return c.teacherId == null ? 'unassigned' : 'taken'
+    return teacherlessIds.has(c.id) ? 'unassigned' : 'taken'
   }
 
   const assignPrimary = async (cls: OrgClass) => {
@@ -66,6 +70,7 @@ export function AssignClassModal({
       const updated = await assignClassTeacher(cls.id, teacher.userId)
       setClasses((cur) => (cur ?? []).map((c) => (c.id === updated.id ? updated : c)))
       setMemberIds((cur) => { const next = new Set(cur); next.add(cls.id); return next })
+      setTeacherlessIds((cur) => { const next = new Set(cur); next.delete(cls.id); return next })
       toast.success(t('success', { className: cls.name }))
       onAssigned()
     } catch (e: unknown) {
@@ -80,6 +85,7 @@ export function AssignClassModal({
     try {
       await addOrgClassAssistant(cls.id, teacher.userId)
       setMemberIds((cur) => { const next = new Set(cur); next.add(cls.id); return next })
+      setTeacherlessIds((cur) => { const next = new Set(cur); next.delete(cls.id); return next })
       toast.success(t('assistantAdded', { className: cls.name }))
       onAssigned()
     } catch (e: unknown) {

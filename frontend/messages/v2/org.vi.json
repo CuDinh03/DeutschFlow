@@ -47,6 +47,7 @@
         "active7d": "{count} có dùng AI 7 ngày",
         "openClasses": "Lớp đang mở",
         "teacherCount": "{count} giáo viên",
+        "teacherless": "{count} lớp chưa có giáo viên",
         "tokensThisMonth": "Token AI giáo viên tháng này",
         "poolUnlimited": "ngân sách không giới hạn",
         "poolPercent": "{pct}% ngân sách",
@@ -87,6 +88,9 @@
       "viewAll": "Xem tất cả",
       "loadError": "Không tải được bảng điều hành",
       "loadErrorDesc": "Vui lòng thử lại sau ít phút.",
+      "statUnavailable": "Chưa tải được số liệu",
+      "sectionError": "Chưa tải được phần này",
+      "todoSourceError": "Một nguồn chưa tải được — danh sách dưới đây có thể còn thiếu việc.",
       "stats": {
         "sessionsToday": "Buổi học hôm nay",
         "sessionsDisrupted": "{count} buổi huỷ/dời",
@@ -236,6 +240,8 @@
       "colCreated": "Ngày tạo",
       "unassigned": "Chưa phân công",
       "assigned": "Đã phân công",
+      "unassignedFilterOn": "Đang lọc: chưa có GV · bỏ lọc",
+      "emptyTeacherless": "Mọi lớp đều đã có giáo viên đứng lớp.",
       "detail": "Chi tiết",
       "createModal": {
         "title": "Tạo lớp",
@@ -458,6 +464,7 @@
       "title": "Phân tích tổ chức",
       "subtitle": "Phân bố trình độ, mức độ hoạt động và sử dụng token AI",
       "loading": "Đang tải phân tích…",
+      "statUnavailable": "Chưa tải được số liệu",
       "stats": {
         "totalStudents": "Tổng học viên",
         "active7d": "Có dùng AI 7 ngày",
