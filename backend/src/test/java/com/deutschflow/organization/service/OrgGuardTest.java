@@ -1,10 +1,13 @@
 package com.deutschflow.organization.service;
 
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.common.exception.OrgReadOnlyException;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
+import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgAcademicApproverRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
+import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,6 +16,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,6 +37,9 @@ class OrgGuardTest {
     @Mock
     private TeacherClassRepository teacherClassRepository;
 
+    @Mock
+    private OrganizationRepository organizationRepository;
+
     private OrgGuard orgGuard;
 
     private static final Long ORG_ID = 10L;
@@ -40,7 +48,8 @@ class OrgGuardTest {
 
     @BeforeEach
     void setUp() {
-        orgGuard = new OrgGuard(memberRepo, academicApproverRepo, teacherClassRepository);
+        orgGuard = new OrgGuard(memberRepo, academicApproverRepo, teacherClassRepository,
+                organizationRepository);
     }
 
     // ------------------------------------------------------------------ helpers
@@ -310,5 +319,90 @@ class OrgGuardTest {
         assertThatThrownBy(() -> orgGuard.assertAcademicApprover(USER_ID, ORG_ID, CLASS_ID))
                 .isInstanceOf(ForbiddenException.class);
         assertThat(orgGuard.isAcademicApprover(USER_ID, ORG_ID, CLASS_ID)).isFalse();
+    }
+
+    // ------------------------------------------------------------------ cổng chế độ chỉ đọc (D5)
+
+    private void stubOrg(String status, Instant validUntil) {
+        Organization org = Organization.builder()
+                .id(ORG_ID)
+                .name("Trung tâm Alpha")
+                .slug("alpha")
+                .status(status)
+                .validUntil(validUntil)
+                .build();
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+    }
+
+    @Test
+    @DisplayName("assertOrgWritable: trung tâm ACTIVE còn hạn → không chặn")
+    void assertOrgWritable_active_passes() {
+        stubOrg("ACTIVE", Instant.now().plus(30, ChronoUnit.DAYS));
+        orgGuard.assertOrgWritable(ORG_ID);
+        assertThat(orgGuard.isOrgReadOnly(ORG_ID)).isFalse();
+    }
+
+    @Test
+    @DisplayName("assertOrgWritable: hết hạn nhưng còn trong ân hạn 7 ngày → VẪN ghi được (D5)")
+    void assertOrgWritable_withinGrace_passes() {
+        stubOrg("ACTIVE", Instant.now().minus(3, ChronoUnit.DAYS));
+        orgGuard.assertOrgWritable(ORG_ID);
+    }
+
+    @Test
+    @DisplayName("assertOrgWritable: hết hạn quá ân hạn → ORG_READ_ONLY, lý do EXPIRED")
+    void assertOrgWritable_expiredPastGrace_throws() {
+        stubOrg("ACTIVE", Instant.now().minus(10, ChronoUnit.DAYS));
+        assertThatThrownBy(() -> orgGuard.assertOrgWritable(ORG_ID))
+                .isInstanceOf(OrgReadOnlyException.class)
+                .hasMessageContaining("hết hạn")
+                .extracting(ex -> ((OrgReadOnlyException) ex).getReason())
+                .isEqualTo(OrgLicenseState.Reason.EXPIRED);
+    }
+
+    @Test
+    @DisplayName("assertOrgWritable: trung tâm bị đình chỉ → ORG_READ_ONLY ngay, lý do SUSPENDED")
+    void assertOrgWritable_suspended_throws() {
+        stubOrg("SUSPENDED", Instant.now().plus(365, ChronoUnit.DAYS));
+        assertThatThrownBy(() -> orgGuard.assertOrgWritable(ORG_ID))
+                .isInstanceOf(OrgReadOnlyException.class)
+                .extracting(ex -> ((OrgReadOnlyException) ex).getReason())
+                .isEqualTo(OrgLicenseState.Reason.SUSPENDED);
+        assertThat(orgGuard.isOrgReadOnly(ORG_ID)).isTrue();
+    }
+
+    @Test
+    @DisplayName("ĐƯỜNG ĐỌC không bị chặn: trung tâm đình chỉ vẫn assertMember/assertOrgAdmin được (D5)")
+    void readPaths_notBlockedBySuspension() {
+        stubMember(activeMember("MANAGER"));
+        // Không stub organizationRepository: nếu đường đọc lỡ gọi cổng trạng thái, Mockito strict
+        // stubbing sẽ không cứu — nhưng findById trả Optional.empty() nên test này chốt bằng việc
+        // hai lời gọi dưới đây KHÔNG ném.
+        orgGuard.assertMember(USER_ID, ORG_ID);
+        orgGuard.assertOrgAdmin(USER_ID, ORG_ID);
+    }
+
+    @Test
+    @DisplayName("assertOrgAdminForWrite: kiểm QUYỀN trước TRẠNG THÁI — người ngoài nhận 403 thường")
+    void assertOrgAdminForWrite_nonAdmin_forbiddenNotReadOnly() {
+        stubMember(activeMember("STUDENT"));
+        assertThatThrownBy(() -> orgGuard.assertOrgAdminForWrite(USER_ID, ORG_ID))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("assertOrgAdminForWrite: org-admin của trung tâm bị đình chỉ → ORG_READ_ONLY")
+    void assertOrgAdminForWrite_suspendedOrg_throwsReadOnly() {
+        stubMember(activeMember("OWNER"));
+        stubOrg("SUSPENDED", null);
+        assertThatThrownBy(() -> orgGuard.assertOrgAdminForWrite(USER_ID, ORG_ID))
+                .isInstanceOf(OrgReadOnlyException.class);
+    }
+
+    @Test
+    @DisplayName("assertOrgWritable: không tìm thấy trung tâm → không chặn (lỗi dữ liệu, không phải giấy phép)")
+    void assertOrgWritable_missingOrg_passes() {
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.empty());
+        orgGuard.assertOrgWritable(ORG_ID);
     }
 }

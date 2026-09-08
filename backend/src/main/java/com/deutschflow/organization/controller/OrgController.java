@@ -41,6 +41,13 @@ import java.util.List;
  * "Org của tôi" — quản trị tổ chức cho org-admin (OWNER/MANAGER).
  * orgId luôn lấy từ principal (user.getOrgId()), không nhận từ client để tránh giả mạo org.
  * Authz verify trong DB qua OrgGuard (mirror assertTeacherOwnsClass), JWT chỉ phục vụ frontend.
+ *
+ * <p><b>Chế độ chỉ đọc (D5, owner chốt 08/09/2026):</b> trung tâm bị đình chỉ hoặc hết hạn quá 7
+ * ngày ân hạn thì KHÔNG TẠO MỚI và KHÔNG DÙNG AI, nhưng vẫn xem được mọi thứ. Vì vậy chỉ các
+ * endpoint TẠO MỚI ở đây gọi {@code assertOrgAdminForWrite}/{@code assertOrgWritable} — mời giáo
+ * viên, tạo giáo viên, tạo lớp, thêm trợ giảng, import học viên. Các đường GỠ/HẠ/THU HỒI (gỡ thành
+ * viên, huỷ lời mời, đổi vai trò, chuyển quyền sở hữu, tự rời) CỐ Ý không bị chặn: D5 chỉ cấm tạo
+ * mới, và khoá luôn đường gỡ sẽ nhốt trung tâm với chính những ghế nó đang bị tính tiền.
  */
 @RestController
 @RequestMapping("/api/org")
@@ -94,7 +101,7 @@ public class OrgController {
     public OrgInvitationDto inviteTeacher(@AuthenticationPrincipal User user,
                                           @RequestBody InviteTeacherRequest body) {
         Long orgId = requireOrgId(user);
-        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        orgGuard.assertOrgAdminForWrite(user.getId(), orgId);
         return orgInvitationService.inviteTeacher(user.getId(), orgId, body.email());
     }
 
@@ -109,6 +116,7 @@ public class OrgController {
         Long orgId = requireOrgId(user);
         OrgMember caller = orgGuard.assertMember(user.getId(), orgId);
         String callerRole = caller.getRole();
+        orgGuard.assertOrgWritable(orgId); // D5: trung tâm đình chỉ/hết hạn không tạo tài khoản mới
         if (!"OWNER".equals(callerRole) && !"MANAGER".equals(callerRole)) {
             throw new ForbiddenException("Chỉ chủ sở hữu hoặc quản lý mới tạo được giáo viên");
         }
@@ -226,7 +234,7 @@ public class OrgController {
     public OrgClassDto createClass(@AuthenticationPrincipal User user,
                                    @jakarta.validation.Valid @RequestBody com.deutschflow.organization.dto.CreateClassRequest body) {
         Long orgId = requireOrgId(user);
-        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        orgGuard.assertOrgAdminForWrite(user.getId(), orgId);
         return orgService.createClass(orgId, body.name(), body.teacherId());
     }
 
@@ -253,7 +261,7 @@ public class OrgController {
             @PathVariable Long id,
             @jakarta.validation.Valid @RequestBody com.deutschflow.organization.dto.AssignClassTeacherRequest body) {
         Long orgId = requireOrgId(user);
-        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        orgGuard.assertOrgAdminForWrite(user.getId(), orgId);
         return orgService.addAssistantTeacher(orgId, id, body.teacherId());
     }
 
@@ -301,7 +309,7 @@ public class OrgController {
                                                 @RequestParam("file") MultipartFile file,
                                                 @RequestParam(value = "classId", required = false) Long classId) {
         Long orgId = requireOrgId(user);
-        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        orgGuard.assertOrgAdminForWrite(user.getId(), orgId);
 
         if (file == null || file.isEmpty()) {
             throw new BadRequestException("File CSV không được để trống");
