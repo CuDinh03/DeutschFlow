@@ -8,8 +8,10 @@ Legacy authed screens are out of scope (deprecated tree).
 
 - Library: **next-intl 3.26** (already wired). Locale comes from the `locale` cookie
   (`request.ts`), set by `LanguageToggle` / `LanguageSwitcher` + on login from `user.locale`.
-- Base catalog stays the legacy monolith `messages/{vi,en,de}.json` (untouched — keeps the 18
-  already-translated legacy pages working).
+- Base catalog `messages/{vi,en,de}.json` là tàn dư v1. **Cập nhật 07/09/2026:** sau khi v1 bị xoá
+  (#443) nó còn 25/28 namespace mồ côi — vẫn nằm trong payload MỌI trang — nên đã dọn còn đúng ba
+  namespace có call site: `nav`, `learn`, `speaking`. Base cũng không còn tự đi kèm mọi provider;
+  khai tường minh bằng `base:<ns>`. Xem [`I18N_CATALOG.md`](I18N_CATALOG.md).
 - **All /v2 strings live under a single `v2` root namespace**, split per area under
   `messages/v2/<area>.<locale>.json`. `request.ts` merges every area listed in `V2_AREAS`.
 - A page reads `useTranslations('v2.<area>.<screen>')`; shared chrome uses `v2.nav`, `v2.shell`,
@@ -38,7 +40,7 @@ Legacy authed screens are out of scope (deprecated tree).
 Legend: ✅ wired (page renders translations) · 📝 catalog-ready (vi/en/de keys written & in
 parity, page NOT yet wired to `useTranslations` — mechanical wiring remains) · ⬜ not started
 
-`V2_AREAS` (request.ts): `chrome, student, teacher, org`. (Add `admin`, `account` when built.)
+`V2_AREAS` (request.ts): `chrome, student, teacher, org, adminOps, adminContent, account, auth, onboarding, landing` — 10 area. Area có tệp trên đĩa nhưng KHÔNG nằm trong danh sách này thì không được nạp lúc chạy.
 
 ### Foundation
 - ✅ `messages/v2/` per-area structure + `request.ts` merge (`V2_AREAS`)
@@ -47,6 +49,7 @@ parity, page NOT yet wired to `useTranslations` — mechanical wiring remains) �
 - ✅ 06/09 (F-I18N-02c) chrome core thêm `notif` (nhãn loại/thời gian thông báo — `notificationDisplay` nhận translator) + `inbox` (hộp thư dùng chung student/teacher); `account.notifications`; `onboarding.mockExam`; `student.learnViews.{speaking,phoneme,listening,writing,reading}`, `student.sprechenTeil2`; `org.classes.createModal`, `org.teachers.createModal`. `lib/api.ts` câu dự phòng theo cookie `locale` (`lib/i18n/clientLocale.ts`).
 - ✅ 06/09 (đợt 3, F-I18N-02 nhóm b/d) nhãn tĩnh còn tiếng Việt → catalog: `adminOps.learningDetail` (modal hồ sơ học tập, 93 khoá) + `adminContent.interviews.scorePts` + đủ 10 `MediaCategory` (`adminContent.media.cat*`); `teacher.schedule` (+61: modal sửa/thêm buổi, lịch cố định, thứ, hình thức, trạng thái, toast), `teacher.tcShared`, `teacher.classDetail.classFallback`; `student.companionSelect` (30), `student.personas` (119 — lớp phủ dịch persona qua `usePersonaText()`, dữ liệu `lib/personas.ts` giữ nguyên), `student.chatBubble`, `student.sessionSummary` (51), `student.examResult` (47: phiếu điểm, nhận xét AI, điểm yếu, audio), `student.learnViews.{grammar,selfCheck,recap,common,pronunciation}` (51); `onboarding.errorReport`, `onboarding.mentorTaglines` (21 mentor), `onboarding.nav.*`; chrome `system` (phiên hết hạn, mất mạng — lõi mọi provider); `org.overview.*`, `org.students.csv.*`; base `speaking.drillPromptHint`. Module ngoài React (`asyncJob`, `curriculumImportApi`, `paymentApi`, `interviewReportApi`, `jobSseApi`, `teacherMessagingApi`, `teacherAnalyticsApi`) dùng `uiText({vi,en,de})` từ `lib/i18n/clientLocale.ts`. Test component đổi sang mock đọc catalog thật: `src/test/intlCatalog.ts` (`nextIntlCatalogMock()`) — giữ khẳng định theo chữ Việt. Còn lại VI theo thiết kế: `ui-v2/nav.ts` (fallback có guard), `teacher/tools/**` + `teacher/sessions/**` + `student/tutor` (màn ẩn/marketplace off), regex từ khoá (`personaTopicMatch`, `restaurantTopicCoach`), dữ liệu persona/mentor fallback, chuỗi khớp thông điệp backend (`nodeSubmission`, `theoryNodeCompletion`, `ExamRoom`, `grading`), trang legacy VI-only (`ShareButtons`, `CertificateActions`). Báo cáo: `plans/2026-09-06-bao-cao-soat-utf8-i18n.md` §8.
 - ✅ 06/09 `scripts/check-i18n-v2.js` gác luôn catalog gốc `messages/{vi,en,de}.json` (area `base`) — audit UTF-8/i18n phát hiện en.json thiếu `adminNav.refresh/refreshing` mà script chỉ quét `messages/v2/`. Báo cáo: `plans/2026-09-06-bao-cao-soat-utf8-i18n.md` (F-I18N-05).
+- ✅ 07/09 (PR #608 · #610 · #612) **payload i18n**: catalog gốc dọn xác v1 (25 namespace mồ côi + 19 khoá `personaName*` chết trong namespace `speaking` còn sống) và cắt theo khu bằng tiền tố `base:` — chỉ khu student mang `learn`/`speaking`. Đo trên prod: HTML `/` 179.024 → 110.026 byte, `/v2/login/` 138.746 → 69.748. Cổng mới `scripts/check-i18n-providers.mjs` (provider của khu phải cấp đủ namespace cây import của khu dùng — next-intl KHÔNG ném khi thiếu, nó in đường dẫn khoá ra màn hình) + phép kiểm namespace mồ côi trong `check-i18n-usage.js`; cả hai nằm trong `npm run check:i18n`. Cơ chế đầy đủ: [`I18N_CATALOG.md`](I18N_CATALOG.md).
 - ✅ Shared chrome — `v2.nav` (all 4 roles' sidebar items + section headings + role pills),
   `v2.shell` (logout, aria), `v2.common` (generic buttons). `nav.ts` gained `NavSection.labelKey`;
   `GaSidebar` renders via `useTranslations('v2')` with VN fallback (`t.has` guard).
