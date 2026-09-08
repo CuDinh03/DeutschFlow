@@ -226,25 +226,56 @@ const cspReportCollector = backendOrigin ? `${backendOrigin}/api/public/csp-repo
 // flow chính sạch vi phạm 72h liên tục (gate Q2 — plan hạ tầng biên 07/09, cần owner gật).
 const cspEnforceEnabled = process.env.CSP_ENFORCE === '1'
 
+// Hai bucket S3 chứa học liệu (PDF/audio/video/ảnh giáo trình) — presigned URL, không qua CDN.
+// PHẢI khớp `images.remotePatterns` trong `next.config.mjs`; có ca test đọc chéo hai nơi để khoá.
+const MEDIA_HOSTS = [
+  'https://deutschflow-media-storage.s3.ap-southeast-1.amazonaws.com',
+  'https://deutschflow-media-storage.s3.amazonaws.com',
+]
+
+/**
+ * Origin của iframe dashboard PostHog ở `/v2/admin/analytics`.
+ *
+ * ⚠️ Đây là `https://us.posthog.com` — **KHÁC** `https://us.i.posthog.com` của `api_host`
+ * (script/connect). Ai siết `frame-src` mà copy host PostHog từ `connect-src` sang sẽ chặn trang
+ * analytics của admin, và vì trang đó ít người mở, lỗi nằm im rất lâu (khảo sát E5 §2).
+ */
+function sharedDashboardOrigin(): string {
+  const raw = process.env.NEXT_PUBLIC_POSTHOG_SHARED_DASHBOARD_URL || ''
+  if (!raw) return ''
+  try {
+    return new URL(raw).origin
+  } catch {
+    return ''
+  }
+}
+
 function buildCsp(nonce: string): string {
-  const connectSrc = ["'self'", backendOrigin, posthogHost, cloudfront, 'https:']
-    .filter(Boolean)
-    .join(' ')
+  // E5 đường 1 (owner chọn 08/09): bỏ `https:` khỏi img/connect/frame/media và bỏ hai host font
+  // Google khỏi style/font. Lý do KHÔNG phải "cho chặt hơn" mà là **để đo được**: chừng nào còn
+  // `https:` thì mọi host đều hợp lệ, nên collector không bao giờ báo host nào — soak E3 chạy 7 ngày
+  // ra 0 vi phạm mà con số 0 đó không chứng minh được gì cho việc siết floor (đo 08/09, xem
+  // plans/2026-09-07-soak-e3-lenh-doc-so-lieu.md). Vẫn là Report-Only nên KHÔNG chặn gì của người
+  // dùng; cái giá là đồng hồ soak đặt lại từ ngày deploy bản này.
+  const mediaHosts = [...MEDIA_HOSTS, cloudfront].filter(Boolean)
+  const connectSrc = ["'self'", backendOrigin, posthogHost, cloudfront].filter(Boolean).join(' ')
   return [
     "default-src 'self'",
     // 'strict-dynamic' + nonce is honored by modern browsers; 'unsafe-inline' + https: are
     // ignored there and act only as fallbacks for older browsers.
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${posthogHost} https: 'unsafe-inline'`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "img-src 'self' data: blob: https:",
-    "font-src 'self' data: https://fonts.gstatic.com",
+    // Font là self-host thật: `next/font/google` tải file lúc BUILD rồi phục vụ từ `/_next/static`,
+    // runtime không gọi fonts.googleapis.com/fonts.gstatic.com lần nào (khảo sát E5 §0).
+    "style-src 'self' 'unsafe-inline'",
+    `img-src ${["'self'", 'data:', 'blob:', ...mediaHosts].join(' ')}`,
+    "font-src 'self' data:",
     `connect-src ${connectSrc}`,
     // The material reader embeds a presigned S3 object: the PDF (native, or converted from Word) in an
     // <iframe>, audio/video in their own elements. Without these two, both fall back to default-src
     // 'self' and every open reports a violation today — and would be blocked outright the day this
     // policy is flipped to enforced.
-    "frame-src 'self' https:",
-    "media-src 'self' blob: data: https:",
+    `frame-src ${["'self'", sharedDashboardOrigin(), ...mediaHosts].filter(Boolean).join(' ')}`,
+    `media-src ${["'self'", 'blob:', 'data:', ...mediaHosts].join(' ')}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -254,6 +285,10 @@ function buildCsp(nonce: string): string {
     // updates itself outside page CSP, but a `new Worker()` would fall back to script-src
     // where 'self' is ignored under strict-dynamic — and die).
     "worker-src 'self' blob:",
+    // Nêu tường minh cho khớp floor: khi bật enforce, chính sách này THAY THẾ floor trên response
+    // qua middleware, nên directive nào floor có mà đây thiếu là mất một lớp (ở đây `default-src
+    // 'self'` phủ trùng, nhưng viết ra để lần đối chiếu sau không phải suy luận).
+    "manifest-src 'self'",
     ...(cspReportCollector ? [`report-uri ${cspReportCollector}`, 'report-to csp'] : []),
   ].join('; ')
 }

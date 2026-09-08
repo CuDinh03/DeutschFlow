@@ -87,8 +87,16 @@ const nextConfig = {
   //
   // Giá trị giữ nguyên dạng PEM một dòng với `\n` thoát — middleware tự đổi lại. `?? ''` để
   // build cục bộ không có biến vẫn chạy (cổng vai trò tự tắt đúng như nhánh degrade sẵn có).
+  //
+  // `CSP_ENFORCE` ở đây vì ĐÚNG CÙNG MỘT LÝ DO, phát hiện 08/09: kill-switch E4 đọc
+  // `process.env.CSP_ENFORCE` trong middleware LÚC CHẠY. Biến đặt ở Amplify console chỉ sống trong
+  // container dựng, nên nếu không khai báo ở đây thì đặt `CSP_ENFORCE=1` trên console **không có tác
+  // dụng gì** — bật enforce mà chính sách vẫn chỉ là Report-Only, hỏng lặng đúng kiểu vụ
+  // `JWT_RSA_PUBLIC_KEY` treo gần hai tháng. Khai báo ở đây ⇒ giá trị nhúng lúc dựng, nên bật/tắt
+  // vẫn là "đặt env trên Amplify + dựng lại", đúng như runbook E4 đã mô tả.
   env: {
     JWT_RSA_PUBLIC_KEY: process.env.JWT_RSA_PUBLIC_KEY ?? '',
+    CSP_ENFORCE: process.env.CSP_ENFORCE ?? '',
   },
 
   // Image optimization stays ON for the Amplify web/SSR build so <Image> is actually optimized. (P1-5)
