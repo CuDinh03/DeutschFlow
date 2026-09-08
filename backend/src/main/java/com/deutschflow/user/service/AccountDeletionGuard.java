@@ -55,12 +55,21 @@ public class AccountDeletionGuard {
      * ({@code teacher_classes.teacher_id}) hoặc trợ giảng ({@code class_teachers}). Lớp không thuộc
      * trung tâm nào ({@code org_id IS NULL}) không tính: đó là lớp riêng của chính người dùng.
      */
+    /**
+     * Chỉ đếm lớp mà user ĐỨNG TÊN phụ trách ({@code teacher_classes.teacher_id}) — đúng những lớp
+     * sẽ bị cuốn theo khi xoá tài khoản.
+     *
+     * <p>🔑 CỐ Ý không đếm {@code class_teachers} (trợ giảng): khoá ngoại của bảng ghép là
+     * {@code ON DELETE CASCADE} trên chính DÒNG GHÉP (V200), nên xoá tài khoản trợ giảng chỉ làm
+     * mất vai trợ giảng chứ KHÔNG xoá lớp. Đếm gộp hai thứ vừa nhốt người vô can — một người đã rời
+     * sạch trung tâm mà còn sót dòng trợ giảng sẽ không xoá nổi tài khoản, trong khi App Store
+     * Guideline 5.1.1(v) đòi phải xoá được trong ứng dụng — vừa nói dối hệ quả ("sẽ xoá luôn N lớp"
+     * trong khi không lớp nào mất).
+     */
     private static final String ORG_CLASSES_SQL = """
             SELECT COUNT(*) FROM teacher_classes c
              WHERE c.org_id IS NOT NULL
-               AND (c.teacher_id = ?
-                    OR EXISTS (SELECT 1 FROM class_teachers ct
-                                WHERE ct.class_id = c.id AND ct.teacher_id = ?))
+               AND c.teacher_id = ?
             """;
 
     private final JdbcTemplate jdbc;
@@ -136,7 +145,7 @@ public class AccountDeletionGuard {
     }
 
     private long countOrgClasses(long userId) {
-        Long count = jdbc.queryForObject(ORG_CLASSES_SQL, Long.class, userId, userId);
+        Long count = jdbc.queryForObject(ORG_CLASSES_SQL, Long.class, userId);
         return count != null ? count : 0L;
     }
 

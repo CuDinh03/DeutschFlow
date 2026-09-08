@@ -171,6 +171,29 @@ class AccountDeletionOrgGuardIntegrationTest extends AbstractPostgresIntegration
     }
 
     @Test
+    @DisplayName("đã rời trung tâm, CHỈ còn dòng trợ giảng → xoá được (không nhốt người vô can)")
+    void formerMemberOnlyAssistant_deletable() {
+        Long orgId = newOrg("Trung tâm Eta");
+        Long primaryId = newUser("primary-teacher");
+        Long assistantId = newUser("former-assistant");
+        member(orgId, assistantId, "TEACHER", "LEFT");
+        Long classId = orgClass(orgId, primaryId);
+        jdbcTemplate.update(
+                "INSERT INTO class_teachers (class_id, teacher_id, role) VALUES (?, ?, 'ASSISTANT')",
+                classId, assistantId);
+
+        // Khoá ngoại class_teachers.teacher_id là ON DELETE CASCADE trên chính DÒNG GHÉP (V200):
+        // xoá trợ giảng chỉ mất vai trợ giảng, lớp KHÔNG mất. Nếu phép đếm gộp cả bảng ghép thì
+        // người này bị nhốt kèm thông điệp "sẽ xoá luôn 1 lớp" — điều không hề xảy ra.
+        accountDeletionService.deleteAccount(assistantId);
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM teacher_classes WHERE id = ?", Long.class, classId)).isEqualTo(1L);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM class_teachers WHERE class_id = ?", Long.class, classId)).isEqualTo(0L);
+    }
+
+    @Test
     @DisplayName("BẰNG CHỨNG cửa hậu: xoá users CÓ cascade sang teacher_classes (V196)")
     void deletingUserCascadesClasses_proofOfBackdoor() {
         Long orgId = newOrg("Trung tâm Eta");
