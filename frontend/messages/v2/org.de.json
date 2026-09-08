@@ -811,6 +811,22 @@
       "supportHint": "Nur Anzeige-Hinweise auf der Zielmatrix — das System verschiebt das Curriculum nie selbst.",
       "save": "Speichern",
       "saveSuccess": "Einstellungen gespeichert"
+    },
+    "audit": {
+      "title": "Aktivitätsprotokoll",
+      "subtitle": "Wer im Zentrum was getan hat — Betriebsnachweis, nur für die Leitung sichtbar.",
+      "filterAll": "Alle",
+      "searchPlaceholder": "Nach Aktion, E-Mail der handelnden Person oder Ziel-ID suchen…",
+      "colTime": "Zeit",
+      "colActor": "Handelnde Person",
+      "colAction": "Aktion",
+      "colTarget": "Ziel",
+      "system": "System",
+      "empty": "Für dieses Zentrum wurde noch keine Aktivität aufgezeichnet.",
+      "emptyFiltered": "Keine Aktivität passt zur aktuellen Suche oder Filterung.",
+      "pageOf": "Seite {page}/{pages} · {total} Einträge",
+      "prevPage": "Zurück",
+      "nextPage": "Weiter"
     }
   }
 }

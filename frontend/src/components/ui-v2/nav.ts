@@ -215,6 +215,9 @@ const ORG_ITEM = {
   // PR-A6 (07/09/2026): trang /v2/org/settings (chính sách tính công, ngưỡng gợi ý hỗ trợ) từng KHÔNG có mục
   // nav nào — OWNER chỉ tới được bằng cách gõ URL. Backend gác assertOrgOwner; ownerOnly là lớp UX.
   settings: { id: 'org-settings', label: 'Cài đặt trung tâm', href: '/v2/org/settings', icon: 'settings', ownerOnly: true },
+  // C6 (08/09/2026): GET /api/org/audit-logs lên production cùng V315 nhưng KHÔNG có mục nav nào —
+  // đúng cái lỗi mà /v2/org/settings từng mắc. Backend gác assertOrgOwner; ownerOnly là lớp UX.
+  audit: { id: 'org-audit', label: 'Sổ hoạt động', href: '/v2/org/audit', icon: 'history', ownerOnly: true },
   profile: { id: 'org-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
 } satisfies Record<string, NavItem>
 
@@ -222,9 +225,9 @@ const ORG_ITEM = {
  * orgNav — giám đốc trung tâm (org OWNER).
  *
  * Một nhóm chính (tổng quan, học viên, lớp, lịch trung tâm, giáo viên, phân tích,
- * gói & thanh toán, lời mời, chấm công, phân quyền, cài đặt trung tâm) + nhóm "Tài khoản".
+ * gói & thanh toán, lời mời, chấm công, phân quyền, cài đặt trung tâm, sổ hoạt động) + nhóm "Tài khoản".
  *
- * Phân quyền: item gắn `ownerOnly: true` (gói & thanh toán, cài đặt trung tâm) CHỈ OWNER thấy. Sidebar vẫn
+ * Phân quyền: item gắn `ownerOnly: true` (gói & thanh toán, cài đặt trung tâm, sổ hoạt động) CHỈ OWNER thấy. Sidebar vẫn
  * lọc `ownerOnly` như một lớp phòng thủ thứ hai, kể cả khi MANAGER đã được chuyển sang `managerNav`.
  */
 export const orgNav: RoleNav = {
@@ -245,6 +248,7 @@ export const orgNav: RoleNav = {
         ORG_ITEM.timesheets,
         ORG_ITEM.roles,
         ORG_ITEM.settings,
+        ORG_ITEM.audit,
       ],
     },
     {

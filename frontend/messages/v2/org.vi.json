@@ -811,6 +811,22 @@
       "supportHint": "Chỉ là gợi ý hiển thị trên ma trận mục tiêu — hệ thống không tự dời giáo trình.",
       "save": "Lưu cấu hình",
       "saveSuccess": "Đã lưu cấu hình trung tâm"
+    },
+    "audit": {
+      "title": "Sổ hoạt động",
+      "subtitle": "Ai đã làm gì trong trung tâm — bằng chứng vận hành, chỉ giám đốc xem được.",
+      "filterAll": "Tất cả",
+      "searchPlaceholder": "Tìm theo hành động, email người thực hiện, mã đối tượng…",
+      "colTime": "Thời gian",
+      "colActor": "Người thực hiện",
+      "colAction": "Hành động",
+      "colTarget": "Đối tượng",
+      "system": "Hệ thống",
+      "empty": "Trung tâm chưa có hoạt động nào được ghi lại.",
+      "emptyFiltered": "Không có hoạt động nào khớp từ khoá hoặc bộ lọc đang chọn.",
+      "pageOf": "Trang {page}/{pages} · {total} hoạt động",
+      "prevPage": "Trang trước",
+      "nextPage": "Trang sau"
     }
   }
 }

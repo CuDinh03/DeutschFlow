@@ -811,6 +811,22 @@
       "supportHint": "Display-only suggestions on the objective matrix — the system never moves the curriculum by itself.",
       "save": "Save settings",
       "saveSuccess": "Center settings saved"
+    },
+    "audit": {
+      "title": "Activity log",
+      "subtitle": "Who did what in this center — operational evidence, visible to the owner only.",
+      "filterAll": "All",
+      "searchPlaceholder": "Search by action, actor email, target id…",
+      "colTime": "Time",
+      "colActor": "Actor",
+      "colAction": "Action",
+      "colTarget": "Target",
+      "system": "System",
+      "empty": "No activity has been recorded for this center yet.",
+      "emptyFiltered": "No activity matches the current search or filter.",
+      "pageOf": "Page {page}/{pages} · {total} entries",
+      "prevPage": "Previous",
+      "nextPage": "Next"
     }
   }
 }

@@ -86,7 +86,8 @@
       "org-curricula": "Lehrplan",
       "admin-exam-golden": "Golden-Set Sprechen",
       "objectives": "Lernzielmatrix",
-      "org-settings": "Zentrumseinstellungen"
+      "org-settings": "Zentrumseinstellungen",
+      "org-audit": "Aktivitätsprotokoll"
     },
     "sections": {
       "classMgmt": "Kursverwaltung",

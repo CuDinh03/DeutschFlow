@@ -514,3 +514,64 @@ export async function acceptInvitation(
   )
   return res.data
 }
+
+// ── C6: Sổ hoạt động của trung tâm (OWNER-only) ──────────────────────────────
+
+/**
+ * Một dòng trong sổ hoạt động (`audit_logs`) của trung tâm.
+ *
+ * Khớp `AuditLogDto` phía máy chủ. `category` và `targetType` là CÙNG một cột `target_type` —
+ * DTO trả cả hai để màn hình lọc theo `category` mà vẫn hiển thị `targetType`. Không có cột IP.
+ */
+export interface OrgAuditLog {
+  id: number
+  eventName: string
+  category: string | null
+  actorUserId: number | null
+  actorEmail: string | null
+  actorRole: string | null
+  targetType: string | null
+  targetId: string | null
+  metadataJson: string | null
+  createdAt: string | null
+}
+
+/**
+ * Phong bì phân trang của sổ hoạt động — KHÁC `Page<T>` của Spring (`content`/`totalElements`):
+ * `AuditLogService.read` tự dựng `{items,total,page,size}` bằng JdbcTemplate.
+ */
+export interface OrgAuditLogPage {
+  items: OrgAuditLog[]
+  total: number
+  page: number
+  size: number
+}
+
+/**
+ * GET /org/audit-logs — sổ hoạt động của CHÍNH trung tâm người gọi (C6).
+ *
+ * OWNER-only: máy chủ trả 403 với MANAGER/TEACHER (`OrgGuard.assertOrgOwner`) và với người không
+ * thuộc trung tâm nào. Không nhận `orgId` — máy chủ ép `org_id` theo người gọi, nên không có đường
+ * đọc sổ của trung tâm khác.
+ *
+ * `q` tìm không phân biệt hoa thường trên event_name / actor_email / target_id; `cat` lọc đúng
+ * bằng target_type. `size` bị máy chủ chặn trần ở 100.
+ */
+export async function listOrgAuditLogs(
+  page = 0,
+  size = 30,
+  opts: { q?: string; cat?: string } = {},
+): Promise<OrgAuditLogPage> {
+  const q = opts.q?.trim()
+  const cat = opts.cat?.trim()
+  const res = await api.get<OrgAuditLogPage>('/org/audit-logs', {
+    params: { page, size, ...(q ? { q } : {}), ...(cat ? { cat } : {}) },
+  })
+  const data = res.data
+  return {
+    items: data?.items ?? [],
+    total: data?.total ?? 0,
+    page: data?.page ?? page,
+    size: data?.size ?? size,
+  }
+}
