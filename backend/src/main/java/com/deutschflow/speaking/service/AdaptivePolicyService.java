@@ -196,13 +196,12 @@ public class AdaptivePolicyService {
         );
 
         String weeklyCefr = speakCefr != null ? speakCefr : SpeakingCefrSupport.DEFAULT_BAND;
-        // GAP ĐÃ BIẾT: giao diện v2 CHƯA có màn "bài nói theo tuần" cho học viên (admin có chỗ soạn
-        // prompt, học viên thì chưa có chỗ nộp). Trỏ tạm về trang chủ khu luyện nói để link không chết
-        // sau khi cây v1 bị xoá. Không nơi nào trong frontend đang render href này (grep: chỉ khai báo
-        // kiểu, không dùng), nên đây là payload chết — đổi hoàn toàn an toàn. Khi màn v2 ra đời thì
-        // trỏ thẳng vào nó và mang lại `?cefBand=`.
+        // V-12a: màn "bài nói theo tuần" của học viên ĐÃ có ở cây v2 nên href trỏ thẳng vào nó, mang
+        // theo `?cefBand=` để trang chọn sẵn band. Trước đây href trỏ về STUDENT_SPEAKING (trang chủ
+        // khu luyện nói) — mà ô "Speaking tuần" nằm ngay trên chính trang đó, nên bấm vào là quay lại
+        // đúng trang vừa đứng (frontend cho mọi href `/v2/...` đi thẳng, không nắn lại).
         TodayRecommendedDto weekly = new TodayRecommendedDto(
-                WebRoutes.STUDENT_SPEAKING + "?cefBand=" + urlEncode(weeklyCefr),
+                WebRoutes.STUDENT_WEEKLY_SPEAKING + "?cefBand=" + urlEncode(weeklyCefr),
                 null,
                 weeklyCefr,
                 policy != null ? policy.targetStructures() : List.of()

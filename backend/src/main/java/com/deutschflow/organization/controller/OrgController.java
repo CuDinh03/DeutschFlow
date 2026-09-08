@@ -187,11 +187,17 @@ public class OrgController {
     /**
      * Self-leave: a TEACHER/MANAGER leaves their own org (membership → LEFT). The OWNER cannot
      * self-leave (must transfer ownership first). orgId comes from the principal, never the client.
+     *
+     * <p>V-13: rời trung tâm cũng THU HỒI quyền lợi do trung tâm cấp, y như đường admin gỡ thành
+     * viên ở trên. Thiếu bước này thì người tự rời vẫn giữ gói do trung tâm trả tới ~5 năm, và gói
+     * cá nhân đang PAUSED của họ không bao giờ được trả về (V313 {@code resumePausedIfAny} nằm
+     * trong chính {@code revokeStudent}).
      */
     @PostMapping("/membership/leave")
     public ResponseEntity<Void> leaveOrg(@AuthenticationPrincipal User user) {
         Long orgId = requireOrgId(user);
         orgMembershipService.selfLeave(orgId, AuditActor.of(user));
+        orgEntitlementService.revokeStudent(user.getId());
         return ResponseEntity.noContent().build();
     }
 

@@ -8,6 +8,7 @@ import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.entity.OrgMember;
+import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.entity.OrgMemberId;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.user.entity.User;
@@ -51,6 +52,8 @@ class OrgMembershipServiceTest {
     @Mock private com.deutschflow.organization.repository.OrgAcademicApproverRepository academicApproverRepo;
 
     @Mock private AuditLogService auditLogService;
+    @Mock private com.deutschflow.organization.repository.OrganizationRepository organizationRepository;
+    @Mock private OrgEntitlementService orgEntitlementService;
 
     /** Người thao tác — mọi mutation thành viên nay ghi vết kèm danh tính này. */
     private static final AuditActor ACTOR = new AuditActor(2L, "owner@tt.vn", "OWNER");
@@ -60,7 +63,8 @@ class OrgMembershipServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new OrgMembershipService(memberRepo, academicApproverRepo, userRepository, jdbcTemplate, auditLogService);
+        service = new OrgMembershipService(memberRepo, academicApproverRepo, userRepository, jdbcTemplate,
+                auditLogService, organizationRepository, orgEntitlementService);
     }
 
     private User studentUser() {
@@ -289,6 +293,48 @@ class OrgMembershipServiceTest {
         verify(memberRepo).save(former);
     }
 
+    // ----------------------------------------------------------------- V-05: vào TT qua lớp phải ĐƯỢC CẤP GÓI
+
+    @Test
+    @DisplayName("V-05 ensureStudentSeat: cấp gói của trung tâm cho học viên vừa nhận ghế (như đường import/thêm tay)")
+    void ensureStudentSeat_nonMember_grantsOrgPlan() {
+        Organization org = Organization.builder().id(ORG_ID).planCode("PRO").build();
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(studentUser()));
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+
+        service.ensureStudentSeat(ORG_ID, USER_ID);
+
+        verify(orgEntitlementService).grantStudent(USER_ID, org);
+    }
+
+    @Test
+    @DisplayName("V-05 ensureStudentSeat: thành viên ACTIVE sẵn → KHÔNG cấp gói lần hai")
+    void ensureStudentSeat_activeMember_doesNotGrantTwice() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member("STUDENT", "ACTIVE")));
+
+        service.ensureStudentSeat(ORG_ID, USER_ID);
+
+        verify(orgEntitlementService, never()).grantStudent(any(), any());
+    }
+
+    @Test
+    @DisplayName("V-05 ensureStudentSeat: hết ghế → seat-gate ném lỗi TRƯỚC, không cấp gói")
+    void ensureStudentSeat_seatLimitReached_noGrant() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class), eq(ORG_ID))).thenReturn(3L);
+        when(memberRepo.countByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE")).thenReturn(3L);
+
+        assertThatThrownBy(() -> service.ensureStudentSeat(ORG_ID, USER_ID))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("giới hạn chỗ ngồi");
+
+        verify(orgEntitlementService, never()).grantStudent(any(), any());
+    }
+
     // ----------------------------------------------------------------- removeMember (admin revoke)
 
     @Test
@@ -323,6 +369,57 @@ class OrgMembershipServiceTest {
 
         verify(memberRepo, never()).save(any());
         verify(userRepository, never()).save(any());
+    }
+
+    // ----------------------------------------------------------------- V-14: chỉ OWNER mới gỡ được MANAGER
+
+    @Test
+    @DisplayName("V-14 removeMember: MANAGER KHÔNG gỡ được MANAGER khác → 403, không ghi gì")
+    void removeMember_managerTarget_managerActor_throwsForbidden() {
+        AuditActor managerActor = new AuditActor(2L, "manager@tt.vn", "MANAGER");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member("MANAGER", "ACTIVE")));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, 2L))
+                .thenReturn(Optional.of(member(2L, "MANAGER", "ACTIVE")));
+
+        assertThatThrownBy(() -> service.removeMember(ORG_ID, USER_ID, managerActor))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("Chỉ chủ sở hữu");
+
+        verify(memberRepo, never()).save(any());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("V-14 removeMember: OWNER VẪN gỡ được MANAGER (không chặn nhầm đường chính đáng)")
+    void removeMember_managerTarget_ownerActor_allowed() {
+        OrgMember target = member("MANAGER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(target));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, 2L))
+                .thenReturn(Optional.of(member(2L, "OWNER", "ACTIVE")));
+        User user = userWith(USER_ID, User.Role.MANAGER);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(memberRepo.existsByIdUserIdAndRoleInAndStatus(eq(USER_ID), anySet(), eq("ACTIVE"))).thenReturn(false);
+
+        service.removeMember(ORG_ID, USER_ID, ACTOR);
+
+        assertThat(target.getStatus()).isEqualTo("REVOKED");
+        assertThat(user.getOrgId()).isNull();
+    }
+
+    @Test
+    @DisplayName("V-14 removeMember: TEACHER vẫn do org-admin (MANAGER) gỡ được — luật mới chỉ chạm MANAGER")
+    void removeMember_teacherTarget_managerActor_stillAllowed() {
+        AuditActor managerActor = new AuditActor(2L, "manager@tt.vn", "MANAGER");
+        OrgMember target = member("TEACHER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(target));
+        User user = teacherUser(ORG_ID);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(memberRepo.existsByIdUserIdAndRoleInAndStatus(eq(USER_ID), anySet(), eq("ACTIVE"))).thenReturn(false);
+
+        service.removeMember(ORG_ID, USER_ID, managerActor);
+
+        assertThat(target.getStatus()).isEqualTo("REVOKED");
     }
 
     // ----------------------------------------------------------------- selfLeave

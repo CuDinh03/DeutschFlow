@@ -233,8 +233,10 @@ class OrgRosterServiceTest {
 
         User existing = savedStudent(42L, "bob@school.edu");
         when(userRepository.findByEmailIgnoreCase("bob@school.edu")).thenReturn(Optional.of(existing));
+        // Thành viên sẵn có ở đây là HỌC VIÊN. `new OrgMember()` mặc định role="TEACHER" (xem
+        // entity) — khai rõ vai để bài test nói đúng tình huống nó muốn nói.
         when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 42L))
-                .thenReturn(Optional.of(new OrgMember()));
+                .thenReturn(Optional.of(activeMember(42L, "STUDENT")));
 
         String csv = "bob@school.edu,Bob Nguyen";
         RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
@@ -247,6 +249,68 @@ class OrgRosterServiceTest {
         verify(userRepository, never()).save(any(User.class));
         verify(membershipService).upsertMember(eq(ORG_ID), eq(42L), eq("STUDENT"));
         verify(entitlementService).grantStudent(eq(42L), eq(org));
+    }
+
+    // ------------------------------------------------------------ CSV học viên KHÔNG hạ vai nhân sự
+
+    /** Thành viên đang hoạt động của org với vai {@code role}. */
+    private OrgMember activeMember(Long userId, String role) {
+        OrgMember m = new OrgMember();
+        m.setId(new OrgMemberId(ORG_ID, userId));
+        m.setRole(role);
+        m.setStatus("ACTIVE");
+        return m;
+    }
+
+    @Test
+    @DisplayName("import: email của MANAGER đang hoạt động → dòng bị từ chối, KHÔNG hạ xuống STUDENT")
+    void importStudents_activeManagerEmail_rejectedNotDemoted() {
+        stubOrg(org(0, "PRO"));
+        User manager = savedStudent(77L, "rival@tt.vn");
+        when(userRepository.findByEmailIgnoreCase("rival@tt.vn")).thenReturn(Optional.of(manager));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 77L))
+                .thenReturn(Optional.of(activeMember(77L, "MANAGER")));
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, "rival@tt.vn,Đối thủ", null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.linked()).isEqualTo(0);
+        assertThat(result.errors()).singleElement().asString().contains("MANAGER");
+        // Đây mới là điều quan trọng: KHÔNG một lệnh ghi vai trò nào được phát ra.
+        verify(membershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+        verify(entitlementService, never()).grantStudent(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("import: email của TEACHER đang hoạt động → cũng bị từ chối (không âm thầm biến GV thành HV)")
+    void importStudents_activeTeacherEmail_rejectedNotDemoted() {
+        stubOrg(org(0, "PRO"));
+        User teacher = savedStudent(78L, "gv@tt.vn");
+        when(userRepository.findByEmailIgnoreCase("gv@tt.vn")).thenReturn(Optional.of(teacher));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 78L))
+                .thenReturn(Optional.of(activeMember(78L, "TEACHER")));
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, "gv@tt.vn,Giáo viên", null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(1);
+        verify(membershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("import: học viên ACTIVE sẵn vẫn nhập lại bình thường — chốt mới chỉ chạm nhân sự")
+    void importStudents_activeStudentEmail_stillImported() {
+        Organization org = org(0, "PRO");
+        stubOrg(org);
+        User student = savedStudent(79L, "hv@tt.vn");
+        when(userRepository.findByEmailIgnoreCase("hv@tt.vn")).thenReturn(Optional.of(student));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 79L))
+                .thenReturn(Optional.of(activeMember(79L, "STUDENT")));
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, "hv@tt.vn,Học viên", null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(0);
+        assertThat(result.linked()).isEqualTo(1);
+        verify(membershipService).upsertMember(eq(ORG_ID), eq(79L), eq("STUDENT"));
     }
 
     // ------------------------------------------------------------------ class enrollment
@@ -283,7 +347,7 @@ class OrgRosterServiceTest {
         User existing = savedStudent(8L, "diana@school.edu");
         when(userRepository.findByEmailIgnoreCase("diana@school.edu")).thenReturn(Optional.of(existing));
         when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 8L))
-                .thenReturn(Optional.of(new OrgMember()));
+                .thenReturn(Optional.of(activeMember(8L, "STUDENT")));
         when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, 8L)).thenReturn(true);
 
         String csv = "diana@school.edu,Diana";

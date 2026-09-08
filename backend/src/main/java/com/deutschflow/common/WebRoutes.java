@@ -43,6 +43,14 @@ public final class WebRoutes {
     /** Trang chủ khu luyện nói (danh sách chế độ). Dùng khi không có gợi ý cụ thể để truyền vào. */
     public static final String STUDENT_SPEAKING = "/v2/student/speaking";
 
+    /**
+     * Màn NỘP BÀI NÓI THEO TUẦN của học viên (admin ra đề ở {@code /v2/admin/weekly-speaking}).
+     * Đây là luồng nộp bài riêng, KHÔNG phải engine hội thoại — nên gợi ý "bài nói theo tuần" phải
+     * trỏ vào đây chứ không phải {@link #STUDENT_SPEAKING}: trỏ về trang chủ khu luyện nói làm ô
+     * "Speaking tuần" trên chính trang đó tự trỏ về mình. Trang đọc {@code ?cefBand=} để chọn sẵn band.
+     */
+    public static final String STUDENT_WEEKLY_SPEAKING = "/v2/student/weekly-speaking";
+
     /** Ôn tập: gộp từ vựng tới hạn (FSRS) và các bài sửa lỗi tới hạn. */
     public static final String STUDENT_REVIEW = "/v2/student/review";
 
