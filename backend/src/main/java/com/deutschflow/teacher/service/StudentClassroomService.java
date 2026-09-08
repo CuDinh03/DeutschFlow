@@ -51,6 +51,11 @@ public class StudentClassroomService {
     /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
     private final SubmissionFileUrlResolver submissionFileUrlResolver;
 
+    /**
+     * Lớp của tôi. {@code findByIdStudentId} chỉ trả ghi danh CÒN HIỆU LỰC (ACTIVE + RESERVED) — bảo
+     * lưu vẫn xem được ở chế độ chỉ đọc (D1), còn người đã rời lớp hoặc rời trung tâm (G-03) biến
+     * mất khỏi đây ngay, không còn đọc tài liệu lớp vô thời hạn.
+     */
     @Transactional(readOnly = true)
     public List<MyClassroomDto> listMyClasses(Long studentId) {
         List<ClassStudent> memberships = classStudentRepository.findByIdStudentId(studentId);

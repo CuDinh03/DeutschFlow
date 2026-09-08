@@ -91,6 +91,7 @@ class OrgRosterServiceTransactionTest {
     private OrgMemberRepository orgMemberRepository;
     private OrgAcademicApproverRepository academicApproverRepository;
     private ClassStudentRepository classStudentRepository;
+    private com.deutschflow.teacher.service.ClassEnrollmentService classEnrollmentService;
     private TeacherClassRepository teacherClassRepository;
     private AssignmentBackfillService assignmentBackfillService;
     private JdbcTemplate jdbcTemplate;
@@ -113,6 +114,7 @@ class OrgRosterServiceTransactionTest {
         orgMemberRepository = mock(OrgMemberRepository.class);
         academicApproverRepository = mock(OrgAcademicApproverRepository.class);
         classStudentRepository = mock(ClassStudentRepository.class);
+        classEnrollmentService = mock(com.deutschflow.teacher.service.ClassEnrollmentService.class);
         teacherClassRepository = mock(TeacherClassRepository.class);
         assignmentBackfillService = mock(AssignmentBackfillService.class);
         jdbcTemplate = mock(JdbcTemplate.class);
@@ -136,6 +138,9 @@ class OrgRosterServiceTransactionTest {
         // — context tối giản cần bean này; mock vì bài test đo ranh giới transaction, không đo revoke.
         ctx.registerBean(OrgAcademicApproverRepository.class, () -> academicApproverRepository);
         ctx.registerBean(ClassStudentRepository.class, () -> classStudentRepository);
+        // G-02: ghi danh vào lớp nay đi qua ClassEnrollmentService (mở lại dòng cũ thay vì save đè).
+        ctx.registerBean(com.deutschflow.teacher.service.ClassEnrollmentService.class,
+                () -> classEnrollmentService);
         ctx.registerBean(TeacherClassRepository.class, () -> teacherClassRepository);
         ctx.registerBean(AssignmentBackfillService.class, () -> assignmentBackfillService);
         ctx.registerBean(JdbcTemplate.class, () -> jdbcTemplate);

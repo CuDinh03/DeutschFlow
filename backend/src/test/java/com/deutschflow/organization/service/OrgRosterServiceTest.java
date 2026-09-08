@@ -11,10 +11,8 @@ import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
-import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
 import com.deutschflow.teacher.entity.TeacherClass;
-import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
@@ -56,7 +54,7 @@ class OrgRosterServiceTest {
     @Mock private OrgMembershipService membershipService;
     @Mock private OrgEntitlementService entitlementService;
     @Mock private OrgMemberRepository orgMemberRepository;
-    @Mock private ClassStudentRepository classStudentRepository;
+    @Mock private com.deutschflow.teacher.service.ClassEnrollmentService classEnrollmentService;
     @Mock private TeacherClassRepository teacherClassRepository;
     @Mock private JdbcTemplate jdbcTemplate;
     @Mock private com.deutschflow.teacher.service.AssignmentBackfillService assignmentBackfillService;
@@ -82,7 +80,7 @@ class OrgRosterServiceTest {
                 membershipService,
                 entitlementService,
                 orgMemberRepository,
-                classStudentRepository,
+                classEnrollmentService,
                 assignmentBackfillService,
                 jdbcTemplate
         );
@@ -325,17 +323,15 @@ class OrgRosterServiceTest {
         when(userRepository.findByEmailIgnoreCase("charlie@school.edu")).thenReturn(Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
         when(userRepository.save(any(User.class))).thenReturn(created);
-        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, 7L)).thenReturn(false);
+        when(classEnrollmentService.enroll(CLASS_ID, 7L)).thenReturn(true);
 
         String csv = "charlie@school.edu,Charlie";
         RosterImportResultDto result = service.importStudents(ORG_ID, csv, CLASS_ID, ACTOR);
 
         assertThat(result.enrolled()).isEqualTo(1);
 
-        ArgumentCaptor<ClassStudent> captor = ArgumentCaptor.forClass(ClassStudent.class);
-        verify(classStudentRepository).save(captor.capture());
-        assertThat(captor.getValue().getId().getClassId()).isEqualTo(CLASS_ID);
-        assertThat(captor.getValue().getId().getStudentId()).isEqualTo(7L);
+        verify(classEnrollmentService).enroll(CLASS_ID, 7L);
+        verify(assignmentBackfillService).ensureAssignmentsForStudent(CLASS_ID, 7L);
     }
 
     @Test
@@ -348,13 +344,13 @@ class OrgRosterServiceTest {
         when(userRepository.findByEmailIgnoreCase("diana@school.edu")).thenReturn(Optional.of(existing));
         when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 8L))
                 .thenReturn(Optional.of(activeMember(8L, "STUDENT")));
-        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, 8L)).thenReturn(true);
+        when(classEnrollmentService.enroll(CLASS_ID, 8L)).thenReturn(false);
 
         String csv = "diana@school.edu,Diana";
         RosterImportResultDto result = service.importStudents(ORG_ID, csv, CLASS_ID, ACTOR);
 
         assertThat(result.enrolled()).isEqualTo(0);
-        verify(classStudentRepository, never()).save(any());
+        verify(assignmentBackfillService, never()).ensureAssignmentsForStudent(anyLong(), anyLong());
     }
 
     // ------------------------------------------------------------------ blank / invalid email

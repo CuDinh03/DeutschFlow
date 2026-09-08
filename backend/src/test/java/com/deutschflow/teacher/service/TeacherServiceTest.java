@@ -69,6 +69,9 @@ class TeacherServiceTest {
     private ClassStudentRepository classStudentRepository;
 
     @Mock
+    private com.deutschflow.teacher.service.ClassEnrollmentService classEnrollmentService;
+
+    @Mock
     private ClassTeacherRepository classTeacherRepository;
 
     @Mock
@@ -154,6 +157,7 @@ class TeacherServiceTest {
         teacherService = new TeacherService(
                 classRepository,
                 classStudentRepository,
+                classEnrollmentService,
                 classTeacherRepository,
                 assignmentRepository,
                 assignmentBackfillService,
@@ -369,7 +373,7 @@ class TeacherServiceTest {
         when(userRepository.findById(teacherId)).thenReturn(java.util.Optional.empty());
         when(assignmentRepository.save(any(ClassAssignment.class))).thenReturn(
                 ClassAssignment.builder().id(500L).classId(classId).topic("t").build());
-        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
+        when(classStudentRepository.findActiveByIdClassId(classId)).thenReturn(List.of());
     }
 
     @Test
@@ -390,7 +394,7 @@ class TeacherServiceTest {
 
         ClassStudent student1 = ClassStudent.builder().id(new ClassStudentId(classId, 200L)).build();
         ClassStudent student2 = ClassStudent.builder().id(new ClassStudentId(classId, 201L)).build();
-        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of(student1, student2));
+        when(classStudentRepository.findActiveByIdClassId(classId)).thenReturn(List.of(student1, student2));
 
         ClassAssignmentDto dto = teacherService.createAssignment(teacherId, classId, req);
 
@@ -458,7 +462,7 @@ class TeacherServiceTest {
         when(classRepository.findById(classId)).thenReturn(Optional.of(
                 TeacherClass.builder().id(classId).name("Class A").build()));
         when(userRepository.findById(teacherId)).thenReturn(Optional.empty());
-        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
+        when(classStudentRepository.findActiveByIdClassId(classId)).thenReturn(List.of());
         ClassAssignment saved = ClassAssignment.builder()
                 .id(500L).classId(classId).lessonId(lessonId).topic("T").build();
         when(assignmentRepository.save(any(ClassAssignment.class))).thenReturn(saved);
@@ -490,7 +494,7 @@ class TeacherServiceTest {
             if (a.getId() == null) a.setId(500L);
             return a;
         });
-        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
+        when(classStudentRepository.findActiveByIdClassId(classId)).thenReturn(List.of());
         when(speakingAiHelpersService.generateScenario(eq(teacherId), anyString(), anyString()))
                 .thenReturn(com.deutschflow.speaking.service.SpeakingAiHelpersService.PracticeScenario.builder().build());
 
@@ -514,7 +518,7 @@ class TeacherServiceTest {
             if (a.getId() == null) a.setId(501L);
             return a;
         });
-        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
+        when(classStudentRepository.findActiveByIdClassId(classId)).thenReturn(List.of());
         when(speakingAiHelpersService.generateScenario(eq(teacherId), anyString(), anyString()))
                 .thenReturn(com.deutschflow.speaking.service.SpeakingAiHelpersService.PracticeScenario.builder().build());
 
@@ -620,7 +624,7 @@ class TeacherServiceTest {
                 com.deutschflow.common.exception.NotFoundException.class,
                 () -> teacherService.getClassStudentsForOrg(999L, 10L));
         org.mockito.Mockito.verify(classStudentRepository, org.mockito.Mockito.never())
-                .findByIdClassId(org.mockito.ArgumentMatchers.any());
+                .findActiveByIdClassId(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -767,7 +771,7 @@ class TeacherServiceTest {
 
         assertThrows(com.deutschflow.common.exception.BadRequestException.class,
                 () -> teacherService.addStudentToClassByEmail(1L, 100L, "outsider@other.de"));
-        verify(classStudentRepository, never()).save(any());
+        verify(classEnrollmentService, never()).enroll(any(), any());
     }
 
     @Test
@@ -783,7 +787,7 @@ class TeacherServiceTest {
 
         teacherService.addStudentToClassByEmail(1L, 100L, "hv@org.de");
 
-        verify(classStudentRepository).save(any());
+        verify(classEnrollmentService).enroll(100L, 5L);
     }
 
     @Test
@@ -800,7 +804,7 @@ class TeacherServiceTest {
 
         teacherService.addStudentToClassByEmail(1L, 100L, "hv@bat-ky.de");
 
-        verify(classStudentRepository).save(any());
+        verify(classEnrollmentService).enroll(100L, 6L);
     }
 
     // ── Vào trung tâm qua lớp học ────────────────────────────────────────────
@@ -823,7 +827,7 @@ class TeacherServiceTest {
         teacherService.approveJoinRequest(1L, 100L, 900L);
 
         verify(orgMembershipService).ensureStudentSeat(42L, 5L);
-        verify(classStudentRepository).save(any());
+        verify(classEnrollmentService).enroll(100L, 5L);
     }
 
     @Test
@@ -837,7 +841,7 @@ class TeacherServiceTest {
         teacherService.approveJoinRequest(1L, 100L, 900L);
 
         verify(orgMembershipService, never()).ensureStudentSeat(any(), any());
-        verify(classStudentRepository).save(any());
+        verify(classEnrollmentService).enroll(100L, 5L);
     }
 
     @Test
@@ -856,7 +860,7 @@ class TeacherServiceTest {
                 () -> teacherService.approveJoinRequest(1L, 100L, 900L));
 
         verify(joinRequestRepository, never()).save(any());
-        verify(classStudentRepository, never()).save(any());
+        verify(classEnrollmentService, never()).enroll(any(), any());
     }
 
     @Test

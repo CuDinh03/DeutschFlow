@@ -50,6 +50,7 @@ class OrgMembershipServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private JdbcTemplate jdbcTemplate;
     @Mock private com.deutschflow.organization.repository.OrgAcademicApproverRepository academicApproverRepo;
+    @Mock private com.deutschflow.teacher.repository.ClassStudentRepository classStudentRepository;
 
     @Mock private AuditLogService auditLogService;
     @Mock private com.deutschflow.organization.repository.OrganizationRepository organizationRepository;
@@ -63,7 +64,8 @@ class OrgMembershipServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new OrgMembershipService(memberRepo, academicApproverRepo, userRepository, jdbcTemplate,
+        service = new OrgMembershipService(memberRepo, academicApproverRepo, classStudentRepository,
+                userRepository, jdbcTemplate,
                 auditLogService, organizationRepository, orgEntitlementService);
     }
 
@@ -440,6 +442,61 @@ class OrgMembershipServiceTest {
         assertThat(user.getOrgId()).isNull();
         // Portability (B2B model §2.2): rời TT chỉ đóng membership — account KHÔNG bị xoá → giáo viên tự do.
         verify(userRepository, never()).delete(any());
+    }
+
+    // ── G-03: rời trung tâm phải CẮT quyền vào lớp và quyền duyệt học vụ ──────
+
+    @Test
+    @DisplayName("G-03 selfLeave: đóng mọi ghi danh lớp CỦA CHÍNH trung tâm ấy (không đụng lớp B2C)")
+    void selfLeave_endsClassEnrollmentsInThatOrg() {
+        OrgMember active = member("STUDENT", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(active));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(studentUser()));
+
+        service.selfLeave(ORG_ID, ACTOR_SELF);
+
+        verify(classStudentRepository).endEnrollmentsInOrg(eq(ORG_ID), eq(USER_ID), any(),
+                eq(com.deutschflow.teacher.entity.ClassStudent.END_REASON_LEFT_ORG));
+    }
+
+    @Test
+    @DisplayName("G-03 selfLeave: thu hồi phân công duyệt học vụ — nợ ghi ở PR #617, hai đường ra nay như nhau")
+    void selfLeave_revokesAcademicApprovers() {
+        OrgMember active = member("TEACHER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(active));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(teacherUser(ORG_ID)));
+        when(memberRepo.existsByIdUserIdAndRoleInAndStatus(eq(USER_ID), anySet(), eq("ACTIVE"))).thenReturn(false);
+
+        service.selfLeave(ORG_ID, ACTOR_SELF);
+
+        verify(academicApproverRepo).revokeAllActiveFor(eq(ORG_ID), eq(USER_ID), any(), eq(null));
+    }
+
+    @Test
+    @DisplayName("G-03 removeMember: đường admin cũng đóng ghi danh lớp, không chỉ membership")
+    void removeMember_endsClassEnrollmentsInThatOrg() {
+        OrgMember active = member("STUDENT", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(active));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(studentUser()));
+
+        service.removeMember(ORG_ID, USER_ID, ACTOR);
+
+        verify(classStudentRepository).endEnrollmentsInOrg(eq(ORG_ID), eq(USER_ID), any(),
+                eq(com.deutschflow.teacher.entity.ClassStudent.END_REASON_LEFT_ORG));
+        verify(academicApproverRepo).revokeAllActiveFor(eq(ORG_ID), eq(USER_ID), any(), eq(null));
+    }
+
+    @Test
+    @DisplayName("G-03: selfLeave bị từ chối (OWNER) thì KHÔNG cắt gì cả")
+    void selfLeave_refused_touchesNothing() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member("OWNER", "ACTIVE")));
+
+        assertThatThrownBy(() -> service.selfLeave(ORG_ID, ACTOR_SELF))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(classStudentRepository, never()).endEnrollmentsInOrg(any(), any(), any(), anyString());
+        verify(academicApproverRepo, never()).revokeAllActiveFor(any(), any(), any(), any());
     }
 
     @Test
