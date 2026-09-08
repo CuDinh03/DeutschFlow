@@ -14,6 +14,12 @@ import { useFmt } from '@/lib/i18n/useFmt'
 
 // listMembers() (all roles) + real mutations: changeMemberRole (PATCH /org/members/{id}/role,
 // OWNER-only, MANAGER↔TEACHER) and removeMember (DELETE → REVOKED). Both backed by #143.
+//
+// V-12b (08/09/2026): GET /org/members chỉ trả thành viên ACTIVE (OrgService#listMembers gọi
+// findByIdOrgIdAndStatus(orgId, 'ACTIVE')), nên `m.status !== 'ACTIVE'` KHÔNG BAO GIỜ đúng và cả
+// nhánh giao diện "Đã gỡ" — dòng mờ đi, ẩn nút gỡ, ẩn ô đổi vai — là mã chết. Gỡ xong thành viên
+// biến khỏi danh sách ở lần `load()` kế tiếp; đó mới là hành vi thật. Cột "Trạng thái" vì thế nói
+// đúng một điều duy nhất và đã gỡ luôn thay vì giả vờ có hai giá trị.
 
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 
@@ -49,8 +55,8 @@ export default function V2OrgRolesPage() {
   }, [])
   useEffect(() => { void load() }, [load])
 
-  const active = members.filter((m) => m.status === 'ACTIVE')
-  const count = (...roles: OrgRole[]) => active.filter((m) => roles.includes(m.role)).length
+  // `members` đã là ACTIVE hết (máy chủ lọc) — không lọc lại lần nữa để khỏi ngụ ý có nhóm khác.
+  const count = (...roles: OrgRole[]) => members.filter((m) => roles.includes(m.role)).length
 
   const handleChangeRole = async (m: OrgMember, role: OrgRole) => {
     if (role === m.role) return
@@ -111,7 +117,7 @@ export default function V2OrgRolesPage() {
                 { label: t('stats.managers'), value: count('OWNER', 'MANAGER'), sub: t('stats.managersSub'), tone: 'navy' },
                 { label: t('stats.teachers'), value: count('TEACHER'), tone: 'violet' },
                 { label: t('stats.students'), value: count('STUDENT'), tone: 'blue' },
-                { label: t('stats.totalMembers'), value: active.length, tone: 'teal' },
+                { label: t('stats.totalMembers'), value: members.length, tone: 'teal' },
               ]}
             />
 
@@ -120,11 +126,11 @@ export default function V2OrgRolesPage() {
                 <table className="w-full min-w-[680px] text-left lg:min-w-0">
                   <thead>
                     <tr className="border-b border-ga-border">
-                      {[t('colMember'), t('colRole'), t('colStatus'), t('colJoined'), ''].map((h, i) => (
+                      {[t('colMember'), t('colRole'), t('colJoined'), ''].map((h, i) => (
                         <th
                           key={i}
                           className={`ga-ui px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-ga-muted ${
-                            i === 4 ? 'text-right' : ''
+                            i === 3 ? 'text-right' : ''
                           }`}
                         >
                           {h}
@@ -135,25 +141,21 @@ export default function V2OrgRolesPage() {
                   <tbody>
                     {members.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="ga-ui px-5 py-10 text-center text-[14px] text-ga-muted">
+                        <td colSpan={4} className="ga-ui px-5 py-10 text-center text-[14px] text-ga-muted">
                           {t('emptyMembers')}
                         </td>
                       </tr>
                     ) : (
                       members.map((m) => {
                         const tone = ROLE_TONE[m.role]
-                        const removed = m.status !== 'ACTIVE'
                         return (
-                          <tr
-                            key={m.userId}
-                            className={`border-b border-ga-border last:border-0 hover:bg-ga-surface ${removed ? 'opacity-50' : ''}`}
-                          >
+                          <tr key={m.userId} className="border-b border-ga-border last:border-0 hover:bg-ga-surface">
                             <td className="px-5 py-3">
                               <p className="text-[14px] font-semibold text-ga-ink">{m.displayName || m.email}</p>
                               <p className="truncate text-[12px] text-ga-muted">{m.email}</p>
                             </td>
                             <td className="px-5 py-3">
-                              {isOwner && !removed && (m.role === 'MANAGER' || m.role === 'TEACHER') ? (
+                              {isOwner && (m.role === 'MANAGER' || m.role === 'TEACHER') ? (
                                 <select
                                   value={m.role}
                                   disabled={busy === m.userId}
@@ -168,21 +170,10 @@ export default function V2OrgRolesPage() {
                                 <TkBadge tone={tone}>{t(`meta.${m.role}`)}</TkBadge>
                               )}
                             </td>
-                            <td className="px-5 py-3">
-                              <span
-                                className="ga-ui inline-flex items-center gap-1.5 text-[12.5px]"
-                                style={{ color: removed ? 'var(--ga-muted)' : 'var(--ga-green)' }}
-                              >
-                                <span
-                                  className="h-1.5 w-1.5 rounded-full"
-                                  style={{ background: removed ? 'var(--ga-subtle)' : 'var(--ga-green)' }}
-                                />
-                                {removed ? t('statusRemoved') : t('statusActive')}
-                              </span>
-                            </td>
                             <td className="px-5 py-3 text-[13px] text-ga-muted">{fmtDate(m.joinedAt)}</td>
                             <td className="px-5 py-3 text-right">
-                              {m.role !== 'OWNER' && !removed && (
+                              {/* Backend chỉ cho OWNER gỡ MANAGER (V-14): đừng mở hộp thoại rồi mới ăn 403. */}
+                              {m.role !== 'OWNER' && (isOwner || m.role !== 'MANAGER') && (
                                 <button
                                   type="button"
                                   disabled={busy === m.userId}

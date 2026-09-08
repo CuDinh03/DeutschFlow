@@ -163,8 +163,9 @@ describe('S-01 — teacher: 5 nhóm theo việc hằng ngày (IA-D6)', () => {
 
   it('mọi route /v2/teacher thật đều reachable — 0 orphan', () => {
     const prefixes = ownedPrefixes(teacherAreas, '/v2/teacher')
-    // `/v2/teacher/sessions` + `/v2/teacher/profile` là tàn dư v1 đã bị gỡ khỏi nav từ trước
-    // Wave 1 (hồ sơ dùng chung `/v2/profile`) — không phải regression của đợt này.
+    // Hai tàn dư v1 vẫn nằm ngoài nav, nhưng từ V-12b (08/09/2026) chúng KHÔNG còn là màn sống:
+    // `/v2/teacher/sessions` chặn sau `MARKETPLACE_ENABLED` (như nửa học viên), `/v2/teacher/profile`
+    // chỉ còn redirect sang hồ sơ dùng chung `/v2/profile`.
     const known = ['/v2/teacher/sessions', '/v2/teacher/profile']
     const orphans = realRoutes('teacher').filter(
       (r) => r !== '/v2/teacher' && !prefixes.some((p) => isUnder(r, p)) && !known.includes(r),

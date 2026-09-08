@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { notFound } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Clock, Check, X, Star } from 'lucide-react'
 import { toast } from 'sonner'
@@ -8,6 +9,7 @@ import Link from 'next/link'
 import api, { apiMessage } from '@/lib/api'
 import { GaPageHdr, GaBtn, GaCap, TkSeg, GaStatStrip, type TkSegOption } from '@/components/ui-v2'
 import { AvailabilityPanel } from './availabilityPanel'
+import { MARKETPLACE_ENABLED } from '@/lib/features'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { formatVnd } from '@/lib/i18n/format'
 
@@ -20,6 +22,11 @@ import { formatVnd } from '@/lib/i18n/format'
 // Option-1: the proto's "Nhận đặt lịch" toggle has no backend field → DROPPED.
 // Week grid is built from the REAL scheduledAt + durationMinutes (current week only;
 // list view shows every session).
+//
+// V-12b (08/09/2026): đây là NỬA GIÁO VIÊN của chợ gia sư C2C. Nửa học viên (`/teachers`,
+// `/v2/student/tutor`) đã `notFound()` khi `MARKETPLACE_ENABLED` tắt, còn màn này thì không —
+// gõ thẳng URL là vào được một luồng tiền chưa hoàn thiện ("Thu nhập ròng", "sau phí nền tảng"),
+// dù nó đã bị gỡ khỏi sidebar giáo viên từ trước Wave 1. Nay chặn cùng một cổng với nửa kia.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const VIOLET = '#7C56C8'
@@ -139,6 +146,9 @@ export default function V2TeacherSessionsPage() {
   const rated = useMemo(() => sessions.filter((s) => s.teacherRating != null), [sessions])
   const avgRating = rated.length ? rated.reduce((a, s) => a + (s.teacherRating ?? 0), 0) / rated.length : 0
   const completedHours = completed.reduce((a, s) => a + s.durationMinutes, 0) / 60
+
+  // Chợ gia sư C2C ẩn cho v1.0 — chặn cả truy cập bằng URL trực tiếp, như nửa học viên.
+  if (!MARKETPLACE_ENABLED) notFound()
 
   return (
     <div className="flex h-full flex-col overflow-hidden">

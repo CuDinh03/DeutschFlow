@@ -330,6 +330,33 @@ export async function listClasses(
   return res.data
 }
 
+/** Số lớp "chưa ai dạy" lấy mỗi lượt — con số này là cảnh báo nên gần như luôn gói trong một trang. */
+export const TEACHERLESS_PROBE_SIZE = 200
+/** Trần số trang, để một trung tâm bệnh lý không kéo theo hàng chục request mỗi lần mở bảng. */
+export const TEACHERLESS_PROBE_MAX_PAGES = 5
+
+/**
+ * Tập id các lớp CHƯA CÓ AI DẠY — nguồn THẬT cho nhãn "thiếu giáo viên" trên từng dòng.
+ *
+ * Vì sao phải hỏi máy chủ: `OrgClass.teacherId` ánh xạ cột `teacher_id` NOT NULL, nên
+ * `teacherId == null` KHÔNG BAO GIỜ đúng và mọi nhãn dựng từ nó đã im lặng sai từ đầu. Máy chủ
+ * định nghĩa "chưa ai dạy" = không còn ai là TEACHER ACTIVE của trung tâm đứng lớp đó (xét CẢ
+ * `teacher_id` lẫn `class_teachers`) — cùng định nghĩa với `OrgSummary.classesWithoutTeacher`.
+ *
+ * Lấy HẾT chứ không chỉ trang đầu: một id nằm ngoài tập sẽ bị gắn nhãn "đã có giáo viên", nên tập
+ * thiếu là nói sai, đúng loại lỗi mà hàm này sinh ra để thay thế. Trường hợp thường gặp
+ * (< {@link TEACHERLESS_PROBE_SIZE} lớp thiếu GV) chỉ tốn đúng MỘT request vì `last === true`.
+ */
+export async function getTeacherlessClassIds(size = TEACHERLESS_PROBE_SIZE): Promise<Set<number>> {
+  const ids = new Set<number>()
+  for (let p = 0; p < TEACHERLESS_PROBE_MAX_PAGES; p += 1) {
+    const page = await listClasses(p, size, { withoutTeacher: true })
+    for (const c of page.content ?? []) ids.add(c.id)
+    if (page.last !== false) break
+  }
+  return ids
+}
+
 /**
  * POST /org/classes — org-admin (OWNER/MANAGER) tạo lớp cho trung tâm.
  * teacherId bắt buộc (teacher_id NOT NULL) và phải là giáo viên TEACHER ACTIVE của org.

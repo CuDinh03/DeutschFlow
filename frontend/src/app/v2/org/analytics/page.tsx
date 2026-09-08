@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { apiMessage } from '@/lib/api'
-import { getAnalytics, listClasses, type OrgAnalytics, type OrgClass } from '@/lib/orgApi'
+import { getAnalytics, getTeacherlessClassIds, listClasses, type OrgAnalytics, type OrgClass } from '@/lib/orgApi'
 import { GaPageHdr, GaStatStrip, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { GaSection, GaChartData, GaDonut, GaLegend, GaBarRow, GA_CHART } from '../../analyticsShared'
 import { useFmt } from '@/lib/i18n/useFmt'
@@ -30,6 +30,9 @@ export default function V2OrgAnalyticsPage() {
   // biến mất. Nay lỗi của khối lớp hiện ở đúng khối đó và thử lại được, còn analytics vẫn dùng bình
   // thường nếu nó thành công (và ngược lại).
   const [classesError, setClassesError] = useState<string | null>(null)
+  // V-01: cột "giáo viên" từng đọc `teacherId == null` — cột `teacher_id` NOT NULL nên điều kiện đó
+  // không bao giờ đúng và bảng này khẳng định lớp nào cũng đã phân công. Nay hỏi máy chủ tập id thật.
+  const [teacherlessIds, setTeacherlessIds] = useState<Set<number> | null>(null)
 
   const loadClasses = useCallback(async () => {
     setClassesError(null)
@@ -40,6 +43,11 @@ export default function V2OrgAnalyticsPage() {
     } catch (e: unknown) {
       setClasses(null)
       setClassesError(apiMessage(e))
+    }
+    try {
+      setTeacherlessIds(await getTeacherlessClassIds())
+    } catch {
+      setTeacherlessIds(null)
     }
   }, [])
 
@@ -85,12 +93,15 @@ export default function V2OrgAnalyticsPage() {
           <div className="space-y-[22px]">
             <GaStatStrip
               items={[
-                { label: t('stats.totalStudents'), value: analytics?.studentCount ?? 0, tone: 'teal' },
+                // V-12b: analytics chết thì ô KPI hiện '—'. Trước đây `?? 0` biến lỗi thành lời
+                // khẳng định "trung tâm có 0 học viên", ngay bên dưới một biểu ngữ báo lỗi.
+                { label: t('stats.totalStudents'), value: analytics ? fmt.num(analytics.studentCount) : '—', tone: 'teal', alert: !analytics },
                 {
                   label: t('stats.active7d'),
-                  value: analytics?.activeStudents7d ?? 0,
-                  sub: t('stats.ofStudents', { pct: engagementPct }),
+                  value: analytics ? fmt.num(analytics.activeStudents7d) : '—',
+                  sub: analytics ? t('stats.ofStudents', { pct: engagementPct }) : t('statUnavailable'),
                   tone: 'blue',
+                  alert: !analytics,
                 },
                 { label: t('stats.openClasses'), value: analytics?.classCount ?? (classes?.length ?? '—'), tone: 'violet' },
                 {
@@ -105,7 +116,7 @@ export default function V2OrgAnalyticsPage() {
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[1fr_1fr]">
               <GaSection
                 title={t('cefrTitle')}
-                description={t('cefrDesc', { total: fmt.num(analytics?.studentCount ?? 0) })}
+                description={analytics ? t('cefrDesc', { total: fmt.num(analytics.studentCount) }) : t('statUnavailable')}
               >
                 {cefrSegs.length > 0 ? (
                   <>
@@ -206,7 +217,9 @@ export default function V2OrgAnalyticsPage() {
                             )}
                           </td>
                           <td className="px-5 py-3 text-right text-[13px]">
-                            {c.teacherId == null ? (
+                            {teacherlessIds == null ? (
+                              <span className="text-ga-subtle">—</span>
+                            ) : teacherlessIds.has(c.id) ? (
                               <span className="text-ga-red">{t('unassigned')}</span>
                             ) : (
                               <span className="text-ga-muted">{t('assigned')}</span>

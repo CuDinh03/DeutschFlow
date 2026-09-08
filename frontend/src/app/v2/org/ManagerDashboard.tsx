@@ -7,10 +7,11 @@ import { CalendarDays, ChevronRight, UserPlus } from 'lucide-react'
 import api, { apiMessage } from '@/lib/api'
 import { fmtLocalIso, type ClassSession } from '@/lib/classScheduleApi'
 import {
-  getOrgSummary, getAnalytics, listClasses, listInvitations, listStudents,
+  getOrgSummary, getAnalytics, getTeacherlessClassIds, listClasses, listInvitations, listStudents,
   type OrgSummary, type OrgAnalytics, type OrgClass, type OrgInvitation, type OrgMember,
 } from '@/lib/orgApi'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
+import { srcOf, type Src } from './dashboardSrc'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Org dashboard MANAGER ("nhân sự") — teal (role=org), song song với OwnerDashboard.
@@ -24,9 +25,20 @@ import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 //   /org · /org/analytics · /org/classes · /org/invitations · /org/students · /org/schedule/week
 // Ghi chú: KHÔNG có API điểm danh org-scoped, nên "vận hành hôm nay" đo bằng buổi học trong lịch
 // (SCHEDULED/CANCELLED/MOVED) — dữ liệu thật, không bịa tỉ lệ chuyên cần.
+//
+// V-02 (08/09/2026): bảng này từng nuốt lỗi — `getAnalytics().catch(() => null)` rồi `?? 0`, cùng
+// các `.catch(() => [])` cho lớp/lời mời/học viên/lịch. API chết là màn hình khẳng định "0 học
+// viên", "0 lời mời", "không có việc cần xử lý" — kết luận về dữ liệu dựng từ chỗ KHÔNG có dữ liệu.
+// Nay dùng chung khuôn `Src<T>` + `Promise.allSettled` của bảng OWNER: ô KPI hiện '—', mỗi thẻ có
+// nhánh lỗi riêng kèm nút Thử lại.
+// V-01 (08/09/2026): "lớp thiếu giáo viên" bỏ `teacherId == null` (cột `teacher_id` NOT NULL nên
+// điều kiện đó là mã chết), lấy số từ `summary.classesWithoutTeacher` và nhãn từng dòng từ
+// `getTeacherlessClassIds()`.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEAL = '#11888A'
+/** Bấm vào cảnh báo thiếu GV phải ra ĐÚNG danh sách đó, không phải toàn bộ lớp. */
+const TEACHERLESS_HREF = '/v2/org/classes?withoutTeacher=1'
 /** Lời mời còn ≤ ngưỡng này là "sắp hết hạn" → quản lý cần nhắc lại người được mời. */
 const INVITE_EXPIRING_DAYS = 3
 /** Còn ≤ ngưỡng % ghế trống thì cảnh báo sắp hết chỗ (chưa hết hẳn). */
@@ -71,48 +83,65 @@ export function OrgManagerDashboard() {
   const t = useTranslations('v2.org.manager')
   const tc = useTranslations('v2.common')
   const [summary, setSummary] = useState<OrgSummary | null>(null)
-  const [analytics, setAnalytics] = useState<OrgAnalytics | null>(null)
-  const [classes, setClasses] = useState<OrgClass[]>([])
-  const [invites, setInvites] = useState<OrgInvitation[]>([])
-  const [students, setStudents] = useState<OrgMember[]>([])
-  const [sessions, setSessions] = useState<ClassSession[]>([])
+  const [analytics, setAnalytics] = useState<Src<OrgAnalytics>>({ state: 'loading' })
+  const [classes, setClasses] = useState<Src<OrgClass[]>>({ state: 'loading' })
+  const [teacherlessIds, setTeacherlessIds] = useState<Src<Set<number>>>({ state: 'loading' })
+  const [invites, setInvites] = useState<Src<OrgInvitation[]>>({ state: 'loading' })
+  const [students, setStudents] = useState<Src<OrgMember[]>>({ state: 'loading' })
+  const [sessions, setSessions] = useState<Src<ClassSession[]>>({ state: 'loading' })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
+    setAnalytics({ state: 'loading' })
+    setClasses({ state: 'loading' })
+    setTeacherlessIds({ state: 'loading' })
+    setInvites({ state: 'loading' })
+    setStudents({ state: 'loading' })
+    setSessions({ state: 'loading' })
     try {
-      // /org là nguồn duy nhất bắt buộc — nó hỏng nghĩa là mất org context, phải báo lỗi. Các
-      // nguồn phụ hỏng lẻ (analytics/lịch/…) chỉ làm rỗng đúng thẻ của nó, không sập cả bảng.
-      const [s, a, c, inv, st, ses] = await Promise.all([
-        getOrgSummary(),
-        getAnalytics().catch(() => null),
-        listClasses(0, 50).then((p) => p.content).catch(() => [] as OrgClass[]),
-        listInvitations().catch(() => [] as OrgInvitation[]),
-        listStudents().catch(() => [] as OrgMember[]),
-        getTodaySessions().catch(() => [] as ClassSession[]),
-      ])
-      setSummary(s)
-      setAnalytics(a)
-      setClasses(c)
-      setInvites(inv)
-      setStudents(st)
-      setSessions(ses)
+      // /org là nguồn duy nhất bắt buộc — nó hỏng nghĩa là mất org context, phải báo lỗi cả trang.
+      setSummary(await getOrgSummary())
       setError('')
     } catch (e: unknown) {
       setError(apiMessage(e))
-    } finally {
       setLoading(false)
+      return
     }
+    // Nguồn phụ hỏng lẻ chỉ làm LỖI đúng thẻ của nó — không thành mảng rỗng rồi đọc ra như số 0.
+    const [a, c, tl, inv, st, ses] = await Promise.allSettled([
+      getAnalytics(),
+      listClasses(0, 50).then((p) => p.content),
+      getTeacherlessClassIds(),
+      listInvitations(),
+      listStudents(),
+      getTodaySessions(),
+    ])
+    setAnalytics(srcOf(a))
+    setClasses(srcOf(c))
+    setTeacherlessIds(srcOf(tl))
+    setInvites(srcOf(inv))
+    setStudents(srcOf(st))
+    setSessions(srcOf(ses))
+    setLoading(false)
   }, [])
 
   useEffect(() => { void load() }, [load])
 
-  const todaySessions = [...sessions].sort((a, b) => a.startAt.localeCompare(b.startAt))
+  const an = analytics.state === 'ok' ? analytics.data : null
+  const classList = classes.state === 'ok' ? classes.data : []
+  const inviteList = invites.state === 'ok' ? invites.data : []
+  const studentList = students.state === 'ok' ? students.data : []
+
+  const todaySessions = sessions.state === 'ok' ? [...sessions.data].sort((a, b) => a.startAt.localeCompare(b.startAt)) : []
   const disrupted = todaySessions.filter((s) => s.status !== 'SCHEDULED').length
 
-  const teacherless = classes.filter((c) => c.teacherId == null)
-  const pending = invites.filter((i) => i.status === 'PENDING')
+  // Đếm trên TOÀN trung tâm (`/org`), không phải trên trang đầu 50 lớp.
+  const teacherless = summary?.classesWithoutTeacher ?? 0
+  /** Nhãn từng dòng theo tập id THẬT; nguồn chưa về ⇒ false (dòng hiện '—', không đoán bừa). */
+  const isTeacherless = (id: number) => teacherlessIds.state === 'ok' && teacherlessIds.data.has(id)
+  const pending = inviteList.filter((i) => i.status === 'PENDING')
   const expiringSoon = pending.filter((i) => daysUntil(i.expiresAt) <= INVITE_EXPIRING_DAYS)
 
   const seatLimit = summary?.seatLimit ?? 0
@@ -121,14 +150,16 @@ export function OrgManagerDashboard() {
 
   // Học viên mới trong 7 ngày — listStudents trả joinedAt; sắp xếp mới nhất trước.
   const weekAgo = Date.now() - 7 * 86_400_000
-  const newStudents = students
+  const newStudents = studentList
     .filter((s) => s.joinedAt && new Date(s.joinedAt).getTime() >= weekAgo)
     .sort((a, b) => (b.joinedAt ?? '').localeCompare(a.joinedAt ?? ''))
 
   // "Cần xử lý": chỉ những việc CÓ THẬT, mỗi việc dẫn thẳng tới trang xử lý được nó.
+  // Nguồn nào hỏng thì thẻ nói rõ, KHÔNG im lặng kết luận "không có việc cần xử lý".
+  const todoSourceFailed = invites.state === 'error' || sessions.state === 'error'
   const todos: TodoItem[] = []
-  if (teacherless.length > 0) {
-    todos.push({ key: 'teacherless', label: t('todo.teacherless', { count: teacherless.length }), tone: 'var(--ga-red)', href: '/v2/org/classes' })
+  if (teacherless > 0) {
+    todos.push({ key: 'teacherless', label: t('todo.teacherless', { count: teacherless }), tone: 'var(--ga-red)', href: TEACHERLESS_HREF })
   }
   if (disrupted > 0) {
     todos.push({ key: 'disrupted', label: t('todo.disrupted', { count: disrupted }), tone: 'var(--ga-orange)', href: '/v2/org/schedule' })
@@ -184,30 +215,32 @@ export function OrgManagerDashboard() {
           items={[
             {
               label: t('stats.sessionsToday'),
-              value: loading ? '—' : todaySessions.length,
-              sub: disrupted > 0 ? t('stats.sessionsDisrupted', { count: disrupted }) : t('stats.sessionsOnTrack'),
+              // Lịch hỏng ⇒ '—'. "0 buổi hôm nay" là một khẳng định, không được dựng từ lỗi mạng.
+              value: loading || sessions.state !== 'ok' ? '—' : todaySessions.length,
+              sub: sessions.state === 'error' ? t('statUnavailable') : disrupted > 0 ? t('stats.sessionsDisrupted', { count: disrupted }) : t('stats.sessionsOnTrack'),
               tone: 'teal',
-              alert: disrupted > 0,
+              alert: disrupted > 0 || sessions.state === 'error',
             },
             {
               label: t('stats.openClasses'),
-              value: loading ? '—' : (analytics?.classCount ?? classes.length),
-              sub: teacherless.length > 0 ? t('stats.teacherless', { count: teacherless.length }) : t('stats.allStaffed'),
+              value: loading ? '—' : (an?.classCount ?? summary?.classCount ?? '—'),
+              sub: loading ? '—' : teacherless > 0 ? t('stats.teacherless', { count: teacherless }) : t('stats.allStaffed'),
               tone: 'violet',
-              alert: teacherless.length > 0,
+              alert: teacherless > 0,
             },
             {
               label: t('stats.students'),
-              value: loading ? '—' : (analytics?.studentCount ?? summary?.studentCount ?? 0),
-              sub: t('stats.active7d', { count: analytics?.activeStudents7d ?? 0 }),
+              value: loading ? '—' : (an?.studentCount ?? summary?.studentCount ?? '—'),
+              sub: analytics.state === 'error' ? t('statUnavailable') : t('stats.active7d', { count: an?.activeStudents7d ?? 0 }),
               tone: 'blue',
+              alert: analytics.state === 'error',
             },
             {
               label: t('stats.pendingInvites'),
-              value: loading ? '—' : pending.length,
-              sub: t('stats.expiringSoon', { count: expiringSoon.length }),
+              value: loading || invites.state !== 'ok' ? '—' : pending.length,
+              sub: invites.state === 'error' ? t('statUnavailable') : t('stats.expiringSoon', { count: expiringSoon.length }),
               tone: 'green',
-              alert: expiringSoon.length > 0,
+              alert: expiringSoon.length > 0 || invites.state === 'error',
             },
           ]}
         />
@@ -221,8 +254,13 @@ export function OrgManagerDashboard() {
                 {t('viewAll')}
               </Link>
             </div>
-            {loading ? (
+            {loading || sessions.state === 'loading' ? (
               <div className="ga-shimmer h-[200px]" aria-hidden />
+            ) : sessions.state === 'error' ? (
+              <div className="py-8 text-center">
+                <p className="ga-ui mb-3 text-ga-small text-ga-red">{t('sectionError')}</p>
+                <GaBtn variant="ghost" size="sm" onClick={load}>{tc('retry')}</GaBtn>
+              </div>
             ) : todaySessions.length === 0 ? (
               <p className="py-10 text-center text-[13.5px] text-ga-muted">{t('todayEmpty')}</p>
             ) : (
@@ -264,9 +302,15 @@ export function OrgManagerDashboard() {
           {/* Cần xử lý — mỗi dòng dẫn thẳng tới trang xử lý được việc đó */}
           <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
             <GaCap className="mb-3.5 block">{t('todoCap')}</GaCap>
+            {todoSourceFailed && !loading && (
+              <div className="mb-2 flex flex-wrap items-center gap-3 border border-dashed px-3 py-2" style={{ borderColor: 'color-mix(in srgb, var(--ga-red) 40%, transparent)' }}>
+                <p className="ga-ui min-w-0 flex-1 text-ga-caption text-ga-red">{t('todoSourceError')}</p>
+                <GaBtn variant="ghost" size="sm" onClick={load}>{tc('retry')}</GaBtn>
+              </div>
+            )}
             {loading ? (
               <div className="ga-shimmer h-[120px]" aria-hidden />
-            ) : todos.length === 0 ? (
+            ) : todos.length === 0 && !todoSourceFailed ? (
               <p className="py-4 text-[13.5px] text-ga-muted">{t('todoEmpty')}</p>
             ) : (
               todos.map((td, i) => (
@@ -294,13 +338,20 @@ export function OrgManagerDashboard() {
                 {t('viewAll')}
               </Link>
             </div>
-            {loading ? (
+            {loading || classes.state === 'loading' ? (
               <div className="ga-shimmer h-[120px]" aria-hidden />
-            ) : classes.length === 0 ? (
+            ) : classes.state === 'error' ? (
+              <div className="py-6 text-center">
+                <p className="ga-ui mb-3 text-ga-small text-ga-red">{t('sectionError')}</p>
+                <GaBtn variant="ghost" size="sm" onClick={load}>{tc('retry')}</GaBtn>
+              </div>
+            ) : classList.length === 0 ? (
               <p className="py-4 text-[13.5px] text-ga-muted">{t('classesEmpty')}</p>
             ) : (
-              [...classes]
-                .sort((a, b) => Number(a.teacherId != null) - Number(b.teacherId != null))
+              // Lớp chưa ai dạy nổi lên đầu — thứ tự cũ xếp theo `teacherId != null`, một biểu thức
+              // hằng đúng, nên thực chất chưa bao giờ sắp xếp gì.
+              [...classList]
+                .sort((a, b) => Number(isTeacherless(b.id)) - Number(isTeacherless(a.id)))
                 .slice(0, 5)
                 .map((c, i) => (
                   <div key={c.id} className="flex items-center gap-3 py-2.5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
@@ -309,8 +360,8 @@ export function OrgManagerDashboard() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13.5px] font-semibold text-ga-ink">{c.name}</div>
-                      <div className="text-[11.5px]" style={{ color: c.teacherId == null ? 'var(--ga-red)' : 'var(--ga-muted)' }}>
-                        {c.teacherId == null ? t('classNoTeacher') : t('classHasTeacher')}
+                      <div className="text-[11.5px]" style={{ color: isTeacherless(c.id) ? 'var(--ga-red)' : 'var(--ga-muted)' }}>
+                        {teacherlessIds.state !== 'ok' ? '—' : isTeacherless(c.id) ? t('classNoTeacher') : t('classHasTeacher')}
                       </div>
                     </div>
                     {c.inviteCode && (
@@ -329,8 +380,13 @@ export function OrgManagerDashboard() {
                 {t('viewAll')}
               </Link>
             </div>
-            {loading ? (
+            {loading || students.state === 'loading' ? (
               <div className="ga-shimmer h-[120px]" aria-hidden />
+            ) : students.state === 'error' ? (
+              <div className="py-6 text-center">
+                <p className="ga-ui mb-3 text-ga-small text-ga-red">{t('sectionError')}</p>
+                <GaBtn variant="ghost" size="sm" onClick={load}>{tc('retry')}</GaBtn>
+              </div>
             ) : newStudents.length === 0 ? (
               <p className="py-4 text-[13.5px] text-ga-muted">{t('newStudentsEmpty')}</p>
             ) : (

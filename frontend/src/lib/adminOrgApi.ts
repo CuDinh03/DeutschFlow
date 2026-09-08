@@ -49,6 +49,8 @@ export interface OrgInvoice {
   status: string
   note: string | null
   createdAt: string
+  /** Hạn thanh toán = lúc gửi + 7 ngày (Q4). null = hoá đơn còn nháp nên chưa có hạn. */
+  dueDate: string | null
 }
 
 /** POST /admin/organizations — body to provision a new tenant. */
