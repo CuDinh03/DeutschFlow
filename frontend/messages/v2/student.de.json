@@ -661,6 +661,7 @@
       "titleClass": "Kurs",
       "loadErrorTitle": "Kurs konnte nicht geladen werden",
       "teacherLine": "Lehrkraft: {teacher} · Kurscode: {code} · {count} Mitglieder",
+      "teacherLineNoCode": "Lehrkraft: {teacher} · {count} Mitglieder",
       "backToClasses": "Meine Kurse",
       "messageTeacher": "Lehrkraft schreiben",
       "noTeacherToMessage": "Dieser Kurs hat keine Lehrkraft zum Anschreiben.",

@@ -661,6 +661,7 @@
       "titleClass": "Class",
       "loadErrorTitle": "Couldn't load the class",
       "teacherLine": "Teacher: {teacher} · Class code: {code} · {count} members",
+      "teacherLineNoCode": "Teacher: {teacher} · {count} members",
       "backToClasses": "My classes",
       "messageTeacher": "Message teacher",
       "noTeacherToMessage": "This class has no teacher to message.",

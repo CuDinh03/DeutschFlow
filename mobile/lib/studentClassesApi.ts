@@ -36,7 +36,8 @@ export interface MyClassroom {
 export interface ClassroomDetail {
   id: number
   name: string
-  inviteCode: string
+  /** null với lớp của trung tâm: mã mời không được trả cho học viên (V-04). */
+  inviteCode: string | null
   teachers: TeacherSummary[]
   studentCount: number
   assignmentCount: number
@@ -239,8 +240,9 @@ export async function fetchClassSessions(classId: number): Promise<ClassSession[
  * (`/v2/students/classes/{classId}/assignments`).
  *
  * V-07: trước đây hàm này gọi `/v2/students/assignments` — TOÀN BỘ bài của mọi lớp học viên từng
- * học — rồi lọc. Danh sách ấy có phân trang/cắt ngọn ở server, nên học viên nhiều lớp mở đúng bài
- * mình cần thì thấy "không tìm thấy". `classId` luôn có sẵn trong params của route bài giao.
+ * học — rồi lọc. Danh sách ấy dựng từ các dòng `StudentAssignment`, nên bài học viên CHƯA bắt đầu
+ * (chưa có dòng nào) hoàn toàn vắng mặt và mở ra là "không tìm thấy". Danh sách theo lớp thì tự
+ * tổng hợp cả các bài chưa bắt đầu. `classId` luôn có sẵn trong params của route bài giao.
  *
  * Thiếu `classId` (deep-link cũ, thông báo cũ) thì rơi về danh sách tổng như trước — thà chậm và
  * thỉnh thoảng trượt còn hơn không mở được gì.

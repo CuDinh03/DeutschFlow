@@ -143,7 +143,9 @@ export default function V2ClassStudentPage() {
     }
   }
   const teacherLine = cls
-    ? t('teacherLine', { teacher: cls.teachers[0]?.displayName ?? '—', code: cls.inviteCode || '—', count: cls.studentCount })
+    ? cls.inviteCode
+      ? t('teacherLine', { teacher: cls.teachers[0]?.displayName ?? '—', code: cls.inviteCode, count: cls.studentCount })
+      : t('teacherLineNoCode', { teacher: cls.teachers[0]?.displayName ?? '—', count: cls.studentCount })
     : ''
 
   if (error) {

@@ -661,6 +661,7 @@
       "titleClass": "Lớp học",
       "loadErrorTitle": "Không tải được lớp học",
       "teacherLine": "Giáo viên: {teacher} · Mã lớp: {code} · {count} thành viên",
+      "teacherLineNoCode": "Giáo viên: {teacher} · {count} thành viên",
       "backToClasses": "Lớp của tôi",
       "messageTeacher": "Nhắn giáo viên",
       "noTeacherToMessage": "Lớp chưa có giáo viên để nhắn.",
