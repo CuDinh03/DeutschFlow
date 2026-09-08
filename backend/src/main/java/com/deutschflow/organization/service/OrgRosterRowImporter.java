@@ -1,5 +1,6 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.teacher.entity.ClassStudent;
@@ -44,6 +45,7 @@ import java.util.UUID;
 public class OrgRosterRowImporter {
 
     private static final String ROLE_STUDENT = "STUDENT";
+    private static final String STATUS_ACTIVE = "ACTIVE";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -92,6 +94,22 @@ public class OrgRosterRowImporter {
                 Long.class, orgId);
 
         User existing = userRepository.findByEmailIgnoreCase(email).orElse(null);
+
+        // Soát 09/09/2026: CSV HỌC VIÊN không được đụng tới NHÂN SỰ. upsertMember ghi đè vai trò
+        // của dòng org_members đang có — OWNER được chặn ngay trong đó, nhưng MANAGER/TEACHER thì
+        // KHÔNG. Hệ quả: một MANAGER chỉ cần đưa email của MANAGER (hoặc giáo viên) khác vào một
+        // dòng CSV là hạ được người đó xuống STUDENT, kèm hạ luôn vai nền tảng (syncPlatformRole) —
+        // đúng thứ mà chốt "chỉ OWNER mới gỡ được MANAGER" ở removeMember vừa chặn, chỉ là đi vòng
+        // qua cửa import. Dòng đó bị từ chối và báo lỗi rõ ràng thay vì âm thầm đổi vai.
+        if (existing != null) {
+            orgMemberRepository.findByIdOrgIdAndIdUserId(orgId, existing.getId())
+                    .filter(m -> STATUS_ACTIVE.equals(m.getStatus()) && !ROLE_STUDENT.equals(m.getRole()))
+                    .ifPresent(m -> {
+                        throw new BadRequestException("Tài khoản " + email + " đang là " + m.getRole()
+                                + " của trung tâm — nhập CSV học viên không được đổi vai trò nhân sự."
+                                + " Hãy xử lý ở trang Thành viên.");
+                    });
+        }
 
         // Seat check applies only when admitting a brand-new student to the org. This is the
         // friendly, per-row version; upsertMember re-checks under the same lock and is authoritative.
