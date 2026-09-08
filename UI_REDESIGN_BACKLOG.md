@@ -74,7 +74,7 @@ Mỗi mục dưới đây có: **vì sao**, **file cụ thể**, **định nghĩ
 - Verify sau merge: **tsc sạch · 1016/1016 unit · build prod exit 0 · check-i18n-usage 5680 key OK · cổng fresh-migration PASS (301 migrations → v303, chạy qua PG local :55442 vì Docker chết)**.
 - ⛔ **CHỜ OWNER — cổng nâng baseline ratchet (W0-C1):** CI `build-and-lint` #519 đỏ ở step Design Token Ratchet: 416 violation "mới" nhưng 100% nằm trong 53 file GỐC-MAIN vừa vào tầm quét qua merge (maintenance, GalerieReviewGrid, tc-checklist, billing, exam-golden, speaking/exam…) — nợ có sẵn, không phải nợ redesign viết thêm (nợ cũ của nhánh còn GIẢM 41). Script từ chối nâng baseline trừ khi owner approve. Lệnh khi anh duyệt:
   `cd frontend && APPROVE_BASELINE_INCREASE=1 npm run check:design-tokens -- --update-baseline && cd .. && git add frontend/design-token-baseline.json && git commit -m "chore(ratchet): chốt baseline sau merge main — 53 file gốc-main vào tầm quét (owner approved)" && git push origin feat/roadmap-tree-v2`
-- 🔎 **Việc lộ ra, chưa làm (Wave sau):** (1) nút "gợi ý theo yêu cầu" Đ4 mới có ở sheet/sidebar — `SpeakingContextRail` (desktop) chưa có lối gọi tương đương; (2) `student/__tree-analysis-shots.spec.ts` vẫn untracked, giữ nguyên đề xuất XOÁ; (3) 4 stash echo giữ lại để đối chiếu, dọn sau khi PR merge (`git stash drop` từng cái).
+- 🔎 **Việc lộ ra, chưa làm (Wave sau):** (1) ~~nút "gợi ý theo yêu cầu" Đ4 mới có ở sheet/sidebar — `SpeakingContextRail` (desktop) chưa có lối gọi tương đương~~ — **ĐO LẠI 08/09: KHÔNG phải khoảng trống.** `SpeakingChatSidebar` là `hidden md:flex`, tức từ 768px trở lên nó LUÔN hiện và chính nó mang `onRequestSuggestions` (cùng `SpeakingFeedbackSummary` với sheet mobile). Ở ≥1280 dải ngữ cảnh trái và sidebar phải cùng ở trên màn hình, nên thêm nút thứ hai vào rail là **nhân đôi một lối gọi**, đúng thứ vừa phải gỡ ở B-18. Mục này ĐÓNG; (2) `student/__tree-analysis-shots.spec.ts` vẫn untracked, giữ nguyên đề xuất XOÁ; (3) 4 stash echo giữ lại để đối chiếu, dọn sau khi PR merge (`git stash drop` từng cái).
 
 ---
 
@@ -178,6 +178,16 @@ Theo `UI_REDESIGN_PLAN.md` §3 Gate 1:
 **Xong khi:** xoá kèm kiểm `knip`/grep, hoặc ghi vào legacy deletion map nếu muốn gộp vào Wave 5.
 
 **✅ Đã làm (26/08):** đã xoá cả hai (**158 dòng**) sau khi grep `src`/`tests`/`scripts` cho cả tên component lẫn đường dẫn `features/dashboard` — 0 tham chiếu, kể cả import động. Thư mục `src/components/features/dashboard/` không còn file nào nên xoá luôn. tsc + build + 550 test vẫn xanh sau khi xoá.
+
+---
+
+### ✅ B-18. Trang luyện chỉ còn MỘT thanh tiến độ — XONG 08/09
+
+**Vì sao:** `/v2/student/practice/[nodeId]/[skill]` có **HAI `role="progressbar"` cùng một số liệu**: thanh xám `GaProgress` trong header `LessonShell` (page truyền `progress={{current: answers.size, total: exercises.length}}`) và dải lá `LeafProgress` trong thẻ đầu bài. Dải lá vốn được dựng **để THAY thanh xám** (comment trong `LeafProgress.tsx` nói thẳng), nên thanh của vỏ là thứ lọt vào sau khi gộp Lernbaum, không phải chủ đích. Người dùng screen reader nghe hai lần cùng một con số; e2e cũ phải chú thích "trang luyện có HAI progressbar" rồi né bằng cách trỏ đích danh tên `Tiến độ bài`.
+
+**✅ Đã làm (08/09):** page không truyền `progress` cho vỏ nữa (trang **HỌC** giữ nguyên thanh của vỏ vì ở đó không có dải lá). Đổi câu vẫn phải NGHE được — việc trước đây do dòng `Bước x/y` (`aria-live`) của vỏ đảm nhiệm — nên dải lá được kèm một vùng `aria-live="polite"` `sr-only` đọc "Đã trả lời {n}/{tổng} câu". Không thêm khoá i18n (dùng lại `progressLabel` của `practiceRunner`), không đụng `LessonShell`.
+
+**Kiểm:** tsc sạch · 1179/1179 unit · e2e `lesson-shell` + `practice-runner` 13/13 · `check:i18n` 3/3 cổng xanh. Cổng chống tái phát nằm trong `lesson-shell.spec.ts`: `getByRole('progressbar')` phải `toHaveCount(1)`. **Đã kiểm ĐỎ ĐƯỢC bằng hai đột biến** — trả lại `progress` cho vỏ ⇒ đỏ ở ca đếm; bỏ vùng `aria-live` ⇒ đỏ ở ca thông báo.
 
 ---
 

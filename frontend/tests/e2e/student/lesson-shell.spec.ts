@@ -97,15 +97,24 @@ test.describe('LessonShell — một vỏ, hai chế độ (S-04 AC-1)', () => {
     await expect(page.getByRole('tab', { name: 'Luyện' })).toHaveAttribute('aria-selected', 'true');
 
     // Runner CŨ không báo tiến độ gì cả — nút nộp chỉ hiện khi đã trả lời hết.
-    // Trang luyện có HAI progressbar sau merge Lernbaum: thanh của vỏ + dải lá LeafProgress.
-    // Spec này canh HỢP ĐỒNG CỦA VỎ nên trỏ đích danh thanh 'Tiến độ bài'.
-    const bar = page.getByRole('progressbar', { name: 'Tiến độ bài' });
+    // Sau merge Lernbaum trang luyện có HAI progressbar cùng số liệu (thanh của vỏ + dải lá).
+    // Nay vỏ KHÔNG nhận `progress` ở chế độ luyện nữa: dải lá là thước đo duy nhất.
+    await expect(page.getByRole('progressbar', { name: 'Tiến độ bài' })).toHaveCount(0);
+    await expect(page.getByText(`Bước 0/${EXERCISES.length}`)).toHaveCount(0);
+    await expect(page.getByRole('progressbar')).toHaveCount(1); // cổng chống lặp lại
+
+    const bar = page.getByTestId('leaf-progress');
     await expect(bar).toHaveAttribute('aria-valuenow', '0');
-    await expect(page.getByText(`Bước 0/${EXERCISES.length}`)).toBeVisible();
+    await expect(bar).toHaveAttribute('aria-valuemax', String(EXERCISES.length));
 
     await option(page, 0).click();
     await expect(bar).toHaveAttribute('aria-valuenow', '1');
-    await expect(page.getByText(`Bước 1/${EXERCISES.length}`)).toBeVisible();
+    // Đổi câu vẫn phải nghe được: vùng aria-live thay cho dòng `Bước x/y` của vỏ.
+    await expect(
+      page.locator('[aria-live="polite"]', {
+        hasText: `Đã trả lời 1/${EXERCISES.length} câu`,
+      }),
+    ).toHaveCount(1);
   });
 
   test('bài LUYỆN: nhãn nháp nêu ĐÚNG phạm vi — trên thiết bị này, không nói trống không', async ({
