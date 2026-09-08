@@ -288,6 +288,33 @@ class OrgControllerTest {
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
     }
 
+    // ── POST /api/org/membership/leave — tự rời PHẢI thu hồi quyền lợi ORG (V-13) ──
+
+    @Test
+    @DisplayName("V-13 tự rời trung tâm: thu hồi quyền lợi ORG y như đường admin gỡ thành viên")
+    void leaveOrg_revokesOrgEntitlement() throws Exception {
+        mvc.perform(post("/api/org/membership/leave"))
+                .andExpect(status().isNoContent());
+
+        verify(orgMembershipService).selfLeave(eq(10L), any(AuditActor.class));
+        // Thiếu dòng này thì người tự rời vẫn giữ gói do trung tâm trả tới ~5 năm, và gói cá nhân
+        // đang PAUSED không bao giờ được khôi phục (resumePausedIfAny nằm trong revokeStudent).
+        verify(orgEntitlementService).revokeStudent(1L);
+    }
+
+    @Test
+    @DisplayName("V-13 tự rời thất bại (OWNER chưa chuyển quyền) → KHÔNG thu hồi quyền lợi")
+    void leaveOrg_serviceThrows_doesNotRevoke() throws Exception {
+        doThrow(new com.deutschflow.common.exception.BadRequestException(
+                "Chủ sở hữu không thể tự rời — hãy chuyển quyền sở hữu trước."))
+                .when(orgMembershipService).selfLeave(anyLong(), any(AuditActor.class));
+
+        mvc.perform(post("/api/org/membership/leave"))
+                .andExpect(status().isBadRequest());
+
+        verify(orgEntitlementService, never()).revokeStudent(anyLong());
+    }
+
     // ── POST /api/org/members/{userId}/transfer-ownership — OWNER-only (C-2 recovery) ──
 
     @Test
