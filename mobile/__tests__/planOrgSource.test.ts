@@ -10,7 +10,7 @@ jest.mock('@/lib/api', () => ({
   default: { get: jest.fn(), post: jest.fn() },
 }))
 
-import { isOrgPlan, orgPlanNotice, type MyPlan } from '@/stores/usePlanStore'
+import { isOrgPlan, orgPlanNotice, planActionRows, type MyPlan } from '@/stores/usePlanStore'
 
 const plan = (over: Partial<MyPlan>): MyPlan => ({ planCode: 'PRO', tier: 'PRO', ...over })
 
@@ -41,5 +41,25 @@ describe('orgPlanNotice — dòng thay cho cụm nút', () => {
   test('thiếu/rỗng tên trung tâm vẫn ra câu đọc được, không "undefined"', () => {
     expect(orgPlanNotice(plan({ source: 'ORG', orgName: null }))).toBe('Gói học do trung tâm của bạn cấp')
     expect(orgPlanNotice(plan({ source: 'ORG', orgName: '   ' }))).toBe('Gói học do trung tâm của bạn cấp')
+  })
+})
+
+// Soát 09/09: học viên TỰ MUA gói Apple rồi vào trung tâm KHÔNG mất đăng ký Apple — backend chỉ
+// chuyển dòng ấy sang PAUSED và vẫn nhận thông báo gia hạn (SubscriptionActivationService
+// .extendOrActivateApple, nhánh "Gia hạn khi đang tạm dừng"), nghĩa là Apple VẪN TRỪ TIỀN. Vì vậy
+// "Quản lý & huỷ gói" — lối duy nhất trong app dẫn tới trang đăng ký của Apple — phải còn với MỌI
+// gói, kể cả gói ORG. Chỉ "Nâng cấp/đổi gói" và "Hoàn tiền" mới được giấu.
+describe('planActionRows — gói trung tâm vẫn giữ lối tới App Store', () => {
+  test('ORG: giấu nâng cấp + hoàn tiền, GIỮ quản lý & huỷ gói', () => {
+    expect(planActionRows(plan({ source: 'ORG' }))).toEqual(['manage'])
+  })
+
+  test.each(['APPLE', 'WEB'] as const)('%s: đủ ba mục như trước', (source) => {
+    expect(planActionRows(plan({ source }))).toEqual(['upgrade', 'manage', 'refund'])
+  })
+
+  test('thiếu source / chưa có plan → đủ ba mục (giữ hành vi cũ)', () => {
+    expect(planActionRows(plan({}))).toEqual(['upgrade', 'manage', 'refund'])
+    expect(planActionRows(null)).toEqual(['upgrade', 'manage', 'refund'])
   })
 })

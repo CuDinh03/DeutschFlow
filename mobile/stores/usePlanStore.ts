@@ -36,6 +36,24 @@ export const isOrgPlan = (plan: Pick<MyPlan, 'source'> | null | undefined): bool
 export const orgPlanNotice = (plan: Pick<MyPlan, 'orgName'> | null | undefined): string =>
   `Gói học do ${plan?.orgName?.trim() || 'trung tâm của bạn'} cấp`
 
+/** Các mục của cụm "Gói đăng ký" trong màn Hồ sơ. */
+export type PlanActionRow = 'upgrade' | 'manage' | 'refund'
+
+/**
+ * Mục nào được hiện với gói đang chạy.
+ *
+ * Gói ORG bỏ "Nâng cấp / đổi gói" (gói không phải của học viên) và "Yêu cầu hoàn tiền" (họ không
+ * trả đồng nào cho gói này) — nhưng GIỮ "Quản lý & huỷ gói".
+ *
+ * Vì sao PHẢI giữ (soát 09/09): người tự mua gói Apple rồi vào trung tâm KHÔNG mất đăng ký Apple —
+ * backend chỉ chuyển dòng ấy sang PAUSED và vẫn nhận thông báo gia hạn của Apple
+ * (SubscriptionActivationService.extendOrActivateApple, nhánh "Gia hạn khi đang tạm dừng"). Tức
+ * Apple VẪN TRỪ TIỀN họ. Giấu luôn mục này là bịt đường duy nhất trong app dẫn tới trang quản lý
+ * đăng ký của Apple — người dùng bị tính tiền mà không có lối ra.
+ */
+export const planActionRows = (plan: Pick<MyPlan, 'source'> | null | undefined): PlanActionRow[] =>
+  isOrgPlan(plan) ? ['manage'] : ['upgrade', 'manage', 'refund']
+
 /** Số ngày dùng thử còn lại (làm tròn lên); null khi thiếu mốc/không hợp lệ. */
 export function trialDaysLeft(trialEndsAt: string | null | undefined, now: Date): number | null {
   if (!trialEndsAt) return null
