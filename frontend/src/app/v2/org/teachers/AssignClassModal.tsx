@@ -76,10 +76,19 @@ export function AssignClassModal({
    * KHÔNG hỏi `stateOf(c) === 'taken'`: khi chính giáo viên đang mở modal đã là trợ giảng của lớp,
    * `stateOf` trả 'assistant' TRƯỚC khi kịp xét `c.teacherId` — mà đó lại là trường hợp phổ biến
    * nhất của trợ giảng (lớp gần như luôn có người phụ trách). Hỏi bằng `stateOf` thì hộp thoại nói
-   * "không ai bị hạ vai" đúng lúc có người bị hạ vai. Nút chỉ hiện khi giáo viên CHƯA phụ trách lớp,
-   * nên `teacherId != null` đã đủ nghĩa "người khác đang phụ trách".
+   * "không ai bị hạ vai" đúng lúc có người bị hạ vai.
+   *
+   * Nhưng `teacherId != null` MỘT MÌNH cũng không đủ: cột `teacher_id` là NOT NULL (V-01), nên vế
+   * đó luôn đúng và nhánh "không ai bị hạ vai" sẽ thành mã chết y như huy hiệu cũ. Lớp mà giáo viên
+   * phụ trách đã RỜI trung tâm vẫn còn `teacher_id` trỏ vào người đã đi — hạ vai người đó không có
+   * nghĩa gì với người đang đọc hộp thoại. Nên hỏi thêm tập teacherless (nguồn thật của V-01),
+   * nhưng hỏi TRỰC TIẾP chứ không qua `stateOf`.
+   *
+   * Chưa biết (tập id chưa về hoặc hỏng) thì coi như CÓ người bị hạ: cảnh báo thừa còn hơn hứa hẹn
+   * thiếu trước một thao tác không quay lại được.
    */
-  const willDemote = (c: OrgClass): boolean => c.teacherId != null && c.teacherId !== teacher.userId
+  const willDemote = (c: OrgClass): boolean =>
+    c.teacherId != null && c.teacherId !== teacher.userId && !teacherlessIds?.has(c.id)
 
   const assignPrimary = async (cls: OrgClass) => {
     setBusy(cls.id)

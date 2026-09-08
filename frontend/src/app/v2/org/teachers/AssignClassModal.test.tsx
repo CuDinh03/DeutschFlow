@@ -90,8 +90,9 @@ describe('AssignClassModal — nhãn "chưa ai dạy" (V-01)', () => {
     await waitFor(() => expect(screen.getByText('Lớp 1')).toBeTruthy())
     expect(screen.queryByText(`${NS}.statusTaken`)).toBeNull()
     expect(screen.queryByText(`${NS}.statusUnassigned`)).toBeNull()
-    // Danh sách vẫn dùng được: hỏng nhãn không được kéo theo cả modal.
-    expect(screen.getAllByRole('button', { name: `${NS}.assignBtn` })).toHaveLength(2)
+    // Danh sách vẫn dùng được: hỏng nhãn không được kéo theo cả modal. Chưa biết lớp có rỗng giáo
+    // viên hay không thì nút cảnh báo thừa ("thay người") chứ không hứa hẹn thiếu.
+    expect(screen.getAllByRole('button', { name: `${NS}.assignBtnReplace` })).toHaveLength(2)
   })
 })
 
@@ -116,9 +117,15 @@ describe('AssignClassModal — xác nhận trước khi hạ giáo viên cũ xu�
     await waitFor(() => expect(assignClassTeacher).toHaveBeenCalledWith(1, 9))
   })
 
-  it('lớp CHƯA có giáo viên: hộp thoại nói không ai bị hạ vai, nhãn giữ "Giao phụ trách"', async () => {
+  /**
+   * 🔑 Lớp "chưa có giáo viên" KHÔNG phải `teacherId == null` — cột đó NOT NULL nên trạng thái ấy
+   * không tồn tại thật. Nó là lớp mà người đang giữ `teacher_id` đã RỜI trung tâm, tức lớp nằm
+   * trong tập teacherless. Nếu `willDemote` chỉ hỏi `teacherId != null` thì ca này không đỏ được
+   * và nhánh "không ai bị hạ vai" thành mã chết.
+   */
+  it('lớp chưa ai dạy (người cũ đã rời trung tâm): hộp thoại nói không ai bị hạ vai, nhãn giữ "Giao phụ trách"', async () => {
     listClasses.mockResolvedValue(pageOf([cls(2)]))
-    getTeacherlessClassIds.mockResolvedValue(new Set([2])) // lớp 2 thật sự chưa ai dạy
+    getTeacherlessClassIds.mockResolvedValue(new Set([2]))
     renderModal()
 
     const btn = await screen.findByRole('button', { name: `${NS}.assignBtn` })
@@ -136,6 +143,7 @@ describe('AssignClassModal — xác nhận trước khi hạ giáo viên cũ xu�
    */
   it('trợ giảng của lớp ĐANG có người phụ trách: vẫn phải nêu việc hạ vai, không nói "không ai bị hạ"', async () => {
     listClasses.mockResolvedValue(pageOf([cls(3, 77)]))
+    getTeacherlessClassIds.mockResolvedValue(new Set<number>()) // lớp 3 vẫn có người phụ trách thật
     getOrgTeacherClasses.mockResolvedValue([{ id: 3, name: 'Lớp 3', role: 'ASSISTANT' }])
     renderModal()
 
