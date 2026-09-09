@@ -323,6 +323,31 @@ app:
     # Đường đi tới BLOCK_ALL: thu đủ ngày sinh (nhập CSV + hồ sơ), đo còn bao nhiêu tài khoản NULL,
     # rồi mới siết. Siết trước khi đo là đổi một rủi ro pháp lý lấy một sự cố vận hành chắc chắn.
     unknown-age-audio: ${APP_MINOR_UNKNOWN_AGE_AUDIO:BLOCK_ORG_MEMBERS}
+
+    # Hạn lưu BẢN GHI ÂM của học viên chưa thành niên (owner chốt 09/09/2026). Bản chuyển chữ và điểm
+    # KHÔNG bị đụng tới — chúng thuộc hồ sơ học tập và giữ lâu dài. Xem MinorAudioRetentionService.
+    audio-retention-days: ${APP_MINOR_AUDIO_RETENTION_DAYS:30}
+    audio-retention:
+      enabled: ${APP_MINOR_AUDIO_RETENTION_ENABLED:true}
+      # 04:30 VN — khe trống sau app.retention (03:30) và app.notifications.retention (04:00).
+      cron: ${APP_MINOR_AUDIO_RETENTION_CRON:0 30 4 * * *}
+
+      # 🔴 MẶC ĐỊNH LÀ CHẾ ĐỘ ĐẾM, và đây không phải sự dè dặt. Job này xoá KHÔNG HOÀN LẠI trên ba kho
+      # audio mà chưa kho nào từng bị dọn tự động lần nào: S3 exam-speaking/golden, S3 assignments/,
+      # và ai_jobs.payload->>'audioBase64' (nằm TRONG Postgres). Bật xoá ngay lúc merge là đánh cược
+      # rằng câu SQL nạp ứng viên và luật so tuổi đều đúng ngay lần đầu trên dữ liệu production mà
+      # chưa ai nhìn thấy — sai thì không có đường lùi.
+      #
+      # dry-run: true chạy đủ mọi bước (nạp, phân loại, kiểm chốt an toàn khoá S3, ghi vết) nhưng
+      # KHÔNG xoá; vết ghi ra mang tên `minor.audio.retention.previewed`. Đọc con số của MỘT đêm
+      # thật, đối chiếu với `unclassified` (số bản ghi chưa phân loại được vì thiếu ngày sinh), rồi
+      # mới đặt false. Cờ này chỉ tốn một đêm.
+      dry-run: ${APP_MINOR_AUDIO_RETENTION_DRY_RUN:true}
+
+      # Trần áp cho TỪNG kho, không phải cho cả lượt: dùng chung một ngân sách thì tồn đọng ở kho lớn
+      # nhất sẽ ăn hết trần mỗi đêm và kho ai_jobs sẽ không bao giờ tới lượt. S3 không có batch delete
+      # ở đường này (xoá từng object), nên trần là thứ giữ lượt chạy nằm trong lockAtMostFor = PT30M.
+      max-objects-per-run: ${APP_MINOR_AUDIO_RETENTION_MAX_OBJECTS:500}
   cache:
     # Redis L2 cache tier (Caffeine L1 + Redis L2). OFF by default → Caffeine-only. We gate on this
     # explicit flag rather than on spring.data.redis.host (which defaults to localhost, so it's always

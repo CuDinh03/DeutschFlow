@@ -77,17 +77,31 @@ class MinorFoundationIntegrationTest extends AbstractPostgresIntegrationTest {
         }
 
         @Test
-        @DisplayName("V319 là migration MỚI NHẤT đã áp — đợt sau đánh số phải bắt đầu từ V320")
-        void v319_isTheHighestAppliedVersion() {
-            // `version` là text nên ORDER BY chữ sẽ xếp '99' sau '319'. Xếp theo installed_rank
-            // (thứ tự áp thật) rồi so — đây cũng chính là thứ Flyway dùng để quyết định out-of-order.
-            String latest = jdbcTemplate.queryForObject("""
-                    SELECT version FROM flyway_schema_history
-                     WHERE version IS NOT NULL
-                     ORDER BY installed_rank DESC
-                     LIMIT 1
-                    """, String.class);
-            assertThat(latest).isEqualTo("319");
+        @DisplayName("V319 đã được áp thành công — và KHÔNG khẳng định nó là cái mới nhất")
+        void v319_hasBeenApplied() {
+            // 🪤 Bản đầu của ca này viết `assertThat(latest).isEqualTo("319")` với `latest` là migration
+            // có `installed_rank` cao nhất. Nó xanh đúng một ngày: PR ngay sau đó thêm V320 và ca này đỏ
+            // — không phải vì V319 hỏng, mà vì ca hỏi sai câu. Một ca chốt "không ai được thêm migration
+            // nữa" thì mọi đợt sau đều phải sửa nó, và ai đó sẽ sửa bằng cách nâng số lên cho hết đỏ,
+            // tức nó không còn khoá được gì.
+            //
+            // Điều ca này thật sự cần bảo đảm: V319 CÓ chạy, và chạy THÀNH CÔNG. Số hiệu kế tiếp là việc
+            // của cổng trùng-số-migration, không phải của một ca IT về dữ liệu vị thành niên.
+            Integer applied = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*) FROM flyway_schema_history
+                     WHERE version = '319' AND success
+                    """, Integer.class);
+            assertThat(applied)
+                    .as("V319 phải có mặt và success trong flyway_schema_history")
+                    .isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("Không migration nào thất bại — cổng này mới là thứ đáng khoá")
+        void noFailedMigrations() {
+            Integer failed = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM flyway_schema_history WHERE NOT success", Integer.class);
+            assertThat(failed).isZero();
         }
     }
 
