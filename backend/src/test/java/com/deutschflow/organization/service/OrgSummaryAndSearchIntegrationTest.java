@@ -107,6 +107,33 @@ class OrgSummaryAndSearchIntegrationTest extends AbstractPostgresIntegrationTest
     }
 
     @Test
+    @DisplayName("D5: tổng hợp phơi trạng thái chỉ-đọc ra cho giao diện, kèm lý do và hạn giấy phép")
+    void tongHopPhoiTrangThaiChiDoc() {
+        seed();
+
+        // Còn hạn ⇒ ghi được, không có lý do nào.
+        OrgSummaryDto khoe = orgService.getSummary(orgId);
+        assertThat(khoe.readOnly()).isFalse();
+        assertThat(khoe.readOnlyReason()).isNull();
+
+        // Vừa hết hạn ⇒ chỉ-đọc NGAY (D5), lý do EXPIRED, và validUntil có mặt để giao diện đếm
+        // ngược quãng ân hạn. Không có ba trường này thì chế độ chỉ-đọc là một BÃI MÌN: người dùng
+        // vẫn thấy đủ nút, bấm vào mới ăn 403.
+        jdbcTemplate.update("UPDATE organizations SET valid_until = now() - interval '1 day' WHERE id = ?", orgId);
+        OrgSummaryDto hetHan = orgService.getSummary(orgId);
+        assertThat(hetHan.readOnly()).isTrue();
+        assertThat(hetHan.readOnlyReason()).isEqualTo("EXPIRED");
+        assertThat(hetHan.validUntil()).isNotNull();
+
+        // Đình chỉ ⇒ lý do phải phân biệt được với hết hạn.
+        jdbcTemplate.update("UPDATE organizations SET valid_until = now() + interval '30 days', "
+                + "status = 'SUSPENDED', suspended_at = now() WHERE id = ?", orgId);
+        OrgSummaryDto dinhChi = orgService.getSummary(orgId);
+        assertThat(dinhChi.readOnly()).isTrue();
+        assertThat(dinhChi.readOnlyReason()).isEqualTo("SUSPENDED");
+    }
+
+    @Test
     @DisplayName("Gán một GV ACTIVE làm đồng giảng dạy thì lớp đó hết thiếu, dù chủ nhiệm đã rời")
     void ganDongGiangDayThiHetThieu() {
         seed();

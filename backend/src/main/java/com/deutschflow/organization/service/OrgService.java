@@ -32,6 +32,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -70,6 +71,10 @@ public class OrgService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức"));
         long teacherCount = membershipService.countByRole(orgId, ROLE_TEACHER);
         long studentCount = membershipService.countByRole(orgId, ROLE_STUDENT);
+        // Tính từ chính entity đã nạp ở trên, không hỏi lại cơ sở dữ liệu.
+        boolean readOnly = !OrgLicenseState
+                .evaluate(org.getStatus(), org.getValidUntil(), org.getSuspendedAt(), Instant.now())
+                .writable();
         return new OrgSummaryDto(
                 org.getName(),
                 org.getPlanCode(),
@@ -78,7 +83,10 @@ public class OrgService {
                 teacherCount,
                 studentCount,
                 countClasses(orgId),
-                countClassesWithoutTeacher(orgId));
+                countClassesWithoutTeacher(orgId),
+                readOnly,
+                readOnly ? OrgLicenseState.reason(org.getStatus()).name() : null,
+                org.getValidUntil());
     }
 
     /** Tổng số lớp của trung tâm — đếm ở máy chủ, không phải cộng tay trang đầu. */

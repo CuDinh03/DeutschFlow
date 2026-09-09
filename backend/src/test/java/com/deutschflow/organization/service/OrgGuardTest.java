@@ -323,6 +323,11 @@ class OrgGuardTest {
 
     // ------------------------------------------------------------------ cổng chế độ chỉ đọc (D5)
 
+    /** Entity đang được stub — để chốt MỨC giấy phép, không chỉ "có ném hay không". */
+    private Organization stubbedOrg() {
+        return organizationRepository.findById(ORG_ID).orElseThrow();
+    }
+
     private void stubOrg(String status, Instant validUntil) {
         stubOrg(status, validUntil, null);
     }
@@ -348,7 +353,7 @@ class OrgGuardTest {
     void assertOrgWritable_active_passes() {
         stubOrg("ACTIVE", Instant.now().plus(30, ChronoUnit.DAYS));
         orgGuard.assertOrgWritable(ORG_ID);
-        assertThat(orgGuard.isOrgReadOnly(ORG_ID)).isFalse();
+        assertThat(orgGuard.licenceMode(stubbedOrg()).writable()).isTrue();
     }
 
     @Test
@@ -389,7 +394,7 @@ class OrgGuardTest {
                 .isInstanceOf(OrgReadOnlyException.class)
                 .extracting(ex -> ((OrgReadOnlyException) ex).getReason())
                 .isEqualTo(OrgLicenseState.Reason.SUSPENDED);
-        assertThat(orgGuard.isOrgReadOnly(ORG_ID)).isTrue();
+        assertThat(orgGuard.licenceMode(stubbedOrg()).writable()).isFalse();
     }
 
     @Test

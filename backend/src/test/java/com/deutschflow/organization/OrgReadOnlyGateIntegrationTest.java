@@ -272,6 +272,5 @@ class OrgReadOnlyGateIntegrationTest extends AbstractPostgresIntegrationTest {
 
         assertThatThrownBy(() -> orgGuard.assertOrgAdminForWrite(managerId, orgId))
                 .isInstanceOf(OrgReadOnlyException.class);
-        assertThat(orgGuard.isOrgReadOnly(orgId)).isTrue();
     }
 }

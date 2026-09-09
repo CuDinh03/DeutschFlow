@@ -132,14 +132,6 @@ public class OrgGuard {
         }
     }
 
-    /** {@code true} khi trung tâm đang ở chế độ chỉ đọc — cho DTO/UI, không ném lỗi. */
-    @Transactional(readOnly = true)
-    public boolean isOrgReadOnly(Long orgId) {
-        return organizationRepository.findById(orgId)
-                .map(org -> !licenceMode(org).writable())
-                .orElse(false);
-    }
-
     /**
      * Mức giấy phép của một trung tâm — MỘT chỗ duy nhất ghép ba mảnh
      * ({@code status}, {@code valid_until}, {@code suspended_at}) cho cả đường ném lẫn đường DTO.
