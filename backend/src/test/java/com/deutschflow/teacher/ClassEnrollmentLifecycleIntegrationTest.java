@@ -32,9 +32,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -129,6 +132,74 @@ class ClassEnrollmentLifecycleIntegrationTest extends AbstractPostgresIntegratio
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM org_member_history WHERE org_id = ? AND user_id = ?",
                 Long.class, f.org.getId(), f.student.getId())).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("V316(d): organizations.suspended_at là TIMESTAMPTZ nullable, không DEFAULT; trung tâm ACTIVE để NULL")
+    void migration_suspendedAtColumnShape() {
+        Fixture f = fixture();
+
+        Map<String, Object> col = jdbcTemplate.queryForMap("""
+                SELECT is_nullable, data_type, column_default FROM information_schema.columns
+                WHERE table_name = 'organizations' AND column_name = 'suspended_at'
+                """);
+        assertThat(col.get("is_nullable")).isEqualTo("YES");
+        // Phải khớp kiểu valid_until để máy trạng thái giấy phép so hai mốc được.
+        assertThat(col.get("data_type")).isEqualTo("timestamp with time zone");
+        // KHÔNG DEFAULT: NULL = không bị đình chỉ, và ADD COLUMN khỏi viết lại bảng.
+        assertThat(col.get("column_default")).isNull();
+
+        // Trung tâm ACTIVE: không có mốc neo đình chỉ.
+        assertThat(organizationRepo.findById(f.org.getId()).orElseThrow().getSuspendedAt()).isNull();
+
+        // Entity ghi/đọc được mốc, và nó thật sự nằm ở cột suspended_at.
+        Instant anchorAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+        Organization org = organizationRepo.findById(f.org.getId()).orElseThrow();
+        org.setSuspendedAt(anchorAt);
+        organizationRepo.saveAndFlush(org);
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT suspended_at FROM organizations WHERE id = ?", Timestamp.class, f.org.getId())
+                .toInstant()).isEqualTo(anchorAt);
+    }
+
+    @Test
+    @DisplayName("V316(d): backfill đóng mốc now() cho trung tâm đang bị đình chỉ, chừa ACTIVE, chạy lại là no-op")
+    void migration_suspendedAtBackfill() {
+        Fixture f = fixture();
+        Organization suspended = organizationRepo.save(Organization.builder()
+                .name("TT dinh chi " + UUID.randomUUID().toString().substring(0, 8))
+                .slug("org-susp-" + UUID.randomUUID())
+                .seatLimit(0)
+                .status("SUSPENDED")
+                .build());
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT suspended_at FROM organizations WHERE id = ?", Timestamp.class,
+                suspended.getId())).isNull();
+
+        Instant beforeBackfill = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+        // Chạy lại ĐÚNG câu backfill của migration — không dựng được dòng "có trước V316" trong IT.
+        jdbcTemplate.update("UPDATE organizations SET suspended_at = now() "
+                + "WHERE status <> 'ACTIVE' AND suspended_at IS NULL");
+
+        Timestamp anchored = jdbcTemplate.queryForObject(
+                "SELECT suspended_at FROM organizations WHERE id = ?", Timestamp.class,
+                suspended.getId());
+        assertThat(anchored).isNotNull();
+        // now() chứ KHÔNG phải mốc quá khứ: ân hạn 7 ngày đếm TỪ LÚC DEPLOY, không cắt ngay.
+        assertThat(anchored.toInstant()).isAfterOrEqualTo(beforeBackfill);
+
+        // Trung tâm ACTIVE không bị đụng tới.
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT suspended_at FROM organizations WHERE id = ?", Timestamp.class,
+                f.org.getId())).isNull();
+
+        // Idempotent: chạy lần hai KHÔNG đè lên mốc đã có.
+        jdbcTemplate.update("UPDATE organizations SET suspended_at = now() "
+                + "WHERE status <> 'ACTIVE' AND suspended_at IS NULL");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT suspended_at FROM organizations WHERE id = ?", Timestamp.class,
+                suspended.getId()).toInstant()).isEqualTo(anchored.toInstant());
     }
 
     // ── G-01: hai tập "còn chiếm ghế" vs "đang học" ──────────────────────────

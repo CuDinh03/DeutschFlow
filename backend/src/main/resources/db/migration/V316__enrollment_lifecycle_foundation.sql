@@ -1,7 +1,8 @@
 -- V316 — NỀN VÒNG ĐỜI GHI DANH (Đợt 4).
 --
 -- ⚠️ ĐÂY LÀ MIGRATION DUY NHẤT CỦA CẢ ĐỢT 4. Cố ý gom TOÀN BỘ schema mà các PR sau của đợt này
--- cần (tách chức danh giáo viên, sổ vào/ra trung tâm) vào một tệp, dù đợt này mới dùng phần (a).
+-- cần (tách chức danh giáo viên, sổ vào/ra trung tâm, mốc neo đình chỉ trung tâm) vào một tệp,
+-- dù đợt này mới dùng phần (a).
 -- Lý do: Flyway ở dự án chạy với `out-of-order=false`, nên hai PR song song mỗi bên thêm một
 -- migration là sinh ra bẫy thứ tự kinh điển — nhánh nào merge sau bị đánh số thấp hơn baseline
 -- và không bao giờ chạy trên môi trường đã áp bản kia. Một tệp thì không có bẫy đó.
@@ -109,3 +110,40 @@ CREATE INDEX IF NOT EXISTS idx_org_member_history_user
 
 COMMENT ON TABLE org_member_history IS
     'Append-only: mỗi lần một người vào/ra/đổi vai trong trung tâm (org_members chỉ giữ trạng thái hiện tại)';
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (d) MỐC NEO ĐÌNH CHỈ TRUNG TÂM — CHUẨN BỊ CHO MÁY TRẠNG THÁI GIẤY PHÉP
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Owner đã chốt luật: HẾT HẠN (valid_until qua rồi) thì chuyển chỉ-đọc NGAY, còn ĐÌNH CHỈ thì vẫn
+-- cho 7 ngày ân hạn chỉ-đọc rồi mới khoá. Vế sau đòi một MỐC NEO "bị đình chỉ từ lúc nào" mà bảng
+-- organizations hiện KHÔNG có: chỉ có cờ status = 'SUSPENDED', không kèm thời điểm. Không có mốc
+-- neo thì không tính nổi ân hạn — chỉ biết "đang bị đình chỉ", không biết "đã bao lâu".
+--
+-- Vì sao KHÔNG mượn updated_at làm mốc: nó dịch theo MỌI lần sửa bản ghi (đổi tên, đổi seat_limit,
+-- đổi pool token, đổi logo…). Mỗi lần chạm vào lại đẩy mốc ân hạn ra xa thêm 7 ngày ⇒ FAIL-OPEN:
+-- trung tâm đã bị đình chỉ vẫn ghi được vô thời hạn, chỉ cần thỉnh thoảng có người sửa bản ghi.
+-- Mốc neo phải là cột RIÊNG, chỉ đổi khi chính trạng thái đình chỉ đổi.
+--
+-- An toàn: cột nullable, không DEFAULT ⇒ ADD COLUMN không viết lại bảng; NULL = không bị đình chỉ,
+-- đúng cho toàn bộ trung tâm đang ACTIVE. IF NOT EXISTS để bản này chạy lại được.
+ALTER TABLE organizations
+    ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMPTZ;
+
+COMMENT ON COLUMN organizations.suspended_at IS
+    'Mốc bắt đầu bị đình chỉ — điểm neo đếm 7 ngày ân hạn chỉ-đọc; NULL = không bị đình chỉ';
+
+-- Backfill các trung tâm ĐANG bị đình chỉ sẵn lúc chạy bản này: không có dòng này thì họ mang
+-- status <> 'ACTIVE' nhưng suspended_at NULL — máy trạng thái ở bước sau không có gì để trừ.
+--
+-- Vì sao now() chứ KHÔNG phải một mốc quá khứ: ta KHÔNG biết họ bị đình chỉ từ bao giờ (trước bản
+-- này hệ thống không hề ghi lại). Lấy mốc quá khứ (updated_at, hay now() - 7 days) là cắt phăng
+-- quyền ghi NGAY tại giây deploy của một trung tâm có thể đang trong diện thương lượng gia hạn —
+-- hỏng việc mà không ai kịp phản ứng, và cũng không giải thích được với khách. Cho trọn 7 ngày
+-- chỉ-đọc kể từ lúc deploy là lựa chọn fail-safe: chậm nhất là muộn 7 ngày, không bao giờ oan.
+--
+-- Điều kiện `suspended_at IS NULL` giữ câu này idempotent (replay trong cổng fresh-migration) và
+-- không đè lên mốc thật của trung tâm bị đình chỉ SAU khi bản này đã chạy.
+UPDATE organizations
+SET    suspended_at = now()
+WHERE  status <> 'ACTIVE'
+  AND  suspended_at IS NULL;

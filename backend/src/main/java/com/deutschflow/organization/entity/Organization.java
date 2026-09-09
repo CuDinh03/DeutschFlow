@@ -59,6 +59,15 @@ public class Organization {
     @Column(name = "valid_until")
     private Instant validUntil; // license end; null = perpetual while ACTIVE
 
+    /**
+     * Mốc bắt đầu bị đình chỉ — điểm neo để đếm 7 ngày ân hạn chỉ-đọc. {@code null} = không bị
+     * đình chỉ. Cố ý là cột RIÊNG chứ không mượn {@link #updatedAt}: mọi lần sửa bản ghi đều đẩy
+     * {@code updatedAt} ra xa, ân hạn sẽ không bao giờ hết (fail-open).
+     * Kiểu {@link Instant} khớp {@link #validUntil} để máy trạng thái giấy phép so hai mốc được.
+     */
+    @Column(name = "suspended_at")
+    private Instant suspendedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
