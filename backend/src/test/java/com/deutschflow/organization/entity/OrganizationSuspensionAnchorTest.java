@@ -11,6 +11,7 @@ import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Locale;
 
@@ -66,6 +67,49 @@ class OrganizationSuspensionAnchorTest {
         Organization org = Organization.builder().name("TT").slug("tt").build();
 
         assertThat(org.getSuspendedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("chuyển sang đình chỉ thì ĐÓNG mốc neo ngay — không có mốc là không đếm nổi ân hạn")
+    void changeStatus_toSuspended_anchorsNow() {
+        Organization org = Organization.builder().name("TT").slug("tt").build();
+        Instant before = Instant.now();
+
+        org.changeStatus("SUSPENDED");
+
+        assertThat(org.getStatus()).isEqualTo("SUSPENDED");
+        assertThat(org.getSuspendedAt())
+                .as("đình chỉ mà không đóng mốc ⇒ ân hạn không bao giờ hết (fail-open)")
+                .isNotNull()
+                .isAfterOrEqualTo(before);
+    }
+
+    @Test
+    @DisplayName("mở lại trung tâm thì XOÁ mốc neo — lần đình chỉ sau phải có đủ 7 ngày ân hạn")
+    void changeStatus_backToActive_clearsAnchor() {
+        Organization org = Organization.builder().name("TT").slug("tt").build();
+        org.changeStatus("SUSPENDED");
+
+        org.changeStatus("ACTIVE");
+
+        assertThat(org.getStatus()).isEqualTo("ACTIVE");
+        assertThat(org.getSuspendedAt())
+                .as("giữ mốc cũ ⇒ lần đình chỉ sau thừa hưởng mốc đã quá hạn, cắt ngay không ân hạn")
+                .isNull();
+    }
+
+    @Test
+    @DisplayName("lưu lại một trung tâm ĐANG bị đình chỉ KHÔNG đẩy mốc neo ra xa")
+    void changeStatus_alreadySuspended_keepsFirstAnchor() {
+        Organization org = Organization.builder().name("TT").slug("tt").build();
+        org.changeStatus("SUSPENDED");
+        Instant firstAnchor = org.getSuspendedAt();
+
+        org.changeStatus("SUSPENDED");
+
+        assertThat(org.getSuspendedAt())
+                .as("ân hạn đếm từ lần đình chỉ thật, không phải từ lần bấm lưu gần nhất")
+                .isEqualTo(firstAnchor);
     }
 
     // ── migration ────────────────────────────────────────────────────────────

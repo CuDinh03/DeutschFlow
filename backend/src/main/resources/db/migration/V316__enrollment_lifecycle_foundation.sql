@@ -126,6 +126,10 @@ COMMENT ON TABLE org_member_history IS
 --
 -- An toàn: cột nullable, không DEFAULT ⇒ ADD COLUMN không viết lại bảng; NULL = không bị đình chỉ,
 -- đúng cho toàn bộ trung tâm đang ACTIVE. IF NOT EXISTS để bản này chạy lại được.
+--
+-- AI GHI CỘT NÀY: Organization.changeStatus() — đóng mốc khi chuyển sang đình chỉ, XOÁ mốc khi mở
+-- lại — dùng ở cả ba đường đổi trạng thái (admin đổi tay, webhook SePay thu tiền, đối soát hoá đơn
+-- tay). Backfill dưới đây CHỈ lo các trung tâm đã bị đình chỉ TRƯỚC lúc chạy bản này.
 ALTER TABLE organizations
     ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMPTZ;
 

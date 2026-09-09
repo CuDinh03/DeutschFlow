@@ -165,7 +165,7 @@ public class AdminOrgService {
             org.setValidUntil(request.validUntil());
         }
         if (request.status() != null) {
-            org.setStatus(request.status());
+            org.changeStatus(request.status());
         }
         // M-5: pool giờ set được qua API (trước chỉ SQL tay). Clamp âm về 0.
         if (request.monthlyTokenPool() != null) {
@@ -361,7 +361,7 @@ public class AdminOrgService {
             log.warn("[ORG-ADMIN] paid invoice {} references missing org {}", invoice.getId(), invoice.getOrgId());
             return;
         }
-        org.setStatus(STATUS_ACTIVE);
+        org.changeStatus(STATUS_ACTIVE);
         if (invoice.getPeriodEnd() != null) {
             java.time.Instant newEnd = invoice.getPeriodEnd()
                     .plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant();

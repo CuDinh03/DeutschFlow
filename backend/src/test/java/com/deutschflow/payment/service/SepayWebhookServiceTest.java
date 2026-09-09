@@ -59,7 +59,8 @@ class SepayWebhookServiceTest {
     @DisplayName("match → invoice PAID + org ACTIVE + extend validUntil + re-grant members + event matched")
     void handle_matchesAndActivates() {
         OrgInvoice inv = invoice("SENT", 1_000_000L);
-        Organization org = Organization.builder().id(5L).name("TT ABC").slug("abc").status("SUSPENDED").build();
+        Organization org = Organization.builder().id(5L).name("TT ABC").slug("abc").status("SUSPENDED")
+                .suspendedAt(java.time.Instant.now().minusSeconds(30 * 86400L)).build();
         when(eventRepo.existsBySepayId("100")).thenReturn(false);
         when(invoiceRepo.findByPaymentCode(CODE)).thenReturn(Optional.of(inv));
         when(organizationRepository.findById(5L)).thenReturn(Optional.of(org));
@@ -68,6 +69,10 @@ class SepayWebhookServiceTest {
 
         assertThat(inv.getStatus()).isEqualTo("PAID");
         assertThat(org.getStatus()).isEqualTo("ACTIVE");
+        assertThat(org.getSuspendedAt())
+                .as("thu được tiền là mở lại thật ⇒ phải xoá mốc neo, không thì lần đình chỉ sau "
+                        + "thừa hưởng mốc cũ đã quá 7 ngày và trung tâm bị cắt ngay")
+                .isNull();
         assertThat(org.getValidUntil()).isNotNull();
         verify(invoiceRepo).save(inv);
         verify(organizationRepository).save(org);
