@@ -290,6 +290,21 @@ app:
     token-usage-days: ${APP_RETENTION_TOKEN_DAYS:90}
     batch-size: ${APP_RETENTION_BATCH_SIZE:5000}
     max-rows-per-run: ${APP_RETENTION_MAX_ROWS_PER_RUN:500000}
+
+  # Học viên chưa thành niên (DEC-22, owner chốt 09/09/2026). Đặt cạnh `retention` vì cùng một họ:
+  # retention trả lời "giữ dữ liệu tới bao giờ", còn đây trả lời "được xử lý dữ liệu của ai".
+  #
+  # HAI ngưỡng, KHÔNG ghim một con số — MinorPolicy trả về bốn nhánh chứ không phải boolean:
+  #   · legal-guardian-threshold = 16 — NĐ 13/2023 Điều 20 theo Luật Trẻ em: dưới ngưỡng này thì
+  #     đồng ý của cha mẹ/người giám hộ là NGHĨA VỤ PHÁP LÝ. Hạ nó xuống là vi phạm luật, nên chỉ
+  #     đổi khi CHÍNH VĂN BẢN LUẬT đổi — không phải khi một trung tâm xin nới.
+  #   · center-policy-threshold = 18 — luật NỘI BỘ của trung tâm cho nhóm 16–17 (hạn chế AI, ghi
+  #     âm, nhắn riêng). Đây là lựa chọn vận hành, siết hay nới đều hợp lệ.
+  # Ràng buộc: legal <= center, nếu không MinorPolicy ném ngay lúc khởi động (nhánh
+  # MINOR_CENTER_POLICY sẽ không bao giờ đạt tới, tức một nhóm tuổi lặng lẽ mất bảo vệ).
+  minor:
+    legal-guardian-threshold: ${APP_MINOR_LEGAL_GUARDIAN_THRESHOLD:16}
+    center-policy-threshold: ${APP_MINOR_CENTER_POLICY_THRESHOLD:18}
   cache:
     # Redis L2 cache tier (Caffeine L1 + Redis L2). OFF by default → Caffeine-only. We gate on this
     # explicit flag rather than on spring.data.redis.host (which defaults to localhost, so it's always
