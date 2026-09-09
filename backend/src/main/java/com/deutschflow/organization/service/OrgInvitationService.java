@@ -6,6 +6,7 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.security.PasswordPolicy;
 import com.deutschflow.organization.dto.AcceptInviteRequest;
 import com.deutschflow.organization.dto.InvitationPreviewDto;
 import com.deutschflow.organization.dto.OrgInvitationDto;
@@ -253,9 +254,7 @@ public class OrgInvitationService {
         if (displayName == null || displayName.isBlank()) {
             throw new BadRequestException("Tên hiển thị không được để trống.");
         }
-        if (rawPassword == null || rawPassword.length() < 6) {
-            throw new BadRequestException("Mật khẩu tối thiểu 6 ký tự.");
-        }
+        PasswordPolicy.requireStrongEnough(rawPassword);
         if (userRepository.existsByEmailIgnoreCase(normEmail)) {
             throw new ConflictException("Email này đã có tài khoản.");
         }
@@ -314,6 +313,12 @@ public class OrgInvitationService {
                 || body.displayName() == null || body.displayName().isBlank()) {
             throw new BadRequestException("Vui lòng nhập tên hiển thị và mật khẩu để tạo tài khoản.");
         }
+        // 🔴 Đây là cửa yếu nhất của toàn hệ thống trước đợt này: endpoint CÔNG KHAI
+        // (POST /api/public/org-invitations/{token}/accept), không cần đăng nhập, TẠO THẲNG một tài
+        // khoản TEACHER — nhân sự trung tâm, đọc được dữ liệu học viên — mà chỉ kiểm isBlank(),
+        // nghĩa là mật khẩu MỘT ký tự lọt qua. Lớp kiểm soát độc lập duy nhất là
+        // PublicApiRateLimitFilter, mà nó fail-open khi Redis chết, nên không tính là hàng rào.
+        PasswordPolicy.requireStrongEnough(body.password());
         if (userRepository.existsByEmailIgnoreCase(email)) {
             // Defensive: another request may have created the account between checks.
             throw new ConflictException("Tài khoản với email này đã tồn tại.");
