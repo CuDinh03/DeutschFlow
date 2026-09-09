@@ -13,6 +13,8 @@ import com.deutschflow.organization.entity.OrgMemberId;
 import com.deutschflow.organization.repository.OrgAcademicApproverRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
+import com.deutschflow.teacher.entity.ClassStudent;
+import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +54,7 @@ public class OrgMembershipService {
 
     private final OrgMemberRepository memberRepo;
     private final OrgAcademicApproverRepository academicApproverRepo;
+    private final ClassStudentRepository classStudentRepository;
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
     private final AuditLogService auditLogService;
@@ -231,6 +234,7 @@ public class OrgMembershipService {
         member.setStatus(STATUS_LEFT);
         member.setLeftAt(Instant.now());
         memberRepo.save(member);
+        closeOrgFootprint(orgId, userId);
         detachUser(orgId, userId);
         audit("org_member_left", actor, orgId, userId, meta("role", role, "status", STATUS_LEFT));
     }
@@ -410,12 +414,30 @@ public class OrgMembershipService {
         member.setStatus(status);
         member.setLeftAt(Instant.now());
         memberRepo.save(member);
-        // Security H1 (PR-2): quyền duyệt học vụ không sống lâu hơn tư cách thành viên — thu hồi
-        // soft mọi phân công đang hiệu lực, để nếu người này quay lại org (ví dụ ensureStudentSeat
-        // tái kích hoạt membership với vai trò STUDENT) thì phân công cũ KHÔNG sống lại theo.
-        academicApproverRepo.revokeAllActiveFor(orgId, userId, java.time.LocalDateTime.now(), null);
+        closeOrgFootprint(orgId, userId);
         detachUser(orgId, userId);
         return role;
+    }
+
+    /**
+     * G-03: mọi thứ phải TẮT khi một người thôi là thành viên trung tâm — dùng chung cho cả hai
+     * đường ra (admin gỡ và tự rời), nên hai đường không thể lệch nhau nữa.
+     *
+     * <ul>
+     *   <li><b>Quyền duyệt học vụ</b> (Security H1, PR-2): thu hồi soft mọi phân công đang hiệu lực,
+     *       để nếu người này quay lại org (ví dụ {@code ensureStudentSeat} tái kích hoạt membership
+     *       với vai trò STUDENT) thì phân công cũ KHÔNG sống lại theo. Trước bản này chỉ đường admin
+     *       gọi, còn {@link #selfLeave} thì không — nợ đã ghi ở PR #617.</li>
+     *   <li><b>Ghi danh lớp</b>: đóng mọi dòng {@code class_students} thuộc các lớp CỦA CHÍNH trung
+     *       tâm này. Thiếu bước này thì người đã thôi học vẫn đọc được tài liệu, bài tập và kênh
+     *       chat của lớp vô thời hạn, vì roster lớp không hề biết membership đã tắt. Lớp B2C của
+     *       chính họ (org_id NULL) và lớp của trung tâm khác KHÔNG bị đụng tới.</li>
+     * </ul>
+     */
+    private void closeOrgFootprint(Long orgId, Long userId) {
+        academicApproverRepo.revokeAllActiveFor(orgId, userId, java.time.LocalDateTime.now(), null);
+        classStudentRepository.endEnrollmentsInOrg(orgId, userId,
+                java.time.LocalDateTime.now(), ClassStudent.END_REASON_LEFT_ORG);
     }
 
     /** True khi {@code actor} là OWNER ĐANG HOẠT ĐỘNG của org — đọc lại từ DB, không tin vai trong token. */

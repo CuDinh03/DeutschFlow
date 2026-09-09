@@ -293,6 +293,66 @@ class AdminOrgServiceLifecycleTest {
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
     }
 
+    // ------------------------------------------- mốc neo đình chỉ (V316(d), ân hạn 7 ngày)
+
+    @Test
+    @DisplayName("ACTIVE -> SUSPENDED: đóng mốc neo suspended_at (không có mốc thì không đếm nổi ân hạn)")
+    void updateOrganization_activeTosuspended_anchorsSuspension() {
+        Organization org = orgWithStatus("ACTIVE");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE"))
+                .thenReturn(List.of());
+        stubActiveMembersForDto(List.of());
+        java.time.Instant before = java.time.Instant.now();
+
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null), null);
+
+        assertThat(org.getSuspendedAt())
+                .as("backfill V316 chỉ lo trung tâm đã bị đình chỉ TRƯỚC lúc deploy; đình chỉ mới "
+                        + "mà không đóng mốc thì máy trạng thái không có gì để trừ (fail-open)")
+                .isNotNull()
+                .isAfterOrEqualTo(before);
+    }
+
+    @Test
+    @DisplayName("SUSPENDED -> ACTIVE: xoá mốc neo để lần đình chỉ sau vẫn có đủ 7 ngày ân hạn")
+    void updateOrganization_suspendedToActive_clearsAnchor() {
+        Organization org = orgWithStatus("SUSPENDED");
+        org.setSuspendedAt(java.time.Instant.now().minusSeconds(30 * 86400L));
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE"))
+                .thenReturn(List.of());
+        stubActiveMembersForDto(List.of());
+
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null), null);
+
+        assertThat(org.getSuspendedAt())
+                .as("giữ mốc cũ ⇒ lần đình chỉ sau thừa hưởng mốc đã quá 7 ngày, cắt ngay không ân hạn")
+                .isNull();
+    }
+
+    @Test
+    @DisplayName("đối soát hoá đơn tay: mở lại giấy phép cũng phải xoá mốc neo đình chỉ")
+    void activateForPaidInvoice_clearsAnchor() {
+        Organization org = orgWithStatus("SUSPENDED");
+        org.setSuspendedAt(java.time.Instant.now().minusSeconds(30 * 86400L));
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.activateForPaidInvoice(com.deutschflow.organization.entity.OrgInvoice.builder()
+                .id(9L).orgId(ORG_ID).status("PAID")
+                .periodEnd(java.time.LocalDate.of(2026, 12, 31))
+                .build(), null);
+
+        assertThat(org.getStatus()).isEqualTo("ACTIVE");
+        assertThat(org.getSuspendedAt())
+                .as("đường thủ công phải cư xử giống hệt webhook SePay, không thì tuỳ ai bấm mà "
+                        + "trung tâm còn hay mất ân hạn ở lần đình chỉ sau")
+                .isNull();
+    }
+
     // ------------------------------------------------------------------ status unchanged
 
     @Test

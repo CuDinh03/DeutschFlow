@@ -297,8 +297,11 @@ public class ScheduleChangeRequestService {
      * dòng nào; dedup_key (đề xuất, phiên bản-sau-áp, người nhận) chặn gửi trùng ở worker.
      */
     private void enqueueOutbox(ClassScheduleChangeRequest r, ClassScheduleService.SessionChangeNote note) {
+        // Chỉ người CÒN ghi danh (ACTIVE + RESERVED — bảo lưu vẫn theo dõi lớp, D1). Người đã bị gỡ
+        // khỏi lớp hoặc đã rời trung tâm không nhận thông báo đổi lịch của lớp nữa.
         List<Long> studentIds = jdbcTemplate.queryForList(
-                "SELECT student_id FROM class_students WHERE class_id = ?", Long.class, r.getClassId());
+                "SELECT student_id FROM class_students WHERE class_id = ? AND status IN ('ACTIVE', 'RESERVED')",
+                Long.class, r.getClassId());
         if (studentIds.isEmpty()) return;
 
         String className = classRepo.findById(r.getClassId()).map(TeacherClass::getName)

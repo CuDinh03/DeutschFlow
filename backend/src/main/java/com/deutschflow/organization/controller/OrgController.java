@@ -57,6 +57,7 @@ public class OrgController {
     private final OrgEntitlementService orgEntitlementService;
     private final OrgBillingService orgBillingService;
     private final UserNotificationService userNotificationService;
+    private final com.deutschflow.teacher.service.ClassEnrollmentService classEnrollmentService;
 
     private Long requireOrgId(User user) {
         Long orgId = user.getOrgId();
@@ -264,6 +265,22 @@ public class OrgController {
         Long orgId = requireOrgId(user);
         orgGuard.assertOrgAdmin(user.getId(), orgId);
         orgService.removeAssistantTeacher(orgId, id, teacherId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * G-02: org-admin (OWNER/MANAGER) gỡ một học viên khỏi một lớp của trung tâm mình.
+     *
+     * <p>Không xoá dòng ghi danh — chỉ đóng lại (D2). 404 khi lớp không thuộc org của người gọi
+     * (chống IDOR, không lộ lớp tenant khác).
+     */
+    @DeleteMapping("/classes/{id}/students/{studentId}")
+    public ResponseEntity<Void> removeClassStudent(@AuthenticationPrincipal User user,
+                                                   @PathVariable Long id,
+                                                   @PathVariable Long studentId) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        classEnrollmentService.endByOrgAdmin(orgId, id, studentId, AuditActor.of(user));
         return ResponseEntity.noContent().build();
     }
 

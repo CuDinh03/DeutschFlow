@@ -897,7 +897,11 @@ public class AdminManagementService {
                 -- c.teacherName / c.studentCount) showed every class as "chưa phân công · 0 HV"
                 -- despite the INNER JOIN guaranteeing a teacher (A-12).
                 SELECT c.id, c.name, c.teacher_id AS "teacherId", u.display_name AS "teacherName", c.created_at AS "createdAt",
-                       (SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = c.id) AS "studentCount"
+                       -- Sĩ số = người CÒN chiếm ghế (ACTIVE + RESERVED, D1). Dòng ENDED được giữ lại
+                       -- để không mất điểm/điểm danh (D2) nên phải lọc, nếu không admin nền tảng đọc
+                       -- một con số khác hẳn trang lớp của giáo viên và của trung tâm.
+                       (SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = c.id
+                          AND cs.status IN ('ACTIVE', 'RESERVED')) AS "studentCount"
                 FROM teacher_classes c
                 JOIN users u ON u.id = c.teacher_id
                 ORDER BY c.created_at DESC
@@ -921,9 +925,20 @@ public class AdminManagementService {
         for (Long sid : uniqueIds) {
             Integer isStudent = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users WHERE id = ? AND role = 'STUDENT'", Integer.class, sid);
             if (isStudent != null && isStudent > 0) {
-                Integer exists = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM class_students WHERE class_id = ? AND student_id = ?", Integer.class, classId, sid);
-                if (exists == null || exists == 0) {
-                    jdbcTemplate.update("INSERT INTO class_students (class_id, student_id, joined_at) VALUES (?, ?, NOW())", classId, sid);
+                // Dòng ghi danh cũ KHÔNG bị xoá khi học viên rời lớp (D2) — chỉ đổi status. Vì vậy
+                // "đã có dòng" không còn đồng nghĩa "đang trong lớp": chỉ đếm người CÒN chiếm ghế,
+                // và với người từng rời lớp thì MỞ LẠI dòng cũ (giữ nguyên nhận xét + điểm kỹ năng)
+                // thay vì bỏ qua im lặng.
+                Integer enrolled = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM class_students WHERE class_id = ? AND student_id = ?"
+                                + " AND status IN ('ACTIVE', 'RESERVED')",
+                        Integer.class, classId, sid);
+                if (enrolled == null || enrolled == 0) {
+                    jdbcTemplate.update(
+                            "INSERT INTO class_students (class_id, student_id, joined_at) VALUES (?, ?, NOW())"
+                                    + " ON CONFLICT (class_id, student_id) DO UPDATE"
+                                    + " SET status = 'ACTIVE', ended_at = NULL, end_reason = NULL",
+                            classId, sid);
                     count++;
                 }
             }

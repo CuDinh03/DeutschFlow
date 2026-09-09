@@ -11,7 +11,6 @@ import com.deutschflow.teacher.dto.*;
 import com.deutschflow.teacher.entity.AssignmentStatus;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.ClassStudent;
-import com.deutschflow.teacher.entity.ClassStudentId;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.entity.ClassTeacher;
 import com.deutschflow.teacher.entity.ClassTeacherId;
@@ -54,6 +53,7 @@ public class TeacherService {
 
     private final TeacherClassRepository classRepository;
     private final ClassStudentRepository classStudentRepository;
+    private final ClassEnrollmentService classEnrollmentService;
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassAssignmentRepository assignmentRepository;
     private final AssignmentBackfillService assignmentBackfillService;
@@ -149,9 +149,12 @@ public class TeacherService {
         String placeholders = classIds.stream().map(ignored -> "?").collect(Collectors.joining(","));
         Object[] args = classIds.toArray();
 
+        // Sĩ số PHẢI khớp countByIdClassId (chỉ người còn chiếm ghế: ACTIVE + RESERVED, D1) — nếu
+        // không, thẻ lớp ở danh sách và trang chi tiết lớp trả hai con số khác nhau.
         Map<Long, Long> studentCounts = new HashMap<>();
         jdbcTemplate.queryForList(
-                "SELECT class_id, COUNT(*) AS cnt FROM class_students WHERE class_id IN (" + placeholders + ") GROUP BY class_id",
+                "SELECT class_id, COUNT(*) AS cnt FROM class_students WHERE class_id IN (" + placeholders + ")"
+                        + " AND status IN ('ACTIVE', 'RESERVED') GROUP BY class_id",
                 args).forEach(r -> studentCounts.put(toLong(r.get("class_id")), toLong(r.get("cnt"))));
 
         Map<Long, Long> assignmentCounts = new HashMap<>();
@@ -292,12 +295,9 @@ public class TeacherService {
         req.setStatus("APPROVED");
         joinRequestRepository.save(req);
 
-        if (!classStudentRepository.existsByIdClassIdAndIdStudentId(classId, req.getStudentId())) {
-            ClassStudent classStudent = ClassStudent.builder()
-                    .id(new ClassStudentId(classId, req.getStudentId()))
-                    .build();
-            classStudentRepository.save(classStudent);
-        }
+        // G-01/D2: đi qua ClassEnrollmentService — học viên từng rời lớp được MỞ LẠI dòng cũ, giữ
+        // nguyên nhận xét và điểm kỹ năng; save() một entity mới sẽ merge đè NULL lên các cột đó.
+        classEnrollmentService.enroll(classId, req.getStudentId());
 
         // Give the newcomer the assignments the class already handed out before they joined — otherwise
         // they'd be counted as "chờ nộp" for work they can't see or submit (idempotent).
@@ -523,10 +523,7 @@ public class TeacherService {
             throw new ConflictException("Học viên đã tham gia lớp học này");
         }
 
-        ClassStudent classStudent = ClassStudent.builder()
-                .id(new ClassStudentId(classId, user.getId()))
-                .build();
-        classStudentRepository.save(classStudent);
+        classEnrollmentService.enroll(classId, user.getId());
 
         // Backfill the assignments handed out before this student was added (idempotent) — see
         // approveJoinRequest for the same guard on the self-join path.
@@ -860,8 +857,9 @@ public class TeacherService {
 
     /** Fan-out StudentAssignment PENDING cho đúng đối tượng (rỗng = cả lớp) — idempotent theo khoá. */
     private void fanOutStudentAssignments(Long assignmentId, Long classId, List<Long> recipients) {
+        // Chỉ người ĐANG HỌC nhận bài mới — người bảo lưu ở chế độ chỉ đọc (D1).
         List<Long> targets = recipients.isEmpty()
-                ? classStudentRepository.findByIdClassId(classId).stream()
+                ? classStudentRepository.findActiveByIdClassId(classId).stream()
                         .map(cs -> cs.getId().getStudentId())
                         .toList()
                 : recipients;
@@ -922,7 +920,8 @@ public class TeacherService {
     /** AC14: danh sách người nhận (nếu gửi) phải nằm trọn trong roster lớp; trả list đã chuẩn hoá. */
     private List<Long> validateRecipients(Long classId, List<Long> recipientStudentIds) {
         if (recipientStudentIds == null || recipientStudentIds.isEmpty()) return List.of();
-        Set<Long> roster = classStudentRepository.findByIdClassId(classId).stream()
+        // Cùng biên với fan-out: giao bài đích danh chỉ cho người ĐANG HỌC.
+        Set<Long> roster = classStudentRepository.findActiveByIdClassId(classId).stream()
                 .map(cs -> cs.getId().getStudentId())
                 .collect(Collectors.toSet());
         List<Long> cleaned = recipientStudentIds.stream().filter(java.util.Objects::nonNull).distinct().toList();

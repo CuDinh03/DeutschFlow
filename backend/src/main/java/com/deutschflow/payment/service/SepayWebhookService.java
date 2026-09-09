@@ -105,7 +105,7 @@ public class SepayWebhookService {
             log.warn("[SePay] paid invoice {} references missing org {}", invoice.getId(), invoice.getOrgId());
             return;
         }
-        org.setStatus(STATUS_ACTIVE);
+        org.changeStatus(STATUS_ACTIVE);
         // Extend the licence to the paid period end; never shorten a longer existing licence.
         if (invoice.getPeriodEnd() != null) {
             Instant newEnd = invoice.getPeriodEnd().plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();

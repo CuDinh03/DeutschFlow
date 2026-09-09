@@ -3,10 +3,8 @@ package com.deutschflow.organization.service;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
-import com.deutschflow.teacher.entity.ClassStudent;
-import com.deutschflow.teacher.entity.ClassStudentId;
-import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.service.AssignmentBackfillService;
+import com.deutschflow.teacher.service.ClassEnrollmentService;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -52,7 +50,7 @@ public class OrgRosterRowImporter {
     private final OrgMembershipService membershipService;
     private final OrgEntitlementService entitlementService;
     private final OrgMemberRepository orgMemberRepository;
-    private final ClassStudentRepository classStudentRepository;
+    private final ClassEnrollmentService classEnrollmentService;
     private final AssignmentBackfillService assignmentBackfillService;
     private final JdbcTemplate jdbcTemplate;
 
@@ -139,14 +137,14 @@ public class OrgRosterRowImporter {
         entitlementService.grantStudent(user.getId(), org);
 
         boolean enrolled = false;
-        if (classIdOrNull != null
-                && !classStudentRepository.existsByIdClassIdAndIdStudentId(classIdOrNull, user.getId())) {
-            classStudentRepository.save(ClassStudent.builder()
-                    .id(new ClassStudentId(classIdOrNull, user.getId()))
-                    .build());
-            // Provision the class's existing assignments for the imported student (idempotent).
-            assignmentBackfillService.ensureAssignmentsForStudent(classIdOrNull, user.getId());
-            enrolled = true;
+        if (classIdOrNull != null) {
+            // enroll() mở lại dòng cũ của học viên từng rời lớp thay vì save() đè NULL lên nhận xét
+            // và điểm kỹ năng (D2). Trả true đúng khi lượt này thực sự đưa họ (trở) vào lớp.
+            enrolled = classEnrollmentService.enroll(classIdOrNull, user.getId());
+            if (enrolled) {
+                // Provision the class's existing assignments for the imported student (idempotent).
+                assignmentBackfillService.ensureAssignmentsForStudent(classIdOrNull, user.getId());
+            }
         }
         return RowOutcome.imported(created, enrolled);
     }
