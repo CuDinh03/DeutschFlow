@@ -24,8 +24,9 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * G-10 / D5 trên Postgres THẬT: trung tâm bị đình chỉ hoặc hết hạn quá 7 ngày ân hạn thì
- * KHÔNG tạo mới, KHÔNG tiêu token AI — nhưng VẪN XEM được.
+ * G-10 / D5 trên Postgres THẬT, theo luật owner chốt 09/09/2026: trung tâm bị đình chỉ HOẶC đã hết
+ * hạn thì mất quyền ghi NGAY — KHÔNG tạo mới, KHÔNG tiêu token AI — nhưng VẪN XEM được. 7 ngày ân
+ * hạn là quãng chỉ-đọc trước khi CẮT quyền lợi, không phải quãng còn ghi được.
  *
  * <p>Hai thứ chỉ Postgres mới chứng minh được: (1) {@code ensureStudentSeat} ném giữa chừng thì ghế
  * vừa cấp ROLLBACK theo, không đẻ ra thành viên không quyền lợi; (2) cổng nằm TRƯỚC câu
@@ -66,14 +67,20 @@ class OrgReadOnlyGateIntegrationTest extends AbstractPostgresIntegrationTest {
 
     /** Trung tâm có gói bán và pool token, đặt sẵn trạng thái + hạn giấy phép cần kiểm. */
     private Long newOrg(String status, Instant validUntil) {
+        // Đình chỉ thì mặc định đóng mốc neo NGAY BÂY GIỜ — đúng như Organization.changeStatus làm.
+        return newOrg(status, validUntil, "ACTIVE".equals(status) ? null : Instant.now());
+    }
+
+    private Long newOrg(String status, Instant validUntil, Instant suspendedAt) {
         Timestamp now = Timestamp.from(Instant.now());
         return jdbcTemplate.queryForObject("""
                 INSERT INTO organizations
                     (name, slug, status, seat_limit, plan_code, monthly_token_pool, pool_unlimited,
-                     valid_until, created_at, updated_at)
-                VALUES (?, ?, ?, 0, 'PRO', 100000, false, ?, ?, ?) RETURNING id
+                     valid_until, suspended_at, created_at, updated_at)
+                VALUES (?, ?, ?, 0, 'PRO', 100000, false, ?, ?, ?, ?) RETURNING id
                 """, Long.class, "Trung tâm chỉ đọc", SLUG_PREFIX + System.nanoTime(), status,
-                validUntil == null ? null : Timestamp.from(validUntil), now, now);
+                validUntil == null ? null : Timestamp.from(validUntil),
+                suspendedAt == null ? null : Timestamp.from(suspendedAt), now, now);
     }
 
     private void member(Long orgId, Long userId, String role) {
@@ -130,14 +137,37 @@ class OrgReadOnlyGateIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    @DisplayName("ensureStudentSeat: còn trong ân hạn 7 ngày → VẪN cấp ghế + gói (D5)")
-    void ensureStudentSeat_withinGrace_stillWorks() {
+    @DisplayName("ensureStudentSeat: VỪA hết hạn 2 ngày (còn trong ân hạn chỉ-đọc) → vẫn CHẶN")
+    void ensureStudentSeat_justExpiredWithinGrace_blocked() {
         Long orgId = newOrg("ACTIVE", daysAgo(2));
-        Long userId = newUser("grace-seat");
+        Long userId = newUser("just-expired-seat");
+
+        assertThatThrownBy(() -> orgMembershipService.ensureStudentSeat(orgId, userId))
+                .as("owner 09/09: hết hạn là chỉ-đọc NGAY, ân hạn không còn là quãng ghi được")
+                .isInstanceOf(OrgReadOnlyException.class);
+        assertThat(activeMembers(orgId)).isZero();
+    }
+
+    @Test
+    @DisplayName("ensureStudentSeat: giấy phép CÒN hạn → cấp ghế + gói bình thường")
+    void ensureStudentSeat_stillValid_works() {
+        Long orgId = newOrg("ACTIVE", Instant.now().plus(30, ChronoUnit.DAYS));
+        Long userId = newUser("valid-seat");
 
         assertThatCode(() -> orgMembershipService.ensureStudentSeat(orgId, userId))
                 .doesNotThrowAnyException();
 
+        assertThat(activeMembers(orgId)).isOne();
+    }
+
+    @Test
+    @DisplayName("ensureStudentSeat: giấy phép VÔ THỜI HẠN (validUntil null) → vẫn cấp được")
+    void ensureStudentSeat_perpetualLicence_works() {
+        Long orgId = newOrg("ACTIVE", null);
+        Long userId = newUser("perpetual-seat");
+
+        assertThatCode(() -> orgMembershipService.ensureStudentSeat(orgId, userId))
+                .doesNotThrowAnyException();
         assertThat(activeMembers(orgId)).isOne();
     }
 
@@ -168,12 +198,42 @@ class OrgReadOnlyGateIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    @DisplayName("pool token: còn ân hạn → vẫn giữ chỗ được như bình thường")
-    void tokenPool_withinGrace_reserves() {
-        Long orgId = newOrg("ACTIVE", daysAgo(1));
+    @DisplayName("pool token: giấy phép còn hạn → giữ chỗ bình thường")
+    void tokenPool_stillValid_reserves() {
+        Long orgId = newOrg("ACTIVE", Instant.now().plus(30, ChronoUnit.DAYS));
 
         assertThat(orgQuotaService.tryReserveForOrg(orgId, 500)).isPresent();
         assertThat(tokensUsed(orgId)).isEqualTo(500L);
+    }
+
+    @Test
+    @DisplayName("pool token: vừa hết hạn 1 ngày → CHẶN ngay, counter không nhúc nhích")
+    void tokenPool_justExpired_blockedWithoutTouchingCounter() {
+        Long orgId = newOrg("ACTIVE", daysAgo(1));
+
+        assertThatThrownBy(() -> orgQuotaService.tryReserveForOrg(orgId, 500))
+                .isInstanceOf(OrgReadOnlyException.class)
+                .extracting(ex -> ((OrgReadOnlyException) ex).getReason())
+                .isEqualTo(OrgLicenseState.Reason.EXPIRED);
+        assertThat(tokensUsed(orgId)).isZero();
+    }
+
+    @Test
+    @DisplayName("pool token: đình chỉ CÓ mốc neo lẫn đình chỉ MẤT mốc neo — cả hai đều bị chặn")
+    void tokenPool_suspendedWithAndWithoutAnchor_bothBlocked() {
+        // Nhánh AI của OrgQuotaService đọc bằng JDBC nên phải tự lấy suspended_at trong câu SELECT.
+        // Hai mức READ_ONLY (còn ân hạn) và CUT (mất mốc neo ⇒ coi như hết ân hạn) cùng ném
+        // ORG_READ_ONLY, nên điều test này chốt được là: KHÔNG mức nào fail-open ở nhánh AI.
+        Long withAnchor = newOrg("SUSPENDED", null, daysAgo(3));
+        Long withoutAnchor = newOrg("SUSPENDED", null, null);
+
+        assertThatThrownBy(() -> orgQuotaService.tryReserveForOrg(withAnchor, 500))
+                .isInstanceOf(OrgReadOnlyException.class);
+        assertThatThrownBy(() -> orgQuotaService.tryReserveForOrg(withoutAnchor, 500))
+                .as("dòng dữ liệu cũ / sửa tay vào DB không được thành cửa sau tiêu token")
+                .isInstanceOf(OrgReadOnlyException.class);
+        assertThat(tokensUsed(withAnchor)).isZero();
+        assertThat(tokensUsed(withoutAnchor)).isZero();
     }
 
     @Test

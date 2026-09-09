@@ -276,10 +276,12 @@ class OrgEntitlementServiceTest {
 
     // ------------------------- cổng D5: trung tâm chỉ đọc thì KHÔNG cấp thêm quyền lợi (nợ PR #617)
 
+    /** Đình chỉ thì đóng mốc neo NGAY BÂY GIỜ — đúng như {@code Organization.changeStatus} làm. */
     private Organization orgWithStatus(String status, Instant validUntil) {
         return Organization.builder()
                 .id(1L).name("Acme Org").slug("acme").planCode("PRO")
                 .status(status).validUntil(validUntil)
+                .suspendedAt("ACTIVE".equals(status) ? null : Instant.now())
                 .build();
     }
 
@@ -306,9 +308,20 @@ class OrgEntitlementServiceTest {
     }
 
     @Test
-    @DisplayName("grantStudent: hết hạn nhưng còn ân hạn → VẪN cấp (D5 cho 7 ngày)")
-    void grantStudent_withinGrace_stillGrants() {
+    @DisplayName("grantStudent: VỪA hết hạn 2 ngày → cũng CHẶN (owner 09/09: chỉ-đọc ngay khi hết hạn)")
+    void grantStudent_justExpiredWithinGrace_blocked() {
         Organization org = orgWithStatus("ACTIVE", Instant.now().minus(2, ChronoUnit.DAYS));
+
+        assertThatThrownBy(() -> service.grantStudent(USER_ID, org))
+                .isInstanceOf(OrgReadOnlyException.class);
+
+        verifyNoInteractions(subscriptionActivationService);
+    }
+
+    @Test
+    @DisplayName("grantStudent: giấy phép còn hạn → cấp gói bình thường")
+    void grantStudent_stillValid_grants() {
+        Organization org = orgWithStatus("ACTIVE", Instant.now().plus(30, ChronoUnit.DAYS));
 
         service.grantStudent(USER_ID, org);
 

@@ -137,13 +137,15 @@ public class OrgQuotaService {
 
     private Optional<OrgReservation> reserveForOrg(long orgId, long estimatedTokens) {
         OrgPoolConfig cfg = loadPoolConfig(orgId);
-        // D5 (owner chốt 08/09/2026) — trung tâm đình chỉ / hết hạn quá 7 ngày ân hạn thì KHÔNG DÙNG
-        // AI. Đặt TRƯỚC nhánh unlimited: trung tâm mua gói unlimited mà bị đình chỉ vì chưa trả tiền
-        // vẫn phải cắt, nếu không thì đình chỉ chỉ là cái nhãn. Ném thay vì trả empty vì empty mang
-        // nghĩa "hết/chưa cấu hình pool" (429 ORG_BUDGET_*) — sai hẳn thông điệp cho người dùng.
-        if (!OrgLicenseState.evaluate(cfg.status(), cfg.validUntil(), Instant.now()).writable()) {
-            log.warn("[OrgPool][D5] Chặn AI: orgId={} đang ở chế độ chỉ đọc (status={}, validUntil={})",
-                    orgId, cfg.status(), cfg.validUntil());
+        // D5 (owner chốt lại 09/09/2026) — trung tâm đình chỉ HOẶC đã hết hạn thì KHÔNG DÙNG AI,
+        // tính từ NGAY mốc neo chứ không đợi hết 7 ngày ân hạn. Đặt TRƯỚC nhánh unlimited: trung tâm
+        // mua gói unlimited mà bị đình chỉ vì chưa trả tiền vẫn phải cắt, nếu không thì đình chỉ chỉ
+        // là cái nhãn. Ném thay vì trả empty vì empty mang nghĩa "hết/chưa cấu hình pool"
+        // (429 ORG_BUDGET_*) — sai hẳn thông điệp cho người dùng.
+        if (!OrgLicenseState.evaluate(cfg.status(), cfg.validUntil(), cfg.suspendedAt(), Instant.now())
+                .writable()) {
+            log.warn("[OrgPool][D5] Chặn AI: orgId={} mất quyền ghi (status={}, validUntil={}, suspendedAt={})",
+                    orgId, cfg.status(), cfg.validUntil(), cfg.suspendedAt());
             throw new OrgReadOnlyException(orgId, OrgLicenseState.reason(cfg.status()));
         }
         long est = Math.max(estimatedTokens, 0L);
@@ -268,26 +270,37 @@ public class OrgQuotaService {
     }
 
     /**
-     * Cấu hình pool của org (pool + cờ unlimited + trạng thái giấy phép) trong 1 query — trạng thái
-     * đi kèm để cổng D5 không tốn thêm một vòng DB trên hot-path. Org không tồn tại → fail-safe
-     * (0, false) = cap, kèm {@code status = ACTIVE} để nhánh đó giữ nguyên hành vi cũ.
+     * Cấu hình pool của org (pool + cờ unlimited + trạng thái giấy phép + MỐC NEO đình chỉ) trong 1
+     * query — cả ba mảnh giấy phép đi kèm để cổng D5 không tốn thêm vòng DB trên hot-path.
+     *
+     * <p>{@code suspended_at} bắt buộc phải nằm trong câu này: thiếu nó thì
+     * {@link OrgLicenseState#evaluate} luôn nhận {@code null} và nhánh AI âm thầm chạy luật khác
+     * hẳn hai nhánh còn lại — mọi trung tâm bị đình chỉ đều rơi thẳng xuống {@code CUT}, không ai
+     * còn 7 ngày ân hạn nào.
+     *
+     * <p>Org không tồn tại → fail-safe (0, false) = cap, kèm {@code status = ACTIVE} để nhánh đó
+     * giữ nguyên hành vi cũ.
      */
     private OrgPoolConfig loadPoolConfig(Long orgId) {
         return jdbcTemplate.query(
-                "SELECT COALESCE(monthly_token_pool, 0), pool_unlimited, status, valid_until"
-                        + " FROM organizations WHERE id = ?",
+                "SELECT COALESCE(monthly_token_pool, 0), pool_unlimited, status, valid_until,"
+                        + " suspended_at FROM organizations WHERE id = ?",
                 rs -> {
                     if (!rs.next()) {
-                        return new OrgPoolConfig(0L, false, "ACTIVE", null);
+                        return new OrgPoolConfig(0L, false, "ACTIVE", null, null);
                     }
-                    Timestamp validUntil = rs.getTimestamp(4);
                     return new OrgPoolConfig(rs.getLong(1), rs.getBoolean(2), rs.getString(3),
-                            validUntil != null ? validUntil.toInstant() : null);
+                            toInstant(rs.getTimestamp(4)), toInstant(rs.getTimestamp(5)));
                 },
                 orgId);
     }
 
-    private record OrgPoolConfig(long pool, boolean unlimited, String status, Instant validUntil) {}
+    private static Instant toInstant(Timestamp ts) {
+        return ts == null ? null : ts.toInstant();
+    }
+
+    private record OrgPoolConfig(long pool, boolean unlimited, String status, Instant validUntil,
+                                 Instant suspendedAt) {}
 
     /**
      * Cảnh báo server-side khi org vừa CHẠM ngưỡng {@value #POOL_ALERT_PERCENT}% pool

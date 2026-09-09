@@ -1243,9 +1243,12 @@ class TeacherServiceTest {
         return u;
     }
 
+    /** Đình chỉ thì đóng mốc neo NGAY BÂY GIỜ — đúng như {@code Organization.changeStatus} làm. */
     private com.deutschflow.organization.entity.Organization orgLicence(String status, java.time.Instant validUntil) {
         return com.deutschflow.organization.entity.Organization.builder()
-                .id(9L).name("Trung tâm").slug("tt").status(status).validUntil(validUntil).build();
+                .id(9L).name("Trung tâm").slug("tt").status(status).validUntil(validUntil)
+                .suspendedAt("ACTIVE".equals(status) ? null : java.time.Instant.now())
+                .build();
     }
 
     @Test
@@ -1261,8 +1264,8 @@ class TeacherServiceTest {
     }
 
     @Test
-    @DisplayName("createClass: giấy phép hết hạn QUÁ ân hạn → chặn; còn trong ân hạn 7 ngày → vẫn tạo")
-    void createClass_expiredPastGraceBlocked_withinGraceAllowed() {
+    @DisplayName("createClass: hết hạn 30 ngày lẫn VỪA hết hạn 2 ngày đều chặn; còn hạn thì tạo được")
+    void createClass_anyExpiryBlocked_validLicenceAllowed() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(teacherOfOrg(9L)));
         when(organizationRepository.findById(9L)).thenReturn(Optional.of(
                 orgLicence("ACTIVE", java.time.Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS))));
@@ -1271,8 +1274,15 @@ class TeacherServiceTest {
                 () -> teacherService.createClass(1L, "A1.1 Sáng T2"));
         verify(classRepository, never()).save(any(TeacherClass.class));
 
+        // Owner 09/09: ân hạn 7 ngày là quãng CHỈ-ĐỌC, không còn là quãng ghi được.
         when(organizationRepository.findById(9L)).thenReturn(Optional.of(
                 orgLicence("ACTIVE", java.time.Instant.now().minus(2, java.time.temporal.ChronoUnit.DAYS))));
+        assertThrows(com.deutschflow.common.exception.OrgReadOnlyException.class,
+                () -> teacherService.createClass(1L, "A1.1 Sáng T2"));
+        verify(classRepository, never()).save(any(TeacherClass.class));
+
+        when(organizationRepository.findById(9L)).thenReturn(Optional.of(
+                orgLicence("ACTIVE", java.time.Instant.now().plus(30, java.time.temporal.ChronoUnit.DAYS))));
         when(classRepository.save(any(TeacherClass.class))).thenAnswer(inv -> {
             TeacherClass saved = inv.getArgument(0);
             saved.setId(7L);

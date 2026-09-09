@@ -324,14 +324,23 @@ class OrgGuardTest {
     // ------------------------------------------------------------------ cổng chế độ chỉ đọc (D5)
 
     private void stubOrg(String status, Instant validUntil) {
-        Organization org = Organization.builder()
+        stubOrg(status, validUntil, null);
+    }
+
+    private void stubOrg(String status, Instant validUntil, Instant suspendedAt) {
+        when(organizationRepository.findById(ORG_ID))
+                .thenReturn(Optional.of(orgEntity(status, validUntil, suspendedAt)));
+    }
+
+    private Organization orgEntity(String status, Instant validUntil, Instant suspendedAt) {
+        return Organization.builder()
                 .id(ORG_ID)
                 .name("Trung tâm Alpha")
                 .slug("alpha")
                 .status(status)
                 .validUntil(validUntil)
+                .suspendedAt(suspendedAt)
                 .build();
-        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
     }
 
     @Test
@@ -343,10 +352,22 @@ class OrgGuardTest {
     }
 
     @Test
-    @DisplayName("assertOrgWritable: hết hạn nhưng còn trong ân hạn 7 ngày → VẪN ghi được (D5)")
-    void assertOrgWritable_withinGrace_passes() {
+    @DisplayName("assertOrgWritable: vừa hết hạn 1 phút → CHẶN NGAY (không còn quãng ghi được)")
+    void assertOrgWritable_justExpired_throwsImmediately() {
+        stubOrg("ACTIVE", Instant.now().minusSeconds(60));
+        assertThatThrownBy(() -> orgGuard.assertOrgWritable(ORG_ID))
+                .isInstanceOf(OrgReadOnlyException.class)
+                .hasMessageContaining("hết hạn")
+                .extracting(ex -> ((OrgReadOnlyException) ex).getReason())
+                .isEqualTo(OrgLicenseState.Reason.EXPIRED);
+    }
+
+    @Test
+    @DisplayName("assertOrgWritable: hết hạn đã 3 ngày (trong ân hạn chỉ-đọc) → vẫn CHẶN ghi")
+    void assertOrgWritable_withinReadOnlyGrace_stillThrows() {
         stubOrg("ACTIVE", Instant.now().minus(3, ChronoUnit.DAYS));
-        orgGuard.assertOrgWritable(ORG_ID);
+        assertThatThrownBy(() -> orgGuard.assertOrgWritable(ORG_ID))
+                .isInstanceOf(OrgReadOnlyException.class);
     }
 
     @Test
@@ -361,14 +382,38 @@ class OrgGuardTest {
     }
 
     @Test
-    @DisplayName("assertOrgWritable: trung tâm bị đình chỉ → ORG_READ_ONLY ngay, lý do SUSPENDED")
+    @DisplayName("assertOrgWritable: vừa bị đình chỉ (còn ân hạn) → ORG_READ_ONLY, lý do SUSPENDED")
     void assertOrgWritable_suspended_throws() {
-        stubOrg("SUSPENDED", Instant.now().plus(365, ChronoUnit.DAYS));
+        stubOrg("SUSPENDED", Instant.now().plus(365, ChronoUnit.DAYS), Instant.now());
         assertThatThrownBy(() -> orgGuard.assertOrgWritable(ORG_ID))
                 .isInstanceOf(OrgReadOnlyException.class)
                 .extracting(ex -> ((OrgReadOnlyException) ex).getReason())
                 .isEqualTo(OrgLicenseState.Reason.SUSPENDED);
         assertThat(orgGuard.isOrgReadOnly(ORG_ID)).isTrue();
+    }
+
+    @Test
+    @DisplayName("assertOrgWritable: đình chỉ mà mốc neo NULL → vẫn chặn ghi, không fail-open")
+    void assertOrgWritable_suspendedWithoutAnchor_throws() {
+        stubOrg("SUSPENDED", Instant.now().plus(365, ChronoUnit.DAYS), null);
+        assertThatThrownBy(() -> orgGuard.assertOrgWritable(ORG_ID))
+                .isInstanceOf(OrgReadOnlyException.class);
+    }
+
+    @Test
+    @DisplayName("licenceMode: mốc neo quyết định CHỈ ĐỌC hay CẮT — cả hai đều chặn ghi như nhau")
+    void licenceMode_distinguishesReadOnlyFromCut() {
+        Organization justSuspended = orgEntity("SUSPENDED", null, Instant.now().minus(3, ChronoUnit.DAYS));
+        Organization longSuspended = orgEntity("SUSPENDED", null, Instant.now().minus(8, ChronoUnit.DAYS));
+        Organization noAnchor = orgEntity("SUSPENDED", null, null);
+
+        // Ba trường hợp này đều ném ORG_READ_ONLY, nên chỉ có mức mới phân biệt được — đây là chỗ
+        // duy nhất bắt được một bản vá quên truyền suspended_at vào máy trạng thái.
+        assertThat(orgGuard.licenceMode(justSuspended)).isEqualTo(OrgLicenseState.Mode.READ_ONLY);
+        assertThat(orgGuard.licenceMode(longSuspended)).isEqualTo(OrgLicenseState.Mode.CUT);
+        assertThat(orgGuard.licenceMode(noAnchor)).isEqualTo(OrgLicenseState.Mode.CUT);
+        assertThat(orgGuard.licenceMode(orgEntity("ACTIVE", null, null)))
+                .isEqualTo(OrgLicenseState.Mode.ACTIVE);
     }
 
     @Test
@@ -394,7 +439,7 @@ class OrgGuardTest {
     @DisplayName("assertOrgAdminForWrite: org-admin của trung tâm bị đình chỉ → ORG_READ_ONLY")
     void assertOrgAdminForWrite_suspendedOrg_throwsReadOnly() {
         stubMember(activeMember("OWNER"));
-        stubOrg("SUSPENDED", null);
+        stubOrg("SUSPENDED", null, Instant.now());
         assertThatThrownBy(() -> orgGuard.assertOrgAdminForWrite(USER_ID, ORG_ID))
                 .isInstanceOf(OrgReadOnlyException.class);
     }

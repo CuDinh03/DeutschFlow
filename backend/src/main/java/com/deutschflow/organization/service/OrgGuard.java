@@ -108,8 +108,10 @@ public class OrgGuard {
     /**
      * Cổng TRẠNG THÁI TRUNG TÂM (D5) — chỉ dành cho đường GHI.
      *
-     * <p>Trung tâm bị đình chỉ, hoặc giấy phép hết hạn quá {@link OrgLicenseState#GRACE} ngày ân
-     * hạn, rơi vào chế độ CHỈ ĐỌC: ném {@link OrgReadOnlyException} (403 + {@code ORG_READ_ONLY}).
+     * <p>Trung tâm bị đình chỉ, hoặc giấy phép đã hết hạn, mất quyền ghi NGAY (owner chốt
+     * 09/09/2026 — xem {@link OrgLicenseState}): ném {@link OrgReadOnlyException} (403 +
+     * {@code ORG_READ_ONLY}). Ân hạn 7 ngày sau mốc neo là quãng CHỈ-ĐỌC trước khi cắt quyền lợi,
+     * không phải quãng còn ghi được — nên cổng này chặn ở cả {@code READ_ONLY} lẫn {@code CUT}.
      *
      * <p><b>Cố ý KHÔNG gộp vào {@link #assertMember}/{@link #assertOrgAdmin}:</b> hai hàm đó đang
      * gác cả đường ĐỌC (danh sách lớp, chi tiết học viên, phân tích, hoá đơn) lẫn đường GHI. D5 nói
@@ -125,7 +127,7 @@ public class OrgGuard {
         if (org == null) {
             return;
         }
-        if (!OrgLicenseState.evaluate(org.getStatus(), org.getValidUntil(), Instant.now()).writable()) {
+        if (!licenceMode(org).writable()) {
             throw new OrgReadOnlyException(orgId, OrgLicenseState.reason(org.getStatus()));
         }
     }
@@ -134,9 +136,21 @@ public class OrgGuard {
     @Transactional(readOnly = true)
     public boolean isOrgReadOnly(Long orgId) {
         return organizationRepository.findById(orgId)
-                .map(org -> !OrgLicenseState
-                        .evaluate(org.getStatus(), org.getValidUntil(), Instant.now()).writable())
+                .map(org -> !licenceMode(org).writable())
                 .orElse(false);
+    }
+
+    /**
+     * Mức giấy phép của một trung tâm — MỘT chỗ duy nhất ghép ba mảnh
+     * ({@code status}, {@code valid_until}, {@code suspended_at}) cho cả đường ném lẫn đường DTO.
+     *
+     * <p>Package-private để test chốt được mức THẬT chứ không chỉ "có ném hay không":
+     * {@code READ_ONLY} và {@code CUT} đều chặn ghi, nên một bản vá lỡ quên truyền mốc neo sẽ đẩy
+     * mọi trung tâm bị đình chỉ xuống thẳng {@code CUT} mà không ca hành vi nào nhìn thấy.
+     */
+    OrgLicenseState.Mode licenceMode(Organization org) {
+        return OrgLicenseState.evaluate(org.getStatus(), org.getValidUntil(), org.getSuspendedAt(),
+                Instant.now());
     }
 
     /**

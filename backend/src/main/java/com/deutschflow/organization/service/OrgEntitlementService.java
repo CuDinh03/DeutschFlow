@@ -48,8 +48,9 @@ public class OrgEntitlementService {
      * {@code activateWithExplicitEnd}, hàm đó ENDED mọi dòng ACTIVE: thêm một học viên đang trả tiền
      * vào trung tâm là đốt sạch phần họ đã mua, và rời trung tâm cũng không lấy lại được.
      *
-     * <p><b>Cổng D5 (nợ ghi trong PR #617, nay owner đã chốt):</b> trung tâm bị đình chỉ hoặc hết
-     * hạn quá 7 ngày ân hạn thì KHÔNG cấp thêm quyền lợi. Cổng đặt ở ĐÂY chứ không ở từng call-site
+     * <p><b>Cổng D5 (nợ ghi trong PR #617, nay owner đã chốt):</b> trung tâm bị đình chỉ hoặc đã
+     * hết hạn thì KHÔNG cấp thêm quyền lợi — chặn NGAY từ mốc neo, không đợi hết 7 ngày ân hạn
+     * (ân hạn là quãng chỉ-đọc trước khi CẮT, xem {@link OrgLicenseState}). Cổng đặt ở ĐÂY chứ không ở từng call-site
      * vì cả hai đường TỰ PHỤC VỤ đều đi qua hàm này ({@code OrgMembershipService.ensureStudentSeat}
      * khi học viên gõ mã lớp, {@code OrgRosterRowImporter} khi org import roster) — trước đây chỉ
      * cần một học viên gõ mã lớp là trung tâm nợ tiền vẫn cấp được gói mới. Ném (chứ không lặng lẽ bỏ qua) để lượt duyệt/import thất bại rõ ràng và cùng
@@ -137,7 +138,8 @@ public class OrgEntitlementService {
 
     /** Cổng D5 — xem {@link #grantStudent}. Tách ra để đọc được ý định ở một chỗ. */
     private static void assertOrgMayGrant(Organization org) {
-        if (!OrgLicenseState.evaluate(org.getStatus(), org.getValidUntil(), Instant.now()).writable()) {
+        if (!OrgLicenseState.evaluate(org.getStatus(), org.getValidUntil(), org.getSuspendedAt(),
+                Instant.now()).writable()) {
             throw new OrgReadOnlyException(org.getId(), OrgLicenseState.reason(org.getStatus()));
         }
     }

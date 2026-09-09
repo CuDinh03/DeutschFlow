@@ -192,21 +192,26 @@ public class AdminOrgService {
     }
 
     /**
-     * Cascades a status change to student entitlements: suspending an org revokes all ACTIVE
-     * students' plans; reactivating re-grants them. No-op when status is unchanged.
+     * Cascades a status change to student entitlements.
+     *
+     * <p><b>Đình chỉ KHÔNG còn thu hồi quyền lợi ngay</b> (owner chốt 09/09/2026): trung tâm bị
+     * đình chỉ rơi vào chế độ CHỈ ĐỌC — hết tạo mới, hết AI — nhưng học viên giữ gói thêm 7 ngày ân
+     * hạn tính từ {@code suspended_at} do {@link Organization#changeStatus(String)} vừa đóng. Cắt
+     * phăng tại giây bấm nút chính là hành vi owner bảo làm ngược. Việc CẮT khi quá ân hạn do
+     * {@code SubscriptionReconcileJob} quét nền thi hành ({@link OrgLicenseState.Mode#CUT}) —
+     * ở đây không có gì để làm vì mốc ân hạn chưa tới.
+     *
+     * <p>Mở lại thì cấp lại ngay, không đợi job: đó là thao tác người dùng đang chờ kết quả.
+     * No-op when status is unchanged.
      */
     private void applyStatusTransition(Organization org, String previousStatus, String newStatus) {
         if (newStatus == null || newStatus.equals(previousStatus)) {
             return;
         }
         if (STATUS_SUSPENDED.equals(newStatus)) {
-            List<OrgMember> students = orgMemberRepository
-                    .findByIdOrgIdAndRoleAndStatus(org.getId(), ROLE_STUDENT, STATUS_ACTIVE);
-            for (OrgMember member : students) {
-                orgEntitlementService.revokeStudent(member.getId().getUserId());
-            }
-            log.info("[ORG-ADMIN] Suspended org {}: revoked entitlements for {} student(s)",
-                    org.getId(), students.size());
+            log.info("[ORG-ADMIN] Đình chỉ trung tâm {}: chuyển CHỈ ĐỌC, giữ quyền lợi học viên đến"
+                    + " hết {} ngày ân hạn kể từ {}",
+                    org.getId(), OrgLicenseState.GRACE.toDays(), org.getSuspendedAt());
         } else if (STATUS_ACTIVE.equals(newStatus)) {
             List<OrgMember> students = orgMemberRepository
                     .findByIdOrgIdAndRoleAndStatus(org.getId(), ROLE_STUDENT, STATUS_ACTIVE);
