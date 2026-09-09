@@ -305,6 +305,28 @@ export async function changeMemberRole(userId: number, role: OrgRole): Promise<O
   return res.data
 }
 
+/**
+ * POST /org/members/{userId}/transfer-ownership — OWNER chuyển quyền giám đốc cho một nhân sự
+ * (MANAGER/TEACHER) ĐANG hoạt động của chính trung tâm.
+ *
+ * Backend làm promote + demote trong CÙNG một transaction (OrgMembershipService#transferOwnership):
+ * người nhận lên OWNER và người gọi tụt xuống MANAGER, nên trung tâm không bao giờ có 0 giám đốc.
+ * Đây là đường DUY NHẤT tạo lại OWNER từ bên trong trung tâm — vì OWNER không bị gỡ và không tự rời
+ * được, giám đốc muốn rời thì phải chuyển quyền trước.
+ *
+ * Trả về thành viên vừa thành OWNER. Lỗi từ máy chủ:
+ * - 403 người gọi không phải OWNER đang hoạt động;
+ * - 404 người nhận không thuộc trung tâm hoặc không ACTIVE;
+ * - 400 người nhận trùng người gọi, hoặc không phải quản lý/giáo viên.
+ *
+ * ⚠️ Sau lệnh này người gọi KHÔNG còn là OWNER, nhưng access token cũ vẫn mang orgRole=OWNER cho
+ * tới lần làm mới token kế tiếp — giao diện phải tự hạ trạng thái vai, đừng tin lại cookie.
+ */
+export async function transferOwnership(userId: number): Promise<OrgMember> {
+  const res = await api.post<OrgMember>(`/org/members/${userId}/transfer-ownership`)
+  return res.data
+}
+
 /** GET /org/classes — read-only paginated list of the org's classes. */
 /**
  * GET /org/classes — lọc PHÍA MÁY CHỦ (PR-A3).

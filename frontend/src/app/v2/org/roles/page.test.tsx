@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 /**
@@ -13,12 +13,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const listMembers = vi.fn()
 const removeMember = vi.fn()
 const changeMemberRole = vi.fn()
+const transferOwnership = vi.fn()
 const getOrgRole = vi.fn()
 
 vi.mock('@/lib/orgApi', () => ({
   listMembers: () => listMembers(),
   removeMember: (...a: unknown[]) => removeMember(...a),
   changeMemberRole: (...a: unknown[]) => changeMemberRole(...a),
+  transferOwnership: (...a: unknown[]) => transferOwnership(...a),
 }))
 vi.mock('@/lib/authSession', () => ({ getOrgRole: () => getOrgRole() }))
 vi.mock('@/lib/api', () => ({ apiMessage: (e: unknown) => (e instanceof Error ? e.message : 'Lỗi') }))
@@ -47,7 +49,7 @@ const member = (userId: number, role: string) => ({
 })
 
 beforeEach(() => {
-  for (const m of [listMembers, removeMember, changeMemberRole, getOrgRole]) m.mockReset()
+  for (const m of [listMembers, removeMember, changeMemberRole, transferOwnership, getOrgRole]) m.mockReset()
   getOrgRole.mockReturnValue('OWNER')
   listMembers.mockResolvedValue([member(1, 'OWNER'), member(2, 'TEACHER')])
 })
@@ -105,5 +107,85 @@ describe('V2OrgRolesPage — chỉ OWNER mới gỡ được MANAGER (V-14)', ()
 
     await waitFor(() => expect(screen.getByText('Người 3')).toBeTruthy())
     expect(screen.getAllByRole('button', { name: 'v2.org.roles.remove' })).toHaveLength(2)
+  })
+})
+
+/**
+ * G-08 — chuyển quyền giám đốc trên web.
+ *
+ * `POST /org/members/{id}/transfer-ownership` (OrgController#transferOwnership → OrgMembershipService,
+ * promote+demote trong một transaction) đã có từ lâu nhưng KHÔNG màn web nào gọi tới: OWNER không tự
+ * rời được và không bị gỡ được, nên giám đốc nghỉ việc là trung tâm khoá cứng.
+ */
+describe('V2OrgRolesPage — chuyển quyền giám đốc (G-08)', () => {
+  const T = 'v2.org.roles.transfer'
+  const OK = 'v2.org.roles.transferDialogOk'
+
+  it('nút chỉ hiện với OWNER, và chỉ trên hàng MANAGER/TEACHER', async () => {
+    listMembers.mockResolvedValue([member(1, 'OWNER'), member(2, 'MANAGER'), member(3, 'TEACHER'), member(4, 'STUDENT')])
+
+    render(<V2OrgRolesPage />)
+
+    await waitFor(() => expect(screen.getByText('Người 4')).toBeTruthy())
+    // Đúng hai nút: hàng MANAGER và hàng TEACHER. Không có trên hàng OWNER (backend chặn tự chuyển
+    // cho chính mình) và không có trên hàng học viên (chỉ nhân sự nhận được quyền).
+    expect(screen.getAllByRole('button', { name: T })).toHaveLength(2)
+  })
+
+  it('MANAGER không thấy nút nào — backend trả 403 cho người không phải OWNER', async () => {
+    getOrgRole.mockReturnValue('MANAGER')
+    listMembers.mockResolvedValue([member(1, 'OWNER'), member(2, 'MANAGER'), member(3, 'TEACHER')])
+
+    render(<V2OrgRolesPage />)
+
+    await waitFor(() => expect(screen.getByText('Người 3')).toBeTruthy())
+    expect(screen.queryAllByRole('button', { name: T })).toHaveLength(0)
+  })
+
+  it('hộp thoại nêu đủ ba hệ quả: ai lên giám đốc, chính mình bị hạ, không lấy lại được', async () => {
+    listMembers.mockResolvedValue([member(1, 'OWNER'), member(2, 'TEACHER')])
+
+    render(<V2OrgRolesPage />)
+    await waitFor(() => expect(screen.getByText('Người 2')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: T }))
+
+    expect(screen.getByText('v2.org.roles.transferDialogDetailNewOwner:{"name":"Người 2"}')).toBeTruthy()
+    expect(screen.getByText('v2.org.roles.transferDialogDetailSelfDemoted')).toBeTruthy()
+    expect(screen.getByText('v2.org.roles.transferDialogDetailIrreversible')).toBeTruthy()
+    // Chưa bấm xác nhận thì chưa gọi API — mở hộp thoại không phải là đồng ý.
+    expect(transferOwnership).not.toHaveBeenCalled()
+  })
+
+  it('bấm Hủy thì KHÔNG gọi API', async () => {
+    listMembers.mockResolvedValue([member(1, 'OWNER'), member(2, 'TEACHER')])
+
+    render(<V2OrgRolesPage />)
+    await waitFor(() => expect(screen.getByText('Người 2')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: T }))
+    fireEvent.click(screen.getByRole('button', { name: 'v2.org.roles.removeDialogCancel' }))
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: OK })).toBeNull())
+    expect(transferOwnership).not.toHaveBeenCalled()
+  })
+
+  it('xác nhận: gọi đúng userId, tải lại danh sách và HẠ vai người bấm khỏi OWNER', async () => {
+    listMembers.mockResolvedValue([member(1, 'OWNER'), member(2, 'TEACHER')])
+    transferOwnership.mockResolvedValue(member(2, 'OWNER'))
+
+    render(<V2OrgRolesPage />)
+    await waitFor(() => expect(screen.getByText('Người 2')).toBeTruthy())
+    expect(listMembers).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: T }))
+    fireEvent.click(screen.getByRole('button', { name: OK }))
+
+    await waitFor(() => expect(transferOwnership).toHaveBeenCalledWith(2))
+    // Làm mới danh sách…
+    await waitFor(() => expect(listMembers).toHaveBeenCalledTimes(2))
+    // …và màn hình không được nói dối: người bấm đã mất quyền OWNER nên mọi nút OWNER-only tắt.
+    // (Cookie/JWT cũ vẫn mang orgRole=OWNER tới lần refresh token kế tiếp — không được tin lại nó.)
+    await waitFor(() => expect(screen.queryAllByRole('button', { name: T })).toHaveLength(0))
+    expect(screen.queryByLabelText('v2.org.roles.changeRoleAria:{"name":"Người 2"}')).toBeNull()
+    expect(screen.getByText('v2.org.roles.transferDoneNote:{"name":"Người 2"}')).toBeTruthy()
   })
 })

@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
-import { apiMessage } from '@/lib/api'
-import { changeMemberRole, listMembers, removeMember, type OrgMember, type OrgRole } from '@/lib/orgApi'
+import { apiMessage, refreshAccessToken } from '@/lib/api'
+import { changeMemberRole, listMembers, removeMember, transferOwnership, type OrgMember, type OrgRole } from '@/lib/orgApi'
 import { getOrgRole } from '@/lib/authSession'
 import { GaPageHdr, GaStatStrip, TkBadge, ErrorBanner, LoadingState, ConfirmDialog } from '@/components/ui-v2'
 import { GaSection } from '../../sectionShared'
@@ -99,6 +99,47 @@ export default function V2OrgRolesPage() {
     }
   }
 
+  // G-08: chuyển quyền giám đốc — POST /org/members/{id}/transfer-ownership. Backend promote người
+  // nhận lên OWNER và demote người gọi xuống MANAGER trong CÙNG một transaction; trước đợt này
+  // không màn web nào gọi tới, nên giám đốc nghỉ việc là trung tâm khoá cứng (OWNER không bị gỡ,
+  // không tự rời được) và phải nhờ đội nền tảng sửa thẳng cơ sở dữ liệu.
+  const [transferTarget, setTransferTarget] = useState<OrgMember | null>(null)
+  // Tên giám đốc mới sau khi chuyển xong — dùng cho dòng thông báo, và là dấu "phiên đã hạ vai".
+  const [demotedTo, setDemotedTo] = useState<string | null>(null)
+
+  const confirmTransfer = async () => {
+    if (!transferTarget) return
+    const m = transferTarget
+    const name = m.displayName || m.email
+    setBusy(m.userId)
+    try {
+      await transferOwnership(m.userId)
+      toast.success(t('transferred', { name }))
+      setTransferTarget(null)
+      // Người bấm KHÔNG còn là OWNER. Access token cũ vẫn mang orgRole=OWNER tới lần refresh kế
+      // tiếp, nên getOrgRole() sẽ vẫn nói dối — hạ cờ tại chỗ để mọi nút OWNER-only tắt ngay thay
+      // vì mời người dùng bấm tiếp rồi ăn 403 từ OrgGuard.
+      setIsOwner(false)
+      setDemotedTo(name)
+      // Hạ cờ tại chỗ mới chỉ sửa TRANG NÀY. Sidebar, OwnerOnly và trang tổng quan đều đọc cookie
+      // auth_org_role, nên tới khi token được làm mới thì cả ứng dụng vẫn nói người này là OWNER —
+      // họ vào được /v2/org/billing rồi ăn 403 thay vì bị đá ra sạch sẽ. `/auth/refresh` dựng lại
+      // orgRole TỪ BẢNG membership ACTIVE nên token mới mang đúng vai ngay, khỏi bắt đăng nhập lại.
+      // Trong khối try riêng: refresh hỏng thì việc chuyển quyền VẪN đã thành công, không được nuốt
+      // ngược thành lỗi — dòng nhắc đăng nhập lại trên màn hình là lưới an toàn.
+      try {
+        await refreshAccessToken()
+      } catch {
+        /* giữ nguyên: đã có dòng role="status" nhắc đăng nhập lại */
+      }
+      await load()
+    } catch (e: unknown) {
+      toast.error(apiMessage(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
@@ -112,6 +153,11 @@ export default function V2OrgRolesPage() {
           <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
+            {demotedTo && (
+              <p role="status" className="ga-ui rounded-ga border border-ga-line bg-ga-surface px-4 py-3 text-ga-small text-ga-ink">
+                {t('transferDoneNote', { name: demotedTo })}
+              </p>
+            )}
             <GaStatStrip
               items={[
                 { label: t('stats.managers'), value: count('OWNER', 'MANAGER'), sub: t('stats.managersSub'), tone: 'navy' },
@@ -172,6 +218,17 @@ export default function V2OrgRolesPage() {
                             </td>
                             <td className="px-5 py-3 text-[13px] text-ga-muted">{fmtDate(m.joinedAt)}</td>
                             <td className="px-5 py-3 text-right">
+                              {/* G-08: chỉ OWNER chuyển được quyền, và chỉ cho nhân sự (MANAGER/TEACHER). */}
+                              {isOwner && (m.role === 'MANAGER' || m.role === 'TEACHER') && (
+                                <button
+                                  type="button"
+                                  disabled={busy === m.userId}
+                                  onClick={() => setTransferTarget(m)}
+                                  className="ga-ui mr-2 inline-flex min-h-[40px] items-center justify-center rounded-ga border border-ga-line px-[10px] py-[6px] text-ga-caption font-semibold text-ga-muted transition-colors hover:border-ga-navy hover:text-ga-navy disabled:opacity-40 lg:min-h-0"
+                                >
+                                  {t('transfer')}
+                                </button>
+                              )}
                               {/* Backend chỉ cho OWNER gỡ MANAGER (V-14): đừng mở hộp thoại rồi mới ăn 403. */}
                               {m.role !== 'OWNER' && (isOwner || m.role !== 'MANAGER') && (
                                 <button
@@ -201,6 +258,24 @@ export default function V2OrgRolesPage() {
           </div>
         )}
       </div>
+
+      {transferTarget && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => { if (!o) setTransferTarget(null) }}
+          title={t('transferDialogTitle')}
+          description={t('transferDialogDesc', { name: transferTarget.displayName || transferTarget.email })}
+          details={[
+            t('transferDialogDetailNewOwner', { name: transferTarget.displayName || transferTarget.email }),
+            t('transferDialogDetailSelfDemoted'),
+            t('transferDialogDetailIrreversible'),
+          ]}
+          confirmLabel={t('transferDialogOk')}
+          cancelLabel={t('removeDialogCancel')}
+          loading={busy === transferTarget.userId}
+          onConfirm={() => void confirmTransfer()}
+        />
+      )}
 
       {removeTarget && (
         <ConfirmDialog
