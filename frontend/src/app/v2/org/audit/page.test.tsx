@@ -34,6 +34,7 @@ const row = (id: number, over: Partial<Record<string, unknown>> = {}) => ({
   targetId: String(100 + id),
   metadataJson: null,
   createdAt: '2026-09-08T10:00:00Z',
+  orgId: 7,
   ...over,
 })
 
@@ -66,6 +67,54 @@ describe('V2OrgAuditPage — sổ hoạt động trung tâm', () => {
     expect(screen.getByText('v2.org.audit.colTarget')).toBeTruthy()
     expect(screen.getAllByText('giamdoc@tt.vn').length).toBe(2)
     expect(screen.getByText('ORG_MEMBER · 102')).toBeTruthy()
+  })
+
+  /**
+   * `metadata_json` là chỗ duy nhất ghi "đã đổi cái gì thành cái gì". Màn đầu tiên bỏ hẳn cột này,
+   * nên một dòng `admin.org.updated` chỉ nói "có ai đó sửa trung tâm" mà không nói sửa thành gì.
+   */
+  it('hiện metadata theo cặp khoá–giá trị chứ không đổ JSON thô', async () => {
+    listOrgAuditLogs.mockResolvedValueOnce(
+      envelope(
+        [row(1, { metadataJson: '{"fromStatus":"ACTIVE","toStatus":"SUSPENDED"}' })],
+        1,
+      ),
+    )
+
+    render(<V2OrgAuditPage />)
+
+    await waitFor(() => expect(screen.getByText('v2.org.audit.colDetails')).toBeTruthy())
+    expect(screen.getByText('From status')).toBeTruthy()
+    expect(screen.getByText('ACTIVE')).toBeTruthy()
+    expect(screen.getByText('To status')).toBeTruthy()
+    expect(screen.getByText('SUSPENDED')).toBeTruthy()
+    // Nguyên văn JSON không được lọt ra bảng.
+    expect(screen.queryByText(/\{"fromStatus"/)).toBeNull()
+  })
+
+  /**
+   * DEC-13 — lý do tồn tại của cả đợt: admin nền tảng KHÔNG thuộc trung tâm, vết của họ vẫn vào sổ
+   * này. Nếu dòng đó trông y hệt dòng của nhân sự nội bộ thì giám đốc không có cách nào biết người
+   * ngoài đã động vào dữ liệu của mình.
+   */
+  it('dòng của ADMIN nền tảng mang huy hiệu người ngoài trung tâm', async () => {
+    listOrgAuditLogs.mockResolvedValueOnce(
+      envelope(
+        [
+          row(1, { actorRole: 'ADMIN', actorEmail: 'admin@deutschflow.de' }),
+          row(2, { actorRole: 'OWNER' }),
+        ],
+        2,
+      ),
+    )
+
+    render(<V2OrgAuditPage />)
+
+    await waitFor(() => expect(screen.getByText('v2.org.audit.outsiderBadge')).toBeTruthy())
+    // Đúng MỘT huy hiệu: dòng OWNER vẫn hiện vai trò trần, không bị gắn nhầm.
+    expect(screen.getAllByText('v2.org.audit.outsiderBadge')).toHaveLength(1)
+    expect(screen.getByText('OWNER')).toBeTruthy()
+    expect(screen.queryByText('ADMIN')).toBeNull()
   })
 
   it('không phải OWNER thì bị đẩy về /v2/org và KHÔNG gọi endpoint', async () => {

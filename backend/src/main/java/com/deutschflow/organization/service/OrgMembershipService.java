@@ -397,6 +397,14 @@ public class OrgMembershipService {
      * viên, import CSV, người được mời tự bấm nhận lời, và admin nền tảng dựng org — với bốn loại
      * actor khác nhau, một trong số đó còn không có principal. Gộp cả bốn vào một event name thì vết
      * đọc lên vô nghĩa, nên mỗi đường tự ghi vết của mình tại call-site nghiệp vụ.
+     *
+     * <p><b>DEC-13 — vì sao truyền {@code orgId} tường minh (một chỗ, phủ cả bốn sự kiện).</b> Đường
+     * suy-từ-actor đọc {@code users.org_id} của NGƯỜI THAO TÁC, và ở đây nó sai theo hai kiểu khác
+     * nhau. (1) {@code org_member_left}: người tự rời chính là actor, mà {@code detachUser} đã XOÁ
+     * {@code users.org_id} của họ NGAY TRƯỚC lời gọi này — vết "đã rời trung tâm" rơi vào org NULL,
+     * tức đúng cái vết mà giám đốc cần thì lại là vết duy nhất giám đốc không thấy. (2) admin nền
+     * tảng gỡ/đổi vai qua console: actor không thuộc trung tâm nào. Tham số {@code orgId} thì luôn
+     * là trung tâm bị tác động, do call-site truyền xuống trước khi bất cứ thứ gì bị gỡ.
      */
     private void audit(String event, AuditActor actor, Long orgId, Long targetUserId,
                        Map<String, Object> extra) {
@@ -409,6 +417,7 @@ public class OrgMembershipService {
         auditLogService.log(event, actor,
                 targetUserId != null ? "ORG_MEMBER" : "ORG",
                 String.valueOf(targetUserId != null ? targetUserId : orgId),
+                orgId,
                 meta);
     }
 

@@ -154,7 +154,7 @@ class OrgRosterServiceTest {
         // 3 học viên → vẫn CHỈ 1 dòng audit: import là MỘT hành động của MỘT người. Ghi từng dòng
         // sẽ nhấn chìm màn hình vết mà không thêm thông tin — chi tiết lỗi đã nằm ở DTO trả về.
         verify(auditLogService).log(eq("org_member_imported"), eq(ACTOR),
-                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue())
                 .containsEntry("orgId", ORG_ID)
                 .containsEntry("total", 3)

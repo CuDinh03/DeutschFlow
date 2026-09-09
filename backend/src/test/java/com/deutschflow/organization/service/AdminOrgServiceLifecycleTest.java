@@ -644,8 +644,10 @@ class AdminOrgServiceLifecycleTest {
         service.addMember(ORG_ID, "up@x.com", "MANAGER", actor);
 
         ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        // DEC-13: tham số áp chót là org BỊ TÁC ĐỘNG. Thiếu nó thì vết suy org từ users.org_id của
+        // admin nền tảng — luôn NULL — và sổ của giám đốc lọc `AND org_id = ?` sẽ loại sạch.
         verify(auditLogService).log(eq("admin.org.member.upserted"), eq(actor),
-                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue().get("fromRole")).isEqualTo("TEACHER");
         assertThat(meta.getValue().get("toRole")).isEqualTo("MANAGER");
         assertThat(meta.getValue().get("targetUserId")).isEqualTo(14L);
@@ -671,7 +673,7 @@ class AdminOrgServiceLifecycleTest {
 
         ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
         verify(auditLogService).log(eq("admin.org.created"), eq(actor),
-                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue()).containsEntry("slug", "atb-center").containsEntry("planCode", "PRO");
     }
 
@@ -688,7 +690,7 @@ class AdminOrgServiceLifecycleTest {
 
         ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
         verify(auditLogService).log(eq("admin.org.updated"), any(),
-                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue()).containsEntry("fromStatus", "ACTIVE").containsEntry("toStatus", "SUSPENDED");
     }
 
@@ -705,8 +707,10 @@ class AdminOrgServiceLifecycleTest {
 
         assertThat(granted).isEqualTo(2);
         ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        // actor null (đường webhook SePay gọi vào cũng vậy) ⇒ đường suy-từ-actor không có gì để
+        // suy; orgId tường minh là thứ DUY NHẤT đưa vết này vào sổ của trung tâm.
         verify(auditLogService).log(eq("admin.org.entitlements.activated"), any(),
-                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue()).containsEntry("grantedCount", 2);
     }
 
@@ -755,7 +759,7 @@ class AdminOrgServiceLifecycleTest {
         verify(orgMemberRepository, never()).findByIdOrgIdAndIdUserId(anyLong(), anyLong());
         // Vết "đã thêm thành viên" mà xuất hiện ở đây là nói dối sổ: thao tác đã bị chặn.
         verify(auditLogService, never())
-                .log(eq("admin.org.member.upserted"), any(), any(), any(), any());
+                .log(eq("admin.org.member.upserted"), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -777,8 +781,10 @@ class AdminOrgServiceLifecycleTest {
         assertThat(dto.role()).isEqualTo("TEACHER");
         verify(orgMembershipService).upsertMember(ORG_ID, 21L, "TEACHER");
         ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        // DEC-13: tham số áp chót là org BỊ TÁC ĐỘNG. Thiếu nó thì vết suy org từ users.org_id của
+        // admin nền tảng — luôn NULL — và sổ của giám đốc lọc `AND org_id = ?` sẽ loại sạch.
         verify(auditLogService).log(eq("admin.org.member.upserted"), eq(actor),
-                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue().get("toRole")).isEqualTo("TEACHER");
     }
 
@@ -815,6 +821,6 @@ class AdminOrgServiceLifecycleTest {
         verify(orgMembershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
         verify(userRepository, never()).save(any(User.class));
         // Trung tâm rollback theo transaction ⇒ vết "đã tạo" không được ghi (nó nằm sau attachOwner).
-        verify(auditLogService, never()).log(eq("admin.org.created"), any(), any(), any(), any());
+        verify(auditLogService, never()).log(eq("admin.org.created"), any(), any(), any(), any(), any());
     }
 }

@@ -16,6 +16,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -95,7 +96,11 @@ public class OrgEntitlementService {
         var paused = subscriptionActivationService.activateOrg(
                 userId, planCode, Instant.now(), resolveEnd(org));
         for (var row : paused) {
+            // DEC-13: actor CỐ Ý rỗng (không ai "bấm" việc tạm dừng — nó là hệ quả của việc gia
+            // nhập), nên đường suy-từ-actor không có gì để suy và vết luôn rơi vào org NULL. Trung
+            // tâm gây ra việc tạm dừng đang nằm sẵn trong tay ở tham số `org`.
             auditLogService.log("org_entitlement_paused", (AuditActor) null, "USER", String.valueOf(userId),
+                    org.getId(),
                     meta(org, row.source(), row.planCode(), row.remainingSeconds()));
         }
         log.info("[ORG-ENT] Granted plan={} to userId={} via org={} (tạm dừng {} gói cá nhân)",
@@ -147,7 +152,35 @@ public class OrgEntitlementService {
     private void resumeAndAudit(Long userId) {
         subscriptionActivationService.resumePausedIfAny(userId).ifPresent(row ->
                 auditLogService.log("org_entitlement_resumed", (AuditActor) null, "USER", String.valueOf(userId),
+                        resolveOrgOfMember(userId),
                         meta(null, row.source(), row.planCode(), row.remainingSeconds())));
+    }
+
+    /**
+     * Trung tâm mà vết "đã trả gói cá nhân về" thuộc về — tra ngược từ người dùng, vì không đường
+     * gọi nào tới đây còn cầm {@code org}: {@link #revokeStudent} và {@link #expireAndResume} chỉ
+     * nhận {@code userId}, và cả hai còn được job nền gọi (actor rỗng) nên đường suy-từ-actor cũng
+     * không có gì để suy.
+     *
+     * <p>🪤 <b>Cố ý KHÔNG đọc {@code users.org_id}.</b> Đường gọi đông nhất là gỡ/tự rời thành viên
+     * ({@code OrgController.removeMember} → {@code revokeStudent}), và tới lượt này thì
+     * {@code OrgMembershipService.detachUser} đã XOÁ {@code users.org_id} xong rồi — tra ở đó sẽ
+     * trả NULL đúng vào ca cần nhất. Hàng {@code org_members} thì vẫn còn (chỉ đổi sang
+     * REVOKED/LEFT kèm {@code left_at}), nên nó là nguồn duy nhất còn nói được sự thật ở thời điểm
+     * này.
+     *
+     * <p>Ưu tiên membership ACTIVE (ca job nền: người vẫn đang trong trung tâm vừa hết hạn giấy
+     * phép), sau đó tới lần rời gần nhất (ca vừa bị gỡ). Người chưa từng thuộc trung tâm nào ⇒
+     * {@code null} ⇒ vết nằm ngoài mọi sổ trung tâm, đúng bản chất.
+     */
+    private Long resolveOrgOfMember(Long userId) {
+        List<Long> rows = jdbcTemplate.queryForList("""
+                SELECT org_id FROM org_members
+                WHERE user_id = ?
+                ORDER BY (status = 'ACTIVE') DESC, COALESCE(left_at, joined_at) DESC
+                LIMIT 1
+                """, Long.class, userId);
+        return rows.isEmpty() ? null : rows.get(0);
     }
 
     private static Map<String, Object> meta(Organization org, String source, String planCode, long remainingSeconds) {

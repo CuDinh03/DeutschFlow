@@ -100,7 +100,12 @@ public class AdminOrgService {
 
         // Audit F-M3 (03/09/2026): dựng một tổ chức mới là tạo ra một tenant — kèm gói, giới hạn
         // ghế và một tài khoản OWNER — mà trước đây không để lại vết nào.
+        //
+        // DEC-13: trung tâm BỊ TÁC ĐỘNG chính là trung tâm vừa dựng, truyền tường minh. Không
+        // truyền thì vết suy org từ users.org_id của admin nền tảng — luôn NULL theo DEC-13 — nên
+        // dòng đầu tiên trong lịch sử của một trung tâm lại là dòng giám đốc không bao giờ đọc được.
         auditLogService.log("admin.org.created", actor, "ORG", String.valueOf(org.getId()),
+                org.getId(),
                 Map.of(
                         "name", String.valueOf(org.getName()),
                         "slug", String.valueOf(org.getSlug()),
@@ -183,7 +188,11 @@ public class AdminOrgService {
         // cả một tổ chức — và một lần đổi status sang SUSPENDED sẽ khoá ghi CẢ trung tâm rồi khởi
         // động đồng hồ 7 ngày ân hạn, hết ân hạn là quyền lợi của MỌI học viên bị cắt.
         // Ghi cả trạng thái trước lẫn sau vì chính bước chuyển đó mới là thứ có hệ quả.
+        // DEC-13: orgId của CHÍNH trung tâm bị đổi trạng thái — đây là vết mà giám đốc cần nhất
+        // ("ai đã đình chỉ trung tâm tôi, lúc nào"), và cũng là vết mà đường suy-từ-actor bỏ sót
+        // sạch vì người bấm là admin nền tảng.
         auditLogService.log("admin.org.updated", actor, "ORG", String.valueOf(org.getId()),
+                org.getId(),
                 Map.of(
                         "fromStatus", String.valueOf(previousStatus),
                         "toStatus", String.valueOf(org.getStatus()),
@@ -330,11 +339,14 @@ public class AdminOrgService {
                 .orElseThrow(() -> new NotFoundException("Không tạo được thành viên tổ chức"));
 
         // Gán vai trò trong tổ chức là thao tác đặc quyền — trước đây không để lại vết nào.
+        // DEC-13: gán vai trò TRONG một trung tâm cụ thể ⇒ vết thuộc về trung tâm đó, không phải
+        // "hệ thống". org.getId() đã có sẵn ở đây (chính org vừa tra ở đầu hàm).
         auditLogService.log(
                 "admin.org.member.upserted",
                 actor,
                 "ORG",
                 String.valueOf(org.getId()),
+                org.getId(),
                 java.util.Map.of(
                         "targetUserId", user.getId(),
                         "targetEmail", user.getEmail(),
@@ -373,7 +385,11 @@ public class AdminOrgService {
         }
         log.info("[ORG-ADMIN] Re-activated entitlements for {} student(s) in org {}", granted, orgId);
         // Audit F-M3 (03/09/2026): cấp lại quyền lợi hàng loạt = cấp phát có giá trị tiền tệ.
+        // DEC-13: orgId là tham số của hàm — trung tâm được cấp lại quyền lợi. Cần tường minh gấp
+        // đôi ở đây vì hàm này còn được webhook SePay gọi với actor hệ thống (id null): không
+        // truyền thì cả đường tự động lẫn đường admin đều rơi vào org_id NULL.
         auditLogService.log("admin.org.entitlements.activated", actor, "ORG", String.valueOf(orgId),
+                orgId,
                 Map.of("grantedCount", granted, "planCode", String.valueOf(org.getPlanCode())));
         return granted;
     }
@@ -405,6 +421,7 @@ public class AdminOrgService {
         // admin đánh dấu thì là admin đó, còn webhook tự chạy thì actor rỗng (đúng bản chất).
         auditLogService.log("admin.org.licence.activated_by_invoice", actor,
                 "ORG", String.valueOf(org.getId()),
+                org.getId(),
                 Map.of(
                         "invoiceId", invoice.getId(),
                         "periodEnd", String.valueOf(invoice.getPeriodEnd()),

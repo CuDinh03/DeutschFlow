@@ -208,6 +208,14 @@ public class TeacherSessionService {
      *
      * <p>Ghi một dòng cho cả lô, kèm danh sách id đã đổi trạng thái THẬT (id không tồn tại hoặc đã
      * PROCESSED không được đếm) — vết phải nói đúng cái đã xảy ra, không phải cái được yêu cầu.
+     *
+     * <p><b>Vì sao KHÔNG truyền {@code orgId} (DEC-13, 09/09/2026).</b> Actor ở đây là admin nền
+     * tảng, nên {@code audit_logs.org_id} rơi về NULL — và ở riêng đường này NULL là ĐÚNG, không
+     * phải lỗ hổng: {@code teacher_sessions} là chợ B2C, {@link #bookSession} chặn giáo viên thuộc
+     * trung tâm (G-1) nên phiên ở đây không bao giờ là dữ liệu của một trung tâm. Thêm nữa, một lô
+     * gộp phiên của NHIỀU giáo viên khác nhau, nên một cột {@code org_id} đơn trị không mô tả nổi
+     * lô đó. Nếu sau này chợ mở cho giáo viên trung tâm thì phải chia vết theo từng trung tâm bị
+     * chạm, chứ đừng gán bừa một giá trị cho cả lô.
      */
     public void markPayoutProcessed(List<Long> sessionIds, AuditActor actor) {
         List<Long> processed = new ArrayList<>();

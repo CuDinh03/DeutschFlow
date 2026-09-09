@@ -78,7 +78,7 @@ public class AuditLogService {
         pageArgs.add(safePage * safeSize);
         List<AuditLogDto> items = jdbcTemplate.query(
                 "SELECT id, event_name, actor_user_id, actor_email, actor_role, target_type, "
-                        + "target_id, metadata_json, created_at FROM audit_logs" + where
+                        + "target_id, metadata_json, created_at, org_id FROM audit_logs" + where
                         + " ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
                 (rs, rowNum) -> {
                     Timestamp ts = rs.getTimestamp("created_at");
@@ -92,7 +92,8 @@ public class AuditLogService {
                             rs.getString("target_type"),
                             rs.getString("target_id"),
                             rs.getString("metadata_json"),
-                            ts != null ? ts.toInstant() : null);
+                            ts != null ? ts.toInstant() : null,
+                            (Long) rs.getObject("org_id"));
                 },
                 pageArgs.toArray());
 
@@ -119,8 +120,42 @@ public class AuditLogService {
             String targetId,
             Map<String, Object> metadata
     ) {
+        log(eventName, actor, targetType, targetId, null, metadata);
+    }
+
+    /**
+     * Ghi vết cho một mutation, kèm trung tâm BỊ TÁC ĐỘNG (DEC-13, owner chốt 09/09/2026).
+     *
+     * <p><b>Vì sao cần bản này.</b> Bản không có {@code touchedOrgId} suy tổ chức từ
+     * {@code users.org_id} của NGƯỜI THAO TÁC. Với thao tác của chính người trong trung tâm thì
+     * đúng, nhưng DEC-13 nói admin nền tảng KHÔNG BAO GIỜ là thành viên trung tâm ⇒
+     * {@code users.org_id} của admin luôn NULL ⇒ mọi vết admin ghi ra rơi vào diện "B2C/hệ thống",
+     * mà {@link #readOrgAuditLogs} lọc {@code AND org_id = ?} nên loại sạch NULL. Nghịch lý: admin
+     * càng tuân thủ DEC-13 thì càng VÔ HÌNH với giám đốc trung tâm — đúng điều quyết định muốn chặn.
+     *
+     * <p>Ca kiểm chứng có sẵn trên production: {@code AdminTeacherService.breakGlassViewTeacher} đã
+     * ghi vết và đã có {@code orgId} trong metadata, nhưng vì không nằm ở CỘT lọc nên giám đốc chưa
+     * bao giờ thấy được lần admin soi giáo viên của mình.
+     *
+     * <p><b>Ngữ nghĩa:</b> {@code touchedOrgId} truyền vào THẮNG; {@code null} thì rơi về đường cũ
+     * (suy từ actor). Nhờ vậy không điểm gọi nào phải sửa để biên dịch, và vết của người trong
+     * trung tâm giữ nguyên hành vi cũ.
+     *
+     * <p>🪤 {@code CAST(? AS BIGINT)} là bắt buộc, không phải trang trí: {@code JdbcTemplate} gửi
+     * một {@code Long} null dưới dạng {@code Types.NULL} không kiểu, và PostgreSQL sẽ ném
+     * <em>"could not determine data type of parameter"</em> khi tham số không kiểu đứng làm đối số
+     * đầu của {@code COALESCE}.
+     */
+    public void log(
+            String eventName,
+            AuditActor actor,
+            String targetType,
+            String targetId,
+            Long touchedOrgId,
+            Map<String, Object> metadata
+    ) {
         AuditActor a = actor == null ? new AuditActor(null, null, null) : actor;
-        log(eventName, a.id(), a.email(), a.role(), targetType, targetId, metadata);
+        log(eventName, a.id(), a.email(), a.role(), targetType, targetId, touchedOrgId, metadata);
     }
 
     public void log(
@@ -132,10 +167,25 @@ public class AuditLogService {
             String targetId,
             Map<String, Object> metadata
     ) {
-        // org_id lấy TRONG CÂU INSERT từ users.org_id của actor (C6). Làm ở đây thay vì bắt ~60 điểm
-        // gọi tự truyền: mọi vết cũ và mới đều có tổ chức mà không đổi một chữ nào ở phía gọi.
-        // Đây là ẢNH CHỤP lúc ghi — actor rời trung tâm sau này thì vết cũ vẫn thuộc trung tâm cũ.
-        // actor null (job nền, hệ thống) hoặc actor B2C ⇒ subquery trả NULL, đúng như mong đợi.
+        log(eventName, actorUserId, actorEmail, actorRole, targetType, targetId, null, metadata);
+    }
+
+    public void log(
+            String eventName,
+            Long actorUserId,
+            String actorEmail,
+            String actorRole,
+            String targetType,
+            String targetId,
+            Long touchedOrgId,
+            Map<String, Object> metadata
+    ) {
+        // org_id là ẢNH CHỤP lúc ghi — actor rời trung tâm sau này thì vết cũ vẫn thuộc trung tâm cũ.
+        //
+        // Thứ tự ưu tiên (DEC-13): trung tâm BỊ TÁC ĐỘNG mà điểm gọi truyền vào THẮNG; không truyền
+        // thì rơi về users.org_id của actor như trước. Giữ đường lùi này để ~60 điểm gọi của người
+        // trong trung tâm không phải sửa một chữ nào — với họ hai giá trị vốn trùng nhau.
+        // actor null (job nền, hệ thống) và không có touchedOrgId ⇒ NULL, đúng như mong đợi.
         jdbcTemplate.update("""
                 INSERT INTO audit_logs (
                   event_name,
@@ -146,7 +196,8 @@ public class AuditLogService {
                   target_id,
                   metadata_json,
                   org_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT org_id FROM users WHERE id = ?))
+                ) VALUES (?, ?, ?, ?, ?, ?, ?,
+                          COALESCE(CAST(? AS BIGINT), (SELECT org_id FROM users WHERE id = ?)))
                 """,
                 eventName,
                 actorUserId,
@@ -155,6 +206,7 @@ public class AuditLogService {
                 targetType,
                 targetId,
                 toJson(metadata),
+                touchedOrgId,
                 actorUserId
         );
     }

@@ -6,6 +6,7 @@ import com.deutschflow.user.dto.AdminUpdateProfileRequest;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.audit.AuditOrgResolver;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.vocabulary.service.DeepLLemmaBackfillService;
 import com.deutschflow.vocabulary.service.GlosbeViEnrichmentService;
@@ -62,6 +63,7 @@ public class AdminManagementController {
     private final VocabularyAutoTaggingService vocabularyAutoTaggingService;
     private final TagQueryService tagQueryService;
     private final AuditLogService auditLogService;
+    private final AuditOrgResolver auditOrgResolver;
     private final UserNotificationService userNotificationService;
     private final CacheManager cacheManager;
     private final LlmViTranslationService llmViTranslationService;
@@ -212,11 +214,16 @@ public class AdminManagementController {
     ) {
         Map<String, Object> created = adminManagementService.createUser(
                 req.email(), req.displayName(), req.password(), req.role(), req.locale(), req.orgId(), req.orgRole());
+        // DEC-13: trung tâm bị tác động lấy thẳng từ KẾT QUẢ chứ không tra lại — createUser chỉ gán
+        // tổ chức khi vai trò là TEACHER/MANAGER và orgId có thật, nên req.orgId() có thể đã được
+        // gửi kèm rồi bị bỏ qua, còn created."orgId" là tổ chức thực sự nhận người này.
+        Long touchedOrgId = created.get("orgId") instanceof Long createdOrgId ? createdOrgId : null;
         auditLogService.log(
                 "admin.user.created",
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(created.get("id")),
+                touchedOrgId,
                 Map.of(
                         "email", String.valueOf(created.get("email")),
                         "role", String.valueOf(created.get("role")),
@@ -244,12 +251,17 @@ public class AdminManagementController {
         if (actor != null && actor.getId().equals(userId) && Boolean.FALSE.equals(req.active())) {
             throw new BadRequestException("Bạn không thể tự khóa tài khoản của mình.");
         }
+        // Tra tổ chức TRƯỚC khi gọi service — nếp chung cho cả nhóm đường admin chạm một người, để
+        // không phải xét lại từng đường xem service có gỡ người khỏi trung tâm hay không. Khoá tài
+        // khoản cắt sạch phiên đang chạy, nên giám đốc phải thấy lần nhân sự của mình bị nền tảng khoá.
+        Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> updated = adminManagementService.setUserActive(userId, req.active());
         auditLogService.log(
                 req.active() ? "admin.user.reactivated" : "admin.user.deactivated",
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
+                touchedOrgId,
                 Map.of("active", req.active())
         );
         return updated;
@@ -262,12 +274,18 @@ public class AdminManagementController {
             @Valid @RequestBody SetPasswordRequest req,
             Authentication authentication
     ) {
+        // Đây là đường ĐÓNG VAI: đặt lại mật khẩu của một người rồi đăng nhập là mang đúng danh
+        // tính người đó — không có bước nào khác chặn lại, và endpoint này KHÔNG gửi thông báo cho
+        // người bị đổi (khác createUser và updatePlan). Vết vì vậy là chứng cứ duy nhất, và nó phải
+        // rơi vào sổ của trung tâm NGƯỜI BỊ ĐỔI chứ không phải sổ trống của admin nền tảng.
+        Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> updated = adminManagementService.setUserPassword(userId, req.password());
         auditLogService.log(
                 "admin.user.password.reset",
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
+                touchedOrgId,
                 Map.of()
         );
         return updated;
@@ -291,12 +309,18 @@ public class AdminManagementController {
                 && !"ADMIN".equalsIgnoreCase(req.role() == null ? "" : req.role().trim())) {
             throw new BadRequestException("Bạn không thể tự bỏ quyền quản trị của chính mình.");
         }
+        // Tra tổ chức TRƯỚC khi gọi service, cùng một nếp với setUserActive: các đường gỡ người khỏi
+        // trung tâm xoá users.org_id, tra sau là tra vào chỗ đã trống. Riêng đường này service từ
+        // chối thẳng người đang là thành viên ACTIVE (để org_members khỏi lệch), nên org đọc được ở
+        // đây là của người còn org_id mà tư cách thành viên đã ngưng — vẫn là người của trung tâm đó.
+        Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> updated = adminManagementService.updateUserRole(userId, req.role());
         auditLogService.log(
                 "admin.user.role.updated",
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
+                touchedOrgId,
                 Map.of(
                         "oldRole", String.valueOf(updated.get("previousRole")),
                         "newRole", String.valueOf(updated.get("role"))
@@ -311,6 +335,9 @@ public class AdminManagementController {
             @Valid @RequestBody UpdatePlanRequest req,
             Authentication authentication
     ) {
+        // Gói và hạn mức token của một học viên trong trung tâm là dữ liệu vận hành của trung tâm
+        // đó; giám đốc cần thấy lần nền tảng chỉnh tay.
+        Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> updated = adminManagementService.updateUserPlan(
                 userId,
                 req.planCode(),
@@ -323,6 +350,7 @@ public class AdminManagementController {
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
+                touchedOrgId,
                 Map.of(
                         "planCode", String.valueOf(updated.get("planCode")),
                         "monthlyTokenLimitOverride", String.valueOf(updated.get("monthlyTokenLimitOverride")),
@@ -365,12 +393,16 @@ public class AdminManagementController {
             @RequestBody @Valid BulkAssignStudentsRequest request,
             Authentication authentication
     ) {
+        // Đối tượng bị tác động ở đây là LỚP, nên tra theo lớp: học viên được gán có thể chưa
+        // thuộc trung tâm nào, còn lớp thì luôn nói đúng sổ nào phải nhận vết này.
+        Long touchedOrgId = auditOrgResolver.forClass(classId);
         Map<String, Object> result = adminManagementService.bulkAssignStudents(classId, request.studentIds());
         auditLogService.log(
                 "admin.class.students.bulk_assigned",
                 AuditActor.ofAuthentication(authentication),
                 "CLASS",
                 String.valueOf(classId),
+                touchedOrgId,
                 Map.of("assignedCount", result.get("assignedCount"))
         );
         return result;
@@ -387,6 +419,7 @@ public class AdminManagementController {
             @RequestBody @Valid AdminUpdateLearningProfileRequest request,
             Authentication authentication
     ) {
+        Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> result = adminManagementService.adminUpdateLearningProfile(userId, request);
         // Audit F-M3 (03/09/2026): admin ghi đè hồ sơ học tập của một người — trình độ, mục tiêu,
         // lộ trình — tức đổi thẳng nội dung họ sẽ được học. Trước đây không để lại vết nào, nên
@@ -396,6 +429,7 @@ public class AdminManagementController {
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
+                touchedOrgId,
                 learningProfileAuditMeta(request)
         );
         return result;
@@ -411,12 +445,14 @@ public class AdminManagementController {
             @Valid @RequestBody AdminUpdateProfileRequest request,
             Authentication authentication
     ) {
+        Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> result = adminManagementService.adminUpdateProfile(userId, request);
         auditLogService.log(
                 "admin.user.profile.updated",
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
+                touchedOrgId,
                 // Audit F-M4 (03/09/2026): KHÔNG ghi phoneNumber vào metadata. audit_logs là bảng
                 // giữ vĩnh viễn và màn hình audit cho ADMIN nào cũng đọc được, nên số điện thoại
                 // dạng rõ ở đây là một bản sao PII sống lâu hơn cả chính hồ sơ người dùng. Ghi

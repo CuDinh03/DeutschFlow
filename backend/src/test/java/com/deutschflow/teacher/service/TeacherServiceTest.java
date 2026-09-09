@@ -56,6 +56,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.mock;
 
@@ -1011,7 +1012,7 @@ class TeacherServiceTest {
 
         assertThrows(ForbiddenException.class, () -> teacherService.deleteClass(ACTOR, 100L));
         verifyNothingDeleted();
-        verify(auditLogService, never()).log(anyString(), any(AuditActor.class), anyString(), anyString(), any());
+        verifyNoInteractions(auditLogService);
     }
 
     @Test
@@ -1024,7 +1025,7 @@ class TeacherServiceTest {
         assertThrows(ConflictException.class, () -> teacherService.deleteClass(ACTOR, 100L));
 
         verifyNothingDeleted();
-        verify(auditLogService, never()).log(anyString(), any(AuditActor.class), anyString(), anyString(), any());
+        verifyNoInteractions(auditLogService);
     }
 
     @Test
@@ -1046,8 +1047,10 @@ class TeacherServiceTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<java.util.Map<String, Object>> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        // Org của LỚP chụp TRƯỚC delete và đi vào CỘT org_id — sau delete không tra lại được, mà
+        // cột mới là thứ sổ hoạt động của giám đốc lọc.
         verify(auditLogService).log(
-                eq("teacher_class_deleted"), eq(ACTOR), eq("CLASS"), eq("100"), meta.capture());
+                eq("teacher_class_deleted"), eq(ACTOR), eq("CLASS"), eq("100"), eq(7L), meta.capture());
         assertEquals("K30 · B1 Pflege", meta.getValue().get("className"));
         assertEquals(7L, meta.getValue().get("orgId"));
         assertEquals(0L, meta.getValue().get("sessions"));

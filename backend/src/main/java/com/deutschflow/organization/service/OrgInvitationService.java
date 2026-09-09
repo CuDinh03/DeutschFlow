@@ -223,8 +223,11 @@ public class OrgInvitationService {
         meta.put("role", invitation.getRole());
         meta.put("invitationId", invitation.getId());
         meta.put("invitedBy", invitation.getInvitedBy());
+        // DEC-13: trung tâm bị tác động lấy từ CHÍNH lời mời, không suy từ actor. Actor ở đây là
+        // đối tượng {@code AuditActor.of(user)} dựng từ bản User đọc TRƯỚC upsertMember, nên
+        // {@code users.org_id} trong đó còn rỗng — đường lùi sẽ ghi sai vào diện B2C.
         auditLogService.log("org_member_joined_via_invitation", AuditActor.of(user),
-                "ORG_MEMBER", String.valueOf(user.getId()), meta);
+                "ORG_MEMBER", String.valueOf(user.getId()), invitation.getOrgId(), meta);
 
         log.info("[OrgInvite] invitation {} accepted by userId={} (org={}, role={})",
                 invitation.getId(), user.getId(), invitation.getOrgId(), invitation.getRole());
@@ -270,8 +273,9 @@ public class OrgInvitationService {
         addMeta.put("role", "TEACHER");
         addMeta.put("email", normEmail);
         addMeta.put("createdVia", createdVia.name());
+        // DEC-13: orgId là tham số của hàm — trung tâm vừa được thêm giáo viên.
         auditLogService.log("org_member_added", actor,
-                "ORG_MEMBER", String.valueOf(teacher.getId()), addMeta);
+                "ORG_MEMBER", String.valueOf(teacher.getId()), orgId, addMeta);
         log.info("[Org] Pre-created TEACHER userId={} (email={}) cho org {} (createdVia={})",
                 teacher.getId(), normEmail, orgId, createdVia);
         return new OrgMemberDto(teacher.getId(), teacher.getEmail(), teacher.getDisplayName(),

@@ -111,7 +111,7 @@ class OrgInvitationServiceTest {
         // Endpoint nhận lời mời là công khai (chưa có phiên), nên actor không thể lấy từ principal —
         // và hành động "gia nhập" vốn là của chính họ. Người gửi lời mời nằm trong metadata.
         verify(auditLogService).log(eq("org_member_joined_via_invitation"), actor.capture(),
-                eq("ORG_MEMBER"), eq("200"), meta.capture());
+                eq("ORG_MEMBER"), eq("200"), eq(ORG_ID), meta.capture());
         assertThat(actor.getValue().id()).isEqualTo(200L);
         assertThat(actor.getValue().email()).isEqualTo("newteacher@school.edu");
         assertThat(meta.getValue())
@@ -137,7 +137,7 @@ class OrgInvitationServiceTest {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
         verify(auditLogService).log(eq("org_member_added"), eq(ACTOR),
-                eq("ORG_MEMBER"), eq("300"), meta.capture());
+                eq("ORG_MEMBER"), eq("300"), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue())
                 .containsEntry("role", "TEACHER")
                 .containsEntry("email", "t@x.com")          // đã chuẩn hoá, không phải " T@x.com "

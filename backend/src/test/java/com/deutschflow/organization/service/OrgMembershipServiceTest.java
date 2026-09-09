@@ -853,7 +853,7 @@ class OrgMembershipServiceTest {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
         verify(auditLogService).log(eq("org_member_role_changed"), eq(ACTOR),
-                eq("ORG_MEMBER"), eq(String.valueOf(USER_ID)), meta.capture());
+                eq("ORG_MEMBER"), eq(String.valueOf(USER_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue())
                 .containsEntry("from", "TEACHER")
                 .containsEntry("to", "MANAGER")
@@ -875,8 +875,35 @@ class OrgMembershipServiceTest {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
         verify(auditLogService).log(eq("org_member_removed"), eq(ACTOR),
-                eq("ORG_MEMBER"), eq(String.valueOf(USER_ID)), meta.capture());
+                eq("ORG_MEMBER"), eq(String.valueOf(USER_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue()).containsEntry("role", "TEACHER").containsEntry("status", "REVOKED");
+    }
+
+    @Test
+    @DisplayName("selfLeave ghi vết KÈM orgId tường minh — users.org_id của chính người rời vừa bị xoá")
+    void selfLeave_writesAuditWithExplicitOrgId() {
+        // DEC-13: ca mà đường lùi "suy org từ users.org_id của actor" hỏng theo kiểu khó thấy nhất.
+        // Actor CHÍNH LÀ người rời, và detachUser đã xoá users.org_id của họ NGAY TRƯỚC lời gọi ghi
+        // vết. Không truyền orgId thì vết "đã rời trung tâm" rơi vào diện B2C (org_id NULL) và biến
+        // mất khỏi sổ của giám đốc — đúng cái vết mà giám đốc cần đọc nhất lại là vết duy nhất
+        // không đọc được.
+        OrgMember active = member("TEACHER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(active));
+        User user = teacherUser(ORG_ID);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(memberRepo.existsByIdUserIdAndRoleInAndStatus(eq(USER_ID), anySet(), eq("ACTIVE")))
+                .thenReturn(false);
+
+        service.selfLeave(ORG_ID, ACTOR_SELF);
+
+        assertThat(user.getOrgId())
+                .as("đường lùi đã hết đường: org_id của actor bị xoá trước khi vết được ghi")
+                .isNull();
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("org_member_left"), eq(ACTOR_SELF),
+                eq("ORG_MEMBER"), eq(String.valueOf(USER_ID)), eq(ORG_ID), meta.capture());
+        assertThat(meta.getValue()).containsEntry("role", "TEACHER").containsEntry("status", "LEFT");
     }
 
     @Test
@@ -893,7 +920,7 @@ class OrgMembershipServiceTest {
         ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
         // target_type = ORG: đây là lần đổi chủ của tổ chức, tra theo org mới thấy được nó.
         verify(auditLogService).log(eq("org_ownership_transferred"), eq(ACTOR_SELF),
-                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue())
                 .containsEntry("fromUserId", USER_ID)
                 .containsEntry("toUserId", NEW_OWNER_ID);
@@ -908,6 +935,6 @@ class OrgMembershipServiceTest {
         assertThatThrownBy(() -> service.removeMember(ORG_ID, USER_ID, ACTOR))
                 .isInstanceOf(com.deutschflow.common.exception.BadRequestException.class);
 
-        verify(auditLogService, never()).log(any(), any(AuditActor.class), any(), any(), any());
+        verify(auditLogService, never()).log(any(), any(AuditActor.class), any(), any(), any(), any());
     }
 }

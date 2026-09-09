@@ -544,6 +544,11 @@ export async function acceptInvitation(
  *
  * Khớp `AuditLogDto` phía máy chủ. `category` và `targetType` là CÙNG một cột `target_type` —
  * DTO trả cả hai để màn hình lọc theo `category` mà vẫn hiển thị `targetType`. Không có cột IP.
+ *
+ * `orgId` là trung tâm mà dòng vết THUỘC VỀ, chụp lúc ghi chứ không suy lại lúc đọc (DEC-13).
+ * Trên sổ của giám đốc mọi dòng đều cùng một orgId nên nó chỉ để đối chiếu; giá trị thật của
+ * trường này nằm ở màn nhật ký ADMIN, nơi nó cho biết thao tác đã chạm trung tâm nào.
+ * `null` = hoạt động B2C hoặc job nền.
  */
 export interface OrgAuditLog {
   id: number
@@ -556,6 +561,7 @@ export interface OrgAuditLog {
   targetId: string | null
   metadataJson: string | null
   createdAt: string | null
+  orgId: number | null
 }
 
 /**

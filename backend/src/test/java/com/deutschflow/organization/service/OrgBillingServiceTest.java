@@ -247,6 +247,9 @@ class OrgBillingServiceTest {
                 org.mockito.ArgumentMatchers.eq(ACTOR_ROLE),
                 org.mockito.ArgumentMatchers.eq("ORG_INVOICE"),
                 org.mockito.ArgumentMatchers.eq(String.valueOf(INVOICE_ID)),
+                // DEC-13: target_type = ORG_INVOICE nên id trung tâm KHÔNG nằm ở target_id, và người
+                // bấm là admin nền tảng nên đường suy-từ-actor cũng rỗng — phải truyền tường minh.
+                org.mockito.ArgumentMatchers.eq(ORG_ID),
                 meta.capture());
         assertThat(meta.getValue())
                 .containsEntry("orgId", ORG_ID)

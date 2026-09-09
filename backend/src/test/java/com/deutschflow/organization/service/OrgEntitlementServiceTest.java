@@ -227,8 +227,11 @@ class OrgEntitlementServiceTest {
         service.grantStudent(USER_ID, orgWithPlan("PRO"));
 
         ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        // DEC-13: actor CỐ Ý rỗng ở đây, nên orgId tường minh (tham số áp chót) là đường DUY NHẤT
+        // đưa vết vào sổ trung tâm — bỏ nó thì vết tạm dừng gói cá nhân biến mất khỏi mắt giám đốc.
         verify(auditLogService, times(2)).log(
                 eq("org_entitlement_paused"), isNull(), eq("USER"), eq(String.valueOf(USER_ID)),
+                eq(1L),
                 meta.capture());
         assertThat(meta.getAllValues()).extracting(m -> m.get("source")).containsExactly("APPLE", "SEPAY");
         assertThat(meta.getAllValues().get(0)).containsEntry("remainingSeconds", 1_209_600L);
@@ -251,16 +254,28 @@ class OrgEntitlementServiceTest {
     void revokeStudent_ghiSoKhiKhoiPhuc() {
         when(subscriptionActivationService.resumePausedIfAny(USER_ID))
                 .thenReturn(Optional.of(new SubscriptionActivationService.ResumedRow("APPLE", "PRO", 604_800L)));
+        when(jdbcTemplate.queryForList(anyString(), eq(Long.class), eq(USER_ID)))
+                .thenReturn(List.of(42L));
 
         service.revokeStudent(USER_ID);
 
         ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        // DEC-13: hàm chỉ nhận userId, nên trung tâm phải TRA NGƯỢC — nhưng tra từ org_members chứ
+        // KHÔNG từ users.org_id: đường gọi đông nhất (gỡ / tự rời thành viên) đã xoá users.org_id
+        // xong trước khi tới đây, tra ở đó sẽ trả NULL đúng vào ca cần nhất.
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).queryForList(sql.capture(), eq(Long.class), eq(USER_ID));
+        assertThat(sql.getValue()).contains("org_members");
+        assertThat(sql.getValue()).doesNotContain("FROM users");
+
         verify(auditLogService).log(
                 eq("org_entitlement_resumed"), isNull(), eq("USER"), eq(String.valueOf(USER_ID)),
+                eq(42L),
                 meta.capture());
         assertThat(meta.getValue()).containsEntry("source", "APPLE");
         assertThat(meta.getValue()).containsEntry("remainingSeconds", 604_800L);
-        // Không có trung tâm nào trong ngữ cảnh khôi phục — đừng bịa orgId.
+        // Metadata giữ nguyên: không có đối tượng Organization trong tay nên không bịa thêm khoá —
+        // trung tâm nằm ở CỘT org_id (đường lọc), đó mới là chỗ sổ của giám đốc đọc.
         assertThat(meta.getValue()).doesNotContainKey("orgId");
     }
 
