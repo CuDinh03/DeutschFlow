@@ -352,6 +352,7 @@ class AdminOrgServiceLifecycleTest {
                 .as("đường thủ công phải cư xử giống hệt webhook SePay, không thì tuỳ ai bấm mà "
                         + "trung tâm còn hay mất ân hạn ở lần đình chỉ sau")
                 .isNull();
+    }
 
     // ---------------------------------------- G-10 hồi quy: cổng D5 KHÔNG được khoá đường bật lại
 
