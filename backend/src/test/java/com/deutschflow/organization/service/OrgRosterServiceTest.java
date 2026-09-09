@@ -3,6 +3,10 @@ package com.deutschflow.organization.service;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.minor.GuardianDraft;
+import com.deutschflow.common.minor.MinorLearnerService;
+import com.deutschflow.common.minor.MinorPolicy;
+import com.deutschflow.common.minor.StudentGuardian;
 import com.deutschflow.organization.dto.RosterImportResultDto;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
@@ -26,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 
@@ -58,6 +63,7 @@ class OrgRosterServiceTest {
     @Mock private TeacherClassRepository teacherClassRepository;
     @Mock private JdbcTemplate jdbcTemplate;
     @Mock private com.deutschflow.teacher.service.AssignmentBackfillService assignmentBackfillService;
+    @Mock private MinorLearnerService minorLearnerService;
 
     private OrgRosterService service;
 
@@ -82,12 +88,16 @@ class OrgRosterServiceTest {
                 orgMemberRepository,
                 classEnrollmentService,
                 assignmentBackfillService,
+                minorLearnerService,
                 jdbcTemplate
         );
         service = new OrgRosterService(
                 organizationRepository,
                 teacherClassRepository,
                 rowImporter,
+                // MinorPolicy thật (16/18 = mặc định production): nó thuần tính toán, mock nó thì
+                // bài test "dưới 16 phải có người giám hộ" chỉ còn kiểm chính cái mock.
+                new RosterMinorColumnReader(new MinorPolicy(16, 18)),
                 auditLogService
         );
         // Stub the advisory FOR UPDATE lock — no-op in tests (J).
@@ -694,5 +704,206 @@ class OrgRosterServiceTest {
                 "email,displayName,phone\na@x.com,A,1\nb@x.com,\"B1\nB2\",2\nc@x.com,C,3");
 
         assertThat(recs).extracting(OrgRosterService.CsvRecord::line).containsExactly(1, 2, 3, 5);
+    }
+
+    // ================================================================== PR-1B: cột chưa thành niên
+    //
+    // Hai quyết định của owner (09/09/2026) mà nhóm test này khoá lại:
+    //   1. Ghi danh KHÔNG phải cổng — dòng không khai ngày sinh vẫn vào bình thường.
+    //   2. Cột mới TÙY CHỌN — tệp ba cột đang dùng của trung tâm không được đổi hành vi.
+
+    /** Ngày sinh tương đối với hôm nay, để bài test không tự đỏ theo lịch. */
+    private static String birthDateAgedYears(int years) {
+        return LocalDate.now(MinorPolicy.ZONE).minusYears(years).toString();
+    }
+
+    @Test
+    @DisplayName("PR-1B: tệp CŨ ba cột — không có birthDate trong tiêu đề thì KHÔNG đọc cột mới")
+    void importStudents_legacyThreeColumnFile_touchesNoMinorData() {
+        stubOrg(org(0, null));
+        String csv = "email,displayName,phone\nan@x.com,Nguyễn An,0912\n";
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        when(userRepository.save(any(User.class))).thenReturn(savedStudent(7L, "an@x.com"));
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.created()).isEqualTo(1);
+        assertThat(result.failed()).isEqualTo(0);
+        verify(minorLearnerService, never()).recordBirthDate(anyLong(), any(), anyLong(), anyLong(), any());
+        verify(minorLearnerService, never()).recordGuardian(anyLong(), anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("PR-1B: tiêu đề có birthDate → ghi ngày sinh và người giám hộ qua MinorLearnerService")
+    void importStudents_birthDateHeader_recordsBirthDateAndGuardian() {
+        stubOrg(org(0, null));
+        String birthDate = birthDateAgedYears(14);
+        String csv = "email,displayName,phone,birthDate,guardianName,guardianPhone,guardianRelationship\n"
+                + "an@x.com,Nguyễn An,0912," + birthDate + ",Trần Thị Bình,0987654321,mẹ\n";
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        when(userRepository.save(any(User.class))).thenReturn(savedStudent(7L, "an@x.com"));
+        when(minorLearnerService.recordBirthDate(eq(7L), any(), eq(2L), eq(ORG_ID), any())).thenReturn(true);
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).as("dòng hợp lệ: %s", result.errors()).isEqualTo(0);
+        assertThat(result.created()).isEqualTo(1);
+        verify(minorLearnerService).recordBirthDate(7L, LocalDate.parse(birthDate), 2L, ORG_ID, ACTOR);
+        ArgumentCaptor<GuardianDraft> draft = ArgumentCaptor.forClass(GuardianDraft.class);
+        verify(minorLearnerService).recordGuardian(eq(7L), eq(ORG_ID), draft.capture(), eq(ACTOR));
+        assertThat(draft.getValue().fullName()).isEqualTo("Trần Thị Bình");
+        assertThat(draft.getValue().phone()).isEqualTo("0987654321");
+        assertThat(draft.getValue().relationship()).isEqualTo(StudentGuardian.Relationship.MOTHER);
+        assertThat(draft.getValue().primary()).isTrue();
+    }
+
+    @Test
+    @DisplayName("PR-1B: ngày sinh sai định dạng → chỉ dòng đó hỏng, thông báo nêu dòng vật lý + email")
+    void importStudents_malformedBirthDate_rejectsOnlyThatRow() {
+        stubOrg(org(0, null));
+        String csv = "email,displayName,phone,birthDate\n"
+                + "an@x.com,An,,01/02/2010\n"
+                + "binh@x.com,Bình,,\n";
+        when(userRepository.findByEmailIgnoreCase("binh@x.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        when(userRepository.save(any(User.class))).thenReturn(savedStudent(8L, "binh@x.com"));
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.created()).as("dòng lành vẫn được commit").isEqualTo(1);
+        assertThat(result.errors()).singleElement().asString()
+                .contains("Dòng 2")
+                .contains("an@x.com")
+                .contains("YYYY-MM-DD");
+    }
+
+    @Test
+    @DisplayName("PR-1B: ngày sinh ở tương lai bị từ chối")
+    void importStudents_futureBirthDate_rejected() {
+        stubOrg(org(0, null));
+        String future = LocalDate.now(MinorPolicy.ZONE).plusYears(1).toString();
+        String csv = "email,birthDate\nan@x.com," + future + "\n";
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.errors()).singleElement().asString().contains("tương lai");
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("PR-1B: dưới ngưỡng pháp lý mà thiếu người giám hộ → từ chối; 16–17 thì vẫn nhận")
+    void importStudents_legalMinorWithoutGuardian_rejected() {
+        stubOrg(org(0, null));
+        String csv = "email,displayName,phone,birthDate,guardianName,guardianPhone\n"
+                + "nho@x.com,Nhỏ,," + birthDateAgedYears(14) + ",,\n"
+                + "lon@x.com,Lớn,," + birthDateAgedYears(17) + ",,\n";
+        when(userRepository.findByEmailIgnoreCase("lon@x.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        when(userRepository.save(any(User.class))).thenReturn(savedStudent(9L, "lon@x.com"));
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.created()).as("16–17 là luật nội bộ, không phải nghĩa vụ luật — vẫn nhận").isEqualTo(1);
+        assertThat(result.errors()).singleElement().asString()
+                .contains("Dòng 2").contains("nho@x.com").contains("người giám hộ");
+    }
+
+    @Test
+    @DisplayName("PR-1B: có guardianName mà thiếu guardianPhone → từ chối (bản ghi phải liên lạc được)")
+    void importStudents_guardianWithoutPhone_rejected() {
+        stubOrg(org(0, null));
+        String csv = "email,birthDate,guardianName,guardianPhone\n"
+                + "an@x.com," + birthDateAgedYears(14) + ",Trần Bình,\n";
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.errors()).singleElement().asString().contains("guardianPhone");
+    }
+
+    @Test
+    @DisplayName("PR-1B: guardianRelationship lạ → từ chối kèm danh sách giá trị nhận được")
+    void importStudents_unknownRelationship_rejected() {
+        stubOrg(org(0, null));
+        String csv = "email,birthDate,guardianName,guardianPhone,guardianRelationship\n"
+                + "an@x.com," + birthDateAgedYears(14) + ",Trần Bình,0987,hàng xóm\n";
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.errors()).singleElement().asString()
+                .contains("guardianRelationship").contains("LEGAL_GUARDIAN");
+    }
+
+    @Test
+    @DisplayName("PR-1B: nhập lại — tài khoản đã có ngày sinh/người giám hộ KHÔNG tính là lỗi")
+    void importStudents_reimport_existingBirthDateIsNotAFailure() {
+        stubOrg(org(0, null));
+        User existing = savedStudent(11L, "an@x.com");
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.of(existing));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 11L)).thenReturn(Optional.of(
+                OrgMember.builder().id(new OrgMemberId(ORG_ID, 11L)).role("STUDENT").status("ACTIVE").build()));
+        // Đã có ngày sinh ⇒ recordBirthDate trả false; đã có người giám hộ ⇒ không thêm dòng thứ hai.
+        when(minorLearnerService.recordBirthDate(eq(11L), any(), anyLong(), anyLong(), any()))
+                .thenReturn(false);
+        when(minorLearnerService.guardiansOf(11L)).thenReturn(List.of(
+                StudentGuardian.builder().id(3L).studentUserId(11L).fullName("Đã có").build()));
+        String csv = "email,birthDate,guardianName,guardianPhone\n"
+                + "an@x.com," + birthDateAgedYears(14) + ",Trần Bình,0987\n";
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).as("nhập lại không phải lỗi: %s", result.errors()).isEqualTo(0);
+        assertThat(result.linked()).isEqualTo(1);
+        verify(minorLearnerService, never()).recordGuardian(anyLong(), anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("PR-1B: tiêu đề không có displayName → tên KHÔNG lấy nhầm ô ngày sinh")
+    void importStudents_headerWithoutDisplayName_doesNotReadBirthDateAsName() {
+        stubOrg(org(0, null));
+        String csv = "email,birthDate\nan@x.com," + birthDateAgedYears(20) + "\n";
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        when(userRepository.save(saved.capture())).thenReturn(savedStudent(12L, "an@x.com"));
+
+        service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(saved.getValue().getDisplayName())
+                .as("rỗng thì lùi về phần trước @ của email, không phải ngày sinh").isEqualTo("an");
+    }
+
+    @Test
+    @DisplayName("⛔ PR-1B: vết tổng kết mang SỐ LƯỢNG, không mang ngày sinh hay tên người giám hộ")
+    void importStudents_auditMetadataCarriesCountsNotContent() {
+        stubOrg(org(0, null));
+        String birthDate = birthDateAgedYears(14);
+        String csv = "email,birthDate,guardianName,guardianPhone\n"
+                + "an@x.com," + birthDate + ",Trần Thị Bình,0987654321\n";
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        when(userRepository.save(any(User.class))).thenReturn(savedStudent(13L, "an@x.com"));
+        when(minorLearnerService.recordBirthDate(eq(13L), any(), anyLong(), anyLong(), any()))
+                .thenReturn(true);
+
+        service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("org_member_imported"), eq(ACTOR), eq("ORG"),
+                eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
+        assertThat(meta.getValue()).containsEntry("birthDatesRecorded", 1)
+                .containsEntry("guardiansRecorded", 1);
+        assertThat(meta.getValue().toString())
+                .as("không ngày sinh thô, không tên/điện thoại người giám hộ trong sổ hoạt động")
+                .doesNotContain(birthDate)
+                .doesNotContain("Trần Thị Bình")
+                .doesNotContain("0987654321");
     }
 }

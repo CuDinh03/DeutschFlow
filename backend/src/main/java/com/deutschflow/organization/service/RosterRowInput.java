@@ -1,0 +1,33 @@
+package com.deutschflow.organization.service;
+
+import com.deutschflow.common.minor.GuardianDraft;
+
+import java.time.LocalDate;
+
+/**
+ * MỘT dòng CSV roster đã được đọc, kiểm và chuẩn hoá — thứ mà {@link OrgRosterRowImporter} ghi xuống.
+ *
+ * <p><b>Vì sao là record chứ không phải thêm tham số vào {@code importRow}.</b> Chữ ký cũ đã có
+ * {@code (org, email, displayNameCol, classId)}; nhét thêm ngày sinh, tên/điện thoại/quan hệ người
+ * giám hộ nữa thành bảy tham số mà bốn trong số đó cùng kiểu {@code String} đứng liền nhau — đảo chỗ
+ * {@code guardianPhone} với {@code guardianName} thì trình biên dịch không nói gì cả, còn dữ liệu
+ * thì đã sai trên hồ sơ của một đứa trẻ. Cùng lý do với {@link GuardianDraft} (xem javadoc ở đó).
+ *
+ * <p><b>Kiểm ở đâu.</b> Mọi kiểm tra ĐỌC ĐƯỢC (định dạng ngày, ngày tương lai, thiếu người giám hộ)
+ * nằm ở {@link OrgRosterService} — chỉ chỗ đó mới biết SỐ DÒNG VẬT LÝ để nói cho người nhập biết
+ * phải sửa dòng nào trong Excel. Tới được đây thì dòng đã hợp lệ; {@code importRow} chỉ còn việc ghi.
+ *
+ * @param email       đã chuẩn hoá và kiểm định dạng ở {@link OrgRosterService}
+ * @param displayName cột tên hiển thị thô; rỗng thì {@code importRow} lấy phần trước {@code @} của email
+ * @param birthDate   {@code null} = tệp không có cột ngày sinh, hoặc ô để trống. KHÔNG phải lỗi:
+ *                    owner chốt ghi danh không phải cổng chặn (09/09/2026), cổng nằm ở đường dữ liệu
+ *                    đi ra nhà cung cấp AI
+ * @param guardian    {@code null} = dòng không khai người giám hộ
+ */
+public record RosterRowInput(
+        String email,
+        String displayName,
+        LocalDate birthDate,
+        GuardianDraft guardian
+) {
+}

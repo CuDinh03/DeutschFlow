@@ -475,9 +475,14 @@ export async function getOrgTeacherClasses(teacherId: number): Promise<OrgTeache
 }
 
 /**
- * POST /org/students/import — bulk-import students from a CSV file
- * (columns: `email,displayName[,phone]`). When `classId` is supplied, every
- * imported student is also enrolled into that class.
+ * POST /org/students/import — bulk-import students from a CSV file.
+ *
+ * Cột tối thiểu `email,displayName[,phone]`. Tệp có dòng tiêu đề khai thêm
+ * `birthDate[,guardianName,guardianPhone,guardianRelationship]` thì máy chủ đọc luôn phần dữ liệu
+ * chưa thành niên (PR-1B, 09/09/2026); KHÔNG có `birthDate` trong tiêu đề thì hành vi y hệt trước —
+ * tệp ba cột trung tâm đang dùng không vỡ. Ngày sinh chỉ nhận dạng ISO `YYYY-MM-DD`.
+ *
+ * When `classId` is supplied, every imported student is also enrolled into that class.
  */
 export async function importRoster(
   file: File,

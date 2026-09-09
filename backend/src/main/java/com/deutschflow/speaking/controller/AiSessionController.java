@@ -7,6 +7,7 @@ import com.deutschflow.speaking.dto.AiSpeakingSessionDto;
 import com.deutschflow.speaking.dto.CreateSessionRequest;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.RateLimitExceededException;
+import com.deutschflow.common.minor.MinorGate;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.organization.service.OrgPoolGuard;
@@ -56,6 +57,7 @@ public class AiSessionController {
     private final OrgQuotaService orgQuotaService;
     private final AiRateLimiterService aiRateLimiterService;
     private final AiUsageLedgerService ledgerService;
+    private final MinorGate minorGate;
 
     @Value("${app.speaking.sse-emitter-timeout-ms:180000}")
     private long sseEmitterTimeoutMs;
@@ -121,6 +123,9 @@ public class AiSessionController {
     public TranscribeDto transcribe(
             @AuthenticationPrincipal User user,
             @RequestParam("audio") MultipartFile file) throws IOException {
+        // DEC-22: cổng tuổi TRƯỚC cổng chi phí — giọng nói của một em chưa có đồng ý thì không
+        // được gửi đi kể cả khi ví còn đầy. 403 riêng, không lẫn với 429 hết hạn mức.
+        minorGate.assertAudioAllowed(user.getId());
         quotaService.assertAllowed(user.getId(), Instant.now(), STT_ESTIMATED_TOKENS);
         orgPoolGuard.assertOrgPoolAvailable(user.getId(), STT_ESTIMATED_TOKENS);
         // Per-user request-rate guard on top of the quota wallet. STT is billed per audio minute

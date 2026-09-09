@@ -73,6 +73,66 @@ describe('ImportRosterModal', () => {
     expect(importRoster).not.toHaveBeenCalled()
   })
 
+  // ─── Gói 1 (DEC-22, 09/09/2026): cột birthDate + giám hộ, TÙY CHỌN ───
+
+  it('tệp ba cột cũ: KHÔNG mọc cột ngày sinh, và nói rõ cả lô vừa nhập đang thiếu ngày sinh', async () => {
+    render(<ImportRosterModal onClose={() => undefined} onImported={() => undefined} />)
+    await userEvent.upload(await screen.findByTestId('roster-file-input'), csvFile('email,displayName,phone\r\nan@x.com,An,0912\r\n'))
+
+    await screen.findByText(`${NS}.preview:{"count":1}`)
+    expect(screen.queryByText(`${NS}.colBirthDate`)).toBeNull()
+    expect(screen.queryByText(`${NS}.colGuardian`)).toBeNull()
+    expect(screen.getByTestId('roster-no-birthdate')).toBeTruthy()
+    // Không phải lỗi: nút nhập vẫn bấm được — ghi danh KHÔNG phải cổng chặn.
+    expect((screen.getByTestId('roster-submit') as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('tệp khai birthDate + giám hộ: xem trước mọc đúng hai cột và hiện giá trị, hết chú thích thiếu ngày sinh', async () => {
+    render(<ImportRosterModal onClose={() => undefined} onImported={() => undefined} />)
+    await userEvent.upload(
+      await screen.findByTestId('roster-file-input'),
+      csvFile('email,displayName,phone,birthDate,guardianName\r\nan@x.com,An,0912,2011-09-15,Trần Thị C\r\n'),
+    )
+
+    await screen.findByText(`${NS}.preview:{"count":1}`)
+    expect(screen.getByText(`${NS}.colBirthDate`)).toBeTruthy()
+    expect(screen.getByText(`${NS}.colGuardian`)).toBeTruthy()
+    expect(screen.getByText('2011-09-15')).toBeTruthy()
+    expect(screen.getByText('Trần Thị C')).toBeTruthy()
+    expect(screen.queryByTestId('roster-no-birthdate')).toBeNull()
+  })
+
+  it('ngày sai định dạng bị đếm và tô đỏ ngay tại dòng đó; ô trống không bị coi là sai', async () => {
+    render(<ImportRosterModal onClose={() => undefined} onImported={() => undefined} />)
+    await userEvent.upload(
+      await screen.findByTestId('roster-file-input'),
+      csvFile('email,displayName,birthDate\r\na@x.com,A,15/09/2011\r\nb@x.com,B,\r\n'),
+    )
+
+    await screen.findByText(`${NS}.preview:{"count":2}`)
+    expect(screen.getByText(`${NS}.invalidBirthDates:{"count":1}`)).toBeTruthy()
+    expect(screen.getByText('15/09/2011').className).toContain('text-ga-red')
+    // Vẫn nhập được: máy chủ mới là nơi phán quyết từng dòng.
+    expect((screen.getByTestId('roster-submit') as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('lỗi từng dòng của máy chủ hiện nguyên văn — kể cả lý do thiếu người giám hộ', async () => {
+    importRoster.mockResolvedValue({
+      total: 2, created: 1, linked: 0, enrolled: 0, failed: 1,
+      errors: ['Dòng 3: học viên chưa đủ tuổi, thiếu người giám hộ'],
+    })
+    render(<ImportRosterModal onClose={() => undefined} onImported={() => undefined} />)
+    await userEvent.upload(
+      await screen.findByTestId('roster-file-input'),
+      csvFile('email,displayName,birthDate\r\na@x.com,A,1999-04-21\r\nb@x.com,B,2011-09-15\r\n'),
+    )
+    await screen.findByText(`${NS}.preview:{"count":2}`)
+    await userEvent.click(screen.getByTestId('roster-submit'))
+
+    const result = await screen.findByTestId('roster-result')
+    expect(within(result).getByText('Dòng 3: học viên chưa đủ tuổi, thiếu người giám hộ')).toBeTruthy()
+  })
+
   it('máy chủ lỗi → banner lỗi, giữ nguyên xem trước để thử lại; không gắn lớp thì classId undefined', async () => {
     importRoster.mockRejectedValueOnce(new Error('HTTP 500 — DB down'))
     render(<ImportRosterModal onClose={() => undefined} onImported={() => undefined} />)

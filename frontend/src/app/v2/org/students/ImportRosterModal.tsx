@@ -6,16 +6,21 @@ import { toast } from 'sonner'
 import { Download } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import { importRoster, listClasses, type OrgClass, type RosterImportResult } from '@/lib/orgApi'
-import { downloadTextFile, parseRosterCsv, rosterErrorsCsv, rosterTemplateCsv, type RosterParse } from '@/lib/orgCsv'
+import { downloadTextFile, isIsoDate, parseRosterCsv, rosterErrorsCsv, rosterTemplateCsv, type RosterParse } from '@/lib/orgCsv'
 import { TkModal, GaBtn, GaCap, ErrorBanner } from '@/components/ui-v2'
 
 /**
- * Nhập danh sách học viên từ CSV (PR-A5 / BF-07, 07/09/2026).
+ * Nhập danh sách học viên từ CSV (PR-A5 / BF-07 07/09/2026; cột vị thành niên Gói 1 09/09/2026).
  *
  * Backend `POST /org/students/import` đã có từ lâu (`orgApi.importRoster`) nhưng chưa có màn nào gọi —
  * chủ trung tâm phải nhập từng học viên hoặc nhờ kỹ thuật. Modal này: tải file mẫu → chọn file → xem
- * trước (đếm dòng, báo email sai sớm) → gắn lớp tuỳ chọn → nhập → kết quả từng dòng + tải CSV lỗi.
+ * trước (đếm dòng, báo email/ngày sai sớm) → gắn lớp tuỳ chọn → nhập → kết quả từng dòng + tải CSV lỗi.
  * Mỗi dòng chạy transaction riêng ở backend nên dòng hỏng không kéo cả batch; nhập lại không tạo trùng.
+ *
+ * Gói 1 (DEC-22): tệp CÓ thể khai thêm `birthDate` và bốn cột người giám hộ. Cột mới là TÙY CHỌN —
+ * tệp ba cột mà các trung tâm đang dùng vẫn nhập được y như trước, và xem trước chỉ mọc thêm cột khi
+ * tệp thật sự khai. Thiếu ngày sinh KHÔNG chặn nhập: cổng nằm ở đường dữ liệu đi ra nhà cung cấp AI,
+ * chặn ở đây chỉ khiến trung tâm không đưa được học viên vào hệ thống.
  */
 
 const INPUT_CLS =
@@ -137,9 +142,10 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
             <div className="border border-ga-line bg-ga-card">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ga-line bg-ga-bg px-3 py-2">
                 <GaCap>{t('preview', { count: rows.length })}</GaCap>
-                {parsed.invalidEmails > 0 && (
-                  <span className="ga-ui text-ga-caption text-ga-red">{t('invalidEmails', { count: parsed.invalidEmails })}</span>
-                )}
+                <span className="ga-ui flex flex-wrap items-center gap-x-3 gap-y-1 text-ga-caption text-ga-red">
+                  {parsed.invalidEmails > 0 && <span>{t('invalidEmails', { count: parsed.invalidEmails })}</span>}
+                  {parsed.invalidBirthDates > 0 && <span>{t('invalidBirthDates', { count: parsed.invalidBirthDates })}</span>}
+                </span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-ga-small">
@@ -149,6 +155,9 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
                       <th className="px-3 py-1.5 font-semibold">{t('colEmail')}</th>
                       <th className="px-3 py-1.5 font-semibold">{t('colName')}</th>
                       <th className="px-3 py-1.5 font-semibold">{t('colPhone')}</th>
+                      {/* Hai cột dưới chỉ mọc khi TỆP khai — tệp ba cột cũ giữ nguyên bảng như trước. */}
+                      {parsed.hasBirthDate && <th className="px-3 py-1.5 font-semibold">{t('colBirthDate')}</th>}
+                      {parsed.hasGuardian && <th className="px-3 py-1.5 font-semibold">{t('colGuardian')}</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -159,6 +168,16 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
                         <td className="px-3 py-1.5 font-mono text-ga-ink">{r.email || '—'}</td>
                         <td className="px-3 py-1.5 text-ga-ink">{r.displayName || '—'}</td>
                         <td className="px-3 py-1.5 text-ga-muted">{r.phone || '—'}</td>
+                        {parsed.hasBirthDate && (
+                          // Ô sai định dạng tô đỏ NGAY tại dòng của nó: người nhập sửa trong Excel rồi
+                          // tải lại, thay vì tải lên rồi mới đọc danh sách lỗi và dò ngược số dòng.
+                          <td className={`px-3 py-1.5 font-mono tabular-nums ${r.birthDate && !isIsoDate(r.birthDate) ? 'text-ga-red' : 'text-ga-muted'}`}>
+                            {r.birthDate || '—'}
+                          </td>
+                        )}
+                        {parsed.hasGuardian && (
+                          <td className="px-3 py-1.5 text-ga-muted">{r.guardianName || '—'}</td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -166,6 +185,13 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
               </div>
               {rows.length > PREVIEW_ROWS && (
                 <p className="ga-ui border-t border-ga-line px-3 py-1.5 text-ga-caption text-ga-muted">{t('previewMore', { count: rows.length - PREVIEW_ROWS })}</p>
+              )}
+              {!parsed.hasBirthDate && (
+                // Không phải lỗi, nên không tô đỏ: tệp cũ vẫn nhập được. Nhưng phải nói ra, nếu không
+                // trung tâm tưởng đã khai xong ngày sinh trong khi cả lô vừa nhập đều đang thiếu.
+                <p className="ga-ui border-t border-ga-line px-3 py-1.5 text-ga-caption text-ga-muted" data-testid="roster-no-birthdate">
+                  {t('noBirthDateColumn')}
+                </p>
               )}
             </div>
           )}
@@ -183,6 +209,7 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
 
           <ul className="ga-ui list-disc space-y-1 pl-5 text-ga-caption text-ga-muted">
             <li>{t('idempotentNote')}</li>
+            <li>{t('minorNote')}</li>
             <li>{t('planNote')}</li>
           </ul>
         </div>

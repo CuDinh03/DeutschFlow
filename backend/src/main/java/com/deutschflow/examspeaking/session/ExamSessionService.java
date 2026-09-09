@@ -7,6 +7,7 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.RateLimitExceededException;
+import com.deutschflow.common.minor.MinorGate;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.QuotaExceededException;
 import com.deutschflow.common.quota.QuotaService;
@@ -82,6 +83,7 @@ public class ExamSessionService {
     private final AiRateLimiterService rateLimiter;
     private final AiUsageLedgerService ledger;
     private final GroqWhisperClient whisperClient;
+    private final MinorGate minorGate;
     private final ExamAudioStorage audioStorage;
     private final SpeakingExamCalibrationParticipantRepository calibrationParticipants;
     private final ObjectMapper objectMapper;
@@ -187,6 +189,11 @@ public class ExamSessionService {
         SpeakingExamSession s = load(userId, sessionId);
         // F-22: kiểm trạng thái/hạn Teil TRƯỚC khi đốt một lần Whisper + ghi ledger cho phiên đã đóng.
         assertAcceptsTurn(s, Instant.now());
+        // DEC-22: cổng tuổi cắm Ở SERVICE, không ở controller — lượt nói audio còn đi qua
+        // idempotency ở controller, và mọi caller (controller, job chấm lại, test) đều qua đây.
+        // Đứng sau assertAcceptsTurn (phiên đã đóng thì 409 mới là câu trả lời đúng) và trước
+        // requireBudget: chưa đủ điều kiện về tuổi thì không được tính là tiêu hạn mức.
+        minorGate.assertAudioAllowed(userId);
         requireBudget(userId, AiRateLimiterService.Bucket.TRANSCRIBE, STT_ESTIMATED_TOKENS, "Too many transcribe requests.");
         GroqWhisperClient.VerboseTranscript stt = whisperClient.transcribeVerbose(audio, filename == null ? "audio.webm" : filename, "de", "");
         ledger.recordStt(userId, "EXAM_SPEAKING_STT", whisperClient.getWhisperModel(), stt.durationSeconds());

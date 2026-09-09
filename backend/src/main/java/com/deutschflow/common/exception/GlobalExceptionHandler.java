@@ -218,6 +218,27 @@ public class GlobalExceptionHandler {
                 ex.getMessage(), request.getRequestURI(), null, ext);
     }
 
+    /**
+     * 403 + {@code MINOR_AUDIO_BLOCKED} — đường ghi âm bị chặn vì chưa xác định tuổi hoặc chưa có
+     * đồng ý của người giám hộ (DEC-22). Tách khỏi {@code forbidden} vì client phải hiển thị hẳn
+     * một việc cần làm ("liên hệ trung tâm để hoàn tất phiếu đồng ý") chứ không phải "bạn không có
+     * quyền"; và tách khỏi 429 {@code QUOTA_EXCEEDED} vì nâng gói không mở được cổng này —
+     * gộp vào đó là mời một đứa trẻ nâng cấp gói để được ghi âm.
+     *
+     * <p>⛔ {@code extensions} chỉ mang {@code code} + {@code reason}. KHÔNG phát nhóm tuổi hay ngày
+     * sinh ra response — client không cần chúng để chọn thông điệp, mà mọi thứ phát ra là thứ log
+     * proxy và ảnh chụp màn hình sẽ giữ lại.
+     */
+    @ExceptionHandler(com.deutschflow.common.minor.MinorAudioBlockedException.class)
+    public ResponseEntity<ProblemDetail> handleMinorAudioBlocked(
+            com.deutschflow.common.minor.MinorAudioBlockedException ex, HttpServletRequest request) {
+        Map<String, Object> ext = new java.util.LinkedHashMap<>();
+        ext.put("code", com.deutschflow.common.minor.MinorAudioBlockedException.CODE);
+        ext.put("reason", ex.getReason().name());
+        return problem(HttpStatus.FORBIDDEN, "minor-audio-blocked", "Forbidden",
+                ex.getMessage(), request.getRequestURI(), null, ext);
+    }
+
     // --- 404 Not Found ---
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ProblemDetail> handleNotFound(NotFoundException ex,

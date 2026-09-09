@@ -305,6 +305,24 @@ app:
   minor:
     legal-guardian-threshold: ${APP_MINOR_LEGAL_GUARDIAN_THRESHOLD:16}
     center-policy-threshold: ${APP_MINOR_CENTER_POLICY_THRESHOLD:18}
+    # MinorGate — làm gì với ĐƯỜNG GHI ÂM khi CHƯA BIẾT TUỔI (users.birth_date IS NULL).
+    # Ba giá trị: ALLOW · BLOCK_ORG_MEMBERS · BLOCK_ALL. Sai chính tả = app KHÔNG khởi động
+    # (MinorGate.parsePolicy) — cố ý, vì một giá trị gõ nhầm mà lặng lẽ rơi về mặc định thì không
+    # ai biết cổng đang mở hay đóng.
+    #
+    # 🔴 MẶC ĐỊNH KHÔNG PHẢI BLOCK_ALL, và đây không phải sự dè dặt. Tại thời điểm phát hành CHƯA
+    # CÓ MỘT AI trên production có ngày sinh — cột này vừa ra đời ở V319. BLOCK_ALL sẽ chặn TOÀN BỘ
+    # người dùng khỏi mọi tính năng nói ngay giây deploy: người lớn trả tiền, giáo viên, học viên
+    # B2C, tất cả. Đó không phải bảo vệ trẻ em, đó là sự cố.
+    #
+    # BLOCK_ORG_MEMBERS chặn đúng nhóm mà nghĩa vụ có thể thực hiện được: thành viên ACTIVE của một
+    # trung tâm. Trung tâm có hồ sơ học viên, có liên hệ người giám hộ, và là bên chịu trách nhiệm
+    # thu đồng ý — chặn họ tạo ra một việc CÓ NGƯỜI LÀM ĐƯỢC. Người dùng B2C tự đăng ký thì không
+    # có ai đi thu hộ; chặn họ chỉ tạo ra một ngõ cụt.
+    #
+    # Đường đi tới BLOCK_ALL: thu đủ ngày sinh (nhập CSV + hồ sơ), đo còn bao nhiêu tài khoản NULL,
+    # rồi mới siết. Siết trước khi đo là đổi một rủi ro pháp lý lấy một sự cố vận hành chắc chắn.
+    unknown-age-audio: ${APP_MINOR_UNKNOWN_AGE_AUDIO:BLOCK_ORG_MEMBERS}
   cache:
     # Redis L2 cache tier (Caffeine L1 + Redis L2). OFF by default → Caffeine-only. We gate on this
     # explicit flag rather than on spring.data.redis.host (which defaults to localhost, so it's always
