@@ -200,7 +200,8 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 403 + {@code ORG_READ_ONLY} — trung tâm bị đình chỉ / hết hạn quá ân hạn (D5). Tách khỏi
+     * 403 + {@code ORG_READ_ONLY} — trung tâm bị đình chỉ hoặc đã hết hạn, tính từ NGAY mốc neo
+     * chứ không đợi hết 7 ngày ân hạn (D5, owner chốt 09/09/2026). Tách khỏi
      * {@code forbidden} vì client cần hiển thị khác hẳn: không phải "bạn thiếu quyền" mà là
      * "trung tâm đang khoá ghi, đây là cách mở lại". Đường ĐỌC vẫn 200 như thường.
      */

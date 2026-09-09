@@ -143,9 +143,12 @@ public class AdminOrgService {
     }
 
     /**
-     * Updates plan/seat-limit/status/licence-expiry; only non-null fields are applied. A status
-     * transition to {@code SUSPENDED} revokes entitlements for every ACTIVE STUDENT; a transition
-     * back to {@code ACTIVE} re-grants them.
+     * Updates plan/seat-limit/status/licence-expiry; only non-null fields are applied.
+     *
+     * <p>Chuyển sang {@code SUSPENDED} đưa trung tâm vào chế độ CHỈ ĐỌC và đóng mốc neo ân hạn —
+     * KHÔNG còn thu hồi quyền lợi học viên tại chỗ (owner chốt 09/09/2026, xem
+     * {@link #applyStatusTransition}); việc CẮT khi quá ân hạn do {@code SubscriptionReconcileJob}
+     * thi hành. Chuyển ngược về {@code ACTIVE} thì cấp lại quyền lợi ngay.
      */
     @Transactional
     public OrgDto updateOrganization(Long id, UpdateOrgRequest request, AuditActor actor) {
@@ -177,8 +180,9 @@ public class AdminOrgService {
         org = organizationRepository.save(org);
         applyStatusTransition(org, previousStatus, request.status());
         // Audit F-M3 (03/09/2026): đây là chỗ đổi gói, giới hạn ghế, hạn dùng và hạn mức token của
-        // cả một tổ chức — và một lần đổi status sang SUSPENDED sẽ thu hồi quyền lợi của MỌI học
-        // viên. Ghi cả trạng thái trước lẫn sau vì chính bước chuyển đó mới là thứ có hệ quả.
+        // cả một tổ chức — và một lần đổi status sang SUSPENDED sẽ khoá ghi CẢ trung tâm rồi khởi
+        // động đồng hồ 7 ngày ân hạn, hết ân hạn là quyền lợi của MỌI học viên bị cắt.
+        // Ghi cả trạng thái trước lẫn sau vì chính bước chuyển đó mới là thứ có hệ quả.
         auditLogService.log("admin.org.updated", actor, "ORG", String.valueOf(org.getId()),
                 Map.of(
                         "fromStatus", String.valueOf(previousStatus),
