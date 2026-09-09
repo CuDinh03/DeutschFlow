@@ -179,8 +179,15 @@ class ClassEnrollmentLifecycleIntegrationTest extends AbstractPostgresIntegratio
 
         Instant beforeBackfill = Instant.now().truncatedTo(ChronoUnit.MILLIS);
         // Chạy lại ĐÚNG câu backfill của migration — không dựng được dòng "có trước V316" trong IT.
+        //
+        // 🪤 Có thêm `AND id = ?`: cơ sở dữ liệu của lớp IT này DÙNG CHUNG giữa các ca và
+        // AbstractPostgresIntegrationTest không bọc transaction để rollback. Chạy câu UPDATE ở phạm
+        // vi TOÀN CỤC thì ca này ghi đè dữ liệu của ca khác, và bất kỳ ca nào sau này dựng một trung
+        // tâm không-ACTIVE rồi kỳ vọng suspended_at NULL sẽ đỏ NGẪU NHIÊN theo thứ tự chạy — kiểu
+        // đỏ tốn nhiều giờ nhất để truy. Chốt "chừa trung tâm ACTIVE" vẫn được kiểm bên dưới bằng
+        // một câu ĐỌC, không cần tới phạm vi ghi.
         jdbcTemplate.update("UPDATE organizations SET suspended_at = now() "
-                + "WHERE status <> 'ACTIVE' AND suspended_at IS NULL");
+                + "WHERE status <> 'ACTIVE' AND suspended_at IS NULL AND id = ?", suspended.getId());
 
         Timestamp anchored = jdbcTemplate.queryForObject(
                 "SELECT suspended_at FROM organizations WHERE id = ?", Timestamp.class,
