@@ -4,6 +4,7 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.exception.PrivilegedActionBlockedException;
 import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.organization.dto.OrgMemberDto;
@@ -29,11 +30,13 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -77,6 +80,12 @@ class OrgMembershipServiceTest {
         User u = User.builder().id(USER_ID).role(User.Role.TEACHER).build();
         u.setOrgId(orgId);
         return u;
+    }
+
+    /** DEC-13: admin nền tảng — người mà không đường kết nạp nào được biến thành thành viên trung tâm. */
+    private User adminUser() {
+        return User.builder().id(USER_ID).role(User.Role.ADMIN)
+                .email("admin@deutschflow.vn").displayName("Quản trị nền tảng").build();
     }
 
     private User userWith(Long id, User.Role role) {
@@ -238,6 +247,109 @@ class OrgMembershipServiceTest {
         verify(memberRepo).save(any());
     }
 
+    // ── DEC-13 (owner chốt 09/09/2026): admin nền tảng KHÔNG BAO GIỜ là thành viên trung tâm ──
+    //
+    // Một dòng org_members là TOÀN BỘ điều kiện vào 9 controller /api/org/**, còn syncPlatformRole
+    // cố ý giữ users.role = ADMIN — nên một admin lọt vào org_members vừa giữ trọn /api/admin/**,
+    // vừa đi qua assertOrgAdmin như người của trung tâm, và mọi lượt AI của họ trừ vào pool token
+    // của trung tâm. upsertMember là chokepoint DUY NHẤT ghi org_members + users.org_id, nên ca
+    // dưới đây khoá chặn ở đúng đó.
+
+    @Test
+    @DisplayName("DEC-13 upsertMember: user role ADMIN → chặn kèm đủ chất liệu ghi vết, không ghi dòng nào")
+    void upsertMember_platformAdmin_blockedWithAudit() {
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(adminUser()));
+
+        Throwable thrown = catchThrowable(() -> service.upsertMember(ORG_ID, USER_ID, "TEACHER"));
+
+        assertThat(thrown)
+                .isInstanceOf(PrivilegedActionBlockedException.class)
+                // vẫn là BadRequestException → client nhận 400 như cũ, handler cũ không đổi hành vi
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Quản trị viên nền tảng");
+        PrivilegedActionBlockedException blocked = (PrivilegedActionBlockedException) thrown;
+        assertThat(blocked.getAuditEvent()).isEqualTo("org.admin_membership.blocked");
+        // target_type = ORG: tra sổ theo trung tâm mới thấy được lần thử kết nạp này.
+        assertThat(blocked.getTargetType()).isEqualTo("ORG");
+        assertThat(blocked.getTargetId()).isEqualTo(String.valueOf(ORG_ID));
+        assertThat(blocked.getAuditMeta())
+                .containsEntry("reason", "platform_admin")
+                .containsEntry("targetUserId", USER_ID)
+                .containsEntry("requestedRole", "TEACHER");
+
+        // Không dòng org_members, không đụng users.org_id.
+        verify(memberRepo, never()).save(any());
+        verify(userRepository, never()).save(any());
+        // Guard nằm NGAY ĐẦU hàm: hai guard cũ (1 staff–1 org, nạp membership) chưa kịp chạy.
+        verify(memberRepo, never()).existsByIdUserIdAndStatusAndIdOrgIdNot(any(), any(), any());
+        verify(memberRepo, never()).findByIdOrgIdAndIdUserId(any(), any());
+    }
+
+    @Test
+    @DisplayName("DEC-13 upsertMember: chặn admin BẤT KỂ vai xin là gì — kể cả STUDENT (không lách bằng vai nhẹ)")
+    void upsertMember_platformAdminAsStudent_blocked() {
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(adminUser()));
+
+        Throwable thrown = catchThrowable(() -> service.upsertMember(ORG_ID, USER_ID, "STUDENT"));
+
+        assertThat(thrown).isInstanceOf(PrivilegedActionBlockedException.class);
+        assertThat(((PrivilegedActionBlockedException) thrown).getAuditMeta())
+                .containsEntry("requestedRole", "STUDENT");
+        verify(memberRepo, never()).save(any());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("DEC-13 hồi quy: TEACHER thường vẫn vào được — guard không chặn nhầm nhân sự bình thường")
+    void upsertMember_normalTeacher_notBlockedByAdminGuard() {
+        User user = studentUser();
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+
+        service.upsertMember(ORG_ID, USER_ID, "TEACHER");
+
+        ArgumentCaptor<OrgMember> saved = ArgumentCaptor.forClass(OrgMember.class);
+        verify(memberRepo).save(saved.capture());
+        assertThat(saved.getValue().getRole()).isEqualTo("TEACHER");
+        assertThat(saved.getValue().getStatus()).isEqualTo("ACTIVE");
+        assertThat(user.getOrgId()).isEqualTo(ORG_ID);
+        assertThat(user.getRole()).isEqualTo(User.Role.TEACHER);
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("DEC-13 hồi quy: STUDENT thường vẫn nhận được ghế — guard không chặn nhầm học viên")
+    void upsertMember_normalStudent_notBlockedByAdminGuard() {
+        User user = studentUser();
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+
+        service.upsertMember(ORG_ID, USER_ID, "STUDENT");
+
+        ArgumentCaptor<OrgMember> saved = ArgumentCaptor.forClass(OrgMember.class);
+        verify(memberRepo).save(saved.capture());
+        assertThat(saved.getValue().getRole()).isEqualTo("STUDENT");
+        assertThat(user.getOrgId()).isEqualTo(ORG_ID);
+        assertThat(user.getRole()).isEqualTo(User.Role.STUDENT);
+    }
+
+    @Test
+    @DisplayName("DEC-13: đường thuận nạp user ĐÚNG MỘT lượt — guard dùng lại biến, không thêm truy vấn thứ hai")
+    void upsertMember_happyPath_loadsUserExactlyOnce() {
+        // Chốt số lượt: guard DEC-13 nạp user ở đầu hàm, đoạn cuối DÙNG LẠI chính biến đó. Nếu một
+        // lần refactor sau đổi thành findById(...).orElseThrow() lần nữa, mỗi lượt thêm thành viên
+        // (import CSV = mỗi dòng một lượt) sẽ âm thầm gấp đôi truy vấn — ca này đỏ ngay.
+        User user = studentUser();
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+
+        service.upsertMember(ORG_ID, USER_ID, "STUDENT");
+
+        verify(userRepository, times(1)).findById(USER_ID);
+        verify(userRepository).save(user);
+    }
+
     // ----------------------------------------------------------------- ensureStudentSeat (vào TT qua lớp)
 
     @Test
@@ -293,6 +405,35 @@ class OrgMembershipServiceTest {
         assertThat(former.getStatus()).isEqualTo("ACTIVE");
         assertThat(former.getLeftAt()).isNull();
         verify(memberRepo).save(former);
+    }
+
+    @Test
+    @DisplayName("DEC-13 ensureStudentSeat: giáo viên bấm Duyệt cho tài khoản ADMIN → chặn, không ai vào trung tâm")
+    void ensureStudentSeat_platformAdmin_blocked() {
+        // Đường kết nạp dễ sót nhất: không qua console admin, không qua CSV, không qua lời mời —
+        // một giáo viên bất kỳ duyệt yêu cầu vào lớp là đủ. Chặn ngay ở đây (không đợi upsertMember)
+        // để câu thông báo nói được cho giáo viên biết chuyện gì xảy ra.
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(adminUser()));
+
+        Throwable thrown = catchThrowable(() -> service.ensureStudentSeat(ORG_ID, USER_ID));
+
+        assertThat(thrown)
+                .isInstanceOf(PrivilegedActionBlockedException.class)
+                .hasMessageContaining("quản trị viên nền tảng");
+        PrivilegedActionBlockedException blocked = (PrivilegedActionBlockedException) thrown;
+        assertThat(blocked.getAuditEvent()).isEqualTo("org.admin_membership.blocked");
+        assertThat(blocked.getTargetType()).isEqualTo("ORG");
+        assertThat(blocked.getTargetId()).isEqualTo(String.valueOf(ORG_ID));
+        assertThat(blocked.getAuditMeta())
+                .containsEntry("reason", "platform_admin_join_class")
+                .containsEntry("targetUserId", USER_ID);
+
+        // upsertMember không tạo dòng nào, và không cấp gói của trung tâm cho admin.
+        verify(memberRepo, never()).save(any());
+        verify(userRepository, never()).save(any());
+        verify(orgEntitlementService, never()).grantStudent(any(), any());
     }
 
     // ----------------------------------------------------------------- V-05: vào TT qua lớp phải ĐƯỢC CẤP GÓI

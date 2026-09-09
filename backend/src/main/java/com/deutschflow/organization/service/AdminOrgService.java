@@ -282,6 +282,21 @@ public class AdminOrgService {
         User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng: " + normalizedEmail));
 
+        // DEC-13: admin nền tảng không bao giờ là thành viên trung tâm. Chốt chặn thật nằm ở
+        // OrgMembershipService.upsertMember; guard ở đây thêm hai thứ upsertMember không có —
+        // thông báo nói đúng ngữ cảnh console admin, và targetEmail trong vết (upsertMember chỉ
+        // cầm userId). Đây cũng là đường khai thác trực tiếp nhất: một lệnh HTTP với chính email
+        // của mình là mở trọn console trung tâm.
+        if (user.getRole() == User.Role.ADMIN) {
+            throw new PrivilegedActionBlockedException(
+                    "Quản trị viên nền tảng không được là thành viên trung tâm — hãy dùng một tài khoản riêng.",
+                    "admin.org.admin_membership.blocked", "ORG", String.valueOf(org.getId()),
+                    Map.of("reason", "platform_admin",
+                            "targetUserId", user.getId(),
+                            "targetEmail", user.getEmail(),
+                            "requestedRole", normalizedRole));
+        }
+
         OrgMember existing = orgMemberRepository.findByIdOrgIdAndIdUserId(org.getId(), user.getId())
                 .orElse(null);
         boolean targetIsActiveOwner = existing != null
@@ -431,6 +446,20 @@ public class AdminOrgService {
         String email = ownerEmail.trim().toLowerCase();
         Optional<User> existing = userRepository.findByEmailIgnoreCase(email);
         if (existing.isPresent()) {
+            // DEC-13: chặn TRƯỚC upsertMember để thông báo nói đúng ngữ cảnh "tạo trung tâm".
+            // Ném ở đây rollback cả org đang tạo (cùng @Transactional với createOrganization) —
+            // đúng ý muốn: thà không có trung tâm còn hơn có một trung tâm mà chủ sở hữu là admin
+            // nền tảng, vì khi đó KHÔNG ai gỡ được (removeMember và selfLeave đều từ chối OWNER,
+            // transferOwnership chỉ chính OWNER gọi được).
+            if (existing.get().getRole() == User.Role.ADMIN) {
+                throw new PrivilegedActionBlockedException(
+                        "Không thể đặt quản trị viên nền tảng làm chủ sở hữu trung tâm — hãy dùng một tài khoản riêng.",
+                        "admin.org.admin_membership.blocked", "ORG", String.valueOf(orgId),
+                        Map.of("reason", "platform_admin_owner",
+                                "targetUserId", existing.get().getId(),
+                                "targetEmail", email,
+                                "requestedRole", ROLE_OWNER));
+            }
             orgMembershipService.upsertMember(orgId, existing.get().getId(), ROLE_OWNER);
             return;
         }

@@ -100,6 +100,15 @@ public class OrgRosterRowImporter {
         // đúng thứ mà chốt "chỉ OWNER mới gỡ được MANAGER" ở removeMember vừa chặn, chỉ là đi vòng
         // qua cửa import. Dòng đó bị từ chối và báo lỗi rõ ràng thay vì âm thầm đổi vai.
         if (existing != null) {
+            // DEC-13: admin nền tảng không bao giờ là thành viên trung tâm. upsertMember đã chặn
+            // (và importRow là REQUIRES_NEW nên chỉ dòng này hỏng), nhưng ném từ đó cho ra thông
+            // báo không có email — vòng lặp ở OrgRosterService bắt Exception rồi ghi "Dòng N: lỗi
+            // xử lý". Kiểm sớm ở đây để người nhập đọc được dòng nào, email nào, vì sao — cùng
+            // khuôn với chốt "CSV học viên không đụng nhân sự" ngay bên dưới.
+            if (existing.getRole() == User.Role.ADMIN) {
+                throw new BadRequestException("Tài khoản " + email
+                        + " là quản trị viên nền tảng — không thể thêm vào danh sách học viên của trung tâm.");
+            }
             orgMemberRepository.findByIdOrgIdAndIdUserId(orgId, existing.getId())
                     .filter(m -> STATUS_ACTIVE.equals(m.getStatus()) && !ROLE_STUDENT.equals(m.getRole()))
                     .ifPresent(m -> {

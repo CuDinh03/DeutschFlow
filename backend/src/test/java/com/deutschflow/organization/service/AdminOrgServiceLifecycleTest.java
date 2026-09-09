@@ -2,6 +2,7 @@ package com.deutschflow.organization.service;
 
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.exception.PrivilegedActionBlockedException;
 import com.deutschflow.organization.dto.CreateOrgRequest;
 import com.deutschflow.organization.dto.OrgDto;
 import com.deutschflow.organization.dto.OrgMemberDto;
@@ -26,6 +27,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -706,5 +708,113 @@ class AdminOrgServiceLifecycleTest {
         verify(auditLogService).log(eq("admin.org.entitlements.activated"), any(),
                 eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
         assertThat(meta.getValue()).containsEntry("grantedCount", 2);
+    }
+
+    // ─── DEC-13: admin nền tảng KHÔNG BAO GIỜ là thành viên trung tâm ───────────────────
+    //
+    // Console admin là đường khai thác trực tiếp nhất của bất biến này: một lệnh HTTP với chính
+    // email của mình là mở trọn console trung tâm. Chốt chặn thật nằm ở upsertMember, nhưng guard
+    // ở AdminOrgService thêm hai thứ upsertMember không có — thông báo nói đúng ngữ cảnh admin, và
+    // targetEmail trong vết (upsertMember chỉ cầm userId). Nên chốt ở CẢ hai lớp: nếu chỉ tin vào
+    // chokepoint thì một bản vá lỡ tay bỏ guard trên vẫn xanh, và vết mất luôn targetEmail.
+
+    private User platformAdminUser(Long id, String email) {
+        return User.builder().id(id).email(email).displayName("Admin" + id)
+                .passwordHash("h").role(User.Role.ADMIN).build();
+    }
+
+    @Test
+    @DisplayName("addMember: email của ADMIN nền tảng bị chặn — không upsert, không ghi vết 'đã thêm'")
+    void addMember_platformAdminTarget_isBlocked() {
+        User platformAdmin = platformAdminUser(20L, "root@deutschflow.test");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(orgWithStatus("ACTIVE")));
+        when(userRepository.findByEmailIgnoreCase("root@deutschflow.test"))
+                .thenReturn(Optional.of(platformAdmin));
+        com.deutschflow.common.audit.AuditActor actor =
+                new com.deutschflow.common.audit.AuditActor(20L, "root@deutschflow.test", "ADMIN");
+
+        PrivilegedActionBlockedException blocked = catchThrowableOfType(
+                () -> service.addMember(ORG_ID, "root@deutschflow.test", "TEACHER", actor),
+                PrivilegedActionBlockedException.class);
+
+        assertThat(blocked).isNotNull();
+        assertThat(blocked.getAuditEvent()).isEqualTo("admin.org.admin_membership.blocked");
+        assertThat(blocked.getTargetType()).isEqualTo("ORG");
+        assertThat(blocked.getTargetId()).isEqualTo(String.valueOf(ORG_ID));
+        // targetEmail là lý do guard này tồn tại song song với chokepoint: điều tra một lần leo
+        // thang quyền mà chỉ có userId thì phải tra ngược bảng users, còn user đó có thể đã bị xoá.
+        assertThat(blocked.getAuditMeta())
+                .containsEntry("reason", "platform_admin")
+                .containsEntry("targetEmail", "root@deutschflow.test")
+                .containsEntry("targetUserId", 20L)
+                .containsEntry("requestedRole", "TEACHER");
+
+        verify(orgMembershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+        // Guard phải nằm TRƯỚC lúc đọc thành viên hiện có — chặn muộn hơn thì bất biến 1-OWNER
+        // (đọc `existing`) chạy trước và có thể ném lỗi nói sai chuyện.
+        verify(orgMemberRepository, never()).findByIdOrgIdAndIdUserId(anyLong(), anyLong());
+        // Vết "đã thêm thành viên" mà xuất hiện ở đây là nói dối sổ: thao tác đã bị chặn.
+        verify(auditLogService, never())
+                .log(eq("admin.org.member.upserted"), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("addMember: người dùng thường (TEACHER) KHÔNG bị guard DEC-13 đụng tới")
+    @SuppressWarnings("unchecked")
+    void addMember_nonAdminTarget_stillPassesThrough() {
+        // Ca đối chứng: guard viết sai điều kiện (chặn mọi người, hoặc so sánh nhầm vai trò tổ chức
+        // với vai trò nền tảng) thì đường thêm giáo viên chết sạch mà ca (a) vẫn xanh.
+        User teacher = orgUser(21L, "gv@x.com");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(orgWithStatus("ACTIVE")));
+        when(userRepository.findByEmailIgnoreCase("gv@x.com")).thenReturn(Optional.of(teacher));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 21L))
+                .thenReturn(Optional.empty(), Optional.of(memberWithRole(21L, "TEACHER", "ACTIVE")));
+        com.deutschflow.common.audit.AuditActor actor =
+                new com.deutschflow.common.audit.AuditActor(1L, "admin@x.com", "ADMIN");
+
+        OrgMemberDto dto = service.addMember(ORG_ID, "gv@x.com", "TEACHER", actor);
+
+        assertThat(dto.role()).isEqualTo("TEACHER");
+        verify(orgMembershipService).upsertMember(ORG_ID, 21L, "TEACHER");
+        ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        verify(auditLogService).log(eq("admin.org.member.upserted"), eq(actor),
+                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+        assertThat(meta.getValue().get("toRole")).isEqualTo("TEACHER");
+    }
+
+    @Test
+    @DisplayName("createOrganization: ownerEmail trỏ vào ADMIN nền tảng bị chặn — không gắn OWNER")
+    void createOrganization_platformAdminOwner_isBlocked() {
+        // Nguy hiểm hơn addMember: OWNER là vai trò KHÔNG ai gỡ được về sau (removeMember và
+        // selfLeave đều từ chối OWNER, transferOwnership chỉ chính OWNER gọi được). Ném ở đây
+        // rollback cả trung tâm đang tạo — đúng ý: thà không có trung tâm còn hơn có một trung tâm
+        // do admin nền tảng làm chủ mà không đường nào tháo ra.
+        User platformAdmin = platformAdminUser(22L, "root@deutschflow.test");
+        when(organizationRepository.existsBySlug(anyString())).thenReturn(false);
+        when(organizationRepository.save(any(Organization.class))).thenAnswer(i -> {
+            Organization o = i.getArgument(0);
+            o.setId(ORG_ID);
+            return o;
+        });
+        when(userRepository.findByEmailIgnoreCase("root@deutschflow.test"))
+                .thenReturn(Optional.of(platformAdmin));
+
+        PrivilegedActionBlockedException blocked = catchThrowableOfType(
+                () -> service.createOrganization(new CreateOrgRequest(
+                        "Org Admin", "org-admin", "PRO", 10,
+                        "root@deutschflow.test", "X", "pw123456"), null),
+                PrivilegedActionBlockedException.class);
+
+        assertThat(blocked).isNotNull();
+        assertThat(blocked.getAuditEvent()).isEqualTo("admin.org.admin_membership.blocked");
+        assertThat(blocked.getAuditMeta())
+                .containsEntry("reason", "platform_admin_owner")
+                .containsEntry("targetUserId", 22L)
+                .containsEntry("requestedRole", "OWNER");
+
+        verify(orgMembershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+        verify(userRepository, never()).save(any(User.class));
+        // Trung tâm rollback theo transaction ⇒ vết "đã tạo" không được ghi (nó nằm sau attachOwner).
+        verify(auditLogService, never()).log(eq("admin.org.created"), any(), any(), any(), any());
     }
 }

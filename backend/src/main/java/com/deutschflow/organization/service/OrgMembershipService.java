@@ -80,6 +80,32 @@ public class OrgMembershipService {
      */
     @Transactional
     public void upsertMember(Long orgId, Long userId, String role) {
+        // DEC-13 (owner chốt 09/09/2026): ADMIN NỀN TẢNG KHÔNG BAO GIỜ LÀ THÀNH VIÊN TRUNG TÂM.
+        // Đặt ở chokepoint này chứ không ở AdminOrgService.addMember vì `org_members` chỉ được
+        // INSERT ở đúng đây và `users.org_id` chỉ được ghi ở đúng đây — 9 điểm gọi phía trên
+        // (addMember, attachOwner ×2, nhận lời mời, preCreateTeacher, nhập CSV, admin tạo user,
+        // và ensureStudentSeat từ đường giáo viên duyệt yêu cầu vào lớp) đều chảy qua.
+        //
+        // Vì sao là lỗ chặn pilot chứ không phải sạch sẽ lý thuyết: một dòng org_members là TOÀN BỘ
+        // điều kiện để vào 9 controller /api/org/** (chúng chỉ khai `isAuthenticated()` ở cấp lớp,
+        // phân quyền thật nằm ở OrgGuard đọc org_members), trong khi syncPlatformRole bên dưới CỐ Ý
+        // giữ nguyên users.role = ADMIN. Người đó vừa giữ trọn /api/admin/**, vừa đi qua
+        // assertOrgAdmin/assertOrgOwner như người của trung tâm. Hai hệ quả kéo theo:
+        // OrgQuotaService.resolveActiveMembership không lọc users.role nên mọi lượt dùng AI của
+        // admin bị trừ vào pool token của trung tâm; và AuthService nhét orgRole vào access token
+        // nên web coi admin là người của trung tâm.
+        //
+        // orElse(null) chứ KHÔNG orElseThrow: guard này chạy TRƯỚC mọi guard khác, và các unit test
+        // hiện có chỉ stub findById cho nhánh đi tới cuối hàm — orElseThrow ở đây sẽ đổi loại
+        // exception của những ca đó từ ConflictException/BadRequestException sang NoSuchElement.
+        User target = userRepository.findById(userId).orElse(null);
+        if (target != null && target.getRole() == User.Role.ADMIN) {
+            throw new PrivilegedActionBlockedException(
+                    "Quản trị viên nền tảng không được là thành viên trung tâm.",
+                    "org.admin_membership.blocked", "ORG", String.valueOf(orgId),
+                    Map.of("reason", "platform_admin", "targetUserId", userId, "requestedRole", role));
+        }
+
         if (!ROLE_STUDENT.equals(role)
                 && memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(userId, STATUS_ACTIVE, orgId)) {
             throw new ConflictException(
@@ -160,7 +186,9 @@ public class OrgMembershipService {
                         .build());
         memberRepo.save(member);
 
-        User user = userRepository.findById(userId).orElseThrow();
+        // Dùng lại `target` đã nạp ở guard DEC-13 đầu hàm — một lượt findById cho cả hai việc.
+        // Nhánh null giữ nguyên ngữ nghĩa cũ (NoSuchElementException khi userId không tồn tại).
+        User user = target != null ? target : userRepository.findById(userId).orElseThrow();
         user.setOrgId(orgId);
         syncPlatformRole(user, role);
         userRepository.save(user);
@@ -196,6 +224,19 @@ public class OrgMembershipService {
             throw new BadRequestException(
                     "Học viên đang thuộc một trung tâm khác — không thể thêm vào trung tâm này qua lớp học.");
         }
+        // DEC-13: đây là đường kết nạp DỄ SÓT NHẤT — không qua console admin, không qua CSV, không
+        // qua lời mời: một giáo viên bất kỳ bấm "Duyệt" cho yêu cầu vào lớp của một tài khoản tình
+        // cờ là ADMIN nền tảng cũng kết nạp được người đó. upsertMember bên dưới đã chặn, nhưng nó
+        // ném giữa @Transactional của TeacherService.approveJoinRequest với thông báo không nói
+        // được giáo viên phải làm gì. Chặn sớm ở đây với câu nói rõ.
+        userRepository.findById(userId)
+                .filter(u -> u.getRole() == User.Role.ADMIN)
+                .ifPresent(u -> {
+                    throw new PrivilegedActionBlockedException(
+                            "Tài khoản này là quản trị viên nền tảng — không thể nhận vào lớp của trung tâm.",
+                            "org.admin_membership.blocked", "ORG", String.valueOf(orgId),
+                            Map.of("reason", "platform_admin_join_class", "targetUserId", userId));
+                });
         upsertMember(orgId, userId, ROLE_STUDENT);
         organizationRepository.findById(orgId)
                 .ifPresent(org -> orgEntitlementService.grantStudent(userId, org));
@@ -485,8 +526,14 @@ public class OrgMembershipService {
 
     /**
      * Keeps {@code users.role} in lock-step with the user's org role: OWNER/MANAGER/TEACHER map to the
-     * matching platform identity. A platform ADMIN is never downgraded; joining as STUDENT never
-     * overrides an existing staff identity (that is handled on detach).
+     * matching platform identity. Joining as STUDENT never overrides an existing staff identity
+     * (that is handled on detach).
+     *
+     * <p>Nhánh ADMIN bên dưới nay là phòng thủ theo tầng, KHÔNG còn là hành vi có chủ đích: từ
+     * DEC-13 (09/09/2026) admin nền tảng bị chặn ngay đầu {@link #upsertMember} nên không đường
+     * thành viên nào tới được đây với {@code role == ADMIN}. Giữ lại để một caller tương lai gọi
+     * thẳng syncPlatformRole không âm thầm hạ vai admin — đừng đọc nó như "admin làm thành viên
+     * được, chỉ là không bị hạ vai".
      */
     private void syncPlatformRole(User user, String orgRole) {
         if (user.getRole() == User.Role.ADMIN) {
