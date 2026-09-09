@@ -2,6 +2,7 @@ package com.deutschflow.organization.service;
 
 import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.exception.OrgReadOnlyException;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.payment.service.SubscriptionActivationService;
 import lombok.RequiredArgsConstructor;
@@ -46,9 +47,47 @@ public class OrgEntitlementService {
      * thời hạn còn lại (DEC-09 — owner chốt Q1 ngày 07/09). Trước đợt này đường cấp đi qua
      * {@code activateWithExplicitEnd}, hàm đó ENDED mọi dòng ACTIVE: thêm một học viên đang trả tiền
      * vào trung tâm là đốt sạch phần họ đã mua, và rời trung tâm cũng không lấy lại được.
+     *
+     * <p><b>Cổng D5 (nợ ghi trong PR #617, nay owner đã chốt):</b> trung tâm bị đình chỉ hoặc đã
+     * hết hạn thì KHÔNG cấp thêm quyền lợi — chặn NGAY từ mốc neo, không đợi hết 7 ngày ân hạn
+     * (ân hạn là quãng chỉ-đọc trước khi CẮT, xem {@link OrgLicenseState}). Cổng đặt ở ĐÂY chứ không ở từng call-site
+     * vì cả hai đường TỰ PHỤC VỤ đều đi qua hàm này ({@code OrgMembershipService.ensureStudentSeat}
+     * khi học viên gõ mã lớp, {@code OrgRosterRowImporter} khi org import roster) — trước đây chỉ
+     * cần một học viên gõ mã lớp là trung tâm nợ tiền vẫn cấp được gói mới. Ném (chứ không lặng lẽ bỏ qua) để lượt duyệt/import thất bại rõ ràng và cùng
+     * rollback với ghế vừa cấp, thay vì đẻ ra thành viên không có quyền lợi.
+     *
+     * <p>Đường KHÔI PHỤC (quản trị nền tảng bật lại trung tâm, webhook ghi nhận hoá đơn đã thu) đi
+     * bằng {@link #grantStudentOnRestore} — KHÔNG qua cổng này, vì {@code validUntil} có thể vẫn
+     * còn quá hạn ngay lúc bật lại và cổng sẽ khoá đúng cái nút thoát khỏi chế độ chỉ đọc.
+     * {@link #revokeStudent} và {@link #expireAndResume} cũng không đi qua cổng.
      */
     @Transactional
     public void grantStudent(Long userId, Organization org) {
+        assertOrgMayGrant(org);
+        doGrant(userId, org);
+    }
+
+    /**
+     * Cấp gói cho đường KHÔI PHỤC — quản trị NỀN TẢNG bật lại trung tâm, hoặc cổng thanh toán ghi
+     * nhận hoá đơn đã thu — nên CỐ Ý không đi qua cổng D5.
+     *
+     * <p><b>Vì sao phải tách:</b> {@code AdminOrgService.updateOrganization} đặt {@code status =
+     * ACTIVE} nhưng KHÔNG tự gia hạn {@code validUntil}; {@code SepayWebhookService.activateOrg}
+     * chỉ nới {@code validUntil} khi hoá đơn có {@code period_end} và mốc đó xa hơn hạn cũ (hoá đơn
+     * truy thu kỳ đã qua thì không nới). Trong cả hai trường hợp, trung tâm vừa được bật lại vẫn
+     * còn "hết hạn quá ân hạn" tại thời điểm cấp — nếu đi qua cổng D5 thì {@code grantStudent} ném,
+     * kéo rollback CẢ giao dịch bật lại / ghi nhận thanh toán. Nghĩa là: đúng cái nút để thoát khỏi
+     * chế độ chỉ đọc lại bị chính chế độ chỉ đọc khoá, và webhook ngân hàng thì lỗi lặp vô hạn.
+     *
+     * <p>Chỉ hai đường quản trị/hệ thống dùng hàm này. Đường tự phục vụ (học viên gõ mã lớp, org
+     * import roster) vẫn đi {@link #grantStudent} và vẫn bị cổng D5 chặn.
+     */
+    @Transactional
+    public void grantStudentOnRestore(Long userId, Organization org) {
+        doGrant(userId, org);
+    }
+
+    private void doGrant(Long userId, Organization org) {
         String planCode = org.getPlanCode();
         if (!StringUtils.hasText(planCode)) {
             return; // org sells no plan — membership only, no entitlement to grant
@@ -95,6 +134,14 @@ public class OrgEntitlementService {
         }
         log.info("[ORG-ENT] Giấy phép trung tâm hết hạn cho userId={} — kết thúc {} quyền lợi", userId, ended);
         resumeAndAudit(userId);
+    }
+
+    /** Cổng D5 — xem {@link #grantStudent}. Tách ra để đọc được ý định ở một chỗ. */
+    private static void assertOrgMayGrant(Organization org) {
+        if (!OrgLicenseState.evaluate(org.getStatus(), org.getValidUntil(), org.getSuspendedAt(),
+                Instant.now()).writable()) {
+            throw new OrgReadOnlyException(org.getId(), OrgLicenseState.reason(org.getStatus()));
+        }
     }
 
     private void resumeAndAudit(Long userId) {

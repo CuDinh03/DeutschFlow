@@ -199,6 +199,25 @@ public class GlobalExceptionHandler {
                 ex.getMessage(), request.getRequestURI(), null, null);
     }
 
+    /**
+     * 403 + {@code ORG_READ_ONLY} — trung tâm bị đình chỉ hoặc đã hết hạn, tính từ NGAY mốc neo
+     * chứ không đợi hết 7 ngày ân hạn (D5, owner chốt 09/09/2026). Tách khỏi
+     * {@code forbidden} vì client cần hiển thị khác hẳn: không phải "bạn thiếu quyền" mà là
+     * "trung tâm đang khoá ghi, đây là cách mở lại". Đường ĐỌC vẫn 200 như thường.
+     */
+    @ExceptionHandler(OrgReadOnlyException.class)
+    public ResponseEntity<ProblemDetail> handleOrgReadOnly(OrgReadOnlyException ex,
+                                                           HttpServletRequest request) {
+        Map<String, Object> ext = new java.util.LinkedHashMap<>();
+        ext.put("code", OrgReadOnlyException.CODE);
+        ext.put("reason", ex.getReason().name());
+        if (ex.getOrgId() != null) {
+            ext.put("orgId", ex.getOrgId());
+        }
+        return problem(HttpStatus.FORBIDDEN, "org-read-only", "Forbidden",
+                ex.getMessage(), request.getRequestURI(), null, ext);
+    }
+
     // --- 404 Not Found ---
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ProblemDetail> handleNotFound(NotFoundException ex,

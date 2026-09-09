@@ -214,26 +214,26 @@ class AdminOrgServiceLifecycleTest {
     // ------------------------------------------------------------------ ACTIVE -> SUSPENDED
 
     @Test
-    @DisplayName("ACTIVE -> SUSPENDED: calls revokeStudent for each active STUDENT member")
-    void updateOrganization_activeTosuspended_revokesEachStudent() {
+    @DisplayName("ACTIVE -> SUSPENDED: KHÔNG cắt quyền lợi ngay — học viên còn 7 ngày ân hạn chỉ-đọc")
+    void updateOrganization_activeTosuspended_doesNotRevokeImmediately() {
         Organization org = orgWithStatus("ACTIVE");
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
         when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         OrgMember s1 = activeMember(101L);
         OrgMember s2 = activeMember(102L);
-        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE"))
-                .thenReturn(List.of(s1, s2));
-
-        // stub the DTO projection call
         stubActiveMembersForDto(List.of(s1, s2));
 
         UpdateOrgRequest req = new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null);
         service.updateOrganization(ORG_ID, req, null);
 
-        verify(orgEntitlementService).revokeStudent(101L);
-        verify(orgEntitlementService).revokeStudent(102L);
-        verify(orgEntitlementService, times(2)).revokeStudent(anyLong());
+        // Owner 09/09/2026: đình chỉ ⇒ CHỈ ĐỌC, cắt phăng tại giây bấm nút là làm ngược.
+        // Việc CẮT khi quá ân hạn do SubscriptionReconcileJob thi hành.
+        verify(orgEntitlementService, never()).revokeStudent(anyLong());
+        // Chốt thêm ở lớp repository: nếu chỉ chốt "không revoke" thì một bản vá lỡ tay gọi lại
+        // vòng lặp cũ vẫn xanh (danh sách học viên không được stub nên trả rỗng, revoke không chạy).
+        verify(orgMemberRepository, never())
+                .findByIdOrgIdAndRoleAndStatus(anyLong(), eq("STUDENT"), eq("ACTIVE"));
     }
 
     @Test
@@ -243,13 +243,12 @@ class AdminOrgServiceLifecycleTest {
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
         when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE"))
-                .thenReturn(List.of(activeMember(101L)));
         stubActiveMembersForDto(List.of(activeMember(101L)));
 
         service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null), null);
 
         verify(orgEntitlementService, never()).grantStudent(anyLong(), any());
+        verify(orgEntitlementService, never()).grantStudentOnRestore(anyLong(), any());
     }
 
     // ------------------------------------------------------------------ SUSPENDED -> ACTIVE
@@ -270,10 +269,10 @@ class AdminOrgServiceLifecycleTest {
 
         service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null), null);
 
-        verify(orgEntitlementService).grantStudent(eq(201L), any(Organization.class));
-        verify(orgEntitlementService).grantStudent(eq(202L), any(Organization.class));
-        verify(orgEntitlementService).grantStudent(eq(203L), any(Organization.class));
-        verify(orgEntitlementService, times(3)).grantStudent(anyLong(), any());
+        verify(orgEntitlementService).grantStudentOnRestore(eq(201L), any(Organization.class));
+        verify(orgEntitlementService).grantStudentOnRestore(eq(202L), any(Organization.class));
+        verify(orgEntitlementService).grantStudentOnRestore(eq(203L), any(Organization.class));
+        verify(orgEntitlementService, times(3)).grantStudentOnRestore(anyLong(), any());
     }
 
     @Test
@@ -301,8 +300,6 @@ class AdminOrgServiceLifecycleTest {
         Organization org = orgWithStatus("ACTIVE");
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
         when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE"))
-                .thenReturn(List.of());
         stubActiveMembersForDto(List.of());
         java.time.Instant before = java.time.Instant.now();
 
@@ -353,6 +350,59 @@ class AdminOrgServiceLifecycleTest {
                 .isNull();
     }
 
+    // ---------------------------------------- G-10 hồi quy: cổng D5 KHÔNG được khoá đường bật lại
+
+    /**
+     * Dựng AdminOrgService với {@link OrgEntitlementService} THẬT (chỉ mock lớp dưới nó) — mock
+     * entitlement service che mất đúng chỗ hỏng: cổng D5 nằm bên trong {@code grantStudent}.
+     */
+    private AdminOrgService serviceWithRealEntitlements(
+            com.deutschflow.payment.service.SubscriptionActivationService activation) {
+        OrgEntitlementService realEntitlements = new OrgEntitlementService(
+                activation, auditLogService, mock(org.springframework.jdbc.core.JdbcTemplate.class));
+        return new AdminOrgService(
+                organizationRepository, orgMembershipService, orgInvitationService,
+                orgMemberRepository, realEntitlements, userRepository, passwordEncoder,
+                userNotificationService, auditLogService);
+    }
+
+    @Test
+    @DisplayName("bật lại trung tâm ĐÌNH CHỈ mà validUntil còn quá hạn: vẫn cấp lại gói, KHÔNG ném ORG_READ_ONLY")
+    void updateOrganization_reactivateWithStaleValidUntil_stillGrants() {
+        // Trung tâm bị đình chỉ vì nợ tiền 60 ngày trước; admin bấm bật lại (chỉ đổi status).
+        Organization org = orgWithStatus("SUSPENDED");
+        org.setValidUntil(java.time.Instant.now().minus(60, java.time.temporal.ChronoUnit.DAYS));
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        OrgMember s1 = activeMember(201L);
+        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE"))
+                .thenReturn(List.of(s1));
+        stubActiveMembersForDto(List.of(s1));
+        var activation = mock(com.deutschflow.payment.service.SubscriptionActivationService.class);
+        AdminOrgService svc = serviceWithRealEntitlements(activation);
+
+        svc.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null), null);
+
+        verify(activation).activateOrg(eq(201L), eq("PRO"), any(), any());
+    }
+
+    @Test
+    @DisplayName("activateEntitlements (đường SePay/admin bấm tay) trên trung tâm quá hạn: vẫn cấp, không ném")
+    void activateEntitlements_expiredPastGrace_stillGrants() {
+        // Hoá đơn truy thu kỳ đã qua: status đã ACTIVE, validUntil KHÔNG được nới ⇒ vẫn "quá hạn".
+        Organization org = orgWithStatus("ACTIVE");
+        org.setValidUntil(java.time.Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS));
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        OrgMember s1 = activeMember(301L);
+        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE"))
+                .thenReturn(List.of(s1));
+        var activation = mock(com.deutschflow.payment.service.SubscriptionActivationService.class);
+        AdminOrgService svc = serviceWithRealEntitlements(activation);
+
+        assertThat(svc.activateEntitlements(ORG_ID, null)).isOne();
+        verify(activation).activateOrg(eq(301L), eq("PRO"), any(), any());
+    }
+
     // ------------------------------------------------------------------ status unchanged
 
     @Test
@@ -368,6 +418,7 @@ class AdminOrgServiceLifecycleTest {
 
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
         verify(orgEntitlementService, never()).grantStudent(anyLong(), any());
+        verify(orgEntitlementService, never()).grantStudentOnRestore(anyLong(), any());
         // The student query for lifecycle must NOT have been called
         verify(orgMemberRepository, never())
                 .findByIdOrgIdAndRoleAndStatus(anyLong(), anyString(), anyString());
@@ -386,6 +437,7 @@ class AdminOrgServiceLifecycleTest {
 
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
         verify(orgEntitlementService, never()).grantStudent(anyLong(), any());
+        verify(orgEntitlementService, never()).grantStudentOnRestore(anyLong(), any());
     }
 
     // ------------------------------------------------------------------ no students edge case
@@ -396,8 +448,6 @@ class AdminOrgServiceLifecycleTest {
         Organization org = orgWithStatus("ACTIVE");
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
         when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE"))
-                .thenReturn(List.of());
         stubActiveMembersForDto(List.of());
 
         service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null), null);
@@ -630,8 +680,6 @@ class AdminOrgServiceLifecycleTest {
         Organization org = orgWithStatus("ACTIVE");
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
         when(organizationRepository.save(any(Organization.class))).thenAnswer(i -> i.getArgument(0));
-        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(eq(ORG_ID), eq("STUDENT"), eq("ACTIVE")))
-                .thenReturn(List.of());
         stubActiveMembersForDto(List.of());
 
         service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null), null);

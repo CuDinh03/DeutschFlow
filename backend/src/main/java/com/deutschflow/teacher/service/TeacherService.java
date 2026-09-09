@@ -82,6 +82,8 @@ public class TeacherService {
     private final ClassDeletionGuard classDeletionGuard;
     private final AuditLogService auditLogService;
     private final com.deutschflow.organization.service.OrgMembershipService orgMembershipService;
+    /** Cổng D5 — chặn TẠO MỚI khi trung tâm của giáo viên đang ở chế độ chỉ đọc (G-10). */
+    private final com.deutschflow.organization.service.OrgGuard orgGuard;
     /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
     private final SubmissionFileUrlResolver submissionFileUrlResolver;
 
@@ -103,6 +105,13 @@ public class TeacherService {
         // Stamp the creating teacher's org (B2B): an org teacher's classes belong to that org,
         // so they show in /org/classes and are valid roster-import targets. null for B2C teachers.
         Long orgId = userRepository.findById(teacherId).map(u -> u.getOrgId()).orElse(null);
+        // D5 (owner chốt 08/09/2026): lớp tạo ở đây được đóng dấu org NGAY BÊN DƯỚI, tức đúng cùng
+        // một vật thể mà /api/org/classes đã bị chặn khi trung tâm đình chỉ/hết hạn quá ân hạn.
+        // Thiếu cổng này thì mọi giáo viên của trung tâm vẫn tạo lớp mới được qua cửa sau, và cổng
+        // bên OrgController chỉ còn là hình thức. Giáo viên B2C (orgId null) không đụng tới.
+        if (orgId != null) {
+            orgGuard.assertOrgWritable(orgId);
+        }
         TeacherClass teacherClass = TeacherClass.builder()
                 .teacherId(teacherId)
                 .orgId(orgId)

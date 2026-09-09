@@ -2,6 +2,7 @@ package com.deutschflow.examspeaking.session;
 
 import com.deutschflow.ai.queue.AiJob;
 import com.deutschflow.ai.queue.AiJobRepository;
+import com.deutschflow.common.exception.OrgReadOnlyException;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
@@ -433,9 +434,13 @@ public class ExamSessionService {
             try {
                 quotaService.assertAllowed(s.getUserId(), now, MOCK_GRADING_ESTIMATED_TOKENS);
                 orgPoolGuard.assertOrgPoolAvailable(s.getUserId(), MOCK_GRADING_ESTIMATED_TOKENS);
-            } catch (QuotaExceededException e) {
+            } catch (QuotaExceededException | OrgReadOnlyException e) {
                 // F-08: ví/pool cạn giữa chừng (đã giữ chỗ lúc tạo). Đóng phiên tử tế: bài còn nguyên,
                 // client thấy lý do hết quota + nút "Chấm lại" (regrade assert quota rồi enqueue).
+                //
+                // 🔑 Bắt luôn OrgReadOnlyException (D5): giấy phép trung tâm rơi qua mốc ân hạn GIỮA
+                // phiên thi của nhân sự. Không bắt thì ngoại lệ thoát thẳng, giao dịch finish bị
+                // rollback và phiên KẸT không đóng được — mọi lần advance sau đó cũng 403.
                 s.setState(SpeakingExamSession.STATE_GRADING_FAILED);
                 s.setGradingError(SpeakingExamSession.GRADING_ERROR_QUOTA);
                 log.warn("[ExamSpeaking] mock session {} hết quota lúc finish → GRADING_FAILED/QUOTA ({})",

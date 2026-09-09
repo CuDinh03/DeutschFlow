@@ -1,6 +1,7 @@
 package com.deutschflow.organization.service;
 
 import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.exception.OrgReadOnlyException;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.payment.service.SubscriptionActivationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -270,5 +272,90 @@ class OrgEntitlementServiceTest {
         service.revokeStudent(USER_ID);
 
         verifyNoInteractions(auditLogService);
+    }
+
+    // ------------------------- cổng D5: trung tâm chỉ đọc thì KHÔNG cấp thêm quyền lợi (nợ PR #617)
+
+    /** Đình chỉ thì đóng mốc neo NGAY BÂY GIỜ — đúng như {@code Organization.changeStatus} làm. */
+    private Organization orgWithStatus(String status, Instant validUntil) {
+        return Organization.builder()
+                .id(1L).name("Acme Org").slug("acme").planCode("PRO")
+                .status(status).validUntil(validUntil)
+                .suspendedAt("ACTIVE".equals(status) ? null : Instant.now())
+                .build();
+    }
+
+    @Test
+    @DisplayName("grantStudent: trung tâm ĐÌNH CHỈ → ném ORG_READ_ONLY, KHÔNG cấp gói")
+    void grantStudent_suspendedOrg_blocked() {
+        Organization org = orgWithStatus("SUSPENDED", null);
+
+        assertThatThrownBy(() -> service.grantStudent(USER_ID, org))
+                .isInstanceOf(OrgReadOnlyException.class);
+
+        verifyNoInteractions(subscriptionActivationService);
+    }
+
+    @Test
+    @DisplayName("grantStudent: giấy phép hết hạn quá 7 ngày ân hạn → ném ORG_READ_ONLY, KHÔNG cấp gói")
+    void grantStudent_expiredPastGrace_blocked() {
+        Organization org = orgWithStatus("ACTIVE", Instant.now().minus(10, ChronoUnit.DAYS));
+
+        assertThatThrownBy(() -> service.grantStudent(USER_ID, org))
+                .isInstanceOf(OrgReadOnlyException.class);
+
+        verifyNoInteractions(subscriptionActivationService);
+    }
+
+    @Test
+    @DisplayName("grantStudent: VỪA hết hạn 2 ngày → cũng CHẶN (owner 09/09: chỉ-đọc ngay khi hết hạn)")
+    void grantStudent_justExpiredWithinGrace_blocked() {
+        Organization org = orgWithStatus("ACTIVE", Instant.now().minus(2, ChronoUnit.DAYS));
+
+        assertThatThrownBy(() -> service.grantStudent(USER_ID, org))
+                .isInstanceOf(OrgReadOnlyException.class);
+
+        verifyNoInteractions(subscriptionActivationService);
+    }
+
+    @Test
+    @DisplayName("grantStudent: giấy phép còn hạn → cấp gói bình thường")
+    void grantStudent_stillValid_grants() {
+        Organization org = orgWithStatus("ACTIVE", Instant.now().plus(30, ChronoUnit.DAYS));
+
+        service.grantStudent(USER_ID, org);
+
+        verify(subscriptionActivationService).activateOrg(
+                eq(USER_ID), eq("PRO"), any(Instant.class), any(Instant.class));
+    }
+
+    @Test
+    @DisplayName("grantStudentOnRestore: trung tâm ĐÌNH CHỈ vẫn cấp được — đường bật lại không tự khoá mình")
+    void grantStudentOnRestore_suspendedOrg_stillGrants() {
+        Organization org = orgWithStatus("SUSPENDED", null);
+
+        service.grantStudentOnRestore(USER_ID, org);
+
+        verify(subscriptionActivationService).activateOrg(
+                eq(USER_ID), eq("PRO"), any(Instant.class), any(Instant.class));
+    }
+
+    @Test
+    @DisplayName("grantStudentOnRestore: hết hạn quá ân hạn vẫn cấp — hoá đơn truy thu không nới validUntil")
+    void grantStudentOnRestore_expiredPastGrace_stillGrants() {
+        Organization org = orgWithStatus("ACTIVE", Instant.now().minus(30, ChronoUnit.DAYS));
+
+        service.grantStudentOnRestore(USER_ID, org);
+
+        verify(subscriptionActivationService).activateOrg(
+                eq(USER_ID), eq("PRO"), any(Instant.class), any(Instant.class));
+    }
+
+    @Test
+    @DisplayName("revokeStudent KHÔNG đi qua cổng — trung tâm đình chỉ vẫn thu hồi/khôi phục được")
+    void revokeStudent_notGated() {
+        service.revokeStudent(USER_ID);
+
+        verify(subscriptionActivationService).resumePausedIfAny(USER_ID);
     }
 }
