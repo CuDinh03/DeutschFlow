@@ -1422,6 +1422,34 @@ class TeacherServiceTest {
         verify(studentCompetencyService).applyGradingResult(200L, 10L, 85);
     }
 
+    /**
+     * R3 (V323): điểm AI đề xuất ở cột riêng phải SỐNG SÓT sau khi giáo viên chốt — giáo viên xem lại được,
+     * và chỉ số M5 (|ai_score − score|) đo được. Trước V323 lần chốt này xoá vĩnh viễn đề xuất của AI.
+     */
+    @Test
+    @DisplayName("R3: evaluateAssignment ghi score/feedback, KHÔNG đụng ai_score/ai_feedback/ai_graded_at")
+    void evaluateAssignment_keepsAiProposalUntouched() {
+        StudentAssignment sa = stubGradableSubmission("AI_GRADED");
+        java.time.Instant proposedAt = java.time.Instant.parse("2026-09-10T03:00:00Z");
+        sa.setScore(70);
+        sa.setFeedback("AI: ok");
+        sa.setAiScore(70);
+        sa.setAiFeedback("AI: ok");
+        sa.setAiGradedAt(proposedAt);
+        when(studentAssignmentRepository.save(any(StudentAssignment.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        teacherService.evaluateAssignment(
+                1L, 5L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(85, "Gut"));
+
+        assertEquals("EVALUATED", sa.getStatus());
+        assertEquals(85, sa.getScore());
+        assertEquals("Gut", sa.getFeedback());
+        assertEquals(70, sa.getAiScore());
+        assertEquals("AI: ok", sa.getAiFeedback());
+        assertEquals(proposedAt, sa.getAiGradedAt());
+    }
+
     /** Chưa có lịch sử chấm thì cấm chấm lại là tự trói — đường sửa điểm final phải còn (F12). */
     @Test
     @DisplayName("F-QA-01: chấm lại bài EVALUATED hợp lệ nhưng KHÔNG phát thêm 'Bài đã chấm' — đi đường cập-nhật-tại-chỗ")

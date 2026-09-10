@@ -195,6 +195,10 @@ class GradingControllerAuthzTest {
         assertThat(res.getStatusCode().value()).isEqualTo(200);
         assertThat(sa.getScore()).isEqualTo(72);
         assertThat(sa.getStatus()).isEqualTo(AssignmentStatus.AI_GRADED); // proposal, student not told
+        // R3 (V323): đường chấm ảnh cũng ghi cột ai_* riêng, cùng giá trị với score/feedback.
+        assertThat(sa.getAiScore()).isEqualTo(72);
+        assertThat(sa.getAiFeedback()).isEqualTo("Gut, aber …");
+        assertThat(sa.getAiGradedAt()).isNotNull();
         verify(studentAssignmentRepository).save(sa);
     }
 }
