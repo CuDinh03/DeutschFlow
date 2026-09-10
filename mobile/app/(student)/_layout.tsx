@@ -4,6 +4,7 @@ import { TabBar } from '@/components/ui/TabBar'
 import { SpotlightTourProvider } from '@/components/guide/SpotlightTour'
 import { ScreenTimeTracker } from '@/components/analytics/ScreenTimeTracker'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { TAB_LABELS } from '@/lib/tabLabels'
 
 export default function StudentLayout() {
   // F-28 (soát 02/09): chặn TRƯỚC thay vì phản ứng. Trước đây nhóm (student) chỉ
@@ -28,7 +29,7 @@ export default function StudentLayout() {
         screenOptions={{ headerShown: false, freezeOnBlur: true }}
         tabBar={(props) => <TabBar {...props} />}
         // Nhớ tab chính đang mở để nút back của màn ẩn (href: null) quay về ĐÚNG tab đó thay vì
-        // Heute (backBehavior mặc định firstRoute) — xem lib/screenParents + hooks/useBackTo.
+        // tab index (backBehavior mặc định firstRoute) — xem lib/screenParents + hooks/useBackTo.
         screenListeners={({ navigation }) => ({
           state: () => {
             const s = navigation.getState()
@@ -36,10 +37,13 @@ export default function StudentLayout() {
           },
         })}
       >
-        <Tabs.Screen name="index" options={{ title: 'Heute' }} />
-        <Tabs.Screen name="learn" options={{ title: 'Học' }} />
-        <Tabs.Screen name="speaking" options={{ title: 'Speaking' }} />
-        <Tabs.Screen name="profile" options={{ title: 'Hồ sơ' }} />
+        {/* Nhãn tab lấy từ lib/tabLabels (một nguồn, dùng chung với TabBar).
+            Lưu ý đọc code: "Heute" / "Speaking" trong các chú thích quanh repo là TÊN CỤM MÀN
+            (route index / speaking), không còn là nhãn người dùng nhìn thấy. */}
+        <Tabs.Screen name="index" options={{ title: TAB_LABELS.index }} />
+        <Tabs.Screen name="learn" options={{ title: TAB_LABELS.learn }} />
+        <Tabs.Screen name="speaking" options={{ title: TAB_LABELS.speaking }} />
+        <Tabs.Screen name="profile" options={{ title: TAB_LABELS.profile }} />
 
         {/* Detail routes: reachable via router.push, not shown as tabs */}
         <Tabs.Screen name="guide" options={{ href: null }} />

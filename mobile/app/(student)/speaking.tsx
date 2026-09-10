@@ -363,7 +363,7 @@ export default function SpeakingScreen() {
         assignmentId: args.assignmentId ?? null,
       })
       const greeting = created.initialAiMessage?.aiSpeechDe ?? 'Hallo! Erzählen Sie mir von sich.'
-      // Checklist "Bắt đầu" (§7.1): tick "Thử 1 buổi Speaking" khi tạo phiên thành công.
+      // Checklist "Bắt đầu" (§7.1): tick "Thử 1 buổi luyện nói" khi tạo phiên thành công.
       useStarterStore.getState().markSpeakingSession()
       setSession(created)
       setPhaseKey(

@@ -41,7 +41,7 @@ export default function WeeklyDetailScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title={params.title ?? data?.promptTitle ?? 'Bài nói'} subtitle="Weekly Challenge · Sprechen" onBack={goBack} />
+      <AppHeader title={params.title ?? data?.promptTitle ?? 'Bài nói'} subtitle="Thử thách tuần · Sprechen" onBack={goBack} />
 
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
