@@ -20,6 +20,7 @@ import api from '@/lib/api'
 import { speakingApi } from '@/lib/speakingApi'
 import { speakGerman, stopGermanSpeech, setGermanRecordingActive } from '@/lib/germanTts'
 import { ensureAiConsent } from '@/lib/aiConsent'
+import { presentMinorAudioBlocked } from '@/lib/minorAudio'
 import { evaluateFirstSentence } from '@/lib/firstSentence'
 import { MENTOR_META, mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -211,7 +212,12 @@ export default function FirstSentenceScreen() {
         // Lần 2 bất kể kết quả → success-tone. Không bao giờ fail.
         succeed('soft')
       }
-    } catch {
+    } catch (e) {
+      // 403 MINOR_AUDIO_BLOCKED (D8): đây là lỗi DUY NHẤT màn này được phép lộ — học viên 16–17
+      // chưa có phiếu đồng ý phải biết vì sao giọng nói không được chấm và ai mở lại. Không có nút
+      // "Liên hệ trung tâm" (rời màn giữa onboarding là bỏ dở luồng chào mừng); luồng vẫn đi tiếp
+      // bằng success-tone như mọi lỗi khác.
+      presentMinorAudioBlocked(e, { contact: false })
       // Timeout 6s / lỗi mạng → success-tone generic, không lộ lỗi.
       captureEvent('onb_first_sentence_skipped', { reason: 'error' satisfies SkipReason })
       setCelebrate('soft')

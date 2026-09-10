@@ -18,6 +18,7 @@ import { Camera, ExternalLink, FileText, Image as ImageIcon, Link2, Mic, Music, 
 import { apiMessage } from '@/lib/api'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { ensureAiConsent } from '@/lib/aiConsent'
+import { presentMinorAudioBlocked } from '@/lib/minorAudio'
 import {
   fetchAssignmentDetail, fetchAssignmentMaterials, fetchAssignmentMaterialUrl, isAwaitingTeacher, isFinalGrade, isSubmittedStatus, submitAssignment, uploadAssignmentFile, MAX_UPLOAD_BYTES, type AssignmentMaterial, type MaterialKind, type StudentAssignment, type UploadFile, fetchAssignmentScenario, scenarioTopic,
 } from '@/lib/studentClassesApi'
@@ -105,7 +106,11 @@ export default function AssignmentDetail() {
       setFile(null)
       setResubmitting(false)
     },
-    onError: (e) => Alert.alert('Nộp bài thất bại', apiMessage(e)),
+    onError: (e) => {
+      // 403 MINOR_AUDIO_BLOCKED từ presigned-url (tệp ghi âm, D8): sheet giải thích thay Alert chung.
+      if (presentMinorAudioBlocked(e)) return
+      Alert.alert('Nộp bài thất bại', apiMessage(e))
+    },
   })
 
   if (detailQ.isLoading) {

@@ -39,6 +39,7 @@ import { SplashAnimated } from '@/components/SplashAnimated'
 import { MaintenanceOverlay } from '@/components/MaintenanceOverlay'
 import { useMaintenanceStore } from '@/stores/useMaintenanceStore'
 import { AiConsentHost } from '@/components/AiConsentSheet'
+import { MinorAudioBlockedHost } from '@/components/MinorAudioBlockedSheet'
 import { PostHogProvider } from 'posthog-react-native'
 import { posthog, setSubscriptionTier } from '@/lib/analytics'
 
@@ -225,6 +226,8 @@ function RootLayout() {
             )}
             {/* AI data-sharing consent sheet (5.1.1(i)) — presented on demand via ensureAiConsent(). */}
             <AiConsentHost />
+            {/* 403 MINOR_AUDIO_BLOCKED (DEC-22/D8) — presented on demand via presentMinorAudioBlocked(). */}
+            <MinorAudioBlockedHost />
           </QueryClientProvider>
         </ThemeProvider>
       </SafeAreaProvider>
