@@ -1,6 +1,8 @@
 package com.deutschflow.teacher.repository;
 
 import com.deutschflow.teacher.entity.StudentReportIssue;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -50,6 +52,41 @@ public interface StudentReportIssueRepository extends JpaRepository<StudentRepor
 
     /** "Phiếu đã gửi gia đình" của một học viên (R6: học viên xem đúng bản đã gửi), mới nhất trước. */
     List<StudentReportIssue> findByStudentIdOrderByIssuedAtDesc(Long studentId);
+
+    /** Lịch sử phát hành (mọi kỳ, kể cả đã thu hồi) của một học viên trong một lớp — màn giáo viên/giám đốc. */
+    List<StudentReportIssue> findByClassIdAndStudentIdOrderByIssuedAtDesc(Long classId, Long studentId);
+
+    /**
+     * Phiếu theo id NHƯNG ép thuộc đúng trung tâm (khuôn {@code OrgCertificateRepository.findByIdAndOrgId}):
+     * id của trung tâm khác ⇒ rỗng ⇒ 404, không phải 403 — không để lộ là id đó có tồn tại. So với
+     * {@code org_id} ĐÓNG BĂNG lúc phát hành, nên lớp đổi trung tâm sau này không làm phiếu "đổi chủ".
+     */
+    Optional<StudentReportIssue> findByIdAndOrgId(Long id, Long orgId);
+
+    /**
+     * Sổ phiếu TOÀN TRUNG TÂM (R5/R12), lọc tuỳ chọn theo lớp / học viên. Native query cùng khuôn
+     * {@code OrgCertificateRepository.searchByOrg}: tham số tuỳ chọn được CAST tường minh để PostgreSQL
+     * không kêu "could not determine data type" khi nhận NULL không kiểu. Khớp
+     * {@code idx_student_report_issues_org (org_id, issued_at DESC)}.
+     */
+    @Query(value = """
+            SELECT i.* FROM student_report_issues i
+            WHERE i.org_id = :orgId
+              AND (CAST(:classId AS bigint) IS NULL OR i.class_id = CAST(:classId AS bigint))
+              AND (CAST(:studentId AS bigint) IS NULL OR i.student_id = CAST(:studentId AS bigint))
+            ORDER BY i.issued_at DESC, i.id DESC
+            """,
+            countQuery = """
+            SELECT COUNT(*) FROM student_report_issues i
+            WHERE i.org_id = :orgId
+              AND (CAST(:classId AS bigint) IS NULL OR i.class_id = CAST(:classId AS bigint))
+              AND (CAST(:studentId AS bigint) IS NULL OR i.student_id = CAST(:studentId AS bigint))
+            """,
+            nativeQuery = true)
+    Page<StudentReportIssue> searchByOrg(@Param("orgId") Long orgId,
+                                         @Param("classId") Long classId,
+                                         @Param("studentId") Long studentId,
+                                         Pageable pageable);
 
     /**
      * Ghi một lượt mở: tăng bộ đếm NGUYÊN TỬ ở DB và đóng dấu thời điểm. Cố ý không đi qua entity

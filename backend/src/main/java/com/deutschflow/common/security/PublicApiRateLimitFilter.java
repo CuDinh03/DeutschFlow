@@ -42,16 +42,30 @@ import java.util.List;
  * <p>KHÔNG phủ: {@code /api/auth/**} (đã có limiter chặt riêng), webhook thanh toán (bên thứ ba gọi,
  * chặn theo IP sẽ giết retry hợp lệ), {@code /actuator/health} (uptime monitor poll).
  *
+ * <p><b>Nhánh FAIL-CLOSED (R9, phiếu gửi gia đình 10/09/2026):</b> các prefix trong
+ * {@code app.security.public-rate-limit.fail-closed-paths} (mặc định {@code /api/public/report-issues/})
+ * dùng ngân sách RIÊNG, chặt hơn (mặc định 20/phút, khoá {@code rl:report:}) và khi Redis chết thì trả
+ * <b>503 + Retry-After</b> thay vì mở cửa. Lý do ngược với phần còn lại: ở đó throttle chỉ là lớp chống
+ * lạm dụng; ở đây token trong URL là bí mật DUY NHẤT bảo vệ điểm số của một trẻ vị thành niên, mất
+ * throttle là mất lớp chống dò token — "đóng cửa vài phút" rẻ hơn "mở cửa vài phút".
+ *
  * <p>Cấu hình qua env: {@code APP_SECURITY_PUBLIC_RATE_LIMIT_PER_MINUTE} (mặc định 30),
  * {@code APP_SECURITY_PUBLIC_RATE_LIMIT_ENABLED} (mặc định true),
- * {@code APP_SECURITY_UNAUTH_RATE_LIMIT_PATHS} (CSV prefix) và
- * {@code APP_SECURITY_UNAUTH_RATE_LIMIT_PER_MINUTE} (mặc định 120).
+ * {@code APP_SECURITY_UNAUTH_RATE_LIMIT_PATHS} (CSV prefix),
+ * {@code APP_SECURITY_UNAUTH_RATE_LIMIT_PER_MINUTE} (mặc định 120),
+ * {@code APP_SECURITY_PUBLIC_RATE_LIMIT_FAIL_CLOSED_PATHS} (CSV prefix) và
+ * {@code APP_SECURITY_PUBLIC_RATE_LIMIT_FAIL_CLOSED_PER_MINUTE} (mặc định 20).
  */
 @Component
 @Slf4j
 public class PublicApiRateLimitFilter extends OncePerRequestFilter {
 
     private static final String PUBLIC_PREFIX = "/api/public/";
+    /** Redis chết trên nhánh fail-closed: khách chờ chừng này giây rồi thử lại. */
+    static final int UNAVAILABLE_RETRY_AFTER_SECONDS = 30;
+
+    /** Kết quả của một lần đếm. */
+    enum Decision { ALLOW, LIMITED, UNAVAILABLE }
 
     private final ClientIpResolver clientIpResolver;
     @Nullable
@@ -60,6 +74,8 @@ public class PublicApiRateLimitFilter extends OncePerRequestFilter {
     private final int perMinute;
     private final List<String> extraPrefixes;
     private final int extraPerMinute;
+    private final List<String> failClosedPrefixes;
+    private final int failClosedPerMinute;
     private volatile boolean redisDownWarned = false;
 
     public PublicApiRateLimitFilter(
@@ -68,16 +84,34 @@ public class PublicApiRateLimitFilter extends OncePerRequestFilter {
             @Value("${app.security.public-rate-limit.enabled:true}") boolean enabled,
             @Value("${app.security.public-rate-limit.per-minute:30}") int perMinute,
             @Value("${app.security.unauth-rate-limit.paths:/api/onboarding/preview/,/api/onboarding/guest-session,/api/v2/media/by-tag}") String extraPathsCsv,
-            @Value("${app.security.unauth-rate-limit.per-minute:120}") int extraPerMinute) {
+            @Value("${app.security.unauth-rate-limit.per-minute:120}") int extraPerMinute,
+            @Value("${app.security.public-rate-limit.fail-closed-paths:/api/public/report-issues/}") String failClosedPathsCsv,
+            @Value("${app.security.public-rate-limit.fail-closed-per-minute:20}") int failClosedPerMinute) {
         this.clientIpResolver = clientIpResolver;
         this.redis = redis;
         this.enabled = enabled;
         this.perMinute = perMinute;
         this.extraPerMinute = Math.max(1, extraPerMinute);
-        this.extraPrefixes = Arrays.stream(extraPathsCsv.split(","))
+        this.extraPrefixes = splitPrefixes(extraPathsCsv);
+        this.failClosedPrefixes = splitPrefixes(failClosedPathsCsv);
+        this.failClosedPerMinute = Math.max(1, failClosedPerMinute);
+    }
+
+    private static List<String> splitPrefixes(String csv) {
+        return Arrays.stream((csv == null ? "" : csv).split(","))
                 .map(String::trim)
                 .filter(p -> !p.isEmpty())
                 .toList();
+    }
+
+    /** true nếu URI thuộc nhánh fail-closed (R9). Kiểm TRƯỚC nhánh extra/public vì nó chặt hơn. */
+    boolean isFailClosedPath(String uri) {
+        for (String prefix : failClosedPrefixes) {
+            if (uri.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** true nếu URI khớp một trong các prefix unauth mở rộng. */
@@ -96,36 +130,55 @@ public class PublicApiRateLimitFilter extends OncePerRequestFilter {
             return true;
         }
         String uri = request.getRequestURI();
-        return !uri.startsWith(PUBLIC_PREFIX) && !isExtraPath(uri);
+        return !uri.startsWith(PUBLIC_PREFIX) && !isExtraPath(uri) && !isFailClosedPath(uri);
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        boolean extra = isExtraPath(request.getRequestURI());
-        String keyPrefix = extra ? "rl:unauth:" : "rl:public:";
-        int limit = extra ? extraPerMinute : perMinute;
-        if (!allow(clientIpResolver.resolve(request), keyPrefix, limit)) {
+        String uri = request.getRequestURI();
+        boolean failClosed = isFailClosedPath(uri);
+        boolean extra = !failClosed && isExtraPath(uri);
+        String keyPrefix = failClosed ? "rl:report:" : extra ? "rl:unauth:" : "rl:public:";
+        int limit = failClosed ? failClosedPerMinute : extra ? extraPerMinute : perMinute;
+
+        Decision decision = decide(clientIpResolver.resolve(request), keyPrefix, limit, failClosed);
+        if (decision == Decision.LIMITED) {
             long epochSecond = Instant.now().getEpochSecond();
             long retryAfter = 60L - (epochSecond % 60L);
-            response.setStatus(429);
-            response.setHeader("Retry-After", Long.toString(retryAfter));
-            // Charset tường minh — thiếu là message tiếng Việt thành mojibake ở client.
-            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.getOutputStream().write(
-                    "{\"status\":429,\"detail\":\"Quá nhiều yêu cầu. Vui lòng thử lại sau ít phút.\"}"
-                            .getBytes(StandardCharsets.UTF_8));
+            writeJson(response, 429, retryAfter,
+                    "{\"status\":429,\"detail\":\"Quá nhiều yêu cầu. Vui lòng thử lại sau ít phút.\"}");
+            return;
+        }
+        if (decision == Decision.UNAVAILABLE) {
+            // Cùng hình dạng với 503 DB_UNAVAILABLE của GlobalExceptionHandler để client dùng chung nhánh.
+            writeJson(response, 503, UNAVAILABLE_RETRY_AFTER_SECONDS,
+                    "{\"status\":503,\"detail\":\"Hệ thống tạm thời không phục vụ được đường này. Vui lòng thử lại sau ít phút.\","
+                            + "\"extensions\":{\"code\":\"RATE_LIMIT_UNAVAILABLE\",\"retryAfterSeconds\":"
+                            + UNAVAILABLE_RETRY_AFTER_SECONDS + "}}");
             return;
         }
         filterChain.doFilter(request, response);
     }
 
-    /** true = cho qua. Fixed-window (IP, phút); Redis chết → fail-open. */
-    private boolean allow(String clientIp, String keyPrefix, int limit) {
+    private static void writeJson(HttpServletResponse response, int status, long retryAfter, String body)
+            throws IOException {
+        response.setStatus(status);
+        response.setHeader("Retry-After", Long.toString(retryAfter));
+        // Charset tường minh — thiếu là message tiếng Việt thành mojibake ở client.
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getOutputStream().write(body.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Fixed-window (IP, phút). Redis chết hoặc không có bean: nhánh thường → {@link Decision#ALLOW}
+     * (fail-open, log một lần); nhánh fail-closed → {@link Decision#UNAVAILABLE}.
+     */
+    Decision decide(String clientIp, String keyPrefix, int limit, boolean failClosed) {
         if (redis == null) {
-            return true;
+            return failClosed ? Decision.UNAVAILABLE : Decision.ALLOW;
         }
         try {
             String key = keyPrefix + clientIp + ":" + (Instant.now().getEpochSecond() / 60L);
@@ -140,13 +193,14 @@ public class PublicApiRateLimitFilter extends OncePerRequestFilter {
                 log.warn("[PublicRateLimit] IP bị chặn tạm: {} vượt {} req/phút (bucket {})",
                         clientIp, limit, keyPrefix);
             }
-            return allowed;
+            return allowed ? Decision.ALLOW : Decision.LIMITED;
         } catch (Exception e) {
             if (!redisDownWarned) {
                 redisDownWarned = true;
-                log.warn("[PublicRateLimit] Redis không phản hồi — tạm fail-open cho /api/public/**", e);
+                log.warn("[PublicRateLimit] Redis không phản hồi — fail-open cho /api/public/**, "
+                        + "fail-closed (503) cho {}", failClosedPrefixes, e);
             }
-            return true;
+            return failClosed ? Decision.UNAVAILABLE : Decision.ALLOW;
         }
     }
 }

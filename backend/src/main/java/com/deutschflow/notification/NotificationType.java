@@ -114,5 +114,16 @@ public enum NotificationType {
      * Trung tâm trả kỳ công về cho giáo viên sửa. Recipient: giáo viên chủ kỳ. Payload như
      * {@link #TIMESHEET_PERIOD_APPROVED} + {@code reason} (bắt buộc khi trả).
      */
-    TIMESHEET_PERIOD_RETURNED
+    TIMESHEET_PERIOD_RETURNED,
+
+    // ── Phiếu đánh giá gửi gia đình (R6, thiết kế 10/09/2026) ─────────────
+
+    /**
+     * Giáo viên phụ trách phát hành phiếu đánh giá kỳ (MIDTERM/FINAL) cho gia đình; học viên được báo
+     * và xem ĐÚNG bản đã gửi (R6). Recipient: học viên. Payload: {@code issueId}, {@code classId},
+     * {@code className}, {@code period}, {@code lang}, {@code publicPath} — KHÔNG điểm, KHÔNG nhận xét
+     * (nội dung đọc từ {@code GET /api/student/report-issues}). Ghi qua notification_outbox trong giao
+     * dịch phát hành (G2), worker gửi sau commit.
+     */
+    REPORT_ISSUED
 }

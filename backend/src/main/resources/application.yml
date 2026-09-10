@@ -437,6 +437,12 @@ app:
     public-rate-limit:
       enabled: ${APP_SECURITY_PUBLIC_RATE_LIMIT_ENABLED:true}
       per-minute: ${APP_SECURITY_PUBLIC_RATE_LIMIT_PER_MINUTE:30}
+      # R9 (phiếu gửi gia đình, 10/09/2026): các prefix này dùng ngân sách RIÊNG, chặt hơn, và
+      # FAIL-CLOSED khi Redis chết (503 + Retry-After) — khác phần còn lại của /api/public/** vốn
+      # fail-open. Lý do: token trong URL là bí mật duy nhất bảo vệ điểm số của một trẻ vị thành
+      # niên; mất throttle là mất lớp chống dò token, nên "đóng cửa" đúng hơn "mở cửa".
+      fail-closed-paths: ${APP_SECURITY_PUBLIC_RATE_LIMIT_FAIL_CLOSED_PATHS:/api/public/report-issues/}
+      fail-closed-per-minute: ${APP_SECURITY_PUBLIC_RATE_LIMIT_FAIL_CLOSED_PER_MINUTE:20}
     # Mở rộng throttle sang các đường permitAll NẰM NGOÀI /api/public/ mà trước đây không có lớp
     # rate-limit ứng dụng nào (chỉ dựa vào nginx): onboarding preview (khách xem mentor) + media
     # by-tag (landing, chạm DB). Defense in depth đối xứng với bind-localhost: nếu cổng backend lại
@@ -446,6 +452,11 @@ app:
     unauth-rate-limit:
       paths: ${APP_SECURITY_UNAUTH_RATE_LIMIT_PATHS:/api/onboarding/preview/,/api/v2/media/by-tag}
       per-minute: ${APP_SECURITY_UNAUTH_RATE_LIMIT_PER_MINUTE:120}
+
+  # Phiếu đánh giá gửi gia đình (R1/R9): gốc URL web để in "Xác thực tại …/phieu/{token}" lên PDF.
+  # Backend không phục vụ trang này — web (PR-R3) render /phieu/[token]; chỉ cần đúng domain.
+  report:
+    public-base-url: ${APP_REPORT_PUBLIC_BASE_URL:https://mydeutschflow.com}
 
   # Gói miễn phí cho GV tự do (non-org): hạn mức/ngày cho tính năng AI ĐẮT (checklist D6).
   # Chấm bài text (core) KHÔNG bị cap; chỉ PPTX & OCR-ảnh. GV thuộc org dùng org token-pool.

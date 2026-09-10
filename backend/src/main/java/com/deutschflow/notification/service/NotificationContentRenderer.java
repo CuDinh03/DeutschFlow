@@ -147,6 +147,22 @@ public class NotificationContentRenderer {
             case TIMESHEET_PERIOD_RETURNED -> new RenderedContent(
                     "Kỳ công bị trả lại",
                     "Kỳ công " + periodRange(p) + " bị trả lại để sửa." + reasonSuffix(str(p, "reason")));
+
+            // ── Phiếu đánh giá gửi gia đình (R6) — không emoji, không điểm ────
+            case REPORT_ISSUED -> new RenderedContent(
+                    "Phiếu đánh giá đã gửi gia đình",
+                    "Phiếu đánh giá " + reportPeriodLabel(str(p, "period")) + " của lớp "
+                            + nonBlankOr(str(p, "className"), "bạn đang học")
+                            + " đã được phát hành cho gia đình. Bạn xem đúng bản đã gửi trong mục Đánh giá.");
+        };
+    }
+
+    /** Kỳ phát hành phiếu ({@code StudentReportIssue.Period}) → cụm từ tiếng Việt. */
+    private static String reportPeriodLabel(String period) {
+        return switch (period == null ? "" : period.toUpperCase()) {
+            case "MIDTERM" -> "giữa khoá";
+            case "FINAL" -> "cuối khoá";
+            default -> "kỳ này";
         };
     }
 
