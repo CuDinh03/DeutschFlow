@@ -38,6 +38,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -572,7 +573,7 @@ class TimesheetPeriodServiceTest {
         ArgumentCaptor<Map<String, Object>> metas = ArgumentCaptor.forClass(Map.class);
         verify(auditLogService, times(4))
                 .log(events.capture(), actors.capture(), eq("TIMESHEET_PERIOD"),
-                        eq(String.valueOf(PERIOD_ID)), metas.capture());
+                        eq(String.valueOf(PERIOD_ID)), eq(ORG_ID), metas.capture());
 
         assertThat(events.getAllValues()).containsExactly(
                 "teacher_timesheet_submitted", "teacher_timesheet_approved",
@@ -580,9 +581,9 @@ class TimesheetPeriodServiceTest {
         // Ai làm gì: nộp là giáo viên, duyệt/trả là quản lý, khoá là giám đốc.
         assertThat(actors.getAllValues()).containsExactly(TEACHER, MANAGER, MANAGER, OWNER);
 
-        // orgId phải có mặt trong MỌI dòng — audit_logs chưa có cột org_id, đây là thứ cho phép
-        // backfill cột đó sau này mà không mất lịch sử.
-        assertThat(metas.getAllValues()).allSatisfy(m -> assertThat(m).containsEntry("orgId", ORG_ID));
+        // orgId là THAM SỐ CỘT (eq(ORG_ID) ở trên), không còn nằm trong metadata: chỉ cột org_id
+        // mới lọt qua bộ lọc `AND org_id = ?` của sổ hoạt động trung tâm.
+        assertThat(metas.getAllValues()).allSatisfy(m -> assertThat(m).doesNotContainKey("orgId"));
         assertThat(metas.getAllValues().get(0))
                 .containsEntry("status", "SUBMITTED")
                 .containsEntry("totalSessions", 1)
@@ -601,7 +602,9 @@ class TimesheetPeriodServiceTest {
         assertThatThrownBy(() -> service.lock(MANAGER, ORG_ID, PERIOD_ID))
                 .isInstanceOf(ForbiddenException.class);
 
-        verify(auditLogService, never()).log(any(), any(AuditActor.class), any(), any(), any());
+        // verifyNoInteractions phủ MỌI overload của log() — never() trên một chữ ký thì im lặng
+        // bỏ qua lần gọi qua chữ ký kia, đúng cái bẫy vừa mở ra khi thêm tham số orgId.
+        verifyNoInteractions(auditLogService);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

@@ -2160,6 +2160,18 @@
         "practiceNow": "Practise now",
         "footer": "Practise a little every day — you will see clear progress within 2 weeks"
       }
+    },
+    "minorAudio": {
+      "eyebrow": "Speaking practice is paused",
+      "titleBirthDate": "Your centre has not recorded your date of birth yet",
+      "bodyBirthDate": "Your account has no date of birth, so we cannot tell whether a guardian’s consent is needed — and no recording is sent while that is unclear. Please contact your centre to add your date of birth to your student record.",
+      "titleConsentRequired": "A parent or guardian’s consent form is needed",
+      "bodyConsentRequired": "This account needs consent from a parent or guardian before voice recordings can be made. Please contact your centre to complete the consent form; speaking practice reopens as soon as the centre records it.",
+      "titleConsentRevoked": "Recording consent has been withdrawn",
+      "bodyConsentRevoked": "Consent for voice recording on this account has been withdrawn, so speaking practice is temporarily unavailable. To reopen it, the guardian contacts the centre to grant consent again.",
+      "note": "Upgrading a plan cannot unlock this — only the centre or the guardian can reopen it. Everything that does not need a recording still works.",
+      "contact": "Contact the centre",
+      "dismiss": "Got it"
     }
   }
 }

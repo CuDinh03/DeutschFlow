@@ -4,6 +4,7 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.PrivilegedActionBlockedException;
+import com.deutschflow.common.security.PasswordPolicy;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.organization.service.OrgMembershipService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -753,7 +754,7 @@ public class AdminManagementService {
         if (displayName == null || displayName.isBlank()) throw new BadRequestException("Tên hiển thị không được để trống.");
         // C10/F-L4 (03/09/2026): sàn 8 ký tự khớp mọi nơi khác (register, setUserPassword, quên mật
         // khẩu) — trước đây admin-create lệch xuống 6, tạo tài khoản yếu hơn chuẩn chung.
-        if (rawPassword == null || rawPassword.length() < 8) throw new BadRequestException("Mật khẩu tối thiểu 8 ký tự.");
+        PasswordPolicy.requireStrongEnough(rawPassword);
         String normRole = role == null ? "" : role.trim().toUpperCase();
         if (!List.of("ADMIN", "TEACHER", "STUDENT", "MANAGER").contains(normRole)) throw new BadRequestException("Vai trò không hợp lệ.");
         if (userRepository.existsByEmailIgnoreCase(normEmail)) throw new ConflictException("Email này đã có tài khoản.");
@@ -837,9 +838,7 @@ public class AdminManagementService {
      */
     @Transactional
     public Map<String, Object> setUserPassword(Long userId, String rawPassword) {
-        if (rawPassword == null || rawPassword.length() < 8) {
-            throw new BadRequestException("Mật khẩu tối thiểu 8 ký tự.");
-        }
+        PasswordPolicy.requireStrongEnough(rawPassword);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
         user.setPasswordHash(passwordEncoder.encode(rawPassword));

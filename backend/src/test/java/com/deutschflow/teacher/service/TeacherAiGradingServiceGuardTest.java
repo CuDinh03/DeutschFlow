@@ -112,6 +112,10 @@ class TeacherAiGradingServiceGuardTest {
         assertThat(linked.getStatus()).isEqualTo(AssignmentStatus.AI_GRADED);
         assertThat(linked.getScore()).isEqualTo(78);
         assertThat(linked.getGradedAt()).as("gradedAt phải được set").isNotNull();
+        // R3 (V323): đường nói liên kết bài tập cũng ghi cột ai_* riêng — không nơi nào được quên.
+        assertThat(linked.getAiScore()).isEqualTo(78);
+        assertThat(linked.getAiFeedback()).isEqualTo("gut gemacht");
+        assertThat(linked.getAiGradedAt()).isNotNull();
         assertThat(linked.getSubmittedAt())
                 .as("submittedAt (giờ nộp thật) KHÔNG bị đè bằng giờ chấm").isEqualTo(SUBMITTED_AT);
         verify(studentAssignmentRepository).save(linked);

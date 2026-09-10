@@ -170,7 +170,10 @@ public class ClassEnrollmentService {
         if (orgId != null) {
             meta.put("orgId", orgId);
         }
+        // orgId là org của LỚP, đã tra ở đường gọi TRƯỚC khi động vào hàng ghi danh. Lớp riêng
+        // ngoài trung tâm thì null hợp lệ — cứ truyền thẳng, AuditLogService hiểu null là "rơi về
+        // đường lùi suy từ actor", đúng hành vi cũ cho ca B2C.
         auditLogService.log("class_student_removed", actor, "CLASS_STUDENT",
-                classId + ":" + studentId, meta);
+                classId + ":" + studentId, orgId, meta);
     }
 }

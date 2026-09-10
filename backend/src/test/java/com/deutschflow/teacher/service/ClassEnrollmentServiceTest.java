@@ -34,6 +34,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -107,8 +108,9 @@ class ClassEnrollmentServiceTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        // ORG_ID đi vào CỘT org_id (org của LỚP) — đó là thứ sổ hoạt động của giám đốc lọc.
         verify(auditLogService).log(eq("class_student_removed"), eq(ACTOR), eq("CLASS_STUDENT"),
-                eq(CLASS_ID + ":" + STUDENT_ID), meta.capture());
+                eq(CLASS_ID + ":" + STUDENT_ID), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue())
                 .containsEntry("classId", CLASS_ID)
                 .containsEntry("studentId", STUDENT_ID)
@@ -126,7 +128,9 @@ class ClassEnrollmentServiceTest {
                 .isInstanceOf(ForbiddenException.class);
 
         verify(classStudentRepository, never()).save(any());
-        verify(auditLogService, never()).log(any(), any(AuditActor.class), any(), any(), any());
+        // verifyNoInteractions phủ MỌI overload của log(); never() trên một chữ ký thì im lặng
+        // bỏ qua lần gọi đi bằng chữ ký kia.
+        verifyNoInteractions(auditLogService);
     }
 
     @Test

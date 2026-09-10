@@ -40,6 +40,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -513,12 +514,14 @@ class TeacherTimesheetServiceTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        // ORG_ID là THAM SỐ CỘT (org của LỚP), không còn là khoá trong metadata: chỉ cột org_id mới
+        // lọt qua bộ lọc `AND org_id = ?` của sổ hoạt động trung tâm.
         verify(auditLogService).log(eq("teacher_session_record_updated"), eq(ACTOR),
-                eq("SESSION_RECORD"), eq("7"), meta.capture());
+                eq("SESSION_RECORD"), eq("7"), eq(ORG_ID), meta.capture());
 
         // Giá trị MỚI ở gốc, giá trị CŨ nằm dưới khoá "before" — không có vế cũ thì đọc vết lên
         // chỉ biết "có người sửa", không biết đã sửa từ đâu sang đâu.
-        assertThat(meta.getValue()).containsEntry("durationMinutes", 120).containsEntry("orgId", ORG_ID);
+        assertThat(meta.getValue()).containsEntry("durationMinutes", 120).doesNotContainKey("orgId");
         @SuppressWarnings("unchecked")
         Map<String, Object> before = (Map<String, Object>) meta.getValue().get("before");
         assertThat(before).containsEntry("durationMinutes", 90);
@@ -537,12 +540,13 @@ class TeacherTimesheetServiceTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        // Org phải được chụp TRƯỚC delete và đi vào cột — vết mất org là vết giám đốc không đọc được.
         verify(auditLogService).log(eq("teacher_session_record_deleted"), eq(ACTOR),
-                eq("SESSION_RECORD"), eq("7"), meta.capture());
+                eq("SESSION_RECORD"), eq("7"), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue())
                 .containsEntry("durationMinutes", 90)
                 .containsEntry("className", "K30 · B1")
-                .containsEntry("orgId", ORG_ID);
+                .doesNotContainKey("orgId");
     }
 
     @Test
@@ -557,7 +561,9 @@ class TeacherTimesheetServiceTest {
                 new RecordTeachingRequest(null, CLASS_ID, start, 90, null, null)))
                 .isInstanceOf(ConflictException.class);
 
-        verify(auditLogService, never()).log(any(), any(AuditActor.class), any(), any(), any());
+        // verifyNoInteractions phủ MỌI overload của log() — never() trên một chữ ký thì im lặng bỏ
+        // qua lần gọi đi bằng chữ ký kia, đúng cái bẫy vừa mở ra khi thêm tham số orgId.
+        verifyNoInteractions(auditLogService);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Entity
@@ -72,6 +73,13 @@ public class ClassStudent {
 
     @Column(name = "evaluated_at")
     private LocalDateTime evaluatedAt;
+
+    /**
+     * Hạn MỀM của {@link #STATUS_RESERVED} (E6, V323): hết hạn chỉ NHẮC trung tâm, không tự đổi trạng thái.
+     * NULL = không hạn (hành vi hiện tại). Mới có cột, CHƯA có hành vi — đợt sau.
+     */
+    @Column(name = "reserved_until")
+    private Instant reservedUntil;
 
     @PrePersist
     protected void onCreate() {

@@ -1,6 +1,7 @@
 package com.deutschflow.payment.service;
 
 import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.organization.entity.OrgInvoice;
 import com.deutschflow.organization.entity.OrgPaymentEvent;
 import com.deutschflow.organization.entity.Organization;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -46,11 +48,19 @@ public class SepayWebhookService {
     private static final Set<String> SETTLEABLE_STATUSES = Set.of("DRAFT", "SENT");
     /** Invoice payment-code shape (see OrgBillingService.newPaymentCode): DFINV + 12 hex, uppercase. */
     private static final Pattern PAYMENT_CODE = Pattern.compile("DFINV[0-9A-F]{12}");
+    /**
+     * CÙNG một tên sự kiện với đường bấm tay ({@code AdminOrgService.activateForPaidInvoice}), có
+     * chủ ý: với giám đốc thì "giấy phép của tôi được kích hoạt vì hoá đơn X đã thu" là MỘT sự kiện
+     * nghiệp vụ, dù tiền vào qua ngân hàng hay do admin đối soát tay. Lọc một tên là ra đủ lịch sử
+     * kích hoạt; ai làm thì đọc ở cột actor ({@code sepay-webhook/SYSTEM} so với email admin).
+     */
+    private static final String EVENT_LICENCE_ACTIVATED = "admin.org.licence.activated_by_invoice";
 
     private final OrgInvoiceRepository invoiceRepo;
     private final OrgPaymentEventRepository eventRepo;
     private final OrganizationRepository organizationRepository;
     private final AdminOrgService adminOrgService;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public void handle(SepayWebhookPayload payload) {
@@ -114,6 +124,26 @@ public class SepayWebhookService {
             }
         }
         organizationRepository.save(org);
+        // DEC-13 (09/09/2026) — LỖ HỔNG của đường TỰ ĐỘNG, vá tại đây.
+        //
+        // Đường bấm tay (AdminOrgService.activateForPaidInvoice) ghi một vết riêng cho việc KÍCH
+        // HOẠT GIẤY PHÉP: hoá đơn nào, kỳ tới đâu, validUntil mới là bao giờ. Đường webhook thì
+        // không — nó chỉ gọi activateEntitlements, tức chỉ để lại vết "đã cấp lại quyền lợi cho N
+        // học viên". Hệ quả: khi tiền vào qua ngân hàng (đường THƯỜNG GẶP), giám đốc không đọc
+        // được "cái gì đã kích hoạt giấy phép của tôi và gia hạn tới ngày nào" — đúng câu hỏi hay
+        // phải trả lời nhất lúc tranh chấp thanh toán.
+        //
+        // Actor là SEPAY_WEBHOOK_ACTOR (id null) nên đường suy-từ-actor không có gì để suy; orgId
+        // phải truyền tường minh, nếu không vết mới này cũng vô hình y như cũ.
+        auditLogService.log(EVENT_LICENCE_ACTIVATED, SEPAY_WEBHOOK_ACTOR,
+                "ORG", String.valueOf(org.getId()),
+                org.getId(),
+                Map.of(
+                        "invoiceId", invoice.getId(),
+                        "periodEnd", String.valueOf(invoice.getPeriodEnd()),
+                        "validUntil", String.valueOf(org.getValidUntil()),
+                        "paymentCode", String.valueOf(invoice.getPaymentCode())
+                ));
         // Audit F-M3 (03/09/2026): đường TỰ ĐỘNG (webhook ngân hàng) không có người thao tác. Ghi
         // actor hệ thống thay vì để rỗng, để nhật ký phân biệt được "máy kích hoạt" với "admin
         // kích hoạt bằng tay" — hai việc có trách nhiệm rất khác nhau khi đối soát.

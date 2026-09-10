@@ -412,8 +412,12 @@ public class TeacherService {
 
         Map<String, Object> meta = new LinkedHashMap<>(content.toAuditMetadata());
         meta.put("className", snapshot != null ? snapshot.getName() : null);
-        meta.put("orgId", snapshot != null ? snapshot.getOrgId() : null);
-        auditLogService.log("teacher_class_deleted", actor, "CLASS", String.valueOf(classId), meta);
+        // Org của LỚP, chụp TRƯỚC khi xoá — sau delete không tra lại được. Lớp riêng của giáo viên
+        // (org_id IS NULL) giữ nguyên null: đó là hoạt động B2C, không thuộc sổ của trung tâm nào.
+        Long orgId = snapshot != null ? snapshot.getOrgId() : null;
+        meta.put("orgId", orgId);
+        auditLogService.log("teacher_class_deleted", actor, "CLASS", String.valueOf(classId),
+                orgId, meta);
     }
 
     // ─── Co-teaching: quản lý giáo viên trong lớp ────────────────────────────────
@@ -1257,6 +1261,8 @@ public class TeacherService {
         // GRADED legacy) tức là học viên ĐÃ được announce điểm một lần rồi.
         boolean regrade = AssignmentStatus.isFinal(assignment.getStatus());
 
+        // R3 (V323): giáo viên chốt CHỈ ghi score/feedback — KHÔNG đụng ai_score/ai_feedback/ai_graded_at.
+        // Đề xuất của AI phải sống sót sau khi bị sửa (giáo viên xem lại; chỉ số M5 = |ai_score - score|).
         assignment.setScore(req.teacherScore());
         assignment.setFeedback(req.teacherFeedback());
         assignment.setStatus("EVALUATED");

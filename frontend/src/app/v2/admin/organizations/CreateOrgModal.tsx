@@ -6,15 +6,24 @@ import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { createOrganization, type CreateOrgInput } from '@/lib/adminOrgApi'
 import { TkModal, GaBtn, GaCap, ErrorBanner } from '@/components/ui-v2'
+import { PASSWORD_MIN } from '@/lib/passwordPolicy';
+import { clampInt, type PoolMode } from './orgLicence'
 
 /**
  * Tạo trung tâm + Owner (B2B model §2.1 — admin pre-create OWNER).
  * Email Owner MỚI → backend tạo thẳng account OWNER với mật khẩu admin đặt (không còn mời self-register).
  * Email đã có → gắn làm OWNER. Backend: POST /admin/organizations (hasRole ADMIN).
+ *
+ * T-03 (10/09/2026): thêm "Hạn mức AI nhân sự". Trung tâm tạo với pool=0 & unlimited=false là
+ * nhân sự bị 429 ORG_BUDGET_NOT_CONFIGURED ngay lần dùng AI đầu (fail-safe). Mặc định KHÔNG GIỚI
+ * HẠN — khớp cả hai trung tâm thật trên prod (pool_unlimited=true); admin muốn đo đếm thì chọn
+ * hạn mức và nhập số, ô số 0 hiện cảnh báo đỏ.
  */
 
 const INPUT_CLS =
   'ga-ui mt-1 w-full rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] text-ga-ink outline-none placeholder:text-ga-subtle focus:border-ga-accent'
+/** Ô số nằm cùng hàng với radio — không cần lề trên. */
+const INLINE_INPUT_CLS = INPUT_CLS.replace('mt-1 ', '') + ' disabled:opacity-50'
 
 export function CreateOrgModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const t = useTranslations('v2.adminOps.organizations.create')
@@ -22,6 +31,8 @@ export function CreateOrgModal({ onClose, onCreated }: { onClose: () => void; on
   const [slug, setSlug] = useState('')
   const [planCode, setPlanCode] = useState('PRO')
   const [seatLimit, setSeatLimit] = useState('')
+  const [poolMode, setPoolMode] = useState<PoolMode>('unlimited')
+  const [pool, setPool] = useState('')
   const [ownerEmail, setOwnerEmail] = useState('')
   const [ownerName, setOwnerName] = useState('')
   const [ownerPassword, setOwnerPassword] = useState('')
@@ -34,7 +45,7 @@ export function CreateOrgModal({ onClose, onCreated }: { onClose: () => void; on
       setError(t('errNameSlug'))
       return
     }
-    if (ownerEmail.trim() && ownerPassword && ownerPassword.length < 6) {
+    if (ownerEmail.trim() && ownerPassword && ownerPassword.length < PASSWORD_MIN) {
       setError(t('errPassword'))
       return
     }
@@ -42,7 +53,9 @@ export function CreateOrgModal({ onClose, onCreated }: { onClose: () => void; on
       name: name.trim(),
       slug: slug.trim(),
       planCode: planCode.trim() || undefined,
-      seatLimit: seatLimit.trim() ? Number(seatLimit.trim()) : undefined,
+      seatLimit: seatLimit.trim() ? clampInt(seatLimit) : undefined,
+      poolUnlimited: poolMode === 'unlimited',
+      monthlyTokenPool: poolMode === 'metered' ? clampInt(pool) : undefined,
       ownerEmail: ownerEmail.trim() || undefined,
       ownerName: ownerName.trim() || undefined,
       ownerPassword: ownerPassword || undefined,
@@ -109,6 +122,56 @@ export function CreateOrgModal({ onClose, onCreated }: { onClose: () => void; on
             />
           </label>
         </div>
+
+        <fieldset>
+          <legend>
+            <GaCap>{t('aiPool')}</GaCap>
+          </legend>
+          <p className="ga-ui mb-2 mt-1 text-ga-caption text-ga-subtle">{t('aiPoolHint')}</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <label className="flex items-center gap-2 rounded-ga border border-ga-line px-3 py-2">
+              <input
+                type="radio"
+                name="createPoolMode"
+                value="unlimited"
+                checked={poolMode === 'unlimited'}
+                onChange={() => setPoolMode('unlimited')}
+                aria-label={t('aiUnlimited')}
+                className="h-4 w-4 accent-ga-accent"
+              />
+              <span className="ga-ui text-ga-small font-semibold text-ga-ink">{t('aiUnlimited')}</span>
+            </label>
+            <label className="flex items-center gap-2 rounded-ga border border-ga-line px-3 py-2">
+              <input
+                type="radio"
+                name="createPoolMode"
+                value="metered"
+                checked={poolMode === 'metered'}
+                onChange={() => setPoolMode('metered')}
+                aria-label={t('aiMetered')}
+                className="h-4 w-4 accent-ga-accent"
+              />
+              <span className="ga-ui shrink-0 text-ga-small font-semibold text-ga-ink">{t('aiMetered')}</span>
+              <input
+                value={pool}
+                onChange={(e) => setPool(e.target.value)}
+                type="number"
+                min={0}
+                step={1000}
+                inputMode="numeric"
+                disabled={poolMode !== 'metered'}
+                placeholder={t('aiPoolPlaceholder')}
+                aria-label={`${t('aiMetered')} — ${t('aiPoolPlaceholder')}`}
+                className={INLINE_INPUT_CLS}
+              />
+            </label>
+          </div>
+          {poolMode === 'metered' && clampInt(pool) === 0 && (
+            <p className="ga-ui mt-2 text-ga-caption font-semibold text-ga-red" role="status">
+              {t('aiUnsetWarning')}
+            </p>
+          )}
+        </fieldset>
 
         <div className="border-t border-ga-line pt-3">
           <GaCap>{t('ownerCap')}</GaCap>

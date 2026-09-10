@@ -56,6 +56,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.mock;
 
@@ -1011,7 +1012,7 @@ class TeacherServiceTest {
 
         assertThrows(ForbiddenException.class, () -> teacherService.deleteClass(ACTOR, 100L));
         verifyNothingDeleted();
-        verify(auditLogService, never()).log(anyString(), any(AuditActor.class), anyString(), anyString(), any());
+        verifyNoInteractions(auditLogService);
     }
 
     @Test
@@ -1024,7 +1025,7 @@ class TeacherServiceTest {
         assertThrows(ConflictException.class, () -> teacherService.deleteClass(ACTOR, 100L));
 
         verifyNothingDeleted();
-        verify(auditLogService, never()).log(anyString(), any(AuditActor.class), anyString(), anyString(), any());
+        verifyNoInteractions(auditLogService);
     }
 
     @Test
@@ -1046,8 +1047,10 @@ class TeacherServiceTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<java.util.Map<String, Object>> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        // Org của LỚP chụp TRƯỚC delete và đi vào CỘT org_id — sau delete không tra lại được, mà
+        // cột mới là thứ sổ hoạt động của giám đốc lọc.
         verify(auditLogService).log(
-                eq("teacher_class_deleted"), eq(ACTOR), eq("CLASS"), eq("100"), meta.capture());
+                eq("teacher_class_deleted"), eq(ACTOR), eq("CLASS"), eq("100"), eq(7L), meta.capture());
         assertEquals("K30 · B1 Pflege", meta.getValue().get("className"));
         assertEquals(7L, meta.getValue().get("orgId"));
         assertEquals(0L, meta.getValue().get("sessions"));
@@ -1417,6 +1420,34 @@ class TeacherServiceTest {
         verify(userNotificationService).onAssignmentGraded(eq(200L), eq("ASSIGNMENT"), eq(10L), eq(85), eq("Gut"));
         verify(userNotificationService, never()).onAssignmentRegraded(any(), anyString(), any(), any(), any());
         verify(studentCompetencyService).applyGradingResult(200L, 10L, 85);
+    }
+
+    /**
+     * R3 (V323): điểm AI đề xuất ở cột riêng phải SỐNG SÓT sau khi giáo viên chốt — giáo viên xem lại được,
+     * và chỉ số M5 (|ai_score − score|) đo được. Trước V323 lần chốt này xoá vĩnh viễn đề xuất của AI.
+     */
+    @Test
+    @DisplayName("R3: evaluateAssignment ghi score/feedback, KHÔNG đụng ai_score/ai_feedback/ai_graded_at")
+    void evaluateAssignment_keepsAiProposalUntouched() {
+        StudentAssignment sa = stubGradableSubmission("AI_GRADED");
+        java.time.Instant proposedAt = java.time.Instant.parse("2026-09-10T03:00:00Z");
+        sa.setScore(70);
+        sa.setFeedback("AI: ok");
+        sa.setAiScore(70);
+        sa.setAiFeedback("AI: ok");
+        sa.setAiGradedAt(proposedAt);
+        when(studentAssignmentRepository.save(any(StudentAssignment.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        teacherService.evaluateAssignment(
+                1L, 5L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(85, "Gut"));
+
+        assertEquals("EVALUATED", sa.getStatus());
+        assertEquals(85, sa.getScore());
+        assertEquals("Gut", sa.getFeedback());
+        assertEquals(70, sa.getAiScore());
+        assertEquals("AI: ok", sa.getAiFeedback());
+        assertEquals(proposedAt, sa.getAiGradedAt());
     }
 
     /** Chưa có lịch sử chấm thì cấm chấm lại là tự trói — đường sửa điểm final phải còn (F12). */

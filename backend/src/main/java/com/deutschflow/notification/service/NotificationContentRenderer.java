@@ -109,10 +109,12 @@ public class NotificationContentRenderer {
                             "Buổi học của lớp " + nonBlankOr(str(p, "className"), "bạn") + " đã thay đổi."));
 
             // ── v1.7 — Admin ops & audit ─────────────────────────────────────
+            // Chỉ id (10/09/2026, quyết định 8): payload không còn email/tên, và cố ý KHÔNG rơi về
+            // who(p) cho dòng cũ — V321 đã bóc hai khoá đó, còn sót ở đâu thì cũng không hiển thị.
             case ACCOUNT_DELETED -> new RenderedContent(
                     "🗑️ Xoá tài khoản",
-                    who(p).isBlank() ? "Một người dùng đã xoá tài khoản."
-                            : who(p) + " đã xoá tài khoản.");
+                    str(p, "deletedUserId").isBlank() ? "Một người dùng đã xoá tài khoản."
+                            : "Người dùng #" + str(p, "deletedUserId") + " đã xoá tài khoản.");
             case ADMIN_LEARNER_SUBSCRIPTION_ENDED -> new RenderedContent(
                     "Gói học kết thúc",
                     "Gói " + nonBlankOr(str(p, "planCode"), "học") + " của "

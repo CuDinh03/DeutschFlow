@@ -6,6 +6,7 @@ import com.deutschflow.user.dto.AdminUpdateProfileRequest;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.audit.AuditOrgResolver;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.vocabulary.service.DeepLLemmaBackfillService;
 import com.deutschflow.vocabulary.service.GlosbeViEnrichmentService;
@@ -25,6 +26,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -44,6 +46,7 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
+@Slf4j
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminManagementController {
     private static final Set<String> VALID_CEFR_LEVELS = Set.of("A1", "A2", "B1", "B2", "C1", "C2");
@@ -62,6 +65,7 @@ public class AdminManagementController {
     private final VocabularyAutoTaggingService vocabularyAutoTaggingService;
     private final TagQueryService tagQueryService;
     private final AuditLogService auditLogService;
+    private final AuditOrgResolver auditOrgResolver;
     private final UserNotificationService userNotificationService;
     private final CacheManager cacheManager;
     private final LlmViTranslationService llmViTranslationService;
@@ -212,11 +216,16 @@ public class AdminManagementController {
     ) {
         Map<String, Object> created = adminManagementService.createUser(
                 req.email(), req.displayName(), req.password(), req.role(), req.locale(), req.orgId(), req.orgRole());
+        // DEC-13: trung tâm bị tác động lấy thẳng từ KẾT QUẢ chứ không tra lại — createUser chỉ gán
+        // tổ chức khi vai trò là TEACHER/MANAGER và orgId có thật, nên req.orgId() có thể đã được
+        // gửi kèm rồi bị bỏ qua, còn created."orgId" là tổ chức thực sự nhận người này.
+        Long touchedOrgId = created.get("orgId") instanceof Long createdOrgId ? createdOrgId : null;
         auditLogService.log(
                 "admin.user.created",
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(created.get("id")),
+                touchedOrgId,
                 Map.of(
                         "email", String.valueOf(created.get("email")),
                         "role", String.valueOf(created.get("role")),
@@ -244,12 +253,17 @@ public class AdminManagementController {
         if (actor != null && actor.getId().equals(userId) && Boolean.FALSE.equals(req.active())) {
             throw new BadRequestException("Bạn không thể tự khóa tài khoản của mình.");
         }
+        // Tra tổ chức TRƯỚC khi gọi service — nếp chung cho cả nhóm đường admin chạm một người, để
+        // không phải xét lại từng đường xem service có gỡ người khỏi trung tâm hay không. Khoá tài
+        // khoản cắt sạch phiên đang chạy, nên giám đốc phải thấy lần nhân sự của mình bị nền tảng khoá.
+        Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> updated = adminManagementService.setUserActive(userId, req.active());
         auditLogService.log(
                 req.active() ? "admin.user.reactivated" : "admin.user.deactivated",
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
+                touchedOrgId,
                 Map.of("active", req.active())
         );
         return updated;
@@ -262,12 +276,18 @@ public class AdminManagementController {
             @Valid @RequestBody SetPasswordRequest req,
             Authentication authentication
     ) {
+        // Đây là đường ĐÓNG VAI: đặt lại mật khẩu của một người rồi đăng nhập là mang đúng danh
+        // tính người đó — không có bước nào khác chặn lại, và endpoint này KHÔNG gửi thông báo cho
+        // người bị đổi (khác createUser và updatePlan). Vết vì vậy là chứng cứ duy nhất, và nó phải
+        // rơi vào sổ của trung tâm NGƯỜI BỊ ĐỔI chứ không phải sổ trống của admin nền tảng.
+        Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> updated = adminManagementService.setUserPassword(userId, req.password());
         auditLogService.log(
                 "admin.user.password.reset",
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
+                touchedOrgId,
                 Map.of()
         );
         return updated;
@@ -291,12 +311,18 @@ public class AdminManagementController {
                 && !"ADMIN".equalsIgnoreCase(req.role() == null ? "" : req.role().trim())) {
             throw new BadRequestException("Bạn không thể tự bỏ quyền quản trị của chính mình.");
         }
+        // Tra tổ chức TRƯỚC khi gọi service, cùng một nếp với setUserActive: các đường gỡ người khỏi
+        // trung tâm xoá users.org_id, tra sau là tra vào chỗ đã trống. Riêng đường này service từ
+        // chối thẳng người đang là thành viên ACTIVE (để org_members khỏi lệch), nên org đọc được ở
+        // đây là của người còn org_id mà tư cách thành viên đã ngưng — vẫn là người của trung tâm đó.
+        Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> updated = adminManagementService.updateUserRole(userId, req.role());
         auditLogService.log(
                 "admin.user.role.updated",
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
+                touchedOrgId,
                 Map.of(
                         "oldRole", String.valueOf(updated.get("previousRole")),
                         "newRole", String.valueOf(updated.get("role"))
@@ -311,6 +337,9 @@ public class AdminManagementController {
             @Valid @RequestBody UpdatePlanRequest req,
             Authentication authentication
     ) {
+        // Gói và hạn mức token của một học viên trong trung tâm là dữ liệu vận hành của trung tâm
+        // đó; giám đốc cần thấy lần nền tảng chỉnh tay.
+        Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> updated = adminManagementService.updateUserPlan(
                 userId,
                 req.planCode(),
@@ -323,6 +352,7 @@ public class AdminManagementController {
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
+                touchedOrgId,
                 Map.of(
                         "planCode", String.valueOf(updated.get("planCode")),
                         "monthlyTokenLimitOverride", String.valueOf(updated.get("monthlyTokenLimitOverride")),
@@ -340,8 +370,20 @@ public class AdminManagementController {
     }
 
     @GetMapping("/users/{userId}/quota")
-    public Map<String, Object> userQuota(@PathVariable Long userId) {
-        return adminManagementService.userQuota(userId);
+    public Map<String, Object> userQuota(@PathVariable Long userId, Authentication authentication) {
+        Map<String, Object> quota = adminManagementService.userQuota(userId);
+        // Hạn mức và mức tiêu thụ AI của một người là dữ liệu vận hành của trung tâm người đó — sau
+        // DEC-13 thì giám đốc phải đọc được lần nền tảng soi vào. Metadata để trống có chủ ý: các
+        // con số đã nằm sẵn trong bảng quota, vết chỉ cần trả lời "ai, khi nào, soi ai".
+        auditRead(() -> auditLogService.log(
+                "admin.user.quota.read",
+                AuditActor.ofAuthentication(authentication),
+                "USER",
+                String.valueOf(userId),
+                auditOrgResolver.forUser(userId),
+                Map.of()
+        ));
+        return quota;
     }
 
     @GetMapping("/users/{userId}/usage")
@@ -349,14 +391,33 @@ public class AdminManagementController {
             @PathVariable Long userId,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to,
-            @RequestParam(required = false) Integer limit
+            @RequestParam(required = false) Integer limit,
+            Authentication authentication
     ) {
-        return adminManagementService.userUsage(userId, from, to, limit);
+        List<Map<String, Object>> rows = adminManagementService.userUsage(userId, from, to, limit);
+        auditRead(() -> auditLogService.log(
+                "admin.user.usage.read",
+                AuditActor.ofAuthentication(authentication),
+                "USER",
+                String.valueOf(userId),
+                auditOrgResolver.forUser(userId),
+                // Khoảng thời gian + số dòng: đủ để giám đốc biết PHẠM VI bị đọc, mà không chép một
+                // dòng ledger nào (mỗi dòng mang model, feature, requestId của một lần dùng thật).
+                Map.of(
+                        "fromUtc", String.valueOf(from),
+                        "toUtc", String.valueOf(to),
+                        "limit", String.valueOf(limit),
+                        "returnedCount", rows.size()
+                )
+        ));
+        return rows;
     }
 
     @GetMapping("/classes")
-    public List<Map<String, Object>> classesList() {
-        return adminManagementService.listClasses();
+    public List<Map<String, Object>> classesList(Authentication authentication) {
+        List<Map<String, Object>> classes = adminManagementService.listClasses();
+        auditClassListRead(authentication, classes.size());
+        return classes;
     }
 
     @PostMapping("/classes/{classId}/students/bulk-assign")
@@ -365,20 +426,41 @@ public class AdminManagementController {
             @RequestBody @Valid BulkAssignStudentsRequest request,
             Authentication authentication
     ) {
+        // Đối tượng bị tác động ở đây là LỚP, nên tra theo lớp: học viên được gán có thể chưa
+        // thuộc trung tâm nào, còn lớp thì luôn nói đúng sổ nào phải nhận vết này.
+        Long touchedOrgId = auditOrgResolver.forClass(classId);
         Map<String, Object> result = adminManagementService.bulkAssignStudents(classId, request.studentIds());
         auditLogService.log(
                 "admin.class.students.bulk_assigned",
                 AuditActor.ofAuthentication(authentication),
                 "CLASS",
                 String.valueOf(classId),
+                touchedOrgId,
                 Map.of("assignedCount", result.get("assignedCount"))
         );
         return result;
     }
 
     @GetMapping("/users/{userId}/learning-detail")
-    public Map<String, Object> userLearningDetail(@PathVariable Long userId) {
-        return adminManagementService.userLearningDetail(userId);
+    public Map<String, Object> userLearningDetail(@PathVariable Long userId, Authentication authentication) {
+        Map<String, Object> detail = adminManagementService.userLearningDetail(userId);
+        // 🔴 Đường đọc nội dung học viên nhạy nhất của console admin: khối speakingAi.recentErrors
+        // mang wrongSpan/correctedSpan — MẢNH CÂU học viên thực sự nói, không phải số liệu tổng hợp.
+        // Web gọi endpoint này mỗi lần mở modal chi tiết (không đợi bấm thêm), nên nó cũng là đường
+        // đọc nội dung có tần suất cao nhất.
+        //
+        // Vết ghi SỐ LƯỢNG mảnh câu bị phơi ra và tuyệt đối không chép mảnh nào: audit_logs là bảng
+        // append-only giữ vĩnh viễn (V303) và MỌI admin nền tảng đọc được qua /api/admin/audit —
+        // chép nội dung vào đây là mở thêm một cửa rò rỉ đúng thứ dữ liệu vết này sinh ra để canh.
+        auditRead(() -> auditLogService.log(
+                "admin.user.learning_detail.read",
+                AuditActor.ofAuthentication(authentication),
+                "USER",
+                String.valueOf(userId),
+                auditOrgResolver.forUser(userId),
+                Map.of("recentErrorCount", nestedListSize(detail, "speakingAi", "recentErrors"))
+        ));
+        return detail;
     }
 
     @PutMapping("/users/{userId}/learning-profile")
@@ -387,6 +469,7 @@ public class AdminManagementController {
             @RequestBody @Valid AdminUpdateLearningProfileRequest request,
             Authentication authentication
     ) {
+        Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> result = adminManagementService.adminUpdateLearningProfile(userId, request);
         // Audit F-M3 (03/09/2026): admin ghi đè hồ sơ học tập của một người — trình độ, mục tiêu,
         // lộ trình — tức đổi thẳng nội dung họ sẽ được học. Trước đây không để lại vết nào, nên
@@ -396,6 +479,7 @@ public class AdminManagementController {
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
+                touchedOrgId,
                 learningProfileAuditMeta(request)
         );
         return result;
@@ -411,12 +495,14 @@ public class AdminManagementController {
             @Valid @RequestBody AdminUpdateProfileRequest request,
             Authentication authentication
     ) {
+        Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> result = adminManagementService.adminUpdateProfile(userId, request);
         auditLogService.log(
                 "admin.user.profile.updated",
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
+                touchedOrgId,
                 // Audit F-M4 (03/09/2026): KHÔNG ghi phoneNumber vào metadata. audit_logs là bảng
                 // giữ vĩnh viễn và màn hình audit cho ADMIN nào cũng đọc được, nên số điện thoại
                 // dạng rõ ở đây là một bản sao PII sống lâu hơn cả chính hồ sơ người dùng. Ghi
@@ -432,16 +518,51 @@ public class AdminManagementController {
     // ── Interview Transcript (Admin) ─────────────────────────────────────
 
     @GetMapping("/users/{userId}/interview-sessions")
-    public List<Map<String, Object>> userInterviewSessions(@PathVariable Long userId) {
-        return adminManagementService.userInterviewSessions(userId);
+    public List<Map<String, Object>> userInterviewSessions(
+            @PathVariable Long userId,
+            Authentication authentication
+    ) {
+        List<Map<String, Object>> sessions = adminManagementService.userInterviewSessions(userId);
+        // 🔴 Danh mục hội thoại của một người, kèm interviewReportJson (nhận xét về chính họ). Vết
+        // ghi số phiên đọc được, không chép vị trí ứng tuyển / persona / báo cáo.
+        auditRead(() -> auditLogService.log(
+                "admin.user.interview_sessions.read",
+                AuditActor.ofAuthentication(authentication),
+                "USER",
+                String.valueOf(userId),
+                auditOrgResolver.forUser(userId),
+                Map.of("sessionCount", sessions.size())
+        ));
+        return sessions;
     }
 
     @GetMapping("/users/{userId}/interview-sessions/{sessionId}/messages")
     public List<Map<String, Object>> userInterviewMessages(
             @PathVariable Long userId,
-            @PathVariable Long sessionId
+            @PathVariable Long sessionId,
+            Authentication authentication
     ) {
-        return adminManagementService.userInterviewMessages(userId, sessionId);
+        List<Map<String, Object>> messages = adminManagementService.userInterviewMessages(userId, sessionId);
+        // 🔴 Đọc TRỌN transcript hội thoại — từng lượt học viên nói và từng lời chữa.
+        //
+        // Đường dẫn nói "interview-sessions" nhưng service KHÔNG lọc session_mode: nó chỉ kiểm phiên
+        // có thuộc người này không, nên mở được cả hội thoại tự do (COMMUNICATION) lẫn bài học chứ
+        // không riêng phỏng vấn. Vì vậy vết ghi sessionMode TRA TỪ BẢNG chứ không suy từ tên đường
+        // dẫn — giám đốc đọc sổ phải biết admin đã mở loại hội thoại nào. Nội dung tin nhắn không
+        // bao giờ vào metadata: chỉ định danh phiên và số lượt.
+        auditRead(() -> auditLogService.log(
+                "admin.user.interview_messages.read",
+                AuditActor.ofAuthentication(authentication),
+                "USER",
+                String.valueOf(userId),
+                auditOrgResolver.forUser(userId),
+                Map.of(
+                        "sessionId", sessionId,
+                        "sessionMode", speakingSessionMode(sessionId),
+                        "messageCount", messages.size()
+                )
+        ));
+        return messages;
     }
 
     @PostMapping("/vocabulary/glosbe-vi/enrich/batch")
@@ -1029,6 +1150,119 @@ public class AdminManagementController {
     /** Null-safe cast: giá trị JSON không phải chuỗi → null (tránh ClassCastException → 500). */
     private static String asString(Object v) {
         return v instanceof String s ? s : null;
+    }
+
+    // ── Ghi vết ĐƯỜNG ĐỌC (DEC-13) ───────────────────────────────────────
+    //
+    // Quy ước cũ của repo: mọi mutation ghi vết, mọi đường đọc câm. DEC-13 (owner chốt 09/09/2026)
+    // bỏ vế sau — admin nền tảng giữ quyền kỹ thuật, nhưng MỌI thao tác chạm dữ liệu một trung tâm,
+    // kể cả chỉ đọc, phải ghi vết mà chính giám đốc trung tâm đó đọc được.
+    //
+    // Ghi TAY tại controller chứ không bằng @Aspect: repo chưa dùng @Aspect ở đâu, và một aspect
+    // vẫn phải được cấu hình từng endpoint để đoán "lần gọi này chạm trung tâm nào" từ tham số bất
+    // kỳ. Vài điểm gọi tay thì grep ra được và đọc được ngay tại chỗ.
+
+    /**
+     * Ghi vết cho một đường ĐỌC — mọi lỗi ghi vết bị nuốt, kèm {@code log.error}.
+     *
+     * <p><b>Fail-open có tiếng, cố ý.</b> Cột {@code audit_logs.org_id} có KHOÁ NGOẠI tới
+     * {@code organizations(id)} (V315), nên một orgId hỏng — trung tâm vừa bị xoá, dữ liệu lệch —
+     * ném ngay ở INSERT và biến một lần ĐỌC ĐÃ THÀNH CÔNG thành 500 trả về client, tức làm hỏng
+     * đúng chức năng mà vết chỉ định quan sát. Tiền lệ cùng lựa chọn: nhánh ghi vết blocked-attempt
+     * trong {@code GlobalExceptionHandler} ("lỗi ghi vết không được đổi response của client").
+     * {@code log.error} là phần "có tiếng": mất vết vẫn nổi lên ở giám sát chứ không im lặng.
+     *
+     * <p>Việc tra tổ chức nằm TRONG lambda nên cũng được che: {@link AuditOrgResolver} chạm DB, và
+     * một cú vấp ở đó cũng không được phép giết lần đọc.
+     *
+     * <p>🪤 <b>Ghi ở CONTROLLER, đừng "sửa cho đúng chuẩn" bằng cách đẩy xuống service.</b>
+     * {@link AuditActor} nêu quy ước NGƯỢC LẠI (ghi ở controller thì vết nằm ngoài transaction
+     * nghiệp vụ) — quy ước đó dành cho MUTATION. Với đường đọc thì không áp dụng được: các phương
+     * thức đọc là {@code @Transactional(readOnly = true)}, mà {@code AuditLogService} dùng chung
+     * connection qua {@code DataSourceUtils}, nên INSERT audit bên trong sẽ nổ
+     * <em>"cannot execute INSERT in a read-only transaction"</em> và giết endpoint.
+     */
+    private void auditRead(Runnable auditWrite) {
+        try {
+            auditWrite.run();
+        } catch (Exception e) {
+            log.error("Không ghi được vết đường đọc admin: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Vết cho lần admin đọc DANH SÁCH LỚP — một dòng cho MỖI trung tâm có lớp trong kết quả
+     * (AC-ORG-CT-02).
+     *
+     * <p><b>Vì sao không phải một vết duy nhất.</b> {@code listClasses()} không có WHERE, không phân
+     * trang, không nhận tham số lọc: một lần gọi đọc lớp của MỌI trung tâm, nên không tồn tại một
+     * {@code orgId} đơn trị để gán. Ghi một dòng {@code org_id = NULL} thì đúng chữ mà vô dụng — sổ
+     * của giám đốc lọc {@code AND org_id = ?} nên dòng NULL không bao giờ lọt vào, tức thao tác chạm
+     * dữ liệu của họ vẫn vô hình, đúng thứ DEC-13 cấm. Một dòng mỗi trung tâm nói đúng sự thật:
+     * admin đã đọc danh sách lớp của từng trung tâm đó.
+     *
+     * <p><b>Vì sao không thêm tham số lọc {@code orgId} rồi ghi vết theo nó.</b> Siết phạm vi
+     * endpoint thuộc PR sau; và web hiện KHÔNG gửi tham số nào, nên bộ lọc mới sẽ không có ai dùng —
+     * sổ của giám đốc vẫn trống và AC-ORG-CT-02 vẫn trượt ngay trong đợt này.
+     *
+     * <p>Giá: đúng MỘT truy vấn gộp, phản chiếu nguyên FROM/JOIN của {@code listClasses()} để không
+     * kê khai một trung tâm mà kết quả thực tế không có dòng nào (JOIN users loại lớp có teacher_id
+     * mồ côi). Vòng lặp dài bằng số trung tâm CÓ LỚP — một con số nghiệp vụ, không do người dùng
+     * điều khiển.
+     */
+    private void auditClassListRead(Authentication authentication, int returnedCount) {
+        auditRead(() -> {
+            List<Map<String, Object>> perOrg = jdbcTemplate.queryForList("""
+                    SELECT c.org_id AS "orgId", COUNT(*) AS "classCount"
+                    FROM teacher_classes c
+                    JOIN users u ON u.id = c.teacher_id
+                    WHERE c.org_id IS NOT NULL
+                    GROUP BY c.org_id
+                    """);
+            AuditActor actor = AuditActor.ofAuthentication(authentication);
+            for (Map<String, Object> row : perOrg) {
+                if (!(row.get("orgId") instanceof Number orgId)) {
+                    continue;
+                }
+                auditLogService.log(
+                        // Đặt tên và gắn đích theo khuôn admin.org.timesheet.exported — tiền lệ gần
+                        // nhất: một tài sản CỦA trung tâm bị đọc trọn, target là chính trung tâm đó.
+                        // Không dùng target_type CLASS: dòng này nói về CẢ danh sách lớp của một
+                        // trung tâm, không về một lớp nào, nên sẽ phải để target_id rỗng.
+                        "admin.org.class_list.read",
+                        actor,
+                        "ORG",
+                        String.valueOf(orgId.longValue()),
+                        orgId.longValue(),
+                        Map.of(
+                                "orgClassCount", String.valueOf(row.get("classCount")),
+                                "returnedCount", returnedCount
+                        )
+                );
+            }
+        });
+    }
+
+    /**
+     * Kiểu phiên nói THẬT tra từ bảng ({@code COMMUNICATION | INTERVIEW | …}), {@code "UNKNOWN"} nếu
+     * không đọc được. Một câu SELECT một cột theo khoá chính — đủ rẻ để chạy trên đường đọc.
+     */
+    private String speakingSessionMode(Long sessionId) {
+        String mode = jdbcTemplate.query(
+                "SELECT session_mode FROM ai_speaking_sessions WHERE id = ?",
+                rs -> rs.next() ? rs.getString(1) : null,
+                sessionId);
+        return mode == null ? "UNKNOWN" : mode;
+    }
+
+    /** Đếm phần tử của một danh sách lồng trong body trả về — chỉ SỐ LƯỢNG, không chạm nội dung. */
+    private static int nestedListSize(Map<String, Object> body, String section, String key) {
+        if (body != null
+                && body.get(section) instanceof Map<?, ?> sectionMap
+                && sectionMap.get(key) instanceof List<?> list) {
+            return list.size();
+        }
+        return 0;
     }
 
     /**

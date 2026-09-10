@@ -110,11 +110,17 @@ class NotificationContentRendererUnitTest {
     }
 
     @Test
-    @DisplayName("account deleted names the user, with a safe fallback when identity is absent")
-    void accountDeleted_rendersIdentity() {
-        RenderedContent named = renderer.render(NotificationType.ACCOUNT_DELETED,
-                Map.of("displayName", "Bình", "email", "binh@x.com"));
-        assertThat(named.body()).isEqualTo("Bình (binh@x.com) đã xoá tài khoản.");
+    @DisplayName("account deleted shows the id ONLY — never email/name, even on a legacy payload that still has them")
+    void accountDeleted_rendersIdOnly_neverEmailOrName() {
+        // 10/09/2026 (quyết định 8): payload chỉ còn deletedUserId. Dòng cũ có thể vẫn mang
+        // email/tên (V321 bóc, nhưng renderer không được dựa vào đó) — có thì cũng không hiển thị.
+        RenderedContent legacy = renderer.render(NotificationType.ACCOUNT_DELETED,
+                Map.of("deletedUserId", 99L, "displayName", "Bình", "email", "binh@x.com"));
+        assertThat(legacy.body()).isEqualTo("Người dùng #99 đã xoá tài khoản.");
+        assertThat(legacy.body()).doesNotContain("binh@x.com").doesNotContain("Bình");
+
+        RenderedContent current = renderer.render(NotificationType.ACCOUNT_DELETED, Map.of("deletedUserId", 99L));
+        assertThat(current.body()).isEqualTo("Người dùng #99 đã xoá tài khoản.");
 
         RenderedContent empty = renderer.render(NotificationType.ACCOUNT_DELETED, Map.of());
         assertThat(empty.body()).isEqualTo("Một người dùng đã xoá tài khoản.");

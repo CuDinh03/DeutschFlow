@@ -2,6 +2,7 @@ package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.organization.service.OrgSettingsService;
 import com.deutschflow.teacher.dto.MySkillReportDto;
 import com.deutschflow.teacher.dto.SkillReportDto;
 import com.deutschflow.teacher.dto.StudentAttendanceDto;
@@ -25,12 +26,18 @@ import java.util.stream.Collectors;
 public class StudentEvaluationService {
 
     /**
-     * Certificate gate. {@code avgScore} is the mean of {@link StudentAssignment#getScore()}, which is a
-     * 0–100 grade (GradingService validates 0–100) — NOT the 0–10 scale used by the manual {@code skill_*}
-     * columns. The threshold must live on the same scale: 50/100 is the pass mark.
+     * Ngưỡng chứng nhận của MỘT lớp (R10, V323). {@code minAvgScore} so với trung bình
+     * {@link StudentAssignment#getScore()} — thang 0–100 (GradingService kẹp 0–100), KHÔNG phải thang 0–10 của
+     * các cột {@code skill_*}; {@code minAttendancePct} so với tỉ lệ chuyên cần trên số buổi có ghi nhận.
+     * Đọc từ {@code org_settings} theo trung tâm của lớp ({@code certificate_min_avg},
+     * {@code certificate_min_attendance_pct}); lớp B2C (org NULL) dùng mặc định 50 / 80 — đúng hai hằng
+     * từng cắm cứng ở đây.
      */
-    private static final double CERT_MIN_AVG_SCORE = 50.0;   // 0–100 scale
-    private static final double CERT_MIN_ATTENDANCE = 0.8;   // 80% of recorded sessions
+    record CertificateThresholds(int minAvgScore, int minAttendancePct) {
+        double minAttendanceRate() {
+            return minAttendancePct / 100.0;
+        }
+    }
 
     private final ClassStudentRepository classStudentRepository;
     private final AssignmentAudienceService assignmentAudienceService;
@@ -41,6 +48,7 @@ public class StudentEvaluationService {
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final TeacherClassRepository classRepository;
     private final UserRepository userRepository;
+    private final OrgSettingsService orgSettingsService;
 
     @Transactional
     public StudentEvaluationDto saveEvaluation(Long teacherId, Long classId, Long studentId,
@@ -265,17 +273,20 @@ public class StudentEvaluationService {
             if (avg.isPresent()) avgScore = avg.getAsDouble();
         }
 
-        // Certificate: avg assignment score >= 50/100 AND attendance >= 80% of recorded sessions.
-        // A student with no attendance rows of their own has no evidence at all — it must not read
-        // as a perfect 100% (the old `totalSessions == 0 ? 1.0` made a brand-new class instantly
-        // eligible). "No evidence" stays ineligible rather than becoming a free pass.
+        // Certificate: avg assignment score >= certificate_min_avg (mặc định 50/100) AND attendance >=
+        // certificate_min_attendance_pct (mặc định 80 %) of recorded sessions — ngưỡng theo trung tâm của
+        // LỚP (R10). A student with no attendance rows of their own has no evidence at all — it must not
+        // read as a perfect 100% (the old `totalSessions == 0 ? 1.0` made a brand-new class instantly
+        // eligible). "No evidence" stays ineligible rather than becoming a free pass, kể cả khi trung tâm
+        // đặt ngưỡng chuyên cần = 0.
+        CertificateThresholds thresholds = certificateThresholds(cls != null ? cls.getOrgId() : null);
         boolean hasAttendanceEvidence = recordedSessions > 0;
         double attendanceRate = hasAttendanceEvidence
                 ? (double) (presentCount + lateCount) / recordedSessions
                 : 0.0;
         boolean eligible = hasAttendanceEvidence
-                && avgScore >= CERT_MIN_AVG_SCORE
-                && attendanceRate >= CERT_MIN_ATTENDANCE;
+                && avgScore >= thresholds.minAvgScore()
+                && attendanceRate >= thresholds.minAttendanceRate();
 
         return new StudentEvaluationDto(
                 studentId,
@@ -287,6 +298,13 @@ public class StudentEvaluationService {
                 cs.getSkillHoren(), cs.getSkillLesen(), cs.getSkillSchreiben(), cs.getSkillSprechen(),
                 avgScore, recordedSessions, presentCount, absentCount, lateCount, eligible,
                 cs.getEvaluatedAt());
+    }
+
+    /** Ngưỡng chứng nhận theo trung tâm; {@code orgId} NULL (lớp B2C) ⇒ mặc định của {@link OrgSettingsService}. */
+    CertificateThresholds certificateThresholds(Long orgId) {
+        return new CertificateThresholds(
+                orgSettingsService.getInt(orgId, OrgSettingsService.CERTIFICATE_MIN_AVG),
+                orgSettingsService.getInt(orgId, OrgSettingsService.CERTIFICATE_MIN_ATTENDANCE_PCT));
     }
 
     /**

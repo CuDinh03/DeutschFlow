@@ -52,13 +52,15 @@ class OrgServiceDetailTest {
     @Mock private ClassTeacherRepository classTeacherRepository;
     @Mock private UserRepository userRepository;
     @Mock private ClassStudentRepository classStudentRepository;
+    @Mock private OrgGuardianConsentService guardianConsentService;
 
     private OrgService orgService;
 
     @BeforeEach
     void setUp() {
         orgService = new OrgService(membershipService, jdbcTemplate, memberRepo, organizationRepository,
-                teacherClassRepository, classTeacherRepository, userRepository, classStudentRepository);
+                teacherClassRepository, classTeacherRepository, userRepository, classStudentRepository,
+                guardianConsentService);
     }
 
     private static User user(long id, String email, String name) {
@@ -142,6 +144,9 @@ class OrgServiceDetailTest {
         TeacherClass inOrg = TeacherClass.builder().id(1L).orgId(ORG_ID).name("A1").build();
         TeacherClass otherOrg = TeacherClass.builder().id(2L).orgId(99L).name("Khác").build();
         when(teacherClassRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(inOrg, otherOrg));
+        when(guardianConsentService.summaryOf(7L)).thenReturn(
+                new com.deutschflow.organization.dto.OrgGuardianConsentDtos.MinorSummary(
+                        "MINOR_CENTER_POLICY", true, "NEVER_RECORDED", 1));
 
         OrgStudentDetailDto dto = orgService.getStudentDetail(ORG_ID, 7L);
 
@@ -149,6 +154,11 @@ class OrgServiceDetailTest {
         assertThat(dto.role()).isEqualTo("STUDENT");
         assertThat(dto.classes()).hasSize(1);
         assertThat(dto.classes().get(0).classId()).isEqualTo(1L);
+        // D1/R11: tóm tắt chưa-thành-niên đi kèm — nhãn nhóm tuổi, KHÔNG có ngày sinh thô.
+        assertThat(dto.minorStatus()).isEqualTo("MINOR_CENTER_POLICY");
+        assertThat(dto.birthDateRecorded()).isTrue();
+        assertThat(dto.audioConsentState()).isEqualTo("NEVER_RECORDED");
+        assertThat(dto.guardianCount()).isEqualTo(1);
     }
 
     @Test

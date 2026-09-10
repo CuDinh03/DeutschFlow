@@ -4,10 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { apiMessage } from '@/lib/api'
 import { listOrgAuditLogs, type OrgAuditLog } from '@/lib/orgApi'
-import { GaPageHdr, GaBtn, GaCap, GaIcon, ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaIcon, TkBadge, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { OrgOwnerOnly } from '../OwnerOnly'
 import { ORG_AUDIT_PAGE_SIZE } from './pagination'
+import { parseAuditMetadata } from './metadata'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sổ hoạt động của trung tâm (C6) — GET /api/org/audit-logs, OWNER-only.
@@ -19,9 +20,17 @@ import { ORG_AUDIT_PAGE_SIZE } from './pagination'
 // Bộ lọc danh mục KHÔNG hardcode enum: `target_type` do ~60 điểm gọi tự đặt, không có endpoint
 // liệt kê, nên chip được tích lũy từ chính các dòng đã tải (cùng cách màn nhật ký ADMIN làm).
 // Bịa sẵn danh sách sẽ hiện những chip lọc ra rỗng vĩnh viễn.
+//
+// DEC-13 (owner chốt 09/09/2026): admin nền tảng KHÔNG BAO GIỜ là thành viên trung tâm. Vết họ ghi
+// ra chỉ vào được sổ này nhờ `org_id` truyền tường minh phía máy chủ, và khi đã vào thì phải NHÌN
+// RA NGAY — nếu không, một thao tác của người ngoài trung tâm sẽ nằm lẫn giữa các dòng của nhân sự
+// nội bộ. Vì thế dòng `actorRole === 'ADMIN'` mang huy hiệu riêng; cả đợt này tồn tại vì nó.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ALL = 'all'
+
+/** Vai trò của người NGOÀI trung tâm — `users.org_id` của họ luôn NULL (DEC-13). */
+const PLATFORM_ADMIN_ROLE = 'ADMIN'
 
 export default function V2OrgAuditPage() {
   return (
@@ -126,19 +135,20 @@ function AuditInner() {
         ) : (
           <>
             <div className="overflow-x-auto border border-ga-line bg-ga-card">
-              <table className="w-full min-w-[720px] border-collapse text-ga-small">
+              <table className="w-full min-w-[880px] border-collapse text-ga-small">
                 <thead>
                   <tr className="bg-ga-side-active">
                     <Th>{t('colTime')}</Th>
                     <Th>{t('colActor')}</Th>
                     <Th>{t('colAction')}</Th>
                     <Th>{t('colTarget')}</Th>
+                    <Th>{t('colDetails')}</Th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-3 py-10 text-center text-ga-small text-ga-muted">
+                      <td colSpan={5} className="px-3 py-10 text-center text-ga-small text-ga-muted">
                         {query.trim() || cat !== ALL ? t('emptyFiltered') : t('empty')}
                       </td>
                     </tr>
@@ -152,7 +162,18 @@ function AuditInner() {
                         </Td>
                         <Td>
                           <div className="font-semibold text-ga-ink">{r.actorEmail ?? t('system')}</div>
-                          {r.actorRole && <GaCap className="mt-0.5 block">{r.actorRole}</GaCap>}
+                          {r.actorRole === PLATFORM_ADMIN_ROLE ? (
+                            <TkBadge
+                              tone="navy"
+                              className="mt-1"
+                              title={t('outsiderHint')}
+                            >
+                              <GaIcon name="admin_panel_settings" size={12} />
+                              {t('outsiderBadge')}
+                            </TkBadge>
+                          ) : (
+                            r.actorRole && <GaCap className="mt-0.5 block">{r.actorRole}</GaCap>
+                          )}
                         </Td>
                         <Td><span className="break-words text-ga-ink">{r.eventName}</span></Td>
                         <Td>
@@ -160,6 +181,7 @@ function AuditInner() {
                             {r.targetType ?? '—'}{r.targetId ? ` · ${r.targetId}` : ''}
                           </span>
                         </Td>
+                        <Td><MetaCell raw={r.metadataJson} /></Td>
                       </tr>
                     ))
                   )}
@@ -197,4 +219,30 @@ function Th({ children }: { children: React.ReactNode }) {
 
 function Td({ children }: { children: React.ReactNode }) {
   return <td className="px-3 py-2 align-top text-ga-ink">{children}</td>
+}
+
+/**
+ * Ô "Chi tiết" — `metadata_json` bày thành cặp khoá–giá trị.
+ *
+ * Đây là chỗ duy nhất trả lời "đã đổi cái gì thành cái gì" (fromStatus → toStatus, seatLimit cũ →
+ * mới). Giá trị dài đã bị `parseAuditMetadata` cắt; nguyên văn giữ ở `title` để giám đốc rê chuột
+ * vẫn đọc được đủ, không phải mở DevTools.
+ */
+function MetaCell({ raw }: { raw: string | null }) {
+  const pairs = parseAuditMetadata(raw)
+  if (pairs.length === 0) return <span className="text-ga-subtle">—</span>
+  return (
+    <dl className="m-0 flex max-w-[360px] flex-col gap-0.5">
+      {pairs.map((p) => (
+        <div key={p.key || p.full} className="flex flex-wrap items-baseline gap-x-1.5">
+          {p.label && (
+            <dt className="ga-ui text-ga-caption font-semibold text-ga-subtle">{p.label}</dt>
+          )}
+          <dd className="m-0 break-all text-ga-caption text-ga-ink" title={p.full}>
+            {p.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
 }

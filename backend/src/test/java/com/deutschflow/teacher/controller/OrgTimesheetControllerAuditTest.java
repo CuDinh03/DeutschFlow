@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -62,8 +63,10 @@ class OrgTimesheetControllerAuditTest {
         assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-store");
         var actor = ArgumentCaptor.forClass(AuditActor.class);
         var meta = ArgumentCaptor.forClass(Map.class);
+        // orgId phải đi vào CỘT org_id (tham số thứ 5) chứ không chỉ ở target_id — cột mới là thứ
+        // sổ hoạt động của giám đốc lọc (AND org_id = ?).
         verify(auditLogService).log(eq("admin.org.timesheet.exported"), actor.capture(),
-                eq("ORG_TIMESHEET"), eq("88"), meta.capture());
+                eq("ORG_TIMESHEET"), eq("88"), eq(88L), meta.capture());
         assertThat(actor.getValue().id()).isEqualTo(5L);
         assertThat(meta.getValue()).containsEntry("from", "2026-09-01").containsEntry("to", "2026-09-30");
     }
@@ -77,6 +80,8 @@ class OrgTimesheetControllerAuditTest {
                 .isInstanceOf(ForbiddenException.class);
 
         verify(periodService, never()).exportOrgCsv(anyLong(), any(), any(), any());
-        verify(auditLogService, never()).log(any(), any(AuditActor.class), any(), any(), any());
+        // verifyNoInteractions phủ MỌI overload của log(); never() trên một chữ ký thì im lặng
+        // bỏ qua lần gọi đi bằng chữ ký kia.
+        verifyNoInteractions(auditLogService);
     }
 }

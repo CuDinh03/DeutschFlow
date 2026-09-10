@@ -62,6 +62,16 @@ public class AccountDeletionService {
         jdbc.update("DELETE FROM class_channel_messages WHERE sender_id = ?", userId);
         jdbc.update("UPDATE class_channel_messages SET deleted_by = NULL WHERE deleted_by = ?", userId);
 
+        // Báo cáo nội dung (V244/V321, owner chốt 10/09/2026 — B1): người BỊ TỐ CÁO xoá tài khoản thì
+        // ẨN DANH nội dung (snapshot_body + details) nhưng GIỮ dòng và GIỮ reporter_id — bằng chứng
+        // "đã có báo cáo, đã xử lý thế nào" thuộc về hàng đợi kiểm duyệt, còn nội dung là dữ liệu
+        // của người vừa thực thi quyền xoá. Phải chạy TRƯỚC `DELETE FROM users`: FK reported_user_id
+        // là SET NULL, xoá xong thì không còn tra được dòng nào là của người này nữa.
+        // COALESCE giữ mốc cũ nếu job hạn lưu đã dọn trước; NULL rồi thì gán NULL lần nữa vô hại.
+        // Người này ở vai NGƯỜI TỐ CÁO thì không cần lệnh nào: FK reporter_id SET NULL (V321).
+        jdbc.update("UPDATE content_reports SET snapshot_body = NULL, details = NULL, "
+                + "content_purged_at = COALESCE(content_purged_at, now()) WHERE reported_user_id = ?", userId);
+
         // Remaining FKs cascade (ON DELETE CASCADE) or set null on this delete.
         // NOTE (teacher/org offboarding — separate follow-up): authorship/audit columns on
         // materials/quiz/skill/org tables (created_by, teacher_id, invited_by, attached_by) use

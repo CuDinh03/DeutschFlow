@@ -137,9 +137,15 @@ public class MessageService {
     /** Marks the thread from {@code otherId} as read; returns how many were updated. */
     @Transactional
     public int markRead(Long me, Long otherId) {
-        // Audit L-7: gate on the shared-class relationship for consistency with send/getThread/
-        // listConversations. The UPDATE itself only touches rows addressed to the caller (no leak),
-        // but skipping the check let a caller poke arbitrary user ids — defense-in-depth.
+        // Audit L-7: gate on the shared-class relationship for consistency with send/getThread.
+        // The UPDATE itself only touches rows addressed to the caller (no leak), but skipping the
+        // check let a caller poke arbitrary user ids — defense-in-depth.
+        //
+        // 🪤 Câu này TRƯỚC ĐÂY kể cả listConversations vào danh sách "đã gác" — SAI, và sai theo
+        // hướng nguy hiểm: một vòng soát sau đọc comment ngay cạnh mã sẽ kết luận hai đường kia đã
+        // bịt rồi. listConversations và totalUnread KHÔNG gọi assertCanMessage (xem javadoc của
+        // chúng); chúng an toàn vì lý do KHÁC — chỉ đọc các dòng mà chính người gọi là một bên —
+        // chứ không phải vì có cổng lớp chung.
         assertCanMessage(me, otherId);
         int marked = messageRepository.markThreadRead(me, otherId, Instant.now());
         if (marked > 0) {
@@ -159,13 +165,32 @@ public class MessageService {
                 Map.<String, Object>of("senderId", otherId)));
     }
 
-    /** Total unread messages across all threads (conversation-list badge). */
+    /**
+     * Total unread messages across all threads (conversation-list badge).
+     *
+     * <p><b>KHÔNG gác bằng {@link #assertCanMessage}</b>, và không thể gác: hàm chỉ đếm các dòng mà
+     * {@code me} là NGƯỜI NHẬN, nên tự nó đã bị giới hạn trong dữ liệu của chính người gọi và không
+     * có đối tác nào để đối chiếu quan hệ lớp. Hệ quả cần biết: con số này vẫn đếm cả tin của một
+     * giáo viên nay đã rời lớp — hành vi cố ý, xem {@link #listConversations}.
+     */
     @Transactional(readOnly = true)
     public long totalUnread(Long me) {
         return messageRepository.countByRecipientIdAndReadAtIsNull(me);
     }
 
-    /** Conversation summaries (one per counterpart), most-recent first. */
+    /**
+     * Conversation summaries (one per counterpart), most-recent first.
+     *
+     * <p><b>KHÔNG gác bằng {@link #assertCanMessage}</b> — cố ý, và không phải một thiếu sót quên
+     * vá. Hàm liệt kê các cuộc đã có, mỗi cuộc một đối tác khác nhau, nên không có một
+     * {@code otherId} nào để đem đi kiểm quan hệ lớp; và mọi dòng đọc ra đều là dòng mà chính người
+     * gọi là một bên, tức không rò dữ liệu của ai khác.
+     *
+     * <p>Hệ quả cần biết: danh sách VẪN hiện đối tác nay đã hết chung lớp (giáo viên chuyển lớp,
+     * học viên kết thúc khoá). Giữ nguyên là chủ ý — giấu đi thì lịch sử trao đổi của người học
+     * biến mất khỏi máy họ mà không ai báo. Chặn ở đường GỬI ({@link #send}) mới là chỗ quan hệ lớp
+     * có nghĩa. Đổi ý về điểm này là một quyết định sản phẩm, không phải một bản vá bảo mật.
+     */
     @Transactional(readOnly = true)
     public List<ConversationDto> listConversations(Long me) {
         List<Message> recent = messageRepository.findTop300BySenderIdOrRecipientIdOrderByIdDesc(me, me);

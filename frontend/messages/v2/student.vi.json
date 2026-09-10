@@ -2160,6 +2160,18 @@
         "practiceNow": "Luyện tập ngay",
         "footer": "Luyện tập đều đặn mỗi ngày — kết quả sẽ cải thiện rõ rệt sau 2 tuần"
       }
+    },
+    "minorAudio": {
+      "eyebrow": "Phần luyện nói tạm khoá",
+      "titleBirthDate": "Trung tâm chưa ghi nhận ngày sinh của bạn",
+      "bodyBirthDate": "Tài khoản chưa có ngày sinh nên hệ thống chưa xác định được có cần đồng ý của người giám hộ hay không, và không gửi bản ghi âm đi khi còn chưa rõ. Hãy liên hệ trung tâm để bổ sung ngày sinh vào hồ sơ học viên.",
+      "titleConsentRequired": "Cần phiếu đồng ý của cha mẹ/người giám hộ",
+      "bodyConsentRequired": "Tài khoản này cần đồng ý của cha mẹ hoặc người giám hộ trước khi ghi âm giọng nói. Hãy liên hệ trung tâm để hoàn tất phiếu đồng ý; sau khi trung tâm ghi nhận, phần luyện nói mở lại ngay.",
+      "titleConsentRevoked": "Đồng ý ghi âm đã được thu hồi",
+      "bodyConsentRevoked": "Đồng ý cho phép ghi âm của tài khoản này đã được thu hồi, nên phần luyện nói tạm thời không dùng được. Nếu muốn mở lại, người giám hộ liên hệ trung tâm để cấp lại đồng ý.",
+      "note": "Nâng cấp gói không mở được phần này — chỉ trung tâm hoặc người giám hộ mới mở lại được. Bạn vẫn dùng được mọi phần không cần ghi âm.",
+      "contact": "Liên hệ trung tâm",
+      "dismiss": "Đã hiểu"
     }
   }
 }

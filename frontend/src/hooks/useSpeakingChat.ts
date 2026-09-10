@@ -12,6 +12,7 @@ import {
   AI_SPEAKING_UNAUTHORIZED,
 } from "@/lib/aiSpeakingApi";
 import { apiMessage, httpStatus } from "@/lib/api";
+import { parseMinorAudioBlocked, type MinorAudioBlocked } from "@/lib/minorAudio";
 import { toastApiError } from "@/lib/toastApiError";
 import { speakGerman } from "@/lib/speechDe";
 import { startRecorder, type RecorderHandle } from "@/lib/voiceRecorder";
@@ -73,6 +74,9 @@ export function useSpeakingChat(opts: {
 
   const [realMessages, setRealMessages] = useState<AiMessageBubble[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // 403 MINOR_AUDIO_BLOCKED (DEC-22/D8) từ transcribe — giữ riêng để UI hiện màn giải thích.
+  const [minorAudioBlocked, setMinorAudioBlocked] = useState<MinorAudioBlocked | null>(null);
+  const clearMinorAudioBlocked = useCallback(() => setMinorAudioBlocked(null), []);
   const [chatNotice, setChatNotice] = useState<string | null>(null);
   const [endingSession, setEndingSession] = useState(false);
   const [shouldAutoEnd, setShouldAutoEnd] = useState(false);
@@ -329,9 +333,14 @@ export function useSpeakingChat(opts: {
           const txt = (data.transcript ?? "").trim();
           if (txt) setInputText((prev) => (prev ? `${prev.trim()}\n${txt}` : txt));
         } catch (err: unknown) {
-          const st = httpStatus(err);
-          setError(st === 429 ? t("errorQuota") : t("transcriptionFailed"));
-          if (st === 429 || st >= 500 || st === 0) toastApiError(err, { locale });
+          const blocked = parseMinorAudioBlocked(err);
+          if (blocked) {
+            setMinorAudioBlocked(blocked);
+          } else {
+            const st = httpStatus(err);
+            setError(st === 429 ? t("errorQuota") : t("transcriptionFailed"));
+            if (st === 429 || st >= 500 || st === 0) toastApiError(err, { locale });
+          }
         } finally {
           setIsTranscribing(false);
         }
@@ -367,6 +376,8 @@ export function useSpeakingChat(opts: {
     setRealMessages,
     error,
     setError,
+    minorAudioBlocked,
+    clearMinorAudioBlocked,
     chatNotice,
     setChatNotice,
     endingSession,
