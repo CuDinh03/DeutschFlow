@@ -220,3 +220,13 @@ docs/*
 !docs/wave1-s01-s13/**
 !docs/wave1-s02-s03/
 !docs/wave1-s02-s03/**
+
+# Đặc tả sản phẩm — owner chốt 09/09/2026: CHỈ lưu local, KHÔNG publish.
+# Repo này PUBLIC, còn TAI_LIEU_DAC_TA_SAN_PHAM/ là toàn bộ đặc tả sản phẩm (25 tệp chi-tiet/,
+# ma trận nghiệm thu, bản gộp). Trước đây nó chỉ "chưa được git add" — nghĩa là một lần
+# `git add -A` ở cây chính là đẩy trọn lên GitHub, không lấy lại được.
+#
+# Quy ước "sửa code = cập nhật SRS cùng đợt" (CLAUDE.md) VẪN GIỮ — chỉ là cập nhật tại chỗ,
+# không commit. Bản gộp sinh bằng `node pdf/pipeline/merge-md.mjs`, đếm bằng
+# `pdf/pipeline/count-srs.py`.
+TAI_LIEU_DAC_TA_SAN_PHAM/
