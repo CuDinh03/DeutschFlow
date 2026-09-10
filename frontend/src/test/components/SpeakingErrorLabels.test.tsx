@@ -25,10 +25,11 @@ function renderVi(node: React.ReactNode) {
 }
 
 const LINES: RoomLine[] = [
-  { id: 'l1', role: 'PRUEFER', text: 'Wie heißen Sie?' },
+  { id: 'l1', role: 'PRUEFER', text: 'Wie heißen Sie?', teilNo: 1 },
   {
     id: 'l2',
     role: 'CANDIDATE',
+    teilNo: 1,
     text: 'Ich bin Cu und ich wohne in HaNoi. Was ist von Beruf',
     eval: {
       score: 5,
