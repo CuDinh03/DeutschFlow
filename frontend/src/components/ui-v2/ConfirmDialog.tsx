@@ -20,6 +20,12 @@ export interface ConfirmDialogProps {
   description?: React.ReactNode
   /** Danh sách hệ quả chi tiết (mỗi phần tử một dòng, ví dụ tác động dây chuyền). */
   details?: React.ReactNode[]
+  /**
+   * Nội dung thêm giữa mô tả và hệ quả — dành cho thao tác đòi LÝ DO (thu hồi chứng nhận, DEC-20):
+   * ô nhập nằm ngay trong hộp xác nhận, người dùng ghi lý do rồi mới bấm được nút xác nhận
+   * (kết hợp với `confirmDisabled`). Không có thì dialog y như cũ.
+   */
+  children?: React.ReactNode
   confirmLabel: string
   cancelLabel: string
   /** true (mặc định): hành động hủy hoại — nút xác nhận màu đỏ. */
@@ -42,6 +48,7 @@ export function ConfirmDialog({
   confirmDisabled = false,
   loading = false,
   onConfirm,
+  children,
 }: ConfirmDialogProps) {
   return (
     <TkModal
@@ -74,6 +81,7 @@ export function ConfirmDialog({
       }
     >
       <div className="flex flex-col gap-2">
+        {children}
         {details && details.length > 0 && (
           <ul className="list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-ga-muted">
             {details.map((d, i) => (
