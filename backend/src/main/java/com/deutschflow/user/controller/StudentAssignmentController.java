@@ -7,6 +7,7 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.minor.MinorGate;
 import com.deutschflow.teacher.repository.StudentAssignmentRepository;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
@@ -56,6 +57,8 @@ public class StudentAssignmentController {
     private final com.deutschflow.common.transaction.RunAfterCommitService runAfterCommitService;
     /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
     private final com.deutschflow.teacher.service.SubmissionFileUrlResolver submissionFileUrlResolver;
+    /** DEC-22: chặn tệp ghi âm của học viên chưa đủ điều kiện trước khi cấp URL tải lên. */
+    private final MinorGate minorGate;
 
     /**
      * The assignment the class handed out — resolved and access-checked by ENROLLMENT (the student must be
@@ -115,6 +118,15 @@ public class StudentAssignmentController {
         // Verify the student is enrolled in the assignment's class (a late-joiner may not have a row yet;
         // the row is created when they actually submit).
         assertAssignmentAccessible(user.getId(), assignmentId);
+
+        // DEC-22 / ORG-23 — đường nộp TỆP GHI ÂM cũng là một đường giọng nói của học viên rời khỏi máy
+        // (lên S3 cho giáo viên nghe), và là điểm cắm thứ bảy mà V320 §4 ghi nợ sau sáu đường phiên âm
+        // của PR-1B. Chặn TRƯỚC khi ký URL và ngoài mọi try/catch: một URL đã ký là đã cho phép tải
+        // lên, không thu hồi được. Chủ thể là chính người gọi — giống sáu điểm còn lại. Ảnh/PDF/văn bản
+        // không qua cổng: chúng không mang giọng nói, và chặn chúng là chặn oan cả bài viết tay.
+        if (isAudioBearing(normalizedType)) {
+            minorGate.assertAudioAllowed(user.getId());
+        }
 
         String extension = "";
         if (filename != null && filename.contains(".")) {
@@ -230,6 +242,15 @@ public class StudentAssignmentController {
             @PathVariable Long materialId) {
         return ResponseEntity.ok(new MaterialUrlResponse(
                 materialService.refreshAssignmentMaterialUrlForStudent(user.getId(), assignmentId, materialId)));
+    }
+
+    /**
+     * Loại MIME có thể mang giọng nói: {@code audio/*} và {@code video/*} — video có rãnh tiếng, và
+     * {@code video/mp4} trong {@link #ALLOWED_UPLOAD_TYPES} chính là định dạng máy điện thoại quay bài
+     * nói. Ảnh, PDF, DOCX, text thì không.
+     */
+    static boolean isAudioBearing(String normalizedType) {
+        return normalizedType.startsWith("audio/") || normalizedType.startsWith("video/");
     }
 
     public record MaterialUrlResponse(String url) {}
