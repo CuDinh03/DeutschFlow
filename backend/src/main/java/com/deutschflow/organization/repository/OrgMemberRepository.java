@@ -31,4 +31,11 @@ public interface OrgMemberRepository extends JpaRepository<OrgMember, OrgMemberI
      * gọi tự thấy dữ liệu lệch (học viên có hai membership ACTIVE) thay vì im lặng chọn một.
      */
     List<OrgMember> findByIdUserIdAndRoleAndStatus(Long userId, String role, String status);
+
+    /**
+     * Dòng thành viên ở trung tâm KHÁC với trạng thái đã cho — để thông báo chặn (F4, owner chốt
+     * 10/09/2026) nêu được TÊN trung tâm kia thay vì "một tổ chức khác". Tối đa một dòng ACTIVE trên
+     * thực tế (chính chốt này giữ bất biến đó), nên {@code findFirst} là đủ.
+     */
+    Optional<OrgMember> findFirstByIdUserIdAndStatusAndIdOrgIdNot(Long userId, String status, Long orgId);
 }

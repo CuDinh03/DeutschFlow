@@ -253,6 +253,85 @@ class MinorLearnerServiceTest {
     }
 
     @Nested
+    @DisplayName("updateGuardian — sửa liên lạc, không chạm bằng chứng (D1/R11)")
+    class UpdateGuardian {
+
+        private StudentGuardian existing() {
+            return StudentGuardian.builder().id(9L).studentUserId(STUDENT).orgId(ORG)
+                    .fullName("Nguyễn Thị Mai").relationship(StudentGuardian.Relationship.MOTHER)
+                    .phone("0901234567").email(null).primary(false).build();
+        }
+
+        @Test
+        @DisplayName("sửa được điện thoại/email; vết student_guardian_updated mang TÊN TRƯỜNG đã đổi, không mang giá trị")
+        void updatesContactAndAuditsFieldNamesOnly() {
+            StudentGuardian current = existing();
+            when(guardianRepository.findById(9L)).thenReturn(Optional.of(current));
+            when(guardianRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            stubBirthDate(aged(14));
+
+            StudentGuardian saved = service.updateGuardian(STUDENT, 9L, ORG, new GuardianDraft(
+                    "Nguyễn Thị Mai", StudentGuardian.Relationship.MOTHER, "0909999999", " Me.Mai@Example.COM ", false),
+                    ACTOR);
+
+            assertThat(saved.getPhone()).isEqualTo("0909999999");
+            assertThat(saved.getEmail()).isEqualTo("me.mai@example.com");
+            ArgumentCaptor<String> event = ArgumentCaptor.forClass(String.class);
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+            verify(auditLogService).log(event.capture(), eq(ACTOR), eq("STUDENT_GUARDIAN"), eq("9"), eq(ORG), meta.capture());
+            assertThat(event.getValue()).isEqualTo("student_guardian_updated");
+            assertThat(meta.getValue()).containsEntry("guardianId", 9L)
+                    .containsEntry("changedFields", java.util.List.of("phone", "email"))
+                    .doesNotContainKeys("fullName", "phone", "email", "relationship");
+            assertThat(meta.getValue().values().stream().map(String::valueOf))
+                    .noneMatch(v -> v.contains("Mai") || v.contains("0909999999") || v.contains("example.com"));
+        }
+
+        @Test
+        @DisplayName("nâng lên người chính → hạ người chính hiện tại TRƯỚC (uq_student_guardians_primary)")
+        void promotingDemotesCurrentPrimaryFirst() {
+            StudentGuardian target = existing();
+            StudentGuardian currentPrimary = StudentGuardian.builder().id(1L).studentUserId(STUDENT).primary(true).build();
+            when(guardianRepository.findById(9L)).thenReturn(Optional.of(target));
+            when(guardianRepository.findByStudentUserIdAndPrimaryTrue(STUDENT)).thenReturn(Optional.of(currentPrimary));
+            when(guardianRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            stubBirthDate(aged(14));
+
+            StudentGuardian saved = service.updateGuardian(STUDENT, 9L, ORG, new GuardianDraft(
+                    "Nguyễn Thị Mai", StudentGuardian.Relationship.MOTHER, "0901234567", null, true), ACTOR);
+
+            assertThat(currentPrimary.isPrimary()).isFalse();
+            verify(guardianRepository).saveAndFlush(currentPrimary);
+            assertThat(saved.isPrimary()).isTrue();
+        }
+
+        @Test
+        @DisplayName("người giám hộ của học viên KHÁC → NotFound, không sửa, không vết")
+        void guardianOfAnotherStudent_notFound() {
+            StudentGuardian foreign = StudentGuardian.builder().id(9L).studentUserId(OTHER_STUDENT).build();
+            when(guardianRepository.findById(9L)).thenReturn(Optional.of(foreign));
+
+            assertThatThrownBy(() -> service.updateGuardian(STUDENT, 9L, ORG, new GuardianDraft(
+                    "X", StudentGuardian.Relationship.OTHER, "0901", null, false), ACTOR))
+                    .isInstanceOf(NotFoundException.class);
+            verify(guardianRepository, never()).save(any());
+            verify(auditLogService, never()).log(anyString(), any(), anyString(), anyString(), any(), any());
+        }
+
+        @Test
+        @DisplayName("bỏ cả điện thoại lẫn email khi sửa → chặn (bản ghi phải liên lạc được)")
+        void removingAllContact_rejected() {
+            when(guardianRepository.findById(9L)).thenReturn(Optional.of(existing()));
+
+            assertThatThrownBy(() -> service.updateGuardian(STUDENT, 9L, ORG, new GuardianDraft(
+                    "Nguyễn Thị Mai", StudentGuardian.Relationship.MOTHER, " ", "", false), ACTOR))
+                    .isInstanceOf(BadRequestException.class);
+            verify(guardianRepository, never()).save(any());
+        }
+    }
+
+    @Nested
     @DisplayName("recordConsent + consentStatus")
     class Consent {
 

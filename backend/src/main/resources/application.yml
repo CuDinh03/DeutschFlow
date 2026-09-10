@@ -324,6 +324,12 @@ app:
     # rồi mới siết. Siết trước khi đo là đổi một rủi ro pháp lý lấy một sự cố vận hành chắc chắn.
     unknown-age-audio: ${APP_MINOR_UNKNOWN_AGE_AUDIO:BLOCK_ORG_MEMBERS}
 
+    # Phiên bản ĐIỀU KHOẢN mà phiếu đồng ý thu từ hôm nay được coi là đồng ý với (student_consents.
+    # terms_version). Máy chủ là bên duy nhất ghi giá trị này — cột CSV consentConfirmed và endpoint
+    # ghi phiếu giấy của trung tâm đều lấy từ đây (MinorConsentTerms), client không gửi lên. Đổi điều
+    # khoản = đổi giá trị này; các dòng đã ghi giữ nguyên phiên bản cũ.
+    consent-terms-version: ${APP_MINOR_CONSENT_TERMS_VERSION:2026-09}
+
     # Hạn lưu BẢN GHI ÂM của học viên chưa thành niên (owner chốt 09/09/2026). Bản chuyển chữ và điểm
     # KHÔNG bị đụng tới — chúng thuộc hồ sơ học tập và giữ lâu dài. Xem MinorAudioRetentionService.
     audio-retention-days: ${APP_MINOR_AUDIO_RETENTION_DAYS:30}

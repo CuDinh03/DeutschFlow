@@ -102,7 +102,21 @@ export interface OrgStudentClass {
   name: string
 }
 
-/** GET /org/students/{id} — student detail: membership + org-scoped enrolled classes (B1.2). */
+/**
+ * Nhóm tuổi theo `MinorPolicy` phía máy chủ (DEC-22): UNKNOWN = chưa khai ngày sinh; MINOR_LEGAL =
+ * dưới 16 (luật đòi đồng ý người giám hộ); MINOR_CENTER_POLICY = 16–17 (luật nội bộ trung tâm); ADULT.
+ */
+export type MinorStatus = 'UNKNOWN' | 'MINOR_LEGAL' | 'MINOR_CENTER_POLICY' | 'ADULT'
+
+/** Trạng thái đồng ý HIỆN TẠI của một phạm vi — suy từ sổ chỉ-ghi-thêm (`ConsentState` máy chủ). */
+export type ConsentState = 'NEVER_RECORDED' | 'GRANTED' | 'REVOKED'
+
+/**
+ * GET /org/students/{id} — student detail: membership + org-scoped enrolled classes (B1.2).
+ *
+ * Bốn trường cuối (D1/R11, 10/09/2026) là tóm tắt chưa-thành-niên cho mục "Người giám hộ & đồng ý".
+ * ⛔ KHÔNG có ngày sinh thô — máy chủ cố ý không trả, web cũng không được suy ra để hiển thị.
+ */
 export interface OrgStudentDetail {
   userId: number
   email: string | null
@@ -111,6 +125,66 @@ export interface OrgStudentDetail {
   status: MemberStatus
   joinedAt: string | null
   classes: OrgStudentClass[]
+  minorStatus: MinorStatus
+  birthDateRecorded: boolean
+  /** Phạm vi AUDIO_RECORDING — đúng trạng thái mà `MinorGate` đang đọc để khoá/mở phần nói. */
+  audioConsentState: ConsentState
+  guardianCount: number
+}
+
+// ── Người giám hộ & sổ đồng ý (D1/R11, 10/09/2026) — /org/students/{userId}/guardians|consents ──
+
+export type GuardianRelationship = 'MOTHER' | 'FATHER' | 'LEGAL_GUARDIAN' | 'OTHER'
+export type ConsentScope = 'DATA_PROCESSING' | 'AI_PROCESSING' | 'AUDIO_RECORDING' | 'MESSAGING'
+export type ConsentAction = 'GRANTED' | 'REVOKED'
+export type ConsentMethod = 'PAPER' | 'EMAIL' | 'IN_APP' | 'PHONE'
+
+export interface OrgStudentGuardian {
+  id: number
+  fullName: string
+  relationship: GuardianRelationship
+  phone: string | null
+  email: string | null
+  primary: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+/** Thêm/sửa người giám hộ. `primary` bỏ trống: thêm = người đầu tiên là chính; sửa = giữ nguyên. */
+export interface GuardianInput {
+  fullName: string
+  relationship: GuardianRelationship
+  phone?: string
+  email?: string
+  primary?: boolean
+}
+
+/** Một dòng trong sổ đồng ý — sổ CHỈ GHI THÊM, không có PUT/DELETE. */
+export interface OrgStudentConsent {
+  id: number
+  scope: ConsentScope
+  action: ConsentAction
+  method: ConsentMethod
+  guardianId: number | null
+  guardianName: string | null
+  termsVersion: string
+  /** Lúc đồng ý/thu hồi THẬT (ngày ký giấy) — khác `createdAt` là lúc nhân viên bấm nhập. */
+  effectiveAt: string
+  recordedByUserId: number | null
+  recordedByName: string | null
+  note: string | null
+  createdAt: string
+}
+
+/** Ghi thêm một dòng. KHÔNG có termsVersion: máy chủ là bên duy nhất biết điều khoản đang hiệu lực. */
+export interface ConsentInput {
+  scope: ConsentScope
+  action: ConsentAction
+  method: ConsentMethod
+  guardianId?: number
+  /** ISO; bỏ trống = bây giờ. */
+  effectiveAt?: string
+  note?: string
 }
 
 /** One CEFR-level bucket in the org-wide distribution (level → student count). */
@@ -423,6 +497,43 @@ export async function getOrgClassDetail(id: number): Promise<OrgClassDetail> {
 /** GET /org/students/{id} — student detail (membership + classes). 404 if not in caller's org (B1.2). */
 export async function getOrgStudentDetail(id: number): Promise<OrgStudentDetail> {
   const res = await api.get<OrgStudentDetail>(`/org/students/${id}`)
+  return res.data
+}
+
+/** GET /org/students/{id}/guardians — người chính đứng đầu. 404 nếu học viên không ACTIVE ở trung tâm. */
+export async function listStudentGuardians(studentId: number): Promise<OrgStudentGuardian[]> {
+  const res = await api.get<OrgStudentGuardian[]>(`/org/students/${studentId}/guardians`)
+  return res.data ?? []
+}
+
+/** POST /org/students/{id}/guardians — OWNER/MANAGER, trung tâm phải còn quyền ghi. */
+export async function addStudentGuardian(studentId: number, body: GuardianInput): Promise<OrgStudentGuardian> {
+  const res = await api.post<OrgStudentGuardian>(`/org/students/${studentId}/guardians`, body)
+  return res.data
+}
+
+/** PUT /org/students/{id}/guardians/{guardianId} — sửa liên lạc, KHÔNG chạm bằng chứng đồng ý đã thu. */
+export async function updateStudentGuardian(
+  studentId: number,
+  guardianId: number,
+  body: GuardianInput,
+): Promise<OrgStudentGuardian> {
+  const res = await api.put<OrgStudentGuardian>(`/org/students/${studentId}/guardians/${guardianId}`, body)
+  return res.data
+}
+
+/** GET /org/students/{id}/consents — sổ đồng ý, mới nhất trước. */
+export async function listStudentConsents(studentId: number): Promise<OrgStudentConsent[]> {
+  const res = await api.get<OrgStudentConsent[]>(`/org/students/${studentId}/consents`)
+  return res.data ?? []
+}
+
+/**
+ * POST /org/students/{id}/consents — ghi THÊM một dòng (cấp hoặc thu hồi). Thu hồi = `action: 'REVOKED'`;
+ * không có đường sửa/xoá dòng đã ghi.
+ */
+export async function recordStudentConsent(studentId: number, body: ConsentInput): Promise<OrgStudentConsent> {
+  const res = await api.post<OrgStudentConsent>(`/org/students/${studentId}/consents`, body)
   return res.data
 }
 

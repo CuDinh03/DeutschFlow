@@ -156,6 +156,9 @@ class OrgRosterServiceTransactionTest {
         ctx.registerBean(MinorLearnerService.class, () -> minorLearnerService);
         // MinorPolicy thuần tính toán, dựng thật với ngưỡng mặc định production (16/18).
         ctx.registerBean(MinorPolicy.class, () -> new MinorPolicy(16, 18));
+        // D1: dòng roster nay có thể mang cột consentConfirmed; phiên bản điều khoản thuần cấu hình.
+        ctx.registerBean(com.deutschflow.common.minor.MinorConsentTerms.class,
+                () -> new com.deutschflow.common.minor.MinorConsentTerms("2026-09"));
         ctx.registerBean(RosterMinorColumnReader.class);
         // Real and proxied — these are the beans whose transaction boundaries are under test.
         ctx.registerBean(OrgMembershipService.class);

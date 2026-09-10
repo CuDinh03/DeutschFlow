@@ -13,21 +13,27 @@ import java.time.LocalDate;
  * {@code guardianPhone} với {@code guardianName} thì trình biên dịch không nói gì cả, còn dữ liệu
  * thì đã sai trên hồ sơ của một đứa trẻ. Cùng lý do với {@link GuardianDraft} (xem javadoc ở đó).
  *
- * <p><b>Kiểm ở đâu.</b> Mọi kiểm tra ĐỌC ĐƯỢC (định dạng ngày, ngày tương lai, thiếu người giám hộ)
- * nằm ở {@link OrgRosterService} — chỉ chỗ đó mới biết SỐ DÒNG VẬT LÝ để nói cho người nhập biết
- * phải sửa dòng nào trong Excel. Tới được đây thì dòng đã hợp lệ; {@code importRow} chỉ còn việc ghi.
+ * <p><b>Kiểm ở đâu.</b> Mọi kiểm tra ĐỌC ĐƯỢC (định dạng ngày, ngày tương lai, thiếu người giám hộ,
+ * ô đồng ý gõ lạ) nằm ở {@link OrgRosterService} — chỉ chỗ đó mới biết SỐ DÒNG VẬT LÝ để nói cho
+ * người nhập biết phải sửa dòng nào trong Excel. Tới được đây thì dòng đã hợp lệ; {@code importRow}
+ * chỉ còn việc ghi.
  *
- * @param email       đã chuẩn hoá và kiểm định dạng ở {@link OrgRosterService}
- * @param displayName cột tên hiển thị thô; rỗng thì {@code importRow} lấy phần trước {@code @} của email
- * @param birthDate   {@code null} = tệp không có cột ngày sinh, hoặc ô để trống. KHÔNG phải lỗi:
- *                    owner chốt ghi danh không phải cổng chặn (09/09/2026), cổng nằm ở đường dữ liệu
- *                    đi ra nhà cung cấp AI
- * @param guardian    {@code null} = dòng không khai người giám hộ
+ * @param email            đã chuẩn hoá và kiểm định dạng ở {@link OrgRosterService}
+ * @param displayName      cột tên hiển thị thô; rỗng thì {@code importRow} lấy phần trước {@code @} của email
+ * @param birthDate        {@code null} = tệp không có cột ngày sinh, hoặc ô để trống. KHÔNG phải lỗi:
+ *                         owner chốt ghi danh không phải cổng chặn (09/09/2026), cổng nằm ở đường dữ
+ *                         liệu đi ra nhà cung cấp AI
+ * @param guardian         {@code null} = dòng không khai người giám hộ
+ * @param consentConfirmed trung tâm xác nhận đã cầm phiếu đồng ý giấy của người giám hộ cho phạm vi
+ *                         ghi âm (cột {@code consentConfirmed}, D1 — owner chốt 10/09/2026). Ghi một
+ *                         dòng {@code GRANTED} phương thức {@code PAPER} — chỉ khi trạng thái hiện tại
+ *                         chưa là {@code GRANTED}, để nhập lại cùng tệp không làm phình sổ chỉ-ghi-thêm
  */
 public record RosterRowInput(
         String email,
         String displayName,
         LocalDate birthDate,
-        GuardianDraft guardian
+        GuardianDraft guardian,
+        boolean consentConfirmed
 ) {
 }

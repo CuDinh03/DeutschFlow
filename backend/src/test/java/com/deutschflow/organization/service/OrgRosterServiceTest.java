@@ -3,9 +3,13 @@ package com.deutschflow.organization.service;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.minor.ConsentDraft;
+import com.deutschflow.common.minor.ConsentState;
 import com.deutschflow.common.minor.GuardianDraft;
+import com.deutschflow.common.minor.MinorConsentTerms;
 import com.deutschflow.common.minor.MinorLearnerService;
 import com.deutschflow.common.minor.MinorPolicy;
+import com.deutschflow.common.minor.StudentConsent;
 import com.deutschflow.common.minor.StudentGuardian;
 import com.deutschflow.organization.dto.RosterImportResultDto;
 import com.deutschflow.organization.entity.OrgMember;
@@ -40,6 +44,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -73,6 +78,7 @@ class OrgRosterServiceTest {
     private static final AuditActor ACTOR = new AuditActor(2L, "manager@tt.vn", "MANAGER");
     private static final Long ORG_ID = 10L;
     private static final Long CLASS_ID = 55L;
+    private static final String TERMS_VERSION = "2026-09";
 
     @BeforeEach
     void setUp() {
@@ -89,6 +95,9 @@ class OrgRosterServiceTest {
                 classEnrollmentService,
                 assignmentBackfillService,
                 minorLearnerService,
+                // Phiên bản điều khoản thật từ cấu hình: mock thì ca "dòng đồng ý mang termsVersion"
+                // chỉ còn kiểm chính cái mock.
+                new MinorConsentTerms(TERMS_VERSION),
                 jdbcTemplate
         );
         service = new OrgRosterService(
@@ -905,5 +914,259 @@ class OrgRosterServiceTest {
                 .doesNotContain(birthDate)
                 .doesNotContain("Trần Thị Bình")
                 .doesNotContain("0987654321");
+    }
+
+    // ================================================================== D1/D6/F4/R11 (owner chốt 10/09/2026)
+    //
+    // Bốn quyết định mà nhóm test này khoá lại:
+    //   D1  cột consentConfirmed ghi một dòng AUDIO_RECORDING/GRANTED/PAPER, idempotent theo trạng thái;
+    //   D6  dữ liệu chưa thành niên chỉ ghi SAU khi dòng đã là thành viên — dòng bị chặn không chạm users;
+    //   F4  học viên đang ACTIVE ở trung tâm khác ⇒ chặn dòng, nêu TÊN trung tâm đó;
+    //   R11 cột guardianEmail: hợp lệ thì vào GuardianDraft (hạ chữ thường), sai thì từ chối dòng.
+
+    @Test
+    @DisplayName("D1: consentConfirmed=có → ghi ĐÚNG MỘT dòng AUDIO_RECORDING/GRANTED/PAPER, termsVersion từ cấu hình, note roster-import")
+    void importStudents_consentConfirmed_recordsOneGrantedPaperConsent() {
+        stubOrg(org(0, null));
+        String csv = "email,displayName,birthDate,guardianName,guardianPhone,consentConfirmed\n"
+                + "an@x.com,An," + birthDateAgedYears(14) + ",Trần Bình,0987,x\n";
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        when(userRepository.save(any(User.class))).thenReturn(savedStudent(21L, "an@x.com"));
+        when(minorLearnerService.consentStatus(21L, StudentConsent.Scope.AUDIO_RECORDING))
+                .thenReturn(ConsentState.NEVER_RECORDED);
+        // Người giám hộ vừa được thêm ở bước trước là người chính ⇒ dòng đồng ý nối vào người đó.
+        when(minorLearnerService.guardiansOf(21L))
+                .thenReturn(List.of())   // lượt kiểm "đã có ai chưa" trước khi thêm
+                .thenReturn(List.of(StudentGuardian.builder().id(77L).studentUserId(21L).primary(true).build()));
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).as("dòng hợp lệ: %s", result.errors()).isEqualTo(0);
+        ArgumentCaptor<ConsentDraft> draft = ArgumentCaptor.forClass(ConsentDraft.class);
+        verify(minorLearnerService, times(1)).recordConsent(eq(21L), eq(ORG_ID), draft.capture(), eq(ACTOR));
+        assertThat(draft.getValue().scope()).isEqualTo(StudentConsent.Scope.AUDIO_RECORDING);
+        assertThat(draft.getValue().action()).isEqualTo(StudentConsent.Action.GRANTED);
+        assertThat(draft.getValue().method()).isEqualTo(StudentConsent.Method.PAPER);
+        assertThat(draft.getValue().termsVersion()).isEqualTo(TERMS_VERSION);
+        assertThat(draft.getValue().note()).isEqualTo("roster-import");
+        assertThat(draft.getValue().guardianId()).isEqualTo(77L);
+        assertThat(draft.getValue().effectiveAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("D1: nhập lại cùng tệp khi đã GRANTED → KHÔNG ghi thêm dòng (sổ chỉ-ghi-thêm không phình)")
+    void importStudents_consentConfirmed_alreadyGranted_doesNotAppend() {
+        stubOrg(org(0, null));
+        User existing = savedStudent(22L, "an@x.com");
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.of(existing));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 22L))
+                .thenReturn(Optional.of(activeMember(22L, "STUDENT")));
+        when(minorLearnerService.consentStatus(22L, StudentConsent.Scope.AUDIO_RECORDING))
+                .thenReturn(ConsentState.GRANTED);
+        String csv = "email,birthDate,consentConfirmed\nan@x.com,,yes\n";
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(0);
+        assertThat(result.linked()).isEqualTo(1);
+        verify(minorLearnerService, never()).recordConsent(anyLong(), anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("D1: đã REVOKED mà tệp đánh dấu có → VẪN ghi GRANTED mới (cấp lại sau thu hồi là bằng chứng mới)")
+    void importStudents_consentConfirmed_afterRevoke_appendsNewGrant() {
+        stubOrg(org(0, null));
+        User existing = savedStudent(23L, "an@x.com");
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.of(existing));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 23L))
+                .thenReturn(Optional.of(activeMember(23L, "STUDENT")));
+        when(minorLearnerService.consentStatus(23L, StudentConsent.Scope.AUDIO_RECORDING))
+                .thenReturn(ConsentState.REVOKED);
+        String csv = "email,birthDate,consentConfirmed\nan@x.com,,đã thu\n";
+
+        service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        verify(minorLearnerService).recordConsent(eq(23L), eq(ORG_ID), any(), eq(ACTOR));
+    }
+
+    @Test
+    @DisplayName("D1: tệp CHỈ có email,consentConfirmed (không birthDate) vẫn đọc cột đồng ý — không bỏ qua im lặng")
+    void importStudents_consentColumnWithoutBirthDate_stillRead() {
+        stubOrg(org(0, null));
+        User existing = savedStudent(24L, "an@x.com");
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.of(existing));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 24L))
+                .thenReturn(Optional.of(activeMember(24L, "STUDENT")));
+        when(minorLearnerService.consentStatus(24L, StudentConsent.Scope.AUDIO_RECORDING))
+                .thenReturn(ConsentState.NEVER_RECORDED);
+        String csv = "email,consentConfirmed\nan@x.com,1\n";
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(0);
+        verify(minorLearnerService).recordConsent(eq(24L), eq(ORG_ID), any(), eq(ACTOR));
+        verify(minorLearnerService, never()).recordBirthDate(anyLong(), any(), anyLong(), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("D1: tiêu đề tiếng Việt có dấu \"Đã xác nhận đồng ý\" và ô \"Có\" vẫn được hiểu")
+    void importStudents_vietnameseConsentHeaderAndValue() {
+        stubOrg(org(0, null));
+        User existing = savedStudent(25L, "an@x.com");
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.of(existing));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 25L))
+                .thenReturn(Optional.of(activeMember(25L, "STUDENT")));
+        when(minorLearnerService.consentStatus(25L, StudentConsent.Scope.AUDIO_RECORDING))
+                .thenReturn(ConsentState.NEVER_RECORDED);
+        String csv = "email,Ngày sinh,Đã xác nhận đồng ý\nan@x.com,,Có\n";
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).as(result.errors().toString()).isEqualTo(0);
+        verify(minorLearnerService).recordConsent(eq(25L), eq(ORG_ID), any(), eq(ACTOR));
+    }
+
+    @Test
+    @DisplayName("D1: ô consentConfirmed gõ lạ (\"đang xin\") → từ chối dòng kèm bộ giá trị nhận được, KHÔNG đoán")
+    void importStudents_consentConfirmedUnknownValue_rejected() {
+        stubOrg(org(0, null));
+        String csv = "email,birthDate,consentConfirmed\nan@x.com,,đang xin\n";
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.errors()).singleElement().asString()
+                .contains("Dòng 2").contains("an@x.com").contains("consentConfirmed");
+        verify(userRepository, never()).save(any(User.class));
+        verify(minorLearnerService, never()).recordConsent(anyLong(), anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("D1: ô consentConfirmed trống hoặc \"không\" → không ghi gì, dòng vẫn vào (D2: thiếu đồng ý không chặn ghi danh)")
+    void importStudents_consentConfirmedBlankOrNo_importsWithoutConsent() {
+        stubOrg(org(0, null));
+        String csv = "email,displayName,birthDate,guardianName,guardianPhone,consentConfirmed\n"
+                + "a@x.com,A," + birthDateAgedYears(14) + ",Mẹ A,0901,\n"
+                + "b@x.com,B," + birthDateAgedYears(14) + ",Mẹ B,0902,không\n";
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId("a@x.com".equals(u.getEmail()) ? 31L : 32L);
+            return u;
+        });
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).as(result.errors().toString()).isEqualTo(0);
+        assertThat(result.created()).isEqualTo(2);
+        verify(minorLearnerService, never()).recordConsent(anyLong(), anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("R11: guardianEmail hợp lệ → vào GuardianDraft (hạ chữ thường); chỉ email, không điện thoại vẫn nhận")
+    void importStudents_guardianEmail_valid_recorded() {
+        stubOrg(org(0, null));
+        String csv = "email,birthDate,guardianName,guardianEmail\n"
+                + "an@x.com," + birthDateAgedYears(14) + ",Trần Bình,Bo.Binh@Example.COM\n";
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        when(userRepository.save(any(User.class))).thenReturn(savedStudent(26L, "an@x.com"));
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).as(result.errors().toString()).isEqualTo(0);
+        ArgumentCaptor<GuardianDraft> draft = ArgumentCaptor.forClass(GuardianDraft.class);
+        verify(minorLearnerService).recordGuardian(eq(26L), eq(ORG_ID), draft.capture(), eq(ACTOR));
+        assertThat(draft.getValue().email()).isEqualTo("bo.binh@example.com");
+        assertThat(draft.getValue().phone()).isNull();
+        assertThat(draft.getValue().fullName()).isEqualTo("Trần Bình");
+    }
+
+    @Test
+    @DisplayName("R11: guardianEmail sai định dạng → từ chối dòng, nêu dòng + email học viên + lý do")
+    void importStudents_guardianEmail_invalid_rejected() {
+        stubOrg(org(0, null));
+        String csv = "email,birthDate,guardianName,guardianPhone,guardianEmail\n"
+                + "an@x.com," + birthDateAgedYears(14) + ",Trần Bình,0987,khong-phai-email\n";
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.errors()).singleElement().asString()
+                .contains("Dòng 2").contains("an@x.com").contains("guardianEmail");
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("🔴 F4 + D6: học viên đang ACTIVE ở trung tâm A → dòng bị chặn NÊU TÊN A, không upsert, KHÔNG ghi birth_date")
+    void importStudents_studentActiveElsewhere_rejectedNamingOtherOrg_noBirthDateWrite() {
+        stubOrg(org(0, null));
+        User existing = savedStudent(27L, "an@x.com");
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.of(existing));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 27L)).thenReturn(Optional.empty());
+        when(membershipService.activeMembershipElsewhere(27L, ORG_ID))
+                .thenReturn(Optional.of(new OrgMembershipService.ActiveElsewhere(99L, "Trung tâm Alpha", "STUDENT")));
+        String csv = "email,displayName,birthDate,guardianName,guardianPhone,consentConfirmed\n"
+                + "an@x.com,An," + birthDateAgedYears(14) + ",Trần Bình,0987,x\n";
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.linked()).isEqualTo(0);
+        assertThat(result.errors()).singleElement().asString()
+                .contains("Dòng 2").contains("an@x.com").contains("Trung tâm Alpha");
+        // D6: dòng bị từ chối thì không được chạm users — không ngày sinh, không giám hộ, không đồng ý.
+        verify(membershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+        verify(entitlementService, never()).grantStudent(anyLong(), any());
+        verify(minorLearnerService, never()).recordBirthDate(anyLong(), any(), anyLong(), anyLong(), any());
+        verify(minorLearnerService, never()).recordGuardian(anyLong(), anyLong(), any(), any());
+        verify(minorLearnerService, never()).recordConsent(anyLong(), anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("F4: STUDENT chưa thuộc trung tâm nào vẫn vào được — chốt chỉ chạm người đang ACTIVE ở nơi khác")
+    void importStudents_studentInNoOrg_stillImported() {
+        Organization org = org(0, null);
+        stubOrg(org);
+        User existing = savedStudent(28L, "an@x.com");
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.of(existing));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 28L)).thenReturn(Optional.empty());
+        when(membershipService.activeMembershipElsewhere(28L, ORG_ID)).thenReturn(Optional.empty());
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, "an@x.com,An", null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(0);
+        assertThat(result.linked()).isEqualTo(1);
+        verify(membershipService).upsertMember(eq(ORG_ID), eq(28L), eq("STUDENT"));
+    }
+
+    @Test
+    @DisplayName("F4: chốt thẩm quyền trong upsertMember ném ConflictException → dòng đó lỗi, không kéo dòng lành, không ghi birth_date")
+    void importStudents_upsertConflict_onlyThatRowFails() {
+        Organization org = org(0, null);
+        stubOrg(org);
+        String csv = "email,displayName,birthDate\n"
+                + "chan@x.com,Chặn," + birthDateAgedYears(20) + "\n"
+                + "lanh@x.com,Lành," + birthDateAgedYears(20) + "\n";
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId("chan@x.com".equals(u.getEmail()) ? 41L : 42L);
+            return u;
+        });
+        doThrow(new com.deutschflow.common.exception.ConflictException(
+                "Người dùng đang là thành viên đang hoạt động của trung tâm \"Beta\" — phải rời trung tâm đó trước khi vào trung tâm này."))
+                .when(membershipService).upsertMember(ORG_ID, 41L, "STUDENT");
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.created()).isEqualTo(1);
+        assertThat(result.errors()).singleElement().asString().contains("Dòng 2").contains("Beta");
+        verify(minorLearnerService, never()).recordBirthDate(eq(41L), any(), anyLong(), anyLong(), any());
+        verify(minorLearnerService).recordBirthDate(eq(42L), any(), eq(2L), eq(ORG_ID), eq(ACTOR));
     }
 }
