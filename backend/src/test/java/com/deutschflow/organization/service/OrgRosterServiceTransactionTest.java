@@ -142,6 +142,9 @@ class OrgRosterServiceTransactionTest {
         // tối giản phải có bean này dù đường import CSV không bao giờ gọi tới nó.
         ctx.registerBean(com.deutschflow.user.repository.RefreshTokenRepository.class,
                 () -> mock(com.deutschflow.user.repository.RefreshTokenRepository.class));
+        // Gói 2 (11/09/2026): OrgMembershipService chặn lớp mồ côi khi gỡ/tự rời — cùng lý do như
+        // dòng trên, đường import CSV không bao giờ gọi tới nó nhưng context tối giản vẫn phải có.
+        ctx.registerBean(OrgTeachingHandoverGuard.class, () -> mock(OrgTeachingHandoverGuard.class));
         // PR-2: OrgMembershipService.deactivate nay thu hồi phân công duyệt học vụ (security H1)
         // — context tối giản cần bean này; mock vì bài test đo ranh giới transaction, không đo revoke.
         ctx.registerBean(OrgAcademicApproverRepository.class, () -> academicApproverRepository);

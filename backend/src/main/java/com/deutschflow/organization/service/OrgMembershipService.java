@@ -76,6 +76,7 @@ public class OrgMembershipService {
     private final OrganizationRepository organizationRepository;
     private final OrgEntitlementService orgEntitlementService;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final OrgTeachingHandoverGuard teachingHandoverGuard;
 
     /**
      * True if the user currently holds an ACTIVE membership in any org. Callers use this to route
@@ -300,6 +301,10 @@ public class OrgMembershipService {
      */
     @Transactional
     public void removeMember(Long orgId, Long userId, AuditActor actor) {
+        // G-07: chặn TRƯỚC khi đụng bất kỳ dữ liệu nào. Đặt sau `deactivate` thì lớp đã bị đóng
+        // dấu vết rồi mới 409 — người gọi thấy lỗi nhưng trạng thái đã đổi một nửa.
+        teachingHandoverGuard.assertNoOrphanedClasses(
+                orgId, userId, OrgTeachingHandoverGuard.Action.REMOVE_FROM_ORG);
         String role = deactivate(orgId, userId, STATUS_REVOKED, actor);
         audit("org_member_removed", actor, orgId, userId, meta("role", role, "status", STATUS_REVOKED));
         revokeSessions(orgId, userId, REVOKE_REASON_REMOVED, actor);
@@ -321,6 +326,9 @@ public class OrgMembershipService {
         if (ROLE_OWNER.equals(member.getRole())) {
             throw new BadRequestException("Chủ sở hữu không thể tự rời — hãy chuyển quyền sở hữu trước.");
         }
+        // G-07: cùng chốt với removeMember, thông điệp đổi ngôi ("Rời trung tâm lúc này sẽ để lại…").
+        teachingHandoverGuard.assertNoOrphanedClasses(
+                orgId, userId, OrgTeachingHandoverGuard.Action.LEAVE_ORG);
         String role = member.getRole();
         member.setStatus(STATUS_LEFT);
         member.setLeftAt(Instant.now());
@@ -677,6 +685,39 @@ public class OrgMembershipService {
         academicApproverRepo.revokeAllActiveFor(orgId, userId, java.time.LocalDateTime.now(), null);
         classStudentRepository.endEnrollmentsInOrg(orgId, userId,
                 java.time.LocalDateTime.now(), ClassStudent.END_REASON_LEFT_ORG);
+        closeTeachingAssignments(orgId, userId);
+    }
+
+    /**
+     * Gỡ người rời khỏi MỌI dòng đồng giảng dạy của trung tâm này (Gói 2, 11/09/2026).
+     *
+     * <p><b>Vì sao cần.</b> Trước đợt này {@code closeOrgFootprint} đóng quyền duyệt học vụ và ghi
+     * danh học viên nhưng KHÔNG đụng {@code class_teachers}, nên giáo viên rời trung tâm vẫn giữ
+     * nguyên dòng phân công. Đó không phải rác dữ liệu vô hại: {@code existsByIdClassIdAndIdTeacherId}
+     * chính là cổng phân quyền theo lớp ở hơn mười điểm gọi — trong đó có đường CHẤM BÀI — và nó chỉ
+     * hỏi "có dòng phân công không", không hỏi "người này còn là thành viên không".
+     *
+     * <p><b>Chỉ xoá trong phạm vi trung tâm này.</b> Một người có thể dạy ở nhiều trung tâm (owner
+     * cho phép đa trung tâm với vai TEACHER); rời chỗ này không được đụng lớp của chỗ kia. Lớp riêng
+     * ngoài trung tâm ({@code org_id IS NULL}) cũng không đụng — đó là lớp của chính họ.
+     *
+     * <p><b>Vì sao xoá hẳn chứ không đóng dấu.</b> {@code class_teachers} là bảng CẤP QUYỀN, không
+     * phải sổ lịch sử: nó không có cột trạng thái hay mốc kết thúc, và lịch sử ai từng dạy lớp nào
+     * đã nằm ở sổ audit. Thêm cột trạng thái vào đây cần migration và buộc cả chục điểm gọi phải nhớ
+     * lọc — đúng kiểu lỗ mà đợt này đang đi vá.
+     *
+     * <p>🔴 Gọi được ở đây là vì {@code assertNoOrphanedClasses} đã chạy TRƯỚC ở cả hai đường
+     * (gỡ và tự rời) trên trạng thái CHƯA đổi: tới bước này thì chắc chắn không lớp nào mất người dạy.
+     */
+    private void closeTeachingAssignments(Long orgId, Long userId) {
+        int removed = jdbcTemplate.update("""
+                DELETE FROM class_teachers ct
+                 WHERE ct.teacher_id = ?
+                   AND ct.class_id IN (SELECT tc.id FROM teacher_classes tc WHERE tc.org_id = ?)
+                """, userId, orgId);
+        if (removed > 0) {
+            log.info("Đã gỡ {} dòng phân công lớp của userId={} khi rời orgId={}", removed, userId, orgId);
+        }
     }
 
     /** True khi {@code actor} là OWNER ĐANG HOẠT ĐỘNG của org — đọc lại từ DB, không tin vai trong token. */

@@ -63,6 +63,7 @@ class OrgMembershipServiceTest {
     @Mock private com.deutschflow.organization.repository.OrganizationRepository organizationRepository;
     @Mock private OrgEntitlementService orgEntitlementService;
     @Mock private RefreshTokenRepository refreshTokenRepository;
+    @Mock private OrgTeachingHandoverGuard teachingHandoverGuard;
 
     /** Người thao tác — mọi mutation thành viên nay ghi vết kèm danh tính này. */
     private static final AuditActor ACTOR = new AuditActor(2L, "owner@tt.vn", "OWNER");
@@ -74,7 +75,10 @@ class OrgMembershipServiceTest {
     void setUp() {
         service = new OrgMembershipService(memberRepo, academicApproverRepo, classStudentRepository,
                 userRepository, jdbcTemplate,
-                auditLogService, organizationRepository, orgEntitlementService, refreshTokenRepository);
+                auditLogService, organizationRepository, orgEntitlementService, refreshTokenRepository,
+                // Chốt lớp mồ côi (G-07): mock KHÔNG ném ⇒ mọi ca sẵn có giữ nguyên nghĩa
+                // "không lớp nào mất người dạy". Ca chặn nằm ở OrgMembershipHandoverGuardTest.
+                teachingHandoverGuard);
     }
 
     private User studentUser() {
