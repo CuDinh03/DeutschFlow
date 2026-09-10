@@ -461,11 +461,46 @@ class MaterialServiceTest {
         verify(assignmentMaterialRepository, never()).findByIdAssignmentIdOrderByOrderIndexAsc(any());
     }
 
+    /**
+     * Nợ AC-ORG-CT-07 (Gói 1) — vá 11/09/2026. Dòng trong `student_assignments` là LỊCH SỬ: gỡ học
+     * viên khỏi lớp chỉ đóng dòng ghi danh chứ không xoá bài đã giao, nên kiểm mỗi "đã được giao"
+     * để người vừa bị gỡ tải nguyên bộ tài liệu của lớp cũ mãi mãi.
+     */
+    @Test
+    @DisplayName("🔴 học viên ĐÃ RỜI lớp không đọc được tài liệu của bài tập cũ nữa")
+    void listAssignmentMaterialsForStudent_endedEnrollment_forbidden() {
+        when(studentAssignmentRepository.findByStudentIdAndAssignmentId(42L, 90L))
+                .thenReturn(Optional.of(new com.deutschflow.teacher.entity.StudentAssignment()));
+        when(classAssignmentRepository.findById(90L)).thenReturn(Optional.of(assignment(90L, 5L)));
+        // existsByIdClassIdAndIdStudentId đã lọc sẵn ENDED ở tầng query (chỉ ACTIVE/RESERVED).
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(5L, 42L)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.listAssignmentMaterialsForStudent(42L, 90L))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("không còn thuộc lớp");
+        verify(assignmentMaterialRepository, never()).findByIdAssignmentIdOrderByOrderIndexAsc(any());
+    }
+
+    @Test
+    @DisplayName("học viên đã rời lớp cũng không ký lại được URL tài liệu của bài tập cũ")
+    void refreshAssignmentMaterialUrlForStudent_endedEnrollment_forbidden() {
+        when(studentAssignmentRepository.findByStudentIdAndAssignmentId(42L, 90L))
+                .thenReturn(Optional.of(new com.deutschflow.teacher.entity.StudentAssignment()));
+        when(classAssignmentRepository.findById(90L)).thenReturn(Optional.of(assignment(90L, 5L)));
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(5L, 42L)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.refreshAssignmentMaterialUrlForStudent(42L, 90L, 2L))
+                .isInstanceOf(ForbiddenException.class);
+        verify(s3StorageService, never()).presignedGetUrl(any(), any());
+    }
+
     @Test
     @DisplayName("student given the assignment reads its ACTIVE materials in attach order")
     void listAssignmentMaterialsForStudent_assigned_returnsActive() {
         when(studentAssignmentRepository.findByStudentIdAndAssignmentId(42L, 90L))
                 .thenReturn(Optional.of(new com.deutschflow.teacher.entity.StudentAssignment()));
+        when(classAssignmentRepository.findById(90L)).thenReturn(Optional.of(assignment(90L, 5L)));
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(5L, 42L)).thenReturn(true);
         com.deutschflow.material.entity.AssignmentMaterial am = com.deutschflow.material.entity.AssignmentMaterial.builder()
                 .id(new com.deutschflow.material.entity.AssignmentMaterialId(90L, 2L)).orderIndex(0).attachedBy(7L).build();
         when(assignmentMaterialRepository.findByIdAssignmentIdOrderByOrderIndexAsc(90L)).thenReturn(List.of(am));
@@ -482,6 +517,10 @@ class MaterialServiceTest {
     void refreshAssignmentMaterialUrlForStudent_notAttached_notFound() {
         when(studentAssignmentRepository.findByStudentIdAndAssignmentId(42L, 90L))
                 .thenReturn(Optional.of(new com.deutschflow.teacher.entity.StudentAssignment()));
+        // Cổng ghi danh (vá 11/09) đứng TRƯỚC cổng "tài liệu có gắn vào bài không" — học viên còn
+        // trong lớp thì mới tới được nhánh NotFound mà ca này khẳng định.
+        when(classAssignmentRepository.findById(90L)).thenReturn(Optional.of(assignment(90L, 5L)));
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(5L, 42L)).thenReturn(true);
         when(assignmentMaterialRepository.existsByIdAssignmentIdAndIdMaterialId(90L, 5L)).thenReturn(false);
 
         assertThatThrownBy(() -> service.refreshAssignmentMaterialUrlForStudent(42L, 90L, 5L))
