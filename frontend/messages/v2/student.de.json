@@ -2160,6 +2160,18 @@
         "practiceNow": "Jetzt üben",
         "footer": "Übe regelmäßig jeden Tag — nach 2 Wochen wirst du deutliche Fortschritte sehen"
       }
+    },
+    "minorAudio": {
+      "eyebrow": "Sprechtraining vorübergehend gesperrt",
+      "titleBirthDate": "Dein Zentrum hat dein Geburtsdatum noch nicht erfasst",
+      "bodyBirthDate": "Für dein Konto ist kein Geburtsdatum hinterlegt. Deshalb lässt sich nicht klären, ob die Einwilligung einer erziehungsberechtigten Person nötig ist – und solange das unklar ist, wird keine Aufnahme gesendet. Bitte wende dich an dein Zentrum, damit das Geburtsdatum in deiner Schülerakte ergänzt wird.",
+      "titleConsentRequired": "Es fehlt die Einwilligung der Eltern bzw. Erziehungsberechtigten",
+      "bodyConsentRequired": "Für dieses Konto ist vor Sprachaufnahmen die Einwilligung der Eltern oder Erziehungsberechtigten nötig. Bitte wende dich an dein Zentrum, um das Einwilligungsformular abzuschließen; sobald das Zentrum es erfasst hat, ist das Sprechtraining sofort wieder frei.",
+      "titleConsentRevoked": "Die Einwilligung zur Aufnahme wurde widerrufen",
+      "bodyConsentRevoked": "Die Einwilligung zur Sprachaufnahme für dieses Konto wurde widerrufen, daher ist das Sprechtraining vorübergehend nicht verfügbar. Zum Wiederfreischalten wendet sich die erziehungsberechtigte Person an das Zentrum und erteilt die Einwilligung erneut.",
+      "note": "Ein Upgrade schaltet diesen Bereich nicht frei – nur das Zentrum oder die erziehungsberechtigte Person kann ihn wieder öffnen. Alles, was keine Aufnahme braucht, funktioniert weiterhin.",
+      "contact": "Zentrum kontaktieren",
+      "dismiss": "Verstanden"
     }
   }
 }

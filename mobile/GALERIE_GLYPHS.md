@@ -134,7 +134,7 @@ Thay một icon đang là Lucide: nếu là **điều khiển** (chevron, đóng
 | `thanhtoan` | Thanh toán | profile.tsx |
 | `hoantien` | Hoàn tiền | profile.tsx |
 | `dulieuai` | Dữ liệu & AI | C/speaking/ConversationSummary.tsx, classes/[id].tsx, classes/index.tsx, node.tsx, profile.tsx |
-| `khoa` | Khoá · Bảo mật | C/speaking/CompanionSelect.tsx, exam.tsx, grammar.tsx, lernweg.tsx, node.tsx, profile.tsx, settings/profile.ts |
+| `khoa` | Khoá · Bảo mật | C/MinorAudioBlockedSheet.tsx, C/speaking/CompanionSelect.tsx, exam.tsx, grammar.tsx, lernweg.tsx, node.tsx, profile.tsx, settings/profile.ts |
 | `dieukhoan` | Điều khoản | profile.tsx |
 | `dangxuat` | Đăng xuất | profile.tsx |
 | `xoa` | Xoá tài khoản | profile.tsx |

@@ -11,6 +11,7 @@ import { SpeakingContextRail } from "@/components/features/ai-speaking/SpeakingC
 import { SpeakingAdaptiveBar } from "@/components/features/ai-speaking/SpeakingAdaptiveBar";
 import { InterviewPhaseBar } from "@/components/interview/InterviewPhaseBar";
 import { useImmersiveChrome } from "@/components/ui-v2/useImmersiveChrome";
+import { MinorAudioBlockedNotice } from "@/components/ui-v2/MinorAudioBlockedNotice";
 import { SpeakingChatHeader } from "@/components/features/ai-speaking/SpeakingChatHeader";
 import { SpeakingChatEmptyState } from "@/components/features/ai-speaking/SpeakingChatEmptyState";
 import { SpeakingInputDock } from "@/components/features/ai-speaking/SpeakingInputDock";
@@ -193,6 +194,8 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
     micError,
     micErrorKind,
     setMicError,
+    minorAudioBlocked,
+    clearMinorAudioBlocked,
     clearPhoneme,
     toggleMic,
     cleanup: cleanupMic,
@@ -604,6 +607,14 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
       {quotaBlocked && (
         <div className="px-4 pt-3">
           <SpeakingQuotaBlockedBanner compact upgradeHref={routes.pricing} />
+        </div>
+      )}
+
+      {/* 403 MINOR_AUDIO_BLOCKED (D8): việc cần làm + lối liên hệ trung tâm — không phải lỗi mic,
+          không phải hết lượt, và không có CTA nâng gói. */}
+      {minorAudioBlocked && (
+        <div className="px-4 pt-3">
+          <MinorAudioBlockedNotice info={minorAudioBlocked} onDismiss={clearMinorAudioBlocked} />
         </div>
       )}
 

@@ -8,6 +8,7 @@ import * as Haptics from 'expo-haptics'
 import { Square, RotateCcw, ChevronRight } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
+import { presentMinorAudioBlocked } from '@/lib/minorAudio'
 import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { speakingApi } from '@/lib/speakingApi'
 import { weeklyApi, rubricScore } from '@/lib/weeklyApi'
@@ -253,6 +254,8 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     } catch (e) {
       setPhase('idle')
+      // 403 MINOR_AUDIO_BLOCKED (D8): sheet giải thích thay cho Alert chung.
+      if (presentMinorAudioBlocked(e)) return
       Alert.alert('Lỗi', apiMessage(e))
     }
   }
