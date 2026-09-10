@@ -20,6 +20,7 @@ import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.user.repository.RefreshTokenRepository;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -69,6 +70,11 @@ public class AdminOrgService {
     private final PasswordEncoder passwordEncoder;
     private final UserNotificationService userNotificationService;
     private final AuditLogService auditLogService;
+    private final RefreshTokenRepository refreshTokenRepository;
+
+    /** Lý do ép đổi giám đốc: đủ dài để đọc được trong sổ, đủ ngắn để không thành văn bản tuỳ ý. */
+    static final int FORCE_OWNER_REASON_MIN = 10;
+    static final int FORCE_OWNER_REASON_MAX = 500;
 
     /**
      * Creates an organization with a unique slug. If {@code ownerEmail} resolves to an existing
@@ -363,6 +369,77 @@ public class AdminOrgService {
                 member.getStatus(),
                 member.getJoinedAt()
         );
+    }
+
+    /**
+     * Đường khôi phục quyền giám đốc (DEC-13 / A6, owner chốt 10/09/2026): admin nền tảng chỉ định
+     * một nhân sự đang hoạt động của trung tâm làm OWNER duy nhất, hạ mọi OWNER hiện tại xuống
+     * MANAGER, kèm lý do bắt buộc đi vào sổ trung tâm.
+     *
+     * <p>Trước bản này sản phẩm KHÔNG có đường khôi phục: {@code addMember} chặn hạ OWNER và chặn
+     * OWNER thứ hai, {@code removeMember}/{@code selfLeave} từ chối OWNER, còn
+     * {@code transferOwnership} chỉ chính OWNER gọi được. Giám đốc mất tài khoản là trung tâm khoá
+     * cứng, và cách "xử lý" thực tế — admin {@code setUserPassword} rồi đăng nhập thay — để lại vết
+     * ghi actor là chính giám đốc. Đường này thay cho cách đó: actor là admin, lý do nằm trong vết.
+     *
+     * <p>Thứ tự guard cố ý: lý do → ADMIN → thành viên. Guard ADMIN đứng TRƯỚC kiểm tra thành viên
+     * vì một dòng {@code org_members} của admin có thể còn sót từ trước DEC-13; nếu để kiểm thành
+     * viên chạy trước thì ca đó đi lọt tới thăng vai, còn ca "admin không là thành viên" thì trả 400
+     * chung chung thay vì vết {@code admin.org.admin_membership.blocked} mà giám sát cần.
+     *
+     * <p><b>Làm mới phiên</b>: revoke refresh token của chủ mới lẫn mọi chủ cũ (khuôn
+     * {@code AdminManagementService.updateUserRole}) — access token đang lưu hành mang
+     * {@code orgRole} cũ, không revoke thì giám đốc vừa bị hạ vẫn giữ quyền tới hết vòng đời
+     * refresh token.
+     *
+     * <p><b>Nợ</b>: chưa gửi thông báo trong ứng dụng cho giám đốc mới. Bộ {@code NotificationType}
+     * không có loại "đổi vai/đổi chủ", còn đường broadcast có dedupe guard ném
+     * {@code ConflictException} khi lặp trong cửa sổ ngắn — dùng nó sẽ phá idempotency của chính
+     * endpoint này. Không thêm enum trong đợt này theo quyết định owner; ghi nợ.
+     *
+     * @throws NotFoundException               org không tồn tại
+     * @throws BadRequestException             thiếu người nhận, lý do ngoài 10–500 ký tự, người nhận
+     *                                         không phải nhân sự ACTIVE của trung tâm
+     * @throws PrivilegedActionBlockedException người nhận là admin nền tảng (DEC-13)
+     */
+    @Transactional
+    public OrgMemberDto forceOwner(AuditActor admin, Long orgId, Long newOwnerUserId, String reason) {
+        Organization org = organizationRepository.findById(orgId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: " + orgId));
+        if (newOwnerUserId == null) {
+            throw new BadRequestException("Phải chọn người được chỉ định làm giám đốc.");
+        }
+        String cleanReason = reason == null ? "" : reason.trim();
+        if (cleanReason.length() < FORCE_OWNER_REASON_MIN || cleanReason.length() > FORCE_OWNER_REASON_MAX) {
+            throw new BadRequestException("Lý do là bắt buộc, từ " + FORCE_OWNER_REASON_MIN
+                    + " đến " + FORCE_OWNER_REASON_MAX + " ký tự.");
+        }
+
+        // DEC-13: admin nền tảng không bao giờ là thành viên trung tâm — càng không là giám đốc.
+        // Cùng sự kiện với addMember/attachOwner để một truy vấn sổ bắt trọn mọi lần thử.
+        userRepository.findById(newOwnerUserId)
+                .filter(u -> u.getRole() == User.Role.ADMIN)
+                .ifPresent(u -> {
+                    throw new PrivilegedActionBlockedException(
+                            "Không thể chỉ định quản trị viên nền tảng làm giám đốc trung tâm — hãy dùng một tài khoản riêng.",
+                            "admin.org.admin_membership.blocked", "ORG", String.valueOf(org.getId()),
+                            Map.of("reason", "platform_admin",
+                                    "targetUserId", u.getId(),
+                                    "targetEmail", u.getEmail(),
+                                    "requestedRole", ROLE_OWNER));
+                });
+
+        OrgMembershipService.ForcedOwnership result =
+                orgMembershipService.forceOwnership(admin, org.getId(), newOwnerUserId, cleanReason);
+
+        refreshTokenRepository.revokeAllByUserId(newOwnerUserId);
+        for (Long previousOwnerId : result.demotedOwnerUserIds()) {
+            refreshTokenRepository.revokeAllByUserId(previousOwnerId);
+        }
+        log.info("[ORG-ADMIN] Admin {} chỉ định user {} làm OWNER của org {} (hạ {} OWNER cũ)",
+                admin == null ? null : admin.id(), newOwnerUserId, org.getId(),
+                result.demotedOwnerUserIds().size());
+        return result.newOwner();
     }
 
     /**

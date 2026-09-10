@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Plus, ShieldCheck, Lock, Bell, FileDown, Sparkles } from 'lucide-react'
+import { Plus, ShieldCheck, Lock, Bell, FileDown, Sparkles, UserCog } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
@@ -17,6 +17,7 @@ import {
 import { isInvoiceOverdue } from '@/lib/orgInvoice'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip, DataTable, TkModal, type DataTableColumn } from '@/components/ui-v2'
 import { CreateOrgModal } from './CreateOrgModal'
+import { ForceOwnerDialog } from './ForceOwnerDialog'
 import { useFmt } from '@/lib/i18n/useFmt'
 
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
@@ -92,6 +93,8 @@ export default function V2AdminOrgsPage() {
   const [activating, setActivating] = useState<number | null>(null)
   const [detail, setDetail] = useState<OrgRow | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  // DEC-13 / A6: trung tâm đang cần admin chỉ định giám đốc (giám đốc mất tài khoản / nghỉ việc).
+  const [forceTarget, setForceTarget] = useState<AdminOrg | null>(null)
 
   const { data, loading, error, reload } = useAdminData<OrgRow[]>({
     initialData: [],
@@ -247,6 +250,16 @@ export default function V2AdminOrgsPage() {
             >
               {t('viewFinance')}
             </button>
+            {/* DEC-13 / A6: đường khôi phục quyền giám đốc — mở ConfirmDialog nêu hệ quả + lý do bắt buộc,
+                thay cho cách cũ "đặt lại mật khẩu rồi đăng nhập thay" vốn ghi sổ sai người thực hiện. */}
+            <button
+              type="button"
+              onClick={() => setForceTarget(org)}
+              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-ga border border-ga-line px-[10px] py-[6px] text-ga-caption font-semibold text-ga-muted transition-colors hover:border-ga-red hover:text-ga-red lg:min-h-0"
+            >
+              <UserCog size={13} aria-hidden />
+              {t('forceOwner.action')}
+            </button>
           </div>
         )
       },
@@ -322,6 +335,14 @@ export default function V2AdminOrgsPage() {
 
       {showCreate && (
         <CreateOrgModal onClose={() => setShowCreate(false)} onCreated={() => reload({ silent: true })} />
+      )}
+
+      {forceTarget && (
+        <ForceOwnerDialog
+          org={forceTarget}
+          onClose={() => setForceTarget(null)}
+          onDone={() => reload({ silent: true })}
+        />
       )}
     </div>
   )

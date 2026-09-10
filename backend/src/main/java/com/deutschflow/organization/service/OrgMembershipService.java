@@ -24,7 +24,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -71,12 +73,41 @@ public class OrgMembershipService {
     }
 
     /**
+     * Thành viên ACTIVE ở trung tâm KHÁC của một người dùng, kèm tên trung tâm đó — để thông báo
+     * chặn của F4 nói được "đang thuộc trung tâm A" thay vì "một tổ chức khác".
+     *
+     * @param orgName tên trung tâm kia; {@code null} nếu dòng org đã biến mất (lỗi dữ liệu, không
+     *                phải trạng thái nghiệp vụ) — người gọi tự lùi về câu chung
+     */
+    public record ActiveElsewhere(Long orgId, String orgName, String role) {}
+
+    /**
+     * Người dùng có đang là thành viên ACTIVE của một trung tâm KHÁC {@code orgId} không (F4, owner
+     * chốt 10/09/2026). Bản đọc-được của chốt trong {@link #upsertMember}: đường CSV gọi hàm này
+     * TRƯỚC khi ghi để trả về thông báo dòng có tên trung tâm, thay vì để {@code ConflictException}
+     * rơi vào "lỗi xử lý" chung.
+     */
+    @Transactional(readOnly = true)
+    public Optional<ActiveElsewhere> activeMembershipElsewhere(Long userId, Long orgId) {
+        return memberRepo.findFirstByIdUserIdAndStatusAndIdOrgIdNot(userId, STATUS_ACTIVE, orgId)
+                .map(m -> new ActiveElsewhere(
+                        m.getId().getOrgId(),
+                        organizationRepository.findById(m.getId().getOrgId())
+                                .map(org -> org.getName()).orElse(null),
+                        m.getRole()));
+    }
+
+    /**
      * Inserts a new org membership or reactivates an existing one, sets {@code users.org_id},
      * and promotes a global STUDENT to TEACHER when joining as MANAGER/TEACHER.
      *
-     * <p>Enforces "1 staff – 1 org at a time" (B2B model §4 decision 1): a non-STUDENT role is
-     * rejected when the user already has an ACTIVE membership in a different org. STUDENT keeps
-     * move-semantics (roster re-homing) and is not blocked.
+     * <p>Enforces "1 người – 1 trung tâm ACTIVE" cho MỌI vai. Trước F4 (owner chốt 10/09/2026) chỉ
+     * nhân sự bị chặn còn STUDENT giữ "move-semantics" — nhập CSV ở trung tâm B lặng lẽ kéo một học
+     * viên đang học ở trung tâm A sang B: A mất học viên khỏi danh sách mà không ai ở A được báo,
+     * ghế và gói của A vẫn tính, và với học viên chưa thành niên thì hồ sơ giám hộ/đồng ý do A thu
+     * bỗng nằm dưới quyền đọc của B. Nay: đang ACTIVE ở trung tâm khác ⇒ {@link ConflictException}
+     * nêu TÊN trung tâm đó; phải rời (hoặc được gỡ khỏi) trung tâm cũ trước. Đường mã lớp
+     * ({@link #ensureStudentSeat}) đã chặn sẵn với thông báo riêng và chạy TRƯỚC hàm này.
      */
     @Transactional
     public void upsertMember(Long orgId, Long userId, String role) {
@@ -106,10 +137,10 @@ public class OrgMembershipService {
                     Map.of("reason", "platform_admin", "targetUserId", userId, "requestedRole", role));
         }
 
-        if (!ROLE_STUDENT.equals(role)
-                && memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(userId, STATUS_ACTIVE, orgId)) {
-            throw new ConflictException(
-                    "Người dùng đã là thành viên đang hoạt động của một tổ chức khác — phải rời tổ chức cũ trước.");
+        // F4: áp cho CẢ STUDENT (xem javadoc). existsBy… trước rồi mới tra tên: đường thuận không tốn
+        // thêm truy vấn nào, đường chặn mới đi tìm tên trung tâm để câu báo lỗi đọc được.
+        if (memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(userId, STATUS_ACTIVE, orgId)) {
+            throw new ConflictException(activeElsewhereMessage(userId, orgId));
         }
 
         Optional<OrgMember> existingOpt = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId);
@@ -201,10 +232,11 @@ public class OrgMembershipService {
      * đầy học viên trong khi trang "Học viên của tổ chức" đếm 0 và ghế không bị tính tiền.
      *
      * <p>Đã là thành viên ACTIVE của chính org này (bất kỳ vai trò) → no-op: giáo viên/quản lý của
-     * trung tâm vào một lớp không bị hạ xuống STUDENT. Đang ACTIVE ở org KHÁC → từ chối: move-semantics
-     * của STUDENT chỉ dành cho roster do org chủ động ghi (import/thêm tay), không re-home âm thầm
-     * chỉ vì học viên gõ một mã lớp. Trường hợp còn lại đi qua {@link #upsertMember} nên chịu đủ
-     * seat-limit gate — hết ghế thì lượt duyệt thất bại với thông báo rõ ràng.
+     * trung tâm vào một lớp không bị hạ xuống STUDENT. Đang ACTIVE ở org KHÁC → từ chối với câu nói
+     * cho giáo viên hiểu ngay (chốt này có từ trước F4; từ F4 thì {@link #upsertMember} cũng chặn
+     * STUDENT ở mọi đường, và vì hàm này chặn TRƯỚC nên không có hai thông báo chồng nhau). Trường
+     * hợp còn lại đi qua {@link #upsertMember} nên chịu đủ seat-limit gate — hết ghế thì lượt duyệt
+     * thất bại với thông báo rõ ràng.
      *
      * <p>V-05: sau khi có ghế thì CẤP LUÔN gói của trung tâm, đúng như đường org chủ động thêm
      * ({@code OrgRosterRowImporter} và {@code AdminOrgService.addMember} đều gọi
@@ -360,25 +392,82 @@ public class OrgMembershipService {
 
         // Atomic swap: promote the target and demote the current owner in the same transaction, so
         // the org never momentarily loses its owner. The new owner keeps the org's single OWNER seat.
-        newOwner.setRole(ROLE_OWNER);
-        currentOwner.setRole(ROLE_MANAGER);
-        memberRepo.save(newOwner);
-        memberRepo.save(currentOwner);
-
-        User newOwnerUser = userRepository.findById(newOwnerUserId).orElse(null);
-        if (newOwnerUser != null) {
-            syncPlatformRole(newOwnerUser, ROLE_OWNER);
-            userRepository.save(newOwnerUser);
-        }
-        userRepository.findById(currentOwnerUserId).ifPresent(u -> {
-            syncPlatformRole(u, ROLE_MANAGER);  // OWNER → MANAGER platform identity
-            userRepository.save(u);
-        });
+        User newOwnerUser = moveOwnerSeat(orgId, newOwner, List.of(currentOwner));
 
         // Vết ghi trên chính tổ chức, không phải trên một thành viên: đây là lần đổi chủ của org.
         audit("org_ownership_transferred", actor, orgId, null,
                 meta("fromUserId", currentOwnerUserId, "toUserId", newOwnerUserId));
         return toDto(newOwnerUserId, newOwnerUser, newOwner);
+    }
+
+    /**
+     * Kết quả một lần admin nền tảng ÉP đổi giám đốc: ai vừa lên OWNER và những OWNER ACTIVE nào
+     * vừa bị hạ xuống MANAGER — 0, 1 hoặc nhiều; 0 chính là ca khôi phục (trung tâm mất giám đốc).
+     */
+    public record ForcedOwnership(OrgMemberDto newOwner, List<Long> demotedOwnerUserIds) {
+    }
+
+    /**
+     * Đường KHÔI PHỤC quyền giám đốc của admin nền tảng (DEC-13 / A6, owner chốt 10/09/2026):
+     * đặt {@code newOwnerUserId} làm OWNER duy nhất của trung tâm, hạ MỌI OWNER ACTIVE hiện tại
+     * xuống MANAGER — khác {@link #transferOwnership} ở ba điểm cố ý:
+     *
+     * <ul>
+     *   <li><b>Không cần chủ cũ.</b> transferOwnership chỉ chính OWNER gọi được, nên khi giám đốc
+     *       mất tài khoản / nghỉ việc không bàn giao thì trung tâm khoá cứng; trước bản này đường
+     *       thực tế duy nhất là admin đặt lại mật khẩu rồi MẠO DANH giám đốc — và sổ ghi actor là
+     *       chính giám đốc. Ở đây actor là admin, đúng người bấm.</li>
+     *   <li><b>Chịu được trạng thái xấu.</b> Trung tâm 0 OWNER (dữ liệu cũ trước guard 1-OWNER, hoặc
+     *       tài khoản giám đốc bị xoá) và trung tâm nhiều OWNER (dữ liệu cũ) đều được đưa về đúng
+     *       một OWNER. Gọi lại lần hai là no-op có vết: người đó đã là OWNER thì không ai bị hạ.</li>
+     *   <li><b>Lý do bắt buộc vào vết.</b> Thay chủ một tenant không cần chủ cũ đồng ý là thao tác
+     *       nặng nhất console admin có; {@code reason} đi nguyên văn vào metadata để giám đốc mới
+     *       (và cũ) đọc được vì sao.</li>
+     * </ul>
+     *
+     * <p>Vết {@code admin.org.owner.forced} ghi Ở ĐÂY, cùng transaction với mutation (thất bại là
+     * mất cả hai) và với {@code touchedOrgId = orgId} để sổ của trung tâm đọc lên được — admin không
+     * thuộc trung tâm nào nên đường suy-từ-actor sẽ rơi vào org NULL. Không phát thêm
+     * {@code org_ownership_transferred}: một thao tác, một dòng sổ.
+     *
+     * <p>Guard ADMIN-không-làm-thành-viên, validation lý do và việc thu hồi phiên đăng nhập nằm ở
+     * {@code AdminOrgService.forceOwner} — lớp gọi duy nhất; ở đây chỉ giữ bất biến thành viên.
+     *
+     * @throws BadRequestException nếu người được chỉ định không phải thành viên ACTIVE, hoặc là STUDENT
+     */
+    @Transactional
+    public ForcedOwnership forceOwnership(AuditActor actor, Long orgId, Long newOwnerUserId, String reason) {
+        // Khoá dòng org: mọi thay đổi quyền sở hữu của cùng trung tâm tuần tự hoá (cùng cơ chế
+        // FOR UPDATE với upsertMember) — hai lệnh ép chạy song song không cùng đọc "0 OWNER" rồi
+        // cùng ghi ra hai OWNER.
+        jdbcTemplate.query("SELECT id FROM organizations WHERE id = ? FOR UPDATE",
+                rs -> rs.next() ? rs.getLong(1) : null, orgId);
+
+        OrgMember newOwner = memberRepo.findByIdOrgIdAndIdUserId(orgId, newOwnerUserId)
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
+                .orElseThrow(() -> new BadRequestException(
+                        "Người được chỉ định phải là thành viên đang hoạt động của trung tâm này."));
+        if (!STAFF_ROLES.contains(newOwner.getRole())) {
+            throw new BadRequestException(
+                    "Chỉ chỉ định được quản lý hoặc giáo viên làm giám đốc — học viên không nhận vai này.");
+        }
+
+        List<OrgMember> currentOwners = memberRepo
+                .findByIdOrgIdAndRoleAndStatus(orgId, ROLE_OWNER, STATUS_ACTIVE).stream()
+                .filter(m -> !newOwnerUserId.equals(m.getId().getUserId()))
+                .toList();
+        User newOwnerUser = moveOwnerSeat(orgId, newOwner, currentOwners);
+
+        List<Long> demoted = new ArrayList<>();
+        for (OrgMember old : currentOwners) {
+            demoted.add(old.getId().getUserId());
+        }
+        Map<String, Object> extra = new LinkedHashMap<>();
+        extra.put("newOwnerUserId", newOwnerUserId);
+        extra.put("previousOwnerUserIds", List.copyOf(demoted));
+        extra.put("reason", reason);
+        audit("admin.org.owner.forced", actor, orgId, null, extra);
+        return new ForcedOwnership(toDto(newOwnerUserId, newOwnerUser, newOwner), List.copyOf(demoted));
     }
 
     /** Counts ACTIVE OWNERs in the org — supports the "an org always has an owner" invariant. */
@@ -388,6 +477,18 @@ public class OrgMembershipService {
     }
 
     // ----------------------------------------------------------------- internals
+
+    /**
+     * Câu báo chặn của F4 — nêu TÊN trung tâm kia khi tra được. Dùng chung cho {@link #upsertMember}
+     * và cho đường CSV ({@code OrgRosterRowImporter}) để hai chỗ không nói hai kiểu.
+     */
+    public String activeElsewhereMessage(Long userId, Long orgId) {
+        return activeMembershipElsewhere(userId, orgId)
+                .filter(other -> other.orgName() != null && !other.orgName().isBlank())
+                .map(other -> "Người dùng đang là thành viên đang hoạt động của trung tâm \""
+                        + other.orgName() + "\" — phải rời trung tâm đó trước khi vào trung tâm này.")
+                .orElse("Người dùng đã là thành viên đang hoạt động của một tổ chức khác — phải rời tổ chức cũ trước.");
+    }
 
     /**
      * Vết cho một thay đổi thành viên.
@@ -426,6 +527,38 @@ public class OrgMembershipService {
         m.put(k1, v1);
         m.put(k2, v2);
         return m;
+    }
+
+    /**
+     * Lõi chung của {@link #transferOwnership} và {@link #forceOwnership}: chuyển ghế OWNER sang
+     * {@code newOwner}, hạ từng {@code currentOwners} xuống MANAGER — cả {@code org_members.role}
+     * lẫn danh tính nền tảng {@code users.role} (OWNER ↔ MANAGER), trong CÙNG transaction của caller
+     * nên trung tâm không có khoảnh khắc nào 0 hoặc 2 OWNER sau commit. Caller lo xác thực ai được
+     * gọi và ghi vết; ở đây chỉ đổi vai.
+     *
+     * @return entity {@code users} của chủ mới (null nếu dòng users không còn — chỉ đổi org_members)
+     */
+    private User moveOwnerSeat(Long orgId, OrgMember newOwner, List<OrgMember> currentOwners) {
+        newOwner.setRole(ROLE_OWNER);
+        memberRepo.save(newOwner);
+        for (OrgMember old : currentOwners) {
+            old.setRole(ROLE_MANAGER);
+            memberRepo.save(old);
+        }
+
+        User newOwnerUser = userRepository.findById(newOwner.getId().getUserId()).orElse(null);
+        if (newOwnerUser != null) {
+            newOwnerUser.setOrgId(orgId);   // bất biến users.org_id == org_members.org_id (ACTIVE)
+            syncPlatformRole(newOwnerUser, ROLE_OWNER);
+            userRepository.save(newOwnerUser);
+        }
+        for (OrgMember old : currentOwners) {
+            userRepository.findById(old.getId().getUserId()).ifPresent(u -> {
+                syncPlatformRole(u, ROLE_MANAGER);  // OWNER → MANAGER platform identity
+                userRepository.save(u);
+            });
+        }
+        return newOwnerUser;
     }
 
     private OrgMemberDto toDto(Long userId, User user, OrgMember member) {

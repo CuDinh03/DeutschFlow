@@ -23,9 +23,12 @@ import java.util.Map;
  * người giám hộ, ghi vết đồng ý, và trả lời hai câu mà mọi chốt sau này sẽ hỏi — "người này thuộc
  * nhóm tuổi nào" và "phạm vi này còn đồng ý không".
  *
- * <p><b>Đợt này CHỈ dựng nền.</b> Không điểm gọi AI, không luồng nhập CSV nào được nối vào đây —
- * đó là PR-1B. Tách ra để phần khó đảo ngược (hình dạng dữ liệu + bất biến) vào được trước, còn
- * phần siết luồng thì siết được từng bước.
+ * <p><b>PR-1A CHỈ dựng nền;</b> các đường vào nối sau, từng bước: PR-1B nối {@code MinorGate} (đường
+ * ghi âm) và cột CSV ngày sinh/người giám hộ; đợt D1/R11 (owner chốt 10/09/2026) nối hai đường GHI
+ * ĐỒNG Ý — cột CSV {@code consentConfirmed} ({@code OrgRosterRowImporter}) và endpoint của trung tâm
+ * ({@code OrgGuardianConsentService}) — cùng đường sửa người giám hộ ({@link #updateGuardian}). Tách
+ * ra để phần khó đảo ngược (hình dạng dữ liệu + bất biến) vào được trước, còn phần siết luồng thì
+ * siết được từng bước.
  *
  * <p><b>Vì sao nằm ở {@code common.minor} chứ không ở {@code organization}.</b> V319 đã lập luận
  * cho tầng dữ liệu: đặt ngày sinh ở bảng ghi danh là fail-open cho toàn bộ đường B2C, vì học viên
@@ -216,6 +219,70 @@ public class MinorLearnerService {
     public List<StudentGuardian> guardiansOf(Long studentUserId) {
         requireId(studentUserId, "studentUserId");
         return guardianRepository.findByStudentUserIdOrderByPrimaryDescIdAsc(studentUserId);
+    }
+
+    /**
+     * Sửa THÔNG TIN LIÊN LẠC của một người giám hộ (tên, quan hệ, điện thoại, email, người chính).
+     * Đây là đường mà {@link StudentGuardian} tồn tại để có: gõ sai số điện thoại thì phải sửa được,
+     * và sửa số KHÔNG chạm tới bằng chứng đồng ý đã thu (bảng kia chỉ-ghi-thêm). Không có hàm xoá —
+     * cố ý, cùng lý do với sổ đồng ý: một người giám hộ từng đồng ý mà biến mất khỏi bảng thì dòng
+     * đồng ý mất luôn câu trả lời "ai".
+     *
+     * <p>Người giám hộ phải thuộc CHÍNH học viên này — cùng chốt với {@link #resolveGuardian}: không
+     * kiểm thì một điểm gọi truyền nhầm id là sửa được liên lạc của gia đình khác.
+     *
+     * @param orgId trung tâm thao tác; là trung tâm bị tác động trong sổ hoạt động
+     */
+    @Transactional
+    public StudentGuardian updateGuardian(Long studentUserId, Long guardianId, Long orgId,
+                                          GuardianDraft draft, AuditActor actor) {
+        requireId(studentUserId, "studentUserId");
+        requireId(guardianId, "guardianId");
+        StudentGuardian guardian = guardianRepository.findById(guardianId)
+                .filter(g -> studentUserId.equals(g.getStudentUserId()))
+                .orElseThrow(() -> new NotFoundException(
+                        "Không tìm thấy người giám hộ " + guardianId + " của học viên " + studentUserId));
+        GuardianDraft clean = normalize(draft);
+
+        // ⛔ Vết chỉ mang TÊN TRƯỜNG đã đổi, không mang giá trị cũ/mới — cùng luật với recordGuardian.
+        List<String> changed = new java.util.ArrayList<>();
+        if (!clean.fullName().equals(guardian.getFullName())) {
+            changed.add("fullName");
+        }
+        if (clean.relationship() != guardian.getRelationship()) {
+            changed.add("relationship");
+        }
+        if (!java.util.Objects.equals(clean.phone(), guardian.getPhone())) {
+            changed.add("phone");
+        }
+        if (!java.util.Objects.equals(clean.email(), guardian.getEmail())) {
+            changed.add("email");
+        }
+        if (clean.primary() != guardian.isPrimary()) {
+            changed.add("isPrimary");
+        }
+
+        if (clean.primary() && !guardian.isPrimary()) {
+            // Cùng bẫy thứ tự flush với recordGuardian: hạ người chính hiện tại XUỐNG DB trước khi
+            // dòng này nhận is_primary, nếu không uq_student_guardians_primary nổ.
+            demoteCurrentPrimary(studentUserId);
+        }
+        guardian.setFullName(clean.fullName());
+        guardian.setRelationship(clean.relationship());
+        guardian.setPhone(clean.phone());
+        guardian.setEmail(clean.email());
+        guardian.setPrimary(clean.primary());
+        StudentGuardian saved = guardianRepository.save(guardian);
+
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("studentUserId", studentUserId);
+        meta.put("guardianId", saved.getId());
+        meta.put("isPrimary", saved.isPrimary());
+        meta.put("changedFields", changed);
+        meta.put("minorStatus", loadStatus(studentUserId).name());
+        auditLogService.log("student_guardian_updated", actor,
+                TARGET_GUARDIAN, String.valueOf(saved.getId()), orgId, meta);
+        return saved;
     }
 
     // ─────────────────────────────────────────────────────────────────────────

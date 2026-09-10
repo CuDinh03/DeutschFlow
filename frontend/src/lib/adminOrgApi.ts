@@ -75,10 +75,13 @@ export interface UpdateOrgInput {
   validUntil?: string | null
 }
 
-/** POST /admin/organizations/{id}/members — attach an existing/new member. */
-export interface AddMemberInput {
-  email: string
-  role: OrgRole
+/**
+ * POST /admin/organizations/{id}/force-owner — đường khôi phục quyền giám đốc (DEC-13 / A6).
+ * `reason` bắt buộc 10–500 ký tự: đi nguyên văn vào sổ trung tâm, actor ghi là admin.
+ */
+export interface ForceOwnerInput {
+  newOwnerUserId: number
+  reason: string
 }
 
 /** POST /admin/organizations/{id}/invoices — draft a billing line. */
@@ -122,24 +125,23 @@ export async function updateOrganization(
   return res.data
 }
 
-/** POST /admin/organizations/{id}/members — add a member by email + role. */
-export async function addMember(
-  id: number,
-  body: AddMemberInput,
-): Promise<AdminOrgMember> {
-  const res = await api.post<AdminOrgMember>(
-    `/admin/organizations/${id}/members`,
-    body,
-  )
-  return res.data
-}
-
 /** GET /admin/organizations/{id}/members — full member roster for a tenant. */
 export async function listOrgMembers(id: number): Promise<AdminOrgMember[]> {
   const res = await api.get<AdminOrgMember[]>(
     `/admin/organizations/${id}/members`,
   )
   return res.data ?? []
+}
+
+/**
+ * POST /admin/organizations/{id}/force-owner — chỉ định một nhân sự ACTIVE (MANAGER/TEACHER)
+ * làm OWNER duy nhất; mọi OWNER hiện tại bị hạ xuống MANAGER, phiên đăng nhập hai bên bị thu hồi.
+ * Trả về thành viên vừa lên OWNER. Backend từ chối 400 khi lý do < 10 ký tự, người nhận là
+ * STUDENT / không phải thành viên, hoặc là admin nền tảng (DEC-13).
+ */
+export async function forceOwner(id: number, body: ForceOwnerInput): Promise<AdminOrgMember> {
+  const res = await api.post<AdminOrgMember>(`/admin/organizations/${id}/force-owner`, body)
+  return res.data
 }
 
 /**

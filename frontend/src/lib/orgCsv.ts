@@ -45,14 +45,15 @@ export function downloadTextFile(filename: string, content: string, mime = 'text
   setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-// ─── Nhập roster CSV (PR-A5 07/09/2026; cột vị thành niên Gói 1 09/09/2026) ───
+// ─── Nhập roster CSV (PR-A5 07/09/2026; cột vị thành niên Gói 1 09/09/2026; D1/R11 10/09/2026) ───
 // Backend `POST /org/students/import` nhận `email,displayName[,phone]` và — khi header khai thêm —
-// `birthDate` + bốn cột người giám hộ; máy chủ trả lỗi TỪNG DÒNG. Phần dưới chỉ để XEM TRƯỚC phía
+// `birthDate` + các cột người giám hộ (`guardianName`, `guardianRelationship`, `guardianPhone`,
+// `guardianEmail`) + `consentConfirmed`; máy chủ trả lỗi TỪNG DÒNG. Phần dưới chỉ để XEM TRƯỚC phía
 // client (đếm dòng, báo email/ngày sai sớm) — không thay kiểm tra của máy chủ.
 //
-// 🔑 Cột mới là TÙY CHỌN: tệp không khai `birthDate` vẫn đọc y hệt trước, vì tệp CSV các trung tâm
-// đang dùng không được vỡ. Ghi danh KHÔNG phải cổng chặn — học viên thiếu ngày sinh vẫn vào được,
-// cổng nằm ở đường dữ liệu đi ra nhà cung cấp AI.
+// 🔑 Cột mới là TÙY CHỌN: tệp không khai `birthDate` lẫn `consentConfirmed` vẫn đọc y hệt trước, vì
+// tệp CSV các trung tâm đang dùng không được vỡ. Ghi danh KHÔNG phải cổng chặn — học viên thiếu ngày
+// sinh hay thiếu đồng ý vẫn vào được, cổng nằm ở đường dữ liệu đi ra nhà cung cấp AI (chỉ khoá phần nói).
 
 export interface RosterRow {
   email: string
@@ -74,6 +75,14 @@ export interface RosterRow {
    */
   guardianRelationship?: string
   guardianPhone?: string
+  /** Email người giám hộ (R11) — chỉ có khi header khai cột `guardianEmail`. */
+  guardianEmail?: string
+  /**
+   * Ô "đã xác nhận đồng ý" NGUYÊN VĂN (D1). Máy chủ nhận `true/yes/1/x/có/đã thu…` là có,
+   * `false/no/0/không/chưa` và ô trống là không, giá trị khác thì từ chối dòng — web KHÔNG tự diễn
+   * giải, chỉ hiện lại để người nhập soi trước khi tải lên.
+   */
+  consentConfirmed?: string
   /** Số dòng trong file gốc (1-based, tính cả header/dòng trống) — để người dùng dò lại trong Excel. */
   line: number
 }
@@ -87,6 +96,8 @@ export interface RosterParse {
   hasBirthDate: boolean
   /** Header có khai ít nhất một cột người giám hộ không. */
   hasGuardian: boolean
+  /** Header có khai cột `consentConfirmed` (hoặc bí danh) không — cột này cũng bật chế độ đọc theo tên. */
+  hasConsent: boolean
   /** Số dòng có ngày sinh SAI ĐỊNH DẠNG (không phải YYYY-MM-DD). Ô trống KHÔNG tính là sai. */
   invalidBirthDates: number
 }
@@ -95,15 +106,17 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/
 
 /**
- * "Không phải chữ/số" cho `normalizeHeader`. Liệt kê dải Latin (kèm Latin Extended Additional, tức
- * chữ tiếng Việt có dấu) thay vì `\p{L}\p{N}`: thuộc tính Unicode đòi cờ `u`, mà `tsconfig` của
- * frontend không đặt `target` nên mặc định ES5 và `tsc` chặn thẳng bằng TS1501.
+ * "Không phải chữ/số" cho `normalizeHeader`, áp SAU khi đã bỏ dấu (NFD + bỏ combining mark). Liệt kê
+ * dải Latin thay vì `\p{L}\p{N}`: thuộc tính Unicode đòi cờ `u`, mà `tsconfig` của frontend không
+ * đặt `target` nên mặc định ES5 và `tsc` chặn thẳng bằng TS1501.
  *
  * Chênh với `Character.isLetterOrDigit` của backend chỉ ở các bảng chữ ngoài Latin (Hy Lạp, Kirin…).
- * Không đổi kết quả nào: mọi tên cột hệ thống hiểu đều là ASCII, nên một tiêu đề chứa ký tự như vậy
- * không khớp khoá nào ở cả hai phía.
+ * Không đổi kết quả nào: mọi tên cột hệ thống hiểu đều là ASCII sau khi bỏ dấu, nên một tiêu đề chứa
+ * ký tự như vậy không khớp khoá nào ở cả hai phía.
  */
 const NON_ALNUM_RE = /[^0-9A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/g
+/** Dấu thanh/dấu mũ sau NFD (combining diacritical marks). */
+const COMBINING_RE = /[\u0300-\u036f]/g
 
 /**
  * Ngày có đúng dạng `YYYY-MM-DD` và có thật trên lịch không.
@@ -204,32 +217,55 @@ export function splitCsvRecords(src: string): CsvRecord[] {
 }
 
 /**
- * Bỏ MỌI ký tự không phải chữ/số rồi hạ chữ thường — `Birth Date`, `birth_date`, `BIRTHDATE` về một
- * khoá. Cố ý chép đúng `RosterColumnLayout.normalize` của backend (`Character.isLetterOrDigit`, nên
- * chữ có dấu vẫn là chữ): web chuẩn hoá rộng hơn máy chủ thì xem trước nhận một cột mà máy chủ bỏ
- * qua; hẹp hơn thì ngược lại. Cả hai đều sai lệch im lặng giữa bảng xem trước và kết quả nhập.
+ * Bỏ dấu tiếng Việt, bỏ MỌI ký tự không phải chữ/số rồi hạ chữ thường — `Birth Date`, `birth_date`,
+ * `BIRTHDATE` về một khoá; `Đã xác nhận đồng ý` → `daxacnhandongy`. Cố ý chép đúng
+ * `RosterColumnLayout.normalize` của backend (NFD + bỏ combining mark + đ→d + `isLetterOrDigit`): web
+ * chuẩn hoá rộng hơn máy chủ thì xem trước nhận một cột mà máy chủ bỏ qua; hẹp hơn thì ngược lại.
+ * Cả hai đều sai lệch im lặng giữa bảng xem trước và kết quả nhập.
  */
-function normalizeHeader(name: string): string {
-  return name.replace(NON_ALNUM_RE, '').toLowerCase()
+export function normalizeHeader(name: string): string {
+  return name
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .normalize('NFD')
+    .replace(COMBINING_RE, '')
+    .replace(NON_ALNUM_RE, '')
+    .toLowerCase()
 }
 
 /**
- * Tên cột máy chủ hiểu — chép từ `RosterColumnLayout.KNOWN`. Phải TRÙNG KHÍT: web nhận thêm một bí
- * danh mà máy chủ không nhận thì xem trước hiện đúng dữ liệu còn máy chủ lặng lẽ bỏ qua cột đó.
- *
- * ⚠️ KHÔNG có `guardianEmail`: bảng `student_guardians` có cột email, nhưng đường CSV của máy chủ
- * KHÔNG đọc nó. Thêm cột đó vào tệp mẫu là mời trung tâm gõ một cột rơi thẳng vào hư không.
+ * Tên cột máy chủ hiểu — chép từ `RosterColumnLayout` (KNOWN + hai danh sách bí danh). Phải TRÙNG
+ * KHÍT: web nhận thêm một bí danh mà máy chủ không nhận thì xem trước hiện đúng dữ liệu còn máy chủ
+ * lặng lẽ bỏ qua cột đó. Thứ tự trong mỗi danh sách bí danh là thứ tự ưu tiên khi tệp có nhiều cột
+ * cùng nghĩa — cũng chép từ máy chủ.
  */
 const BIRTH_DATE_KEY = 'birthdate'
-const GUARDIAN_KEYS = ['guardianname', 'guardianphone', 'guardianrelationship'] as const
-const KNOWN_KEYS = ['email', 'displayname', 'phone', BIRTH_DATE_KEY, ...GUARDIAN_KEYS] as const
+const GUARDIAN_EMAIL_KEYS = ['guardianemail', 'emailgiamho', 'emailnguoigiamho'] as const
+const CONSENT_KEYS = [
+  'consentconfirmed', 'consent', 'guardianconsent', 'consentgranted',
+  'dongy', 'dadongy', 'xacnhandongy', 'daxacnhandongy', 'dongygiamho', 'phieudongy',
+] as const
+const GUARDIAN_KEYS = ['guardianname', 'guardianphone', 'guardianrelationship', ...GUARDIAN_EMAIL_KEYS] as const
+const KNOWN_KEYS = ['email', 'displayname', 'phone', BIRTH_DATE_KEY, ...GUARDIAN_KEYS, ...CONSENT_KEYS] as const
+
+/** Vị trí của bí danh ĐẦU TIÊN khớp trong header đã chuẩn hoá, -1 nếu không có — chép `indexOfAny` máy chủ. */
+function indexOfAny(headerCols: string[], aliases: readonly string[]): number {
+  for (const alias of aliases) {
+    const i = headerCols.indexOf(alias)
+    if (i >= 0) return i
+  }
+  return -1
+}
 
 /**
  * Đọc văn bản CSV roster: bỏ BOM, bỏ dòng trống, nhận header khi ô đầu là `email`.
  *
  * Hai chế độ đọc cột — theo quyết định của owner 09/09/2026 (cột mới TÙY CHỌN, tệp CSV trung tâm
  * đang dùng không được vỡ):
- * - Header CÓ `birthDate` → đọc **theo tên cột**: thứ tự tuỳ ý, thiếu cột nào thì bỏ cột đó.
+ * - Header CÓ `birthDate` hoặc `consentConfirmed` → đọc **theo tên cột**: thứ tự tuỳ ý, thiếu cột
+ *   nào thì bỏ cột đó. `consentConfirmed` cũng bật chế độ này vì luồng "nhập roster hôm nay, vài
+ *   tuần sau thu xong phiếu giấy rồi đánh dấu hàng loạt bằng tệp `email,consentConfirmed`" là luồng
+ *   thật — rơi về chế độ cũ là cột đồng ý bị bỏ qua IM LẶNG (máy chủ cũng bật theo cột này).
  * - Còn lại (không header, hoặc header ba cột cũ) → đọc **theo vị trí** 0/1/2 y như trước.
  *
  * Vì sao không luôn đọc theo tên khi có header: tệp `email,phone,displayName` (đảo cột) hôm nay được
@@ -248,11 +284,15 @@ export function parseRosterCsv(text: string): RosterParse {
   const hasHeader = (firstCols[0] ?? '').trim().toLowerCase() === 'email'
   const headerCols = hasHeader ? firstCols.map(normalizeHeader) : []
   const hasBirthDate = headerCols.includes(BIRTH_DATE_KEY)
-  // Cột giám hộ chỉ được đọc KHI tệp có `birthDate`, vì backend `fromHeader` trả thẳng `legacy()`
-  // khi thiếu cột ngày sinh — lúc đó mọi vị trí giám hộ là -1. Bỏ điều kiện này thì tệp có
-  // `guardianName` mà không có `birthDate` sẽ hiện cột giám hộ ở xem trước trong khi máy chủ không
-  // đọc ô nào của nó: trung tâm tin là đã khai người giám hộ, thực tế chưa lưu gì.
-  const hasGuardian = hasBirthDate && GUARDIAN_KEYS.some((k) => headerCols.includes(k))
+  const consentAt = indexOfAny(headerCols, CONSENT_KEYS)
+  const hasConsent = consentAt >= 0
+  // Chế độ đọc theo tên — chép `RosterColumnLayout.readsMinorColumns` của máy chủ.
+  const minorMode = hasBirthDate || hasConsent
+  // Cột giám hộ chỉ được đọc KHI tệp ở chế độ mới, vì backend `fromHeader` trả thẳng `legacy()`
+  // khi thiếu cả `birthDate` lẫn `consentConfirmed` — lúc đó mọi vị trí giám hộ là -1. Bỏ điều kiện
+  // này thì tệp có `guardianName` mà không có hai cột kia sẽ hiện cột giám hộ ở xem trước trong khi
+  // máy chủ không đọc ô nào của nó: trung tâm tin là đã khai người giám hộ, thực tế chưa lưu gì.
+  const hasGuardian = minorMode && GUARDIAN_KEYS.some((k) => headerCols.includes(k))
 
   // Vị trí mặc định chỉ dùng được khi CHƯA có cột tên khác đứng ở đó — chép `orDefault` của backend.
   // Tệp `email,fullName,birthDate`: máy chủ vẫn lấy tên hiển thị ở cột 1 (vì "fullName" không phải
@@ -278,7 +318,7 @@ export function parseRosterCsv(text: string): RosterParse {
     const cols = parseCsvLine(rec.text.trim())
 
     // Chế độ CŨ — đọc theo VỊ TRÍ. Giữ nguyên từng chi tiết, kể cả việc bỏ qua cột thứ tư trở đi.
-    if (!hasBirthDate) {
+    if (!minorMode) {
       const legacyEmail = (cols[0] ?? '').trim().toLowerCase()
       if (!EMAIL_RE.test(legacyEmail)) invalidEmails++
       rows.push({ email: legacyEmail, displayName: (cols[1] ?? '').trim(), phone: (cols[2] ?? '').trim(), line: rec.line })
@@ -306,24 +346,32 @@ export function parseRosterCsv(text: string): RosterParse {
     if (relationship !== undefined) row.guardianRelationship = relationship
     const guardianPhone = cellAt(cols, headerCols.indexOf('guardianphone'))
     if (guardianPhone !== undefined) row.guardianPhone = guardianPhone
+    const guardianEmail = cellAt(cols, indexOfAny(headerCols, GUARDIAN_EMAIL_KEYS))
+    if (guardianEmail !== undefined) row.guardianEmail = guardianEmail
+    // Ô đồng ý giữ NGUYÊN VĂN — máy chủ mới là bên diễn giải có/không/từ chối (xem RosterRow).
+    const consentConfirmed = cellAt(cols, consentAt)
+    if (consentConfirmed !== undefined) row.consentConfirmed = consentConfirmed
     rows.push(row)
   })
 
-  return { hasHeader, rows, invalidEmails, hasBirthDate, hasGuardian, invalidBirthDates }
+  return { hasHeader, rows, invalidEmails, hasBirthDate, hasGuardian, hasConsent, invalidBirthDates }
 }
 
 /**
- * File mẫu tải về (BOM cho Excel) — ba cột cũ ĐỨNG TRƯỚC, cột mới của Gói 1 nối vào sau.
+ * File mẫu tải về (BOM cho Excel) — ba cột cũ ĐỨNG TRƯỚC, cột mới của Gói 1 nối vào sau, hai cột
+ * của D1/R11 (`guardianEmail`, `consentConfirmed`) đứng cuối.
  *
  * Thứ tự đó không phải để cho đẹp: tệp mẫu tải hôm nay vẫn phải khớp quy trình cũ của trung tâm,
  * vốn quen thấy `email,displayName,phone` ở ba cột đầu. Dòng ví dụ thứ hai là ca thật đang cần: học
- * viên chưa thành niên nên có sẵn người giám hộ — thiếu thì máy chủ trả lỗi đúng dòng đó.
+ * viên chưa thành niên nên có sẵn người giám hộ — thiếu thì máy chủ trả lỗi đúng dòng đó — và ô
+ * `consentConfirmed` = `x` là "trung tâm đã cầm phiếu giấy ký của người giám hộ" (ghi một dòng đồng ý
+ * ghi âm, phương thức PAPER). Để trống = chưa ghi nhận gì, học viên vẫn vào nhưng phần nói còn khoá.
  */
 export function rosterTemplateCsv(): string {
   return '\uFEFF' + [
-    'email,displayName,phone,birthDate,guardianName,guardianRelationship,guardianPhone',
-    'hocvien@example.com,Nguyễn Văn A,0912345678,1999-04-21,,,',
-    'hocvien2@example.com,"Trần, Bình",,2011-09-15,Trần Thị C,MOTHER,0987654321',
+    'email,displayName,phone,birthDate,guardianName,guardianRelationship,guardianPhone,guardianEmail,consentConfirmed',
+    'hocvien@example.com,Nguyễn Văn A,0912345678,1999-04-21,,,,,',
+    'hocvien2@example.com,"Trần, Bình",,2011-09-15,Trần Thị C,MOTHER,0987654321,tran.c@example.com,x',
   ].join('\r\n') + '\r\n'
 }
 

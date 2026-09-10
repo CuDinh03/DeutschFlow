@@ -8,12 +8,16 @@ import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { getOrgStudentDetail, type OrgStudentDetail } from '@/lib/orgApi'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
+import { GuardianConsentSection } from './GuardianConsentSection'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Chi tiết học viên của tổ chức (GaOrgStudentDetail) — teal, read-only org-admin (W1.4).
+// Chi tiết học viên của tổ chức (GaOrgStudentDetail) — teal, org-admin (W1.4).
 // orgApi.getOrgStudentDetail → GET /api/org/students/{id} (B1.2):
-//   { userId, email, displayName, role, status, joinedAt, classes[] (lọc theo org) }.
+//   { userId, email, displayName, role, status, joinedAt, classes[] (lọc theo org),
+//     minorStatus, birthDateRecorded, audioConsentState, guardianCount } — KHÔNG có ngày sinh thô.
 // 404 nếu user không phải thành viên org người gọi (IDOR-safe ở backend OrgService).
+// Mục "Người giám hộ & đồng ý" (D1/R11, 10/09/2026) là phần GHI duy nhất của trang: xem
+// GuardianConsentSection — thêm/sửa giám hộ, ghi phiếu đồng ý giấy, thu hồi (ConfirmDialog).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEAL = 'var(--ga-teal)'
@@ -48,6 +52,16 @@ export default function V2OrgStudentDetailPage() {
   }, [id, t])
 
   useEffect(() => { void load() }, [load])
+
+  // Sau một lần ghi ở mục giám hộ/đồng ý: nạp lại tóm tắt (trạng thái đồng ý, số giám hộ) mà KHÔNG
+  // bật khung xương — bật là unmount cả mục vừa ghi, mất vị trí cuộn và nhấp nháy cả trang.
+  const refresh = useCallback(async () => {
+    try {
+      setDetail(await getOrgStudentDetail(id))
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+    }
+  }, [id])
 
   return (
     <div className="flex min-h-full flex-col">
@@ -116,6 +130,8 @@ export default function V2OrgStudentDetailPage() {
                 ))}
               </div>
             )}
+
+            <GuardianConsentSection detail={detail} onChanged={() => void refresh()} />
           </>
         ) : null}
       </div>

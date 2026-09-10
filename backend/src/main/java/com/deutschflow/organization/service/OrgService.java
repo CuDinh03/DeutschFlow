@@ -10,6 +10,7 @@ import com.deutschflow.organization.dto.OrgClassStudentDto;
 import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.dto.OrgStudentClassDto;
 import com.deutschflow.organization.dto.OrgSeatUsageDto;
+import com.deutschflow.organization.dto.OrgGuardianConsentDtos;
 import com.deutschflow.organization.dto.OrgStudentDetailDto;
 import com.deutschflow.organization.dto.OrgSummaryDto;
 import com.deutschflow.organization.entity.OrgMember;
@@ -63,6 +64,7 @@ public class OrgService {
     private final ClassTeacherRepository classTeacherRepository;
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
+    private final OrgGuardianConsentService guardianConsentService;
 
     /** Org dashboard: plan, seat usage, and teacher/student head counts. */
     @Transactional(readOnly = true)
@@ -395,6 +397,9 @@ public class OrgService {
                 .map(c -> new OrgStudentClassDto(c.getId(), c.getName()))
                 .toList();
 
+        // Tóm tắt chưa-thành-niên (D1/R11): nhóm tuổi + trạng thái đồng ý ghi âm + số giám hộ —
+        // đọc từ DB qua MinorLearnerService, KHÔNG trả ngày sinh thô (xem javadoc DTO).
+        OrgGuardianConsentDtos.MinorSummary minor = guardianConsentService.summaryOf(userId);
         return new OrgStudentDetailDto(
                 member.getId().getUserId(),
                 user != null ? user.getEmail() : null,
@@ -402,7 +407,11 @@ public class OrgService {
                 member.getRole(),
                 member.getStatus(),
                 member.getJoinedAt(),
-                classes);
+                classes,
+                minor.minorStatus(),
+                minor.birthDateRecorded(),
+                minor.audioConsentState(),
+                minor.guardianCount());
     }
 
     private OrgMemberDto toMemberDto(OrgMember member, User user) {

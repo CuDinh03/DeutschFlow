@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { studentsToCsv, parseCsvLine, parseRosterCsv, rosterTemplateCsv, rosterErrorsCsv, splitCsvRecords, isIsoDate } from './orgCsv'
+import { studentsToCsv, parseCsvLine, parseRosterCsv, rosterTemplateCsv, rosterErrorsCsv, splitCsvRecords, isIsoDate, normalizeHeader } from './orgCsv'
 import type { OrgMember } from '@/lib/orgApi'
 
 const member = (over: Partial<OrgMember>): OrgMember => ({
@@ -212,8 +212,8 @@ describe('rosterTemplateCsv — Gói 1', () => {
     const csv = rosterTemplateCsv()
     expect(csv.startsWith('\uFEFFemail,displayName,phone,birthDate,')).toBe(true)
     expect(csv).toContain('guardianName,guardianRelationship,guardianPhone')
-    // Đường CSV của máy chủ KHÔNG đọc email người giám hộ — mời gõ vào là mời gõ vào hư không.
-    expect(csv).not.toContain('guardianEmail')
+    // D1/R11: máy chủ nay đọc cả email người giám hộ lẫn ô xác nhận đồng ý — hai cột đứng cuối.
+    expect(csv).toContain('guardianPhone,guardianEmail,consentConfirmed')
   })
 
   test('tệp mẫu tự đọc lại được: có cột ngày sinh, không dòng nào sai định dạng, có ca vị thành niên kèm giám hộ', () => {
@@ -223,6 +223,43 @@ describe('rosterTemplateCsv — Gói 1', () => {
     expect(p.invalidEmails).toBe(0)
     expect(p.invalidBirthDates).toBe(0)
     expect(p.rows).toHaveLength(2)
-    expect(p.rows[1]).toMatchObject({ birthDate: '2011-09-15', guardianName: 'Trần Thị C', guardianRelationship: 'MOTHER' })
+    expect(p.hasConsent).toBe(true)
+    expect(p.rows[1]).toMatchObject({
+      birthDate: '2011-09-15', guardianName: 'Trần Thị C', guardianRelationship: 'MOTHER',
+      guardianEmail: 'tran.c@example.com', consentConfirmed: 'x',
+    })
+    expect(p.rows[0]).toMatchObject({ guardianEmail: '', consentConfirmed: '' })
+  })
+})
+
+describe('parseRosterCsv — cột consentConfirmed và guardianEmail (D1/R11)', () => {
+  test('consentConfirmed KHÔNG có birthDate vẫn bật chế độ đọc theo tên — cột đồng ý không bị bỏ qua im lặng', () => {
+    const p = parseRosterCsv('email,consentConfirmed\nan@x.com,x\nbinh@x.com,\n')
+    expect(p.hasBirthDate).toBe(false)
+    expect(p.hasConsent).toBe(true)
+    expect(p.rows[0]).toMatchObject({ email: 'an@x.com', consentConfirmed: 'x' })
+    expect(p.rows[1]).toMatchObject({ email: 'binh@x.com', consentConfirmed: '' })
+    expect(p.rows[0].birthDate).toBe('')
+  })
+
+  test('ô đồng ý giữ NGUYÊN VĂN — web không diễn giải có/không, máy chủ mới là bên quyết', () => {
+    const p = parseRosterCsv('email,birthDate,consentConfirmed\nan@x.com,,Đã thu\nb@x.com,,đang xin\n')
+    expect(p.rows.map((r) => r.consentConfirmed)).toEqual(['Đã thu', 'đang xin'])
+  })
+
+  test('tiêu đề tiếng Việt CÓ DẤU khớp bí danh: "Ngày sinh" không phải cột hệ thống, "Đã xác nhận đồng ý" và "Email giám hộ" thì có', () => {
+    expect(normalizeHeader('Đã xác nhận đồng ý')).toBe('daxacnhandongy')
+    expect(normalizeHeader('Email giám hộ')).toBe('emailgiamho')
+    expect(normalizeHeader('Birth Date')).toBe('birthdate')
+    const p = parseRosterCsv('email,birthDate,Email giám hộ,Đã xác nhận đồng ý\nan@x.com,2011-09-15,me@x.com,Có\n')
+    expect(p.hasConsent).toBe(true)
+    expect(p.hasGuardian).toBe(true)
+    expect(p.rows[0]).toMatchObject({ guardianEmail: 'me@x.com', consentConfirmed: 'Có' })
+  })
+
+  test('guardianEmail chỉ được đọc trong chế độ mới (có birthDate hoặc consentConfirmed)', () => {
+    const p = parseRosterCsv('email,guardianEmail\nan@x.com,me@x.com\n')
+    expect(p.hasGuardian).toBe(false)
+    expect(p.rows[0]).not.toHaveProperty('guardianEmail')
   })
 })
