@@ -31,19 +31,21 @@ import java.util.regex.Pattern;
  * a brand-new student is admitted.
  *
  * <p><b>Cột của tệp.</b> Tối thiểu {@code email,displayName[,phone]} như từ đầu. Tệp có dòng tiêu đề
- * chứa {@code birthDate} (hoặc {@code consentConfirmed}) thì đọc thêm {@code birthDate[,guardianName,
- * guardianPhone,guardianRelationship,guardianEmail,consentConfirmed]} — xem {@link RosterColumnLayout}
- * về việc vì sao cột mới là TÙY CHỌN và tệp cũ của trung tâm không được vỡ. {@code consentConfirmed}
- * (D1, owner chốt 10/09/2026) là đường nhập HÀNG LOẠT phiếu đồng ý giấy; {@code guardianEmail} (R11)
- * là cột thứ hai để bản ghi giám hộ liên lạc được.
+ * chứa {@code birthDate} (hoặc {@code consentConfirmed} / {@code reportSharingConfirmed}) thì đọc thêm
+ * {@code birthDate[,guardianName,guardianPhone,guardianRelationship,guardianEmail,consentConfirmed,
+ * reportSharingConfirmed]} — xem {@link RosterColumnLayout} về việc vì sao cột mới là TÙY CHỌN và tệp
+ * cũ của trung tâm không được vỡ. {@code consentConfirmed} (D1, owner chốt 10/09/2026) là đường nhập
+ * HÀNG LOẠT phiếu đồng ý giấy cho phạm vi ghi âm (mục C1); {@code reportSharingConfirmed} (R6) là mục
+ * C2 của cùng phiếu — đồng ý chia sẻ phiếu đánh giá với người giám hộ ({@code GUARDIAN_REPORT_SHARING});
+ * {@code guardianEmail} (R11) là cột thứ hai để bản ghi giám hộ liên lạc được.
  *
  * <p><b>Ghi danh KHÔNG phải cổng chặn</b> (owner chốt 09/09/2026, giữ nguyên ở D2 10/09/2026). Dòng
  * không khai ngày sinh vẫn được nhập bình thường; học viên dưới 16 thiếu đồng ý VẪN VÀO, chỉ phần
  * nói bị khoá cho tới khi trung tâm ghi nhận phiếu. Cổng của dữ liệu chưa thành niên nằm ở đường đi
  * ra nhà cung cấp AI, không nằm ở đây. Chỉ dòng TỰ MÂU THUẪN mới bị từ chối — khai tuổi dưới ngưỡng
  * pháp lý mà bỏ trống người giám hộ, ngày sinh sai định dạng, ngày sinh ở tương lai, ô đồng ý gõ lạ,
- * email giám hộ sai (xem {@link RosterMinorColumnReader}) — và dòng của học viên đang thuộc trung tâm
- * KHÁC (F4, nêu tên trung tâm đó).
+ * email giám hộ sai hoặc trùng email học viên (xem {@link RosterMinorColumnReader}) — và dòng của học
+ * viên đang thuộc trung tâm KHÁC (F4, nêu tên trung tâm đó).
  *
  * <p>Deliberately NOT {@code @Transactional}: the row work runs in
  * {@link OrgRosterRowImporter#importRow} under {@code REQUIRES_NEW}, one transaction per row. A
@@ -71,10 +73,10 @@ public class OrgRosterService {
     /**
      * Imports students from raw CSV text. Columns:
      * {@code email,displayName[,phone][,birthDate[,guardianName,guardianPhone,guardianRelationship,
-     * guardianEmail,consentConfirmed]]} (comma-separated). The first non-empty line is treated as a
-     * header only when its first column equals {@code "email"}; the minor columns are read only when
-     * that header names {@code birthDate} or {@code consentConfirmed}, so an existing three-column
-     * file behaves exactly as before.
+     * guardianEmail,consentConfirmed,reportSharingConfirmed]]} (comma-separated). The first non-empty
+     * line is treated as a header only when its first column equals {@code "email"}; the minor columns
+     * are read only when that header names {@code birthDate}, {@code consentConfirmed} or
+     * {@code reportSharingConfirmed}, so an existing three-column file behaves exactly as before.
      *
      * @param classIdOrNull when non-null, every imported student is also enrolled into this class
      * @param actor         người bấm import — vết tổng kết mang danh tính này
@@ -104,6 +106,7 @@ public class OrgRosterService {
         int birthDatesRecorded = 0;
         int guardiansRecorded = 0;
         int consentsRecorded = 0;
+        int reportSharingConsentsRecorded = 0;
         int rejectedByOtherOrg = 0;
         boolean seatLimitHit = false;
 
@@ -161,7 +164,8 @@ public class OrgRosterService {
                 RowOutcome outcome = rowImporter.importRow(
                         org,
                         new RosterRowInput(email, col(cols, layout.displayName()),
-                                minorData.birthDate(), minorData.guardian(), minorData.consentConfirmed()),
+                                minorData.birthDate(), minorData.guardian(), minorData.consentConfirmed(),
+                                minorData.reportSharingConfirmed()),
                         classIdOrNull,
                         actor);
 
@@ -209,6 +213,9 @@ public class OrgRosterService {
                 if (outcome.consentRecorded()) {
                     consentsRecorded++;
                 }
+                if (outcome.reportSharingRecorded()) {
+                    reportSharingConsentsRecorded++;
+                }
             } catch (Exception ex) {
                 // Safe to swallow: the row ran in its own REQUIRES_NEW transaction, which has already
                 // rolled back and completed before we get here. Nothing this row touched survives,
@@ -247,6 +254,7 @@ public class OrgRosterService {
         meta.put("birthDatesRecorded", birthDatesRecorded);
         meta.put("guardiansRecorded", guardiansRecorded);
         meta.put("consentsRecorded", consentsRecorded);
+        meta.put("reportSharingConsentsRecorded", reportSharingConsentsRecorded);
         meta.put("rejectedByOtherOrg", rejectedByOtherOrg);
         // DEC-13: orgId là tham số của hàm — trung tâm nhận roster. Đường lùi suy-từ-actor không
         // cứu được ca admin nền tảng import hộ (actor không thuộc trung tâm nào).

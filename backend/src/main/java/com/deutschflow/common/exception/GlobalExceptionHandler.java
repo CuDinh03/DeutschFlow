@@ -90,8 +90,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ProblemDetail> handleBadRequest(BadRequestException ex,
                                                           HttpServletRequest request) {
+        // Nơi ném gắn mã (BadRequestException#getCode, ví dụ GUARDIAN_EMAIL_IS_STUDENT_EMAIL) thì
+        // phát ở extensions.code — cùng khuôn ORG_READ_ONLY / MINOR_AUDIO_BLOCKED. Không mã ⇒
+        // extensions vẫn null, hợp đồng 400 cũ không đổi.
+        Map<String, Object> ext = ex.getCode() == null ? null : Map.of("code", ex.getCode());
         return problem(HttpStatus.BAD_REQUEST, "bad-request", "Bad Request",
-                ex.getMessage(), request.getRequestURI(), null, null);
+                ex.getMessage(), request.getRequestURI(), null, ext);
     }
 
     /**

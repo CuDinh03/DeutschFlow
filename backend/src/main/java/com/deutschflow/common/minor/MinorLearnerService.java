@@ -4,6 +4,7 @@ import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -183,6 +184,7 @@ public class MinorLearnerService {
         requireId(studentUserId, "studentUserId");
         requireStudentExists(studentUserId);
         GuardianDraft clean = normalize(draft);
+        requireGuardianEmailNotStudentEmail(studentUserId, clean.email());
 
         if (clean.primary()) {
             demoteCurrentPrimary(studentUserId);
@@ -243,6 +245,7 @@ public class MinorLearnerService {
                 .orElseThrow(() -> new NotFoundException(
                         "Không tìm thấy người giám hộ " + guardianId + " của học viên " + studentUserId));
         GuardianDraft clean = normalize(draft);
+        requireGuardianEmailNotStudentEmail(studentUserId, clean.email());
 
         // ⛔ Vết chỉ mang TÊN TRƯỜNG đã đổi, không mang giá trị cũ/mới — cùng luật với recordGuardian.
         List<String> changed = new java.util.ArrayList<>();
@@ -385,6 +388,30 @@ public class MinorLearnerService {
             current.setPrimary(false);
             guardianRepository.saveAndFlush(current);
         });
+    }
+
+    /**
+     * Email người giám hộ KHÔNG được là email của chính học viên (so không phân biệt hoa thường).
+     * Địa chỉ này là nơi nhận phiếu đánh giá (R6) và là kênh gọi người lớn khi cần; trùng email học
+     * viên là "đồng ý của người giám hộ" do trẻ tự cấp, và phiếu "gửi phụ huynh" rơi vào hộp thư của
+     * em ấy. Áp cho cả thêm lẫn sửa — sửa email giám hộ về email học viên là cùng một lỗ.
+     *
+     * <p>Đọc email qua {@code userRepository.findById}: cột {@code email} không có bẫy
+     * {@code updatable = false} như {@code birth_date} (xem {@link #statusOf}), nên persistence
+     * context trả đúng giá trị. Không có tài khoản ⇒ không có gì để so; {@code requireStudentExists}
+     * (recordGuardian) hoặc chốt "giám hộ thuộc học viên" (updateGuardian) đã/ sẽ xử lý ca đó.
+     *
+     * @throws GuardianEmailConflictException 400 + {@code extensions.code = GUARDIAN_EMAIL_IS_STUDENT_EMAIL}
+     */
+    private void requireGuardianEmailNotStudentEmail(Long studentUserId, String guardianEmail) {
+        if (guardianEmail == null) {
+            return;
+        }
+        String studentEmail = userRepository.findById(studentUserId).map(User::getEmail).orElse(null);
+        if (studentEmail != null && studentEmail.equalsIgnoreCase(guardianEmail)) {
+            throw new GuardianEmailConflictException("Email người giám hộ trùng email của học viên — "
+                    + "hãy nhập địa chỉ email riêng của cha mẹ/người giám hộ (đây là nơi nhận phiếu đánh giá).");
+        }
     }
 
     /**

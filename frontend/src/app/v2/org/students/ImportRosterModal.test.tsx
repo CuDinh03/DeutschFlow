@@ -120,6 +120,24 @@ describe('ImportRosterModal', () => {
     expect(screen.getByText(`${NS}.consentNote`)).toBeTruthy()
   })
 
+  it('R6: tệp khai reportSharingConfirmed → xem trước mọc cột Chia sẻ phiếu, ô NGUYÊN VĂN, có chú thích riêng; không suy ra cột Đồng ý', async () => {
+    render(<ImportRosterModal onClose={() => undefined} onImported={() => undefined} />)
+    await userEvent.upload(
+      await screen.findByTestId('roster-file-input'),
+      csvFile('email,displayName,Đồng ý chia sẻ phiếu\r\nan@x.com,An,x\r\nbinh@x.com,Bình,\r\n'),
+    )
+
+    await screen.findByText(`${NS}.preview:{"count":2}`)
+    expect(screen.getByText(`${NS}.colReportSharing`)).toBeTruthy()
+    expect(screen.queryByText(`${NS}.colConsent`)).toBeNull()
+    expect(screen.queryByText(`${NS}.colBirthDate`)).toBeNull()
+    const cells = screen.getAllByTestId('roster-report-sharing-cell').map((c) => c.textContent)
+    expect(cells).toEqual(['x', '—'])
+    expect(screen.queryAllByTestId('roster-consent-cell')).toHaveLength(0)
+    expect((screen.getByTestId('roster-submit') as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getByText(`${NS}.reportSharingNote`)).toBeTruthy()
+  })
+
   it('ngày sai định dạng bị đếm và tô đỏ ngay tại dòng đó; ô trống không bị coi là sai', async () => {
     render(<ImportRosterModal onClose={() => undefined} onImported={() => undefined} />)
     await userEvent.upload(

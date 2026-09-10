@@ -349,6 +349,137 @@ class OrgGuardianConsentControllerIntegrationTest extends AbstractPostgresIntegr
                     "SELECT COUNT(*) FROM student_guardians WHERE student_user_id = ?", Long.class, studentA.getId()))
                     .isZero();
         }
+
+        @Test
+        @DisplayName("🔴 R6: reportSharingConfirmed=x (bí danh tiếng Việt) ghi MỘT dòng GUARDIAN_REPORT_SHARING/GRANTED/PAPER cạnh dòng ghi âm; tệp hai cột nhập lại KHÔNG nhân đôi; vết đếm riêng")
+        void reportSharingColumn_recordsScopeOnce_independentOfAudio() throws Exception {
+            Organization org = org();
+            User owner = member(org, "OWNER", User.Role.OWNER);
+            String email = "csv-" + UUID.randomUUID() + "@test.local";
+            String csv = "email,displayName,birthDate,guardianName,guardianPhone,consentConfirmed,Đồng ý chia sẻ phiếu\n"
+                    + email + ",Em Bé," + LocalDate.now().minusYears(17).minusDays(1)
+                    + ",Trần Thị Bình,0987654321,x,x\n";
+
+            importCsv(owner, csv).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.created").value(1))
+                    .andExpect(jsonPath("$.failed").value(0));
+            User student = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+
+            List<Map<String, Object>> consents = jdbcTemplate.queryForList(
+                    "SELECT scope, action, method, note, guardian_id FROM student_consents "
+                            + "WHERE student_user_id = ? ORDER BY scope", student.getId());
+            assertThat(consents).extracting(c -> c.get("scope"))
+                    .containsExactly("AUDIO_RECORDING", "GUARDIAN_REPORT_SHARING");
+            Map<String, Object> sharing = consents.get(1);
+            assertThat(sharing).containsEntry("action", "GRANTED").containsEntry("method", "PAPER")
+                    .containsEntry("note", "roster-import");
+            assertThat(sharing.get("guardian_id")).as("nối với người giám hộ chính vừa thêm").isNotNull();
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT metadata_json->>'reportSharingConsentsRecorded' FROM audit_logs "
+                            + "WHERE event_name = 'org_member_imported' AND org_id = ? ORDER BY id DESC LIMIT 1",
+                    String.class, org.getId())).isEqualTo("1");
+
+            // Sổ đọc qua API thấy scope mới với nhãn thô của enum — web dịch bằng khoá scope.GUARDIAN_REPORT_SHARING.
+            String ledger = mockMvc.perform(get(consentsPath(student)).with(user(owner)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(2))
+                    .andReturn().getResponse().getContentAsString();
+            assertThat(ledger).contains("GUARDIAN_REPORT_SHARING");
+
+            // Đánh dấu hàng loạt bằng tệp HAI cột sau khi thu phiếu: scope đã GRANTED ⇒ không thêm dòng.
+            importCsv(owner, "email,reportSharingConfirmed\n" + email + ",x\n")
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.linked").value(1))
+                    .andExpect(jsonPath("$.failed").value(0));
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM student_consents WHERE student_user_id = ?", Long.class, student.getId()))
+                    .as("nhập lại không phình sổ chỉ-ghi-thêm").isEqualTo(2L);
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT metadata_json->>'reportSharingConsentsRecorded' FROM audit_logs "
+                            + "WHERE event_name = 'org_member_imported' AND org_id = ? ORDER BY id DESC LIMIT 1",
+                    String.class, org.getId())).isEqualTo("0");
+        }
+
+        @Test
+        @DisplayName("🔴 R6/R11: guardianEmail trùng email học viên ⇒ dòng bị từ chối nêu cột, KHÔNG tạo tài khoản, không ghi gì")
+        void guardianEmailEqualsStudentEmail_rowRejected_nothingWritten() throws Exception {
+            Organization org = org();
+            User owner = member(org, "OWNER", User.Role.OWNER);
+            String email = "csv-" + UUID.randomUUID() + "@test.local";
+            String csv = "email,displayName,birthDate,guardianName,guardianEmail,reportSharingConfirmed\n"
+                    + email + ",Em Bé," + LocalDate.now().minusYears(15) + ",Mẹ," + email.toUpperCase() + ",x\n";
+
+            String body = importCsv(owner, csv).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.failed").value(1))
+                    .andExpect(jsonPath("$.created").value(0))
+                    .andReturn().getResponse().getContentAsString();
+
+            assertThat(body).contains("Dòng 2").contains("guardianEmail").contains("trùng email của học viên");
+            assertThat(userRepository.findByEmailIgnoreCase(email)).as("dòng bị từ chối không chạm users").isEmpty();
+        }
+    }
+
+    // ── 4. Email giám hộ ≠ email học viên trên endpoint giám hộ; scope chia sẻ phiếu qua API ──
+
+    @Nested
+    @DisplayName("Endpoint giám hộ/đồng ý — guardianEmail ≠ email học viên (R6/R11), scope GUARDIAN_REPORT_SHARING")
+    class GuardianEmailAndReportSharing {
+
+        @Test
+        @DisplayName("🔴 POST/PUT guardians với email = email học viên ⇒ 400 + extensions.code=GUARDIAN_EMAIL_IS_STUDENT_EMAIL, không ghi; 400 thường vẫn không có mã")
+        void guardianEmailEqualToStudentEmail_rejectedWithCode() throws Exception {
+            Organization org = org();
+            User owner = member(org, "OWNER", User.Role.OWNER);
+            User student = student(org, 15);
+
+            postGuardian(owner, student, Map.of("fullName", "Mẹ", "relationship", "MOTHER",
+                    "email", student.getEmail().toUpperCase()))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.extensions.code").value("GUARDIAN_EMAIL_IS_STUDENT_EMAIL"))
+                    .andExpect(jsonPath("$.detail").isNotEmpty());
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM student_guardians WHERE student_user_id = ?", Long.class, student.getId()))
+                    .isZero();
+
+            Long guardianId = readId(postGuardian(owner, student, Map.of(
+                    "fullName", "Mẹ", "relationship", "MOTHER", "phone", "0900"))
+                    .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+            mockMvc.perform(put(guardiansPath(student) + "/" + guardianId).with(user(owner))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "fullName", "Mẹ", "relationship", "MOTHER",
+                                    "phone", "0900", "email", student.getEmail()))))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.extensions.code").value("GUARDIAN_EMAIL_IS_STUDENT_EMAIL"));
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT email FROM student_guardians WHERE id = ?", String.class, guardianId)).isNull();
+
+            // Hợp đồng 400 cũ không đổi: lỗi thiếu liên lạc vẫn là 400 KHÔNG mã.
+            postGuardian(owner, student, Map.of("fullName", "Không liên lạc được", "relationship", "MOTHER"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.extensions.code").doesNotExist());
+        }
+
+        @Test
+        @DisplayName("POST consents scope=GUARDIAN_REPORT_SHARING/PAPER ⇒ 201 và có trong sổ; scope này KHÔNG mở phần ghi âm")
+        void reportSharingScope_viaEndpoint_doesNotOpenAudio() throws Exception {
+            Organization org = org();
+            User owner = member(org, "OWNER", User.Role.OWNER);
+            User student = student(org, 17);
+
+            postConsent(owner, student, consentBody("GUARDIAN_REPORT_SHARING", "GRANTED", "PAPER", null, "mục C2 đã ký"))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.scope").value("GUARDIAN_REPORT_SHARING"))
+                    .andExpect(jsonPath("$.method").value("PAPER"));
+
+            assertThatThrownBy(() -> minorGate.assertAudioAllowed(student.getId()))
+                    .as("đồng ý chia sẻ phiếu không phải đồng ý ghi âm")
+                    .isInstanceOf(MinorAudioBlockedException.class);
+            mockMvc.perform(get(consentsPath(student)).with(user(owner)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1))
+                    .andExpect(jsonPath("$[0].scope").value("GUARDIAN_REPORT_SHARING"));
+        }
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────

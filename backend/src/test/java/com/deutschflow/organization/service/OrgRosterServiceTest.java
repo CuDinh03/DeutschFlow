@@ -1170,4 +1170,159 @@ class OrgRosterServiceTest {
         verify(minorLearnerService, never()).recordBirthDate(eq(41L), any(), anyLong(), anyLong(), any());
         verify(minorLearnerService).recordBirthDate(eq(42L), any(), eq(2L), eq(ORG_ID), eq(ACTOR));
     }
+
+    // ------------------------------------------------------------------ R6: reportSharingConfirmed (GUARDIAN_REPORT_SHARING)
+
+    @Test
+    @DisplayName("R6: reportSharingConfirmed=x cùng consentConfirmed=x → HAI dòng GRANTED/PAPER, mỗi scope một dòng, cùng note roster-import và cùng người giám hộ chính")
+    void importStudents_reportSharingConfirmed_recordsGuardianReportSharingConsent() {
+        stubOrg(org(0, null));
+        String csv = "email,displayName,birthDate,guardianName,guardianPhone,consentConfirmed,reportSharingConfirmed\n"
+                + "an@x.com,An," + birthDateAgedYears(17) + ",Trần Bình,0987,x,x\n";
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        when(userRepository.save(any(User.class))).thenReturn(savedStudent(51L, "an@x.com"));
+        when(minorLearnerService.consentStatus(eq(51L), any())).thenReturn(ConsentState.NEVER_RECORDED);
+        when(minorLearnerService.guardiansOf(51L))
+                .thenReturn(List.of())   // lượt kiểm "đã có ai chưa" trước khi thêm
+                .thenReturn(List.of(StudentGuardian.builder().id(78L).studentUserId(51L).primary(true).build()));
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).as(result.errors().toString()).isEqualTo(0);
+        ArgumentCaptor<ConsentDraft> drafts = ArgumentCaptor.forClass(ConsentDraft.class);
+        verify(minorLearnerService, times(2)).recordConsent(eq(51L), eq(ORG_ID), drafts.capture(), eq(ACTOR));
+        assertThat(drafts.getAllValues()).extracting(ConsentDraft::scope)
+                .containsExactly(StudentConsent.Scope.AUDIO_RECORDING, StudentConsent.Scope.GUARDIAN_REPORT_SHARING);
+        ConsentDraft sharing = drafts.getAllValues().get(1);
+        assertThat(sharing.action()).isEqualTo(StudentConsent.Action.GRANTED);
+        assertThat(sharing.method()).isEqualTo(StudentConsent.Method.PAPER);
+        assertThat(sharing.termsVersion()).isEqualTo(TERMS_VERSION);
+        assertThat(sharing.note()).isEqualTo("roster-import");
+        assertThat(sharing.guardianId()).isEqualTo(78L);
+        assertThat(sharing.effectiveAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("R6: chỉ reportSharingConfirmed=có (consentConfirmed trống) → CHỈ scope GUARDIAN_REPORT_SHARING; đồng ý ghi âm không bị suy ra")
+    void importStudents_reportSharingOnly_doesNotImplyAudioConsent() {
+        stubOrg(org(0, null));
+        User existing = savedStudent(52L, "an@x.com");
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.of(existing));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 52L))
+                .thenReturn(Optional.of(activeMember(52L, "STUDENT")));
+        when(minorLearnerService.consentStatus(52L, StudentConsent.Scope.GUARDIAN_REPORT_SHARING))
+                .thenReturn(ConsentState.NEVER_RECORDED);
+        String csv = "email,consentConfirmed,reportSharingConfirmed\nan@x.com,,có\n";
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).as(result.errors().toString()).isEqualTo(0);
+        assertThat(result.linked()).isEqualTo(1);
+        ArgumentCaptor<ConsentDraft> draft = ArgumentCaptor.forClass(ConsentDraft.class);
+        verify(minorLearnerService, times(1)).recordConsent(eq(52L), eq(ORG_ID), draft.capture(), eq(ACTOR));
+        assertThat(draft.getValue().scope()).isEqualTo(StudentConsent.Scope.GUARDIAN_REPORT_SHARING);
+        verify(minorLearnerService, never()).consentStatus(52L, StudentConsent.Scope.AUDIO_RECORDING);
+    }
+
+    @Test
+    @DisplayName("R6: tệp CHỈ có email + bí danh tiếng Việt \"Đồng ý chia sẻ phiếu\" (không birthDate, không consentConfirmed) vẫn đọc — không bỏ qua im lặng")
+    void importStudents_reportSharingColumnAlone_stillRead() {
+        stubOrg(org(0, null));
+        User existing = savedStudent(53L, "an@x.com");
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.of(existing));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 53L))
+                .thenReturn(Optional.of(activeMember(53L, "STUDENT")));
+        when(minorLearnerService.consentStatus(53L, StudentConsent.Scope.GUARDIAN_REPORT_SHARING))
+                .thenReturn(ConsentState.NEVER_RECORDED);
+        String csv = "email,Đồng ý chia sẻ phiếu\nan@x.com,x\n";
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).as(result.errors().toString()).isEqualTo(0);
+        ArgumentCaptor<ConsentDraft> draft = ArgumentCaptor.forClass(ConsentDraft.class);
+        verify(minorLearnerService).recordConsent(eq(53L), eq(ORG_ID), draft.capture(), eq(ACTOR));
+        assertThat(draft.getValue().scope()).isEqualTo(StudentConsent.Scope.GUARDIAN_REPORT_SHARING);
+        verify(minorLearnerService, never()).recordBirthDate(anyLong(), any(), anyLong(), anyLong(), any());
+        verify(minorLearnerService, never()).recordGuardian(anyLong(), anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("R6: idempotent THEO SCOPE — ghi âm đã GRANTED không làm scope chia sẻ phiếu bị bỏ qua; scope đã GRANTED thì không ghi thêm")
+    void importStudents_reportSharing_idempotentPerScope() {
+        stubOrg(org(0, null));
+        User existing = savedStudent(54L, "an@x.com");
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.of(existing));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 54L))
+                .thenReturn(Optional.of(activeMember(54L, "STUDENT")));
+        when(minorLearnerService.consentStatus(54L, StudentConsent.Scope.AUDIO_RECORDING))
+                .thenReturn(ConsentState.GRANTED);
+        when(minorLearnerService.consentStatus(54L, StudentConsent.Scope.GUARDIAN_REPORT_SHARING))
+                .thenReturn(ConsentState.NEVER_RECORDED)   // lần nhập 1: chưa có → ghi
+                .thenReturn(ConsentState.GRANTED);         // lần nhập 2: đã có → không ghi
+        String csv = "email,consentConfirmed,reportSharingConfirmed\nan@x.com,x,x\n";
+
+        service.importStudents(ORG_ID, csv, null, ACTOR);
+        service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        ArgumentCaptor<ConsentDraft> draft = ArgumentCaptor.forClass(ConsentDraft.class);
+        verify(minorLearnerService, times(1)).recordConsent(eq(54L), eq(ORG_ID), draft.capture(), eq(ACTOR));
+        assertThat(draft.getValue().scope()).isEqualTo(StudentConsent.Scope.GUARDIAN_REPORT_SHARING);
+    }
+
+    @Test
+    @DisplayName("R6: ô reportSharingConfirmed gõ lạ → từ chối dòng, câu nêu ĐÚNG tên cột, không tạo tài khoản, không ghi đồng ý nào")
+    void importStudents_reportSharingUnknownValue_rejected() {
+        stubOrg(org(0, null));
+        String csv = "email,consentConfirmed,reportSharingConfirmed\nan@x.com,x,đang xin\n";
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.errors()).singleElement().asString()
+                .contains("Dòng 2").contains("an@x.com").contains("reportSharingConfirmed").contains("đang xin");
+        verify(userRepository, never()).save(any(User.class));
+        verify(minorLearnerService, never()).recordConsent(anyLong(), anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("R6/R11: guardianEmail trùng email học viên (khác hoa thường) → từ chối dòng TRƯỚC khi chạm DB, câu nêu dòng + email + cột")
+    void importStudents_guardianEmailEqualsStudentEmail_rejected() {
+        stubOrg(org(0, null));
+        String csv = "email,birthDate,guardianName,guardianPhone,guardianEmail\n"
+                + "an@x.com," + birthDateAgedYears(14) + ",Trần Bình,0987,An@X.com\n";
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.errors()).singleElement().asString()
+                .contains("Dòng 2").contains("an@x.com").contains("guardianEmail").contains("trùng email của học viên");
+        verify(userRepository, never()).save(any(User.class));
+        verify(minorLearnerService, never()).recordGuardian(anyLong(), anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("R6: vết tổng kết đếm reportSharingConsentsRecorded RIÊNG, tách khỏi consentsRecorded — vẫn chỉ số lượng, không nội dung")
+    void importStudents_auditCountsReportSharingSeparately() {
+        stubOrg(org(0, null));
+        User existing = savedStudent(55L, "an@x.com");
+        when(userRepository.findByEmailIgnoreCase("an@x.com")).thenReturn(Optional.of(existing));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 55L))
+                .thenReturn(Optional.of(activeMember(55L, "STUDENT")));
+        when(minorLearnerService.consentStatus(55L, StudentConsent.Scope.GUARDIAN_REPORT_SHARING))
+                .thenReturn(ConsentState.NEVER_RECORDED);
+        String csv = "email,reportSharingConfirmed\nan@x.com,x\n";
+
+        service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("org_member_imported"), eq(ACTOR), eq("ORG"),
+                eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
+        assertThat(meta.getValue())
+                .containsEntry("reportSharingConsentsRecorded", 1)
+                .containsEntry("consentsRecorded", 0);
+        assertThat(meta.getValue().values().stream().map(String::valueOf))
+                .noneMatch(v -> v.contains("an@x.com"));
+    }
 }

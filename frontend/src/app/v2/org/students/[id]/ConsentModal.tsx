@@ -23,11 +23,16 @@ import { TkModal, GaBtn, GaCap, ErrorBanner, ConfirmDialog } from '@/components/
  * Ngày hiệu lực: ô `date` (ngày ký giấy). Chọn hôm nay ⇒ KHÔNG gửi `effectiveAt` để máy chủ lấy
  * "bây giờ" — gửi giữa trưa hôm nay lúc 9 giờ sáng là "đồng ý ở tương lai" và bị máy chủ từ chối.
  * Ngày quá khứ ⇒ gửi 12:00 giờ máy để không lệch ngày qua múi giờ.
+ *
+ * Phạm vi (R6): đủ năm scope của `chk_student_consents_scope`, kể cả `GUARDIAN_REPORT_SHARING` — đồng ý
+ * cho trung tâm gửi phiếu đánh giá về người giám hộ (mục C2 phiếu giấy). Dưới ô chọn là một câu mô tả
+ * ngắn theo scope, và ConfirmDialog nêu hệ quả ĐÚNG scope: ghi âm ⇒ mở/khoá phần nói; chia sẻ phiếu ⇒
+ * được/không được gửi phiếu; scope khác chỉ nêu "sổ chỉ ghi thêm".
  */
 
 const INPUT_CLS =
   'ga-ui mt-1 w-full rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-ga-small text-ga-ink outline-none placeholder:text-ga-subtle focus:border-ga-accent'
-const SCOPES: ConsentScope[] = ['AUDIO_RECORDING', 'AI_PROCESSING', 'DATA_PROCESSING', 'MESSAGING']
+const SCOPES: ConsentScope[] = ['AUDIO_RECORDING', 'GUARDIAN_REPORT_SHARING', 'AI_PROCESSING', 'DATA_PROCESSING', 'MESSAGING']
 const METHODS: ConsentMethod[] = ['PAPER', 'PHONE', 'EMAIL', 'IN_APP']
 const NOTE_MAX = 255
 
@@ -69,6 +74,21 @@ export function ConsentModal({
   const [error, setError] = useState('')
 
   const isGrant = mode === 'grant'
+
+  /** Hệ quả riêng của scope trong ConfirmDialog — `null` với scope không có hệ quả tức thời nào để nêu. */
+  const scopeConsequence = (): string | null => {
+    if (scope === 'AUDIO_RECORDING') {
+      return isGrant ? t('consentModal.confirmGrantDetailOpen') : t('consentModal.confirmRevokeDetailLock')
+    }
+    if (scope === 'GUARDIAN_REPORT_SHARING') {
+      return isGrant ? t('consentModal.confirmGrantDetailReportSharing') : t('consentModal.confirmRevokeDetailReportSharing')
+    }
+    return null
+  }
+  const consequence = scopeConsequence()
+  const confirmDetails = isGrant
+    ? [t('consentModal.confirmDetailAppendOnly'), ...(consequence ? [consequence] : [])]
+    : [...(consequence ? [consequence] : []), t('consentModal.confirmDetailAppendOnly')]
 
   const askConfirm = () => {
     setError('')
@@ -127,6 +147,7 @@ export function ConsentModal({
               <select value={scope} onChange={(e) => setScope(e.target.value as ConsentScope)} className={INPUT_CLS} aria-label={t('consentModal.scopeLabel')}>
                 {SCOPES.map((s) => <option key={s} value={s}>{t(`scope.${s}`)}</option>)}
               </select>
+              <p className="ga-ui mt-1 text-ga-caption text-ga-subtle" data-testid="consent-scope-hint">{t(`scopeHint.${scope}`)}</p>
             </label>
             <label className="block">
               <GaCap>{t('consentModal.methodLabel')}</GaCap>
@@ -167,9 +188,7 @@ export function ConsentModal({
           description={isGrant
             ? t('consentModal.confirmGrantDesc', { scope: t(`scope.${scope}`) })
             : t('consentModal.confirmRevokeDesc', { scope: t(`scope.${scope}`) })}
-          details={isGrant
-            ? [t('consentModal.confirmDetailAppendOnly'), t('consentModal.confirmGrantDetailOpen')]
-            : [t('consentModal.confirmRevokeDetailLock'), t('consentModal.confirmDetailAppendOnly')]}
+          details={confirmDetails}
           confirmLabel={isGrant ? t('consentModal.submitGrant') : t('consentModal.submitRevoke')}
           cancelLabel={t('consentModal.cancel')}
           destructive={!isGrant}

@@ -177,6 +177,28 @@ describe('GuardianConsentSection', () => {
     expect(addStudentGuardian).not.toHaveBeenCalled()
   })
 
+  it('R6/R11: email giám hộ trùng email học viên (khác hoa thường) → báo lỗi tại chỗ, không gọi API', async () => {
+    render(<GuardianConsentSection detail={detail({ email: 'Em@TT.vn' })} onChanged={() => undefined} />)
+    await screen.findByText('Giám hộ 12')
+
+    await userEvent.click(screen.getByTestId('guardian-add'))
+    await userEvent.type(screen.getByLabelText(`${NS}.guardianModal.nameLabel`), 'Mẹ')
+    await userEvent.type(screen.getByLabelText(`${NS}.guardianModal.emailLabel`), 'em@tt.vn')
+    await userEvent.click(screen.getByTestId('guardian-submit'))
+
+    expect(await screen.findByText(`${NS}.guardianModal.emailIsStudent`)).toBeTruthy()
+    expect(addStudentGuardian).not.toHaveBeenCalled()
+  })
+
+  it('sổ đồng ý hiện dòng scope GUARDIAN_REPORT_SHARING bằng nhãn scope tương ứng', async () => {
+    listStudentConsents.mockResolvedValue([
+      { id: 6, scope: 'GUARDIAN_REPORT_SHARING', action: 'GRANTED', method: 'PAPER', guardianId: 12, guardianName: 'Giám hộ 12', termsVersion: '2026-09', effectiveAt: '2026-09-10T03:00:00Z', recordedByUserId: 2, recordedByName: 'Quản lý', note: 'roster-import', createdAt: '2026-09-10T03:00:00Z' },
+    ])
+    render(<GuardianConsentSection detail={detail()} onChanged={() => undefined} />)
+
+    expect(await screen.findByText(`${NS}.scope.GUARDIAN_REPORT_SHARING`)).toBeTruthy()
+  })
+
   it('học viên đã rời trung tâm: hiện tóm tắt + câu giải thích, KHÔNG tải hồ sơ, không có nút ghi', () => {
     render(<GuardianConsentSection detail={detail({ status: 'REVOKED' })} onChanged={() => undefined} />)
 

@@ -18,6 +18,10 @@ import { TkModal, GaBtn, GaCap, ErrorBanner } from '@/components/ui-v2'
  *
  * Không có nút xoá — cố ý, cùng lý do với sổ đồng ý: người giám hộ từng đồng ý mà biến mất khỏi bảng
  * thì dòng đồng ý mất câu trả lời "ai". Gõ nhầm người thì sửa lại thông tin trên chính dòng đó.
+ *
+ * Email giám hộ KHÔNG được trùng email học viên (R6/R11): đó là nơi nhận phiếu đánh giá. Kiểm sớm ở
+ * đây bằng `studentEmail` để báo tại chỗ; máy chủ vẫn là thẩm quyền cuối (400
+ * `GUARDIAN_EMAIL_IS_STUDENT_EMAIL`) — thiếu prop thì bỏ qua kiểm sớm, không bỏ qua chốt của máy chủ.
  */
 
 const INPUT_CLS =
@@ -27,12 +31,15 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function GuardianModal({
   studentId,
+  studentEmail,
   existing,
   hasGuardians,
   onClose,
   onSaved,
 }: {
   studentId: number
+  /** Email học viên — để chặn sớm email giám hộ trùng (máy chủ vẫn chặn khi thiếu). */
+  studentEmail?: string | null
   /** Có = sửa; không = thêm. */
   existing: OrgStudentGuardian | null
   /** Học viên đã có người giám hộ nào chưa — quyết định mặc định "người liên lạc chính" khi thêm. */
@@ -57,6 +64,10 @@ export function GuardianModal({
     // Cùng chốt với máy chủ (chk_student_guardians_contactable): phải liên lạc được bằng ít nhất một đường.
     if (!name || (!ph && !em) || (em && !EMAIL_RE.test(em))) {
       setError(t('guardianModal.invalid'))
+      return
+    }
+    if (em && studentEmail && em === studentEmail.trim().toLowerCase()) {
+      setError(t('guardianModal.emailIsStudent'))
       return
     }
     setSaving(true)

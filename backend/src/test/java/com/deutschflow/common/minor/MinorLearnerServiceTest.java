@@ -4,6 +4,7 @@ import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -434,6 +435,86 @@ class MinorLearnerServiceTest {
 
             assertThat(service.consentStatus(STUDENT, StudentConsent.Scope.AI_PROCESSING).isEffective())
                     .isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("Email người giám hộ ≠ email học viên (R6/R11) — 400 mã GUARDIAN_EMAIL_IS_STUDENT_EMAIL")
+    class GuardianEmailConflict {
+
+        private User student(String email) {
+            return User.builder().id(STUDENT).email(email).displayName("Em").role(User.Role.STUDENT)
+                    .passwordHash("x").build();
+        }
+
+        @Test
+        @DisplayName("recordGuardian: email giám hộ trùng email học viên (khác hoa thường, có khoảng trắng) → ném mã, không ghi, không vết")
+        void recordGuardian_sameEmailRejected() {
+            when(userRepository.existsById(STUDENT)).thenReturn(true);
+            when(userRepository.findById(STUDENT)).thenReturn(Optional.of(student("em@tt.vn")));
+
+            assertThatThrownBy(() -> service.recordGuardian(STUDENT, ORG, new GuardianDraft(
+                    "Mẹ", StudentGuardian.Relationship.MOTHER, null, " EM@TT.VN ", true), ACTOR))
+                    .isInstanceOf(GuardianEmailConflictException.class)
+                    .isInstanceOf(BadRequestException.class)
+                    .extracting(ex -> ((BadRequestException) ex).getCode())
+                    .isEqualTo(GuardianEmailConflictException.CODE);
+            verify(guardianRepository, never()).save(any());
+            verify(guardianRepository, never()).saveAndFlush(any());
+            verify(auditLogService, never()).log(anyString(), any(), anyString(), anyString(), any(), any());
+        }
+
+        @Test
+        @DisplayName("recordGuardian: email khác → ghi bình thường (chốt trùng không cản người giám hộ thật)")
+        void recordGuardian_differentEmailAccepted() {
+            when(userRepository.existsById(STUDENT)).thenReturn(true);
+            when(userRepository.findById(STUDENT)).thenReturn(Optional.of(student("em@tt.vn")));
+            when(guardianRepository.findByStudentUserIdAndPrimaryTrue(STUDENT)).thenReturn(Optional.empty());
+            when(guardianRepository.save(any())).thenAnswer(inv -> {
+                StudentGuardian g = inv.getArgument(0);
+                g.setId(3L);
+                return g;
+            });
+            stubBirthDate(aged(17));
+
+            StudentGuardian saved = service.recordGuardian(STUDENT, ORG, new GuardianDraft(
+                    "Mẹ", StudentGuardian.Relationship.MOTHER, null, "Me@tt.vn", true), ACTOR);
+
+            assertThat(saved.getEmail()).isEqualTo("me@tt.vn");
+        }
+
+        @Test
+        @DisplayName("updateGuardian: sửa email giám hộ THÀNH email học viên → chặn cùng mã, bản ghi không đổi")
+        void updateGuardian_sameEmailRejected() {
+            StudentGuardian current = StudentGuardian.builder().id(9L).studentUserId(STUDENT).orgId(ORG)
+                    .fullName("Mẹ").relationship(StudentGuardian.Relationship.MOTHER)
+                    .phone("0901").email(null).primary(true).build();
+            when(guardianRepository.findById(9L)).thenReturn(Optional.of(current));
+            when(userRepository.findById(STUDENT)).thenReturn(Optional.of(student("em@tt.vn")));
+
+            assertThatThrownBy(() -> service.updateGuardian(STUDENT, 9L, ORG, new GuardianDraft(
+                    "Mẹ", StudentGuardian.Relationship.MOTHER, "0901", "Em@tt.vn", true), ACTOR))
+                    .isInstanceOf(GuardianEmailConflictException.class);
+            verify(guardianRepository, never()).save(any());
+            assertThat(current.getEmail()).isNull();
+        }
+
+        @Test
+        @DisplayName("không có email giám hộ → không tra tài khoản học viên (không thêm truy vấn cho tệp chỉ có điện thoại)")
+        void noEmail_noLookup() {
+            when(userRepository.existsById(STUDENT)).thenReturn(true);
+            when(guardianRepository.findByStudentUserIdAndPrimaryTrue(STUDENT)).thenReturn(Optional.empty());
+            when(guardianRepository.save(any())).thenAnswer(inv -> {
+                StudentGuardian g = inv.getArgument(0);
+                g.setId(4L);
+                return g;
+            });
+            stubBirthDate(aged(17));
+
+            service.recordGuardian(STUDENT, ORG, new GuardianDraft(
+                    "Mẹ", StudentGuardian.Relationship.MOTHER, "0901", null, true), ACTOR);
+
+            verify(userRepository, never()).findById(any());
         }
     }
 

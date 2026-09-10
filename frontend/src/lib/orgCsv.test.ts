@@ -263,3 +263,50 @@ describe('parseRosterCsv — cột consentConfirmed và guardianEmail (D1/R11)',
     expect(p.rows[0]).not.toHaveProperty('guardianEmail')
   })
 })
+
+describe('parseRosterCsv — cột reportSharingConfirmed (R6, scope GUARDIAN_REPORT_SHARING)', () => {
+  test('header khai reportSharingConfirmed → hasReportSharing, ô giữ NGUYÊN VĂN, độc lập với consentConfirmed', () => {
+    const p = parseRosterCsv('email,consentConfirmed,reportSharingConfirmed\nan@x.com,x,\nbinh@x.com,,Có\n')
+    expect(p.hasConsent).toBe(true)
+    expect(p.hasReportSharing).toBe(true)
+    expect(p.rows[0]).toMatchObject({ email: 'an@x.com', consentConfirmed: 'x', reportSharingConfirmed: '' })
+    expect(p.rows[1]).toMatchObject({ email: 'binh@x.com', consentConfirmed: '', reportSharingConfirmed: 'Có' })
+  })
+
+  test('CHỈ email,reportSharingConfirmed (không birthDate, không consentConfirmed) vẫn bật chế độ đọc theo tên — máy chủ cũng bật theo cột này', () => {
+    const p = parseRosterCsv('email,reportSharingConfirmed\nan@x.com,x\n')
+    expect(p.hasBirthDate).toBe(false)
+    expect(p.hasConsent).toBe(false)
+    expect(p.hasReportSharing).toBe(true)
+    expect(p.rows[0]).toMatchObject({ email: 'an@x.com', reportSharingConfirmed: 'x', birthDate: '' })
+    expect(p.rows[0]).not.toHaveProperty('consentConfirmed')
+    // Vị trí 1 đã có chủ (cột đồng ý) ⇒ tên hiển thị KHÔNG lùi về đó — y như RosterColumnLayout.
+    expect(p.rows[0].displayName).toBe('')
+  })
+
+  test('bí danh tiếng Việt có dấu: "Đồng ý chia sẻ phiếu" là cột chia sẻ phiếu, "Đồng ý" bên cạnh vẫn là cột ghi âm', () => {
+    expect(normalizeHeader('Đồng ý chia sẻ phiếu')).toBe('dongychiasephieu')
+    expect(normalizeHeader('Gửi phiếu phụ huynh')).toBe('guiphieuphuhuynh')
+    const p = parseRosterCsv('email,Đồng ý,Đồng ý chia sẻ phiếu\nan@x.com,x,không\n')
+    expect(p.hasConsent).toBe(true)
+    expect(p.hasReportSharing).toBe(true)
+    expect(p.rows[0]).toMatchObject({ consentConfirmed: 'x', reportSharingConfirmed: 'không' })
+  })
+
+  test('tệp ba cột cũ: không có khoá reportSharingConfirmed, không bật cờ', () => {
+    const p = parseRosterCsv('email,displayName,phone\nan@x.com,An,0912\n')
+    expect(p.hasReportSharing).toBe(false)
+    expect(p.rows[0]).not.toHaveProperty('reportSharingConfirmed')
+  })
+
+  test('file mẫu có cột reportSharingConfirmed đứng cuối; tự đọc lại: ca vị thành niên đánh x cả hai ô, ca đủ tuổi để trống', () => {
+    const csv = rosterTemplateCsv()
+    expect(csv).toContain('guardianEmail,consentConfirmed,reportSharingConfirmed')
+    const p = parseRosterCsv(csv)
+    expect(p.hasReportSharing).toBe(true)
+    expect(p.invalidEmails).toBe(0)
+    expect(p.invalidBirthDates).toBe(0)
+    expect(p.rows[1]).toMatchObject({ consentConfirmed: 'x', reportSharingConfirmed: 'x' })
+    expect(p.rows[0]).toMatchObject({ consentConfirmed: '', reportSharingConfirmed: '' })
+  })
+})

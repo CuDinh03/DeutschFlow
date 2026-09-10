@@ -78,34 +78,38 @@ public class OrgRosterRowImporter {
      * What one row did. {@code created} and {@code linked} are mutually exclusive; {@code seatLimited}
      * means the row was rejected by the seat gate and nothing was written.
      *
-     * @param otherOrgName      F4: dòng bị từ chối vì học viên đang ACTIVE ở trung tâm KHÁC — tên
-     *                          trung tâm đó (có thể rỗng nếu không tra được tên). {@code null} = không
-     *                          bị chặn vì lý do này. Không ghi gì cả khi có giá trị
-     * @param birthDateRecorded ngày sinh của dòng này ĐÃ được ghi. {@code false} khi dòng không khai
-     *                          ngày sinh HOẶC tài khoản đã có sẵn — cả hai đều là kết quả bình
-     *                          thường, không phải lỗi (xem {@code MinorLearnerService#recordBirthDate})
-     * @param guardianRecorded  người giám hộ của dòng này đã được thêm; {@code false} khi dòng không
-     *                          khai, hoặc học viên đã có người giám hộ từ trước
-     * @param consentRecorded   một dòng đồng ý {@code AUDIO_RECORDING/GRANTED/PAPER} đã được ghi thêm;
-     *                          {@code false} khi ô không đánh dấu, hoặc học viên đã đang {@code GRANTED}
+     * @param otherOrgName          F4: dòng bị từ chối vì học viên đang ACTIVE ở trung tâm KHÁC — tên
+     *                              trung tâm đó (có thể rỗng nếu không tra được tên). {@code null} =
+     *                              không bị chặn vì lý do này. Không ghi gì cả khi có giá trị
+     * @param birthDateRecorded     ngày sinh của dòng này ĐÃ được ghi. {@code false} khi dòng không khai
+     *                              ngày sinh HOẶC tài khoản đã có sẵn — cả hai đều là kết quả bình
+     *                              thường, không phải lỗi (xem {@code MinorLearnerService#recordBirthDate})
+     * @param guardianRecorded      người giám hộ của dòng này đã được thêm; {@code false} khi dòng không
+     *                              khai, hoặc học viên đã có người giám hộ từ trước
+     * @param consentRecorded       một dòng đồng ý {@code AUDIO_RECORDING/GRANTED/PAPER} đã được ghi thêm;
+     *                              {@code false} khi ô không đánh dấu, hoặc học viên đã đang {@code GRANTED}
+     * @param reportSharingRecorded một dòng đồng ý {@code GUARDIAN_REPORT_SHARING/GRANTED/PAPER} (R6) đã
+     *                              được ghi thêm; cùng hai nghĩa của {@code false} như trên
      */
     public record RowOutcome(boolean created, boolean linked, boolean enrolled, boolean seatLimited,
                              String otherOrgName,
-                             boolean birthDateRecorded, boolean guardianRecorded, boolean consentRecorded) {
+                             boolean birthDateRecorded, boolean guardianRecorded, boolean consentRecorded,
+                             boolean reportSharingRecorded) {
 
         static RowOutcome rejectedBySeatLimit() {
-            return new RowOutcome(false, false, false, true, null, false, false, false);
+            return new RowOutcome(false, false, false, true, null, false, false, false, false);
         }
 
         static RowOutcome rejectedByOtherOrg(String otherOrgName) {
             return new RowOutcome(false, false, false, false, otherOrgName == null ? "" : otherOrgName,
-                    false, false, false);
+                    false, false, false, false);
         }
 
         static RowOutcome imported(boolean created, boolean enrolled,
-                                   boolean birthDateRecorded, boolean guardianRecorded, boolean consentRecorded) {
+                                   boolean birthDateRecorded, boolean guardianRecorded,
+                                   boolean consentRecorded, boolean reportSharingRecorded) {
             return new RowOutcome(created, !created, enrolled, false, null,
-                    birthDateRecorded, guardianRecorded, consentRecorded);
+                    birthDateRecorded, guardianRecorded, consentRecorded, reportSharingRecorded);
         }
 
         /** Dòng bị chặn vì học viên đang thuộc trung tâm khác (F4). */
@@ -207,6 +211,7 @@ public class OrgRosterRowImporter {
         boolean birthDateRecorded = recordBirthDate(row, user, orgId, actor);
         boolean guardianRecorded = recordGuardian(row, user, orgId, actor);
         boolean consentRecorded = recordConsent(row, user, orgId, actor);
+        boolean reportSharingRecorded = recordReportSharingConsent(row, user, orgId, actor);
 
         boolean enrolled = false;
         if (classIdOrNull != null) {
@@ -221,7 +226,8 @@ public class OrgRosterRowImporter {
                 assignmentBackfillService.ensureAssignmentsForStudent(classIdOrNull, user.getId());
             }
         }
-        return RowOutcome.imported(created, enrolled, birthDateRecorded, guardianRecorded, consentRecorded);
+        return RowOutcome.imported(created, enrolled, birthDateRecorded, guardianRecorded,
+                consentRecorded, reportSharingRecorded);
     }
 
     /**
@@ -260,24 +266,41 @@ public class OrgRosterRowImporter {
 
     /**
      * Cột {@code consentConfirmed} (D1): ghi MỘT dòng {@code AUDIO_RECORDING / GRANTED / PAPER} —
-     * "trung tâm xác nhận đã cầm phiếu giấy ký của người giám hộ", người ghi là người bấm import,
-     * hiệu lực từ lúc nhập, phiên bản điều khoản do máy chủ quyết ({@link MinorConsentTerms}).
+     * "trung tâm xác nhận đã cầm phiếu giấy ký của người giám hộ" (mục C1 của phiếu). Quy tắc ghi ở
+     * {@link #recordPaperConsent}.
+     */
+    private boolean recordConsent(RosterRowInput row, User user, Long orgId, AuditActor actor) {
+        return row.consentConfirmed()
+                && recordPaperConsent(user, orgId, StudentConsent.Scope.AUDIO_RECORDING, actor);
+    }
+
+    /**
+     * Cột {@code reportSharingConfirmed} (R6): ghi MỘT dòng {@code GUARDIAN_REPORT_SHARING / GRANTED /
+     * PAPER} — mục C2 của cùng phiếu giấy, người giám hộ đồng ý nhận phiếu đánh giá của học viên.
+     * Cổng phát hành phiếu (PR-R2) đọc scope này cho học viên chưa thành niên; không có dòng này thì
+     * phiếu không gửi về gia đình được. Độc lập với C1: phiếu đánh C2 mà bỏ C1 vẫn chỉ ghi scope này.
+     */
+    private boolean recordReportSharingConsent(RosterRowInput row, User user, Long orgId, AuditActor actor) {
+        return row.reportSharingConfirmed()
+                && recordPaperConsent(user, orgId, StudentConsent.Scope.GUARDIAN_REPORT_SHARING, actor);
+    }
+
+    /**
+     * Ghi một dòng {@code scope / GRANTED / PAPER} từ tệp roster: người ghi là người bấm import, hiệu
+     * lực từ lúc nhập, phiên bản điều khoản do máy chủ quyết ({@link MinorConsentTerms}).
      *
      * <p><b>Idempotent theo TRẠNG THÁI, không theo dòng.</b> Sổ đồng ý chỉ-ghi-thêm; một trung tâm
      * nhập lại cùng tệp mỗi học kỳ mà mỗi lần lại thêm một dòng GRANTED thì sổ phình vô nghĩa và
      * "lần đồng ý đầu tiên" chìm giữa các bản sao. Đang {@code GRANTED} ⇒ không ghi. Đang
      * {@code REVOKED} thì VẪN ghi: phiếu mới của người giám hộ là bằng chứng mới, và cấp lại sau
-     * thu hồi đúng là việc mà đường này phải làm được.
+     * thu hồi đúng là việc mà đường này phải làm được. Trạng thái xét THEO TỪNG SCOPE — ghi âm đã
+     * GRANTED không làm dòng chia sẻ phiếu bị bỏ qua, và ngược lại.
      *
      * <p>Nối với người giám hộ CHÍNH hiện có (nếu có) để dòng đồng ý trả lời được "ai đồng ý"; dòng
      * CSV vừa khai giám hộ thì người đó vừa được thêm ở bước trên, nên cũng vào đây.
      */
-    private boolean recordConsent(RosterRowInput row, User user, Long orgId, AuditActor actor) {
-        if (!row.consentConfirmed()) {
-            return false;
-        }
-        ConsentState current = minorLearnerService.consentStatus(
-                user.getId(), StudentConsent.Scope.AUDIO_RECORDING);
+    private boolean recordPaperConsent(User user, Long orgId, StudentConsent.Scope scope, AuditActor actor) {
+        ConsentState current = minorLearnerService.consentStatus(user.getId(), scope);
         if (current == ConsentState.GRANTED) {
             return false;
         }
@@ -287,7 +310,7 @@ public class OrgRosterRowImporter {
                 .findFirst()
                 .orElse(null);
         minorLearnerService.recordConsent(user.getId(), orgId, new ConsentDraft(
-                StudentConsent.Scope.AUDIO_RECORDING,
+                scope,
                 StudentConsent.Action.GRANTED,
                 primaryGuardianId,
                 StudentConsent.Method.PAPER,
