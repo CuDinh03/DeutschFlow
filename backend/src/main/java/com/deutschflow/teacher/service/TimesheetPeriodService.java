@@ -6,6 +6,9 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.notification.NotificationType;
+import com.deutschflow.notification.entity.NotificationOutbox;
+import com.deutschflow.notification.repository.NotificationOutboxRepository;
 import com.deutschflow.organization.service.OrgGuard;
 import com.deutschflow.teacher.dto.TimesheetPeriodDtos.OrgTimesheetDto;
 import com.deutschflow.teacher.dto.TimesheetPeriodDtos.PeriodDto;
@@ -38,6 +41,10 @@ import java.util.stream.Collectors;
  * <p><b>Phạm vi khoá:</b> chỉ khoá dòng công, KHÔNG khoá {@code class_lesson_logs}. Sổ điểm danh
  * học viên là dữ liệu học vụ; đóng băng nó theo kỳ lương sẽ cản giáo viên bổ sung điểm danh sót cho
  * một buổi đã qua. Tách bảng ghi công ở V263 chính là để hai thứ này độc lập.
+ *
+ * <p><b>Thông báo (DEC-18):</b> duyệt / trả lại đều báo cho giáo viên chủ kỳ, qua
+ * {@code notification_outbox} ghi trong CÙNG giao dịch — không gọi thẳng
+ * {@code UserNotificationService} từ một giao dịch ghi (bài học G2, V294).
  */
 @Service
 @RequiredArgsConstructor
@@ -48,6 +55,7 @@ public class TimesheetPeriodService {
     private final UserRepository userRepository;
     private final OrgGuard orgGuard;
     private final AuditLogService auditLogService;
+    private final NotificationOutboxRepository outboxRepository;
 
     // ── phía giáo viên ────────────────────────────────────────────────────────
 
@@ -162,6 +170,7 @@ public class TimesheetPeriodService {
         stampReview(p, actor.id());
         PeriodDto dto = toDto(periodRepository.save(p), null);
         audit("teacher_timesheet_approved", actor, p, null);
+        notifyTeacher(p, NotificationType.TIMESHEET_PERIOD_APPROVED, null);
         return dto;
     }
 
@@ -180,6 +189,7 @@ public class TimesheetPeriodService {
         stampReview(p, actor.id());
         PeriodDto dto = toDto(periodRepository.save(p), null);
         audit("teacher_timesheet_rejected", actor, p, p.getRejectReason());
+        notifyTeacher(p, NotificationType.TIMESHEET_PERIOD_RETURNED, p.getRejectReason());
         return dto;
     }
 
@@ -326,6 +336,35 @@ public class TimesheetPeriodService {
     private void stampReview(TeacherTimesheetPeriod p, Long reviewerId) {
         p.setReviewedBy(reviewerId);
         p.setReviewedAt(Instant.now());
+    }
+
+    /**
+     * DEC-18: báo giáo viên chủ kỳ khi kỳ công được duyệt / bị trả lại — trước đây họ chỉ biết khi
+     * tự mở lại màn kỳ công. Ghi OUTBOX trong cùng giao dịch (G2): rollback thì không có dòng nào,
+     * worker gửi sau commit.
+     *
+     * <p>{@code dedup_key} mang MỐC NỘP ({@code submitted_at}): mỗi lượt nộp chỉ được duyệt hoặc
+     * trả lại đúng một lần (máy trạng thái chặn lần hai bằng 409), nên (kỳ, kết quả, mốc nộp) là
+     * danh tính của đúng một sự kiện. Kỳ bị trả rồi nộp lại có mốc nộp mới → không va UNIQUE, giáo
+     * viên vẫn nhận thông báo cho lượt sau. Kỳ cũ không có {@code submitted_at} thì lấy mốc duyệt.
+     */
+    private void notifyTeacher(TeacherTimesheetPeriod p, NotificationType type, String reason) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("periodId", p.getId());
+        payload.put("periodStart", String.valueOf(p.getPeriodStart()));
+        payload.put("periodEnd", String.valueOf(p.getPeriodEnd()));
+        payload.put("totalSessions", p.getTotalSessions());
+        payload.put("totalMinutes", p.getTotalMinutes());
+        if (reason != null) {
+            payload.put("reason", reason);
+        }
+        Instant submissionMark = p.getSubmittedAt() != null ? p.getSubmittedAt() : p.getReviewedAt();
+        outboxRepository.save(NotificationOutbox.builder()
+                .dedupKey("timesheet:" + p.getId() + ":" + p.getStatus().name() + ":s" + submissionMark.toEpochMilli())
+                .notificationType(type)
+                .recipientId(p.getTeacherId())
+                .payload(payload)
+                .build());
     }
 
     /** Chụp lại tổng số công từ các dòng công trong kỳ. Gọi tại MỖI lần chuyển trạng thái. */

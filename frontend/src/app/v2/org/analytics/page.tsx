@@ -72,10 +72,13 @@ export default function V2OrgAnalyticsPage() {
   const cefrSegs = cefr
     .filter((b) => b.count > 0)
     .map((b, i) => ({ label: b.level, value: b.count, color: GA_CHART[i % GA_CHART.length] }))
-  const engagementPct =
-    analytics && analytics.studentCount > 0
-      ? Math.round((analytics.activeStudents7d / analytics.studentCount) * 100)
-      : 0
+  // DEC-20: "học viên hoạt động" = có nộp bài hoặc điểm danh (không còn "có dùng AI"); trả cả 7 và
+  // 30 ngày (G1). `null` = chưa có số — analytics lỗi thì KHÔNG hiện "0%" (V-12b mở rộng cho thanh
+  // engagement: trước đây `: 0` biến lỗi tải thành lời khẳng định "0% học viên hoạt động").
+  const pctOf = (n: number | undefined): number | null =>
+    analytics && n != null && analytics.studentCount > 0 ? Math.round((n / analytics.studentCount) * 100) : analytics && n != null ? 0 : null
+  const active7dPct = pctOf(analytics?.activeStudents7d)
+  const active30dPct = pctOf(analytics?.activeStudents30d)
   const poolPct = analytics ? Math.round(analytics.poolUsagePercent) : 0
 
   return (
@@ -97,13 +100,21 @@ export default function V2OrgAnalyticsPage() {
                 // khẳng định "trung tâm có 0 học viên", ngay bên dưới một biểu ngữ báo lỗi.
                 { label: t('stats.totalStudents'), value: analytics ? fmt.num(analytics.studentCount) : '—', tone: 'teal', alert: !analytics },
                 {
-                  label: t('stats.active7d'),
-                  value: analytics ? fmt.num(analytics.activeStudents7d) : '—',
-                  sub: analytics ? t('stats.ofStudents', { pct: engagementPct }) : t('statUnavailable'),
+                  label: t('stats.active'),
+                  value: analytics ? `${fmt.num(analytics.activeStudents7d)} / ${fmt.num(analytics.activeStudents30d)}` : '—',
+                  sub: analytics ? t('stats.activeDefinition', { pct: active30dPct ?? 0 }) : t('statUnavailable'),
                   tone: 'blue',
                   alert: !analytics,
                 },
-                { label: t('stats.openClasses'), value: analytics?.classCount ?? (classes?.length ?? '—'), tone: 'violet' },
+                // Số lớp TOÀN trung tâm chỉ có ở analytics. Nhánh cũ `?? classes.length` lấy số lớp của
+                // trang đầu (cắt ở 100) thay cho tổng khi analytics lỗi — một con số sai đội lốt số thật.
+                {
+                  label: t('stats.openClasses'),
+                  value: analytics ? fmt.num(analytics.classCount) : '—',
+                  sub: analytics ? undefined : t('statUnavailable'),
+                  tone: 'violet',
+                  alert: !analytics,
+                },
                 {
                   label: t('stats.tokensThisMonth'),
                   value: analytics ? fmt.num(analytics.tokensThisMonth) : '—',
@@ -139,15 +150,22 @@ export default function V2OrgAnalyticsPage() {
 
               <GaSection title={t('usageTitle')} description={t('usageDesc')}>
                 <div className="space-y-5 py-1">
-                  <div>
-                    <div className="ga-ui mb-1.5 flex items-baseline justify-between text-[13px]">
-                      <span className="text-ga-ink">{t('activeStudents')}</span>
-                      <span className="font-medium text-ga-muted">{engagementPct}%</span>
+                  {[
+                    { label: t('active7dBar'), pct: active7dPct },
+                    { label: t('active30dBar'), pct: active30dPct },
+                  ].map((bar) => (
+                    <div key={bar.label}>
+                      <div className="ga-ui mb-1.5 flex items-baseline justify-between text-[13px]">
+                        <span className="text-ga-ink">{bar.label}</span>
+                        <span className={`font-medium ${bar.pct == null ? 'text-ga-red' : 'text-ga-muted'}`}>
+                          {bar.pct == null ? t('statUnavailable') : `${bar.pct}%`}
+                        </span>
+                      </div>
+                      <div className="h-2.5 overflow-hidden rounded-[3px] bg-ga-border">
+                        <div className="h-full rounded-[3px]" style={{ width: `${Math.min(100, bar.pct ?? 0)}%`, background: TEAL }} />
+                      </div>
                     </div>
-                    <div className="h-2.5 overflow-hidden rounded-[3px] bg-ga-border">
-                      <div className="h-full rounded-[3px]" style={{ width: `${Math.min(100, engagementPct)}%`, background: TEAL }} />
-                    </div>
-                  </div>
+                  ))}
                   {analytics && analytics.monthlyTokenPool > 0 && (
                     <div>
                       <div className="ga-ui mb-1.5 flex items-baseline justify-between text-[13px]">

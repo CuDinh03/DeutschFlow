@@ -536,21 +536,13 @@ public class TeacherService {
             throw new ConflictException("Học viên đã tham gia lớp học này");
         }
 
-        classEnrollmentService.enroll(classId, user.getId());
+        // DEC-18: ghi danh + báo học viên (ADDED_TO_CLASS) đi chung MỘT cửa với đường nhập roster CSV
+        // của trung tâm — qua outbox trong cùng giao dịch, mỗi lượt vào lớp báo đúng một lần.
+        classEnrollmentService.enrollAndNotify(classId, user.getId(), teacherId);
 
         // Backfill the assignments handed out before this student was added (idempotent) — see
         // approveJoinRequest for the same guard on the self-join path.
         assignmentBackfillService.ensureAssignmentsForStudent(classId, user.getId());
-
-        // Notify student
-        TeacherClass teacherClass = targetClass;
-        User teacher = userRepository.findById(teacherId).orElse(null);
-        userNotificationService.onAddedToClass(
-            user.getId(),
-            classId,
-            teacherClass != null ? teacherClass.getName() : "",
-            teacher != null ? teacher.getDisplayName() : ""
-        );
     }
 
     @Transactional(readOnly = true)

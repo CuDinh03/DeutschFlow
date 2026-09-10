@@ -249,4 +249,63 @@ class NotificationContentRendererUnitTest {
         assertThat(renderer.render(NotificationType.SYSTEM_MAINTENANCE, Map.of("kind", "CANCELLED")).body())
                 .contains("đã được huỷ");
     }
+
+    // ── DEC-18: thông báo nội bộ trung tâm (không emoji) ─────────────────────
+
+    @Test
+    @DisplayName("SCHEDULE_CHANGE_REJECTED: nêu loại đề xuất, lớp và lý do; tiêu đề không có emoji")
+    void scheduleChangeRejected_rendersKindClassAndReason() {
+        RenderedContent c = renderer.render(NotificationType.SCHEDULE_CHANGE_REJECTED,
+                Map.of("classId", 7, "className", "A1 Sáng", "requestId", 12,
+                        "kind", "MOVE_SESSION", "reason", "Trùng lịch phòng"));
+        assertThat(c.title()).isEqualTo("Đề xuất đổi lịch bị từ chối");
+        assertThat(c.body()).isEqualTo("Đề xuất dời buổi cho lớp A1 Sáng không được duyệt. Lý do: Trùng lịch phòng");
+        assertThat(c.title() + c.body()).matches("[\\p{L}\\p{N}\\p{P}\\p{Z}]+");
+    }
+
+    @Test
+    @DisplayName("SCHEDULE_CHANGE_REJECTED: loại lạ rơi về 'đổi lịch', thiếu lý do thì không có vế lý do")
+    void scheduleChangeRejected_fallbacks() {
+        RenderedContent c = renderer.render(NotificationType.SCHEDULE_CHANGE_REJECTED,
+                Map.of("className", "B1", "kind", "SOMETHING_NEW"));
+        assertThat(c.body()).isEqualTo("Đề xuất đổi lịch cho lớp B1 không được duyệt.");
+    }
+
+    @Test
+    @DisplayName("TIMESHEET_PERIOD_APPROVED: kỳ theo dd/MM/yyyy + tổng công đã chốt")
+    void timesheetApproved_rendersRangeAndTotals() {
+        RenderedContent c = renderer.render(NotificationType.TIMESHEET_PERIOD_APPROVED,
+                Map.of("periodId", 3, "periodStart", "2026-08-01", "periodEnd", "2026-08-31",
+                        "totalSessions", 18, "totalMinutes", 3240));
+        assertThat(c.title()).isEqualTo("Kỳ công đã được duyệt");
+        assertThat(c.body()).isEqualTo("Kỳ công 01/08/2026 – 31/08/2026 đã được trung tâm duyệt (18 buổi, 3240 phút).");
+    }
+
+    @Test
+    @DisplayName("TIMESHEET_PERIOD_RETURNED: kèm lý do trả lại; thiếu tổng công thì không in ngoặc")
+    void timesheetReturned_rendersReason() {
+        RenderedContent c = renderer.render(NotificationType.TIMESHEET_PERIOD_RETURNED,
+                Map.of("periodStart", "2026-08-01", "periodEnd", "2026-08-31", "reason", "Thiếu buổi 12/08"));
+        assertThat(c.title()).isEqualTo("Kỳ công bị trả lại");
+        assertThat(c.body()).isEqualTo("Kỳ công 01/08/2026 – 31/08/2026 bị trả lại để sửa. Lý do: Thiếu buổi 12/08");
+    }
+
+    @Test
+    @DisplayName("ADDED_TO_CLASS: addedBy=ORG (roster CSV) nói trung tâm xếp lớp, kèm giáo viên phụ trách; mặc định giữ câu cũ")
+    void addedToClass_orgVariantVsTeacherVariant() {
+        RenderedContent org = renderer.render(NotificationType.ADDED_TO_CLASS,
+                Map.of("className", "A1 Sáng", "teacherName", "Cô Lan", "addedBy", "ORG"));
+        assertThat(org.body()).isEqualTo("Trung tâm đã xếp bạn vào lớp A1 Sáng (giáo viên: Cô Lan).");
+
+        RenderedContent orgNoTeacher = renderer.render(NotificationType.ADDED_TO_CLASS,
+                Map.of("className", "A1 Sáng", "teacherName", "", "addedBy", "ORG"));
+        assertThat(orgNoTeacher.body()).isEqualTo("Trung tâm đã xếp bạn vào lớp A1 Sáng.");
+
+        RenderedContent teacher = renderer.render(NotificationType.ADDED_TO_CLASS,
+                Map.of("className", "A1 Sáng", "teacherName", "Cô Lan", "addedBy", "TEACHER"));
+        assertThat(teacher.body()).isEqualTo("Giáo viên Cô Lan đã thêm bạn vào lớp A1 Sáng.");
+
+        RenderedContent legacy = renderer.render(NotificationType.ADDED_TO_CLASS, Map.of("className", "A1 Sáng"));
+        assertThat(legacy.body()).isEqualTo("Giáo viên của bạn đã thêm bạn vào lớp A1 Sáng.");
+    }
 }

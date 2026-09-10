@@ -121,7 +121,8 @@ public class OrgRosterRowImporter {
      * @param org           the target org, loaded once by the caller (read-only here)
      * @param row           dòng CSV đã kiểm và chuẩn hoá ở {@link OrgRosterService}
      * @param classIdOrNull when non-null, the student is also enrolled into this class
-     * @param actor         người bấm import — chịu trách nhiệm cho {@code birth_date_recorded_by}
+     * @param actor         người bấm import — chịu trách nhiệm cho {@code birth_date_recorded_by};
+     *                      id của actor cũng đi vào thông báo phân lớp để học viên biết ai xếp lớp (DEC-18)
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public RowOutcome importRow(Organization org, RosterRowInput row, Long classIdOrNull,
@@ -210,8 +211,11 @@ public class OrgRosterRowImporter {
         boolean enrolled = false;
         if (classIdOrNull != null) {
             // enroll() mở lại dòng cũ của học viên từng rời lớp thay vì save() đè NULL lên nhận xét
-            // và điểm kỹ năng (D2). Trả true đúng khi lượt này thực sự đưa họ (trở) vào lớp.
-            enrolled = classEnrollmentService.enroll(classIdOrNull, user.getId());
+            // và điểm kỹ năng (D2). Trả true đúng khi lượt này thực sự đưa họ (trở) vào lớp — và chỉ
+            // khi ấy học viên mới nhận thông báo phân lớp (ADDED_TO_CLASS qua outbox, DEC-18); nhập
+            // lại roster với người đang học không báo gì.
+            enrolled = classEnrollmentService.enrollAndNotify(classIdOrNull, user.getId(),
+                    actor == null ? null : actor.id());
             if (enrolled) {
                 // Provision the class's existing assignments for the imported student (idempotent).
                 assignmentBackfillService.ensureAssignmentsForStudent(classIdOrNull, user.getId());

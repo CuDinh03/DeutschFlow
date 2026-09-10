@@ -46,7 +46,7 @@ beforeEach(() => {
     name: 'Trung tâm A', planCode: 'PRO', seatUsed: 5, seatLimit: 10,
     teacherCount: 2, studentCount: 5, classCount: 60, classesWithoutTeacher: 0,
   })
-  getAnalytics.mockResolvedValue({ studentCount: 5, teacherCount: 2, classCount: 60, tokensThisMonth: 0, monthlyTokenPool: 0, poolUsagePercent: 0, poolUnlimited: false, activeStudents7d: 1, cefrDistribution: [] })
+  getAnalytics.mockResolvedValue({ studentCount: 5, teacherCount: 2, classCount: 60, tokensThisMonth: 0, monthlyTokenPool: 0, poolUsagePercent: 0, poolUnlimited: false, activeStudents7d: 1, activeStudents30d: 2, cefrDistribution: [] })
   listClasses.mockResolvedValue({ content: [klass(1), klass(2)], number: 0, size: 50, totalElements: 60, totalPages: 2, first: true, last: false })
   getTeacherlessClassIds.mockResolvedValue(new Set<number>())
   listInvitations.mockResolvedValue([])

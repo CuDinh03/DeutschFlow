@@ -46,6 +46,7 @@ vi.mock('@/hooks/usePageTimeTracker', () => ({ usePageTimeTracker: () => {} }))
 const ORG_ANALYTICS = {
   studentCount: 40,
   activeStudents7d: 25,
+  activeStudents30d: 30,
   classCount: 6,
   tokensThisMonth: 1000,
   monthlyTokenPool: 5000,
@@ -123,6 +124,41 @@ describe('Org analytics — lỗi khối lớp không được giả làm "chưa
 
     await waitFor(() => expect(screen.getByText(/Đang xem 100 trong 150 lớp/)).toBeInTheDocument())
     expect(screen.getByRole('link', { name: /Xem tất cả lớp/ })).toHaveAttribute('href', '/v2/org/classes')
+  })
+})
+
+// DEC-20 / G1: "học viên hoạt động" = nộp bài hoặc điểm danh, trả cả 7 và 30 ngày; V-12b mở rộng:
+// analytics lỗi thì KHÔNG còn số 0 giả (0% engagement) và ô lớp không đếm trang đầu thay cho tổng.
+describe('Org analytics — học viên hoạt động 7/30 ngày và số 0 giả', () => {
+  it('analytics ok: ô KPI hiện "7 / 30", hai thanh phần trăm tính trên tổng học viên', async () => {
+    orgMocks.getAnalytics.mockResolvedValue(ORG_ANALYTICS)
+    orgMocks.listClasses.mockResolvedValue({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 100, first: true, last: true })
+    renderOrg()
+
+    await waitFor(() => expect(screen.getByText('25 / 30')).toBeInTheDocument())
+    expect(screen.getByText('63%')).toBeInTheDocument() // 25/40
+    expect(screen.getByText('75%')).toBeInTheDocument() // 30/40
+    expect(screen.getByText(/75% học viên có nộp bài hoặc điểm danh trong 30 ngày/)).toBeInTheDocument()
+    expect(screen.queryByText(/dùng AI 7 ngày/)).not.toBeInTheDocument()
+  })
+
+  it('analytics lỗi, lớp tốt: không hiện 0% giả và ô "Lớp đang mở" không lấy số lớp trang đầu thay cho tổng', async () => {
+    orgMocks.getAnalytics.mockRejectedValue(new Error('boom'))
+    orgMocks.listClasses.mockResolvedValue({
+      content: [
+        { id: 1, name: 'Lớp A', inviteCode: null, teacherId: 1 },
+        { id: 2, name: 'Lớp B', inviteCode: null, teacherId: 1 },
+        { id: 3, name: 'Lớp C', inviteCode: null, teacherId: 1 },
+      ],
+      totalElements: 3, totalPages: 1, number: 0, size: 100, first: true, last: true,
+    })
+    renderOrg()
+
+    await waitFor(() => expect(screen.getByText('Lớp A')).toBeInTheDocument())
+    expect(screen.queryByText('0%')).not.toBeInTheDocument()
+    expect(screen.queryByText('3')).not.toBeInTheDocument()
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3)
+    expect(screen.getAllByText('Chưa tải được số liệu').length).toBeGreaterThanOrEqual(1)
   })
 })
 

@@ -277,7 +277,10 @@
       "ADMIN_LEARNER_SUBSCRIPTION_ENDED": "Gói học kết thúc",
       "ADMIN_SYSTEM_ALERT": "Cảnh báo hệ thống",
       "ADMIN_ORG_CREATED": "Tổ chức mới",
-      "ADMIN_ORG_INVOICE_PAID": "Hoá đơn đã thanh toán"
+      "ADMIN_ORG_INVOICE_PAID": "Hoá đơn đã thanh toán",
+      "SCHEDULE_CHANGE_REJECTED": "Đề xuất đổi lịch bị từ chối",
+      "TIMESHEET_PERIOD_APPROVED": "Kỳ công đã được duyệt",
+      "TIMESHEET_PERIOD_RETURNED": "Kỳ công bị trả lại"
     }
   },
   "inbox": {

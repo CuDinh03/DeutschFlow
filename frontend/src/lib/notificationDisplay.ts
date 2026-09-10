@@ -38,6 +38,10 @@ export const TYPE_ICON: Record<string, string> = {
   ADMIN_SYSTEM_ALERT: 'warning',
   ADMIN_ORG_CREATED: 'apartment',
   ADMIN_ORG_INVOICE_PAID: 'paid',
+  // Thông báo nội bộ trung tâm (DEC-18) — chỉ giáo viên nhận.
+  SCHEDULE_CHANGE_REJECTED: 'event_busy',
+  TIMESHEET_PERIOD_APPROVED: 'fact_check',
+  TIMESHEET_PERIOD_RETURNED: 'edit',
 }
 
 export const TYPE_TONE: Record<string, string> = {
@@ -71,6 +75,9 @@ export const TYPE_TONE: Record<string, string> = {
   ADMIN_SYSTEM_ALERT: 'var(--ga-red)',
   ADMIN_ORG_CREATED: 'var(--ga-teal)',
   ADMIN_ORG_INVOICE_PAID: 'var(--ga-green)',
+  SCHEDULE_CHANGE_REJECTED: 'var(--ga-red)',
+  TIMESHEET_PERIOD_APPROVED: 'var(--ga-green)',
+  TIMESHEET_PERIOD_RETURNED: 'var(--ga-orange)',
 }
 
 /**
@@ -108,6 +115,9 @@ export const TYPE_LABEL: Record<string, string> = {
   ADMIN_SYSTEM_ALERT: 'Cảnh báo hệ thống',
   ADMIN_ORG_CREATED: 'Tổ chức mới',
   ADMIN_ORG_INVOICE_PAID: 'Hoá đơn đã thanh toán',
+  SCHEDULE_CHANGE_REJECTED: 'Đề xuất đổi lịch bị từ chối',
+  TIMESHEET_PERIOD_APPROVED: 'Kỳ công đã được duyệt',
+  TIMESHEET_PERIOD_RETURNED: 'Kỳ công bị trả lại',
 }
 
 /**
@@ -228,6 +238,12 @@ export function resolveNotificationHref(item: NotificationItem, role: RoleId): s
       // "Bài cần xem" means there is work to GRADE, so open the grading queue — not the student's
       // read-only detail page, where the teacher can look at the submission but not act on it.
       return '/v2/teacher/grading'
+    case 'SCHEDULE_CHANGE_REJECTED':
+      // Đề xuất bị từ chối nằm trong bảng đề xuất của màn lịch dạy (TeacherRequestsPanel).
+      return '/v2/teacher/schedule'
+    case 'TIMESHEET_PERIOD_APPROVED':
+    case 'TIMESHEET_PERIOD_RETURNED':
+      return '/v2/teacher/tc-timesheet'
 
     // ── Cross-role — route into the viewer's own area ─────────────────────────
     case 'NEW_MESSAGE': {

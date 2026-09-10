@@ -92,5 +92,27 @@ public enum NotificationType {
      * {@code windowId}, {@code title}, {@code note?}, {@code startsAtUtc}/{@code endsAtUtc?}
      * (ISO) + {@code startsAtDisplay}/{@code endsAtDisplay?} (giờ VN, render sẵn).
      */
-    SYSTEM_MAINTENANCE
+    SYSTEM_MAINTENANCE,
+
+    // ── Thông báo nội bộ trung tâm (DEC-18, 10/09/2026) ───────────────────
+    // Chỉ NHÂN SỰ (giáo viên) nhận. Mobile chỉ cho STUDENT đăng nhập nên các loại này không bao
+    // giờ tới máy đó — không cần OTA; web đọc nhãn/icon ở notificationDisplay.ts. Mọi loại dưới đây
+    // được GHI qua notification_outbox trong giao dịch nghiệp vụ (G2), worker gửi sau commit.
+
+    /**
+     * Trung tâm từ chối đề xuất thay đổi lịch của giáo viên. Recipient: giáo viên đã đề xuất.
+     * Payload: {@code classId}, {@code className}, {@code requestId}, {@code kind} (loại đề xuất,
+     * tên enum {@code ClassScheduleChangeRequest.Type}), {@code reason}.
+     */
+    SCHEDULE_CHANGE_REJECTED,
+    /**
+     * Trung tâm duyệt kỳ công. Recipient: giáo viên chủ kỳ. Payload: {@code periodId},
+     * {@code periodStart}/{@code periodEnd} (ISO date), {@code totalSessions}, {@code totalMinutes}.
+     */
+    TIMESHEET_PERIOD_APPROVED,
+    /**
+     * Trung tâm trả kỳ công về cho giáo viên sửa. Recipient: giáo viên chủ kỳ. Payload như
+     * {@link #TIMESHEET_PERIOD_APPROVED} + {@code reason} (bắt buộc khi trả).
+     */
+    TIMESHEET_PERIOD_RETURNED
 }

@@ -205,7 +205,12 @@ export interface OrgAnalytics {
   poolUsagePercent: number
   /** True when org has pool_unlimited=true (genuinely unlimited). False + pool=0 → unconfigured/blocked. */
   poolUnlimited: boolean
+  /**
+   * "Học viên hoạt động" (DEC-20): có NỘP BÀI hoặc ĐIỂM DANH có mặt trong cửa sổ — KHÔNG còn là
+   * "có sự kiện AI". Tên trường 7d giữ nguyên (G1), thêm cửa sổ 30 ngày.
+   */
   activeStudents7d: number
+  activeStudents30d: number
   cefrDistribution: CefrBucket[]
 }
 

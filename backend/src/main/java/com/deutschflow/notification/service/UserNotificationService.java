@@ -437,22 +437,8 @@ public class UserNotificationService {
         log.info("[notifications] JOIN_REQUEST_REJECTED → student={} class={}", studentId, classId);
     }
 
-    /**
-     * Called when a teacher directly adds a student to a class (no invite flow).
-     */
-    @Transactional
-    public void onAddedToClass(Long studentId, Long classId, String className, String teacherName) {
-        User student = userRepository.findById(studentId).orElse(null);
-        if (student == null || !student.isActive()) return;
-
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("classId", classId);
-        payload.put("className", className);
-        payload.put("teacherName", teacherName);
-
-        insert(student, NotificationType.ADDED_TO_CLASS, payload);
-        log.info("[notifications] ADDED_TO_CLASS → student={} class={}", studentId, classId);
-    }
+    // ADDED_TO_CLASS không còn phát trực tiếp từ đây (DEC-18, 10/09/2026): mọi đường nhân sự đưa học
+    // viên vào lớp đi qua ClassEnrollmentService.enrollAndNotify → notification_outbox → deliverToUser.
 
     /**
      * Called when a teacher grades a speaking session or class assignment.
