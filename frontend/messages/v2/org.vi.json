@@ -145,6 +145,11 @@
         "unavailable": "chưa tải được số liệu"
       },
       "count": "{count} học viên",
+      "missingBirthDateBanner": "{count} học viên chưa khai ngày sinh — phần luyện nói và chấm bài bằng AI của các em đang bị khoá.",
+      "missingBirthDateHow": "Bổ sung ngày sinh trong hồ sơ từng học viên, hoặc nhập lại CSV có cột birthDate.",
+      "missingBirthDateBadge": "Thiếu ngày sinh",
+      "filterMissingBirthDate": "Chỉ hiện học viên thiếu ngày sinh",
+      "filterAll": "Đang lọc: thiếu ngày sinh · bỏ lọc",
       "searchPlaceholder": "Tìm học viên / email…",
       "loadError": "Không tải được học viên",
       "emptyOrg": "Tổ chức chưa có học viên nào.",

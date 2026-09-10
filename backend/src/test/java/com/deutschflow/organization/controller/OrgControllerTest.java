@@ -322,7 +322,7 @@ class OrgControllerTest {
     @DisplayName("transfer-ownership: OWNER hợp lệ → 200 + thành viên chủ sở hữu mới")
     void transferOwnership_owner_returns200() throws Exception {
         when(orgMembershipService.transferOwnership(eq(10L), any(AuditActor.class), eq(77L)))
-                .thenReturn(new OrgMemberDto(77L, "new@trungtam.com", "Chủ mới", "OWNER", "ACTIVE", Instant.now()));
+                .thenReturn(new OrgMemberDto(77L, "new@trungtam.com", "Chủ mới", "OWNER", "ACTIVE", Instant.now(), null));
 
         mvc.perform(post("/api/org/members/77/transfer-ownership"))
                 .andExpect(status().isOk())

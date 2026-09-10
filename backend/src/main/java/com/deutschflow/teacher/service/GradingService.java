@@ -70,6 +70,7 @@ public class GradingService {
     private final AtomicLong lastGradingAlertMs = new AtomicLong(0);
     /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
     private final SubmissionFileUrlResolver submissionFileUrlResolver;
+    private final com.deutschflow.common.minor.MinorGate minorGate;
 
     /**
      * Lấy toàn bộ bài nộp cần chấm (status=SUBMITTED) thuộc các lớp của giáo viên.
@@ -449,6 +450,19 @@ public class GradingService {
                     && !AssignmentStatus.GRADING_FAILED.equals(currentStatus)) {
                 log.info("[AI-Grading] Submission {} not in a gradable state (status={}); skipping AI grade",
                         submissionId, currentStatus);
+                return;
+            }
+
+            // D3 — LƯỚI THỨ HAI của cổng tuổi. Cả hai controller đã kiểm đồng bộ trước khi gọi vào
+            // đây (để giáo viên nhận 403 kèm việc cần làm), nhưng job này là @Async: bất kỳ cửa vào
+            // nào thêm sau này mà quên cổng sẽ đẩy thẳng bài của trẻ ra nhà cung cấp AI. Kiểm lại
+            // ngay trước lúc dựng prompt, và KHÔNG ném ra ngoài — ném trong @Async chỉ vào log,
+            // không tới ai — mà đánh dấu GRADING_FAILED để bài hiện lại trong hàng đợi chấm tay.
+            try {
+                minorGate.assertAiGradingAllowed(sa.getStudentId());
+            } catch (com.deutschflow.common.minor.MinorAiGradingBlockedException blocked) {
+                log.warn("[AI-Grading] Chặn chấm AI submission {} — {}", submissionId, blocked.getReason());
+                markGradingFailed(submissionId, "Cổng tuổi chặn chấm AI: " + blocked.getReason());
                 return;
             }
 

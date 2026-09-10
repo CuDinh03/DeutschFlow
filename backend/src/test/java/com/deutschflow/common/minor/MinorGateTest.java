@@ -51,7 +51,7 @@ class MinorGateTest {
     @Mock private JdbcTemplate jdbcTemplate;
 
     private MinorGate gate(MinorGate.UnknownAgeAudioPolicy policy) {
-        return new MinorGate(learnerService, jdbcTemplate, policy.name());
+        return new MinorGate(learnerService, jdbcTemplate, policy.name(), policy.name());
     }
 
     private void ageIs(MinorPolicy.Status status) {
@@ -240,7 +240,7 @@ class MinorGateTest {
         @DisplayName("giá trị lạ → đổ vỡ NGAY lúc dựng bean, không lặng lẽ rơi về mặc định")
         @MockitoSettings(strictness = Strictness.LENIENT)
         void giaTriLa() {
-            assertThatThrownBy(() -> new MinorGate(learnerService, jdbcTemplate, "BLOCK_ORGS"))
+            assertThatThrownBy(() -> new MinorGate(learnerService, jdbcTemplate, "BLOCK_ORGS", "BLOCK_ORG_MEMBERS"))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("BLOCK_ORG_MEMBERS");
         }
@@ -248,7 +248,7 @@ class MinorGateTest {
         @Test
         @DisplayName("giá trị chấp nhận được vẫn nhận dạng khi viết thường / có khoảng trắng")
         void chuanHoaGiaTri() {
-            assertThat(new MinorGate(learnerService, jdbcTemplate, " block_all ")
+            assertThat(new MinorGate(learnerService, jdbcTemplate, " block_all ", "BLOCK_ORG_MEMBERS")
                     .unknownAgeAudioPolicy())
                     .isEqualTo(MinorGate.UnknownAgeAudioPolicy.BLOCK_ALL);
         }

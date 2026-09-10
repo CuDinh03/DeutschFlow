@@ -331,7 +331,8 @@ public class AdminOrgService {
                             u == null ? null : u.getDisplayName(),
                             m.getRole(),
                             m.getStatus(),
-                            m.getJoinedAt());
+                            m.getJoinedAt(),
+                            null); // D4 chỉ tính ở màn học viên của chính trung tâm
                 })
                 .toList();
     }
@@ -432,7 +433,8 @@ public class AdminOrgService {
                 user.getDisplayName(),
                 member.getRole(),
                 member.getStatus(),
-                member.getJoinedAt()
+                member.getJoinedAt(),
+                null // D4 chỉ tính ở màn học viên của chính trung tâm
         );
     }
 
