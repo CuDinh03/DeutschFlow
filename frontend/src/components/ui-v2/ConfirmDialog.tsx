@@ -21,9 +21,10 @@ export interface ConfirmDialogProps {
   /** Danh sách hệ quả chi tiết (mỗi phần tử một dòng, ví dụ tác động dây chuyền). */
   details?: React.ReactNode[]
   /**
-   * Nội dung thêm giữa mô tả và hệ quả — dành cho thao tác đòi LÝ DO (thu hồi chứng nhận, DEC-20):
-   * ô nhập nằm ngay trong hộp xác nhận, người dùng ghi lý do rồi mới bấm được nút xác nhận
-   * (kết hợp với `confirmDisabled`). Không có thì dialog y như cũ.
+   * Ô nhập đi kèm quyết định (lý do bắt buộc khi thu hồi chứng nhận DEC-23, chuyển quyền giám đốc
+   * A6, chọn người nhận…) — render MỘT LẦN, DƯỚI danh sách hệ quả, để người dùng đọc hệ quả trước
+   * rồi mới điền. Caller tự gác `confirmDisabled` theo dữ liệu nhập; hộp thoại không biết gì về nội
+   * dung bên trong. Không có thì dialog y như cũ.
    */
   children?: React.ReactNode
   confirmLabel: string
@@ -34,12 +35,6 @@ export interface ConfirmDialogProps {
   confirmDisabled?: boolean
   loading?: boolean
   onConfirm: () => void
-  /**
-   * Ô nhập đi kèm quyết định (ví dụ lý do bắt buộc, chọn người nhận) — render DƯỚI danh sách hệ
-   * quả, để người dùng đọc hệ quả trước rồi mới điền. Caller tự gác `confirmDisabled` theo dữ liệu
-   * nhập; hộp thoại không biết gì về nội dung bên trong.
-   */
-  children?: React.ReactNode
 }
 
 export function ConfirmDialog({
@@ -87,7 +82,6 @@ export function ConfirmDialog({
       }
     >
       <div className="flex flex-col gap-2">
-        {children}
         {details && details.length > 0 && (
           <ul className="list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-ga-muted">
             {details.map((d, i) => (
