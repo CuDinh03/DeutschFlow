@@ -150,7 +150,10 @@ public class StudentClassroomService {
         return new ClassroomDetailDto(
                 cls.getId(),
                 cls.getName(),
-                cls.getInviteCode(),
+                // V-04: lớp của TRUNG TÂM không trả mã mời cho học viên — mỗi lượt chia sẻ là một GHẾ
+                // có thể bị người lạ chiếm, và học viên không phải người có quyền mời. Lớp B2C
+                // (orgId == null) giữ nguyên: ở đó không có ghế/hoá đơn.
+                cls.getOrgId() == null ? cls.getInviteCode() : null,
                 teachers,
                 studentCount,
                 stats.total(),

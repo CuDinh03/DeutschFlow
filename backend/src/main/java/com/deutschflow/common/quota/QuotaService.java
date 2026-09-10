@@ -127,17 +127,33 @@ public class QuotaService {
 
     /** Giá trị {@code user_subscriptions.source} của gói do provisioner cấp lúc đăng ký. */
     static final String SOURCE_TRIAL = "TRIAL";
+    /** Quyền lợi do TRUNG TÂM cấp — client phải ẩn huỷ/hoàn tiền Apple (V-06). */
+    static final String SOURCE_ORG = "ORG";
+    /** Quyền lợi mua qua In-App Purchase — huỷ/hoàn tiền là chuyện của Apple. */
+    static final String SOURCE_APPLE = "APPLE";
+    /** Mọi ngả còn lại (TRIAL, DEFAULT, UNKNOWN, SePay/Stripe/MoMo…) gộp về một nhãn cho client. */
+    static final String SOURCE_WEB = "WEB";
+
+    /**
+     * Chuẩn hoá {@code user_subscriptions.source} thô về ba nhãn client hiểu được.
+     * Cố ý KHÔNG rò các giá trị nội bộ (UNKNOWN, DEFAULT, SEPAY…) ra hợp đồng công khai.
+     */
+    static String publicSource(String rawSource) {
+        if (SOURCE_ORG.equals(rawSource)) return SOURCE_ORG;
+        if (SOURCE_APPLE.equals(rawSource)) return SOURCE_APPLE;
+        return SOURCE_WEB;
+    }
 
     @Transactional
     public PlanBadge resolvePlanBadge(long userId, Instant nowUtc) {
         reconcileSubscriptions(userId, nowUtc);
         SubscriptionRow row = loadActiveCoveringSubscription(userId, nowUtc);
         if (row == null) {
-            return new PlanBadge(PLAN_DEFAULT, publicTier(PLAN_DEFAULT), null, null, false, null);
+            return new PlanBadge(PLAN_DEFAULT, publicTier(PLAN_DEFAULT), null, null, false, null, SOURCE_WEB);
         }
         return new PlanBadge(
                 row.planCode(), publicTier(row.planCode()), row.startsAt(), row.endsAtExclusive(),
-                row.isTrial(), row.isTrial() ? row.endsAtExclusive() : null);
+                row.isTrial(), row.isTrial() ? row.endsAtExclusive() : null, publicSource(row.source()));
     }
 
     /**

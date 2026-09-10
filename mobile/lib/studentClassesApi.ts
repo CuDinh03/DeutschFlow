@@ -36,7 +36,8 @@ export interface MyClassroom {
 export interface ClassroomDetail {
   id: number
   name: string
-  inviteCode: string
+  /** null với lớp của trung tâm: mã mời không được trả cho học viên (V-04). */
+  inviteCode: string | null
   teachers: TeacherSummary[]
   studentCount: number
   assignmentCount: number
@@ -64,8 +65,9 @@ export interface StudentAssignment {
   description: string
   assignmentType: string
   dueDate: string | null
-  // Present on the global /v2/students/assignments list (assignment detail);
-  // absent (undefined) on the lighter class-scoped list.
+  // Cả hai endpoint danh sách (toàn bộ + theo lớp) đều map qua StudentAssignmentDto.forStudent nên
+  // hai trường này LUÔN có mặt; chúng chỉ null khi học viên chưa nộp gì (V-07 kiểm lại 08/09 —
+  // ghi chú cũ nói danh sách theo lớp thiếu chúng là SAI).
   submissionContent?: string | null
   submissionFileUrl?: string | null
   attachmentUrl?: string | null
@@ -97,6 +99,34 @@ export const isFinalGrade = (status: string): boolean =>
 /** Học viên đã nộp bài, bất kể sau đó nó đang ở khâu nào. */
 export const isSubmittedStatus = (status: string): boolean =>
   isAwaitingTeacher(status) || isFinalGrade(status)
+
+/**
+ * Bài này hiện ra với học viên dưới dạng nào — nguồn CHUNG cho pill trạng thái ở màn danh sách
+ * bài của lớp và ở màn chi tiết bài, để cùng một bài không bao giờ có hai câu chữ (V-12c).
+ */
+export type AssignmentStatusView = 'graded' | 'gradingFailed' | 'awaitingTeacher' | 'notSubmitted'
+
+/**
+ * GRADING_FAILED tách riêng khỏi nhóm "đã nộp, chờ giáo viên": bài ĐÃ nộp nhưng khâu chấm chết,
+ * và học viên có quyền biết bài mình chưa được chấm — web nói đúng như vậy từ trước
+ * ("Chấm lỗi · chờ chấm lại"), app thì gộp vào "Đã nộp" nên giấu mất chuyện đó.
+ */
+export function assignmentStatusView(status: string): AssignmentStatusView {
+  if (isFinalGrade(status)) return 'graded'
+  if (status === 'GRADING_FAILED') return 'gradingFailed'
+  if (isAwaitingTeacher(status)) return 'awaitingTeacher'
+  return 'notSubmitted'
+}
+
+/** Câu chữ cho GRADING_FAILED — giữ y hệt web (v2.student.classDetail.status.gradingFailed). */
+export const GRADING_FAILED_LABEL = 'Chấm lỗi · chờ chấm lại'
+
+/**
+ * Key React cho một dòng bài giao. KHÔNG dùng `id`: backend trả `id = null` cho mọi bài học viên
+ * CHƯA bắt đầu (notStartedDto), nên cả nhóm ấy chung một key và React trộn nhầm thẻ. `assignmentId`
+ * (id bài của LỚP) luôn có và duy nhất trong một danh sách.
+ */
+export const assignmentRowKey = (a: Pick<StudentAssignment, 'assignmentId'>): number => a.assignmentId
 
 export interface SubmitAssignmentPayload {
   submissionContent?: string
@@ -205,12 +235,26 @@ export async function fetchClassSessions(classId: number): Promise<ClassSession[
 }
 
 /**
- * Fetch one assignment by its ClassAssignment id. The backend exposes only the
- * full student list (no single-GET), so we mirror the web client and resolve
- * the row client-side. Returns null when the assignment isn't assigned to me.
+ * Lấy MỘT bài giao theo id ClassAssignment. Backend không có single-GET, nên vẫn phải lọc phía
+ * client — nhưng lọc trên danh sách bài của ĐÚNG LỚP đó, y như web
+ * (`/v2/students/classes/{classId}/assignments`).
+ *
+ * V-07: trước đây hàm này gọi `/v2/students/assignments` — TOÀN BỘ bài của mọi lớp học viên từng
+ * học — rồi lọc. Danh sách ấy dựng từ các dòng `StudentAssignment`, nên bài học viên CHƯA bắt đầu
+ * (chưa có dòng nào) hoàn toàn vắng mặt và mở ra là "không tìm thấy". Danh sách theo lớp thì tự
+ * tổng hợp cả các bài chưa bắt đầu. `classId` luôn có sẵn trong params của route bài giao.
+ *
+ * Thiếu `classId` (deep-link cũ, thông báo cũ) thì rơi về danh sách tổng như trước — thà chậm và
+ * thỉnh thoảng trượt còn hơn không mở được gì.
  */
-export async function fetchAssignmentDetail(assignmentId: number): Promise<StudentAssignment | null> {
-  const res = await api.get<StudentAssignment[]>('/v2/students/assignments')
+export async function fetchAssignmentDetail(
+  assignmentId: number,
+  classId?: number,
+): Promise<StudentAssignment | null> {
+  const path = Number.isFinite(classId)
+    ? `/v2/students/classes/${classId}/assignments`
+    : '/v2/students/assignments'
+  const res = await api.get<StudentAssignment[]>(path)
   return res.data?.find((a) => a.assignmentId === assignmentId) ?? null
 }
 

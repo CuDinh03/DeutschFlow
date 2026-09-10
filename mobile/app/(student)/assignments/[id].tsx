@@ -20,7 +20,7 @@ import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import { presentMinorAudioBlocked } from '@/lib/minorAudio'
 import {
-  fetchAssignmentDetail, fetchAssignmentMaterials, fetchAssignmentMaterialUrl, isAwaitingTeacher, isFinalGrade, isSubmittedStatus, submitAssignment, uploadAssignmentFile, MAX_UPLOAD_BYTES, type AssignmentMaterial, type MaterialKind, type StudentAssignment, type UploadFile, fetchAssignmentScenario, scenarioTopic,
+  assignmentStatusView, fetchAssignmentDetail, fetchAssignmentMaterials, fetchAssignmentMaterialUrl, GRADING_FAILED_LABEL, isAwaitingTeacher, isFinalGrade, isSubmittedStatus, submitAssignment, uploadAssignmentFile, MAX_UPLOAD_BYTES, type AssignmentMaterial, type MaterialKind, type StudentAssignment, type UploadFile, fetchAssignmentScenario, scenarioTopic,
 } from '@/lib/studentClassesApi'
 import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { radius, space, useTheme } from '@/lib/theme'
@@ -73,9 +73,12 @@ export default function AssignmentDetail() {
   const assignmentId = Number(id)
   const queryClient = useQueryClient()
 
+  // V-07: kèm classId để hàm gọi đúng endpoint theo LỚP thay vì tải toàn bộ bài của mọi lớp rồi
+  // lọc — classId nằm sẵn trong params của route này (màn lớp luôn truyền sang).
+  const classIdNum = Number(classId)
   const detailQ = useQuery({
-    queryKey: ['assignment-detail', assignmentId],
-    queryFn: () => fetchAssignmentDetail(assignmentId),
+    queryKey: ['assignment-detail', assignmentId, Number.isFinite(classIdNum) ? classIdNum : null],
+    queryFn: () => fetchAssignmentDetail(assignmentId, Number.isFinite(classIdNum) ? classIdNum : undefined),
     enabled: Number.isFinite(assignmentId),
     staleTime: 30_000,
   })
@@ -214,15 +217,19 @@ function StatusRow({ assignment: a }: { assignment: StudentAssignment }) {
 }
 
 function StatusPill({ status, score }: { status: string; score: number | null }) {
-  if (isGraded(status)) {
-    return <Pill tone="success" glyph="hoanthanh" label={`Đã chấm${score != null ? ` · ${score}/100` : ''}`} />
+  // Phân loại dùng CHUNG với màn danh sách bài của lớp (assignmentStatusView) — V-12c.
+  switch (assignmentStatusView(status)) {
+    case 'graded':
+      return <Pill tone="success" glyph="hoanthanh" label={`Đã chấm${score != null ? ` · ${score}/100` : ''}`} />
+    case 'gradingFailed':
+      // Đã nộp NHƯNG khâu chấm chết — gộp vào "Đã nộp" là giấu mất chuyện bài chưa được chấm.
+      return <Pill tone="danger" glyph="canhbao" label={GRADING_FAILED_LABEL} />
+    case 'awaitingTeacher':
+      // AI_GRADED hiển thị y như SUBMITTED: backend cố ý không công bố khâu chấm AI cho học viên.
+      return <Pill tone="info" icon={Upload} label="Đã nộp" />
+    default:
+      return <Pill tone="danger" glyph="canhbao" label="Chưa nộp" />
   }
-  // AI_GRADED / GRADING_FAILED hiển thị y như SUBMITTED: backend cố ý không công
-  // bố khâu chấm AI cho học viên; trước đây hai trạng thái này hiện "Chưa nộp" đỏ.
-  if (isAwaitingTeacher(status)) {
-    return <Pill tone="info" icon={Upload} label="Đã nộp" />
-  }
-  return <Pill tone="danger" glyph="canhbao" label="Chưa nộp" />
 }
 
 // Editorial ink hero for the graded result — the screen's primary metric.
@@ -415,8 +422,11 @@ function SubmitForm({
             disabled={!canSubmit}
             onPress={onSubmit}
           />
+          {/* V-12c: câu cũ ("Sau khi nộp sẽ không sửa lại được") NGƯỢC với chính màn này — ngay
+              dưới bài đã nộp có nút "Nộp lại" — và ngược với backend: isAwaitingTeacher
+              (SUBMITTED/AI_GRADED/GRADING_FAILED) vẫn cho nộp đè cho tới khi giáo viên chốt điểm. */}
           <ThemedText variant="caption" color="muted" align="center">
-            Sau khi nộp sẽ không sửa lại được
+            Nộp xong bạn vẫn nộp lại được cho tới khi giáo viên chấm
           </ThemedText>
         </View>
       </Card>

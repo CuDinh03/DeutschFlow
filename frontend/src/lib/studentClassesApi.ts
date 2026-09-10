@@ -27,7 +27,11 @@ export interface MyClassroom {
 export interface ClassroomDetail {
   id: number
   name: string
-  inviteCode: string
+  /**
+   * Mã mời lớp — backend chỉ trả cho lớp B2C; với lớp của TRUNG TÂM luôn null (V-04), vì mỗi lượt
+   * chia sẻ mã là một ghế có thể bị người lạ chiếm và học viên không phải người có quyền mời.
+   */
+  inviteCode: string | null
   teachers: TeacherSummary[]
   studentCount: number
   assignmentCount: number
