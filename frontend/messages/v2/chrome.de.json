@@ -87,7 +87,8 @@
       "admin-exam-golden": "Golden-Set Sprechen",
       "objectives": "Lernzielmatrix",
       "org-settings": "Zentrumseinstellungen",
-      "org-audit": "Aktivitätsprotokoll"
+      "org-audit": "Aktivitätsprotokoll",
+      "org-certificates": "Zertifikate"
     },
     "sections": {
       "classMgmt": "Kursverwaltung",

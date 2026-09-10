@@ -38,7 +38,7 @@ We do **not** knowingly collect precise location, contacts, or health data. We d
 
 > **Note on tracking.** DeutschFlow does **not** track you across other companies' apps or websites. We do **not** ask for App Tracking Transparency (ATT) permission and do **not** access your device's Advertising Identifier (IDFA). The app contains no advertising. Optional PRO subscriptions on iOS are processed entirely by Apple (In-App Purchase) — we receive only transaction/subscription status, never your payment card details.
 
-**Sharing with AI services.** When you use the AI learning features, your learning submissions — voice recordings, photos of written work, and conversation/essay text — are transmitted to the third-party AI providers listed in **Section 5** so the app can transcribe your speech, read your handwriting, grade your work, and generate feedback. This happens **only after you give your explicit consent in the app** (a one-time, revocable choice, changeable any time in Profile → Privacy). If you decline, all non-AI features keep working.
+**Sharing with AI services.** When you use the AI learning features, your learning submissions — voice recordings, photos of written work, and conversation/essay text — are transmitted to the third-party AI providers listed in **Section 5** so the app can transcribe your speech, read your handwriting, grade your work, and generate feedback. This happens **after you give your explicit consent in the mobile app** (a one-time, revocable choice, changeable any time in Profile → Privacy), **or when you actively use that feature on the web version**. If you decline, all non-AI features keep working.
 
 ### 3. Device permissions
 
@@ -58,8 +58,9 @@ We use the data above to: operate the app and your account; grade your work and 
 
 We share personal data only with the service providers that help us run the app, each acting under its own terms and only as needed.
 
-**AI service providers** — receive your learning submissions (voice recordings, photos of written work, conversation and essay text) **only after you consent in the app**, and only to provide the feature you requested. Your content is used to generate the transcription, grading, or feedback you asked for — not for advertising:
+**AI service providers** — receive your learning submissions (voice recordings, photos of written work, conversation and essay text) **after you consent in the mobile app, or when you actively use that feature on the web version**, and only to provide the feature you requested. Your content is used to generate the transcription, grading, or feedback you asked for — not for advertising:
 
+- **Fireworks AI, Inc.** (United States) — speech-to-text for your voice recordings, and language-model processing for grading your work and for speaking-practice conversations.
 - **Groq, Inc.** (United States) — speech-to-text (Whisper) for your voice recordings, and language-model processing of your speaking-practice conversations and submitted answers.
 - **OpenAI, L.L.C.** (United States) — speech-to-text of pronunciation recordings and text processing that powers feedback and search over learning content.
 - **Google LLC — Gemini API** (United States) — reads (OCR) the photos of handwritten work you upload and supports lesson-content generation.
@@ -72,11 +73,19 @@ We share personal data only with the service providers that help us run the app,
 - **Amazon Web Services (AWS)** — cloud hosting for our backend, which stores your account and learning data.
 - **Apple** — processes iOS In-App Purchase payments; we receive subscription status and transaction identifiers, never your payment card details. (Purchases made on our website are processed by our web payment provider and are covered by the website's checkout notice.)
 
-We do not share your data with any other third parties except where required by law.
+**The language center that enrolled you.** If you learn through a language center, that center's teachers, managers, and director can see your learning data within the scope of running your classes — submissions, scores, feedback, attendance, and your learning record (see Section 8 for minor learners). The center decides the purposes for which its learners' learning data is processed; when its contract with us ends, the center may export all of its learners' learning data, including original submissions and attachments. You keep the right to access and obtain a copy of your own data.
+
+**Parents or guardians of minor learners.** A center may share a minor learner's progress report with the learner's parent or guardian, under the consent the center has collected. We share nothing else with parents or guardians.
+
+Beyond the parties listed above, we do not share your data with any other third parties except where required by law.
 
 ### 6. Data retention and deletion
 
 We keep your personal data while your account is active. **You can permanently delete your account and all associated learning data at any time, directly in the app: Profile → Delete account.** This is immediate and irreversible. You can also request deletion by emailing [[support@your-domain]] from your registered address. After deletion, we may retain a limited set of records where the law requires it, and de-identified analytics that can no longer be linked to you may be kept.
+
+If you are an active learner or staff member of a language center, the in-app deletion is paused until you leave the center — the learning record for the period you study there falls under that center's management. Contact the center to leave it, or email [[support@your-domain]] if the center is no longer operating.
+
+Voice recordings of minor learners are deleted automatically after **30 days**; transcripts and scores are kept as part of the learning record.
 
 ### 7. Your rights
 
@@ -88,9 +97,18 @@ Depending on where you live, you may have rights over your personal data:
 
 You can exercise most of these rights in the app (edit your profile, or Delete account). For anything else, contact [[support@your-domain]] and we will respond within the timeframes required by applicable law. You also have the right to complain to your local data-protection authority.
 
-### 8. Children
+### 8. Children and minors
 
-DeutschFlow is intended for a general audience and is **not** directed to children under 13. The app is **not** enrolled in Apple's Kids Category. We do not knowingly collect personal data from children under 13. If you believe a child has provided us personal data, contact [[support@your-domain]] and we will delete it.
+DeutschFlow is intended for a general audience and is **not** enrolled in Apple's Kids Category. Users who register on their own must be at least 16 years old.
+
+**Learners enrolled by a language center** may be minors. In that case:
+
+- The center is responsible for obtaining **the consent of a parent or legal guardian** before adding the learner to the system. For learners **under 16**, this is mandatory under Vietnam's Decree 13/2023/ND-CP (Article 20).
+- We record evidence of that consent **per learner** — who confirmed it, when, and for what scope — in a log that is append-only and cannot be edited or deleted.
+- **Voice recordings of minor learners are deleted after 30 days.** Transcripts and scores are kept as part of the learning record.
+- A center director may read private messages between a teacher and a minor learner when needed to protect the learner; **every such access leaves a trace** in the center's activity log.
+
+If you believe a child has provided us personal data outside the cases above, contact [[support@your-domain]] and we will delete it.
 
 ### 9. Security
 
@@ -144,7 +162,7 @@ Chúng tôi **không** cố ý thu thập vị trí chính xác, danh bạ hay d
 
 > **Ghi chú về theo dõi (tracking).** DeutschFlow **không** theo dõi bạn qua ứng dụng/website của công ty khác. Chúng tôi **không** yêu cầu quyền App Tracking Transparency (ATT) và **không** truy cập Định danh quảng cáo (IDFA) trên thiết bị của bạn. Ứng dụng không có quảng cáo. Gói PRO tuỳ chọn trên iOS được Apple xử lý thanh toán (Mua trong ứng dụng) — chúng tôi chỉ nhận trạng thái giao dịch/gói, không bao giờ nhận thông tin thẻ của bạn.
 
-**Chia sẻ với dịch vụ AI.** Khi bạn dùng các tính năng học với AI, nội dung học bạn nộp — bản ghi âm giọng nói, ảnh bài viết tay và văn bản hội thoại/bài làm — được truyền tới các đối tác AI bên thứ ba liệt kê ở **Mục 5** để ứng dụng nhận dạng giọng nói, đọc chữ viết tay, chấm bài và tạo phản hồi. Việc này chỉ diễn ra **sau khi bạn đồng ý rõ ràng trong ứng dụng** (lựa chọn một lần, có thể thu hồi, thay đổi bất cứ lúc nào trong Hồ sơ → Quyền riêng tư). Nếu bạn từ chối, mọi tính năng không dùng AI vẫn hoạt động bình thường.
+**Chia sẻ với dịch vụ AI.** Khi bạn dùng các tính năng học với AI, nội dung học bạn nộp — bản ghi âm giọng nói, ảnh bài viết tay và văn bản hội thoại/bài làm — được truyền tới các đối tác AI bên thứ ba liệt kê ở **Mục 5** để ứng dụng nhận dạng giọng nói, đọc chữ viết tay, chấm bài và tạo phản hồi. Việc này diễn ra **sau khi bạn đồng ý rõ ràng trong ứng dụng di động** (lựa chọn một lần, có thể thu hồi, thay đổi bất cứ lúc nào trong Hồ sơ → Quyền riêng tư), **hoặc khi bạn chủ động sử dụng tính năng đó trên bản web**. Nếu bạn từ chối, mọi tính năng không dùng AI vẫn hoạt động bình thường.
 
 ### 3. Quyền thiết bị
 
@@ -164,8 +182,9 @@ Chúng tôi dùng dữ liệu ở trên để: vận hành ứng dụng và tài
 
 Chúng tôi chỉ chia sẻ dữ liệu cá nhân với các nhà cung cấp dịch vụ giúp vận hành ứng dụng, mỗi bên hoạt động theo điều khoản riêng và chỉ trong phạm vi cần thiết.
 
-**Đối tác dịch vụ AI** — nhận nội dung học bạn nộp (bản ghi âm giọng nói, ảnh bài viết tay, văn bản hội thoại và bài làm) **chỉ sau khi bạn đồng ý trong ứng dụng**, và chỉ để cung cấp tính năng bạn yêu cầu. Nội dung của bạn được dùng để tạo bản phiên âm, điểm chấm hoặc phản hồi bạn cần — không dùng cho quảng cáo:
+**Đối tác dịch vụ AI** — nhận nội dung học bạn nộp (bản ghi âm giọng nói, ảnh bài viết tay, văn bản hội thoại và bài làm) **sau khi bạn đồng ý trong ứng dụng di động, hoặc khi bạn chủ động sử dụng tính năng đó trên bản web**, và chỉ để cung cấp tính năng bạn yêu cầu. Nội dung của bạn được dùng để tạo bản phiên âm, điểm chấm hoặc phản hồi bạn cần — không dùng cho quảng cáo:
 
+- **Fireworks AI, Inc.** (Hoa Kỳ) — nhận dạng giọng nói cho bản ghi âm của bạn và xử lý bằng mô hình ngôn ngữ cho việc chấm bài và hội thoại luyện nói.
 - **Groq, Inc.** (Hoa Kỳ) — nhận dạng giọng nói (Whisper) cho bản ghi âm của bạn, và xử lý bằng mô hình ngôn ngữ cho hội thoại luyện nói và câu trả lời bạn nộp.
 - **OpenAI, L.L.C.** (Hoa Kỳ) — nhận dạng giọng nói cho bài luyện phát âm và xử lý văn bản phục vụ phản hồi, tìm kiếm nội dung học.
 - **Google LLC — Gemini API** (Hoa Kỳ) — đọc (OCR) ảnh bài viết tay bạn tải lên và hỗ trợ tạo nội dung bài học.
@@ -178,11 +197,19 @@ Chúng tôi chỉ chia sẻ dữ liệu cá nhân với các nhà cung cấp d�
 - **Amazon Web Services (AWS)** — lưu trữ đám mây cho máy chủ của chúng tôi, nơi lưu tài khoản và dữ liệu học của bạn.
 - **Apple** — xử lý thanh toán Mua trong ứng dụng trên iOS; chúng tôi nhận trạng thái gói và mã giao dịch, không bao giờ nhận thông tin thẻ của bạn. (Giao dịch mua trên website do nhà cung cấp thanh toán web của chúng tôi xử lý và được nêu trong thông báo thanh toán của website.)
 
-Chúng tôi không chia sẻ dữ liệu của bạn với bất kỳ bên thứ ba nào khác, trừ khi pháp luật yêu cầu.
+**Trung tâm ngoại ngữ đã ghi danh bạn.** Nếu bạn học thông qua một trung tâm ngoại ngữ, giáo viên, quản lý và giám đốc của trung tâm đó xem được dữ liệu học tập của bạn trong phạm vi vận hành lớp — bài nộp, điểm, nhận xét, chuyên cần và hồ sơ học tập (xem thêm Mục 8 về học viên chưa thành niên). Trung tâm là bên quyết định mục đích xử lý dữ liệu học tập của học viên mình; khi hợp đồng giữa trung tâm và chúng tôi kết thúc, trung tâm được xuất toàn bộ dữ liệu học tập của học viên mình, gồm bài nộp gốc và tệp đính kèm. Bạn vẫn giữ quyền truy cập và nhận bản sao dữ liệu của chính mình.
+
+**Cha mẹ hoặc người giám hộ của học viên chưa thành niên.** Trung tâm có thể chia sẻ phiếu đánh giá kết quả học tập của học viên chưa thành niên với cha mẹ hoặc người giám hộ, theo sự đồng ý mà trung tâm đã thu. Chúng tôi không chia sẻ nội dung nào khác với cha mẹ hoặc người giám hộ.
+
+Ngoài các bên nêu trên, chúng tôi không chia sẻ dữ liệu của bạn với bất kỳ bên thứ ba nào khác, trừ khi pháp luật yêu cầu.
 
 ### 6. Lưu trữ và xóa dữ liệu
 
 Chúng tôi giữ dữ liệu cá nhân của bạn khi tài khoản còn hoạt động. **Bạn có thể xóa vĩnh viễn tài khoản và toàn bộ dữ liệu học liên quan bất cứ lúc nào, ngay trong ứng dụng: Hồ sơ → Xóa tài khoản.** Thao tác này diễn ra ngay lập tức và không thể hoàn tác. Bạn cũng có thể yêu cầu xóa bằng cách gửi email tới [[support@your-domain]] từ địa chỉ đã đăng ký. Sau khi xóa, chúng tôi có thể giữ lại một số bản ghi giới hạn khi pháp luật yêu cầu, và có thể giữ dữ liệu phân tích đã ẩn danh mà không còn liên kết được tới bạn.
+
+Nếu bạn đang là học viên hoặc nhân sự đang hoạt động của một trung tâm ngoại ngữ, thao tác xoá trong ứng dụng sẽ bị tạm dừng cho tới khi bạn rời trung tâm — hồ sơ học tập trong thời gian bạn theo học thuộc phạm vi quản lý của trung tâm đó. Hãy liên hệ trung tâm để rời khỏi, hoặc gửi email tới [[support@your-domain]] nếu trung tâm không còn hoạt động.
+
+Bản ghi âm giọng nói của học viên chưa thành niên được xoá tự động sau **30 ngày**; bản chuyển chữ và điểm số giữ theo hồ sơ học tập.
 
 ### 7. Quyền của bạn
 
@@ -194,9 +221,18 @@ Tùy nơi bạn sinh sống, bạn có thể có các quyền đối với dữ 
 
 Bạn có thể thực hiện phần lớn các quyền này ngay trong ứng dụng (chỉnh sửa hồ sơ, hoặc Xóa tài khoản). Với các yêu cầu khác, hãy liên hệ [[support@your-domain]] và chúng tôi sẽ phản hồi trong thời hạn pháp luật quy định. Bạn cũng có quyền khiếu nại lên cơ quan bảo vệ dữ liệu tại địa phương.
 
-### 8. Trẻ em
+### 8. Trẻ em và người chưa thành niên
 
-DeutschFlow dành cho công chúng nói chung và **không** hướng đến trẻ dưới 13 tuổi. Ứng dụng **không** tham gia Kids Category của Apple. Chúng tôi không cố ý thu thập dữ liệu cá nhân của trẻ dưới 13 tuổi. Nếu bạn cho rằng một trẻ em đã cung cấp dữ liệu cá nhân cho chúng tôi, hãy liên hệ [[support@your-domain]] để chúng tôi xóa.
+DeutschFlow dành cho công chúng nói chung và **không** tham gia Kids Category của Apple. Người dùng tự đăng ký phải từ đủ 16 tuổi trở lên.
+
+**Học viên do trung tâm ngoại ngữ ghi danh** có thể là người chưa thành niên. Trong trường hợp đó:
+
+- Trung tâm có trách nhiệm thu **sự đồng ý của cha mẹ hoặc người giám hộ** trước khi đưa học viên vào hệ thống. Với học viên **dưới 16 tuổi**, đây là yêu cầu bắt buộc theo Nghị định 13/2023/NĐ-CP (Điều 20).
+- Chúng tôi ghi nhận bằng chứng của sự đồng ý đó **theo từng học viên** — ai xác nhận, vào lúc nào, cho phạm vi nào — và sổ ghi nhận này chỉ được ghi thêm, không sửa và không xoá.
+- **Bản ghi âm giọng nói của học viên chưa thành niên được xoá sau 30 ngày.** Bản chuyển chữ và điểm số được giữ theo hồ sơ học tập.
+- Giám đốc trung tâm có thể đọc tin nhắn riêng giữa giáo viên và học viên chưa thành niên khi cần bảo vệ học viên; **mỗi lượt đọc đều để lại vết** trong sổ hoạt động của trung tâm.
+
+Nếu bạn cho rằng một trẻ em đã cung cấp dữ liệu cá nhân cho chúng tôi ngoài các trường hợp trên, hãy liên hệ [[support@your-domain]] để chúng tôi xóa.
 
 ### 9. Bảo mật
 
@@ -250,7 +286,7 @@ Wir erheben **nicht** wissentlich genaue Standortdaten, Kontakte oder Gesundheit
 
 > **Hinweis zum Tracking.** DeutschFlow verfolgt Sie **nicht** über Apps oder Websites anderer Unternehmen hinweg. Wir fragen **keine** App-Tracking-Transparency-(ATT-)Erlaubnis ab und greifen **nicht** auf den Werbe-Identifier (IDFA) Ihres Geräts zu. Die App enthält keine Werbung. Optionale PRO-Abonnements unter iOS werden vollständig von Apple abgewickelt (In-App-Kauf) — wir erhalten nur den Transaktions-/Abostatus, niemals Ihre Zahlungskartendaten.
 
-**Weitergabe an KI-Dienste.** Wenn Sie die KI-Lernfunktionen nutzen, werden Ihre Lerneinreichungen — Sprachaufnahmen, Fotos schriftlicher Arbeiten und Gesprächs-/Aufsatztexte — an die in **Abschnitt 5** genannten KI-Drittanbieter übertragen, damit die App Ihre Sprache transkribieren, Ihre Handschrift lesen, Ihre Arbeiten bewerten und Feedback erzeugen kann. Dies geschieht **erst, nachdem Sie in der App ausdrücklich eingewilligt haben** (eine einmalige, widerrufliche Wahl, jederzeit änderbar unter Profil → Datenschutz). Wenn Sie ablehnen, funktionieren alle Nicht-KI-Funktionen weiterhin.
+**Weitergabe an KI-Dienste.** Wenn Sie die KI-Lernfunktionen nutzen, werden Ihre Lerneinreichungen — Sprachaufnahmen, Fotos schriftlicher Arbeiten und Gesprächs-/Aufsatztexte — an die in **Abschnitt 5** genannten KI-Drittanbieter übertragen, damit die App Ihre Sprache transkribieren, Ihre Handschrift lesen, Ihre Arbeiten bewerten und Feedback erzeugen kann. Dies geschieht, **nachdem Sie in der mobilen App ausdrücklich eingewilligt haben** (eine einmalige, widerrufliche Wahl, jederzeit änderbar unter Profil → Datenschutz), **oder wenn Sie die jeweilige Funktion in der Web-Version aktiv nutzen**. Wenn Sie ablehnen, funktionieren alle Nicht-KI-Funktionen weiterhin.
 
 ### 3. Geräteberechtigungen
 
@@ -270,8 +306,9 @@ Wir verwenden die obigen Daten, um: die App und Ihr Konto zu betreiben; Ihre Arb
 
 Wir geben personenbezogene Daten nur an die Dienstleister weiter, die uns beim Betrieb der App helfen; jeder handelt nach seinen eigenen Bedingungen und nur im erforderlichen Umfang.
 
-**KI-Dienstleister** — erhalten Ihre Lerneinreichungen (Sprachaufnahmen, Fotos schriftlicher Arbeiten, Gesprächs- und Aufsatztexte) **erst, nachdem Sie in der App eingewilligt haben**, und nur, um die von Ihnen angeforderte Funktion bereitzustellen. Ihre Inhalte werden verwendet, um die von Ihnen gewünschte Transkription, Bewertung oder Rückmeldung zu erstellen — nicht für Werbung:
+**KI-Dienstleister** — erhalten Ihre Lerneinreichungen (Sprachaufnahmen, Fotos schriftlicher Arbeiten, Gesprächs- und Aufsatztexte), **nachdem Sie in der mobilen App eingewilligt haben oder wenn Sie die jeweilige Funktion in der Web-Version aktiv nutzen**, und nur, um die von Ihnen angeforderte Funktion bereitzustellen. Ihre Inhalte werden verwendet, um die von Ihnen gewünschte Transkription, Bewertung oder Rückmeldung zu erstellen — nicht für Werbung:
 
+- **Fireworks AI, Inc.** (USA) — Spracherkennung für Ihre Sprachaufnahmen sowie Sprachmodell-Verarbeitung für die Bewertung Ihrer Arbeiten und für Sprechübungs-Gespräche.
 - **Groq, Inc.** (USA) — Sprache-zu-Text (Whisper) für Ihre Sprachaufnahmen und Sprachmodell-Verarbeitung Ihrer Sprechübungs-Gespräche und eingereichten Antworten.
 - **OpenAI, L.L.C.** (USA) — Sprache-zu-Text von Ausspracheaufnahmen und Textverarbeitung für Feedback und Suche in Lerninhalten.
 - **Google LLC — Gemini API** (USA) — liest (OCR) die von Ihnen hochgeladenen Fotos handschriftlicher Arbeiten und unterstützt die Erstellung von Lektionsinhalten.
@@ -284,11 +321,19 @@ Wir geben personenbezogene Daten nur an die Dienstleister weiter, die uns beim B
 - **Amazon Web Services (AWS)** — Cloud-Hosting für unser Backend, das Ihre Konto- und Lerndaten speichert.
 - **Apple** — wickelt iOS-In-App-Kaufzahlungen ab; wir erhalten den Abostatus und Transaktionskennungen, niemals Ihre Zahlungskartendaten. (Käufe auf unserer Website werden von unserem Web-Zahlungsanbieter abgewickelt und im Checkout-Hinweis der Website behandelt.)
 
-Wir geben Ihre Daten an keine weiteren Dritten weiter, außer wenn dies gesetzlich vorgeschrieben ist.
+**Die Sprachschule, die Sie angemeldet hat.** Wenn Sie über eine Sprachschule lernen, können deren Lehrkräfte, Verwaltungskräfte und Leitung Ihre Lerndaten im Rahmen des Unterrichtsbetriebs einsehen — Einreichungen, Bewertungen, Rückmeldungen, Anwesenheit und Ihre Lernakte (siehe Abschnitt 8 zu minderjährigen Lernenden). Die Sprachschule bestimmt die Zwecke, zu denen die Lerndaten ihrer Lernenden verarbeitet werden; endet ihr Vertrag mit uns, kann die Sprachschule sämtliche Lerndaten ihrer Lernenden exportieren, einschließlich der Originaleinreichungen und Anhänge. Sie behalten das Recht auf Zugang zu Ihren eigenen Daten und auf eine Kopie davon.
+
+**Eltern oder Erziehungsberechtigte minderjähriger Lernender.** Eine Sprachschule kann den Lernfortschrittsbericht minderjähriger Lernender mit deren Eltern oder Erziehungsberechtigten teilen, im Rahmen der von der Sprachschule eingeholten Einwilligung. Weitere Inhalte geben wir nicht an Eltern oder Erziehungsberechtigte weiter.
+
+Über die genannten Parteien hinaus geben wir Ihre Daten an keine weiteren Dritten weiter, außer wenn dies gesetzlich vorgeschrieben ist.
 
 ### 6. Speicherung und Löschung von Daten
 
 Wir bewahren Ihre personenbezogenen Daten auf, solange Ihr Konto aktiv ist. **Sie können Ihr Konto und alle zugehörigen Lerndaten jederzeit dauerhaft löschen, direkt in der App: Profil → Konto löschen.** Dies erfolgt sofort und ist unwiderruflich. Sie können die Löschung auch per E-Mail an [[support@your-domain]] von Ihrer registrierten Adresse aus verlangen. Nach der Löschung können wir einen begrenzten Satz von Aufzeichnungen aufbewahren, sofern das Gesetz dies verlangt, und anonymisierte Analysedaten, die sich nicht mehr mit Ihnen verknüpfen lassen, können erhalten bleiben.
+
+Wenn Sie aktive Lernende oder aktives Personal einer Sprachschule sind, wird die Löschung in der App ausgesetzt, bis Sie die Sprachschule verlassen — die Lernakte für den Zeitraum, in dem Sie dort lernen, fällt in den Verantwortungsbereich dieser Sprachschule. Wenden Sie sich an die Sprachschule, um sie zu verlassen, oder schreiben Sie an [[support@your-domain]], falls die Sprachschule nicht mehr tätig ist.
+
+Sprachaufnahmen minderjähriger Lernender werden nach **30 Tagen** automatisch gelöscht; Transkripte und Bewertungen bleiben Teil der Lernakte.
 
 ### 7. Ihre Rechte
 
@@ -300,9 +345,18 @@ Je nach Wohnort haben Sie möglicherweise Rechte an Ihren personenbezogenen Date
 
 Die meisten dieser Rechte können Sie direkt in der App ausüben (Profil bearbeiten oder Konto löschen). Für alles Weitere kontaktieren Sie [[support@your-domain]]; wir antworten innerhalb der gesetzlich vorgeschriebenen Fristen. Sie haben zudem das Recht, sich bei Ihrer örtlichen Datenschutzbehörde zu beschweren.
 
-### 8. Kinder
+### 8. Kinder und Minderjährige
 
-DeutschFlow richtet sich an ein allgemeines Publikum und ist **nicht** für Kinder unter 13 Jahren bestimmt. Die App ist **nicht** in Apples Kids-Kategorie eingetragen. Wir erheben nicht wissentlich personenbezogene Daten von Kindern unter 13 Jahren. Wenn Sie glauben, dass uns ein Kind personenbezogene Daten übermittelt hat, kontaktieren Sie [[support@your-domain]], und wir löschen sie.
+DeutschFlow richtet sich an ein allgemeines Publikum und ist **nicht** in Apples Kids-Kategorie eingetragen. Nutzer, die sich selbst registrieren, müssen mindestens 16 Jahre alt sein.
+
+**Von einer Sprachschule angemeldete Lernende** können minderjährig sein. In diesem Fall gilt:
+
+- Die Sprachschule ist dafür verantwortlich, **die Einwilligung eines Elternteils oder Erziehungsberechtigten** einzuholen, bevor sie die Lernenden in das System aufnimmt. Für Lernende **unter 16 Jahren** ist dies nach dem vietnamesischen Dekret 13/2023/ND-CP (Artikel 20) zwingend vorgeschrieben.
+- Wir halten den Nachweis dieser Einwilligung **je Lernendem** fest — wer sie wann und für welchen Umfang bestätigt hat — in einem Protokoll, das nur ergänzt, aber weder geändert noch gelöscht werden kann.
+- **Sprachaufnahmen minderjähriger Lernender werden nach 30 Tagen gelöscht.** Transkripte und Bewertungen bleiben Teil der Lernakte.
+- Die Leitung der Sprachschule darf private Nachrichten zwischen einer Lehrkraft und minderjährigen Lernenden lesen, wenn dies zum Schutz der Lernenden erforderlich ist; **jeder solche Zugriff hinterlässt eine Spur** im Aktivitätsprotokoll der Sprachschule.
+
+Wenn Sie glauben, dass uns ein Kind außerhalb der oben genannten Fälle personenbezogene Daten übermittelt hat, kontaktieren Sie [[support@your-domain]], und wir löschen sie.
 
 ### 9. Sicherheit
 

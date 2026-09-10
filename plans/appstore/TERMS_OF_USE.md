@@ -20,9 +20,11 @@ By downloading, installing, or using DeutschFlow (the "App"), you agree to these
 
 We grant you a personal, non-transferable, non-exclusive, revocable license to use the App on any Apple-branded device that you own or control, as permitted by the App Store Terms of Service and by Apple's [Licensed Application End User License Agreement](https://www.apple.com/legal/internet-services/itunes/dev/stdeula/) (the "Standard EULA"). These Terms supplement the Standard EULA. Where they conflict for purposes of App Store distribution, the Standard EULA governs.
 
-### 3. Accounts and account deletion
+### 3. Accounts, age, and account deletion
 
-You must provide accurate registration information and keep your login credentials secure. You are responsible for all activity under your account. You may permanently delete your account and all associated learning data at any time from within the App: open **Profile → Delete account** ("Xoá tài khoản"). Deletion is immediate and cannot be undone.
+**Age.** To register an account on your own, you must be at least 16 years old. Anyone under 16 may use DeutschFlow only as a learner enrolled by a language center. For every minor learner it enrolls, the center must hold the consent of the learner's parent or legal guardian before adding the learner to the system; the center is responsible for obtaining that consent and confirms to us that it has done so (see §11).
+
+You must provide accurate registration information and keep your login credentials secure. You are responsible for all activity under your account. You may permanently delete your account and all associated learning data at any time from within the App: open **Profile → Delete account** ("Xoá tài khoản"). Deletion is immediate and cannot be undone. If you are an active member (learner or staff) of a language center, account deletion is paused until you leave the center (see §11).
 
 ### 4. Free access and premium features
 
@@ -58,7 +60,16 @@ We may suspend or terminate your access if you breach these Terms. You may stop 
 
 These Terms are governed by the laws of **Vietnam**, without regard to its conflict-of-laws rules. Distribution of the App through the App Store remains subject to Apple's Standard EULA.
 
-### 11. Contact
+### 11. Learning through a language center
+
+If you use DeutschFlow as a learner, teacher, or staff member of a language center (the "center"), the following terms also apply:
+
+- **The center's role.** The center that enrolled you decides the purposes for which its learners' learning data is processed. The center's teachers, managers, and director can see learners' submissions, scores, feedback, attendance, and learning records within the scope of running classes.
+- **Protection of minor learners.** The center's director may read private messages between a teacher and a minor learner when needed to protect the learner; every such access is recorded in the center's activity log. The center may share a minor learner's progress report with the learner's parent or guardian, under the consent the center has collected.
+- **Data at the end of the contract.** When the contract between the center and us ends, the center may export all of its learners' learning data, including original submissions and attachments. You keep the right to access and obtain a copy of your own data.
+- **Account deletion.** While you are an active member of the center, account deletion is paused until you leave the center. Contact the center to leave it, or email [[support@your-domain]] if the center is no longer operating.
+
+### 12. Contact
 
 Questions about these Terms: **[[support@your-domain]]** (fallback: dinhhuycu0305@gmail.com).
 
@@ -76,9 +87,11 @@ Khi tải, cài đặt hoặc sử dụng DeutschFlow ("Ứng dụng"), bạn đ
 
 Chúng tôi cấp cho bạn giấy phép cá nhân, không chuyển nhượng, không độc quyền, có thể thu hồi để sử dụng Ứng dụng trên thiết bị mang thương hiệu Apple mà bạn sở hữu hoặc kiểm soát, theo Điều khoản dịch vụ App Store và [Standard EULA](https://www.apple.com/legal/internet-services/itunes/dev/stdeula/) của Apple. Điều khoản này bổ sung cho Standard EULA. Khi có xung đột trong phạm vi phân phối qua App Store, Standard EULA được ưu tiên áp dụng.
 
-### 3. Tài khoản và xóa tài khoản
+### 3. Tài khoản, độ tuổi và xóa tài khoản
 
-Bạn phải cung cấp thông tin đăng ký chính xác và giữ an toàn thông tin đăng nhập. Bạn chịu trách nhiệm cho mọi hoạt động trong tài khoản của mình. Bạn có thể xóa vĩnh viễn tài khoản và toàn bộ dữ liệu học tập bất cứ lúc nào ngay trong Ứng dụng: vào **Hồ sơ → Xoá tài khoản**. Việc xóa có hiệu lực ngay và không thể hoàn tác.
+**Độ tuổi.** Để tự đăng ký tài khoản, bạn phải từ đủ 16 tuổi trở lên. Người dưới 16 tuổi chỉ có thể sử dụng DeutschFlow với tư cách học viên do một trung tâm ngoại ngữ ghi danh. Với mọi học viên chưa thành niên mà trung tâm ghi danh, trung tâm phải có sự đồng ý của cha mẹ hoặc người giám hộ trước khi đưa học viên vào hệ thống; trung tâm chịu trách nhiệm thu sự đồng ý đó và cam kết với chúng tôi rằng đã thu (xem §11).
+
+Bạn phải cung cấp thông tin đăng ký chính xác và giữ an toàn thông tin đăng nhập. Bạn chịu trách nhiệm cho mọi hoạt động trong tài khoản của mình. Bạn có thể xóa vĩnh viễn tài khoản và toàn bộ dữ liệu học tập bất cứ lúc nào ngay trong Ứng dụng: vào **Hồ sơ → Xoá tài khoản**. Việc xóa có hiệu lực ngay và không thể hoàn tác. Nếu bạn đang là thành viên đang hoạt động (học viên hoặc nhân sự) của một trung tâm ngoại ngữ, thao tác xoá tài khoản tạm dừng cho tới khi bạn rời trung tâm (xem §11).
 
 ### 4. Truy cập miễn phí và tính năng cao cấp
 
@@ -114,7 +127,16 @@ Chúng tôi có thể tạm ngưng hoặc chấm dứt quyền truy cập của 
 
 Điều khoản này được điều chỉnh theo pháp luật **Việt Nam**, không xét đến các quy tắc xung đột pháp luật. Việc phân phối Ứng dụng qua App Store vẫn tuân theo Standard EULA của Apple.
 
-### 11. Liên hệ
+### 11. Học thông qua trung tâm ngoại ngữ
+
+Nếu bạn sử dụng DeutschFlow với tư cách học viên, giáo viên hoặc nhân sự của một trung tâm ngoại ngữ ("trung tâm"), các điều khoản sau được áp dụng thêm:
+
+- **Vai trò của trung tâm.** Trung tâm đã ghi danh bạn là bên quyết định mục đích xử lý dữ liệu học tập của học viên mình. Giáo viên, quản lý và giám đốc của trung tâm xem được bài nộp, điểm, nhận xét, chuyên cần và hồ sơ học tập của học viên trong phạm vi vận hành lớp.
+- **Bảo vệ học viên chưa thành niên.** Giám đốc trung tâm có thể đọc tin nhắn riêng giữa giáo viên và học viên chưa thành niên khi cần bảo vệ học viên; mỗi lượt đọc được ghi vết trong sổ hoạt động của trung tâm. Trung tâm có thể chia sẻ phiếu đánh giá kết quả học tập của học viên chưa thành niên với cha mẹ hoặc người giám hộ theo sự đồng ý mà trung tâm đã thu.
+- **Dữ liệu khi kết thúc hợp đồng.** Khi hợp đồng giữa trung tâm và chúng tôi kết thúc, trung tâm được xuất toàn bộ dữ liệu học tập của học viên mình, gồm bài nộp gốc và tệp đính kèm. Bạn vẫn giữ quyền truy cập và nhận bản sao dữ liệu của chính mình.
+- **Xoá tài khoản.** Khi bạn còn là thành viên đang hoạt động của trung tâm, thao tác xoá tài khoản tạm dừng cho tới khi bạn rời trung tâm. Hãy liên hệ trung tâm để rời khỏi, hoặc gửi email tới [[support@your-domain]] nếu trung tâm không còn hoạt động.
+
+### 12. Liên hệ
 
 Câu hỏi về Điều khoản này: **[[support@your-domain]]** (dự phòng: dinhhuycu0305@gmail.com).
 
@@ -132,9 +154,11 @@ Mit dem Herunterladen, Installieren oder Nutzen von DeutschFlow (der „App“) 
 
 Wir gewähren Ihnen eine persönliche, nicht übertragbare, nicht ausschließliche, widerrufliche Lizenz zur Nutzung der App auf jedem Gerät der Marke Apple, das Sie besitzen oder kontrollieren, im Rahmen der App-Store-Nutzungsbedingungen und der [Licensed Application End User License Agreement](https://www.apple.com/legal/internet-services/itunes/dev/stdeula/) von Apple (die „Standard-EULA“). Diese Bedingungen ergänzen die Standard-EULA. Bei Widersprüchen für Zwecke des App-Store-Vertriebs gilt die Standard-EULA.
 
-### 3. Konten und Kontolöschung
+### 3. Konten, Mindestalter und Kontolöschung
 
-Sie müssen korrekte Registrierungsdaten angeben und Ihre Anmeldedaten sicher aufbewahren. Sie sind für alle Aktivitäten unter Ihrem Konto verantwortlich. Sie können Ihr Konto und alle zugehörigen Lerndaten jederzeit direkt in der App dauerhaft löschen: **Profil → Konto löschen** („Xoá tài khoản“). Die Löschung erfolgt sofort und ist unwiderruflich.
+**Mindestalter.** Um selbst ein Konto zu registrieren, müssen Sie mindestens 16 Jahre alt sein. Personen unter 16 Jahren dürfen DeutschFlow nur als Lernende nutzen, die von einer Sprachschule angemeldet wurden. Für jeden minderjährigen Lernenden, den sie anmeldet, muss der Sprachschule die Einwilligung eines Elternteils oder Erziehungsberechtigten vorliegen, bevor sie den Lernenden in das System aufnimmt; die Sprachschule ist für das Einholen dieser Einwilligung verantwortlich und bestätigt uns gegenüber, dass sie vorliegt (siehe §11).
+
+Sie müssen korrekte Registrierungsdaten angeben und Ihre Anmeldedaten sicher aufbewahren. Sie sind für alle Aktivitäten unter Ihrem Konto verantwortlich. Sie können Ihr Konto und alle zugehörigen Lerndaten jederzeit direkt in der App dauerhaft löschen: **Profil → Konto löschen** („Xoá tài khoản“). Die Löschung erfolgt sofort und ist unwiderruflich. Wenn Sie aktives Mitglied (Lernende/r oder Personal) einer Sprachschule sind, wird die Kontolöschung ausgesetzt, bis Sie die Sprachschule verlassen (siehe §11).
 
 ### 4. Kostenloser Zugang und Premium-Funktionen
 
@@ -170,6 +194,15 @@ Wir können Ihren Zugang aussetzen oder beenden, wenn Sie gegen diese Bedingunge
 
 Diese Bedingungen unterliegen dem Recht **Vietnams**, ungeachtet seiner kollisionsrechtlichen Vorschriften. Der Vertrieb der App über den App Store unterliegt weiterhin Apples Standard-EULA.
 
-### 11. Kontakt
+### 11. Lernen über eine Sprachschule
+
+Wenn Sie DeutschFlow als Lernende/r, Lehrkraft oder Personal einer Sprachschule (die „Sprachschule“) nutzen, gelten zusätzlich die folgenden Bedingungen:
+
+- **Rolle der Sprachschule.** Die Sprachschule, die Sie angemeldet hat, bestimmt die Zwecke, zu denen die Lerndaten ihrer Lernenden verarbeitet werden. Lehrkräfte, Verwaltungskräfte und Leitung der Sprachschule können Einreichungen, Bewertungen, Rückmeldungen, Anwesenheit und Lernakten der Lernenden im Rahmen des Unterrichtsbetriebs einsehen.
+- **Schutz minderjähriger Lernender.** Die Leitung der Sprachschule darf private Nachrichten zwischen einer Lehrkraft und minderjährigen Lernenden lesen, wenn dies zum Schutz der Lernenden erforderlich ist; jeder solche Zugriff wird im Aktivitätsprotokoll der Sprachschule festgehalten. Die Sprachschule kann den Lernfortschrittsbericht minderjähriger Lernender mit deren Eltern oder Erziehungsberechtigten teilen, im Rahmen der von der Sprachschule eingeholten Einwilligung.
+- **Daten bei Vertragsende.** Endet der Vertrag zwischen der Sprachschule und uns, kann die Sprachschule sämtliche Lerndaten ihrer Lernenden exportieren, einschließlich der Originaleinreichungen und Anhänge. Sie behalten das Recht auf Zugang zu Ihren eigenen Daten und auf eine Kopie davon.
+- **Kontolöschung.** Solange Sie aktives Mitglied der Sprachschule sind, wird die Kontolöschung ausgesetzt, bis Sie die Sprachschule verlassen. Wenden Sie sich an die Sprachschule, um sie zu verlassen, oder schreiben Sie an [[support@your-domain]], falls die Sprachschule nicht mehr tätig ist.
+
+### 12. Kontakt
 
 Fragen zu diesen Bedingungen: **[[support@your-domain]]** (alternativ: dinhhuycu0305@gmail.com).

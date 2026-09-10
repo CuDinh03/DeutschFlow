@@ -87,7 +87,8 @@
       "admin-exam-golden": "Golden set Nói",
       "objectives": "Ma trận mục tiêu",
       "org-settings": "Cài đặt trung tâm",
-      "org-audit": "Sổ hoạt động"
+      "org-audit": "Sổ hoạt động",
+      "org-certificates": "Chứng nhận"
     },
     "sections": {
       "classMgmt": "Quản lý lớp",

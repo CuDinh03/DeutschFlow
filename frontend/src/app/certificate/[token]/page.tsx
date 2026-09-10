@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { BadgeCheck, ShieldCheck, Sparkles } from 'lucide-react'
+import { BadgeCheck, ShieldCheck, ShieldOff, Sparkles } from 'lucide-react'
 import type { Certificate } from '@/lib/certificateApi'
 import { CertificateActions } from '@/components/certificate/CertificateActions'
 
@@ -35,6 +35,15 @@ export async function generateMetadata({ params }: { params: { token: string } }
   if (!cert) {
     return { title: 'Chứng nhận | DeutschFlow', robots: { index: false, follow: false } }
   }
+  // DEC-20: chứng nhận đã thu hồi vẫn về 200 (active=false) — tiêu đề phải nói thẳng, không để
+  // thẻ chia sẻ của một tờ giấy đã rút vẫn khoe "Chứng nhận tiếng Đức B1".
+  if (!cert.active) {
+    return {
+      title: `Chứng nhận đã thu hồi — ${cert.certificateCode} | DeutschFlow`,
+      description: 'Chứng nhận này đã bị thu hồi và không còn hiệu lực.',
+      robots: { index: false, follow: false },
+    }
+  }
   const issuer = cert.orgName || 'DeutschFlow'
   const title = `Chứng nhận tiếng Đức ${cert.cefrLevel} — ${cert.studentName} | ${issuer}`
   const description = `Chứng nhận hoàn thành chương trình tiếng Đức trình độ ${cert.cefrLevel}`
@@ -55,6 +64,10 @@ export default async function CertificatePage({ params }: { params: { token: str
 
   const verifyUrl = `${SITE_URL}/certificate/${params.token}/`
   const issuer = cert.orgName || 'DeutschFlow'
+  // DEC-20: thu hồi (giáo viên phụ trách hoặc giám đốc trung tâm) KHÔNG làm link 404 — ai cầm bản
+  // in quét mã phải đọc được "đã thu hồi" thay vì "không tồn tại" (404 không phân biệt được giấy
+  // giả với giấy bị rút). Tấm chứng nhận vẫn hiện nguyên để đối chiếu, nhưng bị đóng dấu rõ ràng.
+  const revoked = !cert.active
 
   return (
     <main className="min-h-screen bg-[#f4f1ea] py-10 text-slate-900 print:bg-white print:py-0">
@@ -62,8 +75,27 @@ export default async function CertificatePage({ params }: { params: { token: str
 
         {/* Certificate card */}
         <article className="relative overflow-hidden rounded-[28px] border-[3px] border-emerald-900/15 bg-white shadow-xl shadow-emerald-900/5 print:rounded-none print:border-0 print:shadow-none">
-          {/* Top accent bar */}
-          <div className="h-2 w-full bg-gradient-to-r from-amber-500 via-emerald-700 to-emerald-900" />
+          {/* Top accent bar — đỏ khi đã thu hồi để bản in cũng mang dấu hiệu. */}
+          <div
+            className={
+              revoked
+                ? 'h-2 w-full bg-gradient-to-r from-red-500 via-red-700 to-red-900'
+                : 'h-2 w-full bg-gradient-to-r from-amber-500 via-emerald-700 to-emerald-900'
+            }
+          />
+
+          {revoked ? (
+            <div role="status" className="flex items-start gap-3 border-b border-red-200 bg-red-50 px-8 py-4 text-red-900 sm:px-14">
+              <ShieldOff size={20} className="mt-0.5 shrink-0" aria-hidden />
+              <div>
+                <p className="text-sm font-black uppercase tracking-wider">Chứng nhận này đã bị thu hồi</p>
+                <p className="mt-1 text-sm leading-relaxed text-red-800">
+                  Chứng nhận mã <span className="font-mono font-bold">{cert.certificateCode}</span> không còn hiệu lực.
+                  Bản in hay bản chụp của nó không dùng được để chứng minh trình độ. Cần cấp lại, hãy liên hệ {issuer}.
+                </p>
+              </div>
+            </div>
+          ) : null}
 
           <div className="px-8 py-10 sm:px-14 sm:py-12">
             {/* Inner ornamental frame */}
@@ -134,12 +166,21 @@ export default async function CertificatePage({ params }: { params: { token: str
                 </div>
 
                 {/* Verification strip */}
-                <div className="mt-8 flex items-center justify-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-emerald-800">
-                  <ShieldCheck size={16} />
-                  <span className="text-xs font-semibold">
-                    Chứng nhận hợp lệ · Xác thực tại {verifyUrl.replace(/^https?:\/\//, '')}
-                  </span>
-                </div>
+                {revoked ? (
+                  <div className="mt-8 flex items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-red-800">
+                    <ShieldOff size={16} aria-hidden />
+                    <span className="text-xs font-semibold">
+                      Đã thu hồi · Không còn hiệu lực · Kiểm tra tại {verifyUrl.replace(/^https?:\/\//, '')}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-8 flex items-center justify-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-emerald-800">
+                    <ShieldCheck size={16} />
+                    <span className="text-xs font-semibold">
+                      Chứng nhận hợp lệ · Xác thực tại {verifyUrl.replace(/^https?:\/\//, '')}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
