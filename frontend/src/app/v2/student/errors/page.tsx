@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import api from '@/lib/api'
 import { reviewApi, type ErrorReviewTaskDto } from '@/lib/reviewApi'
-import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
+import { categoryLabel, getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import ErrorRepairDrill from '@/components/errors/ErrorRepairDrill'
 import {
   EmptyState, ErrorBanner, GaBtn, GaCap, GaPageHdr, LoadingState, TkSearch,
@@ -48,20 +48,21 @@ interface ErrorSkillDto {
   resolved?: boolean
 }
 
-// Màu theo nhóm lỗi (prefix trước dấu chấm), dùng bảng màu Galerie. Nhãn giữ thuật ngữ ngữ pháp Đức.
-const CAT_COLORS: Record<string, { color: string; label: string }> = {
-  WORD_ORDER: { color: '#7C56C8', label: 'Wortstellung' },
-  CASE:       { color: '#DA291C', label: 'Kasus' },
-  ARTICLE:    { color: '#2F6FC9', label: 'Artikel' },
-  VERB:       { color: '#11888A', label: 'Verb' },
-  AGREEMENT:  { color: '#E07B39', label: 'Kongruenz' },
-  DECLENSION: { color: '#1E9E61', label: 'Adjektiv' },
-  LEXICAL:    { color: '#C79A00', label: 'Wortschatz' },
+// Màu theo nhóm lỗi (prefix trước dấu chấm), dùng bảng màu Galerie. Nhãn nhóm lấy từ
+// errorTaxonomy theo ngôn ngữ đang xem — bảng này chỉ giữ màu.
+const CAT_COLORS: Record<string, string> = {
+  WORD_ORDER: '#7C56C8',
+  CASE:       '#DA291C',
+  ARTICLE:    '#2F6FC9',
+  VERB:       '#11888A',
+  AGREEMENT:  '#E07B39',
+  DECLENSION: '#1E9E61',
+  LEXICAL:    '#C79A00',
 }
 
-function catStyle(code: string) {
+function catColor(code: string): string {
   const prefix = code.split('.')[0]?.toUpperCase() ?? ''
-  return CAT_COLORS[prefix] ?? { color: 'var(--ga-muted)', label: 'other' }
+  return CAT_COLORS[prefix] ?? 'var(--ga-muted)'
 }
 
 function ErrorBook() {
@@ -176,7 +177,7 @@ function ErrorBook() {
                   {pendingTasks.map((task, i) => (
                     <div key={task.id} className={`flex items-center gap-3 px-4 py-3.5 lg:px-5 ${i ? 'border-t border-ga-border' : ''}`}>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14px] font-semibold text-ga-ink" title={task.errorCode}>
+                        <p className="truncate text-[14px] font-semibold text-ga-ink" title={getErrorSnippet(task.errorCode, locale).rule}>
                           {getErrorSnippet(task.errorCode, locale).title}
                         </p>
                         <p className="ga-ui mt-0.5 flex items-center gap-1 text-[12px] text-ga-muted">
@@ -239,7 +240,8 @@ function ErrorBook() {
 
                   <div className="space-y-3">
                     {filtered.map((err) => {
-                      const style = catStyle(err.errorCode)
+                      const catColorValue = catColor(err.errorCode)
+                      const catName = categoryLabel(err.errorCode, locale) ?? t('other')
                       const snippet = getErrorSnippet(err.errorCode, locale)
                       const repaired = repairedCodes.has(err.errorCode)
                       return (
@@ -250,7 +252,7 @@ function ErrorBook() {
                         >
                           <span
                             className="absolute inset-y-0 left-0 w-[3px]"
-                            style={{ background: repaired ? 'var(--ga-green)' : style.color }}
+                            style={{ background: repaired ? 'var(--ga-green)' : catColorValue }}
                             aria-hidden
                           />
 
@@ -258,9 +260,9 @@ function ErrorBook() {
                             <div className="flex flex-wrap items-center gap-2">
                               <span
                                 className="ga-ui rounded-ga-pill px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]"
-                                style={{ background: `${style.color}18`, color: style.color }}
+                                style={{ background: `${catColorValue}18`, color: catColorValue }}
                               >
-                                {style.label === 'other' ? t('other') : style.label}
+                                {catName}
                               </span>
                               {repaired && (
                                 <span className="ga-ui inline-flex items-center gap-1 rounded-ga-pill bg-ga-green-soft px-2 py-0.5 text-[10px] font-bold text-ga-green">
@@ -273,7 +275,7 @@ function ErrorBook() {
                             </span>
                           </header>
 
-                          <p className="break-words text-[16px] font-semibold text-ga-ink" title={err.errorCode}>{snippet.title}</p>
+                          <p className="break-words text-[16px] font-semibold text-ga-ink" title={snippet.rule}>{snippet.title}</p>
                           {snippet.rule && <p className="ga-ui mt-1 text-[12.5px] leading-snug text-ga-muted">{snippet.rule}</p>}
                           {err.lastSeenAt && (
                             <p className="ga-ui mt-1.5 flex items-center gap-1 text-[12px] text-ga-subtle">
@@ -331,17 +333,18 @@ function ErrorBook() {
                   {showResolved && (
                     <div className="mt-3 border border-ga-line bg-ga-card">
                       {filteredResolved.map((err, i) => {
-                        const style = catStyle(err.errorCode)
+                        const catColorValue = catColor(err.errorCode)
+                        const catName = categoryLabel(err.errorCode, locale) ?? t('other')
                         const snippet = getErrorSnippet(err.errorCode, locale)
                         return (
                           <div key={err.errorCode} className={`flex items-center gap-2 px-4 py-3 lg:gap-3 lg:px-5 ${i ? 'border-t border-ga-border' : ''}`}>
                             <span
                               className="ga-ui shrink-0 rounded-ga-pill px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]"
-                              style={{ background: `${style.color}18`, color: style.color }}
+                              style={{ background: `${catColorValue}18`, color: catColorValue }}
                             >
-                              {style.label === 'other' ? t('other') : style.label}
+                              {catName}
                             </span>
-                            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ga-ink" title={err.errorCode}>
+                            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ga-ink" title={snippet.rule}>
                               {snippet.title}
                             </span>
                             <span className="ga-ui shrink-0 text-[11px] text-ga-subtle">

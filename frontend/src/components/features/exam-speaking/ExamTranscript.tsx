@@ -1,7 +1,8 @@
 'use client'
 
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Bot, Sparkles } from 'lucide-react'
+import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import type { DrillTurnEval, RoomLine } from '@/types/exam-speaking'
 
 interface Props {
@@ -54,6 +55,7 @@ export function ExamTranscript({ lines, mode }: Props) {
 
 function DrillEvalCard({ eval: ev }: { eval: DrillTurnEval }) {
   const t = useTranslations('v2.student.examSpeaking.room')
+  const locale = useLocale()
   if (ev.error) {
     return <p className="ga-ui mt-1 text-left text-[12.5px] text-ga-muted">{ev.error}</p>
   }
@@ -73,7 +75,8 @@ function DrillEvalCard({ eval: ev }: { eval: DrillTurnEval }) {
               <span className="text-ga-red line-through">{c.original}</span>
               <span className="mx-1.5 text-ga-muted">→</span>
               <span className="font-semibold text-ga-green">{c.correction}</span>
-              <span className="ml-1.5 text-[11px] text-ga-muted">{c.code}</span>
+              {/* Học viên đọc tên lỗi, không đọc mã máy (WORD_ORDER.V2_MAIN_CLAUSE…). */}
+              <span className="ml-1.5 text-[11px] text-ga-muted">{getErrorSnippet(c.code, locale).title}</span>
             </li>
           ))}
         </ul>

@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, type ReactNode } from "react";
+import { useLocale } from "next-intl";
 import { getErrorSnippet } from "@/lib/errors/errorTaxonomy";
 import type { StructuredErrorItem } from "./types";
 
@@ -11,6 +12,7 @@ interface Props {
 
 /** Inline wrong + correction spans over the user utterance (warm paper only). */
 export function UserTextWithErrorSpans({ text, errors }: Props) {
+  const locale = useLocale();
   const nodes = useMemo(() => {
     const errs = errors?.filter((e) => e.wrongSpan && text.includes(e.wrongSpan)) ?? [];
     if (!errs.length) return [<span key="plain">{text}</span>];
@@ -30,7 +32,7 @@ export function UserTextWithErrorSpans({ text, errors }: Props) {
         <Fragment key={`e${k++}`}>
           <span
             className="rounded px-0.5 border border-ga-red bg-ga-red-soft text-ga-red"
-            title={getErrorSnippet(e.errorCode, 'vi').title}
+            title={getErrorSnippet(e.errorCode, locale).title}
           >
             {w}
           </span>
@@ -50,7 +52,7 @@ export function UserTextWithErrorSpans({ text, errors }: Props) {
       out.push(<span key={`t${k++}`}>{text.slice(pos)}</span>);
     }
     return out.length ? out : [<span key="plain">{text}</span>];
-  }, [text, errors]);
+  }, [text, errors, locale]);
 
   return <>{nodes}</>;
 }
