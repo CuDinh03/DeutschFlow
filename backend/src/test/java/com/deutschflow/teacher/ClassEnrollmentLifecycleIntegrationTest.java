@@ -20,7 +20,6 @@ import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.teacher.service.ClassEnrollmentService;
 import com.deutschflow.teacher.service.StudentClassroomService;
 import com.deutschflow.teacher.service.TeacherService;
-import com.deutschflow.admin.service.AdminManagementService;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.testsupport.AbstractPostgresIntegrationTest;
 import com.deutschflow.user.entity.User;
@@ -62,7 +61,6 @@ class ClassEnrollmentLifecycleIntegrationTest extends AbstractPostgresIntegratio
     @Autowired private StudentClassroomService studentClassroomService;
     @Autowired private TeacherService teacherService;
     @Autowired private UserNotificationService userNotificationService;
-    @Autowired private AdminManagementService adminManagementService;
     @Autowired private UserRepository userRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -441,10 +439,14 @@ class ClassEnrollmentLifecycleIntegrationTest extends AbstractPostgresIntegratio
         classStudentRepository.saveAndFlush(graded);
         enrollmentService.endByTeacher(f.teacher.getId(), classId, f.student.getId(), actor(f.teacher));
 
-        Object assigned = adminManagementService
-                .bulkAssignStudents(classId, List.of(f.student.getId())).get("assignedCount");
+        // Gói 2: đường gán hàng loạt của admin nay đi qua ClassEnrollmentService (cùng cửa D2).
+        AuditActor admin = new AuditActor(null, "admin@test.local", "ADMIN");
+        ClassEnrollmentService.BulkAssignResult out = enrollmentService
+                .bulkAssignByAdmin(classId, List.of(f.student.getId()), admin);
 
-        assertThat(assigned).isEqualTo(1);
+        assertThat(out.assignedCount()).isEqualTo(1);
+        assertThat(out.results()).singleElement()
+                .satisfies(r -> assertThat(r.outcome()).isEqualTo(ClassEnrollmentService.BulkAssignOutcome.ASSIGNED));
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT status FROM class_students WHERE class_id = ? AND student_id = ?",
                 String.class, classId, f.student.getId())).isEqualTo(ClassStudent.STATUS_ACTIVE);

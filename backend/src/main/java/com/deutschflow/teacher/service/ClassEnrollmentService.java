@@ -2,11 +2,14 @@ package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.notification.NotificationType;
 import com.deutschflow.notification.entity.NotificationOutbox;
 import com.deutschflow.notification.repository.NotificationOutboxRepository;
+import com.deutschflow.organization.service.OrgGuard;
+import com.deutschflow.organization.service.OrgMembershipService;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
 import com.deutschflow.teacher.entity.TeacherClass;
@@ -21,8 +24,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * G-02 — vòng đời ghi danh của MỘT học viên trong MỘT lớp.
@@ -35,12 +41,16 @@ import java.util.Map;
  * ở đây kiểm lớp có đúng thuộc trung tâm ấy không) và giáo viên PHỤ TRÁCH lớp.
  *
  * <p>Thông báo "được thêm vào lớp" (DEC-18) cũng đi qua MỘT cửa ở đây —
- * {@link #enrollAndNotify} — cho cả hai đường nhân sự đưa học viên vào lớp (giáo viên thêm bằng
- * email, trung tâm nhập roster CSV), để mọi lượt vào lớp báo đúng một lần.
+ * {@link #enrollAndNotify} — cho cả ba đường nhân sự đưa học viên vào lớp (giáo viên thêm bằng
+ * email, trung tâm nhập roster CSV, admin nền tảng gán hàng loạt — {@link #bulkAssignByAdmin}),
+ * để mọi lượt vào lớp báo đúng một lần.
  */
 @Service
 @RequiredArgsConstructor
 public class ClassEnrollmentService {
+
+    /** Tên vết gộp của một lượt admin gán hàng loạt — giữ nguyên tên cũ mà controller từng ghi. */
+    static final String EVENT_BULK_ASSIGNED = "admin.class.students.bulk_assigned";
 
     private final ClassStudentRepository classStudentRepository;
     private final ClassTeacherRepository classTeacherRepository;
@@ -48,6 +58,129 @@ public class ClassEnrollmentService {
     private final AuditLogService auditLogService;
     private final UserRepository userRepository;
     private final NotificationOutboxRepository outboxRepository;
+    private final OrgMembershipService orgMembershipService;
+    private final OrgGuard orgGuard;
+    private final AssignmentBackfillService assignmentBackfillService;
+
+    // ── Gói 2: admin nền tảng gán hàng loạt ────────────────────────────────
+
+    /** Điều gì đã xảy ra với MỘT học viên trong một lượt gán hàng loạt. */
+    public enum BulkAssignOutcome {
+        /** Vừa được đưa (trở) vào lớp — có thông báo phân lớp, được cấp bù bài tập lớp đã giao. */
+        ASSIGNED,
+        /** Đang còn chiếm ghế trong lớp (ACTIVE/RESERVED) — không làm gì, không báo. */
+        ALREADY_ENROLLED,
+        /** Không phải tài khoản học viên (không tồn tại, hoặc vai khác STUDENT) — bỏ qua. */
+        NOT_STUDENT
+    }
+
+    /** Kết cục của một dòng trong lượt gán hàng loạt. */
+    public record BulkAssignRow(Long studentId, BulkAssignOutcome outcome) {
+    }
+
+    /**
+     * Kết quả một lượt gán hàng loạt: {@code assignedCount} giữ nguyên nghĩa cũ (số người VỪA vào
+     * lớp); {@code results} theo đúng thứ tự gửi lên, đã bỏ id trùng và id null.
+     */
+    public record BulkAssignResult(int requestedCount, int assignedCount, List<BulkAssignRow> results) {
+    }
+
+    /**
+     * Gói 2 (10/09/2026) — admin nền tảng gán NHIỀU học viên vào một lớp
+     * ({@code POST /api/admin/classes/{classId}/students/bulk-assign}).
+     *
+     * <p>Trước bản này đường đó ghi thẳng {@code class_students} bằng SQL trong
+     * {@code AdminManagementService}, đi vòng qua mọi cổng mà đường ghi danh đơn lẻ vẫn phải qua:
+     * không kiểm ghế trung tâm, không kiểm học viên có thuộc trung tâm của lớp, không báo học viên,
+     * không cấp bù bài tập, và trung tâm đang bị đình chỉ/hết hạn vẫn nhận thêm học viên. Nay mọi
+     * dòng đi qua ĐÚNG các hàm của đường đơn lẻ, theo thứ tự của {@code TeacherService}:
+     * <ol>
+     *   <li>lớp phải tồn tại (404); trung tâm của lớp phải còn ghi được — D5,
+     *       {@link OrgGuard#assertOrgWritable} (403 {@code ORG_READ_ONLY}). Lớp B2C bỏ qua bước này;</li>
+     *   <li>từng học viên: {@link OrgMembershipService#ensureStudentSeat} (như duyệt yêu cầu vào
+     *       lớp) — đã là thành viên thì no-op; chưa thì nhận ghế STUDENT dưới cổng {@code seat_limit}
+     *       (0 = không giới hạn, đếm trên {@code org_members} STUDENT ACTIVE, khoá FOR UPDATE) và
+     *       được cấp gói của trung tâm. Hết ghế, hay đang ACTIVE ở trung tâm khác, thì NÉM đúng
+     *       lỗi 400 của đường đơn lẻ — chỉ thêm id học viên để admin biết dòng nào vướng;</li>
+     *   <li>{@link #enrollAndNotify} — mở lại dòng cũ giữ nguyên đánh giá (D2), báo
+     *       {@code ADDED_TO_CLASS} đúng một lần (DEC-18, {@code addedBy=ORG} vì admin không dạy lớp);</li>
+     *   <li>cấp bù bài tập lớp đã giao ({@link AssignmentBackfillService}) — như hai đường đơn lẻ.</li>
+     * </ol>
+     *
+     * <p><b>Toàn bộ hoặc không gì cả.</b> Một dòng vướng cổng trung tâm (hết ghế, khác trung tâm)
+     * là cả lượt 400 và rollback: ghế là tài nguyên chung có tính tiền, nửa lô vào nửa lô rớt trả
+     * về một con số admin không đối chiếu được với bảng ghế. Về kỹ thuật cũng không có lựa chọn
+     * khác: lỗi ném qua proxy {@code @Transactional} của {@code ensureStudentSeat} đã đánh dấu giao
+     * dịch rollback-only, "nuốt" để đi tiếp là {@code UnexpectedRollbackException} lúc commit. Những
+     * kết cục KHÔNG phải lỗi của trung tâm (không phải học viên, đã ở trong lớp) trả theo từng dòng.
+     *
+     * <p>Vết {@link #EVENT_BULK_ASSIGNED} ghi Ở ĐÂY, cùng transaction với mutation, MỘT dòng gộp:
+     * số gửi / số gán / số đã có / số bỏ qua, danh sách id vừa gán, classId, orgId — không PII.
+     *
+     * @param actor admin bấm; id đi vào outbox làm người thao tác (null = không rõ)
+     * @throws NotFoundException    lớp không tồn tại
+     * @throws BadRequestException  hết ghế, hoặc học viên đang thuộc trung tâm khác (cả lượt)
+     * @throws com.deutschflow.common.exception.OrgReadOnlyException trung tâm chỉ-đọc (D5)
+     */
+    @Transactional
+    public BulkAssignResult bulkAssignByAdmin(Long classId, List<Long> studentIds, AuditActor actor) {
+        List<Long> requested = studentIds == null ? List.of()
+                : studentIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (requested.isEmpty()) {
+            return new BulkAssignResult(0, 0, List.of());
+        }
+        TeacherClass tc = teacherClassRepository.findById(classId)
+                .orElseThrow(() -> new NotFoundException("Class not found"));
+        Long orgId = tc.getOrgId();
+        if (orgId != null) {
+            orgGuard.assertOrgWritable(orgId);
+        }
+        Long actorId = actor == null ? null : actor.id();
+
+        List<BulkAssignRow> rows = new ArrayList<>(requested.size());
+        List<Long> assigned = new ArrayList<>();
+        int alreadyEnrolled = 0;
+        int notStudent = 0;
+        for (Long studentId : requested) {
+            boolean isStudent = userRepository.findById(studentId)
+                    .map(u -> u.getRole() == User.Role.STUDENT)
+                    .orElse(false);
+            if (!isStudent) {
+                notStudent++;
+                rows.add(new BulkAssignRow(studentId, BulkAssignOutcome.NOT_STUDENT));
+                continue;
+            }
+            if (orgId != null) {
+                try {
+                    orgMembershipService.ensureStudentSeat(orgId, studentId);
+                } catch (BadRequestException ex) {
+                    // Cùng mã 400 và cùng câu với đường đơn lẻ; chỉ thêm id để admin biết dòng nào vướng.
+                    throw new BadRequestException("Học viên #" + studentId + ": " + ex.getMessage());
+                }
+            }
+            if (enrollAndNotify(classId, studentId, actorId)) {
+                assignmentBackfillService.ensureAssignmentsForStudent(classId, studentId);
+                assigned.add(studentId);
+                rows.add(new BulkAssignRow(studentId, BulkAssignOutcome.ASSIGNED));
+            } else {
+                alreadyEnrolled++;
+                rows.add(new BulkAssignRow(studentId, BulkAssignOutcome.ALREADY_ENROLLED));
+            }
+        }
+
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("classId", classId);
+        if (orgId != null) {
+            meta.put("orgId", orgId);
+        }
+        meta.put("requestedCount", requested.size());
+        meta.put("assignedCount", assigned.size());
+        meta.put("alreadyEnrolledCount", alreadyEnrolled);
+        meta.put("notStudentCount", notStudent);
+        meta.put("assignedStudentIds", List.copyOf(assigned));
+        auditLogService.log(EVENT_BULK_ASSIGNED, actor, "CLASS", String.valueOf(classId), orgId, meta);
+        return new BulkAssignResult(requested.size(), assigned.size(), List.copyOf(rows));
+    }
 
     /**
      * Ghi danh một học viên vào lớp — idempotent, và KHÔNG làm mất dữ liệu học tập cũ.

@@ -16,6 +16,7 @@ import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.user.repository.RefreshTokenRepository;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,6 +55,18 @@ public class OrgMembershipService {
     /** Roles an OWNER may toggle a staff member between (no OWNER, no STUDENT here). */
     private static final Set<String> ASSIGNABLE_ROLES = Set.of("MANAGER", "TEACHER");
 
+    /**
+     * Vết "đã cắt phiên đăng nhập" — một dòng cho MỖI người bị thu hồi, ngay sau dòng nghiệp vụ
+     * gây ra nó ({@code org_member_removed}, {@code org_member_left}, …), cùng transaction.
+     * Metadata chỉ mang id và số lượng ({@code reason}, {@code revokedCount}); không email, không tên.
+     */
+    static final String EVENT_SESSIONS_REVOKED = "org_member_sessions_revoked";
+    static final String REVOKE_REASON_REMOVED = "removed";
+    static final String REVOKE_REASON_LEFT = "left";
+    static final String REVOKE_REASON_ROLE_CHANGED = "role_changed";
+    static final String REVOKE_REASON_OWNERSHIP_TRANSFERRED = "ownership_transferred";
+    static final String REVOKE_REASON_OWNERSHIP_FORCED = "ownership_forced";
+
     private final OrgMemberRepository memberRepo;
     private final OrgAcademicApproverRepository academicApproverRepo;
     private final ClassStudentRepository classStudentRepository;
@@ -62,6 +75,7 @@ public class OrgMembershipService {
     private final AuditLogService auditLogService;
     private final OrganizationRepository organizationRepository;
     private final OrgEntitlementService orgEntitlementService;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     /**
      * True if the user currently holds an ACTIVE membership in any org. Callers use this to route
@@ -280,11 +294,15 @@ public class OrgMembershipService {
      * membership remains).
      *
      * <p>OWNER không bao giờ bị gỡ qua đây; MANAGER chỉ OWNER mới gỡ được (V-14).
+     *
+     * <p>Gỡ xong là CẮT PHIÊN (Gói 2): mọi refresh token của người bị gỡ bị thu hồi — xem
+     * {@link #revokeSessions}.
      */
     @Transactional
     public void removeMember(Long orgId, Long userId, AuditActor actor) {
         String role = deactivate(orgId, userId, STATUS_REVOKED, actor);
         audit("org_member_removed", actor, orgId, userId, meta("role", role, "status", STATUS_REVOKED));
+        revokeSessions(orgId, userId, REVOKE_REASON_REMOVED, actor);
     }
 
     /**
@@ -310,6 +328,8 @@ public class OrgMembershipService {
         closeOrgFootprint(orgId, userId);
         detachUser(orgId, userId);
         audit("org_member_left", actor, orgId, userId, meta("role", role, "status", STATUS_LEFT));
+        // Tự rời cũng cắt phiên: access token đang cầm còn mang orgId/orgRole của trung tâm vừa rời.
+        revokeSessions(orgId, userId, REVOKE_REASON_LEFT, actor);
     }
 
     /** Counts ACTIVE members of the given role in the org (seat counting). */
@@ -350,6 +370,10 @@ public class OrgMembershipService {
             userRepository.save(u);
         }
         audit("org_member_role_changed", actor, orgId, targetUserId, meta("from", previousRole, "to", role));
+        // Đổi vai cả hai chiều đều cắt phiên: MANAGER → TEACHER mất quyền quản trị NGAY chứ không
+        // đợi hết vòng đời refresh token; TEACHER → MANAGER thì token cũ thiếu quyền, đăng nhập lại
+        // mới nhận đúng vai.
+        revokeSessions(orgId, targetUserId, REVOKE_REASON_ROLE_CHANGED, actor);
         return toDto(targetUserId, u, member);
     }
 
@@ -397,6 +421,10 @@ public class OrgMembershipService {
         // Vết ghi trên chính tổ chức, không phải trên một thành viên: đây là lần đổi chủ của org.
         audit("org_ownership_transferred", actor, orgId, null,
                 meta("fromUserId", currentOwnerUserId, "toUserId", newOwnerUserId));
+        // Cả hai bên đổi vai → cả hai đăng nhập lại: chủ cũ không giữ được orgRole=OWNER trong token
+        // đang cầm, chủ mới không kẹt ở token MANAGER/TEACHER.
+        revokeSessions(orgId, newOwnerUserId, REVOKE_REASON_OWNERSHIP_TRANSFERRED, actor);
+        revokeSessions(orgId, currentOwnerUserId, REVOKE_REASON_OWNERSHIP_TRANSFERRED, actor);
         return toDto(newOwnerUserId, newOwnerUser, newOwner);
     }
 
@@ -430,8 +458,9 @@ public class OrgMembershipService {
      * thuộc trung tâm nào nên đường suy-từ-actor sẽ rơi vào org NULL. Không phát thêm
      * {@code org_ownership_transferred}: một thao tác, một dòng sổ.
      *
-     * <p>Guard ADMIN-không-làm-thành-viên, validation lý do và việc thu hồi phiên đăng nhập nằm ở
-     * {@code AdminOrgService.forceOwner} — lớp gọi duy nhất; ở đây chỉ giữ bất biến thành viên.
+     * <p>Guard ADMIN-không-làm-thành-viên và validation lý do nằm ở {@code AdminOrgService.forceOwner}
+     * — lớp gọi duy nhất; ở đây giữ bất biến thành viên VÀ cắt phiên của chủ mới lẫn mọi chủ cũ
+     * (Gói 2: mọi đường đổi vai/gỡ thành viên thu hồi phiên tại MỘT chỗ, xem {@link #revokeSessions}).
      *
      * @throws BadRequestException nếu người được chỉ định không phải thành viên ACTIVE, hoặc là STUDENT
      */
@@ -467,6 +496,10 @@ public class OrgMembershipService {
         extra.put("previousOwnerUserIds", List.copyOf(demoted));
         extra.put("reason", reason);
         audit("admin.org.owner.forced", actor, orgId, null, extra);
+        revokeSessions(orgId, newOwnerUserId, REVOKE_REASON_OWNERSHIP_FORCED, actor);
+        for (Long previousOwnerId : demoted) {
+            revokeSessions(orgId, previousOwnerId, REVOKE_REASON_OWNERSHIP_FORCED, actor);
+        }
         return new ForcedOwnership(toDto(newOwnerUserId, newOwnerUser, newOwner), List.copyOf(demoted));
     }
 
@@ -527,6 +560,28 @@ public class OrgMembershipService {
         m.put(k1, v1);
         m.put(k2, v2);
         return m;
+    }
+
+    /**
+     * Gói 2 (10/09/2026) — CẮT PHIÊN khi quyền trong trung tâm thay đổi: thu hồi mọi refresh token
+     * của {@code userId} và ghi một dòng sổ {@link #EVENT_SESSIONS_REVOKED}.
+     *
+     * <p><b>Vì sao phải làm ở đây, không phải ở controller.</b> Gỡ khỏi trung tâm, tự rời, đổi vai,
+     * chuyển/ép đổi chủ đều cắt quyền ở DB ngay, nhưng phiên đang đăng nhập thì không: access token
+     * sống tới hết TTL ngắn ({@code app.jwt.access-token-expiry-ms}, mặc định 15 phút), còn refresh
+     * token thì cấp lại được suốt 7 ngày — người vừa bị gỡ vẫn tự gia hạn phiên mà không phải đăng
+     * nhập lại lần nào. Thu hồi refresh token là cắt đường gia hạn đó: quá 15 phút là bắt buộc đăng
+     * nhập lại, và lúc ấy token mới mang đúng orgId/orgRole hiện tại. Đặt trong service, cùng
+     * transaction với mutation thành viên, để KHÔNG đường gọi nào (OrgController, AdminOrgService,
+     * đường tương lai) quên được bước này — đúng vai "nguồn sự thật duy nhất" của lớp này.
+     *
+     * <p>Sổ ghi {@code revokedCount} = số token THẬT vừa bị thu hồi (0 hợp lệ: người đó không có
+     * phiên nào đang sống, ví dụ tài khoản chưa từng đăng nhập). Không có PII: chỉ id, lý do, số lượng.
+     */
+    private void revokeSessions(Long orgId, Long userId, String reason, AuditActor actor) {
+        int revoked = refreshTokenRepository.revokeAllByUserId(userId);
+        audit(EVENT_SESSIONS_REVOKED, actor, orgId, userId, meta("reason", reason, "revokedCount", revoked));
+        log.info("[ORG] Revoked {} refresh token(s) of user {} in org {} — reason={}", revoked, userId, orgId, reason);
     }
 
     /**

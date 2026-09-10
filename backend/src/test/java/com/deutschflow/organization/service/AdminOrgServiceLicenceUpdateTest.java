@@ -11,7 +11,6 @@ import com.deutschflow.organization.dto.UpdateOrgRequest;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
-import com.deutschflow.user.repository.RefreshTokenRepository;
 import com.deutschflow.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -63,7 +62,6 @@ class AdminOrgServiceLicenceUpdateTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private UserNotificationService userNotificationService;
     @Mock private AuditLogService auditLogService;
-    @Mock private RefreshTokenRepository refreshTokenRepository;
 
     private AdminOrgService service;
 
@@ -71,7 +69,7 @@ class AdminOrgServiceLicenceUpdateTest {
     void setUp() {
         service = new AdminOrgService(organizationRepository, orgMembershipService, orgInvitationService,
                 orgMemberRepository, orgEntitlementService, userRepository, passwordEncoder,
-                userNotificationService, auditLogService, refreshTokenRepository);
+                userNotificationService, auditLogService);
     }
 
     /** Trung tâm ACTIVE, gói PRO, 50 ghế, pool 200k token (metered), hạn 31/10. */

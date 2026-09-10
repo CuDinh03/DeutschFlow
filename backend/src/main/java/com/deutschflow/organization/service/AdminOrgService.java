@@ -20,7 +20,6 @@ import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.user.entity.User;
-import com.deutschflow.user.repository.RefreshTokenRepository;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -74,7 +73,6 @@ public class AdminOrgService {
     private final PasswordEncoder passwordEncoder;
     private final UserNotificationService userNotificationService;
     private final AuditLogService auditLogService;
-    private final RefreshTokenRepository refreshTokenRepository;
 
     /** Lý do ép đổi giám đốc: đủ dài để đọc được trong sổ, đủ ngắn để không thành văn bản tuỳ ý. */
     static final int FORCE_OWNER_REASON_MIN = 10;
@@ -454,10 +452,10 @@ public class AdminOrgService {
      * viên chạy trước thì ca đó đi lọt tới thăng vai, còn ca "admin không là thành viên" thì trả 400
      * chung chung thay vì vết {@code admin.org.admin_membership.blocked} mà giám sát cần.
      *
-     * <p><b>Làm mới phiên</b>: revoke refresh token của chủ mới lẫn mọi chủ cũ (khuôn
-     * {@code AdminManagementService.updateUserRole}) — access token đang lưu hành mang
-     * {@code orgRole} cũ, không revoke thì giám đốc vừa bị hạ vẫn giữ quyền tới hết vòng đời
-     * refresh token.
+     * <p><b>Làm mới phiên</b>: refresh token của chủ mới lẫn mọi chủ cũ bị thu hồi TRONG lõi
+     * ({@code OrgMembershipService.forceOwnership}, Gói 2 — cùng chỗ với gỡ/rời/đổi vai/chuyển
+     * chủ), không còn làm ở façade này: access token đang lưu hành mang {@code orgRole} cũ, không
+     * revoke thì giám đốc vừa bị hạ vẫn giữ quyền tới hết vòng đời refresh token.
      *
      * <p><b>Nợ</b>: chưa gửi thông báo trong ứng dụng cho giám đốc mới. Bộ {@code NotificationType}
      * không có loại "đổi vai/đổi chủ", còn đường broadcast có dedupe guard ném
@@ -499,10 +497,6 @@ public class AdminOrgService {
         OrgMembershipService.ForcedOwnership result =
                 orgMembershipService.forceOwnership(admin, org.getId(), newOwnerUserId, cleanReason);
 
-        refreshTokenRepository.revokeAllByUserId(newOwnerUserId);
-        for (Long previousOwnerId : result.demotedOwnerUserIds()) {
-            refreshTokenRepository.revokeAllByUserId(previousOwnerId);
-        }
         log.info("[ORG-ADMIN] Admin {} chỉ định user {} làm OWNER của org {} (hạ {} OWNER cũ)",
                 admin == null ? null : admin.id(), newOwnerUserId, org.getId(),
                 result.demotedOwnerUserIds().size());
