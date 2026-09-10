@@ -209,8 +209,7 @@
       "activated": "Activated entitlements for {count} students.",
       "status": {
         "ACTIVE": "Active",
-        "SUSPENDED": "Suspended",
-        "PENDING": "Pending activation"
+        "SUSPENDED": "Suspended"
       },
       "pay": {
         "paid": "Paid",
@@ -229,9 +228,6 @@
       "issuedInvoices": "Invoiced",
       "debtSuffix": " · owed {amount}",
       "renewOn": "Renews {date}",
-      "activating": "Activating…",
-      "activate": "Activate",
-      "viewFinance": "View finance",
       "privacyNotice": "Platform admin only sees <strong>financial data</strong>. Each center's students, classes, scores and progress are <strong>kept private</strong> — you have no access.",
       "stats": {
         "issuedRevenue": "Invoiced revenue",
@@ -240,48 +236,10 @@
         "totalSeatsSub": "{count} organizations",
         "unpaidInvoices": "Unpaid invoices",
         "unpaidInvoicesSub": "needs reconciliation",
-        "pendingActivation": "Pending activation"
+        "suspended": "Suspended",
+        "suspendedSub": "read-only centres"
       },
       "emptyOrgs": "No organizations yet.",
-      "modal": {
-        "description": "Financial detail · contract & invoices",
-        "privacyBanner": "Platform admin only sees the organization's financial data.",
-        "contractInfo": "Contract information",
-        "facts": {
-          "plan": "Plan",
-          "seats": "Seats",
-          "issuedRevenue": "Invoiced revenue",
-          "debt": "Outstanding",
-          "payMethod": "Payment status",
-          "renewUntil": "Renews until"
-        },
-        "invoiceHistory": "Invoice history ({count})",
-        "noIssued": "No issued invoices yet.",
-        "colPeriod": "Period",
-        "colSeats": "Seats",
-        "colAmount": "Amount",
-        "colStatus": "Status",
-        "invStatus": {
-          "paid": "Collected",
-          "sent": "Issued",
-          "draft": "Draft",
-          "void": "Voided"
-        },
-        "learningData": "Learning data",
-        "lockedFields": {
-          "students": "Student list",
-          "classes": "Classes & teachers",
-          "scores": "Scores & submissions",
-          "progress": "Learning progress"
-        },
-        "noAccess": "no access",
-        "remindPayment": "Send reminder",
-        "remindPaymentSoon": "Payment reminder (coming soon)",
-        "exportInvoice": "Export invoice",
-        "exportInvoiceSoon": "Export invoice (coming soon)",
-        "activate": "Activate",
-        "activateFromList": "Activate from the external list"
-      },
       "create": {
         "title": "Create centre + Owner",
         "description": "Pre-create an organization and its owner — admin only",
@@ -305,7 +263,13 @@
         "ownerPasswordPlaceholder": "≥ 8 characters",
         "errNameSlug": "Enter the organization name and slug.",
         "errPassword": "Owner password must be at least 8 characters.",
-        "created": "Centre {name} created."
+        "created": "Centre {name} created.",
+        "aiPool": "Staff AI budget",
+        "aiPoolHint": "Not configured = staff are blocked from AI on first use. Can be changed later in the centre profile.",
+        "aiUnlimited": "Unlimited",
+        "aiMetered": "Budget",
+        "aiPoolPlaceholder": "tokens/month",
+        "aiUnsetWarning": "0 tokens = not configured — staff are blocked from AI immediately."
       },
       "forceOwner": {
         "action": "Appoint director",
@@ -330,6 +294,174 @@
         "confirm": "Appoint director",
         "cancel": "Cancel",
         "done": "{name} is now the director of {org}."
+      },
+      "perpetual": "No expiry",
+      "openDetail": "Plan & invoices",
+      "aiPool": {
+        "unlimited": "Staff AI: unlimited",
+        "metered": "Staff AI: {count} tokens/month",
+        "unset": "Staff AI: not configured — staff are blocked from AI"
+      },
+      "detail": {
+        "eyebrow": "Centre profile",
+        "subtitle": "{slug} · {students} students · {teachers} teachers",
+        "back": "All organizations",
+        "loading": "Loading centre profile…",
+        "loadError": "Could not load the centre profile.",
+        "notFound": "Centre not found.",
+        "privacy": "Platform admins only see the centre's contract, licence and invoices. Students, classes, scores and progress stay private to the centre.",
+        "stats": {
+          "plan": "Plan",
+          "seats": "Seats used / limit",
+          "seatsOver": "over the limit — new students blocked",
+          "aiPool": "Staff AI",
+          "validUntil": "Licence expiry"
+        }
+      },
+      "licence": {
+        "title": "Plan & licence",
+        "description": "Only changed fields are sent and written to the centre's activity ledger with old/new values.",
+        "plan": "Plan",
+        "planNone": "— No plan —",
+        "planHint": "After changing the plan, click \"Re-grant entitlements\" so students receive the new plan.",
+        "seatLimit": "Seat limit (students)",
+        "seatUnlimited": "Unlimited seats · {used} in use.",
+        "seatHint": "{used} seats in use · 0 = unlimited.",
+        "seatBelowUsed": "Below the current headcount of {used}: existing students stay, new students are blocked (DEC-16).",
+        "aiPool": "Staff AI budget",
+        "aiUnlimited": "Unlimited",
+        "aiUnlimitedHint": "Staff use AI without token counting; the previous budget number is kept.",
+        "aiMetered": "Monthly budget",
+        "aiMeteredHint": "Tokens of all staff add up; once spent, AI is blocked until next month.",
+        "aiTokensSuffix": "tokens/month",
+        "aiUnsetWarning": "0 tokens = not configured — staff are blocked from AI immediately (429).",
+        "validUntil": "Licence expiry",
+        "validUntilHint": "Past the expiry the centre becomes read-only at once (no new content, no AI); student plans are cut 7 days later.",
+        "perpetualHint": "No expiry — the centre never expires while it is active.",
+        "clearValidUntil": "Remove expiry",
+        "save": "Save changes",
+        "saved": "Saved plan & licence for {org}.",
+        "noChanges": "No changes yet.",
+        "seatDrop": {
+          "title": "Lower the seat limit below the headcount?",
+          "description": "Seat limit goes from {from} to {to} while the centre currently has {used} students.",
+          "detailKeep": "No student is removed — everyone who has a seat keeps it.",
+          "detailBlock": "The centre cannot add new students until the headcount drops below the limit.",
+          "detailLedger": "The change is written to the centre's activity ledger under your name (admin).",
+          "confirm": "Lower anyway",
+          "cancel": "Cancel"
+        }
+      },
+      "statusCard": {
+        "title": "Status",
+        "suspendedSince": "Suspended since {date} · grace period ends {graceEnd}",
+        "activeUntil": "Active until {date}",
+        "activePerpetual": "Active, no expiry",
+        "suspend": "Suspend centre",
+        "reactivate": "Reactivate centre",
+        "regrant": "Re-grant entitlements",
+        "regrantHint": "Grant the current plan to every active student — use after changing the plan or when students report lost entitlements.",
+        "cancel": "Cancel",
+        "suspended": "{org} suspended.",
+        "reactivated": "{org} reactivated.",
+        "suspendDialog": {
+          "title": "Suspend {org}?",
+          "description": "The centre becomes read-only immediately.",
+          "detailReadOnly": "Staff and students can still view data but cannot create anything or use AI.",
+          "detailGrace": "{count} students keep their plan for a 7-day grace period (until {date}), then it is cut automatically.",
+          "detailLedger": "The action is written to the centre's activity ledger under your name (admin) — the director can read it.",
+          "confirm": "Suspend"
+        },
+        "reactivateDialog": {
+          "title": "Reactivate {org}?",
+          "description": "The centre is active again immediately, without waiting for the background job.",
+          "detailClearAnchor": "Clears the suspension anchor — a later suspension gets the full 7-day grace period again.",
+          "detailRegrant": "Plan entitlements are re-granted right away to {count} active students.",
+          "detailLedger": "The action is written to the centre's activity ledger under your name (admin).",
+          "confirm": "Reactivate"
+        },
+        "regrantDialog": {
+          "title": "Re-grant entitlements for {org}?",
+          "description": "Status and licence expiry stay unchanged.",
+          "detail": "Grants plan {plan} to {count} active students (students who already have it are refreshed).",
+          "detailNoStatus": "A suspended or expired centre is still granted — this is the recovery path, it bypasses the read-only gate.",
+          "confirm": "Re-grant"
+        }
+      },
+      "invoices": {
+        "title": "Invoices",
+        "subtitle": "{count} invoices · draft → sent → paid / void, never backwards",
+        "noun": "invoices",
+        "create": "New invoice",
+        "empty": "No invoices yet. Create a draft, send it to the centre, then mark it paid when the money arrives.",
+        "col": {
+          "period": "Period",
+          "seats": "Seats",
+          "amount": "Amount",
+          "status": "Status",
+          "due": "Due date",
+          "code": "Transfer code"
+        },
+        "status": {
+          "DRAFT": "Draft",
+          "SENT": "Sent",
+          "PAID": "Paid",
+          "VOID": "Void"
+        },
+        "overdue": "overdue",
+        "action": {
+          "SENT": "Send",
+          "PAID": "Mark paid",
+          "VOID": "Void"
+        },
+        "changed": "Invoice #{id} → {status}.",
+        "dialog": {
+          "cancel": "Cancel",
+          "send": {
+            "title": "Send invoice #{id}?",
+            "description": "{amount} · period {period}. The invoice moves to \"Sent\".",
+            "detailDue": "Due date = today + 7 days ({date}).",
+            "detailVisible": "The centre sees the invoice with its transfer code on their Billing screen.",
+            "detailNoRevert": "It cannot go back to draft; if it is wrong, void it and create another one.",
+            "confirm": "Send invoice"
+          },
+          "paid": {
+            "title": "Mark invoice #{id} as paid?",
+            "description": "{amount} · period {period}. Use when the money has arrived but the bank webhook did not match it.",
+            "detailActivate": "{org} becomes active (unlocked if suspended, suspension anchor cleared).",
+            "detailExtend": "Licence expiry extends to the end of the period ({date}) if that is later than the current expiry — never shortened.",
+            "detailNoPeriod": "The invoice has no period end, so the licence expiry stays unchanged.",
+            "detailRegrant": "Plan entitlements are re-granted to {count} active students.",
+            "detailNoRevert": "Cannot be undone — a paid invoice is final.",
+            "confirm": "Confirm paid"
+          },
+          "void": {
+            "title": "Void invoice #{id}?",
+            "description": "{amount} · period {period}.",
+            "detailFinal": "The invoice is voided permanently and cannot be reopened; its transfer code no longer matches incoming payments.",
+            "detailNoLicence": "The licence and student entitlements are not touched.",
+            "confirm": "Void invoice"
+          }
+        },
+        "createModal": {
+          "title": "New invoice for {org}",
+          "description": "The invoice is created as a draft — the centre does not see it until you send it.",
+          "periodStart": "Period from",
+          "periodEnd": "Period to",
+          "periodHint": "When marked paid, the licence expiry extends to the end of \"Period to\".",
+          "seats": "Seats",
+          "seatsHint": "Active students: {count} · leave 0 = snapshot the headcount at creation.",
+          "amount": "Amount (₫)",
+          "amountPlaceholder": "12000000",
+          "amountHint": "Must be greater than 0.",
+          "note": "Note",
+          "notePlaceholder": "e.g. Q4 contract, 25 seats",
+          "cancel": "Cancel",
+          "submit": "Create draft invoice",
+          "errAmount": "Amount must be greater than 0.",
+          "errPeriod": "Period end must be on or after period start.",
+          "created": "Draft invoice #{id} created ({amount})."
+        }
       }
     },
     "freeTeachers": {

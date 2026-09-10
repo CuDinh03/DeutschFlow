@@ -209,8 +209,7 @@
       "activated": "Berechtigungen für {count} Lernende aktiviert.",
       "status": {
         "ACTIVE": "Aktiv",
-        "SUSPENDED": "Ausgesetzt",
-        "PENDING": "Aktivierung ausstehend"
+        "SUSPENDED": "Ausgesetzt"
       },
       "pay": {
         "paid": "Bezahlt",
@@ -229,9 +228,6 @@
       "issuedInvoices": "Fakturiert",
       "debtSuffix": " · offen {amount}",
       "renewOn": "Verlängerung {date}",
-      "activating": "Wird aktiviert…",
-      "activate": "Aktivieren",
-      "viewFinance": "Finanzen ansehen",
       "privacyNotice": "Plattform-Admin sieht nur <strong>Finanzdaten</strong>. Lernende, Klassen, Noten und Fortschritt jedes Zentrums sind <strong>privat geschützt</strong> — Sie haben keinen Zugriff.",
       "stats": {
         "issuedRevenue": "Fakturierter Umsatz",
@@ -240,48 +236,10 @@
         "totalSeatsSub": "{count} Organisationen",
         "unpaidInvoices": "Unbezahlte Rechnungen",
         "unpaidInvoicesSub": "muss abgeglichen werden",
-        "pendingActivation": "Aktivierung ausstehend"
+        "suspended": "Ausgesetzt",
+        "suspendedSub": "Zentren im Lesemodus"
       },
       "emptyOrgs": "Noch keine Organisationen.",
-      "modal": {
-        "description": "Finanzdetails · Vertrag & Rechnungen",
-        "privacyBanner": "Plattform-Admin sieht nur die Finanzdaten der Organisation.",
-        "contractInfo": "Vertragsinformationen",
-        "facts": {
-          "plan": "Tarif",
-          "seats": "Plätze",
-          "issuedRevenue": "Fakturierter Umsatz",
-          "debt": "Offener Betrag",
-          "payMethod": "Zahlungsstatus",
-          "renewUntil": "Verlängerung bis"
-        },
-        "invoiceHistory": "Rechnungsverlauf ({count})",
-        "noIssued": "Noch keine ausgestellten Rechnungen.",
-        "colPeriod": "Zeitraum",
-        "colSeats": "Plätze",
-        "colAmount": "Betrag",
-        "colStatus": "Status",
-        "invStatus": {
-          "paid": "Eingezogen",
-          "sent": "Ausgestellt",
-          "draft": "Entwurf",
-          "void": "Storniert"
-        },
-        "learningData": "Lerndaten",
-        "lockedFields": {
-          "students": "Lernendenliste",
-          "classes": "Klassen & Lehrkräfte",
-          "scores": "Noten & Abgaben",
-          "progress": "Lernfortschritt"
-        },
-        "noAccess": "kein Zugriff",
-        "remindPayment": "Erinnerung senden",
-        "remindPaymentSoon": "Zahlungserinnerung (bald verfügbar)",
-        "exportInvoice": "Rechnung exportieren",
-        "exportInvoiceSoon": "Rechnung exportieren (bald verfügbar)",
-        "activate": "Aktivieren",
-        "activateFromList": "Aus der externen Liste aktivieren"
-      },
       "create": {
         "title": "Zentrum + Owner anlegen",
         "description": "Organisation und Eigentümer vorab anlegen — nur Admin",
@@ -305,7 +263,13 @@
         "ownerPasswordPlaceholder": "≥ 8 Zeichen",
         "errNameSlug": "Name und Slug der Organisation eingeben.",
         "errPassword": "Das Owner-Passwort muss mindestens 8 Zeichen haben.",
-        "created": "Zentrum {name} angelegt."
+        "created": "Zentrum {name} angelegt.",
+        "aiPool": "KI-Budget für Personal",
+        "aiPoolHint": "Nicht konfiguriert = Personal ist bei der ersten Nutzung für KI gesperrt. Später im Zentrumsprofil änderbar.",
+        "aiUnlimited": "Unbegrenzt",
+        "aiMetered": "Budget",
+        "aiPoolPlaceholder": "Token/Monat",
+        "aiUnsetWarning": "0 Token = nicht konfiguriert — Personal ist sofort für KI gesperrt."
       },
       "forceOwner": {
         "action": "Leitung bestimmen",
@@ -330,6 +294,174 @@
         "confirm": "Leitung bestimmen",
         "cancel": "Abbrechen",
         "done": "{name} ist jetzt Leitung von {org}."
+      },
+      "perpetual": "Unbefristet",
+      "openDetail": "Paket & Rechnungen",
+      "aiPool": {
+        "unlimited": "KI für Personal: unbegrenzt",
+        "metered": "KI für Personal: {count} Token/Monat",
+        "unset": "KI für Personal: nicht konfiguriert — Personal ist für KI gesperrt"
+      },
+      "detail": {
+        "eyebrow": "Zentrumsprofil",
+        "subtitle": "{slug} · {students} Lernende · {teachers} Lehrkräfte",
+        "back": "Alle Organisationen",
+        "loading": "Zentrumsprofil wird geladen…",
+        "loadError": "Das Zentrumsprofil konnte nicht geladen werden.",
+        "notFound": "Zentrum nicht gefunden.",
+        "privacy": "Plattform-Admins sehen nur Vertrag, Lizenz und Rechnungen des Zentrums. Lernende, Klassen, Noten und Fortschritt bleiben dem Zentrum vorbehalten.",
+        "stats": {
+          "plan": "Paket",
+          "seats": "Belegte Plätze / Limit",
+          "seatsOver": "über dem Limit — neue Lernende gesperrt",
+          "aiPool": "KI für Personal",
+          "validUntil": "Lizenz gültig bis"
+        }
+      },
+      "licence": {
+        "title": "Paket & Lizenz",
+        "description": "Nur geänderte Felder werden gesendet und mit altem/neuem Wert ins Aktivitätsprotokoll des Zentrums geschrieben.",
+        "plan": "Paket",
+        "planNone": "— Kein Paket —",
+        "planHint": "Nach dem Paketwechsel „Berechtigungen neu vergeben“ klicken, damit Lernende das neue Paket erhalten.",
+        "seatLimit": "Platzlimit (Lernende)",
+        "seatUnlimited": "Unbegrenzte Plätze · {used} belegt.",
+        "seatHint": "{used} Plätze belegt · 0 = unbegrenzt.",
+        "seatBelowUsed": "Unter der aktuellen Belegung von {used}: bestehende Lernende bleiben, neue werden gesperrt (DEC-16).",
+        "aiPool": "KI-Budget für Personal",
+        "aiUnlimited": "Unbegrenzt",
+        "aiUnlimitedHint": "Personal nutzt KI ohne Token-Zählung; die bisherige Budgetzahl bleibt erhalten.",
+        "aiMetered": "Monatsbudget",
+        "aiMeteredHint": "Token aller Mitarbeitenden werden summiert; ist es aufgebraucht, ist KI bis zum nächsten Monat gesperrt.",
+        "aiTokensSuffix": "Token/Monat",
+        "aiUnsetWarning": "0 Token = nicht konfiguriert — Personal ist sofort für KI gesperrt (429).",
+        "validUntil": "Lizenz gültig bis",
+        "validUntilHint": "Nach Ablauf ist das Zentrum sofort im Lesemodus (nichts Neues, keine KI); Lernpakete werden 7 Tage später entzogen.",
+        "perpetualHint": "Unbefristet — das Zentrum läuft nie ab, solange es aktiv ist.",
+        "clearValidUntil": "Frist entfernen",
+        "save": "Änderungen speichern",
+        "saved": "Paket & Lizenz von {org} gespeichert.",
+        "noChanges": "Noch keine Änderungen.",
+        "seatDrop": {
+          "title": "Platzlimit unter die Belegung senken?",
+          "description": "Das Platzlimit sinkt von {from} auf {to}, während das Zentrum derzeit {used} Lernende hat.",
+          "detailKeep": "Niemand wird entfernt — wer einen Platz hat, behält ihn.",
+          "detailBlock": "Das Zentrum kann keine neuen Lernenden aufnehmen, bis die Belegung unter das Limit fällt.",
+          "detailLedger": "Die Änderung wird unter Ihrem Namen (Admin) ins Aktivitätsprotokoll des Zentrums geschrieben.",
+          "confirm": "Trotzdem senken",
+          "cancel": "Abbrechen"
+        }
+      },
+      "statusCard": {
+        "title": "Status",
+        "suspendedSince": "Ausgesetzt seit {date} · Schonfrist endet {graceEnd}",
+        "activeUntil": "Aktiv bis {date}",
+        "activePerpetual": "Aktiv, unbefristet",
+        "suspend": "Zentrum aussetzen",
+        "reactivate": "Zentrum reaktivieren",
+        "regrant": "Berechtigungen neu vergeben",
+        "regrantHint": "Vergibt das aktuelle Paket an alle aktiven Lernenden — nach einem Paketwechsel oder wenn Lernende fehlende Berechtigungen melden.",
+        "cancel": "Abbrechen",
+        "suspended": "{org} ausgesetzt.",
+        "reactivated": "{org} reaktiviert.",
+        "suspendDialog": {
+          "title": "{org} aussetzen?",
+          "description": "Das Zentrum wechselt sofort in den Lesemodus.",
+          "detailReadOnly": "Personal und Lernende können Daten weiterhin ansehen, aber nichts Neues anlegen und keine KI nutzen.",
+          "detailGrace": "{count} Lernende behalten ihr Paket für eine Schonfrist von 7 Tagen (bis {date}), danach wird es automatisch entzogen.",
+          "detailLedger": "Die Aktion wird unter Ihrem Namen (Admin) ins Aktivitätsprotokoll des Zentrums geschrieben — die Leitung kann sie lesen.",
+          "confirm": "Aussetzen"
+        },
+        "reactivateDialog": {
+          "title": "{org} reaktivieren?",
+          "description": "Das Zentrum ist sofort wieder aktiv, ohne auf den Hintergrundjob zu warten.",
+          "detailClearAnchor": "Der Aussetzungszeitpunkt wird gelöscht — eine spätere Aussetzung erhält wieder die volle 7-Tage-Schonfrist.",
+          "detailRegrant": "Paketberechtigungen werden sofort an {count} aktive Lernende neu vergeben.",
+          "detailLedger": "Die Aktion wird unter Ihrem Namen (Admin) ins Aktivitätsprotokoll des Zentrums geschrieben.",
+          "confirm": "Reaktivieren"
+        },
+        "regrantDialog": {
+          "title": "Berechtigungen für {org} neu vergeben?",
+          "description": "Status und Lizenzfrist bleiben unverändert.",
+          "detail": "Vergibt Paket {plan} an {count} aktive Lernende (wer es schon hat, wird aufgefrischt).",
+          "detailNoStatus": "Auch ein ausgesetztes oder abgelaufenes Zentrum wird bedient — dies ist der Wiederherstellungspfad, er umgeht die Lesemodus-Sperre.",
+          "confirm": "Neu vergeben"
+        }
+      },
+      "invoices": {
+        "title": "Rechnungen",
+        "subtitle": "{count} Rechnungen · Entwurf → gesendet → bezahlt / storniert, nie rückwärts",
+        "noun": "Rechnungen",
+        "create": "Neue Rechnung",
+        "empty": "Noch keine Rechnungen. Entwurf anlegen, an das Zentrum senden und bei Zahlungseingang als bezahlt markieren.",
+        "col": {
+          "period": "Zeitraum",
+          "seats": "Plätze",
+          "amount": "Betrag",
+          "status": "Status",
+          "due": "Fällig am",
+          "code": "Überweisungscode"
+        },
+        "status": {
+          "DRAFT": "Entwurf",
+          "SENT": "Gesendet",
+          "PAID": "Bezahlt",
+          "VOID": "Storniert"
+        },
+        "overdue": "überfällig",
+        "action": {
+          "SENT": "Senden",
+          "PAID": "Als bezahlt markieren",
+          "VOID": "Stornieren"
+        },
+        "changed": "Rechnung #{id} → {status}.",
+        "dialog": {
+          "cancel": "Abbrechen",
+          "send": {
+            "title": "Rechnung #{id} senden?",
+            "description": "{amount} · Zeitraum {period}. Die Rechnung wechselt zu „Gesendet“.",
+            "detailDue": "Fälligkeit = heute + 7 Tage ({date}).",
+            "detailVisible": "Das Zentrum sieht die Rechnung samt Überweisungscode auf seiner Abrechnungsseite.",
+            "detailNoRevert": "Zurück zum Entwurf ist nicht möglich; bei Fehlern stornieren und neu anlegen.",
+            "confirm": "Rechnung senden"
+          },
+          "paid": {
+            "title": "Rechnung #{id} als bezahlt markieren?",
+            "description": "{amount} · Zeitraum {period}. Verwenden, wenn das Geld eingegangen ist, der Bank-Webhook es aber nicht zugeordnet hat.",
+            "detailActivate": "{org} wird aktiv (entsperrt, falls ausgesetzt; Aussetzungszeitpunkt gelöscht).",
+            "detailExtend": "Die Lizenz verlängert sich bis zum Ende des Zeitraums ({date}), falls das später als die aktuelle Frist ist — nie verkürzt.",
+            "detailNoPeriod": "Die Rechnung hat kein Zeitraumende, die Lizenzfrist bleibt unverändert.",
+            "detailRegrant": "Paketberechtigungen werden an {count} aktive Lernende neu vergeben.",
+            "detailNoRevert": "Nicht rückgängig zu machen — eine bezahlte Rechnung ist endgültig.",
+            "confirm": "Zahlung bestätigen"
+          },
+          "void": {
+            "title": "Rechnung #{id} stornieren?",
+            "description": "{amount} · Zeitraum {period}.",
+            "detailFinal": "Die Rechnung wird dauerhaft storniert und kann nicht wieder geöffnet werden; ihr Überweisungscode passt zu keiner Zahlung mehr.",
+            "detailNoLicence": "Lizenz und Berechtigungen der Lernenden bleiben unberührt.",
+            "confirm": "Rechnung stornieren"
+          }
+        },
+        "createModal": {
+          "title": "Neue Rechnung für {org}",
+          "description": "Die Rechnung wird als Entwurf angelegt — das Zentrum sieht sie erst, wenn Sie sie senden.",
+          "periodStart": "Zeitraum von",
+          "periodEnd": "Zeitraum bis",
+          "periodHint": "Bei Zahlungsbestätigung verlängert sich die Lizenz bis zum Ende von „Zeitraum bis“.",
+          "seats": "Plätze",
+          "seatsHint": "Aktive Lernende: {count} · 0 lassen = Belegung beim Anlegen übernehmen.",
+          "amount": "Betrag (₫)",
+          "amountPlaceholder": "12000000",
+          "amountHint": "Muss größer als 0 sein.",
+          "note": "Notiz",
+          "notePlaceholder": "z. B. Vertrag Q4, 25 Plätze",
+          "cancel": "Abbrechen",
+          "submit": "Rechnungsentwurf anlegen",
+          "errAmount": "Der Betrag muss größer als 0 sein.",
+          "errPeriod": "Das Zeitraumende darf nicht vor dem Zeitraumbeginn liegen.",
+          "created": "Rechnungsentwurf #{id} angelegt ({amount})."
+        }
       }
     },
     "freeTeachers": {

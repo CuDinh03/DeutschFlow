@@ -209,8 +209,7 @@
       "activated": "Đã kích hoạt quyền lợi cho {count} học viên.",
       "status": {
         "ACTIVE": "Đang hoạt động",
-        "SUSPENDED": "Tạm ngưng",
-        "PENDING": "Chờ kích hoạt"
+        "SUSPENDED": "Tạm ngưng"
       },
       "pay": {
         "paid": "Đã thanh toán",
@@ -229,9 +228,6 @@
       "issuedInvoices": "Đã xuất HĐ",
       "debtSuffix": " · nợ {amount}",
       "renewOn": "Gia hạn {date}",
-      "activating": "Đang kích hoạt…",
-      "activate": "Kích hoạt",
-      "viewFinance": "Xem tài chính",
       "privacyNotice": "Quản trị nền tảng chỉ xem <strong>dữ liệu tài chính</strong>. Học viên, lớp học, điểm số và tiến độ của mỗi trung tâm được <strong>bảo mật riêng</strong> — bạn không có quyền truy cập.",
       "stats": {
         "issuedRevenue": "Doanh thu đã xuất (HĐ)",
@@ -240,48 +236,10 @@
         "totalSeatsSub": "{count} tổ chức",
         "unpaidInvoices": "Hoá đơn chưa thu",
         "unpaidInvoicesSub": "cần đối soát",
-        "pendingActivation": "Chờ kích hoạt"
+        "suspended": "Đang tạm ngưng",
+        "suspendedSub": "trung tâm chỉ-đọc"
       },
       "emptyOrgs": "Chưa có tổ chức nào.",
-      "modal": {
-        "description": "Chi tiết tài chính · hợp đồng & hoá đơn",
-        "privacyBanner": "Quản trị nền tảng chỉ xem dữ liệu tài chính của tổ chức.",
-        "contractInfo": "Thông tin hợp đồng",
-        "facts": {
-          "plan": "Gói",
-          "seats": "Ghế",
-          "issuedRevenue": "Doanh thu đã xuất (HĐ)",
-          "debt": "Công nợ",
-          "payMethod": "Hình thức TT",
-          "renewUntil": "Gia hạn đến"
-        },
-        "invoiceHistory": "Lịch sử hoá đơn ({count})",
-        "noIssued": "Chưa có hoá đơn đã xuất.",
-        "colPeriod": "Kỳ",
-        "colSeats": "Ghế",
-        "colAmount": "Số tiền",
-        "colStatus": "Trạng thái",
-        "invStatus": {
-          "paid": "Đã thu",
-          "sent": "Đã xuất",
-          "draft": "Nháp",
-          "void": "Đã huỷ"
-        },
-        "learningData": "Dữ liệu học tập",
-        "lockedFields": {
-          "students": "Danh sách học viên",
-          "classes": "Lớp học & giáo viên",
-          "scores": "Điểm số & bài làm",
-          "progress": "Tiến độ học tập"
-        },
-        "noAccess": "không có quyền xem",
-        "remindPayment": "Nhắc thanh toán",
-        "remindPaymentSoon": "Nhắc thanh toán (sắp ra mắt)",
-        "exportInvoice": "Xuất hoá đơn",
-        "exportInvoiceSoon": "Xuất hoá đơn (sắp ra mắt)",
-        "activate": "Kích hoạt",
-        "activateFromList": "Kích hoạt từ danh sách bên ngoài"
-      },
       "create": {
         "title": "Tạo trung tâm + Owner",
         "description": "Pre-create tổ chức và chủ sở hữu — chỉ admin",
@@ -305,7 +263,13 @@
         "ownerPasswordPlaceholder": "≥ 8 ký tự",
         "errNameSlug": "Nhập tên và slug tổ chức.",
         "errPassword": "Mật khẩu Owner tối thiểu 8 ký tự.",
-        "created": "Đã tạo trung tâm {name}."
+        "created": "Đã tạo trung tâm {name}.",
+        "aiPool": "Hạn mức AI nhân sự",
+        "aiPoolHint": "Chưa cấu hình = nhân sự bị chặn AI ngay lần đầu dùng. Có thể sửa sau trong hồ sơ trung tâm.",
+        "aiUnlimited": "Không giới hạn",
+        "aiMetered": "Hạn mức",
+        "aiPoolPlaceholder": "token/tháng",
+        "aiUnsetWarning": "0 token = chưa cấu hình — nhân sự bị chặn AI ngay."
       },
       "forceOwner": {
         "action": "Chỉ định giám đốc",
@@ -330,6 +294,174 @@
         "confirm": "Chỉ định giám đốc",
         "cancel": "Hủy",
         "done": "Đã chỉ định {name} làm giám đốc của {org}."
+      },
+      "perpetual": "Vô thời hạn",
+      "openDetail": "Gói & hoá đơn",
+      "aiPool": {
+        "unlimited": "AI nhân sự: không giới hạn",
+        "metered": "AI nhân sự: {count} token/tháng",
+        "unset": "AI nhân sự: chưa cấu hình — nhân sự đang bị chặn AI"
+      },
+      "detail": {
+        "eyebrow": "Hồ sơ trung tâm",
+        "subtitle": "{slug} · {students} học viên · {teachers} giáo viên",
+        "back": "Danh sách tổ chức",
+        "loading": "Đang tải hồ sơ trung tâm…",
+        "loadError": "Không thể tải hồ sơ trung tâm.",
+        "notFound": "Không tìm thấy trung tâm.",
+        "privacy": "Quản trị nền tảng chỉ xem hợp đồng, giấy phép và hoá đơn của trung tâm. Học viên, lớp học, điểm số và tiến độ được bảo mật riêng.",
+        "stats": {
+          "plan": "Gói",
+          "seats": "Ghế đang dùng / giới hạn",
+          "seatsOver": "vượt giới hạn — chặn thêm mới",
+          "aiPool": "AI nhân sự",
+          "validUntil": "Hạn giấy phép"
+        }
+      },
+      "licence": {
+        "title": "Gói & giấy phép",
+        "description": "Chỉ trường thay đổi được gửi đi và ghi vào sổ hoạt động của trung tâm kèm giá trị cũ/mới.",
+        "plan": "Gói",
+        "planNone": "— Không gói —",
+        "planHint": "Đổi gói xong, bấm \"Cấp lại quyền lợi\" để học viên nhận gói mới.",
+        "seatLimit": "Giới hạn ghế (học viên)",
+        "seatUnlimited": "Không giới hạn ghế · đang dùng {used}.",
+        "seatHint": "Đang dùng {used} ghế · 0 = không giới hạn.",
+        "seatBelowUsed": "Thấp hơn sĩ số {used}: giữ người cũ, chặn thêm học viên mới (DEC-16).",
+        "aiPool": "Hạn mức AI nhân sự",
+        "aiUnlimited": "Không giới hạn",
+        "aiUnlimitedHint": "Nhân sự dùng AI không đếm token; số hạn mức cũ vẫn được giữ.",
+        "aiMetered": "Hạn mức theo tháng",
+        "aiMeteredHint": "Cộng dồn token của mọi nhân sự, hết thì chặn tới tháng sau.",
+        "aiTokensSuffix": "token/tháng",
+        "aiUnsetWarning": "0 token = chưa cấu hình — nhân sự bị chặn AI ngay (429).",
+        "validUntil": "Hạn giấy phép",
+        "validUntilHint": "Qua hạn: trung tâm chỉ-đọc ngay (không tạo mới, không AI); 7 ngày sau cắt gói học viên.",
+        "perpetualHint": "Vô thời hạn — trung tâm không bao giờ hết hạn khi còn hoạt động.",
+        "clearValidUntil": "Xoá hạn",
+        "save": "Lưu thay đổi",
+        "saved": "Đã lưu gói & giấy phép của {org}.",
+        "noChanges": "Chưa có thay đổi.",
+        "seatDrop": {
+          "title": "Hạ ghế xuống dưới sĩ số?",
+          "description": "Giới hạn ghế từ {from} xuống {to}, trong khi trung tâm đang có {used} học viên.",
+          "detailKeep": "Không học viên nào bị gỡ — người đang có ghế giữ nguyên chỗ.",
+          "detailBlock": "Trung tâm không thêm được học viên mới cho tới khi sĩ số xuống dưới giới hạn.",
+          "detailLedger": "Thay đổi ghi vào sổ hoạt động của trung tâm với tên bạn (admin).",
+          "confirm": "Vẫn hạ ghế",
+          "cancel": "Hủy"
+        }
+      },
+      "statusCard": {
+        "title": "Trạng thái",
+        "suspendedSince": "Tạm ngưng từ {date} · hết ân hạn {graceEnd}",
+        "activeUntil": "Hoạt động tới {date}",
+        "activePerpetual": "Hoạt động, vô thời hạn",
+        "suspend": "Tạm ngưng trung tâm",
+        "reactivate": "Mở lại trung tâm",
+        "regrant": "Cấp lại quyền lợi",
+        "regrantHint": "Cấp gói hiện tại cho mọi học viên đang hoạt động — dùng sau khi đổi gói hoặc khi học viên báo mất quyền lợi.",
+        "cancel": "Hủy",
+        "suspended": "Đã tạm ngưng {org}.",
+        "reactivated": "Đã mở lại {org}.",
+        "suspendDialog": {
+          "title": "Tạm ngưng {org}?",
+          "description": "Trung tâm chuyển sang chỉ-đọc ngay lập tức.",
+          "detailReadOnly": "Nhân sự và học viên vẫn xem được dữ liệu nhưng không tạo mới, không dùng AI.",
+          "detailGrace": "{count} học viên giữ gói thêm 7 ngày ân hạn (tới {date}), sau đó bị cắt tự động.",
+          "detailLedger": "Thao tác ghi vào sổ hoạt động của trung tâm với tên bạn (admin) — giám đốc đọc được.",
+          "confirm": "Tạm ngưng"
+        },
+        "reactivateDialog": {
+          "title": "Mở lại {org}?",
+          "description": "Trung tâm hoạt động trở lại ngay, không đợi job nền.",
+          "detailClearAnchor": "Xoá mốc tạm ngưng — lần tạm ngưng sau lại có đủ 7 ngày ân hạn.",
+          "detailRegrant": "Cấp lại quyền lợi gói ngay cho {count} học viên đang hoạt động.",
+          "detailLedger": "Thao tác ghi vào sổ hoạt động của trung tâm với tên bạn (admin).",
+          "confirm": "Mở lại"
+        },
+        "regrantDialog": {
+          "title": "Cấp lại quyền lợi cho {org}?",
+          "description": "Không đổi trạng thái, không đổi hạn giấy phép.",
+          "detail": "Cấp gói {plan} cho {count} học viên đang hoạt động (học viên đã có gói thì được làm mới).",
+          "detailNoStatus": "Trung tâm đang tạm ngưng hoặc hết hạn vẫn được cấp — đây là đường khôi phục, không qua cổng chỉ-đọc.",
+          "confirm": "Cấp lại"
+        }
+      },
+      "invoices": {
+        "title": "Hoá đơn",
+        "subtitle": "{count} hoá đơn · nháp → đã gửi → đã thu / đã huỷ, không lùi",
+        "noun": "hoá đơn",
+        "create": "Tạo hoá đơn",
+        "empty": "Chưa có hoá đơn nào. Tạo hoá đơn nháp, gửi cho trung tâm, rồi đánh dấu đã thu khi tiền về.",
+        "col": {
+          "period": "Kỳ",
+          "seats": "Ghế",
+          "amount": "Số tiền",
+          "status": "Trạng thái",
+          "due": "Hạn thanh toán",
+          "code": "Mã chuyển khoản"
+        },
+        "status": {
+          "DRAFT": "Nháp",
+          "SENT": "Đã gửi",
+          "PAID": "Đã thu",
+          "VOID": "Đã huỷ"
+        },
+        "overdue": "quá hạn",
+        "action": {
+          "SENT": "Gửi",
+          "PAID": "Đã thu",
+          "VOID": "Huỷ"
+        },
+        "changed": "Hoá đơn #{id} → {status}.",
+        "dialog": {
+          "cancel": "Hủy",
+          "send": {
+            "title": "Gửi hoá đơn #{id}?",
+            "description": "{amount} · kỳ {period}. Hoá đơn chuyển sang \"Đã gửi\".",
+            "detailDue": "Hạn thanh toán = hôm nay + 7 ngày ({date}).",
+            "detailVisible": "Trung tâm thấy hoá đơn kèm mã chuyển khoản ở màn Thanh toán của họ.",
+            "detailNoRevert": "Không đưa về nháp được nữa; nếu sai thì huỷ và tạo hoá đơn khác.",
+            "confirm": "Gửi hoá đơn"
+          },
+          "paid": {
+            "title": "Đánh dấu hoá đơn #{id} đã thu?",
+            "description": "{amount} · kỳ {period}. Dùng khi tiền đã về tài khoản mà webhook ngân hàng không tự khớp.",
+            "detailActivate": "{org} chuyển sang hoạt động (mở khoá nếu đang tạm ngưng, xoá mốc tạm ngưng).",
+            "detailExtend": "Hạn giấy phép kéo tới hết kỳ ({date}) nếu xa hơn hạn hiện tại — không bao giờ rút ngắn.",
+            "detailNoPeriod": "Hoá đơn không có ngày kết thúc kỳ nên hạn giấy phép giữ nguyên.",
+            "detailRegrant": "Cấp lại quyền lợi gói cho {count} học viên đang hoạt động.",
+            "detailNoRevert": "Không hoàn tác được — hoá đơn đã thu là đích cuối.",
+            "confirm": "Xác nhận đã thu"
+          },
+          "void": {
+            "title": "Huỷ hoá đơn #{id}?",
+            "description": "{amount} · kỳ {period}.",
+            "detailFinal": "Hoá đơn huỷ vĩnh viễn, không mở lại được; mã chuyển khoản không còn khớp tiền về.",
+            "detailNoLicence": "Không đụng tới giấy phép hay quyền lợi học viên.",
+            "confirm": "Huỷ hoá đơn"
+          }
+        },
+        "createModal": {
+          "title": "Tạo hoá đơn cho {org}",
+          "description": "Hoá đơn tạo ở trạng thái nháp — trung tâm chưa thấy cho tới khi bạn gửi.",
+          "periodStart": "Kỳ từ ngày",
+          "periodEnd": "Kỳ đến ngày",
+          "periodHint": "Khi đánh dấu đã thu, hạn giấy phép kéo tới hết \"Kỳ đến ngày\".",
+          "seats": "Số ghế",
+          "seatsHint": "Sĩ số học viên đang hoạt động: {count} · để 0 = tự lấy sĩ số lúc tạo.",
+          "amount": "Số tiền (₫)",
+          "amountPlaceholder": "12000000",
+          "amountHint": "Phải lớn hơn 0.",
+          "note": "Ghi chú",
+          "notePlaceholder": "Ví dụ: hợp đồng quý IV, 25 ghế",
+          "cancel": "Hủy",
+          "submit": "Tạo hoá đơn nháp",
+          "errAmount": "Số tiền phải lớn hơn 0.",
+          "errPeriod": "Ngày kết thúc kỳ phải từ ngày bắt đầu kỳ trở đi.",
+          "created": "Đã tạo hoá đơn nháp #{id} ({amount})."
+        }
       }
     },
     "freeTeachers": {
