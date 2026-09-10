@@ -186,7 +186,7 @@ export default function LernwegScreen() {
   return (
     <Screen edges={['top']}>
       <AppHeader
-        title="Lernweg"
+        title="Lộ trình học"
         subtitle={tree?.currentLevel ? `${tree.currentLevel} · con đường của bạn` : undefined}
         onBack={goBack}
         right={

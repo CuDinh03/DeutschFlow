@@ -450,7 +450,7 @@ function AttachmentPicker({
     setRecording(false)
   })
 
-  const oversize = () => Alert.alert('File quá lớn', 'Vui lòng chọn tệp dưới 10MB.')
+  const oversize = () => Alert.alert('Tệp quá lớn', 'Vui lòng chọn tệp dưới 10MB.')
   const tooBig = (size?: number) => size != null && size > MAX_UPLOAD_BYTES
 
   async function pickImage(fromCamera: boolean) {
@@ -575,7 +575,7 @@ function AttachmentPicker({
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
         <PickButton icon={Camera} label="Chụp ảnh" disabled={disabled} onPress={() => void pickImage(true)} />
         <PickButton icon={ImageIcon} label="Ảnh" disabled={disabled} onPress={() => void pickImage(false)} />
-        <PickButton icon={Paperclip} label="File" disabled={disabled} onPress={() => void pickDocument()} />
+        <PickButton icon={Paperclip} label="Tệp" disabled={disabled} onPress={() => void pickDocument()} />
         <PickButton glyph="speaking" label="Ghi âm" disabled={disabled} onPress={() => void startRecording()} />
       </View>
     </View>

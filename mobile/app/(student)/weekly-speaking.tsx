@@ -79,7 +79,7 @@ export default function WeeklySpeakingScreen() {
   if (!hasProAccess) {
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Weekly Speaking" onBack={goBack} />
+        <AppHeader title="Luyện nói tuần" onBack={goBack} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
             glyph="khoa"
@@ -95,7 +95,7 @@ export default function WeeklySpeakingScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Weekly Speaking" onBack={goBack} />
+      <AppHeader title="Luyện nói tuần" onBack={goBack} />
 
       <Screen
         scroll

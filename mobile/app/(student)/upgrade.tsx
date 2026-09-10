@@ -16,9 +16,9 @@ import { useBackToMainTab } from '@/hooks/useBackTo'
 
 const PRO_FEATURES: { glyph: GlyphName; label: string }[] = [
   // PR-A7 (07/09/2026): không hứa "không giới hạn" — hạn mức AI theo gói vẫn có (lib/upsell.ts báo hết lượt).
-  { glyph: 'speaking', label: 'AI Speaking với hạn mức PRO mỗi ngày' },
-  { glyph: 'thithu', label: 'Mock Exam Goethe chuẩn' },
-  { glyph: 'xp', label: 'Weekly Speaking Challenge' },
+  { glyph: 'speaking', label: 'Luyện nói AI với hạn mức PRO mỗi ngày' },
+  { glyph: 'thithu', label: 'Thi thử Goethe chuẩn' },
+  { glyph: 'xp', label: 'Thử thách nói theo tuần' },
   { glyph: 'lernweg', label: 'Toàn bộ lộ trình A1 đến B2' },
   { glyph: 'sualoi', label: 'Phân tích lỗi chi tiết' },
 ]
@@ -60,7 +60,7 @@ export default function UpgradeScreen() {
           <ProHero
             eyebrow="Tài khoản nâng cao"
             title="MyDeutschFlow PRO"
-            body="Tài khoản PRO mở khoá các tính năng nâng cao như AI Speaking với hạn mức cao mỗi ngày, Mock Exam và lộ trình học đầy đủ."
+            body="Tài khoản PRO mở khoá các tính năng nâng cao như luyện nói AI với hạn mức cao mỗi ngày, thi thử và lộ trình học đầy đủ."
           />
 
           <Caption style={{ marginTop: space[7], marginBottom: space[3] }}>Bao gồm trong PRO</Caption>

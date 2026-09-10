@@ -34,6 +34,7 @@ import { useSpotlightTarget } from '@/components/guide/SpotlightTour'
 import { ThemedText } from './ThemedText'
 import { GaGlyph } from './GaGlyph'
 import type { GlyphName } from '@/lib/galerieGlyphs'
+import { TAB_LABELS } from '@/lib/tabLabels'
 
 // Biểu tượng nhận diện của 4 tab = bộ Galerie (mobile/GALERIE_GLYPHS.md).
 const ICONS: Record<string, GlyphName> = {
@@ -43,15 +44,10 @@ const ICONS: Record<string, GlyphName> = {
   profile: 'hoso',
 }
 
-// Fallback khi route chưa khai `title` trong Tabs.Screen — nguồn nhãn chính là
+// Fallback khi route chưa khai `title` trong Tabs.Screen — nguồn nhãn chính vẫn là
 // options.title của _layout (trước đây map này ĐÈ title, nên đổi nhãn ở layout
-// không có tác dụng — vd "Heute" của cụm màn 02/09 không bao giờ hiện).
-const LABELS: Record<string, string> = {
-  index: 'Trang chủ',
-  learn: 'Học',
-  speaking: 'Speaking',
-  profile: 'Hồ sơ',
-}
+// không có tác dụng — vd nhãn của cụm màn 02/09 không bao giờ hiện). Từ 10/09/2026
+// cả hai đường đọc CÙNG một bảng (lib/tabLabels) nên không thể lệch nhau nữa.
 
 const BAR_HEIGHT = 64
 const INDICATOR_HEIGHT = 48
@@ -304,7 +300,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 <TabItem
                   key={route.key}
                   icon={icon}
-                  label={descriptors[route.key]?.options.title ?? LABELS[route.name] ?? route.name}
+                  label={descriptors[route.key]?.options.title ?? TAB_LABELS[route.name as keyof typeof TAB_LABELS] ?? route.name}
                   focused={focused}
                   onPress={onPress}
                   onLayout={onTabLayout(index)}
