@@ -302,13 +302,14 @@ public class TimesheetPeriodService {
      * Vết cho một lần chuyển trạng thái kỳ công. Gọi SAU khi đã save, để metadata mang đúng con số
      * vừa chốt (snapshotTotals chạy ở submit/approve nên tổng có thể khác lúc vào hàm).
      *
-     * <p>Ghi kèm {@code orgId} trong metadata dù {@code audit_logs} chưa có cột riêng — đó là thứ
-     * cho phép sau này backfill cột {@code org_id} mà không mất lịch sử, và là khoá để mở màn audit
-     * cho chính trung tâm (hiện chỉ admin nền tảng đọc được bảng này).
+     * <p>Trung tâm đi vào CỘT {@code audit_logs.org_id} (có từ V315), không còn nằm trong
+     * metadata: cột mới là thứ {@code readOrgAuditLogs} lọc ({@code AND org_id = ?}), nên orgId
+     * chôn trong JSON không đưa được dòng nào vào sổ hoạt động của giám đốc. Lấy org của KỲ CÔNG
+     * chứ không suy từ người thao tác — người duyệt là quản lý của chính trung tâm nên hai giá trị
+     * thường trùng, nhưng org của kỳ mới là thứ đúng theo định nghĩa.
      */
     private void audit(String event, AuditActor actor, TeacherTimesheetPeriod p, String reason) {
         Map<String, Object> meta = new LinkedHashMap<>();
-        meta.put("orgId", p.getOrgId());
         meta.put("teacherId", p.getTeacherId());
         meta.put("periodStart", String.valueOf(p.getPeriodStart()));
         meta.put("periodEnd", String.valueOf(p.getPeriodEnd()));
@@ -318,7 +319,8 @@ public class TimesheetPeriodService {
         if (reason != null) {
             meta.put("reason", reason);
         }
-        auditLogService.log(event, actor, "TIMESHEET_PERIOD", String.valueOf(p.getId()), meta);
+        auditLogService.log(event, actor, "TIMESHEET_PERIOD", String.valueOf(p.getId()),
+                p.getOrgId(), meta);
     }
 
     private void stampReview(TeacherTimesheetPeriod p, Long reviewerId) {

@@ -302,10 +302,34 @@
         "ownerName": "Owner name",
         "ownerNamePlaceholder": "Jane Doe",
         "ownerPassword": "Owner password",
-        "ownerPasswordPlaceholder": "≥ 6 characters",
+        "ownerPasswordPlaceholder": "≥ 8 characters",
         "errNameSlug": "Enter the organization name and slug.",
-        "errPassword": "Owner password must be at least 6 characters.",
+        "errPassword": "Owner password must be at least 8 characters.",
         "created": "Centre {name} created."
+      },
+      "forceOwner": {
+        "action": "Appoint director",
+        "title": "Appoint a director for {org}",
+        "description": "Recovery path when the director lost their account or left without a handover. Use only on a verified request from the centre.",
+        "detailRecover": "The centre currently has no director — the selected person becomes its only director.",
+        "detailDemote": "{count} current director(s) will be demoted to manager (membership is kept).",
+        "detailLogout": "The new and the former director are signed out — they must log in again.",
+        "detailLedger": "The action is written to the centre’s activity ledger under your name (admin) with the reason below — the new director can read it.",
+        "memberLabel": "Staff member to appoint",
+        "memberPlaceholder": "— Choose a manager or teacher —",
+        "loadingMembers": "Loading staff…",
+        "noCandidates": "This centre has no active manager/teacher to appoint.",
+        "role": {
+          "OWNER": "Director",
+          "MANAGER": "Manager",
+          "TEACHER": "Teacher"
+        },
+        "reasonLabel": "Reason (required)",
+        "reasonPlaceholder": "e.g. former director left without handing over the account; requested by email on …",
+        "reasonHint": "{count}/{max} characters — at least {min}.",
+        "confirm": "Appoint director",
+        "cancel": "Cancel",
+        "done": "{name} is now the director of {org}."
       }
     },
     "freeTeachers": {
@@ -432,7 +456,7 @@
         "displayName": "Display name",
         "displayNamePlaceholder": "Jane Doe",
         "password": "Password",
-        "passwordPlaceholder": "≥ 6 characters",
+        "passwordPlaceholder": "≥ 8 characters",
         "passwordNote": "The user signs in with this password (changeable later).",
         "kindCap": "Account type",
         "kind": {
@@ -450,7 +474,7 @@
         "orgOptional": "(optional)",
         "orgChoose": "— Choose organization —",
         "orgNone": "— Not assigned —",
-        "errRequired": "Enter an email, a display name and a password of at least 6 characters.",
+        "errRequired": "Enter an email, a display name and a password of at least 8 characters.",
         "errOrgRequired": "A manager account must belong to an organization.",
         "created": "Account {email} created.",
         "confirmAdmin": {

@@ -70,8 +70,12 @@ public class OrgTimesheetController {
         // (training-dataset, marketing leads) đã ghi vết ở B4b cùng lý do "ai đã tải, bao nhiêu, khi
         // nào". Ghi Ở CONTROLLER vì exportOrgCsv là @Transactional(readOnly=true) — audit INSERT
         // trong tx read-only sẽ nổ (đúng lý do TrainingDatasetController cũng audit ở controller).
+        // orgId đi vào CỘT org_id chứ không chỉ nằm ở target_id: cột là thứ sổ hoạt động của giám
+        // đốc lọc (AND org_id = ?). Người xuất là OWNER/MANAGER của chính trung tâm nên đường lùi
+        // suy-từ-actor cũng ra đúng số, nhưng truyền tường minh thì vết không phụ thuộc vào việc
+        // người đó còn là thành viên hay không sau này.
         auditLogService.log("admin.org.timesheet.exported", AuditActor.of(actor),
-                "ORG_TIMESHEET", String.valueOf(orgId),
+                "ORG_TIMESHEET", String.valueOf(orgId), orgId,
                 java.util.Map.of("from", String.valueOf(from), "to", String.valueOf(to)));
         return ResponseEntity.ok()
                 .cacheControl(org.springframework.http.CacheControl.noStore())

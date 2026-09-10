@@ -6,6 +6,7 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.security.PasswordPolicy;
 import com.deutschflow.organization.dto.AcceptInviteRequest;
 import com.deutschflow.organization.dto.InvitationPreviewDto;
 import com.deutschflow.organization.dto.OrgInvitationDto;
@@ -223,8 +224,11 @@ public class OrgInvitationService {
         meta.put("role", invitation.getRole());
         meta.put("invitationId", invitation.getId());
         meta.put("invitedBy", invitation.getInvitedBy());
+        // DEC-13: trung tâm bị tác động lấy từ CHÍNH lời mời, không suy từ actor. Actor ở đây là
+        // đối tượng {@code AuditActor.of(user)} dựng từ bản User đọc TRƯỚC upsertMember, nên
+        // {@code users.org_id} trong đó còn rỗng — đường lùi sẽ ghi sai vào diện B2C.
         auditLogService.log("org_member_joined_via_invitation", AuditActor.of(user),
-                "ORG_MEMBER", String.valueOf(user.getId()), meta);
+                "ORG_MEMBER", String.valueOf(user.getId()), invitation.getOrgId(), meta);
 
         log.info("[OrgInvite] invitation {} accepted by userId={} (org={}, role={})",
                 invitation.getId(), user.getId(), invitation.getOrgId(), invitation.getRole());
@@ -250,9 +254,7 @@ public class OrgInvitationService {
         if (displayName == null || displayName.isBlank()) {
             throw new BadRequestException("Tên hiển thị không được để trống.");
         }
-        if (rawPassword == null || rawPassword.length() < 6) {
-            throw new BadRequestException("Mật khẩu tối thiểu 6 ký tự.");
-        }
+        PasswordPolicy.requireStrongEnough(rawPassword);
         if (userRepository.existsByEmailIgnoreCase(normEmail)) {
             throw new ConflictException("Email này đã có tài khoản.");
         }
@@ -270,8 +272,9 @@ public class OrgInvitationService {
         addMeta.put("role", "TEACHER");
         addMeta.put("email", normEmail);
         addMeta.put("createdVia", createdVia.name());
+        // DEC-13: orgId là tham số của hàm — trung tâm vừa được thêm giáo viên.
         auditLogService.log("org_member_added", actor,
-                "ORG_MEMBER", String.valueOf(teacher.getId()), addMeta);
+                "ORG_MEMBER", String.valueOf(teacher.getId()), orgId, addMeta);
         log.info("[Org] Pre-created TEACHER userId={} (email={}) cho org {} (createdVia={})",
                 teacher.getId(), normEmail, orgId, createdVia);
         return new OrgMemberDto(teacher.getId(), teacher.getEmail(), teacher.getDisplayName(),
@@ -310,6 +313,12 @@ public class OrgInvitationService {
                 || body.displayName() == null || body.displayName().isBlank()) {
             throw new BadRequestException("Vui lòng nhập tên hiển thị và mật khẩu để tạo tài khoản.");
         }
+        // 🔴 Đây là cửa yếu nhất của toàn hệ thống trước đợt này: endpoint CÔNG KHAI
+        // (POST /api/public/org-invitations/{token}/accept), không cần đăng nhập, TẠO THẲNG một tài
+        // khoản TEACHER — nhân sự trung tâm, đọc được dữ liệu học viên — mà chỉ kiểm isBlank(),
+        // nghĩa là mật khẩu MỘT ký tự lọt qua. Lớp kiểm soát độc lập duy nhất là
+        // PublicApiRateLimitFilter, mà nó fail-open khi Redis chết, nên không tính là hàng rào.
+        PasswordPolicy.requireStrongEnough(body.password());
         if (userRepository.existsByEmailIgnoreCase(email)) {
             // Defensive: another request may have created the account between checks.
             throw new ConflictException("Tài khoản với email này đã tồn tại.");

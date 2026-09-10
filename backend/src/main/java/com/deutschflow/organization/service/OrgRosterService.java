@@ -166,7 +166,9 @@ public class OrgRosterService {
         meta.put("enrolled", enrolled);
         meta.put("failed", failed);
         meta.put("seatLimitHit", seatLimitHit);
-        auditLogService.log("org_member_imported", actor, "ORG", String.valueOf(orgId), meta);
+        // DEC-13: orgId là tham số của hàm — trung tâm nhận roster. Đường lùi suy-từ-actor không
+        // cứu được ca admin nền tảng import hộ (actor không thuộc trung tâm nào).
+        auditLogService.log("org_member_imported", actor, "ORG", String.valueOf(orgId), orgId, meta);
         return new RosterImportResultDto(total, created, linked, enrolled, failed, errors);
     }
 

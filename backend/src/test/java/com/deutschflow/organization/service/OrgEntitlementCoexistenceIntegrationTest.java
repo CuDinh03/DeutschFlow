@@ -73,8 +73,31 @@ class OrgEntitlementCoexistenceIntegrationTest extends AbstractPostgresIntegrati
                 Timestamp.from(now), Timestamp.from(now));
     }
 
+    /**
+     * Trung tâm PHẢI có thật trong DB, không được bịa id.
+     *
+     * <p>DEC-13 (09/09/2026): từ nay {@code grantStudent} truyền id trung tâm vào cột
+     * {@code audit_logs.org_id}, mà cột đó có KHOÁ NGOẠI tới {@code organizations(id)} (V315). Một
+     * {@code Organization} dựng trong bộ nhớ với {@code id(1L)} sẽ làm chính lệnh ghi vết ném FK
+     * violation — và vì vết đi chung transaction nghiệp vụ, cả lượt cấp gói rollback theo.
+     *
+     * <p>Hàng này CỐ Ý không dọn ở {@code tearDown}: {@code audit_logs} là bảng chỉ-ghi-thêm
+     * (trigger {@code trg_audit_logs_immutable} chặn DELETE), nên các vết trỏ vào trung tâm này
+     * còn nằm đó mãi và khoá ngoại sẽ chặn mọi lần xoá. Dùng một slug cố định + upsert để lần chạy
+     * sau tái dùng đúng hàng ấy.
+     */
+    private Long orgId() {
+        jdbcTemplate.update("""
+                INSERT INTO organizations (name, slug, status)
+                VALUES ('Acme Coexist IT', 'acme-coexist-it', 'ACTIVE')
+                ON CONFLICT (slug) DO NOTHING
+                """);
+        return jdbcTemplate.queryForObject(
+                "SELECT id FROM organizations WHERE slug = 'acme-coexist-it'", Long.class);
+    }
+
     private Organization org(Instant validUntil) {
-        return Organization.builder().id(1L).name("Acme").slug("acme")
+        return Organization.builder().id(orgId()).name("Acme Coexist IT").slug("acme-coexist-it")
                 .planCode("PRO").validUntil(validUntil).build();
     }
 

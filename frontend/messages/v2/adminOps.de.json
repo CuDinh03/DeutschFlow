@@ -302,10 +302,34 @@
         "ownerName": "Name des Owners",
         "ownerNamePlaceholder": "Erika Mustermann",
         "ownerPassword": "Passwort des Owners",
-        "ownerPasswordPlaceholder": "≥ 6 Zeichen",
+        "ownerPasswordPlaceholder": "≥ 8 Zeichen",
         "errNameSlug": "Name und Slug der Organisation eingeben.",
-        "errPassword": "Das Owner-Passwort muss mindestens 6 Zeichen haben.",
+        "errPassword": "Das Owner-Passwort muss mindestens 8 Zeichen haben.",
         "created": "Zentrum {name} angelegt."
+      },
+      "forceOwner": {
+        "action": "Leitung bestimmen",
+        "title": "Leitung für {org} bestimmen",
+        "description": "Wiederherstellungsweg, wenn die Leitung den Zugang verloren hat oder ohne Übergabe ausgeschieden ist. Nur auf eine geprüfte Anfrage des Zentrums verwenden.",
+        "detailRecover": "Das Zentrum hat derzeit keine Leitung — die gewählte Person wird die einzige Leitung.",
+        "detailDemote": "{count} aktuelle Leitung(en) werden zur Verwaltung herabgestuft (Mitgliedschaft bleibt).",
+        "detailLogout": "Die neue und die bisherige Leitung werden abgemeldet — sie müssen sich neu anmelden.",
+        "detailLedger": "Der Vorgang wird im Aktivitätsprotokoll des Zentrums unter Ihrem Namen (Admin) mit dem Grund unten eingetragen — die neue Leitung kann ihn lesen.",
+        "memberLabel": "Zu bestimmende Person",
+        "memberPlaceholder": "— Verwaltung oder Lehrkraft wählen —",
+        "loadingMembers": "Personal wird geladen…",
+        "noCandidates": "Dieses Zentrum hat keine aktive Verwaltung/Lehrkraft, die bestimmt werden könnte.",
+        "role": {
+          "OWNER": "Leitung",
+          "MANAGER": "Verwaltung",
+          "TEACHER": "Lehrkraft"
+        },
+        "reasonLabel": "Grund (Pflichtfeld)",
+        "reasonPlaceholder": "z. B. bisherige Leitung ohne Übergabe des Kontos ausgeschieden; Anfrage per E-Mail vom …",
+        "reasonHint": "{count}/{max} Zeichen — mindestens {min}.",
+        "confirm": "Leitung bestimmen",
+        "cancel": "Abbrechen",
+        "done": "{name} ist jetzt Leitung von {org}."
       }
     },
     "freeTeachers": {
@@ -432,7 +456,7 @@
         "displayName": "Anzeigename",
         "displayNamePlaceholder": "Erika Mustermann",
         "password": "Passwort",
-        "passwordPlaceholder": "≥ 6 Zeichen",
+        "passwordPlaceholder": "≥ 8 Zeichen",
         "passwordNote": "Die Person meldet sich mit diesem Passwort an (später änderbar).",
         "kindCap": "Kontotyp",
         "kind": {
@@ -450,7 +474,7 @@
         "orgOptional": "(optional)",
         "orgChoose": "— Organisation wählen —",
         "orgNone": "— Nicht zugeordnet —",
-        "errRequired": "E-Mail, Anzeigename und ein Passwort mit mindestens 6 Zeichen eingeben.",
+        "errRequired": "E-Mail, Anzeigename und ein Passwort mit mindestens 8 Zeichen eingeben.",
         "errOrgRequired": "Ein Leitungskonto muss zu einer Organisation gehören.",
         "created": "Konto {email} angelegt.",
         "confirmAdmin": {

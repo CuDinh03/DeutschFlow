@@ -1,5 +1,7 @@
 package com.deutschflow.payment.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.organization.entity.OrgInvoice;
 import com.deutschflow.organization.entity.OrgPaymentEvent;
 import com.deutschflow.organization.entity.Organization;
@@ -17,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,6 +44,7 @@ class SepayWebhookServiceTest {
     @Mock OrgPaymentEventRepository eventRepo;
     @Mock OrganizationRepository organizationRepository;
     @Mock AdminOrgService adminOrgService;
+    @Mock AuditLogService auditLogService;
 
     @InjectMocks SepayWebhookService service;
 
@@ -77,6 +81,23 @@ class SepayWebhookServiceTest {
         verify(invoiceRepo).save(inv);
         verify(organizationRepository).save(org);
         verify(adminOrgService).activateEntitlements(eq(5L), any());
+
+        // DEC-13: đường TỰ ĐỘNG phải để lại vết KÍCH HOẠT GIẤY PHÉP y như đường bấm tay — cùng tên
+        // sự kiện, khác actor. Trước đợt này webhook chỉ ghi "đã cấp lại quyền lợi cho N học viên",
+        // nên với ca thường gặp nhất (tiền vào qua ngân hàng) giám đốc không đọc được "cái gì đã
+        // kích hoạt giấy phép của tôi và gia hạn tới ngày nào". Tham số áp chót = orgId tường minh:
+        // actor webhook có id null nên đường suy-từ-actor không cứu được vết này.
+        ArgumentCaptor<AuditActor> auditActor = ArgumentCaptor.forClass(AuditActor.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> auditMeta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(
+                eq("admin.org.licence.activated_by_invoice"), auditActor.capture(),
+                eq("ORG"), eq("5"), eq(5L), auditMeta.capture());
+        assertThat(auditActor.getValue().email()).isEqualTo("sepay-webhook");
+        assertThat(auditMeta.getValue())
+                .containsEntry("invoiceId", 7L)
+                .containsEntry("paymentCode", CODE);
+
         ArgumentCaptor<OrgPaymentEvent> ev = ArgumentCaptor.forClass(OrgPaymentEvent.class);
         verify(eventRepo).save(ev.capture());
         assertThat(ev.getValue().isMatched()).isTrue();
@@ -90,7 +111,7 @@ class SepayWebhookServiceTest {
 
         service.handle(payload(100L, "in", 1_000_000L, "CK " + CODE));
 
-        verifyNoInteractions(invoiceRepo, organizationRepository, adminOrgService);
+        verifyNoInteractions(invoiceRepo, organizationRepository, adminOrgService, auditLogService);
         verify(eventRepo, never()).save(any());
     }
 
@@ -104,7 +125,7 @@ class SepayWebhookServiceTest {
         ArgumentCaptor<OrgPaymentEvent> ev = ArgumentCaptor.forClass(OrgPaymentEvent.class);
         verify(eventRepo).save(ev.capture());
         assertThat(ev.getValue().isMatched()).isFalse();
-        verifyNoInteractions(invoiceRepo, organizationRepository, adminOrgService);
+        verifyNoInteractions(invoiceRepo, organizationRepository, adminOrgService, auditLogService);
     }
 
     @Test
@@ -119,7 +140,7 @@ class SepayWebhookServiceTest {
         verify(eventRepo).save(ev.capture());
         assertThat(ev.getValue().isMatched()).isFalse();
         verify(invoiceRepo, never()).save(any());
-        verifyNoInteractions(organizationRepository, adminOrgService);
+        verifyNoInteractions(organizationRepository, adminOrgService, auditLogService);
     }
 
     @Test
@@ -133,7 +154,7 @@ class SepayWebhookServiceTest {
 
         assertThat(inv.getStatus()).isEqualTo("SENT");
         verify(invoiceRepo, never()).save(any());
-        verifyNoInteractions(organizationRepository, adminOrgService);
+        verifyNoInteractions(organizationRepository, adminOrgService, auditLogService);
     }
 
     @Test
@@ -146,7 +167,7 @@ class SepayWebhookServiceTest {
         service.handle(payload(104L, "in", 1_000_000L, "CK " + CODE));
 
         verify(invoiceRepo, never()).save(any());
-        verifyNoInteractions(organizationRepository, adminOrgService);
+        verifyNoInteractions(organizationRepository, adminOrgService, auditLogService);
         verify(eventRepo).save(any());
     }
 
@@ -161,7 +182,7 @@ class SepayWebhookServiceTest {
 
         assertThat(inv.getStatus()).isEqualTo("VOID");
         verify(invoiceRepo, never()).save(any());
-        verifyNoInteractions(organizationRepository, adminOrgService);
+        verifyNoInteractions(organizationRepository, adminOrgService, auditLogService);
         verify(eventRepo).save(any());
     }
 }

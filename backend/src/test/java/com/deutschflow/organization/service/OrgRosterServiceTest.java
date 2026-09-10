@@ -154,7 +154,7 @@ class OrgRosterServiceTest {
         // 3 học viên → vẫn CHỈ 1 dòng audit: import là MỘT hành động của MỘT người. Ghi từng dòng
         // sẽ nhấn chìm màn hình vết mà không thêm thông tin — chi tiết lỗi đã nằm ở DTO trả về.
         verify(auditLogService).log(eq("org_member_imported"), eq(ACTOR),
-                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue())
                 .containsEntry("orgId", ORG_ID)
                 .containsEntry("total", 3)
@@ -309,6 +309,78 @@ class OrgRosterServiceTest {
         assertThat(result.failed()).isEqualTo(0);
         assertThat(result.linked()).isEqualTo(1);
         verify(membershipService).upsertMember(eq(ORG_ID), eq(79L), eq("STUDENT"));
+    }
+
+    // -------------------------------------------------- DEC-13: admin nền tảng không vào CSV học viên
+
+    /** Tài khoản quản trị viên NỀN TẢNG (users.role = ADMIN) — không bao giờ là thành viên trung tâm. */
+    private User platformAdmin(Long id, String email) {
+        return User.builder()
+                .id(id)
+                .email(email)
+                .displayName("Quản trị viên " + id)
+                .role(User.Role.ADMIN)
+                .passwordHash("hashed")
+                .build();
+    }
+
+    @Test
+    @DisplayName("DEC-13: dòng CSV là email của ADMIN nền tảng → vào errors KÈM email, không tạo membership")
+    void importStudents_platformAdminEmail_rejectedWithEmailInMessage() {
+        stubOrg(org(0, "PRO"));
+        when(userRepository.findByEmailIgnoreCase("admin@deutschflow.vn"))
+                .thenReturn(Optional.of(platformAdmin(9L, "admin@deutschflow.vn")));
+
+        RosterImportResultDto result =
+                service.importStudents(ORG_ID, "admin@deutschflow.vn,Quản trị", null, ACTOR);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.created()).isEqualTo(0);
+        assertThat(result.linked()).isEqualTo(0);
+        // Thông báo phải nêu ĐÍCH DANH email: người nhập cầm tệp vài trăm dòng, "lỗi xử lý" trống
+        // không cho họ biết phải sửa dòng nào.
+        assertThat(result.errors()).singleElement().asString().contains("admin@deutschflow.vn");
+        // Và tuyệt đối không có lệnh ghi nào lọt ra: không thành viên, không quyền lợi, không tài khoản mới.
+        verify(membershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+        verify(entitlementService, never()).grantStudent(anyLong(), any());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("DEC-22: CSV 3 dòng, giữa là admin nền tảng → hai dòng hợp lệ VẪN nhập, chỉ dòng giữa lỗi")
+    void importStudents_platformAdminRowAmongValidRows_otherRowsStillImported() {
+        Organization org = org(0, "PRO");
+        stubOrg(org);
+
+        // Dòng 1 và 3 hợp lệ, dòng 2 là admin nền tảng. Mỗi dòng chạy trong REQUIRES_NEW riêng nên
+        // dòng hỏng không kéo theo dòng lành — ca này khoá ngữ nghĩa đó lại để đợt sau không phá.
+        String csv = "truoc@x.com,Trước\nadmin@deutschflow.vn,Quản trị\nsau@x.com,Sau";
+        when(userRepository.findByEmailIgnoreCase("truoc@x.com")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("admin@deutschflow.vn"))
+                .thenReturn(Optional.of(platformAdmin(9L, "admin@deutschflow.vn")));
+        when(userRepository.findByEmailIgnoreCase("sau@x.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId("truoc@x.com".equals(u.getEmail()) ? 201L : 203L);
+            return u;
+        });
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertEquals(3, result.total());
+        assertEquals(2, result.created(), () -> "hai dòng hợp lệ phải vào được: " + result.errors());
+        assertEquals(1, result.failed());
+        assertThat(result.errors()).singleElement().asString()
+                .contains("Dòng 2")
+                .contains("admin@deutschflow.vn");
+
+        // Hai dòng lành thực sự được ghi — và ĐÚNG hai, không kèm dòng admin.
+        verify(membershipService).upsertMember(eq(ORG_ID), eq(201L), eq("STUDENT"));
+        verify(membershipService).upsertMember(eq(ORG_ID), eq(203L), eq("STUDENT"));
+        verify(membershipService, times(2)).upsertMember(anyLong(), anyLong(), anyString());
+        verify(membershipService, never()).upsertMember(anyLong(), eq(9L), anyString());
+        verify(entitlementService, times(2)).grantStudent(anyLong(), eq(org));
     }
 
     // ------------------------------------------------------------------ class enrollment

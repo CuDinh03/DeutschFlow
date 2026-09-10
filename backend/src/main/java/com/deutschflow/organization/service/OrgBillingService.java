@@ -104,8 +104,13 @@ public class OrgBillingService {
         // Audit F-M3 (03/09/2026): xuất hoá đơn là chứng từ tài chính — đổi trạng thái hoá đơn đã có
         // vết (org_invoice_status_changed) nhưng chính lúc TẠO ra nó thì không, nên số tiền và kỳ
         // thu ban đầu không truy được. Cột created_by có lưu id, nhưng nó biến mất nếu hoá đơn bị xoá.
+        //
+        // DEC-13: target_type ở đây là ORG_INVOICE nên id trung tâm KHÔNG nằm ở target_id, và
+        // người tạo hoá đơn là admin nền tảng nên đường suy-từ-actor cũng rỗng. Không truyền orgId
+        // tường minh thì chứng từ tài chính của trung tâm không lọt vào sổ của chính họ.
         auditLogService.log("admin.org.invoice.created", actor,
                 "ORG_INVOICE", String.valueOf(saved.getId()),
+                orgId,
                 Map.of(
                         "orgId", orgId,
                         "amountVnd", saved.getAmountVnd(),
@@ -177,8 +182,11 @@ public class OrgBillingService {
         if (invoice.getPaymentCode() != null) {
             auditMeta.put("paymentCode", invoice.getPaymentCode());
         }
+        // DEC-13: orgId đã kiểm khớp với invoice.getOrgId() ở đầu hàm. "Ai đánh dấu hoá đơn này
+        // PAID" là câu hỏi đối soát tiền của chính trung tâm — phải nằm trong sổ của họ, kể cả khi
+        // người bấm là admin nền tảng.
         auditLogService.log("org_invoice_status_changed", actorId, actorEmail, actorRole,
-                "ORG_INVOICE", String.valueOf(invoiceId), auditMeta);
+                "ORG_INVOICE", String.valueOf(invoiceId), orgId, auditMeta);
         if (nowPaid) {
             // Audit M-16: a manually-reconciled payment must provision the org identically to the
             // SePay webhook path (org ACTIVE + validUntil + re-grant entitlements), not just notify.
