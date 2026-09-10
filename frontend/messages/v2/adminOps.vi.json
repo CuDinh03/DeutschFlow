@@ -306,6 +306,30 @@
         "errNameSlug": "Nhập tên và slug tổ chức.",
         "errPassword": "Mật khẩu Owner tối thiểu 8 ký tự.",
         "created": "Đã tạo trung tâm {name}."
+      },
+      "forceOwner": {
+        "action": "Chỉ định giám đốc",
+        "title": "Chỉ định giám đốc cho {org}",
+        "description": "Đường khôi phục khi giám đốc mất tài khoản hoặc nghỉ việc không bàn giao. Chỉ dùng khi có yêu cầu đã xác thực từ trung tâm.",
+        "detailRecover": "Trung tâm hiện không có giám đốc — người được chọn sẽ là giám đốc duy nhất.",
+        "detailDemote": "{count} giám đốc hiện tại bị hạ xuống quản lý (không mất quyền thành viên).",
+        "detailLogout": "Phiên đăng nhập của giám đốc mới và giám đốc cũ bị đăng xuất — họ phải đăng nhập lại.",
+        "detailLedger": "Thao tác ghi vào sổ hoạt động của trung tâm với tên bạn (admin) và lý do bên dưới — giám đốc mới đọc được.",
+        "memberLabel": "Nhân sự được chỉ định",
+        "memberPlaceholder": "— Chọn quản lý hoặc giáo viên —",
+        "loadingMembers": "Đang tải danh sách nhân sự…",
+        "noCandidates": "Trung tâm chưa có quản lý/giáo viên đang hoạt động để chỉ định.",
+        "role": {
+          "OWNER": "Giám đốc",
+          "MANAGER": "Quản lý",
+          "TEACHER": "Giáo viên"
+        },
+        "reasonLabel": "Lý do (bắt buộc)",
+        "reasonPlaceholder": "Ví dụ: giám đốc cũ nghỉ việc, không bàn giao tài khoản; yêu cầu qua email ngày …",
+        "reasonHint": "{count}/{max} ký tự — tối thiểu {min}.",
+        "confirm": "Chỉ định giám đốc",
+        "cancel": "Hủy",
+        "done": "Đã chỉ định {name} làm giám đốc của {org}."
       }
     },
     "freeTeachers": {
