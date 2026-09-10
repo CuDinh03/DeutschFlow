@@ -32,6 +32,8 @@ import com.deutschflow.examspeaking.entity.SpeakingExamTurn;
 import com.deutschflow.examspeaking.repository.SpeakingExamResultRepository;
 import com.deutschflow.examspeaking.repository.SpeakingExamSessionRepository;
 import com.deutschflow.examspeaking.repository.SpeakingExamTurnRepository;
+import com.deutschflow.organization.entity.OrgMember;
+import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.speaking.AiRateLimiterService;
 import com.deutschflow.speaking.ai.ChatMessage;
@@ -80,6 +82,8 @@ public class ExamSessionService {
     private final AiJobRepository aiJobRepository;
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
+    /** Ảnh chụp trung tâm lúc tạo phiên (V320 §1) — xem {@link #orgSnapshotFor(long)}. */
+    private final OrgMemberRepository orgMembers;
     private final AiRateLimiterService rateLimiter;
     private final AiUsageLedgerService ledger;
     private final GroqWhisperClient whisperClient;
@@ -125,6 +129,9 @@ public class ExamSessionService {
         Instant now = Instant.now();
         SpeakingExamSession s = SpeakingExamSession.builder()
                 .userId(userId).blueprintId(bp.id()).mode(mode)
+                // V320 §1: ảnh chụp trung tâm TƯỜNG MINH lúc tạo — dòng mới không được dùng phép đoán
+                // backfill từ users.org_id. Đây là chỗ biến cột org_id thành một ảnh chụp thật.
+                .orgId(orgSnapshotFor(userId))
                 .state(prep ? SpeakingExamSession.STATE_PREP : SpeakingExamSession.STATE_IN_PART)
                 .drillTeilNo(teil)
                 .currentPart(prep ? 0 : plan.parts().get(0).teilNo())
@@ -147,6 +154,37 @@ public class ExamSessionService {
             seq = openPart(s, bp, plan.parts().get(0), seq);
         }
         return view(s, bp, plan, null);
+    }
+
+    /**
+     * Trung tâm của học viên tại thời điểm TẠO PHIÊN, để ghi vào {@code speaking_exam_sessions.org_id}
+     * (V320 §1). Lý do cột này phải là ảnh chụp chứ không phải phép suy: job dọn audio chạy 30 ngày
+     * sau khi thu, khi {@code users.org_id} có thể đã về NULL vì học viên rời trung tâm — lúc đó vết
+     * dọn sẽ mang {@code org_id} NULL và giám đốc không bao giờ thấy thao tác xoá dữ liệu của chính
+     * học viên mình.
+     *
+     * <p>Nguồn là {@code org_members} ACTIVE vai STUDENT, hỏi thẳng bảng. KHÔNG đọc
+     * {@code users.org_id} từ principal: {@code JwtAuthFilter} cache principal 60 giây, và cột đó là
+     * trạng thái hôm nay do {@code OrgMembershipService} đồng bộ chứ không phải nguồn tenant. Học viên
+     * chỉ được là thành viên MỘT trung tâm (đa trung tâm chỉ mở cho TEACHER — quyết định cấu trúc B2B
+     * 09/09), nên gặp nhiều dòng là dữ liệu lệch ⇒ trả {@code null} + cảnh báo, không đoán bừa một
+     * trung tâm rồi để vết dọn rơi vào sổ của bên không hề giữ bản ghi âm.
+     *
+     * @return {@code org_id}, hoặc {@code null} cho người dùng B2C (và cho dữ liệu lệch nói trên)
+     */
+    Long orgSnapshotFor(long userId) {
+        List<OrgMember> memberships = orgMembers.findByIdUserIdAndRoleAndStatus(userId, "STUDENT", "ACTIVE");
+        if (memberships.isEmpty()) {
+            return null;
+        }
+        if (memberships.size() > 1) {
+            log.warn("[exam-speaking] userId={} có {} membership STUDENT ACTIVE (org {}) — dữ liệu lệch, "
+                            + "không chụp org_id cho phiên thi nói",
+                    userId, memberships.size(),
+                    memberships.stream().map(m -> m.getId().getOrgId()).toList());
+            return null;
+        }
+        return memberships.get(0).getId().getOrgId();
     }
 
     // ── snapshot ────────────────────────────────────────────────────────────────────────────
