@@ -48,6 +48,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * TEACHER bình thường và đòi 200 + vào được {@code /api/org} — không có nó, một test luôn-403 vẫn
  * xanh khi endpoint hỏng hoàn toàn.
  *
+ * <p>Đây là <b>nửa Java</b> của AC-ORG-CT-01. Nửa DB — hai trigger của V318 chặn cả đường đi vòng
+ * service (SQL thô, {@code memberRepo.save}) — nằm ở {@link PlatformAdminOrgMembershipTriggerIntegrationTest}.
+ * Ca {@link #stampedOrgId_withoutMembershipRow_isStillForbidden()} vẫn dán tay được {@code users.org_id}
+ * vì V318 cố ý KHÔNG gắn trigger lên bản sao nhanh đó: cổng thật là dòng {@code org_members}.
+ *
  * <p>Tự bỏ qua khi không có Postgres — xem {@link AbstractPostgresIntegrationTest}.
  */
 @SpringBootTest
