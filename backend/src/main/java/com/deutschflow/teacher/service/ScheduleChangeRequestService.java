@@ -4,6 +4,7 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.notification.NotificationType;
 import com.deutschflow.notification.entity.NotificationOutbox;
 import com.deutschflow.notification.repository.NotificationOutboxRepository;
 import com.deutschflow.organization.service.OrgGuard;
@@ -47,6 +48,7 @@ import java.util.Map;
  * bằng compare-and-bump trong CÙNG giao dịch áp lịch — lệch là duyệt trên nền lỗi thời, toàn bộ
  * rollback (đề xuất trở về PENDING nguyên vẹn). Thông báo học viên KHÔNG bắn trực tiếp: ghi
  * {@code notification_outbox} trong giao dịch (rollback thì không tồn tại), worker gửi sau (G2).
+ * Từ chối cũng ghi outbox cho giáo viên đề xuất ({@code SCHEDULE_CHANGE_REJECTED}, DEC-18).
  */
 @Service
 @RequiredArgsConstructor
@@ -166,7 +168,32 @@ public class ScheduleChangeRequestService {
         r.setReviewedBy(reviewerId);
         r.setReviewedAt(now);
         r.setRejectReason(reason.trim());
+        enqueueRejectNotice(r);
         return toDto(r);
+    }
+
+    /**
+     * DEC-18: báo GIÁO VIÊN ĐỀ XUẤT khi bị từ chối — trước đây lý do chỉ nằm trong
+     * {@code reject_reason}, giáo viên phải tự mở hàng chờ mới biết. Ghi OUTBOX trong cùng giao dịch
+     * (G2): transition rollback thì không có dòng nào. PENDING→REJECTED là chuyển trạng thái một
+     * chiều nên dedup theo (đề xuất, rejected, người nhận) là đủ — worker chạy lại không gửi đôi.
+     */
+    private void enqueueRejectNotice(ClassScheduleChangeRequest r) {
+        String className = classRepo.findById(r.getClassId()).map(TeacherClass::getName)
+                .orElse("Lớp #" + r.getClassId());
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("classId", r.getClassId());
+        payload.put("className", className);
+        payload.put("requestId", r.getId());
+        payload.put("kind", r.getRequestType().name());
+        payload.put("reason", r.getRejectReason());
+        outboxRepo.save(NotificationOutbox.builder()
+                .dedupKey("request:" + r.getId() + ":rejected:u" + r.getRequestedBy())
+                .notificationType(NotificationType.SCHEDULE_CHANGE_REJECTED)
+                .classId(r.getClassId())
+                .recipientId(r.getRequestedBy())
+                .payload(payload)
+                .build());
     }
 
     /**
@@ -274,7 +301,9 @@ public class ScheduleChangeRequestService {
                 yield scheduleService.applyUpsertPattern(r.getRequestedBy(), r.getClassId(), req).note();
             }
             // PR-6 (P05): dời mốc chính thức — đổi ngày sau duyệt; học viên nhận thông báo dạng
-            // đổi-lịch (không thêm NotificationType mới để giữ hợp đồng render của mobile — P08).
+            // đổi-lịch. Không thêm NotificationType mới cho HỌC VIÊN để giữ hợp đồng render của
+            // mobile (P08) — ràng buộc này chỉ áp cho loại học viên nhận; loại chỉ nhân sự nhận
+            // (SCHEDULE_CHANGE_REJECTED…) không tới mobile nên thêm tự do (DEC-18).
             case MOVE_MILESTONE -> {
                 ScheduleChangePayloads.MilestoneMove mv =
                         objectMapper.convertValue(r.getPayload(), ScheduleChangePayloads.MilestoneMove.class);
@@ -285,7 +314,7 @@ public class ScheduleChangeRequestService {
                 String className = classRepo.findById(r.getClassId()).map(TeacherClass::getName)
                         .orElse("Lớp #" + r.getClassId());
                 yield new ClassScheduleService.SessionChangeNote(
-                        com.deutschflow.notification.NotificationType.CLASS_SESSION_RESCHEDULED,
+                        NotificationType.CLASS_SESSION_RESCHEDULED,
                         "Mốc \"" + m.getTitle() + "\" của lớp " + className + " dời sang "
                                 + mv.newPlannedDate() + ".");
             }

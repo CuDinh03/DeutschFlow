@@ -781,7 +781,7 @@ class TeacherServiceTest {
 
         assertThrows(com.deutschflow.common.exception.BadRequestException.class,
                 () -> teacherService.addStudentToClassByEmail(1L, 100L, "outsider@other.de"));
-        verify(classEnrollmentService, never()).enroll(any(), any());
+        verify(classEnrollmentService, never()).enrollAndNotify(any(), any(), any());
     }
 
     @Test
@@ -797,7 +797,7 @@ class TeacherServiceTest {
 
         teacherService.addStudentToClassByEmail(1L, 100L, "hv@org.de");
 
-        verify(classEnrollmentService).enroll(100L, 5L);
+        verify(classEnrollmentService).enrollAndNotify(100L, 5L, 1L);
     }
 
     @Test
@@ -814,7 +814,7 @@ class TeacherServiceTest {
 
         teacherService.addStudentToClassByEmail(1L, 100L, "hv@bat-ky.de");
 
-        verify(classEnrollmentService).enroll(100L, 6L);
+        verify(classEnrollmentService).enrollAndNotify(100L, 6L, 1L);
     }
 
     // ── Vào trung tâm qua lớp học ────────────────────────────────────────────

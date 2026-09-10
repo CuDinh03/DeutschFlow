@@ -74,6 +74,15 @@ describe('resolveNotificationHref', () => {
     expect(resolveNotificationHref(notif('ADMIN_ORG_INVOICE_PAID', { orgId: 1 }), 'org')).toBe('/v2/org/billing')
   })
 
+  // DEC-18: thông báo nội bộ trung tâm cho giáo viên — mở đúng màn có việc phải làm.
+  it('routes staff notices to the teacher schedule / timesheet pages', () => {
+    expect(resolveNotificationHref(notif('SCHEDULE_CHANGE_REJECTED', { classId: 9, requestId: 3 }), 'teacher')).toBe(
+      '/v2/teacher/schedule',
+    )
+    expect(resolveNotificationHref(notif('TIMESHEET_PERIOD_APPROVED', { periodId: 5 }), 'teacher')).toBe('/v2/teacher/tc-timesheet')
+    expect(resolveNotificationHref(notif('TIMESHEET_PERIOD_RETURNED', { periodId: 5 }), 'teacher')).toBe('/v2/teacher/tc-timesheet')
+  })
+
   it('returns null when there is no useful destination', () => {
     expect(resolveNotificationHref(notif('ADMIN_BROADCAST', { title: 'x' }), 'student')).toBeNull()
     expect(resolveNotificationHref(notif('SOMETHING_UNKNOWN'), 'student')).toBeNull()

@@ -77,9 +77,11 @@ public class OrgRosterRowImporter {
      * @param email         already normalized and format-validated by the caller
      * @param displayNameCol raw display-name column; falls back to the email local part when blank
      * @param classIdOrNull when non-null, the student is also enrolled into this class
+     * @param actorIdOrNull người bấm import — chỉ để thông báo phân lớp biết ai xếp lớp (DEC-18)
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public RowOutcome importRow(Organization org, String email, String displayNameCol, Long classIdOrNull) {
+    public RowOutcome importRow(Organization org, String email, String displayNameCol, Long classIdOrNull,
+                                Long actorIdOrNull) {
         Long orgId = org.getId();
 
         // Row-level lock on the org, held for this row's transaction (J). It used to be taken once
@@ -139,8 +141,10 @@ public class OrgRosterRowImporter {
         boolean enrolled = false;
         if (classIdOrNull != null) {
             // enroll() mở lại dòng cũ của học viên từng rời lớp thay vì save() đè NULL lên nhận xét
-            // và điểm kỹ năng (D2). Trả true đúng khi lượt này thực sự đưa họ (trở) vào lớp.
-            enrolled = classEnrollmentService.enroll(classIdOrNull, user.getId());
+            // và điểm kỹ năng (D2). Trả true đúng khi lượt này thực sự đưa họ (trở) vào lớp — và chỉ
+            // khi ấy học viên mới nhận thông báo phân lớp (ADDED_TO_CLASS qua outbox, DEC-18); nhập
+            // lại roster với người đang học không báo gì.
+            enrolled = classEnrollmentService.enrollAndNotify(classIdOrNull, user.getId(), actorIdOrNull);
             if (enrolled) {
                 // Provision the class's existing assignments for the imported student (idempotent).
                 assignmentBackfillService.ensureAssignmentsForStudent(classIdOrNull, user.getId());

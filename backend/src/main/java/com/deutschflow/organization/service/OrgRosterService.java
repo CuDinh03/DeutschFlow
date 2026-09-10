@@ -115,7 +115,8 @@ public class OrgRosterService {
                     continue;
                 }
 
-                RowOutcome outcome = rowImporter.importRow(org, email, col(cols, 1), classIdOrNull);
+                RowOutcome outcome = rowImporter.importRow(org, email, col(cols, 1), classIdOrNull,
+                        actor == null ? null : actor.id());
 
                 if (outcome.seatLimited()) {
                     failed++;

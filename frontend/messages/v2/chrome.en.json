@@ -276,7 +276,10 @@
       "ADMIN_LEARNER_SUBSCRIPTION_ENDED": "Subscription ended",
       "ADMIN_SYSTEM_ALERT": "System alert",
       "ADMIN_ORG_CREATED": "New organisation",
-      "ADMIN_ORG_INVOICE_PAID": "Invoice paid"
+      "ADMIN_ORG_INVOICE_PAID": "Invoice paid",
+      "SCHEDULE_CHANGE_REJECTED": "Schedule change request declined",
+      "TIMESHEET_PERIOD_APPROVED": "Timesheet period approved",
+      "TIMESHEET_PERIOD_RETURNED": "Timesheet period returned"
     }
   },
   "inbox": {

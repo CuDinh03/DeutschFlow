@@ -4,12 +4,17 @@ import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.notification.NotificationType;
+import com.deutschflow.notification.entity.NotificationOutbox;
+import com.deutschflow.notification.repository.NotificationOutboxRepository;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
+import com.deutschflow.user.entity.User;
+import com.deutschflow.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,6 +54,8 @@ class ClassEnrollmentServiceTest {
     @Mock private ClassTeacherRepository classTeacherRepository;
     @Mock private TeacherClassRepository teacherClassRepository;
     @Mock private AuditLogService auditLogService;
+    @Mock private UserRepository userRepository;
+    @Mock private NotificationOutboxRepository outboxRepository;
 
     @InjectMocks private ClassEnrollmentService service;
 
@@ -233,5 +240,79 @@ class ClassEnrollmentServiceTest {
         verify(classStudentRepository).save(saved.capture());
         assertThat(saved.getValue().getStatus()).isEqualTo(ClassStudent.STATUS_ACTIVE);
         verify(classStudentRepository, never()).reopenEnrollment(anyLong(), anyLong());
+    }
+
+    // ── DEC-18: enrollAndNotify — một cửa cho mọi đường nhân sự đưa học viên vào lớp ──────────
+
+    private void stubClass(Long primaryTeacherId) {
+        when(teacherClassRepository.findById(CLASS_ID)).thenReturn(Optional.of(
+                TeacherClass.builder().id(CLASS_ID).orgId(ORG_ID).name("A1 Sáng").teacherId(primaryTeacherId).build()));
+    }
+
+    @Test
+    @DisplayName("enrollAndNotify: giáo viên của lớp thêm học viên mới → outbox ADDED_TO_CLASS, addedBy=TEACHER, tên người thao tác")
+    void enrollAndNotify_byTeacher_enqueuesAddedToClass() {
+        when(classStudentRepository.existsById(new ClassStudentId(CLASS_ID, STUDENT_ID))).thenReturn(false);
+        stubClass(TEACHER_ID);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(userRepository.findById(TEACHER_ID)).thenReturn(Optional.of(User.builder().id(TEACHER_ID).displayName("Cô Lan").build()));
+
+        assertThat(service.enrollAndNotify(CLASS_ID, STUDENT_ID, TEACHER_ID)).isTrue();
+
+        ArgumentCaptor<NotificationOutbox> row = ArgumentCaptor.forClass(NotificationOutbox.class);
+        verify(outboxRepository).save(row.capture());
+        assertThat(row.getValue().getNotificationType()).isEqualTo(NotificationType.ADDED_TO_CLASS);
+        assertThat(row.getValue().getRecipientId()).isEqualTo(STUDENT_ID);
+        assertThat(row.getValue().getClassId()).isEqualTo(CLASS_ID);
+        assertThat(row.getValue().getDedupKey()).startsWith("enroll:" + CLASS_ID + ":u" + STUDENT_ID + ":t");
+        assertThat(row.getValue().getPayload())
+                .containsEntry("classId", CLASS_ID)
+                .containsEntry("className", "A1 Sáng")
+                .containsEntry("teacherName", "Cô Lan")
+                .containsEntry("addedBy", "TEACHER");
+    }
+
+    @Test
+    @DisplayName("enrollAndNotify: nhân sự trung tâm (CSV) xếp lớp → addedBy=ORG, teacherName = giáo viên chính của lớp")
+    void enrollAndNotify_byOrgStaff_marksOrgAndNamesPrimaryTeacher() {
+        Long managerId = 55L;
+        when(classStudentRepository.existsById(new ClassStudentId(CLASS_ID, STUDENT_ID))).thenReturn(false);
+        stubClass(TEACHER_ID);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, managerId)).thenReturn(false);
+        when(userRepository.findById(TEACHER_ID)).thenReturn(Optional.of(User.builder().id(TEACHER_ID).displayName("Cô Lan").build()));
+
+        service.enrollAndNotify(CLASS_ID, STUDENT_ID, managerId);
+
+        ArgumentCaptor<NotificationOutbox> row = ArgumentCaptor.forClass(NotificationOutbox.class);
+        verify(outboxRepository).save(row.capture());
+        assertThat(row.getValue().getPayload())
+                .containsEntry("addedBy", "ORG")
+                .containsEntry("teacherName", "Cô Lan");
+    }
+
+    @Test
+    @DisplayName("enrollAndNotify: học viên đang học (nhập lại roster) hoặc đang bảo lưu → KHÔNG thông báo, không đè dữ liệu")
+    void enrollAndNotify_alreadyEnrolled_isSilent() {
+        when(classStudentRepository.existsById(new ClassStudentId(CLASS_ID, STUDENT_ID))).thenReturn(true);
+        when(classStudentRepository.reopenEnrollment(CLASS_ID, STUDENT_ID)).thenReturn(0);
+
+        assertThat(service.enrollAndNotify(CLASS_ID, STUDENT_ID, TEACHER_ID)).isFalse();
+
+        verify(outboxRepository, never()).save(any());
+        verify(classStudentRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("enrollAndNotify: mở lại dòng đã ENDED (đưa trở lại lớp) → báo đúng một lần như lượt vào lớp mới")
+    void enrollAndNotify_reopen_notifiesOnce() {
+        when(classStudentRepository.existsById(new ClassStudentId(CLASS_ID, STUDENT_ID))).thenReturn(true);
+        when(classStudentRepository.reopenEnrollment(CLASS_ID, STUDENT_ID)).thenReturn(1);
+        stubClass(TEACHER_ID);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(userRepository.findById(TEACHER_ID)).thenReturn(Optional.of(User.builder().id(TEACHER_ID).displayName("Cô Lan").build()));
+
+        assertThat(service.enrollAndNotify(CLASS_ID, STUDENT_ID, TEACHER_ID)).isTrue();
+
+        verify(outboxRepository).save(any(NotificationOutbox.class));
     }
 }

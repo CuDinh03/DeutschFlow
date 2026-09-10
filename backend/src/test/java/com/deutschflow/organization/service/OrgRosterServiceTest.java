@@ -323,14 +323,15 @@ class OrgRosterServiceTest {
         when(userRepository.findByEmailIgnoreCase("charlie@school.edu")).thenReturn(Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
         when(userRepository.save(any(User.class))).thenReturn(created);
-        when(classEnrollmentService.enroll(CLASS_ID, 7L)).thenReturn(true);
+        when(classEnrollmentService.enrollAndNotify(CLASS_ID, 7L, ACTOR.id())).thenReturn(true);
 
         String csv = "charlie@school.edu,Charlie";
         RosterImportResultDto result = service.importStudents(ORG_ID, csv, CLASS_ID, ACTOR);
 
         assertThat(result.enrolled()).isEqualTo(1);
 
-        verify(classEnrollmentService).enroll(CLASS_ID, 7L);
+        // DEC-18: đường CSV đi qua enrollAndNotify — học viên nhận ADDED_TO_CLASS (qua outbox) đúng khi thật sự vào lớp.
+        verify(classEnrollmentService).enrollAndNotify(CLASS_ID, 7L, ACTOR.id());
         verify(assignmentBackfillService).ensureAssignmentsForStudent(CLASS_ID, 7L);
     }
 
@@ -344,7 +345,7 @@ class OrgRosterServiceTest {
         when(userRepository.findByEmailIgnoreCase("diana@school.edu")).thenReturn(Optional.of(existing));
         when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 8L))
                 .thenReturn(Optional.of(activeMember(8L, "STUDENT")));
-        when(classEnrollmentService.enroll(CLASS_ID, 8L)).thenReturn(false);
+        when(classEnrollmentService.enrollAndNotify(CLASS_ID, 8L, ACTOR.id())).thenReturn(false);
 
         String csv = "diana@school.edu,Diana";
         RosterImportResultDto result = service.importStudents(ORG_ID, csv, CLASS_ID, ACTOR);
