@@ -75,12 +75,6 @@ export interface UpdateOrgInput {
   validUntil?: string | null
 }
 
-/** POST /admin/organizations/{id}/members — attach an existing/new member. */
-export interface AddMemberInput {
-  email: string
-  role: OrgRole
-}
-
 /** POST /admin/organizations/{id}/invoices — draft a billing line. */
 export interface CreateInvoiceInput {
   periodStart?: string
@@ -119,18 +113,6 @@ export async function updateOrganization(
   body: UpdateOrgInput,
 ): Promise<AdminOrg> {
   const res = await api.patch<AdminOrg>(`/admin/organizations/${id}`, body)
-  return res.data
-}
-
-/** POST /admin/organizations/{id}/members — add a member by email + role. */
-export async function addMember(
-  id: number,
-  body: AddMemberInput,
-): Promise<AdminOrgMember> {
-  const res = await api.post<AdminOrgMember>(
-    `/admin/organizations/${id}/members`,
-    body,
-  )
   return res.data
 }
 
