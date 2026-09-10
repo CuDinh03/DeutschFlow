@@ -302,9 +302,9 @@
         "ownerName": "Owner name",
         "ownerNamePlaceholder": "Jane Doe",
         "ownerPassword": "Owner password",
-        "ownerPasswordPlaceholder": "≥ 6 characters",
+        "ownerPasswordPlaceholder": "≥ 8 characters",
         "errNameSlug": "Enter the organization name and slug.",
-        "errPassword": "Owner password must be at least 6 characters.",
+        "errPassword": "Owner password must be at least 8 characters.",
         "created": "Centre {name} created."
       }
     },
@@ -432,7 +432,7 @@
         "displayName": "Display name",
         "displayNamePlaceholder": "Jane Doe",
         "password": "Password",
-        "passwordPlaceholder": "≥ 6 characters",
+        "passwordPlaceholder": "≥ 8 characters",
         "passwordNote": "The user signs in with this password (changeable later).",
         "kindCap": "Account type",
         "kind": {
@@ -450,7 +450,7 @@
         "orgOptional": "(optional)",
         "orgChoose": "— Choose organization —",
         "orgNone": "— Not assigned —",
-        "errRequired": "Enter an email, a display name and a password of at least 6 characters.",
+        "errRequired": "Enter an email, a display name and a password of at least 8 characters.",
         "errOrgRequired": "A manager account must belong to an organization.",
         "created": "Account {email} created.",
         "confirmAdmin": {

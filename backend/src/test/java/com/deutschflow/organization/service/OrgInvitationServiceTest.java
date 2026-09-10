@@ -1,6 +1,7 @@
 package com.deutschflow.organization.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.security.PasswordPolicy;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.audit.AuditActor;
@@ -234,6 +235,57 @@ class OrgInvitationServiceTest {
         assertThat(invitation.getStatus()).isEqualTo("ACCEPTED");
         assertThat(invitation.getAcceptedAt()).isNotNull();
         verify(invitationRepository).save(invitation);
+    }
+
+    @Test
+    @DisplayName("PR-0D: accept tạo tài khoản MỚI với mật khẩu ngắn hơn sàn — chặn, KHÔNG tạo user, KHÔNG mint session")
+    void accept_newUser_shortPassword_rejectedBeforeAnyWrite() {
+        Instant future = Instant.now().plus(7, ChronoUnit.DAYS);
+        OrgInvitation invitation = pendingInvitation("weak@school.edu", future);
+
+        when(invitationRepository.findByTokenAndStatus(TOKEN, "PENDING"))
+                .thenReturn(Optional.of(invitation));
+        when(userRepository.findByEmailIgnoreCase("weak@school.edu")).thenReturn(Optional.empty());
+
+        // 🔴 Đây là cửa yếu nhất của hệ thống trước Gói 0 PR-0D: endpoint CÔNG KHAI, không cần đăng
+        // nhập, tạo thẳng một tài khoản TEACHER — nhân sự trung tâm, đọc được dữ liệu học viên — mà
+        // chỉ kiểm isBlank(), nên mật khẩu MỘT ký tự lọt qua. Lớp kiểm soát độc lập duy nhất là
+        // PublicApiRateLimitFilter, và nó fail-open khi Redis chết.
+        AcceptInviteRequest body = new AcceptInviteRequest("Weak Teacher", "a");
+
+        assertThatThrownBy(() -> service.accept(TOKEN, body))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage(PasswordPolicy.MESSAGE);
+
+        verify(userRepository, never()).save(any(User.class));
+        verify(membershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+        verify(authService, never()).issueSession(any(User.class));
+        assertThat(invitation.getStatus()).isEqualTo("PENDING");
+    }
+
+    @Test
+    @DisplayName("PR-0D: đúng sàn 8 ký tự vẫn tạo được — ranh giới, không chặn nhầm")
+    void accept_newUser_exactlyMinLengthPassword_stillCreates() {
+        Instant future = Instant.now().plus(7, ChronoUnit.DAYS);
+        OrgInvitation invitation = pendingInvitation("ok@school.edu", future);
+
+        when(invitationRepository.findByTokenAndStatus(TOKEN, "PENDING"))
+                .thenReturn(Optional.of(invitation));
+        when(userRepository.findByEmailIgnoreCase("ok@school.edu")).thenReturn(Optional.empty());
+        when(userRepository.existsByEmailIgnoreCase("ok@school.edu")).thenReturn(false);
+
+        String exactly = "12345678"; // = PasswordPolicy.MIN_LENGTH
+        User created = User.builder().id(201L).email("ok@school.edu").role(User.Role.TEACHER)
+                .displayName("Ok Teacher").passwordHash("enc").orgId(ORG_ID).build();
+        when(passwordEncoder.encode(exactly)).thenReturn("enc");
+        when(userRepository.save(any(User.class))).thenReturn(created);
+        when(userRepository.findById(201L)).thenReturn(Optional.of(created));
+        when(authService.issueSession(any(User.class))).thenReturn(dummyAuthResponse(201L));
+
+        service.accept(TOKEN, new AcceptInviteRequest("Ok Teacher", exactly));
+
+        verify(membershipService).upsertMember(eq(ORG_ID), eq(201L), eq("TEACHER"));
+        assertThat(invitation.getStatus()).isEqualTo("ACCEPTED");
     }
 
     // ------------------------------------------------------------------ accept happy path: existing user

@@ -1,5 +1,6 @@
 package com.deutschflow.user.controller;
 
+import com.deutschflow.common.security.PasswordPolicy;
 import com.deutschflow.user.dto.AuthResponse;
 import com.deutschflow.user.dto.LoginRequest;
 import com.deutschflow.user.dto.RefreshRequest;
@@ -197,9 +198,7 @@ public class AuthController {
                     "Too many password reset attempts. Please try again later.",
                     authRateLimiterService.passwordResetRetryAfterSeconds());
         }
-        if (req.newPassword().length() < 8) {
-            throw new BadRequestException("Mật khẩu mới phải có ít nhất 8 ký tự.");
-        }
+        PasswordPolicy.requireStrongEnough(req.newPassword());
         passwordResetService.resetPassword(req.email(), req.code(), req.newPassword());
     }
 

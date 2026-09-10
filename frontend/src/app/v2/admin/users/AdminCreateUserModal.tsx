@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { listOrganizations, type AdminOrg } from '@/lib/adminOrgApi'
 import { TkModal, GaBtn, GaCap, ErrorBanner, ConfirmDialog } from '@/components/ui-v2'
+import { PASSWORD_MIN } from '@/lib/passwordPolicy';
 
 /**
  * Admin "Thêm người dùng" — chỉ ADMIN tạo được, và tạo được MỌI vai trò (quy tắc 2026-06-22):
@@ -57,7 +58,7 @@ export function AdminCreateUserModal({ onClose, onCreated }: { onClose: () => vo
   /** Kiểm tra dữ liệu nhập; trả về true nếu hợp lệ. Tách ra để chạy TRƯỚC hộp xác nhận. */
   const validate = (): boolean => {
     setError('')
-    if (!email.trim() || !displayName.trim() || password.length < 6) {
+    if (!email.trim() || !displayName.trim() || password.length < PASSWORD_MIN) {
       setError(t('errRequired'))
       return false
     }

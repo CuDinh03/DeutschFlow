@@ -3,6 +3,7 @@ package com.deutschflow.user.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import com.deutschflow.common.security.PasswordPolicy;
 import jakarta.validation.constraints.Size;
 
 public record RegisterRequest(
@@ -19,7 +20,8 @@ public record RegisterRequest(
         String phoneNumber,
 
         @NotBlank(message = "Vui lòng nhập mật khẩu.")
-        @Size(min = 6, max = 100, message = "Mật khẩu phải từ 6 đến 100 ký tự.")
+        @Size(min = PasswordPolicy.MIN_LENGTH, max = PasswordPolicy.MAX_LENGTH,
+               message = "Mật khẩu phải từ 8 đến 100 ký tự.")
         String password,
 
         @NotBlank(message = "Vui lòng nhập tên hiển thị.")

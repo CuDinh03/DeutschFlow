@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { createOrganization, type CreateOrgInput } from '@/lib/adminOrgApi'
 import { TkModal, GaBtn, GaCap, ErrorBanner } from '@/components/ui-v2'
+import { PASSWORD_MIN } from '@/lib/passwordPolicy';
 
 /**
  * Tạo trung tâm + Owner (B2B model §2.1 — admin pre-create OWNER).
@@ -34,7 +35,7 @@ export function CreateOrgModal({ onClose, onCreated }: { onClose: () => void; on
       setError(t('errNameSlug'))
       return
     }
-    if (ownerEmail.trim() && ownerPassword && ownerPassword.length < 6) {
+    if (ownerEmail.trim() && ownerPassword && ownerPassword.length < PASSWORD_MIN) {
       setError(t('errPassword'))
       return
     }

@@ -6,6 +6,7 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.PrivilegedActionBlockedException;
+import com.deutschflow.common.security.PasswordPolicy;
 import com.deutschflow.organization.dto.AddMemberRequest;
 import com.deutschflow.organization.dto.CreateOrgRequest;
 import com.deutschflow.organization.dto.OrgDetailDto;
@@ -480,8 +481,9 @@ public class AdminOrgService {
             orgMembershipService.upsertMember(orgId, existing.get().getId(), ROLE_OWNER);
             return;
         }
-        if (ownerPassword != null && !ownerPassword.isBlank() && ownerPassword.length() < 6) {
-            throw new BadRequestException("Mật khẩu chủ sở hữu tối thiểu 6 ký tự.");
+        // Để trống = hệ thống sinh ngẫu nhiên (UUID, thừa dài); có nhập thì chịu chung sàn.
+        if (ownerPassword != null && !ownerPassword.isBlank()) {
+            PasswordPolicy.requireStrongEnough(ownerPassword);
         }
         String rawPw = (ownerPassword != null && !ownerPassword.isBlank())
                 ? ownerPassword : UUID.randomUUID().toString();
