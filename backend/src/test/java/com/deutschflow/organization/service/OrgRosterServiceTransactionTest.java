@@ -138,6 +138,10 @@ class OrgRosterServiceTransactionTest {
         ctx.registerBean(PasswordEncoder.class, () -> passwordEncoder);
         ctx.registerBean(OrgEntitlementService.class, () -> entitlementService);
         ctx.registerBean(OrgMemberRepository.class, () -> orgMemberRepository);
+        // Gói 2 (10/09/2026): OrgMembershipService thu hồi refresh token khi gỡ/rời/đổi vai — context
+        // tối giản phải có bean này dù đường import CSV không bao giờ gọi tới nó.
+        ctx.registerBean(com.deutschflow.user.repository.RefreshTokenRepository.class,
+                () -> mock(com.deutschflow.user.repository.RefreshTokenRepository.class));
         // PR-2: OrgMembershipService.deactivate nay thu hồi phân công duyệt học vụ (security H1)
         // — context tối giản cần bean này; mock vì bài test đo ranh giới transaction, không đo revoke.
         ctx.registerBean(OrgAcademicApproverRepository.class, () -> academicApproverRepository);
