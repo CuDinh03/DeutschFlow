@@ -202,6 +202,9 @@ const ORG_ITEM = {
   students: { id: 'org-students', label: 'Học viên', href: '/v2/org/students', icon: 'school' },
   classes: { id: 'org-classes', label: 'Lớp học', href: '/v2/org/classes', icon: 'groups' },
   curricula: { id: 'org-curricula', label: 'Giáo trình', href: '/v2/org/curricula', icon: 'menu_book' },
+  // DEC-20 (09/09/2026): sổ chứng nhận toàn trung tâm — OWNER/MANAGER xem, chỉ OWNER thu hồi (nút
+  // ẩn với MANAGER ngay trong trang; backend gác assertOrgOwner). KHÔNG ownerOnly: MANAGER cần xem.
+  certificates: { id: 'org-certificates', label: 'Chứng nhận', href: '/v2/org/certificates', icon: 'workspace_premium' },
   schedule: { id: 'org-schedule', label: 'Lịch trung tâm', href: '/v2/org/schedule', icon: 'schedule' },
   teachers: { id: 'org-teachers', label: 'Giáo viên', href: '/v2/org/teachers', icon: 'badge' },
   analytics: { id: 'org-analytics', label: 'Phân tích', href: '/v2/org/analytics', icon: 'monitoring' },
@@ -224,7 +227,7 @@ const ORG_ITEM = {
 /**
  * orgNav — giám đốc trung tâm (org OWNER).
  *
- * Một nhóm chính (tổng quan, học viên, lớp, lịch trung tâm, giáo viên, phân tích,
+ * Một nhóm chính (tổng quan, học viên, lớp, chứng nhận, giáo trình, lịch trung tâm, giáo viên, phân tích,
  * gói & thanh toán, lời mời, chấm công, phân quyền, cài đặt trung tâm, sổ hoạt động) + nhóm "Tài khoản".
  *
  * Phân quyền: item gắn `ownerOnly: true` (gói & thanh toán, cài đặt trung tâm, sổ hoạt động) CHỈ OWNER thấy. Sidebar vẫn
@@ -239,6 +242,7 @@ export const orgNav: RoleNav = {
         ORG_ITEM.overview,
         ORG_ITEM.students,
         ORG_ITEM.classes,
+        ORG_ITEM.certificates,
         ORG_ITEM.curricula,
         ORG_ITEM.schedule,
         ORG_ITEM.teachers,
@@ -278,7 +282,7 @@ export const managerNav: RoleNav = {
     {
       label: 'Vận hành',
       labelKey: 'ops',
-      items: [ORG_ITEM.overview, ORG_ITEM.schedule, ORG_ITEM.classes, ORG_ITEM.curricula, ORG_ITEM.students],
+      items: [ORG_ITEM.overview, ORG_ITEM.schedule, ORG_ITEM.classes, ORG_ITEM.certificates, ORG_ITEM.curricula, ORG_ITEM.students],
     },
     {
       label: 'Nhân sự',
