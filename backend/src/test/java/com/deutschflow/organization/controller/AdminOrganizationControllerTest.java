@@ -1,8 +1,10 @@
 package com.deutschflow.organization.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.organization.dto.CreateOrgRequest;
 import com.deutschflow.organization.dto.OrgDto;
+import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.service.AdminOrgService;
 import com.deutschflow.unittest.support.MockMvcWithValidation;
 import com.deutschflow.user.entity.User;
@@ -17,7 +19,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
+
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -119,5 +126,49 @@ class AdminOrganizationControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.seatLimit").value(100))
                 .andExpect(jsonPath("$.planCode").value("PRO"));
+    }
+
+    // ------------------------------------------------------------------ POST /api/admin/organizations/{id}/force-owner
+
+    /**
+     * Cổng validation (@Valid) là lớp chặn ĐẦU TIÊN của lý do bắt buộc: một body thiếu lý do phải
+     * chết ở đây với 400, trước khi service kịp làm gì. Dùng JSON thô để mô phỏng đúng thứ client
+     * gửi, không đi qua record (record không dựng được giá trị null cho @NotNull một cách "tự nhiên").
+     */
+    @Test
+    @DisplayName("POST /{id}/force-owner — lý do trống / quá ngắn / thiếu người nhận: 400, KHÔNG gọi service")
+    void forceOwner_invalidBody_returns400_neverCallsService() throws Exception {
+        String[] badBodies = {
+                "{\"newOwnerUserId\": 7, \"reason\": \"\"}",
+                "{\"newOwnerUserId\": 7, \"reason\": \"   \"}",
+                "{\"newOwnerUserId\": 7, \"reason\": \"ngắn quá\"}",
+                "{\"newOwnerUserId\": 7}",
+                "{\"reason\": \"Giám đốc cũ nghỉ việc, không bàn giao\"}",
+        };
+        for (String body : badBodies) {
+            mvc.perform(post("/api/admin/organizations/5/force-owner")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isBadRequest());
+        }
+        verify(adminOrgService, never()).forceOwner(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("POST /{id}/force-owner — body hợp lệ: 200, service nhận đúng orgId / người nhận / lý do, actor là admin gọi")
+    void forceOwner_validBody_returns200AndPassesArguments() throws Exception {
+        String reason = "Giám đốc cũ nghỉ việc, không bàn giao tài khoản.";
+        when(adminOrgService.forceOwner(any(), eq(5L), eq(7L), eq(reason)))
+                .thenReturn(new OrgMemberDto(7L, "gv@tt.vn", "GV", "OWNER", "ACTIVE", Instant.now()));
+
+        mvc.perform(post("/api/admin/organizations/5/force-owner")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newOwnerUserId\": 7, \"reason\": \"" + reason + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(7))
+                .andExpect(jsonPath("$.role").value("OWNER"));
+
+        verify(adminOrgService).forceOwner(
+                eq(new AuditActor(adminUser.getId(), adminUser.getEmail(), "ADMIN")), eq(5L), eq(7L), eq(reason));
     }
 }
