@@ -166,7 +166,7 @@
       "importCsv": "Nhập CSV",
       "importModal": {
         "title": "Nhập danh sách học viên",
-        "description": "Tệp CSV có ít nhất 3 cột email, displayName, phone (dòng đầu là tiêu đề). Có thể khai thêm birthDate (YYYY-MM-DD), guardianName, guardianRelationship, guardianPhone, guardianEmail và consentConfirmed (x = đã có phiếu đồng ý giấy) — các cột này TÙY CHỌN, tệp cũ vẫn nhập được như trước. Email đã có sẽ được liên kết vào trung tâm, email mới sẽ được tạo tài khoản.",
+        "description": "Tệp CSV có ít nhất 3 cột email, displayName, phone (dòng đầu là tiêu đề). Có thể khai thêm birthDate (YYYY-MM-DD), guardianName, guardianRelationship, guardianPhone, guardianEmail và consentConfirmed (x = đã có phiếu đồng ý giấy, mục C1) và reportSharingConfirmed (x = mục C2: người giám hộ đồng ý nhận phiếu đánh giá) — các cột này TÙY CHỌN, tệp cũ vẫn nhập được như trước. Email đã có sẽ được liên kết vào trung tâm, email mới sẽ được tạo tài khoản.",
         "template": "Tải file mẫu",
         "fileLabel": "Chọn file CSV",
         "emptyFile": "File không có dòng dữ liệu nào.",
@@ -180,6 +180,7 @@
         "colBirthDate": "Ngày sinh",
         "colGuardian": "Người giám hộ",
         "colConsent": "Đồng ý",
+        "colReportSharing": "Chia sẻ phiếu",
         "invalidEmails": "{count} dòng có email không hợp lệ — máy chủ sẽ báo lỗi từng dòng đó, các dòng khác vẫn được nhập.",
         "invalidBirthDates": "{count} dòng có ngày sinh sai định dạng — cần YYYY-MM-DD, ví dụ 2011-09-15.",
         "noBirthDateColumn": "Tệp không có cột birthDate. Vẫn nhập được, nhưng những học viên này sẽ nằm trong nhóm chưa khai ngày sinh cho tới khi được bổ sung.",
@@ -189,6 +190,7 @@
         "idempotentNote": "Nhập lại cùng file không tạo trùng: email đã có chỉ được liên kết, không tạo tài khoản mới.",
         "minorNote": "Thiếu ngày sinh không chặn nhập. Nhưng học viên chưa đủ tuổi mà thiếu người giám hộ sẽ bị máy chủ báo lỗi ở đúng dòng đó — ô quan hệ nhận MOTHER, FATHER, LEGAL_GUARDIAN, OTHER hoặc mẹ, cha/bố, người giám hộ, khác.",
         "consentNote": "Cột consentConfirmed (x/có/yes/1 = đã cầm phiếu đồng ý giấy của người giám hộ cho việc ghi âm) ghi một dòng đồng ý và mở phần luyện nói; để trống hoặc \"không\" = chưa ghi nhận, học viên vẫn vào nhưng phần nói còn khoá. Nhập lại cùng tệp không ghi trùng. Học viên đang thuộc trung tâm khác sẽ bị báo lỗi kèm tên trung tâm đó.",
+        "reportSharingNote": "Cột reportSharingConfirmed (x/có/yes/1 = phiếu giấy có đánh mục C2: người giám hộ đồng ý nhận phiếu đánh giá) ghi một dòng đồng ý chia sẻ phiếu — độc lập với cột consentConfirmed và không mở phần nói. Thiếu dòng này thì phiếu đánh giá của học viên chưa thành niên không gửi được cho gia đình. Bí danh cột: \"Đồng ý chia sẻ phiếu\".",
         "planNote": "Học viên đang có gói cá nhân sẽ dùng gói trung tâm trong thời gian là thành viên. Gói cá nhân đã trả tiền được TẠM DỪNG và giữ nguyên phần thời hạn còn lại — rời trung tâm là nhận lại đầy đủ, thời gian ở đây không bị tính vào gói đó.",
         "cancel": "Hủy",
         "submit": "Nhập {count} dòng",
@@ -272,7 +274,15 @@
           "DATA_PROCESSING": "Xử lý dữ liệu",
           "AI_PROCESSING": "Xử lý bằng AI",
           "AUDIO_RECORDING": "Ghi âm giọng nói",
-          "MESSAGING": "Nhắn tin riêng"
+          "MESSAGING": "Nhắn tin riêng",
+          "GUARDIAN_REPORT_SHARING": "Chia sẻ phiếu đánh giá với người giám hộ"
+        },
+        "scopeHint": {
+          "DATA_PROCESSING": "Xử lý dữ liệu học tập của học viên theo chính sách bảo mật.",
+          "AI_PROCESSING": "Gửi bài viết/bài nói của học viên cho nhà cung cấp AI để chấm và phản hồi.",
+          "AUDIO_RECORDING": "Ghi âm giọng nói khi luyện nói — thiếu đồng ý này thì phần nói bị khoá.",
+          "MESSAGING": "Nhắn tin riêng giữa học viên và giáo viên/trung tâm.",
+          "GUARDIAN_REPORT_SHARING": "Trung tâm gửi phiếu đánh giá định kỳ của học viên cho người giám hộ (mục C2 của phiếu giấy). Cần có trước khi phát hành phiếu cho học viên chưa thành niên."
         },
         "action": {
           "GRANTED": "Đồng ý",
@@ -303,6 +313,7 @@
           "primaryLabel": "Là người liên lạc chính",
           "contactHint": "Cần ít nhất số điện thoại hoặc email. Mỗi học viên chỉ có một người liên lạc chính — chọn ở đây sẽ hạ người chính hiện tại.",
           "invalid": "Cần họ tên và ít nhất một cách liên lạc (số điện thoại hoặc email hợp lệ).",
+          "emailIsStudent": "Email người giám hộ trùng email của học viên — hãy nhập địa chỉ riêng của cha mẹ/người giám hộ (đây là nơi nhận phiếu đánh giá).",
           "cancel": "Hủy",
           "submit": "Lưu",
           "saved": "Đã lưu người giám hộ {name}"
@@ -326,9 +337,11 @@
           "confirmGrantTitle": "Ghi nhận đồng ý?",
           "confirmGrantDesc": "Ghi một dòng ĐỒNG Ý cho phạm vi \"{scope}\".",
           "confirmGrantDetailOpen": "Với phạm vi ghi âm: phần luyện nói của học viên mở lại ngay lập tức.",
+          "confirmGrantDetailReportSharing": "Với phạm vi chia sẻ phiếu: trung tâm được gửi phiếu đánh giá của học viên cho người giám hộ.",
           "confirmRevokeTitle": "Thu hồi đồng ý?",
           "confirmRevokeDesc": "Ghi một dòng THU HỒI cho phạm vi \"{scope}\".",
           "confirmRevokeDetailLock": "Với phạm vi ghi âm: phần luyện nói của học viên bị khoá lại NGAY. Hệ thống sẽ không tự hỏi lại — cấp lại phải do người giám hộ chủ động.",
+          "confirmRevokeDetailReportSharing": "Với phạm vi chia sẻ phiếu: kể từ dòng này trung tâm KHÔNG còn được gửi phiếu đánh giá cho người giám hộ.",
           "confirmDetailAppendOnly": "Sổ chỉ ghi thêm: dòng này không sửa, không xoá được sau khi ghi.",
           "saved": "Đã ghi nhận đồng ý",
           "revoked": "Đã ghi thu hồi đồng ý"

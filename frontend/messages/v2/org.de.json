@@ -166,7 +166,7 @@
       "importCsv": "CSV importieren",
       "importModal": {
         "title": "Schülerliste importieren",
-        "description": "CSV mit mindestens 3 Spalten email, displayName, phone (erste Zeile ist die Kopfzeile). Zusätzlich möglich: birthDate (JJJJ-MM-TT), guardianName, guardianRelationship, guardianPhone, guardianEmail und consentConfirmed (x = Einwilligungsformular in Papierform liegt vor) — diese Spalten sind OPTIONAL, ältere Dateien werden weiterhin wie bisher importiert. Vorhandene E-Mails werden dem Zentrum zugeordnet, neue erhalten ein Konto.",
+        "description": "CSV mit mindestens 3 Spalten email, displayName, phone (erste Zeile ist die Kopfzeile). Zusätzlich möglich: birthDate (JJJJ-MM-TT), guardianName, guardianRelationship, guardianPhone, guardianEmail und consentConfirmed (x = Einwilligungsformular in Papierform liegt vor, Abschnitt C1) und reportSharingConfirmed (x = Abschnitt C2 liegt vor: Erziehungsberechtigte stimmen dem Erhalt von Bewertungsbögen zu) — diese Spalten sind OPTIONAL, ältere Dateien werden weiterhin wie bisher importiert. Vorhandene E-Mails werden dem Zentrum zugeordnet, neue erhalten ein Konto.",
         "template": "Vorlage herunterladen",
         "fileLabel": "CSV-Datei wählen",
         "emptyFile": "Die Datei enthält keine Datenzeilen.",
@@ -180,6 +180,7 @@
         "colBirthDate": "Geburtsdatum",
         "colGuardian": "Erziehungsberechtigte",
         "colConsent": "Einwilligung",
+        "colReportSharing": "Bogen-Weitergabe",
         "invalidEmails": "{count} Zeilen haben eine ungültige E-Mail — der Server meldet diese Zeilen; die übrigen werden importiert.",
         "invalidBirthDates": "{count} Zeilen haben ein falsch formatiertes Geburtsdatum — JJJJ-MM-TT verwenden, z. B. 2011-09-15.",
         "noBirthDateColumn": "Die Datei hat keine Spalte birthDate. Der Import läuft trotzdem, diese Schüler bleiben aber ohne angegebenes Geburtsdatum, bis es nachgetragen wird.",
@@ -189,6 +190,7 @@
         "idempotentNote": "Erneuter Import derselben Datei erzeugt keine Duplikate: vorhandene E-Mails werden nur zugeordnet.",
         "minorNote": "Ein fehlendes Geburtsdatum blockiert den Import nicht. Minderjährige ohne Erziehungsberechtigte werden vom Server jedoch genau in dieser Zeile abgelehnt — das Feld Beziehung akzeptiert MOTHER, FATHER, LEGAL_GUARDIAN, OTHER oder die vietnamesischen Wörter mẹ, cha/bố, người giám hộ, khác.",
         "consentNote": "Die Spalte consentConfirmed (x/ja/1 = das Papierformular der Erziehungsberechtigten zur Sprachaufnahme liegt vor) erfasst einen Einwilligungseintrag und öffnet das Sprechtraining; leer oder \"nein\" = nichts erfasst, der Schüler wird aufgenommen, das Sprechen bleibt aber gesperrt. Ein erneuter Import erzeugt keine Duplikate. Ein Schüler, der in einem anderen Zentrum aktiv ist, wird in dieser Zeile mit Nennung des Zentrums abgelehnt.",
+        "reportSharingNote": "Die Spalte reportSharingConfirmed (x/ja/1 = im Papierformular ist Abschnitt C2 angekreuzt: Erziehungsberechtigte stimmen dem Erhalt von Bewertungsbögen zu) erfasst einen Einwilligungseintrag zur Bogen-Weitergabe — unabhängig von consentConfirmed, öffnet das Sprechen nicht. Ohne ihn kann der Bewertungsbogen eines Minderjährigen nicht an die Familie gesendet werden.",
         "planNote": "Schüler mit persönlichem Tarif nutzen während der Mitgliedschaft den Zentrumstarif. Ein bezahlter persönlicher Tarif wird PAUSIERT und behält seine Restlaufzeit — beim Austritt kommt er vollständig zurück, die Zeit im Zentrum wird nicht angerechnet.",
         "cancel": "Abbrechen",
         "submit": "{count} Zeilen importieren",
@@ -272,7 +274,15 @@
           "DATA_PROCESSING": "Datenverarbeitung",
           "AI_PROCESSING": "KI-Verarbeitung",
           "AUDIO_RECORDING": "Sprachaufnahme",
-          "MESSAGING": "Private Nachrichten"
+          "MESSAGING": "Private Nachrichten",
+          "GUARDIAN_REPORT_SHARING": "Weitergabe von Bewertungsbögen an Erziehungsberechtigte"
+        },
+        "scopeHint": {
+          "DATA_PROCESSING": "Verarbeitung der Lerndaten des Schülers gemäß Datenschutzerklärung.",
+          "AI_PROCESSING": "Übermittlung der schriftlichen und mündlichen Arbeiten des Schülers an den KI-Anbieter zur Bewertung und Rückmeldung.",
+          "AUDIO_RECORDING": "Aufnahme der Stimme des Schülers beim Sprechtraining — ohne diese Einwilligung bleibt das Sprechen gesperrt.",
+          "MESSAGING": "Private Nachrichten zwischen Schüler und Lehrkräften/Zentrum.",
+          "GUARDIAN_REPORT_SHARING": "Das Zentrum sendet den periodischen Bewertungsbogen des Schülers an die Erziehungsberechtigten (Abschnitt C2 des Papierformulars). Erforderlich, bevor ein Bogen für Minderjährige ausgestellt werden kann."
         },
         "action": {
           "GRANTED": "Erteilt",
@@ -303,6 +313,7 @@
           "primaryLabel": "Hauptkontakt",
           "contactHint": "Mindestens Telefonnummer oder E-Mail erforderlich. Jeder Schüler hat genau einen Hauptkontakt — die Auswahl hier stuft den bisherigen zurück.",
           "invalid": "Name und mindestens ein Kontaktweg (Telefon oder gültige E-Mail) sind erforderlich.",
+          "emailIsStudent": "Die E-Mail der Erziehungsberechtigten ist identisch mit der des Schülers — bitte die eigene Adresse der Eltern/Erziehungsberechtigten eingeben (dorthin gehen die Bewertungsbögen).",
           "cancel": "Abbrechen",
           "submit": "Speichern",
           "saved": "Erziehungsberechtigte(r) {name} gespeichert"
@@ -326,9 +337,11 @@
           "confirmGrantTitle": "Einwilligung erfassen?",
           "confirmGrantDesc": "Fügt einen Eintrag ERTEILT für den Umfang \"{scope}\" hinzu.",
           "confirmGrantDetailOpen": "Bei Sprachaufnahme: Das Sprechtraining des Schülers wird sofort geöffnet.",
+          "confirmGrantDetailReportSharing": "Bei Bogen-Weitergabe: Das Zentrum darf die Bewertungsbögen des Schülers an die Erziehungsberechtigten senden.",
           "confirmRevokeTitle": "Einwilligung widerrufen?",
           "confirmRevokeDesc": "Fügt einen Eintrag WIDERRUFEN für den Umfang \"{scope}\" hinzu.",
           "confirmRevokeDetailLock": "Bei Sprachaufnahme: Das Sprechtraining des Schülers wird SOFORT gesperrt. Das System fragt nicht erneut — eine neue Erteilung muss von den Erziehungsberechtigten ausgehen.",
+          "confirmRevokeDetailReportSharing": "Bei Bogen-Weitergabe: Ab diesem Eintrag darf das Zentrum keine Bewertungsbögen mehr an die Erziehungsberechtigten senden.",
           "confirmDetailAppendOnly": "Nur-Anhängen-Register: Dieser Eintrag kann nach dem Schreiben weder bearbeitet noch gelöscht werden.",
           "saved": "Einwilligung erfasst",
           "revoked": "Widerruf der Einwilligung erfasst"

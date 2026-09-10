@@ -204,6 +204,7 @@ export function GuardianConsentSection({ detail, onChanged }: { detail: OrgStude
       {guardianModal.open && (
         <GuardianModal
           studentId={detail.userId}
+          studentEmail={detail.email}
           existing={guardianModal.existing}
           hasGuardians={guardians.length > 0}
           onClose={() => setGuardianModal({ open: false, existing: null })}

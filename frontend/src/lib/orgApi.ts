@@ -135,7 +135,8 @@ export interface OrgStudentDetail {
 // ── Người giám hộ & sổ đồng ý (D1/R11, 10/09/2026) — /org/students/{userId}/guardians|consents ──
 
 export type GuardianRelationship = 'MOTHER' | 'FATHER' | 'LEGAL_GUARDIAN' | 'OTHER'
-export type ConsentScope = 'DATA_PROCESSING' | 'AI_PROCESSING' | 'AUDIO_RECORDING' | 'MESSAGING'
+/** Năm phạm vi của `chk_student_consents_scope` (V323). `GUARDIAN_REPORT_SHARING` (R6) = trung tâm gửi phiếu đánh giá cho người giám hộ. */
+export type ConsentScope = 'DATA_PROCESSING' | 'AI_PROCESSING' | 'AUDIO_RECORDING' | 'MESSAGING' | 'GUARDIAN_REPORT_SHARING'
 export type ConsentAction = 'GRANTED' | 'REVOKED'
 export type ConsentMethod = 'PAPER' | 'EMAIL' | 'IN_APP' | 'PHONE'
 

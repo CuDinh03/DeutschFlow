@@ -45,15 +45,18 @@ export function downloadTextFile(filename: string, content: string, mime = 'text
   setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-// ─── Nhập roster CSV (PR-A5 07/09/2026; cột vị thành niên Gói 1 09/09/2026; D1/R11 10/09/2026) ───
+// ─── Nhập roster CSV (PR-A5 07/09/2026; cột vị thành niên Gói 1 09/09/2026; D1/R11 10/09/2026; R6) ───
 // Backend `POST /org/students/import` nhận `email,displayName[,phone]` và — khi header khai thêm —
 // `birthDate` + các cột người giám hộ (`guardianName`, `guardianRelationship`, `guardianPhone`,
-// `guardianEmail`) + `consentConfirmed`; máy chủ trả lỗi TỪNG DÒNG. Phần dưới chỉ để XEM TRƯỚC phía
-// client (đếm dòng, báo email/ngày sai sớm) — không thay kiểm tra của máy chủ.
+// `guardianEmail`) + hai ô đồng ý `consentConfirmed` (ghi âm, mục C1 phiếu giấy) và
+// `reportSharingConfirmed` (chia sẻ phiếu đánh giá với người giám hộ, mục C2 — scope
+// `GUARDIAN_REPORT_SHARING`); máy chủ trả lỗi TỪNG DÒNG. Phần dưới chỉ để XEM TRƯỚC phía client (đếm
+// dòng, báo email/ngày sai sớm) — không thay kiểm tra của máy chủ.
 //
-// 🔑 Cột mới là TÙY CHỌN: tệp không khai `birthDate` lẫn `consentConfirmed` vẫn đọc y hệt trước, vì
-// tệp CSV các trung tâm đang dùng không được vỡ. Ghi danh KHÔNG phải cổng chặn — học viên thiếu ngày
-// sinh hay thiếu đồng ý vẫn vào được, cổng nằm ở đường dữ liệu đi ra nhà cung cấp AI (chỉ khoá phần nói).
+// 🔑 Cột mới là TÙY CHỌN: tệp không khai `birthDate`, `consentConfirmed` lẫn `reportSharingConfirmed`
+// vẫn đọc y hệt trước, vì tệp CSV các trung tâm đang dùng không được vỡ. Ghi danh KHÔNG phải cổng chặn
+// — học viên thiếu ngày sinh hay thiếu đồng ý vẫn vào được, cổng nằm ở đường dữ liệu đi ra nhà cung
+// cấp AI (chỉ khoá phần nói).
 
 export interface RosterRow {
   email: string
@@ -83,6 +86,11 @@ export interface RosterRow {
    * giải, chỉ hiện lại để người nhập soi trước khi tải lên.
    */
   consentConfirmed?: string
+  /**
+   * Ô "đã xác nhận đồng ý chia sẻ phiếu đánh giá" NGUYÊN VĂN (R6, mục C2 của phiếu giấy). Cùng bộ
+   * có/không với `consentConfirmed` ở máy chủ, nhưng ĐỘC LẬP: đánh C2 không suy ra C1 và ngược lại.
+   */
+  reportSharingConfirmed?: string
   /** Số dòng trong file gốc (1-based, tính cả header/dòng trống) — để người dùng dò lại trong Excel. */
   line: number
 }
@@ -98,6 +106,8 @@ export interface RosterParse {
   hasGuardian: boolean
   /** Header có khai cột `consentConfirmed` (hoặc bí danh) không — cột này cũng bật chế độ đọc theo tên. */
   hasConsent: boolean
+  /** Header có khai cột `reportSharingConfirmed` (hoặc bí danh) không — cũng bật chế độ đọc theo tên (R6). */
+  hasReportSharing: boolean
   /** Số dòng có ngày sinh SAI ĐỊNH DẠNG (không phải YYYY-MM-DD). Ô trống KHÔNG tính là sai. */
   invalidBirthDates: number
 }
@@ -245,8 +255,16 @@ const CONSENT_KEYS = [
   'consentconfirmed', 'consent', 'guardianconsent', 'consentgranted',
   'dongy', 'dadongy', 'xacnhandongy', 'daxacnhandongy', 'dongygiamho', 'phieudongy',
 ] as const
+/** Chép `RosterColumnLayout.REPORT_SHARING_CONFIRMED_ALIASES` — không bí danh nào trùng CONSENT_KEYS. */
+const REPORT_SHARING_KEYS = [
+  'reportsharingconfirmed', 'reportsharing', 'reportsharingconsent', 'guardianreportsharing',
+  'chiasephieu', 'dongychiasephieu', 'chiasephieudanhgia', 'dongychiasephieudanhgia',
+  'chiasephieuvoigiamho', 'guiphieuphuhuynh',
+] as const
 const GUARDIAN_KEYS = ['guardianname', 'guardianphone', 'guardianrelationship', ...GUARDIAN_EMAIL_KEYS] as const
-const KNOWN_KEYS = ['email', 'displayname', 'phone', BIRTH_DATE_KEY, ...GUARDIAN_KEYS, ...CONSENT_KEYS] as const
+const KNOWN_KEYS = [
+  'email', 'displayname', 'phone', BIRTH_DATE_KEY, ...GUARDIAN_KEYS, ...CONSENT_KEYS, ...REPORT_SHARING_KEYS,
+] as const
 
 /** Vị trí của bí danh ĐẦU TIÊN khớp trong header đã chuẩn hoá, -1 nếu không có — chép `indexOfAny` máy chủ. */
 function indexOfAny(headerCols: string[], aliases: readonly string[]): number {
@@ -262,10 +280,11 @@ function indexOfAny(headerCols: string[], aliases: readonly string[]): number {
  *
  * Hai chế độ đọc cột — theo quyết định của owner 09/09/2026 (cột mới TÙY CHỌN, tệp CSV trung tâm
  * đang dùng không được vỡ):
- * - Header CÓ `birthDate` hoặc `consentConfirmed` → đọc **theo tên cột**: thứ tự tuỳ ý, thiếu cột
- *   nào thì bỏ cột đó. `consentConfirmed` cũng bật chế độ này vì luồng "nhập roster hôm nay, vài
- *   tuần sau thu xong phiếu giấy rồi đánh dấu hàng loạt bằng tệp `email,consentConfirmed`" là luồng
- *   thật — rơi về chế độ cũ là cột đồng ý bị bỏ qua IM LẶNG (máy chủ cũng bật theo cột này).
+ * - Header CÓ `birthDate`, `consentConfirmed` hoặc `reportSharingConfirmed` → đọc **theo tên cột**:
+ *   thứ tự tuỳ ý, thiếu cột nào thì bỏ cột đó. Hai cột đồng ý cũng bật chế độ này vì luồng "nhập
+ *   roster hôm nay, vài tuần sau thu xong phiếu giấy rồi đánh dấu hàng loạt bằng tệp
+ *   `email,consentConfirmed` / `email,reportSharingConfirmed`" là luồng thật — rơi về chế độ cũ là
+ *   cột đồng ý bị bỏ qua IM LẶNG (máy chủ cũng bật theo các cột này).
  * - Còn lại (không header, hoặc header ba cột cũ) → đọc **theo vị trí** 0/1/2 y như trước.
  *
  * Vì sao không luôn đọc theo tên khi có header: tệp `email,phone,displayName` (đảo cột) hôm nay được
@@ -286,8 +305,10 @@ export function parseRosterCsv(text: string): RosterParse {
   const hasBirthDate = headerCols.includes(BIRTH_DATE_KEY)
   const consentAt = indexOfAny(headerCols, CONSENT_KEYS)
   const hasConsent = consentAt >= 0
+  const reportSharingAt = indexOfAny(headerCols, REPORT_SHARING_KEYS)
+  const hasReportSharing = reportSharingAt >= 0
   // Chế độ đọc theo tên — chép `RosterColumnLayout.readsMinorColumns` của máy chủ.
-  const minorMode = hasBirthDate || hasConsent
+  const minorMode = hasBirthDate || hasConsent || hasReportSharing
   // Cột giám hộ chỉ được đọc KHI tệp ở chế độ mới, vì backend `fromHeader` trả thẳng `legacy()`
   // khi thiếu cả `birthDate` lẫn `consentConfirmed` — lúc đó mọi vị trí giám hộ là -1. Bỏ điều kiện
   // này thì tệp có `guardianName` mà không có hai cột kia sẽ hiện cột giám hộ ở xem trước trong khi
@@ -351,27 +372,31 @@ export function parseRosterCsv(text: string): RosterParse {
     // Ô đồng ý giữ NGUYÊN VĂN — máy chủ mới là bên diễn giải có/không/từ chối (xem RosterRow).
     const consentConfirmed = cellAt(cols, consentAt)
     if (consentConfirmed !== undefined) row.consentConfirmed = consentConfirmed
+    const reportSharingConfirmed = cellAt(cols, reportSharingAt)
+    if (reportSharingConfirmed !== undefined) row.reportSharingConfirmed = reportSharingConfirmed
     rows.push(row)
   })
 
-  return { hasHeader, rows, invalidEmails, hasBirthDate, hasGuardian, hasConsent, invalidBirthDates }
+  return { hasHeader, rows, invalidEmails, hasBirthDate, hasGuardian, hasConsent, hasReportSharing, invalidBirthDates }
 }
 
 /**
  * File mẫu tải về (BOM cho Excel) — ba cột cũ ĐỨNG TRƯỚC, cột mới của Gói 1 nối vào sau, hai cột
- * của D1/R11 (`guardianEmail`, `consentConfirmed`) đứng cuối.
+ * của D1/R11 (`guardianEmail`, `consentConfirmed`) rồi cột R6 (`reportSharingConfirmed`) đứng cuối.
  *
  * Thứ tự đó không phải để cho đẹp: tệp mẫu tải hôm nay vẫn phải khớp quy trình cũ của trung tâm,
  * vốn quen thấy `email,displayName,phone` ở ba cột đầu. Dòng ví dụ thứ hai là ca thật đang cần: học
- * viên chưa thành niên nên có sẵn người giám hộ — thiếu thì máy chủ trả lỗi đúng dòng đó — và ô
+ * viên chưa thành niên nên có sẵn người giám hộ — thiếu thì máy chủ trả lỗi đúng dòng đó — ô
  * `consentConfirmed` = `x` là "trung tâm đã cầm phiếu giấy ký của người giám hộ" (ghi một dòng đồng ý
- * ghi âm, phương thức PAPER). Để trống = chưa ghi nhận gì, học viên vẫn vào nhưng phần nói còn khoá.
+ * ghi âm, phương thức PAPER), ô `reportSharingConfirmed` = `x` là mục C2 của cùng phiếu (đồng ý nhận
+ * phiếu đánh giá). Để trống = chưa ghi nhận gì, học viên vẫn vào nhưng phần nói còn khoá / phiếu
+ * đánh giá chưa gửi được về gia đình.
  */
 export function rosterTemplateCsv(): string {
   return '\uFEFF' + [
-    'email,displayName,phone,birthDate,guardianName,guardianRelationship,guardianPhone,guardianEmail,consentConfirmed',
-    'hocvien@example.com,Nguyễn Văn A,0912345678,1999-04-21,,,,,',
-    'hocvien2@example.com,"Trần, Bình",,2011-09-15,Trần Thị C,MOTHER,0987654321,tran.c@example.com,x',
+    'email,displayName,phone,birthDate,guardianName,guardianRelationship,guardianPhone,guardianEmail,consentConfirmed,reportSharingConfirmed',
+    'hocvien@example.com,Nguyễn Văn A,0912345678,1999-04-21,,,,,,',
+    'hocvien2@example.com,"Trần, Bình",,2011-09-15,Trần Thị C,MOTHER,0987654321,tran.c@example.com,x,x',
   ].join('\r\n') + '\r\n'
 }
 

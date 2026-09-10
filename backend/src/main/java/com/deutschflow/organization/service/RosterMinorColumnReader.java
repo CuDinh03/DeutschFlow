@@ -33,6 +33,16 @@ import java.util.regex.Pattern;
  * phạm vi ghi âm. Chỉ nhận một bộ giá trị đóng (có/không); một ô "maybe" hay "đang xin" bị từ chối
  * chứ không được đoán thành "không" — đoán sai theo hướng "có" là mở khoá giọng nói của một đứa trẻ
  * mà chưa ai đồng ý, đoán theo hướng "không" thì trung tâm tưởng đã ghi nhận mà thực ra chưa.
+ *
+ * <p><b>Cột {@code reportSharingConfirmed} (R6)</b> là mục C2 của cùng phiếu giấy: người giám hộ đồng
+ * ý cho trung tâm gửi phiếu đánh giá của học viên về gia đình (scope {@code GUARDIAN_REPORT_SHARING}).
+ * Cùng bộ giá trị có/không, cùng luật từ chối ô gõ lạ, và ĐỘC LẬP với ô C1: một phiếu có thể đánh C1
+ * mà bỏ C2 (hoặc ngược lại), nên hai ô không suy ra nhau.
+ *
+ * <p><b>{@code guardianEmail} không được trùng email học viên.</b> Email giám hộ là địa chỉ nhận phiếu
+ * đánh giá và là kênh liên lạc khi cần người lớn; điền email của chính em ấy là biến "đồng ý của
+ * người giám hộ" thành đồng ý của trẻ tự cấp cho mình. Từ chối ở đây cho câu có số dòng; đường API
+ * ({@code MinorLearnerService}) chặn cùng luật với mã {@code GUARDIAN_EMAIL_IS_STUDENT_EMAIL}.
  */
 @Component
 @RequiredArgsConstructor
@@ -71,8 +81,10 @@ public class RosterMinorColumnReader {
             "MOTHER, FATHER, LEGAL_GUARDIAN, OTHER (hoặc mẹ, cha/bố, người giám hộ, khác)";
 
     /**
-     * Giá trị "CÓ" của ô {@code consentConfirmed}, so khớp sau {@link RosterColumnLayout#normalize}
-     * (bỏ dấu, hạ chữ thường): {@code true/yes/y/1/x/có/đã thu/đã xác nhận/đồng ý…}.
+     * Giá trị "CÓ" của một ô có/không ({@code consentConfirmed}, {@code reportSharingConfirmed}), so
+     * khớp sau {@link RosterColumnLayout#normalize} (bỏ dấu, hạ chữ thường):
+     * {@code true/yes/y/1/x/có/đã thu/đã xác nhận/đồng ý…}. Hai cột dùng CHUNG một bộ: thư ký điền
+     * hai ô cạnh nhau trên cùng một tệp, hai bộ giá trị khác nhau là mời gõ sai.
      */
     private static final Set<String> CONSENT_YES = Set.of(
             "true", "yes", "y", "1", "x", "v", "ok", "co", "da", "dathu", "daco", "daxacnhan",
@@ -92,19 +104,24 @@ public class RosterMinorColumnReader {
      * email), hoặc dữ liệu đã sạch — trong đó {@code birthDate}/{@code guardian} vẫn có thể là
      * {@code null} vì ô để trống, và đó KHÔNG phải lỗi.
      *
-     * @param consentConfirmed trung tâm xác nhận ĐÃ CÓ phiếu đồng ý giấy của người giám hộ cho phạm
-     *                         vi ghi âm ({@code consentConfirmed} = có). {@code false} = ô trống,
-     *                         ô "không", hoặc tệp không có cột này — ba ca đó đều là "chưa ghi nhận
-     *                         gì", không phải "thu hồi"
+     * @param consentConfirmed       trung tâm xác nhận ĐÃ CÓ phiếu đồng ý giấy của người giám hộ cho
+     *                               phạm vi ghi âm ({@code consentConfirmed} = có). {@code false} = ô
+     *                               trống, ô "không", hoặc tệp không có cột này — ba ca đó đều là
+     *                               "chưa ghi nhận gì", không phải "thu hồi"
+     * @param reportSharingConfirmed trung tâm xác nhận đã có mục C2 của phiếu: người giám hộ đồng ý
+     *                               nhận phiếu đánh giá ({@code reportSharingConfirmed} = có). Cùng ba
+     *                               nghĩa của {@code false} như trên
      */
-    public record Result(LocalDate birthDate, GuardianDraft guardian, boolean consentConfirmed, String error) {
+    public record Result(LocalDate birthDate, GuardianDraft guardian, boolean consentConfirmed,
+                         boolean reportSharingConfirmed, String error) {
 
         static Result rejected(String error) {
-            return new Result(null, null, false, error);
+            return new Result(null, null, false, false, error);
         }
 
-        static Result of(LocalDate birthDate, GuardianDraft guardian, boolean consentConfirmed) {
-            return new Result(birthDate, guardian, consentConfirmed, null);
+        static Result of(LocalDate birthDate, GuardianDraft guardian,
+                         boolean consentConfirmed, boolean reportSharingConfirmed) {
+            return new Result(birthDate, guardian, consentConfirmed, reportSharingConfirmed, null);
         }
 
         public boolean rejected() {
@@ -113,7 +130,13 @@ public class RosterMinorColumnReader {
     }
 
     /** Dòng của tệp không khai cột ngày sinh lẫn cột đồng ý — không đọc gì, không từ chối gì. */
-    public static final Result NOTHING = Result.of(null, null, false);
+    public static final Result NOTHING = Result.of(null, null, false, false);
+
+    /** Một ô có/không đã đọc: {@code error != null} khi ô gõ lạ. Ô trống là {@link #NO}. */
+    private record YesNo(boolean value, String error) {
+        static final YesNo NO = new YesNo(false, null);
+        static final YesNo YES = new YesNo(true, null);
+    }
 
     /**
      * @param rowNum số dòng VẬT LÝ trong tệp (tính cả header) — người nhập dò theo số này trong Excel
@@ -143,19 +166,18 @@ public class RosterMinorColumnReader {
             }
         }
 
-        // Cột đồng ý đọc TRƯỚC cột giám hộ: một ô đồng ý gõ lạ phải bị từ chối kể cả khi dòng không
+        // Hai ô đồng ý đọc TRƯỚC cột giám hộ: một ô đồng ý gõ lạ phải bị từ chối kể cả khi dòng không
         // khai người giám hộ, và thông báo của nó không nên bị che bởi một lỗi giám hộ khác.
-        String rawConsent = value(cols, layout.consentConfirmed());
-        boolean consentConfirmed = false;
-        if (!rawConsent.isEmpty()) {
-            String folded = RosterColumnLayout.normalize(rawConsent);
-            if (CONSENT_YES.contains(folded)) {
-                consentConfirmed = true;
-            } else if (!CONSENT_NO.contains(folded)) {
-                return Result.rejected(where + "consentConfirmed \"" + rawConsent
-                        + "\" không hợp lệ — nhận " + ACCEPTED_CONSENT_VALUES + ".");
-            }
+        YesNo consent = readYesNo(cols, layout.consentConfirmed(), "consentConfirmed", where);
+        if (consent.error() != null) {
+            return Result.rejected(consent.error());
         }
+        YesNo reportSharing = readYesNo(cols, layout.reportSharingConfirmed(), "reportSharingConfirmed", where);
+        if (reportSharing.error() != null) {
+            return Result.rejected(reportSharing.error());
+        }
+        boolean consentConfirmed = consent.value();
+        boolean reportSharingConfirmed = reportSharing.value();
 
         String guardianName = value(cols, layout.guardianName());
         String guardianPhone = value(cols, layout.guardianPhone());
@@ -180,7 +202,7 @@ public class RosterMinorColumnReader {
                 return Result.rejected(where + "có guardianRelationship nhưng thiếu guardianName "
                         + "và guardianPhone/guardianEmail.");
             }
-            return Result.of(birthDate, null, consentConfirmed);
+            return Result.of(birthDate, null, consentConfirmed, reportSharingConfirmed);
         }
         if (guardianName.isEmpty()) {
             return Result.rejected(where + "có guardianPhone/guardianEmail nhưng thiếu guardianName.");
@@ -205,6 +227,13 @@ public class RosterMinorColumnReader {
             if (guardianEmail.length() > MAX_GUARDIAN_EMAIL) {
                 return Result.rejected(where + "email người giám hộ dài quá " + MAX_GUARDIAN_EMAIL + " ký tự.");
             }
+            // `email` đã hạ chữ thường ở OrgRosterService, guardianEmail hạ ở trên — vẫn so không
+            // phân biệt hoa thường cho chắc: chốt này không được phụ thuộc thứ tự chuẩn hoá của caller.
+            if (guardianEmail.equalsIgnoreCase(email)) {
+                return Result.rejected(where + "guardianEmail \"" + guardianEmail
+                        + "\" trùng email của học viên — người giám hộ phải dùng địa chỉ email riêng "
+                        + "(đây là nơi nhận phiếu đánh giá và liên lạc khi cần người lớn).");
+            }
         }
 
         StudentGuardian.Relationship relationship;
@@ -227,7 +256,29 @@ public class RosterMinorColumnReader {
                         guardianPhone.isEmpty() ? null : guardianPhone,
                         guardianEmail.isEmpty() ? null : guardianEmail,
                         true),
-                consentConfirmed);
+                consentConfirmed,
+                reportSharingConfirmed);
+    }
+
+    /**
+     * Đọc một ô có/không theo bộ giá trị đóng. {@code index < 0} (tệp không có cột) và ô trống đều
+     * là "không" — ba nghĩa của {@code false} ghi ở javadoc {@link Result}. Ô gõ lạ ⇒ thông báo mang
+     * TÊN CỘT để người nhập biết sửa ô nào khi hai cột đồng ý đứng cạnh nhau.
+     */
+    private static YesNo readYesNo(String[] cols, int index, String columnName, String where) {
+        String raw = value(cols, index);
+        if (raw.isEmpty()) {
+            return YesNo.NO;
+        }
+        String folded = RosterColumnLayout.normalize(raw);
+        if (CONSENT_YES.contains(folded)) {
+            return YesNo.YES;
+        }
+        if (CONSENT_NO.contains(folded)) {
+            return YesNo.NO;
+        }
+        return new YesNo(false, where + columnName + " \"" + raw + "\" không hợp lệ — nhận "
+                + ACCEPTED_CONSENT_VALUES + ".");
     }
 
     private static String value(String[] cols, int index) {

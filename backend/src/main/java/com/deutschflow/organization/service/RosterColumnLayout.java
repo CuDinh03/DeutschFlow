@@ -11,32 +11,38 @@ import java.util.Set;
  *
  * <p><b>Cột mới là TÙY CHỌN, và đó là điều kiện tiên quyết</b> (owner chốt 09/09/2026). Trung tâm
  * đang dùng tệp {@code email,displayName,phone}; một hợp đồng bốn cột bắt buộc sẽ làm mọi tệp đang
- * có hỏng ngay lần nhập kế tiếp. Nên: có cột {@code birthDate} (hoặc {@code consentConfirmed}, xem
- * dưới) trong tiêu đề thì đọc phần dữ liệu chưa thành niên; KHÔNG có thì {@link #legacy()} — hành
- * vi y hệt trước PR-1B, không một dòng nào đổi kết quả.
+ * có hỏng ngay lần nhập kế tiếp. Nên: có cột {@code birthDate} (hoặc {@code consentConfirmed} /
+ * {@code reportSharingConfirmed}, xem dưới) trong tiêu đề thì đọc phần dữ liệu chưa thành niên; KHÔNG
+ * có thì {@link #legacy()} — hành vi y hệt trước PR-1B, không một dòng nào đổi kết quả.
  *
  * <p><b>Vì sao dò theo TÊN chứ không chỉ đếm vị trí.</b> Vị trí thuần thì một tệp
  * {@code email,birthDate} (không có tên hiển thị) sẽ đọc ngày sinh vào ô tên và tạo tài khoản tên
  * "2010-05-01". Dò theo tên rồi mới lùi về vị trí mặc định — và chỉ lùi khi vị trí đó CHƯA bị một
- * cột có tên khác chiếm — thì cả hai kiểu tệp đều đọc đúng. Hai cột của đợt D1/R11
- * ({@code guardianEmail}, {@code consentConfirmed}) CHỈ dò theo tên, không có vị trí mặc định.
+ * cột có tên khác chiếm — thì cả hai kiểu tệp đều đọc đúng. Ba cột của đợt D1/R11/R6
+ * ({@code guardianEmail}, {@code consentConfirmed}, {@code reportSharingConfirmed}) CHỈ dò theo tên,
+ * không có vị trí mặc định.
  *
  * <p><b>Vì sao {@code consentConfirmed} cũng bật chế độ đọc theo tên.</b> Luồng thật của trung tâm:
  * nhập roster có ngày sinh hôm nay, vài tuần sau thu xong phiếu giấy và muốn đánh dấu hàng loạt bằng
  * một tệp {@code email,consentConfirmed}. Nếu chỉ {@code birthDate} mới bật chế độ mới thì tệp đó rơi
  * về {@link #legacy()} và cột đồng ý bị BỎ QUA IM LẶNG — trung tâm tin là đã ghi nhận, phần nói của
- * học viên vẫn khoá. Cột đồng ý có mặt là đủ để biết đây là tệp kiểu mới.
+ * học viên vẫn khoá. Cột đồng ý có mặt là đủ để biết đây là tệp kiểu mới. {@code reportSharingConfirmed}
+ * (R6, mục C2 của phiếu giấy) bật chế độ này vì cùng một lý do: một tệp {@code email,reportSharingConfirmed}
+ * đánh dấu hàng loạt sau khi thu phiếu mà bị bỏ qua im lặng thì phiếu đánh giá của học viên chưa
+ * thành niên không bao giờ gửi được cho gia đình, mà trung tâm lại tin là đã xong.
  *
  * <p>Tên cột so khớp sau khi bỏ dấu tiếng Việt, bỏ hết ký tự không phải chữ/số và hạ chữ thường, nên
  * {@code birthDate}, {@code birth_date}, {@code "Birth Date"} là một — và {@code "Đã xác nhận đồng
  * ý"} khớp bí danh {@code daxacnhandongy}. Bỏ dấu là để thư ký trung tâm đặt tên cột bằng tiếng
  * Việt được; nó chỉ làm NHIỀU tiêu đề khớp hơn, không làm tiêu đề nào đang khớp thôi khớp.
  *
- * @param email            vị trí cột email; luôn ≥ 0
- * @param displayName      vị trí cột tên hiển thị, {@code -1} nếu tệp không có
- * @param birthDate        vị trí cột ngày sinh, {@code -1} nếu tệp không có
- * @param guardianEmail    vị trí cột email người giám hộ (R11), {@code -1} nếu tệp không có
- * @param consentConfirmed vị trí cột "đã xác nhận đồng ý" (D1), {@code -1} nếu tệp không có
+ * @param email                  vị trí cột email; luôn ≥ 0
+ * @param displayName            vị trí cột tên hiển thị, {@code -1} nếu tệp không có
+ * @param birthDate              vị trí cột ngày sinh, {@code -1} nếu tệp không có
+ * @param guardianEmail          vị trí cột email người giám hộ (R11), {@code -1} nếu tệp không có
+ * @param consentConfirmed       vị trí cột "đã xác nhận đồng ý" ghi âm (D1), {@code -1} nếu tệp không có
+ * @param reportSharingConfirmed vị trí cột "đã xác nhận đồng ý chia sẻ phiếu đánh giá với người giám
+ *                               hộ" (R6, scope {@code GUARDIAN_REPORT_SHARING}), {@code -1} nếu tệp không có
  */
 public record RosterColumnLayout(
         int email,
@@ -46,7 +52,8 @@ public record RosterColumnLayout(
         int guardianPhone,
         int guardianRelationship,
         int guardianEmail,
-        int consentConfirmed
+        int consentConfirmed,
+        int reportSharingConfirmed
 ) {
 
     private static final String COL_EMAIL = "email";
@@ -58,6 +65,7 @@ public record RosterColumnLayout(
     private static final String COL_GUARDIAN_RELATIONSHIP = "guardianrelationship";
     private static final String COL_GUARDIAN_EMAIL = "guardianemail";
     private static final String COL_CONSENT_CONFIRMED = "consentconfirmed";
+    private static final String COL_REPORT_SHARING_CONFIRMED = "reportsharingconfirmed";
 
     /**
      * Bí danh của cột email người giám hộ — tên chính đứng đầu. Người đặt tên cột là thư ký trung
@@ -74,6 +82,17 @@ public record RosterColumnLayout(
             COL_CONSENT_CONFIRMED, "consent", "guardianconsent", "consentgranted",
             "dongy", "dadongy", "xacnhandongy", "daxacnhandongy", "dongygiamho", "phieudongy");
 
+    /**
+     * Bí danh của cột xác nhận đồng ý CHIA SẺ PHIẾU ĐÁNH GIÁ với người giám hộ (R6, mục C2 của phiếu
+     * giấy) — tên chính đứng đầu. Cố ý KHÔNG có bí danh nào trùng hay là tiền tố mơ hồ của
+     * {@link #CONSENT_CONFIRMED_ALIASES}: "Đồng ý chia sẻ phiếu" gấp thành {@code dongychiasephieu},
+     * khác hẳn {@code dongy} — so khớp là so cả chuỗi, nên hai cột không thể nhận nhầm nhau.
+     */
+    static final List<String> REPORT_SHARING_CONFIRMED_ALIASES = List.of(
+            COL_REPORT_SHARING_CONFIRMED, "reportsharing", "reportsharingconsent", "guardianreportsharing",
+            "chiasephieu", "dongychiasephieu", "chiasephieudanhgia", "dongychiasephieudanhgia",
+            "chiasephieuvoigiamho", "guiphieuphuhuynh");
+
     /** Mọi tên cột hệ thống hiểu — dùng để biết vị trí nào đã "có chủ" trước khi lùi về mặc định. */
     private static final List<String> KNOWN;
 
@@ -83,6 +102,7 @@ public record RosterColumnLayout(
                 COL_GUARDIAN_NAME, COL_GUARDIAN_PHONE, COL_GUARDIAN_RELATIONSHIP));
         known.addAll(GUARDIAN_EMAIL_ALIASES);
         known.addAll(CONSENT_CONFIRMED_ALIASES);
+        known.addAll(REPORT_SHARING_CONFIRMED_ALIASES);
         KNOWN = List.copyOf(known);
     }
 
@@ -90,12 +110,13 @@ public record RosterColumnLayout(
     private static final int DEFAULT_DISPLAY_NAME_INDEX = 1;
 
     /**
-     * Bố cục của tệp KHÔNG có dòng tiêu đề, hoặc có tiêu đề nhưng không có cột {@code birthDate}
-     * lẫn {@code consentConfirmed}: {@code email,displayName[,phone]} như trước.
+     * Bố cục của tệp KHÔNG có dòng tiêu đề, hoặc có tiêu đề nhưng không có cột {@code birthDate},
+     * {@code consentConfirmed} lẫn {@code reportSharingConfirmed}: {@code email,displayName[,phone]}
+     * như trước.
      */
     public static RosterColumnLayout legacy() {
         return new RosterColumnLayout(DEFAULT_EMAIL_INDEX, DEFAULT_DISPLAY_NAME_INDEX,
-                -1, -1, -1, -1, -1, -1);
+                -1, -1, -1, -1, -1, -1, -1);
     }
 
     /**
@@ -110,13 +131,15 @@ public record RosterColumnLayout(
     }
 
     /**
-     * Giải bố cục từ dòng tiêu đề. Không có cột {@code birthDate} lẫn {@code consentConfirmed} ⇒
-     * {@link #legacy()}, tức tệp cũ của trung tâm chạy đúng như chưa từng có PR này.
+     * Giải bố cục từ dòng tiêu đề. Không có cột {@code birthDate}, {@code consentConfirmed} lẫn
+     * {@code reportSharingConfirmed} ⇒ {@link #legacy()}, tức tệp cũ của trung tâm chạy đúng như chưa
+     * từng có PR này.
      */
     public static RosterColumnLayout fromHeader(String[] headerCols) {
         int birthDate = indexOf(headerCols, COL_BIRTH_DATE);
         int consentConfirmed = indexOfAny(headerCols, CONSENT_CONFIRMED_ALIASES);
-        if (birthDate < 0 && consentConfirmed < 0) {
+        int reportSharingConfirmed = indexOfAny(headerCols, REPORT_SHARING_CONFIRMED_ALIASES);
+        if (birthDate < 0 && consentConfirmed < 0 && reportSharingConfirmed < 0) {
             return legacy();
         }
         Set<Integer> claimed = claimedIndexes(headerCols);
@@ -128,15 +151,16 @@ public record RosterColumnLayout(
                 indexOf(headerCols, COL_GUARDIAN_PHONE),
                 indexOf(headerCols, COL_GUARDIAN_RELATIONSHIP),
                 indexOfAny(headerCols, GUARDIAN_EMAIL_ALIASES),
-                consentConfirmed);
+                consentConfirmed,
+                reportSharingConfirmed);
     }
 
     /**
-     * Đúng khi tệp khai cột ngày sinh hoặc cột xác nhận đồng ý — chỉ khi đó mới đọc phần dữ liệu
-     * chưa thành niên (kể cả các cột người giám hộ).
+     * Đúng khi tệp khai cột ngày sinh hoặc một trong hai cột xác nhận đồng ý — chỉ khi đó mới đọc
+     * phần dữ liệu chưa thành niên (kể cả các cột người giám hộ).
      */
     public boolean readsMinorColumns() {
-        return birthDate >= 0 || consentConfirmed >= 0;
+        return birthDate >= 0 || consentConfirmed >= 0 || reportSharingConfirmed >= 0;
     }
 
     private static Set<Integer> claimedIndexes(String[] headerCols) {

@@ -166,7 +166,7 @@
       "importCsv": "Import CSV",
       "importModal": {
         "title": "Import student roster",
-        "description": "CSV with at least 3 columns email, displayName, phone (first row is the header). You may also declare birthDate (YYYY-MM-DD), guardianName, guardianRelationship, guardianPhone, guardianEmail and consentConfirmed (x = paper consent form on file) — these columns are OPTIONAL, older files still import as before. Existing emails are linked to the center, new emails get an account.",
+        "description": "CSV with at least 3 columns email, displayName, phone (first row is the header). You may also declare birthDate (YYYY-MM-DD), guardianName, guardianRelationship, guardianPhone, guardianEmail and consentConfirmed (x = paper consent form on file, section C1) and reportSharingConfirmed (x = section C2 on file: the guardian agrees to receive evaluation reports) — these columns are OPTIONAL, older files still import as before. Existing emails are linked to the center, new emails get an account.",
         "template": "Download template",
         "fileLabel": "Choose CSV file",
         "emptyFile": "The file has no data rows.",
@@ -180,6 +180,7 @@
         "colBirthDate": "Birth date",
         "colGuardian": "Guardian",
         "colConsent": "Consent",
+        "colReportSharing": "Report sharing",
         "invalidEmails": "{count} rows have an invalid email — the server will report those rows; the others are still imported.",
         "invalidBirthDates": "{count} rows have a badly formatted birth date — use YYYY-MM-DD, e.g. 2011-09-15.",
         "noBirthDateColumn": "The file has no birthDate column. It still imports, but these students stay in the \"birth date not declared\" group until it is filled in.",
@@ -189,6 +190,7 @@
         "idempotentNote": "Re-importing the same file creates no duplicates: existing emails are only linked.",
         "minorNote": "A missing birth date does not block the import. But an under-age student without a guardian is rejected by the server on that exact row — the relationship cell accepts MOTHER, FATHER, LEGAL_GUARDIAN, OTHER or the Vietnamese words mẹ, cha/bố, người giám hộ, khác.",
         "consentNote": "The consentConfirmed column (x/yes/1 = the guardian's paper consent form for voice recording is on file) records one consent entry and opens speaking practice; blank or \"no\" = nothing recorded, the student still joins but speaking stays locked. Re-importing does not duplicate entries. A student who is active at another centre is rejected on that row, naming the centre.",
+        "reportSharingNote": "The reportSharingConfirmed column (x/yes/1 = the paper form has section C2 ticked: the guardian agrees to receive evaluation reports) records one report-sharing consent entry — independent of consentConfirmed, and it does not open speaking. Without it, a minor's evaluation report cannot be sent to the family.",
         "planNote": "Students with a personal plan use the centre plan while they are members. A paid personal plan is PAUSED with its remaining time preserved — it comes back in full when they leave, and time spent here does not count against it.",
         "cancel": "Cancel",
         "submit": "Import {count} rows",
@@ -272,7 +274,15 @@
           "DATA_PROCESSING": "Data processing",
           "AI_PROCESSING": "AI processing",
           "AUDIO_RECORDING": "Voice recording",
-          "MESSAGING": "Private messaging"
+          "MESSAGING": "Private messaging",
+          "GUARDIAN_REPORT_SHARING": "Sharing evaluation reports with the guardian"
+        },
+        "scopeHint": {
+          "DATA_PROCESSING": "Processing the student's learning data under the privacy policy.",
+          "AI_PROCESSING": "Sending the student's written and spoken work to the AI provider for grading and feedback.",
+          "AUDIO_RECORDING": "Recording the student's voice during speaking practice — without it, speaking stays locked.",
+          "MESSAGING": "Private messaging between the student and teachers/the centre.",
+          "GUARDIAN_REPORT_SHARING": "The centre sends the student's periodic evaluation report to the guardian (section C2 of the paper form). Required before a report can be issued for a minor."
         },
         "action": {
           "GRANTED": "Granted",
@@ -303,6 +313,7 @@
           "primaryLabel": "Primary contact",
           "contactHint": "At least a phone number or an email is required. Each student has one primary contact — selecting it here demotes the current one.",
           "invalid": "A full name and at least one contact method (phone or a valid email) are required.",
+          "emailIsStudent": "The guardian's email is the same as the student's — enter the parent's/guardian's own address (that is where evaluation reports go).",
           "cancel": "Cancel",
           "submit": "Save",
           "saved": "Guardian {name} saved"
@@ -326,9 +337,11 @@
           "confirmGrantTitle": "Record consent?",
           "confirmGrantDesc": "Adds a GRANTED entry for scope \"{scope}\".",
           "confirmGrantDetailOpen": "For voice recording: the student's speaking practice opens immediately.",
+          "confirmGrantDetailReportSharing": "For report sharing: the centre may send the student's evaluation reports to the guardian.",
           "confirmRevokeTitle": "Revoke consent?",
           "confirmRevokeDesc": "Adds a REVOKED entry for scope \"{scope}\".",
           "confirmRevokeDetailLock": "For voice recording: the student's speaking practice is locked IMMEDIATELY. The system will not ask again — re-granting must come from the guardian.",
+          "confirmRevokeDetailReportSharing": "For report sharing: from this entry on, the centre may no longer send evaluation reports to the guardian.",
           "confirmDetailAppendOnly": "Append-only ledger: this entry cannot be edited or deleted once written.",
           "saved": "Consent recorded",
           "revoked": "Consent revocation recorded"

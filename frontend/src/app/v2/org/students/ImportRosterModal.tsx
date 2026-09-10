@@ -25,6 +25,10 @@ import { TkModal, GaBtn, GaCap, ErrorBanner } from '@/components/ui-v2'
  * D1/R11 (10/09/2026): thêm `guardianEmail` và `consentConfirmed` — ô đánh dấu = trung tâm đã cầm phiếu
  * đồng ý giấy của người giám hộ cho phạm vi ghi âm; máy chủ ghi một dòng GRANTED/PAPER (nhập lại không
  * nhân đôi). Học viên chưa đủ tuổi mà chưa có đồng ý VẪN vào, chỉ phần nói còn khoá tới khi ghi nhận.
+ *
+ * R6: thêm `reportSharingConfirmed` — mục C2 của cùng phiếu giấy (người giám hộ đồng ý nhận phiếu đánh
+ * giá, scope GUARDIAN_REPORT_SHARING). Độc lập với `consentConfirmed`, không mở phần nói; cột mọc ở xem
+ * trước khi tệp khai, và ô giữ NGUYÊN VĂN như ô đồng ý ghi âm.
  */
 
 const INPUT_CLS =
@@ -163,6 +167,7 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
                       {parsed.hasBirthDate && <th className="px-3 py-1.5 font-semibold">{t('colBirthDate')}</th>}
                       {parsed.hasGuardian && <th className="px-3 py-1.5 font-semibold">{t('colGuardian')}</th>}
                       {parsed.hasConsent && <th className="px-3 py-1.5 font-semibold">{t('colConsent')}</th>}
+                      {parsed.hasReportSharing && <th className="px-3 py-1.5 font-semibold">{t('colReportSharing')}</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -187,6 +192,9 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
                         )}
                         {parsed.hasConsent && (
                           <td className="px-3 py-1.5 font-mono text-ga-muted" data-testid="roster-consent-cell">{r.consentConfirmed || '—'}</td>
+                        )}
+                        {parsed.hasReportSharing && (
+                          <td className="px-3 py-1.5 font-mono text-ga-muted" data-testid="roster-report-sharing-cell">{r.reportSharingConfirmed || '—'}</td>
                         )}
                       </tr>
                     ))}
@@ -221,6 +229,7 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
             <li>{t('idempotentNote')}</li>
             <li>{t('minorNote')}</li>
             <li>{t('consentNote')}</li>
+            <li>{t('reportSharingNote')}</li>
             <li>{t('planNote')}</li>
           </ul>
         </div>

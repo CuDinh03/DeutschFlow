@@ -18,22 +18,27 @@ import java.time.LocalDate;
  * người nhập biết phải sửa dòng nào trong Excel. Tới được đây thì dòng đã hợp lệ; {@code importRow}
  * chỉ còn việc ghi.
  *
- * @param email            đã chuẩn hoá và kiểm định dạng ở {@link OrgRosterService}
- * @param displayName      cột tên hiển thị thô; rỗng thì {@code importRow} lấy phần trước {@code @} của email
- * @param birthDate        {@code null} = tệp không có cột ngày sinh, hoặc ô để trống. KHÔNG phải lỗi:
- *                         owner chốt ghi danh không phải cổng chặn (09/09/2026), cổng nằm ở đường dữ
- *                         liệu đi ra nhà cung cấp AI
- * @param guardian         {@code null} = dòng không khai người giám hộ
- * @param consentConfirmed trung tâm xác nhận đã cầm phiếu đồng ý giấy của người giám hộ cho phạm vi
- *                         ghi âm (cột {@code consentConfirmed}, D1 — owner chốt 10/09/2026). Ghi một
- *                         dòng {@code GRANTED} phương thức {@code PAPER} — chỉ khi trạng thái hiện tại
- *                         chưa là {@code GRANTED}, để nhập lại cùng tệp không làm phình sổ chỉ-ghi-thêm
+ * @param email                  đã chuẩn hoá và kiểm định dạng ở {@link OrgRosterService}
+ * @param displayName            cột tên hiển thị thô; rỗng thì {@code importRow} lấy phần trước {@code @} của email
+ * @param birthDate              {@code null} = tệp không có cột ngày sinh, hoặc ô để trống. KHÔNG phải lỗi:
+ *                               owner chốt ghi danh không phải cổng chặn (09/09/2026), cổng nằm ở đường dữ
+ *                               liệu đi ra nhà cung cấp AI
+ * @param guardian               {@code null} = dòng không khai người giám hộ
+ * @param consentConfirmed       trung tâm xác nhận đã cầm phiếu đồng ý giấy của người giám hộ cho phạm vi
+ *                               ghi âm (cột {@code consentConfirmed}, D1 — owner chốt 10/09/2026). Ghi một
+ *                               dòng {@code GRANTED} phương thức {@code PAPER} — chỉ khi trạng thái hiện tại
+ *                               chưa là {@code GRANTED}, để nhập lại cùng tệp không làm phình sổ chỉ-ghi-thêm
+ * @param reportSharingConfirmed trung tâm xác nhận mục C2 của cùng phiếu: người giám hộ đồng ý nhận phiếu
+ *                               đánh giá (cột {@code reportSharingConfirmed}, R6 — scope
+ *                               {@code GUARDIAN_REPORT_SHARING}). Cùng quy tắc ghi/idempotent như trên,
+ *                               độc lập với {@code consentConfirmed}
  */
 public record RosterRowInput(
         String email,
         String displayName,
         LocalDate birthDate,
         GuardianDraft guardian,
-        boolean consentConfirmed
+        boolean consentConfirmed,
+        boolean reportSharingConfirmed
 ) {
 }
