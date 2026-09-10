@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -52,6 +53,23 @@ public class StudentAssignment {
     @Column(name = "ai_confidence")
     private Integer aiConfidence;
 
+    /**
+     * Điểm AI ĐỀ XUẤT — cột RIÊNG (V323, R3). AI ghi DUY NHẤT qua {@link #applyAiProposal}; giáo viên chốt
+     * ({@code TeacherService.evaluateAssignment}) chỉ ghi {@link #score}/{@link #feedback}, KHÔNG đụng ba
+     * trường này — nên đề xuất của AI sống sót sau khi bị sửa (giáo viên xem lại; chỉ số M5 =
+     * {@code |ai_score - score|} trên bài EVALUATED). NULL ở dòng EVALUATED trước V323 = điểm AI đã mất,
+     * không dựng lại. Không lộ ra học viên ({@code StudentAssignmentDto.forStudent} không mang) và không in
+     * lên phiếu phụ huynh (R4).
+     */
+    @Column(name = "ai_score")
+    private Integer aiScore;
+
+    @Column(name = "ai_feedback", columnDefinition = "TEXT")
+    private String aiFeedback;
+
+    @Column(name = "ai_graded_at")
+    private Instant aiGradedAt;
+
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 
@@ -74,5 +92,22 @@ public class StudentAssignment {
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) createdAt = LocalDateTime.now();
+    }
+
+    /**
+     * AI đề xuất điểm (R3, V323): ghi {@code ai_*} RIÊNG và đồng thời chép sang {@code score/feedback} +
+     * {@link AssignmentStatus#AI_GRADED}, vì hàng đợi chấm đang đọc {@code score} khi AI_GRADED (không phá
+     * giao diện đang chạy). Đây là đường ghi DUY NHẤT của {@code ai_*} — cả ba nơi gọi AI (GradingService
+     * bài viết, GradingController ảnh, TeacherAiGradingService nói) đều đi qua đây để không nơi nào quên
+     * một cột. Caller tự kiểm trạng thái (không đè bài đã chốt) TRƯỚC khi gọi; {@code submittedAt} không đụng.
+     */
+    public void applyAiProposal(Integer proposedScore, String proposedFeedback) {
+        this.aiScore = proposedScore;
+        this.aiFeedback = proposedFeedback;
+        this.aiGradedAt = Instant.now();
+        this.score = proposedScore;
+        this.feedback = proposedFeedback;
+        this.status = AssignmentStatus.AI_GRADED;
+        this.gradedAt = LocalDateTime.now();
     }
 }

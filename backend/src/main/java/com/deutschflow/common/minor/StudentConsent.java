@@ -48,8 +48,15 @@ import java.time.Instant;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class StudentConsent {
 
-    /** Bốn phạm vi của {@code chk_student_consents_scope} — mỗi phạm vi hỏi và trả lời độc lập. */
-    public enum Scope { DATA_PROCESSING, AI_PROCESSING, AUDIO_RECORDING, MESSAGING }
+    /**
+     * Năm phạm vi của {@code chk_student_consents_scope} — mỗi phạm vi hỏi và trả lời độc lập.
+     *
+     * <p>{@link #GUARDIAN_REPORT_SHARING} (V323, R6): trung tâm gửi phiếu đánh giá cho người giám hộ. Cần
+     * phạm vi RIÊNG vì chính sách công bố nói "không chia sẻ với bên thứ ba"; thu bằng giấy cùng phiếu D1.
+     * Cổng phát hành (PR-R2) hỏi phạm vi này theo {@code MinorPolicy.isMinor()} tường minh, KHÔNG dùng
+     * {@code requiresGuardianConsent()} (nhóm 16–17 trả về false).
+     */
+    public enum Scope { DATA_PROCESSING, AI_PROCESSING, AUDIO_RECORDING, MESSAGING, GUARDIAN_REPORT_SHARING }
 
     /** Cấp hay thu hồi. Hai giá trị này là toàn bộ ngữ pháp của sổ chỉ-ghi-thêm. */
     public enum Action { GRANTED, REVOKED }
