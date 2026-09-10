@@ -54,7 +54,11 @@ class MinorGateAudioCoverageTest {
             Pattern.compile("\\.\\s*transcribe(?:Verbose|Text|WithTimestamps)?\\s*\\(");
 
     /**
-     * SÁU điểm cắm, kèm số lời gọi mong đợi ở mỗi tệp. Đây là toàn bộ đường ghi âm của đợt này.
+     * BẢY điểm cắm, kèm số lời gọi mong đợi ở mỗi tệp: sáu đường PHIÊN ÂM của PR-1B, cộng một đường
+     * LƯU TRỮ (tệp ghi âm nộp bài lên S3 — V320 §4 ghi nợ, C8a trả). Đường lưu trữ không gọi
+     * Whisper nên không có mặt ở {@link #DUONG_PHIEN_AM_VA_GATE}; nó vẫn phải nằm ở đây vì gỡ lời gọi
+     * gate khỏi nó là fail-open y như sáu đường kia — giọng nói của trẻ vẫn rời khỏi máy, chỉ là tới
+     * kho của mình thay vì tới nhà cung cấp AI.
      */
     private static final Map<String, Integer> DIEM_CAM_GATE = new LinkedHashMap<>(Map.of(
             // Nhận dạng giọng nói dùng chung (/api/ai-speaking/transcribe).
@@ -69,7 +73,10 @@ class MinorGateAudioCoverageTest {
             "examspeaking/session/ExamSessionService.java", 1,
             // Luyện phát âm — đường HÀNG ĐỢI (/api/jobs/pronunciation-eval). Gate ở lúc enqueue:
             // worker chạy ở luồng nền, không còn request nào để trả 403 về cho người dùng.
-            "ai/queue/AiJobController.java", 1
+            "ai/queue/AiJobController.java", 1,
+            // Nộp bài — URL tải lên tệp ghi âm/video (/api/v2/students/assignments/presigned-url).
+            // Gate TRƯỚC khi ký URL, chỉ với MIME audio/* và video/*; ảnh/PDF/text đi qua tự do.
+            "user/controller/StudentAssignmentController.java", 1
     ));
 
     /**

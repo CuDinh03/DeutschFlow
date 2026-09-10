@@ -24,4 +24,11 @@ public interface OrgMemberRepository extends JpaRepository<OrgMember, OrgMemberI
     /** True if the user has a membership of the given status in ANY org other than {@code orgId}
      *  (enforces "1 staff – 1 org at a time": B2B model §4 decision 1). */
     boolean existsByIdUserIdAndStatusAndIdOrgIdNot(Long userId, String status, Long orgId);
+
+    /**
+     * Mọi membership của user theo vai trò + trạng thái, ở BẤT KỲ trung tâm nào. Dùng để chụp
+     * {@code org_id} lúc tạo phiên thi nói (V320 §1): trả danh sách chứ không {@code LIMIT 1} để điểm
+     * gọi tự thấy dữ liệu lệch (học viên có hai membership ACTIVE) thay vì im lặng chọn một.
+     */
+    List<OrgMember> findByIdUserIdAndRoleAndStatus(Long userId, String role, String status);
 }
