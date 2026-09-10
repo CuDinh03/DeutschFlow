@@ -31,8 +31,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -94,12 +98,21 @@ public class AdminOrgService {
             throw new ConflictException("Slug đã tồn tại: " + slug);
         }
 
+        // T-03: ghế âm không có nghĩa — 0 là "không giới hạn", nên clamp về 0 thay vì lưu số âm
+        // rồi để mọi phép so sánh seat_limit > 0 hiểu ngầm thành không giới hạn.
+        int seatLimit = request.seatLimit() == null ? 0 : Math.max(0, request.seatLimit());
+        // T-03: hạn mức AI nhân sự đặt được ngay lúc tạo (xem CreateOrgRequest). Không truyền thì
+        // giữ fail-safe cũ (pool=0, unlimited=false) — nhân sự bị 429 tới khi admin cấu hình.
+        boolean poolUnlimited = Boolean.TRUE.equals(request.poolUnlimited());
+        long monthlyTokenPool = request.monthlyTokenPool() == null ? 0L : Math.max(0L, request.monthlyTokenPool());
         Organization org = Organization.builder()
                 .name(request.name().trim())
                 .slug(slug)
                 .planCode(normalizePlanCode(request.planCode()))
-                .seatLimit(request.seatLimit() == null ? 0 : request.seatLimit())
+                .seatLimit(seatLimit)
                 .status(STATUS_ACTIVE)
+                .monthlyTokenPool(monthlyTokenPool)
+                .poolUnlimited(poolUnlimited)
                 .build();
         org = organizationRepository.save(org);
 
@@ -118,7 +131,9 @@ public class AdminOrgService {
                         "slug", String.valueOf(org.getSlug()),
                         "planCode", String.valueOf(org.getPlanCode()),
                         "seatLimit", org.getSeatLimit(),
-                        "ownerEmail", String.valueOf(request.ownerEmail())
+                        "ownerEmail", String.valueOf(request.ownerEmail()),
+                        "monthlyTokenPool", org.getMonthlyTokenPool(),
+                        "poolUnlimited", org.isPoolUnlimited()
                 ));
 
         userNotificationService.onOrgCreated(org.getId(), org.getName(), org.getSlug());
@@ -150,12 +165,18 @@ public class AdminOrgService {
                 studentCount,
                 pendingInvites,
                 org.getMonthlyTokenPool(),
-                org.isPoolUnlimited()
+                org.isPoolUnlimited(),
+                org.getValidUntil(),
+                org.getSuspendedAt()
         );
     }
 
     /**
-     * Updates plan/seat-limit/status/licence-expiry; only non-null fields are applied.
+     * Updates plan/seat-limit/status/licence-expiry/AI pool; only non-null fields are applied.
+     *
+     * <p>T-03 (10/09/2026): {@code seatLimit} clamp về 0 (0 = không giới hạn); {@code clearValidUntil}
+     * đưa trung tâm về vô thời hạn; bật {@code poolUnlimited} giữ nguyên số pool; vết
+     * {@code admin.org.updated} liệt kê trường đổi kèm giá trị cũ/mới và KHÔNG ghi khi không đổi gì.
      *
      * <p>Chuyển sang {@code SUSPENDED} đưa trung tâm vào chế độ CHỈ ĐỌC và đóng mốc neo ân hạn —
      * KHÔNG còn thu hồi quyền lợi học viên tại chỗ (owner chốt 09/09/2026, xem
@@ -169,28 +190,61 @@ public class AdminOrgService {
         if (request.status() != null && !VALID_ORG_STATUSES.contains(request.status())) {
             throw new BadRequestException("Trạng thái tổ chức không hợp lệ: " + request.status());
         }
+        boolean clearValidUntil = Boolean.TRUE.equals(request.clearValidUntil());
+        if (clearValidUntil && request.validUntil() != null) {
+            throw new BadRequestException("Không thể vừa đặt hạn vừa xoá hạn giấy phép trong cùng một yêu cầu");
+        }
         String previousStatus = org.getStatus();
+        // T-03: từng trường đổi được ghi kèm giá trị cũ/mới — vết "admin đã sửa trung tâm" mà không
+        // nói sửa GÌ thì giám đốc đọc sổ vẫn không trả lời được "ai hạ ghế của tôi từ 50 xuống 30".
+        Map<String, Object> changes = new LinkedHashMap<>();
         if (request.planCode() != null) {
-            org.setPlanCode(normalizePlanCode(request.planCode()));
+            String next = normalizePlanCode(request.planCode());
+            recordChange(changes, "planCode", org.getPlanCode(), next);
+            org.setPlanCode(next);
         }
         if (request.seatLimit() != null) {
-            org.setSeatLimit(request.seatLimit());
+            // T-03: trước đây gán thẳng — ghế ÂM lọt vào DB và mọi phép `seat_limit > 0` hiểu ngầm
+            // thành "không giới hạn" mà không ai chủ ý. 0 mới là giá trị "không giới hạn" có tên.
+            int next = Math.max(0, request.seatLimit());
+            recordChange(changes, "seatLimit", org.getSeatLimit(), next);
+            org.setSeatLimit(next);
         }
-        if (request.validUntil() != null) {
+        if (clearValidUntil) {
+            recordChange(changes, "validUntil", org.getValidUntil(), null);
+            org.setValidUntil(null);
+        } else if (request.validUntil() != null) {
+            recordChange(changes, "validUntil", org.getValidUntil(), request.validUntil());
             org.setValidUntil(request.validUntil());
         }
         if (request.status() != null) {
+            recordChange(changes, "status", previousStatus, request.status());
             org.changeStatus(request.status());
         }
         // M-5: pool giờ set được qua API (trước chỉ SQL tay). Clamp âm về 0.
-        if (request.monthlyTokenPool() != null) {
-            org.setMonthlyTokenPool(Math.max(0L, request.monthlyTokenPool()));
-        }
-        if (request.poolUnlimited() != null) {
-            org.setPoolUnlimited(request.poolUnlimited());
+        // T-03: hai cần gạt phải nhất quán — bật unlimited thì pool GIỮ NGUYÊN (số cũ còn đó để khi
+        // tắt unlimited trung tâm trở lại đúng hạn mức trước, không rơi về 0 = bị chặn AI).
+        if (Boolean.TRUE.equals(request.poolUnlimited())) {
+            recordChange(changes, "poolUnlimited", org.isPoolUnlimited(), true);
+            org.setPoolUnlimited(true);
+        } else {
+            if (request.poolUnlimited() != null) {
+                recordChange(changes, "poolUnlimited", org.isPoolUnlimited(), false);
+                org.setPoolUnlimited(false);
+            }
+            if (request.monthlyTokenPool() != null) {
+                long next = Math.max(0L, request.monthlyTokenPool());
+                recordChange(changes, "monthlyTokenPool", org.getMonthlyTokenPool(), next);
+                org.setMonthlyTokenPool(next);
+            }
         }
         org = organizationRepository.save(org);
         applyStatusTransition(org, previousStatus, request.status());
+        if (changes.isEmpty()) {
+            // Lưu mà không đổi gì (form bấm Lưu nguyên trạng, PATCH rỗng) thì không có gì để kể —
+            // một dòng "đã cập nhật" trống trong sổ của giám đốc chỉ gây hoang mang.
+            return toOrgDto(org);
+        }
         // Audit F-M3 (03/09/2026): đây là chỗ đổi gói, giới hạn ghế, hạn dùng và hạn mức token của
         // cả một tổ chức — và một lần đổi status sang SUSPENDED sẽ khoá ghi CẢ trung tâm rồi khởi
         // động đồng hồ 7 ngày ân hạn, hết ân hạn là quyền lợi của MỌI học viên bị cắt.
@@ -198,17 +252,30 @@ public class AdminOrgService {
         // DEC-13: orgId của CHÍNH trung tâm bị đổi trạng thái — đây là vết mà giám đốc cần nhất
         // ("ai đã đình chỉ trung tâm tôi, lúc nào"), và cũng là vết mà đường suy-từ-actor bỏ sót
         // sạch vì người bấm là admin nền tảng.
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("fromStatus", String.valueOf(previousStatus));
+        meta.put("toStatus", String.valueOf(org.getStatus()));
+        meta.put("changedFields", new ArrayList<>(changes.keySet()));
+        meta.put("changes", changes);
         auditLogService.log("admin.org.updated", actor, "ORG", String.valueOf(org.getId()),
-                org.getId(),
-                Map.of(
-                        "fromStatus", String.valueOf(previousStatus),
-                        "toStatus", String.valueOf(org.getStatus()),
-                        "planCode", String.valueOf(org.getPlanCode()),
-                        "seatLimit", org.getSeatLimit(),
-                        "monthlyTokenPool", org.getMonthlyTokenPool(),
-                        "poolUnlimited", org.isPoolUnlimited()
-                ));
+                org.getId(), meta);
         return toOrgDto(org);
+    }
+
+    /**
+     * Ghi một trường vào bản kê đổi khi giá trị THẬT SỰ khác. Chỉ số, chuỗi mã và mốc thời gian
+     * (không PII). {@link Instant} chuyển thành chuỗi ISO để không phụ thuộc ObjectMapper của
+     * {@code AuditLogService} có module thời gian hay không; {@code null} giữ nguyên là null
+     * ("xoá hạn" phải đọc ra được là hạn trước đó → không còn hạn).
+     */
+    private static void recordChange(Map<String, Object> changes, String field, Object from, Object to) {
+        if (Objects.equals(from, to)) {
+            return;
+        }
+        Map<String, Object> change = new LinkedHashMap<>();
+        change.put("from", from instanceof Instant i ? i.toString() : from);
+        change.put("to", to instanceof Instant i ? i.toString() : to);
+        changes.put(field, change);
     }
 
     /**
@@ -617,7 +684,11 @@ public class AdminOrgService {
                 org.getSeatLimit(),
                 org.getStatus(),
                 teacherCount,
-                studentCount
+                studentCount,
+                org.getValidUntil(),
+                org.getSuspendedAt(),
+                org.getMonthlyTokenPool(),
+                org.isPoolUnlimited()
         );
     }
 }

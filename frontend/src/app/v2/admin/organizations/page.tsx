@@ -1,23 +1,17 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Plus, ShieldCheck, Lock, Bell, FileDown, Sparkles, UserCog } from 'lucide-react'
+import { Plus, ShieldCheck, UserCog, FileText } from 'lucide-react'
 import { format } from 'date-fns'
-import { toast } from 'sonner'
-import { apiMessage } from '@/lib/api'
 import useAdminData from '@/hooks/useAdminData'
-import {
-  listOrganizations,
-  listOrgInvoices,
-  activateEntitlements,
-  type AdminOrg,
-  type OrgInvoice,
-} from '@/lib/adminOrgApi'
+import { listOrganizations, listOrgInvoices, type AdminOrg, type OrgInvoice } from '@/lib/adminOrgApi'
 import { isInvoiceOverdue } from '@/lib/orgInvoice'
-import { GaPageHdr, GaBtn, GaCap, GaStatStrip, DataTable, TkModal, type DataTableColumn } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaStatStrip, DataTable, TkBadge, type DataTableColumn } from '@/components/ui-v2'
 import { CreateOrgModal } from './CreateOrgModal'
 import { ForceOwnerDialog } from './ForceOwnerDialog'
+import { poolSummary } from './orgLicence'
 import { useFmt } from '@/lib/i18n/useFmt'
 
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
@@ -79,7 +73,9 @@ function rollup(invoices: OrgInvoice[]): OrgFinance {
 
 
 // Enum → catalog-key maps (labels resolved via t('status.<KEY>') / t('pay.<key>')).
-const STATUS_KEYS = ['ACTIVE', 'SUSPENDED', 'PENDING'] as const
+// T-03 (10/09/2026): bỏ PENDING — backend chỉ nhận ACTIVE | SUSPENDED; nút "Kích hoạt" cho PENDING
+// là mã chết chưa từng bấm được. "Cấp lại quyền lợi" giờ nằm ở hồ sơ trung tâm (OrgStatusCard).
+const STATUS_KEYS = ['ACTIVE', 'SUSPENDED'] as const
 const PAY_TONE: Record<OrgPay, { c: string; s: string }> = {
   paid: { c: 'var(--ga-green)', s: 'var(--ga-green-soft)' },
   pending: { c: 'var(--ga-orange)', s: 'var(--ga-orange-soft)' },
@@ -90,8 +86,6 @@ const PAY_TONE: Record<OrgPay, { c: string; s: string }> = {
 export default function V2AdminOrgsPage() {
   const t = useTranslations('v2.adminOps.organizations')
   const fmt = useFmt()
-  const [activating, setActivating] = useState<number | null>(null)
-  const [detail, setDetail] = useState<OrgRow | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   // DEC-13 / A6: trung tâm đang cần admin chỉ định giám đốc (giám đốc mất tài khoản / nghỉ việc).
   const [forceTarget, setForceTarget] = useState<AdminOrg | null>(null)
@@ -122,32 +116,26 @@ export default function V2AdminOrgsPage() {
     let revenue = 0
     let seats = 0
     let unpaid = 0
-    let pending = 0
+    let suspended = 0
     for (const { org, finance } of data) {
       revenue += finance.totalInvoiced
       seats += org.seatLimit ?? 0
       if (finance.outstanding > 0) unpaid += 1
-      if ((org.status ?? '').toUpperCase() === 'PENDING') pending += 1
+      if ((org.status ?? '').toUpperCase() === 'SUSPENDED') suspended += 1
     }
-    return { revenue, seats, unpaid, pending, count: data.length }
+    return { revenue, seats, unpaid, suspended, count: data.length }
   }, [data])
-
-  const doActivate = async (id: number) => {
-    setActivating(id)
-    try {
-      const granted = await activateEntitlements(id)
-      toast.success(t('activated', { count: granted }))
-      await reload({ silent: true })
-    } catch (e: unknown) {
-      toast.error(apiMessage(e))
-    } finally {
-      setActivating(null)
-    }
-  }
 
   const statusLabel = (status: string | null | undefined): string => {
     const key = (status ?? '').toUpperCase()
     return (STATUS_KEYS as readonly string[]).includes(key) ? t(`status.${key}`) : (status ?? '')
+  }
+
+  const poolLabel = (org: AdminOrg): string => {
+    const pool = poolSummary(org)
+    if (pool === 'unlimited') return t('aiPool.unlimited')
+    if (pool === 'metered') return t('aiPool.metered', { count: fmt.num(Number(org.monthlyTokenPool ?? 0)) })
+    return t('aiPool.unset')
   }
 
   const columns: DataTableColumn<OrgRow>[] = [
@@ -167,6 +155,16 @@ export default function V2AdminOrgsPage() {
             <p className="mt-0.5 text-[12.5px] text-ga-muted">
               {org.planCode || t('noPlan')} · {t('studentsSuffix', { count: fmt.num(Number(org.studentCount ?? 0)) })}
             </p>
+            {/* T-03: hạn mức AI nhân sự ngay trong danh sách — "chưa cấu hình" là ca nhân sự bị 429 im lặng. */}
+            <p
+              className={
+                poolSummary(org) === 'unset'
+                  ? 'mt-0.5 text-ga-caption font-semibold text-ga-red'
+                  : 'mt-0.5 text-ga-caption text-ga-subtle'
+              }
+            >
+              {poolLabel(org)}
+            </p>
           </div>
         </div>
       ),
@@ -177,7 +175,7 @@ export default function V2AdminOrgsPage() {
       className: 'w-[120px]',
       render: ({ org }) => (
         <p className="font-ga-display text-[18px] font-medium text-ga-ink">
-          {fmt.num(Number(org.seatLimit ?? 0))}{' '}
+          {org.seatLimit > 0 ? fmt.num(Number(org.seatLimit)) : '∞'}{' '}
           <span className="ga-ui text-[12.5px] text-ga-muted">{t('seatsUnit')}</span>
         </p>
       ),
@@ -213,7 +211,9 @@ export default function V2AdminOrgsPage() {
               <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: tone.c }} />
               {t(`pay.${finance.pay}`)}
             </span>
-            <p className="mt-[5px] text-[11px] text-ga-muted">{t('renewOn', { date: fmtDate(org.validUntil) })}</p>
+            <p className="mt-[5px] text-[11px] text-ga-muted">
+              {org.validUntil ? t('renewOn', { date: fmtDate(org.validUntil) }) : t('perpetual')}
+            </p>
           </div>
         )
       },
@@ -222,34 +222,22 @@ export default function V2AdminOrgsPage() {
       key: 'action',
       header: '',
       align: 'right',
-      className: 'w-[170px]',
-      render: (row) => {
-        const { org } = row
-        const isPending = (org.status ?? '').toUpperCase() === 'PENDING'
+      className: 'w-[190px]',
+      render: ({ org }) => {
+        const isSuspended = (org.status ?? '').toUpperCase() === 'SUSPENDED'
         return (
           <div className="flex flex-col items-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-            {isPending ? (
-              <button
-                type="button"
-                disabled={activating === org.id}
-                onClick={() => doActivate(org.id)}
-                className="min-h-[40px] rounded-ga bg-ga-yellow px-3 py-2 text-[11.5px] font-bold text-ga-ink transition-opacity disabled:opacity-60 lg:min-h-0"
-              >
-                {activating === org.id ? t('activating') : t('activate')}
-              </button>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: 'var(--ga-green)' }}>
-                <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: 'var(--ga-green)' }} />
-                {statusLabel(org.status)}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => setDetail(row)}
-              className="min-h-[40px] rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
+            <TkBadge dot tone={isSuspended ? 'red' : 'green'}>
+              {statusLabel(org.status)}
+            </TkBadge>
+            {/* T-03/T-01: hồ sơ trung tâm — sửa gói/ghế/hạn mức/hạn giấy phép + sổ hoá đơn. */}
+            <Link
+              href={`/v2/admin/organizations/${org.id}`}
+              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-ga border border-ga-line px-[10px] py-[6px] text-ga-caption font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
             >
-              {t('viewFinance')}
-            </button>
+              <FileText size={13} aria-hidden />
+              {t('openDetail')}
+            </Link>
             {/* DEC-13 / A6: đường khôi phục quyền giám đốc — mở ConfirmDialog nêu hệ quả + lý do bắt buộc,
                 thay cho cách cũ "đặt lại mật khẩu rồi đăng nhập thay" vốn ghi sổ sai người thực hiện. */}
             <button
@@ -309,7 +297,13 @@ export default function V2AdminOrgsPage() {
               sub: t('stats.unpaidInvoicesSub'),
               alert: stats.unpaid > 0,
             },
-            { label: t('stats.pendingActivation'), value: stats.pending, tone: 'blue', alert: stats.pending > 0 },
+            {
+              label: t('stats.suspended'),
+              value: stats.suspended,
+              tone: 'red',
+              sub: t('stats.suspendedSub'),
+              alert: stats.suspended > 0,
+            },
           ]}
         />
 
@@ -331,8 +325,6 @@ export default function V2AdminOrgsPage() {
         />
       </div>
 
-      <OrgFinanceModal row={detail} onClose={() => setDetail(null)} />
-
       {showCreate && (
         <CreateOrgModal onClose={() => setShowCreate(false)} onCreated={() => reload({ silent: true })} />
       )}
@@ -345,108 +337,5 @@ export default function V2AdminOrgsPage() {
         />
       )}
     </div>
-  )
-}
-
-// ── Financial-detail modal (admin sees finance only; learning data is locked) ─
-// Invoice status enum → catalog key + tone (label via t('modal.invStatus.<key>')).
-const INV_STATUS: Record<string, { labelKey: 'paid' | 'sent' | 'draft' | 'void'; tone: OrgPay }> = {
-  PAID: { labelKey: 'paid', tone: 'paid' },
-  SENT: { labelKey: 'sent', tone: 'pending' },
-  DRAFT: { labelKey: 'draft', tone: 'none' },
-  VOID: { labelKey: 'void', tone: 'none' },
-}
-const LOCKED_FIELD_KEYS = ['students', 'classes', 'scores', 'progress'] as const
-
-function OrgFinanceModal({ row, onClose }: { row: OrgRow | null; onClose: () => void }) {
-  const t = useTranslations('v2.adminOps.organizations')
-  const fmt = useFmt()
-  if (!row) return null
-  const { org, finance, invoices } = row
-  const issued = [...invoices]
-    .filter((i) => !['DRAFT', 'VOID'].includes((i.status ?? '').toUpperCase()))
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-  const facts: [string, React.ReactNode][] = [
-    [t('modal.facts.plan'), org.planCode || t('noPlan')],
-    [t('modal.facts.seats'), `${fmt.num((org.seatUsed ?? 0))}/${fmt.num((org.seatLimit ?? 0))}`],
-    [t('modal.facts.issuedRevenue'), fmt.vndCompact(finance.totalInvoiced)],
-    [t('modal.facts.debt'), finance.outstanding > 0 ? fmt.vnd(finance.outstanding) : '—'],
-    [t('modal.facts.payMethod'), t(`pay.${finance.pay}`)],
-    [t('modal.facts.renewUntil'), fmtDate(org.validUntil)],
-  ]
-
-  return (
-    <TkModal open={!!row} onOpenChange={(o) => !o && onClose()} title={org.name} description={t('modal.description')} size="lg">
-      <div className="flex flex-col gap-5">
-        {/* Privacy banner */}
-        <div className="flex items-center gap-2.5 border px-4 py-2.5" style={{ background: 'var(--ga-navy-soft)', borderColor: 'rgba(39,64,107,0.20)' }}>
-          <ShieldCheck size={17} style={{ color: 'var(--ga-navy)' }} className="shrink-0" />
-          <p className="ga-ui m-0 text-[12.5px] leading-[1.5] text-ga-ink">{t('modal.privacyBanner')}</p>
-        </div>
-
-        {/* Contract facts grid */}
-        <div>
-          <GaCap className="mb-2.5 block">{t('modal.contractInfo')}</GaCap>
-          <div className="grid grid-cols-2 gap-px border border-ga-line bg-ga-line sm:grid-cols-3">
-            {facts.map(([k, v]) => (
-              <div key={k} className="min-w-0 bg-ga-card px-3.5 py-3">
-                <div className="ga-ui text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ga-subtle">{k}</div>
-                <div className="mt-1 break-words text-[14px] font-semibold text-ga-ink">{v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Invoice history */}
-        <div>
-          <GaCap className="mb-2.5 block">{t('modal.invoiceHistory', { count: issued.length })}</GaCap>
-          {issued.length === 0 ? (
-            <div className="border border-dashed border-ga-line px-4 py-6 text-center text-[13px] text-ga-muted">{t('modal.noIssued')}</div>
-          ) : (
-            <div className="overflow-x-auto border border-ga-line lg:overflow-visible">
-              <div className="grid min-w-[440px] grid-cols-[1fr_64px_110px_92px] gap-2 border-b border-ga-line bg-ga-bg px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] text-ga-muted lg:min-w-0">
-                <span>{t('modal.colPeriod')}</span><span className="text-right">{t('modal.colSeats')}</span><span className="text-right">{t('modal.colAmount')}</span><span className="text-right">{t('modal.colStatus')}</span>
-              </div>
-              {issued.map((inv, i) => {
-                const st = INV_STATUS[(inv.status ?? '').toUpperCase()]
-                const stLabel = st ? t(`modal.invStatus.${st.labelKey}`) : inv.status
-                const tone = PAY_TONE[st?.tone ?? 'none']
-                return (
-                  <div key={inv.id} className="grid min-w-[440px] grid-cols-[1fr_64px_110px_92px] items-center gap-2 px-3.5 py-2.5 text-[12.5px] lg:min-w-0" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
-                    <span className="text-ga-ink">{fmtDate(inv.periodStart)} – {fmtDate(inv.periodEnd)}</span>
-                    <span className="text-right text-ga-muted">{inv.seats}</span>
-                    <span className="text-right font-semibold text-ga-ink">{fmt.vnd(inv.amountVnd)}</span>
-                    <span className="text-right">
-                      <span className="px-1.5 py-0.5 text-[10.5px] font-bold" style={{ color: tone.c, background: tone.s }}>{stLabel}</span>
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Locked learning data (privacy) */}
-        <div>
-          <GaCap className="mb-2.5 block">{t('modal.learningData')}</GaCap>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {LOCKED_FIELD_KEYS.map((f) => (
-              <div key={f} className="flex min-w-0 items-center gap-2 border border-dashed border-ga-line bg-ga-bg px-3 py-2.5 text-[12.5px] text-ga-subtle">
-                <Lock size={13} className="shrink-0" /> {t(`modal.lockedFields.${f}`)} <span className="ml-auto shrink-0 text-[10.5px]">{t('modal.noAccess')}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-ga-line pt-4">
-        <GaBtn variant="ghost" size="sm" onClick={() => toast(t('modal.remindPaymentSoon'))}><Bell size={14} /> {t('modal.remindPayment')}</GaBtn>
-        <GaBtn variant="ghost" size="sm" onClick={() => toast(t('modal.exportInvoiceSoon'))}><FileDown size={14} /> {t('modal.exportInvoice')}</GaBtn>
-        {(org.status ?? '').toUpperCase() === 'PENDING' && (
-          <GaBtn variant="yellow" size="sm" onClick={() => toast(t('modal.activateFromList'))}><Sparkles size={14} /> {t('modal.activate')}</GaBtn>
-        )}
-      </div>
-    </TkModal>
   )
 }

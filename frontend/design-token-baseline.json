@@ -214,16 +214,12 @@
     "arbitrary-font-size": {
       "text-[18px]": 2,
       "text-[15px]": 1,
-      "text-[12.5px]": 5,
-      "text-[14px]": 2,
-      "text-[11.5px]": 2,
-      "text-[11px]": 3,
-      "text-[12px]": 1,
+      "text-[12.5px]": 2,
+      "text-[14px]": 1,
+      "text-[11.5px]": 1,
+      "text-[11px]": 2,
       "text-[13.5px]": 1,
-      "text-[14.5px]": 1,
-      "text-[10.5px]": 3,
-      "text-[13px]": 1,
-      "text-[10px]": 1
+      "text-[14.5px]": 1
     }
   },
   "src/app/v2/admin/page.tsx": {
@@ -798,7 +794,7 @@
       "text-[10px]": 1,
       "text-[14px]": 2,
       "text-[12px]": 2,
-      "text-[12.5px]": 2,
+      "text-[12.5px]": 1,
       "text-[13px]": 1,
       "text-[11px]": 1
     }
@@ -1250,9 +1246,9 @@
   "src/app/v2/student/learn/[nodeId]/page.tsx": {
     "arbitrary-font-size": {
       "text-[11px]": 2,
-      "text-[20px]": 3,
       "text-[12px]": 1,
       "text-[11.5px]": 2,
+      "text-[20px]": 2,
       "text-[13.5px]": 6,
       "text-[13px]": 1,
       "text-[12.5px]": 6,
@@ -1581,7 +1577,7 @@
     },
     "arbitrary-font-size": {
       "text-[16px]": 2,
-      "text-[26px]": 3,
+      "text-[26px]": 2,
       "text-[11px]": 7,
       "text-[12px]": 6,
       "text-[24px]": 1,
@@ -1589,9 +1585,8 @@
       "text-[13.5px]": 5,
       "text-[17px]": 1,
       "text-[13px]": 1,
-      "text-[20px]": 2,
-      "text-[40px]": 1,
       "text-[10.5px]": 2,
+      "text-[20px]": 1,
       "text-[11.5px]": 2,
       "text-[15px]": 1
     }
@@ -1827,23 +1822,6 @@
       "text-[22px]": 1,
       "text-[32px]": 1,
       "text-[12.5px]": 1
-    }
-  },
-  "src/app/v2/teacher/profile/page.tsx": {
-    "hex-literal": {
-      "#7C56C8": 1
-    },
-    "arbitrary-font-size": {
-      "text-[13.5px]": 4,
-      "text-[34px]": 1,
-      "text-[20px]": 2,
-      "text-[18px]": 1,
-      "text-[10.5px]": 1,
-      "text-[11px]": 1,
-      "text-[12.5px]": 1,
-      "text-[15px]": 1,
-      "text-[15.5px]": 1,
-      "text-[11.5px]": 1
     }
   },
   "src/app/v2/teacher/schedule/MilestonesModal.tsx": {

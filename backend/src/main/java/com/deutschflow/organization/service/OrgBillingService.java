@@ -89,6 +89,11 @@ public class OrgBillingService {
         if (req.amountVnd() <= 0) {
             throw new BadRequestException("Số tiền hoá đơn phải lớn hơn 0");
         }
+        // T-01 (10/09/2026): kỳ ngược (kết thúc trước bắt đầu) là lỗi nhập; PAID sẽ kéo validUntil
+        // theo periodEnd nên một kỳ ngược lặng lẽ rút ngắn hoặc vô hiệu giấy phép của trung tâm.
+        if (req.periodStart() != null && req.periodEnd() != null && req.periodEnd().isBefore(req.periodStart())) {
+            throw new BadRequestException("Ngày kết thúc kỳ phải từ ngày bắt đầu kỳ trở đi");
+        }
         OrgInvoice invoice = OrgInvoice.builder()
                 .orgId(orgId)
                 .periodStart(req.periodStart())
