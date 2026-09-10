@@ -353,15 +353,19 @@ class UserNotificationServiceUnitTest {
     }
 
     @Test
-    @DisplayName("onAccountDeleted inserts ACCOUNT_DELETED for each active admin")
-    void onAccountDeleted_notifiesAdmins() {
+    @DisplayName("onAccountDeleted inserts ACCOUNT_DELETED for each active admin — id only, no email/name (10/09/2026)")
+    void onAccountDeleted_notifiesAdmins_withIdOnly() {
         stubOneAdmin(1L);
 
-        service.onAccountDeleted(99L, "gone@x.com", "Gone");
+        service.onAccountDeleted(99L);
 
         UserNotification saved = captureSaved();
         assertThat(saved.getType()).isEqualTo(NotificationType.ACCOUNT_DELETED);
-        assertThat(saved.getPayload()).containsEntry("email", "gone@x.com");
+        // PII của người vừa thực thi quyền xoá không được sống tiếp trong hộp thư admin
+        // (thông báo chưa đọc không bao giờ bị retention dọn).
+        assertThat(saved.getPayload())
+                .containsEntry("deletedUserId", 99L)
+                .doesNotContainKeys("email", "displayName");
     }
 
     @Test
@@ -416,7 +420,7 @@ class UserNotificationServiceUnitTest {
     void noAdmins_insertsNothing() {
         when(userRepository.findActiveIdsByRole("ADMIN")).thenReturn(List.of());
 
-        service.onAccountDeleted(99L, "gone@x.com", "Gone");
+        service.onAccountDeleted(99L);
 
         verify(notificationRepository, never()).save(any());
     }

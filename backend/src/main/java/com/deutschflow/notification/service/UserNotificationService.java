@@ -129,15 +129,17 @@ public class UserNotificationService {
 
     /**
      * Notifies every active admin that a user permanently deleted their account.
-     * The user row is already gone by the time this runs, so identity comes from
-     * the captured {@code email}/{@code displayName}, not a lookup.
+     *
+     * <p>Chỉ mang {@code deletedUserId} (owner chốt 10/09/2026, quyết định 8). Trước đây payload
+     * chép cả email + tên của NGƯỜI VỪA THỰC THI QUYỀN XOÁ vào hộp thư của mọi admin, và
+     * {@code UserNotificationRetentionService} không bao giờ xoá thông báo chưa đọc — PII của người
+     * đã xoá tài khoản nằm lại vô thời hạn, đúng điều họ vừa yêu cầu chấm dứt. Id là đủ để đối
+     * chiếu với {@code audit_logs}; dòng cũ đã được V321 bóc email/tên.
      */
     @Transactional
-    public void onAccountDeleted(long deletedUserId, String email, String displayName) {
+    public void onAccountDeleted(long deletedUserId) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("deletedUserId", deletedUserId);
-        payload.put("email", email);
-        payload.put("displayName", displayName);
         notifyAllAdmins(NotificationType.ACCOUNT_DELETED, payload);
     }
 

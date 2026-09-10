@@ -354,6 +354,37 @@ app:
       # nhất sẽ ăn hết trần mỗi đêm và kho ai_jobs sẽ không bao giờ tới lượt. S3 không có batch delete
       # ở đường này (xoá từng object), nên trần là thứ giữ lượt chạy nằm trong lockAtMostFor = PT30M.
       max-objects-per-run: ${APP_MINOR_AUDIO_RETENTION_MAX_OBJECTS:500}
+
+  # Kiểm duyệt nội dung (content_reports) — owner chốt 10/09/2026: 8 quyết định sáng + B1–B4 chiều.
+  moderation:
+    report:
+      # Throttle POST /api/moderation/report THEO NGƯỜI (B2): 10/giờ + 30/ngày, hai cửa sổ trượt kiểm
+      # đồng thời (ModerationRateLimiterService). Cố ý tách khỏi app.ai.rate-limit: chỉnh ngưỡng AI
+      # không được vô tình chỉnh ngưỡng báo cáo. Trùng khoá khi còn PENDING ⇒ 200 với id cũ, KHÔNG
+      # tính vào ngưỡng. Redis chết ⇒ in-memory theo node (fail-open có cảnh báo).
+      rate-limit:
+        enabled: ${APP_MODERATION_REPORT_RL_ENABLED:true}
+        hour-max: ${APP_MODERATION_REPORT_RL_HOUR_MAX:10}
+        hour-window-seconds: 3600
+        day-max: ${APP_MODERATION_REPORT_RL_DAY_MAX:30}
+        day-window-seconds: 86400
+    # Hạn lưu NỘI DUNG báo cáo (ContentReportRetentionJob): 90 ngày sau RESOLVED/DISMISSED xoá
+    # snapshot_body + details, GIỮ dòng, đóng dấu content_purged_at. PENDING không bao giờ bị dọn;
+    # tồn đọng > 30 ngày thì job log.warn (B4).
+    retention:
+      enabled: ${APP_MODERATION_RETENTION_ENABLED:true}
+      # 05:00 VN — khe trống sau 03:30 (retention), 04:00 (notifications) và 04:30 (minor audio).
+      cron: ${APP_MODERATION_RETENTION_CRON:0 0 5 * * *}
+      days: ${APP_MODERATION_RETENTION_DAYS:90}
+      # 🔴 MẶC ĐỊNH LÀ CHẾ ĐỘ ĐẾM — cùng lý do với app.minor.audio-retention.dry-run: job này xoá
+      # nội dung KHÔNG HOÀN LẠI trên một bảng chưa từng bị dọn tự động. dry-run: true chạy đủ mọi bước
+      # (đếm ứng viên, đếm PENDING tồn đọng, ghi vết `moderation.report.retention.previewed`) nhưng
+      # KHÔNG UPDATE. Đọc con số `candidates` của MỘT đêm thật trong audit_logs, thấy hợp lý rồi mới
+      # đặt APP_MODERATION_RETENTION_DRY_RUN=false — vết từ đó đổi tên thành `.purged`.
+      dry-run: ${APP_MODERATION_RETENTION_DRY_RUN:true}
+      # UPDATE theo lô ctid (khuôn DataRetentionJob) — mỗi câu một transaction ngắn.
+      batch-size: 500
+      max-rows-per-run: ${APP_MODERATION_RETENTION_MAX_ROWS:5000}
   cache:
     # Redis L2 cache tier (Caffeine L1 + Redis L2). OFF by default → Caffeine-only. We gate on this
     # explicit flag rather than on spring.data.redis.host (which defaults to localhost, so it's always
