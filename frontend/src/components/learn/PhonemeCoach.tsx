@@ -7,6 +7,8 @@ import { Mic, MicOff, Play, RefreshCw, Volume2, TriangleAlert, Check, X, Star, T
 import type { LucideIcon } from "lucide-react";
 import { playTTS } from "@/lib/tts";
 import api from "@/lib/api";
+import { parseMinorAudioBlocked, type MinorAudioBlocked } from "@/lib/minorAudio";
+import { MinorAudioBlockedNotice } from "@/components/ui-v2/MinorAudioBlockedNotice";
 import { useTranslations } from "next-intl";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -64,6 +66,8 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
   const [state, setState] = useState<"idle" | "recording" | "processing" | "result">("idle");
   const [result, setResult] = useState<EvalResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 403 MINOR_AUDIO_BLOCKED (DEC-22/D8): chấm phát âm bị chặn tới khi trung tâm ghi nhận đồng ý.
+  const [minorBlocked, setMinorBlocked] = useState<MinorAudioBlocked | null>(null);
 
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -141,8 +145,10 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
       setResult(res.data);
       setState("result");
       if (res.data.score >= 70) onSuccess?.(res.data.score);
-    } catch {
-      setError(t("evalFailed"));
+    } catch (e: unknown) {
+      const blocked = parseMinorAudioBlocked(e);
+      if (blocked) setMinorBlocked(blocked);
+      else setError(t("evalFailed"));
       setState("idle");
     }
   }, [target, onSuccess]);
@@ -150,6 +156,7 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
   const reset = useCallback(() => {
     setResult(null);
     setError(null);
+    setMinorBlocked(null);
     setState("idle");
   }, []);
 
@@ -222,6 +229,10 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
               <div className="w-10 h-10 border-4 border-[#121212] border-t-transparent rounded-full animate-spin" />
               <p className="text-xs text-[#64748B]">{t("analyzing")}</p>
             </div>
+          )}
+
+          {minorBlocked && (
+            <MinorAudioBlockedNotice info={minorBlocked} onDismiss={() => setMinorBlocked(null)} className="w-full text-left" />
           )}
 
           {/* Error */}

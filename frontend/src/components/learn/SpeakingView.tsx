@@ -6,6 +6,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Mic, Square, RotateCcw, Loader2, PartyPopper, Bot, Lightbulb, Check, TriangleAlert, X, CircleCheck } from "lucide-react";
 import { AudioButton } from "./LearnComponents";
 import api from "@/lib/api";
+import { parseMinorAudioBlocked, type MinorAudioBlocked } from "@/lib/minorAudio";
+import { MinorAudioBlockedNotice } from "@/components/ui-v2/MinorAudioBlockedNotice";
 import { useTranslations } from "next-intl";
 
 import { subscribeToJobSse } from "@/lib/jobSseApi";
@@ -33,6 +35,8 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
   const [evaluating, setEvaluating] = useState(false);
   const [feedback, setFeedback] = useState<PronunciationFeedback | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 403 MINOR_AUDIO_BLOCKED (DEC-22/D8): chấm phát âm bị chặn tới khi trung tâm ghi nhận đồng ý.
+  const [minorBlocked, setMinorBlocked] = useState<MinorAudioBlocked | null>(null);
   const [completedDrills, setCompletedDrills] = useState<Set<number>>(new Set());
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -204,8 +208,10 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
           }
         );
 
-      } catch {
-        setError(t("evalFailed"));
+      } catch (e: unknown) {
+        const blocked = parseMinorAudioBlocked(e);
+        if (blocked) setMinorBlocked(blocked);
+        else setError(t("evalFailed"));
         setEvaluating(false);
       }
     };
@@ -311,6 +317,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
       {recording && <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ga-red animate-pulse"><Mic size={13} aria-hidden /> {t("recording")}</p>}
       {evaluating && <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ga-muted"><Bot size={13} aria-hidden /> {t("evaluating")}</p>}
       {error && <p className="text-center text-xs text-ga-red">{error}</p>}
+      {minorBlocked && <MinorAudioBlockedNotice info={minorBlocked} onDismiss={() => setMinorBlocked(null)} />}
 
       {/* ── Feedback ── */}
       {feedback && (
