@@ -51,7 +51,6 @@ class AdminOrgServiceLifecycleTest {
     @Mock private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     @Mock private com.deutschflow.notification.service.UserNotificationService userNotificationService;
     @Mock private com.deutschflow.common.audit.AuditLogService auditLogService;
-    @Mock private com.deutschflow.user.repository.RefreshTokenRepository refreshTokenRepository;
 
     private AdminOrgService service;
 
@@ -68,8 +67,7 @@ class AdminOrgServiceLifecycleTest {
                 userRepository,
                 passwordEncoder,
                 userNotificationService,
-                auditLogService,
-                refreshTokenRepository
+                auditLogService
         );
     }
 
@@ -367,7 +365,7 @@ class AdminOrgServiceLifecycleTest {
         return new AdminOrgService(
                 organizationRepository, orgMembershipService, orgInvitationService,
                 orgMemberRepository, realEntitlements, userRepository, passwordEncoder,
-                userNotificationService, auditLogService, refreshTokenRepository);
+                userNotificationService, auditLogService);
     }
 
     @Test

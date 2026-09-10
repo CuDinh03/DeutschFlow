@@ -2,11 +2,16 @@ package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.exception.OrgReadOnlyException;
 import com.deutschflow.notification.NotificationType;
 import com.deutschflow.notification.entity.NotificationOutbox;
 import com.deutschflow.notification.repository.NotificationOutboxRepository;
+import com.deutschflow.organization.service.OrgGuard;
+import com.deutschflow.organization.service.OrgLicenseState;
+import com.deutschflow.organization.service.OrgMembershipService;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
 import com.deutschflow.teacher.entity.TeacherClass;
@@ -19,11 +24,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -32,6 +40,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -57,6 +68,9 @@ class ClassEnrollmentServiceTest {
     @Mock private AuditLogService auditLogService;
     @Mock private UserRepository userRepository;
     @Mock private NotificationOutboxRepository outboxRepository;
+    @Mock private OrgMembershipService orgMembershipService;
+    @Mock private OrgGuard orgGuard;
+    @Mock private AssignmentBackfillService assignmentBackfillService;
 
     @InjectMocks private ClassEnrollmentService service;
 
@@ -318,5 +332,208 @@ class ClassEnrollmentServiceTest {
         assertThat(service.enrollAndNotify(CLASS_ID, STUDENT_ID, TEACHER_ID)).isTrue();
 
         verify(outboxRepository).save(any(NotificationOutbox.class));
+    }
+
+    // ── Gói 2: bulkAssignByAdmin — admin nền tảng gán hàng loạt qua CÙNG cửa với đường đơn lẻ ──
+
+    private static final Long ADMIN_ID = 900L;
+    private static final AuditActor ADMIN = new AuditActor(ADMIN_ID, "admin@deutschflow.vn", "ADMIN");
+    private static final String BULK_EVENT = ClassEnrollmentService.EVENT_BULK_ASSIGNED;
+    private static final ClassStudentId KEY = new ClassStudentId(CLASS_ID, STUDENT_ID);
+
+    private void stubStudent(Long id) {
+        when(userRepository.findById(id)).thenReturn(Optional.of(
+                User.builder().id(id).role(User.Role.STUDENT).email("s" + id + "@test.local").build()));
+    }
+
+    private void stubPrimaryTeacherName() {
+        when(userRepository.findById(TEACHER_ID))
+                .thenReturn(Optional.of(User.builder().id(TEACHER_ID).displayName("Cô Lan").build()));
+    }
+
+    private static ClassEnrollmentService.BulkAssignRow row(Long id, ClassEnrollmentService.BulkAssignOutcome o) {
+        return new ClassEnrollmentService.BulkAssignRow(id, o);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> bulkTrace(Long orgId) {
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq(BULK_EVENT), eq(ADMIN), eq("CLASS"), eq(String.valueOf(CLASS_ID)),
+                orgId == null ? isNull() : eq(orgId), meta.capture());
+        return meta.getValue();
+    }
+
+    @Test
+    @DisplayName("bulkAssign: danh sách rỗng/null là no-op — không tra lớp, không cổng, không vết")
+    void bulkAssign_emptyOrNullList_isNoOp() {
+        assertThat(service.bulkAssignByAdmin(CLASS_ID, List.of(), ADMIN).assignedCount()).isZero();
+        assertThat(service.bulkAssignByAdmin(CLASS_ID, null, ADMIN).results()).isEmpty();
+
+        verifyNoInteractions(teacherClassRepository, orgGuard, orgMembershipService, auditLogService);
+    }
+
+    @Test
+    @DisplayName("bulkAssign: lớp không tồn tại → 404, chưa chạm cổng nào")
+    void bulkAssign_classMissing_notFound() {
+        when(teacherClassRepository.findById(CLASS_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.bulkAssignByAdmin(CLASS_ID, List.of(STUDENT_ID), ADMIN))
+                .isInstanceOf(NotFoundException.class);
+
+        verifyNoInteractions(orgGuard, orgMembershipService, classStudentRepository, auditLogService);
+    }
+
+    @Test
+    @DisplayName("bulkAssign D5: trung tâm của lớp chỉ-đọc → ORG_READ_ONLY cho cả lượt, không ai vào lớp, không vết")
+    void bulkAssign_orgReadOnly_rejectsWholeBatch() {
+        stubClass(TEACHER_ID);
+        doThrow(new OrgReadOnlyException(ORG_ID, OrgLicenseState.Reason.SUSPENDED))
+                .when(orgGuard).assertOrgWritable(ORG_ID);
+
+        assertThatThrownBy(() -> service.bulkAssignByAdmin(CLASS_ID, List.of(STUDENT_ID), ADMIN))
+                .isInstanceOf(OrgReadOnlyException.class);
+
+        verifyNoInteractions(orgMembershipService, classStudentRepository, outboxRepository,
+                assignmentBackfillService, auditLogService);
+    }
+
+    @Test
+    @DisplayName("bulkAssign lớp trung tâm: cổng D5 → ghế (ensureStudentSeat) → ghi danh → thông báo addedBy=ORG → cấp bù bài → MỘT vết gộp không PII")
+    void bulkAssign_orgClass_seatThenEnrollNotifyBackfillAndAudit() {
+        stubClass(TEACHER_ID);
+        stubStudent(STUDENT_ID);
+        stubPrimaryTeacherName();
+        when(classStudentRepository.existsById(KEY)).thenReturn(false);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, ADMIN_ID)).thenReturn(false);
+
+        ClassEnrollmentService.BulkAssignResult out =
+                service.bulkAssignByAdmin(CLASS_ID, List.of(STUDENT_ID), ADMIN);
+
+        assertThat(out.requestedCount()).isEqualTo(1);
+        assertThat(out.assignedCount()).isEqualTo(1);
+        assertThat(out.results()).containsExactly(row(STUDENT_ID, ClassEnrollmentService.BulkAssignOutcome.ASSIGNED));
+
+        // Đúng thứ tự của đường đơn lẻ (TeacherService): cổng trung tâm → ghế → ghi danh → cấp bù bài.
+        InOrder order = inOrder(orgGuard, orgMembershipService, classStudentRepository, assignmentBackfillService);
+        order.verify(orgGuard).assertOrgWritable(ORG_ID);
+        order.verify(orgMembershipService).ensureStudentSeat(ORG_ID, STUDENT_ID);
+        order.verify(classStudentRepository).save(any(ClassStudent.class));
+        order.verify(assignmentBackfillService).ensureAssignmentsForStudent(CLASS_ID, STUDENT_ID);
+
+        ArgumentCaptor<NotificationOutbox> outbox = ArgumentCaptor.forClass(NotificationOutbox.class);
+        verify(outboxRepository).save(outbox.capture());
+        assertThat(outbox.getValue().getNotificationType()).isEqualTo(NotificationType.ADDED_TO_CLASS);
+        assertThat(outbox.getValue().getRecipientId()).isEqualTo(STUDENT_ID);
+        assertThat(outbox.getValue().getPayload())
+                .containsEntry("addedBy", "ORG")          // admin không dạy lớp → "trung tâm xếp lớp"
+                .containsEntry("teacherName", "Cô Lan");
+
+        Map<String, Object> meta = bulkTrace(ORG_ID);
+        assertThat(meta)
+                .containsEntry("classId", CLASS_ID)
+                .containsEntry("orgId", ORG_ID)
+                .containsEntry("requestedCount", 1)
+                .containsEntry("assignedCount", 1)
+                .containsEntry("alreadyEnrolledCount", 0)
+                .containsEntry("notStudentCount", 0)
+                .containsEntry("assignedStudentIds", List.of(STUDENT_ID));
+        assertThat(meta.values()).as("không PII").noneMatch(v -> String.valueOf(v).contains("@"));
+    }
+
+    @Test
+    @DisplayName("bulkAssign hết ghế: ném đúng 400 của đường đơn lẻ kèm id học viên — cả lượt rớt, không ghi danh, không vết")
+    void bulkAssign_seatFull_propagatesSameBadRequestWithStudentId() {
+        stubClass(TEACHER_ID);
+        stubStudent(STUDENT_ID);
+        doThrow(new BadRequestException("Đã đạt giới hạn chỗ ngồi (5 student). Không thể thêm thành viên."))
+                .when(orgMembershipService).ensureStudentSeat(ORG_ID, STUDENT_ID);
+
+        assertThatThrownBy(() -> service.bulkAssignByAdmin(CLASS_ID, List.of(STUDENT_ID), ADMIN))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("#" + STUDENT_ID)
+                .hasMessageContaining("giới hạn chỗ ngồi");
+
+        verifyNoInteractions(classStudentRepository, outboxRepository, assignmentBackfillService, auditLogService);
+    }
+
+    @Test
+    @DisplayName("bulkAssign học viên đang thuộc trung tâm KHÁC: 400 rõ ràng của ensureStudentSeat, không lách được qua đường hàng loạt")
+    void bulkAssign_studentActiveElsewhere_propagatesBadRequest() {
+        stubClass(TEACHER_ID);
+        stubStudent(STUDENT_ID);
+        doThrow(new BadRequestException(
+                "Học viên đang thuộc một trung tâm khác — không thể thêm vào trung tâm này qua lớp học."))
+                .when(orgMembershipService).ensureStudentSeat(ORG_ID, STUDENT_ID);
+
+        assertThatThrownBy(() -> service.bulkAssignByAdmin(CLASS_ID, List.of(STUDENT_ID), ADMIN))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("trung tâm khác");
+
+        verifyNoInteractions(classStudentRepository, outboxRepository, auditLogService);
+    }
+
+    @Test
+    @DisplayName("bulkAssign: id trùng / null bị bỏ, không phải học viên (giáo viên, id ma) trả NOT_STUDENT từng dòng và không chạm ghế")
+    void bulkAssign_notStudentAndDuplicates_reportedPerRow() {
+        Long ghost = 4040L;
+        stubClass(TEACHER_ID);
+        // Cùng một stub phục vụ hai việc: "TEACHER_ID có phải học viên?" (không) và tên giáo viên chính cho thông báo.
+        when(userRepository.findById(TEACHER_ID)).thenReturn(Optional.of(
+                User.builder().id(TEACHER_ID).role(User.Role.TEACHER).displayName("Cô Lan").build()));
+        stubStudent(STUDENT_ID);
+        when(userRepository.findById(ghost)).thenReturn(Optional.empty());
+        when(classStudentRepository.existsById(KEY)).thenReturn(false);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, ADMIN_ID)).thenReturn(false);
+
+        ClassEnrollmentService.BulkAssignResult out = service.bulkAssignByAdmin(
+                CLASS_ID, Arrays.asList(TEACHER_ID, STUDENT_ID, null, STUDENT_ID, ghost), ADMIN);
+
+        assertThat(out.requestedCount()).isEqualTo(3);
+        assertThat(out.assignedCount()).isEqualTo(1);
+        assertThat(out.results()).containsExactly(
+                row(TEACHER_ID, ClassEnrollmentService.BulkAssignOutcome.NOT_STUDENT),
+                row(STUDENT_ID, ClassEnrollmentService.BulkAssignOutcome.ASSIGNED),
+                row(ghost, ClassEnrollmentService.BulkAssignOutcome.NOT_STUDENT));
+        verify(orgMembershipService).ensureStudentSeat(ORG_ID, STUDENT_ID);
+        verify(orgMembershipService, never()).ensureStudentSeat(ORG_ID, TEACHER_ID);
+        verify(orgMembershipService, never()).ensureStudentSeat(ORG_ID, ghost);
+        assertThat(bulkTrace(ORG_ID)).containsEntry("notStudentCount", 2).containsEntry("assignedCount", 1);
+    }
+
+    @Test
+    @DisplayName("bulkAssign: học viên đang trong lớp → ALREADY_ENROLLED, không thông báo, không cấp bù, vẫn đếm vào vết")
+    void bulkAssign_alreadyEnrolled_isSilentRow() {
+        stubClass(TEACHER_ID);
+        stubStudent(STUDENT_ID);
+        when(classStudentRepository.existsById(KEY)).thenReturn(true);
+        when(classStudentRepository.reopenEnrollment(CLASS_ID, STUDENT_ID)).thenReturn(0);
+
+        ClassEnrollmentService.BulkAssignResult out =
+                service.bulkAssignByAdmin(CLASS_ID, List.of(STUDENT_ID), ADMIN);
+
+        assertThat(out.assignedCount()).isZero();
+        assertThat(out.results()).containsExactly(row(STUDENT_ID, ClassEnrollmentService.BulkAssignOutcome.ALREADY_ENROLLED));
+        verify(orgMembershipService).ensureStudentSeat(ORG_ID, STUDENT_ID); // ghế vẫn được bảo đảm
+        verify(outboxRepository, never()).save(any());
+        verifyNoInteractions(assignmentBackfillService);
+        assertThat(bulkTrace(ORG_ID)).containsEntry("alreadyEnrolledCount", 1).containsEntry("assignedStudentIds", List.of());
+    }
+
+    @Test
+    @DisplayName("bulkAssign lớp B2C (org_id NULL): không cổng trung tâm, không ghế; vết không mang orgId")
+    void bulkAssign_personalClass_skipsOrgGates() {
+        when(teacherClassRepository.findById(CLASS_ID)).thenReturn(Optional.of(
+                TeacherClass.builder().id(CLASS_ID).orgId(null).name("B2C").teacherId(TEACHER_ID).build()));
+        stubStudent(STUDENT_ID);
+        stubPrimaryTeacherName();
+        when(classStudentRepository.existsById(KEY)).thenReturn(false);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, ADMIN_ID)).thenReturn(false);
+
+        ClassEnrollmentService.BulkAssignResult out =
+                service.bulkAssignByAdmin(CLASS_ID, List.of(STUDENT_ID), ADMIN);
+
+        assertThat(out.assignedCount()).isEqualTo(1);
+        verifyNoInteractions(orgGuard, orgMembershipService);
+        assertThat(bulkTrace(null)).doesNotContainKey("orgId").containsEntry("classId", CLASS_ID);
     }
 }

@@ -9,7 +9,6 @@ import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.user.entity.User;
-import com.deutschflow.user.repository.RefreshTokenRepository;
 import com.deutschflow.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,7 +25,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -35,9 +33,10 @@ import static org.mockito.Mockito.when;
 
 /**
  * {@link AdminOrgService#forceOwner} — lớp façade của đường khôi phục quyền giám đốc (DEC-13 / A6).
- * Lõi đổi vai đã có ca riêng ở {@code OrgMembershipServiceTest}; ở đây kiểm ba việc façade phải
- * làm ĐÚNG THỨ TỰ trước khi chạm lõi: lý do hợp lệ, người nhận không phải admin nền tảng, và sau
- * khi lõi xong thì thu hồi phiên của cả chủ mới lẫn mọi chủ cũ.
+ * Lõi đổi vai đã có ca riêng ở {@code OrgMembershipServiceTest}; ở đây kiểm hai việc façade phải
+ * làm ĐÚNG THỨ TỰ trước khi chạm lõi: lý do hợp lệ, người nhận không phải admin nền tảng. Việc thu
+ * hồi phiên của chủ mới lẫn mọi chủ cũ từ Gói 2 nằm TRONG lõi ({@code forceOwnership}) — façade
+ * không còn tự revoke, ca tương ứng ở {@code OrgMembershipServiceTest}.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AdminOrgService.forceOwner — đường khôi phục quyền giám đốc (DEC-13 / A6)")
@@ -57,7 +56,6 @@ class AdminOrgServiceForceOwnerTest {
     @Mock private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     @Mock private com.deutschflow.notification.service.UserNotificationService userNotificationService;
     @Mock private com.deutschflow.common.audit.AuditLogService auditLogService;
-    @Mock private RefreshTokenRepository refreshTokenRepository;
 
     private AdminOrgService service;
 
@@ -65,7 +63,7 @@ class AdminOrgServiceForceOwnerTest {
     void setUp() {
         service = new AdminOrgService(organizationRepository, orgMembershipService, orgInvitationService,
                 orgMemberRepository, orgEntitlementService, userRepository, passwordEncoder,
-                userNotificationService, auditLogService, refreshTokenRepository);
+                userNotificationService, auditLogService);
     }
 
     private Organization org() {
@@ -87,14 +85,13 @@ class AdminOrgServiceForceOwnerTest {
 
     private void assertNothingHappened() {
         verify(orgMembershipService, never()).forceOwnership(any(), any(), any(), any());
-        verify(refreshTokenRepository, never()).revokeAllByUserId(anyLong());
     }
 
     // ── happy path ────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("uỷ quyền xuống lõi với lý do đã trim, rồi thu hồi phiên của chủ mới VÀ mọi chủ cũ")
-    void forceOwner_delegatesAndRevokesSessions() {
+    @DisplayName("uỷ quyền xuống lõi với lý do đã trim, trả về chủ mới — kể cả khi lõi hạ nhiều chủ cũ")
+    void forceOwner_delegatesWithTrimmedReason() {
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org()));
         when(userRepository.findById(NEW_OWNER_ID)).thenReturn(Optional.of(userWithRole(User.Role.TEACHER)));
         when(orgMembershipService.forceOwnership(ADMIN, ORG_ID, NEW_OWNER_ID, REASON))
@@ -104,25 +101,23 @@ class AdminOrgServiceForceOwnerTest {
 
         assertThat(out.userId()).isEqualTo(NEW_OWNER_ID);
         assertThat(out.role()).isEqualTo("OWNER");
-        // Access token đang lưu hành mang orgRole cũ — không revoke thì chủ cũ giữ quyền tới hết
-        // vòng đời refresh token (khuôn AdminManagementService.updateUserRole).
-        verify(refreshTokenRepository).revokeAllByUserId(NEW_OWNER_ID);
-        verify(refreshTokenRepository).revokeAllByUserId(5L);
-        verify(refreshTokenRepository).revokeAllByUserId(6L);
+        // Gói 2: thu hồi phiên chủ mới + chủ cũ là việc của lõi (forceOwnership), façade chỉ uỷ quyền
+        // ĐÚNG MỘT lần với lý do đã trim.
+        verify(orgMembershipService).forceOwnership(ADMIN, ORG_ID, NEW_OWNER_ID, REASON);
     }
 
     @Test
-    @DisplayName("ca khôi phục: lõi báo 0 chủ cũ → chỉ làm mới phiên của chủ mới")
-    void forceOwner_ownerlessOrg_revokesOnlyNewOwner() {
+    @DisplayName("ca khôi phục: lõi báo 0 chủ cũ → façade vẫn trả về chủ mới bình thường")
+    void forceOwner_ownerlessOrg_returnsNewOwner() {
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org()));
         when(userRepository.findById(NEW_OWNER_ID)).thenReturn(Optional.empty()); // guard ADMIN bỏ qua khi không có dòng users
         when(orgMembershipService.forceOwnership(ADMIN, ORG_ID, NEW_OWNER_ID, REASON))
                 .thenReturn(new OrgMembershipService.ForcedOwnership(ownerDto(), List.of()));
 
-        service.forceOwner(ADMIN, ORG_ID, NEW_OWNER_ID, REASON);
+        OrgMemberDto out = service.forceOwner(ADMIN, ORG_ID, NEW_OWNER_ID, REASON);
 
-        verify(refreshTokenRepository).revokeAllByUserId(NEW_OWNER_ID);
-        verify(refreshTokenRepository, never()).revokeAllByUserId(5L);
+        assertThat(out.userId()).isEqualTo(NEW_OWNER_ID);
+        verify(orgMembershipService).forceOwnership(ADMIN, ORG_ID, NEW_OWNER_ID, REASON);
     }
 
     // ── guards, đúng thứ tự: org → người nhận → lý do → ADMIN → lõi ─────────
@@ -191,16 +186,15 @@ class AdminOrgServiceForceOwnerTest {
     }
 
     @Test
-    @DisplayName("lõi từ chối (học viên / không phải thành viên) → 400 lan ra ngoài, KHÔNG thu hồi phiên ai")
-    void forceOwner_coreRejects_propagatesWithoutRevoking() {
+    @DisplayName("lõi từ chối (học viên / không phải thành viên) → 400 lan ra ngoài nguyên vẹn")
+    void forceOwner_coreRejects_propagates() {
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org()));
         when(userRepository.findById(NEW_OWNER_ID)).thenReturn(Optional.of(userWithRole(User.Role.STUDENT)));
         when(orgMembershipService.forceOwnership(ADMIN, ORG_ID, NEW_OWNER_ID, REASON))
                 .thenThrow(new BadRequestException("Chỉ chỉ định được quản lý hoặc giáo viên làm giám đốc"));
 
         assertThatThrownBy(() -> service.forceOwner(ADMIN, ORG_ID, NEW_OWNER_ID, REASON))
-                .isInstanceOf(BadRequestException.class);
-
-        verify(refreshTokenRepository, never()).revokeAllByUserId(anyLong());
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("quản lý hoặc giáo viên");
     }
 }

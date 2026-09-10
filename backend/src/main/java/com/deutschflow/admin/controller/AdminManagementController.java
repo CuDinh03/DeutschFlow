@@ -8,6 +8,7 @@ import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.audit.AuditOrgResolver;
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.teacher.service.ClassEnrollmentService;
 import com.deutschflow.vocabulary.service.DeepLLemmaBackfillService;
 import com.deutschflow.vocabulary.service.GlosbeViEnrichmentService;
 import com.deutschflow.vocabulary.service.GlosbeVocabularyImportService;
@@ -71,6 +72,7 @@ public class AdminManagementController {
     private final LlmViTranslationService llmViTranslationService;
     private final LlmDtypeFixService llmDtypeFixService;
     private final JdbcTemplate jdbcTemplate;
+    private final ClassEnrollmentService classEnrollmentService;
 
     // ── Cache Management ──────────────────────────────────────────────────
 
@@ -420,25 +422,25 @@ public class AdminManagementController {
         return classes;
     }
 
+    /**
+     * Gán nhiều học viên vào một lớp. Gói 2 (10/09/2026): đi qua {@link ClassEnrollmentService} —
+     * cùng cổng ghế trung tâm, cùng-trung-tâm, D5 chỉ-đọc, thông báo phân lớp và cấp bù bài tập
+     * với đường ghi danh đơn lẻ; trước đây ghi thẳng {@code class_students} bằng SQL và đi vòng qua
+     * tất cả. Vết gộp {@code admin.class.students.bulk_assigned} ghi trong service, cùng transaction.
+     *
+     * <p>Hợp đồng: {@code assignedCount} giữ nguyên; thêm {@code requestedCount} và {@code results}
+     * từng dòng ({@code ASSIGNED | ALREADY_ENROLLED | NOT_STUDENT}). Hết ghế / học viên đang thuộc
+     * trung tâm khác → 400 cả lượt (cùng mã và câu với đường đơn lẻ, kèm id học viên); trung tâm
+     * chỉ-đọc → 403 {@code ORG_READ_ONLY}; lớp không có → 404.
+     */
     @PostMapping("/classes/{classId}/students/bulk-assign")
-    public Map<String, Object> bulkAssignStudents(
+    public ClassEnrollmentService.BulkAssignResult bulkAssignStudents(
             @PathVariable Long classId,
             @RequestBody @Valid BulkAssignStudentsRequest request,
             Authentication authentication
     ) {
-        // Đối tượng bị tác động ở đây là LỚP, nên tra theo lớp: học viên được gán có thể chưa
-        // thuộc trung tâm nào, còn lớp thì luôn nói đúng sổ nào phải nhận vết này.
-        Long touchedOrgId = auditOrgResolver.forClass(classId);
-        Map<String, Object> result = adminManagementService.bulkAssignStudents(classId, request.studentIds());
-        auditLogService.log(
-                "admin.class.students.bulk_assigned",
-                AuditActor.ofAuthentication(authentication),
-                "CLASS",
-                String.valueOf(classId),
-                touchedOrgId,
-                Map.of("assignedCount", result.get("assignedCount"))
-        );
-        return result;
+        return classEnrollmentService.bulkAssignByAdmin(classId, request.studentIds(),
+                AuditActor.ofAuthentication(authentication));
     }
 
     @GetMapping("/users/{userId}/learning-detail")

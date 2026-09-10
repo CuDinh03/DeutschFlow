@@ -907,44 +907,8 @@ public class AdminManagementService {
                 """);
     }
 
-    @Transactional
-    public Map<String, Object> bulkAssignStudents(Long classId, List<Long> studentIds) {
-        if (studentIds == null || studentIds.isEmpty()) {
-            return Map.of("assignedCount", 0);
-        }
-        
-        Integer classExists = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM teacher_classes WHERE id = ?", Integer.class, classId);
-        if (classExists == null || classExists == 0) {
-            throw new NotFoundException("Class not found");
-        }
-        
-        Set<Long> uniqueIds = new HashSet<>(studentIds);
-        int count = 0;
-        
-        for (Long sid : uniqueIds) {
-            Integer isStudent = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users WHERE id = ? AND role = 'STUDENT'", Integer.class, sid);
-            if (isStudent != null && isStudent > 0) {
-                // Dòng ghi danh cũ KHÔNG bị xoá khi học viên rời lớp (D2) — chỉ đổi status. Vì vậy
-                // "đã có dòng" không còn đồng nghĩa "đang trong lớp": chỉ đếm người CÒN chiếm ghế,
-                // và với người từng rời lớp thì MỞ LẠI dòng cũ (giữ nguyên nhận xét + điểm kỹ năng)
-                // thay vì bỏ qua im lặng.
-                Integer enrolled = jdbcTemplate.queryForObject(
-                        "SELECT COUNT(*) FROM class_students WHERE class_id = ? AND student_id = ?"
-                                + " AND status IN ('ACTIVE', 'RESERVED')",
-                        Integer.class, classId, sid);
-                if (enrolled == null || enrolled == 0) {
-                    jdbcTemplate.update(
-                            "INSERT INTO class_students (class_id, student_id, joined_at) VALUES (?, ?, NOW())"
-                                    + " ON CONFLICT (class_id, student_id) DO UPDATE"
-                                    + " SET status = 'ACTIVE', ended_at = NULL, end_reason = NULL",
-                            classId, sid);
-                    count++;
-                }
-            }
-        }
-        
-        return Map.of("assignedCount", count);
-    }
+    // bulkAssignStudents (SQL thẳng vào class_students) đã dời sang
+    // ClassEnrollmentService.bulkAssignByAdmin — Gói 2 (10/09/2026): mọi đường vào lớp qua MỘT cửa.
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> studentPlanProgress() {

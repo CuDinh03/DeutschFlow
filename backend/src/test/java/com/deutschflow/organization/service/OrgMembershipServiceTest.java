@@ -13,12 +13,14 @@ import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.entity.OrgMemberId;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.user.repository.RefreshTokenRepository;
 import com.deutschflow.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -32,9 +34,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -58,6 +62,7 @@ class OrgMembershipServiceTest {
     @Mock private AuditLogService auditLogService;
     @Mock private com.deutschflow.organization.repository.OrganizationRepository organizationRepository;
     @Mock private OrgEntitlementService orgEntitlementService;
+    @Mock private RefreshTokenRepository refreshTokenRepository;
 
     /** Người thao tác — mọi mutation thành viên nay ghi vết kèm danh tính này. */
     private static final AuditActor ACTOR = new AuditActor(2L, "owner@tt.vn", "OWNER");
@@ -69,7 +74,7 @@ class OrgMembershipServiceTest {
     void setUp() {
         service = new OrgMembershipService(memberRepo, academicApproverRepo, classStudentRepository,
                 userRepository, jdbcTemplate,
-                auditLogService, organizationRepository, orgEntitlementService);
+                auditLogService, organizationRepository, orgEntitlementService, refreshTokenRepository);
     }
 
     private User studentUser() {
@@ -1173,5 +1178,136 @@ class OrgMembershipServiceTest {
                 eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), any());
         verify(auditLogService, never()).log(eq("admin.org.owner.forced"), any(AuditActor.class),
                 any(), any(), any(), any());
+    }
+
+    // ----------------------------------------------------------------- Gói 2: cắt phiên khi quyền trong trung tâm đổi
+
+    private static final String REVOKED = OrgMembershipService.EVENT_SESSIONS_REVOKED;
+
+    /** Bắt metadata của các dòng {@code org_member_sessions_revoked} ghi cho {@code targetUserId}. */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> revokedTraceFor(AuditActor actor, Long targetUserId) {
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq(REVOKED), eq(actor), eq("ORG_MEMBER"),
+                eq(String.valueOf(targetUserId)), eq(ORG_ID), meta.capture());
+        return meta.getValue();
+    }
+
+    @Test
+    @DisplayName("Gói 2 removeMember: thu hồi mọi refresh token của người bị gỡ, vết ghi SAU vết gỡ, chỉ id + số lượng")
+    void removeMember_revokesSessions_andWritesCountOnlyTrace() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member("TEACHER", "ACTIVE")));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(teacherUser(ORG_ID)));
+        when(memberRepo.existsByIdUserIdAndRoleInAndStatus(eq(USER_ID), anySet(), eq("ACTIVE"))).thenReturn(false);
+        when(refreshTokenRepository.revokeAllByUserId(USER_ID)).thenReturn(2); // hai thiết bị đang đăng nhập
+
+        service.removeMember(ORG_ID, USER_ID, ACTOR);
+
+        // Thứ tự sổ: việc xảy ra (gỡ) trước, hệ quả (cắt phiên) ngay sau — cùng transaction.
+        InOrder ledger = inOrder(auditLogService);
+        ledger.verify(auditLogService).log(eq("org_member_removed"), eq(ACTOR), eq("ORG_MEMBER"),
+                eq(String.valueOf(USER_ID)), eq(ORG_ID), any());
+        ledger.verify(auditLogService).log(eq(REVOKED), eq(ACTOR), eq("ORG_MEMBER"),
+                eq(String.valueOf(USER_ID)), eq(ORG_ID), any());
+
+        Map<String, Object> meta = revokedTraceFor(ACTOR, USER_ID);
+        assertThat(meta)
+                .containsEntry("reason", OrgMembershipService.REVOKE_REASON_REMOVED)
+                .containsEntry("revokedCount", 2)
+                .containsEntry("orgId", ORG_ID)
+                .containsEntry("targetUserId", USER_ID);
+        assertThat(meta.values()).as("không PII trong vết").noneMatch(v -> String.valueOf(v).contains("@"));
+    }
+
+    @Test
+    @DisplayName("Gói 2 selfLeave: tự rời cũng cắt phiên của chính mình; vết mang orgId tường minh dù users.org_id đã bị xoá; 0 phiên vẫn có vết")
+    void selfLeave_revokesOwnSessions_traceScopedToOrg() {
+        OrgMember active = member("TEACHER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(active));
+        User user = teacherUser(ORG_ID);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(memberRepo.existsByIdUserIdAndRoleInAndStatus(eq(USER_ID), anySet(), eq("ACTIVE"))).thenReturn(false);
+
+        service.selfLeave(ORG_ID, ACTOR_SELF);
+
+        assertThat(user.getOrgId()).isNull();
+        verify(refreshTokenRepository).revokeAllByUserId(USER_ID);
+        assertThat(revokedTraceFor(ACTOR_SELF, USER_ID))
+                .containsEntry("reason", OrgMembershipService.REVOKE_REASON_LEFT)
+                .containsEntry("revokedCount", 0); // mock mặc định: người này không có phiên nào đang sống
+    }
+
+    @Test
+    @DisplayName("Gói 2 changeRole: đổi vai (MANAGER ↔ TEACHER) cắt phiên người bị đổi — cả chiều hạ lẫn chiều nâng")
+    void changeRole_revokesTargetSessions_bothDirections() {
+        OrgMember manager = member("MANAGER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(manager));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(userWith(USER_ID, User.Role.MANAGER)));
+        when(refreshTokenRepository.revokeAllByUserId(USER_ID)).thenReturn(1);
+
+        service.changeRole(ORG_ID, USER_ID, "TEACHER", ACTOR);
+
+        assertThat(manager.getRole()).isEqualTo("TEACHER");
+        assertThat(revokedTraceFor(ACTOR, USER_ID))
+                .containsEntry("reason", OrgMembershipService.REVOKE_REASON_ROLE_CHANGED)
+                .containsEntry("revokedCount", 1);
+    }
+
+    @Test
+    @DisplayName("Gói 2 transferOwnership: CẢ chủ cũ lẫn chủ mới bị cắt phiên — hai vết, cùng lý do ownership_transferred")
+    void transferOwnership_revokesBothParties() {
+        OrgMember owner = member("OWNER", "ACTIVE");
+        OrgMember target = member(NEW_OWNER_ID, "MANAGER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(owner));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID)).thenReturn(Optional.of(target));
+
+        service.transferOwnership(ORG_ID, ACTOR_SELF, NEW_OWNER_ID);
+
+        verify(refreshTokenRepository).revokeAllByUserId(NEW_OWNER_ID);
+        verify(refreshTokenRepository).revokeAllByUserId(USER_ID);
+        assertThat(revokedTraceFor(ACTOR_SELF, NEW_OWNER_ID))
+                .containsEntry("reason", OrgMembershipService.REVOKE_REASON_OWNERSHIP_TRANSFERRED);
+        assertThat(revokedTraceFor(ACTOR_SELF, USER_ID))
+                .containsEntry("reason", OrgMembershipService.REVOKE_REASON_OWNERSHIP_TRANSFERRED);
+    }
+
+    @Test
+    @DisplayName("Gói 2 forceOwnership: chủ mới VÀ mọi chủ cũ bị hạ đều bị cắt phiên ngay trong lõi (façade không còn tự revoke)")
+    void forceOwnership_revokesNewOwnerAndEveryDemotedOwner() {
+        OrgMember owner1 = member(USER_ID, "OWNER", "ACTIVE");
+        OrgMember owner2 = member(SECOND_OWNER_ID, "OWNER", "ACTIVE");
+        OrgMember target = member(NEW_OWNER_ID, "TEACHER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID)).thenReturn(Optional.of(target));
+        when(memberRepo.findByIdOrgIdAndRoleAndStatus(ORG_ID, "OWNER", "ACTIVE"))
+                .thenReturn(activeOwners(owner1, owner2));
+        when(userRepository.findById(NEW_OWNER_ID)).thenReturn(Optional.of(userWith(NEW_OWNER_ID, User.Role.TEACHER)));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(userWith(USER_ID, User.Role.OWNER)));
+        when(userRepository.findById(SECOND_OWNER_ID)).thenReturn(Optional.of(userWith(SECOND_OWNER_ID, User.Role.OWNER)));
+
+        service.forceOwnership(ADMIN_ACTOR, ORG_ID, NEW_OWNER_ID, FORCE_REASON);
+
+        verify(refreshTokenRepository).revokeAllByUserId(NEW_OWNER_ID);
+        verify(refreshTokenRepository).revokeAllByUserId(USER_ID);
+        verify(refreshTokenRepository).revokeAllByUserId(SECOND_OWNER_ID);
+        verify(auditLogService, times(3)).log(eq(REVOKED), eq(ADMIN_ACTOR), eq("ORG_MEMBER"),
+                anyString(), eq(ORG_ID), any());
+        assertThat(revokedTraceFor(ADMIN_ACTOR, SECOND_OWNER_ID))
+                .containsEntry("reason", OrgMembershipService.REVOKE_REASON_OWNERSHIP_FORCED);
+    }
+
+    @Test
+    @DisplayName("Gói 2: thao tác bị chặn (gỡ OWNER, đổi sang vai lạ) thì KHÔNG cắt phiên ai — cắt phiên chỉ đi kèm việc đã xảy ra")
+    void blockedMutations_neverRevokeSessions() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member("OWNER", "ACTIVE")));
+
+        assertThatThrownBy(() -> service.removeMember(ORG_ID, USER_ID, ACTOR))
+                .isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.changeRole(ORG_ID, USER_ID, "STUDENT", ACTOR))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(refreshTokenRepository, never()).revokeAllByUserId(anyLong());
+        verify(auditLogService, never()).log(eq(REVOKED), any(AuditActor.class), any(), any(), any(), any());
     }
 }
