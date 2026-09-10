@@ -1269,6 +1269,8 @@ public class TeacherService {
         // GRADED legacy) tức là học viên ĐÃ được announce điểm một lần rồi.
         boolean regrade = AssignmentStatus.isFinal(assignment.getStatus());
 
+        // R3 (V323): giáo viên chốt CHỈ ghi score/feedback — KHÔNG đụng ai_score/ai_feedback/ai_graded_at.
+        // Đề xuất của AI phải sống sót sau khi bị sửa (giáo viên xem lại; chỉ số M5 = |ai_score - score|).
         assignment.setScore(req.teacherScore());
         assignment.setFeedback(req.teacherFeedback());
         assignment.setStatus("EVALUATED");

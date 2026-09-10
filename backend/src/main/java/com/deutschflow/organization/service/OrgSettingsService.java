@@ -23,11 +23,20 @@ public class OrgSettingsService {
     public static final String SUPPORT_INDIVIDUAL_MAX = "support_individual_max";
     /** Spec §7 (PR-9): ≥ N học viên yếu một mục tiêu → gợi ý CÂN NHẮC ÔN CHUNG cả lớp. */
     public static final String REVIEW_GROUP_MIN = "review_group_min";
+    /**
+     * R10 (V323): điểm bài CHỐT trung bình tối thiểu (thang 0–100) để đủ điều kiện chứng nhận. Mặc định 50
+     * = giá trị từng cắm cứng trong StudentEvaluationService. Lớp B2C (org NULL) luôn dùng mặc định.
+     */
+    public static final String CERTIFICATE_MIN_AVG = "certificate_min_avg";
+    /** R10 (V323): tỉ lệ chuyên cần tối thiểu (%, 0–100) để đủ điều kiện chứng nhận. Mặc định 80. */
+    public static final String CERTIFICATE_MIN_ATTENDANCE_PCT = "certificate_min_attendance_pct";
 
     public static final Map<String, String> DEFAULTS = Map.of(
             TIMESHEET_BREAK_INCLUDED, "true",
             SUPPORT_INDIVIDUAL_MAX, "2",
-            REVIEW_GROUP_MIN, "3");
+            REVIEW_GROUP_MIN, "3",
+            CERTIFICATE_MIN_AVG, "50",
+            CERTIFICATE_MIN_ATTENDANCE_PCT, "80");
 
     private final OrgSettingRepository settingRepo;
 

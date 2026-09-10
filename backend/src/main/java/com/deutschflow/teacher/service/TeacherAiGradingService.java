@@ -154,12 +154,11 @@ public class TeacherAiGradingService {
                                 sa.getId(), sa.getStatus());
                         return;
                     }
-                    sa.setScore(finalAiScore);
-                    sa.setFeedback(finalAiFeedback);
                     // Proposal only — same contract as the essay path: the student is told nothing and the
-                    // competency ledger is untouched until a teacher confirms it (→ EVALUATED).
-                    sa.setStatus(AssignmentStatus.AI_GRADED);
-                    sa.setGradedAt(java.time.LocalDateTime.now()); // grade time — NOT submittedAt (keep real submit time)
+                    // competency ledger is untouched until a teacher confirms it (→ EVALUATED). R3 (V323):
+                    // applyAiProposal ghi ai_* cột riêng + score/feedback + AI_GRADED; gradedAt = giờ chấm,
+                    // submittedAt (giờ nộp thật) không đụng.
+                    sa.applyAiProposal(finalAiScore, finalAiFeedback);
                     studentAssignmentRepository.save(sa);
                     log.info("[Auto-Grading] Proposed AI score for StudentAssignment {} (awaiting teacher)", sa.getId());
                 });

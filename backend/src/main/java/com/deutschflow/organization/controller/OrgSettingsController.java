@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 /**
- * Cấu hình trung tâm (V298, PR-10): P04 chính sách tính công + 2 ngưỡng gợi ý hỗ trợ (§7).
+ * Cấu hình trung tâm (V298, PR-10): P04 chính sách tính công + 2 ngưỡng gợi ý hỗ trợ (§7) + 2 ngưỡng
+ * chứng nhận (R10, V323).
  * OWNER-only — đây là chính sách vận hành/tiền nong của giám đốc, không phải việc hằng ngày
  * của MANAGER.
  */
@@ -68,6 +69,16 @@ public class OrgSettingsController {
                     if (n < 1 || n > 100) throw new NumberFormatException();
                 } catch (NumberFormatException ex) {
                     throw new BadRequestException(key + " phải là số nguyên 1–100");
+                }
+            }
+            // R10: ngưỡng chứng nhận — cùng thang với dữ liệu (điểm 0–100, chuyên cần 0–100 %). 0 hợp lệ
+            // (trung tâm tắt điều kiện đó), 100 hợp lệ (đòi tuyệt đối).
+            case OrgSettingsService.CERTIFICATE_MIN_AVG, OrgSettingsService.CERTIFICATE_MIN_ATTENDANCE_PCT -> {
+                try {
+                    int n = Integer.parseInt(value.trim());
+                    if (n < 0 || n > 100) throw new NumberFormatException();
+                } catch (NumberFormatException ex) {
+                    throw new BadRequestException(key + " phải là số nguyên 0–100");
                 }
             }
             default -> throw new BadRequestException("Key cấu hình không hợp lệ: " + key);
