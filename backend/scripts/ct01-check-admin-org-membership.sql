@@ -1,17 +1,22 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
--- Cổng kiểm TRƯỚC KHI VIẾT V317 — DEC-13 "admin nền tảng không bao giờ là thành viên trung tâm".
--- CHỈ ĐỌC. Một câu SELECT, không ghi, không đổi gì trên production.
+-- Cổng kiểm TRƯỚC KHI VIẾT migration trigger — DEC-13 "admin nền tảng không bao giờ là thành viên
+-- trung tâm". CHỈ ĐỌC. Một câu SELECT, không ghi, không đổi gì trên production.
+--
+-- ✅ Đã chạy trên production 10/09/2026 ~13:40: PASS, 0 dòng — V318 đã áp trigger
+--    (V318__block_platform_admin_org_membership.sql; số V317 rốt cuộc dùng cho backfill sổ hoạt động).
+--    Script vẫn có ích để soi định kỳ: V318 KHÔNG gắn trigger lên `users.org_id` (bản sao nhanh, không
+--    phải cổng), nên nguồn thứ hai bên dưới vẫn có thể lệch mà không bị DB chặn.
 --
 -- Chạy:  ~/Developer/deutschflow-tools/run-ct01-admin-membership-gate.sh
 --
 -- Đọc kết quả:
---   ✅ 0 dòng  → prod sạch. V317 chỉ cần trigger chặn, KHÔNG cần bước dọn dữ liệu.
---   ⛔ có dòng → PHẢI quyết cách dọn TRƯỚC khi viết migration, vì V317 dự kiến RAISE EXCEPTION
---                khi thấy dữ liệu vi phạm ⇒ để nguyên là chặn cả chuyến deploy.
+--   ✅ 0 dòng  → prod sạch. Migration trigger chỉ cần chặn, KHÔNG cần bước dọn dữ liệu.
+--   ⛔ có dòng → PHẢI quyết cách dọn TRƯỚC, vì V318 RAISE EXCEPTION ở tiền điều kiện khi thấy dữ liệu
+--                vi phạm ⇒ để nguyên là chặn cả chuyến deploy (áp lại lên môi trường bẩn cũng vậy).
 --
 -- 🔴 Nếu có dòng nào `org_role = 'OWNER'`: KHÔNG có đường phục hồi trong sản phẩm —
 --    removeMember và selfLeave đều từ chối mọi OWNER, transferOwnership chỉ chính OWNER đó gọi
---    được. Owner phải chỉ định người thay TRƯỚC, rồi V317 mới chuyển quyền được.
+--    được. Owner phải chỉ định người thay TRƯỚC, rồi migration mới chuyển quyền được.
 --
 -- Hai nguồn được soi tách bạch vì chúng có thể lệch nhau: `org_members` là bảng quyền thật mà
 -- OrgGuard đọc; `users.org_id` là bản sao nhanh mà controller dùng để suy ngữ cảnh trung tâm.
