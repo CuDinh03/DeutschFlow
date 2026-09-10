@@ -1,6 +1,7 @@
 package com.deutschflow.speaking.controller;
 
 import com.deutschflow.common.exception.RateLimitExceededException;
+import com.deutschflow.common.minor.MinorGate;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.speaking.AiRateLimiterService;
@@ -37,13 +38,15 @@ class PronunciationControllerTest {
     @Mock private AiRateLimiterService aiRateLimiterService;
     @Mock private QuotaService quotaService;
     @Mock private OrgPoolGuard orgPoolGuard;
+    @Mock private MinorGate minorGate;
 
     private PronunciationController controller;
     private User user;
 
     @BeforeEach
     void setUp() {
-        controller = new PronunciationController(scorerService, aiRateLimiterService, quotaService, orgPoolGuard);
+        controller = new PronunciationController(scorerService, aiRateLimiterService, quotaService,
+                orgPoolGuard, minorGate);
         ReflectionTestUtils.setField(controller, "transcribeMaxBytes", 8_388_608L);
         user = new User();
         user.setId(7L);

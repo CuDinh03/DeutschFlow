@@ -1,6 +1,13 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.minor.ConsentDraft;
+import com.deutschflow.common.minor.ConsentState;
+import com.deutschflow.common.minor.MinorConsentTerms;
+import com.deutschflow.common.minor.MinorLearnerService;
+import com.deutschflow.common.minor.StudentConsent;
+import com.deutschflow.common.minor.StudentGuardian;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.teacher.service.AssignmentBackfillService;
@@ -14,6 +21,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -37,6 +46,12 @@ import java.util.UUID;
  *
  * <p>The org row-lock that used to be taken once per import now lives here, per row (see the seat
  * comment below).
+ *
+ * <p><b>D6 (owner chốt 10/09/2026): dữ liệu chưa thành niên chỉ ghi SAU khi dòng đã là thành viên
+ * ACTIVE của chính trung tâm này.</b> Mọi chốt từ chối (ADMIN, nhân sự, đang thuộc trung tâm khác,
+ * hết ghế) đều đứng TRƯỚC {@link OrgMembershipService#upsertMember}; ngày sinh, người giám hộ và
+ * đồng ý đứng SAU. Và vì cả dòng là một transaction, {@code upsertMember} ném thì ba thứ đó cũng
+ * không thể đã ghi — một dòng bị từ chối không chạm {@code users} của ai cả.
  */
 @Service
 @RequiredArgsConstructor
@@ -45,6 +60,9 @@ public class OrgRosterRowImporter {
     private static final String ROLE_STUDENT = "STUDENT";
     private static final String STATUS_ACTIVE = "ACTIVE";
 
+    /** Ghi chú cố định trên dòng đồng ý ghi từ CSV — để sổ phân biệt được với phiếu nhập tay. */
+    static final String CONSENT_NOTE_ROSTER_IMPORT = "roster-import";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final OrgMembershipService membershipService;
@@ -52,35 +70,64 @@ public class OrgRosterRowImporter {
     private final OrgMemberRepository orgMemberRepository;
     private final ClassEnrollmentService classEnrollmentService;
     private final AssignmentBackfillService assignmentBackfillService;
+    private final MinorLearnerService minorLearnerService;
+    private final MinorConsentTerms consentTerms;
     private final JdbcTemplate jdbcTemplate;
 
     /**
      * What one row did. {@code created} and {@code linked} are mutually exclusive; {@code seatLimited}
      * means the row was rejected by the seat gate and nothing was written.
+     *
+     * @param otherOrgName      F4: dòng bị từ chối vì học viên đang ACTIVE ở trung tâm KHÁC — tên
+     *                          trung tâm đó (có thể rỗng nếu không tra được tên). {@code null} = không
+     *                          bị chặn vì lý do này. Không ghi gì cả khi có giá trị
+     * @param birthDateRecorded ngày sinh của dòng này ĐÃ được ghi. {@code false} khi dòng không khai
+     *                          ngày sinh HOẶC tài khoản đã có sẵn — cả hai đều là kết quả bình
+     *                          thường, không phải lỗi (xem {@code MinorLearnerService#recordBirthDate})
+     * @param guardianRecorded  người giám hộ của dòng này đã được thêm; {@code false} khi dòng không
+     *                          khai, hoặc học viên đã có người giám hộ từ trước
+     * @param consentRecorded   một dòng đồng ý {@code AUDIO_RECORDING/GRANTED/PAPER} đã được ghi thêm;
+     *                          {@code false} khi ô không đánh dấu, hoặc học viên đã đang {@code GRANTED}
      */
-    public record RowOutcome(boolean created, boolean linked, boolean enrolled, boolean seatLimited) {
+    public record RowOutcome(boolean created, boolean linked, boolean enrolled, boolean seatLimited,
+                             String otherOrgName,
+                             boolean birthDateRecorded, boolean guardianRecorded, boolean consentRecorded) {
 
         static RowOutcome rejectedBySeatLimit() {
-            return new RowOutcome(false, false, false, true);
+            return new RowOutcome(false, false, false, true, null, false, false, false);
         }
 
-        static RowOutcome imported(boolean created, boolean enrolled) {
-            return new RowOutcome(created, !created, enrolled, false);
+        static RowOutcome rejectedByOtherOrg(String otherOrgName) {
+            return new RowOutcome(false, false, false, false, otherOrgName == null ? "" : otherOrgName,
+                    false, false, false);
+        }
+
+        static RowOutcome imported(boolean created, boolean enrolled,
+                                   boolean birthDateRecorded, boolean guardianRecorded, boolean consentRecorded) {
+            return new RowOutcome(created, !created, enrolled, false, null,
+                    birthDateRecorded, guardianRecorded, consentRecorded);
+        }
+
+        /** Dòng bị chặn vì học viên đang thuộc trung tâm khác (F4). */
+        public boolean rejectedByOtherOrg() {
+            return otherOrgName != null;
         }
     }
 
     /**
-     * Links-or-creates the user, upserts the org membership, grants the org-funded plan and
-     * (optionally) enrolls into a class — all or nothing for THIS row.
+     * Links-or-creates the user, upserts the org membership, grants the org-funded plan, records the
+     * row's minor data and (optionally) enrolls into a class — all or nothing for THIS row.
      *
      * @param org           the target org, loaded once by the caller (read-only here)
-     * @param email         already normalized and format-validated by the caller
-     * @param displayNameCol raw display-name column; falls back to the email local part when blank
+     * @param row           dòng CSV đã kiểm và chuẩn hoá ở {@link OrgRosterService}
      * @param classIdOrNull when non-null, the student is also enrolled into this class
+     * @param actor         người bấm import — chịu trách nhiệm cho {@code birth_date_recorded_by}
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public RowOutcome importRow(Organization org, String email, String displayNameCol, Long classIdOrNull) {
+    public RowOutcome importRow(Organization org, RosterRowInput row, Long classIdOrNull,
+                                AuditActor actor) {
         Long orgId = org.getId();
+        String email = row.email();
 
         // Row-level lock on the org, held for this row's transaction (J). It used to be taken once
         // for the whole import; now that each row commits separately, batch-scoping it would be both
@@ -116,6 +163,16 @@ public class OrgRosterRowImporter {
                                 + " của trung tâm — nhập CSV học viên không được đổi vai trò nhân sự."
                                 + " Hãy xử lý ở trang Thành viên.");
                     });
+            // F4 (owner chốt 10/09/2026): đang ACTIVE ở trung tâm KHÁC ⇒ chặn dòng, nêu tên trung
+            // tâm đó. Đây là bản ĐỌC ĐƯỢC của chốt trong upsertMember (chốt đó vẫn là thẩm quyền
+            // cuối, cùng khoá FOR UPDATE); trả về outcome thay vì ném để OrgRosterService viết được
+            // câu có số dòng + email + tên trung tâm, và để D6 giữ nguyên: chưa ghi gì, không chạm
+            // `users` của người này.
+            Optional<OrgMembershipService.ActiveElsewhere> elsewhere =
+                    membershipService.activeMembershipElsewhere(existing.getId(), orgId);
+            if (elsewhere.isPresent()) {
+                return RowOutcome.rejectedByOtherOrg(elsewhere.get().orgName());
+            }
         }
 
         // Seat check applies only when admitting a brand-new student to the org. This is the
@@ -132,7 +189,7 @@ public class OrgRosterRowImporter {
         if (existing != null) {
             user = existing;
         } else {
-            String displayName = firstNonBlank(displayNameCol, localPart(email));
+            String displayName = firstNonBlank(row.displayName(), localPart(email));
             user = userRepository.save(User.builder()
                     .email(email)
                     .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
@@ -145,6 +202,11 @@ public class OrgRosterRowImporter {
         membershipService.upsertMember(orgId, user.getId(), ROLE_STUDENT);
         entitlementService.grantStudent(user.getId(), org);
 
+        // D6: từ đây trở xuống dòng đã là thành viên ACTIVE của chính trung tâm này.
+        boolean birthDateRecorded = recordBirthDate(row, user, orgId, actor);
+        boolean guardianRecorded = recordGuardian(row, user, orgId, actor);
+        boolean consentRecorded = recordConsent(row, user, orgId, actor);
+
         boolean enrolled = false;
         if (classIdOrNull != null) {
             // enroll() mở lại dòng cũ của học viên từng rời lớp thay vì save() đè NULL lên nhận xét
@@ -155,7 +217,80 @@ public class OrgRosterRowImporter {
                 assignmentBackfillService.ensureAssignmentsForStudent(classIdOrNull, user.getId());
             }
         }
-        return RowOutcome.imported(created, enrolled);
+        return RowOutcome.imported(created, enrolled, birthDateRecorded, guardianRecorded, consentRecorded);
+    }
+
+    /**
+     * Ghi ngày sinh qua {@link MinorLearnerService} — KHÔNG viết SQL ở đây, vì chốt "chỉ ghi khi cột
+     * đang NULL", vết audit và cách phân loại tuổi phải nằm cùng một chỗ cho mọi đường vào.
+     *
+     * <p>{@code false} = tài khoản đã có ngày sinh. Đây là kết quả BÌNH THƯỜNG, không phải lỗi:
+     * CSV cho một MANAGER gõ email bất kỳ, nên "cập nhật khi tài khoản đã tồn tại" chính là đường
+     * một trung tâm sửa thuộc tính danh tính trên tài khoản của người khác — hạ tuổi một em 15
+     * xuống 18 là mở khoá đường gửi giọng nói của em ấy ra nhà cung cấp bên ngoài. Không đi vòng.
+     */
+    private boolean recordBirthDate(RosterRowInput row, User user, Long orgId, AuditActor actor) {
+        if (row.birthDate() == null) {
+            return false;
+        }
+        Long recordedBy = actor == null ? null : actor.id();
+        return minorLearnerService.recordBirthDate(user.getId(), row.birthDate(), recordedBy, orgId, actor);
+    }
+
+    /**
+     * Thêm người giám hộ CHỈ khi học viên chưa có ai — cùng luật ghi-một-lần với ngày sinh, và vì
+     * {@code student_guardians} là bảng chỉ-thêm: không chặn thì nhập lại cùng một tệp lần thứ hai
+     * sẽ nhân đôi người giám hộ của mọi học viên, mà bảng đó không có đường xoá.
+     *
+     * <p>Đổi hoặc thêm người giám hộ là đường riêng, có màn hình và kiểm quyền riêng
+     * ({@code OrgGuardianConsentController}) — không phải một ô trong tệp CSV mà bất kỳ MANAGER nào
+     * cũng ghi đè được.
+     */
+    private boolean recordGuardian(RosterRowInput row, User user, Long orgId, AuditActor actor) {
+        if (row.guardian() == null || !minorLearnerService.guardiansOf(user.getId()).isEmpty()) {
+            return false;
+        }
+        minorLearnerService.recordGuardian(user.getId(), orgId, row.guardian(), actor);
+        return true;
+    }
+
+    /**
+     * Cột {@code consentConfirmed} (D1): ghi MỘT dòng {@code AUDIO_RECORDING / GRANTED / PAPER} —
+     * "trung tâm xác nhận đã cầm phiếu giấy ký của người giám hộ", người ghi là người bấm import,
+     * hiệu lực từ lúc nhập, phiên bản điều khoản do máy chủ quyết ({@link MinorConsentTerms}).
+     *
+     * <p><b>Idempotent theo TRẠNG THÁI, không theo dòng.</b> Sổ đồng ý chỉ-ghi-thêm; một trung tâm
+     * nhập lại cùng tệp mỗi học kỳ mà mỗi lần lại thêm một dòng GRANTED thì sổ phình vô nghĩa và
+     * "lần đồng ý đầu tiên" chìm giữa các bản sao. Đang {@code GRANTED} ⇒ không ghi. Đang
+     * {@code REVOKED} thì VẪN ghi: phiếu mới của người giám hộ là bằng chứng mới, và cấp lại sau
+     * thu hồi đúng là việc mà đường này phải làm được.
+     *
+     * <p>Nối với người giám hộ CHÍNH hiện có (nếu có) để dòng đồng ý trả lời được "ai đồng ý"; dòng
+     * CSV vừa khai giám hộ thì người đó vừa được thêm ở bước trên, nên cũng vào đây.
+     */
+    private boolean recordConsent(RosterRowInput row, User user, Long orgId, AuditActor actor) {
+        if (!row.consentConfirmed()) {
+            return false;
+        }
+        ConsentState current = minorLearnerService.consentStatus(
+                user.getId(), StudentConsent.Scope.AUDIO_RECORDING);
+        if (current == ConsentState.GRANTED) {
+            return false;
+        }
+        Long primaryGuardianId = minorLearnerService.guardiansOf(user.getId()).stream()
+                .filter(StudentGuardian::isPrimary)
+                .map(StudentGuardian::getId)
+                .findFirst()
+                .orElse(null);
+        minorLearnerService.recordConsent(user.getId(), orgId, new ConsentDraft(
+                StudentConsent.Scope.AUDIO_RECORDING,
+                StudentConsent.Action.GRANTED,
+                primaryGuardianId,
+                StudentConsent.Method.PAPER,
+                consentTerms.currentVersion(),
+                Instant.now(),
+                CONSENT_NOTE_ROSTER_IMPORT), actor);
+        return true;
     }
 
     private static String localPart(String email) {

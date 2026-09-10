@@ -301,8 +301,20 @@ public class OrgController {
     }
 
     /**
-     * Bulk import học viên từ file CSV (cột: email,displayName[,phone]).
-     * classId tùy chọn — nếu có, mọi học viên import được enroll vào lớp đó.
+     * Bulk import học viên từ file CSV. Cột tối thiểu {@code email,displayName[,phone]}; tệp có dòng
+     * tiêu đề khai thêm {@code birthDate[,guardianName,guardianPhone,guardianRelationship,
+     * guardianEmail,consentConfirmed]} thì đọc luôn phần dữ liệu chưa thành niên (PR-1B; D1/R11
+     * 10/09/2026: {@code consentConfirmed} = trung tâm đã cầm phiếu đồng ý giấy ⇒ ghi một dòng
+     * {@code AUDIO_RECORDING/GRANTED/PAPER}, nhập lại không nhân đôi). Cột mới là TÙY CHỌN — tệp ba
+     * cột của trung tâm giữ nguyên hành vi cũ; xem {@code RosterColumnLayout}.
+     *
+     * <p>Ghi danh KHÔNG phải cổng chặn: dòng không khai ngày sinh vẫn nhập bình thường (owner chốt
+     * 09/09/2026); thiếu đồng ý cũng vậy — chỉ phần nói còn khoá (D2). Chỉ dòng tự mâu thuẫn — khai
+     * tuổi dưới ngưỡng pháp lý mà bỏ trống người giám hộ, ngày sinh sai định dạng hoặc ở tương lai, ô
+     * đồng ý gõ lạ, email giám hộ sai — và dòng của học viên đang thuộc trung tâm KHÁC (F4, nêu tên
+     * trung tâm đó) mới bị từ chối, kèm số dòng và email trong {@code errors}.
+     *
+     * <p>classId tùy chọn — nếu có, mọi học viên import được enroll vào lớp đó.
      */
     @PostMapping(value = "/students/import", consumes = "multipart/form-data")
     public RosterImportResultDto importStudents(@AuthenticationPrincipal User user,

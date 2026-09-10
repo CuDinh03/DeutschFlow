@@ -2,6 +2,8 @@ package com.deutschflow.organization.service;
 
 import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.minor.MinorLearnerService;
+import com.deutschflow.common.minor.MinorPolicy;
 import com.deutschflow.organization.dto.RosterImportResultDto;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
@@ -96,6 +98,7 @@ class OrgRosterServiceTransactionTest {
     private AssignmentBackfillService assignmentBackfillService;
     private JdbcTemplate jdbcTemplate;
     private AuditLogService auditLogService;
+    private MinorLearnerService minorLearnerService;
 
     private OrgRosterService service;
 
@@ -119,6 +122,7 @@ class OrgRosterServiceTransactionTest {
         assignmentBackfillService = mock(AssignmentBackfillService.class);
         jdbcTemplate = mock(JdbcTemplate.class);
         auditLogService = mock(AuditLogService.class);
+        minorLearnerService = mock(MinorLearnerService.class);
 
         // A mocked Connection is enough: begin/commit/rollback/close are no-ops, and the
         // rollback-only flag we are asserting on lives on Spring's ConnectionHolder, not in the DB.
@@ -147,6 +151,15 @@ class OrgRosterServiceTransactionTest {
         // OrgMembershipService nay ghi vết audit cho mọi thay đổi thành viên, nên context tối
         // giản này cũng cần bean đó. Mock: bài test đo RANH GIỚI TRANSACTION, không đo vết.
         ctx.registerBean(AuditLogService.class, () -> auditLogService);
+        // PR-1B: dòng roster nay có thể mang ngày sinh/người giám hộ. Mock — bài test đo RANH GIỚI
+        // TRANSACTION; các tệp CSV ở đây không có cột birthDate nên không dòng nào chạm tới nó.
+        ctx.registerBean(MinorLearnerService.class, () -> minorLearnerService);
+        // MinorPolicy thuần tính toán, dựng thật với ngưỡng mặc định production (16/18).
+        ctx.registerBean(MinorPolicy.class, () -> new MinorPolicy(16, 18));
+        // D1: dòng roster nay có thể mang cột consentConfirmed; phiên bản điều khoản thuần cấu hình.
+        ctx.registerBean(com.deutschflow.common.minor.MinorConsentTerms.class,
+                () -> new com.deutschflow.common.minor.MinorConsentTerms("2026-09"));
+        ctx.registerBean(RosterMinorColumnReader.class);
         // Real and proxied — these are the beans whose transaction boundaries are under test.
         ctx.registerBean(OrgMembershipService.class);
         ctx.registerBean(OrgRosterRowImporter.class);

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { studentsToCsv, parseCsvLine, parseRosterCsv, rosterTemplateCsv, rosterErrorsCsv, splitCsvRecords } from './orgCsv'
+import { studentsToCsv, parseCsvLine, parseRosterCsv, rosterTemplateCsv, rosterErrorsCsv, splitCsvRecords, isIsoDate, normalizeHeader } from './orgCsv'
 import type { OrgMember } from '@/lib/orgApi'
 
 const member = (over: Partial<OrgMember>): OrgMember => ({
@@ -109,5 +109,157 @@ describe('splitCsvRecords — ô bọc nháy chứa xuống dòng (RFC 4180)', (
   test('nháy không đóng tới cuối tệp không làm mất bản ghi', () => {
     const recs = splitCsvRecords('a@x.com,"chưa đóng\nb@x.com,B,2')
     expect(recs).toHaveLength(1)
+  })
+})
+
+
+// ─── Gói 1 (DEC-22, 09/09/2026): cột `birthDate` + người giám hộ, TÙY CHỌN ───
+// Owner chốt: có `birthDate` trong header thì đọc cột mới; không có thì giữ NGUYÊN hành vi cũ —
+// tệp CSV các trung tâm đang dùng không được vỡ.
+
+describe('isIsoDate', () => {
+  test('nhận YYYY-MM-DD có thật trên lịch', () => {
+    expect(isIsoDate('2011-09-15')).toBe(true)
+    expect(isIsoDate('2024-02-29')).toBe(true)
+  })
+  test('từ chối ngày không có thật, dạng Excel tiếng Việt, và ô rác', () => {
+    expect(isIsoDate('2026-02-30')).toBe(false)
+    expect(isIsoDate('2023-02-29')).toBe(false)
+    expect(isIsoDate('15/09/2011')).toBe(false)
+    expect(isIsoDate('2011-9-5')).toBe(false)
+    expect(isIsoDate('')).toBe(false)
+  })
+})
+
+describe('parseRosterCsv — cột mới TÙY CHỌN', () => {
+  test('tệp ba cột cũ: không đẻ thêm khoá, không bật cờ, đọc theo VỊ TRÍ như trước', () => {
+    const p = parseRosterCsv('email,displayName,phone\r\nan@x.com,An,0912\r\n')
+    expect(p.hasBirthDate).toBe(false)
+    expect(p.hasGuardian).toBe(false)
+    expect(p.invalidBirthDates).toBe(0)
+    expect(p.rows[0].birthDate).toBeUndefined()
+    expect(p.rows[0].guardianName).toBeUndefined()
+  })
+
+  test('tệp không header vẫn đọc theo vị trí, không bật cờ nào', () => {
+    const p = parseRosterCsv('an@x.com,An,0912')
+    expect(p.hasHeader).toBe(false)
+    expect(p.hasBirthDate).toBe(false)
+    expect(p.rows[0]).toEqual({ email: 'an@x.com', displayName: 'An', phone: '0912', line: 1 })
+  })
+
+  test('header khai birthDate → đọc theo TÊN cột, thứ tự cột tuỳ ý', () => {
+    const p = parseRosterCsv('email,birthDate,displayName\r\nan@x.com,2011-09-15,"Nguyễn, An"\r\n')
+    expect(p.hasBirthDate).toBe(true)
+    expect(p.rows[0]).toMatchObject({ email: 'an@x.com', displayName: 'Nguyễn, An', birthDate: '2011-09-15', phone: '' })
+  })
+
+  test('tên cột không phân biệt hoa thường / gạch dưới / dấu cách / dấu chấm', () => {
+    const p = parseRosterCsv('email,Display_Name,Birth.Date,GUARDIANNAME\r\nan@x.com,An,2011-09-15,Trần Thị C\r\n')
+    expect(p.hasHeader).toBe(true)
+    expect(p.hasBirthDate).toBe(true)
+    expect(p.hasGuardian).toBe(true)
+    expect(p.rows[0]).toMatchObject({ displayName: 'An', birthDate: '2011-09-15', guardianName: 'Trần Thị C' })
+  })
+
+  test('ô ngày trống KHÔNG bị tính sai; chỉ ô có chữ mà sai dạng mới bị đếm', () => {
+    const p = parseRosterCsv('email,displayName,birthDate\r\na@x.com,A,\r\nb@x.com,B,15/09/2011\r\nc@x.com,C,2011-09-15\r\n')
+    expect(p.invalidBirthDates).toBe(1)
+    expect(p.rows.map((r) => r.birthDate)).toEqual(['', '15/09/2011', '2011-09-15'])
+  })
+
+  test('ô quan hệ giữ NGUYÊN VĂN (máy chủ nhận cả bí danh tiếng Việt); cột thiếu thì không có khoá', () => {
+    const p = parseRosterCsv('email,birthDate,guardianName,guardianRelationship\r\na@x.com,2011-09-15,Trần Thị C,mẹ\r\n')
+    expect(p.rows[0]).toMatchObject({ guardianName: 'Trần Thị C', guardianRelationship: 'mẹ' })
+    expect(p.rows[0].guardianPhone).toBeUndefined()
+  })
+
+  // Bám sát `RosterColumnLayout` của backend — lệch chỗ nào là xem trước và kết quả nhập nói khác nhau.
+  test('tên cột lạ ở vị trí 1: lùi về vị trí mặc định ĐÚNG như máy chủ, không bỏ trống tên', () => {
+    const p = parseRosterCsv('email,fullName,birthDate\r\na@x.com,Nguyễn An,2011-09-15\r\n')
+    expect(p.rows[0]).toMatchObject({ displayName: 'Nguyễn An', birthDate: '2011-09-15' })
+  })
+
+  test('vị trí mặc định đã có cột tên khác chiếm thì KHÔNG lùi về đó', () => {
+    const p = parseRosterCsv('email,birthDate\r\na@x.com,2011-09-15\r\n')
+    expect(p.rows[0].displayName).toBe('')
+    expect(p.rows[0].birthDate).toBe('2011-09-15')
+  })
+
+  test('có guardianName nhưng KHÔNG có birthDate: máy chủ không đọc, nên web cũng không nhận', () => {
+    const p = parseRosterCsv('email,displayName,guardianName\r\na@x.com,A,Trần Thị C\r\n')
+    expect(p.hasBirthDate).toBe(false)
+    expect(p.hasGuardian).toBe(false)
+    expect(p.rows[0].guardianName).toBeUndefined()
+  })
+
+  test('ô đầu là `e-mail` KHÔNG được coi là tiêu đề — backend isHeader cũng không', () => {
+    const p = parseRosterCsv('e-mail,displayName,birthDate\r\na@x.com,A,2011-09-15\r\n')
+    expect(p.hasHeader).toBe(false)
+    expect(p.hasBirthDate).toBe(false)
+    expect(p.rows).toHaveLength(2)
+  })
+
+  test('vẫn giữ số dòng vật lý và đếm email sai khi đọc theo tên cột', () => {
+    const p = parseRosterCsv('email,displayName,birthDate\r\n\r\nkhong-phai-email,A,2011-09-15\r\n')
+    expect(p.invalidEmails).toBe(1)
+    expect(p.rows[0].line).toBe(3)
+  })
+})
+
+describe('rosterTemplateCsv — Gói 1', () => {
+  test('ba cột cũ vẫn đứng đầu, cột mới nối vào sau', () => {
+    const csv = rosterTemplateCsv()
+    expect(csv.startsWith('\uFEFFemail,displayName,phone,birthDate,')).toBe(true)
+    expect(csv).toContain('guardianName,guardianRelationship,guardianPhone')
+    // D1/R11: máy chủ nay đọc cả email người giám hộ lẫn ô xác nhận đồng ý — hai cột đứng cuối.
+    expect(csv).toContain('guardianPhone,guardianEmail,consentConfirmed')
+  })
+
+  test('tệp mẫu tự đọc lại được: có cột ngày sinh, không dòng nào sai định dạng, có ca vị thành niên kèm giám hộ', () => {
+    const p = parseRosterCsv(rosterTemplateCsv())
+    expect(p.hasBirthDate).toBe(true)
+    expect(p.hasGuardian).toBe(true)
+    expect(p.invalidEmails).toBe(0)
+    expect(p.invalidBirthDates).toBe(0)
+    expect(p.rows).toHaveLength(2)
+    expect(p.hasConsent).toBe(true)
+    expect(p.rows[1]).toMatchObject({
+      birthDate: '2011-09-15', guardianName: 'Trần Thị C', guardianRelationship: 'MOTHER',
+      guardianEmail: 'tran.c@example.com', consentConfirmed: 'x',
+    })
+    expect(p.rows[0]).toMatchObject({ guardianEmail: '', consentConfirmed: '' })
+  })
+})
+
+describe('parseRosterCsv — cột consentConfirmed và guardianEmail (D1/R11)', () => {
+  test('consentConfirmed KHÔNG có birthDate vẫn bật chế độ đọc theo tên — cột đồng ý không bị bỏ qua im lặng', () => {
+    const p = parseRosterCsv('email,consentConfirmed\nan@x.com,x\nbinh@x.com,\n')
+    expect(p.hasBirthDate).toBe(false)
+    expect(p.hasConsent).toBe(true)
+    expect(p.rows[0]).toMatchObject({ email: 'an@x.com', consentConfirmed: 'x' })
+    expect(p.rows[1]).toMatchObject({ email: 'binh@x.com', consentConfirmed: '' })
+    expect(p.rows[0].birthDate).toBe('')
+  })
+
+  test('ô đồng ý giữ NGUYÊN VĂN — web không diễn giải có/không, máy chủ mới là bên quyết', () => {
+    const p = parseRosterCsv('email,birthDate,consentConfirmed\nan@x.com,,Đã thu\nb@x.com,,đang xin\n')
+    expect(p.rows.map((r) => r.consentConfirmed)).toEqual(['Đã thu', 'đang xin'])
+  })
+
+  test('tiêu đề tiếng Việt CÓ DẤU khớp bí danh: "Ngày sinh" không phải cột hệ thống, "Đã xác nhận đồng ý" và "Email giám hộ" thì có', () => {
+    expect(normalizeHeader('Đã xác nhận đồng ý')).toBe('daxacnhandongy')
+    expect(normalizeHeader('Email giám hộ')).toBe('emailgiamho')
+    expect(normalizeHeader('Birth Date')).toBe('birthdate')
+    const p = parseRosterCsv('email,birthDate,Email giám hộ,Đã xác nhận đồng ý\nan@x.com,2011-09-15,me@x.com,Có\n')
+    expect(p.hasConsent).toBe(true)
+    expect(p.hasGuardian).toBe(true)
+    expect(p.rows[0]).toMatchObject({ guardianEmail: 'me@x.com', consentConfirmed: 'Có' })
+  })
+
+  test('guardianEmail chỉ được đọc trong chế độ mới (có birthDate hoặc consentConfirmed)', () => {
+    const p = parseRosterCsv('email,guardianEmail\nan@x.com,me@x.com\n')
+    expect(p.hasGuardian).toBe(false)
+    expect(p.rows[0]).not.toHaveProperty('guardianEmail')
   })
 })

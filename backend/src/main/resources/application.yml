@@ -290,6 +290,70 @@ app:
     token-usage-days: ${APP_RETENTION_TOKEN_DAYS:90}
     batch-size: ${APP_RETENTION_BATCH_SIZE:5000}
     max-rows-per-run: ${APP_RETENTION_MAX_ROWS_PER_RUN:500000}
+
+  # Học viên chưa thành niên (DEC-22, owner chốt 09/09/2026). Đặt cạnh `retention` vì cùng một họ:
+  # retention trả lời "giữ dữ liệu tới bao giờ", còn đây trả lời "được xử lý dữ liệu của ai".
+  #
+  # HAI ngưỡng, KHÔNG ghim một con số — MinorPolicy trả về bốn nhánh chứ không phải boolean:
+  #   · legal-guardian-threshold = 16 — NĐ 13/2023 Điều 20 theo Luật Trẻ em: dưới ngưỡng này thì
+  #     đồng ý của cha mẹ/người giám hộ là NGHĨA VỤ PHÁP LÝ. Hạ nó xuống là vi phạm luật, nên chỉ
+  #     đổi khi CHÍNH VĂN BẢN LUẬT đổi — không phải khi một trung tâm xin nới.
+  #   · center-policy-threshold = 18 — luật NỘI BỘ của trung tâm cho nhóm 16–17 (hạn chế AI, ghi
+  #     âm, nhắn riêng). Đây là lựa chọn vận hành, siết hay nới đều hợp lệ.
+  # Ràng buộc: legal <= center, nếu không MinorPolicy ném ngay lúc khởi động (nhánh
+  # MINOR_CENTER_POLICY sẽ không bao giờ đạt tới, tức một nhóm tuổi lặng lẽ mất bảo vệ).
+  minor:
+    legal-guardian-threshold: ${APP_MINOR_LEGAL_GUARDIAN_THRESHOLD:16}
+    center-policy-threshold: ${APP_MINOR_CENTER_POLICY_THRESHOLD:18}
+    # MinorGate — làm gì với ĐƯỜNG GHI ÂM khi CHƯA BIẾT TUỔI (users.birth_date IS NULL).
+    # Ba giá trị: ALLOW · BLOCK_ORG_MEMBERS · BLOCK_ALL. Sai chính tả = app KHÔNG khởi động
+    # (MinorGate.parsePolicy) — cố ý, vì một giá trị gõ nhầm mà lặng lẽ rơi về mặc định thì không
+    # ai biết cổng đang mở hay đóng.
+    #
+    # 🔴 MẶC ĐỊNH KHÔNG PHẢI BLOCK_ALL, và đây không phải sự dè dặt. Tại thời điểm phát hành CHƯA
+    # CÓ MỘT AI trên production có ngày sinh — cột này vừa ra đời ở V319. BLOCK_ALL sẽ chặn TOÀN BỘ
+    # người dùng khỏi mọi tính năng nói ngay giây deploy: người lớn trả tiền, giáo viên, học viên
+    # B2C, tất cả. Đó không phải bảo vệ trẻ em, đó là sự cố.
+    #
+    # BLOCK_ORG_MEMBERS chặn đúng nhóm mà nghĩa vụ có thể thực hiện được: thành viên ACTIVE của một
+    # trung tâm. Trung tâm có hồ sơ học viên, có liên hệ người giám hộ, và là bên chịu trách nhiệm
+    # thu đồng ý — chặn họ tạo ra một việc CÓ NGƯỜI LÀM ĐƯỢC. Người dùng B2C tự đăng ký thì không
+    # có ai đi thu hộ; chặn họ chỉ tạo ra một ngõ cụt.
+    #
+    # Đường đi tới BLOCK_ALL: thu đủ ngày sinh (nhập CSV + hồ sơ), đo còn bao nhiêu tài khoản NULL,
+    # rồi mới siết. Siết trước khi đo là đổi một rủi ro pháp lý lấy một sự cố vận hành chắc chắn.
+    unknown-age-audio: ${APP_MINOR_UNKNOWN_AGE_AUDIO:BLOCK_ORG_MEMBERS}
+
+    # Phiên bản ĐIỀU KHOẢN mà phiếu đồng ý thu từ hôm nay được coi là đồng ý với (student_consents.
+    # terms_version). Máy chủ là bên duy nhất ghi giá trị này — cột CSV consentConfirmed và endpoint
+    # ghi phiếu giấy của trung tâm đều lấy từ đây (MinorConsentTerms), client không gửi lên. Đổi điều
+    # khoản = đổi giá trị này; các dòng đã ghi giữ nguyên phiên bản cũ.
+    consent-terms-version: ${APP_MINOR_CONSENT_TERMS_VERSION:2026-09}
+
+    # Hạn lưu BẢN GHI ÂM của học viên chưa thành niên (owner chốt 09/09/2026). Bản chuyển chữ và điểm
+    # KHÔNG bị đụng tới — chúng thuộc hồ sơ học tập và giữ lâu dài. Xem MinorAudioRetentionService.
+    audio-retention-days: ${APP_MINOR_AUDIO_RETENTION_DAYS:30}
+    audio-retention:
+      enabled: ${APP_MINOR_AUDIO_RETENTION_ENABLED:true}
+      # 04:30 VN — khe trống sau app.retention (03:30) và app.notifications.retention (04:00).
+      cron: ${APP_MINOR_AUDIO_RETENTION_CRON:0 30 4 * * *}
+
+      # 🔴 MẶC ĐỊNH LÀ CHẾ ĐỘ ĐẾM, và đây không phải sự dè dặt. Job này xoá KHÔNG HOÀN LẠI trên ba kho
+      # audio mà chưa kho nào từng bị dọn tự động lần nào: S3 exam-speaking/golden, S3 assignments/,
+      # và ai_jobs.payload->>'audioBase64' (nằm TRONG Postgres). Bật xoá ngay lúc merge là đánh cược
+      # rằng câu SQL nạp ứng viên và luật so tuổi đều đúng ngay lần đầu trên dữ liệu production mà
+      # chưa ai nhìn thấy — sai thì không có đường lùi.
+      #
+      # dry-run: true chạy đủ mọi bước (nạp, phân loại, kiểm chốt an toàn khoá S3, ghi vết) nhưng
+      # KHÔNG xoá; vết ghi ra mang tên `minor.audio.retention.previewed`. Đọc con số của MỘT đêm
+      # thật, đối chiếu với `unclassified` (số bản ghi chưa phân loại được vì thiếu ngày sinh), rồi
+      # mới đặt false. Cờ này chỉ tốn một đêm.
+      dry-run: ${APP_MINOR_AUDIO_RETENTION_DRY_RUN:true}
+
+      # Trần áp cho TỪNG kho, không phải cho cả lượt: dùng chung một ngân sách thì tồn đọng ở kho lớn
+      # nhất sẽ ăn hết trần mỗi đêm và kho ai_jobs sẽ không bao giờ tới lượt. S3 không có batch delete
+      # ở đường này (xoá từng object), nên trần là thứ giữ lượt chạy nằm trong lockAtMostFor = PT30M.
+      max-objects-per-run: ${APP_MINOR_AUDIO_RETENTION_MAX_OBJECTS:500}
   cache:
     # Redis L2 cache tier (Caffeine L1 + Redis L2). OFF by default → Caffeine-only. We gate on this
     # explicit flag rather than on spring.data.redis.host (which defaults to localhost, so it's always

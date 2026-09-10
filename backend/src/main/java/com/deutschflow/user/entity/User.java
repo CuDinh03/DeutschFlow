@@ -77,6 +77,26 @@ public class User implements UserDetails {
     @Column(name = "center_name")
     private String centerName;
 
+    /**
+     * Ngày sinh — nền của mọi chốt vị thành niên (DEC-22). Xem {@code MinorPolicy}: cờ "chưa thành
+     * niên" được TÍNH LÚC ĐỌC chứ không lưu cột, nên đây là nguồn sự thật duy nhất.
+     *
+     * <p>🪤 {@code updatable = false} CÓ CHỦ ĐÍCH, cùng lý do đã phải vá cho {@code push_token}:
+     * {@code JwtAuthFilter} cache principal 60 giây, nên một {@code save(principal)} ở endpoint bất
+     * kỳ sẽ ghi đè bằng ảnh chụp cũ. Ghi ngày sinh đi đường riêng có kiểm quyền và có ghi vết.
+     */
+    @Column(name = "birth_date", updatable = false)
+    private java.time.LocalDate birthDate;
+
+    /** Lúc ngày sinh được ghi. {@code users} không có {@code updated_at} nên không có cột này thì
+     *  một lần sửa sẽ viết lại hồi tố "tuổi tại thời điểm ghi" của mọi bản ghi quá khứ. */
+    @Column(name = "birth_date_recorded_at", updatable = false)
+    private java.time.Instant birthDateRecordedAt;
+
+    /** Ai ghi ngày sinh — trung tâm nhập hộ thì phải truy được về người nhập. */
+    @Column(name = "birth_date_recorded_by", updatable = false)
+    private Long birthDateRecordedBy;
+
     /** Nguồn tạo tài khoản (provenance, B2B model §2.2). Chỉ mô tả NGUỒN — KHÔNG ảnh hưởng quyền/sở hữu. */
     @Enumerated(EnumType.STRING)
     @Column(name = "created_via", length = 16)

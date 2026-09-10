@@ -30,6 +30,21 @@ import java.util.regex.Pattern;
  * org-funded plan, and (optionally) enroll into a class. Seat limits are enforced before
  * a brand-new student is admitted.
  *
+ * <p><b>Cột của tệp.</b> Tối thiểu {@code email,displayName[,phone]} như từ đầu. Tệp có dòng tiêu đề
+ * chứa {@code birthDate} (hoặc {@code consentConfirmed}) thì đọc thêm {@code birthDate[,guardianName,
+ * guardianPhone,guardianRelationship,guardianEmail,consentConfirmed]} — xem {@link RosterColumnLayout}
+ * về việc vì sao cột mới là TÙY CHỌN và tệp cũ của trung tâm không được vỡ. {@code consentConfirmed}
+ * (D1, owner chốt 10/09/2026) là đường nhập HÀNG LOẠT phiếu đồng ý giấy; {@code guardianEmail} (R11)
+ * là cột thứ hai để bản ghi giám hộ liên lạc được.
+ *
+ * <p><b>Ghi danh KHÔNG phải cổng chặn</b> (owner chốt 09/09/2026, giữ nguyên ở D2 10/09/2026). Dòng
+ * không khai ngày sinh vẫn được nhập bình thường; học viên dưới 16 thiếu đồng ý VẪN VÀO, chỉ phần
+ * nói bị khoá cho tới khi trung tâm ghi nhận phiếu. Cổng của dữ liệu chưa thành niên nằm ở đường đi
+ * ra nhà cung cấp AI, không nằm ở đây. Chỉ dòng TỰ MÂU THUẪN mới bị từ chối — khai tuổi dưới ngưỡng
+ * pháp lý mà bỏ trống người giám hộ, ngày sinh sai định dạng, ngày sinh ở tương lai, ô đồng ý gõ lạ,
+ * email giám hộ sai (xem {@link RosterMinorColumnReader}) — và dòng của học viên đang thuộc trung tâm
+ * KHÁC (F4, nêu tên trung tâm đó).
+ *
  * <p>Deliberately NOT {@code @Transactional}: the row work runs in
  * {@link OrgRosterRowImporter#importRow} under {@code REQUIRES_NEW}, one transaction per row. A
  * batch-wide transaction cannot express "some rows failed, the rest still count" — a
@@ -50,11 +65,16 @@ public class OrgRosterService {
     private final OrganizationRepository organizationRepository;
     private final TeacherClassRepository teacherClassRepository;
     private final OrgRosterRowImporter rowImporter;
+    private final RosterMinorColumnReader minorColumnReader;
     private final AuditLogService auditLogService;
 
     /**
-     * Imports students from raw CSV text. Columns: {@code email,displayName[,phone]} (comma).
-     * The first non-empty line is treated as a header only when its first column equals {@code "email"}.
+     * Imports students from raw CSV text. Columns:
+     * {@code email,displayName[,phone][,birthDate[,guardianName,guardianPhone,guardianRelationship,
+     * guardianEmail,consentConfirmed]]} (comma-separated). The first non-empty line is treated as a
+     * header only when its first column equals {@code "email"}; the minor columns are read only when
+     * that header names {@code birthDate} or {@code consentConfirmed}, so an existing three-column
+     * file behaves exactly as before.
      *
      * @param classIdOrNull when non-null, every imported student is also enrolled into this class
      * @param actor         người bấm import — vết tổng kết mang danh tính này
@@ -81,8 +101,14 @@ public class OrgRosterService {
         int linked = 0;
         int enrolled = 0;
         int failed = 0;
+        int birthDatesRecorded = 0;
+        int guardiansRecorded = 0;
+        int consentsRecorded = 0;
+        int rejectedByOtherOrg = 0;
         boolean seatLimitHit = false;
 
+        // Bố cục cột, giải MỘT LẦN từ dòng tiêu đề. Không có tiêu đề ⇒ tệp ba cột như trước.
+        RosterColumnLayout layout = RosterColumnLayout.legacy();
         boolean first = true;
         for (CsvRecord record : rows) {
             String rawLine = record.text();
@@ -96,9 +122,15 @@ public class OrgRosterService {
             // Skip a header line: only the first non-empty line, and only when its FIRST column is
             // literally "email". Checking the whole line for "email" would wrongly drop a data row
             // whose address (e.g. "emailguy@x.com") or name contains the substring.
+            //
+            // PR-1B (09/09/2026): dòng tiêu đề nay còn TRẢ VỀ bố cục cột. Không có "birthDate" trong
+            // tiêu đề thì fromHeader trả legacy() — tệp ba cột đang dùng của trung tâm đi đúng nhánh
+            // cũ, không một dòng nào đổi kết quả.
             if (first) {
                 first = false;
-                if (col(splitCsvLine(line), 0).trim().equalsIgnoreCase("email")) {
+                String[] headerCols = splitCsvLine(line);
+                if (RosterColumnLayout.isHeader(headerCols)) {
+                    layout = RosterColumnLayout.fromHeader(headerCols);
                     continue;
                 }
             }
@@ -108,14 +140,30 @@ public class OrgRosterService {
             int rowNum = record.line();
             try {
                 String[] cols = splitCsvLine(line);
-                String email = normalizeEmail(col(cols, 0));
+                String email = normalizeEmail(col(cols, layout.email()));
                 if (email.isBlank() || !EMAIL_PATTERN.matcher(email).matches()) {
                     failed++;
-                    errors.add("Dòng " + rowNum + ": email không hợp lệ \"" + col(cols, 0).trim() + "\"");
+                    errors.add("Dòng " + rowNum + ": email không hợp lệ \""
+                            + col(cols, layout.email()).trim() + "\"");
                     continue;
                 }
 
-                RowOutcome outcome = rowImporter.importRow(org, email, col(cols, 1), classIdOrNull);
+                // Kiểm cột chưa-thành-niên TRƯỚC khi chạm DB: dòng tự mâu thuẫn thì không nên tạo
+                // tài khoản rồi mới phát hiện. Lý do trả về đã kèm số dòng vật lý và email.
+                RosterMinorColumnReader.Result minorData =
+                        minorColumnReader.read(cols, layout, rowNum, email);
+                if (minorData.rejected()) {
+                    failed++;
+                    errors.add(minorData.error());
+                    continue;
+                }
+
+                RowOutcome outcome = rowImporter.importRow(
+                        org,
+                        new RosterRowInput(email, col(cols, layout.displayName()),
+                                minorData.birthDate(), minorData.guardian(), minorData.consentConfirmed()),
+                        classIdOrNull,
+                        actor);
 
                 if (outcome.seatLimited()) {
                     failed++;
@@ -126,6 +174,19 @@ public class OrgRosterService {
                     // are still allowed and must not be silently dropped (K).
                     continue;
                 }
+                if (outcome.rejectedByOtherOrg()) {
+                    // F4: câu báo mang số dòng, email VÀ tên trung tâm kia — người nhập biết ngay phải
+                    // nhờ ai (trung tâm A gỡ, hoặc học viên tự rời) thay vì đọc "lỗi xử lý".
+                    failed++;
+                    rejectedByOtherOrg++;
+                    String other = outcome.otherOrgName().isBlank()
+                            ? "một trung tâm khác"
+                            : "trung tâm \"" + outcome.otherOrgName() + "\"";
+                    errors.add("Dòng " + rowNum + " (" + email + "): học viên đang thuộc " + other
+                            + " — chưa thể nhập vào trung tâm này. Học viên cần rời (hoặc được gỡ khỏi) "
+                            + "trung tâm đó trước; dòng này chưa ghi gì.");
+                    continue;
+                }
                 if (outcome.created()) {
                     created++;
                 }
@@ -134,6 +195,19 @@ public class OrgRosterService {
                 }
                 if (outcome.enrolled()) {
                     enrolled++;
+                }
+                // KHÔNG cộng vào `failed` khi ngày sinh/người giám hộ không được ghi: tài khoản đã
+                // có sẵn giá trị thì recordBirthDate trả false theo thiết kế (một trung tâm không
+                // sửa được thuộc tính danh tính trên tài khoản người khác), và một lần NHẬP LẠI
+                // cùng tệp sẽ chạm nhánh đó ở mọi dòng. Đếm thành lỗi là báo động giả toàn tệp.
+                if (outcome.birthDateRecorded()) {
+                    birthDatesRecorded++;
+                }
+                if (outcome.guardianRecorded()) {
+                    guardiansRecorded++;
+                }
+                if (outcome.consentRecorded()) {
+                    consentsRecorded++;
                 }
             } catch (Exception ex) {
                 // Safe to swallow: the row ran in its own REQUIRES_NEW transaction, which has already
@@ -166,6 +240,14 @@ public class OrgRosterService {
         meta.put("enrolled", enrolled);
         meta.put("failed", failed);
         meta.put("seatLimitHit", seatLimitHit);
+        // ⛔ SỐ LƯỢNG, không phải nội dung. Sổ hoạt động này giám đốc trung tâm đọc được VÀ mọi
+        // admin nền tảng cũng đọc được, nên không ngày sinh, không tên/điện thoại người giám hộ —
+        // cùng luật với metadata của MinorLearnerService. "Đã ghi bao nhiêu" đủ trả lời câu hỏi
+        // kiểm toán ("lần nhập này có đụng dữ liệu trẻ em không"); "ghi cái gì" thì không ai cần.
+        meta.put("birthDatesRecorded", birthDatesRecorded);
+        meta.put("guardiansRecorded", guardiansRecorded);
+        meta.put("consentsRecorded", consentsRecorded);
+        meta.put("rejectedByOtherOrg", rejectedByOtherOrg);
         // DEC-13: orgId là tham số của hàm — trung tâm nhận roster. Đường lùi suy-từ-actor không
         // cứu được ca admin nền tảng import hộ (actor không thuộc trung tâm nào).
         auditLogService.log("org_member_imported", actor, "ORG", String.valueOf(orgId), orgId, meta);
@@ -249,8 +331,9 @@ public class OrgRosterService {
         cur.setLength(0);
     }
 
+    /** Ô thứ {@code idx}, hoặc chuỗi rỗng. {@code idx < 0} = tệp không có cột đó (xem RosterColumnLayout). */
     private static String col(String[] cols, int idx) {
-        return idx < cols.length ? cols[idx] : "";
+        return idx >= 0 && idx < cols.length ? cols[idx] : "";
     }
 
     /**
