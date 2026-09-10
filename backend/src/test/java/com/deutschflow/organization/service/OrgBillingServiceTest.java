@@ -284,6 +284,38 @@ class OrgBillingServiceTest {
         verify(invoiceRepo, org.mockito.Mockito.never()).save(any());
     }
 
+    // ------------------------------------------------------------------ T-01: period validation
+
+    /**
+     * T-01 (10/09/2026): PAID kéo validUntil theo periodEnd, nên một kỳ ngược (kết thúc trước bắt
+     * đầu) lặng lẽ rút ngắn giấy phép của trung tâm. Kỳ để trống một đầu vẫn được (đợt sau mới
+     * bắt buộc), chỉ kỳ NGƯỢC bị chặn.
+     */
+    @Test
+    @DisplayName("createInvoice: kỳ ngược (periodEnd trước periodStart) → 400, không lưu")
+    void createInvoice_reversedPeriod_throwsBadRequest() {
+        when(organizationRepository.existsById(ORG_ID)).thenReturn(true);
+        CreateInvoiceRequest reversed = new CreateInvoiceRequest(
+                LocalDate.of(2026, 3, 31), LocalDate.of(2026, 1, 1), 10, 5_000_000L, "reversed");
+
+        assertThatThrownBy(() -> service.createInvoice(ORG_ID, reversed, CREATED_BY_ACTOR))
+                .isInstanceOf(BadRequestException.class);
+        verify(invoiceRepo, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createInvoice: kỳ một ngày (periodStart = periodEnd) vẫn hợp lệ")
+    void createInvoice_singleDayPeriod_allowed() {
+        when(organizationRepository.existsById(ORG_ID)).thenReturn(true);
+        when(invoiceRepo.save(any(OrgInvoice.class))).thenReturn(savedInvoice(INVOICE_ID, ORG_ID, "DRAFT"));
+        CreateInvoiceRequest sameDay = new CreateInvoiceRequest(
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 1), 10, 5_000_000L, "one day");
+
+        service.createInvoice(ORG_ID, sameDay, CREATED_BY_ACTOR);
+
+        verify(invoiceRepo).save(any(OrgInvoice.class));
+    }
+
     // ------------------------------------------------------------------ M-15: forward-only state machine
 
     @Test
