@@ -937,4 +937,186 @@ class OrgMembershipServiceTest {
 
         verify(auditLogService, never()).log(any(), any(AuditActor.class), any(), any(), any(), any());
     }
+
+    // ----------------------------------------------------------------- forceOwnership (DEC-13 / A6 — đường khôi phục của admin)
+
+    /** Admin nền tảng — không thuộc trung tâm nào, là người bấm trên console admin. */
+    private static final AuditActor ADMIN_ACTOR = new AuditActor(1L, "admin@deutschflow.vn", "ADMIN");
+    private static final String FORCE_REASON = "Giám đốc cũ nghỉ việc, không bàn giao tài khoản.";
+    private static final Long SECOND_OWNER_ID = 88L;
+
+    private java.util.List<OrgMember> activeOwners(OrgMember... owners) {
+        return java.util.List.of(owners);
+    }
+
+    @Test
+    @DisplayName("forceOwnership: trung tâm 0 OWNER (ca khôi phục) → giáo viên được đặt làm OWNER, không ai bị hạ")
+    void forceOwnership_zeroOwner_promotesTeacher() {
+        OrgMember target = member(NEW_OWNER_ID, "TEACHER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID)).thenReturn(Optional.of(target));
+        when(memberRepo.findByIdOrgIdAndRoleAndStatus(ORG_ID, "OWNER", "ACTIVE")).thenReturn(activeOwners());
+        User targetUser = userWith(NEW_OWNER_ID, User.Role.TEACHER);
+        targetUser.setOrgId(null); // dòng users từng bị detach — đường ép phải dán lại org_id
+        when(userRepository.findById(NEW_OWNER_ID)).thenReturn(Optional.of(targetUser));
+
+        OrgMembershipService.ForcedOwnership out =
+                service.forceOwnership(ADMIN_ACTOR, ORG_ID, NEW_OWNER_ID, FORCE_REASON);
+
+        assertThat(target.getRole()).isEqualTo("OWNER");
+        assertThat(targetUser.getRole()).isEqualTo(User.Role.OWNER);
+        assertThat(targetUser.getOrgId()).isEqualTo(ORG_ID);
+        assertThat(out.demotedOwnerUserIds()).isEmpty();
+        assertThat(out.newOwner().userId()).isEqualTo(NEW_OWNER_ID);
+        assertThat(out.newOwner().role()).isEqualTo("OWNER");
+    }
+
+    @Test
+    @DisplayName("forceOwnership: 1 OWNER hiện tại → hạ xuống MANAGER (cả org_members lẫn users.role), người mới lên OWNER")
+    void forceOwnership_oneOwner_demotesToManager() {
+        OrgMember currentOwner = member(USER_ID, "OWNER", "ACTIVE");
+        OrgMember target = member(NEW_OWNER_ID, "MANAGER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID)).thenReturn(Optional.of(target));
+        when(memberRepo.findByIdOrgIdAndRoleAndStatus(ORG_ID, "OWNER", "ACTIVE"))
+                .thenReturn(activeOwners(currentOwner));
+        User ownerUser = userWith(USER_ID, User.Role.OWNER);
+        User targetUser = userWith(NEW_OWNER_ID, User.Role.MANAGER);
+        when(userRepository.findById(NEW_OWNER_ID)).thenReturn(Optional.of(targetUser));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(ownerUser));
+
+        OrgMembershipService.ForcedOwnership out =
+                service.forceOwnership(ADMIN_ACTOR, ORG_ID, NEW_OWNER_ID, FORCE_REASON);
+
+        assertThat(target.getRole()).isEqualTo("OWNER");
+        assertThat(currentOwner.getRole()).isEqualTo("MANAGER");
+        assertThat(targetUser.getRole()).isEqualTo(User.Role.OWNER);
+        assertThat(ownerUser.getRole()).isEqualTo(User.Role.MANAGER);
+        assertThat(out.demotedOwnerUserIds()).containsExactly(USER_ID);
+        verify(memberRepo).save(target);
+        verify(memberRepo).save(currentOwner);
+    }
+
+    @Test
+    @DisplayName("forceOwnership: dữ liệu cũ có NHIỀU OWNER → tất cả bị hạ, trung tâm về đúng một OWNER")
+    void forceOwnership_multipleOwners_allDemoted() {
+        OrgMember owner1 = member(USER_ID, "OWNER", "ACTIVE");
+        OrgMember owner2 = member(SECOND_OWNER_ID, "OWNER", "ACTIVE");
+        OrgMember target = member(NEW_OWNER_ID, "TEACHER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID)).thenReturn(Optional.of(target));
+        when(memberRepo.findByIdOrgIdAndRoleAndStatus(ORG_ID, "OWNER", "ACTIVE"))
+                .thenReturn(activeOwners(owner1, owner2));
+        when(userRepository.findById(NEW_OWNER_ID)).thenReturn(Optional.of(userWith(NEW_OWNER_ID, User.Role.TEACHER)));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(userWith(USER_ID, User.Role.OWNER)));
+        when(userRepository.findById(SECOND_OWNER_ID)).thenReturn(Optional.of(userWith(SECOND_OWNER_ID, User.Role.OWNER)));
+
+        OrgMembershipService.ForcedOwnership out =
+                service.forceOwnership(ADMIN_ACTOR, ORG_ID, NEW_OWNER_ID, FORCE_REASON);
+
+        assertThat(target.getRole()).isEqualTo("OWNER");
+        assertThat(owner1.getRole()).isEqualTo("MANAGER");
+        assertThat(owner2.getRole()).isEqualTo("MANAGER");
+        assertThat(out.demotedOwnerUserIds()).containsExactly(USER_ID, SECOND_OWNER_ID);
+    }
+
+    @Test
+    @DisplayName("forceOwnership: người được chỉ định ĐÃ là OWNER → gọi lại là no-op có vết, không hạ ai")
+    void forceOwnership_targetAlreadyOwner_isNoOpWithTrace() {
+        OrgMember target = member(NEW_OWNER_ID, "OWNER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID)).thenReturn(Optional.of(target));
+        // Danh sách OWNER ACTIVE chứa chính người đó — phải bị loại khỏi diện hạ vai.
+        when(memberRepo.findByIdOrgIdAndRoleAndStatus(ORG_ID, "OWNER", "ACTIVE")).thenReturn(activeOwners(target));
+        User targetUser = userWith(NEW_OWNER_ID, User.Role.OWNER);
+        when(userRepository.findById(NEW_OWNER_ID)).thenReturn(Optional.of(targetUser));
+
+        OrgMembershipService.ForcedOwnership out =
+                service.forceOwnership(ADMIN_ACTOR, ORG_ID, NEW_OWNER_ID, FORCE_REASON);
+
+        assertThat(target.getRole()).isEqualTo("OWNER");
+        assertThat(targetUser.getRole()).isEqualTo(User.Role.OWNER);
+        assertThat(out.demotedOwnerUserIds()).isEmpty();
+        verify(auditLogService).log(eq("admin.org.owner.forced"), eq(ADMIN_ACTOR),
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), any());
+    }
+
+    @Test
+    @DisplayName("forceOwnership: vết admin.org.owner.forced ghi actor = ADMIN, org bị chạm = orgId, kèm lý do + danh sách chủ cũ")
+    void forceOwnership_writesAdminActorTraceScopedToOrg() {
+        OrgMember currentOwner = member(USER_ID, "OWNER", "ACTIVE");
+        OrgMember target = member(NEW_OWNER_ID, "MANAGER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID)).thenReturn(Optional.of(target));
+        when(memberRepo.findByIdOrgIdAndRoleAndStatus(ORG_ID, "OWNER", "ACTIVE"))
+                .thenReturn(activeOwners(currentOwner));
+
+        service.forceOwnership(ADMIN_ACTOR, ORG_ID, NEW_OWNER_ID, FORCE_REASON);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        // touchedOrgId = ORG_ID là điểm quyết định (DEC-13): admin không thuộc trung tâm nào nên
+        // đường suy-từ-actor rơi vào org NULL — giám đốc mới sẽ không bao giờ đọc được vết này.
+        verify(auditLogService).log(eq("admin.org.owner.forced"), eq(ADMIN_ACTOR),
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
+        assertThat(meta.getValue())
+                .containsEntry("orgId", ORG_ID)
+                .containsEntry("newOwnerUserId", NEW_OWNER_ID)
+                .containsEntry("previousOwnerUserIds", java.util.List.of(USER_ID))
+                .containsEntry("reason", FORCE_REASON)
+                .doesNotContainKeys("targetEmail", "email", "displayName");
+        // Một thao tác, một dòng sổ: KHÔNG phát thêm org_ownership_transferred.
+        verify(auditLogService, never()).log(eq("org_ownership_transferred"), any(AuditActor.class),
+                any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("forceOwnership: học viên (STUDENT) không nhận vai giám đốc → 400, không ghi gì, không vết")
+    void forceOwnership_studentTarget_throwsBadRequest() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID))
+                .thenReturn(Optional.of(member(NEW_OWNER_ID, "STUDENT", "ACTIVE")));
+
+        assertThatThrownBy(() -> service.forceOwnership(ADMIN_ACTOR, ORG_ID, NEW_OWNER_ID, FORCE_REASON))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("học viên");
+
+        verify(memberRepo, never()).save(any());
+        verify(userRepository, never()).save(any());
+        verify(auditLogService, never()).log(any(), any(AuditActor.class), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("forceOwnership: không phải thành viên, hoặc thành viên đã rời (LEFT) → 400, không ghi gì")
+    void forceOwnership_nonMemberOrInactive_throwsBadRequest() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.forceOwnership(ADMIN_ACTOR, ORG_ID, NEW_OWNER_ID, FORCE_REASON))
+                .isInstanceOf(BadRequestException.class);
+
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID))
+                .thenReturn(Optional.of(member(NEW_OWNER_ID, "MANAGER", "LEFT")));
+        assertThatThrownBy(() -> service.forceOwnership(ADMIN_ACTOR, ORG_ID, NEW_OWNER_ID, FORCE_REASON))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(memberRepo, never()).save(any());
+        verify(auditLogService, never()).log(any(), any(AuditActor.class), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("hồi quy: transferOwnership (chủ cũ tự chuyển) vẫn ghi org_ownership_transferred với actor là chính OWNER")
+    void transferOwnership_stillWritesOwnerActorTrace_afterSharedCoreExtraction() {
+        OrgMember owner = member("OWNER", "ACTIVE");
+        OrgMember target = member(NEW_OWNER_ID, "TEACHER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(owner));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID)).thenReturn(Optional.of(target));
+        User targetUser = userWith(NEW_OWNER_ID, User.Role.TEACHER);
+        User ownerUser = userWith(USER_ID, User.Role.OWNER);
+        when(userRepository.findById(NEW_OWNER_ID)).thenReturn(Optional.of(targetUser));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(ownerUser));
+
+        service.transferOwnership(ORG_ID, ACTOR_SELF, NEW_OWNER_ID);
+
+        assertThat(target.getRole()).isEqualTo("OWNER");
+        assertThat(owner.getRole()).isEqualTo("MANAGER");
+        assertThat(targetUser.getRole()).isEqualTo(User.Role.OWNER);
+        assertThat(ownerUser.getRole()).isEqualTo(User.Role.MANAGER);
+        verify(auditLogService).log(eq("org_ownership_transferred"), eq(ACTOR_SELF),
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), any());
+        verify(auditLogService, never()).log(eq("admin.org.owner.forced"), any(AuditActor.class),
+                any(), any(), any(), any());
+    }
 }

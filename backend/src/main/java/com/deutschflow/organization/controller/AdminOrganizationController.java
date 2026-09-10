@@ -5,6 +5,7 @@ import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.organization.dto.AddMemberRequest;
 import com.deutschflow.organization.dto.CreateInvoiceRequest;
 import com.deutschflow.organization.dto.CreateOrgRequest;
+import com.deutschflow.organization.dto.ForceOwnerRequest;
 import com.deutschflow.organization.dto.OrgDetailDto;
 import com.deutschflow.organization.dto.OrgDto;
 import com.deutschflow.organization.dto.OrgInvoiceDto;
@@ -14,6 +15,7 @@ import com.deutschflow.organization.dto.UpdateOrgRequest;
 import com.deutschflow.organization.service.AdminOrgService;
 import com.deutschflow.organization.service.OrgBillingService;
 import com.deutschflow.user.entity.User;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -85,6 +87,19 @@ public class AdminOrganizationController {
                                   @RequestBody AddMemberRequest request,
                                   @AuthenticationPrincipal User actor) {
         return adminOrgService.addMember(orgId, request.email(), request.role(), AuditActor.of(actor));
+    }
+
+    /**
+     * Đường khôi phục quyền giám đốc (DEC-13 / A6): chỉ định một nhân sự đang hoạt động làm OWNER
+     * duy nhất, hạ mọi OWNER hiện tại xuống MANAGER, lý do bắt buộc (10–500 ký tự) đi vào sổ trung
+     * tâm với actor là admin. {@code @Valid} chặn lý do trống ngay ở cổng (400 validation-error);
+     * service kiểm lại lần nữa cho caller không đi qua HTTP.
+     */
+    @PostMapping("/{id}/force-owner")
+    public OrgMemberDto forceOwner(@PathVariable("id") Long orgId,
+                                   @Valid @RequestBody ForceOwnerRequest request,
+                                   @AuthenticationPrincipal User admin) {
+        return adminOrgService.forceOwner(AuditActor.of(admin), orgId, request.newOwnerUserId(), request.reason());
     }
 
     @PostMapping("/{id}/activate-entitlements")
