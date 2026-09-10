@@ -3,7 +3,9 @@ package com.deutschflow.moderation.controller;
 import com.deutschflow.moderation.dto.ModerationDtos.BlockRequest;
 import com.deutschflow.moderation.dto.ModerationDtos.BlockedUserDto;
 import com.deutschflow.moderation.dto.ModerationDtos.ReportRequest;
+import com.deutschflow.moderation.dto.ModerationDtos.ReportResponse;
 import com.deutschflow.moderation.service.ContentReportService;
+import com.deutschflow.moderation.service.ContentReportService.ReportOutcome;
 import com.deutschflow.moderation.service.UserBlockService;
 import com.deutschflow.user.entity.User;
 import jakarta.validation.Valid;
@@ -14,7 +16,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * UGC safety endpoints (Apple Guideline 1.2): block/unblock users and report content or users.
@@ -49,9 +50,14 @@ public class ModerationController {
         return blockService.listBlocked(user.getId());
     }
 
-    /** Report a message or a user. Returns the created report id. */
+    /**
+     * Report a message or a user. Returns the report id — the EXISTING pending one (with
+     * {@code duplicate = true}) when the same person already reported the same target (B2), so a
+     * double-tap never files twice. 429 + {@code Retry-After} past 10/giờ or 30/ngày.
+     */
     @PostMapping("/report")
-    public Map<String, Long> report(@AuthenticationPrincipal User user, @Valid @RequestBody ReportRequest body) {
-        return Map.of("reportId", reportService.report(user.getId(), body));
+    public ReportResponse report(@AuthenticationPrincipal User user, @Valid @RequestBody ReportRequest body) {
+        ReportOutcome outcome = reportService.report(user.getId(), body);
+        return new ReportResponse(outcome.id(), outcome.duplicate());
     }
 }
