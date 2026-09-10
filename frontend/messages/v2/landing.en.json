@@ -1,6 +1,6 @@
 {
   "landing": {
-    "shotScrollHint": "Swipe to see more",
+    "shotScrollHint": "Scroll sideways for the rest",
     "meta": {
       "title": "myDeutschFlow — Practise German job interviews with AI",
       "description": "An AI plays the German HR interviewer: questions for your trade, pronunciation fixes and a score for every answer. A1–B2 path, Goethe exam practice, built for Vietnamese moving to Germany."
@@ -107,7 +107,7 @@
     },
     "exam": {
       "shotCap": "Real screen · Lesen exam room, clock running",
-      "shotAlt": "The reading section of the Goethe B1 mock exam: a 58-minute countdown, a 2-of-4 progress bar, richtig/falsch questions in German and a note that answers are being saved.",
+      "shotAlt": "The reading section of the Goethe B1 mock exam: 58 minutes left of the 65 allowed, a 2-of-4 progress bar, richtig/falsch questions in German and a note that answers are being saved.",
       "cap": "Goethe exam practice",
       "title": "Realistic mock exams, instant scoring",
       "sub": "Practise all four parts of the Goethe-Zertifikat B1/B2 under exam-like conditions, with a weakness analysis after every attempt.",
@@ -150,9 +150,9 @@
         { "who": "Lê Đức Anh", "what": "absent 3 days — needs a nudge" }
       ],
       "shotReportCap": "Real screen · Class K30 gradebook",
-      "shotReportAlt": "A teacher’s class report: four summary tiles for content, pacing, attendance and objectives, above a matrix of every learner’s score on every assignment.",
+      "shotReportAlt": "A teacher’s class report: four summary tiles for content, pacing, participation and objectives, above a matrix of every learner’s score on every assignment.",
       "shotGradingCap": "Real screen · Grading with an AI first pass",
-      "shotGradingAlt": "The grading centre: the queue of work waiting to be marked on the left, a learner’s German essay in the middle, and on the right the AI grading button next to the teacher’s score confirmation box."
+      "shotGradingAlt": "The grading center: the queue of work waiting to be marked on the left, a learner’s German essay in the middle, and on the right the AI grading button next to the teacher’s score confirmation box."
     },
     "pricing": {
       "cap": "Plans",

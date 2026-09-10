@@ -15,7 +15,7 @@ import { STUDENT_TOKEN, TEACHER_TOKEN, studentCookies, teacherCookies } from '..
  * Mọi phép chờ ở đây phải bám dữ liệu ĐỘC LẬP NGÔN NGỮ (tên người, tiêu đề bài tiếng Đức, số nội
  * suy) — chờ theo nhãn tiếng Việt là spec chỉ chạy được đúng locale vi.
  *
- * Chạy lại và cập nhật ảnh trong `public/landing/`:
+ * Chạy lại và cập nhật ảnh trong `src/assets/landing/`:
  *   npx playwright test tests/e2e/landing/__product-shots.spec.ts
  *   node scripts/build-landing-shots.mjs
  */
@@ -135,62 +135,109 @@ function skillReport() {
   return { classId: CLASS_ID, className: CLASSES[0].name, students: rows }
 }
 
+const SESSIONS_DONE = 14
+
+// Tổng lượt điểm danh phải bằng SĨ SỐ × SỐ BUỔI ĐÃ CHỐT, nếu không dải "Tham gia" trên ảnh tự tố
+// là số bịa: 10 học viên × 14 buổi = 140 lượt, không thể có 142.
+const PRESENT = STUDENTS.length * SESSIONS_DONE - 6 - 4
+
 const FOUR_AXIS = {
-  content: { taughtItems: 42, partialItems: 3, totalItems: 60, completedLessons: 14, totalLessons: 20 },
+  content: { taughtItems: 42, partialItems: 3, totalItems: 60, completedLessons: SESSIONS_DONE, totalLessons: 20 },
   pacing: { projectedEndDate: '2026-11-20', remainingMinutes: 1080, availableMinutes: 1350, shortfallMinutes: 0, suggestedExtraSessions: 0, milestonesAtRisk: 0 },
-  participation: { presentCount: 132, lateCount: 6, absentCount: 4, needsMakeupOpen: 1, completedSessions: 14, totalPastSessions: 14 },
+  participation: { presentCount: PRESENT, lateCount: 6, absentCount: 4, needsMakeupOpen: 1, completedSessions: SESSIONS_DONE, totalPastSessions: SESSIONS_DONE },
   objectives: { achieved: 18, needsPractice: 5, notAssessedCells: 12, totalObjectives: 24, studentsNeedingSupport: ['Lê Đức Anh'] },
 }
 
 const ESSAY_PROMPT = 'Schreiben Sie Ihre Meinung zum Thema „Arbeiten im Ausland“ (ca. 80 Wörter).'
 
-const QUEUE = [
-  {
-    id: 701, assignmentId: 7, studentId: 101, studentName: 'Phạm Thị Mai', studentEmail: 'hv2@example.com',
-    topic: 'Meinung äußern (Schreiben)', description: ESSAY_PROMPT,
-    assignmentType: 'ESSAY', dueDate: '2026-09-09', classId: CLASS_ID, className: CLASSES[0].name, status: 'SUBMITTED',
-    submittedAt: '2026-09-09T20:14:00',
-    submissionContent:
-      'Ich finde, dass Arbeiten im Ausland eine große Chance ist. Man lernt eine neue Kultur kennen und verbessert die Sprache jeden Tag. ' +
-      'Am Anfang ist es nicht leicht, weil man die Familie vermisst. Aber ich glaube, dass die Erfahrung sehr wichtig für meine Zukunft ist. ' +
-      'Deshalb möchte ich als Pflegekraft in Deutschland arbeiten und später vielleicht eine Weiterbildung machen.',
-    submissionFileUrl: null, score: null, feedback: null, attachmentUrl: null,
-  },
-  {
-    id: 702, assignmentId: 8, studentId: 105, studentName: 'Hoàng Minh Tuấn', studentEmail: 'hv6@example.com',
-    topic: 'Vorstellungsgespräch – Runde 2', description: 'Beantworten Sie 5 Fragen der HR-Abteilung (Audio).',
-    assignmentType: 'SPEAKING_SCENARIO', dueDate: '2026-09-12', classId: CLASS_ID, className: CLASSES[0].name, status: 'SUBMITTED',
-    submittedAt: '2026-09-10T08:02:00', submissionContent: null, submissionFileUrl: 'audio/702.webm', score: null, feedback: null, attachmentUrl: null,
-  },
-  {
-    id: 703, assignmentId: 7, studentId: 103, studentName: 'Nguyễn Văn Bình', studentEmail: 'hv4@example.com',
-    topic: 'Meinung äußern (Schreiben)', description: ESSAY_PROMPT,
-    assignmentType: 'ESSAY', dueDate: '2026-09-09', classId: CLASS_ID, className: CLASSES[0].name, status: 'AI_GRADED',
-    submittedAt: '2026-09-08T21:40:00',
-    submissionContent: 'Meiner Meinung nach ist Arbeiten im Ausland gut für junge Leute, weil sie viel Erfahrung sammeln können…',
-    submissionFileUrl: null, score: 78, feedback: null, attachmentUrl: null,
-  },
-  {
-    id: 704, assignmentId: 7, studentId: 100, studentName: 'Võ Thị Hoa', studentEmail: 'hv1@example.com',
-    topic: 'Meinung äußern (Schreiben)', description: ESSAY_PROMPT,
-    assignmentType: 'ESSAY', dueDate: '2026-09-09', classId: CLASS_ID, className: CLASSES[0].name, status: 'SUBMITTED',
-    submittedAt: '2026-09-09T22:05:00', submissionContent: null, submissionFileUrl: null, score: null, feedback: null, attachmentUrl: null,
-  },
-  {
-    id: 705, assignmentId: 6, studentId: 207, studentName: 'Trịnh Văn Long', studentEmail: 'hv31@example.com',
+/** Bài viết mẫu của từng học viên cho bài luận id 7 — để khung bài làm trên ảnh có chữ thật. */
+const ESSAY_TEXT: Record<string, string> = {
+  'Võ Thị Hoa':
+    'Ich finde, dass Arbeiten im Ausland eine große Chance ist. Man lernt eine neue Kultur kennen und verbessert die Sprache jeden Tag. ' +
+    'Am Anfang ist es nicht leicht, weil man die Familie vermisst. Aber ich glaube, dass die Erfahrung sehr wichtig für meine Zukunft ist. ' +
+    'Deshalb möchte ich als Pflegekraft in Deutschland arbeiten und später vielleicht eine Weiterbildung machen.',
+  'Phạm Thị Mai':
+    'Meiner Meinung nach lohnt sich die Arbeit im Ausland, weil man fachlich schneller wächst als zu Hause. ' +
+    'Natürlich fehlen mir meine Eltern, und der Winter ist lang. Trotzdem würde ich mich wieder so entscheiden.',
+  'Nguyễn Văn Bình':
+    'Meiner Meinung nach ist Arbeiten im Ausland gut für junge Leute, weil sie viel Erfahrung sammeln können…',
+  'Hoàng Minh Tuấn':
+    'Ich arbeite gern im Team. Im Ausland lernt man, mit Menschen aus vielen Ländern zusammenzuarbeiten.',
+  'Bùi Quang Huy':
+    'Arbeiten im Ausland bedeutet für mich eine bessere Zukunft für meine Familie und einen sicheren Beruf.',
+  'Vũ Hải Nam':
+    'Ich möchte in Deutschland arbeiten, weil die Ausbildung dort anerkannt ist und ich später zurückkommen kann.',
+}
+
+/**
+ * Hàng đợi chấm bài SINH TỪ `CELLS`, không gõ tay.
+ *
+ * Hai ảnh giáo viên nằm cạnh nhau trên trang chủ và cùng nói về lớp K30: sổ điểm cho thấy có bao
+ * nhiêu ô đang chờ giáo viên, trung tâm chấm bài cho thấy hàng đợi. Gõ tay hai bộ số thì chúng
+ * lệch nhau ngay lần sửa dữ liệu đầu tiên (bản trước: sổ điểm ngụ ý 7 bài chờ, hàng đợi nói 4),
+ * và khách chỉ cần nhìn hai ảnh cạnh nhau là thấy. Sinh từ một nguồn thì không lệch được nữa.
+ */
+function gradingQueue() {
+  const rows: Record<string, unknown>[] = []
+  let id = 700
+  STUDENTS.forEach((name, i) => {
+    ASSIGNMENTS.forEach((a, j) => {
+      const code = CELLS[i][j]
+      const status =
+        code === 'S' ? 'SUBMITTED' : code === 'A' ? 'AI_GRADED' : code === 'F' ? 'GRADING_FAILED' : null
+      if (!status) return
+      id += 1
+      const speaking = a.assignmentType === 'SPEAKING_SCENARIO'
+      rows.push({
+        id,
+        assignmentId: a.id,
+        studentId: 100 + i,
+        studentName: name,
+        studentEmail: `hv${i + 1}@example.com`,
+        topic: a.topic,
+        description: a.id === 7 ? ESSAY_PROMPT : 'Beantworten Sie 5 Fragen der HR-Abteilung (Audio).',
+        assignmentType: a.assignmentType,
+        dueDate: a.dueDate,
+        classId: CLASS_ID,
+        className: CLASSES[0].name,
+        status,
+        submittedAt: `${a.dueDate}T20:14:00`,
+        submissionContent: speaking ? null : ESSAY_TEXT[name] ?? null,
+        submissionFileUrl: speaking ? `audio/${id}.webm` : null,
+        // AI_GRADED = AI đã đề xuất điểm, giáo viên chưa xác nhận. Không kèm nhận xét: nhận xét
+        // của máy hiện trong ô "nhận xét cho học viên" thì giáo viên dễ bấm lưu nguyên văn.
+        score: status === 'AI_GRADED' ? 78 : null,
+        feedback: null,
+        attachmentUrl: null,
+      })
+    })
+  })
+  // Một bài của lớp khác để bộ lọc theo lớp trên ảnh có ý nghĩa.
+  rows.push({
+    id: 799, assignmentId: 6, studentId: 207, studentName: 'Trịnh Văn Long', studentEmail: 'hv31@example.com',
     topic: 'Wortschatz: Beim Arzt', description: '20 Wörter zum Thema Arztbesuch.',
-    assignmentType: 'VOCABULARY', dueDate: '2026-09-08', classId: 31, className: CLASSES[1].name, status: 'SUBMITTED',
-    submittedAt: '2026-09-08T18:20:00', submissionContent: 'der Termin, die Sprechstunde, das Rezept, die Überweisung, …',
+    assignmentType: 'VOCABULARY', dueDate: '2026-09-08', classId: 31, className: CLASSES[1].name,
+    status: 'SUBMITTED', submittedAt: '2026-09-08T18:20:00',
+    submissionContent: 'der Termin, die Sprechstunde, das Rezept, die Überweisung, …',
     submissionFileUrl: null, score: null, feedback: null, attachmentUrl: null,
-  },
-]
+  })
+  return rows
+}
+
+const QUEUE = gradingQueue()
+
+/** Đã chấm = số ô GRADED trong ma trận; chờ chấm = số dòng hàng đợi. Cùng một nguồn với sổ điểm. */
+const K30_GRADED = CELLS.flat().filter((c) => c.startsWith('G')).length
+const K30_PENDING = QUEUE.filter((r) => r.classId === CLASS_ID).length
+const K31_PENDING = QUEUE.length - K30_PENDING
+const K31_GRADED = 14
 
 const GRADING_STATS = {
-  totalPending: 5,
-  totalGraded: 42,
+  totalPending: QUEUE.length,
+  totalGraded: K30_GRADED + K31_GRADED,
   byClass: [
-    { classId: CLASS_ID, className: CLASSES[0].name, pending: 4, graded: 28 },
-    { classId: 31, className: CLASSES[1].name, pending: 1, graded: 14 },
+    { classId: CLASS_ID, className: CLASSES[0].name, pending: K30_PENDING, graded: K30_GRADED },
+    { classId: 31, className: CLASSES[1].name, pending: K31_PENDING, graded: K31_GRADED },
   ],
 }
 
@@ -211,33 +258,75 @@ async function teacherSession(page: Page, locale: Locale) {
 
 // ───────────────────────────── Dữ liệu minh hoạ · học viên ─────────────────────────────
 
-const ROADMAP_TITLES = [
-  'Sich vorstellen', 'Mein Beruf', 'Im Team', 'Der Arbeitstag', 'Termine machen',
-  'Beim Arzt', 'Im Krankenhaus', 'Medikamente', 'Die Untersuchung', 'Notfall!',
-  'Patientengespräch', 'Angehörige beraten', 'Pflegeplanung', 'Hygiene', 'Übergabe',
-  'Bewerbung schreiben', 'Lebenslauf', 'Vorstellungsgespräch I', 'Vorstellungsgespräch II', 'Gehalt & Vertrag',
-  'Wohnung suchen', 'Behördengang', 'Bankkonto', 'Versicherung', 'Freizeit',
-  'Prüfung: Lesen', 'Prüfung: Hören', 'Prüfung: Schreiben', 'Prüfung: Sprechen', 'Abschluss',
+/**
+ * Chặng lộ trình: [tiêu đề tiếng Đức, tiêu đề tiếng Việt, mô tả tiếng Việt].
+ *
+ * Ba trường này KHÔNG được nhồi cùng một chuỗi. Backend dựng RoadmapNodeDto (RoadmapService.java)
+ * theo đúng thứ tự `title = title_de`, `subtitle = title_vi`, `description = description_vi`, và
+ * `nodeDisplayTitle` (src/lib/roadmap-tree/types.ts) chọn `subtitle` khi locale là vi, `title` khi
+ * là en/de. Bản trước gán cả `subtitle` lẫn `description` bằng tiêu đề tiếng Đức, hậu quả trên
+ * ảnh: bản vi hiện tên chặng bằng tiếng Đức (sản phẩm thật hiện tiếng Việt), và cả ba bản in đúng
+ * một chuỗi hai lần — tiêu đề rồi ngay dưới là "mô tả" y hệt.
+ */
+const ROADMAP_STAGES: [string, string, string][] = [
+  ['Sich vorstellen', 'Giới thiệu bản thân', 'Chào hỏi, nói tên tuổi, nghề nghiệp và quê quán.'],
+  ['Mein Beruf', 'Nghề của tôi', 'Kể về công việc hiện tại và lý do chọn nghề điều dưỡng.'],
+  ['Im Team', 'Làm việc nhóm', 'Xưng hô với đồng nghiệp, hỏi và nhờ giúp trong ca trực.'],
+  ['Der Arbeitstag', 'Một ngày làm việc', 'Kể trình tự công việc trong ca bằng thì hiện tại.'],
+  ['Termine machen', 'Hẹn lịch', 'Đặt và đổi lịch hẹn qua điện thoại.'],
+  ['Beim Arzt', 'Đi khám', 'Mô tả triệu chứng và hiểu chỉ dẫn của bác sĩ.'],
+  ['Im Krankenhaus', 'Trong bệnh viện', 'Tên các khoa, đường đi và nội quy thăm bệnh.'],
+  ['Medikamente', 'Thuốc men', 'Đọc đơn thuốc, liều dùng và dặn dò người bệnh.'],
+  ['Die Untersuchung', 'Thăm khám', 'Hướng dẫn người bệnh trong lúc đo và kiểm tra.'],
+  ['Notfall!', 'Tình huống khẩn', 'Gọi cấp cứu và báo tình trạng ngắn gọn, rõ ràng.'],
+  ['Patientengespräch', 'Trò chuyện với người bệnh', 'Hỏi thăm, trấn an và giải thích bước tiếp theo.'],
+  ['Angehörige beraten', 'Trao đổi với người nhà', 'Giải thích tình hình và trả lời câu hỏi của gia đình.'],
+  ['Pflegeplanung', 'Lập kế hoạch chăm sóc', 'Ghi mục tiêu chăm sóc, chia việc theo ca và bàn giao.'],
+  ['Hygiene', 'Vệ sinh và an toàn', 'Quy trình khử khuẩn và bảo hộ khi làm việc.'],
+  ['Übergabe', 'Bàn giao ca', 'Tóm tắt diễn biến người bệnh cho ca sau.'],
+  ['Bewerbung schreiben', 'Viết đơn xin việc', 'Bố cục thư xin việc và cách nêu điểm mạnh.'],
+  ['Lebenslauf', 'Sơ yếu lý lịch', 'Trình bày quá trình học và làm theo chuẩn Đức.'],
+  ['Vorstellungsgespräch I', 'Phỏng vấn vòng 1', 'Trả lời câu hỏi về bản thân và động cơ ứng tuyển.'],
+  ['Vorstellungsgespräch II', 'Phỏng vấn vòng 2', 'Câu hỏi tình huống và câu hỏi ngược cho nhà tuyển dụng.'],
+  ['Gehalt & Vertrag', 'Lương và hợp đồng', 'Từ vựng hợp đồng, thời gian thử việc và phụ cấp.'],
+  ['Wohnung suchen', 'Tìm nhà', 'Đọc tin cho thuê, hẹn xem nhà và hỏi chi phí.'],
+  ['Behördengang', 'Đi làm giấy tờ', 'Đăng ký cư trú, xin hẹn và điền biểu mẫu.'],
+  ['Bankkonto', 'Mở tài khoản', 'Thủ tục ngân hàng và các loại phí thường gặp.'],
+  ['Versicherung', 'Bảo hiểm', 'Bảo hiểm y tế bắt buộc và cách dùng thẻ.'],
+  ['Freizeit', 'Thời gian rảnh', 'Rủ bạn đi chơi, nói về sở thích và kế hoạch cuối tuần.'],
+  ['Prüfung: Lesen', 'Ôn thi: Đọc', 'Chiến thuật làm 5 phần đọc trong thời gian thi.'],
+  ['Prüfung: Hören', 'Ôn thi: Nghe', 'Nghe thông báo, hội thoại và phỏng vấn ở tốc độ thi.'],
+  ['Prüfung: Schreiben', 'Ôn thi: Viết', 'Viết email và bài nêu ý kiến đúng bố cục chấm.'],
+  ['Prüfung: Sprechen', 'Ôn thi: Nói', 'Luyện phần nói cặp đôi và phần trình bày.'],
+  ['Abschluss', 'Tổng kết', 'Rà lại toàn khoá và thi thử một lượt trọn vẹn.'],
 ]
 
-/** 30 ngày × 6 tuần: 12 ngày đã xong, ngày 13 đang học, ngày 14 đã mở, còn lại khoá. */
-function b1Roadmap() {
-  return ROADMAP_TITLES.map((title, i) => {
+/**
+ * 30 ngày × 6 tuần: 12 ngày đã xong, ngày 13 đang học, ngày 14 đã mở, còn lại khoá.
+ *
+ * `description` chỉ điền ở locale vi. Backend chỉ có `description_vi` — KHÔNG có bản Đức hay Anh —
+ * nên bịa một câu tiếng Đức vào đây là nói sai về sản phẩm. Còn để nguyên câu tiếng Việt thì trang
+ * chủ tiếng Đức trưng một dòng khách không đọc được. Trường này vốn nullable và panel chỉ in khi
+ * có (`node.description && !locked` trong TreeNodePanel), nên bỏ trống là một trạng thái CÓ THẬT
+ * của sản phẩm, không phải dàn dựng.
+ */
+function b1Roadmap(locale: Locale) {
+  return ROADMAP_STAGES.map(([titleDe, titleVi, descriptionVi], i) => {
     const day = i + 1
     const progressStatus = day <= 12 ? 'COMPLETED' : day === 13 ? 'IN_PROGRESS' : day === 14 ? 'AVAILABLE' : 'LOCKED'
     const state = progressStatus === 'COMPLETED' ? 'completed' : progressStatus === 'LOCKED' ? 'locked' : 'current'
     return {
       id: 100 + day,
       code: `D${String(day).padStart(2, '0')}`,
-      title,
-      subtitle: title,
+      title: titleDe,
+      subtitle: titleVi,
       emoji: '📘',
       state,
       xpReward: 120,
       lessonsTotal: 4,
       lessonsCompleted: progressStatus === 'COMPLETED' ? 4 : progressStatus === 'IN_PROGRESS' ? 2 : 0,
       cefrLevel: 'B1',
-      description: title,
+      description: locale === 'vi' ? descriptionVi : null,
       dayNumber: day,
       weekNumber: Math.ceil(day / 5),
       progressStatus,
@@ -334,9 +423,12 @@ for (const locale of LOCALES) {
 
     test('học viên · cây lộ trình', async ({ page }) => {
       await studentSession(page, locale)
-      await page.route('**/api/roadmap/me', (r) => r.fulfill(json(b1Roadmap())))
+      await page.route('**/api/roadmap/me', (r) => r.fulfill(json(b1Roadmap(locale))))
       await page.goto('/v2/student/roadmap')
-      await page.getByText('Pflegeplanung').first().waitFor()
+      // "+120 XP" trong bảng node: chuỗi "XP" hardcode trong TreeNodePanel nên giống nhau ở cả ba
+      // locale. KHÔNG chờ theo tên chặng: từ khi mock trả đúng hợp đồng, bản vi hiện tiêu đề tiếng
+      // Việt còn en/de hiện tiếng Đức, nên chờ theo tên là spec chỉ chạy được ở một locale.
+      await page.getByText('+120 XP').first().waitFor()
       await settle(page)
       await shot(page, locale, 'student-roadmap-tree')
     })

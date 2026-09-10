@@ -1,17 +1,17 @@
 import type { StaticImageData } from 'next/image'
 
-import classReportVi from '../../../public/landing/vi/teacher-class-report.webp'
-import classReportEn from '../../../public/landing/en/teacher-class-report.webp'
-import classReportDe from '../../../public/landing/de/teacher-class-report.webp'
-import gradingVi from '../../../public/landing/vi/teacher-grading.webp'
-import gradingEn from '../../../public/landing/en/teacher-grading.webp'
-import gradingDe from '../../../public/landing/de/teacher-grading.webp'
-import roadmapVi from '../../../public/landing/vi/student-roadmap-tree.webp'
-import roadmapEn from '../../../public/landing/en/student-roadmap-tree.webp'
-import roadmapDe from '../../../public/landing/de/student-roadmap-tree.webp'
-import examVi from '../../../public/landing/vi/student-mock-exam.webp'
-import examEn from '../../../public/landing/en/student-mock-exam.webp'
-import examDe from '../../../public/landing/de/student-mock-exam.webp'
+import classReportVi from '../../assets/landing/vi/teacher-class-report.webp'
+import classReportEn from '../../assets/landing/en/teacher-class-report.webp'
+import classReportDe from '../../assets/landing/de/teacher-class-report.webp'
+import gradingVi from '../../assets/landing/vi/teacher-grading.webp'
+import gradingEn from '../../assets/landing/en/teacher-grading.webp'
+import gradingDe from '../../assets/landing/de/teacher-grading.webp'
+import roadmapVi from '../../assets/landing/vi/student-roadmap-tree.webp'
+import roadmapEn from '../../assets/landing/en/student-roadmap-tree.webp'
+import roadmapDe from '../../assets/landing/de/student-roadmap-tree.webp'
+import examVi from '../../assets/landing/vi/student-mock-exam.webp'
+import examEn from '../../assets/landing/en/student-mock-exam.webp'
+import examDe from '../../assets/landing/de/student-mock-exam.webp'
 
 /**
  * Ảnh chụp THẬT từ sản phẩm dùng trên trang chủ, tra theo locale.
@@ -26,6 +26,9 @@ import examDe from '../../../public/landing/de/student-mock-exam.webp'
  * Dữ liệu trong ảnh là minh hoạ (lớp K30 dựng sẵn), không phải người thật. Chụp lại:
  *   npx playwright test tests/e2e/landing/__product-shots.spec.ts
  *   node scripts/build-landing-shots.mjs
+ *
+ * Ảnh nằm ở `src/assets/`, KHÔNG phải `public/`: import tĩnh đã đưa chúng vào `_next/static/`,
+ * để trong `public/` nữa thì mỗi bản deploy mang HAI bản của cùng 12 tấm mà bản kia không ai gọi.
  */
 export type ShotName = 'classReport' | 'grading' | 'roadmap' | 'exam'
 

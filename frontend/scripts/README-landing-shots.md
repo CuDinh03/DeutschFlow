@@ -1,5 +1,8 @@
 # Ảnh chụp sản phẩm trên trang chủ
 
+> Tài liệu này nằm cạnh công cụ sinh ảnh, **không** trong `public/` — để khỏi bị phát hành công
+> khai tại `/landing/README.md` trên production.
+
 Ảnh trong thư mục này là **ảnh chụp thật** từ giao diện `/v2`, không phải mockup vẽ tay và không
 phải ảnh stock. Dữ liệu trong ảnh là **minh hoạ** (lớp "K30" dựng sẵn trong spec chụp) — không có
 dữ liệu thật của học viên, giáo viên hay trung tâm nào.
@@ -7,7 +10,7 @@ dữ liệu thật của học viên, giáo viên hay trung tâm nào.
 ## Cấu trúc
 
 ```
-public/landing/<locale>/<tên-màn>.webp     # locale ∈ vi | en | de
+src/assets/landing/<locale>/<tên-màn>.webp   # locale ∈ vi | en | de
 ```
 
 Chữ trong ảnh "nướng cứng" vào file, mà trang chủ dịch cả ba thứ tiếng, nên mỗi màn có ba bản.
@@ -36,9 +39,16 @@ vẫn nguyên). Muốn làm mới TOÀN BỘ thì chạy spec không kèm `--gre
 
 ## Lưu ý
 
-- `.gitignore` gốc chặn `*.png` toàn cục nhưng **không** chặn `*.webp`, nên các file ở đây được
-  theo dõi bình thường. Đừng commit bản PNG thô.
-- Import trong `landingShots.ts` là **import tĩnh**: đổi tên file mà quên sửa import sẽ làm **đổ
+- Script **chỉ thu nhỏ, không phóng to**: nó đọc bề ngang PNG từ IHDR và chỉ truyền `-resize`
+  khi ảnh rộng hơn 1600px. `cwebp -resize` tự nó CÓ nội suy lên, nên bỏ bước kiểm này thì chụp
+  lại ở khổ nhỏ sẽ ra ảnh nhoè mà không cảnh báo gì.
+
+- Ảnh nằm trong `src/assets/`, **không** phải `public/`. Import tĩnh đã đưa chúng vào
+  `_next/static/` với tên có băm nội dung; để thêm một bản trong `public/` nữa thì mỗi lần deploy
+  mang hai bản của cùng 12 tấm, mà bản trong `public/` không bao giờ được yêu cầu.
+- `.gitignore` gốc chặn `*.png` toàn cục nhưng **không** chặn `*.webp`, nên các file ảnh được theo
+  dõi bình thường. Đừng commit bản PNG thô.
+- Import trong `src/components/landing-v2/landingShots.ts` là **import tĩnh**: đổi tên file mà quên sửa import sẽ làm **đổ
   build**, thay vì thành ảnh 404 lặng lẽ trên production.
 - Đổi ảnh thì soát lại chuỗi `shotAlt` trong `messages/v2/landing.{vi,en,de}.json` — alt mô tả
   đúng nội dung ảnh là điều kiện a11y, không phải chỗ nhét từ khoá.

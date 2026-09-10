@@ -1,6 +1,6 @@
 {
   "landing": {
-    "shotScrollHint": "Vuốt ngang để xem",
+    "shotScrollHint": "Cuộn ngang để xem tiếp",
     "meta": {
       "title": "myDeutschFlow — Luyện phỏng vấn tiếng Đức với AI",
       "description": "AI đóng vai HR người Đức: phỏng vấn đúng ngành, sửa phát âm, chấm từng câu trả lời. Lộ trình A1–B2, luyện thi Goethe, dành cho người Việt đi Đức."
@@ -107,7 +107,7 @@
     },
     "exam": {
       "shotCap": "Ảnh thật · Phòng thi Lesen, đồng hồ đang chạy",
-      "shotAlt": "Màn làm bài thi thử Goethe B1 phần Đọc hiểu: đồng hồ đếm ngược 58 phút, thanh tiến độ 2 trên 4 câu, các câu richtig/falsch bằng tiếng Đức và ghi chú bài đang được lưu.",
+      "shotAlt": "Màn làm bài thi thử Goethe B1 phần Đọc hiểu: đồng hồ còn 58 phút trên tổng 65, thanh tiến độ 2 trên 4 câu, các câu richtig/falsch bằng tiếng Đức và ghi chú bài đang được lưu.",
       "cap": "Luyện thi Goethe",
       "title": "Mô phỏng đề thật, chấm điểm tức thì",
       "sub": "Luyện đủ 4 phần của Goethe-Zertifikat B1/B2 trong điều kiện sát thi thật, kèm phân tích điểm yếu sau mỗi lần làm.",
