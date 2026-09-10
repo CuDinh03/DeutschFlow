@@ -234,17 +234,72 @@ class OrgMembershipServiceTest {
         verify(memberRepo, never()).save(any());
     }
 
+    // ── F4 (owner chốt 10/09/2026): "1 người – 1 trung tâm ACTIVE" áp cho CẢ STUDENT ──
+    //
+    // Trước F4, STUDENT giữ "move-semantics": trung tâm B nhập CSV là lặng lẽ kéo học viên đang học ở
+    // A sang B — A mất học viên khỏi danh sách mà không ai ở A được báo, và hồ sơ giám hộ/đồng ý do A
+    // thu bỗng nằm dưới quyền đọc của B. Ca cũ "does NOT block a STUDENT" bị lật lại ở đây.
+
     @Test
-    @DisplayName("upsertMember does NOT block a STUDENT even if ACTIVE elsewhere (move-semantics)")
-    void upsertMember_studentActiveElsewhere_allowed() {
+    @DisplayName("F4 upsertMember: STUDENT đang ACTIVE ở trung tâm khác → ConflictException NÊU TÊN trung tâm đó, không ghi gì")
+    void upsertMember_studentActiveElsewhere_blockedNamingOtherOrg() {
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(studentUser()));
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(true);
+        OrgMember elsewhere = OrgMember.builder()
+                .id(new OrgMemberId(77L, USER_ID)).role("STUDENT").status("ACTIVE").build();
+        when(memberRepo.findFirstByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID))
+                .thenReturn(Optional.of(elsewhere));
+        when(organizationRepository.findById(77L)).thenReturn(Optional.of(
+                com.deutschflow.organization.entity.Organization.builder().id(77L).name("Trung tâm Alpha").build()));
+
+        assertThatThrownBy(() -> service.upsertMember(ORG_ID, USER_ID, "STUDENT"))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("Trung tâm Alpha");
+
+        verify(memberRepo, never()).save(any());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("F4 upsertMember: không tra được tên trung tâm kia → vẫn chặn, câu chung \"một tổ chức khác\"")
+    void upsertMember_studentActiveElsewhere_unknownOrgName_stillBlocked() {
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(studentUser()));
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.upsertMember(ORG_ID, USER_ID, "STUDENT"))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("tổ chức khác");
+        verify(memberRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("F4 hồi quy: STUDENT không ACTIVE ở đâu khác vẫn nhận ghế như trước")
+    void upsertMember_studentNotActiveElsewhere_allowed() {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(studentUser()));
 
         service.upsertMember(ORG_ID, USER_ID, "STUDENT");
 
-        // The 1-ACTIVE guard is never even queried for STUDENT.
-        verify(memberRepo, never()).existsByIdUserIdAndStatusAndIdOrgIdNot(any(), any(), any());
         verify(memberRepo).save(any());
+    }
+
+    @Test
+    @DisplayName("F4 activeMembershipElsewhere: trả org/tên/vai của trung tâm kia; không có thì empty")
+    void activeMembershipElsewhere_resolvesOrgName() {
+        OrgMember elsewhere = OrgMember.builder()
+                .id(new OrgMemberId(77L, USER_ID)).role("STUDENT").status("ACTIVE").build();
+        when(memberRepo.findFirstByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID))
+                .thenReturn(Optional.of(elsewhere));
+        when(organizationRepository.findById(77L)).thenReturn(Optional.of(
+                com.deutschflow.organization.entity.Organization.builder().id(77L).name("Trung tâm Alpha").build()));
+
+        assertThat(service.activeMembershipElsewhere(USER_ID, ORG_ID))
+                .contains(new OrgMembershipService.ActiveElsewhere(77L, "Trung tâm Alpha", "STUDENT"));
+
+        when(memberRepo.findFirstByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", 77L))
+                .thenReturn(Optional.empty());
+        assertThat(service.activeMembershipElsewhere(USER_ID, 77L)).isEmpty();
     }
 
     // ── DEC-13 (owner chốt 09/09/2026): admin nền tảng KHÔNG BAO GIỜ là thành viên trung tâm ──

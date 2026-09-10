@@ -71,12 +71,41 @@ public class OrgMembershipService {
     }
 
     /**
+     * Thành viên ACTIVE ở trung tâm KHÁC của một người dùng, kèm tên trung tâm đó — để thông báo
+     * chặn của F4 nói được "đang thuộc trung tâm A" thay vì "một tổ chức khác".
+     *
+     * @param orgName tên trung tâm kia; {@code null} nếu dòng org đã biến mất (lỗi dữ liệu, không
+     *                phải trạng thái nghiệp vụ) — người gọi tự lùi về câu chung
+     */
+    public record ActiveElsewhere(Long orgId, String orgName, String role) {}
+
+    /**
+     * Người dùng có đang là thành viên ACTIVE của một trung tâm KHÁC {@code orgId} không (F4, owner
+     * chốt 10/09/2026). Bản đọc-được của chốt trong {@link #upsertMember}: đường CSV gọi hàm này
+     * TRƯỚC khi ghi để trả về thông báo dòng có tên trung tâm, thay vì để {@code ConflictException}
+     * rơi vào "lỗi xử lý" chung.
+     */
+    @Transactional(readOnly = true)
+    public Optional<ActiveElsewhere> activeMembershipElsewhere(Long userId, Long orgId) {
+        return memberRepo.findFirstByIdUserIdAndStatusAndIdOrgIdNot(userId, STATUS_ACTIVE, orgId)
+                .map(m -> new ActiveElsewhere(
+                        m.getId().getOrgId(),
+                        organizationRepository.findById(m.getId().getOrgId())
+                                .map(org -> org.getName()).orElse(null),
+                        m.getRole()));
+    }
+
+    /**
      * Inserts a new org membership or reactivates an existing one, sets {@code users.org_id},
      * and promotes a global STUDENT to TEACHER when joining as MANAGER/TEACHER.
      *
-     * <p>Enforces "1 staff – 1 org at a time" (B2B model §4 decision 1): a non-STUDENT role is
-     * rejected when the user already has an ACTIVE membership in a different org. STUDENT keeps
-     * move-semantics (roster re-homing) and is not blocked.
+     * <p>Enforces "1 người – 1 trung tâm ACTIVE" cho MỌI vai. Trước F4 (owner chốt 10/09/2026) chỉ
+     * nhân sự bị chặn còn STUDENT giữ "move-semantics" — nhập CSV ở trung tâm B lặng lẽ kéo một học
+     * viên đang học ở trung tâm A sang B: A mất học viên khỏi danh sách mà không ai ở A được báo,
+     * ghế và gói của A vẫn tính, và với học viên chưa thành niên thì hồ sơ giám hộ/đồng ý do A thu
+     * bỗng nằm dưới quyền đọc của B. Nay: đang ACTIVE ở trung tâm khác ⇒ {@link ConflictException}
+     * nêu TÊN trung tâm đó; phải rời (hoặc được gỡ khỏi) trung tâm cũ trước. Đường mã lớp
+     * ({@link #ensureStudentSeat}) đã chặn sẵn với thông báo riêng và chạy TRƯỚC hàm này.
      */
     @Transactional
     public void upsertMember(Long orgId, Long userId, String role) {
@@ -106,10 +135,10 @@ public class OrgMembershipService {
                     Map.of("reason", "platform_admin", "targetUserId", userId, "requestedRole", role));
         }
 
-        if (!ROLE_STUDENT.equals(role)
-                && memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(userId, STATUS_ACTIVE, orgId)) {
-            throw new ConflictException(
-                    "Người dùng đã là thành viên đang hoạt động của một tổ chức khác — phải rời tổ chức cũ trước.");
+        // F4: áp cho CẢ STUDENT (xem javadoc). existsBy… trước rồi mới tra tên: đường thuận không tốn
+        // thêm truy vấn nào, đường chặn mới đi tìm tên trung tâm để câu báo lỗi đọc được.
+        if (memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(userId, STATUS_ACTIVE, orgId)) {
+            throw new ConflictException(activeElsewhereMessage(userId, orgId));
         }
 
         Optional<OrgMember> existingOpt = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId);
@@ -201,10 +230,11 @@ public class OrgMembershipService {
      * đầy học viên trong khi trang "Học viên của tổ chức" đếm 0 và ghế không bị tính tiền.
      *
      * <p>Đã là thành viên ACTIVE của chính org này (bất kỳ vai trò) → no-op: giáo viên/quản lý của
-     * trung tâm vào một lớp không bị hạ xuống STUDENT. Đang ACTIVE ở org KHÁC → từ chối: move-semantics
-     * của STUDENT chỉ dành cho roster do org chủ động ghi (import/thêm tay), không re-home âm thầm
-     * chỉ vì học viên gõ một mã lớp. Trường hợp còn lại đi qua {@link #upsertMember} nên chịu đủ
-     * seat-limit gate — hết ghế thì lượt duyệt thất bại với thông báo rõ ràng.
+     * trung tâm vào một lớp không bị hạ xuống STUDENT. Đang ACTIVE ở org KHÁC → từ chối với câu nói
+     * cho giáo viên hiểu ngay (chốt này có từ trước F4; từ F4 thì {@link #upsertMember} cũng chặn
+     * STUDENT ở mọi đường, và vì hàm này chặn TRƯỚC nên không có hai thông báo chồng nhau). Trường
+     * hợp còn lại đi qua {@link #upsertMember} nên chịu đủ seat-limit gate — hết ghế thì lượt duyệt
+     * thất bại với thông báo rõ ràng.
      *
      * <p>V-05: sau khi có ghế thì CẤP LUÔN gói của trung tâm, đúng như đường org chủ động thêm
      * ({@code OrgRosterRowImporter} và {@code AdminOrgService.addMember} đều gọi
@@ -388,6 +418,18 @@ public class OrgMembershipService {
     }
 
     // ----------------------------------------------------------------- internals
+
+    /**
+     * Câu báo chặn của F4 — nêu TÊN trung tâm kia khi tra được. Dùng chung cho {@link #upsertMember}
+     * và cho đường CSV ({@code OrgRosterRowImporter}) để hai chỗ không nói hai kiểu.
+     */
+    public String activeElsewhereMessage(Long userId, Long orgId) {
+        return activeMembershipElsewhere(userId, orgId)
+                .filter(other -> other.orgName() != null && !other.orgName().isBlank())
+                .map(other -> "Người dùng đang là thành viên đang hoạt động của trung tâm \""
+                        + other.orgName() + "\" — phải rời trung tâm đó trước khi vào trung tâm này.")
+                .orElse("Người dùng đã là thành viên đang hoạt động của một tổ chức khác — phải rời tổ chức cũ trước.");
+    }
 
     /**
      * Vết cho một thay đổi thành viên.
