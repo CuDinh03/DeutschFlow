@@ -26,6 +26,9 @@ class PublicApiRateLimitFilterTest {
     private static final int LIMIT = 30;
     private static final int EXTRA_LIMIT = 120;
     private static final String EXTRA_PATHS = "/api/onboarding/preview/,/api/v2/media/by-tag";
+    private static final String FAIL_CLOSED_PATHS = "/api/public/report-issues/";
+    private static final int FAIL_CLOSED_LIMIT = 20;
+    private static final String REPORT_URI = "/api/public/report-issues/0123456789abcdef0123456789abcdef01234567";
 
     @Mock
     private StringRedisTemplate redis;
@@ -35,7 +38,8 @@ class PublicApiRateLimitFilterTest {
 
     private PublicApiRateLimitFilter filter(boolean enabled) {
         return new PublicApiRateLimitFilter(
-                new ClientIpResolver(1), redis, enabled, LIMIT, EXTRA_PATHS, EXTRA_LIMIT);
+                new ClientIpResolver(1), redis, enabled, LIMIT, EXTRA_PATHS, EXTRA_LIMIT,
+                FAIL_CLOSED_PATHS, FAIL_CLOSED_LIMIT);
     }
 
     private MockHttpServletRequest req(String method, String uri, String ip) {
@@ -158,8 +162,9 @@ class PublicApiRateLimitFilterTest {
     @Test
     @DisplayName("không có Redis bean (null) → fail-open")
     void noRedisBean_failOpen() throws Exception {
-        PublicApiRateLimitFilter noRedis =
-                new PublicApiRateLimitFilter(new ClientIpResolver(1), null, true, LIMIT, EXTRA_PATHS, EXTRA_LIMIT);
+        PublicApiRateLimitFilter noRedis = new PublicApiRateLimitFilter(
+                new ClientIpResolver(1), null, true, LIMIT, EXTRA_PATHS, EXTRA_LIMIT,
+                FAIL_CLOSED_PATHS, FAIL_CLOSED_LIMIT);
 
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();
@@ -167,5 +172,75 @@ class PublicApiRateLimitFilterTest {
 
         assertThat(response.getStatus()).isEqualTo(200);
         assertThat(chain.getRequest()).isNotNull();
+    }
+
+    // ── R9: đường phiếu gửi gia đình — ngân sách riêng, FAIL-CLOSED ──────────
+
+    @Test
+    @DisplayName("R9: Redis ném exception → đường phiếu trả 503 + Retry-After, chain KHÔNG được gọi (fail-closed)")
+    void reportPath_redisDown_failClosed503() throws Exception {
+        when(redis.opsForValue()).thenThrow(new IllegalStateException("redis down"));
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+        filter(true).doFilterInternal(req("GET", REPORT_URI, "203.0.113.9"), response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(503);
+        assertThat(response.getHeader("Retry-After"))
+                .isEqualTo(String.valueOf(PublicApiRateLimitFilter.UNAVAILABLE_RETRY_AFTER_SECONDS));
+        assertThat(response.getContentAsString()).contains("RATE_LIMIT_UNAVAILABLE");
+        assertThat(chain.getRequest()).as("không được mở cửa khi mất throttle").isNull();
+    }
+
+    @Test
+    @DisplayName("R9: không có Redis bean → đường phiếu vẫn 503 (không có throttle = không phục vụ)")
+    void reportPath_noRedisBean_failClosed503() throws Exception {
+        PublicApiRateLimitFilter noRedis = new PublicApiRateLimitFilter(
+                new ClientIpResolver(1), null, true, LIMIT, EXTRA_PATHS, EXTRA_LIMIT,
+                FAIL_CLOSED_PATHS, FAIL_CLOSED_LIMIT);
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+        noRedis.doFilterInternal(req("GET", REPORT_URI, "203.0.113.9"), response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(503);
+        assertThat(chain.getRequest()).isNull();
+    }
+
+    @Test
+    @DisplayName("R9: đường phiếu dùng ngân sách RIÊNG (khoá rl:report:) và chặt hơn public — quá 20/phút là 429")
+    void reportPath_ownTighterBudget() throws Exception {
+        when(redis.opsForValue()).thenReturn(valueOps);
+        when(valueOps.increment(org.mockito.ArgumentMatchers.startsWith("rl:report:")))
+                .thenReturn((long) FAIL_CLOSED_LIMIT + 1);
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+        filter(true).doFilterInternal(req("GET", REPORT_URI, "203.0.113.9"), response, chain);
+
+        assertThat(response.getStatus()).as("21 < cap public 30 nhưng > cap riêng 20").isEqualTo(429);
+        assertThat(chain.getRequest()).isNull();
+    }
+
+    @Test
+    @DisplayName("R9: dưới ngưỡng riêng thì đi tiếp; các đường public khác vẫn fail-open như cũ")
+    void reportPath_underLimit_passes_andOtherPublicStillFailOpen() throws Exception {
+        when(redis.opsForValue()).thenReturn(valueOps);
+        when(valueOps.increment(anyString())).thenReturn(2L);
+
+        MockHttpServletResponse ok = new MockHttpServletResponse();
+        MockFilterChain okChain = new MockFilterChain();
+        filter(true).doFilterInternal(req("GET", REPORT_URI, "203.0.113.9"), ok, okChain);
+        assertThat(ok.getStatus()).isEqualTo(200);
+        assertThat(okChain.getRequest()).isNotNull();
+
+        // Cùng filter, Redis chết: đường public thường vẫn mở (hợp đồng M-2/L-5 không đổi).
+        org.mockito.Mockito.reset(redis);
+        when(redis.opsForValue()).thenThrow(new IllegalStateException("redis down"));
+        MockHttpServletResponse open = new MockHttpServletResponse();
+        MockFilterChain openChain = new MockFilterChain();
+        filter(true).doFilterInternal(publicRequest(), open, openChain);
+        assertThat(open.getStatus()).isEqualTo(200);
+        assertThat(openChain.getRequest()).isNotNull();
     }
 }

@@ -62,7 +62,15 @@ public class StudentReportIssue {
     /** Mã lý do thu hồi — VARCHAR(64), MÃ chứ không phải văn tự do. */
     public static final String REVOKE_SUPERSEDED = "SUPERSEDED";
     public static final String REVOKE_BY_OWNER = "OWNER";
+    public static final String REVOKE_BY_MANAGER = "MANAGER";
     public static final String REVOKE_BY_TEACHER = "TEACHER";
+
+    /**
+     * Trạng thái ĐỌC ĐƯỢC của một phiếu (R2/R9), suy từ ba cột chứ không lưu: SUPERSEDED tách khỏi
+     * REVOKED vì với giáo viên/giám đốc "bị phát hành lại" và "bị thu hồi có lý do" là hai chuyện khác
+     * nhau; với phụ huynh cả hai (và EXPIRED) đều là 404 đồng nhất — phân biệt chỉ tồn tại ở phía trong.
+     */
+    public enum Status { ACTIVE, EXPIRED, SUPERSEDED, REVOKED }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -155,6 +163,14 @@ public class StudentReportIssue {
     /** Còn mở được qua link: chưa thu hồi VÀ chưa hết hạn — đúng điều kiện của {@code findActiveByToken}. */
     public boolean isActiveAt(Instant now) {
         return !isRevoked() && tokenExpiresAt != null && tokenExpiresAt.isAfter(now);
+    }
+
+    /** Xem {@link Status}. Thu hồi thắng hết hạn: phiếu vừa thu hồi vừa quá hạn đọc là REVOKED/SUPERSEDED. */
+    public Status statusAt(Instant now) {
+        if (isRevoked()) {
+            return REVOKE_SUPERSEDED.equals(revokeReason) ? Status.SUPERSEDED : Status.REVOKED;
+        }
+        return isActiveAt(now) ? Status.ACTIVE : Status.EXPIRED;
     }
 
     /**

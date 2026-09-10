@@ -243,6 +243,23 @@ public class GlobalExceptionHandler {
                 ex.getMessage(), request.getRequestURI(), null, ext);
     }
 
+    /**
+     * 409 + {@code extensions.code} cho cổng phát hành phiếu gửi gia đình (R6, thiết kế 10/09/2026):
+     * {@code GUARDIAN_REPORT_CONSENT_REQUIRED} | {@code GUARDIAN_REPORT_CONSENT_REVOKED} |
+     * {@code BIRTH_DATE_REQUIRED}. Đây là 409 chứ không phải 403: người gọi CÓ quyền phát hành, chỉ là
+     * hồ sơ học viên chưa ở trạng thái cho phép — việc cần làm nằm ở trung tâm (ghi đồng ý giấy, bổ
+     * sung ngày sinh), không phải ở người gọi. Cùng họ mã với {@code MINOR_AUDIO_BLOCKED}; như ở đó,
+     * {@code extensions} KHÔNG mang nhóm tuổi hay ngày sinh.
+     */
+    @ExceptionHandler(com.deutschflow.common.minor.ReportIssueBlockedException.class)
+    public ResponseEntity<ProblemDetail> handleReportIssueBlocked(
+            com.deutschflow.common.minor.ReportIssueBlockedException ex, HttpServletRequest request) {
+        Map<String, Object> ext = new java.util.LinkedHashMap<>();
+        ext.put("code", ex.getReason().name());
+        return problem(HttpStatus.CONFLICT, "report-issue-blocked", "Conflict",
+                ex.getMessage(), request.getRequestURI(), null, ext);
+    }
+
     // --- 404 Not Found ---
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ProblemDetail> handleNotFound(NotFoundException ex,

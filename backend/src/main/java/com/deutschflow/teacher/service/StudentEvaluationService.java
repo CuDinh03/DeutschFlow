@@ -219,6 +219,50 @@ public class StudentEvaluationService {
                 cs.getTeacherComment(), cs.getEvaluatedAt());
     }
 
+    // ── Đường nội bộ cho phiếu gửi gia đình (PR-R2) ──────────────────────────
+
+    /**
+     * Ảnh chụp đánh giá của MỘT học viên trong lớp — cùng phép tính với {@link #getEvaluation} nhưng
+     * KHÔNG kiểm quyền: dành cho luồng đã tự kiểm ở nơi gọi ({@code ReportPayloadBuilder}, sau khi
+     * {@code ReportIssueService} chứng minh người phát hành là giáo viên phụ trách). Không mở cho
+     * controller gọi thẳng.
+     */
+    @Transactional(readOnly = true)
+    public StudentEvaluationDto evaluationOf(Long classId, Long studentId) {
+        ClassStudent cs = classStudentRepository.findById(new ClassStudentId(classId, studentId))
+                .orElseThrow(() -> new NotFoundException("Học viên không thuộc lớp này"));
+        return buildEvaluationDto(null, classId, studentId, cs);
+    }
+
+    /**
+     * Số bài của học viên trong lớp: {@code confirmed} = đã có điểm CHỐT (GRADED/EVALUATED — đúng tập
+     * nuôi {@code avgScore}), {@code awaitingTeacher} = đã nộp còn chờ giáo viên (SUBMITTED/AI_GRADED/
+     * GRADING_FAILED). Cùng bộ lọc đối tượng (audience) với {@link #evaluationOf} để "N bài đã chốt ·
+     * M bài chờ chấm" trên phiếu khớp với điểm trung bình in cạnh nó (R4 mục 5).
+     */
+    public record AssignmentCounts(int confirmed, int awaitingTeacher) {}
+
+    @Transactional(readOnly = true)
+    public AssignmentCounts assignmentCountsOf(Long classId, Long studentId) {
+        List<ClassAssignment> assignments = assignmentAudienceService.visibleTo(studentId,
+                assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId));
+        if (assignments.isEmpty()) {
+            return new AssignmentCounts(0, 0);
+        }
+        List<Long> aIds = assignments.stream().map(ClassAssignment::getId).toList();
+        int confirmed = 0;
+        int awaiting = 0;
+        for (StudentAssignment sa : studentAssignmentRepository.findByAssignmentIds(aIds)) {
+            if (!studentId.equals(sa.getStudentId())) continue;
+            if (AssignmentStatus.isFinal(sa.getStatus()) && sa.getScore() != null) {
+                confirmed++;
+            } else if (AssignmentStatus.AWAITING_TEACHER.contains(sa.getStatus())) {
+                awaiting++;
+            }
+        }
+        return new AssignmentCounts(confirmed, awaiting);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private void assertTeacherOwnsClass(Long teacherId, Long classId) {
