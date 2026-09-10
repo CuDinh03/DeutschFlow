@@ -102,6 +102,24 @@ describe('ImportRosterModal', () => {
     expect(screen.queryByTestId('roster-no-birthdate')).toBeNull()
   })
 
+  it('D1: tệp khai consentConfirmed (không birthDate) → xem trước mọc cột Đồng ý, hiện ô NGUYÊN VĂN, vẫn nhập được', async () => {
+    render(<ImportRosterModal onClose={() => undefined} onImported={() => undefined} />)
+    await userEvent.upload(
+      await screen.findByTestId('roster-file-input'),
+      csvFile('email,displayName,consentConfirmed\r\nan@x.com,An,x\r\nbinh@x.com,Bình,\r\n'),
+    )
+
+    await screen.findByText(`${NS}.preview:{"count":2}`)
+    expect(screen.getByText(`${NS}.colConsent`)).toBeTruthy()
+    expect(screen.queryByText(`${NS}.colBirthDate`)).toBeNull()
+    const cells = screen.getAllByTestId('roster-consent-cell').map((c) => c.textContent)
+    expect(cells).toEqual(['x', '—'])
+    // Không có birthDate thì vẫn nhắc — nhưng KHÔNG chặn: nút nhập bấm được.
+    expect(screen.getByTestId('roster-no-birthdate')).toBeTruthy()
+    expect((screen.getByTestId('roster-submit') as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getByText(`${NS}.consentNote`)).toBeTruthy()
+  })
+
   it('ngày sai định dạng bị đếm và tô đỏ ngay tại dòng đó; ô trống không bị coi là sai', async () => {
     render(<ImportRosterModal onClose={() => undefined} onImported={() => undefined} />)
     await userEvent.upload(

@@ -17,10 +17,14 @@ import { TkModal, GaBtn, GaCap, ErrorBanner } from '@/components/ui-v2'
  * trước (đếm dòng, báo email/ngày sai sớm) → gắn lớp tuỳ chọn → nhập → kết quả từng dòng + tải CSV lỗi.
  * Mỗi dòng chạy transaction riêng ở backend nên dòng hỏng không kéo cả batch; nhập lại không tạo trùng.
  *
- * Gói 1 (DEC-22): tệp CÓ thể khai thêm `birthDate` và bốn cột người giám hộ. Cột mới là TÙY CHỌN —
+ * Gói 1 (DEC-22): tệp CÓ thể khai thêm `birthDate` và các cột người giám hộ. Cột mới là TÙY CHỌN —
  * tệp ba cột mà các trung tâm đang dùng vẫn nhập được y như trước, và xem trước chỉ mọc thêm cột khi
  * tệp thật sự khai. Thiếu ngày sinh KHÔNG chặn nhập: cổng nằm ở đường dữ liệu đi ra nhà cung cấp AI,
  * chặn ở đây chỉ khiến trung tâm không đưa được học viên vào hệ thống.
+ *
+ * D1/R11 (10/09/2026): thêm `guardianEmail` và `consentConfirmed` — ô đánh dấu = trung tâm đã cầm phiếu
+ * đồng ý giấy của người giám hộ cho phạm vi ghi âm; máy chủ ghi một dòng GRANTED/PAPER (nhập lại không
+ * nhân đôi). Học viên chưa đủ tuổi mà chưa có đồng ý VẪN vào, chỉ phần nói còn khoá tới khi ghi nhận.
  */
 
 const INPUT_CLS =
@@ -158,6 +162,7 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
                       {/* Hai cột dưới chỉ mọc khi TỆP khai — tệp ba cột cũ giữ nguyên bảng như trước. */}
                       {parsed.hasBirthDate && <th className="px-3 py-1.5 font-semibold">{t('colBirthDate')}</th>}
                       {parsed.hasGuardian && <th className="px-3 py-1.5 font-semibold">{t('colGuardian')}</th>}
+                      {parsed.hasConsent && <th className="px-3 py-1.5 font-semibold">{t('colConsent')}</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -176,7 +181,12 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
                           </td>
                         )}
                         {parsed.hasGuardian && (
-                          <td className="px-3 py-1.5 text-ga-muted">{r.guardianName || '—'}</td>
+                          // Tên là chính; không tên mà có email/điện thoại thì hiện cái đó để người
+                          // nhập thấy máy chủ sẽ từ chối dòng "có liên lạc mà thiếu tên".
+                          <td className="px-3 py-1.5 text-ga-muted">{r.guardianName || r.guardianEmail || r.guardianPhone || '—'}</td>
+                        )}
+                        {parsed.hasConsent && (
+                          <td className="px-3 py-1.5 font-mono text-ga-muted" data-testid="roster-consent-cell">{r.consentConfirmed || '—'}</td>
                         )}
                       </tr>
                     ))}
@@ -210,6 +220,7 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
           <ul className="ga-ui list-disc space-y-1 pl-5 text-ga-caption text-ga-muted">
             <li>{t('idempotentNote')}</li>
             <li>{t('minorNote')}</li>
+            <li>{t('consentNote')}</li>
             <li>{t('planNote')}</li>
           </ul>
         </div>
