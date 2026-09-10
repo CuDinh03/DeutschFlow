@@ -65,6 +65,12 @@ public class StudentAssignmentController {
      * in the assignment's class), not by an existing StudentAssignment row. A late-joining student has no
      * row for assignments created before they arrived (see AssignmentBackfillService), so requiring one
      * here would block them from ever opening or submitting that work.
+     *
+     * <p>"Enrolled" = còn chiếm ghế, tức {@code status IN (ACTIVE, RESERVED)} theo
+     * {@code ClassStudentRepository.existsByIdClassIdAndIdStudentId}; người đã rời lớp (ENDED/TRANSFERRED)
+     * nhận 403 — DEC-17: họ vẫn ĐỌC được bài và điểm của chính mình (xem {@link #getMyAssignments}),
+     * nhưng mọi đường GHI phải qua hàm này VÔ ĐIỀU KIỆN. 🔴 Nợ Gói 3 (E6): RESERVED theo D1 là "chỉ
+     * đọc" nhưng ở đây vẫn qua được — cố ý chưa đổi trong đợt này.
      */
     private ClassAssignment assertAssignmentAccessible(Long studentId, Long assignmentId) {
         ClassAssignment ca = classAssignmentRepository.findById(assignmentId)
@@ -75,17 +81,23 @@ public class StudentAssignmentController {
         return ca;
     }
 
-    /** The student's row for this assignment, lazily created (PENDING) on first write if it's missing. */
-    private StudentAssignment getOrCreateRow(Long studentId, Long assignmentId) {
+    /**
+     * The student's row for this assignment, for a WRITE. Enrollment is checked FIRST and UNCONDITIONALLY,
+     * then the row is loaded, lazily created (PENDING) if it's missing.
+     *
+     * <p>Trước đây kiểm quyền lớp chỉ nằm trong nhánh "chưa có dòng", nên học viên đã bị gỡ khỏi lớp
+     * (ENDED) mà từng có dòng vẫn POST đè được bài cũ cho tới khi giáo viên chốt điểm — trong khi biên
+     * quyền {@code existsByIdClassIdAndIdStudentId} đã trả false cho ENDED từ V316. Dòng cũ của họ được
+     * giữ để ĐỌC (D2/DEC-17), không phải để ghi tiếp.
+     */
+    private StudentAssignment rowForWrite(Long studentId, Long assignmentId) {
+        assertAssignmentAccessible(studentId, assignmentId);
         return studentAssignmentRepository.findByStudentIdAndAssignmentId(studentId, assignmentId)
-                .orElseGet(() -> {
-                    assertAssignmentAccessible(studentId, assignmentId);
-                    return studentAssignmentRepository.save(StudentAssignment.builder()
-                            .assignmentId(assignmentId)
-                            .studentId(studentId)
-                            .status("PENDING")
-                            .build());
-                });
+                .orElseGet(() -> studentAssignmentRepository.save(StudentAssignment.builder()
+                        .assignmentId(assignmentId)
+                        .studentId(studentId)
+                        .status("PENDING")
+                        .build()));
     }
 
     @GetMapping
@@ -147,9 +159,10 @@ public class StudentAssignmentController {
             @PathVariable Long assignmentId,
             @RequestBody SubmitRequest request) {
             
-        // Late-joiners have no row for pre-join assignments — create it on first submit (with an
-        // enrollment check) so the student isn't permanently blocked from handing the work in.
-        StudentAssignment assignment = getOrCreateRow(user.getId(), assignmentId);
+        // Enrollment check on EVERY submit (DEC-17: a student removed from the class must not overwrite
+        // their old work), then the row — late-joiners have no row for pre-join assignments, so it is
+        // created on first submit rather than blocking them from ever handing the work in.
+        StudentAssignment assignment = rowForWrite(user.getId(), assignmentId);
 
         // Chốt duy nhất: ĐIỂM ĐÃ CHỐT thì không nộp đè.
         //
@@ -162,7 +175,7 @@ public class StudentAssignmentController {
         boolean isResubmission = AssignmentStatus.isSubmitted(assignment.getStatus());
         if (AssignmentStatus.isFinal(assignment.getStatus())) {
             throw new ConflictException(
-                    "Bài đã được giáo viên chấm nên không nộp lại được. Hãy nhắn cho giáo viên nếu bạn cần nộp bản khác.");
+                    "Bài đã được giáo viên chấm nên không nộp lại được. Nếu cần nộp bản khác, hãy liên hệ giáo viên hoặc trung tâm.");
         }
 
         assignment.setStatus(AssignmentStatus.SUBMITTED);
