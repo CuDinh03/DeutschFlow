@@ -150,4 +150,25 @@ class GradingServiceMinorGateTest {
 
         verify(openAiChatClient).chatCompletionForTier(any(), any(), anyDouble(), any());
     }
+
+    /**
+     * Lưới thứ hai chỉ `catch` đúng {@link MinorAiGradingBlockedException}. Nếu cổng ném loại KHÁC
+     * (DB chết lúc đọc ngày sinh, hay `IllegalArgumentException` vì studentId null) thì an toàn hiện
+     * đang dựa vào một `catch (Exception)` bao ngoài TOÀN BỘ method — thứ mà một lần thu hẹp
+     * `catch` sau này có thể vô tình bỏ đi. Ca này khoá lại bất biến "lỗi loại nào cũng KHÔNG được
+     * đi tiếp tới nhà cung cấp AI", để lần refactor đó đỏ ngay thay vì mở lại fail-open lặng lẽ.
+     */
+    @Test
+    @DisplayName("🔴 cổng ném lỗi KHÁC (DB chết) ⇒ vẫn KHÔNG gọi AI, không fail-open")
+    void gateThrowingSomethingElseIsStillNotFailOpen() {
+        StudentAssignment sa = submitted();
+        when(studentAssignmentRepository.findById(SUBMISSION_ID)).thenReturn(Optional.of(sa));
+        doThrow(new org.springframework.dao.QueryTimeoutException("DB không phản hồi"))
+                .when(minorGate).assertAiGradingAllowed(STUDENT_ID);
+
+        gradingService().aiGradeAssignment(SUBMISSION_ID, TEACHER_ID);
+
+        verifyNoInteractions(openAiChatClient);
+        assertThat(sa.getStatus()).isEqualTo(AssignmentStatus.GRADING_FAILED);
+    }
 }

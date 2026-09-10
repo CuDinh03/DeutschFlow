@@ -149,7 +149,7 @@
       "missingBirthDateHow": "Add the date of birth in each student profile, or re-import a CSV with a birthDate column.",
       "missingBirthDateBadge": "No date of birth",
       "filterMissingBirthDate": "Show only students missing a date of birth",
-      "filterAll": "Show all",
+      "filterAll": "Filtered: missing date of birth · clear filter",
       "searchPlaceholder": "Search students / email…",
       "loadError": "Could not load students",
       "emptyOrg": "The organization has no students yet.",

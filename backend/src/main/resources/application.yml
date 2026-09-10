@@ -324,6 +324,16 @@ app:
     # rồi mới siết. Siết trước khi đo là đổi một rủi ro pháp lý lấy một sự cố vận hành chắc chắn.
     unknown-age-audio: ${APP_MINOR_UNKNOWN_AGE_AUDIO:BLOCK_ORG_MEMBERS}
 
+    # Cùng ba giá trị, cho ĐƯỜNG CHẤM BÀI AI (D3) — phạm vi đồng ý AI_PROCESSING, chủ thể là HỌC
+    # VIÊN của bài nộp chứ không phải giáo viên bấm nút.
+    #
+    # Vì sao là cờ RIÊNG chứ không dùng chung dòng trên: hai đường có mức rủi ro khác nhau (giọng
+    # nói thật so với bài làm chữ), nên phải nới hoặc siết được độc lập. Gộp một cờ thì lúc muốn mở
+    # tạm đường chấm bài cho một trung tâm chưa thu kịp đồng ý sẽ mở luôn đường ghi âm — đúng cái
+    # không được phép. Khai ở đây để người vận hành soát "còn cờ an toàn trẻ em nào chưa đặt" thấy
+    # đủ cả hai trong một chỗ, thay vì chỉ thấy dòng audio rồi tưởng là hết.
+    unknown-age-ai-grading: ${APP_MINOR_UNKNOWN_AGE_AI_GRADING:BLOCK_ORG_MEMBERS}
+
     # Phiên bản ĐIỀU KHOẢN mà phiếu đồng ý thu từ hôm nay được coi là đồng ý với (student_consents.
     # terms_version). Máy chủ là bên duy nhất ghi giá trị này — cột CSV consentConfirmed và endpoint
     # ghi phiếu giấy của trung tâm đều lấy từ đây (MinorConsentTerms), client không gửi lên. Đổi điều

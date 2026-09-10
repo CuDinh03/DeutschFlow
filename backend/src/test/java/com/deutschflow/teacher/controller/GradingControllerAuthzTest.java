@@ -239,4 +239,27 @@ class GradingControllerAuthzTest {
         verify(minorGate).assertAiGradingAllowed(STUDENT_ID);
         verify(minorGate, never()).assertAiGradingAllowed(TEACHER_ID);
     }
+
+    /**
+     * Cửa vào THỨ HAI của cổng tuổi trên cùng controller. Năm ca sẵn có của đường ảnh (IDOR, SSRF,
+     * khoá chéo bài, lưu proposal) đều xanh dù mock cổng không ném, nên nếu dòng gọi cổng ở
+     * `aiGradeSubmissionImage` bị xoá hay đảo chỗ thì KHÔNG ca nào đỏ. Ca này là ca đó.
+     */
+    @Test
+    @DisplayName("🔴 D3 đường ẢNH VIẾT TAY: cổng tuổi chặn ⇒ 403 và không đọc ảnh, không gọi OCR")
+    void minorGateBlocksHandwritingImagePath() {
+        stubSubmission(AssignmentStatus.SUBMITTED);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(OWNING_CLASS_ID, TEACHER_ID))
+                .thenReturn(true);
+        org.mockito.Mockito.doThrow(new com.deutschflow.common.minor.MinorAiGradingBlockedException(
+                        com.deutschflow.common.minor.MinorAiGradingBlockedException.Reason.BIRTH_DATE_REQUIRED,
+                        com.deutschflow.common.minor.MinorPolicy.Status.UNKNOWN, "chưa có ngày sinh"))
+                .when(minorGate).assertAiGradingAllowed(STUDENT_ID);
+
+        assertThatThrownBy(() -> controller().aiGradeSubmissionImage(teacher(), SUBMISSION_ID))
+                .isInstanceOf(com.deutschflow.common.minor.MinorAiGradingBlockedException.class);
+
+        verifyNoInteractions(handwritingOcrService);
+        verifyNoInteractions(orgPoolGuard);
+    }
 }

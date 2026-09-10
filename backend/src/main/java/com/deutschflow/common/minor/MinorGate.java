@@ -29,8 +29,16 @@ import java.util.stream.Collectors;
  * quên sửa thì vừa cho lọt bài của trẻ (giáo viên đủ tuổi) vừa chặn oan giáo viên 17 tuổi. Chủ thể
  * đã được sửa ở đợt Gói 2 này; xem {@link #assertAiGradingAllowed}.
  *
- * <p><b>Cố ý KHÔNG cắm cho chat AI</b> (owner chốt D3) và không cắm lại ở khâu chấm phiên luyện
- * nói: phiên đó đã bị chặn từ lúc ghi âm, chặn thêm lần nữa chỉ đổi thông điệp lỗi.
+ * <p><b>Cố ý KHÔNG cắm cho chat AI</b> — owner chốt D3.
+ *
+ * <p>🪤 <b>Đừng lặp lại lập luận sai này</b> (viết 11/09/2026, sửa cùng ngày sau vòng soát bảo mật):
+ * bản đầu của javadoc này khẳng định phiên luyện nói "đã bị chặn từ lúc ghi âm nên không cần cắm lại
+ * ở khâu chấm". SAI. {@code assertAudioAllowed} chỉ được gọi ở MỘT chỗ trong đường luyện nói —
+ * {@code AiSessionController} {@code POST /transcribe}. Hai endpoint {@code /sessions/&#123;id&#125;/chat}
+ * và {@code /chat/stream} nhận thẳng CHỮ do người học gõ, không đi qua {@code /transcribe} lần nào.
+ * Một học viên vị thành niên gõ hết phiên rồi kết thúc là transcript đi ra nhà cung cấp AI mà không
+ * chốt nào chạm tới. Vì vậy khâu chấm phiên luyện nói CÓ cổng riêng — xem
+ * {@code TeacherAiGradingService.autoGradeSession}.
  *
  * <p><b>Vì sao KHÔNG cắm vào {@code QuotaService.assertAllowed}.</b> Chỗ đó là cổng CHI PHÍ, chạy
  * {@code @Transactional(readOnly = true, REQUIRES_NEW)} và mọi tính năng AI đều đi qua — trộn hai
@@ -154,9 +162,8 @@ public class MinorGate {
      * bài viết và ảnh bài viết tay không phải giọng nói, và người giám hộ đồng ý cho ghi âm không có
      * nghĩa là đã đồng ý cho bài làm đi qua nhà cung cấp AI.
      *
-     * <p><b>Cố ý KHÔNG cắm cho chat AI và cho chấm phiên luyện nói.</b> Chat AI owner đã chốt không
-     * chặn; phiên luyện nói đã bị chặn từ lúc GHI ÂM bởi {@link #assertAudioAllowed}, cắm thêm ở khâu
-     * chấm chỉ đổi được thông điệp lỗi chứ không đổi được dữ liệu đã đi.
+     * <p><b>Cố ý KHÔNG cắm cho chat AI</b> (owner chốt D3). Khâu CHẤM phiên luyện nói thì CÓ cắm,
+     * nhưng ở {@code TeacherAiGradingService} chứ không ở đây — xem ghi chú bẫy ở javadoc lớp.
      *
      * @param studentUserId CHỦ THỂ của bài nộp — chủ nhân bài làm, không phải giáo viên đang chấm
      */
@@ -223,12 +230,7 @@ public class MinorGate {
     }
 
     private void applyUnknownAgePolicy(Long subjectUserId) {
-        boolean block = switch (unknownAgeAudioPolicy) {
-            case ALLOW -> false;
-            case BLOCK_ALL -> true;
-            case BLOCK_ORG_MEMBERS -> hasActiveOrgMembership(subjectUserId);
-        };
-        if (!block) {
+        if (!shouldBlockUnknownAge(unknownAgeAudioPolicy, subjectUserId)) {
             return;
         }
 
@@ -258,24 +260,20 @@ public class MinorGate {
                             + "không chấm bằng AI được nữa. Bài vẫn chấm tay bình thường.");
         }
 
-        String what = status == MinorPolicy.Status.MINOR_LEGAL
-                ? "Theo quy định về dữ liệu của trẻ em, bài làm của học viên này chỉ được gửi qua AI "
-                        + "để chấm khi có đồng ý của cha mẹ hoặc người giám hộ."
-                : "Theo quy định nội bộ của trung tâm với học viên dưới 18 tuổi, bài làm của học viên "
-                        + "này chỉ được gửi qua AI để chấm khi có đồng ý của cha mẹ hoặc người giám hộ.";
+        // ⛔ MỘT thông điệp cho cả hai nhóm tuổi, KHÁC hẳn đường ghi âm. Ở đó hai câu chữ khác nhau
+        // là đúng vì người đọc chính là học viên — họ vốn biết tuổi mình. Ở đây người đọc là GIÁO
+        // VIÊN nói về HỌC VIÊN KHÁC, nên chọn từ theo nhóm tuổi ("trẻ em theo luật" so với "dưới 18
+        // theo quy định nội bộ") là phát ra chính cái nhóm tuổi mà lớp ngoại lệ cam kết không phát.
+        // Giáo viên chỉ cần biết VIỆC CẦN LÀM, không cần biết em đó dưới hay trên ngưỡng pháp lý.
         throw new MinorAiGradingBlockedException(
                 MinorAiGradingBlockedException.Reason.GUARDIAN_CONSENT_REQUIRED, status,
-                what + " Trung tâm ghi nhận phiếu đồng ý là nút AI mở lại ngay; trong lúc chờ, thầy cô "
-                        + "chấm tay như bình thường.");
+                "Bài làm của học viên này chỉ được gửi qua AI để chấm khi có đồng ý của cha mẹ hoặc "
+                        + "người giám hộ. Trung tâm ghi nhận phiếu đồng ý là nút AI mở lại ngay; trong lúc "
+                        + "chờ, thầy cô chấm tay như bình thường.");
     }
 
     private void applyUnknownAgeAiGradingPolicy(Long studentUserId) {
-        boolean block = switch (unknownAgeAiGradingPolicy) {
-            case ALLOW -> false;
-            case BLOCK_ALL -> true;
-            case BLOCK_ORG_MEMBERS -> hasActiveOrgMembership(studentUserId);
-        };
-        if (!block) {
+        if (!shouldBlockUnknownAge(unknownAgeAiGradingPolicy, studentUserId)) {
             return;
         }
 
@@ -287,6 +285,22 @@ public class MinorGate {
                         + "của người giám hộ hay không, và không gửi bài làm đi khi còn chưa rõ. Trung tâm "
                         + "bổ sung ngày sinh vào hồ sơ học viên là nút AI mở lại; trong lúc chờ, thầy cô "
                         + "chấm tay như bình thường.");
+    }
+
+    /**
+     * "Chưa khai ngày sinh thì có chặn không" — câu trả lời KHÔNG phụ thuộc miền (ghi âm hay chấm
+     * bài), chỉ phụ thuộc cờ của miền đó. Tách ra để hai đường không trôi lệch nhau khi thêm giá trị
+     * enum thứ tư: quên sửa một chỗ là một miền lặng lẽ đổi hành vi.
+     *
+     * <p>Phần KHÁC nhau — log gì và ném ngoại lệ nào, với thông điệp viết cho ai — ở lại từng hàm
+     * gọi, vì đó mới là chỗ hai miền thật sự khác nhau.
+     */
+    private boolean shouldBlockUnknownAge(UnknownAgeAudioPolicy policy, Long userId) {
+        return switch (policy) {
+            case ALLOW -> false;
+            case BLOCK_ALL -> true;
+            case BLOCK_ORG_MEMBERS -> hasActiveOrgMembership(userId);
+        };
     }
 
     private boolean hasActiveOrgMembership(Long userId) {

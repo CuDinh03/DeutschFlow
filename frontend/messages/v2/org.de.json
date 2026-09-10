@@ -149,7 +149,7 @@
       "missingBirthDateHow": "Geburtsdatum im Profil des jeweiligen Schülers ergänzen oder eine CSV mit der Spalte birthDate erneut importieren.",
       "missingBirthDateBadge": "Kein Geburtsdatum",
       "filterMissingBirthDate": "Nur Schüler ohne Geburtsdatum anzeigen",
-      "filterAll": "Alle anzeigen",
+      "filterAll": "Gefiltert: ohne Geburtsdatum · Filter aufheben",
       "searchPlaceholder": "Schüler / E-Mail suchen…",
       "loadError": "Schüler konnten nicht geladen werden",
       "emptyOrg": "Die Organisation hat noch keine Schüler.",

@@ -190,6 +190,13 @@ public class GradingController {
             return ResponseEntity.status(409).body(Map.of("error", "Bài này đã được chấm; không thể chấm lại bằng AI."));
         }
 
+        // D3, đường ảnh viết tay: ảnh bài làm cũng là dữ liệu của HỌC VIÊN đi ra nhà cung cấp AI.
+        // Cùng cổng, cùng chủ thể, và ĐẶT CÙNG CHỖ như đường chữ ở triggerAiGrade — trước cả khâu
+        // soi tệp. Đặt sau thì một học viên bị chặn vì tuổi lại nhận 400 "ảnh không hợp lệ", tức
+        // thông điệp nói sai hẳn việc cần làm. (Công cụ tải ảnh rời ở gradeImage() KHÔNG có cổng
+        // này vì ảnh đó không gắn bài nộp nào nên không có chủ thể để soi — nợ đã ghi.)
+        minorGate.assertAiGradingAllowed(sa.getStudentId());
+
         // Read the student's file from OUR bucket by key — never by fetching the stored URL, which came
         // from the student's own submit payload (see S3StorageService.objectKeyFromOwnUrl). The key must
         // also sit under this assignment's prefix, so one submission cannot pull another's file.
@@ -201,12 +208,6 @@ public class GradingController {
         if (!IMAGE_KEY_PATTERN.matcher(objectKey).find()) {
             throw new BadRequestException("Bài nộp không phải ảnh — hãy chấm thủ công.");
         }
-
-        // D3, đường ảnh viết tay: ảnh bài làm cũng là dữ liệu của HỌC VIÊN đi ra nhà cung cấp AI.
-        // Cùng cổng, cùng chủ thể như đường chữ ở triggerAiGrade. (Công cụ tải ảnh rời ở
-        // gradeImage() KHÔNG có cổng này vì ảnh đó không gắn với bài nộp nào nên không có chủ thể
-        // để soi — giáo viên tự tải lên chịu trách nhiệm về nguồn ảnh.)
-        minorGate.assertAiGradingAllowed(sa.getStudentId());
 
         orgPoolGuard.assertOrgPoolAvailable(teacher.getId(), IMAGE_GRADE_ESTIMATED_TOKENS);
         freeTierGuard.assertAndConsume(teacher.getId(), teacher.getOrgId(),

@@ -45,6 +45,7 @@ class TeacherAiGradingServiceGuardTest {
     @Mock GradingModelConfig gradingModelConfig;
     @Mock UserNotificationService userNotificationService;
     @Mock OrgPoolGuard orgPoolGuard;
+    @Mock com.deutschflow.common.minor.MinorGate minorGate;
 
     private static final long SESSION_ID = 7L;
     private static final long LINKED_ASSIGNMENT_ID = 100L; // StudentAssignment PK
@@ -54,7 +55,9 @@ class TeacherAiGradingServiceGuardTest {
         return new TeacherAiGradingService(
                 sessionRepository, messageRepository, openAiChatClient,
                 studentAssignmentRepository, aiUsageLedgerService, gradingModelConfig,
-                userNotificationService, orgPoolGuard);
+                userNotificationService, orgPoolGuard,
+                // Cổng tuổi D3: mock mặc định KHÔNG ném ⇒ các ca guard sẵn có giữ nguyên nghĩa.
+                minorGate);
     }
 
     private AiSpeakingMessage userMsg(String text) {
@@ -121,5 +124,50 @@ class TeacherAiGradingServiceGuardTest {
         verify(studentAssignmentRepository).save(linked);
         verify(userNotificationService, never())
                 .onAssignmentGraded(any(), any(), any(), any(), any());
+    }
+
+    /**
+     * D3 cho khâu CHẤM phiên luyện nói (thêm 11/09/2026 sau vòng soát bảo mật).
+     *
+     * <p>🪤 Lỗ này KHÔNG nhìn thấy được nếu chỉ đọc đường ghi âm: {@code assertAudioAllowed} chỉ
+     * được gọi ở {@code AiSessionController POST /transcribe}, còn {@code /sessions/&#123;id&#125;/chat}
+     * nhận thẳng CHỮ do người học gõ. Một học viên vị thành niên gõ hết phiên rồi kết thúc là
+     * transcript đi ra nhà cung cấp AI mà không chốt nào chạm tới.
+     */
+    @Test
+    @DisplayName("🔴 phiên GẮN BÀI của học viên bị cổng tuổi chặn ⇒ KHÔNG gọi AI, không ghi điểm")
+    void blockedMinorSessionNeverReachesTheAiProvider() {
+        AiSpeakingSession session = AiSpeakingSession.builder()
+                .id(SESSION_ID).userId(42L).assignmentId(LINKED_ASSIGNMENT_ID).build();
+        when(sessionRepository.findById(SESSION_ID)).thenReturn(Optional.of(session));
+        when(messageRepository.findBySessionIdOrderByCreatedAtAsc(SESSION_ID))
+                .thenReturn(List.of(userMsg("Hallo"), userMsg("Mir geht es gut"), userMsg("Ich lerne Deutsch")));
+        org.mockito.Mockito.doThrow(new com.deutschflow.common.minor.MinorAiGradingBlockedException(
+                        com.deutschflow.common.minor.MinorAiGradingBlockedException.Reason.GUARDIAN_CONSENT_REQUIRED,
+                        com.deutschflow.common.minor.MinorPolicy.Status.MINOR_CENTER_POLICY, "chưa có đồng ý"))
+                .when(minorGate).assertAiGradingAllowed(42L);
+
+        service().autoGradeSession(SESSION_ID);
+
+        verify(openAiChatClient, never()).chatCompletion(any(), any(), anyDouble(), any());
+        verify(studentAssignmentRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("phiên TỰ LUYỆN (không gắn bài) KHÔNG bị cổng chạm — đó là chat AI, owner chốt không chặn")
+    void freePracticeSessionIsNotGated() {
+        AiSpeakingSession session = AiSpeakingSession.builder()
+                .id(SESSION_ID).userId(42L).assignmentId(null).build();
+        when(sessionRepository.findById(SESSION_ID)).thenReturn(Optional.of(session));
+        when(messageRepository.findBySessionIdOrderByCreatedAtAsc(SESSION_ID))
+                .thenReturn(List.of(userMsg("Hallo"), userMsg("Mir geht es gut"), userMsg("Ich lerne Deutsch")));
+        when(gradingModelConfig.model()).thenReturn("llama-3.3-70b-versatile");
+        when(openAiChatClient.chatCompletion(any(), any(), anyDouble(), any()))
+                .thenReturn(new AiChatCompletionResult(
+                        "{\"score\":78,\"feedback\":\"gut gemacht\"}", null, "groq", "llama-3.3-70b-versatile"));
+
+        service().autoGradeSession(SESSION_ID);
+
+        verify(minorGate, never()).assertAiGradingAllowed(any());
     }
 }
