@@ -29,7 +29,7 @@ const member = (id: number, status = 'ACTIVE') => ({
 })
 const analyticsOk = {
   studentCount: 1, teacherCount: 0, classCount: 0, tokensThisMonth: 0, monthlyTokenPool: 0,
-  poolUsagePercent: 0, poolUnlimited: false, activeStudents7d: 0, cefrDistribution: [],
+  poolUsagePercent: 0, poolUnlimited: false, activeStudents7d: 0, activeStudents30d: 0, cefrDistribution: [],
 }
 
 beforeEach(() => { listMembers.mockReset(); getAnalytics.mockReset() })

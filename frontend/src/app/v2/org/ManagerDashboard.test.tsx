@@ -56,7 +56,7 @@ const klass = (id: number) => ({ id, name: `Lớp ${id}`, inviteCode: null, teac
 beforeEach(() => {
   for (const m of [getOrgSummary, getAnalytics, listClasses, getTeacherlessClassIds, listInvitations, listStudents, apiGet]) m.mockReset()
   getOrgSummary.mockResolvedValue(summary(0))
-  getAnalytics.mockResolvedValue({ studentCount: 5, teacherCount: 2, classCount: 4, tokensThisMonth: 0, monthlyTokenPool: 0, poolUsagePercent: 0, activeStudents7d: 3, cefrDistribution: [] })
+  getAnalytics.mockResolvedValue({ studentCount: 5, teacherCount: 2, classCount: 4, tokensThisMonth: 0, monthlyTokenPool: 0, poolUsagePercent: 0, activeStudents7d: 3, activeStudents30d: 4, cefrDistribution: [] })
   listClasses.mockResolvedValue({ content: [klass(1), klass(2)], number: 0, size: 50, totalElements: 2, totalPages: 1, first: true, last: true })
   getTeacherlessClassIds.mockResolvedValue(new Set<number>())
   listInvitations.mockResolvedValue([])
