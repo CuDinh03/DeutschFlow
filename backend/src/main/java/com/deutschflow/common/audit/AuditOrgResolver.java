@@ -53,6 +53,32 @@ public class AuditOrgResolver {
         return single("SELECT org_id FROM org_invoices WHERE id = ?", invoiceId);
     }
 
+    /**
+     * Trung tâm mà một người đang là THÀNH VIÊN ACTIVE trong {@code org_members}, hoặc {@code null}.
+     *
+     * <p>Khác {@link #forUser(Long)} ở nguồn: {@code users.org_id} là đường tắt được
+     * {@code OrgMembershipService} giữ đồng bộ, còn đây đọc thẳng bảng thành viên — đúng chữ owner
+     * chốt cho {@code content_reports.org_id} (10/09/2026: "membership ACTIVE trong org_members").
+     *
+     * <p>Đa trung tâm (chỉ TEACHER được phép): ưu tiên trung tâm trùng {@code users.org_id} (trung
+     * tâm "nhà"), không có thì lấy membership ACTIVE gia nhập gần nhất. Đây là phép chọn xấp xỉ cho
+     * ca hiếm; ca thường (học viên) chỉ có đúng một dòng.
+     */
+    public Long forActiveMember(Long userId) {
+        return single("""
+                SELECT om.org_id FROM org_members om
+                 WHERE om.user_id = ? AND om.status = 'ACTIVE'
+                 ORDER BY (om.org_id = (SELECT u.org_id FROM users u WHERE u.id = om.user_id)) DESC NULLS LAST,
+                          om.joined_at DESC
+                 LIMIT 1
+                """, userId);
+    }
+
+    /** Trung tâm ĐÓNG BĂNG trên một BÁO CÁO NỘI DUNG (V321), hoặc {@code null} với dòng cũ / B2C. */
+    public Long forContentReport(Long reportId) {
+        return single("SELECT org_id FROM content_reports WHERE id = ?", reportId);
+    }
+
     private Long single(String sql, Long key) {
         if (key == null) {
             return null;

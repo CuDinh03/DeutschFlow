@@ -20,6 +20,14 @@ import java.time.Instant;
  * A user-filed report of objectionable content or an abusive user, triaged by admins. The reported
  * message id is stored WITHOUT a foreign key (the message may be deleted); {@code snapshotBody}
  * preserves the reported text for moderation even after deletion.
+ *
+ * <p>Quyền riêng tư của bản chụp (V321, owner chốt 10/09/2026):
+ * <ul>
+ *   <li>{@code reporterId} nullable — người tố cáo xoá tài khoản thì FK SET NULL, báo cáo ở lại;</li>
+ *   <li>{@code orgId} — ẢNH CHỤP trung tâm của NGƯỜI BỊ TỐ CÁO lúc ghi, không bao giờ cập nhật lại;</li>
+ *   <li>{@code contentPurgedAt} — mốc {@code snapshotBody}/{@code details} đã bị ẩn danh (chủ thể
+ *       xoá tài khoản) hoặc dọn theo hạn lưu 90 ngày. Dòng vẫn còn để đếm và đối chiếu.</li>
+ * </ul>
  */
 @Entity
 @Table(name = "content_reports")
@@ -43,7 +51,8 @@ public class ContentReport {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "reporter_id", nullable = false)
+    /** Người nộp báo cáo; NULL sau khi họ xoá tài khoản (FK SET NULL từ V321). */
+    @Column(name = "reporter_id")
     private Long reporterId;
 
     @Column(name = "reported_user_id")
@@ -81,4 +90,12 @@ public class ContentReport {
 
     @Column(name = "resolved_by")
     private Long resolvedBy;
+
+    /** Trung tâm của người bị tố cáo tại thời điểm ghi (đóng băng); NULL với dòng trước V321 và B2C. */
+    @Column(name = "org_id")
+    private Long orgId;
+
+    /** Lúc nội dung ({@code snapshotBody} + {@code details}) bị ẩn danh hoặc dọn; NULL khi còn nguyên. */
+    @Column(name = "content_purged_at")
+    private Instant contentPurgedAt;
 }
