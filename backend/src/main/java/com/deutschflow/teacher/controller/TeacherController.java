@@ -45,6 +45,7 @@ public class TeacherController {
     private final com.deutschflow.teacher.repository.ClassAssignmentRepository classAssignmentRepository;
     private final com.deutschflow.teacher.repository.ClassStudentRepository classStudentRepository;
     private final com.deutschflow.organization.service.OrgPoolGuard orgPoolGuard;
+    private final com.deutschflow.common.minor.MinorGate minorGate;
 
     /** Ước lượng token cho 1 lần AI chấm bài — hard-cap pool token cấp-org (xem GradingController). */
     private static final long GRADING_ESTIMATED_TOKENS = 2_000L;
@@ -323,6 +324,11 @@ public class TeacherController {
         if (!"SUBMITTED".equals(status) && !"GRADING_FAILED".equals(status)) {
             return ResponseEntity.status(409).body(Map.of("error", "Bài này đã được chấm; không thể chấm lại bằng AI."));
         }
+
+        // D3: cùng cổng với GradingController.triggerAiGrade — đây là cửa vào THỨ HAI của cùng một
+        // job chấm async, nên bỏ sót chỗ này là để nguyên lỗ. Chủ thể là HỌC VIÊN, không phải người
+        // đang đăng nhập.
+        minorGate.assertAiGradingAllowed(sa.getStudentId());
 
         // Hard-cap pool token cấp-org trước khi kích hoạt AI chấm (429 nếu org hết ngân sách).
         orgPoolGuard.assertOrgPoolAvailable(user.getId(), GRADING_ESTIMATED_TOKENS);

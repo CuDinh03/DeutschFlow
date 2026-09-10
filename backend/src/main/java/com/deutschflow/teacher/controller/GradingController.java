@@ -39,6 +39,7 @@ public class GradingController {
     private final S3StorageService s3StorageService;
     private final OrgPoolGuard orgPoolGuard;
     private final com.deutschflow.common.quota.FreeTierGuard freeTierGuard;
+    private final com.deutschflow.common.minor.MinorGate minorGate;
 
     /**
      * Ước lượng token cho 1 lần AI chấm bài viết (essay + rubric vào, ~800 token feedback ra) —
@@ -112,6 +113,12 @@ public class GradingController {
         if (!AssignmentStatus.SUBMITTED.equals(status) && !AssignmentStatus.GRADING_FAILED.equals(status)) {
             return ResponseEntity.status(409).body(Map.of("error", "Bài này đã được chấm; không thể chấm lại bằng AI."));
         }
+
+        // D3: bài làm của học viên chưa đủ điều kiện về tuổi không được gửi qua AI. Kiểm ĐỒNG BỘ ở
+        // đây (chứ không chỉ trong job async) để giáo viên nhận 403 kèm việc cần làm ngay lúc bấm,
+        // thay vì thấy "AI đang chấm" rồi vài giây sau bài lặng lẽ rơi vào GRADING_FAILED.
+        // Chủ thể là HỌC VIÊN (sa.getStudentId()), không phải teacher.getId().
+        minorGate.assertAiGradingAllowed(sa.getStudentId());
 
         // Hard-cap pool token cấp-org trước khi kích hoạt AI chấm (429 nếu org hết ngân sách).
         orgPoolGuard.assertOrgPoolAvailable(teacher.getId(), GRADING_ESTIMATED_TOKENS);
@@ -194,6 +201,12 @@ public class GradingController {
         if (!IMAGE_KEY_PATTERN.matcher(objectKey).find()) {
             throw new BadRequestException("Bài nộp không phải ảnh — hãy chấm thủ công.");
         }
+
+        // D3, đường ảnh viết tay: ảnh bài làm cũng là dữ liệu của HỌC VIÊN đi ra nhà cung cấp AI.
+        // Cùng cổng, cùng chủ thể như đường chữ ở triggerAiGrade. (Công cụ tải ảnh rời ở
+        // gradeImage() KHÔNG có cổng này vì ảnh đó không gắn với bài nộp nào nên không có chủ thể
+        // để soi — giáo viên tự tải lên chịu trách nhiệm về nguồn ảnh.)
+        minorGate.assertAiGradingAllowed(sa.getStudentId());
 
         orgPoolGuard.assertOrgPoolAvailable(teacher.getId(), IMAGE_GRADE_ESTIMATED_TOKENS);
         freeTierGuard.assertAndConsume(teacher.getId(), teacher.getOrgId(),

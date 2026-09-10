@@ -244,6 +244,22 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 403 + {@code extensions.code} = {@code MINOR_AI_GRADING_BLOCKED} cho cổng chấm bài AI (D3).
+     * Cùng hình dạng với {@code MINOR_AUDIO_BLOCKED} để web dùng chung một nhánh xử lý, nhưng mã
+     * riêng vì màn hình phải nói khác nhau: đây là thông điệp cho GIÁO VIÊN về học viên, không phải
+     * cho chính người bị chặn. Như ở đó, {@code extensions} KHÔNG mang nhóm tuổi hay ngày sinh.
+     */
+    @ExceptionHandler(com.deutschflow.common.minor.MinorAiGradingBlockedException.class)
+    public ResponseEntity<ProblemDetail> handleMinorAiGradingBlocked(
+            com.deutschflow.common.minor.MinorAiGradingBlockedException ex, HttpServletRequest request) {
+        Map<String, Object> ext = new java.util.LinkedHashMap<>();
+        ext.put("code", com.deutschflow.common.minor.MinorAiGradingBlockedException.CODE);
+        ext.put("reason", ex.getReason().name());
+        return problem(HttpStatus.FORBIDDEN, "minor-ai-grading-blocked", "Forbidden",
+                ex.getMessage(), request.getRequestURI(), null, ext);
+    }
+
+    /**
      * 409 + {@code extensions.code} cho cổng phát hành phiếu gửi gia đình (R6, thiết kế 10/09/2026):
      * {@code GUARDIAN_REPORT_CONSENT_REQUIRED} | {@code GUARDIAN_REPORT_CONSENT_REVOKED} |
      * {@code BIRTH_DATE_REQUIRED}. Đây là 409 chứ không phải 403: người gọi CÓ quyền phát hành, chỉ là

@@ -145,6 +145,11 @@
         "unavailable": "Kennzahl nicht geladen"
       },
       "count": "{count} Schüler",
+      "missingBirthDateBanner": "{count} Schüler haben kein Geburtsdatum hinterlegt — Sprechübung und KI-Bewertung sind für sie gesperrt.",
+      "missingBirthDateHow": "Geburtsdatum im Profil des jeweiligen Schülers ergänzen oder eine CSV mit der Spalte birthDate erneut importieren.",
+      "missingBirthDateBadge": "Kein Geburtsdatum",
+      "filterMissingBirthDate": "Nur Schüler ohne Geburtsdatum anzeigen",
+      "filterAll": "Alle anzeigen",
       "searchPlaceholder": "Schüler / E-Mail suchen…",
       "loadError": "Schüler konnten nicht geladen werden",
       "emptyOrg": "Die Organisation hat noch keine Schüler.",

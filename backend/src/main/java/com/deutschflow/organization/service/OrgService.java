@@ -417,13 +417,18 @@ public class OrgService {
     private OrgMemberDto toMemberDto(OrgMember member, User user) {
         String email = user != null ? user.getEmail() : null;
         String displayName = user != null ? user.getDisplayName() : null;
+        // D4: chỉ báo "chưa khai ngày sinh" chỉ tính cho HỌC VIÊN — xem javadoc OrgMemberDto.
+        Boolean birthDateRecorded = "STUDENT".equals(member.getRole()) && user != null
+                ? Boolean.valueOf(user.getBirthDate() != null)
+                : null;
         return new OrgMemberDto(
                 member.getId().getUserId(),
                 email,
                 displayName,
                 member.getRole(),
                 member.getStatus(),
-                member.getJoinedAt());
+                member.getJoinedAt(),
+                birthDateRecorded);
     }
 
     private OrgClassDto toClassDto(TeacherClass tc) {

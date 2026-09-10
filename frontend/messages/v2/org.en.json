@@ -145,6 +145,11 @@
         "unavailable": "stats unavailable"
       },
       "count": "{count} students",
+      "missingBirthDateBanner": "{count} students have no date of birth on file — speaking practice and AI grading are locked for them.",
+      "missingBirthDateHow": "Add the date of birth in each student profile, or re-import a CSV with a birthDate column.",
+      "missingBirthDateBadge": "No date of birth",
+      "filterMissingBirthDate": "Show only students missing a date of birth",
+      "filterAll": "Show all",
       "searchPlaceholder": "Search students / email…",
       "loadError": "Could not load students",
       "emptyOrg": "The organization has no students yet.",
