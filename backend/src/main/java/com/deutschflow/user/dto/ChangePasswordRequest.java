@@ -1,5 +1,6 @@
 package com.deutschflow.user.dto;
 
+import com.deutschflow.common.security.PasswordPolicy;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -13,6 +14,7 @@ public record ChangePasswordRequest(
         String currentPassword,
 
         @NotBlank(message = "newPassword is required")
-        @Size(min = 6, message = "newPassword must be at least 6 characters")
+        @Size(min = PasswordPolicy.MIN_LENGTH,
+               message = "newPassword must be at least 8 characters")
         String newPassword
 ) {}
