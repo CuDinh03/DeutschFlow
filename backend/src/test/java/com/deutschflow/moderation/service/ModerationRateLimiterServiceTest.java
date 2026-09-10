@@ -67,4 +67,57 @@ class ModerationRateLimiterServiceTest {
         assertThat(Decision.blocked(-5).retryAfterSeconds()).isEqualTo(1);
         assertThat(Decision.allow().allowed()).isTrue();
     }
+
+    // ── Review 10/09: vé + refund ────────────────────────────────────────────
+
+    @Test
+    @DisplayName("refund trả ĐÚNG MỘT lượt: người vừa bị chặn ở ngưỡng lại nộp được; trả lại cùng vé lần nữa không trả thêm")
+    void refundReturnsExactlyOneSlot() {
+        ModerationRateLimiterService l = limiter(true, 1, 1);
+
+        Decision granted = l.decide(1L);
+        assertThat(granted.allowed()).isTrue();
+        assertThat(granted.ticket()).as("lượt cho qua khi throttle bật phải mang vé").isNotBlank();
+        Decision blocked = l.decide(1L);
+        assertThat(blocked.allowed()).isFalse();
+        assertThat(blocked.ticket()).as("chặn thì không có vé").isNull();
+
+        l.refund(1L, blocked); // không có gì để trả
+        assertThat(l.decide(1L).allowed()).isFalse();
+
+        l.refund(1L, granted);
+        Decision again = l.decide(1L);
+        assertThat(again.allowed()).as("slot vừa trả phải mở lại ngay").isTrue();
+
+        // Vé đã rời cửa sổ: trả lại lần nữa (hai lần) không khớp gì — không "đào" thêm slot.
+        l.refund(1L, granted);
+        l.refund(1L, granted);
+        assertThat(l.decide(1L).allowed()).isFalse();
+    }
+
+    @Test
+    @DisplayName("refund với quyết định không vé (Decision.allow()), null, hay vé của người khác là no-op — không ném, không đổi cửa sổ")
+    void refundWithoutMatchingTicketIsNoOp() {
+        ModerationRateLimiterService l = limiter(true, 1, 1);
+        Decision granted = l.decide(1L);
+        assertThat(granted.allowed()).isTrue();
+
+        l.refund(1L, Decision.allow());
+        l.refund(1L, null);
+        l.refund(2L, granted); // vé thật nhưng của người 1 — cửa sổ người 2 không có gì để trả
+
+        assertThat(l.decide(1L).allowed()).isFalse();
+        assertThat(l.decide(2L).allowed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("throttle tắt ⇒ cho qua không vé, và refund với nó không ném")
+    void disabledLimiterIssuesNoTicket() {
+        ModerationRateLimiterService l = limiter(false, 1, 1);
+        Decision d = l.decide(1L);
+        assertThat(d.allowed()).isTrue();
+        assertThat(d.ticket()).isNull();
+        l.refund(1L, d);
+        assertThat(l.decide(1L).allowed()).isTrue();
+    }
 }

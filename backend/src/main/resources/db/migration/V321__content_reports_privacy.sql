@@ -12,19 +12,34 @@
 --   5. Hạn lưu 90 NGÀY sau RESOLVED/DISMISSED: job 05:00 VN xoá NỘI DUNG, giữ dòng, đóng dấu
 --      content_purged_at. PENDING không dọn, nhưng tồn đọng > 30 ngày thì job log.warn (B4).
 --   6. Throttle POST /api/moderation/report theo người 10/giờ + 30/ngày; trùng khoá khi còn PENDING
---      ⇒ 200 idempotent với id cũ; quá ngưỡng ⇒ 429 có Retry-After (B2). Không đụng schema.
+--      ⇒ 200 idempotent với id cũ; quá ngưỡng ⇒ 429 có Retry-After (B2). Khử trùng có chốt DB (mục 4b).
 --   7. Đường đọc admin GET /api/admin/moderation/reports ghi vết, một vết cho MỖI trung tâm bị chạm —
 --      cần org_id trên dòng để nhóm. POST resolve chuyển sang vết có touchedOrgId = org_id của báo cáo.
---   8. Thông báo ACCOUNT_DELETED bỏ email + tên, chỉ giữ deletedUserId — phần dữ liệu cũ dọn ở cuối tệp.
+--   8. Thông báo ACCOUNT_DELETED bỏ email + tên, chỉ giữ deletedUserId — phần DỮ LIỆU CŨ dọn ở V322
+--      (transaction Flyway riêng — xem "Vòng review 10/09" bên dưới), KHÔNG ở tệp này.
 --
 -- Hiện trạng V244 (kiểm 10/09): reporter_id NOT NULL ... ON DELETE CASCADE; reported_user_id SET NULL;
 -- resolved_at TIMESTAMPTZ có sẵn (V244:36) — job dùng đúng cột này làm mốc 90 ngày; không org_id;
 -- chỉ hai index (status, created_at DESC) và (reporter_id); KHÔNG index reported_user_id (nợ B-8).
 -- Không migration nào sau V244 chạm bảng này.
 --
--- 🔴 SỐ HIỆU: V317/V319/V320 đã chiếm trên nhánh Gói 0/Gói 1; V318 thuộc nhánh Gói 0 khác (trigger
---    chặn admin-làm-thành-viên) — KHÔNG dùng lại. `spring.flyway.out-of-order = false` nên nếu V318
---    merge SAU bản này thì phải đánh số lại V318 → V322+ ở nhánh đó, không phải ở đây.
+-- Vòng review độc lập 10/09 (verdict BLOCK — đã áp ở đây và ở V322):
+--   · HIGH — FK mới `fk_content_reports_reporter` phải khai NOT VALID. ADD CONSTRAINT thường quét cả
+--     bảng (và tra users từng dòng) rồi giữ SHARE ROW EXCLUSIVE tới COMMIT. Flyway chạy CẢ TỆP trong
+--     MỘT transaction, nên khoá đó — cùng khoá SHARE của các CREATE INDEX — từng bị giữ xuyên qua câu
+--     UPDATE user_notifications nằm cuối tệp: một Seq Scan trên bảng không liên quan (user_notifications
+--     không có index theo notification_type). Thời gian chặn ghi content_reports phụ thuộc kích thước
+--     một bảng khác. Sửa: NOT VALID ở đây (không quét), VALIDATE + câu UPDATE ấy sang V322.
+--     Khuôn có sẵn trong repo: V265 (chk_class_attendance_status).
+--   · MEDIUM — khử trùng ở ContentReportService là "tra rồi mới INSERT", không có ràng buộc DB: hai POST
+--     đồng thời cùng khoá đều tra trượt ⇒ hai dòng PENDING. Sửa: ba unique partial index (mục 4b) làm
+--     chốt cuối; service bắt DataIntegrityViolationException, tra lại, trả id dòng thắng cuộc.
+--   · Dữ liệu prod kiểm 10/09 (chỉ đọc): content_reports hiện 0 DÒNG ⇒ VALIDATE ở V322 và các unique
+--     index dưới đây không thể vấp dữ liệu cũ. NOT VALID vẫn giữ để migration đúng khuôn trên mọi DB.
+--
+-- 🔴 SỐ HIỆU: V317–V320 thuộc nền Gói 0/Gói 1 (đã gộp vào nhánh này 10/09); V321 + V322 là của nhánh
+--    moderation. `spring.flyway.out-of-order = false` — nhánh nào merge SAU mà đụng số thì đánh số lại
+--    ở nhánh đó, không phải ở đây.
 --
 -- ⛔ KHÔNG GẮN TRIGGER append-only. Job dọn và AccountDeletionService đều UPDATE bảng này — một
 --    trigger chặn mutation sẽ giết đúng tính năng mà migration sinh ra (cùng bài học V320 vừa ghi).
@@ -59,9 +74,14 @@ BEGIN
     END IF;
 END $$;
 
+-- NOT VALID (review 10/09): ràng buộc áp ngay cho dòng MỚI và dòng được cập nhật, nhưng KHÔNG quét dòng
+-- cũ trong transaction này — không tra users theo từng dòng, không giữ khoá dài trên content_reports.
+-- Dòng cũ được xác nhận ở V322 bằng VALIDATE CONSTRAINT (chỉ SHARE UPDATE EXCLUSIVE, không chặn ghi).
+-- VALIDATE không thể vấp: FK cũ (V244) là ON DELETE CASCADE nên chưa từng có dòng mồ côi.
 ALTER TABLE content_reports
     ADD CONSTRAINT fk_content_reports_reporter
-        FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE SET NULL;
+        FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE SET NULL
+        NOT VALID;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 2. org_id — ẢNH CHỤP trung tâm của NGƯỜI BỊ TỐ CÁO tại thời điểm ghi (quyết định 3)
@@ -110,14 +130,30 @@ CREATE INDEX idx_content_reports_org_created
     WHERE org_id IS NOT NULL;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 5. Thông báo ACCOUNT_DELETED cũ: bóc email + tên khỏi payload (quyết định 8, phần dữ liệu)
+-- 4b. Khử trùng ở tầng DB — chốt cuối cho ca đua (review 10/09, MEDIUM)
 -- ─────────────────────────────────────────────────────────────────────────────
--- UserNotificationService.onAccountDeleted từng nhét email + displayName của NGƯỜI VỪA XOÁ TÀI KHOẢN
--- vào payload gửi mọi admin, và UserNotificationRetentionService không bao giờ xoá thông báo chưa
--- đọc ⇒ PII của người đã thực thi quyền xoá nằm lại vô thời hạn. Code từ V321 chỉ gửi deletedUserId;
--- dòng cũ dọn tại đây bằng phép trừ khoá jsonb — không đụng thông báo loại khác.
--- jsonb_exists() thay cho toán tử `?` — cố ý, để không tầng JDBC nào đọc nhầm `?` thành tham số.
-UPDATE user_notifications
-   SET payload_json = payload_json - 'email' - 'displayName'
- WHERE notification_type = 'ACCOUNT_DELETED'
-   AND (jsonb_exists(payload_json, 'email') OR jsonb_exists(payload_json, 'displayName'));
+-- Mỗi (người tố cáo, đối tượng) chỉ MỘT báo cáo còn PENDING. ContentReportService tra rồi mới INSERT —
+-- hai POST đồng thời cùng khoá đều tra trượt, không ràng buộc nào ở DB thì thành hai dòng. Ba index
+-- thay vì một, vị từ theo context: mỗi ngữ cảnh có đúng một cột đối tượng, một index chung ghép ba cột
+-- sẽ khớp nhầm khi cột của ngữ cảnh khác tình cờ cùng số — cùng lý do ContentReportRepository tách ba
+-- hàm tra thay vì một câu OR. Chỉ PENDING: đã phán quyết rồi mà người dùng báo lại là sự việc mới,
+-- phải vào hàng đợi lần nữa (index bộ phận không đếm RESOLVED/DISMISSED). reporter_id NULL (người tố
+-- cáo đã xoá tài khoản) và reported_user_id NULL (người bị tố cáo đã xoá) không bao giờ va unique —
+-- đúng ý: dòng mồ côi không chặn ai.
+--
+-- Service bắt DataIntegrityViolationException từ INSERT (chạy trong transaction RIÊNG), tra lại đúng
+-- hàm của ngữ cảnh, trả id dòng thắng cuộc với duplicate=true — client thấy y hệt ca tra-trước.
+CREATE UNIQUE INDEX uq_content_reports_pending_dm
+    ON content_reports (reporter_id, message_id)
+    WHERE status = 'PENDING' AND context = 'DIRECT_MESSAGE';
+
+CREATE UNIQUE INDEX uq_content_reports_pending_class
+    ON content_reports (reporter_id, class_message_id)
+    WHERE status = 'PENDING' AND context = 'CLASS_MESSAGE';
+
+CREATE UNIQUE INDEX uq_content_reports_pending_user
+    ON content_reports (reporter_id, reported_user_id)
+    WHERE status = 'PENDING' AND context = 'USER';
+
+-- Quyết định 8, phần dữ liệu (bóc email + tên khỏi thông báo ACCOUNT_DELETED cũ) và VALIDATE FK ở trên:
+-- V322 — cố ý tách khỏi transaction này, lý do ở đầu tệp ("Vòng review 10/09").

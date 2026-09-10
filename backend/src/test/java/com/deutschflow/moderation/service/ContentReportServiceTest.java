@@ -24,6 +24,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import java.util.Optional;
 
@@ -34,6 +36,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -44,6 +47,11 @@ import static org.mockito.Mockito.when;
  * <p>Từ 10/09/2026 (owner chốt): thêm ba lớp trên đường nộp — org ĐÓNG BĂNG theo người bị tố cáo,
  * khử trùng theo khoá khi còn PENDING, và throttle theo người — với thứ tự bắt buộc
  * ngữ cảnh → khử trùng → throttle → ghi. Các ca dưới chốt từng lớp và chốt cả thứ tự.
+ *
+ * <p>Review 10/09: câu INSERT chạy qua {@code TransactionTemplate} REQUIRES_NEW. Ở đây
+ * {@code PlatformTransactionManager} là mock nên {@code execute} gọi thẳng callback — đủ để chốt
+ * luồng bắt {@link DataIntegrityViolationException}; ranh giới transaction thật kiểm ở
+ * {@code ContentReportPendingUniqueIntegrationTest} trên Postgres.
  */
 @ExtendWith(MockitoExtension.class)
 class ContentReportServiceTest {
@@ -61,6 +69,7 @@ class ContentReportServiceTest {
     @Mock ClassTeacherRepository classTeacherRepository;
     @Mock AuditOrgResolver orgResolver;
     @Mock ModerationRateLimiterService rateLimiter;
+    @Mock PlatformTransactionManager transactionManager;
     @InjectMocks ContentReportService service;
 
     @BeforeEach
@@ -96,7 +105,7 @@ class ContentReportServiceTest {
     }
 
     private void stubSaveAssigningId(long id) {
-        when(reportRepository.save(any())).thenAnswer(inv -> {
+        when(reportRepository.saveAndFlush(any())).thenAnswer(inv -> {
             ContentReport r = inv.getArgument(0);
             r.setId(id);
             return r;
@@ -105,8 +114,14 @@ class ContentReportServiceTest {
 
     private ContentReport captureSaved() {
         ArgumentCaptor<ContentReport> saved = ArgumentCaptor.forClass(ContentReport.class);
-        verify(reportRepository).save(saved.capture());
+        verify(reportRepository).saveAndFlush(saved.capture());
         return saved.getValue();
+    }
+
+    /** Không dòng nào được ghi — kiểm cả hai cửa ghi của repository, không chỉ cửa service đang dùng. */
+    private void verifyNothingSaved() {
+        verify(reportRepository, never()).saveAndFlush(any());
+        verify(reportRepository, never()).save(any());
     }
 
     // ── GAP-12 / GAP-12b (giữ nguyên hành vi 404) ────────────────────────────
@@ -122,7 +137,7 @@ class ContentReportServiceTest {
         // phân biệt "ID có thật ở lớp khác" với "ID không tồn tại".
         assertThrows(NotFoundException.class, () -> service.report(REPORTER, classReport()));
 
-        verify(reportRepository, never()).save(any());
+        verifyNothingSaved();
     }
 
     @Test
@@ -137,7 +152,7 @@ class ContentReportServiceTest {
         Throwable outsider = assertThrows(NotFoundException.class, () -> service.report(REPORTER, classReport()));
 
         assertThat(unknown.getMessage()).isEqualTo(outsider.getMessage());
-        verify(reportRepository, never()).save(any());
+        verifyNothingSaved();
     }
 
     @Test
@@ -228,7 +243,7 @@ class ContentReportServiceTest {
 
         assertThat(outcome.id()).isEqualTo(42L);
         assertThat(outcome.duplicate()).isTrue();
-        verify(reportRepository, never()).save(any());
+        verifyNothingSaved();
         // Bấm hai lần vì mạng chậm không phải lạm dụng — lần trùng không "mua" slot nào.
         verify(rateLimiter, never()).decide(anyLong());
     }
@@ -245,6 +260,48 @@ class ContentReportServiceTest {
                 REPORTER, Context.CLASS_MESSAGE, MSG, Status.PENDING);
     }
 
+    // ── Review 10/09: thua cuộc đua trên unique partial V321 ─────────────────
+
+    @Test
+    @DisplayName("tra-trước trượt nhưng INSERT vấp unique ⇒ tra lại, trả id dòng THẮNG với duplicate=true; decide đúng MỘT lần và lượt được trả (refund)")
+    void insertRaceLoserReturnsWinnerAndRefundsSlot() {
+        stubClassMember();
+        Decision granted = Decision.allow("ve-1");
+        when(rateLimiter.decide(REPORTER)).thenReturn(granted);
+        // Lần 1 (tra-trước): chưa thấy gì — request song song chưa commit. Lần 2 (tra-lại): thấy dòng thắng.
+        when(reportRepository.findFirstByReporterIdAndContextAndClassMessageIdAndStatusOrderByCreatedAtDesc(
+                REPORTER, Context.CLASS_MESSAGE, MSG, Status.PENDING))
+                .thenReturn(Optional.empty(),
+                        Optional.of(ContentReport.builder().id(77L).status(Status.PENDING).build()));
+        when(reportRepository.saveAndFlush(any())).thenThrow(
+                new DataIntegrityViolationException("duplicate key value violates unique constraint \"uq_content_reports_pending_class\""));
+
+        ReportOutcome outcome = service.report(REPORTER, classReport());
+
+        assertThat(outcome.id()).isEqualTo(77L);
+        assertThat(outcome.duplicate()).isTrue();
+        verify(reportRepository, times(2)).findFirstByReporterIdAndContextAndClassMessageIdAndStatusOrderByCreatedAtDesc(
+                REPORTER, Context.CLASS_MESSAGE, MSG, Status.PENDING);
+        // Limiter không bị hỏi lần hai; lượt đã cấp được trả đúng vé — lần trùng không "mua" slot nào.
+        verify(rateLimiter, times(1)).decide(anyLong());
+        verify(rateLimiter, times(1)).refund(REPORTER, granted);
+    }
+
+    @Test
+    @DisplayName("INSERT vấp ràng buộc nhưng tra lại KHÔNG thấy dòng PENDING cùng khoá ⇒ ném lại nguyên lỗi, không cải trang thành trùng")
+    void unrelatedIntegrityErrorIsNotDisguisedAsDuplicate() {
+        stubClassMember();
+        when(reportRepository.findFirstByReporterIdAndContextAndClassMessageIdAndStatusOrderByCreatedAtDesc(
+                REPORTER, Context.CLASS_MESSAGE, MSG, Status.PENDING)).thenReturn(Optional.empty());
+        DataIntegrityViolationException fk = new DataIntegrityViolationException("violates foreign key constraint");
+        when(reportRepository.saveAndFlush(any())).thenThrow(fk);
+
+        DataIntegrityViolationException thrown = assertThrows(DataIntegrityViolationException.class,
+                () -> service.report(REPORTER, classReport()));
+
+        assertThat(thrown).isSameAs(fk);
+    }
+
     // ── B2: throttle ─────────────────────────────────────────────────────────
 
     @Test
@@ -257,7 +314,7 @@ class ContentReportServiceTest {
                 () -> service.report(REPORTER, classReport()));
 
         assertThat(ex.getRetryAfterSeconds()).isEqualTo(37);
-        verify(reportRepository, never()).save(any());
+        verifyNothingSaved();
     }
 
     @Test

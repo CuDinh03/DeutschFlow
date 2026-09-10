@@ -15,10 +15,13 @@ import com.deutschflow.moderation.repository.ContentReportRepository;
 import com.deutschflow.moderation.service.ModerationRateLimiterService.Decision;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.List;
@@ -34,12 +37,20 @@ import java.util.Optional;
  *   <li><b>khử trùng</b> — đã có báo cáo PENDING cùng khoá (người nộp, ngữ cảnh, đối tượng) thì trả
  *       id cũ, không tạo dòng, không tính vào throttle: bấm hai lần vì mạng chậm không phải lạm dụng;</li>
  *   <li><b>throttle</b> — 10/giờ + 30/ngày theo người; quá ⇒ 429 có {@code Retry-After};</li>
- *   <li><b>ghi</b> — kèm {@code orgId} ĐÓNG BĂNG của người bị tố cáo.</li>
+ *   <li><b>ghi</b> — kèm {@code orgId} ĐÓNG BĂNG của người bị tố cáo, trong transaction RIÊNG.</li>
  * </ol>
+ *
+ * <p><b>Ca đua (review 10/09):</b> bước 2 là "tra rồi mới ghi", nên hai POST đồng thời cùng khoá đều
+ * tra trượt. Chốt cuối là ba unique partial index {@code uq_content_reports_pending_*} (V321): dòng
+ * thứ hai vấp {@link DataIntegrityViolationException}, service tra lại và trả id dòng thắng cuộc với
+ * {@code duplicate = true} — client thấy y hệt ca tra-trước, và lượt throttle vừa cấp được trả lại
+ * ({@link ModerationRateLimiterService#refund}) vì lần trùng không "mua" slot nào. Câu INSERT chạy
+ * trong transaction REQUIRES_NEW: cùng transaction thì Postgres đã đánh dấu aborted sau vi phạm, mọi
+ * SELECT tra lại đều bị từ chối và EntityManager cũng không còn tin được. Giá phải trả: hai connection
+ * trong vài mili-giây cho mỗi báo cáo — đường này throttle 10/giờ theo người, pool 30, chấp nhận được.
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ContentReportService {
 
     private final ContentReportRepository reportRepository;
@@ -49,11 +60,35 @@ public class ContentReportService {
     private final ClassTeacherRepository classTeacherRepository;
     private final AuditOrgResolver orgResolver;
     private final ModerationRateLimiterService rateLimiter;
+    /** Transaction RIÊNG (REQUIRES_NEW) cho câu INSERT — xem {@link #report}. */
+    private final TransactionTemplate insertTx;
+
+    public ContentReportService(ContentReportRepository reportRepository,
+                                MessageRepository messageRepository,
+                                ClassChannelMessageRepository classChannelMessageRepository,
+                                ClassStudentRepository classStudentRepository,
+                                ClassTeacherRepository classTeacherRepository,
+                                AuditOrgResolver orgResolver,
+                                ModerationRateLimiterService rateLimiter,
+                                PlatformTransactionManager transactionManager) {
+        this.reportRepository = reportRepository;
+        this.messageRepository = messageRepository;
+        this.classChannelMessageRepository = classChannelMessageRepository;
+        this.classStudentRepository = classStudentRepository;
+        this.classTeacherRepository = classTeacherRepository;
+        this.orgResolver = orgResolver;
+        this.rateLimiter = rateLimiter;
+        // TransactionTemplate tường minh thay vì @Transactional(REQUIRES_NEW) trên một method cùng bean:
+        // gọi nội-bean là tự-gọi, proxy bỏ qua — cùng bẫy đã giết AiJobWorker.claimJobs và được
+        // ExamGradingJobHandler ghi lại; khuôn này chép từ đó.
+        this.insertTx = new TransactionTemplate(transactionManager);
+        this.insertTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
 
     /** Kết quả nộp báo cáo: id (mới hoặc CŨ khi trùng) và cờ trùng. */
     public record ReportOutcome(Long id, boolean duplicate) {}
 
-    /** Files a report by {@code reporterId}; idempotent on a pending duplicate (B2). */
+    /** Files a report by {@code reporterId}; idempotent on a pending duplicate (B2), kể cả khi đua. */
     @Transactional
     public ReportOutcome report(Long reporterId, ReportRequest req) {
         ContextResolution resolved = resolveContext(reporterId, req);
@@ -71,7 +106,7 @@ public class ContentReportService {
                     "Bạn đã gửi quá nhiều báo cáo. Vui lòng thử lại sau.", decision.retryAfterSeconds());
         }
 
-        ContentReport saved = reportRepository.save(ContentReport.builder()
+        ContentReport fresh = ContentReport.builder()
                 .reporterId(reporterId)
                 .reportedUserId(resolved.reportedUserId())
                 .context(req.context())
@@ -83,7 +118,31 @@ public class ContentReportService {
                 .orgId(resolved.orgId())
                 .status(Status.PENDING)
                 .createdAt(Instant.now())
-                .build());
+                .build();
+
+        ContentReport saved;
+        try {
+            // saveAndFlush trong transaction con: vi phạm unique nổi lên NGAY TẠI ĐÂY (không đợi commit
+            // của transaction ngoài), và chỉ transaction con bị huỷ — transaction ngoài còn nguyên để tra lại.
+            saved = insertTx.execute(status -> reportRepository.saveAndFlush(fresh));
+        } catch (DataIntegrityViolationException e) {
+            // Chỉ MỘT cách đọc lỗi này là an toàn để hành động (cùng nguyên tắc CurriculumImportCommitService):
+            // request song song cùng khoá đã thắng, dòng PENDING của nó đã commit và giờ tra thấy được.
+            // Mọi vi phạm khác (FK, CHECK, cột quá dài) phải nổi lên đúng bản chất — cải trang thành
+            // "trùng" là che một lỗi thật khỏi cả người dùng lẫn log.
+            Optional<ContentReport> winner = findPendingDuplicate(reporterId, req, resolved);
+            if (winner.isEmpty()) {
+                log.error("[moderation] report by {} (context={}) failed on a data error unrelated to the "
+                        + "pending-duplicate key", reporterId, req.context(), e);
+                throw e;
+            }
+            // Thua cuộc đua với chính mình = bấm hai lần khi mạng chậm, không phải lạm dụng: lần trùng
+            // không "mua" slot — trả lại lượt vừa cấp, cùng luật với nhánh tra-trước ở trên.
+            rateLimiter.refund(reporterId, decision);
+            log.info("[moderation] concurrent duplicate report by {} (context={}) lost the insert race → "
+                    + "returning pending report {}", reporterId, req.context(), winner.get().getId());
+            return new ReportOutcome(winner.get().getId(), true);
+        }
         log.info("[moderation] report {} filed by {} (context={}, reason={}, org={})",
                 saved.getId(), reporterId, req.context(), req.reason(), resolved.orgId());
         return new ReportOutcome(saved.getId(), false);
@@ -115,7 +174,9 @@ public class ContentReportService {
     /**
      * Khoá trùng theo ngữ cảnh: DM → {@code messageId}; tin lớp → {@code classMessageId}; người →
      * {@code reportedUserId}. Chỉ so với báo cáo còn PENDING: đã phán quyết rồi mà người dùng báo
-     * lại thì đó là một sự việc mới, phải vào hàng đợi lần nữa.
+     * lại thì đó là một sự việc mới, phải vào hàng đợi lần nữa. Cùng khoá với ba unique partial
+     * index V321 ({@code uq_content_reports_pending_dm/class/user}) — hàm này vừa là bước tra-trước
+     * vừa là bước tra-lại sau khi thua cuộc đua.
      */
     private Optional<ContentReport> findPendingDuplicate(Long reporterId, ReportRequest req,
                                                          ContextResolution resolved) {
