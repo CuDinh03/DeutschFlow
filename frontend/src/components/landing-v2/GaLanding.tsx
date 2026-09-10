@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { GaLogo, GaBtn, GaCap } from '@/components/ui-v2'
 import { LanguageToggle } from '@/components/ui-v2/LanguageToggle'
+import { GaShot } from './GaShot'
 
 /**
  * GaLanding — public marketing landing (proto-landing.jsx + proto-landing-sections.jsx).
@@ -125,6 +126,11 @@ type Plan = { name: string; price: string; sub: string; features: string[]; cta:
 type Stat = { n: string; l: string }
 
 const SECTION = 'mx-auto max-w-[1240px] px-5 py-14 sm:px-8 md:py-[78px] lg:px-[60px]'
+// Bề rộng THỰC TẾ của ô ảnh để next/image tải đúng cỡ: khung 1240px trừ 2×60px đệm ở lg. Nhánh
+// cuối là 720px chứ không phải bề ngang màn hình — dưới `md` GaShot giữ ảnh ở 720px và cho cuộn
+// ngang, khai theo 100vw thì next/image gửi bản ~390px rồi bị kéo giãn thành ảnh nhoè.
+const SHOT_FULL_SIZES = '(min-width: 1240px) 1120px, (min-width: 768px) calc(100vw - 64px), 720px'
+const SHOT_HALF_SIZES = '(min-width: 1240px) 550px, (min-width: 768px) calc(50vw - 42px), 720px'
 const H2 = 'font-ga-display text-[32px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[38px] lg:text-[44px]'
 
 export function GaLanding() {
@@ -402,6 +408,15 @@ export function GaLanding() {
             <span className="inline-block h-[7px] w-[7px] bg-ga-yellow" />
             <span>{t.rich('path.goal', strong)}</span>
           </div>
+          <div className="mt-9 md:mt-11">
+            <GaShot
+              name="roadmap"
+              caption={t('path.shotCap')}
+              alt={t('path.shotAlt')}
+              accent="var(--ga-yellow)"
+              sizes={SHOT_FULL_SIZES}
+            />
+          </div>
         </div>
       </section>
 
@@ -479,6 +494,15 @@ export function GaLanding() {
             </div>
           ))}
         </div>
+        <div className="mt-9 md:mt-11">
+          <GaShot
+            name="exam"
+            caption={t('exam.shotCap')}
+            alt={t('exam.shotAlt')}
+            accent="var(--ga-orange)"
+            sizes={SHOT_FULL_SIZES}
+          />
+        </div>
         <div className="mt-6 flex flex-wrap items-center gap-[18px] bg-ga-ink p-5 text-ga-bg sm:p-[22px_28px]">
           <div className="min-w-0 flex-1 basis-[260px]">
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-ga-yellow">{t('exam.bannerCap')}</div>
@@ -510,7 +534,8 @@ export function GaLanding() {
 
       {/* Teachers */}
       <section id="teachers" className="scroll-mt-[78px] border-y border-ga-border bg-ga-card">
-        <div className="mx-auto grid max-w-[1240px] items-center gap-10 px-5 py-14 sm:px-8 md:grid-cols-2 md:gap-[60px] md:py-[78px] lg:px-[60px]">
+        <div className={SECTION}>
+        <div className="grid items-center gap-10 md:grid-cols-2 md:gap-[60px]">
           <div>
             <GaCap className="mb-[18px]">{t('teachers.cap')}</GaCap>
             <h2 className="mb-4 font-ga-display text-[30px] font-medium leading-[1.15] tracking-[-0.015em] sm:text-[36px] md:text-[42px] md:leading-[1.12]">{t('teachers.title')}</h2>
@@ -546,10 +571,26 @@ export function GaLanding() {
                 <div className="min-w-0 flex-1 text-[13.5px] leading-[1.45] text-ga-ink"><strong>{r.who}</strong> {r.what}</div>
               </div>
             ))}
-            <div className="mt-4 flex h-[88px] items-center justify-center border border-ga-violet/40 bg-ga-violet-soft text-[11px] font-semibold uppercase tracking-[0.14em] text-ga-violet">
-              {t('teachers.imgPlaceholder')}
-            </div>
           </div>
+        </div>
+        {/* Hai màn giáo viên dùng hằng ngày — ảnh chụp thật, dữ liệu lớp K30 dựng sẵn. Đặt dưới
+            lưới hai cột để mỗi ảnh có nửa khung (~550px) và chữ trong ảnh còn đọc được. */}
+        <div className="mt-10 grid gap-5 md:mt-[60px] md:grid-cols-2">
+          <GaShot
+            name="classReport"
+            caption={t('teachers.shotReportCap')}
+            alt={t('teachers.shotReportAlt')}
+            accent="var(--ga-violet)"
+            sizes={SHOT_HALF_SIZES}
+          />
+          <GaShot
+            name="grading"
+            caption={t('teachers.shotGradingCap')}
+            alt={t('teachers.shotGradingAlt')}
+            accent="var(--ga-green)"
+            sizes={SHOT_HALF_SIZES}
+          />
+        </div>
         </div>
       </section>
 

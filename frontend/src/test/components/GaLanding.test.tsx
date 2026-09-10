@@ -20,6 +20,20 @@ vi.mock('next/link', () => ({
   ),
 }))
 
+/**
+ * next/image phải mock ở jsdom vì ảnh chụp sản phẩm được import TĨNH (`landingShots.ts`).
+ * Trong Next, import tĩnh trả về `{src, width, height}` — đó là thứ cho next/image biết tỉ lệ để
+ * giữ chỗ. Vite/vitest thì trả về một CHUỖI đường dẫn, nên component thật ném lỗi
+ * `Image ... is missing required "width" property` và làm đỏ cả tệp test vì một lý do không liên
+ * quan đến hành vi đang kiểm. Mock thành <img> giữ nguyên `alt` — các phép đo a11y vẫn đúng.
+ */
+vi.mock('next/image', () => ({
+  default: ({ src, alt }: { src: string | { src: string }; alt: string }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={typeof src === 'string' ? src : src.src} alt={alt} />
+  ),
+}))
+
 vi.mock('@/components/ui-v2', () => ({
   GaLogo: () => <span>myDeutschFlow</span>,
   GaCap: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
