@@ -1,5 +1,6 @@
 {
   "landing": {
+    "shotScrollHint": "Cuộn ngang để xem tiếp",
     "meta": {
       "title": "myDeutschFlow — Luyện phỏng vấn tiếng Đức với AI",
       "description": "AI đóng vai HR người Đức: phỏng vấn đúng ngành, sửa phát âm, chấm từng câu trả lời. Lộ trình A1–B2, luyện thi Goethe, dành cho người Việt đi Đức."
@@ -72,6 +73,8 @@
       ]
     },
     "path": {
+      "shotCap": "Ảnh thật · Cây lộ trình của học viên",
+      "shotAlt": "Cây lộ trình 30 ngày: 12 chặng đã xong mọc thành lá, chặng đang học là bông hoa, bảng bên phải liệt kê bốn kỹ năng Nghe, Đọc, Nói, Viết của ngày 13.",
       "cap": "Lộ trình học",
       "title": "Từ A1 đến B2 — một con đường rõ ràng",
       "sub": "Phần lớn học viên đi xuất khẩu lao động cần đạt <b>B1</b>. Chúng tôi vạch sẵn từng bước và điều chỉnh theo tốc độ của bạn.",
@@ -103,6 +106,8 @@
       ]
     },
     "exam": {
+      "shotCap": "Ảnh thật · Phòng thi Lesen, đồng hồ đang chạy",
+      "shotAlt": "Màn làm bài thi thử Goethe B1 phần Đọc hiểu: đồng hồ còn 58 phút trên tổng 65, thanh tiến độ 2 trên 4 câu, các câu richtig/falsch bằng tiếng Đức và ghi chú bài đang được lưu.",
       "cap": "Luyện thi Goethe",
       "title": "Mô phỏng đề thật, chấm điểm tức thì",
       "sub": "Luyện đủ 4 phần của Goethe-Zertifikat B1/B2 trong điều kiện sát thi thật, kèm phân tích điểm yếu sau mỗi lần làm.",
@@ -144,7 +149,10 @@
         { "who": "Phạm Thị Mai", "what": "nộp Schreiben qua ảnh" },
         { "who": "Lê Đức Anh", "what": "vắng 3 ngày — cần nhắc" }
       ],
-      "imgPlaceholder": "Ảnh · Báo cáo lớp"
+      "shotReportCap": "Ảnh thật · Sổ điểm lớp K30",
+      "shotReportAlt": "Báo cáo lớp của giáo viên: bốn ô tổng quan nội dung, nhịp độ, tham gia và mục tiêu, phía dưới là ma trận điểm từng học viên theo từng bài tập.",
+      "shotGradingCap": "Ảnh thật · Chấm bài có AI đề xuất",
+      "shotGradingAlt": "Trung tâm chấm bài: hàng đợi bài chờ chấm bên trái, bài viết tiếng Đức của học viên ở giữa, bên phải là nút chấm bằng AI và ô giáo viên xác nhận điểm."
     },
     "pricing": {
       "cap": "Gói học phí",
