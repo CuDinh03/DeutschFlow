@@ -72,6 +72,7 @@ public class ClassScheduleService {
     // PR-5: lớp trung tâm ĐÃ GẮN GIÁO TRÌNH — mọi mutation lịch đi qua hàng chờ duyệt (AC18).
     private final ClassCurriculumLinkRepository classCurriculumLinkRepository;
     private final ScheduleChangeQueue changeQueue;
+    private final com.deutschflow.organization.service.OrgGuard orgGuard;
 
     // ── Đọc ──────────────────────────────────────────────────────────────────
 
@@ -141,6 +142,9 @@ public class ClassScheduleService {
     @Transactional
     public UpsertPatternResult upsertPattern(Long teacherId, Long classId, UpsertPatternRequest req) {
         assertPrimaryTeacher(teacherId, classId);
+        // D5: lịch cố định sinh ra buổi học mới cho cả tương lai — chặn TRƯỚC nhánh hàng chờ duyệt,
+        // để trung tâm chỉ-đọc không tích một hàng đề xuất chờ sẵn.
+        orgGuard.assertClassOrgWritable(classId);
         validatePatternReq(req);
 
         // PR-5 (AC18/AC20): lớp trung tâm có giáo trình — đổi lịch cố định vào hàng chờ duyệt;
@@ -307,6 +311,7 @@ public class ClassScheduleService {
     @Transactional
     public SessionSaveResult createSession(Long teacherId, Long classId, CreateSessionRequest req) {
         assertPrimaryTeacher(teacherId, classId);
+        orgGuard.assertClassOrgWritable(classId); // D5: thêm buổi học là TẠO MỚI
         if (req.startAt() == null) throw new BadRequestException("Thiếu thời gian bắt đầu");
         if (req.durationMinutes() <= 0) throw new BadRequestException("Thời lượng phải lớn hơn 0");
 

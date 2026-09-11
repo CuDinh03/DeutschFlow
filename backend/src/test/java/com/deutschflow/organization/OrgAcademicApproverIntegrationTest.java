@@ -17,6 +17,7 @@ import com.deutschflow.organization.service.OrgGuard;
 import com.deutschflow.organization.service.OrgMembershipService;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
+import com.deutschflow.common.exception.OrgReadOnlyException;
 import com.deutschflow.testsupport.AbstractPostgresIntegrationTest;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
@@ -252,6 +253,29 @@ class OrgAcademicApproverIntegrationTest extends AbstractPostgresIntegrationTest
 
     private record Fixture(Organization org, User owner, User manager, User teacher, User teacher2,
                            User student, TeacherClass classA, TeacherClass classB) {}
+
+    @Test
+    @DisplayName("Gói 3 (D5): trung tâm chỉ-đọc KHÔNG gán thêm người duyệt, nhưng VẪN thu hồi được")
+    void grant_readOnlyOrg_blocked_revokeStillAllowed() {
+        Fixture f = fixture();
+        // Gán khi còn khoẻ…
+        AcademicApproverDto granted = service.grant(f.owner.getId(), f.org.getId(),
+                new GrantAcademicApproverRequest(f.teacher.getId(), "ORG", null));
+
+        // …rồi trung tâm bị đình chỉ.
+        f.org.changeStatus("SUSPENDED");
+        organizationRepo.save(f.org);
+
+        assertThatThrownBy(() -> service.grant(f.owner.getId(), f.org.getId(),
+                new GrantAcademicApproverRequest(f.teacher2.getId(), "ORG", null)))
+                .as("uỷ nhiệm MỚI là tạo mới — D5 cấm")
+                .isInstanceOf(OrgReadOnlyException.class);
+
+        // Đường ĐỌC và đường THU HỒI cố ý không bị nhốt: giám đốc vẫn rút được quyền của người đã nghỉ.
+        assertThat(service.list(f.owner.getId(), f.org.getId())).isNotEmpty();
+        service.revoke(f.owner.getId(), f.org.getId(), granted.id());
+        assertThat(service.list(f.owner.getId(), f.org.getId())).isEmpty();
+    }
 
     private Fixture fixture() {
         Organization org = organizationRepo.save(Organization.builder()

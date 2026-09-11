@@ -22,6 +22,7 @@ import {
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import { useUserStore } from '@/stores/useUserStore'
 import { isPrimaryTeacher, isRemovable, type ClassTeacher } from '@/lib/coTeaching'
+import { OrgWriteGate } from '../../../OrgLicenseGate'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chi tiết lớp (GaClassDetail) — violet. Tabs: Học viên · Bài tập · Thống kê.
@@ -38,7 +39,13 @@ import { isPrimaryTeacher, isRemovable, type ClassTeacher } from '@/lib/coTeachi
 
 const VIOLET = '#7C56C8'
 
-interface ClassInfo { id: number; name: string; code: string; studentCount: number }
+/**
+ * `orgId` = trung tâm sở hữu lớp; null = lớp B2C riêng của giáo viên. Nó quyết định lớp này có bị
+ * chế độ chỉ-đọc chạm tới không — cổng máy chủ `assertClassOrgWritable` đọc đúng `teacher_classes
+ * .org_id` này, KHÔNG đọc org của người đang gõ. Một giáo viên vừa dạy lớp trung tâm vừa dạy lớp
+ * riêng vì thế chỉ bị khoá đúng nửa bên trung tâm.
+ */
+interface ClassInfo { id: number; name: string; code: string; studentCount: number; orgId: number | null }
 interface Student {
   studentId: number; displayName: string; email: string; xp: number; level: number
   // cefrLevel is the CURRENT level (real ability); targetLevel is the student's goal, shown as context.
@@ -176,8 +183,8 @@ export default function V2ClassDetailPage() {
       const cls = ((clsList.data ?? []) as Record<string, unknown>[]).find((c) => Number(c.id) === id)
       setInfo(
         cls
-          ? { id, name: String(cls.name ?? t('classFallback', { id })), code: String(cls.inviteCode ?? cls.code ?? ''), studentCount: Number(cls.studentCount) || 0 }
-          : { id, name: t('classFallback', { id }), code: '', studentCount: 0 },
+          ? { id, name: String(cls.name ?? t('classFallback', { id })), code: String(cls.inviteCode ?? cls.code ?? ''), studentCount: Number(cls.studentCount) || 0, orgId: cls.orgId == null ? null : Number(cls.orgId) }
+          : { id, name: t('classFallback', { id }), code: '', studentCount: 0, orgId: null },
       )
       setStudents((st.data ?? []) as Student[])
       setAssignments((asg.data ?? []) as Assignment[])
@@ -261,6 +268,9 @@ export default function V2ClassDetailPage() {
   )
 
   const isPrimary = useMemo(() => isPrimaryTeacher(teachers, currentUserId), [teachers, currentUserId])
+  // D5/E1: chế độ chỉ-đọc chỉ chạm lớp CỦA TRUNG TÂM. `info` chưa về ⇒ false (chưa biết thì đừng
+  // khoá) — cùng hướng fail-open với OrgLicenseProvider; cổng thật nằm ở máy chủ.
+  const isOrgClass = info?.orgId != null
   /** Bài tập đang được sửa; null = modal ở chế độ tạo mới. */
   const [editing, setEditing] = useState<Assignment | null>(null)
   const [deletingTask, setDeletingTask] = useState<number | null>(null)
@@ -348,9 +358,14 @@ export default function V2ClassDetailPage() {
               <ArrowLeft size={15} /> {t('backToClasses')}
             </GaBtn>
             {isPrimary && (
-              <GaBtn variant="ghost" size="sm" onClick={() => setModal(true)}>
-                <Plus size={15} /> {t('addAssignment')}
-              </GaBtn>
+              // D5/E1: lớp của trung tâm chỉ-đọc không giao thêm bài (máy chủ:
+              // TeacherService.createAssignment → assertClassOrgWritable). `when` cắt theo LỚP nên
+              // lớp B2C của chính giáo viên này không bị khoá lây.
+              <OrgWriteGate when={isOrgClass}>
+                <GaBtn variant="ghost" size="sm" onClick={() => setModal(true)}>
+                  <Plus size={15} /> {t('addAssignment')}
+                </GaBtn>
+              </OrgWriteGate>
             )}
             <GaBtn variant="yellow" size="sm" onClick={() => toast(t('createAiMaterialComing'))}>
               <Sparkles size={15} /> {t('createAiMaterial')}
@@ -408,9 +423,14 @@ export default function V2ClassDetailPage() {
                         {/* PR C trợ giảng: duyệt/từ chối là việc GV phụ trách — trợ giảng chỉ thấy danh sách chờ. */}
                         {isPrimary && (
                           <div className="flex shrink-0 gap-2">
-                            <GaBtn variant="yellow" size="sm" loading={actingReq === r.id} disabled={actingReq !== null} onClick={() => actOnRequest(r.id, 'approve')}>
-                              {t('approve')}
-                            </GaBtn>
+                            {/* D5: DUYỆT vào lớp trung tâm = cấp một ghế mới (máy chủ chặn gián
+                                tiếp ở ensureStudentSeat → OrgEntitlementService). TỪ CHỐI bên cạnh
+                                không khoá: đóng một yêu cầu lại không tốn ghế nào. */}
+                            <OrgWriteGate when={isOrgClass}>
+                              <GaBtn variant="yellow" size="sm" loading={actingReq === r.id} disabled={actingReq !== null} onClick={() => actOnRequest(r.id, 'approve')}>
+                                {t('approve')}
+                              </GaBtn>
+                            </OrgWriteGate>
                             <GaBtn variant="ghost" size="sm" disabled={actingReq !== null} onClick={() => actOnRequest(r.id, 'reject')}>
                               {t('reject')}
                             </GaBtn>
@@ -636,9 +656,13 @@ export default function V2ClassDetailPage() {
                             </span>
                           )}
                           {isPrimary && task.status === 'DRAFT' && (
-                            <GaBtn variant="yellow" size="sm" onClick={() => setConfirmPublish(task)}>
-                              {t('publishTask')}
-                            </GaBtn>
+                            // D5: công bố biến bài NHÁP thành nghĩa vụ của học viên (fan-out +
+                            // thông báo) — máy chủ chặn ở publishAssignment, web khoá theo.
+                            <OrgWriteGate when={isOrgClass}>
+                              <GaBtn variant="yellow" size="sm" onClick={() => setConfirmPublish(task)}>
+                                {t('publishTask')}
+                              </GaBtn>
+                            </OrgWriteGate>
                           )}
                           {isPrimary && (
                             <>
@@ -742,9 +766,13 @@ export default function V2ClassDetailPage() {
                     aria-label={t('addTeacher')}
                     className="ga-ui min-w-[240px] flex-1 border border-ga-line bg-ga-card px-3.5 py-2.5 text-[14px] text-ga-ink outline-none focus:border-ga-accent"
                   />
-                  <GaBtn variant="primary" size="sm" loading={addingCo} disabled={!coEmail.trim()} onClick={() => void addCoTeacher()}>
-                    <UserPlus size={15} /> {t('addTeacher')}
-                  </GaBtn>
+                  {/* D5: thêm trợ giảng là nhận thêm người vào lớp ⇒ khoá. Nút GỠ trợ giảng ở
+                      danh sách phía trên thì không — gỡ là giảm, thuộc ngoại lệ E1. */}
+                  <OrgWriteGate when={isOrgClass}>
+                    <GaBtn variant="primary" size="sm" loading={addingCo} disabled={!coEmail.trim()} onClick={() => void addCoTeacher()}>
+                      <UserPlus size={15} /> {t('addTeacher')}
+                    </GaBtn>
+                  </OrgWriteGate>
                 </div>
               ) : (
                 <p className="mt-4 text-[12.5px] text-ga-muted">{t('teachersPrimaryOnly')}</p>

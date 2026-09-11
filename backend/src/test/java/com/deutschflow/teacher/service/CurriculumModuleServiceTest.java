@@ -34,6 +34,7 @@ class CurriculumModuleServiceTest {
     @Mock private CurriculumModuleRepository moduleRepository;
     @Mock private ClassTeacherRepository classTeacherRepository;
     @Mock private ClassStudentRepository classStudentRepository;
+    @Mock private com.deutschflow.organization.service.OrgGuard orgGuard;
 
     private CurriculumModuleService service;
 
@@ -44,7 +45,7 @@ class CurriculumModuleServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CurriculumModuleService(moduleRepository, classTeacherRepository, classStudentRepository);
+        service = new CurriculumModuleService(moduleRepository, classTeacherRepository, classStudentRepository, orgGuard);
     }
 
     @Test
@@ -169,4 +170,20 @@ class CurriculumModuleServiceTest {
         assertThatThrownBy(() -> service.listForStudent(STUDENT_ID, CLASS_ID))
                 .isInstanceOf(NotFoundException.class);
     }
+
+    // ─── Gói 3 (D5): module giáo trình lớp ───────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("create: trung tâm chỉ-đọc → ORG_READ_ONLY, không lưu module nào")
+    void create_readOnlyOrg_blocked() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherIdAndRole(CLASS_ID, TEACHER_ID, "PRIMARY")).thenReturn(true);
+        org.mockito.Mockito.doThrow(new com.deutschflow.common.exception.OrgReadOnlyException(9L, com.deutschflow.organization.service.OrgLicenseState.Reason.SUSPENDED))
+                .when(orgGuard).assertClassOrgWritable(CLASS_ID);
+
+        assertThatThrownBy(() -> service.create(TEACHER_ID, CLASS_ID, new CreateModuleRequest("Modul 1")))
+                .isInstanceOf(com.deutschflow.common.exception.OrgReadOnlyException.class);
+
+        verify(moduleRepository, never()).save(any());
+    }
+
 }

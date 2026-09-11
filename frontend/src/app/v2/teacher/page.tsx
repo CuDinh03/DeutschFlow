@@ -7,6 +7,7 @@ import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkSearch, ErrorBanner } from '@/components/ui-v2'
+import { OrgWriteGate } from '../OrgLicenseGate'
 
 const VIOLET = '#7C56C8'
 
@@ -196,14 +197,20 @@ export default function V2TeacherDashboardPage() {
                 placeholder={t('newClassPlaceholder')}
                 className="min-w-0 flex-1 bg-transparent px-4 py-[15px] text-[15px] text-ga-ink outline-none lg:px-5"
               />
-              <button
-                type="button"
-                onClick={createClass}
-                disabled={creating}
-                className="flex shrink-0 items-center gap-2 bg-ga-ink px-4 py-[15px] text-[14px] font-semibold text-ga-bg disabled:opacity-60 lg:px-[26px]"
-              >
-                <Plus size={18} /> {t('createClass')}
-              </button>
+              {/* D5: máy chủ chặn TeacherService.createClass theo org CỦA NGƯỜI TẠO — lớp chưa
+                  tồn tại nên không có `org_id` để soi, và lớp sinh ra ở đây luôn bị đóng dấu chính
+                  org ấy. Vì vậy khoá vô điều kiện (không `when`): với một giáo viên thuộc trung tâm
+                  thì mọi lớp mở ở đây đều là lớp của trung tâm đó. */}
+              <OrgWriteGate>
+                <button
+                  type="button"
+                  onClick={createClass}
+                  disabled={creating}
+                  className="flex shrink-0 items-center gap-2 bg-ga-ink px-4 py-[15px] text-[14px] font-semibold text-ga-bg disabled:opacity-60 lg:px-[26px]"
+                >
+                  <Plus size={18} /> {t('createClass')}
+                </button>
+              </OrgWriteGate>
             </div>
 
             <div className="mb-[18px] flex flex-wrap items-center justify-between gap-3">

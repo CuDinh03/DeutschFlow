@@ -13,6 +13,7 @@ import {
 } from '@/lib/orgApi'
 import { GaPageHdr, GaBtn, GaCap, ConfirmDialog } from '@/components/ui-v2'
 import { CreateTeacherModal } from './CreateTeacherModal'
+import { OrgWriteGate } from '../../OrgLicenseGate'
 import { AssignClassModal } from './AssignClassModal'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -101,9 +102,13 @@ export default function V2OrgTeachersPage() {
         title={t('title')}
         subtitle={t('subtitle')}
         right={
-          <GaBtn variant="yellow" size="sm" onClick={() => setShowCreate(true)}>
-            <UserPlus size={15} /> {t('addTeacher')}
-          </GaBtn>
+          // D5: vô hiệu hoá, KHÔNG giấu — kèm lý do (xem OrgWriteGate). Các nút GỠ giáo viên và
+          // ĐỔI VAI bên dưới cố ý KHÔNG bọc: chúng thuộc danh mục ngoại lệ E1.
+          <OrgWriteGate>
+            <GaBtn variant="yellow" size="sm" onClick={() => setShowCreate(true)}>
+              <UserPlus size={15} /> {t('addTeacher')}
+            </GaBtn>
+          </OrgWriteGate>
         }
       />
 
@@ -173,9 +178,13 @@ export default function V2OrgTeachersPage() {
                     <button type="button" onClick={() => setOpenTeacher((cur) => (cur === teacher.userId ? null : teacher.userId))} className="ga-ui inline-flex min-h-[40px] shrink-0 items-center justify-center border border-ga-line px-3 py-2 text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0">
                       {openTeacher === teacher.userId ? t('hideClasses') : t('viewClasses')}
                     </button>
-                    <button type="button" onClick={() => setAssignFor(teacher)} className="ga-ui inline-flex min-h-[40px] shrink-0 items-center justify-center border border-ga-line px-3 py-2 text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0">
-                      {t('assign')}
-                    </button>
+                    {/* D5: PHÂN CÔNG lớp (PATCH /org/classes/{id}/teacher) là giao thêm việc ⇒ khoá
+                        khi chỉ-đọc, cùng luật với máy chủ. Nút "Xem lớp" bên cạnh là đường ĐỌC. */}
+                    <OrgWriteGate>
+                      <button type="button" onClick={() => setAssignFor(teacher)} className="ga-ui inline-flex min-h-[40px] shrink-0 items-center justify-center border border-ga-line px-3 py-2 text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-50 lg:min-h-0">
+                        {t('assign')}
+                      </button>
+                    </OrgWriteGate>
                   </div>
                   {openTeacher === teacher.userId && <TeacherClassesPanel key={panelVersion} teacherId={teacher.userId} />}
                   </div>

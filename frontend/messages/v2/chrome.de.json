@@ -309,5 +309,18 @@
     "sessionExpiredTitle": "Deine Sitzung ist abgelaufen",
     "sessionExpiredBody": "Deine Sitzung ist abgelaufen oder konnte nicht automatisch erneuert werden. Bitte melde dich erneut an, um fortzufahren.",
     "offlineBanner": "Keine Netzwerkverbindung — einige Funktionen sind vorübergehend nicht verfügbar"
+  },
+  "orgReadOnly": {
+    "titleExpired": "Die Lizenz des Zentrums ist abgelaufen",
+    "titleSuspended": "Das Zentrum ist gesperrt",
+    "effect": "Das Zentrum ist im Nur-Lese-Modus: Alle Daten bleiben sichtbar, aber es kann nichts Neues angelegt werden und KI ist abgeschaltet.",
+    "stillAllowed": "Weiterhin möglich: bereits eingereichte Arbeiten bewerten, Arbeitszeiten erfassen und abschließen, Anwesenheit für bereits gehaltene Stunden, Mitglieder entfernen, Rollen ändern, Leitung übergeben, das Zentrum verlassen.",
+    "graceLeft": "Noch {days} Tage (bis {date}), bevor die Tarifleistungen der Lernenden entzogen werden.",
+    "graceOver": "Die Kulanzfrist ist abgelaufen — die Tarifleistungen der Lernenden wurden entzogen.",
+    "graceUnknown": "Die Tarifleistungen der Lernenden können jederzeit entzogen werden.",
+    "fixExpired": "Bitte die offene Rechnung bezahlen, um die Lizenz zu verlängern.",
+    "fixSuspended": "Bitte die DeutschFlow-Systemverwaltung kontaktieren, um das Zentrum zu entsperren.",
+    "tooltipExpired": "Lizenz abgelaufen — nur Lesen, nichts Neues anlegbar. Rechnung bezahlen, um wieder zu öffnen.",
+    "tooltipSuspended": "Zentrum gesperrt — nur Lesen, nichts Neues anlegbar. Systemverwaltung kontaktieren."
   }
 }

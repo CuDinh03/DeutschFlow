@@ -1297,6 +1297,77 @@ class TeacherServiceTest {
         verify(classRepository).save(any(TeacherClass.class));
     }
 
+    // ─── Gói 3: cổng D5 trên các cửa TẠO MỚI khác của giáo viên trung tâm ─────────────────────
+
+    /** Lớp đã đóng dấu trung tâm 9 — chủ thể quyết định là org của LỚP, không phải của người gõ. */
+    private void stubOrgClass(Long classId, String orgStatus) {
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, 1L))).thenReturn(Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, 1L)).role("PRIMARY").build()));
+        when(classRepository.findById(classId)).thenReturn(Optional.of(
+                TeacherClass.builder().id(classId).name("A1.1").orgId(9L).build()));
+        when(organizationRepository.findById(9L)).thenReturn(Optional.of(orgLicence(orgStatus, null)));
+    }
+
+    @Test
+    @DisplayName("createAssignment: trung tâm chỉ-đọc → 403 ORG_READ_ONLY, không ghi bài nào")
+    void createAssignment_readOnlyOrg_blocked() {
+        stubOrgClass(100L, "SUSPENDED");
+
+        assertThrows(com.deutschflow.common.exception.OrgReadOnlyException.class,
+                () -> teacherService.createAssignment(1L, 100L,
+                        new CreateAssignmentRequest("Bài 1", null, null, null, null, null, null, null, null)));
+
+        verify(assignmentRepository, never()).save(any(ClassAssignment.class));
+    }
+
+    @Test
+    @DisplayName("publishAssignment: trung tâm chỉ-đọc → chặn TRƯỚC khi đọc dòng bài (không fan-out)")
+    void publishAssignment_readOnlyOrg_blocked() {
+        stubOrgClass(100L, "SUSPENDED");
+
+        assertThrows(com.deutschflow.common.exception.OrgReadOnlyException.class,
+                () -> teacherService.publishAssignment(1L, 100L, 500L));
+
+        verify(assignmentRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("addStudentToClassByEmail: trung tâm chỉ-đọc → không mở thêm ghế")
+    void addStudentToClassByEmail_readOnlyOrg_blocked() {
+        stubOrgClass(100L, "SUSPENDED");
+
+        assertThrows(com.deutschflow.common.exception.OrgReadOnlyException.class,
+                () -> teacherService.addStudentToClassByEmail(1L, 100L, "hv@example.com"));
+
+        verify(classStudentRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Trung tâm KHOẺ: cùng ba cửa đó vẫn qua cổng D5 (cổng không chặn nhầm)")
+    void writeDoors_healthyOrg_passGate() {
+        when(classRepository.findById(100L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).name("A1.1").orgId(9L).build()));
+        when(organizationRepository.findById(9L)).thenReturn(Optional.of(orgLicence(
+                "ACTIVE", java.time.Instant.now().plus(30, java.time.temporal.ChronoUnit.DAYS))));
+
+        // Gọi thẳng cổng: đây là đúng thứ ba cửa trên gọi, và nó phải IM LẶNG với trung tâm khoẻ.
+        new com.deutschflow.organization.service.OrgGuard(
+                mock(com.deutschflow.organization.repository.OrgMemberRepository.class),
+                mock(com.deutschflow.organization.repository.OrgAcademicApproverRepository.class),
+                classRepository, organizationRepository)
+                .assertClassOrgWritable(100L);
+    }
+
+    @Test
+    @DisplayName("ĐƯỜNG ĐỌC vẫn sống: xem danh sách bài của lớp thuộc trung tâm chỉ-đọc không bị chặn (D5)")
+    void getClassAssignments_readOnlyOrg_stillReadable() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(100L)).thenReturn(List.of());
+
+        // Không stub organizationRepository: đường đọc mà lỡ gọi cổng thì cũng không được ném.
+        assertTrue(teacherService.getClassAssignments(1L, 100L).isEmpty());
+    }
+
     @Test
     @DisplayName("createClass: giáo viên B2C (không thuộc trung tâm) không bị cổng D5 đụng tới")
     void createClass_b2cTeacher_notGated() {

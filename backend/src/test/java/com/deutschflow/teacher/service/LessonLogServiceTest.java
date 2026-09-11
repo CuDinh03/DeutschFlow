@@ -621,4 +621,33 @@ class LessonLogServiceTest {
         assertThat(lesson.getCompletedAt()).isEqualTo(LocalDate.of(2026, 5, 1).atStartOfDay());
         verify(lessonRepository, never()).save(any());
     }
+
+    // ─── D5/E1: điểm danh buổi ĐÃ DẠY là NGOẠI LỆ, không bị chế độ chỉ-đọc chặn ─────────────
+
+    /**
+     * Ca gác cho một bản vá đã từng viết ra và bị gỡ: nhét
+     * {@code orgGuard.assertClassOrgWritable(classId)} vào {@code createLog}.
+     *
+     * <p>Lập luận "biên bản mới là TẠO MỚI" nghe xuôi nhưng sai chỗ quan trọng nhất: biên bản buổi
+     * dạy CHÍNH LÀ nơi mang điểm danh ({@code CreateLessonLogRequest.attendance}), mà điểm danh buổi
+     * đã diễn ra nằm trong danh mục ngoại lệ E1. Chặn ở đây thì một buổi chưa có biên bản sẽ không
+     * bao giờ điểm danh được — {@code updateLog} chỉ sửa được biên bản ĐÃ TỒN TẠI.
+     *
+     * <p>Chốt bằng tay lái chính (`LessonLogService` KHÔNG nhận `OrgGuard` — thêm lại là gãy biên
+     * dịch ngay tại constructor bên trên) cộng với ca hành vi này.
+     */
+    @Test
+    @DisplayName("E1 — createLog: không có cổng trạng thái giấy phép nào chắn đường điểm danh")
+    void createLog_e1_noLicenceGate() {
+        allowAccess();
+        when(lessonLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CreateLessonLogRequest req = new CreateLessonLogRequest(
+                LocalDate.of(2026, 6, 10), 1, "Lektion 3", null, null, List.of(), null);
+
+        service.createLog(TEACHER_ID, CLASS_ID, req);
+
+        verify(lessonLogRepository).save(any());
+    }
+
 }

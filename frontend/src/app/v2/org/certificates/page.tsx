@@ -24,6 +24,7 @@ import {
 } from '@/components/ui-v2'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { useIsOrgOwner } from '../OwnerOnly'
+import { OrgWriteGate } from '../../OrgLicenseGate'
 import {
   CLASS_FILTER_PROBE_SIZE,
   ORG_CERTIFICATES_PAGE_SIZE,
@@ -303,16 +304,23 @@ export default function V2OrgCertificatesPage() {
                         {showActions && (
                           <Td>
                             {r.active && (
-                              <GaBtn
-                                variant="ghost"
-                                size="sm"
-                                className="text-ga-red"
-                                onClick={() => openRevoke(r)}
-                                aria-label={t('revokeAria', { student: r.studentName })}
-                              >
-                                <GaIcon name="block" size={14} />
-                                {t('revoke')}
-                              </GaBtn>
+                              // D5: THU HỒI chứng nhận không phải "tạo mới", nhưng máy chủ đã chặn
+                              // nó từ đợt Gói 2 an toàn (OrgCertificateService.revokeByOrgOwner gọi
+                              // assertOrgWritable) và nó KHÔNG nằm trong danh mục ngoại lệ E1. Web
+                              // khoá theo cho khớp — luật một-đổi-một. Nếu owner muốn mở lại thì
+                              // phải gỡ cổng ở máy chủ TRƯỚC, rồi mới bỏ lớp bọc này.
+                              <OrgWriteGate>
+                                <GaBtn
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-ga-red"
+                                  onClick={() => openRevoke(r)}
+                                  aria-label={t('revokeAria', { student: r.studentName })}
+                                >
+                                  <GaIcon name="block" size={14} />
+                                  {t('revoke')}
+                                </GaBtn>
+                              </OrgWriteGate>
                             )}
                           </Td>
                         )}

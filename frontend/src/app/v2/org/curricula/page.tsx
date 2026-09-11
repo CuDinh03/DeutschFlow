@@ -25,6 +25,7 @@ import {
 import { LektionEditor } from './LektionEditor'
 import { AssignModal } from './AssignModal'
 import { ImportModal } from './ImportModal'
+import { OrgWriteGate } from '../../OrgLicenseGate'
 
 /**
  * Giáo trình trung tâm (PR-1, P03) — OWNER/MANAGER soạn/nhập bộ giáo trình, quản lý phiên bản
@@ -163,9 +164,16 @@ export default function OrgCurriculaPage() {
 
       <div className="flex-1 overflow-auto px-4 py-6 lg:px-10">
         <div className="mb-5 flex flex-wrap gap-2">
-          <GaBtn onClick={() => setShowCreate(true)}>{t('newBtn')}</GaBtn>
-          <GaBtn variant="ghost" onClick={() => setShowImport(true)}>{t('importBtn')}</GaBtn>
-          <GaBtn variant="ghost" loading={busy} onClick={() => void createSample()}>{t('sampleBtn')}</GaBtn>
+          {/* D5: ba cửa SOẠN giáo trình — vô hiệu hoá kèm lý do khi trung tâm chỉ-đọc. */}
+          <OrgWriteGate>
+            <GaBtn onClick={() => setShowCreate(true)}>{t('newBtn')}</GaBtn>
+          </OrgWriteGate>
+          <OrgWriteGate>
+            <GaBtn variant="ghost" onClick={() => setShowImport(true)}>{t('importBtn')}</GaBtn>
+          </OrgWriteGate>
+          <OrgWriteGate>
+            <GaBtn variant="ghost" loading={busy} onClick={() => void createSample()}>{t('sampleBtn')}</GaBtn>
+          </OrgWriteGate>
         </div>
 
         {loading && <LoadingState variant="skeleton" rows={4} />}
