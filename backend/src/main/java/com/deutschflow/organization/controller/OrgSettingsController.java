@@ -40,6 +40,11 @@ public class OrgSettingsController {
     public Map<String, String> put(@AuthenticationPrincipal User user, @RequestBody PutBody body) {
         Long orgId = requireOrgContext(user);
         orgGuard.assertOrgOwner(user.getId(), orgId);
+        // D5/E1: "đổi cài đặt trung tâm" nằm trong nhóm BỊ CHẶN khi chỉ-đọc. Cụ thể ở đây là chính
+        // sách tính công (P04) và hai ngưỡng gợi ý hỗ trợ — một trung tâm hết hạn sửa được chính
+        // sách tính công rồi chốt bảng công theo luật mới là một cửa hậu thật, không phải lo xa.
+        // Quyền TRƯỚC trạng thái: người ngoài không được biết trung tâm đang bị đình chỉ hay hết hạn.
+        orgGuard.assertOrgWritable(orgId);
         if (body == null || body.settings() == null || body.settings().isEmpty()) {
             throw new BadRequestException("Không có cấu hình nào để lưu");
         }

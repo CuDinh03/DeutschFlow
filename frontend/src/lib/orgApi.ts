@@ -24,6 +24,17 @@ export interface OrgSummary {
   classCount: number
   /** Lớp chưa có ai dạy: không có giáo viên phụ trách VÀ không có ai trong class_teachers. */
   classesWithoutTeacher: number
+  /** D5: trung tâm đang bị khoá GHI (hết hạn hoặc đình chỉ). Đường ĐỌC vẫn sống. */
+  readOnly: boolean
+  /** Vì sao khoá ghi — null khi còn ghi được. */
+  readOnlyReason: 'EXPIRED' | 'SUSPENDED' | null
+  /** Hạn giấy phép. KHÔNG phải mốc đếm ngược — xem `graceEndsAt`. */
+  validUntil: string | null
+  /**
+   * Mốc CẮT quyền lợi = mốc neo + 7 ngày ân hạn, do máy chủ tính (neo là `valid_until` khi hết hạn,
+   * `suspended_at` khi đình chỉ). null = còn ghi được, hoặc đình chỉ mất mốc neo nên đã quá ân hạn.
+   */
+  graceEndsAt: string | null
 }
 
 /** GET /org/seats — seat usage (ghế = học viên ACTIVE; remaining null = không giới hạn). */

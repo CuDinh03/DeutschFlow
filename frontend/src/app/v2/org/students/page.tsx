@@ -11,6 +11,7 @@ import { listMembers, getAnalytics, type OrgMember, type OrgAnalytics } from '@/
 import { studentsToCsv, downloadTextFile } from '@/lib/orgCsv'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkSearch } from '@/components/ui-v2'
 import { ImportRosterModal } from './ImportRosterModal'
+import { OrgWriteGate } from '../../OrgLicenseGate'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Học viên của tổ chức (GaOrgStudents) — teal, roster LIST.
@@ -115,9 +116,13 @@ export default function V2OrgStudentsPage() {
         right={
           <div className="flex flex-wrap items-center gap-2">
           {/* PR-A5 (BF-07): nối importRoster đã có từ lâu vào UI — hết cảnh nhập từng học viên bằng tay. */}
-          <GaBtn variant="yellow" size="sm" onClick={() => setShowImport(true)} data-testid="roster-open">
-            <Upload size={15} /> {t('importCsv')}
-          </GaBtn>
+          {/* D5: nhập học viên = mở ghế mới ⇒ vô hiệu hoá khi trung tâm chỉ-đọc.
+              "Xuất danh sách" ngay bên dưới là đường ĐỌC, cố ý KHÔNG đụng tới. */}
+          <OrgWriteGate>
+            <GaBtn variant="yellow" size="sm" onClick={() => setShowImport(true)} data-testid="roster-open">
+              <Upload size={15} /> {t('importCsv')}
+            </GaBtn>
+          </OrgWriteGate>
           <GaBtn
             variant="ghost"
             size="sm"

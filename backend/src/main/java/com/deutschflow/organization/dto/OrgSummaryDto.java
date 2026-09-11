@@ -12,7 +12,14 @@ import java.time.Instant;
  * <p>{@code readOnly} / {@code readOnlyReason} / {@code validUntil} phơi trạng thái giấy phép ra cho
  * giao diện (D5). Không có chúng thì chế độ chỉ-đọc là một BÃI MÌN: người dùng vẫn thấy đủ nút "Tạo
  * lớp", "Mời giáo viên", "Nhập học viên", bấm vào mới ăn 403 — trái hẳn tinh thần D5 là chuyển sang
- * một chế độ NHÌN THẤY ĐƯỢC. {@code validUntil} để giao diện đếm ngược quãng ân hạn.
+ * một chế độ NHÌN THẤY ĐƯỢC.
+ *
+ * <p>{@code validUntil} là HẠN GIẤY PHÉP, KHÔNG phải mốc đếm ngược. Ân hạn 7 ngày neo vào
+ * {@code valid_until} khi hết hạn nhưng vào {@code suspended_at} khi bị đình chỉ — một trung tâm bị
+ * đình chỉ giữa kỳ vẫn còn {@code validUntil} ở tương lai xa, nên giao diện tự cộng 7 ngày vào
+ * {@code validUntil} sẽ nói sai ngày cắt cho đúng nhóm người đang cần biết nhất. Vì vậy máy chủ trả
+ * thẳng {@code graceEndsAt} = mốc neo + 7 ngày (null khi còn ghi được), và hằng số 7 ngày ở lại một
+ * chỗ duy nhất là {@link com.deutschflow.organization.service.OrgLicenseState}.
  */
 public record OrgSummaryDto(
         String name,
@@ -25,5 +32,6 @@ public record OrgSummaryDto(
         long classesWithoutTeacher,
         boolean readOnly,
         String readOnlyReason,
-        Instant validUntil
+        Instant validUntil,
+        Instant graceEndsAt
 ) {}

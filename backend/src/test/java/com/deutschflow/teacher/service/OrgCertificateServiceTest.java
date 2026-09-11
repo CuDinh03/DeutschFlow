@@ -463,4 +463,18 @@ class OrgCertificateServiceTest {
                 .isInstanceOf(ForbiddenException.class);
         verify(certificateRepository, never()).findByClassIdOrderByCreatedAtDesc(anyLong());
     }
+
+    // ─── D5: trung tâm chỉ-đọc không phát hành thêm chứng nhận ───────────────────────────────
+
+    @Test
+    @DisplayName("issue: trung tâm chỉ-đọc → ORG_READ_ONLY, KHÔNG lưu chứng nhận")
+    void issue_readOnlyOrg_blocked() {
+        doThrow(new com.deutschflow.common.exception.OrgReadOnlyException(9L, com.deutschflow.organization.service.OrgLicenseState.Reason.SUSPENDED))
+                .when(orgGuard).assertClassOrgWritable(CLASS_ID);
+
+        assertThatThrownBy(() -> service.issue(ISSUER, req("B1", null, null)))
+                .isInstanceOf(com.deutschflow.common.exception.OrgReadOnlyException.class);
+        verify(certificateRepository, never()).save(any());
+    }
+
 }

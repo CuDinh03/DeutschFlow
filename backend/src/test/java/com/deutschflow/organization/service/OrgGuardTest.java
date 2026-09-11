@@ -455,4 +455,53 @@ class OrgGuardTest {
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.empty());
         orgGuard.assertOrgWritable(ORG_ID);
     }
+
+    // -------------------------------------------------- assertClassOrgWritable (Gói 3)
+
+    private void stubClassOrg(Long orgIdOfClass) {
+        when(teacherClassRepository.findById(CLASS_ID)).thenReturn(Optional.of(
+                com.deutschflow.teacher.entity.TeacherClass.builder()
+                        .id(CLASS_ID)
+                        .teacherId(USER_ID)
+                        .name("A1.1")
+                        .inviteCode("ABC123")
+                        .orgId(orgIdOfClass)
+                        .build()));
+    }
+
+    @Test
+    @DisplayName("assertClassOrgWritable: lớp của trung tâm bị đình chỉ → ORG_READ_ONLY")
+    void assertClassOrgWritable_suspendedOrg_throws() {
+        stubClassOrg(ORG_ID);
+        stubOrg("SUSPENDED", null, Instant.now());
+        assertThatThrownBy(() -> orgGuard.assertClassOrgWritable(CLASS_ID))
+                .isInstanceOf(OrgReadOnlyException.class)
+                .extracting(ex -> ((OrgReadOnlyException) ex).getReason())
+                .isEqualTo(OrgLicenseState.Reason.SUSPENDED);
+    }
+
+    @Test
+    @DisplayName("assertClassOrgWritable: lớp của trung tâm khoẻ → không chặn")
+    void assertClassOrgWritable_healthyOrg_passes() {
+        stubClassOrg(ORG_ID);
+        stubOrg("ACTIVE", Instant.now().plus(30, ChronoUnit.DAYS));
+        orgGuard.assertClassOrgWritable(CLASS_ID);
+    }
+
+    @Test
+    @DisplayName("assertClassOrgWritable: lớp B2C (org_id null) → KHÔNG hỏi bảng organizations")
+    void assertClassOrgWritable_b2cClass_neverTouchesOrg() {
+        stubClassOrg(null);
+        orgGuard.assertClassOrgWritable(CLASS_ID);
+        org.mockito.Mockito.verifyNoInteractions(organizationRepository);
+    }
+
+    @Test
+    @DisplayName("assertClassOrgWritable: lớp không tồn tại / classId null → không chặn (cổng giấy phép, không phải cổng định danh)")
+    void assertClassOrgWritable_missingClass_passes() {
+        orgGuard.assertClassOrgWritable(null);
+        when(teacherClassRepository.findById(CLASS_ID)).thenReturn(Optional.empty());
+        orgGuard.assertClassOrgWritable(CLASS_ID);
+        org.mockito.Mockito.verifyNoInteractions(organizationRepository);
+    }
 }

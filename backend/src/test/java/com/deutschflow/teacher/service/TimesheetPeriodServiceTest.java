@@ -107,6 +107,35 @@ class TimesheetPeriodServiceTest {
         verify(periodRepository, never()).save(any());
     }
 
+    /**
+     * D5/E1 — bảng công là NGOẠI LỆ của chế độ chỉ-đọc, và mở kỳ là bước ĐẦU của bảng công.
+     *
+     * <p>Ca gác cho một bản vá đã từng viết ra và bị gỡ: nhét {@code orgGuard.assertOrgWritable} vào
+     * {@code openPeriod}. Chặn mở kỳ tháng sau là chặn luôn nộp → duyệt → khoá công của tháng đó,
+     * tức khoá mất đúng cái quy trình lương mà E1 phải giữ mở.
+     */
+    @Test
+    @DisplayName("E1 — openPeriod(): KHÔNG hỏi cổng trạng thái giấy phép, kỳ mới vẫn được chèn")
+    void openPeriod_e1_noLicenceGate() {
+        LocalDate newStart = LocalDate.of(2026, 8, 1);
+        LocalDate newEnd = LocalDate.of(2026, 8, 31);
+        when(periodRepository.findByTeacherIdAndPeriodStart(TEACHER_ID, newStart))
+                .thenReturn(Optional.empty(), Optional.of(period(Status.OPEN)));
+        when(periodRepository
+                .findByTeacherIdAndPeriodStartLessThanEqualAndPeriodEndGreaterThanEqual(
+                        eq(TEACHER_ID), any(), any()))
+                .thenReturn(List.of());
+        com.deutschflow.user.entity.User teacher = new com.deutschflow.user.entity.User();
+        teacher.setId(TEACHER_ID);
+        teacher.setOrgId(ORG_ID);
+        when(userRepository.findById(TEACHER_ID)).thenReturn(Optional.of(teacher));
+
+        service.openPeriod(TEACHER_ID, newStart, newEnd);
+
+        verify(periodRepository).insertIfAbsent(TEACHER_ID, ORG_ID, newStart, newEnd);
+        verify(orgGuard, never()).assertOrgWritable(any());
+    }
+
     @Test
     @DisplayName("openPeriod() tạo kỳ mới (upsert atomic) khi không chồng, snapshot org của giáo viên lúc mở")
     void openPeriod_nonOverlapping_createsAndSnapshotsOrg() {

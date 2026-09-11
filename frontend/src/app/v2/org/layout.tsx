@@ -4,10 +4,13 @@ import { getLocale } from 'next-intl/server'
 import { GaShell } from '@/components/ui-v2'
 import { RoleAreaGuard } from '../RoleAreaGuard'
 import { messagesForV2Areas } from '@/i18n/pickV2Messages'
+import { OrgLicenseProvider } from '../OrgLicenseGate'
 
 /**
  * /v2/org — organization role shell (sidebar + teal roleAccent via data-role).
  * W2: provider i18n riêng của khu — chỉ base + chrome + org (xem pickV2Messages).
+ * Gói 2 (D5/E1): OrgLicenseProvider nạp trạng thái giấy phép MỘT lần cho cả khu, dựng băng chỉ-đọc
+ * và cấp `OrgWriteGate` cho các trang. Nó bọc `children` chứ KHÔNG thay thế — đường đọc phải sống.
  */
 export default async function V2OrgLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale()
@@ -15,7 +18,9 @@ export default async function V2OrgLayout({ children }: { children: React.ReactN
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <RoleAreaGuard area="org">
-        <GaShell role="org">{children}</GaShell>
+        <GaShell role="org">
+          <OrgLicenseProvider>{children}</OrgLicenseProvider>
+        </GaShell>
       </RoleAreaGuard>
     </NextIntlClientProvider>
   )

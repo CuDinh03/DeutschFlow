@@ -36,6 +36,7 @@ public class ClassMilestoneService {
     private final TeacherClassRepository classRepo;
     private final ClassCurriculumLinkRepository classCurriculumLinkRepository;
     private final ScheduleChangeQueue changeQueue;
+    private final com.deutschflow.organization.service.OrgGuard orgGuard;
 
     @Transactional(readOnly = true)
     public List<ClassMilestoneDto> list(Long teacherId, Long classId) {
@@ -48,6 +49,7 @@ public class ClassMilestoneService {
     @Transactional
     public ClassMilestoneDto create(Long teacherId, Long classId, UpsertMilestoneRequest req) {
         assertPrimaryTeacher(teacherId, classId);
+        orgGuard.assertClassOrgWritable(classId); // D5: mốc học vụ mới là TẠO MỚI
         ClassMilestone.Kind kind = parseKind(req.kind());
         if (req.title() == null || req.title().isBlank()) throw new BadRequestException("Thiếu tên mốc");
         if (req.plannedDate() == null) throw new BadRequestException("Thiếu ngày dự kiến của mốc");

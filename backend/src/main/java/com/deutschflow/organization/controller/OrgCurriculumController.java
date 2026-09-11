@@ -55,27 +55,27 @@ public class OrgCurriculumController {
     @PostMapping("/curricula")
     public OrgCurriculumSummaryDto create(@AuthenticationPrincipal User user,
                                           @RequestBody CreateCurriculumRequest req) {
-        return curriculumService.create(user.getId(), requireOrgAdmin(user), req);
+        return curriculumService.create(user.getId(), requireOrgAdminForWrite(user), req);
     }
 
     /** Nhập bộ giáo trình thật thành bản nháp (P03): nhập → kiểm tra → công bố → gán lớp. */
     @PostMapping("/curricula/import")
     public OrgCurriculumSummaryDto importDraft(@AuthenticationPrincipal User user,
                                                @RequestBody ImportCurriculumRequest req) {
-        return curriculumService.importDraft(user.getId(), requireOrgAdmin(user), req);
+        return curriculumService.importDraft(user.getId(), requireOrgAdminForWrite(user), req);
     }
 
     /** Bộ mẫu A1 tự soạn (is_sample=true) — chỉ để chạy thử luồng vận hành. */
     @PostMapping("/curricula/sample")
     public OrgCurriculumSummaryDto createSample(@AuthenticationPrincipal User user) {
-        return curriculumService.createSampleA1(user.getId(), requireOrgAdmin(user));
+        return curriculumService.createSampleA1(user.getId(), requireOrgAdminForWrite(user));
     }
 
     @PatchMapping("/curricula/{curriculumId}")
     public ResponseEntity<Void> updateMeta(@AuthenticationPrincipal User user,
                                            @PathVariable Long curriculumId,
                                            @RequestBody UpdateCurriculumRequest req) {
-        curriculumService.updateMeta(requireOrgAdmin(user), curriculumId, req);
+        curriculumService.updateMeta(requireOrgAdminForWrite(user), curriculumId, req);
         return ResponseEntity.noContent().build();
     }
 
@@ -92,7 +92,7 @@ public class OrgCurriculumController {
     public CurriculumVersionDetailDto createVersion(@AuthenticationPrincipal User user,
                                                     @PathVariable Long curriculumId,
                                                     @RequestBody(required = false) CreateVersionRequest req) {
-        return curriculumService.createVersion(requireOrgAdmin(user), curriculumId, req);
+        return curriculumService.createVersion(requireOrgAdminForWrite(user), curriculumId, req);
     }
 
     @GetMapping("/curriculum-versions/{versionId}")
@@ -103,7 +103,7 @@ public class OrgCurriculumController {
 
     @PostMapping("/curriculum-versions/{versionId}/publish")
     public ResponseEntity<Void> publish(@AuthenticationPrincipal User user, @PathVariable Long versionId) {
-        curriculumService.publish(user.getId(), requireOrgAdmin(user), versionId);
+        curriculumService.publish(user.getId(), requireOrgAdminForWrite(user), versionId);
         return ResponseEntity.noContent().build();
     }
 
@@ -125,21 +125,21 @@ public class OrgCurriculumController {
     public CurriculumLektionDto addLektion(@AuthenticationPrincipal User user,
                                            @PathVariable Long versionId,
                                            @RequestBody UpsertLektionRequest req) {
-        return curriculumService.addLektion(requireOrgAdmin(user), versionId, req);
+        return curriculumService.addLektion(requireOrgAdminForWrite(user), versionId, req);
     }
 
     @PostMapping("/curriculum-versions/{versionId}/lektionen/reorder")
     public List<CurriculumLektionDto> reorderLektionen(@AuthenticationPrincipal User user,
                                                        @PathVariable Long versionId,
                                                        @RequestBody ReorderLektionenRequest req) {
-        return curriculumService.reorderLektionen(requireOrgAdmin(user), versionId, req);
+        return curriculumService.reorderLektionen(requireOrgAdminForWrite(user), versionId, req);
     }
 
     @PatchMapping("/curriculum-lektionen/{lektionId}")
     public CurriculumLektionDto updateLektion(@AuthenticationPrincipal User user,
                                               @PathVariable Long lektionId,
                                               @RequestBody UpsertLektionRequest req) {
-        return curriculumService.updateLektion(requireOrgAdmin(user), lektionId, req);
+        return curriculumService.updateLektion(requireOrgAdminForWrite(user), lektionId, req);
     }
 
     @DeleteMapping("/curriculum-lektionen/{lektionId}")
@@ -153,14 +153,14 @@ public class OrgCurriculumController {
     public List<CurriculumItemDto> replaceItems(@AuthenticationPrincipal User user,
                                                 @PathVariable Long lektionId,
                                                 @RequestBody ReplaceItemsRequest req) {
-        return curriculumService.replaceItems(requireOrgAdmin(user), lektionId, req);
+        return curriculumService.replaceItems(requireOrgAdminForWrite(user), lektionId, req);
     }
 
     @PutMapping("/curriculum-lektionen/{lektionId}/objectives")
     public List<CurriculumObjectiveDto> replaceObjectives(@AuthenticationPrincipal User user,
                                                           @PathVariable Long lektionId,
                                                           @RequestBody ReplaceObjectivesRequest req) {
-        return curriculumService.replaceObjectives(requireOrgAdmin(user), lektionId, req);
+        return curriculumService.replaceObjectives(requireOrgAdminForWrite(user), lektionId, req);
     }
 
     // ── Gán lớp ↔ phiên bản ──────────────────────────────────────────────────
@@ -184,13 +184,31 @@ public class OrgCurriculumController {
     public ClassCurriculumLinkDto assign(@AuthenticationPrincipal User user,
                                          @PathVariable Long classId,
                                          @RequestBody AssignCurriculumRequest req) {
-        return assignmentService.assign(user.getId(), requireOrgAdmin(user), classId, req);
+        return assignmentService.assign(user.getId(), requireOrgAdminForWrite(user), classId, req);
     }
 
     @DeleteMapping("/classes/{classId}/curriculum")
     public ResponseEntity<Void> unassign(@AuthenticationPrincipal User user, @PathVariable Long classId) {
         assignmentService.unassign(requireOrgAdmin(user), classId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Bản GHI của {@link #requireOrgAdmin} — thêm cổng trạng thái trung tâm (D5).
+     *
+     * <p>Phải là hàm THỨ HAI chứ không phải thêm cổng vào {@code requireOrgAdmin}: helper đó đang
+     * gác cả handler ĐỌC (danh sách bộ giáo trình, chi tiết phiên bản, xem gán của lớp) mà D5 nói
+     * rõ trung tâm chỉ-đọc VẪN phải xem được. Nhét cổng vào một chỗ là chặn luôn đường đọc.
+     *
+     * <p>Dùng cho các đường SOẠN nội dung (tạo/nhập/sinh mẫu/mở phiên bản/thêm–sửa Lektion/thay
+     * mục–mục tiêu/công bố/gán lớp). Đường DỌN DẸP (xoá bộ, xoá phiên bản, xoá Lektion, lưu trữ,
+     * gỡ gán) cố ý KHÔNG đi qua đây: chúng không tạo thêm gì, và khoá lại thì nhốt trung tâm với
+     * chính đống nội dung nó muốn dọn — cùng lý lẽ đợt A đã dùng cho đường gỡ thành viên.
+     */
+    private Long requireOrgAdminForWrite(User user) {
+        Long orgId = requireOrgAdmin(user);
+        orgGuard.assertOrgWritable(orgId);
+        return orgId;
     }
 
     /** orgId từ principal + re-verify org-admin membership trong DB — cùng khuôn OrgTeachingController. */

@@ -53,6 +53,30 @@ class OrgSettingsControllerTest {
     }
 
     @Test
+    @DisplayName("D5/E1: trung tâm chỉ-đọc → ORG_READ_ONLY và KHÔNG ghi cấu hình nào")
+    void readOnlyOrg_rejectsWrite_beforeAnyStore() {
+        org.mockito.Mockito.doThrow(new com.deutschflow.common.exception.OrgReadOnlyException(
+                        7L, com.deutschflow.organization.service.OrgLicenseState.Reason.SUSPENDED))
+                .when(orgGuard).assertOrgWritable(7L);
+
+        assertThatThrownBy(() -> controller().put(owner(), new OrgSettingsController.PutBody(Map.of(
+                OrgSettingsService.TIMESHEET_BREAK_INCLUDED, "true"))))
+                .isInstanceOf(com.deutschflow.common.exception.OrgReadOnlyException.class);
+
+        verify(settingsService, never()).put(any(), anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("ĐỌC cấu hình KHÔNG qua cổng trạng thái — trung tâm chỉ-đọc vẫn xem được (D5)")
+    void readPath_neverTouchesWriteGate() {
+        org.mockito.Mockito.when(settingsService.all(7L)).thenReturn(Map.of());
+
+        controller().all(owner());
+
+        verify(orgGuard, never()).assertOrgWritable(any());
+    }
+
+    @Test
     @DisplayName("101, -1, 'nhieu' ⇒ 400 và KHÔNG ghi dòng nào (kể cả khoá hợp lệ đi cùng)")
     void certificateThresholds_outOfRange_areRejectedBeforeAnyWrite() {
         for (String bad : new String[]{"101", "-1", "nhieu", "5.5"}) {

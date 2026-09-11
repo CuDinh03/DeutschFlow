@@ -12,6 +12,7 @@ import {
 } from '@/lib/orgApi'
 import { seatMetaOf } from '@/lib/orgSeats'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip, ConfirmDialog } from '@/components/ui-v2'
+import { OrgWriteGate } from '../../OrgLicenseGate'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lời mời thành viên (GaOrgInvitations) — teal.
@@ -164,9 +165,12 @@ export default function V2OrgInvitationsPage() {
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-3.5">
-            <GaBtn variant="yellow" size="sm" loading={sending} disabled={sending || !email.trim()} onClick={send}>
-              <Send size={14} /> {t('sendInvite')}
-            </GaBtn>
+            {/* D5: MỜI người mới là tạo mới ⇒ khoá khi trung tâm chỉ-đọc. */}
+            <OrgWriteGate>
+              <GaBtn variant="yellow" size="sm" loading={sending} disabled={sending || !email.trim()} onClick={send}>
+                <Send size={14} /> {t('sendInvite')}
+              </GaBtn>
+            </OrgWriteGate>
             {summary && (
               <span className="ga-ui text-[13px] text-ga-muted">
                 {t('joinByCode')} <code className="px-2 py-1 text-[12.5px] font-semibold" style={{ color: TEAL, background: 'var(--ga-teal-soft)' }}>{summary.name}</code>
@@ -202,7 +206,12 @@ export default function V2OrgInvitationsPage() {
                   </span>
                   {isPending && (
                     <div className="flex w-full shrink-0 justify-end gap-1.5 lg:w-auto">
-                      <button type="button" disabled={busy === iv.id} onClick={() => setConfirming({ kind: 'resend', invite: iv })} className="ga-ui inline-flex min-h-[40px] items-center justify-center border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-50 lg:min-h-0">{t('resend')}</button>
+                      {/* D5/E1: "Gửi lại" gọi POST .../rotate — xoay token và gửi thư MỚI, nên nó
+                          nằm ngoài danh mục ngoại lệ và bị khoá. "Thu hồi" ngay bên cạnh thì KHÔNG:
+                          đóng một lời mời lại không tạo thêm gì, khoá nó chỉ làm hàng chờ phình. */}
+                      <OrgWriteGate>
+                        <button type="button" disabled={busy === iv.id} onClick={() => setConfirming({ kind: 'resend', invite: iv })} className="ga-ui inline-flex min-h-[40px] items-center justify-center border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-50 lg:min-h-0">{t('resend')}</button>
+                      </OrgWriteGate>
                       <button type="button" disabled={busy === iv.id} onClick={() => setConfirming({ kind: 'revoke', invite: iv })} className="ga-ui inline-flex min-h-[40px] items-center justify-center border px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50 lg:min-h-0" style={{ color: 'var(--ga-red)', borderColor: 'color-mix(in srgb, var(--ga-red) 35%, transparent)' }}>{t('revoke')}</button>
                     </div>
                   )}

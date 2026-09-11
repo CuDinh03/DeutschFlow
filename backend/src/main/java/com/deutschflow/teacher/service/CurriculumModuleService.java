@@ -28,6 +28,7 @@ public class CurriculumModuleService {
     private final CurriculumModuleRepository moduleRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassStudentRepository classStudentRepository;
+    private final com.deutschflow.organization.service.OrgGuard orgGuard;
 
     @Transactional(readOnly = true)
     public List<CurriculumModuleDto> listForTeacher(Long teacherId, Long classId) {
@@ -44,6 +45,7 @@ public class CurriculumModuleService {
     @Transactional
     public CurriculumModuleDto create(Long teacherId, Long classId, CreateModuleRequest req) {
         assertPrimaryTeacher(teacherId, classId);
+        orgGuard.assertClassOrgWritable(classId); // D5: module giáo trình lớp mới là TẠO MỚI
         if (req == null || req.title() == null || req.title().isBlank()) {
             throw new BadRequestException("Tên module không được để trống");
         }

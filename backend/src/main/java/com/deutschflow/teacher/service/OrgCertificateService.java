@@ -104,6 +104,9 @@ public class OrgCertificateService {
         // Authz (PR B trợ giảng): cấp chứng nhận là quản-lý-lớp — chỉ GV phụ trách,
         // và học viên phải thực sự thuộc lớp.
         teacherService.assertPrimaryTeacherOfClass(issuerUserId, req.classId());
+        // D5: chứng nhận mang tên trung tâm — trung tâm chỉ-đọc không phát hành thêm giấy nào.
+        // Org lấy theo LỚP, cùng nguồn với phần co-brand chốt bên dưới.
+        orgGuard.assertClassOrgWritable(req.classId());
         if (!classStudentRepository.existsByIdClassIdAndIdStudentId(req.classId(), req.studentId())) {
             throw new BadRequestException("Học viên không thuộc lớp này");
         }

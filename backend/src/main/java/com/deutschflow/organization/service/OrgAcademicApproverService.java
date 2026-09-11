@@ -74,6 +74,9 @@ public class OrgAcademicApproverService {
     @Transactional
     public AcademicApproverDto grant(Long actorId, Long orgId, GrantAcademicApproverRequest req) {
         orgGuard.assertOrgOwner(actorId, orgId);
+        // D5: phân công quyền duyệt học vụ là một uỷ nhiệm MỚI. Đường THU HỒI (revoke) cố ý không
+        // đi qua cổng — trung tâm chỉ-đọc vẫn phải rút được quyền của người đã nghỉ.
+        orgGuard.assertOrgWritable(orgId);
         if (req == null || req.userId() == null) {
             throw new BadRequestException("Thiếu userId");
         }

@@ -146,6 +146,32 @@ public class OrgGuard {
     }
 
     /**
+     * Cổng trạng thái theo LỚP — dùng cho đường ghi của giáo viên, nơi không có {@code orgId} trên
+     * tay mà chỉ có {@code classId}.
+     *
+     * <p>Chủ thể quyết định là org của CHÍNH LỚP ({@code teacher_classes.org_id}), không phải org
+     * của người đang gõ: một giáo viên có thể vừa dạy lớp trung tâm vừa dạy lớp riêng, và cũng có
+     * thể đã rời trung tâm mà còn đứng tên lớp cũ. Lấy org theo người sẽ chặn nhầm lớp B2C và bỏ
+     * lọt lớp của trung tâm đang bị khoá.
+     *
+     * <p>Lớp không tồn tại, hoặc lớp B2C ({@code org_id} null) → không chặn: đây là cổng TRẠNG THÁI
+     * GIẤY PHÉP, không phải cổng định danh; quyền sở hữu lớp vẫn do
+     * {@code TeacherService.assertTeacherOwnsClass} gác như cũ.
+     */
+    @Transactional(readOnly = true)
+    public void assertClassOrgWritable(Long classId) {
+        if (classId == null) {
+            return;
+        }
+        Long orgId = teacherClassRepository.findById(classId)
+                .map(com.deutschflow.teacher.entity.TeacherClass::getOrgId)
+                .orElse(null);
+        if (orgId != null) {
+            assertOrgWritable(orgId);
+        }
+    }
+
+    /**
      * {@link #assertOrgAdmin} + {@link #assertOrgWritable} — dùng cho các endpoint TẠO MỚI của
      * org-admin. Kiểm quyền TRƯỚC trạng thái: người ngoài trung tâm không được biết trung tâm đang
      * bị đình chỉ hay hết hạn.
