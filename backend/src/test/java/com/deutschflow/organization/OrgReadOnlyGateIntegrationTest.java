@@ -52,6 +52,17 @@ class OrgReadOnlyGateIntegrationTest extends AbstractPostgresIntegrationTest {
         jdbcTemplate.update("DELETE FROM org_monthly_token_counters WHERE org_id IN " + orgs);
         jdbcTemplate.update("DELETE FROM user_subscriptions WHERE user_id IN " + owned);
         jdbcTemplate.update("DELETE FROM org_members WHERE user_id IN " + owned);
+        // ensureStudentSeat nay ghi vết org_member_added mang org_id (nợ Gói 2, 11/09/2026), và
+        // audit_logs.org_id có khoá ngoại tới organizations — không dọn vết thì DELETE org dưới đây
+        // vỡ vì ràng buộc chứ không phải vì mã hỏng. Sổ vết là append-only (trg_audit_logs_immutable,
+        // V303) nên phải tắt trigger đúng trong lượt dọn này rồi bật lại — cùng lối V317 đã dùng để
+        // backfill. Đây là dữ liệu rác của test, không phải sổ thật.
+        jdbcTemplate.execute("ALTER TABLE audit_logs DISABLE TRIGGER trg_audit_logs_immutable");
+        try {
+            jdbcTemplate.update("DELETE FROM audit_logs WHERE org_id IN " + orgs);
+        } finally {
+            jdbcTemplate.execute("ALTER TABLE audit_logs ENABLE TRIGGER trg_audit_logs_immutable");
+        }
         jdbcTemplate.update("DELETE FROM users WHERE email LIKE '" + EMAIL_PREFIX + "%'");
         jdbcTemplate.update("DELETE FROM organizations WHERE slug LIKE '" + SLUG_PREFIX + "%'");
     }
