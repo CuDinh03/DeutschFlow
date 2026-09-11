@@ -10,13 +10,17 @@ import { absoluteUrl } from '@/lib/siteUrl'
  *
  * Trang marketing/SEO đều nằm ở gốc (`/`, `/luyen-thi`, `/free-grade`, `/giao-vien-mien-phi`,
  * `/teachers`, …) nên không bị các luật này chạm tới — xem `sitemap.ts`.
+ *
+ * `/phieu/` (PR-R3, thiết kế 10/09/2026 §3.5.3) là trang CÔNG KHAI nhưng không phải trang công cộng:
+ * mỗi URL là phiếu điểm của một học viên, mở được chỉ vì token trong đường dẫn là bí mật. Trang tự khai
+ * `noindex, nofollow` ở metadata; dòng này là lớp thứ hai để crawler đừng bò vào ngay từ đầu.
  */
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/v2/', '/admin/', '/teacher/', '/student/', '/org/', '/api/', '/payment/'],
+      disallow: ['/v2/', '/admin/', '/teacher/', '/student/', '/org/', '/api/', '/payment/', '/phieu/'],
     },
     sitemap: absoluteUrl('/sitemap.xml'),
   }

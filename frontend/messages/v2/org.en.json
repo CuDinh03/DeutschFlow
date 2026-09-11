@@ -346,6 +346,37 @@
           "saved": "Consent recorded",
           "revoked": "Consent revocation recorded"
         }
+      },
+      "tabs": {
+        "profile": "Profile",
+        "evaluation": "Reports"
+      },
+      "reportIssues": {
+        "cap": "Reports sent to the family",
+        "hint": "The class teacher is the one who issues them. The centre reviews and withdraws them here; DeutschFlow sends nothing to parents.",
+        "empty": "No report has been issued for this student yet.",
+        "periodMIDTERM": "Mid-course",
+        "periodFINAL": "End of course",
+        "statusACTIVE": "Valid",
+        "statusEXPIRED": "Expired",
+        "statusSUPERSEDED": "Replaced",
+        "statusREVOKED": "Withdrawn",
+        "metaLine": "Class {className} · issued {date} by {issuer} · {views} opens",
+        "copyLink": "Copy link",
+        "copied": "Copied",
+        "copyError": "The link could not be copied. Please select and copy it by hand.",
+        "revoke": "Withdraw",
+        "revokeTitle": "Withdraw this report?",
+        "revokeDescription": "{period} report, issued on {date} by {issuer}.",
+        "revokeConsequenceLink": "The public link stops working immediately; anyone opening it sees a page that does not exist.",
+        "revokeConsequencePdf": "A PDF the centre already sent to the family CANNOT be taken back.",
+        "revokeConsequenceNoUndo": "This cannot be undone. To send again you must issue a new report.",
+        "revokeConsequenceAudit": "The reason you type is written into the centre activity log.",
+        "reasonLabel": "Reason for withdrawal",
+        "reasonPlaceholder": "For example: attendance entered wrongly, needs reissuing.",
+        "reasonHint": "{count}/{max} characters — at least {min}.",
+        "confirmRevoke": "Withdraw report",
+        "revokeSuccess": "The report has been withdrawn"
       }
     },
     "classes": {
@@ -964,7 +995,7 @@
     },
     "settings": {
       "title": "Center settings",
-      "subtitle": "Timesheet policy and support-suggestion thresholds — owner only.",
+      "subtitle": "Timesheet policy, support suggestion thresholds and certificate thresholds — director only.",
       "timesheetCap": "Timesheet (P04)",
       "breakIncludedLabel": "A session counts INCLUDING the break (195 minutes)",
       "breakIncludedHint": "Unchecked: suggestions use TEACHING minutes (180). Applies to future suggestions only — confirmed records are never rewritten.",
@@ -973,7 +1004,11 @@
       "groupMinLabel": "From how many struggling students per objective suggests a WHOLE-CLASS review",
       "supportHint": "Display-only suggestions on the objective matrix — the system never moves the curriculum by itself.",
       "save": "Save settings",
-      "saveSuccess": "Center settings saved"
+      "saveSuccess": "Center settings saved",
+      "certificateCap": "Certificate thresholds",
+      "certMinAvgLabel": "Minimum average score (out of 100)",
+      "certMinAttendanceLabel": "Minimum attendance rate (%)",
+      "certificateHint": "These two thresholds decide the \"meets the requirements for a certificate\" line on the end-of-course report. Set 0 to drop that condition."
     },
     "audit": {
       "title": "Activity log",

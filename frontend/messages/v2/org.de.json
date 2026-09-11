@@ -346,6 +346,37 @@
           "saved": "Einwilligung erfasst",
           "revoked": "Widerruf der Einwilligung erfasst"
         }
+      },
+      "tabs": {
+        "profile": "Profil",
+        "evaluation": "Berichte"
+      },
+      "reportIssues": {
+        "cap": "An die Familie gesendete Berichte",
+        "hint": "Ausgestellt werden sie von der verantwortlichen Lehrkraft. Das Zentrum sieht sie hier ein und zieht sie zurück; DeutschFlow verschickt nichts an Eltern.",
+        "empty": "Für diese Person wurde noch kein Bericht ausgestellt.",
+        "periodMIDTERM": "Halbzeit",
+        "periodFINAL": "Kursabschluss",
+        "statusACTIVE": "Gültig",
+        "statusEXPIRED": "Abgelaufen",
+        "statusSUPERSEDED": "Ersetzt",
+        "statusREVOKED": "Zurückgezogen",
+        "metaLine": "Kurs {className} · ausgestellt am {date} von {issuer} · {views} Aufrufe",
+        "copyLink": "Link kopieren",
+        "copied": "Kopiert",
+        "copyError": "Der Link konnte nicht kopiert werden. Bitte markieren und von Hand kopieren.",
+        "revoke": "Zurückziehen",
+        "revokeTitle": "Diesen Bericht zurückziehen?",
+        "revokeDescription": "Bericht {period}, ausgestellt am {date} von {issuer}.",
+        "revokeConsequenceLink": "Der öffentliche Link funktioniert sofort nicht mehr; wer ihn öffnet, sieht eine nicht vorhandene Seite.",
+        "revokeConsequencePdf": "Ein PDF, das das Zentrum der Familie bereits geschickt hat, lässt sich NICHT zurückholen.",
+        "revokeConsequenceNoUndo": "Das lässt sich nicht rückgängig machen. Zum erneuten Senden muss ein neuer Bericht ausgestellt werden.",
+        "revokeConsequenceAudit": "Der eingegebene Grund wird im Aktivitätsprotokoll des Zentrums festgehalten.",
+        "reasonLabel": "Grund für das Zurückziehen",
+        "reasonPlaceholder": "Zum Beispiel: Anwesenheit falsch erfasst, muss neu ausgestellt werden.",
+        "reasonHint": "{count}/{max} Zeichen — mindestens {min}.",
+        "confirmRevoke": "Bericht zurückziehen",
+        "revokeSuccess": "Der Bericht wurde zurückgezogen"
       }
     },
     "classes": {
@@ -964,7 +995,7 @@
     },
     "settings": {
       "title": "Zentrums-Einstellungen",
-      "subtitle": "Arbeitszeit-Politik und Förder-Schwellen — nur Leitung.",
+      "subtitle": "Arbeitszeitregel, Schwellenwerte für Förderhinweise und für die Bescheinigung — nur Leitung.",
       "timesheetCap": "Arbeitszeit (P04)",
       "breakIncludedLabel": "Ein Termin zählt INKLUSIVE Pause (195 Minuten)",
       "breakIncludedHint": "Abgewählt: Vorschläge nutzen UNTERRICHTSminuten (180). Gilt nur für künftige Vorschläge — bestätigte Einträge bleiben unangetastet.",
@@ -973,7 +1004,11 @@
       "groupMinLabel": "Ab wie vielen schwachen Lernenden pro Ziel wird gemeinsame WIEDERHOLUNG vorgeschlagen",
       "supportHint": "Nur Anzeige-Hinweise auf der Zielmatrix — das System verschiebt das Curriculum nie selbst.",
       "save": "Speichern",
-      "saveSuccess": "Einstellungen gespeichert"
+      "saveSuccess": "Einstellungen gespeichert",
+      "certificateCap": "Schwellenwerte für die Bescheinigung",
+      "certMinAvgLabel": "Mindestdurchschnitt (von 100)",
+      "certMinAttendanceLabel": "Mindestanwesenheit (%)",
+      "certificateHint": "Diese beiden Werte entscheiden über die Zeile \"Voraussetzungen für eine Bescheinigung erfüllt\" im Abschlussbericht. 0 bedeutet, dass die Bedingung entfällt."
     },
     "audit": {
       "title": "Aktivitätsprotokoll",
