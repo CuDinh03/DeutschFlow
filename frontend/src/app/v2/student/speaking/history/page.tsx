@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { AlertTriangle, ArrowLeft, Calendar, ChevronDown, ChevronUp, MessageSquare, Mic, Plus } from 'lucide-react'
 import api from '@/lib/api'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
@@ -104,6 +104,7 @@ function severityTone(s: string) {
 
 function MessageBubble({ msg }: { msg: SessionMessage }) {
   const t = useTranslations('v2.student.speakingHistory')
+  const locale = useLocale()
   const [expanded, setExpanded] = useState(false)
   const isUser = msg.role === 'USER'
   const bodyText = (isUser ? msg.userText : msg.aiSpeechDe)?.trim() ?? ''
@@ -170,8 +171,8 @@ function MessageBubble({ msg }: { msg: SessionMessage }) {
                 >
                   <div className="mb-0.5 flex items-center gap-1.5">
                     <AlertTriangle size={10} aria-hidden />
-                    <span className="font-bold" title={err.errorCode}>
-                      {getErrorSnippet(err.errorCode, 'vi').title}
+                    <span className="font-bold" title={getErrorSnippet(err.errorCode, locale).rule}>
+                      {getErrorSnippet(err.errorCode, locale).title}
                     </span>
                     <span className="opacity-60">({err.severity})</span>
                   </div>

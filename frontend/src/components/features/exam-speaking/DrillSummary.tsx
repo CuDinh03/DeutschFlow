@@ -1,7 +1,8 @@
 'use client'
 
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { GaCap } from '@/components/ui-v2'
+import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import type { RoomLine } from '@/types/exam-speaking'
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 /** Tổng kết drill: điểm nhanh trung bình + lỗi cần ôn (không in điểm/band chính thức — chỉ mock mới có). */
 export function DrillSummary({ lines }: Props) {
   const t = useTranslations('v2.student.examSpeaking.drill')
+  const locale = useLocale()
   const scored = lines.filter((l) => l.role === 'CANDIDATE' && typeof l.eval?.score === 'number')
   const avg = scored.length ? scored.reduce((s, l) => s + (l.eval?.score ?? 0), 0) / scored.length : null
   const corrections = new Map<string, { original: string; correction: string; code: string }>()
@@ -34,7 +36,7 @@ export function DrillSummary({ lines }: Props) {
                 <span className="text-ga-red line-through">{c.original}</span>
                 <span className="mx-1.5 text-ga-muted">→</span>
                 <span className="font-semibold text-ga-green">{c.correction}</span>
-                <span className="ml-1.5 text-[11px] text-ga-muted">{c.code}</span>
+                <span className="ml-1.5 text-[11px] text-ga-muted">{getErrorSnippet(c.code, locale).title}</span>
               </li>
             ))}
           </ul>
