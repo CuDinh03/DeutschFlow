@@ -5,8 +5,9 @@ import { format } from 'date-fns'
 import { FileDown, Pencil, X, Loader2, Save, CheckCircle2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { GaBtn, GaCap, TkBadge } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaIcon, TkBadge } from '@/components/ui-v2'
 import { saveEvaluation, type StudentEvaluation, type StudentEvaluationInput } from '@/lib/teacherEvaluationApi'
+import { ReportIssueDialog } from './ReportIssueDialog'
 import { ReportPrintHeader, SkillBar, SKILL_COLORS } from './reportShared'
 
 export interface EvaluationTabProps {
@@ -94,6 +95,9 @@ export function EvaluationTab(props: EvaluationTabProps) {
   const [editingEval, setEditingEval] = useState<StudentEvaluation | null>(null)
   const [form, setForm] = useState<EvaluationFormState>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
+  // Học viên đang mở hộp thoại PHÁT HÀNH phiếu gửi gia đình (PR-R3). Giữ cả đối tượng chứ không chỉ
+  // id: hộp thoại dựng bản xem trước từ chính dòng đánh giá này, không gọi lại máy chủ.
+  const [issuingFor, setIssuingFor] = useState<StudentEvaluation | null>(null)
 
   const openEdit = (evaluation: StudentEvaluation): void => {
     setEditingEval(evaluation)
@@ -243,9 +247,14 @@ export function EvaluationTab(props: EvaluationTabProps) {
                     <p className="mt-1.5 text-[12px] italic text-ga-muted">“{evaluation.teacherComment}”</p>
                   )}
                 </div>
-                <GaBtn type="button" variant="ghost" size="sm" onClick={() => openEdit(evaluation)} disabled={saving}>
-                  <Pencil size={13} aria-hidden /> {t('evaluation.edit')}
-                </GaBtn>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <GaBtn type="button" variant="ghost" size="sm" onClick={() => openEdit(evaluation)} disabled={saving}>
+                    <Pencil size={13} aria-hidden /> {t('evaluation.edit')}
+                  </GaBtn>
+                  <GaBtn type="button" variant="ghost" size="sm" onClick={() => setIssuingFor(evaluation)} disabled={saving}>
+                    <GaIcon name="mail" size={13} /> {t('reportIssue.openButton')}
+                  </GaBtn>
+                </div>
               </div>
             </div>
           ))}
@@ -253,7 +262,11 @@ export function EvaluationTab(props: EvaluationTabProps) {
       )}
 
       {evaluations.length > 0 && (
-        <div className="print-area hidden print:block">
+        /* `print-flow`: không có lớp này thì `.print-area` là hộp `position: fixed`, mà hộp fixed
+           KHÔNG BAO GIỜ được chia trang — phiếu của 15 học viên dồn hết vào MỘT trang A4, 14 em còn
+           lại bị cắt mất (thiết kế 10/09 §0 mục 5). Lớp này bỏ lớp phủ fixed nhưng giữ nguyên phần
+           ẩn mọi thứ ngoài vùng in. */
+        <div className="print-area print-flow hidden print:block">
           {evaluations.map((evaluation, idx) => (
             <div key={evaluation.studentId} className={idx > 0 ? 'break-before-page' : undefined}>
               <ReportPrintHeader
@@ -265,7 +278,9 @@ export function EvaluationTab(props: EvaluationTabProps) {
                 <div className="border border-ga-line p-3">
                   <GaCap className="mb-2">{t('evaluation.printStudentInfo')}</GaCap>
                   <p className="text-[13px] font-semibold text-ga-ink">{evaluation.name}</p>
-                  <p className="text-[12px] text-ga-muted">{evaluation.email}</p>
+                  {/* Email HV cố ý KHÔNG in (R4 / thiết kế §3.6): bản in này được đưa tận tay gia đình
+                      và người ngoài lớp, nên nó không mang địa chỉ liên lạc của học viên. Màn hình làm
+                      việc của giáo viên ở trên vẫn hiện email để phân biệt hai người trùng tên. */}
                   {evaluation.avgScore != null && evaluation.avgScore > 0 && (
                     <p className="mt-1 text-[12px] text-ga-ink">
                       {t('evaluation.printAvgScore', { score: evaluation.avgScore.toFixed(1) })}
@@ -313,6 +328,15 @@ export function EvaluationTab(props: EvaluationTabProps) {
             </div>
           ))}
         </div>
+      )}
+
+      {issuingFor && (
+        <ReportIssueDialog
+          open
+          onOpenChange={(o) => { if (!o) setIssuingFor(null) }}
+          classId={classId}
+          evaluation={issuingFor}
+        />
       )}
     </div>
   )

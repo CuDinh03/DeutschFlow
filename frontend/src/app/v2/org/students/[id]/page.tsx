@@ -7,8 +7,9 @@ import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { getOrgStudentDetail, type OrgStudentDetail } from '@/lib/orgApi'
-import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkTabs, TkTabsContent, TkTabsList, TkTabsTrigger } from '@/components/ui-v2'
 import { GuardianConsentSection } from './GuardianConsentSection'
+import { StudentReportIssuesSection } from './StudentReportIssuesSection'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chi tiết học viên của tổ chức (GaOrgStudentDetail) — teal, org-admin (W1.4).
@@ -18,6 +19,16 @@ import { GuardianConsentSection } from './GuardianConsentSection'
 // 404 nếu user không phải thành viên org người gọi (IDOR-safe ở backend OrgService).
 // Mục "Người giám hộ & đồng ý" (D1/R11, 10/09/2026) là phần GHI duy nhất của trang: xem
 // GuardianConsentSection — thêm/sửa giám hộ, ghi phiếu đồng ý giấy, thu hồi (ConfirmDialog).
+//
+// Hai tab (PR-R3, R12): "Hồ sơ" giữ nguyên nội dung cũ; "Đánh giá" là sổ phiếu đánh giá gửi gia đình
+// của riêng học viên này (GET /api/org/report-issues?studentId=) + nút thu hồi. Tab chứ không phải
+// cuộn dài thêm: hai nhóm việc này thuộc hai vai khác nhau (nhân sự vs. giám sát học tập) và tab
+// cũng giữ cho lượt đọc sổ phiếu chỉ xảy ra khi người dùng THỰC SỰ mở nó — mỗi lượt đọc là một dòng
+// trong sổ hoạt động của trung tâm, không nên sinh ra do người ta chỉ mở trang xem số điện thoại.
+//
+// 🔴 CÒN THIẾU (chặn vì thiếu endpoint, không phải quên): "hồ sơ đánh giá 1 học viên" của R12 — điểm
+// 4 kỹ năng, nhận xét, chuyên cần đọc từ phía trung tâm — chưa có đường API nào (PR 639 chỉ có 7
+// endpoint phiếu). Cần một `GET /api/org/students/{id}/evaluations` có ghi vết trước khi làm được.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEAL = 'var(--ga-teal)'
@@ -108,30 +119,43 @@ export default function V2OrgStudentDetailPage() {
               ]}
             />
 
-            <div className="mb-3.5 mt-[22px]"><GaCap>{t('classesCap')}</GaCap></div>
-            {detail.classes.length === 0 ? (
-              <div className="border border-dashed border-ga-line px-4 py-8 text-center text-[14px] text-ga-muted sm:px-8 lg:px-10 lg:py-[40px]">
-                {t('noClasses')}
-              </div>
-            ) : (
-              <div className="border border-ga-line bg-ga-card">
-                {detail.classes.map((c, i) => (
-                  <button
-                    key={c.classId}
-                    type="button"
-                    onClick={() => router.push(`/v2/org/classes/${c.classId}`)}
-                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-ga-surface lg:px-5"
-                    style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}
-                  >
-                    <span className="grid h-8 w-8 shrink-0 place-items-center font-ga-display text-[14px] font-medium" style={{ color: TEAL, background: 'var(--ga-teal-soft)' }}>{(c.name[0] ?? 'L').toUpperCase()}</span>
-                    <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ga-ink">{c.name}</span>
-                    <ChevronRight size={16} className="shrink-0 text-ga-muted" />
-                  </button>
-                ))}
-              </div>
-            )}
+            <TkTabs defaultValue="profile" className="mt-[22px]">
+              <TkTabsList>
+                <TkTabsTrigger value="profile">{t('tabs.profile')}</TkTabsTrigger>
+                <TkTabsTrigger value="evaluation">{t('tabs.evaluation')}</TkTabsTrigger>
+              </TkTabsList>
 
-            <GuardianConsentSection detail={detail} onChanged={() => void refresh()} />
+              <TkTabsContent value="profile">
+                <div className="mb-3.5"><GaCap>{t('classesCap')}</GaCap></div>
+                {detail.classes.length === 0 ? (
+                  <div className="border border-dashed border-ga-line px-4 py-8 text-center text-[14px] text-ga-muted sm:px-8 lg:px-10 lg:py-[40px]">
+                    {t('noClasses')}
+                  </div>
+                ) : (
+                  <div className="border border-ga-line bg-ga-card">
+                    {detail.classes.map((c, i) => (
+                      <button
+                        key={c.classId}
+                        type="button"
+                        onClick={() => router.push(`/v2/org/classes/${c.classId}`)}
+                        className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-ga-surface lg:px-5"
+                        style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}
+                      >
+                        <span className="grid h-8 w-8 shrink-0 place-items-center font-ga-display text-[14px] font-medium" style={{ color: TEAL, background: 'var(--ga-teal-soft)' }}>{(c.name[0] ?? 'L').toUpperCase()}</span>
+                        <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ga-ink">{c.name}</span>
+                        <ChevronRight size={16} className="shrink-0 text-ga-muted" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <GuardianConsentSection detail={detail} onChanged={() => void refresh()} />
+              </TkTabsContent>
+
+              <TkTabsContent value="evaluation">
+                <StudentReportIssuesSection studentId={detail.userId} />
+              </TkTabsContent>
+            </TkTabs>
           </>
         ) : null}
       </div>

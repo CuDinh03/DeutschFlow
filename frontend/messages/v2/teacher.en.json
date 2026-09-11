@@ -580,6 +580,40 @@
         "printTeacherSign": "Teacher signature",
         "printHeadSign": "Academic office approval",
         "printAvgScore": "Avg. assignment score: {score}"
+      },
+      "reportIssue": {
+        "openButton": "Issue report",
+        "title": "Issue a report for the family",
+        "subtitle": "Student: {name}",
+        "periodCap": "Reporting period",
+        "periodMIDTERM": "Mid-course",
+        "periodFINAL": "End of course",
+        "langCap": "Report language",
+        "langvi": "Tiếng Việt",
+        "langen": "English",
+        "langde": "Deutsch",
+        "langHint": "This language is frozen into the report; the teacher remarks stay exactly as written, with no machine translation.",
+        "showPreview": "Preview the report",
+        "hidePreview": "Hide the preview",
+        "issueButton": "Issue",
+        "reissueButton": "Issue again",
+        "reissueWarning": "This period already has a valid report (issued on {date}). Issuing again replaces it and the old link stops working immediately; a PDF already sent out cannot be taken back.",
+        "issueSuccess": "The report has been issued",
+        "resultCap": "Report issued",
+        "resultHint": "DeutschFlow sends nothing to parents. The centre copies the link or downloads the PDF and sends it through its own channel.",
+        "verificationCodeLabel": "Report code",
+        "expiresLabel": "Link expires",
+        "copyLink": "Copy link",
+        "copied": "Copied",
+        "copyError": "The link could not be copied. Please select and copy it by hand.",
+        "downloadPdf": "Download PDF",
+        "historyCap": "Reports issued for this student",
+        "historyEmpty": "No report has been issued for this student yet.",
+        "viewCount": "{count} opens",
+        "statusACTIVE": "Valid",
+        "statusEXPIRED": "Expired",
+        "statusSUPERSEDED": "Replaced",
+        "statusREVOKED": "Withdrawn"
       }
     },
     "grading": {
@@ -660,7 +694,10 @@
       "aiCallError": "Error calling AI grading",
       "aiFailedWithReason": "AI grading failed: {reason}",
       "aiFailedGeneric": "AI grading failed. Please grade manually.",
-      "clearFilter": "Clear filter"
+      "clearFilter": "Clear filter",
+      "aiProposalCap": "AI-proposed score",
+      "aiProposalScore": "{score}/100",
+      "aiProposalHint": "This is the AI proposal, not the final mark. The final mark is the number you enter below and save. Students and the report sent to the family never see this figure."
     },
     "gradeImage": {
       "title": "Grade by image",
