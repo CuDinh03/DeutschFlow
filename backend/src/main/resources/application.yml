@@ -328,7 +328,9 @@ app:
     # terms_version). Máy chủ là bên duy nhất ghi giá trị này — cột CSV consentConfirmed và endpoint
     # ghi phiếu giấy của trung tâm đều lấy từ đây (MinorConsentTerms), client không gửi lên. Đổi điều
     # khoản = đổi giá trị này; các dòng đã ghi giữ nguyên phiên bản cũ.
-    consent-terms-version: ${APP_MINOR_CONSENT_TERMS_VERSION:2026-09}
+    # 2026-10 = bản có thêm mục C3 (đồng ý cho AI chấm bài làm, scope AI_PROCESSING). Bản 2026-09
+    # chỉ có C1/C2 và chưa gửi trung tâm nào, nên nâng bây giờ không ai phải ký lại.
+    consent-terms-version: ${APP_MINOR_CONSENT_TERMS_VERSION:2026-10}
 
     # Hạn lưu BẢN GHI ÂM của học viên chưa thành niên (owner chốt 09/09/2026). Bản chuyển chữ và điểm
     # KHÔNG bị đụng tới — chúng thuộc hồ sơ học tập và giữ lâu dài. Xem MinorAudioRetentionService.

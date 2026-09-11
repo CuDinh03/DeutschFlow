@@ -310,3 +310,48 @@ describe('parseRosterCsv — cột reportSharingConfirmed (R6, scope GUARDIAN_RE
     expect(p.rows[0]).toMatchObject({ consentConfirmed: '', reportSharingConfirmed: '' })
   })
 })
+
+describe('parseRosterCsv — cột aiProcessingConfirmed (C3, scope AI_PROCESSING)', () => {
+  test('ba ô đồng ý đọc độc lập, ô giữ NGUYÊN VĂN', () => {
+    const p = parseRosterCsv(
+      'email,consentConfirmed,reportSharingConfirmed,aiProcessingConfirmed\n'
+      + 'an@x.com,x,,\nbinh@x.com,,,Có\n',
+    )
+    expect(p.hasAiProcessing).toBe(true)
+    expect(p.rows[0]).toMatchObject({ consentConfirmed: 'x', aiProcessingConfirmed: '' })
+    expect(p.rows[1]).toMatchObject({ consentConfirmed: '', reportSharingConfirmed: '', aiProcessingConfirmed: 'Có' })
+  })
+
+  test('CHỈ email,aiProcessingConfirmed vẫn bật chế độ đọc theo tên — máy chủ cũng bật theo cột này', () => {
+    const p = parseRosterCsv('email,aiProcessingConfirmed\nan@x.com,x\n')
+    expect(p.hasBirthDate).toBe(false)
+    expect(p.hasConsent).toBe(false)
+    expect(p.hasReportSharing).toBe(false)
+    expect(p.hasAiProcessing).toBe(true)
+    expect(p.rows[0]).toMatchObject({ email: 'an@x.com', aiProcessingConfirmed: 'x' })
+  })
+
+  test('bí danh tiếng Việt "Đồng ý chấm bằng AI" không lẫn với "Đồng ý" của cột ghi âm', () => {
+    expect(normalizeHeader('Đồng ý chấm bằng AI')).toBe('dongychambangai')
+    const p = parseRosterCsv('email,Đồng ý,Đồng ý chấm bằng AI\nan@x.com,x,không\n')
+    expect(p.hasConsent).toBe(true)
+    expect(p.hasAiProcessing).toBe(true)
+    expect(p.rows[0]).toMatchObject({ consentConfirmed: 'x', aiProcessingConfirmed: 'không' })
+  })
+
+  test('tệp ba cột cũ: không có khoá aiProcessingConfirmed, không bật cờ', () => {
+    const p = parseRosterCsv('email,displayName,phone\nan@x.com,An,0912\n')
+    expect(p.hasAiProcessing).toBe(false)
+    expect(p.rows[0]).not.toHaveProperty('aiProcessingConfirmed')
+  })
+
+  test('file mẫu có cột aiProcessingConfirmed đứng cuối; dòng vị thành niên đánh x cả ba ô', () => {
+    const csv = rosterTemplateCsv()
+    expect(csv).toContain('consentConfirmed,reportSharingConfirmed,aiProcessingConfirmed')
+    const p = parseRosterCsv(csv)
+    expect(p.hasAiProcessing).toBe(true)
+    expect(p.invalidEmails).toBe(0)
+    expect(p.rows[1]).toMatchObject({ consentConfirmed: 'x', reportSharingConfirmed: 'x', aiProcessingConfirmed: 'x' })
+    expect(p.rows[0]).toMatchObject({ aiProcessingConfirmed: '' })
+  })
+})

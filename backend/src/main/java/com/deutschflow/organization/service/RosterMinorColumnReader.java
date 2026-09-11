@@ -39,6 +39,11 @@ import java.util.regex.Pattern;
  * Cùng bộ giá trị có/không, cùng luật từ chối ô gõ lạ, và ĐỘC LẬP với ô C1: một phiếu có thể đánh C1
  * mà bỏ C2 (hoặc ngược lại), nên hai ô không suy ra nhau.
  *
+ * <p><b>Cột {@code aiProcessingConfirmed} (C3 của phiếu {@code 2026-10})</b> là mục thứ ba của cùng
+ * phiếu giấy: người giám hộ đồng ý cho AI chấm bài làm của học viên (scope {@code AI_PROCESSING}).
+ * D3 (owner chốt 10/09/2026) làm phạm vi này có hiệu lực thật — thiếu nó thì bài viết của học viên
+ * vị thành niên phải giáo viên chấm tay. Cùng bộ giá trị có/không và ĐỘC LẬP với C1/C2.
+ *
  * <p><b>{@code guardianEmail} không được trùng email học viên.</b> Email giám hộ là địa chỉ nhận phiếu
  * đánh giá và là kênh liên lạc khi cần người lớn; điền email của chính em ấy là biến "đồng ý của
  * người giám hộ" thành đồng ý của trẻ tự cấp cho mình. Từ chối ở đây cho câu có số dòng; đường API
@@ -81,10 +86,11 @@ public class RosterMinorColumnReader {
             "MOTHER, FATHER, LEGAL_GUARDIAN, OTHER (hoặc mẹ, cha/bố, người giám hộ, khác)";
 
     /**
-     * Giá trị "CÓ" của một ô có/không ({@code consentConfirmed}, {@code reportSharingConfirmed}), so
+     * Giá trị "CÓ" của một ô có/không ({@code consentConfirmed}, {@code reportSharingConfirmed},
+     * {@code aiProcessingConfirmed}), so
      * khớp sau {@link RosterColumnLayout#normalize} (bỏ dấu, hạ chữ thường):
-     * {@code true/yes/y/1/x/có/đã thu/đã xác nhận/đồng ý…}. Hai cột dùng CHUNG một bộ: thư ký điền
-     * hai ô cạnh nhau trên cùng một tệp, hai bộ giá trị khác nhau là mời gõ sai.
+     * {@code true/yes/y/1/x/có/đã thu/đã xác nhận/đồng ý…}. Ba cột dùng CHUNG một bộ: thư ký điền
+     * các ô cạnh nhau trên cùng một tệp, hai bộ giá trị khác nhau là mời gõ sai.
      */
     private static final Set<String> CONSENT_YES = Set.of(
             "true", "yes", "y", "1", "x", "v", "ok", "co", "da", "dathu", "daco", "daxacnhan",
@@ -111,17 +117,21 @@ public class RosterMinorColumnReader {
      * @param reportSharingConfirmed trung tâm xác nhận đã có mục C2 của phiếu: người giám hộ đồng ý
      *                               nhận phiếu đánh giá ({@code reportSharingConfirmed} = có). Cùng ba
      *                               nghĩa của {@code false} như trên
+     * @param aiProcessingConfirmed  trung tâm xác nhận đã có mục C3 của phiếu: người giám hộ đồng ý
+     *                               cho AI chấm bài làm ({@code aiProcessingConfirmed} = có). Cùng ba
+     *                               nghĩa của {@code false} như trên
      */
     public record Result(LocalDate birthDate, GuardianDraft guardian, boolean consentConfirmed,
-                         boolean reportSharingConfirmed, String error) {
+                         boolean reportSharingConfirmed, boolean aiProcessingConfirmed, String error) {
 
         static Result rejected(String error) {
-            return new Result(null, null, false, false, error);
+            return new Result(null, null, false, false, false, error);
         }
 
-        static Result of(LocalDate birthDate, GuardianDraft guardian,
-                         boolean consentConfirmed, boolean reportSharingConfirmed) {
-            return new Result(birthDate, guardian, consentConfirmed, reportSharingConfirmed, null);
+        static Result of(LocalDate birthDate, GuardianDraft guardian, boolean consentConfirmed,
+                         boolean reportSharingConfirmed, boolean aiProcessingConfirmed) {
+            return new Result(birthDate, guardian, consentConfirmed, reportSharingConfirmed,
+                    aiProcessingConfirmed, null);
         }
 
         public boolean rejected() {
@@ -130,7 +140,7 @@ public class RosterMinorColumnReader {
     }
 
     /** Dòng của tệp không khai cột ngày sinh lẫn cột đồng ý — không đọc gì, không từ chối gì. */
-    public static final Result NOTHING = Result.of(null, null, false, false);
+    public static final Result NOTHING = Result.of(null, null, false, false, false);
 
     /** Một ô có/không đã đọc: {@code error != null} khi ô gõ lạ. Ô trống là {@link #NO}. */
     private record YesNo(boolean value, String error) {
@@ -176,8 +186,13 @@ public class RosterMinorColumnReader {
         if (reportSharing.error() != null) {
             return Result.rejected(reportSharing.error());
         }
+        YesNo aiProcessing = readYesNo(cols, layout.aiProcessingConfirmed(), "aiProcessingConfirmed", where);
+        if (aiProcessing.error() != null) {
+            return Result.rejected(aiProcessing.error());
+        }
         boolean consentConfirmed = consent.value();
         boolean reportSharingConfirmed = reportSharing.value();
+        boolean aiProcessingConfirmed = aiProcessing.value();
 
         String guardianName = value(cols, layout.guardianName());
         String guardianPhone = value(cols, layout.guardianPhone());
@@ -202,7 +217,8 @@ public class RosterMinorColumnReader {
                 return Result.rejected(where + "có guardianRelationship nhưng thiếu guardianName "
                         + "và guardianPhone/guardianEmail.");
             }
-            return Result.of(birthDate, null, consentConfirmed, reportSharingConfirmed);
+            return Result.of(birthDate, null, consentConfirmed, reportSharingConfirmed,
+                    aiProcessingConfirmed);
         }
         if (guardianName.isEmpty()) {
             return Result.rejected(where + "có guardianPhone/guardianEmail nhưng thiếu guardianName.");
@@ -257,7 +273,8 @@ public class RosterMinorColumnReader {
                         guardianEmail.isEmpty() ? null : guardianEmail,
                         true),
                 consentConfirmed,
-                reportSharingConfirmed);
+                reportSharingConfirmed,
+                aiProcessingConfirmed);
     }
 
     /**

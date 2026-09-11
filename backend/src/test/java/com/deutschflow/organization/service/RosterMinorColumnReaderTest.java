@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code consentConfirmed} nhưng ĐỘC LẬP với nó; ô gõ lạ bị từ chối với câu mang TÊN CỘT; và
  * {@code guardianEmail} trùng email học viên (không phân biệt hoa thường) bị từ chối ngay tại dòng.
  */
-@DisplayName("RosterMinorColumnReader — ô reportSharingConfirmed (R6) và chốt guardianEmail ≠ email học viên")
+@DisplayName("RosterMinorColumnReader — ô reportSharingConfirmed (R6), ô aiProcessingConfirmed (C3) và chốt guardianEmail ≠ email học viên")
 class RosterMinorColumnReaderTest {
 
     private final RosterMinorColumnReader reader = new RosterMinorColumnReader(new MinorPolicy(16, 18));
@@ -133,5 +133,58 @@ class RosterMinorColumnReaderTest {
 
         assertThat(r.rejected()).isTrue();
         assertThat(r.error()).contains("reportSharingConfirmed").doesNotContain("guardianRelationship");
+    }
+
+    @Test
+    @DisplayName("C3: ba ô đồng ý đọc ĐỘC LẬP — chỉ đánh aiProcessingConfirmed thì hai ô kia vẫn false")
+    void aiProcessingReadIndependently() {
+        RosterColumnLayout l = layout("email", "consentConfirmed", "reportSharingConfirmed", "aiProcessingConfirmed");
+
+        Result onlyAi = reader.read(new String[]{"an@x.com", "", "", "x"}, l, 2, "an@x.com");
+        assertThat(onlyAi.rejected()).isFalse();
+        assertThat(onlyAi.aiProcessingConfirmed()).isTrue();
+        assertThat(onlyAi.consentConfirmed()).isFalse();
+        assertThat(onlyAi.reportSharingConfirmed()).isFalse();
+
+        // Và ngược lại: phiếu đánh C1+C2 mà bỏ C3 KHÔNG suy ra đồng ý chấm bài AI — đó là chỗ mà
+        // đoán bừa sẽ gửi bài của một đứa trẻ ra nhà cung cấp AI mà không ai ký.
+        Result noAi = reader.read(new String[]{"an@x.com", "x", "x", ""}, l, 3, "an@x.com");
+        assertThat(noAi.aiProcessingConfirmed()).isFalse();
+        assertThat(noAi.consentConfirmed()).isTrue();
+        assertThat(noAi.reportSharingConfirmed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("C3: tệp chỉ có email,aiProcessingConfirmed ⇒ vẫn đọc (không rơi về NOTHING)")
+    void aiProcessingAloneIsRead() {
+        RosterColumnLayout l = layout("email", "aiProcessingConfirmed");
+
+        Result r = reader.read(new String[]{"an@x.com", "đã thu"}, l, 2, "an@x.com");
+
+        assertThat(r).isNotSameAs(RosterMinorColumnReader.NOTHING);
+        assertThat(r.rejected()).isFalse();
+        assertThat(r.aiProcessingConfirmed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("C3: ô gõ lạ ⇒ từ chối, câu mang TÊN CỘT aiProcessingConfirmed chứ không phải cột bên cạnh")
+    void aiProcessingUnknownValueRejectedNamingColumn() {
+        RosterColumnLayout l = layout("email", "reportSharingConfirmed", "aiProcessingConfirmed");
+
+        Result r = reader.read(new String[]{"an@x.com", "x", "chờ bố mẹ"}, l, 7, "an@x.com");
+
+        assertThat(r.rejected()).isTrue();
+        assertThat(r.error()).startsWith("Dòng 7 (an@x.com): ")
+                .contains("aiProcessingConfirmed").contains("chờ bố mẹ")
+                .doesNotContain("reportSharingConfirmed \"");
+    }
+
+    @Test
+    @DisplayName("C3: tiêu đề tiếng Việt \"Đồng ý chấm bằng AI\" khớp cột — thư ký trung tâm đặt tên cột bằng tiếng Việt")
+    void aiProcessingVietnameseHeaderAlias() {
+        RosterColumnLayout l = layout("email", "Đồng ý chấm bằng AI");
+
+        assertThat(l.aiProcessingConfirmed()).isEqualTo(1);
+        assertThat(reader.read(new String[]{"an@x.com", "x"}, l, 2, "an@x.com").aiProcessingConfirmed()).isTrue();
     }
 }

@@ -91,6 +91,12 @@ export interface RosterRow {
    * có/không với `consentConfirmed` ở máy chủ, nhưng ĐỘC LẬP: đánh C2 không suy ra C1 và ngược lại.
    */
   reportSharingConfirmed?: string
+  /**
+   * Ô "đã xác nhận đồng ý cho AI chấm bài làm" NGUYÊN VĂN (C3 của phiếu giấy `2026-10`, scope
+   * `AI_PROCESSING`). Cùng bộ có/không, ĐỘC LẬP với hai ô kia: thiếu ô này thì bài viết của học viên
+   * vị thành niên do giáo viên chấm tay, không phải mất tính năng.
+   */
+  aiProcessingConfirmed?: string
   /** Số dòng trong file gốc (1-based, tính cả header/dòng trống) — để người dùng dò lại trong Excel. */
   line: number
 }
@@ -108,6 +114,8 @@ export interface RosterParse {
   hasConsent: boolean
   /** Header có khai cột `reportSharingConfirmed` (hoặc bí danh) không — cũng bật chế độ đọc theo tên (R6). */
   hasReportSharing: boolean
+  /** Header có khai cột `aiProcessingConfirmed` (hoặc bí danh) không — cũng bật chế độ đọc theo tên (C3). */
+  hasAiProcessing: boolean
   /** Số dòng có ngày sinh SAI ĐỊNH DẠNG (không phải YYYY-MM-DD). Ô trống KHÔNG tính là sai. */
   invalidBirthDates: number
 }
@@ -261,9 +269,15 @@ const REPORT_SHARING_KEYS = [
   'chiasephieu', 'dongychiasephieu', 'chiasephieudanhgia', 'dongychiasephieudanhgia',
   'chiasephieuvoigiamho', 'guiphieuphuhuynh',
 ] as const
+/** Chép `RosterColumnLayout.AI_PROCESSING_CONFIRMED_ALIASES` — không bí danh nào trùng hai bộ trên. */
+const AI_PROCESSING_KEYS = [
+  'aiprocessingconfirmed', 'aiprocessing', 'aigrading', 'aiprocessingconsent',
+  'chambangai', 'dongychambangai', 'chamaibaiviet', 'dongychamai', 'aichambai',
+] as const
 const GUARDIAN_KEYS = ['guardianname', 'guardianphone', 'guardianrelationship', ...GUARDIAN_EMAIL_KEYS] as const
 const KNOWN_KEYS = [
   'email', 'displayname', 'phone', BIRTH_DATE_KEY, ...GUARDIAN_KEYS, ...CONSENT_KEYS, ...REPORT_SHARING_KEYS,
+  ...AI_PROCESSING_KEYS,
 ] as const
 
 /** Vị trí của bí danh ĐẦU TIÊN khớp trong header đã chuẩn hoá, -1 nếu không có — chép `indexOfAny` máy chủ. */
@@ -307,8 +321,10 @@ export function parseRosterCsv(text: string): RosterParse {
   const hasConsent = consentAt >= 0
   const reportSharingAt = indexOfAny(headerCols, REPORT_SHARING_KEYS)
   const hasReportSharing = reportSharingAt >= 0
+  const aiProcessingAt = indexOfAny(headerCols, AI_PROCESSING_KEYS)
+  const hasAiProcessing = aiProcessingAt >= 0
   // Chế độ đọc theo tên — chép `RosterColumnLayout.readsMinorColumns` của máy chủ.
-  const minorMode = hasBirthDate || hasConsent || hasReportSharing
+  const minorMode = hasBirthDate || hasConsent || hasReportSharing || hasAiProcessing
   // Cột giám hộ chỉ được đọc KHI tệp ở chế độ mới, vì backend `fromHeader` trả thẳng `legacy()`
   // khi thiếu cả `birthDate` lẫn `consentConfirmed` — lúc đó mọi vị trí giám hộ là -1. Bỏ điều kiện
   // này thì tệp có `guardianName` mà không có hai cột kia sẽ hiện cột giám hộ ở xem trước trong khi
@@ -374,10 +390,15 @@ export function parseRosterCsv(text: string): RosterParse {
     if (consentConfirmed !== undefined) row.consentConfirmed = consentConfirmed
     const reportSharingConfirmed = cellAt(cols, reportSharingAt)
     if (reportSharingConfirmed !== undefined) row.reportSharingConfirmed = reportSharingConfirmed
+    const aiProcessingConfirmed = cellAt(cols, aiProcessingAt)
+    if (aiProcessingConfirmed !== undefined) row.aiProcessingConfirmed = aiProcessingConfirmed
     rows.push(row)
   })
 
-  return { hasHeader, rows, invalidEmails, hasBirthDate, hasGuardian, hasConsent, hasReportSharing, invalidBirthDates }
+  return {
+    hasHeader, rows, invalidEmails, hasBirthDate, hasGuardian, hasConsent, hasReportSharing,
+    hasAiProcessing, invalidBirthDates,
+  }
 }
 
 /**
@@ -389,14 +410,15 @@ export function parseRosterCsv(text: string): RosterParse {
  * viên chưa thành niên nên có sẵn người giám hộ — thiếu thì máy chủ trả lỗi đúng dòng đó — ô
  * `consentConfirmed` = `x` là "trung tâm đã cầm phiếu giấy ký của người giám hộ" (ghi một dòng đồng ý
  * ghi âm, phương thức PAPER), ô `reportSharingConfirmed` = `x` là mục C2 của cùng phiếu (đồng ý nhận
- * phiếu đánh giá). Để trống = chưa ghi nhận gì, học viên vẫn vào nhưng phần nói còn khoá / phiếu
- * đánh giá chưa gửi được về gia đình.
+ * phiếu đánh giá), ô `aiProcessingConfirmed` = `x` là mục C3 (đồng ý cho AI chấm bài làm). Để trống =
+ * chưa ghi nhận gì, học viên vẫn vào nhưng phần nói còn khoá / phiếu đánh giá chưa gửi được về gia
+ * đình / bài viết do giáo viên chấm tay.
  */
 export function rosterTemplateCsv(): string {
   return '\uFEFF' + [
-    'email,displayName,phone,birthDate,guardianName,guardianRelationship,guardianPhone,guardianEmail,consentConfirmed,reportSharingConfirmed',
-    'hocvien@example.com,Nguyễn Văn A,0912345678,1999-04-21,,,,,,',
-    'hocvien2@example.com,"Trần, Bình",,2011-09-15,Trần Thị C,MOTHER,0987654321,tran.c@example.com,x,x',
+    'email,displayName,phone,birthDate,guardianName,guardianRelationship,guardianPhone,guardianEmail,consentConfirmed,reportSharingConfirmed,aiProcessingConfirmed',
+    'hocvien@example.com,Nguyễn Văn A,0912345678,1999-04-21,,,,,,,',
+    'hocvien2@example.com,"Trần, Bình",,2011-09-15,Trần Thị C,MOTHER,0987654321,tran.c@example.com,x,x,x',
   ].join('\r\n') + '\r\n'
 }
 
