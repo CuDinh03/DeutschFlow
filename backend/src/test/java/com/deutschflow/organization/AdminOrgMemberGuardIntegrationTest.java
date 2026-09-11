@@ -150,6 +150,16 @@ class AdminOrgMemberGuardIntegrationTest extends AbstractPostgresIntegrationTest
                 """, Long.class, String.valueOf(org.getId()), admin.getId());
 
         assertThat(traces).isEqualTo(1L);
+
+        // 🔴 org_id phải được đóng dấu: sổ hoạt động của trung tâm (GET /api/org/audit) lọc theo cột
+        // này, nên vết NULL nằm trong bảng mà giám đốc không bao giờ thấy — đúng người cần thấy nhất.
+        Long stampedOrg = jdbcTemplate.queryForObject("""
+                SELECT org_id FROM audit_logs
+                 WHERE event_name = 'admin.org.admin_membership.blocked'
+                   AND target_id = ?
+                 ORDER BY id DESC LIMIT 1
+                """, Long.class, String.valueOf(org.getId()));
+        assertThat(stampedOrg).isEqualTo(org.getId());
     }
 
     @Test
