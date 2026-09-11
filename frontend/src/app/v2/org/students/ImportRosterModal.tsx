@@ -168,6 +168,7 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
                       {parsed.hasGuardian && <th className="px-3 py-1.5 font-semibold">{t('colGuardian')}</th>}
                       {parsed.hasConsent && <th className="px-3 py-1.5 font-semibold">{t('colConsent')}</th>}
                       {parsed.hasReportSharing && <th className="px-3 py-1.5 font-semibold">{t('colReportSharing')}</th>}
+                      {parsed.hasAiProcessing && <th className="px-3 py-1.5 font-semibold">{t('colAiProcessing')}</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -195,6 +196,9 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
                         )}
                         {parsed.hasReportSharing && (
                           <td className="px-3 py-1.5 font-mono text-ga-muted" data-testid="roster-report-sharing-cell">{r.reportSharingConfirmed || '—'}</td>
+                        )}
+                        {parsed.hasAiProcessing && (
+                          <td className="px-3 py-1.5 font-mono text-ga-muted" data-testid="roster-ai-processing-cell">{r.aiProcessingConfirmed || '—'}</td>
                         )}
                       </tr>
                     ))}
@@ -230,6 +234,7 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
             <li>{t('minorNote')}</li>
             <li>{t('consentNote')}</li>
             <li>{t('reportSharingNote')}</li>
+            <li>{t('aiProcessingNote')}</li>
             <li>{t('planNote')}</li>
           </ul>
         </div>

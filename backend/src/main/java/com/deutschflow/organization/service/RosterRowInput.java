@@ -32,6 +32,9 @@ import java.time.LocalDate;
  *                               đánh giá (cột {@code reportSharingConfirmed}, R6 — scope
  *                               {@code GUARDIAN_REPORT_SHARING}). Cùng quy tắc ghi/idempotent như trên,
  *                               độc lập với {@code consentConfirmed}
+ * @param aiProcessingConfirmed  trung tâm xác nhận mục C3 của cùng phiếu: người giám hộ đồng ý cho AI chấm
+ *                               bài làm (cột {@code aiProcessingConfirmed} — scope {@code AI_PROCESSING},
+ *                               D3). Cùng quy tắc ghi/idempotent, độc lập với hai ô kia
  */
 public record RosterRowInput(
         String email,
@@ -39,6 +42,7 @@ public record RosterRowInput(
         LocalDate birthDate,
         GuardianDraft guardian,
         boolean consentConfirmed,
-        boolean reportSharingConfirmed
+        boolean reportSharingConfirmed,
+        boolean aiProcessingConfirmed
 ) {
 }

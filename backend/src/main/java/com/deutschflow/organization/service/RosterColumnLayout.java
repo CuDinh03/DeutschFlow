@@ -43,6 +43,9 @@ import java.util.Set;
  * @param consentConfirmed       vị trí cột "đã xác nhận đồng ý" ghi âm (D1), {@code -1} nếu tệp không có
  * @param reportSharingConfirmed vị trí cột "đã xác nhận đồng ý chia sẻ phiếu đánh giá với người giám
  *                               hộ" (R6, scope {@code GUARDIAN_REPORT_SHARING}), {@code -1} nếu tệp không có
+ * @param aiProcessingConfirmed  vị trí cột "đã xác nhận đồng ý cho AI chấm bài làm" (C3 của phiếu
+ *                               giấy {@code 2026-10}, scope {@code AI_PROCESSING}), {@code -1} nếu
+ *                               tệp không có
  */
 public record RosterColumnLayout(
         int email,
@@ -53,7 +56,8 @@ public record RosterColumnLayout(
         int guardianRelationship,
         int guardianEmail,
         int consentConfirmed,
-        int reportSharingConfirmed
+        int reportSharingConfirmed,
+        int aiProcessingConfirmed
 ) {
 
     private static final String COL_EMAIL = "email";
@@ -66,6 +70,7 @@ public record RosterColumnLayout(
     private static final String COL_GUARDIAN_EMAIL = "guardianemail";
     private static final String COL_CONSENT_CONFIRMED = "consentconfirmed";
     private static final String COL_REPORT_SHARING_CONFIRMED = "reportsharingconfirmed";
+    private static final String COL_AI_PROCESSING_CONFIRMED = "aiprocessingconfirmed";
 
     /**
      * Bí danh của cột email người giám hộ — tên chính đứng đầu. Người đặt tên cột là thư ký trung
@@ -93,6 +98,20 @@ public record RosterColumnLayout(
             "chiasephieu", "dongychiasephieu", "chiasephieudanhgia", "dongychiasephieudanhgia",
             "chiasephieuvoigiamho", "guiphieuphuhuynh");
 
+    /**
+     * Bí danh của cột xác nhận đồng ý CHẤM BÀI BẰNG AI (C3 của phiếu giấy {@code 2026-10}) — tên
+     * chính đứng đầu. Cùng luật đặt tên với hai cột trên: không bí danh nào trùng hay là cả chuỗi
+     * của một bí danh cột khác, vì so khớp là so CẢ chuỗi đã gấp dấu.
+     *
+     * <p>Cột này có mặt vì D3 (owner chốt 10/09/2026) làm phạm vi {@code AI_PROCESSING} có hiệu lực
+     * thật: học viên vị thành niên của trung tâm không có đồng ý này thì bài viết phải giáo viên
+     * chấm tay. Không có đường nhập hàng loạt thì trung tâm thu được phiếu giấy cũng không ghi nhận
+     * nổi cho cả lớp.
+     */
+    static final List<String> AI_PROCESSING_CONFIRMED_ALIASES = List.of(
+            COL_AI_PROCESSING_CONFIRMED, "aiprocessing", "aigrading", "aiprocessingconsent",
+            "chambangai", "dongychambangai", "chamaibaiviet", "dongychamai", "aichambai");
+
     /** Mọi tên cột hệ thống hiểu — dùng để biết vị trí nào đã "có chủ" trước khi lùi về mặc định. */
     private static final List<String> KNOWN;
 
@@ -103,6 +122,7 @@ public record RosterColumnLayout(
         known.addAll(GUARDIAN_EMAIL_ALIASES);
         known.addAll(CONSENT_CONFIRMED_ALIASES);
         known.addAll(REPORT_SHARING_CONFIRMED_ALIASES);
+        known.addAll(AI_PROCESSING_CONFIRMED_ALIASES);
         KNOWN = List.copyOf(known);
     }
 
@@ -111,12 +131,12 @@ public record RosterColumnLayout(
 
     /**
      * Bố cục của tệp KHÔNG có dòng tiêu đề, hoặc có tiêu đề nhưng không có cột {@code birthDate},
-     * {@code consentConfirmed} lẫn {@code reportSharingConfirmed}: {@code email,displayName[,phone]}
-     * như trước.
+     * {@code consentConfirmed}, {@code reportSharingConfirmed} lẫn {@code aiProcessingConfirmed}:
+     * {@code email,displayName[,phone]} như trước.
      */
     public static RosterColumnLayout legacy() {
         return new RosterColumnLayout(DEFAULT_EMAIL_INDEX, DEFAULT_DISPLAY_NAME_INDEX,
-                -1, -1, -1, -1, -1, -1, -1);
+                -1, -1, -1, -1, -1, -1, -1, -1);
     }
 
     /**
@@ -131,15 +151,17 @@ public record RosterColumnLayout(
     }
 
     /**
-     * Giải bố cục từ dòng tiêu đề. Không có cột {@code birthDate}, {@code consentConfirmed} lẫn
-     * {@code reportSharingConfirmed} ⇒ {@link #legacy()}, tức tệp cũ của trung tâm chạy đúng như chưa
-     * từng có PR này.
+     * Giải bố cục từ dòng tiêu đề. Không có cột {@code birthDate}, {@code consentConfirmed},
+     * {@code reportSharingConfirmed} lẫn {@code aiProcessingConfirmed} ⇒ {@link #legacy()}, tức tệp
+     * cũ của trung tâm chạy đúng như chưa từng có PR này.
      */
     public static RosterColumnLayout fromHeader(String[] headerCols) {
         int birthDate = indexOf(headerCols, COL_BIRTH_DATE);
         int consentConfirmed = indexOfAny(headerCols, CONSENT_CONFIRMED_ALIASES);
         int reportSharingConfirmed = indexOfAny(headerCols, REPORT_SHARING_CONFIRMED_ALIASES);
-        if (birthDate < 0 && consentConfirmed < 0 && reportSharingConfirmed < 0) {
+        int aiProcessingConfirmed = indexOfAny(headerCols, AI_PROCESSING_CONFIRMED_ALIASES);
+        if (birthDate < 0 && consentConfirmed < 0 && reportSharingConfirmed < 0
+                && aiProcessingConfirmed < 0) {
             return legacy();
         }
         Set<Integer> claimed = claimedIndexes(headerCols);
@@ -152,15 +174,17 @@ public record RosterColumnLayout(
                 indexOf(headerCols, COL_GUARDIAN_RELATIONSHIP),
                 indexOfAny(headerCols, GUARDIAN_EMAIL_ALIASES),
                 consentConfirmed,
-                reportSharingConfirmed);
+                reportSharingConfirmed,
+                aiProcessingConfirmed);
     }
 
     /**
-     * Đúng khi tệp khai cột ngày sinh hoặc một trong hai cột xác nhận đồng ý — chỉ khi đó mới đọc
+     * Đúng khi tệp khai cột ngày sinh hoặc một trong ba cột xác nhận đồng ý — chỉ khi đó mới đọc
      * phần dữ liệu chưa thành niên (kể cả các cột người giám hộ).
      */
     public boolean readsMinorColumns() {
-        return birthDate >= 0 || consentConfirmed >= 0 || reportSharingConfirmed >= 0;
+        return birthDate >= 0 || consentConfirmed >= 0 || reportSharingConfirmed >= 0
+                || aiProcessingConfirmed >= 0;
     }
 
     private static Set<Integer> claimedIndexes(String[] headerCols) {

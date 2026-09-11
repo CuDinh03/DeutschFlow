@@ -417,6 +417,45 @@ class OrgGuardianConsentControllerIntegrationTest extends AbstractPostgresIntegr
             assertThat(body).contains("Dòng 2").contains("guardianEmail").contains("trùng email của học viên");
             assertThat(userRepository.findByEmailIgnoreCase(email)).as("dòng bị từ chối không chạm users").isEmpty();
         }
+
+        @Test
+        @DisplayName("🔴 C3: cột aiProcessingConfirmed ghi scope AI_PROCESSING đúng một lần, không kéo theo C1/C2")
+        void aiProcessingColumn_recordsScopeOnce_independentOfOtherScopes() throws Exception {
+            Organization org = org();
+            User owner = member(org, "OWNER", User.Role.OWNER);
+            String email = "csv-" + UUID.randomUUID() + "@test.local";
+            String csv = "email,displayName,birthDate,guardianName,guardianPhone,Đồng ý chấm bằng AI\n"
+                    + email + ",Em Bé," + LocalDate.now().minusYears(17).minusDays(1)
+                    + ",Trần Thị Bình,0987654321,x\n";
+
+            importCsv(owner, csv).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.created").value(1))
+                    .andExpect(jsonPath("$.failed").value(0));
+            User student = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+
+            // Chỉ C3 được đánh ⇒ chỉ MỘT dòng đồng ý. Ghi âm và chia sẻ phiếu vẫn chưa có gì:
+            // suy từ ô này sang ô khác là mở khoá thứ người giám hộ chưa ký.
+            List<Map<String, Object>> consents = jdbcTemplate.queryForList(
+                    "SELECT scope, action, method, note, guardian_id FROM student_consents "
+                            + "WHERE student_user_id = ? ORDER BY scope", student.getId());
+            assertThat(consents).extracting(c -> c.get("scope")).containsExactly("AI_PROCESSING");
+            assertThat(consents.get(0)).containsEntry("action", "GRANTED").containsEntry("method", "PAPER")
+                    .containsEntry("note", "roster-import");
+            assertThat(consents.get(0).get("guardian_id")).as("nối với người giám hộ chính vừa thêm").isNotNull();
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT metadata_json->>'aiProcessingConsentsRecorded' FROM audit_logs "
+                            + "WHERE event_name = 'org_member_imported' AND org_id = ? ORDER BY id DESC LIMIT 1",
+                    String.class, org.getId())).isEqualTo("1");
+
+            // Nhập lại tệp hai cột sau khi thu phiếu: đã GRANTED ⇒ không thêm dòng nào.
+            importCsv(owner, "email,aiProcessingConfirmed\n" + email + ",x\n")
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.linked").value(1))
+                    .andExpect(jsonPath("$.failed").value(0));
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM student_consents WHERE student_user_id = ?", Long.class, student.getId()))
+                    .as("nhập lại không phình sổ chỉ-ghi-thêm").isEqualTo(1L);
+        }
     }
 
     // ── 4. Email giám hộ ≠ email học viên trên endpoint giám hộ; scope chia sẻ phiếu qua API ──

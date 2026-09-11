@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
  * <p><b>Cột của tệp.</b> Tối thiểu {@code email,displayName[,phone]} như từ đầu. Tệp có dòng tiêu đề
  * chứa {@code birthDate} (hoặc {@code consentConfirmed} / {@code reportSharingConfirmed}) thì đọc thêm
  * {@code birthDate[,guardianName,guardianPhone,guardianRelationship,guardianEmail,consentConfirmed,
- * reportSharingConfirmed]} — xem {@link RosterColumnLayout} về việc vì sao cột mới là TÙY CHỌN và tệp
+ * reportSharingConfirmed,aiProcessingConfirmed]} — xem {@link RosterColumnLayout} về việc vì sao cột mới là TÙY CHỌN và tệp
  * cũ của trung tâm không được vỡ. {@code consentConfirmed} (D1, owner chốt 10/09/2026) là đường nhập
  * HÀNG LOẠT phiếu đồng ý giấy cho phạm vi ghi âm (mục C1); {@code reportSharingConfirmed} (R6) là mục
  * C2 của cùng phiếu — đồng ý chia sẻ phiếu đánh giá với người giám hộ ({@code GUARDIAN_REPORT_SHARING});
@@ -73,10 +73,11 @@ public class OrgRosterService {
     /**
      * Imports students from raw CSV text. Columns:
      * {@code email,displayName[,phone][,birthDate[,guardianName,guardianPhone,guardianRelationship,
-     * guardianEmail,consentConfirmed,reportSharingConfirmed]]} (comma-separated). The first non-empty
+     * guardianEmail,consentConfirmed,reportSharingConfirmed,aiProcessingConfirmed]]} (comma-separated). The first non-empty
      * line is treated as a header only when its first column equals {@code "email"}; the minor columns
-     * are read only when that header names {@code birthDate}, {@code consentConfirmed} or
-     * {@code reportSharingConfirmed}, so an existing three-column file behaves exactly as before.
+     * are read only when that header names {@code birthDate}, {@code consentConfirmed},
+     * {@code reportSharingConfirmed} or {@code aiProcessingConfirmed}, so an existing three-column
+     * file behaves exactly as before.
      *
      * @param classIdOrNull when non-null, every imported student is also enrolled into this class
      * @param actor         người bấm import — vết tổng kết mang danh tính này
@@ -107,6 +108,7 @@ public class OrgRosterService {
         int guardiansRecorded = 0;
         int consentsRecorded = 0;
         int reportSharingConsentsRecorded = 0;
+        int aiProcessingConsentsRecorded = 0;
         int rejectedByOtherOrg = 0;
         boolean seatLimitHit = false;
 
@@ -165,7 +167,7 @@ public class OrgRosterService {
                         org,
                         new RosterRowInput(email, col(cols, layout.displayName()),
                                 minorData.birthDate(), minorData.guardian(), minorData.consentConfirmed(),
-                                minorData.reportSharingConfirmed()),
+                                minorData.reportSharingConfirmed(), minorData.aiProcessingConfirmed()),
                         classIdOrNull,
                         actor);
 
@@ -216,6 +218,9 @@ public class OrgRosterService {
                 if (outcome.reportSharingRecorded()) {
                     reportSharingConsentsRecorded++;
                 }
+                if (outcome.aiProcessingRecorded()) {
+                    aiProcessingConsentsRecorded++;
+                }
             } catch (Exception ex) {
                 // Safe to swallow: the row ran in its own REQUIRES_NEW transaction, which has already
                 // rolled back and completed before we get here. Nothing this row touched survives,
@@ -255,6 +260,7 @@ public class OrgRosterService {
         meta.put("guardiansRecorded", guardiansRecorded);
         meta.put("consentsRecorded", consentsRecorded);
         meta.put("reportSharingConsentsRecorded", reportSharingConsentsRecorded);
+        meta.put("aiProcessingConsentsRecorded", aiProcessingConsentsRecorded);
         meta.put("rejectedByOtherOrg", rejectedByOtherOrg);
         // DEC-13: orgId là tham số của hàm — trung tâm nhận roster. Đường lùi suy-từ-actor không
         // cứu được ca admin nền tảng import hộ (actor không thuộc trung tâm nào).

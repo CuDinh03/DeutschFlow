@@ -90,26 +90,30 @@ public class OrgRosterRowImporter {
      *                              {@code false} khi ô không đánh dấu, hoặc học viên đã đang {@code GRANTED}
      * @param reportSharingRecorded một dòng đồng ý {@code GUARDIAN_REPORT_SHARING/GRANTED/PAPER} (R6) đã
      *                              được ghi thêm; cùng hai nghĩa của {@code false} như trên
+     * @param aiProcessingRecorded  một dòng đồng ý {@code AI_PROCESSING/GRANTED/PAPER} (C3, D3) đã được
+     *                              ghi thêm; cùng hai nghĩa của {@code false} như trên
      */
     public record RowOutcome(boolean created, boolean linked, boolean enrolled, boolean seatLimited,
                              String otherOrgName,
                              boolean birthDateRecorded, boolean guardianRecorded, boolean consentRecorded,
-                             boolean reportSharingRecorded) {
+                             boolean reportSharingRecorded, boolean aiProcessingRecorded) {
 
         static RowOutcome rejectedBySeatLimit() {
-            return new RowOutcome(false, false, false, true, null, false, false, false, false);
+            return new RowOutcome(false, false, false, true, null, false, false, false, false, false);
         }
 
         static RowOutcome rejectedByOtherOrg(String otherOrgName) {
             return new RowOutcome(false, false, false, false, otherOrgName == null ? "" : otherOrgName,
-                    false, false, false, false);
+                    false, false, false, false, false);
         }
 
         static RowOutcome imported(boolean created, boolean enrolled,
                                    boolean birthDateRecorded, boolean guardianRecorded,
-                                   boolean consentRecorded, boolean reportSharingRecorded) {
+                                   boolean consentRecorded, boolean reportSharingRecorded,
+                                   boolean aiProcessingRecorded) {
             return new RowOutcome(created, !created, enrolled, false, null,
-                    birthDateRecorded, guardianRecorded, consentRecorded, reportSharingRecorded);
+                    birthDateRecorded, guardianRecorded, consentRecorded, reportSharingRecorded,
+                    aiProcessingRecorded);
         }
 
         /** Dòng bị chặn vì học viên đang thuộc trung tâm khác (F4). */
@@ -212,6 +216,7 @@ public class OrgRosterRowImporter {
         boolean guardianRecorded = recordGuardian(row, user, orgId, actor);
         boolean consentRecorded = recordConsent(row, user, orgId, actor);
         boolean reportSharingRecorded = recordReportSharingConsent(row, user, orgId, actor);
+        boolean aiProcessingRecorded = recordAiProcessingConsent(row, user, orgId, actor);
 
         boolean enrolled = false;
         if (classIdOrNull != null) {
@@ -227,7 +232,7 @@ public class OrgRosterRowImporter {
             }
         }
         return RowOutcome.imported(created, enrolled, birthDateRecorded, guardianRecorded,
-                consentRecorded, reportSharingRecorded);
+                consentRecorded, reportSharingRecorded, aiProcessingRecorded);
     }
 
     /**
@@ -283,6 +288,17 @@ public class OrgRosterRowImporter {
     private boolean recordReportSharingConsent(RosterRowInput row, User user, Long orgId, AuditActor actor) {
         return row.reportSharingConfirmed()
                 && recordPaperConsent(user, orgId, StudentConsent.Scope.GUARDIAN_REPORT_SHARING, actor);
+    }
+
+    /**
+     * Cột {@code aiProcessingConfirmed} (C3 của phiếu giấy, D3): ghi MỘT dòng
+     * {@code AI_PROCESSING / GRANTED / PAPER} — người giám hộ đồng ý cho AI chấm bài làm của học viên.
+     * Cổng chấm bài AI ({@code MinorGate}) đọc scope này cho học viên vị thành niên của trung tâm;
+     * không có dòng này thì bài viết phải giáo viên chấm tay. Độc lập với C1/C2.
+     */
+    private boolean recordAiProcessingConsent(RosterRowInput row, User user, Long orgId, AuditActor actor) {
+        return row.aiProcessingConfirmed()
+                && recordPaperConsent(user, orgId, StudentConsent.Scope.AI_PROCESSING, actor);
     }
 
     /**
