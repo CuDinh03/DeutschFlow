@@ -128,7 +128,14 @@
       ],
       "expo-asset",
       "expo-iap",
-      "@sentry/react-native"
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "cu-2z",
+          "project": "deutschflow-mobile",
+          "url": "https://sentry.io/"
+        }
+      ]
     ],
     "extra": {
       "sentryDsn": "https://db78a5780def4f168ee8b6a0e1f26632@o4512015085207552.ingest.us.sentry.io/4512015099428864",
