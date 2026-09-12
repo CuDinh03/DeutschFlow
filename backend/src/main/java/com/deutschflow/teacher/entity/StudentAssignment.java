@@ -95,6 +95,23 @@ public class StudentAssignment {
     }
 
     /**
+     * Bài giao NÓI không đi qua {@code POST /{id}/submit}: phiên nói CHÍNH LÀ bài nộp. Vì thế dòng của
+     * nó trước đây nhảy thẳng {@code PENDING → AI_GRADED}, bỏ qua {@link AssignmentStatus#SUBMITTED} và
+     * để {@code submittedAt} rỗng — trong khi sổ điểm ({@code GradebookDto.Cell}), hàng chờ chấm và ngữ
+     * cảnh chấm AI ({@code GradingService}) đều đọc cột đó. Đóng dấu giờ nộp ngay trước khi AI ghi điểm
+     * giữ đúng vòng đời mà javadoc {@link AssignmentStatus} mô tả.
+     *
+     * <p>Chỉ đụng dòng còn {@code PENDING}: bài đã nộp tay rồi thì {@code submittedAt} thật phải đứng yên.
+     *
+     * @param handedInAt giờ kết phiên nói (rỗng thì lấy giờ hiện tại)
+     */
+    public void markSubmittedBySpeakingSession(LocalDateTime handedInAt) {
+        if (!AssignmentStatus.PENDING.equals(this.status)) return;
+        this.status = AssignmentStatus.SUBMITTED;
+        this.submittedAt = handedInAt != null ? handedInAt : LocalDateTime.now();
+    }
+
+    /**
      * AI đề xuất điểm (R3, V323): ghi {@code ai_*} RIÊNG và đồng thời chép sang {@code score/feedback} +
      * {@link AssignmentStatus#AI_GRADED}, vì hàng đợi chấm đang đọc {@code score} khi AI_GRADED (không phá
      * giao diện đang chạy). Đây là đường ghi DUY NHẤT của {@code ai_*} — cả ba nơi gọi AI (GradingService
