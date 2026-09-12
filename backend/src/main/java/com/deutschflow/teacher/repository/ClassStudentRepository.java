@@ -47,6 +47,17 @@ public interface ClassStudentRepository extends JpaRepository<ClassStudent, Clas
             + "AND cs.status IN ('ACTIVE', 'RESERVED')")
     List<ClassStudent> findByIdStudentId(@Param("studentId") Long studentId);
 
+    /**
+     * MỌI ghi danh của một học viên, KỂ CẢ đã kết thúc hoặc chuyển lớp — dành riêng cho các đường
+     * NHÌN LẠI QUÁ TRÌNH (R12: trung tâm đọc hồ sơ đánh giá của một học viên).
+     *
+     * <p>🪤 Khác {@link #findByIdStudentId}: bản kia lọc {@code ACTIVE/RESERVED} nên trả lời câu
+     * "học viên này đang học ở đâu" — đó mới là thứ mọi đường nghiệp vụ (điểm danh, giao bài, tính
+     * ghế) phải dùng. Lấy nhầm bản đầy đủ này vào một đường ghi là hồi sinh ghi danh đã đóng.
+     */
+    @Query("SELECT cs FROM ClassStudent cs WHERE cs.id.studentId = :studentId")
+    List<ClassStudent> findAllEnrollmentsOfStudent(@Param("studentId") Long studentId);
+
     /** Biên quyền "người này có thuộc lớp không" — người đã rời lớp trả false. */
     @Query("SELECT CASE WHEN COUNT(cs) > 0 THEN true ELSE false END FROM ClassStudent cs "
             + "WHERE cs.id.classId = :classId AND cs.id.studentId = :studentId "

@@ -223,9 +223,15 @@ public class StudentEvaluationService {
 
     /**
      * Ảnh chụp đánh giá của MỘT học viên trong lớp — cùng phép tính với {@link #getEvaluation} nhưng
-     * KHÔNG kiểm quyền: dành cho luồng đã tự kiểm ở nơi gọi ({@code ReportPayloadBuilder}, sau khi
-     * {@code ReportIssueService} chứng minh người phát hành là giáo viên phụ trách). Không mở cho
-     * controller gọi thẳng.
+     * KHÔNG kiểm quyền: dành cho luồng đã tự kiểm ở nơi gọi. Không mở cho controller gọi thẳng.
+     *
+     * <p>Hai điểm gọi hiện có, cả hai đều chứng minh quyền TRƯỚC khi vào đây:
+     * <ul>
+     *   <li>{@code ReportPayloadBuilder} — sau khi {@code ReportIssueService} chứng minh người phát
+     *       hành là giáo viên phụ trách lớp (PR-R2);</li>
+     *   <li>{@code OrgStudentEvaluationService} — sau khi chứng minh người gọi là OWNER/MANAGER của
+     *       trung tâm, học viên là thành viên trung tâm đó, và lớp mang đúng {@code org_id} (R12).</li>
+     * </ul>
      */
     @Transactional(readOnly = true)
     public StudentEvaluationDto evaluationOf(Long classId, Long studentId) {
