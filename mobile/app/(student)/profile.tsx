@@ -343,6 +343,13 @@ export default function ProfileScreen() {
               subtitle="Lớp đang tham gia, bài tập, tiến độ"
               onPress={() => router.push('/(student)/classes' as never)}
             />
+            <Divider />
+            <ListRow
+              glyph="thongke"
+              title="Phiếu gửi gia đình"
+              subtitle="Phiếu đánh giá giáo viên đã phát hành cho gia đình"
+              onPress={() => router.push('/(student)/report-issues' as never)}
+            />
           </Card>
         </View>
 
