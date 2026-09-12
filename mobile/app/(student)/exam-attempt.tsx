@@ -19,7 +19,7 @@ import {
   ProgressBar,
   SelectableRow,
 GaGlyph } from '@/components/ui'
-import { attemptTotalScore, parseLesenItems, type AttemptResultDto, type ExamObjItem, itemChoices } from '@/lib/examApi'
+import { attemptTotalScore, finishPayload, parseLesenItems, skippedSectionsLabel, type AttemptResultDto, type ExamObjItem, itemChoices } from '@/lib/examApi'
 import { pollAsyncJob, AsyncJobFailedError, AsyncJobTimeoutError } from '@/lib/asyncJobs'
 import { trackFeatureAction } from '@/lib/analytics'
 import { useHardwareBack } from '@/hooks/useHardwareBack'
@@ -102,6 +102,8 @@ export default function ExamAttemptScreen() {
 
   const totalItems = parsed?.groups.reduce((n, g) => n + g.items.length, 0) ?? 0
   const answeredCount = Object.keys(answers).length
+  // Đúng những phần đề NÀY có mà app không dựng được — không phải câu liệt kê cứng "Nghe/Viết/Nói".
+  const skippedLabel = skippedSectionsLabel(parsed?.skippedSections ?? [])
 
   async function submit() {
     if (answeredCount === 0) return
@@ -111,9 +113,11 @@ export default function ExamAttemptScreen() {
       // đây màn này GET result ngay sau 202 nên đọc bản ghi chưa chấm (điểm null
       // → hiện 0), thêm lỗi đọc `totalScore` trong khi backend trả `total_score`
       // — hai lỗi che nhau (soát 02/09, F-10). Phải chờ job xong rồi mới đọc.
+      // Khai luôn những phần app không dựng được: server loại chúng khỏi MẪU SỐ thay vì chấm 0.
+      // Trước bản này một bài làm đúng hết phần Đọc vẫn ra ~33/100 vì Nghe/Viết bị tính 0 vào tổng.
       const finishRes = await api.post<{ jobId: string; status: string; attemptId: number }>(
         `/mock-exams/attempts/${attemptId}/finish`,
-        { answers },
+        finishPayload(answers, parsed),
       )
       setFinishAccepted(true)
       await pollAsyncJob(finishRes.data.jobId)
@@ -178,7 +182,9 @@ export default function ExamAttemptScreen() {
                   </ThemedText>
                 </View>
                 <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
-                  Nghe, Viết và Nói làm trên web để có điểm đầy đủ.
+                  {skippedLabel
+                    ? `Điểm này tính riêng trên phần Đọc. Phần ${skippedLabel} của đề này làm trên web.`
+                    : 'Điểm này tính trên phần Đọc.'}
                 </ThemedText>
               </View>
             </View>
@@ -206,7 +212,11 @@ export default function ExamAttemptScreen() {
           <EmptyState
             glyph="doc"
             title="Chưa hỗ trợ trên app"
-            message="Đề này gồm phần Nghe/Viết/Nói — hãy làm trên web. App hỗ trợ các đề có phần Đọc trắc nghiệm."
+            message={
+              skippedLabel
+                ? `Đề này chỉ gồm phần ${skippedLabel} — hãy làm trên web. App hỗ trợ các đề có phần Đọc trắc nghiệm.`
+                : 'Đề này chưa có phần Đọc trắc nghiệm — hãy làm trên web.'
+            }
           />
         </View>
       ) : (
@@ -239,7 +249,9 @@ export default function ExamAttemptScreen() {
           >
             <GaGlyph name="doc" size={18} ink="info" gold="info" />
             <ThemedText variant="caption" color="info" style={{ flex: 1 }}>
-              Phần Đọc trắc nghiệm. Nghe/Viết/Nói làm trên web để có điểm đầy đủ.
+              {skippedLabel
+                ? `App dựng phần Đọc trắc nghiệm. Phần ${skippedLabel} của đề này làm trên web — điểm của bạn chỉ tính trên phần Đọc, không bị trừ vì những phần đó.`
+                : 'Phần Đọc trắc nghiệm.'}
             </ThemedText>
           </View>
 
