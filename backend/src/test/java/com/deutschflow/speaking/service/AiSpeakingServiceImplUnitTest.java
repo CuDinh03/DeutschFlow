@@ -67,6 +67,7 @@ class AiSpeakingServiceImplUnitTest {
     @Mock ChatCompletionService chatCompletionService;
     @Mock SpeakingStreamService speakingStreamService;
     @Mock SpeakingChatIdempotencyService chatIdempotencyService;
+    @Mock com.deutschflow.teacher.service.SpeakingAssignmentLinkGuard speakingAssignmentLinkGuard;
 
     @InjectMocks
     AiSpeakingServiceImpl service;
