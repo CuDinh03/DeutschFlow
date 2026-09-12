@@ -58,6 +58,7 @@ export const STUDENT_NOTIFICATION_TYPES = [
   'CLASS_SESSION_RESCHEDULED',
   'LEARNER_PLAN_UPDATED',
   'SYSTEM_MAINTENANCE',
+  'REPORT_ISSUED',
 ] as const
 
 export function notificationTypeLabel(type: string): string {
@@ -99,6 +100,8 @@ export function notificationTypeLabel(type: string): string {
       return 'Cập nhật gói'
     case 'SYSTEM_MAINTENANCE':
       return 'Bảo trì hệ thống'
+    case 'REPORT_ISSUED':
+      return 'Phiếu gửi gia đình'
     default:
       return 'Thông báo'
   }
@@ -128,6 +131,7 @@ export type NotificationIconKey =
   | 'calendarMove'
   | 'plan'
   | 'maintenance'
+  | 'report'
   | 'bell'
 
 export function notificationIconKey(type: string): NotificationIconKey {
@@ -167,6 +171,8 @@ export function notificationIconKey(type: string): NotificationIconKey {
       return 'plan'
     case 'SYSTEM_MAINTENANCE':
       return 'maintenance'
+    case 'REPORT_ISSUED':
+      return 'report'
   }
   // Loại lạ (backend thêm mới): đoán theo từ khoá rồi mới rơi về chuông.
   if (type.includes('STREAK')) return 'streak'
