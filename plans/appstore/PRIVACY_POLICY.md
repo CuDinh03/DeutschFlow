@@ -16,7 +16,7 @@ This page is published at [[https://your-domain/privacy]] and is the Privacy Pol
 
 **Provider / Data controller:** [[Legal name — individual developer or company]] ("we", "us", "our").
 
-**Contact:** [[support@your-domain]] · fallback: dinhhuycu0305@gmail.com
+**Contact:** [[support@your-domain]]
 
 We built DeutschFlow to help you learn German and prepare for the Goethe exams. This policy explains what personal data we collect, why we collect it, who we share it with, and the choices and rights you have. We collect only what the app needs to work, improve, and comply with the law — and we do not sell your personal data.
 
@@ -124,7 +124,7 @@ We may update this policy from time to time. We will revise the "Last updated" d
 
 ### 12. Contact
 
-Questions, requests, or complaints: **[[support@your-domain]]** (fallback: dinhhuycu0305@gmail.com).
+Questions, requests, or complaints: **[[support@your-domain]]**.
 
 <!--LANG:VI-->
 
@@ -140,7 +140,7 @@ Trang này được đăng tại [[https://your-domain/privacy]] và là URL Ch�
 
 **Nhà cung cấp / Bên kiểm soát dữ liệu:** [[Tên pháp lý — nhà phát triển cá nhân hoặc công ty]] ("chúng tôi").
 
-**Liên hệ:** [[support@your-domain]] · dự phòng: dinhhuycu0305@gmail.com
+**Liên hệ:** [[support@your-domain]]
 
 Chúng tôi xây dựng DeutschFlow để giúp bạn học tiếng Đức và luyện thi Goethe. Chính sách này giải thích chúng tôi thu thập dữ liệu cá nhân nào, vì sao, chia sẻ với ai, cùng các lựa chọn và quyền của bạn. Chúng tôi chỉ thu thập những gì ứng dụng cần để hoạt động, cải thiện và tuân thủ pháp luật — và **không** bán dữ liệu cá nhân của bạn.
 
@@ -248,7 +248,7 @@ Chúng tôi có thể cập nhật chính sách này theo thời gian. Chúng t�
 
 ### 12. Liên hệ
 
-Câu hỏi, yêu cầu hoặc khiếu nại: **[[support@your-domain]]** (dự phòng: dinhhuycu0305@gmail.com).
+Câu hỏi, yêu cầu hoặc khiếu nại: **[[support@your-domain]]**.
 
 <!--LANG:DE-->
 
@@ -264,7 +264,7 @@ Diese Seite ist unter [[https://your-domain/privacy]] veröffentlicht und ist di
 
 **Anbieter / Verantwortlicher:** [[Legal name]] („wir“, „uns“, „unser“).
 
-**Kontakt:** [[support@your-domain]] · alternativ: dinhhuycu0305@gmail.com
+**Kontakt:** [[support@your-domain]]
 
 Wir haben DeutschFlow entwickelt, um Ihnen beim Deutschlernen und bei der Vorbereitung auf die Goethe-Prüfungen zu helfen. Diese Erklärung beschreibt, welche personenbezogenen Daten wir erheben, warum wir sie erheben, an wen wir sie weitergeben und welche Wahlmöglichkeiten und Rechte Sie haben. Wir erheben nur, was die App zum Betrieb, zur Verbesserung und zur Einhaltung gesetzlicher Vorgaben benötigt — und wir verkaufen Ihre personenbezogenen Daten nicht.
 
@@ -372,4 +372,4 @@ Wir können diese Erklärung von Zeit zu Zeit aktualisieren. Wir aktualisieren d
 
 ### 12. Kontakt
 
-Fragen, Anliegen oder Beschwerden: **[[support@your-domain]]** (alternativ: dinhhuycu0305@gmail.com).
+Fragen, Anliegen oder Beschwerden: **[[support@your-domain]]**.
