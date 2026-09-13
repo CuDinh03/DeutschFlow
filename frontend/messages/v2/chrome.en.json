@@ -309,5 +309,18 @@
     "sessionExpiredTitle": "Your session has expired",
     "sessionExpiredBody": "Your session has expired or could not be refreshed automatically. Please sign in again to continue.",
     "offlineBanner": "No network connection — some features are temporarily unavailable"
+  },
+  "orgReadOnly": {
+    "titleExpired": "This centre's licence has expired",
+    "titleSuspended": "This centre is suspended",
+    "effect": "The centre is in read-only mode: all data stays visible, but nothing new can be created and AI is off.",
+    "stillAllowed": "Still available: grading work already submitted, recording and closing timesheets, attendance for lessons already taught, removing members, changing roles, transferring ownership, leaving the centre.",
+    "graceLeft": "{days} days left (until {date}) before students lose their plan benefits.",
+    "graceOver": "The grace period is over — students have lost their plan benefits.",
+    "graceUnknown": "Students may lose their plan benefits at any time.",
+    "fixExpired": "Pay the outstanding invoice to renew the licence.",
+    "fixSuspended": "Contact DeutschFlow system administration to reactivate the centre.",
+    "tooltipExpired": "Licence expired — read-only, nothing new can be created. Pay the invoice to reopen.",
+    "tooltipSuspended": "Centre suspended — read-only, nothing new can be created. Contact system administration to reopen."
   }
 }

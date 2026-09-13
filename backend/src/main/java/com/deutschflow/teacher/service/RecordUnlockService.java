@@ -38,6 +38,8 @@ public class RecordUnlockService {
             throw new BadRequestException("Mở khóa phải kèm lý do (audit)");
         }
         orgGuard.assertAcademicApprover(reviewerId, orgId, req.classId());
+        // D5: mở khoá sổ là cấp một CỬA SỔ GHI mới cho giáo viên — trung tâm chỉ-đọc không cấp.
+        orgGuard.assertOrgWritable(orgId);
         if (!classTeacherRepo.existsByIdClassIdAndIdTeacherId(req.classId(), req.teacherId())) {
             throw new BadRequestException("Giáo viên không dạy lớp này");
         }

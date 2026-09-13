@@ -17,6 +17,7 @@ import {
 } from '@/lib/scheduleChangeRequestApi'
 import { GaBtn, GaCap, TkBadge, TkModal } from '@/components/ui-v2'
 import { useIsOrgOwner } from '../OwnerOnly'
+import { OrgWriteGate } from '../../OrgLicenseGate'
 
 /**
  * Hàng chờ duyệt thay đổi lịch (PR-6, spec §4/D13). Danh sách đã được BE lọc theo quyền người
@@ -153,10 +154,15 @@ export function ApprovalQueue() {
                   {weekendBlocked ? (
                     <span className="ga-ui text-[12px] font-semibold text-ga-muted">{t('weekendOwnerOnly')}</span>
                   ) : (
-                    <GaBtn variant="primary" size="sm" disabled={actingId === r.id} onClick={() => approve(r)}>
-                      {actingId === r.id ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}{' '}
-                      {t('approve')}
-                    </GaBtn>
+                    // D5/E1: DUYỆT là lúc buổi học thật sự được sinh ra ⇒ khoá khi chỉ-đọc. Nút
+                    // TỪ CHỐI bên dưới cố ý KHÔNG khoá: đóng một đề xuất lại không tạo thêm gì, và
+                    // khoá nó sẽ để hàng chờ phình mãi.
+                    <OrgWriteGate>
+                      <GaBtn variant="primary" size="sm" disabled={actingId === r.id} onClick={() => approve(r)}>
+                        {actingId === r.id ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}{' '}
+                        {t('approve')}
+                      </GaBtn>
+                    </OrgWriteGate>
                   )}
                   <GaBtn
                     variant="ghost"

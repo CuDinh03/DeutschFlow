@@ -102,6 +102,11 @@ public class LessonLogService {
     @Transactional
     public ClassLessonLogDto createLog(Long teacherId, Long classId, CreateLessonLogRequest req) {
         assertTeacherOwnsClass(teacherId, classId);
+        // D5/E1 — CỐ Ý KHÔNG có cổng trạng thái giấy phép. Biên bản buổi dạy MANG ĐIỂM DANH
+        // (`CreateLessonLogRequest.attendance`), và điểm danh buổi ĐÃ DIỄN RA là ngoại lệ E1. Chặn
+        // ở đây thì buổi chưa có biên bản sẽ không bao giờ điểm danh được — `updateLog` chỉ sửa
+        // được điểm danh của biên bản ĐÃ TỒN TẠI. `assertRecordableSession` bên dưới vẫn chặn ghi
+        // khống cho buổi chưa diễn ra, nên đường này không thành cửa sau.
         Long sessionId = resolveSession(classId, req);
         assertRecordableSession(classId, req, sessionId, null);
         ClassLesson lesson = validateLessonInClass(classId, req.lessonId());

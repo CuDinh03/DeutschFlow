@@ -10,6 +10,7 @@ import { apiMessage } from '@/lib/api'
 import { getOrgSummary, getTeacherlessClassIds, listClasses, type OrgClass, type OrgSummary } from '@/lib/orgApi'
 import { GaPageHdr, GaBtn, GaCap, TkSearch } from '@/components/ui-v2'
 import { CreateClassModal } from './CreateClassModal'
+import { OrgWriteGate } from '../../OrgLicenseGate'
 import { CLASSES_PAGE_SIZE } from './pagination'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -128,9 +129,13 @@ export default function V2OrgClassesPage() {
         title={t('title')}
         subtitle={t('subtitle')}
         right={
-          <GaBtn variant="yellow" size="sm" onClick={() => setShowCreate(true)}>
-            <Plus size={15} /> {t('createClass')}
-          </GaBtn>
+          // D5: trung tâm chỉ-đọc thì nút "Tạo lớp" bị VÔ HIỆU HOÁ chứ không bị giấu — người dùng
+          // phải thấy chức năng còn đó và biết vì sao nó không bấm được (xem OrgWriteGate).
+          <OrgWriteGate>
+            <GaBtn variant="yellow" size="sm" onClick={() => setShowCreate(true)}>
+              <Plus size={15} /> {t('createClass')}
+            </GaBtn>
+          </OrgWriteGate>
         }
       />
 

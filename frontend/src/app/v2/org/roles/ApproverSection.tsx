@@ -14,6 +14,7 @@ import {
   type ApproverScope,
 } from '@/lib/orgAcademicApproverApi'
 import { GaBtn, TkBadge, ConfirmDialog, LoadingState } from '@/components/ui-v2'
+import { OrgWriteGate } from '../../OrgLicenseGate'
 import { GaSection } from '../../sectionShared'
 
 /**
@@ -200,14 +201,19 @@ export function ApproverSection({ isOwner, members }: {
                   </select>
                 </label>
               )}
-              <GaBtn
-                size="sm"
-                loading={busy}
-                disabled={!grantUserId || (grantScope === 'CLASS' && !grantClassId)}
-                onClick={() => void grant()}
-              >
-                {t('grantBtn')}
-              </GaBtn>
+              {/* D5: PHÂN CÔNG quyền duyệt học vụ là một uỷ nhiệm mới ⇒ khoá khi chỉ-đọc. Nút
+                  THU HỒI ở danh sách phía trên thì không — trung tâm chỉ-đọc vẫn phải rút được
+                  quyền của người đã nghỉ. */}
+              <OrgWriteGate>
+                <GaBtn
+                  size="sm"
+                  loading={busy}
+                  disabled={!grantUserId || (grantScope === 'CLASS' && !grantClassId)}
+                  onClick={() => void grant()}
+                >
+                  {t('grantBtn')}
+                </GaBtn>
+              </OrgWriteGate>
             </div>
           )}
 

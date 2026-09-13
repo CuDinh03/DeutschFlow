@@ -9,6 +9,7 @@ import api, { apiMessage } from '@/lib/api'
 import { grantRecordUnlock, listActiveRecordUnlocks, type RecordUnlock } from '@/lib/sessionWorkspaceApi'
 import { listClasses, type OrgClass, type OrgClassDetail } from '@/lib/orgApi'
 import { GaBtn, GaCap } from '@/components/ui-v2'
+import { OrgWriteGate } from '../../OrgLicenseGate'
 
 const inputCls =
   'rounded-ga border border-ga-line bg-ga-bg px-2.5 py-1.5 text-[13px] text-ga-ink outline-none focus:border-ga-accent'
@@ -105,9 +106,13 @@ export function RecordUnlockSection() {
               placeholder={t('reasonPlaceholder')}
               className={`${inputCls} min-w-0 flex-1`}
             />
-            <GaBtn variant="primary" size="sm" disabled={busy || !reason.trim() || teacherId == null} onClick={grant}>
-              {t('grant')}
-            </GaBtn>
+            {/* D5: mở khoá sổ = cấp một CỬA SỔ GHI 24h mới ⇒ khoá khi trung tâm chỉ-đọc, cùng
+                luật với máy chủ (RecordUnlockService.grant gọi assertOrgWritable). */}
+            <OrgWriteGate>
+              <GaBtn variant="primary" size="sm" disabled={busy || !reason.trim() || teacherId == null} onClick={grant}>
+                {t('grant')}
+              </GaBtn>
+            </OrgWriteGate>
           </div>
 
           {active.length > 0 && (

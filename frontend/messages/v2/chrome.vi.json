@@ -309,5 +309,18 @@
     "sessionExpiredTitle": "Phiên đăng nhập đã hết hạn",
     "sessionExpiredBody": "Phiên đăng nhập của bạn đã hết hạn hoặc không thể tự làm mới. Vui lòng đăng nhập lại để tiếp tục.",
     "offlineBanner": "Mất kết nối mạng — một số tính năng tạm thời không khả dụng"
+  },
+  "orgReadOnly": {
+    "titleExpired": "Giấy phép trung tâm đã hết hạn",
+    "titleSuspended": "Trung tâm đang bị tạm ngưng",
+    "effect": "Trung tâm đang ở chế độ chỉ đọc: xem được toàn bộ dữ liệu, nhưng không tạo mới và không dùng AI.",
+    "stillAllowed": "Vẫn làm được: chốt điểm bài đã nộp, ghi và chốt bảng công, điểm danh buổi đã dạy, gỡ thành viên, đổi vai, chuyển quyền giám đốc, rời trung tâm.",
+    "graceLeft": "Còn {days} ngày (đến {date}) trước khi quyền lợi gói của học viên bị thu hồi.",
+    "graceOver": "Đã quá thời gian ân hạn — quyền lợi gói của học viên đã bị thu hồi.",
+    "graceUnknown": "Quyền lợi gói của học viên có thể bị thu hồi bất cứ lúc nào.",
+    "fixExpired": "Hãy thanh toán hoá đơn để gia hạn giấy phép.",
+    "fixSuspended": "Hãy liên hệ quản trị hệ thống DeutschFlow để mở lại trung tâm.",
+    "tooltipExpired": "Giấy phép trung tâm đã hết hạn — chỉ đọc, không tạo mới. Thanh toán hoá đơn để mở lại.",
+    "tooltipSuspended": "Trung tâm đang bị tạm ngưng — chỉ đọc, không tạo mới. Liên hệ quản trị hệ thống để mở lại."
   }
 }

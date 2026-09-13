@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { GaBtn, GaCap, GaPageHdr } from '@/components/ui-v2'
 import { OrgOwnerOnly } from '../OwnerOnly'
+import { OrgWriteGate } from '../../OrgLicenseGate'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cấu hình trung tâm (PR-10, OWNER-only): P04 chính sách tính công + 2 ngưỡng
@@ -114,7 +115,11 @@ function SettingsInner() {
             </section>
 
             <div className="flex justify-end">
-              <GaBtn variant="primary" loading={saving} onClick={save}>{t('save')}</GaBtn>
+              {/* D5/E1: đổi cài đặt trung tâm nằm trong nhóm BỊ CHẶN khi chỉ-đọc — một trung tâm
+                  hết hạn không được sửa chính sách tính công rồi chốt bảng công theo luật mới. */}
+              <OrgWriteGate>
+                <GaBtn variant="primary" loading={saving} onClick={save}>{t('save')}</GaBtn>
+              </OrgWriteGate>
             </div>
           </div>
         )}

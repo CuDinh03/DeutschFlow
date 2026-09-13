@@ -189,7 +189,7 @@ public class TeacherService {
                     long studentCount = studentCounts.getOrDefault(c.getId(), 0L);
                     long quizCount = assignmentCounts.getOrDefault(c.getId(), 0L);
                     long pendingCount = pendingCounts.getOrDefault(c.getId(), 0L);
-                    return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, pendingCount, c.getCreatedAt());
+                    return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, pendingCount, c.getOrgId(), c.getCreatedAt());
                 })
                 .collect(Collectors.toList());
     }
@@ -467,6 +467,7 @@ public class TeacherService {
     @Transactional
     public void addCoTeacher(Long teacherId, Long classId, String email) {
         assertPrimaryTeacher(teacherId, classId);
+        orgGuard.assertClassOrgWritable(classId); // D5: trung tâm chỉ-đọc không nhận thêm người vào lớp
 
         // Case-insensitive: emails are stored canonical lowercase, but a teacher may type the
         // co-teacher's address with any case. findByEmailIgnoreCase mirrors the login lookup.
@@ -511,6 +512,8 @@ public class TeacherService {
     public void addStudentToClassByEmail(Long teacherId, Long classId, String email) {
         // PR B trợ giảng: thêm HV là quản-lý-lớp — chỉ GV phụ trách.
         assertPrimaryTeacher(teacherId, classId);
+        // D5: ghi danh mới = một ghế mới bị tính tiền. Trung tâm chỉ-đọc không mở thêm ghế.
+        orgGuard.assertClassOrgWritable(classId);
 
         // Case-insensitive lookup — the teacher may type the student's email in any case.
         String normalizedEmail = email == null ? "" : email.trim();
@@ -749,6 +752,7 @@ public class TeacherService {
     public ClassAssignmentDto createAssignment(Long teacherId, Long classId, CreateAssignmentRequest req) {
         // PR B trợ giảng: tạo & giao bài là quản-lý-lớp — chỉ GV phụ trách (trợ giảng vẫn CHẤM bài).
         assertPrimaryTeacher(teacherId, classId);
+        orgGuard.assertClassOrgWritable(classId); // D5: giao bài mới là TẠO MỚI
         // If linking to a lesson (Phase 1d-D1), it must belong to this class (reject cross-class).
         if (req.lessonId() != null) {
             ClassLesson lesson = lessonRepository.findById(req.lessonId())
@@ -840,6 +844,9 @@ public class TeacherService {
     @Transactional
     public ClassAssignmentDto publishAssignment(Long teacherId, Long classId, Long assignmentId) {
         assertPrimaryTeacher(teacherId, classId);
+        // D5: công bố là lúc bài NHÁP thành nghĩa vụ của học viên (fan-out + thông báo) — tạo mới
+        // theo đúng nghĩa, dù dòng bài đã có sẵn từ trước.
+        orgGuard.assertClassOrgWritable(classId);
         ClassAssignment assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new NotFoundException("Bài tập không tồn tại"));
         if (!assignment.getClassId().equals(classId)) {
@@ -1349,7 +1356,7 @@ public class TeacherService {
         long studentCount = classStudentRepository.countByIdClassId(c.getId());
         long quizCount = assignmentRepository.countByClassId(c.getId());
         // Chỉ dùng cho lớp VỪA TẠO (createClass) — chưa thể có bài nộp nên pendingReviewCount = 0.
-        return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, 0L, c.getCreatedAt());
+        return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, 0L, c.getOrgId(), c.getCreatedAt());
     }
 
     private ClassAssignmentDto toAssignmentDto(ClassAssignment a) {

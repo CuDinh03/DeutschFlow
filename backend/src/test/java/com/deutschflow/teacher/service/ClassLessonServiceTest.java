@@ -50,6 +50,7 @@ class ClassLessonServiceTest {
     @Mock private CanDoStatementRepository canDoRepository;
     @Mock private ClassCurriculumLinkRepository classCurriculumLinkRepository;
     @Mock private com.deutschflow.organization.repository.CurriculumItemRepository curriculumItemRepository;
+    @Mock private com.deutschflow.organization.service.OrgGuard orgGuard;
 
     private ClassLessonService service;
 
@@ -60,7 +61,7 @@ class ClassLessonServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ClassLessonService(lessonRepository, classTeacherRepository, classStudentRepository, knowledgePointRepository, moduleRepository, canDoRepository, classCurriculumLinkRepository, curriculumItemRepository);
+        service = new ClassLessonService(lessonRepository, classTeacherRepository, classStudentRepository, knowledgePointRepository, moduleRepository, canDoRepository, classCurriculumLinkRepository, curriculumItemRepository, orgGuard);
     }
 
     @Test
@@ -806,4 +807,32 @@ class ClassLessonServiceTest {
         assertThat(free.getOrderIndex()).isEqualTo(1);
         assertThat(l2.getOrderIndex()).isEqualTo(2);
     }
+
+    // ─── Gói 3 (D5): buổi học mới trong lớp của trung tâm chỉ-đọc ────────────────────────────
+
+    @Test
+    @DisplayName("create: trung tâm chỉ-đọc → ORG_READ_ONLY, không lưu buổi học nào")
+    void create_readOnlyOrg_blocked() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        org.mockito.Mockito.doThrow(new com.deutschflow.common.exception.OrgReadOnlyException(9L, com.deutschflow.organization.service.OrgLicenseState.Reason.SUSPENDED))
+                .when(orgGuard).assertClassOrgWritable(CLASS_ID);
+
+        assertThatThrownBy(() -> service.create(TEACHER_ID, CLASS_ID,
+                new CreateLessonRequest("Lektion 1", null, null, null, null, null, null)))
+                .isInstanceOf(com.deutschflow.common.exception.OrgReadOnlyException.class);
+
+        verify(lessonRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("ĐƯỜNG ĐỌC vẫn sống: listForTeacher không đi qua cổng trạng thái (D5)")
+    void listForTeacher_neverCallsWriteGate() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(lessonRepository.findByClassIdOrderByOrderIndexAsc(CLASS_ID)).thenReturn(java.util.List.of());
+
+        service.listForTeacher(TEACHER_ID, CLASS_ID);
+
+        org.mockito.Mockito.verifyNoInteractions(orgGuard);
+    }
+
 }
