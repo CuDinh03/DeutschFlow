@@ -105,3 +105,62 @@ describe('V2OrgStudentsPage — số liệu toàn trung tâm', () => {
     expect(listMembers).toHaveBeenCalledTimes(1)
   })
 })
+
+/**
+ * D4 — chỉ báo "N học viên chưa khai ngày sinh".
+ *
+ * Ca ở đây chốt ranh giới `false` (đang thiếu, phải đi đòi) với `null`/thiếu trường (backend không
+ * tính ở đường này). Rút gọn thành `!m.birthDateRecorded` sẽ làm mọi ca "đường sáng" vẫn xanh mà
+ * con số hiện ra thì sai — đúng kiểu hỏng im lặng mà chỉ báo này không được phép mắc.
+ */
+describe('V2OrgStudentsPage — chỉ báo chưa khai ngày sinh (D4)', () => {
+  it('đếm ĐÚNG số em thiếu ngày sinh và gắn nhãn lên đúng dòng đó', async () => {
+    listMembers.mockResolvedValue([
+      { ...member(1), birthDateRecorded: false },
+      { ...member(2), birthDateRecorded: true },
+      { ...member(3), birthDateRecorded: false },
+    ])
+    getAnalytics.mockResolvedValue(analyticsOk)
+
+    render(<V2OrgStudentsPage />)
+
+    await waitFor(() => expect(screen.getByText('Học viên 1')).toBeTruthy())
+    expect(
+      screen.getByText('v2.org.students.missingBirthDateBanner:{"count":2}'),
+    ).toBeTruthy()
+    expect(screen.getAllByText('v2.org.students.missingBirthDateBadge')).toHaveLength(2)
+  })
+
+  it('🔴 KHÔNG đếm trường null/thiếu là "đang thiếu" — banner không hiện', async () => {
+    listMembers.mockResolvedValue([
+      { ...member(1), birthDateRecorded: null },
+      { ...member(2) }, // backend cũ chưa có trường này
+      { ...member(3), birthDateRecorded: true },
+    ])
+    getAnalytics.mockResolvedValue(analyticsOk)
+
+    render(<V2OrgStudentsPage />)
+
+    await waitFor(() => expect(screen.getByText('Học viên 1')).toBeTruthy())
+    expect(screen.queryByText(/missingBirthDateBanner/)).toBeNull()
+    expect(screen.queryByText('v2.org.students.missingBirthDateBadge')).toBeNull()
+  })
+
+  it('nút lọc thu danh sách về đúng những em thiếu ngày sinh, bấm lại thì mở ra', async () => {
+    listMembers.mockResolvedValue([
+      { ...member(1), birthDateRecorded: false },
+      { ...member(2), birthDateRecorded: true },
+    ])
+    getAnalytics.mockResolvedValue(analyticsOk)
+
+    render(<V2OrgStudentsPage />)
+    await waitFor(() => expect(screen.getByText('Học viên 2')).toBeTruthy())
+
+    await userEvent.click(screen.getByText('v2.org.students.filterMissingBirthDate'))
+    expect(screen.queryByText('Học viên 2')).toBeNull()
+    expect(screen.getByText('Học viên 1')).toBeTruthy()
+
+    await userEvent.click(screen.getByText('v2.org.students.filterAll'))
+    await waitFor(() => expect(screen.getByText('Học viên 2')).toBeTruthy())
+  })
+})

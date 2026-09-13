@@ -71,7 +71,7 @@ class StudentAssignmentPresignedUrlTest {
 
     @BeforeEach
     void setUp() {
-        MinorGate gate = new MinorGate(learnerService, jdbcTemplate, "BLOCK_ORG_MEMBERS");
+        MinorGate gate = new MinorGate(learnerService, jdbcTemplate, "BLOCK_ORG_MEMBERS", "BLOCK_ORG_MEMBERS");
         controller = new StudentAssignmentController(teacherService, studentAssignmentRepository,
                 classAssignmentRepository, classStudentRepository, s3StorageService, materialService,
                 notificationAutoAckService, runAfterCommitService, submissionFileUrlResolver, gate);

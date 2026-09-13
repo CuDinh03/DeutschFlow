@@ -71,7 +71,9 @@ class TeacherAiGradingModelTest {
         new TeacherAiGradingService(
                 sessionRepository, messageRepository, openAiChatClient,
                 studentAssignmentRepository, aiUsageLedgerService, gradingModelConfig,
-                userNotificationService, orgPoolGuard)
+                userNotificationService, orgPoolGuard,
+                // Cổng tuổi D3: mock KHÔNG ném ⇒ ca này giữ nguyên nghĩa "học viên đủ điều kiện".
+                org.mockito.Mockito.mock(com.deutschflow.common.minor.MinorGate.class))
                 .autoGradeSession(sessionId);
 
         ArgumentCaptor<String> model = ArgumentCaptor.forClass(String.class);

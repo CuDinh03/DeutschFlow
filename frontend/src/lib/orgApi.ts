@@ -42,6 +42,13 @@ export interface OrgMember {
   role: OrgRole
   status: MemberStatus
   joinedAt: string
+  /**
+   * D4 — `users.birth_date` đã có giá trị chưa. `null`/`undefined` = KHÔNG TÍNH ở đường này (mọi
+   * vai khác STUDENT, và các đường trả một thành viên lẻ như mời/đổi vai), khác hẳn `false` = đã
+   * tính và ĐANG THIẾU. Chỉ báo "N học viên chưa khai ngày sinh" đếm bằng `=== false`, nên đừng
+   * rút gọn thành `!m.birthDateRecorded` — làm vậy là gộp cả "không áp dụng" vào số phải đi đòi.
+   */
+  birthDateRecorded?: boolean | null
 }
 
 /** A pending/accepted/revoked/expired invitation to the organization. */

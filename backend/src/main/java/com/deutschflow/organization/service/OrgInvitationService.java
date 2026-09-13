@@ -278,7 +278,7 @@ public class OrgInvitationService {
         log.info("[Org] Pre-created TEACHER userId={} (email={}) cho org {} (createdVia={})",
                 teacher.getId(), normEmail, orgId, createdVia);
         return new OrgMemberDto(teacher.getId(), teacher.getEmail(), teacher.getDisplayName(),
-                "TEACHER", "ACTIVE", Instant.now());
+                "TEACHER", "ACTIVE", Instant.now(), null); // D4 không áp dụng cho giáo viên
     }
 
     /**

@@ -46,6 +46,7 @@ export default function V2OrgStudentsPage() {
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [showImport, setShowImport] = useState(false)
+  const [onlyMissingBirthDate, setOnlyMissingBirthDate] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -74,8 +75,19 @@ export default function V2OrgStudentsPage() {
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return members.filter((m) => (m.displayName ?? '').toLowerCase().includes(q) || m.email.toLowerCase().includes(q))
-  }, [members, query])
+    return members.filter((m) => {
+      const matchesQuery = (m.displayName ?? '').toLowerCase().includes(q) || m.email.toLowerCase().includes(q)
+      // `=== false` chứ không phải `!m.birthDateRecorded`: null = backend không tính ở đường này,
+      // gộp vào là thổi phồng số học viên trung tâm phải đi đòi giấy tờ (xem OrgMember.birthDateRecorded).
+      return matchesQuery && (!onlyMissingBirthDate || m.birthDateRecorded === false)
+    })
+  }, [members, query, onlyMissingBirthDate])
+
+  /** D4 — số học viên chưa khai ngày sinh: các em này đang bị khoá luyện nói VÀ chấm bài bằng AI. */
+  const missingBirthDateN = useMemo(
+    () => members.filter((m) => m.birthDateRecorded === false).length,
+    [members],
+  )
 
   const activeN = members.filter((m) => m.status === 'ACTIVE').length
 
@@ -160,6 +172,29 @@ export default function V2OrgStudentsPage() {
           </div>
         )}
 
+        {!loading && !error && missingBirthDateN > 0 && (
+          <div
+            role="status"
+            className="mt-3 flex flex-wrap items-start gap-3 border border-dashed px-3 py-2.5"
+            style={{ borderColor: 'color-mix(in srgb, var(--ga-warning) 45%, transparent)', background: 'var(--ga-warning-soft)' }}
+          >
+            <div className="min-w-0 flex-1">
+              <p className="ga-ui text-ga-small font-semibold text-ga-ink">
+                {t('missingBirthDateBanner', { count: missingBirthDateN })}
+              </p>
+              <p className="ga-ui mt-0.5 text-ga-caption text-ga-muted">{t('missingBirthDateHow')}</p>
+            </div>
+            <GaBtn
+              variant="ghost"
+              size="sm"
+              onClick={() => setOnlyMissingBirthDate((v) => !v)}
+              aria-pressed={onlyMissingBirthDate}
+            >
+              {onlyMissingBirthDate ? t('filterAll') : t('filterMissingBirthDate')}
+            </GaBtn>
+          </div>
+        )}
+
         <div className="mb-3.5 mt-[22px] flex flex-wrap items-center justify-between gap-3">
           <GaCap>{t('count', { count: rows.length })}</GaCap>
           <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchPlaceholder')} containerClassName="w-full sm:w-[240px]" />
@@ -189,7 +224,17 @@ export default function V2OrgStudentsPage() {
                 <div className="flex min-w-0 items-center gap-2.5">
                   <span className="grid h-8 w-8 shrink-0 place-items-center font-ga-display text-[13px] font-medium" style={{ color: TEAL, background: 'var(--ga-teal-soft)' }}>{initial(m.displayName)}</span>
                   <span className="min-w-0">
-                    <span className="block truncate text-[14px] font-semibold text-ga-ink">{m.displayName || '—'}</span>
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate text-[14px] font-semibold text-ga-ink">{m.displayName || '—'}</span>
+                      {m.birthDateRecorded === false && (
+                        <span
+                          className="ga-ui shrink-0 px-1.5 py-0.5 text-ga-eyebrow uppercase"
+                          style={{ color: 'var(--ga-warning)', background: 'var(--ga-warning-soft)' }}
+                        >
+                          {t('missingBirthDateBadge')}
+                        </span>
+                      )}
+                    </span>
                     <span className="block truncate text-[11.5px] text-ga-muted">{m.email}</span>
                   </span>
                 </div>

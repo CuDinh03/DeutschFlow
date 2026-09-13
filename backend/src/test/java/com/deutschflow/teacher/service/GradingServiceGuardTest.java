@@ -65,7 +65,10 @@ class GradingServiceGuardTest {
                 // Bucket private ⇒ link file bài nộp phải được ký lại. Truyền resolver THẬT với
                 // S3 mock: objectKeyFromOwnUrl trả null ⇒ resolve() nhả nguyên URL đã lưu, tức
                 // đúng hành vi các test này vốn khẳng định.
-                new SubmissionFileUrlResolver(mock(S3StorageService.class)));
+                new SubmissionFileUrlResolver(mock(S3StorageService.class)),
+                // Cổng tuổi D3: mock KHÔNG ném ⇒ mọi ca sẵn có giữ nguyên nghĩa "học viên đủ điều
+                // kiện". Ca chặn nằm ở MinorGateTest và GradingServiceMinorGateTest.
+                mock(com.deutschflow.common.minor.MinorGate.class));
     }
 
     @Test

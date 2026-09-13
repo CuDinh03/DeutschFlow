@@ -11,7 +11,9 @@ import java.util.stream.Collectors;
 
 /**
  * CHỐT CHẶN dữ liệu của học viên chưa xác định tuổi đi ra nhà cung cấp AI (DEC-22, owner chốt
- * 09/09/2026). Đợt này CHỈ giữ ĐƯỜNG GHI ÂM.
+ * 09/09/2026). Giữ HAI đường: ĐƯỜNG GHI ÂM ({@link #assertAudioAllowed}, phạm vi
+ * {@code AUDIO_RECORDING}) và ĐƯỜNG CHẤM BÀI AI ({@link #assertAiGradingAllowed}, phạm vi
+ * {@code AI_PROCESSING} — D3, owner chốt 10/09/2026).
  *
  * <p><b>Vì sao cổng nằm ở đây chứ không ở lúc ghi danh.</b> Owner đã bác phương án chặn ở ghi danh:
  * học viên vào lớp bằng mã mời mà bị chặn vì thiếu ngày sinh thì lượt duyệt của giáo viên bị
@@ -19,12 +21,24 @@ import java.util.stream.Collectors;
  * hậu quả thật: lúc dữ liệu rời khỏi hệ thống. Chặn ở đây mất một tính năng; chặn ở ghi danh mất
  * cả lớp học.
  *
- * <p><b>Vì sao chỉ ghi âm trong đợt này.</b> Ghi âm là đường rủi ro cao nhất — giọng nói thật của
- * một đứa trẻ rời khỏi hạ tầng của mình sang bên thứ ba — và là đường duy nhất mà CHỦ THỂ DỮ LIỆU
- * chính là người gọi, nên không có chỗ nào mơ hồ về việc soi ai. Đường chấm bài bằng AI thì chủ thể
- * là HỌC VIÊN nhưng lệnh gọi truyền {@code teacher.getId()}; cắm cổng ở đó mà không sửa chủ thể
- * trước sẽ soi nhầm người — vừa cho lọt bài của trẻ, vừa chặn oan giáo viên trẻ tuổi. Việc đó là
- * một đợt riêng.
+ * <p><b>Hai đường, hai chủ thể khác nhau.</b> Ghi âm là đường rủi ro cao nhất — giọng nói thật của
+ * một đứa trẻ rời khỏi hạ tầng của mình sang bên thứ ba — và là đường mà CHỦ THỂ DỮ LIỆU chính là
+ * người gọi, nên không có chỗ nào mơ hồ về việc soi ai. Đường chấm bài bằng AI thì chủ thể là HỌC
+ * VIÊN trong khi người gọi là GIÁO VIÊN: mã cũ truyền {@code teacher.getId()} xuống tận nơi, nên
+ * cổng chỉ được cắm SAU KHI đã sửa chủ thể thành {@code studentAssignment.getStudentId()} — cắm mà
+ * quên sửa thì vừa cho lọt bài của trẻ (giáo viên đủ tuổi) vừa chặn oan giáo viên 17 tuổi. Chủ thể
+ * đã được sửa ở đợt Gói 2 này; xem {@link #assertAiGradingAllowed}.
+ *
+ * <p><b>Cố ý KHÔNG cắm cho chat AI</b> — owner chốt D3.
+ *
+ * <p>🪤 <b>Đừng lặp lại lập luận sai này</b> (viết 11/09/2026, sửa cùng ngày sau vòng soát bảo mật):
+ * bản đầu của javadoc này khẳng định phiên luyện nói "đã bị chặn từ lúc ghi âm nên không cần cắm lại
+ * ở khâu chấm". SAI. {@code assertAudioAllowed} chỉ được gọi ở MỘT chỗ trong đường luyện nói —
+ * {@code AiSessionController} {@code POST /transcribe}. Hai endpoint {@code /sessions/&#123;id&#125;/chat}
+ * và {@code /chat/stream} nhận thẳng CHỮ do người học gõ, không đi qua {@code /transcribe} lần nào.
+ * Một học viên vị thành niên gõ hết phiên rồi kết thúc là transcript đi ra nhà cung cấp AI mà không
+ * chốt nào chạm tới. Vì vậy khâu chấm phiên luyện nói CÓ cổng riêng — xem
+ * {@code TeacherAiGradingService.autoGradeSession}.
  *
  * <p><b>Vì sao KHÔNG cắm vào {@code QuotaService.assertAllowed}.</b> Chỗ đó là cổng CHI PHÍ, chạy
  * {@code @Transactional(readOnly = true, REQUIRES_NEW)} và mọi tính năng AI đều đi qua — trộn hai
@@ -81,15 +95,21 @@ public class MinorGate {
     private final MinorLearnerService minorLearnerService;
     private final JdbcTemplate jdbcTemplate;
     private final UnknownAgeAudioPolicy unknownAgeAudioPolicy;
+    private final UnknownAgeAudioPolicy unknownAgeAiGradingPolicy;
 
     public MinorGate(MinorLearnerService minorLearnerService,
                      JdbcTemplate jdbcTemplate,
-                     @Value("${app.minor.unknown-age-audio:BLOCK_ORG_MEMBERS}") String unknownAgeAudio) {
+                     @Value("${app.minor.unknown-age-audio:BLOCK_ORG_MEMBERS}") String unknownAgeAudio,
+                     @Value("${app.minor.unknown-age-ai-grading:BLOCK_ORG_MEMBERS}") String unknownAgeAiGrading) {
         this.minorLearnerService = minorLearnerService;
         this.jdbcTemplate = jdbcTemplate;
-        this.unknownAgeAudioPolicy = parsePolicy(unknownAgeAudio);
-        log.info("[MinorGate] Chính sách cho người chưa khai ngày sinh (đường ghi âm): {}",
-                this.unknownAgeAudioPolicy);
+        this.unknownAgeAudioPolicy = parsePolicy("app.minor.unknown-age-audio", unknownAgeAudio);
+        // Cờ RIÊNG cho đường chấm bài, không dùng chung với đường ghi âm: hai đường có mức rủi ro
+        // khác nhau (giọng nói thật so với bài làm chữ) nên phải nới/siết được độc lập. Gộp một cờ
+        // thì lúc muốn mở tạm đường chấm bài sẽ mở luôn cả đường ghi âm — đúng cái không được phép.
+        this.unknownAgeAiGradingPolicy = parsePolicy("app.minor.unknown-age-ai-grading", unknownAgeAiGrading);
+        log.info("[MinorGate] Chính sách cho người chưa khai ngày sinh — ghi âm: {} · chấm bài AI: {}",
+                this.unknownAgeAudioPolicy, this.unknownAgeAiGradingPolicy);
     }
 
     /**
@@ -128,9 +148,49 @@ public class MinorGate {
         }
     }
 
+    /**
+     * Cổng của ĐƯỜNG CHẤM BÀI BẰNG AI (D3). Trả về bình thường = được phép gửi bài làm đi; ném
+     * {@link MinorAiGradingBlockedException} (403) = không được, giáo viên chấm tay.
+     *
+     * <p><b>Tham số là HỌC VIÊN, không phải người bấm nút.</b> Đây là toàn bộ lý do hàm này tồn tại
+     * tách khỏi {@link #assertAudioAllowed}: mọi lệnh gọi chấm bài trong mã cũ đều truyền
+     * {@code teacher.getId()} (vì đó là người đang đăng nhập), nên cắm cổng vào đó mà không sửa chủ
+     * thể sẽ soi TUỔI CỦA GIÁO VIÊN — vừa cho lọt bài của trẻ khi giáo viên đã trưởng thành, vừa
+     * chặn oan một giáo viên 17 tuổi. Truyền {@code studentAssignment.getStudentId()}.
+     *
+     * <p><b>Phạm vi là {@link StudentConsent.Scope#AI_PROCESSING}</b>, không phải {@code AUDIO_RECORDING}:
+     * bài viết và ảnh bài viết tay không phải giọng nói, và người giám hộ đồng ý cho ghi âm không có
+     * nghĩa là đã đồng ý cho bài làm đi qua nhà cung cấp AI.
+     *
+     * <p><b>Cố ý KHÔNG cắm cho chat AI</b> (owner chốt D3). Khâu CHẤM phiên luyện nói thì CÓ cắm,
+     * nhưng ở {@code TeacherAiGradingService} chứ không ở đây — xem ghi chú bẫy ở javadoc lớp.
+     *
+     * @param studentUserId CHỦ THỂ của bài nộp — chủ nhân bài làm, không phải giáo viên đang chấm
+     */
+    public void assertAiGradingAllowed(Long studentUserId) {
+        if (studentUserId == null) {
+            // Cùng lý do fail-fast như assertAudioAllowed: một chốt chặn nhận null rồi return là
+            // fail-open, và ca đếm điểm cắm không bắt được (điểm cắm CÓ, chỉ là nó không làm gì).
+            throw new IllegalArgumentException(
+                    "MinorGate.assertAiGradingAllowed cần studentUserId — gọi với null là fail-open");
+        }
+
+        MinorPolicy.Status status = minorLearnerService.statusOf(studentUserId);
+        switch (status) {
+            case ADULT -> { /* đủ tuổi — không cần đồng ý của ai */ }
+            case MINOR_LEGAL, MINOR_CENTER_POLICY -> requireAiProcessingConsent(studentUserId, status);
+            case UNKNOWN -> applyUnknownAgeAiGradingPolicy(studentUserId);
+        }
+    }
+
     /** Chính sách đang áp cho người chưa khai ngày sinh — để endpoint chẩn đoán và test đọc lại. */
     public UnknownAgeAudioPolicy unknownAgeAudioPolicy() {
         return unknownAgeAudioPolicy;
+    }
+
+    /** Như trên, cho đường chấm bài AI. */
+    public UnknownAgeAudioPolicy unknownAgeAiGradingPolicy() {
+        return unknownAgeAiGradingPolicy;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -170,12 +230,7 @@ public class MinorGate {
     }
 
     private void applyUnknownAgePolicy(Long subjectUserId) {
-        boolean block = switch (unknownAgeAudioPolicy) {
-            case ALLOW -> false;
-            case BLOCK_ALL -> true;
-            case BLOCK_ORG_MEMBERS -> hasActiveOrgMembership(subjectUserId);
-        };
-        if (!block) {
+        if (!shouldBlockUnknownAge(unknownAgeAudioPolicy, subjectUserId)) {
             return;
         }
 
@@ -186,6 +241,66 @@ public class MinorGate {
                 "Tài khoản chưa có ngày sinh nên hệ thống chưa xác định được có cần đồng ý của "
                         + "người giám hộ hay không, và không gửi bản ghi âm đi khi còn chưa rõ. Vui lòng "
                         + "liên hệ trung tâm để bổ sung ngày sinh vào hồ sơ học viên.");
+    }
+
+    private void requireAiProcessingConsent(Long studentUserId, MinorPolicy.Status status) {
+        ConsentState consent = minorLearnerService.consentStatus(
+                studentUserId, StudentConsent.Scope.AI_PROCESSING);
+        if (consent.isEffective()) {
+            return;
+        }
+
+        log.warn("[MinorGate] Chặn chấm bài AI cho studentUserId={} (nhóm tuổi={}, đồng ý={})",
+                studentUserId, status, consent);
+
+        if (consent == ConsentState.REVOKED) {
+            throw new MinorAiGradingBlockedException(
+                    MinorAiGradingBlockedException.Reason.GUARDIAN_CONSENT_REVOKED, status,
+                    "Đồng ý cho phép xử lý bài làm bằng AI của học viên này đã được thu hồi, nên "
+                            + "không chấm bằng AI được nữa. Bài vẫn chấm tay bình thường.");
+        }
+
+        // ⛔ MỘT thông điệp cho cả hai nhóm tuổi, KHÁC hẳn đường ghi âm. Ở đó hai câu chữ khác nhau
+        // là đúng vì người đọc chính là học viên — họ vốn biết tuổi mình. Ở đây người đọc là GIÁO
+        // VIÊN nói về HỌC VIÊN KHÁC, nên chọn từ theo nhóm tuổi ("trẻ em theo luật" so với "dưới 18
+        // theo quy định nội bộ") là phát ra chính cái nhóm tuổi mà lớp ngoại lệ cam kết không phát.
+        // Giáo viên chỉ cần biết VIỆC CẦN LÀM, không cần biết em đó dưới hay trên ngưỡng pháp lý.
+        throw new MinorAiGradingBlockedException(
+                MinorAiGradingBlockedException.Reason.GUARDIAN_CONSENT_REQUIRED, status,
+                "Bài làm của học viên này chỉ được gửi qua AI để chấm khi có đồng ý của cha mẹ hoặc "
+                        + "người giám hộ. Trung tâm ghi nhận phiếu đồng ý là nút AI mở lại ngay; trong lúc "
+                        + "chờ, thầy cô chấm tay như bình thường.");
+    }
+
+    private void applyUnknownAgeAiGradingPolicy(Long studentUserId) {
+        if (!shouldBlockUnknownAge(unknownAgeAiGradingPolicy, studentUserId)) {
+            return;
+        }
+
+        log.warn("[MinorGate] Chặn chấm bài AI cho studentUserId={} vì chưa khai ngày sinh (chính sách={})",
+                studentUserId, unknownAgeAiGradingPolicy);
+        throw new MinorAiGradingBlockedException(
+                MinorAiGradingBlockedException.Reason.BIRTH_DATE_REQUIRED, MinorPolicy.Status.UNKNOWN,
+                "Hồ sơ học viên này chưa có ngày sinh nên hệ thống chưa xác định được có cần đồng ý "
+                        + "của người giám hộ hay không, và không gửi bài làm đi khi còn chưa rõ. Trung tâm "
+                        + "bổ sung ngày sinh vào hồ sơ học viên là nút AI mở lại; trong lúc chờ, thầy cô "
+                        + "chấm tay như bình thường.");
+    }
+
+    /**
+     * "Chưa khai ngày sinh thì có chặn không" — câu trả lời KHÔNG phụ thuộc miền (ghi âm hay chấm
+     * bài), chỉ phụ thuộc cờ của miền đó. Tách ra để hai đường không trôi lệch nhau khi thêm giá trị
+     * enum thứ tư: quên sửa một chỗ là một miền lặng lẽ đổi hành vi.
+     *
+     * <p>Phần KHÁC nhau — log gì và ném ngoại lệ nào, với thông điệp viết cho ai — ở lại từng hàm
+     * gọi, vì đó mới là chỗ hai miền thật sự khác nhau.
+     */
+    private boolean shouldBlockUnknownAge(UnknownAgeAudioPolicy policy, Long userId) {
+        return switch (policy) {
+            case ALLOW -> false;
+            case BLOCK_ALL -> true;
+            case BLOCK_ORG_MEMBERS -> hasActiveOrgMembership(userId);
+        };
     }
 
     private boolean hasActiveOrgMembership(Long userId) {
@@ -199,13 +314,13 @@ public class MinorGate {
      * đúng; còn nếu rơi về {@code ALLOW} thì cổng biến mất mà không ai biết. Cùng lối fail-fast với
      * ràng buộc {@code legal <= center} của {@link MinorPolicy}.
      */
-    private static UnknownAgeAudioPolicy parsePolicy(String raw) {
+    private static UnknownAgeAudioPolicy parsePolicy(String key, String raw) {
         String value = raw == null ? "" : raw.trim().toUpperCase(Locale.ROOT);
         try {
             return UnknownAgeAudioPolicy.valueOf(value);
         } catch (IllegalArgumentException unknown) {
             throw new IllegalStateException(
-                    "app.minor.unknown-age-audio = '" + raw + "' không hợp lệ. Giá trị cho phép: "
+                    key + " = '" + raw + "' không hợp lệ. Giá trị cho phép: "
                             + Arrays.stream(UnknownAgeAudioPolicy.values())
                             .map(Enum::name).collect(Collectors.joining(" · ")));
         }

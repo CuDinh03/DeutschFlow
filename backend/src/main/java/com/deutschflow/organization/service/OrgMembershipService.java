@@ -623,7 +623,8 @@ public class OrgMembershipService {
                 user != null ? user.getDisplayName() : null,
                 member.getRole(),
                 member.getStatus(),
-                member.getJoinedAt());
+                member.getJoinedAt(),
+                null); // D4 chỉ tính ở đường danh sách học viên (OrgService.toMemberDto)
     }
 
     private String deactivate(Long orgId, Long userId, String status, AuditActor actor) {

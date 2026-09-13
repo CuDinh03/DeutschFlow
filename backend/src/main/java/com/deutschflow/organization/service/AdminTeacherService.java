@@ -91,6 +91,7 @@ public class AdminTeacherService {
                 teacher != null ? teacher.getDisplayName() : null,
                 member.getRole(),
                 member.getStatus(),
-                member.getJoinedAt());
+                member.getJoinedAt(),
+                null); // D4 không áp dụng: đường này chỉ trả nhân sự giảng dạy
     }
 }

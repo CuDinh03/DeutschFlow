@@ -35,6 +35,7 @@ public class TeacherAiGradingService {
     private final GradingModelConfig gradingModelConfig;
     private final UserNotificationService userNotificationService;
     private final OrgPoolGuard orgPoolGuard;
+    private final com.deutschflow.common.minor.MinorGate minorGate;
 
     /** Ước lượng token cho 1 lần chấm Sprechen (transcript vào + ~1000 token feedback ra). */
     private static final long SPEAKING_GRADING_ESTIMATED_TOKENS = 2_000L;
@@ -70,6 +71,28 @@ public class TeacherAiGradingService {
                 log.info("[Auto-Grading] Session {} has only {} learner turn(s) (<{}), skipping AI score",
                         sessionId, userTurns, MIN_USER_TURNS_FOR_GRADE);
                 return;
+            }
+
+            // D3 — cổng tuổi cho khâu CHẤM phiên luyện nói, chỉ khi phiên gắn với một bài giáo viên
+            // giao (chấm điểm thật lên StudentAssignment). Phiên tự luyện không gắn bài thì đây là
+            // "chat AI", owner đã chốt không chặn.
+            //
+            // 🪤 Vì sao KHÔNG dựa vào cổng ghi âm ở đây: assertAudioAllowed chỉ được gọi ở
+            // AiSessionController POST /transcribe. Hai endpoint /sessions/{id}/chat và /chat/stream
+            // nhận thẳng CHỮ do người học gõ và không đi qua /transcribe lần nào — một học viên vị
+            // thành niên gõ hết phiên rồi kết thúc là transcript đi ra nhà cung cấp AI mà không chốt
+            // nào chạm tới. Phát hiện trong vòng soát bảo mật 11/09/2026.
+            //
+            // Chủ thể là CHỦ PHIÊN (session.getUserId()) — người có lời nói/bài làm trong transcript.
+            if (session.getAssignmentId() != null) {
+                try {
+                    minorGate.assertAiGradingAllowed(session.getUserId());
+                } catch (com.deutschflow.common.minor.MinorAiGradingBlockedException blocked) {
+                    // Như đường bài viết: không ném ra ngoài (@Async, không tới ai), mà dừng im lặng
+                    // ở đây — bài vẫn nằm trong hàng đợi để giáo viên chấm tay.
+                    log.warn("[Auto-Grading] Chặn chấm AI phiên {} — {}", sessionId, blocked.getReason());
+                    return;
+                }
             }
 
             StringBuilder transcript = new StringBuilder();
