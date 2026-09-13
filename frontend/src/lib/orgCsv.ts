@@ -14,6 +14,32 @@ function cell(v: string): string {
 }
 
 /**
+ * `sep=,` — chỉ thị riêng của Excel, đứng trước mọi dòng khác của một tệp ta SINH RA.
+ *
+ * Excel mở `.csv` bằng dấu phân tách của HỆ ĐIỀU HÀNH: máy đặt vùng Việt Nam thì dấu đó là chấm
+ * phẩy, nên tệp phẩy của ta dồn hết vào cột A (owner báo 14/09/2026). Hỏng không dừng ở chỗ khó
+ * đọc — sửa xong lưu lại từ Excel thì cả dòng, lúc này là MỘT ô có dấu phẩy bên trong, được ghi ra
+ * kèm ngoặc kép; tệp nạp lên chỉ còn một cột và không dòng nào có email đọc được.
+ *
+ * Chỉ thị này Excel nuốt luôn (không hiện thành một hàng), Google Sheets/LibreOffice hiện nó thành
+ * một dòng thừa. Đổi lấy: mở bằng Excel — thứ trung tâm thật sự dùng — thì đúng cột ngay.
+ */
+const EXCEL_SEP_DIRECTIVE = 'sep=,'
+
+/** Dòng chỉ thị `sep=X`: đúng `sep=` + MỘT ký tự, nên không thể là một dòng dữ liệu thật. */
+const SEP_DIRECTIVE_RE = /^sep=.$/i
+
+/**
+ * Dòng chú thích của tệp mẫu — ô ĐẦU bắt đầu bằng `#`. Nhận cả ô bọc ngoặc kép vì Excel bọc lại ô
+ * nào có dấu phẩy khi lưu.
+ */
+function isGuideRecord(text: string): boolean {
+  const head = text.replace(/^\s+/, '')
+  const body = head.startsWith('"') ? head.slice(1).replace(/^\s+/, '') : head
+  return body.startsWith('#')
+}
+
+/**
  * Header mặc định (tiếng Việt) — trang Students truyền header đã dịch theo locale UI
  * (v2.org.students.csv; đợt 3 audit UTF-8/i18n 06/09/2026).
  */
@@ -30,7 +56,8 @@ const DEFAULT_HEADER: readonly string[] = ['Tên hiển thị', 'Email', 'Trạn
  */
 export function studentsToCsv(members: OrgMember[], header: readonly string[] = DEFAULT_HEADER): string {
   const rows = members.map((m) => [m.displayName ?? '', m.email, m.status, m.joinedAt ?? ''])
-  return '﻿' + [header, ...rows].map((r) => r.map(cell).join(',')).join('\r\n')
+  const body = [header, ...rows].map((r) => r.map(cell).join(','))
+  return '﻿' + [EXCEL_SEP_DIRECTIVE, ...body].join('\r\n')
 }
 
 /** Tải một chuỗi văn bản xuống trình duyệt dưới dạng file. */
@@ -293,7 +320,13 @@ function indexOfAny(headerCols: string[], aliases: readonly string[]): number {
  */
 export function parseRosterCsv(text: string): RosterParse {
   const src = text.startsWith('\uFEFF') ? text.slice(1) : text
-  const records = splitCsvRecords(src)
+  // Bỏ hai loại dòng KHÔNG PHẢI dữ liệu của tệp mẫu TRƯỚC mọi việc khác — kể cả trước khi dò tiêu
+  // đề, vì `sep=,` đứng trên tiêu đề. Chép đúng luật của máy chủ (`OrgRosterService`
+  // .isSeparatorDirective / .isGuideRow): web lọc rộng hơn thì xem trước thiếu dòng máy chủ vẫn
+  // nhập, hẹp hơn thì xem trước hiện một dòng rác không tồn tại trong kết quả.
+  const records = splitCsvRecords(src).filter(
+    (rec, idx) => !(idx === 0 && SEP_DIRECTIVE_RE.test(rec.text.trim())) && !isGuideRecord(rec.text),
+  )
   const firstCols = records.length > 0 ? parseCsvLine(records[0].text.trim()) : []
 
   // Header là bản ghi ĐẦU TIÊN và chỉ khi ô đầu của nó đúng chữ `email`. Chốt này dùng `trim` +
@@ -394,7 +427,17 @@ export function parseRosterCsv(text: string): RosterParse {
  */
 export function rosterTemplateCsv(): string {
   return '\uFEFF' + [
+    // Bắt Excel tách theo dấu phẩy dù máy đặt vùng Việt Nam — xem EXCEL_SEP_DIRECTIVE.
+    EXCEL_SEP_DIRECTIVE,
     'email,displayName,phone,birthDate,guardianName,guardianRelationship,guardianPhone,guardianEmail,consentConfirmed,reportSharingConfirmed',
+    // Hàng chú thích tiếng Việt, đứng ngay dưới tiêu đề để đọc THEO CỘT: nhìn tệp là biết
+    // `birthDate` phải điền gì, không phải mở tài liệu (owner yêu cầu 14/09/2026). Ô đầu mở bằng
+    // `#` nên cả web lẫn máy chủ bỏ qua hàng này khi nhập — người dùng cứ để nguyên mà điền tiếp.
+    // ⛔ KHÔNG để dấu phẩy trong các ô này: có phẩy là phải bọc ngoặc kép, mà tệp mẫu còn dùng để
+    // người ta đọc bằng mắt trong trình soạn thảo thường.
+    '# Email đăng nhập (bắt buộc),Họ và tên,Số điện thoại,Ngày sinh YYYY-MM-DD,'
+      + 'Họ tên người giám hộ,Quan hệ (MOTHER/FATHER/LEGAL_GUARDIAN/OTHER),SĐT người giám hộ,'
+      + 'Email người giám hộ,x = đã có phiếu đồng ý ghi âm (mục C1),x = đồng ý nhận phiếu đánh giá (mục C2)',
     'hocvien@example.com,Nguyễn Văn A,0912345678,1999-04-21,,,,,,',
     'hocvien2@example.com,"Trần, Bình",,2011-09-15,Trần Thị C,MOTHER,0987654321,tran.c@example.com,x,x',
   ].join('\r\n') + '\r\n'
@@ -402,5 +445,5 @@ export function rosterTemplateCsv(): string {
 
 /** Danh sách lỗi từng dòng do backend trả → CSV một cột để tải về đối soát. */
 export function rosterErrorsCsv(errors: string[]): string {
-  return '\uFEFF' + ['error', ...errors.map(cell)].join('\r\n') + '\r\n'
+  return '\uFEFF' + [EXCEL_SEP_DIRECTIVE, 'error', ...errors.map(cell)].join('\r\n') + '\r\n'
 }
