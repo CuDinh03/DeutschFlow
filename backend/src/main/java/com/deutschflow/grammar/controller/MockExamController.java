@@ -324,6 +324,10 @@ public class MockExamController {
         String sectionsJson = (String) exam.get("sections_json");
         Map<String, Object> examStructure = om.readValue(sectionsJson, Map.class);
         List<Map<String, Object>> sections = (List<Map<String, Object>>) examStructure.get("sections");
+        // Ba khoá gốc của định dạng telc; đề Goethe không khai ⇒ null ⇒ mọi luật cũ giữ nguyên.
+        String examFormat = examStructure.get("format") instanceof String f ? f : null;
+        Map<String, Object> passRule = examStructure.get("pass_rule") instanceof Map<?, ?> pr
+                ? (Map<String, Object>) pr : null;
 
         // Parse submitted answers
         Map<String, Object> answers = new HashMap<>();
@@ -358,10 +362,12 @@ public class MockExamController {
                 continue;
             }
             switch (sectionName) {
-                case "LESEN", "HOEREN" ->
+                // SPRACHBAUSTEINE (telc) cũng là phần khách quan: 20 câu a/b/c và điền-từ-từ-hộp,
+                // chấm bằng đúng luật trọng số của scoreObjectiveSection.
+                case "LESEN", "HOEREN", "SPRACHBAUSTEINE" ->
                         detailedScores.put(sectionName, scoringService.scoreObjectiveSection(answers, section));
                 case "SCHREIBEN" ->
-                        detailedScores.put(sectionName, scoringService.scoreSchreibenSection(uid, answers, section, examLevel));
+                        detailedScores.put(sectionName, scoringService.scoreSchreibenSection(uid, answers, section, examLevel, examFormat));
                 case "SPRECHEN" ->
                         detailedScores.put(sectionName, scoringService.scoreSprechenSection(uid, answers, section, examLevel));
                 default -> log.warn("[MockExam] Đề {} có phần lạ '{}' — không chấm phần này", examId, sectionName);
@@ -371,7 +377,7 @@ public class MockExamController {
         Integer passPoints = exam.get("pass_points") instanceof Number n ? n.intValue() : null;
         Integer totalPoints = exam.get("total_points") instanceof Number m ? m.intValue() : null;
         int passPercent = ExamScoringService.passPercent(passPoints, totalPoints);
-        ExamScoringService.ExamTotals totals = scoringService.summarize(detailedScores, passPercent);
+        ExamScoringService.ExamTotals totals = scoringService.summarize(detailedScores, passPercent, passRule);
         int totalScore = totals.totalScore();
 
         List<String> weakAreas = scoringService.identifyWeakAreas(detailedScores);
@@ -393,8 +399,9 @@ public class MockExamController {
             """, totalScore, totals.passed(), detailedScoresJson, weakAreasJson,
             om.writeValueAsString(answers), attemptId, uid);
 
-        log.info("[MockExam] Exam {} finished for user {} — {}/100 trên {} điểm chấm được, ngưỡng {}%, đỗ={}",
-                attemptId, uid, totalScore, totals.scoredMax(), passPercent, totals.passed());
+        log.info("[MockExam] Exam {} finished for user {} — {}/100 trên {} điểm chấm được, ngưỡng {}%, đỗ={}{}",
+                attemptId, uid, totalScore, totals.scoredMax(), passPercent, totals.passed(),
+                totals.gates().isEmpty() ? "" : " · cổng " + totals.gates());
 
         // Best-effort post-exam updates (phase recompute + B1 graduation)
         try {
@@ -408,15 +415,18 @@ public class MockExamController {
                     attemptId, ex.getMessage());
         }
 
-        return Map.of(
-            "attemptId", attemptId,
-            "totalScore", totalScore,
-            "scoredMax", totals.scoredMax(),
-            "passPercent", passPercent,
-            "passed", totals.passed(),
-            "detailedScores", detailedScores,
-            "weakAreas", weakAreas
-        );
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("attemptId", attemptId);
+        response.put("totalScore", totalScore);
+        response.put("scoredMax", totals.scoredMax());
+        response.put("passPercent", passPercent);
+        response.put("passed", totals.passed());
+        response.put("detailedScores", detailedScores);
+        response.put("weakAreas", weakAreas);
+        // Chỉ đề nhiều ngưỡng (telc) mới có khoá này — màn kết quả đọc nó để nói rõ ĐẠT/TRƯỢT/CHỜ
+        // của từng cổng thay vì một con số phần trăm không diễn tả được hai ngưỡng độc lập.
+        if (!totals.gates().isEmpty()) response.put("gates", totals.gates());
+        return response;
     }
 
     @GetMapping("/attempts/me")

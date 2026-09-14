@@ -2132,7 +2132,11 @@
           "aufgabenerfuellung": "Aufgabenerfüllung",
           "kohaerenz": "Kohärenz & Aufbau",
           "wortschatz": "Wortschatz",
-          "strukturen": "Grammatik & Satzstrukturen"
+          "strukturen": "Grammatik & Satzstrukturen",
+          "leitpunkte": "Berücksichtigung der Leitpunkte",
+          "kommunikativeGestaltung": "Kommunikative Gestaltung",
+          "formaleRichtigkeit": "Formale Richtigkeit",
+          "other": "Weiteres Kriterium"
         },
         "pendingTitle": "Die KI bewertet deinen Text gerade",
         "pendingFallback": "Die E-Mail wurde noch nicht abgegeben oder wird noch verarbeitet.",
