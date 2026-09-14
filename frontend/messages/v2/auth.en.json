@@ -100,6 +100,29 @@
       "resend": "Resend code",
       "changeEmail": "Use a different email",
       "backToLogin": "← Back to login"
+    },
+    "activate": {
+      "cap": "Account activation",
+      "title": "Set your password",
+      "subtitle": "This is your first time on DeutschFlow. Choose a password to use from now on.",
+      "accountNotice": "You are setting the password for {email}.",
+      "accountNoticeWithOrg": "You are setting the password for {email}, created by {org}.",
+      "newPasswordLabel": "New password",
+      "newPasswordPlaceholder": "At least 8 characters",
+      "newPasswordRequired": "Please enter a new password",
+      "newPasswordTooShort": "Password must be at least 8 characters",
+      "confirmLabel": "Confirm password",
+      "confirmPlaceholder": "Type the password again",
+      "confirmMismatch": "The two passwords do not match",
+      "submit": "Set password and start",
+      "saving": "Saving…",
+      "success": "Password set. Sign in to begin.",
+      "failed": "Could not set the password. Please try again.",
+      "expired": "This activation link has expired. You can still get in with “Forgot password”.",
+      "used": "This link has already been used. Sign in with the password you set, or use “Forgot password” if you cannot remember it.",
+      "unknown": "This activation link is not valid. Check the email again, or use “Forgot password”.",
+      "goForgot": "Forgot password",
+      "goLogin": "Back to sign in"
     }
   }
 }

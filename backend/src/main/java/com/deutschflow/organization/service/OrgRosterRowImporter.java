@@ -8,6 +8,7 @@ import com.deutschflow.common.minor.MinorConsentTerms;
 import com.deutschflow.common.minor.MinorLearnerService;
 import com.deutschflow.common.minor.StudentConsent;
 import com.deutschflow.common.minor.StudentGuardian;
+import com.deutschflow.common.transaction.RunAfterCommitService;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.teacher.service.AssignmentBackfillService;
@@ -73,6 +74,9 @@ public class OrgRosterRowImporter {
     private final MinorLearnerService minorLearnerService;
     private final MinorConsentTerms consentTerms;
     private final JdbcTemplate jdbcTemplate;
+    private final com.deutschflow.user.activation.AccountActivationService activationService;
+    private final com.deutschflow.user.activation.AccountActivationMailer activationMailer;
+    private final RunAfterCommitService runAfterCommitService;
 
     /**
      * What one row did. {@code created} and {@code linked} are mutually exclusive; {@code seatLimited}
@@ -208,6 +212,9 @@ public class OrgRosterRowImporter {
         entitlementService.grantStudent(user.getId(), org);
 
         // D6: từ đây trở xuống dòng đã là thành viên ACTIVE của chính trung tâm này.
+        if (created) {
+            issueActivationInvite(user, org);
+        }
         boolean birthDateRecorded = recordBirthDate(row, user, orgId, actor);
         boolean guardianRecorded = recordGuardian(row, user, orgId, actor);
         boolean consentRecorded = recordConsent(row, user, orgId, actor);
@@ -228,6 +235,32 @@ public class OrgRosterRowImporter {
         }
         return RowOutcome.imported(created, enrolled, birthDateRecorded, guardianRecorded,
                 consentRecorded, reportSharingRecorded);
+    }
+
+    /**
+     * Phát liên kết đặt mật khẩu lần đầu và hẹn gửi email (Q-09, owner chốt 14/09/2026).
+     *
+     * <p><b>CHỈ cho dòng vừa TẠO tài khoản.</b> Dòng chỉ liên kết một tài khoản đã có thì người đó
+     * đã có mật khẩu của riêng mình — gửi cho họ một liên kết đặt lại là vừa vô nghĩa vừa đáng ngờ.
+     * Dòng bị từ chối (hết ghế, thuộc trung tâm khác, đụng nhân sự) không chạy tới đây: chúng thoát
+     * sớm ở trên, đúng nguyên tắc D6.
+     *
+     * <p><b>Token ghi TRONG giao dịch, email gửi SAU commit.</b> {@code importRow} là
+     * {@code REQUIRES_NEW} — mỗi dòng commit riêng. Token là dữ liệu nên phải cùng số phận với dòng
+     * sinh ra nó (rollback thì nó biến mất). Email thì ngược lại: nó rời khỏi hệ thống và không rút
+     * lại được, nên chỉ được đi sau khi dòng đã chắc chắn nằm trong cơ sở dữ liệu.
+     *
+     * <p>Không ném: {@code RunAfterCommitService} nuốt RuntimeException, và {@link
+     * com.deutschflow.user.activation.AccountActivationMailer} cũng không ném. Một SMTP hỏng không
+     * được biến một lượt nhập CSV thành công thành một dòng lỗi trên màn hình trung tâm — học viên
+     * vẫn còn đường "Quên mật khẩu".
+     */
+    private void issueActivationInvite(User user, Organization org) {
+        String token = activationService.issue(user.getId(), org.getId());
+        String email = user.getEmail();
+        String displayName = user.getDisplayName();
+        String orgName = org.getName();
+        runAfterCommitService.run(() -> activationMailer.sendActivation(email, displayName, orgName, token));
     }
 
     /**
