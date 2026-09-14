@@ -2132,7 +2132,11 @@
           "aufgabenerfuellung": "Task completion",
           "kohaerenz": "Coherence & structure",
           "wortschatz": "Vocabulary",
-          "strukturen": "Grammar & sentence structure"
+          "strukturen": "Grammar & sentence structure",
+          "leitpunkte": "Coverage of required points",
+          "kommunikativeGestaltung": "Communicative design",
+          "formaleRichtigkeit": "Formal accuracy",
+          "other": "Other criterion"
         },
         "pendingTitle": "Waiting for AI to grade your text",
         "pendingFallback": "The email has not been submitted yet or is still being processed.",

@@ -2132,7 +2132,11 @@
           "aufgabenerfuellung": "Hoàn thành nhiệm vụ",
           "kohaerenz": "Mạch lạc & cấu trúc",
           "wortschatz": "Từ vựng",
-          "strukturen": "Ngữ pháp & cấu trúc câu"
+          "strukturen": "Ngữ pháp & cấu trúc câu",
+          "leitpunkte": "Bám sát các ý yêu cầu",
+          "kommunikativeGestaltung": "Bố cục & cách viết thư",
+          "formaleRichtigkeit": "Ngữ pháp & chính tả",
+          "other": "Tiêu chí khác"
         },
         "pendingTitle": "Đang chờ AI chấm bài viết",
         "pendingFallback": "Phần email chưa được nộp hoặc đang xử lý.",
