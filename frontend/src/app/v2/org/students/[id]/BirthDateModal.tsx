@@ -29,10 +29,17 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 export function BirthDateModal({
   studentId,
+  hasBirthDate,
   onClose,
   onSaved,
 }: {
   studentId: number
+  /**
+   * Học viên đã có ngày sinh chưa — lấy từ `OrgStudentDetail.birthDateRecorded` (boolean, KHÔNG phải
+   * giá trị). Chỉ để chọn tiêu đề ngay khi mở: suy ra từ dữ liệu đang tải sẽ cho tiêu đề "Nhập ngày
+   * sinh" nhấp nháy thành "Sửa ngày sinh" sau khi request về.
+   */
+  hasBirthDate: boolean
   onClose: () => void
   onSaved: () => void
 }) {
@@ -89,7 +96,7 @@ export function BirthDateModal({
     }
   }
 
-  const isEdit = Boolean(current?.birthDate)
+  const isEdit = current ? Boolean(current.birthDate) : hasBirthDate
 
   return (
     <TkModal

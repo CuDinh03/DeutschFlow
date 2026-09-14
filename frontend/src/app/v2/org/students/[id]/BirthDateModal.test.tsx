@@ -84,7 +84,7 @@ beforeEach(() => {
 
 describe('BirthDateModal — trung tâm sửa ngày sinh', () => {
   it('tải giá trị hiện tại qua đường riêng và hiện ai đã đặt nó', async () => {
-    render(<BirthDateModal studentId={7} onClose={() => {}} onSaved={() => {}} />)
+    render(<BirthDateModal studentId={7} hasBirthDate onClose={() => {}} onSaved={() => {}} />)
 
     await waitFor(() => expect(getStudentBirthDate).toHaveBeenCalledWith(7))
     const input = await screen.findByTestId('birth-date-input')
@@ -93,7 +93,7 @@ describe('BirthDateModal — trung tâm sửa ngày sinh', () => {
   })
 
   it('nói thẳng hai hệ quả: học viên được báo, và đổi nhóm tuổi là đổi quyền', async () => {
-    render(<BirthDateModal studentId={7} onClose={() => {}} onSaved={() => {}} />)
+    render(<BirthDateModal studentId={7} hasBirthDate onClose={() => {}} onSaved={() => {}} />)
 
     expect(await screen.findByTestId('birth-date-notice-hint')).toHaveTextContent(`${NS}.birthDateModal.noticeHint`)
     expect(screen.getByText(`${NS}.birthDateModal.gateHint`)).toBeInTheDocument()
@@ -102,7 +102,7 @@ describe('BirthDateModal — trung tâm sửa ngày sinh', () => {
   it('lưu giá trị mới ⇒ gọi API đúng một lần rồi báo cho trang cha', async () => {
     const onSaved = vi.fn()
     const onClose = vi.fn()
-    render(<BirthDateModal studentId={7} onClose={onClose} onSaved={onSaved} />)
+    render(<BirthDateModal studentId={7} hasBirthDate onClose={onClose} onSaved={onSaved} />)
 
     const input = await screen.findByTestId('birth-date-input')
     await userEvent.clear(input)
@@ -115,8 +115,13 @@ describe('BirthDateModal — trung tâm sửa ngày sinh', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it('tiêu đề quyết định bằng prop, KHÔNG chờ request — mở ra không nhấp nháy "Nhập" thành "Sửa"', () => {
+    render(<BirthDateModal studentId={7} hasBirthDate onClose={() => {}} onSaved={() => {}} />)
+    expect(screen.getByText(`${NS}.birthDateModal.titleEdit`)).toBeInTheDocument()
+  })
+
   it('🔴 ngày tương lai bị chặn tại chỗ, KHÔNG gọi API', async () => {
-    render(<BirthDateModal studentId={7} onClose={() => {}} onSaved={() => {}} />)
+    render(<BirthDateModal studentId={7} hasBirthDate onClose={() => {}} onSaved={() => {}} />)
 
     const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10)
     const input = await screen.findByTestId('birth-date-input')

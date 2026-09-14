@@ -226,6 +226,7 @@ export function GuardianConsentSection({ detail, onChanged }: { detail: OrgStude
       {birthDateModal && (
         <BirthDateModal
           studentId={detail.userId}
+          hasBirthDate={detail.birthDateRecorded}
           onClose={() => setBirthDateModal(false)}
           onSaved={afterWrite}
         />
