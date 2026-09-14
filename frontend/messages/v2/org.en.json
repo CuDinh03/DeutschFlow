@@ -243,7 +243,9 @@
           "ADULT": "Adult"
         },
         "birthDateRecorded": "Birth date recorded",
-        "birthDateMissing": "No birth date — add it via CSV import (birthDate column)",
+        "birthDateMissing": "No date of birth yet",
+        "editBirthDate": "Edit date of birth",
+        "addBirthDate": "Add date of birth",
         "audioConsentLabel": "Audio-recording consent",
         "audioConsent": {
           "NEVER_RECORDED": "Not recorded",
@@ -346,6 +348,21 @@
           "confirmDetailAppendOnly": "Append-only ledger: this entry cannot be edited or deleted once written.",
           "saved": "Consent recorded",
           "revoked": "Consent revocation recorded"
+        },
+        "birthDateModal": {
+          "titleAdd": "Add date of birth",
+          "titleEdit": "Edit date of birth",
+          "description": "Date of birth decides whether this learner can use speaking practice and AI grading.",
+          "label": "Date of birth",
+          "recordedBy": "Current value set by {name} on {at}.",
+          "unknownRecorder": "a deleted account",
+          "noticeHint": "The learner will be notified about this change.",
+          "gateHint": "Changing the age band changes access: under 18 locks speaking practice until the centre records a guardian consent form.",
+          "invalid": "Invalid date of birth",
+          "future": "Date of birth cannot be in the future",
+          "cancel": "Cancel",
+          "submit": "Save",
+          "saved": "Date of birth saved"
         }
       }
     },

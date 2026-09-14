@@ -55,6 +55,7 @@ const ICON_BY_KEY: Record<NotificationIconKey, GlyphName> = {
   calendarMove: 'lich',
   plan: 'thinoi',
   maintenance: 'sualoi',
+  profile: 'hoso',
   bell: 'thongbao',
 }
 

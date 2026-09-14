@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Pencil, Plus, ShieldCheck, ShieldOff } from 'lucide-react'
+import { CalendarDays, Pencil, Plus, ShieldCheck, ShieldOff } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import {
@@ -15,12 +15,15 @@ import {
 import { GaBtn, GaCap, TkBadge } from '@/components/ui-v2'
 import { GuardianModal } from './GuardianModal'
 import { ConsentModal } from './ConsentModal'
+import { BirthDateModal } from './BirthDateModal'
 
 /**
  * Mục "Người giám hộ & đồng ý" trên trang chi tiết học viên (D1/R11, owner chốt 10/09/2026).
  *
- * Ba khối: (1) trạng thái tuổi + đồng ý ghi âm — đúng thứ `MinorGate` đang đọc để khoá/mở phần nói,
- * KHÔNG hiện ngày sinh; (2) danh sách người giám hộ, thêm/sửa qua `GuardianModal` (không xoá);
+ * Ba khối: (1) trạng thái tuổi + đồng ý ghi âm — đúng thứ `MinorGate` đang đọc để khoá/mở phần nói.
+ * Khối này vẫn KHÔNG hiện ngày sinh thô, kể cả sau khi owner cho trung tâm sửa (Q-02, 14/09/2026):
+ * giá trị chỉ tải khi người dùng mở `BirthDateModal`, nên một lượt lướt qua hồ sơ không đọc được
+ * ngày sinh của trẻ; (2) danh sách người giám hộ, thêm/sửa qua `GuardianModal` (không xoá);
  * (3) sổ đồng ý chỉ-ghi-thêm, ghi phiếu giấy / thu hồi qua `ConsentModal` (có `ConfirmDialog`).
  *
  * Chỉ tải hồ sơ khi học viên ĐANG là thành viên: máy chủ trả 404 cho người đã rời (trung tâm không
@@ -58,6 +61,7 @@ export function GuardianConsentSection({ detail, onChanged }: { detail: OrgStude
   const [error, setError] = useState('')
   const [guardianModal, setGuardianModal] = useState<{ open: boolean; existing: OrgStudentGuardian | null }>({ open: false, existing: null })
   const [consentModal, setConsentModal] = useState<'grant' | 'revoke' | null>(null)
+  const [birthDateModal, setBirthDateModal] = useState(false)
 
   const load = useCallback(async () => {
     if (!active) return
@@ -94,9 +98,16 @@ export function GuardianConsentSection({ detail, onChanged }: { detail: OrgStude
             <span className="ga-ui text-ga-caption text-ga-muted">{t('audioConsentLabel')}</span>
             <TkBadge tone={CONSENT_TONE[detail.audioConsentState]} data-testid="audio-consent-state">{t(`audioConsent.${detail.audioConsentState}`)}</TkBadge>
           </div>
-          <span className="ga-ui text-ga-caption text-ga-muted">
-            {detail.birthDateRecorded ? t('birthDateRecorded') : t('birthDateMissing')}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="ga-ui text-ga-caption text-ga-muted">
+              {detail.birthDateRecorded ? t('birthDateRecorded') : t('birthDateMissing')}
+            </span>
+            {active && (
+              <GaBtn variant="ghost" size="sm" onClick={() => setBirthDateModal(true)} data-testid="birth-date-edit">
+                <CalendarDays size={14} /> {detail.birthDateRecorded ? t('editBirthDate') : t('addBirthDate')}
+              </GaBtn>
+            )}
+          </div>
         </div>
         <p className="ga-ui mt-3 flex items-start gap-2 text-ga-small text-ga-ink" data-testid="audio-note">
           {audioNoteKey(detail) === 'audioLocked'
@@ -208,6 +219,14 @@ export function GuardianConsentSection({ detail, onChanged }: { detail: OrgStude
           existing={guardianModal.existing}
           hasGuardians={guardians.length > 0}
           onClose={() => setGuardianModal({ open: false, existing: null })}
+          onSaved={afterWrite}
+        />
+      )}
+
+      {birthDateModal && (
+        <BirthDateModal
+          studentId={detail.userId}
+          onClose={() => setBirthDateModal(false)}
           onSaved={afterWrite}
         />
       )}

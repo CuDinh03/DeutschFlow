@@ -1,6 +1,7 @@
 package com.deutschflow.organization.dto;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 /**
  * DTO cho đường trung tâm xem/sửa người giám hộ và ghi/thu hồi phiếu đồng ý của một học viên
@@ -82,6 +83,33 @@ public final class OrgGuardianConsentDtos {
             String audioConsentState,
             int guardianCount
     ) {}
+
+    /**
+     * Ngày sinh đang lưu + ai đặt lần gần nhất — chỉ trả trên đường đọc RIÊNG
+     * ({@code GET /api/org/students/{id}/birth-date}), không nhét vào {@link MinorSummary}.
+     *
+     * <p><b>Vì sao đường riêng.</b> D1/R11 cố ý không cho ngày sinh thô vào màn chi tiết học viên —
+     * mọi hạn chế chỉ cần NHÓM TUỔI, nên mở giá trị thật ở đường đọc chung là mở dữ liệu cá nhân
+     * của trẻ cho mọi lượt xem hồ sơ. Quyết định đó vẫn đúng sau khi owner cho trung tâm sửa
+     * (Q-02, 14/09/2026): người sắp sửa thì phải thấy, còn người chỉ lướt qua hồ sơ thì không.
+     *
+     * @param recordedByName tên người đặt, giải từ {@code users} lúc đọc; rỗng nếu tài khoản đó đã
+     *                       bị xoá ({@code birth_date_recorded_by} là {@code ON DELETE SET NULL})
+     */
+    public record BirthDateDto(
+            LocalDate birthDate,
+            Instant recordedAt,
+            Long recordedByUserId,
+            String recordedByName,
+            String minorStatus
+    ) {}
+
+    /**
+     * Đặt ngày sinh. Nhận CHUỖI {@code yyyy-MM-dd} chứ không {@code LocalDate}: đây là ô người ta
+     * gõ tay, và Jackson vấp định dạng thì ném {@code HttpMessageNotReadableException} — màn hình
+     * nhận về một câu tiếng Anh của thư viện thay vì "Ngày sinh không đúng định dạng".
+     */
+    public record BirthDateRequest(String birthDate) {}
 
     private OrgGuardianConsentDtos() {}
 }

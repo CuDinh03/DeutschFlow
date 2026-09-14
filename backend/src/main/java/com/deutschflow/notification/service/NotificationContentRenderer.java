@@ -154,7 +154,22 @@ public class NotificationContentRenderer {
                     "Phiếu đánh giá " + reportPeriodLabel(str(p, "period")) + " của lớp "
                             + nonBlankOr(str(p, "className"), "bạn đang học")
                             + " đã được phát hành cho gia đình. Bạn xem đúng bản đã gửi trong mục Đánh giá.");
+
+            // ── Ngày sinh do trung tâm đặt (Q-02/Q-05) — KHÔNG nhắc giá trị ──
+            // Body này là body của push Expo, hiện nguyên văn trên màn hình khoá. Ngày sinh của một
+            // học viên (thường là trẻ vị thành niên) không đi ra chỗ đó; nó nằm trong payload để
+            // web/mobile hiện sau khi mở khoá máy.
+            case BIRTH_DATE_UPDATED -> new RenderedContent(
+                    boolOf(p, "firstRecord") ? "Ngày sinh đã được ghi" : "Ngày sinh đã được sửa",
+                    "Trung tâm " + nonBlankOr(str(p, "orgName"), "của bạn")
+                            + (boolOf(p, "firstRecord") ? " đã ghi" : " đã sửa")
+                            + " ngày sinh trên hồ sơ của bạn. Mở ứng dụng để xem và báo lại nếu chưa đúng.");
         };
+    }
+
+    /** Cờ boolean trong payload jsonb — Jackson trả Boolean, nhưng payload cũ có thể thiếu khoá. */
+    private static boolean boolOf(Map<String, Object> p, String key) {
+        return p.get(key) instanceof Boolean b && b;
     }
 
     /** Kỳ phát hành phiếu ({@code StudentReportIssue.Period}) → cụm từ tiếng Việt. */
