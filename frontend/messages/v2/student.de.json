@@ -983,7 +983,18 @@
       "yourAnswer": "Ihre Antwort",
       "correctAnswer": "Richtige Antwort",
       "draftConflict": "Dieser Versuch wurde gerade auf einem anderen Gerät aktualisiert — neuester Entwurf geladen.",
-      "draftExpired": "Die Zeit ist abgelaufen — deine Prüfung wird jetzt abgegeben."
+      "draftExpired": "Die Zeit ist abgelaufen — deine Prüfung wird jetzt abgegeben.",
+      "telcHeadlines": "Überschriften — ordnen Sie jedem Text eine zu",
+      "telcAds": "Anzeigen",
+      "telcWordBank": "Wortkasten",
+      "telcSingleUse": "Jede Lösung kann nur einmal verwendet werden.",
+      "telcNoneHint": "Wählen Sie „x“, wenn keine Anzeige passt.",
+      "telcNone": "x",
+      "telcPickLetter": "Buchstaben wählen",
+      "telcAlreadyUsed": "Bereits für eine andere Aufgabe verwendet",
+      "telcGapEmpty": "offen",
+      "telcGapLabel": "Lücke {n}",
+      "telcMissingPool": "Für diesen Prüfungsteil fehlt die Lösungsliste, er kann daher nicht bearbeitet werden. Bitte melden Sie uns das."
     },
     "grammarPractice": {
       "title": "Grammatiktraining",
@@ -2114,7 +2125,13 @@
         "play": "Audio abspielen",
         "stop": "Stopp",
         "defaultLabel": "Hörtext",
-        "unsupportedHint": "Browser nicht unterstützt. Bitte Chrome oder Safari verwenden."
+        "unsupportedHint": "Browser nicht unterstützt. Bitte Chrome oder Safari verwenden.",
+        "playsLeft": "Noch {n}× hören",
+        "playsExhausted": "Keine Wiedergabe mehr",
+        "playsExhaustedHint": "Sie haben alle Wiedergaben verbraucht — wie in der echten Prüfung.",
+        "dialogueLabel": "Hörtext — Gespräch",
+        "speakerA": "Person 1",
+        "speakerB": "Person 2"
       },
       "scoreBreakdown": {
         "pending": "Bewertung ausstehend",

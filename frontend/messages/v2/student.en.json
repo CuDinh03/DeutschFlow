@@ -983,7 +983,18 @@
       "yourAnswer": "Your answer",
       "correctAnswer": "Correct answer",
       "draftConflict": "This attempt was just updated from another device — loaded the newest draft.",
-      "draftExpired": "Time is up — submitting your exam now."
+      "draftExpired": "Time is up — submitting your exam now.",
+      "telcHeadlines": "Headlines — pick one for each text",
+      "telcAds": "Classified ads",
+      "telcWordBank": "Word bank",
+      "telcSingleUse": "Each option can be used only once.",
+      "telcNoneHint": "Pick “none” when no ad fits the situation.",
+      "telcNone": "none",
+      "telcPickLetter": "Pick a letter",
+      "telcAlreadyUsed": "Already used for another question",
+      "telcGapEmpty": "not chosen",
+      "telcGapLabel": "Gap {n}",
+      "telcMissingPool": "This part of the exam is missing its list of options, so it cannot be answered. Please let us know."
     },
     "grammarPractice": {
       "title": "Grammar practice",
@@ -2114,7 +2125,13 @@
         "play": "Play audio",
         "stop": "Stop",
         "defaultLabel": "Hörtext",
-        "unsupportedHint": "Browser not supported. Use Chrome or Safari."
+        "unsupportedHint": "Browser not supported. Use Chrome or Safari.",
+        "playsLeft": "{n} play(s) left",
+        "playsExhausted": "No plays left",
+        "playsExhaustedHint": "You have used all the plays, just like the real exam.",
+        "dialogueLabel": "Hörtext — dialogue",
+        "speakerA": "Speaker 1",
+        "speakerB": "Speaker 2"
       },
       "scoreBreakdown": {
         "pending": "Awaiting grading",
