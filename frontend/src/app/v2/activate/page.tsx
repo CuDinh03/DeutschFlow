@@ -98,7 +98,7 @@ function ActivateInner() {
   return (
     <GaAuthShell>
       <GaCap className="mb-3 block">{t('activate.cap')}</GaCap>
-      <h1 className="m-0 mb-2 font-ga-display text-[26px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[30px] lg:text-[38px]">
+      <h1 className="m-0 mb-2 font-ga-display text-ga-h1-m font-medium text-ga-ink sm:text-ga-h1 lg:text-ga-display">
         {t('activate.title')}
       </h1>
 
@@ -106,16 +106,16 @@ function ActivateInner() {
         <div className="ga-shimmer h-[120px]" aria-hidden />
       ) : state !== 'VALID' ? (
         <div data-testid="activate-dead">
-          <p className="m-0 mb-5 text-[15px] text-ga-muted">{t(`activate.${deadReasonKey}`)}</p>
+          <p className="m-0 mb-5 text-ga-body-lg text-ga-muted">{t(`activate.${deadReasonKey}`)}</p>
           {/* Lối thoát phải nằm ngay đây: đường "Quên mật khẩu" vẫn sống và vẫn đưa các em vào được. */}
           <Link href="/v2/forgot-password" className="block">
             <GaBtn variant="yellow" size="lg" className="mb-3 w-full">{t('activate.goForgot')}</GaBtn>
           </Link>
-          <Link href="/v2/login" className="text-[14px] text-ga-muted underline">{t('activate.goLogin')}</Link>
+          <Link href="/v2/login" className="text-ga-body text-ga-muted underline">{t('activate.goLogin')}</Link>
         </div>
       ) : (
         <>
-          <p className="m-0 mb-7 text-[15px] text-ga-muted">{t('activate.subtitle')}</p>
+          <p className="m-0 mb-7 text-ga-body-lg text-ga-muted">{t('activate.subtitle')}</p>
 
           <div
             className="mb-5 flex items-start gap-2.5 rounded-ga px-4 py-3.5"
@@ -124,7 +124,7 @@ function ActivateInner() {
             data-testid="activate-account-notice"
           >
             <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-ga-green" />
-            <div className="min-w-0 flex-1 break-words text-[13.5px] leading-relaxed text-ga-ink">
+            <div className="min-w-0 flex-1 break-words text-ga-small leading-relaxed text-ga-ink">
               {preview?.orgName
                 ? t('activate.accountNoticeWithOrg', { email: preview.maskedEmail, org: preview.orgName })
                 : t('activate.accountNotice', { email: preview?.maskedEmail ?? '' })}
@@ -152,7 +152,7 @@ function ActivateInner() {
                     <div key={i} className="h-1 flex-1 transition-colors" style={{ background: i <= st.score ? st.color : 'var(--ga-line)' }} />
                   ))}
                 </div>
-                <div className="text-[12px] text-ga-muted">
+                <div className="text-ga-caption text-ga-muted">
                   {t('strength.label')}: <strong style={{ color: st.color }}>{t(`strength.${st.labelKey}`)}</strong>
                 </div>
               </div>
