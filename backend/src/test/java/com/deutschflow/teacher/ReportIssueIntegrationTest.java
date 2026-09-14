@@ -34,6 +34,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+
+import static com.deutschflow.testsupport.PdfTextAssert.assertThatPdfText;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -482,9 +484,13 @@ class ReportIssueIntegrationTest extends AbstractPostgresIntegrationTest {
             try (PDDocument doc = Loader.loadPDF(pdf)) {
                 assertThat(doc.getPage(0).getMediaBox().getHeight()).isGreaterThan(doc.getPage(0).getMediaBox().getWidth());
                 String text = new PDFTextStripper().getText(doc);
-                assertThat(text).contains(STUDENT_NAME).contains("Straße").contains("Übung")
-                        .contains(org.getName()).contains("Mã phiếu: " + token.substring(0, 8).toUpperCase())
-                        .contains("mydeutschflow.com").doesNotContain(AI_SECRET);
+                // So khớp bỏ qua chỗ ngắt dòng: tên lớp/tên giáo viên trong dữ liệu dựng sẵn có hậu
+                // tố NGẪU NHIÊN nên độ rộng dòng đổi theo từng lần chạy, và mã phiếu từng bị gãy
+                // đôi ("TT Phiếu e61285" thay vì "…ffe61285") làm ca này đỏ ngẫu nhiên trên CI.
+                assertThatPdfText(text)
+                        .contains(STUDENT_NAME, "Straße", "Übung", org.getName(),
+                                "Mã phiếu: " + token.substring(0, 8).toUpperCase(), "mydeutschflow.com")
+                        .doesNotContain(AI_SECRET);
             }
             mockMvc.perform(get("/api/teacher/report-issues/" + id + "/pdf").with(user(manager))).andExpect(status().isOk());
             mockMvc.perform(get("/api/teacher/report-issues/" + id + "/pdf").with(user(otherTeacher))).andExpect(status().isForbidden());
