@@ -451,9 +451,21 @@ public class ExamScoringService {
      * @param raw    điểm thô đã cộng được của cổng này
      * @param max    điểm tối đa của cổng
      * @param min    ngưỡng đỗ tuyệt đối (điểm, không phải phần trăm)
-     * @param status {@link #GATE_PASSED} / {@link #GATE_FAILED} / {@link #GATE_PENDING}
+     * @param status     {@link #GATE_PASSED} / {@link #GATE_FAILED} / {@link #GATE_PENDING}
+     * @param sourceId   bản ghi ngoài đề giấy đã cấp điểm cho cổng này (phiên thi nói), hoặc
+     *                   {@code null} với cổng cộng từ chính đề giấy / cổng chưa có nguồn
+     * @param achievedAt thời điểm của bản ghi đó — học viên phải thấy được điểm Nói này lấy từ
+     *                   lần thi nào, bằng không thì một kết luận ĐỖ/TRƯỢT hiện ra mà không giải
+     *                   thích được từ đâu
      */
-    public record Gate(String id, int raw, int max, int min, String status) {}
+    public record Gate(String id, int raw, int max, int min, String status,
+                       Long sourceId, java.time.Instant achievedAt) {}
+
+    /**
+     * Điểm đến từ NGOÀI đề giấy cho một cổng. Đề telc dùng cho cổng Nói: đề giấy telc không có
+     * phần Nói, điểm 75 lấy từ một phiên của module luyện thi nói.
+     */
+    public record ExternalScore(double raw, Long sourceId, java.time.Instant achievedAt) {}
 
     /**
      * Tổng điểm quy về thang 100 trên các phần đã chấm được, kèm kết luận đỗ/trượt.
@@ -480,6 +492,17 @@ public class ExamScoringService {
      *                 đề không khai (mọi đề Goethe) ⇒ dùng ngưỡng phần trăm như cũ
      */
     public ExamTotals summarize(Map<String, Object> detailedScores, int passPercent, Map<String, Object> passRule) {
+        return summarize(detailedScores, passPercent, passRule, Map.of());
+    }
+
+    /**
+     * @param externalScores điểm từ ngoài đề giấy, khoá là tên cổng trong {@code pass_rule}
+     *                       (đề telc: {@code "oral"}). Cổng khai {@code source} mà không có mục
+     *                       tương ứng ở đây thì là CHỜ.
+     */
+    public ExamTotals summarize(Map<String, Object> detailedScores, int passPercent,
+                                Map<String, Object> passRule,
+                                Map<String, ExternalScore> externalScores) {
         int raw = 0;
         int scoredMax = 0;
         for (String name : SECTION_ORDER) {
@@ -491,13 +514,17 @@ public class ExamScoringService {
         }
         int total = scoredMax > 0 ? (int) Math.round(raw * 100.0 / scoredMax) : 0;
 
-        List<Gate> gates = evaluateGates(detailedScores, passRule);
+        List<Gate> gates = evaluateGates(detailedScores, passRule, externalScores);
         if (gates.isEmpty()) {
             return new ExamTotals(total, raw, scoredMax, scoredMax > 0 && total >= passPercent, gates);
         }
-        boolean anyFailed = gates.stream().anyMatch(g -> GATE_FAILED.equals(g.status()));
-        boolean anyPassed = gates.stream().anyMatch(g -> GATE_PASSED.equals(g.status()));
-        return new ExamTotals(total, raw, scoredMax, anyPassed && !anyFailed, gates);
+        // Đỗ khi và chỉ khi MỌI cổng đều ĐẠT. Cổng còn CHỜ nghĩa là chưa kết luận được, và "chưa
+        // kết luận" không phải "đỗ": nói với một người rằng họ đã đỗ telc trong khi họ chưa thi
+        // nói là sai, và cột `passed` này chính là thứ `/api/certificates/claim` lọc theo — để
+        // lỏng ở đây là mở một đường lấy chứng nhận bằng nửa kỳ thi. Sắc thái "chờ" nói bằng
+        // `gates`, không nói bằng một giá trị boolean không diễn tả nổi ba trạng thái.
+        boolean allPassed = gates.stream().allMatch(g -> GATE_PASSED.equals(g.status()));
+        return new ExamTotals(total, raw, scoredMax, allPassed, gates);
     }
 
     /**
@@ -512,7 +539,8 @@ public class ExamScoringService {
      *       thi này nên luôn CHỜ. Việc ghép làm ở đợt sau.</li>
      * </ul>
      */
-    private List<Gate> evaluateGates(Map<String, Object> detailedScores, Map<String, Object> passRule) {
+    private List<Gate> evaluateGates(Map<String, Object> detailedScores, Map<String, Object> passRule,
+                                     Map<String, ExternalScore> externalScores) {
         if (passRule == null || passRule.isEmpty()) return List.of();
         List<Gate> gates = new ArrayList<>();
         for (Map.Entry<String, Object> entry : passRule.entrySet()) {
@@ -522,8 +550,16 @@ public class ExamScoringService {
             int min = (int) numberOf(spec.get("min"));
 
             if (!(spec.get("sections") instanceof List<?> sectionNames) || sectionNames.isEmpty()) {
-                // Cổng lấy điểm từ ngoài đề giấy — chưa có nguồn nào nối vào.
-                gates.add(new Gate(entry.getKey(), 0, max, min, GATE_PENDING));
+                // Cổng lấy điểm từ ngoài đề giấy (telc: phần Nói chấm ở module luyện thi nói).
+                ExternalScore external = externalScores.get(entry.getKey());
+                if (external == null) {
+                    gates.add(new Gate(entry.getKey(), 0, max, min, GATE_PENDING, null, null));
+                } else {
+                    int gateRaw = (int) Math.round(external.raw());
+                    gates.add(new Gate(entry.getKey(), gateRaw, max, min,
+                            gateRaw >= min ? GATE_PASSED : GATE_FAILED,
+                            external.sourceId(), external.achievedAt()));
+                }
                 continue;
             }
 
@@ -538,7 +574,7 @@ public class ExamScoringService {
                 gateRaw += (int) numberOf(section.get("total"));
             }
             String status = !complete ? GATE_PENDING : (gateRaw >= min ? GATE_PASSED : GATE_FAILED);
-            gates.add(new Gate(entry.getKey(), complete ? gateRaw : 0, max, min, status));
+            gates.add(new Gate(entry.getKey(), complete ? gateRaw : 0, max, min, status, null, null));
         }
         return gates;
     }
