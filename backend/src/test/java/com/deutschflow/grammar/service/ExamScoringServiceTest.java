@@ -330,6 +330,95 @@ class ExamScoringServiceTest {
     }
 
     @Test
+    @DisplayName("phần client không hiển thị được cũng rời khỏi mẫu số — học viên chỉ bị chấm phần đã làm")
+    void summarize_skippedOnClientExcluded_onlyAttemptedSectionsCount() {
+        Map<String, Object> detailed = new LinkedHashMap<>();
+        detailed.put("LESEN", scored(20, 25));
+        detailed.put("HOEREN", skippedOnClient(25));
+        detailed.put("SCHREIBEN", skippedOnClient(25));
+        detailed.put("SPRECHEN", pending(25));
+
+        ExamScoringService.ExamTotals totals = service.summarize(detailed, 60);
+
+        assertThat(totals.rawPoints()).isEqualTo(20);
+        assertThat(totals.scoredMax()).isEqualTo(25);
+        assertThat(totals.totalScore()).isEqualTo(80); // 20/25, KHÔNG phải 20/75 = 27
+        assertThat(totals.passed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("điểm yếu không gọi tên phần mà client không cho làm")
+    void identifyWeakAreas_ignoresSkippedOnClientSections() {
+        Map<String, Object> detailed = new LinkedHashMap<>();
+        detailed.put("LESEN", scored(20, 25));
+        detailed.put("HOEREN", skippedOnClient(25));
+
+        List<String> weak = service.identifyWeakAreas(detailed);
+
+        assertThat(weak).isEmpty();
+    }
+
+    @Test
+    @DisplayName("phần bỏ qua mang đúng thang điểm của đề và trạng thái riêng")
+    void skippedOnClientSection_keepsSectionMax() {
+        Map<String, Object> out = service.skippedOnClientSection(objectiveSection(20, List.of()));
+
+        assertThat(out.get("max")).isEqualTo(20);
+        assertThat(out.get("total")).isEqualTo(0);
+        assertThat(out.get("status")).isEqualTo(ExamScoringService.STATUS_SKIPPED_ON_CLIENT);
+    }
+
+    // ─── Khai báo "không làm được trên app" chỉ có giá trị khi thật sự không làm ──
+
+    @Test
+    @DisplayName("phần khách quan không có câu trả lời nào ⇒ hasAnyAnswer = false")
+    void hasAnyAnswer_objectiveSectionUntouched_isFalse() {
+        Map<String, Object> section = objectiveSection(25, List.of(
+                Map.of("id", "h1", "correct", "a"), Map.of("id", "h2", "correct", "b")));
+
+        assertThat(service.hasAnyAnswer(Map.of("l1", "a"), section)).isFalse();
+    }
+
+    @Test
+    @DisplayName("đã trả lời một câu của phần đó ⇒ hasAnyAnswer = true (khai bỏ qua sẽ bị bỏ ngoài tai)")
+    void hasAnyAnswer_objectiveSectionAnswered_isTrue() {
+        Map<String, Object> section = objectiveSection(25, List.of(
+                Map.of("id", "h1", "correct", "a"), Map.of("id", "h2", "correct", "b")));
+
+        assertThat(service.hasAnyAnswer(Map.of("h2", "b"), section)).isTrue();
+    }
+
+    @Test
+    @DisplayName("ô trống không tính là đã làm")
+    void hasAnyAnswer_blankValue_isFalse() {
+        Map<String, Object> section = objectiveSection(25, List.of(Map.of("id", "h1", "correct", "a")));
+
+        assertThat(service.hasAnyAnswer(Map.of("h1", "   "), section)).isFalse();
+    }
+
+    @Test
+    @DisplayName("phần Viết: nhận cả khoá form_<i>, email_<teil> và khoá cũ email_section")
+    void hasAnyAnswer_schreibenKeys_areRecognised() {
+        Map<String, Object> section = schreibenSection();
+
+        assertThat(service.hasAnyAnswer(Map.of(), section)).isFalse();
+        assertThat(service.hasAnyAnswer(Map.of("form_0", "Anna"), section)).isTrue();
+        assertThat(service.hasAnyAnswer(Map.of("email_2", "Hallo Sara"), section)).isTrue();
+        assertThat(service.hasAnyAnswer(Map.of("schreiben_2", "Hallo"), section)).isTrue();
+        assertThat(service.hasAnyAnswer(Map.of("email_section", "Hallo"), section)).isTrue();
+    }
+
+    @Test
+    @DisplayName("phần Nói: nhận mọi khoá transcript mà nhánh chấm Nói đang đọc")
+    void hasAnyAnswer_sprechenTranscriptKeys_areRecognised() {
+        Map<String, Object> section = sprechenSection();
+
+        assertThat(service.hasAnyAnswer(Map.of(), section)).isFalse();
+        assertThat(service.hasAnyAnswer(Map.of("sprechen_transcript", "Ich heiße Anna"), section)).isTrue();
+        assertThat(service.hasAnyAnswer(Map.of("audio_transcript", "Ich heiße Anna"), section)).isTrue();
+    }
+
+    @Test
     @DisplayName("ngưỡng đỗ lấy theo pass_points/total_points của đề")
     void passPercent_readsExamThreshold() {
         assertThat(ExamScoringService.passPercent(60, 100)).isEqualTo(60);
@@ -395,5 +484,9 @@ class ExamScoringServiceTest {
 
     private Map<String, Object> pending(int max) {
         return Map.of("total", 0, "max", max, "status", ExamScoringService.STATUS_PENDING);
+    }
+
+    private Map<String, Object> skippedOnClient(int max) {
+        return Map.of("total", 0, "max", max, "status", ExamScoringService.STATUS_SKIPPED_ON_CLIENT);
     }
 }

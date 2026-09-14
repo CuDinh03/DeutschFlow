@@ -32,6 +32,17 @@ public class ExamScoringService {
     public static final String STATUS_COMPLETED = "COMPLETED";
     /** Phần chưa chấm được (thiếu dữ liệu hoặc AI hỏng) — bị loại khỏi tổng điểm. */
     public static final String STATUS_PENDING = "PENDING_AI_EVALUATION";
+    /**
+     * Phần mà ỨNG DỤNG của học viên không hiển thị được nên họ không có cơ hội làm (app điện thoại
+     * hiện chỉ dựng được phần Đọc) — cũng bị loại khỏi tổng điểm, vì tính 0 điểm ở đây là trừ điểm
+     * một người vì giới hạn của phần mềm, không phải vì năng lực.
+     *
+     * <p>🔴 Trạng thái này chỉ được đặt khi phần đó KHÔNG có một câu trả lời nào
+     * ({@link #hasAnyAnswer}): khai báo của client không được phép xoá điểm một phần đã làm. Và vì
+     * nó làm mẫu số nhỏ đi, một bài có phần mang trạng thái này KHÔNG được dùng để nhận chứng nhận
+     * (xem {@code CertificateController}) — bằng không thì khai bừa là một đường hạ ngưỡng đỗ.
+     */
+    public static final String STATUS_SKIPPED_ON_CLIENT = "SKIPPED_ON_CLIENT";
 
     private static final List<String> SECTION_ORDER = List.of("LESEN", "HOEREN", "SCHREIBEN", "SPRECHEN");
     private static final int DEFAULT_SECTION_MAX = 25;
@@ -286,6 +297,60 @@ public class ExamScoringService {
         return "B1";
     }
 
+    // ─── Phần client không dựng được ─────────────────────────────────────────
+
+    /**
+     * Phần mà ứng dụng của học viên không hiển thị được: giữ đúng thang điểm của đề để phiếu kết
+     * quả vẫn đọc được "0/25 — chưa làm được trên app", nhưng mang {@link #STATUS_SKIPPED_ON_CLIENT}
+     * nên {@link #summarize} bỏ nó khỏi cả tử số lẫn mẫu số.
+     */
+    public Map<String, Object> skippedOnClientSection(Map<String, Object> section) {
+        return scoredSection(0, sectionMax(section), STATUS_SKIPPED_ON_CLIENT);
+    }
+
+    /**
+     * Học viên có chạm vào phần này chưa? Kiểm ĐÚNG tập khoá mà ba nhánh chấm ở trên đang đọc —
+     * id của từng câu khách quan, {@code form_<chỉ số ô>}, {@code email_<teil>} /
+     * {@code schreiben_<teil>} / {@code email_section}, và các khoá transcript của phần Nói.
+     *
+     * <p>Dùng làm cổng cho khai báo "không làm được trên app" của client: chỉ chấp nhận khi phần đó
+     * trắng hoàn toàn. Nếu học viên đã trả lời dù một câu thì khai báo bị bỏ ngoài tai và phần đó
+     * được chấm như thường — nếu không, một client sửa được sẽ dùng khai báo này để xoá phần điểm
+     * thấp của mình khỏi mẫu số.
+     */
+    public boolean hasAnyAnswer(Map<String, Object> answers, Map<String, Object> section) {
+        if (answers == null || answers.isEmpty()) return false;
+        for (Map<String, Object> teil : teileList(section)) {
+            if (teil.get("items") instanceof List<?> items) {
+                for (Object itemObj : items) {
+                    if (!(itemObj instanceof Map<?, ?> raw)) continue;
+                    Object id = castMap(raw).get("id");
+                    if (id != null && hasValue(answers, id.toString())) return true;
+                }
+            }
+            if (teil.get("form_fields") instanceof List<?> fields) {
+                for (int i = 0; i < fields.size(); i++) {
+                    if (hasValue(answers, "form_" + i)) return true;
+                }
+            }
+            Object teilNo = teil.get("teil");
+            if (teilNo != null
+                    && (hasValue(answers, "email_" + teilNo) || hasValue(answers, "schreiben_" + teilNo))) {
+                return true;
+            }
+        }
+        for (String key : List.of("email_section", "sprechen_transcript", "transcript",
+                "speaking_transcript", "audio_transcript")) {
+            if (hasValue(answers, key)) return true;
+        }
+        return false;
+    }
+
+    private static boolean hasValue(Map<String, Object> answers, String key) {
+        Object value = answers.get(key);
+        return value != null && !value.toString().isBlank();
+    }
+
     // ─── Tổng kết ────────────────────────────────────────────────────────────
 
     /** Tổng điểm quy về thang 100 trên các phần đã chấm được, kèm kết luận đỗ/trượt. */
@@ -301,7 +366,7 @@ public class ExamScoringService {
         for (String name : SECTION_ORDER) {
             if (!(detailedScores.get(name) instanceof Map<?, ?> rawSection)) continue;
             Map<String, Object> section = castMap(rawSection);
-            if (isPending(section)) continue;
+            if (!isScored(section)) continue;
             raw += (int) numberOf(section.get("total"));
             scoredMax += (int) numberOf(section.get("max"));
         }
@@ -321,7 +386,7 @@ public class ExamScoringService {
         for (String name : SECTION_ORDER) {
             if (!(detailedScores.get(name) instanceof Map<?, ?> rawSection)) continue;
             Map<String, Object> section = castMap(rawSection);
-            if (isPending(section)) continue;
+            if (!isScored(section)) continue;
             int max = (int) numberOf(section.get("max"));
             if (max <= 0) continue;
             int percentage = (int) Math.round(numberOf(section.get("total")) * 100.0 / max);
@@ -370,6 +435,15 @@ public class ExamScoringService {
     private static boolean isPending(Map<String, Object> section) {
         Object status = section.get("status");
         return status != null && status.toString().contains("PENDING");
+    }
+
+    /**
+     * Chỉ phần ĐÃ CHẤM XONG vào tử số và mẫu số của tổng điểm. Kiểm theo {@link #STATUS_COMPLETED}
+     * chứ không theo danh sách các trạng thái bị loại: thêm một trạng thái "không chấm được" mới
+     * thì nó tự nằm ngoài tổng, không cần sửa {@link #summarize} lần nữa.
+     */
+    private static boolean isScored(Map<String, Object> section) {
+        return STATUS_COMPLETED.equals(String.valueOf(section.get("status")));
     }
 
     /**
