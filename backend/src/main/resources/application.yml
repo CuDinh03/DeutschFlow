@@ -864,6 +864,13 @@ app:
   # env Spring trả CHUỖI RỖNG (không phải "thiếu khoá"), và fallback bên @Value sẽ không bao giờ chạy.
   web-url: ${WEB_URL:${CORS_ALLOWED_ORIGINS:http://localhost:3000}}
 
+  # Liên kết "kích hoạt tài khoản" gửi cho học viên do trung tâm nhập từ CSV (Q-09, 14/09/2026).
+  # 14 ngày: trung tâm thường nhập danh sách trước ngày khai giảng khoảng một tuần, và một em đi
+  # vắng vài hôm vẫn phải dùng được. Ngắn hơn thì nửa lớp phải quay về đường "Quên mật khẩu" — tức
+  # đúng vấn đề mà đợt này vá. Hết hạn KHÔNG khoá ai ra ngoài: đường "Quên mật khẩu" vẫn sống.
+  activation:
+    ttl-days: ${ACTIVATION_TTL_DAYS:14}
+
 # ============================================================
 # Payment Gateway — MoMo
 #

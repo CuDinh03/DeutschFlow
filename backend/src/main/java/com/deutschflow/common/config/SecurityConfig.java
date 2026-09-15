@@ -86,6 +86,10 @@ public class SecurityConfig {
                         auth.dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll();
                         // Auth endpoints: login, register, refresh, forgot-password, and reset-password are public
                         auth.requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/forgot-password", "/api/auth/reset-password").permitAll();
+                        // Q-09: đặt mật khẩu lần đầu cho tài khoản trung tâm tạo từ CSV. Người gọi
+                        // chưa từng đăng nhập nên không thể có token — bí mật nằm ở chính liên kết,
+                        // và cả hai đường đều đi qua bộ đếm rate-limit của đường đặt lại mật khẩu.
+                        auth.requestMatchers("/api/auth/activate").permitAll();
                         auth.requestMatchers("/api/auth/logout").authenticated();
                         auth.requestMatchers("/api/auth/me", "/api/auth/me/**").authenticated();
                         auth.requestMatchers("/api/quiz/*/join").permitAll();  // guest join

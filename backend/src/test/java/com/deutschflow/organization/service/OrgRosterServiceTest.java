@@ -49,6 +49,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -69,6 +70,8 @@ class OrgRosterServiceTest {
     @Mock private JdbcTemplate jdbcTemplate;
     @Mock private com.deutschflow.teacher.service.AssignmentBackfillService assignmentBackfillService;
     @Mock private MinorLearnerService minorLearnerService;
+    @Mock private com.deutschflow.user.activation.AccountActivationService activationService;
+    @Mock private com.deutschflow.user.activation.AccountActivationMailer activationMailer;
 
     private OrgRosterService service;
 
@@ -98,7 +101,12 @@ class OrgRosterServiceTest {
                 // Phiên bản điều khoản thật từ cấu hình: mock thì ca "dòng đồng ý mang termsVersion"
                 // chỉ còn kiểm chính cái mock.
                 new MinorConsentTerms(TERMS_VERSION),
-                jdbcTemplate
+                jdbcTemplate,
+                activationService,
+                activationMailer,
+                // RunAfterCommitService THẬT: không có transaction trong test đơn vị nên nó gọi thẳng
+                // runnable. Mock nó đi thì ca "email đi cho ai" chỉ còn kiểm chính cái mock.
+                new com.deutschflow.common.transaction.RunAfterCommitService()
         );
         service = new OrgRosterService(
                 organizationRepository,
@@ -339,6 +347,67 @@ class OrgRosterServiceTest {
         verify(userRepository, never()).save(any(User.class));
         verify(membershipService).upsertMember(eq(ORG_ID), eq(42L), eq("STUDENT"));
         verify(entitlementService).grantStudent(eq(42L), eq(org));
+    }
+
+    // ---------------------------------------------- Q-09: email kích hoạt đi cho ai (14/09/2026)
+
+    /**
+     * Luật gọn trong một câu: **chỉ dòng vừa TẠO tài khoản mới nhận email kích hoạt.** Người đã có
+     * tài khoản thì đã có mật khẩu của riêng họ; gửi cho họ một liên kết đặt lại là vừa vô nghĩa vừa
+     * đáng ngờ. Dòng bị từ chối thì chưa có tài khoản nào để kích hoạt.
+     */
+    @Test
+    @DisplayName("Q-09: dòng TẠO MỚI tài khoản ⇒ phát token + gửi email kích hoạt đúng một lần")
+    void importStudents_newEmail_sendsActivationInvite() {
+        Organization org = org(0, "PRO");
+        stubOrg(org);
+
+        when(userRepository.findByEmailIgnoreCase("alice@school.edu")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        when(userRepository.save(any(User.class))).thenReturn(savedStudent(1L, "alice@school.edu"));
+        when(activationService.issue(1L, ORG_ID)).thenReturn("tok-abc");
+
+        service.importStudents(ORG_ID, "alice@school.edu,Alice Tran", null, ACTOR);
+
+        verify(activationService).issue(1L, ORG_ID);
+        // Tên đọc từ entity ĐÃ LƯU (`savedStudent` dựng "Student 1"), không phải từ ô CSV — trong
+        // sản phẩm hai giá trị đó là một, vì chính displayName của CSV được ghi xuống.
+        verify(activationMailer).sendActivation(eq("alice@school.edu"), eq("Student 1"),
+                eq(org.getName()), eq("tok-abc"));
+    }
+
+    @Test
+    @DisplayName("Q-09: dòng chỉ LIÊN KẾT tài khoản đã có ⇒ KHÔNG phát token, KHÔNG gửi email")
+    void importStudents_existingEmail_doesNotSendActivationInvite() {
+        Organization org = org(0, "PRO");
+        stubOrg(org);
+
+        User existing = savedStudent(42L, "bob@school.edu");
+        when(userRepository.findByEmailIgnoreCase("bob@school.edu")).thenReturn(Optional.of(existing));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 42L))
+                .thenReturn(Optional.of(activeMember(42L, "STUDENT")));
+
+        service.importStudents(ORG_ID, "bob@school.edu,Bob Nguyen", null, ACTOR);
+
+        // Đây cũng chính là ca "nhập lại cùng một tệp CSV": lần hai mọi dòng đều rơi vào nhánh này.
+        verifyNoInteractions(activationService);
+        verifyNoInteractions(activationMailer);
+    }
+
+    @Test
+    @DisplayName("Q-09: dòng bị từ chối vì hết ghế ⇒ KHÔNG phát token, KHÔNG gửi email")
+    void importStudents_seatLimited_doesNotSendActivationInvite() {
+        Organization org = org(1, "PRO");
+        stubOrg(org);
+        when(userRepository.findByEmailIgnoreCase("carol@school.edu")).thenReturn(Optional.empty());
+        // Trung tâm đã dùng hết ghế ⇒ importRow thoát ở RowOutcome.rejectedBySeatLimit().
+        when(membershipService.countByRole(ORG_ID, "STUDENT")).thenReturn(1L);
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, "carol@school.edu,Carol", null, ACTOR);
+
+        assertThat(result.created()).isZero();
+        verifyNoInteractions(activationService);
+        verifyNoInteractions(activationMailer);
     }
 
     // ------------------------------------------------------------ CSV học viên KHÔNG hạ vai nhân sự

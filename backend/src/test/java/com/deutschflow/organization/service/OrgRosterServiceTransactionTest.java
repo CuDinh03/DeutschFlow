@@ -165,6 +165,14 @@ class OrgRosterServiceTransactionTest {
                 () -> new com.deutschflow.common.minor.MinorConsentTerms("2026-09"));
         ctx.registerBean(RosterMinorColumnReader.class);
         // Real and proxied — these are the beans whose transaction boundaries are under test.
+        // Q-09: đường phát liên kết kích hoạt nằm trong importRow. Mock cả hai — bài test này nói
+        // về RANH GIỚI GIAO DỊCH, không về email; RunAfterCommitService thì dùng bản THẬT vì nó là
+        // thứ quyết định "mail chỉ đi sau khi dòng commit", tức đúng chủ đề của bài test này.
+        ctx.registerBean(com.deutschflow.user.activation.AccountActivationService.class,
+                () -> mock(com.deutschflow.user.activation.AccountActivationService.class));
+        ctx.registerBean(com.deutschflow.user.activation.AccountActivationMailer.class,
+                () -> mock(com.deutschflow.user.activation.AccountActivationMailer.class));
+        ctx.registerBean(com.deutschflow.common.transaction.RunAfterCommitService.class);
         ctx.registerBean(OrgMembershipService.class);
         ctx.registerBean(OrgRosterRowImporter.class);
         ctx.registerBean(OrgRosterService.class);
