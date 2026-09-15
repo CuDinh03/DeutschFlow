@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { View, TextInput, FlatList, RefreshControl } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { Search, BookMarked, Plus, Check, Film, ChevronRight, Repeat, Layers, BarChart3 } from 'lucide-react-native'
+import { Search, Plus, Check, ChevronRight } from 'lucide-react-native'
 import api from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { learningApi } from '@/lib/learningApi'
@@ -23,8 +24,9 @@ import {
   SelectableChip,
   Button,
   VocabGlyphTile,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 // Display shape used by WordRow.
 interface Word {
@@ -69,13 +71,15 @@ const FILTER_LABEL: Record<StatusFilter, string> = {
 }
 
 export default function VocabularyScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   const theme = useTheme()
   const c = theme.colors
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const debouncedSearch = useDebounce(search, 350)
 
-  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['words', debouncedSearch, statusFilter],
     queryFn: () => {
       const params = new URLSearchParams({ page: '0', size: '30' })
@@ -87,6 +91,7 @@ export default function VocabularyScreen() {
     },
     staleTime: 30_000,
   })
+  const pull = usePullRefresh(refetch)
 
   const words = data ?? []
 
@@ -137,7 +142,7 @@ export default function VocabularyScreen() {
                 </ThemedText>
               </View>
             </View>
-            <Icon icon={Repeat} size={28} color="secondary" />
+            <GaGlyph name="srs" size={28} ink="secondary" />
           </View>
           <Button
             variant="yellow"
@@ -154,7 +159,7 @@ export default function VocabularyScreen() {
           accessibilityLabel="Học thẻ"
           style={{ flex: 1, gap: space[2] }}
         >
-          <Icon icon={Layers} size={20} color="accent" />
+          <GaGlyph name="tuvung" size={20} ink="primary" />
           <ThemedText variant="bodyStrong">Học thẻ (vuốt)</ThemedText>
           <ThemedText variant="caption" color="muted">
             Vuốt biết / chưa biết
@@ -165,7 +170,7 @@ export default function VocabularyScreen() {
           accessibilityLabel="Thống kê SRS"
           style={{ flex: 1, gap: space[2] }}
         >
-          <Icon icon={BarChart3} size={20} color="accent" />
+          <GaGlyph name="thongke" size={20} ink="primary" />
           <ThemedText variant="bodyStrong">Thống kê SRS</ThemedText>
           <ThemedText variant="caption" color="muted">
             Tiến độ ghi nhớ
@@ -217,7 +222,7 @@ export default function VocabularyScreen() {
 
       {/* Video review entry — sharp paper card with the yellow-square motif */}
       <Card
-        onPress={() => router.push('/(student)/video-lesson' as unknown as Href)}
+        onPress={() => router.push({ pathname: '/(student)/video-lesson', params: { from: 'vocabulary' } } as unknown as Href)}
         accessibilityLabel="Xem video ôn tập"
         style={{ marginHorizontal: space[5], marginBottom: space[5], borderColor: c.accentSoft }}
       >
@@ -232,7 +237,7 @@ export default function VocabularyScreen() {
               justifyContent: 'center',
             }}
           >
-            <Icon icon={Film} size={20} color="accent" />
+            <GaGlyph name="video" size={20} ink="primary" />
           </View>
           <View style={{ flex: 1, gap: 3 }}>
             <Caption color={c.accentText}>Video ôn tập</Caption>
@@ -270,7 +275,7 @@ export default function VocabularyScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Từ vựng" subtitle="Wortschatz · Spaced repetition" onBack={() => router.back()} />
+      <AppHeader title="Từ vựng" subtitle="Lặp lại ngắt quãng" onBack={goBack} />
 
       <FlatList
         data={isLoading || isError ? [] : words}
@@ -281,8 +286,8 @@ export default function VocabularyScreen() {
         keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl
-            refreshing={isFetching && !isLoading}
-            onRefresh={() => void refetch()}
+            refreshing={pull.refreshing}
+            onRefresh={() => void pull.onRefresh()}
             tintColor={c.accent}
             colors={[c.accent]}
           />
@@ -298,7 +303,7 @@ export default function VocabularyScreen() {
           ) : isError ? (
             <ErrorState onRetry={() => void refetch()} />
           ) : (
-            <EmptyState icon={BookMarked} title="Không tìm thấy từ vựng" message="Thử từ khoá hoặc bộ lọc khác." />
+            <EmptyState glyph="srs" title="Không tìm thấy từ vựng" message="Thử từ khoá hoặc bộ lọc khác." />
           )
         }
         renderItem={({ item }) => (

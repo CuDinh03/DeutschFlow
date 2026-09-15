@@ -8,6 +8,7 @@ import {
   BookOpen,
   CheckCircle2,
   ClipboardCheck,
+  GraduationCap,
   Mic,
   PenTool,
   RefreshCw,
@@ -17,6 +18,7 @@ import { assessmentApi, type B1ReadinessResponse } from '@/lib/assessmentApi'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useTracking } from '@/hooks/useTracking'
 import { GaBtn, GaCap, GaPageHdr, ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /v2/student/assessment — B1 readiness (Galerie shell).
@@ -47,6 +49,7 @@ const CRITERIA = [
 export default function V2StudentAssessmentPage() {
   usePageTimeTracker('b1_assessment')
   const t = useTranslations('v2.student.assessment')
+  const fmt = useFmt()
   const { trackFeatureAction } = useTracking()
 
   const [readiness, setReadiness] = useState<B1ReadinessResponse | null>(null)
@@ -127,7 +130,8 @@ export default function V2StudentAssessmentPage() {
               <GaCap className="mb-2 block" style={{ color: isGraduated ? 'rgba(255,255,255,0.72)' : '#A39E94' }}>
                 {t('heroCap')}
               </GaCap>
-              <p className="font-ga-display text-[22px] font-medium sm:text-[24px] lg:text-[28px]">
+              <p className="flex items-center gap-2 font-ga-display text-[22px] font-medium sm:text-[24px] lg:text-[28px]">
+                {isGraduated && <GraduationCap size={24} className="shrink-0" aria-hidden />}
                 {isGraduated ? t('heroTitleGraduated') : t('heroTitle')}
               </p>
               <p
@@ -222,7 +226,7 @@ export default function V2StudentAssessmentPage() {
               </GaBtn>
               {readiness?.lastAssessmentAt && (
                 <p className="ga-ui text-[12.5px] text-ga-muted">
-                  {t('lastAssessment', { at: new Date(readiness.lastAssessmentAt).toLocaleString('vi-VN') })}
+                  {t('lastAssessment', { at: fmt.dateTime(readiness.lastAssessmentAt) })}
                 </p>
               )}
             </div>

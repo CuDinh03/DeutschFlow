@@ -4,6 +4,7 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.PrivilegedActionBlockedException;
+import com.deutschflow.common.security.PasswordPolicy;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.organization.service.OrgMembershipService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -753,7 +754,7 @@ public class AdminManagementService {
         if (displayName == null || displayName.isBlank()) throw new BadRequestException("Tên hiển thị không được để trống.");
         // C10/F-L4 (03/09/2026): sàn 8 ký tự khớp mọi nơi khác (register, setUserPassword, quên mật
         // khẩu) — trước đây admin-create lệch xuống 6, tạo tài khoản yếu hơn chuẩn chung.
-        if (rawPassword == null || rawPassword.length() < 8) throw new BadRequestException("Mật khẩu tối thiểu 8 ký tự.");
+        PasswordPolicy.requireStrongEnough(rawPassword);
         String normRole = role == null ? "" : role.trim().toUpperCase();
         if (!List.of("ADMIN", "TEACHER", "STUDENT", "MANAGER").contains(normRole)) throw new BadRequestException("Vai trò không hợp lệ.");
         if (userRepository.existsByEmailIgnoreCase(normEmail)) throw new ConflictException("Email này đã có tài khoản.");
@@ -837,9 +838,7 @@ public class AdminManagementService {
      */
     @Transactional
     public Map<String, Object> setUserPassword(Long userId, String rawPassword) {
-        if (rawPassword == null || rawPassword.length() < 8) {
-            throw new BadRequestException("Mật khẩu tối thiểu 8 ký tự.");
-        }
+        PasswordPolicy.requireStrongEnough(rawPassword);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
@@ -897,40 +896,19 @@ public class AdminManagementService {
                 -- c.teacherName / c.studentCount) showed every class as "chưa phân công · 0 HV"
                 -- despite the INNER JOIN guaranteeing a teacher (A-12).
                 SELECT c.id, c.name, c.teacher_id AS "teacherId", u.display_name AS "teacherName", c.created_at AS "createdAt",
-                       (SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = c.id) AS "studentCount"
+                       -- Sĩ số = người CÒN chiếm ghế (ACTIVE + RESERVED, D1). Dòng ENDED được giữ lại
+                       -- để không mất điểm/điểm danh (D2) nên phải lọc, nếu không admin nền tảng đọc
+                       -- một con số khác hẳn trang lớp của giáo viên và của trung tâm.
+                       (SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = c.id
+                          AND cs.status IN ('ACTIVE', 'RESERVED')) AS "studentCount"
                 FROM teacher_classes c
                 JOIN users u ON u.id = c.teacher_id
                 ORDER BY c.created_at DESC
                 """);
     }
 
-    @Transactional
-    public Map<String, Object> bulkAssignStudents(Long classId, List<Long> studentIds) {
-        if (studentIds == null || studentIds.isEmpty()) {
-            return Map.of("assignedCount", 0);
-        }
-        
-        Integer classExists = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM teacher_classes WHERE id = ?", Integer.class, classId);
-        if (classExists == null || classExists == 0) {
-            throw new NotFoundException("Class not found");
-        }
-        
-        Set<Long> uniqueIds = new HashSet<>(studentIds);
-        int count = 0;
-        
-        for (Long sid : uniqueIds) {
-            Integer isStudent = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users WHERE id = ? AND role = 'STUDENT'", Integer.class, sid);
-            if (isStudent != null && isStudent > 0) {
-                Integer exists = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM class_students WHERE class_id = ? AND student_id = ?", Integer.class, classId, sid);
-                if (exists == null || exists == 0) {
-                    jdbcTemplate.update("INSERT INTO class_students (class_id, student_id, joined_at) VALUES (?, ?, NOW())", classId, sid);
-                    count++;
-                }
-            }
-        }
-        
-        return Map.of("assignedCount", count);
-    }
+    // bulkAssignStudents (SQL thẳng vào class_students) đã dời sang
+    // ClassEnrollmentService.bulkAssignByAdmin — Gói 2 (10/09/2026): mọi đường vào lớp qua MỘT cửa.
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> studentPlanProgress() {

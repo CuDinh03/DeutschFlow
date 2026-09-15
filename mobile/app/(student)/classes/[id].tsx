@@ -1,15 +1,13 @@
 import { useMemo, useState } from 'react'
-import { Alert, Pressable, RefreshControl, ScrollView, Share, View } from 'react-native'
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
-import {
-  AlertCircle, BarChart3, BookOpen, CalendarCheck, CalendarClock, CheckCircle2, Circle, Clock,
-  Copy, GraduationCap, MessageCircle, MessagesSquare, Sparkles, Upload, Users, X,
-} from 'lucide-react-native'
+import { Upload } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import {
-  fetchClassAssignments, fetchClassDetail, fetchClassLessons,
-  fetchMyAttendance, fetchMySkillReport, isAwaitingTeacher, isFinalGrade,
+  assignmentRowKey, assignmentStatusView, fetchClassAssignments, fetchClassDetail, fetchClassLessons,
+  fetchMyAttendance, fetchMySkillReport, isFinalGrade, GRADING_FAILED_LABEL,
   type ClassLesson, type ClassroomDetail, type MySkillReport, type StudentAssignment,
   type StudentAttendance, type TeacherSummary,
 } from '@/lib/studentClassesApi'
@@ -17,11 +15,15 @@ import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Button, Caption, Card, EmptyState, ErrorState, Icon, IconButton, Pill, ProgressBar,
   Screen, SectionHeader, Skeleton, ThemedText, YellowSquare,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 type Tab = 'assignments' | 'grades' | 'teachers' | 'progress' | 'evaluation'
 
 export default function StudentClassDetail() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['classes/[id]'])
   const { id } = useLocalSearchParams<{ id: string }>()
   const classId = Number(id)
 
@@ -35,17 +37,14 @@ export default function StudentClassDetail() {
     ],
   })
 
-  const refetch = () => {
-    void detailQ.refetch()
-    void assignmentsQ.refetch()
-    void lessonsQ.refetch()
-  }
-  const isRefetching = detailQ.isRefetching || assignmentsQ.isRefetching || lessonsQ.isRefetching
+  const pull = usePullRefresh(async () => {
+    await Promise.all([detailQ.refetch(), assignmentsQ.refetch(), lessonsQ.refetch()])
+  })
 
   if (detailQ.isLoading) {
     return (
       <Screen>
-        <AppHeader title="Đang tải lớp…" onBack={() => router.back()} />
+        <AppHeader title="Đang tải lớp…" onBack={goBack} />
         <View style={{ paddingHorizontal: space[5], gap: space[3] }}>
           <Skeleton height={120} />
           <Skeleton height={180} />
@@ -56,7 +55,7 @@ export default function StudentClassDetail() {
   if (detailQ.error || !detailQ.data) {
     return (
       <Screen>
-        <AppHeader title="Không mở được lớp" onBack={() => router.back()} />
+        <AppHeader title="Không mở được lớp" onBack={goBack} />
         <ErrorState
           message={detailQ.error ? apiMessage(detailQ.error) : 'Không tìm thấy lớp.'}
           onRetry={() => void detailQ.refetch()}
@@ -74,10 +73,10 @@ export default function StudentClassDetail() {
       <AppHeader
         title={detail.name}
         subtitle={`${detail.studentCount} học viên · ${detail.assignmentCount} bài tập`}
-        onBack={() => router.back()}
+        onBack={goBack}
         right={
           <IconButton
-            icon={MessagesSquare}
+            glyph="hoithoai"
             accessibilityLabel="Chat lớp"
             onPress={() =>
               router.push({
@@ -94,14 +93,14 @@ export default function StudentClassDetail() {
           paddingBottom: space[8],
           gap: space[4],
         }}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+        refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={() => void pull.onRefresh()} />}
       >
         <HeaderCard detail={detail} />
         <ProgressStrip detail={detail} />
         <Button
           label="Xem lịch buổi học"
           variant="secondary"
-          icon={CalendarClock}
+          glyph="lich"
           onPress={() =>
             router.push({
               pathname: '/(student)/class-schedule/[classId]',
@@ -111,7 +110,7 @@ export default function StudentClassDetail() {
         />
         <TabBar tab={tab} setTab={setTab} />
         {tab === 'assignments' && (
-          <AssignmentsTab
+          <AssignmentsTab classId={id}
             assignments={assignments}
             isError={assignmentsQ.isError}
             onRetry={() => void assignmentsQ.refetch()}
@@ -139,18 +138,15 @@ export default function StudentClassDetail() {
   )
 }
 
-// Editorial ink hero — the "who teaches this class" primary fact, with the
-// invite-code as a hairline chip beneath it.
+// Editorial ink hero — the "who teaches this class" primary fact.
+//
+// V-04: KHÔNG hiện mã mời lớp và KHÔNG có nút Chia sẻ ở màn HỌC VIÊN. Mã mời là chìa khoá vào một
+// GHẾ của trung tâm (mỗi lượt chia sẻ = một ghế người lạ có thể chiếm), mà học viên không phải
+// người có quyền mời. Backend cũng đã ngừng trả `inviteCode` cho lớp thuộc trung tâm — đây là lớp
+// chặn thứ hai, và đường giáo viên xem/chia sẻ mã lớp của mình không đi qua màn này.
 function HeaderCard({ detail }: { detail: ClassroomDetail }) {
   const theme = useTheme()
   const c = theme.colors
-  const onShareCode = async () => {
-    try {
-      await Share.share({ message: `Mã mời lớp ${detail.name}: ${detail.inviteCode}` })
-    } catch {
-      Alert.alert('Không mở được hộp thoại chia sẻ')
-    }
-  }
   return (
     <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
       <View style={{ gap: space[3] }}>
@@ -163,29 +159,6 @@ function HeaderCard({ detail }: { detail: ClassroomDetail }) {
             ? detail.teachers.map((t) => t.displayName).join(', ')
             : 'Chưa có giáo viên'}
         </ThemedText>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Chia sẻ mã mời ${detail.inviteCode}`}
-          onPress={onShareCode}
-          style={({ pressed }) => ({
-            marginTop: space[1],
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: space[2],
-            borderWidth: 1,
-            borderColor: c.onInkMuted,
-            borderRadius: radius.sm,
-            paddingHorizontal: space[3],
-            paddingVertical: space[2],
-            alignSelf: 'flex-start',
-            opacity: pressed ? 0.6 : 1,
-          })}
-        >
-          <Copy size={12} color={c.onInkMuted} strokeWidth={2} />
-          <ThemedText variant="caption" style={{ color: c.onInk, letterSpacing: 1 }}>
-            {detail.inviteCode}
-          </ThemedText>
-        </Pressable>
       </View>
     </Card>
   )
@@ -302,8 +275,8 @@ function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
 }
 
 function AssignmentsTab({
-  assignments, isError, onRetry,
-}: { assignments: StudentAssignment[]; isError: boolean; onRetry: () => void }) {
+  assignments, isError, onRetry, classId,
+}: { assignments: StudentAssignment[]; isError: boolean; onRetry: () => void; classId: string }) {
   if (assignments.length === 0 && isError) {
     return (
       <ErrorState
@@ -315,7 +288,7 @@ function AssignmentsTab({
   }
   if (assignments.length === 0) {
     return (
-      <EmptyState icon={BookOpen} title="Chưa có bài tập" message="Lớp này chưa có bài tập nào." />
+      <EmptyState glyph="baigiao" title="Chưa có bài tập" message="Lớp này chưa có bài tập nào." />
     )
   }
   return (
@@ -324,8 +297,9 @@ function AssignmentsTab({
       <View style={{ gap: space[2] }}>
         {assignments.map((a) => (
           <Card
-            key={a.id}
-            onPress={() => router.push(`/(student)/assignments/${a.assignmentId}` as never)}
+            // V-12c: KHÔNG dùng a.id — backend trả id = null cho bài chưa bắt đầu (xem assignmentRowKey).
+            key={assignmentRowKey(a)}
+            onPress={() => router.push({ pathname: '/(student)/assignments/[id]', params: { id: String(a.assignmentId), classId } })}
             accessibilityLabel={`Mở bài tập ${a.topic || 'bài tập'}`}
           >
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
@@ -336,7 +310,7 @@ function AssignmentsTab({
                 </ThemedText>
                 {a.dueDate && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1], marginTop: space[1] }}>
-                    <Icon icon={Clock} size={11} color="muted" />
+                    <GaGlyph name="thoigian" size={11} ink="muted" />
                     <ThemedText variant="caption" color="muted">
                       Hạn {new Date(a.dueDate).toLocaleString('vi-VN')}
                     </ThemedText>
@@ -353,15 +327,22 @@ function AssignmentsTab({
 }
 
 function StatusPill({ status, score }: { status: string; score: number | null }) {
-  if (isFinalGrade(status)) {
-    return <Pill tone="success" icon={CheckCircle2} label={`Đã chấm${score != null ? ` · ${score}` : ''}`} />
+  // Phân loại dùng CHUNG với màn chi tiết bài (assignmentStatusView) — cùng một bài không được
+  // hiện hai câu chữ ở hai màn (V-12c).
+  switch (assignmentStatusView(status)) {
+    case 'graded':
+      return <Pill tone="success" glyph="hoanthanh" label={`Đã chấm${score != null ? ` · ${score}` : ''}`} />
+    case 'gradingFailed':
+      // Đã nộp NHƯNG khâu chấm chết — học viên có quyền biết bài mình chưa được chấm. Vẫn thuộc
+      // nhóm isAwaitingTeacher nên quyền "Nộp bản khác" không đổi.
+      return <Pill tone="danger" glyph="canhbao" label={GRADING_FAILED_LABEL} />
+    case 'awaitingTeacher':
+      // AI_GRADED = bài ĐÃ nộp, đang chờ giáo viên (F-14 soát 02/09) — trước đây rơi nhánh else và
+      // hiện "Chưa nộp" đỏ cho bài học viên vừa nộp xong.
+      return <Pill tone="info" icon={Upload} label="Đã nộp" />
+    default:
+      return <Pill tone="danger" glyph="canhbao" label="Chưa nộp" />
   }
-  // AI_GRADED / GRADING_FAILED = bài ĐÃ nộp, đang chờ giáo viên (F-14 soát 02/09) —
-  // trước đây rơi nhánh else và hiện "Chưa nộp" đỏ cho bài học viên vừa nộp xong.
-  if (isAwaitingTeacher(status)) {
-    return <Pill tone="info" icon={Upload} label="Đã nộp" />
-  }
-  return <Pill tone="danger" icon={AlertCircle} label="Chưa nộp" />
 }
 
 function GradesTab({
@@ -383,7 +364,7 @@ function GradesTab({
     )
   }
   if (graded.length === 0) {
-    return <EmptyState icon={Sparkles} title="Chưa có điểm" message="Chưa có bài nào được chấm." />
+    return <EmptyState glyph="dulieuai" title="Chưa có điểm" message="Chưa có bài nào được chấm." />
   }
   return (
     <View style={{ gap: space[4] }}>
@@ -487,7 +468,7 @@ function EvaluationTab({ classId }: { classId: number }) {
           <SkillReportCard report={report} />
         ) : (
           <EmptyState
-            icon={BarChart3}
+            glyph="thongke"
             title="Chưa có điểm kỹ năng"
             message="Giáo viên chưa chấm điểm 4 kỹ năng cho bạn."
           />
@@ -500,7 +481,7 @@ function EvaluationTab({ classId }: { classId: number }) {
           <TeacherCommentCard comment={report.teacherComment} evaluatedAt={report.evaluatedAt} />
         ) : (
           <EmptyState
-            icon={MessagesSquare}
+            glyph="hoithoai"
             title="Chưa có nhận xét"
             message="Giáo viên chưa viết nhận xét cho bạn. Nhận xét sẽ hiện ở đây khi có."
           />
@@ -513,7 +494,7 @@ function EvaluationTab({ classId }: { classId: number }) {
           <ErrorState title="Không tải được điểm danh" onRetry={() => void attendanceQ.refetch()} />
         ) : attendance.length === 0 ? (
           <EmptyState
-            icon={CalendarCheck}
+            glyph="lich"
             title="Chưa có buổi học"
             message="Lớp chưa có buổi học nào được ghi nhận."
           />
@@ -637,13 +618,13 @@ function SummaryStat({ label, value, tone }: { label: string; value: number; ton
 function attendanceStatus(status: StudentAttendance['status']) {
   switch (status) {
     case 'PRESENT':
-      return { label: 'Có mặt', tone: 'success' as const, color: 'success' as const, icon: CheckCircle2 }
+      return { label: 'Có mặt', tone: 'success' as const, color: 'success' as const, glyph: 'hoanthanh' as const }
     case 'LATE':
-      return { label: 'Muộn', tone: 'accent' as const, color: 'accent' as const, icon: Clock }
+      return { label: 'Muộn', tone: 'accent' as const, color: 'accent' as const, glyph: 'thoigian' as const }
     case 'ABSENT':
-      return { label: 'Vắng', tone: 'danger' as const, color: 'danger' as const, icon: X }
+      return { label: 'Vắng', tone: 'danger' as const, color: 'danger' as const, glyph: 'canhbao' as const }
     default:
-      return { label: 'Chưa điểm danh', tone: 'neutral' as const, color: 'muted' as const, icon: Circle }
+      return { label: 'Chưa điểm danh', tone: 'neutral' as const, color: 'muted' as const, glyph: 'danghoc' as const }
   }
 }
 
@@ -654,7 +635,7 @@ function AttendanceRow({ row }: { row: StudentAttendance }) {
   return (
     <Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <Icon icon={s.icon} size={18} color={s.color} />
+        <GaGlyph name={s.glyph} size={18} ink={s.color} gold={s.color === 'muted' ? 'accent' : s.color} />
         <View style={{ flex: 1, gap: 2 }}>
           <ThemedText variant="bodyStrong" numberOfLines={1}>
             {row.topic || (row.sessionNumber != null ? `Buổi ${row.sessionNumber}` : 'Buổi học')}
@@ -673,7 +654,7 @@ function AttendanceRow({ row }: { row: StudentAttendance }) {
 function TeachersTab({ teachers }: { teachers: TeacherSummary[] }) {
   const theme = useTheme()
   if (teachers.length === 0) {
-    return <EmptyState icon={Users} title="Chưa có giáo viên" message="Lớp này chưa có giáo viên nào." />
+    return <EmptyState glyph="lophoc" title="Chưa có giáo viên" message="Lớp này chưa có giáo viên nào." />
   }
   return (
     <View style={{ gap: space[4] }}>
@@ -693,7 +674,7 @@ function TeachersTab({ teachers }: { teachers: TeacherSummary[] }) {
                     justifyContent: 'center',
                   }}
                 >
-                  <Icon icon={GraduationCap} size={20} color="accent" />
+                  <GaGlyph name="t_exam" size={20} ink="primary" />
                 </View>
                 <View style={{ flex: 1, gap: space[1] }}>
                   <ThemedText variant="bodyStrong" numberOfLines={1}>
@@ -709,7 +690,7 @@ function TeachersTab({ teachers }: { teachers: TeacherSummary[] }) {
               </View>
               <Button
                 label="Nhắn tin"
-                icon={MessageCircle}
+                glyph="hoithoai"
                 variant="secondary"
                 size="sm"
                 onPress={() =>
@@ -742,7 +723,7 @@ function ProgressTab({
         />
       ) : lessons.length === 0 ? (
         <EmptyState
-          icon={BookOpen}
+          glyph="baigiao"
           title="Chưa có checklist"
           message="Giáo viên chưa tạo danh sách buổi học. Tiến độ lớp sẽ hiển thị tại đây khi có."
         />
@@ -779,10 +760,11 @@ function LessonRow({ lesson, index }: { lesson: ClassLesson; index: number }) {
   return (
     <Card tone={lesson.completed ? 'sunken' : 'surface'}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
-        <Icon
-          icon={lesson.completed ? CheckCircle2 : Circle}
+        <GaGlyph
+          name={lesson.completed ? 'hoanthanh' : 'danghoc'}
           size={20}
-          color={lesson.completed ? 'success' : 'muted'}
+          ink={lesson.completed ? 'onAccent' : 'muted'}
+          gold={lesson.completed ? 'success' : 'accent'}
         />
         <View style={{ flex: 1, gap: space[1] }}>
           <Caption>Buổi {index + 1}</Caption>

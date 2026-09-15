@@ -51,6 +51,12 @@ export interface CreateSessionParams {
   sessionMode: SpeakingSessionMode
   interviewPosition?: string | null
   experienceLevel?: string | null
+  /**
+   * Bài giao SPEAKING_SCENARIO (N2, 05/09): id DÒNG BÀI của học viên (StudentAssignment.id —
+   * KHÔNG phải assignmentId của lớp). Backend TeacherAiGradingService đọc lại id này khi phiên
+   * kết thúc để ghi điểm AI + đẩy bài sang chờ giáo viên. Gương web aiSpeakingApi.createSession.
+   */
+  assignmentId?: number | null
 }
 
 /** Mirrors `InterviewPersonaDto`. Identified by `code` (not a numeric id). */
@@ -224,7 +230,7 @@ export const speakingApi = {
           sessionMode: params.sessionMode,
           interviewPosition: params.interviewPosition ?? null,
           experienceLevel: params.experienceLevel ?? null,
-          assignmentId: null,
+          assignmentId: params.assignmentId ?? null,
         },
         // Backend worst-case khi Groq nghẽn ≈ 30s (semaphore 10s + deadline 20s) — chừa headroom.
         { timeout: 40_000 },

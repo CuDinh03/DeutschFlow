@@ -1,16 +1,9 @@
 import { View } from 'react-native'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { useQuery } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
-import {
-  BookOpen,
-  Map,
-  FlaskConical,
-  Trophy,
-  BookMarked,
-  ChevronRight,
-  ArrowRight,
-  type LucideIcon,
-} from 'lucide-react-native'
+import { ChevronRight, ArrowRight } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   Screen,
@@ -24,7 +17,7 @@ import {
   FadeIn,
   ErrorState,
   useTabBarClearance,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
 import { nextStudyDay } from '@/lib/roadmapDay'
 import { SpotlightTarget } from '@/components/guide/SpotlightTour'
@@ -51,22 +44,23 @@ function openNode(node: SkillNode) {
 export default function LearnScreen() {
   // Thanh tab liquid-glass nổi đè lên nội dung — chừa đáy cho mục cuối.
   const tabClearance = useTabBarClearance()
-  const { data: nodes = [], refetch, isFetching, isError } = useQuery({
+  const { data: nodes = [], refetch, isError } = useQuery({
     queryKey: ['skill-tree'],
     queryFn: () => skillTreeApi.getMySkillTree(),
     staleTime: 120_000,
   })
+  const pull = usePullRefresh(refetch)
 
   const completed = nodes.filter((n) => n.status === 'COMPLETED').length
   const inProgress = nodes.filter((n) => n.status === 'IN_PROGRESS').slice(0, 3)
   const available = nodes.filter((n) => n.status === 'AVAILABLE').slice(0, 5)
 
-  const tiles: { icon: LucideIcon; label: string; count: string; onPress: () => void }[] = [
-    { icon: BookOpen, label: 'SRS Flashcards', count: `${completed} đã học`, onPress: () => router.push('/(student)/srs') },
-    { icon: Map, label: 'Lộ trình', count: `Ngày ${nextStudyDay(nodes)}`, onPress: () => router.push('/(student)/roadmap') },
-    { icon: FlaskConical, label: 'Từ vựng', count: 'Tìm & luyện', onPress: () => router.push('/(student)/vocabulary') },
-    { icon: Trophy, label: 'Thi thử', count: 'Mock Exam', onPress: () => router.push('/(student)/exam') },
-    { icon: BookMarked, label: 'Ngữ pháp', count: 'Casus & quy tắc', onPress: () => router.push('/(student)/grammar') },
+  const tiles: { glyph: GlyphName; label: string; count: string; onPress: () => void }[] = [
+    { glyph: 'srs', label: 'Ôn tập (SRS)', count: `${completed} đã học`, onPress: () => router.push('/(student)/srs') },
+    { glyph: 'lernweg', label: 'Lộ trình', count: `Ngày ${nextStudyDay(nodes)}`, onPress: () => router.push('/(student)/lernweg') },
+    { glyph: 'tuvung', label: 'Từ vựng', count: 'Tìm & luyện', onPress: () => router.push('/(student)/vocabulary') },
+    { glyph: 'thithu', label: 'Thi thử', count: 'Đề chuẩn Goethe', onPress: () => router.push('/(student)/exam') },
+    { glyph: 'nguphap', label: 'Ngữ pháp', count: 'Kasus & quy tắc', onPress: () => router.push('/(student)/grammar') },
     // Tutor booking (1:1 marketplace) is out of MVP scope and the screen's slot
     // model has no backend equivalent — hidden until reworked to the duration-based
     // /api/teacher-sessions flow. See docs reconciliation §book-session.
@@ -78,8 +72,8 @@ export default function LearnScreen() {
         scroll
         edges={['top']}
         contentStyle={{ paddingBottom: tabClearance }}
-        refreshing={isFetching}
-        onRefresh={() => void refetch()}
+        refreshing={pull.refreshing}
+        onRefresh={() => void pull.onRefresh()}
       >
         <LearnHeader />
         <ErrorState onRetry={() => void refetch()} />
@@ -97,8 +91,8 @@ export default function LearnScreen() {
       scroll
       edges={['top']}
       contentStyle={{ paddingBottom: tabClearance }}
-      refreshing={isFetching}
-      onRefresh={() => void refetch()}
+      refreshing={pull.refreshing}
+      onRefresh={() => void pull.onRefresh()}
     >
       <LearnHeader />
 
@@ -121,7 +115,7 @@ export default function LearnScreen() {
           <Caption style={{ marginBottom: space[3] }}>Bộ công cụ</Caption>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
             {tiles.map((t) => (
-              <LearningTile key={t.label} icon={t.icon} label={t.label} count={t.count} onPress={t.onPress} />
+              <LearningTile key={t.label} glyph={t.glyph} label={t.label} count={t.count} onPress={t.onPress} />
             ))}
           </View>
         </View>
@@ -130,7 +124,7 @@ export default function LearnScreen() {
       {inProgress.length > 0 ? (
         <FadeIn delay={140}>
           <View style={{ paddingHorizontal: space[5], marginTop: space[6] }}>
-            <SectionHeader title="Đang học" actionLabel="Xem tất cả" onAction={() => router.push('/(student)/roadmap')} />
+            <SectionHeader title="Đang học" actionLabel="Xem tất cả" onAction={() => router.push('/(student)/lernweg')} />
             <View style={{ gap: space[2] }}>
               {inProgress.map((node) => (
                 <NodeCard key={node.id} node={node} />
@@ -143,7 +137,7 @@ export default function LearnScreen() {
       {available.length > 0 ? (
         <FadeIn delay={220}>
           <View style={{ paddingHorizontal: space[5], marginTop: space[6] }}>
-            <SectionHeader title="Tiếp theo" actionLabel="Xem tất cả" onAction={() => router.push('/(student)/roadmap')} />
+            <SectionHeader title="Tiếp theo" actionLabel="Xem tất cả" onAction={() => router.push('/(student)/lernweg')} />
             <View style={{ gap: space[2] }}>
               {available.map((node) => (
                 <NodeCard key={node.id} node={node} />
@@ -219,7 +213,7 @@ function ProgressHero({ completed }: { completed: number }) {
             justifyContent: 'center',
           }}
         >
-          <Icon icon={BookOpen} size={28} color="accent" />
+          <GaGlyph name="hoc" size={28} ink="onInk" />
         </View>
         <View style={{ flex: 1, gap: space[1] }}>
           <Caption color={c.accent}>Tiến độ</Caption>
@@ -241,12 +235,12 @@ function ProgressHero({ completed }: { completed: number }) {
 }
 
 function LearningTile({
-  icon,
+  glyph,
   label,
   count,
   onPress,
 }: {
-  icon: LucideIcon
+  glyph: GlyphName
   label: string
   count: string
   onPress: () => void
@@ -264,7 +258,7 @@ function LearningTile({
           justifyContent: 'center',
         }}
       >
-        <Icon icon={icon} size={20} color="accent" />
+        <GaGlyph name={glyph} size={20} />
       </View>
       <View style={{ gap: 2 }}>
         <ThemedText variant="bodyStrong">{label}</ThemedText>

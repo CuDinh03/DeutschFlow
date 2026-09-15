@@ -35,6 +35,7 @@ public class ExamGradingJobHandler implements AiJobHandler {
     private final ObjectMapper objectMapper;
     private final ExamBlueprintCatalog blueprintCatalog;
     private final ExamErrorSrsBridge srsBridge;
+    private final ExamOpsAlerts opsAlerts;
     private final TransactionTemplate requiresNewTx;
 
     public ExamGradingJobHandler(ExamSessionService sessionService,
@@ -44,6 +45,7 @@ public class ExamGradingJobHandler implements AiJobHandler {
                                  ObjectMapper objectMapper,
                                  ExamBlueprintCatalog blueprintCatalog,
                                  ExamErrorSrsBridge srsBridge,
+                                 ExamOpsAlerts opsAlerts,
                                  PlatformTransactionManager transactionManager) {
         this.sessionService = sessionService;
         this.gradingService = gradingService;
@@ -52,6 +54,7 @@ public class ExamGradingJobHandler implements AiJobHandler {
         this.objectMapper = objectMapper;
         this.blueprintCatalog = blueprintCatalog;
         this.srsBridge = srsBridge;
+        this.opsAlerts = opsAlerts;
         // Persist chạy trong transaction TƯỜNG MINH qua TransactionTemplate, không qua @Transactional
         // trên method cùng bean: handle() gọi persist là TỰ-GỌI nên proxy bị bỏ qua — đúng cái bẫy đã
         // giết AiJobWorker.claimJobs suốt 10/06–23/08. Trước bản vá này, save-result và update-session
@@ -69,9 +72,11 @@ public class ExamGradingJobHandler implements AiJobHandler {
     public Map<String, Object> handle(AiJob job) {
         long sessionId = ((Number) job.getPayload().get("sessionId")).longValue();
         ParticipantBundle bundle = sessionService.bundle(sessionId);
-        Ergebnisbogen sheet = gradingService.grade(job.getUserId(), bundle, bundle.rubricRef());
+        Ergebnisbogen sheet = gradingService.grade(job.getUserId(), bundle, bundle.rubricRef(), sessionId);
         boolean firstResult = Boolean.TRUE.equals(
                 requiresNewTx.execute(status -> persist(sessionId, job.getUserId(), sheet)));
+        // F-07: phiếu phát hành nhưng thiếu tín hiệu → vận hành phải biết (trước đây chỉ học viên thấy ghi chú).
+        opsAlerts.lowSignal(sessionId, sheet);
         if (firstResult) {
             // Đợt 5a: đổ lỗi Ergebnisbogen vào kho yếu điểm (SRS + stats theo dạng bài).
             // Chỉ lần chấm đầu của phiên — chấm lại (regrade) không được nhân đôi số lần thấy lỗi.
@@ -106,10 +111,13 @@ public class ExamGradingJobHandler implements AiJobHandler {
                         .filter(s -> SpeakingExamSession.STATE_GRADING.equals(s.getState()))
                         .ifPresent(s -> {
                             s.setState(SpeakingExamSession.STATE_GRADING_FAILED);
+                            s.setGradingError(SpeakingExamSession.GRADING_ERROR_JOB_FAILED);
                             sessionRepository.save(s);
                             log.warn("[ExamSpeaking] session {} → GRADING_FAILED (job {} lỗi: {})",
                                     sessionId, job.getId(), cause.getMessage());
                         }));
+        opsAlerts.gradingFailed(sessionId, job.getId(), SpeakingExamSession.GRADING_ERROR_JOB_FAILED,
+                cause == null ? null : cause.getMessage());
     }
 
     /**
@@ -134,6 +142,7 @@ public class ExamGradingJobHandler implements AiJobHandler {
         resultRepository.save(r);
         sessionRepository.findById(sessionId).ifPresent(s -> {
             s.setState(SpeakingExamSession.STATE_RESULTS);
+            s.setGradingError(null);
             sessionRepository.save(s);
         });
         log.info("[ExamSpeaking] result saved session={} total={} passed={}", sessionId, sheet.total(), sheet.passed());

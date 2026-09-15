@@ -20,6 +20,14 @@ import type {
 const TURN_TIMEOUT_MS = 45_000
 const SESSION_TIMEOUT_MS = 20_000
 
+function turnParams(lang?: string, clientTurnId?: string): Record<string, string> | undefined {
+  const p: Record<string, string> = {}
+  if (lang) p.lang = lang
+  if (clientTurnId) p.clientTurnId = clientTurnId
+  return Object.keys(p).length ? p : undefined
+}
+
+
 export const examSpeakingApi = {
   listBlueprints: (params?: { provider?: ExamProvider; level?: string }) =>
     api.get<BlueprintSummary[]>('/speaking/exam/blueprints', { params }),
@@ -33,12 +41,18 @@ export const examSpeakingApi = {
 
   getSession: (id: number) => api.get<ExamSessionView>(`/speaking/exam/sessions/${id}`),
 
-  /** Drill (hoặc dev): lượt nói dạng text. `lang` = locale UI — ngôn ngữ lời giải thích quickEval. */
-  textTurn: (id: number, transcript: string, lang?: string) =>
-    api.post<TurnResponse>(`/speaking/exam/sessions/${id}/turns`, { transcript }, { params: lang ? { lang } : undefined, timeout: TURN_TIMEOUT_MS }),
+  /**
+   * Drill (hoặc dev): lượt nói dạng text. `lang` = locale UI — ngôn ngữ lời giải thích quickEval.
+   * `clientTurnId` (F-06): cùng khoá trong 15′ → backend replay phản hồi đầu, không xử lý/trừ quota lại.
+   */
+  textTurn: (id: number, transcript: string, lang?: string, clientTurnId?: string) =>
+    api.post<TurnResponse>(`/speaking/exam/sessions/${id}/turns`, { transcript }, {
+      params: turnParams(lang, clientTurnId),
+      timeout: TURN_TIMEOUT_MS,
+    }),
 
   /** Mock (và drill có mic): lượt nói dạng audio — server phiên âm verbose. */
-  audioTurn: (id: number, blob: Blob, filename = 'turn.webm', lang?: string) => {
+  audioTurn: (id: number, blob: Blob, filename = 'turn.webm', lang?: string, clientTurnId?: string) => {
     const form = new FormData()
     form.append('audio', blob, filename)
     return api.post<TurnResponse>(`/speaking/exam/sessions/${id}/turns`, form, {
@@ -50,7 +64,7 @@ export const examSpeakingApi = {
       //     (axios defaults/index.js — `hasJSONContentType`) ⇒ bản ghi âm biến mất, lượt nói mất trắng.
       // `null` unset khoá cho riêng request này; browser tự gắn multipart + boundary.
       headers: { 'Content-Type': null },
-      params: lang ? { lang } : undefined,
+      params: turnParams(lang, clientTurnId),
       timeout: TURN_TIMEOUT_MS,
     })
   },

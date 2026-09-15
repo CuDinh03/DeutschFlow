@@ -4,6 +4,7 @@
 // server's PracticeExerciseGrader — the server stays authoritative on the stored score).
 
 import type { SkillExerciseItem, LesenBlock, SkillExercises } from './skillTreeApi'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 
 export const SKILL_ORDER = ['HOEREN', 'SPRECHEN', 'LESEN', 'SCHREIBEN'] as const
 export type SkillKey = (typeof SKILL_ORDER)[number]
@@ -14,11 +15,12 @@ export const SKILL_LABEL: Record<SkillKey, string> = {
   LESEN: 'Đọc',
   SCHREIBEN: 'Viết',
 }
-export const SKILL_EMOJI: Record<SkillKey, string> = {
-  HOEREN: '🎧',
-  SPRECHEN: '🗣️',
-  LESEN: '📖',
-  SCHREIBEN: '✏️',
+/** Biểu tượng Galerie cho từng kỹ năng (thay bộ emoji cũ — emoji do OS vẽ, không theo theme). */
+export const SKILL_GLYPH: Record<SkillKey, GlyphName> = {
+  HOEREN: 'nghe',
+  SPRECHEN: 'noi',
+  LESEN: 'doc',
+  SCHREIBEN: 'viet',
 }
 
 /** Items for a skill. Lesen stores {reading_passage, exercises}; the others are plain arrays. */

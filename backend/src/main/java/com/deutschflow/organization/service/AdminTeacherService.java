@@ -65,10 +65,16 @@ public class AdminTeacherService {
         User teacher = userRepository.findById(userId).orElse(null);
 
         Map<String, Object> meta = new LinkedHashMap<>();
-        meta.put("orgId", orgId);
+        meta.put("orgId", orgId); // giữ lại: cột org_id là đường LỌC, metadata vẫn là thứ người đọc thấy
         meta.put("orgRole", member.getRole());
         meta.put("status", member.getStatus());
         organizationRepository.findById(orgId).ifPresent(o -> meta.put("orgName", o.getName()));
+        // DEC-13 — CA MẪU của cả đợt này. Vết break-glass đã có `orgId` trong metadata từ lâu, nhưng
+        // metadata không phải cột lọc: sổ của giám đốc chạy `AND org_id = ?`, mà admin nền tảng
+        // không thuộc trung tâm nào nên cột đó luôn NULL. Hệ quả: lần admin soi hồ sơ giáo viên của
+        // một trung tâm — đúng thứ "default-hidden, mọi lần đều ghi vết" muốn cho người ta thấy —
+        // chưa bao giờ hiện ra với chính giám đốc trung tâm đó. Truyền orgId của trung tâm SỞ HỮU
+        // giáo viên (tham số của hàm, đã kiểm là membership ACTIVE ở ngay trên) để vết vào đúng sổ.
         auditLogService.log(
                 EVENT_BREAK_GLASS,
                 actor.getId(),
@@ -76,6 +82,7 @@ public class AdminTeacherService {
                 actor.getRole() != null ? actor.getRole().name() : null,
                 TARGET_TYPE,
                 String.valueOf(userId),
+                orgId,
                 meta);
 
         return new OrgMemberDto(

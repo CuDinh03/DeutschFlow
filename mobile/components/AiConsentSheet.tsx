@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { Modal, Pressable, ScrollView, View } from 'react-native'
-import { Mic, Camera, MessageSquareText, ExternalLink } from 'lucide-react-native'
+import { ExternalLink } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { ThemedText, Button, Icon } from '@/components/ui'
+import { ThemedText, Button, Icon, GaGlyph } from '@/components/ui'
 import { registerAiConsentPresenter, setAiConsent } from '@/lib/aiConsent'
 import { openPrivacyPolicy } from '@/lib/legal'
 import { captureEvent } from '@/lib/analytics'
@@ -14,24 +15,24 @@ import { captureEvent } from '@/lib/analytics'
 // present itself and resolves with the user's decision.
 
 interface DataRow {
-  icon: typeof Mic
+  glyph: GlyphName
   title: string
   body: string
 }
 
 const DATA_ROWS: DataRow[] = [
   {
-    icon: Mic,
+    glyph: 'speaking',
     title: 'Bản ghi âm giọng nói',
     body: 'Khi bạn luyện nói hoặc nộp bài nói, bản ghi âm được gửi đi để nhận dạng giọng nói và chấm phát âm.',
   },
   {
-    icon: Camera,
+    glyph: 'camera',
     title: 'Ảnh bài viết bạn tải lên',
     body: 'Khi bạn chụp/chọn ảnh bài viết tay để nộp, ảnh được gửi đi để đọc chữ và chấm bài.',
   },
   {
-    icon: MessageSquareText,
+    glyph: 'hoithoai',
     title: 'Nội dung hội thoại & bài làm',
     body: 'Tin nhắn luyện nói với AI và bài làm dạng văn bản được gửi đi để tạo phản hồi và sửa lỗi.',
   },
@@ -116,7 +117,7 @@ export function AiConsentHost() {
                       marginTop: 2,
                     }}
                   >
-                    <Icon icon={row.icon} size={18} color="accent" />
+                    <GaGlyph name={row.glyph} size={18} />
                   </View>
                   <View style={{ flex: 1, gap: 2 }}>
                     <ThemedText variant="bodyStrong">{row.title}</ThemedText>

@@ -9,6 +9,10 @@
       "emptyNoStudents": "You have no students yet. Create a class and add students first.",
       "emptyNoMatch": "No matching students."
     },
+    "tcShared": {
+      "classFallback": "Class #{id}",
+      "noClasses": "No classes yet"
+    },
     "toolsMaterials": {
       "prototypeNotice": "UI prototype — no generation backend exists yet, the create button is disabled. This screen is for design feedback only and produces no real materials."
     },
@@ -40,7 +44,7 @@
       "enterClass": "Open class",
       "toGradeCap": "To grade",
       "toGradeLink": "Go grade →",
-      "queueEmpty": "No submissions to grade 🎉",
+      "queueEmpty": "No submissions to grade",
       "queueError": "Could not load the grading queue.",
       "summaryError": "Could not load the overview numbers.",
       "joinRequestsCap": "Join requests",
@@ -73,7 +77,7 @@
       "upcomingCap": "Upcoming class sessions",
       "noUpcoming": "No upcoming class sessions.",
       "atClass": "In class",
-      "emptyWeekPrefix": "No class sessions this week yet. Tap",
+      "emptyWeekPrefix": "Tap",
       "emptyWeekMid": "or",
       "emptyWeekSuffix": "to add.",
       "sessionTitle": "{className} · {place} · {time} · {count} students",
@@ -132,7 +136,83 @@
         "deleteConfirm": "Delete",
         "deleteSuccess": "Milestone deleted",
         "cancel": "Cancel"
-      }
+      },
+      "mode": {
+        "ONLINE": "Online",
+        "OFFLINE": "In class"
+      },
+      "status": {
+        "SCHEDULED": "Scheduled",
+        "CANCELLED": "Cancelled",
+        "MOVED": "Moved"
+      },
+      "dow": {
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "sun": "Sunday"
+      },
+      "field": {
+        "class": "Class",
+        "classOption": "{name} · {count} students",
+        "start": "Start",
+        "startTime": "Start time",
+        "duration": "Duration (min)",
+        "mode": "Format",
+        "room": "Room",
+        "roomOnline": "Not needed (online)",
+        "roomPlaceholder": "e.g. R.302",
+        "status": "Status",
+        "weekdays": "Weekdays",
+        "weekdaysAria": "Select weekdays",
+        "effectiveFrom": "Effective from",
+        "effectiveTo": "Until (blank = no end date)"
+      },
+      "saving": "Saving…",
+      "classRequired": "Select a class",
+      "startRequired": "Select a start time",
+      "editSession": {
+        "title": "Edit session",
+        "description": "{className} · {count} students",
+        "enter": "Enter the session →",
+        "save": "Save session",
+        "durationPositive": "Duration must be greater than 0",
+        "pending": "Session change request submitted — awaiting center approval, the current schedule is unchanged",
+        "overrideNote": "Editing marks this session as “manually edited” — later changes to the fixed schedule will not overwrite it."
+      },
+      "createSession": {
+        "title": "Add class session",
+        "description": "One-off session — not part of the fixed schedule.",
+        "noClasses": "You have no classes to add a session to yet.",
+        "pending": "Make-up session request submitted — awaiting center approval"
+      },
+      "pattern": {
+        "title": "Fixed class schedule",
+        "description": "Set a recurring schedule by weekday — future sessions are generated automatically; manually edited sessions are kept.",
+        "save": "Save fixed schedule",
+        "noClasses": "You have no classes yet.",
+        "existingCap": "Existing fixed schedules",
+        "empty": "No fixed schedule for this class yet.",
+        "weekdayRequired": "Select at least one weekday",
+        "startAndFromRequired": "Enter a start time and an effective-from date",
+        "savePending": "Fixed schedule request for {days} submitted — awaiting center approval, the current schedule is unchanged",
+        "saved": "Schedule saved for {days} · {n} sessions generated",
+        "savedKept": "{n} manually edited sessions kept",
+        "savedSkipped": "{n} conflicting sessions skipped",
+        "saveFailed": "Could not save {days}: {detail}",
+        "saveFailedGeneric": "schedule conflict or invalid details",
+        "delete": "Delete fixed schedule",
+        "deleteTitle": "Delete fixed schedule?",
+        "deleteDetailSessions": "All future sessions generated from this schedule (not manually edited) will be removed; manually edited sessions are kept.",
+        "deleteDetailGated": "Center class with a curriculum: the deletion becomes a request awaiting center approval — nothing is removed right away.",
+        "deleteConfirm": "Delete schedule",
+        "deletePending": "Fixed schedule removal request submitted — awaiting center approval",
+        "deleted": "Fixed schedule deleted · {n} future sessions (not manually edited) removed"
+      },
+      "emptyWeekRange": "No class sessions from {from} to {to}."
     },
     "tcProgress": {
       "ungrouped": "Ungrouped",
@@ -143,7 +223,7 @@
       "emptyPrefix": "This class has no lessons yet.",
       "addInChecklist": "Add content now →",
       "nextLesson": "Next lesson",
-      "allDone": "🎉 Entire course completed",
+      "allDone": "Entire course completed",
       "completedSummary": "completed · {done}/{total} lessons",
       "lastCompletedLesson": "Most recently completed lesson",
       "completedAt": "Completed at",
@@ -441,14 +521,14 @@
         "homeworkPlaceholder": "e.g. Write 5 sentences using the dative",
         "noteLabel": "Additional notes",
         "attendanceLabel": "Attendance",
-        "statusPresent": "✓ Present",
+        "statusPresent": "Present",
         "statusLate": "Late",
         "statusAbsent": "Absent",
         "statusUnmarked": "— Not marked",
         "markAllPresent": "Mark all present",
         "unmarkedCount": "{count} not marked",
         "saveError": "Could not save the session. Please try again.",
-        "deleteConfirm": "Delete this session?",
+        "deleteConfirm": "Delete the lesson log for {date} from this class.",
         "deleteError": "Could not delete the session. Please try again.",
         "empty": "No sessions logged yet. Click \"Add session\" to start.",
         "presentCount": "{count} present",
@@ -471,7 +551,11 @@
         "printHomeworkColumn": "Homework (Hausaufgaben)",
         "printTeacherSign": "Teacher signature: ___________________________",
         "printHeadSign": "Head teacher approval: ___________________________",
-        "rosterUnavailable": "The class roster could not be loaded, so attendance cannot be marked right now. You can still save the session topic and homework — reload the page to mark attendance."
+        "rosterUnavailable": "The class roster could not be loaded, so attendance cannot be marked right now. You can still save the session topic and homework — reload the page to mark attendance.",
+        "deleteConfirmTitle": "Delete this session?",
+        "deleteConfirmAttendance": "Attendance for {count} students in this session is deleted with it.",
+        "deleteConfirmTimesheet": "This session no longer counts toward your timesheet.",
+        "deleteConfirmIrreversible": "There is no undo in the UI — getting it back means entering the session again."
       },
       "evaluation": {
         "helperText": "End-of-course evaluation for each student",
@@ -511,7 +595,7 @@
         "speaking": "AI Speaking",
         "written": "Written"
       },
-      "queueEmpty": "No submissions to grade 🎉",
+      "queueEmpty": "No submissions to grade",
       "queueEmptyFiltered": "No submissions of this type.",
       "loadError": "Could not load the queue",
       "allGraded": "All graded",
@@ -575,7 +659,8 @@
       "aiStillProcessing": "AI is still processing. Please try again shortly.",
       "aiCallError": "Error calling AI grading",
       "aiFailedWithReason": "AI grading failed: {reason}",
-      "aiFailedGeneric": "AI grading failed. Please grade manually."
+      "aiFailedGeneric": "AI grading failed. Please grade manually.",
+      "clearFilter": "Clear filter"
     },
     "gradeImage": {
       "title": "Grade by image",
@@ -608,8 +693,8 @@
       "pickFile": "Please choose a file.",
       "enterTitle": "Please enter a title.",
       "uploadSuccess": "Material uploaded.",
-      "archiveConfirm": "Archive \"{title}\"?",
-      "archiveConfirmAttached": "Archive \"{title}\"? It is attached to {lessons} lessons, {classes} classes and {assignments} assignments — archiving removes it from those (you can restore it later).",
+      "archiveConfirm": "Archive \"{title}\" — it leaves the active list.",
+      "archiveConfirmAttached": "Attached to {lessons} lessons, {classes} classes and {assignments} assignments — archiving detaches it from all of them.",
       "unarchive": "Restore",
       "unarchiveSuccess": "Restored.",
       "viewActive": "Active",
@@ -644,7 +729,10 @@
       "openExternal": "Open link",
       "download": "Download",
       "retry": "Try again",
-      "close": "Close"
+      "close": "Close",
+      "archiveConfirmTitle": "Archive this material?",
+      "archiveConfirmUnattached": "This material is not attached to any lesson, class or assignment.",
+      "archiveConfirmRestorable": "You can restore it later from the Archived view."
     },
     "messages": {
       "title": "Messages",
@@ -689,40 +777,6 @@
         "sprechen": "Speaking (Sprechen)"
       }
     },
-    "profile": {
-      "title": "Teacher profile",
-      "subtitle": "Information shown to students and the organization",
-      "tabInfo": "Info",
-      "tabAvail": "Availability",
-      "tabReviews": "Reviews",
-      "saving": "Saving…",
-      "saveChanges": "Save changes",
-      "edit": "Edit",
-      "saveSuccess": "Profile saved",
-      "roleTeacher": "Teacher",
-      "roleAdmin": "Administrator",
-      "roleStudent": "Student",
-      "fieldName": "Full name",
-      "fieldEmail": "Email",
-      "fieldRole": "Role",
-      "fieldLocale": "Language",
-      "fieldIndustry": "Industry",
-      "fieldOrg": "Organization",
-      "notSet": "Not set",
-      "personal": "Personal",
-      "orgWithId": "· Organization #{id}",
-      "statClasses": "Classes",
-      "statStudents": "Students",
-      "statReviews": "Reviews",
-      "industryCap": "Specialization",
-      "infoCap": "Professional information",
-      "infoNote": "Detailed bio & certifications — coming soon (requires backend profile expansion).",
-      "availCap": "1:1 availability slots",
-      "availNote": "Manage your weekly free slots on the Teaching schedule page — students book 1:1 sessions within these slots.",
-      "openSchedule": "Open the Teaching schedule page →",
-      "reviewsEmpty": "No reviews yet",
-      "reviewsNote": "Student reviews will appear here (requires a teacher-review endpoint — backend backlog)."
-    },
     "classDetail": {
       "tabTeachers": "Teachers",
       "teachersLoadError": "Couldn't load the teacher list.",
@@ -738,6 +792,7 @@
       "teachersPrimaryOnly": "Only the lead teacher can add or remove assistants.",
       "coTeacherAccessNote": "Assistants have full access to run the class: grading, assignments, reports and class chat.",
       "titleFallback": "Class details",
+      "classFallback": "Class #{id}",
       "subtitle": "Class code: {code} · {count} students joined",
       "subtitleLoading": "Loading…",
       "backToClasses": "Classes",

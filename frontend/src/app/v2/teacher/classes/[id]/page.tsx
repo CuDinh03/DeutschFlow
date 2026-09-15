@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import {
   Plus, Mail, ChevronRight, AlertTriangle, Trophy,
   ArrowLeft, Sparkles, Mic, PenLine, FileText, BookOpen, SpellCheck, UserPlus, Trash2, Pencil,
@@ -176,8 +176,8 @@ export default function V2ClassDetailPage() {
       const cls = ((clsList.data ?? []) as Record<string, unknown>[]).find((c) => Number(c.id) === id)
       setInfo(
         cls
-          ? { id, name: String(cls.name ?? `Lớp #${id}`), code: String(cls.inviteCode ?? cls.code ?? ''), studentCount: Number(cls.studentCount) || 0 }
-          : { id, name: `Lớp #${id}`, code: '', studentCount: 0 },
+          ? { id, name: String(cls.name ?? t('classFallback', { id })), code: String(cls.inviteCode ?? cls.code ?? ''), studentCount: Number(cls.studentCount) || 0 }
+          : { id, name: t('classFallback', { id }), code: '', studentCount: 0 },
       )
       setStudents((st.data ?? []) as Student[])
       setAssignments((asg.data ?? []) as Assignment[])
@@ -800,6 +800,7 @@ export default function V2ClassDetailPage() {
 // ── Analytics tab ─────────────────────────────────────────────────────────
 function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics | null; students: Student[]; loading: boolean }) {
   const t = useTranslations('v2.teacher.classDetail')
+  const locale = useLocale()
   if (loading) return <div className="ga-shimmer h-[280px] border border-ga-line" aria-hidden />
   if (!analytics) return <div className="border border-dashed border-ga-line px-6 py-10 text-center text-[14px] text-ga-muted">{t('analyticsEmpty')}</div>
 
@@ -844,11 +845,11 @@ function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics |
           ) : (
             <div className="flex flex-col gap-3">
               {analytics.topErrors.slice(0, 6).map((e) => {
-                const label = getErrorSnippet(e.errorCode, 'vi').title
+                const snippet = getErrorSnippet(e.errorCode, locale)
                 return (
                   <div key={e.errorCode}>
                     <div className="mb-1 flex items-center justify-between gap-3 text-[13px]">
-                      <span className="truncate text-ga-ink" title={e.errorCode}>{label}</span>
+                      <span className="truncate text-ga-ink" title={snippet.rule}>{snippet.title}</span>
                       <span className="shrink-0 font-semibold text-ga-muted">{t('errorCount', { count: e.count })}</span>
                     </div>
                     <span className="block h-1.5 bg-ga-line"><span className="block h-full" style={{ width: `${(e.count / maxErr) * 100}%`, background: VIOLET }} /></span>

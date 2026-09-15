@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EvaluationTab } from '@/app/v2/student/classes/[id]/EvaluationTab'
 import type { MySkillReport, StudentAttendance } from '@/lib/studentClassesApi'
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', () => ({ useLocale: () => 'vi',
   useTranslations: () => (k: string, v?: Record<string, unknown>) =>
     v ? `${k}:${Object.values(v).join(',')}` : k,
 }))

@@ -28,6 +28,51 @@ public interface TeacherClassRepository extends JpaRepository<TeacherClass, Long
     /** Org-scoped read for the B2B org admin (GET /api/org/classes). */
     Page<TeacherClass> findByOrgId(Long orgId, Pageable pageable);
 
+    /**
+     * Danh sách lớp của trung tâm, lọc PHÍA MÁY CHỦ theo tên và theo "chưa có ai dạy" (PR-A3).
+     *
+     * <p>{@code :q} null nghĩa là không lọc tên. "Chưa có ai dạy" = không còn ai đang là TEACHER
+     * ACTIVE của trung tâm đứng lớp — xét CẢ {@code teacher_id} lẫn {@code class_teachers}. Không
+     * dùng {@code teacher_id IS NULL} được vì cột đó NOT NULL (xem OrgService#countClassesWithoutTeacher).
+     *
+     * <p>Native query: điều kiện NOT EXISTS trên bảng không có entity ánh xạ.
+     */
+    @Query(value = """
+            SELECT * FROM teacher_classes tc
+            WHERE tc.org_id = :orgId
+              AND (CAST(:q AS text) IS NULL OR tc.name ILIKE '%' || CAST(:q AS text) || '%')
+              AND (
+                :withoutTeacher = FALSE
+                OR NOT EXISTS (
+                    SELECT 1 FROM org_members om
+                     WHERE om.org_id = tc.org_id
+                       AND om.status = 'ACTIVE' AND om.role = 'TEACHER'
+                       AND (om.user_id = tc.teacher_id
+                            OR om.user_id IN (SELECT ct.teacher_id FROM class_teachers ct WHERE ct.class_id = tc.id))
+                )
+              )
+            """,
+            countQuery = """
+            SELECT COUNT(*) FROM teacher_classes tc
+            WHERE tc.org_id = :orgId
+              AND (CAST(:q AS text) IS NULL OR tc.name ILIKE '%' || CAST(:q AS text) || '%')
+              AND (
+                :withoutTeacher = FALSE
+                OR NOT EXISTS (
+                    SELECT 1 FROM org_members om
+                     WHERE om.org_id = tc.org_id
+                       AND om.status = 'ACTIVE' AND om.role = 'TEACHER'
+                       AND (om.user_id = tc.teacher_id
+                            OR om.user_id IN (SELECT ct.teacher_id FROM class_teachers ct WHERE ct.class_id = tc.id))
+                )
+              )
+            """,
+            nativeQuery = true)
+    Page<TeacherClass> searchByOrg(@Param("orgId") Long orgId,
+                                   @Param("q") String q,
+                                   @Param("withoutTeacher") boolean withoutTeacher,
+                                   Pageable pageable);
+
     /** All classes in an org — for org-admin center-wide reads (G-3 schedule). */
     List<TeacherClass> findByOrgId(Long orgId);
 

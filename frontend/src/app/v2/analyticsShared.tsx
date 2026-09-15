@@ -30,11 +30,12 @@ import { cn } from '@/lib/utils'
  * W7 (FE-09, audit lag 02/09): GaSection + formatter TÁCH sang sectionShared.tsx (không
  * recharts) — trang chỉ cần khung section import bên đó để khỏi gánh chart machinery.
  * Re-export dưới đây giữ nguyên hợp đồng cho 7 trang analytics đang import từ file này
- * (import rồi export lại — không dùng cú pháp `export {} from` vì chart bên dưới cũng cần nfVN).
+ * (06/09/2026 F-I18N-04: formatter theo locale nay ở lib/i18n/useFmt — file này chỉ còn re-export GaSection).
  */
-import { fmtVnd, fmtDateTime, nfVN, GaSection } from './sectionShared'
+import { GaSection } from './sectionShared'
+import { useFmt } from '@/lib/i18n/useFmt'
 
-export { fmtVnd, fmtDateTime, nfVN, GaSection }
+export { GaSection }
 
 /** Accent family (matches galerie.css --ga-blue/violet/teal/orange/green/navy/gold/red). */
 export const GA_CHART = [
@@ -57,6 +58,79 @@ const TOOLTIP_STYLE: React.CSSProperties = {
   fontFamily: 'var(--ga-ui)',
   fontSize: 12,
   color: '#161513',
+}
+
+// ── Đường đọc số THỨ HAI cho mọi biểu đồ ───────────────────────────────────────
+/**
+ * Bảng dữ liệu thu gọn đi kèm biểu đồ.
+ *
+ * Vì sao cần: trong các biểu đồ này, con số CHỈ đọc được qua tooltip của recharts — tức chỉ khi
+ * rê chuột. Trên thiết bị cảm ứng không có trạng thái hover, bằng bàn phím thì không tới được, và
+ * trình đọc màn hình chỉ thấy một khối SVG. Nói cách khác, với một phần người dùng thì biểu đồ
+ * hiện là hình trang trí không đọc được.
+ *
+ * Đây cũng là lời đáp cho "giá trị lớn dùng bản rút gọn và có cách xem số đầy đủ": trục Y rút gọn
+ * (12,5tr₫) còn bảng in giá trị đầy đủ do `format` quyết định.
+ *
+ * Dùng `<details>` thay vì tự dựng accordion: nó vốn đã mở/đóng được bằng bàn phím, có ngữ nghĩa
+ * đúng cho trình đọc màn hình, và không cần một dòng JS nào.
+ */
+export function GaChartData({
+  summaryLabel,
+  columns,
+  rows,
+}: {
+  /** Nhãn của nút mở/đóng, ví dụ "Xem số liệu dạng bảng". */
+  summaryLabel: string
+  /** Tiêu đề cột — cột đầu là nhãn hàng (ngày/kỳ), các cột sau là series. */
+  columns: string[]
+  rows: Array<{ label: string; values: string[] }>
+}) {
+  if (rows.length === 0) return null
+  return (
+    <details className="mt-3 border-t border-ga-border pt-2.5">
+      <summary className="ga-ui cursor-pointer list-none text-ga-caption font-semibold text-ga-muted outline-none hover:text-ga-ink focus-visible:ring-2 focus-visible:ring-ga-accent">
+        {summaryLabel}
+      </summary>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-ga-border">
+              {columns.map((c, i) => (
+                <th
+                  key={c}
+                  scope="col"
+                  className={cn(
+                    'ga-ui py-1.5 pr-3 text-ga-caption font-semibold text-ga-muted',
+                    i > 0 && 'text-right',
+                  )}
+                >
+                  {c}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.label} className="border-b border-ga-border last:border-0">
+                <th scope="row" className="ga-ui py-1.5 pr-3 text-ga-caption font-medium text-ga-ink">
+                  {r.label}
+                </th>
+                {r.values.map((v, i) => (
+                  <td
+                    key={`${r.label}-${i}`}
+                    className="py-1.5 pr-3 text-right text-ga-caption tabular-nums text-ga-ink"
+                  >
+                    {v}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  )
 }
 
 // ── Bar chart (= proto AdBars) ──────────────────────────────────────────────────
@@ -247,6 +321,7 @@ export interface DonutSeg {
 }
 
 export function GaDonut({ segments, size = 150 }: { segments: DonutSeg[]; size?: number }) {
+  const fmt = useFmt()
   const total = segments.reduce((s, x) => s + x.value, 0)
   return (
     <div style={{ width: size, height: size }} className="relative shrink-0">
@@ -267,12 +342,12 @@ export function GaDonut({ segments, size = 150 }: { segments: DonutSeg[]; size?:
               <Cell key={i} fill={s.color} />
             ))}
           </Pie>
-          <Tooltip formatter={(v: number) => nfVN.format(v)} contentStyle={TOOLTIP_STYLE} />
+          <Tooltip formatter={(v: number) => fmt.num(v)} contentStyle={TOOLTIP_STYLE} />
         </PieChart>
       </ResponsiveContainer>
       {total > 0 && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <span className="font-ga-display text-[20px] font-medium text-ga-ink">{nfVN.format(total)}</span>
+          <span className="font-ga-display text-[20px] font-medium text-ga-ink">{fmt.num(total)}</span>
         </div>
       )}
     </div>

@@ -1,9 +1,9 @@
 import { View, Alert, Pressable, Platform } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
-import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2, HelpCircle, Presentation, ShieldCheck, FileText, Lock, Sparkles, CreditCard, RotateCcw } from 'lucide-react-native'
+import { ChevronRight } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
+import { isOrgPlan, orgPlanNotice, planActionRows, trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
 import api, { apiMessage } from '@/lib/api'
 import { IAP_ENABLED, PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
@@ -11,15 +11,28 @@ import { radius, space, useTheme } from '@/lib/theme'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { openManageSubscriptions, openRefundRequest } from '@/lib/iapManage'
 import { getAiConsent, resetAiConsent, setAiConsent } from '@/lib/aiConsent'
-import { Screen, Card, ThemedText, Icon, Pill, ListRow, Caption, FadeIn, useTabBarClearance } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, ListRow, Caption, FadeIn, useTabBarClearance, GaGlyph } from '@/components/ui'
+import * as Application from 'expo-application'
+import * as Updates from 'expo-updates'
+import { formatAppVersion } from '@/lib/appVersion'
 
 export default function ProfileScreen() {
+  // Phiên bản thật của bản cài + OTA đang chạy (trước đây gõ cứng "v1.0.0" — lệch bản 1.0.1).
+  const appVersionLabel = formatAppVersion({
+    version: Application.nativeApplicationVersion,
+    build: Application.nativeBuildVersion,
+    updateId: Updates.updateId,
+    isEmbeddedLaunch: Updates.isEmbeddedLaunch,
+  })
   const theme = useTheme()
   const c = theme.colors
   // Thanh tab liquid-glass nổi đè lên nội dung — chừa đáy cho mục cuối.
   const tabClearance = useTabBarClearance()
   const { user, logout } = useAuthStore()
   const { plan, isPro, isUltra } = usePlanStore()
+  // V-06: gói do trung tâm cấp → không mời huỷ/hoàn tiền Apple (xem cụm "Gói đăng ký" bên dưới).
+  const planIsOrg = isOrgPlan(plan)
+  const planRows = planActionRows(plan)
   const { data: xp } = useQuery({
     queryKey: ['xp-summary'],
     queryFn: () => gamificationApi.getXpSummary(),
@@ -165,7 +178,7 @@ export default function ProfileScreen() {
                     hitSlop={8}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
                   >
-                    <Icon icon={Star} size={13} color="accent" fill />
+                    <GaGlyph name="capdo" size={13} ink="primary" />
                     <ThemedText variant="label" style={{ color: c.onInkMuted }}>
                       Cấp {xp.level} · {xp.totalXp} XP
                     </ThemedText>
@@ -192,7 +205,7 @@ export default function ProfileScreen() {
                   justifyContent: 'center',
                 }}
               >
-                <Icon icon={Star} size={20} color="accent" fill />
+                <GaGlyph name="goipro" size={20} ink="primary" />
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <ThemedText variant="bodyStrong">Nâng cấp lên PRO</ThemedText>
@@ -223,7 +236,7 @@ export default function ProfileScreen() {
                     justifyContent: 'center',
                   }}
                 >
-                  <Icon icon={Star} size={20} color="accent" fill />
+                  <GaGlyph name="goipro" size={20} ink="primary" />
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <ThemedText variant="bodyStrong">
@@ -242,27 +255,56 @@ export default function ProfileScreen() {
                 <Pill label={plan?.isTrial ? 'DÙNG THỬ' : plan?.tier ?? 'PRO'} tone="accent" solid />
               </View>
             </Card>
+            {/* V-06: gói do TRUNG TÂM cấp thì học viên không mua gì ở Apple — "Quản lý & huỷ gói"
+                và "Yêu cầu hoàn tiền" dẫn thẳng vào ngõ cụt (Apple không có đăng ký nào của họ),
+                và nếu huỷ được thì thứ mất đi là quyền lợi do trung tâm trả tiền. Thay bằng một
+                dòng nói rõ ai cấp gói; nâng cấp/đổi gói cũng không mời, vì gói này không của họ. */}
+            {planIsOrg ? (
+              <Card>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+                  <GaGlyph name="lophoc" size={18} ink="muted" />
+                  <ThemedText variant="caption" color="secondary" style={{ flex: 1 }}>
+                    {orgPlanNotice(plan)}
+                  </ThemedText>
+                </View>
+              </Card>
+            ) : null}
+            {/* "Quản lý & huỷ gói" hiện với MỌI gói, kể cả gói trung tâm (planActionRows): người
+                từng tự mua gói Apple rồi vào trung tâm vẫn đang bị Apple trừ tiền — dòng Apple chỉ
+                chuyển sang PAUSED ở phía mình. Giấu mục này là bịt lối ra duy nhất trong app. */}
             <Card padded={false} style={{ paddingHorizontal: space[4] }}>
+              {planRows.includes('upgrade') ? (
+                <>
+                  <ListRow
+                    glyph="goipro"
+                    title={isUltra ? 'Xem & đổi gói' : 'Nâng cấp / đổi gói'}
+                    subtitle={isUltra ? 'Đổi kỳ hạn thanh toán' : 'Lên ULTRA hoặc đổi kỳ hạn'}
+                    onPress={() => router.push('/(student)/upgrade')}
+                  />
+                  <Divider />
+                </>
+              ) : null}
               <ListRow
-                icon={Star}
-                title={isUltra ? 'Xem & đổi gói' : 'Nâng cấp / đổi gói'}
-                subtitle={isUltra ? 'Đổi kỳ hạn thanh toán' : 'Lên ULTRA hoặc đổi kỳ hạn'}
-                onPress={() => router.push('/(student)/upgrade')}
-              />
-              <Divider />
-              <ListRow
-                icon={CreditCard}
+                glyph="thanhtoan"
                 title="Quản lý & huỷ gói"
-                subtitle="Đổi hoặc huỷ gói trong App Store"
+                subtitle={
+                  planIsOrg
+                    ? 'Nếu bạn từng tự mua gói trong App Store'
+                    : 'Đổi hoặc huỷ gói trong App Store'
+                }
                 onPress={() => void openManageSubscriptions()}
               />
-              <Divider />
-              <ListRow
-                icon={RotateCcw}
-                title="Yêu cầu hoàn tiền"
-                subtitle="Hoàn tiền do Apple xử lý"
-                onPress={confirmRefund}
-              />
+              {planRows.includes('refund') ? (
+                <>
+                  <Divider />
+                  <ListRow
+                    glyph="hoantien"
+                    title="Yêu cầu hoàn tiền"
+                    subtitle="Hoàn tiền do Apple xử lý"
+                    onPress={confirmRefund}
+                  />
+                </>
+              ) : null}
             </Card>
           </View>
         ) : null}
@@ -270,13 +312,16 @@ export default function ProfileScreen() {
         <View style={{ gap: space[3] }}>
           <Caption>Tài khoản</Caption>
           <Card padded={false} style={{ paddingHorizontal: space[4] }}>
-            <ListRow icon={User} title="Thông tin cá nhân" onPress={() => router.push('/(student)/settings/profile')} />
+            <ListRow glyph="hoso" title="Thông tin cá nhân" onPress={() => router.push('/(student)/settings/profile')} />
             <Divider />
-            <ListRow icon={ShieldCheck} title="An toàn & chặn" onPress={() => router.push('/(student)/settings/blocked' as unknown as Href)} />
+            <ListRow glyph="antoan" title="An toàn & chặn" onPress={() => router.push('/(student)/settings/blocked' as unknown as Href)} />
             <Divider />
-            <ListRow icon={Bell} title="Thông báo" onPress={() => router.push('/(student)/notifications')} />
+            {/* N4 (05/09): trước đây người dùng chỉ-mobile phải thoát app đi luồng quên mật khẩu qua email. */}
+            <ListRow glyph="matkhau" title="Đổi mật khẩu" onPress={() => router.push('/(student)/settings/password' as unknown as Href)} />
             <Divider />
-            <ListRow icon={HelpCircle} title="Hướng dẫn sử dụng" onPress={() => router.push('/(student)/guide' as unknown as Href)} />
+            <ListRow glyph="thongbao" title="Thông báo" onPress={() => router.push('/(student)/notifications')} />
+            <Divider />
+            <ListRow glyph="huongdan" title="Hướng dẫn sử dụng" onPress={() => router.push('/(student)/guide' as unknown as Href)} />
           </Card>
         </View>
 
@@ -284,16 +329,16 @@ export default function ProfileScreen() {
           <Caption>Học tập</Caption>
           <Card padded={false} style={{ paddingHorizontal: space[4] }}>
             <ListRow
-              icon={Globe}
+              glyph="ngonngu"
               title="Ngôn ngữ giao diện"
               trailing={<ThemedText variant="caption" color="faint">Tiếng Việt</ThemedText>}
               onPress={() => Alert.alert('Sắp ra mắt', 'Tuỳ chọn đổi ngôn ngữ giao diện sẽ có trong bản cập nhật tới.')}
             />
             <Divider />
-            <ListRow icon={BarChart3} title="Tiến trình & thống kê" onPress={() => router.push('/(student)/stats')} />
+            <ListRow glyph="thongke" title="Tiến trình & thống kê" onPress={() => router.push('/(student)/stats')} />
             <Divider />
             <ListRow
-              icon={Presentation}
+              glyph="lophoc"
               title="Lớp của tôi"
               subtitle="Lớp đang tham gia, bài tập, tiến độ"
               onPress={() => router.push('/(student)/classes' as never)}
@@ -307,22 +352,22 @@ export default function ProfileScreen() {
           <Caption>Quyền riêng tư & pháp lý</Caption>
           <Card padded={false} style={{ paddingHorizontal: space[4] }}>
             <ListRow
-              icon={Sparkles}
+              glyph="dulieuai"
               title="Dữ liệu & tính năng AI"
               subtitle="Xem hoặc thay đổi lựa chọn chia sẻ dữ liệu với đối tác AI"
               onPress={manageAiConsent}
             />
             <Divider />
-            <ListRow icon={Lock} title="Chính sách bảo mật" onPress={openPrivacyPolicy} />
+            <ListRow glyph="khoa" title="Chính sách bảo mật" onPress={openPrivacyPolicy} />
             <Divider />
-            <ListRow icon={FileText} title="Điều khoản sử dụng" onPress={openTermsOfUse} />
+            <ListRow glyph="dieukhoan" title="Điều khoản sử dụng" onPress={openTermsOfUse} />
           </Card>
         </View>
 
         <View style={{ gap: space[3] }}>
           <Card onPress={confirmLogout} elevation="flat">
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-              <Icon icon={LogOut} size={18} color="danger" />
+              <GaGlyph name="dangxuat" size={18} ink="danger" gold="danger" />
               <ThemedText variant="bodyStrong" color="danger">
                 Đăng xuất
               </ThemedText>
@@ -339,7 +384,7 @@ export default function ProfileScreen() {
             style={{ backgroundColor: c.dangerSoft, borderColor: c.danger }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-              <Icon icon={Trash2} size={18} color="danger" />
+              <GaGlyph name="xoa" size={18} ink="danger" gold="danger" />
               <View style={{ flex: 1, gap: 2 }}>
                 <ThemedText variant="bodyStrong" color="danger">
                   Xoá tài khoản
@@ -354,7 +399,7 @@ export default function ProfileScreen() {
         </View>
 
         <ThemedText variant="caption" color="faint" align="center">
-          MyDeutschFlow v1.0.0 • iOS/Android
+          {appVersionLabel}
         </ThemedText>
       </FadeIn>
     </Screen>

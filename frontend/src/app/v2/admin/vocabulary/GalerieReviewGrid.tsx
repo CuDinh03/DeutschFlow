@@ -6,6 +6,7 @@ import { RefreshCw, Sparkles, ImagePlus } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // Tab Galerie (plan mục 16/30–31): review CẢ COLLECTION cạnh nhau, không review lẻ.
 //   GET  /api/v2/admin/vocabulary/galerie/overview?status&limit&offset   → rows (snake_case)
@@ -59,6 +60,7 @@ interface BatchResponse {
 
 export default function GalerieReviewGrid() {
   const t = useTranslations('v2.adminContent.vocabulary.galerie')
+  const fmt = useFmt()
   const tc = useTranslations('v2.common')
   const [status, setStatus] = useState<string>('QA_PENDING')
   const [rows, setRows] = useState<GalerieRow[]>([])
@@ -141,18 +143,18 @@ export default function GalerieReviewGrid() {
         items={[
           {
             label: t('statConceptMissing'),
-            value: conceptMissing === null ? '—' : conceptMissing.toLocaleString('vi-VN'),
+            value: conceptMissing === null ? '—' : fmt.num(conceptMissing),
             tone: 'blue',
           },
           {
             label: t('statReady'),
-            value: svgReady === null ? '—' : svgReady.toLocaleString('vi-VN'),
+            value: svgReady === null ? '—' : fmt.num(svgReady),
             tone: 'gold',
             alert: (svgReady ?? 0) > 0,
           },
           {
             label: t('statShowing'),
-            value: rows.length.toLocaleString('vi-VN'),
+            value: fmt.num(rows.length),
             tone: 'green',
           },
         ]}

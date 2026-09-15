@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useTranslations } from 'next-intl'
 import { getOrgRole } from '@/lib/authSession'
 import { LoadingState } from '@/components/ui-v2'
 import { OrgOwnerDashboard } from './OwnerDashboard'
@@ -17,10 +18,11 @@ import { OrgManagerDashboard } from './ManagerDashboard'
  * cùng tín hiệu này (GaSidebar → managerNav). Backend vẫn là nơi chốt quyền thật (OrgGuard).
  */
 export default function V2OrgHomePage() {
+  const t = useTranslations('v2.org.overview')
   const [isOwner, setIsOwner] = React.useState<boolean | null>(null)
 
   React.useEffect(() => { setIsOwner(getOrgRole() === 'OWNER') }, [])
 
-  if (isOwner === null) return <LoadingState label="Đang tải bảng điều hành…" />
+  if (isOwner === null) return <LoadingState label={t('loadingDashboard')} />
   return isOwner ? <OrgOwnerDashboard /> : <OrgManagerDashboard />
 }

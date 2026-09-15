@@ -22,7 +22,7 @@ vi.mock('next/link', () => ({
   ),
 }))
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', () => ({ useLocale: () => 'vi',
   useTranslations: () => {
     const f = (k: string, v?: Record<string, unknown>) => (v ? `${k}:${Object.values(v).join(',')}` : k)
     ;(f as unknown as { has: (k: string) => boolean }).has = () => false
@@ -139,6 +139,15 @@ describe('NodeList (S-03) — mật độ giảm, trạng thái đọc được'
     const locked = container.querySelectorAll('li')[2]
     expect(locked.textContent).toContain('nodeLockedBy:Chặng 2')
     expect(locked.querySelector('a')).toBeNull()
+  })
+
+  it('ô đầu dòng vẽ ICON, không in emoji của dữ liệu', () => {
+    // `emoji` là cột dữ liệu (`skill_tree_nodes.emoji`) — in thẳng thì mỗi máy vẽ một kiểu và luôn
+    // nhiều màu, đứng cạnh ổ khoá/dấu tích Lucide của chính danh sách này là lộ ngay.
+    const { container } = render(<NodeList nodes={nodes} />)
+    const inProgress = container.querySelectorAll('li')[1]
+    expect(inProgress.textContent).not.toContain('\u{1F4D8}')
+    expect(inProgress.querySelector('svg')).not.toBeNull()
   })
 
   it('trạng thái có NHÃN CHỮ, không chỉ màu/icon', () => {

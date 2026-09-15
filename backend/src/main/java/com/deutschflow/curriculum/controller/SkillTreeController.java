@@ -4,6 +4,7 @@ import com.deutschflow.curriculum.service.PlacementTestService;
 import com.deutschflow.curriculum.service.SkillTreeService;
 import com.deutschflow.speaking.ai.GroqWhisperClient;
 import com.deutschflow.speaking.ai.GroqWhisperClient.TranscribeResult;
+import com.deutschflow.common.minor.MinorGate;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.organization.service.OrgPoolGuard;
@@ -46,6 +47,7 @@ public class SkillTreeController {
     private final AiUsageLedgerService ledgerService;
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
+    private final MinorGate minorGate;
 
     // ─────────────────────────────────────────────────────────────
     // POST /api/skill-tree/placement-test — Tạo bài test xếp lớp
@@ -225,6 +227,9 @@ public class SkillTreeController {
             @RequestParam("originalText") String originalText,
             @RequestParam(value = "focusPhonemes", required = false, defaultValue = "[]") String focusPhonemesJson
     ) {
+        // DEC-22: cổng tuổi NGOÀI khối try — nhánh catch(Exception) dưới đây nuốt mọi lỗi thành
+        // 500 body {"error": ...}, nên gate đặt trong đó sẽ mất hẳn mã 403 và thông điệp hướng dẫn.
+        minorGate.assertAudioAllowed(user.getId());
         quotaService.assertAllowed(user.getId(), Instant.now(), STT_ESTIMATED_TOKENS);
         orgPoolGuard.assertOrgPoolAvailable(user.getId(), STT_ESTIMATED_TOKENS);
         try {

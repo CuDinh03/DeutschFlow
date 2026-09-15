@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
-import { ArrowRight, MessageSquare } from 'lucide-react-native'
+import { useLocalSearchParams } from 'expo-router'
+import { ArrowRight } from 'lucide-react-native'
 import { space, useTheme } from '@/lib/theme'
 import {
   Screen,
@@ -18,10 +18,14 @@ import {
   Skeleton,
 } from '@/components/ui'
 import { weeklyApi, rubricScore, type WeeklyGrammarError, type WeeklyReplacement } from '@/lib/weeklyApi'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 const MAX_SCORE = 5
 
 export default function WeeklyDetailScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['weekly-detail'])
   const c = useTheme().colors
   const params = useLocalSearchParams<{ id: string; title?: string }>()
   const id = Number(params.id)
@@ -37,7 +41,7 @@ export default function WeeklyDetailScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title={params.title ?? data?.promptTitle ?? 'Bài nói'} subtitle="Weekly Challenge · Sprechen" onBack={() => router.back()} />
+      <AppHeader title={params.title ?? data?.promptTitle ?? 'Bài nói'} subtitle="Thử thách tuần · Sprechen" onBack={goBack} />
 
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
@@ -48,7 +52,7 @@ export default function WeeklyDetailScreen() {
         <ErrorState onRetry={() => void refetch()} />
       ) : !data ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
-          <EmptyState icon={MessageSquare} title="Không tìm thấy bài nộp" />
+          <EmptyState glyph="hoithoai" title="Không tìm thấy bài nộp" />
         </View>
       ) : (
         <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[5], paddingTop: space[2] }}>

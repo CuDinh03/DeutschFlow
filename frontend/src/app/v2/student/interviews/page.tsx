@@ -16,6 +16,7 @@ import { useAiSpeakingQuota } from '@/hooks/useAiSpeakingQuota'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useTracking } from '@/hooks/useTracking'
 import { GaCap, GaCard, GaPageHdr, LoadingState, TkBadge } from '@/components/ui-v2'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 /**
  * /v2/student/interviews — mock-interview RESULTS (Galerie shell).
@@ -70,6 +71,7 @@ interface SpeakingSession {
 export default function V2StudentInterviewsPage() {
   usePageTimeTracker('interviews')
   const t = useTranslations('v2.student.interviews')
+  const fmt = useFmt()
   const { trackFeatureAction } = useTracking()
   const { quota } = useAiSpeakingQuota()
 
@@ -432,8 +434,8 @@ export default function V2StudentInterviewsPage() {
                         {date && (
                           <span className="inline-flex items-center gap-1">
                             <Calendar size={11} aria-hidden />
-                            {date.toLocaleDateString('vi-VN')} —{' '}
-                            {date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                            {fmt.date(date)} —{' '}
+                            {fmt.time(date, { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         )}
                         <span className="inline-flex items-center gap-1">

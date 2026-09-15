@@ -1,5 +1,6 @@
 import type { NotificationItem } from '@/lib/notificationApi'
 import type { RoleId } from '@/components/ui-v2/nav'
+import { formatDate } from '@/lib/i18n/format'
 
 // Shared display helpers for notifications (icon / tone / label / title / body / time).
 // Used by the full inbox page (v2/notifications) and the top-bar bell dropdown so both
@@ -37,6 +38,10 @@ export const TYPE_ICON: Record<string, string> = {
   ADMIN_SYSTEM_ALERT: 'warning',
   ADMIN_ORG_CREATED: 'apartment',
   ADMIN_ORG_INVOICE_PAID: 'paid',
+  // Thông báo nội bộ trung tâm (DEC-18) — chỉ giáo viên nhận.
+  SCHEDULE_CHANGE_REJECTED: 'event_busy',
+  TIMESHEET_PERIOD_APPROVED: 'fact_check',
+  TIMESHEET_PERIOD_RETURNED: 'edit',
 }
 
 export const TYPE_TONE: Record<string, string> = {
@@ -70,9 +75,15 @@ export const TYPE_TONE: Record<string, string> = {
   ADMIN_SYSTEM_ALERT: 'var(--ga-red)',
   ADMIN_ORG_CREATED: 'var(--ga-teal)',
   ADMIN_ORG_INVOICE_PAID: 'var(--ga-green)',
+  SCHEDULE_CHANGE_REJECTED: 'var(--ga-red)',
+  TIMESHEET_PERIOD_APPROVED: 'var(--ga-green)',
+  TIMESHEET_PERIOD_RETURNED: 'var(--ga-orange)',
 }
 
-// Vietnamese labels for notification types when payload/title is absent.
+/**
+ * Nhãn tiếng Việt theo loại (giữ làm fallback cuối khi catalog thiếu khoá). Từ 06/09/2026 nhãn hiển thị
+ * đọc từ catalog chrome `v2.notif.types.<TYPE>` qua translator truyền vào notifTitle/relTime/dayBucket.
+ */
 export const TYPE_LABEL: Record<string, string> = {
   REVIEW_DUE: 'Đến hạn ôn tập',
   STREAK_REMINDER: 'Nhắc nhở chuỗi học',
@@ -104,6 +115,9 @@ export const TYPE_LABEL: Record<string, string> = {
   ADMIN_SYSTEM_ALERT: 'Cảnh báo hệ thống',
   ADMIN_ORG_CREATED: 'Tổ chức mới',
   ADMIN_ORG_INVOICE_PAID: 'Hoá đơn đã thanh toán',
+  SCHEDULE_CHANGE_REJECTED: 'Đề xuất đổi lịch bị từ chối',
+  TIMESHEET_PERIOD_APPROVED: 'Kỳ công đã được duyệt',
+  TIMESHEET_PERIOD_RETURNED: 'Kỳ công bị trả lại',
 }
 
 /**
@@ -122,10 +136,16 @@ function pick(payload: Record<string, unknown>, ...keys: string[]): string | nul
   return null
 }
 
-export function notifTitle(n: NotificationItem): string {
+/** Translator của namespace `v2.notif` (chrome core — có ở mọi provider). */
+export type NotifT = { (key: string, values?: Record<string, string | number>): string; has(key: string): boolean }
+
+export function notifTitle(n: NotificationItem, t?: NotifT): string {
   // Prefer the server-rendered title; fall back to payload keys / a typed label.
   if (typeof n.title === 'string' && n.title.trim()) return n.title
-  return pick(n.payload, 'title', 'heading', 'subject') ?? TYPE_LABEL[n.type] ?? 'Thông báo'
+  const fromPayload = pick(n.payload, 'title', 'heading', 'subject')
+  if (fromPayload) return fromPayload
+  if (t) return t.has(`types.${n.type}`) ? t(`types.${n.type}`) : TYPE_LABEL[n.type] ?? t('fallbackTitle')
+  return TYPE_LABEL[n.type] ?? 'Thông báo'
 }
 
 export function notifBody(n: NotificationItem): string | null {
@@ -133,24 +153,24 @@ export function notifBody(n: NotificationItem): string | null {
   return pick(n.payload, 'message', 'body', 'text', 'description')
 }
 
-export function relTime(iso: string): string {
+export function relTime(iso: string, t?: NotifT, locale: string = 'vi'): string {
   const diff = (Date.now() - new Date(iso).getTime()) / 36e5
-  if (diff < 1) return 'vừa xong'
-  if (diff < 24) return `${Math.floor(diff)} giờ trước`
+  if (diff < 1) return t ? t('justNow') : 'vừa xong'
+  if (diff < 24) return t ? t('hoursAgo', { n: Math.floor(diff) }) : `${Math.floor(diff)} giờ trước`
   const d = Math.floor(diff / 24)
-  if (d < 7) return `${d} ngày trước`
-  return new Date(iso).toLocaleDateString('vi-VN')
+  if (d < 7) return t ? t('daysAgo', { n: d }) : `${d} ngày trước`
+  return formatDate(locale, iso)
 }
 
-export function dayBucket(iso: string): string {
+export function dayBucket(iso: string, t?: NotifT): string {
   const d = new Date(iso)
   const today = new Date()
   const isSame = d.toDateString() === today.toDateString()
   const yest = new Date(today)
   yest.setDate(today.getDate() - 1)
-  if (isSame) return 'Hôm nay'
-  if (d.toDateString() === yest.toDateString()) return 'Hôm qua'
-  return 'Trước đó'
+  if (isSame) return t ? t('today') : 'Hôm nay'
+  if (d.toDateString() === yest.toDateString()) return t ? t('yesterday') : 'Hôm qua'
+  return t ? t('earlier') : 'Trước đó'
 }
 
 /** Read the first non-empty payload value among `keys`, as a string (ids arrive as numbers). */
@@ -218,6 +238,12 @@ export function resolveNotificationHref(item: NotificationItem, role: RoleId): s
       // "Bài cần xem" means there is work to GRADE, so open the grading queue — not the student's
       // read-only detail page, where the teacher can look at the submission but not act on it.
       return '/v2/teacher/grading'
+    case 'SCHEDULE_CHANGE_REJECTED':
+      // Đề xuất bị từ chối nằm trong bảng đề xuất của màn lịch dạy (TeacherRequestsPanel).
+      return '/v2/teacher/schedule'
+    case 'TIMESHEET_PERIOD_APPROVED':
+    case 'TIMESHEET_PERIOD_RETURNED':
+      return '/v2/teacher/tc-timesheet'
 
     // ── Cross-role — route into the viewer's own area ─────────────────────────
     case 'NEW_MESSAGE': {

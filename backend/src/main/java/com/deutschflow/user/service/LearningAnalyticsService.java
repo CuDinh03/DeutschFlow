@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,6 +24,20 @@ import java.util.stream.Collectors;
 @Service
 public class LearningAnalyticsService {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(LearningAnalyticsService.class);
+
+    /**
+     * Ranh giới NGÀY của mọi số liệu học tập là ngày lịch Việt Nam, không phải ngày của JVM.
+     * Container prod chạy UTC, nên {@code LocalDate.now()} trần đẩy mọi hoạt động từ 00:00–07:00
+     * giờ VN về "hôm qua": buổi học sáng sớm rơi sai ô ngày, và khoảng "7 ngày gần nhất" lệch một
+     * ngày so với điều người dùng thấy trên lịch của họ. Ghi ({@link #recordDailyStats}) và đọc
+     * ({@link #getWeeklySummary}) PHẢI dùng chung một zone, nếu không dữ liệu ghi vào ô này lại
+     * được cộng cho ô kia. Cùng quy ước với OrgQuotaService, PaymentTransactionRepository và job
+     * retention thông báo — tất cả đều chốt mốc nghiệp vụ theo Asia/Ho_Chi_Minh.
+     */
+    static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
+    /** Số ngày của khoảng thống kê: hôm nay và 6 ngày trước đó. */
+    static final int SUMMARY_WINDOW_DAYS = 7;
 
     private final LearningAnalyticsRepository analyticsRepository;
     private final VocabReviewRepository srsRepository;
@@ -36,8 +52,8 @@ public class LearningAnalyticsService {
     }
 
     public LearningAnalyticsSummaryDto getWeeklySummary(Long userId) {
-        LocalDate today = LocalDate.now();
-        LocalDate weekStart = today.minusDays(6);
+        LocalDate today = LocalDate.now(BUSINESS_ZONE);
+        LocalDate weekStart = today.minusDays(SUMMARY_WINDOW_DAYS - 1L);
 
         List<LearningAnalytics> rows = analyticsRepository
                 .findByUserIdAndAnalyticsDateBetweenOrderByAnalyticsDateAsc(userId, weekStart, today);
@@ -47,7 +63,11 @@ public class LearningAnalyticsService {
         int totalSpeakingMinutes = rows.stream().mapToInt(LearningAnalytics::getSpeakingMinutes).sum();
         int totalSessionsCompleted = rows.stream().mapToInt(LearningAnalytics::getSessionsCompleted).sum();
 
-        long wordsDue = srsRepository.countByUserId(userId);
+        // F06: trước đây là countByUserId — TỔNG số thẻ của người dùng, không phải số đến hạn.
+        // Cùng lúc đó badge trên màn ôn (SrsController#dueCount → SrsService.countDue) đếm đúng
+        // theo next_review_at <= now, nên hai màn hình hiển thị hai con số khác nhau cho cùng một
+        // khái niệm "cần ôn". Dùng chung một quy tắc với hàng đợi ôn.
+        long wordsDue = srsRepository.countDue(userId, OffsetDateTime.now());
 
         List<DayStatsDto> weeklyBreakdown = buildWeeklyBreakdown(rows, weekStart, today);
 
@@ -60,6 +80,8 @@ public class LearningAnalyticsService {
                 .collect(Collectors.toList());
 
         return new LearningAnalyticsSummaryDto(
+                weekStart.toString(),
+                today.toString(),
                 totalWordsLearned,
                 totalWordsReviewed,
                 totalSpeakingMinutes,
@@ -75,7 +97,7 @@ public class LearningAnalyticsService {
     public void recordDailyStats(Long userId, int wordsLearned, int wordsReviewed,
                                  int speakingMinutes, int sessionsCompleted,
                                  double avgAccuracy, double avgConfidence) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(BUSINESS_ZONE);
         LearningAnalytics row = analyticsRepository
                 .findByUserIdAndAnalyticsDate(userId, today)
                 .orElseGet(() -> LearningAnalytics.builder()

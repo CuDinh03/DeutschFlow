@@ -5,6 +5,9 @@ import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.notification.NotificationType;
+import com.deutschflow.notification.entity.NotificationOutbox;
+import com.deutschflow.notification.repository.NotificationOutboxRepository;
 import com.deutschflow.organization.service.OrgGuard;
 import com.deutschflow.teacher.dto.TimesheetPeriodDtos.PeriodDto;
 import com.deutschflow.teacher.entity.TeacherSessionRecord;
@@ -35,6 +38,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,6 +50,7 @@ class TimesheetPeriodServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private OrgGuard orgGuard;
     @Mock private AuditLogService auditLogService;
+    @Mock private NotificationOutboxRepository outboxRepository;
 
     private TimesheetPeriodService service;
 
@@ -66,7 +71,7 @@ class TimesheetPeriodServiceTest {
     @BeforeEach
     void setUp() {
         service = new TimesheetPeriodService(periodRepository, recordRepository, userRepository, orgGuard,
-                auditLogService);
+                auditLogService, outboxRepository);
     }
 
     // ── mở kỳ: chống chồng ngày (HIGH-3) ─────────────────────────────────────
@@ -264,6 +269,75 @@ class TimesheetPeriodServiceTest {
         assertThat(dto.status()).isEqualTo("REJECTED");
         assertThat(dto.rejectReason()).isEqualTo("Thiếu buổi 12/07");
         assertThat(dto.editable()).isTrue();          // mở lại để sửa
+    }
+
+    // ── DEC-18: thông báo cho giáo viên chủ kỳ qua outbox ─────────────────────
+
+    @Test
+    @DisplayName("approve() ghi outbox TIMESHEET_PERIOD_APPROVED cho giáo viên chủ kỳ, dedup theo (kỳ, APPROVED, mốc nộp)")
+    void approve_enqueuesOutboxForTeacher() {
+        TeacherTimesheetPeriod p = period(Status.SUBMITTED);
+        p.setSubmittedAt(java.time.Instant.ofEpochMilli(1_757_000_000_000L));
+        when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(p));
+        when(recordRepository
+                .findByTeacherIdAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAt(
+                        eq(TEACHER_ID), any(), any()))
+                .thenReturn(List.of(TeacherSessionRecord.builder().orgId(ORG_ID).durationMinutes(90).build()));
+        when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.approve(MANAGER, ORG_ID, PERIOD_ID);
+
+        ArgumentCaptor<NotificationOutbox> row = ArgumentCaptor.forClass(NotificationOutbox.class);
+        verify(outboxRepository).save(row.capture());
+        assertThat(row.getValue().getNotificationType()).isEqualTo(NotificationType.TIMESHEET_PERIOD_APPROVED);
+        assertThat(row.getValue().getRecipientId()).isEqualTo(TEACHER_ID);
+        assertThat(row.getValue().getDedupKey())
+                .isEqualTo("timesheet:" + PERIOD_ID + ":APPROVED:s1757000000000");
+        assertThat(row.getValue().getPayload())
+                .containsEntry("periodId", PERIOD_ID)
+                .containsEntry("periodStart", String.valueOf(START))
+                .containsEntry("periodEnd", String.valueOf(END))
+                .containsEntry("totalSessions", 1)
+                .containsEntry("totalMinutes", 90)
+                .doesNotContainKey("reason");
+    }
+
+    @Test
+    @DisplayName("reject() ghi outbox TIMESHEET_PERIOD_RETURNED kèm lý do; nộp lại rồi trả lần hai → dedup_key KHÁC (không va UNIQUE)")
+    void reject_enqueuesOutboxWithReason_andResubmissionGetsNewKey() {
+        TeacherTimesheetPeriod p = period(Status.SUBMITTED);
+        p.setSubmittedAt(java.time.Instant.ofEpochMilli(1_757_000_000_000L));
+        when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(p));
+        when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.reject(MANAGER, ORG_ID, PERIOD_ID, "Thiếu buổi 12/07");
+
+        // Giáo viên nộp lại (mốc nộp mới) → trung tâm trả lại lần nữa.
+        p.setStatus(Status.SUBMITTED);
+        p.setSubmittedAt(java.time.Instant.ofEpochMilli(1_757_000_500_000L));
+        service.reject(MANAGER, ORG_ID, PERIOD_ID, "Vẫn thiếu buổi 12/07");
+
+        ArgumentCaptor<NotificationOutbox> rows = ArgumentCaptor.forClass(NotificationOutbox.class);
+        verify(outboxRepository, times(2)).save(rows.capture());
+        NotificationOutbox first = rows.getAllValues().get(0);
+        NotificationOutbox second = rows.getAllValues().get(1);
+        assertThat(first.getNotificationType()).isEqualTo(NotificationType.TIMESHEET_PERIOD_RETURNED);
+        assertThat(first.getRecipientId()).isEqualTo(TEACHER_ID);
+        assertThat(first.getPayload()).containsEntry("reason", "Thiếu buổi 12/07");
+        assertThat(first.getDedupKey()).isEqualTo("timesheet:" + PERIOD_ID + ":REJECTED:s1757000000000");
+        assertThat(second.getDedupKey()).isEqualTo("timesheet:" + PERIOD_ID + ":REJECTED:s1757000500000");
+        assertThat(second.getPayload()).containsEntry("reason", "Vẫn thiếu buổi 12/07");
+    }
+
+    @Test
+    @DisplayName("approve()/reject() bị chặn (409, 403) thì KHÔNG ghi outbox — không có thông báo cho việc chưa xảy ra")
+    void blockedTransitions_doNotEnqueue() {
+        when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(period(Status.OPEN)));
+
+        assertThatThrownBy(() -> service.approve(MANAGER, ORG_ID, PERIOD_ID)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.reject(MANAGER, ORG_ID, PERIOD_ID, "x")).isInstanceOf(ConflictException.class);
+
+        verify(outboxRepository, never()).save(any());
     }
 
     @Test
@@ -499,7 +573,7 @@ class TimesheetPeriodServiceTest {
         ArgumentCaptor<Map<String, Object>> metas = ArgumentCaptor.forClass(Map.class);
         verify(auditLogService, times(4))
                 .log(events.capture(), actors.capture(), eq("TIMESHEET_PERIOD"),
-                        eq(String.valueOf(PERIOD_ID)), metas.capture());
+                        eq(String.valueOf(PERIOD_ID)), eq(ORG_ID), metas.capture());
 
         assertThat(events.getAllValues()).containsExactly(
                 "teacher_timesheet_submitted", "teacher_timesheet_approved",
@@ -507,9 +581,9 @@ class TimesheetPeriodServiceTest {
         // Ai làm gì: nộp là giáo viên, duyệt/trả là quản lý, khoá là giám đốc.
         assertThat(actors.getAllValues()).containsExactly(TEACHER, MANAGER, MANAGER, OWNER);
 
-        // orgId phải có mặt trong MỌI dòng — audit_logs chưa có cột org_id, đây là thứ cho phép
-        // backfill cột đó sau này mà không mất lịch sử.
-        assertThat(metas.getAllValues()).allSatisfy(m -> assertThat(m).containsEntry("orgId", ORG_ID));
+        // orgId là THAM SỐ CỘT (eq(ORG_ID) ở trên), không còn nằm trong metadata: chỉ cột org_id
+        // mới lọt qua bộ lọc `AND org_id = ?` của sổ hoạt động trung tâm.
+        assertThat(metas.getAllValues()).allSatisfy(m -> assertThat(m).doesNotContainKey("orgId"));
         assertThat(metas.getAllValues().get(0))
                 .containsEntry("status", "SUBMITTED")
                 .containsEntry("totalSessions", 1)
@@ -528,7 +602,9 @@ class TimesheetPeriodServiceTest {
         assertThatThrownBy(() -> service.lock(MANAGER, ORG_ID, PERIOD_ID))
                 .isInstanceOf(ForbiddenException.class);
 
-        verify(auditLogService, never()).log(any(), any(AuditActor.class), any(), any(), any());
+        // verifyNoInteractions phủ MỌI overload của log() — never() trên một chữ ký thì im lặng
+        // bỏ qua lần gọi qua chữ ký kia, đúng cái bẫy vừa mở ra khi thêm tham số orgId.
+        verifyNoInteractions(auditLogService);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

@@ -39,7 +39,7 @@
         "grammarAccuracy": "Grammatik-Genauigkeit",
         "sessionsCompleted": "Abgeschlossene Sitzungen"
       },
-      "readyToAdvance": "🎉 Du bist bereit für die nächste Phase!",
+      "readyToAdvance": "Du bist bereit für die nächste Phase!",
       "levelCap": "Level-Fortschritt",
       "levelValue": "Level {level}",
       "xpToNext": "Noch {xp} XP bis zum nächsten Level",
@@ -191,7 +191,10 @@
       "taskDoneBtn": "Fertig",
       "taskTypes": {
         "REWRITE": "Umschreiben"
-      }
+      },
+      "emptyDeck": "Dein Wiederholungsstapel ist leer",
+      "emptyDeckHint": "Füge Wörter hinzu, dann erinnern wir dich zum richtigen Zeitpunkt ans Wiederholen.",
+      "emptyDeckCta": "Wortschatz lernen"
     },
     "lessons": {
       "title": "Lektionsbibliothek",
@@ -330,6 +333,249 @@
       "interviewResults": "Interview-Ergebnisse",
       "historyCta": "Verlauf"
     },
+    "companionSelect": {
+      "title": "Sprechen üben",
+      "subtitle": "Wähle Übungsart und Begleiter",
+      "home": "Startseite",
+      "modes": {
+        "communication": "Gespräch",
+        "interview": "Interview",
+        "lesson": "Übung"
+      },
+      "experience": {
+        "upTo6Months": "0–6 Monate",
+        "sixTo12Months": "6–12 Monate",
+        "oneToTwoYears": "1–2 Jahre",
+        "threeYears": "3 Jahre",
+        "fivePlusYears": "5+ Jahre"
+      },
+      "suggestedTopic": "Vorgeschlagenes Thema: {topic}",
+      "emptyGroup": "In dieser Gruppe gibt es keine Figur für diesen Modus.",
+      "pro": {
+        "title": "PRO-Figur",
+        "desc": "ADVANCED-Figuren gibt es nur im PRO/ULTRA-Tarif. Upgrade für intensives Interview-Training.",
+        "upgrade": "Upgrade →"
+      },
+      "positionLabel": "Auf welche Stelle bewirbst du dich?",
+      "experienceLabel": "Berufserfahrung",
+      "scenarioLabel": "Lektionsthema",
+      "cta": {
+        "interview": "Interview mit {name}",
+        "lesson": "Üben mit {name}",
+        "start": "Mit {name} starten"
+      },
+      "hint": {
+        "pickPersona": "Bitte wähle eine Figur",
+        "pickPosition": "Wähle Stelle und Erfahrung",
+        "pickScenario": "Wähle ein Lektionsthema"
+      },
+      "errors": {
+        "sessionExpired": "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.",
+        "forbidden": "Du hast keine Berechtigung, eine Sprechsitzung zu erstellen.",
+        "tooSoon": "Bitte warte ein paar Sekunden, bevor du eine neue Sitzung startest.",
+        "server": "Der Server hat gerade Probleme. Bitte versuche es später noch einmal.",
+        "generic": "Die Sprechsitzung konnte nicht erstellt werden. Bitte versuche es noch einmal!"
+      }
+    },
+    "personas": {
+      "groups": {
+        "it": "IT / Start-up",
+        "verkauf": "Verkauf",
+        "medizin": "Medizin",
+        "maschinenbau": "Maschinenbau",
+        "service": "Service",
+        "medien": "Medien",
+        "special": "Vietnamesische Buddys"
+      },
+      "lukas": {
+        "role": "Senior Tech Mentor",
+        "tag": "Backend Dev · Berlin",
+        "desc": "Erklärt Grammatik wie sauberen Code. Strukturiert, logisch, präzise.",
+        "positions": {
+          "frontend_dev": "Frontend-Entwickler/in",
+          "backend_dev": "Backend-Entwickler/in",
+          "devops": "DevOps-Ingenieur/in",
+          "data_analyst": "Datenanalyst/in",
+          "qa_engineer": "Qualitätssicherung"
+        }
+      },
+      "emma": {
+        "role": "Berliner Kulturguide",
+        "tag": "Künstlerin · Neukölln",
+        "desc": "Bringt dir Deutsch durch Kunst, Kultur und Berliner Flair bei.",
+        "positions": {
+          "marketing_mgr": "Marketingleiter/in",
+          "sales_exec": "Vertriebsmitarbeiter/in",
+          "cs_manager": "Kundenerfolgsmanager/in",
+          "hr_coordinator": "Personalkoordinator/in",
+          "project_mgr": "Projektmanager/in"
+        }
+      },
+      "anna": {
+        "role": "Alltagsbegleiterin",
+        "tag": "Sprachlehrerin · Hamburg",
+        "desc": "Begleitet dich durch den deutschen Alltag – warm, geduldig und praktisch.",
+        "positions": {
+          "werkstudent": "Werkstudent/in",
+          "praktikant": "Praktikant/in",
+          "research_asst": "Wissenschaftliche Hilfskraft",
+          "student_coord": "Studienkoordinator/in",
+          "teaching_asst": "Tutor/in"
+        }
+      },
+      "klaus": {
+        "role": "Kulinarik-Experte",
+        "tag": "Küchenchef · München",
+        "desc": "Übe Deutsch rund um Küche, Kulinarik und Teamkommunikation.",
+        "positions": {
+          "line_cook": "Koch/Köchin",
+          "sous_chef": "Sous Chef",
+          "head_chef": "Küchenchef/in",
+          "servicekraft": "Servicekraft",
+          "restaurant_mgr": "Restaurantleiter/in"
+        }
+      },
+      "lena": {
+        "role": "Supermarktmitarbeiterin",
+        "tag": "Supermarkt · A1-A2",
+        "desc": "Freundlich und energiegeladen – hilft dir beim Einkaufen im deutschen Supermarkt.",
+        "positions": {
+          "kassierer": "Kassierer/in",
+          "verkaufer": "Verkäufer/in",
+          "lagerist": "Lagerist/in"
+        }
+      },
+      "thomas": {
+        "role": "Bäcker",
+        "tag": "Bäckerei · A1-A2",
+        "desc": "Herzlich, begeistert und stolz auf traditionelles deutsches Gebäck.",
+        "positions": {
+          "baker": "Bäcker/in",
+          "konditor": "Konditor/in",
+          "verkauf_bakery": "Bäckereiverkäufer/in"
+        }
+      },
+      "petra": {
+        "role": "Metzgerin",
+        "tag": "Metzgerei · A1-A2",
+        "desc": "Professionell, kennt sich mit Fleisch aus, direkt.",
+        "positions": {
+          "metzger": "Metzger/in",
+          "fleischverkauf": "Fleischverkäufer/in"
+        }
+      },
+      "sarah": {
+        "role": "Med. Fachangestellte",
+        "tag": "Arztpraxis · A2-B1",
+        "desc": "Professionell, gut organisiert und freundlich in der Praxis.",
+        "positions": {
+          "mfa": "Med. Fachangestellte/r",
+          "rezeption_praxis": "Praxisrezeption"
+        }
+      },
+      "schneider": {
+        "role": "Augenarzt",
+        "tag": "Augenklinik · B1-B2",
+        "desc": "Präzise, gründlich, erklärt jede Untersuchung verständlich.",
+        "positions": {
+          "augenarzt": "Augenarzt/-ärztin",
+          "mta_auge": "MTA Augenheilkunde"
+        }
+      },
+      "weber": {
+        "role": "Dermatologin",
+        "tag": "Hautarzt · B1-B2",
+        "desc": "Einfühlsam, erklärt Hautprobleme ausführlich.",
+        "positions": {
+          "hautarzt": "Dermatolog/in",
+          "mta_derm": "MTA Dermatologie"
+        }
+      },
+      "max": {
+        "role": "Maschinenbediener",
+        "tag": "Werkstatt · B1-B2",
+        "desc": "Praktisch veranlagt, kennt Bedienung und Wartung von Maschinen.",
+        "positions": {
+          "maschinenbediener": "Maschinenbediener/in",
+          "industriemechaniker": "Industriemechaniker/in"
+        }
+      },
+      "oliver": {
+        "role": "CNC-Fräser",
+        "tag": "CNC · B2",
+        "desc": "Präzise, logisch, kennt CNC-Programmierung und -Bedienung.",
+        "positions": {
+          "cnc_fraser": "CNC-Fräser/in",
+          "cnc_programmierer": "CNC-Programmierer/in"
+        }
+      },
+      "niklas": {
+        "role": "Kellner",
+        "tag": "Restaurant · A2-B1",
+        "desc": "Höflich, aufmerksam, serviert in einem gehobenen Restaurant.",
+        "positions": {
+          "kellner": "Kellner/in",
+          "barkeeper": "Barkeeper/in",
+          "serviceleitung": "Serviceleitung"
+        }
+      },
+      "nina": {
+        "role": "Rezeptionistin",
+        "tag": "Hotel · A2-B1",
+        "desc": "Professionelle, freundliche Hotelrezeptionistin.",
+        "positions": {
+          "rezeptionist": "Rezeptionist/in",
+          "concierge": "Concierge"
+        }
+      },
+      "hannie": {
+        "role": "Moderatorin & MC",
+        "tag": "Medien · 20 Jahre",
+        "desc": "20 Jahre, lebhaft und fröhlich. Moderiert Shows, Events und Medien.",
+        "positions": {
+          "moderatorin": "Moderator/in",
+          "redakteurin": "Redakteur/in",
+          "social_media_mgr": "Social-Media-Manager/in",
+          "pr_specialist": "PR-Spezialist/in",
+          "content_creator": "Content Creator",
+          "event_manager": "Eventmanager/in"
+        }
+      },
+      "tuan": {
+        "role": "Azubi-Kumpel",
+        "tag": "Ausbildung · A1",
+        "desc": "Fröhlich, findig, bringt dir Überlebensdeutsch auf Vietnamesisch bei.",
+        "scenarios": {
+          "alphabet": "Das Alphabet",
+          "numbers": "Zahlen",
+          "anmeldung": "Anmeldung"
+        }
+      },
+      "lan": {
+        "role": "Erfahrene Mentorin",
+        "tag": "Integration · A1",
+        "desc": "Fürsorglich, geduldig, vermittelt saubere Aussprache und Kulturtipps.",
+        "scenarios": {
+          "umlaut": "Umlaute",
+          "emergency_numbers": "Notrufnummern",
+          "pronunciation": "Aussprache"
+        }
+      },
+      "minh": {
+        "role": "Straßen-Kumpel",
+        "tag": "Straße · A1",
+        "desc": "Voller Energie – Deutsch lernen über Schilder und Straßen.",
+        "scenarios": {
+          "street_names": "Straßennamen",
+          "train_station": "Bahnhof",
+          "speed_signs": "Verkehrszeichen"
+        }
+      }
+    },
+    "chatBubble": {
+      "whyThisSentence": "Warum dieser Satz?",
+      "usageContext": "Verwendung:"
+    },
     "weeklySpeaking": {
       "title": "Thema dieser Woche",
       "subtitle": "Bewertete Aufgabe mit Rubrik — nicht dasselbe wie die Chat-Übung.",
@@ -415,6 +661,7 @@
       "titleClass": "Kurs",
       "loadErrorTitle": "Kurs konnte nicht geladen werden",
       "teacherLine": "Lehrkraft: {teacher} · Kurscode: {code} · {count} Mitglieder",
+      "teacherLineNoCode": "Lehrkraft: {teacher} · {count} Mitglieder",
       "backToClasses": "Meine Kurse",
       "messageTeacher": "Lehrkraft schreiben",
       "noTeacherToMessage": "Dieser Kurs hat keine Lehrkraft zum Anschreiben.",
@@ -602,7 +849,8 @@
     },
     "messages": {
       "title": "Nachrichten",
-      "subtitle": "Klassen-Gruppenchats und private Nachrichten an deine Lehrkraft"
+      "subtitle": "Klassen-Gruppenchats und private Nachrichten an deine Lehrkraft",
+      "emptyDirect": "Noch keine Direktnachrichten. Öffnen Sie eine Klassenseite und tippen Sie auf „Lehrkraft anschreiben“."
     },
     "achievements": {
       "title": "Erfolge",
@@ -672,7 +920,10 @@
     },
     "mockExamRun": {
       "draftRestored": "Entwurf wiederhergestellt — {count} zuvor gespeicherte Antworten.",
-      "confirmExit": "Prüfung verlassen? Deine Antworten sind automatisch gespeichert und du kannst zurückkehren — die Uhr läuft aber weiter.",
+      "confirmExitTitle": "Prüfung verlassen?",
+      "confirmExit": "Deine Antworten sind automatisch gespeichert, du kannst später weitermachen — die Prüfung bleibt ein Entwurf und ist nicht abgegeben.",
+      "confirmExitDetail": "Die Uhr läuft nach dem Verlassen weiter.",
+      "confirmExitAction": "Prüfung verlassen",
       "title": "Goethe-Prüfungssimulation",
       "subtitle": "Im offiziellen Goethe-Institut-Format mit automatischer Bewertung",
       "loading": "Wird geladen…",
@@ -694,7 +945,9 @@
       "submitAll": "Gesamte Prüfung abgeben",
       "submitting": "Wird abgegeben…",
       "submitNow": "Jetzt abgeben",
-      "confirmSubmit": "Möchten Sie die Prüfung wirklich abgeben?",
+      "confirmSubmitTitle": "Prüfung abgeben?",
+      "confirmSubmit": "Nach dem Abgeben kannst du deine Antworten nicht mehr ändern; die Prüfung geht in die Bewertung.",
+      "confirmSubmitAnswered": "Du hast {answered}/{total} Aufgaben beantwortet — leere Antworten zählen 0 Punkte.",
       "prevSection": "Vorheriger Teil",
       "nextSection": "Nächster Teil",
       "sectionMeta": "Zeit: {minutes} Min. · Maximale Punktzahl: {points}",
@@ -719,7 +972,7 @@
       "reviewError": "Lösungen konnten nicht geladen werden. Bitte erneut versuchen.",
       "back": "Zurück",
       "backToResult": "Zurück zum Ergebnis",
-      "resultPassed": "Bestanden! 🎉",
+      "resultPassed": "Bestanden!",
       "resultFailed": "Nicht bestanden",
       "provisional": "Vorläufige Punktzahl: {score}/100",
       "provisionalNote": "Schreiben und Sprechen werden separat bewertet — in der vorläufigen Punktzahl nicht enthalten.",
@@ -730,7 +983,18 @@
       "yourAnswer": "Ihre Antwort",
       "correctAnswer": "Richtige Antwort",
       "draftConflict": "Dieser Versuch wurde gerade auf einem anderen Gerät aktualisiert — neuester Entwurf geladen.",
-      "draftExpired": "Die Zeit ist abgelaufen — deine Prüfung wird jetzt abgegeben."
+      "draftExpired": "Die Zeit ist abgelaufen — deine Prüfung wird jetzt abgegeben.",
+      "telcHeadlines": "Überschriften — ordnen Sie jedem Text eine zu",
+      "telcAds": "Anzeigen",
+      "telcWordBank": "Wortkasten",
+      "telcSingleUse": "Jede Lösung kann nur einmal verwendet werden.",
+      "telcNoneHint": "Wählen Sie „x“, wenn keine Anzeige passt.",
+      "telcNone": "x",
+      "telcPickLetter": "Buchstaben wählen",
+      "telcAlreadyUsed": "Bereits für eine andere Aufgabe verwendet",
+      "telcGapEmpty": "offen",
+      "telcGapLabel": "Lücke {n}",
+      "telcMissingPool": "Für diesen Prüfungsteil fehlt die Lösungsliste, er kann daher nicht bearbeitet werden. Bitte melden Sie uns das."
     },
     "grammarPractice": {
       "title": "Grammatiktraining",
@@ -751,7 +1015,7 @@
       "answerPlaceholder": "Antwort eingeben…",
       "check": "Prüfen",
       "checking": "Wird geprüft…",
-      "correct": "Richtig! 🎉",
+      "correct": "Richtig!",
       "incorrect": "Noch nicht richtig",
       "answerIs": "Lösung:",
       "next": "Weiter"
@@ -812,6 +1076,59 @@
       "groupToday": "Heute",
       "groupThisWeek": "Diese Woche",
       "groupOlder": "Älter"
+    },
+    "sessionSummary": {
+      "interviewEndedTitle": "Interview beendet!",
+      "sessionEndedTitle": "Sprechübung beendet!",
+      "scoreOutOf10": "Punkte / 10",
+      "circleTooEarlyLine1": "Zu früh beendet",
+      "circleTooEarlyLine2": "zu wenig zum Bewerten",
+      "circleNotScoredLine1": "Keine Bewertung",
+      "circleNotScoredLine2": "für diese Sitzung",
+      "circleSpeakMoreLine1": "Sag noch ein paar Sätze",
+      "circleSpeakMoreLine2": "für eine Bewertung",
+      "statDuration": "Dauer",
+      "statTurns": "Runden",
+      "statPerfect": "Perfekt",
+      "statErrors": "Fehler",
+      "aiScoreLabel": "KI-Bewertung: ",
+      "detailedAiTitle": "Detaillierte Bewertung (KI)",
+      "germanInInterviewTitle": "Deutsch im Interview",
+      "vocabularyLevel": "Wortschatzniveau",
+      "commonErrorsCap": "Häufige Fehler",
+      "remediationTitle": "Verbesserungsvorschläge",
+      "answerUpgradesTitle": "So sagst du es besser",
+      "youSaid": "Du hast gesagt: ",
+      "betterSay": "Besser: ",
+      "nextStepsTitle": "Deine nächsten Schritte",
+      "nextStepRetrySamePosition": "Interview für diese Stelle wiederholen",
+      "nextStepPracticeStar": "STAR-Situationen üben",
+      "nextStepDrillErrors": "Fehler dieser Sitzung wiederholen",
+      "nextStepExpandAnswers": "Antworten mit 3–4 Sätzen üben",
+      "nextStepFachVocab": "Fachwortschatz üben",
+      "strengthsTitle": "Stärken",
+      "improvementsTitle": "Verbesserungsbedarf",
+      "grammarTitle": "Grammatik",
+      "recommendedNextTitle": "Als Nächstes üben",
+      "noReportTitle": "Sprechübung abgeschlossen!",
+      "noReportBody": "Diesmal gibt es keine ausführliche Bewertung, aber jeder Satz, den du sprichst, ist ein Schritt nach vorn. Bleib dran!",
+      "interviewTooEarlyTitle": "Das Interview wurde zu früh beendet",
+      "interviewNotScoredTitle": "Diese Sitzung konnte nicht bewertet werden",
+      "interviewTooEarlyBody": "Du hast bisher erst {n} Antworten gegeben. Gib mindestens {min} Antworten (etwa {words} Wörter oder mehr), bevor du beendest — bewertet wird nur, was du wirklich gesagt hast, geschätzt wird nichts.",
+      "interviewNotScoredBody": "Das System konnte für diese Sitzung keine gültige Bewertung erstellen. Tippe erneut auf „Beenden“, um neu zu bewerten — falls es weiterhin nicht klappt, versuche es in ein paar Minuten noch einmal.",
+      "notEnoughTitle": "Noch zu wenig für eine Bewertung",
+      "notEnoughBody": "Du hast bisher erst {n} Sätze gesagt. Sprich mindestens {min} Sätze, damit die Bewertung dein Niveau besser widerspiegelt — ein oder zwei Sätze reichen für eine faire Bewertung nicht aus.",
+      "quickSelfAssessTitle": "Schnelle Selbsteinschätzung",
+      "quickSelfAssessHint": "(geschätzt anhand der erfassten Fehler)",
+      "rubricVocabulary": "Wortschatz",
+      "rubricGrammar": "Grammatik & Syntax",
+      "rubricTask": "Aufgabenerfüllung",
+      "rubricFluency": "Flüssigkeit",
+      "errorsToReviewTitle": "Fehler zum Wiederholen nach der Sitzung",
+      "reviewErrorsCta": "Diese Fehler wiederholen",
+      "grammarErrorFallback": "Grammatikfehler",
+      "restart": "Noch einmal üben",
+      "exitHome": "Zur Startseite"
     },
     "exerciseHistory": {
       "title": "Versuchs-Historie (Lektionen)",
@@ -901,8 +1218,8 @@
       "poolCap": "Wortvorrat",
       "check": "Prüfen",
       "next": "Weiter →",
-      "correct": "✓ Richtig!",
-      "wrong": "✗ Richtige Antwort: {answer}",
+      "correct": "Richtig!",
+      "wrong": "Richtige Antwort: {answer}",
       "doneTitle": "Fertig! {score}/{total}",
       "doneDesc": "Du hast diese Runde beendet.",
       "emptyTitle": "Noch keine Fragen",
@@ -924,8 +1241,8 @@
       "poolCap": "Wortblöcke",
       "check": "Prüfen",
       "next": "Weiter →",
-      "correct": "✓ Richtig!",
-      "wrongGeneric": "✗ Noch nicht richtig — prüfe die Wortstellung.",
+      "correct": "Richtig!",
+      "wrongGeneric": "Noch nicht richtig — prüfe die Wortstellung.",
       "hint": "Tipp",
       "listen": "Beispielsatz anhören",
       "score": "{score} Punkte",
@@ -998,7 +1315,7 @@
       "heroCap": "B1-Einstufung",
       "heroTitle": "Bereit für B1?",
       "heroDesc": "Prüfen Sie, ob Sie bereits alle 5 Kriterien für das B1-Niveau erfüllen.",
-      "heroTitleGraduated": "🎓 Sie haben B1 erreicht!",
+      "heroTitleGraduated": "Sie haben B1 erreicht!",
       "heroDescGraduated": "Herzlichen Glückwunsch! Sie haben die 12-wöchige Lernreise abgeschlossen.",
       "scoreNear": "Fast geschafft!",
       "scoreProgress": "Gute Fortschritte",
@@ -1200,8 +1517,8 @@
       "answerPlaceholder": "Antwort eingeben…",
       "check": "Prüfen",
       "spokenDone": "Ich habe es vorgelesen",
-      "correct": "✅ Richtig!",
-      "incorrect": "❌ Noch nicht richtig",
+      "correct": "Richtig!",
+      "incorrect": "Noch nicht richtig",
       "answerIs": "Lösung:",
       "submit": "Abgeben · {correct}/{total} richtig",
       "resultLine": "{correct} / {total} richtig",
@@ -1227,13 +1544,14 @@
     "learnNode": {
       "roadmapContext": "Position im Lernpfad",
       "completedInRoadmap": "des Lernpfads abgeschlossen",
-      "contentPendingTitle": "⚡ Inhalt wird vorbereitet",
+      "contentPendingTitle": "Inhalt wird vorbereitet",
       "contentPendingDesc": "Die {level}-Lektion folgt bald. Schließe zuerst die A1-Lektionen ab!",
-      "retryTitle": "⚠️ Node noch nicht bestanden",
+      "retryTitle": "Node noch nicht bestanden",
       "retryDesc": "Hören/Lesen erfordern 100 % • Sprechen/Aussprache/Schreiben erfordern ≥ 80 Punkte",
-      "retryCta": "🔄 Erneut versuchen",
+      "retryCta": "Erneut versuchen",
       "progressNotSaved": "Dein Fortschritt konnte nicht auf dem Server gespeichert werden.",
-      "scoreBelowThreshold": "Der Server hat {score}% gewertet — unter der Bestehensgrenze, dein Fortschritt wurde nicht gespeichert."
+      "scoreBelowThreshold": "Der Server hat {score}% gewertet — unter der Bestehensgrenze, dein Fortschritt wurde nicht gespeichert.",
+      "dayPrefix": "Tag {n} · {title}"
     },
     "stats": {
       "title": "Lernstatistik",
@@ -1248,12 +1566,11 @@
         "reviewed": "Wiederholt",
         "speaking": "Sprechen",
         "due": "Fällig",
-        "thisWeek": "diese Woche",
         "words": "Wörter",
-        "toReview": "zu wiederholen"
+        "toReview": "zu wiederholen",
+        "last7Days": "letzte 7 Tage"
       },
-      "weeklyTitle": "Aktivität (7 Tage)",
-      "noActivity": "Diese Woche keine Aktivität.",
+      "noActivity": "Keine Aktivität in den letzten 7 Tagen.",
       "series": {
         "learned": "Neu gelernt",
         "reviewed": "Wiederholt",
@@ -1265,11 +1582,24 @@
       "noWeakPoints": "Noch nicht genug Daten für Schwachpunkte.",
       "errorTrendTitle": "Fehlertrend (30 Tage)",
       "openErrors": "{count} offen",
-      "allFixed": "Alle behoben ✓",
+      "allFixed": "Alle behoben",
       "recommendationsTitle": "Empfehlungen für dich",
       "badgesCap": "Abzeichen",
       "badgesHint": "Alle freigeschalteten Abzeichen findest du unter Erfolge.",
-      "badgesCta": "Abzeichen ansehen"
+      "badgesCta": "Abzeichen ansehen",
+      "vocabTitle": "Wortschatz (7 Tage)",
+      "vocabTitleRange": "Wortschatz · {range}",
+      "speakingTitle": "Sprechen (7 Tage)",
+      "speakingTitleRange": "Sprechen · {range}",
+      "unitWords": "Einheit: Wörter",
+      "unitMinutes": "Einheit: Minuten",
+      "recommendationsLoadError": "Vorschläge konnten nicht geladen werden. Das heißt nicht, dass nichts mehr zu tun ist.",
+      "errorTrendLoadError": "Fehlerverlauf konnte nicht geladen werden. Das heißt nicht, dass alle Fehler behoben sind.",
+      "showTable": "Daten als Tabelle anzeigen",
+      "colDay": "Tag",
+      "colErrorCount": "Fehler",
+      "vocabDesc": "Neu gelernte Wörter und Wiederholungen pro Tag.",
+      "speakingDesc": "Sprechübungsminuten pro Tag."
     },
     "errors": {
       "title": "Fehlerbibliothek",
@@ -1365,7 +1695,10 @@
         "prepShort": "5 Min. kurz",
         "prepFull": "{min} Min. wie in der Prüfung",
         "weaknessTitle": "Schwächen wiederholen",
-        "weaknessDesc": "Häufige Fehler aus dem Prüfungsraum nach Aufgabentyp, mit passenden Redemittel-Paketen"
+        "weaknessDesc": "Häufige Fehler aus dem Prüfungsraum nach Aufgabentyp, mit passenden Redemittel-Paketen",
+        "beta": "Beta",
+        "betaDesc": "Beta — simulierte Punkte, Kalibrierung mit menschlichen Prüfer/innen läuft",
+        "borderline": "Grenzfall"
       },
       "room": {
         "loading": "Prüfungsraum wird betreten…",
@@ -1456,7 +1789,13 @@
           "yourTurn": "Du bist dran — sprich jetzt!",
           "waitHint": "Warte, bis du dran bist…"
         },
-        "audioRetained": "Diese Sitzung wird zur Bewertungs-Kalibrierung aufgezeichnet (mit deiner Einwilligung). Du kannst die Einwilligung jederzeit widerrufen — das Audio wird gelöscht."
+        "audioRetained": "Diese Sitzung wird zur Bewertungs-Kalibrierung aufgezeichnet (mit deiner Einwilligung). Du kannst die Einwilligung jederzeit widerrufen — das Audio wird gelöscht.",
+        "beta": "Beta",
+        "retryTurn": "Letzten Beitrag erneut senden",
+        "retryTurnHint": "Aufnahme/Antwort liegt noch auf deinem Gerät — erneutes Senden zählt nicht als neuer Beitrag.",
+        "gradingFailedQuota": "Noch nicht bewertet: dein KI-Budget ist aufgebraucht — deine Prüfung ist gespeichert.",
+        "gradingFailedQuotaDesc": "Alles Gesagte bleibt erhalten. Lade auf oder warte auf die nächste Periode und drücke dann „Neu bewerten“ — keine Wiederholung nötig.",
+        "upgradeCta": "Tarife ansehen / aufladen"
       },
       "mic": {
         "sending": "Wird gesendet, Antwort folgt…",
@@ -1550,8 +1889,11 @@
           "llmProposedBand": "Die KI schlug Band {band} vor — das endgültige Band bestimmt die Fehlerdichte-Tabelle.",
           "fluencyBlend": "Flüssigkeit gemessen: {wpm} Wörter/Min., {pauses} lange Pausen, MLR {mlr} → Band {fluencyBand}; kombiniert mit KI ({llmBand}) → {band}.",
           "sttConfidence": "Geschätzt aus der STT-Konfidenz (avg_logprob {logprob}) — Stufe 1/3, geringe Zuverlässigkeit.",
-          "noAudioTextOnly": "Nicht bewertbar: kein Audio/keine STT-Konfidenz (nur Text)."
-        }
+          "noAudioTextOnly": "Nicht bewertbar: kein Audio/keine STT-Konfidenz (nur Text).",
+          "borderline": "Punktespanne {low}–{high} liegt um die Grenze {min} — Bestehen ist unsicher."
+        },
+        "borderline": "Grenzfall — kein Urteil",
+        "borderlineNote": "Die zwei Bewertungsdurchgänge ergaben {low}–{high} Punkte, genau um die Bestehensgrenze: Prüfer/innen könnten beides entscheiden. Lies es als „weiter üben“, nicht als Urteil."
       },
       "drill": {
         "cap": "Durchschnittliche Schnellbewertung",
@@ -1598,6 +1940,260 @@
       "site": "Klicke auf das 🎤-/Schloss-Symbol neben der Adressleiste → Mikrofon für diese Seite erlauben.",
       "browser": "Nicht zu sehen? Browser-Einstellungen → Berechtigungen → Mikrofon → Blockierung aufheben.",
       "os": "macOS/Windows: Mikrofonzugriff für den Browser in den Systemeinstellungen aktivieren und den Browser neu starten."
+    },
+    "sprechenTeil2": {
+      "loadCardFailed": "Prüfungskarte konnte nicht geladen werden.",
+      "micFailed": "Kein Zugriff auf das Mikrofon.",
+      "sttEmpty": "Keine Sprache erkannt. Bitte erneut versuchen.",
+      "evalFailed": "Auswertung fehlgeschlagen. Bitte erneut versuchen.",
+      "preparing": "Karte wird vorbereitet...",
+      "yourCard": "Ihre Karte",
+      "askPrompt": "Stellen Sie <b>eine Frage</b> zu dieser Karte.",
+      "aiAsking": "Der KI-Partner stellt eine Frage...",
+      "aiQuestion": "Frage der KI",
+      "answerPrompt": "Geben Sie <b>Ihre Antwort</b>.",
+      "recording": "Aufnahme läuft... loslassen zum Abgeben",
+      "scoring": "Wird bewertet...",
+      "holdToTalk": "Zum Sprechen gedrückt halten",
+      "resultsTitle": "KI-Bewertung",
+      "turnAsk": "Runde 1: Ihre Frage",
+      "turnAnswer": "Runde 2: Ihre Antwort",
+      "points": "{score}/10 Punkte",
+      "feedback": "Feedback:",
+      "doneTitle": "Teil 2 geschafft!",
+      "doneBody": "Sie haben beide Runden abgeschlossen. Sehen Sie sich das ausführliche KI-Feedback oben an.",
+      "retry": "Diesen Teil wiederholen"
+    },
+    "learnViews": {
+      "speaking": {
+        "micDenied": "Kein Zugriff auf das Mikrofon. Bitte Zugriff erlauben.",
+        "evalFailed": "Bewertung fehlgeschlagen. Bitte erneut versuchen.",
+        "empty": "Noch keine Sprechübung für diese Lektion.",
+        "recording": "Aufnahme läuft...",
+        "evaluating": "Aussprache wird bewertet...",
+        "great": "Sehr gut!",
+        "okay": "Gut! Noch Luft nach oben",
+        "weak": "Weiter üben",
+        "pronScore": "Aussprache-Punkte",
+        "heard": "Erkannt wurde:",
+        "noVoice": "[Keine Sprache erfasst — bitte lauter und deutlicher sprechen]",
+        "tip": "Tipp:",
+        "next": "Nächste Lektion →"
+      },
+      "phoneme": {
+        "micDenied": "Kein Zugriff auf das Mikrofon. Prüfen Sie die Browser-Berechtigungen.",
+        "evalFailed": "Aussprache konnte nicht bewertet werden. Bitte erneut versuchen.",
+        "title": "Ausspracheübung",
+        "listenSlow": "Anhören (langsam)",
+        "recording": "● Aufnahme läuft... zum Stoppen tippen",
+        "analyzing": "Aussprache wird analysiert...",
+        "heard": "Erkannt:",
+        "heardEmpty": "Erkannt: [leer / keine Sprache erfasst]",
+        "perWord": "Analyse Wort für Wort",
+        "retry": "Erneut versuchen",
+        "replay": "Noch einmal anhören"
+      },
+      "listening": {
+        "empty": "Noch kein Audio für diese Lektion.",
+        "fillHint": "Lücken ausfüllen, dann <b>Abgeben</b> drücken",
+        "submit": "Abgeben",
+        "fillAll": "Alle {count} Lücken ausfüllen, um abzugeben",
+        "perfect": "Perfekt! Alles richtig!",
+        "good": "Gut! Reicht zum Bestehen",
+        "fail": "Noch nicht – bitte wiederholen (100 % nötig, um diesen Knoten zu bestehen)",
+        "correctCount": "{correct}/{total} Wörter richtig",
+        "retry": "Erneut versuchen",
+        "shadowing": "Den Text nachsprechen (Shadowing)",
+        "collapse": "▲ Einklappen",
+        "expand": "▼ Ausklappen",
+        "noTranscript": "Noch kein Transkript. Hören und üben..."
+      },
+      "writing": {
+        "empty": "Noch keine Schreibaufgabe für diese Lektion.",
+        "completed": "Abgeschlossen",
+        "skipComplete": "Überspringen & als erledigt markieren",
+        "minWords": "Mindestens: {count} Wörter",
+        "placeholder": "Schreiben Sie hier Ihren deutschen Text...",
+        "wordCount": "{count}/{min} Wörter",
+        "checking": "Wird geprüft...",
+        "checked": "Geprüft",
+        "errorsFound": "{count} Fehler gefunden",
+        "errGrammar": "Grammatik",
+        "errSpelling": "Rechtschreibung",
+        "errStyle": "Stil",
+        "submit": "Text abgeben",
+        "done": "Schreibteil abgeschlossen (≥ 80 Punkte)"
+      },
+      "reading": {
+        "close": "Schließen",
+        "saved": "Gespeichert",
+        "saveFlashcard": "Als Karteikarte speichern",
+        "empty": "Noch kein Lesetext für diese Lektion.",
+        "readingCap": "Lesetext",
+        "selectHint": "Ein Wort markieren, um die Bedeutung zu sehen",
+        "questionsCap": "Fragen",
+        "essayPlaceholder": "Antwort schreiben (Freitext)...",
+        "answerPlaceholder": "Antwort eingeben",
+        "check": "Antworten prüfen",
+        "result": "{score}/{total} richtig. Für das Bestehen sind 100 % nötig!",
+        "retry": "Noch einmal",
+        "noQuestions": "Noch keine Fragen zu diesem Text.",
+        "completed": "100 % abgeschlossen",
+        "markDone": "Gelesen & verstanden (100 %)"
+      },
+      "common": {
+        "tapToFlip": "Zum Umdrehen tippen",
+        "listenPronunciation": "Aussprache anhören"
+      },
+      "grammar": {
+        "correctCap": "Richtig",
+        "wrongCap": "Falsch",
+        "ruleTag": "REGEL",
+        "exampleTag": "BEISPIEL",
+        "collapse": "▲ Einklappen",
+        "expand": "▼ Mehr anzeigen",
+        "theoryCount": "Theorie ({count})",
+        "filter": "Filter:",
+        "allTag": "Alle",
+        "pageOf": "Seite {page} / {total}",
+        "phrasesCap": "Häufige Wendungen",
+        "examplesCap": "Beispiele aus dem Alltag",
+        "quizCap": "Verständnis prüfen",
+        "answerPlaceholder": "Antwort eingeben",
+        "questionN": "Frage {n}",
+        "check": "Antworten prüfen",
+        "noPractice": "Keine Übungen für diesen Abschnitt. Markiere ihn als abgeschlossen, wenn du die Theorie verstanden hast.",
+        "result": "{score}/{total} richtig. Für das Bestehen sind 100 % nötig!",
+        "retry": "Noch einmal"
+      },
+      "selfCheck": {
+        "reorder": "Satz ordnen",
+        "translate": "Satz übersetzen",
+        "notScored": "Selbstkontrolle · zählt nicht zur Punktzahl",
+        "showAnswer": "Lösung anzeigen"
+      },
+      "recap": {
+        "doneTitle": "Geschafft!",
+        "doneDesc": "Du hast diese Lektion abgeschlossen",
+        "xpEarned": "XP verdient",
+        "newVocab": "Neue Vokabeln",
+        "wordCount": "{n} Wörter",
+        "streak": "Lernserie",
+        "dayCount": "{n} Tage",
+        "nextLesson": "Nächste Lektion:",
+        "nextCta": "Weiter: {title} →",
+        "backCta": "Zum Lernweg",
+        "backToRoadmap": "Zurück zum Lernweg",
+        "practiceCta": "{skill} jetzt üben"
+      },
+      "pronunciation": {
+        "verdict": {
+          "CORRECT": "Richtig",
+          "CLOSE": "Fast richtig",
+          "MISSING": "Nicht gehört"
+        },
+        "micDenied": "Kein Zugriff auf das Mikrofon. Bitte Mikrofonzugriff erlauben.",
+        "scoreFailed": "Aussprache konnte nicht bewertet werden. Bitte erneut versuchen.",
+        "networkError": "Verbindungsfehler. Bitte erneut versuchen.",
+        "readCap": "Lies den folgenden Satz:",
+        "close": "Schließen",
+        "startRecording": "Aufnahme starten",
+        "stopAndScore": "Stoppen & bewerten",
+        "retry": "Erneut versuchen",
+        "pronScore": "Aussprache-Punkte",
+        "heard": "Erkannt wurde:",
+        "perWordCap": "Wort für Wort:",
+        "wordsToPractice": "Wörter zum Üben:"
+      }
+    },
+    "examResult": {
+      "parts": {
+        "LESEN": "Leseverstehen",
+        "HOEREN": "Hörverstehen",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
+      },
+      "audioPlayer": {
+        "status": {
+          "idle": "Audio abspielen",
+          "loading": "Stimme wird geladen...",
+          "playing": "Wird abgespielt...",
+          "paused": "Pausiert",
+          "done": "Noch einmal abspielen",
+          "unsupported": "Dein Browser unterstützt kein Audio"
+        },
+        "play": "Audio abspielen",
+        "stop": "Stopp",
+        "defaultLabel": "Hörtext",
+        "unsupportedHint": "Browser nicht unterstützt. Bitte Chrome oder Safari verwenden.",
+        "playsLeft": "Noch {n}× hören",
+        "playsExhausted": "Keine Wiedergabe mehr",
+        "playsExhaustedHint": "Sie haben alle Wiedergaben verbraucht — wie in der echten Prüfung.",
+        "dialogueLabel": "Hörtext — Gespräch",
+        "speakerA": "Person 1",
+        "speakerB": "Person 2"
+      },
+      "scoreBreakdown": {
+        "pending": "Bewertung ausstehend",
+        "passed": "Bestanden",
+        "failed": "Nicht bestanden",
+        "pendingWriting": "Die E-Mail wird von der KI bewertet",
+        "pendingSpeaking": "Der Sprechteil wird von einer Lehrkraft manuell bewertet",
+        "title": "Punkte nach Prüfungsteil",
+        "threshold": "Bestehensgrenze (60 %)",
+        "provisionalTotal": "Gesamtpunktzahl (vorläufig)",
+        "officialNote": "Offizielle Punktzahl nach Abschluss der Bewertung"
+      },
+      "examFeedback": {
+        "rubric": {
+          "aufgabenerfuellung": "Aufgabenerfüllung",
+          "kohaerenz": "Kohärenz & Aufbau",
+          "wortschatz": "Wortschatz",
+          "strukturen": "Grammatik & Satzstrukturen",
+          "leitpunkte": "Berücksichtigung der Leitpunkte",
+          "kommunikativeGestaltung": "Kommunikative Gestaltung",
+          "formaleRichtigkeit": "Formale Richtigkeit",
+          "other": "Weiteres Kriterium"
+        },
+        "pendingTitle": "Die KI bewertet deinen Text gerade",
+        "pendingFallback": "Die E-Mail wurde noch nicht abgegeben oder wird noch verarbeitet.",
+        "aiGraded": "Von der KI bewertet",
+        "officialRubric": "Offizielles Goethe-Raster",
+        "detailCap": "Punkte im Detail",
+        "emailTotal": "Gesamtpunkte E-Mail",
+        "overallCap": "Gesamteindruck",
+        "strengths": "Stärken",
+        "improvements": "Verbesserungsbedarf",
+        "title": "Bewertung des Schreibteils (SCHREIBEN Teil 2)",
+        "officialRubricLevel": "Offizielles Goethe-Raster {level}",
+        "missingCriteria": "Die KI hat {count} Kriterium/Kriterien nicht bewertet — die Skala wurde entsprechend verkleinert, nicht als 0 gewertet."
+      },
+      "weakAreas": {
+        "tips": {
+          "LESEN": "Lies täglich kurze deutsche Texte und achte auf Wortschatz aus dem Alltag.",
+          "HOEREN": "Höre Deutsch-A1-Podcasts und Alltagsgespräche, um dich an den Klang des Deutschen zu gewöhnen.",
+          "SCHREIBEN": "Übe kurze E-Mails im Goethe-Format: Vorstellung, Nachfrage, Schlussformel. Achte auf Grammatik und Satzbau.",
+          "SPRECHEN": "Übe, dich vorzustellen und einfache Gespräche zu führen. Nutze das KI-Interview, um Feedback zu deiner Aussprache zu bekommen."
+        },
+        "noneTitle": "Ausgezeichnet! Keine Schwächen",
+        "noneDesc": "Du hast in allen Teilen die 60-%-Grenze überschritten. Weiter so – fordere dich mit einer schwereren Prüfung heraus!",
+        "title": "Deine Schwachpunkte",
+        "below60": "Unter 60 %",
+        "practiceNow": "Jetzt üben",
+        "footer": "Übe regelmäßig jeden Tag — nach 2 Wochen wirst du deutliche Fortschritte sehen"
+      }
+    },
+    "minorAudio": {
+      "eyebrow": "Sprechtraining vorübergehend gesperrt",
+      "titleBirthDate": "Dein Zentrum hat dein Geburtsdatum noch nicht erfasst",
+      "bodyBirthDate": "Für dein Konto ist kein Geburtsdatum hinterlegt. Deshalb lässt sich nicht klären, ob die Einwilligung einer erziehungsberechtigten Person nötig ist – und solange das unklar ist, wird keine Aufnahme gesendet. Bitte wende dich an dein Zentrum, damit das Geburtsdatum in deiner Schülerakte ergänzt wird.",
+      "titleConsentRequired": "Es fehlt die Einwilligung der Eltern bzw. Erziehungsberechtigten",
+      "bodyConsentRequired": "Für dieses Konto ist vor Sprachaufnahmen die Einwilligung der Eltern oder Erziehungsberechtigten nötig. Bitte wende dich an dein Zentrum, um das Einwilligungsformular abzuschließen; sobald das Zentrum es erfasst hat, ist das Sprechtraining sofort wieder frei.",
+      "titleConsentRevoked": "Die Einwilligung zur Aufnahme wurde widerrufen",
+      "bodyConsentRevoked": "Die Einwilligung zur Sprachaufnahme für dieses Konto wurde widerrufen, daher ist das Sprechtraining vorübergehend nicht verfügbar. Zum Wiederfreischalten wendet sich die erziehungsberechtigte Person an das Zentrum und erteilt die Einwilligung erneut.",
+      "note": "Ein Upgrade schaltet diesen Bereich nicht frei – nur das Zentrum oder die erziehungsberechtigte Person kann ihn wieder öffnen. Alles, was keine Aufnahme braucht, funktioniert weiterhin.",
+      "contact": "Zentrum kontaktieren",
+      "dismiss": "Verstanden"
     }
   }
 }

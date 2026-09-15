@@ -15,7 +15,7 @@ import {
   type TimesheetPeriod,
   type PeriodStatus,
 } from '@/lib/timesheetApi'
-import { GaPageHdr, GaBtn, GaCap, TkBadge, TkModal, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, TkBadge, TkModal, LoadingState, ErrorBanner, ConfirmDialog } from '@/components/ui-v2'
 import { useIsOrgOwner } from '../OwnerOnly'
 
 /**
@@ -63,6 +63,9 @@ export default function OrgTimesheetsPage() {
   const [actingId, setActingId] = useState<number | null>(null)
   const [rejecting, setRejecting] = useState<TimesheetPeriod | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  // Kỳ đang chờ xác nhận khoá. Khoá là trạng thái CUỐI (TimesheetPeriodService.lock: không có
+  // đường quay lại APPROVED), nên nút không được chạy thẳng.
+  const [locking, setLocking] = useState<TimesheetPeriod | null>(null)
   const [exporting, setExporting] = useState(false)
 
   // Chốt chống response cũ: đổi khoảng ngày nhanh không được để bản tải trước ghi đè bản mới.
@@ -140,6 +143,15 @@ export default function OrgTimesheetsPage() {
       setRejecting(null)
       setRejectReason('')
     }
+  }
+
+  const confirmLock = async (): Promise<void> => {
+    if (!locking) return
+    const target = locking
+    // Đóng hộp thoại chỉ khi khoá THÀNH CÔNG — thất bại (409 vì người khác vừa đổi trạng thái) thì
+    // giữ nguyên để giám đốc thấy lỗi và quyết lại, không im lặng biến mất.
+    const ok = await runAction(target, () => lockPeriod(target.id), 'lockSuccess')
+    if (ok) setLocking(null)
   }
 
   return (
@@ -235,7 +247,7 @@ export default function OrgTimesheetsPage() {
                                 (hydration) → chưa vẽ nhánh nào, tránh nháy nút sai vai. */}
                             {p.status === 'APPROVED' && isOwner === true && (
                               <GaBtn size="sm" disabled={actingId === p.id} title={t('lockHint')}
-                                onClick={() => void runAction(p, () => lockPeriod(p.id), 'lockSuccess')}>
+                                onClick={() => setLocking(p)}>
                                 {t('lock')}
                               </GaBtn>
                             )}
@@ -257,6 +269,28 @@ export default function OrgTimesheetsPage() {
           </>
         )}
       </div>
+
+      {locking && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => { if (!o) setLocking(null) }}
+          title={t('lockConfirmTitle')}
+          description={t('lockConfirmDesc', {
+            teacher: locking.teacherName ?? `#${locking.teacherId}`,
+            from: locking.periodStart,
+            to: locking.periodEnd,
+          })}
+          details={[
+            t('lockConfirmFinal'),
+            t('lockConfirmSessions', { sessions: locking.totalSessions, hours: formatMinutes(locking.totalMinutes) }),
+            t('lockConfirmRecords'),
+          ]}
+          confirmLabel={t('lock')}
+          cancelLabel={t('cancel')}
+          loading={actingId === locking.id}
+          onConfirm={() => void confirmLock()}
+        />
+      )}
 
       {rejecting && (
         <TkModal open onOpenChange={(o) => { if (!o) setRejecting(null) }} title={t('rejectTitle')}>

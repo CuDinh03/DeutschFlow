@@ -1,12 +1,14 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { BookOpen, Headphones, PenTool, Mic2, CheckCircle, XCircle, Clock } from 'lucide-react'
 
-const SECTION_META: Record<string, { icon: React.ReactNode; labelVi: string; color: string }> = {
-  LESEN: { icon: <BookOpen size={18} />, labelVi: 'Đọc hiểu', color: '#6366F1' },
-  HOEREN: { icon: <Headphones size={18} />, labelVi: 'Nghe hiểu', color: '#0EA5E9' },
-  SCHREIBEN: { icon: <PenTool size={18} />, labelVi: 'Viết', color: '#10B981' },
-  SPRECHEN: { icon: <Mic2 size={18} />, labelVi: 'Nói', color: '#F59E0B' },
+// Nhãn phần thi lấy từ catalog: `v2.student.examResult.parts.<section>` (dùng chung với WeakAreasRecommendation).
+const SECTION_META: Record<string, { icon: React.ReactNode; color: string }> = {
+  LESEN: { icon: <BookOpen size={18} />, color: '#6366F1' },
+  HOEREN: { icon: <Headphones size={18} />, color: '#0EA5E9' },
+  SCHREIBEN: { icon: <PenTool size={18} />, color: '#10B981' },
+  SPRECHEN: { icon: <Mic2 size={18} />, color: '#F59E0B' },
 }
 
 const PASS_THRESHOLD = 60 // percent
@@ -27,6 +29,7 @@ interface DetailedScoreBreakdownProps {
 }
 
 function SectionCard({ section, data }: { section: string; data: SectionScore }) {
+  const t = useTranslations('v2.student.examResult')
   const meta = SECTION_META[section]
   const score = data.total ?? data.total_provisional ?? 0
   const max = data.max ?? data.total_max ?? 25
@@ -52,21 +55,21 @@ function SectionCard({ section, data }: { section: string; data: SectionScore })
             </div>
             <div>
               <p className="font-bold text-sm text-[#0F172A]">{section}</p>
-              <p className="text-xs text-[#64748B]">{meta.labelVi}</p>
+              <p className="text-xs text-[#64748B]">{t(`parts.${section}`)}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
             {isPending ? (
               <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">
-                <Clock size={12} /> Chờ chấm
+                <Clock size={12} /> {t('scoreBreakdown.pending')}
               </span>
             ) : isPassing ? (
               <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
-                <CheckCircle size={12} /> Đạt
+                <CheckCircle size={12} /> {t('scoreBreakdown.passed')}
               </span>
             ) : (
               <span className="flex items-center gap-1 text-xs font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded-lg">
-                <XCircle size={12} /> Chưa đạt
+                <XCircle size={12} /> {t('scoreBreakdown.failed')}
               </span>
             )}
           </div>
@@ -95,7 +98,7 @@ function SectionCard({ section, data }: { section: string; data: SectionScore })
         <div className="flex justify-between mt-1">
           <p className="text-xs text-[#94A3B8]">0</p>
           <p className="text-xs text-[#94A3B8]" style={{ marginLeft: `${PASS_THRESHOLD - 5}%` }}>
-            Đạt
+            {t('scoreBreakdown.passed')}
           </p>
           <p className="text-xs text-[#94A3B8]">{max}</p>
         </div>
@@ -103,8 +106,8 @@ function SectionCard({ section, data }: { section: string; data: SectionScore })
         {isPending && (
           <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-2 bg-amber-50 rounded-lg px-2 py-1.5">
             {section === 'SCHREIBEN'
-              ? <><PenTool size={12} className="shrink-0" aria-hidden /> Phần viết email sẽ được AI chấm điểm</>
-              : <><Mic2 size={12} className="shrink-0" aria-hidden /> Phần nói cần giáo viên chấm thủ công</>}
+              ? <><PenTool size={12} className="shrink-0" aria-hidden /> {t('scoreBreakdown.pendingWriting')}</>
+              : <><Mic2 size={12} className="shrink-0" aria-hidden /> {t('scoreBreakdown.pendingSpeaking')}</>}
           </p>
         )}
       </div>
@@ -113,15 +116,16 @@ function SectionCard({ section, data }: { section: string; data: SectionScore })
 }
 
 export function DetailedScoreBreakdown({ detailedScores, totalScore, passed }: DetailedScoreBreakdownProps) {
+  const t = useTranslations('v2.student.examResult')
   const sections = ['LESEN', 'HOEREN', 'SCHREIBEN', 'SPRECHEN']
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-bold text-[#0F172A]">Điểm chi tiết theo phần</h3>
+        <h3 className="font-bold text-[#0F172A]">{t('scoreBreakdown.title')}</h3>
         <div className="flex items-center gap-1.5 text-xs text-[#64748B]">
           <div className="w-0.5 h-3 bg-[#CBD5E1] rounded" />
-          <span>Ngưỡng đạt (60%)</span>
+          <span>{t('scoreBreakdown.threshold')}</span>
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -141,8 +145,8 @@ export function DetailedScoreBreakdown({ detailedScores, totalScore, passed }: D
         }`}
       >
         <div className="min-w-0">
-          <p className="font-bold text-white/80 text-sm">Tổng điểm (tạm tính)</p>
-          <p className="text-xs text-white/60 mt-0.5">Điểm chính thức sau khi chấm xong</p>
+          <p className="font-bold text-white/80 text-sm">{t('scoreBreakdown.provisionalTotal')}</p>
+          <p className="text-xs text-white/60 mt-0.5">{t('scoreBreakdown.officialNote')}</p>
         </div>
         <div className="text-right shrink-0">
           <p className="text-2xl lg:text-3xl font-black">{totalScore}</p>

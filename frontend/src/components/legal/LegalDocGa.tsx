@@ -33,6 +33,13 @@ const LANGS: { code: LegalLang; label: string; short: string }[] = [
 
 const STORAGE_KEY = 'df-legal-lang'
 
+/** Nhãn 4 link chân trang theo ngôn ngữ đang chọn — trang pháp lý nằm ngoài next-intl nên bảng đặt tại đây. */
+const FOOTER_LABELS: Record<LegalLang, { privacy: string; terms: string; support: string; home: string }> = {
+  vi: { privacy: 'Quyền riêng tư', terms: 'Điều khoản', support: 'Hỗ trợ', home: 'Trang chủ' },
+  en: { privacy: 'Privacy', terms: 'Terms', support: 'Support', home: 'Home' },
+  de: { privacy: 'Datenschutz', terms: 'AGB', support: 'Support', home: 'Startseite' },
+}
+
 function isLegalLang(v: unknown): v is LegalLang {
   return v === 'vi' || v === 'en' || v === 'de'
 }
@@ -96,18 +103,19 @@ export function LegalDocGa({ docs, defaultLang = 'vi' }: LegalDocGaProps) {
         <article key={lang} lang={lang} className="ga-legal">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
         </article>
-        <LegalFooterGa />
+        <LegalFooterGa lang={lang} />
       </div>
     </main>
   )
 }
 
-function LegalFooterGa() {
+function LegalFooterGa({ lang }: { lang: LegalLang }) {
+  const labels = FOOTER_LABELS[lang] ?? FOOTER_LABELS.vi
   const links: [string, string][] = [
-    ['Privacy', '/privacy'],
-    ['Terms', '/terms'],
-    ['Support', '/support'],
-    ['Trang chủ', '/'],
+    [labels.privacy, '/privacy'],
+    [labels.terms, '/terms'],
+    [labels.support, '/support'],
+    [labels.home, '/'],
   ]
   return (
     <footer className="mt-16 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-ga-border pt-6 text-[13px] text-ga-muted">

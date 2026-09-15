@@ -12,7 +12,7 @@ import {
   useDroppable,
 } from '@dnd-kit/core'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Heart, Trophy } from 'lucide-react'
+import { ArrowLeft, CircleCheck, CircleX, Heart, Trophy } from 'lucide-react'
 import api from '@/lib/api'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { GaBtn, GaCap, GaCard, GaPageHdr, LoadingState } from '@/components/ui-v2'
@@ -499,9 +499,14 @@ export default function V2StudentGamePage() {
                   }}
                 >
                   <p
-                    className="ga-ui text-[13.5px] font-semibold"
+                    className="ga-ui flex items-center gap-1.5 text-[13.5px] font-semibold"
                     style={{ color: feedback === 'correct' ? 'var(--ga-green)' : 'var(--ga-red)' }}
                   >
+                    {feedback === 'correct' ? (
+                      <CircleCheck size={15} aria-hidden />
+                    ) : (
+                      <CircleX size={15} aria-hidden />
+                    )}
                     {feedback === 'correct' ? t('correct') : t('wrong', { answer: q.answers.join(', ') })}
                   </p>
                   {q.explanation && <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">{q.explanation}</p>}

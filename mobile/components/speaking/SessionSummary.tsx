@@ -3,9 +3,9 @@
 // critical gaps, recommended drills, and per-phase breakdown.
 
 import { View, ScrollView } from 'react-native'
-import { CheckCircle2, AlertTriangle, Target, TrendingUp } from 'lucide-react-native'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Card, ThemedText, Icon, Pill, Button, ProgressBar } from '@/components/ui'
+import { Card, ThemedText, Icon, Pill, Button, ProgressBar, GaGlyph } from '@/components/ui'
 import type { InterviewReport } from '@/lib/speakingApi'
 
 interface SessionSummaryProps {
@@ -40,14 +40,14 @@ function scoreFraction(score: number): number {
   return Math.max(0, Math.min(1, score / SCORE_MAX))
 }
 
-function BulletList({ items, tone, icon }: { items: string[]; tone: Tone; icon: typeof CheckCircle2 }) {
+function BulletList({ items, tone, glyph }: { items: string[]; tone: Tone; glyph: GlyphName }) {
   if (items.length === 0) return null
   return (
     <View style={{ gap: space[2] }}>
       {items.map((item, i) => (
         <View key={`${i}-${item.slice(0, 12)}`} style={{ flexDirection: 'row', gap: space[2], alignItems: 'flex-start' }}>
           <View style={{ paddingTop: 2 }}>
-            <Icon icon={icon} size={16} color={tone} />
+            <GaGlyph name={glyph} size={16} ink={tone} gold={tone} />
           </View>
           <ThemedText variant="body" color="secondary" style={{ flex: 1 }}>
             {item}
@@ -95,7 +95,7 @@ export function SessionSummary({ report, onPracticeAgain, onDone }: SessionSumma
         <Card>
           <View style={{ gap: space[3] }}>
             <ThemedText variant="bodyStrong">Điểm mạnh</ThemedText>
-            <BulletList items={report.strongAreas} tone="success" icon={CheckCircle2} />
+            <BulletList items={report.strongAreas} tone="success" glyph="hoanthanh" />
           </View>
         </Card>
       ) : null}
@@ -104,7 +104,7 @@ export function SessionSummary({ report, onPracticeAgain, onDone }: SessionSumma
         <Card>
           <View style={{ gap: space[3] }}>
             <ThemedText variant="bodyStrong">Cần cải thiện</ThemedText>
-            <BulletList items={report.criticalGaps} tone="danger" icon={AlertTriangle} />
+            <BulletList items={report.criticalGaps} tone="danger" glyph="canhbao" />
           </View>
         </Card>
       ) : null}
@@ -113,7 +113,7 @@ export function SessionSummary({ report, onPracticeAgain, onDone }: SessionSumma
         <Card>
           <View style={{ gap: space[3] }}>
             <ThemedText variant="bodyStrong">Bài luyện gợi ý</ThemedText>
-            <BulletList items={report.recommendedDrills} tone="accent" icon={Target} />
+            <BulletList items={report.recommendedDrills} tone="accent" glyph="muctieu" />
           </View>
         </Card>
       ) : null}
@@ -122,7 +122,7 @@ export function SessionSummary({ report, onPracticeAgain, onDone }: SessionSumma
         <Card>
           <View style={{ gap: space[4] }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-              <Icon icon={TrendingUp} size={18} color="accent" />
+              <GaGlyph name="thongke" size={18} ink="primary" />
               <ThemedText variant="bodyStrong">Chi tiết theo giai đoạn</ThemedText>
             </View>
             {report.phaseResults.map((phase, i) => {
@@ -146,7 +146,7 @@ export function SessionSummary({ report, onPracticeAgain, onDone }: SessionSumma
       ) : null}
 
       <View style={{ gap: space[3], marginTop: space[2] }}>
-        <Button label="Luyện lại" onPress={onPracticeAgain} icon={TrendingUp} />
+        <Button label="Luyện lại" onPress={onPracticeAgain} glyph="thongke" />
         <Button label="Xong" variant="secondary" onPress={onDone} />
       </View>
 

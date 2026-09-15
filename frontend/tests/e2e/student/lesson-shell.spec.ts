@@ -71,6 +71,22 @@ test.describe('Runner luyện tập — giữ bài khi rời trang (S-04 AC-2)',
   });
 });
 
+test.describe('Bài HỌC — biểu tượng chủ đề là icon, không phải emoji', () => {
+  test('emoji của node không lọt ra chữ; chỗ đó là icon vẽ bằng SVG', async ({ page }) => {
+    await mockLearnNode(page);
+    await page.goto(`/v2/student/learn/${LEARN_NODE_ID}`);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
+
+    // `skill_tree_nodes.emoji` là DỮ LIỆU: mock trả '💼'. In thẳng ra thì mỗi hệ điều hành vẽ một
+    // kiểu và luôn nhiều màu — lệch hẳn với icon Lucide của chính trang này (tab kỹ năng, nút thoát).
+    await expect(page.locator('body')).not.toContainText('💼');
+
+    // Ô biểu tượng của GaGlyph (grid + rounded-ga + nền accent) phải chứa một <svg>.
+    const glyph = page.locator('span.grid.rounded-ga.bg-ga-accent-soft').first();
+    await expect(glyph.locator('svg')).toBeVisible();
+  });
+});
+
 test.describe('LessonShell — một vỏ, hai chế độ (S-04 AC-1)', () => {
   test('bài LUYỆN: vỏ có thoát · tiến độ theo bước · segmented Học|Luyện', async ({ page }) => {
     await mockPracticeRunner(page);
@@ -81,15 +97,24 @@ test.describe('LessonShell — một vỏ, hai chế độ (S-04 AC-1)', () => {
     await expect(page.getByRole('tab', { name: 'Luyện' })).toHaveAttribute('aria-selected', 'true');
 
     // Runner CŨ không báo tiến độ gì cả — nút nộp chỉ hiện khi đã trả lời hết.
-    // Trang luyện có HAI progressbar sau merge Lernbaum: thanh của vỏ + dải lá LeafProgress.
-    // Spec này canh HỢP ĐỒNG CỦA VỎ nên trỏ đích danh thanh 'Tiến độ bài'.
-    const bar = page.getByRole('progressbar', { name: 'Tiến độ bài' });
+    // Sau merge Lernbaum trang luyện có HAI progressbar cùng số liệu (thanh của vỏ + dải lá).
+    // Nay vỏ KHÔNG nhận `progress` ở chế độ luyện nữa: dải lá là thước đo duy nhất.
+    await expect(page.getByRole('progressbar', { name: 'Tiến độ bài' })).toHaveCount(0);
+    await expect(page.getByText(`Bước 0/${EXERCISES.length}`)).toHaveCount(0);
+    await expect(page.getByRole('progressbar')).toHaveCount(1); // cổng chống lặp lại
+
+    const bar = page.getByTestId('leaf-progress');
     await expect(bar).toHaveAttribute('aria-valuenow', '0');
-    await expect(page.getByText(`Bước 0/${EXERCISES.length}`)).toBeVisible();
+    await expect(bar).toHaveAttribute('aria-valuemax', String(EXERCISES.length));
 
     await option(page, 0).click();
     await expect(bar).toHaveAttribute('aria-valuenow', '1');
-    await expect(page.getByText(`Bước 1/${EXERCISES.length}`)).toBeVisible();
+    // Đổi câu vẫn phải nghe được: vùng aria-live thay cho dòng `Bước x/y` của vỏ.
+    await expect(
+      page.locator('[aria-live="polite"]', {
+        hasText: `Đã trả lời 1/${EXERCISES.length} câu`,
+      }),
+    ).toHaveCount(1);
   });
 
   test('bài LUYỆN: nhãn nháp nêu ĐÚNG phạm vi — trên thiết bị này, không nói trống không', async ({

@@ -8,6 +8,7 @@ import { PronunciationFeedback } from "@/components/speaking/PronunciationFeedba
 
 export default function ListeningView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
   const tLearn = useTranslations("learn");
+  const t = useTranslations("v2.student.learnViews.listening");
   const audio = content.audio_content;
   const { markTabCompleted, tabCompletion } = useNodeSessionStore();
   const isCompleted = tabCompletion.listening;
@@ -128,7 +129,7 @@ export default function ListeningView({ content, isLocked = false }: { content: 
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-ga-card rounded-ga border border-ga-line">
         <Headphones size={40} className="mb-3 text-ga-subtle" aria-hidden />
-        <p className="text-sm text-ga-muted">Audio chưa có cho bài học này.</p>
+        <p className="text-sm text-ga-muted">{t("empty")}</p>
       </div>
     );
   }
@@ -195,7 +196,7 @@ export default function ListeningView({ content, isLocked = false }: { content: 
             <h3 className="text-xs font-bold text-ga-subtle uppercase">Transcript</h3>
             {blankIndices.size > 0 && !submitted && !isLocked && (
               <span className="text-[10px] text-ga-subtle">
-                Điền vào ô trống, sau đó bấm <strong>Nộp bài</strong>
+                {t.rich("fillHint", { b: (c) => <strong>{c}</strong> })}
               </span>
             )}
           </div>
@@ -268,7 +269,7 @@ export default function ListeningView({ content, isLocked = false }: { content: 
           }`}
         >
           <CheckCircle size={16} />
-          {allFilled ? "Nộp bài" : `Điền đủ ${blankIndices.size} ô trống để nộp bài`}
+          {allFilled ? t("submit") : t("fillAll", { count: blankIndices.size })}
         </button>
       )}
 
@@ -292,19 +293,19 @@ export default function ListeningView({ content, isLocked = false }: { content: 
             score >= 80  ? "text-ga-orange" :
             "text-ga-red"
           }`}>
-            {score >= 100 ? <><PartyPopper size={15} aria-hidden /> Hoàn hảo! Đúng tất cả!</> :
-             score >= 80  ? <><ThumbsUp size={15} aria-hidden /> Khá tốt! Đủ điều kiện vượt qua</> :
-             <><CircleX size={15} className="shrink-0" aria-hidden /> Chưa đạt – Cần làm lại (yêu cầu 100% để vượt node)</>}
+            {score >= 100 ? <><PartyPopper size={15} aria-hidden /> {t("perfect")}</> :
+             score >= 80  ? <><ThumbsUp size={15} aria-hidden /> {t("good")}</> :
+             <><CircleX size={15} className="shrink-0" aria-hidden /> {t("fail")}</>}
           </p>
           <p className="text-xs text-ga-muted">
-            Đúng {correctCount}/{blankIndices.size} từ
+            {t("correctCount", { correct: correctCount, total: blankIndices.size })}
           </p>
           {score < 80 && (
             <button
               onClick={() => { setSubmitted(false); setScore(null); setFillBlanks({}); setCorrectCount(0); }}
               className="mt-2 px-5 py-2 rounded-ga bg-ga-ink text-white text-sm font-bold hover:bg-ga-ink transition-colors"
             >
-              <span className="inline-flex items-center gap-1.5"><RefreshCw size={14} aria-hidden /> Thử lại</span>
+              <span className="inline-flex items-center gap-1.5"><RefreshCw size={14} aria-hidden /> {t("retry")}</span>
             </button>
           )}
         </div>
@@ -320,9 +321,9 @@ export default function ListeningView({ content, isLocked = false }: { content: 
           >
             <span className="flex items-center gap-2">
               <Mic size={15} />
-              Luyện phát âm đoạn văn (shadowing)
+              {t("shadowing")}
             </span>
-            <span className="text-xs text-ga-violet">{showShadowing ? "▲ Thu gọn" : "▼ Mở rộng"}</span>
+            <span className="text-xs text-ga-violet">{showShadowing ? t("collapse") : t("expand")}</span>
           </button>
           {showShadowing && (
             <div className="px-4 pb-4">
@@ -342,7 +343,7 @@ export default function ListeningView({ content, isLocked = false }: { content: 
       {/* ── No timestamps fallback ── */}
       {timestamps.length === 0 && (
         <div className="rounded-ga bg-ga-card border border-ga-line p-6 text-center space-y-4">
-          <p className="text-sm text-ga-muted">Transcript chưa có. Đang nghe và luyện tập...</p>
+          <p className="text-sm text-ga-muted">{t("noTranscript")}</p>
           <button
             onClick={() => markTabCompleted("listening")}
             disabled={isCompleted}

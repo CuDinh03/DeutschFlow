@@ -22,7 +22,7 @@ const getClassCompetency = vi.fn()
 const listEvaluations = vi.fn()
 const saveEvaluation = vi.fn()
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', () => ({ useLocale: () => 'vi',
   useTranslations: () => (k: string) => k,
 }))
 

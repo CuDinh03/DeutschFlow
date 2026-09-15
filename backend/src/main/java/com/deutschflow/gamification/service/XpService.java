@@ -229,6 +229,18 @@ public class XpService {
     // Query
     // ─────────────────────────────────────────────────────────────────
 
+    /**
+     * Tổng lượt ôn SRS của người dùng = số event {@code SRS_REVIEW} (mỗi thẻ ôn — kể cả trong
+     * batch — ghi đúng một event, xem {@link #awardSrsReviewBatch}). Dùng cho
+     * {@code GET /api/srs/stats} (owner 05/09: "số lượt đã ôn"). Best-effort như chính XP:
+     * event ghi hỏng thì thiếu một lượt, nên gate "chưa từng ôn" phía mobile dựa vào
+     * {@code reviewedCards} (bảng lịch ôn) là nguồn chắc hơn.
+     */
+    @Transactional(readOnly = true)
+    public long countSrsReviews(Long userId) {
+        return xpEventRepository.countSrsReviewsByUserId(userId);
+    }
+
     @Transactional(readOnly = true)
     public XpSummaryDto getSummary(Long userId) {
         long totalXp = xpEventRepository.sumXpByUserId(userId);

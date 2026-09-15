@@ -1,4 +1,5 @@
 import api from '@/lib/api'
+import { uiText } from '@/lib/i18n/clientLocale'
 
 /**
  * Teacher-side helpers for the messaging hub: the teacher's classes (for the group-channel list)
@@ -39,7 +40,7 @@ export async function listTeacherClasses(): Promise<TeacherClass[]> {
   const res = await api.get<RawClass[]>('/v2/teacher/classes')
   return (res.data ?? []).map((c) => ({
     id: c.id,
-    name: c.name?.trim() || `Lớp #${c.id}`,
+    name: c.name?.trim() || uiText({ vi: `Lớp #${c.id}`, en: `Class #${c.id}`, de: `Klasse #${c.id}` }),
     studentCount: Number(c.studentCount) || 0,
   }))
 }
@@ -71,7 +72,9 @@ export async function listAllTeacherStudents(): Promise<RosterStudent[]> {
       } else {
         byId.set(s.studentId, {
           studentId: s.studentId,
-          displayName: s.displayName?.trim() || `Học viên #${s.studentId}`,
+          displayName:
+            s.displayName?.trim() ||
+            uiText({ vi: `Học viên #${s.studentId}`, en: `Student #${s.studentId}`, de: `Lernende/r #${s.studentId}` }),
           email: s.email ?? '',
           classNames: [cls.name],
         })

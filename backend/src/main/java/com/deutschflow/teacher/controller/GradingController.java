@@ -211,11 +211,9 @@ public class GradingController {
                 bytes, contentTypeOf(objectKey), topic, teacher.getId());
 
         // A PROPOSAL, exactly like the text path: the student is told nothing and nothing is counted
-        // until the teacher confirms it (→ EVALUATED).
-        sa.setScore(graded.score());
-        sa.setFeedback(graded.feedback());
-        sa.setStatus(AssignmentStatus.AI_GRADED);
-        sa.setGradedAt(java.time.LocalDateTime.now());
+        // until the teacher confirms it (→ EVALUATED). R3 (V323): cùng một đường ghi với bài viết —
+        // ai_score/ai_feedback/ai_graded_at ở cột riêng + score/feedback + AI_GRADED.
+        sa.applyAiProposal(graded.score(), graded.feedback());
         studentAssignmentRepository.save(sa);
 
         return ResponseEntity.ok(graded);

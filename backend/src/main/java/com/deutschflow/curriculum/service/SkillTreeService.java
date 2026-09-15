@@ -356,7 +356,7 @@ public class SkillTreeService {
         }
 
         // ── PHA 2: Cache MISS → LLM generation trên thread riêng (KHÔNG giữ DB connection) ──
-        AsyncJob job = asyncJobService.createJob("GENERATE_SATELLITE");
+        AsyncJob job = asyncJobService.createJob("GENERATE_SATELLITE", userId);
         CompletableFuture.runAsync(() ->
                 generateContentAsync(userId, nodeId, prep.node(), job.getId()), aiExecutor
         );
@@ -551,7 +551,7 @@ public class SkillTreeService {
         if (leavesToGenerate != null) {
             for (Map<String, Object> leaf : leavesToGenerate) {
                 long leafId = ((Number) leaf.get("id")).longValue();
-                AsyncJob job = asyncJobService.createJob("PREFETCH_SATELLITE");
+                AsyncJob job = asyncJobService.createJob("PREFETCH_SATELLITE", userId);
                 CompletableFuture.runAsync(() ->
                         generateContentAsync(userId, leafId, leaf, job.getId()), aiExecutor
                 );

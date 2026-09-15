@@ -8,6 +8,7 @@ import { ConversationList } from './ConversationList'
 import { DirectThread } from './DirectThread'
 import { ClassThread } from './ClassThread'
 import type { ChannelClassLoader, ChannelClass, Selection } from './types'
+import { useTranslations } from 'next-intl'
 
 /** Conversation-list refresh cadence (the active thread polls faster, on its own). */
 const POLL_MS = 12_000
@@ -40,6 +41,7 @@ export function MessagesInbox({
   headerAction,
   emptyDirectText,
 }: MessagesInboxProps) {
+  const t = useTranslations('v2.inbox')
   const [classes, setClasses] = useState<ChannelClass[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selection, setSelection] = useState<Selection | null>(
@@ -91,7 +93,7 @@ export function MessagesInbox({
   return (
     <div className="flex min-h-0 flex-1 border-t border-ga-line">
       <aside
-        aria-label="Danh sách tin nhắn"
+        aria-label={t('listAria')}
         className={`${selection != null ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col border-r border-ga-line md:w-[300px]`}
       >
         <ConversationList
@@ -109,7 +111,7 @@ export function MessagesInbox({
       <section className={`${selection == null ? 'hidden md:flex' : 'flex'} min-h-0 flex-1 flex-col`}>
         {selection == null ? (
           <div className="ga-ui flex flex-1 items-center justify-center px-6 text-center text-[14px] text-ga-muted">
-            Chọn một hội thoại hoặc nhóm lớp để bắt đầu nhắn tin.
+            {t('pickHint')}
           </div>
         ) : selection.kind === 'class' ? (
           <ClassThread

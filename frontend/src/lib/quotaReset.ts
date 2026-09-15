@@ -2,6 +2,8 @@
  * AI / free-tier quota messaging using Vietnam wall-clock (Asia/Ho_Chi_Minh, UTC+7, no DST).
  */
 
+import { toBcp47 } from "./i18n/format";
+
 const VN_TZ = "Asia/Ho_Chi_Minh";
 
 /** Instant when the given Vietnam calendar date starts at 00:00 local. */
@@ -79,7 +81,7 @@ export function formatQuotaExceededBody(
         : "Quota exceeded";
 
   const fmt = new Intl.DateTimeFormat(
-    locale === "vi" ? "vi-VN" : locale === "de" ? "de-DE" : "en-GB",
+    toBcp47(locale),
     {
       timeZone: VN_TZ,
       weekday: "short",

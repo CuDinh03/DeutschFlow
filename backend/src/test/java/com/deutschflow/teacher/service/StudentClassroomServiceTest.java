@@ -180,6 +180,44 @@ class StudentClassroomServiceTest {
         assertThat(dto.studentCount()).isEqualTo(5L);
     }
 
+    /**
+     * V-04: mã mời lớp là chìa khoá vào MỘT GHẾ của trung tâm. Học viên không phải người có quyền
+     * mời, nên phản hồi dành cho họ không được mang mã của lớp thuộc trung tâm.
+     */
+    @Test
+    @DisplayName("getClassDetail giấu mã mời với lớp của TRUNG TÂM (V-04)")
+    void getClassDetail_hidesInviteCodeForOrgClass() {
+        LocalDateTime now = LocalDateTime.of(2026, 6, 1, 10, 0);
+        stubClassDetail(TeacherClass.builder()
+                .id(CLASS_ID).teacherId(TEACHER_ID).name("Lớp trung tâm").orgId(7L)
+                .inviteCode("SECRET42").createdAt(now).build(), now);
+
+        assertThat(service.getClassDetail(STUDENT_ID, CLASS_ID).inviteCode()).isNull();
+    }
+
+    @Test
+    @DisplayName("getClassDetail vẫn trả mã mời với lớp B2C (không thuộc trung tâm)")
+    void getClassDetail_keepsInviteCodeForB2cClass() {
+        LocalDateTime now = LocalDateTime.of(2026, 6, 1, 10, 0);
+        stubClassDetail(TeacherClass.builder()
+                .id(CLASS_ID).teacherId(TEACHER_ID).name("Lớp cá nhân").orgId(null)
+                .inviteCode("SECRET42").createdAt(now).build(), now);
+
+        assertThat(service.getClassDetail(STUDENT_ID, CLASS_ID).inviteCode()).isEqualTo("SECRET42");
+    }
+
+    /** Bộ stub tối thiểu để getClassDetail chạy tới nơi — chỉ khác nhau ở chính lớp truyền vào. */
+    private void stubClassDetail(TeacherClass cls, LocalDateTime now) {
+        when(classStudentRepository.findByIdStudentId(STUDENT_ID))
+                .thenReturn(List.of(membership(CLASS_ID, STUDENT_ID, now)));
+        when(classRepository.findById(CLASS_ID)).thenReturn(java.util.Optional.of(cls));
+        when(classTeacherRepository.findByIdClassIdIn(List.of(CLASS_ID))).thenReturn(List.of());
+        when(userRepository.findAllById(any())).thenReturn(List.of());
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID)).thenReturn(List.of());
+        when(lessonRepository.findByClassIdOrderByOrderIndexAsc(CLASS_ID)).thenReturn(List.of());
+        when(classStudentRepository.countByIdClassId(CLASS_ID)).thenReturn(5L);
+    }
+
     @Test
     @DisplayName("listAssignments rejects when student not enrolled")
     void listAssignments_rejectsNonMember() {

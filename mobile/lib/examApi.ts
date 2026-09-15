@@ -40,16 +40,58 @@ export interface ExamObjItem {
   question: string
   passage?: string
   options?: string[] // present = MCQ; absent = true/false (richtig/falsch)
+  /** Khoá A/B/C khi options gốc là object — giá trị NỘP (backend so `equalsIgnoreCase(correct)` với chữ cái). */
+  optionKeys?: string[]
 }
 
 export interface ExamObjGroup {
   title: string
+  /** Hướng dẫn của Teil (instruction_vi, fallback instruction_de). */
+  instruction?: string
+  /** Bài đọc chung của Teil (teil.text hoặc teil.context trong seed) — hiện MỘT lần đầu nhóm. */
+  passage?: string
   items: ExamObjItem[]
 }
 
 export interface ParsedExam {
   groups: ExamObjGroup[]
   skippedSections: string[]
+}
+
+/** Tên phần thi trong đề → tên người đọc được. Mã phần không được lộ ra giao diện. */
+const SECTION_LABEL_VI: Record<string, string> = {
+  LESEN: 'Đọc',
+  HOEREN: 'Nghe',
+  SCHREIBEN: 'Viết',
+  SPRECHEN: 'Nói',
+}
+
+/**
+ * Nhãn cho những phần app không dựng được: "Nghe và Viết". Tên lạ giữ nguyên thay vì rơi ra chuỗi
+ * rỗng — thà hiện một mã còn hơn nói với học viên là không thiếu gì.
+ */
+export function skippedSectionsLabel(names: string[]): string {
+  const labels = names.map((n) => SECTION_LABEL_VI[n] ?? n)
+  if (labels.length === 0) return ''
+  if (labels.length === 1) return labels[0]
+  return `${labels.slice(0, -1).join(', ')} và ${labels[labels.length - 1]}`
+}
+
+/**
+ * Thân POST /mock-exams/attempts/{id}/finish.
+ *
+ * App chỉ dựng được phần Đọc (xem `parseLesenItems`), nên phải NÓI cho server biết những phần học
+ * viên không có cơ hội làm: server loại chúng khỏi mẫu số thay vì chấm 0 — trước bản này một bài
+ * làm đúng hết phần Đọc vẫn ra ~33/100 vì hai phần kia bị tính 0 điểm vào tổng.
+ *
+ * Không có phần nào bị bỏ thì KHÔNG thêm khoá: giữ thân cũ y nguyên cho các đề chỉ có phần Đọc.
+ */
+export function finishPayload(
+  answers: Record<string, string>,
+  parsed: ParsedExam | null,
+): { answers: Record<string, string>; skippedSections?: string[] } {
+  const skipped = parsed?.skippedSections ?? []
+  return skipped.length > 0 ? { answers, skippedSections: skipped } : { answers }
 }
 
 // ── Attempts, review & recommendation ───────────────────────────────────────
@@ -119,7 +161,50 @@ function asArray(teile: unknown): Record<string, unknown>[] {
   return []
 }
 
-/** Parse a mock-exam `sections_json` string into the renderable objective items. */
+const MATCHING_FALLBACK_KEYS = ['A', 'B', 'C', 'D', 'E']
+
+/**
+ * Teil ghép (MATCH_PERSON / type=MATCHING): seed để các tin ở `teil.context` dạng
+ * "A=… . B=… . C=… ." — tách thành cặp chữ cái → nội dung để render như trắc nghiệm.
+ * Trả [] khi không phải định dạng này (hoặc < 2 mục).
+ */
+export function parseMatchingContext(context: unknown): { key: string; text: string }[] {
+  if (typeof context !== 'string') return []
+  const re = /(?:^|\s)([A-H])=/g
+  const marks: { key: string; start: number; end: number }[] = []
+  for (let m = re.exec(context); m; m = re.exec(context)) {
+    marks.push({ key: m[1], start: m.index, end: m.index + m[0].length })
+  }
+  if (marks.length < 2) return []
+  return marks.map((mark, i) => {
+    const raw = context.slice(mark.end, i + 1 < marks.length ? marks[i + 1].start : undefined).trim()
+    return { key: mark.key, text: raw.replace(/\.$/, '').trim() }
+  })
+}
+
+/** Lựa chọn hiển thị + giá trị nộp của một câu. */
+export function itemChoices(item: ExamObjItem): { value: string; label: string }[] {
+  if (item.options && item.optionKeys && item.optionKeys.length === item.options.length) {
+    return item.options.map((label, i) => {
+      const key = item.optionKeys![i]
+      return { value: key, label: label === key ? key : `${key}. ${label}` }
+    })
+  }
+  if (item.options) return item.options.map((o) => ({ value: o, label: o }))
+  return [
+    { value: 'richtig', label: 'Richtig' },
+    { value: 'falsch', label: 'Falsch' },
+  ]
+}
+
+/**
+ * Parse a mock-exam `sections_json` string into the renderable objective items.
+ *
+ * Dữ liệu tới client đã qua `ExamQuestionSanitizer` (backend, từ 06/2026): `correct` bị strip,
+ * thay bằng `type` (MULTIPLE_CHOICE / RICHTIG_FALSCH / MATCHING / UNKNOWN); `options` trong seed
+ * là OBJECT {A: …, B: …}. Parser cũ chỉ nhận options mảng hoặc `correct` richtig/falsch nên bóc
+ * được 0 câu → mọi đề hiện "Chưa hỗ trợ trên app" (AC-MOBFIX-03, 06/09/2026).
+ */
 export function parseLesenItems(sectionsJson: string): ParsedExam {
   const groups: ExamObjGroup[] = []
   const skipped = new Set<string>()
@@ -134,22 +219,53 @@ export function parseLesenItems(sectionsJson: string): ParsedExam {
       for (const teil of asArray(section.teile)) {
         const type = String(teil.type ?? '')
         if (type.includes('AUDIO')) continue
-        const teilPassage = typeof teil.text === 'string' ? teil.text : undefined
+        const teilPassage =
+          typeof teil.text === 'string' ? teil.text : typeof teil.context === 'string' ? teil.context : undefined
+        const instruction =
+          typeof teil.instruction_vi === 'string' ? teil.instruction_vi : typeof teil.instruction_de === 'string' ? teil.instruction_de : undefined
+        const title =
+          typeof teil.title === 'string' ? teil.title : teil.teil != null ? `Teil ${String(teil.teil)}` : 'Đọc hiểu'
         const rawItems = Array.isArray(teil.items) ? (teil.items as Record<string, unknown>[]) : []
+        const matchingPairs = parseMatchingContext(teil.context)
+        let usedMatchingContext = false
         const items: ExamObjItem[] = []
         for (const it of rawItems) {
           const id = it.id != null ? String(it.id) : null
           if (!id) continue
-          const question = (it.question ?? it.prompt) as string | undefined
+          const question = (it.question ?? it.prompt ?? it.person) as string | undefined
           if (!question) continue
-          const options = Array.isArray(it.options) ? (it.options as string[]) : undefined
+          let options: string[] | undefined
+          let optionKeys: string[] | undefined
+          if (Array.isArray(it.options)) {
+            options = it.options.map(String)
+          } else if (it.options && typeof it.options === 'object') {
+            const entries = Object.entries(it.options as Record<string, unknown>)
+            if (entries.length > 0) {
+              optionKeys = entries.map(([k]) => k)
+              options = entries.map(([, v]) => String(v))
+            }
+          }
+          const derived = String(it.type ?? '')
           const correct = typeof it.correct === 'string' ? it.correct.toLowerCase() : ''
-          if (!options && !TF.has(correct)) continue // skip writing/match/free-text
-          const passage = typeof it.text === 'string' ? it.text : teilPassage
-          items.push({ id, question, passage, options })
+          const isTrueFalse = derived === 'RICHTIG_FALSCH' || TF.has(correct)
+          const isMatching = !options && !isTrueFalse && (derived === 'MATCHING' || typeof it.person === 'string' || /^[a-h]$/.test(correct))
+          if (isMatching) {
+            if (matchingPairs.length >= 2) {
+              optionKeys = matchingPairs.map((pr) => pr.key)
+              options = matchingPairs.map((pr) => pr.text)
+              usedMatchingContext = true
+            } else {
+              optionKeys = [...MATCHING_FALLBACK_KEYS]
+              options = [...MATCHING_FALLBACK_KEYS]
+            }
+          }
+          if (!options && !isTrueFalse) continue // viết / tự luận: chưa hỗ trợ trên app
+          const passage = typeof it.text === 'string' ? it.text : undefined
+          items.push({ id, question, passage, options, optionKeys })
         }
         if (items.length > 0) {
-          groups.push({ title: String(teil.title ?? 'Đọc hiểu'), items })
+          // Teil ghép: context đã thành lựa chọn — không lặp lại thành bài đọc.
+          groups.push({ title, instruction, passage: usedMatchingContext ? undefined : teilPassage, items })
         }
       }
     }

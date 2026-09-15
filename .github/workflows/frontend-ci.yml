@@ -23,32 +23,72 @@ on:
   # merge được mà chưa từng chạy tsc, lint, i18n guard hay bản build thật một lần nào trên CI —
   # đúng lúc cần nhất, vì bốn PR trong đó sửa frontend.
   #
-  # `paths` thì giữ: PR chỉ đụng backend không cần dựng frontend. Ngoài `frontend/**` còn theo dõi
-  # catalog mentor ở backend vì `src/__tests__/mentorMeta.test.ts` đọc thẳng FixedMentorResolver.java
-  # làm nguồn chuẩn — một PR CHỈ đụng backend mà thêm mentor sẽ không kích hoạt workflow này và guard
-  # trở thành vô dụng; đó chính là hình dạng của commit 63e406cb, thứ đã để 6 mentor nhập môn trôi
-  # mất trên web. Và chính file workflow này cũng nằm trong danh sách, để sửa cổng thì cổng tự chạy.
+  # CỐ Ý không lọc `paths` ở đây (gỡ 05/09, đợt 0 kế hoạch nâng cấp mobile). `build-and-lint` là
+  # required status check của nhánh main; khi workflow bị path-filter chặn thì GitHub KHÔNG tạo check
+  # run nào cả, check đó treo "Expected" vĩnh viễn và mọi PR không đụng frontend đều không tài nào
+  # merge được (backend-ci từng dính đúng vậy ở PR #284, #283 phải admin-override). Job bị skip bằng
+  # `if:` thì ngược lại: check run VẪN được báo cáo với conclusion "skipped", và branch protection
+  # chấp nhận skipped. Nên trigger luôn chạy, còn bỏ qua hay không do job `changes` bên dưới quyết định.
+  # Bộ đường dẫn theo dõi giữ nguyên ở job `changes`: ngoài `frontend/**` còn catalog mentor ở backend
+  # vì `src/__tests__/mentorMeta.test.ts` đọc thẳng FixedMentorResolver.java làm nguồn chuẩn — một PR
+  # CHỈ đụng backend mà thêm mentor sẽ không kích hoạt guard; đó chính là hình dạng của commit 63e406cb,
+  # thứ đã để 6 mentor nhập môn trôi mất trên web. Và chính file workflow này cũng nằm trong danh sách,
+  # để sửa cổng thì cổng tự chạy.
+  #
   # `edited` có mặt vì một lý do duy nhất: khi PR base được merge, GitHub trỏ lại base bằng sự kiện
   # `edited` — không phải `synchronize` — nên nếu thiếu, PR xếp chồng được retarget sang main mà KHÔNG
-  # chạy lại cổng nào. Job bên dưới lọc lại để bỏ qua các lần `edited` chỉ sửa tiêu đề/mô tả.
+  # chạy lại cổng nào. Trước 05/09 job lọc bỏ lần `edited` chỉ sửa tiêu đề/mô tả để tiết kiệm CI; nay
+  # KHÔNG lọc nữa: một lần `edited` bị lọc sẽ đẻ ra check run "skipped" đè lên kết quả đỏ trước đó trên
+  # cùng commit, tức là sửa mô tả PR là đủ để qua cổng. Tốn vài phút CI cho mỗi lần sửa mô tả rẻ hơn
+  # một lỗ hổng như thế.
   pull_request:
     types: [opened, synchronize, reopened, edited]
-    paths:
-      - 'frontend/**'
-      - 'backend/src/main/java/com/deutschflow/user/mentor/**'
-      - '.github/workflows/frontend-ci.yml'
 
 jobs:
+  # ─── Stage 0: PR này có đụng frontend không? ──────────────────────────
+  # Thay cho `paths:` đã gỡ ở trigger — xem ghi chú tại khối `on:` bên trên. Cùng mẫu backend-ci.yml.
+  changes:
+    name: 🔍 Frontend changed?
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      frontend: ${{ steps.detect.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Đủ để có cả hai cha của merge commit (^1 = base, ^2 = head của PR).
+          fetch-depth: 2
+
+      - id: detect
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+
+          # Ngoài pull_request (tức push) trigger vẫn còn `paths: frontend/**`,
+          # nên chạy được tới đây nghĩa là frontend đã có thay đổi.
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            echo "→ event=$EVENT, không phải PR: chạy đầy đủ."
+            exit 0
+          fi
+
+          # So hai cha của merge commit. Cố tình dùng HAI chấm chứ không ba chấm:
+          # nếu base đã chạy lên trước thì kết quả THỪA chứ không THIẾU. Dựng
+          # frontend dư thì chỉ tốn phút CI, còn bỏ qua nhầm lúc frontend thật sự
+          # đổi là để lọt lỗi ra main.
+          if git diff --name-only HEAD^1 HEAD^2 | grep -qE '^(frontend/|backend/src/main/java/com/deutschflow/user/mentor/|\.github/workflows/frontend-ci\.yml$)'; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            echo "→ PR có đụng frontend/ (hoặc catalog mentor / workflow này): chạy đầy đủ."
+          else
+            echo "frontend=false" >> "$GITHUB_OUTPUT"
+            echo "→ PR không đụng frontend/: bỏ qua build-and-lint (báo cáo skipped)."
+          fi
+
   build-and-lint:
     runs-on: ubuntu-latest
-    # `edited` bắn cho CẢ sửa tiêu đề/mô tả lẫn đổi base, mà ta chỉ cần vế đổi base. Payload của
-    # GitHub chỉ có `changes.base` khi base thật sự đổi, nên chặn ở đây để một lần sửa mô tả PR không
-    # kéo theo nguyên vòng CI. Điều kiện viết theo hướng an toàn: đoán sai thì job CHẠY thừa, chứ không
-    # bỏ mất lượt chạy cần có.
-    if: >-
-      github.event_name != 'pull_request'
-      || github.event.action != 'edited'
-      || github.event.changes.base != null
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
 
     steps:
       - name: Checkout Code

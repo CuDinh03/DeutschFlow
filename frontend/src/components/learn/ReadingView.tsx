@@ -15,6 +15,7 @@ import {
   type AnswerMap,
   type NodeExerciseItem,
 } from "@/lib/nodeExercises";
+import { useTranslations } from "next-intl";
 
 // ── Tap-to-translate tooltip ──
 function TranslateTooltip({
@@ -27,6 +28,7 @@ function TranslateTooltip({
   isSaved: boolean;
   saveError: string | null;
 }) {
+  const t = useTranslations("v2.student.learnViews.reading");
   return (
     <div
       className="fixed z-50 bg-ga-card rounded-ga shadow-ga-card-hover border border-ga-line p-3 space-y-2 min-w-0 max-w-[calc(100vw_-_32px)] sm:min-w-[200px] sm:max-w-[280px] animate-in fade-in zoom-in-95 duration-150"
@@ -37,7 +39,7 @@ function TranslateTooltip({
           <GenderBadge gender={vocab.gender} label={vocab.gender_label} />
           <span className="font-bold text-sm text-ga-ink">{vocab.german}</span>
         </div>
-        <button type="button" onClick={onClose} aria-label="Đóng" className="text-ga-subtle hover:text-ga-ink"><X size={14} aria-hidden /></button>
+        <button type="button" onClick={onClose} aria-label={t("close")} className="text-ga-subtle hover:text-ga-ink"><X size={14} aria-hidden /></button>
       </div>
       <p className="text-sm text-ga-muted">{vocab.meaning}</p>
       {vocab.example_de && <p className="text-xs text-ga-subtle italic">{'"'}{vocab.example_de}{'"'}</p>}
@@ -53,7 +55,7 @@ function TranslateTooltip({
               : "bg-ga-yellow text-ga-ink hover:bg-ga-yellow/80"
           }`}
         >
-          {isSaved ? <><Check size={11} aria-hidden /> Đã lưu</> : <><Save size={11} aria-hidden /> Lưu Flashcard</>}
+          {isSaved ? <><Check size={11} aria-hidden /> {t("saved")}</> : <><Save size={11} aria-hidden /> {t("saveFlashcard")}</>}
         </button>
       </div>
       {saveError && <p className="text-[10px] text-ga-red">{saveError}</p>}
@@ -62,6 +64,7 @@ function TranslateTooltip({
 }
 
 export default function ReadingView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
+  const t = useTranslations("v2.student.learnViews.reading");
   const { markTabCompleted, tabCompletion, session } = useNodeSessionStore();
   const isCompleted = tabCompletion.reading;
 
@@ -150,7 +153,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-ga-card rounded-ga border border-ga-line">
         <BookOpenText size={40} className="mb-3 text-ga-subtle" aria-hidden />
-        <p className="text-sm text-ga-muted">Bài đọc chưa có cho bài học này.</p>
+        <p className="text-sm text-ga-muted">{t("empty")}</p>
       </div>
     );
   }
@@ -163,7 +166,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
         <div className="md:w-[60%] space-y-3">
           <div className="flex items-center gap-2 mb-2">
             <span className="w-6 h-6 rounded bg-ga-ink text-white flex items-center justify-center"><BookOpenText size={13} aria-hidden /></span>
-            <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide">Bài đọc</h2>
+            <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide">{t("readingCap")}</h2>
           </div>
 
           <div
@@ -176,7 +179,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
           </div>
 
           <p className="flex items-center gap-1 text-xs text-ga-subtle italic">
-            <Lightbulb size={12} aria-hidden /> Bôi đen từ bất kỳ để xem nghĩa
+            <Lightbulb size={12} aria-hidden /> {t("selectHint")}
           </p>
         </div>
 
@@ -184,7 +187,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
         <div className="md:w-[40%] space-y-3">
           <div className="flex items-center gap-2 mb-2">
             <span className="w-6 h-6 rounded bg-ga-yellow text-ga-ink flex items-center justify-center"><FileQuestion size={13} aria-hidden /></span>
-            <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide">Câu hỏi</h2>
+            <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide">{t("questionsCap")}</h2>
           </div>
 
           <div className="bg-ga-card rounded-ga border border-ga-line p-4 space-y-4 md:sticky md:top-4">
@@ -198,7 +201,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
                         <textarea
                           className="w-full rounded-ga border border-ga-line px-3 py-2 text-sm focus:border-ga-yellow focus:ring-1 focus:ring-[#FFCD00] outline-none resize-none"
                           rows={2}
-                          placeholder="Viết câu trả lời (tự luận)..."
+                          placeholder={t("essayPlaceholder")}
                         />
                       </div>
                     );
@@ -213,7 +216,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
                           value={typeof answers[i] === "string" ? (answers[i] as string) : ""}
                           onChange={(e) => { if (!quizSubmitted) setAnswers((prev: AnswerMap) => ({ ...prev, [i]: e.target.value })); }}
                           disabled={quizSubmitted}
-                          placeholder={item.hint_vi ?? "Nhập câu trả lời"}
+                          placeholder={item.hint_vi ?? t("answerPlaceholder")}
                           aria-label={questionTextOf(item) ?? `Câu ${i + 1}`}
                           className="w-full rounded-ga border-2 border-ga-line px-3 py-2 text-xs focus:border-ga-yellow focus:outline-none disabled:opacity-60"
                         />
@@ -257,24 +260,24 @@ export default function ReadingView({ content, isLocked = false }: { content: No
                     }
                     className="w-full py-2.5 rounded-ga bg-ga-ink text-white text-xs font-bold disabled:opacity-50"
                   >
-                    Kiểm tra đáp án
+                    {t("check")}
                   </button>
                 )}
 
                 {quizSubmitted && score < validMcqCount && (
                   <div className="text-ga-red text-xs font-bold mt-2 text-center">
-                    Bạn trả lời đúng {score}/{validMcqCount}. Cần đúng 100% để qua bài!
+                    {t("result", { score, total: validMcqCount })}
                     <button 
                       onClick={() => { setQuizSubmitted(false); setAnswers({}); }}
                       className="ml-3 text-ga-blue underline"
                     >
-                      Làm lại
+                      {t("retry")}
                     </button>
                   </div>
                 )}
               </div>
             ) : (
-              <p className="text-sm text-ga-subtle">Chưa có câu hỏi cho bài đọc này.</p>
+              <p className="text-sm text-ga-subtle">{t("noQuestions")}</p>
             )}
 
             {/* ── Completion Button ── */}
@@ -291,7 +294,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
                 >
                   <span className="inline-flex items-center justify-center gap-1.5">
                     <CircleCheck size={15} aria-hidden />
-                    {isCompleted ? "Đã hoàn thành 100%" : "Đã đọc & Hiểu (100%)"}
+                    {isCompleted ? t("completed") : t("markDone")}
                   </span>
                 </button>
               ) : null}

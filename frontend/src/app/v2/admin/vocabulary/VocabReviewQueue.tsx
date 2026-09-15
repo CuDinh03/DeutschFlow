@@ -6,6 +6,7 @@ import { CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // Wires the previously-orphaned admin review endpoints (A-3):
 //   GET  /api/admin/vocabulary/review/queue?limit&cefrLevel&dtype  → { items, total }
@@ -44,6 +45,7 @@ interface StatsResponse {
 
 export default function VocabReviewQueue() {
   const t = useTranslations('v2.adminContent.vocabulary')
+  const fmt = useFmt()
   const tc = useTranslations('v2.common')
   const [cefr, setCefr] = useState('')
   const [dtype, setDtype] = useState('')
@@ -95,14 +97,14 @@ export default function VocabReviewQueue() {
       <GaStatStrip
         className="mb-6"
         items={[
-          { label: t('reviewStatTotal'), value: (totalWords ?? 0).toLocaleString('vi-VN'), tone: 'green' },
+          { label: t('reviewStatTotal'), value: fmt.num((totalWords ?? 0)), tone: 'green' },
           {
             label: t('reviewStatPending'),
-            value: (pending ?? 0).toLocaleString('vi-VN'),
+            value: fmt.num((pending ?? 0)),
             tone: 'gold',
             alert: (pending ?? 0) > 0,
           },
-          { label: t('reviewStatReviewed'), value: (reviewed ?? 0).toLocaleString('vi-VN'), tone: 'blue' },
+          { label: t('reviewStatReviewed'), value: fmt.num((reviewed ?? 0)), tone: 'blue' },
         ]}
       />
 
@@ -129,7 +131,7 @@ export default function VocabReviewQueue() {
       </div>
 
       <GaCap className="mb-3.5 block">
-        {t('reviewQueueCap', { shown: items.length, total: total.toLocaleString('vi-VN') })}
+        {t('reviewQueueCap', { shown: items.length, total: fmt.num(total) })}
       </GaCap>
 
       {loading ? (

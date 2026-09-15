@@ -49,9 +49,12 @@ class ScheduleForecastServiceTest {
     @Test
     @DisplayName("Hết nợ nội dung: xong ngay, không mốc nào rủi ro")
     void nothingRemaining_doneToday() {
+        // Mốc phải ở TƯƠNG LAI so với ngày chạy: projectedEnd = hôm nay, mốc trước hôm nay thì
+        // atRisk = true theo AC09 → test cũ (mốc cố định 05/09/2026) tự đỏ từ 06/09/2026.
+        String futureMilestone = LocalDate.now().plusDays(7).toString();
         ScheduleForecastDto out = ScheduleForecastService.compute(0,
                 List.of(s("2026-09-07", 180)),
-                List.of(m(1, ClassMilestone.Kind.EXAM, "2026-09-05")));
+                List.of(m(1, ClassMilestone.Kind.EXAM, futureMilestone)));
         assertThat(out.projectedEndDate()).isEqualTo(LocalDate.now());
         assertThat(out.milestones()).singleElement()
                 .satisfies(v -> assertThat(v.atRisk()).isFalse());

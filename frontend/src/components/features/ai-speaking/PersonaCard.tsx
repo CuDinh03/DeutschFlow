@@ -2,6 +2,7 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { spring } from "@/lib/motion";
 import { PersonaToken } from "@/lib/personas";
+import { usePersonaText } from "./personaText";
 import { personaInk, personaSoft } from "@/lib/personaPaper";
 import { LukasCharacter } from "@/components/speaking/characters/LukasCharacter";
 import { EmmaCharacter } from "@/components/speaking/characters/EmmaCharacter";
@@ -36,6 +37,8 @@ const SVG_PERSONAS = new Set([
 ]);
 
 export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCardProps) {
+  // role/tag/desc hiển thị qua lớp phủ dịch; dữ liệu gốc trong lib/personas.ts giữ nguyên.
+  const personaText = usePersonaText();
   type CharProps = { expression: string; isTalking: boolean; style?: React.CSSProperties; className?: string };
 
   let CharComponent: React.ComponentType<CharProps> | null = null;
@@ -106,7 +109,7 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
     <motion.button
       // QA 09/08 (J7): thẻ persona là button với minh hoạ SVG — trình đọc màn hình cần tên +
       // vai trò thay vì chỉ "button".
-      aria-label={`${persona.name} — ${persona.role}`}
+      aria-label={`${persona.name} — ${personaText.role(persona)}`}
       aria-pressed={isSelected}
       className="flex flex-col rounded-ga overflow-hidden relative cursor-pointer text-left transition-shadow duration-150 hover:shadow-ga-card-hover"
       style={{
@@ -146,14 +149,14 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
           className="ga-ui inline-block text-[10px] font-bold px-2.5 py-1 rounded-ga-pill mb-2"
           style={{ background: personaSoft(persona.accent, 0.14), color: ink }}
         >
-          {persona.tag}
+          {personaText.tag(persona)}
         </span>
         <p className="font-ga-display text-lg font-medium text-ga-ink mb-0.5">{persona.name}</p>
         <p className="ga-ui text-xs font-semibold mb-1.5" style={{ color: ink }}>
-          {persona.role}
+          {personaText.role(persona)}
         </p>
         <p className="ga-ui text-[11px] leading-relaxed line-clamp-2 text-ga-muted">
-          {persona.desc}
+          {personaText.desc(persona)}
         </p>
       </div>
 

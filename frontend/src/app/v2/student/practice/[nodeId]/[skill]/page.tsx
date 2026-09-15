@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowLeft, BookOpen, Check, Lightbulb, Mic, RefreshCw, Sparkles, TreeDeciduous, Trophy, Volume2, X } from 'lucide-react'
+import { ArrowLeft, BookOpen, Check, CircleCheck, CircleX, Lightbulb, Mic, RefreshCw, Sparkles, TreeDeciduous, Trophy, Volume2, X } from 'lucide-react'
 import api from '@/lib/api'
 import { isAsyncJobAccepted, waitForAsyncJob } from '@/lib/asyncJob'
 import { pickExplanation } from '@/lib/practice/explanation'
@@ -25,6 +25,7 @@ import {
   writeLessonDraft,
 } from '@/lib/lesson/lessonDraft'
 import type { Skill } from '@/lib/skills'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 /**
  * /v2/student/practice/[nodeId]/[skill] — RUNNER luyện kỹ năng CÓ CHẤM ĐIỂM (vỏ Galerie).
@@ -407,9 +408,10 @@ function ExerciseCard({
           }}
         >
           <p
-            className="ga-ui mb-1 text-[12px] font-semibold"
+            className="ga-ui mb-1 flex items-center gap-1.5 text-[12px] font-semibold"
             style={{ color: isCorrect ? 'var(--ga-green)' : 'var(--ga-orange)' }}
           >
+            {isCorrect ? <CircleCheck size={14} aria-hidden /> : <CircleX size={14} aria-hidden />}
             {isCorrect ? t('correct') : t('incorrect')}
           </p>
           <p className="ga-ui break-words text-[13.5px] text-ga-muted">{explanation}</p>
@@ -430,6 +432,7 @@ function ExerciseCard({
 export default function V2StudentPracticeRunnerPage() {
   usePageTimeTracker('practice_session')
   const t = useTranslations('v2.student.practiceRunner')
+  const fmt = useFmt()
   const params = useParams()
   const router = useRouter()
 
@@ -711,7 +714,7 @@ export default function V2StudentPracticeRunnerPage() {
     tShell('restoredDraft')
   ) : draftSavedAt ? (
     tShell('savedOnDevice', {
-      time: new Date(draftSavedAt).toLocaleTimeString('vi-VN', {
+      time: fmt.time(draftSavedAt, {
         hour: '2-digit',
         minute: '2-digit',
       }),
@@ -730,7 +733,11 @@ export default function V2StudentPracticeRunnerPage() {
           : t('subtitle')
       }
       title={`${SKILL_LABELS[skill]} · ${SKILL_LABELS_DE[skill]}`}
-      progress={exercises.length > 0 ? { current: answers.size, total: exercises.length } : null}
+      /* KHÔNG truyền `progress`: dải lá `LeafProgress` bên dưới ĐÃ là thanh tiến độ của runner —
+         nó được dựng để THAY thanh xám, không phải đứng cạnh. Truyền thêm ở đây làm một màn có
+         HAI `role="progressbar"` cùng `aria-valuenow`/`aria-valuemax` (vỏ + lá): người dùng
+         screen reader nghe hai lần cùng một con số, người nhìn thấy hai thước đo cho cùng một
+         việc. Trang HỌC (`learn/[nodeId]`) vẫn dùng thanh của vỏ vì ở đó không có dải lá. */
       savedNote={savedNote}
       onExit={() => router.push(`/v2/student/practice/${nodeId}`)}
     >
@@ -780,6 +787,13 @@ export default function V2StudentPracticeRunnerPage() {
                   accent={accent}
                   label={t('progressLabel', { answered: answers.size, total: exercises.length })}
                 />
+                {/* Trả lời xong một câu phải NGHE được, không chỉ nhìn được (S-04 §Accessibility).
+                    Việc này trước đây do dòng `Bước x/y` của vỏ đảm nhiệm; vỏ không còn thanh tiến
+                    độ trên trang luyện nên dải lá mang luôn thông báo. `role="progressbar"` tự nó
+                    KHÔNG được đọc lại khi đổi giá trị — phải có vùng `aria-live`. */}
+                <p aria-live="polite" className="sr-only">
+                  {t('progressLabel', { answered: answers.size, total: exercises.length })}
+                </p>
                 <p className="ga-ui whitespace-nowrap text-[11px] text-ga-subtle">
                   <span className="font-ga-display text-[15px] font-medium" style={{ color: accent }}>
                     {correctCount}/{exercises.length}

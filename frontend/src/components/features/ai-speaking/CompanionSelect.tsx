@@ -8,12 +8,13 @@ import { PERSONA_LIST, PERSONA_GROUPS, PersonaId, PersonaGroup, PERSONA_TOKENS }
 import { GaIcon } from "@/components/ui-v2";
 import { personaInk, personaSoft } from "@/lib/personaPaper";
 import { PersonaCard } from "./PersonaCard";
+import { usePersonaText } from "./personaText";
 import { aiSpeakingApi, SpeakingSessionMode } from "@/lib/aiSpeakingApi";
 import { interviewDomainApi, InterviewPersonaInfo } from "@/lib/interviewDomainApi";
 import { getMyLearningProfile } from "@/lib/profileApi";
 import { apiMessage, httpStatus } from "@/lib/api";
 import { toastApiError } from "@/lib/toastApiError";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useAiSpeakingQuota } from "@/hooks/useAiSpeakingQuota";
 import { SpeakingQuotaBlockedBanner } from "./SpeakingQuotaBlockedBanner";
 import { useChatStore } from "@/stores/useChatStore";
@@ -24,18 +25,20 @@ import { useStatusBarStyle } from "@/lib/statusBar";
 import { lightImpact, mediumImpact } from "@/lib/haptics";
 
 
+// Nhãn tra catalog v2.student.companionSelect lúc render (không gọi hook ngoài component).
 const MODE_TABS = [
-  { mode: "COMMUNICATION" as SpeakingSessionMode, label: "Hội thoại", icon: MessageCircle },
-  { mode: "INTERVIEW" as SpeakingSessionMode, label: "Phỏng vấn", icon: Briefcase },
-  { mode: "LESSON" as SpeakingSessionMode, label: "Luyện tập", icon: GraduationCap },
+  { mode: "COMMUNICATION" as SpeakingSessionMode, labelKey: "modes.communication", icon: MessageCircle },
+  { mode: "INTERVIEW" as SpeakingSessionMode, labelKey: "modes.interview", icon: Briefcase },
+  { mode: "LESSON" as SpeakingSessionMode, labelKey: "modes.lesson", icon: GraduationCap },
 ];
 
+// `id` là giá trị gửi API (experienceLevel) — giữ nguyên, chỉ nhãn đi qua catalog.
 const EXPERIENCE_LEVELS = [
-  { id: "0-6M", label: "0–6 tháng" },
-  { id: "6-12M", label: "6–12 tháng" },
-  { id: "1-2Y", label: "1–2 năm" },
-  { id: "3Y", label: "3 năm" },
-  { id: "5Y", label: "5+ năm" },
+  { id: "0-6M", labelKey: "experience.upTo6Months" },
+  { id: "6-12M", labelKey: "experience.sixTo12Months" },
+  { id: "1-2Y", labelKey: "experience.oneToTwoYears" },
+  { id: "3Y", labelKey: "experience.threeYears" },
+  { id: "5Y", labelKey: "experience.fivePlusYears" },
 ];
 
 export interface CompanionSelectProps {
@@ -65,6 +68,12 @@ export function CompanionSelect({
   const searchParams = useSearchParams();
   const minHeightClass = layout === "shell" ? "min-h-full" : "min-h-screen";
   const t = useTranslations("speaking");
+  const tc = useTranslations("v2.student.companionSelect");
+  const tCommon = useTranslations("v2.common");
+  const locale = useLocale();
+  // Nhãn persona/nhóm/vị trí/kịch bản: lớp phủ dịch trên dữ liệu lib/personas.ts (không đổi dữ liệu
+  // vì `desc` còn gửi làm personality cho AI và `label` là giá trị gửi API).
+  const personaText = usePersonaText();
   const { quota, quotaBlocked, quotaLoading } = useAiSpeakingQuota();
   const { returnPath, setReturnPath } = useChatStore();
   
@@ -242,7 +251,7 @@ export function CompanionSelect({
       const message = apiMessage(error);
 
       if (status === 401) {
-        setCreateSessionError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        setCreateSessionError(tc("errors.sessionExpired"));
         setTimeout(() => {
           if (typeof window !== 'undefined') {
             // Component này dùng chung cho /speaking (v1) và ba trang /v2/student/speaking*,
@@ -252,16 +261,16 @@ export function CompanionSelect({
           }
         }, 1500);
       } else if (status === 403) {
-        setCreateSessionError(message || "Bạn không có quyền tạo phiên luyện nói.");
+        setCreateSessionError(message || tc("errors.forbidden"));
       } else if (status === 409) {
-        setCreateSessionError(message || "Vui lòng chờ vài giây trước khi tạo phiên mới.");
+        setCreateSessionError(message || tc("errors.tooSoon"));
       } else if (status === 429) {
         setCreateSessionError(t("errorQuota"));
         toastApiError(error, { quotaMessage: t("errorQuota") });
       } else if (status >= 500) {
-        setCreateSessionError("Máy chủ đang gặp sự cố. Vui lòng thử lại sau.");
+        setCreateSessionError(tc("errors.server"));
       } else {
-        setCreateSessionError(message || "Không thể tạo phiên luyện nói. Vui lòng thử lại!");
+        setCreateSessionError(message || tc("errors.generic"));
       }
 
       setConfirming(false);
@@ -283,8 +292,8 @@ export function CompanionSelect({
   const quickPick = useMemo(() => {
     if (sessionMode !== 'LESSON') return null
     const topic = searchParams.get('topic')
-    return topic ? `Chủ đề đề xuất: ${topic}` : null
-  }, [sessionMode, searchParams])
+    return topic ? tc("suggestedTopic", { topic }) : null
+  }, [sessionMode, searchParams, tc])
 
   return (
     <div data-native-page className={`${minHeightClass} flex flex-col w-full bg-ga-bg text-ga-ink`}>
@@ -296,22 +305,22 @@ export function CompanionSelect({
               <div className="w-8 h-8 flex items-center justify-center rounded-full border border-ga-line bg-ga-card">
                 <ArrowLeft size={15} />
               </div>
-              <span className="text-sm">{returnPath ? "Quay lại" : "Trang chủ"}</span>
+              <span className="text-sm">{returnPath ? tCommon("back") : tc("home")}</span>
             </motion.button>
             <div className="flex items-center gap-2 mb-1">
               <Sparkles size={16} className="text-ga-gold" />
               <span className="ga-ui text-[11px] font-semibold tracking-[0.08em] uppercase text-ga-gold">DeutschFlow AI</span>
             </div>
             {/* Same title as the mobile screen so both platforms read identically. */}
-            <h1 className="font-ga-display text-[28px] font-medium leading-tight text-ga-ink">Luyện nói</h1>
-            <p className="ga-ui text-sm mt-1 text-ga-muted">Chọn cách luyện và người đồng hành</p>
+            <h1 className="font-ga-display text-[28px] font-medium leading-tight text-ga-ink">{tc("title")}</h1>
+            <p className="ga-ui text-sm mt-1 text-ga-muted">{tc("subtitle")}</p>
           </motion.div>
         </div>
 
         {/* ── Mode Selection (3 tabs) — same shape as the mobile picker ── */}
         <div className="px-5 pb-3">
           <motion.div className="flex gap-2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            {MODE_TABS.map(({ mode, label, icon: ModeIcon }) => {
+            {MODE_TABS.map(({ mode, labelKey, icon: ModeIcon }) => {
               const active = sessionMode === mode;
               return (
                 <button key={mode} onClick={() => handleModeChange(mode)}
@@ -322,7 +331,7 @@ export function CompanionSelect({
                   }`}
                 >
                   <ModeIcon size={20} />
-                  {label}
+                  {tc(labelKey)}
                 </button>
               );
             })}
@@ -342,7 +351,7 @@ export function CompanionSelect({
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
             {filteredGroups.map((g) => (
               <motion.button key={g.id} onClick={() => { setActiveGroup(g.id); setSelected(null); }}
-                aria-label={g.label}
+                aria-label={personaText.groupLabel(g.id)}
                 aria-pressed={activeGroup === g.id}
                 className={`ga-ui flex items-center gap-1.5 px-3 py-1.5 rounded-ga-pill border text-xs font-semibold whitespace-nowrap transition-colors ${
                   activeGroup === g.id
@@ -352,7 +361,7 @@ export function CompanionSelect({
                 whileTap={{ scale: 0.95 }}
               >
                 <GaIcon name={g.icon} size={13} />
-                <span>{g.label}</span>
+                <span>{personaText.groupLabel(g.id)}</span>
               </motion.button>
             ))}
           </div>
@@ -387,7 +396,7 @@ export function CompanionSelect({
             })}
             {filteredPersonas.length === 0 && (
               <p className="ga-ui text-center w-full text-ga-subtle text-sm py-8">
-                Không có nhân vật nào cho chế độ này trong nhóm đã chọn.
+                {tc("emptyGroup")}
               </p>
             )}
           </div>
@@ -401,14 +410,14 @@ export function CompanionSelect({
               >
                 <Lock size={16} className="text-ga-gold mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="ga-ui text-sm text-ga-ink font-semibold">Nhân vật PRO</p>
-                  <p className="ga-ui text-xs text-ga-muted mt-0.5">Nhân vật cấp độ ADVANCED chỉ dành cho gói PRO/ULTRA. Nâng cấp để luyện phỏng vấn chuyên sâu.</p>
+                  <p className="ga-ui text-sm text-ga-ink font-semibold">{tc("pro.title")}</p>
+                  <p className="ga-ui text-xs text-ga-muted mt-0.5">{tc("pro.desc")}</p>
                 </div>
                 <button
                   onClick={() => router.push(pricingHref)}
                   className="ga-ui shrink-0 text-xs font-bold text-ga-gold hover:text-ga-ink transition-colors whitespace-nowrap"
                 >
-                  Nâng cấp →
+                  {tc("pro.upgrade")}
                 </button>
               </motion.div>
             )}
@@ -422,7 +431,7 @@ export function CompanionSelect({
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Briefcase size={14} style={{ color: selectedInk }} />
-                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>Bạn ứng tuyển vị trí nào?</span>
+                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>{tc("positionLabel")}</span>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {(() => {
@@ -438,8 +447,9 @@ export function CompanionSelect({
                         whileTap={{ scale: 0.98 }}
                       >
                         <div className="min-w-0 break-words">
-                          <span className="ga-ui text-sm font-semibold text-ga-ink">{pos.label}</span>
-                          <span className="ga-ui text-xs ml-2 text-ga-muted">{pos.labelDe}</span>
+                          <span className="ga-ui text-sm font-semibold text-ga-ink">{personaText.positionLabel(selectedPersona.id, pos.id)}</span>
+                          {/* Với locale de nhãn chính đã là labelDe → không lặp lại phụ đề tiếng Đức. */}
+                          {locale !== "de" && <span className="ga-ui text-xs ml-2 text-ga-muted">{pos.labelDe}</span>}
                         </div>
                         {interviewPosition === pos.label && (
                           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedInk }}>
@@ -455,7 +465,7 @@ export function CompanionSelect({
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <BookOpen size={14} style={{ color: selectedInk }} />
-                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>Số năm kinh nghiệm</span>
+                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>{tc("experienceLabel")}</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {EXPERIENCE_LEVELS.map((exp) => (
@@ -470,7 +480,7 @@ export function CompanionSelect({
                       }}
                       whileTap={{ scale: 0.95 }}
                     >
-                      {exp.label}
+                      {tc(exp.labelKey)}
                     </motion.button>
                   ))}
                 </div>
@@ -486,7 +496,7 @@ export function CompanionSelect({
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <BookOpen size={14} style={{ color: selectedInk }} />
-                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>Chủ đề bài học</span>
+                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>{tc("scenarioLabel")}</span>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {(selectedPersona.lessonScenarios || []).map((sc) => (
@@ -497,8 +507,8 @@ export function CompanionSelect({
                         border: lessonScenario === sc.label ? `1.5px solid ${selectedPersona.accent}` : "1.5px solid var(--ga-line)",
                       }} whileTap={{ scale: 0.98 }}>
                       <div className="min-w-0 break-words">
-                        <span className="ga-ui text-sm font-semibold text-ga-ink">{sc.label}</span>
-                        <span className="ga-ui text-xs ml-2 text-ga-muted">{sc.labelDe}</span>
+                        <span className="ga-ui text-sm font-semibold text-ga-ink">{personaText.scenarioLabel(selectedPersona.id, sc.id)}</span>
+                        {locale !== "de" && <span className="ga-ui text-xs ml-2 text-ga-muted">{sc.labelDe}</span>}
                       </div>
                       {lessonScenario === sc.label && (
                         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedInk }}>
@@ -532,9 +542,9 @@ export function CompanionSelect({
                   </motion.div>
                 ) : (
                   <>
-                    {sessionMode === "INTERVIEW" ? `Phỏng vấn với ${selectedPersona.name}`
-                      : sessionMode === "LESSON" ? `Luyện tập với ${selectedPersona.name}`
-                      : `Bắt đầu với ${selectedPersona.name}`}
+                    {sessionMode === "INTERVIEW" ? tc("cta.interview", { name: selectedPersona.name })
+                      : sessionMode === "LESSON" ? tc("cta.lesson", { name: selectedPersona.name })
+                      : tc("cta.start", { name: selectedPersona.name })}
                     <ChevronRight size={18} />
                   </>
                 )}
@@ -542,9 +552,9 @@ export function CompanionSelect({
             ) : (
               <motion.p key="cta-hint" className="ga-ui text-center text-sm text-ga-subtle"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                {!selected ? "Vui lòng chọn một nhân vật"
-                  : sessionMode === "INTERVIEW" ? "Chọn vị trí và kinh nghiệm"
-                  : sessionMode === "LESSON" ? "Chọn chủ đề bài học"
+                {!selected ? tc("hint.pickPersona")
+                  : sessionMode === "INTERVIEW" ? tc("hint.pickPosition")
+                  : sessionMode === "LESSON" ? tc("hint.pickScenario")
                   : ""}
               </motion.p>
             )}

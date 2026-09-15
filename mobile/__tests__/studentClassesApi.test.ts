@@ -12,6 +12,7 @@ jest.mock('expo-file-system/legacy', () => ({
 import api from '@/lib/api'
 import * as FileSystem from 'expo-file-system/legacy'
 import {
+  assignmentRowKey, assignmentStatusView,
   fetchAssignmentDetail, fetchClassSessions, fetchMyAttendance, fetchMySkillReport,
   isAwaitingTeacher, isFinalGrade, isSubmittedStatus,
   submitAssignment, uploadAssignmentFile, type StudentAssignment,
@@ -42,13 +43,33 @@ beforeEach(() => {
 })
 
 describe('fetchAssignmentDetail', () => {
-  it('returns the row whose assignmentId matches', async () => {
+  // V-07: có classId thì phải hỏi ĐÚNG lớp. Trước bản vá hàm này luôn tải toàn bộ bài của mọi lớp
+  // học viên từng học rồi lọc — danh sách dài là trượt đúng bài cần mở.
+  it('gọi endpoint theo LỚP khi có classId', async () => {
+    get.mockResolvedValue({ data: [row(1), row(2)] })
+
+    const found = await fetchAssignmentDetail(2, 10)
+
+    expect(get).toHaveBeenCalledWith('/v2/students/classes/10/assignments')
+    expect(get).not.toHaveBeenCalledWith('/v2/students/assignments')
+    expect(found?.assignmentId).toBe(2)
+  })
+
+  it('rơi về danh sách tổng khi KHÔNG có classId (deep-link cũ)', async () => {
     get.mockResolvedValue({ data: [row(1), row(2), row(3)] })
 
     const found = await fetchAssignmentDetail(2)
 
     expect(get).toHaveBeenCalledWith('/v2/students/assignments')
     expect(found?.assignmentId).toBe(2)
+  })
+
+  it('classId không hợp lệ (NaN) cũng rơi về danh sách tổng, không ghép URL hỏng', async () => {
+    get.mockResolvedValue({ data: [row(1)] })
+
+    await fetchAssignmentDetail(1, Number('x'))
+
+    expect(get).toHaveBeenCalledWith('/v2/students/assignments')
   })
 
   it('returns null when no row matches the id', async () => {
@@ -171,5 +192,41 @@ describe('phân loại trạng thái bài giao', () => {
 
   test('AI_GRADED không bao giờ được tính là điểm đã chốt — backend cố ý giấu điểm AI', () => {
     expect(isFinalGrade('AI_GRADED')).toBe(false)
+  })
+})
+
+// V-12c: cùng một bài, hai màn (danh sách bài của lớp + chi tiết bài) phải nói cùng một câu.
+// GRADING_FAILED trước đây bị gộp vào "Đã nộp" nên học viên không hề biết bài mình CHƯA được chấm,
+// trong khi web nói thẳng "Chấm lỗi · chờ chấm lại".
+describe('assignmentStatusView — GRADING_FAILED tách khỏi "đã nộp"', () => {
+  test.each([
+    ['PENDING', 'notSubmitted'],
+    ['SUBMITTED', 'awaitingTeacher'],
+    ['AI_GRADED', 'awaitingTeacher'],
+    ['GRADING_FAILED', 'gradingFailed'],
+    ['GRADED', 'graded'],
+    ['EVALUATED', 'graded'],
+  ])('%s → %s', (status, view) => {
+    expect(assignmentStatusView(status)).toBe(view)
+  })
+
+  test('GRADING_FAILED vẫn nằm trong nhóm được nộp bản khác — chỉ câu chữ đổi', () => {
+    expect(isAwaitingTeacher('GRADING_FAILED')).toBe(true)
+  })
+})
+
+// V-12c: backend trả id = null cho MỌI bài học viên chưa bắt đầu (notStartedDto), nên key React
+// theo `id` trùng nhau cả cụm và React trộn nhầm thẻ khi danh sách đổi.
+describe('assignmentRowKey', () => {
+  it('cho key khác nhau với các bài chưa bắt đầu (id đều null)', () => {
+    const notStarted = [1, 2, 3].map((assignmentId) => ({
+      ...row(assignmentId),
+      id: null as unknown as number,
+    }))
+
+    const keys = notStarted.map(assignmentRowKey)
+
+    expect(new Set(keys).size).toBe(3)
+    expect(keys).toEqual([1, 2, 3])
   })
 })

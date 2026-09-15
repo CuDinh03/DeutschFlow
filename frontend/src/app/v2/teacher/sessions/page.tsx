@@ -1,12 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { notFound } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Clock, Check, X, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import api, { apiMessage } from '@/lib/api'
 import { GaPageHdr, GaBtn, GaCap, TkSeg, GaStatStrip, type TkSegOption } from '@/components/ui-v2'
 import { AvailabilityPanel } from './availabilityPanel'
+import { MARKETPLACE_ENABLED } from '@/lib/features'
+import { useFmt } from '@/lib/i18n/useFmt'
+import { formatVnd } from '@/lib/i18n/format'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Buổi học 1:1 (GaSessions) — violet. Week-calendar + list. Plumbing reused 1:1
@@ -17,6 +22,11 @@ import { AvailabilityPanel } from './availabilityPanel'
 // Option-1: the proto's "Nhận đặt lịch" toggle has no backend field → DROPPED.
 // Week grid is built from the REAL scheduledAt + durationMinutes (current week only;
 // list view shows every session).
+//
+// V-12b (08/09/2026): đây là NỬA GIÁO VIÊN của chợ gia sư C2C. Nửa học viên (`/teachers`,
+// `/v2/student/tutor`) đã `notFound()` khi `MARKETPLACE_ENABLED` tắt, còn màn này thì không —
+// gõ thẳng URL là vào được một luồng tiền chưa hoàn thiện ("Thu nhập ròng", "sau phí nền tảng"),
+// dù nó đã bị gỡ khỏi sidebar giáo viên từ trước Wave 1. Nay chặn cùng một cổng với nửa kia.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const VIOLET = '#7C56C8'
@@ -52,13 +62,15 @@ const STATUS: Record<string, { label: string; fg: string; bg: string }> = {
 }
 const statusOf = (s: string) => STATUS[s] ?? { label: s, fg: 'var(--ga-muted)', bg: 'var(--ga-side-active)' }
 
-const DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+/** Khoá thứ trong tuần theo thứ tự backend (0 = thứ Hai). Nhãn ngắn lấy từ `v2.common.dowShort`
+ *  để lưới lịch hiển thị đúng ngôn ngữ đang chọn (vi T2… · en Mon… · de Mo…). */
+const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
 const START_HOUR = 7
 const END_HOUR = 22
 const GRID_H = 560
 const initial = (n: string) => (n.trim()[0] ?? '?').toUpperCase()
 const compactVnd = (v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k₫` : `${v}₫`)
-const fullVnd = (v: number) => `${v.toLocaleString('vi-VN')} ₫`
+const fullVnd = (v: number) => `${formatVnd(v)}`
 
 // Monday 00:00 of the current week (local time).
 function weekStart(): Date {
@@ -134,6 +146,9 @@ export default function V2TeacherSessionsPage() {
   const rated = useMemo(() => sessions.filter((s) => s.teacherRating != null), [sessions])
   const avgRating = rated.length ? rated.reduce((a, s) => a + (s.teacherRating ?? 0), 0) / rated.length : 0
   const completedHours = completed.reduce((a, s) => a + s.durationMinutes, 0) / 60
+
+  // Chợ gia sư C2C ẩn cho v1.0 — chặn cả truy cập bằng URL trực tiếp, như nửa học viên.
+  if (!MARKETPLACE_ENABLED) notFound()
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -217,6 +232,7 @@ export default function V2TeacherSessionsPage() {
 
 // ── Week calendar (real scheduledAt + duration; current week only) ───────────
 function WeekGrid({ sessions }: { sessions: Session[] }) {
+  const tc = useTranslations('v2.common')
   const monday = weekStart()
   const end = new Date(monday); end.setDate(end.getDate() + 7)
   const hours = Array.from({ length: (END_HOUR - START_HOUR) / 2 + 1 }, (_, i) => START_HOUR + i * 2)
@@ -229,12 +245,12 @@ function WeekGrid({ sessions }: { sessions: Session[] }) {
     <div className="overflow-x-auto border border-ga-line bg-ga-card lg:overflow-hidden">
       <div className="grid min-w-[620px] lg:min-w-0" style={{ gridTemplateColumns: '56px repeat(7,1fr)' }}>
         <div className="border-b border-r border-ga-line" />
-        {DAYS.map((d, i) => {
+        {DAY_KEYS.map((dk, i) => {
           const date = new Date(monday); date.setDate(date.getDate() + i)
           const weekend = i >= 5
           return (
-            <div key={d} className={`border-b border-ga-line py-3 text-center ${i < 6 ? 'border-r' : ''}`}>
-              <div className="ga-ui text-[12px] font-bold tracking-[0.08em]" style={{ color: weekend ? 'var(--ga-muted)' : 'var(--ga-ink)' }}>{d}</div>
+            <div key={dk} className={`border-b border-ga-line py-3 text-center ${i < 6 ? 'border-r' : ''}`}>
+              <div className="ga-ui text-[12px] font-bold tracking-[0.08em]" style={{ color: weekend ? 'var(--ga-muted)' : 'var(--ga-ink)' }}>{tc(`dowShort.${dk}`)}</div>
               <div className="ga-ui mt-1 text-[11px] text-ga-subtle">{String(date.getDate()).padStart(2, '0')}/{String(date.getMonth() + 1).padStart(2, '0')}</div>
             </div>
           )
@@ -246,8 +262,8 @@ function WeekGrid({ sessions }: { sessions: Session[] }) {
             <div key={h} className="ga-ui px-2 py-1 text-right text-[11px] text-ga-muted" style={{ height: GRID_H / hours.length }}>{h}:00</div>
           ))}
         </div>
-        {DAYS.map((d, di) => (
-          <div key={d} className={`relative ${di < 6 ? 'border-r border-ga-line' : ''}`} style={{ background: di >= 5 ? 'var(--ga-bg)' : undefined }}>
+        {DAY_KEYS.map((dk, di) => (
+          <div key={dk} className={`relative ${di < 6 ? 'border-r border-ga-line' : ''}`} style={{ background: di >= 5 ? 'var(--ga-bg)' : undefined }}>
             {Array.from({ length: hours.length - 1 }).map((_, r) => (
               <div key={r} className="absolute inset-x-0 border-t border-ga-line opacity-50" style={{ top: (GRID_H / hours.length) * (r + 1) }} />
             ))}
@@ -277,6 +293,7 @@ function WeekGrid({ sessions }: { sessions: Session[] }) {
 
 // ── List view ────────────────────────────────────────────────────────────────
 function SessionList({ sessions, busy, onUpdate }: { sessions: Session[]; busy: number | null; onUpdate: (id: number, status: string) => void }) {
+  const fmt = useFmt()
   const ordered = [...sessions].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
   if (ordered.length === 0) {
     return <div className="border border-dashed border-ga-line px-4 py-10 text-center text-[14px] text-ga-muted sm:px-6 lg:px-10 lg:py-[52px]">Chưa có buổi học nào được đặt.</div>
@@ -299,7 +316,7 @@ function SessionList({ sessions, busy, onUpdate }: { sessions: Session[]; busy: 
               </div>
               <div className="mt-1 truncate text-[13px] text-ga-muted">{s.title}</div>
               <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-ga-subtle">
-                <span className="flex items-center gap-1"><Clock size={11} /> {d.toLocaleDateString('vi-VN')} · {d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="flex items-center gap-1"><Clock size={11} /> {fmt.date(d)} · {fmt.time(d, { hour: '2-digit', minute: '2-digit' })}</span>
                 <span>{s.durationMinutes} phút</span>
                 <span className="font-semibold text-ga-ink">{fullVnd(s.priceVnd)}</span>
                 {s.teacherRating != null && (

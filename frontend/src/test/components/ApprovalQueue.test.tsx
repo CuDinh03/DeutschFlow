@@ -29,7 +29,7 @@ vi.mock('sonner', () => ({
   toast: { success: (...a: unknown[]) => toastSuccess(...a), error: (...a: unknown[]) => toastError(...a) },
 }))
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', () => ({ useLocale: () => 'vi',
   // t(key) → key; t(key, values) giữ key để assert ổn định.
   useTranslations: (ns: string) => {
     const t = (key: string) => `${ns}.${key}`.replace('v2.org.schedule.requests.', '')

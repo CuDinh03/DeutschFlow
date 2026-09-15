@@ -2,6 +2,7 @@ package com.deutschflow.organization.service;
 
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.exception.PrivilegedActionBlockedException;
 import com.deutschflow.organization.dto.CreateOrgRequest;
 import com.deutschflow.organization.dto.OrgDto;
 import com.deutschflow.organization.dto.OrgMemberDto;
@@ -26,6 +27,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -214,26 +216,26 @@ class AdminOrgServiceLifecycleTest {
     // ------------------------------------------------------------------ ACTIVE -> SUSPENDED
 
     @Test
-    @DisplayName("ACTIVE -> SUSPENDED: calls revokeStudent for each active STUDENT member")
-    void updateOrganization_activeTosuspended_revokesEachStudent() {
+    @DisplayName("ACTIVE -> SUSPENDED: KHÔNG cắt quyền lợi ngay — học viên còn 7 ngày ân hạn chỉ-đọc")
+    void updateOrganization_activeTosuspended_doesNotRevokeImmediately() {
         Organization org = orgWithStatus("ACTIVE");
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
         when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         OrgMember s1 = activeMember(101L);
         OrgMember s2 = activeMember(102L);
-        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE"))
-                .thenReturn(List.of(s1, s2));
-
-        // stub the DTO projection call
         stubActiveMembersForDto(List.of(s1, s2));
 
         UpdateOrgRequest req = new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null);
         service.updateOrganization(ORG_ID, req, null);
 
-        verify(orgEntitlementService).revokeStudent(101L);
-        verify(orgEntitlementService).revokeStudent(102L);
-        verify(orgEntitlementService, times(2)).revokeStudent(anyLong());
+        // Owner 09/09/2026: đình chỉ ⇒ CHỈ ĐỌC, cắt phăng tại giây bấm nút là làm ngược.
+        // Việc CẮT khi quá ân hạn do SubscriptionReconcileJob thi hành.
+        verify(orgEntitlementService, never()).revokeStudent(anyLong());
+        // Chốt thêm ở lớp repository: nếu chỉ chốt "không revoke" thì một bản vá lỡ tay gọi lại
+        // vòng lặp cũ vẫn xanh (danh sách học viên không được stub nên trả rỗng, revoke không chạy).
+        verify(orgMemberRepository, never())
+                .findByIdOrgIdAndRoleAndStatus(anyLong(), eq("STUDENT"), eq("ACTIVE"));
     }
 
     @Test
@@ -243,13 +245,12 @@ class AdminOrgServiceLifecycleTest {
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
         when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE"))
-                .thenReturn(List.of(activeMember(101L)));
         stubActiveMembersForDto(List.of(activeMember(101L)));
 
         service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null), null);
 
         verify(orgEntitlementService, never()).grantStudent(anyLong(), any());
+        verify(orgEntitlementService, never()).grantStudentOnRestore(anyLong(), any());
     }
 
     // ------------------------------------------------------------------ SUSPENDED -> ACTIVE
@@ -270,10 +271,10 @@ class AdminOrgServiceLifecycleTest {
 
         service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null), null);
 
-        verify(orgEntitlementService).grantStudent(eq(201L), any(Organization.class));
-        verify(orgEntitlementService).grantStudent(eq(202L), any(Organization.class));
-        verify(orgEntitlementService).grantStudent(eq(203L), any(Organization.class));
-        verify(orgEntitlementService, times(3)).grantStudent(anyLong(), any());
+        verify(orgEntitlementService).grantStudentOnRestore(eq(201L), any(Organization.class));
+        verify(orgEntitlementService).grantStudentOnRestore(eq(202L), any(Organization.class));
+        verify(orgEntitlementService).grantStudentOnRestore(eq(203L), any(Organization.class));
+        verify(orgEntitlementService, times(3)).grantStudentOnRestore(anyLong(), any());
     }
 
     @Test
@@ -293,6 +294,117 @@ class AdminOrgServiceLifecycleTest {
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
     }
 
+    // ------------------------------------------- mốc neo đình chỉ (V316(d), ân hạn 7 ngày)
+
+    @Test
+    @DisplayName("ACTIVE -> SUSPENDED: đóng mốc neo suspended_at (không có mốc thì không đếm nổi ân hạn)")
+    void updateOrganization_activeTosuspended_anchorsSuspension() {
+        Organization org = orgWithStatus("ACTIVE");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        stubActiveMembersForDto(List.of());
+        java.time.Instant before = java.time.Instant.now();
+
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null), null);
+
+        assertThat(org.getSuspendedAt())
+                .as("backfill V316 chỉ lo trung tâm đã bị đình chỉ TRƯỚC lúc deploy; đình chỉ mới "
+                        + "mà không đóng mốc thì máy trạng thái không có gì để trừ (fail-open)")
+                .isNotNull()
+                .isAfterOrEqualTo(before);
+    }
+
+    @Test
+    @DisplayName("SUSPENDED -> ACTIVE: xoá mốc neo để lần đình chỉ sau vẫn có đủ 7 ngày ân hạn")
+    void updateOrganization_suspendedToActive_clearsAnchor() {
+        Organization org = orgWithStatus("SUSPENDED");
+        org.setSuspendedAt(java.time.Instant.now().minusSeconds(30 * 86400L));
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE"))
+                .thenReturn(List.of());
+        stubActiveMembersForDto(List.of());
+
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null), null);
+
+        assertThat(org.getSuspendedAt())
+                .as("giữ mốc cũ ⇒ lần đình chỉ sau thừa hưởng mốc đã quá 7 ngày, cắt ngay không ân hạn")
+                .isNull();
+    }
+
+    @Test
+    @DisplayName("đối soát hoá đơn tay: mở lại giấy phép cũng phải xoá mốc neo đình chỉ")
+    void activateForPaidInvoice_clearsAnchor() {
+        Organization org = orgWithStatus("SUSPENDED");
+        org.setSuspendedAt(java.time.Instant.now().minusSeconds(30 * 86400L));
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.activateForPaidInvoice(com.deutschflow.organization.entity.OrgInvoice.builder()
+                .id(9L).orgId(ORG_ID).status("PAID")
+                .periodEnd(java.time.LocalDate.of(2026, 12, 31))
+                .build(), null);
+
+        assertThat(org.getStatus()).isEqualTo("ACTIVE");
+        assertThat(org.getSuspendedAt())
+                .as("đường thủ công phải cư xử giống hệt webhook SePay, không thì tuỳ ai bấm mà "
+                        + "trung tâm còn hay mất ân hạn ở lần đình chỉ sau")
+                .isNull();
+    }
+
+    // ---------------------------------------- G-10 hồi quy: cổng D5 KHÔNG được khoá đường bật lại
+
+    /**
+     * Dựng AdminOrgService với {@link OrgEntitlementService} THẬT (chỉ mock lớp dưới nó) — mock
+     * entitlement service che mất đúng chỗ hỏng: cổng D5 nằm bên trong {@code grantStudent}.
+     */
+    private AdminOrgService serviceWithRealEntitlements(
+            com.deutschflow.payment.service.SubscriptionActivationService activation) {
+        OrgEntitlementService realEntitlements = new OrgEntitlementService(
+                activation, auditLogService, mock(org.springframework.jdbc.core.JdbcTemplate.class));
+        return new AdminOrgService(
+                organizationRepository, orgMembershipService, orgInvitationService,
+                orgMemberRepository, realEntitlements, userRepository, passwordEncoder,
+                userNotificationService, auditLogService);
+    }
+
+    @Test
+    @DisplayName("bật lại trung tâm ĐÌNH CHỈ mà validUntil còn quá hạn: vẫn cấp lại gói, KHÔNG ném ORG_READ_ONLY")
+    void updateOrganization_reactivateWithStaleValidUntil_stillGrants() {
+        // Trung tâm bị đình chỉ vì nợ tiền 60 ngày trước; admin bấm bật lại (chỉ đổi status).
+        Organization org = orgWithStatus("SUSPENDED");
+        org.setValidUntil(java.time.Instant.now().minus(60, java.time.temporal.ChronoUnit.DAYS));
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        OrgMember s1 = activeMember(201L);
+        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE"))
+                .thenReturn(List.of(s1));
+        stubActiveMembersForDto(List.of(s1));
+        var activation = mock(com.deutschflow.payment.service.SubscriptionActivationService.class);
+        AdminOrgService svc = serviceWithRealEntitlements(activation);
+
+        svc.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null), null);
+
+        verify(activation).activateOrg(eq(201L), eq("PRO"), any(), any());
+    }
+
+    @Test
+    @DisplayName("activateEntitlements (đường SePay/admin bấm tay) trên trung tâm quá hạn: vẫn cấp, không ném")
+    void activateEntitlements_expiredPastGrace_stillGrants() {
+        // Hoá đơn truy thu kỳ đã qua: status đã ACTIVE, validUntil KHÔNG được nới ⇒ vẫn "quá hạn".
+        Organization org = orgWithStatus("ACTIVE");
+        org.setValidUntil(java.time.Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS));
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        OrgMember s1 = activeMember(301L);
+        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE"))
+                .thenReturn(List.of(s1));
+        var activation = mock(com.deutschflow.payment.service.SubscriptionActivationService.class);
+        AdminOrgService svc = serviceWithRealEntitlements(activation);
+
+        assertThat(svc.activateEntitlements(ORG_ID, null)).isOne();
+        verify(activation).activateOrg(eq(301L), eq("PRO"), any(), any());
+    }
+
     // ------------------------------------------------------------------ status unchanged
 
     @Test
@@ -308,6 +420,7 @@ class AdminOrgServiceLifecycleTest {
 
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
         verify(orgEntitlementService, never()).grantStudent(anyLong(), any());
+        verify(orgEntitlementService, never()).grantStudentOnRestore(anyLong(), any());
         // The student query for lifecycle must NOT have been called
         verify(orgMemberRepository, never())
                 .findByIdOrgIdAndRoleAndStatus(anyLong(), anyString(), anyString());
@@ -326,6 +439,7 @@ class AdminOrgServiceLifecycleTest {
 
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
         verify(orgEntitlementService, never()).grantStudent(anyLong(), any());
+        verify(orgEntitlementService, never()).grantStudentOnRestore(anyLong(), any());
     }
 
     // ------------------------------------------------------------------ no students edge case
@@ -336,8 +450,6 @@ class AdminOrgServiceLifecycleTest {
         Organization org = orgWithStatus("ACTIVE");
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
         when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE"))
-                .thenReturn(List.of());
         stubActiveMembersForDto(List.of());
 
         service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null), null);
@@ -532,8 +644,10 @@ class AdminOrgServiceLifecycleTest {
         service.addMember(ORG_ID, "up@x.com", "MANAGER", actor);
 
         ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        // DEC-13: tham số áp chót là org BỊ TÁC ĐỘNG. Thiếu nó thì vết suy org từ users.org_id của
+        // admin nền tảng — luôn NULL — và sổ của giám đốc lọc `AND org_id = ?` sẽ loại sạch.
         verify(auditLogService).log(eq("admin.org.member.upserted"), eq(actor),
-                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue().get("fromRole")).isEqualTo("TEACHER");
         assertThat(meta.getValue().get("toRole")).isEqualTo("MANAGER");
         assertThat(meta.getValue().get("targetUserId")).isEqualTo(14L);
@@ -559,7 +673,7 @@ class AdminOrgServiceLifecycleTest {
 
         ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
         verify(auditLogService).log(eq("admin.org.created"), eq(actor),
-                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue()).containsEntry("slug", "atb-center").containsEntry("planCode", "PRO");
     }
 
@@ -570,15 +684,13 @@ class AdminOrgServiceLifecycleTest {
         Organization org = orgWithStatus("ACTIVE");
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
         when(organizationRepository.save(any(Organization.class))).thenAnswer(i -> i.getArgument(0));
-        when(orgMemberRepository.findByIdOrgIdAndRoleAndStatus(eq(ORG_ID), eq("STUDENT"), eq("ACTIVE")))
-                .thenReturn(List.of());
         stubActiveMembersForDto(List.of());
 
         service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null), null);
 
         ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
         verify(auditLogService).log(eq("admin.org.updated"), any(),
-                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue()).containsEntry("fromStatus", "ACTIVE").containsEntry("toStatus", "SUSPENDED");
     }
 
@@ -595,8 +707,120 @@ class AdminOrgServiceLifecycleTest {
 
         assertThat(granted).isEqualTo(2);
         ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        // actor null (đường webhook SePay gọi vào cũng vậy) ⇒ đường suy-từ-actor không có gì để
+        // suy; orgId tường minh là thứ DUY NHẤT đưa vết này vào sổ của trung tâm.
         verify(auditLogService).log(eq("admin.org.entitlements.activated"), any(),
-                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue()).containsEntry("grantedCount", 2);
+    }
+
+    // ─── DEC-13: admin nền tảng KHÔNG BAO GIỜ là thành viên trung tâm ───────────────────
+    //
+    // Console admin là đường khai thác trực tiếp nhất của bất biến này: một lệnh HTTP với chính
+    // email của mình là mở trọn console trung tâm. Chốt chặn thật nằm ở upsertMember, nhưng guard
+    // ở AdminOrgService thêm hai thứ upsertMember không có — thông báo nói đúng ngữ cảnh admin, và
+    // targetEmail trong vết (upsertMember chỉ cầm userId). Nên chốt ở CẢ hai lớp: nếu chỉ tin vào
+    // chokepoint thì một bản vá lỡ tay bỏ guard trên vẫn xanh, và vết mất luôn targetEmail.
+
+    private User platformAdminUser(Long id, String email) {
+        return User.builder().id(id).email(email).displayName("Admin" + id)
+                .passwordHash("h").role(User.Role.ADMIN).build();
+    }
+
+    @Test
+    @DisplayName("addMember: email của ADMIN nền tảng bị chặn — không upsert, không ghi vết 'đã thêm'")
+    void addMember_platformAdminTarget_isBlocked() {
+        User platformAdmin = platformAdminUser(20L, "root@deutschflow.test");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(orgWithStatus("ACTIVE")));
+        when(userRepository.findByEmailIgnoreCase("root@deutschflow.test"))
+                .thenReturn(Optional.of(platformAdmin));
+        com.deutschflow.common.audit.AuditActor actor =
+                new com.deutschflow.common.audit.AuditActor(20L, "root@deutschflow.test", "ADMIN");
+
+        PrivilegedActionBlockedException blocked = catchThrowableOfType(
+                () -> service.addMember(ORG_ID, "root@deutschflow.test", "TEACHER", actor),
+                PrivilegedActionBlockedException.class);
+
+        assertThat(blocked).isNotNull();
+        assertThat(blocked.getAuditEvent()).isEqualTo("admin.org.admin_membership.blocked");
+        assertThat(blocked.getTargetType()).isEqualTo("ORG");
+        assertThat(blocked.getTargetId()).isEqualTo(String.valueOf(ORG_ID));
+        // targetEmail là lý do guard này tồn tại song song với chokepoint: điều tra một lần leo
+        // thang quyền mà chỉ có userId thì phải tra ngược bảng users, còn user đó có thể đã bị xoá.
+        assertThat(blocked.getAuditMeta())
+                .containsEntry("reason", "platform_admin")
+                .containsEntry("targetEmail", "root@deutschflow.test")
+                .containsEntry("targetUserId", 20L)
+                .containsEntry("requestedRole", "TEACHER");
+
+        verify(orgMembershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+        // Guard phải nằm TRƯỚC lúc đọc thành viên hiện có — chặn muộn hơn thì bất biến 1-OWNER
+        // (đọc `existing`) chạy trước và có thể ném lỗi nói sai chuyện.
+        verify(orgMemberRepository, never()).findByIdOrgIdAndIdUserId(anyLong(), anyLong());
+        // Vết "đã thêm thành viên" mà xuất hiện ở đây là nói dối sổ: thao tác đã bị chặn.
+        verify(auditLogService, never())
+                .log(eq("admin.org.member.upserted"), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("addMember: người dùng thường (TEACHER) KHÔNG bị guard DEC-13 đụng tới")
+    @SuppressWarnings("unchecked")
+    void addMember_nonAdminTarget_stillPassesThrough() {
+        // Ca đối chứng: guard viết sai điều kiện (chặn mọi người, hoặc so sánh nhầm vai trò tổ chức
+        // với vai trò nền tảng) thì đường thêm giáo viên chết sạch mà ca (a) vẫn xanh.
+        User teacher = orgUser(21L, "gv@x.com");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(orgWithStatus("ACTIVE")));
+        when(userRepository.findByEmailIgnoreCase("gv@x.com")).thenReturn(Optional.of(teacher));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 21L))
+                .thenReturn(Optional.empty(), Optional.of(memberWithRole(21L, "TEACHER", "ACTIVE")));
+        com.deutschflow.common.audit.AuditActor actor =
+                new com.deutschflow.common.audit.AuditActor(1L, "admin@x.com", "ADMIN");
+
+        OrgMemberDto dto = service.addMember(ORG_ID, "gv@x.com", "TEACHER", actor);
+
+        assertThat(dto.role()).isEqualTo("TEACHER");
+        verify(orgMembershipService).upsertMember(ORG_ID, 21L, "TEACHER");
+        ArgumentCaptor<java.util.Map> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        // DEC-13: tham số áp chót là org BỊ TÁC ĐỘNG. Thiếu nó thì vết suy org từ users.org_id của
+        // admin nền tảng — luôn NULL — và sổ của giám đốc lọc `AND org_id = ?` sẽ loại sạch.
+        verify(auditLogService).log(eq("admin.org.member.upserted"), eq(actor),
+                eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
+        assertThat(meta.getValue().get("toRole")).isEqualTo("TEACHER");
+    }
+
+    @Test
+    @DisplayName("createOrganization: ownerEmail trỏ vào ADMIN nền tảng bị chặn — không gắn OWNER")
+    void createOrganization_platformAdminOwner_isBlocked() {
+        // Nguy hiểm hơn addMember: OWNER là vai trò KHÔNG ai gỡ được về sau (removeMember và
+        // selfLeave đều từ chối OWNER, transferOwnership chỉ chính OWNER gọi được). Ném ở đây
+        // rollback cả trung tâm đang tạo — đúng ý: thà không có trung tâm còn hơn có một trung tâm
+        // do admin nền tảng làm chủ mà không đường nào tháo ra.
+        User platformAdmin = platformAdminUser(22L, "root@deutschflow.test");
+        when(organizationRepository.existsBySlug(anyString())).thenReturn(false);
+        when(organizationRepository.save(any(Organization.class))).thenAnswer(i -> {
+            Organization o = i.getArgument(0);
+            o.setId(ORG_ID);
+            return o;
+        });
+        when(userRepository.findByEmailIgnoreCase("root@deutschflow.test"))
+                .thenReturn(Optional.of(platformAdmin));
+
+        PrivilegedActionBlockedException blocked = catchThrowableOfType(
+                () -> service.createOrganization(new CreateOrgRequest(
+                        "Org Admin", "org-admin", "PRO", 10,
+                        "root@deutschflow.test", "X", "pw123456"), null),
+                PrivilegedActionBlockedException.class);
+
+        assertThat(blocked).isNotNull();
+        assertThat(blocked.getAuditEvent()).isEqualTo("admin.org.admin_membership.blocked");
+        assertThat(blocked.getAuditMeta())
+                .containsEntry("reason", "platform_admin_owner")
+                .containsEntry("targetUserId", 22L)
+                .containsEntry("requestedRole", "OWNER");
+
+        verify(orgMembershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+        verify(userRepository, never()).save(any(User.class));
+        // Trung tâm rollback theo transaction ⇒ vết "đã tạo" không được ghi (nó nằm sau attachOwner).
+        verify(auditLogService, never()).log(eq("admin.org.created"), any(), any(), any(), any(), any());
     }
 }

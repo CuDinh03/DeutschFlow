@@ -28,6 +28,11 @@ class ExamGoldenAudioIntegrationTest extends AbstractPostgresIntegrationTest {
     @Autowired private ExamGoldenService goldenService;
     @Autowired private UserRepository userRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
+    /**
+     * F-12: S3 trong IT là client giả (khoá test) — delete THẬT sẽ nổ. Mock để tách hai đường: xoá thành công
+     * (audio_ref sạch, retain tắt) và xoá thất bại (audio_ref + retain GIỮ NGUYÊN để xoá lại).
+     */
+    @org.springframework.boot.test.mock.mockito.MockBean private com.deutschflow.media.service.S3StorageService s3;
 
     private long studentId;
     private long adminId;
@@ -93,6 +98,26 @@ class ExamGoldenAudioIntegrationTest extends AbstractPostgresIntegrationTest {
         Boolean retain = jdbcTemplate.queryForObject(
                 "SELECT retain_audio FROM speaking_exam_sessions WHERE id = ?", Boolean.class, sessionId);
         assertThat(retain).isFalse();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT audio_ref FROM speaking_exam_turns WHERE session_id = ?", String.class, sessionId)).isNull();
+    }
+
+    @Test
+    @DisplayName("F-12: S3 từ chối xoá → audio_ref và retain_audio GIỮ NGUYÊN, kết quả báo failed=1 để admin xoá lại")
+    void purgeFailureKeepsReferenceForRetry() {
+        org.mockito.Mockito.doThrow(new RuntimeException("s3 down")).when(s3).deleteFile(org.mockito.ArgumentMatchers.anyString());
+        GoldenView.PurgeResult result = goldenService.purgeAudio(sessionId);
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.deleted()).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT audio_ref FROM speaking_exam_turns WHERE session_id = ?", String.class, sessionId))
+                .isEqualTo("exam-speaking/golden/1/000-x.m4a");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT retain_audio FROM speaking_exam_sessions WHERE id = ?", Boolean.class, sessionId)).isTrue();
+
+        org.mockito.Mockito.doNothing().when(s3).deleteFile(org.mockito.ArgumentMatchers.anyString());
+        GoldenView.PurgeResult retry = goldenService.purgeAudio(sessionId);
+        assertThat(retry.deleted()).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT audio_ref FROM speaking_exam_turns WHERE session_id = ?", String.class, sessionId)).isNull();
     }

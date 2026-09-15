@@ -52,6 +52,7 @@ public class ExamGradingStuckSweepService {
         List<SpeakingExamSession> dead = sessionRepository.findStuckGradingWithDeadJob(minAgeMinutes);
         for (SpeakingExamSession s : dead) {
             s.setState(SpeakingExamSession.STATE_GRADING_FAILED);
+            s.setGradingError(SpeakingExamSession.GRADING_ERROR_JOB_STUCK);
         }
         if (!dead.isEmpty()) {
             sessionRepository.saveAll(dead);

@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { GaPageHdr, GaBtn, GaCap, GaIcon, TkModal } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // Visual category (preview colour + badge). Purely cosmetic — the backend notification type comes
 // from the TPL picker below (BroadcastNotificationRequest.type).
@@ -54,6 +55,7 @@ interface SentItem {
 
 export default function V2AdminBroadcastPage() {
   const t = useTranslations('v2.adminOps.broadcast')
+  const fmt = useFmt()
   const [cat, setCat] = useState('BROADCAST')
   const [tpl, setTpl] = useState(TPL[0])
   const [aud, setAud] = useState('all')
@@ -371,7 +373,7 @@ export default function V2AdminBroadcastPage() {
           }
         >
           <p className="text-[14.5px] leading-[1.6] text-ga-ink">
-            {t('confirmBody', { count: preview.count.toLocaleString('vi-VN'), audience: audienceLabel })}
+            {t('confirmBody', { count: fmt.num(preview.count), audience: audienceLabel })}
           </p>
           <p className="mt-2 text-[12.5px] text-ga-muted">{t('confirmIrreversible')}</p>
         </TkModal>

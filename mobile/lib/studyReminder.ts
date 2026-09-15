@@ -41,7 +41,7 @@ export async function enableStudyReminder(dailyGoalMinutes: number | null): Prom
     await Notifications.scheduleNotificationAsync({
       identifier: REMINDER_ID,
       content: {
-        title: 'Giữ chuỗi hôm nay 🔥',
+        title: 'Giữ chuỗi hôm nay',
         body: `${goal} phút tiếng Đức trước khi ngủ — đủ để chuỗi của bạn sống thêm một ngày.`,
         sound: 'default',
       },

@@ -186,7 +186,8 @@ public class TeacherTimesheetService {
                 .build();
         TeacherSessionRecord saved = recordRepository.save(rec);
         auditLogService.log("teacher_session_record_created", actor,
-                "SESSION_RECORD", String.valueOf(saved.getId()), snapshot(saved, null));
+                "SESSION_RECORD", String.valueOf(saved.getId()), saved.getOrgId(),
+                snapshot(saved, null));
         return toDto(saved);
     }
 
@@ -222,7 +223,8 @@ public class TeacherTimesheetService {
 
         TeacherSessionRecord saved = recordRepository.save(rec);
         auditLogService.log("teacher_session_record_updated", actor,
-                "SESSION_RECORD", String.valueOf(saved.getId()), snapshot(saved, before));
+                "SESSION_RECORD", String.valueOf(saved.getId()), saved.getOrgId(),
+                snapshot(saved, before));
         return toDto(saved);
     }
 
@@ -231,11 +233,13 @@ public class TeacherTimesheetService {
         Long teacherId = actor.id();
         TeacherSessionRecord rec = ownedRecord(teacherId, recordId);
         periodService.assertRecordEditable(teacherId, rec.getStartedAt().toLocalDate());
-        // Chụp trước khi xoá: sau delete không còn gì để mô tả dòng công vừa biến mất.
+        // Chụp trước khi xoá: sau delete không còn gì để mô tả dòng công vừa biến mất — kể cả
+        // trung tâm của dòng công, thứ quyết định vết này có vào sổ hoạt động của ai.
         Map<String, Object> before = snapshot(rec, null);
+        Long orgId = rec.getOrgId();
         recordRepository.delete(rec);
         auditLogService.log("teacher_session_record_deleted", actor,
-                "SESSION_RECORD", String.valueOf(recordId), before);
+                "SESSION_RECORD", String.valueOf(recordId), orgId, before);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
@@ -245,12 +249,13 @@ public class TeacherTimesheetService {
      * before} — sửa giờ/thời lượng là thao tác ra tiền, đọc vết mà không thấy giá trị cũ thì không
      * biết đã đổi cái gì.
      *
-     * <p>{@code orgId} luôn có mặt dù {@code audit_logs} chưa có cột riêng: đó là khoá để backfill
-     * cột {@code org_id} sau này mà không mất lịch sử.
+     * <p>Không còn kèm {@code orgId}: trung tâm đi vào CỘT {@code audit_logs.org_id} (có từ V315),
+     * vì đó là cột mà sổ hoạt động của giám đốc lọc ({@code AND org_id = ?}) — nằm trong JSON thì
+     * không đường đọc nào thấy. Org lấy từ {@code rec.getOrgId()}, tức org của LỚP lúc ghi công,
+     * không phải org của người ghi.
      */
     private static Map<String, Object> snapshot(TeacherSessionRecord rec, Map<String, Object> before) {
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("orgId", rec.getOrgId());
         m.put("teacherId", rec.getTeacherId());
         m.put("classId", rec.getClassId());
         m.put("className", rec.getClassNameSnapshot());

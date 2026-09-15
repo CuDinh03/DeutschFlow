@@ -39,7 +39,7 @@
         "grammarAccuracy": "Grammar accuracy",
         "sessionsCompleted": "Sessions completed"
       },
-      "readyToAdvance": "🎉 You're ready for the next phase!",
+      "readyToAdvance": "You're ready for the next phase!",
       "levelCap": "Level progress",
       "levelValue": "Level {level}",
       "xpToNext": "{xp} XP to the next level",
@@ -191,7 +191,10 @@
       "taskDoneBtn": "Done",
       "taskTypes": {
         "REWRITE": "Rewrite"
-      }
+      },
+      "emptyDeck": "Your review deck is empty",
+      "emptyDeckHint": "Add words to your deck and we will remind you to review them at the right time.",
+      "emptyDeckCta": "Learn vocabulary"
     },
     "lessons": {
       "title": "Lesson library",
@@ -330,6 +333,249 @@
       "interviewResults": "Interview results",
       "historyCta": "History"
     },
+    "companionSelect": {
+      "title": "Speaking practice",
+      "subtitle": "Choose how to practice and who to practice with",
+      "home": "Home",
+      "modes": {
+        "communication": "Conversation",
+        "interview": "Interview",
+        "lesson": "Practice"
+      },
+      "experience": {
+        "upTo6Months": "0–6 months",
+        "sixTo12Months": "6–12 months",
+        "oneToTwoYears": "1–2 years",
+        "threeYears": "3 years",
+        "fivePlusYears": "5+ years"
+      },
+      "suggestedTopic": "Suggested topic: {topic}",
+      "emptyGroup": "No characters for this mode in the selected group.",
+      "pro": {
+        "title": "PRO character",
+        "desc": "ADVANCED characters are only available on the PRO/ULTRA plans. Upgrade for in-depth interview practice.",
+        "upgrade": "Upgrade →"
+      },
+      "positionLabel": "Which position are you applying for?",
+      "experienceLabel": "Years of experience",
+      "scenarioLabel": "Lesson topic",
+      "cta": {
+        "interview": "Interview with {name}",
+        "lesson": "Practice with {name}",
+        "start": "Start with {name}"
+      },
+      "hint": {
+        "pickPersona": "Please pick a character",
+        "pickPosition": "Choose a position and your experience",
+        "pickScenario": "Choose a lesson topic"
+      },
+      "errors": {
+        "sessionExpired": "Your session has expired. Please sign in again.",
+        "forbidden": "You don't have permission to create a speaking session.",
+        "tooSoon": "Please wait a few seconds before starting a new session.",
+        "server": "The server is having trouble. Please try again later.",
+        "generic": "Couldn't create the speaking session. Please try again!"
+      }
+    },
+    "personas": {
+      "groups": {
+        "it": "IT / Startup",
+        "verkauf": "Retail",
+        "medizin": "Medical",
+        "maschinenbau": "Engineering",
+        "service": "Hospitality",
+        "medien": "Media",
+        "special": "Vietnamese buddies"
+      },
+      "lukas": {
+        "role": "Senior Tech Mentor",
+        "tag": "Backend Dev · Berlin",
+        "desc": "Explains grammar like clean code. Structured, logical, precise.",
+        "positions": {
+          "frontend_dev": "Frontend Developer",
+          "backend_dev": "Backend Developer",
+          "devops": "DevOps Engineer",
+          "data_analyst": "Data Analyst",
+          "qa_engineer": "QA Engineer"
+        }
+      },
+      "emma": {
+        "role": "Berlin Culture Guide",
+        "tag": "Artist · Neukölln",
+        "desc": "Teaches you German through art, culture and Berlin flair.",
+        "positions": {
+          "marketing_mgr": "Marketing Manager",
+          "sales_exec": "Sales Executive",
+          "cs_manager": "Customer Success Manager",
+          "hr_coordinator": "HR Coordinator",
+          "project_mgr": "Project Manager"
+        }
+      },
+      "anna": {
+        "role": "Everyday Life Guide",
+        "tag": "Language teacher · Hamburg",
+        "desc": "Guides you through everyday life in Germany – warm, patient and practical.",
+        "positions": {
+          "werkstudent": "Working student (Werkstudent)",
+          "praktikant": "Intern (Praktikant)",
+          "research_asst": "Research Assistant",
+          "student_coord": "Student Coordinator",
+          "teaching_asst": "Teaching Assistant"
+        }
+      },
+      "klaus": {
+        "role": "Culinary Expert",
+        "tag": "Head Chef · München",
+        "desc": "Practice German around food, the kitchen and team communication.",
+        "positions": {
+          "line_cook": "Line cook (Koch)",
+          "sous_chef": "Sous Chef",
+          "head_chef": "Head chef (Küchenchef)",
+          "servicekraft": "Service staff (Servicekraft)",
+          "restaurant_mgr": "Restaurant manager"
+        }
+      },
+      "lena": {
+        "role": "Supermarket assistant",
+        "tag": "Supermarket · A1-A2",
+        "desc": "Friendly and energetic – helps you shop at a German supermarket.",
+        "positions": {
+          "kassierer": "Cashier (Kassierer)",
+          "verkaufer": "Sales assistant",
+          "lagerist": "Warehouse worker"
+        }
+      },
+      "thomas": {
+        "role": "Baker",
+        "tag": "Bakery · A1-A2",
+        "desc": "Warm and enthusiastic, proud of traditional German baking.",
+        "positions": {
+          "baker": "Baker (Bäcker)",
+          "konditor": "Pastry chef",
+          "verkauf_bakery": "Bakery sales"
+        }
+      },
+      "petra": {
+        "role": "Butcher",
+        "tag": "Butcher's shop · A1-A2",
+        "desc": "Professional, knows her meat, straight-talking.",
+        "positions": {
+          "metzger": "Butcher (Metzger)",
+          "fleischverkauf": "Meat counter sales"
+        }
+      },
+      "sarah": {
+        "role": "Medical assistant",
+        "tag": "Doctor's office · A2-B1",
+        "desc": "Professional, well organized and friendly at the practice.",
+        "positions": {
+          "mfa": "Medical assistant (MFA)",
+          "rezeption_praxis": "Practice receptionist"
+        }
+      },
+      "schneider": {
+        "role": "Ophthalmologist",
+        "tag": "Eye clinic · B1-B2",
+        "desc": "Precise and thorough, explains every examination clearly.",
+        "positions": {
+          "augenarzt": "Ophthalmologist",
+          "mta_auge": "Ophthalmic technician (MTA)"
+        }
+      },
+      "weber": {
+        "role": "Dermatologist",
+        "tag": "Dermatology · B1-B2",
+        "desc": "Caring, explains skin conditions in detail.",
+        "positions": {
+          "hautarzt": "Dermatologist",
+          "mta_derm": "Dermatology technician (MTA)"
+        }
+      },
+      "max": {
+        "role": "Machine operator",
+        "tag": "Workshop · B1-B2",
+        "desc": "Hands-on, knows how to run and maintain machines.",
+        "positions": {
+          "maschinenbediener": "Machine operator",
+          "industriemechaniker": "Industrial mechanic"
+        }
+      },
+      "oliver": {
+        "role": "CNC machinist",
+        "tag": "CNC · B2",
+        "desc": "Precise and logical, knows CNC programming and operation.",
+        "positions": {
+          "cnc_fraser": "CNC machinist",
+          "cnc_programmierer": "CNC programmer"
+        }
+      },
+      "niklas": {
+        "role": "Waiter",
+        "tag": "Restaurant · A2-B1",
+        "desc": "Polite and attentive, serves at an upscale restaurant.",
+        "positions": {
+          "kellner": "Waiter",
+          "barkeeper": "Bartender",
+          "serviceleitung": "Service manager"
+        }
+      },
+      "nina": {
+        "role": "Receptionist",
+        "tag": "Hotel · A2-B1",
+        "desc": "Professional and friendly hotel receptionist.",
+        "positions": {
+          "rezeptionist": "Hotel receptionist",
+          "concierge": "Concierge"
+        }
+      },
+      "hannie": {
+        "role": "Presenter & MC",
+        "tag": "Media · age 20",
+        "desc": "20 years old, a lively and cheerful German. Hosts shows, events and media.",
+        "positions": {
+          "moderatorin": "Presenter / MC",
+          "redakteurin": "Editor",
+          "social_media_mgr": "Social Media Manager",
+          "pr_specialist": "PR Specialist",
+          "content_creator": "Content Creator",
+          "event_manager": "Event Manager"
+        }
+      },
+      "tuan": {
+        "role": "Apprentice buddy",
+        "tag": "Apprenticeship · A1",
+        "desc": "Cheerful and resourceful, teaches 'survival' German in Vietnamese.",
+        "scenarios": {
+          "alphabet": "The alphabet (Buchstabieren)",
+          "numbers": "Numbers (Zahlen 1-100)",
+          "anmeldung": "Address registration (Anmeldung)"
+        }
+      },
+      "lan": {
+        "role": "Been-there mentor",
+        "tag": "Integration · A1",
+        "desc": "Caring and patient, teaches clear pronunciation and German culture tips.",
+        "scenarios": {
+          "umlaut": "Umlaut (ä, ö, ü)",
+          "emergency_numbers": "Emergency numbers (110, 112)",
+          "pronunciation": "Basic pronunciation"
+        }
+      },
+      "minh": {
+        "role": "Street-smart buddy",
+        "tag": "Streets · A1",
+        "desc": "High energy – learn German from street signs and the city.",
+        "scenarios": {
+          "street_names": "Street names (Straßennamen)",
+          "train_station": "Train station (Bahnhof/Gleis)",
+          "speed_signs": "Speed signs (Geschwindigkeit)"
+        }
+      }
+    },
+    "chatBubble": {
+      "whyThisSentence": "Why use this sentence?",
+      "usageContext": "When to use it:"
+    },
     "weeklySpeaking": {
       "title": "Weekly themed speaking",
       "subtitle": "Graded assignment with a rubric — distinct from conversational AI practice.",
@@ -415,6 +661,7 @@
       "titleClass": "Class",
       "loadErrorTitle": "Couldn't load the class",
       "teacherLine": "Teacher: {teacher} · Class code: {code} · {count} members",
+      "teacherLineNoCode": "Teacher: {teacher} · {count} members",
       "backToClasses": "My classes",
       "messageTeacher": "Message teacher",
       "noTeacherToMessage": "This class has no teacher to message.",
@@ -602,7 +849,8 @@
     },
     "messages": {
       "title": "Messages",
-      "subtitle": "Class group chats and private messages with your teacher"
+      "subtitle": "Class group chats and private messages with your teacher",
+      "emptyDirect": "No direct conversations yet. Open a class page and tap “Message teacher” to start."
     },
     "achievements": {
       "title": "Achievements",
@@ -672,7 +920,10 @@
     },
     "mockExamRun": {
       "draftRestored": "Draft restored — {count} answers you saved earlier.",
-      "confirmExit": "Leave the exam? Your work is autosaved so you can come back, but the clock keeps running.",
+      "confirmExitTitle": "Leave the exam?",
+      "confirmExit": "Your work is autosaved, so you can come back and continue — the attempt stays a draft and is not submitted.",
+      "confirmExitDetail": "The clock keeps running after you leave.",
+      "confirmExitAction": "Leave the exam",
       "title": "Goethe mock exam",
       "subtitle": "Sit the official Goethe-Institut format with automatic scoring",
       "loading": "Loading…",
@@ -694,7 +945,9 @@
       "submitAll": "Submit the whole exam",
       "submitting": "Submitting…",
       "submitNow": "Submit now",
-      "confirmSubmit": "Are you sure you want to submit?",
+      "confirmSubmitTitle": "Submit the exam?",
+      "confirmSubmit": "Once you submit you can no longer change your answers, and the attempt goes to grading.",
+      "confirmSubmitAnswered": "You have answered {answered}/{total} questions — blank answers score 0.",
       "prevSection": "Previous section",
       "nextSection": "Next section",
       "sectionMeta": "Time: {minutes} min · Max points: {points}",
@@ -719,7 +972,7 @@
       "reviewError": "Could not load the answer key. Please try again.",
       "back": "Back",
       "backToResult": "Back to result",
-      "resultPassed": "Passed! 🎉",
+      "resultPassed": "Passed!",
       "resultFailed": "Not passed",
       "provisional": "Provisional score: {score}/100",
       "provisionalNote": "Writing and Speaking are graded separately — not included in the provisional score.",
@@ -730,7 +983,18 @@
       "yourAnswer": "Your answer",
       "correctAnswer": "Correct answer",
       "draftConflict": "This attempt was just updated from another device — loaded the newest draft.",
-      "draftExpired": "Time is up — submitting your exam now."
+      "draftExpired": "Time is up — submitting your exam now.",
+      "telcHeadlines": "Headlines — pick one for each text",
+      "telcAds": "Classified ads",
+      "telcWordBank": "Word bank",
+      "telcSingleUse": "Each option can be used only once.",
+      "telcNoneHint": "Pick “none” when no ad fits the situation.",
+      "telcNone": "none",
+      "telcPickLetter": "Pick a letter",
+      "telcAlreadyUsed": "Already used for another question",
+      "telcGapEmpty": "not chosen",
+      "telcGapLabel": "Gap {n}",
+      "telcMissingPool": "This part of the exam is missing its list of options, so it cannot be answered. Please let us know."
     },
     "grammarPractice": {
       "title": "Grammar practice",
@@ -751,7 +1015,7 @@
       "answerPlaceholder": "Type your answer…",
       "check": "Check",
       "checking": "Checking…",
-      "correct": "Correct! 🎉",
+      "correct": "Correct!",
       "incorrect": "Not quite",
       "answerIs": "Answer:",
       "next": "Next"
@@ -812,6 +1076,59 @@
       "groupToday": "Today",
       "groupThisWeek": "This week",
       "groupOlder": "Older"
+    },
+    "sessionSummary": {
+      "interviewEndedTitle": "Interview finished!",
+      "sessionEndedTitle": "Speaking session finished!",
+      "scoreOutOf10": "points / 10",
+      "circleTooEarlyLine1": "Ended too early",
+      "circleTooEarlyLine2": "not enough to score",
+      "circleNotScoredLine1": "Couldn't score",
+      "circleNotScoredLine2": "this session",
+      "circleSpeakMoreLine1": "Say a few more sentences",
+      "circleSpeakMoreLine2": "to get feedback",
+      "statDuration": "Duration",
+      "statTurns": "Turns",
+      "statPerfect": "Perfect",
+      "statErrors": "Errors",
+      "aiScoreLabel": "AI rating: ",
+      "detailedAiTitle": "Detailed assessment (AI)",
+      "germanInInterviewTitle": "German in the interview",
+      "vocabularyLevel": "Vocabulary level",
+      "commonErrorsCap": "Common errors",
+      "remediationTitle": "How to improve",
+      "answerUpgradesTitle": "How to say it better",
+      "youSaid": "You said: ",
+      "betterSay": "Better: ",
+      "nextStepsTitle": "Your next steps",
+      "nextStepRetrySamePosition": "Retry the interview for this position",
+      "nextStepPracticeStar": "Practise STAR storytelling",
+      "nextStepDrillErrors": "Review this session's errors",
+      "nextStepExpandAnswers": "Practise 3–4 sentence answers",
+      "nextStepFachVocab": "Practise professional vocabulary",
+      "strengthsTitle": "Strengths",
+      "improvementsTitle": "Areas to improve",
+      "grammarTitle": "Grammar",
+      "recommendedNextTitle": "Practise next",
+      "noReportTitle": "Speaking session complete!",
+      "noReportBody": "No detailed feedback this time, but every sentence you say is a step forward. Keep practising!",
+      "interviewTooEarlyTitle": "The interview ended too early",
+      "interviewNotScoredTitle": "This session couldn't be scored",
+      "interviewTooEarlyBody": "You've only given {n} answers so far. Give at least {min} answers (about {words} words or more) before finishing — the system scores only what you actually said and never estimates.",
+      "interviewNotScoredBody": "The system couldn't produce a valid assessment for this session. Press \"End\" again to re-score — if it still doesn't work, try again in a few minutes.",
+      "notEnoughTitle": "Not enough to score yet",
+      "notEnoughBody": "You've only said {n} sentences so far. Keep chatting for at least {min} sentences to get feedback closer to your level — one or two sentences aren't enough to score fairly.",
+      "quickSelfAssessTitle": "Quick self-assessment",
+      "quickSelfAssessHint": "(estimated from the errors recorded)",
+      "rubricVocabulary": "Vocabulary",
+      "rubricGrammar": "Grammar & Syntax",
+      "rubricTask": "Task Fulfillment",
+      "rubricFluency": "Fluency",
+      "errorsToReviewTitle": "Errors to review after this session",
+      "reviewErrorsCta": "Review these errors",
+      "grammarErrorFallback": "Grammar error",
+      "restart": "Practise again",
+      "exitHome": "Back to home"
     },
     "exerciseHistory": {
       "title": "Lesson attempt history",
@@ -901,8 +1218,8 @@
       "poolCap": "Word pool",
       "check": "Prüfen",
       "next": "Weiter →",
-      "correct": "✓ Correct!",
-      "wrong": "✗ Correct answer: {answer}",
+      "correct": "Correct!",
+      "wrong": "Correct answer: {answer}",
       "doneTitle": "Fertig! {score}/{total}",
       "doneDesc": "You finished this round.",
       "emptyTitle": "No questions yet",
@@ -924,8 +1241,8 @@
       "poolCap": "Word blocks",
       "check": "Check",
       "next": "Next →",
-      "correct": "✓ Correct!",
-      "wrongGeneric": "✗ Not quite — check the word order.",
+      "correct": "Correct!",
+      "wrongGeneric": "Not quite — check the word order.",
       "hint": "Hint",
       "listen": "Play the sample sentence",
       "score": "{score} pts",
@@ -998,7 +1315,7 @@
       "heroCap": "B1 assessment",
       "heroTitle": "Ready for B1?",
       "heroDesc": "Check whether you already meet all 5 criteria for the B1 standard.",
-      "heroTitleGraduated": "🎓 You have reached B1!",
+      "heroTitleGraduated": "You have reached B1!",
       "heroDescGraduated": "Congratulations! You completed the 12-week journey.",
       "scoreNear": "Almost there!",
       "scoreProgress": "Good progress",
@@ -1200,8 +1517,8 @@
       "answerPlaceholder": "Type your answer…",
       "check": "Check",
       "spokenDone": "I have read it aloud",
-      "correct": "✅ Correct!",
-      "incorrect": "❌ Not quite",
+      "correct": "Correct!",
+      "incorrect": "Not quite",
       "answerIs": "Answer:",
       "submit": "Submit · {correct}/{total} correct",
       "resultLine": "{correct} / {total} correct",
@@ -1227,13 +1544,14 @@
     "learnNode": {
       "roadmapContext": "Position in roadmap",
       "completedInRoadmap": "of the roadmap completed",
-      "contentPendingTitle": "⚡ Content is being prepared",
+      "contentPendingTitle": "Content is being prepared",
       "contentPendingDesc": "The {level} lesson will be added soon. Finish the A1 lessons first!",
-      "retryTitle": "⚠️ Not enough to pass this node yet",
+      "retryTitle": "Not enough to pass this node yet",
       "retryDesc": "Listening/Reading require 100% • Speaking/Pronunciation/Writing require ≥ 80 points",
-      "retryCta": "🔄 Try again",
+      "retryCta": "Try again",
       "progressNotSaved": "Your progress could not be saved to the server.",
-      "scoreBelowThreshold": "The server scored {score}% — below the passing threshold, so your progress was not recorded."
+      "scoreBelowThreshold": "The server scored {score}% — below the passing threshold, so your progress was not recorded.",
+      "dayPrefix": "Day {n} · {title}"
     },
     "stats": {
       "title": "Learning statistics",
@@ -1248,12 +1566,11 @@
         "reviewed": "Reviewed",
         "speaking": "Speaking",
         "due": "Due",
-        "thisWeek": "this week",
         "words": "words",
-        "toReview": "to review"
+        "toReview": "to review",
+        "last7Days": "last 7 days"
       },
-      "weeklyTitle": "Activity (7 days)",
-      "noActivity": "No activity this week.",
+      "noActivity": "No activity in the last 7 days.",
       "series": {
         "learned": "Newly learned",
         "reviewed": "Reviewed",
@@ -1265,11 +1582,24 @@
       "noWeakPoints": "Not enough data to detect weak points.",
       "errorTrendTitle": "Error trend (30 days)",
       "openErrors": "{count} open",
-      "allFixed": "All fixed ✓",
+      "allFixed": "All fixed",
       "recommendationsTitle": "Recommended for you",
       "badgesCap": "Badges",
       "badgesHint": "See every badge you have unlocked on the Achievements page.",
-      "badgesCta": "View badges"
+      "badgesCta": "View badges",
+      "vocabTitle": "Vocabulary (7 days)",
+      "vocabTitleRange": "Vocabulary · {range}",
+      "speakingTitle": "Speaking (7 days)",
+      "speakingTitleRange": "Speaking · {range}",
+      "unitWords": "unit: words",
+      "unitMinutes": "unit: minutes",
+      "recommendationsLoadError": "Could not load suggestions. This does not mean you have nothing left to do.",
+      "errorTrendLoadError": "Could not load the error trend. This does not mean all your errors are fixed.",
+      "showTable": "View data as a table",
+      "colDay": "Day",
+      "colErrorCount": "Errors",
+      "vocabDesc": "New words learned and review passes per day.",
+      "speakingDesc": "Speaking practice minutes per day."
     },
     "errors": {
       "title": "Error book",
@@ -1365,7 +1695,10 @@
         "prepShort": "5 min short",
         "prepFull": "{min} min as in the exam",
         "weaknessTitle": "Review weak points",
-        "weaknessDesc": "See your frequent exam-room mistakes by task type, with suggested Redemittel packs"
+        "weaknessDesc": "See your frequent exam-room mistakes by task type, with suggested Redemittel packs",
+        "beta": "Beta",
+        "betaDesc": "Beta — simulated score, being calibrated against human examiners",
+        "borderline": "Borderline"
       },
       "room": {
         "loading": "Entering the exam room…",
@@ -1456,7 +1789,13 @@
           "yourTurn": "Your turn — speak now!",
           "waitHint": "Wait for your turn…"
         },
-        "audioRetained": "This session is recorded for scoring calibration (you consented). You can withdraw consent at any time — the audio will be deleted."
+        "audioRetained": "This session is recorded for scoring calibration (you consented). You can withdraw consent at any time — the audio will be deleted.",
+        "beta": "Beta",
+        "retryTurn": "Resend last turn",
+        "retryTurnHint": "Your recording/answer is still on this device — resending will not count as a new turn.",
+        "gradingFailedQuota": "Not graded yet: your AI budget ran out — your exam answers are safe.",
+        "gradingFailedQuotaDesc": "Everything you said is kept. Top up or wait for the next period, then press \"Regrade\" — no need to retake.",
+        "upgradeCta": "See plans / top up"
       },
       "mic": {
         "sending": "Sending and waiting for the reply…",
@@ -1550,8 +1889,11 @@
           "llmProposedBand": "The AI proposed band {band} — the final band is decided by the error-density thresholds.",
           "fluencyBlend": "Fluency measured: {wpm} words/min, {pauses} long pauses, MLR {mlr} → band {fluencyBand}; blended with AI ({llmBand}) → {band}.",
           "sttConfidence": "Estimated from STT confidence (avg_logprob {logprob}) — tier 1/3, low confidence.",
-          "noAudioTextOnly": "Not gradable: no audio/STT confidence (text-only)."
-        }
+          "noAudioTextOnly": "Not gradable: no audio/STT confidence (text-only).",
+          "borderline": "Score range {low}–{high} straddles the {min} threshold — pass/fail is uncertain."
+        },
+        "borderline": "Borderline — no verdict",
+        "borderlineNote": "The two grading passes gave {low}–{high} points, straddling the pass mark: a real examiner could go either way. Read this as \"keep practising\" rather than a verdict."
       },
       "drill": {
         "cap": "Average quick score",
@@ -1598,6 +1940,260 @@
       "site": "Click the 🎤/lock icon next to the address bar → allow Microphone for this site.",
       "browser": "Can't see it? Browser settings → Permissions → Microphone → unblock this site.",
       "os": "macOS/Windows: enable microphone access for your browser in system settings, then restart the browser."
+    },
+    "sprechenTeil2": {
+      "loadCardFailed": "Could not load the exam card.",
+      "micFailed": "Could not access the microphone.",
+      "sttEmpty": "No speech recognised. Please try again.",
+      "evalFailed": "Analysis failed. Please try again.",
+      "preparing": "Preparing your card...",
+      "yourCard": "Your card",
+      "askPrompt": "Ask <b>one question</b> related to this card.",
+      "aiAsking": "The AI partner is asking a question...",
+      "aiQuestion": "AI question",
+      "answerPrompt": "Give <b>your answer</b>.",
+      "recording": "Recording... release to submit",
+      "scoring": "Scoring...",
+      "holdToTalk": "Hold to speak",
+      "resultsTitle": "AI assessment",
+      "turnAsk": "Turn 1: you asked",
+      "turnAnswer": "Turn 2: you answered",
+      "points": "{score}/10 points",
+      "feedback": "Feedback:",
+      "doneTitle": "Teil 2 complete!",
+      "doneBody": "You completed both turns. Review the detailed AI feedback above.",
+      "retry": "Retake this part"
+    },
+    "learnViews": {
+      "speaking": {
+        "micDenied": "Could not access the microphone. Please allow access.",
+        "evalFailed": "Assessment failed. Please try again.",
+        "empty": "No speaking exercise for this lesson yet.",
+        "recording": "Recording...",
+        "evaluating": "Assessing pronunciation...",
+        "great": "Excellent!",
+        "okay": "Good! Room to improve",
+        "weak": "Keep practising",
+        "pronScore": "Pronunciation score",
+        "heard": "What we heard:",
+        "noVoice": "[No speech captured — please speak louder and more clearly]",
+        "tip": "Tip:",
+        "next": "Next lesson →"
+      },
+      "phoneme": {
+        "micDenied": "Could not access the microphone. Check your browser permissions.",
+        "evalFailed": "Could not assess pronunciation. Please try again.",
+        "title": "Pronunciation practice",
+        "listenSlow": "Listen (slow)",
+        "recording": "● Recording... tap to stop",
+        "analyzing": "Analysing pronunciation...",
+        "heard": "Heard:",
+        "heardEmpty": "Heard: [empty / no speech captured]",
+        "perWord": "Word-by-word analysis",
+        "retry": "Try again",
+        "replay": "Play again"
+      },
+      "listening": {
+        "empty": "No audio for this lesson yet.",
+        "fillHint": "Fill in the blanks, then press <b>Submit</b>",
+        "submit": "Submit",
+        "fillAll": "Fill all {count} blanks to submit",
+        "perfect": "Perfect! All correct!",
+        "good": "Good! Enough to pass",
+        "fail": "Not yet – try again (100% needed to pass this node)",
+        "correctCount": "{correct}/{total} words correct",
+        "retry": "Try again",
+        "shadowing": "Practise the passage (shadowing)",
+        "collapse": "▲ Collapse",
+        "expand": "▼ Expand",
+        "noTranscript": "No transcript yet. Listen and practise..."
+      },
+      "writing": {
+        "empty": "No writing task for this lesson yet.",
+        "completed": "Completed",
+        "skipComplete": "Skip & mark as complete",
+        "minWords": "Minimum: {count} words",
+        "placeholder": "Write your German text here...",
+        "wordCount": "{count}/{min} words",
+        "checking": "Checking...",
+        "checked": "Checked",
+        "errorsFound": "{count} issues found",
+        "errGrammar": "Grammar",
+        "errSpelling": "Spelling",
+        "errStyle": "Style",
+        "submit": "Submit writing",
+        "done": "Writing part complete (≥ 80 points)"
+      },
+      "reading": {
+        "close": "Close",
+        "saved": "Saved",
+        "saveFlashcard": "Save flashcard",
+        "empty": "No reading text for this lesson yet.",
+        "readingCap": "Reading",
+        "selectHint": "Highlight any word to see its meaning",
+        "questionsCap": "Questions",
+        "essayPlaceholder": "Write your answer (free text)...",
+        "answerPlaceholder": "Enter your answer",
+        "check": "Check answers",
+        "result": "You got {score}/{total} right. You need 100% to pass!",
+        "retry": "Try again",
+        "noQuestions": "No questions for this text yet.",
+        "completed": "Completed 100%",
+        "markDone": "Read & understood (100%)"
+      },
+      "common": {
+        "tapToFlip": "Tap to flip",
+        "listenPronunciation": "Listen to pronunciation"
+      },
+      "grammar": {
+        "correctCap": "Correct",
+        "wrongCap": "Wrong",
+        "ruleTag": "RULE",
+        "exampleTag": "EXAMPLE",
+        "collapse": "▲ Collapse",
+        "expand": "▼ Show more",
+        "theoryCount": "Theory ({count})",
+        "filter": "Filter:",
+        "allTag": "All",
+        "pageOf": "Page {page} / {total}",
+        "phrasesCap": "Common phrases",
+        "examplesCap": "Real-life examples",
+        "quizCap": "Check your understanding",
+        "answerPlaceholder": "Enter your answer",
+        "questionN": "Question {n}",
+        "check": "Check answers",
+        "noPractice": "No practice exercises for this section. Mark it as complete once you understand the theory.",
+        "result": "You got {score}/{total} right. You need 100% to pass!",
+        "retry": "Try again"
+      },
+      "selfCheck": {
+        "reorder": "Reorder the sentence",
+        "translate": "Translate the sentence",
+        "notScored": "Self-check · not scored",
+        "showAnswer": "Show answer"
+      },
+      "recap": {
+        "doneTitle": "Done!",
+        "doneDesc": "You have finished this lesson",
+        "xpEarned": "XP earned",
+        "newVocab": "New vocabulary",
+        "wordCount": "{n} words",
+        "streak": "Day streak",
+        "dayCount": "{n} days",
+        "nextLesson": "Next lesson:",
+        "nextCta": "Next: {title} →",
+        "backCta": "Back to roadmap",
+        "backToRoadmap": "Back to learning path",
+        "practiceCta": "Practise {skill} now"
+      },
+      "pronunciation": {
+        "verdict": {
+          "CORRECT": "Correct",
+          "CLOSE": "Close",
+          "MISSING": "Not heard"
+        },
+        "micDenied": "Could not access the microphone. Please allow microphone access.",
+        "scoreFailed": "Could not score your pronunciation. Please try again.",
+        "networkError": "Connection error. Please try again.",
+        "readCap": "Read the following sentence:",
+        "close": "Close",
+        "startRecording": "Start recording",
+        "stopAndScore": "Stop & score",
+        "retry": "Try again",
+        "pronScore": "Pronunciation score",
+        "heard": "What we heard:",
+        "perWordCap": "Word by word:",
+        "wordsToPractice": "Words to practise:"
+      }
+    },
+    "examResult": {
+      "parts": {
+        "LESEN": "Reading",
+        "HOEREN": "Listening",
+        "SCHREIBEN": "Writing",
+        "SPRECHEN": "Speaking"
+      },
+      "audioPlayer": {
+        "status": {
+          "idle": "Play audio",
+          "loading": "Loading voice...",
+          "playing": "Playing...",
+          "paused": "Paused",
+          "done": "Play again",
+          "unsupported": "Your browser does not support audio"
+        },
+        "play": "Play audio",
+        "stop": "Stop",
+        "defaultLabel": "Hörtext",
+        "unsupportedHint": "Browser not supported. Use Chrome or Safari.",
+        "playsLeft": "{n} play(s) left",
+        "playsExhausted": "No plays left",
+        "playsExhaustedHint": "You have used all the plays, just like the real exam.",
+        "dialogueLabel": "Hörtext — dialogue",
+        "speakerA": "Speaker 1",
+        "speakerB": "Speaker 2"
+      },
+      "scoreBreakdown": {
+        "pending": "Awaiting grading",
+        "passed": "Pass",
+        "failed": "Fail",
+        "pendingWriting": "The email will be graded by AI",
+        "pendingSpeaking": "The speaking part is graded manually by a teacher",
+        "title": "Scores by section",
+        "threshold": "Pass threshold (60%)",
+        "provisionalTotal": "Total score (provisional)",
+        "officialNote": "Official score once grading is complete"
+      },
+      "examFeedback": {
+        "rubric": {
+          "aufgabenerfuellung": "Task completion",
+          "kohaerenz": "Coherence & structure",
+          "wortschatz": "Vocabulary",
+          "strukturen": "Grammar & sentence structure",
+          "leitpunkte": "Coverage of required points",
+          "kommunikativeGestaltung": "Communicative design",
+          "formaleRichtigkeit": "Formal accuracy",
+          "other": "Other criterion"
+        },
+        "pendingTitle": "Waiting for AI to grade your text",
+        "pendingFallback": "The email has not been submitted yet or is still being processed.",
+        "aiGraded": "Graded by AI",
+        "officialRubric": "Official Goethe rubric",
+        "detailCap": "Score details",
+        "emailTotal": "Email total",
+        "overallCap": "Overall feedback",
+        "strengths": "Strengths",
+        "improvements": "Needs improvement",
+        "title": "Writing assessment (SCHREIBEN Teil 2)",
+        "officialRubricLevel": "Official Goethe {level} rubric",
+        "missingCriteria": "The AI did not score {count} criterion/criteria — the scale was reduced accordingly, not counted as zero."
+      },
+      "weakAreas": {
+        "tips": {
+          "LESEN": "Read short German texts every day and focus on everyday-life vocabulary.",
+          "HOEREN": "Listen to Deutsch A1 podcasts and everyday conversations to get used to German intonation.",
+          "SCHREIBEN": "Practise writing short emails in the Goethe format: introduction, questions, closing. Mind your grammar and sentence structure.",
+          "SPRECHEN": "Practise introducing yourself and simple conversations. Use the AI interview feature to get feedback on your pronunciation."
+        },
+        "noneTitle": "Excellent! No weak areas",
+        "noneDesc": "You passed the 60% threshold in every section. Keep it up and challenge yourself with a harder exam!",
+        "title": "Areas to improve",
+        "below60": "Below 60%",
+        "practiceNow": "Practise now",
+        "footer": "Practise a little every day — you will see clear progress within 2 weeks"
+      }
+    },
+    "minorAudio": {
+      "eyebrow": "Speaking practice is paused",
+      "titleBirthDate": "Your centre has not recorded your date of birth yet",
+      "bodyBirthDate": "Your account has no date of birth, so we cannot tell whether a guardian’s consent is needed — and no recording is sent while that is unclear. Please contact your centre to add your date of birth to your student record.",
+      "titleConsentRequired": "A parent or guardian’s consent form is needed",
+      "bodyConsentRequired": "This account needs consent from a parent or guardian before voice recordings can be made. Please contact your centre to complete the consent form; speaking practice reopens as soon as the centre records it.",
+      "titleConsentRevoked": "Recording consent has been withdrawn",
+      "bodyConsentRevoked": "Consent for voice recording on this account has been withdrawn, so speaking practice is temporarily unavailable. To reopen it, the guardian contacts the centre to grant consent again.",
+      "note": "Upgrading a plan cannot unlock this — only the centre or the guardian can reopen it. Everything that does not need a recording still works.",
+      "contact": "Contact the centre",
+      "dismiss": "Got it"
     }
   }
 }

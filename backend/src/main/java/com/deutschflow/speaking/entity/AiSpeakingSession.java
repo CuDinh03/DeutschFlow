@@ -24,7 +24,8 @@ public class AiSpeakingSession {
     @Column(name = "assignment_id")
     private Long assignmentId;
 
-    @Column(name = "topic", length = 200)
+    /** 2000 từ V304 (05/09/2026): topic bài giao nói ghép từ kịch bản AI dài hơn 200. */
+    @Column(name = "topic", length = 2000)
     private String topic;
 
     /** CEFR level selected by the user for this session (e.g. A1, A2, B1, B2). */

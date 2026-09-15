@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import { Volume2, Info, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { speakGerman } from "@/lib/speechDe";
 import { cn } from "@/lib/utils";
 import { AiMessageBubble, CYAN, MINT, SPEAKING_LIGHT } from "./types";
@@ -52,8 +52,10 @@ export function SpeakingMessageBubble({
   onUserErrorsClick,
   aiChatBusy = false,
 }: SpeakingMessageBubbleProps) {
+  const locale = useLocale();
   const t = useTranslations("speaking");
   const tChat = useTranslations("speaking.chat");
+  const tBubble = useTranslations("v2.student.chatBubble");
   const reduceMotion = useReducedMotion();
   const isV2 = sessionResponseSchema === "V2";
   // Warm paper only — the dark chat shell is gone, so there is a single appearance.
@@ -99,9 +101,9 @@ export function SpeakingMessageBubble({
                         borderColor: L.line,
                         color: L.inkMuted,
                       }}
-                      title={e.errorCode}
+                      title={getErrorSnippet(e.errorCode, locale).rule}
                     >
-                      {getErrorSnippet(e.errorCode, 'vi').title}
+                      {getErrorSnippet(e.errorCode, locale).title}
                     </span>
                   ))}
                 </div>
@@ -173,7 +175,7 @@ export function SpeakingMessageBubble({
             <span
               key={e.errorCode + e.severity}
               className="text-[9px] font-bold px-2 py-0.5 rounded-full max-w-[140px] truncate border"
-              title={e.errorCode}
+              title={getErrorSnippet(e.errorCode, locale).rule}
               style={{
                 background: e.severity?.toUpperCase().includes("BLOCK")
                   ? "var(--ga-red-soft)"
@@ -188,7 +190,7 @@ export function SpeakingMessageBubble({
                 borderColor: L.line,
               }}
             >
-              {getErrorSnippet(e.errorCode, 'vi').title}
+              {getErrorSnippet(e.errorCode, locale).title}
             </span>
           ))}
         </div>
@@ -359,11 +361,11 @@ export function SpeakingMessageBubble({
                       </button>
                       <div className="invisible group-hover/info:visible absolute bottom-full right-0 mb-2 w-64 p-4 rounded-ga bg-ga-card border border-ga-line shadow-ga-panel z-20">
                         <div className="mb-3 pb-3 border-b border-ga-line">
-                          <p className="text-[10px] font-bold text-ga-gold uppercase mb-1">Tại sao dùng câu này?</p>
+                          <p className="text-[10px] font-bold text-ga-gold uppercase mb-1">{tBubble("whyThisSentence")}</p>
                           <p className="text-[12px] text-ga-ink leading-relaxed">{s.why_to_use}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold text-ga-violet uppercase mb-1">Hoàn cảnh sử dụng:</p>
+                          <p className="text-[10px] font-bold text-ga-violet uppercase mb-1">{tBubble("usageContext")}</p>
                           <p className="text-[12px] text-ga-muted leading-relaxed">{s.usage_context}</p>
                         </div>
                       </div>

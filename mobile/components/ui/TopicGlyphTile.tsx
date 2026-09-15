@@ -1,52 +1,34 @@
-// Leading glyph tile for roadmap/topic rows (Hạng mục C). Renders a Lucide icon
-// on a soft editorial tile in the Galerie warm-paper language — the rule-based,
-// offline alternative to raster topic art. Icon + tint come from `topicGlyph`.
+// Leading glyph tile for roadmap/topic rows (Hạng mục C). Renders a Galerie glyph
+// (mobile/GALERIE_GLYPHS.md) on a soft editorial tile in the warm-paper language —
+// the rule-based, offline alternative to raster topic art. Key + tint come from
+// `topicGlyph`; the key → glyph map below is the only place to extend.
 
 import { View, type StyleProp, type ViewStyle } from 'react-native'
-import type { LucideIcon } from 'lucide-react-native'
-import {
-  BookOpen,
-  BookText,
-  Briefcase,
-  CloudSun,
-  Coffee,
-  GraduationCap,
-  Hash,
-  Handshake,
-  HeartPulse,
-  House,
-  Landmark,
-  Phone,
-  ShoppingBag,
-  TrainFront,
-  Users,
-  UtensilsCrossed,
-  Clock,
-  Dumbbell,
-} from 'lucide-react-native'
 import { radius, useTheme } from '@/lib/theme'
 import { matchTopicGlyph, topicGlyphColors, type GlyphKey } from '@/lib/topicGlyph'
 import type { SkillNode } from '@/lib/skillTreeApi'
+import type { GlyphName } from '@/lib/galerieGlyphs'
+import { GaGlyph } from './GaGlyph'
 
-const GLYPH_ICON: Record<GlyphKey, LucideIcon> = {
-  cafe: Coffee,
-  food: UtensilsCrossed,
-  travel: TrainFront,
-  greeting: Handshake,
-  family: Users,
-  time: Clock,
-  numbers: Hash,
-  shopping: ShoppingBag,
-  home: House,
-  work: Briefcase,
-  health: HeartPulse,
-  culture: Landmark,
-  weather: CloudSun,
-  communication: Phone,
-  hobby: Dumbbell,
-  exam: GraduationCap,
-  grammar: BookText,
-  default: BookOpen,
+const GLYPH_ICON: Record<GlyphKey, GlyphName> = {
+  cafe: 't_cafe',
+  food: 't_food',
+  travel: 't_travel',
+  greeting: 't_greeting',
+  family: 't_family',
+  time: 'thoigian',
+  numbers: 't_numbers',
+  shopping: 't_shopping',
+  home: 't_home',
+  work: 'phongvan',
+  health: 't_health',
+  culture: 't_culture',
+  weather: 't_weather',
+  communication: 't_communication',
+  hobby: 't_hobby',
+  exam: 't_exam',
+  grammar: 'nguphap',
+  default: 'hoc',
 }
 
 interface TopicGlyphTileProps {
@@ -62,7 +44,7 @@ export function TopicGlyphTile({ node, size = 40, muted = false, style }: TopicG
   const c = useTheme().colors
   const { key, tint } = matchTopicGlyph(node)
   const { tileBg, iconColor } = topicGlyphColors(c, tint)
-  const Glyph = GLYPH_ICON[key]
+  const glyph = GLYPH_ICON[key]
 
   const bg = muted ? c.surfaceSunken : tileBg
   const fg = muted ? c.textFaint : iconColor
@@ -83,7 +65,7 @@ export function TopicGlyphTile({ node, size = 40, muted = false, style }: TopicG
         style,
       ]}
     >
-      <Glyph size={Math.round(size * 0.52)} color={fg} strokeWidth={2} />
+      <GaGlyph name={glyph} size={Math.round(size * 0.52)} inkColor={fg} goldColor={muted ? c.textFaint : c.accent} />
     </View>
   )
 }

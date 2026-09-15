@@ -6,17 +6,21 @@ import { View } from 'react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Button } from './Button'
 import { Icon } from './Icon'
+import { GaGlyph } from './GaGlyph'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { ThemedText } from './ThemedText'
 
 interface EmptyStateProps {
-  icon: LucideIcon
+  /** Icon Lucide (điều khiển). Biểu tượng nhận diện dùng `glyph`. */
+  icon?: LucideIcon
+  glyph?: GlyphName
   title: string
   message?: string
   actionLabel?: string
   onAction?: () => void
 }
 
-export function EmptyState({ icon, title, message, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({ icon, glyph, title, message, actionLabel, onAction }: EmptyStateProps) {
   const theme = useTheme()
 
   return (
@@ -31,7 +35,7 @@ export function EmptyState({ icon, title, message, actionLabel, onAction }: Empt
           justifyContent: 'center',
         }}
       >
-        <Icon icon={icon} size={28} color="muted" />
+        {glyph ? <GaGlyph name={glyph} size={30} ink="muted" /> : icon ? <Icon icon={icon} size={28} color="muted" /> : null}
       </View>
       <ThemedText variant="title" align="center">
         {title}

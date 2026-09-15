@@ -3,6 +3,8 @@ import { getAccessToken, getRefreshToken, setTokens, recordTokenRefresh, isNativ
 import { useAuthRecoveryStore } from '@/stores/useAuthRecoveryStore'
 import { useMaintenanceStore } from '@/stores/useMaintenanceStore'
 import { isMaintenanceError, maintenanceInfoFromProblem } from '@/lib/systemStatus'
+import { currentUiLocale } from '@/lib/i18n/clientLocale'
+import type { UiLocale } from '@/lib/i18n/format'
 
 // ─── Error helpers ────────────────────────────────────────────────────────────
 
@@ -33,15 +35,46 @@ export function apiMessage(e: unknown): string {
         if (typeof v === 'string' && v.trim()) return v
       }
     }
-    if (e.code === 'ECONNABORTED' || /timeout/i.test(e.message ?? '')) {
-      return 'Kết nối chậm — máy chủ có thể vẫn đang xử lý. Thử lại sau ít giây.'
-    }
-    if (!e.response) return 'Mất kết nối mạng. Kiểm tra đường truyền rồi thử lại.'
-    if ((e.response.status ?? 0) >= 500) return 'Hệ thống đang bận, vui lòng thử lại sau ít phút.'
-    return 'Yêu cầu không thực hiện được, vui lòng thử lại.'
+    const f = FALLBACK[currentUiLocale()]
+    if (e.code === 'ECONNABORTED' || /timeout/i.test(e.message ?? '')) return f.slow
+    if (!e.response) return f.offline
+    if ((e.response.status ?? 0) >= 500) return f.busy
+    return f.failed
   }
   if (e instanceof Error) return e.message
-  return 'Lỗi không xác định'
+  return FALLBACK[currentUiLocale()].unknown
+}
+
+/**
+ * Câu dự phòng khi body lỗi không có `detail/message` — theo locale UI (cookie `locale`, F-I18N-02c
+ * 06/09/2026). Module này chạy ngoài React nên không dùng useTranslations; bảng nhỏ giữ tại chỗ.
+ * (Thông điệp backend vẫn tiếng Việt — F-I18N-03, chờ quyết định owner.)
+ */
+const FALLBACK: Record<UiLocale, { slow: string; offline: string; busy: string; failed: string; unknown: string; reauth: string }> = {
+  vi: {
+    slow: 'Kết nối chậm — máy chủ có thể vẫn đang xử lý. Thử lại sau ít giây.',
+    offline: 'Mất kết nối mạng. Kiểm tra đường truyền rồi thử lại.',
+    busy: 'Hệ thống đang bận, vui lòng thử lại sau ít phút.',
+    failed: 'Yêu cầu không thực hiện được, vui lòng thử lại.',
+    unknown: 'Lỗi không xác định',
+    reauth: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+  },
+  en: {
+    slow: 'Slow connection — the server may still be processing. Try again in a few seconds.',
+    offline: 'No network connection. Check your connection and try again.',
+    busy: 'The system is busy, please try again in a few minutes.',
+    failed: 'The request could not be completed, please try again.',
+    unknown: 'Unknown error',
+    reauth: 'Your session has expired. Please sign in again.',
+  },
+  de: {
+    slow: 'Langsame Verbindung — der Server verarbeitet die Anfrage möglicherweise noch. Versuchen Sie es in ein paar Sekunden erneut.',
+    offline: 'Keine Netzwerkverbindung. Prüfen Sie die Verbindung und versuchen Sie es erneut.',
+    busy: 'Das System ist ausgelastet, bitte versuchen Sie es in einigen Minuten erneut.',
+    failed: 'Die Anfrage konnte nicht ausgeführt werden, bitte erneut versuchen.',
+    unknown: 'Unbekannter Fehler',
+    reauth: 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.',
+  },
 }
 
 const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080').replace(/\/+$/, '')
@@ -49,7 +82,7 @@ const backendOrigin = backendUrl.replace(/\/api$/, '')
 const apiBaseUrl = `${backendOrigin}/api`
 const authBaseUrl = `${backendOrigin}/api`
 
-function notifyAuthRecovery(message = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'): void {
+function notifyAuthRecovery(message = FALLBACK[currentUiLocale()].reauth): void {
   useAuthRecoveryStore.getState().setNeedsReauth(message)
 }
 

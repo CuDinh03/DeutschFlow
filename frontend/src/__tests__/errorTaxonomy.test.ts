@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { getErrorSnippet, ALL_ERROR_CODES } from "@/lib/errors/errorTaxonomy";
+import {
+  ALL_ERROR_CODES,
+  categoryLabel,
+  genericErrorTitle,
+  getErrorSnippet,
+  labelForCode,
+} from "@/lib/errors/errorTaxonomy";
 
 describe("getErrorSnippet", () => {
   it("returns Vietnamese snippet for vi locale", () => {
@@ -13,7 +19,7 @@ describe("getErrorSnippet", () => {
 
   it("returns English snippet for en locale", () => {
     const s = getErrorSnippet("WORD_ORDER.V2_MAIN_CLAUSE", "en");
-    expect(s.title).toContain("V2");
+    expect(s.title.toLowerCase()).toContain("verb");
     expect(s.rule).toContain("second position");
   });
 
@@ -24,7 +30,7 @@ describe("getErrorSnippet", () => {
     expect(de.rule).toBeTruthy();
     // German is now translated — must differ from the English fallback
     expect(de.title).not.toBe(en.title);
-    expect(de.title).toContain("Position 2");
+    expect(de.rule).toContain("zweiter Stelle");
   });
 
   it("every code in ALL_ERROR_CODES returns a non-empty German title", () => {
@@ -33,17 +39,6 @@ describe("getErrorSnippet", () => {
       expect(s.title.length, `Empty de title for ${code}`).toBeGreaterThan(0);
       expect(s.title, `de title leaks raw code for ${code}`).not.toBe(code);
     }
-  });
-
-  it("returns code as title for unknown error code", () => {
-    const s = getErrorSnippet("COMPLETELY.UNKNOWN", "en");
-    expect(s.title).toBe("COMPLETELY.UNKNOWN");
-    expect(s.rule).toBe("");
-  });
-
-  it("returns code as title for empty string code", () => {
-    const s = getErrorSnippet("", "vi");
-    expect(s.title).toBe("");
   });
 
   it("handles CASE.PREP_DAT_MIT in Vietnamese", () => {
@@ -63,5 +58,60 @@ describe("getErrorSnippet", () => {
       const s = getErrorSnippet(code, "en");
       expect(s.title.length, `Empty title for ${code}`).toBeGreaterThan(0);
     }
+  });
+});
+
+// Owner 11/09: học viên không được thấy mã máy ("WORD_ORDER.V2_MAIN_CLAUSE") ở bất kỳ màn nào —
+// chỉ tên lỗi đọc được. Mọi nhánh của getErrorSnippet phải trả nhãn người, kể cả khi mã lạ.
+describe("không lộ mã máy ra giao diện", () => {
+  it("mã ngoài taxonomy rơi về nhãn chung, không phải mã thô", () => {
+    for (const locale of ["vi", "en", "de"]) {
+      const s = getErrorSnippet("COMPLETELY.UNKNOWN", locale);
+      expect(s.title).toBe(genericErrorTitle(locale));
+      expect(s.title).not.toContain("COMPLETELY");
+      expect(s.title).not.toContain("_");
+      expect(s.rule).toBe("");
+    }
+  });
+
+  it("mã rỗng cũng ra nhãn chung", () => {
+    expect(getErrorSnippet("", "vi").title).toBe(genericErrorTitle("vi"));
+  });
+
+  it("không nhãn nào chứa dấu hiệu mã máy (DẤU_GẠCH_DƯỚI hoặc CHẤM)", () => {
+    for (const code of ALL_ERROR_CODES) {
+      for (const locale of ["vi", "en", "de"]) {
+        const { title } = getErrorSnippet(code, locale);
+        expect(title, `${code}/${locale} lộ mã máy`).not.toMatch(/[A-Z]{2,}_[A-Z]/);
+        expect(title, `${code}/${locale} lộ mã máy`).not.toBe(code);
+      }
+    }
+  });
+
+  it("labelForCode vẫn trả null cho mã lạ để caller tự chọn nhãn riêng", () => {
+    expect(labelForCode("COMPLETELY.UNKNOWN", "vi")).toBeNull();
+    expect(labelForCode(null, "vi")).toBeNull();
+    expect(labelForCode("VERB.CONJ_PERSON_ENDING", "vi")).toBe(
+      getErrorSnippet("VERB.CONJ_PERSON_ENDING", "vi").title,
+    );
+  });
+});
+
+describe("categoryLabel", () => {
+  it("dịch nhóm lỗi theo ngôn ngữ đang xem", () => {
+    expect(categoryLabel("WORD_ORDER.V2_MAIN_CLAUSE", "vi")).toBe("Trật tự từ");
+    expect(categoryLabel("WORD_ORDER.V2_MAIN_CLAUSE", "en")).toBe("Word order");
+    expect(categoryLabel("WORD_ORDER.V2_MAIN_CLAUSE", "de")).toBe("Wortstellung");
+  });
+
+  it("mọi mã trong taxonomy đều có nhãn nhóm", () => {
+    for (const code of ALL_ERROR_CODES) {
+      expect(categoryLabel(code, "vi"), `thiếu nhóm cho ${code}`).toBeTruthy();
+    }
+  });
+
+  it("nhóm lạ trả null để caller dùng nhãn Khác", () => {
+    expect(categoryLabel("NEUGRUPPE.SOMETHING", "vi")).toBeNull();
+    expect(categoryLabel(undefined, "vi")).toBeNull();
   });
 });

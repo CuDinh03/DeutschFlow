@@ -2,16 +2,20 @@ import { useState } from 'react'
 import { View, Pressable } from 'react-native'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
-import { PlayCircle, ChevronDown, ArrowUpRight } from 'lucide-react-native'
+import { ChevronDown, ArrowUpRight } from 'lucide-react-native'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Caption, SectionHeader, FadeIn, AppHeader } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Caption, SectionHeader, FadeIn, AppHeader, GaGlyph } from '@/components/ui'
 import { useSpotlightTour } from '@/components/guide/SpotlightTour'
 import { getDailyGoalMinutes } from '@/lib/dailyGoal'
 import { captureEvent } from '@/lib/analytics'
 import { GUIDE_ITEMS, FAQ, toneStyles, type GuideItem } from '@/components/guide/tourContent'
 import { PRO_UNLOCKED_FREE } from '@/lib/paywall'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 export default function GuideScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['guide'])
   const c = useTheme().colors
   const { startTour } = useSpotlightTour()
   // The iOS free build ships with no commercial PRO surface, so drop FAQ entries that mention it.
@@ -22,7 +26,7 @@ export default function GuideScreen() {
       <AppHeader
         title="Hướng dẫn"
         subtitle="Sổ tay học viên"
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)'))}
+        onBack={goBack}
       />
       <Screen scroll edges={[]} contentStyle={{ paddingBottom: space[10] }}>
       <View style={{ paddingHorizontal: space[5], paddingTop: space[4], gap: space[6] }}>
@@ -58,7 +62,7 @@ export default function GuideScreen() {
                   justifyContent: 'center',
                 }}
               >
-                <Icon icon={PlayCircle} size={26} color="accent" />
+                <GaGlyph name="huongdan" size={26} ink="primary" />
               </View>
               <View style={{ flex: 1, gap: space[1] }}>
                 <Caption color={c.accent}>Tour nhanh</Caption>

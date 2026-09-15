@@ -2,6 +2,7 @@ package com.deutschflow.admin.controller;
 
 import com.deutschflow.admin.service.AdminManagementService;
 import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.audit.AuditOrgResolver;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.user.entity.User;
 import org.junit.jupiter.api.DisplayName;
@@ -25,8 +26,11 @@ import static org.mockito.Mockito.when;
  * {@code setUserActive}), so an admin could strip their own ADMIN role. On prod there is sometimes
  * exactly one ADMIN — self-demotion then hard-locks the whole platform out of admin.
  *
- * <p>Only the two dependencies this endpoint touches are mocked; {@code @InjectMocks} passes null
- * for the controller's other collaborators (unused here).
+ * <p>Only the three dependencies this endpoint touches are mocked; {@code @InjectMocks} passes null
+ * for the controller's other collaborators (unused here). {@link AuditOrgResolver} joined that list
+ * when the audit trail started carrying the org_id of the user being changed (DEC-13): the
+ * controller resolves the org before calling the service, so leaving it unmocked is an NPE on the
+ * happy path rather than a silently skipped lookup.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("admin users · self role-change guard")
@@ -36,6 +40,8 @@ class AdminManagementControllerRoleGuardTest {
     private AdminManagementService adminManagementService;
     @Mock
     private AuditLogService auditLogService;
+    @Mock
+    private AuditOrgResolver auditOrgResolver;
 
     @InjectMocks
     private AdminManagementController controller;

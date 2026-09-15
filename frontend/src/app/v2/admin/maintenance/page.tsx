@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
-import { Plus, Pencil, Siren, Wrench } from 'lucide-react'
+import { Check, Plus, Pencil, Siren, Wrench } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { GaPageHdr, GaBtn, GaCap, TkModal, ConfirmDialog } from '@/components/ui-v2'
@@ -17,6 +17,7 @@ import {
   type MaintenanceWindowDto,
 } from '@/lib/adminMaintenanceApi'
 import { useMaintenanceStore } from '@/stores/useMaintenanceStore'
+import { useFmt, type Fmt } from '@/lib/i18n/useFmt'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Quản trị cửa sổ bảo trì (thiết kế plans/2026-09-03 §5.4/§7, backend PR #488).
@@ -64,11 +65,11 @@ function fromLocalInput(v: string): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
-function fmt(iso: string | null): string {
+function fmtWhen(f: Fmt, iso: string | null): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+  return f.dateTime(d, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
 }
 
 const STATUS_STYLE: Record<MaintenanceWindowDto['status'], CSSProperties> = {
@@ -84,6 +85,7 @@ type PendingAction =
 
 export default function V2AdminMaintenancePage() {
   const t = useTranslations('v2.adminOps.maintenance')
+  const fmt = useFmt()
   const tc = useTranslations('v2.common')
   const [windows, setWindows] = useState<MaintenanceWindowDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -299,7 +301,7 @@ export default function V2AdminMaintenancePage() {
               <p className="ga-ui text-[12.5px]" style={{ color: '#A8241C' }}>
                 {active.title}
                 {' · '}
-                {active.endsAtUtc ? t('activeBanner.until', { time: fmt(active.endsAtUtc) }) : t('activeBanner.noEnd')}
+                {active.endsAtUtc ? t('activeBanner.until', { time: fmtWhen(fmt, active.endsAtUtc) }) : t('activeBanner.noEnd')}
               </p>
             </div>
             <GaBtn variant="ghost" size="sm" onClick={() => openEdit(active)}>
@@ -348,10 +350,18 @@ export default function V2AdminMaintenancePage() {
                     <span className="ga-ui text-[11px] text-ga-subtle">{t(`mode.${w.mode}`)}</span>
                   </div>
                   <div className="ga-ui mt-1 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] text-ga-muted">
-                    <span>{t('row.starts', { time: fmt(w.startsAtUtc) })}</span>
-                    {w.endsAtUtc && <span>{t('row.ends', { time: fmt(w.endsAtUtc) })}</span>}
-                    {w.notifiedScheduleAtUtc && <span>✓ {t('row.notified')}</span>}
-                    {w.notifiedBeforeAtUtc && <span>✓ {t('row.reminded')}</span>}
+                    <span>{t('row.starts', { time: fmtWhen(fmt, w.startsAtUtc) })}</span>
+                    {w.endsAtUtc && <span>{t('row.ends', { time: fmtWhen(fmt, w.endsAtUtc) })}</span>}
+                    {w.notifiedScheduleAtUtc && (
+                      <span className="inline-flex items-center gap-1">
+                        <Check size={12} aria-hidden /> {t('row.notified')}
+                      </span>
+                    )}
+                    {w.notifiedBeforeAtUtc && (
+                      <span className="inline-flex items-center gap-1">
+                        <Check size={12} aria-hidden /> {t('row.reminded')}
+                      </span>
+                    )}
                     <span className="text-ga-subtle">{w.createdBy}</span>
                   </div>
                   {w.note && <p className="mt-1 line-clamp-2 text-[12.5px] italic text-ga-subtle">{w.note}</p>}

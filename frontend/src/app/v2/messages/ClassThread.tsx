@@ -14,6 +14,7 @@ import { usePollWhileVisible } from '@/hooks/usePollWhileVisible'
 import { LoadingState } from '@/components/ui-v2'
 import { Composer } from './Composer'
 import { ThreadShell, fmtDay } from './ThreadShell'
+import { useTranslations } from 'next-intl'
 
 /**
  * Channel refresh cadence. Slower than the direct thread: a class feed is broadcast-shaped
@@ -36,6 +37,7 @@ interface ClassThreadProps {
  * auto-acks them on read, since the channel has no read-state of its own.
  */
 export function ClassThread({ classId, name, onBack }: ClassThreadProps) {
+  const t = useTranslations('v2.inbox')
   const [messages, setMessages] = useState<ClassMessage[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -88,20 +90,20 @@ export function ClassThread({ classId, name, onBack }: ClassThreadProps) {
           <Users size={16} />
         </span>
       }
-      title={name || `Lớp #${classId}`}
-      caption="Kênh chat cả lớp"
+      title={name || t('classFallback', { id: classId })}
+      caption={t('classCaption')}
       onBack={onBack}
       scrollKey={`${classId}:${messages.length}`}
       error={error}
       footer={
-        <Composer placeholder="Nhắn cả lớp… (Enter để gửi, Shift+Enter xuống dòng)" onSend={send} />
+        <Composer placeholder={t('classPlaceholder')} onSend={send} />
       }
     >
       {loading ? (
-        <LoadingState label="Đang tải tin nhắn…" />
+        <LoadingState label={t('loading')} />
       ) : messages.length === 0 ? (
         <p className="ga-ui py-8 text-center text-[13px] text-ga-muted">
-          Chưa có tin nhắn nào trong lớp này.
+          {t('classEmpty')}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -122,7 +124,7 @@ export function ClassThread({ classId, name, onBack }: ClassThreadProps) {
                     <p className="ga-ui mb-0.5 text-[11px] font-semibold text-ga-accent">{m.senderName}</p>
                   )}
                   {m.deleted ? (
-                    <p className="text-[13px] italic">Tin đã xoá</p>
+                    <p className="text-[13px] italic">{t('deleted')}</p>
                   ) : (
                     <p className="whitespace-pre-wrap break-words text-[14px] leading-snug">{m.body}</p>
                   )}
@@ -132,7 +134,7 @@ export function ClassThread({ classId, name, onBack }: ClassThreadProps) {
                   <button
                     type="button"
                     onClick={() => void remove(m.id)}
-                    aria-label="Xoá tin nhắn"
+                    aria-label={t('deleteAria')}
                     className="mb-1 shrink-0 rounded-ga p-1 text-ga-subtle opacity-0 transition-opacity hover:text-ga-red group-hover:opacity-100 focus-visible:opacity-100"
                   >
                     <Trash2 size={14} />

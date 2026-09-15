@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import useAdminData from '@/hooks/useAdminData'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { useFmt, type Fmt } from '@/lib/i18n/useFmt'
 
 // ── Green header accent (plans screen overrides the admin-navy chrome) ────────
 const GREEN = '#1E9E61'
@@ -49,16 +50,17 @@ function normalizePlan(r: Record<string, unknown>): AdminPlan {
 // Plans are token-budget tiers (price lives in the payment provider, not stored
 // here) → headline shows the token allowance instead of a currency price.
 type PlansT = ReturnType<typeof useTranslations>
-function allowance(p: AdminPlan, t: PlansT): string {
+function allowance(p: AdminPlan, t: PlansT, fmt: Fmt): string {
   // INTERNAL uses a 999_999_999 sentinel for "unlimited".
   if (p.monthlyTokenLimit >= 999_000_000) return t('unlimited')
-  if (p.monthlyTokenLimit > 0) return t('tokensPerMonth', { count: p.monthlyTokenLimit.toLocaleString('vi-VN') })
-  if (p.dailyTokenGrant > 0) return t('tokensPerDay', { count: p.dailyTokenGrant.toLocaleString('vi-VN') })
+  if (p.monthlyTokenLimit > 0) return t('tokensPerMonth', { count: fmt.num(p.monthlyTokenLimit) })
+  if (p.dailyTokenGrant > 0) return t('tokensPerDay', { count: fmt.num(p.dailyTokenGrant) })
   return '—'
 }
 
 export default function V2AdminPlansPage() {
   const t = useTranslations('v2.adminOps.plans')
+  const fmt = useFmt()
   const tc = useTranslations('v2.common')
   const { data, loading, error, reload } = useAdminData<AdminPlan[]>({
     initialData: [],
@@ -122,7 +124,7 @@ export default function V2AdminPlansPage() {
                   )}
                 </div>
                 <div className="mb-1 break-words font-ga-display text-[24px] font-medium leading-tight text-ga-ink">
-                  {allowance(p, t)}
+                  {allowance(p, t, fmt)}
                 </div>
                 <div className="mb-[18px] text-[13px] text-ga-muted">
                   {p.walletCapDays > 0 ? t('walletRollover', { days: p.walletCapDays }) : t('grantDaily')}

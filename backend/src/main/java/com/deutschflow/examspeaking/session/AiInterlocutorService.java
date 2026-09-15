@@ -43,7 +43,15 @@ public class AiInterlocutorService {
 
     public record AiReply(String role, String textDe) {}
 
+    /** Tương thích test: không gắn sessionId vào ledger. */
     public AiReply reply(long userId, ExamBlueprint bp, BlueprintPart part, SessionPlan.Step step,
+                         Map<String, Object> candidateCard, Map<String, Object> nextCard,
+                         List<ChatMessage> history, String candidateText) {
+        return reply(userId, null, bp, part, step, candidateCard, nextCard, history, candidateText);
+    }
+
+    /** {@code sessionId} đi vào ledger để đo chi phí token theo phiên (N0.6, admin AI usage). */
+    public AiReply reply(long userId, Long sessionId, ExamBlueprint bp, BlueprintPart part, SessionPlan.Step step,
                          Map<String, Object> candidateCard, Map<String, Object> nextCard,
                          List<ChatMessage> history, String candidateText) {
         String role = step.aiRole();
@@ -80,7 +88,7 @@ public class AiInterlocutorService {
         try {
             AiChatCompletionResult res = chatClient.chatCompletionForTier(messages, tierResolver.spec(LlmTier.CHAT_PAID),
                     0.6, props.turnTokens(), true);
-            ledger.record(userId, res.provider(), res.model(), res.usage(), FEATURE_TURN, null, null);
+            ledger.record(userId, res.provider(), res.model(), res.usage(), FEATURE_TURN, null, sessionId);
             String text = LlmJson.parse(objectMapper, res.content()).map(j -> LlmJson.speechText(j, "reply_de")).orElse("");
             if (text.isBlank()) {
                 text = fallback(step.aiAction(), candidateCard, nextCard);
@@ -97,8 +105,15 @@ public class AiInterlocutorService {
      * {@code lang} = locale UI của học viên (vi/en/de) — quyết định NGÔN NGỮ lời giải thích (QS-3 N0.7);
      * key JSON vẫn là {@code feedback_vi} vì lý do tương thích (FE + turnEvalJson đã lưu).
      */
+    /** Tương thích test: không gắn sessionId vào ledger. */
     public Map<String, Object> quickEval(long userId, ExamBlueprint bp, BlueprintPart part, SessionPlan.Step step,
                                          Map<String, Object> card, String lastAiText, String candidateText, String lang) {
+        return quickEval(userId, null, bp, part, step, card, lastAiText, candidateText, lang);
+    }
+
+    public Map<String, Object> quickEval(long userId, Long sessionId, ExamBlueprint bp, BlueprintPart part,
+                                         SessionPlan.Step step, Map<String, Object> card, String lastAiText,
+                                         String candidateText, String lang) {
         String feedbackSpec = switch (lang == null ? "vi" : lang) {
             case "de" -> "2 kurze deutsche Sätze (einfaches Deutsch)";
             case "en" -> "2 short English sentences";
@@ -121,7 +136,7 @@ public class AiInterlocutorService {
         try {
             AiChatCompletionResult res = chatClient.chatCompletionForTier(List.of(new ChatMessage("user", prompt)),
                     tierResolver.spec(LlmTier.GRADING_DAILY), 0.2, props.drillEvalTokens(), true);
-            ledger.record(userId, res.provider(), res.model(), res.usage(), FEATURE_DRILL_EVAL, null, null);
+            ledger.record(userId, res.provider(), res.model(), res.usage(), FEATURE_DRILL_EVAL, null, sessionId);
             JsonNode j = LlmJson.parse(objectMapper, res.content()).orElse(null);
             if (j == null) {
                 out.put("error", "AI trả kết quả không hợp lệ");

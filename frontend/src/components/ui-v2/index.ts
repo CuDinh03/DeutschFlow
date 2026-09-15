@@ -27,6 +27,9 @@ export { GaStatStrip } from './GaStatStrip'
 export type { GaStatItem, GaStatTone } from './GaStatStrip'
 export { EmptyState } from './EmptyState'
 export { ErrorBanner } from './ErrorBanner'
+// MinorAudioBlockedNotice cố ý KHÔNG đi qua barrel này: nó đọc namespace `v2.student.minorAudio`
+// (chỉ provider khu student cấp), còn barrel được mọi khu import — check-i18n-providers sẽ thấy
+// org/teacher "dùng" khoá student. Import thẳng: '@/components/ui-v2/MinorAudioBlockedNotice'.
 export { SkeletonRow } from './SkeletonRow'
 export { LoadingState } from './LoadingState'
 export { SkillIcon } from './SkillIcon'

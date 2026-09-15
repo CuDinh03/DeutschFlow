@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { createOrgClass, listMembers, type OrgMember } from '@/lib/orgApi'
@@ -16,6 +17,7 @@ const INPUT_CLS =
   'ga-ui mt-1 w-full rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] text-ga-ink outline-none placeholder:text-ga-subtle focus:border-ga-accent'
 
 export function CreateClassModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const t = useTranslations('v2.org.classes.createModal')
   const [name, setName] = useState('')
   const [teacherId, setTeacherId] = useState('')
   const [teachers, setTeachers] = useState<OrgMember[]>([])
@@ -43,17 +45,17 @@ export function CreateClassModal({ onClose, onCreated }: { onClose: () => void; 
   const submit = async () => {
     setError('')
     if (!name.trim()) {
-      setError('Nhập tên lớp.')
+      setError(t('nameRequired'))
       return
     }
     if (!teacherId) {
-      setError('Chọn giáo viên phụ trách.')
+      setError(t('teacherRequired'))
       return
     }
     setSaving(true)
     try {
       await createOrgClass({ name: name.trim(), teacherId: Number(teacherId) })
-      toast.success(`Đã tạo lớp ${name.trim()}.`)
+      toast.success(t('created', { name: name.trim() }))
       onCreated()
       onClose()
     } catch (e: unknown) {
@@ -70,15 +72,15 @@ export function CreateClassModal({ onClose, onCreated }: { onClose: () => void; 
       open
       onOpenChange={(o) => !o && onClose()}
       size="md"
-      title="Tạo lớp"
-      description="Tạo lớp cho trung tâm và gán giáo viên phụ trách"
+      title={t('title')}
+      description={t('description')}
       footer={
         <>
           <GaBtn variant="ghost" onClick={onClose}>
-            Hủy
+            {t('cancel')}
           </GaBtn>
           <GaBtn variant="primary" loading={saving} disabled={noTeachers} onClick={submit}>
-            Tạo lớp
+            {t('submit')}
           </GaBtn>
         </>
       }
@@ -87,22 +89,22 @@ export function CreateClassModal({ onClose, onCreated }: { onClose: () => void; 
 
       {noTeachers ? (
         <div className="border border-dashed border-ga-line px-6 py-8 text-center text-[13.5px] text-ga-muted">
-          Trung tâm chưa có giáo viên nào. Hãy thêm giáo viên trước rồi mới tạo lớp.
+          {t('noTeachers')}
         </div>
       ) : (
         <div className="space-y-4">
           <label className="block">
-            <GaCap>Tên lớp</GaCap>
+            <GaCap>{t('nameLabel')}</GaCap>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={120}
-              placeholder="VD: A1.1 — Tối T2-T4-T6"
+              placeholder={t('namePlaceholder')}
               className={INPUT_CLS}
             />
           </label>
           <label className="block">
-            <GaCap>Giáo viên phụ trách</GaCap>
+            <GaCap>{t('teacherLabel')}</GaCap>
             <select
               value={teacherId}
               onChange={(e) => setTeacherId(e.target.value)}
@@ -110,7 +112,7 @@ export function CreateClassModal({ onClose, onCreated }: { onClose: () => void; 
               className={INPUT_CLS}
             >
               <option value="" disabled>
-                {loadingTeachers ? 'Đang tải giáo viên…' : 'Chọn giáo viên…'}
+                {loadingTeachers ? t('teacherLoading') : t('teacherPick')}
               </option>
               {teachers.map((t) => (
                 <option key={t.userId} value={t.userId}>
@@ -119,7 +121,7 @@ export function CreateClassModal({ onClose, onCreated }: { onClose: () => void; 
               ))}
             </select>
             <p className="ga-ui mt-1 text-[12px] text-ga-subtle">
-              Lớp sẽ thuộc về trung tâm và do giáo viên này phụ trách.
+              {t('teacherHint')}
             </p>
           </label>
         </div>

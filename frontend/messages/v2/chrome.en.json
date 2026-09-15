@@ -84,7 +84,11 @@
       "speaking-history": "Speaking history",
       "admin-maintenance": "Maintenance",
       "org-curricula": "Curriculum",
-      "admin-exam-golden": "Speaking golden set"
+      "admin-exam-golden": "Speaking golden set",
+      "objectives": "Objective matrix",
+      "org-settings": "Center settings",
+      "org-audit": "Activity log",
+      "org-certificates": "Certificates"
     },
     "sections": {
       "classMgmt": "Class Management",
@@ -153,7 +157,16 @@
     "back": "Back",
     "next": "Next",
     "confirm": "Confirm",
-    "search": "Search"
+    "search": "Search",
+    "dowShort": {
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat",
+      "sun": "Sun"
+    }
   },
   "error": {
     "title": "This page hit an error",
@@ -225,5 +238,76 @@
     "bannerCountdownHours": "{hours}h {minutes}m left",
     "bannerCountdownMinutes": "{minutes} min left",
     "bannerDismiss": "Dismiss"
+  },
+  "notif": {
+    "fallbackTitle": "Notification",
+    "justNow": "just now",
+    "hoursAgo": "{n} h ago",
+    "daysAgo": "{n} d ago",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "earlier": "Earlier",
+    "types": {
+      "REVIEW_DUE": "Review due",
+      "STREAK_REMINDER": "Streak reminder",
+      "NEW_ASSIGNMENT": "New assignment",
+      "NEW_CLASS_ASSIGNMENT": "New class assignment",
+      "ASSIGNMENT_GRADED": "Assignment graded",
+      "QUIZ_SUBMISSION_RECEIVED": "Quiz submission received",
+      "ACHIEVEMENT_UNLOCKED": "Achievement unlocked",
+      "LEVEL_UP": "Level up",
+      "ADDED_TO_CLASS": "Added to a class",
+      "CLASS_STUDENT_ADDED": "New student in class",
+      "CLASS_STUDENT_REMOVED": "Student left the class",
+      "JOIN_REQUEST_APPROVED": "Join request approved",
+      "JOIN_REQUEST_REJECTED": "Join request rejected",
+      "CLASS_JOIN_REQUEST_CREATED": "Class join request",
+      "ADMIN_BROADCAST": "System announcement",
+      "TEACHER_ANNOUNCEMENT": "Teacher announcement",
+      "CLASS_SESSION_SCHEDULED": "New session scheduled",
+      "CLASS_SESSION_CANCELLED": "Session cancelled",
+      "CLASS_SESSION_RESCHEDULED": "Session rescheduled",
+      "NEW_MESSAGE": "New message",
+      "CLASS_CHANNEL_MESSAGE": "Class message",
+      "USER_REGISTERED": "User registered",
+      "LEARNER_PLAN_UPDATED": "Plan updated",
+      "ADMIN_LEARNER_PLAN_CHANGED": "Learner plan changed",
+      "ADMIN_LEARNER_SUBSCRIBED": "New subscription",
+      "ACCOUNT_DELETED": "Account deleted",
+      "ADMIN_LEARNER_SUBSCRIPTION_ENDED": "Subscription ended",
+      "ADMIN_SYSTEM_ALERT": "System alert",
+      "ADMIN_ORG_CREATED": "New organisation",
+      "ADMIN_ORG_INVOICE_PAID": "Invoice paid",
+      "SCHEDULE_CHANGE_REJECTED": "Schedule change request declined",
+      "TIMESHEET_PERIOD_APPROVED": "Timesheet period approved",
+      "TIMESHEET_PERIOD_RETURNED": "Timesheet period returned"
+    }
+  },
+  "inbox": {
+    "classFallback": "Class #{id}",
+    "classCaption": "Class group chat",
+    "classPlaceholder": "Message the whole class… (Enter to send, Shift+Enter for a new line)",
+    "loading": "Loading messages…",
+    "classEmpty": "No messages in this class yet.",
+    "deleted": "Message deleted",
+    "deleteAria": "Delete message",
+    "send": "Send",
+    "inboxCap": "Messages",
+    "groupsCap": "Class groups",
+    "noClasses": "You have not joined any class yet.",
+    "userFallback": "User #{id}",
+    "directPlaceholder": "Type a message… (Enter to send, Shift+Enter for a new line)",
+    "directEmpty": "No messages yet — say hello first",
+    "listAria": "Conversation list",
+    "pickHint": "Pick a conversation or class group to start messaging.",
+    "back": "Back",
+    "teacherPrefix": "Teacher: {names}",
+    "noTeacher": "No teacher yet",
+    "studentsCount": "{count} students"
+  },
+  "system": {
+    "sessionExpiredTitle": "Your session has expired",
+    "sessionExpiredBody": "Your session has expired or could not be refreshed automatically. Please sign in again to continue.",
+    "offlineBanner": "No network connection — some features are temporarily unavailable"
   }
 }

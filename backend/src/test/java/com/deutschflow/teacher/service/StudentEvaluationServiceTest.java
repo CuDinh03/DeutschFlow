@@ -2,6 +2,7 @@ package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.organization.service.OrgSettingsService;
 import com.deutschflow.teacher.dto.SkillReportDto;
 import com.deutschflow.teacher.dto.StudentEvaluationDto;
 import com.deutschflow.teacher.dto.StudentEvaluationRequest;
@@ -38,8 +39,12 @@ class StudentEvaluationServiceTest {
     @Mock private StudentAssignmentRepository studentAssignmentRepository;
     @Mock private TeacherClassRepository classRepository;
     @Mock private UserRepository userRepository;
+    @Mock private OrgSettingsService orgSettingsService;
 
     private StudentEvaluationService service;
+
+    /** Trung tâm của lớp trong các ca cert (R10); null = lớp B2C ⇒ ngưỡng mặc định 50/80. */
+    private Long classOrgId = null;
 
     private static final Long TEACHER_ID = 1L;
     private static final Long CLASS_ID   = 10L;
@@ -52,11 +57,19 @@ class StudentEvaluationServiceTest {
         org.mockito.Mockito.lenient().when(assignmentAudienceService.visibleTo(
                         org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyList()))
                 .thenAnswer(inv -> inv.getArgument(1));
+        // R10: ngưỡng chứng nhận đọc từ org_settings; mặc định 50/100 + 80 % (đúng hai hằng cũ) — các ca
+        // "org đặt ngưỡng khác" stub đè theo orgId cụ thể.
+        org.mockito.Mockito.lenient().when(orgSettingsService.getInt(
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(OrgSettingsService.CERTIFICATE_MIN_AVG)))
+                .thenReturn(50);
+        org.mockito.Mockito.lenient().when(orgSettingsService.getInt(
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(OrgSettingsService.CERTIFICATE_MIN_ATTENDANCE_PCT)))
+                .thenReturn(80);
         service = new StudentEvaluationService(
                 classStudentRepository, assignmentAudienceService, classTeacherRepository,
                 lessonLogRepository, attendanceRepository,
                 assignmentRepository, studentAssignmentRepository,
-                classRepository, userRepository);
+                classRepository, userRepository, orgSettingsService);
     }
 
     // ── saveEvaluation ────────────────────────────────────────────────────────
@@ -165,6 +178,44 @@ class StudentEvaluationServiceTest {
         // The AI proposed 95, but no teacher signed it off — it must not carry a certificate.
         assertThat(result.avgScore()).isZero();
         assertThat(result.certificateEligible()).isFalse();
+    }
+
+    // ── ngưỡng chứng nhận theo trung tâm (R10, V323) ──────────────────────────
+
+    /**
+     * R10: hai hằng 50/100 và 80 % chuyển vào org_settings. Trung tâm đặt 60/90 thì cùng một học viên đổi
+     * kết quả; lớp B2C (org NULL) vẫn đúng 50/80.
+     */
+    @Test
+    @DisplayName("R10: trung tâm đặt certificate_min_avg=60, attendance=90 ⇒ 55/100 + 90 % KHÔNG đủ; 65/100 + 80 % KHÔNG đủ; 65/100 + 90 % đủ")
+    void certificate_orgThresholds_overrideDefaults() {
+        classOrgId = 77L;
+        when(orgSettingsService.getInt(77L, OrgSettingsService.CERTIFICATE_MIN_AVG)).thenReturn(60);
+        when(orgSettingsService.getInt(77L, OrgSettingsService.CERTIFICATE_MIN_ATTENDANCE_PCT)).thenReturn(90);
+
+        assertThat(evaluateWith(55, 9, 10).certificateEligible()).as("55 < 60").isFalse();
+        assertThat(evaluateWith(65, 8, 10).certificateEligible()).as("80 % < 90 %").isFalse();
+        assertThat(evaluateWith(65, 9, 10).certificateEligible()).as("65 ≥ 60 và 90 % ≥ 90 %").isTrue();
+    }
+
+    @Test
+    @DisplayName("R10: lớp B2C (org NULL) hỏi ngưỡng với orgId null ⇒ mặc định 50/80 — 55/100 + 80 % đủ")
+    void certificate_b2cClass_usesDefaults() {
+        classOrgId = null;
+        assertThat(evaluateWith(55, 8, 10).certificateEligible()).isTrue();
+        verify(orgSettingsService, org.mockito.Mockito.atLeastOnce())
+                .getInt(org.mockito.ArgumentMatchers.isNull(), eq(OrgSettingsService.CERTIFICATE_MIN_AVG));
+    }
+
+    @Test
+    @DisplayName("R10: ngưỡng chuyên cần 0 vẫn KHÔNG cấp cho học viên chưa có buổi điểm danh nào (không có bằng chứng ≠ đạt)")
+    void certificate_zeroAttendanceThreshold_stillNeedsEvidence() {
+        classOrgId = 78L;
+        when(orgSettingsService.getInt(78L, OrgSettingsService.CERTIFICATE_MIN_AVG)).thenReturn(0);
+        when(orgSettingsService.getInt(78L, OrgSettingsService.CERTIFICATE_MIN_ATTENDANCE_PCT)).thenReturn(0);
+
+        assertThat(evaluateWith(90, 0, 0).certificateEligible()).isFalse();
+        assertThat(evaluateWith(10, 1, 10).certificateEligible()).as("có bằng chứng, ngưỡng 0 ⇒ đủ").isTrue();
     }
 
     // ── mẫu số tỉ lệ chuyên cần (Đợt 1: M-1, M-2, M-3) ────────────────────────
@@ -692,8 +743,9 @@ class StudentEvaluationServiceTest {
     private void stubStudentAndClass() {
         when(userRepository.findById(STUDENT_ID))
                 .thenReturn(Optional.of(buildUser(STUDENT_ID, "Test Student", "t@test.com")));
-        when(classRepository.findById(CLASS_ID))
-                .thenReturn(Optional.of(buildClass(CLASS_ID, "A1")));
+        TeacherClass cls = buildClass(CLASS_ID, "A1");
+        cls.setOrgId(classOrgId);
+        when(classRepository.findById(CLASS_ID)).thenReturn(Optional.of(cls));
     }
 
     private void stubEmptyAttendanceAndAssignments() {

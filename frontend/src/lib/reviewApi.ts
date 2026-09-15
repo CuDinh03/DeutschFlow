@@ -16,6 +16,14 @@ export interface VocabReviewCard {
 }
 
 /** Payload for POST /api/srs/schedule — vocabId is the card identity, the rest is denormalized card content. */
+/** Tổng quan kho thẻ SRS — khớp SrsStatsDto ở backend. */
+export interface SrsStats {
+  dueCount: number
+  totalCards: number
+  reviewedCards: number
+  totalReviews: number
+}
+
 export interface ScheduleVocabRequest {
   nodeId?: number
   vocabId: string
@@ -65,6 +73,14 @@ export const reviewApi = {
   /** POST /api/srs/schedule — add a vocab item to the review deck (idempotent server-side). */
   scheduleVocab: (req: ScheduleVocabRequest) =>
     api.post('/srs/schedule', req).then(() => undefined),
+
+  /**
+   * GET /api/srs/stats — tổng quan kho thẻ (SrsStatsDto). Dùng để phân biệt HAI tình huống mà màn
+   * ôn trước đây gộp làm một: người chưa có thẻ nào (totalCards = 0) và người có thẻ nhưng chưa tới
+   * hạn ôn. Hai tình huống đó cần hai lời khuyên khác hẳn nhau.
+   */
+  getStats: () =>
+    api.get<SrsStats>('/srs/stats').then(r => r.data),
 
   /** GET /api/review-tasks/me/today — grammar error tasks due today. */
   getTodayTasks: () =>

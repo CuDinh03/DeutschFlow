@@ -27,7 +27,11 @@ export interface MyClassroom {
 export interface ClassroomDetail {
   id: number
   name: string
-  inviteCode: string
+  /**
+   * Mã mời lớp — backend chỉ trả cho lớp B2C; với lớp của TRUNG TÂM luôn null (V-04), vì mỗi lượt
+   * chia sẻ mã là một ghế có thể bị người lạ chiếm và học viên không phải người có quyền mời.
+   */
+  inviteCode: string | null
   teachers: TeacherSummary[]
   studentCount: number
   assignmentCount: number
@@ -280,4 +284,29 @@ export async function fetchMySkillReport(classId: number): Promise<MySkillReport
 export async function fetchClassSessions(classId: number): Promise<ClassSession[]> {
   const res = await api.get<ClassSession[]>(`/v2/students/classes/${classId}/sessions`)
   return res.data ?? []
+}
+
+/**
+ * Trần `topic` của phiên AI speaking = `CreateSessionRequest.topic @Size(max = 2000)` + cột
+ * `ai_speaking_sessions.topic` VARCHAR(2000) từ backend V304 (#541). Trước đó 200: kịch bản AI
+ * sinh cho bài SPEAKING_SCENARIO dài hơn → 400 ngay khi bấm bắt đầu (#537 phải cắt, mất mô tả/gợi ý).
+ * Vẫn giữ nhánh cắt phòng kịch bản dài bất thường (mobile gương đúng hàm này).
+ */
+export const SESSION_TOPIC_MAX = 2000
+
+/**
+ * Chuỗi `topic` gửi cho phiên AI của bài giao nói: ≤ 2000 thì giữ nguyên định dạng
+ * "Chủ đề / Mô tả chi tiết / Gợi ý"; vượt thì giữ chủ đề + đầu mô tả (kết thúc …), bỏ Gợi ý.
+ */
+export function scenarioTopic(
+  sc: { topic?: string | null; scenarioDescription?: string | null; followUpQuestions?: string | null },
+  max = SESSION_TOPIC_MAX,
+): string {
+  const full = `Chủ đề: ${sc.topic ?? ''}\n\nMô tả chi tiết: ${sc.scenarioDescription ?? ''}\n\nGợi ý: ${sc.followUpQuestions ?? ''}`
+  if (full.length <= max) return full
+  const head = `Chủ đề: ${sc.topic ?? ''}\n\nMô tả chi tiết: `
+  const room = max - head.length - 1
+  if (room <= 0) return full.slice(0, max)
+  const desc = (sc.scenarioDescription ?? '').trim()
+  return head + (desc.length > room ? `${desc.slice(0, room).trimEnd()}…` : desc)
 }

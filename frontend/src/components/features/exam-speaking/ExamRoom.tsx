@@ -4,10 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Volume2, VolumeX, Flag, ChevronRight, RotateCcw, ArrowLeft, Mic, Ear, Loader2 } from 'lucide-react'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
+import { newClientTurnId } from '@/lib/exam/clientTurnId'
 import { apiMessage, httpStatus } from '@/lib/api'
+import { parseMinorAudioBlocked, type MinorAudioBlocked } from '@/lib/minorAudio'
 import { MAX_TRANSCRIBE_BYTES } from '@/lib/voiceRecorder'
 import type { BlueprintSummary, ExamResultView, ExamSessionView, RoomLine, TurnResponse } from '@/types/exam-speaking'
 import { GaBtn, GaCap, ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { MinorAudioBlockedNotice } from '@/components/ui-v2/MinorAudioBlockedNotice'
 import { StimulusCard } from './StimulusCard'
 import { ExamTimer } from './ExamTimer'
 import { TeilStepper } from './TeilStepper'
@@ -30,6 +33,22 @@ let lineSeq = 0
 const nextId = () => `l${Date.now()}-${lineSeq++}`
 
 /**
+ * Lượt nói vừa gửi thất bại mà backend CÓ THỂ đã xử lý (timeout 45s, rớt mạng, 5xx, hoặc 409 "đang xử lý").
+ * Giữ nguyên blob/text + clientTurnId để "Gửi lại" đúng lượt đó: backend replay nếu đã xong, xử lý nếu chưa —
+ * không bao giờ thành hai lượt (F-06). Lỗi 4xx khác (audio hỏng, 413, hết giờ Teil) không giữ lại.
+ */
+type PendingTurn =
+  | { kind: 'audio'; blob: Blob; filename: string; clientTurnId: string }
+  | { kind: 'text'; text: string; clientTurnId: string }
+
+function isRetryableTurnError(e: unknown): boolean {
+  const status = httpStatus(e) // 0 = không có response (timeout / mất mạng) — không biết server đã làm gì
+  if (!status) return true
+  if (status >= 500) return true
+  return status === 409 && /đang được xử lý|in progress/i.test(apiMessage(e))
+}
+
+/**
  * Phòng thi cá nhân (Đợt 1): prep → live (Prüfer/Partner AI + thẻ đề + đồng hồ server) → drill: tổng kết;
  * mock: chấm nền → Ergebnisbogen. Mock chỉ nhận AUDIO (server phiên âm); drill có fallback bàn phím.
  */
@@ -45,6 +64,9 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
   const [result, setResult] = useState<ExamResultView | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 403 MINOR_AUDIO_BLOCKED (DEC-22/D8): lượt nói audio bị chặn tới khi trung tâm ghi nhận đồng ý
+  // của người giám hộ — không phải lỗi lượt, không giữ pendingTurn ("Gửi lại" không mở được cổng).
+  const [minorBlocked, setMinorBlocked] = useState<MinorAudioBlocked | null>(null)
   const [loading, setLoading] = useState(true)
   const [muted, setMuted] = useState(isExamTtsMuted())
   const [notes, setNotes] = useState('')
@@ -53,6 +75,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
   const [aiSpeaking, setAiSpeaking] = useState<'PRUEFER' | 'PARTNER' | null>(null)
   const [yourTurnPulse, setYourTurnPulse] = useState(false)
   const speakGenRef = useRef(0)
+  const [pendingTurn, setPendingTurn] = useState<PendingTurn | null>(null)
 
   /**
    * Đọc lần lượt các lời AI và giữ trạng thái lượt trong suốt chuỗi. Generation guard: mỗi hành động
@@ -184,7 +207,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
   const inFlightRef = useRef(false)
 
   const submitAudio = useCallback(
-    async (blob: Blob) => {
+    async (blob: Blob, retryOf?: PendingTurn) => {
       if (inFlightRef.current) return
       // Guard client theo ĐÚNG trần của endpoint phiên âm (8MB), không phải trần multipart 25MB
       // của Spring. Với trần 180s + bitrate hiện tại, một lượt nói chỉ ~1,4MB nên nhánh này gần
@@ -198,13 +221,23 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       setBusy(true)
       setError(null)
       const startedAt = performance.now()
+      const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'
+      const filename = retryOf?.kind === 'audio' ? retryOf.filename : `turn.${ext}`
+      const clientTurnId = retryOf?.clientTurnId ?? newClientTurnId()
       try {
         interruptSpeech()
-        const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'
-        const { data } = await examSpeakingApi.audioTurn(sessionId, blob, `turn.${ext}`, locale)
+        const { data } = await examSpeakingApi.audioTurn(sessionId, blob, filename, locale, clientTurnId)
+        setPendingTurn(null)
         applyTurn(data, '', startedAt)
       } catch (e) {
-        setError(httpStatus(e) === 413 ? t('audioTooLarge') : apiMessage(e))
+        const blocked = parseMinorAudioBlocked(e)
+        if (blocked) {
+          setMinorBlocked(blocked)
+          setPendingTurn(null)
+        } else {
+          setError(httpStatus(e) === 413 ? t('audioTooLarge') : apiMessage(e))
+          setPendingTurn(isRetryableTurnError(e) ? { kind: 'audio', blob, filename, clientTurnId } : null)
+        }
       } finally {
         inFlightRef.current = false
         setBusy(false)
@@ -214,18 +247,21 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
   )
 
   const submitText = useCallback(
-    async (text: string) => {
+    async (text: string, retryOf?: PendingTurn) => {
       if (inFlightRef.current) return
       inFlightRef.current = true
       setBusy(true)
       setError(null)
       const startedAt = performance.now()
+      const clientTurnId = retryOf?.clientTurnId ?? newClientTurnId()
       try {
         interruptSpeech()
-        const { data } = await examSpeakingApi.textTurn(sessionId, text, locale)
+        const { data } = await examSpeakingApi.textTurn(sessionId, text, locale, clientTurnId)
+        setPendingTurn(null)
         applyTurn(data, text, startedAt)
       } catch (e) {
         setError(apiMessage(e))
+        setPendingTurn(isRetryableTurnError(e) ? { kind: 'text', text, clientTurnId } : null)
       } finally {
         inFlightRef.current = false
         setBusy(false)
@@ -233,6 +269,14 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
     },
     [applyTurn, interruptSpeech, locale, sessionId],
   )
+
+  /** "Gửi lại" đúng lượt vừa thất bại — cùng clientTurnId nên backend không bao giờ tính thành lượt thứ hai. */
+  const retryPendingTurn = useCallback(() => {
+    const p = pendingTurn
+    if (!p) return
+    if (p.kind === 'audio') void submitAudio(p.blob, p)
+    else void submitText(p.text, p)
+  }, [pendingTurn, submitAudio, submitText])
 
   const advance = useCallback(async () => {
     setBusy(true)
@@ -344,7 +388,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       <div className="border-b border-ga-line bg-ga-card px-4 py-3 sm:px-6 lg:px-10">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <GaCap className="block">{providerName} {session.level} · {isMock ? t('modeMock') : t('modeDrill')}</GaCap>
+            <GaCap className="block">{providerName} {session.level} · {isMock ? t('modeMock') : t('modeDrill')} · <span data-testid="beta-label">{t('beta')}</span></GaCap>
             {blueprint && <TeilStepper parts={blueprint.parts} currentTeil={session.currentPart} state={session.state} mode={session.mode} />}
           </div>
           <div className="flex items-center gap-2">
@@ -372,9 +416,19 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       </div>
 
       <div className="flex-1 px-4 py-5 sm:px-6 lg:px-10">
-        {error && (
+        {minorBlocked && (
           <div className="mb-4">
-            <ErrorBanner message={error} onRetry={() => setError(null)} retryLabel={t('dismiss')} />
+            <MinorAudioBlockedNotice info={minorBlocked} onDismiss={() => setMinorBlocked(null)} />
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-4" data-testid={pendingTurn ? 'turn-retry-banner' : undefined}>
+            <ErrorBanner
+              message={pendingTurn ? `${error} ${t('retryTurnHint')}` : error}
+              onRetry={pendingTurn ? retryPendingTurn : () => setError(null)}
+              retryLabel={pendingTurn ? t('retryTurn') : t('dismiss')}
+            />
           </div>
         )}
 
@@ -560,10 +614,18 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
         )}
 
         {session.state === 'GRADING_FAILED' && (
-          <section className="mx-auto max-w-xl py-10" data-testid="exam-grading-failed">
-            <ErrorBanner variant="page" message={t('gradingFailed')} />
-            <p className="ga-ui mt-3 text-[13px] text-ga-muted">{t('gradingFailedDesc')}</p>
+          <section className="mx-auto max-w-xl py-10" data-testid="exam-grading-failed" data-grading-error={session.gradingError ?? ''}>
+            {/* F-08: hết quota ≠ job chết — người học cần nạp/chờ kỳ mới rồi bấm Chấm lại, không phải "thử lại sau". */}
+            <ErrorBanner variant="page" message={session.gradingError === 'QUOTA_EXCEEDED' ? t('gradingFailedQuota') : t('gradingFailed')} />
+            <p className="ga-ui mt-3 text-[13px] text-ga-muted">
+              {session.gradingError === 'QUOTA_EXCEEDED' ? t('gradingFailedQuotaDesc') : t('gradingFailedDesc')}
+            </p>
             <div className="mt-4 flex flex-wrap gap-2">
+              {session.gradingError === 'QUOTA_EXCEEDED' && (
+                <a href="/v2/student/tuition" data-testid="quota-upgrade-link" className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-yellow px-4 py-2.5 text-[13px] font-semibold text-ga-ink">
+                  {t('upgradeCta')}
+                </a>
+              )}
               <button
                 type="button"
                 onClick={regrade}

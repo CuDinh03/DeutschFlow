@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowUpLeft, BookOpen, Check, Lock, Play } from 'lucide-react'
 import { SKILL_ICONS } from '@/lib/skills'
-import { SkillIcon } from '@/components/ui-v2'
+import { GaIcon, iconNameForEmoji, SkillIcon } from '@/components/ui-v2'
 import type { TreeMotif } from '@/lib/roadmap-tree/treeLayout'
 import {
   isSkillMastered,
@@ -72,10 +72,14 @@ export function TreeNodePanel({ node, stats, onJumpToNode }: TreeNodePanelProps)
     <div className="flex h-full flex-col">
       <div className="border-b border-dashed border-ga-line px-4 py-3">
         <p className="break-words font-ga-display text-[17px] font-medium text-ga-ink">
+          {/* `emoji` là cột dữ liệu của node, không phải lựa chọn giao diện — dịch sang icon để
+              cùng nét với phần còn lại của bảng (xem `emojiIconMap`). */}
           {node.emoji && (
-            <span className="mr-1.5" aria-hidden>
-              {node.emoji}
-            </span>
+            <GaIcon
+              name={iconNameForEmoji(node.emoji)}
+              size={16}
+              className="mr-1.5 inline align-[-2px] text-ga-muted"
+            />
           )}
           {node.dayNumber ? t('tree.dayTitle', { day: node.dayNumber, title }) : title}
         </p>

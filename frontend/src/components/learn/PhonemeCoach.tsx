@@ -7,6 +7,9 @@ import { Mic, MicOff, Play, RefreshCw, Volume2, TriangleAlert, Check, X, Star, T
 import type { LucideIcon } from "lucide-react";
 import { playTTS } from "@/lib/tts";
 import api from "@/lib/api";
+import { parseMinorAudioBlocked, type MinorAudioBlocked } from "@/lib/minorAudio";
+import { MinorAudioBlockedNotice } from "@/components/ui-v2/MinorAudioBlockedNotice";
+import { useTranslations } from "next-intl";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -59,9 +62,12 @@ function scoreColor(score: number) {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCoachProps) {
+  const t = useTranslations("v2.student.learnViews.phoneme");
   const [state, setState] = useState<"idle" | "recording" | "processing" | "result">("idle");
   const [result, setResult] = useState<EvalResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 403 MINOR_AUDIO_BLOCKED (DEC-22/D8): chấm phát âm bị chặn tới khi trung tâm ghi nhận đồng ý.
+  const [minorBlocked, setMinorBlocked] = useState<MinorAudioBlocked | null>(null);
 
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -112,7 +118,7 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
       mr.start();
       setState("recording");
     } catch {
-      setError("Không thể truy cập microphone. Hãy kiểm tra quyền trình duyệt.");
+      setError(t("micDenied"));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target]);
@@ -139,8 +145,10 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
       setResult(res.data);
       setState("result");
       if (res.data.score >= 70) onSuccess?.(res.data.score);
-    } catch {
-      setError("Không thể đánh giá phát âm. Vui lòng thử lại.");
+    } catch (e: unknown) {
+      const blocked = parseMinorAudioBlocked(e);
+      if (blocked) setMinorBlocked(blocked);
+      else setError(t("evalFailed"));
       setState("idle");
     }
   }, [target, onSuccess]);
@@ -148,6 +156,7 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
   const reset = useCallback(() => {
     setResult(null);
     setError(null);
+    setMinorBlocked(null);
     setState("idle");
   }, []);
 
@@ -162,7 +171,7 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
         <span className="grid w-8 h-8 place-items-center rounded-lg bg-[#121212] text-white"><Mic size={15} aria-hidden /></span>
         <div className="flex-1">
           <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide">Phoneme Coach</p>
-          <p className="text-sm font-bold text-[#0F172A]">Luyện phát âm</p>
+          <p className="text-sm font-bold text-[#0F172A]">{t("title")}</p>
         </div>
       </div>
 
@@ -177,7 +186,7 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
             onClick={() => playTTS(target, 0.8)}
             className="inline-flex items-center gap-1.5 text-xs text-[#64748B] hover:text-[#121212] bg-[#F1F5F9] hover:bg-[#E2E8F0] px-3 py-1.5 rounded-full transition-colors"
           >
-            <Volume2 size={12} /> Nghe mẫu (chậm)
+            <Volume2 size={12} /> {t("listenSlow")}
           </button>
         </div>
 
@@ -211,15 +220,19 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
           )}
 
           {state === "recording" && (
-            <p className="text-xs text-red-500 font-bold animate-pulse">● Đang ghi âm... Nhấn để dừng</p>
+            <p className="text-xs text-red-500 font-bold animate-pulse">{t("recording")}</p>
           )}
 
           {/* Processing spinner */}
           {state === "processing" && (
             <div className="flex flex-col items-center gap-3">
               <div className="w-10 h-10 border-4 border-[#121212] border-t-transparent rounded-full animate-spin" />
-              <p className="text-xs text-[#64748B]">Đang phân tích phát âm...</p>
+              <p className="text-xs text-[#64748B]">{t("analyzing")}</p>
             </div>
+          )}
+
+          {minorBlocked && (
+            <MinorAudioBlockedNotice info={minorBlocked} onDismiss={() => setMinorBlocked(null)} className="w-full text-left" />
           )}
 
           {/* Error */}
@@ -269,11 +282,11 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
                   <p className="text-sm font-bold text-[#0F172A] mt-1 break-words">{result.feedbackVi}</p>
                   {result.transcribed ? (
                     <p className="text-xs text-[#64748B] mt-1 break-words">
-                      Nghe được: <em>&ldquo;{result.transcribed}&rdquo;</em>
+                      {t("heard")} <em>&ldquo;{result.transcribed}&rdquo;</em>
                     </p>
                   ) : (
                     <p className="text-xs text-red-500 mt-1 font-medium">
-                      Nghe được: [Trống / Không thu được tiếng]
+                      {t("heardEmpty")}
                     </p>
                   )}
                 </div>
@@ -282,7 +295,7 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
               {/* Word-level breakdown */}
               {result.words.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-wide mb-2">Phân tích từng từ</p>
+                  <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-wide mb-2">{t("perWord")}</p>
                   <div className="flex flex-wrap gap-2">
                     {result.words.map((w, i) => (
                       <span
@@ -307,14 +320,14 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
                   onClick={reset}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-[#E2E8F0] text-sm font-bold text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
                 >
-                  <RefreshCw size={14} /> Thử lại
+                  <RefreshCw size={14} /> {t("retry")}
                 </button>
                 <button
                   type="button"
                   onClick={() => playTTS(target, 0.8)}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-[#E2E8F0] text-sm font-bold text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
                 >
-                  <Play size={14} /> Nghe lại
+                  <Play size={14} /> {t("replay")}
                 </button>
               </div>
             </motion.div>

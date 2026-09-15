@@ -7,11 +7,13 @@ import { ArrowLeft, Paperclip, Download, Mic, Clock, CheckCircle2, RotateCcw } f
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import api, { apiMessage } from '@/lib/api'
+import { parseMinorAudioBlocked, type MinorAudioBlocked } from '@/lib/minorAudio'
 import { aiSpeakingApi } from '@/lib/aiSpeakingApi'
 import { loadSpeakingSessionIntoStore } from '@/lib/speakingSessionBootstrap'
 import { useChatStore } from '@/stores/useChatStore'
-import { fetchClassAssignments, type StudentAssignment } from '@/lib/studentClassesApi'
+import { fetchClassAssignments, scenarioTopic, type StudentAssignment } from '@/lib/studentClassesApi'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { MinorAudioBlockedModal } from '@/components/ui-v2/MinorAudioBlockedNotice'
 import { AssignmentMaterials } from './AssignmentMaterials'
 import type { AiCompanion } from '@/types/ai-speaking'
 
@@ -69,6 +71,8 @@ export default function V2AssignmentPage() {
   const [busy, setBusy] = useState(false)
   /** Mở lại ô soạn bài để nộp bản khác đè lên bản đã nộp. */
   const [resubmitting, setResubmitting] = useState(false)
+  // 403 MINOR_AUDIO_BLOCKED từ presigned-url (tệp ghi âm, DEC-22/D8): modal giải thích thay toast.
+  const [minorBlocked, setMinorBlocked] = useState<MinorAudioBlocked | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
@@ -113,7 +117,9 @@ export default function V2AssignmentPage() {
       setContent(''); setFile(null)
       await load()
     } catch (e: unknown) {
-      toast.error(apiMessage(e))
+      const blocked = parseMinorAudioBlocked(e)
+      if (blocked) setMinorBlocked(blocked)
+      else toast.error(apiMessage(e))
     } finally {
       setBusy(false)
     }
@@ -124,7 +130,8 @@ export default function V2AssignmentPage() {
     setBusy(true)
     try {
       const { data: sc } = await api.get(`/v2/students/assignments/${a.assignmentId}/scenario`)
-      const fullTopic = `Chủ đề: ${sc.topic}\n\nMô tả chi tiết: ${sc.scenarioDescription}\n\nGợi ý: ${sc.followUpQuestions}`
+      // ≤ 200 ký tự theo trần backend — chuỗi nguyên (kịch bản AI sinh) từng làm 400 ngay khi bấm bắt đầu.
+      const fullTopic = scenarioTopic(sc)
       const session = await aiSpeakingApi.createSession(fullTopic, sc.level, 'DEFAULT', 'V1', 'LESSON', null, null, a.id)
       // Bài tập nói của lớp KHÔNG cho chọn nhân vật (persona DEFAULT = gia sư trung tính), nhưng
       // engine bắt buộc phải có selectedCompanion trong store — thiếu là nó đá ngược về màn chọn
@@ -325,6 +332,7 @@ export default function V2AssignmentPage() {
           </div>
         ) : null}
       </div>
+      <MinorAudioBlockedModal info={minorBlocked} onClose={() => setMinorBlocked(null)} />
     </div>
   )
 }

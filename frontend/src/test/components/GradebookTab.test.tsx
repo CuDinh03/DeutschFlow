@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { GradebookTab } from '@/app/v2/teacher/tc-reports/GradebookTab'
 import type { Gradebook, GradebookCell } from '@/lib/teacherGradebookApi'
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', () => ({ useLocale: () => 'vi',
   useTranslations: () => (k: string) => k,
 }))
 

@@ -6,7 +6,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import api from '@/lib/api'
 import { GaStatStrip, type GaStatItem, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { GaPageHdr } from '@/components/ui-v2'
-import { GaSection, GaBars, GaDonut, GaLegend, GA_CHART, fmtVnd, fmtDateTime, nfVN } from '../../analyticsShared'
+import { GaSection, GaBars } from '../../analyticsShared'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // ── Real shape of GET /admin/analytics/revenue (AdminAnalyticsController) ────────
 interface RevenueOverview {
@@ -46,19 +47,32 @@ interface RevenueResponse {
 
 const PAGE_SIZE = 20
 
-function StatusDot({ status }: { status: string }) {
-  const s = status.toUpperCase()
-  const color = s === 'COMPLETED' ? 'var(--ga-green)' : s === 'FAILED' ? 'var(--ga-red)' : 'var(--ga-orange)'
+// Tập trạng thái THẬT của payment_transactions (V129__payment_gateway.sql):
+// PENDING | SUCCESS | FAILED | CANCELLED. Mã cũ nhận diện 'COMPLETED' — một giá trị không tồn tại
+// ở bất kỳ đâu trong backend — nên MỌI giao dịch SUCCESS rơi vào nhánh mặc định và hiện màu cam
+// y như đang chờ. Giá trị ngoài tập được gọi thẳng là "không xác định", không giả làm đang chờ.
+const STATUS_TONE: Record<string, { color: string; key: string }> = {
+  SUCCESS: { color: 'var(--ga-green)', key: 'statusSuccess' },
+  FAILED: { color: 'var(--ga-red)', key: 'statusFailed' },
+  PENDING: { color: 'var(--ga-orange)', key: 'statusPending' },
+  CANCELLED: { color: 'var(--ga-muted)', key: 'statusCancelled' },
+}
+
+function StatusDot({ status, t }: { status: string; t: (k: string) => string }) {
+  const s = (status ?? '').toUpperCase()
+  const known = STATUS_TONE[s]
+  const color = known?.color ?? 'var(--ga-muted)'
   return (
     <span className="ga-ui inline-flex items-center gap-1.5 text-[12px] font-semibold" style={{ color }}>
       <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: color }} />
-      {s}
+      {known ? t(known.key) : t('statusUnknown')}
     </span>
   )
 }
 
 export default function V2AdminRevenuePage() {
   const t = useTranslations('v2.adminOps.revenue')
+  const fmt = useFmt()
   const [data, setData] = useState<RevenueResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -88,16 +102,26 @@ export default function V2AdminRevenuePage() {
   const chart = data?.chartData ?? []
   const tx = data?.transactions
   const latest = chart.length > 0 ? chart[chart.length - 1] : null
-  const mrr = latest?.netVnd ?? overview?.netVnd ?? 0
+  const netRemaining = latest?.netVnd ?? overview?.netVnd ?? 0
 
+  // F01: giá trị này là gross − phí cửa hàng giả định 15% − chi phí AI ước tính, của MỘT kỳ gần nhất
+  // (AdminAnalyticsService.STORE_FEE_RATE). Gọi nó là "MRR" là sai nghĩa: MRR là doanh thu định kỳ
+  // của các thuê bao đang hiệu lực, không phải phần còn lại sau chi phí. ARR cũ = giá trị này × 12
+  // nên đã bỏ hẳn — phép ngoại suy đó không có cơ sở khi chưa biết kỳ có đủ tháng hay chưa.
+  // F02: `subscribers` là COUNT(id) trên giao dịch SUCCESS (PaymentTransactionRepository) — số GIAO DỊCH,
+  // không phải số người. Hai giao dịch của cùng một người đếm thành 2.
   const cells: GaStatItem[] = [
-    { label: t('stats.mrr'), value: fmtVnd(mrr), tone: 'green', sub: latest ? latest.period : '—' },
-    { label: t('stats.arr'), value: fmtVnd(mrr * 12), tone: 'blue', sub: t('stats.arrSub') },
     {
-      label: t('stats.subscribers'),
-      value: latest ? nfVN.format(latest.subscribers) : '—',
+      label: t('stats.netRemaining'),
+      value: fmt.vndCompact(netRemaining),
+      tone: netRemaining < 0 ? 'orange' : 'green',
+      sub: latest ? latest.period : '—',
+    },
+    {
+      label: t('stats.successTx'),
+      value: latest ? fmt.num(latest.subscribers) : '—',
       tone: 'violet',
-      sub: t('stats.subscribersSub'),
+      sub: t('stats.successTxSub'),
     },
     {
       label: t('stats.margin'),
@@ -107,13 +131,16 @@ export default function V2AdminRevenuePage() {
     },
   ]
 
-  // Cost breakdown of latest period (real) — replaces proto's plan-mix donut (no plan-breakdown EP).
-  const breakdownSegs = latest
+  // F04: bản cũ vẽ donut với Math.max(0, …) — một kỳ lỗ (net âm) bị kẹp về 0 rồi `filter(v > 0)`
+  // loại luôn khỏi hình, nên hình trông như kỳ đó hoà vốn. Donut vốn không biểu diễn được số âm:
+  // nó chia một tổng dương thành các phần. Thay bằng bảng có dấu — lỗ hiện ra là lỗ.
+  const breakdownRows = latest
     ? [
-        { label: t('segNet'), value: Math.max(0, latest.netVnd), color: GA_CHART[4] },
-        { label: t('segStoreFee'), value: Math.max(0, latest.storeFeeVnd), color: GA_CHART[3] },
-        { label: t('segAiCost'), value: Math.max(0, latest.apiCostVnd), color: GA_CHART[7] },
-      ].filter((s) => s.value > 0)
+        { key: 'rowGross', value: latest.grossVnd, strong: false },
+        { key: 'rowStoreFee', value: -latest.storeFeeVnd, strong: false },
+        { key: 'rowAiCost', value: -latest.apiCostVnd, strong: false },
+        { key: 'rowNet', value: latest.netVnd, strong: true },
+      ]
     : []
 
   return (
@@ -127,9 +154,11 @@ export default function V2AdminRevenuePage() {
           </div>
         )}
 
+        {/* D08: trước đây lần tải ĐẦU thất bại vẫn rơi xuống nhánh dưới và dựng bộ KPI từ dữ liệu rỗng —
+            "0 ₫" nằm ngay dưới banner lỗi, đọc như một con số thật. Không có dữ liệu thì chỉ còn banner. */}
         {loading && !data ? (
           <LoadingState label={t('loading')} />
-        ) : (
+        ) : !data ? null : (
           <div className="space-y-[22px]">
             <GaStatStrip items={cells} />
 
@@ -140,7 +169,7 @@ export default function V2AdminRevenuePage() {
                     data={chart.map((r) => ({ label: r.period, value: r.netVnd }))}
                     color="#1E9E61"
                     height={180}
-                    valueFmt={fmtVnd}
+                    valueFmt={fmt.vndCompact}
                   />
                 ) : (
                   <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">{t('noPeriodData')}</p>
@@ -148,12 +177,37 @@ export default function V2AdminRevenuePage() {
               </GaSection>
 
               <GaSection title={t('latestBreakdown')}>
-                {breakdownSegs.length > 0 ? (
-                  <div className="flex flex-col items-center gap-5 sm:flex-row">
-                    <GaDonut segments={breakdownSegs} />
-                    <div className="w-full min-w-0 flex-1">
-                      <GaLegend items={breakdownSegs.map((s) => ({ ...s, display: fmtVnd(s.value) }))} />
-                    </div>
+                {breakdownRows.length > 0 ? (
+                  <div>
+                    <table className="w-full text-left">
+                      <tbody>
+                        {breakdownRows.map((row) => (
+                          <tr
+                            key={row.key}
+                            className={row.strong ? 'border-t border-ga-border' : 'border-b border-ga-border last:border-0'}
+                          >
+                            <th
+                              scope="row"
+                              className={
+                                row.strong
+                                  ? 'ga-ui py-2.5 pr-3 text-ga-small font-semibold text-ga-ink'
+                                  : 'ga-ui py-2.5 pr-3 text-ga-small font-medium text-ga-muted'
+                              }
+                            >
+                              {t(row.key)}
+                            </th>
+                            <td
+                              className={`py-2.5 text-right text-ga-small tabular-nums ${
+                                row.strong ? 'font-semibold' : ''
+                              } ${row.value < 0 ? 'text-ga-red' : 'text-ga-ink'}`}
+                            >
+                              {fmt.vndCompact(row.value)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="ga-ui mt-3 text-ga-caption leading-relaxed text-ga-muted">{t('breakdownNote')}</p>
                   </div>
                 ) : (
                   <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">{t('noPeriodData')}</p>
@@ -165,7 +219,7 @@ export default function V2AdminRevenuePage() {
               title={t('recentTransactions')}
               right={
                 tx ? (
-                  <span className="ga-ui text-[12.5px] text-ga-muted">{t('txCount', { count: nfVN.format(tx.totalElements) })}</span>
+                  <span className="ga-ui text-[12.5px] text-ga-muted">{t('txCount', { count: fmt.num(tx.totalElements) })}</span>
                 ) : null
               }
               bodyClassName="p-0"
@@ -211,15 +265,15 @@ export default function V2AdminRevenuePage() {
                               {r.planCode || '—'}
                             </span>
                           </td>
-                          <td className="px-5 py-3 text-[13.5px] font-semibold text-ga-ink">{fmtVnd(r.amount)}</td>
+                          <td className="px-5 py-3 text-[13.5px] font-semibold text-ga-ink">{fmt.vndCompact(r.amount)}</td>
                           <td className="px-5 py-3">
-                            <StatusDot status={r.status} />
+                            <StatusDot status={r.status} t={t} />
                           </td>
                           <td className="max-w-[150px] truncate px-5 py-3 font-mono text-[11px] text-ga-subtle">
                             {r.providerTransactionId || '—'}
                           </td>
                           <td className="whitespace-nowrap px-5 py-3 text-[12.5px] text-ga-muted">
-                            {fmtDateTime(r.createdAt)}
+                            {fmt.dateTime(r.createdAt)}
                           </td>
                         </tr>
                       ))

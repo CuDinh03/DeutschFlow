@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import { View, RefreshControl, Pressable, Alert, Linking } from 'react-native'
+import type { GlyphName } from '@/lib/galerieGlyphs'
+import { View, Pressable, Alert, Linking } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, useFocusEffect } from 'expo-router'
 import { MotiView } from 'moti'
-import { Flame, BookOpen, Mic, Star, Map, Bell, Zap, MessageCircle, type LucideIcon } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useTourStore } from '@/stores/useTourStore'
+import { canAutoStartHomeTour, canAutoStartSrsIntro, probeStatus } from '@/lib/tourEligibility'
 import { useStarterStore } from '@/stores/useStarterStore'
 import { SpotlightTarget, useSpotlightTour } from '@/components/guide/SpotlightTour'
 import { SPOTLIGHT_TARGETS } from '@/components/guide/spotlightTours'
@@ -19,7 +21,7 @@ import { captureEvent } from '@/lib/analytics'
 import api from '@/lib/api'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
-import { skillTreeApi } from '@/lib/skillTreeApi'
+import { lernwegApi, ROADMAP_ME_QUERY_KEY } from '@/lib/lernwegApi'
 import { messagesApi } from '@/lib/messagesApi'
 import { TodayTasks } from '@/components/home/TodayTasks'
 import { motion, space, radius, useTheme } from '@/lib/theme'
@@ -36,10 +38,10 @@ import {
   Caption,
   ProgressBar,
   useTabBarClearance,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 
 // Only the fields the home actually uses from the (plan-oriented) dashboard.
-// XP/level come from /xp/me, due-SRS from /srs/count, unread from /notifications.
+// XP/level come from /xp/me, SRS due + reviewedCards from /srs/stats, unread from /notifications.
 interface DashboardData {
   streakDays: number
   weeklyXp: number
@@ -58,21 +60,34 @@ export default function DashboardScreen() {
   const { user } = useAuthStore()
   const { isPro } = usePlanStore()
 
-  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => api.get<DashboardData>('/student/dashboard').then((r) => r.data),
     staleTime: 60_000,
   })
 
-  const { data: xp, refetch: refetchXp } = useQuery({
+  const {
+    data: xp,
+    refetch: refetchXp,
+    isSuccess: xpLoaded,
+    isError: xpFailed,
+  } = useQuery({
     queryKey: ['xp-summary'],
     queryFn: () => gamificationApi.getXpSummary(),
     staleTime: 60_000,
   })
 
-  const { data: srs, refetch: refetchSrs } = useQuery({
+  const {
+    data: srs,
+    refetch: refetchSrs,
+    isSuccess: srsLoaded,
+    isError: srsFailed,
+  } = useQuery({
     queryKey: ['srs-count'],
-    queryFn: () => api.get<{ dueCount: number }>('/srs/count').then((r) => r.data),
+    // /srs/stats thay /srs/count (05/09): cùng dueCount, thêm reviewedCards (số thẻ đã
+    // ôn ≥ 1 lần) để coach mark SRS chỉ tự nổ cho người CHƯA TỪNG ôn. Backend cũ chưa
+    // trả trường này → undefined → tourEligibility rơi về gate cũ.
+    queryFn: () => api.get<{ dueCount: number; reviewedCards?: number }>('/srs/stats').then((r) => r.data),
     staleTime: 30_000,
   })
 
@@ -88,16 +103,29 @@ export default function DashboardScreen() {
     staleTime: 30_000,
   })
 
-  // Roadmap progress (real skill-tree data, shared cache with the roadmap screen)
-  // → the na-home PathCard entry.
-  const { data: treeNodes = [] } = useQuery({
-    queryKey: ['skill-tree'],
-    queryFn: () => skillTreeApi.getMySkillTree(),
+  // Tiến độ lộ trình: CÙNG nguồn /roadmap/me với màn Lernweg (N1, 05/09) — trước đây
+  // card lấy % từ /skill-tree/me còn màn đích vẽ cây demo /roadmap/tree nên hai số
+  // không bao giờ khớp nhau.
+  const {
+    data: roadmapNodes = [],
+    isSuccess: roadmapLoaded,
+    isError: roadmapFailed,
+  } = useQuery({
+    queryKey: ROADMAP_ME_QUERY_KEY,
+    queryFn: () => lernwegApi.nodes(),
     staleTime: 120_000,
   })
-  const treeTotal = treeNodes.length
-  const treeDone = treeNodes.filter((n) => n.status === 'COMPLETED').length
+  const treeTotal = roadmapNodes.length
+  const treeDone = roadmapNodes.filter((n) => n.progressStatus === 'COMPLETED' || n.state === 'completed').length
   const pathPct = treeTotal > 0 ? Math.round((treeDone / treeTotal) * 100) : 0
+
+  // Khai báo trước các gate tour: đang kéo-làm-mới thì RefreshControl đè lên
+  // scrollTo/đo neo của spotlight → coach mark nổ đúng lúc đó rơi về tooltip giữa
+  // màn không khoét sáng (F-SRS-COACH-01, QA tài khoản mới 05/09). Gate coi
+  // `refreshing` là bận, làm mới xong effect chạy lại và nổ bình thường.
+  const pull = usePullRefresh(async () => {
+    await Promise.all([refetch(), refetchXp(), refetchSrs(), refetchUnread(), refetchMsgUnread()])
+  })
 
   const { startTour, activeTourId } = useSpotlightTour()
   const tourHydrated = useTourStore((s) => s.hydrated)
@@ -106,17 +134,31 @@ export default function DashboardScreen() {
 
   // Q4 (plan onboarding v1): tour spotlight chỉ nổ khi user đáp xuống Trang chủ
   // lần đầu (sau wow moment), delay ~500ms — không auto-mở đè app như tour cũ.
+  // Owner 05/09: CHỈ tự nổ với tài khoản MỚI đăng ký (chưa có hoạt động: 0 XP,
+  // 0 chặng hoàn thành — tín hiệu server, lib/tourEligibility). Cờ "đã xem" nằm
+  // trong SecureStore theo máy và bị xoá khi đăng xuất, nên trước đây tài khoản
+  // cũ đăng nhập lại hoặc sang máy mới bị tour đè lên. Xem lại theo ý muốn vẫn
+  // qua Hướng dẫn (replay).
+  const homeTourAllowed = canAutoStartHomeTour({
+    hydrated: tourHydrated,
+    doneHome: tourDone.home,
+    tourBusy: activeTourId !== null,
+    refreshing: pull.refreshing,
+    // Chờ dashboard render xong: bước 1 neo vào thẻ chuỗi học, mà thẻ đó chỉ
+    // tồn tại khi hết isLoading. Mạng chậm thì waitForRect (1.8s) hết hạn và
+    // tour rơi về "màn mờ phẳng + tooltip giữa màn", mất hiệu ứng khoét sáng (F-11).
+    dashboardLoading: isLoading,
+    xp: { status: probeStatus(xpLoaded, xpFailed), totalXp: xp?.totalXp ?? 0 },
+    roadmap: { status: probeStatus(roadmapLoaded, roadmapFailed), completedCount: treeDone },
+  })
   useFocusEffect(
     useCallback(() => {
-      // Chờ dashboard render xong: bước 1 neo vào thẻ chuỗi học, mà thẻ đó chỉ
-      // tồn tại khi hết isLoading. Mạng chậm thì waitForRect (1.8s) hết hạn và
-      // tour rơi về "màn mờ phẳng + tooltip giữa màn", mất hiệu ứng khoét sáng (F-11).
-      if (!tourHydrated || tourDone.home || activeTourId || isLoading) return
+      if (!homeTourAllowed) return
       const t = setTimeout(() => {
         void getDailyGoalMinutes().then((m) => startTour('home', 'auto', { dailyGoalMinutes: m }))
       }, 500)
       return () => clearTimeout(t)
-    }, [tourHydrated, tourDone.home, activeTourId, isLoading, startTour]),
+    }, [homeTourAllowed, startTour]),
   )
 
   // ── Tuần đầu (Phase D): checklist "Bắt đầu" + sheet nhắc học 20:00 ─────────
@@ -136,14 +178,38 @@ export default function DashboardScreen() {
   }, [])
 
   // Q3: coach mark SRS tách khỏi tour chính — bắn 1 lần khi thẻ "Ôn tập hôm nay"
-  // render thật (dueSrs > 0) sau khi tour chính đã xong.
+  // render thật (dueSrs > 0). Owner 05/09: chỉ cho người CHƯA TỪNG ôn — tín hiệu
+  // server /srs/stats reviewedCards === 0 (lib/tourEligibility); backend chưa có
+  // trường thì rơi về gate cũ "tour chính đã xem trên máy này".
+  const reviewedCards = srs?.reviewedCards
   useFocusEffect(
     useCallback(() => {
-      if (!tourHydrated || !tourDone.home || tourDone.srs_intro || activeTourId || reminderOpen || dueForIntro <= 0)
-        return
+      const allowed = canAutoStartSrsIntro({
+        hydrated: tourHydrated,
+        doneHome: tourDone.home,
+        doneSrs: tourDone.srs_intro,
+        tourBusy: activeTourId !== null,
+        refreshing: pull.refreshing,
+        sheetOpen: reminderOpen,
+        dueCount: dueForIntro,
+        reviewed: { status: probeStatus(srsLoaded, srsFailed), count: reviewedCards ?? null },
+      })
+      if (!allowed) return
       const t = setTimeout(() => startTour('srs_intro', 'auto', { dueCount: dueForIntro }), 600)
       return () => clearTimeout(t)
-    }, [tourHydrated, tourDone.home, tourDone.srs_intro, activeTourId, reminderOpen, dueForIntro, startTour]),
+    }, [
+      tourHydrated,
+      tourDone.home,
+      tourDone.srs_intro,
+      activeTourId,
+      reminderOpen,
+      pull.refreshing,
+      dueForIntro,
+      srsLoaded,
+      srsFailed,
+      reviewedCards,
+      startTour,
+    ]),
   )
 
   const firstActivityDone = treeDone > 0 || starterSrsReviews > 0 || speakingStarted
@@ -222,20 +288,14 @@ export default function DashboardScreen() {
   const dueSrs = srs?.dueCount ?? 0
   const unread = unreadData?.unreadCount ?? 0
 
-  const onRefresh = () => {
-    void refetch()
-    void refetchXp()
-    void refetchSrs()
-    void refetchUnread()
-    void refetchMsgUnread()
-  }
+  const onRefresh = () => void pull.onRefresh()
 
   return (
     <Screen
       scroll
       edges={['top']}
       contentStyle={{ paddingBottom: tabClearance }}
-      refreshing={isRefetching}
+      refreshing={pull.refreshing}
       onRefresh={onRefresh}
     >
       <View
@@ -254,13 +314,13 @@ export default function DashboardScreen() {
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <HeaderIconButton
-            icon={MessageCircle}
+            glyph="hoithoai"
             label={msgUnread > 0 ? `Tin nhắn, ${msgUnread} chưa đọc` : 'Tin nhắn'}
             badge={msgUnread}
             onPress={() => router.push('/(student)/messages')}
           />
           <HeaderIconButton
-            icon={Bell}
+            glyph="thongbao"
             label={unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'}
             badge={unread}
             onPress={() => router.push('/(student)/notifications')}
@@ -293,7 +353,7 @@ export default function DashboardScreen() {
                     justifyContent: 'center',
                   }}
                 >
-                  <Icon icon={Flame} size={30} color="accent" fill />
+                  <GaGlyph name="chuoi" size={30} ink="accent" />
                 </View>
                 <View style={{ flex: 1, gap: 4 }}>
                   <Caption color={theme.colors.accent}>Chuỗi học</Caption>
@@ -302,7 +362,7 @@ export default function DashboardScreen() {
                       {String(data?.streakDays ?? 0)}
                     </ThemedText>
                     <ThemedText variant="bodyStrong" style={{ color: theme.colors.onInkMuted }}>
-                      ngày 🔥
+                      ngày
                     </ThemedText>
                   </View>
                   <ThemedText variant="caption" style={{ color: theme.colors.onInkMuted }}>
@@ -315,8 +375,8 @@ export default function DashboardScreen() {
 
             {/* Secondary stats */}
             <View style={{ flexDirection: 'row', gap: space[3], marginTop: space[3] }}>
-              <StatCard icon={Star} accent="accent" value={`Lv ${level}`} label={`${totalXp} XP`} />
-              <StatCard icon={Zap} accent="info" value={`+${weeklyXp}`} label="XP tuần này" />
+              <StatCard glyph="capdo" accent="accent" value={`Lv ${level}`} label={`${totalXp} XP`} />
+              <StatCard glyph="xp" accent="info" value={`+${weeklyXp}`} label="XP tuần này" />
             </View>
           </View>
 
@@ -338,11 +398,16 @@ export default function DashboardScreen() {
           ) : null}
 
           {dueSrs > 0 ? (
-            <SpotlightTarget id={SPOTLIGHT_TARGETS.homeSrsCard}>
+            // Lề đặt trên neo, không trên Card: neo đo đúng thẻ nên khung vàng của
+            // tour SRS ôm sát thẻ thay vì ôm cả lề màn hình (QA 05/09).
+            <SpotlightTarget
+              id={SPOTLIGHT_TARGETS.homeSrsCard}
+              style={{ marginHorizontal: space[5], marginTop: space[4] }}
+            >
             <Card
               onPress={() => router.push('/(student)/srs')}
               bordered
-              style={{ marginHorizontal: space[5], marginTop: space[4], borderColor: theme.colors.accentSoft }}
+              style={{ borderColor: theme.colors.accentSoft }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
@@ -356,7 +421,7 @@ export default function DashboardScreen() {
                       justifyContent: 'center',
                     }}
                   >
-                    <Icon icon={BookOpen} size={20} color="accent" />
+                    <GaGlyph name="hoc" size={20} ink="primary" />
                   </View>
                   <View style={{ gap: 2 }}>
                     <ThemedText variant="bodyStrong">Ôn tập hôm nay</ThemedText>
@@ -371,8 +436,8 @@ export default function DashboardScreen() {
             </SpotlightTarget>
           ) : null}
 
-          {/* Lối vào Lernweg v2 (cụm 3, 02/09) — % vẫn từ skill-tree cũ tới khi
-              nguồn tiến độ hợp nhất; màn đích là cây /roadmap/tree mới. */}
+          {/* Lối vào Lernweg (cụm 3, 02/09; nguồn hợp nhất /roadmap/me từ 05/09) —
+              % ở đây và cây ở màn đích cùng một danh sách node. */}
           {treeTotal > 0 ? (
             <Card
               onPress={() => router.push('/(student)/lernweg')}
@@ -384,7 +449,7 @@ export default function DashboardScreen() {
                   <Caption>Lộ trình đến B2</Caption>
                   <ThemedText variant="display">{pathPct}%</ThemedText>
                 </View>
-                <Icon icon={Map} size={24} color="muted" />
+                <GaGlyph name="lernweg" size={24} ink="muted" />
               </View>
               <ProgressBar value={pathPct / 100} />
               <ThemedText variant="caption" color="muted">
@@ -397,7 +462,7 @@ export default function DashboardScreen() {
             <SectionHeader title="Hoạt động" />
             <Card padded={false} style={{ paddingHorizontal: space[4] }}>
               <ListRow
-                icon={BookOpen}
+                glyph="hoc"
                 iconTone="accent"
                 title="Luyện từ vựng SRS"
                 subtitle="Flashcard lặp lại ngắt quãng"
@@ -405,19 +470,11 @@ export default function DashboardScreen() {
               />
               <Divider />
               <ListRow
-                icon={Mic}
+                glyph="speaking"
                 iconTone="info"
-                title="AI Speaking"
+                title="Luyện nói AI"
                 subtitle="Hội thoại với AI coach"
                 onPress={() => router.push('/(student)/speaking')}
-              />
-              <Divider />
-              <ListRow
-                icon={Map}
-                iconTone="success"
-                title="Lộ trình học"
-                subtitle="Skill tree A1 đến B2"
-                onPress={() => router.push('/(student)/roadmap')}
               />
             </Card>
           </View>
@@ -430,10 +487,10 @@ export default function DashboardScreen() {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[3] }}>
                 <View style={{ flex: 1, gap: space[1] }}>
-                  <Pill label="MyDeutschFlow PRO" tone="accent" icon={Star} />
+                  <Pill label="MyDeutschFlow PRO" tone="accent" glyph="goipro" />
                   <ThemedText variant="title">Mở khoá toàn bộ tính năng</ThemedText>
                   <ThemedText variant="caption" color="muted">
-                    Speaking AI, Mock Exam, Weekly Challenge
+                    Luyện nói AI, thi thử, thử thách tuần
                   </ThemedText>
                 </View>
                 <View
@@ -467,9 +524,9 @@ export default function DashboardScreen() {
 
 // Header action: a bordered icon button with an optional unread badge (bell + messages).
 function HeaderIconButton({
-  icon, label, badge, onPress,
+  glyph, label, badge, onPress,
 }: {
-  icon: LucideIcon
+  glyph: GlyphName
   label: string
   badge: number
   onPress: () => void
@@ -489,7 +546,7 @@ function HeaderIconButton({
           justifyContent: 'center',
         }}
       >
-        <Icon icon={icon} size={20} color="secondary" />
+        <GaGlyph name={glyph} size={20} ink="secondary" />
         {badge > 0 ? (
           <View
             style={{
@@ -518,12 +575,12 @@ function HeaderIconButton({
 }
 
 function StatCard({
-  icon,
+  glyph,
   accent,
   value,
   label,
 }: {
-  icon: typeof Flame
+  glyph: GlyphName
   accent: 'accent' | 'info'
   value: string
   label: string
@@ -543,7 +600,7 @@ function StatCard({
             justifyContent: 'center',
           }}
         >
-          <Icon icon={icon} size={20} color={accent} />
+          <GaGlyph name={glyph} size={20} ink={accent === 'accent' ? 'primary' : accent} gold={accent} />
         </View>
         <View style={{ gap: 2 }}>
           <ThemedText variant="monoLg">{value}</ThemedText>

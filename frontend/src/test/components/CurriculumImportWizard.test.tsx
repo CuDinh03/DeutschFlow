@@ -24,7 +24,7 @@ const startCurriculumPreview = vi.fn()
 const waitForPreview = vi.fn()
 const commitCurriculumImport = vi.fn()
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', () => ({ useLocale: () => 'vi',
   // Labels resolve to "key" or "key:{json args}" so assertions can read interpolated values.
   useTranslations: () => {
     const f = (k: string, args?: Record<string, unknown>) =>

@@ -37,6 +37,16 @@ import { GaAuthShell } from "../authShared";
 // `icon` là khoá của GaIcon. Năm mức KHÔNG dùng chung một icon sách như bộ emoji cũ
 // (📗📘📙📕 chỉ khác màu — đổi sang icon một màu là năm ô giống hệt nhau): mỗi mức lấy
 // một icon nói đúng việc làm được ở mức đó, để đọc lướt vẫn thấy tiến độ.
+// Chip kỹ năng của bài kiểm tra đầu vào. Nhãn trong catalog TỪNG mang emoji dẫn đầu
+// (🎧 Nghe · 🎤 Nói · 📚 Đọc · ✍️ Viết) — tức icon giả nằm trong chuỗi dịch, mỗi máy vẽ một kiểu
+// và dịch giả có thể vô tình xoá. Nay chuỗi chỉ còn chữ, hình do GaIcon vẽ.
+const TEST_SKILL_CHIP: Record<string, { icon: string; labelKey: string; cls: string }> = {
+  HOEREN:    { icon: "headphones",         labelKey: "test.skillHoeren",    cls: "bg-ga-blue-soft text-ga-blue" },
+  SPRECHEN:  { icon: "mic",                labelKey: "test.skillSprechen",  cls: "bg-ga-red-soft text-ga-red" },
+  LESEN:     { icon: "menu_book",          labelKey: "test.skillLesen",     cls: "bg-ga-green-soft text-ga-green" },
+  SCHREIBEN: { icon: "draw",               labelKey: "test.skillSchreiben", cls: "bg-ga-violet-soft text-ga-violet" },
+};
+
 const LEVELS = [
   { value: "A0", icon: "eco" },
   { value: "A1", icon: "menu_book" },
@@ -71,6 +81,17 @@ interface PQ { id: number; skillSection: string; type: string; questionDe: strin
 export default function V2OnboardingPage() {
   const router = useRouter();
   const t = useTranslations("v2.onboarding");
+  // Tagline mentor theo locale (onboarding.mentorTaglines.<mã> — đợt 3 audit i18n 06/09/2026):
+  // mã chưa có trong catalog rơi về bảng MENTOR_META (tiếng Việt); không có nốt → câu chung.
+  const mentorTagline = (code: string | null | undefined): string | null => {
+    if (!code) return null;
+    if (t.has(`mentorTaglines.${code}`)) return t(`mentorTaglines.${code}`);
+    return MENTOR_META[code]?.tagline ?? null;
+  };
+  const mentorTaglineSuffix = (code: string): string => {
+    const tagline = mentorTagline(code);
+    return tagline ? ` (${tagline})` : "";
+  };
   const { trackOnboardingStep, trackEvent } = useTracking();
   // A/B: the mentor PRO-upsell nudge is gated behind a PostHog feature flag. Default-on
   // (undefined = flag not configured → shown), so no regression until an experiment is run.
@@ -344,13 +365,13 @@ export default function V2OnboardingPage() {
         </div>
         <div
           role="progressbar"
-          aria-label="Tiến độ thiết lập lộ trình"
+          aria-label={t("nav.progressAria")}
           aria-valuemin={1}
           aria-valuemax={totalSteps}
           aria-valuenow={Math.min(step, totalSteps)}
           className="mb-6 flex items-center justify-center gap-2"
         >
-          <span className="sr-only">Bước {Math.min(step, totalSteps)} trên {totalSteps}</span>
+          <span className="sr-only">{t("nav.stepOf", { step: Math.min(step, totalSteps), total: totalSteps })}</span>
           {Array.from({ length: totalSteps }, (_, index) => index + 1).map(s => (
             <span aria-hidden="true" key={s} className={`h-1.5 w-8 rounded-ga-pill ${s <= step ? "bg-ga-yellow" : "bg-ga-line"}`} />
           ))}
@@ -426,7 +447,7 @@ export default function V2OnboardingPage() {
                     <div className="min-w-0">
                       <p className="ga-ui text-[10.5px] uppercase tracking-[0.08em] text-ga-muted font-semibold">{t("pace.mentorLabel")}</p>
                       <p className="ga-ui text-[13.5px] font-bold text-ga-ink">{mentor.displayName}</p>
-                      <p className="text-[12px] text-ga-muted">{MENTOR_META[mentor.code]?.tagline ?? t("pace.mentorFallbackTagline")}</p>
+                      <p className="text-[12px] text-ga-muted">{mentorTagline(mentor.code) ?? t("mentorTaglines.fallback")}</p>
                     </div>
                   </div>
                   {mentor.upsellCode && mentorUpsellEnabled && (
@@ -435,7 +456,7 @@ export default function V2OnboardingPage() {
                       className="w-full text-left text-[12px] text-ga-ink bg-ga-yellow-soft border border-dashed border-ga-gold rounded-ga px-3 py-2">
                       {t.rich("pace.upsell", {
                         name: mentor.upsellDisplayName ?? "",
-                        tagline: MENTOR_META[mentor.upsellCode]?.tagline ? ` (${MENTOR_META[mentor.upsellCode].tagline})` : "",
+                        tagline: mentorTaglineSuffix(mentor.upsellCode),
                         b: (chunks) => <strong>{chunks}</strong>,
                       })}
                     </button>
@@ -497,7 +518,7 @@ export default function V2OnboardingPage() {
                   <div className="min-w-0">
                     <p className="ga-ui text-[10.5px] uppercase tracking-[0.08em] text-ga-muted font-semibold">{t("pace.mentorLabel")}</p>
                     <p className="ga-ui text-[13.5px] font-bold text-ga-ink">{mentor.displayName}</p>
-                    <p className="text-[12px] text-ga-muted">{MENTOR_META[mentor.code]?.tagline ?? t("pace.mentorFallbackTagline")}</p>
+                    <p className="text-[12px] text-ga-muted">{mentorTagline(mentor.code) ?? t("mentorTaglines.fallback")}</p>
                   </div>
                 </div>
               )}
@@ -537,11 +558,12 @@ export default function V2OnboardingPage() {
               </div>
               <div className="flex gap-1">{questions.map((_,i) => <div key={i} className={`flex-1 h-1 rounded-ga-pill ${i<currentQ?"bg-ga-green":i===currentQ?"bg-ga-yellow":"bg-ga-line"}`} />)}</div>
               {/* Skill chip: same four sections as v1 (HOEREN/SPRECHEN/LESEN/SCHREIBEN), retokenized. */}
-              <span className={`ga-ui inline-block text-[10px] font-bold px-2 py-0.5 rounded-ga-pill ${
-                questions[currentQ].skillSection==="HOEREN"?"bg-ga-blue-soft text-ga-blue":
-                questions[currentQ].skillSection==="SPRECHEN"?"bg-ga-red-soft text-ga-red":
-                questions[currentQ].skillSection==="LESEN"?"bg-ga-green-soft text-ga-green":"bg-ga-violet-soft text-ga-violet"
-              }`}>{questions[currentQ].skillSection==="HOEREN"?t("test.skillHoeren"):questions[currentQ].skillSection==="SPRECHEN"?t("test.skillSprechen"):questions[currentQ].skillSection==="LESEN"?t("test.skillLesen"):t("test.skillSchreiben")}</span>
+              <span className={`ga-ui inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-ga-pill ${
+                (TEST_SKILL_CHIP[questions[currentQ].skillSection] ?? TEST_SKILL_CHIP.SCHREIBEN).cls
+              }`}>
+                <GaIcon name={(TEST_SKILL_CHIP[questions[currentQ].skillSection] ?? TEST_SKILL_CHIP.SCHREIBEN).icon} size={11} />
+                {t((TEST_SKILL_CHIP[questions[currentQ].skillSection] ?? TEST_SKILL_CHIP.SCHREIBEN).labelKey as never)}
+              </span>
               {questions[currentQ].audioTranscript && <div className="flex items-start gap-1.5 rounded-ga bg-ga-surface p-3 text-[12px] text-ga-muted italic"><GaIcon name="volume_up" size={13} className="mt-[2px]" /><span>&quot;{questions[currentQ].audioTranscript}&quot;</span></div>}
               <p className="text-[13.5px] font-medium text-ga-ink whitespace-pre-line break-words">{questions[currentQ].questionDe}</p>
               {questions[currentQ].questionVi && <p className="text-[12px] text-ga-subtle">{questions[currentQ].questionVi}</p>}

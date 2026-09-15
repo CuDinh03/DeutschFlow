@@ -70,24 +70,43 @@ public class ExamAudioStorage {
         }
     }
 
-    /** Xoá vĩnh viễn — dùng khi người học rút lại đồng ý. Trả về số key xoá được. */
-    public int purge(List<String> keys) {
-        if (!isEnabled() || keys == null || keys.isEmpty()) {
-            return 0;
+    /** Kết quả purge: key nào đã xoá thật, key nào thất bại (caller PHẢI giữ tham chiếu để xoá lại — F-12). */
+    public record PurgeOutcome(List<String> deleted, List<String> failed) {
+        public PurgeOutcome {
+            deleted = deleted == null ? List.of() : List.copyOf(deleted);
+            failed = failed == null ? List.of() : List.copyOf(failed);
         }
-        int done = 0;
-        for (String key : keys) {
-            if (key == null || key.isBlank()) {
-                continue;
-            }
+
+        public static PurgeOutcome empty() {
+            return new PurgeOutcome(List.of(), List.of());
+        }
+    }
+
+    /**
+     * Xoá vĩnh viễn — dùng khi người học rút lại đồng ý. S3 chưa cấu hình → không có gì để xoá, coi như
+     * đã xoá (không thể có object). S3 lỗi từng key → key đó nằm ở {@code failed}: caller giữ nguyên
+     * {@code audio_ref} để lần purge sau thử lại thay vì để object mồ côi trên S3 (F-12).
+     */
+    public PurgeOutcome purge(List<String> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return PurgeOutcome.empty();
+        }
+        List<String> wanted = keys.stream().filter(k -> k != null && !k.isBlank()).toList();
+        if (!isEnabled()) {
+            return new PurgeOutcome(wanted, List.of());
+        }
+        List<String> deleted = new java.util.ArrayList<>();
+        List<String> failed = new java.util.ArrayList<>();
+        for (String key : wanted) {
             try {
                 s3.deleteFile(key);
-                done++;
+                deleted.add(key);
             } catch (RuntimeException e) {
                 log.warn("[ExamAudio] xoá thất bại {}: {}", key, e.getMessage());
+                failed.add(key);
             }
         }
-        return done;
+        return new PurgeOutcome(deleted, failed);
     }
 
     static String extension(String filename) {

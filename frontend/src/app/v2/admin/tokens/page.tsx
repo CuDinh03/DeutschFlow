@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import type { AiUsageByFeatureDto } from '@/lib/adminTokenPie'
 import { GaStatStrip, type GaStatItem, ErrorBanner, LoadingState, GaPageHdr, TkBadge } from '@/components/ui-v2'
-import { GaSection, GaDonut, GaLegend, GaArea, GA_CHART, nfVN } from '../../analyticsShared'
+import { GaSection, GaDonut, GaLegend, GaArea, GA_CHART } from '../../analyticsShared'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 type DailyCostRow = { day: string; tokens: number; costUsd: number; model: string; feature: string }
 type DailyCostDto = { days: number; data: DailyCostRow[] }
@@ -30,6 +31,7 @@ const FEATURE_KEYS = ['SPEAKING', 'INTERVIEW', 'GRAMMAR', 'GRADING', 'MATERIALS'
 
 export default function V2AdminTokensPage() {
   const t = useTranslations('v2.adminOps.tokens')
+  const fmt = useFmt()
   const [state, setState] = useState<TokenState>({ users: [], ledger: null, daily: null })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -87,10 +89,10 @@ export default function V2AdminTokensPage() {
     .slice(0, 8)
 
   const cells: GaStatItem[] = [
-    { label: t('stats.totalTokens'), value: nfVN.format(totalTokens), tone: 'orange' },
+    { label: t('stats.totalTokens'), value: fmt.num(totalTokens), tone: 'orange' },
     { label: t('stats.cost'), value: `$${totalCost.toFixed(2)}`, tone: 'red', sub: t('stats.costSub') },
-    { label: t('stats.aiUsers'), value: nfVN.format(activeUsers), tone: 'blue', sub: t('stats.aiUsersSub') },
-    { label: t('stats.features'), value: nfVN.format(featureSegs.length), tone: 'green', sub: t('stats.featuresSub') },
+    { label: t('stats.aiUsers'), value: fmt.num(activeUsers), tone: 'blue', sub: t('stats.aiUsersSub') },
+    { label: t('stats.features'), value: fmt.num(featureSegs.length), tone: 'green', sub: t('stats.featuresSub') },
   ]
 
   return (
@@ -114,7 +116,7 @@ export default function V2AdminTokensPage() {
                   <div className="flex flex-col items-center gap-5">
                     <GaDonut segments={featureSegs} size={170} />
                     <div className="w-full">
-                      <GaLegend items={featureSegs.map((s) => ({ ...s, display: nfVN.format(s.value) }))} />
+                      <GaLegend items={featureSegs.map((s) => ({ ...s, display: fmt.num(s.value) }))} />
                     </div>
                   </div>
                 ) : (
@@ -170,7 +172,7 @@ export default function V2AdminTokensPage() {
                             <TkBadge>{u.role || '—'}</TkBadge>
                           </td>
                           <td className="px-5 py-3 text-right text-[13.5px] font-semibold tabular-nums text-ga-ink">
-                            {nfVN.format(Number(u.usageLast30Days) || 0)}
+                            {fmt.num(Number(u.usageLast30Days) || 0)}
                           </td>
                         </tr>
                       ))

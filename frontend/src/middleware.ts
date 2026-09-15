@@ -188,44 +188,108 @@ async function verifyAccessToken(token: string): Promise<VerifiedClaims | null> 
 }
 
 // ─── Content Security Policy (per-request nonce) ────────────────────────────────
-// This is the STRICT, nonce-based policy, kept Report-Only. The ENFORCED production floor
-// lives in next.config.mjs `headers()` instead, because Amplify serves most routes from the
-// CloudFront cache without running middleware — so this header never reaches those users
-// (verified: prod HTML has no nonce, no middleware CSP header). The enforced policy is set on
-// the *request* header so Next.js stamps its <script> tags with the nonce; only the
-// Report-Only variant is sent to the browser.
+// This is the STRICT, nonce-based policy, kept Report-Only for now. Re-measured on prod
+// 2026-09-07: middleware runs on EVERY page route (src/i18n/request.ts reads the locale
+// cookie, so the whole tree renders dynamically — nothing is served prerendered) and Next
+// stamps this nonce into every <script> tag it emits (verified 35/35 on `/`, 38/38 on
+// /v2/login/). The old note here claiming middleware never runs on Amplify was STALE.
 //
-// Do NOT flip this to enforced while the next.config floor is also enforced: two CSP headers
-// AND-intersect, so this nonce policy would block the floor's (necessarily non-nonce'd) inline
-// scripts and white-screen the dynamic routes where middleware DOES run. The real upgrade path
-// is to make middleware execute on Amplify, then drop the next.config floor and enforce here.
+// The policy is set on the *request* header so Next.js nonces its inline scripts; the
+// browser only receives the Report-Only variant. Violations POST to the backend collector
+// (report-uri + Reporting-Endpoints below) — before 2026-09 there was no report directive,
+// so violations went nowhere.
+//
+// Enforce flip (gated — do not do casually): CSP_ENFORCE=1 sends this policy as a real
+// `Content-Security-Policy`. MEASURED locally (E4.0, `next start` 2026-09-07): setting the
+// same header key here REPLACES the next.config floor value on these responses — the browser
+// sees exactly ONE Content-Security-Policy header, this strict one (NOT two AND-intersecting
+// headers as previously assumed). That is safe: directive-by-directive this policy is
+// equal-or-tighter than the floor, and the floor still covers any response middleware does
+// not touch (e.g. future prerendered pages). Every inline script already carries the nonce,
+// so legitimate flows survive. Flip only after the collector shows the main flows clean for
+// 72h, keeping the Report-Only header in parallel for comparison.
 const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/api\/?$/, '')
 const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com'
 const cloudfront = process.env.NEXT_PUBLIC_CLOUDFRONT_URL || ''
+// CSP violation collector (backend Spring endpoint). `report-uri` is the legacy CSP2
+// delivery (CORS-exempt); `Reporting-Endpoints` + `report-to` is the modern Reporting API
+// (its delivery preflights, which the backend's global /api/** CORS already answers).
+// Empty backendOrigin (local dev without env) → both directives are simply omitted.
+const cspReportCollector = backendOrigin ? `${backendOrigin}/api/public/csp-report` : ''
+// E4 kill-switch: CSP_ENFORCE=1 (env server, đọc lúc khởi động instance compute) gửi chính sách
+// strict ở dưới như Content-Security-Policy THẬT, song song với bản Report-Only (giữ ~1 tuần đầu
+// sau khi bật để đối chiếu). MẶC ĐỊNH TẮT — merge code này không đổi hành vi prod. Bật/tắt = đặt/gỡ
+// env trên Amplify + redeploy (~10 phút). Đo E4.0 (07/09, local): header set ở đây THAY THẾ giá trị
+// floor cùng key của next.config trên các response qua middleware — browser thấy đúng MỘT header
+// CSP là bản strict (chặt hơn/bằng floor ở mọi directive nên không mất lớp nào); floor vẫn phủ mọi
+// response không qua middleware. CHỈ bật sau khi collector /api/public/csp-report cho thấy các
+// flow chính sạch vi phạm 72h liên tục (gate Q2 — plan hạ tầng biên 07/09, cần owner gật).
+const cspEnforceEnabled = process.env.CSP_ENFORCE === '1'
+
+// Hai bucket S3 chứa học liệu (PDF/audio/video/ảnh giáo trình) — presigned URL, không qua CDN.
+// PHẢI khớp `images.remotePatterns` trong `next.config.mjs`; có ca test đọc chéo hai nơi để khoá.
+const MEDIA_HOSTS = [
+  'https://deutschflow-media-storage.s3.ap-southeast-1.amazonaws.com',
+  'https://deutschflow-media-storage.s3.amazonaws.com',
+]
+
+/**
+ * Origin của iframe dashboard PostHog ở `/v2/admin/analytics`.
+ *
+ * ⚠️ Đây là `https://us.posthog.com` — **KHÁC** `https://us.i.posthog.com` của `api_host`
+ * (script/connect). Ai siết `frame-src` mà copy host PostHog từ `connect-src` sang sẽ chặn trang
+ * analytics của admin, và vì trang đó ít người mở, lỗi nằm im rất lâu (khảo sát E5 §2).
+ */
+function sharedDashboardOrigin(): string {
+  const raw = process.env.NEXT_PUBLIC_POSTHOG_SHARED_DASHBOARD_URL || ''
+  if (!raw) return ''
+  try {
+    return new URL(raw).origin
+  } catch {
+    return ''
+  }
+}
 
 function buildCsp(nonce: string): string {
-  const connectSrc = ["'self'", backendOrigin, posthogHost, cloudfront, 'https:']
-    .filter(Boolean)
-    .join(' ')
+  // E5 đường 1 (owner chọn 08/09): bỏ `https:` khỏi img/connect/frame/media và bỏ hai host font
+  // Google khỏi style/font. Lý do KHÔNG phải "cho chặt hơn" mà là **để đo được**: chừng nào còn
+  // `https:` thì mọi host đều hợp lệ, nên collector không bao giờ báo host nào — soak E3 chạy 7 ngày
+  // ra 0 vi phạm mà con số 0 đó không chứng minh được gì cho việc siết floor (đo 08/09, xem
+  // plans/2026-09-07-soak-e3-lenh-doc-so-lieu.md). Vẫn là Report-Only nên KHÔNG chặn gì của người
+  // dùng; cái giá là đồng hồ soak đặt lại từ ngày deploy bản này.
+  const mediaHosts = [...MEDIA_HOSTS, cloudfront].filter(Boolean)
+  const connectSrc = ["'self'", backendOrigin, posthogHost, cloudfront].filter(Boolean).join(' ')
   return [
     "default-src 'self'",
     // 'strict-dynamic' + nonce is honored by modern browsers; 'unsafe-inline' + https: are
     // ignored there and act only as fallbacks for older browsers.
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${posthogHost} https: 'unsafe-inline'`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "img-src 'self' data: blob: https:",
-    "font-src 'self' data: https://fonts.gstatic.com",
+    // Font là self-host thật: `next/font/google` tải file lúc BUILD rồi phục vụ từ `/_next/static`,
+    // runtime không gọi fonts.googleapis.com/fonts.gstatic.com lần nào (khảo sát E5 §0).
+    "style-src 'self' 'unsafe-inline'",
+    `img-src ${["'self'", 'data:', 'blob:', ...mediaHosts].join(' ')}`,
+    "font-src 'self' data:",
     `connect-src ${connectSrc}`,
     // The material reader embeds a presigned S3 object: the PDF (native, or converted from Word) in an
     // <iframe>, audio/video in their own elements. Without these two, both fall back to default-src
     // 'self' and every open reports a violation today — and would be blocked outright the day this
     // policy is flipped to enforced.
-    "frame-src 'self' https:",
-    "media-src 'self' blob: data: https:",
+    `frame-src ${["'self'", sharedDashboardOrigin(), ...mediaHosts].filter(Boolean).join(' ')}`,
+    `media-src ${["'self'", 'blob:', 'data:', ...mediaHosts].join(' ')}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",
+    // Workers: a strict-dynamic + nonce policy cannot nonce a Worker/SW script URL, so an
+    // explicit worker-src is required the day this flips to enforced (an installed /sw.js
+    // updates itself outside page CSP, but a `new Worker()` would fall back to script-src
+    // where 'self' is ignored under strict-dynamic — and die).
+    "worker-src 'self' blob:",
+    // Nêu tường minh cho khớp floor: khi bật enforce, chính sách này THAY THẾ floor trên response
+    // qua middleware, nên directive nào floor có mà đây thiếu là mất một lớp (ở đây `default-src
+    // 'self'` phủ trùng, nhưng viết ra để lần đối chiếu sau không phải suy luận).
+    "manifest-src 'self'",
+    ...(cspReportCollector ? [`report-uri ${cspReportCollector}`, 'report-to csp'] : []),
   ].join('; ')
 }
 
@@ -248,7 +312,14 @@ export async function middleware(request: NextRequest) {
 
   // Attach the Report-Only CSP to every response we return.
   const secure = <T extends NextResponse>(res: T): T => {
+    if (cspEnforceEnabled) {
+      res.headers.set('Content-Security-Policy', csp)
+    }
     res.headers.set('Content-Security-Policy-Report-Only', csp)
+    if (cspReportCollector) {
+      // Names the "csp" endpoint group that the policy's `report-to csp` directive points at.
+      res.headers.set('Reporting-Endpoints', `csp="${cspReportCollector}"`)
+    }
     return res
   }
   const passThrough = () => secure(NextResponse.next({ request: { headers: requestHeaders } }))

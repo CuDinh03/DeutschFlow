@@ -85,6 +85,7 @@ export const teacherNav: RoleNav = {
         { id: 'grading', label: 'Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
         { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw' },
         { id: 'tc-reports', label: 'Sổ điểm lớp', href: '/v2/teacher/tc-reports', icon: 'assessment' },
+        { id: 'objectives', label: 'Ma trận mục tiêu', href: '/v2/teacher/objectives', icon: 'target' },
         { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book' },
         { id: 'tc-timesheet', label: 'Chấm công', href: '/v2/teacher/tc-timesheet', icon: 'timer' },
         // "Thư viện ảnh" (media asset S3) ≠ "Thư viện tài liệu" (file tài liệu): ảnh minh hoạ cho
@@ -169,6 +170,8 @@ export const adminNav: RoleNav = {
         { id: 'admin-exam-golden', label: 'Golden set Nói', href: '/v2/admin/exam-golden', icon: 'grading' },
         // Đ5b-A: ngân hàng đề Luyện thi Nói — CRUD đề + ma trận pool, hết cảnh viết migration tay.
         { id: 'admin-exam-bank', label: 'Ngân hàng đề Nói', href: '/v2/admin/exam-bank', icon: 'quiz' },
+        // N0.6/T.3: chi phí AI thật theo feature × model × phiên (token, giây STT, USD/VND ước tính) từ ledger.
+        { id: 'admin-ai-usage', label: 'AI usage', href: '/v2/admin/ai-usage', icon: 'query_stats' },
         { id: 'admin-reports', label: 'Báo cáo', href: '/v2/admin/reports', icon: 'assessment' },
         { id: 'admin-personas', label: 'Persona', href: '/v2/admin/personas', icon: 'record_voice_over' },
         { id: 'admin-interviews', label: 'Phỏng vấn', href: '/v2/admin/interviews', icon: 'forum' },
@@ -199,6 +202,9 @@ const ORG_ITEM = {
   students: { id: 'org-students', label: 'Học viên', href: '/v2/org/students', icon: 'school' },
   classes: { id: 'org-classes', label: 'Lớp học', href: '/v2/org/classes', icon: 'groups' },
   curricula: { id: 'org-curricula', label: 'Giáo trình', href: '/v2/org/curricula', icon: 'menu_book' },
+  // DEC-20 (09/09/2026): sổ chứng nhận toàn trung tâm — OWNER/MANAGER xem, chỉ OWNER thu hồi (nút
+  // ẩn với MANAGER ngay trong trang; backend gác assertOrgOwner). KHÔNG ownerOnly: MANAGER cần xem.
+  certificates: { id: 'org-certificates', label: 'Chứng nhận', href: '/v2/org/certificates', icon: 'workspace_premium' },
   schedule: { id: 'org-schedule', label: 'Lịch trung tâm', href: '/v2/org/schedule', icon: 'schedule' },
   teachers: { id: 'org-teachers', label: 'Giáo viên', href: '/v2/org/teachers', icon: 'badge' },
   analytics: { id: 'org-analytics', label: 'Phân tích', href: '/v2/org/analytics', icon: 'monitoring' },
@@ -209,16 +215,22 @@ const ORG_ITEM = {
   invitations: { id: 'org-invitations', label: 'Lời mời', href: '/v2/org/invitations', icon: 'mail' },
   timesheets: { id: 'org-timesheets', label: 'Chấm công', href: '/v2/org/timesheets', icon: 'timer' },
   roles: { id: 'org-roles', label: 'Phân quyền', href: '/v2/org/roles', icon: 'admin_panel_settings' },
+  // PR-A6 (07/09/2026): trang /v2/org/settings (chính sách tính công, ngưỡng gợi ý hỗ trợ) từng KHÔNG có mục
+  // nav nào — OWNER chỉ tới được bằng cách gõ URL. Backend gác assertOrgOwner; ownerOnly là lớp UX.
+  settings: { id: 'org-settings', label: 'Cài đặt trung tâm', href: '/v2/org/settings', icon: 'settings', ownerOnly: true },
+  // C6 (08/09/2026): GET /api/org/audit-logs lên production cùng V315 nhưng KHÔNG có mục nav nào —
+  // đúng cái lỗi mà /v2/org/settings từng mắc. Backend gác assertOrgOwner; ownerOnly là lớp UX.
+  audit: { id: 'org-audit', label: 'Sổ hoạt động', href: '/v2/org/audit', icon: 'history', ownerOnly: true },
   profile: { id: 'org-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
 } satisfies Record<string, NavItem>
 
 /**
  * orgNav — giám đốc trung tâm (org OWNER).
  *
- * Một nhóm chính (tổng quan, học viên, lớp, lịch trung tâm, giáo viên, phân tích,
- * gói & thanh toán, lời mời, phân quyền) + nhóm "Tài khoản".
+ * Một nhóm chính (tổng quan, học viên, lớp, chứng nhận, giáo trình, lịch trung tâm, giáo viên, phân tích,
+ * gói & thanh toán, lời mời, chấm công, phân quyền, cài đặt trung tâm, sổ hoạt động) + nhóm "Tài khoản".
  *
- * Phân quyền: item gắn `ownerOnly: true` (gói & thanh toán) CHỈ OWNER thấy. Sidebar vẫn
+ * Phân quyền: item gắn `ownerOnly: true` (gói & thanh toán, cài đặt trung tâm, sổ hoạt động) CHỈ OWNER thấy. Sidebar vẫn
  * lọc `ownerOnly` như một lớp phòng thủ thứ hai, kể cả khi MANAGER đã được chuyển sang `managerNav`.
  */
 export const orgNav: RoleNav = {
@@ -230,6 +242,7 @@ export const orgNav: RoleNav = {
         ORG_ITEM.overview,
         ORG_ITEM.students,
         ORG_ITEM.classes,
+        ORG_ITEM.certificates,
         ORG_ITEM.curricula,
         ORG_ITEM.schedule,
         ORG_ITEM.teachers,
@@ -238,6 +251,8 @@ export const orgNav: RoleNav = {
         ORG_ITEM.invitations,
         ORG_ITEM.timesheets,
         ORG_ITEM.roles,
+        ORG_ITEM.settings,
+        ORG_ITEM.audit,
       ],
     },
     {
@@ -267,7 +282,7 @@ export const managerNav: RoleNav = {
     {
       label: 'Vận hành',
       labelKey: 'ops',
-      items: [ORG_ITEM.overview, ORG_ITEM.schedule, ORG_ITEM.classes, ORG_ITEM.curricula, ORG_ITEM.students],
+      items: [ORG_ITEM.overview, ORG_ITEM.schedule, ORG_ITEM.classes, ORG_ITEM.certificates, ORG_ITEM.curricula, ORG_ITEM.students],
     },
     {
       label: 'Nhân sự',
@@ -638,12 +653,13 @@ export const teacherAreas: RoleAreas = {
       helper: 'Lớp học',
       href: '/v2/teacher/schedule',
       icon: 'groups',
-      match: ['/v2/teacher/classes', '/v2/teacher/tc-progress', '/v2/teacher/tc-checklist', '/v2/teacher/tc-reports'],
+      match: ['/v2/teacher/classes', '/v2/teacher/tc-progress', '/v2/teacher/tc-checklist', '/v2/teacher/tc-reports', '/v2/teacher/objectives'],
       local: [
         { id: 'schedule', label: 'Kế hoạch giảng dạy', href: '/v2/teacher/schedule', icon: 'schedule' },
         { id: 'tc-progress', label: 'Tiến độ khóa học', href: '/v2/teacher/tc-progress', icon: 'trending_up' },
         { id: 'tc-checklist', label: 'Nội dung giảng dạy', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
         { id: 'tc-reports', label: 'Sổ điểm lớp', href: '/v2/teacher/tc-reports', icon: 'assessment' },
+        { id: 'objectives', label: 'Ma trận mục tiêu', href: '/v2/teacher/objectives', icon: 'target' },
       ],
     },
     {

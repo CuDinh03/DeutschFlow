@@ -51,3 +51,50 @@ describe('markNodeComplete (theory-only "mark as learned")', () => {
     expect(result.xpEarned).toBe(100)
   })
 })
+
+// Chuyển từ skillTreeTopic.test.ts (xoá cùng components/skill-tree ở N15, 05/09): phủ DTO mở rộng.
+describe('mapSkillNode — widened DTO parses the full wire shape (Pha 3)', () => {
+  const base: RawSkillNode = { id: 1, title_vi: 'Bảng chữ cái', cefr_level: 'A1', day_number: 1 }
+
+  test('parses JSON-text array columns null-safely', () => {
+    const n = mapSkillNode({
+      ...base,
+      core_topics: '["ALPHABET","UMLAUTE"]',
+      grammar_points: '["ARTIKEL"]',
+      prerequisites_json: '["A1-001"]',
+      phase: 'GRUNDLAGEN',
+      industry: 'PFLEGE',
+      module_title_vi: 'Khởi đầu',
+      session_type: 'LESSON',
+      sort_order: 3,
+      dependencies_met: true,
+    })
+    expect(n.coreTopics).toEqual(['ALPHABET', 'UMLAUTE'])
+    expect(n.grammarPoints).toEqual(['ARTIKEL'])
+    expect(n.prerequisites).toEqual(['A1-001'])
+    expect(n.phase).toBe('GRUNDLAGEN')
+    expect(n.industry).toBe('PFLEGE')
+    expect(n.moduleTitle).toBe('Khởi đầu')
+    expect(n.sortOrder).toBe(3)
+    expect(n.dependenciesMet).toBe(true)
+  })
+
+  test('extracts node_code from object-shaped prerequisites (H3)', () => {
+    const n = mapSkillNode({ ...base, prerequisites_json: '[{"node_code":"A1-002"},{"code":"A1-003"}]' })
+    expect(n.prerequisites).toEqual(['A1-002', 'A1-003'])
+  })
+
+  test('malformed JSON text yields empty arrays, never throws', () => {
+    const n = mapSkillNode({ ...base, core_topics: 'not json', prerequisites_json: '{' })
+    expect(n.coreTopics).toEqual([])
+    expect(n.prerequisites).toEqual([])
+  })
+
+  test('absent optional fields default cleanly', () => {
+    const n = mapSkillNode(base)
+    expect(n.phase).toBeNull()
+    expect(n.industry).toBeNull()
+    expect(n.dependenciesMet).toBe(false)
+    expect(n.coreTopics).toEqual([])
+  })
+})

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { xpApi, type XpSummaryDto, type LeaderboardEntry, type AchievementDto } from '@/lib/xpApi'
 import { useUserStore } from '@/stores/useUserStore'
 import { GaPageHdr, GaStatStrip, GaCap, GaIcon, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 const RARITY: Record<string, { labelKey: string; color: string }> = {
   COMMON: { labelKey: 'rarity.common', color: '#76716A' },
@@ -40,6 +41,7 @@ function AchievementCard({ a }: { a: AchievementDto }) {
 
 export default function V2AchievementsPage() {
   const t = useTranslations('v2.student.achievements')
+  const fmt = useFmt()
   const myId = useUserStore((s) => s.user?.id)
   const [xp, setXp] = useState<XpSummaryDto | null>(null)
   const [board, setBoard] = useState<LeaderboardEntry[]>([])
@@ -83,7 +85,7 @@ export default function V2AchievementsPage() {
             <GaStatStrip
               items={[
                 { label: t('stats.level'), value: xp ? `Lv ${xp.level}` : '—', tone: 'gold' },
-                { label: t('stats.totalXp'), value: xp ? xp.totalXp.toLocaleString('vi-VN') : '—', tone: 'violet' },
+                { label: t('stats.totalXp'), value: xp ? fmt.num(xp.totalXp) : '—', tone: 'violet' },
                 { label: t('stats.badges'), value: `${unlocked}/${total}`, sub: t('stats.badgesSub'), tone: 'green' },
                 { label: t('stats.rank'), value: myRank ? `#${myRank}` : '—', sub: t('stats.rankSub'), tone: 'blue' },
               ]}
@@ -137,7 +139,7 @@ export default function V2AchievementsPage() {
                             <p className="text-[11.5px] text-ga-muted">{t('levelShort', { level: e.level })}</p>
                           </div>
                           <span className="shrink-0 font-ga-display text-[14px] font-medium text-ga-ink">
-                            {e.totalXp.toLocaleString('vi-VN')}
+                            {fmt.num(e.totalXp)}
                           </span>
                         </div>
                       )

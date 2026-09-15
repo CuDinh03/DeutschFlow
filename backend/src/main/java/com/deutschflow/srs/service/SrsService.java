@@ -245,9 +245,11 @@ public class SrsService {
     // ─── Stats ────────────────────────────────────────────────────────────────
 
     public SrsStatsDto getStats(Long userId) {
-        long due   = repo.countDue(userId, OffsetDateTime.now());
-        long total = repo.countByUserId(userId);
-        return new SrsStatsDto(due, total);
+        long due      = repo.countDue(userId, OffsetDateTime.now());
+        long total    = repo.countByUserId(userId);
+        long reviewed = repo.countByUserIdAndLastReviewAtIsNotNull(userId);
+        long reviews  = xpService.countSrsReviews(userId);
+        return new SrsStatsDto(due, total, reviewed, reviews);
     }
 
     // ─── Mapping ──────────────────────────────────────────────────────────────

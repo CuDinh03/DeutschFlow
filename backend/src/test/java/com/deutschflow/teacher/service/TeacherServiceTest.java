@@ -56,6 +56,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.mock;
 
@@ -67,6 +68,9 @@ class TeacherServiceTest {
 
     @Mock
     private ClassStudentRepository classStudentRepository;
+
+    @Mock
+    private com.deutschflow.teacher.service.ClassEnrollmentService classEnrollmentService;
 
     @Mock
     private ClassTeacherRepository classTeacherRepository;
@@ -147,6 +151,9 @@ class TeacherServiceTest {
     @Mock
     private com.deutschflow.organization.service.OrgMembershipService orgMembershipService;
 
+    @Mock
+    private com.deutschflow.organization.repository.OrganizationRepository organizationRepository;
+
     private TeacherService teacherService;
 
     @BeforeEach
@@ -154,6 +161,7 @@ class TeacherServiceTest {
         teacherService = new TeacherService(
                 classRepository,
                 classStudentRepository,
+                classEnrollmentService,
                 classTeacherRepository,
                 assignmentRepository,
                 assignmentBackfillService,
@@ -182,6 +190,13 @@ class TeacherServiceTest {
                 classDeletionGuard,
                 auditLogService,
                 orgMembershipService,
+                // OrgGuard THẬT (chỉ mock repository bên dưới): cổng D5 nằm trong chính nó, mock
+                // guard thì ca kiểm chỉ còn khẳng định "có gọi hàm", không khẳng định được luật.
+                new com.deutschflow.organization.service.OrgGuard(
+                        mock(com.deutschflow.organization.repository.OrgMemberRepository.class),
+                        mock(com.deutschflow.organization.repository.OrgAcademicApproverRepository.class),
+                        classRepository,
+                        organizationRepository),
                 // Bucket private ⇒ link file bài nộp phải được ký lại. Truyền resolver THẬT với
                 // S3 mock: objectKeyFromOwnUrl trả null ⇒ resolve() nhả nguyên URL đã lưu, tức
                 // đúng hành vi các test này vốn khẳng định.
@@ -369,7 +384,7 @@ class TeacherServiceTest {
         when(userRepository.findById(teacherId)).thenReturn(java.util.Optional.empty());
         when(assignmentRepository.save(any(ClassAssignment.class))).thenReturn(
                 ClassAssignment.builder().id(500L).classId(classId).topic("t").build());
-        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
+        when(classStudentRepository.findActiveByIdClassId(classId)).thenReturn(List.of());
     }
 
     @Test
@@ -390,7 +405,7 @@ class TeacherServiceTest {
 
         ClassStudent student1 = ClassStudent.builder().id(new ClassStudentId(classId, 200L)).build();
         ClassStudent student2 = ClassStudent.builder().id(new ClassStudentId(classId, 201L)).build();
-        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of(student1, student2));
+        when(classStudentRepository.findActiveByIdClassId(classId)).thenReturn(List.of(student1, student2));
 
         ClassAssignmentDto dto = teacherService.createAssignment(teacherId, classId, req);
 
@@ -458,7 +473,7 @@ class TeacherServiceTest {
         when(classRepository.findById(classId)).thenReturn(Optional.of(
                 TeacherClass.builder().id(classId).name("Class A").build()));
         when(userRepository.findById(teacherId)).thenReturn(Optional.empty());
-        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
+        when(classStudentRepository.findActiveByIdClassId(classId)).thenReturn(List.of());
         ClassAssignment saved = ClassAssignment.builder()
                 .id(500L).classId(classId).lessonId(lessonId).topic("T").build();
         when(assignmentRepository.save(any(ClassAssignment.class))).thenReturn(saved);
@@ -490,7 +505,7 @@ class TeacherServiceTest {
             if (a.getId() == null) a.setId(500L);
             return a;
         });
-        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
+        when(classStudentRepository.findActiveByIdClassId(classId)).thenReturn(List.of());
         when(speakingAiHelpersService.generateScenario(eq(teacherId), anyString(), anyString()))
                 .thenReturn(com.deutschflow.speaking.service.SpeakingAiHelpersService.PracticeScenario.builder().build());
 
@@ -514,7 +529,7 @@ class TeacherServiceTest {
             if (a.getId() == null) a.setId(501L);
             return a;
         });
-        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
+        when(classStudentRepository.findActiveByIdClassId(classId)).thenReturn(List.of());
         when(speakingAiHelpersService.generateScenario(eq(teacherId), anyString(), anyString()))
                 .thenReturn(com.deutschflow.speaking.service.SpeakingAiHelpersService.PracticeScenario.builder().build());
 
@@ -620,7 +635,7 @@ class TeacherServiceTest {
                 com.deutschflow.common.exception.NotFoundException.class,
                 () -> teacherService.getClassStudentsForOrg(999L, 10L));
         org.mockito.Mockito.verify(classStudentRepository, org.mockito.Mockito.never())
-                .findByIdClassId(org.mockito.ArgumentMatchers.any());
+                .findActiveByIdClassId(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -767,7 +782,7 @@ class TeacherServiceTest {
 
         assertThrows(com.deutschflow.common.exception.BadRequestException.class,
                 () -> teacherService.addStudentToClassByEmail(1L, 100L, "outsider@other.de"));
-        verify(classStudentRepository, never()).save(any());
+        verify(classEnrollmentService, never()).enrollAndNotify(any(), any(), any());
     }
 
     @Test
@@ -783,7 +798,7 @@ class TeacherServiceTest {
 
         teacherService.addStudentToClassByEmail(1L, 100L, "hv@org.de");
 
-        verify(classStudentRepository).save(any());
+        verify(classEnrollmentService).enrollAndNotify(100L, 5L, 1L);
     }
 
     @Test
@@ -800,7 +815,7 @@ class TeacherServiceTest {
 
         teacherService.addStudentToClassByEmail(1L, 100L, "hv@bat-ky.de");
 
-        verify(classStudentRepository).save(any());
+        verify(classEnrollmentService).enrollAndNotify(100L, 6L, 1L);
     }
 
     // ── Vào trung tâm qua lớp học ────────────────────────────────────────────
@@ -823,7 +838,7 @@ class TeacherServiceTest {
         teacherService.approveJoinRequest(1L, 100L, 900L);
 
         verify(orgMembershipService).ensureStudentSeat(42L, 5L);
-        verify(classStudentRepository).save(any());
+        verify(classEnrollmentService).enroll(100L, 5L);
     }
 
     @Test
@@ -837,7 +852,7 @@ class TeacherServiceTest {
         teacherService.approveJoinRequest(1L, 100L, 900L);
 
         verify(orgMembershipService, never()).ensureStudentSeat(any(), any());
-        verify(classStudentRepository).save(any());
+        verify(classEnrollmentService).enroll(100L, 5L);
     }
 
     @Test
@@ -856,7 +871,7 @@ class TeacherServiceTest {
                 () -> teacherService.approveJoinRequest(1L, 100L, 900L));
 
         verify(joinRequestRepository, never()).save(any());
-        verify(classStudentRepository, never()).save(any());
+        verify(classEnrollmentService, never()).enroll(any(), any());
     }
 
     @Test
@@ -997,7 +1012,7 @@ class TeacherServiceTest {
 
         assertThrows(ForbiddenException.class, () -> teacherService.deleteClass(ACTOR, 100L));
         verifyNothingDeleted();
-        verify(auditLogService, never()).log(anyString(), any(AuditActor.class), anyString(), anyString(), any());
+        verifyNoInteractions(auditLogService);
     }
 
     @Test
@@ -1010,7 +1025,7 @@ class TeacherServiceTest {
         assertThrows(ConflictException.class, () -> teacherService.deleteClass(ACTOR, 100L));
 
         verifyNothingDeleted();
-        verify(auditLogService, never()).log(anyString(), any(AuditActor.class), anyString(), anyString(), any());
+        verifyNoInteractions(auditLogService);
     }
 
     @Test
@@ -1032,8 +1047,10 @@ class TeacherServiceTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<java.util.Map<String, Object>> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        // Org của LỚP chụp TRƯỚC delete và đi vào CỘT org_id — sau delete không tra lại được, mà
+        // cột mới là thứ sổ hoạt động của giám đốc lọc.
         verify(auditLogService).log(
-                eq("teacher_class_deleted"), eq(ACTOR), eq("CLASS"), eq("100"), meta.capture());
+                eq("teacher_class_deleted"), eq(ACTOR), eq("CLASS"), eq("100"), eq(7L), meta.capture());
         assertEquals("K30 · B1 Pflege", meta.getValue().get("className"));
         assertEquals(7L, meta.getValue().get("orgId"));
         assertEquals(0L, meta.getValue().get("sessions"));
@@ -1220,6 +1237,82 @@ class TeacherServiceTest {
         assertEquals("A1.1 — Sáng T2", captor.getValue().getName());
     }
 
+    // ─── createClass: cổng D5 (G-10) — lớp của trung tâm chỉ-đọc không được tạo qua cửa giáo viên ──
+
+    private com.deutschflow.user.entity.User teacherOfOrg(Long orgId) {
+        com.deutschflow.user.entity.User u = new com.deutschflow.user.entity.User();
+        u.setId(1L);
+        u.setOrgId(orgId);
+        return u;
+    }
+
+    /** Đình chỉ thì đóng mốc neo NGAY BÂY GIỜ — đúng như {@code Organization.changeStatus} làm. */
+    private com.deutschflow.organization.entity.Organization orgLicence(String status, java.time.Instant validUntil) {
+        return com.deutschflow.organization.entity.Organization.builder()
+                .id(9L).name("Trung tâm").slug("tt").status(status).validUntil(validUntil)
+                .suspendedAt("ACTIVE".equals(status) ? null : java.time.Instant.now())
+                .build();
+    }
+
+    @Test
+    @DisplayName("createClass: trung tâm ĐÌNH CHỈ → 403 ORG_READ_ONLY, không ghi lớp nào")
+    void createClass_suspendedOrg_blocked() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(teacherOfOrg(9L)));
+        when(organizationRepository.findById(9L)).thenReturn(Optional.of(orgLicence("SUSPENDED", null)));
+
+        assertThrows(com.deutschflow.common.exception.OrgReadOnlyException.class,
+                () -> teacherService.createClass(1L, "A1.1 Sáng T2"));
+
+        verify(classRepository, never()).save(any(TeacherClass.class));
+    }
+
+    @Test
+    @DisplayName("createClass: hết hạn 30 ngày lẫn VỪA hết hạn 2 ngày đều chặn; còn hạn thì tạo được")
+    void createClass_anyExpiryBlocked_validLicenceAllowed() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(teacherOfOrg(9L)));
+        when(organizationRepository.findById(9L)).thenReturn(Optional.of(
+                orgLicence("ACTIVE", java.time.Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS))));
+
+        assertThrows(com.deutschflow.common.exception.OrgReadOnlyException.class,
+                () -> teacherService.createClass(1L, "A1.1 Sáng T2"));
+        verify(classRepository, never()).save(any(TeacherClass.class));
+
+        // Owner 09/09: ân hạn 7 ngày là quãng CHỈ-ĐỌC, không còn là quãng ghi được.
+        when(organizationRepository.findById(9L)).thenReturn(Optional.of(
+                orgLicence("ACTIVE", java.time.Instant.now().minus(2, java.time.temporal.ChronoUnit.DAYS))));
+        assertThrows(com.deutschflow.common.exception.OrgReadOnlyException.class,
+                () -> teacherService.createClass(1L, "A1.1 Sáng T2"));
+        verify(classRepository, never()).save(any(TeacherClass.class));
+
+        when(organizationRepository.findById(9L)).thenReturn(Optional.of(
+                orgLicence("ACTIVE", java.time.Instant.now().plus(30, java.time.temporal.ChronoUnit.DAYS))));
+        when(classRepository.save(any(TeacherClass.class))).thenAnswer(inv -> {
+            TeacherClass saved = inv.getArgument(0);
+            saved.setId(7L);
+            return saved;
+        });
+
+        teacherService.createClass(1L, "A1.1 Sáng T2");
+
+        verify(classRepository).save(any(TeacherClass.class));
+    }
+
+    @Test
+    @DisplayName("createClass: giáo viên B2C (không thuộc trung tâm) không bị cổng D5 đụng tới")
+    void createClass_b2cTeacher_notGated() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(teacherOfOrg(null)));
+        when(classRepository.save(any(TeacherClass.class))).thenAnswer(inv -> {
+            TeacherClass saved = inv.getArgument(0);
+            saved.setId(7L);
+            return saved;
+        });
+
+        teacherService.createClass(1L, "Lớp riêng");
+
+        verify(classRepository).save(any(TeacherClass.class));
+        verify(organizationRepository, never()).findById(any());
+    }
+
     @Test
     void getStudentAssignments_rejectsAStudentTheTeacherSharesNoClassWith() {
         Long teacherId = 1L, studentId = 50L;
@@ -1327,6 +1420,34 @@ class TeacherServiceTest {
         verify(userNotificationService).onAssignmentGraded(eq(200L), eq("ASSIGNMENT"), eq(10L), eq(85), eq("Gut"));
         verify(userNotificationService, never()).onAssignmentRegraded(any(), anyString(), any(), any(), any());
         verify(studentCompetencyService).applyGradingResult(200L, 10L, 85);
+    }
+
+    /**
+     * R3 (V323): điểm AI đề xuất ở cột riêng phải SỐNG SÓT sau khi giáo viên chốt — giáo viên xem lại được,
+     * và chỉ số M5 (|ai_score − score|) đo được. Trước V323 lần chốt này xoá vĩnh viễn đề xuất của AI.
+     */
+    @Test
+    @DisplayName("R3: evaluateAssignment ghi score/feedback, KHÔNG đụng ai_score/ai_feedback/ai_graded_at")
+    void evaluateAssignment_keepsAiProposalUntouched() {
+        StudentAssignment sa = stubGradableSubmission("AI_GRADED");
+        java.time.Instant proposedAt = java.time.Instant.parse("2026-09-10T03:00:00Z");
+        sa.setScore(70);
+        sa.setFeedback("AI: ok");
+        sa.setAiScore(70);
+        sa.setAiFeedback("AI: ok");
+        sa.setAiGradedAt(proposedAt);
+        when(studentAssignmentRepository.save(any(StudentAssignment.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        teacherService.evaluateAssignment(
+                1L, 5L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(85, "Gut"));
+
+        assertEquals("EVALUATED", sa.getStatus());
+        assertEquals(85, sa.getScore());
+        assertEquals("Gut", sa.getFeedback());
+        assertEquals(70, sa.getAiScore());
+        assertEquals("AI: ok", sa.getAiFeedback());
+        assertEquals(proposedAt, sa.getAiGradedAt());
     }
 
     /** Chưa có lịch sử chấm thì cấm chấm lại là tự trói — đường sửa điểm final phải còn (F12). */

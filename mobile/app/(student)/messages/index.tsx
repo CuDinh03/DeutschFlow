@@ -1,15 +1,17 @@
 import { useCallback, useState } from 'react'
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, useFocusEffect } from 'expo-router'
-import { ChevronRight, MessageCircle, Users } from 'lucide-react-native'
+import { ChevronRight } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { messagesApi, type Conversation } from '@/lib/messagesApi'
 import { fetchMyClasses, type MyClassroom } from '@/lib/studentClassesApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Pill, Screen, SelectableChip, Skeleton, ThemedText,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 // Unified inbox (QA build 15): personal 1:1 threads and class group channels
 // live under ONE "Tin nhắn" entry, split by tab — mirrors the web unified
@@ -18,6 +20,8 @@ import {
 type InboxTab = 'personal' | 'class'
 
 export default function MessagesHubScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   const [tab, setTab] = useState<InboxTab>('personal')
 
   const conv = useQuery({
@@ -34,12 +38,14 @@ export default function MessagesHubScreen() {
   const refetchConv = conv.refetch
   // Re-fetch each time the list regains focus (e.g. after reading a thread) so unread clears.
   useFocusEffect(useCallback(() => { void refetchConv() }, [refetchConv]))
+  const pullConv = usePullRefresh(conv.refetch)
+  const pullClasses = usePullRefresh(classes.refetch)
 
   const totalUnread = (conv.data ?? []).reduce((sum, c) => sum + c.unread, 0)
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Tin nhắn" subtitle="Cá nhân · Nhóm lớp" onBack={() => router.back()} />
+      <AppHeader title="Tin nhắn" subtitle="Cá nhân · Nhóm lớp" onBack={goBack} />
 
       <View style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: space[5], marginBottom: space[3] }}>
         <SelectableChip label="Tin nhắn cá nhân" selected={tab === 'personal'} onPress={() => setTab('personal')}>
@@ -67,7 +73,7 @@ export default function MessagesHubScreen() {
       return (
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={MessageCircle}
+            glyph="hoithoai"
             title="Chưa có tin nhắn"
             message="Mở trang lớp học → tab Giáo viên → Nhắn tin để bắt đầu trò chuyện."
             actionLabel="Xem lớp của tôi"
@@ -81,8 +87,8 @@ export default function MessagesHubScreen() {
         scroll
         edges={[]}
         contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[2], paddingTop: space[2] }}
-        refreshing={conv.isRefetching}
-        onRefresh={() => void conv.refetch()}
+        refreshing={pullConv.refreshing}
+        onRefresh={() => void pullConv.onRefresh()}
       >
         {conv.data!.map((c) => (
           <ConversationRow key={c.userId} conv={c} />
@@ -98,7 +104,7 @@ export default function MessagesHubScreen() {
       return (
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={Users}
+            glyph="lophoc"
             title="Chưa vào lớp nào"
             message="Vào một lớp học để trò chuyện cùng cả lớp trong kênh nhóm."
             actionLabel="Xem lớp của tôi"
@@ -112,8 +118,8 @@ export default function MessagesHubScreen() {
         scroll
         edges={[]}
         contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[2], paddingTop: space[2] }}
-        refreshing={classes.isRefetching}
-        onRefresh={() => void classes.refetch()}
+        refreshing={pullClasses.refreshing}
+        onRefresh={() => void pullClasses.onRefresh()}
       >
         {classes.data!.map((k) => (
           <ClassChannelRow key={k.id} klass={k} />
@@ -131,7 +137,7 @@ function ClassChannelRow({ klass }: { klass: MyClassroom }) {
       onPress={() =>
         router.push({
           pathname: '/(student)/class-chat/[classId]',
-          params: { classId: String(klass.id), className: klass.name },
+          params: { classId: String(klass.id), className: klass.name, from: 'messages' },
         })
       }
       accessibilityLabel={`Kênh chat lớp ${klass.name}`}
@@ -147,7 +153,7 @@ function ClassChannelRow({ klass }: { klass: MyClassroom }) {
             justifyContent: 'center',
           }}
         >
-          <Icon icon={Users} size={20} color="accent" />
+          <GaGlyph name="lophoc" size={20} ink="primary" />
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <ThemedText variant="bodyStrong" numberOfLines={1}>

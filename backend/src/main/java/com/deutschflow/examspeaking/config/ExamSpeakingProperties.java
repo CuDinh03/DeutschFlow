@@ -12,8 +12,13 @@ public record ExamSpeakingProperties(
         Integer gradingPasses,
         Integer turnMaxTokens,
         Integer drillEvalMaxTokens,
-        Integer gradingMaxTokens
+        Integer gradingMaxTokens,
+        /** Tỉ lệ tiêu chí không chấm được (0–1) từ đó cảnh báo admin (F-07). Mặc định 0,3. */
+        Double alertUnscoredRatio
 ) {
+    public double alertUnscoredRatioOrDefault() {
+        return alertUnscoredRatio == null || alertUnscoredRatio <= 0 ? 0.3 : Math.min(alertUnscoredRatio, 1.0);
+    }
     public boolean textTurnsInMockAllowed() {
         return Boolean.TRUE.equals(allowTextTurnsInMock);
     }

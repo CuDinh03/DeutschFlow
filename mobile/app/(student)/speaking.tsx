@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   View,
   ScrollView,
@@ -15,7 +16,7 @@ import { createAudioPlayer, useAudioRecorder, AudioModule, RecordingPresets, set
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Haptics from 'expo-haptics'
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router'
-import { Mic, Send, X, Flag, RotateCcw } from 'lucide-react-native'
+import { Send, X, Flag, RotateCcw } from 'lucide-react-native'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -45,7 +46,7 @@ import {
 } from '@/lib/activeSession'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, GaGlyph } from '@/components/ui'
 import { SessionSummary } from '@/components/speaking/SessionSummary'
 import { ConversationSummary } from '@/components/speaking/ConversationSummary'
 import { CompanionSelect, type StartArgs } from '@/components/speaking/CompanionSelect'
@@ -69,6 +70,7 @@ import {
 import { isTransientFailure } from '@/lib/api'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useTourStore } from '@/stores/useTourStore'
+import { canAutoStartSpeakingIntro, probeStatus } from '@/lib/tourEligibility'
 import { useStarterStore } from '@/stores/useStarterStore'
 import { useSpotlightTour } from '@/components/guide/SpotlightTour'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -84,7 +86,15 @@ export default function SpeakingScreen() {
   // Onboarding (and deep links) can preselect a speaking mode — e.g. the
   // INTERVIEW_FIRST archetype routes here as `?mode=INTERVIEW`. LESSON đang
   // khoá (quyết định 02/09) nên deep link cũ ?mode=LESSON rơi về mặc định.
-  const { mode: modeParam } = useLocalSearchParams<{ mode?: string }>()
+  const {
+    mode: modeParam,
+    assignmentId: assignmentParam,
+    backTo: backToParam,
+    topic: topicParam,
+    level: levelParam,
+    t: nonceParam,
+  } = useLocalSearchParams<{ mode?: string; assignmentId?: string; backTo?: string; topic?: string; level?: string; t?: string }>()
+  const queryClient = useQueryClient()
   const initialMode: SpeakingSessionMode | undefined =
     modeParam === 'INTERVIEW' || modeParam === 'COMMUNICATION' ? modeParam : undefined
 
@@ -129,17 +139,37 @@ export default function SpeakingScreen() {
   const [pendingResume, setPendingResume] = useState<ActiveSessionRef | null>(null)
   const [resuming, setResuming] = useState(false)
 
-  // Coach mark ngữ cảnh (onboarding v1 §6): lần đầu vào tab Speaking sau tour
-  // chính → 1 spotlight chỉ vào hàng chọn cách luyện. Bắn đúng 1 lần.
+  // Coach mark ngữ cảnh (onboarding v1 §6): 1 spotlight chỉ vào hàng chọn cách
+  // luyện, bắn đúng 1 lần. Owner 05/09: chỉ tự nổ khi CHƯA TỪNG dùng Speaking —
+  // tín hiệu server (0 phiên AI speaking, lib/tourEligibility), không còn dựa vào
+  // cờ tour chính theo máy (bị xoá khi đăng xuất → tài khoản cũ từng bị nổ lại).
+  // Chỉ hỏi 1 phiên gần nhất, và chỉ khi cờ chưa đặt.
   const { startTour, activeTourId } = useSpotlightTour()
   const tourHydrated = useTourStore((s) => s.hydrated)
   const tourDone = useTourStore((s) => s.done)
+  const {
+    data: recentSessions,
+    isSuccess: sessionsLoaded,
+    isError: sessionsFailed,
+  } = useQuery({
+    queryKey: ['ai-speaking-sessions-probe'],
+    queryFn: () => speakingApi.listSessions(1),
+    enabled: view === 'select' && tourHydrated && !tourDone.speaking_intro,
+    staleTime: Infinity,
+  })
+  const speakingIntroAllowed = canAutoStartSpeakingIntro({
+    onSelectView: view === 'select',
+    hydrated: tourHydrated,
+    doneSpeaking: tourDone.speaking_intro,
+    tourBusy: activeTourId !== null,
+    sessions: { status: probeStatus(sessionsLoaded, sessionsFailed), count: recentSessions?.length ?? 0 },
+  })
   useFocusEffect(
     useCallback(() => {
-      if (view !== 'select' || !tourHydrated || !tourDone.home || tourDone.speaking_intro || activeTourId) return
+      if (!speakingIntroAllowed) return
       const t = setTimeout(() => startTour('speaking_intro', 'auto'), 600)
       return () => clearTimeout(t)
-    }, [view, tourHydrated, tourDone.home, tourDone.speaking_intro, activeTourId, startTour]),
+    }, [speakingIntroAllowed, startTour]),
   )
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
@@ -320,18 +350,20 @@ export default function SpeakingScreen() {
     // AI (Groq/OpenAI) — disclose & get consent before the session ever starts.
     if (!(await ensureAiConsent())) return
     setStarting(true)
-    trackFeatureAction('ai_speaking', 'started', { mode: args.sessionMode })
+    trackFeatureAction('ai_speaking', 'started', { mode: args.sessionMode, assignment: args.assignmentId != null })
     try {
       const created = await speakingApi.createSession({
         topic: args.topic,
         cefrLevel: args.cefrLevel,
-        persona: args.persona.id.toUpperCase(),
+        // N2: bài giao gửi 'DEFAULT' (gia sư trung tính, như web) dù stage vẽ một persona có sẵn.
+        persona: args.backendPersona ?? args.persona.id.toUpperCase(),
         sessionMode: args.sessionMode,
         interviewPosition: args.interviewPosition ?? null,
         experienceLevel: args.experienceLevel ?? null,
+        assignmentId: args.assignmentId ?? null,
       })
       const greeting = created.initialAiMessage?.aiSpeechDe ?? 'Hallo! Erzählen Sie mir von sich.'
-      // Checklist "Bắt đầu" (§7.1): tick "Thử 1 buổi Speaking" khi tạo phiên thành công.
+      // Checklist "Bắt đầu" (§7.1): tick "Thử 1 buổi luyện nói" khi tạo phiên thành công.
       useStarterStore.getState().markSpeakingSession()
       setSession(created)
       setPhaseKey(
@@ -357,6 +389,57 @@ export default function SpeakingScreen() {
     } finally {
       setStarting(false)
     }
+  }
+
+  // N2 (đợt 2, 05/09): bài giao SPEAKING_SCENARIO mở màn này kèm ?assignmentId&backTo&topic&level&t
+  // → tự tạo phiên LESSON gắn assignmentId (id dòng bài học viên), persona 'DEFAULT' như web.
+  // Khoá theo `assignmentId:t` để "Luyện lại" (về select) không tự mở phiên nữa, còn mở lại
+  // cùng bài từ màn bài giao (nonce mới) thì có. Kết thúc buổi nói: backend tự chấm + đẩy bài
+  // sang chờ giáo viên; onDone ở tổng kết đưa người dùng về đúng bài giao.
+  const autoStartedRef = useRef<string | null>(null)
+  const assignmentKey = assignmentParam ? `${assignmentParam}:${nonceParam ?? ''}` : null
+  useEffect(() => {
+    if (!assignmentKey) return
+    if (autoStartedRef.current === assignmentKey) return
+    const aid = Number(assignmentParam)
+    if (!Number.isFinite(aid) || aid <= 0) return
+    if (starting) return
+    if (view === 'summary') {
+      // Smoke 05/09 (AC-ASSIGN-SPK-M-03): mở lại bài giao khi màn còn tổng kết của phiên trước
+      // → người dùng thấy lại tổng kết cũ. Phải xét 'summary' TRƯỚC `session`: finishSession chỉ
+      // clear store, state `session` cục bộ vẫn còn ở tổng kết (#538 xét `session` trước nên nuốt
+      // nonce, vẫn kẹt). Dọn về 'select' rồi nhánh dưới tạo phiên mới ở lần render kế.
+      resetToSelect()
+      return
+    }
+    if (session) {
+      // Đang trong một phiên (tab Speaking không unmount): không cắt ngang; coi như đã dùng
+      // nonce này để lúc phiên đó kết thúc không tự mở phiên mới đè lên màn tổng kết.
+      autoStartedRef.current = assignmentKey
+      return
+    }
+    if (view !== 'select') return
+    autoStartedRef.current = assignmentKey
+    void startSession({
+      persona: PERSONA_TOKENS.lukas,
+      backendPersona: 'DEFAULT',
+      sessionMode: 'LESSON',
+      topic: topicParam ?? '',
+      cefrLevel: levelParam || 'A2',
+      assignmentId: aid,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignmentKey, view, session, starting])
+
+  function finishAssignmentFlow() {
+    const backTo = Number(backToParam)
+    if (Number.isFinite(backTo) && backTo > 0) {
+      void queryClient.invalidateQueries({ queryKey: ['assignment-detail', backTo] })
+    }
+    void queryClient.invalidateQueries({ queryKey: ['class-assignments'] })
+    router.replace(
+      Number.isFinite(backTo) && backTo > 0 ? (`/(student)/assignments/${backTo}` as never) : ('/(student)' as never),
+    )
   }
 
   // Gom side-effect của 1 lượt AI thành công (phase, reaction+TTS+haptics, scroll). Tách để cả
@@ -680,7 +763,11 @@ export default function SpeakingScreen() {
     return (
       <Screen edges={['top']}>
         <ScreenHeader title="Kết quả luyện nói" onClose={resetToSelect} />
-        <ConversationSummary report={convReport} onPracticeAgain={resetToSelect} onDone={() => router.replace('/(student)')} />
+        <ConversationSummary
+          report={convReport}
+          onPracticeAgain={resetToSelect}
+          onDone={() => (assignmentKey ? finishAssignmentFlow() : router.replace('/(student)'))}
+        />
       </Screen>
     )
   }
@@ -888,7 +975,7 @@ export default function SpeakingScreen() {
             {transcribing ? (
               <ActivityIndicator color={c.textMuted} size="small" />
             ) : (
-              <Icon icon={Mic} size={20} color={isRecording ? 'onAccent' : 'muted'} />
+              <GaGlyph name="speaking" size={20} ink={isRecording ? 'onAccent' : 'muted'} gold={isRecording ? 'ink' : 'accent'} />
             )}
           </Pressable>
         </Animated.View>

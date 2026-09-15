@@ -17,6 +17,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminAnalyticsController {
 
     private final AdminAnalyticsService adminAnalyticsService;
+    private final com.deutschflow.admin.service.AdminAiUsageService aiUsageService;
+
+    /**
+     * AI usage theo feature × model + giây STT + top phiên tốn nhất trong cửa sổ ngày (UTC, ≤92 ngày).
+     * {@code featurePrefix} lọc ví dụ {@code EXAM_SPEAKING} (lượt nói, chấm nhanh, chấm mock, STT phòng thi).
+     */
+    @GetMapping("/ai-usage")
+    public com.deutschflow.admin.service.AdminAiUsageService.Report aiUsage(
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to,
+            @RequestParam(required = false) String featurePrefix) {
+        return aiUsageService.report(from, to, featurePrefix);
+    }
 
     @GetMapping("/revenue")
     public ResponseEntity<AdminRevenueAnalyticsResponse> getRevenueAnalytics(

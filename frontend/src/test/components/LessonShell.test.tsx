@@ -16,7 +16,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
 import { LessonShell } from '@/components/learn/LessonShell'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (k: string) => k }))
+vi.mock('next-intl', () => ({ useLocale: () => 'vi', useTranslations: () => (k: string) => k }))
 
 const base = {
   mode: 'learn' as const,

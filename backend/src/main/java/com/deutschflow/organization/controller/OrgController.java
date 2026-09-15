@@ -41,6 +41,13 @@ import java.util.List;
  * "Org của tôi" — quản trị tổ chức cho org-admin (OWNER/MANAGER).
  * orgId luôn lấy từ principal (user.getOrgId()), không nhận từ client để tránh giả mạo org.
  * Authz verify trong DB qua OrgGuard (mirror assertTeacherOwnsClass), JWT chỉ phục vụ frontend.
+ *
+ * <p><b>Chế độ chỉ đọc (D5, owner chốt 08/09/2026):</b> trung tâm bị đình chỉ hoặc hết hạn quá 7
+ * ngày ân hạn thì KHÔNG TẠO MỚI và KHÔNG DÙNG AI, nhưng vẫn xem được mọi thứ. Vì vậy chỉ các
+ * endpoint TẠO MỚI ở đây gọi {@code assertOrgAdminForWrite}/{@code assertOrgWritable} — mời giáo
+ * viên, tạo giáo viên, tạo lớp, thêm trợ giảng, import học viên. Các đường GỠ/HẠ/THU HỒI (gỡ thành
+ * viên, huỷ lời mời, đổi vai trò, chuyển quyền sở hữu, tự rời) CỐ Ý không bị chặn: D5 chỉ cấm tạo
+ * mới, và khoá luôn đường gỡ sẽ nhốt trung tâm với chính những ghế nó đang bị tính tiền.
  */
 @RestController
 @RequestMapping("/api/org")
@@ -57,6 +64,7 @@ public class OrgController {
     private final OrgEntitlementService orgEntitlementService;
     private final OrgBillingService orgBillingService;
     private final UserNotificationService userNotificationService;
+    private final com.deutschflow.teacher.service.ClassEnrollmentService classEnrollmentService;
 
     private Long requireOrgId(User user) {
         Long orgId = user.getOrgId();
@@ -93,7 +101,7 @@ public class OrgController {
     public OrgInvitationDto inviteTeacher(@AuthenticationPrincipal User user,
                                           @RequestBody InviteTeacherRequest body) {
         Long orgId = requireOrgId(user);
-        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        orgGuard.assertOrgAdminForWrite(user.getId(), orgId);
         return orgInvitationService.inviteTeacher(user.getId(), orgId, body.email());
     }
 
@@ -108,6 +116,7 @@ public class OrgController {
         Long orgId = requireOrgId(user);
         OrgMember caller = orgGuard.assertMember(user.getId(), orgId);
         String callerRole = caller.getRole();
+        orgGuard.assertOrgWritable(orgId); // D5: trung tâm đình chỉ/hết hạn không tạo tài khoản mới
         if (!"OWNER".equals(callerRole) && !"MANAGER".equals(callerRole)) {
             throw new ForbiddenException("Chỉ chủ sở hữu hoặc quản lý mới tạo được giáo viên");
         }
@@ -187,19 +196,34 @@ public class OrgController {
     /**
      * Self-leave: a TEACHER/MANAGER leaves their own org (membership → LEFT). The OWNER cannot
      * self-leave (must transfer ownership first). orgId comes from the principal, never the client.
+     *
+     * <p>V-13: rời trung tâm cũng THU HỒI quyền lợi do trung tâm cấp, y như đường admin gỡ thành
+     * viên ở trên. Thiếu bước này thì người tự rời vẫn giữ gói do trung tâm trả tới ~5 năm, và gói
+     * cá nhân đang PAUSED của họ không bao giờ được trả về (V313 {@code resumePausedIfAny} nằm
+     * trong chính {@code revokeStudent}).
      */
     @PostMapping("/membership/leave")
     public ResponseEntity<Void> leaveOrg(@AuthenticationPrincipal User user) {
         Long orgId = requireOrgId(user);
         orgMembershipService.selfLeave(orgId, AuditActor.of(user));
+        orgEntitlementService.revokeStudent(user.getId());
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Danh sách lớp của trung tâm, lọc phía máy chủ (PR-A3).
+     *
+     * @param q              lọc theo tên lớp, không phân biệt hoa thường
+     * @param withoutTeacher chỉ lấy lớp chưa có ai dạy
+     */
     @GetMapping("/classes")
-    public Page<OrgClassDto> listClasses(@AuthenticationPrincipal User user, Pageable pageable) {
+    public Page<OrgClassDto> listClasses(@AuthenticationPrincipal User user,
+                                         Pageable pageable,
+                                         @RequestParam(required = false) String q,
+                                         @RequestParam(required = false, defaultValue = "false") boolean withoutTeacher) {
         Long orgId = requireOrgId(user);
         orgGuard.assertOrgAdmin(user.getId(), orgId);
-        return orgService.listClasses(orgId, pageable);
+        return orgService.listClasses(orgId, pageable, q, withoutTeacher);
     }
 
     /**
@@ -210,7 +234,7 @@ public class OrgController {
     public OrgClassDto createClass(@AuthenticationPrincipal User user,
                                    @jakarta.validation.Valid @RequestBody com.deutschflow.organization.dto.CreateClassRequest body) {
         Long orgId = requireOrgId(user);
-        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        orgGuard.assertOrgAdminForWrite(user.getId(), orgId);
         return orgService.createClass(orgId, body.name(), body.teacherId());
     }
 
@@ -237,7 +261,7 @@ public class OrgController {
             @PathVariable Long id,
             @jakarta.validation.Valid @RequestBody com.deutschflow.organization.dto.AssignClassTeacherRequest body) {
         Long orgId = requireOrgId(user);
-        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        orgGuard.assertOrgAdminForWrite(user.getId(), orgId);
         return orgService.addAssistantTeacher(orgId, id, body.teacherId());
     }
 
@@ -252,6 +276,22 @@ public class OrgController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * G-02: org-admin (OWNER/MANAGER) gỡ một học viên khỏi một lớp của trung tâm mình.
+     *
+     * <p>Không xoá dòng ghi danh — chỉ đóng lại (D2). 404 khi lớp không thuộc org của người gọi
+     * (chống IDOR, không lộ lớp tenant khác).
+     */
+    @DeleteMapping("/classes/{id}/students/{studentId}")
+    public ResponseEntity<Void> removeClassStudent(@AuthenticationPrincipal User user,
+                                                   @PathVariable Long id,
+                                                   @PathVariable Long studentId) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        classEnrollmentService.endByOrgAdmin(orgId, id, studentId, AuditActor.of(user));
+        return ResponseEntity.noContent().build();
+    }
+
     /** Chi tiết một lớp thuộc tổ chức (B1.1). 404 nếu lớp không thuộc org của người gọi. */
     @GetMapping("/classes/{id}")
     public OrgClassDetailDto getClassDetail(@AuthenticationPrincipal User user, @PathVariable Long id) {
@@ -261,15 +301,27 @@ public class OrgController {
     }
 
     /**
-     * Bulk import học viên từ file CSV (cột: email,displayName[,phone]).
-     * classId tùy chọn — nếu có, mọi học viên import được enroll vào lớp đó.
+     * Bulk import học viên từ file CSV. Cột tối thiểu {@code email,displayName[,phone]}; tệp có dòng
+     * tiêu đề khai thêm {@code birthDate[,guardianName,guardianPhone,guardianRelationship,
+     * guardianEmail,consentConfirmed]} thì đọc luôn phần dữ liệu chưa thành niên (PR-1B; D1/R11
+     * 10/09/2026: {@code consentConfirmed} = trung tâm đã cầm phiếu đồng ý giấy ⇒ ghi một dòng
+     * {@code AUDIO_RECORDING/GRANTED/PAPER}, nhập lại không nhân đôi). Cột mới là TÙY CHỌN — tệp ba
+     * cột của trung tâm giữ nguyên hành vi cũ; xem {@code RosterColumnLayout}.
+     *
+     * <p>Ghi danh KHÔNG phải cổng chặn: dòng không khai ngày sinh vẫn nhập bình thường (owner chốt
+     * 09/09/2026); thiếu đồng ý cũng vậy — chỉ phần nói còn khoá (D2). Chỉ dòng tự mâu thuẫn — khai
+     * tuổi dưới ngưỡng pháp lý mà bỏ trống người giám hộ, ngày sinh sai định dạng hoặc ở tương lai, ô
+     * đồng ý gõ lạ, email giám hộ sai — và dòng của học viên đang thuộc trung tâm KHÁC (F4, nêu tên
+     * trung tâm đó) mới bị từ chối, kèm số dòng và email trong {@code errors}.
+     *
+     * <p>classId tùy chọn — nếu có, mọi học viên import được enroll vào lớp đó.
      */
     @PostMapping(value = "/students/import", consumes = "multipart/form-data")
     public RosterImportResultDto importStudents(@AuthenticationPrincipal User user,
                                                 @RequestParam("file") MultipartFile file,
                                                 @RequestParam(value = "classId", required = false) Long classId) {
         Long orgId = requireOrgId(user);
-        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        orgGuard.assertOrgAdminForWrite(user.getId(), orgId);
 
         if (file == null || file.isEmpty()) {
             throw new BadRequestException("File CSV không được để trống");

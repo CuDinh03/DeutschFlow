@@ -6,6 +6,7 @@ import { Mic, Loader2, Play, CheckCircle, RefreshCcw, Volume2 } from 'lucide-rea
 import { startRecorder, RecorderHandle } from '@/lib/voiceRecorder'
 import { aiSpeakingApi } from '@/lib/aiSpeakingApi'
 import api from '@/lib/api'
+import { useTranslations } from 'next-intl'
 
 interface SprechenCard {
   thema: string
@@ -25,6 +26,7 @@ interface TurnEvaluation {
 type TurnStage = 'START' | 'USER_ASKING' | 'AI_ANSWERING' | 'AI_ASKING' | 'USER_ANSWERING' | 'EVALUATING' | 'FINISHED'
 
 export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number) => void }) {
+  const t = useTranslations('v2.student.sprechenTeil2')
   const [stage, setStage] = useState<TurnStage>('START')
   const [card, setCard] = useState<SprechenCard | null>(null)
   const [isRecording, setIsRecording] = useState(false)
@@ -59,7 +61,7 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
       setCard(res.data)
       setStage('USER_ASKING')
     } catch (e) {
-      setErrorMsg('Không thể tải thẻ bài thi.')
+      setErrorMsg(t('loadCardFailed'))
     } finally {
       setProcessing(false)
     }
@@ -74,7 +76,7 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
       recorderRef.current = handle
       setIsRecording(true)
     } catch (err: any) {
-      setErrorMsg('Không thể truy cập Microphone.')
+      setErrorMsg(t('micFailed'))
     }
   }
 
@@ -94,7 +96,7 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
       const transcript = sttResult.transcript
 
       if (!transcript || transcript.trim().length < 2) {
-        setErrorMsg('Không nhận diện được giọng nói. Hãy thử lại.')
+        setErrorMsg(t('sttEmpty'))
         setProcessing(false)
         return
       }
@@ -146,7 +148,7 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
       }
 
     } catch (err) {
-      setErrorMsg('Lỗi phân tích. Hãy thử lại.')
+      setErrorMsg(t('evalFailed'))
     } finally {
       setProcessing(false)
     }
@@ -172,7 +174,7 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
     return (
       <div className="flex flex-col items-center justify-center p-8 lg:p-12 bg-white rounded-2xl border border-slate-200 shadow-sm">
         <Loader2 className="animate-spin text-indigo-500 mb-4" size={32} />
-        <p className="text-slate-500 font-medium">Đang chuẩn bị thẻ bài...</p>
+        <p className="text-slate-500 font-medium">{t('preparing')}</p>
       </div>
     )
   }
@@ -192,7 +194,7 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
         {/* The Card */}
         {card && stage !== 'FINISHED' && (
           <div className="flex flex-col items-center mb-8">
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Thẻ bài của bạn</p>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">{t('yourCard')}</p>
             <div className="w-64 max-w-full aspect-[3/2] bg-[#FDFDEA] border-2 border-slate-300 shadow-md flex flex-col relative transform transition-transform hover:scale-105">
               <div className="bg-sky-700 text-white text-center py-2 font-bold text-sm">
                 Thema: {card.thema}
@@ -207,14 +209,14 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
         {/* Instructions */}
         {stage === 'USER_ASKING' && (
           <div className="text-center mb-8">
-            <p className="font-medium text-slate-700">Hãy đặt <span className="font-bold text-indigo-600">một câu hỏi</span> liên quan đến thẻ này.</p>
+            <p className="font-medium text-slate-700">{t.rich('askPrompt', { b: (c) => <span className="font-bold text-indigo-600">{c}</span> })}</p>
           </div>
         )}
 
         {stage === 'AI_ASKING' && (
           <div className="text-center mb-8">
             <Loader2 className="animate-spin mx-auto text-indigo-500 mb-2" />
-            <p className="font-medium text-slate-700">AI Partner đang đặt câu hỏi...</p>
+            <p className="font-medium text-slate-700">{t('aiAsking')}</p>
           </div>
         )}
 
@@ -222,11 +224,11 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
           <div className="text-center mb-8">
             <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-4 text-indigo-800 font-medium">
               <div className="flex items-center justify-center gap-2 mb-2">
-                <Volume2 size={18} /> <span className="text-xs uppercase font-bold">Câu hỏi của AI</span>
+                <Volume2 size={18} /> <span className="text-xs uppercase font-bold">{t('aiQuestion')}</span>
               </div>
               {'"'}{aiQuestion}{'"'}
             </div>
-            <p className="font-medium text-slate-700">Hãy đưa ra <span className="font-bold text-emerald-600">câu trả lời</span> của bạn.</p>
+            <p className="font-medium text-slate-700">{t.rich('answerPrompt', { b: (c) => <span className="font-bold text-emerald-600">{c}</span> })}</p>
           </div>
         )}
 
@@ -250,7 +252,7 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
               {processing ? <Loader2 className="animate-spin" size={32} /> : <Mic size={32} />}
             </button>
             <p className="mt-4 text-sm font-medium text-slate-500">
-              {isRecording ? 'Đang thu âm... Thả ra để nộp' : processing ? 'Đang chấm điểm...' : 'Nhấn giữ để nói'}
+              {isRecording ? t('recording') : processing ? t('scoring') : t('holdToTalk')}
             </p>
             {errorMsg && <p className="mt-2 text-sm text-red-500 font-medium">{errorMsg}</p>}
           </div>
@@ -259,18 +261,18 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
         {/* Feedback History */}
         {evaluations.length > 0 && (
           <div className="mt-8 space-y-4 border-t border-slate-100 pt-6">
-            <h4 className="font-bold text-slate-800">Kết quả đánh giá AI</h4>
+            <h4 className="font-bold text-slate-800">{t('resultsTitle')}</h4>
             {evaluations.map((ev, idx) => (
               <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-4">
                 <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
                   <span className="text-xs font-bold uppercase text-slate-500 bg-white px-2 py-1 rounded shadow-sm border border-slate-100">
-                    {ev.type === 'USER_ASK' ? 'Lượt 1: Bạn đặt câu hỏi' : 'Lượt 2: Bạn trả lời'}
+                    {ev.type === 'USER_ASK' ? t('turnAsk') : t('turnAnswer')}
                   </span>
-                  <span className="font-black text-lg text-emerald-600">{ev.score}/10 điểm</span>
+                  <span className="font-black text-lg text-emerald-600">{t('points', { score: ev.score })}</span>
                 </div>
                 <p className="text-sm font-medium text-slate-700 italic mb-2">{'"'}{ev.transcript}{'"'}</p>
                 <div className="bg-white border-l-4 border-amber-400 p-3 text-sm text-slate-600">
-                  <span className="font-bold text-amber-600">Phản hồi:</span> {ev.feedback}
+                  <span className="font-bold text-amber-600">{t('feedback')}</span> {ev.feedback}
                 </div>
                 {ev.aiResponse && (
                    <p className="text-sm mt-3 text-indigo-700 font-medium bg-indigo-50 p-2 rounded">
@@ -285,13 +287,13 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
         {stage === 'FINISHED' && (
           <div className="text-center py-8">
             <CheckCircle size={64} className="text-emerald-500 mx-auto mb-4" />
-            <h3 className="font-bold text-2xl text-slate-800 mb-2">Hoàn thành Teil 2!</h3>
-            <p className="text-slate-600 mb-6">Bạn đã hoàn thành tốt cả 2 lượt tương tác. Hãy xem lại phản hồi chi tiết của AI ở trên.</p>
+            <h3 className="font-bold text-2xl text-slate-800 mb-2">{t('doneTitle')}</h3>
+            <p className="text-slate-600 mb-6">{t('doneBody')}</p>
             <button onClick={() => {
               setEvaluations([])
               loadNextCard()
             }} className="font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-6 py-3 rounded-xl transition-colors flex items-center gap-2 mx-auto">
-              <RefreshCcw size={18} /> Thi lại phần này
+              <RefreshCcw size={18} /> {t('retry')}
             </button>
           </div>
         )}

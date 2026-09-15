@@ -10,6 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -92,7 +93,11 @@ class AccountDeletionServiceDbTest extends AbstractPostgresIntegrationTest {
     @Test
     @DisplayName("no non-cascading users FK on a subject column is left unhandled by the service")
     void allSubjectColumnFksAreHandled() {
-        Set<String> subjectColumns = Set.of("user_id", "student_id", "sender_id", "recipient_id");
+        // "reporter_id" (content_reports, V321 — 10/09/2026): FK là ON DELETE SET NULL nên câu SQL
+        // dưới đã LỌC nó ra (confdeltype 'n' không nằm trong 'a','r','d'). Vẫn liệt kê ở đây để tài
+        // liệu hoá rằng nó LÀ cột chủ thể, và để ca này ĐỎ ngay nếu ai đó đổi FK sang RESTRICT/NO
+        // ACTION — khi đó nó rơi vào danh sách unhandled và chỉ đích danh content_reports.reporter_id.
+        Set<String> subjectColumns = Set.of("user_id", "student_id", "sender_id", "recipient_id", "reporter_id");
         Set<String> handledByService = Set.of(
                 "b1_assessment_states.user_id",
                 "learner_phase_states.user_id",
@@ -124,6 +129,73 @@ class AccountDeletionServiceDbTest extends AbstractPostgresIntegrationTest {
                         + "→ self-serve delete will FK-fail. Add a DELETE for each to AccountDeletionService "
                         + "(and to handledByService here).")
                 .isEmpty();
+    }
+
+    // ── content_reports (V321, owner chốt 10/09/2026) ───────────────────────
+
+    /**
+     * Quyết định 1 + B1: người BỊ TỐ CÁO xoá tài khoản ⇒ nội dung ẩn danh (snapshot_body + details
+     * NULL, content_purged_at đóng dấu), dòng CÒN, reporter_id CÒN — người tố cáo là người khác và
+     * chưa yêu cầu xoá gì. reported_user_id về NULL là do FK SET NULL của V244, không phải do code.
+     */
+    @Test
+    @DisplayName("người BỊ tố cáo xoá tài khoản ⇒ snapshot/details NULL + content_purged_at, dòng còn, reporter_id còn")
+    void reportedUserDeletion_anonymisesContentKeepsRowAndReporter() {
+        User subject = newUser(User.Role.STUDENT);
+        User reporter = newUser(User.Role.STUDENT);
+        Long reportId = insertReport(reporter, subject, "nội dung bị tố cáo", "chi tiết người tố cáo");
+
+        accountDeletionService.deleteAccount(subject.getId());
+
+        Map<String, Object> row = reportRow(reportId);
+        assertThat(row).as("dòng báo cáo phải còn").isNotNull();
+        assertThat(((Number) row.get("reporter_id")).longValue()).isEqualTo(reporter.getId());
+        assertThat(row.get("reported_user_id")).isNull();
+        assertThat(row.get("snapshot_body")).isNull();
+        assertThat(row.get("details")).isNull();
+        assertThat(row.get("content_purged_at")).isNotNull();
+        assertThat(row.get("status")).isEqualTo("PENDING");
+        assertThat(userRepository.findById(subject.getId())).isEmpty();
+        assertThat(userRepository.findById(reporter.getId())).isPresent();
+    }
+
+    /**
+     * Quyết định 2: người TỐ CÁO xoá tài khoản ⇒ báo cáo ở lại nguyên nội dung, reporter_id về NULL
+     * — Postgres thi hành qua FK SET NULL (V321), service không cần lệnh nào. Trước V321 FK là
+     * CASCADE: người bị tố cáo có thể "xoá" báo cáo về mình bằng cách thuyết phục người kia rời đi.
+     */
+    @Test
+    @DisplayName("người TỐ CÁO xoá tài khoản ⇒ dòng còn nguyên nội dung, reporter_id NULL (FK SET NULL)")
+    void reporterDeletion_keepsReportContentSetsReporterNull() {
+        User subject = newUser(User.Role.STUDENT);
+        User reporter = newUser(User.Role.STUDENT);
+        Long reportId = insertReport(reporter, subject, "giữ nguyên", "chi tiết giữ nguyên");
+
+        accountDeletionService.deleteAccount(reporter.getId());
+
+        Map<String, Object> row = reportRow(reportId);
+        assertThat(row).as("báo cáo không được biến mất theo người tố cáo (V244 CASCADE là sai)").isNotNull();
+        assertThat(row.get("reporter_id")).isNull();
+        assertThat(((Number) row.get("reported_user_id")).longValue()).isEqualTo(subject.getId());
+        assertThat(row.get("snapshot_body")).isEqualTo("giữ nguyên");
+        assertThat(row.get("details")).isEqualTo("chi tiết giữ nguyên");
+        assertThat(row.get("content_purged_at")).isNull();
+        assertThat(userRepository.findById(reporter.getId())).isEmpty();
+        assertThat(userRepository.findById(subject.getId())).isPresent();
+    }
+
+    private Long insertReport(User reporter, User subject, String snapshot, String details) {
+        return jdbc.queryForObject(
+                "INSERT INTO content_reports(reporter_id, reported_user_id, context, reason, details, snapshot_body, status) "
+                        + "VALUES (?,?,?,?,?,?,?) RETURNING id",
+                Long.class, reporter.getId(), subject.getId(), "USER", "HARASSMENT", details, snapshot, "PENDING");
+    }
+
+    private Map<String, Object> reportRow(Long reportId) {
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "SELECT reporter_id, reported_user_id, snapshot_body, details, content_purged_at, status "
+                        + "FROM content_reports WHERE id = ?", reportId);
+        return rows.isEmpty() ? null : rows.get(0);
     }
 
     private User newUser(User.Role role) {

@@ -3,10 +3,9 @@ import { View, KeyboardAvoidingView, Platform, Alert } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
-import { KeyRound } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, ThemedText, TextField, Button, Icon } from '@/components/ui'
+import { Screen, ThemedText, TextField, Button, GaGlyph } from '@/components/ui'
 
 export default function ResetPasswordScreen() {
   const theme = useTheme()
@@ -77,7 +76,7 @@ export default function ResetPasswordScreen() {
                 marginBottom: space[3],
               }}
             >
-              <Icon icon={KeyRound} size={26} color="accent" />
+              <GaGlyph name="matkhau" size={26} ink="primary" />
             </View>
             <ThemedText variant="titleLg">Đặt lại mật khẩu</ThemedText>
             <ThemedText variant="body" color="muted" style={{ marginTop: space[1] }} align="center">

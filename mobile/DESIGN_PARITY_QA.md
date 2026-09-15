@@ -30,6 +30,8 @@ Verify = **self-QA so code với `na-*.jsx`** (sim không mở được window �
 
 **Token/primitive layer = FAITHFUL gần như tuyệt đối.** Palette warm-paper, sharp 4px, Newsreader serif + Instrument Sans, ink-hero, yellow-square, caption eyebrow — đều port đúng. App "trông Galerie".
 
+> **06/09/2026 — body font đổi Instrument Sans → Plus Jakarta Sans** (`lib/theme/tokens.ts`, `app/_layout.tsx`): Instrument Sans chỉ có 20/70 glyph tiếng Việt (thiếu ơ ư ạ ả ấ ầ ẩ … ỹ Ư Ơ) nên iOS/Android fallback từng ký tự sang SF/Roboto → chữ Việt lẫn hai kiểu nét. Plus Jakarta Sans đủ 70/70 (kiểm bảng `cmap` TTF), Newsreader giữ nguyên. Gỡ gói `instrument-sans` + `sora` (không dùng, cũng thiếu glyph). Báo cáo: `plans/2026-09-06-bao-cao-soat-utf8-i18n.md` F-I18N-01.
+
 **Drift nằm ở tầng COMPOSITION/FEATURE, không phải theming.** Phần lớn màn được **thiết kế lại quanh backend thật** (khác mockup về *mục đích*, không phải lười). Một phần là **quyết định product có chủ đích** (exam reading-only, paywall iOS compliance, payment defer). Phần còn lại là **gap fidelity thật** + vài **bug nhỏ fix nhanh**.
 
 **Verdict tổng:** ~3 màn FAITHFUL/MINOR, ~15 SIGNIFICANT DRIFT, ~8 mockup CHƯA BUILD. Nhưng nhiều "drift" là cố ý — xem §2 tách rõ.

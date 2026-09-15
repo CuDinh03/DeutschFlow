@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import useAdminData from '@/hooks/useAdminData'
 import { listMedia, type MediaAsset } from '@/lib/mediaApi'
 import { GaPageHdr, GaBtn, GaStatStrip } from '@/components/ui-v2'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 // ── Blue header accent (media screen overrides admin-navy chrome) ─────────────
 const BLUE = '#2F6FC9'
@@ -18,11 +19,22 @@ const mediaAccentVars = {
 // Category → labelKey + accent (mirrors proto AD_MEDIA tag colours). labelKey resolves
 // via t(`cat${labelKey}`); unknown categories fall back to the raw value or catOther.
 const CAT: Record<string, { labelKey: string; color: string }> = {
+  // 10 giá trị của backend MediaCategory (audit i18n 06/09/2026: 8/10 từng hiện raw enum vì map chỉ có
+  // các category của prototype). Màu mới dùng token --ga-* (ratchet design-token); các khoá prototype
+  // giữ phía dưới với màu gốc để dữ liệu cũ (nếu có) vẫn có nhãn.
+  LANDING: { labelKey: 'Landing', color: 'var(--ga-red)' },
+  LESSON: { labelKey: 'Lesson', color: 'var(--ga-blue)' },
+  PERSONA: { labelKey: 'Persona', color: '#E07B39' },
+  ACHIEVEMENT: { labelKey: 'Achievement', color: 'var(--ga-gold)' },
+  NEWS: { labelKey: 'News', color: 'var(--ga-green)' },
+  VOCABULARY: { labelKey: 'Vocabulary', color: 'var(--ga-teal)' },
+  TEACHER_MATERIAL: { labelKey: 'TeacherMaterial', color: 'var(--ga-violet)' },
+  ASSIGNMENT: { labelKey: 'Assignment', color: 'var(--ga-orange)' },
+  AVATAR: { labelKey: 'Avatar', color: '#11888A' },
+  GENERAL: { labelKey: 'General', color: 'var(--ga-muted)' },
   WORD_IMAGE: { labelKey: 'WordImage', color: '#1E9E61' },
   AI_IMAGE: { labelKey: 'AiImage', color: '#7C56C8' },
   VIDEO_SCENE: { labelKey: 'VideoScene', color: '#2F6FC9' },
-  PERSONA: { labelKey: 'Persona', color: '#E07B39' },
-  AVATAR: { labelKey: 'Avatar', color: '#11888A' },
   MARKETING: { labelKey: 'Marketing', color: '#DA291C' },
 }
 
@@ -35,6 +47,7 @@ function fmtSize(bytes: number): string {
 
 export default function V2AdminMediaPage() {
   const t = useTranslations('v2.adminContent.media')
+  const fmt = useFmt()
   const tc = useTranslations('v2.common')
   const { data, loading, error, reload } = useAdminData<MediaAsset[]>({
     initialData: [],
@@ -77,10 +90,10 @@ export default function V2AdminMediaPage() {
         <GaStatStrip
           className="mb-6"
           items={[
-            { label: t('statTotal'), value: stats.total.toLocaleString('vi-VN'), tone: 'blue' },
+            { label: t('statTotal'), value: fmt.num(stats.total), tone: 'blue' },
             { label: t('statSize'), value: fmtSize(stats.size), tone: 'orange' },
-            { label: t('statAi'), value: stats.ai.toLocaleString('vi-VN'), tone: 'violet' },
-            { label: t('statVideo'), value: stats.video.toLocaleString('vi-VN'), tone: 'green' },
+            { label: t('statAi'), value: fmt.num(stats.ai), tone: 'violet' },
+            { label: t('statVideo'), value: fmt.num(stats.video), tone: 'green' },
           ]}
         />
 

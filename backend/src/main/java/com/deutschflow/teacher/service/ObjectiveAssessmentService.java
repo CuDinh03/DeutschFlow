@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.Optional;
 
 /**
  * Đánh giá học viên theo MỤC TIÊU giáo trình (V298, spec §7 — PR-9).
@@ -168,6 +169,62 @@ public class ObjectiveAssessmentService {
                     (int) unassessed));
         }
         return out;
+    }
+
+    // ── Phiếu gửi gia đình (PR-R2, R4 mục 6) ─────────────────────────────────
+
+    /** Tối đa bấy nhiêu mục "cần luyện" được nêu TÊN trên phiếu — phần còn lại chỉ là con số. */
+    static final int REPORT_NEEDS_PRACTICE_MAX = 5;
+
+    /**
+     * Tóm tắt mục tiêu giáo trình của MỘT học viên: số đạt / cần luyện / chưa đánh giá + tên tối đa
+     * {@value #REPORT_NEEDS_PRACTICE_MAX} mục cần luyện, theo thứ tự Lektion. KHÔNG mang
+     * {@code evidence} (ghi chú của giáo viên cho đồng nghiệp, không phải cho gia đình).
+     */
+    public record StudentObjectiveSummary(int total, int achieved, int needsPractice, int notAssessed,
+                                          List<String> needsPracticeItems) {}
+
+    /**
+     * {@link Optional#empty()} khi lớp chưa gắn giáo trình (nuốt {@link NotFoundException} của
+     * {@link #objectivesOfClass} như khuôn four-axis) hoặc giáo trình chưa có mục tiêu — phiếu ẨN cả
+     * khối thay vì in "0/0". KHÔNG kiểm quyền: nơi gọi ({@code ReportPayloadBuilder}) đã kiểm.
+     */
+    @Transactional(readOnly = true)
+    public Optional<StudentObjectiveSummary> summaryFor(Long classId, Long studentId) {
+        List<CurriculumObjective> objectives;
+        try {
+            objectives = objectivesOfClass(classId);
+        } catch (NotFoundException noCurriculum) {
+            return Optional.empty();
+        }
+        if (objectives.isEmpty()) {
+            return Optional.empty();
+        }
+        Map<Long, StudentObjectiveAssessment> current = assessmentRepo.findByClassIdAndSupersededFalse(classId)
+                .stream()
+                .filter(a -> studentId.equals(a.getStudentId()))
+                .collect(Collectors.toMap(StudentObjectiveAssessment::getObjectiveId, a -> a, (x, y) -> x));
+        int achieved = 0;
+        int needsPractice = 0;
+        int notAssessed = 0;
+        List<String> needsPracticeItems = new ArrayList<>();
+        for (CurriculumObjective o : objectives) {
+            StudentObjectiveAssessment a = current.get(o.getId());
+            StudentObjectiveAssessment.Status status = a == null
+                    ? StudentObjectiveAssessment.Status.NOT_ASSESSED : a.getStatus();
+            switch (status) {
+                case ACHIEVED -> achieved++;
+                case NEEDS_PRACTICE -> {
+                    needsPractice++;
+                    if (needsPracticeItems.size() < REPORT_NEEDS_PRACTICE_MAX) {
+                        needsPracticeItems.add(o.getText());
+                    }
+                }
+                default -> notAssessed++;
+            }
+        }
+        return Optional.of(new StudentObjectiveSummary(objectives.size(), achieved, needsPractice, notAssessed,
+                List.copyOf(needsPracticeItems)));
     }
 
     /** Mục tiêu của mọi Lektion trong phiên bản giáo trình ĐÃ GÁN cho lớp, theo thứ tự Lektion. */

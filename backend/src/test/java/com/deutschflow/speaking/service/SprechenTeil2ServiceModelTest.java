@@ -46,7 +46,8 @@ class SprechenTeil2ServiceModelTest {
     @BeforeEach
     void setUp() {
         // ObjectMapper thật để parse JSON trả về tự nhiên — chỉ mock client AI.
-        service = new SprechenTeil2Service(chatClient, llmTierResolver, new ObjectMapper());
+        // Không có ngân hàng đề (null) → rơi về danh sách cứng; nhánh DB có test riêng ở SprechenTeil2ServiceBankTest.
+        service = new SprechenTeil2Service(chatClient, llmTierResolver, new ObjectMapper(), null);
     }
 
     @Test

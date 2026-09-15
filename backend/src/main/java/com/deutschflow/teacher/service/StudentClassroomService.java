@@ -51,6 +51,11 @@ public class StudentClassroomService {
     /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
     private final SubmissionFileUrlResolver submissionFileUrlResolver;
 
+    /**
+     * Lớp của tôi. {@code findByIdStudentId} chỉ trả ghi danh CÒN HIỆU LỰC (ACTIVE + RESERVED) — bảo
+     * lưu vẫn xem được ở chế độ chỉ đọc (D1), còn người đã rời lớp hoặc rời trung tâm (G-03) biến
+     * mất khỏi đây ngay, không còn đọc tài liệu lớp vô thời hạn.
+     */
     @Transactional(readOnly = true)
     public List<MyClassroomDto> listMyClasses(Long studentId) {
         List<ClassStudent> memberships = classStudentRepository.findByIdStudentId(studentId);
@@ -145,7 +150,10 @@ public class StudentClassroomService {
         return new ClassroomDetailDto(
                 cls.getId(),
                 cls.getName(),
-                cls.getInviteCode(),
+                // V-04: lớp của TRUNG TÂM không trả mã mời cho học viên — mỗi lượt chia sẻ là một GHẾ
+                // có thể bị người lạ chiếm, và học viên không phải người có quyền mời. Lớp B2C
+                // (orgId == null) giữ nguyên: ở đó không có ghế/hoá đơn.
+                cls.getOrgId() == null ? cls.getInviteCode() : null,
                 teachers,
                 studentCount,
                 stats.total(),

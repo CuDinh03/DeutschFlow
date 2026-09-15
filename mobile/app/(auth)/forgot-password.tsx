@@ -3,10 +3,9 @@ import { View, KeyboardAvoidingView, Platform, Alert } from 'react-native'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
-import { Mail } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, ThemedText, TextField, Button, Icon } from '@/components/ui'
+import { Screen, ThemedText, TextField, Button, GaGlyph } from '@/components/ui'
 
 export default function ForgotPasswordScreen() {
   const theme = useTheme()
@@ -57,7 +56,7 @@ export default function ForgotPasswordScreen() {
                 marginBottom: space[2],
               }}
             >
-              <Icon icon={Mail} size={34} color="success" />
+              <GaGlyph name="tinnhan" size={34} ink="success" gold="success" />
             </View>
             <ThemedText variant="titleLg" align="center">
               Kiểm tra email của bạn
@@ -105,7 +104,7 @@ export default function ForgotPasswordScreen() {
                 marginBottom: space[3],
               }}
             >
-              <Icon icon={Mail} size={26} color="accent" />
+              <GaGlyph name="tinnhan" size={26} ink="primary" />
             </View>
             <ThemedText variant="titleLg">Quên mật khẩu</ThemedText>
             <ThemedText variant="body" color="muted" style={{ marginTop: space[1] }} align="center">

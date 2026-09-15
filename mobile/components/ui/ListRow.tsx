@@ -8,6 +8,8 @@ import { Pressable, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Icon } from './Icon'
+import { GaGlyph, type GlyphGold, type GlyphInkRole } from './GaGlyph'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { ThemedText } from './ThemedText'
 
 type IconTone = 'accent' | 'success' | 'danger' | 'info' | 'neutral'
@@ -15,7 +17,10 @@ type IconTone = 'accent' | 'success' | 'danger' | 'info' | 'neutral'
 interface ListRowProps {
   title: string
   subtitle?: string
+  /** Icon Lucide — chỉ cho điều khiển. Biểu tượng nhận diện dùng `glyph`. */
   icon?: LucideIcon
+  /** Glyph Galerie (ưu tiên hơn `icon` khi truyền cả hai). */
+  glyph?: GlyphName
   iconTone?: IconTone
   trailing?: ReactNode
   onPress?: () => void
@@ -26,6 +31,7 @@ export function ListRow({
   title,
   subtitle,
   icon,
+  glyph,
   iconTone = 'neutral',
   trailing,
   onPress,
@@ -49,6 +55,9 @@ export function ListRow({
     neutral: 'secondary',
   }
 
+  const glyphInk: Record<IconTone, GlyphInkRole> = { accent: 'primary', success: 'success', danger: 'danger', info: 'info', neutral: 'primary' }
+  const glyphGold: Record<IconTone, GlyphGold> = { accent: 'accent', success: 'success', danger: 'danger', info: 'info', neutral: 'accent' }
+
   const content = (
     <View
       style={{
@@ -58,7 +67,7 @@ export function ListRow({
         paddingVertical: space[3],
       }}
     >
-      {icon ? (
+      {glyph || icon ? (
         <View
           style={{
             width: 40,
@@ -69,7 +78,11 @@ export function ListRow({
             justifyContent: 'center',
           }}
         >
-          <Icon icon={icon} size={20} color={toneFg[iconTone]} />
+          {glyph ? (
+            <GaGlyph name={glyph} size={20} ink={glyphInk[iconTone]} gold={glyphGold[iconTone]} />
+          ) : icon ? (
+            <Icon icon={icon} size={20} color={toneFg[iconTone]} />
+          ) : null}
         </View>
       ) : null}
       <View style={{ flex: 1, gap: 2 }}>

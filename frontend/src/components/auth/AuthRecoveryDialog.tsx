@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { useAuthRecoveryStore } from '@/stores/useAuthRecoveryStore'
 import { clearTokens } from '@/lib/authSession'
@@ -32,6 +33,7 @@ function requiresLogin(pathname: string): boolean {
 export function AuthRecoveryDialog() {
   const router = useRouter()
   const pathname = usePathname() || '/'
+  const t = useTranslations('v2.system')
   const { state, message, resolve } = useAuthRecoveryStore()
   const open = state === 'needs_reauth'
   const [acknowledged, setAcknowledged] = useState(false)
@@ -41,15 +43,15 @@ export function AuthRecoveryDialog() {
   }, [open])
 
   const description = useMemo(
-    () => message || 'Phiên đăng nhập của bạn đã hết hạn hoặc không thể tự làm mới. Vui lòng đăng nhập lại để tiếp tục.',
-    [message],
+    () => message || t('sessionExpiredBody'),
+    [message, t],
   )
 
   return (
     <AlertDialog open={open}>
       <AlertDialogContent className={cn('max-w-md')}>
         <AlertDialogHeader>
-          <AlertDialogTitle>Phiên đăng nhập đã hết hạn</AlertDialogTitle>
+          <AlertDialogTitle>{t('sessionExpiredTitle')}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

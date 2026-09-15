@@ -1,19 +1,22 @@
 import { useState } from 'react'
 import { View, Alert, Linking, Pressable, ActivityIndicator } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
 import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio'
 import * as Haptics from 'expo-haptics'
-import { Flame, Lock, Mic, Square, RotateCcw, ChevronRight } from 'lucide-react-native'
+import { Square, RotateCcw, ChevronRight } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
+import { presentMinorAudioBlocked } from '@/lib/minorAudio'
 import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { speakingApi } from '@/lib/speakingApi'
 import { weeklyApi, rubricScore } from '@/lib/weeklyApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton, GaGlyph } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 interface WeeklyPrompt {
   id: number
@@ -31,6 +34,8 @@ interface WeeklySubmission {
 }
 
 export default function WeeklySpeakingScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   const theme = useTheme()
   const c = theme.colors
   const { hasProAccess } = usePlanStore()
@@ -46,7 +51,7 @@ export default function WeeklySpeakingScreen() {
   })
   const band = bands == null ? null : bands.includes('B1') ? 'B1' : bands[0] ?? null
 
-  const { data: prompt, isLoading: promptLoading, isError: promptError, refetch: refetchPrompt, isFetching } = useQuery({
+  const { data: prompt, isLoading: promptLoading, isError: promptError, refetch: refetchPrompt } = useQuery({
     queryKey: ['weekly-prompt', band],
     queryFn: () =>
       api
@@ -67,14 +72,17 @@ export default function WeeklySpeakingScreen() {
     enabled: hasProAccess,
     staleTime: 60_000,
   })
+  const pull = usePullRefresh(async () => {
+    await Promise.all([refetchPrompt(), refetchHistory()])
+  })
 
   if (!hasProAccess) {
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Weekly Speaking" onBack={() => router.back()} />
+        <AppHeader title="Luyện nói tuần" onBack={goBack} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={Lock}
+            glyph="khoa"
             title="Tính năng PRO"
             message="Nộp bài nói hàng tuần và nhận phản hồi AI chi tiết."
             actionLabel={PAYWALL_ENABLED ? 'Xem PRO' : undefined}
@@ -87,17 +95,14 @@ export default function WeeklySpeakingScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Weekly Speaking" onBack={() => router.back()} />
+      <AppHeader title="Luyện nói tuần" onBack={goBack} />
 
       <Screen
         scroll
         edges={[]}
         contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], gap: space[4], paddingTop: space[2] }}
-        refreshing={isFetching && !promptLoading}
-        onRefresh={() => {
-          void refetchPrompt()
-          void refetchHistory()
-        }}
+        refreshing={pull.refreshing}
+        onRefresh={() => void pull.onRefresh()}
       >
         {bandsLoading || (band != null && promptLoading) ? (
           <Skeleton height={170} radius="2xl" />
@@ -117,7 +122,7 @@ export default function WeeklySpeakingScreen() {
         ) : prompt ? (
           <Card style={{ borderColor: c.info + '66' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[3] }}>
-              <Icon icon={Flame} size={16} color="info" />
+              <GaGlyph name="chuoi" size={16} ink="info" gold="info" />
               <ThemedText variant="label" color="info">
                 Thử thách tuần này
               </ThemedText>
@@ -249,6 +254,8 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     } catch (e) {
       setPhase('idle')
+      // 403 MINOR_AUDIO_BLOCKED (D8): sheet giải thích thay cho Alert chung.
+      if (presentMinorAudioBlocked(e)) return
       Alert.alert('Lỗi', apiMessage(e))
     }
   }
@@ -331,7 +338,7 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
         gap: space[2],
       }}
     >
-      <Icon icon={isRec ? Square : Mic} size={20} color="onAccent" fill={isRec} />
+      {isRec ? <Icon icon={Square} size={20} color="onAccent" fill /> : <GaGlyph name="speaking" size={20} ink="onAccent" gold="ink" />}
       <ThemedText variant="bodyStrong" color="onAccent">
         {isRec ? 'Dừng & nộp bài' : 'Ghi âm trả lời'}
       </ThemedText>

@@ -1,17 +1,21 @@
 import { useMemo } from 'react'
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
-import { CalendarClock, Clock, MapPin, Video } from 'lucide-react-native'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
+import { useLocalSearchParams } from 'expo-router'
+import { MapPin, Video } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { fetchClassSessions, type ClassSession } from '@/lib/studentClassesApi'
 import { space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Pill, Screen, Skeleton, ThemedText,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
+import { useBackTo } from '@/hooks/useBackTo'
 
 export default function ClassScheduleScreen() {
   const params = useLocalSearchParams<{ classId: string; className?: string }>()
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(() => ({ pathname: '/(student)/classes/[id]', params: { id: params.classId } }))
   const classId = Number(params.classId)
   const className = params.className ?? 'Lịch học'
 
@@ -21,6 +25,7 @@ export default function ClassScheduleScreen() {
     enabled: Number.isFinite(classId),
     staleTime: 60_000,
   })
+  const pull = usePullRefresh(q.refetch)
 
   const { upcoming, past } = useMemo(() => {
     const now = Date.now()
@@ -35,7 +40,7 @@ export default function ClassScheduleScreen() {
       <AppHeader
         title={className}
         subtitle="Lịch buổi học"
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)'))}
+        onBack={goBack}
       />
 
       {q.isLoading ? (
@@ -48,7 +53,7 @@ export default function ClassScheduleScreen() {
       ) : (q.data?.length ?? 0) === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={CalendarClock}
+            glyph="lich"
             title="Chưa có lịch học"
             message="Lớp chưa có buổi học nào được xếp lịch."
           />
@@ -58,8 +63,8 @@ export default function ClassScheduleScreen() {
           scroll
           edges={[]}
           contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[4], paddingTop: space[2] }}
-          refreshing={q.isRefetching}
-          onRefresh={() => void q.refetch()}
+          refreshing={pull.refreshing}
+          onRefresh={() => void pull.onRefresh()}
         >
           {upcoming.length > 0 ? (
             <View style={{ gap: space[2] }}>
@@ -102,7 +107,7 @@ function SessionRow({ session, past }: { session: ClassSession; past?: boolean }
         </View>
         <View style={{ flex: 1, gap: 4 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <Icon icon={Clock} size={13} color="muted" />
+            <GaGlyph name="thoigian" size={13} ink="muted" />
             <ThemedText
               variant="bodyStrong"
               style={cancelled ? { textDecorationLine: 'line-through' } : undefined}

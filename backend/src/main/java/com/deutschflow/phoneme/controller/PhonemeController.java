@@ -32,6 +32,8 @@ public class PhonemeController {
 
     private final PhonemeService phonemeService;
     private final com.deutschflow.speaking.AiRateLimiterService aiRateLimiterService;
+    // DEC-22: endpoint gửi giọng nói thật ra Whisper → phải qua cổng tuổi.
+    private final com.deutschflow.common.minor.MinorGate minorGate;
 
     @org.springframework.beans.factory.annotation.Value("${app.ai.transcribe.max-bytes:8388608}")
     private long transcribeMaxBytes;
@@ -51,6 +53,9 @@ public class PhonemeController {
             @RequestParam("target") String target,
             @AuthenticationPrincipal User user) {
 
+        // DEC-22: cổng tuổi đứng TRƯỚC rate-limit và trước mọi try/catch — chặn vì tuổi phải ra
+        // 403 có mã đọc được, không được rơi vào nhánh catch(Exception) thành 500 vô danh.
+        minorGate.assertAudioAllowed(user.getId());
         if (!aiRateLimiterService.allow(com.deutschflow.speaking.AiRateLimiterService.Bucket.PHONEME, user.getId())) {
             throw new com.deutschflow.common.exception.RateLimitExceededException(
                     "Too many pronunciation checks. Please slow down.",

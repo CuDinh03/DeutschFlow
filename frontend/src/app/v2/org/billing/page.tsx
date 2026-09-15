@@ -7,8 +7,11 @@ import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { getOrgSummary, getPaymentInfo, listMyInvoices, type OrgInvoice, type OrgSummary, type PaymentInfo } from '@/lib/orgApi'
 import { seatMetaOf } from '@/lib/orgSeats'
+import { isInvoiceOverdue } from '@/lib/orgInvoice'
 import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 import { OrgOwnerOnly } from '../OwnerOnly'
+import { useFmt } from '@/lib/i18n/useFmt'
+import { formatVnd } from '@/lib/i18n/format'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gói DeutschFlow & thanh toán — Đợt 0 OWNER (F01/F02/F03/F05, báo cáo 31/08).
@@ -29,7 +32,7 @@ const billingAccent = {
   '--ga-hdr-line': 'rgba(30,158,97,0.20)',
 } as React.CSSProperties
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
-const vnd = (n: number) => `${Math.round(n).toLocaleString('vi-VN')}₫`
+const vnd = (n: number) => `${formatVnd(n)}`
 // Invoice status → color + catalog key for the label (resolved via t('status.<key>')).
 const INV_STATUS: Record<string, { key: 'paid' | 'sent' | 'draft' | 'void'; c: string }> = {
   PAID: { key: 'paid', c: 'var(--ga-green)' },
@@ -62,6 +65,7 @@ function CopyBtn({ text, copyLabel, copiedLabel }: { text: string; copyLabel: st
 
 function V2OrgBillingInner() {
   const t = useTranslations('v2.org.billing')
+  const fmt = useFmt()
   const tc = useTranslations('v2.common')
   const [summary, setSummary] = useState<OrgSummary | null>(null)
   const [invoices, setInvoices] = useState<OrgInvoice[]>([])
@@ -149,7 +153,7 @@ function V2OrgBillingInner() {
               items={[
                 { label: t('stats.paidToDf'), value: vnd(totalPaid), sub: t('stats.invoiceCount', { count: paid.length }), tone: 'green' },
                 { label: t('stats.owedToDf'), value: vnd(totalOwed), sub: t('stats.invoiceCount', { count: unpaid.length }), tone: totalOwed > 0 ? 'orange' : 'neutral', alert: totalOwed > 0 },
-                { label: t('stats.seatsInUse'), value: summary ? summary.seatUsed.toLocaleString('vi-VN') : '—', sub: !seats ? '—' : seats.unlimited ? t('stats.seatsUnlimited') : t('stats.seatsOfLimit', { limit: summary?.seatLimit ?? 0 }), tone: 'violet' },
+                { label: t('stats.seatsInUse'), value: summary ? fmt.num(summary.seatUsed) : '—', sub: !seats ? '—' : seats.unlimited ? t('stats.seatsUnlimited') : t('stats.seatsOfLimit', { limit: summary?.seatLimit ?? 0 }), tone: 'violet' },
               ]}
             />
 
@@ -250,17 +254,24 @@ function V2OrgBillingInner() {
                 <p className="py-6 text-center text-[13px] text-ga-muted">{t('noIssued')}</p>
               ) : (
                 <div className="overflow-x-auto lg:overflow-visible">
-                  <div className="grid min-w-[640px] gap-2 border-b border-ga-line pb-2.5 text-[10px] font-bold uppercase tracking-[0.08em] text-ga-muted lg:min-w-0" style={{ gridTemplateColumns: '1.4fr 1fr 1fr 140px' }}>
-                    <span>{t('colPeriod')}</span><span>{t('colIssued')}</span><span>{t('colAmount')}</span><span className="text-right">{t('colStatus')}</span>
+                  <div className="grid min-w-[760px] gap-2 border-b border-ga-line pb-2.5 text-[10px] font-bold uppercase tracking-[0.08em] text-ga-muted lg:min-w-0" style={{ gridTemplateColumns: '1.4fr 1fr 1fr 1fr 140px' }}>
+                    <span>{t('colPeriod')}</span><span>{t('colIssued')}</span><span>{t('colDue')}</span><span>{t('colAmount')}</span><span className="text-right">{t('colStatus')}</span>
                   </div>
                   {issued.map((inv) => {
                     const st = INV_STATUS[(inv.status ?? '').toUpperCase()]
                     const stLabel = st ? t(`status.${st.key}`) : inv.status
                     const stColor = st ? st.c : 'var(--ga-muted)'
+                    // Định nghĩa "quá hạn" nằm ở lib/orgInvoice — dùng chung với bảng admin.
+                    const overdue = isInvoiceOverdue(inv)
                     return (
-                      <div key={inv.id} className="grid min-w-[640px] items-center gap-2 border-t border-ga-line py-3 text-[14px] lg:min-w-0" style={{ gridTemplateColumns: '1.4fr 1fr 1fr 140px' }}>
+                      <div key={inv.id} className="grid min-w-[760px] items-center gap-2 border-t border-ga-line py-3 text-[14px] lg:min-w-0" style={{ gridTemplateColumns: '1.4fr 1fr 1fr 1fr 140px' }}>
                         <span className="font-semibold text-ga-ink">{fmtDate(inv.periodStart)} – {fmtDate(inv.periodEnd)}</span>
                         <span className="text-ga-muted">{fmtDate(inv.createdAt)}</span>
+                        <span className={overdue ? 'font-semibold text-ga-red' : 'text-ga-muted'}>
+                          {/* Hoá đơn chưa gửi thì chưa có hạn — hiện dấu gạch, KHÔNG hiện ngày bịa. */}
+                          {inv.dueDate ? fmtDate(inv.dueDate) : '—'}
+                          {overdue ? ` · ${t('overdue')}` : ''}
+                        </span>
                         <span className="font-ga-display font-medium text-ga-ink">{vnd(inv.amountVnd)}</span>
                         <span className="flex items-center justify-end gap-1.5 text-[12.5px]" style={{ color: stColor }}>
                           <span className="h-1.5 w-1.5 rounded-full" style={{ background: stColor }} /> {stLabel}

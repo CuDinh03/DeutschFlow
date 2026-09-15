@@ -36,7 +36,8 @@ export interface MyClassroom {
 export interface ClassroomDetail {
   id: number
   name: string
-  inviteCode: string
+  /** null với lớp của trung tâm: mã mời không được trả cho học viên (V-04). */
+  inviteCode: string | null
   teachers: TeacherSummary[]
   studentCount: number
   assignmentCount: number
@@ -64,8 +65,9 @@ export interface StudentAssignment {
   description: string
   assignmentType: string
   dueDate: string | null
-  // Present on the global /v2/students/assignments list (assignment detail);
-  // absent (undefined) on the lighter class-scoped list.
+  // Cả hai endpoint danh sách (toàn bộ + theo lớp) đều map qua StudentAssignmentDto.forStudent nên
+  // hai trường này LUÔN có mặt; chúng chỉ null khi học viên chưa nộp gì (V-07 kiểm lại 08/09 —
+  // ghi chú cũ nói danh sách theo lớp thiếu chúng là SAI).
   submissionContent?: string | null
   submissionFileUrl?: string | null
   attachmentUrl?: string | null
@@ -97,6 +99,34 @@ export const isFinalGrade = (status: string): boolean =>
 /** Học viên đã nộp bài, bất kể sau đó nó đang ở khâu nào. */
 export const isSubmittedStatus = (status: string): boolean =>
   isAwaitingTeacher(status) || isFinalGrade(status)
+
+/**
+ * Bài này hiện ra với học viên dưới dạng nào — nguồn CHUNG cho pill trạng thái ở màn danh sách
+ * bài của lớp và ở màn chi tiết bài, để cùng một bài không bao giờ có hai câu chữ (V-12c).
+ */
+export type AssignmentStatusView = 'graded' | 'gradingFailed' | 'awaitingTeacher' | 'notSubmitted'
+
+/**
+ * GRADING_FAILED tách riêng khỏi nhóm "đã nộp, chờ giáo viên": bài ĐÃ nộp nhưng khâu chấm chết,
+ * và học viên có quyền biết bài mình chưa được chấm — web nói đúng như vậy từ trước
+ * ("Chấm lỗi · chờ chấm lại"), app thì gộp vào "Đã nộp" nên giấu mất chuyện đó.
+ */
+export function assignmentStatusView(status: string): AssignmentStatusView {
+  if (isFinalGrade(status)) return 'graded'
+  if (status === 'GRADING_FAILED') return 'gradingFailed'
+  if (isAwaitingTeacher(status)) return 'awaitingTeacher'
+  return 'notSubmitted'
+}
+
+/** Câu chữ cho GRADING_FAILED — giữ y hệt web (v2.student.classDetail.status.gradingFailed). */
+export const GRADING_FAILED_LABEL = 'Chấm lỗi · chờ chấm lại'
+
+/**
+ * Key React cho một dòng bài giao. KHÔNG dùng `id`: backend trả `id = null` cho mọi bài học viên
+ * CHƯA bắt đầu (notStartedDto), nên cả nhóm ấy chung một key và React trộn nhầm thẻ. `assignmentId`
+ * (id bài của LỚP) luôn có và duy nhất trong một danh sách.
+ */
+export const assignmentRowKey = (a: Pick<StudentAssignment, 'assignmentId'>): number => a.assignmentId
 
 export interface SubmitAssignmentPayload {
   submissionContent?: string
@@ -205,12 +235,26 @@ export async function fetchClassSessions(classId: number): Promise<ClassSession[
 }
 
 /**
- * Fetch one assignment by its ClassAssignment id. The backend exposes only the
- * full student list (no single-GET), so we mirror the web client and resolve
- * the row client-side. Returns null when the assignment isn't assigned to me.
+ * Lấy MỘT bài giao theo id ClassAssignment. Backend không có single-GET, nên vẫn phải lọc phía
+ * client — nhưng lọc trên danh sách bài của ĐÚNG LỚP đó, y như web
+ * (`/v2/students/classes/{classId}/assignments`).
+ *
+ * V-07: trước đây hàm này gọi `/v2/students/assignments` — TOÀN BỘ bài của mọi lớp học viên từng
+ * học — rồi lọc. Danh sách ấy dựng từ các dòng `StudentAssignment`, nên bài học viên CHƯA bắt đầu
+ * (chưa có dòng nào) hoàn toàn vắng mặt và mở ra là "không tìm thấy". Danh sách theo lớp thì tự
+ * tổng hợp cả các bài chưa bắt đầu. `classId` luôn có sẵn trong params của route bài giao.
+ *
+ * Thiếu `classId` (deep-link cũ, thông báo cũ) thì rơi về danh sách tổng như trước — thà chậm và
+ * thỉnh thoảng trượt còn hơn không mở được gì.
  */
-export async function fetchAssignmentDetail(assignmentId: number): Promise<StudentAssignment | null> {
-  const res = await api.get<StudentAssignment[]>('/v2/students/assignments')
+export async function fetchAssignmentDetail(
+  assignmentId: number,
+  classId?: number,
+): Promise<StudentAssignment | null> {
+  const path = Number.isFinite(classId)
+    ? `/v2/students/classes/${classId}/assignments`
+    : '/v2/students/assignments'
+  const res = await api.get<StudentAssignment[]>(path)
   return res.data?.find((a) => a.assignmentId === assignmentId) ?? null
 }
 
@@ -272,4 +316,47 @@ export async function submitAssignment(
     payload,
   )
   return res.data
+}
+
+/** Gương entity AssignmentScenario (backend teacher) — kịch bản nói do giáo viên giao. */
+export interface AssignmentScenario {
+  id: number
+  assignmentId: number
+  topic: string
+  level: string
+  scenarioDescription: string | null
+  followUpQuestions: string | null
+}
+
+/**
+ * Kịch bản của một bài giao SPEAKING_SCENARIO (N2, 05/09). `assignmentId` = id bài của LỚP
+ * (StudentAssignment.assignmentId). Backend tự sinh lại kịch bản nếu lúc tạo bài LLM lỗi.
+ */
+export async function fetchAssignmentScenario(assignmentId: number): Promise<AssignmentScenario> {
+  const res = await api.get<AssignmentScenario>(`/v2/students/assignments/${assignmentId}/scenario`)
+  return res.data
+}
+
+/**
+ * Chuỗi `topic` gửi cho phiên AI — ĐÚNG định dạng web đang gửi (classes/[id]/assignments/[aid]/page.tsx),
+ * để prompt backend nhận cùng một đầu vào trên hai nền tảng. Phần thiếu để trống, không in "null".
+ * Trần 2000 ký tự = `CreateSessionRequest.topic @Size(max = 2000)` + cột `ai_speaking_sessions.topic`
+ * VARCHAR(2000) từ backend V304 (#541). Trước đó 200 → kịch bản AI sinh bị cắt mất mô tả/gợi ý
+ * (#536); vẫn giữ nhánh cắt phòng kịch bản dài bất thường, nếu không backend trả 400.
+ */
+export const SESSION_TOPIC_MAX = 2000
+
+export function scenarioTopic(
+  sc: Pick<AssignmentScenario, 'topic' | 'scenarioDescription' | 'followUpQuestions'>,
+  max = SESSION_TOPIC_MAX,
+): string {
+  const full = `Chủ đề: ${sc.topic ?? ''}\n\nMô tả chi tiết: ${sc.scenarioDescription ?? ''}\n\nGợi ý: ${sc.followUpQuestions ?? ''}`
+  if (full.length <= max) return full
+  // Quá trần: giữ chủ đề + phần đầu mô tả, bỏ "Gợi ý" (backend từ chối cả body khi topic > 200 —
+  // smoke 05/09: "One or more fields are invalid" ngay khi bấm "Bắt đầu bài nói").
+  const head = `Chủ đề: ${sc.topic ?? ''}\n\nMô tả chi tiết: `
+  const room = max - head.length - 1
+  if (room <= 0) return full.slice(0, max)
+  const desc = (sc.scenarioDescription ?? '').trim()
+  return head + (desc.length > room ? `${desc.slice(0, room).trimEnd()}…` : desc)
 }

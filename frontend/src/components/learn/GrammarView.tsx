@@ -20,6 +20,7 @@ import {
 
 // ── Smart content renderer ──
 function TheoryContent({ text }: { text: string }) {
+  const t = useTranslations("v2.student.learnViews.grammar");
   const lines = text.split("\n");
   const goodLines: string[] = [];
   const badLines: string[] = [];
@@ -64,11 +65,11 @@ function TheoryContent({ text }: { text: string }) {
       {hasSideBySide && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-2">
           <div className="min-w-0 rounded-ga bg-ga-green-soft border border-ga-green/40 p-2 space-y-1">
-            <p className="flex items-center gap-1 text-[10px] font-bold text-ga-green uppercase"><CircleCheck size={12} aria-hidden /> Đúng</p>
+            <p className="flex items-center gap-1 text-[10px] font-bold text-ga-green uppercase"><CircleCheck size={12} aria-hidden /> {t("correctCap")}</p>
             {goodLines.map((l, i) => <p key={i} className="text-xs text-ga-green break-words">{l}</p>)}
           </div>
           <div className="min-w-0 rounded-ga bg-ga-red-soft border border-ga-red/40 p-2 space-y-1">
-            <p className="flex items-center gap-1 text-[10px] font-bold text-ga-red uppercase"><CircleX size={12} aria-hidden /> Sai</p>
+            <p className="flex items-center gap-1 text-[10px] font-bold text-ga-red uppercase"><CircleX size={12} aria-hidden /> {t("wrongCap")}</p>
             {badLines.map((l, i) => <p key={i} className="text-xs text-ga-red break-words">{l}</p>)}
           </div>
         </div>
@@ -79,6 +80,7 @@ function TheoryContent({ text }: { text: string }) {
 
 // ── Collapsible Theory Card ──
 function TheoryCard({ card, index, total }: { card: NodeContent["theory_cards"][0]; index: number; total: number }) {
+  const t = useTranslations("v2.student.learnViews.grammar");
   const lines = (card.content.vi ?? card.content.de ?? "").split("\n").filter(Boolean);
   const isLong = lines.length > 5;
   const [expanded, setExpanded] = useState(!isLong);
@@ -96,7 +98,7 @@ function TheoryCard({ card, index, total }: { card: NodeContent["theory_cards"][
             : card.type === "EXAMPLE" ? "bg-ga-blue text-white"
             : "bg-ga-subtle text-white"
           }`}>
-            {card.type === "RULE" ? "QUY TẮC" : card.type === "EXAMPLE" ? "VÍ DỤ" : card.type}
+            {card.type === "RULE" ? t("ruleTag") : card.type === "EXAMPLE" ? t("exampleTag") : card.type}
           </span>
           <span className="text-sm font-bold text-ga-ink break-words">{card.title.vi ?? card.title.de}</span>
         </div>
@@ -113,13 +115,13 @@ function TheoryCard({ card, index, total }: { card: NodeContent["theory_cards"][
       {isLong && (
         <button type="button" onClick={() => setExpanded(!expanded)}
           className="text-[11px] font-medium text-ga-muted hover:text-ga-ink flex items-center gap-1 transition-colors">
-          {expanded ? "▲ Thu gọn" : "▼ Xem thêm"}
+          {expanded ? t("collapse") : t("expand")}
         </button>
       )}
       {card.tags?.length > 0 && (
         <div className="flex flex-wrap gap-1">
-          {card.tags.map((t) => (
-            <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-ga-surface text-ga-muted">{t}</span>
+          {card.tags.map((tag) => (
+            <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-ga-surface text-ga-muted">{tag}</span>
           ))}
         </div>
       )}
@@ -129,6 +131,7 @@ function TheoryCard({ card, index, total }: { card: NodeContent["theory_cards"][
 
 export default function GrammarView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
   const tLearn = useTranslations("learn");
+  const t = useTranslations("v2.student.learnViews.grammar");
   const { markTabCompleted, tabCompletion, recordItemAnswers } = useNodeSessionStore();
   const isCompleted = tabCompletion.grammar;
 
@@ -188,7 +191,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
       <section>
         <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide mb-3 flex items-center gap-2">
           <span className="w-6 h-6 rounded bg-ga-ink text-white flex items-center justify-center"><BookOpen size={13} aria-hidden /></span>
-          Lý thuyết ({content.theory_cards.length})
+          {t("theoryCount", { count: content.theory_cards.length })}
         </h2>
         <div className="grid gap-3 md:grid-cols-2">
           {content.theory_cards.map((card, i) => (
@@ -200,10 +203,10 @@ export default function GrammarView({ content, isLocked = false }: { content: No
       {allTags.length > 0 && (
         <section>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] font-bold text-ga-subtle uppercase">Lọc:</span>
-            <VocabTag tag="Tất cả" active={!activeTag} onClick={() => setActiveTag(null)} />
-            {allTags.slice(0, 10).map((t) => (
-              <VocabTag key={t} tag={t} active={activeTag === t} onClick={() => setActiveTag(activeTag === t ? null : t)} />
+            <span className="text-[10px] font-bold text-ga-subtle uppercase">{t("filter")}</span>
+            <VocabTag tag={t("allTag")} active={!activeTag} onClick={() => setActiveTag(null)} />
+            {allTags.slice(0, 10).map((tag) => (
+              <VocabTag key={tag} tag={tag} active={activeTag === tag} onClick={() => setActiveTag(activeTag === tag ? null : tag)} />
             ))}
           </div>
         </section>
@@ -231,7 +234,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
               </svg>
             </button>
             <span className="text-xs font-medium text-ga-muted">
-              Trang {vocabPage} / {totalVocabPages}
+              {t("pageOf", { page: vocabPage, total: totalVocabPages })}
             </span>
             <button
               onClick={() => setVocabPage(p => Math.min(totalVocabPages, p + 1))}
@@ -250,7 +253,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
         <section>
           <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide mb-3 flex items-center gap-2">
             <span className="w-6 h-6 rounded bg-ga-ink text-white flex items-center justify-center"><MessagesSquare size={13} aria-hidden /></span>
-            Cụm từ thường dùng
+            {t("phrasesCap")}
           </h2>
           <div className="space-y-2">
             {content.phrases.map((p, i) => (
@@ -270,7 +273,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
         <section>
           <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide mb-3 flex items-center gap-2">
             <span className="w-6 h-6 rounded bg-ga-ink text-white flex items-center justify-center"><Sparkles size={13} aria-hidden /></span>
-            Ví dụ thực tế
+            {t("examplesCap")}
           </h2>
           <div className="space-y-2">
             {content.examples.map((ex, i) => (
@@ -291,7 +294,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
       <section className="pt-6 border-t border-ga-line mt-8">
         <div className="bg-ga-surface rounded-ga border border-ga-line p-4 lg:p-6 text-center space-y-4">
           <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide">
-            Kiểm tra mức độ hiểu bài
+            {t("quizCap")}
           </h2>
           
           {practiceItems.length > 0 ? (
@@ -305,8 +308,8 @@ export default function GrammarView({ content, isLocked = false }: { content: No
                       value={typeof answers[i] === "string" ? (answers[i] as string) : ""}
                       onChange={(e) => { if (!quizSubmitted) setAnswers((prev) => ({ ...prev, [i]: e.target.value })); }}
                       disabled={quizSubmitted}
-                      placeholder={item.hint_vi ?? "Nhập câu trả lời"}
-                      aria-label={questionTextOf(item) ?? `Câu ${i + 1}`}
+                      placeholder={item.hint_vi ?? t("answerPlaceholder")}
+                      aria-label={questionTextOf(item) ?? t("questionN", { n: i + 1 })}
                       className="w-full rounded-ga border-2 border-ga-line px-4 py-3 text-sm focus:border-ga-yellow focus:outline-none disabled:opacity-60"
                     />
                   ) : (
@@ -356,7 +359,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
                   }
                   className="w-full py-3 rounded-ga bg-ga-ink text-white text-sm font-bold disabled:opacity-50"
                 >
-                  Kiểm tra đáp án
+                  {t("check")}
                 </button>
               )}
             </div>
@@ -368,7 +371,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
             </div>
           ) : (
             <p className="text-sm text-ga-muted mb-4">
-              Không có bài tập thực hành cho phần này. Hãy đánh dấu hoàn thành nếu bạn đã hiểu rõ lý thuyết.
+              {t("noPractice")}
             </p>
           )}
 
@@ -389,12 +392,12 @@ export default function GrammarView({ content, isLocked = false }: { content: No
             )
           ) : quizSubmitted && score < practiceItems.length ? (
             <div className="text-ga-red text-sm font-bold mt-2">
-              Bạn trả lời đúng {score}/{practiceItems.length}. Cần đúng 100% để qua bài!
+              {t("result", { score, total: practiceItems.length })}
               <button 
                 onClick={() => { setQuizSubmitted(false); setAnswers({}); }}
                 className="ml-3 text-ga-blue underline"
               >
-                Làm lại
+                {t("retry")}
               </button>
             </div>
           ) : null}

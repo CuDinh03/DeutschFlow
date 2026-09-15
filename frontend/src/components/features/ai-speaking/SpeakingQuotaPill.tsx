@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import type { AiSpeakingQuota } from "@/lib/aiSpeakingApi";
 import { shouldShowAiSpeakingQuota } from "@/lib/authSession";
 import { isUnlimitedAiSpeakingQuota } from "@/lib/aiSpeakingQuota";
+import { useFmt } from '@/lib/i18n/useFmt'
 
 interface Props {
   quota: AiSpeakingQuota | null;
@@ -11,6 +12,7 @@ interface Props {
 
 export function SpeakingQuotaPill({ quota }: Props) {
   const t = useTranslations("speaking.chat");
+  const fmt = useFmt()
 
   if (!shouldShowAiSpeakingQuota()) return null;
   if (!quota) return null;
@@ -18,7 +20,7 @@ export function SpeakingQuotaPill({ quota }: Props) {
   if (isUnlimitedAiSpeakingQuota(quota)) return null;
 
   const low = quota.remainingSpendable <= 0 || !quota.canStartSession;
-  const remaining = Math.max(0, Math.round(quota.remainingSpendable)).toLocaleString("vi-VN");
+  const remaining = fmt.num(Math.max(0, Math.round(quota.remainingSpendable)));
 
   return (
     <div

@@ -30,6 +30,9 @@ const api = vi.hoisted(() => ({
   saveNotes: vi.fn(),
 }))
 vi.mock('@/lib/examSpeakingApi', () => ({ examSpeakingApi: api }))
+/** Khoá idempotency đoán được để assert "Gửi lại" dùng đúng khoá cũ. */
+let turnSeq = 0
+vi.mock('@/lib/exam/clientTurnId', () => ({ newClientTurnId: () => `turn-${++turnSeq}` }))
 
 vi.mock('@/components/features/exam-speaking/examTts', () => ({
   speakExamLine: vi.fn(async () => {}),
@@ -125,9 +128,43 @@ async function send(blob: Blob) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  turnSeq = 0
   submitAudio = null
   api.getSession.mockResolvedValue({ data: session })
   api.listBlueprints.mockResolvedValue({ data: [] })
+})
+
+describe('ExamRoom — retry idempotent (F-06)', () => {
+  it('timeout/rớt mạng → banner "Gửi lại" giữ nguyên blob; gửi lại dùng CÙNG clientTurnId, lượt mới sau đó mới lấy khoá mới', async () => {
+    api.audioTurn.mockRejectedValueOnce(Object.assign(new Error('timeout of 45000ms exceeded'), { isAxiosError: true, code: 'ECONNABORTED' }))
+    api.audioTurn.mockResolvedValue(turnResponse)
+    await renderRoom()
+
+    const blob = new Blob([new Uint8Array(1024)], { type: 'audio/webm' })
+    await send(blob)
+    expect(api.audioTurn).toHaveBeenCalledTimes(1)
+    expect(api.audioTurn.mock.calls[0][4]).toBe('turn-1')
+    const banner = await screen.findByTestId('turn-retry-banner')
+    expect(banner).toHaveTextContent('gửi lại sẽ không bị tính thành lượt mới')
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Gửi lại lượt vừa rồi' }).click()
+    })
+    await waitFor(() => expect(api.audioTurn).toHaveBeenCalledTimes(2))
+    expect(api.audioTurn.mock.calls[1][1]).toBe(blob)
+    expect(api.audioTurn.mock.calls[1][4]).toBe('turn-1')
+    await waitFor(() => expect(screen.queryByTestId('turn-retry-banner')).toBeNull())
+
+    await send(blob)
+    expect(api.audioTurn.mock.calls[2][4]).toBe('turn-2')
+  })
+
+  it('lỗi 4xx dứt khoát (413) → KHÔNG giữ lượt để gửi lại', async () => {
+    api.audioTurn.mockRejectedValue(axios413())
+    await renderRoom()
+    await send(new Blob([new Uint8Array(1024)], { type: 'audio/webm' }))
+    expect(screen.queryByTestId('turn-retry-banner')).toBeNull()
+  })
 })
 
 describe('ExamRoom — nộp lượt audio', () => {

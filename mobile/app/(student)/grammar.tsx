@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { View, Pressable } from 'react-native'
 import { useQuery, useQueries } from '@tanstack/react-query'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
-import { ChevronDown, ChevronUp, Check, Film, Lock } from 'lucide-react-native'
+import { ChevronDown, ChevronUp, Check } from 'lucide-react-native'
 import api from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, SectionHeader, Caption, Skeleton, ErrorState } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, SectionHeader, Caption, Skeleton, ErrorState, GaGlyph } from '@/components/ui'
 import { mapGrammarTopic, type GrammarTopic, type RawGrammarTopic } from '@/lib/grammarApi'
 import { skillTreeApi } from '@/lib/skillTreeApi'
 import { levelsFromTree, type CefrLevelState, type LevelState } from '@/lib/levelState'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 // Minimal shape of a useQueries result element the level block reads (avoids importing
 // the full UseQueryResult generic; the real element is structurally compatible).
@@ -48,6 +50,8 @@ const GENDER_HEX: ((c: ThemeColors) => string)[] = [
 ]
 
 export default function GrammarScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   const theme = useTheme()
   const c = theme.colors
   const [expandedCase, setExpandedCase] = useState<string | null>('nominativ')
@@ -90,7 +94,9 @@ export default function GrammarScreen() {
     })),
   })
   const topicByLevel = new Map(levels.map((l, i) => [l.level, topicQueries[i] as TopicQueryLike]))
-  const isFetching = treeQuery.isFetching || topicQueries.some((q) => q.isFetching)
+  const pull = usePullRefresh(async () => {
+    await Promise.all([treeQuery.refetch(), ...topicQueries.map((q) => q.refetch())])
+  })
   const refetchAll = () => {
     void treeQuery.refetch()
     topicQueries.forEach((q) => void q.refetch())
@@ -98,19 +104,19 @@ export default function GrammarScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Ngữ pháp tiếng Đức" onBack={() => router.back()} />
+      <AppHeader title="Ngữ pháp tiếng Đức" onBack={goBack} />
 
       <Screen
         scroll
         edges={[]}
         contentStyle={{ paddingBottom: space[8] }}
-        refreshing={isFetching && !treeQuery.isLoading}
-        onRefresh={refetchAll}
+        refreshing={pull.refreshing}
+        onRefresh={() => void pull.onRefresh()}
       >
         {/* Editorial ink hero — the Kasus system is the conceptual anchor of this screen */}
         <View style={{ paddingHorizontal: space[5], marginTop: space[1], marginBottom: space[5] }}>
           <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
-            <Caption color={c.accent}>Grammatik · 4 Kasus</Caption>
+            <Caption color={c.accent}>Ngữ pháp · 4 Kasus</Caption>
             <ThemedText variant="display" style={{ color: c.onInk, marginTop: space[2] }}>
               Bảng cách tiếng Đức
             </ThemedText>
@@ -213,7 +219,7 @@ export default function GrammarScreen() {
                     onPress={() =>
                       router.push({
                         pathname: '/(student)/video-lesson',
-                        params: { caseName: kasus.key, title: `Video: ${kasus.label}` },
+                        params: { caseName: kasus.key, title: `Video: ${kasus.label}`, from: 'grammar' },
                       } as unknown as Href)
                     }
                     style={{
@@ -229,7 +235,7 @@ export default function GrammarScreen() {
                       backgroundColor: c.accentSoft,
                     }}
                   >
-                    <Icon icon={Film} size={16} color="accent" />
+                    <GaGlyph name="video" size={16} ink="primary" />
                     <ThemedText variant="label" color="accent">
                       Xem video ngữ pháp
                     </ThemedText>
@@ -256,7 +262,7 @@ export default function GrammarScreen() {
         ) : (
           <>
             <View style={{ paddingHorizontal: space[5], marginTop: space[6] }}>
-              <Caption style={{ marginBottom: space[1] }}>Grammatik</Caption>
+              <Caption style={{ marginBottom: space[1] }}>Ngữ pháp</Caption>
               <SectionHeader title="Bài học ngữ pháp" />
             </View>
             {levels.map((l) => (
@@ -291,7 +297,7 @@ function LevelBlock({ level, state, query }: { level: string; state: LevelState;
         <Pill label={level} tone={tone} />
         {locked ? (
           <>
-            <Icon icon={Lock} size={13} color="faint" />
+            <GaGlyph name="khoa" size={13} ink="faint" />
             <ThemedText variant="caption" color="faint">
               Mở khi đạt {level}
             </ThemedText>

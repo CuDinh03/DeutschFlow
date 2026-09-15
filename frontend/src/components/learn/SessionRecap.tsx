@@ -2,10 +2,17 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import { Zap, BookOpen, Flame, PartyPopper } from "lucide-react";
 
 interface SessionRecapProps {
+  /**
+   * Kỹ năng đầu tiên của node này chưa đạt ngưỡng (L3c). Có giá trị thì màn tổng kết mời luyện
+   * đúng kỹ năng đó thay vì để người học tự đoán nên làm gì tiếp; null thì hàng nút không hiện.
+   */
+  practiceSkillLabel?: string | null
+  onPractice?: () => void;
   xpEarned: number;
   vocabCount: number;
   streakDays: number;
@@ -42,7 +49,10 @@ export default function SessionRecap({
   nextNodeTitle,
   onNext,
   onBack,
+  practiceSkillLabel,
+  onPractice,
 }: SessionRecapProps) {
+  const t = useTranslations("v2.student.learnViews.recap");
   const router = useRouter();
   const confettiStarted = useRef(false);
 
@@ -70,7 +80,13 @@ export default function SessionRecap({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      {/* Con DUY NHẤT của AnimatePresence, và có key riêng.
+          Trước 07/09/2026 khối <style> keyframes nằm cạnh div này, tức AnimatePresence có HAI con
+          đều không key → framer-motion gán key rỗng cho cả hai → React cảnh báo "two children with
+          the same key" và ĐƯỢC PHÉP bỏ bớt một con khi vẽ lại. Chưa vỡ chỉ vì mỗi lần mở là mount
+          mới. Keyframes là stylesheet toàn cục nên đặt đâu trong cây cũng có tác dụng như nhau —
+          chuyển vào trong lớp phủ để AnimatePresence trở lại đúng hình dạng nó cần. */}
+      <div key="recap-overlay" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         {/* Confetti */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {CONFETTI.map((c, i) => (
@@ -91,8 +107,8 @@ export default function SessionRecap({
             style={{ background: "linear-gradient(135deg, #121212 0%, #1E293B 100%)" }}
           >
             <PartyPopper size={44} strokeWidth={1.6} className="mx-auto mb-3 text-white" aria-hidden />
-            <h2 className="text-white text-xl font-bold">Hoàn thành!</h2>
-            <p className="text-white/70 text-sm mt-1">Bạn đã học xong bài này</p>
+            <h2 className="text-white text-xl font-bold">{t("doneTitle")}</h2>
+            <p className="text-white/70 text-sm mt-1">{t("doneDesc")}</p>
           </div>
 
           {/* Stats */}
@@ -101,7 +117,7 @@ export default function SessionRecap({
             <div className="flex items-center justify-between rounded-2xl bg-[#FFFBEA] border border-[#FFCD00]/40 px-4 py-3">
               <div className="flex items-center gap-2">
                 <Zap size={22} className="text-[#92400E]" aria-hidden />
-                <span className="text-sm font-medium text-[#92400E]">XP kiếm được</span>
+                <span className="text-sm font-medium text-[#92400E]">{t("xpEarned")}</span>
               </div>
               <motion.span
                 initial={{ opacity: 0, x: 10 }}
@@ -117,7 +133,7 @@ export default function SessionRecap({
             <div className="flex items-center justify-between rounded-2xl bg-[#F0FDF4] border border-[#22C55E]/30 px-4 py-3">
               <div className="flex items-center gap-2">
                 <BookOpen size={22} className="text-[#166534]" aria-hidden />
-                <span className="text-sm font-medium text-[#166534]">Từ vựng mới</span>
+                <span className="text-sm font-medium text-[#166534]">{t("newVocab")}</span>
               </div>
               <motion.span
                 initial={{ opacity: 0, x: 10 }}
@@ -125,7 +141,7 @@ export default function SessionRecap({
                 transition={{ delay: 0.45 }}
                 className="text-2xl font-black text-[#166534]"
               >
-                {vocabCount} từ
+                {t("wordCount", { n: vocabCount })}
               </motion.span>
             </div>
 
@@ -133,7 +149,7 @@ export default function SessionRecap({
             <div className="flex items-center justify-between rounded-2xl bg-[#FFF7ED] border border-[#F97316]/30 px-4 py-3">
               <div className="flex items-center gap-2">
                 <Flame size={22} className="text-[#9A3412]" aria-hidden />
-                <span className="text-sm font-medium text-[#9A3412]">Chuỗi ngày học</span>
+                <span className="text-sm font-medium text-[#9A3412]">{t("streak")}</span>
               </div>
               <motion.span
                 initial={{ opacity: 0, x: 10 }}
@@ -141,13 +157,13 @@ export default function SessionRecap({
                 transition={{ delay: 0.6 }}
                 className="text-2xl font-black text-[#9A3412]"
               >
-                {streakDays} ngày
+                {t("dayCount", { n: streakDays })}
               </motion.span>
             </div>
 
             {nextNodeTitle && (
               <p className="text-xs text-center text-[#64748B] pt-1">
-                Bài tiếp theo: <span className="font-semibold text-[#121212]">{nextNodeTitle}</span>
+                {t("nextLesson")} <span className="font-semibold text-[#121212]">{nextNodeTitle}</span>
               </p>
             )}
           </div>
@@ -160,26 +176,35 @@ export default function SessionRecap({
               className="w-full py-3 rounded-2xl font-bold text-sm text-white transition-transform active:scale-95"
               style={{ background: "linear-gradient(135deg, #121212 0%, #1E293B 100%)" }}
             >
-              {nextNodeTitle ? `Tiếp theo: ${nextNodeTitle} →` : `Về lộ trình`}
+              {nextNodeTitle ? t("nextCta", { title: nextNodeTitle }) : t("backCta")}
             </button>
+            {practiceSkillLabel && onPractice && (
+              <button
+                type="button"
+                onClick={onPractice}
+                className="w-full py-2.5 rounded-2xl border border-[#E2E8F0] font-semibold text-sm text-[#121212] transition-colors hover:bg-[#F1F5F9]"
+              >
+                {t("practiceCta", { skill: practiceSkillLabel })}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleBack}
               className="w-full py-2.5 rounded-2xl font-medium text-sm text-[#64748B] hover:text-[#121212] hover:bg-[#F1F5F9] transition-colors"
             >
-              Về lộ trình học
+              {t("backToRoadmap")}
             </button>
           </div>
         </motion.div>
-      </div>
 
-      {/* CSS-only confetti animation */}
-      <style jsx global>{`
-        @keyframes confettiFall {
-          0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(600px) rotate(720deg); opacity: 0; }
-        }
-      `}</style>
+        {/* CSS-only confetti animation */}
+        <style jsx global>{`
+          @keyframes confettiFall {
+            0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(600px) rotate(720deg); opacity: 0; }
+          }
+        `}</style>
+      </div>
     </AnimatePresence>
   );
 }

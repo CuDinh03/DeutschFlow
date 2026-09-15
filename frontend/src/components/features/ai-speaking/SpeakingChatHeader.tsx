@@ -15,6 +15,7 @@ import type { AiSpeakingQuota } from "@/lib/aiSpeakingApi";
 import { shouldShowAiSpeakingQuota } from "@/lib/authSession";
 import { isUnlimitedAiSpeakingQuota } from "@/lib/aiSpeakingQuota";
 import type { StreamStatus } from "@/types/ai-speaking";
+import { useFmt } from '@/lib/i18n/useFmt'
 
 interface Props {
   companionId: string;
@@ -42,6 +43,7 @@ export function SpeakingChatHeader({
   onEnd,
 }: Props) {
   const t = useTranslations("speaking");
+  const fmt = useFmt()
   const tChat = useTranslations("speaking.chat");
   const showQuota = shouldShowAiSpeakingQuota();
   const chatBusy = streamStatus === "streaming" || streamStatus === "processing";
@@ -121,7 +123,7 @@ export function SpeakingChatHeader({
             {showQuota && quota && !isUnlimitedAiSpeakingQuota(quota) && (
               <DropdownMenuItem disabled className="text-xs opacity-80">
                 {tChat("quotaRemaining", {
-                  n: Math.max(0, Math.round(quota.remainingSpendable)).toLocaleString("vi-VN"),
+                  n: fmt.num(Math.max(0, Math.round(quota.remainingSpendable))),
                 })}
               </DropdownMenuItem>
             )}

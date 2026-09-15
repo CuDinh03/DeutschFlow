@@ -64,10 +64,7 @@ public class NotificationContentRenderer {
             case JOIN_REQUEST_REJECTED -> new RenderedContent(
                     "❌ Yêu cầu vào lớp",
                     "Yêu cầu vào lớp " + str(p, "className") + " đã bị từ chối.");
-            case ADDED_TO_CLASS -> new RenderedContent(
-                    "🎓 Thêm vào lớp",
-                    "Giáo viên " + nonBlankOr(str(p, "teacherName"), "của bạn") + " đã thêm bạn vào lớp "
-                            + str(p, "className") + ".");
+            case ADDED_TO_CLASS -> renderAddedToClass(p);
             case ASSIGNMENT_GRADED -> renderAssignmentGraded(p);
             case NEW_CLASS_ASSIGNMENT -> new RenderedContent(
                     "📋 Bài tập mới",
@@ -112,10 +109,12 @@ public class NotificationContentRenderer {
                             "Buổi học của lớp " + nonBlankOr(str(p, "className"), "bạn") + " đã thay đổi."));
 
             // ── v1.7 — Admin ops & audit ─────────────────────────────────────
+            // Chỉ id (10/09/2026, quyết định 8): payload không còn email/tên, và cố ý KHÔNG rơi về
+            // who(p) cho dòng cũ — V321 đã bóc hai khoá đó, còn sót ở đâu thì cũng không hiển thị.
             case ACCOUNT_DELETED -> new RenderedContent(
                     "🗑️ Xoá tài khoản",
-                    who(p).isBlank() ? "Một người dùng đã xoá tài khoản."
-                            : who(p) + " đã xoá tài khoản.");
+                    str(p, "deletedUserId").isBlank() ? "Một người dùng đã xoá tài khoản."
+                            : "Người dùng #" + str(p, "deletedUserId") + " đã xoá tài khoản.");
             case ADMIN_LEARNER_SUBSCRIPTION_ENDED -> new RenderedContent(
                     "Gói học kết thúc",
                     "Gói " + nonBlankOr(str(p, "planCode"), "học") + " của "
@@ -135,7 +134,99 @@ public class NotificationContentRenderer {
 
             // ── Bảo trì hệ thống ─────────────────────────────────────────────
             case SYSTEM_MAINTENANCE -> renderSystemMaintenance(p);
+
+            // ── Thông báo nội bộ trung tâm (DEC-18) — không emoji ────────────
+            case SCHEDULE_CHANGE_REJECTED -> new RenderedContent(
+                    "Đề xuất đổi lịch bị từ chối",
+                    "Đề xuất " + scheduleChangeKindLabel(str(p, "kind")) + " cho lớp "
+                            + nonBlankOr(str(p, "className"), "của bạn") + " không được duyệt."
+                            + reasonSuffix(str(p, "reason")));
+            case TIMESHEET_PERIOD_APPROVED -> new RenderedContent(
+                    "Kỳ công đã được duyệt",
+                    "Kỳ công " + periodRange(p) + " đã được trung tâm duyệt" + timesheetTotals(p) + ".");
+            case TIMESHEET_PERIOD_RETURNED -> new RenderedContent(
+                    "Kỳ công bị trả lại",
+                    "Kỳ công " + periodRange(p) + " bị trả lại để sửa." + reasonSuffix(str(p, "reason")));
+
+            // ── Phiếu đánh giá gửi gia đình (R6) — không emoji, không điểm ────
+            case REPORT_ISSUED -> new RenderedContent(
+                    "Phiếu đánh giá đã gửi gia đình",
+                    "Phiếu đánh giá " + reportPeriodLabel(str(p, "period")) + " của lớp "
+                            + nonBlankOr(str(p, "className"), "bạn đang học")
+                            + " đã được phát hành cho gia đình. Bạn xem đúng bản đã gửi trong mục Đánh giá.");
         };
+    }
+
+    /** Kỳ phát hành phiếu ({@code StudentReportIssue.Period}) → cụm từ tiếng Việt. */
+    private static String reportPeriodLabel(String period) {
+        return switch (period == null ? "" : period.toUpperCase()) {
+            case "MIDTERM" -> "giữa khoá";
+            case "FINAL" -> "cuối khoá";
+            default -> "kỳ này";
+        };
+    }
+
+    /**
+     * Học viên được đưa vào lớp bởi NHÂN SỰ. {@code addedBy=ORG} (nhập roster CSV của trung tâm —
+     * DEC-18) nói đúng là trung tâm xếp lớp, không gán việc đó cho giáo viên; {@code teacherName}
+     * khi ấy là giáo viên phụ trách lớp, chỉ để học viên biết mình học với ai.
+     */
+    private RenderedContent renderAddedToClass(Map<String, Object> p) {
+        String className = str(p, "className");
+        String teacherName = str(p, "teacherName");
+        if ("ORG".equalsIgnoreCase(str(p, "addedBy"))) {
+            return new RenderedContent(
+                    "🎓 Thêm vào lớp",
+                    "Trung tâm đã xếp bạn vào lớp " + className
+                            + (teacherName.isBlank() ? "" : " (giáo viên: " + teacherName + ")") + ".");
+        }
+        return new RenderedContent(
+                "🎓 Thêm vào lớp",
+                "Giáo viên " + nonBlankOr(teacherName, "của bạn") + " đã thêm bạn vào lớp " + className + ".");
+    }
+
+    /** Loại đề xuất đổi lịch ({@code ClassScheduleChangeRequest.Type}) → cụm từ tiếng Việt. */
+    private static String scheduleChangeKindLabel(String kind) {
+        return switch (kind == null ? "" : kind.toUpperCase()) {
+            case "CANCEL_SESSION" -> "huỷ buổi";
+            case "ADD_MAKEUP" -> "thêm buổi bù";
+            case "MOVE_SESSION" -> "dời buổi";
+            case "UPDATE_PATTERN" -> "đổi lịch cố định";
+            case "MOVE_MILESTONE" -> "dời mốc";
+            default -> "đổi lịch";
+        };
+    }
+
+    /** " Lý do: …" khi có lý do, else "". */
+    private static String reasonSuffix(String reason) {
+        return reason == null || reason.isBlank() ? "" : " Lý do: " + reason;
+    }
+
+    /** "01/08/2026 – 31/08/2026" từ {@code periodStart}/{@code periodEnd} (ISO); thiếu thì bỏ trống. */
+    private static String periodRange(Map<String, Object> p) {
+        String start = dateVn(str(p, "periodStart"));
+        String end = dateVn(str(p, "periodEnd"));
+        if (start.isBlank() && end.isBlank()) return "";
+        return start + " – " + end;
+    }
+
+    /** " (18 buổi, 3240 phút)" khi payload có tổng số công, else "". */
+    private static String timesheetTotals(Map<String, Object> p) {
+        String sessions = str(p, "totalSessions");
+        String minutes = str(p, "totalMinutes");
+        if (sessions.isBlank()) return "";
+        return " (" + sessions + " buổi" + (minutes.isBlank() ? "" : ", " + minutes + " phút") + ")";
+    }
+
+    /** ISO {@code yyyy-MM-dd} → {@code dd/MM/yyyy}; chuỗi không phải ngày thì trả nguyên văn. */
+    private static String dateVn(String iso) {
+        if (iso == null || iso.isBlank()) return "";
+        try {
+            return java.time.LocalDate.parse(iso)
+                    .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        } catch (java.time.format.DateTimeParseException e) {
+            return iso;
+        }
     }
 
     /**

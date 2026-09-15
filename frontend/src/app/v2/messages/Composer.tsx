@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Send } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 interface ComposerProps {
   placeholder: string
@@ -11,6 +12,7 @@ interface ComposerProps {
 
 /** Message composer shared by the direct and class-channel threads. */
 export function Composer({ placeholder, onSend }: ComposerProps) {
+  const t = useTranslations('v2.inbox')
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
 
@@ -48,7 +50,7 @@ export function Composer({ placeholder, onSend }: ComposerProps) {
         type="button"
         onClick={() => void submit()}
         disabled={sending || !draft.trim()}
-        aria-label="Gửi"
+        aria-label={t('send')}
         className="grid h-10 w-10 shrink-0 place-items-center rounded-ga bg-ga-accent text-ga-accent-ink transition-opacity hover:opacity-90 disabled:opacity-40"
       >
         <Send size={17} />

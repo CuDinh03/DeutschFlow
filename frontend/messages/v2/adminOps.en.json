@@ -132,20 +132,15 @@
       "loadError": "Could not load revenue data.",
       "loading": "Loading revenue…",
       "stats": {
-        "mrr": "MRR (latest period)",
-        "arr": "ARR (projected)",
-        "arrSub": "12 × MRR",
-        "subscribers": "Subscribers",
-        "subscribersSub": "latest period",
-        "margin": "Profit margin",
-        "marginSub": "Gross − fees − AI cost"
+        "margin": "Remaining margin (estimate)",
+        "marginSub": "Gross − fees − AI cost",
+        "netRemaining": "Remaining after fees & AI",
+        "successTx": "Successful transactions",
+        "successTxSub": "in the latest period"
       },
       "netByPeriod": "Net revenue by period",
       "noPeriodData": "No period data yet.",
       "latestBreakdown": "Latest period breakdown",
-      "segNet": "Net profit",
-      "segStoreFee": "Gateway/store fee",
-      "segAiCost": "AI cost",
       "recentTransactions": "Recent transactions",
       "txCount": "{count} transactions",
       "colId": "#",
@@ -158,7 +153,17 @@
       "noTransactions": "No transactions.",
       "pageInfo": "Page {page} / {total}",
       "prev": "Prev",
-      "next": "Next"
+      "next": "Next",
+      "rowGross": "Gross revenue",
+      "rowStoreFee": "Gateway/store fee (assumed 15%)",
+      "rowAiCost": "AI cost (estimate)",
+      "rowNet": "Remaining",
+      "breakdownNote": "Store fee is assumed at 15%; AI cost is estimated from the token ledger. This is not full accounting profit.",
+      "statusSuccess": "SUCCESS",
+      "statusFailed": "FAILED",
+      "statusPending": "PENDING",
+      "statusCancelled": "CANCELLED",
+      "statusUnknown": "UNKNOWN"
     },
     "tokens": {
       "title": "AI cost analytics",
@@ -204,8 +209,7 @@
       "activated": "Activated entitlements for {count} students.",
       "status": {
         "ACTIVE": "Active",
-        "SUSPENDED": "Suspended",
-        "PENDING": "Pending activation"
+        "SUSPENDED": "Suspended"
       },
       "pay": {
         "paid": "Paid",
@@ -224,9 +228,6 @@
       "issuedInvoices": "Invoiced",
       "debtSuffix": " · owed {amount}",
       "renewOn": "Renews {date}",
-      "activating": "Activating…",
-      "activate": "Activate",
-      "viewFinance": "View finance",
       "privacyNotice": "Platform admin only sees <strong>financial data</strong>. Each center's students, classes, scores and progress are <strong>kept private</strong> — you have no access.",
       "stats": {
         "issuedRevenue": "Invoiced revenue",
@@ -235,48 +236,10 @@
         "totalSeatsSub": "{count} organizations",
         "unpaidInvoices": "Unpaid invoices",
         "unpaidInvoicesSub": "needs reconciliation",
-        "pendingActivation": "Pending activation"
+        "suspended": "Suspended",
+        "suspendedSub": "read-only centres"
       },
       "emptyOrgs": "No organizations yet.",
-      "modal": {
-        "description": "Financial detail · contract & invoices",
-        "privacyBanner": "Platform admin only sees the organization's financial data.",
-        "contractInfo": "Contract information",
-        "facts": {
-          "plan": "Plan",
-          "seats": "Seats",
-          "issuedRevenue": "Invoiced revenue",
-          "debt": "Outstanding",
-          "payMethod": "Payment status",
-          "renewUntil": "Renews until"
-        },
-        "invoiceHistory": "Invoice history ({count})",
-        "noIssued": "No issued invoices yet.",
-        "colPeriod": "Period",
-        "colSeats": "Seats",
-        "colAmount": "Amount",
-        "colStatus": "Status",
-        "invStatus": {
-          "paid": "Collected",
-          "sent": "Issued",
-          "draft": "Draft",
-          "void": "Voided"
-        },
-        "learningData": "Learning data",
-        "lockedFields": {
-          "students": "Student list",
-          "classes": "Classes & teachers",
-          "scores": "Scores & submissions",
-          "progress": "Learning progress"
-        },
-        "noAccess": "no access",
-        "remindPayment": "Send reminder",
-        "remindPaymentSoon": "Payment reminder (coming soon)",
-        "exportInvoice": "Export invoice",
-        "exportInvoiceSoon": "Export invoice (coming soon)",
-        "activate": "Activate",
-        "activateFromList": "Activate from the external list"
-      },
       "create": {
         "title": "Create centre + Owner",
         "description": "Pre-create an organization and its owner — admin only",
@@ -297,10 +260,208 @@
         "ownerName": "Owner name",
         "ownerNamePlaceholder": "Jane Doe",
         "ownerPassword": "Owner password",
-        "ownerPasswordPlaceholder": "≥ 6 characters",
+        "ownerPasswordPlaceholder": "≥ 8 characters",
         "errNameSlug": "Enter the organization name and slug.",
-        "errPassword": "Owner password must be at least 6 characters.",
-        "created": "Centre {name} created."
+        "errPassword": "Owner password must be at least 8 characters.",
+        "created": "Centre {name} created.",
+        "aiPool": "Staff AI budget",
+        "aiPoolHint": "Not configured = staff are blocked from AI on first use. Can be changed later in the centre profile.",
+        "aiUnlimited": "Unlimited",
+        "aiMetered": "Budget",
+        "aiPoolPlaceholder": "tokens/month",
+        "aiUnsetWarning": "0 tokens = not configured — staff are blocked from AI immediately."
+      },
+      "forceOwner": {
+        "action": "Appoint director",
+        "title": "Appoint a director for {org}",
+        "description": "Recovery path when the director lost their account or left without a handover. Use only on a verified request from the centre.",
+        "detailRecover": "The centre currently has no director — the selected person becomes its only director.",
+        "detailDemote": "{count} current director(s) will be demoted to manager (membership is kept).",
+        "detailLogout": "The new and the former director are signed out — they must log in again.",
+        "detailLedger": "The action is written to the centre’s activity ledger under your name (admin) with the reason below — the new director can read it.",
+        "memberLabel": "Staff member to appoint",
+        "memberPlaceholder": "— Choose a manager or teacher —",
+        "loadingMembers": "Loading staff…",
+        "noCandidates": "This centre has no active manager/teacher to appoint.",
+        "role": {
+          "OWNER": "Director",
+          "MANAGER": "Manager",
+          "TEACHER": "Teacher"
+        },
+        "reasonLabel": "Reason (required)",
+        "reasonPlaceholder": "e.g. former director left without handing over the account; requested by email on …",
+        "reasonHint": "{count}/{max} characters — at least {min}.",
+        "confirm": "Appoint director",
+        "cancel": "Cancel",
+        "done": "{name} is now the director of {org}."
+      },
+      "perpetual": "No expiry",
+      "openDetail": "Plan & invoices",
+      "aiPool": {
+        "unlimited": "Staff AI: unlimited",
+        "metered": "Staff AI: {count} tokens/month",
+        "unset": "Staff AI: not configured — staff are blocked from AI"
+      },
+      "detail": {
+        "eyebrow": "Centre profile",
+        "subtitle": "{slug} · {students} students · {teachers} teachers",
+        "back": "All organizations",
+        "loading": "Loading centre profile…",
+        "loadError": "Could not load the centre profile.",
+        "notFound": "Centre not found.",
+        "privacy": "Platform admins only see the centre's contract, licence and invoices. Students, classes, scores and progress stay private to the centre.",
+        "stats": {
+          "plan": "Plan",
+          "seats": "Seats used / limit",
+          "seatsOver": "over the limit — new students blocked",
+          "aiPool": "Staff AI",
+          "validUntil": "Licence expiry"
+        }
+      },
+      "licence": {
+        "title": "Plan & licence",
+        "description": "Only changed fields are sent and written to the centre's activity ledger with old/new values.",
+        "plan": "Plan",
+        "planNone": "— No plan —",
+        "planHint": "After changing the plan, click \"Re-grant entitlements\" so students receive the new plan.",
+        "seatLimit": "Seat limit (students)",
+        "seatUnlimited": "Unlimited seats · {used} in use.",
+        "seatHint": "{used} seats in use · 0 = unlimited.",
+        "seatBelowUsed": "Below the current headcount of {used}: existing students stay, new students are blocked (DEC-16).",
+        "aiPool": "Staff AI budget",
+        "aiUnlimited": "Unlimited",
+        "aiUnlimitedHint": "Staff use AI without token counting; the previous budget number is kept.",
+        "aiMetered": "Monthly budget",
+        "aiMeteredHint": "Tokens of all staff add up; once spent, AI is blocked until next month.",
+        "aiTokensSuffix": "tokens/month",
+        "aiUnsetWarning": "0 tokens = not configured — staff are blocked from AI immediately (429).",
+        "validUntil": "Licence expiry",
+        "validUntilHint": "Past the expiry the centre becomes read-only at once (no new content, no AI); student plans are cut 7 days later.",
+        "perpetualHint": "No expiry — the centre never expires while it is active.",
+        "clearValidUntil": "Remove expiry",
+        "save": "Save changes",
+        "saved": "Saved plan & licence for {org}.",
+        "noChanges": "No changes yet.",
+        "seatDrop": {
+          "title": "Lower the seat limit below the headcount?",
+          "description": "Seat limit goes from {from} to {to} while the centre currently has {used} students.",
+          "detailKeep": "No student is removed — everyone who has a seat keeps it.",
+          "detailBlock": "The centre cannot add new students until the headcount drops below the limit.",
+          "detailLedger": "The change is written to the centre's activity ledger under your name (admin).",
+          "confirm": "Lower anyway",
+          "cancel": "Cancel"
+        }
+      },
+      "statusCard": {
+        "title": "Status",
+        "suspendedSince": "Suspended since {date} · grace period ends {graceEnd}",
+        "activeUntil": "Active until {date}",
+        "activePerpetual": "Active, no expiry",
+        "suspend": "Suspend centre",
+        "reactivate": "Reactivate centre",
+        "regrant": "Re-grant entitlements",
+        "regrantHint": "Grant the current plan to every active student — use after changing the plan or when students report lost entitlements.",
+        "cancel": "Cancel",
+        "suspended": "{org} suspended.",
+        "reactivated": "{org} reactivated.",
+        "suspendDialog": {
+          "title": "Suspend {org}?",
+          "description": "The centre becomes read-only immediately.",
+          "detailReadOnly": "Staff and students can still view data but cannot create anything or use AI.",
+          "detailGrace": "{count} students keep their plan for a 7-day grace period (until {date}), then it is cut automatically.",
+          "detailLedger": "The action is written to the centre's activity ledger under your name (admin) — the director can read it.",
+          "confirm": "Suspend"
+        },
+        "reactivateDialog": {
+          "title": "Reactivate {org}?",
+          "description": "The centre is active again immediately, without waiting for the background job.",
+          "detailClearAnchor": "Clears the suspension anchor — a later suspension gets the full 7-day grace period again.",
+          "detailRegrant": "Plan entitlements are re-granted right away to {count} active students.",
+          "detailLedger": "The action is written to the centre's activity ledger under your name (admin).",
+          "confirm": "Reactivate"
+        },
+        "regrantDialog": {
+          "title": "Re-grant entitlements for {org}?",
+          "description": "Status and licence expiry stay unchanged.",
+          "detail": "Grants plan {plan} to {count} active students (students who already have it are refreshed).",
+          "detailNoStatus": "A suspended or expired centre is still granted — this is the recovery path, it bypasses the read-only gate.",
+          "confirm": "Re-grant"
+        }
+      },
+      "invoices": {
+        "title": "Invoices",
+        "subtitle": "{count} invoices · draft → sent → paid / void, never backwards",
+        "noun": "invoices",
+        "create": "New invoice",
+        "empty": "No invoices yet. Create a draft, send it to the centre, then mark it paid when the money arrives.",
+        "col": {
+          "period": "Period",
+          "seats": "Seats",
+          "amount": "Amount",
+          "status": "Status",
+          "due": "Due date",
+          "code": "Transfer code"
+        },
+        "status": {
+          "DRAFT": "Draft",
+          "SENT": "Sent",
+          "PAID": "Paid",
+          "VOID": "Void"
+        },
+        "overdue": "overdue",
+        "action": {
+          "SENT": "Send",
+          "PAID": "Mark paid",
+          "VOID": "Void"
+        },
+        "changed": "Invoice #{id} → {status}.",
+        "dialog": {
+          "cancel": "Cancel",
+          "send": {
+            "title": "Send invoice #{id}?",
+            "description": "{amount} · period {period}. The invoice moves to \"Sent\".",
+            "detailDue": "Due date = today + 7 days ({date}).",
+            "detailVisible": "The centre sees the invoice with its transfer code on their Billing screen.",
+            "detailNoRevert": "It cannot go back to draft; if it is wrong, void it and create another one.",
+            "confirm": "Send invoice"
+          },
+          "paid": {
+            "title": "Mark invoice #{id} as paid?",
+            "description": "{amount} · period {period}. Use when the money has arrived but the bank webhook did not match it.",
+            "detailActivate": "{org} becomes active (unlocked if suspended, suspension anchor cleared).",
+            "detailExtend": "Licence expiry extends to the end of the period ({date}) if that is later than the current expiry — never shortened.",
+            "detailNoPeriod": "The invoice has no period end, so the licence expiry stays unchanged.",
+            "detailRegrant": "Plan entitlements are re-granted to {count} active students.",
+            "detailNoRevert": "Cannot be undone — a paid invoice is final.",
+            "confirm": "Confirm paid"
+          },
+          "void": {
+            "title": "Void invoice #{id}?",
+            "description": "{amount} · period {period}.",
+            "detailFinal": "The invoice is voided permanently and cannot be reopened; its transfer code no longer matches incoming payments.",
+            "detailNoLicence": "The licence and student entitlements are not touched.",
+            "confirm": "Void invoice"
+          }
+        },
+        "createModal": {
+          "title": "New invoice for {org}",
+          "description": "The invoice is created as a draft — the centre does not see it until you send it.",
+          "periodStart": "Period from",
+          "periodEnd": "Period to",
+          "periodHint": "When marked paid, the licence expiry extends to the end of \"Period to\".",
+          "seats": "Seats",
+          "seatsHint": "Active students: {count} · leave 0 = snapshot the headcount at creation.",
+          "amount": "Amount (₫)",
+          "amountPlaceholder": "12000000",
+          "amountHint": "Must be greater than 0.",
+          "note": "Note",
+          "notePlaceholder": "e.g. Q4 contract, 25 seats",
+          "cancel": "Cancel",
+          "submit": "Create draft invoice",
+          "errAmount": "Amount must be greater than 0.",
+          "errPeriod": "Period end must be on or after period start.",
+          "created": "Draft invoice #{id} created ({amount})."
+        }
       }
     },
     "freeTeachers": {
@@ -427,7 +588,7 @@
         "displayName": "Display name",
         "displayNamePlaceholder": "Jane Doe",
         "password": "Password",
-        "passwordPlaceholder": "≥ 6 characters",
+        "passwordPlaceholder": "≥ 8 characters",
         "passwordNote": "The user signs in with this password (changeable later).",
         "kindCap": "Account type",
         "kind": {
@@ -445,7 +606,7 @@
         "orgOptional": "(optional)",
         "orgChoose": "— Choose organization —",
         "orgNone": "— Not assigned —",
-        "errRequired": "Enter an email, a display name and a password of at least 6 characters.",
+        "errRequired": "Enter an email, a display name and a password of at least 8 characters.",
         "errOrgRequired": "A manager account must belong to an organization.",
         "created": "Account {email} created.",
         "confirmAdmin": {
@@ -456,6 +617,133 @@
           "confirm": "Create admin account",
           "cancel": "Cancel"
         }
+      }
+    },
+    "learningDetail": {
+      "title": "Learning profile",
+      "loading": "Loading learning profile...",
+      "backendBusy": "The backend is still loading data, please try again.",
+      "tabs": {
+        "profile": "Profile",
+        "xp": "XP & Streak",
+        "speaking": "Speaking AI",
+        "vocab": "SRS vocabulary",
+        "interview": "Interviews"
+      },
+      "profile": {
+        "goalCap": "GOAL",
+        "speedCap": "LEARNING PACE",
+        "currentLevelCap": "CURRENT LEVEL",
+        "targetLevelCap": "TARGET LEVEL",
+        "sessionsPerWeekCap": "SESSIONS/WEEK",
+        "minutesPerSessionCap": "MINUTES/SESSION",
+        "industryCap": "INDUSTRY",
+        "industryPlaceholder": "IT, MEDICINE, EDUCATION...",
+        "goal": {
+          "WORK": "Work",
+          "CERT": "Certificate"
+        },
+        "speed": {
+          "SLOW": "Slow",
+          "NORMAL": "Normal",
+          "FAST": "Fast"
+        },
+        "speedShort": {
+          "SLOW": "Slow",
+          "NORMAL": "Normal",
+          "FAST": "Fast"
+        },
+        "saving": "Saving…",
+        "save": "Save profile",
+        "cancel": "Cancel",
+        "notConfigured": "This user has not set up a learning profile yet.",
+        "adminCanCreate": "An admin can create the profile on their behalf.",
+        "create": "Create learning profile",
+        "edit": "Edit profile",
+        "stat": {
+          "currentLevel": "Current level",
+          "target": "Target",
+          "speed": "Pace"
+        },
+        "row": {
+          "goal": "Goal",
+          "currentLevel": "Current level",
+          "targetLevel": "Target level",
+          "industry": "Industry",
+          "exam": "Exam",
+          "sessionsPerWeek": "Sessions/week",
+          "minutesPerSession": "Minutes/session",
+          "speed": "Learning pace",
+          "ageRange": "Age range"
+        },
+        "interests": "Interests"
+      },
+      "xp": {
+        "stat": {
+          "totalXp": "Total XP",
+          "level": "Level",
+          "streak": "Streak",
+          "sessions": "Sessions"
+        },
+        "streakDays": "{n} days",
+        "levelProgress": "Level progress",
+        "achievementsTitle": "Achievements — {unlocked} / {total} unlocked",
+        "achievementsLoading": "Loading achievements…",
+        "unlocked": "Unlocked ({n})",
+        "locked": "Locked ({n})",
+        "rarity": {
+          "COMMON": "Common",
+          "RARE": "Rare",
+          "EPIC": "Epic",
+          "LEGENDARY": "Legendary"
+        }
+      },
+      "speaking": {
+        "stat": {
+          "sessions": "Speaking sessions",
+          "messages": "Messages"
+        },
+        "weakPointsTitle": "Grammar weak points (Top 5)",
+        "errorSkillsTitle": "Error fix status",
+        "fixed": "Fixed",
+        "unfixed": "Open ({n})",
+        "recentErrorsTitle": "Recent errors",
+        "col": {
+          "error": "Error",
+          "wrongToRight": "Wrong → Correct",
+          "severity": "Severity"
+        }
+      },
+      "vocab": {
+        "stat": {
+          "total": "Total items",
+          "dueToday": "Due today",
+          "mastered": "Mastered",
+          "learning": "Learning",
+          "words": "Vocabulary",
+          "grammar": "Grammar"
+        },
+        "distributionTitle": "Distribution",
+        "barMastered": "Mastered: {n}",
+        "barLearning": "Learning: {n}",
+        "barNew": "New: {n}",
+        "legendMastered": "■ Mastered ({n})",
+        "legendLearning": "■ Learning ({n})",
+        "legendNew": "■ New ({n})",
+        "empty": "No SRS items yet."
+      },
+      "interview": {
+        "loading": "Loading interviews...",
+        "empty": "No interviews yet.",
+        "count": "{n} interviews",
+        "unknownPosition": "Unknown",
+        "statusDone": "Completed",
+        "statusPending": "In progress",
+        "messageCount": "{n} messages",
+        "transcriptLoading": "Loading transcript...",
+        "noMessages": "No messages.",
+        "roleAi": "AI",
+        "roleUser": "User"
       }
     },
     "classes": {
@@ -742,7 +1030,18 @@
       "audio": {
         "playLabel": "Replay Teil {teil} turn",
         "transcriptOnly": "This session has no stored audio — graded on the transcript."
-      }
+      },
+      "borderline": "Borderline",
+      "machineBorderline": "Machine \"borderline\"",
+      "machineBorderlineSub": "excluded from pass/fail denominator — gate needs ≤20%",
+      "regradeBatch": "Regrade set",
+      "regradeBatchRunning": "Regrading…",
+      "regradeBatchCap": "Regrade batch result",
+      "regradeBatchConfirm": "Regrade every human-rated session in this filter (max {max} sessions, ≈12k tokens each, learner results are NOT overwritten). Continue?",
+      "regradeBatchDone": "Regraded {regraded}/{requested} sessions (failed {failed}) · pass/fail flips: {passFlips} · mean total delta: {avgDelta} · band changes: {bandChanges}.",
+      "blindHint": "Blind rating: machine bands stay hidden until you save (gate doc §4.1).",
+      "revealMachine": "Show machine bands (breaks blind rating)",
+      "hideMachine": "Hide machine bands"
     },
     "examBank": {
       "title": "Speaking exam task bank",
@@ -783,6 +1082,38 @@
       "save": "Save",
       "saving": "Saving…",
       "cancel": "Cancel"
+    },
+    "aiUsage": {
+      "title": "AI usage",
+      "subtitle": "Tokens, STT seconds and estimated cost by feature × model × session — from the real ledger",
+      "back": "Back to admin",
+      "dismiss": "Dismiss",
+      "from": "From",
+      "to": "To",
+      "featurePrefix": "Feature prefix",
+      "apply": "Apply",
+      "loading": "Aggregating…",
+      "empty": "No data in this window.",
+      "totalCalls": "Calls",
+      "totalTokens": "Total tokens",
+      "totalStt": "STT seconds",
+      "totalCost": "Estimated cost",
+      "rateNote": "rate {rate} ₫/USD",
+      "byFeature": "By feature × model",
+      "colFeature": "Feature",
+      "colModel": "Model",
+      "colCalls": "Calls",
+      "colPrompt": "Prompt",
+      "colCached": "Cached",
+      "colCompletion": "Completion",
+      "colTotal": "Total tokens",
+      "colCost": "Cost",
+      "colSeconds": "Seconds",
+      "stt": "Transcription (STT)",
+      "sessions": "Most expensive sessions",
+      "sessionsHint": "One B1 mock ≈ the sum of EXAM_SPEAKING_* rows for that session (plan N0.6 estimated A1 20–30k, B1 50–80k tokens).",
+      "colSession": "Session",
+      "colFeatures": "Features"
     }
   }
 }

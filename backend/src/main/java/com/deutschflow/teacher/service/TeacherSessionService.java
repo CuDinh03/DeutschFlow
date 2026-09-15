@@ -83,6 +83,12 @@ public class TeacherSessionService {
     /**
      * IDOR guard: profileId đến từ request param nên không được tin —
      * chỉ chủ hồ sơ (hoặc ADMIN) được xem lịch học/doanh thu của hồ sơ đó.
+     *
+     * <p><b>Nhánh ADMIN là break-glass, và nó CÓ vết (DEC-13, 09/09/2026).</b> Một dòng
+     * {@code return} ở đây mở thẳng lịch dạy và doanh thu của MỌI giáo viên cho admin nền tảng.
+     * Quyền đó giữ nguyên — nhưng {@code TeacherSessionController} ghi vết mỗi lần admin đi qua cửa
+     * này mà không phải chủ hồ sơ, cùng khuôn với {@code AdminTeacherService.breakGlassViewTeacher}.
+     * Nếu sau này thêm entry point khác gọi thẳng service, nhớ mang theo vết đó.
      */
     private void assertOwnsProfile(User actor, Long teacherProfileId) {
         if (actor.getRole() == User.Role.ADMIN) return;
@@ -91,6 +97,20 @@ public class TeacherSessionService {
         if (!profile.getUser().getId().equals(actor.getId())) {
             throw new ForbiddenException("Bạn không có quyền xem dữ liệu của hồ sơ này");
         }
+    }
+
+    /**
+     * Chủ hồ sơ giáo viên, hoặc {@code null} nếu hồ sơ không tồn tại.
+     *
+     * <p>Chỉ phục vụ ghi vết break-glass ở controller: từ userId này mới tra ra được trung tâm bị
+     * tác động ({@code AuditOrgResolver.forUser}), và mới phân biệt được "admin xem hồ sơ người
+     * khác" với "admin xem chính hồ sơ mình". Trả {@code null} thay vì ném, vì một vết thiếu trung
+     * tâm vẫn tốt hơn một 404 do bước ghi vết dựng lên.
+     */
+    public Long teacherProfileOwnerUserId(Long teacherProfileId) {
+        return profileRepository.findByIdWithUser(teacherProfileId)
+                .map(p -> p.getUser().getId())
+                .orElse(null);
     }
 
     public Page<TeacherSessionDto> getTeacherSessions(User actor, Long teacherProfileId, int page) {
@@ -208,6 +228,14 @@ public class TeacherSessionService {
      *
      * <p>Ghi một dòng cho cả lô, kèm danh sách id đã đổi trạng thái THẬT (id không tồn tại hoặc đã
      * PROCESSED không được đếm) — vết phải nói đúng cái đã xảy ra, không phải cái được yêu cầu.
+     *
+     * <p><b>Vì sao KHÔNG truyền {@code orgId} (DEC-13, 09/09/2026).</b> Actor ở đây là admin nền
+     * tảng, nên {@code audit_logs.org_id} rơi về NULL — và ở riêng đường này NULL là ĐÚNG, không
+     * phải lỗ hổng: {@code teacher_sessions} là chợ B2C, {@link #bookSession} chặn giáo viên thuộc
+     * trung tâm (G-1) nên phiên ở đây không bao giờ là dữ liệu của một trung tâm. Thêm nữa, một lô
+     * gộp phiên của NHIỀU giáo viên khác nhau, nên một cột {@code org_id} đơn trị không mô tả nổi
+     * lô đó. Nếu sau này chợ mở cho giáo viên trung tâm thì phải chia vết theo từng trung tâm bị
+     * chạm, chứ đừng gán bừa một giá trị cho cả lô.
      */
     public void markPayoutProcessed(List<Long> sessionIds, AuditActor actor) {
         List<Long> processed = new ArrayList<>();

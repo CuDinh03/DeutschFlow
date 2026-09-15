@@ -42,10 +42,22 @@ export function stopExamTts(): void {
   stopPlaybackOnly()
 }
 
+// Tắt tiếng giám khảo (parity web): transcript vẫn hiện, chỉ không phát — bật lại là phát tiếp từ lượt sau.
+let muted = false
+
+export function setExamTtsMuted(value: boolean): void {
+  muted = value
+  if (value) stopExamTts()
+}
+
+export function isExamTtsMuted(): boolean {
+  return muted
+}
+
 /** Phát một câu theo vai (PRUEFER/PARTNER). Resolve khi phát XONG (hoặc bỏ cuộc êm). */
 export async function speakExamLine(role: string, text: string): Promise<void> {
   const trimmed = text.trim()
-  if (!trimmed) return
+  if (!trimmed || muted) return
   stopPlaybackOnly()
   const myPlay = playGen
 

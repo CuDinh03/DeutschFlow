@@ -2,6 +2,7 @@ package com.deutschflow.ai.queue;
 
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.minor.MinorGate;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.user.entity.User;
@@ -35,6 +36,7 @@ public class AiJobController {
     private final AiJobSseRegistry sseRegistry;
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
+    private final MinorGate minorGate;
 
     /**
      * Ước lượng token để chặn pool org TRƯỚC khi enqueue (audit 24/07 R-B4). Trước đây submit không
@@ -58,6 +60,13 @@ public class AiJobController {
             return ResponseEntity.badRequest().body(Map.of("error", "originalText is required"));
         }
 
+        // DEC-22: cổng tuổi ở LÚC ENQUEUE. Worker (AiJobWorker.handlePronunciationEval) giải
+        // payload.audioBase64 rồi gọi Whisper ở luồng nền, nơi không còn request để trả 403 về —
+        // chặn ở đây là chỗ duy nhất người dùng đọc được lý do. Chặn KHÔNG điều kiện theo
+        // việc payload có audioBase64 hay không: quyết định theo một khoá trong Map tự do nghĩa là
+        // một lần đổi tên khoá sẽ lặng lẽ mở lại đường — và endpoint đồng bộ sinh đôi
+        // (/api/phoneme/evaluate) cũng đã chặn chính người này rồi.
+        minorGate.assertAudioAllowed(user.getId());
         // R-B4: gate quota cá nhân + pool org TRƯỚC khi enqueue (fail-fast 429), thay vì để worker
         // tiêu AI rồi mới ghi ledger. assertAllowed/assertOrgPoolAvailable ném QuotaExceededException.
         quotaService.assertAllowed(user.getId(), Instant.now(), 1L);

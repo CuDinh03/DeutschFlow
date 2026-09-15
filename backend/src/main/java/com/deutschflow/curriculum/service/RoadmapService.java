@@ -15,6 +15,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * DB-driven roadmap service for the foundation-first learning spine.
@@ -110,13 +113,22 @@ public class RoadmapService {
         applyFocusAreaPriorities(rows, profile);
         boolean firstCurrentAssigned = false;
         String firstFocusNodeCode = findFirstFocusAreaNodeCode(rows, profile);
+        // Mã các node đã hoàn thành — để prerequisites_json được đối chiếu thật (06/09: trước đây
+        // prerequisites khác rỗng = khoá vĩnh viễn) và để node liền sau node đã xong được mở.
+        Set<String> completedCodes = rows.stream()
+                .filter(this::hasCompletedProgress)
+                .map(r -> asString(r.get("node_code")))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        boolean prevCompleted = false;
         List<RoadmapNodeDto> nodes = new ArrayList<>(rows.size());
 
         for (Map<String, Object> row : rows) {
-            String state = computeState(row, firstCurrentAssigned, roadmapStarted, firstFocusNodeCode, beginnerFoundation);
+            String state = computeState(row, firstCurrentAssigned, roadmapStarted, firstFocusNodeCode, beginnerFoundation, prevCompleted, completedCodes);
             if ("current".equals(state)) {
                 firstCurrentAssigned = true;
             }
+            prevCompleted = "completed".equals(state);
             int lessonsTotal = resolveLessonsTotal(row);
             int lessonsCompleted = resolveLessonsCompleted(row, state, lessonsTotal);
 
@@ -243,11 +255,12 @@ public class RoadmapService {
         return profile.getCurrentLevel().name();
     }
 
-    private String computeState(Map<String, Object> row, boolean firstCurrentAssigned, boolean roadmapStarted, String firstFocusNodeCode, boolean beginnerFoundation) {
+    private String computeState(Map<String, Object> row, boolean firstCurrentAssigned, boolean roadmapStarted, String firstFocusNodeCode,
+                                boolean beginnerFoundation, boolean prevCompleted, Set<String> completedCodes) {
         String status = asString(row.get("user_status"));
         int bestScore = asInt(row.get("user_best_score"));
         int masteryThreshold = asInt(row.get("mastery_threshold"));
-        boolean dependenciesMet = dependenciesMet(row);
+        boolean dependenciesMet = dependenciesMet(row, completedCodes);
         String nodeCode = asString(row.get("node_code"));
 
         if ("COMPLETED".equals(status) || bestScore >= masteryThreshold) {
@@ -260,6 +273,11 @@ public class RoadmapService {
             return "locked";
         }
         if (!firstCurrentAssigned && firstFocusNodeCode != null && firstFocusNodeCode.equals(nodeCode)) {
+            return "current";
+        }
+        // Không ai ghi dòng UNLOCKED cho node kế khi node trước hoàn thành (SkillTreeService cũng
+        // suy tại lúc đọc) → node liền sau node đã xong là nụ kế tiếp; chỉ MỘT nụ được mời.
+        if (!firstCurrentAssigned && prevCompleted) {
             return "current";
         }
         if (!roadmapStarted && !firstCurrentAssigned) {
@@ -339,13 +357,27 @@ public class RoadmapService {
         return null;
     }
 
-    private boolean dependenciesMet(Map<String, Object> row) {
+    /**
+     * prerequisites_json là mảng mã node ("[\"D01\"]"). Đạt khi rỗng, hoặc mọi mã đều thuộc tập
+     * node đã hoàn thành của chính cây này. Mã vắng mặt / JSON hỏng = chưa đạt (giữ hành vi cũ
+     * của "khác rỗng = khoá", nhưng không còn khoá vĩnh viễn node có tiền đề đã xong).
+     */
+    private boolean dependenciesMet(Map<String, Object> row, Set<String> completedCodes) {
         Object deps = row.get("prerequisites_json");
         if (deps == null) {
             return true;
         }
-        String raw = deps.toString();
-        return raw.isBlank() || "[]".equals(raw) || "[ ]".equals(raw);
+        String raw = deps.toString().trim();
+        if (raw.isEmpty() || "[]".equals(raw) || "[ ]".equals(raw)) {
+            return true;
+        }
+        try {
+            List<String> codes = objectMapper.readValue(raw, new TypeReference<List<String>>() {});
+            return codes.stream().allMatch(code -> code != null && completedCodes.contains(code));
+        } catch (Exception e) {
+            log.warn("Skipping malformed prerequisites_json for node {}: {}", row.get("node_code"), e.getMessage());
+            return false;
+        }
     }
 
     private boolean isEntryNode(Map<String, Object> row, boolean beginnerFoundation) {

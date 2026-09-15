@@ -49,7 +49,7 @@
       "statAudio": "Has audio (TTS)",
       "queueCap": "Vocabulary review queue ({count})",
       "loadError": "Could not load vocabulary",
-      "queueDone": "Queue fully reviewed 🎉",
+      "queueDone": "Queue fully reviewed",
       "missingImage": "Missing image",
       "attachImage": "Attach image",
       "approveNeedsImage": "Attach an image before approving",
@@ -125,6 +125,14 @@
       "catPersona": "HR avatar",
       "catAvatar": "User avatar",
       "catMarketing": "Marketing image",
+      "catLanding": "Landing images",
+      "catLesson": "Lesson images",
+      "catAchievement": "Achievement images",
+      "catNews": "News images",
+      "catVocabulary": "Vocabulary images",
+      "catTeacherMaterial": "Teacher materials",
+      "catAssignment": "Assignment images",
+      "catGeneral": "General",
       "catOther": "Other",
       "title": "Image & media library (S3)",
       "subtitle": "Vocabulary images, AI images and lesson video scenes",
@@ -254,7 +262,8 @@
       "noIndustryData": "No industry data yet.",
       "avgScoreByIndustryTitle": "Average score by industry",
       "noScoreByIndustry": "No score by industry yet.",
-      "noData": "No data."
+      "noData": "No data.",
+      "scorePts": "{n} pts"
     },
     "audit": {
       "catUser": "User",
@@ -271,6 +280,7 @@
       "csvAction": "Action",
       "csvTarget": "Target",
       "csvId": "ID",
+      "csvOrg": "Center",
       "csvTime": "Time",
       "title": "System audit log",
       "subtitle": "History of admin actions and system events (audit log)",
@@ -280,6 +290,10 @@
       "colActor": "Actor",
       "colAction": "Action",
       "colTarget": "Target",
+      "colOrg": "Center",
+      "orgTag": "Org #{id}",
+      "orgHint": "This action touched data belonging to center #{id}.",
+      "orgNone": "Platform",
       "colTime": "Time",
       "loading": "Loading log…",
       "loadError": "Could not load the log.",
@@ -305,7 +319,7 @@
       "statErrorsSub": "with corrections",
       "exportCap": "Export data",
       "downloadJson": "Download JSON",
-      "anonymizedNote": "⚠️ Data is anonymized — for AI model improvement only, not for external sharing."
+      "anonymizedNote": "Data is anonymized — for AI model improvement only, not for external sharing."
     },
     "reports": {
       "childGrammar": "Grammar feedback",

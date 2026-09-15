@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts'
 import { ArrowLeft, RefreshCw, Lock, CheckCircle2, Crown, AlertTriangle } from 'lucide-react'
 import api from '@/lib/api'
@@ -47,6 +48,7 @@ function scoreColor(score: number): string {
 export default function V2ErrorReportPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useTranslations('v2.onboarding.errorReport')
   const [report, setReport] = useState<PlacementReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [showPaywall, setShowPaywall] = useState(false)
@@ -108,10 +110,10 @@ export default function V2ErrorReportPage() {
   }
 
   const radarData = [
-    { subject: 'Ngữ pháp', A: report.radar_chart?.grammar || 0, fullMark: 100 },
-    { subject: 'Phát âm', A: report.radar_chart?.pronunciation || 0, fullMark: 100 },
-    { subject: 'Từ vựng', A: report.radar_chart?.vocabulary || 0, fullMark: 100 },
-    { subject: 'Trôi chảy', A: report.radar_chart?.fluency || 0, fullMark: 100 },
+    { subject: t('axisGrammar'), A: report.radar_chart?.grammar || 0, fullMark: 100 },
+    { subject: t('axisPronunciation'), A: report.radar_chart?.pronunciation || 0, fullMark: 100 },
+    { subject: t('axisVocabulary'), A: report.radar_chart?.vocabulary || 0, fullMark: 100 },
+    { subject: t('axisFluency'), A: report.radar_chart?.fluency || 0, fullMark: 100 },
   ]
 
   const avgScore = Math.round(
@@ -134,16 +136,16 @@ export default function V2ErrorReportPage() {
       <div className="space-y-8">
         {/* Back nav */}
         <Link href={DASHBOARD_ROUTE} className="ga-ui inline-flex items-center gap-2 text-[13px] text-ga-muted transition-colors hover:text-ga-ink">
-          <ArrowLeft size={16} /> Về Dashboard
+          <ArrowLeft size={16} /> {t('backToDashboard')}
         </Link>
 
         {/* Header */}
         <div className="text-center">
           <h1 className="m-0 font-ga-display text-[26px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[30px] lg:text-[38px]">
-            Báo Cáo Trình Độ Của Bạn
+            {t('title')}
           </h1>
           <p className="mt-3 text-[15px] text-ga-muted">
-            Dựa trên bài nói 3 phút, AI đã đánh giá chi tiết năng lực của bạn.
+            {t('subtitle')}
           </p>
         </div>
 
@@ -151,12 +153,12 @@ export default function V2ErrorReportPage() {
         <div className="flex justify-center">
           <GaCard className="flex w-full max-w-full flex-col items-center gap-4 px-5 py-4 text-center sm:w-auto sm:flex-row sm:gap-6 sm:text-left lg:px-8 lg:py-5">
             <div className="min-w-0">
-              <GaCap>Trình độ ước tính</GaCap>
+              <GaCap>{t('estimatedLevel')}</GaCap>
               <p className="mt-1 font-ga-display text-[32px] font-medium leading-none text-ga-accent sm:text-[38px] lg:text-[44px]">{report.estimated_cefr}</p>
             </div>
             <div className="h-px w-full bg-ga-line sm:h-12 sm:w-px" />
             <div className="min-w-0">
-              <GaCap>Điểm trung bình</GaCap>
+              <GaCap>{t('averageScore')}</GaCap>
               <p className="mt-1 font-ga-display text-[32px] font-medium leading-none sm:text-[38px] lg:text-[44px]" style={{ color: scoreColor(avgScore) }}>
                 {avgScore}<span className="text-[16px] text-ga-subtle">/100</span>
               </p>
@@ -168,7 +170,7 @@ export default function V2ErrorReportPage() {
           {/* Radar Chart */}
           <GaCard>
             <GaCardHeader>
-              <GaCardTitle>Biểu Đồ Năng Lực</GaCardTitle>
+              <GaCardTitle>{t('radarTitle')}</GaCardTitle>
             </GaCardHeader>
             <GaCardBody>
               <div className="h-72 w-full">
@@ -177,7 +179,7 @@ export default function V2ErrorReportPage() {
                     <PolarGrid stroke="var(--ga-line)" />
                     <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--ga-muted)', fontSize: 12 }} />
                     <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: 'var(--ga-subtle)', fontSize: 10 }} />
-                    <Radar name="Bạn" dataKey="A" stroke="var(--ga-accent)" fill="var(--ga-accent)" fillOpacity={0.35} strokeWidth={2} />
+                    <Radar name={t('radarYou')} dataKey="A" stroke="var(--ga-accent)" fill="var(--ga-accent)" fillOpacity={0.35} strokeWidth={2} />
                   </RadarChart>
                 </ResponsiveContainer>
               </div>
@@ -204,7 +206,7 @@ export default function V2ErrorReportPage() {
           <GaCard>
             <GaCardHeader>
               <GaCardTitle className="flex items-center gap-2 text-ga-red">
-                <AlertTriangle size={18} /> Lỗi Ngữ Pháp Thường Gặp
+                <AlertTriangle size={18} /> {t('topErrorsTitle')}
               </GaCardTitle>
             </GaCardHeader>
             <GaCardBody>
@@ -233,7 +235,7 @@ export default function V2ErrorReportPage() {
                         <div className="absolute inset-0 z-10 flex items-center justify-center rounded-ga bg-ga-card/60 backdrop-blur-[2px]">
                           <div className="ga-ui flex items-center gap-2 rounded-ga-pill bg-ga-ink px-4 py-2 text-[13px] font-bold text-ga-bg">
                             <Lock size={14} />
-                            PRO — Mở khóa để xem
+                            {t('proLocked')}
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
@@ -273,12 +275,12 @@ export default function V2ErrorReportPage() {
             onClick={() => setShowPaywall(true)}
           >
             <Crown size={18} />
-            Mở khóa toàn bộ lỗi + Lộ trình sửa
+            {t('unlockAll')}
           </GaBtn>
           <GaBtn variant="ghost" size="lg" asChild>
             <Link href={MOCK_EXAM_ROUTE}>
               <RefreshCw size={16} />
-              Làm lại bài test
+              {t('retakeTest')}
             </Link>
           </GaBtn>
         </div>
@@ -288,66 +290,66 @@ export default function V2ErrorReportPage() {
       <TkModal
         open={showPaywall}
         onOpenChange={setShowPaywall}
-        title="Đừng để lỗi sai kìm hãm bạn!"
-        description={`AI đã phát hiện ${report.top_errors?.length || 0} lỗi. Nâng cấp PRO để mở khóa toàn bộ và được AI ép sửa sạch.`}
+        title={t('paywallTitle')}
+        description={t('paywallDescription', { count: report.top_errors?.length || 0 })}
       >
         <div className="flex flex-col gap-6 md:flex-row">
           {/* Free Tier */}
           <div className="flex-1 rounded-ga border border-ga-line p-4 lg:p-6">
-            <h3 className="ga-ui text-[16px] font-bold text-ga-ink">Gói FREE</h3>
-            <div className="mt-1 font-ga-display text-[22px] font-medium text-ga-ink lg:text-[26px]">0đ</div>
+            <h3 className="ga-ui text-[16px] font-bold text-ga-ink">{t('freePlan')}</h3>
+            <div className="mt-1 font-ga-display text-[22px] font-medium text-ga-ink lg:text-[26px]">{t('freePrice')}</div>
             <div className="mt-5 space-y-3 text-[13.5px] text-ga-muted">
               <p className="flex items-start gap-2">
                 <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-ga-green" />
-                Xem 2 lỗi đầu tiên
+                {t('freeFirstTwo')}
               </p>
               <p className="flex items-start gap-2">
                 <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-ga-green" />
-                Sửa tối đa 2 lỗi/ngày
+                {t('freeFixLimit')}
               </p>
               <p className="flex items-start gap-2 text-ga-subtle">
                 <Lock size={16} className="mt-0.5 shrink-0" />
-                Các lỗi nghiêm trọng bị khóa
+                {t('freeSeriousLocked')}
               </p>
               <p className="flex items-start gap-2 text-ga-subtle">
                 <Lock size={16} className="mt-0.5 shrink-0" />
-                Không có lộ trình cá nhân hóa
+                {t('freeNoPlan')}
               </p>
             </div>
             <GaBtn variant="ghost" size="lg" className="mt-6 w-full" onClick={continueFree}>
-              Tiếp tục miễn phí
+              {t('continueFree')}
             </GaBtn>
           </div>
 
           {/* Pro Tier */}
           <div className="relative flex-1 rounded-ga border border-ga-gold bg-ga-yellow-soft p-4 lg:p-6">
             <div className="ga-ui absolute -top-3 left-1/2 -translate-x-1/2 rounded-ga-pill bg-ga-yellow px-3 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-ga-ink">
-              Khuyên dùng
+              {t('recommended')}
             </div>
-            <h3 className="ga-ui text-[16px] font-bold text-ga-ink">Gói PRO</h3>
+            <h3 className="ga-ui text-[16px] font-bold text-ga-ink">{t('proPlan')}</h3>
             <div className="mt-1 font-ga-display text-[24px] font-medium text-ga-ink lg:text-[30px]">
-              299k<span className="text-[15px] text-ga-muted">/tháng</span>
+              {t('proPrice')}<span className="text-[15px] text-ga-muted">{t('perMonth')}</span>
             </div>
             <div className="mt-5 space-y-3 text-[13.5px] text-ga-ink">
               <p className="flex items-start gap-2">
                 <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-ga-green" />
-                <strong>Mở khóa toàn bộ lỗi</strong>
+                {t.rich('proUnlockAll', { strong: (chunks) => <strong>{chunks}</strong> })}
               </p>
               <p className="flex items-start gap-2">
                 <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-ga-green" />
-                <strong>Không giới hạn lượt sửa lỗi</strong>
+                {t.rich('proUnlimitedFixes', { strong: (chunks) => <strong>{chunks}</strong> })}
               </p>
               <p className="flex items-start gap-2">
                 <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-ga-green" />
-                Lộ trình sửa lỗi cá nhân hóa bằng AI
+                {t('proAiPlan')}
               </p>
               <p className="flex items-start gap-2">
                 <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-ga-green" />
-                Phân tích chuyên sâu Radar Chart
+                {t('proRadarAnalysis')}
               </p>
             </div>
             <GaBtn variant="yellow" size="lg" className="mt-6 w-full" onClick={upgradeClick}>
-              Nâng Cấp Ngay
+              {t('upgradeNow')}
             </GaBtn>
           </div>
         </div>

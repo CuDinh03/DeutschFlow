@@ -1,4 +1,5 @@
 import api from '@/lib/api'
+import { uiText } from '@/lib/i18n/clientLocale'
 
 /**
  * asyncJob — client cho hàng đợi job nền của backend (`/api/async-jobs`).
@@ -42,6 +43,9 @@ export function isAsyncJobAccepted(data: unknown): data is AsyncJobAccepted {
 
 export class AsyncJobError extends Error {}
 
+/** Câu chung khi job FAILED mà backend không kèm thông điệp — theo locale UI (cookie `locale`). */
+const jobFailedText = () => uiText({ vi: 'Job thất bại.', en: 'The job failed.', de: 'Der Job ist fehlgeschlagen.' })
+
 const POLL_INTERVAL_MS = 1500
 /** Sinh bài bằng LLM có thể mất hàng chục giây — cho trần rộng rồi mới bỏ cuộc. */
 const DEFAULT_TIMEOUT_MS = 120_000
@@ -67,7 +71,15 @@ export async function waitForAsyncJob<T>(
     const { data } = await api.get<AsyncJobDto>(`/async-jobs/${jobId}`)
 
     if (data.status === 'COMPLETED') {
-      if (!data.resultPayload) throw new AsyncJobError('Job hoàn tất nhưng không có kết quả.')
+      if (!data.resultPayload) {
+        throw new AsyncJobError(
+          uiText({
+            vi: 'Job hoàn tất nhưng không có kết quả.',
+            en: 'The job finished but returned no result.',
+            de: 'Der Job ist abgeschlossen, hat aber kein Ergebnis geliefert.',
+          }),
+        )
+      }
       const payload = JSON.parse(data.resultPayload) as T
       // Lưới an toàn (QA 2026-09-01). Backend từng ghi job HỎNG là COMPLETED với errorMessage rỗng —
       // sự thật chỉ nằm trong payload. Khi đó nhánh FAILED bên dưới là code chết: câu lỗi tử tế của
@@ -78,16 +90,22 @@ export async function waitForAsyncJob<T>(
       const settled = payload as { status?: unknown; error?: unknown } | null
       if (settled && settled.status === 'FAILED') {
         throw new AsyncJobError(
-          typeof settled.error === 'string' && settled.error.trim() ? settled.error : 'Job thất bại.',
+          typeof settled.error === 'string' && settled.error.trim() ? settled.error : jobFailedText(),
         )
       }
       return payload
     }
     if (data.status === 'FAILED') {
-      throw new AsyncJobError(data.errorMessage || 'Job thất bại.')
+      throw new AsyncJobError(data.errorMessage || jobFailedText())
     }
     if (Date.now() >= deadline) {
-      throw new AsyncJobError('Quá thời gian chờ sinh bài.')
+      throw new AsyncJobError(
+        uiText({
+          vi: 'Quá thời gian chờ sinh bài.',
+          en: 'Timed out waiting for the exercise to be generated.',
+          de: 'Zeitüberschreitung beim Erstellen der Aufgabe.',
+        }),
+      )
     }
 
     await sleep(POLL_INTERVAL_MS)

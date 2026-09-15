@@ -2,6 +2,8 @@
 // letter-spaced. `tone` maps to a semantic colour; `solid` fills instead of soft.
 
 import type { LucideIcon } from 'lucide-react-native'
+import { GaGlyph } from './GaGlyph'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { View, Text, type ViewStyle, type StyleProp } from 'react-native'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 
@@ -11,12 +13,14 @@ interface PillProps {
   label: string
   tone?: Tone
   icon?: LucideIcon
+  /** Glyph Galerie (ưu tiên hơn `icon`). */
+  glyph?: GlyphName
   /** Fill the chip with the tone colour instead of the soft tint. */
   solid?: boolean
   style?: StyleProp<ViewStyle>
 }
 
-export function Pill({ label, tone = 'neutral', icon, solid = false, style }: PillProps) {
+export function Pill({ label, tone = 'neutral', icon, glyph, solid = false, style }: PillProps) {
   const c = useTheme().colors
 
   const toneMap: Record<Tone, { soft: string; fg: string; fill: string }> = {
@@ -51,7 +55,11 @@ export function Pill({ label, tone = 'neutral', icon, solid = false, style }: Pi
         style,
       ]}
     >
-      {icon ? <LeadingIcon icon={icon} color={fg} /> : null}
+      {glyph ? (
+        <GaGlyph name={glyph} size={12} inkColor={fg} goldColor={solid ? fg : c.accent} />
+      ) : icon ? (
+        <LeadingIcon icon={icon} color={fg} />
+      ) : null}
       <Text
         style={{
           fontFamily: fonts.bodySemi,

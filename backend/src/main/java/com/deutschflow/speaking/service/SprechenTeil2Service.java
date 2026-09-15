@@ -21,6 +21,8 @@ public class SprechenTeil2Service {
     private final OpenAiChatClient chatClient;
     private final LlmTierResolver llmTierResolver;
     private final ObjectMapper objectMapper;
+    /** Ngân hàng đề Luyện thi Nói (V277 seed 50 thẻ A1 Teil 2) — nguồn chính; danh sách cứng chỉ là dự phòng. */
+    private final com.deutschflow.examspeaking.repository.SpeakingExamTaskRepository examTaskRepository;
     private final Random random = new Random();
 
     public record SprechenCard(String thema, String wort) {}
@@ -75,8 +77,30 @@ public class SprechenTeil2Service {
             new SprechenCard("Freizeit", "Lesen")
     );
 
+    /**
+     * Rút thẻ từ ngân hàng đề dùng chung với phòng luyện thi (một nguồn đề, admin quản qua
+     * /v2/admin/exam-bank). Ngân hàng rỗng/lỗi → rơi về danh sách cứng để placement không bao giờ kẹt.
+     */
     public SprechenCard getRandomCard() {
-        return CARDS.get(random.nextInt(CARDS.size()));
+        List<SprechenCard> pool = bankCards();
+        List<SprechenCard> source = pool.isEmpty() ? CARDS : pool;
+        return source.get(random.nextInt(source.size()));
+    }
+
+    List<SprechenCard> bankCards() {
+        if (examTaskRepository == null) {
+            return List.of();
+        }
+        try {
+            return examTaskRepository.findApproved("GOETHE", "A1", 2, "CARD_QA").stream()
+                    .map(t -> t.getStimulusJson())
+                    .filter(j -> j != null && j.get("thema") != null && j.get("wort") != null)
+                    .map(j -> new SprechenCard(String.valueOf(j.get("thema")), String.valueOf(j.get("wort"))))
+                    .toList();
+        } catch (RuntimeException e) {
+            log.warn("[SprechenTeil2] không đọc được ngân hàng đề, dùng danh sách cứng: {}", e.getMessage());
+            return List.of();
+        }
     }
 
     public Map<String, Object> evaluateTurn(String stage, String thema, String wort, String transcript, String aiQuestionAsked) {

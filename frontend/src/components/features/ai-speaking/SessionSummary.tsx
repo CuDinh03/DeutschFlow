@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { spring } from "@/lib/motion";
 import {
@@ -19,7 +19,7 @@ import { labelForCode } from "@/lib/errors/errorTaxonomy";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface RubricScore {
-  label: string; labelVi: string; score: number; icon: React.ElementType; color: string;
+  labelKey: string; score: number; icon: React.ElementType; color: string;
 }
 
 // AI-generated interview report shape
@@ -54,13 +54,14 @@ interface InterviewReport {
   answer_upgrades?: InterviewAnswerUpgrade[];
 }
 
-// Đợt D 10/08: mã hành động từ InterviewNextStepCatalog (backend) → nhãn + hành vi trên FE.
-const NEXT_STEP_LABELS: Record<string, string> = {
-  RETRY_SAME_POSITION: "Phỏng vấn lại vị trí này",
-  PRACTICE_STAR: "Luyện kể tình huống STAR",
-  DRILL_ERRORS: "Ôn lại lỗi của phiên này",
-  EXPAND_ANSWERS: "Tập trả lời 3–4 câu",
-  FACH_VOCAB: "Luyện từ vựng chuyên ngành",
+// Đợt D 10/08: mã hành động từ InterviewNextStepCatalog (backend) → khoá nhãn (v2.student.sessionSummary)
+// + hành vi trên FE.
+const NEXT_STEP_LABEL_KEYS: Record<string, string> = {
+  RETRY_SAME_POSITION: "nextStepRetrySamePosition",
+  PRACTICE_STAR: "nextStepPracticeStar",
+  DRILL_ERRORS: "nextStepDrillErrors",
+  EXPAND_ANSWERS: "nextStepExpandAnswers",
+  FACH_VOCAB: "nextStepFachVocab",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -94,10 +95,10 @@ function computeScoresFromMessages(messages: ChatMessage[]) {
   const taskScore = Math.min(10, Math.round(Math.min(totalExchanges / 5, 1) * 8 + (totalPerfect > 0 ? 2 : 0)));
   const fluencyScore = Math.min(10, Math.round(totalExchanges >= 3 ? 7 + Math.min(totalPerfect, 3) : totalExchanges * 2.5));
   const rubric: RubricScore[] = [
-    { label: "Vocabulary", labelVi: "Từ vựng", score: vocabScore, icon: BookOpen, color: CYAN },
-    { label: "Grammar & Syntax", labelVi: "Ngữ pháp & Cú pháp", score: grammarScore, icon: Zap, color: PURPLE },
-    { label: "Task Fulfillment", labelVi: "Hoàn thành nhiệm vụ", score: taskScore, icon: Check, color: MINT },
-    { label: "Fluency", labelVi: "Độ trôi chảy", score: fluencyScore, icon: MessageSquare, color: AMBER },
+    { labelKey: "rubricVocabulary", score: vocabScore, icon: BookOpen, color: CYAN },
+    { labelKey: "rubricGrammar", score: grammarScore, icon: Zap, color: PURPLE },
+    { labelKey: "rubricTask", score: taskScore, icon: Check, color: MINT },
+    { labelKey: "rubricFluency", score: fluencyScore, icon: MessageSquare, color: AMBER },
   ];
   const overallScore = Math.round(rubric.reduce((s, r) => s + r.score, 0) / rubric.length * 10);
   return { rubric, overallScore, totalErrors, totalPerfect, totalExchanges };
@@ -135,7 +136,9 @@ export function SessionSummary({
   onReviewErrors,
   onViewHistory,
 }: SessionSummaryProps) {
+  const t = useTranslations("v2.student.sessionSummary");
   const tChat = useTranslations("speaking.chat");
+  const locale = useLocale();
   const { rubric, overallScore, totalErrors, totalPerfect, totalExchanges } = useMemo(
     () => computeScoresFromMessages(messages), [messages]
   );
@@ -148,7 +151,7 @@ export function SessionSummary({
       for (const err of msg.feedback.errors) {
         // QA 09/08 mục G: KHÔNG đổ errorCode thô ra UI ("V2_main_clause" từng hiện nguyên
         // văn); mã ngoài taxonomy rơi về nhãn chung.
-        const label = err.ruleViShort || labelForCode(err.errorCode, 'vi') || 'Lỗi ngữ pháp';
+        const label = err.ruleViShort || labelForCode(err.errorCode, locale) || t("grammarErrorFallback");
         // Gộp trùng theo MÃ (hai biến thể nhãn của cùng một lỗi từng bị đếm thành 2 mục),
         // chỉ dùng nhãn làm khoá khi không có mã.
         const key = err.errorCode || label;
@@ -159,7 +162,7 @@ export function SessionSummary({
       }
     }
     return items.slice(0, 5);
-  }, [messages]);
+  }, [messages, locale, t]);
 
   // Parse AI report if available
   const aiReport = useMemo<InterviewReport | null>(() => {
@@ -250,7 +253,7 @@ export function SessionSummary({
           {hasAiReport ? <ClipboardList size={26} strokeWidth={1.7} aria-hidden /> : <Target size={26} strokeWidth={1.7} aria-hidden />}
         </motion.div>
         <h2 className="font-ga-display text-ga-ink font-medium text-2xl">
-          {isInterviewMode ? "Phỏng vấn kết thúc!" : "Buổi luyện nói kết thúc!"}
+          {isInterviewMode ? t("interviewEndedTitle") : t("sessionEndedTitle")}
         </h2>
         {hasAiReport && aiReport?.verdict_label_vi && (
           <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold"
@@ -274,7 +277,7 @@ export function SessionSummary({
                     style={{ width: size, height: size, background: "var(--ga-surface)", border: "1px solid var(--ga-line)" }}
                   >
                     <span className="text-ga-ink font-bold text-4xl leading-none">{convScore}</span>
-                    <span className="text-[11px] font-semibold mt-1" style={{ color: "var(--ga-subtle)" }}>điểm / 10</span>
+                    <span className="text-[11px] font-semibold mt-1" style={{ color: "var(--ga-subtle)" }}>{t("scoreOutOf10")}</span>
                   </div>
                 );
               }
@@ -286,7 +289,7 @@ export function SessionSummary({
                     style={{ width: size, height: size, background: "var(--ga-surface)", border: "1px solid var(--ga-line)" }}
                   >
                     <span className="text-ga-ink font-bold text-4xl leading-none">{aiOverallScore}</span>
-                    <span className="text-[11px] font-semibold mt-1" style={{ color: "var(--ga-subtle)" }}>điểm / 10</span>
+                    <span className="text-[11px] font-semibold mt-1" style={{ color: "var(--ga-subtle)" }}>{t("scoreOutOf10")}</span>
                   </div>
                 );
               }
@@ -299,7 +302,7 @@ export function SessionSummary({
                   >
                     <Mic size={22} strokeWidth={1.7} className="mb-1" style={{ color: "var(--ga-muted)" }} aria-hidden />
                     <span className="text-[11px] font-medium leading-tight" style={{ color: "var(--ga-muted)" }}>
-                      {interviewInsufficient ? <>Kết thúc quá sớm<br />chưa đủ để chấm</> : <>Chưa chấm được<br />điểm phiên này</>}
+                      {interviewInsufficient ? <>{t("circleTooEarlyLine1")}<br />{t("circleTooEarlyLine2")}</> : <>{t("circleNotScoredLine1")}<br />{t("circleNotScoredLine2")}</>}
                     </span>
                   </div>
                 );
@@ -334,7 +337,7 @@ export function SessionSummary({
                 >
                   <MessageSquare size={22} strokeWidth={1.7} className="mb-1" style={{ color: "var(--ga-muted)" }} aria-hidden />
                   <span className="text-[11px] font-medium leading-tight" style={{ color: "var(--ga-muted)" }}>
-                    Nói thêm vài câu<br />để nhận đánh giá
+                    {t("circleSpeakMoreLine1")}<br />{t("circleSpeakMoreLine2")}
                   </span>
                 </div>
               );
@@ -343,10 +346,10 @@ export function SessionSummary({
           {/* Stats grid */}
           <div className="w-full grid grid-cols-2 gap-2.5 sm:w-auto sm:flex-1">
             {[
-              { icon: Clock, label: "Thời gian", value: duration, color: CYAN },
-              { icon: TrendingUp, label: "Lượt nói", value: `${totalExchanges}`, color: PURPLE },
-              { icon: Check, label: "Hoàn hảo", value: `${totalPerfect}`, color: MINT },
-              { icon: AlertTriangle, label: "Lỗi", value: `${totalErrors}`, color: CORAL },
+              { icon: Clock, label: t("statDuration"), value: duration, color: CYAN },
+              { icon: TrendingUp, label: t("statTurns"), value: `${totalExchanges}`, color: PURPLE },
+              { icon: Check, label: t("statPerfect"), value: `${totalPerfect}`, color: MINT },
+              { icon: AlertTriangle, label: t("statErrors"), value: `${totalErrors}`, color: CORAL },
             ].map(({ icon: Icon, label, value, color }) => (
               <div key={label} className="min-w-0 rounded-[12px] p-2.5 flex flex-col gap-1" style={{ background: "var(--ga-surface)" }}>
                 <Icon size={13} style={{ color }} />
@@ -359,7 +362,7 @@ export function SessionSummary({
         {/* Điểm AI đã lên vòng tròn chính; chỉ giữ dòng phụ khi overall_score không parse được thành số. */}
         {hasAiReport && aiOverallScore == null && aiReport?.overall_score && (
           <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--ga-line)" }}>
-            <span className="text-xs" style={{ color: "var(--ga-muted)" }}>Đánh giá AI: </span>
+            <span className="text-xs" style={{ color: "var(--ga-muted)" }}>{t("aiScoreLabel")}</span>
             <span className="text-sm font-bold" style={{ color: CYAN }}>{aiReport.overall_score}</span>
           </div>
         )}
@@ -370,7 +373,7 @@ export function SessionSummary({
         <div className="rounded-[20px] overflow-hidden" style={glass}>
           <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "var(--ga-line)" }}>
             <Target size={14} style={{ color: AMBER }} />
-            <span className="text-ga-ink font-semibold text-sm">Đánh giá chi tiết (AI)</span>
+            <span className="text-ga-ink font-semibold text-sm">{t("detailedAiTitle")}</span>
           </div>
           {aiReport.categories.map((cat, i) => (
             <motion.div key={i} className="px-4 py-4" style={{ borderTop: i > 0 ? "1px solid var(--ga-line)" : "none" }}
@@ -412,13 +415,13 @@ export function SessionSummary({
         <div className="rounded-[20px] p-4" style={glass}>
           <div className="flex items-center gap-2 mb-3">
             <MessageSquare size={14} style={{ color: PURPLE }} />
-            <span className="text-ga-ink font-semibold text-sm">Tiếng Đức trong phỏng vấn</span>
+            <span className="text-ga-ink font-semibold text-sm">{t("germanInInterviewTitle")}</span>
           </div>
           {/* grammar_accuracy_pct đã bỏ: % do LLM tự bịa, độ chính xác giả (report cũ trong DB còn field này nhưng không render nữa). */}
           <div className="grid grid-cols-2 gap-2 mb-3">
             {aiReport.german_language.vocabulary_level && (
               <div className="rounded-xl p-3" style={{ background: "var(--ga-surface)" }}>
-                <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>Mức từ vựng</span>
+                <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>{t("vocabularyLevel")}</span>
                 <p className="text-ga-ink font-bold text-sm mt-0.5">{aiReport.german_language.vocabulary_level}</p>
               </div>
             )}
@@ -428,7 +431,7 @@ export function SessionSummary({
           )}
           {aiReport.german_language.common_errors_vi && aiReport.german_language.common_errors_vi.length > 0 && (
             <div>
-              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--ga-subtle)" }}>Lỗi thường gặp</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--ga-subtle)" }}>{t("commonErrorsCap")}</span>
               {aiReport.german_language.common_errors_vi.map((e, i) => (
                 <div key={i} className="flex items-center gap-1.5 mt-1">
                   <AlertTriangle size={10} style={{ color: "#FBBF24", flexShrink: 0 }} />
@@ -445,7 +448,7 @@ export function SessionSummary({
         <div className="rounded-[20px] p-4" style={glass}>
           <div className="flex items-center gap-2 mb-3">
             <Lightbulb size={14} style={{ color: AMBER }} />
-            <span className="text-ga-ink font-semibold text-sm">Giải pháp khắc phục</span>
+            <span className="text-ga-ink font-semibold text-sm">{t("remediationTitle")}</span>
           </div>
           {aiReport.remediation_vi.map((r, i) => (
             <div key={i} className="flex items-start gap-2 mb-2">
@@ -464,15 +467,15 @@ export function SessionSummary({
         <div className="rounded-[20px] p-4" style={glass}>
           <div className="flex items-center gap-2 mb-3">
             <MessageSquare size={14} style={{ color: MINT }} />
-            <span className="text-ga-ink font-semibold text-sm">Nên nói thế nào</span>
+            <span className="text-ga-ink font-semibold text-sm">{t("answerUpgradesTitle")}</span>
           </div>
           {aiReport!.answer_upgrades!.map((u, i) => (
             <div key={i} className="mb-3 last:mb-0">
               <div className="rounded-xl px-3 py-2 mb-1 text-xs" style={{ background: "var(--ga-surface)", color: "var(--ga-muted)" }}>
-                <span className="font-semibold" style={{ color: CORAL }}>Bạn nói: </span>„{u.original_quote}“
+                <span className="font-semibold" style={{ color: CORAL }}>{t("youSaid")}</span>„{u.original_quote}“
               </div>
               <div className="rounded-xl px-3 py-2 text-xs" style={{ background: "var(--ga-surface)", color: "var(--ga-ink)" }}>
-                <span className="font-semibold" style={{ color: MINT }}>Nên nói: </span>„{u.better_de}“
+                <span className="font-semibold" style={{ color: MINT }}>{t("betterSay")}</span>„{u.better_de}“
               </div>
             </div>
           ))}
@@ -484,9 +487,9 @@ export function SessionSummary({
         <div className="rounded-[20px] p-4" style={glass}>
           <div className="flex items-center gap-2 mb-3">
             <Target size={14} style={{ color: CYAN }} />
-            <span className="text-ga-ink font-semibold text-sm">Bước tiếp theo cho bạn</span>
+            <span className="text-ga-ink font-semibold text-sm">{t("nextStepsTitle")}</span>
           </div>
-          {aiReport!.next_steps!.filter((st) => NEXT_STEP_LABELS[st.code]).map((st, i) => (
+          {aiReport!.next_steps!.filter((st) => NEXT_STEP_LABEL_KEYS[st.code]).map((st, i) => (
             <div key={i} className="mb-2 last:mb-0">
               {st.reason_vi && (
                 <p className="text-xs mb-1" style={{ color: "var(--ga-muted)" }}>{st.reason_vi}</p>
@@ -495,19 +498,19 @@ export function SessionSummary({
                 <button onClick={onRestart}
                   className="w-full py-2.5 rounded-ga font-semibold text-sm text-left px-3 transition-colors hover:bg-ga-side-active"
                   style={{ background: "var(--ga-surface)", border: "1px solid var(--ga-line)", color: "var(--ga-ink)" }}>
-                  <span className="inline-flex items-center gap-1.5"><Repeat size={14} aria-hidden /> {NEXT_STEP_LABELS[st.code]}</span>
+                  <span className="inline-flex items-center gap-1.5"><Repeat size={14} aria-hidden /> {t(NEXT_STEP_LABEL_KEYS[st.code])}</span>
                 </button>
               ) : st.code === "DRILL_ERRORS" ? (
                 <button onClick={() => onReviewErrors?.(speakingErrors)}
                   className="w-full py-2.5 rounded-ga font-semibold text-sm text-left px-3 transition-colors hover:bg-ga-side-active"
                   style={{ background: "var(--ga-surface)", border: "1px solid var(--ga-line)", color: "var(--ga-ink)" }}>
-                  <span className="inline-flex items-center gap-1.5"><Library size={14} aria-hidden /> {NEXT_STEP_LABELS[st.code]}</span>
+                  <span className="inline-flex items-center gap-1.5"><Library size={14} aria-hidden /> {t(NEXT_STEP_LABEL_KEYS[st.code])}</span>
                 </button>
               ) : (
                 <a href="/v2/student/speaking"
                   className="block w-full py-2.5 rounded-ga font-semibold text-sm px-3 transition-colors hover:bg-ga-side-active"
                   style={{ background: "var(--ga-surface)", border: "1px solid var(--ga-line)", color: "var(--ga-ink)" }}>
-                  <span className="inline-flex items-center gap-1.5"><Target size={14} aria-hidden /> {NEXT_STEP_LABELS[st.code]}</span>
+                  <span className="inline-flex items-center gap-1.5"><Target size={14} aria-hidden /> {t(NEXT_STEP_LABEL_KEYS[st.code])}</span>
                 </a>
               )}
             </div>
@@ -539,7 +542,7 @@ export function SessionSummary({
             <div className="rounded-[20px] p-4" style={glass}>
               <div className="flex items-center gap-2 mb-3">
                 <Check size={14} style={{ color: MINT }} />
-                <span className="text-ga-ink font-semibold text-sm">Điểm mạnh</span>
+                <span className="text-ga-ink font-semibold text-sm">{t("strengthsTitle")}</span>
               </div>
               {conversationReport.strengths.map((s, i) => (
                 <div key={i} className="flex items-start gap-1.5 mb-1">
@@ -554,7 +557,7 @@ export function SessionSummary({
             <div className="rounded-[20px] p-4" style={glass}>
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle size={14} style={{ color: CORAL }} />
-                <span className="text-ga-ink font-semibold text-sm">Cần cải thiện</span>
+                <span className="text-ga-ink font-semibold text-sm">{t("improvementsTitle")}</span>
               </div>
               {conversationReport.improvements.map((s, i) => (
                 <div key={i} className="flex items-start gap-1.5 mb-1">
@@ -570,7 +573,7 @@ export function SessionSummary({
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2">
                   <Zap size={14} style={{ color: PURPLE }} />
-                  <span className="text-ga-ink font-semibold text-sm">Ngữ pháp</span>
+                  <span className="text-ga-ink font-semibold text-sm">{t("grammarTitle")}</span>
                 </div>
                 {conversationReport.grammarAccuracy && (
                   <span className="text-xs font-bold" style={{ color: PURPLE }}>{conversationReport.grammarAccuracy}</span>
@@ -606,7 +609,7 @@ export function SessionSummary({
             <div className="rounded-[20px] p-4" style={glass}>
               <div className="flex items-center gap-2 mb-3">
                 <Target size={14} style={{ color: AMBER }} />
-                <span className="text-ga-ink font-semibold text-sm">Luyện tiếp theo</span>
+                <span className="text-ga-ink font-semibold text-sm">{t("recommendedNextTitle")}</span>
               </div>
               {conversationReport.recommendedNext.map((s, i) => (
                 <div key={i} className="flex items-start gap-1.5 mb-1">
@@ -629,8 +632,8 @@ export function SessionSummary({
           {!convHasContent && (
             <div className="rounded-[20px] p-4 text-center" style={glass}>
               <p className="text-sm leading-relaxed" style={{ color: "var(--ga-muted)" }}>
-                <span className="inline-flex items-center gap-1.5">Buổi luyện nói đã hoàn thành! <PartyPopper size={14} aria-hidden /></span><br />
-                Lần này chưa có đánh giá chi tiết, nhưng mỗi câu bạn nói đều là một bước tiến. Tiếp tục luyện nhé!
+                <span className="inline-flex items-center gap-1.5">{t("noReportTitle")} <PartyPopper size={14} aria-hidden /></span><br />
+                {t("noReportBody")}
               </p>
             </div>
           )}
@@ -643,17 +646,16 @@ export function SessionSummary({
           <MessageSquare size={16} style={{ color: CYAN, flexShrink: 0, marginTop: 2 }} />
           <div>
             <p className="text-sm font-semibold text-ga-ink mb-1">
-              {interviewInsufficient ? "Buổi phỏng vấn kết thúc quá sớm" : "Chưa chấm được phiên này"}
+              {interviewInsufficient ? t("interviewTooEarlyTitle") : t("interviewNotScoredTitle")}
             </p>
             <p className="text-xs leading-relaxed" style={{ color: "var(--ga-muted)" }}>
-              {interviewInsufficient ? (
-                <>Bạn mới trả lời {aiReport?.user_turns ?? 0} câu. Hãy trả lời ít nhất{" "}
-                {aiReport?.min_turns ?? 2} câu (khoảng {aiReport?.min_words ?? 30} từ trở lên) rồi kết
-                thúc — hệ thống chỉ chấm điểm thật dựa trên những gì bạn đã nói, không ước lượng thay.</>
-              ) : (
-                <>Hệ thống chưa tạo được bản đánh giá đạt chuẩn cho phiên này. Bấm &quot;Kết thúc&quot; lần
-                nữa để chấm lại — nếu vẫn không được, thử lại sau ít phút.</>
-              )}
+              {interviewInsufficient
+                ? t("interviewTooEarlyBody", {
+                    n: aiReport?.user_turns ?? 0,
+                    min: aiReport?.min_turns ?? 2,
+                    words: aiReport?.min_words ?? 30,
+                  })
+                : t("interviewNotScoredBody")}
             </p>
           </div>
         </div>
@@ -664,10 +666,9 @@ export function SessionSummary({
         <div className="rounded-[20px] p-4 flex items-start gap-3" style={glass}>
           <MessageSquare size={16} style={{ color: CYAN, flexShrink: 0, marginTop: 2 }} />
           <div>
-            <p className="text-sm font-semibold text-ga-ink mb-1">Chưa đủ để chấm điểm</p>
+            <p className="text-sm font-semibold text-ga-ink mb-1">{t("notEnoughTitle")}</p>
             <p className="text-xs leading-relaxed" style={{ color: "var(--ga-muted)" }}>
-              Bạn mới nói {totalExchanges} câu. Hãy trò chuyện thêm ít nhất {MIN_TURNS_FOR_SCORE} câu
-              để nhận đánh giá sát trình độ hơn — một hai câu chưa đủ để chấm công bằng.
+              {t("notEnoughBody", { n: totalExchanges, min: MIN_TURNS_FOR_SCORE })}
             </p>
           </div>
         </div>
@@ -679,17 +680,16 @@ export function SessionSummary({
         <div className="rounded-[20px] overflow-hidden" style={glass}>
           <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "var(--ga-line)" }}>
             <Star size={14} style={{ color: AMBER }} />
-            <span className="text-ga-ink font-semibold text-sm">Tự đánh giá nhanh</span>
-            <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>(ước lượng theo số lỗi ghi nhận)</span>
+            <span className="text-ga-ink font-semibold text-sm">{t("quickSelfAssessTitle")}</span>
+            <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>{t("quickSelfAssessHint")}</span>
           </div>
           <div className="p-4 space-y-4">
             {rubric.map((r, i) => (
-              <motion.div key={r.label} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 + i * 0.1 }}>
+              <motion.div key={r.labelKey} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 + i * 0.1 }}>
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
                     <r.icon size={13} style={{ color: r.color }} />
-                    <span className="text-sm font-semibold text-ga-ink">{r.label}</span>
-                    <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>({r.labelVi})</span>
+                    <span className="text-sm font-semibold text-ga-ink">{t(r.labelKey)}</span>
                   </div>
                   <span className="text-sm font-bold" style={{ color: r.color }}>{r.score}/10</span>
                 </div>
@@ -709,7 +709,7 @@ export function SessionSummary({
         <div className="rounded-[20px] p-4" style={glass}>
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle size={14} style={{ color: AMBER }} />
-            <span className="text-ga-ink font-semibold text-sm">Lỗi cần ôn lại sau buổi nói</span>
+            <span className="text-ga-ink font-semibold text-sm">{t("errorsToReviewTitle")}</span>
           </div>
           <div className="space-y-2 mb-3">
             {speakingErrors.map((error) => (
@@ -723,7 +723,7 @@ export function SessionSummary({
             className="w-full py-3 rounded-ga font-semibold text-sm transition-colors hover:bg-ga-side-active"
             style={{ background: "var(--ga-card)", color: "var(--ga-ink)", border: "1px solid var(--ga-line)" }}
           >
-            Ôn lại các lỗi này
+            {t("reviewErrorsCta")}
           </button>
         </div>
       )}
@@ -755,7 +755,7 @@ export function SessionSummary({
               border: "1px solid var(--ga-line)",
             }}
           >
-            <RotateCcw size={14} /> Luyện lại
+            <RotateCcw size={14} /> {t("restart")}
           </button>
           <button
             type="button"
@@ -763,7 +763,7 @@ export function SessionSummary({
             className="flex items-center justify-center gap-2 flex-[2] py-3 rounded-ga font-semibold text-sm transition-opacity hover:opacity-90"
             style={{ background: "var(--ga-ink)", color: "var(--ga-bg)" }}
           >
-            <ArrowLeft size={14} /> Về trang chủ
+            <ArrowLeft size={14} /> {t("exitHome")}
           </button>
         </div>
       </div>

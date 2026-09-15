@@ -3,13 +3,19 @@
 import * as React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { GaPageHdr, GaBtn, GaCap, GaIcon } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaIcon, TkBadge } from '@/components/ui-v2'
 import api from '@/lib/api'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 /**
  * admin-audit (/v2/admin/audit) — GaAdminAudit (proto-admin-extra.jsx). Navy.
  * Reuse GET /admin/audit (Page envelope {items,total,page,size}) — admin-only on the backend.
  * Option-1: proto's IP column dropped (audit_logs has no IP). Category = target_type.
+ *
+ * Cột "Trung tâm" đọc `orgId` của `AuditLogDto` (DEC-13): admin nền tảng không thuộc trung tâm nào
+ * nên `users.org_id` của họ NULL, và trước khi có trường này màn nhật ký không cho biết một thao
+ * tác admin đã chạm dữ liệu của trung tâm nào — mọi dòng trông như nhau. `orgId` NULL nghĩa là
+ * hoạt động B2C hoặc job nền, không phải "thiếu dữ liệu".
  */
 
 interface AuditRow {
@@ -21,6 +27,7 @@ interface AuditRow {
   targetType: string | null
   targetId: string | null
   createdAt: string | null
+  orgId: number | null
 }
 
 const PAGE_SIZE = 30
@@ -36,6 +43,7 @@ const CAT_LABEL_KEY: Record<string, string> = {
 
 export default function AdminAuditPage() {
   const t = useTranslations('v2.adminContent.audit')
+  const fmt = useFmt()
   const relTime = (iso: string | null): string => {
     if (!iso) return '—'
     const d = new Date(iso)
@@ -45,7 +53,7 @@ export default function AdminAuditPage() {
     if (m < 60) return t('relMinutes', { count: m })
     const h = Math.round(m / 60)
     if (h < 24) return t('relHours', { count: h })
-    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    return fmt.date(d, { day: '2-digit', month: '2-digit', year: 'numeric' })
   }
   const [rows, setRows] = useState<AuditRow[]>([])
   const [total, setTotal] = useState(0)
@@ -87,9 +95,9 @@ export default function AdminAuditPage() {
   const filters = useMemo(() => ['all', ...seenCats], [seenCats])
 
   const exportCsv = () => {
-    const head = [t('csvActor'), t('csvRole'), t('csvAction'), t('csvTarget'), t('csvId'), t('csvTime')]
+    const head = [t('csvActor'), t('csvRole'), t('csvAction'), t('csvTarget'), t('csvId'), t('csvOrg'), t('csvTime')]
     const lines = rows.map((r) =>
-      [r.actorEmail ?? t('system'), r.actorRole ?? '', r.eventName, r.targetType ?? '', r.targetId ?? '', r.createdAt ?? '']
+      [r.actorEmail ?? t('system'), r.actorRole ?? '', r.eventName, r.targetType ?? '', r.targetId ?? '', r.orgId ?? '', r.createdAt ?? '']
         .map((c) => `"${String(c).replace(/"/g, '""')}"`)
         .join(','),
     )
@@ -143,22 +151,22 @@ export default function AdminAuditPage() {
         </div>
 
         <div className="overflow-x-auto border border-ga-line bg-ga-card lg:overflow-visible">
-          <div className="grid min-w-[620px] grid-cols-[1.2fr_1.4fr_1.4fr_130px] gap-2 border-b border-ga-line bg-ga-surface px-5 py-3 lg:min-w-0">
-            {[t('colActor'), t('colAction'), t('colTarget'), t('colTime')].map((h) => (
+          <div className="grid min-w-[760px] grid-cols-[1.2fr_1.4fr_1.4fr_120px_130px] gap-2 border-b border-ga-line bg-ga-surface px-5 py-3 lg:min-w-0">
+            {[t('colActor'), t('colAction'), t('colTarget'), t('colOrg'), t('colTime')].map((h) => (
               <GaCap key={h} className="text-[10px]">{h}</GaCap>
             ))}
           </div>
 
           {loading && (
-            <div className="min-w-[620px] px-5 py-[30px] text-center text-[13px] text-ga-muted lg:min-w-0">{t('loading')}</div>
+            <div className="min-w-[760px] px-5 py-[30px] text-center text-[13px] text-ga-muted lg:min-w-0">{t('loading')}</div>
           )}
           {error && !loading && (
-            <div className="min-w-[620px] px-5 py-[30px] text-center text-[13px] text-ga-red lg:min-w-0">
+            <div className="min-w-[760px] px-5 py-[30px] text-center text-[13px] text-ga-red lg:min-w-0">
               {t('loadError')} <button onClick={load} className="font-semibold underline">{t('retry')}</button>
             </div>
           )}
           {!loading && !error && rows.length === 0 && (
-            <div className="min-w-[620px] px-5 py-[30px] text-center text-[13px] text-ga-muted lg:min-w-0">{t('empty')}</div>
+            <div className="min-w-[760px] px-5 py-[30px] text-center text-[13px] text-ga-muted lg:min-w-0">{t('empty')}</div>
           )}
 
           {!loading && !error && rows.map((r, i) => {
@@ -166,7 +174,7 @@ export default function AdminAuditPage() {
             return (
               <div
                 key={r.id}
-                className={`grid min-w-[620px] grid-cols-[1.2fr_1.4fr_1.4fr_130px] items-center gap-2 px-5 py-3 lg:min-w-0 ${i ? 'border-t border-ga-line' : ''}`}
+                className={`grid min-w-[760px] grid-cols-[1.2fr_1.4fr_1.4fr_120px_130px] items-center gap-2 px-5 py-3 lg:min-w-0 ${i ? 'border-t border-ga-line' : ''}`}
               >
                 <div className="flex min-w-0 items-center gap-2.5">
                   <span
@@ -184,6 +192,18 @@ export default function AdminAuditPage() {
                 <span className="break-words text-[13px] text-ga-muted">
                   {r.targetType}{r.targetId ? ` · ${r.targetId}` : ''}
                 </span>
+                <span className="flex min-w-0 items-center">
+                  {r.orgId != null ? (
+                    // `id` truyền dạng chuỗi có chủ đích: next-intl định dạng số theo locale, để
+                    // nguyên number thì mã trung tâm 1234 hiện thành "1.234" ở de — sai hẳn ý nghĩa.
+                    <TkBadge tone="navy" className="max-w-full" title={t('orgHint', { id: String(r.orgId) })}>
+                      <GaIcon name="corporate_fare" size={12} />
+                      <span className="truncate">{t('orgTag', { id: String(r.orgId) })}</span>
+                    </TkBadge>
+                  ) : (
+                    <span className="text-ga-caption text-ga-subtle">{t('orgNone')}</span>
+                  )}
+                </span>
                 <span className="text-[12.5px] text-ga-muted">{relTime(r.createdAt)}</span>
               </div>
             )
@@ -192,7 +212,7 @@ export default function AdminAuditPage() {
 
         {!loading && !error && total > rows.length && (
           <p className="ga-ui mt-3 text-[12.5px] text-ga-muted">
-            {t('footerCount', { shown: rows.length, total: total.toLocaleString('vi-VN') })}
+            {t('footerCount', { shown: rows.length, total: fmt.num(total) })}
           </p>
         )}
       </div>

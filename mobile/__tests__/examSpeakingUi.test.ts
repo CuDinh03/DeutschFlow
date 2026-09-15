@@ -1,112 +1,138 @@
-// Khoá các quyết định hiển thị thuần của Luyện thi Nói — đồng hồ neo giờ server,
-// sort level, tông màu điểm, và trích stimulus degrade êm với kiểu lạ.
-
+/**
+ * Helpers thuần của Luyện thi Nói mobile — đợt parity 05/09:
+ * drillSummary (tổng kết drill), verdict/borderline (F-17), gradingFailedCopy (F-08),
+ * isRetryableTurnError + newClientTurnId (F-06), providerName/rubricCaption (telc).
+ */
 import {
-  criterionRatio,
-  formatClock,
-  levelsFromBlueprints,
-  nextPrueferAnnouncement,
-  ratioTone,
-  remainingSec,
-  stateLabel,
-  stimulusDisplay,
+  drillSummary, gradingFailedCopy, isRetryableTurnError, newClientTurnId, providerName, rubricCaption,
+  verdict, verdictLabel, verdictTone,
 } from '@/lib/examSpeakingUi'
 
-describe('levelsFromBlueprints', () => {
-  test('duy nhất + xếp A1→C2 bất kể thứ tự vào', () => {
-    const levels = levelsFromBlueprints([
-      { level: 'B2' }, { level: 'A1' }, { level: 'B1' }, { level: 'B1' }, { level: 'A2' },
+describe('drillSummary', () => {
+  it('trung bình điểm các lượt có điểm, gom lỗi theo câu gốc (giữ lần cuối), bỏ lượt lỗi/không điểm', () => {
+    const s = drillSummary([
+      { score: 8, corrections: [{ code: 'VERB_POS', original: 'Ich gern esse', correction: 'Ich esse gern' }] },
+      null,
+      { error: 'AI trả kết quả không hợp lệ' },
+      { score: 5, corrections: [
+        { code: 'VERB_POS', original: 'ich gern esse', correction: 'Ich esse gern Brot' },
+        { code: 'CASE', original: 'mit der Bus', correction: 'mit dem Bus' },
+        { code: 'X', original: '   ', correction: 'x' },
+      ] },
     ])
-    expect(levels).toEqual(['A1', 'A2', 'B1', 'B2'])
+    expect(s.turns).toBe(2)
+    expect(s.avgScore).toBe(6.5)
+    expect(s.corrections).toEqual([
+      { code: 'VERB_POS', original: 'ich gern esse', correction: 'Ich esse gern Brot' },
+      { code: 'CASE', original: 'mit der Bus', correction: 'mit dem Bus' },
+    ])
+  })
+
+  it('không có lượt chấm → avgScore null, 0 lượt', () => {
+    expect(drillSummary([])).toEqual({ turns: 0, avgScore: null, corrections: [] })
   })
 })
 
-describe('remainingSec — đồng hồ neo giờ SERVER', () => {
-  const serverNow = '2026-09-02T10:00:00.000Z'
-  const deadline = '2026-09-02T10:05:00.000Z' // còn 300s tại thời điểm fetch
-
-  test('đồng hồ máy lệch bao nhiêu cũng không sai giờ thi', () => {
-    const clientAtFetch = 1_000_000 // giá trị client tuỳ ý — chỉ hiệu số có nghĩa
-    expect(remainingSec(deadline, serverNow, clientAtFetch, clientAtFetch)).toBe(300)
-    expect(remainingSec(deadline, serverNow, clientAtFetch, clientAtFetch + 60_000)).toBe(240)
-  })
-
-  test('quá hạn → 0 (không âm); thiếu deadline/mốc hỏng → null', () => {
-    expect(remainingSec(deadline, serverNow, 0, 400_000)).toBe(0)
-    expect(remainingSec(null, serverNow, 0, 0)).toBeNull()
-    expect(remainingSec('hỏng', serverNow, 0, 0)).toBeNull()
+describe('verdict (F-17)', () => {
+  it('sát ngưỡng thắng đỗ/trượt; không ngưỡng → NONE', () => {
+    expect(verdict({ passed: true, borderline: true })).toBe('BORDERLINE')
+    expect(verdict({ passed: true })).toBe('PASS')
+    expect(verdict({ passed: false, borderline: false })).toBe('FAIL')
+    expect(verdict({ passed: null })).toBe('NONE')
+    expect(verdictLabel('BORDERLINE')).toBe('SÁT NGƯỠNG')
+    expect(verdictTone('BORDERLINE')).toBe('accent')
+    expect(verdictTone('FAIL')).toBe('danger')
   })
 })
 
-describe('formatClock', () => {
-  test.each([
-    [0, '0:00'],
-    [59, '0:59'],
-    [60, '1:00'],
-    [305, '5:05'],
-  ])('%is → %s', (sec, out) => {
-    expect(formatClock(sec)).toBe(out)
+describe('gradingFailedCopy (F-08)', () => {
+  it('QUOTA_EXCEEDED → thông điệp hết ngân sách + gợi ý nạp; lý do khác → job lỗi, không mời nạp', () => {
+    const q = gradingFailedCopy('QUOTA_EXCEEDED')
+    expect(q.topUp).toBe(true)
+    expect(q.message).toMatch(/không phải thi lại/)
+    expect(gradingFailedCopy('JOB_FAILED').topUp).toBe(false)
+    expect(gradingFailedCopy(null).title).toBe('Chấm bài gặp lỗi')
   })
 })
 
-describe('stateLabel', () => {
-  test('phủ đủ các trạng thái phiên của backend', () => {
-    for (const s of ['PREP', 'IN_PART', 'BETWEEN', 'DONE', 'GRADING', 'RESULTS', 'GRADING_FAILED', 'ABORTED'] as const) {
-      expect(stateLabel(s)).not.toBe(s) // đều có nhãn tiếng Việt, không rơi fallback
-    }
+describe('retry idempotent (F-06)', () => {
+  it('không response / 5xx / 409 đang xử lý → gửi lại được; 4xx khác → không', () => {
+    expect(isRetryableTurnError(new Error('timeout'))).toBe(true)
+    expect(isRetryableTurnError({ response: { status: 503 } })).toBe(true)
+    expect(isRetryableTurnError({ response: { status: 409, data: { detail: 'Lượt nói này đang được xử lý — chờ vài giây' } } })).toBe(true)
+    expect(isRetryableTurnError({ response: { status: 409, data: { detail: 'Hết giờ Teil 2 — đã chuyển sang phần kế tiếp.' } } })).toBe(false)
+    expect(isRetryableTurnError({ response: { status: 413 } })).toBe(false)
+    expect(isRetryableTurnError({ response: { status: 400 } })).toBe(false)
+  })
+
+  it('newClientTurnId: khoá an toàn cho query (chữ, số, - _ . :) và không trùng', () => {
+    const a = newClientTurnId()
+    const b = newClientTurnId()
+    expect(a).toMatch(/^[A-Za-z0-9_.:-]+$/)
+    expect(a).not.toBe(b)
   })
 })
 
-describe('criterionRatio + ratioTone', () => {
-  test('ratio kẹp 0..1 và chịu được max=0', () => {
-    expect(criterionRatio(23, 25)).toBeCloseTo(0.92)
-    expect(criterionRatio(30, 25)).toBe(1)
-    expect(criterionRatio(-1, 25)).toBe(0)
-    expect(criterionRatio(5, 0)).toBe(0)
-  })
-  test('ngưỡng tông màu theo design đã chốt: ≥0.85 xanh, ≥0.72 vàng, dưới là cam', () => {
-    expect(ratioTone(0.92)).toBe('success')
-    expect(ratioTone(0.8)).toBe('gold')
-    expect(ratioTone(0.72)).toBe('gold')
-    expect(ratioTone(0.71)).toBe('orange')
+describe('provider labels', () => {
+  it('telc vs Goethe', () => {
+    expect(providerName('TELC')).toBe('telc')
+    expect(providerName('GOETHE')).toBe('Goethe')
+    expect(rubricCaption('TELC')).toMatch(/telc/)
+    expect(rubricCaption('GOETHE')).toMatch(/Goethe/)
   })
 })
 
-describe('stimulusDisplay — degrade êm với mọi kiểu stimulus', () => {
-  test('lấy headline từ các khoá phổ biến (thema/prompt/keyword/wort…)', () => {
-    expect(stimulusDisplay({ thema: 'Mein Traumberuf' }).headline).toBe('Mein Traumberuf')
-    expect(stimulusDisplay({ prompt: 'Beschreiben Sie das Bild.' }).headline).toBe('Beschreiben Sie das Bild.')
-    expect(stimulusDisplay({ number: 42 }).headline).toBe('42')
-  })
-  test('gom bullets từ keywords/hints; kiểu lạ → rỗng chứ không nổ', () => {
-    expect(stimulusDisplay({ keywords: ['wann?', 'wo?'], hints: ['砸'] }).bullets).toEqual(['wann?', 'wo?', '砸'])
-    expect(stimulusDisplay({ weird: { nested: true } })).toEqual({ headline: null, bullets: [] })
-    expect(stimulusDisplay(null)).toEqual({ headline: null, bullets: [] })
-  })
-})
+describe('stimulusDisplay — đủ 15 kiểu thẻ (QA simulator 06/09: B1 T2/T3 từng hiện ô trống)', () => {
+  const { stimulusDisplay } = require('@/lib/examSpeakingUi') as typeof import('@/lib/examSpeakingUi')
 
-describe('nextPrueferAnnouncement — chặn lặp câu dẫn giám khảo (directive là echo lời PRUEFER gần nhất)', () => {
-  const INTRO = 'Teil 1: Fragen zur Person. Ihre erste Karte: Auto?'
-
-  test('mới vào màn/Teil (chưa hiển thị gì) → hiển thị', () => {
-    expect(nextPrueferAnnouncement(null, INTRO)).toBe(INTRO)
+  it('FOLIEN_DECK: topic làm headline, folien thành gạch đầu dòng', () => {
+    const d = stimulusDisplay({ type: 'FOLIEN_DECK', topic: 'Lernen mit dem Computer oder mit Büchern?', folien: ['Thema vorstellen', 'Eigene Erfahrung'] })
+    expect(d.headline).toBe('Lernen mit dem Computer oder mit Büchern?')
+    expect(d.bullets).toEqual(['Thema vorstellen', 'Eigene Erfahrung'])
   })
 
-  test('cùng câu echo lại ở step sau (partner vừa đáp xong) → bỏ qua, không chèn lần 2', () => {
-    expect(nextPrueferAnnouncement(INTRO, INTRO)).toBeNull()
+  it('PARTNER_PRESENTATION: topic + instruction; partnerPresentation KHÔNG BAO GIỜ lộ', () => {
+    const d = stimulusDisplay({ type: 'PARTNER_PRESENTATION', topic: 'Online einkaufen', instruction: 'Hören Sie zu.', partnerPresentation: 'BÍ MẬT' })
+    expect(d.headline).toBe('Online einkaufen')
+    expect(d.lines).toEqual(['Hören Sie zu.'])
+    expect(JSON.stringify(d)).not.toContain('BÍ MẬT')
   })
 
-  test('lệch khoảng trắng rìa vẫn tính là lặp', () => {
-    expect(nextPrueferAnnouncement(INTRO, `  ${INTRO}\n`)).toBeNull()
+  it('CONTACT_CARD / PLANNING_CARD / TOPIC_CHOICE: instruction/context/goal là dòng phụ, topics/prompts/aspects là gạch đầu dòng', () => {
+    expect(stimulusDisplay({ type: 'CONTACT_CARD', instruction: 'Lernen Sie sich kennen.', topics: ['Name', 'Herkunft'] }))
+      .toEqual({ headline: null, lines: ['Lernen Sie sich kennen.'], bullets: ['Name', 'Herkunft'] })
+    const p = stimulusDisplay({ type: 'PLANNING_CARD', situation: 'Sie möchten zusammen an einem Sportlauf teilnehmen.', prompts: ['Wann trainieren?', 'Wo anmelden?'] })
+    expect(p.headline).toMatch(/Sportlauf/)
+    expect(p.bullets).toEqual(['Wann trainieren?', 'Wo anmelden?'])
+    const t = stimulusDisplay({ type: 'TOPIC_CHOICE', topic: 'Homeoffice', context: 'Debattierclub', instruction: 'Halten Sie einen Vortrag.', aspects: ['Vorteile', 'Nachteile'], structureHint: 'Einleitung – Hauptteil – Schluss' })
+    expect(t.headline).toBe('Homeoffice')
+    expect(t.lines).toEqual(['Halten Sie einen Vortrag.', 'Debattierclub', 'Einleitung – Hauptteil – Schluss'])
+    expect(t.bullets).toEqual(['Vorteile', 'Nachteile'])
   })
 
-  test('giám khảo nói câu MỚI → hiển thị (đã trim)', () => {
-    expect(nextPrueferAnnouncement(INTRO, ' Danke. Und was arbeiten Sie? ')).toBe('Danke. Und was arbeiten Sie?')
+  it('CALENDAR_PAIR / TOPIC_GRAPHIC_PAIR: lịch và biểu đồ của THÍ SINH thành dòng "nhãn: giá trị"; phần partner bị bỏ', () => {
+    const c = stimulusDisplay({ type: 'CALENDAR_PAIR', situation: 'Kino', goal: 'Termin finden', candidateCalendar: { Montag: ['frei'], Dienstag: ['8–16 Arbeit', '19 Sport'] }, partnerCalendar: { Montag: ['Arbeit'] } })
+    expect(c.headline).toBe('Kino')
+    expect(c.lines).toEqual(['Termin finden'])
+    expect(c.bullets).toEqual(['Montag: frei', 'Dienstag: 8–16 Arbeit, 19 Sport'])
+    const g = stimulusDisplay({ type: 'TOPIC_GRAPHIC_PAIR', thema: 'Ferien und Reisen', instruction: 'Berichten Sie.', candidateText: 'Umfrage 2025', candidateChart: [{ label: 'Meer', value: '45 %' }, { label: 'Berge', value: '30 %' }], partnerText: 'GEHEIM' })
+    expect(g.headline).toBe('Ferien und Reisen')
+    expect(g.lines).toEqual(['Berichten Sie.', 'Umfrage 2025'])
+    expect(g.bullets).toEqual(['Meer: 45 %', 'Berge: 30 %'])
+    expect(JSON.stringify(g)).not.toContain('GEHEIM')
   })
 
-  test('directive trống/thiếu → không hiển thị gì', () => {
-    expect(nextPrueferAnnouncement(INTRO, null)).toBeNull()
-    expect(nextPrueferAnnouncement(null, undefined)).toBeNull()
-    expect(nextPrueferAnnouncement(null, '   ')).toBeNull()
+  it('A1/A2: THEME_CARD, PICTURE_CARD, QUESTION_WORD_CARD, KEYWORD_CARD, DEBATE_TEXT', () => {
+    expect(stimulusDisplay({ type: 'THEME_CARD', thema: 'Essen', wort: 'Brot' })).toEqual({ headline: 'Essen', lines: ['Wort: Brot'], bullets: [] })
+    expect(stimulusDisplay({ type: 'PICTURE_CARD', article: 'der', object: 'Apfel', iconKey: 'apple' }).headline).toBe('der Apfel')
+    expect(stimulusDisplay({ type: 'QUESTION_WORD_CARD', thema: 'Freizeit', questionWord: 'Wann' }).lines).toEqual(['Fragewort: Wann'])
+    const k = stimulusDisplay({ type: 'KEYWORD_CARD', keywords: ['Name?', 'Alter?'], spell: 'Nguyen', number: '0176 123' })
+    expect(k.bullets).toEqual(['Name?', 'Alter?'])
+    expect(k.lines).toEqual(['Buchstabieren: Nguyen', 'Nummer: 0176 123'])
+    const d = stimulusDisplay({ type: 'DEBATE_TEXT', question: 'Handyverbot an Schulen?', text: 'Immer mehr Schulen…', instruction: 'Diskutieren Sie.', partnerStance: 'dagegen' })
+    expect(d.headline).toBe('Handyverbot an Schulen?')
+    expect(d.lines).toEqual(['Diskutieren Sie.', 'Immer mehr Schulen…'])
+    expect(JSON.stringify(d)).not.toContain('dagegen')
+    expect(stimulusDisplay(null)).toEqual({ headline: null, lines: [], bullets: [] })
   })
 })

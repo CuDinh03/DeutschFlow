@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { ChevronDown, ChevronUp, ShieldAlert } from 'lucide-react'
 import { GaCap, TkBadge } from '@/components/ui-v2'
+import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import type { CriterionResult, ScoreSheet, SheetMsg } from '@/types/exam-speaking'
 
 interface Props {
@@ -28,6 +29,7 @@ const KNOWN_MSGS = new Set([
   'passSpeakingOnly', 'passModule', 'passNoThreshold',
   'noAssessment', 'silentTeilCriterion', 'itemNotMentioned', 'llmInvalid', 'llmInvalidBand', 'criterionNotGraded',
   'lexMetrics', 'cohesionMetrics', 'errorDensity', 'llmProposedBand', 'fluencyBlend', 'sttConfidence', 'noAudioTextOnly',
+  'borderline',
 ])
 
 /** reducedMaxNote đã có dòng riêng trên header (t('reducedMax')) — bỏ khỏi danh sách ghi chú để khỏi lặp. */
@@ -45,6 +47,7 @@ function useMsgText() {
  */
 export function Ergebnisbogen({ sheet }: Props) {
   const t = useTranslations('v2.student.examSpeaking.result')
+  const locale = useLocale()
   const msgText = useMsgText()
   const reduced = sheet.maxPoints + 0.01 < sheet.officialMax
   const range = sheet.totalLow !== sheet.totalHigh ? `${fmt(sheet.totalLow)}–${fmt(sheet.totalHigh)}` : null
@@ -72,7 +75,10 @@ export function Ergebnisbogen({ sheet }: Props) {
               <p className="ga-ui mt-1 text-[12px] text-ga-muted">{t('multiPassNote', { passes: sheet.passes })}</p>
             )}
           </div>
-          {sheet.passed === null ? (
+          {sheet.borderline ? (
+            // F-17: khoảng điểm vắt qua ngưỡng — không tuyên bố đỗ/trượt dứt khoát.
+            <TkBadge tone="yellow" data-testid="result-borderline">{t('borderline')}</TkBadge>
+          ) : sheet.passed === null ? (
             <TkBadge tone="neutral">{t('noThreshold')}</TkBadge>
           ) : sheet.passed ? (
             <TkBadge tone="green" data-testid="result-passed">{t('passed')}</TkBadge>
@@ -81,6 +87,11 @@ export function Ergebnisbogen({ sheet }: Props) {
           )}
         </div>
         <p className="ga-ui mt-3 text-[13px] text-ga-ink">{passRuleText}</p>
+        {sheet.borderline && (
+          <p className="ga-ui mt-1 text-[12.5px] font-semibold text-ga-ink" data-testid="result-borderline-note">
+            {t('borderlineNote', { low: fmt(sheet.totalLow), high: fmt(sheet.totalHigh) })}
+          </p>
+        )}
         {reduced && (
           <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">{t('reducedMax', { max: fmt(sheet.maxPoints), official: fmt(sheet.officialMax) })}</p>
         )}
@@ -130,7 +141,7 @@ export function Ergebnisbogen({ sheet }: Props) {
                 <span className="text-ga-red line-through">{e.original}</span>
                 <span className="mx-1.5 text-ga-muted">→</span>
                 <span className="font-semibold text-ga-green">{e.correction}</span>
-                <span className="ml-1.5 text-[11px] text-ga-muted">{e.code} · T{e.teilNo}</span>
+                <span className="ml-1.5 text-[11px] text-ga-muted">{getErrorSnippet(e.code, locale).title} · T{e.teilNo}</span>
               </li>
             ))}
           </ul>

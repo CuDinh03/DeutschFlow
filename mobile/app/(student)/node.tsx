@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { View, Alert } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { Lock, BookOpen, Sparkles, Quote, Star, CircleCheck } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
@@ -20,7 +20,7 @@ import {
   ErrorState,
   Skeleton,
   VocabGlyphTile,
-} from '@/components/ui'
+GaGlyph } from '@/components/ui'
 import {
   skillTreeApi,
   type TheoryCard,
@@ -30,6 +30,8 @@ import {
 import { hasAnySkillExercise } from '@/lib/skillExercises'
 import { findNextNode } from '@/lib/nextNode'
 import { LessonCompleteNav } from '@/components/LessonCompleteNav'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 // Cap how long markLearned holds the button loading while waiting for the fresh tree that
 // feeds "Bài tiếp theo"; a slow tree refetch reveals anyway and nextNode self-heals.
@@ -39,6 +41,8 @@ const REVEAL_TREE_CAP_MS = 3000
 // Nodes with exercises open the practice runner (node-practice.tsx); theory-only nodes
 // (no gradeable exercises) complete via the "Đánh dấu đã học" action below.
 export default function NodeScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['node'])
   const c = useTheme().colors
   const params = useLocalSearchParams<{ nodeId: string; title?: string }>()
   const nodeId = Number(params.nodeId)
@@ -74,6 +78,8 @@ export default function NodeScreen() {
     onSuccess: async () => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       const treeRefresh = qc.invalidateQueries({ queryKey: ['skill-tree'] }).catch(() => {})
+      // Lernweg + card Lộ trình đọc /roadmap/me (N1, 05/09) — làm mới cùng lúc với skill-tree.
+      void qc.invalidateQueries({ queryKey: ['roadmap-me'] }).catch(() => {})
       // Await node-session fully — it flips this screen to done; the mutation stays pending
       // (button loading) until onSuccess settles, so there's no wrong-state flash or re-tap
       // window. Then wait for the fresh tree that feeds "Bài tiếp theo", but cap it so a slow
@@ -89,7 +95,7 @@ export default function NodeScreen() {
       <AppHeader
         title={params.title ?? data?.titleVi ?? 'Bài học'}
         subtitle={data?.cefrLevel ? `${data.cefrLevel}${data.titleDe ? ` · ${data.titleDe}` : ''}` : undefined}
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)/roadmap'))}
+        onBack={goBack}
       />
 
       {isLoading ? (
@@ -101,11 +107,11 @@ export default function NodeScreen() {
         <ErrorState onRetry={() => void refetch()} />
       ) : locked ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
-          <EmptyState icon={Lock} title="Chưa mở khoá" message="Hoàn thành các bài trước để mở khoá bài học này." />
+          <EmptyState glyph="khoa" title="Chưa mở khoá" message="Hoàn thành các bài trước để mở khoá bài học này." />
         </View>
       ) : empty ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
-          <EmptyState icon={BookOpen} title="Nội dung đang cập nhật" message="Bài học này chưa có nội dung trên app." />
+          <EmptyState glyph="doc" title="Nội dung đang cập nhật" message="Bài học này chưa có nội dung trên app." />
         </View>
       ) : (
         <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[5], paddingTop: space[2] }}>
@@ -132,7 +138,7 @@ export default function NodeScreen() {
                     borderTopColor: c.accentSoft,
                   }}
                 >
-                  <Icon icon={Star} size={15} color="accent" fill />
+                  <GaGlyph name="xp" size={15} ink="primary" />
                   <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
                     +{data.xpReward} XP khi hoàn thành
                   </ThemedText>
@@ -143,7 +149,7 @@ export default function NodeScreen() {
 
           {/* Theory cards */}
           {(content?.theory_cards?.length ?? 0) > 0 ? (
-            <Section icon={Sparkles} title="Lý thuyết">
+            <Section glyph="dulieuai" title="Lý thuyết">
               {content!.theory_cards!.map((card, i) => (
                 <TheoryCardView key={i} card={card} />
               ))}
@@ -152,7 +158,7 @@ export default function NodeScreen() {
 
           {/* Vocabulary */}
           {(content?.vocabulary?.length ?? 0) > 0 ? (
-            <Section icon={BookOpen} title={`Từ vựng · ${content!.vocabulary!.length}`}>
+            <Section glyph="doc" title={`Từ vựng · ${content!.vocabulary!.length}`}>
               <Card style={{ gap: space[3] }}>
                 {content!.vocabulary!.map((v, i) => (
                   <VocabRow key={v.id ?? i} item={v} divider={i > 0} />
@@ -163,7 +169,7 @@ export default function NodeScreen() {
 
           {/* Phrases */}
           {(content?.phrases?.length ?? 0) > 0 ? (
-            <Section icon={Quote} title="Mẫu câu">
+            <Section glyph="hoithoai" title="Mẫu câu">
               <Card style={{ gap: space[3] }}>
                 {content!.phrases!.map((p, i) => (
                   <PhraseRow key={i} phrase={p} divider={i > 0} />
@@ -198,7 +204,7 @@ export default function NodeScreen() {
                   paddingVertical: space[2],
                 }}
               >
-                <Icon icon={CircleCheck} size={18} color="success" />
+                <GaGlyph name="hoanthanh" size={18} ink="success" gold="success" />
                 <ThemedText variant="bodyStrong" style={{ color: c.success }}>
                   Đã hoàn thành bài học
                 </ThemedText>
@@ -213,7 +219,7 @@ export default function NodeScreen() {
                         } as unknown as Href)
                     : undefined
                 }
-                onRoadmap={() => router.replace('/(student)/roadmap')}
+                onRoadmap={() => router.replace('/(student)/lernweg')}
               />
             </View>
           ) : hasSkillExercises ? (
@@ -252,12 +258,12 @@ export default function NodeScreen() {
   )
 }
 
-function Section({ icon, title, children }: { icon: typeof BookOpen; title: string; children: ReactNode }) {
+function Section({ glyph, title, children }: { glyph: GlyphName; title: string; children: ReactNode }) {
   return (
     <View style={{ gap: space[3] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <YellowSquare size={7} />
-        <Icon icon={icon} size={14} color="accent" />
+        <GaGlyph name={glyph} size={14} ink="accentText" />
         <Caption>{title}</Caption>
       </View>
       {children}

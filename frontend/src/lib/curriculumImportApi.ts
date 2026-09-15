@@ -1,4 +1,5 @@
 import api from '@/lib/api'
+import { uiText } from '@/lib/i18n/clientLocale'
 
 /**
  * Nhập PDF thành nội dung giảng dạy — client cho luồng hai bước.
@@ -147,15 +148,34 @@ export async function waitForPreview(
 
     if (data.status === 'COMPLETED') {
       if (!data.resultPayload) {
-        throw new CurriculumImportError('Phân tích xong nhưng không có kết quả.')
+        throw new CurriculumImportError(
+          uiText({
+            vi: 'Phân tích xong nhưng không có kết quả.',
+            en: 'Analysis finished but returned no result.',
+            de: 'Die Analyse ist abgeschlossen, hat aber kein Ergebnis geliefert.',
+          }),
+        )
       }
       return JSON.parse(data.resultPayload) as CurriculumImportPreview
     }
     if (data.status === 'FAILED') {
-      throw new CurriculumImportError(data.errorMessage || 'Phân tích tài liệu thất bại.')
+      throw new CurriculumImportError(
+        data.errorMessage ||
+          uiText({
+            vi: 'Phân tích tài liệu thất bại.',
+            en: 'Document analysis failed.',
+            de: 'Die Dokumentanalyse ist fehlgeschlagen.',
+          }),
+      )
     }
     if (Date.now() >= deadline) {
-      throw new CurriculumImportError('Quá thời gian chờ phân tích tài liệu.')
+      throw new CurriculumImportError(
+        uiText({
+          vi: 'Quá thời gian chờ phân tích tài liệu.',
+          en: 'Timed out waiting for the document analysis.',
+          de: 'Zeitüberschreitung bei der Dokumentanalyse.',
+        }),
+      )
     }
 
     await sleep(POLL_INTERVAL_MS)

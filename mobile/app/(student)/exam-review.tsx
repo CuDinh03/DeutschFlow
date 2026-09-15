@@ -1,6 +1,6 @@
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { Check, X } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
@@ -16,11 +16,15 @@ import {
   Skeleton,
 } from '@/components/ui'
 import { examApi, type ReviewItem } from '@/lib/examApi'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 const TF_LABEL: Record<string, string> = { richtig: 'Richtig', falsch: 'Falsch' }
 const label = (v: string | null) => (v == null ? '—' : (TF_LABEL[v.toLowerCase()] ?? v))
 
 export default function ExamReviewScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['exam-review'])
   const c = useTheme().colors
   const params = useLocalSearchParams<{ attemptId: string; title?: string }>()
   const attemptId = Number(params.attemptId)
@@ -37,7 +41,7 @@ export default function ExamReviewScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title={params.title ?? 'Xem lại bài thi'} subtitle="Phần Đọc" onBack={() => router.back()} />
+      <AppHeader title={params.title ?? 'Xem lại bài thi'} subtitle="Phần Đọc" onBack={goBack} />
 
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>

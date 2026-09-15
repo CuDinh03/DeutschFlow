@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { AlertTriangle, ArrowLeft, Calendar, ChevronDown, ChevronUp, MessageSquare, Mic, Plus } from 'lucide-react'
 import api from '@/lib/api'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { GaCap, GaCard, GaPageHdr, LoadingState, TkBadge } from '@/components/ui-v2'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 /**
  * /v2/student/speaking/history — lịch sử hội thoại luyện nói (vỏ Galerie).
@@ -103,6 +104,7 @@ function severityTone(s: string) {
 
 function MessageBubble({ msg }: { msg: SessionMessage }) {
   const t = useTranslations('v2.student.speakingHistory')
+  const locale = useLocale()
   const [expanded, setExpanded] = useState(false)
   const isUser = msg.role === 'USER'
   const bodyText = (isUser ? msg.userText : msg.aiSpeechDe)?.trim() ?? ''
@@ -169,8 +171,8 @@ function MessageBubble({ msg }: { msg: SessionMessage }) {
                 >
                   <div className="mb-0.5 flex items-center gap-1.5">
                     <AlertTriangle size={10} aria-hidden />
-                    <span className="font-bold" title={err.errorCode}>
-                      {getErrorSnippet(err.errorCode, 'vi').title}
+                    <span className="font-bold" title={getErrorSnippet(err.errorCode, locale).rule}>
+                      {getErrorSnippet(err.errorCode, locale).title}
                     </span>
                     <span className="opacity-60">({err.severity})</span>
                   </div>
@@ -193,6 +195,7 @@ function MessageBubble({ msg }: { msg: SessionMessage }) {
 export default function V2StudentSpeakingHistoryPage() {
   usePageTimeTracker('speaking_history')
   const t = useTranslations('v2.student.speakingHistory')
+  const fmt = useFmt()
 
   const [sessions, setSessions] = useState<SpeakingSession[]>([])
   const [selected, setSelected] = useState<SpeakingSession | null>(null)
@@ -346,8 +349,8 @@ export default function V2StudentSpeakingHistoryPage() {
                             {date && (
                               <span className="inline-flex items-center gap-1">
                                 <Calendar size={11} aria-hidden />
-                                {date.toLocaleDateString('vi-VN')} —{' '}
-                                {date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                {fmt.date(date)} —{' '}
+                                {fmt.time(date, { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             )}
                             <span className="inline-flex items-center gap-1">

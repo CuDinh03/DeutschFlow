@@ -5,19 +5,17 @@
 // hub thi, không phải một sessionMode); "Luyện tập" (LESSON) đang KHOÁ theo
 // quyết định 02/09 — mở lại khi luồng lesson được làm mới.
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { Pressable, ScrollView, View } from 'react-native'
 import { MotiView } from 'moti'
 import { useQuery } from '@tanstack/react-query'
-import {
-  MessageCircle, GraduationCap, Briefcase, Lock, Check, Award,
-  Laptop, ShoppingBag, Stethoscope, Wrench, UtensilsCrossed, Mic, Languages,
-  type LucideIcon,
-} from 'lucide-react-native'
+import { Check } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { ThemedText, Icon, Button, useTabBarClearance } from '@/components/ui'
+import { ThemedText, Icon, Button, useTabBarClearance, GaGlyph } from '@/components/ui'
 import { SpotlightTarget } from '@/components/guide/SpotlightTour'
 import { SPOTLIGHT_TARGETS } from '@/components/guide/spotlightTours'
+import { SpotlightScrollHostProvider } from '@/components/guide/spotlightScrollHost'
 import {
   PERSONA_LIST,
   PERSONA_GROUPS,
@@ -34,6 +32,10 @@ export interface StartArgs {
   cefrLevel: string
   interviewPosition?: string
   experienceLevel?: string
+  /** N2: phiên gắn bài giao — id dòng bài của học viên (StudentAssignment.id). */
+  assignmentId?: number | null
+  /** N2: mã persona gửi backend thay cho persona.id (bài giao dùng 'DEFAULT' = gia sư trung tính như web). */
+  backendPersona?: string
 }
 
 interface CompanionSelectProps {
@@ -47,21 +49,21 @@ interface CompanionSelectProps {
 }
 
 /** 'EXAM' là ô điều hướng (không phải sessionMode); `locked` = ô hiển thị nhưng chưa mở. */
-const MODES: { key: SpeakingSessionMode | 'EXAM'; label: string; icon: LucideIcon; locked?: boolean }[] = [
-  { key: 'COMMUNICATION', label: 'Hội thoại', icon: MessageCircle },
-  { key: 'INTERVIEW', label: 'Phỏng vấn', icon: Briefcase },
-  { key: 'EXAM', label: 'Thi nói', icon: Award },
-  { key: 'LESSON', label: 'Luyện tập', icon: GraduationCap, locked: true },
+const MODES: { key: SpeakingSessionMode | 'EXAM'; label: string; glyph: GlyphName; locked?: boolean }[] = [
+  { key: 'COMMUNICATION', label: 'Hội thoại', glyph: 'hoithoai' },
+  { key: 'INTERVIEW', label: 'Phỏng vấn', glyph: 'phongvan' },
+  { key: 'EXAM', label: 'Thi nói', glyph: 'thinoi' },
+  { key: 'LESSON', label: 'Luyện tập', glyph: 'hoc', locked: true },
 ]
 
-const GROUP_ICONS: Record<PersonaGroup, LucideIcon> = {
-  it: Laptop,
-  verkauf: ShoppingBag,
-  medizin: Stethoscope,
-  maschinenbau: Wrench,
-  service: UtensilsCrossed,
-  medien: Mic,
-  special: Languages,
+const GROUP_ICONS: Record<PersonaGroup, GlyphName> = {
+  it: 'laptop',
+  verkauf: 't_shopping',
+  medizin: 't_health',
+  maschinenbau: 'banhrang',
+  service: 't_food',
+  medien: 'speaking',
+  special: 'ngonngu',
 }
 
 const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1']
@@ -79,6 +81,8 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
   // Thanh tab liquid-glass nổi đè lên nội dung — nút "Bắt đầu" cuối trang phải
   // nằm trên kính, không bị pill che.
   const tabClearance = useTabBarClearance(space[6])
+  // Cho tour host cuộn hàng mode vào tầm nhìn trước khi chiếu sáng (màn nhỏ).
+  const scrollRef = useRef<ScrollView | null>(null)
   // LESSON đang khoá — deep link cũ ?mode=LESSON rơi êm về Hội thoại.
   const [mode, setMode] = useState<SpeakingSessionMode>(
     initialMode && initialMode !== 'LESSON' ? initialMode : 'COMMUNICATION',
@@ -160,6 +164,7 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={{ flex: 1 }}
       contentContainerStyle={{ paddingBottom: tabClearance }}
       showsVerticalScrollIndicator={false}
@@ -171,10 +176,13 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
         </ThemedText>
       </View>
 
-      {/* Mode tabs — anchor cho coach mark speaking_intro (onboarding v1 §6) */}
+      {/* Mode tabs — anchor cho coach mark speaking_intro (onboarding v1 §6).
+          marginHorizontal thay paddingHorizontal: neo đo đúng hàng 4 ô nên khung
+          vàng ôm sát các ô thay vì ôm cả lề màn hình (QA 05/09). */}
+      <SpotlightScrollHostProvider value={scrollRef}>
       <SpotlightTarget
         id={SPOTLIGHT_TARGETS.speakingModeTabs}
-        style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: space[5], marginTop: space[4] }}
+        style={{ flexDirection: 'row', gap: space[2], marginHorizontal: space[5], marginTop: space[4] }}
       >
         {MODES.map((m) => {
           const active = mode === m.key
@@ -205,7 +213,7 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
                 opacity: locked ? 0.45 : 1,
               }}
             >
-              <Icon icon={locked ? Lock : m.icon} size={20} color={active ? 'onAccent' : 'secondary'} />
+              <GaGlyph name={locked ? 'khoa' : m.glyph} size={20} ink={active ? 'onAccent' : 'secondary'} gold={active ? 'ink' : 'accent'} />
               <ThemedText
                 variant="label"
                 numberOfLines={1}
@@ -217,6 +225,7 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
           )
         })}
       </SpotlightTarget>
+      </SpotlightScrollHostProvider>
 
       {/* Group chips */}
       <ScrollView
@@ -245,7 +254,7 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
                 borderColor: active ? theme.colors.accent : theme.colors.border,
               }}
             >
-              <Icon icon={GROUP_ICONS[g.id]} size={15} color={active ? 'accent' : 'secondary'} />
+              <GaGlyph name={GROUP_ICONS[g.id]} size={15} ink={active ? 'accentText' : 'secondary'} />
               <ThemedText
                 variant="label"
                 style={{ color: active ? theme.colors.accentText : theme.colors.textSecondary }}
@@ -434,7 +443,7 @@ function PersonaCard({
         {/* Badge */}
         {locked ? (
           <View style={{ position: 'absolute', top: space[2], right: space[2], backgroundColor: theme.colors.surfaceSunken, borderRadius: radius.full, padding: 5 }}>
-            <Icon icon={Lock} size={14} color="faint" />
+            <GaGlyph name="khoa" size={14} ink="faint" />
           </View>
         ) : selected ? (
           <View

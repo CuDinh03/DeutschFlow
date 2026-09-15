@@ -6,6 +6,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Mic, Square, RotateCcw, Loader2, PartyPopper, Bot, Lightbulb, Check, TriangleAlert, X, CircleCheck } from "lucide-react";
 import { AudioButton } from "./LearnComponents";
 import api from "@/lib/api";
+import { parseMinorAudioBlocked, type MinorAudioBlocked } from "@/lib/minorAudio";
+import { MinorAudioBlockedNotice } from "@/components/ui-v2/MinorAudioBlockedNotice";
 import { useTranslations } from "next-intl";
 
 import { subscribeToJobSse } from "@/lib/jobSseApi";
@@ -24,6 +26,7 @@ interface PronunciationFeedback {
 
 export default function SpeakingView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
   const tLearn = useTranslations("learn");
+  const t = useTranslations("v2.student.learnViews.speaking");
   const { markTabCompleted, tabCompletion } = useNodeSessionStore();
   const isCompleted = tabCompletion.speaking;
 
@@ -32,6 +35,8 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
   const [evaluating, setEvaluating] = useState(false);
   const [feedback, setFeedback] = useState<PronunciationFeedback | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 403 MINOR_AUDIO_BLOCKED (DEC-22/D8): chấm phát âm bị chặn tới khi trung tâm ghi nhận đồng ý.
+  const [minorBlocked, setMinorBlocked] = useState<MinorAudioBlocked | null>(null);
   const [completedDrills, setCompletedDrills] = useState<Set<number>>(new Set());
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -139,7 +144,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
       setRecording(true);
       drawWaveform();
     } catch {
-      setError("Không thể truy cập microphone. Vui lòng cấp quyền.");
+      setError(t("micDenied"));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawWaveform]);
@@ -203,8 +208,10 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
           }
         );
 
-      } catch {
-        setError("Đánh giá thất bại. Vui lòng thử lại.");
+      } catch (e: unknown) {
+        const blocked = parseMinorAudioBlocked(e);
+        if (blocked) setMinorBlocked(blocked);
+        else setError(t("evalFailed"));
         setEvaluating(false);
       }
     };
@@ -227,7 +234,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-ga-card rounded-ga border border-ga-line">
         <Mic size={40} className="mb-3 text-ga-subtle" aria-hidden />
-        <p className="text-sm text-ga-muted">Chưa có bài luyện nói cho bài học này.</p>
+        <p className="text-sm text-ga-muted">{t("empty")}</p>
       </div>
     );
   }
@@ -307,9 +314,10 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
         )}
       </div>
 
-      {recording && <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ga-red animate-pulse"><Mic size={13} aria-hidden /> Đang ghi âm...</p>}
-      {evaluating && <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ga-muted"><Bot size={13} aria-hidden /> Đang đánh giá phát âm...</p>}
+      {recording && <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ga-red animate-pulse"><Mic size={13} aria-hidden /> {t("recording")}</p>}
+      {evaluating && <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ga-muted"><Bot size={13} aria-hidden /> {t("evaluating")}</p>}
       {error && <p className="text-center text-xs text-ga-red">{error}</p>}
+      {minorBlocked && <MinorAudioBlockedNotice info={minorBlocked} onDismiss={() => setMinorBlocked(null)} />}
 
       {/* ── Feedback ── */}
       {feedback && (
@@ -324,19 +332,19 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
             </div>
             <div>
               <p className="text-sm font-bold text-ga-ink">
-                {feedback.overall_score >= 80 ? <span className="inline-flex items-center gap-1.5">Rất tốt! <PartyPopper size={14} aria-hidden /></span> : feedback.overall_score >= 50 ? "Khá! Cần cải thiện" : "Cần luyện thêm"}
+                {feedback.overall_score >= 80 ? <span className="inline-flex items-center gap-1.5">{t("great")} <PartyPopper size={14} aria-hidden /></span> : feedback.overall_score >= 50 ? t("okay") : t("weak")}
               </p>
-              <p className="text-xs text-ga-muted">Điểm phát âm</p>
+              <p className="text-xs text-ga-muted">{t("pronScore")}</p>
             </div>
           </div>
           
           <div className="bg-ga-surface rounded-ga p-3 border border-ga-line">
-            <p className="flex items-center gap-1.5 text-xs font-bold text-ga-muted uppercase mb-1"><Mic size={12} aria-hidden /> Hệ thống nghe được:</p>
+            <p className="flex items-center gap-1.5 text-xs font-bold text-ga-muted uppercase mb-1"><Mic size={12} aria-hidden /> {t("heard")}</p>
             {feedback.transcribed ? (
               <p className="text-sm italic text-ga-ink">{'"'}{feedback.transcribed}{'"'}</p>
             ) : (
               <p className="text-sm text-ga-red font-medium">
-                [Không thu được tiếng — Vui lòng nói to và rõ hơn]
+                {t("noVoice")}
               </p>
             )}
           </div>
@@ -364,7 +372,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
           {/* Tips */}
           {feedback.tips.length > 0 && (
             <div className="bg-ga-yellow-soft rounded-ga p-3 space-y-1">
-              <p className="flex items-center gap-1.5 text-xs font-bold text-ga-orange"><Lightbulb size={12} aria-hidden /> Gợi ý:</p>
+              <p className="flex items-center gap-1.5 text-xs font-bold text-ga-orange"><Lightbulb size={12} aria-hidden /> {t("tip")}</p>
               {feedback.tips.map((tip, i) => (
                 <p key={i} className="text-xs text-ga-orange">• {tip}</p>
               ))}
@@ -378,7 +386,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
               onClick={() => { setCurrentDrillIndex((i) => i + 1); setFeedback(null); }}
               className="w-full py-2.5 rounded-ga bg-ga-ink text-white text-sm font-bold hover:bg-ga-ink transition-colors"
             >
-              Bài tiếp theo →
+              {t("next")}
             </button>
           )}
         </div>

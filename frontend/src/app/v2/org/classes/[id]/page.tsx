@@ -9,7 +9,7 @@ import { apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
 import {
   getOrgClassDetail, getOrgClassGradebook, getOrgClassLessonLogs, removeOrgClassAssistant,
-  type OrgClassDetail, type OrgGradebook, type OrgLessonLog,
+  type OrgClassDetail, type OrgClassTeacher, type OrgGradebook, type OrgLessonLog,
 } from '@/lib/orgApi'
 import {
   GaPageHdr,
@@ -23,6 +23,7 @@ import {
   TkTabsContent,
   ErrorBanner,
   LoadingState,
+  ConfirmDialog,
 } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,6 +59,8 @@ export default function V2OrgClassDetailPage() {
   const [query, setQuery] = useState('')
   // PR C trợ giảng: teacherId đang bị gỡ khỏi lớp (disable nút trong lúc chờ).
   const [removingTeacher, setRemovingTeacher] = useState<number | null>(null)
+  // Trợ giảng đang chờ xác nhận gỡ — gỡ xong họ mất quyền vào lớp này, nên không chạy thẳng.
+  const [confirmRemove, setConfirmRemove] = useState<OrgClassTeacher | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -73,6 +76,7 @@ export default function V2OrgClassDetailPage() {
     try {
       await removeOrgClassAssistant(id, teacherId)
       toast.success(t('assistantRemoved'))
+      setConfirmRemove(null)
       await load()
     } catch (e: unknown) {
       toast.error(apiMessage(e))
@@ -186,7 +190,7 @@ export default function V2OrgClassDetailPage() {
                             </div>
                           </div>
                           {tt.role !== 'PRIMARY' && (
-                            <button type="button" disabled={removingTeacher !== null} onClick={() => removeAssistant(tt.teacherId)} className="ga-ui inline-flex min-h-[36px] shrink-0 items-center justify-center border px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50" style={{ color: 'var(--ga-red)', borderColor: 'color-mix(in srgb, var(--ga-red) 35%, transparent)' }}>
+                            <button type="button" disabled={removingTeacher !== null} onClick={() => setConfirmRemove(tt)} className="ga-ui inline-flex min-h-[36px] shrink-0 items-center justify-center border px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50" style={{ color: 'var(--ga-red)', borderColor: 'color-mix(in srgb, var(--ga-red) 35%, transparent)' }}>
                               {removingTeacher === tt.teacherId ? t('removingAssistant') : t('removeAssistant')}
                             </button>
                           )}
@@ -229,6 +233,23 @@ export default function V2OrgClassDetailPage() {
           </>
         ) : null}
       </div>
+
+      {confirmRemove && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => { if (!o) setConfirmRemove(null) }}
+          title={t('removeAssistantConfirmTitle')}
+          description={t('removeAssistantConfirmDesc', {
+            name: confirmRemove.displayName || confirmRemove.email || `#${confirmRemove.teacherId}`,
+            className: detail?.name ?? '',
+          })}
+          details={[t('removeAssistantConfirmAccess'), t('removeAssistantConfirmKeeps')]}
+          confirmLabel={t('removeAssistant')}
+          cancelLabel={tc('cancel')}
+          loading={removingTeacher === confirmRemove.teacherId}
+          onConfirm={() => void removeAssistant(confirmRemove.teacherId)}
+        />
+      )}
     </div>
   )
 }

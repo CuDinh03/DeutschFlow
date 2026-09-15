@@ -12,7 +12,7 @@ import { AvatarSection, validateAvatarFile } from '@/app/v2/profile/AvatarSectio
 import { uploadAvatar, removeAvatar } from '@/lib/profileApi'
 import { toast } from 'sonner'
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', () => ({ useLocale: () => 'vi',
   useTranslations: () => {
     const f = (k: string) => k
     ;(f as unknown as { has: (k: string) => boolean }).has = () => false

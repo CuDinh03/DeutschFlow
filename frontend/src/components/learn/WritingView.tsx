@@ -4,6 +4,7 @@ import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Loader2, CheckCircle, AlertCircle, PenLine, CircleCheck } from "lucide-react";
 import api from "@/lib/api";
+import { useTranslations } from "next-intl";
 
 interface CorrectionResult {
   corrected_text: string;
@@ -18,6 +19,7 @@ interface CorrectionResult {
 }
 
 export default function WritingView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
+  const t = useTranslations("v2.student.learnViews.writing");
   const { markTabCompleted, tabCompletion } = useNodeSessionStore();
   const isCompleted = tabCompletion.writing;
 
@@ -84,7 +86,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-ga-card rounded-ga border border-ga-line space-y-4">
         <PenLine size={40} className="mb-3 text-ga-subtle" aria-hidden />
-        <p className="text-sm text-ga-muted">Bài viết chưa có cho bài học này.</p>
+        <p className="text-sm text-ga-muted">{t("empty")}</p>
         <button
           onClick={() => markTabCompleted("writing")}
           disabled={isCompleted}
@@ -96,7 +98,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
         >
           <span className="inline-flex items-center gap-1.5">
             <CircleCheck size={15} aria-hidden />
-            {isCompleted ? "Đã hoàn thành" : "Bỏ qua & Đánh dấu hoàn thành"}
+            {isCompleted ? t("completed") : t("skipComplete")}
           </span>
         </button>
       </div>
@@ -126,7 +128,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
         )}
 
         <div className="flex items-center gap-2 text-[10px] text-white/40">
-          <span>Yêu cầu tối thiểu: {minWords} từ</span>
+          <span>{t("minWords", { count: minWords })}</span>
         </div>
       </div>
 
@@ -135,7 +137,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
         <textarea
           value={text}
           onChange={(e) => handleTextChange(e.target.value)}
-          placeholder="Viết bài tiếng Đức tại đây..."
+          placeholder={t("placeholder")}
           disabled={submitted || isLocked}
           className="w-full min-h-[200px] p-4 text-sm text-ga-ink outline-none resize-y rounded-ga font-sans leading-relaxed placeholder:text-ga-subtle"
           style={{ fontFamily: "'Inter', sans-serif" }}
@@ -146,7 +148,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
           <div className="flex items-center gap-3">
             {/* Word count */}
             <span className={`text-xs font-mono ${wordCount >= minWords ? "text-ga-green" : "text-ga-subtle"}`}>
-              {wordCount}/{minWords} từ
+              {t("wordCount", { count: wordCount, min: minWords })}
             </span>
             {/* Progress bar */}
             <div className="w-20 h-1.5 bg-ga-surface rounded-full overflow-hidden">
@@ -160,12 +162,12 @@ export default function WritingView({ content, isLocked = false }: { content: No
           <div className="flex items-center gap-2">
             {correcting && (
               <span className="flex items-center gap-1 text-xs text-ga-subtle">
-                <Loader2 size={12} className="animate-spin" /> Đang kiểm tra...
+                <Loader2 size={12} className="animate-spin" /> {t("checking")}
               </span>
             )}
             {correction && !correcting && (
               <span className="flex items-center gap-1 text-xs text-ga-green">
-                <CheckCircle size={12} /> Đã kiểm tra
+                <CheckCircle size={12} /> {t("checked")}
               </span>
             )}
           </div>
@@ -178,7 +180,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
           <div className="flex items-center gap-2">
             <AlertCircle size={16} className="text-ga-orange" />
             <h3 className="text-sm font-bold text-ga-ink">
-              Phát hiện {correction.errors.length} lỗi
+              {t("errorsFound", { count: correction.errors.length })}
             </h3>
           </div>
 
@@ -190,7 +192,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
                   err.type === "spelling" ? "bg-ga-yellow-soft text-ga-orange" :
                   "bg-ga-blue-soft text-ga-blue"
                 }`}>
-                  {err.type === "grammar" ? "Ngữ pháp" : err.type === "spelling" ? "Chính tả" : "Phong cách"}
+                  {err.type === "grammar" ? t("errGrammar") : err.type === "spelling" ? t("errSpelling") : t("errStyle")}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs break-words">
@@ -228,14 +230,14 @@ export default function WritingView({ content, isLocked = false }: { content: No
           disabled={wordCount < minWords || correcting}
           className="w-full py-3 rounded-ga bg-ga-ink text-white text-sm font-bold hover:bg-ga-ink transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Nộp bài viết
+          {t("submit")}
         </button>
       )}
 
       {/* ── Completion status ── */}
       {isCompleted && (
         <div className="mt-4 rounded-ga bg-ga-green-soft border border-ga-green/40 p-4 text-center">
-          <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-ga-green"><CircleCheck size={15} aria-hidden /> Đã hoàn thành phần Viết (≥ 80 điểm)</p>
+          <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-ga-green"><CircleCheck size={15} aria-hidden /> {t("done")}</p>
         </div>
       )}
     </div>

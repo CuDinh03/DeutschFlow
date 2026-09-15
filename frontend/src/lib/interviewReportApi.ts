@@ -1,4 +1,5 @@
 import api from "@/lib/api";
+import { uiText } from "@/lib/i18n/clientLocale";
 import { getAccessToken } from "@/lib/authSession";
 
 // Use same baseURL derivation as api.ts — SSE fetch must go directly to Spring Boot,
@@ -108,7 +109,14 @@ export function streamJobResult(
     } catch (e: any) {
       clearTimeout(timeoutId);
       if (e.name !== 'AbortError') {
-        onError(e.message || 'Mất kết nối khi tải báo cáo');
+        onError(
+          e.message ||
+            uiText({
+              vi: 'Mất kết nối khi tải báo cáo',
+              en: 'Connection lost while loading the report',
+              de: 'Verbindung beim Laden des Berichts verloren',
+            }),
+        );
       }
     }
   })();

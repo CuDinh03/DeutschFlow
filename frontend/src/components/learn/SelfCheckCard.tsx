@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Eye } from "lucide-react";
 import { lightImpact } from "@/lib/haptics";
 import { REORDER, type SelfCheckItem } from "@/lib/nodeExercises";
@@ -18,6 +19,7 @@ import { REORDER, type SelfCheckItem } from "@/lib/nodeExercises";
  * loại này đi; đây là bản thay thế, trả nội dung lại cho người học đúng hình dạng của nó.
  */
 export default function SelfCheckCard({ item, index }: { item: SelfCheckItem; index: number }) {
+  const t = useTranslations("v2.student.learnViews.selfCheck");
   const [shown, setShown] = useState(false);
   const laSapXep = item.kind === REORDER;
 
@@ -28,9 +30,9 @@ export default function SelfCheckCard({ item, index }: { item: SelfCheckItem; in
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[10.5px] font-bold uppercase tracking-wider text-[#64748B]">
-              {laSapXep ? "Sắp xếp câu" : "Dịch câu"}
+              {laSapXep ? t("reorder") : t("translate")}
             </span>
-            <span className="text-[11.5px] text-[#94A3B8]">Tự kiểm tra · không tính điểm</span>
+            <span className="text-[11.5px] text-[#94A3B8]">{t("notScored")}</span>
           </div>
 
           {item.prompt && (
@@ -62,7 +64,7 @@ export default function SelfCheckCard({ item, index }: { item: SelfCheckItem; in
               className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2563EB] hover:underline"
             >
               <Eye size={14} aria-hidden />
-              Xem đáp án
+              {t("showAnswer")}
             </button>
           )}
         </div>

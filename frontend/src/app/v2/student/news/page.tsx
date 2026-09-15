@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { Clock, ExternalLink, Newspaper, RefreshCw } from 'lucide-react'
 import api from '@/lib/api'
 import { GaPageHdr, EmptyState, ErrorBanner, LoadingState, TkBadge, TkSearch } from '@/components/ui-v2'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 /**
  * /v2/student/news — feed báo Đức (Galerie shell).
@@ -40,10 +41,9 @@ const SOURCE_TONE: Record<string, SourceTone> = {
   SPIEGEL: 'yellow',
 }
 
-const DATE_LOCALE: Record<string, string> = { vi: 'vi-VN', en: 'en-US', de: 'de-DE' }
-
 export default function V2StudentNewsPage() {
   const t = useTranslations('v2.student.news')
+  const fmt = useFmt()
   const locale = useLocale()
 
   const [loading, setLoading] = useState(true)
@@ -119,7 +119,7 @@ export default function V2StudentNewsPage() {
                     <TkBadge tone={SOURCE_TONE[item.sourceType] ?? 'neutral'}>{item.sourceName}</TkBadge>
                     <span className="ga-ui flex shrink-0 items-center gap-1.5 text-[12px] text-ga-subtle">
                       <Clock size={12} aria-hidden />
-                      {new Date(item.publishedAt).toLocaleDateString(DATE_LOCALE[locale] ?? 'vi-VN')}
+                      {fmt.date(item.publishedAt)}
                     </span>
                   </div>
 

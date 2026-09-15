@@ -11,7 +11,6 @@ import com.deutschflow.teacher.dto.*;
 import com.deutschflow.teacher.entity.AssignmentStatus;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.ClassStudent;
-import com.deutschflow.teacher.entity.ClassStudentId;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.entity.ClassTeacher;
 import com.deutschflow.teacher.entity.ClassTeacherId;
@@ -54,6 +53,7 @@ public class TeacherService {
 
     private final TeacherClassRepository classRepository;
     private final ClassStudentRepository classStudentRepository;
+    private final ClassEnrollmentService classEnrollmentService;
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassAssignmentRepository assignmentRepository;
     private final AssignmentBackfillService assignmentBackfillService;
@@ -82,6 +82,8 @@ public class TeacherService {
     private final ClassDeletionGuard classDeletionGuard;
     private final AuditLogService auditLogService;
     private final com.deutschflow.organization.service.OrgMembershipService orgMembershipService;
+    /** Cổng D5 — chặn TẠO MỚI khi trung tâm của giáo viên đang ở chế độ chỉ đọc (G-10). */
+    private final com.deutschflow.organization.service.OrgGuard orgGuard;
     /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
     private final SubmissionFileUrlResolver submissionFileUrlResolver;
 
@@ -103,6 +105,13 @@ public class TeacherService {
         // Stamp the creating teacher's org (B2B): an org teacher's classes belong to that org,
         // so they show in /org/classes and are valid roster-import targets. null for B2C teachers.
         Long orgId = userRepository.findById(teacherId).map(u -> u.getOrgId()).orElse(null);
+        // D5 (owner chốt 08/09/2026): lớp tạo ở đây được đóng dấu org NGAY BÊN DƯỚI, tức đúng cùng
+        // một vật thể mà /api/org/classes đã bị chặn khi trung tâm đình chỉ/hết hạn quá ân hạn.
+        // Thiếu cổng này thì mọi giáo viên của trung tâm vẫn tạo lớp mới được qua cửa sau, và cổng
+        // bên OrgController chỉ còn là hình thức. Giáo viên B2C (orgId null) không đụng tới.
+        if (orgId != null) {
+            orgGuard.assertOrgWritable(orgId);
+        }
         TeacherClass teacherClass = TeacherClass.builder()
                 .teacherId(teacherId)
                 .orgId(orgId)
@@ -149,9 +158,12 @@ public class TeacherService {
         String placeholders = classIds.stream().map(ignored -> "?").collect(Collectors.joining(","));
         Object[] args = classIds.toArray();
 
+        // Sĩ số PHẢI khớp countByIdClassId (chỉ người còn chiếm ghế: ACTIVE + RESERVED, D1) — nếu
+        // không, thẻ lớp ở danh sách và trang chi tiết lớp trả hai con số khác nhau.
         Map<Long, Long> studentCounts = new HashMap<>();
         jdbcTemplate.queryForList(
-                "SELECT class_id, COUNT(*) AS cnt FROM class_students WHERE class_id IN (" + placeholders + ") GROUP BY class_id",
+                "SELECT class_id, COUNT(*) AS cnt FROM class_students WHERE class_id IN (" + placeholders + ")"
+                        + " AND status IN ('ACTIVE', 'RESERVED') GROUP BY class_id",
                 args).forEach(r -> studentCounts.put(toLong(r.get("class_id")), toLong(r.get("cnt"))));
 
         Map<Long, Long> assignmentCounts = new HashMap<>();
@@ -292,12 +304,9 @@ public class TeacherService {
         req.setStatus("APPROVED");
         joinRequestRepository.save(req);
 
-        if (!classStudentRepository.existsByIdClassIdAndIdStudentId(classId, req.getStudentId())) {
-            ClassStudent classStudent = ClassStudent.builder()
-                    .id(new ClassStudentId(classId, req.getStudentId()))
-                    .build();
-            classStudentRepository.save(classStudent);
-        }
+        // G-01/D2: đi qua ClassEnrollmentService — học viên từng rời lớp được MỞ LẠI dòng cũ, giữ
+        // nguyên nhận xét và điểm kỹ năng; save() một entity mới sẽ merge đè NULL lên các cột đó.
+        classEnrollmentService.enroll(classId, req.getStudentId());
 
         // Give the newcomer the assignments the class already handed out before they joined — otherwise
         // they'd be counted as "chờ nộp" for work they can't see or submit (idempotent).
@@ -403,8 +412,12 @@ public class TeacherService {
 
         Map<String, Object> meta = new LinkedHashMap<>(content.toAuditMetadata());
         meta.put("className", snapshot != null ? snapshot.getName() : null);
-        meta.put("orgId", snapshot != null ? snapshot.getOrgId() : null);
-        auditLogService.log("teacher_class_deleted", actor, "CLASS", String.valueOf(classId), meta);
+        // Org của LỚP, chụp TRƯỚC khi xoá — sau delete không tra lại được. Lớp riêng của giáo viên
+        // (org_id IS NULL) giữ nguyên null: đó là hoạt động B2C, không thuộc sổ của trung tâm nào.
+        Long orgId = snapshot != null ? snapshot.getOrgId() : null;
+        meta.put("orgId", orgId);
+        auditLogService.log("teacher_class_deleted", actor, "CLASS", String.valueOf(classId),
+                orgId, meta);
     }
 
     // ─── Co-teaching: quản lý giáo viên trong lớp ────────────────────────────────
@@ -523,24 +536,13 @@ public class TeacherService {
             throw new ConflictException("Học viên đã tham gia lớp học này");
         }
 
-        ClassStudent classStudent = ClassStudent.builder()
-                .id(new ClassStudentId(classId, user.getId()))
-                .build();
-        classStudentRepository.save(classStudent);
+        // DEC-18: ghi danh + báo học viên (ADDED_TO_CLASS) đi chung MỘT cửa với đường nhập roster CSV
+        // của trung tâm — qua outbox trong cùng giao dịch, mỗi lượt vào lớp báo đúng một lần.
+        classEnrollmentService.enrollAndNotify(classId, user.getId(), teacherId);
 
         // Backfill the assignments handed out before this student was added (idempotent) — see
         // approveJoinRequest for the same guard on the self-join path.
         assignmentBackfillService.ensureAssignmentsForStudent(classId, user.getId());
-
-        // Notify student
-        TeacherClass teacherClass = targetClass;
-        User teacher = userRepository.findById(teacherId).orElse(null);
-        userNotificationService.onAddedToClass(
-            user.getId(),
-            classId,
-            teacherClass != null ? teacherClass.getName() : "",
-            teacher != null ? teacher.getDisplayName() : ""
-        );
     }
 
     @Transactional(readOnly = true)
@@ -860,8 +862,9 @@ public class TeacherService {
 
     /** Fan-out StudentAssignment PENDING cho đúng đối tượng (rỗng = cả lớp) — idempotent theo khoá. */
     private void fanOutStudentAssignments(Long assignmentId, Long classId, List<Long> recipients) {
+        // Chỉ người ĐANG HỌC nhận bài mới — người bảo lưu ở chế độ chỉ đọc (D1).
         List<Long> targets = recipients.isEmpty()
-                ? classStudentRepository.findByIdClassId(classId).stream()
+                ? classStudentRepository.findActiveByIdClassId(classId).stream()
                         .map(cs -> cs.getId().getStudentId())
                         .toList()
                 : recipients;
@@ -922,7 +925,8 @@ public class TeacherService {
     /** AC14: danh sách người nhận (nếu gửi) phải nằm trọn trong roster lớp; trả list đã chuẩn hoá. */
     private List<Long> validateRecipients(Long classId, List<Long> recipientStudentIds) {
         if (recipientStudentIds == null || recipientStudentIds.isEmpty()) return List.of();
-        Set<Long> roster = classStudentRepository.findByIdClassId(classId).stream()
+        // Cùng biên với fan-out: giao bài đích danh chỉ cho người ĐANG HỌC.
+        Set<Long> roster = classStudentRepository.findActiveByIdClassId(classId).stream()
                 .map(cs -> cs.getId().getStudentId())
                 .collect(Collectors.toSet());
         List<Long> cleaned = recipientStudentIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
@@ -1257,6 +1261,8 @@ public class TeacherService {
         // GRADED legacy) tức là học viên ĐÃ được announce điểm một lần rồi.
         boolean regrade = AssignmentStatus.isFinal(assignment.getStatus());
 
+        // R3 (V323): giáo viên chốt CHỈ ghi score/feedback — KHÔNG đụng ai_score/ai_feedback/ai_graded_at.
+        // Đề xuất của AI phải sống sót sau khi bị sửa (giáo viên xem lại; chỉ số M5 = |ai_score - score|).
         assignment.setScore(req.teacherScore());
         assignment.setFeedback(req.teacherFeedback());
         assignment.setStatus("EVALUATED");

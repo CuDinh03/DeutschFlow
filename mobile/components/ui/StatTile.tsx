@@ -5,6 +5,8 @@ import type { LucideIcon } from 'lucide-react-native'
 import { View, type StyleProp, type ViewStyle } from 'react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Icon } from './Icon'
+import { GaGlyph } from './GaGlyph'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { ThemedText } from './ThemedText'
 
 type Accent = 'accent' | 'success' | 'danger' | 'info'
@@ -13,11 +15,13 @@ interface StatTileProps {
   value: string
   label: string
   icon?: LucideIcon
+  /** Glyph Galerie (ưu tiên hơn `icon`). */
+  glyph?: GlyphName
   accent?: Accent
   style?: StyleProp<ViewStyle>
 }
 
-export function StatTile({ value, label, icon, accent = 'accent', style }: StatTileProps) {
+export function StatTile({ value, label, icon, glyph, accent = 'accent', style }: StatTileProps) {
   const theme = useTheme()
   const c = theme.colors
 
@@ -30,7 +34,7 @@ export function StatTile({ value, label, icon, accent = 'accent', style }: StatT
 
   return (
     <View style={[{ gap: space[2] }, style]}>
-      {icon ? (
+      {glyph || icon ? (
         <View
           style={{
             width: 36,
@@ -41,7 +45,11 @@ export function StatTile({ value, label, icon, accent = 'accent', style }: StatT
             justifyContent: 'center',
           }}
         >
-          <Icon icon={icon} size={18} color={accent} />
+          {glyph ? (
+            <GaGlyph name={glyph} size={18} ink={accent === 'accent' ? 'primary' : accent} gold={accent} />
+          ) : icon ? (
+            <Icon icon={icon} size={18} color={accent} />
+          ) : null}
         </View>
       ) : null}
       <ThemedText variant="monoLg">{value}</ThemedText>

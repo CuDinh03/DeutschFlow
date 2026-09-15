@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Alert } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams, useNavigation, type Href } from 'expo-router'
-import { Check, BookOpen } from 'lucide-react-native'
+import { Check } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
@@ -18,10 +18,12 @@ import {
   Caption,
   ProgressBar,
   SelectableRow,
-} from '@/components/ui'
-import { attemptTotalScore, parseLesenItems, type AttemptResultDto, type ExamObjItem } from '@/lib/examApi'
+GaGlyph } from '@/components/ui'
+import { attemptTotalScore, finishPayload, parseLesenItems, skippedSectionsLabel, type AttemptResultDto, type ExamObjItem, itemChoices } from '@/lib/examApi'
 import { pollAsyncJob, AsyncJobFailedError, AsyncJobTimeoutError } from '@/lib/asyncJobs'
 import { trackFeatureAction } from '@/lib/analytics'
+import { useHardwareBack } from '@/hooks/useHardwareBack'
+import { PARENT_OF } from '@/lib/screenParents'
 
 // Auto-scored objective reading (Lesen) attempt. Listening/Writing/Speaking are
 // scored on the web; the app covers the true/false + single-choice items so a
@@ -64,12 +66,14 @@ export default function ExamAttemptScreen() {
     if (hasUnsavedAttempt) {
       confirmLeave(() => {
         allowLeaveRef.current = true
-        router.back()
+        router.navigate(PARENT_OF['exam-attempt'])
       })
       return
     }
-    router.back()
+    router.navigate(PARENT_OF['exam-attempt'])
   }, [hasUnsavedAttempt, confirmLeave])
+  // Back cứng Android cũng qua hộp xác nhận rời bài (Tabs không có stack nên beforeRemove không bắn).
+  useHardwareBack(handleBack)
 
   // Guard the swipe-back / hardware-back gesture too, not just the header button.
   useEffect(() => {
@@ -98,6 +102,8 @@ export default function ExamAttemptScreen() {
 
   const totalItems = parsed?.groups.reduce((n, g) => n + g.items.length, 0) ?? 0
   const answeredCount = Object.keys(answers).length
+  // Đúng những phần đề NÀY có mà app không dựng được — không phải câu liệt kê cứng "Nghe/Viết/Nói".
+  const skippedLabel = skippedSectionsLabel(parsed?.skippedSections ?? [])
 
   async function submit() {
     if (answeredCount === 0) return
@@ -107,9 +113,11 @@ export default function ExamAttemptScreen() {
       // đây màn này GET result ngay sau 202 nên đọc bản ghi chưa chấm (điểm null
       // → hiện 0), thêm lỗi đọc `totalScore` trong khi backend trả `total_score`
       // — hai lỗi che nhau (soát 02/09, F-10). Phải chờ job xong rồi mới đọc.
+      // Khai luôn những phần app không dựng được: server loại chúng khỏi MẪU SỐ thay vì chấm 0.
+      // Trước bản này một bài làm đúng hết phần Đọc vẫn ra ~33/100 vì Nghe/Viết bị tính 0 vào tổng.
       const finishRes = await api.post<{ jobId: string; status: string; attemptId: number }>(
         `/mock-exams/attempts/${attemptId}/finish`,
-        { answers },
+        finishPayload(answers, parsed),
       )
       setFinishAccepted(true)
       await pollAsyncJob(finishRes.data.jobId)
@@ -123,7 +131,7 @@ export default function ExamAttemptScreen() {
         Alert.alert(
           'Đang chấm bài',
           'Bài của bạn đã nộp thành công nhưng chấm đang lâu hơn bình thường. Điểm sẽ hiện trong Lịch sử thi ít phút nữa.',
-          [{ text: 'Đã hiểu', onPress: () => router.back() }],
+          [{ text: 'Đã hiểu', onPress: () => router.navigate(PARENT_OF['exam-attempt']) }],
         )
       } else if (e instanceof AsyncJobFailedError) {
         Alert.alert('Chấm bài thất bại', 'Hệ thống chấm gặp lỗi. Bạn hãy thử nộp lại.')
@@ -174,7 +182,9 @@ export default function ExamAttemptScreen() {
                   </ThemedText>
                 </View>
                 <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
-                  Nghe, Viết và Nói làm trên web để có điểm đầy đủ.
+                  {skippedLabel
+                    ? `Điểm này tính riêng trên phần Đọc. Phần ${skippedLabel} của đề này làm trên web.`
+                    : 'Điểm này tính trên phần Đọc.'}
                 </ThemedText>
               </View>
             </View>
@@ -191,7 +201,7 @@ export default function ExamAttemptScreen() {
               }
             />
             <View style={{ alignItems: 'center', marginTop: space[1] }}>
-              <ThemedText variant="label" color="muted" onPress={() => router.back()}>
+              <ThemedText variant="label" color="muted" onPress={handleBack}>
                 Xong
               </ThemedText>
             </View>
@@ -200,9 +210,13 @@ export default function ExamAttemptScreen() {
       ) : !parsed || parsed.groups.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={BookOpen}
+            glyph="doc"
             title="Chưa hỗ trợ trên app"
-            message="Đề này gồm phần Nghe/Viết/Nói — hãy làm trên web. App hỗ trợ các đề có phần Đọc trắc nghiệm."
+            message={
+              skippedLabel
+                ? `Đề này chỉ gồm phần ${skippedLabel} — hãy làm trên web. App hỗ trợ các đề có phần Đọc trắc nghiệm.`
+                : 'Đề này chưa có phần Đọc trắc nghiệm — hãy làm trên web.'
+            }
           />
         </View>
       ) : (
@@ -233,15 +247,30 @@ export default function ExamAttemptScreen() {
               padding: space[3],
             }}
           >
-            <Icon icon={BookOpen} size={18} color="info" />
+            <GaGlyph name="doc" size={18} ink="info" gold="info" />
             <ThemedText variant="caption" color="info" style={{ flex: 1 }}>
-              Phần Đọc trắc nghiệm. Nghe/Viết/Nói làm trên web để có điểm đầy đủ.
+              {skippedLabel
+                ? `App dựng phần Đọc trắc nghiệm. Phần ${skippedLabel} của đề này làm trên web — điểm của bạn chỉ tính trên phần Đọc, không bị trừ vì những phần đó.`
+                : 'Phần Đọc trắc nghiệm.'}
             </ThemedText>
           </View>
 
           {parsed.groups.map((group, gi) => (
             <View key={gi} style={{ gap: space[3] }}>
               <Caption>{group.title}</Caption>
+              {group.instruction ? (
+                <ThemedText variant="body" color="secondary">
+                  {group.instruction}
+                </ThemedText>
+              ) : null}
+              {group.passage ? (
+                <View style={{ gap: space[2], backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>
+                  <Caption>Bài đọc</Caption>
+                  <ThemedText variant="body" color="secondary">
+                    {group.passage}
+                  </ThemedText>
+                </View>
+              ) : null}
               {group.items.map((item) => (
                 <QuestionCard
                   key={item.id}
@@ -275,8 +304,8 @@ function QuestionCard({
   onSelect: (val: string) => void
 }) {
   const { colors } = useTheme()
-  const choices = item.options ?? ['richtig', 'falsch']
-  const labelFor = (v: string) => (v === 'richtig' ? 'Richtig' : v === 'falsch' ? 'Falsch' : v)
+  // Giá trị nộp tách khỏi nhãn: trắc nghiệm options object nộp chữ cái A/B/C (AC-MOBFIX-03).
+  const choices = itemChoices(item)
   return (
     <Card style={{ gap: space[4] }}>
       {item.passage ? (
@@ -297,7 +326,7 @@ function QuestionCard({
       <ThemedText variant="title">{item.question}</ThemedText>
       <View style={{ gap: space[2] }}>
         {choices.map((choice) => (
-          <Choice key={choice} label={labelFor(choice)} active={selected === choice} onPress={() => onSelect(choice)} />
+          <Choice key={choice.value} label={choice.label} active={selected === choice.value} onPress={() => onSelect(choice.value)} />
         ))}
       </View>
     </Card>

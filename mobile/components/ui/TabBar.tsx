@@ -17,7 +17,6 @@
 import { BlurView } from 'expo-blur'
 import * as Haptics from 'expo-haptics'
 import { useEffect, useState } from 'react'
-import { Home, BookOpen, Mic, User, type LucideIcon } from 'lucide-react-native'
 import { type LayoutChangeEvent, Pressable, StyleSheet, View, type ViewStyle } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, {
@@ -33,23 +32,22 @@ import { captureEvent } from '@/lib/analytics'
 import { tabIndexForX } from '@/lib/tabGesture'
 import { useSpotlightTarget } from '@/components/guide/SpotlightTour'
 import { ThemedText } from './ThemedText'
+import { GaGlyph } from './GaGlyph'
+import type { GlyphName } from '@/lib/galerieGlyphs'
+import { TAB_LABELS } from '@/lib/tabLabels'
 
-const ICONS: Record<string, LucideIcon> = {
-  index: Home,
-  learn: BookOpen,
-  speaking: Mic,
-  profile: User,
+// Biểu tượng nhận diện của 4 tab = bộ Galerie (mobile/GALERIE_GLYPHS.md).
+const ICONS: Record<string, GlyphName> = {
+  index: 'heute',
+  learn: 'hoc',
+  speaking: 'speaking',
+  profile: 'hoso',
 }
 
-// Fallback khi route chưa khai `title` trong Tabs.Screen — nguồn nhãn chính là
+// Fallback khi route chưa khai `title` trong Tabs.Screen — nguồn nhãn chính vẫn là
 // options.title của _layout (trước đây map này ĐÈ title, nên đổi nhãn ở layout
-// không có tác dụng — vd "Heute" của cụm màn 02/09 không bao giờ hiện).
-const LABELS: Record<string, string> = {
-  index: 'Trang chủ',
-  learn: 'Học',
-  speaking: 'Speaking',
-  profile: 'Hồ sơ',
-}
+// không có tác dụng — vd nhãn của cụm màn 02/09 không bao giờ hiện). Từ 10/09/2026
+// cả hai đường đọc CÙNG một bảng (lib/tabLabels) nên không thể lệch nhau nữa.
 
 const BAR_HEIGHT = 64
 const INDICATOR_HEIGHT = 48
@@ -302,7 +300,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 <TabItem
                   key={route.key}
                   icon={icon}
-                  label={descriptors[route.key]?.options.title ?? LABELS[route.name] ?? route.name}
+                  label={descriptors[route.key]?.options.title ?? TAB_LABELS[route.name as keyof typeof TAB_LABELS] ?? route.name}
                   focused={focused}
                   onPress={onPress}
                   onLayout={onTabLayout(index)}
@@ -319,7 +317,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 }
 
 interface TabItemProps {
-  icon: LucideIcon
+  icon: GlyphName
   label: string
   focused: boolean
   onPress: () => void
@@ -328,7 +326,7 @@ interface TabItemProps {
   spotlightId?: string
 }
 
-function TabItem({ icon: LucideComponent, label, focused, onPress, onLayout, spotlightId }: TabItemProps) {
+function TabItem({ icon, label, focused, onPress, onLayout, spotlightId }: TabItemProps) {
   const theme = useTheme()
   const spotlightRef = useSpotlightTarget(spotlightId)
   const iconScale = useSharedValue(focused ? 1 : 0.9)
@@ -346,7 +344,6 @@ function TabItem({ icon: LucideComponent, label, focused, onPress, onLayout, spo
 
   return (
     <Pressable
-      ref={spotlightRef}
       onPress={onPress}
       onLayout={onLayout}
       onPressIn={() => {
@@ -365,12 +362,17 @@ function TabItem({ icon: LucideComponent, label, focused, onPress, onLayout, spo
         height: BAR_HEIGHT,
       }}
     >
-      <Animated.View style={iconStyle}>
-        <LucideComponent size={23} color={tint} strokeWidth={focused ? 2.3 : 1.9} />
-      </Animated.View>
-      <ThemedText variant="caption" style={{ color: tint, fontSize: 11 }}>
-        {label}
-      </ThemedText>
+      {/* Neo spotlight = cụm icon + nhãn, không phải cả ô flex:1 cao bằng pill:
+          khung vàng của tour ôm sát phần đang giới thiệu và nằm gọn trong kính
+          (trước 05/09 khung tràn ra ngoài mép pill 8pt mỗi phía). */}
+      <View ref={spotlightRef} collapsable={false} style={{ alignItems: 'center', gap: 3 }}>
+        <Animated.View style={iconStyle}>
+          <GaGlyph name={icon} size={23} ink={focused ? 'accentText' : 'muted'} strokeWidth={focused ? 2.1 : 1.75} />
+        </Animated.View>
+        <ThemedText variant="caption" style={{ color: tint, fontSize: 11 }}>
+          {label}
+        </ThemedText>
+      </View>
     </Pressable>
   )
 }

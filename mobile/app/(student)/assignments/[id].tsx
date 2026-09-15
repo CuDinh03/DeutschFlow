@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import {
   Alert, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, View,
 } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams, type Href } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
 import * as DocumentPicker from 'expo-document-picker'
 import * as WebBrowser from 'expo-web-browser'
@@ -13,24 +14,20 @@ import {
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
 } from 'expo-audio'
-import {
-  AlertCircle, Camera, CheckCircle2, Clock, ExternalLink, FileText, Image as ImageIcon,
-  Link2, MessageSquare, Mic, Music, Paperclip, Square, Upload, Video as VideoIcon, X, RotateCcw,
-} from 'lucide-react-native'
+import { Camera, ExternalLink, FileText, Image as ImageIcon, Link2, Mic, Music, Paperclip, Square, Upload, Video as VideoIcon, X, RotateCcw } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { ensureAiConsent } from '@/lib/aiConsent'
+import { presentMinorAudioBlocked } from '@/lib/minorAudio'
 import {
-  fetchAssignmentDetail, fetchAssignmentMaterials, fetchAssignmentMaterialUrl,
-  isAwaitingTeacher, isFinalGrade, isSubmittedStatus,
-  submitAssignment, uploadAssignmentFile,
-  MAX_UPLOAD_BYTES, type AssignmentMaterial, type MaterialKind, type StudentAssignment, type UploadFile,
+  assignmentStatusView, fetchAssignmentDetail, fetchAssignmentMaterials, fetchAssignmentMaterialUrl, GRADING_FAILED_LABEL, isAwaitingTeacher, isFinalGrade, isSubmittedStatus, submitAssignment, uploadAssignmentFile, MAX_UPLOAD_BYTES, type AssignmentMaterial, type MaterialKind, type StudentAssignment, type UploadFile, fetchAssignmentScenario, scenarioTopic,
 } from '@/lib/studentClassesApi'
 import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, ProgressRing,
-  Screen, Skeleton, TextField, ThemedText, YellowSquare,
-} from '@/components/ui'
+  AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, ProgressRing, Screen, Skeleton, TextField, ThemedText, YellowSquare,
+GaGlyph } from '@/components/ui'
+import { useBackTo } from '@/hooks/useBackTo'
 
 const TYPE_LABELS: Record<string, string> = {
   ESSAY: 'Viết luận',
@@ -69,16 +66,23 @@ async function openInApp(url: string, errMsg = 'Không mở được tài liệu
 }
 
 export default function AssignmentDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const { id, classId } = useLocalSearchParams<{ id: string; classId?: string }>()
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  // classId có khi mở từ trang lớp; từ thông báo / sau phiên nói thì về danh sách lớp.
+  const goBack = useBackTo(() => (classId ? { pathname: '/(student)/classes/[id]', params: { id: classId } } : '/(student)/classes'))
   const assignmentId = Number(id)
   const queryClient = useQueryClient()
 
+  // V-07: kèm classId để hàm gọi đúng endpoint theo LỚP thay vì tải toàn bộ bài của mọi lớp rồi
+  // lọc — classId nằm sẵn trong params của route này (màn lớp luôn truyền sang).
+  const classIdNum = Number(classId)
   const detailQ = useQuery({
-    queryKey: ['assignment-detail', assignmentId],
-    queryFn: () => fetchAssignmentDetail(assignmentId),
+    queryKey: ['assignment-detail', assignmentId, Number.isFinite(classIdNum) ? classIdNum : null],
+    queryFn: () => fetchAssignmentDetail(assignmentId, Number.isFinite(classIdNum) ? classIdNum : undefined),
     enabled: Number.isFinite(assignmentId),
     staleTime: 30_000,
   })
+  const pull = usePullRefresh(detailQ.refetch)
 
   const [content, setContent] = useState('')
   const [file, setFile] = useState<UploadFile | null>(null)
@@ -105,13 +109,17 @@ export default function AssignmentDetail() {
       setFile(null)
       setResubmitting(false)
     },
-    onError: (e) => Alert.alert('Nộp bài thất bại', apiMessage(e)),
+    onError: (e) => {
+      // 403 MINOR_AUDIO_BLOCKED từ presigned-url (tệp ghi âm, D8): sheet giải thích thay Alert chung.
+      if (presentMinorAudioBlocked(e)) return
+      Alert.alert('Nộp bài thất bại', apiMessage(e))
+    },
   })
 
   if (detailQ.isLoading) {
     return (
       <Screen>
-        <AppHeader title="Đang tải bài tập…" onBack={() => router.back()} />
+        <AppHeader title="Đang tải bài tập…" onBack={goBack} />
         <View style={{ paddingHorizontal: space[5], gap: space[3] }}>
           <Skeleton height={120} />
           <Skeleton height={160} />
@@ -122,7 +130,7 @@ export default function AssignmentDetail() {
   if (detailQ.error || !detailQ.data) {
     return (
       <Screen>
-        <AppHeader title="Không mở được bài tập" onBack={() => router.back()} />
+        <AppHeader title="Không mở được bài tập" onBack={goBack} />
         <ErrorState
           message={detailQ.error ? apiMessage(detailQ.error) : 'Không tìm thấy bài tập này.'}
           onRetry={() => void detailQ.refetch()}
@@ -138,14 +146,14 @@ export default function AssignmentDetail() {
 
   return (
     <Screen>
-      <AppHeader title={a.topic || 'Chi tiết bài tập'} subtitle={typeLabel(a.assignmentType)} onBack={() => router.back()} />
+      <AppHeader title={a.topic || 'Chi tiết bài tập'} subtitle={typeLabel(a.assignmentType)} onBack={goBack} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], gap: space[5] }}
-          refreshControl={<RefreshControl refreshing={detailQ.isRefetching} onRefresh={() => void detailQ.refetch()} />}
+          refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={() => void pull.onRefresh()} />}
           keyboardShouldPersistTaps="handled"
         >
           <StatusRow assignment={a} />
@@ -153,7 +161,7 @@ export default function AssignmentDetail() {
           <DescriptionCard assignment={a} />
           <MaterialsCard assignmentId={assignmentId} />
 
-          {showForm && speaking && <SpeakingNotice />}
+          {showForm && speaking && <SpeakingStart assignment={a} />}
           {showForm && !speaking && (
             <SubmitForm
               content={content}
@@ -196,7 +204,7 @@ function StatusRow({ assignment: a }: { assignment: StudentAssignment }) {
         <StatusPill status={a.status} score={a.teacherScore} />
         {a.dueDate && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
-            <Icon icon={Clock} size={12} color="muted" />
+            <GaGlyph name="thoigian" size={12} ink="muted" />
             <ThemedText variant="caption" color="secondary">
               Hạn {new Date(a.dueDate).toLocaleDateString('vi-VN')}
             </ThemedText>
@@ -209,15 +217,19 @@ function StatusRow({ assignment: a }: { assignment: StudentAssignment }) {
 }
 
 function StatusPill({ status, score }: { status: string; score: number | null }) {
-  if (isGraded(status)) {
-    return <Pill tone="success" icon={CheckCircle2} label={`Đã chấm${score != null ? ` · ${score}/100` : ''}`} />
+  // Phân loại dùng CHUNG với màn danh sách bài của lớp (assignmentStatusView) — V-12c.
+  switch (assignmentStatusView(status)) {
+    case 'graded':
+      return <Pill tone="success" glyph="hoanthanh" label={`Đã chấm${score != null ? ` · ${score}/100` : ''}`} />
+    case 'gradingFailed':
+      // Đã nộp NHƯNG khâu chấm chết — gộp vào "Đã nộp" là giấu mất chuyện bài chưa được chấm.
+      return <Pill tone="danger" glyph="canhbao" label={GRADING_FAILED_LABEL} />
+    case 'awaitingTeacher':
+      // AI_GRADED hiển thị y như SUBMITTED: backend cố ý không công bố khâu chấm AI cho học viên.
+      return <Pill tone="info" icon={Upload} label="Đã nộp" />
+    default:
+      return <Pill tone="danger" glyph="canhbao" label="Chưa nộp" />
   }
-  // AI_GRADED / GRADING_FAILED hiển thị y như SUBMITTED: backend cố ý không công
-  // bố khâu chấm AI cho học viên; trước đây hai trạng thái này hiện "Chưa nộp" đỏ.
-  if (isAwaitingTeacher(status)) {
-    return <Pill tone="info" icon={Upload} label="Đã nộp" />
-  }
-  return <Pill tone="danger" icon={AlertCircle} label="Chưa nộp" />
 }
 
 // Editorial ink hero for the graded result — the screen's primary metric.
@@ -405,13 +417,16 @@ function SubmitForm({
           <AttachmentPicker file={file} setFile={setFile} disabled={loading} />
           <Button
             label={loading ? 'Đang nộp…' : 'Xác nhận nộp bài'}
-            icon={CheckCircle2}
+            glyph="hoanthanh"
             loading={loading}
             disabled={!canSubmit}
             onPress={onSubmit}
           />
+          {/* V-12c: câu cũ ("Sau khi nộp sẽ không sửa lại được") NGƯỢC với chính màn này — ngay
+              dưới bài đã nộp có nút "Nộp lại" — và ngược với backend: isAwaitingTeacher
+              (SUBMITTED/AI_GRADED/GRADING_FAILED) vẫn cho nộp đè cho tới khi giáo viên chốt điểm. */}
           <ThemedText variant="caption" color="muted" align="center">
-            Sau khi nộp sẽ không sửa lại được
+            Nộp xong bạn vẫn nộp lại được cho tới khi giáo viên chấm
           </ThemedText>
         </View>
       </Card>
@@ -445,7 +460,7 @@ function AttachmentPicker({
     setRecording(false)
   })
 
-  const oversize = () => Alert.alert('File quá lớn', 'Vui lòng chọn tệp dưới 10MB.')
+  const oversize = () => Alert.alert('Tệp quá lớn', 'Vui lòng chọn tệp dưới 10MB.')
   const tooBig = (size?: number) => size != null && size > MAX_UPLOAD_BYTES
 
   async function pickImage(fromCamera: boolean) {
@@ -529,7 +544,7 @@ function AttachmentPicker({
           backgroundColor: c.dangerSoft, borderRadius: radius.md, padding: space[3],
         }}
       >
-        <Icon icon={Mic} size={16} color="danger" />
+        <GaGlyph name="speaking" size={16} ink="danger" gold="danger" />
         <ThemedText variant="bodyStrong" style={{ flex: 1, color: c.danger }}>
           Đang ghi… {formatSeconds(seconds)}
         </ThemedText>
@@ -570,19 +585,19 @@ function AttachmentPicker({
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
         <PickButton icon={Camera} label="Chụp ảnh" disabled={disabled} onPress={() => void pickImage(true)} />
         <PickButton icon={ImageIcon} label="Ảnh" disabled={disabled} onPress={() => void pickImage(false)} />
-        <PickButton icon={Paperclip} label="File" disabled={disabled} onPress={() => void pickDocument()} />
-        <PickButton icon={Mic} label="Ghi âm" disabled={disabled} onPress={() => void startRecording()} />
+        <PickButton icon={Paperclip} label="Tệp" disabled={disabled} onPress={() => void pickDocument()} />
+        <PickButton glyph="speaking" label="Ghi âm" disabled={disabled} onPress={() => void startRecording()} />
       </View>
     </View>
   )
 }
 
 function PickButton({
-  icon, label, disabled, onPress,
+  icon, glyph, label, disabled, onPress,
 }: {
-  icon: typeof Camera; label: string; disabled: boolean; onPress: () => void
+  icon?: typeof Camera; glyph?: GlyphName; label: string; disabled: boolean; onPress: () => void
 }) {
-  return <Button label={label} icon={icon} variant="secondary" size="sm" fullWidth={false} disabled={disabled} onPress={onPress} />
+  return <Button label={label} icon={icon} glyph={glyph} variant="secondary" size="sm" fullWidth={false} disabled={disabled} onPress={onPress} />
 }
 
 function formatSeconds(s: number): string {
@@ -605,8 +620,38 @@ function fileKindLabel(contentType: string): string {
   return 'Tệp đính kèm'
 }
 
-function SpeakingNotice() {
+/**
+ * N2 (đợt 2, 05/09): bài giao SPEAKING_SCENARIO làm NGAY trong app — trước đây màn này chỉ
+ * bảo "mở ứng dụng web". Gương web classes/[id]/assignments/[aid]: lấy kịch bản
+ * (GET …/{assignmentId}/scenario, id bài của LỚP) → mở màn Speaking với phiên LESSON gắn
+ * `assignmentId` = id DÒNG BÀI của học viên (a.id). Kết thúc buổi nói, backend tự chấm và
+ * đẩy bài sang chờ giáo viên (AI_GRADED / GRADING_FAILED) — không có bước "nộp" riêng.
+ */
+function SpeakingStart({ assignment: a }: { assignment: StudentAssignment }) {
   const c = useTheme().colors
+  const [busy, setBusy] = useState(false)
+  async function start() {
+    if (busy) return
+    setBusy(true)
+    try {
+      const sc = await fetchAssignmentScenario(a.assignmentId)
+      router.push({
+        pathname: '/(student)/speaking',
+        params: {
+          assignmentId: String(a.id),
+          backTo: String(a.assignmentId),
+          topic: scenarioTopic(sc),
+          level: sc.level || 'A2',
+          // nonce: mở lại cùng bài lần sau vẫn tự bắt đầu phiên mới (speaking.tsx khoá theo key này)
+          t: String(Date.now()),
+        },
+      } as unknown as Href)
+    } catch (e) {
+      Alert.alert('Chưa mở được bài nói', apiMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
   return (
     <Card tone="sunken">
       <View style={{ gap: space[3], alignItems: 'center', paddingVertical: space[3] }}>
@@ -620,12 +665,15 @@ function SpeakingNotice() {
             justifyContent: 'center',
           }}
         >
-          <Icon icon={MessageSquare} size={26} color="accent" />
+          <GaGlyph name="hoithoai" size={26} ink="primary" />
         </View>
         <ThemedText variant="title" align="center">Bài tập Luyện Nói AI</ThemedText>
         <ThemedText variant="caption" color="secondary" align="center">
-          Hãy mở ứng dụng web để thực hiện bài Luyện nói AI này — điểm sẽ tự đồng bộ với giáo viên.
+          Trò chuyện với gia sư AI theo tình huống giáo viên giao. Kết thúc buổi nói là bài được nộp và chấm tự động; giáo viên xác nhận điểm sau.
         </ThemedText>
+        <View style={{ alignSelf: 'stretch', paddingTop: space[1] }}>
+          <Button label="Bắt đầu bài nói" onPress={() => void start()} loading={busy} />
+        </View>
       </View>
     </Card>
   )
@@ -641,7 +689,7 @@ function SubmissionView({ assignment: a, onResubmit }: { assignment: StudentAssi
     <View style={{ gap: space[5] }}>
       <View style={{ gap: space[3] }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <Icon icon={CheckCircle2} size={14} color="success" />
+          <GaGlyph name="hoanthanh" size={14} ink="success" gold="success" />
           <Caption>Bài đã nộp</Caption>
         </View>
         <Card>

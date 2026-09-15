@@ -1,13 +1,13 @@
 import { Pressable, View } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { router } from 'expo-router'
-import { ShieldCheck, ShieldOff } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { moderationApi } from '@/lib/moderationApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Screen, Skeleton, ThemedText,
-} from '@/components/ui'
+  AppHeader, Caption, Card, EmptyState, ErrorState, Screen, Skeleton, ThemedText,
+GaGlyph } from '@/components/ui'
+import { useBackTo } from '@/hooks/useBackTo'
+import { PARENT_OF } from '@/lib/screenParents'
 
 /**
  * Safety & blocked users (Apple Guideline 1.2). Always reachable from Profile → this screen, so a
@@ -15,6 +15,8 @@ import {
  * report/block tools and lists (and unblocks) blocked users.
  */
 export default function BlockedUsersScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackTo(PARENT_OF['settings/blocked'])
   const c = useTheme().colors
   const qc = useQueryClient()
 
@@ -33,11 +35,11 @@ export default function BlockedUsersScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="An toàn & chặn" subtitle="Báo cáo và chặn người dùng" onBack={() => router.back()} />
+      <AppHeader title="An toàn & chặn" subtitle="Báo cáo và chặn người dùng" onBack={goBack} />
       <View style={{ paddingHorizontal: space[5], gap: space[4], paddingTop: space[2] }}>
         <Card style={{ gap: space[2] }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <Icon icon={ShieldCheck} size={18} color="accent" />
+            <GaGlyph name="antoan" size={18} ink="primary" />
             <ThemedText variant="title">Giữ cộng đồng an toàn</ThemedText>
           </View>
           <ThemedText variant="body" style={{ color: c.textSecondary }}>
@@ -56,7 +58,7 @@ export default function BlockedUsersScreen() {
             <ErrorState message={apiMessage(q.error)} onRetry={() => void q.refetch()} />
           ) : blocked.length === 0 ? (
             <EmptyState
-              icon={ShieldOff}
+              glyph="canhbao"
               title="Chưa chặn ai"
               message="Danh sách người bạn đã chặn sẽ hiển thị ở đây."
             />

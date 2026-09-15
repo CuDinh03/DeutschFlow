@@ -1,9 +1,10 @@
 import { useEffect } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { ActivityIndicator, View } from 'react-native'
 import { router } from 'expo-router'
-import { Star, Zap, Mic, Trophy, BookOpen, Check, type LucideIcon } from 'lucide-react-native'
+import { Check } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, AppHeader, Caption, YellowSquare, Button, Pill } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, AppHeader, Caption, YellowSquare, Button, Pill, GaGlyph } from '@/components/ui'
 import { trackFeatureAction } from '@/lib/analytics'
 import { IAP_ENABLED, PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
@@ -11,16 +12,20 @@ import { openManageSubscriptions } from '@/lib/iapManage'
 import { useAppleIap } from '@/hooks/useAppleIap'
 import { metaForProductId } from '@/lib/iapProducts'
 import { trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
-const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
-  { icon: Mic, label: 'AI Speaking không giới hạn' },
-  { icon: Trophy, label: 'Mock Exam Goethe chuẩn' },
-  { icon: Zap, label: 'Weekly Speaking Challenge' },
-  { icon: BookOpen, label: 'Toàn bộ lộ trình A1 đến B2' },
-  { icon: Star, label: 'Phân tích lỗi chi tiết' },
+const PRO_FEATURES: { glyph: GlyphName; label: string }[] = [
+  // PR-A7 (07/09/2026): không hứa "không giới hạn" — hạn mức AI theo gói vẫn có (lib/upsell.ts báo hết lượt).
+  { glyph: 'speaking', label: 'Luyện nói AI với hạn mức PRO mỗi ngày' },
+  { glyph: 'thithu', label: 'Thi thử Goethe chuẩn' },
+  { glyph: 'xp', label: 'Thử thách nói theo tuần' },
+  { glyph: 'lernweg', label: 'Toàn bộ lộ trình A1 đến B2' },
+  { glyph: 'sualoi', label: 'Phân tích lỗi chi tiết' },
 ]
 
 export default function UpgradeScreen() {
+  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  const goBack = useBackToMainTab()
   useEffect(() => {
     // v1.0 iOS free build: there is no PRO surface at all, so this route should never be reachable —
     // if something links here, bounce straight home rather than show any commercial screen (2.1(b)).
@@ -50,12 +55,12 @@ export default function UpgradeScreen() {
   if (!PAYWALL_ENABLED) {
     return (
       <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
-        <AppHeader title="MyDeutschFlow PRO" onBack={() => router.back()} />
+        <AppHeader title="MyDeutschFlow PRO" onBack={goBack} />
         <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
           <ProHero
             eyebrow="Tài khoản nâng cao"
             title="MyDeutschFlow PRO"
-            body="Tài khoản PRO mở khoá các tính năng nâng cao như AI Speaking không giới hạn, Mock Exam và lộ trình học đầy đủ."
+            body="Tài khoản PRO mở khoá các tính năng nâng cao như luyện nói AI với hạn mức cao mỗi ngày, thi thử và lộ trình học đầy đủ."
           />
 
           <Caption style={{ marginTop: space[7], marginBottom: space[3] }}>Bao gồm trong PRO</Caption>
@@ -72,12 +77,12 @@ export default function UpgradeScreen() {
   // Android: PRO is managed on the web; this screen explains the value.
   return (
     <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
-      <AppHeader title="MyDeutschFlow PRO" onBack={() => router.back()} />
+      <AppHeader title="MyDeutschFlow PRO" onBack={goBack} />
       <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
         <ProHero
           eyebrow="Nâng cấp tài khoản"
           title="Mở khoá toàn bộ"
-          body="Học tiếng Đức không giới hạn với AI coach và lộ trình cá nhân hoá."
+          body="Học tiếng Đức mỗi ngày với AI coach và lộ trình cá nhân hoá."
         />
 
         <Caption style={{ marginTop: space[7], marginBottom: space[3] }}>Bạn sẽ nhận được</Caption>
@@ -93,6 +98,7 @@ export default function UpgradeScreen() {
 
 /** Real StoreKit paywall: fetches products from the store, purchases, and restores. */
 function IapPaywall() {
+  const goBack = useBackToMainTab()
   const c = useTheme().colors
   const { connected, products, phase, activeSku, error, succeeded, buy, restore } = useAppleIap(true)
   const isBusy = phase === 'purchasing' || phase === 'restoring'
@@ -104,12 +110,12 @@ function IapPaywall() {
 
   return (
     <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
-      <AppHeader title="MyDeutschFlow PRO" onBack={() => router.back()} />
+      <AppHeader title="MyDeutschFlow PRO" onBack={goBack} />
       <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
         <ProHero
           eyebrow="Nâng cấp tài khoản"
           title="Mở khoá toàn bộ"
-          body="Học tiếng Đức không giới hạn với AI coach và lộ trình cá nhân hoá."
+          body="Học tiếng Đức mỗi ngày với AI coach và lộ trình cá nhân hoá."
         />
 
         {plan?.isTrial ? (
@@ -130,7 +136,7 @@ function IapPaywall() {
             <ThemedText variant="body" color="muted">
               Cảm ơn bạn. Toàn bộ tính năng nâng cao đã được mở khoá.
             </ThemedText>
-            <Button label="Tiếp tục học" onPress={() => router.back()} />
+            <Button label="Tiếp tục học" onPress={goBack} />
             <Button
               label="Quản lý gói đăng ký"
               variant="ghost"
@@ -257,7 +263,7 @@ function ProHero({ eyebrow, title, body }: { eyebrow: string; title: string; bod
           justifyContent: 'center',
         }}
       >
-        <Icon icon={Star} size={28} color="accent" fill />
+        <GaGlyph name="goipro" size={28} ink="primary" />
       </View>
       <View style={{ gap: space[2] }}>
         <Caption color={c.accent}>{eyebrow}</Caption>

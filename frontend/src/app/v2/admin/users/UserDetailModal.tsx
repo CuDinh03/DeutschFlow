@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { TkModal, GaBtn, GaCap, TkBadge, ErrorBanner, LoadingState, ConfirmDialog } from '@/components/ui-v2'
 import type { PlanRow } from './page'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 type GlobalRole = 'ADMIN' | 'TEACHER' | 'STUDENT'
 /** Org-admin roles are first-class platform roles but are managed via the org console, not here. */
@@ -51,7 +52,6 @@ interface UserDetailModalProps {
   onShowLearning?: () => void
 }
 
-const fmt = (n: number | undefined) => Number(n ?? 0).toLocaleString('vi-VN')
 /** Ánh xạ quotaKind của backend sang khoá i18n (thay cho chuỗi tiếng Việt hardcode trước đây). */
 function quotaKindKey(k: string | undefined): string {
   switch (k) {
@@ -84,6 +84,7 @@ export function UserDetailModal({
   onShowLearning,
 }: UserDetailModalProps) {
   const t = useTranslations('v2.adminOps.users.detail')
+  const fmt = useFmt()
   const [quota, setQuota] = useState<QuotaDetail | null>(null)
   const [usage, setUsage] = useState<UsageRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -276,15 +277,15 @@ export function UserDetailModal({
                 <>
                   <p className="ga-ui text-[13px] text-ga-muted">{t(quotaKindKey(quota.quotaKind))}</p>
                   <div className="grid grid-cols-2 gap-4 text-[13px]">
-                    {stat(t('stat.ledger30'), fmt(quota.usageLast30Days))}
-                    {stat(t('stat.today'), fmt(quota.usedToday ?? quota.usedThisMonth))}
+                    {stat(t('stat.ledger30'), fmt.num(quota.usageLast30Days))}
+                    {stat(t('stat.today'), fmt.num(quota.usedToday ?? quota.usedThisMonth))}
                     {stat(
                       t('stat.remainingSpendable'),
-                      quota.unlimitedInternal ? '—' : fmt(quota.remainingSpendable ?? quota.remainingThisMonth),
+                      quota.unlimitedInternal ? '—' : fmt.num(quota.remainingSpendable ?? quota.remainingThisMonth),
                     )}
-                    {stat(t('stat.walletCap'), fmt(quota.walletCap))}
-                    {stat(t('stat.dailyGrant'), fmt(quota.dailyTokenGrant))}
-                    {stat(t('stat.walletBalance'), fmt(quota.walletBalance))}
+                    {stat(t('stat.walletCap'), fmt.num(quota.walletCap))}
+                    {stat(t('stat.dailyGrant'), fmt.num(quota.dailyTokenGrant))}
+                    {stat(t('stat.walletBalance'), fmt.num(quota.walletBalance))}
                   </div>
                 </>
               ) : (
@@ -453,7 +454,7 @@ export function UserDetailModal({
                           {[r.provider, r.model].filter(Boolean).join(' / ') || '—'}
                         </td>
                         <td className="px-3 py-2 text-right font-semibold tabular-nums text-ga-ink">
-                          {fmt(r.totalTokens)}
+                          {fmt.num(r.totalTokens)}
                         </td>
                       </tr>
                     ))

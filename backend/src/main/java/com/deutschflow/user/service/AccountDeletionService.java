@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
  * in dependency order, within the same transaction.
  *
  * Required for App Store Guideline 5.1.1(v): in-app account deletion.
+ *
+ * <p>Thành viên trung tâm KHÔNG đi qua được đường này — xem {@link AccountDeletionGuard} (D6).
  */
 @Slf4j
 @Service
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AccountDeletionService {
 
     private final JdbcTemplate jdbc;
+    private final AccountDeletionGuard deletionGuard;
 
     /** Tables with a non-cascading FK to users(id) that must be cleared first. */
     private static final String[] NON_CASCADING_BY_USER_ID = {
@@ -34,6 +37,10 @@ public class AccountDeletionService {
 
     @Transactional
     public void deleteAccount(long userId) {
+        // D6 (owner chốt 08/09/2026) — chốt đặt Ở ĐÂY chứ không ở controller: đây là chỗ DUY NHẤT
+        // xoá dòng users, nên mọi đường xoá tài khoản về sau đều chịu chung một hàng rào. Ném 409
+        // kèm hướng dẫn cụ thể; @Transactional nên không có gì bị xoá dở.
+        deletionGuard.assertDeletable(userId);
         // Table name is concatenated from the compile-time constant array above (never user input),
         // so this is not an injection vector; the userId is always a bound parameter.
         for (String table : NON_CASCADING_BY_USER_ID) {
@@ -54,6 +61,16 @@ public class AccountDeletionService {
         // the reference so the channel's audit trail survives without pointing at a deleted user.
         jdbc.update("DELETE FROM class_channel_messages WHERE sender_id = ?", userId);
         jdbc.update("UPDATE class_channel_messages SET deleted_by = NULL WHERE deleted_by = ?", userId);
+
+        // Báo cáo nội dung (V244/V321, owner chốt 10/09/2026 — B1): người BỊ TỐ CÁO xoá tài khoản thì
+        // ẨN DANH nội dung (snapshot_body + details) nhưng GIỮ dòng và GIỮ reporter_id — bằng chứng
+        // "đã có báo cáo, đã xử lý thế nào" thuộc về hàng đợi kiểm duyệt, còn nội dung là dữ liệu
+        // của người vừa thực thi quyền xoá. Phải chạy TRƯỚC `DELETE FROM users`: FK reported_user_id
+        // là SET NULL, xoá xong thì không còn tra được dòng nào là của người này nữa.
+        // COALESCE giữ mốc cũ nếu job hạn lưu đã dọn trước; NULL rồi thì gán NULL lần nữa vô hại.
+        // Người này ở vai NGƯỜI TỐ CÁO thì không cần lệnh nào: FK reporter_id SET NULL (V321).
+        jdbc.update("UPDATE content_reports SET snapshot_body = NULL, details = NULL, "
+                + "content_purged_at = COALESCE(content_purged_at, now()) WHERE reported_user_id = ?", userId);
 
         // Remaining FKs cascade (ON DELETE CASCADE) or set null on this delete.
         // NOTE (teacher/org offboarding — separate follow-up): authorship/audit columns on

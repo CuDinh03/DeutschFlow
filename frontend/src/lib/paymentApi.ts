@@ -1,4 +1,5 @@
 import api from "@/lib/api";
+import { uiText } from "@/lib/i18n/clientLocale";
 
 export interface CreateMomoOrderRequest {
   planCode: "PRO" | "ULTRA";
@@ -55,7 +56,12 @@ export async function createMomoOrder(
     return data;
   } catch (error: any) {
     throw new Error(
-      error.response?.data?.message || "Không thể tạo đơn thanh toán MoMo"
+      error.response?.data?.message ||
+        uiText({
+          vi: "Không thể tạo đơn thanh toán MoMo",
+          en: "Could not create the MoMo payment order",
+          de: "MoMo-Zahlungsauftrag konnte nicht erstellt werden",
+        })
     );
   }
 }
@@ -74,7 +80,12 @@ export async function createStripeSession(
     return data;
   } catch (error: any) {
     throw new Error(
-      error.response?.data?.message || "Không thể tạo phiên thanh toán Stripe"
+      error.response?.data?.message ||
+        uiText({
+          vi: "Không thể tạo phiên thanh toán Stripe",
+          en: "Could not create the Stripe checkout session",
+          de: "Stripe-Checkout-Sitzung konnte nicht erstellt werden",
+        })
     );
   }
 }
@@ -92,7 +103,11 @@ export async function syncMomoOrder(orderId: string): Promise<SyncMomoOrderRespo
     throw new Error(
       error.response?.data?.message ||
         error.response?.data?.detail ||
-        "Không thể đồng bộ trạng thái thanh toán"
+        uiText({
+          vi: "Không thể đồng bộ trạng thái thanh toán",
+          en: "Could not sync the payment status",
+          de: "Zahlungsstatus konnte nicht synchronisiert werden",
+        })
     );
   }
 }

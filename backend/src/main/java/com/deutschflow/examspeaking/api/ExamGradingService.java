@@ -11,4 +11,12 @@ import com.deutschflow.examspeaking.api.model.RubricRef;
 public interface ExamGradingService {
 
     Ergebnisbogen grade(long userId, ParticipantBundle bundle, RubricRef rubricRef);
+
+    /**
+     * Như {@link #grade(long, ParticipantBundle, RubricRef)} nhưng gắn {@code sessionId} vào ledger
+     * chi phí để đo token/phiên (kế hoạch N0.6). Mặc định bỏ qua sessionId — contract B2B không bắt buộc.
+     */
+    default Ergebnisbogen grade(long userId, ParticipantBundle bundle, RubricRef rubricRef, Long sessionId) {
+        return grade(userId, bundle, rubricRef);
+    }
 }

@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ScheduleTab } from '@/app/v2/student/classes/[id]/ScheduleTab'
 import type { ClassSession } from '@/lib/studentClassesApi'
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', () => ({ useLocale: () => 'vi',
   useTranslations: () => (k: string, v?: Record<string, unknown>) =>
     v ? `${k}:${Object.values(v).join(',')}` : k,
 }))

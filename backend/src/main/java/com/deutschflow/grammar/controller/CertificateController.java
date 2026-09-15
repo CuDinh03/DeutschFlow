@@ -11,8 +11,8 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
-import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -23,6 +23,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -91,6 +93,100 @@ public class CertificateController {
         int score         = ((Number) cert.get("exam_score")).intValue();
         String issuedDate = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
 
+        try {
+            byte[] pdfBytes = renderPdf(name, cefrLevel, score, code, issuedDate);
+
+            String filename = "DeutschFlow-Certificate-" + cefrLevel + "-" + code + ".pdf";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", filename);
+            return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+
+        } catch (Exception e) {
+            log.error("Failed to generate certificate PDF id={}", id, e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /** Check if user is eligible and issue certificate for a CEFR level */
+    @PostMapping("/claim")
+    public ResponseEntity<CertificateClaimDto> claimCertificate(
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal UserDetails principal) {
+        long uid = userId(principal);
+        String cefrLevel = body.getOrDefault("cefrLevel", "A1");
+
+        var existing = jdbcTemplate.queryForList("""
+            SELECT id, certificate_code FROM cefr_certificates
+            WHERE user_id = ? AND cefr_level = ? AND is_active = TRUE
+            """, uid, cefrLevel);
+        if (!existing.isEmpty()) {
+            var cert = existing.get(0);
+            return ResponseEntity.ok(CertificateClaimDto.existing(
+                    ((Number) cert.get("id")).longValue(), (String) cert.get("certificate_code")));
+        }
+
+        // Bài có phần bị loại khỏi mẫu số vì ứng dụng không dựng được phần đó
+        // (ExamScoringService.STATUS_SKIPPED_ON_CLIENT) KHÔNG được dùng để nhận chứng nhận: mẫu số
+        // nhỏ hơn nghĩa là ngưỡng đỗ dễ hơn, nên nếu cho qua đây thì một client sửa được sẽ khai
+        // "không làm được phần này" để lấy chứng nhận bằng một phần của đề. Phần chờ chấm
+        // (PENDING_AI_EVALUATION) vẫn được tha như trước — đó là hạ tầng của ta hỏng, không phải
+        // lựa chọn của người học.
+        var passedExam = jdbcTemplate.queryForList("""
+            SELECT a.id, a.total_score FROM mock_exam_attempts a
+            JOIN mock_exams e ON e.id = a.exam_id
+            WHERE a.user_id = ? AND e.cefr_level = ?
+              AND a.status = 'COMPLETED' AND a.passed = TRUE
+              AND (a.detailed_scores_json IS NULL
+                   OR jsonb_typeof(a.detailed_scores_json) <> 'object'
+                   OR NOT EXISTS (
+                        SELECT 1 FROM jsonb_each(a.detailed_scores_json) sec
+                        WHERE sec.value->>'status' = 'SKIPPED_ON_CLIENT'))
+            ORDER BY a.total_score DESC
+            LIMIT 1
+            """, uid, cefrLevel);
+
+        if (passedExam.isEmpty()) {
+            return ResponseEntity.badRequest().body(CertificateClaimDto.error(
+                "Chưa pass mock exam " + cefrLevel,
+                "Cần đạt ≥ 60 điểm trong bài thi mock Goethe " + cefrLevel));
+        }
+
+        var bestAttempt = passedExam.get(0);
+        int score = ((Number) bestAttempt.get("total_score")).intValue();
+        long attemptId = ((Number) bestAttempt.get("id")).longValue();
+        String code = "DF-" + cefrLevel + "-" + java.time.Year.now().getValue() + "-" + String.format("%05d", uid);
+
+        try {
+            var cert = jdbcTemplate.queryForMap("""
+                INSERT INTO cefr_certificates (user_id, cefr_level, exam_score, attempt_id, certificate_code)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (user_id, cefr_level) DO UPDATE
+                  SET exam_score = EXCLUDED.exam_score, is_active = TRUE
+                RETURNING id, cefr_level, issued_at, exam_score, certificate_code
+                """, uid, cefrLevel, score, attemptId, code);
+            return ResponseEntity.ok(CertificateClaimDto.issued(
+                    ((Number) cert.get("id")).longValue(),
+                    (String) cert.get("certificate_code"),
+                    (String) cert.get("cefr_level"),
+                    (java.util.Date) cert.get("issued_at"),
+                    (Integer) cert.get("exam_score")));
+        } catch (Exception e) {
+            log.error("Error issuing certificate", e);
+            return ResponseEntity.internalServerError().body(
+                    CertificateClaimDto.error("Không thể cấp chứng chỉ", null));
+        }
+    }
+
+
+    /**
+     * Vẽ PDF chứng nhận. Font nhúng Plus Jakarta Sans (OFL, {@code src/main/resources/fonts}) thay
+     * Helvetica Standard-14: Helvetica chỉ mã hoá WinAnsi nên tên học viên có dấu tiếng Việt
+     * ("Nguyễn", "Đức", ơ/ư…) làm PDFBox ném IllegalArgumentException → tải chứng nhận trả 500
+     * (audit UTF-8 06/09/2026, F-UTF-03). Ký tự font không có glyph (chữ Hán, emoji…) được thay
+     * bằng '?' qua {@link #safeText} thay vì vỡ cả file.
+     */
+    static byte[] renderPdf(String name, String cefrLevel, int score, String code, String issuedDate) throws Exception {
         try (PDDocument doc = new PDDocument()) {
             PDPage page = new PDPage(PDRectangle.A4);
             doc.addPage(page);
@@ -112,9 +208,9 @@ public class CertificateController {
                 cs.addRect(38, 38, w - 76, h - 76);
                 cs.stroke();
 
-                var bold   = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
-                var normal = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
-                var italic = new PDType1Font(Standard14Fonts.FontName.HELVETICA_OBLIQUE);
+                PDFont bold   = loadFont(doc, "PlusJakartaSans-Bold.ttf");
+                PDFont normal = loadFont(doc, "PlusJakartaSans-Regular.ttf");
+                PDFont italic = loadFont(doc, "PlusJakartaSans-Italic.ttf");
 
                 cs.setNonStrokingColor(0.24f, 0.27f, 0.98f);
                 centerText(cs, bold, 28, "DEUTSCHFLOW", w, h - 120);
@@ -163,80 +259,34 @@ public class CertificateController {
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             doc.save(baos);
-            byte[] pdfBytes = baos.toByteArray();
-
-            String filename = "DeutschFlow-Certificate-" + cefrLevel + "-" + code + ".pdf";
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_PDF);
-            headers.setContentDispositionFormData("attachment", filename);
-            return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
-
-        } catch (Exception e) {
-            log.error("Failed to generate certificate PDF id={}", id, e);
-            return ResponseEntity.internalServerError().build();
+            return baos.toByteArray();
         }
     }
 
-    /** Check if user is eligible and issue certificate for a CEFR level */
-    @PostMapping("/claim")
-    public ResponseEntity<CertificateClaimDto> claimCertificate(
-            @RequestBody Map<String, String> body,
-            @AuthenticationPrincipal UserDetails principal) {
-        long uid = userId(principal);
-        String cefrLevel = body.getOrDefault("cefrLevel", "A1");
-
-        var existing = jdbcTemplate.queryForList("""
-            SELECT id, certificate_code FROM cefr_certificates
-            WHERE user_id = ? AND cefr_level = ? AND is_active = TRUE
-            """, uid, cefrLevel);
-        if (!existing.isEmpty()) {
-            var cert = existing.get(0);
-            return ResponseEntity.ok(CertificateClaimDto.existing(
-                    ((Number) cert.get("id")).longValue(), (String) cert.get("certificate_code")));
-        }
-
-        var passedExam = jdbcTemplate.queryForList("""
-            SELECT a.id, a.total_score FROM mock_exam_attempts a
-            JOIN mock_exams e ON e.id = a.exam_id
-            WHERE a.user_id = ? AND e.cefr_level = ?
-              AND a.status = 'COMPLETED' AND a.passed = TRUE
-            ORDER BY a.total_score DESC
-            LIMIT 1
-            """, uid, cefrLevel);
-
-        if (passedExam.isEmpty()) {
-            return ResponseEntity.badRequest().body(CertificateClaimDto.error(
-                "Chưa pass mock exam " + cefrLevel,
-                "Cần đạt ≥ 60 điểm trong bài thi mock Goethe " + cefrLevel));
-        }
-
-        var bestAttempt = passedExam.get(0);
-        int score = ((Number) bestAttempt.get("total_score")).intValue();
-        long attemptId = ((Number) bestAttempt.get("id")).longValue();
-        String code = "DF-" + cefrLevel + "-" + java.time.Year.now().getValue() + "-" + String.format("%05d", uid);
-
-        try {
-            var cert = jdbcTemplate.queryForMap("""
-                INSERT INTO cefr_certificates (user_id, cefr_level, exam_score, attempt_id, certificate_code)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT (user_id, cefr_level) DO UPDATE
-                  SET exam_score = EXCLUDED.exam_score, is_active = TRUE
-                RETURNING id, cefr_level, issued_at, exam_score, certificate_code
-                """, uid, cefrLevel, score, attemptId, code);
-            return ResponseEntity.ok(CertificateClaimDto.issued(
-                    ((Number) cert.get("id")).longValue(),
-                    (String) cert.get("certificate_code"),
-                    (String) cert.get("cefr_level"),
-                    (java.util.Date) cert.get("issued_at"),
-                    (Integer) cert.get("exam_score")));
-        } catch (Exception e) {
-            log.error("Error issuing certificate", e);
-            return ResponseEntity.internalServerError().body(
-                    CertificateClaimDto.error("Không thể cấp chứng chỉ", null));
+    private static PDFont loadFont(PDDocument doc, String file) throws IOException {
+        try (InputStream in = CertificateController.class.getResourceAsStream("/fonts/" + file)) {
+            if (in == null) throw new IllegalStateException("Thiếu font nhúng /fonts/" + file);
+            return PDType0Font.load(doc, in);
         }
     }
 
-    private void centerText(PDPageContentStream cs, PDType1Font font, float size, String text, float pageWidth, float y) throws Exception {
+    /** Thay code point mà font không mã hoá được bằng '?' để showText/getStringWidth không ném lỗi. */
+    static String safeText(PDFont font, String text) {
+        StringBuilder sb = new StringBuilder(text.length());
+        text.codePoints().forEach(cp -> {
+            String ch = new String(Character.toChars(cp));
+            try {
+                font.encode(ch);
+                sb.append(ch);
+            } catch (Exception e) {
+                sb.append('?');
+            }
+        });
+        return sb.toString();
+    }
+
+    private static void centerText(PDPageContentStream cs, PDFont font, float size, String text, float pageWidth, float y) throws Exception {
+        text = safeText(font, text);
         float tw = font.getStringWidth(text) / 1000 * size;
         cs.beginText();
         cs.setFont(font, size);

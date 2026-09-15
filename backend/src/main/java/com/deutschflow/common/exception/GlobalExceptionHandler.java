@@ -90,8 +90,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ProblemDetail> handleBadRequest(BadRequestException ex,
                                                           HttpServletRequest request) {
+        // Nơi ném gắn mã (BadRequestException#getCode, ví dụ GUARDIAN_EMAIL_IS_STUDENT_EMAIL) thì
+        // phát ở extensions.code — cùng khuôn ORG_READ_ONLY / MINOR_AUDIO_BLOCKED. Không mã ⇒
+        // extensions vẫn null, hợp đồng 400 cũ không đổi.
+        Map<String, Object> ext = ex.getCode() == null ? null : Map.of("code", ex.getCode());
         return problem(HttpStatus.BAD_REQUEST, "bad-request", "Bad Request",
-                ex.getMessage(), request.getRequestURI(), null, null);
+                ex.getMessage(), request.getRequestURI(), null, ext);
     }
 
     /**
@@ -197,6 +201,63 @@ public class GlobalExceptionHandler {
                                                          HttpServletRequest request) {
         return problem(HttpStatus.FORBIDDEN, "forbidden", "Forbidden",
                 ex.getMessage(), request.getRequestURI(), null, null);
+    }
+
+    /**
+     * 403 + {@code ORG_READ_ONLY} — trung tâm bị đình chỉ hoặc đã hết hạn, tính từ NGAY mốc neo
+     * chứ không đợi hết 7 ngày ân hạn (D5, owner chốt 09/09/2026). Tách khỏi
+     * {@code forbidden} vì client cần hiển thị khác hẳn: không phải "bạn thiếu quyền" mà là
+     * "trung tâm đang khoá ghi, đây là cách mở lại". Đường ĐỌC vẫn 200 như thường.
+     */
+    @ExceptionHandler(OrgReadOnlyException.class)
+    public ResponseEntity<ProblemDetail> handleOrgReadOnly(OrgReadOnlyException ex,
+                                                           HttpServletRequest request) {
+        Map<String, Object> ext = new java.util.LinkedHashMap<>();
+        ext.put("code", OrgReadOnlyException.CODE);
+        ext.put("reason", ex.getReason().name());
+        if (ex.getOrgId() != null) {
+            ext.put("orgId", ex.getOrgId());
+        }
+        return problem(HttpStatus.FORBIDDEN, "org-read-only", "Forbidden",
+                ex.getMessage(), request.getRequestURI(), null, ext);
+    }
+
+    /**
+     * 403 + {@code MINOR_AUDIO_BLOCKED} — đường ghi âm bị chặn vì chưa xác định tuổi hoặc chưa có
+     * đồng ý của người giám hộ (DEC-22). Tách khỏi {@code forbidden} vì client phải hiển thị hẳn
+     * một việc cần làm ("liên hệ trung tâm để hoàn tất phiếu đồng ý") chứ không phải "bạn không có
+     * quyền"; và tách khỏi 429 {@code QUOTA_EXCEEDED} vì nâng gói không mở được cổng này —
+     * gộp vào đó là mời một đứa trẻ nâng cấp gói để được ghi âm.
+     *
+     * <p>⛔ {@code extensions} chỉ mang {@code code} + {@code reason}. KHÔNG phát nhóm tuổi hay ngày
+     * sinh ra response — client không cần chúng để chọn thông điệp, mà mọi thứ phát ra là thứ log
+     * proxy và ảnh chụp màn hình sẽ giữ lại.
+     */
+    @ExceptionHandler(com.deutschflow.common.minor.MinorAudioBlockedException.class)
+    public ResponseEntity<ProblemDetail> handleMinorAudioBlocked(
+            com.deutschflow.common.minor.MinorAudioBlockedException ex, HttpServletRequest request) {
+        Map<String, Object> ext = new java.util.LinkedHashMap<>();
+        ext.put("code", com.deutschflow.common.minor.MinorAudioBlockedException.CODE);
+        ext.put("reason", ex.getReason().name());
+        return problem(HttpStatus.FORBIDDEN, "minor-audio-blocked", "Forbidden",
+                ex.getMessage(), request.getRequestURI(), null, ext);
+    }
+
+    /**
+     * 409 + {@code extensions.code} cho cổng phát hành phiếu gửi gia đình (R6, thiết kế 10/09/2026):
+     * {@code GUARDIAN_REPORT_CONSENT_REQUIRED} | {@code GUARDIAN_REPORT_CONSENT_REVOKED} |
+     * {@code BIRTH_DATE_REQUIRED}. Đây là 409 chứ không phải 403: người gọi CÓ quyền phát hành, chỉ là
+     * hồ sơ học viên chưa ở trạng thái cho phép — việc cần làm nằm ở trung tâm (ghi đồng ý giấy, bổ
+     * sung ngày sinh), không phải ở người gọi. Cùng họ mã với {@code MINOR_AUDIO_BLOCKED}; như ở đó,
+     * {@code extensions} KHÔNG mang nhóm tuổi hay ngày sinh.
+     */
+    @ExceptionHandler(com.deutschflow.common.minor.ReportIssueBlockedException.class)
+    public ResponseEntity<ProblemDetail> handleReportIssueBlocked(
+            com.deutschflow.common.minor.ReportIssueBlockedException ex, HttpServletRequest request) {
+        Map<String, Object> ext = new java.util.LinkedHashMap<>();
+        ext.put("code", ex.getReason().name());
+        return problem(HttpStatus.CONFLICT, "report-issue-blocked", "Conflict",
+                ex.getMessage(), request.getRequestURI(), null, ext);
     }
 
     // --- 404 Not Found ---

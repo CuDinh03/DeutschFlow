@@ -49,7 +49,7 @@
       "statAudio": "Đã có audio (TTS)",
       "queueCap": "Hàng đợi duyệt từ vựng ({count})",
       "loadError": "Không tải được từ vựng",
-      "queueDone": "Đã duyệt hết hàng đợi 🎉",
+      "queueDone": "Đã duyệt hết hàng đợi",
       "missingImage": "Thiếu ảnh",
       "attachImage": "Gắn ảnh",
       "approveNeedsImage": "Cần gắn ảnh trước khi duyệt",
@@ -125,6 +125,14 @@
       "catPersona": "Ảnh đại diện HR",
       "catAvatar": "Ảnh người dùng",
       "catMarketing": "Ảnh marketing",
+      "catLanding": "Ảnh trang chủ",
+      "catLesson": "Ảnh bài học",
+      "catAchievement": "Ảnh thành tích",
+      "catNews": "Ảnh tin tức",
+      "catVocabulary": "Ảnh từ vựng",
+      "catTeacherMaterial": "Tài liệu giáo viên",
+      "catAssignment": "Ảnh bài tập",
+      "catGeneral": "Chung",
       "catOther": "Khác",
       "title": "Thư viện ảnh & media (S3)",
       "subtitle": "Ảnh từ vựng, ảnh AI và cảnh video bài học",
@@ -254,7 +262,8 @@
       "noIndustryData": "Chưa có dữ liệu ngành.",
       "avgScoreByIndustryTitle": "Điểm trung bình theo ngành",
       "noScoreByIndustry": "Chưa có điểm theo ngành.",
-      "noData": "Không có dữ liệu."
+      "noData": "Không có dữ liệu.",
+      "scorePts": "{n}đ"
     },
     "audit": {
       "catUser": "Người dùng",
@@ -271,6 +280,7 @@
       "csvAction": "Hành động",
       "csvTarget": "Đối tượng",
       "csvId": "Mã",
+      "csvOrg": "Trung tâm",
       "csvTime": "Thời gian",
       "title": "Nhật ký hệ thống",
       "subtitle": "Lịch sử thao tác quản trị và sự kiện hệ thống (audit log)",
@@ -280,6 +290,10 @@
       "colActor": "Người thực hiện",
       "colAction": "Hành động",
       "colTarget": "Đối tượng",
+      "colOrg": "Trung tâm",
+      "orgTag": "TT #{id}",
+      "orgHint": "Thao tác này đã chạm dữ liệu của trung tâm #{id}.",
+      "orgNone": "Nền tảng",
       "colTime": "Thời gian",
       "loading": "Đang tải nhật ký…",
       "loadError": "Không tải được nhật ký.",
@@ -305,7 +319,7 @@
       "statErrorsSub": "có correction",
       "exportCap": "Xuất dữ liệu",
       "downloadJson": "Tải xuống JSON",
-      "anonymizedNote": "⚠️ Dữ liệu đã ẩn danh hoá — chỉ dùng cải thiện AI model, không chia sẻ ra ngoài."
+      "anonymizedNote": "Dữ liệu đã ẩn danh hoá — chỉ dùng cải thiện AI model, không chia sẻ ra ngoài."
     },
     "reports": {
       "childGrammar": "Phản hồi ngữ pháp",

@@ -16,8 +16,11 @@ import chromeVi from '../../messages/v2/chrome.vi.json'
  *    component đặc thù render chéo khu (StimulusCard trong admin/exam-bank, MicDeniedGuide trong
  *    onboarding/mock-exam) — cấp đúng nhánh con thay vì cõng cả 75KB của khu student.
  *
- * Base (catalog legacy: learn, nav, srs…) giữ nguyên ở mọi provider — các trang v2 vẫn dùng
- * namespace gốc rải rác (vd. `learn` trong learn/[nodeId]); tách base là việc của đợt sau.
+ * Base (catalog legacy) TRƯỚC ĐÂY đi kèm nguyên vẹn ở mọi provider. Sau khi dọn xác v1 (#608,
+ * #610) nó chỉ còn ba namespace — `nav`, `learn`, `speaking` — nhưng riêng `speaking` đã 14KB và
+ * chỉ khu student cần, nên mọi trang khác (landing, đăng nhập, teacher, org, admin) cõng vô ích.
+ * Nay base cũng khai báo tường minh, bằng tiền tố `base:`; không khai thì KHÔNG có. Cổng
+ * `scripts/check-i18n-providers.mjs` đối chiếu khai báo với nhu cầu thật của cây import từng khu.
  *
  * ⚠️ Thêm khu/namespace mới thì chạy `npm run check:i18n` — và nhớ: một component client dùng
  * `useTranslations('v2.<x>')` chỉ chạy được trong khu có cấp phần `<x>` cho provider của nó.
@@ -29,6 +32,9 @@ import chromeVi from '../../messages/v2/chrome.vi.json'
 // v2.common.start…) ở mọi khu. Derive từ file để chrome thêm nhóm mới là lõi tự mở rộng theo,
 // không phụ thuộc ai đó nhớ cập nhật danh sách tay.
 const V2_CORE: readonly string[] = Object.keys(chromeVi)
+
+/** Tiền tố khai báo namespace của catalog GỐC (khác `v2.*`). */
+const BASE_PREFIX = 'base:'
 
 type Messages = Record<string, unknown>
 
@@ -57,16 +63,30 @@ function assignDeep(target: Messages, dotPath: string, value: unknown): void {
   node[segs[segs.length - 1]] = value
 }
 
-/** Messages cho một provider: base nguyên vẹn + v2 chỉ gồm chrome + các phần được nêu tên. */
+/**
+ * Messages cho một provider: v2 gồm chrome + các phần nêu tên, base gồm ĐÚNG các namespace khai
+ * bằng tiền tố `base:`.
+ *
+ * `messagesForV2Areas('student', 'base:learn', 'base:speaking')` — khu student.
+ * `messagesForV2Areas('teacher')` — khu teacher, không cần catalog gốc nào.
+ */
 export async function messagesForV2Areas(...areas: string[]): Promise<AbstractIntlMessages> {
   const all = (await getMessages()) as Messages
+  const baseWanted = new Set(areas.filter((a) => a.startsWith(BASE_PREFIX)).map((a) => a.slice(BASE_PREFIX.length)))
+  const v2Areas = areas.filter((a) => !a.startsWith(BASE_PREFIX))
+
+  const base: Messages = {}
+  for (const key of Object.keys(all)) {
+    if (key !== 'v2' && baseWanted.has(key)) base[key] = all[key]
+  }
+
   const v2 = all.v2
-  if (v2 == null || typeof v2 !== 'object') return all as AbstractIntlMessages
+  if (v2 == null || typeof v2 !== 'object') return { ...base } as AbstractIntlMessages
 
   const picked: Messages = {}
-  for (const key of [...V2_CORE, ...areas]) {
+  for (const key of [...V2_CORE, ...v2Areas]) {
     const value = pickDeep(v2 as Messages, key)
     if (value !== undefined) assignDeep(picked, key, value)
   }
-  return { ...all, v2: picked } as AbstractIntlMessages
+  return { ...base, v2: picked } as AbstractIntlMessages
 }

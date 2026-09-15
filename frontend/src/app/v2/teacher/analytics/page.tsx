@@ -17,7 +17,6 @@ import {
   GaLines,
   GaLegend,
   GA_CHART,
-  nfVN,
   type LineSeries,
 } from '../../analyticsShared'
 import {
@@ -31,6 +30,7 @@ import {
   type SkillDistribution,
 } from '@/lib/teacherAnalyticsApi'
 import { classHref } from '../tcShared'
+import { useFmt } from '@/lib/i18n/useFmt'
 
 const EMPTY_TREND: ClassTrend = { buckets: [], series: [] }
 const EMPTY_SKILL: SkillDistribution = {
@@ -60,6 +60,7 @@ const NO_FAILURES: SourceFailures = { overview: false, classes: false, trend: fa
 
 export default function V2TeacherAnalyticsPage() {
   const t = useTranslations('v2.teacher.analytics')
+  const fmt = useFmt()
   const [overview, setOverview] = useState<ReportsOverview | null>(null)
   const [classes, setClasses] = useState<ClassSummary[]>([])
   const [trend, setTrend] = useState<ClassTrend>(EMPTY_TREND)
@@ -269,10 +270,10 @@ export default function V2TeacherAnalyticsPage() {
                             </Link>
                           </td>
                           <td className="px-5 py-3 text-right text-[13.5px] tabular-nums text-ga-muted">
-                            {nfVN.format(c.studentCount)}
+                            {fmt.num(c.studentCount)}
                           </td>
                           <td className="px-5 py-3 text-right text-[13.5px] tabular-nums text-ga-muted">
-                            {nfVN.format(c.assignmentCount)}
+                            {fmt.num(c.assignmentCount)}
                           </td>
                           <td className="px-5 py-3 text-right text-[13.5px] font-semibold tabular-nums text-ga-ink">
                             {c.avgScore != null ? c.avgScore.toFixed(1) : '—'}

@@ -8,17 +8,19 @@
 // chặn, không hỏi lại (App Store 5.1.1: ensureAiConsent TRƯỚC mọi thu âm).
 
 import { useEffect, useRef, useState } from 'react'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
 import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio'
-import { BookOpen, Compass, Flame, Mic, Square, Volume2 } from 'lucide-react-native'
+import { Mic, Square, Volume2 } from 'lucide-react-native'
 import type { LucideIcon as LucideIconType } from 'lucide-react-native'
 import api from '@/lib/api'
 import { speakingApi } from '@/lib/speakingApi'
 import { speakGerman, stopGermanSpeech, setGermanRecordingActive } from '@/lib/germanTts'
 import { ensureAiConsent } from '@/lib/aiConsent'
+import { presentMinorAudioBlocked } from '@/lib/minorAudio'
 import { evaluateFirstSentence } from '@/lib/firstSentence'
 import { MENTOR_META, mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -28,7 +30,7 @@ import { useReducedMotion } from '@/lib/useReducedMotion'
 import { useStarterStore } from '@/stores/useStarterStore'
 import { captureEvent } from '@/lib/analytics'
 import { fonts, motion, radius, space, useTheme } from '@/lib/theme'
-import { Button, Caption, Card, Icon, Screen, ThemedText, YellowSquare } from '@/components/ui'
+import { Button, Caption, Card, Icon, Screen, ThemedText, YellowSquare, GaGlyph } from '@/components/ui'
 import { MentorMonogram } from '@/components/onboarding/MentorMonogram'
 import { ConfettiBurst } from '@/components/guide/ConfettiBurst'
 
@@ -210,7 +212,12 @@ export default function FirstSentenceScreen() {
         // Lần 2 bất kể kết quả → success-tone. Không bao giờ fail.
         succeed('soft')
       }
-    } catch {
+    } catch (e) {
+      // 403 MINOR_AUDIO_BLOCKED (D8): đây là lỗi DUY NHẤT màn này được phép lộ — học viên 16–17
+      // chưa có phiếu đồng ý phải biết vì sao giọng nói không được chấm và ai mở lại. Không có nút
+      // "Liên hệ trung tâm" (rời màn giữa onboarding là bỏ dở luồng chào mừng); luồng vẫn đi tiếp
+      // bằng success-tone như mọi lỗi khác.
+      presentMinorAudioBlocked(e, { contact: false })
       // Timeout 6s / lỗi mạng → success-tone generic, không lộ lỗi.
       captureEvent('onb_first_sentence_skipped', { reason: 'error' satisfies SkipReason })
       setCelebrate('soft')
@@ -254,7 +261,7 @@ export default function FirstSentenceScreen() {
 
             {/* Thành quả đầu tiên — chuỗi ngày + câu đầu (artboard 08) */}
             <View style={{ flexDirection: 'row', gap: space[2], flexWrap: 'wrap', justifyContent: 'center' }}>
-              <AchievementPill icon={Flame} color={c.orange} label="Chuỗi ngày 1 bắt đầu" />
+              <AchievementPill glyph="chuoi" color={c.orange} label="Chuỗi ngày 1 bắt đầu" />
               <AchievementPill color={c.accentText} label="Câu đầu: Hallo" />
             </View>
 
@@ -263,9 +270,9 @@ export default function FirstSentenceScreen() {
               <View style={{ paddingHorizontal: space[4], paddingVertical: space[3], borderBottomWidth: 1, borderBottomColor: c.border }}>
                 <Caption>Tuần đầu của bạn</Caption>
               </View>
-              <NextStepRow icon={Compass} title="Tour trang chủ — 1 phút" sub="Biết chỗ học, chỗ luyện nói, chỗ xem chuỗi ngày" />
-              <NextStepRow icon={Mic} title={`Buổi luyện nói đầu với ${mName}`} sub="Tình huống chào hỏi ngắn" />
-              <NextStepRow icon={BookOpen} title="Chặng 1 trên lộ trình của bạn" sub="Bắt đầu từ Trang chủ" last />
+              <NextStepRow glyph="lernweg" title="Tour trang chủ — 1 phút" sub="Biết chỗ học, chỗ luyện nói, chỗ xem chuỗi ngày" />
+              <NextStepRow glyph="speaking" title={`Buổi luyện nói đầu với ${mName}`} sub="Tình huống chào hỏi ngắn" />
+              <NextStepRow glyph="hoc" title="Chặng 1 trên lộ trình của bạn" sub="Bắt đầu từ Trang chủ" last />
             </Card>
           </MotiView>
         </ScrollView>
@@ -382,7 +389,7 @@ export default function FirstSentenceScreen() {
                   {recording ? (
                     <Square size={28} color={c.onBrand} fill={c.onBrand} />
                   ) : (
-                    <Mic size={32} color={c.onAccent} strokeWidth={2.2} />
+                    <GaGlyph name="speaking" size={32} ink="onAccent" gold="ink" strokeWidth={2} />
                   )}
                 </Pressable>
               </View>
@@ -452,7 +459,7 @@ function MentorAvatar({ mentor, speaking }: { mentor: OnboardingMentor | null; s
  * `color` PHẢI là hex 6 chữ số (vd theme.colors.orange/accentText); truyền chuỗi
  * `rgba(...)` sẽ ghép thành màu không hợp lệ và nền lặng lẽ biến mất.
  */
-function AchievementPill({ icon, color, label }: { icon?: LucideIconType; color: string; label: string }) {
+function AchievementPill({ icon, glyph, color, label }: { icon?: LucideIconType; glyph?: GlyphName; color: string; label: string }) {
   return (
     <View
       style={{
@@ -465,7 +472,13 @@ function AchievementPill({ icon, color, label }: { icon?: LucideIconType; color:
         paddingVertical: space[2],
       }}
     >
-      {icon ? <IconGlyph icon={icon} color={color} /> : <YellowSquare size={7} color={color} />}
+      {glyph ? (
+        <GaGlyph name={glyph} size={13} inkColor={color} goldColor={color} />
+      ) : icon ? (
+        <IconGlyph icon={icon} color={color} />
+      ) : (
+        <YellowSquare size={7} color={color} />
+      )}
       <ThemedText
         variant="caption"
         style={{ fontFamily: fonts.bodySemi, fontSize: 10, lineHeight: 12, letterSpacing: 0.9, textTransform: 'uppercase', color }}
@@ -479,11 +492,13 @@ function AchievementPill({ icon, color, label }: { icon?: LucideIconType; color:
 /** Một dòng trong thẻ "Tuần đầu của bạn". */
 function NextStepRow({
   icon,
+  glyph,
   title,
   sub,
   last = false,
 }: {
-  icon: LucideIconType
+  icon?: LucideIconType
+  glyph?: GlyphName
   title: string
   sub: string
   last?: boolean
@@ -511,7 +526,7 @@ function NextStepRow({
           justifyContent: 'center',
         }}
       >
-        <Icon icon={icon} size={17} color="secondary" strokeWidth={1.8} />
+        {glyph ? <GaGlyph name={glyph} size={18} ink="secondary" /> : icon ? <Icon icon={icon} size={17} color="secondary" strokeWidth={1.8} /> : null}
       </View>
       <View style={{ flex: 1, gap: 1 }}>
         <ThemedText variant="bodyStrong">{title}</ThemedText>

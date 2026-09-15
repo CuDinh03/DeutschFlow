@@ -2,11 +2,14 @@ package com.deutschflow.examspeaking.session;
 
 import com.deutschflow.ai.queue.AiJob;
 import com.deutschflow.ai.queue.AiJobRepository;
+import com.deutschflow.common.exception.OrgReadOnlyException;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.RateLimitExceededException;
+import com.deutschflow.common.minor.MinorGate;
 import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.common.quota.QuotaExceededException;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.examspeaking.api.ExamBlueprintCatalog;
 import com.deutschflow.examspeaking.audio.ExamAudioStorage;
@@ -29,6 +32,8 @@ import com.deutschflow.examspeaking.entity.SpeakingExamTurn;
 import com.deutschflow.examspeaking.repository.SpeakingExamResultRepository;
 import com.deutschflow.examspeaking.repository.SpeakingExamSessionRepository;
 import com.deutschflow.examspeaking.repository.SpeakingExamTurnRepository;
+import com.deutschflow.organization.entity.OrgMember;
+import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.speaking.AiRateLimiterService;
 import com.deutschflow.speaking.ai.ChatMessage;
@@ -62,6 +67,8 @@ public class ExamSessionService {
     static final long DRILL_EVAL_ESTIMATED_TOKENS = 600L;
     static final long STT_ESTIMATED_TOKENS = 200L;
     static final long MOCK_GRADING_ESTIMATED_TOKENS = 12_000L;
+    /** F-08: mock phải có ngân sách chấm ngay lúc TẠO — thi trọn bài rồi mới biết hết ví là đánh đổi sai. */
+    static final long MOCK_CREATE_ESTIMATED_TOKENS = MOCK_GRADING_ESTIMATED_TOKENS + TURN_ESTIMATED_TOKENS;
     static final int PART_GRACE_SECONDS = 10;
 
     private final ExamBlueprintCatalog catalog;
@@ -75,14 +82,18 @@ public class ExamSessionService {
     private final AiJobRepository aiJobRepository;
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
+    /** Ảnh chụp trung tâm lúc tạo phiên (V320 §1) — xem {@link #orgSnapshotFor(long)}. */
+    private final OrgMemberRepository orgMembers;
     private final AiRateLimiterService rateLimiter;
     private final AiUsageLedgerService ledger;
     private final GroqWhisperClient whisperClient;
+    private final MinorGate minorGate;
     private final ExamAudioStorage audioStorage;
     private final SpeakingExamCalibrationParticipantRepository calibrationParticipants;
     private final ObjectMapper objectMapper;
     private final ExamSpeakingProperties props;
     private final com.deutschflow.examspeaking.weakness.ExamErrorSrsBridge srsBridge;
+    private final ExamOpsAlerts opsAlerts;
 
     // ── tạo phiên ───────────────────────────────────────────────────────────────────────────
 
@@ -100,8 +111,11 @@ public class ExamSessionService {
         if (SpeakingExamSession.MODE_DRILL.equals(mode) && teil != null && bp.part(teil).isEmpty()) {
             throw new BadRequestException("Teil " + teil + " không tồn tại trong " + provider + " " + level);
         }
-        quotaService.assertAllowed(userId, Instant.now(), TURN_ESTIMATED_TOKENS);
-        orgPoolGuard.assertOrgPoolAvailable(userId, TURN_ESTIMATED_TOKENS);
+        // F-08: mock giữ chỗ cả ngân sách chấm nền lúc tạo; thiếu → từ chối ngay, trước khi thí sinh
+        // bỏ 15 phút thi mà không chấm được. Drill chỉ cần ngân sách một lượt.
+        long estimate = SpeakingExamSession.MODE_MOCK.equals(mode) ? MOCK_CREATE_ESTIMATED_TOKENS : TURN_ESTIMATED_TOKENS;
+        quotaService.assertAllowed(userId, Instant.now(), estimate);
+        orgPoolGuard.assertOrgPoolAvailable(userId, estimate);
 
         Map<Integer, List<SpeakingExamTask>> tasks = new HashMap<>();
         for (BlueprintPart part : bp.parts()) {
@@ -115,6 +129,9 @@ public class ExamSessionService {
         Instant now = Instant.now();
         SpeakingExamSession s = SpeakingExamSession.builder()
                 .userId(userId).blueprintId(bp.id()).mode(mode)
+                // V320 §1: ảnh chụp trung tâm TƯỜNG MINH lúc tạo — dòng mới không được dùng phép đoán
+                // backfill từ users.org_id. Đây là chỗ biến cột org_id thành một ảnh chụp thật.
+                .orgId(orgSnapshotFor(userId))
                 .state(prep ? SpeakingExamSession.STATE_PREP : SpeakingExamSession.STATE_IN_PART)
                 .drillTeilNo(teil)
                 .currentPart(prep ? 0 : plan.parts().get(0).teilNo())
@@ -139,6 +156,37 @@ public class ExamSessionService {
         return view(s, bp, plan, null);
     }
 
+    /**
+     * Trung tâm của học viên tại thời điểm TẠO PHIÊN, để ghi vào {@code speaking_exam_sessions.org_id}
+     * (V320 §1). Lý do cột này phải là ảnh chụp chứ không phải phép suy: job dọn audio chạy 30 ngày
+     * sau khi thu, khi {@code users.org_id} có thể đã về NULL vì học viên rời trung tâm — lúc đó vết
+     * dọn sẽ mang {@code org_id} NULL và giám đốc không bao giờ thấy thao tác xoá dữ liệu của chính
+     * học viên mình.
+     *
+     * <p>Nguồn là {@code org_members} ACTIVE vai STUDENT, hỏi thẳng bảng. KHÔNG đọc
+     * {@code users.org_id} từ principal: {@code JwtAuthFilter} cache principal 60 giây, và cột đó là
+     * trạng thái hôm nay do {@code OrgMembershipService} đồng bộ chứ không phải nguồn tenant. Học viên
+     * chỉ được là thành viên MỘT trung tâm (đa trung tâm chỉ mở cho TEACHER — quyết định cấu trúc B2B
+     * 09/09), nên gặp nhiều dòng là dữ liệu lệch ⇒ trả {@code null} + cảnh báo, không đoán bừa một
+     * trung tâm rồi để vết dọn rơi vào sổ của bên không hề giữ bản ghi âm.
+     *
+     * @return {@code org_id}, hoặc {@code null} cho người dùng B2C (và cho dữ liệu lệch nói trên)
+     */
+    Long orgSnapshotFor(long userId) {
+        List<OrgMember> memberships = orgMembers.findByIdUserIdAndRoleAndStatus(userId, "STUDENT", "ACTIVE");
+        if (memberships.isEmpty()) {
+            return null;
+        }
+        if (memberships.size() > 1) {
+            log.warn("[exam-speaking] userId={} có {} membership STUDENT ACTIVE (org {}) — dữ liệu lệch, "
+                            + "không chụp org_id cho phiên thi nói",
+                    userId, memberships.size(),
+                    memberships.stream().map(m -> m.getId().getOrgId()).toList());
+            return null;
+        }
+        return memberships.get(0).getId().getOrgId();
+    }
+
     // ── snapshot ────────────────────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
@@ -151,12 +199,12 @@ public class ExamSessionService {
     // ── lượt nói ────────────────────────────────────────────────────────────────────────────
 
     /** Overload không lang (test/tương thích): giải thích quickEval mặc định tiếng Việt. */
-    @Transactional
+    @Transactional(noRollbackFor = ExamPartTimeoutException.class)
     public TurnResponse submitTextTurn(long userId, long sessionId, String transcript) {
         return submitTextTurn(userId, sessionId, transcript, null);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ExamPartTimeoutException.class)
     public TurnResponse submitTextTurn(long userId, long sessionId, String transcript, String lang) {
         SpeakingExamSession s = load(userId, sessionId);
         if (s.isMock() && !props.textTurnsInMockAllowed()) {
@@ -169,14 +217,21 @@ public class ExamSessionService {
     }
 
     /** Overload không lang (test/tương thích). */
-    @Transactional
+    @Transactional(noRollbackFor = ExamPartTimeoutException.class)
     public TurnResponse submitAudioTurn(long userId, long sessionId, byte[] audio, String filename) {
         return submitAudioTurn(userId, sessionId, audio, filename, null);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ExamPartTimeoutException.class)
     public TurnResponse submitAudioTurn(long userId, long sessionId, byte[] audio, String filename, String lang) {
         SpeakingExamSession s = load(userId, sessionId);
+        // F-22: kiểm trạng thái/hạn Teil TRƯỚC khi đốt một lần Whisper + ghi ledger cho phiên đã đóng.
+        assertAcceptsTurn(s, Instant.now());
+        // DEC-22: cổng tuổi cắm Ở SERVICE, không ở controller — lượt nói audio còn đi qua
+        // idempotency ở controller, và mọi caller (controller, job chấm lại, test) đều qua đây.
+        // Đứng sau assertAcceptsTurn (phiên đã đóng thì 409 mới là câu trả lời đúng) và trước
+        // requireBudget: chưa đủ điều kiện về tuổi thì không được tính là tiêu hạn mức.
+        minorGate.assertAudioAllowed(userId);
         requireBudget(userId, AiRateLimiterService.Bucket.TRANSCRIBE, STT_ESTIMATED_TOKENS, "Too many transcribe requests.");
         GroqWhisperClient.VerboseTranscript stt = whisperClient.transcribeVerbose(audio, filename == null ? "audio.webm" : filename, "de", "");
         ledger.recordStt(userId, "EXAM_SPEAKING_STT", whisperClient.getWhisperModel(), stt.durationSeconds());
@@ -195,20 +250,30 @@ public class ExamSessionService {
         return processCandidateTurn(userId, s, stt.text().trim(), sttJson, audioRef, lang);
     }
 
-    private TurnResponse processCandidateTurn(long userId, SpeakingExamSession s, String transcript,
-                                              Map<String, Object> sttJson, String audioRef, String lang) {
+    /**
+     * Phiên có đang nhận lượt nói không: phải ở IN_PART; mock quá hạn Teil + grace → chuyển phần NGAY
+     * (giữ lại nhờ noRollbackFor) rồi 409 để client đồng bộ. Chạy trước STT (F-22) và trước khi xử lý lượt.
+     */
+    private void assertAcceptsTurn(SpeakingExamSession s, Instant now) {
         if (!SpeakingExamSession.STATE_IN_PART.equals(s.getState())) {
             throw new ConflictException("Phiên không ở trạng thái nhận lượt nói (state=" + s.getState() + ")");
         }
+        if (s.isMock() && s.getPartDeadlineAt() != null && now.isAfter(s.getPartDeadlineAt().plusSeconds(PART_GRACE_SECONDS))) {
+            int expired = s.getCurrentPart();
+            advanceInternal(s, blueprint(s), plan(s), now);
+            sessionRepository.save(s);
+            throw new ExamPartTimeoutException("Hết giờ Teil " + expired + " — đã chuyển sang phần kế tiếp.");
+        }
+    }
+
+    private TurnResponse processCandidateTurn(long userId, SpeakingExamSession s, String transcript,
+                                              Map<String, Object> sttJson, String audioRef, String lang) {
+        Instant now = Instant.now();
+        assertAcceptsTurn(s, now);
         ExamBlueprint bp = blueprint(s);
         SessionPlan plan = plan(s);
         SessionPlan.PartPlan pp = plan.part(s.getCurrentPart());
         BlueprintPart part = bp.part(s.getCurrentPart()).orElseThrow();
-        Instant now = Instant.now();
-        if (s.isMock() && s.getPartDeadlineAt() != null && now.isAfter(s.getPartDeadlineAt().plusSeconds(PART_GRACE_SECONDS))) {
-            advanceInternal(s, bp, plan, now);
-            throw new ConflictException("Hết giờ Teil " + pp.teilNo() + " — đã chuyển sang phần kế tiếp.");
-        }
         requireBudget(userId, AiRateLimiterService.Bucket.CHAT, TURN_ESTIMATED_TOKENS, "Too many turns. Please slow down.");
 
         SessionPlan.Step step = pp.steps().get(Math.min(s.getCurrentStep(), pp.steps().size() - 1));
@@ -223,7 +288,7 @@ public class ExamSessionService {
         Map<String, Object> card = stimulus(pp, step.cardIndex());
         Map<String, Object> nextCard = step.cardIndex() == null || pp.chosenIndex() != null ? null : stimulus(pp, step.cardIndex() + 1);
         List<ChatMessage> hist = history(turns, pp.teilNo());
-        AiInterlocutorService.AiReply ai = interlocutor.reply(userId, bp, part, step, card, nextCard, hist, transcript);
+        AiInterlocutorService.AiReply ai = interlocutor.reply(userId, s.getId(), bp, part, step, card, nextCard, hist, transcript);
         AiInterlocutorService.AiReply ai2 = null;
         if (ai != null && step.hasSecondAi()) {
             List<ChatMessage> hist2 = new ArrayList<>(hist);
@@ -231,13 +296,13 @@ public class ExamSessionService {
             hist2.add(new ChatMessage("assistant", "[" + ai.role() + "] " + ai.textDe()));
             SessionPlan.Step second = new SessionPlan.Step(step.index(), step.candidateAction(), step.cardIndex(),
                     step.aiRole2(), step.aiAction2(), step.hintVi(), step.hintKey());
-            ai2 = interlocutor.reply(userId, bp, part, second, card, null, hist2, transcript);
+            ai2 = interlocutor.reply(userId, s.getId(), bp, part, second, card, null, hist2, transcript);
         }
 
         Map<String, Object> eval = null;
         if (!s.isMock()) {
             requireBudget(userId, AiRateLimiterService.Bucket.EVAL, DRILL_EVAL_ESTIMATED_TOKENS, "Too many evaluations.");
-            eval = interlocutor.quickEval(userId, bp, part, step, card, lastAiText, transcript, lang);
+            eval = interlocutor.quickEval(userId, s.getId(), bp, part, step, card, lastAiText, transcript, lang);
             candidate.setTurnEvalJson(eval);
             // Đợt 5a: corrections của lượt drill đổ vào kho yếu điểm (SRS + stats theo dạng bài).
             srsBridge.ingestDrillEval(userId, bp, pp.teilNo(), eval);
@@ -354,6 +419,7 @@ public class ExamSessionService {
                 .payload(Map.of("sessionId", s.getId())).build());
         s.setGradingJobId(job.getId());
         s.setState(SpeakingExamSession.STATE_GRADING);
+        s.setGradingError(null);
         sessionRepository.save(s);
         log.info("[ExamSpeaking] mock session {} regrade → job {}", s.getId(), job.getId());
         return view(s, blueprint(s), plan(s), null);
@@ -408,10 +474,25 @@ public class ExamSessionService {
         s.setFinishedAt(now);
         s.setPartDeadlineAt(null);
         if (s.isMock()) {
-            quotaService.assertAllowed(s.getUserId(), now, MOCK_GRADING_ESTIMATED_TOKENS);
-            orgPoolGuard.assertOrgPoolAvailable(s.getUserId(), MOCK_GRADING_ESTIMATED_TOKENS);
             addPrueferTurn(s, nextSeq(s), s.getCurrentPart(),
                     prueferScript.line(bp, bp.parts().get(0), PrueferScriptService.Moment.SESSION_CLOSING, null).textDe());
+            try {
+                quotaService.assertAllowed(s.getUserId(), now, MOCK_GRADING_ESTIMATED_TOKENS);
+                orgPoolGuard.assertOrgPoolAvailable(s.getUserId(), MOCK_GRADING_ESTIMATED_TOKENS);
+            } catch (QuotaExceededException | OrgReadOnlyException e) {
+                // F-08: ví/pool cạn giữa chừng (đã giữ chỗ lúc tạo). Đóng phiên tử tế: bài còn nguyên,
+                // client thấy lý do hết quota + nút "Chấm lại" (regrade assert quota rồi enqueue).
+                //
+                // 🔑 Bắt luôn OrgReadOnlyException (D5): giấy phép trung tâm rơi qua mốc ân hạn GIỮA
+                // phiên thi của nhân sự. Không bắt thì ngoại lệ thoát thẳng, giao dịch finish bị
+                // rollback và phiên KẸT không đóng được — mọi lần advance sau đó cũng 403.
+                s.setState(SpeakingExamSession.STATE_GRADING_FAILED);
+                s.setGradingError(SpeakingExamSession.GRADING_ERROR_QUOTA);
+                log.warn("[ExamSpeaking] mock session {} hết quota lúc finish → GRADING_FAILED/QUOTA ({})",
+                        s.getId(), e.getMessage());
+                opsAlerts.gradingFailed(s.getId(), null, SpeakingExamSession.GRADING_ERROR_QUOTA, e.getMessage());
+                return;
+            }
             AiJob job = aiJobRepository.save(AiJob.builder().jobType(JOB_TYPE_MOCK_GRADING).userId(s.getUserId())
                     .payload(Map.of("sessionId", s.getId())).build());
             s.setGradingJobId(job.getId());
@@ -603,7 +684,15 @@ public class ExamSessionService {
         return new ExamSessionView(s.getId(), bp.provider().name(), bp.level(), s.getMode(), s.getState(),
                 s.getCurrentPart(), s.getCurrentStep(), plan.parts().size(), now, prepDeadline, prepSec, materials,
                 s.getPartDeadlineAt(), directive, lastEval, s.getNotesText(), s.getGradingJobId(), resultAvailable,
-                s.isRetainAudio());
+                s.isRetainAudio(), s.getGradingError());
+    }
+
+    /** Replay idempotent (F-06): phản hồi đã nhớ + snapshot phiên MỚI (đồng hồ/trạng thái hiện tại). */
+    @Transactional(readOnly = true)
+    public TurnResponse withFreshSession(long userId, long sessionId, TurnResponse cached) {
+        ExamSessionView fresh = get(userId, sessionId);
+        return new TurnResponse(cached.transcript(), cached.aiRole(), cached.aiText(), cached.aiVoice(),
+                cached.aiTurns(), cached.turnEval(), fresh);
     }
 
     /** Tài liệu chuẩn bị: mọi Teil, chỉ phần thí sinh được xem (khóa partner* đã lược); Teil chọn đề trả đủ N phương án. */
@@ -621,7 +710,9 @@ public class ExamSessionService {
     }
 
     private ExamResultView toView(SpeakingExamResult r) {
+        Map<String, Object> sheet = r.getScoreSheetJson();
+        boolean borderline = sheet != null && Boolean.TRUE.equals(sheet.get("borderline"));
         return new ExamResultView(r.getSessionId(), r.getProvider(), r.getLevel(), r.getRubricVersion(), r.getTotalPoints(),
-                r.getTotalLow(), r.getTotalHigh(), r.getMaxPoints(), r.getPassed(), r.getScoreSheetJson(), r.getCreatedAt());
+                r.getTotalLow(), r.getTotalHigh(), r.getMaxPoints(), r.getPassed(), borderline, sheet, r.getCreatedAt());
     }
 }

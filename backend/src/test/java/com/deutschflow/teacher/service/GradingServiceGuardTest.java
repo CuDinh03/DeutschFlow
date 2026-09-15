@@ -130,6 +130,35 @@ class GradingServiceGuardTest {
                 .onAssignmentGraded(any(), any(), any(), any(), any());
     }
 
+    /**
+     * R3 (V323): điểm AI phải nằm ở cột RIÊNG để sống sót sau khi giáo viên chốt — nhưng vẫn chép sang
+     * score/feedback vì hàng đợi chấm đang đọc {@code score} khi AI_GRADED.
+     */
+    @Test
+    @DisplayName("R3: aiGradeAssignment ghi ai_score/ai_feedback/ai_graded_at VÀ score/feedback (cùng giá trị)")
+    void aiGradeAssignment_writesAiColumnsAndMirrorsScore() {
+        StudentAssignment sa = StudentAssignment.builder()
+                .id(13L).assignmentId(9L).studentId(3L).status("SUBMITTED")
+                .submissionContent("Ich wohne in Hamburg.").build();
+        when(studentAssignmentRepository.findById(13L)).thenReturn(Optional.of(sa));
+        when(classAssignmentRepository.findById(9L)).thenReturn(Optional.empty());
+        when(gradingModelConfig.model()).thenReturn("llama-3.3-70b-versatile");
+        when(openAiChatClient.chatCompletionForTier(any(), any(), anyDouble(), any()))
+                .thenReturn(new AiChatCompletionResult(
+                        "{\"score\":82,\"feedback\":\"gut\",\"confidence\":70}", null, "groq", "llama-3.3-70b-versatile"));
+
+        gradingService().aiGradeAssignment(13L, 1L);
+
+        assertThat(sa.getAiScore()).isEqualTo(82);
+        assertThat(sa.getAiFeedback()).isEqualTo("gut");
+        assertThat(sa.getAiGradedAt()).as("mốc AI đề xuất").isNotNull();
+        assertThat(sa.getAiConfidence()).isEqualTo(70);
+        assertThat(sa.getScore()).isEqualTo(82);
+        assertThat(sa.getFeedback()).isEqualTo("gut");
+        assertThat(sa.getStatus()).isEqualTo(AssignmentStatus.AI_GRADED);
+        verify(studentAssignmentRepository).save(sa);
+    }
+
     @Test
     @DisplayName("aiGradeAssignment KHÔNG chấm lại bài đã AI_GRADED (không đốt token lần hai)")
     void aiGradeAssignment_skipsAlreadyProposed() {

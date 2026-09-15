@@ -17,7 +17,7 @@ export type GuideTone = 'accent' | 'brand' | 'info' | 'success'
 // without a cast.
 export type StudentRoute =
   | '/(student)'
-  | '/(student)/roadmap'
+  | '/(student)/lernweg'
   | '/(student)/speaking'
   | '/(student)/srs'
   | '/(student)/vocabulary'
@@ -63,9 +63,9 @@ export const GUIDE_ITEMS: readonly GuideItem[] = [
     icon: Map,
     tone: 'accent',
     title: 'Lộ trình học',
-    desc: 'Bản đồ kỹ năng cá nhân hoá từ A1 đến B2. Mỗi chặng mở khoá khi bạn hoàn thành chặng trước.',
-    how: 'Vào Lộ trình và chọn chặng đang sáng để học bài tiếp theo.',
-    route: '/(student)/roadmap',
+    desc: 'Cây lộ trình cá nhân hoá từ A1 đến B2, theo tuần và ngày. Mỗi bài mở khoá khi bạn hoàn thành bài trước.',
+    how: 'Vào Lộ trình, chạm lá đang sáng rồi bấm "Học bài" để học bài tiếp theo.',
+    route: '/(student)/lernweg',
   },
   {
     key: 'speaking',
