@@ -4,7 +4,7 @@ import { router } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Caption, Card, Icon, Pill, ThemedText, YellowSquare, GaGlyph } from '@/components/ui'
-import { dueRepairChipLabels, errorSkillsApi, todayApi, todayHrefToRoute } from '@/lib/todayApi'
+import { dueRepairChipLabels, errorSkillsApi, todayApi, todayHrefToRoute, WEEKLY_SPEAKING_ROUTE } from '@/lib/todayApi'
 
 /**
  * Khối "Việc hôm nay" trên Trang chủ (cụm Heute — thiết kế đã chốt 02/09).
@@ -36,12 +36,15 @@ export function TodayTasks() {
 
   const dueTasks = plan.dueRepairTasks ?? []
   const speaking = plan.recommendedSpeaking
+  // V-12c: backend vẫn gợi ý Thử thách nói tuần này (TodayPlanDto.recommendedWeeklySpeaking) và web
+  // đã render từ lâu — app nhận rồi vứt đi, nên một "việc hôm nay" biến mất khỏi máy điện thoại.
+  const weekly = plan.recommendedWeeklySpeaking
   const vocab = plan.recommendedVocabPractice
   // Nhãn người-đọc-được (ruleViShort → errorTaxonomy), đã khử trùng lặp —
   // tuyệt đối không rơi về mã thô kiểu WORD_ORDER.V2_MAIN_CLAUSE.
   const chipLabels = dueRepairChipLabels(dueTasks, skillsQ.data ?? [])
 
-  const hasAnything = dueTasks.length > 0 || speaking || vocab
+  const hasAnything = dueTasks.length > 0 || speaking || weekly || vocab
   if (!hasAnything) return null
 
   return (
@@ -108,7 +111,32 @@ export function TodayTasks() {
         </Card>
       )}
 
-      {/* 3. Từ vựng gợi ý */}
+      {/* 3. Bài nói theo tuần — đích CỐ ĐỊNH là màn nói-theo-tuần của app. KHÔNG dùng
+          todayHrefToRoute ở đây: href backend gửi kèm là `/v2/student/speaking?cefBand=…` (web v2
+          chưa có màn này), map qua đó ra đúng /(student)/speaking — trùng đích với thẻ luyện nói
+          ngay phía trên. Nhãn lấy đúng câu web dùng cho cùng việc (v2.student.dashboard.today.weekly). */}
+      {weekly && (
+        <Card
+          onPress={() => router.push(WEEKLY_SPEAKING_ROUTE)}
+          accessibilityLabel="Làm bài nói theo tuần"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}
+        >
+          <View style={{ width: 40, height: 40, borderRadius: radius.md, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <GaGlyph name="muctieu" size={20} ink="primary" />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <ThemedText variant="bodyStrong">
+              {weekly.topic ? `Bài nói theo tuần · ${weekly.topic}` : 'Bài nói theo tuần'}
+            </ThemedText>
+            {weekly.cefrLevel ? (
+              <ThemedText variant="caption" color="muted">{`Trình độ ${weekly.cefrLevel}`}</ThemedText>
+            ) : null}
+          </View>
+          <Icon icon={ChevronRight} size={16} color="muted" />
+        </Card>
+      )}
+
+      {/* 4. Từ vựng gợi ý */}
       {vocab && (
         <Card
           onPress={() => router.push(todayHrefToRoute(vocab.href))}

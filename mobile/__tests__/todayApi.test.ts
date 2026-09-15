@@ -7,7 +7,7 @@ jest.mock('@/lib/api', () => ({
 }))
 
 import api from '@/lib/api'
-import { drillPass, dueRepairChipLabels, errorSkillsApi, normalizeDrillAnswer, todayApi, todayHrefToRoute } from '@/lib/todayApi'
+import { drillPass, dueRepairChipLabels, errorSkillsApi, normalizeDrillAnswer, todayApi, todayHrefToRoute, WEEKLY_SPEAKING_ROUTE } from '@/lib/todayApi'
 
 const get = api.get as unknown as jest.Mock
 const post = api.post as unknown as jest.Mock
@@ -43,6 +43,15 @@ describe('todayHrefToRoute — href backend là đường WEB, map an toàn', ()
     ['https://la.la/route-la', '/(student)/speaking'],
   ])('%s → %s', (href, route) => {
     expect(todayHrefToRoute(href)).toBe(route)
+  })
+
+  // Soát 09/09: href THẬT của recommendedWeeklySpeaking do backend sinh
+  // (AdaptivePolicyService.computeTodayPlan → WebRoutes.STUDENT_SPEAKING + "?cefBand=") KHÔNG chứa
+  // 'weekly'. Ai đưa nó qua todayHrefToRoute là đẩy thẻ "Bài nói theo tuần" về màn luyện nói
+  // thường — trùng đích với thẻ ngay trên nó. Vì vậy thẻ ấy dùng WEEKLY_SPEAKING_ROUTE.
+  test('href tuần THẬT của backend không tự map về màn nói-theo-tuần', () => {
+    expect(todayHrefToRoute('/v2/student/speaking?cefBand=B1')).toBe('/(student)/speaking')
+    expect(WEEKLY_SPEAKING_ROUTE).toBe('/(student)/weekly-speaking')
   })
 })
 
@@ -81,14 +90,14 @@ describe('dueRepairChipLabels — chip lỗi trên Trang chủ không bao giờ 
     const labels = dueRepairChipLabels(threeSameOneOther, [
       { errorCode: 'WORD_ORDER.V2_MAIN_CLAUSE', ruleViShort: 'Động từ đứng vị trí 2' },
     ])
-    expect(labels).toEqual(['Động từ đứng vị trí 2', 'mit + Dativ'])
+    expect(labels).toEqual(['Động từ đứng vị trí 2', 'Sai cách sau giới từ “mit”'])
   })
 
   test('không có skill (query lỗi/chưa về) → nhãn tiếng Việt từ errorTaxonomy, không phải mã thô', () => {
-    expect(dueRepairChipLabels(threeSameOneOther.slice(0, 1), [])).toEqual(['Động từ vị trí số 2 (V2)'])
+    expect(dueRepairChipLabels(threeSameOneOther.slice(0, 1), [])).toEqual(['Sai vị trí động từ'])
   })
 
-  test('ruleViShort null/rỗng cũng rơi về taxonomy; mã lạ chưa map mới hiện nguyên mã', () => {
+  test('ruleViShort null/rỗng cũng rơi về taxonomy; mã lạ ra nhãn chung, không lộ mã máy', () => {
     const labels = dueRepairChipLabels(
       [{ errorCode: 'CASE.PREP_DAT_MIT' }, { errorCode: 'CASE.PREP_AKK_FUER' }, { errorCode: 'X.CHUA_CO_TRONG_BANG' }],
       [
@@ -96,7 +105,7 @@ describe('dueRepairChipLabels — chip lỗi trên Trang chủ không bao giờ 
         { errorCode: 'CASE.PREP_AKK_FUER', ruleViShort: '  ' },
       ],
     )
-    expect(labels).toEqual(['mit + Dativ', 'für + Akkusativ', 'X.CHUA_CO_TRONG_BANG'])
+    expect(labels).toEqual(['Sai cách sau giới từ “mit”', 'Sai cách sau giới từ “für”', 'Lỗi ngữ pháp'])
   })
 
   test('tối đa 3 chip SAU khi khử trùng lặp', () => {
@@ -109,6 +118,6 @@ describe('dueRepairChipLabels — chip lỗi trên Trang chủ không bao giờ 
       ],
       [],
     )
-    expect(labels).toEqual(['Động từ vị trí số 2 (V2)', 'mit + Dativ', 'für + Akkusativ'])
+    expect(labels).toEqual(['Sai vị trí động từ', 'Sai cách sau giới từ “mit”', 'Sai cách sau giới từ “für”'])
   })
 })

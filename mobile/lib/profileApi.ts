@@ -12,7 +12,20 @@ export interface ChangePasswordPayload {
 }
 
 /** Khớp @Size(min = 6) của ChangePasswordRequest phía backend. */
-export const PASSWORD_MIN_LENGTH = 6
+/**
+ * Phải khớp `PasswordPolicy.MIN_LENGTH` của backend
+ * (`backend/src/main/java/com/deutschflow/common/security/PasswordPolicy.java`).
+ *
+ * 🔴 Trước 09/09/2026 hằng này là 6 trong khi CHÍNH APP NÀY đã đòi 8 ở màn đăng ký
+ * (`app/(auth)/register.tsx:60`) và màn đặt lại mật khẩu (`app/(auth)/reset-password.tsx:28`) —
+ * một sự bất nhất nội bộ, và là cửa duy nhất còn cho đặt mật khẩu 6 ký tự.
+ *
+ * ⚠️ Bản đang phát hành trên App Store vẫn mang số 6. Backend nay đòi 8, nên tới khi bản này lên
+ * OTA thì người dùng gõ 6–7 ký tự sẽ qua được kiểm tại máy rồi mới nhận lỗi từ máy chủ. Không hỏng,
+ * nhưng thông điệp kém rõ vì `ChangePasswordRequest` dùng `@Size` nên lỗi đi qua nhánh
+ * MethodArgumentNotValidException của GlobalExceptionHandler (detail là câu tiếng Anh chung).
+ */
+export const PASSWORD_MIN_LENGTH = 8
 
 export interface PasswordChangeErrors {
   current?: string

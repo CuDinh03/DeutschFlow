@@ -251,6 +251,35 @@ class ScheduleChangeRequestIntegrationTest extends AbstractPostgresIntegrationTe
                 .isEqualTo(nextMonday().atTime(8, 0));
         assertThat(classRepo.findById(f.klass.getId()).orElseThrow().getScheduleVersion()).isZero();
 
+        // DEC-18: giáo viên đề xuất nhận SCHEDULE_CHANGE_REJECTED qua outbox — đúng loại, đúng người,
+        // đúng lý do; học viên KHÔNG nhận gì (lịch không đổi).
+        List<NotificationOutbox> rows = outboxRepo.findAll().stream()
+                .filter(o -> f.klass.getId().equals(o.getClassId())).toList();
+        assertThat(rows).hasSize(1);
+        NotificationOutbox notice = rows.get(0);
+        assertThat(notice.getNotificationType())
+                .isEqualTo(com.deutschflow.notification.NotificationType.SCHEDULE_CHANGE_REJECTED);
+        assertThat(notice.getRecipientId()).isEqualTo(f.teacher.getId());
+        assertThat(notice.getDedupKey()).isEqualTo("request:" + reqId + ":rejected:u" + f.teacher.getId());
+        assertThat(notice.getPayload())
+                .containsEntry("requestId", reqId.intValue())
+                .containsEntry("kind", "MOVE_SESSION")
+                .containsEntry("reason", "Trùng lịch phòng")
+                .containsKey("className");
+        // dedup_key UNIQUE: ghi lại cùng sự kiện là lỗi ràng buộc, không phải dòng thứ hai.
+        assertThatThrownBy(() -> outboxRepo.saveAndFlush(NotificationOutbox.builder()
+                .dedupKey(notice.getDedupKey())
+                .notificationType(notice.getNotificationType())
+                .classId(notice.getClassId()).recipientId(notice.getRecipientId())
+                .payload(notice.getPayload()).build()))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        // Worker gửi: notification tới giáo viên, chạy lại không gửi đôi.
+        int before = countNotifications(f.teacher.getId());
+        outboxService.deliver(notice.getId());
+        outboxService.deliver(notice.getId());
+        assertThat(countNotifications(f.teacher.getId())).isEqualTo(before + 1);
+        assertThat(countNotifications(f.student.getId())).isZero();
+
         assertThatThrownBy(() -> requestService.approve(f.owner.getId(), f.org.getId(), reqId))
                 .isInstanceOf(ConflictException.class);
     }

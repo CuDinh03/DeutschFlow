@@ -118,7 +118,6 @@ export default function ErrorRepairDrill({
       <div className="w-full max-w-md rounded-ga p-6 shadow-ga-panel border border-ga-line bg-ga-card">
         <MicDeniedGuide className="mb-3" />
         <h3 className="font-ga-display text-ga-ink font-medium text-lg mb-1">{snippet.title}</h3>
-        <p className="text-xs font-mono text-ga-gold mb-2">{errorCode}</p>
         <p className="text-sm text-ga-ink mb-1">{snippet.rule}</p>
         {(ruleViShort || exampleCorrectDe) && (
           <p className="text-xs text-ga-muted mb-4">

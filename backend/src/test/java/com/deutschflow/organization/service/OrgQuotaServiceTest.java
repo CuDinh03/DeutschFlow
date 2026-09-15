@@ -1,9 +1,23 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.exception.OrgReadOnlyException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
+
+import java.sql.ResultSet;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for the pure org-pool decision helpers. Since H-3 the enforcement itself lives in
@@ -12,6 +26,43 @@ import static org.assertj.core.api.Assertions.assertThat;
  * ({@link OrgQuotaService#exceeds}, {@code poolBlocks}, {@code usagePercent}) stay tested here.
  */
 class OrgQuotaServiceTest {
+
+    /**
+     * Nhánh AI đọc giấy phép bằng JDBC chứ không qua entity, nên nó phải TỰ lấy đủ ba mảnh —
+     * {@code status}, {@code valid_until} VÀ mốc neo {@code suspended_at}.
+     *
+     * <p>Vì sao phải chốt bằng câu SQL và bằng chính lời gọi đọc cột: thiếu {@code suspended_at}
+     * thì {@code OrgLicenseState.evaluate} nhận {@code null}, mọi trung tâm bị đình chỉ rơi thẳng
+     * xuống {@code CUT} thay vì {@code READ_ONLY} — mà hai mức đó CÙNG ném {@code ORG_READ_ONLY},
+     * nên không một ca test hành vi nào ở nhánh này nhìn thấy sai lệch. Đây là chỗ duy nhất bắt
+     * được việc bỏ sót cột.
+     */
+    @Test
+    @DisplayName("nhánh AI (JDBC) phải lấy CẢ suspended_at, không chỉ status + valid_until")
+    @SuppressWarnings("unchecked")
+    void loadPoolConfig_mustCarrySuspensionAnchor() throws Exception {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        OrgQuotaService service = new OrgQuotaService(jdbc);
+
+        ResultSet rs = mock(ResultSet.class);
+        when(rs.next()).thenReturn(true);
+        when(rs.getLong(1)).thenReturn(100_000L);
+        when(rs.getBoolean(2)).thenReturn(false);
+        when(rs.getString(3)).thenReturn("SUSPENDED");
+        when(rs.getTimestamp(4)).thenReturn(null);
+        when(rs.getTimestamp(5))
+                .thenReturn(Timestamp.from(Instant.now().minus(3, ChronoUnit.DAYS)));
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        when(jdbc.query(sql.capture(), any(ResultSetExtractor.class), any(Object[].class)))
+                .thenAnswer(inv -> ((ResultSetExtractor<Object>) inv.getArgument(1)).extractData(rs));
+
+        assertThatThrownBy(() -> service.tryReserveForOrg(7L, 500))
+                .isInstanceOf(OrgReadOnlyException.class);
+
+        assertThat(sql.getAllValues()).anyMatch(q -> q.contains("suspended_at"));
+        verify(rs).getTimestamp(5);
+    }
 
     @Test
     @DisplayName("non-org user (null orgId) is never gated")

@@ -16,7 +16,7 @@ import { messagesForV2Areas } from '@/i18n/pickV2Messages'
  */
 export default async function V2StudentLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale()
-  const messages = await messagesForV2Areas('student')
+  const messages = await messagesForV2Areas('student', 'base:learn', 'base:speaking')
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <RoleAreaGuard area="student">

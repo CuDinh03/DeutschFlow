@@ -1,14 +1,18 @@
 package com.deutschflow.organization.service;
 
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.common.exception.OrgReadOnlyException;
 import com.deutschflow.organization.entity.OrgMember;
+import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgAcademicApproverRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
+import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Set;
 
 /**
@@ -31,6 +35,7 @@ public class OrgGuard {
     private final OrgMemberRepository memberRepo;
     private final OrgAcademicApproverRepository academicApproverRepo;
     private final TeacherClassRepository teacherClassRepository;
+    private final OrganizationRepository organizationRepository;
 
     /** Asserts the user is an ACTIVE member of the org; returns the membership row. */
     @Transactional(readOnly = true)
@@ -98,6 +103,57 @@ public class OrgGuard {
         } catch (ForbiddenException ex) {
             return false;
         }
+    }
+
+    /**
+     * Cổng TRẠNG THÁI TRUNG TÂM (D5) — chỉ dành cho đường GHI.
+     *
+     * <p>Trung tâm bị đình chỉ, hoặc giấy phép đã hết hạn, mất quyền ghi NGAY (owner chốt
+     * 09/09/2026 — xem {@link OrgLicenseState}): ném {@link OrgReadOnlyException} (403 +
+     * {@code ORG_READ_ONLY}). Ân hạn 7 ngày sau mốc neo là quãng CHỈ-ĐỌC trước khi cắt quyền lợi,
+     * không phải quãng còn ghi được — nên cổng này chặn ở cả {@code READ_ONLY} lẫn {@code CUT}.
+     *
+     * <p><b>Cố ý KHÔNG gộp vào {@link #assertMember}/{@link #assertOrgAdmin}:</b> hai hàm đó đang
+     * gác cả đường ĐỌC (danh sách lớp, chi tiết học viên, phân tích, hoá đơn) lẫn đường GHI. D5 nói
+     * rõ trung tâm hết hạn VẪN PHẢI XEM ĐƯỢC dữ liệu, nên nhét cổng vào đó là chặn nhầm đúng thứ
+     * owner muốn giữ. Call-site GHI gọi thêm hàm này (hoặc {@link #assertOrgAdminForWrite}).
+     *
+     * <p>Không tìm thấy org → không chặn: {@link #assertMember} đã là hàng rào định danh, và một
+     * dòng org biến mất là lỗi dữ liệu chứ không phải trạng thái giấy phép.
+     */
+    @Transactional(readOnly = true)
+    public void assertOrgWritable(Long orgId) {
+        Organization org = organizationRepository.findById(orgId).orElse(null);
+        if (org == null) {
+            return;
+        }
+        if (!licenceMode(org).writable()) {
+            throw new OrgReadOnlyException(orgId, OrgLicenseState.reason(org.getStatus()));
+        }
+    }
+
+    /**
+     * Mức giấy phép của một trung tâm — MỘT chỗ duy nhất ghép ba mảnh
+     * ({@code status}, {@code valid_until}, {@code suspended_at}) cho cả đường ném lẫn đường DTO.
+     *
+     * <p>Package-private để test chốt được mức THẬT chứ không chỉ "có ném hay không":
+     * {@code READ_ONLY} và {@code CUT} đều chặn ghi, nên một bản vá lỡ quên truyền mốc neo sẽ đẩy
+     * mọi trung tâm bị đình chỉ xuống thẳng {@code CUT} mà không ca hành vi nào nhìn thấy.
+     */
+    OrgLicenseState.Mode licenceMode(Organization org) {
+        return OrgLicenseState.evaluate(org.getStatus(), org.getValidUntil(), org.getSuspendedAt(),
+                Instant.now());
+    }
+
+    /**
+     * {@link #assertOrgAdmin} + {@link #assertOrgWritable} — dùng cho các endpoint TẠO MỚI của
+     * org-admin. Kiểm quyền TRƯỚC trạng thái: người ngoài trung tâm không được biết trung tâm đang
+     * bị đình chỉ hay hết hạn.
+     */
+    @Transactional(readOnly = true)
+    public void assertOrgAdminForWrite(Long userId, Long orgId) {
+        assertOrgAdmin(userId, orgId);
+        assertOrgWritable(orgId);
     }
 
     /**

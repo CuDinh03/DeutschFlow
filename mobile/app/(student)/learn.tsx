@@ -56,11 +56,11 @@ export default function LearnScreen() {
   const available = nodes.filter((n) => n.status === 'AVAILABLE').slice(0, 5)
 
   const tiles: { glyph: GlyphName; label: string; count: string; onPress: () => void }[] = [
-    { glyph: 'srs', label: 'SRS Flashcards', count: `${completed} đã học`, onPress: () => router.push('/(student)/srs') },
+    { glyph: 'srs', label: 'Ôn tập (SRS)', count: `${completed} đã học`, onPress: () => router.push('/(student)/srs') },
     { glyph: 'lernweg', label: 'Lộ trình', count: `Ngày ${nextStudyDay(nodes)}`, onPress: () => router.push('/(student)/lernweg') },
     { glyph: 'tuvung', label: 'Từ vựng', count: 'Tìm & luyện', onPress: () => router.push('/(student)/vocabulary') },
-    { glyph: 'thithu', label: 'Thi thử', count: 'Mock Exam', onPress: () => router.push('/(student)/exam') },
-    { glyph: 'nguphap', label: 'Ngữ pháp', count: 'Casus & quy tắc', onPress: () => router.push('/(student)/grammar') },
+    { glyph: 'thithu', label: 'Thi thử', count: 'Đề chuẩn Goethe', onPress: () => router.push('/(student)/exam') },
+    { glyph: 'nguphap', label: 'Ngữ pháp', count: 'Kasus & quy tắc', onPress: () => router.push('/(student)/grammar') },
     // Tutor booking (1:1 marketplace) is out of MVP scope and the screen's slot
     // model has no backend equivalent — hidden until reworked to the duration-based
     // /api/teacher-sessions flow. See docs reconciliation §book-session.

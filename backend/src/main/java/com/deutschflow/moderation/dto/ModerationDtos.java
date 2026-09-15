@@ -30,7 +30,18 @@ public final class ModerationDtos {
             @Size(max = 1000) String details
     ) {}
 
-    /** Admin view of a report. */
+    /**
+     * POST /api/moderation/report — kết quả. {@code duplicate = true} khi người này đã có một báo cáo
+     * PENDING cùng khoá (B2): {@code reportId} là id CŨ, không có dòng mới. Mobile chỉ đọc
+     * {@code reportId} (mobile/lib/moderationApi.ts) nên trường thêm là tương thích.
+     */
+    public record ReportResponse(Long reportId, boolean duplicate) {}
+
+    /**
+     * Admin view of a report. {@code orgId} là ảnh chụp trung tâm của người bị tố cáo lúc ghi (V321);
+     * {@code contentPurgedAt} khác null nghĩa là {@code details}/{@code snapshotBody} đã bị ẩn danh
+     * hoặc dọn theo hạn lưu — màn admin nên hiện "nội dung đã dọn" thay vì ô trống.
+     */
     public record ReportDto(
             Long id,
             Long reporterId,
@@ -42,14 +53,17 @@ public final class ModerationDtos {
             String status,
             Instant createdAt,
             Instant resolvedAt,
-            Long resolvedBy
+            Long resolvedBy,
+            Long orgId,
+            Instant contentPurgedAt
     ) {
         public static ReportDto from(ContentReport r) {
             return new ReportDto(
                     r.getId(), r.getReporterId(), r.getReportedUserId(),
                     r.getContext().name(), r.getReason().name(), r.getDetails(),
                     r.getSnapshotBody(), r.getStatus().name(), r.getCreatedAt(),
-                    r.getResolvedAt(), r.getResolvedBy());
+                    r.getResolvedAt(), r.getResolvedBy(),
+                    r.getOrgId(), r.getContentPurgedAt());
         }
     }
 

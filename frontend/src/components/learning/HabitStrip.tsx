@@ -15,7 +15,7 @@ import { Flame } from 'lucide-react'
  * canonical nên KHÔNG vẽ — sẽ bổ sung khi domain có, không bịa bằng cách cộng dồn XP/buổi học.
  */
 export interface HabitStripProps {
-  /** Số ngày streak (nguồn: `/today/me` → progress.streakDays). */
+  /** Số ngày streak (nguồn: `/student/dashboard` → streakDays). Bỏ trống khi chưa biết. */
   streakDays?: number
   /** XP (nguồn: `/xp/me`). Bỏ trống khi không tải được — không hiện 0 giả. */
   xp?: { level: number; progressInLevel: number; xpNeededForNext: number }

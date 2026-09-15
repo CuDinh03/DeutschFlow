@@ -17,7 +17,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -244,6 +247,9 @@ class OrgBillingServiceTest {
                 org.mockito.ArgumentMatchers.eq(ACTOR_ROLE),
                 org.mockito.ArgumentMatchers.eq("ORG_INVOICE"),
                 org.mockito.ArgumentMatchers.eq(String.valueOf(INVOICE_ID)),
+                // DEC-13: target_type = ORG_INVOICE nên id trung tâm KHÔNG nằm ở target_id, và người
+                // bấm là admin nền tảng nên đường suy-từ-actor cũng rỗng — phải truyền tường minh.
+                org.mockito.ArgumentMatchers.eq(ORG_ID),
                 meta.capture());
         assertThat(meta.getValue())
                 .containsEntry("orgId", ORG_ID)
@@ -276,6 +282,38 @@ class OrgBillingServiceTest {
         assertThatThrownBy(() -> service.createInvoice(ORG_ID, zero, CREATED_BY_ACTOR))
                 .isInstanceOf(BadRequestException.class);
         verify(invoiceRepo, org.mockito.Mockito.never()).save(any());
+    }
+
+    // ------------------------------------------------------------------ T-01: period validation
+
+    /**
+     * T-01 (10/09/2026): PAID kéo validUntil theo periodEnd, nên một kỳ ngược (kết thúc trước bắt
+     * đầu) lặng lẽ rút ngắn giấy phép của trung tâm. Kỳ để trống một đầu vẫn được (đợt sau mới
+     * bắt buộc), chỉ kỳ NGƯỢC bị chặn.
+     */
+    @Test
+    @DisplayName("createInvoice: kỳ ngược (periodEnd trước periodStart) → 400, không lưu")
+    void createInvoice_reversedPeriod_throwsBadRequest() {
+        when(organizationRepository.existsById(ORG_ID)).thenReturn(true);
+        CreateInvoiceRequest reversed = new CreateInvoiceRequest(
+                LocalDate.of(2026, 3, 31), LocalDate.of(2026, 1, 1), 10, 5_000_000L, "reversed");
+
+        assertThatThrownBy(() -> service.createInvoice(ORG_ID, reversed, CREATED_BY_ACTOR))
+                .isInstanceOf(BadRequestException.class);
+        verify(invoiceRepo, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createInvoice: kỳ một ngày (periodStart = periodEnd) vẫn hợp lệ")
+    void createInvoice_singleDayPeriod_allowed() {
+        when(organizationRepository.existsById(ORG_ID)).thenReturn(true);
+        when(invoiceRepo.save(any(OrgInvoice.class))).thenReturn(savedInvoice(INVOICE_ID, ORG_ID, "DRAFT"));
+        CreateInvoiceRequest sameDay = new CreateInvoiceRequest(
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 1), 10, 5_000_000L, "one day");
+
+        service.createInvoice(ORG_ID, sameDay, CREATED_BY_ACTOR);
+
+        verify(invoiceRepo).save(any(OrgInvoice.class));
     }
 
     // ------------------------------------------------------------------ M-15: forward-only state machine
@@ -326,5 +364,104 @@ class OrgBillingServiceTest {
         service.updateStatus(ORG_ID, INVOICE_ID, "PAID", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE);
 
         verify(adminOrgService, org.mockito.Mockito.never()).activateForPaidInvoice(any(), any());
+    }
+
+    // --------------------------------------------------- V-08: hạn thanh toán (due_date, migration V314)
+    // Quy tắc Q4 (owner chốt 07/09/2026): hạn = lúc GỬI + 7 ngày. Trước đợt này không một dòng test
+    // nào trên toàn repo khoá quy tắc đó, nên mọi sai lệch (đặt hạn lúc tạo, gửi lại đẩy hạn ra xa,
+    // đánh dấu PAID/VOID xoá mất hạn) đều lọt.
+
+    /** Hoá đơn ở trạng thái {@code status} đã có sẵn hạn thanh toán {@code dueDate}. */
+    private OrgInvoice invoiceWithDueDate(String status, Instant dueDate) {
+        OrgInvoice inv = savedInvoice(INVOICE_ID, ORG_ID, status);
+        inv.setDueDate(dueDate);
+        return inv;
+    }
+
+    @Test
+    @DisplayName("V-08 DRAFT: hoá đơn vừa tạo CHƯA có hạn thanh toán — hạn chỉ sinh ra khi gửi")
+    void createInvoice_draft_hasNoDueDate() {
+        when(organizationRepository.existsById(ORG_ID)).thenReturn(true);
+        when(invoiceRepo.save(any(OrgInvoice.class))).thenAnswer(i -> i.getArgument(0));
+
+        OrgInvoiceDto dto = service.createInvoice(ORG_ID, aRequest(), CREATED_BY_ACTOR);
+
+        ArgumentCaptor<OrgInvoice> captor = ArgumentCaptor.forClass(OrgInvoice.class);
+        verify(invoiceRepo).save(captor.capture());
+        assertThat(captor.getValue().getDueDate()).isNull();
+        assertThat(dto.dueDate()).isNull();
+    }
+
+    @Test
+    @DisplayName("V-08 DRAFT→SENT: đặt hạn = lúc gửi + 7 ngày")
+    void updateStatus_draftToSent_setsDueDateSevenDaysOut() {
+        OrgInvoice inv = savedInvoice(INVOICE_ID, ORG_ID, "DRAFT");
+        when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
+        when(invoiceRepo.save(any(OrgInvoice.class))).thenAnswer(i -> i.getArgument(0));
+
+        Instant before = Instant.now();
+        OrgInvoiceDto dto = service.updateStatus(ORG_ID, INVOICE_ID, "SENT", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE);
+        Instant after = Instant.now();
+
+        assertThat(dto.dueDate()).isNotNull();
+        // Chốt đúng 7 ngày (không phải 3, 14 hay 30) — kẹp trong khoảng thời gian gọi hàm.
+        assertThat(dto.dueDate())
+                .isAfterOrEqualTo(before.plus(7, ChronoUnit.DAYS))
+                .isBeforeOrEqualTo(after.plus(7, ChronoUnit.DAYS));
+        assertThat(Duration.between(before, dto.dueDate()).toDays()).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("V-08 SENT→SENT (gửi lại): KHÔNG đẩy hạn ra xa thêm 7 ngày nữa")
+    void updateStatus_sentToSent_keepsOriginalDueDate() {
+        Instant originalDue = Instant.now().minus(2, ChronoUnit.DAYS);
+        OrgInvoice inv = invoiceWithDueDate("SENT", originalDue);
+        when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
+        when(invoiceRepo.save(any(OrgInvoice.class))).thenAnswer(i -> i.getArgument(0));
+
+        OrgInvoiceDto dto = service.updateStatus(ORG_ID, INVOICE_ID, "SENT", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE);
+
+        assertThat(dto.dueDate()).isEqualTo(originalDue);
+        assertThat(inv.getDueDate()).isEqualTo(originalDue);
+    }
+
+    @Test
+    @DisplayName("V-08 SENT→PAID: giữ nguyên hạn đã đặt lúc gửi")
+    void updateStatus_sentToPaid_keepsDueDate() {
+        Instant originalDue = Instant.now().plus(3, ChronoUnit.DAYS);
+        OrgInvoice inv = invoiceWithDueDate("SENT", originalDue);
+        when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
+        when(invoiceRepo.save(any(OrgInvoice.class))).thenAnswer(i -> i.getArgument(0));
+
+        OrgInvoiceDto dto = service.updateStatus(ORG_ID, INVOICE_ID, "PAID", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE);
+
+        assertThat(dto.status()).isEqualTo("PAID");
+        assertThat(dto.dueDate()).isEqualTo(originalDue);
+    }
+
+    @Test
+    @DisplayName("V-08 SENT→VOID: giữ nguyên hạn đã đặt lúc gửi")
+    void updateStatus_sentToVoid_keepsDueDate() {
+        Instant originalDue = Instant.now().plus(3, ChronoUnit.DAYS);
+        OrgInvoice inv = invoiceWithDueDate("SENT", originalDue);
+        when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
+        when(invoiceRepo.save(any(OrgInvoice.class))).thenAnswer(i -> i.getArgument(0));
+
+        OrgInvoiceDto dto = service.updateStatus(ORG_ID, INVOICE_ID, "VOID", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE);
+
+        assertThat(dto.status()).isEqualTo("VOID");
+        assertThat(dto.dueDate()).isEqualTo(originalDue);
+    }
+
+    @Test
+    @DisplayName("V-08 DRAFT→PAID (đối soát tay, không qua SENT): không tự sinh hạn thanh toán")
+    void updateStatus_draftToPaid_leavesDueDateNull() {
+        OrgInvoice inv = savedInvoice(INVOICE_ID, ORG_ID, "DRAFT");
+        when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
+        when(invoiceRepo.save(any(OrgInvoice.class))).thenAnswer(i -> i.getArgument(0));
+
+        OrgInvoiceDto dto = service.updateStatus(ORG_ID, INVOICE_ID, "PAID", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE);
+
+        assertThat(dto.dueDate()).isNull();
     }
 }

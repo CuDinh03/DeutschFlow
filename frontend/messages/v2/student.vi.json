@@ -39,7 +39,7 @@
         "grammarAccuracy": "Độ chính xác ngữ pháp",
         "sessionsCompleted": "Phiên đã hoàn thành"
       },
-      "readyToAdvance": "🎉 Bạn đã sẵn sàng lên giai đoạn tiếp theo!",
+      "readyToAdvance": "Bạn đã sẵn sàng lên giai đoạn tiếp theo!",
       "levelCap": "Tiến độ cấp độ",
       "levelValue": "Cấp {level}",
       "xpToNext": "Còn {xp} XP để lên cấp tiếp theo",
@@ -191,7 +191,10 @@
       "taskDoneBtn": "Xong",
       "taskTypes": {
         "REWRITE": "Viết lại"
-      }
+      },
+      "emptyDeck": "Bộ thẻ ôn của bạn đang trống",
+      "emptyDeckHint": "Thêm từ vào bộ thẻ rồi hệ thống sẽ nhắc bạn ôn đúng lúc.",
+      "emptyDeckCta": "Học từ vựng"
     },
     "lessons": {
       "title": "Thư viện bài học",
@@ -658,6 +661,7 @@
       "titleClass": "Lớp học",
       "loadErrorTitle": "Không tải được lớp học",
       "teacherLine": "Giáo viên: {teacher} · Mã lớp: {code} · {count} thành viên",
+      "teacherLineNoCode": "Giáo viên: {teacher} · {count} thành viên",
       "backToClasses": "Lớp của tôi",
       "messageTeacher": "Nhắn giáo viên",
       "noTeacherToMessage": "Lớp chưa có giáo viên để nhắn.",
@@ -916,7 +920,10 @@
     },
     "mockExamRun": {
       "draftRestored": "Đã khôi phục bài làm — {count} câu đã trả lời trước đó.",
-      "confirmExit": "Thoát khỏi bài thi? Bài làm đã được lưu tự động nên bạn vào lại được, nhưng đồng hồ vẫn tiếp tục chạy.",
+      "confirmExitTitle": "Thoát khỏi bài thi?",
+      "confirmExit": "Bài làm đã được lưu tự động nên bạn vào lại làm tiếp được — bài vẫn ở dạng nháp, chưa nộp.",
+      "confirmExitDetail": "Đồng hồ vẫn tiếp tục chạy sau khi bạn thoát.",
+      "confirmExitAction": "Thoát bài thi",
       "title": "Thi thử Goethe",
       "subtitle": "Làm bài theo format Goethe-Institut chính thức, chấm điểm tự động",
       "loading": "Đang tải…",
@@ -938,7 +945,9 @@
       "submitAll": "Nộp bài thi hoàn chỉnh",
       "submitting": "Đang nộp…",
       "submitNow": "Nộp bài ngay",
-      "confirmSubmit": "Bạn có chắc chắn muốn nộp bài?",
+      "confirmSubmitTitle": "Nộp bài thi?",
+      "confirmSubmit": "Nộp xong bạn không sửa được câu trả lời nữa và bài chuyển sang chấm điểm.",
+      "confirmSubmitAnswered": "Bạn đã trả lời {answered}/{total} câu — câu bỏ trống tính 0 điểm.",
       "prevSection": "Phần trước",
       "nextSection": "Phần tiếp theo",
       "sectionMeta": "Thời gian làm bài: {minutes} phút · Điểm tối đa: {points}",
@@ -963,7 +972,7 @@
       "reviewError": "Không thể tải đáp án. Vui lòng thử lại.",
       "back": "Quay lại",
       "backToResult": "Quay lại kết quả",
-      "resultPassed": "Đạt! 🎉",
+      "resultPassed": "Đạt!",
       "resultFailed": "Chưa đạt",
       "provisional": "Tổng điểm tạm tính: {score}/100",
       "provisionalNote": "Phần Viết và Nói sẽ được chấm bổ sung — điểm tạm tính chưa bao gồm.",
@@ -974,7 +983,18 @@
       "yourAnswer": "Câu trả lời của bạn",
       "correctAnswer": "Đáp án đúng",
       "draftConflict": "Bài làm vừa được cập nhật từ thiết bị khác — đã tải bản mới nhất.",
-      "draftExpired": "Đã hết giờ làm bài — hệ thống đang nộp bài của bạn."
+      "draftExpired": "Đã hết giờ làm bài — hệ thống đang nộp bài của bạn.",
+      "telcHeadlines": "Các tiêu đề — chọn cho mỗi văn bản một tiêu đề",
+      "telcAds": "Các mẩu rao vặt",
+      "telcWordBank": "Hộp từ",
+      "telcSingleUse": "Mỗi lựa chọn chỉ dùng một lần.",
+      "telcNoneHint": "Chọn “không” khi không mẩu nào hợp với tình huống.",
+      "telcNone": "không",
+      "telcPickLetter": "Chọn một chữ cái",
+      "telcAlreadyUsed": "Đã dùng cho câu khác",
+      "telcGapEmpty": "chưa chọn",
+      "telcGapLabel": "Ô trống {n}",
+      "telcMissingPool": "Phần này của đề thiếu danh sách lựa chọn nên chưa làm được. Hãy báo cho chúng tôi."
     },
     "grammarPractice": {
       "title": "Luyện ngữ pháp",
@@ -995,7 +1015,7 @@
       "answerPlaceholder": "Nhập câu trả lời…",
       "check": "Kiểm tra",
       "checking": "Đang kiểm tra…",
-      "correct": "Chính xác! 🎉",
+      "correct": "Chính xác!",
       "incorrect": "Chưa đúng",
       "answerIs": "Đáp án:",
       "next": "Tiếp theo"
@@ -1198,8 +1218,8 @@
       "poolCap": "Kho từ",
       "check": "Prüfen",
       "next": "Weiter →",
-      "correct": "✓ Chính xác!",
-      "wrong": "✗ Đáp án đúng: {answer}",
+      "correct": "Chính xác!",
+      "wrong": "Đáp án đúng: {answer}",
       "doneTitle": "Fertig! {score}/{total}",
       "doneDesc": "Bạn đã hoàn thành lượt chơi.",
       "emptyTitle": "Chưa có câu hỏi",
@@ -1221,8 +1241,8 @@
       "poolCap": "Kho khối từ",
       "check": "Kiểm tra",
       "next": "Câu tiếp →",
-      "correct": "✓ Chính xác!",
-      "wrongGeneric": "✗ Chưa đúng — xem lại trật tự từ nhé.",
+      "correct": "Chính xác!",
+      "wrongGeneric": "Chưa đúng — xem lại trật tự từ nhé.",
       "hint": "Gợi ý",
       "listen": "Nghe câu mẫu",
       "score": "{score} điểm",
@@ -1295,7 +1315,7 @@
       "heroCap": "Đánh giá B1",
       "heroTitle": "Sẵn sàng cho B1?",
       "heroDesc": "Kiểm tra xem bạn đã đáp ứng đủ 5 tiêu chí để đạt chuẩn B1 chưa.",
-      "heroTitleGraduated": "🎓 Bạn đã đạt B1!",
+      "heroTitleGraduated": "Bạn đã đạt B1!",
       "heroDescGraduated": "Chúc mừng! Bạn đã hoàn thành hành trình 12 tuần.",
       "scoreNear": "Gần đạt chuẩn!",
       "scoreProgress": "Đang tiến bộ tốt",
@@ -1497,8 +1517,8 @@
       "answerPlaceholder": "Nhập câu trả lời…",
       "check": "Kiểm tra",
       "spokenDone": "Tôi đã đọc xong",
-      "correct": "✅ Chính xác!",
-      "incorrect": "❌ Chưa đúng",
+      "correct": "Chính xác!",
+      "incorrect": "Chưa đúng",
       "answerIs": "Đáp án:",
       "submit": "Nộp bài · {correct}/{total} đúng",
       "resultLine": "{correct} / {total} câu đúng",
@@ -1524,13 +1544,14 @@
     "learnNode": {
       "roadmapContext": "Vị trí trong lộ trình",
       "completedInRoadmap": "lộ trình đã hoàn thành",
-      "contentPendingTitle": "⚡ Nội dung đang được chuẩn bị",
+      "contentPendingTitle": "Nội dung đang được chuẩn bị",
       "contentPendingDesc": "Bài học {level} sẽ sớm được cập nhật. Hãy hoàn thành các bài A1 trước!",
-      "retryTitle": "⚠️ Chưa đủ điều kiện vượt node",
+      "retryTitle": "Chưa đủ điều kiện vượt node",
       "retryDesc": "Nghe/Đọc yêu cầu 100% • Nói/Phát âm/Viết yêu cầu ≥ 80 điểm",
-      "retryCta": "🔄 Làm lại",
+      "retryCta": "Làm lại",
       "progressNotSaved": "Chưa lưu được tiến độ lên máy chủ.",
-      "scoreBelowThreshold": "Máy chủ chấm được {score}% — chưa đạt ngưỡng qua bài nên tiến độ chưa được ghi nhận."
+      "scoreBelowThreshold": "Máy chủ chấm được {score}% — chưa đạt ngưỡng qua bài nên tiến độ chưa được ghi nhận.",
+      "dayPrefix": "Ngày {n} · {title}"
     },
     "stats": {
       "title": "Thống kê học tập",
@@ -1545,12 +1566,11 @@
         "reviewed": "Đã ôn",
         "speaking": "Luyện nói",
         "due": "Đến hạn",
-        "thisWeek": "tuần này",
         "words": "từ vựng",
-        "toReview": "cần ôn lại"
+        "toReview": "cần ôn lại",
+        "last7Days": "7 ngày gần nhất"
       },
-      "weeklyTitle": "Hoạt động 7 ngày",
-      "noActivity": "Chưa có hoạt động nào trong tuần.",
+      "noActivity": "Chưa có hoạt động nào trong 7 ngày gần nhất.",
       "series": {
         "learned": "Học mới",
         "reviewed": "Ôn lại",
@@ -1562,11 +1582,24 @@
       "noWeakPoints": "Chưa đủ dữ liệu để xác định điểm yếu.",
       "errorTrendTitle": "Xu hướng lỗi (30 ngày)",
       "openErrors": "{count} lỗi chưa sửa",
-      "allFixed": "Đã sửa hết ✓",
+      "allFixed": "Đã sửa hết",
       "recommendationsTitle": "Gợi ý cho bạn",
       "badgesCap": "Huy hiệu",
       "badgesHint": "Xem toàn bộ huy hiệu đã mở khoá ở trang Thành tích.",
-      "badgesCta": "Xem huy hiệu"
+      "badgesCta": "Xem huy hiệu",
+      "vocabTitle": "Từ vựng (7 ngày)",
+      "vocabTitleRange": "Từ vựng · {range}",
+      "speakingTitle": "Luyện nói (7 ngày)",
+      "speakingTitleRange": "Luyện nói · {range}",
+      "unitWords": "đơn vị: từ",
+      "unitMinutes": "đơn vị: phút",
+      "recommendationsLoadError": "Không tải được gợi ý. Đây không có nghĩa là bạn không còn việc cần làm.",
+      "errorTrendLoadError": "Không tải được xu hướng lỗi. Đây không có nghĩa là bạn đã sửa hết lỗi.",
+      "showTable": "Xem số liệu dạng bảng",
+      "colDay": "Ngày",
+      "colErrorCount": "Số lỗi",
+      "vocabDesc": "Số từ học mới và số lượt ôn lại mỗi ngày.",
+      "speakingDesc": "Số phút luyện nói mỗi ngày."
     },
     "errors": {
       "title": "Sổ lỗi ngữ pháp",
@@ -2050,7 +2083,8 @@
         "nextLesson": "Bài tiếp theo:",
         "nextCta": "Tiếp theo: {title} →",
         "backCta": "Về lộ trình",
-        "backToRoadmap": "Về lộ trình học"
+        "backToRoadmap": "Về lộ trình học",
+        "practiceCta": "Luyện {skill} ngay"
       },
       "pronunciation": {
         "verdict": {
@@ -2090,8 +2124,14 @@
         },
         "play": "Phát audio",
         "stop": "Dừng",
-        "defaultLabel": "Hörtext — Goethe A1",
-        "unsupportedHint": "Trình duyệt không hỗ trợ. Dùng Chrome hoặc Safari."
+        "defaultLabel": "Hörtext",
+        "unsupportedHint": "Trình duyệt không hỗ trợ. Dùng Chrome hoặc Safari.",
+        "playsLeft": "Còn {n} lượt nghe",
+        "playsExhausted": "Hết lượt nghe",
+        "playsExhaustedHint": "Đã dùng hết số lần nghe, đúng như đề thật.",
+        "dialogueLabel": "Hörtext — hội thoại",
+        "speakerA": "Người 1",
+        "speakerB": "Người 2"
       },
       "scoreBreakdown": {
         "pending": "Chờ chấm",
@@ -2109,18 +2149,24 @@
           "aufgabenerfuellung": "Hoàn thành nhiệm vụ",
           "kohaerenz": "Mạch lạc & cấu trúc",
           "wortschatz": "Từ vựng",
-          "strukturen": "Ngữ pháp & cấu trúc câu"
+          "strukturen": "Ngữ pháp & cấu trúc câu",
+          "leitpunkte": "Bám sát các ý yêu cầu",
+          "kommunikativeGestaltung": "Bố cục & cách viết thư",
+          "formaleRichtigkeit": "Ngữ pháp & chính tả",
+          "other": "Tiêu chí khác"
         },
         "pendingTitle": "Đang chờ AI chấm bài viết",
         "pendingFallback": "Phần email chưa được nộp hoặc đang xử lý.",
         "aiGraded": "Được chấm bởi AI",
-        "officialRubric": "Rubric Goethe A1 chính thức",
+        "officialRubric": "Rubric Goethe chính thức",
         "detailCap": "Điểm chi tiết",
         "emailTotal": "Tổng điểm email",
         "overallCap": "Nhận xét tổng quan",
         "strengths": "Điểm mạnh",
         "improvements": "Cần cải thiện",
-        "title": "Đánh giá bài viết (SCHREIBEN Teil 2)"
+        "title": "Đánh giá bài viết (SCHREIBEN Teil 2)",
+        "officialRubricLevel": "Rubric Goethe {level} chính thức",
+        "missingCriteria": "AI không chấm {count} tiêu chí — thang điểm đã trừ phần đó, bài không bị tính 0."
       },
       "weakAreas": {
         "tips": {
@@ -2136,6 +2182,18 @@
         "practiceNow": "Luyện tập ngay",
         "footer": "Luyện tập đều đặn mỗi ngày — kết quả sẽ cải thiện rõ rệt sau 2 tuần"
       }
+    },
+    "minorAudio": {
+      "eyebrow": "Phần luyện nói tạm khoá",
+      "titleBirthDate": "Trung tâm chưa ghi nhận ngày sinh của bạn",
+      "bodyBirthDate": "Tài khoản chưa có ngày sinh nên hệ thống chưa xác định được có cần đồng ý của người giám hộ hay không, và không gửi bản ghi âm đi khi còn chưa rõ. Hãy liên hệ trung tâm để bổ sung ngày sinh vào hồ sơ học viên.",
+      "titleConsentRequired": "Cần phiếu đồng ý của cha mẹ/người giám hộ",
+      "bodyConsentRequired": "Tài khoản này cần đồng ý của cha mẹ hoặc người giám hộ trước khi ghi âm giọng nói. Hãy liên hệ trung tâm để hoàn tất phiếu đồng ý; sau khi trung tâm ghi nhận, phần luyện nói mở lại ngay.",
+      "titleConsentRevoked": "Đồng ý ghi âm đã được thu hồi",
+      "bodyConsentRevoked": "Đồng ý cho phép ghi âm của tài khoản này đã được thu hồi, nên phần luyện nói tạm thời không dùng được. Nếu muốn mở lại, người giám hộ liên hệ trung tâm để cấp lại đồng ý.",
+      "note": "Nâng cấp gói không mở được phần này — chỉ trung tâm hoặc người giám hộ mới mở lại được. Bạn vẫn dùng được mọi phần không cần ghi âm.",
+      "contact": "Liên hệ trung tâm",
+      "dismiss": "Đã hiểu"
     }
   }
 }

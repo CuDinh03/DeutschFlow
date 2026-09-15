@@ -32,19 +32,21 @@ describe('profileApi.changePassword — đúng endpoint và body của ProfileCo
   })
 })
 
-describe('validatePasswordChange — khớp @Size(min=6) backend, không trim', () => {
+describe('validatePasswordChange — khớp PasswordPolicy.MIN_LENGTH backend, không trim', () => {
   test('hợp lệ → không lỗi', () => {
     expect(validatePasswordChange('cu123456', 'moi123456', 'moi123456')).toEqual({})
-    expect(PASSWORD_MIN_LENGTH).toBe(6)
+    expect(PASSWORD_MIN_LENGTH).toBe(8) // khớp PasswordPolicy.MIN_LENGTH của backend
   })
 
   test('thiếu mật khẩu hiện tại', () => {
     expect(validatePasswordChange('', 'moi123456', 'moi123456')).toEqual({ current: 'Nhập mật khẩu hiện tại.' })
   })
 
-  test('mật khẩu mới ngắn hơn 6', () => {
+  test('mật khẩu mới ngắn hơn sàn', () => {
     const e = validatePasswordChange('cu123456', 'ab12', 'ab12')
-    expect(e.next).toMatch(/ít nhất 6 ký tự/)
+    // Bám HẰNG chứ không chép số: sàn mật khẩu đổi 6 → 8 ngày 09/09/2026 để khớp backend
+    // (PasswordPolicy.MIN_LENGTH), và ca này từng là nơi duy nhất còn ghim số cũ.
+    expect(e.next).toMatch(new RegExp(`ít nhất ${PASSWORD_MIN_LENGTH} ký tự`))
     expect(e.confirm).toBeUndefined()
   })
 

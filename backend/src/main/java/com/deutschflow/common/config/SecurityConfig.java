@@ -23,6 +23,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -66,6 +67,16 @@ public class SecurityConfig {
                                 "frame-ancestors 'none'; " +
                                 "base-uri 'none'; " +
                                 "form-action 'none'"))
+                        // HSTS (BE-1, đo 07/09/2026: api.mydeutschflow.com THIẾU hẳn header này — preload
+                        // của apex chỉ cứu nếu domain thật sự nằm trong preload list của browser). Dùng
+                        // StaticHeadersWriter thay httpStrictTransportSecurity(): writer mặc định chỉ ghi
+                        // khi request.isSecure(), mà sau nginx terminate TLS thì isSecure()=false nên header
+                        // không bao giờ ra. Ghi tĩnh vô điều kiện là an toàn — browser bỏ qua HSTS nhận qua
+                        // http thường. KHÔNG preload ở đây (preload là chuyện của apex, đã có).
+                        // Phải đứng TRƯỚC permissionsPolicy(): kiểu trả về của permissionsPolicy là
+                        // PermissionsPolicyConfig, chaining sau nó không còn thấy addHeaderWriter.
+                        .addHeaderWriter(new StaticHeadersWriter(
+                                "Strict-Transport-Security", "max-age=31536000; includeSubDomains"))
                         .permissionsPolicy(p -> p.policy("geolocation=(), microphone=(), camera=()"))
                 )
                 .authorizeHttpRequests(auth -> {

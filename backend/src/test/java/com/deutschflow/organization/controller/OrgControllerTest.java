@@ -50,7 +50,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>Closes two coverage gaps that service-layer unit tests (OrgServiceTest) cannot reach:
  * <ul>
- *   <li><b>RBAC boundary:</b> the handler calls {@code orgGuard.assertOrgAdmin} before the service.
+ *   <li><b>RBAC boundary:</b> the handler calls {@code orgGuard.assertOrgAdmin}/{@code assertOrgAdminForWrite}
+ *       before the service.
  *       A non-admin (guard throws {@link ForbiddenException}) must get 403 and the service must NOT
  *       run. If the guard call were ever removed, this test fails.</li>
  *   <li><b>{@code @Valid} binding:</b> a blank name, a name over 120 chars, or a null teacherId must
@@ -125,7 +126,7 @@ class OrgControllerTest {
     @DisplayName("không phải org-admin (guard ném Forbidden) → 403, KHÔNG gọi service")
     void createClass_nonAdmin_returns403_serviceNotCalled() throws Exception {
         doThrow(new ForbiddenException("Chỉ quản trị viên tổ chức mới được thao tác này"))
-                .when(orgGuard).assertOrgAdmin(anyLong(), anyLong());
+                .when(orgGuard).assertOrgAdminForWrite(anyLong(), anyLong());
 
         mvc.perform(post("/api/org/classes")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -231,7 +232,7 @@ class OrgControllerTest {
     @DisplayName("add assistant: non-admin → 403, KHÔNG gọi service")
     void addAssistantTeacher_nonAdmin_returns403() throws Exception {
         doThrow(new ForbiddenException("Chỉ quản trị viên tổ chức mới được thao tác này"))
-                .when(orgGuard).assertOrgAdmin(anyLong(), anyLong());
+                .when(orgGuard).assertOrgAdminForWrite(anyLong(), anyLong());
 
         mvc.perform(post("/api/org/classes/7/teachers")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -285,6 +286,33 @@ class OrgControllerTest {
                 .andExpect(status().isForbidden());
 
         verify(orgMembershipService, never()).removeMember(anyLong(), anyLong(), any());
+        verify(orgEntitlementService, never()).revokeStudent(anyLong());
+    }
+
+    // ── POST /api/org/membership/leave — tự rời PHẢI thu hồi quyền lợi ORG (V-13) ──
+
+    @Test
+    @DisplayName("V-13 tự rời trung tâm: thu hồi quyền lợi ORG y như đường admin gỡ thành viên")
+    void leaveOrg_revokesOrgEntitlement() throws Exception {
+        mvc.perform(post("/api/org/membership/leave"))
+                .andExpect(status().isNoContent());
+
+        verify(orgMembershipService).selfLeave(eq(10L), any(AuditActor.class));
+        // Thiếu dòng này thì người tự rời vẫn giữ gói do trung tâm trả tới ~5 năm, và gói cá nhân
+        // đang PAUSED không bao giờ được khôi phục (resumePausedIfAny nằm trong revokeStudent).
+        verify(orgEntitlementService).revokeStudent(1L);
+    }
+
+    @Test
+    @DisplayName("V-13 tự rời thất bại (OWNER chưa chuyển quyền) → KHÔNG thu hồi quyền lợi")
+    void leaveOrg_serviceThrows_doesNotRevoke() throws Exception {
+        doThrow(new com.deutschflow.common.exception.BadRequestException(
+                "Chủ sở hữu không thể tự rời — hãy chuyển quyền sở hữu trước."))
+                .when(orgMembershipService).selfLeave(anyLong(), any(AuditActor.class));
+
+        mvc.perform(post("/api/org/membership/leave"))
+                .andExpect(status().isBadRequest());
+
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
     }
 

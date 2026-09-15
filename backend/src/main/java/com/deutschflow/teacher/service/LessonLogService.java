@@ -378,9 +378,14 @@ public class LessonLogService {
     /** The only attendance values that may be stored. Anything else is a client bug, not a default. */
     private static final Set<String> ATTENDANCE_STATUSES = Set.of("PRESENT", "LATE", "ABSENT");
 
-    /** Id của học viên đang thuộc lớp. Dùng làm biên cho mọi dòng điểm danh được ghi. */
+    /**
+     * Id của học viên ĐANG HỌC. Dùng làm biên cho mọi dòng điểm danh được ghi.
+     *
+     * <p>Chỉ {@code ACTIVE}: người bảo lưu giữ chỗ và xem được nội dung (D1) nhưng không đi học, nên
+     * không được sinh dòng điểm danh — nếu không, tỉ lệ chuyên cần và chứng chỉ đều tính sai.
+     */
     private Set<Long> rosterIds(Long classId) {
-        return classStudentRepository.findByIdClassId(classId).stream()
+        return classStudentRepository.findActiveByIdClassId(classId).stream()
                 .map(cs -> cs.getId().getStudentId())
                 .collect(Collectors.toSet());
     }

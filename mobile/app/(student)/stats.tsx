@@ -243,10 +243,10 @@ export default function StatsScreen() {
               {sessions.length === 0 ? (
                 <View style={{ gap: space[3], alignItems: 'flex-start' }}>
                   <ThemedText variant="caption" color="muted">
-                    Chưa có buổi luyện nào — thử một buổi Speaking đầu tiên nhé.
+                    Chưa có buổi luyện nào — thử một buổi luyện nói đầu tiên nhé.
                   </ThemedText>
                   <Button
-                    label="Bắt đầu buổi Speaking"
+                    label="Bắt đầu buổi luyện nói"
                     variant="secondary"
                     fullWidth={false}
                     onPress={() => router.navigate('/(student)/speaking')}

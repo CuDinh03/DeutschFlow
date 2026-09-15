@@ -94,9 +94,12 @@ class AdminTeacherServiceTest {
 
         assertThat(dto.userId()).isEqualTo(TEACHER_ID);
         assertThat(dto.role()).isEqualTo("TEACHER");
+        // DEC-13: orgId của trung tâm SỞ HỮU giáo viên phải vào CỘT org_id, không chỉ metadata.
+        // Trước đợt này vết vẫn được ghi nhưng cột org_id NULL (admin nền tảng không thuộc trung
+        // tâm nào), nên lần admin soi hồ sơ giáo viên của mình giám đốc không bao giờ đọc được.
         verify(auditLogService).log(
                 eq("ORG_TEACHER_BREAK_GLASS_VIEW"), eq(1L), eq("admin@x.com"), eq("ADMIN"),
-                eq("ORG_TEACHER"), eq("7"), any(Map.class));
+                eq("ORG_TEACHER"), eq("7"), eq(ORG_ID), any(Map.class));
     }
 
     @Test
@@ -108,7 +111,7 @@ class AdminTeacherServiceTest {
         assertThatThrownBy(() -> service.breakGlassViewTeacher(ORG_ID, TEACHER_ID, admin()))
                 .isInstanceOf(NotFoundException.class);
 
-        verify(auditLogService, never()).log(any(), any(), any(), any(), any(), any(), any());
+        verify(auditLogService, never()).log(any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -118,7 +121,7 @@ class AdminTeacherServiceTest {
 
         assertThatThrownBy(() -> service.breakGlassViewTeacher(ORG_ID, TEACHER_ID, admin()))
                 .isInstanceOf(NotFoundException.class);
-        verify(auditLogService, never()).log(any(), any(), any(), any(), any(), any(), any());
+        verify(auditLogService, never()).log(any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -129,6 +132,6 @@ class AdminTeacherServiceTest {
 
         assertThatThrownBy(() -> service.breakGlassViewTeacher(ORG_ID, TEACHER_ID, admin()))
                 .isInstanceOf(NotFoundException.class);
-        verify(auditLogService, never()).log(any(), any(), any(), any(), any(), any(), any());
+        verify(auditLogService, never()).log(any(), any(), any(), any(), any(), any(), any(), any());
     }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dayBucket, notifTitle, relTime, type NotifT } from '@/lib/notificationDisplay'
+import { TYPE_ICON, TYPE_TONE, dayBucket, notifTitle, relTime, type NotifT } from '@/lib/notificationDisplay'
 import chromeVi from '../../messages/v2/chrome.vi.json'
 import chromeDe from '../../messages/v2/chrome.de.json'
 
@@ -40,6 +40,18 @@ describe('notificationDisplay — i18n', () => {
     expect(dayBucket(now, tDe)).toBe('Heute')
     const old = new Date(Date.now() - 30 * 864e5).toISOString()
     expect(relTime(old, tDe, 'de')).toMatch(/^\d{2}\.\d{2}\.\d{4}$/)
+  })
+
+  // DEC-18: ba loại nội bộ trung tâm có nhãn ở cả ba catalog (parity do check:i18n giữ) và fallback tiếng Việt.
+  it('nhãn thông báo nội bộ trung tâm (DEC-18) có ở catalog và fallback', () => {
+    expect(notifTitle(item('SCHEDULE_CHANGE_REJECTED'), tVi)).toBe('Đề xuất đổi lịch bị từ chối')
+    expect(notifTitle(item('TIMESHEET_PERIOD_APPROVED'), tDe)).toBe('Stundenzettel genehmigt')
+    expect(notifTitle(item('TIMESHEET_PERIOD_RETURNED'), tVi)).toBe('Kỳ công bị trả lại')
+    expect(notifTitle(item('TIMESHEET_PERIOD_RETURNED'))).toBe('Kỳ công bị trả lại')
+    for (const type of ['SCHEDULE_CHANGE_REJECTED', 'TIMESHEET_PERIOD_APPROVED', 'TIMESHEET_PERIOD_RETURNED']) {
+      expect(TYPE_ICON[type]).toBeTruthy()
+      expect(TYPE_TONE[type]).toMatch(/^var\(--ga-/)
+    }
   })
 
   it('không có translator thì giữ hành vi tiếng Việt cũ', () => {

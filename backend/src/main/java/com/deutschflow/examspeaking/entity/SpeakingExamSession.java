@@ -48,6 +48,18 @@ public class SpeakingExamSession {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    /**
+     * Trung tâm của chủ phiên tại thời điểm TẠO PHIÊN — ẢNH CHỤP, không phải phép suy (V320 §1).
+     * {@code null} = phiên B2C. Ghi đúng một lần ở
+     * {@link com.deutschflow.examspeaking.session.ExamSessionService#create} từ {@code org_members}
+     * ACTIVE vai STUDENT; {@code updatable = false} để không lượt save nào về sau (đổi Teil, kết thúc,
+     * chấm lại) ghi đè được ảnh chụp. Lý do tồn tại: job dọn audio chạy 30 ngày sau khi thu, khi
+     * {@code users.org_id} có thể đã về NULL vì học viên rời trung tâm — vết dọn phải vẫn rơi đúng sổ
+     * của giám đốc ({@code MinorAudioOrgSnapshotResolver} đọc cột này trước mọi nguồn khác).
+     */
+    @Column(name = "org_id", updatable = false)
+    private Long orgId;
+
     @Column(name = "blueprint_id", nullable = false)
     private Long blueprintId;
 

@@ -20,9 +20,12 @@ class PublicApiRateLimitFilterPathsTest {
     private static final String DEFAULT_PATHS =
             "/api/onboarding/preview/,/api/onboarding/guest-session,/api/v2/media/by-tag";
 
+    /** Nguyên văn giá trị mặc định của nhánh fail-closed (R9). */
+    private static final String DEFAULT_FAIL_CLOSED_PATHS = "/api/public/report-issues/";
+
     private static PublicApiRateLimitFilter filterWithDefaults() {
         return new PublicApiRateLimitFilter(
-                new ClientIpResolver(1), null, true, 30, DEFAULT_PATHS, 120);
+                new ClientIpResolver(1), null, true, 30, DEFAULT_PATHS, 120, DEFAULT_FAIL_CLOSED_PATHS, 20);
     }
 
     private static boolean isRateLimited(String uri) {

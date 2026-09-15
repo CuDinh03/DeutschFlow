@@ -39,7 +39,7 @@
         "grammarAccuracy": "Grammatik-Genauigkeit",
         "sessionsCompleted": "Abgeschlossene Sitzungen"
       },
-      "readyToAdvance": "🎉 Du bist bereit für die nächste Phase!",
+      "readyToAdvance": "Du bist bereit für die nächste Phase!",
       "levelCap": "Level-Fortschritt",
       "levelValue": "Level {level}",
       "xpToNext": "Noch {xp} XP bis zum nächsten Level",
@@ -191,7 +191,10 @@
       "taskDoneBtn": "Fertig",
       "taskTypes": {
         "REWRITE": "Umschreiben"
-      }
+      },
+      "emptyDeck": "Dein Wiederholungsstapel ist leer",
+      "emptyDeckHint": "Füge Wörter hinzu, dann erinnern wir dich zum richtigen Zeitpunkt ans Wiederholen.",
+      "emptyDeckCta": "Wortschatz lernen"
     },
     "lessons": {
       "title": "Lektionsbibliothek",
@@ -658,6 +661,7 @@
       "titleClass": "Kurs",
       "loadErrorTitle": "Kurs konnte nicht geladen werden",
       "teacherLine": "Lehrkraft: {teacher} · Kurscode: {code} · {count} Mitglieder",
+      "teacherLineNoCode": "Lehrkraft: {teacher} · {count} Mitglieder",
       "backToClasses": "Meine Kurse",
       "messageTeacher": "Lehrkraft schreiben",
       "noTeacherToMessage": "Dieser Kurs hat keine Lehrkraft zum Anschreiben.",
@@ -916,7 +920,10 @@
     },
     "mockExamRun": {
       "draftRestored": "Entwurf wiederhergestellt — {count} zuvor gespeicherte Antworten.",
-      "confirmExit": "Prüfung verlassen? Deine Antworten sind automatisch gespeichert und du kannst zurückkehren — die Uhr läuft aber weiter.",
+      "confirmExitTitle": "Prüfung verlassen?",
+      "confirmExit": "Deine Antworten sind automatisch gespeichert, du kannst später weitermachen — die Prüfung bleibt ein Entwurf und ist nicht abgegeben.",
+      "confirmExitDetail": "Die Uhr läuft nach dem Verlassen weiter.",
+      "confirmExitAction": "Prüfung verlassen",
       "title": "Goethe-Prüfungssimulation",
       "subtitle": "Im offiziellen Goethe-Institut-Format mit automatischer Bewertung",
       "loading": "Wird geladen…",
@@ -938,7 +945,9 @@
       "submitAll": "Gesamte Prüfung abgeben",
       "submitting": "Wird abgegeben…",
       "submitNow": "Jetzt abgeben",
-      "confirmSubmit": "Möchten Sie die Prüfung wirklich abgeben?",
+      "confirmSubmitTitle": "Prüfung abgeben?",
+      "confirmSubmit": "Nach dem Abgeben kannst du deine Antworten nicht mehr ändern; die Prüfung geht in die Bewertung.",
+      "confirmSubmitAnswered": "Du hast {answered}/{total} Aufgaben beantwortet — leere Antworten zählen 0 Punkte.",
       "prevSection": "Vorheriger Teil",
       "nextSection": "Nächster Teil",
       "sectionMeta": "Zeit: {minutes} Min. · Maximale Punktzahl: {points}",
@@ -963,7 +972,7 @@
       "reviewError": "Lösungen konnten nicht geladen werden. Bitte erneut versuchen.",
       "back": "Zurück",
       "backToResult": "Zurück zum Ergebnis",
-      "resultPassed": "Bestanden! 🎉",
+      "resultPassed": "Bestanden!",
       "resultFailed": "Nicht bestanden",
       "provisional": "Vorläufige Punktzahl: {score}/100",
       "provisionalNote": "Schreiben und Sprechen werden separat bewertet — in der vorläufigen Punktzahl nicht enthalten.",
@@ -974,7 +983,18 @@
       "yourAnswer": "Ihre Antwort",
       "correctAnswer": "Richtige Antwort",
       "draftConflict": "Dieser Versuch wurde gerade auf einem anderen Gerät aktualisiert — neuester Entwurf geladen.",
-      "draftExpired": "Die Zeit ist abgelaufen — deine Prüfung wird jetzt abgegeben."
+      "draftExpired": "Die Zeit ist abgelaufen — deine Prüfung wird jetzt abgegeben.",
+      "telcHeadlines": "Überschriften — ordnen Sie jedem Text eine zu",
+      "telcAds": "Anzeigen",
+      "telcWordBank": "Wortkasten",
+      "telcSingleUse": "Jede Lösung kann nur einmal verwendet werden.",
+      "telcNoneHint": "Wählen Sie „x“, wenn keine Anzeige passt.",
+      "telcNone": "x",
+      "telcPickLetter": "Buchstaben wählen",
+      "telcAlreadyUsed": "Bereits für eine andere Aufgabe verwendet",
+      "telcGapEmpty": "offen",
+      "telcGapLabel": "Lücke {n}",
+      "telcMissingPool": "Für diesen Prüfungsteil fehlt die Lösungsliste, er kann daher nicht bearbeitet werden. Bitte melden Sie uns das."
     },
     "grammarPractice": {
       "title": "Grammatiktraining",
@@ -995,7 +1015,7 @@
       "answerPlaceholder": "Antwort eingeben…",
       "check": "Prüfen",
       "checking": "Wird geprüft…",
-      "correct": "Richtig! 🎉",
+      "correct": "Richtig!",
       "incorrect": "Noch nicht richtig",
       "answerIs": "Lösung:",
       "next": "Weiter"
@@ -1198,8 +1218,8 @@
       "poolCap": "Wortvorrat",
       "check": "Prüfen",
       "next": "Weiter →",
-      "correct": "✓ Richtig!",
-      "wrong": "✗ Richtige Antwort: {answer}",
+      "correct": "Richtig!",
+      "wrong": "Richtige Antwort: {answer}",
       "doneTitle": "Fertig! {score}/{total}",
       "doneDesc": "Du hast diese Runde beendet.",
       "emptyTitle": "Noch keine Fragen",
@@ -1221,8 +1241,8 @@
       "poolCap": "Wortblöcke",
       "check": "Prüfen",
       "next": "Weiter →",
-      "correct": "✓ Richtig!",
-      "wrongGeneric": "✗ Noch nicht richtig — prüfe die Wortstellung.",
+      "correct": "Richtig!",
+      "wrongGeneric": "Noch nicht richtig — prüfe die Wortstellung.",
       "hint": "Tipp",
       "listen": "Beispielsatz anhören",
       "score": "{score} Punkte",
@@ -1295,7 +1315,7 @@
       "heroCap": "B1-Einstufung",
       "heroTitle": "Bereit für B1?",
       "heroDesc": "Prüfen Sie, ob Sie bereits alle 5 Kriterien für das B1-Niveau erfüllen.",
-      "heroTitleGraduated": "🎓 Sie haben B1 erreicht!",
+      "heroTitleGraduated": "Sie haben B1 erreicht!",
       "heroDescGraduated": "Herzlichen Glückwunsch! Sie haben die 12-wöchige Lernreise abgeschlossen.",
       "scoreNear": "Fast geschafft!",
       "scoreProgress": "Gute Fortschritte",
@@ -1497,8 +1517,8 @@
       "answerPlaceholder": "Antwort eingeben…",
       "check": "Prüfen",
       "spokenDone": "Ich habe es vorgelesen",
-      "correct": "✅ Richtig!",
-      "incorrect": "❌ Noch nicht richtig",
+      "correct": "Richtig!",
+      "incorrect": "Noch nicht richtig",
       "answerIs": "Lösung:",
       "submit": "Abgeben · {correct}/{total} richtig",
       "resultLine": "{correct} / {total} richtig",
@@ -1524,13 +1544,14 @@
     "learnNode": {
       "roadmapContext": "Position im Lernpfad",
       "completedInRoadmap": "des Lernpfads abgeschlossen",
-      "contentPendingTitle": "⚡ Inhalt wird vorbereitet",
+      "contentPendingTitle": "Inhalt wird vorbereitet",
       "contentPendingDesc": "Die {level}-Lektion folgt bald. Schließe zuerst die A1-Lektionen ab!",
-      "retryTitle": "⚠️ Node noch nicht bestanden",
+      "retryTitle": "Node noch nicht bestanden",
       "retryDesc": "Hören/Lesen erfordern 100 % • Sprechen/Aussprache/Schreiben erfordern ≥ 80 Punkte",
-      "retryCta": "🔄 Erneut versuchen",
+      "retryCta": "Erneut versuchen",
       "progressNotSaved": "Dein Fortschritt konnte nicht auf dem Server gespeichert werden.",
-      "scoreBelowThreshold": "Der Server hat {score}% gewertet — unter der Bestehensgrenze, dein Fortschritt wurde nicht gespeichert."
+      "scoreBelowThreshold": "Der Server hat {score}% gewertet — unter der Bestehensgrenze, dein Fortschritt wurde nicht gespeichert.",
+      "dayPrefix": "Tag {n} · {title}"
     },
     "stats": {
       "title": "Lernstatistik",
@@ -1545,12 +1566,11 @@
         "reviewed": "Wiederholt",
         "speaking": "Sprechen",
         "due": "Fällig",
-        "thisWeek": "diese Woche",
         "words": "Wörter",
-        "toReview": "zu wiederholen"
+        "toReview": "zu wiederholen",
+        "last7Days": "letzte 7 Tage"
       },
-      "weeklyTitle": "Aktivität (7 Tage)",
-      "noActivity": "Diese Woche keine Aktivität.",
+      "noActivity": "Keine Aktivität in den letzten 7 Tagen.",
       "series": {
         "learned": "Neu gelernt",
         "reviewed": "Wiederholt",
@@ -1562,11 +1582,24 @@
       "noWeakPoints": "Noch nicht genug Daten für Schwachpunkte.",
       "errorTrendTitle": "Fehlertrend (30 Tage)",
       "openErrors": "{count} offen",
-      "allFixed": "Alle behoben ✓",
+      "allFixed": "Alle behoben",
       "recommendationsTitle": "Empfehlungen für dich",
       "badgesCap": "Abzeichen",
       "badgesHint": "Alle freigeschalteten Abzeichen findest du unter Erfolge.",
-      "badgesCta": "Abzeichen ansehen"
+      "badgesCta": "Abzeichen ansehen",
+      "vocabTitle": "Wortschatz (7 Tage)",
+      "vocabTitleRange": "Wortschatz · {range}",
+      "speakingTitle": "Sprechen (7 Tage)",
+      "speakingTitleRange": "Sprechen · {range}",
+      "unitWords": "Einheit: Wörter",
+      "unitMinutes": "Einheit: Minuten",
+      "recommendationsLoadError": "Vorschläge konnten nicht geladen werden. Das heißt nicht, dass nichts mehr zu tun ist.",
+      "errorTrendLoadError": "Fehlerverlauf konnte nicht geladen werden. Das heißt nicht, dass alle Fehler behoben sind.",
+      "showTable": "Daten als Tabelle anzeigen",
+      "colDay": "Tag",
+      "colErrorCount": "Fehler",
+      "vocabDesc": "Neu gelernte Wörter und Wiederholungen pro Tag.",
+      "speakingDesc": "Sprechübungsminuten pro Tag."
     },
     "errors": {
       "title": "Fehlerbibliothek",
@@ -2050,7 +2083,8 @@
         "nextLesson": "Nächste Lektion:",
         "nextCta": "Weiter: {title} →",
         "backCta": "Zum Lernweg",
-        "backToRoadmap": "Zurück zum Lernweg"
+        "backToRoadmap": "Zurück zum Lernweg",
+        "practiceCta": "{skill} jetzt üben"
       },
       "pronunciation": {
         "verdict": {
@@ -2090,8 +2124,14 @@
         },
         "play": "Audio abspielen",
         "stop": "Stopp",
-        "defaultLabel": "Hörtext — Goethe A1",
-        "unsupportedHint": "Browser nicht unterstützt. Bitte Chrome oder Safari verwenden."
+        "defaultLabel": "Hörtext",
+        "unsupportedHint": "Browser nicht unterstützt. Bitte Chrome oder Safari verwenden.",
+        "playsLeft": "Noch {n}× hören",
+        "playsExhausted": "Keine Wiedergabe mehr",
+        "playsExhaustedHint": "Sie haben alle Wiedergaben verbraucht — wie in der echten Prüfung.",
+        "dialogueLabel": "Hörtext — Gespräch",
+        "speakerA": "Person 1",
+        "speakerB": "Person 2"
       },
       "scoreBreakdown": {
         "pending": "Bewertung ausstehend",
@@ -2109,18 +2149,24 @@
           "aufgabenerfuellung": "Aufgabenerfüllung",
           "kohaerenz": "Kohärenz & Aufbau",
           "wortschatz": "Wortschatz",
-          "strukturen": "Grammatik & Satzstrukturen"
+          "strukturen": "Grammatik & Satzstrukturen",
+          "leitpunkte": "Berücksichtigung der Leitpunkte",
+          "kommunikativeGestaltung": "Kommunikative Gestaltung",
+          "formaleRichtigkeit": "Formale Richtigkeit",
+          "other": "Weiteres Kriterium"
         },
         "pendingTitle": "Die KI bewertet deinen Text gerade",
         "pendingFallback": "Die E-Mail wurde noch nicht abgegeben oder wird noch verarbeitet.",
         "aiGraded": "Von der KI bewertet",
-        "officialRubric": "Offizielles Goethe-A1-Bewertungsraster",
+        "officialRubric": "Offizielles Goethe-Raster",
         "detailCap": "Punkte im Detail",
         "emailTotal": "Gesamtpunkte E-Mail",
         "overallCap": "Gesamteindruck",
         "strengths": "Stärken",
         "improvements": "Verbesserungsbedarf",
-        "title": "Bewertung des Schreibteils (SCHREIBEN Teil 2)"
+        "title": "Bewertung des Schreibteils (SCHREIBEN Teil 2)",
+        "officialRubricLevel": "Offizielles Goethe-Raster {level}",
+        "missingCriteria": "Die KI hat {count} Kriterium/Kriterien nicht bewertet — die Skala wurde entsprechend verkleinert, nicht als 0 gewertet."
       },
       "weakAreas": {
         "tips": {
@@ -2136,6 +2182,18 @@
         "practiceNow": "Jetzt üben",
         "footer": "Übe regelmäßig jeden Tag — nach 2 Wochen wirst du deutliche Fortschritte sehen"
       }
+    },
+    "minorAudio": {
+      "eyebrow": "Sprechtraining vorübergehend gesperrt",
+      "titleBirthDate": "Dein Zentrum hat dein Geburtsdatum noch nicht erfasst",
+      "bodyBirthDate": "Für dein Konto ist kein Geburtsdatum hinterlegt. Deshalb lässt sich nicht klären, ob die Einwilligung einer erziehungsberechtigten Person nötig ist – und solange das unklar ist, wird keine Aufnahme gesendet. Bitte wende dich an dein Zentrum, damit das Geburtsdatum in deiner Schülerakte ergänzt wird.",
+      "titleConsentRequired": "Es fehlt die Einwilligung der Eltern bzw. Erziehungsberechtigten",
+      "bodyConsentRequired": "Für dieses Konto ist vor Sprachaufnahmen die Einwilligung der Eltern oder Erziehungsberechtigten nötig. Bitte wende dich an dein Zentrum, um das Einwilligungsformular abzuschließen; sobald das Zentrum es erfasst hat, ist das Sprechtraining sofort wieder frei.",
+      "titleConsentRevoked": "Die Einwilligung zur Aufnahme wurde widerrufen",
+      "bodyConsentRevoked": "Die Einwilligung zur Sprachaufnahme für dieses Konto wurde widerrufen, daher ist das Sprechtraining vorübergehend nicht verfügbar. Zum Wiederfreischalten wendet sich die erziehungsberechtigte Person an das Zentrum und erteilt die Einwilligung erneut.",
+      "note": "Ein Upgrade schaltet diesen Bereich nicht frei – nur das Zentrum oder die erziehungsberechtigte Person kann ihn wieder öffnen. Alles, was keine Aufnahme braucht, funktioniert weiterhin.",
+      "contact": "Zentrum kontaktieren",
+      "dismiss": "Verstanden"
     }
   }
 }

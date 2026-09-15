@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics'
 import { Check, Flag, Square, RotateCcw, ChevronRight, X, Volume2, VolumeX } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
+import { presentMinorAudioBlocked } from '@/lib/minorAudio'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
@@ -331,6 +332,9 @@ export default function SpeakingExamRoomScreen() {
       if (!uri) throw new Error('no_uri')
       await submitTurnFile({ uri, clientTurnId: newClientTurnId() })
     } catch (e) {
+      // 403 MINOR_AUDIO_BLOCKED (D8): sheet giải thích + lối liên hệ trung tâm — không phải lỗi lượt,
+      // gửi lại không mở được (submitTurnFile đã xoá file vì 403 không retryable).
+      if (presentMinorAudioBlocked(e)) return
       Alert.alert('Lỗi lượt nói', apiMessage(e))
     } finally {
       setUploading(false)

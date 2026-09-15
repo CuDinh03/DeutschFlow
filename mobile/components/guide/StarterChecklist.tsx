@@ -63,7 +63,7 @@ export function StarterChecklist({
     {
       key: 'speaking',
       glyph: 'speaking',
-      label: 'Thử 1 buổi Speaking',
+      label: 'Thử 1 buổi luyện nói',
       done: starter.speakingSessionStarted,
       onPress: () => router.navigate('/(student)/speaking'),
     },

@@ -5,10 +5,10 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import {
-  addOrgClassAssistant, assignClassTeacher, getOrgTeacherClasses, listClasses,
+  addOrgClassAssistant, assignClassTeacher, getOrgTeacherClasses, getTeacherlessClassIds, listClasses,
   type OrgClass, type OrgMember,
 } from '@/lib/orgApi'
-import { TkModal, GaBtn, ErrorBanner, TkSearch } from '@/components/ui-v2'
+import { TkModal, GaBtn, ErrorBanner, TkSearch, ConfirmDialog } from '@/components/ui-v2'
 
 /**
  * Org-admin (OWNER/MANAGER) giao lớp cho một giáo viên (nút "Phân công" trang GV).
@@ -18,7 +18,7 @@ import { TkModal, GaBtn, ErrorBanner, TkSearch } from '@/components/ui-v2'
  * không phụ trách) — backend không trả role ở đây nên so với teacherId của lớp.
  */
 
-type RowState = 'primary' | 'assistant' | 'unassigned' | 'taken'
+type RowState = 'primary' | 'assistant' | 'unassigned' | 'taken' | 'unknown'
 
 export function AssignClassModal({
   teacher,
@@ -32,17 +32,26 @@ export function AssignClassModal({
   const t = useTranslations('v2.org.teachers.assignModal')
   const [classes, setClasses] = useState<OrgClass[] | null>(null)
   const [memberIds, setMemberIds] = useState<Set<number> | null>(null)
+  // V-01: "lớp chưa ai dạy" từng suy từ `teacherId == null` — cột NOT NULL nên KHÔNG BAO GIỜ đúng,
+  // và mọi lớp trống giáo viên đều hiện là "đã có người khác dạy". Nay hỏi máy chủ tập id thật.
+  // null = CHƯA BIẾT (nguồn chưa về hoặc hỏng). Không được rơi về `new Set()`: tập rỗng đọc ra
+  // đúng bằng lời khẳng định cũ "lớp nào cũng đã có người khác dạy" — chính lỗi đợt này đi sửa.
+  const [teacherlessIds, setTeacherlessIds] = useState<Set<number> | null>(null)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState<number | null>(null)
+  // Lớp đang chờ xác nhận "giao phụ trách". Với lớp ĐÃ CÓ giáo viên phụ trách, một cú bấm sẽ HẠ
+  // giáo viên đó xuống trợ giảng (OrgService.assignClassTeacher) — hệ quả phải nói ra trước.
+  const [confirmPrimary, setConfirmPrimary] = useState<OrgClass | null>(null)
 
   useEffect(() => {
     let alive = true
-    Promise.all([listClasses(0, 100), getOrgTeacherClasses(teacher.userId)])
-      .then(([page, mine]) => {
+    Promise.all([listClasses(0, 100), getOrgTeacherClasses(teacher.userId), getTeacherlessClassIds().then((v) => v, () => null)])
+      .then(([page, mine, teacherless]) => {
         if (!alive) return
         setClasses(page.content ?? [])
         setMemberIds(new Set(mine.map((c) => c.id)))
+        setTeacherlessIds(teacherless)
         setError('')
       })
       .catch((e: unknown) => { if (alive) setError(apiMessage(e)) })
@@ -57,8 +66,29 @@ export function AssignClassModal({
   const stateOf = (c: OrgClass): RowState => {
     if (c.teacherId === teacher.userId) return 'primary'
     if (memberIds?.has(c.id)) return 'assistant'
-    return c.teacherId == null ? 'unassigned' : 'taken'
+    if (teacherlessIds == null) return 'unknown'
+    return teacherlessIds.has(c.id) ? 'unassigned' : 'taken'
   }
+
+  /**
+   * Lớp này có ai đang phụ trách để mà bị HẠ xuống trợ giảng không.
+   *
+   * KHÔNG hỏi `stateOf(c) === 'taken'`: khi chính giáo viên đang mở modal đã là trợ giảng của lớp,
+   * `stateOf` trả 'assistant' TRƯỚC khi kịp xét `c.teacherId` — mà đó lại là trường hợp phổ biến
+   * nhất của trợ giảng (lớp gần như luôn có người phụ trách). Hỏi bằng `stateOf` thì hộp thoại nói
+   * "không ai bị hạ vai" đúng lúc có người bị hạ vai.
+   *
+   * Nhưng `teacherId != null` MỘT MÌNH cũng không đủ: cột `teacher_id` là NOT NULL (V-01), nên vế
+   * đó luôn đúng và nhánh "không ai bị hạ vai" sẽ thành mã chết y như huy hiệu cũ. Lớp mà giáo viên
+   * phụ trách đã RỜI trung tâm vẫn còn `teacher_id` trỏ vào người đã đi — hạ vai người đó không có
+   * nghĩa gì với người đang đọc hộp thoại. Nên hỏi thêm tập teacherless (nguồn thật của V-01),
+   * nhưng hỏi TRỰC TIẾP chứ không qua `stateOf`.
+   *
+   * Chưa biết (tập id chưa về hoặc hỏng) thì coi như CÓ người bị hạ: cảnh báo thừa còn hơn hứa hẹn
+   * thiếu trước một thao tác không quay lại được.
+   */
+  const willDemote = (c: OrgClass): boolean =>
+    c.teacherId != null && c.teacherId !== teacher.userId && !teacherlessIds?.has(c.id)
 
   const assignPrimary = async (cls: OrgClass) => {
     setBusy(cls.id)
@@ -66,7 +96,9 @@ export function AssignClassModal({
       const updated = await assignClassTeacher(cls.id, teacher.userId)
       setClasses((cur) => (cur ?? []).map((c) => (c.id === updated.id ? updated : c)))
       setMemberIds((cur) => { const next = new Set(cur); next.add(cls.id); return next })
+      setTeacherlessIds((cur) => { if (cur == null) return cur; const next = new Set(cur); next.delete(cls.id); return next })
       toast.success(t('success', { className: cls.name }))
+      setConfirmPrimary(null)
       onAssigned()
     } catch (e: unknown) {
       toast.error(apiMessage(e))
@@ -80,6 +112,7 @@ export function AssignClassModal({
     try {
       await addOrgClassAssistant(cls.id, teacher.userId)
       setMemberIds((cur) => { const next = new Set(cur); next.add(cls.id); return next })
+      setTeacherlessIds((cur) => { if (cur == null) return cur; const next = new Set(cur); next.delete(cls.id); return next })
       toast.success(t('assistantAdded', { className: cls.name }))
       onAssigned()
     } catch (e: unknown) {
@@ -90,6 +123,7 @@ export function AssignClassModal({
   }
 
   return (
+    <>
     <TkModal
       open
       onOpenChange={(o) => !o && onClose()}
@@ -120,6 +154,7 @@ export function AssignClassModal({
                     {state === 'primary' ? t('statusCurrent')
                       : state === 'assistant' ? t('statusAssistant')
                       : state === 'unassigned' ? t('statusUnassigned')
+                      : state === 'unknown' ? '—'
                       : t('statusTaken')}
                   </div>
                 </div>
@@ -137,10 +172,10 @@ export function AssignClassModal({
                     <button
                       type="button"
                       disabled={busy != null}
-                      onClick={() => assignPrimary(c)}
+                      onClick={() => setConfirmPrimary(c)}
                       className="ga-ui inline-flex min-h-[36px] items-center justify-center border border-ga-line px-3 py-1.5 text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-50"
                     >
-                      {busy === c.id ? t('assigning') : t('assignBtn')}
+                      {busy === c.id ? t('assigning') : willDemote(c) ? t('assignBtnReplace') : t('assignBtn')}
                     </button>
                     {state !== 'assistant' && (
                       <button
@@ -160,5 +195,29 @@ export function AssignClassModal({
         </ul>
       )}
     </TkModal>
+
+    {confirmPrimary && (
+      <ConfirmDialog
+        open
+        onOpenChange={(o) => { if (!o) setConfirmPrimary(null) }}
+        title={t('assignConfirmTitle')}
+        description={t('assignConfirmDesc', {
+          name: teacher.displayName || teacher.email || '',
+          className: confirmPrimary.name,
+        })}
+        details={
+          willDemote(confirmPrimary)
+            // Lớp đang có người phụ trách: đây mới là hệ quả bất ngờ mà nhãn nút không nói.
+            ? [t('assignConfirmDemote'), t('assignConfirmStays')]
+            : [t('assignConfirmNoCurrent')]
+        }
+        destructive={willDemote(confirmPrimary)}
+        confirmLabel={willDemote(confirmPrimary) ? t('assignBtnReplace') : t('assignBtn')}
+        cancelLabel={t('cancelBtn')}
+        loading={busy === confirmPrimary.id}
+        onConfirm={() => void assignPrimary(confirmPrimary)}
+      />
+    )}
+    </>
   )
 }

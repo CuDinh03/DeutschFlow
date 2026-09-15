@@ -275,7 +275,7 @@ export default function VocabularyScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Từ vựng" subtitle="Wortschatz · Spaced repetition" onBack={goBack} />
+      <AppHeader title="Từ vựng" subtitle="Lặp lại ngắt quãng" onBack={goBack} />
 
       <FlatList
         data={isLoading || isError ? [] : words}

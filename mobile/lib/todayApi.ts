@@ -84,11 +84,23 @@ export function todayHrefToRoute(href: string | null | undefined):
   | '/(student)/speaking'
   | '/(student)/weekly-speaking'
   | '/(student)/vocabulary' {
+  // CẢNH BÁO (soát 09/09): href của `recommendedWeeklySpeaking` KHÔNG chứa 'weekly'. Backend
+  // (AdaptivePolicyService.computeTodayPlan) sinh `/v2/student/speaking?cefBand=…` vì web v2 chưa
+  // có màn nói-theo-tuần cho học viên. Đưa href đó qua hàm này ra thẳng /(student)/speaking —
+  // TRÙNG đích với thẻ luyện nói thường. Thẻ "Bài nói theo tuần" vì vậy đi đường riêng
+  // (WEEKLY_SPEAKING_ROUTE), đừng map nó qua đây.
   const h = (href ?? '').toLowerCase()
   if (h.includes('weekly')) return '/(student)/weekly-speaking'
   if (h.includes('vocab')) return '/(student)/vocabulary'
   return '/(student)/speaking'
 }
+
+/**
+ * Đích của việc "Bài nói theo tuần" trên Trang chủ. Cố định, KHÔNG suy từ `href` backend gửi kèm:
+ * href ấy trỏ về trang luyện nói thường của web (xem cảnh báo ở {@link todayHrefToRoute}), còn app
+ * thì có sẵn màn nói-theo-tuần riêng.
+ */
+export const WEEKLY_SPEAKING_ROUTE = '/(student)/weekly-speaking' as const
 
 /**
  * Drill "gõ lại câu đúng" (gương ErrorRepairDrill web): so khớp KHOAN DUNG —

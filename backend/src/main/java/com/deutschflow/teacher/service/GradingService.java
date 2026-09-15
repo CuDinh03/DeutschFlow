@@ -29,7 +29,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -237,9 +236,20 @@ public class GradingService {
 
         List<StudentAssignment> submissions = studentAssignmentRepository.findByAssignmentId(assignmentId);
 
-        // Lấy tất cả học viên trong lớp để hiển thị cả người chưa nộp
-        List<Long> classStudentIds = classStudentRepository.findByIdClassId(classId)
-                .stream().map(cs -> cs.getId().getStudentId()).collect(Collectors.toList());
+        // Sổ điểm = sĩ số hiện tại HỢP với mọi người đã thực sự nộp bài.
+        //
+        // Vế đầu để hiện cả người chưa nộp. Vế sau là bắt buộc từ khi ghi danh có vòng đời (V316):
+        // `findByIdClassId` chỉ trả người còn chiếm chỗ, nên một học viên bị gỡ giữa khoá sẽ rơi
+        // khỏi danh sách và bài họ ĐÃ NỘP thành không mở ra chấm được nữa — trong khi D2 nói rõ dữ
+        // liệu học tập phải giữ nguyên. Giữ nguyên trong cơ sở dữ liệu mà không còn lối vào thì
+        // cũng như mất.
+        List<Long> classStudentIds = new ArrayList<>();
+        classStudentRepository.findByIdClassId(classId)
+                .forEach(cs -> classStudentIds.add(cs.getId().getStudentId()));
+        submissions.stream()
+                .map(StudentAssignment::getStudentId)
+                .filter(id -> id != null && !classStudentIds.contains(id))
+                .forEach(classStudentIds::add);
 
         Map<Long, StudentAssignment> submissionByStudent = submissions.stream()
                 .collect(Collectors.toMap(StudentAssignment::getStudentId, sa -> sa, (a, b) -> a));
@@ -263,6 +273,9 @@ public class GradingService {
                 item.put("feedback", sa.getFeedback());
                 item.put("aiConfidence", sa.getAiConfidence());
                 item.put("criteria", sa.getCriteria());
+                // R3 (V323): đề xuất của AI sống sót sau khi giáo viên chốt — giáo viên thấy lại được.
+                item.put("aiScore", sa.getAiScore());
+                item.put("aiFeedback", sa.getAiFeedback());
                 item.put("submittedAt", sa.getSubmittedAt());
                 item.put("gradedAt", sa.getGradedAt());
                 item.put("submissionContent", sa.getSubmissionContent());
@@ -484,17 +497,16 @@ public class GradingService {
                 return;
             }
 
-            sa.setScore(aiScore);
-            sa.setFeedback(aiFeedback);
-            sa.setAiConfidence(AiGradeResultParser.parseConfidence(responseContent));
-            sa.setCriteria(AiGradeResultParser.parseCriteria(responseContent));
             // A PROPOSAL, not a grade. The screen promises "AI chấm sơ bộ · giáo viên xác nhận", so the
             // row stays in the teacher's queue and the student hears nothing until a teacher confirms it
             // (TeacherService.evaluateAssignment → EVALUATED, which notifies once and writes the ledger).
             // Writing GRADED here used to announce the raw AI score immediately — and then a teacher who
             // corrected it sent a second, different "bài đã chấm" notification.
-            sa.setStatus(AssignmentStatus.AI_GRADED);
-            sa.setGradedAt(LocalDateTime.now());
+            // R3 (V323): applyAiProposal ghi ai_score/ai_feedback/ai_graded_at ở cột RIÊNG và chép sang
+            // score/feedback + AI_GRADED — giáo viên chốt sau này đè score/feedback nhưng không đè được ai_*.
+            sa.applyAiProposal(aiScore, aiFeedback);
+            sa.setAiConfidence(AiGradeResultParser.parseConfidence(responseContent));
+            sa.setCriteria(AiGradeResultParser.parseCriteria(responseContent));
             studentAssignmentRepository.save(sa);
 
             // Record token spend so this AI call shows up in admin cost accounting.

@@ -12,6 +12,16 @@ export interface AuthUser {
   displayName: string
   email: string
   role: UserRole
+  /**
+   * V-12c: `/auth/me` (AuthResponse backend) trả sẵn hai trường này nhưng app từng khai thiếu nên
+   * TypeScript cắt mất — app hoàn toàn không biết học viên thuộc trung tâm nào. V-06 cần biết:
+   * gói do trung tâm cấp thì phải giấu nút huỷ/hoàn tiền Apple.
+   *
+   * `orgId` = trung tâm chính (B2B tenant); null với người dùng B2C.
+   */
+  orgId?: number | null
+  /** Vai trò trong trung tâm (OWNER|ADMIN|TEACHER|STUDENT); null khi không có membership ACTIVE. */
+  orgRole?: string | null
 }
 
 interface AuthState {

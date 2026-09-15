@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
+import { isOrgPlan, orgPlanNotice, planActionRows, trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
 import api, { apiMessage } from '@/lib/api'
 import { IAP_ENABLED, PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
@@ -30,6 +30,9 @@ export default function ProfileScreen() {
   const tabClearance = useTabBarClearance()
   const { user, logout } = useAuthStore()
   const { plan, isPro, isUltra } = usePlanStore()
+  // V-06: gói do trung tâm cấp → không mời huỷ/hoàn tiền Apple (xem cụm "Gói đăng ký" bên dưới).
+  const planIsOrg = isOrgPlan(plan)
+  const planRows = planActionRows(plan)
   const { data: xp } = useQuery({
     queryKey: ['xp-summary'],
     queryFn: () => gamificationApi.getXpSummary(),
@@ -252,27 +255,56 @@ export default function ProfileScreen() {
                 <Pill label={plan?.isTrial ? 'DÙNG THỬ' : plan?.tier ?? 'PRO'} tone="accent" solid />
               </View>
             </Card>
+            {/* V-06: gói do TRUNG TÂM cấp thì học viên không mua gì ở Apple — "Quản lý & huỷ gói"
+                và "Yêu cầu hoàn tiền" dẫn thẳng vào ngõ cụt (Apple không có đăng ký nào của họ),
+                và nếu huỷ được thì thứ mất đi là quyền lợi do trung tâm trả tiền. Thay bằng một
+                dòng nói rõ ai cấp gói; nâng cấp/đổi gói cũng không mời, vì gói này không của họ. */}
+            {planIsOrg ? (
+              <Card>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+                  <GaGlyph name="lophoc" size={18} ink="muted" />
+                  <ThemedText variant="caption" color="secondary" style={{ flex: 1 }}>
+                    {orgPlanNotice(plan)}
+                  </ThemedText>
+                </View>
+              </Card>
+            ) : null}
+            {/* "Quản lý & huỷ gói" hiện với MỌI gói, kể cả gói trung tâm (planActionRows): người
+                từng tự mua gói Apple rồi vào trung tâm vẫn đang bị Apple trừ tiền — dòng Apple chỉ
+                chuyển sang PAUSED ở phía mình. Giấu mục này là bịt lối ra duy nhất trong app. */}
             <Card padded={false} style={{ paddingHorizontal: space[4] }}>
-              <ListRow
-                glyph="goipro"
-                title={isUltra ? 'Xem & đổi gói' : 'Nâng cấp / đổi gói'}
-                subtitle={isUltra ? 'Đổi kỳ hạn thanh toán' : 'Lên ULTRA hoặc đổi kỳ hạn'}
-                onPress={() => router.push('/(student)/upgrade')}
-              />
-              <Divider />
+              {planRows.includes('upgrade') ? (
+                <>
+                  <ListRow
+                    glyph="goipro"
+                    title={isUltra ? 'Xem & đổi gói' : 'Nâng cấp / đổi gói'}
+                    subtitle={isUltra ? 'Đổi kỳ hạn thanh toán' : 'Lên ULTRA hoặc đổi kỳ hạn'}
+                    onPress={() => router.push('/(student)/upgrade')}
+                  />
+                  <Divider />
+                </>
+              ) : null}
               <ListRow
                 glyph="thanhtoan"
                 title="Quản lý & huỷ gói"
-                subtitle="Đổi hoặc huỷ gói trong App Store"
+                subtitle={
+                  planIsOrg
+                    ? 'Nếu bạn từng tự mua gói trong App Store'
+                    : 'Đổi hoặc huỷ gói trong App Store'
+                }
                 onPress={() => void openManageSubscriptions()}
               />
-              <Divider />
-              <ListRow
-                glyph="hoantien"
-                title="Yêu cầu hoàn tiền"
-                subtitle="Hoàn tiền do Apple xử lý"
-                onPress={confirmRefund}
-              />
+              {planRows.includes('refund') ? (
+                <>
+                  <Divider />
+                  <ListRow
+                    glyph="hoantien"
+                    title="Yêu cầu hoàn tiền"
+                    subtitle="Hoàn tiền do Apple xử lý"
+                    onPress={confirmRefund}
+                  />
+                </>
+              ) : null}
             </Card>
           </View>
         ) : null}

@@ -3,6 +3,7 @@ import { router } from 'expo-router'
 import { apiMessage } from '@/lib/api'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { isOrgBudgetError, isQuotaExceededError, quotaExceededMessage } from '@/lib/quota'
+import { presentMinorAudioBlocked } from '@/lib/minorAudio'
 import { PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 
 /**
@@ -18,9 +19,15 @@ import { PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
  * the org admin configuring/raising the pool, so the alert carries the server's message and NO
  * upgrade CTA (P0-02 — đừng mời staff mua gói cá nhân cho lỗi ngân sách trung tâm).
  *
+ * 403 MINOR_AUDIO_BLOCKED (DEC-22, D8 10/09) is checked FIRST and routed to its own sheet
+ * (lib/minorAudio.ts): the recording path is closed until the centre records the guardian's
+ * consent / the birth date — no plan upgrade can open it, so it must never fall into the quota
+ * upsell below, and the generic alert would hide the one thing the learner needs: who to contact.
+ *
  * Any other error keeps the caller's existing generic alert.
  */
 export function handleAiError(error: unknown, fallbackTitle = 'Lỗi'): void {
+  if (presentMinorAudioBlocked(error)) return
   if (isOrgBudgetError(error)) {
     const message =
       quotaExceededMessage(error) ??

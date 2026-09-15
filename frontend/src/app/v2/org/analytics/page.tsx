@@ -1,11 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { apiMessage } from '@/lib/api'
-import { getAnalytics, listClasses, type OrgAnalytics, type OrgClass } from '@/lib/orgApi'
+import { getAnalytics, getTeacherlessClassIds, listClasses, type OrgAnalytics, type OrgClass } from '@/lib/orgApi'
 import { GaPageHdr, GaStatStrip, ErrorBanner, LoadingState } from '@/components/ui-v2'
-import { GaSection, GaDonut, GaLegend, GaBarRow, GA_CHART } from '../../analyticsShared'
+import { GaSection, GaChartData, GaDonut, GaLegend, GaBarRow, GA_CHART } from '../../analyticsShared'
 import { useFmt } from '@/lib/i18n/useFmt'
 
 // Option-1: GET /org/analytics is FLAT (no time-series). Reuse getAnalytics + listClasses.
@@ -16,27 +17,54 @@ const TEAL = '#11888A'
 export default function V2OrgAnalyticsPage() {
   const t = useTranslations('v2.org.analytics')
   const fmt = useFmt()
+  const CLASSES_PAGE_SIZE = 100
+
   const [analytics, setAnalytics] = useState<OrgAnalytics | null>(null)
-  const [classes, setClasses] = useState<OrgClass[]>([])
+  const [classes, setClasses] = useState<OrgClass[] | null>(null)
+  const [classesTotal, setClassesTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // F08: hai nguồn dữ liệu, hai trạng thái lỗi. Trước đây `listClasses(...).catch(() => [])` biến
+  // MỌI lỗi tải lớp thành mảng rỗng, và bảng bên dưới kết luận "Chưa có lớp nào" — một câu khẳng
+  // định về dữ liệu, dựng từ chỗ không có dữ liệu nào. Trung tâm mới nhìn vào đó tưởng lớp của mình
+  // biến mất. Nay lỗi của khối lớp hiện ở đúng khối đó và thử lại được, còn analytics vẫn dùng bình
+  // thường nếu nó thành công (và ngược lại).
+  const [classesError, setClassesError] = useState<string | null>(null)
+  // V-01: cột "giáo viên" từng đọc `teacherId == null` — cột `teacher_id` NOT NULL nên điều kiện đó
+  // không bao giờ đúng và bảng này khẳng định lớp nào cũng đã phân công. Nay hỏi máy chủ tập id thật.
+  const [teacherlessIds, setTeacherlessIds] = useState<Set<number> | null>(null)
+
+  const loadClasses = useCallback(async () => {
+    setClassesError(null)
+    try {
+      const page = await listClasses(0, CLASSES_PAGE_SIZE)
+      setClasses(page.content)
+      setClassesTotal(page.totalElements)
+    } catch (e: unknown) {
+      setClasses(null)
+      setClassesError(apiMessage(e))
+    }
+    try {
+      setTeacherlessIds(await getTeacherlessClassIds())
+    } catch {
+      setTeacherlessIds(null)
+    }
+  }, [])
+
+  const loadAnalytics = useCallback(async () => {
+    setError(null)
+    try {
+      setAnalytics(await getAnalytics())
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+    }
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
-    setError(null)
-    try {
-      const [a, c] = await Promise.all([
-        getAnalytics(),
-        listClasses(0, 100).then((p) => p.content).catch(() => [] as OrgClass[]),
-      ])
-      setAnalytics(a)
-      setClasses(c)
-    } catch (e: unknown) {
-      setError(apiMessage(e))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+    await Promise.all([loadAnalytics(), loadClasses()])
+    setLoading(false)
+  }, [loadAnalytics, loadClasses])
 
   useEffect(() => { void load() }, [load])
 
@@ -44,10 +72,13 @@ export default function V2OrgAnalyticsPage() {
   const cefrSegs = cefr
     .filter((b) => b.count > 0)
     .map((b, i) => ({ label: b.level, value: b.count, color: GA_CHART[i % GA_CHART.length] }))
-  const engagementPct =
-    analytics && analytics.studentCount > 0
-      ? Math.round((analytics.activeStudents7d / analytics.studentCount) * 100)
-      : 0
+  // DEC-20: "học viên hoạt động" = có nộp bài hoặc điểm danh (không còn "có dùng AI"); trả cả 7 và
+  // 30 ngày (G1). `null` = chưa có số — analytics lỗi thì KHÔNG hiện "0%" (V-12b mở rộng cho thanh
+  // engagement: trước đây `: 0` biến lỗi tải thành lời khẳng định "0% học viên hoạt động").
+  const pctOf = (n: number | undefined): number | null =>
+    analytics && n != null && analytics.studentCount > 0 ? Math.round((n / analytics.studentCount) * 100) : analytics && n != null ? 0 : null
+  const active7dPct = pctOf(analytics?.activeStudents7d)
+  const active30dPct = pctOf(analytics?.activeStudents30d)
   const poolPct = analytics ? Math.round(analytics.poolUsagePercent) : 0
 
   return (
@@ -65,14 +96,25 @@ export default function V2OrgAnalyticsPage() {
           <div className="space-y-[22px]">
             <GaStatStrip
               items={[
-                { label: t('stats.totalStudents'), value: analytics?.studentCount ?? 0, tone: 'teal' },
+                // V-12b: analytics chết thì ô KPI hiện '—'. Trước đây `?? 0` biến lỗi thành lời
+                // khẳng định "trung tâm có 0 học viên", ngay bên dưới một biểu ngữ báo lỗi.
+                { label: t('stats.totalStudents'), value: analytics ? fmt.num(analytics.studentCount) : '—', tone: 'teal', alert: !analytics },
                 {
-                  label: t('stats.active7d'),
-                  value: analytics?.activeStudents7d ?? 0,
-                  sub: t('stats.ofStudents', { pct: engagementPct }),
+                  label: t('stats.active'),
+                  value: analytics ? `${fmt.num(analytics.activeStudents7d)} / ${fmt.num(analytics.activeStudents30d)}` : '—',
+                  sub: analytics ? t('stats.activeDefinition', { pct: active30dPct ?? 0 }) : t('statUnavailable'),
                   tone: 'blue',
+                  alert: !analytics,
                 },
-                { label: t('stats.openClasses'), value: analytics?.classCount ?? classes.length, tone: 'violet' },
+                // Số lớp TOÀN trung tâm chỉ có ở analytics. Nhánh cũ `?? classes.length` lấy số lớp của
+                // trang đầu (cắt ở 100) thay cho tổng khi analytics lỗi — một con số sai đội lốt số thật.
+                {
+                  label: t('stats.openClasses'),
+                  value: analytics ? fmt.num(analytics.classCount) : '—',
+                  sub: analytics ? undefined : t('statUnavailable'),
+                  tone: 'violet',
+                  alert: !analytics,
+                },
                 {
                   label: t('stats.tokensThisMonth'),
                   value: analytics ? fmt.num(analytics.tokensThisMonth) : '—',
@@ -83,30 +125,47 @@ export default function V2OrgAnalyticsPage() {
             />
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[1fr_1fr]">
-              <GaSection title={t('cefrTitle')}>
+              <GaSection
+                title={t('cefrTitle')}
+                description={analytics ? t('cefrDesc', { total: fmt.num(analytics.studentCount) }) : t('statUnavailable')}
+              >
                 {cefrSegs.length > 0 ? (
-                  <div className="flex flex-col items-center gap-5 sm:flex-row">
-                    <GaDonut segments={cefrSegs} />
-                    <div className="w-full min-w-0 sm:w-auto sm:flex-1">
-                      <GaLegend items={cefrSegs.map((s) => ({ ...s, display: fmt.num(s.value) }))} />
+                  <>
+                    <div className="flex flex-col items-center gap-5 sm:flex-row">
+                      <GaDonut segments={cefrSegs} />
+                      <div className="w-full min-w-0 sm:w-auto sm:flex-1">
+                        <GaLegend items={cefrSegs.map((s) => ({ ...s, display: fmt.num(s.value) }))} />
+                      </div>
                     </div>
-                  </div>
+                    <GaChartData
+                      summaryLabel={t('showTable')}
+                      columns={[t('colLevel'), t('colStudents')]}
+                      rows={cefrSegs.map((seg) => ({ label: seg.label, values: [fmt.num(seg.value)] }))}
+                    />
+                  </>
                 ) : (
                   <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">{t('cefrEmpty')}</p>
                 )}
               </GaSection>
 
-              <GaSection title={t('usageTitle')}>
+              <GaSection title={t('usageTitle')} description={t('usageDesc')}>
                 <div className="space-y-5 py-1">
-                  <div>
-                    <div className="ga-ui mb-1.5 flex items-baseline justify-between text-[13px]">
-                      <span className="text-ga-ink">{t('activeStudents')}</span>
-                      <span className="font-medium text-ga-muted">{engagementPct}%</span>
+                  {[
+                    { label: t('active7dBar'), pct: active7dPct },
+                    { label: t('active30dBar'), pct: active30dPct },
+                  ].map((bar) => (
+                    <div key={bar.label}>
+                      <div className="ga-ui mb-1.5 flex items-baseline justify-between text-[13px]">
+                        <span className="text-ga-ink">{bar.label}</span>
+                        <span className={`font-medium ${bar.pct == null ? 'text-ga-red' : 'text-ga-muted'}`}>
+                          {bar.pct == null ? t('statUnavailable') : `${bar.pct}%`}
+                        </span>
+                      </div>
+                      <div className="h-2.5 overflow-hidden rounded-[3px] bg-ga-border">
+                        <div className="h-full rounded-[3px]" style={{ width: `${Math.min(100, bar.pct ?? 0)}%`, background: TEAL }} />
+                      </div>
                     </div>
-                    <div className="h-2.5 overflow-hidden rounded-[3px] bg-ga-border">
-                      <div className="h-full rounded-[3px]" style={{ width: `${Math.min(100, engagementPct)}%`, background: TEAL }} />
-                    </div>
-                  </div>
+                  ))}
                   {analytics && analytics.monthlyTokenPool > 0 && (
                     <div>
                       <div className="ga-ui mb-1.5 flex items-baseline justify-between text-[13px]">
@@ -150,7 +209,13 @@ export default function V2OrgAnalyticsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {classes.length === 0 ? (
+                    {classesError ? (
+                      <tr>
+                        <td colSpan={3} className="px-5 py-6">
+                          <ErrorBanner message={classesError} onRetry={() => void loadClasses()} />
+                        </td>
+                      </tr>
+                    ) : !classes || classes.length === 0 ? (
                       <tr>
                         <td colSpan={3} className="ga-ui px-5 py-10 text-center text-[14px] text-ga-muted">
                           {t('emptyClasses')}
@@ -170,7 +235,9 @@ export default function V2OrgAnalyticsPage() {
                             )}
                           </td>
                           <td className="px-5 py-3 text-right text-[13px]">
-                            {c.teacherId == null ? (
+                            {teacherlessIds == null ? (
+                              <span className="text-ga-subtle">—</span>
+                            ) : teacherlessIds.has(c.id) ? (
                               <span className="text-ga-red">{t('unassigned')}</span>
                             ) : (
                               <span className="text-ga-muted">{t('assigned')}</span>
@@ -182,6 +249,21 @@ export default function V2OrgAnalyticsPage() {
                   </tbody>
                 </table>
               </div>
+              {/* Trang này chỉ lấy trang đầu. Trước đây không nói gì, nên một trung tâm có 150 lớp
+                  đọc bảng này như thể đó là toàn bộ danh sách. */}
+              {classes && classesTotal > classes.length && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ga-border px-5 py-3">
+                  <p className="ga-ui text-ga-caption text-ga-muted">
+                    {t('classesPartial', { shown: fmt.num(classes.length), total: fmt.num(classesTotal) })}
+                  </p>
+                  <Link
+                    href="/v2/org/classes"
+                    className="ga-ui text-ga-caption font-semibold text-ga-accent underline-offset-2 hover:underline"
+                  >
+                    {t('classesSeeAll')}
+                  </Link>
+                </div>
+              )}
             </GaSection>
           </div>
         )}

@@ -44,7 +44,7 @@
       "enterClass": "Klasse öffnen",
       "toGradeCap": "Zu bewerten",
       "toGradeLink": "Zur Bewertung →",
-      "queueEmpty": "Keine Abgaben zu bewerten 🎉",
+      "queueEmpty": "Keine Abgaben zu bewerten",
       "queueError": "Die Bewertungsliste konnte nicht geladen werden.",
       "summaryError": "Die Übersichtszahlen konnten nicht geladen werden.",
       "joinRequestsCap": "Beitrittsanfragen",
@@ -77,7 +77,7 @@
       "upcomingCap": "Kommende Klassenstunden",
       "noUpcoming": "Keine kommenden Klassenstunden.",
       "atClass": "Im Kurs",
-      "emptyWeekPrefix": "Diese Woche gibt es noch keine Klassenstunden. Tippe auf",
+      "emptyWeekPrefix": "Tippe auf",
       "emptyWeekMid": "oder",
       "emptyWeekSuffix": "zum Hinzufügen.",
       "sessionTitle": "{className} · {place} · {time} · {count} Lernende",
@@ -211,7 +211,8 @@
         "deleteConfirm": "Termin löschen",
         "deletePending": "Antrag auf Aufhebung des festen Termins gesendet — wartet auf Genehmigung des Zentrums",
         "deleted": "Fester Termin gelöscht · {n} künftige, nicht manuell angepasste Stunden entfernt"
-      }
+      },
+      "emptyWeekRange": "Keine Unterrichtsstunden von {from} bis {to}."
     },
     "tcProgress": {
       "ungrouped": "Ohne Modul",
@@ -222,7 +223,7 @@
       "emptyPrefix": "Diese Klasse hat noch keine Lektionen.",
       "addInChecklist": "Jetzt Inhalte hinzufügen →",
       "nextLesson": "Nächste Lektion",
-      "allDone": "🎉 Gesamter Kurs abgeschlossen",
+      "allDone": "Gesamter Kurs abgeschlossen",
       "completedSummary": "abgeschlossen · {done}/{total} Lektionen",
       "lastCompletedLesson": "Zuletzt abgeschlossene Lektion",
       "completedAt": "Abgeschlossen am",
@@ -520,14 +521,14 @@
         "homeworkPlaceholder": "z. B. 5 Sätze mit Dativ schreiben",
         "noteLabel": "Weitere Notizen",
         "attendanceLabel": "Anwesenheit",
-        "statusPresent": "✓ Anwesend",
+        "statusPresent": "Anwesend",
         "statusLate": "Verspätet",
         "statusAbsent": "Abwesend",
         "statusUnmarked": "— Nicht erfasst",
         "markAllPresent": "Alle als anwesend markieren",
         "unmarkedCount": "{count} nicht erfasst",
         "saveError": "Stunde konnte nicht gespeichert werden. Bitte erneut versuchen.",
-        "deleteConfirm": "Diese Stunde löschen?",
+        "deleteConfirm": "Das Unterrichtsprotokoll vom {date} aus diesem Kurs löschen.",
         "deleteError": "Stunde konnte nicht gelöscht werden. Bitte erneut versuchen.",
         "empty": "Noch keine Stunden protokolliert. Klicke auf „Stunde hinzufügen“, um zu beginnen.",
         "presentCount": "{count} anwesend",
@@ -550,7 +551,11 @@
         "printHomeworkColumn": "Hausaufgaben",
         "printTeacherSign": "Unterschrift Lehrkraft: ___________________________",
         "printHeadSign": "Bestätigung Fachleitung: ___________________________",
-        "rosterUnavailable": "Die Teilnehmerliste konnte nicht geladen werden, daher ist die Anwesenheit derzeit nicht erfassbar. Thema und Hausaufgabe lassen sich weiterhin speichern — bitte die Seite neu laden."
+        "rosterUnavailable": "Die Teilnehmerliste konnte nicht geladen werden, daher ist die Anwesenheit derzeit nicht erfassbar. Thema und Hausaufgabe lassen sich weiterhin speichern — bitte die Seite neu laden.",
+        "deleteConfirmTitle": "Einheit löschen?",
+        "deleteConfirmAttendance": "Die Anwesenheit von {count} Schülern in dieser Einheit wird mitgelöscht.",
+        "deleteConfirmTimesheet": "Diese Einheit zählt nicht mehr für Ihre Arbeitszeit.",
+        "deleteConfirmIrreversible": "In der Oberfläche gibt es kein Rückgängig — die Einheit müsste neu erfasst werden."
       },
       "evaluation": {
         "helperText": "Abschlussbewertung für jede:n Lernende:n",
@@ -590,7 +595,7 @@
         "speaking": "KI-Speaking",
         "written": "Schriftlich"
       },
-      "queueEmpty": "Keine Abgaben zu bewerten 🎉",
+      "queueEmpty": "Keine Abgaben zu bewerten",
       "queueEmptyFiltered": "Keine Abgaben dieses Typs.",
       "loadError": "Warteschlange konnte nicht geladen werden",
       "allGraded": "Alles bewertet",
@@ -654,7 +659,8 @@
       "aiStillProcessing": "Die KI verarbeitet noch. Bitte versuche es gleich erneut.",
       "aiCallError": "Fehler beim Aufruf der KI-Bewertung",
       "aiFailedWithReason": "KI-Bewertung fehlgeschlagen: {reason}",
-      "aiFailedGeneric": "KI-Bewertung fehlgeschlagen. Bitte manuell bewerten."
+      "aiFailedGeneric": "KI-Bewertung fehlgeschlagen. Bitte manuell bewerten.",
+      "clearFilter": "Filter zurücksetzen"
     },
     "gradeImage": {
       "title": "Nach Bild bewerten",
@@ -687,8 +693,8 @@
       "pickFile": "Bitte wähle eine Datei.",
       "enterTitle": "Bitte gib einen Titel ein.",
       "uploadSuccess": "Material hochgeladen.",
-      "archiveConfirm": "\"{title}\" archivieren?",
-      "archiveConfirmAttached": "„{title}\" archivieren? Es ist an {lessons} Lektionen, {classes} Klassen und {assignments} Aufgaben angehängt — beim Archivieren wird es dort entfernt (später wiederherstellbar).",
+      "archiveConfirm": "\"{title}\" archivieren — das Material verlässt die aktive Liste.",
+      "archiveConfirmAttached": "Angehängt an {lessons} Lektionen, {classes} Kurse und {assignments} Aufgaben — beim Archivieren wird es überall gelöst.",
       "unarchive": "Wiederherstellen",
       "unarchiveSuccess": "Wiederhergestellt.",
       "viewActive": "Aktiv",
@@ -723,7 +729,10 @@
       "openExternal": "Link öffnen",
       "download": "Herunterladen",
       "retry": "Erneut versuchen",
-      "close": "Schließen"
+      "close": "Schließen",
+      "archiveConfirmTitle": "Material archivieren?",
+      "archiveConfirmUnattached": "Dieses Material ist an keine Lektion, keinen Kurs und keine Aufgabe angehängt.",
+      "archiveConfirmRestorable": "Es lässt sich später in der Ansicht „Archiviert\" wiederherstellen."
     },
     "messages": {
       "title": "Nachrichten",
@@ -767,40 +776,6 @@
         "schreiben": "Schreiben",
         "sprechen": "Sprechen"
       }
-    },
-    "profile": {
-      "title": "Lehrkraft-Profil",
-      "subtitle": "Für Lernende und die Organisation sichtbare Informationen",
-      "tabInfo": "Infos",
-      "tabAvail": "Verfügbarkeit",
-      "tabReviews": "Bewertungen",
-      "saving": "Wird gespeichert…",
-      "saveChanges": "Änderungen speichern",
-      "edit": "Bearbeiten",
-      "saveSuccess": "Profil gespeichert",
-      "roleTeacher": "Lehrkraft",
-      "roleAdmin": "Administrator",
-      "roleStudent": "Lernende(r)",
-      "fieldName": "Vollständiger Name",
-      "fieldEmail": "E-Mail",
-      "fieldRole": "Rolle",
-      "fieldLocale": "Sprache",
-      "fieldIndustry": "Branche",
-      "fieldOrg": "Organisation",
-      "notSet": "Nicht angegeben",
-      "personal": "Persönlich",
-      "orgWithId": "· Organisation #{id}",
-      "statClasses": "Klassen",
-      "statStudents": "Lernende",
-      "statReviews": "Bewertungen",
-      "industryCap": "Fachgebiet",
-      "infoCap": "Berufliche Informationen",
-      "infoNote": "Ausführliche Bio & Zertifikate — bald verfügbar (erfordert eine Profilerweiterung im Backend).",
-      "availCap": "1:1-Verfügbarkeitsfenster",
-      "availNote": "Verwalte deine wöchentlichen freien Zeiten auf der Seite Unterrichtsplan — Lernende buchen 1:1-Stunden innerhalb dieser Fenster.",
-      "openSchedule": "Seite Unterrichtsplan öffnen →",
-      "reviewsEmpty": "Noch keine Bewertungen",
-      "reviewsNote": "Bewertungen der Lernenden erscheinen hier (erfordert einen Endpunkt für Lehrkraftbewertungen — Backend-Backlog)."
     },
     "classDetail": {
       "tabTeachers": "Lehrkräfte",

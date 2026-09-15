@@ -115,7 +115,10 @@ export default function V2AdminTrainingDatasetPage() {
             </div>
 
             <div className="mt-5 border border-ga-line bg-ga-bg px-4 py-3">
-              <p className="ga-ui text-[12.5px] text-ga-muted">{t('anonymizedNote')}</p>
+              <p className="ga-ui flex items-start gap-1.5 text-[12.5px] text-ga-muted">
+                <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden />
+                <span>{t('anonymizedNote')}</span>
+              </p>
             </div>
           </>
         )}

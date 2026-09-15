@@ -1,5 +1,6 @@
 {
   "landing": {
+    "shotScrollHint": "Seitwärts scrollen für den Rest",
     "meta": {
       "title": "myDeutschFlow — Vorstellungsgespräche auf Deutsch mit KI üben",
       "description": "Eine KI spielt die deutsche HR-Interviewerin: Fragen für Ihren Beruf, Aussprachekorrektur und eine Bewertung für jede Antwort. Lernpfad A1–B2, Goethe-Prüfungstraining, für Vietnamesinnen und Vietnamesen auf dem Weg nach Deutschland."
@@ -72,6 +73,8 @@
       ]
     },
     "path": {
+      "shotCap": "Echter Screen · Lernpfad-Baum einer lernenden Person",
+      "shotAlt": "Ein Lernpfad-Baum für 30 Tage: die 12 abgeschlossenen Etappen sind zu Blättern geworden, die laufende Etappe ist eine Blüte, und rechts stehen die vier Fertigkeiten von Tag 13 — Hören, Lesen, Sprechen und Schreiben.",
       "cap": "Lernpfad",
       "title": "Von A1 bis B2 — ein klarer Weg",
       "sub": "Die meisten Lernenden, die zum Arbeiten ausreisen, brauchen <b>B1</b>. Wir planen jeden Schritt vor und passen uns Ihrem Tempo an.",
@@ -103,6 +106,8 @@
       ]
     },
     "exam": {
+      "shotCap": "Echter Screen · Prüfungsraum Lesen, Uhr läuft",
+      "shotAlt": "Der Leseteil der Goethe-B1-Modellprüfung: noch 58 von 65 Minuten, Fortschrittsbalken 2 von 4, Richtig-Falsch-Aufgaben auf Deutsch und der Hinweis, dass gespeichert wird.",
       "cap": "Goethe-Prüfungstraining",
       "title": "Realistische Probeprüfungen, sofortige Bewertung",
       "sub": "Alle vier Teile des Goethe-Zertifikats B1/B2 unter prüfungsnahen Bedingungen üben — mit Schwächenanalyse nach jedem Durchgang.",
@@ -144,7 +149,10 @@
         { "who": "Phạm Thị Mai", "what": "hat Schreiben als Foto eingereicht" },
         { "who": "Lê Đức Anh", "what": "3 Tage abwesend — Erinnerung nötig" }
       ],
-      "imgPlaceholder": "Bild · Klassenbericht"
+      "shotReportCap": "Echter Screen · Notenbuch der Klasse K30",
+      "shotReportAlt": "Der Klassenbericht einer Lehrkraft: vier Übersichtskacheln zu Inhalten, Tempo, Teilnahme und Lernzielen, darunter eine Matrix mit den Punkten jeder lernenden Person je Aufgabe.",
+      "shotGradingCap": "Echter Screen · Bewerten mit KI-Vorschlag",
+      "shotGradingAlt": "Das Bewertungszentrum: links die Warteschlange der offenen Arbeiten, in der Mitte der deutsche Text einer lernenden Person, rechts die KI-Bewertung neben dem Feld zur Bestätigung durch die Lehrkraft."
     },
     "pricing": {
       "cap": "Pakete",

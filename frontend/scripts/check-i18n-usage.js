@@ -208,6 +208,33 @@ function scanSource(rawText, catalog, rel) {
 }
 
 /**
+ * CHIỀU NGƯỢC LẠI — namespace của catalog GỐC mà không call site nào hỏi tới.
+ *
+ * `scanSource` ở trên hỏi "source xin gì mà catalog không có". Câu hỏi kia cũng tốn tiền thật:
+ * `messages/<locale>.json` được next-intl nhúng NGUYÊN VẸN vào payload của MỌI trang, kể cả phần
+ * không màn hình nào đọc. Sau khi xoá v1 (07/2026) còn lại 25 namespace mồ côi — 72% tệp, ~45KB
+ * mỗi locale — vẫn đi theo từng lượt tải trang, và vẫn mang emoji mà đợt dọn icon phải quét lại.
+ * Không phép kiểm nào thấy: parity vi/en/de vẫn cân, chiều xuôi vẫn xanh.
+ *
+ * CHỈ áp cho catalog gốc. Các area `/v2` nằm dưới một root `v2` duy nhất nên phép đếm root này
+ * không nói được gì về chúng.
+ */
+function orphanBaseNamespaces(base, usedRoots) {
+  return Object.keys(base).filter((ns) => !usedRoots.has(ns))
+}
+
+/** Negative control cho phép kiểm ngay trên: nó phải BẮT được namespace không ai gọi. */
+function selfTestOrphans() {
+  const base = { alive: {}, dead: {} }
+  const found = orphanBaseNamespaces(base, new Set(['alive']))
+  if (found.length !== 1 || found[0] !== 'dead') {
+    console.error('✗ check-i18n-usage SELF-TEST FAILED — phép kiểm namespace mồ côi không phát hiện được gì.')
+    process.exit(1)
+  }
+  return 1
+}
+
+/**
  * NEGATIVE CONTROL — runs on every invocation, before the real scan.
  *
  * The guard this one exists to backstop (check-i18n-v2.js) printed a confident green tick for weeks
@@ -261,7 +288,7 @@ function selfTest() {
   return cases.length
 }
 
-const selfTestCases = selfTest()
+const selfTestCases = selfTest() + selfTestOrphans()
 
 const catalog = buildCatalog()
 const files = walk(SRC)
@@ -271,6 +298,8 @@ const badKeys = []
 let checkedNamespaces = 0
 let checkedKeys = 0
 
+const usedRoots = new Set()
+
 for (const file of files) {
   const raw = fs.readFileSync(file, 'utf8')
   if (!raw.includes('useTranslations')) continue
@@ -279,16 +308,35 @@ for (const file of files) {
   badKeys.push(...r.badKeys)
   checkedNamespaces += r.checkedNamespaces
   checkedKeys += r.checkedKeys
+  for (const m of stripComments(raw).matchAll(NS_RE)) {
+    const ns = m[1] ?? m[2]
+    if (ns) usedRoots.add(ns.split('.')[0])
+  }
 }
+
+const orphans = orphanBaseNamespaces(JSON.parse(fs.readFileSync(path.join(FE, 'messages', 'vi.json'), 'utf8')), usedRoots)
 
 for (const b of badNamespaces) console.error(`✗ ${b.rel}\n    useTranslations('${b.ns}') — ${b.why}`)
 for (const b of badKeys) console.error(`✗ ${b.rel}\n    ${b.ns}.${b.key} — ${b.why}`)
 
-if (badNamespaces.length || badKeys.length) {
+if (orphans.length) {
   console.error(
-    `\ni18n usage check FAILED — ${badNamespaces.length} namespace(s), ${badKeys.length} key(s) unresolved.` +
-      `\nnext-intl does not throw on these: it renders the raw key path to users.` +
-      `\nAdd them to messages/ (vi first, then en/de — check-i18n-v2.js enforces parity).`,
+    `✗ messages/{vi,en,de}.json còn ${orphans.length} namespace KHÔNG call site nào gọi: ${orphans.join(', ')}` +
+      `\n    Catalog gốc đi kèm payload của MỌI trang, nên phần chết vẫn tốn băng thông của người dùng thật.` +
+      `\n    Xoá khỏi cả ba locale, hoặc nối lại call site nếu màn hình đó còn sống.`,
+  )
+}
+
+if (badNamespaces.length || badKeys.length || orphans.length) {
+  const unresolved =
+    badNamespaces.length || badKeys.length
+      ? `\nnext-intl does not throw on these: it renders the raw key path to users.` +
+        `\nAdd them to messages/ (vi first, then en/de — check-i18n-v2.js enforces parity).`
+      : ''
+  console.error(
+    `\ni18n usage check FAILED — ${badNamespaces.length} namespace(s), ${badKeys.length} key(s) unresolved,` +
+      ` ${orphans.length} namespace(s) mồ côi.` +
+      unresolved,
   )
   process.exit(1)
 }

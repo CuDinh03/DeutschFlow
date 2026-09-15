@@ -6,9 +6,11 @@ import { Volume2, VolumeX, Flag, ChevronRight, RotateCcw, ArrowLeft, Mic, Ear, L
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { newClientTurnId } from '@/lib/exam/clientTurnId'
 import { apiMessage, httpStatus } from '@/lib/api'
+import { parseMinorAudioBlocked, type MinorAudioBlocked } from '@/lib/minorAudio'
 import { MAX_TRANSCRIBE_BYTES } from '@/lib/voiceRecorder'
 import type { BlueprintSummary, ExamResultView, ExamSessionView, RoomLine, TurnResponse } from '@/types/exam-speaking'
 import { GaBtn, GaCap, ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { MinorAudioBlockedNotice } from '@/components/ui-v2/MinorAudioBlockedNotice'
 import { StimulusCard } from './StimulusCard'
 import { ExamTimer } from './ExamTimer'
 import { TeilStepper } from './TeilStepper'
@@ -62,6 +64,9 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
   const [result, setResult] = useState<ExamResultView | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 403 MINOR_AUDIO_BLOCKED (DEC-22/D8): lượt nói audio bị chặn tới khi trung tâm ghi nhận đồng ý
+  // của người giám hộ — không phải lỗi lượt, không giữ pendingTurn ("Gửi lại" không mở được cổng).
+  const [minorBlocked, setMinorBlocked] = useState<MinorAudioBlocked | null>(null)
   const [loading, setLoading] = useState(true)
   const [muted, setMuted] = useState(isExamTtsMuted())
   const [notes, setNotes] = useState('')
@@ -225,8 +230,14 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
         setPendingTurn(null)
         applyTurn(data, '', startedAt)
       } catch (e) {
-        setError(httpStatus(e) === 413 ? t('audioTooLarge') : apiMessage(e))
-        setPendingTurn(isRetryableTurnError(e) ? { kind: 'audio', blob, filename, clientTurnId } : null)
+        const blocked = parseMinorAudioBlocked(e)
+        if (blocked) {
+          setMinorBlocked(blocked)
+          setPendingTurn(null)
+        } else {
+          setError(httpStatus(e) === 413 ? t('audioTooLarge') : apiMessage(e))
+          setPendingTurn(isRetryableTurnError(e) ? { kind: 'audio', blob, filename, clientTurnId } : null)
+        }
       } finally {
         inFlightRef.current = false
         setBusy(false)
@@ -405,6 +416,12 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       </div>
 
       <div className="flex-1 px-4 py-5 sm:px-6 lg:px-10">
+        {minorBlocked && (
+          <div className="mb-4">
+            <MinorAudioBlockedNotice info={minorBlocked} onDismiss={() => setMinorBlocked(null)} />
+          </div>
+        )}
+
         {error && (
           <div className="mb-4" data-testid={pendingTurn ? 'turn-retry-banner' : undefined}>
             <ErrorBanner

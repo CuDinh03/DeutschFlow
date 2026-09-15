@@ -472,7 +472,7 @@ export default function DashboardScreen() {
               <ListRow
                 glyph="speaking"
                 iconTone="info"
-                title="AI Speaking"
+                title="Luyện nói AI"
                 subtitle="Hội thoại với AI coach"
                 onPress={() => router.push('/(student)/speaking')}
               />
@@ -490,7 +490,7 @@ export default function DashboardScreen() {
                   <Pill label="MyDeutschFlow PRO" tone="accent" glyph="goipro" />
                   <ThemedText variant="title">Mở khoá toàn bộ tính năng</ThemedText>
                   <ThemedText variant="caption" color="muted">
-                    Speaking AI, Mock Exam, Weekly Challenge
+                    Luyện nói AI, thi thử, thử thách tuần
                   </ThemedText>
                 </View>
                 <View

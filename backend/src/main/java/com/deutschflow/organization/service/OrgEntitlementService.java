@@ -1,5 +1,8 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.exception.OrgReadOnlyException;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.payment.service.SubscriptionActivationService;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +15,9 @@ import org.springframework.util.StringUtils;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Bridges org membership to the per-user subscription system: when a student joins an
@@ -32,25 +38,79 @@ public class OrgEntitlementService {
     private static final long DEFAULT_ENTITLEMENT_DAYS = 1825; // ~5 years
 
     private final SubscriptionActivationService subscriptionActivationService;
+    private final AuditLogService auditLogService;
     private final JdbcTemplate jdbcTemplate;
 
     /**
      * Grants the org's plan to a student. No-op when the org has no plan configured.
-     * Replaces any prior ACTIVE subscription for the user (latest-wins) via
-     * {@link SubscriptionActivationService#activateWithExplicitEnd}; admins are not notified.
+     *
+     * <p>Gói cá nhân người học đang trả tiền KHÔNG bị xoá sổ mà chuyển sang tạm dừng, giữ nguyên phần
+     * thời hạn còn lại (DEC-09 — owner chốt Q1 ngày 07/09). Trước đợt này đường cấp đi qua
+     * {@code activateWithExplicitEnd}, hàm đó ENDED mọi dòng ACTIVE: thêm một học viên đang trả tiền
+     * vào trung tâm là đốt sạch phần họ đã mua, và rời trung tâm cũng không lấy lại được.
+     *
+     * <p><b>Cổng D5 (nợ ghi trong PR #617, nay owner đã chốt):</b> trung tâm bị đình chỉ hoặc đã
+     * hết hạn thì KHÔNG cấp thêm quyền lợi — chặn NGAY từ mốc neo, không đợi hết 7 ngày ân hạn
+     * (ân hạn là quãng chỉ-đọc trước khi CẮT, xem {@link OrgLicenseState}). Cổng đặt ở ĐÂY chứ không ở từng call-site
+     * vì cả hai đường TỰ PHỤC VỤ đều đi qua hàm này ({@code OrgMembershipService.ensureStudentSeat}
+     * khi học viên gõ mã lớp, {@code OrgRosterRowImporter} khi org import roster) — trước đây chỉ
+     * cần một học viên gõ mã lớp là trung tâm nợ tiền vẫn cấp được gói mới. Ném (chứ không lặng lẽ bỏ qua) để lượt duyệt/import thất bại rõ ràng và cùng
+     * rollback với ghế vừa cấp, thay vì đẻ ra thành viên không có quyền lợi.
+     *
+     * <p>Đường KHÔI PHỤC (quản trị nền tảng bật lại trung tâm, webhook ghi nhận hoá đơn đã thu) đi
+     * bằng {@link #grantStudentOnRestore} — KHÔNG qua cổng này, vì {@code validUntil} có thể vẫn
+     * còn quá hạn ngay lúc bật lại và cổng sẽ khoá đúng cái nút thoát khỏi chế độ chỉ đọc.
+     * {@link #revokeStudent} và {@link #expireAndResume} cũng không đi qua cổng.
      */
     @Transactional
     public void grantStudent(Long userId, Organization org) {
+        assertOrgMayGrant(org);
+        doGrant(userId, org);
+    }
+
+    /**
+     * Cấp gói cho đường KHÔI PHỤC — quản trị NỀN TẢNG bật lại trung tâm, hoặc cổng thanh toán ghi
+     * nhận hoá đơn đã thu — nên CỐ Ý không đi qua cổng D5.
+     *
+     * <p><b>Vì sao phải tách:</b> {@code AdminOrgService.updateOrganization} đặt {@code status =
+     * ACTIVE} nhưng KHÔNG tự gia hạn {@code validUntil}; {@code SepayWebhookService.activateOrg}
+     * chỉ nới {@code validUntil} khi hoá đơn có {@code period_end} và mốc đó xa hơn hạn cũ (hoá đơn
+     * truy thu kỳ đã qua thì không nới). Trong cả hai trường hợp, trung tâm vừa được bật lại vẫn
+     * còn "hết hạn quá ân hạn" tại thời điểm cấp — nếu đi qua cổng D5 thì {@code grantStudent} ném,
+     * kéo rollback CẢ giao dịch bật lại / ghi nhận thanh toán. Nghĩa là: đúng cái nút để thoát khỏi
+     * chế độ chỉ đọc lại bị chính chế độ chỉ đọc khoá, và webhook ngân hàng thì lỗi lặp vô hạn.
+     *
+     * <p>Chỉ hai đường quản trị/hệ thống dùng hàm này. Đường tự phục vụ (học viên gõ mã lớp, org
+     * import roster) vẫn đi {@link #grantStudent} và vẫn bị cổng D5 chặn.
+     */
+    @Transactional
+    public void grantStudentOnRestore(Long userId, Organization org) {
+        doGrant(userId, org);
+    }
+
+    private void doGrant(Long userId, Organization org) {
         String planCode = org.getPlanCode();
         if (!StringUtils.hasText(planCode)) {
             return; // org sells no plan — membership only, no entitlement to grant
         }
-        subscriptionActivationService.activateWithExplicitEnd(
-                userId, planCode, Instant.now(), resolveEnd(org), SOURCE_ORG, false);
-        log.info("[ORG-ENT] Granted plan={} to userId={} via org={}", planCode, userId, org.getId());
+        var paused = subscriptionActivationService.activateOrg(
+                userId, planCode, Instant.now(), resolveEnd(org));
+        for (var row : paused) {
+            // DEC-13: actor CỐ Ý rỗng (không ai "bấm" việc tạm dừng — nó là hệ quả của việc gia
+            // nhập), nên đường suy-từ-actor không có gì để suy và vết luôn rơi vào org NULL. Trung
+            // tâm gây ra việc tạm dừng đang nằm sẵn trong tay ở tham số `org`.
+            auditLogService.log("org_entitlement_paused", (AuditActor) null, "USER", String.valueOf(userId),
+                    org.getId(),
+                    meta(org, row.source(), row.planCode(), row.remainingSeconds()));
+        }
+        log.info("[ORG-ENT] Granted plan={} to userId={} via org={} (tạm dừng {} gói cá nhân)",
+                planCode, userId, org.getId(), paused.size());
     }
 
-    /** Ends the user's org-granted entitlement. Leaves web/Apple subscriptions untouched. */
+    /**
+     * Ends the user's org-granted entitlement, then khôi phục gói cá nhân đang tạm dừng (nếu có).
+     * Leaves web/Apple subscriptions untouched apart from resuming what this service itself paused.
+     */
     @Transactional
     public void revokeStudent(Long userId) {
         int ended = jdbcTemplate.update("""
@@ -59,6 +119,79 @@ public class OrgEntitlementService {
                 WHERE user_id = ? AND source = ? AND status = 'ACTIVE'
                 """, Timestamp.from(Instant.now()), userId, SOURCE_ORG);
         log.info("[ORG-ENT] Revoked {} org entitlement(s) for userId={}", ended, userId);
+        resumeAndAudit(userId);
+    }
+
+    /**
+     * Giấy phép của trung tâm hết hạn: kết thúc quyền lợi ORG rồi trả gói cá nhân về.
+     * Gọi từ job đối soát nền — không có người thao tác nên sổ kiểm toán ghi actor rỗng.
+     */
+    @Transactional
+    public void expireAndResume(Long userId) {
+        int ended = jdbcTemplate.update("""
+                UPDATE user_subscriptions
+                SET status = 'ENDED', updated_at = ?
+                WHERE user_id = ? AND source = ? AND status = 'ACTIVE'
+                  AND ends_at IS NOT NULL AND ends_at <= ?
+                """, Timestamp.from(Instant.now()), userId, SOURCE_ORG, Timestamp.from(Instant.now()));
+        if (ended == 0) {
+            return; // đã có đường khác xử lý trước — không ghi sổ trùng
+        }
+        log.info("[ORG-ENT] Giấy phép trung tâm hết hạn cho userId={} — kết thúc {} quyền lợi", userId, ended);
+        resumeAndAudit(userId);
+    }
+
+    /** Cổng D5 — xem {@link #grantStudent}. Tách ra để đọc được ý định ở một chỗ. */
+    private static void assertOrgMayGrant(Organization org) {
+        if (!OrgLicenseState.evaluate(org.getStatus(), org.getValidUntil(), org.getSuspendedAt(),
+                Instant.now()).writable()) {
+            throw new OrgReadOnlyException(org.getId(), OrgLicenseState.reason(org.getStatus()));
+        }
+    }
+
+    private void resumeAndAudit(Long userId) {
+        subscriptionActivationService.resumePausedIfAny(userId).ifPresent(row ->
+                auditLogService.log("org_entitlement_resumed", (AuditActor) null, "USER", String.valueOf(userId),
+                        resolveOrgOfMember(userId),
+                        meta(null, row.source(), row.planCode(), row.remainingSeconds())));
+    }
+
+    /**
+     * Trung tâm mà vết "đã trả gói cá nhân về" thuộc về — tra ngược từ người dùng, vì không đường
+     * gọi nào tới đây còn cầm {@code org}: {@link #revokeStudent} và {@link #expireAndResume} chỉ
+     * nhận {@code userId}, và cả hai còn được job nền gọi (actor rỗng) nên đường suy-từ-actor cũng
+     * không có gì để suy.
+     *
+     * <p>🪤 <b>Cố ý KHÔNG đọc {@code users.org_id}.</b> Đường gọi đông nhất là gỡ/tự rời thành viên
+     * ({@code OrgController.removeMember} → {@code revokeStudent}), và tới lượt này thì
+     * {@code OrgMembershipService.detachUser} đã XOÁ {@code users.org_id} xong rồi — tra ở đó sẽ
+     * trả NULL đúng vào ca cần nhất. Hàng {@code org_members} thì vẫn còn (chỉ đổi sang
+     * REVOKED/LEFT kèm {@code left_at}), nên nó là nguồn duy nhất còn nói được sự thật ở thời điểm
+     * này.
+     *
+     * <p>Ưu tiên membership ACTIVE (ca job nền: người vẫn đang trong trung tâm vừa hết hạn giấy
+     * phép), sau đó tới lần rời gần nhất (ca vừa bị gỡ). Người chưa từng thuộc trung tâm nào ⇒
+     * {@code null} ⇒ vết nằm ngoài mọi sổ trung tâm, đúng bản chất.
+     */
+    private Long resolveOrgOfMember(Long userId) {
+        List<Long> rows = jdbcTemplate.queryForList("""
+                SELECT org_id FROM org_members
+                WHERE user_id = ?
+                ORDER BY (status = 'ACTIVE') DESC, COALESCE(left_at, joined_at) DESC
+                LIMIT 1
+                """, Long.class, userId);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private static Map<String, Object> meta(Organization org, String source, String planCode, long remainingSeconds) {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        if (org != null) {
+            meta.put("orgId", org.getId());
+        }
+        meta.put("source", source);
+        meta.put("planCode", planCode);
+        meta.put("remainingSeconds", remainingSeconds);
+        return meta;
     }
 
     /** License end for the org: explicit {@code validUntil} or the default horizon from now. */

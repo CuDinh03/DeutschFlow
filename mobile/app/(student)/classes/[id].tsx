@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
-import { Alert, Pressable, RefreshControl, ScrollView, Share, View } from 'react-native'
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
-import { Copy, Upload } from 'lucide-react-native'
+import { Upload } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import {
-  fetchClassAssignments, fetchClassDetail, fetchClassLessons,
-  fetchMyAttendance, fetchMySkillReport, isAwaitingTeacher, isFinalGrade,
+  assignmentRowKey, assignmentStatusView, fetchClassAssignments, fetchClassDetail, fetchClassLessons,
+  fetchMyAttendance, fetchMySkillReport, isFinalGrade, GRADING_FAILED_LABEL,
   type ClassLesson, type ClassroomDetail, type MySkillReport, type StudentAssignment,
   type StudentAttendance, type TeacherSummary,
 } from '@/lib/studentClassesApi'
@@ -138,18 +138,15 @@ export default function StudentClassDetail() {
   )
 }
 
-// Editorial ink hero — the "who teaches this class" primary fact, with the
-// invite-code as a hairline chip beneath it.
+// Editorial ink hero — the "who teaches this class" primary fact.
+//
+// V-04: KHÔNG hiện mã mời lớp và KHÔNG có nút Chia sẻ ở màn HỌC VIÊN. Mã mời là chìa khoá vào một
+// GHẾ của trung tâm (mỗi lượt chia sẻ = một ghế người lạ có thể chiếm), mà học viên không phải
+// người có quyền mời. Backend cũng đã ngừng trả `inviteCode` cho lớp thuộc trung tâm — đây là lớp
+// chặn thứ hai, và đường giáo viên xem/chia sẻ mã lớp của mình không đi qua màn này.
 function HeaderCard({ detail }: { detail: ClassroomDetail }) {
   const theme = useTheme()
   const c = theme.colors
-  const onShareCode = async () => {
-    try {
-      await Share.share({ message: `Mã mời lớp ${detail.name}: ${detail.inviteCode}` })
-    } catch {
-      Alert.alert('Không mở được hộp thoại chia sẻ')
-    }
-  }
   return (
     <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
       <View style={{ gap: space[3] }}>
@@ -162,29 +159,6 @@ function HeaderCard({ detail }: { detail: ClassroomDetail }) {
             ? detail.teachers.map((t) => t.displayName).join(', ')
             : 'Chưa có giáo viên'}
         </ThemedText>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Chia sẻ mã mời ${detail.inviteCode}`}
-          onPress={onShareCode}
-          style={({ pressed }) => ({
-            marginTop: space[1],
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: space[2],
-            borderWidth: 1,
-            borderColor: c.onInkMuted,
-            borderRadius: radius.sm,
-            paddingHorizontal: space[3],
-            paddingVertical: space[2],
-            alignSelf: 'flex-start',
-            opacity: pressed ? 0.6 : 1,
-          })}
-        >
-          <Copy size={12} color={c.onInkMuted} strokeWidth={2} />
-          <ThemedText variant="caption" style={{ color: c.onInk, letterSpacing: 1 }}>
-            {detail.inviteCode}
-          </ThemedText>
-        </Pressable>
       </View>
     </Card>
   )
@@ -323,7 +297,8 @@ function AssignmentsTab({
       <View style={{ gap: space[2] }}>
         {assignments.map((a) => (
           <Card
-            key={a.id}
+            // V-12c: KHÔNG dùng a.id — backend trả id = null cho bài chưa bắt đầu (xem assignmentRowKey).
+            key={assignmentRowKey(a)}
             onPress={() => router.push({ pathname: '/(student)/assignments/[id]', params: { id: String(a.assignmentId), classId } })}
             accessibilityLabel={`Mở bài tập ${a.topic || 'bài tập'}`}
           >
@@ -352,15 +327,22 @@ function AssignmentsTab({
 }
 
 function StatusPill({ status, score }: { status: string; score: number | null }) {
-  if (isFinalGrade(status)) {
-    return <Pill tone="success" glyph="hoanthanh" label={`Đã chấm${score != null ? ` · ${score}` : ''}`} />
+  // Phân loại dùng CHUNG với màn chi tiết bài (assignmentStatusView) — cùng một bài không được
+  // hiện hai câu chữ ở hai màn (V-12c).
+  switch (assignmentStatusView(status)) {
+    case 'graded':
+      return <Pill tone="success" glyph="hoanthanh" label={`Đã chấm${score != null ? ` · ${score}` : ''}`} />
+    case 'gradingFailed':
+      // Đã nộp NHƯNG khâu chấm chết — học viên có quyền biết bài mình chưa được chấm. Vẫn thuộc
+      // nhóm isAwaitingTeacher nên quyền "Nộp bản khác" không đổi.
+      return <Pill tone="danger" glyph="canhbao" label={GRADING_FAILED_LABEL} />
+    case 'awaitingTeacher':
+      // AI_GRADED = bài ĐÃ nộp, đang chờ giáo viên (F-14 soát 02/09) — trước đây rơi nhánh else và
+      // hiện "Chưa nộp" đỏ cho bài học viên vừa nộp xong.
+      return <Pill tone="info" icon={Upload} label="Đã nộp" />
+    default:
+      return <Pill tone="danger" glyph="canhbao" label="Chưa nộp" />
   }
-  // AI_GRADED / GRADING_FAILED = bài ĐÃ nộp, đang chờ giáo viên (F-14 soát 02/09) —
-  // trước đây rơi nhánh else và hiện "Chưa nộp" đỏ cho bài học viên vừa nộp xong.
-  if (isAwaitingTeacher(status)) {
-    return <Pill tone="info" icon={Upload} label="Đã nộp" />
-  }
-  return <Pill tone="danger" glyph="canhbao" label="Chưa nộp" />
 }
 
 function GradesTab({

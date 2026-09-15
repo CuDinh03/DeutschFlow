@@ -20,12 +20,20 @@ import { cn } from '@/lib/utils'
 // ── Section card (= proto AdSection) ────────────────────────────────────────────
 export function GaSection({
   title,
+  description,
   right,
   children,
   className,
   bodyClassName,
 }: {
   title: React.ReactNode
+  /**
+   * Một câu nêu ĐƠN VỊ, khoảng thời gian, mẫu số hoặc mức ước tính của số liệu bên dưới.
+   * Tiêu đề trả lời "đây là cái gì"; dòng này trả lời "đọc con số ra sao" — thứ mà người xem
+   * biểu đồ hiện phải tự đoán. Giữ ngắn và bằng ngôn ngữ người dùng: không nhồi chi tiết code,
+   * tên cột hay tên endpoint vào đây.
+   */
+  description?: React.ReactNode
   right?: React.ReactNode
   children: React.ReactNode
   className?: string
@@ -36,7 +44,12 @@ export function GaSection({
       {/* Dưới lg: hàng tiêu đề được phép xuống dòng để slot `right` (chú thích / bộ đếm) không
           bóp tiêu đề còn min-content. Từ lg giữ nguyên một hàng + đệm 20px như thiết kế gốc. */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ga-border px-4 py-[14px] lg:flex-nowrap lg:px-5">
-        <h3 className="min-w-0 font-ga-display text-[17px] font-medium text-ga-ink lg:min-w-[auto]">{title}</h3>
+        <div className="min-w-0">
+          <h3 className="min-w-0 font-ga-display text-[17px] font-medium text-ga-ink lg:min-w-[auto]">{title}</h3>
+          {description ? (
+            <p className="ga-ui mt-1 text-ga-caption leading-snug text-ga-muted">{description}</p>
+          ) : null}
+        </div>
         {right}
       </div>
       {/* Đệm thân giữ nguyên `p-5` ở MỌI khổ có chủ ý: 9 nơi gọi truyền `bodyClassName="p-0"`

@@ -84,7 +84,11 @@
       "speaking-history": "Sprechverlauf",
       "admin-maintenance": "Wartung",
       "org-curricula": "Lehrplan",
-      "admin-exam-golden": "Golden-Set Sprechen"
+      "admin-exam-golden": "Golden-Set Sprechen",
+      "objectives": "Lernzielmatrix",
+      "org-settings": "Zentrumseinstellungen",
+      "org-audit": "Aktivitätsprotokoll",
+      "org-certificates": "Zertifikate"
     },
     "sections": {
       "classMgmt": "Kursverwaltung",
@@ -153,7 +157,16 @@
     "back": "Zurück",
     "next": "Weiter",
     "confirm": "Bestätigen",
-    "search": "Suchen"
+    "search": "Suchen",
+    "dowShort": {
+      "mon": "Mo",
+      "tue": "Di",
+      "wed": "Mi",
+      "thu": "Do",
+      "fri": "Fr",
+      "sat": "Sa",
+      "sun": "So"
+    }
   },
   "error": {
     "title": "Auf dieser Seite ist ein Fehler aufgetreten",
@@ -264,7 +277,10 @@
       "ADMIN_LEARNER_SUBSCRIPTION_ENDED": "Abonnement beendet",
       "ADMIN_SYSTEM_ALERT": "Systemwarnung",
       "ADMIN_ORG_CREATED": "Neue Organisation",
-      "ADMIN_ORG_INVOICE_PAID": "Rechnung bezahlt"
+      "ADMIN_ORG_INVOICE_PAID": "Rechnung bezahlt",
+      "SCHEDULE_CHANGE_REJECTED": "Terminänderung abgelehnt",
+      "TIMESHEET_PERIOD_APPROVED": "Stundenzettel genehmigt",
+      "TIMESHEET_PERIOD_RETURNED": "Stundenzettel zurückgegeben"
     }
   },
   "inbox": {
@@ -281,7 +297,7 @@
     "noClasses": "Sie sind noch keiner Klasse beigetreten.",
     "userFallback": "Nutzer #{id}",
     "directPlaceholder": "Nachricht eingeben… (Enter zum Senden, Shift+Enter für neue Zeile)",
-    "directEmpty": "Noch keine Nachrichten — sagen Sie zuerst Hallo 👋",
+    "directEmpty": "Noch keine Nachrichten — sagen Sie zuerst Hallo",
     "listAria": "Unterhaltungsliste",
     "pickHint": "Wählen Sie eine Unterhaltung oder Klassengruppe, um zu schreiben.",
     "back": "Zurück",

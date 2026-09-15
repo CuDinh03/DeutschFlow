@@ -84,7 +84,11 @@
       "speaking-history": "Lịch sử luyện nói",
       "admin-maintenance": "Bảo trì",
       "org-curricula": "Giáo trình",
-      "admin-exam-golden": "Golden set Nói"
+      "admin-exam-golden": "Golden set Nói",
+      "objectives": "Ma trận mục tiêu",
+      "org-settings": "Cài đặt trung tâm",
+      "org-audit": "Sổ hoạt động",
+      "org-certificates": "Chứng nhận"
     },
     "sections": {
       "classMgmt": "Quản lý lớp",
@@ -153,7 +157,16 @@
     "back": "Quay lại",
     "next": "Tiếp tục",
     "confirm": "Xác nhận",
-    "search": "Tìm kiếm"
+    "search": "Tìm kiếm",
+    "dowShort": {
+      "mon": "T2",
+      "tue": "T3",
+      "wed": "T4",
+      "thu": "T5",
+      "fri": "T6",
+      "sat": "T7",
+      "sun": "CN"
+    }
   },
   "error": {
     "title": "Trang gặp lỗi",
@@ -264,7 +277,10 @@
       "ADMIN_LEARNER_SUBSCRIPTION_ENDED": "Gói học kết thúc",
       "ADMIN_SYSTEM_ALERT": "Cảnh báo hệ thống",
       "ADMIN_ORG_CREATED": "Tổ chức mới",
-      "ADMIN_ORG_INVOICE_PAID": "Hoá đơn đã thanh toán"
+      "ADMIN_ORG_INVOICE_PAID": "Hoá đơn đã thanh toán",
+      "SCHEDULE_CHANGE_REJECTED": "Đề xuất đổi lịch bị từ chối",
+      "TIMESHEET_PERIOD_APPROVED": "Kỳ công đã được duyệt",
+      "TIMESHEET_PERIOD_RETURNED": "Kỳ công bị trả lại"
     }
   },
   "inbox": {
@@ -281,7 +297,7 @@
     "noClasses": "Bạn chưa tham gia lớp nào.",
     "userFallback": "Người dùng #{id}",
     "directPlaceholder": "Nhập tin nhắn… (Enter để gửi, Shift+Enter xuống dòng)",
-    "directEmpty": "Chưa có tin nhắn — gửi lời chào đầu tiên 👋",
+    "directEmpty": "Chưa có tin nhắn — gửi lời chào đầu tiên",
     "listAria": "Danh sách tin nhắn",
     "pickHint": "Chọn một hội thoại hoặc nhóm lớp để bắt đầu nhắn tin.",
     "back": "Quay lại",

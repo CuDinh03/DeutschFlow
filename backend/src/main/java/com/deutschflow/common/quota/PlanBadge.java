@@ -19,6 +19,14 @@ import java.time.Instant;
  * <p>Vì sao client cần biết: quyết định Q1 (28/08) nói trong 7 ngày trial thì
  * paywall/upsell bị ẩn HOÀN TOÀN. Suy ra từ {@code tier == "PRO"} là sai — người đã
  * TRẢ TIỀN cũng là PRO, và họ không được ẩn paywall gia hạn.
+ *
+ * <p>{@code source} thêm ở V-06 và cũng là THUẦN BỔ SUNG (thêm ở CUỐI record).
+ *
+ * @param source AI trả tiền cho quyền lợi này, đã chuẩn hoá cho client:
+ *               {@code ORG} (trung tâm cấp) | {@code APPLE} (mua trong app) | {@code WEB}
+ *               (mọi ngả còn lại: trial, DEFAULT, SePay/Stripe/MoMo…). Client PHẢI ẩn
+ *               "huỷ gói"/"hoàn tiền" khi {@code ORG} — gói ấy do trung tâm trả tiền,
+ *               học viên không có gì để huỷ ở Apple.
  */
 public record PlanBadge(
         String planCode,
@@ -26,5 +34,6 @@ public record PlanBadge(
         Instant startsAtUtc,
         Instant endsAtUtc,
         boolean isTrial,
-        Instant trialEndsAt
+        Instant trialEndsAt,
+        String source
 ) {}

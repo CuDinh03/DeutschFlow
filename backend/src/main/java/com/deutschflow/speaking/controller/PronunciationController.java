@@ -29,6 +29,8 @@ public class PronunciationController {
     private final com.deutschflow.speaking.AiRateLimiterService aiRateLimiterService;
     private final com.deutschflow.common.quota.QuotaService quotaService;
     private final com.deutschflow.organization.service.OrgPoolGuard orgPoolGuard;
+    // DEC-22: endpoint gửi giọng nói thật ra Whisper → phải qua cổng tuổi trước cổng chi phí.
+    private final com.deutschflow.common.minor.MinorGate minorGate;
 
     private static final long STT_ESTIMATED_TOKENS = 200L;
 
@@ -42,6 +44,8 @@ public class PronunciationController {
             @RequestPart("audio") MultipartFile audio,
             @RequestPart("expectedText") @NotBlank @Size(max = 500) String expectedText) throws IOException {
 
+        // DEC-22: cổng tuổi ĐỨNG TRƯỚC — chưa đủ điều kiện thì không tính là tiêu hạn mức.
+        minorGate.assertAudioAllowed(user.getId());
         // R-B7: quota ví + pool org (endpoint tốn Whisper) + rate-limit per-user (bucket PHONEME).
         quotaService.assertAllowed(user.getId(), java.time.Instant.now(), STT_ESTIMATED_TOKENS);
         orgPoolGuard.assertOrgPoolAvailable(user.getId(), STT_ESTIMATED_TOKENS);

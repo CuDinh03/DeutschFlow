@@ -355,7 +355,7 @@ class LessonLogServiceTest {
         ClassLessonLog existing = buildLog(LOG_ID, CLASS_ID, LocalDate.of(2026, 6, 1));
         when(lessonLogRepository.findById(LOG_ID)).thenReturn(Optional.of(existing));
         when(lessonLogRepository.save(any())).thenReturn(existing);
-        when(classStudentRepository.findByIdClassId(CLASS_ID)).thenReturn(List.of());   // đã rời lớp
+        when(classStudentRepository.findActiveByIdClassId(CLASS_ID)).thenReturn(List.of());   // đã rời lớp
         when(attendanceRepository.findByIdLessonLogId(LOG_ID))
                 .thenReturn(List.of(buildAttendance(LOG_ID, STUDENT_ID, "PRESENT")));
         when(userRepository.findAllById(List.of(STUDENT_ID)))
@@ -478,7 +478,7 @@ class LessonLogServiceTest {
 
     /** Roster của lớp gồm đúng các studentId truyền vào. */
     private void rosterOf(Long... studentIds) {
-        when(classStudentRepository.findByIdClassId(CLASS_ID)).thenReturn(
+        when(classStudentRepository.findActiveByIdClassId(CLASS_ID)).thenReturn(
                 java.util.Arrays.stream(studentIds)
                         .map(sid -> ClassStudent.builder().id(new ClassStudentId(CLASS_ID, sid)).build())
                         .toList());

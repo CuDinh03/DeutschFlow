@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { createOrgTeacher } from '@/lib/orgApi'
 import { TkModal, GaBtn, GaCap, ErrorBanner } from '@/components/ui-v2'
+import { PASSWORD_MIN } from '@/lib/passwordPolicy';
 
 /**
  * Org-admin (OWNER/MANAGER) thêm giáo viên — PRE-CREATE account (B2B model §2.1, Phase 1).
@@ -26,7 +27,7 @@ export function CreateTeacherModal({ onClose, onCreated }: { onClose: () => void
 
   const submit = async () => {
     setError('')
-    if (!email.trim() || !displayName.trim() || password.length < 6) {
+    if (!email.trim() || !displayName.trim() || password.length < PASSWORD_MIN) {
       setError(t('invalid'))
       return
     }

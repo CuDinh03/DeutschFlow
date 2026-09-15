@@ -1,4 +1,12 @@
-import { attemptTotalScore, mapExam, type AttemptResultDto, type RawMockExam } from '@/lib/examApi'
+import {
+  attemptTotalScore,
+  finishPayload,
+  mapExam,
+  skippedSectionsLabel,
+  type AttemptResultDto,
+  type ParsedExam,
+  type RawMockExam,
+} from '@/lib/examApi'
 
 describe('mapExam', () => {
   it('maps snake_case backend row to ExamVariant', () => {
@@ -177,5 +185,37 @@ describe('parseMatchingContext', () => {
     expect(parseMatchingContext('Artikel: Homeoffice – Fluch oder Segen? Immer mehr…')).toEqual([])
     expect(parseMatchingContext(undefined)).toEqual([])
     expect(parseMatchingContext('A=nur eins.')).toEqual([])
+  })
+})
+
+describe('finishPayload — khai báo phần app không dựng được', () => {
+  const parsed = (skippedSections: string[]): ParsedExam => ({ groups: [], skippedSections })
+
+  it('có phần bị bỏ ⇒ gửi kèm skippedSections để server loại chúng khỏi mẫu số', () => {
+    expect(finishPayload({ 'L1-1': 'richtig' }, parsed(['HOEREN', 'SCHREIBEN']))).toEqual({
+      answers: { 'L1-1': 'richtig' },
+      skippedSections: ['HOEREN', 'SCHREIBEN'],
+    })
+  })
+
+  it('không bỏ phần nào ⇒ payload y như cũ, không thêm khoá lạ', () => {
+    expect(finishPayload({ 'L1-1': 'richtig' }, parsed([]))).toEqual({ answers: { 'L1-1': 'richtig' } })
+    expect(finishPayload({ 'L1-1': 'richtig' }, null)).toEqual({ answers: { 'L1-1': 'richtig' } })
+  })
+})
+
+describe('skippedSectionsLabel — nói bằng lời, không phơi mã phần', () => {
+  it('đổi tên phần sang tiếng Việt và nối bằng "và"', () => {
+    expect(skippedSectionsLabel(['HOEREN'])).toBe('Nghe')
+    expect(skippedSectionsLabel(['HOEREN', 'SCHREIBEN'])).toBe('Nghe và Viết')
+    expect(skippedSectionsLabel(['HOEREN', 'SCHREIBEN', 'SPRECHEN'])).toBe('Nghe, Viết và Nói')
+  })
+
+  it('tên lạ giữ nguyên chứ không rơi ra chuỗi rỗng', () => {
+    expect(skippedSectionsLabel(['LESEN_2'])).toBe('LESEN_2')
+  })
+
+  it('không có phần nào thì trả chuỗi rỗng', () => {
+    expect(skippedSectionsLabel([])).toBe('')
   })
 })

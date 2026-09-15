@@ -8,6 +8,7 @@ import * as Haptics from 'expo-haptics'
 import { Square, RotateCcw, ChevronRight } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
+import { presentMinorAudioBlocked } from '@/lib/minorAudio'
 import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { speakingApi } from '@/lib/speakingApi'
 import { weeklyApi, rubricScore } from '@/lib/weeklyApi'
@@ -78,7 +79,7 @@ export default function WeeklySpeakingScreen() {
   if (!hasProAccess) {
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Weekly Speaking" onBack={goBack} />
+        <AppHeader title="Luyện nói tuần" onBack={goBack} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
             glyph="khoa"
@@ -94,7 +95,7 @@ export default function WeeklySpeakingScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Weekly Speaking" onBack={goBack} />
+      <AppHeader title="Luyện nói tuần" onBack={goBack} />
 
       <Screen
         scroll
@@ -253,6 +254,8 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     } catch (e) {
       setPhase('idle')
+      // 403 MINOR_AUDIO_BLOCKED (D8): sheet giải thích thay cho Alert chung.
+      if (presentMinorAudioBlocked(e)) return
       Alert.alert('Lỗi', apiMessage(e))
     }
   }

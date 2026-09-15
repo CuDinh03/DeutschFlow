@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Mic, MicOff, RotateCcw, Volume2, X } from "lucide-react";
+import { minorAudioBlockedFromProblem, type MinorAudioBlocked } from "@/lib/minorAudio";
+import { MinorAudioBlockedNotice } from "@/components/ui-v2/MinorAudioBlockedNotice";
 
 interface WordResult {
   expected: string;
@@ -41,6 +43,8 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
   const [recording, setRecording] = useState(false);
   const [result, setResult] = useState<PronunciationScore | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 403 MINOR_AUDIO_BLOCKED (DEC-22/D8) — đọc từ body của fetch trần (không qua axios).
+  const [minorBlocked, setMinorBlocked] = useState<MinorAudioBlocked | null>(null);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
 
@@ -89,7 +93,10 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
       if (res.ok) {
         setResult(await res.json());
       } else {
-        setError(t("scoreFailed"));
+        const body: unknown = await res.json().catch(() => null);
+        const blocked = minorAudioBlockedFromProblem(body);
+        if (blocked) setMinorBlocked(blocked);
+        else setError(t("scoreFailed"));
       }
     } catch {
       setError(t("networkError"));
@@ -143,6 +150,7 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
+      {minorBlocked && <MinorAudioBlockedNotice info={minorBlocked} onDismiss={() => setMinorBlocked(null)} />}
 
       {/* Results */}
       {result && (

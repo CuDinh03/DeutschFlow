@@ -9,23 +9,49 @@ import type { OrgRole, MemberStatus, Page, OrgMember } from '@/lib/orgApi'
  * and require an ADMIN JWT (backend `@PreAuthorize hasRole('ADMIN')`).
  */
 
-export type OrgStatus = 'ACTIVE' | 'SUSPENDED' | 'PENDING'
+/**
+ * Trạng thái vòng đời trung tâm — backend chỉ nhận ACTIVE | SUSPENDED (`VALID_ORG_STATUSES`).
+ * `PENDING` từng nằm ở đây là mã chết: đó là trạng thái LỜI MỜI, backend từ chối 400 khi PATCH.
+ */
+export type OrgStatus = 'ACTIVE' | 'SUSPENDED'
 export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'VOID'
 
-/** GET /admin/organizations — one row in the platform-admin org list. */
+/** GET /admin/organizations — one row in the platform-admin org list (`OrgDto`). */
 export interface AdminOrg {
   id: number
   name: string
   slug: string | null
   planCode: string | null
+  /** 0 = không giới hạn ghế. */
   seatLimit: number
   status: string
+  /** Hạn mức token AI nhân sự/tháng; 0 + poolUnlimited=false = CHƯA cấu hình ⇒ nhân sự bị 429. */
   monthlyTokenPool: number | null
+  poolUnlimited?: boolean
+  /** Hạn giấy phép (ISO instant); null = vô thời hạn khi còn ACTIVE. */
   validUntil: string | null
+  /** Mốc bắt đầu đình chỉ — neo 7 ngày ân hạn chỉ-đọc; null = không bị đình chỉ. */
+  suspendedAt?: string | null
   seatUsed?: number
   teacherCount?: number
   studentCount?: number
   createdAt?: string
+}
+
+/** GET /admin/organizations/{id} — hồ sơ một trung tâm (`OrgDetailDto`), đủ dữ liệu cho màn T-03. */
+export interface AdminOrgDetail extends AdminOrg {
+  teacherCount: number
+  studentCount: number
+  pendingInvites: number
+  monthlyTokenPool: number
+  poolUnlimited: boolean
+}
+
+/** GET /admin/plans — một gói trong `subscription_plans` (JDBC map: khoá có thể về chữ thường). */
+export interface AdminPlanOption {
+  code: string
+  name: string
+  isActive: boolean
 }
 
 /** A member of an organization as seen by the platform admin. */
@@ -47,8 +73,12 @@ export interface OrgInvoice {
   seats: number
   amountVnd: number
   status: string
+  /** Mã ghi vào nội dung chuyển khoản (VietQR); webhook SePay đối soát theo mã này. */
+  paymentCode: string | null
   note: string | null
   createdAt: string
+  /** Hạn thanh toán = lúc gửi + 7 ngày (Q4). null = hoá đơn còn nháp nên chưa có hạn. */
+  dueDate: string | null
 }
 
 /** POST /admin/organizations — body to provision a new tenant. */
@@ -61,22 +91,37 @@ export interface CreateOrgInput {
   /** B2B model §2.1: admin pre-create OWNER. Khi ownerEmail là email MỚI → tạo thẳng account OWNER. */
   ownerName?: string
   ownerPassword?: string
-}
-
-/** PATCH-style update body for an org (all fields optional → partial update). */
-export interface UpdateOrgInput {
-  planCode?: string
-  seatLimit?: number
+  /** T-03: hạn mức AI nhân sự đặt ngay lúc tạo — không truyền thì org mới bị 429 tới khi cấu hình. */
   monthlyTokenPool?: number
-  status?: OrgStatus
-  /** ISO-8601 instant; null clears the licence end date. */
-  validUntil?: string | null
+  poolUnlimited?: boolean
 }
 
-/** POST /admin/organizations/{id}/members — attach an existing/new member. */
-export interface AddMemberInput {
-  email: string
-  role: OrgRole
+/**
+ * PATCH-style update body for an org (all fields optional → partial update).
+ * Chỉ gửi trường THẬT SỰ đổi: backend ghi vết `admin.org.updated` liệt kê từng trường đổi kèm
+ * giá trị cũ/mới, gửi cả form là vết đầy rác.
+ */
+export interface UpdateOrgInput {
+  /** Mã gói; chuỗi rỗng = bỏ gói (backend chuẩn hoá '' → null). */
+  planCode?: string
+  /** 0 = không giới hạn; backend clamp âm về 0. */
+  seatLimit?: number
+  /** Chỉ có tác dụng khi KHÔNG bật poolUnlimited (bật unlimited thì pool giữ nguyên). */
+  monthlyTokenPool?: number
+  poolUnlimited?: boolean
+  status?: OrgStatus
+  /** ISO-8601 instant. Muốn XOÁ hạn (vô thời hạn) dùng `clearValidUntil` — backend không phân biệt null với "không gửi". */
+  validUntil?: string
+  clearValidUntil?: boolean
+}
+
+/**
+ * POST /admin/organizations/{id}/force-owner — đường khôi phục quyền giám đốc (DEC-13 / A6).
+ * `reason` bắt buộc 10–500 ký tự: đi nguyên văn vào sổ trung tâm, actor ghi là admin.
+ */
+export interface ForceOwnerInput {
+  newOwnerUserId: number
+  reason: string
 }
 
 /** POST /admin/organizations/{id}/invoices — draft a billing line. */
@@ -106,9 +151,24 @@ export async function createOrganization(body: CreateOrgInput): Promise<AdminOrg
 }
 
 /** GET /admin/organizations/{id} — full detail for a single tenant. */
-export async function getOrganization(id: number): Promise<AdminOrg> {
-  const res = await api.get<AdminOrg>(`/admin/organizations/${id}`)
+export async function getOrganization(id: number): Promise<AdminOrgDetail> {
+  const res = await api.get<AdminOrgDetail>(`/admin/organizations/${id}`)
   return res.data
+}
+
+/**
+ * GET /admin/plans — danh sách gói để màn T-03 chọn thay vì gõ tay mã gói (mã sai = FK từ chối 409).
+ * JDBC trả `Map` với alias cột bị PostgreSQL hạ chữ thường (`isactive`), nên đọc cả hai dạng.
+ */
+export async function listAdminPlans(): Promise<AdminPlanOption[]> {
+  const res = await api.get<Record<string, unknown>[]>('/admin/plans')
+  return (res.data ?? [])
+    .map((r) => ({
+      code: String(r.code ?? ''),
+      name: String(r.name ?? r.code ?? ''),
+      isActive: (r.isActive ?? r.isactive) !== false,
+    }))
+    .filter((p) => p.code !== '')
 }
 
 /** PATCH /admin/organizations/{id} — update plan/seats/pool/status/validUntil. */
@@ -120,24 +180,23 @@ export async function updateOrganization(
   return res.data
 }
 
-/** POST /admin/organizations/{id}/members — add a member by email + role. */
-export async function addMember(
-  id: number,
-  body: AddMemberInput,
-): Promise<AdminOrgMember> {
-  const res = await api.post<AdminOrgMember>(
-    `/admin/organizations/${id}/members`,
-    body,
-  )
-  return res.data
-}
-
 /** GET /admin/organizations/{id}/members — full member roster for a tenant. */
 export async function listOrgMembers(id: number): Promise<AdminOrgMember[]> {
   const res = await api.get<AdminOrgMember[]>(
     `/admin/organizations/${id}/members`,
   )
   return res.data ?? []
+}
+
+/**
+ * POST /admin/organizations/{id}/force-owner — chỉ định một nhân sự ACTIVE (MANAGER/TEACHER)
+ * làm OWNER duy nhất; mọi OWNER hiện tại bị hạ xuống MANAGER, phiên đăng nhập hai bên bị thu hồi.
+ * Trả về thành viên vừa lên OWNER. Backend từ chối 400 khi lý do < 10 ký tự, người nhận là
+ * STUDENT / không phải thành viên, hoặc là admin nền tảng (DEC-13).
+ */
+export async function forceOwner(id: number, body: ForceOwnerInput): Promise<AdminOrgMember> {
+  const res = await api.post<AdminOrgMember>(`/admin/organizations/${id}/force-owner`, body)
+  return res.data
 }
 
 /**

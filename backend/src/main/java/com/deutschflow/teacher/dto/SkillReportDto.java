@@ -32,4 +32,25 @@ public record SkillReportDto(
         if (total >= 5.0) return "Trung bình";
         return "Yếu";
     }
+
+    /** Mã xếp loại — cùng ngưỡng với {@link #gradeOf}; nhãn dịch ở client/i18n (R8). */
+    public static final String GRADE_EXCELLENT = "EXCELLENT";
+    public static final String GRADE_GOOD = "GOOD";
+    public static final String GRADE_FAIR = "FAIR";
+    public static final String GRADE_AVERAGE = "AVERAGE";
+    public static final String GRADE_WEAK = "WEAK";
+
+    /**
+     * Xếp loại dạng MÃ ({@code EXCELLENT|GOOD|FAIR|AVERAGE|WEAK}, {@code null} khi chưa có điểm) cho
+     * payload phiếu phụ huynh (thiết kế 10/09 §3.4: backend không hard-code chuỗi tiếng Việt vào bản
+     * đóng băng — ba ngôn ngữ dịch ở nơi hiển thị). {@link #gradeOf} giữ nguyên cho các API đang chạy.
+     */
+    public static String gradeCodeOf(Double total) {
+        if (total == null) return null;
+        if (total >= 9.0) return GRADE_EXCELLENT;
+        if (total >= 8.0) return GRADE_GOOD;
+        if (total >= 6.5) return GRADE_FAIR;
+        if (total >= 5.0) return GRADE_AVERAGE;
+        return GRADE_WEAK;
+    }
 }

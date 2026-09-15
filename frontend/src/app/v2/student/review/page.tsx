@@ -1,10 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { Volume2, RotateCcw, Check, PartyPopper } from 'lucide-react'
 import { toast } from 'sonner'
-import { reviewApi, type VocabReviewCard, type ErrorReviewTaskDto } from '@/lib/reviewApi'
+import { reviewApi, type VocabReviewCard, type ErrorReviewTaskDto, type SrsStats } from '@/lib/reviewApi'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import { GaPageHdr, GaCard, GaCap, GaBtn, LoadingState, ErrorBanner, TkBadge } from '@/components/ui-v2'
 
@@ -35,7 +36,9 @@ function speak(text: string) {
 export default function V2StudentReviewPage() {
   const t = useTranslations('v2.student.review')
   const locale = useLocale()
+  const router = useRouter()
   const [cards, setCards] = useState<VocabReviewCard[]>([])
+  const [stats, setStats] = useState<SrsStats | null>(null)
   const [tasks, setTasks] = useState<ErrorReviewTaskDto[]>([])
   const [idx, setIdx] = useState(0)
   const [revealed, setRevealed] = useState(false)
@@ -50,17 +53,27 @@ export default function V2StudentReviewPage() {
     setIdx(0)
     setRevealed(false)
     setReviewed(0)
-    Promise.allSettled([reviewApi.getDueVocab(), reviewApi.getTodayTasks()])
-      .then(([c, res]) => {
+    // stats đi kèm để biết hàng đợi rỗng vì CHƯA CÓ THẺ NÀO hay vì thẻ chưa tới hạn — hai tình
+    // huống cần hai lời khuyên khác hẳn. Lỗi ở nhánh này không được kéo cả trang xuống: không có
+    // stats thì lùi về câu chung, chứ không đoán bừa.
+    Promise.allSettled([reviewApi.getDueVocab(), reviewApi.getTodayTasks(), reviewApi.getStats()])
+      .then(([c, res, st]) => {
         if (c.status === 'fulfilled') setCards(c.value)
         else setError(t('loadError'))
         if (res.status === 'fulfilled') setTasks(res.value.tasks ?? [])
+        setStats(st.status === 'fulfilled' ? st.value : null)
       })
       .finally(() => setLoading(false))
   }, [t])
   useEffect(load, [load])
 
   const card = cards[idx] ?? null
+  /**
+   * CHỈ khẳng định "kho rỗng" khi đọc được stats và nó nói vậy. `stats === null` nghĩa là không
+   * biết — khi đó dùng câu trung tính, không suy ra kho rỗng từ chỗ thiếu dữ liệu (đúng cái bẫy
+   * mà G2 vừa gỡ ở các trang analytics).
+   */
+  const deckIsEmpty = stats !== null && stats.totalCards === 0
 
   // Grammar error codes (e.g. "ARTICLE.GENDER_WRONG_DER_DIE_DAS") and task types
   // ("REWRITE") are internal taxonomy values — never show them raw to learners.
@@ -186,13 +199,27 @@ export default function V2StudentReviewPage() {
               <GaCard className="px-4 py-12 text-center sm:px-7 lg:py-14">
                 <PartyPopper size={40} strokeWidth={1.4} className="mx-auto text-ga-accent" aria-hidden />
                 <p className="mt-3 font-ga-display text-[22px] font-medium text-ga-ink">
-                  {cards.length === 0 ? t('emptyQueue') : t('doneCount', { count: reviewed })}
+                  {cards.length > 0
+                    ? t('doneCount', { count: reviewed })
+                    : deckIsEmpty
+                      ? t('emptyDeck')
+                      : t('emptyQueue')}
                 </p>
-                <p className="ga-ui mt-2 text-[14px] text-ga-muted">{t('comeBackLater')}</p>
-                {cards.length > 0 && (
-                  <GaBtn variant="ghost" className="mt-5" onClick={load}>
-                    <RotateCcw size={15} aria-hidden /> {t('reload')}
+                {/* "Quay lại sau" chỉ đúng với người ĐANG CÓ thẻ. Nói câu đó với người chưa có thẻ
+                    nào là bảo họ chờ một việc sẽ không bao giờ tự tới — thứ họ cần là thêm từ. */}
+                <p className="ga-ui mt-2 text-[14px] text-ga-muted">
+                  {cards.length === 0 && deckIsEmpty ? t('emptyDeckHint') : t('comeBackLater')}
+                </p>
+                {cards.length === 0 && deckIsEmpty ? (
+                  <GaBtn variant="primary" className="mt-5" onClick={() => router.push('/v2/student/vocabulary')}>
+                    {t('emptyDeckCta')}
                   </GaBtn>
+                ) : (
+                  cards.length > 0 && (
+                    <GaBtn variant="ghost" className="mt-5" onClick={load}>
+                      <RotateCcw size={15} aria-hidden /> {t('reload')}
+                    </GaBtn>
+                  )
                 )}
               </GaCard>
             )}

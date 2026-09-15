@@ -126,12 +126,12 @@ public class ProfileController {
     @DeleteMapping("/me")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAccount(@AuthenticationPrincipal User user) {
-        // Capture identity BEFORE deletion — the users row is gone once deleteAccount commits.
+        // Capture the id BEFORE deletion — the users row is gone once deleteAccount commits. Email
+        // and display name are deliberately NOT captured any more (10/09/2026, quyết định 8): the
+        // admin notification carries the id only, so no PII of the deleted person outlives the delete.
         long deletedId = user.getId();
-        String email = user.getEmail();
-        String displayName = user.getDisplayName();
         accountDeletionService.deleteAccount(deletedId);
         // deleteAccount() is @Transactional and has committed here; audit the deletion to admins.
-        userNotificationService.onAccountDeleted(deletedId, email, displayName);
+        userNotificationService.onAccountDeleted(deletedId);
     }
 }

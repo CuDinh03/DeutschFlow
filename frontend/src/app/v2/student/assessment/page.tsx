@@ -8,6 +8,7 @@ import {
   BookOpen,
   CheckCircle2,
   ClipboardCheck,
+  GraduationCap,
   Mic,
   PenTool,
   RefreshCw,
@@ -129,7 +130,8 @@ export default function V2StudentAssessmentPage() {
               <GaCap className="mb-2 block" style={{ color: isGraduated ? 'rgba(255,255,255,0.72)' : '#A39E94' }}>
                 {t('heroCap')}
               </GaCap>
-              <p className="font-ga-display text-[22px] font-medium sm:text-[24px] lg:text-[28px]">
+              <p className="flex items-center gap-2 font-ga-display text-[22px] font-medium sm:text-[24px] lg:text-[28px]">
+                {isGraduated && <GraduationCap size={24} className="shrink-0" aria-hidden />}
                 {isGraduated ? t('heroTitleGraduated') : t('heroTitle')}
               </p>
               <p

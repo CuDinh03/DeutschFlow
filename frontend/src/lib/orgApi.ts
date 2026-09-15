@@ -20,6 +20,10 @@ export interface OrgSummary {
   seatLimit: number
   teacherCount: number
   studentCount: number
+  /** Đếm trên TOÀN trung tâm (PR-A3) — trước đây bảng điều khiển cộng tay trang đầu 50 lớp. */
+  classCount: number
+  /** Lớp chưa có ai dạy: không có giáo viên phụ trách VÀ không có ai trong class_teachers. */
+  classesWithoutTeacher: number
 }
 
 /** GET /org/seats — seat usage (ghế = học viên ACTIVE; remaining null = không giới hạn). */
@@ -98,7 +102,21 @@ export interface OrgStudentClass {
   name: string
 }
 
-/** GET /org/students/{id} — student detail: membership + org-scoped enrolled classes (B1.2). */
+/**
+ * Nhóm tuổi theo `MinorPolicy` phía máy chủ (DEC-22): UNKNOWN = chưa khai ngày sinh; MINOR_LEGAL =
+ * dưới 16 (luật đòi đồng ý người giám hộ); MINOR_CENTER_POLICY = 16–17 (luật nội bộ trung tâm); ADULT.
+ */
+export type MinorStatus = 'UNKNOWN' | 'MINOR_LEGAL' | 'MINOR_CENTER_POLICY' | 'ADULT'
+
+/** Trạng thái đồng ý HIỆN TẠI của một phạm vi — suy từ sổ chỉ-ghi-thêm (`ConsentState` máy chủ). */
+export type ConsentState = 'NEVER_RECORDED' | 'GRANTED' | 'REVOKED'
+
+/**
+ * GET /org/students/{id} — student detail: membership + org-scoped enrolled classes (B1.2).
+ *
+ * Bốn trường cuối (D1/R11, 10/09/2026) là tóm tắt chưa-thành-niên cho mục "Người giám hộ & đồng ý".
+ * ⛔ KHÔNG có ngày sinh thô — máy chủ cố ý không trả, web cũng không được suy ra để hiển thị.
+ */
 export interface OrgStudentDetail {
   userId: number
   email: string | null
@@ -107,6 +125,67 @@ export interface OrgStudentDetail {
   status: MemberStatus
   joinedAt: string | null
   classes: OrgStudentClass[]
+  minorStatus: MinorStatus
+  birthDateRecorded: boolean
+  /** Phạm vi AUDIO_RECORDING — đúng trạng thái mà `MinorGate` đang đọc để khoá/mở phần nói. */
+  audioConsentState: ConsentState
+  guardianCount: number
+}
+
+// ── Người giám hộ & sổ đồng ý (D1/R11, 10/09/2026) — /org/students/{userId}/guardians|consents ──
+
+export type GuardianRelationship = 'MOTHER' | 'FATHER' | 'LEGAL_GUARDIAN' | 'OTHER'
+/** Năm phạm vi của `chk_student_consents_scope` (V323). `GUARDIAN_REPORT_SHARING` (R6) = trung tâm gửi phiếu đánh giá cho người giám hộ. */
+export type ConsentScope = 'DATA_PROCESSING' | 'AI_PROCESSING' | 'AUDIO_RECORDING' | 'MESSAGING' | 'GUARDIAN_REPORT_SHARING'
+export type ConsentAction = 'GRANTED' | 'REVOKED'
+export type ConsentMethod = 'PAPER' | 'EMAIL' | 'IN_APP' | 'PHONE'
+
+export interface OrgStudentGuardian {
+  id: number
+  fullName: string
+  relationship: GuardianRelationship
+  phone: string | null
+  email: string | null
+  primary: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+/** Thêm/sửa người giám hộ. `primary` bỏ trống: thêm = người đầu tiên là chính; sửa = giữ nguyên. */
+export interface GuardianInput {
+  fullName: string
+  relationship: GuardianRelationship
+  phone?: string
+  email?: string
+  primary?: boolean
+}
+
+/** Một dòng trong sổ đồng ý — sổ CHỈ GHI THÊM, không có PUT/DELETE. */
+export interface OrgStudentConsent {
+  id: number
+  scope: ConsentScope
+  action: ConsentAction
+  method: ConsentMethod
+  guardianId: number | null
+  guardianName: string | null
+  termsVersion: string
+  /** Lúc đồng ý/thu hồi THẬT (ngày ký giấy) — khác `createdAt` là lúc nhân viên bấm nhập. */
+  effectiveAt: string
+  recordedByUserId: number | null
+  recordedByName: string | null
+  note: string | null
+  createdAt: string
+}
+
+/** Ghi thêm một dòng. KHÔNG có termsVersion: máy chủ là bên duy nhất biết điều khoản đang hiệu lực. */
+export interface ConsentInput {
+  scope: ConsentScope
+  action: ConsentAction
+  method: ConsentMethod
+  guardianId?: number
+  /** ISO; bỏ trống = bây giờ. */
+  effectiveAt?: string
+  note?: string
 }
 
 /** One CEFR-level bucket in the org-wide distribution (level → student count). */
@@ -127,7 +206,12 @@ export interface OrgAnalytics {
   poolUsagePercent: number
   /** True when org has pool_unlimited=true (genuinely unlimited). False + pool=0 → unconfigured/blocked. */
   poolUnlimited: boolean
+  /**
+   * "Học viên hoạt động" (DEC-20): có NỘP BÀI hoặc ĐIỂM DANH có mặt trong cửa sổ — KHÔNG còn là
+   * "có sự kiện AI". Tên trường 7d giữ nguyên (G1), thêm cửa sổ 30 ngày.
+   */
   activeStudents7d: number
+  activeStudents30d: number
   cefrDistribution: CefrBucket[]
 }
 
@@ -163,6 +247,8 @@ export interface OrgInvoice {
   paymentCode: string | null
   note: string | null
   createdAt: string
+  /** Hạn thanh toán = lúc gửi + 7 ngày (Q4). null = hoá đơn còn nháp nên chưa có hạn. */
+  dueDate: string | null
 }
 
 /** Bank-transfer instructions for paying invoices (C3). */
@@ -299,12 +385,78 @@ export async function changeMemberRole(userId: number, role: OrgRole): Promise<O
   return res.data
 }
 
+/**
+ * POST /org/members/{userId}/transfer-ownership — OWNER chuyển quyền giám đốc cho một nhân sự
+ * (MANAGER/TEACHER) ĐANG hoạt động của chính trung tâm.
+ *
+ * Backend làm promote + demote trong CÙNG một transaction (OrgMembershipService#transferOwnership):
+ * người nhận lên OWNER và người gọi tụt xuống MANAGER, nên trung tâm không bao giờ có 0 giám đốc.
+ * Đây là đường DUY NHẤT tạo lại OWNER từ bên trong trung tâm — vì OWNER không bị gỡ và không tự rời
+ * được, giám đốc muốn rời thì phải chuyển quyền trước.
+ *
+ * Trả về thành viên vừa thành OWNER. Lỗi từ máy chủ:
+ * - 403 người gọi không phải OWNER đang hoạt động;
+ * - 404 người nhận không thuộc trung tâm hoặc không ACTIVE;
+ * - 400 người nhận trùng người gọi, hoặc không phải quản lý/giáo viên.
+ *
+ * ⚠️ Sau lệnh này người gọi KHÔNG còn là OWNER, nhưng access token cũ vẫn mang orgRole=OWNER cho
+ * tới lần làm mới token kế tiếp — giao diện phải tự hạ trạng thái vai, đừng tin lại cookie.
+ */
+export async function transferOwnership(userId: number): Promise<OrgMember> {
+  const res = await api.post<OrgMember>(`/org/members/${userId}/transfer-ownership`)
+  return res.data
+}
+
 /** GET /org/classes — read-only paginated list of the org's classes. */
-export async function listClasses(page = 0, size = 20): Promise<Page<OrgClass>> {
+/**
+ * GET /org/classes — lọc PHÍA MÁY CHỦ (PR-A3).
+ *
+ * `q` lọc theo tên lớp không phân biệt hoa thường, `withoutTeacher` chỉ lấy lớp chưa có ai dạy.
+ * Trước đợt này trang chỉ lọc trên phần đã tải, nên tìm một lớp ở trang 3 sẽ ra rỗng và người dùng
+ * tưởng lớp đó không tồn tại.
+ */
+export async function listClasses(
+  page = 0,
+  size = 20,
+  opts: { q?: string; withoutTeacher?: boolean } = {},
+): Promise<Page<OrgClass>> {
+  const q = opts.q?.trim()
   const res = await api.get<Page<OrgClass>>('/org/classes', {
-    params: { page, size },
+    params: {
+      page,
+      size,
+      ...(q ? { q } : {}),
+      ...(opts.withoutTeacher ? { withoutTeacher: true } : {}),
+    },
   })
   return res.data
+}
+
+/** Số lớp "chưa ai dạy" lấy mỗi lượt — con số này là cảnh báo nên gần như luôn gói trong một trang. */
+export const TEACHERLESS_PROBE_SIZE = 200
+/** Trần số trang, để một trung tâm bệnh lý không kéo theo hàng chục request mỗi lần mở bảng. */
+export const TEACHERLESS_PROBE_MAX_PAGES = 5
+
+/**
+ * Tập id các lớp CHƯA CÓ AI DẠY — nguồn THẬT cho nhãn "thiếu giáo viên" trên từng dòng.
+ *
+ * Vì sao phải hỏi máy chủ: `OrgClass.teacherId` ánh xạ cột `teacher_id` NOT NULL, nên
+ * `teacherId == null` KHÔNG BAO GIỜ đúng và mọi nhãn dựng từ nó đã im lặng sai từ đầu. Máy chủ
+ * định nghĩa "chưa ai dạy" = không còn ai là TEACHER ACTIVE của trung tâm đứng lớp đó (xét CẢ
+ * `teacher_id` lẫn `class_teachers`) — cùng định nghĩa với `OrgSummary.classesWithoutTeacher`.
+ *
+ * Lấy HẾT chứ không chỉ trang đầu: một id nằm ngoài tập sẽ bị gắn nhãn "đã có giáo viên", nên tập
+ * thiếu là nói sai, đúng loại lỗi mà hàm này sinh ra để thay thế. Trường hợp thường gặp
+ * (< {@link TEACHERLESS_PROBE_SIZE} lớp thiếu GV) chỉ tốn đúng MỘT request vì `last === true`.
+ */
+export async function getTeacherlessClassIds(size = TEACHERLESS_PROBE_SIZE): Promise<Set<number>> {
+  const ids = new Set<number>()
+  for (let p = 0; p < TEACHERLESS_PROBE_MAX_PAGES; p += 1) {
+    const page = await listClasses(p, size, { withoutTeacher: true })
+    for (const c of page.content ?? []) ids.add(c.id)
+    if (page.last !== false) break
+  }
+  return ids
 }
 
 /**
@@ -351,6 +503,43 @@ export async function getOrgClassDetail(id: number): Promise<OrgClassDetail> {
 /** GET /org/students/{id} — student detail (membership + classes). 404 if not in caller's org (B1.2). */
 export async function getOrgStudentDetail(id: number): Promise<OrgStudentDetail> {
   const res = await api.get<OrgStudentDetail>(`/org/students/${id}`)
+  return res.data
+}
+
+/** GET /org/students/{id}/guardians — người chính đứng đầu. 404 nếu học viên không ACTIVE ở trung tâm. */
+export async function listStudentGuardians(studentId: number): Promise<OrgStudentGuardian[]> {
+  const res = await api.get<OrgStudentGuardian[]>(`/org/students/${studentId}/guardians`)
+  return res.data ?? []
+}
+
+/** POST /org/students/{id}/guardians — OWNER/MANAGER, trung tâm phải còn quyền ghi. */
+export async function addStudentGuardian(studentId: number, body: GuardianInput): Promise<OrgStudentGuardian> {
+  const res = await api.post<OrgStudentGuardian>(`/org/students/${studentId}/guardians`, body)
+  return res.data
+}
+
+/** PUT /org/students/{id}/guardians/{guardianId} — sửa liên lạc, KHÔNG chạm bằng chứng đồng ý đã thu. */
+export async function updateStudentGuardian(
+  studentId: number,
+  guardianId: number,
+  body: GuardianInput,
+): Promise<OrgStudentGuardian> {
+  const res = await api.put<OrgStudentGuardian>(`/org/students/${studentId}/guardians/${guardianId}`, body)
+  return res.data
+}
+
+/** GET /org/students/{id}/consents — sổ đồng ý, mới nhất trước. */
+export async function listStudentConsents(studentId: number): Promise<OrgStudentConsent[]> {
+  const res = await api.get<OrgStudentConsent[]>(`/org/students/${studentId}/consents`)
+  return res.data ?? []
+}
+
+/**
+ * POST /org/students/{id}/consents — ghi THÊM một dòng (cấp hoặc thu hồi). Thu hồi = `action: 'REVOKED'`;
+ * không có đường sửa/xoá dòng đã ghi.
+ */
+export async function recordStudentConsent(studentId: number, body: ConsentInput): Promise<OrgStudentConsent> {
+  const res = await api.post<OrgStudentConsent>(`/org/students/${studentId}/consents`, body)
   return res.data
 }
 
@@ -403,9 +592,14 @@ export async function getOrgTeacherClasses(teacherId: number): Promise<OrgTeache
 }
 
 /**
- * POST /org/students/import — bulk-import students from a CSV file
- * (columns: `email,displayName[,phone]`). When `classId` is supplied, every
- * imported student is also enrolled into that class.
+ * POST /org/students/import — bulk-import students from a CSV file.
+ *
+ * Cột tối thiểu `email,displayName[,phone]`. Tệp có dòng tiêu đề khai thêm
+ * `birthDate[,guardianName,guardianPhone,guardianRelationship]` thì máy chủ đọc luôn phần dữ liệu
+ * chưa thành niên (PR-1B, 09/09/2026); KHÔNG có `birthDate` trong tiêu đề thì hành vi y hệt trước —
+ * tệp ba cột trung tâm đang dùng không vỡ. Ngày sinh chỉ nhận dạng ISO `YYYY-MM-DD`.
+ *
+ * When `classId` is supplied, every imported student is also enrolled into that class.
  */
 export async function importRoster(
   file: File,
@@ -463,4 +657,71 @@ export async function acceptInvitation(
     body,
   )
   return res.data
+}
+
+// ── C6: Sổ hoạt động của trung tâm (OWNER-only) ──────────────────────────────
+
+/**
+ * Một dòng trong sổ hoạt động (`audit_logs`) của trung tâm.
+ *
+ * Khớp `AuditLogDto` phía máy chủ. `category` và `targetType` là CÙNG một cột `target_type` —
+ * DTO trả cả hai để màn hình lọc theo `category` mà vẫn hiển thị `targetType`. Không có cột IP.
+ *
+ * `orgId` là trung tâm mà dòng vết THUỘC VỀ, chụp lúc ghi chứ không suy lại lúc đọc (DEC-13).
+ * Trên sổ của giám đốc mọi dòng đều cùng một orgId nên nó chỉ để đối chiếu; giá trị thật của
+ * trường này nằm ở màn nhật ký ADMIN, nơi nó cho biết thao tác đã chạm trung tâm nào.
+ * `null` = hoạt động B2C hoặc job nền.
+ */
+export interface OrgAuditLog {
+  id: number
+  eventName: string
+  category: string | null
+  actorUserId: number | null
+  actorEmail: string | null
+  actorRole: string | null
+  targetType: string | null
+  targetId: string | null
+  metadataJson: string | null
+  createdAt: string | null
+  orgId: number | null
+}
+
+/**
+ * Phong bì phân trang của sổ hoạt động — KHÁC `Page<T>` của Spring (`content`/`totalElements`):
+ * `AuditLogService.read` tự dựng `{items,total,page,size}` bằng JdbcTemplate.
+ */
+export interface OrgAuditLogPage {
+  items: OrgAuditLog[]
+  total: number
+  page: number
+  size: number
+}
+
+/**
+ * GET /org/audit-logs — sổ hoạt động của CHÍNH trung tâm người gọi (C6).
+ *
+ * OWNER-only: máy chủ trả 403 với MANAGER/TEACHER (`OrgGuard.assertOrgOwner`) và với người không
+ * thuộc trung tâm nào. Không nhận `orgId` — máy chủ ép `org_id` theo người gọi, nên không có đường
+ * đọc sổ của trung tâm khác.
+ *
+ * `q` tìm không phân biệt hoa thường trên event_name / actor_email / target_id; `cat` lọc đúng
+ * bằng target_type. `size` bị máy chủ chặn trần ở 100.
+ */
+export async function listOrgAuditLogs(
+  page = 0,
+  size = 30,
+  opts: { q?: string; cat?: string } = {},
+): Promise<OrgAuditLogPage> {
+  const q = opts.q?.trim()
+  const cat = opts.cat?.trim()
+  const res = await api.get<OrgAuditLogPage>('/org/audit-logs', {
+    params: { page, size, ...(q ? { q } : {}), ...(cat ? { cat } : {}) },
+  })
+  const data = res.data
+  return {
+    items: data?.items ?? [],
+    total: data?.total ?? 0,
+    page: data?.page ?? page,
+    size: data?.size ?? size,
+  }
 }

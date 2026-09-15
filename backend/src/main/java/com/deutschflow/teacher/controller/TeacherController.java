@@ -40,6 +40,7 @@ public class TeacherController {
     private final com.deutschflow.teacher.service.TeacherAnalyticsService analyticsService;
     private final com.deutschflow.teacher.service.TeacherAdvisoryService advisoryService;
     private final com.deutschflow.teacher.service.GradingService gradingService;
+    private final com.deutschflow.teacher.service.ClassEnrollmentService classEnrollmentService;
     private final com.deutschflow.teacher.repository.StudentAssignmentRepository assignmentRepository;
     private final com.deutschflow.teacher.repository.ClassAssignmentRepository classAssignmentRepository;
     private final com.deutschflow.teacher.repository.ClassStudentRepository classStudentRepository;
@@ -93,6 +94,20 @@ public class TeacherController {
         String email = payload.get("email");
         teacherService.addStudentToClassByEmail(user.getId(), classId, email);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * G-02: giáo viên PHỤ TRÁCH gỡ một học viên khỏi lớp mình.
+     *
+     * <p>Không xoá dòng ghi danh — chỉ đóng lại (D2), nên bài nộp, điểm và điểm danh của quá khứ còn
+     * nguyên. Trợ giảng không dùng được cửa này.
+     */
+    @DeleteMapping("/classes/{classId}/students/{studentId}")
+    public ResponseEntity<Void> removeStudentFromClass(@AuthenticationPrincipal User user,
+                                                       @PathVariable Long classId,
+                                                       @PathVariable Long studentId) {
+        classEnrollmentService.endByTeacher(user.getId(), classId, studentId, AuditActor.of(user));
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/classes/{classId}/teachers")

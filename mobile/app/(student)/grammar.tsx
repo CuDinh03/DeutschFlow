@@ -116,7 +116,7 @@ export default function GrammarScreen() {
         {/* Editorial ink hero — the Kasus system is the conceptual anchor of this screen */}
         <View style={{ paddingHorizontal: space[5], marginTop: space[1], marginBottom: space[5] }}>
           <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
-            <Caption color={c.accent}>Grammatik · 4 Kasus</Caption>
+            <Caption color={c.accent}>Ngữ pháp · 4 Kasus</Caption>
             <ThemedText variant="display" style={{ color: c.onInk, marginTop: space[2] }}>
               Bảng cách tiếng Đức
             </ThemedText>
@@ -262,7 +262,7 @@ export default function GrammarScreen() {
         ) : (
           <>
             <View style={{ paddingHorizontal: space[5], marginTop: space[6] }}>
-              <Caption style={{ marginBottom: space[1] }}>Grammatik</Caption>
+              <Caption style={{ marginBottom: space[1] }}>Ngữ pháp</Caption>
               <SectionHeader title="Bài học ngữ pháp" />
             </View>
             {levels.map((l) => (

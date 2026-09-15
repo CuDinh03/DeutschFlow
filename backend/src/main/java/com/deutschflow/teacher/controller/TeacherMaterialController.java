@@ -85,11 +85,16 @@ public class TeacherMaterialController {
 
         // Hard-cap pool token cấp-org: chặn (429) tạo PPTX khi tổ chức đã dùng hết ngân sách
         // token AI tháng này. Giáo viên B2C / org chưa cấu hình pool luôn được cho qua.
-        orgPoolGuard.assertOrgPoolAvailable(user != null ? user.getId() : null, PPTX_ESTIMATED_TOKENS);
+        if (user == null) {
+            // @PreAuthorize đã chặn khách; guard này giữ bất biến "job luôn có creator" (GAP-11) thay cho
+            // các nhánh `user != null ? … : null` cũ từng có thể sinh job vô chủ không ai đọc lại được.
+            throw new ForbiddenException("Yêu cầu đăng nhập.");
+        }
+        orgPoolGuard.assertOrgPoolAvailable(user.getId(), PPTX_ESTIMATED_TOKENS);
         // Gói miễn phí (GV tự do, non-org): cap PPTX theo ngày — bảo vệ biên lợi nhuận (D6).
         freeTierGuard.assertAndConsume(
-                user != null ? user.getId() : null,
-                user != null ? user.getOrgId() : null,
+                user.getId(),
+                user.getOrgId(),
                 com.deutschflow.common.quota.FreeTierGuard.FEATURE_PPTX);
 
         try {
@@ -116,7 +121,7 @@ public class TeacherMaterialController {
             }
 
             // Tạo AsyncJob — ghi lại owner để SSE/download check
-            AsyncJob job = asyncJobService.createJob("GENERATE_PPTX", user != null ? user.getId() : null);
+            AsyncJob job = asyncJobService.createJob("GENERATE_PPTX", user.getId());
             UUID jobId = job.getId();
 
             // Set MDC (Mapped Diagnostic Context)
@@ -127,7 +132,7 @@ public class TeacherMaterialController {
             // Gọi phương thức Async (Spring sẽ dùng TaskExecutor và chạy ở background)
             // LƯU Ý: Phải gọi thông qua proxy (từ một bean khác) để @Async hoạt động.
             lessonPlanService.processDocumentToPptxAsync(
-                    jobId, user != null ? user.getId() : null, fileBytes, mimeType);
+                    jobId, user.getId(), fileBytes, mimeType);
 
             return ResponseEntity.accepted().body(Map.of(
                     "jobId", jobId,
@@ -207,13 +212,19 @@ public class TeacherMaterialController {
     }
 
     private void assertOwnsJob(User user, UUID jobId) {
-        if (user == null) return;
+        if (user == null) {
+            throw new ForbiddenException("Bạn không có quyền truy cập job này");
+        }
         asyncJobService.getJob(jobId).ifPresent(job -> assertOwnsJob(user, job));
     }
 
+    /**
+     * Chủ job hoặc ADMIN. Job không creator KHÔNG còn được coi là "của chung" — trước đây nhánh
+     * {@code createdByUserId == null} bỏ qua kiểm tra, nghĩa là bất kỳ giáo viên nào cũng đọc/tải được
+     * một job vô chủ (GAP-11). Giữ 403 (không phải 404) để khớp hợp đồng hiện có của suite F.
+     */
     private void assertOwnsJob(User user, AsyncJob job) {
-        if (job.getCreatedByUserId() == null) return;
-        if (!job.getCreatedByUserId().equals(user.getId())) {
+        if (!AsyncJobService.canRead(job, user)) {
             throw new ForbiddenException("Bạn không có quyền truy cập job này");
         }
     }

@@ -1,6 +1,8 @@
 package com.deutschflow.user.controller;
 
 import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.transaction.RunAfterCommitService;
 import com.deutschflow.material.service.MaterialService;
 import com.deutschflow.media.service.S3StorageService;
@@ -44,6 +46,10 @@ import static org.mockito.Mockito.when;
  * khi bài còn dở, thu âm hỏng đều thành vĩnh viễn, và giáo viên chấm đúng cái file sai đó. Nay chốt
  * duy nhất là ĐIỂM ĐÃ CHỐT ({@code EVALUATED}/{@code GRADED}); mọi trạng thái chưa-ai-chấm-xong đều
  * nộp lại được.
+ *
+ * <p>DEC-17 (AC-ORG-CT-07): quyền lớp được kiểm VÔ ĐIỀU KIỆN trước mọi lượt ghi — trước bản vá, dòng
+ * đã tồn tại thì bỏ qua kiểm tra, nên học viên đã bị gỡ khỏi lớp ({@code ENDED}) vẫn POST đè được bài
+ * cũ cho tới khi giáo viên chốt điểm. Vì vậy {@code setUp} phải stub "còn thuộc lớp" cho mọi ca cũ.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -75,6 +81,8 @@ class StudentAssignmentSubmitTest {
         when(classAssignmentRepository.findById(ASSIGNMENT_ID)).thenReturn(Optional.of(
                 ClassAssignment.builder().id(ASSIGNMENT_ID).classId(100L).topic("Hörübung").build()));
         when(submissionFileUrlResolver.resolve(anyString())).thenAnswer(i -> i.getArgument(0));
+        // Còn thuộc lớp (ACTIVE/RESERVED) — quyền lớp nay được kiểm ở MỌI lượt nộp, kể cả khi dòng đã có.
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(100L, STUDENT_ID)).thenReturn(true);
     }
 
     @Test
@@ -134,7 +142,10 @@ class StudentAssignmentSubmitTest {
         stubExisting(row);
 
         assertThatThrownBy(() -> controller.submitAssignment(student, ASSIGNMENT_ID, submitRequest("nộp đè", null)))
-                .isInstanceOf(ConflictException.class);
+                .isInstanceOf(ConflictException.class)
+                // Không hứa "nhắn cho giáo viên": ở B2B người có thể xử lý là trung tâm, và kênh nhắn
+                // không mở cho mọi người nộp.
+                .hasMessageContaining("liên hệ giáo viên hoặc trung tâm");
         assertThat(row.getScore()).isEqualTo(85);
         assertThat(row.getFeedback()).isEqualTo("Nhận xét của cô");
         verify(teacherService, never()).notifyTeachersOfSubmission(anyLong(), anyLong(), anyString());
@@ -169,6 +180,65 @@ class StudentAssignmentSubmitTest {
 
         assertThat(row.getStatus()).isEqualTo(AssignmentStatus.SUBMITTED);
         assertThat(row.getSubmittedAt()).isNotNull();
+    }
+
+    // ── DEC-17: đã rời lớp thì không ghi được nữa ─────────────────────────────
+
+    @Test
+    @DisplayName("đã rời lớp (ENDED) mà còn dòng SUBMITTED cũ → 403, dòng cũ đứng yên (AC-ORG-CT-07)")
+    void resubmit_whenEnrollmentEnded_isForbidden_andRowUntouched() {
+        StudentAssignment row = row(AssignmentStatus.SUBMITTED);
+        row.setSubmissionContent("bản cũ");
+        row.setSubmissionFileUrl("https://s3/assignments/500/7_old.m4a");
+        stubExisting(row);
+        // existsByIdClassIdAndIdStudentId chỉ tính ACTIVE/RESERVED — ENDED trả false.
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(100L, STUDENT_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> controller.submitAssignment(student, ASSIGNMENT_ID,
+                submitRequest("nộp đè sau khi bị gỡ", "https://s3/assignments/500/7_new.m4a")))
+                .isInstanceOf(ForbiddenException.class);
+
+        assertThat(row.getStatus()).isEqualTo(AssignmentStatus.SUBMITTED);
+        assertThat(row.getSubmissionContent()).isEqualTo("bản cũ");
+        assertThat(row.getSubmissionFileUrl()).isEqualTo("https://s3/assignments/500/7_old.m4a");
+        assertThat(row.getSubmittedAt()).isNull();
+        verify(studentAssignmentRepository, never()).save(any(StudentAssignment.class));
+        verify(teacherService, never()).notifyTeachersOfSubmission(anyLong(), anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("đã rời lớp và chưa có dòng → 403, KHÔNG tạo dòng PENDING")
+    void firstSubmit_whenEnrollmentEnded_isForbidden_noRowCreated() {
+        when(studentAssignmentRepository.findByStudentIdAndAssignmentId(STUDENT_ID, ASSIGNMENT_ID))
+                .thenReturn(Optional.empty());
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(100L, STUDENT_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> controller.submitAssignment(student, ASSIGNMENT_ID, submitRequest("bài làm", null)))
+                .isInstanceOf(ForbiddenException.class);
+
+        verify(studentAssignmentRepository, never()).save(any(StudentAssignment.class));
+    }
+
+    @Test
+    @DisplayName("bài tập không còn tồn tại → 404, kể cả khi còn dòng cũ mồ côi")
+    void submit_whenAssignmentMissing_isNotFound() {
+        stubExisting(row(AssignmentStatus.SUBMITTED));
+        when(classAssignmentRepository.findById(ASSIGNMENT_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> controller.submitAssignment(student, ASSIGNMENT_ID, submitRequest("nộp", null)))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(studentAssignmentRepository, never()).save(any(StudentAssignment.class));
+    }
+
+    @Test
+    @DisplayName("còn thuộc lớp → quyền lớp được hỏi đúng lớp của bài, rồi nộp bình thường")
+    void submit_whenEnrolled_checksEnrollmentOfAssignmentClass() {
+        stubExisting(row(AssignmentStatus.PENDING));
+
+        controller.submitAssignment(student, ASSIGNMENT_ID, submitRequest("bài làm", null));
+
+        verify(classStudentRepository).existsByIdClassIdAndIdStudentId(100L, STUDENT_ID);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

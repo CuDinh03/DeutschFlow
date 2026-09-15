@@ -6,6 +6,7 @@ import { evaluatePhoneme, type PhonemeEvalResult } from "@/lib/phonemeApi";
 import { startRecorder, type RecorderHandle } from "@/lib/voiceRecorder";
 import { httpStatus } from "@/lib/api";
 import { classifyMicError, type MicErrorKind } from "@/lib/micErrors";
+import { parseMinorAudioBlocked, type MinorAudioBlocked } from "@/lib/minorAudio";
 
 type TFn = (key: string) => string;
 
@@ -21,6 +22,11 @@ export function useSpeakingRecorderMic(
   // Set only for capture failures (permission/device). Generic errors
   // (quota, repair) leave this null so the UI shows the plain status line.
   const [micErrorKind, setMicErrorKind] = useState<MicErrorKind | null>(null);
+  // 403 MINOR_AUDIO_BLOCKED (DEC-22/D8): KHÔNG phải lỗi mic hay hết lượt — đường ghi âm đóng tới khi
+  // trung tâm ghi nhận ngày sinh / đồng ý của người giám hộ. Giữ riêng (không nhét vào micError
+  // dạng chuỗi) để UI hiện đúng màn giải thích + lối liên hệ trung tâm thay vì dòng đỏ chung.
+  const [minorAudioBlocked, setMinorAudioBlocked] = useState<MinorAudioBlocked | null>(null);
+  const clearMinorAudioBlocked = useCallback(() => setMinorAudioBlocked(null), []);
 
   // Public setter: clearing or showing a generic message resets the kind.
   const setMicError = useCallback((msg: string | null) => {
@@ -55,6 +61,7 @@ export function useSpeakingRecorderMic(
     async (onTranscript: (text: string) => void) => {
       if (isListening || isTranscribing || isEvaluatingPhoneme) return;
       setMicError(null);
+      setMinorAudioBlocked(null);
 
       const seq = ++captureSeqRef.current;
       /** Lượt này còn là lượt hiện tại không — false nghĩa là đã có lượt mới hoặc đã cleanup. */
@@ -78,16 +85,24 @@ export function useSpeakingRecorderMic(
                 if (!isCurrent()) return;
                 setPhonemeResult(evalRes);
                 onPhonemeScored?.(evalRes.score);
-              } catch {
-                if (isCurrent()) setMicError(t("phonemeEvalFailed"));
+              } catch (err: unknown) {
+                if (!isCurrent()) return;
+                const blocked = parseMinorAudioBlocked(err);
+                if (blocked) setMinorAudioBlocked(blocked);
+                else setMicError(t("phonemeEvalFailed"));
               } finally {
                 if (isCurrent()) setIsEvaluatingPhoneme(false);
               }
             }
           } catch (err: unknown) {
             if (!isCurrent()) return;
-            const st = httpStatus(err);
-            setMicError(st === 429 ? t("errorQuota") : t("transcriptionFailed"));
+            const blocked = parseMinorAudioBlocked(err);
+            if (blocked) {
+              setMinorAudioBlocked(blocked);
+            } else {
+              const st = httpStatus(err);
+              setMicError(st === 429 ? t("errorQuota") : t("transcriptionFailed"));
+            }
           } finally {
             if (isCurrent()) setIsTranscribing(false);
           }
@@ -139,6 +154,8 @@ export function useSpeakingRecorderMic(
     micError,
     micErrorKind,
     setMicError,
+    minorAudioBlocked,
+    clearMinorAudioBlocked,
     clearPhoneme,
     toggleMic,
     stopRecorder,

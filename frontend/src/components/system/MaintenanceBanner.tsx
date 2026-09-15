@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { X } from 'lucide-react'
 import { useMaintenanceStore } from '@/stores/useMaintenanceStore'
 
 /**
@@ -118,7 +119,7 @@ export function MaintenanceBanner() {
           setDismissed(view.key)
         }}
       >
-        ✕
+        <X size={15} aria-hidden />
       </button>
     </div>
   )

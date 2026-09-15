@@ -54,4 +54,34 @@ describe('trang chủ dẫn khách vào phễu onboarding', () => {
     const hardCoded = code.match(/href="\/v2\/register"/g) ?? []
     expect(hardCoded).toHaveLength(1)
   })
+
+  /**
+   * G5 — điểm vào phễu phải ĐO ĐƯỢC.
+   *
+   * Ba chặng sau đã có event từ trước (`register_success`, `onboarding_completed`,
+   * `feature_lesson_completed`), nhưng chặng đầu thì không: CTA là <Link> trần nên chỉ còn
+   * $autocapture, thứ không phân biệt được CTA phễu với 19 link khác trên trang. Thiếu nó thì
+   * không tính được tỉ lệ CTA → đăng ký, tức không có baseline để so bất kỳ biến thể hero nào.
+   *
+   * Cùng lý do với các ca ở trên: chỉ cần một lần sửa giao diện gõ lại `<Link href={START_HREF}>`
+   * cho quen tay là điểm đo lại mất, mà không có gì hỏng để ai nhận ra.
+   */
+  it('mọi CTA phễu đều bắn landing_cta_clicked kèm vị trí', () => {
+    const funnelLinks = code.match(/href=\{START_HREF\}/g) ?? []
+    const tracked = code.match(/trackCta\(/g) ?? []
+    // 5 CTA START_HREF + CTA bảng giá (dùng meta.href) đều phải có điểm đo.
+    expect(tracked.length).toBeGreaterThanOrEqual(funnelLinks.length + 1)
+  })
+
+  it('vị trí CTA là chỗ đứng trên trang, không phải nhãn nút', () => {
+    // Nhãn đổi theo ngôn ngữ và theo mỗi lần viết lại copy; vị trí thì bền qua các lần thử biến thể.
+    for (const placement of ['header', 'mobile_menu', 'hero', 'exam_section', 'footer_cta']) {
+      expect(code).toContain(`trackCta('${placement}')`)
+    }
+    expect(code).toMatch(/trackCta\(`pricing_plan_\$\{i \+ 1\}`\)/)
+  })
+
+  it('tên event khớp thứ phân tích sẽ truy vấn', () => {
+    expect(code).toMatch(/trackEvent\('landing_cta_clicked', \{ placement \}\)/)
+  })
 })

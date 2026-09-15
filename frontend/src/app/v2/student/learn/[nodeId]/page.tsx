@@ -11,8 +11,11 @@ import {
   Check,
   GraduationCap,
   Headphones,
+  Hourglass,
   Mic,
   PenLine,
+  RotateCcw,
+  TriangleAlert,
   type LucideIcon,
 } from 'lucide-react'
 import { completeTheoryNode } from '@/lib/theoryNodeCompletion'
@@ -29,8 +32,10 @@ import ListeningView from '@/components/learn/ListeningView'
 import SpeakingView from '@/components/learn/SpeakingView'
 import WritingView from '@/components/learn/WritingView'
 import SessionRecap from '@/components/learn/SessionRecap'
+import { nextSkillToPractice, parsePracticeOverview } from '@/lib/roadmap-tree/practiceStats'
+import type { Skill } from '@/lib/skills'
 import PhonemeCoach from '@/components/learn/PhonemeCoach'
-import { GaCap, GaCard, LoadingState } from '@/components/ui-v2'
+import { GaCap, GaCard, GaGlyph, LoadingState } from '@/components/ui-v2'
 import { LessonShell } from '@/components/learn/LessonShell'
 
 /**
@@ -63,6 +68,8 @@ const VIEW_TABS: { key: ViewKey; tKey: string; icon: LucideIcon }[] = [
 interface RoadmapState {
   nodeId: number
   title: string
+  /** Ngày trong giáo trình (A1 chạy 1..30); null với node ngoài trục ngày. */
+  dayNumber: number | null
   index: number
   total: number
   percent: number
@@ -75,6 +82,16 @@ interface RoadmapDtoNode {
   id: number
   title?: string
   subtitle?: string
+  dayNumber?: number | null
+}
+
+/**
+ * Đường về cây giữ nguyên ngữ cảnh: mở đúng tab cây và chọn đúng node vừa học.
+ * Trang lộ trình đọc `?tab=` và `?node=` trong effect đầu (URL-as-state, T7), nên
+ * không có hai tham số này thì người học rơi về tab mặc định và mất chỗ đang đứng.
+ */
+function roadmapHref(nodeId: number): string {
+  return `/v2/student/roadmap?tab=tree&node=${nodeId}`
 }
 
 export default function V2StudentLearnNodePage() {
@@ -87,6 +104,7 @@ export default function V2StudentLearnNodePage() {
   // dùng lại thay vì nhân bản chuỗi sang v2.
   const tLearn = useTranslations('learn')
   const t = useTranslations('v2.student.learnNode')
+  const tSkills = useTranslations('v2.student.roadmap.tree.skillNames')
 
   const { me, loading: meLoading, targetLevel, streakDays } = useStudentPracticeSession()
   const { trackFeatureAction } = useTracking()
@@ -111,6 +129,28 @@ export default function V2StudentLearnNodePage() {
   const [completionNotice, setCompletionNotice] = useState<string | null>(null)
 
   const [showRecap, setShowRecap] = useState(false)
+  /** Kỹ năng đầu tiên chưa đạt ngưỡng của node này — chỉ hỏi khi màn tổng kết mở (L3c). */
+  const [weakSkill, setWeakSkill] = useState<Skill | null>(null)
+
+  // L3c — màn tổng kết mời luyện đúng kỹ năng còn yếu của node vừa học.
+  // Chỉ hỏi khi tổng kết đã mở: đây là gợi ý sau bài, không phải dữ liệu để dựng trang, nên không
+  // được thêm một nhịp mạng vào đường tới nội dung. Lỗi thì bỏ qua — mất gợi ý, không mất lối đi.
+  useEffect(() => {
+    if (!showRecap || !Number.isFinite(nodeId)) return
+    let cancelled = false
+    api
+      .get(`/skill-tree/${nodeId}/practice`)
+      .then((res) => {
+        if (cancelled) return
+        setWeakSkill(nextSkillToPractice(parsePracticeOverview(res.data)))
+      })
+      .catch(() => {
+        if (!cancelled) setWeakSkill(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [showRecap, nodeId])
   const [phonemeSuccess, setPhonemeSuccess] = useState<Set<number>>(new Set())
   const [roadmapState, setRoadmapState] = useState<RoadmapState | null>(null)
 
@@ -192,6 +232,7 @@ export default function V2StudentLearnNodePage() {
         setRoadmapState({
           nodeId: current.id,
           title: current.subtitle || current.title || `Node ${current.id}`,
+          dayNumber: current.dayNumber ?? null,
           index: idx + 1,
           total: data.length,
           percent: data.length > 0 ? Math.round(((idx + 1) / data.length) * 100) : 0,
@@ -260,12 +301,16 @@ export default function V2StudentLearnNodePage() {
           ? `Module ${session.moduleNumber} · ${session.moduleTitleVi ?? ''}`
           : (session?.moduleTitleVi ?? null)
       }
-      title={session?.titleVi ?? tLearn('lesson')}
+      title={
+        roadmapState?.dayNumber != null
+          ? t('dayPrefix', { n: roadmapState.dayNumber, title: session?.titleVi ?? tLearn('lesson') })
+          : (session?.titleVi ?? tLearn('lesson'))
+      }
       subtitle={session?.titleDe ?? null}
       objective={session?.content?.overview?.vi ?? null}
       estimatedMinutes={session?.estimatedMinutes ?? null}
       progress={required.length > 0 ? { current: doneRequired, total: required.length } : null}
-      onExit={() => router.push('/v2/student/roadmap')}
+      onExit={() => router.push(roadmapHref(nodeId))}
     >
       <>
           {/* Shell đã mang tiêu đề · tiếng Đức · module · mục tiêu · tiến độ. Chỗ này vì thế chỉ
@@ -274,9 +319,11 @@ export default function V2StudentLearnNodePage() {
               ô gần như trống, trông như lỗi hơn là như thiết kế. */}
           {session && (
             <div className="ga-ui flex flex-wrap items-center gap-2 text-[11px]">
-              <span aria-hidden className="text-[20px] leading-none">
-                {session.emoji}
-              </span>
+              {/* `session.emoji` là DỮ LIỆU (`skill_tree_nodes.emoji`), không phải lựa chọn giao diện:
+                  in thẳng ra thì mỗi hệ điều hành vẽ một kiểu, luôn nhiều màu và không nhận
+                  `currentColor` — lệch hẳn nét với icon Lucide của chính trang này. Dịch sang icon
+                  qua `emojiIconMap` (xem GaGlyph). */}
+              <GaGlyph emoji={session.emoji} size="sm" />
               <span className="rounded-ga-pill bg-ga-accent-soft px-2 py-0.5 font-bold text-ga-accent">
                 {session.cefrLevel}
               </span>
@@ -325,7 +372,7 @@ export default function V2StudentLearnNodePage() {
               <p className="ga-ui mt-2 text-[13.5px] text-ga-muted">{tLearn('comeBackLater')}</p>
               <button
                 type="button"
-                onClick={() => router.push('/v2/student/roadmap')}
+                onClick={() => router.push(roadmapHref(nodeId))}
                 className="ga-ui mt-5 inline-flex items-center gap-2 rounded-ga bg-ga-accent px-5 py-2.5 text-[13.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90"
               >
                 <ArrowLeft size={15} aria-hidden /> {tLearn('backToRoadmap')}
@@ -350,7 +397,10 @@ export default function V2StudentLearnNodePage() {
                 </p>
               )}
               <div className="mx-auto mt-5 max-w-sm rounded-ga border border-ga-line bg-ga-yellow-soft px-5 py-4">
-                <p className="ga-ui text-[13.5px] font-semibold text-ga-ink">{t('contentPendingTitle')}</p>
+                <p className="ga-ui flex items-center justify-center gap-1.5 text-[13.5px] font-semibold text-ga-ink">
+                  <Hourglass size={14} aria-hidden />
+                  {t('contentPendingTitle')}
+                </p>
                 <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">
                   {t('contentPendingDesc', { level: session.cefrLevel })}
                 </p>
@@ -389,7 +439,10 @@ export default function V2StudentLearnNodePage() {
               {showRetryBanner && (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-ga border border-ga-line bg-ga-yellow-soft p-4">
                   <div className="min-w-0">
-                    <p className="ga-ui text-[13.5px] font-semibold text-ga-ink">{t('retryTitle')}</p>
+                    <p className="ga-ui flex items-center gap-1.5 text-[13.5px] font-semibold text-ga-ink">
+                      <TriangleAlert size={14} aria-hidden />
+                      {t('retryTitle')}
+                    </p>
                     <p className="ga-ui mt-0.5 text-[12.5px] text-ga-muted">{t('retryDesc')}</p>
                   </div>
                   <button
@@ -398,8 +451,9 @@ export default function V2StudentLearnNodePage() {
                       resetTabCompletion()
                       setPhonemeSuccess(new Set())
                     }}
-                    className="ga-ui inline-flex min-h-[40px] shrink-0 items-center rounded-ga bg-ga-accent px-4 py-2 text-[12.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 lg:min-h-0"
+                    className="ga-ui inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-ga bg-ga-accent px-4 py-2 text-[12.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 lg:min-h-0"
                   >
+                    <RotateCcw size={14} aria-hidden />
                     {t('retryCta')}
                   </button>
                 </div>
@@ -479,14 +533,23 @@ export default function V2StudentLearnNodePage() {
           vocabCount={session.content?.vocabulary?.length ?? 0}
           streakDays={streakDays}
           nextNodeTitle={roadmapState?.nextNodeTitle ?? undefined}
+          practiceSkillLabel={weakSkill ? tSkills(weakSkill) : null}
+          onPractice={
+            weakSkill
+              ? () => {
+                  setShowRecap(false)
+                  router.push(`/v2/student/practice/${nodeId}/${weakSkill}`)
+                }
+              : undefined
+          }
           onBack={() => {
             setShowRecap(false)
-            router.push('/v2/student/roadmap')
+            router.push(roadmapHref(nodeId))
           }}
           onNext={() => {
             setShowRecap(false)
             if (roadmapState?.nextNodeId) router.push(`/v2/student/learn/${roadmapState.nextNodeId}`)
-            else router.push('/v2/student/roadmap')
+            else router.push(roadmapHref(nodeId))
           }}
         />
       )}
