@@ -4,6 +4,7 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.user.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -35,6 +36,13 @@ public class PasswordResetService {
     private final JavaMailSender mailSender;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
+
+    // Tiêm theo FIELD chứ không qua constructor: lớp này dùng @RequiredArgsConstructor, mà Lombok chỉ
+    // chép @Value sang tham số constructor khi có lombok.config khai copyableAnnotations — repo không có.
+    @Value("${app.mail.from}")
+    private String mailFrom;
+    @Value("${app.mail.reply-to}")
+    private String mailReplyTo;
 
     /**
      * Generates a 6-digit OTP for the given email, persists it with a TTL, and
@@ -129,6 +137,12 @@ public class PasswordResetService {
     private void sendOtpEmail(String to, String code) {
         try {
             var msg = new SimpleMailMessage();
+            // setFrom là BẮT BUỘC, không phải tuỳ chọn. Gmail SMTP tự viết lại `From` thành tài khoản
+            // vừa xác thực nên thiếu nó vẫn chạy và không ai thấy; SES thì xác thực một chuỗi `AKIA…`
+            // chứ không phải địa chỉ email, nên thư rời ứng dụng KHÔNG có header `From` và bị từ chối
+            // thẳng — đúng lúc người dùng bấm "quên mật khẩu" trên production.
+            msg.setFrom(mailFrom);
+            msg.setReplyTo(mailReplyTo);
             msg.setTo(to);
             msg.setSubject("DeutschFlow — Mã đặt lại mật khẩu");
             msg.setText(

@@ -139,7 +139,7 @@ Chi tiết quy cách + cách chụp ở [SCREENSHOTS_ICON_SPEC.md](appstore/SCRE
 - [ ] **Name** (≤30), **Subtitle** (≤30), **Promotional text** (≤170).
 - [ ] **Description** (≤4000), **Keywords** (≤100, phân tách bằng dấu phẩy).
 - [ ] **Support URL** `[[SUPPORT_URL]]` (bắt buộc), **Marketing URL** (tùy chọn).
-- [ ] Contact placeholder: dinhhuycu0305@gmail.com.
+- [ ] Contact placeholder: support@mydeutschflow.com.
 
 ### Trang pháp lý phải host công khai
 - [ ] **Privacy Policy** → `[[PRIVACY_URL]]` (bắt buộc).

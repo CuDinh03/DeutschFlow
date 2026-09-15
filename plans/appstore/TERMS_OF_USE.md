@@ -71,7 +71,7 @@ If you use DeutschFlow as a learner, teacher, or staff member of a language cent
 
 ### 12. Contact
 
-Questions about these Terms: **[[support@your-domain]]** (fallback: dinhhuycu0305@gmail.com).
+Questions about these Terms: **[[support@your-domain]]**.
 
 <!--LANG:VI-->
 
@@ -138,7 +138,7 @@ Nếu bạn sử dụng DeutschFlow với tư cách học viên, giáo viên ho�
 
 ### 12. Liên hệ
 
-Câu hỏi về Điều khoản này: **[[support@your-domain]]** (dự phòng: dinhhuycu0305@gmail.com).
+Câu hỏi về Điều khoản này: **[[support@your-domain]]**.
 
 <!--LANG:DE-->
 
@@ -205,4 +205,4 @@ Wenn Sie DeutschFlow als Lernende/r, Lehrkraft oder Personal einer Sprachschule 
 
 ### 12. Kontakt
 
-Fragen zu diesen Bedingungen: **[[support@your-domain]]** (alternativ: dinhhuycu0305@gmail.com).
+Fragen zu diesen Bedingungen: **[[support@your-domain]]**.

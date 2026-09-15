@@ -139,7 +139,7 @@ Fill this in at **Submit for Review**. **v1.0 ships FREE-ONLY** — no ads and n
 **Sign-in required:** Yes
 **Demo account (primary)** — `[[demo-email]]` / `[[demo-password]]` (role: student, used ~20 min so it has real learning data)
 **Demo account (secondary, for delete test)** — `[[delete-demo-email]]` / `[[delete-demo-password]]` (fresh account, no data — reserved for the account-deletion test so the primary login is not removed)
-**Contact** — `[[support-contact-name]]` · `dinhhuycu0305@gmail.com` · `[[phone]]`
+**Contact** — `[[support-contact-name]]` · `support@mydeutschflow.com` · `[[phone]]`
 
 **Notes to reviewer:**
 ```

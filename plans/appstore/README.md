@@ -56,7 +56,7 @@ Các mục `[[…]]` rải trong bộ tài liệu, gom về đây:
 
 **Pháp lý & liên hệ / Legal & contact**
 - `[[Tên pháp lý / nhà phát triển]]` — tên nhà phát triển (Privacy Policy, Terms).
-- `[[support@your-domain]]` / **Support email** — email hỗ trợ chính (dự phòng: `dinhhuycu0305@gmail.com`).
+- `[[support@your-domain]]` / **Support email** — email hỗ trợ chính. Giá trị hiện tại `support@mydeutschflow.com`, đặt ở hằng `SUPPORT_EMAIL` trong [gen-legal.mjs](../../frontend/scripts/gen-legal.mjs); hòm này định tuyến qua Cloudflare Email Routing.
 - `[[support-contact-name]]` + `[[phone]]` — người liên hệ & số điện thoại cho App Review Information.
 
 **URL phải host công khai / Public URLs (2 blocker mở)**

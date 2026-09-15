@@ -2,8 +2,10 @@ package com.deutschflow.user.service;
 
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.user.repository.RefreshTokenRepository;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -11,13 +13,16 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
+import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -73,5 +78,34 @@ class PasswordResetServiceUnitTest {
 
         // No password write may happen when the OTP is invalid.
         verify(jdbc, org.mockito.Mockito.never()).update(contains("UPDATE users"), any(), any());
+    }
+
+    /**
+     * Thư OTP phải mang danh tính người gửi đã cấu hình.
+     *
+     * <p>Vì sao cần ca riêng: Gmail SMTP TỰ viết lại header {@code From} thành tài khoản vừa xác thực,
+     * nên thiếu {@code setFrom()} thư vẫn đi và không ai thấy. SES thì xác thực {@code MAIL_USERNAME} —
+     * một chuỗi {@code AKIA…} chứ không phải địa chỉ email — nên nó không có gì để điền vào {@code From};
+     * thư không có {@code From} bị từ chối thẳng. Nghĩa là lỗi chỉ nổ SAU khi đổi biến môi trường sang
+     * SES, ở production, đúng lúc người dùng bấm "quên mật khẩu". Ca này bắt nó trước thời điểm đó.
+     */
+    @Test
+    @DisplayName("thư OTP mang đúng From + Reply-To đã cấu hình (SES từ chối thư thiếu From)")
+    void requestReset_otpMailCarriesConfiguredSenderIdentity() {
+        // @Value không đi qua constructor (lớp dùng @RequiredArgsConstructor) nên @InjectMocks bỏ trống.
+        ReflectionTestUtils.setField(service, "mailFrom", "support@mydeutschflow.com");
+        ReflectionTestUtils.setField(service, "mailReplyTo", "support@mydeutschflow.com");
+        when(jdbc.queryForObject(contains("COUNT(*) FROM users"), eq(Integer.class), eq("user@x.com")))
+                .thenReturn(1);
+        var captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+
+        service.requestReset("user@x.com");
+
+        verify(mailSender).send(captor.capture());
+        assertThat(captor.getValue().getFrom())
+                .as("thiếu From là SES từ chối thư OTP")
+                .isEqualTo("support@mydeutschflow.com");
+        assertThat(captor.getValue().getReplyTo())
+                .isEqualTo("support@mydeutschflow.com");
     }
 }

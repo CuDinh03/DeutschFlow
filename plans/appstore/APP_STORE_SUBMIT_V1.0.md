@@ -185,7 +185,7 @@ Privacy Policy: https://mydeutschflow.com/privacy
 
 ### 2.5 🟡 Chốt số điện thoại cho ô App Review contact
 
-**Sai ở đâu.** ASC bắt buộc *App Review Information → Contact* có **first name, last name, phone, email**. Email đã có (`dinhhuycu0305@gmail.com`); còn thiếu **số điện thoại** (`[[phone]]`). Trang `/privacy` live đã "discloses phone number" → dùng **cùng số đó** cho nhất quán.
+**Sai ở đâu.** ASC bắt buộc *App Review Information → Contact* có **first name, last name, phone, email**. Email đã có (`support@mydeutschflow.com`); còn thiếu **số điện thoại** (`[[phone]]`). Trang `/privacy` live đã "discloses phone number" → dùng **cùng số đó** cho nhất quán.
 
 **Cách sửa.** 🌐 Điền số điện thoại (định dạng quốc tế, vd `+84…`) vào ô Contact trong ASC. Không cần sửa repo.
 
@@ -426,7 +426,7 @@ eas submit --platform ios --latest
    | **Sign-in required** | **Yes** |
    | **Demo account (primary)** | `[[demo-email]]` / `[[demo-password]]` — **STUDENT tạo mới, đã dùng ~20' có dữ liệu học thật** |
    | **Demo account (secondary, test xóa TK)** | `[[delete-demo-email]]` / `[[delete-demo-password]]` — fresh, dành riêng test delete |
-   | **Contact** | `Cu Dinh` · `dinhhuycu0305@gmail.com` · `[[phone]]` |
+   | **Contact** | `Cu Dinh` · `support@mydeutschflow.com` · `[[phone]]` |
    | **Notes** | dán khối "Notes to reviewer" **đã sửa ở mục 2.1** |
 
    > ⚠️ **2 điều bắt buộc (vì "free" thực chất là trial 7 ngày PRO-lite):**
@@ -534,7 +534,7 @@ App được coi là **đã nộp thành công v1.0** khi tất cả các mục 
 - [ ] **6 screenshots `1320×2868`** (verify bằng `sips`), ảnh AI Speaking chụp từ account **còn trial**, không iPad/paywall/ads.
 - [~] **Demo account PRIMARY + SECONDARY** — đã TẠO MỚI 2 account (2026-07-04); CÒN: điền creds vào ASC (không để placeholder `[[…]]`) + dùng account có data cho screenshots.
 - [ ] **Reviewer Notes = bản ĐÃ SỬA ở mục 2.1** (mô tả đúng: AI text chạy với account mới; voice + persona nâng cao là Pro; hết trial hiện thông báo có chủ đích, không crash; không có nút mua trong app).
-- [ ] **App Review Contact đầy đủ:** tên, email `dinhhuycu0305@gmail.com`, **số điện thoại**.
+- [ ] **App Review Contact đầy đủ:** tên, email `support@mydeutschflow.com`, **số điện thoại**.
 - [x] **Tên seller (`LEGAL_NAME`) = "Cu Dinh"** — re-set + regenerate 2026-07-04 (commit local `053ea2df`, **chờ push → Amplify redeploy**); còn tick khớp tên Apple seller trong ASC.
 - [ ] **Export Compliance = No** (đã khai `ITSAppUsesNonExemptEncryption:false`).
 - [ ] **(EU) DSA / Trader status** đã trả lời nếu ASC nhắc (thị trường Đức).
