@@ -994,7 +994,21 @@
       "telcAlreadyUsed": "Already used for another question",
       "telcGapEmpty": "not chosen",
       "telcGapLabel": "Gap {n}",
-      "telcMissingPool": "This part of the exam is missing its list of options, so it cannot be answered. Please let us know."
+      "telcMissingPool": "This part of the exam is missing its list of options, so it cannot be answered. Please let us know.",
+      "gatesTitle": "Two pass thresholds",
+      "gatesHint": "telc has two separate thresholds — one cannot make up for the other.",
+      "gateWritten": "Written",
+      "gateOral": "Speaking",
+      "gateOther": "Other part",
+      "gatePassed": "Passed",
+      "gateFailed": "Not passed",
+      "gatePending": "Not taken",
+      "gateScore": "{raw}/{max} points · need {min}",
+      "gateThresholdOnly": "Need {min}/{max} points",
+      "gateFromSession": "From the speaking exam on {date}",
+      "gateGoToSpeaking": "Take the speaking exam",
+      "resultIncomplete": "Not enough to decide yet",
+      "resultIncompleteNote": "One part has not been taken yet."
     },
     "grammarPractice": {
       "title": "Grammar practice",

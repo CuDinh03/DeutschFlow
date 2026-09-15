@@ -176,15 +176,21 @@ class ExamScoringTelcFormatTest {
     }
 
     @Test
-    @DisplayName("chưa ghép phiên thi Nói thì cổng Nói là CHỜ, không phải trượt")
+    @DisplayName("chưa ghép phiên thi Nói thì cổng Nói là CHỜ — không phải trượt, nhưng cũng chưa phải đỗ")
     void summarize_telc_oralGatePendingWhenNoSpeakingSession() {
         ExamScoringService.ExamTotals totals = service.summarize(telcPerfectWritten(), 60, telcPassRule());
 
         assertThat(gate(totals, "oral").status()).isEqualTo(ExamScoringService.GATE_PENDING);
         assertThat(gate(totals, "oral").max()).isEqualTo(75);
         assertThat(gate(totals, "oral").min()).isEqualTo(45);
-        // Đỗ phần viết + chưa thi nói ⇒ chưa có cổng nào TRƯỢT nên không kết luận trượt.
-        assertThat(totals.passed()).isTrue();
+        // SỬA 15/09/2026 (đợt 3): bản đầu để `passed = true` ở đây, theo nguyên tắc "chưa chấm
+        // được thì đừng đánh trượt". Nguyên tắc đó đúng cho một PHẦN chưa chấm được, nhưng sai
+        // cho một CỔNG chưa thi — và cột `passed` này chính là thứ `/api/certificates/claim`
+        // lọc theo, nên để lỏng là mở một đường lấy chứng nhận bằng nửa kỳ thi.
+        assertThat(totals.passed()).isFalse();
+        assertThat(gate(totals, "written").status())
+                .as("vẫn phải nói rõ phần viết đã ĐẠT — 'chưa đỗ' không được đọc thành 'trượt'")
+                .isEqualTo(ExamScoringService.GATE_PASSED);
     }
 
     @Test

@@ -994,7 +994,21 @@
       "telcAlreadyUsed": "Bereits für eine andere Aufgabe verwendet",
       "telcGapEmpty": "offen",
       "telcGapLabel": "Lücke {n}",
-      "telcMissingPool": "Für diesen Prüfungsteil fehlt die Lösungsliste, er kann daher nicht bearbeitet werden. Bitte melden Sie uns das."
+      "telcMissingPool": "Für diesen Prüfungsteil fehlt die Lösungsliste, er kann daher nicht bearbeitet werden. Bitte melden Sie uns das.",
+      "gatesTitle": "Zwei Bestehensgrenzen",
+      "gatesHint": "telc hat zwei getrennte Grenzen — die eine gleicht die andere nicht aus.",
+      "gateWritten": "Schriftliche Prüfung",
+      "gateOral": "Mündliche Prüfung",
+      "gateOther": "Weiterer Teil",
+      "gatePassed": "Bestanden",
+      "gateFailed": "Nicht bestanden",
+      "gatePending": "Noch nicht abgelegt",
+      "gateScore": "{raw}/{max} Punkte · nötig {min}",
+      "gateThresholdOnly": "Nötig {min}/{max} Punkte",
+      "gateFromSession": "Aus der mündlichen Prüfung vom {date}",
+      "gateGoToSpeaking": "Mündliche Prüfung ablegen",
+      "resultIncomplete": "Noch keine Entscheidung möglich",
+      "resultIncompleteNote": "Ein Prüfungsteil fehlt noch."
     },
     "grammarPractice": {
       "title": "Grammatiktraining",

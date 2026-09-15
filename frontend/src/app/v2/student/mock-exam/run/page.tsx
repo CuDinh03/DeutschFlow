@@ -26,6 +26,8 @@ import { ConfirmDialog, GaCap, GaCard, GaPageHdr, LoadingState, TkBadge, TkSeg }
 import { ExamShell, type ExamSaveState } from '@/components/exam/ExamShell'
 import { ExamRecoveryPanel, ExamTaking, SECTION_COLOR, type ActiveExamData } from './ExamTaking'
 import { useFmt } from '@/lib/i18n/useFmt'
+import { ExamGatePanel } from '@/components/exam/telc/ExamGatePanel'
+import { gateVerdict, type ExamGate } from '@/components/exam/telc/examGates'
 
 /**
  * /v2/student/mock-exam/run — the Goethe mock-exam RUNNER (Galerie shell).
@@ -65,6 +67,8 @@ interface MockAttempt {
   detailed_scores_json?: string
   weak_areas?: string
   sections_json?: string
+  /** Ngưỡng đỗ độc lập của đề nhiều cổng (telc). Vắng mặt với mọi đề Goethe. */
+  gates?: ExamGate[]
 }
 
 interface SectionScore {
@@ -708,23 +712,41 @@ function MockExamRunner() {
                 <ArrowLeft size={16} aria-hidden /> {t('back')}
               </button>
 
-              <div
-                className="rounded-ga p-4 text-white lg:p-6"
-                style={{ background: selectedAttempt.passed ? 'var(--ga-green)' : 'var(--ga-ink)' }}
-              >
-                <div className="flex items-center gap-3">
-                  {selectedAttempt.passed ? <Trophy size={28} className="shrink-0" aria-hidden /> : <AlertCircle size={28} className="shrink-0" aria-hidden />}
-                  <div className="min-w-0">
-                    <p className="font-ga-display text-[18px] font-medium sm:text-[20px] lg:text-[22px]">
-                      {selectedAttempt.passed ? t('resultPassed') : t('resultFailed')}
-                    </p>
-                    <p className="ga-ui text-[13px] opacity-80">
-                      {t('provisional', { score: selectedAttempt.total_score ?? '—' })}
+              {(() => {
+                // Đề nhiều ngưỡng có BA trạng thái, không phải hai: một người đỗ phần viết nhưng
+                // chưa thi nói thì chưa đỗ — và cũng không trượt. Bảng cũ chỉ có đỗ/trượt nên sẽ
+                // in chữ "Trượt" ngay dưới một bài viết gần như tuyệt đối.
+                const verdict = gateVerdict(selectedAttempt.gates)
+                const daDo = verdict === null ? !!selectedAttempt.passed : verdict === 'PASSED'
+                const chuaDuKetLuan = verdict === 'INCOMPLETE'
+                return (
+                  <div
+                    className="rounded-ga p-4 text-white lg:p-6"
+                    style={{ background: daDo ? 'var(--ga-green)' : chuaDuKetLuan ? 'var(--ga-blue)' : 'var(--ga-ink)' }}
+                  >
+                    <div className="flex items-center gap-3">
+                      {daDo
+                        ? <Trophy size={28} className="shrink-0" aria-hidden />
+                        : <AlertCircle size={28} className="shrink-0" aria-hidden />}
+                      <div className="min-w-0">
+                        <p className="font-ga-display text-[18px] font-medium sm:text-[20px] lg:text-[22px]">
+                          {daDo ? t('resultPassed') : chuaDuKetLuan ? t('resultIncomplete') : t('resultFailed')}
+                        </p>
+                        <p className="ga-ui text-[13px] opacity-80">
+                          {t('provisional', { score: selectedAttempt.total_score ?? '—' })}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="ga-ui mt-3 text-[12px] opacity-70">
+                      {chuaDuKetLuan ? t('resultIncompleteNote') : t('provisionalNote')}
                     </p>
                   </div>
-                </div>
-                <p className="ga-ui mt-3 text-[12px] opacity-70">{t('provisionalNote')}</p>
-              </div>
+                )
+              })()}
+
+              {selectedAttempt.gates && selectedAttempt.gates.length > 0 && (
+                <ExamGatePanel gates={selectedAttempt.gates} />
+              )}
 
               {(() => {
                 let detailedScores: Record<string, SectionScore> = {}
