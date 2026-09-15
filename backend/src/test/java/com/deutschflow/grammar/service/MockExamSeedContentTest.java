@@ -33,8 +33,16 @@ class MockExamSeedContentTest {
     /** Chuỗi SQL một nháy chứa sections_json. Nội dung đề không được có dấu nháy đơn. */
     private static final Pattern SECTIONS_JSON =
             Pattern.compile("'(\\{[^']*\"sections\"[^']*})'", Pattern.DOTALL);
+    /**
+     * Chuỗi SQL kiểu {@code $j$…$j$} (idiom của V279 trở đi). Thiếu mẫu này thì một seed viết theo
+     * kiểu đó KHÔNG bị cổng nội dung soi — và không có gì báo, vì "không tìm thấy đề" trông y hệt
+     * "đề không có lỗi".
+     */
+    private static final Pattern SECTIONS_JSON_DOLLAR =
+            Pattern.compile("\\$j\\$\\s*(\\{.*?\"sections\".*?})\\s*\\$j\\$", Pattern.DOTALL);
     private static final Pattern NEW_SEED = Pattern.compile("V3\\d\\d__mock_exam.*\\.sql");
-    private static final Set<String> SECTION_NAMES = Set.of("LESEN", "HOEREN", "SCHREIBEN", "SPRECHEN");
+    private static final Set<String> SECTION_NAMES =
+            Set.of("LESEN", "SPRACHBAUSTEINE", "HOEREN", "SCHREIBEN", "SPRECHEN");
     private static final Set<String> MATCHING_LETTERS = Set.of("A", "B", "C", "D", "E", "F", "G", "H");
 
     @Test
@@ -45,14 +53,13 @@ class MockExamSeedContentTest {
 
         for (Path file : examSeedFiles()) {
             boolean strict = NEW_SEED.matcher(file.getFileName().toString()).matches();
-            Matcher matcher = SECTIONS_JSON.matcher(Files.readString(file));
             int index = 0;
-            while (matcher.find()) {
+            for (String json : examJsonBlocks(Files.readString(file))) {
                 index++;
                 String tag = file.getFileName() + "#đề" + index;
                 Map<String, Object> root;
                 try {
-                    root = OM.readValue(matcher.group(1), Map.class);
+                    root = OM.readValue(json, Map.class);
                 } catch (Exception e) {
                     problems.add(tag + ": sections_json không phải JSON hợp lệ — " + e.getMessage());
                     continue;
@@ -81,27 +88,30 @@ class MockExamSeedContentTest {
 
         for (Path file : examSeedFiles()) {
             if (!NEW_SEED.matcher(file.getFileName().toString()).matches()) continue;
-            Matcher matcher = SECTIONS_JSON.matcher(Files.readString(file));
             int index = 0;
-            while (matcher.find()) {
+            for (String json : examJsonBlocks(Files.readString(file))) {
                 index++;
-                Map<String, Object> root = OM.readValue(matcher.group(1), Map.class);
+                Map<String, Object> root = OM.readValue(json, Map.class);
                 for (Object sectionObj : (List<?>) root.get("sections")) {
                     Map<String, Object> section = cast((Map<?, ?>) sectionObj);
                     String name = String.valueOf(section.get("name"));
-                    if (!name.equals("LESEN") && !name.equals("HOEREN")) continue;
+                    if (!name.equals("LESEN") && !name.equals("HOEREN")
+                            && !name.equals("SPRACHBAUSTEINE")) continue;
+                    // Thang lấy từ CHÍNH đề: Goethe là 25/phần, telc là 75 (Đọc/Nghe) và 30 (Ngữ
+                    // pháp–từ vựng). Đóng cứng 25 ở đây là cổng chỉ còn đúng cho một định dạng.
+                    int expected = section.get("max_points") instanceof Number n ? n.intValue() : 25;
                     Map<String, Object> answers = answerKey(section);
                     Map<String, Object> score = scoring.scoreObjectiveSection(answers, section);
                     checked++;
-                    if (!Integer.valueOf(25).equals(score.get("total"))) {
+                    if (!Integer.valueOf(expected).equals(score.get("total"))) {
                         problems.add(file.getFileName() + "#đề" + index + "/" + name
-                                + ": trả lời đúng hết chỉ được " + score.get("total") + "/25");
+                                + ": trả lời đúng hết chỉ được " + score.get("total") + "/" + expected);
                     }
                 }
             }
         }
 
-        assertThat(checked).as("số phần Đọc/Nghe đã chấm thử").isEqualTo(34);
+        assertThat(checked).as("số phần khách quan đã chấm thử").isEqualTo(37);
         assertThat(problems).as("đề mới không đạt điểm tối đa dù đúng hết").isEmpty();
     }
 
@@ -118,6 +128,16 @@ class MockExamSeedContentTest {
             }
         }
         return answers;
+    }
+
+    /** Mọi khối {@code sections_json} trong một file, bất kể viết bằng nháy đơn hay {@code $j$}. */
+    private List<String> examJsonBlocks(String sql) {
+        List<String> blocks = new ArrayList<>();
+        for (Pattern pattern : List.of(SECTIONS_JSON, SECTIONS_JSON_DOLLAR)) {
+            Matcher matcher = pattern.matcher(sql);
+            while (matcher.find()) blocks.add(matcher.group(1));
+        }
+        return blocks;
     }
 
     private List<Path> examSeedFiles() throws IOException {
@@ -185,6 +205,16 @@ class MockExamSeedContentTest {
     private int checkTeil(String tag, Map<String, Object> teil, Set<String> ids,
                           boolean strict, List<String> problems) {
         if (!(teil.get("items") instanceof List<?> items)) return 0;
+        // Dạng bài telc có kho lựa chọn ở CẤP TEIL (`headlines` a–j, `ads` a–l, `word_bank` a–o),
+        // không ở từng câu — đáp án hợp lệ là một khoá của kho đó, hoặc `x` khi Teil cho phép
+        // "không mẩu nào hợp". Thiếu nhánh này thì cổng báo sai mọi câu ghép nối của telc.
+        Set<String> teilPool = new HashSet<>();
+        for (String key : List.of("headlines", "ads", "word_bank")) {
+            if (teil.get(key) instanceof Map<?, ?> pool) {
+                pool.keySet().forEach(k -> teilPool.add(String.valueOf(k)));
+            }
+        }
+        boolean allowNone = Boolean.TRUE.equals(teil.get("allow_none"));
         int count = 0;
         for (Object itemObj : items) {
             if (!(itemObj instanceof Map<?, ?> raw)) continue;
@@ -210,6 +240,11 @@ class MockExamSeedContentTest {
                 }
                 if (options.size() < 2) {
                     problems.add(tag + "/" + id + ": dưới hai lựa chọn");
+                }
+            } else if (!teilPool.isEmpty()) {
+                if (!teilPool.contains(answer) && !(allowNone && answer.equals("x"))) {
+                    problems.add(tag + "/" + id + ": đáp án " + answer + " không nằm trong kho của Teil "
+                            + teilPool + (allowNone ? " (và Teil này cũng nhận x)" : ""));
                 }
             } else if (!answer.equalsIgnoreCase("richtig") && !answer.equalsIgnoreCase("falsch")
                     && !MATCHING_LETTERS.contains(answer)) {
