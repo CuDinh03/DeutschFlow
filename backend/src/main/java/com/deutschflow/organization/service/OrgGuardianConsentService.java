@@ -3,6 +3,8 @@ package com.deutschflow.organization.service;
 import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.minor.BirthDateChange;
+import com.deutschflow.common.minor.BirthDateRecord;
 import com.deutschflow.common.minor.ConsentDraft;
 import com.deutschflow.common.minor.GuardianDraft;
 import com.deutschflow.common.minor.MinorConsentTerms;
@@ -10,20 +12,30 @@ import com.deutschflow.common.minor.MinorLearnerService;
 import com.deutschflow.common.minor.MinorPolicy;
 import com.deutschflow.common.minor.StudentConsent;
 import com.deutschflow.common.minor.StudentGuardian;
+import com.deutschflow.notification.NotificationType;
+import com.deutschflow.notification.entity.NotificationOutbox;
+import com.deutschflow.notification.repository.NotificationOutboxRepository;
+import com.deutschflow.organization.dto.OrgGuardianConsentDtos.BirthDateDto;
+import com.deutschflow.organization.dto.OrgGuardianConsentDtos.BirthDateRequest;
 import com.deutschflow.organization.dto.OrgGuardianConsentDtos.ConsentDto;
 import com.deutschflow.organization.dto.OrgGuardianConsentDtos.ConsentRequest;
 import com.deutschflow.organization.dto.OrgGuardianConsentDtos.GuardianDto;
 import com.deutschflow.organization.dto.OrgGuardianConsentDtos.GuardianRequest;
 import com.deutschflow.organization.dto.OrgGuardianConsentDtos.MinorSummary;
 import com.deutschflow.organization.repository.OrgMemberRepository;
+import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -56,6 +68,8 @@ public class OrgGuardianConsentService {
     private final UserRepository userRepository;
     private final MinorLearnerService minorLearnerService;
     private final MinorConsentTerms consentTerms;
+    private final OrganizationRepository orgRepository;
+    private final NotificationOutboxRepository outboxRepository;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Tóm tắt cho màn chi tiết học viên
@@ -74,6 +88,89 @@ public class OrgGuardianConsentService {
                 status != MinorPolicy.Status.UNKNOWN,
                 minorLearnerService.consentStatus(studentUserId, StudentConsent.Scope.AUDIO_RECORDING).name(),
                 minorLearnerService.guardiansOf(studentUserId).size());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Ngày sinh (Q-02/Q-05/Q-07, owner chốt 14/09/2026)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Giá trị thô + ai đặt lần gần nhất, cho ô sửa. Học viên phải là thành viên ACTIVE. */
+    @Transactional(readOnly = true)
+    public BirthDateDto birthDateOf(Long orgId, Long studentUserId) {
+        requireActiveMember(orgId, studentUserId);
+        BirthDateRecord record = minorLearnerService.birthDateOf(studentUserId);
+        if (record == null) {
+            // requireActiveMember đã chứng minh có ghế ⇒ tài khoản phải tồn tại. Tới đây là dữ liệu
+            // gãy, không phải đầu vào sai.
+            throw new NotFoundException("Không tìm thấy học viên " + studentUserId);
+        }
+        String recordedByName = record.recordedByUserId() == null ? null
+                : userRepository.findById(record.recordedByUserId())
+                        .map(OrgGuardianConsentService::displayNameOf)
+                        .orElse(null);
+        return new BirthDateDto(record.birthDate(), record.recordedAt(), record.recordedByUserId(),
+                recordedByName, minorLearnerService.statusOf(studentUserId).name());
+    }
+
+    /**
+     * Đặt/sửa ngày sinh, rồi BÁO CHO HỌC VIÊN (Q-05). Trả về trạng thái sau khi ghi để màn hình
+     * dựng lại ngay — nhóm tuổi đổi là các khoá của {@code MinorGate} đổi theo.
+     *
+     * <p>Thông báo ghi qua {@code notification_outbox} TRONG cùng giao dịch (khuôn G2): nếu lượt ghi
+     * này rollback thì thông báo biến mất cùng nó, không có chuyện học viên nhận tin về một thay đổi
+     * chưa từng xảy ra. Ngược lại, ghi thành công mà worker chưa gửi kịp thì dòng vẫn nằm đó chờ —
+     * không mất.
+     *
+     * <p>Gõ lại đúng ngày đang có ⇒ không ghi, không vết, không báo ({@link BirthDateChange}).
+     */
+    @Transactional
+    public BirthDateDto setBirthDate(Long orgId, Long studentUserId, BirthDateRequest request, AuditActor actor) {
+        requireActiveMember(orgId, studentUserId);
+        if (actor == null || actor.id() == null) {
+            throw new BadRequestException("Thiếu người thực hiện");
+        }
+        LocalDate birthDate = parseBirthDate(request == null ? null : request.birthDate());
+
+        BirthDateChange change = minorLearnerService.setBirthDate(
+                studentUserId, birthDate, actor.id(), orgId, actor);
+        if (change.changed()) {
+            enqueueBirthDateNotice(orgId, studentUserId, birthDate, change);
+        }
+        return birthDateOf(orgId, studentUserId);
+    }
+
+    /**
+     * {@code dedup_key} mang mốc thời gian vì cùng lý do với {@code enqueueAddedToClass}: một học
+     * viên có thể bị sửa ngày sinh nhiều lần (gõ nhầm rồi sửa lại), mỗi lượt là một sự kiện riêng
+     * và đều đáng báo. Khoá theo (học viên) thôi sẽ để UNIQUE nuốt mất lượt thứ hai.
+     */
+    private void enqueueBirthDateNotice(Long orgId, Long studentUserId, LocalDate birthDate,
+                                        BirthDateChange change) {
+        String orgName = orgRepository.findById(orgId).map(o -> o.getName()).orElse("");
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("orgId", orgId);
+        payload.put("orgName", orgName == null ? "" : orgName);
+        payload.put("birthDate", birthDate.toString());
+        payload.put("minorStatus", change.minorStatus().name());
+        payload.put("firstRecord", change.firstRecord());
+        outboxRepository.save(NotificationOutbox.builder()
+                .dedupKey("birthdate:u" + studentUserId + ":t" + Instant.now().toEpochMilli())
+                .notificationType(NotificationType.BIRTH_DATE_UPDATED)
+                .recipientId(studentUserId)
+                .payload(payload)
+                .build());
+    }
+
+    /** Chuỗi {@code yyyy-MM-dd} → ngày. Khoảng hợp lệ do {@code MinorLearnerService} kiểm. */
+    private static LocalDate parseBirthDate(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new BadRequestException("Ngày sinh là bắt buộc");
+        }
+        try {
+            return LocalDate.parse(raw.trim());
+        } catch (DateTimeParseException ex) {
+            throw new BadRequestException("Ngày sinh \"" + raw + "\" không đúng định dạng (YYYY-MM-DD)");
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -62,6 +62,10 @@ export function resolveNotificationRoute(
         ? { pathname: '/(student)/messages/[userId]', params: { userId: senderId, name: senderName } }
         : '/(student)/messages'
 
+    case 'BIRTH_DATE_UPDATED':
+      // Về hồ sơ của chính mình: thông báo này chỉ có ích khi người nhận đối chiếu được giá trị.
+      return '/(student)/settings/profile'
+
     case 'REVIEW_DUE':
       return '/(student)/srs'
 

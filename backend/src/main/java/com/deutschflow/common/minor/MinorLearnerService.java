@@ -70,6 +70,13 @@ public class MinorLearnerService {
      */
     private static final String SQL_READ_BIRTH_DATE = "SELECT birth_date FROM users WHERE id = ?";
 
+    /** Ba cột của một lần ghi ngày sinh — cho màn sửa của trung tâm ({@link #birthDateOf}). */
+    private static final String SQL_READ_BIRTH_DATE_RECORD = """
+            SELECT birth_date, birth_date_recorded_at, birth_date_recorded_by
+              FROM users
+             WHERE id = ?
+            """;
+
     /**
      * Ghi ngày sinh MỘT LẦN. {@code AND birth_date IS NULL} vừa là luật nghiệp vụ vừa là chốt đua:
      * hai request nhập cùng lúc thì câu thứ hai chạm 0 dòng, không cần khoá và không có TOCTOU.
@@ -81,6 +88,22 @@ public class MinorLearnerService {
                    birth_date_recorded_by = ?
              WHERE id = ?
                AND birth_date IS NULL
+            """;
+
+    /**
+     * Ghi ngày sinh KỂ CẢ khi cột đã có giá trị — đường sửa của trung tâm (owner chốt Q-02/Q-05
+     * ngày 14/09/2026). {@code IS DISTINCT FROM} làm luôn việc lọc no-op: gõ lại đúng ngày đang có
+     * thì chạm 0 dòng, nên không có vết rỗng và không có thông báo rỗng gửi cho học viên. Viết
+     * {@code IS DISTINCT FROM} chứ không {@code <>} vì {@code NULL <> '2009-05-01'} là NULL, tức
+     * lần khai đầu tiên sẽ không khớp dòng nào.
+     */
+    private static final String SQL_SET_BIRTH_DATE = """
+            UPDATE users
+               SET birth_date = ?,
+                   birth_date_recorded_at = NOW(),
+                   birth_date_recorded_by = ?
+             WHERE id = ?
+               AND birth_date IS DISTINCT FROM ?
             """;
 
     private final JdbcTemplate jdbcTemplate;
@@ -110,8 +133,12 @@ public class MinorLearnerService {
      * người gọi đếm nó thành một dòng bỏ qua. Còn {@code studentUserId} không tồn tại thì VẪN ném
      * {@link NotFoundException} — đó là lỗi lập trình, không phải trạng thái dữ liệu.
      *
-     * <p>Sửa một ngày sinh ĐÃ CÓ là đường riêng, phải kiểm quyền chặt hơn (không thuộc trung tâm mà
-     * thuộc chủ tài khoản hoặc admin nền tảng, kèm lý do). Đường đó chưa tồn tại và cố ý chưa có.
+     * <p><b>Sửa một ngày sinh ĐÃ CÓ đi đường khác:</b> {@link #setBirthDate}. Owner chốt ngày
+     * 14/09/2026 (Q-02/Q-05) rằng trung tâm sửa được — lập luận person-owned ở trên không mất, nó
+     * được trả giá bằng hai thứ mà đường này không có: mỗi lượt sửa để lại vết
+     * {@code student_birth_date_updated} và học viên nhận một thông báo. Giữ hai hàm tách đôi vì
+     * đường CSV phải tiếp tục KHÔNG ghi đè: một tệp nhập lại lần hai không được phép lặng lẽ dời
+     * ngày sinh mà ai đó đã sửa tay.
      *
      * @param recordedByUserId ai gõ vào. BẮT BUỘC — một thay đổi danh tính không có người chịu
      *                         trách nhiệm thì {@code birth_date_recorded_by} vô nghĩa
@@ -146,6 +173,100 @@ public class MinorLearnerService {
                 TARGET_MINOR, String.valueOf(studentUserId), touchedOrgId, meta);
         log.info("[Minor] Đã ghi birth_date cho học viên {} (status={})", studentUserId, status);
         return true;
+    }
+
+    /**
+     * Đặt ngày sinh, GHI ĐÈ nếu đã có — đường của trung tâm sửa một ngày gõ nhầm (owner chốt
+     * Q-02/Q-05/Q-07 ngày 14/09/2026).
+     *
+     * <p><b>Vì sao phải có, dù {@link #recordBirthDate} cố ý chỉ ghi một lần.</b> Ngày sinh quyết
+     * định học viên có dùng được phần luyện nói và phần chấm bài bằng AI hay không. Gõ nhầm một số
+     * ở cột CSV là khoá nhầm một em cho tới hết khoá học, mà trước 14/09 KHÔNG ai mở lại được:
+     * trung tâm không có ô sửa, học viên không có ô nhập, admin nền tảng cũng không có đường. Một
+     * dữ liệu vừa dễ nhập sai vừa quyết định quyền lợi thì phải có đường sửa, nếu không màn hình
+     * hứa một đằng còn người dùng bế tắc một nẻo.
+     *
+     * <p><b>Cái giá phải trả, và cách trả.</b> Đây đúng là một trung tâm sửa thuộc tính DANH TÍNH
+     * trên tài khoản của người khác — thứ mà javadoc {@link #recordBirthDate} đã cảnh báo, và cảnh
+     * báo đó vẫn đúng: hạ tuổi một em 15 xuống thành 18 là mở khoá đường gửi giọng nói của em ấy
+     * cho nhà cung cấp bên ngoài. Nên đường này không im lặng. Mỗi lượt sửa để lại vết
+     * {@code student_birth_date_updated} mang {@code previousStatus} → {@code minorStatus}, tức
+     * đúng cái lượt "MINOR_LEGAL thành ADULT" sẽ nổi lên trong sổ; và người gọi ở tầng org báo cho
+     * học viên. Phát hiện được và người bị ảnh hưởng biết — đó là hai thứ thay cho việc cấm.
+     *
+     * <p>Gõ lại đúng ngày đang có ⇒ {@code changed=false}: không ghi, không vết, không thông báo.
+     * Một cú bấm Lưu không đổi gì thì không phải là một sự kiện đáng vào sổ bằng chứng.
+     *
+     * @param recordedByUserId ai gõ vào — ghi đè luôn {@code birth_date_recorded_by}: người chịu
+     *                         trách nhiệm cho giá trị ĐANG có là người đặt nó gần nhất
+     * @param touchedOrgId     trung tâm BỊ TÁC ĐỘNG, do controller giải bằng {@code AuditOrgResolver}
+     * @throws NotFoundException học viên không tồn tại (lỗi lập trình, không phải trạng thái dữ liệu)
+     */
+    @Transactional
+    public BirthDateChange setBirthDate(Long studentUserId, LocalDate birthDate, Long recordedByUserId,
+                                        Long touchedOrgId, AuditActor actor) {
+        requireId(studentUserId, "studentUserId");
+        requireId(recordedByUserId, "recordedByUserId");
+        validateBirthDate(birthDate);
+
+        // Đọc THẲNG CỘT vì cùng lý do với statusOf(): entity User có thể đang mang bản chụp cũ.
+        // Danh sách rỗng = không có hàng nào ⇒ phân biệt được "không tồn tại" với "đang NULL",
+        // điều mà số dòng UPDATE một mình không nói được.
+        List<LocalDate> rows = jdbcTemplate.queryForList(SQL_READ_BIRTH_DATE, LocalDate.class, studentUserId);
+        if (rows.isEmpty()) {
+            throw new NotFoundException("Không tìm thấy học viên " + studentUserId);
+        }
+        LocalDate previous = rows.get(0);
+        MinorPolicy.Status status = minorPolicy.statusOf(birthDate);
+
+        int written = jdbcTemplate.update(SQL_SET_BIRTH_DATE,
+                birthDate, recordedByUserId, studentUserId, birthDate);
+        if (written == 0) {
+            // Đọc ở trên đã chứng minh hàng tồn tại ⇒ 0 dòng chỉ còn một nghĩa: trùng giá trị.
+            log.debug("[Minor] Đặt lại đúng birth_date đang có của học viên {} — bỏ qua", studentUserId);
+            return new BirthDateChange(false, false, status);
+        }
+
+        boolean firstRecord = previous == null;
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("studentUserId", studentUserId);
+        meta.put("recordedByUserId", recordedByUserId);
+        meta.put("minorStatus", status.name());
+        if (!firstRecord) {
+            // Nhóm tuổi, KHÔNG phải ngày sinh: bốn mức này là căn cứ của mọi chốt chặn, nên vết nói
+            // được "lượt sửa này mở khoá cái gì" mà vẫn không chép dữ liệu cá nhân của trẻ sang một
+            // bảng mà cả admin nền tảng lẫn quản trị trung tâm đều đọc.
+            meta.put("previousStatus", minorPolicy.statusOf(previous).name());
+        }
+        auditLogService.log(firstRecord ? "student_birth_date_recorded" : "student_birth_date_updated",
+                actor, TARGET_MINOR, String.valueOf(studentUserId), touchedOrgId, meta);
+        log.info("[Minor] Đã {} birth_date cho học viên {} (status={})",
+                firstRecord ? "ghi" : "SỬA", studentUserId, status);
+        return new BirthDateChange(true, firstRecord, status);
+    }
+
+    /**
+     * Ngày sinh đang lưu + ai đặt nó lần gần nhất — cho màn SỬA của trung tâm.
+     *
+     * <p>Đường đọc duy nhất trả giá trị THÔ. {@link #statusOf} chỉ trả nhóm tuổi vì mọi chốt chặn
+     * chỉ cần nhóm tuổi; nhưng một người sắp sửa một giá trị thì phải thấy giá trị đang có, nếu
+     * không họ sửa mù. Người gọi chịu trách nhiệm chứng minh quyền trước khi gọi.
+     *
+     * @return {@code null} nếu không có tài khoản nào mang id này
+     */
+    @Transactional(readOnly = true)
+    public BirthDateRecord birthDateOf(Long studentUserId) {
+        requireId(studentUserId, "studentUserId");
+        List<BirthDateRecord> rows = jdbcTemplate.query(SQL_READ_BIRTH_DATE_RECORD, (rs, i) -> {
+            java.sql.Date date = rs.getDate("birth_date");
+            java.sql.Timestamp at = rs.getTimestamp("birth_date_recorded_at");
+            long by = rs.getLong("birth_date_recorded_by");
+            return new BirthDateRecord(
+                    date == null ? null : date.toLocalDate(),
+                    at == null ? null : at.toInstant(),
+                    rs.wasNull() ? null : by);
+        }, studentUserId);
+        return rows.isEmpty() ? null : rows.get(0);
     }
 
     /**

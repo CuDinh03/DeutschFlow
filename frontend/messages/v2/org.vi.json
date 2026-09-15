@@ -243,7 +243,9 @@
           "ADULT": "Đủ tuổi"
         },
         "birthDateRecorded": "Đã có ngày sinh",
-        "birthDateMissing": "Chưa có ngày sinh — bổ sung qua nhập CSV (cột birthDate)",
+        "birthDateMissing": "Chưa có ngày sinh",
+        "editBirthDate": "Sửa ngày sinh",
+        "addBirthDate": "Nhập ngày sinh",
         "audioConsentLabel": "Đồng ý ghi âm",
         "audioConsent": {
           "NEVER_RECORDED": "Chưa ghi nhận",
@@ -346,6 +348,21 @@
           "confirmDetailAppendOnly": "Sổ chỉ ghi thêm: dòng này không sửa, không xoá được sau khi ghi.",
           "saved": "Đã ghi nhận đồng ý",
           "revoked": "Đã ghi thu hồi đồng ý"
+        },
+        "birthDateModal": {
+          "titleAdd": "Nhập ngày sinh",
+          "titleEdit": "Sửa ngày sinh",
+          "description": "Ngày sinh quyết định học viên có dùng được phần luyện nói và chấm bài bằng AI hay không.",
+          "label": "Ngày sinh",
+          "recordedBy": "Giá trị đang có do {name} đặt lúc {at}.",
+          "unknownRecorder": "một tài khoản đã xoá",
+          "noticeHint": "Học viên sẽ nhận một thông báo về lần thay đổi này.",
+          "gateHint": "Đổi nhóm tuổi là đổi quyền: dưới 18 thì phần luyện nói khoá lại cho tới khi trung tâm ghi nhận phiếu đồng ý của người giám hộ.",
+          "invalid": "Ngày sinh không hợp lệ",
+          "future": "Ngày sinh không được ở tương lai",
+          "cancel": "Huỷ",
+          "submit": "Lưu",
+          "saved": "Đã lưu ngày sinh"
         }
       }
     },

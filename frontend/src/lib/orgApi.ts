@@ -528,6 +528,38 @@ export async function updateStudentGuardian(
   return res.data
 }
 
+/**
+ * Ngày sinh THÔ của một học viên + ai đặt lần gần nhất (Q-02, 14/09/2026).
+ *
+ * Không có trong `OrgStudentDetail`: màn chi tiết chỉ cần nhóm tuổi, nên giá trị thật đi đường
+ * riêng và chỉ tải khi người dùng thực sự mở ô sửa.
+ */
+export interface OrgStudentBirthDate {
+  /** `yyyy-MM-dd`, hoặc null nếu chưa ai khai. */
+  birthDate: string | null
+  recordedAt: string | null
+  recordedByUserId: number | null
+  /** Tên người đặt; null nếu tài khoản đó đã bị xoá. */
+  recordedByName: string | null
+  minorStatus: OrgStudentDetail['minorStatus']
+}
+
+/** GET /org/students/{id}/birth-date — OWNER/MANAGER; 404 nếu học viên không thuộc trung tâm. */
+export async function getStudentBirthDate(studentId: number): Promise<OrgStudentBirthDate> {
+  const res = await api.get<OrgStudentBirthDate>(`/org/students/${studentId}/birth-date`)
+  return res.data
+}
+
+/**
+ * PUT /org/students/{id}/birth-date — đặt hoặc SỬA. Mỗi lượt đổi thật để lại vết
+ * `student_birth_date_updated` và gửi một thông báo cho chính học viên (máy chủ lo cả hai).
+ * Gõ lại đúng ngày đang có: 200 nhưng không ghi gì.
+ */
+export async function setStudentBirthDate(studentId: number, birthDate: string): Promise<OrgStudentBirthDate> {
+  const res = await api.put<OrgStudentBirthDate>(`/org/students/${studentId}/birth-date`, { birthDate })
+  return res.data
+}
+
 /** GET /org/students/{id}/consents — sổ đồng ý, mới nhất trước. */
 export async function listStudentConsents(studentId: number): Promise<OrgStudentConsent[]> {
   const res = await api.get<OrgStudentConsent[]>(`/org/students/${studentId}/consents`)

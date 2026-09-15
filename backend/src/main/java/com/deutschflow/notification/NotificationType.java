@@ -125,5 +125,22 @@ public enum NotificationType {
      * (nội dung đọc từ {@code GET /api/student/report-issues}). Ghi qua notification_outbox trong giao
      * dịch phát hành (G2), worker gửi sau commit.
      */
-    REPORT_ISSUED
+    REPORT_ISSUED,
+
+    // ── Ngày sinh do trung tâm đặt (Q-02/Q-05, owner chốt 14/09/2026) ─────
+
+    /**
+     * Trung tâm ghi hoặc SỬA ngày sinh trên hồ sơ của một học viên. Recipient: chính học viên đó.
+     *
+     * <p>Đây là nửa "minh bạch hai chiều" của quyết định cho trung tâm sửa được ngày sinh: ngày
+     * sinh quyết định học viên có dùng được phần luyện nói và chấm bài AI hay không, nên một lượt
+     * sửa im lặng là một lượt đổi quyền lợi sau lưng người bị ảnh hưởng. Nửa còn lại là vết
+     * {@code student_birth_date_updated}.
+     *
+     * <p>Payload: {@code orgId}, {@code orgName}, {@code birthDate} (ISO date), {@code minorStatus},
+     * {@code firstRecord} (true = khai lần đầu, false = sửa giá trị đã có). Câu render ở
+     * {@code NotificationContentRenderer} CỐ Ý không nhắc ngày sinh — body này đi thẳng vào push
+     * Expo và hiện trên màn hình khoá; giá trị nằm ở payload cho web/mobile hiện trong chi tiết.
+     */
+    BIRTH_DATE_UPDATED
 }

@@ -2,6 +2,8 @@ package com.deutschflow.organization.controller;
 
 import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.organization.dto.OrgGuardianConsentDtos.BirthDateDto;
+import com.deutschflow.organization.dto.OrgGuardianConsentDtos.BirthDateRequest;
 import com.deutschflow.organization.dto.OrgGuardianConsentDtos.ConsentDto;
 import com.deutschflow.organization.dto.OrgGuardianConsentDtos.ConsentRequest;
 import com.deutschflow.organization.dto.OrgGuardianConsentDtos.GuardianDto;
@@ -35,8 +37,12 @@ import java.util.List;
  * hồ sơ giám hộ nhưng không ghi thêm gì. Học viên phải là thành viên ACTIVE của chính trung tâm đó,
  * nếu không 404 (xem javadoc {@link OrgGuardianConsentService}).
  *
+ * <p>Từ 14/09/2026 thêm cặp {@code GET}/{@code PUT /birth-date} — đường DUY NHẤT sửa được một
+ * ngày sinh đã ghi (owner chốt Q-02/Q-05/Q-07). Xem đánh đổi ở {@code MinorLearnerService#setBirthDate}.
+ *
  * <p>Vết audit ghi ở SERVICE ({@code MinorLearnerService}: {@code student_guardian_recorded},
- * {@code student_guardian_updated}, {@code student_consent_recorded}) — trong cùng transaction với
+ * {@code student_guardian_updated}, {@code student_consent_recorded},
+ * {@code student_birth_date_recorded}, {@code student_birth_date_updated}) — trong cùng transaction với
  * mutation, đúng nguyên tắc của {@code AuditActor}. Đường đọc không ghi vết: đây là hồ sơ liên lạc
  * và sổ bằng chứng mà chính trung tâm đã nhập, không phải nội dung riêng tư của trẻ như tin nhắn.
  *
@@ -52,6 +58,35 @@ public class OrgGuardianConsentController {
 
     private final OrgGuard orgGuard;
     private final OrgGuardianConsentService service;
+
+    // ── Ngày sinh (Q-02/Q-05/Q-07, owner chốt 14/09/2026) ────────────────────
+
+    /**
+     * Ngày sinh THÔ + ai đặt lần gần nhất. Đường đọc riêng, không gộp vào {@code GET
+     * /api/org/students/{id}}: màn chi tiết chỉ cần nhóm tuổi, còn giá trị thật thì chỉ người sắp
+     * sửa mới cần — xem javadoc {@code BirthDateDto}.
+     */
+    @GetMapping("/birth-date")
+    public BirthDateDto birthDate(@AuthenticationPrincipal User user, @PathVariable Long userId) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        return service.birthDateOf(orgId, userId);
+    }
+
+    /**
+     * Đặt hoặc SỬA ngày sinh. Trung tâm bị đình chỉ/hết hạn chỉ xem được, không sửa
+     * ({@code assertOrgAdminForWrite}).
+     *
+     * <p>PUT chứ không PATCH: tài nguyên này có đúng một trường, và mỗi lượt gọi đặt lại toàn bộ
+     * giá trị. Vết {@code student_birth_date_updated} + thông báo cho học viên ghi ở service.
+     */
+    @PutMapping("/birth-date")
+    public BirthDateDto setBirthDate(@AuthenticationPrincipal User user, @PathVariable Long userId,
+                                     @RequestBody(required = false) BirthDateRequest body) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdminForWrite(user.getId(), orgId);
+        return service.setBirthDate(orgId, userId, body, AuditActor.of(user));
+    }
 
     // ── Người giám hộ ────────────────────────────────────────────────────────
 
