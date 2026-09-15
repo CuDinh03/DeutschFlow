@@ -183,4 +183,82 @@ class ExamSessionOrchestratorTest {
         assertThat(steps.get(0).hintVi()).containsIgnoringCase("quan điểm");
         assertThat(steps.get(2).aiAction()).isEqualTo("CONCLUDE");
     }
+
+    // ── telc B1 T2: ba pha của „Gespräch über ein Thema" (đợt 7, 15/09/2026) ──────────────
+
+    private List<SessionPlan.Step> telcTeil2(String cardType) {
+        BlueprintPart p = new BlueprintPart(2, TaskArchetype.TOPIC_EXCHANGE, "Gespräch über ein Thema", 330,
+                PartFlow.DIALOGUE, "PARTNER", cardType, 1, 1, 8);
+        return o.steps(p, cards(1, Map.of("type", cardType, "thema", "Reisen")));
+    }
+
+    @Test
+    void telcTeil2_hasThreeDistinctPhases_notOneRepeatedHint() {
+        List<SessionPlan.Step> steps = telcTeil2("TOPIC_GRAPHIC_PAIR");
+
+        // Pha 1 — thông tin: ĐÚNG MỘT lượt, và phải nói rõ là ngắn.
+        assertThat(steps.get(0).hintKey()).isEqualTo("OPEN_VORLAGE");
+        assertThat(steps.get(0).aiAction()).isEqualTo("REPORT_OWN");
+        assertThat(steps.get(0).hintVi()).contains("NGẮN GỌN");
+        assertThat(steps.stream().filter(st -> st.hintKey().equals("OPEN_VORLAGE"))).hasSize(1);
+
+        // Pha 2 — ý kiến kèm lý do: cũng đúng một lượt, và phải đòi LÝ DO.
+        assertThat(steps.get(1).hintKey()).isEqualTo("OPINION_VORLAGE");
+        assertThat(steps.get(1).hintVi()).contains("LÝ DO");
+
+        // Pha 3 — phản hồi: chiếm phần còn lại, bám vào điều bạn thi vừa nói.
+        assertThat(steps.subList(2, steps.size() - 1))
+                .allMatch(st -> st.hintKey().equals("REACT_VORLAGE"));
+        assertThat(steps.get(2).hintVi()).contains("bạn thi vừa nói");
+    }
+
+    @Test
+    void telcTeil2_closeComparesViews_doesNotAskToAgreeOnAPlan() {
+        SessionPlan.Step close = telcTeil2("TOPIC_GRAPHIC_PAIR").get(7);
+
+        assertThat(close.hintKey()).isEqualTo("CLOSE_VORLAGE");
+        // Trước đợt này câu kết là "tóm tắt điều hai bên thống nhất" — đó là kịch bản đàm phán
+        // của Teil 3. Teil 2 không có gì để thống nhất.
+        assertThat(close.hintVi()).doesNotContain("thống nhất");
+        assertThat(close.hintVi()).contains("đối chiếu quan điểm");
+    }
+
+    @Test
+    void telcTeil2_textVorlageFollowsTheSameScript_asGraphicVorlage() {
+        List<SessionPlan.Step> graphic = telcTeil2("TOPIC_GRAPHIC_PAIR");
+        List<SessionPlan.Step> text = telcTeil2("TOPIC_TEXT_PAIR");
+
+        assertThat(text.stream().map(SessionPlan.Step::hintKey).toList())
+                .as("Vorlage dạng đoạn văn cũng là telc T2 — không được rơi về kịch bản mặc định")
+                .isEqualTo(graphic.stream().map(SessionPlan.Step::hintKey).toList());
+    }
+
+    // ── telc B1 T3: thẻ riêng, bắt buộc phân công việc ───────────────────────────────────
+
+    @Test
+    void telcTeil3_taskSituation_requiresSplittingTheWork() {
+        BlueprintPart p = new BlueprintPart(3, TaskArchetype.PLAN_NEGOTIATE, "Gemeinsam eine Aufgabe lösen", 300,
+                PartFlow.DIALOGUE, "PARTNER", "TASK_SITUATION", 1, 1, 8);
+        List<SessionPlan.Step> steps = o.steps(p, cards(1, Map.of("type", "TASK_SITUATION", "situation", "Ein Kollege zieht um.")));
+
+        assertThat(steps.get(0).hintKey()).isEqualTo("OPEN_TASK_SITUATION");
+        assertThat(steps.get(1).hintKey()).isEqualTo("REACT_TASK_SITUATION");
+        assertThat(steps.get(1).hintVi()).as("„wer welche Aufgaben übernimmt“ — yêu cầu của đề thật")
+                .contains("ai làm việc gì");
+        SessionPlan.Step close = steps.get(steps.size() - 1);
+        assertThat(close.hintKey()).isEqualTo("CLOSE_TASK_SITUATION");
+        assertThat(close.hintVi()).contains("ai nhận việc gì");
+    }
+
+    @Test
+    void goetheB1Teil1_planningCard_isUnchanged() {
+        BlueprintPart p = new BlueprintPart(1, TaskArchetype.PLAN_NEGOTIATE, "Gemeinsam etwas planen", 180,
+                PartFlow.DIALOGUE, "PARTNER", "PLANNING_CARD", 1, 1, 3);
+        List<SessionPlan.Step> steps = o.steps(p, cards(1, Map.of("type", "PLANNING_CARD", "situation", "Abschlussfeier")));
+
+        assertThat(steps.stream().map(SessionPlan.Step::hintKey).toList())
+                .as("đề Goethe KHÔNG được đổi vì thay đổi của telc")
+                .isEqualTo(List.of("OPEN_DEFAULT", "REACT_DEFAULT", "CLOSE_DEFAULT"));
+        assertThat(steps.get(2).hintVi()).contains("thống nhất");
+    }
 }
