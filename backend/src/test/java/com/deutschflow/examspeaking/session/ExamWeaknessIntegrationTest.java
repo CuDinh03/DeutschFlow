@@ -28,8 +28,26 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
+/**
+ * 🪤 Tắt nhịp quét nền của hàng đợi AI cho RIÊNG lớp này.
+ *
+ * <p>{@code AiJobWorker.processPendingJobs} chạy mỗi 2 giây suốt integration test, nhặt job PENDING
+ * còn tồn của ca test trước và gọi vào cùng mock AI trên LUỒNG NỀN. Nếu nó chen đúng lúc
+ * {@code @BeforeEach} đang đặt stub thì Mockito gắn stub vào lời gọi nền (tham số cụ thể của ca cũ)
+ * thay vì vào các matcher — {@code getStubbings()} vẫn trả 1 nhưng mọi lời gọi của ca đang chạy đều
+ * không khớp và trả {@code null}, rơi hết xuống câu dự phòng.
+ *
+ * <p>Đo 15/09/2026: trước khi tắt, lớp này đỏ ~1/2 số lượt và khi đỏ thì đỏ TOÀN BỘ lời gọi AI
+ * (14/14). Sau khi tắt: 8/8 lượt xanh, 0 lần rơi dự phòng.
+ *
+ * <p>⚠️ Tắt theo LỚP chứ không tắt toàn cục: {@code AiJobWorkerClaimIntegrationTest},
+ * {@code StaleAiJobGuardIntegrationTest} và {@code ExamGradingFailurePathIntegrationTest} CẦN nhịp
+ * quét đó — tắt toàn cục làm chúng chờ hết giờ rồi đỏ.
+ */
+@org.springframework.test.context.TestPropertySource(properties = "app.ai-jobs.scheduled-enabled=false")
 /**
  * Đợt 5a: lỗi drill (quickEval) chảy vào kho yếu điểm — user_grammar_errors + user_error_skills +
  * error_review_tasks (SRS) + speaking_exam_error_stats (facet dạng bài, V282) — và endpoint
@@ -56,7 +74,11 @@ class ExamWeaknessIntegrationTest extends AbstractPostgresIntegrationTest {
                 userId, Timestamp.from(Instant.parse("2026-01-01T00:00:00Z")));
         jdbcTemplate.update("INSERT INTO user_ai_token_wallets (user_id, balance, last_accrual_local_date) VALUES (?, ?, NULL)",
                 userId, 1_000_000L);
-        when(chatClient.chatCompletionForTier(any(), any(), anyDouble(), anyInt(), anyBoolean())).thenAnswer(inv -> {
+        // 🪤 doAnswer(...).when(mock) chứ KHÔNG when(mock.gọi(...)): dạng sau gọi thật vào mock để
+        // ghi matcher, mà việc chấm bài chạy NỀN của ca trước vẫn đang gọi chính mock này — hai
+        // lời gọi chen nhau thì Mockito gắn stub vào lời gọi nền và mọi lời gọi sau trả `null`.
+        // Xem chú thích đầy đủ trong ExamSessionFlowIntegrationTest.
+        doAnswer(inv -> {
             List<ChatMessage> msgs = inv.getArgument(0);
             String user = msgs.get(msgs.size() - 1).content();
             String body;
@@ -67,7 +89,7 @@ class ExamWeaknessIntegrationTest extends AbstractPostgresIntegrationTest {
                 body = "{\"reply_de\":\"Ja, gern. Und Sie?\"}";
             }
             return new AiChatCompletionResult(body, TokenUsage.exact(120, 40, 160), "test", "fake-model");
-        });
+        }).when(chatClient).chatCompletionForTier(any(), any(), anyDouble(), anyInt(), anyBoolean());
     }
 
     @Test

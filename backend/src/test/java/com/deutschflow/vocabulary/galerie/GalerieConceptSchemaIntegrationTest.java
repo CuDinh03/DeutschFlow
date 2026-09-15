@@ -25,8 +25,26 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
+/**
+ * 🪤 Tắt nhịp quét nền của hàng đợi AI cho RIÊNG lớp này.
+ *
+ * <p>{@code AiJobWorker.processPendingJobs} chạy mỗi 2 giây suốt integration test, nhặt job PENDING
+ * còn tồn của ca test trước và gọi vào cùng mock AI trên LUỒNG NỀN. Nếu nó chen đúng lúc
+ * {@code @BeforeEach} đang đặt stub thì Mockito gắn stub vào lời gọi nền (tham số cụ thể của ca cũ)
+ * thay vì vào các matcher — {@code getStubbings()} vẫn trả 1 nhưng mọi lời gọi của ca đang chạy đều
+ * không khớp và trả {@code null}, rơi hết xuống câu dự phòng.
+ *
+ * <p>Đo 15/09/2026: trước khi tắt, lớp này đỏ ~1/2 số lượt và khi đỏ thì đỏ TOÀN BỘ lời gọi AI
+ * (14/14). Sau khi tắt: 8/8 lượt xanh, 0 lần rơi dự phòng.
+ *
+ * <p>⚠️ Tắt theo LỚP chứ không tắt toàn cục: {@code AiJobWorkerClaimIntegrationTest},
+ * {@code StaleAiJobGuardIntegrationTest} và {@code ExamGradingFailurePathIntegrationTest} CẦN nhịp
+ * quét đó — tắt toàn cục làm chúng chờ hết giờ rồi đỏ.
+ */
+@org.springframework.test.context.TestPropertySource(properties = "app.ai-jobs.scheduled-enabled=false")
 /**
  * SQL Galerie chạy trên PostgreSQL THẬT — khoá lại lỗi prod ERR-1..3 (16/08): unit test mock
  * JdbcTemplate không chạm tới SQL nên đã che việc {@code words} KHÔNG có cột {@code meaning}/
@@ -95,10 +113,12 @@ class GalerieConceptSchemaIntegrationTest extends AbstractPostgresIntegrationTes
     @WithMockUser(roles = "ADMIN")
     @DisplayName("generateForWordIds: đọc nghĩa từ word_translations, persist family/concept/CONCEPT_READY; overview đọc lại được")
     void generateForWordIds_persistsAndOverviewReads() {
-        when(chatClient.chatCompletionForTier(anyList(), any(), anyDouble(), anyInt(), anyBoolean()))
-                .thenReturn(new AiChatCompletionResult(
-                        "{\"family\":\"OBJEKT\",\"concept\":\"One expressive test apple.\"}",
-                        null, "test", "test-model"));
+        // 🪤 doAnswer/doReturn chứ KHÔNG when(mock.gọi(...)) — xem chú thích trong
+        // ExamSessionFlowIntegrationTest: dạng sau gọi thật vào mock và có thể chen với lời gọi nền.
+        doReturn(new AiChatCompletionResult(
+                "{\"family\":\"OBJEKT\",\"concept\":\"One expressive test apple.\"}",
+                null, "test", "test-model"))
+                .when(chatClient).chatCompletionForTier(anyList(), any(), anyDouble(), anyInt(), anyBoolean());
 
         GalerieConceptBatchResponse response =
                 conceptService.generateForWordIds(List.of(cleanId, stuffedId), null);
