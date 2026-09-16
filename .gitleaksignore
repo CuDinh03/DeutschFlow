@@ -21,3 +21,9 @@
 # đều đỏ theo, không phải PR đó mang bí mật vào.
 b6668bd82ee38ceab0375de949048aad464a0eb3:frontend/src/components/features/ai-speaking/CompanionSelect.tsx:generic-api-key:37
 b6668bd82ee38ceab0375de949048aad464a0eb3:frontend/src/components/features/ai-speaking/CompanionSelect.tsx:generic-api-key:38
+
+# Chính hai dòng chú thích của lần vá đầu ở file NÀY (commit 654a9f98, 16/09): bản đó dán nguyên văn
+# hai dòng code vào chú thích nên bị bắt lại. Commit kế tiếp đã bỏ nguyên văn đi, nhưng gitleaks quét
+# CẢ LỊCH SỬ nhánh nên commit cũ vẫn nằm trong dải quét — chỉ tắt được bằng fingerprint.
+654a9f98fe0cd9d791871486c6848c210b6bc2cd:.gitleaksignore:generic-api-key:16
+654a9f98fe0cd9d791871486c6848c210b6bc2cd:.gitleaksignore:generic-api-key:17
