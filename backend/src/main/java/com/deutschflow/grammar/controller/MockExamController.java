@@ -62,6 +62,8 @@ public class MockExamController {
     @Autowired @Qualifier("aiExecutor") private Executor aiExecutor;
     // V285 autosave (audit C-02) — same separate-injection idiom as S-5
     @Autowired private MockExamDraftService draftService;
+    // Cổng gói ở đường làm bài — cùng idiom tiêm riêng như S-5 để không phình constructor
+    @Autowired private com.deutschflow.grammar.service.MockExamPackService packService;
 
     public MockExamController(JdbcTemplate jdbcTemplate, ExamScoringService scoringService,
                                ExamGenerationService generationService,
@@ -115,6 +117,7 @@ public class MockExamController {
             @PathVariable long examId,
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
+        packService.assertExamUnlocked(uid, examId);
 
         // Check active attempt — resume returns the FULL row incl. the autosaved draft (V285,
         // audit C-02): a fresh device must be able to rebuild position, answers and countdown
@@ -229,7 +232,11 @@ public class MockExamController {
     }
 
     @GetMapping("/{examId}/questions")
-    public ResponseEntity<ExamQuestionsDto> getExamQuestions(@PathVariable long examId) {
+    public ResponseEntity<ExamQuestionsDto> getExamQuestions(
+            @PathVariable long examId,
+            @AuthenticationPrincipal UserDetails principal) {
+        // Đây là đường phát NỘI DUNG đề — phải qua cổng gói y như catalog bộ đề.
+        packService.assertExamUnlocked(userId(principal), examId);
         try {
             var row = jdbcTemplate.queryForMap("""
                 SELECT sections_json::text AS sections_json
@@ -280,6 +287,21 @@ public class MockExamController {
                 attemptId));
     }
 
+    /**
+     * Danh sách phần mà client khai là không hiển thị được, chuẩn hoá về tên phần trong đề.
+     * Giá trị lạ bị bỏ qua im lặng — đây là dữ liệu từ client, không phải hợp đồng cần báo lỗi.
+     */
+    private Set<String> requestedSkips(Map<String, Object> body) {
+        if (!(body.get("skippedSections") instanceof Collection<?> raw)) return Set.of();
+        Set<String> out = new HashSet<>();
+        for (Object value : raw) {
+            if (value == null) continue;
+            String name = value.toString().trim().toUpperCase(Locale.ROOT);
+            if (!name.isEmpty()) out.add(name);
+        }
+        return out;
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> processFinishExam(long uid, long attemptId,
                                                    Map<String, Object> body,
@@ -302,6 +324,10 @@ public class MockExamController {
         String sectionsJson = (String) exam.get("sections_json");
         Map<String, Object> examStructure = om.readValue(sectionsJson, Map.class);
         List<Map<String, Object>> sections = (List<Map<String, Object>>) examStructure.get("sections");
+        // Ba khoá gốc của định dạng telc; đề Goethe không khai ⇒ null ⇒ mọi luật cũ giữ nguyên.
+        String examFormat = examStructure.get("format") instanceof String f ? f : null;
+        Map<String, Object> passRule = examStructure.get("pass_rule") instanceof Map<?, ?> pr
+                ? (Map<String, Object>) pr : null;
 
         // Parse submitted answers
         Map<String, Object> answers = new HashMap<>();
@@ -318,16 +344,30 @@ public class MockExamController {
         }
         answers = effective.answers();
 
+        // Phần mà ỨNG DỤNG của học viên không dựng được (app điện thoại hiện chỉ render phần Đọc —
+        // `mobile/lib/examApi.ts`). Chấm 0 cho chúng là trừ điểm người học vì giới hạn của phần mềm:
+        // điểm tổng bị pha loãng xuống còn ~1/3 dù họ làm đúng hết phần được làm. Khai báo này CHỈ
+        // được tôn trọng khi phần đó trắng hoàn toàn (xem ExamScoringService.hasAnyAnswer).
+        Set<String> skipRequest = requestedSkips(body);
+
         // Chấm từng phần — mỗi phần tự quy về thang max_points của nó (xem ExamScoringService).
         Map<String, Object> detailedScores = new LinkedHashMap<>();
         String examLevel = (String) exam.get("cefr_level");
         for (Map<String, Object> section : sections) {
             String sectionName = (String) section.get("name");
+            if (skipRequest.contains(sectionName) && !scoringService.hasAnyAnswer(answers, section)) {
+                detailedScores.put(sectionName, scoringService.skippedOnClientSection(section));
+                log.info("[MockExam] Attempt {} — phần {} client không dựng được, loại khỏi tổng điểm",
+                        attemptId, sectionName);
+                continue;
+            }
             switch (sectionName) {
-                case "LESEN", "HOEREN" ->
+                // SPRACHBAUSTEINE (telc) cũng là phần khách quan: 20 câu a/b/c và điền-từ-từ-hộp,
+                // chấm bằng đúng luật trọng số của scoreObjectiveSection.
+                case "LESEN", "HOEREN", "SPRACHBAUSTEINE" ->
                         detailedScores.put(sectionName, scoringService.scoreObjectiveSection(answers, section));
                 case "SCHREIBEN" ->
-                        detailedScores.put(sectionName, scoringService.scoreSchreibenSection(uid, answers, section, examLevel));
+                        detailedScores.put(sectionName, scoringService.scoreSchreibenSection(uid, answers, section, examLevel, examFormat));
                 case "SPRECHEN" ->
                         detailedScores.put(sectionName, scoringService.scoreSprechenSection(uid, answers, section, examLevel));
                 default -> log.warn("[MockExam] Đề {} có phần lạ '{}' — không chấm phần này", examId, sectionName);
@@ -337,7 +377,7 @@ public class MockExamController {
         Integer passPoints = exam.get("pass_points") instanceof Number n ? n.intValue() : null;
         Integer totalPoints = exam.get("total_points") instanceof Number m ? m.intValue() : null;
         int passPercent = ExamScoringService.passPercent(passPoints, totalPoints);
-        ExamScoringService.ExamTotals totals = scoringService.summarize(detailedScores, passPercent);
+        ExamScoringService.ExamTotals totals = scoringService.summarize(detailedScores, passPercent, passRule);
         int totalScore = totals.totalScore();
 
         List<String> weakAreas = scoringService.identifyWeakAreas(detailedScores);
@@ -359,8 +399,9 @@ public class MockExamController {
             """, totalScore, totals.passed(), detailedScoresJson, weakAreasJson,
             om.writeValueAsString(answers), attemptId, uid);
 
-        log.info("[MockExam] Exam {} finished for user {} — {}/100 trên {} điểm chấm được, ngưỡng {}%, đỗ={}",
-                attemptId, uid, totalScore, totals.scoredMax(), passPercent, totals.passed());
+        log.info("[MockExam] Exam {} finished for user {} — {}/100 trên {} điểm chấm được, ngưỡng {}%, đỗ={}{}",
+                attemptId, uid, totalScore, totals.scoredMax(), passPercent, totals.passed(),
+                totals.gates().isEmpty() ? "" : " · cổng " + totals.gates());
 
         // Best-effort post-exam updates (phase recompute + B1 graduation)
         try {
@@ -374,15 +415,18 @@ public class MockExamController {
                     attemptId, ex.getMessage());
         }
 
-        return Map.of(
-            "attemptId", attemptId,
-            "totalScore", totalScore,
-            "scoredMax", totals.scoredMax(),
-            "passPercent", passPercent,
-            "passed", totals.passed(),
-            "detailedScores", detailedScores,
-            "weakAreas", weakAreas
-        );
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("attemptId", attemptId);
+        response.put("totalScore", totalScore);
+        response.put("scoredMax", totals.scoredMax());
+        response.put("passPercent", passPercent);
+        response.put("passed", totals.passed());
+        response.put("detailedScores", detailedScores);
+        response.put("weakAreas", weakAreas);
+        // Chỉ đề nhiều ngưỡng (telc) mới có khoá này — màn kết quả đọc nó để nói rõ ĐẠT/TRƯỢT/CHỜ
+        // của từng cổng thay vì một con số phần trăm không diễn tả được hai ngưỡng độc lập.
+        if (!totals.gates().isEmpty()) response.put("gates", totals.gates());
+        return response;
     }
 
     @GetMapping("/attempts/me")

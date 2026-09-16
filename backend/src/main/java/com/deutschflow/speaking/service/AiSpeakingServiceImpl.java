@@ -85,6 +85,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final ChatCompletionService chatCompletionService;
     private final SpeakingStreamService speakingStreamService;
     private final SpeakingChatIdempotencyService chatIdempotencyService;
+    /** Cổng sở hữu cho mối nối phiên ↔ dòng bài tập (Đ9): chặn IDOR ngay ở đường tạo phiên. */
+    private final com.deutschflow.teacher.service.SpeakingAssignmentLinkGuard speakingAssignmentLinkGuard;
 
     public AiSpeakingServiceImpl(
             TransactionTemplate transactionTemplate,
@@ -110,7 +112,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             TurnSideEffectsService turnSideEffectsService,
             ChatCompletionService chatCompletionService,
             SpeakingStreamService speakingStreamService,
-            SpeakingChatIdempotencyService chatIdempotencyService) {
+            SpeakingChatIdempotencyService chatIdempotencyService,
+            com.deutschflow.teacher.service.SpeakingAssignmentLinkGuard speakingAssignmentLinkGuard) {
         this.transactionTemplate = transactionTemplate;
         this.sessionRepository = sessionRepository;
         this.messageRepository = messageRepository;
@@ -135,6 +138,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.chatCompletionService = chatCompletionService;
         this.speakingStreamService = speakingStreamService;
         this.chatIdempotencyService = chatIdempotencyService;
+        this.speakingAssignmentLinkGuard = speakingAssignmentLinkGuard;
     }
 
     @Override
@@ -146,6 +150,11 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         boolean failed = false;
         AiSpeakingSession session = null;
         try {
+            // TRƯỚC mọi thứ khác: assignmentId đi từ thân request của học viên và sau này chính là dòng
+            // bài mà chấm nền sẽ GHI điểm lên. Chặn ở đây thì mối nối lạ không bao giờ tồn tại — và đặt
+            // trước guardActiveSessions để một request giả mạo không kịp đụng vào phiên nào của người gọi.
+            speakingAssignmentLinkGuard.assertOwnedByCaller(userId, assignmentId);
+
             guardActiveSessions(userId);
             enforceSessionCreationCooldown(userId);
 

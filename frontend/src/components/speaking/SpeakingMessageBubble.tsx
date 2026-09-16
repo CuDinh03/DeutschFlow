@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import { Volume2, Info, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { speakGerman } from "@/lib/speechDe";
 import { cn } from "@/lib/utils";
 import { AiMessageBubble, CYAN, MINT, SPEAKING_LIGHT } from "./types";
@@ -52,6 +52,7 @@ export function SpeakingMessageBubble({
   onUserErrorsClick,
   aiChatBusy = false,
 }: SpeakingMessageBubbleProps) {
+  const locale = useLocale();
   const t = useTranslations("speaking");
   const tChat = useTranslations("speaking.chat");
   const tBubble = useTranslations("v2.student.chatBubble");
@@ -100,9 +101,9 @@ export function SpeakingMessageBubble({
                         borderColor: L.line,
                         color: L.inkMuted,
                       }}
-                      title={e.errorCode}
+                      title={getErrorSnippet(e.errorCode, locale).rule}
                     >
-                      {getErrorSnippet(e.errorCode, 'vi').title}
+                      {getErrorSnippet(e.errorCode, locale).title}
                     </span>
                   ))}
                 </div>
@@ -174,7 +175,7 @@ export function SpeakingMessageBubble({
             <span
               key={e.errorCode + e.severity}
               className="text-[9px] font-bold px-2 py-0.5 rounded-full max-w-[140px] truncate border"
-              title={e.errorCode}
+              title={getErrorSnippet(e.errorCode, locale).rule}
               style={{
                 background: e.severity?.toUpperCase().includes("BLOCK")
                   ? "var(--ga-red-soft)"
@@ -189,7 +190,7 @@ export function SpeakingMessageBubble({
                 borderColor: L.line,
               }}
             >
-              {getErrorSnippet(e.errorCode, 'vi').title}
+              {getErrorSnippet(e.errorCode, locale).title}
             </span>
           ))}
         </div>

@@ -58,6 +58,42 @@ export interface ParsedExam {
   skippedSections: string[]
 }
 
+/** Tên phần thi trong đề → tên người đọc được. Mã phần không được lộ ra giao diện. */
+const SECTION_LABEL_VI: Record<string, string> = {
+  LESEN: 'Đọc',
+  HOEREN: 'Nghe',
+  SCHREIBEN: 'Viết',
+  SPRECHEN: 'Nói',
+}
+
+/**
+ * Nhãn cho những phần app không dựng được: "Nghe và Viết". Tên lạ giữ nguyên thay vì rơi ra chuỗi
+ * rỗng — thà hiện một mã còn hơn nói với học viên là không thiếu gì.
+ */
+export function skippedSectionsLabel(names: string[]): string {
+  const labels = names.map((n) => SECTION_LABEL_VI[n] ?? n)
+  if (labels.length === 0) return ''
+  if (labels.length === 1) return labels[0]
+  return `${labels.slice(0, -1).join(', ')} và ${labels[labels.length - 1]}`
+}
+
+/**
+ * Thân POST /mock-exams/attempts/{id}/finish.
+ *
+ * App chỉ dựng được phần Đọc (xem `parseLesenItems`), nên phải NÓI cho server biết những phần học
+ * viên không có cơ hội làm: server loại chúng khỏi mẫu số thay vì chấm 0 — trước bản này một bài
+ * làm đúng hết phần Đọc vẫn ra ~33/100 vì hai phần kia bị tính 0 điểm vào tổng.
+ *
+ * Không có phần nào bị bỏ thì KHÔNG thêm khoá: giữ thân cũ y nguyên cho các đề chỉ có phần Đọc.
+ */
+export function finishPayload(
+  answers: Record<string, string>,
+  parsed: ParsedExam | null,
+): { answers: Record<string, string>; skippedSections?: string[] } {
+  const skipped = parsed?.skippedSections ?? []
+  return skipped.length > 0 ? { answers, skippedSections: skipped } : { answers }
+}
+
 // ── Attempts, review & recommendation ───────────────────────────────────────
 
 export interface ExamAttempt {

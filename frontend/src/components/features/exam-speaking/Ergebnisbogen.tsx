@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { ChevronDown, ChevronUp, ShieldAlert } from 'lucide-react'
 import { GaCap, TkBadge } from '@/components/ui-v2'
+import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import type { CriterionResult, ScoreSheet, SheetMsg } from '@/types/exam-speaking'
 
 interface Props {
@@ -46,6 +47,7 @@ function useMsgText() {
  */
 export function Ergebnisbogen({ sheet }: Props) {
   const t = useTranslations('v2.student.examSpeaking.result')
+  const locale = useLocale()
   const msgText = useMsgText()
   const reduced = sheet.maxPoints + 0.01 < sheet.officialMax
   const range = sheet.totalLow !== sheet.totalHigh ? `${fmt(sheet.totalLow)}–${fmt(sheet.totalHigh)}` : null
@@ -139,7 +141,7 @@ export function Ergebnisbogen({ sheet }: Props) {
                 <span className="text-ga-red line-through">{e.original}</span>
                 <span className="mx-1.5 text-ga-muted">→</span>
                 <span className="font-semibold text-ga-green">{e.correction}</span>
-                <span className="ml-1.5 text-[11px] text-ga-muted">{e.code} · T{e.teilNo}</span>
+                <span className="ml-1.5 text-[11px] text-ga-muted">{getErrorSnippet(e.code, locale).title} · T{e.teilNo}</span>
               </li>
             ))}
           </ul>

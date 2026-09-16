@@ -173,6 +173,7 @@
         "title": "Import student roster",
         "description": "CSV with at least 3 columns email, displayName, phone (first row is the header). You may also declare birthDate (YYYY-MM-DD), guardianName, guardianRelationship, guardianPhone, guardianEmail and consentConfirmed (x = paper consent form on file, section C1) and reportSharingConfirmed (x = section C2 on file: the guardian agrees to receive evaluation reports) — these columns are OPTIONAL, older files still import as before. Existing emails are linked to the center, new emails get an account.",
         "template": "Download template",
+        "templateNote": "The template opens in Excel with the values already split across cells, and carries one guide row (its first cell starts with #) explaining each column name in Vietnamese. Leave that row in place and fill in below it — the import skips it, it is never counted as a student.",
         "fileLabel": "Choose CSV file",
         "emptyFile": "The file has no data rows.",
         "readError": "Could not read the file. Save it as CSV (UTF-8).",

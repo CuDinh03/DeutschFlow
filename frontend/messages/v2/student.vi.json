@@ -983,7 +983,18 @@
       "yourAnswer": "Câu trả lời của bạn",
       "correctAnswer": "Đáp án đúng",
       "draftConflict": "Bài làm vừa được cập nhật từ thiết bị khác — đã tải bản mới nhất.",
-      "draftExpired": "Đã hết giờ làm bài — hệ thống đang nộp bài của bạn."
+      "draftExpired": "Đã hết giờ làm bài — hệ thống đang nộp bài của bạn.",
+      "telcHeadlines": "Các tiêu đề — chọn cho mỗi văn bản một tiêu đề",
+      "telcAds": "Các mẩu rao vặt",
+      "telcWordBank": "Hộp từ",
+      "telcSingleUse": "Mỗi lựa chọn chỉ dùng một lần.",
+      "telcNoneHint": "Chọn “không” khi không mẩu nào hợp với tình huống.",
+      "telcNone": "không",
+      "telcPickLetter": "Chọn một chữ cái",
+      "telcAlreadyUsed": "Đã dùng cho câu khác",
+      "telcGapEmpty": "chưa chọn",
+      "telcGapLabel": "Ô trống {n}",
+      "telcMissingPool": "Phần này của đề thiếu danh sách lựa chọn nên chưa làm được. Hãy báo cho chúng tôi."
     },
     "grammarPractice": {
       "title": "Luyện ngữ pháp",
@@ -2114,7 +2125,13 @@
         "play": "Phát audio",
         "stop": "Dừng",
         "defaultLabel": "Hörtext",
-        "unsupportedHint": "Trình duyệt không hỗ trợ. Dùng Chrome hoặc Safari."
+        "unsupportedHint": "Trình duyệt không hỗ trợ. Dùng Chrome hoặc Safari.",
+        "playsLeft": "Còn {n} lượt nghe",
+        "playsExhausted": "Hết lượt nghe",
+        "playsExhaustedHint": "Đã dùng hết số lần nghe, đúng như đề thật.",
+        "dialogueLabel": "Hörtext — hội thoại",
+        "speakerA": "Người 1",
+        "speakerB": "Người 2"
       },
       "scoreBreakdown": {
         "pending": "Chờ chấm",
@@ -2132,7 +2149,11 @@
           "aufgabenerfuellung": "Hoàn thành nhiệm vụ",
           "kohaerenz": "Mạch lạc & cấu trúc",
           "wortschatz": "Từ vựng",
-          "strukturen": "Ngữ pháp & cấu trúc câu"
+          "strukturen": "Ngữ pháp & cấu trúc câu",
+          "leitpunkte": "Bám sát các ý yêu cầu",
+          "kommunikativeGestaltung": "Bố cục & cách viết thư",
+          "formaleRichtigkeit": "Ngữ pháp & chính tả",
+          "other": "Tiêu chí khác"
         },
         "pendingTitle": "Đang chờ AI chấm bài viết",
         "pendingFallback": "Phần email chưa được nộp hoặc đang xử lý.",

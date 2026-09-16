@@ -18,4 +18,7 @@ export class MMKV {
   clearAll(): void {
     this.store.clear()
   }
+
+  /** Mã hoá không có ý nghĩa trong bộ nhớ — stub giữ nguyên dữ liệu để store dùng được. */
+  recrypt(_key: string | undefined): void {}
 }
