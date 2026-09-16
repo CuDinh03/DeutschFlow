@@ -91,12 +91,12 @@ public class AiInterlocutorService {
             ledger.record(userId, res.provider(), res.model(), res.usage(), FEATURE_TURN, null, sessionId);
             String text = LlmJson.parse(objectMapper, res.content()).map(j -> LlmJson.speechText(j, "reply_de")).orElse("");
             if (text.isBlank()) {
-                text = fallback(step.aiAction(), candidateCard, nextCard);
+                text = fallback(step.aiAction(), candidateCard, nextCard, candidateText);
             }
             return new AiReply(role, text);
         } catch (RuntimeException e) {
             log.warn("[ExamSpeaking] AI reply failed, using template fallback: {}", e.getMessage());
-            return new AiReply(role, fallback(step.aiAction(), candidateCard, nextCard));
+            return new AiReply(role, fallback(step.aiAction(), candidateCard, nextCard, candidateText));
         }
     }
 
@@ -249,7 +249,20 @@ public class AiInterlocutorService {
         return v == null ? "…" : String.valueOf(v);
     }
 
-    private static String fallback(String action, Map<String, Object> card, Map<String, Object> next) {
+    /**
+     * Câu của bạn thi ảo khi đường AI không trả lời được.
+     *
+     * <p>Đây KHÔNG chỉ là chuyện của test: mỗi lần đường AI hỏng, người học thật nhận đúng câu này
+     * giữa phòng thi. Câu đệm chung chung („Ach so, verstehe.") làm hỏng luôn nhiệm vụ — ở bước
+     * {@code FEEDBACK_AND_QUESTION} bạn thi phải ĐẶT một câu hỏi, không hỏi thì thí sinh không có
+     * gì để trả lời ở lượt sau; còn ở {@code ANSWER_QUESTION} thì thí sinh vừa hỏi một câu cụ thể
+     * và nhận lại một câu không dính gì tới câu hỏi đó.
+     *
+     * <p>Nên hai bước đó nay bám vào chính lời thí sinh vừa nói. Đặt từ khoá trong ngoặc kép để
+     * khỏi phải chia giống/cách — câu vẫn đúng ngữ pháp với bất kỳ danh từ nào.
+     */
+    private static String fallback(String action, Map<String, Object> card, Map<String, Object> next,
+                                   String candidateText) {
         return switch (action) {
             case "SPELL_REQUEST" -> "Danke. Können Sie bitte das Wort \"" + val(card, "spell") + "\" buchstabieren?";
             case "NUMBER_REQUEST" -> "Danke. Und sagen Sie bitte diese Nummer: " + val(card, "number") + ".";
@@ -259,7 +272,51 @@ public class AiInterlocutorService {
                     : next.containsKey("questionWord") ? "Ja, gut. Und Sie — " + val(next, "questionWord").replace("…", val(next, "thema"))
                     : "Ja, gern. Und Sie — " + val(next, "thema") + ": " + val(next, "wort") + "?";
             case "FOLLOWUP_QUESTION", "REACT_AND_ASK" -> "Interessant. Können Sie das genauer erklären?";
+            case "ANSWER_QUESTION" -> {
+                String keyword = questionKeyword(candidateText);
+                yield keyword.isEmpty()
+                        ? "Danke für die Rückmeldung! Ja, das sehe ich genauso."
+                        : "Danke für die Rückmeldung! Du hast nach „" + keyword
+                          + "“ gefragt — ja, das kommt bei mir auch vor.";
+            }
+            case "FEEDBACK_AND_QUESTION" -> {
+                String keyword = questionKeyword(candidateText);
+                // Bước này BẮT BUỘC phải có một câu hỏi, bằng không lượt sau của thí sinh treo.
+                yield keyword.isEmpty()
+                        ? "Danke für deinen Vortrag! Was war für dich am schwierigsten?"
+                        : "Danke für deinen Vortrag! Du hast „" + keyword
+                          + "“ erwähnt — kannst du das noch genauer erklären?";
+            }
             default -> "Ach so, verstehe.";
         };
+    }
+
+    /**
+     * Danh từ mà thí sinh vừa hỏi tới, để câu dự phòng bám vào đề thay vì nói chung chung.
+     *
+     * <p>Heuristic: trong tiếng Đức danh từ viết hoa, nên lấy từ viết hoa ĐẦU TIÊN không đứng đầu
+     * câu (từ đầu câu luôn viết hoa nên không phân biệt được). Ưu tiên câu có dấu hỏi — đó mới là
+     * câu thí sinh đang hỏi. Không tìm được thì trả chuỗi rỗng và nơi gọi dùng câu chung.
+     */
+    static String questionKeyword(String candidateText) {
+        if (candidateText == null || candidateText.isBlank()) {
+            return "";
+        }
+        String target = candidateText.trim();
+        String[] sentences = target.split("(?<=[.!?])\\s+");
+        for (String sentence : sentences) {
+            if (sentence.indexOf('?') >= 0) {
+                target = sentence;
+                break;
+            }
+        }
+        String[] words = target.trim().split("\\s+");
+        for (int i = 1; i < words.length; i++) {
+            String word = words[i].replaceAll("[^\\p{L}\\p{M}\u00df-]", "");
+            if (word.length() >= 3 && Character.isUpperCase(word.charAt(0))) {
+                return word;
+            }
+        }
+        return "";
     }
 }

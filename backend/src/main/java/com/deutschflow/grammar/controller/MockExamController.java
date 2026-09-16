@@ -64,6 +64,8 @@ public class MockExamController {
     @Autowired private MockExamDraftService draftService;
     // Cổng gói ở đường làm bài — cùng idiom tiêm riêng như S-5 để không phình constructor
     @Autowired private com.deutschflow.grammar.service.MockExamPackService packService;
+    // Cổng Nói của đề telc — điểm 75 đến từ module luyện thi nói, không nằm trong đề giấy
+    @Autowired private com.deutschflow.grammar.service.MockExamOralGateService oralGateService;
 
     public MockExamController(JdbcTemplate jdbcTemplate, ExamScoringService scoringService,
                                ExamGenerationService generationService,
@@ -377,7 +379,8 @@ public class MockExamController {
         Integer passPoints = exam.get("pass_points") instanceof Number n ? n.intValue() : null;
         Integer totalPoints = exam.get("total_points") instanceof Number m ? m.intValue() : null;
         int passPercent = ExamScoringService.passPercent(passPoints, totalPoints);
-        ExamScoringService.ExamTotals totals = scoringService.summarize(detailedScores, passPercent, passRule);
+        ExamScoringService.ExamTotals totals = scoringService.summarize(detailedScores, passPercent, passRule,
+                oralGateService.externalScores(uid, passRule, examLevel));
         int totalScore = totals.totalScore();
 
         List<String> weakAreas = scoringService.identifyWeakAreas(detailedScores);
@@ -463,29 +466,67 @@ public class MockExamController {
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
         try {
-            ExamResultDto row = jdbcTemplate.queryForObject("""
+            Map<String, Object> row = jdbcTemplate.queryForMap("""
                 SELECT a.id, a.exam_id, e.title, a.started_at, a.finished_at,
                        a.total_score, a.passed, a.status,
                        a.detailed_scores_json::text AS detailed_scores_json,
-                       a.weak_areas::text AS weak_areas
+                       a.weak_areas::text AS weak_areas,
+                       e.sections_json::text AS sections_json, e.cefr_level,
+                       e.total_points, e.pass_points
                 FROM mock_exam_attempts a
                 JOIN mock_exams e ON e.id = a.exam_id
                 WHERE a.id = ? AND a.user_id = ?
-                """, (rs, n) -> new ExamResultDto(
-                    rs.getLong("id"),
-                    (Long) rs.getObject("exam_id"),
-                    rs.getString("title"),
-                    rs.getTimestamp("started_at"),
-                    rs.getTimestamp("finished_at"),
-                    (Integer) rs.getObject("total_score"),
-                    (Boolean) rs.getObject("passed"),
-                    rs.getString("status"),
-                    rs.getString("detailed_scores_json"),
-                    rs.getString("weak_areas")),
-                attemptId, uid);
-            return ResponseEntity.ok(row);
+                """, attemptId, uid);
+
+            // Cổng đỗ tính LẠI tại đây thay vì đọc cột `passed` đóng băng lúc nộp: điểm cổng Nói
+            // đến từ module luyện thi nói, nên một phiên thi nói sau khi nộp bài viết phải làm đổi
+            // kết luận ngay chứ không đợi lần đối soát tiếp theo.
+            GateSnapshot snapshot = recomputeGates(uid, row);
+
+            return ResponseEntity.ok(new ExamResultDto(
+                    ((Number) row.get("id")).longValue(),
+                    row.get("exam_id") instanceof Number n ? n.longValue() : null,
+                    (String) row.get("title"),
+                    (java.util.Date) row.get("started_at"),
+                    (java.util.Date) row.get("finished_at"),
+                    row.get("total_score") instanceof Number n ? n.intValue() : null,
+                    snapshot.passed() != null ? snapshot.passed() : (Boolean) row.get("passed"),
+                    (String) row.get("status"),
+                    (String) row.get("detailed_scores_json"),
+                    (String) row.get("weak_areas"),
+                    snapshot.gates()));
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    /** Kết luận tính lại của một bài: rỗng với đề Goethe (không có cổng nào). */
+    private record GateSnapshot(List<ExamScoringService.Gate> gates, Boolean passed) {}
+
+    @SuppressWarnings("unchecked")
+    private GateSnapshot recomputeGates(long uid, Map<String, Object> row) {
+        try {
+            Map<String, Object> structure = om.readValue((String) row.get("sections_json"), Map.class);
+            if (!(structure.get("pass_rule") instanceof Map<?, ?> rawRule)) return new GateSnapshot(List.of(), null);
+            Map<String, Object> passRule = (Map<String, Object>) rawRule;
+
+            String detailedJson = (String) row.get("detailed_scores_json");
+            Map<String, Object> detailed = detailedJson == null
+                    ? Map.of()
+                    : om.readValue(detailedJson, Map.class);
+
+            String level = (String) row.get("cefr_level");
+            Integer passPoints = row.get("pass_points") instanceof Number n ? n.intValue() : null;
+            Integer totalPoints = row.get("total_points") instanceof Number n ? n.intValue() : null;
+            var totals = scoringService.summarize(detailed,
+                    ExamScoringService.passPercent(passPoints, totalPoints),
+                    passRule,
+                    oralGateService.externalScores(uid, passRule, level));
+            return new GateSnapshot(totals.gates(), totals.passed());
+        } catch (Exception e) {
+            // Không tính lại được thì trả về như cũ — màn kết quả vẫn mở được, chỉ thiếu phần cổng.
+            log.warn("[MockExam] Không dựng lại được cổng đỗ cho bài {}: {}", row.get("id"), e.getMessage());
+            return new GateSnapshot(List.of(), null);
         }
     }
 

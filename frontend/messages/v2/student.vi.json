@@ -994,7 +994,21 @@
       "telcAlreadyUsed": "Đã dùng cho câu khác",
       "telcGapEmpty": "chưa chọn",
       "telcGapLabel": "Ô trống {n}",
-      "telcMissingPool": "Phần này của đề thiếu danh sách lựa chọn nên chưa làm được. Hãy báo cho chúng tôi."
+      "telcMissingPool": "Phần này của đề thiếu danh sách lựa chọn nên chưa làm được. Hãy báo cho chúng tôi.",
+      "gatesTitle": "Hai ngưỡng đỗ",
+      "gatesHint": "Đề telc có hai ngưỡng riêng — giỏi bên này không bù được bên kia.",
+      "gateWritten": "Phần viết",
+      "gateOral": "Phần nói",
+      "gateOther": "Phần khác",
+      "gatePassed": "Đạt",
+      "gateFailed": "Chưa đạt",
+      "gatePending": "Chưa thi",
+      "gateScore": "{raw}/{max} điểm · cần {min}",
+      "gateThresholdOnly": "Cần {min}/{max} điểm",
+      "gateFromSession": "Lấy từ lần thi nói ngày {date}",
+      "gateGoToSpeaking": "Thi phần nói",
+      "resultIncomplete": "Chưa đủ để kết luận",
+      "resultIncompleteNote": "Bạn còn một phần chưa thi."
     },
     "grammarPractice": {
       "title": "Luyện ngữ pháp",

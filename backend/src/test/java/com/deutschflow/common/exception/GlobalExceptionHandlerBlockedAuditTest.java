@@ -17,7 +17,9 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -58,9 +60,28 @@ class GlobalExceptionHandlerBlockedAuditTest {
         var actor = ArgumentCaptor.forClass(AuditActor.class);
         var meta = ArgumentCaptor.forClass(Map.class);
         verify(audit).log(eq("admin.user.last_admin.blocked"), actor.capture(),
-                eq("USER"), eq("20"), meta.capture());
+                eq("USER"), eq("20"), isNull(), meta.capture());
         assertThat(actor.getValue().id()).isEqualTo(2L); // actor THẬT — không phải null
         assertThat(meta.getValue()).containsEntry("attemptedAction", "role.update");
+    }
+
+    @Test
+    @DisplayName("🔴 target là ORG ⇒ vết mang org_id — không có nó, sổ hoạt động của trung tâm lọc mất dòng này")
+    @SuppressWarnings("unchecked")
+    void orgTarget_stampsOrgId() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        AuditLogService audit = mock(AuditLogService.class);
+        ReflectionTestUtils.setField(handler, "auditLogService", audit);
+        var blockedInOrg = new PrivilegedActionBlockedException("chặn",
+                "org.admin_membership.blocked", "ORG", "77",
+                Map.of("reason", "platform_admin"));
+
+        handler.handleBlockedPrivilegedAction(blockedInOrg, new MockHttpServletRequest());
+
+        var meta = ArgumentCaptor.forClass(Map.class);
+        verify(audit).log(eq("org.admin_membership.blocked"), any(),
+                eq("ORG"), eq("77"), eq(77L), meta.capture());
+        assertThat(meta.getValue()).containsEntry("reason", "platform_admin");
     }
 
     @Test
@@ -84,7 +105,7 @@ class GlobalExceptionHandlerBlockedAuditTest {
 
         var actor = ArgumentCaptor.forClass(AuditActor.class);
         verify(audit).log(eq("admin.user.last_admin.blocked"), actor.capture(),
-                eq("USER"), eq("20"), eq(Map.of("attemptedAction", "role.update")));
+                eq("USER"), eq("20"), isNull(), eq(Map.of("attemptedAction", "role.update")));
         assertThat(actor.getValue().id()).isNull(); // meta vẫn mang định danh mục tiêu
     }
 }

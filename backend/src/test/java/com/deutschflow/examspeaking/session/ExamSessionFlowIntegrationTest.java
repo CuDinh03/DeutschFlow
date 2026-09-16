@@ -37,7 +37,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doAnswer;
 
 /**
  * DoD Đợt 0: seed V277 đúng; trọn phiên DRILL (A1 Teil 2) và MOCK A1 text-only (dev flag) qua service —
@@ -49,6 +49,23 @@ import static org.mockito.Mockito.when;
         "app.examspeaking.allow-text-turns-in-mock=true",
         "app.examspeaking.grading-passes=1"
 })
+/**
+ * 🪤 Tắt nhịp quét nền của hàng đợi AI cho RIÊNG lớp này.
+ *
+ * <p>{@code AiJobWorker.processPendingJobs} chạy mỗi 2 giây suốt integration test, nhặt job PENDING
+ * còn tồn của ca test trước và gọi vào cùng mock AI trên LUỒNG NỀN. Nếu nó chen đúng lúc
+ * {@code @BeforeEach} đang đặt stub thì Mockito gắn stub vào lời gọi nền (tham số cụ thể của ca cũ)
+ * thay vì vào các matcher — {@code getStubbings()} vẫn trả 1 nhưng mọi lời gọi của ca đang chạy đều
+ * không khớp và trả {@code null}, rơi hết xuống câu dự phòng.
+ *
+ * <p>Đo 15/09/2026: trước khi tắt, lớp này đỏ ~1/2 số lượt và khi đỏ thì đỏ TOÀN BỘ lời gọi AI
+ * (14/14). Sau khi tắt: 8/8 lượt xanh, 0 lần rơi dự phòng.
+ *
+ * <p>⚠️ Tắt theo LỚP chứ không tắt toàn cục: {@code AiJobWorkerClaimIntegrationTest},
+ * {@code StaleAiJobGuardIntegrationTest} và {@code ExamGradingFailurePathIntegrationTest} CẦN nhịp
+ * quét đó — tắt toàn cục làm chúng chờ hết giờ rồi đỏ.
+ */
+@org.springframework.test.context.TestPropertySource(properties = "app.ai-jobs.scheduled-enabled=false")
 class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired private ExamSessionService sessionService;
@@ -71,12 +88,23 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
                 userId, Timestamp.from(Instant.parse("2026-01-01T00:00:00Z")));
         jdbcTemplate.update("INSERT INTO user_ai_token_wallets (user_id, balance, last_accrual_local_date) VALUES (?, ?, NULL)",
                 userId, 1_000_000L);
-        when(chatClient.chatCompletionForTier(any(), any(), anyDouble(), anyInt(), anyBoolean())).thenAnswer(inv -> {
+        // 🪤 PHẢI dùng doAnswer(...).when(mock), KHÔNG dùng when(mock.goi(...)).
+        //
+        // Dạng `when(mock.goi(...))` GỌI THẬT vào mock để ghi nhận matcher. Việc chấm bài của ca
+        // test TRƯỚC chạy NỀN và vẫn đang gọi chính mock này, nên hai lời gọi chen nhau: Mockito
+        // gắn stub vào lời gọi nền (tham số cụ thể của ca cũ) thay vì vào các matcher. Khi đó
+        // `getStubbings()` vẫn trả về 1 — nhưng stub ấy chỉ khớp đúng lời gọi cũ, còn mọi lời gọi
+        // của ca đang chạy đều KHÔNG có stub và trả `null`, rơi hết xuống câu dự phòng.
+        //
+        // Triệu chứng: đỏ NGẪU NHIÊN khoảng nửa số lượt, và khi đỏ thì đỏ TOÀN BỘ lời gọi AI của
+        // ca đó (đo 15/09/2026: 14/14 lần rơi dự phòng, `Grading produced no scored criteria`).
+        // Dạng doAnswer đặt mock vào chế độ ghi stub TRƯỚC, không phát sinh lời gọi thật.
+        doAnswer(inv -> {
             List<ChatMessage> msgs = inv.getArgument(0);
             String user = msgs.get(msgs.size() - 1).content();
             String all = msgs.stream().map(ChatMessage::content).reduce("", (a, b) -> a + "\n" + b);
             return new AiChatCompletionResult(fakeLlm(user, all), TokenUsage.exact(120, 40, 160), "test", "fake-model");
-        });
+        }).when(chatClient).chatCompletionForTier(any(), any(), anyDouble(), anyInt(), anyBoolean());
     }
 
     /** LLM giả: nhận dạng loại prompt qua dấu hiệu ổn định trong text. */
@@ -340,7 +368,9 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='GOETHE' AND teil_no=3", Integer.class)).isEqualTo(8);
         // V306 (05/09): bơm pool mỏng telc B1 T1 3 → 10 (audit F-13).
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=1", Integer.class)).isEqualTo(10);
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=2", Integer.class)).isEqualTo(8);
+        // V326 (15/09): thêm 8 thẻ TOPIC_TEXT_PAIR cho T2 (trước đó 8 thẻ đều có biểu đồ), và thay
+        // 8 thẻ T3 dùng chung với Goethe bằng 8 thẻ TASK_SITUATION riêng — T3 vẫn là 8.
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=2", Integer.class)).isEqualTo(16);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=3", Integer.class)).isEqualTo(8);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_name='speaking_exam_sessions' AND column_name='prep_sec'", Integer.class)).isEqualTo(1);
     }
@@ -407,8 +437,21 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
     @DisplayName("DRILL telc B1 Teil 2 (Vorlage A/B): client chỉ thấy Vorlage A, partner AI thuật lại Vorlage B từ system prompt")
     void drillTelcB1VorlagePairKeepsPartnerSheetPrivate() {
         ExamSessionView s = sessionService.create(userId, new CreateExamSessionRequest("TELC", "B1", "DRILL", 2));
-        assertThat(s.directive().stimulus()).containsKeys("thema", "candidateText", "candidateChart");
-        assertThat(s.directive().stimulus()).doesNotContainKeys("partnerText", "partnerChart");
+        java.util.Map<String, Object> stimulus = s.directive().stimulus();
+
+        // Điều PHẢI đúng với MỌI thẻ T2: thí sinh thấy tài liệu của mình, KHÔNG thấy của bạn thi.
+        assertThat(stimulus).containsKeys("thema", "candidateText");
+        assertThat(stimulus).doesNotContainKeys("partnerText", "partnerChart");
+
+        // Từ V326 (15/09) T2 có hai biến thể Vorlage và thẻ rút NGẪU NHIÊN — khẳng định cứng
+        // "phải có candidateChart" sẽ đỏ ngẫu nhiên khi rút trúng thẻ đoạn văn. Kiểm theo đúng
+        // biến thể vừa rút: thẻ biểu đồ phải có biểu đồ, thẻ đoạn văn thì KHÔNG được có.
+        if ("TOPIC_GRAPHIC_PAIR".equals(stimulus.get("type"))) {
+            assertThat(stimulus).containsKey("candidateChart");
+        } else {
+            assertThat(stimulus.get("type")).isEqualTo("TOPIC_TEXT_PAIR");
+            assertThat(stimulus).doesNotContainKey("candidateChart");
+        }
         TurnResponse t1 = sessionService.submitTextTurn(userId, s.id(), "Auf meiner Vorlage steht, wohin die Deutschen reisen.");
         assertThat(t1.aiRole()).isEqualTo("PARTNER");
         assertThat(t1.aiText()).contains("Auf meiner Vorlage steht");
