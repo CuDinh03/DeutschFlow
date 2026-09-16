@@ -12,9 +12,10 @@
 7134a20937c2e922bd4d9f6ccf268f27e0b6e972:frontend/tests/e2e/auth.spec.ts:jwt:85
 
 # NHÃN i18n trong danh sách mức kinh nghiệm luyện nói — KHÔNG phải khoá API.
-# Đã mở đúng hai dòng đó ngày 16/09/2026:
-#   { id: "0-6M",  labelKey: "experience.upTo6Months" }
-#   { id: "6-12M", labelKey: "experience.sixTo12Months" }
+# Đã mở đúng hai dòng đó ngày 16/09/2026: chúng là hai phần tử của mảng EXPERIENCE_LEVELS, mỗi phần
+# tử gồm một mã gửi API (dạng "0-6M", "6-12M") và một khoá catalog dịch trỏ vào namespace kinh nghiệm.
+# KHÔNG dán nguyên văn hai dòng đó vào đây: chuỗi khoá catalog chính là thứ bị chấm nhầm, dán lại là
+# file này tự bị bắt (đã vấp một lần ngày 16/09).
 # Rule `generic-api-key` chấm theo entropy nên bắt nhầm chuỗi khoá catalog (entropy 3.83).
 # Commit b6668bd8 là đợt i18n 06/09 (#564), đã nằm trên main từ lâu; PR nào có dải quét phủ tới đó
 # đều đỏ theo, không phải PR đó mang bí mật vào.
