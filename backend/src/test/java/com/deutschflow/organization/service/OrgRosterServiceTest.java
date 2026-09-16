@@ -154,6 +154,79 @@ class OrgRosterServiceTest {
         assertArrayEquals(new String[]{"a@x.com", "chưa đóng, ngoặc"}, OrgRosterService.splitCsvLine("a@x.com,\"chưa đóng, ngoặc"));
     }
 
+    // ------------------------------------------- tệp mẫu mở bằng Excel (owner yêu cầu 14/09/2026)
+
+    @Test
+    @DisplayName("tệp mẫu tải từ web nạp lại nguyên vẹn: bỏ dòng sep=, và hàng chú thích #, còn đúng 2 học viên")
+    void importStudents_skipsSeparatorDirectiveAndGuideRow() {
+        stubOrg(org(0, "PRO"));
+        // Chép đúng khuôn `rosterTemplateCsv()` của web — đây là tệp trung tâm tải về, điền rồi nạp lên.
+        String csv = "\uFEFFsep=,\r\n"
+                + "email,displayName,phone,birthDate,guardianName,guardianRelationship,"
+                + "guardianPhone,guardianEmail,consentConfirmed,reportSharingConfirmed\r\n"
+                + "# Email đăng nhập (bắt buộc),Họ và tên,Số điện thoại,Ngày sinh YYYY-MM-DD,"
+                + "Họ tên người giám hộ,Quan hệ (MOTHER/FATHER/LEGAL_GUARDIAN/OTHER),SĐT người giám hộ,"
+                + "Email người giám hộ,x = đã có phiếu đồng ý ghi âm (mục C1),x = đồng ý nhận phiếu đánh giá (mục C2)\r\n"
+                + "hocvien@example.com,Nguyễn Văn A,0912345678,1999-04-21,,,,,,\r\n"
+                + "hocvien2@example.com,\"Trần, Bình\",,2011-09-15,Trần Thị C,MOTHER,0987654321,tran.c@example.com,x,x\r\n";
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User created = inv.getArgument(0);
+            created.setId(100L);
+            return created;
+        });
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertEquals(2, result.total(),
+                () -> "sep=, và hàng # không phải dòng dữ liệu: " + result.errors());
+        assertEquals(0, result.failed(), () -> "không dòng nào được coi là lỗi: " + result.errors());
+        // Ngày sinh vào ĐÚNG cột ⇒ tiêu đề đứng sau sep=, vẫn được nhận. Nếu sep=, ăn mất lượt
+        // "dòng đầu", tiêu đề thành dòng dữ liệu và cả tệp rơi về bố cục theo vị trí.
+        verify(minorLearnerService).recordBirthDate(
+                anyLong(), eq(LocalDate.of(1999, 4, 21)), any(), eq(ORG_ID), any());
+        verify(minorLearnerService).recordBirthDate(
+                anyLong(), eq(LocalDate.of(2011, 9, 15)), any(), eq(ORG_ID), any());
+    }
+
+    @Test
+    @DisplayName("hàng # bỏ được ở giữa tệp; dòng sep= KHÔNG ở đầu vẫn là dữ liệu, không nuốt im lặng")
+    void importStudents_guideRowAnywhere_butSeparatorOnlyOnFirstLine() {
+        stubOrg(org(0, "PRO"));
+        String csv = "email,displayName,phone\n"
+                + "an@x.com,An,0912\n"
+                + "# ghi chú của trung tâm,,\n"
+                + "sep=,,\n";
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User created = inv.getArgument(0);
+            created.setId(100L);
+            return created;
+        });
+
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        assertEquals(2, result.total(), "hàng # bị bỏ; hàng sep= ở giữa tệp vẫn được tính là dữ liệu");
+        assertEquals(1, result.failed(), () -> "chỉ hàng sep= giữa tệp là lỗi: " + result.errors());
+        assertThat(result.errors()).hasSize(1);
+        assertThat(result.errors().get(0)).contains("Dòng 4").contains("sep=");
+    }
+
+    @Test
+    @DisplayName("isSeparatorDirective/isGuideRow: chỉ nhận đúng dạng, không nuốt dòng dữ liệu thật")
+    void separatorDirectiveAndGuideRow_edgeCases() {
+        assertThat(OrgRosterService.isSeparatorDirective("sep=,")).isTrue();
+        assertThat(OrgRosterService.isSeparatorDirective("SEP=;")).isTrue();
+        assertThat(OrgRosterService.isSeparatorDirective("sep=")).isFalse();
+        assertThat(OrgRosterService.isSeparatorDirective("sep=,,")).isFalse();
+        assertThat(OrgRosterService.isSeparatorDirective("separated@x.com,A,")).isFalse();
+
+        assertThat(OrgRosterService.isGuideRow("# Email đăng nhập,Họ và tên")).isTrue();
+        // Excel bọc lại ô nào có dấu phẩy khi lưu — hàng chú thích vẫn phải nhận ra.
+        assertThat(OrgRosterService.isGuideRow("\"# Email đăng nhập, bắt buộc\",Họ và tên")).isTrue();
+        assertThat(OrgRosterService.isGuideRow("an@x.com,An")).isFalse();
+    }
+
     @Test
     @DisplayName("import ghi ĐÚNG MỘT dòng vết tổng kết, không phải mỗi học viên một dòng")
     void importStudents_writesExactlyOneSummaryAudit() {

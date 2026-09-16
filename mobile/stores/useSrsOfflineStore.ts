@@ -1,8 +1,11 @@
 import { create } from 'zustand'
 import { MMKV } from 'react-native-mmkv'
+import { deviceEncryptionKey, openEncryptedStore } from '@/lib/secureMmkv'
 import api from '@/lib/api'
 
-const storage = new MMKV({ id: 'srs-offline' })
+// Mã hoá tại chỗ bằng khoá của thiết bị; kho thô của bản cũ được di trú giữ nguyên
+// dữ liệu đang chờ. Xem lib/secureMmkv.ts.
+const storage = openEncryptedStore('srs-offline', deviceEncryptionKey(), (cfg) => new MMKV(cfg))
 const QUEUE_KEY = 'offline_srs_queue'
 
 interface SrsReview {
