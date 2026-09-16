@@ -114,7 +114,7 @@ public class AdminOrgService {
                 .build();
         org = organizationRepository.save(org);
 
-        attachOwner(org.getId(), request.ownerEmail(), request.ownerName(), request.ownerPassword());
+        attachOwner(actor, org.getId(), request.ownerEmail(), request.ownerName(), request.ownerPassword());
 
         // Audit F-M3 (03/09/2026): dựng một tổ chức mới là tạo ra một tenant — kèm gói, giới hạn
         // ghế và một tài khoản OWNER — mà trước đây không để lại vết nào.
@@ -592,7 +592,8 @@ public class AdminOrgService {
      * hoặc random nếu trống) thay vì mời self-register. Atomic với {@code createOrganization}
      * (cùng {@code @Transactional}) → tạo owner lỗi thì rollback cả org, không còn "org mồ côi".
      */
-    private void attachOwner(Long orgId, String ownerEmail, String ownerName, String ownerPassword) {
+    private void attachOwner(AuditActor actor, Long orgId, String ownerEmail, String ownerName,
+                             String ownerPassword) {
         if (ownerEmail == null || ownerEmail.isBlank()) {
             return;
         }
@@ -617,6 +618,7 @@ public class AdminOrgService {
                                 "requestedRole", ROLE_OWNER));
             }
             orgMembershipService.upsertMember(orgId, existing.get().getId(), ROLE_OWNER);
+            auditOwnerAttached(actor, orgId, existing.get().getId(), email, false);
             return;
         }
         // Để trống = hệ thống sinh ngẫu nhiên (UUID, thừa dài); có nhập thì chịu chung sàn.
@@ -635,7 +637,29 @@ public class AdminOrgService {
                 .createdVia(User.CreatedVia.ADMIN)
                 .build());
         orgMembershipService.upsertMember(orgId, owner.getId(), ROLE_OWNER);
+        auditOwnerAttached(actor, orgId, owner.getId(), email, true);
         log.info("[Org] Pre-created OWNER account userId={} (email={}) cho org {}", owner.getId(), email, orgId);
+    }
+
+    /**
+     * Vết cho đường kết nạp giám đốc đầu tiên của một trung tâm (nợ Gói 2, vá 11/09/2026).
+     *
+     * <p>{@code admin.org.created} chỉ nói "trung tâm được dựng"; thành viên OWNER thì xuất hiện mà
+     * sổ hoạt động KHÔNG có dòng nào — trong khi mọi đường kết nạp khác (lời mời, CSV, console) đều
+     * có. Giám đốc mở sổ của trung tâm mình thấy lịch sử bắt đầu bằng một khoảng trống, và câu hỏi
+     * kiểm toán "ai đưa tài khoản này vào trung tâm" không trả lời được cho đúng thành viên quyền
+     * cao nhất. {@code accountCreated} phân biệt hai nhánh: gắn tài khoản có sẵn, hay admin tạo
+     * thẳng tài khoản OWNER mới.
+     */
+    private void auditOwnerAttached(AuditActor actor, Long orgId, Long ownerUserId, String email,
+                                    boolean accountCreated) {
+        auditLogService.log("admin.org.owner_attached", actor,
+                "ORG_MEMBER", String.valueOf(ownerUserId), orgId,
+                Map.of("orgId", orgId,
+                        "targetUserId", ownerUserId,
+                        "targetEmail", email,
+                        "role", ROLE_OWNER,
+                        "accountCreated", accountCreated));
     }
 
     private static String localPart(String email) {

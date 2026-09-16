@@ -68,6 +68,9 @@ public class GlobalExceptionHandler {
      * exception tới advice, transaction đã rollback xong, INSERT audit chạy autocommit → vết sống
      * sót. Actor lấy từ SecurityContext (endpoint public → actor null, meta vẫn mang định danh mục
      * tiêu). Lỗi ghi vết không được đổi response của client — nuốt kèm log.
+     *
+     * <p>Vá 11/09/2026 (nợ Gói 1): vết để lại {@code org_id} NULL nên giám đốc trung tâm không thấy
+     * nó trong sổ hoạt động của mình; nay truyền {@code touchedOrgId} lấy từ chính exception.
      */
     @ExceptionHandler(PrivilegedActionBlockedException.class)
     public ResponseEntity<ProblemDetail> handleBlockedPrivilegedAction(PrivilegedActionBlockedException ex,
@@ -76,9 +79,12 @@ public class GlobalExceptionHandler {
             try {
                 var authentication =
                         org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                // touchedOrgId đi kèm: vết chặn phải hiện trong sổ hoạt động của CHÍNH trung tâm bị
+                // nhắm tới (`GET /api/org/audit` lọc theo org_id), không chỉ nằm trong bảng cho admin
+                // nền tảng đọc. Không suy được trung tâm nào thì vẫn ghi như cũ.
                 auditLogService.log(ex.getAuditEvent(),
                         com.deutschflow.common.audit.AuditActor.ofAuthentication(authentication),
-                        ex.getTargetType(), ex.getTargetId(), ex.getAuditMeta());
+                        ex.getTargetType(), ex.getTargetId(), ex.getAuditOrgId(), ex.getAuditMeta());
             } catch (Exception auditEx) {
                 log.error("Không ghi được vết blocked-attempt {}: {}", ex.getAuditEvent(), auditEx.getMessage());
             }
