@@ -37,6 +37,11 @@ public class ExamGradingJobHandler implements AiJobHandler {
     private final ExamErrorSrsBridge srsBridge;
     private final ExamOpsAlerts opsAlerts;
     private final TransactionTemplate requiresNewTx;
+    /**
+     * Đối soát bài thi thử định dạng telc sau khi có điểm nói. Chiều phụ thuộc là một chiều
+     * examspeaking → grammar; phía kia đọc bảng của module này bằng SQL thẳng để không thành vòng.
+     */
+    private final com.deutschflow.grammar.service.MockExamOralGateService oralGateService;
 
     public ExamGradingJobHandler(ExamSessionService sessionService,
                                  ExamGradingService gradingService,
@@ -46,6 +51,7 @@ public class ExamGradingJobHandler implements AiJobHandler {
                                  ExamBlueprintCatalog blueprintCatalog,
                                  ExamErrorSrsBridge srsBridge,
                                  ExamOpsAlerts opsAlerts,
+                                 com.deutschflow.grammar.service.MockExamOralGateService oralGateService,
                                  PlatformTransactionManager transactionManager) {
         this.sessionService = sessionService;
         this.gradingService = gradingService;
@@ -55,6 +61,7 @@ public class ExamGradingJobHandler implements AiJobHandler {
         this.blueprintCatalog = blueprintCatalog;
         this.srsBridge = srsBridge;
         this.opsAlerts = opsAlerts;
+        this.oralGateService = oralGateService;
         // Persist chạy trong transaction TƯỜNG MINH qua TransactionTemplate, không qua @Transactional
         // trên method cùng bean: handle() gọi persist là TỰ-GỌI nên proxy bị bỏ qua — đúng cái bẫy đã
         // giết AiJobWorker.claimJobs suốt 10/06–23/08. Trước bản vá này, save-result và update-session
@@ -146,6 +153,23 @@ public class ExamGradingJobHandler implements AiJobHandler {
             sessionRepository.save(s);
         });
         log.info("[ExamSpeaking] result saved session={} total={} passed={}", sessionId, sheet.total(), sheet.passed());
+
+        // Đề thi thử định dạng telc không có phần Nói trong đề giấy: điểm 75 lấy từ chính phiên vừa
+        // chấm xong này. Người thi viết trước rồi thi nói sau thì kết luận đỗ/trượt của bài viết
+        // phải được tính lại — bằng không màn kết quả (tính tại chỗ) và lịch sử (đọc cột `passed`
+        // đóng băng lúc nộp) sẽ nói hai điều khác nhau về cùng một bài.
+        // Bọc try/catch: chấm nói KHÔNG được hỏng chỉ vì việc đối soát này hỏng.
+        try {
+            int changed = oralGateService.reconcileAttempts(
+                    userId, sheet.rubricRef().provider().name(), sheet.rubricRef().level());
+            if (changed > 0) {
+                log.info("[ExamSpeaking] điểm nói mới làm đổi kết luận của {} bài thi thử (user {})",
+                        changed, userId);
+            }
+        } catch (Exception e) {
+            log.warn("[ExamSpeaking] không đối soát được bài thi thử sau khi chấm nói (user {}): {}",
+                    userId, e.getMessage());
+        }
         return firstResult;
     }
 }

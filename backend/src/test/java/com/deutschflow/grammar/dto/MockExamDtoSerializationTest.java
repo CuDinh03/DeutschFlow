@@ -224,8 +224,9 @@ class MockExamDtoSerializationTest {
         legacy.put("status", "COMPLETED");
         legacy.put("detailed_scores_json", "{\"LESEN\":{}}");
         legacy.put("weak_areas", "[\"SCHREIBEN\"]");
+        // `gates` rỗng với đề Goethe và được đánh NON_EMPTY ⇒ khoá vắng mặt, JSON không đổi.
         assertSameJson(new ExamResultDto(5L, 7L, "Goethe B1 Set 1", started, finished, 72, true,
-                "COMPLETED", "{\"LESEN\":{}}", "[\"SCHREIBEN\"]"), legacy);
+                "COMPLETED", "{\"LESEN\":{}}", "[\"SCHREIBEN\"]", List.of()), legacy);
     }
 
     @Test
