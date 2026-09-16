@@ -5,6 +5,10 @@ import { useTranslations } from 'next-intl'
 import { AlertCircle, ChevronRight, Loader2, Send, User } from 'lucide-react'
 import { AudioPlayer } from '@/components/exam/AudioPlayer'
 import { SprechenTeil2Simulator } from '@/components/exam/SprechenTeil2Simulator'
+import { TelcTeilBody } from '@/components/exam/telc/TelcTeilBody'
+import { telcTeilType } from '@/components/exam/telc/telcTeil'
+import { DialogueAudioPlayer } from '@/components/exam/DialogueAudioPlayer'
+import { isDialogueScript, scriptToPlainText, type AudioScript } from '@/components/exam/audioScript'
 
 // Taking view of the mock-exam runner, ported 1:1 from the legacy /student/mock-exam page
 // (same exam JSON shape, same answer keys, same widget-selection rule) with a Galerie shell.
@@ -18,7 +22,7 @@ export interface ExamQuestionItem {
   question?: string
   text?: string
   person?: string
-  audio_script?: string
+  audio_script?: AudioScript
   options?: Record<string, string>
   /**
    * Non-revealing question type sent by the backend so we can pick the answer widget
@@ -37,7 +41,9 @@ export interface ExamTeil {
   instruction_vi?: string
   instruction_de?: string
   context?: string
-  audio_script?: string
+  audio_script?: AudioScript
+  /** Số lần được phép nghe (telc: 1 ở HV Teil 1, 2 ở Teil 2–3). Bỏ trống = không giới hạn. */
+  max_plays?: number
   items?: ExamQuestionItem[]
   form_fields?: Array<{ field: string; instruction_vi: string }>
   /** Đề bài phần Viết/Nói của các đề B1+ (seed dùng `prompt` thay cho `input_email`). */
@@ -49,6 +55,18 @@ export interface ExamTeil {
   topic_cards?: Array<{ card?: string; question_to_ask?: string }>
   /** Thẻ tình huống phần Nói Teil 3 của seed A1 — không có nhánh render nên Teil 3 ra ô trống. */
   scenario_cards?: Array<{ situation?: string; request?: string }>
+  /**
+   * Dạng bài ở cấp Teil. Đề telc khai bốn dạng riêng (`MATCH_HEADLINE`, `MATCH_AD_X`, `GAP_MC`,
+   * `GAP_WORDBANK`) mà `answerWidget` KHÔNG suy ra được từ hình dạng câu hỏi — xem
+   * `components/exam/telc/telcTeil.ts`.
+   */
+  type?: string
+  headlines?: Record<string, string>
+  ads?: Record<string, string>
+  word_bank?: Record<string, string>
+  gapped_text?: string
+  single_use?: boolean
+  allow_none?: boolean
 }
 
 export interface ExamSection {
@@ -66,6 +84,8 @@ export interface ActiveExamData {
 /** Section accent — Galerie palette (legacy used its own indigo/sky/emerald/amber set). */
 export const SECTION_COLOR: Record<string, string> = {
   LESEN: 'var(--ga-violet)',
+  // Phần riêng của telc; thiếu màu ở đây là dải trên của phần này ra màu mặc định không tên.
+  SPRACHBAUSTEINE: 'var(--ga-teal)',
   HOEREN: 'var(--ga-blue)',
   SCHREIBEN: 'var(--ga-green)',
   SPRECHEN: 'var(--ga-orange)',
@@ -237,25 +257,50 @@ export function ExamTaking({
                 {teil.context}
               </div>
             )}
-            {teil.audio_script && (
-              <AudioPlayer script={teil.audio_script} label={t('hoertext', { n: teil.teil })} />
+            {teil.audio_script &&
+              (isDialogueScript(teil.audio_script) ? (
+                <DialogueAudioPlayer
+                  turns={teil.audio_script}
+                  label={t('hoertext', { n: teil.teil })}
+                  maxPlays={teil.max_plays}
+                />
+              ) : (
+                <AudioPlayer
+                  script={scriptToPlainText(teil.audio_script)}
+                  label={t('hoertext', { n: teil.teil })}
+                  maxPlays={teil.max_plays}
+                />
+              ))}
+
+            {/* Bốn dạng bài telc có kho lựa chọn dùng chung cả Teil và văn bản có ô trống —
+                `answerWidget` suy theo từng câu nên không dựng được. Dựng bằng nhánh riêng. */}
+            {telcTeilType(teil) && (
+              <TelcTeilBody teil={teil} answers={answers} onAnswerChange={onAnswerChange} />
             )}
 
             <div className="space-y-6">
-              {teil.items?.map((item, qIdx) => {
+              {!telcTeilType(teil) && teil.items?.map((item, qIdx) => {
                 const widget = answerWidget(item)
                 return (
                   <div
                     key={item.id ?? `${tIdx}-${qIdx}`}
                     className="border-b border-ga-line pb-6 last:border-0 last:pb-0"
                   >
-                    {item.audio_script && (
-                      <AudioPlayer
-                        script={item.audio_script}
-                        compact
-                        label={item.person ? t('listenPerson', { person: item.person }) : t('listenDialog')}
-                      />
-                    )}
+                    {item.audio_script &&
+                      (isDialogueScript(item.audio_script) ? (
+                        <DialogueAudioPlayer
+                          turns={item.audio_script}
+                          label={item.person ? t('listenPerson', { person: item.person }) : t('listenDialog')}
+                          maxPlays={teil.max_plays}
+                        />
+                      ) : (
+                        <AudioPlayer
+                          script={scriptToPlainText(item.audio_script)}
+                          compact
+                          label={item.person ? t('listenPerson', { person: item.person }) : t('listenDialog')}
+                          maxPlays={teil.max_plays}
+                        />
+                      ))}
                     {item.text && <p className="ga-ui mb-3 break-words text-ga-body italic text-ga-muted">“{item.text}”</p>}
                     {item.person && <p className="ga-ui mb-3 flex items-center gap-1.5 break-words text-ga-body text-ga-muted"><User size={13} className="shrink-0" aria-hidden /> {item.person}</p>}
 

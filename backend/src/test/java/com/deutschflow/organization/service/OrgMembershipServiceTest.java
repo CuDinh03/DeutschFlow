@@ -63,6 +63,7 @@ class OrgMembershipServiceTest {
     @Mock private com.deutschflow.organization.repository.OrganizationRepository organizationRepository;
     @Mock private OrgEntitlementService orgEntitlementService;
     @Mock private RefreshTokenRepository refreshTokenRepository;
+    @Mock private OrgTeachingHandoverGuard teachingHandoverGuard;
 
     /** Người thao tác — mọi mutation thành viên nay ghi vết kèm danh tính này. */
     private static final AuditActor ACTOR = new AuditActor(2L, "owner@tt.vn", "OWNER");
@@ -74,7 +75,10 @@ class OrgMembershipServiceTest {
     void setUp() {
         service = new OrgMembershipService(memberRepo, academicApproverRepo, classStudentRepository,
                 userRepository, jdbcTemplate,
-                auditLogService, organizationRepository, orgEntitlementService, refreshTokenRepository);
+                auditLogService, organizationRepository, orgEntitlementService, refreshTokenRepository,
+                // Chốt lớp mồ côi (G-07): mock KHÔNG ném ⇒ mọi ca sẵn có giữ nguyên nghĩa
+                // "không lớp nào mất người dạy". Ca chặn nằm ở OrgMembershipHandoverGuardTest.
+                teachingHandoverGuard);
     }
 
     private User studentUser() {
@@ -425,6 +429,37 @@ class OrgMembershipServiceTest {
         verify(memberRepo).save(saved.capture());
         assertThat(saved.getValue().getRole()).isEqualTo("STUDENT");
         assertThat(saved.getValue().getStatus()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    @DisplayName("🔴 ensureStudentSeat ghi vết org_member_added via=class_join — đường kết nạp này trước đây vô hình trong sổ")
+    void ensureStudentSeat_writesAuditTrail() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(studentUser()));
+
+        service.ensureStudentSeat(ORG_ID, USER_ID);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("org_member_added"), any(),
+                eq("ORG_MEMBER"), eq(String.valueOf(USER_ID)), eq(ORG_ID), meta.capture());
+        assertThat(meta.getValue())
+                .containsEntry("role", "STUDENT")
+                .containsEntry("via", "class_join")
+                .containsEntry("orgId", ORG_ID)
+                .containsEntry("targetUserId", USER_ID);
+    }
+
+    @Test
+    @DisplayName("ensureStudentSeat: người ĐANG là thành viên không sinh vết mới — vào lớp thứ hai không phải một lần kết nạp")
+    void ensureStudentSeat_noopMember_writesNoTrail() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member("STUDENT", "ACTIVE")));
+
+        service.ensureStudentSeat(ORG_ID, USER_ID);
+
+        verify(auditLogService, never()).log(eq("org_member_added"), any(), any(), any(), any(), any());
     }
 
     @Test

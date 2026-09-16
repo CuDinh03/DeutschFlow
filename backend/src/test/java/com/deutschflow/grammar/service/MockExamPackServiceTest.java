@@ -126,4 +126,49 @@ class MockExamPackServiceTest {
 
         assertThatThrownBy(() -> service.getPack(7L, 99L)).isInstanceOf(NotFoundException.class);
     }
+
+    // ─── Cổng gói ở đường LÀM BÀI (không chỉ ở catalog) ───────────────────────
+
+    private void lockedPacksCoveringExam(int count) {
+        when(jdbcTemplate.queryForObject(anyString(), org.mockito.ArgumentMatchers.eq(Integer.class), anyLong()))
+                .thenReturn(count);
+    }
+
+    @Test
+    @DisplayName("FREE gọi thẳng examId của đề thuộc bộ trả phí → 403")
+    void assertExamUnlocked_freeUserPaidExam_forbidden() {
+        lockedPacksCoveringExam(1);
+        planIs("FREE");
+
+        assertThatThrownBy(() -> service.assertExamUnlocked(7L, 42L))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("Nâng cấp gói");
+    }
+
+    @Test
+    @DisplayName("gói trả phí mở khoá chính đề đó")
+    void assertExamUnlocked_paidUser_passes() {
+        lockedPacksCoveringExam(1);
+        planIs("PRO");
+
+        service.assertExamUnlocked(7L, 42L);
+    }
+
+    @Test
+    @DisplayName("đề không nằm trong bộ trả phí nào thì không hỏi tới gói")
+    void assertExamUnlocked_freeExam_doesNotCheckPlan() {
+        lockedPacksCoveringExam(0);
+
+        service.assertExamUnlocked(7L, 42L);
+
+        verify(quotaService, never()).getSnapshotReadOnly(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("đề lạ không biến thành 403 — để đường gọi trả 404 như cũ")
+    void assertExamUnlocked_unknownExam_passes() {
+        lockedPacksCoveringExam(0);
+
+        service.assertExamUnlocked(7L, 999L);
+    }
 }

@@ -43,6 +43,7 @@ class TeacherAiGradingModelTest {
     @Mock GradingModelConfig gradingModelConfig;
     @Mock UserNotificationService userNotificationService;
     @Mock OrgPoolGuard orgPoolGuard;
+    @Mock SpeakingAssignmentLinkGuard speakingAssignmentLinkGuard;
 
     private AiSpeakingMessage userMsg(String text) {
         return AiSpeakingMessage.builder()
@@ -73,7 +74,8 @@ class TeacherAiGradingModelTest {
                 studentAssignmentRepository, aiUsageLedgerService, gradingModelConfig,
                 userNotificationService, orgPoolGuard,
                 // Cổng tuổi D3: mock KHÔNG ném ⇒ ca này giữ nguyên nghĩa "học viên đủ điều kiện".
-                org.mockito.Mockito.mock(com.deutschflow.common.minor.MinorGate.class))
+                org.mockito.Mockito.mock(com.deutschflow.common.minor.MinorGate.class),
+                speakingAssignmentLinkGuard)
                 .autoGradeSession(sessionId);
 
         ArgumentCaptor<String> model = ArgumentCaptor.forClass(String.class);

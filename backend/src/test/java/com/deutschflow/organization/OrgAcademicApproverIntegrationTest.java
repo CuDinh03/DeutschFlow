@@ -181,6 +181,13 @@ class OrgAcademicApproverIntegrationTest extends AbstractPostgresIntegrationTest
                 new GrantAcademicApproverRequest(f.teacher.getId(), "ORG", null));
         orgGuard.assertAcademicApprover(f.teacher.getId(), f.org.getId(), f.classA.getId());
 
+        // G-07 (Gói 2): gỡ người đang là giáo viên DUY NHẤT của một lớp bị chặn 409, nên trung tâm
+        // phải bàn giao lớp trước — làm đúng thứ tự đó ở đây thay vì né chốt. Ca này kiểm chuyện
+        // khác: phân công duyệt học vụ có bị thu hồi khi mất tư cách thành viên hay không.
+        TeacherClass handedOver = classRepo.findById(f.classA.getId()).orElseThrow();
+        handedOver.setTeacherId(f.teacher2.getId());
+        classRepo.save(handedOver);
+
         membershipService.removeMember(f.org.getId(), f.teacher.getId(),
                 new AuditActor(f.owner.getId(), "owner@test.local", "OWNER"));
 

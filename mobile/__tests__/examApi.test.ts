@@ -1,4 +1,12 @@
-import { attemptTotalScore, mapExam, type AttemptResultDto, type RawMockExam } from '@/lib/examApi'
+import {
+  attemptTotalScore,
+  finishPayload,
+  mapExam,
+  skippedSectionsLabel,
+  type AttemptResultDto,
+  type ParsedExam,
+  type RawMockExam,
+} from '@/lib/examApi'
 
 describe('mapExam', () => {
   it('maps snake_case backend row to ExamVariant', () => {
@@ -92,17 +100,23 @@ const SANITIZED = JSON.stringify({
 
 describe('parseLesenItems — dữ liệu đã qua sanitizer (không có correct, options object)', () => {
   const parsed = parseLesenItems(SANITIZED)
+  /** Từ 15/09/2026 app bóc CẢ BỐN phần viết, nên tra theo tên phần chứ không theo thứ tự nhóm. */
+  const lesen = parsed.sections.find((sec) => sec.name === 'LESEN')!
 
   it('bóc được Teil 1 (richtig/falsch theo type), Teil 2 (ghép người ↔ tin từ context) và Teil 3 (trắc nghiệm options object)', () => {
-    expect(parsed.groups.map((g) => g.title)).toEqual(['Teil 1', 'Teil 2', 'Teil 3'])
-    expect(parsed.groups[0].instruction).toBe('Đọc bài và chọn Richtig/Falsch')
-    expect(parsed.groups[0].passage).toBe('Artikel: Homeoffice – Fluch oder Segen?')
-    expect(parsed.groups[0].items[0].passage).toBeUndefined() // bài đọc ở cấp nhóm, không lặp từng câu
-    expect(parsed.skippedSections).toEqual(['HOEREN'])
+    expect(lesen.groups.map((g) => g.title)).toEqual(['Teil 1', 'Teil 2', 'Teil 3'])
+    expect(lesen.groups[0].instruction).toBe('Đọc bài và chọn Richtig/Falsch')
+    expect(lesen.groups[0].passage).toBe('Artikel: Homeoffice – Fluch oder Segen?')
+    expect(lesen.groups[0].items[0].passage).toBeUndefined() // bài đọc ở cấp nhóm, không lặp từng câu
+  })
+
+  it('phần Nghe nay cũng dựng được — trước 15/09/2026 nó rơi vào skippedSections', () => {
+    expect(parsed.sections.map((sec) => sec.name)).toEqual(['HOEREN', 'LESEN'])
+    expect(parsed.skippedSections).toEqual([])
   })
 
   it('ghép người ↔ tin (MATCHING): câu hỏi = person, lựa chọn bóc từ context "A=… B=…", nộp chữ cái; context không lặp thành bài đọc', () => {
-    const g = parsed.groups[1]
+    const g = lesen.groups[1]
     expect(g.instruction).toBe('Ghép mỗi người với tin tuyển dụng phù hợp')
     expect(g.passage).toBeUndefined()
     const m = g.items[0]
@@ -120,13 +134,13 @@ describe('parseLesenItems — dữ liệu đã qua sanitizer (không có correct
   })
 
   it('trắc nghiệm: nhãn = giá trị object, khoá chữ cái giữ riêng để nộp', () => {
-    const mc = parsed.groups[2].items[0]
+    const mc = lesen.groups[2].items[0]
     expect(mc.options).toEqual(['Zwei Wochen', 'Drei Wochen', 'Einen Monat'])
     expect(mc.optionKeys).toEqual(['A', 'B', 'C'])
   })
 
   it('đúng/sai: không options, không khoá', () => {
-    const tf = parsed.groups[0].items[0]
+    const tf = lesen.groups[0].items[0]
     expect(tf.options).toBeUndefined()
     expect(tf.optionKeys).toBeUndefined()
   })
@@ -177,5 +191,37 @@ describe('parseMatchingContext', () => {
     expect(parseMatchingContext('Artikel: Homeoffice – Fluch oder Segen? Immer mehr…')).toEqual([])
     expect(parseMatchingContext(undefined)).toEqual([])
     expect(parseMatchingContext('A=nur eins.')).toEqual([])
+  })
+})
+
+describe('finishPayload — khai báo phần app không dựng được', () => {
+  const parsed = (skippedSections: string[]): ParsedExam => ({ sections: [], groups: [], skippedSections })
+
+  it('có phần bị bỏ ⇒ gửi kèm skippedSections để server loại chúng khỏi mẫu số', () => {
+    expect(finishPayload({ 'L1-1': 'richtig' }, parsed(['HOEREN', 'SCHREIBEN']))).toEqual({
+      answers: { 'L1-1': 'richtig' },
+      skippedSections: ['HOEREN', 'SCHREIBEN'],
+    })
+  })
+
+  it('không bỏ phần nào ⇒ payload y như cũ, không thêm khoá lạ', () => {
+    expect(finishPayload({ 'L1-1': 'richtig' }, parsed([]))).toEqual({ answers: { 'L1-1': 'richtig' } })
+    expect(finishPayload({ 'L1-1': 'richtig' }, null)).toEqual({ answers: { 'L1-1': 'richtig' } })
+  })
+})
+
+describe('skippedSectionsLabel — nói bằng lời, không phơi mã phần', () => {
+  it('đổi tên phần sang tiếng Việt và nối bằng "và"', () => {
+    expect(skippedSectionsLabel(['HOEREN'])).toBe('Nghe')
+    expect(skippedSectionsLabel(['HOEREN', 'SCHREIBEN'])).toBe('Nghe và Viết')
+    expect(skippedSectionsLabel(['HOEREN', 'SCHREIBEN', 'SPRECHEN'])).toBe('Nghe, Viết và Nói')
+  })
+
+  it('tên lạ giữ nguyên chứ không rơi ra chuỗi rỗng', () => {
+    expect(skippedSectionsLabel(['LESEN_2'])).toBe('LESEN_2')
+  })
+
+  it('không có phần nào thì trả chuỗi rỗng', () => {
+    expect(skippedSectionsLabel([])).toBe('')
   })
 })

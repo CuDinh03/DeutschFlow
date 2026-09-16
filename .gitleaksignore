@@ -10,3 +10,20 @@
 # Bản thân source đã được sửa ở commit kế tiếp (ghép chuỗi lúc chạy, không còn literal), nhưng commit
 # bên dưới vẫn nằm trong lịch sử của PR nên vẫn bị quét.
 7134a20937c2e922bd4d9f6ccf268f27e0b6e972:frontend/tests/e2e/auth.spec.ts:jwt:85
+
+# NHÃN i18n trong danh sách mức kinh nghiệm luyện nói — KHÔNG phải khoá API.
+# Đã mở đúng hai dòng đó ngày 16/09/2026: chúng là hai phần tử của mảng EXPERIENCE_LEVELS, mỗi phần
+# tử gồm một mã gửi API (dạng "0-6M", "6-12M") và một khoá catalog dịch trỏ vào namespace kinh nghiệm.
+# KHÔNG dán nguyên văn hai dòng đó vào đây: chuỗi khoá catalog chính là thứ bị chấm nhầm, dán lại là
+# file này tự bị bắt (đã vấp một lần ngày 16/09).
+# Rule `generic-api-key` chấm theo entropy nên bắt nhầm chuỗi khoá catalog (entropy 3.83).
+# Commit b6668bd8 là đợt i18n 06/09 (#564), đã nằm trên main từ lâu; PR nào có dải quét phủ tới đó
+# đều đỏ theo, không phải PR đó mang bí mật vào.
+b6668bd82ee38ceab0375de949048aad464a0eb3:frontend/src/components/features/ai-speaking/CompanionSelect.tsx:generic-api-key:37
+b6668bd82ee38ceab0375de949048aad464a0eb3:frontend/src/components/features/ai-speaking/CompanionSelect.tsx:generic-api-key:38
+
+# Chính hai dòng chú thích của lần vá đầu ở file NÀY (commit 654a9f98, 16/09): bản đó dán nguyên văn
+# hai dòng code vào chú thích nên bị bắt lại. Commit kế tiếp đã bỏ nguyên văn đi, nhưng gitleaks quét
+# CẢ LỊCH SỬ nhánh nên commit cũ vẫn nằm trong dải quét — chỉ tắt được bằng fingerprint.
+654a9f98fe0cd9d791871486c6848c210b6bc2cd:.gitleaksignore:generic-api-key:16
+654a9f98fe0cd9d791871486c6848c210b6bc2cd:.gitleaksignore:generic-api-key:17

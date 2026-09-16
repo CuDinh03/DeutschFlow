@@ -70,4 +70,58 @@ describe('Phiếu chấm bài viết — nhãn rubric theo trình độ', () => 
     render(<ExamFeedback detailedScores={danhGia({ level: 'C1' })} />)
     expect(screen.getByText('Offizielles Goethe-Raster C1')).toBeInTheDocument()
   })
+
+  // Đề telc chấm Viết bằng 3 Kriterien × 15. Danh sách tiêu chí trước đây ghi cứng bốn cột Goethe
+  // kèm thang, nên phiếu telc sẽ không vẽ ra thanh nào — mà cũng không báo lỗi gì.
+  const phieuTelc = (extra: Record<string, unknown> = {}) => ({
+    SCHREIBEN: {
+      teil2_email: {
+        status: 'AI_EVALUATED', level: 'B1',
+        leitpunkte: 12, kommunikative_gestaltung: 11, formale_richtigkeit: 9,
+        criteria: [
+          { key: 'leitpunkte', score: 12, max: 15 },
+          { key: 'kommunikative_gestaltung', score: 11, max: 15 },
+          { key: 'formale_richtigkeit', score: 9, max: 15 },
+        ],
+        total: 32, max: 45, feedback_vi: 'Đủ bốn ý.',
+        ...extra,
+      },
+    },
+  })
+
+  it('bảng tiêu chí telc vẽ đủ ba cột trên thang 15, tổng /45', () => {
+    intl.locale = 'vi'
+    render(<ExamFeedback detailedScores={phieuTelc()} />)
+
+    expect(screen.getByText('Bám sát các ý yêu cầu')).toBeInTheDocument()
+    expect(screen.getByText('Bố cục & cách viết thư')).toBeInTheDocument()
+    expect(screen.getByText('Ngữ pháp & chính tả')).toBeInTheDocument()
+    expect(screen.getByText('12/15')).toBeInTheDocument()
+    expect(screen.getByText('/45')).toBeInTheDocument()
+    // Không được lẫn nhãn của bảng Goethe vào phiếu telc.
+    expect(screen.queryByText('Từ vựng')).not.toBeInTheDocument()
+  })
+
+  it('tiêu chí lạ vẫn vẽ bằng nhãn chung, không biến mất và cũng không lộ khoá máy', () => {
+    intl.locale = 'vi'
+    render(
+      <ExamFeedback
+        detailedScores={phieuTelc({
+          criteria: [{ key: 'ein_neues_kriterium', score: 7, max: 10 }],
+          total: 7, max: 10,
+        })}
+      />,
+    )
+    expect(screen.getByText('Tiêu chí khác')).toBeInTheDocument()
+    expect(screen.getByText('7/10')).toBeInTheDocument()
+    expect(screen.queryByText(/ein_neues_kriterium/)).not.toBeInTheDocument()
+  })
+
+  it('HỒI QUY: phiếu Goethe cũ không có mảng criteria vẫn vẽ như trước', () => {
+    intl.locale = 'vi'
+    render(<ExamFeedback detailedScores={danhGia({ level: 'B1' })} />)
+    expect(screen.getByText('Hoàn thành nhiệm vụ')).toBeInTheDocument()
+    expect(screen.getByText('Từ vựng')).toBeInTheDocument()
+    expect(screen.getByText('/15')).toBeInTheDocument()
+  })
 })

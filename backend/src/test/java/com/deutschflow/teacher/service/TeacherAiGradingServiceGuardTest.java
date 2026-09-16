@@ -46,6 +46,7 @@ class TeacherAiGradingServiceGuardTest {
     @Mock UserNotificationService userNotificationService;
     @Mock OrgPoolGuard orgPoolGuard;
     @Mock com.deutschflow.common.minor.MinorGate minorGate;
+    @Mock SpeakingAssignmentLinkGuard speakingAssignmentLinkGuard;
 
     private static final long SESSION_ID = 7L;
     private static final long LINKED_ASSIGNMENT_ID = 100L; // StudentAssignment PK
@@ -57,7 +58,7 @@ class TeacherAiGradingServiceGuardTest {
                 studentAssignmentRepository, aiUsageLedgerService, gradingModelConfig,
                 userNotificationService, orgPoolGuard,
                 // Cổng tuổi D3: mock mặc định KHÔNG ném ⇒ các ca guard sẵn có giữ nguyên nghĩa.
-                minorGate);
+                minorGate, speakingAssignmentLinkGuard);
     }
 
     private AiSpeakingMessage userMsg(String text) {
@@ -86,7 +87,7 @@ class TeacherAiGradingServiceGuardTest {
         StudentAssignment linked = StudentAssignment.builder()
                 .id(LINKED_ASSIGNMENT_ID).assignmentId(9L).studentId(55L)
                 .status("EVALUATED").score(95).feedback("GV: xuất sắc").submittedAt(SUBMITTED_AT).build();
-        when(studentAssignmentRepository.findById(LINKED_ASSIGNMENT_ID)).thenReturn(Optional.of(linked));
+        stubLinkOwnedBy(linked);
 
         service().autoGradeSession(SESSION_ID);
 
@@ -108,7 +109,7 @@ class TeacherAiGradingServiceGuardTest {
         StudentAssignment linked = StudentAssignment.builder()
                 .id(LINKED_ASSIGNMENT_ID).assignmentId(9L).studentId(55L)
                 .status("SUBMITTED").submittedAt(SUBMITTED_AT).build();
-        when(studentAssignmentRepository.findById(LINKED_ASSIGNMENT_ID)).thenReturn(Optional.of(linked));
+        stubLinkOwnedBy(linked);
 
         service().autoGradeSession(SESSION_ID);
 
@@ -169,5 +170,44 @@ class TeacherAiGradingServiceGuardTest {
         service().autoGradeSession(SESSION_ID);
 
         verify(minorGate, never()).assertAiGradingAllowed(any());
+    }
+
+    /**
+     * Đ9: dòng bài PENDING (bài giao NÓI không đi qua POST /submit) phải được đóng dấu giờ nộp trước
+     * khi AI ghi điểm — nếu không, sổ điểm và hàng chờ chấm đọc submittedAt rỗng.
+     */
+    @Test
+    @DisplayName("autoGradeSession trên dòng PENDING → đóng dấu submittedAt rồi mới AI_GRADED")
+    void autoGradeSession_pendingRow_stampsSubmittedAt() {
+        stubGradedSession();
+        StudentAssignment linked = StudentAssignment.builder()
+                .id(LINKED_ASSIGNMENT_ID).assignmentId(9L).studentId(55L)
+                .status(AssignmentStatus.PENDING).build();
+        stubLinkOwnedBy(linked);
+
+        service().autoGradeSession(SESSION_ID);
+
+        assertThat(linked.getStatus()).isEqualTo(AssignmentStatus.AI_GRADED);
+        assertThat(linked.getSubmittedAt()).as("giờ nộp phải được đóng dấu").isNotNull();
+    }
+
+    /**
+     * Đ9: cổng sở hữu từ chối (dòng bài của học viên khác, đã xoá, hoặc phiên mang mối nối lạ có sẵn
+     * trong dữ liệu cũ) ⇒ KHÔNG một lời gọi save nào tới bảng bài tập.
+     */
+    @Test
+    @DisplayName("autoGradeSession khi cổng sở hữu từ chối → không ghi gì lên bảng bài tập")
+    void autoGradeSession_linkRefusedByGuard_writesNothing() {
+        stubGradedSession();
+        when(speakingAssignmentLinkGuard.loadOwnedForWrite(any(), any())).thenReturn(Optional.empty());
+
+        service().autoGradeSession(SESSION_ID);
+
+        verify(studentAssignmentRepository, never()).save(any());
+    }
+
+    private void stubLinkOwnedBy(StudentAssignment linked) {
+        when(speakingAssignmentLinkGuard.loadOwnedForWrite(any(), eq(LINKED_ASSIGNMENT_ID)))
+                .thenReturn(Optional.of(linked));
     }
 }
