@@ -6,6 +6,8 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.text.PDFTextStripper;
+
+import static com.deutschflow.testsupport.PdfTextAssert.assertThatPdfText;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -46,24 +48,30 @@ class ReportPdfRendererTest {
             assertThat(box.getHeight()).as("A4 DỌC, không ngang").isGreaterThan(box.getWidth());
 
             String text = new PDFTextStripper().getText(doc);
-            assertThat(text).contains(VN_NAME)
-                    .contains("Straße").contains("Übung").contains("ä/ö/ü")
-                    .contains("Phiếu đánh giá kết quả học tập").contains("Kỳ cuối khoá")
-                    .contains("TT Hoa Sen").contains("Đối tác đào tạo DeutschFlow")
-                    .contains("Nghe · Hören").contains("Nói · Sprechen")
-                    .contains("Có mặt 10 · Vắng 1 · Muộn 1 · Tổng buổi đã ghi nhận 12")
-                    .contains("Tỉ lệ chuyên cần: 92%")
-                    .contains("4 bài đã chốt · 1 bài đang chờ chấm")
-                    .contains("7 đạt · 3 cần luyện · 2 chưa đánh giá (trên 12 mục tiêu)")
-                    .contains("Kann nach dem Weg fragen")
-                    .contains("12 phiên luyện nói với AI · 85 phút")
-                    .contains("Đủ điều kiện cấp chứng nhận")
-                    .contains("điểm bài đã chốt ≥ 50/100 và chuyên cần ≥ 80%")
-                    .contains("Mã phiếu: 01234567")
-                    .contains("Cô Hạnh")
-                    .contains("Giáo viên").contains("Trung tâm")
-                    .contains("Trang 1/1");
-            assertThat(text).doesNotContain("THU HỒI");
+            // Bỏ qua chỗ ngắt dòng của bố cục — xem PdfTextAssert. Các chuỗi dài như dòng chuyên
+            // cần hay câu điều kiện cấp chứng nhận gần như CHẮC CHẮN bị PDF ngắt dòng.
+            assertThatPdfText(text)
+                    .contains(VN_NAME,
+                            "Straße", "Übung", "ä/ö/ü",
+                            "Phiếu đánh giá kết quả học tập", "Kỳ cuối khoá",
+                            "TT Hoa Sen", "Đối tác đào tạo DeutschFlow",
+                            "Nghe · Hören", "Nói · Sprechen",
+                            "Có mặt 10 · Vắng 1 · Muộn 1 · Tổng buổi đã ghi nhận 12",
+                            "Tỉ lệ chuyên cần: 92%",
+                            "4 bài đã chốt · 1 bài đang chờ chấm",
+                            "7 đạt · 3 cần luyện · 2 chưa đánh giá (trên 12 mục tiêu)",
+                            "Kann nach dem Weg fragen",
+                            "12 phiên luyện nói với AI · 85 phút",
+                            "Đủ điều kiện cấp chứng nhận",
+                            "điểm bài đã chốt ≥ 50/100 và chuyên cần ≥ 80%",
+                            "Mã phiếu: 01234567",
+                            "Cô Hạnh",
+                            "Giáo viên", "Trung tâm",
+                            "Trang 1/1")
+                    .doesNotContain("THU HỒI");
+            // Ba khẳng định số dưới đây CỐ Ý giữ phép so thẳng: chuỗi ba ký tự nằm gọn trong một ô
+            // bảng nên không gãy dòng, và so trên bản đã bỏ khoảng trắng lại dễ khớp nhầm hơn.
+            // Giữ cả mô tả `as(...)` — thứ trợ giúp chung không mang theo được.
             assertThat(text).as("điểm 8,5 định dạng theo locale vi").contains("8,5");
         }
     }
@@ -72,14 +80,16 @@ class ReportPdfRendererTest {
     @DisplayName("MIDTERM: không có khối chứng nhận; nhãn tiếng Anh / tiếng Đức đúng ngôn ngữ; nhận xét vẫn nguyên văn tiếng Việt")
     void midterm_enAndDe_labels_commentVerbatim() throws Exception {
         String en = text(renderer.render(issue("en", StudentReportIssue.Period.MIDTERM, COMMENT, false), URL));
-        assertThat(en).contains("Learning progress report").contains("Mid-course").contains("Listening · Hören")
-                .contains("Attendance rate: 92%").contains("Page 1/1").contains(COMMENT)
-                .doesNotContain("certificate requirements").doesNotContain("Phiếu đánh giá");
+        assertThatPdfText(en)
+                .contains("Learning progress report", "Mid-course", "Listening · Hören",
+                        "Attendance rate: 92%", "Page 1/1", COMMENT)
+                .doesNotContain("certificate requirements", "Phiếu đánh giá");
         assertThat(en).as("locale en dùng dấu chấm thập phân").contains("8.5");
 
         String de = text(renderer.render(issue("de", StudentReportIssue.Period.MIDTERM, COMMENT, false), URL));
-        assertThat(de).contains("Lernstandsbericht").contains("Kurshälfte").contains("Anwesenheitsquote: 92%")
-                .contains("Seite 1/1").contains(COMMENT).doesNotContain("Zertifikatsvoraussetzungen");
+        assertThatPdfText(de)
+                .contains("Lernstandsbericht", "Kurshälfte", "Anwesenheitsquote: 92%", "Seite 1/1", COMMENT)
+                .doesNotContain("Zertifikatsvoraussetzungen");
         assertThat(de).contains("8,5");
     }
 
@@ -96,12 +106,12 @@ class ReportPdfRendererTest {
             int pages = doc.getNumberOfPages();
             assertThat(pages).isGreaterThanOrEqualTo(2);
             String all = new PDFTextStripper().getText(doc);
-            assertThat(all).contains("Trang 1/" + pages).contains("Trang " + pages + "/" + pages)
-                    .contains("Đoạn nhận xét số 399").contains("Mã phiếu: 01234567");
+            assertThatPdfText(all).contains("Trang 1/" + pages, "Trang " + pages + "/" + pages,
+                    "Đoạn nhận xét số 399", "Mã phiếu: 01234567");
             PDFTextStripper last = new PDFTextStripper();
             last.setStartPage(pages);
             last.setEndPage(pages);
-            assertThat(last.getText(doc)).as("chân trang đi theo nội dung ở trang cuối").contains("Mã phiếu");
+            assertThatPdfText(last.getText(doc)).contains("Mã phiếu");
         }
     }
 
@@ -111,7 +121,7 @@ class ReportPdfRendererTest {
         StudentReportIssue revoked = issue("vi", StudentReportIssue.Period.MIDTERM, "李明 nói tốt", false);
         revoked.revoke(1L, StudentReportIssue.REVOKE_BY_OWNER, Instant.now());
         String text = text(renderer.render(revoked, URL));
-        assertThat(text).contains("PHIẾU NÀY ĐÃ ĐƯỢC THU HỒI").contains("?? nói tốt");
+        assertThatPdfText(text).contains("PHIẾU NÀY ĐÃ ĐƯỢC THU HỒI", "?? nói tốt");
 
         StudentReportIssue sparse = StudentReportIssue.builder()
                 .classId(1L).studentId(2L).period(StudentReportIssue.Period.MIDTERM).lang("vi")
@@ -119,8 +129,8 @@ class ReportPdfRendererTest {
                 .issuedAt(Instant.parse("2026-09-10T03:00:00Z")).token("0123456789abcdef0123456789abcdef01234567")
                 .tokenExpiresAt(Instant.parse("2026-10-10T03:00:00Z")).build();
         String sparseText = text(renderer.render(sparse, URL));
-        assertThat(sparseText).contains("Lê Văn Cường").contains("Chưa có buổi điểm danh nào")
-                .contains("(Giáo viên chưa ghi nhận xét.)").contains("10/09/2026");
+        assertThatPdfText(sparseText).contains("Lê Văn Cường", "Chưa có buổi điểm danh nào",
+                "(Giáo viên chưa ghi nhận xét.)", "10/09/2026");
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

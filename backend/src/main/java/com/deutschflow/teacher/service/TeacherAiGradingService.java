@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,8 @@ public class TeacherAiGradingService {
     private final GradingModelConfig gradingModelConfig;
     private final UserNotificationService userNotificationService;
     private final OrgPoolGuard orgPoolGuard;
+    /** Đ9: cổng sở hữu cho mối nối phiên ↔ dòng bài tập — chặn ghi điểm lên bài của người khác. */
+    private final SpeakingAssignmentLinkGuard speakingAssignmentLinkGuard;
 
     /** Ước lượng token cho 1 lần chấm Sprechen (transcript vào + ~1000 token feedback ra). */
     private static final long SPEAKING_GRADING_ESTIMATED_TOKENS = 2_000L;
@@ -146,22 +149,31 @@ public class TeacherAiGradingService {
             if (session.getAssignmentId() != null) {
                 final Integer finalAiScore = aiScore;
                 final String finalAiFeedback = aiFeedback;
-                studentAssignmentRepository.findById(session.getAssignmentId()).ifPresent(sa -> {
-                    // Never clobber a confirmed grade (EVALUATED, or a legacy GRADED row) — mirrors the
-                    // guard in markSpeakingGradingFailed and the essay grading path.
-                    if (AssignmentStatus.isFinal(sa.getStatus())) {
-                        log.info("[Auto-Grading] Linked assignment {} already {}; skip overwrite",
-                                sa.getId(), sa.getStatus());
-                        return;
-                    }
-                    // Proposal only — same contract as the essay path: the student is told nothing and the
-                    // competency ledger is untouched until a teacher confirms it (→ EVALUATED). R3 (V323):
-                    // applyAiProposal ghi ai_* cột riêng + score/feedback + AI_GRADED; gradedAt = giờ chấm,
-                    // submittedAt (giờ nộp thật) không đụng.
-                    sa.applyAiProposal(finalAiScore, finalAiFeedback);
-                    studentAssignmentRepository.save(sa);
-                    log.info("[Auto-Grading] Proposed AI score for StudentAssignment {} (awaiting teacher)", sa.getId());
-                });
+                final LocalDateTime handedInAt = session.getEndedAt();
+                // Đ9: kiểm LẠI chủ sở hữu ngay trước khi ghi. Đường tạo phiên đã chặn mối nối lạ, nhưng
+                // giữa hai thời điểm dòng bài có thể đã đổi chủ/xoá, và phiên tạo TRƯỚC bản vá vẫn có
+                // thể mang mối nối lạ sẵn trong dữ liệu. Trả rỗng ⇒ không ghi gì (guard đã log WARN).
+                speakingAssignmentLinkGuard
+                        .loadOwnedForWrite(session.getUserId(), session.getAssignmentId())
+                        .ifPresent(sa -> {
+                            // Never clobber a confirmed grade (EVALUATED, or a legacy GRADED row) — mirrors the
+                            // guard in markSpeakingGradingFailed and the essay grading path.
+                            if (AssignmentStatus.isFinal(sa.getStatus())) {
+                                log.info("[Auto-Grading] Linked assignment {} already {}; skip overwrite",
+                                        sa.getId(), sa.getStatus());
+                                return;
+                            }
+                            // Phiên nói chính là bài nộp — đóng dấu giờ nộp trước khi AI ghi điểm, để dòng
+                            // không nhảy thẳng PENDING → AI_GRADED với submittedAt rỗng.
+                            sa.markSubmittedBySpeakingSession(handedInAt);
+                            // Proposal only — same contract as the essay path: the student is told nothing and the
+                            // competency ledger is untouched until a teacher confirms it (→ EVALUATED). R3 (V323):
+                            // applyAiProposal ghi ai_* cột riêng + score/feedback + AI_GRADED; gradedAt = giờ chấm,
+                            // submittedAt (giờ nộp thật) không đụng.
+                            sa.applyAiProposal(finalAiScore, finalAiFeedback);
+                            studentAssignmentRepository.save(sa);
+                            log.info("[Auto-Grading] Proposed AI score for StudentAssignment {} (awaiting teacher)", sa.getId());
+                        });
             }
 
         } catch (Exception e) {
@@ -198,12 +210,19 @@ public class TeacherAiGradingService {
         }
         if (session.getAssignmentId() != null) {
             try {
-                studentAssignmentRepository.findById(session.getAssignmentId()).ifPresent(sa -> {
-                    if (AssignmentStatus.isFinal(sa.getStatus())) return;
-                    sa.setStatus("GRADING_FAILED");
-                    sa.setFeedback(GRADING_FAILED_FEEDBACK);
-                    studentAssignmentRepository.save(sa);
-                });
+                // Đ9: đường LỖI cũng ghi lên dòng bài (trạng thái + nhận xét), nên cũng phải qua cổng sở
+                // hữu — nếu không, một mối nối giả vẫn đủ đẩy bài của người khác sang GRADING_FAILED.
+                speakingAssignmentLinkGuard
+                        .loadOwnedForWrite(session.getUserId(), session.getAssignmentId())
+                        .ifPresent(sa -> {
+                            if (AssignmentStatus.isFinal(sa.getStatus())) return;
+                            // Học viên đã nói xong, chỉ khâu chấm hỏng ⇒ vẫn là bài đã nộp: đóng dấu giờ
+                            // nộp để giáo viên thấy nó trong hàng chờ như mọi bài nộp khác.
+                            sa.markSubmittedBySpeakingSession(session.getEndedAt());
+                            sa.setStatus("GRADING_FAILED");
+                            sa.setFeedback(GRADING_FAILED_FEEDBACK);
+                            studentAssignmentRepository.save(sa);
+                        });
             } catch (Exception persistErr) {
                 log.warn("[Auto-Grading] Could not mark linked assignment failed for session {}: {}", session.getId(), persistErr.toString());
             }
