@@ -368,7 +368,12 @@ export default function OnboardingScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginTop: -space[2] }}>
                 <YellowSquare />
                 <ThemedText variant="caption" color="secondary">
-                  Chưa cần tài khoản — trả lời trong khoảng 1 phút.
+                  {/* Câu mời của phễu KHÁCH. Người vừa đăng ký cũng đáp xuống đây (register.tsx
+                      replace sang màn này), nên nói "chưa cần tài khoản" với họ là sai — họ vừa tạo
+                      xong. Đo trên máy ảo 16/09 ở bản 18. */}
+                  {isLoggedIn
+                    ? "Trả lời trong khoảng 1 phút — để dựng lộ trình cho bạn."
+                    : "Chưa cần tài khoản — trả lời trong khoảng 1 phút."}
                 </ThemedText>
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
@@ -470,7 +475,10 @@ export default function OnboardingScreen() {
                 <View style={{ flex: 1, gap: 2 }}>
                   <ThemedText variant="bodyStrong">Nhắc học 20:00 mỗi tối</ThemedText>
                   <ThemedText variant="caption" color="secondary">
-                    Bật sau khi tạo tài khoản — đổi giờ được trong Cài đặt.
+                    {/* Cùng lý do: người đã đăng nhập không còn "sau khi tạo tài khoản" nào để chờ. */}
+                    {isLoggedIn
+                      ? "Đổi giờ được trong Cài đặt."
+                      : "Bật sau khi tạo tài khoản — đổi giờ được trong Cài đặt."}
                   </ThemedText>
                 </View>
               </Card>
