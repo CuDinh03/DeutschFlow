@@ -5,6 +5,8 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.text.PDFTextStripper;
+
+import static com.deutschflow.testsupport.PdfTextAssert.assertThatPdfText;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -28,10 +30,11 @@ class CertificateControllerPdfTest {
         assertThat(pdf).isNotEmpty();
         try (PDDocument doc = Loader.loadPDF(pdf)) {
             String text = new PDFTextStripper().getText(doc);
-            assertThat(text).contains(VN_NAME)
-                    .contains("CERTIFICATE OF ACHIEVEMENT")
-                    .contains("Exam Score: 87 / 100")
-                    .contains("DF-B1-TEST01");
+            // Bỏ qua chỗ ngắt dòng của bố cục — xem PdfTextAssert.
+            assertThatPdfText(text).contains(VN_NAME,
+                    "CERTIFICATE OF ACHIEVEMENT",
+                    "Exam Score: 87 / 100",
+                    "DF-B1-TEST01");
         }
     }
 
@@ -42,7 +45,7 @@ class CertificateControllerPdfTest {
 
         try (PDDocument doc = Loader.loadPDF(pdf)) {
             String text = new PDFTextStripper().getText(doc);
-            assertThat(text).contains("?? Nguyễn");
+            assertThatPdfText(text).contains("?? Nguyễn");
         }
     }
 
