@@ -48,6 +48,8 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    /** Ký URL ảnh đại diện khi trả cho client — bucket private, xem javadoc {@code UserAvatarService#viewUrl}. */
+    private final UserAvatarService userAvatarService;
     private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -373,7 +375,7 @@ public class AuthService {
                     industry,
                     orgId,
                     orgRole,
-                    user.getAvatarUrl()
+                    userAvatarService.viewUrl(user.getAvatarUrl())
             );
         }
         return new AuthResponse(
@@ -388,7 +390,7 @@ public class AuthService {
                 industry,
                 orgId,
                 orgRole,
-                user.getAvatarUrl()
+                userAvatarService.viewUrl(user.getAvatarUrl())
         );
     }
 

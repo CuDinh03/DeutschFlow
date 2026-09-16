@@ -63,7 +63,7 @@ public class ProfileController {
                 fresh.getDisplayName(),
                 fresh.getPhoneNumber(),
                 fresh.getLocale() == null ? null : fresh.getLocale().name(),
-                fresh.getAvatarUrl(),
+                userAvatarService.viewUrl(fresh.getAvatarUrl()),
                 fresh.getRole().name(),
                 fresh.getBirthDate(),
                 fresh.getBirthDate() != null,
@@ -156,7 +156,8 @@ public class ProfileController {
     public AvatarResponse uploadAvatar(
             @AuthenticationPrincipal User user,
             @RequestParam("file") MultipartFile file) {
-        return new AvatarResponse(userAvatarService.updateAvatar(user, file));
+        // Trả URL đã ký để client hiện được ngay (bucket private) — cột DB vẫn giữ URL chuẩn.
+        return new AvatarResponse(userAvatarService.viewUrl(userAvatarService.updateAvatar(user, file)));
     }
 
     /** DELETE /api/profile/me/avatar — gỡ ảnh đại diện, quay về chữ cái tắt. */
