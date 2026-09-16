@@ -90,4 +90,23 @@ public interface UserRepository extends JpaRepository<User, Long> {
             "WHERE id = :userId", nativeQuery = true)
     int assignPushToken(@Param("userId") Long userId, @Param("token") String token,
                         @Param("platform") String platform);
+
+    /**
+     * Ghi ngày sinh TỰ KHAI. {@code birth_date} là {@code updatable=false} trên entity (principal
+     * được cache ~60 giây, một {@code save(user)} ở endpoint bất kỳ sẽ ghi đè bằng ảnh chụp cũ —
+     * xem javadoc {@code User#birthDate}), nên đây là đường ghi DUY NHẤT của người dùng cuối.
+     *
+     * <p>Điều kiện {@code birth_date IS NULL} nằm trong WHERE chứ không kiểm ở tầng service: hai
+     * request song song thì chỉ một dòng được ghi, request còn lại nhận 0 và bị báo 409. Ba cột
+     * ghi vết đi cùng một câu lệnh nên không bao giờ có ngày sinh mà thiếu vết.
+     *
+     * @return 1 nếu ghi được, 0 nếu đã có ngày sinh từ trước
+     */
+    @Modifying
+    @Query(value = "UPDATE users SET birth_date = :birthDate, birth_date_recorded_at = now(), " +
+            "birth_date_recorded_by = :recordedBy " +
+            "WHERE id = :userId AND birth_date IS NULL", nativeQuery = true)
+    int recordBirthDateIfAbsent(@Param("userId") Long userId,
+                                @Param("birthDate") java.time.LocalDate birthDate,
+                                @Param("recordedBy") Long recordedBy);
 }

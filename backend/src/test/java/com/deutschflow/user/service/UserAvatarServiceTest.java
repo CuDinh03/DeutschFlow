@@ -162,4 +162,43 @@ class UserAvatarServiceTest {
         service.removeAvatar(userWithAvatar(null));
         verifyNoInteractions(userRepository, s3StorageService);
     }
+
+    // ── viewUrl: bucket private ⇒ ký khi đọc ─────────────────────────────────
+
+    @Test
+    void viewUrl_ownAvatarKey_isPresignedWithTtl() {
+        // Đo 17/09/2026: GET thẳng URL public của bucket trả 403 — client chỉ xem được qua URL ký.
+        when(s3StorageService.objectKeyFromOwnUrl(OLD_URL)).thenReturn("avatar/old-uuid.png");
+        when(s3StorageService.presignedGetUrl("avatar/old-uuid.png", UserAvatarService.VIEW_URL_TTL))
+                .thenReturn("https://signed.example.com/avatar/old-uuid.png?X-Amz-Signature=abc");
+
+        assertEquals("https://signed.example.com/avatar/old-uuid.png?X-Amz-Signature=abc", service.viewUrl(OLD_URL));
+    }
+
+    @Test
+    void viewUrl_nullOrBlank_returnsNull() {
+        assertNull(service.viewUrl(null));
+        assertNull(service.viewUrl("   "));
+        verifyNoInteractions(s3StorageService);
+    }
+
+    @Test
+    void viewUrl_foreignOrNonAvatarKey_returnsStoredValueUnchanged() {
+        // URL lạ (không phải bucket mình) và key ngoài prefix avatar/ đều KHÔNG được ký — trả nguyên.
+        when(s3StorageService.objectKeyFromOwnUrl("https://elsewhere.example.com/a.png")).thenReturn(null);
+        when(s3StorageService.objectKeyFromOwnUrl(NEW_URL)).thenReturn("materials/x.png");
+
+        assertEquals("https://elsewhere.example.com/a.png", service.viewUrl("https://elsewhere.example.com/a.png"));
+        assertEquals(NEW_URL, service.viewUrl(NEW_URL));
+        verify(s3StorageService, never()).presignedGetUrl(any(), any());
+    }
+
+    @Test
+    void viewUrl_presignFailure_fallsBackToStoredValue() {
+        // Ký hỏng không được làm hỏng /auth/me: trả URL cũ (ảnh không hiện) chứ không ném.
+        when(s3StorageService.objectKeyFromOwnUrl(OLD_URL)).thenReturn("avatar/old-uuid.png");
+        when(s3StorageService.presignedGetUrl(any(), any())).thenThrow(new RuntimeException("no creds"));
+
+        assertEquals(OLD_URL, service.viewUrl(OLD_URL));
+    }
 }
