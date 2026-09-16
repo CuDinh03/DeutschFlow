@@ -1,14 +1,21 @@
 /**
  * Lớp phủ dịch cho persona luyện nói (đợt 3 audit UTF-8/i18n 06/09/2026, F-I18N-02).
  *
- * `lib/personas.ts` là DỮ LIỆU, không dịch tại nguồn: `desc` còn được gửi làm "personality" cho AI
- * (lib/speaking/resumeSession.ts, CompanionSelect) và `label` của vị trí/kịch bản là giá trị gửi API
- * (topic của phiên). Hook này chỉ đổi phần HIỂN THỊ: tra catalog `v2.student.personas`
+ * `lib/personas.ts` là DỮ LIỆU: `label` của vị trí/kịch bản là giá trị GỬI API (topic của phiên) nên
+ * không được dịch tại nguồn. Hook này chỉ đổi phần HIỂN THỊ: tra catalog `v2.student.personas`
  *   - `<personaId>.{role,tag,desc}`
  *   - `<personaId>.positions.<positionId>` / `<personaId>.scenarios.<scenarioId>`
  *   - `groups.<groupId>` (PERSONA_GROUPS)
  * và lùi về dữ liệu gốc khi thiếu khoá: role/tag/desc giữ nguyên chuỗi trong personas.ts; vị trí/kịch
  * bản lấy `labelDe` khi locale `de`, còn lại `label`; id không có trong dữ liệu → trả chính id.
+ *
+ * ĐÍNH CHÍNH 10/09/2026: bản ghi cũ ở đây nói `desc` "còn được gửi làm personality cho AI" và lấy đó
+ * làm lý do không dịch tại nguồn. Sai. `personality` chỉ đi từ `token.desc` vào store client
+ * (CompanionSelect, resumeSession) rồi được SpeakingChatExperience dùng làm NHÃN dự phòng cho vai
+ * trò persona — nó không nằm trong bất kỳ request body nào, và `SpeakingPromptRequest` phía backend
+ * không có trường personality: prompt persona dựng server-side từ enum `SpeakingPersona`. Nhờ vậy
+ * `desc` dịch được tại nguồn mà không đụng tới prompt AI — đã dịch ba câu tiếng Đức còn sót của
+ * lukas/emma/anna, xem module 04 SRS và ca AC-I18N-17.
  *
  * Chỉ dùng trong khu student (provider cấp `v2.student.*`).
  */

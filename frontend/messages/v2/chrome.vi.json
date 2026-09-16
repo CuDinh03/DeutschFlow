@@ -111,24 +111,6 @@
       "manager": "Quản lý"
     },
     "areas": {
-      "heute": "Heute",
-      "lernen": "Lernen",
-      "sprechen": "Sprechen",
-      "pruefung": "Prüfung",
-      "fortschritt": "Fortschritt",
-      "tHeute": "Heute",
-      "tKlassen": "Klassen",
-      "tBewerten": "Bewerten",
-      "tMaterialien": "Materialien",
-      "tBerichte": "Berichte",
-      "more": "Mehr"
-    },
-    "localGroups": {
-      "wiederholen": "Ôn tập",
-      "bibliothek": "Thư viện",
-      "entdecken": "Khám phá"
-    },
-    "areaHelper": {
       "heute": "Hôm nay",
       "lernen": "Học",
       "sprechen": "Luyện nói",
@@ -140,6 +122,11 @@
       "tMaterialien": "Tài liệu",
       "tBerichte": "Báo cáo",
       "more": "Thêm"
+    },
+    "localGroups": {
+      "wiederholen": "Ôn tập",
+      "bibliothek": "Thư viện",
+      "entdecken": "Khám phá"
     }
   },
   "shell": {

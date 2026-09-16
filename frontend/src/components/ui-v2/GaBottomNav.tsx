@@ -50,9 +50,6 @@ export function GaBottomNav({ role }: { role: RoleId }) {
             key={area.id}
             href={area.href}
             aria-current={isActive ? 'page' : undefined}
-            // Nhãn Đức ngắn hiển thị; nghĩa tiếng Việt đi kèm qua accessible name (không in
-            // hai dòng thường trực — IA §10.1).
-            aria-label={`${t(`nav.areas.${area.id}`)} — ${t(`nav.areaHelper.${area.id}`)}`}
             className={cn(itemClass, isActive ? 'font-semibold text-ga-accent' : 'font-medium text-ga-muted')}
           >
             {/* Indicator ngoài màu: gạch trên khi đang chọn. */}

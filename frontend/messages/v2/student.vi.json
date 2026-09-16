@@ -48,22 +48,21 @@
       "beginnerTitle": "Bắt đầu buổi học đầu tiên",
       "beginnerDesc": "10 từ tiếng Đức cơ bản + nói chuyện với AI",
       "continue": {
-        "eyebrow": "Weiterlernen",
+        "eyebrow": "Đang học",
         "progressLabel": "Tiến độ chương",
         "lessons": "{done}/{total} bài đã học",
-        "cta": "Weiterlernen",
-        "ctaHelper": "Tiếp tục học",
-        "startEyebrow": "Erste Lektion",
+        "cta": "Tiếp tục học",
+        "startEyebrow": "Bài đầu tiên",
         "startTitle": "Bắt đầu buổi học đầu tiên",
         "startDesc": "Chúng tôi sẽ dẫn bạn qua bài học đầu tiên, từng bước một.",
         "startCta": "Bắt đầu",
-        "doneEyebrow": "Lernweg",
+        "doneEyebrow": "Lộ trình",
         "doneTitle": "Bạn đã học hết phần đang mở",
         "doneDesc": "Xem lộ trình để chọn chặng tiếp theo hoặc ôn lại bài đã xong.",
         "doneCta": "Xem lộ trình"
       },
       "today": {
-        "eyebrow": "Heute",
+        "eyebrow": "Hôm nay",
         "empty": "Hôm nay không có việc đến hạn. Học tiếp ở trên là đủ.",
         "srs": "Ôn từ vựng đến hạn",
         "srsMeta": "{count} việc cần ôn",
@@ -78,7 +77,7 @@
         "xpToNext": "còn {xp} XP"
       },
       "journey": {
-        "eyebrow": "Lernweg",
+        "eyebrow": "Lộ trình",
         "completion": "{done}/{total} chặng · {percent}%",
         "viewAll": "Xem toàn bộ lộ trình",
         "status": {
@@ -390,7 +389,7 @@
       "lukas": {
         "role": "Senior Tech Mentor",
         "tag": "Backend Dev · Berlin",
-        "desc": "Erklärt Grammatik wie sauberen Code. Strukturiert, logisch, präzise.",
+        "desc": "Giảng ngữ pháp gọn như code sạch. Có cấu trúc, logic, chính xác.",
         "positions": {
           "frontend_dev": "Frontend Developer",
           "backend_dev": "Backend Developer",
@@ -402,7 +401,7 @@
       "emma": {
         "role": "Berlin Culture Guide",
         "tag": "Künstlerin · Neukölln",
-        "desc": "Bringt dir Deutsch durch Kunst, Kultur und Berliner Flair bei.",
+        "desc": "Dạy tiếng Đức qua nghệ thuật, văn hoá và chất Berlin.",
         "positions": {
           "marketing_mgr": "Marketing Manager",
           "sales_exec": "Sales Executive",
@@ -414,7 +413,7 @@
       "anna": {
         "role": "Everyday Life Guide",
         "tag": "Sprachlehrerin · Hamburg",
-        "desc": "Begleitet dich durch den deutschen Alltag – warm, geduldig und praktisch.",
+        "desc": "Đồng hành cùng bạn trong đời sống thường ngày ở Đức – ấm áp, kiên nhẫn, thiết thực.",
         "positions": {
           "werkstudent": "Werkstudent",
           "praktikant": "Praktikant",
@@ -1230,11 +1229,11 @@
       "subtitle": "Kéo khối từ vào chỗ trống — luyện ngữ pháp A1",
       "loading": "Đang tải câu hỏi…",
       "poolCap": "Kho từ",
-      "check": "Prüfen",
-      "next": "Weiter →",
+      "check": "Kiểm tra",
+      "next": "Tiếp →",
       "correct": "Chính xác!",
       "wrong": "Đáp án đúng: {answer}",
-      "doneTitle": "Fertig! {score}/{total}",
+      "doneTitle": "Xong! {score}/{total}",
       "doneDesc": "Bạn đã hoàn thành lượt chơi.",
       "emptyTitle": "Chưa có câu hỏi",
       "emptyDesc": "Ngân hàng bài tập A1 chưa sẵn sàng. Hãy thử lại sau.",

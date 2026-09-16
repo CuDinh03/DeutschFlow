@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
+import { nodeTitles } from '@/lib/learning/nodeTitle'
 import {
   ArrowLeft,
   AudioLines,
@@ -102,6 +103,7 @@ export default function V2StudentLearnNodePage() {
 
   // `learn` là namespace gốc (messages/{vi,en,de}.json) — các view con cũng dùng chính nó, nên
   // dùng lại thay vì nhân bản chuỗi sang v2.
+  const locale = useLocale()
   const tLearn = useTranslations('learn')
   const t = useTranslations('v2.student.learnNode')
   const tSkills = useTranslations('v2.student.roadmap.tree.skillNames')
@@ -231,13 +233,13 @@ export default function V2StudentLearnNodePage() {
         const next = data[idx + 1] as RoadmapDtoNode | undefined
         setRoadmapState({
           nodeId: current.id,
-          title: current.subtitle || current.title || `Node ${current.id}`,
+          title: nodeTitles(current, locale).primary || `Node ${current.id}`,
           dayNumber: current.dayNumber ?? null,
           index: idx + 1,
           total: data.length,
           percent: data.length > 0 ? Math.round(((idx + 1) / data.length) * 100) : 0,
           nextNodeId: next?.id ?? null,
-          nextNodeTitle: next ? next.subtitle || next.title || null : null,
+          nextNodeTitle: next ? nodeTitles(next, locale).primary || null : null,
         })
       } catch {
         if (!cancelled) setRoadmapState(null)
@@ -248,7 +250,10 @@ export default function V2StudentLearnNodePage() {
     return () => {
       cancelled = true
     }
-  }, [nodeId])
+    // `locale` nằm trong deps vì tiêu đề chặng chốt ngay lúc dựng `roadmapState`: node chỉ có bản
+    // Đức (`title`) và bản dịch (`subtitle`), `nodeTitles` chọn bản nào theo ngôn ngữ đang xem.
+    // Đổi ngôn ngữ kéo thêm một lượt `/roadmap/me` — hiếm, và bộ chuyển ngôn ngữ vốn đã `router.refresh()`.
+  }, [nodeId, locale])
 
   // W3 audit lag 02/09: fetchSession từng chờ `me` (hook auth xong) — nội dung bài học xếp hàng
   // sau 2 nhịp mạng dù chỉ cần nodeId. Giờ bắn ngay khi mount: người chưa đăng nhập nhận 401 và

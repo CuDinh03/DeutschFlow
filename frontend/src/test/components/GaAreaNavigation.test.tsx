@@ -74,10 +74,14 @@ describe('GaBottomNav (S-13)', () => {
     expect(current.querySelector('.bg-ga-accent')).not.toBeNull()
   })
 
-  it('accessible name gồm nhãn Đức + nghĩa tiếng Việt (song ngữ không in hai dòng)', () => {
+  it('accessible name chính là nhãn nhìn thấy, không aria-label đè lên', () => {
+    // Trước 10/09/2026 mỗi ô có aria-label "nhãn Đức — nghĩa tiếng Việt". Owner chốt bỏ lối song
+    // ngữ: nhãn nay đã theo đúng ngôn ngữ người dùng, nên aria-label chỉ còn lặp lại chữ hiển thị
+    // (và ở bản de từng đọc thành "Heute — Heute"). Gỡ hẳn để tên truy cập = chữ trên màn hình.
     renderBottom()
     const first = screen.getAllByRole('link')[0]
-    expect(first.getAttribute('aria-label')).toBe('nav.areas.heute — nav.areaHelper.heute')
+    expect(first.getAttribute('aria-label')).toBeNull()
+    expect(first.textContent).toContain('nav.areas.heute')
   })
 
   it('ẩn HOÀN TOÀN trong route toàn màn hình (Exam Room)', () => {

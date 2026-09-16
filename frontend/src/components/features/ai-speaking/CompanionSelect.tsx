@@ -71,8 +71,8 @@ export function CompanionSelect({
   const tc = useTranslations("v2.student.companionSelect");
   const tCommon = useTranslations("v2.common");
   const locale = useLocale();
-  // Nhãn persona/nhóm/vị trí/kịch bản: lớp phủ dịch trên dữ liệu lib/personas.ts (không đổi dữ liệu
-  // vì `desc` còn gửi làm personality cho AI và `label` là giá trị gửi API).
+  // Nhãn persona/nhóm/vị trí/kịch bản: lớp phủ dịch trên dữ liệu lib/personas.ts — `label` là giá
+  // trị GỬI API nên không dịch tại nguồn. (`desc` thì dịch được: xem đính chính trong personaText.ts.)
   const personaText = usePersonaText();
   const { quota, quotaBlocked, quotaLoading } = useAiSpeakingQuota();
   const { returnPath, setReturnPath } = useChatStore();
