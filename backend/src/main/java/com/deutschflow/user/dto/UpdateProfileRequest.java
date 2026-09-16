@@ -18,5 +18,15 @@ public record UpdateProfileRequest(
 
         /** UI locale: vi | en | de */
         @Pattern(regexp = "^(vi|en|de)$", message = "locale must be vi, en or de")
-        String locale
+        String locale,
+
+        /**
+         * Múi giờ nhận thông báo hằng ngày (IANA, ví dụ {@code Asia/Ho_Chi_Minh}).
+         * {@code DailyNotificationJob} đọc cột này mỗi giờ để biết 8h/18h của người dùng là lúc nào.
+         * Giá trị được đối chiếu với danh sách zone của JVM ở {@code AuthService.updateProfile} —
+         * regex ở đây chỉ chặn rác thô, không thay thế phép kiểm đó.
+         */
+        @Size(max = 50, message = "notificationTimezone must be at most 50 characters")
+        @Pattern(regexp = "^[A-Za-z]+(/[A-Za-z0-9_+-]+){1,2}$", message = "notificationTimezone must be an IANA zone id")
+        String notificationTimezone
 ) {}

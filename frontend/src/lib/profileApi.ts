@@ -6,6 +6,30 @@ export interface UpdateProfilePayload {
   displayName?: string;
   phoneNumber?: string;
   locale?: string;
+  /** IANA zone id — DailyNotificationJob đọc để biết 8h/18h của người dùng là lúc nào. */
+  notificationTimezone?: string;
+}
+
+/** Thông tin cá nhân đầy đủ của trang Hồ sơ (GET /profile/me) — nhiều hơn /auth/me. */
+export interface PersonalProfileData {
+  userId: number;
+  email: string;
+  displayName: string;
+  phoneNumber: string | null;
+  locale: string | null;
+  avatarUrl: string | null;
+  role: string;
+  birthDate: string | null;          // ISO yyyy-MM-dd
+  /** true = đã có ngày sinh ⇒ chỉ đọc, muốn sửa phải qua trung tâm/hỗ trợ. */
+  birthDateLocked: boolean;
+  notificationTimezone: string | null;
+}
+
+export interface BirthDateResult {
+  birthDate: string;
+  /** UNKNOWN | MINOR_LEGAL | MINOR_CENTER_POLICY | ADULT */
+  minorStatus: string;
+  requiresGuardianConsent: boolean;
 }
 
 export interface ChangePasswordPayload {
@@ -70,6 +94,55 @@ export interface AuthResponseLite {
 }
 
 // ── API calls ───────────────────────────────────────────────────────────────
+
+/** Thông tin cá nhân đầy đủ để dựng form Hồ sơ (kèm ngày sinh + múi giờ thông báo). */
+export async function getPersonalProfile(): Promise<PersonalProfileData> {
+  try {
+    const res = await api.get<PersonalProfileData>("/profile/me");
+    return res.data;
+  } catch (e) {
+    throw new Error(apiMessage(e));
+  }
+}
+
+/**
+ * Tự khai ngày sinh — backend chỉ cho ghi MỘT LẦN; đã có thì trả 409 kèm hướng dẫn liên hệ.
+ * @param birthDate ISO yyyy-MM-dd
+ */
+export async function declareBirthDate(birthDate: string): Promise<BirthDateResult> {
+  try {
+    const res = await api.patch<BirthDateResult>("/profile/me/birth-date", { birthDate });
+    return res.data;
+  } catch (e) {
+    throw new Error(apiMessage(e));
+  }
+}
+
+/**
+ * Đăng xuất khỏi mọi thiết bị KHÁC. Backend thu hồi sạch refresh token rồi cấp cặp mới cho chính
+ * thiết bị này — caller BẮT BUỘC nạp cặp token trả về (setTokens), nếu không phiên hiện tại cũng
+ * rụng ở lần refresh kế tiếp.
+ */
+export async function revokeOtherSessions(): Promise<AuthResponseLite & { accessToken?: string; refreshToken?: string }> {
+  try {
+    const res = await api.post<AuthResponseLite>("/profile/me/sessions/revoke-others");
+    return res.data;
+  } catch (e) {
+    throw new Error(apiMessage(e));
+  }
+}
+
+/**
+ * Xoá vĩnh viễn tài khoản của chính mình. Backend chặn 409 kèm hướng dẫn nếu người dùng còn là
+ * thành viên ACTIVE của một trung tâm (AccountDeletionGuard — D6).
+ */
+export async function deleteMyAccount(): Promise<void> {
+  try {
+    await api.delete("/profile/me");
+  } catch (e) {
+    throw new Error(apiMessage(e));
+  }
+}
 
 /** Cập nhật thông tin cá nhân: displayName, phoneNumber, locale */
 export async function updateProfile(

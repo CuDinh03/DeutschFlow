@@ -5,13 +5,16 @@ import com.deutschflow.user.dto.*;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.entity.UserLearningProfile;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
+import com.deutschflow.user.repository.UserRepository;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.user.service.AccountDeletionService;
 import com.deutschflow.user.service.AuthService;
 import com.deutschflow.user.service.UserAvatarService;
+import com.deutschflow.user.service.UserBirthDateService;
 import com.deutschflow.user.service.UserLearningProfileService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,6 +22,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDate;
 
 /**
  * Profile settings endpoints for authenticated students.
@@ -36,6 +41,34 @@ public class ProfileController {
     private final AccountDeletionService accountDeletionService;
     private final UserNotificationService userNotificationService;
     private final UserAvatarService userAvatarService;
+    private final UserBirthDateService userBirthDateService;
+    private final UserRepository userRepository;
+
+    /**
+     * GET /api/profile/me
+     * Toàn bộ thông tin cá nhân để dựng form Hồ sơ (gồm ngày sinh và múi giờ thông báo — hai thứ
+     * {@code /auth/me} không trả).
+     *
+     * <p>🪤 Đọc LẠI từ repository chứ không dùng thẳng {@code @AuthenticationPrincipal}:
+     * {@code JwtAuthFilter} cache principal ~60 giây, nên ngay sau một lần lưu, principal còn là ảnh
+     * chụp cũ và form sẽ hiện dữ liệu trước khi sửa.
+     */
+    @GetMapping("/me")
+    public PersonalProfileResponse getPersonalProfile(@AuthenticationPrincipal User user) {
+        User fresh = userRepository.findById(user.getId())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        return new PersonalProfileResponse(
+                fresh.getId(),
+                fresh.getEmail(),
+                fresh.getDisplayName(),
+                fresh.getPhoneNumber(),
+                fresh.getLocale() == null ? null : fresh.getLocale().name(),
+                fresh.getAvatarUrl(),
+                fresh.getRole().name(),
+                fresh.getBirthDate(),
+                fresh.getBirthDate() != null,
+                fresh.getNotificationTimezone());
+    }
 
     /**
      * PATCH /api/profile/me
@@ -83,6 +116,34 @@ public class ProfileController {
             @AuthenticationPrincipal User user,
             @Valid @RequestBody ChangePasswordRequest request) {
         authService.changePassword(user, request);
+    }
+
+    record BirthDateRequest(@NotNull(message = "Vui lòng chọn ngày sinh.") LocalDate birthDate) {}
+
+    record BirthDateResponse(LocalDate birthDate, String minorStatus, boolean requiresGuardianConsent) {}
+
+    /**
+     * PATCH /api/profile/me/birth-date
+     * Tự khai ngày sinh — ghi được MỘT LẦN (xem {@link UserBirthDateService} để biết vì sao).
+     * Đã có ngày sinh ⇒ 409 kèm hướng dẫn liên hệ, không phải 403 trống.
+     */
+    @PatchMapping("/me/birth-date")
+    public BirthDateResponse declareBirthDate(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody BirthDateRequest request) {
+        var status = userBirthDateService.declareBirthDate(user, request.birthDate());
+        return new BirthDateResponse(request.birthDate(), status.name(), status.requiresGuardianConsent());
+    }
+
+    /**
+     * POST /api/profile/me/sessions/revoke-others
+     * "Đăng xuất khỏi mọi thiết bị khác": thu hồi toàn bộ refresh token rồi cấp cặp token mới cho
+     * chính thiết bị đang gọi. Client BẮT BUỘC thay token bằng cặp trả về, nếu không chính nó sẽ
+     * rụng ở lần refresh kế tiếp.
+     */
+    @PostMapping("/me/sessions/revoke-others")
+    public AuthResponse revokeOtherSessions(@AuthenticationPrincipal User user) {
+        return authService.revokeOtherSessions(user);
     }
 
     record AvatarResponse(String avatarUrl) {}
