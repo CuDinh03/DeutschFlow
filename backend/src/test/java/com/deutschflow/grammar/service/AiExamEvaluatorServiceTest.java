@@ -65,6 +65,62 @@ class AiExamEvaluatorServiceTest {
     }
 
     @Test
+    @DisplayName("đề telc chấm Viết theo 3 Kriterien × 15, tổng 45")
+    void evaluateSchreibenEmail_telcFormat_usesThreeCriteriaOutOfFortyFive() {
+        when(chatClient.chatCompletionForTier(anyList(), any(TierSpec.class), anyDouble(), anyInt()))
+            .thenReturn(new AiChatCompletionResult("""
+                {"leitpunkte":12,"kommunikative_gestaltung":11,"formale_richtigkeit":9,
+                 "feedback_vi":"Đủ bốn ý","feedback_de":"Gut","strengths_vi":[],"improvements_vi":[]}
+                """, null, "GROQ", "test-model"));
+
+        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(
+                1L, "Liebe Frau Weber, ...", "Task", "B1", "TELC");
+
+        assertEquals(32, result.get("total"));
+        assertEquals(45, result.get("max"), "thang telc là 45, không phải 15 của Goethe");
+        assertEquals(12, result.get("leitpunkte"));
+        assertEquals(11, result.get("kommunikative_gestaltung"));
+        assertEquals(9, result.get("formale_richtigkeit"));
+        assertNull(result.get("kohaerenz"), "không lẫn tiêu chí Goethe vào phiếu telc");
+    }
+
+    @Test
+    @DisplayName("phiếu tự mô tả bảng tiêu chí để màn kết quả vẽ đúng thang của bất kỳ định dạng nào")
+    void evaluateSchreibenEmail_emitsSelfDescribingCriteria() {
+        when(chatClient.chatCompletionForTier(anyList(), any(TierSpec.class), anyDouble(), anyInt()))
+            .thenReturn(new AiChatCompletionResult("""
+                {"leitpunkte":15,"kommunikative_gestaltung":15,"formale_richtigkeit":15,
+                 "feedback_vi":"Rất tốt","feedback_de":"Sehr gut","strengths_vi":[],"improvements_vi":[]}
+                """, null, "GROQ", "test-model"));
+
+        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(
+                1L, "Ein Text.", "Task", "B1", "TELC");
+
+        assertEquals(List.of(
+                Map.of("key", "leitpunkte", "score", 15, "max", 15),
+                Map.of("key", "kommunikative_gestaltung", "score", 15, "max", 15),
+                Map.of("key", "formale_richtigkeit", "score", 15, "max", 15)),
+                result.get("criteria"));
+    }
+
+    @Test
+    @DisplayName("HỒI QUY: không khai định dạng thì vẫn là bảng Goethe 4 tiêu chí tổng 15")
+    void evaluateSchreibenEmail_noFormat_keepsGoetheRubric() {
+        when(chatClient.chatCompletionForTier(anyList(), any(TierSpec.class), anyDouble(), anyInt()))
+            .thenReturn(new AiChatCompletionResult("""
+                {"aufgabenerfuellung":5,"kohaerenz":4,"wortschatz":3,"strukturen":3,
+                 "feedback_vi":"Tốt","feedback_de":"Gut","strengths_vi":[],"improvements_vi":[]}
+                """, null, "GROQ", "test-model"));
+
+        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(1L, "Ein Text.", "Task", "B1");
+
+        assertEquals(15, result.get("total"));
+        assertEquals(15, result.get("max"));
+        assertEquals(5, result.get("aufgabenerfuellung"));
+        assertNull(result.get("leitpunkte"));
+    }
+
+    @Test
     @DisplayName("khoá lệch tên vẫn đọc được thay vì rơi về 0")
     void evaluateSchreibenEmail_aliasKeys_areRead() {
         when(chatClient.chatCompletionForTier(anyList(), any(TierSpec.class), anyDouble(), anyInt()))
