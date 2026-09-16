@@ -111,24 +111,6 @@
       "manager": "Manager"
     },
     "areas": {
-      "heute": "Heute",
-      "lernen": "Lernen",
-      "sprechen": "Sprechen",
-      "pruefung": "Prüfung",
-      "fortschritt": "Fortschritt",
-      "tHeute": "Heute",
-      "tKlassen": "Klassen",
-      "tBewerten": "Bewerten",
-      "tMaterialien": "Materialien",
-      "tBerichte": "Berichte",
-      "more": "Mehr"
-    },
-    "localGroups": {
-      "wiederholen": "Review",
-      "bibliothek": "Library",
-      "entdecken": "Discover"
-    },
-    "areaHelper": {
       "heute": "Today",
       "lernen": "Learn",
       "sprechen": "Speaking",
@@ -140,6 +122,11 @@
       "tMaterialien": "Materials",
       "tBerichte": "Reports",
       "more": "More"
+    },
+    "localGroups": {
+      "wiederholen": "Review",
+      "bibliothek": "Library",
+      "entdecken": "Discover"
     }
   },
   "shell": {

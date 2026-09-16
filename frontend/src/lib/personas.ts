@@ -36,7 +36,7 @@ export const PERSONA_TOKENS: Record<PersonaId, PersonaToken> = {
   // ═══════ IT/Startup ═══════
   lukas: {
     id: "lukas", name: "Lukas", role: "Senior Tech Mentor", tag: "Backend Dev · Berlin",
-    desc: "Erklärt Grammatik wie sauberen Code. Strukturiert, logisch, präzise.",
+    desc: "Giảng ngữ pháp gọn như code sạch. Có cấu trúc, logic, chính xác.",
     group: "it",
     accent: "#2D9CDB", glow: "rgba(45,156,219,0.4)", bubble: "#1A3A52",
     border: "rgba(45,156,219,0.25)", bg: "rgba(45,156,219,0.08)", tagBg: "rgba(45,156,219,0.15)",
@@ -56,7 +56,7 @@ export const PERSONA_TOKENS: Record<PersonaId, PersonaToken> = {
   },
   emma: {
     id: "emma", name: "Emma", role: "Berlin Culture Guide", tag: "Künstlerin · Neukölln",
-    desc: "Bringt dir Deutsch durch Kunst, Kultur und Berliner Flair bei.",
+    desc: "Dạy tiếng Đức qua nghệ thuật, văn hoá và chất Berlin.",
     group: "it",
     accent: "#00BFA5", glow: "rgba(0,191,165,0.4)", bubble: "#0A3832",
     border: "rgba(0,191,165,0.25)", bg: "rgba(0,191,165,0.08)", tagBg: "rgba(0,191,165,0.15)",
@@ -76,7 +76,7 @@ export const PERSONA_TOKENS: Record<PersonaId, PersonaToken> = {
   },
   anna: {
     id: "anna", name: "Anna", role: "Everyday Life Guide", tag: "Sprachlehrerin · Hamburg",
-    desc: "Begleitet dich durch den deutschen Alltag – warm, geduldig und praktisch.",
+    desc: "Đồng hành cùng bạn trong đời sống thường ngày ở Đức – ấm áp, kiên nhẫn, thiết thực.",
     group: "it",
     accent: "#F5A623", glow: "rgba(245,166,35,0.4)", bubble: "#3A2A00",
     border: "rgba(245,166,35,0.25)", bg: "rgba(245,166,35,0.08)", tagBg: "rgba(245,166,35,0.15)",

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { BookOpen, Check, Dumbbell, Lock } from 'lucide-react'
 import { GaIcon, GaProgress, iconNameForEmoji, TkBadge } from '@/components/ui-v2'
 import { nodeStatus, nodeProgressPercent } from '@/lib/learning/currentNode'
+import { useNodeTitles } from '@/lib/learning/nodeTitle'
 import type { RoadmapNode } from '@/lib/roadmap-tree/types'
 
 /**
@@ -21,6 +22,7 @@ import type { RoadmapNode } from '@/lib/roadmap-tree/types'
  */
 export function NodeList({ nodes }: { nodes: RoadmapNode[] }) {
   const t = useTranslations('v2.student.roadmap')
+  const titlesOf = useNodeTitles()
 
   return (
     <ol className="divide-y divide-ga-line border-y border-ga-line">
@@ -29,10 +31,11 @@ export function NodeList({ nodes }: { nodes: RoadmapNode[] }) {
         const locked = status === 'locked'
         const done = status === 'completed'
         const percent = nodeProgressPercent(node)
+        const titles = titlesOf(node)
         // Điều kiện mở suy ra từ THỨ TỰ THẬT của lộ trình — không bịa dữ liệu backend không có.
         const prev = i > 0 ? nodes[i - 1] : undefined
         const unlockHint = prev
-          ? t('nodeLockedBy', { prev: prev.subtitle || prev.title })
+          ? t('nodeLockedBy', { prev: titlesOf(prev).primary })
           : t('nodeLockedGeneric')
 
         return (
@@ -64,7 +67,7 @@ export function NodeList({ nodes }: { nodes: RoadmapNode[] }) {
                       locked ? 'text-ga-locked-fg' : 'text-ga-ink',
                     ].join(' ')}
                   >
-                    {node.subtitle || node.title}
+                    {titles.primary}
                   </h3>
                   {/* ĐÚNG MỘT badge cho mỗi node (plan S-03). */}
                   <TkBadge tone={done ? 'green' : locked ? 'neutral' : 'yellow'}>
@@ -74,9 +77,9 @@ export function NodeList({ nodes }: { nodes: RoadmapNode[] }) {
 
                 {/* Meta gộp một dòng: tiêu đề Đức + CEFR — không còn mỗi thứ một badge. */}
                 <p className="mt-0.5 break-words text-ga-caption text-ga-subtle">
-                  {node.subtitle && node.title && (
+                  {titles.secondary && (
                     <span lang="de" className="italic">
-                      {node.title}
+                      {titles.secondary}
                       {' · '}
                     </span>
                   )}
