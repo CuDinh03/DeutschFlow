@@ -340,7 +340,9 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='GOETHE' AND teil_no=3", Integer.class)).isEqualTo(8);
         // V306 (05/09): bơm pool mỏng telc B1 T1 3 → 10 (audit F-13).
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=1", Integer.class)).isEqualTo(10);
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=2", Integer.class)).isEqualTo(8);
+        // V326 (15/09): thêm 8 thẻ TOPIC_TEXT_PAIR cho T2 (trước đó 8 thẻ đều có biểu đồ), và thay
+        // 8 thẻ T3 dùng chung với Goethe bằng 8 thẻ TASK_SITUATION riêng — T3 vẫn là 8.
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=2", Integer.class)).isEqualTo(16);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=3", Integer.class)).isEqualTo(8);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_name='speaking_exam_sessions' AND column_name='prep_sec'", Integer.class)).isEqualTo(1);
     }
@@ -407,8 +409,21 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
     @DisplayName("DRILL telc B1 Teil 2 (Vorlage A/B): client chỉ thấy Vorlage A, partner AI thuật lại Vorlage B từ system prompt")
     void drillTelcB1VorlagePairKeepsPartnerSheetPrivate() {
         ExamSessionView s = sessionService.create(userId, new CreateExamSessionRequest("TELC", "B1", "DRILL", 2));
-        assertThat(s.directive().stimulus()).containsKeys("thema", "candidateText", "candidateChart");
-        assertThat(s.directive().stimulus()).doesNotContainKeys("partnerText", "partnerChart");
+        java.util.Map<String, Object> stimulus = s.directive().stimulus();
+
+        // Điều PHẢI đúng với MỌI thẻ T2: thí sinh thấy tài liệu của mình, KHÔNG thấy của bạn thi.
+        assertThat(stimulus).containsKeys("thema", "candidateText");
+        assertThat(stimulus).doesNotContainKeys("partnerText", "partnerChart");
+
+        // Từ V326 (15/09) T2 có hai biến thể Vorlage và thẻ rút NGẪU NHIÊN — khẳng định cứng
+        // "phải có candidateChart" sẽ đỏ ngẫu nhiên khi rút trúng thẻ đoạn văn. Kiểm theo đúng
+        // biến thể vừa rút: thẻ biểu đồ phải có biểu đồ, thẻ đoạn văn thì KHÔNG được có.
+        if ("TOPIC_GRAPHIC_PAIR".equals(stimulus.get("type"))) {
+            assertThat(stimulus).containsKey("candidateChart");
+        } else {
+            assertThat(stimulus.get("type")).isEqualTo("TOPIC_TEXT_PAIR");
+            assertThat(stimulus).doesNotContainKey("candidateChart");
+        }
         TurnResponse t1 = sessionService.submitTextTurn(userId, s.id(), "Auf meiner Vorlage steht, wohin die Deutschen reisen.");
         assertThat(t1.aiRole()).isEqualTo("PARTNER");
         assertThat(t1.aiText()).contains("Auf meiner Vorlage steht");

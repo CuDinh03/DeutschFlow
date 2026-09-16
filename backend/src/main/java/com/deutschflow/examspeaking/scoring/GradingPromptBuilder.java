@@ -65,6 +65,9 @@ public class GradingPromptBuilder {
                 ? "ein gleichstufiger Lerner — nicht abwerten, wenn der Partner schwach ist; Hilfe für den Partner positiv werten."
                 : "eine KI — ignoriere deren Qualität.").append('\n');
         sb.append("Bei Unsicherheit zwischen zwei Stufen: die NIEDRIGERE Stufe wählen. Nur Belege aus dem Transkript zitieren.\n");
+        // Con số đo được về mức tham gia hội thoại — xem InteractionSignals. Không có bạn thi thì
+        // khối này rỗng, nên các Teil độc thoại/trình bày không bị thêm gì.
+        sb.append(InteractionSignals.of(pt).promptBlock());
 
         if (rubric.scale() == RubricDefinition.BandScale.VHN) {
             sb.append("\nAUFGABENPUNKTE (Status: VOLL = vollständig erfüllt und verständlich, HALB = teilweise, NULL = nicht erfüllt):\n");
