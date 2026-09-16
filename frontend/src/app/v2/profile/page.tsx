@@ -12,6 +12,7 @@ import {
   declareBirthDate,
   revokeOtherSessions,
   deleteMyAccount,
+  BIRTH_DATE_SELF_DECLARE_ENABLED,
   type LearningProfileData,
 } from '@/lib/profileApi'
 import { clearTokens, setTokens } from '@/lib/authSession'
@@ -65,11 +66,11 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="ga-ui mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.06em] text-ga-muted">
+      <span className="ga-ui mb-1.5 block text-ga-eyebrow uppercase text-ga-muted">
         {label}
       </span>
       {children}
-      {hint && <span className="ga-ui mt-1 block text-[12px] text-ga-subtle">{hint}</span>}
+      {hint && <span className="ga-ui mt-1 block text-ga-caption text-ga-subtle">{hint}</span>}
     </label>
   )
 }
@@ -91,7 +92,7 @@ function formatIsoDate(iso: string, locale: string): string {
 }
 
 const inputCls =
-  'ga-ui w-full rounded-ga border border-ga-line bg-ga-card px-3.5 py-2.5 text-[14px] text-ga-ink outline-none transition-colors focus:border-ga-accent'
+  'ga-ui w-full rounded-ga border border-ga-line bg-ga-card px-3.5 py-2.5 text-ga-body text-ga-ink outline-none transition-colors focus:border-ga-accent'
 
 function ProfileBody() {
   const t = useTranslations('v2.account.profile')
@@ -318,7 +319,7 @@ function ProfileBody() {
               key={tabItem.id}
               type="button"
               onClick={() => setTab(tabItem.id)}
-              className={`ga-ui min-h-[40px] rounded-ga border px-[14px] py-2 text-[13px] font-semibold transition-colors lg:min-h-0 ${
+              className={`ga-ui min-h-[40px] rounded-ga border px-[14px] py-2 text-ga-small font-semibold transition-colors lg:min-h-0 ${
                 tab === tabItem.id
                   ? 'border-ga-ink bg-ga-ink text-ga-card'
                   : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink'
@@ -374,6 +375,7 @@ function ProfileBody() {
 
                 {/* Ngày sinh đi endpoint riêng và chỉ ghi được một lần — tách hẳn khỏi form trên
                     để không ai tưởng nút "Lưu thay đổi" cũng lưu nó. */}
+                {BIRTH_DATE_SELF_DECLARE_ENABLED && (
                 <div className="border-t border-ga-line pt-5">
                   <Field
                     label={t('fieldBirthDate')}
@@ -399,6 +401,7 @@ function ProfileBody() {
                     </GaBtn>
                   )}
                 </div>
+                )}
               </div>
             )}
 
@@ -514,7 +517,7 @@ function ProfileBody() {
                   </GaBtn>
                 </div>
               ) : (
-                <p className="ga-ui py-6 text-[14px] text-ga-muted">{t('noLearningProfile')}</p>
+                <p className="ga-ui py-6 text-ga-body text-ga-muted">{t('noLearningProfile')}</p>
               ))}
 
             {tab === 'security' && (
@@ -545,8 +548,8 @@ function ProfileBody() {
 
               {/* Phiên đăng nhập */}
               <div className="max-w-md border-t border-ga-line pt-6">
-                <h3 className="ga-ui text-[14px] font-semibold text-ga-ink">{t('sessionsTitle')}</h3>
-                <p className="ga-ui mt-1 text-[13px] text-ga-muted">{t('sessionsDesc')}</p>
+                <h3 className="ga-ui text-ga-body font-semibold text-ga-ink">{t('sessionsTitle')}</h3>
+                <p className="ga-ui mt-1 text-ga-small text-ga-muted">{t('sessionsDesc')}</p>
                 <GaBtn variant="ghost" className="mt-3" disabled={revoking} onClick={() => setConfirmRevoke(true)}>
                   {revoking ? t('revoking') : t('revokeOthers')}
                 </GaBtn>
@@ -554,12 +557,12 @@ function ProfileBody() {
 
               {/* Vùng nguy hiểm — xoá vĩnh viễn */}
               <div className="max-w-md rounded-ga border border-ga-red/40 bg-ga-red/5 p-5">
-                <h3 className="ga-ui text-[14px] font-semibold text-ga-red">{t('dangerTitle')}</h3>
-                <p className="ga-ui mt-1 text-[13px] text-ga-muted">{t('deleteAccountDesc')}</p>
+                <h3 className="ga-ui text-ga-body font-semibold text-ga-red">{t('dangerTitle')}</h3>
+                <p className="ga-ui mt-1 text-ga-small text-ga-muted">{t('deleteAccountDesc')}</p>
                 {deleteBlocked && (
                   <p
                     role="alert"
-                    className="ga-ui mt-3 rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] text-ga-ink"
+                    className="ga-ui mt-3 rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-ga-small text-ga-ink"
                   >
                     {deleteBlocked}
                   </p>

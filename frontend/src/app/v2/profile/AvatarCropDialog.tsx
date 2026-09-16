@@ -210,7 +210,7 @@ export function AvatarCropDialog({ file, onCancel, onConfirm, busy = false }: Av
         </div>
 
         <label className="flex w-full max-w-[288px] items-center gap-3">
-          <span className="ga-ui text-[12px] font-semibold uppercase tracking-[0.06em] text-ga-muted">
+          <span className="ga-ui text-ga-eyebrow uppercase text-ga-muted">
             {t('cropZoom')}
           </span>
           <input

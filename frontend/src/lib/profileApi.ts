@@ -1,5 +1,16 @@
 import api, { apiMessage } from "./api";
 
+/**
+ * Ô "tự khai ngày sinh" trên trang Hồ sơ — TẮT có chủ đích (17/09/2026).
+ *
+ * Học viên B2C tự khai dưới 18 thì `MinorGate` khoá luyện nói và đòi đồng ý AUDIO_RECORDING,
+ * nhưng mọi đường ghi đồng ý hiện nằm ở `/api/org/...` — em không thuộc trung tâm nào thì mất
+ * phần nói vĩnh viễn (plans/2026-09-14-hv-tu-dang-ky-ma-lop-vs-csv.md §7). Bật lại khi có đường
+ * phụ huynh xác nhận (Q-04). Backend `PATCH /profile/me/birth-date` vẫn sống và có IT.
+ * Mobile dùng cùng một hằng trong `mobile/lib/profileApi.ts` — đổi thì đổi cả hai.
+ */
+export const BIRTH_DATE_SELF_DECLARE_ENABLED = false;
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface UpdateProfilePayload {
