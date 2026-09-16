@@ -1,4 +1,4 @@
-import { View, Alert, Pressable, Platform } from 'react-native'
+import { View, Alert, Pressable, Platform, Image } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
@@ -144,20 +144,32 @@ export default function ProfileScreen() {
         {/* Identity — editorial ink hero, mirroring the Home streak card idiom */}
         <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
-            <View
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: radius.md,
-                backgroundColor: c.accent,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <ThemedText variant="displayLg" color="onAccent">
-                {initials}
-              </ThemedText>
-            </View>
+            {/* Ảnh tự tải lên (users.avatar_url, đổi ở settings/profile) — không có thì chữ cái tắt.
+                Store nhận avatarUrl thẳng từ /auth/me và setUser() ở màn sửa, nên đổi ảnh xong quay
+                ra đây là thấy ngay, không cần refetch. */}
+            {user?.avatarUrl ? (
+              <Image
+                source={{ uri: user.avatarUrl }}
+                style={{ width: 64, height: 64, borderRadius: radius.md }}
+                accessibilityIgnoresInvertColors
+                accessibilityLabel="Ảnh đại diện"
+              />
+            ) : (
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: radius.md,
+                  backgroundColor: c.accent,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ThemedText variant="displayLg" color="onAccent">
+                  {initials}
+                </ThemedText>
+              </View>
+            )}
             <View style={{ flex: 1, gap: space[2] }}>
               <ThemedText variant="titleLg" style={{ color: c.onInk }}>
                 {user?.displayName}

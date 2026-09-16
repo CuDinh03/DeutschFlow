@@ -13,7 +13,7 @@ import { Check } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { useMutation } from '@tanstack/react-query'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { profileApi, toIsoBirthDate } from '@/lib/profileApi'
+import { BIRTH_DATE_SELF_DECLARE_ENABLED, profileApi, toIsoBirthDate } from '@/lib/profileApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, ThemedText, Icon, AppHeader, TextField, Card, Caption, GaGlyph, Button } from '@/components/ui'
 import { useBackTo } from '@/hooks/useBackTo'
@@ -294,7 +294,9 @@ export default function EditProfileScreen() {
             />
           </View>
 
-          {/* Birth date — ghi một lần */}
+          {/* Birth date — ghi một lần. Ẩn sau cờ tới khi có đường phụ huynh xác nhận (xem
+              BIRTH_DATE_SELF_DECLARE_ENABLED). */}
+          {BIRTH_DATE_SELF_DECLARE_ENABLED && (
           <View style={{ gap: space[2] }}>
             <Caption>Ngày sinh</Caption>
             {birthDateLocked ? (
@@ -355,6 +357,7 @@ export default function EditProfileScreen() {
               />
             )}
           </View>
+          )}
 
           {/* Email — locked field */}
           <View style={{ gap: space[2] }}>

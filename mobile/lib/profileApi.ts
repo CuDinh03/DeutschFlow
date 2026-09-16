@@ -6,6 +6,17 @@
 // buộc đăng nhập lại").
 import api from './api'
 
+/**
+ * Ô "tự khai ngày sinh" ở màn Thông tin cá nhân — TẮT có chủ đích (17/09/2026).
+ *
+ * Học viên B2C tự khai dưới 18 thì backend `MinorGate` khoá luyện nói và đòi đồng ý AUDIO_RECORDING,
+ * nhưng mọi đường ghi đồng ý hiện nằm ở `/api/org/...` — em không thuộc trung tâm nào thì mất phần
+ * nói vĩnh viễn (plans/2026-09-14-hv-tu-dang-ky-ma-lop-vs-csv.md §7). Bật lại khi có đường phụ
+ * huynh xác nhận (Q-04). `declareBirthDate` + `toIsoBirthDate` giữ nguyên để bật là chạy (một OTA).
+ * Web dùng cùng một hằng trong `frontend/src/lib/profileApi.ts` — đổi thì đổi cả hai.
+ */
+export const BIRTH_DATE_SELF_DECLARE_ENABLED = false
+
 export interface ChangePasswordPayload {
   currentPassword: string
   newPassword: string
