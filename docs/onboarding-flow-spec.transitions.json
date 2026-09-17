@@ -1,0 +1,64 @@
+{
+  "$comment": "Hợp đồng máy trạng thái onboarding v3.1 (kế hoạch 17/09/2026 §4.2, G-2 = giữ thứ tự 02/09: quick win trước tài khoản, bài đầu tiên sau CREATING). Hai bản thi công — frontend/src/features/onboarding/machine.ts và mobile/lib/onboardingMachine.ts — đều chạy test.each trên CHÍNH file này. Đổi luồng = sửa file này TRƯỚC, hai bên đỏ rồi mới sửa code. ctx: authed (có token), hasPlan, accountSource SELF|ORG_ROSTER|ORG_INVITE, level (null = chưa chọn = A0 theo ma trận), pathChoice placement|mock_exam|skip|null.",
+  "version": "onb_v3_1",
+  "states": ["WELCOME", "PROFILE", "PROFILE_LITE", "TASTE", "PATH_CHOICE", "AUTH_GATE", "CLAIMED", "CREATING", "FIRST_LESSON", "CELEBRATE", "HOME_WEEK1", "CORE_DONE", "HOME"],
+  "events": ["intro_done", "login_succeeded", "profile_submitted", "taste_done", "path_selected", "auth_succeeded", "claim_succeeded", "claim_failed", "plan_ready", "lesson_done", "lesson_skipped", "celebrate_done", "reminder_answered"],
+  "defaultCtx": { "authed": false, "hasPlan": false, "accountSource": "SELF", "level": "A0", "pathChoice": null },
+  "rows": [
+    { "id": "W1", "state": "WELCOME", "event": "intro_done", "ctx": {}, "next": "PROFILE", "note": "khách bấm Bắt đầu → wizard" },
+    { "id": "W2", "state": "WELCOME", "event": "intro_done", "ctx": { "authed": true, "hasPlan": false }, "next": "PROFILE", "note": "đăng ký thẳng, chưa có lộ trình" },
+    { "id": "W3", "state": "WELCOME", "event": "intro_done", "ctx": { "authed": true, "hasPlan": true }, "next": "HOME", "note": "đã có lộ trình thì không làm lại onboarding" },
+    { "id": "W4", "state": "WELCOME", "event": "intro_done", "ctx": { "authed": true, "accountSource": "ORG_ROSTER" }, "next": "PROFILE_LITE", "note": "I-11: học viên trung tâm đi bản rút gọn" },
+    { "id": "W5", "state": "WELCOME", "event": "login_succeeded", "ctx": { "authed": true, "hasPlan": true }, "next": "HOME", "note": "cổng quay lại: có plan → Trang chủ" },
+    { "id": "W6", "state": "WELCOME", "event": "login_succeeded", "ctx": { "authed": true, "hasPlan": false }, "next": "PROFILE", "note": "cổng quay lại: chưa có plan → phễu (W-16)" },
+    { "id": "W7", "state": "WELCOME", "event": "login_succeeded", "ctx": { "authed": true, "hasPlan": false, "accountSource": "ORG_INVITE" }, "next": "PROFILE_LITE", "note": "cổng quay lại của học viên trung tâm" },
+    { "id": "W8", "state": "WELCOME", "event": "profile_submitted", "ctx": {}, "next": "WELCOME", "note": "sự kiện sai chỗ = đứng im" },
+
+    { "id": "P1", "state": "PROFILE", "event": "profile_submitted", "ctx": { "authed": false }, "next": "TASTE", "note": "khách: quick win trước tài khoản (G-2)" },
+    { "id": "P2", "state": "PROFILE", "event": "profile_submitted", "ctx": { "authed": true }, "next": "CREATING", "note": "đã có tài khoản: lưu hồ sơ ngay, không quick win" },
+    { "id": "P3", "state": "PROFILE", "event": "auth_succeeded", "ctx": {}, "next": "PROFILE", "note": "chưa tới cổng tài khoản" },
+    { "id": "PL1", "state": "PROFILE_LITE", "event": "profile_submitted", "ctx": { "authed": true, "accountSource": "ORG_ROSTER" }, "next": "CREATING", "note": "I-11: không TASTE, không PATH_CHOICE" },
+    { "id": "PL2", "state": "PROFILE_LITE", "event": "taste_done", "ctx": { "authed": true, "accountSource": "ORG_ROSTER" }, "next": "PROFILE_LITE", "note": "I-11: không có quick win ở bản rút gọn" },
+
+    { "id": "T1", "state": "TASTE", "event": "taste_done", "ctx": { "level": "A0" }, "next": "AUTH_GATE", "note": "A0 đi thẳng cổng tài khoản" },
+    { "id": "T2", "state": "TASTE", "event": "taste_done", "ctx": { "level": null }, "next": "AUTH_GATE", "note": "chưa chọn trình độ = A0 (ma trận ZERO)" },
+    { "id": "T3", "state": "TASTE", "event": "taste_done", "ctx": { "level": "A1" }, "next": "PATH_CHOICE", "note": "A1+ chọn đường" },
+    { "id": "T4", "state": "TASTE", "event": "taste_done", "ctx": { "level": "B2" }, "next": "PATH_CHOICE", "note": "" },
+
+    { "id": "C1", "state": "PATH_CHOICE", "event": "path_selected", "ctx": { "authed": false, "level": "A1", "pathChoice": "placement" }, "next": "AUTH_GATE", "note": "I-9: chọn trước tài khoản, thực thi sau claim" },
+    { "id": "C2", "state": "PATH_CHOICE", "event": "path_selected", "ctx": { "authed": false, "level": "A1", "pathChoice": "skip" }, "next": "AUTH_GATE", "note": "bỏ qua cũng phải qua cổng tài khoản" },
+    { "id": "C3", "state": "PATH_CHOICE", "event": "path_selected", "ctx": { "authed": true, "level": "A1", "pathChoice": "placement" }, "next": "FIRST_LESSON", "note": "đã có tài khoản (sau CREATING): thực thi ngay" },
+    { "id": "C4", "state": "PATH_CHOICE", "event": "path_selected", "ctx": { "authed": true, "level": "B1", "pathChoice": "mock_exam" }, "next": "FIRST_LESSON", "note": "nói thử 3′ (web)" },
+    { "id": "C5", "state": "PATH_CHOICE", "event": "path_selected", "ctx": { "authed": true, "level": "A2", "pathChoice": "skip" }, "next": "HOME_WEEK1", "note": "A1+ bỏ qua → Home, checklist mời lại" },
+
+    { "id": "A1", "state": "AUTH_GATE", "event": "auth_succeeded", "ctx": { "authed": true }, "next": "CLAIMED", "note": "đăng ký/OTP/đăng nhập xong" },
+    { "id": "A2", "state": "AUTH_GATE", "event": "plan_ready", "ctx": {}, "next": "AUTH_GATE", "note": "chưa claim thì chưa có plan" },
+    { "id": "K1", "state": "CLAIMED", "event": "claim_succeeded", "ctx": { "authed": true }, "next": "CREATING", "note": "server đã phát lại hồ sơ" },
+    { "id": "K2", "state": "CLAIMED", "event": "claim_failed", "ctx": { "authed": true }, "next": "PROFILE", "note": "phiên hết hạn / của người khác (I-7) → làm lại wizard, KHÔNG replay draft của người khác" },
+
+    { "id": "R1", "state": "CREATING", "event": "plan_ready", "ctx": { "authed": true, "level": "A0" }, "next": "FIRST_LESSON", "note": "I-1: A0 luôn có bài đầu tiên" },
+    { "id": "R2", "state": "CREATING", "event": "plan_ready", "ctx": { "authed": true, "level": "A0", "pathChoice": "skip" }, "next": "FIRST_LESSON", "note": "I-1: A0 không bỏ qua được dù pathChoice bị nhồi" },
+    { "id": "R3", "state": "CREATING", "event": "plan_ready", "ctx": { "authed": true, "level": "A1", "pathChoice": "placement" }, "next": "FIRST_LESSON", "note": "thực thi lựa chọn đã ghi trước tài khoản" },
+    { "id": "R4", "state": "CREATING", "event": "plan_ready", "ctx": { "authed": true, "level": "B1", "pathChoice": "skip" }, "next": "HOME_WEEK1", "note": "A1+ đã chọn bỏ qua" },
+    { "id": "R5", "state": "CREATING", "event": "plan_ready", "ctx": { "authed": true, "level": "A2", "pathChoice": null }, "next": "PATH_CHOICE", "note": "đăng ký thẳng A1+ chưa chọn đường → hỏi sau khi có plan" },
+    { "id": "R6", "state": "CREATING", "event": "plan_ready", "ctx": { "authed": true, "level": "A1", "accountSource": "ORG_ROSTER", "pathChoice": null }, "next": "FIRST_LESSON", "note": "học viên trung tâm: trung tâm đã xếp lớp, không hỏi đường, vào bài đầu" },
+
+    { "id": "L1", "state": "FIRST_LESSON", "event": "lesson_done", "ctx": { "authed": true, "level": "A0" }, "next": "CELEBRATE", "note": "" },
+    { "id": "L2", "state": "FIRST_LESSON", "event": "lesson_skipped", "ctx": { "authed": true, "level": "A0" }, "next": "CELEBRATE", "note": "I-4/I-5: từ chối mic → nghe–lặp, vẫn ăn mừng" },
+    { "id": "L3", "state": "FIRST_LESSON", "event": "lesson_done", "ctx": { "authed": true, "level": "A1", "pathChoice": "placement" }, "next": "CELEBRATE", "note": "placement xong (đậu hay rớt) đều ăn mừng" },
+    { "id": "L4", "state": "FIRST_LESSON", "event": "lesson_skipped", "ctx": { "authed": true, "level": "A1", "pathChoice": "placement" }, "next": "HOME_WEEK1", "note": "A1+ thoát giữa chừng → Home, không mất gì" },
+
+    { "id": "E1", "state": "CELEBRATE", "event": "celebrate_done", "ctx": { "authed": true }, "next": "HOME_WEEK1", "note": "" },
+    { "id": "H1", "state": "HOME_WEEK1", "event": "reminder_answered", "ctx": { "authed": true }, "next": "CORE_DONE", "note": "I-4: bật hay từ chối nhắc học đều là đi hết luồng" },
+    { "id": "H2", "state": "HOME_WEEK1", "event": "lesson_done", "ctx": { "authed": true }, "next": "HOME_WEEK1", "note": "học tiếp không đổi trạng thái onboarding" },
+    { "id": "D1", "state": "CORE_DONE", "event": "reminder_answered", "ctx": { "authed": true }, "next": "CORE_DONE", "note": "trạng thái cuối, đứng im" },
+    { "id": "D2", "state": "HOME", "event": "intro_done", "ctx": { "authed": true, "hasPlan": true }, "next": "HOME", "note": "trạng thái cuối, đứng im" }
+  ],
+  "invariants": [
+    { "id": "I-1", "text": "Từ CREATING với level A0 (hoặc null), plan_ready LUÔN tới FIRST_LESSON, bất kể pathChoice." },
+    { "id": "I-5", "text": "Từ FIRST_LESSON với A0, lesson_skipped tới CELEBRATE (từ chối mic không phải thất bại)." },
+    { "id": "I-9", "text": "PATH_CHOICE khi chưa có tài khoản chỉ có thể tới AUTH_GATE." },
+    { "id": "I-11", "text": "PROFILE_LITE không bao giờ tới TASTE hay PATH_CHOICE." },
+    { "id": "I-13", "text": "Mọi (state, event) không có trong bảng giữ nguyên state." }
+  ]
+}
