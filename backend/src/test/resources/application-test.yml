@@ -33,6 +33,14 @@ aws:
 app:
   flyway:
     repair-before-migrate: false
+  maintenance:
+    # Cache trạng thái bảo trì (MaintenanceStateService) trong test chỉ được đổi qua refreshNow()
+    # tường minh. Nhịp refresh NỀN 15 s là nguồn đua: nó đọc DB lúc một test còn giữ cửa sổ ACTIVE
+    # rồi ghi snapshot SAU khi @AfterEach đã deleteAll() + refreshNow() ⇒ mọi lớp chạy sau 503 hàng
+    # loạt (CI 17/09/2026, run 35227627362). Lớp nền AbstractPostgresIntegrationTest còn dọn thêm
+    # trước mỗi test; hai lớp phòng thủ, không lớp nào tin lớp kia.
+    state-refresh-ms: 3600000
+    state-initial-delay-ms: 3600000
   jwt:
     secret: test-secret-key-with-at-least-32-bytes!!
     access-token-expiry-ms: 900000
