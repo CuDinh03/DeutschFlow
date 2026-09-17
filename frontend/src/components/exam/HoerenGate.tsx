@@ -91,7 +91,7 @@ export function HoerenGate({ teilNo, spec, phase, onPhaseChange }: HoerenGatePro
             {phase === 'framing' && t('hoerenFraming')}
             {phase === 'ready' && t('hoerenReady')}
           </p>
-          {phase === 'idle' && (
+          {phase === 'idle' && spec.readingSeconds > 0 && (
             <p className="ga-ui mt-0.5 text-ga-caption text-amber-800">
               {t('hoerenIdleHint', { s: spec.readingSeconds })}
             </p>
