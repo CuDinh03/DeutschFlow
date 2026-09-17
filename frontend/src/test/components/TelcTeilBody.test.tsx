@@ -169,7 +169,7 @@ describe('Beispiele và mẩu tin kích thích (17/09/2026)', () => {
           stimulus_ad: 'Ferienwohnung am See, 2 Zimmer, ab Juli frei.',
           gapped_text: 'Sehr geehrte Frau Berger, ich habe Ihre Anzeige ___31___ Wochenende gelesen.',
           word_bank: { a: 'AM', b: 'BITTE' },
-          items: [{ id: 'SB2-31', gap: 31 }],
+          items: [{ id: 'SB2-31' }],
         }}
         answers={{}}
         onAnswerChange={() => {}}
