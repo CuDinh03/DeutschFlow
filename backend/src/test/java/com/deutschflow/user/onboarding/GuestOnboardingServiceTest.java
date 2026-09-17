@@ -167,6 +167,62 @@ class GuestOnboardingServiceTest {
     }
 
     @Test
+    @DisplayName("B-8: answers thiếu sessionsPerWeek/minutesPerSession → phát lại với mặc định 5×15, không nổ 400")
+    void claimReplaysWithDefaultsWhenCadenceMissing() {
+        User u = user(43L);
+        Map<String, Object> answers = new LinkedHashMap<>();
+        answers.put("targetLevel", "A1");
+        answers.put("goalType", "WORK");
+        answers.put("currentLevel", "A0");
+        answers.put("dailyGoalMinutes", 10);
+
+        when(sessionRepository.claim(eq(SID), eq(43L), any())).thenReturn(1);
+        when(sessionRepository.findById(SID))
+                .thenReturn(Optional.of(session(43L, Instant.now().plusSeconds(3600), answers)));
+        when(progressRepository.findById(43L)).thenReturn(Optional.empty());
+        when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.claim(u, SID.toString(), "IOS");
+
+        ArgumentCaptor<OnboardingProfileRequest> captor =
+                ArgumentCaptor.forClass(OnboardingProfileRequest.class);
+        verify(learningPlanService).saveProfileAndGeneratePlan(eq(u), captor.capture(), eq("IOS"));
+        // Bản cũ truyền minutesPerSession=null ⇒ UserLearningProfileService ném
+        // "sessionsPerWeek and minutesPerSession are required" ⇒ claim 400 với MỌI phiên có hồ sơ.
+        assertThat(captor.getValue().sessionsPerWeek()).isEqualTo(5);
+        assertThat(captor.getValue().minutesPerSession()).isEqualTo(15);
+        assertThat(captor.getValue().dailyGoalMinutes()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("B-8: answers có minutesPerSession thì dùng đúng giá trị client gửi")
+    void claimReplaysExplicitCadence() {
+        User u = user(44L);
+        Map<String, Object> answers = new LinkedHashMap<>();
+        answers.put("targetLevel", "B2");
+        answers.put("goalType", "CERT");
+        answers.put("examType", "TELC");
+        answers.put("sessionsPerWeek", 7);
+        answers.put("minutesPerSession", 20);
+
+        when(sessionRepository.claim(eq(SID), eq(44L), any())).thenReturn(1);
+        when(sessionRepository.findById(SID))
+                .thenReturn(Optional.of(session(44L, Instant.now().plusSeconds(3600), answers)));
+        when(progressRepository.findById(44L)).thenReturn(Optional.empty());
+        when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.claim(u, SID.toString(), "WEB");
+
+        ArgumentCaptor<OnboardingProfileRequest> captor =
+                ArgumentCaptor.forClass(OnboardingProfileRequest.class);
+        verify(learningPlanService).saveProfileAndGeneratePlan(eq(u), captor.capture(), eq("WEB"));
+        assertThat(captor.getValue().sessionsPerWeek()).isEqualTo(7);
+        assertThat(captor.getValue().minutesPerSession()).isEqualTo(20);
+        assertThat(captor.getValue().examType()).isEqualTo("TELC");
+        assertThat(captor.getValue().industry()).isNull();
+    }
+
+    @Test
     @DisplayName("claim thắng → phát lại câu trả lời thành hồ sơ và ghi progress")
     void claimReplaysAnswers() {
         User u = user(42L);
