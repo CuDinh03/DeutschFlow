@@ -34,33 +34,48 @@ class MockExamTelcSeedTest {
     private static final Path SEED =
             Path.of("src/main/resources/db/migration/V325__mock_exam_telc_b1_set1.sql");
     /**
-     * V327 ghi đè RIÊNG phần Nghe của đề này bằng {@code jsonb_set(…, '{sections,2}', …)}. Cổng
-     * này soi nội dung HIỆU LỰC (V325 + lớp V327), vì soi V325 không thì đang soi một phần Nghe mà
-     * không học viên nào còn nghe.
+     * Các migration sau V325 ghi đè TỪNG PHẦN của đề này bằng {@code jsonb_set(…, '{sections,N}', …)}
+     * (V327: Nghe; V328: Đọc + Sprachbausteine). Cổng này soi nội dung HIỆU LỰC (V325 + mọi lớp
+     * ghi đè, theo thứ tự số), vì soi V325 không thì đang soi một đề mà không học viên nào còn làm.
      */
-    private static final Path HOEREN_OVERLAY =
-            Path.of("src/main/resources/db/migration/V327__mock_exam_telc_b1_hoeren_nghi_thuc.sql");
+    private static final Pattern OVERLAY_FILE = Pattern.compile("V3\\d\\d__mock_exam_telc_b1_(?!set1).*\\.sql");
+    private static final Pattern OVERLAY_BLOCK = Pattern.compile(
+            "'\\{sections,(\\d+)}',\\s*\\$j\\$\\s*(\\{.*?})\\s*\\$j\\$::jsonb", Pattern.DOTALL);
 
     private static Map<String, Object> exam;
+    /** Bản V325 nguyên gốc — để so đáp án trước/sau lớp ghi đè. */
+    private static Map<String, Object> original;
 
     @BeforeAll
     static void loadSeed() throws IOException {
         Matcher m = Pattern.compile("\\$j\\$\\s*(\\{.*?\"sections\".*?})\\s*\\$j\\$", Pattern.DOTALL)
                 .matcher(Files.readString(SEED));
         assertThat(m.find()).as("không trích được sections_json từ %s", SEED.getFileName()).isTrue();
+        original = OM.readValue(m.group(1), Map.class);
         exam = OM.readValue(m.group(1), Map.class);
 
-        Matcher overlay = Pattern.compile("\\$j\\$\\s*(\\{.*?})\\s*\\$j\\$::jsonb", Pattern.DOTALL)
-                .matcher(Files.readString(HOEREN_OVERLAY));
-        assertThat(overlay.find()).as("không trích được phần Nghe từ %s", HOEREN_OVERLAY.getFileName()).isTrue();
-        Map<String, Object> hoeren = OM.readValue(overlay.group(1), Map.class);
-        assertThat(hoeren.get("name")).as("V327 phải ghi đè đúng phần HOEREN").isEqualTo("HOEREN");
         @SuppressWarnings("unchecked")
         List<Object> sections = new ArrayList<>((List<Object>) exam.get("sections"));
-        assertThat(((Map<?, ?>) sections.get(2)).get("name"))
-                .as("V327 ghi vào '{sections,2}' — vị trí đó trong V325 phải là HOEREN, kẻo ghi đè nhầm phần")
-                .isEqualTo("HOEREN");
-        sections.set(2, hoeren);
+        List<Path> overlays;
+        try (var files = Files.list(SEED.getParent())) {
+            overlays = files.filter(f -> OVERLAY_FILE.matcher(f.getFileName().toString()).matches())
+                    .sorted().toList();
+        }
+        assertThat(overlays).as("phải có ít nhất lớp V327").isNotEmpty();
+        for (Path file : overlays) {
+            Matcher block = OVERLAY_BLOCK.matcher(Files.readString(file));
+            int found = 0;
+            while (block.find()) {
+                found++;
+                int index = Integer.parseInt(block.group(1));
+                Map<String, Object> section = OM.readValue(block.group(2), Map.class);
+                assertThat(((Map<?, ?>) sections.get(index)).get("name"))
+                        .as("%s ghi vào '{sections,%d}' — vị trí đó phải là đúng phần, kẻo ghi đè nhầm", file.getFileName(), index)
+                        .isEqualTo(section.get("name"));
+                sections.set(index, section);
+            }
+            assertThat(found).as("không trích được khối jsonb_set nào từ %s", file.getFileName()).isPositive();
+        }
         exam.put("sections", sections);
     }
 
@@ -243,25 +258,114 @@ class MockExamTelcSeedTest {
     }
 
     @Test
-    @DisplayName("lớp V327 giữ nguyên id và đáp án 41–60 của V325 — bài đã nộp không đổi điểm")
-    void hoerenOverlay_keepsAnswerKeyOfV325() throws IOException {
-        Matcher m = Pattern.compile("\\$j\\$\\s*(\\{.*?\"sections\".*?})\\s*\\$j\\$", Pattern.DOTALL)
-                .matcher(Files.readString(SEED));
-        assertThat(m.find()).isTrue();
-        Map<String, Object> original = OM.readValue(m.group(1), Map.class);
+    @DisplayName("các lớp ghi đè giữ nguyên id và đáp án của V325 — trừ SB Teil 2 (hộp từ xếp lại theo bảng chữ cái)")
+    void overlays_keepAnswerKeyOfV325() {
         Map<String, String> before = answerKey(original);
         Map<String, String> after = answerKey(exam);
-        assertThat(after).as("đáp án 41–60 phải y hệt V325").isEqualTo(before);
-        assertThat(after).hasSize(20);
+        // SB2 là ngoại lệ có chủ ý (V328): hộp từ mới phải xếp theo bảng chữ cái như đề thật nên chữ
+        // cái đáp án đi theo hộp. Mọi câu khác — 1–30 và 41–60 — phải y hệt.
+        before.keySet().removeIf(id -> id.startsWith("SB2-"));
+        after.keySet().removeIf(id -> id.startsWith("SB2-"));
+        assertThat(after).as("đáp án ngoài SB Teil 2 phải y hệt V325").isEqualTo(before);
+        assertThat(after).hasSize(50);
+    }
+
+    // ── Đọc + Sprachbausteine (Gói A, 17/09/2026) ────────────────────────────────────────────────
+    // Đo trên 10 Test Klett ZD + đề thật tái dựng: LV1 văn bản 55–110 từ, 5 tiêu đề thừa là „bóng";
+    // LV2 370–520 từ có Vorspann, số dòng, chú thích, câu hỏi dạng Satzanfang KHÔNG theo thứ tự bài;
+    // LV3 luôn hai Beispiele (một ghép, một x); SB1 130–180 từ; SB2 hộp 15 TỪ CHỨC NĂNG viết HOA
+    // xếp theo bảng chữ cái, thư trả lời một mẩu tin in ngay trên.
+
+    @Test
+    @DisplayName("LV Teil 1: năm văn bản 55–130 từ, mười tiêu đề, không tiêu đề nào trùng chữ")
+    void lesenTeil1_textsAreFullLength() {
+        Map<?, ?> t1 = (Map<?, ?>) teileOf("LESEN").get(0);
+        assertThat(((Map<?, ?>) t1.get("headlines")).keySet()).hasSize(10);
+        for (Object itemObj : (List<?>) t1.get("items")) {
+            Map<?, ?> item = (Map<?, ?>) itemObj;
+            assertThat(wordCount(String.valueOf(item.get("text"))))
+                    .as("văn bản %s: số từ", item.get("id")).isBetween(55, 130);
+        }
+    }
+
+    @Test
+    @DisplayName("LV Teil 2: bài ≥ 350 từ có Vorspann, số dòng, chú thích; câu 6–10 là Satzanfang không theo thứ tự bài")
+    void lesenTeil2_isFullArticleWithSentenceStarts() {
+        Map<?, ?> t2 = (Map<?, ?>) teileOf("LESEN").get(1);
+        assertThat(wordCount(String.valueOf(t2.get("context")))).isGreaterThanOrEqualTo(350);
+        assertThat(t2.get("vorspann_de")).asString().isNotBlank();
+        assertThat(t2.get("context_lines")).isEqualTo(Boolean.TRUE);
+        assertThat((List<?>) t2.get("glossary")).isNotEmpty();
+        // Dòng tác giả ngắt ≈ 10 từ để số dòng trên màn ổn định: không dòng nào quá 16 từ.
+        for (String line : String.valueOf(t2.get("context")).split("\\n")) {
+            assertThat(wordCount(line)).as("dòng: %s", line).isLessThanOrEqualTo(16);
+        }
+        List<?> items = (List<?>) t2.get("items");
+        assertThat(items).hasSize(5);
+        for (Object itemObj : items) {
+            Map<?, ?> item = (Map<?, ?>) itemObj;
+            assertThat(String.valueOf(item.get("question")))
+                    .as("%s phải là mở đầu câu, không phải câu hỏi", item.get("id")).doesNotContain("?");
+            assertThat(((Map<?, ?>) item.get("options")).keySet().stream().map(String::valueOf).toList())
+                    .containsExactlyInAnyOrder("a", "b", "c");
+        }
+        // Câu đầu tiên trả lời ở CUỐI bài (Frau Özdemir về lý do bỏ) — thứ tự không theo bài.
+        assertThat(String.valueOf(((Map<?, ?>) items.get(0)).get("question"))).contains("hören");
+    }
+
+    @Test
+    @DisplayName("LV Teil 3: đúng hai Beispiele — một trỏ vào mẩu có thật, một là x")
+    void lesenTeil3_hasTwoExamples() {
+        Map<?, ?> t3 = (Map<?, ?>) teileOf("LESEN").get(2);
+        List<?> examples = (List<?>) t3.get("examples");
+        Set<?> adKeys = ((Map<?, ?>) t3.get("ads")).keySet();
+        assertThat(examples).hasSize(2);
+        List<String> answers = examples.stream().map(e -> String.valueOf(((Map<?, ?>) e).get("answer"))).toList();
+        assertThat(answers).contains("x");
+        assertThat(answers.stream().filter(a -> !a.equals("x")).allMatch(adKeys::contains)).isTrue();
+        assertThat(adKeys).hasSize(12);
+        long noneCount = ((List<?>) t3.get("items")).stream()
+                .filter(it -> "x".equals(((Map<?, ?>) it).get("correct"))).count();
+        assertThat(noneCount).as("đề thật: đúng hai tình huống không mẩu nào hợp").isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("SB Teil 1: thư 120–200 từ; SB Teil 2: hộp 15 từ chức năng viết HOA xếp theo bảng chữ cái, có mẩu tin kích thích")
+    void sprachbausteine_matchRealFormat() {
+        List<?> teile = teileOf("SPRACHBAUSTEINE");
+        Map<?, ?> t1 = (Map<?, ?>) teile.get(0);
+        Map<?, ?> t2 = (Map<?, ?>) teile.get(1);
+        assertThat(wordCount(String.valueOf(t1.get("gapped_text")))).isBetween(120, 200);
+
+        assertThat(t2.get("stimulus_ad")).asString().isNotBlank();
+        @SuppressWarnings("unchecked")
+        Map<String, String> bank = (Map<String, String>) t2.get("word_bank");
+        assertThat(bank).hasSize(15);
+        List<String> words = bank.keySet().stream().sorted().map(bank::get).toList();
+        for (String w : words) {
+            assertThat(w).as("từ trong hộp phải viết HOA như đề thật").isEqualTo(w.toUpperCase(java.util.Locale.GERMAN));
+            assertThat(w).as("từ chức năng, không phải danh từ có hậu tố -UNG/-KEIT/-HEIT").doesNotEndWith("UNG").doesNotEndWith("KEIT");
+        }
+        java.text.Collator de = java.text.Collator.getInstance(java.util.Locale.GERMAN);
+        for (int i = 1; i < words.size(); i++) {
+            assertThat(de.compare(words.get(i - 1), words.get(i)))
+                    .as("hộp từ phải xếp theo bảng chữ cái: %s trước %s", words.get(i - 1), words.get(i))
+                    .isLessThanOrEqualTo(0);
+        }
+        List<?> items = (List<?>) t2.get("items");
+        Set<String> used = items.stream().map(it -> String.valueOf(((Map<?, ?>) it).get("correct"))).collect(Collectors.toSet());
+        assertThat(used).as("mỗi ô một từ khác nhau").hasSize(10);
+        assertThat(bank.keySet()).containsAll(used);
     }
 
     private static Map<String, String> answerKey(Map<String, Object> root) {
         Map<String, String> key = new HashMap<>();
         for (Object sectionObj : (List<?>) root.get("sections")) {
             Map<?, ?> section = (Map<?, ?>) sectionObj;
-            if (!"HOEREN".equals(section.get("name"))) continue;
             for (Object teilObj : (List<?>) section.get("teile")) {
-                for (Object itemObj : (List<?>) ((Map<?, ?>) teilObj).get("items")) {
+                Object items = ((Map<?, ?>) teilObj).get("items");
+                if (!(items instanceof List<?> list)) continue;
+                for (Object itemObj : list) {
                     Map<?, ?> item = (Map<?, ?>) itemObj;
                     key.put(String.valueOf(item.get("id")), String.valueOf(item.get("correct")));
                 }

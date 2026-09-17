@@ -1015,7 +1015,10 @@
       "hoerenReading": "Đọc câu hỏi: còn {s} giây",
       "hoerenFraming": "Đang giới thiệu chủ đề…",
       "hoerenReady": "Bắt đầu nghe được rồi.",
-      "listenItem": "Nghe bài {n}"
+      "listenItem": "Nghe bài {n}",
+      "telcExamples": "Ví dụ (Beispiele)",
+      "telcStimulusAd": "Mẩu tin mà bức thư trả lời",
+      "passageGlossary": "Chú thích từ khó"
     },
     "grammarPractice": {
       "title": "Luyện ngữ pháp",

@@ -1015,7 +1015,10 @@
       "hoerenReading": "Aufgaben lesen: noch {s} Sekunden",
       "hoerenFraming": "Einführung zum Thema…",
       "hoerenReady": "Sie können jetzt hören.",
-      "listenItem": "Text {n} anhören"
+      "listenItem": "Text {n} anhören",
+      "telcExamples": "Beispiele",
+      "telcStimulusAd": "Anzeige, auf die der Brief antwortet",
+      "passageGlossary": "Worterklärungen"
     },
     "grammarPractice": {
       "title": "Grammatiktraining",

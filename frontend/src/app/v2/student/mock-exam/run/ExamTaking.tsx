@@ -9,6 +9,7 @@ import { TelcTeilBody } from '@/components/exam/telc/TelcTeilBody'
 import { telcTeilType } from '@/components/exam/telc/telcTeil'
 import { DialogueAudioPlayer } from '@/components/exam/DialogueAudioPlayer'
 import { HoerenGate } from '@/components/exam/HoerenGate'
+import { ReadingPassage, isRichPassage } from '@/components/exam/telc/ReadingPassage'
 import {
   isDialogueScript,
   isHoerenUnlocked,
@@ -55,6 +56,14 @@ export interface ExamTeil {
   instruction_vi?: string
   instruction_de?: string
   context?: string
+  /**
+   * Bài đọc dài kiểu đề thật (LV Teil 2 telc, 17/09/2026): tiêu đề, Vorspann in đậm, thân bài
+   * đánh số dòng mỗi 5 dòng, chú thích từ khó cuối bài. Đề không khai ⇒ `context` dựng như cũ.
+   */
+  title_de?: string
+  vorspann_de?: string
+  context_lines?: boolean
+  glossary?: Array<{ term: string; explanation_de: string }>
   audio_script?: AudioScript
   /** Số lần được phép nghe (telc: 1 ở HV Teil 1, 2 ở Teil 2–3). Bỏ trống = không giới hạn. */
   max_plays?: number
@@ -283,11 +292,13 @@ export function ExamTaking({
           </div>
 
           <div className="p-4 lg:p-6">
-            {teil.context && (
+            {teil.context && (isRichPassage(teil) ? (
+              <ReadingPassage teil={teil} />
+            ) : (
               <div className="ga-ui mb-6 whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-4 text-ga-body text-ga-ink">
                 {teil.context}
               </div>
-            )}
+            ))}
             {gate && (
               <HoerenGate
                 teilNo={teil.teil}

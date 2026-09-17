@@ -33,6 +33,13 @@ export interface TelcTeil extends ExamTeil {
   single_use?: boolean
   /** Teil 3 Leseverstehen: cho thêm đáp án `x`. */
   allow_none?: boolean
+  /**
+   * Beispiele in trước các câu như đề thật (LV Teil 3 luôn có hai: một ghép được, một `x`).
+   * Mẩu của Beispiel vẫn dùng lại được cho câu thật — Beispiel không chiếm lựa chọn.
+   */
+  examples?: Array<{ label?: string; situation: string; answer: string }>
+  /** Mẩu tin/quảng cáo mà bức thư SB Teil 2 trả lời — in ngay trên thư như đề thật. */
+  stimulus_ad?: string
 }
 
 export function telcTeilType(teil: ExamTeil | TelcTeil): TelcTeilType | null {

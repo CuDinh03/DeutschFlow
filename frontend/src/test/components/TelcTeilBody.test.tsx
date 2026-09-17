@@ -133,3 +133,49 @@ describe('đề thiếu dữ liệu', () => {
     expect(container).toBeEmptyDOMElement()
   })
 })
+
+describe('Beispiele và mẩu tin kích thích (17/09/2026)', () => {
+  it('LV Teil 3 in hai Beispiele trước các câu — một ghép được, một là “không”', () => {
+    render(
+      <TelcTeilBody
+        teil={{
+          teil: 3,
+          type: 'MATCH_AD_X',
+          allow_none: true,
+          ads: { a: 'Nachhilfe Mathe', b: 'Fotograf für Feiern' },
+          examples: [
+            { label: '01', situation: 'Ihre Eltern feiern goldene Hochzeit und wollen schöne Bilder.', answer: 'b' },
+            { label: '02', situation: 'Ihr Nachbar sucht einen Klavierlehrer.', answer: 'x' },
+          ],
+          items: [{ id: 'LV3-11', question: 'Ihre Tochter braucht Hilfe in Mathe.' }],
+        }}
+        answers={{}}
+        onAnswerChange={() => {}}
+      />,
+    )
+    expect(screen.getByText('Ihre Eltern feiern goldene Hochzeit und wollen schöne Bilder.')).toBeInTheDocument()
+    expect(screen.getByText('Ihr Nachbar sucht einen Klavierlehrer.')).toBeInTheDocument()
+    // Beispiel dùng mẩu b — nhưng b KHÔNG bị khoá cho câu thật (đề thật cho dùng lại).
+    const radios = screen.getAllByRole('radio') as HTMLInputElement[]
+    expect(radios.find((r) => r.getAttribute('name') === 'LV3-11' && r.value === 'b')?.disabled).toBe(false)
+  })
+
+  it('SB Teil 2 in mẩu tin mà bức thư trả lời ngay trên thư', () => {
+    render(
+      <TelcTeilBody
+        teil={{
+          teil: 2,
+          type: 'GAP_WORDBANK',
+          stimulus_ad: 'Ferienwohnung am See, 2 Zimmer, ab Juli frei.',
+          gapped_text: 'Sehr geehrte Frau Berger, ich habe Ihre Anzeige ___31___ Wochenende gelesen.',
+          word_bank: { a: 'AM', b: 'BITTE' },
+          items: [{ id: 'SB2-31', gap: 31 }],
+        }}
+        answers={{}}
+        onAnswerChange={() => {}}
+      />,
+    )
+    expect(screen.getByText('Ferienwohnung am See, 2 Zimmer, ab Juli frei.')).toBeInTheDocument()
+    expect(screen.getByText('Mẩu tin mà bức thư trả lời')).toBeInTheDocument()
+  })
+})
