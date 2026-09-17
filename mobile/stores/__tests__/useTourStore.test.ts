@@ -74,6 +74,45 @@ describe('useTourStore', () => {
     expect(useTourStore.getState().done.home).toBe(true)
   })
 
+  // M-17 (Đợt 0 onboarding 17/09): bootstrap _layout.tsx và SpotlightTour cùng gọi hydrate lúc
+  // khởi động — phải là MỘT lần đọc SecureStore, và markDone xen giữa không bị lần đọc thứ hai đè.
+  test('hai hydrate song song → single-flight: cùng một promise, đọc SecureStore một lần', async () => {
+    backing.set('df_tour_home_done', '1')
+    const getSpy = SecureStore.getItemAsync as jest.Mock
+    getSpy.mockClear()
+
+    const p1 = useTourStore.getState().hydrate()
+    const p2 = useTourStore.getState().hydrate()
+    expect(p2).toBe(p1)
+    await Promise.all([p1, p2])
+
+    expect(getSpy).toHaveBeenCalledTimes(1 + TOUR_FLAG_IDS.length)
+    expect(useTourStore.getState().hydrated).toBe(true)
+    expect(useTourStore.getState().done.home).toBe(true)
+  })
+
+  test('markDone xen giữa lúc hydrate đang chạy không bị đè khi hydrate xong', async () => {
+    const p = useTourStore.getState().hydrate()
+    await useTourStore.getState().markDone('profile_done')
+    await p
+
+    expect(useTourStore.getState().done.profile_done).toBe(true)
+  })
+
+  test('reset xen giữa lúc hydrate đang chạy → hydrate không hồi sinh cờ của người trước', async () => {
+    backing.set('df_tour_home_done', '1')
+    backing.set('df_tour_profile_done_done', '1')
+
+    const p = useTourStore.getState().hydrate()
+    await useTourStore.getState().reset()
+    await p
+
+    const s = useTourStore.getState()
+    expect(s.hydrated).toBe(true)
+    expect(s.done.home).toBe(false)
+    expect(s.done.profile_done).toBe(false)
+  })
+
   test('every flag id round-trips through markDone', async () => {
     await useTourStore.getState().hydrate()
     for (const id of TOUR_FLAG_IDS) {
