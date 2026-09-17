@@ -26,7 +26,11 @@
       "B2": {
         "label": "Cao cấp (B2)",
         "desc": "Đọc hiểu phức tạp"
-      }
+      },
+      "currentLabel": "Hiện tại",
+      "targetLabel": "Mục tiêu",
+      "journey": "Lộ trình {nodes} chặng · khoảng {weeks} tuần với nhịp đều đặn.",
+      "journeyGeneric": "Lộ trình sẽ được dựng riêng cho chặng này của bạn."
     },
     "goal": {
       "heading": "Vì sao bạn học tiếng Đức?",
@@ -60,6 +64,43 @@
       },
       "noteA0": "Bước đầu tiên của bạn sẽ là <b>Bảng chữ cái, Phát âm và Chào hỏi</b>.",
       "notePlacement": "Có thể làm <b>bài kiểm tra 5 phút (tùy chọn)</b> để vào đúng trình độ — hoặc bắt đầu học ngay."
+    },
+    "rhythm": {
+      "heading": "Mỗi ngày bao nhiêu phút?",
+      "sub": "Chuỗi ngày học (streak) tính theo mức này — chọn mức bạn giữ được lâu dài.",
+      "minutes": "phút/ngày",
+      "m5": "Tranh thủ",
+      "m10": "Nhẹ nhàng",
+      "m15": "Đều đặn",
+      "m20": "Nghiêm túc"
+    },
+    "focus": {
+      "industryHeading": "Bạn sẽ dùng tiếng Đức ở đâu?",
+      "industrySub": "Không bắt buộc — giúp chọn mentor và tình huống luyện nói sát nghề.",
+      "examHeading": "Bạn nhắm kỳ thi nào?",
+      "examSub": "Không bắt buộc — đề luyện và dạng bài sẽ bám theo format kỳ thi này.",
+      "industry": {
+        "IT": "CNTT",
+        "Pflege": "Điều dưỡng",
+        "Gastronomie": "Nhà hàng",
+        "Verkauf": "Bán hàng",
+        "Tourismus": "Du lịch",
+        "Technik": "Kỹ thuật"
+      },
+      "exam": {
+        "GOETHE": {
+          "label": "Goethe-Zertifikat",
+          "desc": "Chứng chỉ phổ biến nhất"
+        },
+        "TELC": {
+          "label": "telc Deutsch",
+          "desc": "Được công nhận ngang Goethe"
+        },
+        "TESTDAF": {
+          "label": "TestDaF",
+          "desc": "Dành cho du học đại học"
+        }
+      }
     },
     "orgLite": {
       "cap": "Học viên trung tâm",
@@ -120,7 +161,8 @@
       "continue": "Tiếp tục",
       "startRoadmap": "Bắt đầu lộ trình",
       "progressAria": "Tiến độ thiết lập lộ trình",
-      "stepOf": "Bước {step} trên {total}"
+      "stepOf": "Bước {step} trên {total}",
+      "stepAnnounce": "Bước {step} trên {total}: {title}"
     },
     "loader": {
       "title": "Đang tạo lộ trình của bạn…",

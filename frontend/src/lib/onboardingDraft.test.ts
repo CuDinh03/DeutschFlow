@@ -16,7 +16,7 @@ const DRAFT: OnboardingDraft = {
   targetLevel: 'B1',
   industry: 'HEALTHCARE',
   examType: 'GOETHE',
-  weeklyTarget: 4,
+  dailyGoalMinutes: 10,
 }
 
 /** Ghi thẳng vào localStorage để dựng draft "đời cũ" hoặc draft đã quá hạn. */
@@ -126,10 +126,20 @@ describe('readOnboardingDraft — dữ liệu hỏng', () => {
       goalType: 'WORK',
       currentLevel: 'A0',
       targetLevel: 'B2',
-      industry: 'IT',
-      examType: 'GOETHE',
-      weeklyTarget: 5,
+      industry: null,
+      examType: null,
+      dailyGoalMinutes: 15,
     })
+  })
+
+  it('Đợt 4: draft bản cũ còn `weeklyTarget` được đổi sang phút/ngày (7→20, 5→15, 3→10)', () => {
+    writeRaw({ targetLevel: 'B1', weeklyTarget: 7, savedAt: Date.now() })
+    expect(readOnboardingDraft()?.dailyGoalMinutes).toBe(20)
+    writeRaw({ targetLevel: 'B1', weeklyTarget: 3, savedAt: Date.now() })
+    expect(readOnboardingDraft()?.dailyGoalMinutes).toBe(10)
+    // Có cả hai thì phút/ngày thắng.
+    writeRaw({ targetLevel: 'B1', weeklyTarget: 7, dailyGoalMinutes: 5, savedAt: Date.now() })
+    expect(readOnboardingDraft()?.dailyGoalMinutes).toBe(5)
   })
 })
 
