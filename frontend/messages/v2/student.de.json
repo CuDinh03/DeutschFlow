@@ -1018,6 +1018,13 @@
       "listenItem": "Text {n} anhören",
       "telcExamples": "Beispiele",
       "telcStimulusAd": "Anzeige, auf die der Brief antwortet",
+      "writingStimulusEmail": "Die E-Mail, die Sie erhalten haben",
+      "writingStimulusAd": "Die Anzeige, auf die Sie antworten",
+      "writingStimulusLetter": "Der Brief, den Sie erhalten haben",
+      "writingFrom": "Von",
+      "writingSubject": "Betreff",
+      "writingPointsOrder": "Die Punkte stehen wie in der echten Prüfung nicht in der richtigen Reihenfolge. Überlegen Sie sich selbst eine passende Reihenfolge.",
+      "writingPlaceholder": "Schreiben Sie hier Ihre Antwort-E-Mail…",
       "passageGlossary": "Worterklärungen"
     },
     "grammarPractice": {
@@ -2192,6 +2199,20 @@
         "improvements": "Verbesserungsbedarf",
         "title": "Bewertung des Schreibteils (SCHREIBEN Teil 2)",
         "officialRubricLevel": "Offizielles Goethe-Raster {level}",
+        "band": "Stufe {band}",
+        "officialRubricTelc": "Offizieller telc-Bewertungsbogen (Stufen A/B/C/D)",
+        "officialRubricTelcLevel": "Offizieller telc-Bewertungsbogen {level} (Stufen A/B/C/D)",
+        "themaVerfehlt": "Thema verfehlt — nach dem telc-Bewertungsbogen erhalten alle drei Kriterien die Stufe D.",
+        "situierungVerfehlt": "Situierung verfehlt (falscher Adressat oder falsche Situation) — Kriterium I erhält D, die beiden anderen werden normal bewertet.",
+        "missingPoints": "Fehlende Leitpunkte (Nummern wie in der Aufgabe): {list}",
+        "noATitle": "Warum „Aufbau & Briefkonventionen“ nicht die Stufe A erreicht",
+        "noAReason": {
+          "textsorte": "Merkmale einer persönlichen E-Mail fehlen: Anrede, Bezug auf die Mail, Gruß.",
+          "register": "Das Register passt nicht zum Adressaten (Sie/du gemischt, zu förmlich oder zu salopp).",
+          "unverbunden": "Die Leitpunkte stehen unverbunden nebeneinander – ohne Konnektoren oder Überleitungen.",
+          "ichAnfang": "Die meisten Sätze beginnen mit „Ich“ oder „Wir“.",
+          "other": "Ein weiterer Grund laut Bewertungsbogen."
+        },
         "missingCriteria": "Die KI hat {count} Kriterium/Kriterien nicht bewertet — die Skala wurde entsprechend verkleinert, nicht als 0 gewertet."
       },
       "weakAreas": {

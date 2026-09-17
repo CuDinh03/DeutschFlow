@@ -186,6 +186,37 @@ class MockExamTelcSeedTest {
         assertThat(teil.get("prompt")).asString().isNotBlank();
     }
 
+    // ── Viết (Gói C, 17/09/2026) ─────────────────────────────────────────────────────────────────
+    // Übungstest telc 2020 + 35 đề thật tái dựng: phần Viết LUÔN là E-Mail xưng du trả lời E-Mail
+    // của một người bạn (in nguyên văn phía trên), bốn Leitpunkte in xáo thứ tự, Anweisung đòi
+    // „eine passende Reihenfolge", KHÔNG quy định số từ. V325 là thư khiếu nại không có văn bản
+    // kích thích và đòi „circa 100 Wörter" — cổng này giữ cho không tụt lại.
+
+    @Test
+    @DisplayName("phần Viết: E-Mail xưng du của bạn in trước, 60–140 từ; Leitpunkte xáo; Anweisung không ghi số từ")
+    void schreiben_isReplyToFriendsEmail() {
+        Map<?, ?> teil = (Map<?, ?>) teileOf("SCHREIBEN").get(0);
+        Map<?, ?> stimulus = (Map<?, ?>) teil.get("stimulus");
+        assertThat(stimulus).as("phải có văn bản kích thích").isNotNull();
+        assertThat(stimulus.get("type")).isEqualTo("EMAIL");
+        assertThat(stimulus.get("from")).asString().isNotBlank();
+        assertThat(stimulus.get("subject")).asString().isNotBlank();
+        String body = String.valueOf(stimulus.get("body"));
+        assertThat(wordCount(body)).as("E-Mail của bạn dài như đề thật").isBetween(60, 140);
+        assertThat(body).as("xưng du, không phải Sie").containsAnyOf(" dir", " dich", " du ", "du?");
+        assertThat(body).doesNotContain("Sie ").doesNotContain("Ihnen");
+
+        assertThat(teil.get("shuffle_points")).isEqualTo(Boolean.TRUE);
+        assertThat(String.valueOf(teil.get("instruction_de")))
+                .as("Anweisung tiếng Đức không quy định số từ, đòi thứ tự hợp lý")
+                .doesNotContainIgnoringCase("Wörter")
+                .containsIgnoringCase("Reihenfolge")
+                .contains("E-Mail");
+        assertThat(String.valueOf(teil.get("instruction_vi")))
+                .as("gợi ý độ dài chỉ nằm ở bản tiếng Việt")
+                .contains("từ");
+    }
+
     // ── Nghi thức bài nghe (Gói B, 17/09/2026) ──────────────────────────────────────────────────
     // Đo trên CD đề mẫu và Übungstest telc 2020: Teil 1 = 5 lời kể 60–110 từ (34–48 s) về MỘT chủ
     // đề có câu khung; Teil 2 = phỏng vấn radio 500–650 từ; Teil 3 = 5 bài 40–90 từ có câu dẫn tình

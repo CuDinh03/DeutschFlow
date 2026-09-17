@@ -10,6 +10,12 @@ import { telcTeilType } from '@/components/exam/telc/telcTeil'
 import { DialogueAudioPlayer } from '@/components/exam/DialogueAudioPlayer'
 import { HoerenGate } from '@/components/exam/HoerenGate'
 import { ReadingPassage, isRichPassage } from '@/components/exam/telc/ReadingPassage'
+import { WritingStimulus } from '@/components/exam/telc/WritingStimulus'
+import {
+  isWritingStimulus,
+  orderedWritingPoints,
+  type WritingStimulus as WritingStimulusData,
+} from '@/components/exam/telc/writingTask'
 import {
   isDialogueScript,
   isHoerenUnlocked,
@@ -80,6 +86,13 @@ export interface ExamTeil {
   prompt?: string
   input_email?: string
   writing_points?: string[]
+  /**
+   * Phần Viết kiểu telc (17/09/2026): văn bản mà bài viết trả lời (E-Mail của bạn / mẩu tin / thư)
+   * in phía trên, và cờ xáo thứ tự Leitpunkte khi in (seed lưu thứ tự hợp lý cho AI chấm).
+   * Đề Goethe không khai ⇒ khối đề bài dựng như cũ.
+   */
+  stimulus?: WritingStimulusData
+  shuffle_points?: boolean
   prompt_words?: string[]
   /** Thẻ chủ đề phần Nói (seed A1/A2): trước đây chỉ dùng để bật simulator, nội dung không hiện. */
   topic_cards?: Array<{ card?: string; question_to_ask?: string }>
@@ -273,6 +286,11 @@ export function ExamTaking({
           currentSection.name === 'SCHREIBEN' && !teil.form_fields
             ? teil.input_email ?? teil.prompt
             : teil.input_email
+        // Văn bản kích thích kiểu telc (E-Mail của bạn in nguyên văn) — có thì thay cho dòng `prompt`.
+        const richStimulus =
+          currentSection.name === 'SCHREIBEN' && !teil.form_fields && isWritingStimulus(teil.stimulus)
+            ? teil.stimulus
+            : undefined
         const speakingPrompt =
           currentSection.name === 'SPRECHEN' && !teil.prompt_words && !teil.topic_cards
             ? teil.prompt
@@ -480,18 +498,29 @@ export function ExamTaking({
               )}
 
               {/* Schreiben Teil 2 — email. Answer key stays `email_<teil>` (server contract). */}
-              {writingStimulus && (
+              {(writingStimulus || richStimulus) && (
                 <div className="space-y-4">
-                  <div className="ga-ui whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-4 text-ga-body text-ga-ink">
-                    {writingStimulus}
-                  </div>
+                  {/* Đề telc in nguyên văn E-Mail của bạn; có nó thì dòng `prompt` một câu là thừa. */}
+                  {richStimulus ? (
+                    <WritingStimulus stimulus={richStimulus} />
+                  ) : (
+                    <div className="ga-ui whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-4 text-ga-body text-ga-ink">
+                      {writingStimulus}
+                    </div>
+                  )}
+                  {teil.shuffle_points && (teil.writing_points?.length ?? 0) > 1 && (
+                    <p className="ga-ui text-ga-small text-ga-muted">{t('writingPointsOrder')}</p>
+                  )}
                   <ul className="ga-ui mb-4 list-disc space-y-1 break-words pl-5 text-ga-body text-ga-muted">
-                    {teil.writing_points?.map((pt, idx) => <li key={idx}>{pt}</li>)}
+                    {orderedWritingPoints(teil.writing_points ?? [], teil.shuffle_points).map((pt) => (
+                      <li key={pt}>{pt}</li>
+                    ))}
                   </ul>
                   <textarea
                     value={answers[`email_${teil.teil}`] || ''}
                     onChange={(e) => onAnswerChange(`email_${teil.teil}`, e.target.value)}
-                    placeholder={t('emailPlaceholder')}
+                    // Placeholder cũ ghi „khoảng 30 từ" (Goethe A1) — sai thước cho đề telc không quy định số từ.
+                    placeholder={richStimulus ? t('writingPlaceholder') : t('emailPlaceholder')}
                     className="ga-ui h-40 w-full resize-none rounded-ga border border-ga-line bg-ga-card px-4 py-3 text-ga-body text-ga-ink outline-none focus:border-ga-accent"
                   />
                 </div>

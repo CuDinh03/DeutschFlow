@@ -1018,6 +1018,13 @@
       "listenItem": "Nghe bài {n}",
       "telcExamples": "Ví dụ (Beispiele)",
       "telcStimulusAd": "Mẩu tin mà bức thư trả lời",
+      "writingStimulusEmail": "E-Mail bạn nhận được",
+      "writingStimulusAd": "Mẩu tin mà bài viết trả lời",
+      "writingStimulusLetter": "Thư bạn nhận được",
+      "writingFrom": "Từ",
+      "writingSubject": "Chủ đề",
+      "writingPointsOrder": "Các ý dưới đây in không theo thứ tự — như tờ đề thật. Bạn tự sắp thứ tự hợp lý khi viết.",
+      "writingPlaceholder": "Viết E-Mail trả lời của bạn vào đây…",
       "passageGlossary": "Chú thích từ khó"
     },
     "grammarPractice": {
@@ -2192,6 +2199,20 @@
         "improvements": "Cần cải thiện",
         "title": "Đánh giá bài viết (SCHREIBEN Teil 2)",
         "officialRubricLevel": "Rubric Goethe {level} chính thức",
+        "band": "Bậc {band}",
+        "officialRubricTelc": "Bảng chấm telc chính thức (bậc A/B/C/D)",
+        "officialRubricTelcLevel": "Bảng chấm telc {level} chính thức (bậc A/B/C/D)",
+        "themaVerfehlt": "Bài lạc đề — theo bảng chấm telc, cả ba tiêu chí nhận bậc D.",
+        "situierungVerfehlt": "Bài viết sai người nhận hoặc sai tình huống — tiêu chí I nhận bậc D, hai tiêu chí còn lại chấm bình thường.",
+        "missingPoints": "Ý còn thiếu (số thứ tự theo đề): {list}",
+        "noATitle": "Vì sao tiêu chí „Bố cục & cách viết thư“ không đạt bậc A",
+        "noAReason": {
+          "textsorte": "Thiếu đặc điểm của một E-Mail cá nhân: lời chào đầu, câu mở nhắc tới thư của bạn, lời chào cuối.",
+          "register": "Xưng hô hoặc giọng văn không hợp với người nhận (lẫn Sie/du, quá trang trọng hoặc quá suồng sã).",
+          "unverbunden": "Các ý đứng rời nhau, không có từ nối hay câu chuyển.",
+          "ichAnfang": "Phần lớn câu mở đầu bằng „Ich“ hoặc „Wir“.",
+          "other": "Lý do khác theo bảng chấm."
+        },
         "missingCriteria": "AI không chấm {count} tiêu chí — thang điểm đã trừ phần đó, bài không bị tính 0."
       },
       "weakAreas": {

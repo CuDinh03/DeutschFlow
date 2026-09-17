@@ -2,6 +2,7 @@
 // Backend GET /api/mock-exams?cefrLevel=X returns raw snake_case rows.
 
 import api from './api'
+import { isWritingStimulus, orderedWritingPoints, type WritingStimulus } from '@/lib/writingTask'
 
 export interface ExamVariant {
   id: number
@@ -136,6 +137,12 @@ export interface ExamWritingTask {
   teil: number
   instruction?: string
   prompt?: string
+  /**
+   * Văn bản mà bài viết trả lời (đề telc 17/09/2026: E-Mail của bạn in nguyên văn). Có nó thì
+   * `prompt` một dòng không in nữa. Đề Goethe không khai ⇒ undefined, dựng như cũ.
+   */
+  stimulus?: WritingStimulus
+  /** Leitpunkte đã xáo thứ tự khi đề khai `shuffle_points` (seed lưu thứ tự hợp lý cho AI). */
   points?: string[]
   answerKey: string
 }
@@ -453,12 +460,22 @@ function parseWritingTeil(teil: Record<string, unknown>): ExamWritingTask | null
   if (Array.isArray(teil.form_fields) && teil.form_fields.length > 0) return null
   const prompt = typeof teil.prompt === 'string' ? teil.prompt
     : typeof teil.input_email === 'string' ? teil.input_email : undefined
+  const stimulus = isWritingStimulus(teil.stimulus)
+    ? {
+        type: typeof teil.stimulus.type === 'string' ? teil.stimulus.type : undefined,
+        from: typeof teil.stimulus.from === 'string' ? teil.stimulus.from : undefined,
+        subject: typeof teil.stimulus.subject === 'string' ? teil.stimulus.subject : undefined,
+        body: teil.stimulus.body,
+      }
+    : undefined
+  const rawPoints = Array.isArray(teil.writing_points) ? teil.writing_points.map(String) : undefined
   return {
     teil: teilNo,
     instruction: typeof teil.instruction_vi === 'string' ? teil.instruction_vi
       : typeof teil.instruction_de === 'string' ? teil.instruction_de : undefined,
     prompt,
-    points: Array.isArray(teil.writing_points) ? teil.writing_points.map(String) : undefined,
+    stimulus,
+    points: rawPoints ? orderedWritingPoints(rawPoints, teil.shuffle_points === true) : undefined,
     answerKey: `email_${teilNo}`,
   }
 }
