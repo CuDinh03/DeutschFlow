@@ -17,6 +17,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { usePlanHelpers } from "@/contexts/PlanContext";
 import { claimGuestSession, ensureGuestSession, syncGuestSession, type GuestAnswers } from "@/features/onboarding/guestSession";
 import { readGuestSessionCache } from "@/lib/guestSessionStore";
+import { fetchOnboardingContext, needsLiteProfile, type OnboardingContext } from "@/features/onboarding/context";
+import { OrgLiteWizard, type LiteProfilePayload } from "./OrgLiteWizard";
 import { GaBtn, GaIcon } from "@/components/ui-v2";
 import { GaAuthShell } from "../authShared";
 
@@ -132,6 +134,10 @@ export default function V2OnboardingPage() {
   const totalSteps = isGuest ? 5 : 4;
   const [resuming, setResuming] = useState(false);        // authed, replaying a guest draft after signup
   const [quickWinChoice, setQuickWinChoice] = useState<string | null>(null);
+  // Đợt 5 (17/09): học viên trung tâm (ORG_ROSTER | ORG_INVITE) chưa có plan đi bản rút gọn
+  // PROFILE_LITE thay vì wizard 4 bước. Chỉ tin `accountSource` từ GET /onboarding/context;
+  // lỗi mạng / backend cũ ⇒ null ⇒ phễu thường như trước (không chặn ai).
+  const [orgContext, setOrgContext] = useState<OnboardingContext | null>(null);
 
   const fetchMentor = useCallback(async () => {
     try {
@@ -152,15 +158,9 @@ export default function V2OnboardingPage() {
    * commit ⇒ toàn bộ ghi đã rollback, người dùng KHÔNG có learning plan. Cho đi tiếp là
    * đưa họ vào lộ trình trống rồi bị guard `hasPlan=false` đá ngược về đây.
    */
-  const saveProfile = useCallback(async (): Promise<boolean> => {
+  const postProfile = useCallback(async (payload: Record<string, unknown>): Promise<boolean> => {
     try {
-      await api.post("/onboarding/profile", {
-        goalType, targetLevel, currentLevel, motivation,
-        industry: goalType === "WORK" ? industry : undefined,
-        examType: goalType === "CERT" ? examType : undefined,
-        sessionsPerWeek: weeklyTarget, minutesPerSession: 15, dailyGoalMinutes,
-        learningSpeed: weeklyTarget >= 7 ? "FAST" : weeklyTarget >= 5 ? "NORMAL" : "SLOW",
-      });
+      await api.post("/onboarding/profile", payload);
       // Bất biến: hồ sơ đã nằm trên server ⇒ draft hết việc. Phải dọn ở ĐÂY chứ
       // không chỉ trong resumeFromDraft, vì đường phục hồi đi lối khác: resume
       // hỏng → giữ draft → người dùng làm lại bằng wizard → goRoadmap/startTest
@@ -191,7 +191,33 @@ export default function V2OnboardingPage() {
       toast.error(msg);
       return false;
     }
-  }, [goalType, targetLevel, currentLevel, motivation, industry, examType, weeklyTarget, dailyGoalMinutes]);
+  }, [t]);
+
+  const saveProfile = useCallback((): Promise<boolean> => postProfile({
+    goalType, targetLevel, currentLevel, motivation,
+    industry: goalType === "WORK" ? industry : undefined,
+    examType: goalType === "CERT" ? examType : undefined,
+    sessionsPerWeek: weeklyTarget, minutesPerSession: 15, dailyGoalMinutes,
+    learningSpeed: weeklyTarget >= 7 ? "FAST" : weeklyTarget >= 5 ? "NORMAL" : "SLOW",
+  }), [postProfile, goalType, targetLevel, currentLevel, motivation, industry, examType, weeklyTarget, dailyGoalMinutes]);
+
+  /**
+   * PROFILE_LITE (Đợt 5): học viên trung tâm lưu nhịp học (+ trình độ nếu thiếu) rồi đi THẲNG bài
+   * đầu — không hỏi ma trận, không mời placement (I-11: ORG_* sau plan_ready → FIRST_LESSON; trên
+   * web hôm nay bài đầu = lộ trình, Ngày 1 nối ở Đợt 4). Sự kiện bắn cùng tên với wizard đầy đủ để
+   * funnel không tách nhánh; `lite: true` + `accountSource` để đọc riêng khi cần.
+   */
+  const saveLiteProfile = useCallback(async (payload: LiteProfilePayload): Promise<boolean> => {
+    setLoading(true);
+    const ok = await postProfile(payload);
+    if (!ok) { setLoading(false); return false; }
+    const base = { level: payload.currentLevel, goal: payload.goalType, industry: null, lite: true, accountSource: orgContext?.accountSource ?? null };
+    trackEvent('onboarding_completed', base);
+    trackEvent('onboarding_profile_saved', base);
+    trackEvent('onboarding_daily_goal_set', { minutes: payload.dailyGoalMinutes });
+    router.push(ROADMAP_ROUTE);
+    return true;
+  }, [postProfile, router, trackEvent, orgContext]);
 
   const startTest = useCallback(async () => {
     setLoading(true);
@@ -344,6 +370,9 @@ export default function V2OnboardingPage() {
       if (resumeStartedRef.current) return;
       resumeStartedRef.current = true;
       void resumeAfterAuth();
+      // Song song với claim: claim chỉ có việc khi khách từng đi phễu; học viên trung tâm thường
+      // đăng nhập thẳng (mật khẩu ngẫu nhiên → quên mật khẩu) nên không có phiên khách nào.
+      void fetchOnboardingContext().then((ctx) => { if (needsLiteProfile(ctx)) setOrgContext(ctx); });
     } else {
       setIsGuest(true);
       // Phiên khách trên server (72 h) — best-effort, không chặn wizard nếu server từ chối.
@@ -443,6 +472,15 @@ export default function V2OnboardingPage() {
           <p className="ga-ui text-[14px] font-semibold text-ga-ink">{t("loader.title")}</p>
           <p className="text-[12.5px] text-ga-muted">{t("loader.sub")}</p>
         </div>
+      </GaAuthShell>
+    );
+  }
+
+  // PROFILE_LITE (Đợt 5): học viên trung tâm — không hỏi mục tiêu/lĩnh vực, mentor do trung tâm quyết.
+  if (orgContext) {
+    return (
+      <GaAuthShell wide>
+        <OrgLiteWizard ctx={orgContext} loading={loading} onSubmit={saveLiteProfile} />
       </GaAuthShell>
     );
   }

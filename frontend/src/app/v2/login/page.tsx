@@ -166,10 +166,11 @@ export default function V2LoginPage() {
       const next = safeNext(new URLSearchParams(window.location.search).get('next'))
       // Cổng quay lại (Đợt 0 onboarding, 17/09): học viên bỏ dở phễu rồi đăng nhập lại
       // trước đây rơi thẳng vào dashboard rỗng — chỉ 5 trang luyện tập mới kiểm `hasPlan`.
-      // Hỏi /onboarding/status (class-level STUDENT, nên chỉ hỏi khi đúng vai) và đưa họ
-      // về phễu. Lỗi mạng ở đây KHÔNG được chặn đăng nhập → coi như có plan.
+      // Hỏi /onboarding/context (Đợt 5 — cùng `hasPlan` với /status, thêm cửa vào để phễu rẽ
+      // bản rút gọn cho học viên trung tâm; class-level STUDENT nên chỉ hỏi khi đúng vai) và đưa
+      // họ về phễu. Lỗi mạng ở đây KHÔNG được chặn đăng nhập → coi như có plan.
       const hasPlan = user.role === 'STUDENT' && !next
-        ? await api.get<{ hasPlan: boolean }>('/onboarding/status').then((r) => r.data?.hasPlan !== false, () => true)
+        ? await api.get<{ hasPlan: boolean }>('/onboarding/context').then((r) => r.data?.hasPlan !== false, () => true)
         : true
       router.replace(next ?? landingAfterLogin(user.role, { orgRole: data.orgRole, hasPlan }))
 

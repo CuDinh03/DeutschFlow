@@ -630,3 +630,105 @@ describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
     ).toHaveLength(1);
   });
 });
+
+describe("V2OnboardingPage — Đợt 5: học viên trung tâm đi bản rút gọn PROFILE_LITE", () => {
+  const orgCtx = {
+    accountSource: "ORG_ROSTER",
+    hasPlan: false,
+    org: { orgId: 7, name: "Trung tâm Sao Việt", classId: 42, className: "B1 tối thứ 3" },
+    presetCurrentLevel: "A2",
+    trial: { isTrial: true, trialEndsAt: "2026-10-31T00:00:00Z" },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(api.post).mockResolvedValue({ data: {} });
+    vi.mocked(api.get).mockImplementation(async (url: string) =>
+      url === "/onboarding/context" ? { data: orgCtx } : { data: { hasPlan: true } },
+    );
+  });
+
+  it("ORG_ROSTER chưa có plan → màn lớp/trung tâm, KHÔNG có bước mục tiêu; trình độ đã đặt thì không hỏi lại", async () => {
+    render(<V2OnboardingPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("org-lite-wizard")).toBeInTheDocument();
+    });
+    expect(screen.getByText("orgLite.heading")).toBeInTheDocument();
+    expect(screen.getByText("orgLite.levelPreset")).toBeInTheDocument();
+    expect(screen.queryByText("orgLite.levelHeading")).not.toBeInTheDocument();
+    expect(screen.queryByText("level.heading")).not.toBeInTheDocument();
+    expect(screen.queryByText("goal.heading")).not.toBeInTheDocument();
+  });
+
+  it("bấm Bắt đầu học → POST /onboarding/profile với goalType=WORK, không lĩnh vực/kỳ thi, targetLevel mặc định; vào lộ trình, không mời placement", async () => {
+    const user = userEvent.setup();
+    render(<V2OnboardingPage />);
+    await waitFor(() => expect(screen.getByTestId("org-lite-wizard")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: /orgLite\.cta/i }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith("/onboarding/profile", expect.objectContaining({
+        goalType: "WORK", currentLevel: "A2", targetLevel: "B1", industry: null, examType: null,
+        sessionsPerWeek: 5, minutesPerSession: 15, dailyGoalMinutes: 15,
+      }));
+    });
+    expect(getOnboardingRoute).not.toHaveBeenCalled();
+    expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
+    expect(trackEventMock).toHaveBeenCalledWith("onboarding_profile_saved", expect.objectContaining({ lite: true, accountSource: "ORG_ROSTER" }));
+    expect(trackEventMock).toHaveBeenCalledWith("onboarding_completed", expect.objectContaining({ lite: true }));
+  });
+
+  it("presetCurrentLevel null → hỏi thêm một câu trình độ; chọn B1 thì targetLevel nhắm B2", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.get).mockImplementation(async (url: string) =>
+      url === "/onboarding/context" ? { data: { ...orgCtx, presetCurrentLevel: null } } : { data: { hasPlan: true } },
+    );
+    render(<V2OnboardingPage />);
+    await waitFor(() => expect(screen.getByText("orgLite.levelHeading")).toBeInTheDocument());
+
+    await user.click(screen.getByText("level.B1.label"));
+    await user.click(screen.getByRole("button", { name: /orgLite\.cta/i }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith("/onboarding/profile", expect.objectContaining({ currentLevel: "B1", targetLevel: "B2" }));
+    });
+  });
+
+  it("POST hỏng → báo lỗi, ở lại màn rút gọn, KHÔNG đẩy sang lộ trình", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.post).mockRejectedValue({ response: { status: 500 } });
+    render(<V2OnboardingPage />);
+    await waitFor(() => expect(screen.getByTestId("org-lite-wizard")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: /orgLite\.cta/i }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("org-lite-wizard")).toBeInTheDocument();
+  });
+
+  it("SELF (tự đăng ký, kể cả C3 vào lớp bằng mã) → wizard 4 bước như cũ", async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) =>
+      url === "/onboarding/context" ? { data: { ...orgCtx, accountSource: "SELF", org: null } } : { data: { hasPlan: true } },
+    );
+    render(<V2OnboardingPage />);
+
+    expect(screen.getByText("level.heading")).toBeInTheDocument();
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith("/onboarding/context"));
+    expect(screen.queryByTestId("org-lite-wizard")).not.toBeInTheDocument();
+  });
+
+  it("context lỗi (backend cũ 404) → phễu thường, không chặn ai", async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === "/onboarding/context") throw { response: { status: 404 } };
+      return { data: { hasPlan: true } };
+    });
+    render(<V2OnboardingPage />);
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith("/onboarding/context"));
+    expect(screen.getByText("level.heading")).toBeInTheDocument();
+    expect(screen.queryByTestId("org-lite-wizard")).not.toBeInTheDocument();
+  });
+});
