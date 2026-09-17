@@ -45,6 +45,9 @@ export type FeatureAction =
   | 'checkout_completed'
   | 'checkout_abandoned'
 
+/** Phiên bản luồng onboarding đang chạy — cùng giá trị với backend (`GuestOnboardingService.FLOW_VERSION`). */
+export const ONBOARDING_FLOW_VERSION = 'onb_v3'
+
 /** JSON-safe property bag accepted by PostHog (values must be serialisable). */
 export type AnalyticsProps = Record<string, string | number | boolean | null>
 
@@ -53,6 +56,9 @@ export function registerSuperProperties(): void {
   void posthog?.register({
     platform: Platform.OS,
     app_version: Constants.expoConfig?.version ?? 'dev',
+    // Spec onboarding §6.4 (Đợt 1 17/09): phiên bản luồng onboarding trên MỌI sự kiện, để
+    // funnel tách cohort web↔mobile mà không sửa từng call site. Web register cùng giá trị.
+    flow_version: ONBOARDING_FLOW_VERSION,
   })
 }
 
