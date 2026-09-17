@@ -120,6 +120,8 @@ export default function V2RegisterPage() {
         created_at: new Date().toISOString(),
       })
       trackEvent('register_success', { role: user.role, locale: f.locale })
+      // Taxonomy onb_v3 (spec §6.2/§6.3): bắn song song tên mới, tên cũ giữ cho dashboard hiện có.
+      trackEvent('signup_succeeded', { method: 'email', role: user.role })
     } catch (err: unknown) {
       const res = (err as { response?: { data?: { detail?: string; errors?: FieldErrors } } })?.response?.data
       if (res?.errors) setErrs(res.errors)
