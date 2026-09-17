@@ -259,6 +259,63 @@ describe("V2OnboardingPage — A0 level shortcut (skip placement test)", () => {
   });
 });
 
+// ─── Đợt 0 onboarding (17/09): 409 khi lưu hồ sơ + mất mạng lúc hỏi ma trận ─────
+
+describe("V2OnboardingPage — Đợt 0: 409 là lỗi, mất mạng /route không ép placement", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(readOnboardingDraft).mockReturnValue(null);
+    vi.mocked(api.post).mockResolvedValue({ data: {} });
+    vi.mocked(getOnboardingRoute).mockResolvedValue({
+      onboardingType: "ZERO_START",
+      placementRequired: false,
+      placementOptional: false,
+      assessmentHookAfter: false,
+      paywallAllowed: true,
+      postAction: "ROADMAP_ALPHABET",
+    });
+  });
+
+  it("saveProfile gặp 409 → chặn chuyển trang, hiện detail, không xoá draft (Q-B)", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.post).mockRejectedValue({
+      response: { status: 409, data: { detail: "Bản ghi vừa được cập nhật bởi một thao tác khác." } },
+    });
+    render(<V2OnboardingPage />);
+
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.startRoadmap/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Bản ghi vừa được cập nhật bởi một thao tác khác.");
+    });
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(clearOnboardingDraft).not.toHaveBeenCalled();
+    // Nút mở khoá lại để bấm lần nữa.
+    expect(screen.getByRole("button", { name: /nav\.startRoadmap/i })).not.toBeDisabled();
+  });
+
+  it("A1 + GET /route lỗi mạng → vào lộ trình, KHÔNG tạo placement test (W-1)", async () => {
+    // Ma trận WEB không ô nào placementRequired=true, nên fallback "A1+ thì ép test" của bản
+    // cũ là hành vi ma trận thật không bao giờ sinh ra. Lỗi mạng phải đi như A0.
+    const user = userEvent.setup();
+    vi.mocked(getOnboardingRoute).mockRejectedValue(new Error("network"));
+    render(<V2OnboardingPage />);
+
+    await user.click(screen.getByRole("button", { name: /level\.A1\.label/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
+    });
+    expect(api.post).not.toHaveBeenCalledWith("/skill-tree/placement-test", expect.anything());
+    expect(api.post).toHaveBeenCalledWith("/onboarding/profile", expect.objectContaining({ currentLevel: "A1" }));
+  });
+});
+
 describe("V2OnboardingPage — non-A0 level triggers placement test flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -405,19 +462,25 @@ describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
     expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
   });
 
-  it("POST trả 409 → GIỮ draft, vì 409 nghĩa là giao dịch đã rollback", async () => {
+  it("POST trả 409 → GIỮ draft, hiện detail của server, KHÔNG đi tiếp (Q-B)", async () => {
     // Endpoint UPSERT và trả 201; 409 duy nhất có thể tới là optimistic-lock /
     // data-integrity nổ lúc commit ⇒ hồ sơ KHÔNG được ghi. Xoá draft ở đây là
-    // vứt bản sao cuối cùng đúng lúc server không lưu được gì.
-    vi.mocked(api.post).mockRejectedValue({ response: { status: 409 } });
+    // vứt bản sao cuối cùng đúng lúc server không lưu được gì. Và đẩy sang roadmap
+    // (hành vi cũ) là đưa người dùng vào lộ trình không có plan rồi bị guard đá ngược.
+    vi.mocked(api.post).mockRejectedValue({
+      response: { status: 409, data: { detail: "Bản ghi vừa được cập nhật bởi một thao tác khác." } },
+    });
 
     render(<V2OnboardingPage />);
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
+      expect(toast.error).toHaveBeenCalledWith("Bản ghi vừa được cập nhật bởi một thao tác khác.");
     }, { timeout: 5000 });
     expect(clearOnboardingDraft).not.toHaveBeenCalled();
-    expect(toast.error).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByText("pace.heading")).toBeInTheDocument();
+    }, { timeout: 5000 });
   });
 
   it("chỉ chạy resume một lần dù StrictMode gọi effect hai lần", async () => {

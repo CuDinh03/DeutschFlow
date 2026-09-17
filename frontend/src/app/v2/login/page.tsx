@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { setTokens, clearTokens, recordTokenRefresh } from '@/lib/authSession'
-import { homeFor } from '@/lib/roleRouting'
+import { landingAfterLogin } from '@/lib/roleRouting'
 import { useUserStore } from '@/stores/useUserStore'
 import { useTracking } from '@/hooks/useTracking'
 import { registerPushNotifications } from '@/hooks/usePushNotifications'
@@ -164,7 +164,14 @@ export default function V2LoginPage() {
       // đăng nhập DUY NHẤT của cả app chớp trắng rồi mới hydrate. Handler này chỉ chạy trên trình
       // duyệt nên đọc location là an toàn tuyệt đối với prerender.
       const next = safeNext(new URLSearchParams(window.location.search).get('next'))
-      router.replace(next ?? homeFor(user.role, { orgRole: data.orgRole }))
+      // Cổng quay lại (Đợt 0 onboarding, 17/09): học viên bỏ dở phễu rồi đăng nhập lại
+      // trước đây rơi thẳng vào dashboard rỗng — chỉ 5 trang luyện tập mới kiểm `hasPlan`.
+      // Hỏi /onboarding/status (class-level STUDENT, nên chỉ hỏi khi đúng vai) và đưa họ
+      // về phễu. Lỗi mạng ở đây KHÔNG được chặn đăng nhập → coi như có plan.
+      const hasPlan = user.role === 'STUDENT' && !next
+        ? await api.get<{ hasPlan: boolean }>('/onboarding/status').then((r) => r.data?.hasPlan !== false, () => true)
+        : true
+      router.replace(next ?? landingAfterLogin(user.role, { orgRole: data.orgRole, hasPlan }))
 
       identifyUser(String(user.userId), { email: user.email, name: user.displayName, role: user.role, locale: user.locale })
       trackEvent('login_success', { role: user.role })

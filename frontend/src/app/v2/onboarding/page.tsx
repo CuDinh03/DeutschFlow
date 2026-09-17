@@ -14,6 +14,7 @@ import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft, type On
 import { MENTOR_META } from "@/lib/mentorMeta";
 import { useFeatureFlagEnabled } from "posthog-js/react";
 import { useTranslations } from "next-intl";
+import { usePlanHelpers } from "@/contexts/PlanContext";
 import { GaBtn, GaIcon } from "@/components/ui-v2";
 import { GaAuthShell } from "../authShared";
 
@@ -74,6 +75,8 @@ const INDUSTRIES = ["IT","Medizin","Gastronomie","Bildung","Handel","Sport","And
 
 // Post-funnel destinations on the v2 surface (the legacy funnel pushed to /student/*).
 const ROADMAP_ROUTE = "/v2/student/roadmap";
+/** Băng UPPER của ma trận `OnboardingTypeResolver` (B1+): nơi duy nhất web từng mời gói PRO. */
+const UPPER_LEVELS = ["B1", "B2", "C1", "C2"];
 const PRICING_ROUTE = "/v2/payment";
 
 interface PQ { id: number; skillSection: string; type: string; questionDe: string; questionVi: string; audioTranscript?: string; options?: string[]; }
@@ -96,6 +99,9 @@ export default function V2OnboardingPage() {
   // A/B: the mentor PRO-upsell nudge is gated behind a PostHog feature flag. Default-on
   // (undefined = flag not configured → shown), so no regression until an experiment is run.
   const mentorUpsellEnabled = useFeatureFlagEnabled("onboarding-mentor-upsell") !== false;
+  // Quyền lợi thật của người dùng (GĐ 2 + Đợt 0): người đã trả tiền hoặc đang dùng thử
+  // KHÔNG thấy lời mời nâng cấp nào trong phễu. Khách chưa đăng nhập → plan null → không ẩn.
+  const { hideUpsell } = usePlanHelpers();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [currentLevel, setCurrentLevel] = useState("A0");
@@ -138,11 +144,10 @@ export default function V2OnboardingPage() {
    * redirect and avoid leaving the user with an incomplete profile
    * (data-integrity fix, design §5 DI-3).
    *
-   * 409 cũng trả true — hành vi có sẵn từ trước. Chú thích cũ giải thích nó là
-   * "hồ sơ đã tồn tại, idempotent", điều đó SAI: endpoint UPSERT và trả 201, nên
-   * 409 duy nhất có thể tới là optimistic-lock/data-integrity lúc commit, tức
-   * ghi hỏng. Xử lý đúng phải là trả false; để lại làm nợ riêng vì đổi nó là đổi
-   * hành vi điều hướng, ngoài phạm vi đợt quick-win này.
+   * 409 cũng là THẤT BẠI (Q-B, owner chốt 28/08; thi công Đợt 0 17/09): endpoint UPSERT
+   * và trả 201, nên 409 duy nhất có thể tới là optimistic-lock/data-integrity nổ lúc
+   * commit ⇒ toàn bộ ghi đã rollback, người dùng KHÔNG có learning plan. Cho đi tiếp là
+   * đưa họ vào lộ trình trống rồi bị guard `hasPlan=false` đá ngược về đây.
    */
   const saveProfile = useCallback(async (): Promise<boolean> => {
     try {
@@ -167,9 +172,12 @@ export default function V2OnboardingPage() {
       // optimistic-lock / data-integrity từ GlobalExceptionHandler, và cả hai đều
       // nổ LÚC COMMIT của transaction saveProfileAndGeneratePlan ⇒ toàn bộ ghi đã
       // ROLLBACK. Xoá draft ở nhánh này là vứt bản sao cuối cùng đúng lúc server
-      // KHÔNG lưu được gì. (Việc `return true` vẫn cho đi tiếp là hành vi có sẵn
-      // từ trước, ngoài phạm vi đợt này — đã ghi vào phần nợ.)
-      if (err?.response?.status === 409) return true;
+      // KHÔNG lưu được gì. Backend đã có sẵn câu cho ca này trong `detail`
+      // ("Bản ghi vừa được cập nhật bởi một thao tác khác…") — hiện nó, không tự chế.
+      if (err?.response?.status === 409) {
+        toast.error(err.response?.data?.detail ?? t("error.saveProfile"));
+        return false;
+      }
       // api.ts already retried transient 5xx/429/network errors. Reaching here is a real
       // failure → surface it clearly and let the caller BLOCK the redirect (no silent skip).
       const offline = typeof navigator !== "undefined" && navigator.onLine === false;
@@ -242,7 +250,7 @@ export default function V2OnboardingPage() {
       try {
         r = await getOnboardingRoute(d.currentLevel);
         setRoute(r);
-        trackEvent('onboarding_type_assigned', { onboardingType: r.onboardingType, postAction: r.postAction, paywallAllowed: r.paywallAllowed, platform: 'web', currentLevel: d.currentLevel });
+        trackEvent('onboarding_type_assigned', { onboardingType: r.onboardingType, paywallAllowed: r.paywallAllowed, platform: 'web', currentLevel: d.currentLevel });
       } catch { /* matrix best-effort */ }
       if (r?.placementOptional) {
         trackEvent('onboarding_placement_offered', { currentLevel: d.currentLevel });
@@ -252,15 +260,15 @@ export default function V2OnboardingPage() {
       }
     } catch (e: unknown) {
       // 409 ở đây KHÔNG phải "hồ sơ đã tồn tại" (endpoint UPSERT, trả 201) mà là
-      // xung đột dữ liệu lúc commit ⇒ đã rollback. Giữ draft lại. Việc vẫn đẩy
-      // sang roadmap là hành vi có sẵn từ trước, không đổi ở đợt này.
-      if ((e as { response?: { status?: number } })?.response?.status === 409) {
-        router.push(ROADMAP_ROUTE);
-        return;
-      }
+      // xung đột dữ liệu lúc commit ⇒ đã rollback ⇒ hồ sơ CHƯA có trên server. Đi
+      // nhánh lỗi như mọi lỗi khác (Q-B 28/08): giữ draft, hiện `detail` của server,
+      // trả người dùng về bước 3 để bấm lại. Bản cũ vẫn đẩy sang roadmap — đó là
+      // đưa họ vào lộ trình không có plan rồi bị guard đá ngược.
+      const err = e as { response?: { status?: number; data?: { detail?: string } } };
+      const detail = err?.response?.status === 409 ? err.response?.data?.detail : undefined;
       // Lỗi thật: GIỮ draft để lần thử sau còn dữ liệu. Draft có TTL 30 phút nên
       // một hồ sơ hỏng vĩnh viễn cũng chỉ replay trong cửa sổ đó rồi tự hết hạn.
-      toast.error(t("error.resumeKeepsDraft"));
+      toast.error(detail ?? t("error.resumeKeepsDraft"));
       setResuming(false); setStep(3);
     }
   }, [router, trackEvent]);
@@ -309,20 +317,28 @@ export default function V2OnboardingPage() {
         setStep(4);
         return;
       }
+      // Khoá nút NGAY từ đây, không đợi tới startTest/goRoadmap: trong lúc `await
+      // getOnboardingRoute()` nút vẫn bấm được, bấm hai lần là hai POST /profile song
+      // song và bên thua đụng `uq_profile_user` → chính là nguồn 409 đáng chặn từ gốc.
+      setLoading(true);
       // Ask the backend matrix (single source of truth) which archetype this
-      // (platform=web, level) cell maps to. Fall back to the level heuristic if it's unavailable.
+      // (platform=web, level) cell maps to.
       let r: OnboardingRouteData | null = null;
       try {
         r = await getOnboardingRoute(currentLevel);
         setRoute(r);
         trackEvent('onboarding_type_assigned', {
-          onboardingType: r.onboardingType, postAction: r.postAction,
+          onboardingType: r.onboardingType,
           paywallAllowed: r.paywallAllowed, platform: 'web', currentLevel,
         });
-      } catch { /* matrix unavailable → fall back to the level heuristic */ }
+      } catch { /* matrix unavailable → treat as "no placement", see below */ }
 
-      const forced = r ? r.placementRequired : currentLevel !== "A0";
-      const optional = r ? r.placementOptional : false;
+      // Ma trận WEB không bao giờ BẮT BUỘC placement (cả 3 ô đều placementRequired=false),
+      // nên khi GET /route lỗi mạng, ép mọi A1+ vào bài kiểm tra không có nút bỏ qua là
+      // hành vi mà ma trận thật không bao giờ tạo ra. Lỗi mạng → cho vào lộ trình; placement
+      // mời lại sau ở checklist tuần đầu (Đợt 4).
+      const forced = r?.placementRequired ?? false;
+      const optional = r?.placementOptional ?? false;
       if (forced) {
         await startTest();
       } else if (optional) {
@@ -330,6 +346,7 @@ export default function V2OnboardingPage() {
         trackEvent('onboarding_placement_offered', { currentLevel });
         setPlacementOffer(true);
         setStep(4);
+        setLoading(false);
       } else {
         await goRoadmap();
       }
@@ -450,7 +467,7 @@ export default function V2OnboardingPage() {
                       <p className="text-[12px] text-ga-muted">{mentorTagline(mentor.code) ?? t("mentorTaglines.fallback")}</p>
                     </div>
                   </div>
-                  {mentor.upsellCode && mentorUpsellEnabled && (
+                  {mentor.upsellCode && mentorUpsellEnabled && !hideUpsell && (
                     <button type="button"
                       onClick={() => { trackEvent('onboarding_mentor_upsell_clicked', { mentor: mentor.code, upsell: mentor.upsellCode }); router.push(PRICING_ROUTE); }}
                       className="w-full text-left text-[12px] text-ga-ink bg-ga-yellow-soft border border-dashed border-ga-gold rounded-ga px-3 py-2">
@@ -613,7 +630,10 @@ export default function V2OnboardingPage() {
               <GaBtn variant="ink" size="lg" className={`w-full ${btnWrap}`} onClick={() => router.push(ROADMAP_ROUTE)}>
                 {testResult.passed ? t("result.ctaPassed") : t("result.ctaFailed")}
               </GaBtn>
-              {route?.paywallAllowed && route.postAction === "PRICING_CTA" && (
+              {/* Q-A (28/08): client thôi đọc `postAction`. Ô ma trận sinh PRICING_CTA là
+                  WEB × B1+, tức điều kiện tương đương suy ra được từ trình độ người dùng tự
+                  chọn + `paywallAllowed`. Cộng thêm luật GĐ 2: đang dùng thử / đã PRO thì ẩn. */}
+              {route?.paywallAllowed && UPPER_LEVELS.includes(currentLevel) && !hideUpsell && (
                 <GaBtn variant="yellow" size="lg" className={`w-full ${btnWrap}`}
                   onClick={() => { trackEvent('onboarding_pricing_cta_clicked', { currentLevel }); router.push(PRICING_ROUTE); }}>
                   {t("result.pricingCta")}
