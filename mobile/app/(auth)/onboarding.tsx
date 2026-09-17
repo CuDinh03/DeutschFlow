@@ -126,7 +126,9 @@ export default function OnboardingScreen() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const isGuest = !isLoggedIn
   const [guestQuickWin, setGuestQuickWin] = useState(false)   // guest: quick-win + signup gate
-  const [resuming, setResuming] = useState(false)             // authed: replaying a guest draft
+  // Màn "Đang tạo lộ trình…": bật khi replay draft khách SAU đăng ký, và (M-13) cả khi người
+  // đăng ký thẳng bấm lưu — hai đường vào cùng một màn chờ, không phải chỉ đường khách.
+  const [resuming, setResuming] = useState(false)
 
   const stepId: OnboardingStepId = ONBOARDING_STEP_IDS[step]
   const isLastStep = step === ONBOARDING_STEP_IDS.length - 1
@@ -258,6 +260,10 @@ export default function OnboardingScreen() {
       return
     }
     setSubmitting(true)
+    // M-13 (Đợt 0 17/09): người đăng ký thẳng cũng thấy màn "Đang tạo lộ trình…" trong lúc POST
+    // /onboarding/profile + GET /onboarding/route — trước đây chỉ nhánh replay-draft có. Chỉ là cờ
+    // hiển thị: payload, analytics, draft, profile_done, nextAfterProfile() giữ nguyên.
+    setResuming(true)
     try {
       await api.post('/onboarding/profile', {
         goalType,
@@ -306,6 +312,8 @@ export default function OnboardingScreen() {
       void route
       router.replace(nextAfterProfile())
     } catch (e) {
+      // Lỗi → trả lại form (state còn nguyên) + báo lỗi như trước.
+      setResuming(false)
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       Alert.alert('Không lưu được', apiMessage(e))
     } finally {
@@ -1018,7 +1026,10 @@ function GuestQuickWin({
   )
 }
 
-/** Brief loading state while a guest's saved draft is replayed after signup. */
+/**
+ * Màn chờ ngắn "Đang tạo lộ trình…" — hiện khi replay draft khách sau đăng ký VÀ khi người đăng
+ * ký thẳng bấm lưu hồ sơ (M-13). Cả hai đường cùng gọi POST /onboarding/profile → GET /onboarding/route.
+ */
 function Resuming() {
   const c = useTheme().colors
   return (
