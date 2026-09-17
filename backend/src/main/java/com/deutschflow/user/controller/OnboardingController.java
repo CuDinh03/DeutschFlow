@@ -13,6 +13,8 @@ import com.deutschflow.user.onboarding.dto.GuestSessionDtos.ProgressResponse;
 import com.deutschflow.user.onboarding.dto.ActivationDtos.ActivationResponse;
 import com.deutschflow.user.onboarding.dto.ActivationDtos.CoreDoneResponse;
 import com.deutschflow.user.onboarding.dto.ActivationDtos.FirstLessonCompleteRequest;
+import com.deutschflow.user.onboarding.dto.OnboardingContextDtos.OnboardingContextResponse;
+import com.deutschflow.user.onboarding.service.OnboardingContextService;
 import com.deutschflow.user.onboarding.service.GuestOnboardingService;
 import com.deutschflow.user.onboarding.service.OnboardingActivationService;
 import com.deutschflow.user.entity.UserLearningProfile;
@@ -43,6 +45,7 @@ public class OnboardingController {
     private final OnboardingTypeResolver onboardingTypeResolver;
     private final GuestOnboardingService guestOnboardingService;
     private final OnboardingActivationService activationService;
+    private final OnboardingContextService contextService;
 
     @PostMapping("/profile")
     @ResponseStatus(HttpStatus.CREATED)
@@ -86,6 +89,18 @@ public class OnboardingController {
     @GetMapping("/status")
     public StatusResponse status(@AuthenticationPrincipal User user) {
         return new StatusResponse(learningPlanService.hasPlan(user));
+    }
+
+    /**
+     * GET /api/onboarding/context — Đợt 5 (kế hoạch 17/09/2026 §4.1): cửa vào của tài khoản
+     * ({@code SELF | ORG_ROSTER | ORG_INVITE}), {@code hasPlan}, trung tâm + lớp, trình độ đã đặt sẵn
+     * và trạng thái dùng thử. Hai client rẽ lối onboarding (trọn phễu hay bản rút gọn cho học viên
+     * trung tâm) theo {@code accountSource}, không suy đoán từ dữ liệu khác. {@code /status} giữ
+     * nguyên cho client cũ.
+     */
+    @GetMapping("/context")
+    public OnboardingContextResponse context(@AuthenticationPrincipal User user) {
+        return contextService.contextFor(user);
     }
 
     /**

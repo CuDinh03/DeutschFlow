@@ -100,7 +100,8 @@ stateDiagram-v2
 | `HOME` | đã có plan — không làm lại onboarding | ✓ |
 
 `ctx` của máy: `authed`, `hasPlan`, `accountSource ∈ SELF|ORG_ROSTER|ORG_INVITE` (`GET /onboarding/context`,
-Đợt 5; tới lúc đó client coi là `SELF`), `level` (`null` = A0 theo `LevelBand.of`), `pathChoice`.
+Đợt 5 — đã thi công 17/09/2026, xem §4.4; client gọi lỗi/404 thì coi là `SELF`), `level` (`null` = A0 theo
+`LevelBand.of`), `pathChoice`.
 
 ### 2.2 Bất biến — mỗi cái là một contract test
 
@@ -181,7 +182,8 @@ submit/draft/analytics còn lại không đổi.
 | `POST /api/onboarding/profile` | **201** `LearningPlanResponse` | **UPSERT** — gọi lại là cập nhật, không phải lỗi. |
 | `GET /api/onboarding/route?currentLevel=&platform=` | `OnboardingRouteResponse` | Ma trận §4.2. |
 | `GET /api/onboarding/mentor?goalType=&industry=&currentLevel=` | `OnboardingMentorResponse` | Có `upsellCode` cho nhắc nâng cấp PRO. |
-| `GET /api/onboarding/status` | `{ hasPlan: boolean }` | Guard `hasPlan === false` đang được dùng để đá về onboarding. |
+| `GET /api/onboarding/status` | `{ hasPlan: boolean }` | Guard `hasPlan === false` đang được dùng để đá về onboarding. Từ Đợt 5 login web/mobile hỏi `/context` (có cùng `hasPlan`); `/status` giữ cho client cũ và 5 trang luyện tập. |
+| `GET /api/onboarding/context` | `OnboardingContextResponse` | **Đợt 5 (17/09/2026)** — §4.4. |
 | `POST /api/onboarding/upsell-interest` | **204** | |
 | `GET /api/onboarding/me/profile` | `LearningProfileResponse` | |
 
@@ -264,6 +266,35 @@ xác nhận "phiên này có chủ rồi" không thêm thông tin gì cho kẻ d
   bằng `sessionId` chứ không bằng "có mặt trên máy".
 
 ---
+
+### 4.4 🔵 MỚI — `GET /api/onboarding/context` (Đợt 5, 17/09/2026)
+
+Một nguồn duy nhất để hai client rẽ ba cửa vào (kế hoạch 17/09 §4.1). STUDENT, class-level `@PreAuthorize`.
+
+```json
+{
+  "accountSource": "SELF | ORG_ROSTER | ORG_INVITE",
+  "hasPlan": false,
+  "org": { "orgId": 7, "name": "Trung tâm Sao Việt", "classId": 42, "className": "B1 tối thứ 3" },
+  "presetCurrentLevel": "A2",
+  "trial": { "isTrial": true, "trialEndsAt": "2026-10-31T00:00:00Z" }
+}
+```
+
+| Trường | Luật |
+|---|---|
+| `accountSource` | `ORG_ROSTER` khi `users.created_via = CSV` **và** còn `org_members` STUDENT ACTIVE; `ORG_INVITE` khi `created_via ∈ {OWNER, MANAGER, ADMIN}` và còn membership ACTIVE; mọi ca khác (kể cả `created_via = SELF` rồi vào lớp bằng mã — C3, hay CSV nhưng đã rời/bị gỡ) là `SELF`. `created_via` NULL (tài khoản cũ) = `SELF`. |
+| `hasPlan` | cùng nghĩa `/status.hasPlan`. |
+| `org` | `null` khi `SELF`. `className` = lớp ACTIVE/RESERVED mới nhất (`joined_at`) **thuộc** trung tâm ấy; chưa xếp lớp → `null`. Trung tâm không tìm thấy → `name` `null` nhưng `accountSource` vẫn đúng. |
+| `presetCurrentLevel` | hồ sơ học đã có `current_level` → lấy hồ sơ; không thì `cefr_level` của giáo trình gắn vào lớp đang học; không có cả hai → `null` ⇒ client hỏi thêm một câu trình độ. |
+| `trial` | hai trường rút từ `PlanBadge` (`/auth/me/plan`) để màn chào đọc "PRO miễn phí tới {ngày}". |
+
+Client (`PROFILE_LITE`): học viên trung tâm chưa có plan → màn "Bạn thuộc lớp X — Trung tâm Y" + nhịp học
+(+ trình độ nếu `presetCurrentLevel` null) → `POST /onboarding/profile` với `goalType=WORK`,
+`industry=null`, `examType=null`, `motivation` bỏ trống, `targetLevel` = B1 khi trình độ hiện tại < B1, ngược lại
+bậc kế tiếp (`liteProfilePayload` — `frontend/src/features/onboarding/context.ts`, `mobile/lib/onboardingContext.ts`,
+cùng test). Không hỏi mục tiêu/lĩnh vực: mentor do trung tâm/giáo trình quyết. Sau plan: web → lộ trình,
+mobile → Câu đầu tiên (I-11: không qua `TASTE`/`PATH_CHOICE`).
 
 ## 5. Hợp đồng dữ liệu dùng chung
 
