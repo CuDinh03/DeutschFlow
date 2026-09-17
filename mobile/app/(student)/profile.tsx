@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { isOrgPlan, orgPlanNotice, planActionRows, trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
+import { isOrgPlan, isTrialActive, orgPlanNotice, planActionRows, trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
 import api, { apiMessage } from '@/lib/api'
 import { IAP_ENABLED, PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
@@ -33,6 +33,9 @@ export default function ProfileScreen() {
   // V-06: gói do trung tâm cấp → không mời huỷ/hoàn tiền Apple (xem cụm "Gói đăng ký" bên dưới).
   const planIsOrg = isOrgPlan(plan)
   const planRows = planActionRows(plan)
+  // M-7 (Q1 28/08): đang dùng thử → ẩn thẻ mời "Nâng cấp lên PRO" chủ động. Cụm "Gói đăng ký" bên
+  // dưới (nhãn "Đang dùng thử PRO" + mục xem/đổi gói) GIỮ — đó là người dùng tự tìm đến, không phải mời.
+  const trialActive = isTrialActive(plan)
   const { data: xp } = useQuery({
     queryKey: ['xp-summary'],
     queryFn: () => gamificationApi.getXpSummary(),
@@ -204,7 +207,7 @@ export default function ProfileScreen() {
       </FadeIn>
 
       <FadeIn delay={100} style={{ paddingHorizontal: space[5], paddingTop: space[5], gap: space[6] }}>
-        {!isPro && PAYWALL_ENABLED ? (
+        {!isPro && !trialActive && PAYWALL_ENABLED ? (
           <Card onPress={() => router.push('/(student)/upgrade')} style={{ borderColor: c.accentSoft }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
               <View

@@ -297,8 +297,23 @@ export function rubricCaption(p: ExamProvider | string): string {
   return p === 'TELC' ? 'Theo tiêu chí telc (A–D)' : 'Theo tiêu chí Goethe'
 }
 
-/** Thông điệp màn GRADING_FAILED theo lý do backend (F-08): hết quota ≠ job chết. */
-export function gradingFailedCopy(gradingError?: string | null): { title: string; message: string; topUp: boolean } {
+/**
+ * Thông điệp màn GRADING_FAILED theo lý do backend (F-08): hết quota ≠ job chết.
+ *
+ * `trialActive` (M-8, Q1 28/08): đang dùng thử mà hết lượt thì lượt hồi lại ngày mai — nói vậy và
+ * KHÔNG mời "nạp thêm" (topUp=false); bài vẫn còn nguyên, mai bấm "Chấm lại".
+ */
+export function gradingFailedCopy(
+  gradingError?: string | null,
+  trialActive = false,
+): { title: string; message: string; topUp: boolean } {
+  if (gradingError === 'QUOTA_EXCEEDED' && trialActive) {
+    return {
+      title: 'Chưa chấm được: hết lượt AI hôm nay',
+      message: 'Bài nói của bạn vẫn còn nguyên. Ngày mai bạn có lượt AI mới — khi đó bấm "Chấm lại", không phải thi lại.',
+      topUp: false,
+    }
+  }
   if (gradingError === 'QUOTA_EXCEEDED') {
     return {
       title: 'Chưa chấm được: hết ngân sách AI',

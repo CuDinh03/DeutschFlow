@@ -6,7 +6,7 @@ import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, useFocusEffect } from 'expo-router'
 import { MotiView } from 'moti'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { usePlanStore } from '@/stores/usePlanStore'
+import { isTrialActive, usePlanStore } from '@/stores/usePlanStore'
 import { useTourStore } from '@/stores/useTourStore'
 import { canAutoStartHomeTour, canAutoStartSrsIntro, probeStatus } from '@/lib/tourEligibility'
 import { useStarterStore } from '@/stores/useStarterStore'
@@ -58,7 +58,9 @@ export default function DashboardScreen() {
   // Thanh tab liquid-glass nổi đè lên nội dung — chừa đáy cho mục cuối.
   const tabClearance = useTabBarClearance()
   const { user } = useAuthStore()
-  const { isPro } = usePlanStore()
+  const { isPro, plan } = usePlanStore()
+  // M-7 (Q1 28/08): đang dùng thử thì KHÔNG chủ động mời nâng cấp — thẻ upsell dưới đây ẩn.
+  const trialActive = isTrialActive(plan)
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard'],
@@ -479,7 +481,7 @@ export default function DashboardScreen() {
             </Card>
           </View>
 
-          {!isPro && PAYWALL_ENABLED ? (
+          {!isPro && !trialActive && PAYWALL_ENABLED ? (
             <Card
               onPress={() => router.push('/(student)/upgrade')}
               elevation="lifted"
