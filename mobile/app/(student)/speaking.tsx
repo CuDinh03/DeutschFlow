@@ -50,6 +50,7 @@ import { Screen, Card, ThemedText, Icon, GaGlyph } from '@/components/ui'
 import { SessionSummary } from '@/components/speaking/SessionSummary'
 import { ConversationSummary } from '@/components/speaking/ConversationSummary'
 import { CompanionSelect, type StartArgs } from '@/components/speaking/CompanionSelect'
+import { DEFAULT_BAND } from '@/lib/learnerBand'
 import { PersonaStage, type StageState, type Reaction } from '@/components/speaking/PersonaStage'
 import { MessageBubble } from '@/components/speaking/MessageBubble'
 import { ScreenHeader } from '@/components/speaking/ScreenHeader'
@@ -708,7 +709,7 @@ export default function SpeakingScreen() {
       setSession({
         id: ref.id,
         topic: ref.topic ?? ref.interviewPosition,
-        cefrLevel: ref.cefrLevel ?? 'B1',
+        cefrLevel: ref.cefrLevel ?? DEFAULT_BAND,
         persona: ref.persona ?? null,
         responseSchema: null,
         sessionMode: resumedMode,

@@ -14,6 +14,8 @@ import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft } from '
 import { saveDailyGoalMinutes } from '@/lib/dailyGoal'
 import { MENTOR_META, mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { nextAfterProfile } from '@/lib/onboardingRouting'
+import { queryClient } from '@/lib/queryClient'
+import { LEARNING_PROFILE_QUERY_KEY } from '@/lib/learningProfileApi'
 import {
   ONBOARDING_STEP_IDS,
   canLeaveStep,
@@ -193,6 +195,8 @@ export default function OnboardingScreen() {
         // trên (profile_done || first_sentence) nên thoát app giữa chừng không còn
         // khoá vĩnh viễn checklist tuần đầu + nhắc học (F-2).
         void useTourStore.getState().markDone('profile_done')
+        // Màn Nói/Thi chọn sẵn band theo currentLevel (hooks/useLearnerLevel) — hồ sơ vừa đổi thì cache phải rơi.
+        void queryClient.invalidateQueries({ queryKey: [...LEARNING_PROFILE_QUERY_KEY] })
         captureEvent('onboarding_completed', { goalType: draft.goalType, targetLevel: draft.targetLevel })
         // Bắn đủ như nhánh authed — thiếu ở đây thì phễu lệch giữa hai đường vào
         // và không so được người dùng khách với người đăng ký thẳng (F-12).
@@ -272,6 +276,7 @@ export default function OnboardingScreen() {
       })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       void useTourStore.getState().markDone('profile_done')   // xem ghi chú F-2 ở nhánh resume-draft
+      void queryClient.invalidateQueries({ queryKey: [...LEARNING_PROFILE_QUERY_KEY] })
       // Dọn draft còn sót: ca "resume POST hỏng → form được nạp lại → user bấm
       // lưu lại" đi qua đúng nhánh này, và draft cũ không được phép replay ở lần
       // đăng nhập sau (F-10).
