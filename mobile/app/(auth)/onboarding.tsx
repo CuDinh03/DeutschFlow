@@ -28,6 +28,20 @@ import { useBlockBackNavigation } from '@/hooks/useBlockBackNavigation'
 import { BrandMark, Button, Caption, Card, Icon, Pill, Screen, SelectableChip, ThemedText, YellowSquare, GaGlyph } from '@/components/ui'
 import { MentorMonogram } from '@/components/onboarding/MentorMonogram'
 import { StepHeader } from '@/components/onboarding/StepHeader'
+import {
+  CURRENT_LEVELS,
+  DAILY_GOALS,
+  DEFAULT_MINUTES_PER_SESSION,
+  DEFAULT_SESSIONS_PER_WEEK,
+  IconTile,
+  LevelChips,
+  MinuteTile,
+  OptionTile,
+  RadioDot,
+  TitleBlock,
+} from '@/components/onboarding/WizardParts'
+import { OrgLiteWizard } from '@/components/onboarding/OrgLiteWizard'
+import { fetchOnboardingContext, needsLiteProfile, type LiteProfilePayload, type OnboardingContext } from '@/lib/onboardingContext'
 
 // Onboarding for iOS B2C (MVP checklist §5.1): collect goal, target level, and
 // role/industry, then POST /api/onboarding/profile and route straight into the
@@ -54,17 +68,6 @@ interface OnboardingRoute {
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
 
-// Current level feeds the Platform × Level matrix; A0 = absolute beginner.
-// v2: A0 được CHỌN SẴN — đường mặc định phải tường minh, không còn lớp "chưa
-// chạm hàng chip" mơ hồ từng che bug F-1 (QA 2026-08-20).
-const CURRENT_LEVELS: { value: string; label: string }[] = [
-  { value: 'A0', label: 'Mới bắt đầu · A0' },
-  { value: 'A1', label: 'A1' },
-  { value: 'A2', label: 'A2' },
-  { value: 'B1', label: 'B1' },
-  { value: 'B2', label: 'B2' },
-]
-
 const INDUSTRIES: { value: string; label: string; glyph: GlyphName }[] = [
   { value: 'IT', label: 'CNTT', glyph: 'laptop' },
   { value: 'Pflege', label: 'Điều dưỡng', glyph: 't_health' },
@@ -89,17 +92,6 @@ const MOTIVATIONS: { value: string; label: string; desc: string; glyph: GlyphNam
   { value: 'EXAM', label: 'Thi chứng chỉ', desc: 'Goethe · telc · TestDaF', glyph: 'thinoi', goal: 'CERT' },
   { value: 'HOBBY', label: 'Sở thích', desc: 'Học cho chính mình', glyph: 't_hobby', goal: 'WORK' },
 ]
-
-// Daily study goal (minutes) — the streak anchor.
-const DAILY_GOALS: { value: string; tag: string }[] = [
-  { value: '5', tag: 'Tranh thủ' },
-  { value: '10', tag: 'Nhẹ nhàng' },
-  { value: '15', tag: 'Đều đặn' },
-  { value: '20', tag: 'Nghiêm túc' },
-]
-
-const DEFAULT_SESSIONS_PER_WEEK = 5
-const DEFAULT_MINUTES_PER_SESSION = 15
 
 // VoiceOver/TalkBack không tự biết wizard vừa đổi bước (nội dung thay tại chỗ,
 // không có điều hướng) — đọc to tiêu đề bước mới mỗi lần chuyển.
@@ -140,6 +132,18 @@ export default function OnboardingScreen() {
   // Màn "Đang tạo lộ trình…": bật khi replay draft khách SAU đăng ký, và (M-13) cả khi người
   // đăng ký thẳng bấm lưu — hai đường vào cùng một màn chờ, không phải chỉ đường khách.
   const [resuming, setResuming] = useState(false)
+  // Đợt 5 (17/09): học viên trung tâm (ORG_ROSTER | ORG_INVITE) chưa có plan đi bản rút gọn
+  // PROFILE_LITE thay vì wizard 4 bước. Chỉ tin `accountSource` từ GET /onboarding/context; lỗi
+  // mạng / backend cũ ⇒ null ⇒ phễu thường như trước (không chặn ai).
+  const [orgContext, setOrgContext] = useState<OnboardingContext | null>(null)
+  useEffect(() => {
+    if (!isLoggedIn) return
+    let active = true
+    void fetchOnboardingContext().then((ctx) => {
+      if (active && needsLiteProfile(ctx)) setOrgContext(ctx)
+    })
+    return () => { active = false }
+  }, [isLoggedIn])
 
   const stepId: OnboardingStepId = ONBOARDING_STEP_IDS[step]
   const isLastStep = step === ONBOARDING_STEP_IDS.length - 1
@@ -364,6 +368,36 @@ export default function OnboardingScreen() {
     }
   }
 
+  /**
+   * PROFILE_LITE (Đợt 5): học viên trung tâm lưu nhịp học (+ trình độ nếu thiếu) rồi đi THẲNG Câu
+   * đầu tiên (I-11: ORG_* sau plan_ready → FIRST_LESSON, không TASTE/PATH_CHOICE). Cùng đường hậu
+   * kỳ với handleSubmit (profile_done, cache hồ sơ, draft, dailyGoal, nextAfterProfile) — chỉ payload
+   * khác và không hỏi /onboarding/route (ma trận chỉ còn phục vụ analytics của phễu đầy đủ).
+   */
+  async function handleLiteSubmit(payload: LiteProfilePayload) {
+    setSubmitting(true)
+    setResuming(true)
+    try {
+      await api.post('/onboarding/profile', payload)
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      void useTourStore.getState().markDone('profile_done')
+      void queryClient.invalidateQueries({ queryKey: [...LEARNING_PROFILE_QUERY_KEY] })
+      void clearOnboardingDraft()
+      const base = { goalType: payload.goalType, targetLevel: payload.targetLevel, lite: true, accountSource: orgContext?.accountSource ?? null }
+      captureEvent('onboarding_completed', base)
+      captureEvent('onboarding_profile_saved', { ...base, resumed: false })
+      captureEvent('onboarding_daily_goal_set', { minutes: payload.dailyGoalMinutes })
+      await saveDailyGoalMinutes(payload.dailyGoalMinutes)
+      router.replace(nextAfterProfile())
+    } catch (e) {
+      setResuming(false)
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      Alert.alert('Không lưu được', apiMessage(e))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   /** Bản chụp câu trả lời theo hình dạng chung web/mobile (spec §5.1) — gửi lên phiên khách. */
   function guestAnswersSnapshot(): GuestAnswers {
     return {
@@ -409,6 +443,10 @@ export default function OnboardingScreen() {
 
   if (resuming) {
     return <Resuming />
+  }
+  // PROFILE_LITE (Đợt 5): học viên trung tâm — không hỏi mục tiêu/lĩnh vực, mentor do trung tâm quyết.
+  if (orgContext) {
+    return <OrgLiteWizard ctx={orgContext} submitting={submitting} onSubmit={handleLiteSubmit} />
   }
   if (guestQuickWin) {
     return <GuestQuickWin mentor={mentor} onSignup={handleGuestSignup} onBack={() => setGuestQuickWin(false)} />
@@ -624,190 +662,6 @@ export default function OnboardingScreen() {
         />
       </View>
     </Screen>
-  )
-}
-
-// ── Wizard building blocks ─────────────────────────────────────────────────────
-
-function TitleBlock({ cap, title, sub }: { cap: string; title: string; sub?: string }) {
-  return (
-    <View style={{ gap: space[2] }}>
-      <Caption>{cap}</Caption>
-      <ThemedText variant="display">{title}</ThemedText>
-      {sub ? (
-        <ThemedText variant="body" color="secondary">
-          {sub}
-        </ThemedText>
-      ) : null}
-    </View>
-  )
-}
-
-/** Chấm radio Galerie: vòng hairline → đĩa gold + check trắng khi chọn. */
-function RadioDot({ selected, color }: { selected: boolean; color?: 'accent' | 'success' }) {
-  const c = useTheme().colors
-  const fill = color === 'success' ? c.success : c.accentText
-  return (
-    <View
-      style={{
-        width: 21,
-        height: 21,
-        borderRadius: radius.full,
-        borderWidth: 2,
-        borderColor: selected ? fill : c.border,
-        backgroundColor: selected ? fill : c.surface,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      {selected ? <Icon icon={Check} size={12} color="onInk" strokeWidth={3.2} /> : null}
-    </View>
-  )
-}
-
-/** Ô icon 40px nền giấy chìm (hoặc mực khi selected) cho các hàng/tile. */
-function IconTile({ glyph, selected = false, size = 40 }: { glyph: GlyphName; selected?: boolean; size?: number }) {
-  const c = useTheme().colors
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: radius.md,
-        backgroundColor: selected ? c.inkSurface : c.surfaceSunken,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <GaGlyph name={glyph} size={Math.round(size * 0.5)} ink={selected ? 'onInk' : 'secondary'} />
-    </View>
-  )
-}
-
-function OptionTile({
-  label,
-  desc,
-  glyph,
-  selected,
-  onPress,
-}: {
-  label: string
-  desc: string
-  glyph: GlyphName
-  selected: boolean
-  onPress: () => void
-}) {
-  const c = useTheme().colors
-  return (
-    <SelectableChip
-      label={`${label} — ${desc}`}
-      selected={selected}
-      onPress={onPress}
-      style={{
-        flexBasis: '47%',
-        flexGrow: 1,
-        gap: space[2],
-        padding: space[3] + 2,
-        borderRadius: radius.md,
-        borderWidth: selected ? 2 : 1,
-        borderColor: selected ? c.accentText : c.border,
-        backgroundColor: selected ? c.accentSoft : c.surface,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <IconTile glyph={glyph} selected={selected} size={38} />
-        <RadioDot selected={selected} />
-      </View>
-      <View style={{ gap: 2 }}>
-        <ThemedText style={{ fontFamily: fonts.displaySemi, fontSize: 16.5, lineHeight: 20 }}>{label}</ThemedText>
-        <ThemedText variant="caption" color="secondary">
-          {desc}
-        </ThemedText>
-      </View>
-    </SelectableChip>
-  )
-}
-
-function LevelChips({
-  options,
-  selected,
-  onSelect,
-}: {
-  options: { value: string; label: string }[]
-  selected: string | null
-  onSelect: (value: string) => void
-}) {
-  const c = useTheme().colors
-  return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
-      {options.map((opt) => {
-        const active = selected === opt.value
-        return (
-          <SelectableChip
-            key={opt.value}
-            label={opt.label}
-            selected={active}
-            onPress={() => onSelect(opt.value)}
-            style={{
-              paddingHorizontal: space[4],
-              paddingVertical: space[3],
-              borderRadius: radius.md,
-              borderWidth: 1,
-              borderColor: active ? c.accentText : c.border,
-              backgroundColor: active ? c.accentSoft : c.surface,
-            }}
-          >
-            <ThemedText variant="bodyStrong" color={active ? 'primary' : 'secondary'}>
-              {opt.label}
-            </ThemedText>
-          </SelectableChip>
-        )
-      })}
-    </View>
-  )
-}
-
-function MinuteTile({
-  minutes,
-  tag,
-  selected,
-  onPress,
-}: {
-  minutes: string
-  tag: string
-  selected: boolean
-  onPress: () => void
-}) {
-  const c = useTheme().colors
-  return (
-    <SelectableChip
-      label={`${minutes} phút mỗi ngày — ${tag}`}
-      selected={selected}
-      onPress={onPress}
-      style={{
-        flexBasis: '47%',
-        flexGrow: 1,
-        gap: space[1],
-        padding: space[4],
-        borderRadius: radius.md,
-        borderWidth: selected ? 2 : 1,
-        borderColor: selected ? c.accentText : c.border,
-        backgroundColor: selected ? c.accentSoft : c.surface,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[1] }}>
-          <ThemedText variant="monoLg">{minutes}</ThemedText>
-          <ThemedText variant="caption" color="secondary">
-            phút
-          </ThemedText>
-        </View>
-        {selected ? <RadioDot selected /> : null}
-      </View>
-      <ThemedText variant="caption" color={selected ? 'primary' : 'secondary'}>
-        {tag}
-      </ThemedText>
-    </SelectableChip>
   )
 }
 
