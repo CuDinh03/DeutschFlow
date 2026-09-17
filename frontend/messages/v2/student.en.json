@@ -1018,6 +1018,12 @@
       "listenItem": "Listen to text {n}",
       "telcExamples": "Examples (Beispiele)",
       "telcStimulusAd": "The advert this letter replies to",
+      "writingStimulusEmail": "The e-mail you received",
+      "writingStimulusAd": "The notice your text replies to",
+      "writingStimulusLetter": "The letter you received",
+      "writingFrom": "From",
+      "writingSubject": "Subject",
+      "writingPointsOrder": "The points below are printed out of order, as on the real exam paper. Choose a sensible order yourself.",
       "passageGlossary": "Glossary"
     },
     "grammarPractice": {
@@ -2192,6 +2198,20 @@
         "improvements": "Needs improvement",
         "title": "Writing assessment (SCHREIBEN Teil 2)",
         "officialRubricLevel": "Official Goethe {level} rubric",
+        "band": "Band {band}",
+        "officialRubricTelc": "Official telc rating sheet (bands A/B/C/D)",
+        "officialRubricTelcLevel": "Official telc {level} rating sheet (bands A/B/C/D)",
+        "themaVerfehlt": "Off topic — under the telc rating sheet all three criteria receive band D.",
+        "situierungVerfehlt": "Wrong addressee or situation — criterion I receives band D; the other two are rated normally.",
+        "missingPoints": "Missing points (numbered as in the task): {list}",
+        "noATitle": "Why “Structure & letter conventions” did not reach band A",
+        "noAReason": {
+          "textsorte": "Features of a personal e-mail are missing: greeting, an opening that refers to the friend’s mail, closing.",
+          "register": "Register does not fit the addressee (Sie/du mixed, too formal or too casual).",
+          "unverbunden": "The points stand side by side without connectors or transitions.",
+          "ichAnfang": "Most sentences begin with “Ich” or “Wir”.",
+          "other": "Another reason from the rating sheet."
+        },
         "missingCriteria": "The AI did not score {count} criterion/criteria — the scale was reduced accordingly, not counted as zero."
       },
       "weakAreas": {

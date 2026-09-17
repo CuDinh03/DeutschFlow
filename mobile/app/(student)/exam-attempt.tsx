@@ -444,7 +444,18 @@ export default function ExamAttemptScreen() {
               {section.writing.map((task) => (
                 <Card key={task.answerKey} style={{ gap: space[3] }}>
                   {task.instruction ? <ThemedText variant="title">{task.instruction}</ThemedText> : null}
-                  {task.prompt ? (
+                  {/* Đề telc in nguyên văn E-Mail của bạn (Von/Betreff/thân thư); có nó thì dòng prompt là thừa. */}
+                  {task.stimulus ? (
+                    <View style={{ gap: space[2], borderWidth: 1.5, borderColor: c.borderStrong, borderRadius: radius.md, padding: space[3] }}>
+                      <Caption>
+                        {task.stimulus.type === 'AD' ? 'Mẩu tin mà bài viết trả lời'
+                          : task.stimulus.type === 'LETTER' ? 'Thư bạn nhận được' : 'E-Mail bạn nhận được'}
+                      </Caption>
+                      {task.stimulus.from ? <ThemedText variant="body"><ThemedText variant="body" color="secondary">Từ: </ThemedText>{task.stimulus.from}</ThemedText> : null}
+                      {task.stimulus.subject ? <ThemedText variant="body"><ThemedText variant="body" color="secondary">Chủ đề: </ThemedText>{task.stimulus.subject}</ThemedText> : null}
+                      <ThemedText variant="body">{task.stimulus.body}</ThemedText>
+                    </View>
+                  ) : task.prompt ? (
                     <View style={{ gap: space[2], backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>
                       <ThemedText variant="body" color="secondary">{task.prompt}</ThemedText>
                     </View>

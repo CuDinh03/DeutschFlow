@@ -301,6 +301,9 @@ public class ExamScoringService {
         appendFirst(task, teil, List.of("instruction_de", "instruction_vi"));
         // Chủ đề hoặc tình huống của đề.
         appendFirst(task, teil, List.of("input_email", "prompt", "instructions"));
+        // Văn bản kích thích của đề telc (17/09/2026): E-Mail của bạn / mẩu tin / thư mà bài viết trả
+        // lời. Không gửi thì AI không biết học viên có phản hồi đúng điều người kia hỏi hay không.
+        if (teil.get("stimulus") instanceof Map<?, ?> stimulus) appendStimulus(task, stimulus);
         if (teil.get("writing_points") instanceof List<?> points && !points.isEmpty()) {
             task.append("\nDiese Punkte müssen im Text vorkommen:");
             int i = 1;
@@ -309,6 +312,24 @@ public class ExamScoringService {
             }
         }
         return task.toString().trim();
+    }
+
+    private void appendStimulus(StringBuilder task, Map<?, ?> stimulus) {
+        Object typeRaw = stimulus.get("type");
+        String type = typeRaw == null ? "TEXT" : String.valueOf(typeRaw);
+        String heading = switch (type) {
+            case "EMAIL" -> "E-Mail, auf die geantwortet wird";
+            case "AD" -> "Anzeige, auf die geantwortet wird";
+            case "LETTER" -> "Brief, auf den geantwortet wird";
+            default -> "Text, auf den geantwortet wird";
+        };
+        task.append("\n\n").append(heading).append(":");
+        if (stimulus.get("from") instanceof String from && !from.isBlank()) task.append("\nVon: ").append(from.trim());
+        if (stimulus.get("subject") instanceof String subject && !subject.isBlank()) {
+            task.append("\nBetreff: ").append(subject.trim());
+        }
+        if (stimulus.get("body") instanceof String body && !body.isBlank()) task.append("\n").append(body.trim());
+        task.append("\n");
     }
 
     private void appendFirst(StringBuilder target, Map<String, Object> teil, List<String> keys) {

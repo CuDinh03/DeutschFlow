@@ -244,6 +244,35 @@ class ExamScoringServiceTest {
     }
 
     @Test
+    @DisplayName("đề telc: E-Mail của bạn (văn bản kích thích) đi theo đề bài gửi AI — để AI biết bài có trả lời đúng điều được hỏi không")
+    void scoreSchreibenSection_sendsStimulusEmailToAi() {
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString(), any()))
+                .thenReturn(aiScore(27, "AI_EVALUATED"));
+        Map<String, Object> section = new HashMap<>();
+        section.put("max_points", 45);
+        section.put("teile", List.of(Map.of("teil", 1,
+                "instruction_de", "Antworten Sie Ihrer Freundin.",
+                "prompt", "Ihre Freundin Lena hat Ihnen geschrieben.",
+                "stimulus", Map.of("type", "EMAIL", "from", "Lena", "subject", "Besuch im Juli?",
+                        "body", "Hallo! Passt dir der Juli?"),
+                "shuffle_points", true,
+                "writing_points", List.of("Reaktion auf den Vorschlag", "Tipp für die Übernachtung"))));
+        Map<String, Object> answers = new HashMap<>(Map.of("email_1", "Liebe Lena, ja, der Juli passt."));
+
+        service.scoreSchreibenSection(7L, answers, section, "B1", "TELC");
+
+        org.mockito.ArgumentCaptor<String> task = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(aiEvaluator).evaluateSchreibenEmail(anyLong(), anyString(), task.capture(), anyString(), org.mockito.ArgumentMatchers.eq("TELC"));
+        assertThat(task.getValue())
+                .contains("E-Mail, auf die geantwortet wird")
+                .contains("Von: Lena")
+                .contains("Betreff: Besuch im Juli?")
+                .contains("Passt dir der Juli?")
+                .contains("1. Reaktion auf den Vorschlag") // Leitpunkte theo thứ tự hợp lý của seed
+                .contains("2. Tipp für die Übernachtung");
+    }
+
+    @Test
     @DisplayName("phiếu AI thiếu tiêu chí: điểm phần Viết tính theo thang đã co, không mất điểm oan")
     void scoreSchreibenSection_shrunkAiMax_scoresOnThatScale() {
         // 12/12 (mô hình bỏ sót strukturen) phải là điểm tuyệt đối của nhiệm vụ viết, không phải 12/15.
