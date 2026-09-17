@@ -136,6 +136,41 @@ function TelcGappedText({
   )
 }
 
+/**
+ * Beispiele in trước các câu, đúng như đề thật: LV Teil 3 luôn có hai (một ghép được, một `x`)
+ * để thí sinh thấy cả hai trường hợp trước khi làm. Beispiel không chiếm lựa chọn nào.
+ */
+function TelcExamples({ examples, noneLabel }: { examples: NonNullable<TelcTeil['examples']>; noneLabel: string }) {
+  const t = useTranslations('v2.student.mockExamRun')
+  return (
+    <section className="mb-6 rounded-ga border border-dashed border-ga-line bg-ga-card p-4" aria-label={t('telcExamples')}>
+      <h3 className="ga-ui mb-2 text-ga-caption font-bold uppercase tracking-wide text-ga-muted">{t('telcExamples')}</h3>
+      <ol className="space-y-2">
+        {examples.map((ex, idx) => (
+          <li key={idx} className="flex min-w-0 items-baseline gap-3">
+            <span className="ga-ui shrink-0 text-ga-small font-bold text-ga-subtle">{ex.label ?? `0${idx + 1}`}</span>
+            <span className="ga-ui min-w-0 flex-1 break-words text-ga-body text-ga-ink">{ex.situation}</span>
+            <span className="ga-ui shrink-0 rounded-ga border border-ga-line bg-ga-surface px-2 py-0.5 text-ga-small font-black text-ga-accent">
+              {ex.answer === NONE_OF_THEM ? noneLabel : ex.answer}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+/** Mẩu tin mà bức thư trả lời (SB Teil 2) — in ngay trên thư, vì thư không đọc nổi nếu thiếu nó. */
+function TelcStimulusAd({ text }: { text: string }) {
+  const t = useTranslations('v2.student.mockExamRun')
+  return (
+    <aside className="mb-4 rounded-ga border-2 border-ga-ink/20 bg-ga-card p-4">
+      <h3 className="ga-ui mb-1 text-ga-caption font-bold uppercase tracking-wide text-ga-muted">{t('telcStimulusAd')}</h3>
+      <p className="ga-ui whitespace-pre-wrap break-words text-ga-body text-ga-ink">{text}</p>
+    </aside>
+  )
+}
+
 /** Chỉ hai dạng ghép nối mới in danh sách kho ở đầu Teil. */
 const POOL_CAPTION: Record<'MATCH_HEADLINE' | 'MATCH_AD_X', string> = {
   MATCH_HEADLINE: 'telcHeadlines',
@@ -163,6 +198,7 @@ export function TelcTeilBody({ teil, answers, onAnswerChange }: TelcTeilBodyProp
   if (type === 'GAP_MC' || type === 'GAP_WORDBANK') {
     return (
       <div className="space-y-6">
+        {teil.stimulus_ad && <TelcStimulusAd text={teil.stimulus_ad} />}
         {teil.gapped_text && (
           <TelcGappedText
             text={teil.gapped_text}
@@ -231,6 +267,9 @@ export function TelcTeilBody({ teil, answers, onAnswerChange }: TelcTeilBodyProp
         {t('telcSingleUse')}
         {type === 'MATCH_AD_X' && ` · ${t('telcNoneHint')}`}
       </p>
+      {teil.examples && teil.examples.length > 0 && (
+        <TelcExamples examples={teil.examples} noneLabel={t('telcNone')} />
+      )}
       <ol className="space-y-6">
         {items.map((item) => (
           <li key={item.id} className="border-b border-ga-line pb-6 last:border-0 last:pb-0">

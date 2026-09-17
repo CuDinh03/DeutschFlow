@@ -72,6 +72,18 @@ export interface ExamObjGroup {
   instruction?: string
   /** Bài đọc chung của Teil (teil.text hoặc teil.context trong seed) — hiện MỘT lần đầu nhóm. */
   passage?: string
+  /**
+   * Bài đọc dài kiểu đề thật (LV Teil 2 telc, 17/09/2026): tiêu đề, Vorspann in đậm, thân bài
+   * đánh số dòng mỗi 5 dòng theo dòng tác giả ngắt, chú thích từ khó. Vắng = dựng `passage` như cũ.
+   */
+  passageTitle?: string
+  vorspann?: string
+  passageLines?: boolean
+  glossary?: { term: string; explanation: string }[]
+  /** Beispiele in trước các câu (LV Teil 3: một ghép được, một `x`); không chiếm lựa chọn. */
+  examples?: { label?: string; situation: string; answer: string }[]
+  /** Mẩu tin mà bức thư SB Teil 2 trả lời — in ngay trên thư. */
+  stimulusAd?: string
   items: ExamObjItem[]
   /** Dạng bài telc; vắng mặt = đề Goethe, dựng như cũ. */
   telcType?: TelcTeilType
@@ -517,11 +529,25 @@ function parseObjectiveTeil(teil: Record<string, unknown>): ExamObjGroup | null 
 
   if (items.length === 0) return null
   const audio = teil.audio_script
+  const glossaryRaw = Array.isArray(teil.glossary) ? (teil.glossary as Record<string, unknown>[]) : []
+  const glossary = glossaryRaw
+    .filter((g) => typeof g?.term === 'string' && typeof g?.explanation_de === 'string')
+    .map((g) => ({ term: String(g.term), explanation: String(g.explanation_de) }))
+  const examplesRaw = Array.isArray(teil.examples) ? (teil.examples as Record<string, unknown>[]) : []
+  const examples = examplesRaw
+    .filter((e) => typeof e?.situation === 'string' && typeof e?.answer === 'string')
+    .map((e) => ({ label: typeof e.label === 'string' ? e.label : undefined, situation: String(e.situation), answer: String(e.answer) }))
   return {
     title,
     instruction,
     // Teil ghép: context đã thành lựa chọn — không lặp lại thành bài đọc.
     passage: usedMatchingContext ? undefined : teilPassage,
+    passageTitle: typeof teil.title_de === 'string' ? teil.title_de : undefined,
+    vorspann: typeof teil.vorspann_de === 'string' && teil.vorspann_de.trim() ? teil.vorspann_de : undefined,
+    passageLines: teil.context_lines === true,
+    glossary: glossary.length > 0 ? glossary : undefined,
+    examples: examples.length > 0 ? examples : undefined,
+    stimulusAd: typeof teil.stimulus_ad === 'string' && teil.stimulus_ad.trim() ? teil.stimulus_ad : undefined,
     items,
     telcType: telcType ?? undefined,
     pool,

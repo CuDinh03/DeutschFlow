@@ -23,6 +23,7 @@ import { attemptTotalScore, finishPayload, parseExamSections, skippedSectionsLab
 import { ExamAudio } from '@/components/exam/ExamAudio'
 import { HoerenGate, type HoerenGatePhase } from '@/components/exam/HoerenGate'
 import { TelcGapText } from '@/components/exam/TelcGapText'
+import { ReadingPassage } from '@/components/exam/ReadingPassage'
 import { TextInput } from 'react-native'
 import { pollAsyncJob, AsyncJobFailedError, AsyncJobTimeoutError } from '@/lib/asyncJobs'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -374,6 +375,13 @@ export default function ExamAttemptScreen() {
                     </View>
                   ) : null}
 
+                  {group.stimulusAd ? (
+                    <View style={{ gap: space[1], borderWidth: 1.5, borderColor: c.borderStrong, borderRadius: radius.md, padding: space[3] }}>
+                      <Caption>Mẩu tin mà bức thư trả lời</Caption>
+                      <ThemedText variant="body">{group.stimulusAd}</ThemedText>
+                    </View>
+                  ) : null}
+
                   {group.gappedText ? (
                     <TelcGapText
                       text={group.gappedText}
@@ -384,11 +392,34 @@ export default function ExamAttemptScreen() {
                   ) : null}
 
                   {group.passage ? (
-                    <View style={{ gap: space[2], backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>
-                      <Caption>Bài đọc</Caption>
-                      <ThemedText variant="body" color="secondary">
-                        {group.passage}
-                      </ThemedText>
+                    group.passageLines || group.vorspann || group.glossary ? (
+                      <ReadingPassage
+                        title={group.passageTitle}
+                        vorspann={group.vorspann}
+                        body={group.passage}
+                        numbered={group.passageLines === true}
+                        glossary={group.glossary}
+                      />
+                    ) : (
+                      <View style={{ gap: space[2], backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>
+                        <Caption>Bài đọc</Caption>
+                        <ThemedText variant="body" color="secondary">
+                          {group.passage}
+                        </ThemedText>
+                      </View>
+                    )
+                  ) : null}
+
+                  {group.examples ? (
+                    <View style={{ gap: space[2], borderWidth: 1, borderStyle: 'dashed', borderColor: c.border, borderRadius: radius.md, padding: space[3] }}>
+                      <Caption>Ví dụ (Beispiele)</Caption>
+                      {group.examples.map((ex, i) => (
+                        <View key={i} style={{ flexDirection: 'row', gap: space[2], alignItems: 'flex-start' }}>
+                          <ThemedText variant="caption" color="faint">{ex.label ?? `0${i + 1}`}</ThemedText>
+                          <ThemedText variant="body" color="secondary" style={{ flex: 1 }}>{ex.situation}</ThemedText>
+                          <ThemedText variant="bodyStrong">{ex.answer === NONE_OF_THEM ? 'không' : ex.answer}</ThemedText>
+                        </View>
+                      ))}
                     </View>
                   ) : null}
 

@@ -218,3 +218,56 @@ describe('nghi thức bài nghe telc trên app', () => {
     expect(group.items[0].audio).toBeUndefined()
   })
 })
+
+/** Gói A (17/09/2026): bài đọc dài kiểu đề thật, Beispiele của LV Teil 3, mẩu tin trên thư SB2. */
+describe('bài đọc dài, Beispiele và mẩu tin kích thích trên app', () => {
+  const LESEN = JSON.stringify({
+    format: 'TELC',
+    sections: [
+      {
+        name: 'LESEN', max_points: 75,
+        teile: [
+          { teil: 2, type: 'MULTIPLE_CHOICE', title_de: 'Ehrenamt im Wandel', vorspann_de: 'Wer sich engagiert…',
+            context_lines: true, context: 'Zeile eins\nZeile zwei',
+            glossary: [{ term: 'Ehrenamt', explanation_de: 'unbezahlte Arbeit' }, { term: 'kaputt' }],
+            items: [{ id: 'LV2-6', question: 'Freiwillige hören auf, weil …', options: { a: 'x', b: 'y', c: 'z' }, type: 'MULTIPLE_CHOICE' }] },
+          { teil: 3, type: 'MATCH_AD_X', ads: { a: 'Nachhilfe', l: 'Fotograf' }, allow_none: true,
+            examples: [{ label: '01', situation: 'Goldene Hochzeit, schöne Bilder', answer: 'l' }, { situation: 'Klavierlehrerin gesucht', answer: 'x' }],
+            items: [{ id: 'LV3-11', question: 'Situation 11', type: 'MATCHING' }] },
+        ],
+      },
+      {
+        name: 'SPRACHBAUSTEINE', max_points: 30,
+        teile: [
+          { teil: 2, type: 'GAP_WORDBANK', stimulus_ad: 'Ferienwohnung am See', gapped_text: 'Anzeige ___31___ Wochenende',
+            word_bank: { a: 'AM', f: 'IM' }, items: [{ id: 'SB2-31', type: 'MATCHING' }] },
+        ],
+      },
+    ],
+  })
+
+  it('LV Teil 2 mang tiêu đề, Vorspann, cờ số dòng và chú thích (bỏ mục thiếu giải thích)', () => {
+    const [t2] = parseExamSections(LESEN).sections[0].groups
+    expect(t2.passageTitle).toBe('Ehrenamt im Wandel')
+    expect(t2.vorspann).toBe('Wer sich engagiert…')
+    expect(t2.passageLines).toBe(true)
+    expect(t2.passage).toBe('Zeile eins\nZeile zwei')
+    expect(t2.glossary).toEqual([{ term: 'Ehrenamt', explanation: 'unbezahlte Arbeit' }])
+  })
+
+  it('LV Teil 3 mang hai Beispiele, nhãn thiếu thì để trống cho màn tự đánh 01/02', () => {
+    const [, t3] = parseExamSections(LESEN).sections[0].groups
+    expect(t3.examples).toEqual([
+      { label: '01', situation: 'Goldene Hochzeit, schöne Bilder', answer: 'l' },
+      { label: undefined, situation: 'Klavierlehrerin gesucht', answer: 'x' },
+    ])
+  })
+
+  it('SB Teil 2 mang mẩu tin mà thư trả lời; đề không khai thì các trường này vắng', () => {
+    const parsed = parseExamSections(LESEN)
+    expect(parsed.sections[1].groups[0].stimulusAd).toBe('Ferienwohnung am See')
+    const [t2] = parsed.sections[0].groups
+    expect(t2.stimulusAd).toBeUndefined()
+    expect(t2.examples).toBeUndefined()
+  })
+})

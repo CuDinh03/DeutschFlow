@@ -1015,7 +1015,10 @@
       "hoerenReading": "Read the questions: {s} seconds left",
       "hoerenFraming": "Introducing the topic…",
       "hoerenReady": "You can listen now.",
-      "listenItem": "Listen to text {n}"
+      "listenItem": "Listen to text {n}",
+      "telcExamples": "Examples (Beispiele)",
+      "telcStimulusAd": "The advert this letter replies to",
+      "passageGlossary": "Glossary"
     },
     "grammarPractice": {
       "title": "Grammar practice",
