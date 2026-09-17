@@ -67,11 +67,22 @@ public class AiInterlocutorService {
                     + askWithCard(nextCard);
             case "REACT_AND_ASK" -> "Reagiere auf den Beitrag des Kandidaten (zustimmen oder höflich widersprechen, mit kurzer Begründung) und bringe einen eigenen Vorschlag oder eine Rückfrage ein. Maximal 2 Sätze.";
             case "REACT" -> "Reagiere kurz und natürlich (z. B. \"Ach, interessant!\", \"Gut, danke.\"). Maximal 1 Satz. Keine neue Frage.";
-            case "FOLLOWUP_QUESTION" -> "Stelle GENAU EINE passende Nachfrage zum Gesagten. Maximal 2 Sätze.";
+            // telc B1 T1 (2020): Prüferblatt in sẵn Zusatzthemen — giám khảo hỏi thêm MỘT câu từ đó,
+            // thí sinh không biết trước (khoá partner* nên client không nhận).
+            case "FOLLOWUP_QUESTION" -> "PRUEFER".equals(role) && candidateCard != null && candidateCard.get("partnerExtraQuestions") != null
+                    ? "Stelle GENAU EINE dieser Zusatzfragen (wähle eine, die im Gespräch noch nicht vorkam): "
+                      + candidateCard.get("partnerExtraQuestions") + ". Maximal 2 Sätze."
+                    : "Stelle GENAU EINE passende Nachfrage zum Gesagten. Maximal 2 Sätze.";
             case "CONCLUDE" -> "Fasse kurz zusammen, worauf ihr euch geeinigt habt (oder dass ihr unterschiedlicher Meinung seid), maximal 2 Sätze, und beende das Gespräch freundlich.";
             case "FEEDBACK_AND_QUESTION" -> "Der Kandidat hat gerade präsentiert. Gib eine kurze Rückmeldung (1 Satz: was war interessant oder neu) und stelle GENAU EINE Frage zum Vortrag. Maximal 2 Sätze.";
             case "ANSWER_QUESTION" -> "Der Kandidat hat dir eine Rückmeldung gegeben und eine Frage zu DEINEM Vortrag gestellt. Bedanke dich kurz und beantworte die Frage in 1–2 Sätzen. Keine Gegenfrage.";
             case "REPORT_OWN" -> "Reagiere kurz auf den Bericht des Kandidaten (1 Satz). Berichte dann, was auf DEINER Vorlage steht (Thema und die wichtigsten Zahlen, 2–3 Sätze), und frage den Kandidaten nach seiner Erfahrung oder Meinung.";
+            // telc B1 T2 (2020): thẻ ý kiến trái chiều — bạn thi thuật lại ý kiến TRÊN THẺ CỦA MÌNH
+            // (tên, nghề, người đó nghĩ gì), không phải số liệu.
+            case "REPORT_OPINION" -> "Reagiere kurz auf den Bericht des Kandidaten (1 Satz). Berichte dann, was auf DEINER Karte steht: wer die Person ist (Name, Alter, Beruf) und was sie zum Thema meint (2–3 Sätze, mit eigenen Worten). Frage den Kandidaten dann nach seiner eigenen Erfahrung oder Meinung.";
+            // Mẹo của người đã thi: bạn thi đồng tình + bổ sung, không ép phản biện mỗi lượt — Teil 2
+            // là trao đổi trải nghiệm, không phải Diskussion.
+            case "AGREE_AND_ADD" -> "Gehe auf das ein, was der Kandidat gerade gesagt hat: Stimme zu, wo du kannst, und ergänze eine eigene Erfahrung oder einen neuen Aspekt (1–2 Sätze). Widersprich nur, wenn deine Karte klar etwas anderes sagt — dann höflich und mit Grund. Stelle am Ende EINE kurze Rückfrage. Maximal 3 Sätze.";
             default -> "Reagiere kurz und passend. Maximal 2 Sätze.";
         };
         String persona = "PRUEFER".equals(role)
@@ -205,7 +216,8 @@ public class AiInterlocutorService {
      * privateContext thì PHẢI thêm khoá vào đây (PrivateContextTest chốt đồng bộ).
      */
     public static final java.util.Set<String> KNOWN_PARTNER_KEYS = java.util.Set.of(
-            "partnerCalendar", "partnerText", "partnerChart", "partnerPresentation", "partnerStance");
+            "partnerCalendar", "partnerText", "partnerChart", "partnerPresentation", "partnerStance",
+            "partnerOpinion", "partnerExtraQuestions");
 
     static String privateContext(Map<String, Object> card) {
         if (card == null) {
@@ -238,6 +250,33 @@ public class AiInterlocutorService {
                     .append("\". Vertritt diese Position durchgehend mit konkreten Argumenten und Beispielen,")
                     .append(" gib höchstens Teilpunkte zu und wechsle die Seite NICHT, auch wenn der Kandidat gut argumentiert.");
         }
+        if (card.get("partnerOpinion") != null) {
+            // telc B1 T2 (2020): hai ý kiến TRÁI CHIỀU — thẻ của bạn thi là một người khác với tên,
+            // tuổi, nghề. Bạn thi thuật lại ý kiến đó rồi nói như ý của mình, nhưng KHÔNG biến Teil 2
+            // thành tranh luận: đồng tình + bổ sung được, phản đối chỉ khi thẻ nói khác hẳn.
+            sb.append(" DEINE MEINUNGSKARTE (nur du kennst sie; der Kandidat hat eine andere Person mit einer anderen Meinung zum Thema \"")
+                    .append(val(card, "thema")).append("\"): ").append(opinionText(card.get("partnerOpinion")))
+                    .append(" Berichte davon, wenn du dran bist, und vertritt danach diese Sicht als deine eigene Erfahrung.")
+                    .append(" Du musst dem Kandidaten NICHT bei jedem Beitrag widersprechen — zustimmen und ergänzen ist erlaubt.");
+        }
+        if (card.get("partnerExtraQuestions") != null) {
+            sb.append(" ZUSATZFRAGEN DER PRÜFERIN / DES PRÜFERS (stehen nur auf dem Prüferblatt): ")
+                    .append(card.get("partnerExtraQuestions"))
+                    .append(". Nur der/die Prüfer/in stellt am Ende von Teil 1 GENAU EINE davon; der/die Partner/in nennt sie nicht.");
+        }
+        return sb.toString();
+    }
+
+    /** {@code {name, age, job, quote}} → „Name, 33, Beruf: „Zitat"" — hoặc chuỗi thô nếu thẻ lưu chuỗi. */
+    private static String opinionText(Object opinion) {
+        if (!(opinion instanceof Map<?, ?> m)) {
+            return String.valueOf(opinion);
+        }
+        StringBuilder sb = new StringBuilder();
+        if (m.get("name") != null) sb.append(m.get("name"));
+        if (m.get("age") != null) sb.append(sb.isEmpty() ? "" : ", ").append(m.get("age"));
+        if (m.get("job") != null) sb.append(sb.isEmpty() ? "" : ", ").append(m.get("job"));
+        if (m.get("quote") != null) sb.append(sb.isEmpty() ? "" : ": ").append('„').append(m.get("quote")).append('“');
         return sb.toString();
     }
 
@@ -271,7 +310,16 @@ public class AiInterlocutorService {
                     : next.containsKey("keyword") ? "Ja, gut. Und Sie — " + val(next, "keyword")
                     : next.containsKey("questionWord") ? "Ja, gut. Und Sie — " + val(next, "questionWord").replace("…", val(next, "thema"))
                     : "Ja, gern. Und Sie — " + val(next, "thema") + ": " + val(next, "wort") + "?";
-            case "FOLLOWUP_QUESTION", "REACT_AND_ASK" -> "Interessant. Können Sie das genauer erklären?";
+            case "FOLLOWUP_QUESTION" -> card != null && card.get("partnerExtraQuestions") instanceof List<?> extra && !extra.isEmpty()
+                    // Giám khảo hỏi thêm cuối Teil 1: câu dự phòng lấy đúng Zusatzfrage trên thẻ, không hỏi chung chung.
+                    ? String.valueOf(extra.get(0))
+                    : "Interessant. Können Sie das genauer erklären?";
+            case "REACT_AND_ASK", "AGREE_AND_ADD" -> "Interessant. Können Sie das genauer erklären?";
+            case "REPORT_OPINION" -> card != null && card.get("partnerOpinion") instanceof Map<?, ?> op
+                    // Câu dự phòng vẫn phải làm đúng việc của pha 1: thuật lại ý kiến trên thẻ rồi hỏi lại.
+                    ? "Auf meiner Karte steht die Meinung von " + op.get("name")
+                      + (op.get("job") != null ? ", " + op.get("job") : "") + ": „" + op.get("quote") + "“ Und was denken Sie?"
+                    : "Auf meiner Karte steht eine andere Meinung zum Thema. Und was denken Sie?";
             case "ANSWER_QUESTION" -> {
                 String keyword = questionKeyword(candidateText);
                 yield keyword.isEmpty()

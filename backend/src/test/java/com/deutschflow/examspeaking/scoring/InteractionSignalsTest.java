@@ -103,4 +103,35 @@ class InteractionSignalsTest {
         assertThat(s.candidateSharePct()).isZero();
         assertThat(s.promptBlock()).isEmpty();
     }
+
+
+    // ── Thời lượng nói (Gói D, 17/09/2026): „Flüssigkeit der Rede" trong Kriterium 2 của telc ──
+
+    @Test
+    @DisplayName("lượt qua STT có thời lượng ⇒ prompt in Sprechzeit và tốc độ nói; giám khảo không tính")
+    void timedTurns_reportSpeakingTimeAndTempo() {
+        var s = InteractionSignals.of(teil(
+                List.of(new Utterance("CANDIDATE", "Ich fahre gern ans Meer und bleibe dort zwei Wochen.", List.of(), null, 20.0),
+                        new Utterance("CANDIDATE", "Und du? Wohin fährst du im Sommer?", List.of(), null, 10.0)),
+                List.of(new Utterance("PRUEFER", "Bitte beginnen Sie.", List.of(), null, 5.0),
+                        new Utterance("PARTNER", "Ich bleibe lieber zu Hause.", List.of(), null, 12.0))));
+
+        assertThat(s.hasTiming()).isTrue();
+        assertThat(s.candidateSeconds()).isEqualTo(30.0);
+        assertThat(s.partnerSeconds()).as("giám khảo không phải bạn thi").isEqualTo(12.0);
+        assertThat(s.candidateWordsPerMinute()).as("17 từ trong 30 s ⇒ 34 từ/phút").isEqualTo(34);
+        assertThat(s.promptBlock()).contains("Sprechzeit: Kandidat 30 s, Partner 12 s").contains("34 Wörter/Minute");
+    }
+
+    @Test
+    @DisplayName("lượt text-only (không thời lượng) ⇒ KHÔNG in dòng Sprechzeit — không bịa số")
+    void textOnlyTurns_omitSpeakingTime() {
+        var s = InteractionSignals.of(teil(
+                List.of(say("CANDIDATE", "Ich fahre gern ans Meer.")),
+                List.of(say("PARTNER", "Ich auch."))));
+
+        assertThat(s.hasTiming()).isFalse();
+        assertThat(s.candidateWordsPerMinute()).isZero();
+        assertThat(s.promptBlock()).doesNotContain("Sprechzeit");
+    }
 }

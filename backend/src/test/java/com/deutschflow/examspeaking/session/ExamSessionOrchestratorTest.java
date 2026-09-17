@@ -261,4 +261,36 @@ class ExamSessionOrchestratorTest {
                 .isEqualTo(List.of("OPEN_DEFAULT", "REACT_DEFAULT", "CLOSE_DEFAULT"));
         assertThat(steps.get(2).hintVi()).contains("thống nhất");
     }
+
+
+    // ── telc B1 T2 dạng 2020: hai ý kiến trái chiều (Gói D, 17/09/2026) ──────────────────────
+
+    @Test
+    void telcTeil2_opinionPair_followsThreePhases_withAgreeAndAddInsteadOfDebate() {
+        List<SessionPlan.Step> steps = telcTeil2("TOPIC_OPINION_PAIR");
+        List<SessionPlan.Step> graphic = telcTeil2("TOPIC_GRAPHIC_PAIR");
+
+        assertThat(steps).hasSameSizeAs(graphic);
+        // Pha 1: thuật lại Ý KIẾN (ai, nghĩ gì) — bạn thi AI thuật lại thẻ của mình bằng REPORT_OPINION.
+        assertThat(steps.get(0).hintKey()).isEqualTo("OPEN_MEINUNG");
+        assertThat(steps.get(0).hintVi()).contains("tên, tuổi, nghề");
+        assertThat(steps.get(0).aiAction()).isEqualTo("REPORT_OPINION");
+        // Pha 2: y như Vorlage — trải nghiệm + ý kiến có lý do.
+        assertThat(steps.get(1).hintKey()).isEqualTo("OPINION_VORLAGE");
+        // Pha 3: đồng tình + bổ sung, KHÔNG ép tranh cãi; bạn thi AI dùng AGREE_AND_ADD.
+        assertThat(steps.subList(2, steps.size() - 1))
+                .allMatch(st -> st.hintKey().equals("AGREE_AND_ADD") && st.aiAction().equals("AGREE_AND_ADD"));
+        assertThat(steps.get(2).hintVi()).contains("Không cần tranh cãi");
+        // Kết: đối chiếu quan điểm, như Vorlage.
+        assertThat(steps.get(steps.size() - 1).hintKey()).isEqualTo("CLOSE_VORLAGE");
+        assertThat(steps.get(steps.size() - 1).aiAction()).isEqualTo("CONCLUDE");
+    }
+
+    @Test
+    void telcTeil2_graphicAndTextVorlage_areUnchangedByOpinionCards() {
+        assertThat(telcTeil2("TOPIC_GRAPHIC_PAIR").stream().map(SessionPlan.Step::aiAction).toList())
+                .as("thẻ Vorlage cũ vẫn REPORT_OWN / REACT_AND_ASK")
+                .startsWith("REPORT_OWN", "REACT_AND_ASK")
+                .doesNotContain("AGREE_AND_ADD", "REPORT_OPINION");
+    }
 }
