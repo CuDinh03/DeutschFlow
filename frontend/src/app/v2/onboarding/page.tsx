@@ -122,6 +122,9 @@ export default function V2OnboardingPage() {
   // A11y (W-12): mỗi lần đổi bước, focus về h1 của bước mới để đầu đọc màn hình đọc từ đầu.
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => { headingRef.current?.focus(); }, [step]);
+  // AnimatePresence mode="wait": bước mới chỉ mount SAU khi bước cũ thoát xong (~300 ms), lúc đó
+  // effect [step] đã chạy rồi và focus rơi về body. Focus lại khi hiệu ứng vào của bước mới kết thúc.
+  const focusHeading = () => { headingRef.current?.focus(); };
 
   const fetchMentor = useCallback(async () => {
     try {
@@ -479,13 +482,13 @@ export default function V2OnboardingPage() {
 
         <AnimatePresence mode="wait">
           {stepId === "motivation" && (
-            <motion.div key="s1" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}}>
+            <motion.div key="s1" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading}>
               <MotivationStep value={motivation} onChange={(m) => patch({ motivation: m })} headingRef={headingRef} />
             </motion.div>
           )}
 
           {stepId === "level" && (
-            <motion.div key="s2" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}}>
+            <motion.div key="s2" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading}>
               <LevelStep
                 currentLevel={currentLevel}
                 targetLevel={targetLevel}
@@ -497,13 +500,13 @@ export default function V2OnboardingPage() {
           )}
 
           {stepId === "rhythm" && (
-            <motion.div key="s3" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}}>
+            <motion.div key="s3" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading}>
               <RhythmStep value={dailyGoalMinutes} onChange={(m) => patch({ dailyGoalMinutes: m })} currentLevel={currentLevel} headingRef={headingRef} />
             </motion.div>
           )}
 
           {stepId === "focus" && (
-            <motion.div key="s4" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}}>
+            <motion.div key="s4" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading}>
               <FocusStep
                 goalType={goalType}
                 industry={industry}
@@ -517,7 +520,7 @@ export default function V2OnboardingPage() {
           )}
 
           {step === STEP_TASTE && isGuest && (
-            <motion.div key="s5qw" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
+            <motion.div key="s5qw" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading} className={`${card} text-center`}>
               <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-ga-gold mx-auto"><GaIcon name="record_voice_over" size={30} /></div>
               <h1 ref={headingRef} tabIndex={-1} className="font-ga-display text-ga-h1-m text-ga-ink outline-none">{t("quickWin.heading")}</h1>
               <p className="text-ga-small text-ga-muted">{t("quickWin.prompt")}</p>
@@ -559,7 +562,7 @@ export default function V2OnboardingPage() {
           )}
 
           {step === STEP_AUTH_GATE && isGuest && (
-            <motion.div key="s6" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
+            <motion.div key="s6" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading} className={`${card} text-center`}>
               {mentor && (
                 <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3 flex items-center gap-3 text-left">
                   <div className="w-11 h-11 rounded-ga-pill bg-ga-yellow flex items-center justify-center shrink-0"><GaIcon name="school" size={22} className="text-ga-ink" /></div>
@@ -582,7 +585,7 @@ export default function V2OnboardingPage() {
           )}
 
           {step === STEP_PLACEMENT && !isGuest && placementOffer && !testResult && questions.length === 0 && (
-            <motion.div key="s5offer" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
+            <motion.div key="s5offer" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading} className={`${card} text-center`}>
               <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-ga-gold mx-auto"><GaIcon name="target" size={30} /></div>
               <h1 ref={headingRef} tabIndex={-1} className="font-ga-display text-ga-h1-m text-ga-ink outline-none">{t("placementOffer.heading")}</h1>
               <p className="text-ga-small text-ga-muted">
@@ -599,7 +602,7 @@ export default function V2OnboardingPage() {
           )}
 
           {step === STEP_PLACEMENT && !isGuest && !testResult && questions.length > 0 && (
-            <motion.div key="s5t" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
+            <motion.div key="s5t" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading} className={card}>
               <div className="flex items-center justify-between gap-2">
                 <h2 ref={headingRef} tabIndex={-1} className="min-w-0 font-ga-display text-ga-h2 text-ga-ink outline-none lg:text-ga-h1-m">{t("test.heading")}</h2>
                 <span className="ga-ui shrink-0 text-ga-caption text-ga-subtle">{currentQ+1}/{questions.length}</span>
@@ -639,7 +642,7 @@ export default function V2OnboardingPage() {
           )}
 
           {step === STEP_PLACEMENT && !isGuest && testResult && (
-            <motion.div key="s5r" initial={{opacity:0,scale:0.95}} animate={{opacity:1,scale:1}} className={`${card} text-center`} aria-live="polite">
+            <motion.div key="s5r" initial={{opacity:0,scale:0.95}} animate={{opacity:1,scale:1}} onAnimationComplete={focusHeading} className={`${card} text-center`} aria-live="polite">
               <div className={`inline-flex w-20 h-20 rounded-ga-pill items-center justify-center mx-auto ${testResult.passed?"bg-ga-green-soft text-ga-green":"bg-ga-red-soft text-ga-red"}`}>
                 {testResult.passed ? <CheckCircle size={40}/> : <XCircle size={40}/>}
               </div>
