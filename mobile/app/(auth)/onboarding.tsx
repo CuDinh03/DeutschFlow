@@ -125,6 +125,11 @@ export default function OnboardingScreen() {
   // Value-first auth inversion: a guest runs the funnel before signing up.
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const isGuest = !isLoggedIn
+  // Taxonomy onb_v3 (spec §6.2): chặng đầu funnel — không có nó thì tỷ lệ rơi ở bước 1 vô nghĩa.
+  useEffect(() => {
+    captureEvent('onboarding_started', { guest: !isLoggedIn })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [guestQuickWin, setGuestQuickWin] = useState(false)   // guest: quick-win + signup gate
   // Màn "Đang tạo lộ trình…": bật khi replay draft khách SAU đăng ký, và (M-13) cả khi người
   // đăng ký thẳng bấm lưu — hai đường vào cùng một màn chờ, không phải chỉ đường khách.
@@ -200,6 +205,8 @@ export default function OnboardingScreen() {
         // Màn Nói/Thi chọn sẵn band theo currentLevel (hooks/useLearnerLevel) — hồ sơ vừa đổi thì cache phải rơi.
         void queryClient.invalidateQueries({ queryKey: [...LEARNING_PROFILE_QUERY_KEY] })
         captureEvent('onboarding_completed', { goalType: draft.goalType, targetLevel: draft.targetLevel })
+        // Di trú spec §6.3: tên cũ nghĩa là "đã lưu hồ sơ" — bắn song song tên đúng nghĩa.
+        captureEvent('onboarding_profile_saved', { goalType: draft.goalType, targetLevel: draft.targetLevel, resumed: true })
         // Bắn đủ như nhánh authed — thiếu ở đây thì phễu lệch giữa hai đường vào
         // và không so được người dùng khách với người đăng ký thẳng (F-12).
         captureEvent('onboarding_motivation_selected', { motivation: draft.motivation, goalType: draft.goalType })
@@ -288,6 +295,7 @@ export default function OnboardingScreen() {
       // đăng nhập sau (F-10).
       void clearOnboardingDraft()
       captureEvent('onboarding_completed', { goalType, targetLevel })
+      captureEvent('onboarding_profile_saved', { goalType, targetLevel, resumed: false })
       captureEvent('onboarding_motivation_selected', { motivation, goalType })
       captureEvent('onboarding_daily_goal_set', { minutes: parseInt(dailyGoal, 10) })
 
@@ -941,6 +949,8 @@ function GuestQuickWin({
                 onPress={() => {
                   void Haptics.selectionAsync()
                   setChoice(opt)
+                  // Taxonomy onb_v3: bắn cả đúng lẫn sai (tên cũ chỉ bắn khi đúng ⇒ không đo được tỷ lệ sai).
+                  captureEvent('guest_activity_completed', { kind: 'quick_win', correct })
                   if (correct) captureEvent('onboarding_quickwin_completed', { correct: true })
                 }}
                 style={{

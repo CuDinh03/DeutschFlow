@@ -76,6 +76,7 @@ export default function RegisterScreen() {
       await fetchMe()
       await fetchPlan()
       captureEvent('register_success')
+      captureEvent('signup_succeeded', { method: 'email' })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       // Đặt TRƯỚC khi điều hướng: replace làm màn này unmount ngay, và effect dọn
       // dẹp phải thấy được là đã đăng ký xong để không xoá mất draft sắp replay.
