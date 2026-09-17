@@ -1788,6 +1788,8 @@
           "CLOSE_DEFAULT": "Kết: tóm tắt điều hai bên thống nhất.",
           "REACT_CALENDAR": "Phản hồi: đồng ý nếu bạn rảnh, nếu không thì từ chối có lý do và đề xuất giờ khác.",
           "REACT_VORLAGE": "Phản hồi Vorlage của bạn thi; nói về trải nghiệm/ý kiến của bạn và hỏi lại.",
+          "OPEN_MEINUNG": "Pha 1 — thông tin: thuật lại NGẮN GỌN ý kiến trên thẻ của bạn — người đó là ai (tên, tuổi, nghề) và nghĩ gì. Đừng đọc nguyên văn.",
+          "AGREE_AND_ADD": "Pha 3 — phản hồi: bám vào điều bạn thi vừa nói — đồng tình VÀ bổ sung một ý/trải nghiệm của bạn, hoặc phản đối có lý do. Không cần tranh cãi; hỏi lại một câu.",
           "REACT_CONTACT": "Trả lời và hỏi lại bạn thi về một chủ đề khác trên thẻ.",
           "REACT_DEBATE": "Phản biện lập luận vừa nghe (nhượng bộ một phần rồi đưa lý lẽ ngược lại).",
           "REACT_DEFAULT": "Phản hồi bạn thi: đồng ý/phản đối có lý do, đề xuất tiếp.",
@@ -1856,6 +1858,8 @@
         "partnerTopic": "Chủ đề bài trình bày của bạn thi",
         "feedbackHint": "Nghe bạn thi trình bày, sau đó nhận xét và đặt một câu hỏi.",
         "vorlageA": "Vorlage của bạn",
+        "meinungA": "Thẻ ý kiến của bạn",
+        "meinungHint": "Thuật lại ý kiến này cho bạn thi, rồi kể trải nghiệm và ý kiến của chính bạn.",
         "yourTopic": "Chủ đề của bạn",
         "debate": "Tranh luận",
         "debateHint": "Nêu quan điểm, phản hồi bạn thi, rồi tóm lại: ủng hộ hay phản đối?"

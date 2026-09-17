@@ -113,6 +113,10 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
             if (all.contains("DEINE VORLAGE")) {
                 return "{\"reply_de\":\"Interessant. Auf meiner Vorlage steht, wie junge Leute verreisen: die meisten mit dem Auto. Und du?\"}";
             }
+            // V330: thẻ ý kiến trái chiều — đề riêng của partner là MEINUNGSKARTE, cũng chỉ nằm trong system prompt.
+            if (all.contains("DEINE MEINUNGSKARTE")) {
+                return "{\"reply_de\":\"Interessant. Auf meiner Karte steht die Meinung einer anderen Person: Sie sieht das ganz anders. Und du?\"}";
+            }
             if (user.contains("DEINEM Vortrag") || user.contains("zu DEINEM Vortrag")) {
                 return "{\"reply_de\":\"Danke! Ja, ich fahre auch im Winter mit dem Fahrrad, nur bei Schnee nehme ich den Bus.\"}";
             }
@@ -366,12 +370,13 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='GOETHE' AND teil_no=1", Integer.class)).isEqualTo(8);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='GOETHE' AND teil_no=2", Integer.class)).isEqualTo(12);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='GOETHE' AND teil_no=3", Integer.class)).isEqualTo(8);
-        // V306 (05/09): bơm pool mỏng telc B1 T1 3 → 10 (audit F-13).
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=1", Integer.class)).isEqualTo(10);
+        // V306 (05/09): bơm pool mỏng telc B1 T1 3 → 10 (audit F-13); V330 (17/09): +3 thẻ kiểu 2020 → 13.
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=1", Integer.class)).isEqualTo(13);
         // V326 (15/09): thêm 8 thẻ TOPIC_TEXT_PAIR cho T2 (trước đó 8 thẻ đều có biểu đồ), và thay
-        // 8 thẻ T3 dùng chung với Goethe bằng 8 thẻ TASK_SITUATION riêng — T3 vẫn là 8.
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=2", Integer.class)).isEqualTo(16);
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=3", Integer.class)).isEqualTo(8);
+        // 8 thẻ T3 dùng chung với Goethe bằng 8 thẻ TASK_SITUATION riêng. V330 (17/09): +8 thẻ
+        // TOPIC_OPINION_PAIR (dạng 2020) → T2 = 24; +6 TASK_SITUATION → T3 = 14.
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=2", Integer.class)).isEqualTo(24);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM speaking_exam_tasks WHERE level='B1' AND provider='TELC' AND teil_no=3", Integer.class)).isEqualTo(14);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_name='speaking_exam_sessions' AND column_name='prep_sec'", Integer.class)).isEqualTo(1);
     }
 
@@ -440,21 +445,29 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         java.util.Map<String, Object> stimulus = s.directive().stimulus();
 
         // Điều PHẢI đúng với MỌI thẻ T2: thí sinh thấy tài liệu của mình, KHÔNG thấy của bạn thi.
-        assertThat(stimulus).containsKeys("thema", "candidateText");
-        assertThat(stimulus).doesNotContainKeys("partnerText", "partnerChart");
+        assertThat(stimulus).containsKey("thema");
+        assertThat(stimulus).doesNotContainKeys("partnerText", "partnerChart", "partnerOpinion");
 
-        // Từ V326 (15/09) T2 có hai biến thể Vorlage và thẻ rút NGẪU NHIÊN — khẳng định cứng
-        // "phải có candidateChart" sẽ đỏ ngẫu nhiên khi rút trúng thẻ đoạn văn. Kiểm theo đúng
-        // biến thể vừa rút: thẻ biểu đồ phải có biểu đồ, thẻ đoạn văn thì KHÔNG được có.
-        if ("TOPIC_GRAPHIC_PAIR".equals(stimulus.get("type"))) {
-            assertThat(stimulus).containsKey("candidateChart");
-        } else {
-            assertThat(stimulus.get("type")).isEqualTo("TOPIC_TEXT_PAIR");
-            assertThat(stimulus).doesNotContainKey("candidateChart");
+        // Từ V326 (15/09) T2 có hai biến thể Vorlage, từ V330 (17/09) thêm thẻ ý kiến trái chiều;
+        // thẻ rút NGẪU NHIÊN — khẳng định cứng "phải có candidateChart" sẽ đỏ ngẫu nhiên. Kiểm theo
+        // đúng biến thể vừa rút: thẻ biểu đồ phải có biểu đồ, thẻ đoạn văn thì KHÔNG, thẻ ý kiến
+        // có candidateOpinion đủ tên/tuổi/nghề/trích dẫn.
+        String type = String.valueOf(stimulus.get("type"));
+        switch (type) {
+            case "TOPIC_GRAPHIC_PAIR" -> assertThat(stimulus).containsKeys("candidateText", "candidateChart");
+            case "TOPIC_TEXT_PAIR" -> assertThat(stimulus).containsKey("candidateText").doesNotContainKey("candidateChart");
+            case "TOPIC_OPINION_PAIR" -> {
+                // Map<?,?> không ghép được với containsKeys(String…) — chuyển keySet sang List<String>.
+                java.util.List<String> keys = ((java.util.Map<?, ?>) stimulus.get("candidateOpinion")).keySet()
+                        .stream().map(String::valueOf).toList();
+                assertThat(keys).contains("name", "age", "job", "quote");
+            }
+            default -> throw new AssertionError("loại thẻ T2 lạ: " + type);
         }
         TurnResponse t1 = sessionService.submitTextTurn(userId, s.id(), "Auf meiner Vorlage steht, wohin die Deutschen reisen.");
         assertThat(t1.aiRole()).isEqualTo("PARTNER");
-        assertThat(t1.aiText()).contains("Auf meiner Vorlage steht");
+        // Bạn thi AI thuật lại ĐỀ RIÊNG của mình — chứng minh system prompt có Vorlage B / Meinungskarte.
+        assertThat(t1.aiText()).contains("TOPIC_OPINION_PAIR".equals(type) ? "Auf meiner Karte steht" : "Auf meiner Vorlage steht");
     }
 
     @Test

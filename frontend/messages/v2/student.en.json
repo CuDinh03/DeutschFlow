@@ -1788,6 +1788,8 @@
           "CLOSE_DEFAULT": "Conclude: summarise what you both agreed on.",
           "REACT_CALENDAR": "Respond: agree if you are free; otherwise decline with a reason and suggest another time.",
           "REACT_VORLAGE": "Respond to your partner's text; talk about your own experience/opinion and ask back.",
+          "OPEN_MEINUNG": "Phase 1 — report: BRIEFLY relay the opinion on your card — who the person is (name, age, job) and what they think. Don't read it out word for word.",
+          "AGREE_AND_ADD": "Phase 3 — respond: pick up what your partner just said — agree AND add a point or experience of your own, or disagree with a reason. No need to argue; ask one question back.",
           "REACT_CONTACT": "Answer, then ask your partner about another topic on the card.",
           "REACT_DEBATE": "Counter the argument you just heard (concede a point, then argue the other way).",
           "REACT_DEFAULT": "Respond to your partner: agree/disagree with a reason, then suggest the next point.",
@@ -1856,6 +1858,8 @@
         "partnerTopic": "Your partner's presentation topic",
         "feedbackHint": "Listen to your partner, then give feedback and ask one question.",
         "vorlageA": "Your sheet",
+        "meinungA": "Your opinion card",
+        "meinungHint": "Relay this opinion to your partner, then talk about your own experience and view.",
         "yourTopic": "Your topic",
         "debate": "Debate",
         "debateHint": "State your position, respond to your partner, then sum up: for or against?"

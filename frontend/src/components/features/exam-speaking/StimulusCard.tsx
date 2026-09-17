@@ -174,8 +174,12 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction }: Props) {
     )
   }
 
-  if (type === 'PLANNING_CARD') {
+  // PLANNING_CARD (Goethe B1 T1) và TASK_SITUATION (telc B1 T3, 15/09/2026) cùng khuôn: tình huống +
+  // Zettel. Trước 17/09 TASK_SITUATION rơi xuống thẻ khoá–giá trị thô. Thẻ telc 2020 có thêm
+  // `instruction` bốn bước của đề thật — in thay cho gợi ý chung.
+  if (type === 'PLANNING_CARD' || type === 'TASK_SITUATION') {
     const prompts = Array.isArray(stimulus.prompts) ? (stimulus.prompts as unknown[]).map(String) : []
+    const instruction = typeof stimulus.instruction === 'string' && stimulus.instruction.trim() ? stimulus.instruction : null
     return (
       <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-planning-card">
         <GaCap className="mb-2 block">{t('situation')}</GaCap>
@@ -189,7 +193,7 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction }: Props) {
             ))}
           </ul>
         )}
-        <p className="ga-ui mt-3 text-[12.5px] text-ga-muted">{t('planningHint')}</p>
+        <p className="ga-ui mt-3 text-[12.5px] text-ga-muted">{instruction ?? t('planningHint')}</p>
       </div>
     )
   }
@@ -280,6 +284,26 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction }: Props) {
             <li key={h} className="ga-ui rounded-ga bg-ga-surface px-3 py-1.5 text-[14px] text-ga-ink">{h}</li>
           ))}
         </ul>
+      </div>
+    )
+  }
+
+  // telc B1 T2 dạng 2020 (17/09/2026): thẻ ý kiến — một người có tên/tuổi/nghề và câu trích dẫn;
+  // bạn thi cầm ý kiến trái chiều (khoá partnerOpinion, không bao giờ tới client).
+  if (type === 'TOPIC_OPINION_PAIR') {
+    const op = (stimulus.candidateOpinion ?? null) as { name?: string; age?: number | string; job?: string; quote?: string } | null
+    const person = [op?.name, op?.age != null ? String(op.age) : null, op?.job].filter(Boolean).join(', ')
+    return (
+      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-opinion-card">
+        <GaCap className="mb-2 block">{t('meinungA')}</GaCap>
+        <p className="font-ga-display text-[20px] font-medium leading-snug text-ga-ink">{String(stimulus.thema ?? '')}</p>
+        {op && (
+          <figure className="mt-4 border-l-[3px] border-ga-ink pl-4">
+            <blockquote className="ga-ui text-[15px] leading-relaxed text-ga-ink">„{String(op.quote ?? '')}“</blockquote>
+            {person && <figcaption className="ga-ui mt-2 text-[13px] font-semibold text-ga-muted">— {person}</figcaption>}
+          </figure>
+        )}
+        <p className="ga-ui mt-3 text-[12.5px] text-ga-muted">{String(stimulus.instruction ?? t('meinungHint'))}</p>
       </div>
     )
   }

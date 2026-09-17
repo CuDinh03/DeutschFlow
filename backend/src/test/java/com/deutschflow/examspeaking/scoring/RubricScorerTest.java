@@ -149,7 +149,7 @@ class RubricScorerTest {
     // ── telc B1: bandPoints tuyệt đối, A–D, ngưỡng 45/75 ───────────────────────────────────
 
     @Test
-    @DisplayName("telc B1: A–D theo bảng điểm tuyệt đối; toàn A = 75; toàn B = 55 đỗ; toàn C = 35 trượt (ngưỡng 45)")
+    @DisplayName("telc B1: A–D theo bảng điểm tuyệt đối; toàn A = 75; toàn B = 55 đỗ; toàn C = 20 trượt (ngưỡng 45)")
     void telcB1Mapping() {
         RubricDefinition r = telcB1();
         RubricRef ref = new RubricRef(ExamProvider.TELC, "B1", 1);
@@ -158,15 +158,18 @@ class RubricScorerTest {
         assertThat(b.total()).isEqualTo(55.0); // (3+3+3+2) + 2×(6+6+6+4) = 11 + 44
         assertThat(b.passed()).isTrue();
         Ergebnisbogen cc = scorer.score(ref, r, uniform(r, "C"));
-        assertThat(cc.total()).isEqualTo(35.0); // (2+2+2+1) + 2×(4+4+4+2) = 7 + 28
+        // Bewertungsbogen 2020 (V330, 17/09/2026): C = 1 (max 4) và 2 (max 8) — trước đây nội suy
+        // 2 và 4 nên toàn C ra 35; bản chính thức: (1+1+1+1) + 2×(2+2+2+2) = 4 + 16.
+        assertThat(cc.total()).isEqualTo(20.0);
         assertThat(cc.passed()).isFalse();
         assertThat(scorer.score(ref, r, uniform(r, "D")).total()).isEqualTo(0.0);
     }
 
+    /** Bảng telc B1 đúng Bewertungsbogen M10 (Übungstest 1, 2020) — khớp V277 sau V330. */
     static RubricDefinition telcB1() {
-        Map<String, Double> p4 = Map.of("A", 4.0, "B", 3.0, "C", 2.0, "D", 0.0);
+        Map<String, Double> p4 = Map.of("A", 4.0, "B", 3.0, "C", 1.0, "D", 0.0);
         Map<String, Double> p3 = Map.of("A", 3.0, "B", 2.0, "C", 1.0, "D", 0.0);
-        Map<String, Double> p8 = Map.of("A", 8.0, "B", 6.0, "C", 4.0, "D", 0.0);
+        Map<String, Double> p8 = Map.of("A", 8.0, "B", 6.0, "C", 2.0, "D", 0.0);
         Map<String, Double> p6 = Map.of("A", 6.0, "B", 4.0, "C", 2.0, "D", 0.0);
         List<RubricDefinition.RubricCriterion> t1 = List.of(cb("AUSDRUCKSFAEHIGKEIT", 4, p4), cb("AUFGABENBEWAELTIGUNG", 4, p4),
                 cb("FORMALE_RICHTIGKEIT", 4, p4), cb("AUSSPRACHE_INTONATION", 3, p3));

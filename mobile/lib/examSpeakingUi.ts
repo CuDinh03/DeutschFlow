@@ -172,6 +172,16 @@ export function stimulusDisplay(stimulus: Record<string, unknown> | null | undef
     const v = str(k)
     if (v && v !== headline) lines.push(v)
   }
+  // telc B1 T2 dạng 2020 (TOPIC_OPINION_PAIR, 17/09/2026): ý kiến của MỘT người có tên/tuổi/nghề — in
+  // trích dẫn rồi dòng người nói; `partnerOpinion` bị chặn bởi tiền tố partner như mọi khoá khác.
+  const op = s.candidateOpinion
+  if (op && typeof op === 'object') {
+    const o = op as Record<string, unknown>
+    const quote = typeof o.quote === 'string' ? o.quote.trim() : ''
+    const person = [o.name, o.age, o.job].filter((x) => typeof x === 'string' ? x.trim() : typeof x === 'number').map(String).join(', ')
+    if (quote) lines.push(`„${quote}“`)
+    if (person) lines.push(`— ${person}`)
+  }
   for (const k of ['keywords', 'hints', 'points', 'bullets', 'folien', 'topics', 'prompts', 'aspects']) pushList(k)
   pushTable('candidateCalendar')
   pushTable('candidateChart')

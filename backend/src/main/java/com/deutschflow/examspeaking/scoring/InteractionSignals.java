@@ -14,19 +14,43 @@ import com.deutschflow.examspeaking.api.model.Utterance;
  *
  * <p>Cố ý CHỈ đo những thứ đếm được. Những thứ như "có bám vào ý của bạn thi không" là việc của mô
  * hình đọc bản ghi; đoán bằng từ khoá sẽ sai nhiều hơn đúng.
+ *
+ * <p><b>Thời lượng nói (17/09/2026).</b> Bewertungsbogen telc xếp „Flüssigkeit der Rede" vào
+ * Kriterium 2 (Aufgabenbewältigung) — số từ không đủ nói lên điều đó: 60 từ trong 20 giây và 60 từ
+ * trong 70 giây là hai bài rất khác nhau. {@code candidateSeconds}/{@code partnerSeconds} lấy từ
+ * {@link Utterance#durationSeconds()} khi lượt đi qua STT; lượt text-only không có thì bằng 0 và
+ * prompt KHÔNG in dòng thời lượng (không bịa số).
  */
 public record InteractionSignals(
         int candidateTurns,
         int partnerTurns,
         int candidateWords,
         int partnerWords,
-        int candidateQuestions
+        int candidateQuestions,
+        double candidateSeconds,
+        double partnerSeconds
 ) {
+
+    /** Tương thích: không có thời lượng (text-only). */
+    public InteractionSignals(int candidateTurns, int partnerTurns, int candidateWords, int partnerWords,
+                              int candidateQuestions) {
+        this(candidateTurns, partnerTurns, candidateWords, partnerWords, candidateQuestions, 0, 0);
+    }
 
     /** Tỉ lệ phần trăm lời nói của thí sinh trên tổng lời nói; không ai nói gì thì 0. */
     public int candidateSharePct() {
         int total = candidateWords + partnerWords;
         return total == 0 ? 0 : (int) Math.round(candidateWords * 100.0 / total);
+    }
+
+    /** Có đo được thời lượng nói của thí sinh hay không (ít nhất một lượt qua STT có timing). */
+    public boolean hasTiming() {
+        return candidateSeconds > 0;
+    }
+
+    /** Tốc độ nói của thí sinh (từ/phút) — 0 khi không có thời lượng. */
+    public int candidateWordsPerMinute() {
+        return candidateSeconds <= 0 ? 0 : (int) Math.round(candidateWords * 60.0 / candidateSeconds);
     }
 
     /**
@@ -39,12 +63,14 @@ public record InteractionSignals(
 
     public static InteractionSignals of(ParticipantBundle.PartTranscript pt) {
         int candTurns = 0, partTurns = 0, candWords = 0, partWords = 0, questions = 0;
+        double candSeconds = 0, partSeconds = 0;
         for (Utterance u : pt.candidate()) {
             String text = u.text() == null ? "" : u.text().trim();
             if (text.isEmpty()) continue;
             candTurns++;
             candWords += wordCount(text);
             questions += countQuestions(text);
+            candSeconds += seconds(u);
         }
         for (Utterance u : pt.others()) {
             String text = u.text() == null ? "" : u.text().trim();
@@ -53,8 +79,13 @@ public record InteractionSignals(
             if ("PRUEFER".equalsIgnoreCase(u.role())) continue;
             partTurns++;
             partWords += wordCount(text);
+            partSeconds += seconds(u);
         }
-        return new InteractionSignals(candTurns, partTurns, candWords, partWords, questions);
+        return new InteractionSignals(candTurns, partTurns, candWords, partWords, questions, candSeconds, partSeconds);
+    }
+
+    private static double seconds(Utterance u) {
+        return u.durationSeconds() == null || u.durationSeconds() <= 0 ? 0 : u.durationSeconds();
     }
 
     private static int wordCount(String text) {
@@ -80,6 +111,13 @@ public record InteractionSignals(
         sb.append("- Redebeiträge: Kandidat ").append(candidateTurns)
                 .append(", Partner ").append(partnerTurns).append('\n');
         sb.append("- Rückfragen des Kandidaten: ").append(candidateQuestions).append('\n');
+        if (hasTiming()) {
+            // Chỉ in khi đo được — Kriterium 2 của telc gồm „Flüssigkeit der Rede", mô hình cần biết
+            // thí sinh nói 60 từ trong 20 giây hay trong 70 giây.
+            sb.append("- Sprechzeit: Kandidat ").append(Math.round(candidateSeconds)).append(" s");
+            if (partnerSeconds > 0) sb.append(", Partner ").append(Math.round(partnerSeconds)).append(" s");
+            sb.append(" (Sprechtempo Kandidat ca. ").append(candidateWordsPerMinute()).append(" Wörter/Minute)\n");
+        }
         sb.append("Werte diese Zahlen in AUFGABENBEWAELTIGUNG bzw. INTERAKTION mit ein: ");
         sb.append("Wer auswendig Vorbereitetes vorträgt, ohne auf den Partner einzugehen und ohne eine einzige ");
         sb.append("Rückfrage, erfüllt die Aufgabe NICHT vollständig — auch wenn die Sprache gut ist.\n");
