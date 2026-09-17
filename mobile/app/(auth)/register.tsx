@@ -10,6 +10,7 @@ import { usePlanStore } from '@/stores/usePlanStore'
 import { setTokens } from '@/lib/auth'
 import { captureEvent } from '@/lib/analytics'
 import { clearOnboardingDraft } from '@/lib/onboardingDraft'
+import { clearGuestSessionCache } from '@/lib/guestSessionStore'
 import { passwordStrength } from '@/lib/passwordStrength'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { motion, radius, space, useTheme } from '@/lib/theme'
@@ -37,7 +38,12 @@ export default function RegisterScreen() {
   // bảng câu hỏi (QA 2026-08-20, F-3).
   useEffect(
     () => () => {
-      if (!signedUpRef.current) void clearOnboardingDraft()
+      if (!signedUpRef.current) {
+        void clearOnboardingDraft()
+        // Đợt 2 (17/09): cùng luật cho con trỏ phiên khách trên server — khách A bỏ dở ở đây, B đăng ký
+        // sau trên cùng máy không được claim phiên (câu trả lời) của A. Phiên trên server tự hết hạn 72 h.
+        void clearGuestSessionCache()
+      }
     },
     [],
   )

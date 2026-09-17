@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { fonts, motion, radius, space, useTheme } from '@/lib/theme'
 import { captureEvent } from '@/lib/analytics'
 import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft } from '@/lib/onboardingDraft'
+import { claimGuestSession, ensureGuestSession, syncGuestSession, type GuestAnswers } from '@/lib/guestSession'
 import { saveDailyGoalMinutes } from '@/lib/dailyGoal'
 import { MENTOR_META, mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { nextAfterProfile } from '@/lib/onboardingRouting'
@@ -131,6 +132,11 @@ export default function OnboardingScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [guestQuickWin, setGuestQuickWin] = useState(false)   // guest: quick-win + signup gate
+  // Đợt 2 (17/09): phiên khách sống trên server (72 h) — best-effort, server từ chối thì phễu vẫn
+  // chạy bằng draft SecureStore như trước.
+  useEffect(() => {
+    if (!isLoggedIn) void ensureGuestSession('vi')
+  }, [isLoggedIn])
   // Màn "Đang tạo lộ trình…": bật khi replay draft khách SAU đăng ký, và (M-13) cả khi người
   // đăng ký thẳng bấm lưu — hai đường vào cùng một màn chờ, không phải chỉ đường khách.
   const [resuming, setResuming] = useState(false)
@@ -172,6 +178,34 @@ export default function OnboardingScreen() {
     if (!isLoggedIn) return
     let active = true
     ;(async () => {
+      // Đợt 2 (17/09): CLAIM phiên khách trên server TRƯỚC — server phát lại hồ sơ (UPSERT) ngay trong
+      // claim, nên nhánh này KHÔNG POST /profile. Draft SecureStore chỉ còn là đường lùi (server hỏng,
+      // phiên hết hạn). I-7: 'foreign' = phiên của người khác ⇒ draft đã bị vứt, hiện wizard trống.
+      const claim = await claimGuestSession()
+      if (!active) return
+      if (claim.status === 'claimed') {
+        const hasPlan = await api.get<{ hasPlan: boolean }>('/onboarding/status')
+          .then(({ data }) => data?.hasPlan === true, () => false)
+        captureEvent('onboarding_session_claimed', { alreadyClaimed: claim.alreadyClaimed, hasPlan })
+        if (!active) return
+        if (hasPlan) {
+          setResuming(true)
+          const a: GuestAnswers = claim.answers ?? {}
+          const minutes = a.dailyGoalMinutes ?? DEFAULT_MINUTES_PER_SESSION
+          void useTourStore.getState().markDone('profile_done')
+          void queryClient.invalidateQueries({ queryKey: [...LEARNING_PROFILE_QUERY_KEY] })
+          captureEvent('onboarding_completed', { goalType: a.goalType ?? null, targetLevel: a.targetLevel ?? null })
+          captureEvent('onboarding_profile_saved', { goalType: a.goalType ?? null, targetLevel: a.targetLevel ?? null, resumed: true, via: 'claim' })
+          captureEvent('onboarding_motivation_selected', { motivation: a.motivation ?? null, goalType: a.goalType ?? null })
+          captureEvent('onboarding_daily_goal_set', { minutes })
+          await saveDailyGoalMinutes(minutes)
+          router.replace(nextAfterProfile())
+          return
+        }
+        // Claim được nhưng phiên chưa có hồ sơ (khách rời trước bước trình độ) → thử draft.
+      } else if (claim.status === 'foreign') {
+        return
+      }
       const draft = await readOnboardingDraft()
       if (!active || !draft) return
       setResuming(true)
@@ -263,6 +297,7 @@ export default function OnboardingScreen() {
     if (isGuest) {
       // Value-first: a guest sees a quick win + signup gate before anything is saved server-side.
       void Haptics.selectionAsync()
+      void syncGuestSession('TASTE', guestAnswersSnapshot())
       setGuestQuickWin(true)
       return
     }
@@ -329,9 +364,24 @@ export default function OnboardingScreen() {
     }
   }
 
+  /** Bản chụp câu trả lời theo hình dạng chung web/mobile (spec §5.1) — gửi lên phiên khách. */
+  function guestAnswersSnapshot(): GuestAnswers {
+    return {
+      motivation, goalType, currentLevel, targetLevel: targetLevel ?? undefined,
+      industry: goalType === 'WORK' ? industry : null,
+      examType: goalType === 'CERT' ? examType : null,
+      dailyGoalMinutes: parseInt(dailyGoal, 10),
+      sessionsPerWeek: DEFAULT_SESSIONS_PER_WEEK,
+      minutesPerSession: DEFAULT_MINUTES_PER_SESSION,
+      learningSpeed: 'NORMAL',
+    }
+  }
+
   // Guest signup gate: stash the funnel answers, then route to /register to save them.
   async function handleGuestSignup() {
     if (!targetLevel) return
+    // Server trước (claim sẽ phát lại từ đây), draft sau (đường lùi khi server hỏng).
+    void syncGuestSession('AUTH_GATE', guestAnswersSnapshot())
     await saveOnboardingDraft({ motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoal })
     captureEvent('onboarding_signup_prompted', { motivation, goalType })
     router.push('/(auth)/register')
@@ -345,6 +395,8 @@ export default function OnboardingScreen() {
     if (!isLastStep) {
       void Haptics.selectionAsync()
       setStep(step + 1)
+      // Khách: mỗi lần rời bước là một PATCH lên phiên server (best-effort).
+      if (isGuest) void syncGuestSession('PROFILE', guestAnswersSnapshot())
       return
     }
     void handleSubmit()
@@ -951,6 +1003,7 @@ function GuestQuickWin({
                   setChoice(opt)
                   // Taxonomy onb_v3: bắn cả đúng lẫn sai (tên cũ chỉ bắn khi đúng ⇒ không đo được tỷ lệ sai).
                   captureEvent('guest_activity_completed', { kind: 'quick_win', correct })
+                  void syncGuestSession('TASTE', undefined, { quickWin: { correct, choice: opt } })
                   if (correct) captureEvent('onboarding_quickwin_completed', { correct: true })
                 }}
                 style={{
