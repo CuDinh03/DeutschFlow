@@ -16,6 +16,8 @@ import { trackFeatureAction } from '@/lib/analytics'
 import { handleAiError } from '@/lib/upsell'
 import { examParentHref } from '@/lib/examSpeakingNav'
 import { useHardwareBack } from '@/hooks/useHardwareBack'
+import { useLearnerLevel } from '@/hooks/useLearnerLevel'
+import { pickBand } from '@/lib/learnerBand'
 
 /** Hub Luyện thi Nói — thiết kế canvas 02/09 (đã chốt): hero chọn level, cấu trúc đề, điểm yếu, kết quả gần đây. */
 export default function SpeakingExamHubScreen() {
@@ -29,6 +31,7 @@ export default function SpeakingExamHubScreen() {
   const [prepMode, setPrepMode] = useState<'SHORT' | 'FULL'>('SHORT')
   // Khoá đang mở phòng: 'MOCK' hoặc `DRILL-<teil>` — mỗi nút chỉ xoay khi đúng là nó đang mở.
   const [starting, setStarting] = useState<string | null>(null)
+  const { currentLevel, settled: levelSettled } = useLearnerLevel({ enabled: hasProAccess })
 
   const blueprintsQ = useQuery({
     queryKey: ['exam-speaking-blueprints', provider],
@@ -51,8 +54,9 @@ export default function SpeakingExamHubScreen() {
 
   const blueprints = blueprintsQ.data ?? []
   const levels = useMemo(() => levelsFromBlueprints(blueprints), [blueprints])
-  // Ưu tiên B1 (band phổ biến nhất) — cùng luật với weekly (F-19).
-  const activeLevel = level ?? (levels.includes('B1') ? 'B1' : levels[0] ?? null)
+  // 17/09: level mặc định theo TRÌNH ĐỘ HỒ SƠ (A0 → A1), cùng luật với Nói tuần — trước đó
+  // "ưu tiên B1" nên tài khoản A0 mở hub là thấy đề thi B1. Chờ hồ sơ rồi mới chốt (không nháy).
+  const activeLevel = level ?? (levelSettled ? pickBand(currentLevel, levels) : null)
   const activeBlueprint: BlueprintSummary | undefined = blueprints.find((b) => b.level === activeLevel)
   const topWeak = (weaknessQ.data?.weakPoints ?? []).slice(0, 2)
   const recent = (resultsQ.data ?? []).slice(0, 3)

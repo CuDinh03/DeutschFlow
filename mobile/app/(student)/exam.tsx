@@ -14,6 +14,8 @@ import { usePlanStore } from '@/stores/usePlanStore'
 import { mapExam, examApi, type RawMockExam, type ExamVariant, type ExamAttempt } from '@/lib/examApi'
 import { trackFeatureAction } from '@/lib/analytics'
 import { useBackToMainTab } from '@/hooks/useBackTo'
+import { useLearnerLevel } from '@/hooks/useLearnerLevel'
+import { pickBand } from '@/lib/learnerBand'
 
 const EXAM_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
@@ -23,20 +25,24 @@ export default function ExamScreen() {
   const theme = useTheme()
   const { hasProAccess } = usePlanStore()
 
-  const [level, setLevel] = useState<string>('B1')
+  // 17/09: cấp mặc định theo TRÌNH ĐỘ HỒ SƠ (A0 → A1) thay vì ghim 'B1' — tài khoản A0 từng mở
+  // màn là thấy đề B1. `level` null tới khi hồ sơ trả lời (query đề chờ theo).
+  const [pickedLevel, setLevel] = useState<string | null>(null)
+  const { currentLevel, settled: levelSettled } = useLearnerLevel({ enabled: hasProAccess })
+  const level = pickedLevel ?? (levelSettled ? pickBand(currentLevel, EXAM_LEVELS) : null)
 
   const { data: variants = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['exam-variants', level],
     queryFn: () =>
       api.get<RawMockExam[]>('/mock-exams', { params: { cefrLevel: level } }).then((r) => r.data.map(mapExam)),
-    enabled: hasProAccess,
+    enabled: hasProAccess && level != null,
     staleTime: 300_000,
   })
 
   const { data: recommendedId } = useQuery({
     queryKey: ['exam-recommend', level],
-    queryFn: () => examApi.recommend(level),
-    enabled: hasProAccess,
+    queryFn: () => examApi.recommend(level ?? ''),
+    enabled: hasProAccess && level != null,
     staleTime: 300_000,
   })
 
@@ -124,7 +130,7 @@ export default function ExamScreen() {
             onAction={PAYWALL_ENABLED ? () => router.push('/(student)/upgrade') : undefined}
           />
         </View>
-      ) : isLoading ? (
+      ) : isLoading || level == null ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
           <Skeleton height={110} radius="2xl" />
           <Skeleton height={110} radius="2xl" />
