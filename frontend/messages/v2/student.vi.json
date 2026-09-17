@@ -2204,6 +2204,10 @@
       "bodyConsentRequired": "Tài khoản này cần đồng ý của cha mẹ hoặc người giám hộ trước khi ghi âm giọng nói. Hãy liên hệ trung tâm để hoàn tất phiếu đồng ý; sau khi trung tâm ghi nhận, phần luyện nói mở lại ngay.",
       "titleConsentRevoked": "Đồng ý ghi âm đã được thu hồi",
       "bodyConsentRevoked": "Đồng ý cho phép ghi âm của tài khoản này đã được thu hồi, nên phần luyện nói tạm thời không dùng được. Nếu muốn mở lại, người giám hộ liên hệ trung tâm để cấp lại đồng ý.",
+      "titleBirthDateSelf": "Tài khoản chưa có ngày sinh",
+      "bodyBirthDateSelf": "Tài khoản chưa có ngày sinh nên hệ thống chưa xác định được có cần đồng ý của người giám hộ hay không, và không gửi bản ghi âm đi khi còn chưa rõ. Hãy bổ sung ngày sinh trong trang Hồ sơ.",
+      "bodyConsentRequiredSelf": "Tài khoản này cần đồng ý của cha mẹ hoặc người giám hộ trước khi ghi âm giọng nói. Đường xác nhận dành cho phụ huynh đang được hoàn thiện; khi có, ứng dụng sẽ hướng dẫn ngay tại đây.",
+      "bodyConsentRevokedSelf": "Đồng ý cho phép ghi âm của tài khoản này đã được thu hồi, nên phần luyện nói tạm thời không dùng được. Nếu muốn mở lại, người giám hộ cần cấp lại đồng ý — đường xác nhận dành cho phụ huynh đang được hoàn thiện.",
       "note": "Nâng cấp gói không mở được phần này — chỉ trung tâm hoặc người giám hộ mới mở lại được. Bạn vẫn dùng được mọi phần không cần ghi âm.",
       "contact": "Liên hệ trung tâm",
       "dismiss": "Đã hiểu"

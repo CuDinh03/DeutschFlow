@@ -20,6 +20,9 @@ import type { MinorAudioBlocked } from '@/lib/minorAudio'
  * REVOKED không được biến thành lời mời "đồng ý lại" trong app.
  *
  * Nội dung chính là `detail` của server (tiếng Việt, F-I18N-03); câu i18n vi/en/de là dự phòng.
+ * `info.contact === 'NONE'` (học viên ngoài trung tâm, phương án D 17/09): KHÔNG có lối "Liên hệ
+ * trung tâm" và câu dự phòng đổi sang bộ `*Self` — chỉ đường tới trung tâm cho người không có trung
+ * tâm là chỉ vào một cánh cửa không tồn tại.
  * Variants: `inline` (trong luồng, cạnh ô ghi âm) · `page` (khối giữa trang). `MinorAudioBlockedModal`
  * bọc cùng nội dung trong TkModal cho màn nộp bài.
  */
@@ -40,33 +43,35 @@ interface Copy {
   title: string
   body: string
   note: string
-  contact: string
+  /** null = không có ai để liên hệ (contact NONE) — không render lối liên hệ. */
+  contact: string | null
   dismiss: string
 }
 
 function useMinorAudioCopy(info: MinorAudioBlocked): Copy {
   const t = useTranslations('v2.student.minorAudio')
+  const noCenter = info.contact === 'NONE'
   let title: string
   let fallbackBody: string
   switch (info.reason) {
     case 'BIRTH_DATE_REQUIRED':
-      title = t('titleBirthDate')
-      fallbackBody = t('bodyBirthDate')
+      title = noCenter ? t('titleBirthDateSelf') : t('titleBirthDate')
+      fallbackBody = noCenter ? t('bodyBirthDateSelf') : t('bodyBirthDate')
       break
     case 'GUARDIAN_CONSENT_REVOKED':
       title = t('titleConsentRevoked')
-      fallbackBody = t('bodyConsentRevoked')
+      fallbackBody = noCenter ? t('bodyConsentRevokedSelf') : t('bodyConsentRevoked')
       break
     default:
       title = t('titleConsentRequired')
-      fallbackBody = t('bodyConsentRequired')
+      fallbackBody = noCenter ? t('bodyConsentRequiredSelf') : t('bodyConsentRequired')
   }
   return {
     eyebrow: t('eyebrow'),
     title,
     body: info.detail ?? fallbackBody,
     note: t('note'),
-    contact: t('contact'),
+    contact: noCenter ? null : t('contact'),
     dismiss: t('dismiss'),
   }
 }
@@ -84,11 +89,13 @@ function Actions({
 }) {
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
-      <GaBtn asChild variant="yellow" size="sm">
-        <Link href={contactHref}>{copy.contact}</Link>
-      </GaBtn>
+      {copy.contact !== null && (
+        <GaBtn asChild variant="yellow" size="sm">
+          <Link href={contactHref}>{copy.contact}</Link>
+        </GaBtn>
+      )}
       {onDismiss && (
-        <GaBtn variant="ghost" size="sm" onClick={onDismiss}>
+        <GaBtn variant={copy.contact === null ? 'yellow' : 'ghost'} size="sm" onClick={onDismiss}>
           {copy.dismiss}
         </GaBtn>
       )}
