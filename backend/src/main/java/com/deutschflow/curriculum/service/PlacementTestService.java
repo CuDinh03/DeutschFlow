@@ -32,6 +32,7 @@ public class PlacementTestService {
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final com.deutschflow.user.onboarding.service.OnboardingActivationService activationService;
 
     private static final int PASS_THRESHOLD = 7;  // >= 7/10
     private static final int RETRY_DAYS = 3;
@@ -209,6 +210,10 @@ public class PlacementTestService {
                     next_retry_at = """ + (passed ? "NULL" : "NOW() + INTERVAL '" + RETRY_DAYS + " days'") + """
                 WHERE id = ?::uuid
                 """, answersJson, scorePercent, passed, weakModulesArray, testId);
+        // ACTIVATION (Đợt 1 17/09): nộp xong bài kiểm tra đầu vào = bài đầu tiên (nhánh A1+),
+        // đậu hay rớt đều tính — người học đã làm việc thật. Giao dịch riêng, lỗi không đổ việc nộp.
+        activationService.recordFirstLessonQuietly(userId,
+                com.deutschflow.user.onboarding.FirstLessonKind.PLACEMENT);
 
         // Update user learning profile
         try {

@@ -34,6 +34,9 @@ class BeginnerJourneyServiceTest {
     @Mock
     PhaseEngineService phaseEngineService;
 
+    @Mock
+    com.deutschflow.user.onboarding.service.OnboardingActivationService activationService;
+
     @InjectMocks
     BeginnerJourneyService beginnerJourneyService;
 

@@ -56,6 +56,7 @@ public class SkillTreeService {
     private final com.deutschflow.progress.service.PhaseEngineService phaseEngineService;
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
+    private final com.deutschflow.user.onboarding.service.OnboardingActivationService activationService;
     /**
      * Bounded pool for blocking LLM content generation. Field name matches the
      * {@code aiExecutor} bean (AsyncConfig) so Spring resolves it by name among the
@@ -643,6 +644,9 @@ public class SkillTreeService {
         // Award XP + trigger achievements/practice-nodes/SRS/phase (shared with markNodeComplete)
         if (completed) {
             awardCompletionSideEffects(userId, nodeId, node);
+            // ACTIVATION (Đợt 1 17/09): chặng đầu tiên hoàn thành qua bài tập = bài đầu tiên.
+            activationService.recordFirstLessonQuietly(userId,
+                    com.deutschflow.user.onboarding.FirstLessonKind.ROADMAP_NODE);
         }
 
         return Map.of(
@@ -696,6 +700,9 @@ public class SkillTreeService {
         int xpEarned = safeInt(node.get("xp_reward"), 100);
         writeProgress(userId, nodeId, "COMPLETED", 100, 100, attempts, xpEarned);
         awardCompletionSideEffects(userId, nodeId, node);
+        // ACTIVATION (Đợt 1 17/09): bài lý thuyết đầu tiên (#450) cũng là bài đầu tiên.
+        activationService.recordFirstLessonQuietly(userId,
+                com.deutschflow.user.onboarding.FirstLessonKind.ROADMAP_NODE);
 
         return Map.of(
                 "nodeId", nodeId,
@@ -780,6 +787,9 @@ public class SkillTreeService {
         }
         if (completed) {
             awardCompletionSideEffects(userId, nodeId, node);
+            // ACTIVATION (Đợt 1 17/09): chặng đầu tiên hoàn thành qua bài tập = bài đầu tiên.
+            activationService.recordFirstLessonQuietly(userId,
+                    com.deutschflow.user.onboarding.FirstLessonKind.ROADMAP_NODE);
         }
 
         return Map.of(

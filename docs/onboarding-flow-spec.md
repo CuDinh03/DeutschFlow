@@ -195,6 +195,8 @@ postAction)`.
 | `PATCH /api/onboarding/guest-session/{id}` | công khai, chỉ khi **chưa claim** và **chưa hết hạn** | **200** — cập nhật từng phần `currentStep` / `answers` / `activityResult`. Trường vắng mặt = **không đổi**, không phải xoá. |
 | `POST /api/onboarding/claim` | authed (STUDENT) | Gắn session → user. Idempotent (I-6), atomic (`UPDATE … WHERE claimed_by_user_id IS NULL`). Phát lại `answers` thành hồ sơ học qua chính service của `POST /profile`. |
 | `GET /api/onboarding/progress` | authed (STUDENT) | Progress server-side để resume trên thiết bị khác. Chưa có dòng nào thì trả mặc định, **không** 404. |
+| `POST /api/onboarding/first-lesson/complete` | authed (STUDENT) | **Đợt 1 (17/09/2026).** Body `{ kind: FIRST_SENTENCE\|BEGINNER_SESSION\|PLACEMENT\|MOCK_EXAM\|ROADMAP_NODE, meta? }` → `{ activatedAt, firstTime, completedActivities[] }`. Ghi `activated_at` **đúng một lần** (I-3, I-12), an toàn đua (`INSERT … ON CONFLICT` + `UPDATE … WHERE activated_at IS NULL`), giao dịch riêng. Client chỉ gọi cho nguồn chấm cục bộ (mobile Câu đầu tiên); bốn nguồn còn lại được **hook ở server** (`BeginnerJourneyService`, `PlacementTestService.submitTest`, `AiSpeakingMockExamController.evaluateMockExam`, `RoadmapTreeService.completeNode` + `SkillTreeService` hoàn thành node). |
+| `POST /api/onboarding/progress/core-done` | authed (STUDENT) | **Đợt 1.** Ghi `core_completed_at` một lần (trả lời sheet nhắc học, kể cả từ chối — I-4) → `{ coreCompletedAt, firstTime }`. |
 
 **Bố cục controller (đã thi công).** Hai đầu công khai nằm ở
 `GuestOnboardingController` riêng, KHÔNG nhét vào `OnboardingController`: class đó
@@ -400,10 +402,7 @@ hai định nghĩa và không có cách nào tách lại.
 
 - Mobile: đã có `registerSuperProperties()` dùng `posthog.register()`. Thêm
   `flow_version` vào đó.
-- Web: **chưa có** cơ chế super-property — `frontend/src/providers/PostHogProvider.tsx`
-  gọi `posthog.init()` nhưng không `register()`, còn `useTracking` gọi thẳng
-  `posthog.capture`. Phải thêm `posthog.register({ flow_version })` ngay sau
-  `init()`. 🔵
+- Web: ✅ Đợt 1 (17/09/2026) — `PostHogProvider.tsx` `posthog.register({ flow_version: 'onb_v3', platform: 'web' })` ngay sau `init()`; mobile `registerSuperProperties()` thêm `flow_version`. Các tên mới ở §6.2 bắt đầu bắn **song song** tên cũ từ Đợt 1 (web: `onboarding_started`, `onboarding_profile_saved`, `guest_activity_completed`, `onboarding_path_selected`, `placement_completed`, `signup_succeeded`, `first_lesson_started/completed`; mobile: thêm `notification_permission_result`, `reminder_prompt_shown`, `onboarding_core_completed`). Tên cũ gỡ sau ≥2 tuần khi dashboard đã chuyển.
 
 🔒 **Không PII, không audio vào PostHog.** `sessionId` dạng UUID được phép; email
 thì không. Nhắc lại vì `onb_v3` thêm sự kiện cho khách chưa đăng ký.

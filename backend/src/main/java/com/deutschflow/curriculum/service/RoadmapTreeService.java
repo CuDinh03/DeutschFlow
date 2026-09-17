@@ -66,6 +66,7 @@ public class RoadmapTreeService {
     private final TreeMilestoneProgressRepository milestoneProgressRepository;
     private final UserRepository userRepository;
     private final UserLearningProfileRepository learningProfileRepository;
+    private final com.deutschflow.user.onboarding.service.OnboardingActivationService activationService;
 
     /** Builds the full tree (user header + path of levels) for the given learner. */
     @Transactional(readOnly = true)
@@ -247,6 +248,9 @@ public class RoadmapTreeService {
         progress.setState(TreeNodeProgress.COMPLETED);
         progress.setCompletedAt(now);
         nodeProgressRepository.save(progress);
+        // ACTIVATION (Đợt 1 17/09): chặng đầu tiên hoàn thành = bài đầu tiên. Idempotent phía service.
+        activationService.recordFirstLessonQuietly(userId,
+                com.deutschflow.user.onboarding.FirstLessonKind.ROADMAP_NODE);
 
         return getTree(userId);
     }
