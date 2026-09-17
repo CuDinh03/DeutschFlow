@@ -49,6 +49,11 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
             maskTextSelector: "[data-ph-mask='true']",
           },
         })
+        // Super-property cho MỌI sự kiện (spec onboarding §6.4, Đợt 1 17/09): phiên bản luồng
+        // onboarding + nền tảng, để funnel web↔mobile tách cohort mà không sửa từng call site.
+        // Mobile đã có `platform`/`app_version` qua registerSuperProperties(); web trước đây chưa
+        // register gì cả.
+        posthog.register({ flow_version: 'onb_v3', platform: 'web' })
         // Track lần đầu mở app trong session này
         posthog.capture('app_opened', {
           referrer: document.referrer || 'direct',

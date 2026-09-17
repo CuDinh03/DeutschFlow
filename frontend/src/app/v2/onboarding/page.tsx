@@ -196,6 +196,7 @@ export default function V2OnboardingPage() {
     try {
       const { data } = await api.post("/skill-tree/placement-test", { claimedLevel: currentLevel });
       trackEvent('onboarding_placement_test_started', { level: currentLevel });
+      trackEvent('onboarding_path_selected', { path: 'placement', level: currentLevel });
       setTestId(data.testId); setQuestions(data.questions ?? []); setAnswers({}); setCurrentQ(0); setStep(4);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
@@ -211,6 +212,7 @@ export default function V2OnboardingPage() {
       const { data } = await api.post(`/skill-tree/placement-test/${testId}/submit`, { answers });
       setTestResult(data);
       trackEvent('onboarding_placement_test_completed', { passed: data.passed, score: data.scorePercent });
+      trackEvent('placement_completed', { level: currentLevel, passed: data.passed, score: data.scorePercent });
     }
     catch { toast.error(t("error.submitTest")); }
     setLoading(false);
@@ -220,6 +222,9 @@ export default function V2OnboardingPage() {
     setLoading(true);
     if (!(await saveProfile())) { setLoading(false); return; } // block redirect on a failed save
     trackEvent('onboarding_completed', { level: currentLevel, goal: goalType, industry: industry });
+    // Di trú spec §6.3: `onboarding_completed` thực chất là "đã lưu hồ sơ" — bắn song song tên
+    // đúng nghĩa ≥2 tuần rồi mới gỡ tên cũ. ĐỪNG đổi nghĩa tên đang chạy.
+    trackEvent('onboarding_profile_saved', { level: currentLevel, goal: goalType, industry: industry });
     router.push(ROADMAP_ROUTE);
   }, [saveProfile, router, trackEvent, currentLevel, goalType, industry]);
 
@@ -246,6 +251,7 @@ export default function V2OnboardingPage() {
       // mất trắng toàn bộ câu trả lời người dùng vừa điền, không có đường lấy lại.
       clearOnboardingDraft();
       trackEvent('onboarding_completed', { level: d.currentLevel, goal: d.goalType, industry: d.industry });
+      trackEvent('onboarding_profile_saved', { level: d.currentLevel, goal: d.goalType, industry: d.industry, resumed: true });
       let r: OnboardingRouteData | null = null;
       try {
         r = await getOnboardingRoute(d.currentLevel);
@@ -281,7 +287,11 @@ export default function V2OnboardingPage() {
 
   // On mount: detect guest vs. authed. If authed with a stored draft, this is a post-signup resume.
   useEffect(() => {
-    if (getAccessToken()) {
+    const authed = !!getAccessToken();
+    // Taxonomy onb_v3 (spec §6.2): chặng đầu của funnel — trước đây không có sự kiện nào đánh dấu
+    // "đã vào phễu", nên tỷ lệ rơi ở bước 1 không có mẫu số.
+    trackEvent('onboarding_started', { guest: !authed });
+    if (authed) {
       if (resumeStartedRef.current) return;
       const draft = readOnboardingDraft();
       if (draft) { resumeStartedRef.current = true; void resumeFromDraft(draft); }
@@ -506,7 +516,13 @@ export default function V2OnboardingPage() {
                   const solved = quickWinChoice === "Guten Morgen";
                   return (
                     <button key={opt} type="button" disabled={solved}
-                      onClick={() => { setQuickWinChoice(opt); if (isCorrect) trackEvent('onboarding_quickwin_completed', { correct: true }); }}
+                      onClick={() => {
+                        setQuickWinChoice(opt);
+                        // Bản cũ chỉ bắn khi ĐÚNG ⇒ không đo được tỷ lệ sai. Tên mới theo taxonomy
+                        // onb_v3 bắn cả hai; tên cũ giữ nguyên nghĩa (chỉ khi đúng) trong lúc di trú.
+                        trackEvent('guest_activity_completed', { kind: 'quick_win', correct: isCorrect });
+                        if (isCorrect) trackEvent('onboarding_quickwin_completed', { correct: true });
+                      }}
                       className={`ga-ui w-full text-left p-3 rounded-ga border text-[13.5px] transition-colors duration-150 disabled:cursor-default ${
                         answered && isCorrect ? "border-ga-green bg-ga-green-soft font-bold text-ga-ink"
                         : picked ? "border-ga-red bg-ga-red-soft text-ga-red"
@@ -561,7 +577,7 @@ export default function V2OnboardingPage() {
                 {t("placementOffer.take")}
               </GaBtn>
               <GaBtn variant="ghost" size="lg" className="w-full" disabled={loading}
-                onClick={() => { trackEvent('onboarding_placement_skipped', { currentLevel }); void goRoadmap(); }}>
+                onClick={() => { trackEvent('onboarding_placement_skipped', { currentLevel }); trackEvent('onboarding_path_selected', { path: 'skip', level: currentLevel }); void goRoadmap(); }}>
                 {t("placementOffer.skip")}
               </GaBtn>
             </motion.div>

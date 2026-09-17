@@ -33,10 +33,12 @@ vi.mock("next-intl", () => {
   return { useTranslations: () => t, useLocale: () => "vi" };
 });
 
+// Hoisted để các ca Đợt 1 khẳng định được TÊN sự kiện (taxonomy onb_v3 bắn song song tên cũ).
+const { trackEventMock } = vi.hoisted(() => ({ trackEventMock: vi.fn() }));
 vi.mock("@/hooks/useTracking", () => ({
   useTracking: () => ({
     trackOnboardingStep: vi.fn(),
-    trackEvent: vi.fn(),
+    trackEvent: trackEventMock,
   }),
 }));
 
@@ -294,6 +296,26 @@ describe("V2OnboardingPage — Đợt 0: 409 là lỗi, mất mạng /route khô
     expect(clearOnboardingDraft).not.toHaveBeenCalled();
     // Nút mở khoá lại để bấm lần nữa.
     expect(screen.getByRole("button", { name: /nav\.startRoadmap/i })).not.toBeDisabled();
+  });
+
+  it("Đợt 1: mount bắn onboarding_started; lưu hồ sơ bắn onboarding_profile_saved SONG SONG onboarding_completed", async () => {
+    const user = userEvent.setup();
+    render(<V2OnboardingPage />);
+    expect(trackEventMock).toHaveBeenCalledWith("onboarding_started", { guest: false });
+
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    await user.click(screen.getByRole("button", { name: /nav\.startRoadmap/i }));
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
+    });
+    // Di trú §6.3: tên cũ KHÔNG đổi nghĩa, tên mới bắn thêm — thiếu một trong hai là dashboard mù.
+    expect(trackEventMock).toHaveBeenCalledWith("onboarding_completed", expect.objectContaining({ level: "A0" }));
+    expect(trackEventMock).toHaveBeenCalledWith("onboarding_profile_saved", expect.objectContaining({ level: "A0" }));
+    // Bỏ property postAction (Q-A bước 1).
+    const assigned = trackEventMock.mock.calls.find((c) => c[0] === "onboarding_type_assigned");
+    expect(assigned?.[1]).not.toHaveProperty("postAction");
   });
 
   it("A1 + GET /route lỗi mạng → vào lộ trình, KHÔNG tạo placement test (W-1)", async () => {
