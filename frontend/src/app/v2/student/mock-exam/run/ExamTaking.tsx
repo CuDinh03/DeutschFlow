@@ -8,7 +8,17 @@ import { SprechenTeil2Simulator } from '@/components/exam/SprechenTeil2Simulator
 import { TelcTeilBody } from '@/components/exam/telc/TelcTeilBody'
 import { telcTeilType } from '@/components/exam/telc/telcTeil'
 import { DialogueAudioPlayer } from '@/components/exam/DialogueAudioPlayer'
-import { isDialogueScript, scriptToPlainText, type AudioScript } from '@/components/exam/audioScript'
+import { HoerenGate } from '@/components/exam/HoerenGate'
+import {
+  isDialogueScript,
+  isHoerenUnlocked,
+  itemTurns,
+  needsPersonaVoice,
+  parseHoerenGate,
+  scriptToPlainText,
+  type AudioScript,
+  type HoerenGatePhase,
+} from '@/components/exam/audioScript'
 
 // Taking view of the mock-exam runner, ported 1:1 from the legacy /student/mock-exam page
 // (same exam JSON shape, same answer keys, same widget-selection rule) with a Galerie shell.
@@ -23,6 +33,10 @@ export interface ExamQuestionItem {
   text?: string
   person?: string
   audio_script?: AudioScript
+  /** Câu dẫn tình huống đọc trước bài (HV Teil 3 telc): „Im Radio hören Sie folgenden Hinweis." */
+  lead_in_de?: string
+  /** Giọng của người nói bài này (HV Teil 1 telc: năm người, nam nữ xen kẽ). */
+  speaker?: string
   options?: Record<string, string>
   /**
    * Non-revealing question type sent by the backend so we can pick the answer widget
@@ -44,6 +58,13 @@ export interface ExamTeil {
   audio_script?: AudioScript
   /** Số lần được phép nghe (telc: 1 ở HV Teil 1, 2 ở Teil 2–3). Bỏ trống = không giới hạn. */
   max_plays?: number
+  /**
+   * Nghi thức bài nghe telc (17/09/2026): Ansage nguyên văn, giây đọc câu hỏi trước khi phát
+   * (30 / 60 / 0), câu khung của Teil 1. Đề không khai ⇒ không có cổng, phát ngay như trước.
+   */
+  ansage_de?: string
+  reading_seconds?: number
+  framing_de?: string
   items?: ExamQuestionItem[]
   form_fields?: Array<{ field: string; instruction_vi: string }>
   /** Đề bài phần Viết/Nói của các đề B1+ (seed dùng `prompt` thay cho `input_email`). */
@@ -202,6 +223,9 @@ export function ExamTaking({
   onExit,
 }: ExamTakingProps) {
   const t = useTranslations('v2.student.mockExamRun')
+  // Pha của cổng nghi thức từng Teil nghe — khoá theo phần + số Teil, sống suốt bài thi để đổi
+  // phần rồi quay lại không được "mở đề lần nữa" (đề thật không có nút quay lại).
+  const [gatePhases, setGatePhases] = React.useState<Record<string, HoerenGatePhase>>({})
 
   if (!data?.sections || data.sections.length === 0) {
     return <ExamRecoveryPanel title={t('recoveryNoContentTitle')} message={t('recoveryNoContentDesc')} onExit={onExit} />
@@ -244,6 +268,13 @@ export function ExamTaking({
           currentSection.name === 'SPRECHEN' && !teil.prompt_words && !teil.topic_cards
             ? teil.prompt
             : undefined
+        // Cổng nghi thức (đề telc): Ansage → đọc câu hỏi → nghe được. Đề Goethe không khai ⇒ null.
+        const gate = parseHoerenGate(teil)
+        const gateKey = `${currentSection.name}-${teil.teil ?? tIdx}`
+        const gatePhase: HoerenGatePhase | undefined = gate ? (gatePhases[gateKey] ?? 'idle') : undefined
+        const audioLocked = !isHoerenUnlocked(gatePhase)
+        // Chưa bấm bắt đầu thì câu hỏi còn ẩn — cho đọc trước là vô hiệu hoá thời gian đọc của đề thật.
+        const hideBody = gatePhase === 'idle'
         return (
         <div key={teil.teil ?? tIdx} className="overflow-hidden rounded-ga border border-ga-line bg-ga-card">
           <div className="border-b border-ga-line bg-ga-surface px-4 py-3 lg:px-6">
@@ -257,41 +288,62 @@ export function ExamTaking({
                 {teil.context}
               </div>
             )}
-            {teil.audio_script &&
+            {gate && (
+              <HoerenGate
+                teilNo={teil.teil}
+                spec={gate}
+                phase={gatePhase ?? 'idle'}
+                onPhaseChange={(phase) => setGatePhases((prev) => ({ ...prev, [gateKey]: phase }))}
+              />
+            )}
+            {!hideBody && teil.audio_script &&
               (isDialogueScript(teil.audio_script) ? (
                 <DialogueAudioPlayer
                   turns={teil.audio_script}
                   label={t('hoertext', { n: teil.teil })}
                   maxPlays={teil.max_plays}
+                  locked={audioLocked}
                 />
               ) : (
                 <AudioPlayer
                   script={scriptToPlainText(teil.audio_script)}
                   label={t('hoertext', { n: teil.teil })}
                   maxPlays={teil.max_plays}
+                  locked={audioLocked}
                 />
               ))}
 
             {/* Bốn dạng bài telc có kho lựa chọn dùng chung cả Teil và văn bản có ô trống —
                 `answerWidget` suy theo từng câu nên không dựng được. Dựng bằng nhánh riêng. */}
-            {telcTeilType(teil) && (
+            {!hideBody && telcTeilType(teil) && (
               <TelcTeilBody teil={teil} answers={answers} onAnswerChange={onAnswerChange} />
             )}
 
             <div className="space-y-6">
-              {!telcTeilType(teil) && teil.items?.map((item, qIdx) => {
+              {!hideBody && !telcTeilType(teil) && teil.items?.map((item, qIdx) => {
                 const widget = answerWidget(item)
+                // Câu có giọng người nói / câu dẫn (đề telc) đọc bằng giọng persona, câu dẫn trước bài.
+                const personaTurns = needsPersonaVoice(item) ? itemTurns(item) : null
                 return (
                   <div
                     key={item.id ?? `${tIdx}-${qIdx}`}
                     className="border-b border-ga-line pb-6 last:border-0 last:pb-0"
                   >
-                    {item.audio_script &&
+                    {personaTurns ? (
+                      <DialogueAudioPlayer
+                        turns={personaTurns}
+                        compact
+                        label={item.person ? t('listenPerson', { person: item.person }) : t('listenItem', { n: qIdx + 1 })}
+                        maxPlays={teil.max_plays}
+                        locked={audioLocked}
+                      />
+                    ) : item.audio_script &&
                       (isDialogueScript(item.audio_script) ? (
                         <DialogueAudioPlayer
                           turns={item.audio_script}
                           label={item.person ? t('listenPerson', { person: item.person }) : t('listenDialog')}
                           maxPlays={teil.max_plays}
+                          locked={audioLocked}
                         />
                       ) : (
                         <AudioPlayer
@@ -299,6 +351,7 @@ export function ExamTaking({
                           compact
                           label={item.person ? t('listenPerson', { person: item.person }) : t('listenDialog')}
                           maxPlays={teil.max_plays}
+                          locked={audioLocked}
                         />
                       ))}
                     {item.text && <p className="ga-ui mb-3 break-words text-ga-body italic text-ga-muted">“{item.text}”</p>}

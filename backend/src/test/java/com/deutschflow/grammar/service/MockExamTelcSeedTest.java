@@ -8,11 +8,14 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,6 +33,13 @@ class MockExamTelcSeedTest {
     private static final ObjectMapper OM = new ObjectMapper();
     private static final Path SEED =
             Path.of("src/main/resources/db/migration/V325__mock_exam_telc_b1_set1.sql");
+    /**
+     * V327 ghi đè RIÊNG phần Nghe của đề này bằng {@code jsonb_set(…, '{sections,2}', …)}. Cổng
+     * này soi nội dung HIỆU LỰC (V325 + lớp V327), vì soi V325 không thì đang soi một phần Nghe mà
+     * không học viên nào còn nghe.
+     */
+    private static final Path HOEREN_OVERLAY =
+            Path.of("src/main/resources/db/migration/V327__mock_exam_telc_b1_hoeren_nghi_thuc.sql");
 
     private static Map<String, Object> exam;
 
@@ -39,6 +49,19 @@ class MockExamTelcSeedTest {
                 .matcher(Files.readString(SEED));
         assertThat(m.find()).as("không trích được sections_json từ %s", SEED.getFileName()).isTrue();
         exam = OM.readValue(m.group(1), Map.class);
+
+        Matcher overlay = Pattern.compile("\\$j\\$\\s*(\\{.*?})\\s*\\$j\\$::jsonb", Pattern.DOTALL)
+                .matcher(Files.readString(HOEREN_OVERLAY));
+        assertThat(overlay.find()).as("không trích được phần Nghe từ %s", HOEREN_OVERLAY.getFileName()).isTrue();
+        Map<String, Object> hoeren = OM.readValue(overlay.group(1), Map.class);
+        assertThat(hoeren.get("name")).as("V327 phải ghi đè đúng phần HOEREN").isEqualTo("HOEREN");
+        @SuppressWarnings("unchecked")
+        List<Object> sections = new ArrayList<>((List<Object>) exam.get("sections"));
+        assertThat(((Map<?, ?>) sections.get(2)).get("name"))
+                .as("V327 ghi vào '{sections,2}' — vị trí đó trong V325 phải là HOEREN, kẻo ghi đè nhầm phần")
+                .isEqualTo("HOEREN");
+        sections.set(2, hoeren);
+        exam.put("sections", sections);
     }
 
     @Test
@@ -146,6 +169,109 @@ class MockExamTelcSeedTest {
         Map<?, ?> teil = (Map<?, ?>) teileOf("SCHREIBEN").get(0);
         assertThat((List<?>) teil.get("writing_points")).hasSize(4);
         assertThat(teil.get("prompt")).asString().isNotBlank();
+    }
+
+    // ── Nghi thức bài nghe (Gói B, 17/09/2026) ──────────────────────────────────────────────────
+    // Đo trên CD đề mẫu và Übungstest telc 2020: Teil 1 = 5 lời kể 60–110 từ (34–48 s) về MỘT chủ
+    // đề có câu khung; Teil 2 = phỏng vấn radio 500–650 từ; Teil 3 = 5 bài 40–90 từ có câu dẫn tình
+    // huống. Bản V325 chỉ bằng ¼–⅓ độ dài đó và Teil 1 sai thể loại — cổng này giữ cho không tụt lại.
+
+    @Test
+    @DisplayName("Ansage nguyên văn và thời gian đọc câu hỏi: 30 s / 60 s / 0, một lần / hai lần")
+    void hoeren_hasAnsageAndReadingTime() {
+        List<?> teile = teileOf("HOEREN");
+        Map<?, ?> t1 = (Map<?, ?>) teile.get(0);
+        Map<?, ?> t2 = (Map<?, ?>) teile.get(1);
+        Map<?, ?> t3 = (Map<?, ?>) teile.get(2);
+
+        assertThat(t1.get("ansage_de")).asString().contains("nur einmal").contains("30 Sekunden");
+        assertThat(t1.get("reading_seconds")).isEqualTo(30);
+        assertThat(t1.get("framing_de")).asString().as("Teil 1 phải có câu khung dẫn vào chủ đề").isNotBlank();
+
+        assertThat(t2.get("ansage_de")).asString().contains("zweimal").contains("eine Minute");
+        assertThat(t2.get("reading_seconds")).isEqualTo(60);
+
+        assertThat(t3.get("ansage_de")).asString().contains("zweimal");
+        assertThat(t3.get("reading_seconds")).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("Teil 1 là năm LỜI KỂ cùng chủ đề, 60–110 từ, giọng nam nữ xen kẽ — không phải thông báo")
+    void hoerenTeil1_isFiveStatementsOfOneSurvey() {
+        Map<?, ?> t1 = (Map<?, ?>) teileOf("HOEREN").get(0);
+        List<?> items = (List<?>) t1.get("items");
+        Set<String> speakers = items.stream()
+                .map(it -> String.valueOf(((Map<?, ?>) it).get("speaker"))).collect(Collectors.toSet());
+        assertThat(speakers).as("hai giọng persona, xen kẽ").containsExactlyInAnyOrder("PRUEFER", "PARTNER");
+        for (Object itemObj : items) {
+            Map<?, ?> item = (Map<?, ?>) itemObj;
+            String q = String.valueOf(item.get("question"));
+            assertThat(q).as("câu %s phải nói về người nói", item.get("id"))
+                    .matches("(Der Sprecher|Die Sprecherin|Zu der .*Sprecher).*");
+            int words = wordCount(String.valueOf(item.get("audio_script")));
+            assertThat(words).as("bài %s: số từ", item.get("id")).isBetween(60, 130);
+            assertThat(String.valueOf(item.get("audio_script")))
+                    .as("lời kể ngôi thứ nhất, không phải Durchsage")
+                    .containsAnyOf("Ich ", "ich ");
+        }
+    }
+
+    @Test
+    @DisplayName("Teil 2 là phỏng vấn radio ≥ 450 từ: chào thính giả, cảm ơn cuối, 10 mệnh đề")
+    void hoerenTeil2_isFullLengthRadioInterview() {
+        Map<?, ?> t2 = (Map<?, ?>) teileOf("HOEREN").get(1);
+        List<?> turns = (List<?>) t2.get("audio_script");
+        int words = turns.stream().mapToInt(t -> wordCount(String.valueOf(((Map<?, ?>) t).get("text")))).sum();
+        assertThat(words).as("tổng số từ hội thoại").isGreaterThanOrEqualTo(450);
+        assertThat(String.valueOf(((Map<?, ?>) turns.get(0)).get("text"))).contains("Hörerinnen und Hörer");
+        assertThat(String.valueOf(((Map<?, ?>) turns.get(turns.size() - 2)).get("text"))).contains("Dank");
+        assertThat((List<?>) t2.get("items")).hasSize(10);
+    }
+
+    @Test
+    @DisplayName("Teil 3: mỗi bài có câu dẫn tình huống đọc trước và dài 40–110 từ")
+    void hoerenTeil3_hasSituationLeadInPerItem() {
+        Map<?, ?> t3 = (Map<?, ?>) teileOf("HOEREN").get(2);
+        for (Object itemObj : (List<?>) t3.get("items")) {
+            Map<?, ?> item = (Map<?, ?>) itemObj;
+            assertThat(item.get("lead_in_de")).asString().as("câu dẫn của %s", item.get("id"))
+                    .startsWith("Lesen Sie jetzt die Aufgabe ");
+            assertThat(item.get("speaker")).as("giọng của %s", item.get("id")).isIn("PRUEFER", "PARTNER");
+            assertThat(wordCount(String.valueOf(item.get("audio_script"))))
+                    .as("bài %s: số từ", item.get("id")).isBetween(40, 110);
+        }
+    }
+
+    @Test
+    @DisplayName("lớp V327 giữ nguyên id và đáp án 41–60 của V325 — bài đã nộp không đổi điểm")
+    void hoerenOverlay_keepsAnswerKeyOfV325() throws IOException {
+        Matcher m = Pattern.compile("\\$j\\$\\s*(\\{.*?\"sections\".*?})\\s*\\$j\\$", Pattern.DOTALL)
+                .matcher(Files.readString(SEED));
+        assertThat(m.find()).isTrue();
+        Map<String, Object> original = OM.readValue(m.group(1), Map.class);
+        Map<String, String> before = answerKey(original);
+        Map<String, String> after = answerKey(exam);
+        assertThat(after).as("đáp án 41–60 phải y hệt V325").isEqualTo(before);
+        assertThat(after).hasSize(20);
+    }
+
+    private static Map<String, String> answerKey(Map<String, Object> root) {
+        Map<String, String> key = new HashMap<>();
+        for (Object sectionObj : (List<?>) root.get("sections")) {
+            Map<?, ?> section = (Map<?, ?>) sectionObj;
+            if (!"HOEREN".equals(section.get("name"))) continue;
+            for (Object teilObj : (List<?>) section.get("teile")) {
+                for (Object itemObj : (List<?>) ((Map<?, ?>) teilObj).get("items")) {
+                    Map<?, ?> item = (Map<?, ?>) itemObj;
+                    key.put(String.valueOf(item.get("id")), String.valueOf(item.get("correct")));
+                }
+            }
+        }
+        return key;
+    }
+
+    private static int wordCount(String text) {
+        return (int) java.util.Arrays.stream(text.trim().split("\\s+")).filter(w -> !w.isBlank()).count();
     }
 
     private List<?> teileOf(String sectionName) {

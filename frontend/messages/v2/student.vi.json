@@ -1007,7 +1007,15 @@
       "gateFromSession": "Lấy từ lần thi nói ngày {date}",
       "gateGoToSpeaking": "Thi phần nói",
       "resultIncomplete": "Chưa đủ để kết luận",
-      "resultIncompleteNote": "Bạn còn một phần chưa thi."
+      "resultIncompleteNote": "Bạn còn một phần chưa thi.",
+      "hoerenStart": "Bắt đầu Teil {n}",
+      "hoerenHidden": "Câu hỏi hiện ra khi bạn bấm bắt đầu — như lúc mở đề thật.",
+      "hoerenIdleHint": "Sau hướng dẫn, bạn có {s} giây đọc câu hỏi rồi bài mới phát.",
+      "hoerenAnsage": "Đang đọc hướng dẫn…",
+      "hoerenReading": "Đọc câu hỏi: còn {s} giây",
+      "hoerenFraming": "Đang giới thiệu chủ đề…",
+      "hoerenReady": "Bắt đầu nghe được rồi.",
+      "listenItem": "Nghe bài {n}"
     },
     "grammarPractice": {
       "title": "Luyện ngữ pháp",
@@ -2144,7 +2152,9 @@
         "playsExhaustedHint": "Đã dùng hết số lần nghe, đúng như đề thật.",
         "dialogueLabel": "Hörtext — hội thoại",
         "speakerA": "Người 1",
-        "speakerB": "Người 2"
+        "speakerB": "Người 2",
+        "lockedHint": "Nghe hướng dẫn và đọc câu hỏi xong mới phát được.",
+        "leadIn": "Câu dẫn"
       },
       "scoreBreakdown": {
         "pending": "Chờ chấm",
