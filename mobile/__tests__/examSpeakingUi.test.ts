@@ -53,6 +53,16 @@ describe('gradingFailedCopy (F-08)', () => {
     expect(gradingFailedCopy('JOB_FAILED').topUp).toBe(false)
     expect(gradingFailedCopy(null).title).toBe('Chấm bài gặp lỗi')
   })
+
+  // M-8 (Đợt 0 onboarding 17/09): hết lượt GIỮA thời gian dùng thử → lượt hồi lại ngày mai, không mời nạp.
+  it('QUOTA_EXCEEDED khi đang dùng thử → "mai có lượt mới", topUp=false; lý do khác không đổi', () => {
+    const t = gradingFailedCopy('QUOTA_EXCEEDED', true)
+    expect(t.topUp).toBe(false)
+    expect(t.message).toMatch(/Ngày mai bạn có lượt AI mới/)
+    expect(t.message).toMatch(/không phải thi lại/)
+    expect(t.message).not.toMatch(/Nạp thêm/)
+    expect(gradingFailedCopy('JOB_FAILED', true)).toEqual(gradingFailedCopy('JOB_FAILED'))
+  })
 })
 
 describe('retry idempotent (F-06)', () => {

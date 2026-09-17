@@ -1,8 +1,8 @@
 import { Alert, type AlertButton } from 'react-native'
 import { router } from 'expo-router'
 import { apiMessage } from '@/lib/api'
-import { usePlanStore } from '@/stores/usePlanStore'
-import { isOrgBudgetError, isQuotaExceededError, quotaExceededMessage } from '@/lib/quota'
+import { isTrialActive, usePlanStore } from '@/stores/usePlanStore'
+import { isOrgBudgetError, isQuotaExceededError, isTrialExpiredError, quotaExceededMessage } from '@/lib/quota'
 import { presentMinorAudioBlocked } from '@/lib/minorAudio'
 import { PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 
@@ -19,6 +19,11 @@ import { PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
  * the org admin configuring/raising the pool, so the alert carries the server's message and NO
  * upgrade CTA (P0-02 — đừng mời staff mua gói cá nhân cho lỗi ngân sách trung tâm).
  *
+ * Hết lượt GIỮA thời gian dùng thử (M-8 Đợt 0 17/09, Q1 28/08): lượt AI hồi lại ngày mai, người
+ * dùng chưa cần mua gì — alert nói đúng điều đó với một nút "Đã hiểu", không có "Nâng cấp". Trừ
+ * khi server nói rõ trial ĐÃ HẾT ({@link isTrialExpiredError}): cache plan trên máy có thể trễ
+ * (hết hạn ảo, đối soát bất đồng bộ), lúc đó giữ nguyên đường nâng cấp như cũ.
+ *
  * 403 MINOR_AUDIO_BLOCKED (DEC-22, D8 10/09) is checked FIRST and routed to its own sheet
  * (lib/minorAudio.ts): the recording path is closed until the centre records the guardian's
  * consent / the birth date — no plan upgrade can open it, so it must never fall into the quota
@@ -26,6 +31,9 @@ import { PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
  *
  * Any other error keeps the caller's existing generic alert.
  */
+/** Câu báo hết lượt trong lúc dùng thử — dùng chung với màn phòng thi nói (gradingFailedCopy). */
+export const TRIAL_QUOTA_MESSAGE = 'Lượt AI hôm nay đã hết. Ngày mai bạn có lượt mới.'
+
 export function handleAiError(error: unknown, fallbackTitle = 'Lỗi'): void {
   if (presentMinorAudioBlocked(error)) return
   if (isOrgBudgetError(error)) {
@@ -39,6 +47,10 @@ export function handleAiError(error: unknown, fallbackTitle = 'Lỗi'): void {
     // The trial expiry is virtual (reconciled asynchronously), so the locally cached tier can lag —
     // refresh it so PRO-gated surfaces reflect reality on the next render.
     void usePlanStore.getState().fetchPlan()
+    if (isTrialActive(usePlanStore.getState().plan) && !isTrialExpiredError(error)) {
+      Alert.alert('Hết lượt AI hôm nay', TRIAL_QUOTA_MESSAGE, [{ text: 'Đã hiểu' }])
+      return
+    }
     // On the iOS free build there is no purchase path, so the server's message (which may mention the
     // trial / "nâng cấp") is replaced with a neutral fair-use notice — no steering to buy (App Store 2.1(b)).
     const message = PRO_UNLOCKED_FREE
