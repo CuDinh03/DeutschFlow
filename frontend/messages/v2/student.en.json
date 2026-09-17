@@ -1024,6 +1024,7 @@
       "writingFrom": "From",
       "writingSubject": "Subject",
       "writingPointsOrder": "The points below are printed out of order, as on the real exam paper. Choose a sensible order yourself.",
+      "writingPlaceholder": "Write your reply e-mail here…",
       "passageGlossary": "Glossary"
     },
     "grammarPractice": {

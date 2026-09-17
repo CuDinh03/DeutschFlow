@@ -519,7 +519,8 @@ export function ExamTaking({
                   <textarea
                     value={answers[`email_${teil.teil}`] || ''}
                     onChange={(e) => onAnswerChange(`email_${teil.teil}`, e.target.value)}
-                    placeholder={t('emailPlaceholder')}
+                    // Placeholder cũ ghi „khoảng 30 từ" (Goethe A1) — sai thước cho đề telc không quy định số từ.
+                    placeholder={richStimulus ? t('writingPlaceholder') : t('emailPlaceholder')}
                     className="ga-ui h-40 w-full resize-none rounded-ga border border-ga-line bg-ga-card px-4 py-3 text-ga-body text-ga-ink outline-none focus:border-ga-accent"
                   />
                 </div>

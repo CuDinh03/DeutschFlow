@@ -1024,6 +1024,7 @@
       "writingFrom": "Von",
       "writingSubject": "Betreff",
       "writingPointsOrder": "Die Punkte stehen wie in der echten Prüfung nicht in der richtigen Reihenfolge. Überlegen Sie sich selbst eine passende Reihenfolge.",
+      "writingPlaceholder": "Schreiben Sie hier Ihre Antwort-E-Mail…",
       "passageGlossary": "Worterklärungen"
     },
     "grammarPractice": {
