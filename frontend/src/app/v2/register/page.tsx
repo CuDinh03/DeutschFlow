@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { setTokens } from '@/lib/authSession'
+import { clearGuestSessionCache } from '@/lib/guestSessionStore'
 import { useUserStore } from '@/stores/useUserStore'
 import { isValidVnPhone, normalizeVnPhone } from '@/lib/vnPhone'
 import { useTracking } from '@/hooks/useTracking'
@@ -33,6 +34,16 @@ import { GaAuthShell, GaField, AuthErrorBanner, EMAIL_RE, pwStrength } from '../
 type FieldErrors = Record<string, string>
 
 export default function V2RegisterPage() {
+  // Đợt 2 onboarding (17/09): rời màn này mà CHƯA đăng ký xong thì vứt con trỏ phiên khách trên máy —
+  // khách A bỏ dở ở đây, B đăng ký sau trên cùng máy không được claim phiên (câu trả lời) của A.
+  // Cùng luật với draft (mobile register.tsx đã làm từ F-3). Phiên trên server tự hết hạn 72 h.
+  const signedUpRef = useRef(false)
+  useEffect(
+    () => () => {
+      if (!signedUpRef.current) clearGuestSessionCache()
+    },
+    [],
+  )
   const t = useTranslations('v2.auth')
   const router = useRouter()
   const { trackEvent, identifyUser } = useTracking()
@@ -111,6 +122,7 @@ export default function V2RegisterPage() {
         default:
           // Self-register = STUDENT → the onboarding funnel, now on v2 (/v2/onboarding). A guest who
           // ran the funnel BEFORE signing up left a draft in localStorage; that page replays it here.
+          signedUpRef.current = true
           router.replace('/v2/onboarding')
           break
       }

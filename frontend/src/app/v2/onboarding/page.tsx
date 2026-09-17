@@ -13,8 +13,10 @@ import { getAccessToken } from "@/lib/authSession";
 import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft, type OnboardingDraft } from "@/lib/onboardingDraft";
 import { MENTOR_META } from "@/lib/mentorMeta";
 import { useFeatureFlagEnabled } from "posthog-js/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { usePlanHelpers } from "@/contexts/PlanContext";
+import { claimGuestSession, ensureGuestSession, syncGuestSession, type GuestAnswers } from "@/features/onboarding/guestSession";
+import { readGuestSessionCache } from "@/lib/guestSessionStore";
 import { GaBtn, GaIcon } from "@/components/ui-v2";
 import { GaAuthShell } from "../authShared";
 
@@ -84,6 +86,7 @@ interface PQ { id: number; skillSection: string; type: string; questionDe: strin
 export default function V2OnboardingPage() {
   const router = useRouter();
   const t = useTranslations("v2.onboarding");
+  const locale = useLocale();
   // Tagline mentor theo locale (onboarding.mentorTaglines.<mã> — đợt 3 audit i18n 06/09/2026):
   // mã chưa có trong catalog rơi về bảng MENTOR_META (tiếng Việt); không có nốt → câu chung.
   const mentorTagline = (code: string | null | undefined): string | null => {
@@ -233,6 +236,22 @@ export default function V2OnboardingPage() {
    * and the register page bounced STUDENT back to /v2/onboarding. Replay the draft directly (not via
    * component state, which updates asynchronously) to save the profile, then continue.
    */
+  /** Hồ sơ ĐÃ nằm trên server (replay draft xong hoặc claim xong): hỏi ma trận rồi đi tiếp. */
+  const continueAfterProfileSaved = useCallback(async (level: string) => {
+    let r: OnboardingRouteData | null = null;
+    try {
+      r = await getOnboardingRoute(level);
+      setRoute(r);
+      trackEvent('onboarding_type_assigned', { onboardingType: r.onboardingType, paywallAllowed: r.paywallAllowed, platform: 'web', currentLevel: level });
+    } catch { /* matrix best-effort */ }
+    if (r?.placementOptional) {
+      trackEvent('onboarding_placement_offered', { currentLevel: level });
+      setPlacementOffer(true); setStep(4); setResuming(false);
+    } else {
+      router.push(ROADMAP_ROUTE);
+    }
+  }, [router, trackEvent]);
+
   const resumeFromDraft = useCallback(async (d: OnboardingDraft) => {
     setMotivation(d.motivation); setGoalType(d.goalType); setCurrentLevel(d.currentLevel);
     setTargetLevel(d.targetLevel); setIndustry(d.industry); setExamType(d.examType); setWeeklyTarget(d.weeklyTarget);
@@ -252,18 +271,7 @@ export default function V2OnboardingPage() {
       clearOnboardingDraft();
       trackEvent('onboarding_completed', { level: d.currentLevel, goal: d.goalType, industry: d.industry });
       trackEvent('onboarding_profile_saved', { level: d.currentLevel, goal: d.goalType, industry: d.industry, resumed: true });
-      let r: OnboardingRouteData | null = null;
-      try {
-        r = await getOnboardingRoute(d.currentLevel);
-        setRoute(r);
-        trackEvent('onboarding_type_assigned', { onboardingType: r.onboardingType, paywallAllowed: r.paywallAllowed, platform: 'web', currentLevel: d.currentLevel });
-      } catch { /* matrix best-effort */ }
-      if (r?.placementOptional) {
-        trackEvent('onboarding_placement_offered', { currentLevel: d.currentLevel });
-        setPlacementOffer(true); setStep(4); setResuming(false);
-      } else {
-        router.push(ROADMAP_ROUTE);
-      }
+      await continueAfterProfileSaved(d.currentLevel);
     } catch (e: unknown) {
       // 409 ở đây KHÔNG phải "hồ sơ đã tồn tại" (endpoint UPSERT, trả 201) mà là
       // xung đột dữ liệu lúc commit ⇒ đã rollback ⇒ hồ sơ CHƯA có trên server. Đi
@@ -277,7 +285,48 @@ export default function V2OnboardingPage() {
       toast.error(detail ?? t("error.resumeKeepsDraft"));
       setResuming(false); setStep(3);
     }
-  }, [router, trackEvent]);
+  }, [continueAfterProfileSaved, trackEvent]);
+
+  /**
+   * Đợt 2 (17/09): sau đăng nhập/đăng ký, CLAIM phiên khách trên server TRƯỚC, draft localStorage chỉ
+   * còn là đường lùi. Server phát lại hồ sơ (UPSERT) trong claim, nên nhánh 'claimed' KHÔNG POST
+   * /profile nữa — chỉ xác nhận `hasPlan` rồi đi tiếp như draft-replay. I-7: 'foreign' (phiên của
+   * người khác) thì draft cũng đã bị vứt ⇒ hiện wizard trống, tuyệt đối không replay.
+   */
+  const resumeAfterAuth = useCallback(async () => {
+    // Không có gì để nối tiếp (đăng ký thẳng, không phiên khách, không draft) thì đừng nháy màn
+    // chờ — hiện wizard ngay như trước.
+    if (!readGuestSessionCache() && !readOnboardingDraft()) return;
+    setResuming(true);
+    const outcome = await claimGuestSession();
+    if (outcome.status === 'claimed') {
+      const hasPlan = await api.get<{ hasPlan: boolean }>('/onboarding/status')
+        .then((res) => res.data?.hasPlan === true, () => false);
+      trackEvent('onboarding_session_claimed', { alreadyClaimed: outcome.alreadyClaimed, hasPlan });
+      if (hasPlan) {
+        const a: GuestAnswers = outcome.answers ?? {};
+        const level = a.currentLevel ?? 'A0';
+        if (a.motivation) setMotivation(a.motivation);
+        if (a.goalType) setGoalType(a.goalType);
+        setCurrentLevel(level);
+        if (a.targetLevel) setTargetLevel(a.targetLevel);
+        if (a.industry) setIndustry(a.industry);
+        if (a.examType) setExamType(a.examType);
+        if (a.sessionsPerWeek) setWeeklyTarget(a.sessionsPerWeek);
+        trackEvent('onboarding_completed', { level, goal: a.goalType, industry: a.industry });
+        trackEvent('onboarding_profile_saved', { level, goal: a.goalType, industry: a.industry, resumed: true, via: 'claim' });
+        await continueAfterProfileSaved(level);
+        return;
+      }
+      // Phiên claim được nhưng chưa có hồ sơ (khách rời phễu trước bước trình độ) → thử draft.
+    } else if (outcome.status === 'foreign') {
+      setResuming(false);
+      return;
+    }
+    const draft = readOnboardingDraft();
+    if (draft) { await resumeFromDraft(draft); return; }
+    setResuming(false);
+  }, [continueAfterProfileSaved, resumeFromDraft, trackEvent]);
 
   // Trước đây lệnh xoá draft đồng bộ ngay tại useEffect kiêm luôn vai chống chạy
   // hai lần: StrictMode dev double-mount đọc lại thì draft đã rỗng. Nay draft
@@ -293,22 +342,37 @@ export default function V2OnboardingPage() {
     trackEvent('onboarding_started', { guest: !authed });
     if (authed) {
       if (resumeStartedRef.current) return;
-      const draft = readOnboardingDraft();
-      if (draft) { resumeStartedRef.current = true; void resumeFromDraft(draft); }
+      resumeStartedRef.current = true;
+      void resumeAfterAuth();
     } else {
       setIsGuest(true);
+      // Phiên khách trên server (72 h) — best-effort, không chặn wizard nếu server từ chối.
+      void ensureGuestSession(locale);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Bản chụp câu trả lời theo hình dạng chung web/mobile (spec §5.1) — gửi lên phiên khách. */
+  const guestAnswersSnapshot = useCallback((): GuestAnswers => ({
+    motivation, goalType, currentLevel, targetLevel,
+    industry: goalType === "WORK" ? industry : null,
+    examType: goalType === "CERT" ? examType : null,
+    dailyGoalMinutes, sessionsPerWeek: weeklyTarget, minutesPerSession: 15,
+    learningSpeed: weeklyTarget >= 7 ? "FAST" : weeklyTarget >= 5 ? "NORMAL" : "SLOW",
+  }), [motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoalMinutes, weeklyTarget]);
+
   /** Guest signup gate: stash the funnel answers, then send the guest to /v2/register to save them. */
   const handleGuestSignup = useCallback(() => {
+    // Server trước (claim sẽ phát lại từ đây), draft sau (đường lùi khi server hỏng).
+    void syncGuestSession('AUTH_GATE', guestAnswersSnapshot());
     saveOnboardingDraft({ motivation, goalType, currentLevel, targetLevel, industry, examType, weeklyTarget });
     trackEvent('onboarding_signup_prompted', { motivation, goalType, currentLevel });
     router.push("/v2/register");
-  }, [motivation, goalType, currentLevel, targetLevel, industry, examType, weeklyTarget, router, trackEvent]);
+  }, [motivation, goalType, currentLevel, targetLevel, industry, examType, weeklyTarget, router, trackEvent, guestAnswersSnapshot]);
 
   const nextStep = async () => {
+    // Khách: mỗi lần rời bước là một PATCH lên phiên server (best-effort); tới bước 3 là sang TASTE.
+    if (isGuest) void syncGuestSession(step === 3 ? 'TASTE' : 'PROFILE', guestAnswersSnapshot());
     if (step === 1) trackOnboardingStep('Select Level', 1, { currentLevel });
     if (step === 2) {
       trackOnboardingStep('Select Goal', 2, { goalType, industry, targetLevel, motivation });
@@ -521,6 +585,7 @@ export default function V2OnboardingPage() {
                         // Bản cũ chỉ bắn khi ĐÚNG ⇒ không đo được tỷ lệ sai. Tên mới theo taxonomy
                         // onb_v3 bắn cả hai; tên cũ giữ nguyên nghĩa (chỉ khi đúng) trong lúc di trú.
                         trackEvent('guest_activity_completed', { kind: 'quick_win', correct: isCorrect });
+                        void syncGuestSession('TASTE', undefined, { quickWin: { correct: isCorrect, choice: opt } });
                         if (isCorrect) trackEvent('onboarding_quickwin_completed', { correct: true });
                       }}
                       className={`ga-ui w-full text-left p-3 rounded-ga border text-[13.5px] transition-colors duration-150 disabled:cursor-default ${
