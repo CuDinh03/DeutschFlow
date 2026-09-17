@@ -1007,7 +1007,15 @@
       "gateFromSession": "From the speaking exam on {date}",
       "gateGoToSpeaking": "Take the speaking exam",
       "resultIncomplete": "Not enough to decide yet",
-      "resultIncompleteNote": "One part has not been taken yet."
+      "resultIncompleteNote": "One part has not been taken yet.",
+      "hoerenStart": "Start Teil {n}",
+      "hoerenHidden": "The questions appear once you press start — just like opening the real paper.",
+      "hoerenIdleHint": "After the instructions you get {s} seconds to read the questions before the audio plays.",
+      "hoerenAnsage": "Reading the instructions…",
+      "hoerenReading": "Read the questions: {s} seconds left",
+      "hoerenFraming": "Introducing the topic…",
+      "hoerenReady": "You can listen now.",
+      "listenItem": "Listen to text {n}"
     },
     "grammarPractice": {
       "title": "Grammar practice",
@@ -2144,7 +2152,9 @@
         "playsExhaustedHint": "You have used all the plays, just like the real exam.",
         "dialogueLabel": "Hörtext — dialogue",
         "speakerA": "Speaker 1",
-        "speakerB": "Speaker 2"
+        "speakerB": "Speaker 2",
+        "lockedHint": "Available after the instructions and the reading time.",
+        "leadIn": "Lead-in"
       },
       "scoreBreakdown": {
         "pending": "Awaiting grading",

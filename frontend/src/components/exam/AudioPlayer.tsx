@@ -19,6 +19,8 @@ interface AudioPlayerProps {
    * XEM LẠI sau khi nộp (ở đó không có lý do gì để siết).
    */
   maxPlays?: number
+  /** Cổng nghi thức của Teil chưa mở (đang đọc Ansage / đếm ngược đọc câu hỏi): nút khoá, nói rõ lý do. */
+  locked?: boolean
 }
 
 const LABEL_KEY: Record<TTSState, string> = {
@@ -30,7 +32,7 @@ const LABEL_KEY: Record<TTSState, string> = {
   unsupported: 'status.unsupported',
 }
 
-export function AudioPlayer({ script, label, compact = false, maxPlays }: AudioPlayerProps) {
+export function AudioPlayer({ script, label, compact = false, maxPlays, locked = false }: AudioPlayerProps) {
   const t = useTranslations('v2.student.examResult.audioPlayer')
   const { state, progress, speak, pause, resume, stop } = useGermanTTS()
   const [playsUsed, setPlaysUsed] = useState(0)
@@ -42,14 +44,14 @@ export function AudioPlayer({ script, label, compact = false, maxPlays }: AudioP
     // Tạm dừng rồi phát tiếp KHÔNG tính là một lượt mới — nếu tính thì học viên mất lượt vì lỡ tay.
     if (state === 'playing') { pause(); return }
     if (state === 'paused')  { resume(); return }
-    if (!canPlayAgain(maxPlays, playsUsed)) return
+    if (locked || !canPlayAgain(maxPlays, playsUsed)) return
     setPlaysUsed((n) => n + 1)
     speak(script)
-  }, [state, pause, resume, speak, script, maxPlays, playsUsed])
+  }, [state, pause, resume, speak, script, maxPlays, playsUsed, locked])
 
   const isActive  = state === 'playing' || state === 'paused'
   const isLoading = state === 'loading'
-  const disabled  = state === 'unsupported' || (exhausted && !isActive)
+  const disabled  = state === 'unsupported' || ((exhausted || locked) && !isActive)
 
   if (compact) {
     return (
@@ -74,7 +76,9 @@ export function AudioPlayer({ script, label, compact = false, maxPlays }: AudioP
         <span className="text-xs text-sky-700 font-medium">
           {label ?? t(LABEL_KEY[state])}
         </span>
-        {left !== null && (
+        {locked && !isActive ? (
+          <span className="text-xs font-semibold text-sky-500">{t('lockedHint')}</span>
+        ) : left !== null && (
           <span className="text-xs font-semibold text-sky-500">
             {exhausted ? t('playsExhausted') : t('playsLeft', { n: left })}
           </span>
@@ -133,6 +137,8 @@ export function AudioPlayer({ script, label, compact = false, maxPlays }: AudioP
           <p className="text-xs text-sky-500 mt-1.5 italic">
             {state === 'unsupported'
               ? t('unsupportedHint')
+              : locked && !isActive
+                ? t('lockedHint')
               : exhausted
                 ? t('playsExhaustedHint')
                 : left !== null

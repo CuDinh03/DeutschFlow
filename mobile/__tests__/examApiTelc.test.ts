@@ -147,3 +147,74 @@ describe('đề Goethe không đổi', () => {
     expect(p.skippedSections).toEqual(['SPRECHEN'])
   })
 })
+
+/**
+ * Nghi thức bài nghe telc (17/09/2026): câu dẫn + giọng người nói ở từng câu, cổng Ansage ở Teil.
+ *
+ * Trước đợt này parser BỎ `audio_script` của từng câu — HV Teil 1 và Teil 3 trên app không có nút
+ * nghe nào (chỉ Teil 2 có audio ở cấp Teil). 10 câu / 50 điểm phần Nghe không làm được trên app
+ * mà không ai báo: câu vẫn hiện, chỉ là không có gì để nghe.
+ */
+describe('nghi thức bài nghe telc trên app', () => {
+  const HOEREN = JSON.stringify({
+    format: 'TELC',
+    sections: [
+      {
+        name: 'HOEREN', max_points: 75,
+        teile: [
+          {
+            teil: 1, max_plays: 1, reading_seconds: 30,
+            ansage_de: 'Sie hören nun fünf kurze Texte.',
+            framing_de: 'Wie kommen Sie zur Arbeit?',
+            items: [
+              { id: 'HV1-41', speaker: 'PRUEFER', question: 'Die Sprecherin fährt Rad.', audio_script: 'Ich fahre Rad.', type: 'RICHTIG_FALSCH' },
+              { id: 'HV1-42', speaker: 'PARTNER', question: 'Der Sprecher fährt Auto.', audio_script: 'Ich fahre Auto.', type: 'RICHTIG_FALSCH' },
+            ],
+          },
+          {
+            teil: 3, max_plays: 2, reading_seconds: 0,
+            ansage_de: 'Sie hören jeden Text zweimal.',
+            items: [
+              { id: 'HV3-56', speaker: 'PRUEFER', lead_in_de: 'Sie hören eine Nachricht auf dem Anrufbeantworter.', question: 'Die Frau sagt ab.', audio_script: 'Hallo, hier ist Nadine.', type: 'RICHTIG_FALSCH' },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('từng câu mang bài nghe riêng: giọng của người nói, câu dẫn đi trước bằng giọng người dẫn', () => {
+    const parsed = parseExamSections(HOEREN)
+    const [t1, t3] = parsed.sections[0].groups
+    expect(t1.items[0].audio).toEqual([{ speaker: 'PRUEFER', name: undefined, text: 'Ich fahre Rad.' }])
+    expect(t1.items[1].audio).toEqual([{ speaker: 'PARTNER', name: undefined, text: 'Ich fahre Auto.' }])
+    expect(t3.items[0].audio).toEqual([
+      { speaker: 'PRUEFER', text: 'Sie hören eine Nachricht auf dem Anrufbeantworter.', kind: 'LEAD_IN' },
+      { speaker: 'PRUEFER', name: undefined, text: 'Hallo, hier ist Nadine.' },
+    ])
+  })
+
+  it('Teil mang cổng nghi thức: Ansage, giây đọc câu hỏi, câu khung; Teil 3 không có giây đọc', () => {
+    const parsed = parseExamSections(HOEREN)
+    const [t1, t3] = parsed.sections[0].groups
+    expect(t1.ansage).toBe('Sie hören nun fünf kurze Texte.')
+    expect(t1.readingSeconds).toBe(30)
+    expect(t1.framing).toBe('Wie kommen Sie zur Arbeit?')
+    expect(t1.maxPlays).toBe(1)
+    expect(t3.ansage).toBe('Sie hören jeden Text zweimal.')
+    expect(t3.readingSeconds).toBe(0)
+    expect(t3.framing).toBeUndefined()
+  })
+
+  it('đề Goethe không khai gì thêm ⇒ không cổng, câu không có bài riêng, như trước', () => {
+    const goethe = JSON.stringify({
+      sections: [{ name: 'HOEREN', max_points: 25, teile: [{ teil: 1, audio_script: 'Guten Tag.',
+        items: [{ id: 'H1', question: 'Er kommt.', type: 'RICHTIG_FALSCH' }] }] }],
+    })
+    const [group] = parseExamSections(goethe).sections[0].groups
+    expect(group.ansage).toBeUndefined()
+    expect(group.readingSeconds).toBe(0)
+    expect(group.audio).toBe('Guten Tag.')
+    expect(group.items[0].audio).toBeUndefined()
+  })
+})
