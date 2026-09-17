@@ -42,6 +42,7 @@ class OnboardingControllerHttpTest {
     @Mock UserLearningProfileRepository learningProfileRepository;
     @Mock OnboardingTypeResolver onboardingTypeResolver;
     @Mock com.deutschflow.user.onboarding.service.GuestOnboardingService guestOnboardingService;
+    @Mock com.deutschflow.user.onboarding.service.OnboardingActivationService activationService;
 
     private MockMvc mvc;
 
@@ -49,7 +50,7 @@ class OnboardingControllerHttpTest {
     void setUp() {
         var controller = new OnboardingController(
                 learningPlanService, learningProfileService, learningProfileRepository, onboardingTypeResolver,
-                guestOnboardingService);
+                guestOnboardingService, activationService);
         mvc = MockMvcWithValidation.standalone(controller, new GlobalExceptionHandler(), mock(User.class));
     }
 
@@ -91,5 +92,47 @@ class OnboardingControllerHttpTest {
         mvc.perform(post("/api/onboarding/upsell-interest"))
                 .andExpect(status().isNoContent());
         verify(learningProfileService).recordUpsellInterest(any());
+    }
+
+    @Test
+    @DisplayName("POST /first-lesson/complete ghi activation theo kind và trả firstTime")
+    void firstLessonComplete_returnsActivation() throws Exception {
+        java.time.Instant at = java.time.Instant.parse("2026-09-17T13:00:00Z");
+        when(activationService.recordFirstLesson(any(Long.class),
+                eq(com.deutschflow.user.onboarding.FirstLessonKind.FIRST_SENTENCE)))
+                .thenReturn(new com.deutschflow.user.onboarding.dto.ActivationDtos.ActivationResponse(
+                        at, true, java.util.List.of("FIRST_LESSON:FIRST_SENTENCE")));
+
+        mvc.perform(post("/api/onboarding/first-lesson/complete")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"kind\":\"FIRST_SENTENCE\",\"meta\":{\"mode\":\"echo\"}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.firstTime").value(true))
+                // MockMvc standalone dùng ObjectMapper mặc định (epoch số) khác app (ISO) — chỉ khẳng định có mốc.
+                .andExpect(jsonPath("$.activatedAt").exists())
+                .andExpect(jsonPath("$.completedActivities[0]").value("FIRST_LESSON:FIRST_SENTENCE"));
+    }
+
+    @Test
+    @DisplayName("POST /first-lesson/complete thiếu kind → 400, không ghi gì")
+    void firstLessonComplete_missingKind_400() throws Exception {
+        mvc.perform(post("/api/onboarding/first-lesson/complete")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+        org.mockito.Mockito.verifyNoInteractions(activationService);
+    }
+
+    @Test
+    @DisplayName("POST /progress/core-done trả coreCompletedAt + firstTime")
+    void coreDone_returnsResult() throws Exception {
+        java.time.Instant at = java.time.Instant.parse("2026-09-17T13:05:00Z");
+        when(activationService.recordCoreDone(any(Long.class)))
+                .thenReturn(new com.deutschflow.user.onboarding.dto.ActivationDtos.CoreDoneResponse(at, false));
+
+        mvc.perform(post("/api/onboarding/progress/core-done"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.firstTime").value(false))
+                .andExpect(jsonPath("$.coreCompletedAt").exists());
     }
 }

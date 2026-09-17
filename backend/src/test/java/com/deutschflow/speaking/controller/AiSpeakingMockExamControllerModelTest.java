@@ -53,11 +53,12 @@ class AiSpeakingMockExamControllerModelTest {
     @Mock AiRateLimiterService aiRateLimiterService;
     @Mock QuotaService quotaService;
     @Mock OrgPoolGuard orgPoolGuard;
+    @Mock com.deutschflow.user.onboarding.service.OnboardingActivationService activationService;
 
     private AiSpeakingMockExamController controller() {
         return new AiSpeakingMockExamController(
                 chatClient, llmTierResolver, jdbcTemplate, new ObjectMapper(), sprechenTeil2Service,
-                aiRateLimiterService, quotaService, orgPoolGuard);
+                aiRateLimiterService, quotaService, orgPoolGuard, activationService);
     }
 
     @Test
