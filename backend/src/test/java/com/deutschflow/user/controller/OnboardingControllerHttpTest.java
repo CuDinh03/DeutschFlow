@@ -7,6 +7,10 @@ import com.deutschflow.user.entity.User;
 import com.deutschflow.user.onboarding.OnboardingRoute;
 import com.deutschflow.user.onboarding.OnboardingType;
 import com.deutschflow.user.onboarding.OnboardingTypeResolver;
+import com.deutschflow.user.onboarding.dto.OnboardingContextDtos.AccountSource;
+import com.deutschflow.user.onboarding.dto.OnboardingContextDtos.OnboardingContextResponse;
+import com.deutschflow.user.onboarding.dto.OnboardingContextDtos.OrgInfo;
+import com.deutschflow.user.onboarding.dto.OnboardingContextDtos.TrialInfo;
 import com.deutschflow.user.onboarding.PostOnboardingAction;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.deutschflow.user.service.LearningPlanService;
@@ -43,6 +47,7 @@ class OnboardingControllerHttpTest {
     @Mock OnboardingTypeResolver onboardingTypeResolver;
     @Mock com.deutschflow.user.onboarding.service.GuestOnboardingService guestOnboardingService;
     @Mock com.deutschflow.user.onboarding.service.OnboardingActivationService activationService;
+    @Mock com.deutschflow.user.onboarding.service.OnboardingContextService contextService;
 
     private MockMvc mvc;
 
@@ -50,7 +55,7 @@ class OnboardingControllerHttpTest {
     void setUp() {
         var controller = new OnboardingController(
                 learningPlanService, learningProfileService, learningProfileRepository, onboardingTypeResolver,
-                guestOnboardingService, activationService);
+                guestOnboardingService, activationService, contextService);
         mvc = MockMvcWithValidation.standalone(controller, new GlobalExceptionHandler(), mock(User.class));
     }
 
@@ -69,6 +74,44 @@ class OnboardingControllerHttpTest {
                 .andExpect(jsonPath("$.assessmentHookAfter").value(true))
                 .andExpect(jsonPath("$.paywallAllowed").value(true))
                 .andExpect(jsonPath("$.postAction").value("ROADMAP_NODE"));
+    }
+
+    @Test
+    @DisplayName("GET /context trả cửa vào + trung tâm/lớp + trình độ đặt sẵn + trial (Đợt 5)")
+    void context_returnsContext() throws Exception {
+        var trialEnd = java.time.Instant.parse("2026-10-31T00:00:00Z");
+        when(contextService.contextFor(any())).thenReturn(new OnboardingContextResponse(
+                AccountSource.ORG_ROSTER, false,
+                new OrgInfo(7L, "Trung tâm Sao Việt", 42L, "B1 tối thứ 3"),
+                "A2", new TrialInfo(true, trialEnd)));
+
+        mvc.perform(get("/api/onboarding/context"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accountSource").value("ORG_ROSTER"))
+                .andExpect(jsonPath("$.hasPlan").value(false))
+                .andExpect(jsonPath("$.org.orgId").value(7))
+                .andExpect(jsonPath("$.org.name").value("Trung tâm Sao Việt"))
+                .andExpect(jsonPath("$.org.classId").value(42))
+                .andExpect(jsonPath("$.org.className").value("B1 tối thứ 3"))
+                .andExpect(jsonPath("$.presetCurrentLevel").value("A2"))
+                .andExpect(jsonPath("$.trial.isTrial").value(true))
+                // MockMvc standalone dùng ObjectMapper mặc định (epoch số) ≠ app (ISO) — chỉ kiểm có mặt.
+                .andExpect(jsonPath("$.trial.trialEndsAt").exists());
+    }
+
+    @Test
+    @DisplayName("GET /context của người tự đăng ký: org null, presetCurrentLevel null")
+    void context_selfAccount_hasNoOrg() throws Exception {
+        when(contextService.contextFor(any())).thenReturn(new OnboardingContextResponse(
+                AccountSource.SELF, true, null, null, new TrialInfo(false, null)));
+
+        mvc.perform(get("/api/onboarding/context"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accountSource").value("SELF"))
+                .andExpect(jsonPath("$.hasPlan").value(true))
+                .andExpect(jsonPath("$.org").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.presetCurrentLevel").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.trial.isTrial").value(false));
     }
 
     @Test
