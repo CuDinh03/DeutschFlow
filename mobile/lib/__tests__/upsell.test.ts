@@ -43,7 +43,7 @@ test('MINOR_AUDIO_BLOCKED → presenter nhận đúng reason + detail; không Al
   handleAiError(minorError('GUARDIAN_CONSENT_REQUIRED'), 'Không thể tiếp tục')
 
   expect(presenter).toHaveBeenCalledWith(
-    { reason: 'GUARDIAN_CONSENT_REQUIRED', detail: 'Server nói.' },
+    { reason: 'GUARDIAN_CONSENT_REQUIRED', detail: 'Server nói.', contact: 'CENTER' },
     { contact: true },
   )
   expect(alertSpy).not.toHaveBeenCalled()

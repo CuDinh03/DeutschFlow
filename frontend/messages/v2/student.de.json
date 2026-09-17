@@ -2204,6 +2204,10 @@
       "bodyConsentRequired": "Für dieses Konto ist vor Sprachaufnahmen die Einwilligung der Eltern oder Erziehungsberechtigten nötig. Bitte wende dich an dein Zentrum, um das Einwilligungsformular abzuschließen; sobald das Zentrum es erfasst hat, ist das Sprechtraining sofort wieder frei.",
       "titleConsentRevoked": "Die Einwilligung zur Aufnahme wurde widerrufen",
       "bodyConsentRevoked": "Die Einwilligung zur Sprachaufnahme für dieses Konto wurde widerrufen, daher ist das Sprechtraining vorübergehend nicht verfügbar. Zum Wiederfreischalten wendet sich die erziehungsberechtigte Person an das Zentrum und erteilt die Einwilligung erneut.",
+      "titleBirthDateSelf": "Für dein Konto fehlt noch das Geburtsdatum",
+      "bodyBirthDateSelf": "Für dein Konto ist kein Geburtsdatum hinterlegt. Deshalb lässt sich nicht klären, ob die Einwilligung einer erziehungsberechtigten Person nötig ist – und solange das unklar ist, wird keine Aufnahme gesendet. Bitte trage dein Geburtsdatum auf der Profilseite ein.",
+      "bodyConsentRequiredSelf": "Für dieses Konto ist vor Sprachaufnahmen die Einwilligung der Eltern oder Erziehungsberechtigten nötig. Der Bestätigungsweg für Erziehungsberechtigte wird gerade fertiggestellt; sobald er verfügbar ist, führt dich die App genau hier weiter.",
+      "bodyConsentRevokedSelf": "Die Einwilligung zur Sprachaufnahme für dieses Konto wurde widerrufen, daher ist das Sprechtraining vorübergehend nicht verfügbar. Zum Wiederfreischalten muss die erziehungsberechtigte Person erneut einwilligen – der Bestätigungsweg dafür wird gerade fertiggestellt.",
       "note": "Ein Upgrade schaltet diesen Bereich nicht frei – nur das Zentrum oder die erziehungsberechtigte Person kann ihn wieder öffnen. Alles, was keine Aufnahme braucht, funktioniert weiterhin.",
       "contact": "Zentrum kontaktieren",
       "dismiss": "Verstanden"

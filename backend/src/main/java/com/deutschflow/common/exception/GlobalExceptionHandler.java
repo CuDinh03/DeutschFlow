@@ -245,6 +245,8 @@ public class GlobalExceptionHandler {
         Map<String, Object> ext = new java.util.LinkedHashMap<>();
         ext.put("code", com.deutschflow.common.minor.MinorAudioBlockedException.CODE);
         ext.put("reason", ex.getReason().name());
+        // CENTER | NONE — client giấu lối "Liên hệ trung tâm" khi NONE (học viên B2C, 17/09/2026).
+        ext.put("contact", ex.getContact().name());
         return problem(HttpStatus.FORBIDDEN, "minor-audio-blocked", "Forbidden",
                 ex.getMessage(), request.getRequestURI(), null, ext);
     }

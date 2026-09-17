@@ -7,7 +7,12 @@
  *
  *   { type: ".../minor-audio-blocked", detail: "<câu tiếng Việt đọc thẳng được>",
  *     extensions: { code: "MINOR_AUDIO_BLOCKED",
- *                   reason: BIRTH_DATE_REQUIRED | GUARDIAN_CONSENT_REQUIRED | GUARDIAN_CONSENT_REVOKED } }
+ *                   reason: BIRTH_DATE_REQUIRED | GUARDIAN_CONSENT_REQUIRED | GUARDIAN_CONSENT_REVOKED,
+ *                   contact: CENTER | NONE } }
+ *
+ * `contact` (phương án D, 17/09/2026): CENTER = học viên thuộc một trung tâm, trung tâm mở lại được;
+ * NONE = học viên tự đăng ký, chưa có ai mở lại được cho tới khi có đường phụ huynh xác nhận (Q-04)
+ * ⇒ giấu lối "Liên hệ trung tâm". Server cũ không gửi trường này ⇒ coi là CENTER.
  *
  * KHÔNG mang nhóm tuổi hay ngày sinh — client chọn thông điệp chỉ theo `reason`, và dùng `detail`
  * của server làm nội dung chính (câu chữ client là dự phòng).
@@ -28,10 +33,15 @@ export type MinorAudioBlockedReason =
   | 'GUARDIAN_CONSENT_REQUIRED'
   | 'GUARDIAN_CONSENT_REVOKED'
 
+/** Ai mở lại được cổng — CENTER: trung tâm; NONE: chưa có ai (học viên ngoài trung tâm). */
+export type MinorAudioContact = 'CENTER' | 'NONE'
+
 export interface MinorAudioBlocked {
   reason: MinorAudioBlockedReason
   /** `detail` của server — nội dung chính khi có; câu chữ client (i18n) chỉ là dự phòng. */
   detail: string | null
+  /** Thiếu = CENTER (server trước 17/09 không gửi). */
+  contact?: MinorAudioContact
 }
 
 const REASONS: ReadonlySet<string> = new Set<MinorAudioBlockedReason>([
@@ -54,7 +64,7 @@ export function minorAudioBlockedFromProblem(data: unknown): MinorAudioBlocked |
   const problem = data as { type?: unknown; detail?: unknown; extensions?: unknown }
   const ext =
     problem.extensions && typeof problem.extensions === 'object'
-      ? (problem.extensions as { code?: unknown; reason?: unknown })
+      ? (problem.extensions as { code?: unknown; reason?: unknown; contact?: unknown })
       : null
   const byCode = ext?.code === MINOR_AUDIO_BLOCKED_CODE
   const byType = typeof problem.type === 'string' && problem.type.endsWith('minor-audio-blocked')
@@ -65,7 +75,9 @@ export function minorAudioBlockedFromProblem(data: unknown): MinorAudioBlocked |
   const reason: MinorAudioBlockedReason = REASONS.has(rawReason)
     ? (rawReason as MinorAudioBlockedReason)
     : 'GUARDIAN_CONSENT_REQUIRED'
-  return { reason, detail: str(problem.detail) }
+  // Chỉ NONE mới giấu lối liên hệ; giá trị lạ hay thiếu đều rơi về CENTER (hành vi cũ).
+  const contact: MinorAudioContact = ext?.contact === 'NONE' ? 'NONE' : 'CENTER'
+  return { reason, detail: str(problem.detail), contact }
 }
 
 /**

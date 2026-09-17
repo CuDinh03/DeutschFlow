@@ -590,7 +590,7 @@ function ProfileBody() {
         onOpenChange={setConfirmBirthDate}
         title={t('confirmBirthDateTitle')}
         description={t('confirmBirthDateDesc', { date: formatIsoDate(birthDate, uiLocale) })}
-        details={[t('confirmBirthDateDetail1'), t('confirmBirthDateDetail2')]}
+        details={[t('confirmBirthDateDetail1'), t('confirmBirthDateDetail2'), t('confirmBirthDateDetail3')]}
         destructive={false}
         confirmLabel={t('saveBirthDate')}
         cancelLabel={t('cropCancel')}

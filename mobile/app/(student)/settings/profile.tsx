@@ -113,7 +113,7 @@ export default function EditProfileScreen() {
     // Ghi một lần là hệ quả không hoàn tác được — hỏi lại trước khi gửi.
     Alert.alert(
       'Xác nhận ngày sinh',
-      `Ghi ${birthDay}/${birthMonth}/${birthYear} làm ngày sinh? Sau khi lưu bạn không tự sửa được, muốn sửa phải liên hệ trung tâm hoặc hỗ trợ.`,
+      `Ghi ${birthDay}/${birthMonth}/${birthYear} làm ngày sinh? Sau khi lưu bạn không tự sửa được, muốn sửa phải liên hệ trung tâm hoặc hỗ trợ. Dưới 16 tuổi thì phần luyện nói chờ cha mẹ/người giám hộ xác nhận.`,
       [
         { text: 'Huỷ', style: 'cancel' },
         { text: 'Lưu', onPress: () => saveBirthDate.mutate(parsed.iso) },
@@ -294,8 +294,8 @@ export default function EditProfileScreen() {
             />
           </View>
 
-          {/* Birth date — ghi một lần. Ẩn sau cờ tới khi có đường phụ huynh xác nhận (xem
-              BIRTH_DATE_SELF_DECLARE_ENABLED). */}
+          {/* Birth date — ghi một lần. Cờ BIRTH_DATE_SELF_DECLARE_ENABLED giữ lại để tắt nhanh
+              (xem lib/profileApi.ts). */}
           {BIRTH_DATE_SELF_DECLARE_ENABLED && (
           <View style={{ gap: space[2] }}>
             <Caption>Ngày sinh</Caption>
@@ -340,7 +340,8 @@ export default function EditProfileScreen() {
             <ThemedText variant="caption" color="muted">
               {birthDateLocked
                 ? 'Đã ghi nhận. Nếu sai, hãy liên hệ trung tâm của bạn hoặc bộ phận hỗ trợ.'
-                : 'Chỉ khai được một lần — dùng để áp các quy định bảo vệ người chưa thành niên.'}
+                : 'Chỉ khai được một lần — dùng để áp các quy định bảo vệ người chưa thành niên. ' +
+                  'Dưới 16 tuổi thì phần luyện nói chờ cha mẹ/người giám hộ xác nhận.'}
             </ThemedText>
             {birthError ? (
               <ThemedText variant="caption" style={{ color: c.danger }}>

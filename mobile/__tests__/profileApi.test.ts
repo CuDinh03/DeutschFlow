@@ -126,7 +126,7 @@ describe('profileApi — hồ sơ cá nhân (GET /me, PATCH /me, avatar, ngày s
     await expect(profileApi.declareBirthDate('1996-03-05')).rejects.toThrow('đã có ngày sinh')
   })
 
-  test('cờ tự khai ngày sinh đang TẮT (chờ Q-04) — bật là phải chủ ý, cùng lúc với web', () => {
-    expect(BIRTH_DATE_SELF_DECLARE_ENABLED).toBe(false)
+  test('cờ tự khai ngày sinh đang BẬT (phương án D, 17/09/2026) — đổi là phải chủ ý, cùng lúc với web', () => {
+    expect(BIRTH_DATE_SELF_DECLARE_ENABLED).toBe(true)
   })
 })
