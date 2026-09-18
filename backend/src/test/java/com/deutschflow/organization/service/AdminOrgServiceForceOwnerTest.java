@@ -76,7 +76,7 @@ class AdminOrgServiceForceOwnerTest {
     }
 
     private static OrgMemberDto ownerDto() {
-        return new OrgMemberDto(NEW_OWNER_ID, "u77@trungtam.com", "U77", "OWNER", "ACTIVE", Instant.now());
+        return new OrgMemberDto(NEW_OWNER_ID, "u77@trungtam.com", "U77", "OWNER", "ACTIVE", Instant.now(), null);
     }
 
     private static User userWithRole(User.Role role) {

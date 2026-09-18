@@ -743,10 +743,31 @@ public class MaterialService {
         return tc;
     }
 
-    /** A student may read an assignment's materials only if that assignment was handed to them. */
+    /**
+     * Học viên chỉ đọc được tài liệu của bài tập khi CẢ HAI còn đúng: bài tập đã được giao cho họ,
+     * VÀ họ còn giữ ghế trong lớp sở hữu bài tập đó.
+     *
+     * <p><b>Vì sao phải kiểm vế thứ hai</b> (nợ AC-ORG-CT-07 từ Gói 1, vá 11/09/2026): dòng trong
+     * {@code student_assignments} là LỊCH SỬ — gỡ học viên khỏi lớp hay học viên rời trung tâm chỉ
+     * đóng dòng ghi danh ({@code class_students.status = ENDED}) chứ không xoá bài đã giao. Kiểm mỗi
+     * "đã được giao" nghĩa là người vừa bị gỡ vẫn tải được nguyên bộ tài liệu của lớp cũ, mãi mãi.
+     * Đường BÀI HỌC ({@link #assertStudentInLessonClass}) đã kiểm ghế từ đầu; đường BÀI TẬP thì
+     * không — hai đường cùng phục vụ một loại tệp mà biên quyền lệch nhau.
+     *
+     * <p>Biên là {@code ACTIVE, RESERVED} (chính là {@code existsByIdClassIdAndIdStudentId}), không
+     * phải riêng {@code ACTIVE}: theo D1, người bảo lưu vẫn giữ ghế và vẫn được ĐỌC — chỉ không được
+     * giao bài mới và không vào bảng điểm danh. Cắt tài liệu của người bảo lưu là phạt nhầm người.
+     */
     private void assertStudentHasAssignment(Long studentId, Long assignmentId) {
         if (studentAssignmentRepository.findByStudentIdAndAssignmentId(studentId, assignmentId).isEmpty()) {
             throw new ForbiddenException("Bạn không được giao bài tập này.");
+        }
+        ClassAssignment assignment = classAssignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy bài tập."));
+        if (!classStudentRepository.existsByIdClassIdAndIdStudentId(assignment.getClassId(), studentId)) {
+            // Cùng thông điệp với đường bài học: nói đúng lý do (không còn thuộc lớp) thay vì
+            // "không được giao bài tập này", vốn sai và làm học viên tưởng giáo viên gỡ bài.
+            throw new ForbiddenException("Bạn không còn thuộc lớp của bài tập này.");
         }
     }
 

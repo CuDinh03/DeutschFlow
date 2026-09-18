@@ -56,8 +56,12 @@ public class OrgTeachingHandoverGuard {
      *
      * <p>Lớp ngoài trung tâm ({@code org_id IS NULL} — lớp riêng của chính người dùng) không tính:
      * rời trung tâm không đụng gì tới chúng.
+     *
+     * <p>🪤 Mệnh đề chức danh chèn bằng {@code %s} + {@link String#formatted}, KHÔNG nối chuỗi
+     * giữa hai text block: text block cắt khoảng trắng cuối dòng, nên {@code AND """} nối tiếp
+     * cho ra {@code ANDom.status} — SQL sai cú pháp mà mã đọc lên vẫn đúng.
      */
-    private static final String ORPHANED_CLASSES_SQL = """
+    static final String ORPHANED_CLASSES_SQL = """
             SELECT COUNT(*) FROM teacher_classes tc
              WHERE tc.org_id = ?
                AND (tc.teacher_id = ?
@@ -67,15 +71,15 @@ public class OrgTeachingHandoverGuard {
                    SELECT 1 FROM org_members om
                     WHERE om.org_id = tc.org_id
                       AND om.user_id <> ?
-                      AND """ + TEACHING_MEMBER_PREDICATE + """
+                      AND %s
                       AND (om.user_id = tc.teacher_id
                            OR om.user_id IN (SELECT ct.teacher_id FROM class_teachers ct
                                               WHERE ct.class_id = tc.id))
                )
-            """;
+            """.formatted(TEACHING_MEMBER_PREDICATE);
 
     /** Tên lớp để nêu đích danh trong thông điệp — giới hạn 3 cái, đủ để nhận ra mà không tràn. */
-    private static final String ORPHANED_NAMES_SQL = """
+    static final String ORPHANED_NAMES_SQL = """
             SELECT tc.name FROM teacher_classes tc
              WHERE tc.org_id = ?
                AND (tc.teacher_id = ?
@@ -85,14 +89,14 @@ public class OrgTeachingHandoverGuard {
                    SELECT 1 FROM org_members om
                     WHERE om.org_id = tc.org_id
                       AND om.user_id <> ?
-                      AND """ + TEACHING_MEMBER_PREDICATE + """
+                      AND %s
                       AND (om.user_id = tc.teacher_id
                            OR om.user_id IN (SELECT ct.teacher_id FROM class_teachers ct
                                               WHERE ct.class_id = tc.id))
                )
              ORDER BY tc.name
              LIMIT 3
-            """;
+            """.formatted(TEACHING_MEMBER_PREDICATE);
 
     /** Việc người gọi đang định làm — quyết định câu "cách xử lý" ở cuối thông điệp. */
     public enum Action {

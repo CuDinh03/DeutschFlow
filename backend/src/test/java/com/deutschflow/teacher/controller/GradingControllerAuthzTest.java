@@ -46,11 +46,13 @@ class GradingControllerAuthzTest {
     @Mock HandwritingOcrService handwritingOcrService;
     @Mock OrgPoolGuard orgPoolGuard;
     @Mock FreeTierGuard freeTierGuard;
+    @Mock com.deutschflow.common.minor.MinorGate minorGate;
 
     private static final long TEACHER_ID = 1L;
     private static final long SUBMISSION_ID = 5L;
     private static final long CLASS_ASSIGNMENT_ID = 9L;
     private static final long OWNING_CLASS_ID = 50L;
+    private static final long STUDENT_ID = 3L;
 
     @Mock com.deutschflow.media.service.S3StorageService s3StorageService;
 
@@ -58,7 +60,9 @@ class GradingControllerAuthzTest {
         return new GradingController(
                 gradingService, studentAssignmentRepository, classAssignmentRepository,
                 classTeacherRepository, handwritingOcrService, s3StorageService,
-                orgPoolGuard, freeTierGuard);
+                orgPoolGuard, freeTierGuard,
+                // Cổng tuổi D3: mock mặc định KHÔNG ném ⇒ các ca IDOR/state ở đây giữ nguyên nghĩa.
+                minorGate);
     }
 
     private User teacher() {
@@ -69,7 +73,7 @@ class GradingControllerAuthzTest {
 
     private void stubSubmission(String status) {
         StudentAssignment sa = StudentAssignment.builder()
-                .id(SUBMISSION_ID).assignmentId(CLASS_ASSIGNMENT_ID).studentId(3L).status(status).build();
+                .id(SUBMISSION_ID).assignmentId(CLASS_ASSIGNMENT_ID).studentId(STUDENT_ID).status(status).build();
         when(studentAssignmentRepository.findById(SUBMISSION_ID)).thenReturn(Optional.of(sa));
         ClassAssignment ca = ClassAssignment.builder()
                 .id(CLASS_ASSIGNMENT_ID).classId(OWNING_CLASS_ID).topic("E-Mail").build();
@@ -120,7 +124,7 @@ class GradingControllerAuthzTest {
 
     private StudentAssignment stubImageSubmission(String fileUrl) {
         StudentAssignment sa = StudentAssignment.builder()
-                .id(SUBMISSION_ID).assignmentId(CLASS_ASSIGNMENT_ID).studentId(3L)
+                .id(SUBMISSION_ID).assignmentId(CLASS_ASSIGNMENT_ID).studentId(STUDENT_ID)
                 .status("SUBMITTED").submissionFileUrl(fileUrl).build();
         when(studentAssignmentRepository.findById(SUBMISSION_ID)).thenReturn(Optional.of(sa));
         when(classAssignmentRepository.findById(CLASS_ASSIGNMENT_ID)).thenReturn(Optional.of(
@@ -200,5 +204,62 @@ class GradingControllerAuthzTest {
         assertThat(sa.getAiFeedback()).isEqualTo("Gut, aber …");
         assertThat(sa.getAiGradedAt()).isNotNull();
         verify(studentAssignmentRepository).save(sa);
+    }
+
+    @Test
+    @DisplayName("🔴 D3: cổng tuổi chặn ⇒ 403 tới thẳng giáo viên và KHÔNG kích job chấm async")
+    void minorGateBlocksBeforeDispatchingTheAsyncJob() {
+        stubSubmission(AssignmentStatus.SUBMITTED);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(OWNING_CLASS_ID, TEACHER_ID))
+                .thenReturn(true);
+        org.mockito.Mockito.doThrow(new com.deutschflow.common.minor.MinorAiGradingBlockedException(
+                        com.deutschflow.common.minor.MinorAiGradingBlockedException.Reason.GUARDIAN_CONSENT_REQUIRED,
+                        com.deutschflow.common.minor.MinorPolicy.Status.MINOR_CENTER_POLICY,
+                        "chưa có đồng ý"))
+                .when(minorGate).assertAiGradingAllowed(STUDENT_ID);
+
+        assertThatThrownBy(() -> controller().triggerAiGrade(teacher(), SUBMISSION_ID))
+                .isInstanceOf(com.deutschflow.common.minor.MinorAiGradingBlockedException.class);
+
+        // Cổng phải đứng TRƯỚC cả hard-cap pool: chặn vì tuổi thì không được tính là một lượt tiêu
+        // ngân sách của trung tâm, và nhất là không được kích job rồi mới chặn ở trong.
+        verify(gradingService, never()).aiGradeAssignment(anyLong(), anyLong());
+        verifyNoInteractions(orgPoolGuard);
+    }
+
+    @Test
+    @DisplayName("D3: cổng soi CHỦ THỂ là học viên của bài nộp, không phải giáo viên đang đăng nhập")
+    void gateIsAskedAboutTheSubmissionOwner() {
+        stubSubmission(AssignmentStatus.SUBMITTED);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(OWNING_CLASS_ID, TEACHER_ID))
+                .thenReturn(true);
+
+        controller().triggerAiGrade(teacher(), SUBMISSION_ID);
+
+        verify(minorGate).assertAiGradingAllowed(STUDENT_ID);
+        verify(minorGate, never()).assertAiGradingAllowed(TEACHER_ID);
+    }
+
+    /**
+     * Cửa vào THỨ HAI của cổng tuổi trên cùng controller. Năm ca sẵn có của đường ảnh (IDOR, SSRF,
+     * khoá chéo bài, lưu proposal) đều xanh dù mock cổng không ném, nên nếu dòng gọi cổng ở
+     * `aiGradeSubmissionImage` bị xoá hay đảo chỗ thì KHÔNG ca nào đỏ. Ca này là ca đó.
+     */
+    @Test
+    @DisplayName("🔴 D3 đường ẢNH VIẾT TAY: cổng tuổi chặn ⇒ 403 và không đọc ảnh, không gọi OCR")
+    void minorGateBlocksHandwritingImagePath() {
+        stubSubmission(AssignmentStatus.SUBMITTED);
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(OWNING_CLASS_ID, TEACHER_ID))
+                .thenReturn(true);
+        org.mockito.Mockito.doThrow(new com.deutschflow.common.minor.MinorAiGradingBlockedException(
+                        com.deutschflow.common.minor.MinorAiGradingBlockedException.Reason.BIRTH_DATE_REQUIRED,
+                        com.deutschflow.common.minor.MinorPolicy.Status.UNKNOWN, "chưa có ngày sinh"))
+                .when(minorGate).assertAiGradingAllowed(STUDENT_ID);
+
+        assertThatThrownBy(() -> controller().aiGradeSubmissionImage(teacher(), SUBMISSION_ID))
+                .isInstanceOf(com.deutschflow.common.minor.MinorAiGradingBlockedException.class);
+
+        verifyNoInteractions(handwritingOcrService);
+        verifyNoInteractions(orgPoolGuard);
     }
 }

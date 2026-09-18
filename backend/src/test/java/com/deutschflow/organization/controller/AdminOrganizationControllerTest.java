@@ -174,7 +174,7 @@ class AdminOrganizationControllerTest {
     void forceOwner_validBody_returns200AndPassesArguments() throws Exception {
         String reason = "Giám đốc cũ nghỉ việc, không bàn giao tài khoản.";
         when(adminOrgService.forceOwner(any(), eq(5L), eq(7L), eq(reason)))
-                .thenReturn(new OrgMemberDto(7L, "gv@tt.vn", "GV", "OWNER", "ACTIVE", Instant.now()));
+                .thenReturn(new OrgMemberDto(7L, "gv@tt.vn", "GV", "OWNER", "ACTIVE", Instant.now(), null));
 
         mvc.perform(post("/api/admin/organizations/5/force-owner")
                         .contentType(MediaType.APPLICATION_JSON)

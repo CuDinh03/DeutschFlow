@@ -39,6 +39,7 @@ public class GradingController {
     private final S3StorageService s3StorageService;
     private final OrgPoolGuard orgPoolGuard;
     private final com.deutschflow.common.quota.FreeTierGuard freeTierGuard;
+    private final com.deutschflow.common.minor.MinorGate minorGate;
 
     /**
      * Ước lượng token cho 1 lần AI chấm bài viết (essay + rubric vào, ~800 token feedback ra) —
@@ -113,6 +114,12 @@ public class GradingController {
             return ResponseEntity.status(409).body(Map.of("error", "Bài này đã được chấm; không thể chấm lại bằng AI."));
         }
 
+        // D3: bài làm của học viên chưa đủ điều kiện về tuổi không được gửi qua AI. Kiểm ĐỒNG BỘ ở
+        // đây (chứ không chỉ trong job async) để giáo viên nhận 403 kèm việc cần làm ngay lúc bấm,
+        // thay vì thấy "AI đang chấm" rồi vài giây sau bài lặng lẽ rơi vào GRADING_FAILED.
+        // Chủ thể là HỌC VIÊN (sa.getStudentId()), không phải teacher.getId().
+        minorGate.assertAiGradingAllowed(sa.getStudentId());
+
         // Hard-cap pool token cấp-org trước khi kích hoạt AI chấm (429 nếu org hết ngân sách).
         orgPoolGuard.assertOrgPoolAvailable(teacher.getId(), GRADING_ESTIMATED_TOKENS);
 
@@ -182,6 +189,13 @@ public class GradingController {
         if (!AssignmentStatus.SUBMITTED.equals(status) && !AssignmentStatus.GRADING_FAILED.equals(status)) {
             return ResponseEntity.status(409).body(Map.of("error", "Bài này đã được chấm; không thể chấm lại bằng AI."));
         }
+
+        // D3, đường ảnh viết tay: ảnh bài làm cũng là dữ liệu của HỌC VIÊN đi ra nhà cung cấp AI.
+        // Cùng cổng, cùng chủ thể, và ĐẶT CÙNG CHỖ như đường chữ ở triggerAiGrade — trước cả khâu
+        // soi tệp. Đặt sau thì một học viên bị chặn vì tuổi lại nhận 400 "ảnh không hợp lệ", tức
+        // thông điệp nói sai hẳn việc cần làm. (Công cụ tải ảnh rời ở gradeImage() KHÔNG có cổng
+        // này vì ảnh đó không gắn bài nộp nào nên không có chủ thể để soi — nợ đã ghi.)
+        minorGate.assertAiGradingAllowed(sa.getStudentId());
 
         // Read the student's file from OUR bucket by key — never by fetching the stored URL, which came
         // from the student's own submit payload (see S3StorageService.objectKeyFromOwnUrl). The key must
