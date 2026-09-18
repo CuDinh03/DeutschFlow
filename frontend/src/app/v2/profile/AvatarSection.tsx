@@ -7,48 +7,20 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { uploadAvatar, removeAvatar } from '@/lib/profileApi'
 import { GaBtn } from '@/components/ui-v2'
+import { AvatarCropDialog } from './AvatarCropDialog'
 
 // Cùng allowlist với backend (không SVG — nguy cơ XSS trên bucket public-read).
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif']
 const ACCEPT_ATTR = ACCEPTED_TYPES.join(',')
-// Ảnh gốc được thu nhỏ trước khi upload nên nhận nguồn lớn hơn trần 5MB của backend một chút.
+// Ảnh gốc được cắt lại trong hộp thoại trước khi upload nên nhận nguồn lớn hơn trần 5MB của
+// backend một chút.
 const MAX_SOURCE_BYTES = 15 * 1024 * 1024
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
-const AVATAR_EDGE_PX = 512
 
 export function validateAvatarFile(file: File): 'invalidType' | 'tooLarge' | null {
   if (!ACCEPTED_TYPES.includes(file.type)) return 'invalidType'
   if (file.size > MAX_SOURCE_BYTES) return 'tooLarge'
   return null
-}
-
-/**
- * Cắt vuông ở giữa + thu về ≤512px trước khi upload — ảnh máy ảnh vài MB chỉ để render 36–72px
- * là lãng phí băng thông và S3. Mọi lỗi (trình duyệt cũ, ảnh hỏng…) đều rơi về file gốc:
- * backend vẫn tự validate loại/kích thước nên đường fallback an toàn.
- */
-async function downscaleToSquare(file: File): Promise<File> {
-  try {
-    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
-    const side = Math.min(bitmap.width, bitmap.height)
-    const target = Math.min(AVATAR_EDGE_PX, side)
-    const sx = (bitmap.width - side) / 2
-    const sy = (bitmap.height - side) / 2
-    const canvas = document.createElement('canvas')
-    canvas.width = target
-    canvas.height = target
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return file
-    ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, target, target)
-    bitmap.close()
-    // toBlob('image/webp') không hỗ trợ → trình duyệt trả PNG; cả hai đều nằm trong allowlist backend.
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', 0.85))
-    if (!blob) return file
-    const ext = blob.type.split('/')[1] || 'webp'
-    return new File([blob], `avatar.${ext}`, { type: blob.type })
-  } catch {
-    return file
-  }
 }
 
 function initialsOf(name: string | null | undefined): string {
@@ -69,8 +41,10 @@ export function AvatarSection({ displayName, avatarUrl, onChange }: AvatarSectio
   const t = useTranslations('v2.account.profile')
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  /** Ảnh đang chờ người dùng chọn khung. null = hộp thoại cắt đóng. */
+  const [pending, setPending] = useState<File | null>(null)
 
-  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = '' // cho phép chọn lại đúng file vừa chọn
     if (!file) return
@@ -79,17 +53,22 @@ export function AvatarSection({ displayName, avatarUrl, onChange }: AvatarSectio
       toast.error(t(invalid === 'invalidType' ? 'avatarInvalidType' : 'avatarTooLarge'))
       return
     }
+    setPending(file)
+  }
+
+  const onCropped = async (cropped: File) => {
+    if (cropped.size > MAX_UPLOAD_BYTES) {
+      toast.error(t('avatarTooLarge'))
+      return
+    }
     setBusy(true)
     try {
-      const prepared = await downscaleToSquare(file)
-      if (prepared.size > MAX_UPLOAD_BYTES) {
-        toast.error(t('avatarTooLarge'))
-        return
-      }
-      const { avatarUrl: newUrl } = await uploadAvatar(prepared)
+      const { avatarUrl: newUrl } = await uploadAvatar(cropped)
       onChange(newUrl)
+      setPending(null)
       toast.success(t('avatarSaved'))
     } catch (err: unknown) {
+      // Giữ hộp thoại mở khi lỗi: người dùng thử lại được ngay mà không phải chọn lại ảnh.
       toast.error(err instanceof Error ? err.message : t('avatarError'))
     } finally {
       setBusy(false)
@@ -156,6 +135,12 @@ export function AvatarSection({ displayName, avatarUrl, onChange }: AvatarSectio
           aria-label={t('uploadAvatar')}
         />
       </div>
+      <AvatarCropDialog
+        file={pending}
+        busy={busy}
+        onCancel={() => setPending(null)}
+        onConfirm={onCropped}
+      />
     </div>
   )
 }

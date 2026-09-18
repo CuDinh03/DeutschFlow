@@ -22,6 +22,8 @@ export interface AuthUser {
   orgId?: number | null
   /** Vai trò trong trung tâm (OWNER|ADMIN|TEACHER|STUDENT); null khi không có membership ACTIVE. */
   orgRole?: string | null
+  /** Ảnh đại diện tự tải lên (users.avatar_url). Thiếu ⇒ màn hình dùng chữ cái tắt. */
+  avatarUrl?: string | null
 }
 
 interface AuthState {

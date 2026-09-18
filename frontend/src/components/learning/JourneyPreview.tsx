@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { ArrowRight, Check, Lock } from 'lucide-react'
 import { GaCap } from '@/components/ui-v2'
 import { journeySlice, nodeStatus, courseCompletion } from '@/lib/learning/currentNode'
+import { useNodeTitles } from '@/lib/learning/nodeTitle'
 import type { RoadmapNode } from '@/lib/roadmap-tree/types'
 
 /**
@@ -17,6 +18,7 @@ import type { RoadmapNode } from '@/lib/roadmap-tree/types'
  */
 export function JourneyPreview({ nodes, compact = false }: { nodes: RoadmapNode[]; compact?: boolean }) {
   const t = useTranslations('v2.student.dashboard.journey')
+  const titlesOf = useNodeTitles()
   if (nodes.length === 0) return null
 
   const slice = journeySlice(nodes, compact ? 2 : 2)
@@ -65,7 +67,7 @@ export function JourneyPreview({ nodes, compact = false }: { nodes: RoadmapNode[
                     locked ? 'text-ga-locked-fg' : 'text-ga-ink',
                   ].join(' ')}
                 >
-                  {node.subtitle || node.title}
+                  {titlesOf(node).primary}
                 </span>
               </Link>
             </li>

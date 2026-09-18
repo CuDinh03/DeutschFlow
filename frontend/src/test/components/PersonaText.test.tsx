@@ -80,8 +80,11 @@ describe('usePersonaText — lớp phủ dịch persona', () => {
     expect(px.role(PERSONA_TOKENS.lena)).toBe('Supermarktmitarbeiterin')
     expect(px.role(PERSONA_TOKENS.tuan)).not.toMatch(VI_LETTERS)
     expect(px.tag(PERSONA_TOKENS.minh)).not.toMatch(VI_LETTERS)
-    // desc của Lukas vốn đã là tiếng Đức trong dữ liệu → bản de giữ nguyên câu đó.
-    expect(px.desc(PERSONA_TOKENS.lukas)).toBe(PERSONA_TOKENS.lukas.desc)
+    // desc lấy từ catalog de, KHÔNG lấy từ `personas.ts`. Khẳng định cũ so với chính `.desc` của
+    // token, và chỉ xanh vì lukas/emma/anna tình cờ còn bỏ quên tiếng Đức trong dữ liệu gốc — ba
+    // câu đó đã dịch sang tiếng Việt (10/09/2026) nên phép so ấy là chốt một sự trùng hợp.
+    expect(px.desc(PERSONA_TOKENS.lukas)).toBe(catalogT('v2.student.personas', 'de')('lukas.desc'))
+    expect(px.desc(PERSONA_TOKENS.lukas)).not.toMatch(VI_LETTERS)
   })
 
   it('en: vị trí Việt trong dữ liệu được dịch; catalog en/de của persona, companionSelect, chatBubble không còn tiếng Việt', () => {

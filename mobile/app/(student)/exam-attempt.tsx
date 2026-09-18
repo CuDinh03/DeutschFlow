@@ -21,7 +21,9 @@ import {
 GaGlyph } from '@/components/ui'
 import { attemptTotalScore, finishPayload, parseExamSections, skippedSectionsLabel, gateVerdict, gateLabel, NONE_OF_THEM, type AttemptResultDto, type ExamGate, type ExamObjItem, type ExamObjGroup, itemChoices } from '@/lib/examApi'
 import { ExamAudio } from '@/components/exam/ExamAudio'
+import { HoerenGate, type HoerenGatePhase } from '@/components/exam/HoerenGate'
 import { TelcGapText } from '@/components/exam/TelcGapText'
+import { ReadingPassage } from '@/components/exam/ReadingPassage'
 import { TextInput } from 'react-native'
 import { pollAsyncJob, AsyncJobFailedError, AsyncJobTimeoutError } from '@/lib/asyncJobs'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -43,6 +45,8 @@ export default function ExamAttemptScreen() {
   const [submitting, setSubmitting] = useState(false)
   const [score, setScore] = useState<number | null>(null)
   const [gates, setGates] = useState<ExamGate[] | undefined>(undefined)
+  // Pha cổng nghi thức từng Teil nghe (đề telc) — khoá theo phần + Teil, sống suốt bài thi.
+  const [hoerenPhases, setHoerenPhases] = useState<Record<string, HoerenGatePhase>>({})
   // Bài ĐÃ nộp lên server (202 nhận job) — kể cả khi poll điểm sau đó quá hạn.
   const [finishAccepted, setFinishAccepted] = useState(false)
 
@@ -327,7 +331,14 @@ export default function ExamAttemptScreen() {
                 {section.maxPoints != null ? <Caption>{section.maxPoints} điểm</Caption> : null}
               </View>
 
-              {section.groups.map((group, gi) => (
+              {section.groups.map((group, gi) => {
+                // Cổng nghi thức (đề telc): Ansage → đọc câu hỏi → nghe được. Đề Goethe không khai ⇒ không cổng.
+                const gateKey = `${section.name}-${group.title}`
+                const gatePhase: HoerenGatePhase | undefined = group.ansage ? (hoerenPhases[gateKey] ?? 'idle') : undefined
+                const audioLocked = gatePhase !== undefined && gatePhase !== 'ready'
+                // Chưa bấm bắt đầu thì câu hỏi còn ẩn — cho đọc trước là vô hiệu hoá thời gian đọc của đề thật.
+                const hideBody = gatePhase === 'idle'
+                return (
                 <View key={gi} style={{ gap: space[3] }}>
                   <Caption>{group.title}</Caption>
                   {group.instruction ? (
@@ -336,8 +347,19 @@ export default function ExamAttemptScreen() {
                     </ThemedText>
                   ) : null}
 
-                  {group.audio ? (
-                    <ExamAudio script={group.audio} label={group.title} maxPlays={group.maxPlays} />
+                  {group.ansage ? (
+                    <HoerenGate
+                      title={group.title}
+                      ansage={group.ansage}
+                      readingSeconds={group.readingSeconds ?? 0}
+                      framing={group.framing}
+                      phase={gatePhase ?? 'idle'}
+                      onPhaseChange={(phase) => setHoerenPhases((prev) => ({ ...prev, [gateKey]: phase }))}
+                    />
+                  ) : null}
+
+                  {!hideBody && group.audio ? (
+                    <ExamAudio script={group.audio} label={group.title} maxPlays={group.maxPlays} locked={audioLocked} />
                   ) : null}
 
                   {/* Kho lựa chọn dùng chung cả Teil — in một lần ở đầu như đề giấy. */}
@@ -353,6 +375,13 @@ export default function ExamAttemptScreen() {
                     </View>
                   ) : null}
 
+                  {group.stimulusAd ? (
+                    <View style={{ gap: space[1], borderWidth: 1.5, borderColor: c.borderStrong, borderRadius: radius.md, padding: space[3] }}>
+                      <Caption>Mẩu tin mà bức thư trả lời</Caption>
+                      <ThemedText variant="body">{group.stimulusAd}</ThemedText>
+                    </View>
+                  ) : null}
+
                   {group.gappedText ? (
                     <TelcGapText
                       text={group.gappedText}
@@ -363,31 +392,70 @@ export default function ExamAttemptScreen() {
                   ) : null}
 
                   {group.passage ? (
-                    <View style={{ gap: space[2], backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>
-                      <Caption>Bài đọc</Caption>
-                      <ThemedText variant="body" color="secondary">
-                        {group.passage}
-                      </ThemedText>
+                    group.passageLines || group.vorspann || group.glossary ? (
+                      <ReadingPassage
+                        title={group.passageTitle}
+                        vorspann={group.vorspann}
+                        body={group.passage}
+                        numbered={group.passageLines === true}
+                        glossary={group.glossary}
+                      />
+                    ) : (
+                      <View style={{ gap: space[2], backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>
+                        <Caption>Bài đọc</Caption>
+                        <ThemedText variant="body" color="secondary">
+                          {group.passage}
+                        </ThemedText>
+                      </View>
+                    )
+                  ) : null}
+
+                  {group.examples ? (
+                    <View style={{ gap: space[2], borderWidth: 1, borderStyle: 'dashed', borderColor: c.border, borderRadius: radius.md, padding: space[3] }}>
+                      <Caption>Ví dụ (Beispiele)</Caption>
+                      {group.examples.map((ex, i) => (
+                        <View key={i} style={{ flexDirection: 'row', gap: space[2], alignItems: 'flex-start' }}>
+                          <ThemedText variant="caption" color="faint">{ex.label ?? `0${i + 1}`}</ThemedText>
+                          <ThemedText variant="body" color="secondary" style={{ flex: 1 }}>{ex.situation}</ThemedText>
+                          <ThemedText variant="bodyStrong">{ex.answer === NONE_OF_THEM ? 'không' : ex.answer}</ThemedText>
+                        </View>
+                      ))}
                     </View>
                   ) : null}
 
-                  {group.items.map((item) => (
-                    <QuestionCard
-                      key={item.id}
-                      item={item}
-                      group={group}
-                      answers={answers}
-                      selected={answers[item.id]}
-                      onSelect={(val) => setAnswers((prev) => ({ ...prev, [item.id]: val }))}
-                    />
+                  {!hideBody && group.items.map((item) => (
+                    <View key={item.id} style={{ gap: space[2] }}>
+                      {item.audio ? (
+                        <ExamAudio script={item.audio} label={item.question} maxPlays={group.maxPlays} locked={audioLocked} compact />
+                      ) : null}
+                      <QuestionCard
+                        item={item}
+                        group={group}
+                        answers={answers}
+                        selected={answers[item.id]}
+                        onSelect={(val) => setAnswers((prev) => ({ ...prev, [item.id]: val }))}
+                      />
+                    </View>
                   ))}
                 </View>
-              ))}
+                )
+              })}
 
               {section.writing.map((task) => (
                 <Card key={task.answerKey} style={{ gap: space[3] }}>
                   {task.instruction ? <ThemedText variant="title">{task.instruction}</ThemedText> : null}
-                  {task.prompt ? (
+                  {/* Đề telc in nguyên văn E-Mail của bạn (Von/Betreff/thân thư); có nó thì dòng prompt là thừa. */}
+                  {task.stimulus ? (
+                    <View style={{ gap: space[2], borderWidth: 1.5, borderColor: c.borderStrong, borderRadius: radius.md, padding: space[3] }}>
+                      <Caption>
+                        {task.stimulus.type === 'AD' ? 'Mẩu tin mà bài viết trả lời'
+                          : task.stimulus.type === 'LETTER' ? 'Thư bạn nhận được' : 'E-Mail bạn nhận được'}
+                      </Caption>
+                      {task.stimulus.from ? <ThemedText variant="body"><ThemedText variant="body" color="secondary">Từ: </ThemedText>{task.stimulus.from}</ThemedText> : null}
+                      {task.stimulus.subject ? <ThemedText variant="body"><ThemedText variant="body" color="secondary">Chủ đề: </ThemedText>{task.stimulus.subject}</ThemedText> : null}
+                      <ThemedText variant="body">{task.stimulus.body}</ThemedText>
+                    </View>
+                  ) : task.prompt ? (
                     <View style={{ gap: space[2], backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>
                       <ThemedText variant="body" color="secondary">{task.prompt}</ThemedText>
                     </View>

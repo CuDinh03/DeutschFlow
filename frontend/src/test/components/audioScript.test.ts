@@ -79,3 +79,25 @@ describe('ngân sách lượt nghe', () => {
     expect(playsLeft(2, 5)).toBe(0)
   })
 })
+
+describe('bài nghe của từng câu (nghi thức telc, 17/09/2026)', () => {
+  it('câu không có bài nghe ⇒ null; chuỗi ⇒ một lượt với giọng của người nói', async () => {
+    const { itemTurns, needsPersonaVoice } = await import('@/components/exam/audioScript')
+    expect(itemTurns({})).toBeNull()
+    expect(itemTurns({ audio_script: 'Ich fahre mit dem Rad.', speaker: 'PARTNER', person: 'Jonas' })).toEqual([
+      { speaker: 'PARTNER', name: 'Jonas', text: 'Ich fahre mit dem Rad.' },
+    ])
+    // Đề Goethe: chuỗi, không vai, không câu dẫn ⇒ nhánh giọng máy như cũ.
+    expect(needsPersonaVoice({ audio_script: 'Guten Tag.' })).toBe(false)
+    expect(needsPersonaVoice({ audio_script: 'Guten Tag.', speaker: 'PRUEFER' })).toBe(true)
+  })
+
+  it('câu dẫn tình huống đi TRƯỚC bài, bằng giọng người dẫn, và được đánh dấu để hiện nhãn riêng', async () => {
+    const { itemTurns } = await import('@/components/exam/audioScript')
+    expect(itemTurns({ audio_script: 'Hallo, hier ist Nadine.', lead_in_de: 'Sie hören eine Nachricht auf dem Anrufbeantworter.', speaker: 'PRUEFER' }))
+      .toEqual([
+        { speaker: 'PRUEFER', text: 'Sie hören eine Nachricht auf dem Anrufbeantworter.', kind: 'LEAD_IN' },
+        { speaker: 'PRUEFER', name: undefined, text: 'Hallo, hier ist Nadine.' },
+      ])
+  })
+})

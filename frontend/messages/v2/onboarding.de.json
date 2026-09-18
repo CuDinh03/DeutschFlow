@@ -61,6 +61,19 @@
       "noteA0": "Deine ersten Schritte sind <b>Alphabet, Aussprache und Begrüßungen</b>.",
       "notePlacement": "Du kannst einen <b>optionalen 5-Minuten-Test</b> machen, um auf dem richtigen Niveau zu starten — oder direkt loslegen."
     },
+    "orgLite": {
+      "cap": "Lernende der Sprachschule",
+      "heading": "Du bist in der Klasse {className}",
+      "headingNoClass": "Du lernst bei {orgName}",
+      "orgLine": "{orgName}",
+      "sub": "Ziele, Lehrplan und Mentor legt deine Sprachschule fest — wähle nur deinen Lernrhythmus und starte die erste Lektion.",
+      "trialUntil": "PRO ist kostenlos bis {date}.",
+      "levelHeading": "Auf welchem Niveau bist du gerade?",
+      "levelSub": "Deine Sprachschule hat noch kein Niveau festgelegt — wähle das passendste; die Lehrkraft kann es später anpassen.",
+      "levelPreset": "Aktuelles Niveau laut Sprachschule: {level}.",
+      "paceHeading": "Wie viel kannst du pro Woche lernen?",
+      "cta": "Lernen starten"
+    },
     "quickWin": {
       "heading": "Probier deinen ersten Satz!",
       "prompt": "Wie sagt man „Guten Morgen“ auf Deutsch?",

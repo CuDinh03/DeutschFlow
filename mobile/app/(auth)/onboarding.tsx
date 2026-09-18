@@ -11,9 +11,12 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { fonts, motion, radius, space, useTheme } from '@/lib/theme'
 import { captureEvent } from '@/lib/analytics'
 import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft } from '@/lib/onboardingDraft'
+import { claimGuestSession, ensureGuestSession, syncGuestSession, type GuestAnswers } from '@/lib/guestSession'
 import { saveDailyGoalMinutes } from '@/lib/dailyGoal'
 import { MENTOR_META, mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { nextAfterProfile } from '@/lib/onboardingRouting'
+import { queryClient } from '@/lib/queryClient'
+import { LEARNING_PROFILE_QUERY_KEY } from '@/lib/learningProfileApi'
 import {
   ONBOARDING_STEP_IDS,
   canLeaveStep,
@@ -25,6 +28,20 @@ import { useBlockBackNavigation } from '@/hooks/useBlockBackNavigation'
 import { BrandMark, Button, Caption, Card, Icon, Pill, Screen, SelectableChip, ThemedText, YellowSquare, GaGlyph } from '@/components/ui'
 import { MentorMonogram } from '@/components/onboarding/MentorMonogram'
 import { StepHeader } from '@/components/onboarding/StepHeader'
+import {
+  CURRENT_LEVELS,
+  DAILY_GOALS,
+  DEFAULT_MINUTES_PER_SESSION,
+  DEFAULT_SESSIONS_PER_WEEK,
+  IconTile,
+  LevelChips,
+  MinuteTile,
+  OptionTile,
+  RadioDot,
+  TitleBlock,
+} from '@/components/onboarding/WizardParts'
+import { OrgLiteWizard } from '@/components/onboarding/OrgLiteWizard'
+import { fetchOnboardingContext, needsLiteProfile, type LiteProfilePayload, type OnboardingContext } from '@/lib/onboardingContext'
 
 // Onboarding for iOS B2C (MVP checklist §5.1): collect goal, target level, and
 // role/industry, then POST /api/onboarding/profile and route straight into the
@@ -51,17 +68,6 @@ interface OnboardingRoute {
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
 
-// Current level feeds the Platform × Level matrix; A0 = absolute beginner.
-// v2: A0 được CHỌN SẴN — đường mặc định phải tường minh, không còn lớp "chưa
-// chạm hàng chip" mơ hồ từng che bug F-1 (QA 2026-08-20).
-const CURRENT_LEVELS: { value: string; label: string }[] = [
-  { value: 'A0', label: 'Mới bắt đầu · A0' },
-  { value: 'A1', label: 'A1' },
-  { value: 'A2', label: 'A2' },
-  { value: 'B1', label: 'B1' },
-  { value: 'B2', label: 'B2' },
-]
-
 const INDUSTRIES: { value: string; label: string; glyph: GlyphName }[] = [
   { value: 'IT', label: 'CNTT', glyph: 'laptop' },
   { value: 'Pflege', label: 'Điều dưỡng', glyph: 't_health' },
@@ -86,17 +92,6 @@ const MOTIVATIONS: { value: string; label: string; desc: string; glyph: GlyphNam
   { value: 'EXAM', label: 'Thi chứng chỉ', desc: 'Goethe · telc · TestDaF', glyph: 'thinoi', goal: 'CERT' },
   { value: 'HOBBY', label: 'Sở thích', desc: 'Học cho chính mình', glyph: 't_hobby', goal: 'WORK' },
 ]
-
-// Daily study goal (minutes) — the streak anchor.
-const DAILY_GOALS: { value: string; tag: string }[] = [
-  { value: '5', tag: 'Tranh thủ' },
-  { value: '10', tag: 'Nhẹ nhàng' },
-  { value: '15', tag: 'Đều đặn' },
-  { value: '20', tag: 'Nghiêm túc' },
-]
-
-const DEFAULT_SESSIONS_PER_WEEK = 5
-const DEFAULT_MINUTES_PER_SESSION = 15
 
 // VoiceOver/TalkBack không tự biết wizard vừa đổi bước (nội dung thay tại chỗ,
 // không có điều hướng) — đọc to tiêu đề bước mới mỗi lần chuyển.
@@ -123,8 +118,32 @@ export default function OnboardingScreen() {
   // Value-first auth inversion: a guest runs the funnel before signing up.
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const isGuest = !isLoggedIn
+  // Taxonomy onb_v3 (spec §6.2): chặng đầu funnel — không có nó thì tỷ lệ rơi ở bước 1 vô nghĩa.
+  useEffect(() => {
+    captureEvent('onboarding_started', { guest: !isLoggedIn })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [guestQuickWin, setGuestQuickWin] = useState(false)   // guest: quick-win + signup gate
-  const [resuming, setResuming] = useState(false)             // authed: replaying a guest draft
+  // Đợt 2 (17/09): phiên khách sống trên server (72 h) — best-effort, server từ chối thì phễu vẫn
+  // chạy bằng draft SecureStore như trước.
+  useEffect(() => {
+    if (!isLoggedIn) void ensureGuestSession('vi')
+  }, [isLoggedIn])
+  // Màn "Đang tạo lộ trình…": bật khi replay draft khách SAU đăng ký, và (M-13) cả khi người
+  // đăng ký thẳng bấm lưu — hai đường vào cùng một màn chờ, không phải chỉ đường khách.
+  const [resuming, setResuming] = useState(false)
+  // Đợt 5 (17/09): học viên trung tâm (ORG_ROSTER | ORG_INVITE) chưa có plan đi bản rút gọn
+  // PROFILE_LITE thay vì wizard 4 bước. Chỉ tin `accountSource` từ GET /onboarding/context; lỗi
+  // mạng / backend cũ ⇒ null ⇒ phễu thường như trước (không chặn ai).
+  const [orgContext, setOrgContext] = useState<OnboardingContext | null>(null)
+  useEffect(() => {
+    if (!isLoggedIn) return
+    let active = true
+    void fetchOnboardingContext().then((ctx) => {
+      if (active && needsLiteProfile(ctx)) setOrgContext(ctx)
+    })
+    return () => { active = false }
+  }, [isLoggedIn])
 
   const stepId: OnboardingStepId = ONBOARDING_STEP_IDS[step]
   const isLastStep = step === ONBOARDING_STEP_IDS.length - 1
@@ -163,6 +182,34 @@ export default function OnboardingScreen() {
     if (!isLoggedIn) return
     let active = true
     ;(async () => {
+      // Đợt 2 (17/09): CLAIM phiên khách trên server TRƯỚC — server phát lại hồ sơ (UPSERT) ngay trong
+      // claim, nên nhánh này KHÔNG POST /profile. Draft SecureStore chỉ còn là đường lùi (server hỏng,
+      // phiên hết hạn). I-7: 'foreign' = phiên của người khác ⇒ draft đã bị vứt, hiện wizard trống.
+      const claim = await claimGuestSession()
+      if (!active) return
+      if (claim.status === 'claimed') {
+        const hasPlan = await api.get<{ hasPlan: boolean }>('/onboarding/status')
+          .then(({ data }) => data?.hasPlan === true, () => false)
+        captureEvent('onboarding_session_claimed', { alreadyClaimed: claim.alreadyClaimed, hasPlan })
+        if (!active) return
+        if (hasPlan) {
+          setResuming(true)
+          const a: GuestAnswers = claim.answers ?? {}
+          const minutes = a.dailyGoalMinutes ?? DEFAULT_MINUTES_PER_SESSION
+          void useTourStore.getState().markDone('profile_done')
+          void queryClient.invalidateQueries({ queryKey: [...LEARNING_PROFILE_QUERY_KEY] })
+          captureEvent('onboarding_completed', { goalType: a.goalType ?? null, targetLevel: a.targetLevel ?? null })
+          captureEvent('onboarding_profile_saved', { goalType: a.goalType ?? null, targetLevel: a.targetLevel ?? null, resumed: true, via: 'claim' })
+          captureEvent('onboarding_motivation_selected', { motivation: a.motivation ?? null, goalType: a.goalType ?? null })
+          captureEvent('onboarding_daily_goal_set', { minutes })
+          await saveDailyGoalMinutes(minutes)
+          router.replace(nextAfterProfile())
+          return
+        }
+        // Claim được nhưng phiên chưa có hồ sơ (khách rời trước bước trình độ) → thử draft.
+      } else if (claim.status === 'foreign') {
+        return
+      }
       const draft = await readOnboardingDraft()
       if (!active || !draft) return
       setResuming(true)
@@ -193,7 +240,11 @@ export default function OnboardingScreen() {
         // trên (profile_done || first_sentence) nên thoát app giữa chừng không còn
         // khoá vĩnh viễn checklist tuần đầu + nhắc học (F-2).
         void useTourStore.getState().markDone('profile_done')
+        // Màn Nói/Thi chọn sẵn band theo currentLevel (hooks/useLearnerLevel) — hồ sơ vừa đổi thì cache phải rơi.
+        void queryClient.invalidateQueries({ queryKey: [...LEARNING_PROFILE_QUERY_KEY] })
         captureEvent('onboarding_completed', { goalType: draft.goalType, targetLevel: draft.targetLevel })
+        // Di trú spec §6.3: tên cũ nghĩa là "đã lưu hồ sơ" — bắn song song tên đúng nghĩa.
+        captureEvent('onboarding_profile_saved', { goalType: draft.goalType, targetLevel: draft.targetLevel, resumed: true })
         // Bắn đủ như nhánh authed — thiếu ở đây thì phễu lệch giữa hai đường vào
         // và không so được người dùng khách với người đăng ký thẳng (F-12).
         captureEvent('onboarding_motivation_selected', { motivation: draft.motivation, goalType: draft.goalType })
@@ -250,10 +301,15 @@ export default function OnboardingScreen() {
     if (isGuest) {
       // Value-first: a guest sees a quick win + signup gate before anything is saved server-side.
       void Haptics.selectionAsync()
+      void syncGuestSession('TASTE', guestAnswersSnapshot())
       setGuestQuickWin(true)
       return
     }
     setSubmitting(true)
+    // M-13 (Đợt 0 17/09): người đăng ký thẳng cũng thấy màn "Đang tạo lộ trình…" trong lúc POST
+    // /onboarding/profile + GET /onboarding/route — trước đây chỉ nhánh replay-draft có. Chỉ là cờ
+    // hiển thị: payload, analytics, draft, profile_done, nextAfterProfile() giữ nguyên.
+    setResuming(true)
     try {
       await api.post('/onboarding/profile', {
         goalType,
@@ -272,11 +328,13 @@ export default function OnboardingScreen() {
       })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       void useTourStore.getState().markDone('profile_done')   // xem ghi chú F-2 ở nhánh resume-draft
+      void queryClient.invalidateQueries({ queryKey: [...LEARNING_PROFILE_QUERY_KEY] })
       // Dọn draft còn sót: ca "resume POST hỏng → form được nạp lại → user bấm
       // lưu lại" đi qua đúng nhánh này, và draft cũ không được phép replay ở lần
       // đăng nhập sau (F-10).
       void clearOnboardingDraft()
       captureEvent('onboarding_completed', { goalType, targetLevel })
+      captureEvent('onboarding_profile_saved', { goalType, targetLevel, resumed: false })
       captureEvent('onboarding_motivation_selected', { motivation, goalType })
       captureEvent('onboarding_daily_goal_set', { minutes: parseInt(dailyGoal, 10) })
 
@@ -301,6 +359,8 @@ export default function OnboardingScreen() {
       void route
       router.replace(nextAfterProfile())
     } catch (e) {
+      // Lỗi → trả lại form (state còn nguyên) + báo lỗi như trước.
+      setResuming(false)
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       Alert.alert('Không lưu được', apiMessage(e))
     } finally {
@@ -308,9 +368,54 @@ export default function OnboardingScreen() {
     }
   }
 
+  /**
+   * PROFILE_LITE (Đợt 5): học viên trung tâm lưu nhịp học (+ trình độ nếu thiếu) rồi đi THẲNG Câu
+   * đầu tiên (I-11: ORG_* sau plan_ready → FIRST_LESSON, không TASTE/PATH_CHOICE). Cùng đường hậu
+   * kỳ với handleSubmit (profile_done, cache hồ sơ, draft, dailyGoal, nextAfterProfile) — chỉ payload
+   * khác và không hỏi /onboarding/route (ma trận chỉ còn phục vụ analytics của phễu đầy đủ).
+   */
+  async function handleLiteSubmit(payload: LiteProfilePayload) {
+    setSubmitting(true)
+    setResuming(true)
+    try {
+      await api.post('/onboarding/profile', payload)
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      void useTourStore.getState().markDone('profile_done')
+      void queryClient.invalidateQueries({ queryKey: [...LEARNING_PROFILE_QUERY_KEY] })
+      void clearOnboardingDraft()
+      const base = { goalType: payload.goalType, targetLevel: payload.targetLevel, lite: true, accountSource: orgContext?.accountSource ?? null }
+      captureEvent('onboarding_completed', base)
+      captureEvent('onboarding_profile_saved', { ...base, resumed: false })
+      captureEvent('onboarding_daily_goal_set', { minutes: payload.dailyGoalMinutes })
+      await saveDailyGoalMinutes(payload.dailyGoalMinutes)
+      router.replace(nextAfterProfile())
+    } catch (e) {
+      setResuming(false)
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      Alert.alert('Không lưu được', apiMessage(e))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  /** Bản chụp câu trả lời theo hình dạng chung web/mobile (spec §5.1) — gửi lên phiên khách. */
+  function guestAnswersSnapshot(): GuestAnswers {
+    return {
+      motivation, goalType, currentLevel, targetLevel: targetLevel ?? undefined,
+      industry: goalType === 'WORK' ? industry : null,
+      examType: goalType === 'CERT' ? examType : null,
+      dailyGoalMinutes: parseInt(dailyGoal, 10),
+      sessionsPerWeek: DEFAULT_SESSIONS_PER_WEEK,
+      minutesPerSession: DEFAULT_MINUTES_PER_SESSION,
+      learningSpeed: 'NORMAL',
+    }
+  }
+
   // Guest signup gate: stash the funnel answers, then route to /register to save them.
   async function handleGuestSignup() {
     if (!targetLevel) return
+    // Server trước (claim sẽ phát lại từ đây), draft sau (đường lùi khi server hỏng).
+    void syncGuestSession('AUTH_GATE', guestAnswersSnapshot())
     await saveOnboardingDraft({ motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoal })
     captureEvent('onboarding_signup_prompted', { motivation, goalType })
     router.push('/(auth)/register')
@@ -324,6 +429,8 @@ export default function OnboardingScreen() {
     if (!isLastStep) {
       void Haptics.selectionAsync()
       setStep(step + 1)
+      // Khách: mỗi lần rời bước là một PATCH lên phiên server (best-effort).
+      if (isGuest) void syncGuestSession('PROFILE', guestAnswersSnapshot())
       return
     }
     void handleSubmit()
@@ -336,6 +443,10 @@ export default function OnboardingScreen() {
 
   if (resuming) {
     return <Resuming />
+  }
+  // PROFILE_LITE (Đợt 5): học viên trung tâm — không hỏi mục tiêu/lĩnh vực, mentor do trung tâm quyết.
+  if (orgContext) {
+    return <OrgLiteWizard ctx={orgContext} submitting={submitting} onSubmit={handleLiteSubmit} />
   }
   if (guestQuickWin) {
     return <GuestQuickWin mentor={mentor} onSignup={handleGuestSignup} onBack={() => setGuestQuickWin(false)} />
@@ -554,190 +665,6 @@ export default function OnboardingScreen() {
   )
 }
 
-// ── Wizard building blocks ─────────────────────────────────────────────────────
-
-function TitleBlock({ cap, title, sub }: { cap: string; title: string; sub?: string }) {
-  return (
-    <View style={{ gap: space[2] }}>
-      <Caption>{cap}</Caption>
-      <ThemedText variant="display">{title}</ThemedText>
-      {sub ? (
-        <ThemedText variant="body" color="secondary">
-          {sub}
-        </ThemedText>
-      ) : null}
-    </View>
-  )
-}
-
-/** Chấm radio Galerie: vòng hairline → đĩa gold + check trắng khi chọn. */
-function RadioDot({ selected, color }: { selected: boolean; color?: 'accent' | 'success' }) {
-  const c = useTheme().colors
-  const fill = color === 'success' ? c.success : c.accentText
-  return (
-    <View
-      style={{
-        width: 21,
-        height: 21,
-        borderRadius: radius.full,
-        borderWidth: 2,
-        borderColor: selected ? fill : c.border,
-        backgroundColor: selected ? fill : c.surface,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      {selected ? <Icon icon={Check} size={12} color="onInk" strokeWidth={3.2} /> : null}
-    </View>
-  )
-}
-
-/** Ô icon 40px nền giấy chìm (hoặc mực khi selected) cho các hàng/tile. */
-function IconTile({ glyph, selected = false, size = 40 }: { glyph: GlyphName; selected?: boolean; size?: number }) {
-  const c = useTheme().colors
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: radius.md,
-        backgroundColor: selected ? c.inkSurface : c.surfaceSunken,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <GaGlyph name={glyph} size={Math.round(size * 0.5)} ink={selected ? 'onInk' : 'secondary'} />
-    </View>
-  )
-}
-
-function OptionTile({
-  label,
-  desc,
-  glyph,
-  selected,
-  onPress,
-}: {
-  label: string
-  desc: string
-  glyph: GlyphName
-  selected: boolean
-  onPress: () => void
-}) {
-  const c = useTheme().colors
-  return (
-    <SelectableChip
-      label={`${label} — ${desc}`}
-      selected={selected}
-      onPress={onPress}
-      style={{
-        flexBasis: '47%',
-        flexGrow: 1,
-        gap: space[2],
-        padding: space[3] + 2,
-        borderRadius: radius.md,
-        borderWidth: selected ? 2 : 1,
-        borderColor: selected ? c.accentText : c.border,
-        backgroundColor: selected ? c.accentSoft : c.surface,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <IconTile glyph={glyph} selected={selected} size={38} />
-        <RadioDot selected={selected} />
-      </View>
-      <View style={{ gap: 2 }}>
-        <ThemedText style={{ fontFamily: fonts.displaySemi, fontSize: 16.5, lineHeight: 20 }}>{label}</ThemedText>
-        <ThemedText variant="caption" color="secondary">
-          {desc}
-        </ThemedText>
-      </View>
-    </SelectableChip>
-  )
-}
-
-function LevelChips({
-  options,
-  selected,
-  onSelect,
-}: {
-  options: { value: string; label: string }[]
-  selected: string | null
-  onSelect: (value: string) => void
-}) {
-  const c = useTheme().colors
-  return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
-      {options.map((opt) => {
-        const active = selected === opt.value
-        return (
-          <SelectableChip
-            key={opt.value}
-            label={opt.label}
-            selected={active}
-            onPress={() => onSelect(opt.value)}
-            style={{
-              paddingHorizontal: space[4],
-              paddingVertical: space[3],
-              borderRadius: radius.md,
-              borderWidth: 1,
-              borderColor: active ? c.accentText : c.border,
-              backgroundColor: active ? c.accentSoft : c.surface,
-            }}
-          >
-            <ThemedText variant="bodyStrong" color={active ? 'primary' : 'secondary'}>
-              {opt.label}
-            </ThemedText>
-          </SelectableChip>
-        )
-      })}
-    </View>
-  )
-}
-
-function MinuteTile({
-  minutes,
-  tag,
-  selected,
-  onPress,
-}: {
-  minutes: string
-  tag: string
-  selected: boolean
-  onPress: () => void
-}) {
-  const c = useTheme().colors
-  return (
-    <SelectableChip
-      label={`${minutes} phút mỗi ngày — ${tag}`}
-      selected={selected}
-      onPress={onPress}
-      style={{
-        flexBasis: '47%',
-        flexGrow: 1,
-        gap: space[1],
-        padding: space[4],
-        borderRadius: radius.md,
-        borderWidth: selected ? 2 : 1,
-        borderColor: selected ? c.accentText : c.border,
-        backgroundColor: selected ? c.accentSoft : c.surface,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[1] }}>
-          <ThemedText variant="monoLg">{minutes}</ThemedText>
-          <ThemedText variant="caption" color="secondary">
-            phút
-          </ThemedText>
-        </View>
-        {selected ? <RadioDot selected /> : null}
-      </View>
-      <ThemedText variant="caption" color={selected ? 'primary' : 'secondary'}>
-        {tag}
-      </ThemedText>
-    </SelectableChip>
-  )
-}
-
 function IndustryTile({
   label,
   glyph,
@@ -928,6 +855,9 @@ function GuestQuickWin({
                 onPress={() => {
                   void Haptics.selectionAsync()
                   setChoice(opt)
+                  // Taxonomy onb_v3: bắn cả đúng lẫn sai (tên cũ chỉ bắn khi đúng ⇒ không đo được tỷ lệ sai).
+                  captureEvent('guest_activity_completed', { kind: 'quick_win', correct })
+                  void syncGuestSession('TASTE', undefined, { quickWin: { correct, choice: opt } })
                   if (correct) captureEvent('onboarding_quickwin_completed', { correct: true })
                 }}
                 style={{
@@ -1013,7 +943,10 @@ function GuestQuickWin({
   )
 }
 
-/** Brief loading state while a guest's saved draft is replayed after signup. */
+/**
+ * Màn chờ ngắn "Đang tạo lộ trình…" — hiện khi replay draft khách sau đăng ký VÀ khi người đăng
+ * ký thẳng bấm lưu hồ sơ (M-13). Cả hai đường cùng gọi POST /onboarding/profile → GET /onboarding/route.
+ */
 function Resuming() {
   const c = useTheme().colors
   return (

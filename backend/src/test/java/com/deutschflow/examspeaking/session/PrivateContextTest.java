@@ -60,4 +60,33 @@ class PrivateContextTest {
                     .isNotEmpty();
         }
     }
+
+
+    // ── telc B1 dạng 2020 (Gói D, 17/09/2026) ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("partnerOpinion (thẻ ý kiến trái chiều T2) đi vào ngữ cảnh riêng đủ tên/tuổi/nghề/trích dẫn và cho phép đồng tình")
+    void partnerOpinionReachesTheAi() {
+        String ctx = AiInterlocutorService.privateContext(Map.of(
+                "type", "TOPIC_OPINION_PAIR",
+                "thema", "Haustiere in der Wohnung",
+                "candidateOpinion", Map.of("name", "Sophie Berger", "age", 27, "job", "Verkäuferin", "quote", "Mein Hund macht mich glücklich."),
+                "partnerOpinion", Map.of("name", "Markus Weiß", "age", 52, "job", "Steuerberater", "quote", "Tiere in der Stadtwohnung finde ich nicht richtig.")));
+
+        assertThat(ctx).contains("MEINUNGSKARTE").contains("Haustiere in der Wohnung");
+        assertThat(ctx).contains("Markus Weiß, 52, Steuerberater").contains("Tiere in der Stadtwohnung");
+        assertThat(ctx).as("ý kiến của THÍ SINH không phải đề riêng của partner").doesNotContain("Sophie Berger");
+        assertThat(ctx).as("mẹo của người đã thi: bạn thi không ép tranh cãi").containsIgnoringCase("zustimmen");
+    }
+
+    @Test
+    @DisplayName("partnerExtraQuestions (Zusatzfragen của giám khảo cuối T1) đi vào ngữ cảnh, nói rõ chỉ giám khảo hỏi")
+    void partnerExtraQuestionsReachTheAi() {
+        String ctx = AiInterlocutorService.privateContext(Map.of(
+                "type", "CONTACT_CARD",
+                "topics", java.util.List.of("Name", "Sprachen"),
+                "partnerExtraQuestions", java.util.List.of("Was machen Sie am Wochenende am liebsten?")));
+
+        assertThat(ctx).contains("ZUSATZFRAGEN").contains("Was machen Sie am Wochenende am liebsten?").contains("Prüfer");
+    }
 }

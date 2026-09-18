@@ -121,13 +121,18 @@ public class MinorGate {
      *   <li>{@code ADULT} — cho qua, không truy vấn gì thêm;</li>
      *   <li>{@code MINOR_LEGAL} (dưới 16) — chỉ qua khi phạm vi
      *       {@link StudentConsent.Scope#AUDIO_RECORDING} đang {@link ConsentState#GRANTED};</li>
-     *   <li>{@code MINOR_CENTER_POLICY} (16–17) — như trên. Hai mức tuổi khác nhau ở NGHĨA VỤ
-     *       PHÁP LÝ (mức dưới 16 là luật, mức 16–17 là luật nội bộ của trung tâm) nhưng giống nhau
-     *       ở KẾT LUẬN cho đường ghi âm: chưa có đồng ý thì giọng nói không đi đâu cả. Giữ hai
-     *       nhánh riêng để thông điệp nói đúng lý do, và để một đợt sau nới mức 16–17 mà không phải
-     *       sửa lại cấu trúc;</li>
+     *   <li>{@code MINOR_CENTER_POLICY} (16–17) — CHỈ khi là thành viên ACTIVE của một trung tâm
+     *       (phương án D, owner chốt 17/09/2026). Mức 16–17 là luật NỘI BỘ của trung tâm, không phải
+     *       nghĩa vụ pháp lý; áp nó lên một học viên tự đăng ký là bắt em ấy tuân một quy định của
+     *       nơi em không học, và không ai mở lại được (đường ghi đồng ý chỉ có ở {@code /api/org}).
+     *       Trước 17/09 hai nhánh giống nhau ở kết luận; nay khác nhau đúng ở điểm này, và đó là
+     *       lý do chúng được giữ tách từ đầu;</li>
      *   <li>{@code UNKNOWN} — theo {@link UnknownAgeAudioPolicy} cấu hình được.</li>
      * </ul>
+     *
+     * <p>Mọi lần chặn đều mang {@link MinorAudioBlockedException.Contact}: {@code CENTER} khi
+     * người này thuộc một trung tâm (trung tâm mở lại được), {@code NONE} khi không (client giấu
+     * nút "Liên hệ trung tâm", thông điệp nói đường phụ huynh xác nhận đang được làm — Q-04).
      *
      * @param subjectUserId CHỦ THỂ của bản ghi âm — người mà giọng nói thuộc về, không phải người
      *                      bấm nút. Trên các đường ghi âm hiện tại hai người này là một
@@ -143,7 +148,17 @@ public class MinorGate {
         MinorPolicy.Status status = minorLearnerService.statusOf(subjectUserId);
         switch (status) {
             case ADULT -> { /* đủ tuổi — không cần đồng ý của ai */ }
-            case MINOR_LEGAL, MINOR_CENTER_POLICY -> requireAudioConsent(subjectUserId, status);
+            case MINOR_LEGAL -> requireAudioConsent(subjectUserId, status, hasActiveOrgMembership(subjectUserId));
+            case MINOR_CENTER_POLICY -> {
+                if (hasActiveOrgMembership(subjectUserId)) {
+                    requireAudioConsent(subjectUserId, status, true);
+                } else {
+                    // Học viên tự đăng ký 16–17: không có trung tâm nào để áp luật nội bộ, và
+                    // không có ai đi thu đồng ý hộ. Cho qua — KHÔNG hỏi sổ đồng ý.
+                    log.debug("[MinorGate] userId={} 16–17 không thuộc trung tâm — không áp luật nội bộ",
+                            subjectUserId);
+                }
+            }
             case UNKNOWN -> applyUnknownAgePolicy(subjectUserId);
         }
     }
@@ -197,25 +212,35 @@ public class MinorGate {
     // Nội bộ
     // ─────────────────────────────────────────────────────────────────────────
 
-    private void requireAudioConsent(Long subjectUserId, MinorPolicy.Status status) {
+    /** Câu nói thật với học viên không thuộc trung tâm nào: chưa có ai mở lại được, đang làm (Q-04). */
+    private static final String B2C_PENDING_PATH =
+            " Đường xác nhận dành cho cha mẹ/người giám hộ đang được hoàn thiện; khi có, ứng dụng sẽ "
+                    + "hướng dẫn ngay tại đây. Bạn vẫn dùng được mọi phần không cần ghi âm.";
+
+    private void requireAudioConsent(Long subjectUserId, MinorPolicy.Status status, boolean orgMember) {
         ConsentState consent = minorLearnerService.consentStatus(
                 subjectUserId, StudentConsent.Scope.AUDIO_RECORDING);
         if (consent.isEffective()) {
             return;
         }
 
-        log.warn("[MinorGate] Chặn ghi âm cho userId={} (nhóm tuổi={}, đồng ý={})",
-                subjectUserId, status, consent);
+        MinorAudioBlockedException.Contact contact = orgMember
+                ? MinorAudioBlockedException.Contact.CENTER
+                : MinorAudioBlockedException.Contact.NONE;
+        log.warn("[MinorGate] Chặn ghi âm cho userId={} (nhóm tuổi={}, đồng ý={}, liên hệ={})",
+                subjectUserId, status, consent, contact);
 
         if (consent == ConsentState.REVOKED) {
             // Thông điệp KHÔNG được mời đồng ý lại: rút đồng ý rồi mà hệ thống tự hỏi lại là biến
             // quyền rút thành một nút phiền toái. Chỉ nói đường liên hệ, việc cấp lại do người
             // giám hộ chủ động.
+            String reopen = orgMember
+                    ? " Nếu muốn mở lại, người giám hộ liên hệ trung tâm để cấp lại đồng ý."
+                    : " Nếu muốn mở lại, người giám hộ cần cấp lại đồng ý." + B2C_PENDING_PATH;
             throw new MinorAudioBlockedException(
-                    MinorAudioBlockedException.Reason.GUARDIAN_CONSENT_REVOKED, status,
+                    MinorAudioBlockedException.Reason.GUARDIAN_CONSENT_REVOKED, status, contact,
                     "Đồng ý cho phép ghi âm của tài khoản này đã được thu hồi, nên phần luyện nói "
-                            + "tạm thời không dùng được. Nếu muốn mở lại, người giám hộ liên hệ trung tâm "
-                            + "để cấp lại đồng ý.");
+                            + "tạm thời không dùng được." + reopen);
         }
 
         String what = status == MinorPolicy.Status.MINOR_LEGAL
@@ -223,24 +248,39 @@ public class MinorGate {
                         + "người giám hộ trước khi ghi âm giọng nói."
                 : "Theo quy định nội bộ của trung tâm với học viên dưới 18 tuổi, tài khoản này cần "
                         + "đồng ý của cha mẹ hoặc người giám hộ trước khi ghi âm giọng nói.";
+        String howTo = orgMember
+                ? " Vui lòng liên hệ trung tâm để hoàn tất phiếu đồng ý; sau khi trung tâm ghi "
+                        + "nhận, phần luyện nói sẽ mở lại ngay."
+                : B2C_PENDING_PATH;
         throw new MinorAudioBlockedException(
-                MinorAudioBlockedException.Reason.GUARDIAN_CONSENT_REQUIRED, status,
-                what + " Vui lòng liên hệ trung tâm để hoàn tất phiếu đồng ý; sau khi trung tâm ghi "
-                        + "nhận, phần luyện nói sẽ mở lại ngay.");
+                MinorAudioBlockedException.Reason.GUARDIAN_CONSENT_REQUIRED, status, contact,
+                what + howTo);
     }
 
     private void applyUnknownAgePolicy(Long subjectUserId) {
-        if (!shouldBlockUnknownAge(unknownAgeAudioPolicy, subjectUserId)) {
+        if (unknownAgeAudioPolicy == UnknownAgeAudioPolicy.ALLOW) {
+            return;
+        }
+        boolean orgMember = hasActiveOrgMembership(subjectUserId);
+        boolean block = switch (unknownAgeAudioPolicy) {
+            case ALLOW -> false;
+            case BLOCK_ALL -> true;
+            case BLOCK_ORG_MEMBERS -> orgMember;
+        };
+        if (!block) {
             return;
         }
 
-        log.warn("[MinorGate] Chặn ghi âm cho userId={} vì chưa khai ngày sinh (chính sách={})",
-                subjectUserId, unknownAgeAudioPolicy);
+        log.warn("[MinorGate] Chặn ghi âm cho userId={} vì chưa khai ngày sinh (chính sách={}, thành viên={})",
+                subjectUserId, unknownAgeAudioPolicy, orgMember);
+        String howTo = orgMember
+                ? " Vui lòng liên hệ trung tâm để bổ sung ngày sinh vào hồ sơ học viên."
+                : " Vui lòng bổ sung ngày sinh trong màn Hồ sơ.";
         throw new MinorAudioBlockedException(
                 MinorAudioBlockedException.Reason.BIRTH_DATE_REQUIRED, MinorPolicy.Status.UNKNOWN,
+                orgMember ? MinorAudioBlockedException.Contact.CENTER : MinorAudioBlockedException.Contact.NONE,
                 "Tài khoản chưa có ngày sinh nên hệ thống chưa xác định được có cần đồng ý của "
-                        + "người giám hộ hay không, và không gửi bản ghi âm đi khi còn chưa rõ. Vui lòng "
-                        + "liên hệ trung tâm để bổ sung ngày sinh vào hồ sơ học viên.");
+                        + "người giám hộ hay không, và không gửi bản ghi âm đi khi còn chưa rõ." + howTo);
     }
 
     private void requireAiProcessingConsent(Long studentUserId, MinorPolicy.Status status) {

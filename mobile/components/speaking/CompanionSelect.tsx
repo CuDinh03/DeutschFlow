@@ -24,6 +24,8 @@ import {
 } from '@/lib/personas'
 import { PersonaAvatar } from '@/components/speaking/PersonaAvatar'
 import { speakingApi, type SpeakingSessionMode } from '@/lib/speakingApi'
+import { practiceBand } from '@/lib/learnerBand'
+import { useLearnerLevel } from '@/hooks/useLearnerLevel'
 
 export interface StartArgs {
   persona: PersonaToken
@@ -92,7 +94,12 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
   const [position, setPosition] = useState<string | null>(null)
   const [experience, setExperience] = useState<string>('1-2Y')
   const [scenario, setScenario] = useState<string | null>(null)
-  const [cefr, setCefr] = useState<string>('B1')
+  // Trình độ: null = người học CHƯA chạm chip ⇒ lấy theo hồ sơ (A0 → A1), gương web CompanionSelect
+  // (getMyLearningProfile → clamp). Trước 17/09/2026 khởi tạo cứng 'B1' nên tài khoản A0 mở phiên
+  // hội thoại B1 — backend không kẹp lại band client gửi (ChatPrepService.resolveSessionLevel).
+  const [cefrPick, setCefrPick] = useState<string | null>(null)
+  const { currentLevel } = useLearnerLevel()
+  const cefr = cefrPick ?? practiceBand(currentLevel)
 
   // Backend personas carry `difficulty` → used to lock ADVANCED ones for free users.
   const { data: backendPersonas = [] } = useQuery({
@@ -348,7 +355,7 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
                   label={lv}
                   active={cefr === lv}
                   accent={selected.accent}
-                  onPress={() => setCefr(lv)}
+                  onPress={() => setCefrPick(lv)}
                 />
               ))}
             </ConfigGroup>

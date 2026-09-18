@@ -105,7 +105,11 @@ public class ExamSessionOrchestrator {
                 boolean contact = "CONTACT_CARD".equals(firstType);
                 // telc B1 T2. Hai biến thể Vorlage: có biểu đồ và chỉ có đoạn văn — đề thật dùng đoạn
                 // văn là chính, số liệu chỉ thỉnh thoảng, nên cả hai đi chung một kịch bản.
-                boolean vorlage = "TOPIC_GRAPHIC_PAIR".equals(firstType) || "TOPIC_TEXT_PAIR".equals(firstType);
+                // Dạng 2020 (17/09/2026): hai ý kiến trái chiều có tên/tuổi/nghề — cùng ba pha của
+                // Vorlage (thuật lại → ý kiến có lý do → phản hồi), chỉ khác gợi ý và cách bạn thi
+                // phản hồi (đồng tình + bổ sung, không ép tranh cãi).
+                boolean opinion = "TOPIC_OPINION_PAIR".equals(firstType);
+                boolean vorlage = "TOPIC_GRAPHIC_PAIR".equals(firstType) || "TOPIC_TEXT_PAIR".equals(firstType) || opinion;
                 // telc B1 T3 „Gemeinsam eine Aufgabe lösen": giống lập kế hoạch, nhưng đề thật đòi
                 // nói rõ AI LÀM VIỆC GÌ ("wer welche Aufgaben übernimmt"). Thẻ riêng của telc để
                 // không dùng chung với Goethe B1 T1 nữa.
@@ -135,6 +139,7 @@ public class ExamSessionOrchestrator {
                     boolean vorlageOpinion = vorlage && k == 1 && !last;
                     String hint = k == 0
                             ? (calendar ? "Mở đầu: đề xuất một ngày/giờ còn trống trong lịch CỦA BẠN (bạn thi có lịch khác)."
+                               : opinion ? "Pha 1 — thông tin: thuật lại NGẮN GỌN ý kiến trên thẻ của bạn — người đó là ai (tên, tuổi, nghề) và nghĩ gì. Đừng đọc nguyên văn."
                                : vorlage ? "Pha 1 — thông tin: thuật lại NGẮN GỌN Vorlage của bạn nói gì. Đừng kể dài, phần chính là trao đổi ở sau."
                                : contact ? "Mở đầu: chào hỏi, giới thiệu và hỏi bạn thi về một chủ đề trên thẻ."
                                : debate ? "Mở đầu: nêu rõ quan điểm của bạn về câu hỏi và một lý do chính."
@@ -149,21 +154,24 @@ public class ExamSessionOrchestrator {
                                 : vorlageOpinion
                                     ? "Pha 2 — ý kiến: kể trải nghiệm của chính bạn về chủ đề này và nêu ý kiến KÈM LÝ DO (weil/deshalb)."
                                     : (calendar ? "Phản hồi: đồng ý nếu bạn rảnh, nếu không thì từ chối có lý do và đề xuất giờ khác."
+                                       : opinion ? "Pha 3 — phản hồi: bám vào điều bạn thi vừa nói — đồng tình VÀ bổ sung một ý/trải nghiệm của bạn, hoặc phản đối có lý do. Không cần tranh cãi; hỏi lại một câu."
                                        : vorlage ? "Pha 3 — phản hồi: bám vào điều bạn thi vừa nói — đồng tình, phản đối có lý do, hoặc hỏi lại một câu."
                                        : contact ? "Trả lời và hỏi lại bạn thi về một chủ đề khác trên thẻ."
                                        : debate ? "Phản biện lập luận vừa nghe (nhượng bộ một phần rồi đưa lý lẽ ngược lại)."
                                        : taskSituation ? "Phản hồi bạn thi có lý do, và phân công: ai làm việc gì."
                                        : "Phản hồi bạn thi: đồng ý/phản đối có lý do, đề xuất tiếp.");
                     String hintKey = k == 0
-                            ? (calendar ? "OPEN_CALENDAR" : vorlage ? "OPEN_VORLAGE" : contact ? "OPEN_CONTACT"
+                            ? (calendar ? "OPEN_CALENDAR" : opinion ? "OPEN_MEINUNG" : vorlage ? "OPEN_VORLAGE" : contact ? "OPEN_CONTACT"
                                : debate ? "OPEN_DEBATE" : taskSituation ? "OPEN_TASK_SITUATION" : "OPEN_DEFAULT")
                             : last
                                 ? (calendar ? "CLOSE_CALENDAR" : debate ? "CLOSE_DEBATE" : vorlage ? "CLOSE_VORLAGE"
                                    : taskSituation ? "CLOSE_TASK_SITUATION" : "CLOSE_DEFAULT")
                                 : vorlageOpinion ? "OPINION_VORLAGE"
-                                    : (calendar ? "REACT_CALENDAR" : vorlage ? "REACT_VORLAGE" : contact ? "REACT_CONTACT"
+                                    : (calendar ? "REACT_CALENDAR" : opinion ? "AGREE_AND_ADD" : vorlage ? "REACT_VORLAGE" : contact ? "REACT_CONTACT"
                                        : debate ? "REACT_DEBATE" : taskSituation ? "REACT_TASK_SITUATION" : "REACT_DEFAULT");
-                    String aiAction = last ? "CONCLUDE" : (vorlageInfo ? "REPORT_OWN" : "REACT_AND_ASK");
+                    String aiAction = last ? "CONCLUDE"
+                            : vorlageInfo ? (opinion ? "REPORT_OPINION" : "REPORT_OWN")
+                            : opinion ? "AGREE_AND_ADD" : "REACT_AND_ASK";
                     steps.add(new SessionPlan.Step(i++, k == 0 ? "SPEAK" : "REACT", 0, "PARTNER", aiAction, hint, hintKey));
                 }
             }

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { ArrowRight, CheckCircle2, Mic, Sparkles, Star, Volume2 } from 'lucide-react'
 import { beginnerApi, type BeginnerItem, type BeginnerSessionResponse } from '@/lib/beginnerApi'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
+import { useTracking } from '@/hooks/useTracking'
 import { GaBtn, GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ import { GaBtn, GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState } from '@/co
 export default function V2StudentBeginnerPage() {
   usePageTimeTracker('beginner')
   const t = useTranslations('v2.student.beginner')
+  const { trackEvent } = useTracking()
 
   const [session, setSession] = useState<BeginnerSessionResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -42,6 +44,10 @@ export default function V2StudentBeginnerPage() {
       .finally(() => setLoading(false))
   }
   useEffect(load, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // ACTIVATION (kế hoạch 17/09 §4.6): "Ngày 1" là bài đầu tiên của A0 trên web. Sự kiện
+  // client là bản đối chiếu; mốc thật `activated_at` do server ghi ở hook của
+  // POST /beginner/first-session/complete — client không tự khai.
+  useEffect(() => { trackEvent('first_lesson_started', { kind: 'beginner_session' }) }, [trackEvent])
 
   async function handleComplete() {
     if (completing || completed) return
@@ -49,6 +55,7 @@ export default function V2StudentBeginnerPage() {
     try {
       await beginnerApi.completeFirstSession()
       setCompleted(true)
+      trackEvent('first_lesson_completed', { kind: 'beginner_session' })
     } catch {
       setError(t('completeError'))
     } finally {

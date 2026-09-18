@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import com.deutschflow.user.service.UserAvatarService;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -48,6 +49,9 @@ class AuthServiceRefreshTest {
     private AuthenticationManager authenticationManager;
     @Mock
     private StudentTrialSubscriptionProvisioner studentTrialSubscriptionProvisioner;
+
+    @Mock
+    private UserAvatarService userAvatarService;
 
     @InjectMocks
     private AuthService authService;

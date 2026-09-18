@@ -2,6 +2,7 @@
 // Backend GET /api/mock-exams?cefrLevel=X returns raw snake_case rows.
 
 import api from './api'
+import { isWritingStimulus, orderedWritingPoints, type WritingStimulus } from '@/lib/writingTask'
 
 export interface ExamVariant {
   id: number
@@ -35,6 +36,17 @@ export function mapExam(e: RawMockExam): ExamVariant {
 // speaking. The app supports the auto-scored objective LESEN items only —
 // true/false and single-choice MCQ — and surfaces the rest as web-only.
 
+/** Một lượt nói của bài nghe. `kind: 'LEAD_IN'` = câu dẫn tình huống (giọng người dẫn), hiện nhãn riêng. */
+export interface AudioTurn {
+  speaker?: string
+  name?: string
+  text: string
+  kind?: 'LEAD_IN'
+}
+
+/** Giọng đọc Ansage, câu khung và câu dẫn: luôn là người dẫn (giọng giám khảo). */
+export const NARRATOR_ROLE = 'PRUEFER'
+
 export interface ExamObjItem {
   id: string
   question: string
@@ -44,6 +56,8 @@ export interface ExamObjItem {
   optionKeys?: string[]
   /** Số ô trống của câu, với hai dạng điền khuyết của telc (`___31___`). */
   gap?: number
+  /** Bài nghe riêng của câu (HV Teil 1/3 telc): câu dẫn rồi bài. Vắng = câu không có audio riêng. */
+  audio?: AudioTurn[]
 }
 
 /** Bốn dạng bài riêng của telc — kho lựa chọn nằm ở cấp Teil, không suy được từ từng câu. */
@@ -59,6 +73,18 @@ export interface ExamObjGroup {
   instruction?: string
   /** Bài đọc chung của Teil (teil.text hoặc teil.context trong seed) — hiện MỘT lần đầu nhóm. */
   passage?: string
+  /**
+   * Bài đọc dài kiểu đề thật (LV Teil 2 telc, 17/09/2026): tiêu đề, Vorspann in đậm, thân bài
+   * đánh số dòng mỗi 5 dòng theo dòng tác giả ngắt, chú thích từ khó. Vắng = dựng `passage` như cũ.
+   */
+  passageTitle?: string
+  vorspann?: string
+  passageLines?: boolean
+  glossary?: { term: string; explanation: string }[]
+  /** Beispiele in trước các câu (LV Teil 3: một ghép được, một `x`); không chiếm lựa chọn. */
+  examples?: { label?: string; situation: string; answer: string }[]
+  /** Mẩu tin mà bức thư SB Teil 2 trả lời — in ngay trên thư. */
+  stimulusAd?: string
   items: ExamObjItem[]
   /** Dạng bài telc; vắng mặt = đề Goethe, dựng như cũ. */
   telcType?: TelcTeilType
@@ -73,7 +99,37 @@ export interface ExamObjGroup {
   /** Số lần được nghe (phần Nghe). Bỏ trống = không giới hạn. */
   maxPlays?: number
   /** Kịch bản nghe: chuỗi (một giọng) hoặc mảng lượt nói (hai giọng). */
-  audio?: string | { speaker?: string; name?: string; text: string }[]
+  audio?: string | AudioTurn[]
+  /**
+   * Nghi thức bài nghe telc (17/09/2026): Ansage nguyên văn đọc trước Teil, giây đọc câu hỏi
+   * trước khi phát (30 / 60 / 0), câu khung của Teil 1. Vắng `ansage` = không có cổng (đề Goethe).
+   */
+  ansage?: string
+  readingSeconds?: number
+  framing?: string
+}
+
+/**
+ * Các lượt phát của MỘT câu nghe: câu dẫn (nếu có) rồi bài. `null` khi câu không có bài riêng.
+ * Bài là chuỗi thì thành một lượt với giọng `speaker` của câu — Teil 1 telc ra năm giọng xen kẽ
+ * thay vì một giọng máy đọc cả năm người.
+ */
+export function itemAudioTurns(it: Record<string, unknown>): AudioTurn[] | null {
+  const script = it.audio_script
+  let body: AudioTurn[]
+  if (Array.isArray(script) && script.length > 0) {
+    body = (script as AudioTurn[]).filter((turn) => typeof turn?.text === 'string' && turn.text.trim())
+  } else if (typeof script === 'string' && script.trim()) {
+    body = [{
+      speaker: typeof it.speaker === 'string' ? it.speaker : undefined,
+      name: typeof it.person === 'string' ? it.person : undefined,
+      text: script,
+    }]
+  } else {
+    return null
+  }
+  const leadIn = typeof it.lead_in_de === 'string' ? it.lead_in_de.trim() : ''
+  return leadIn ? [{ speaker: NARRATOR_ROLE, text: leadIn, kind: 'LEAD_IN' }, ...body] : body
 }
 
 /** Một nhiệm vụ viết bài (phần Viết). Khoá nộp là `email_<teil>` — hợp đồng với server. */
@@ -81,6 +137,12 @@ export interface ExamWritingTask {
   teil: number
   instruction?: string
   prompt?: string
+  /**
+   * Văn bản mà bài viết trả lời (đề telc 17/09/2026: E-Mail của bạn in nguyên văn). Có nó thì
+   * `prompt` một dòng không in nữa. Đề Goethe không khai ⇒ undefined, dựng như cũ.
+   */
+  stimulus?: WritingStimulus
+  /** Leitpunkte đã xáo thứ tự khi đề khai `shuffle_points` (seed lưu thứ tự hợp lý cho AI). */
   points?: string[]
   answerKey: string
 }
@@ -398,12 +460,22 @@ function parseWritingTeil(teil: Record<string, unknown>): ExamWritingTask | null
   if (Array.isArray(teil.form_fields) && teil.form_fields.length > 0) return null
   const prompt = typeof teil.prompt === 'string' ? teil.prompt
     : typeof teil.input_email === 'string' ? teil.input_email : undefined
+  const stimulus = isWritingStimulus(teil.stimulus)
+    ? {
+        type: typeof teil.stimulus.type === 'string' ? teil.stimulus.type : undefined,
+        from: typeof teil.stimulus.from === 'string' ? teil.stimulus.from : undefined,
+        subject: typeof teil.stimulus.subject === 'string' ? teil.stimulus.subject : undefined,
+        body: teil.stimulus.body,
+      }
+    : undefined
+  const rawPoints = Array.isArray(teil.writing_points) ? teil.writing_points.map(String) : undefined
   return {
     teil: teilNo,
     instruction: typeof teil.instruction_vi === 'string' ? teil.instruction_vi
       : typeof teil.instruction_de === 'string' ? teil.instruction_de : undefined,
     prompt,
-    points: Array.isArray(teil.writing_points) ? teil.writing_points.map(String) : undefined,
+    stimulus,
+    points: rawPoints ? orderedWritingPoints(rawPoints, teil.shuffle_points === true) : undefined,
     answerKey: `email_${teilNo}`,
   }
 }
@@ -468,16 +540,31 @@ function parseObjectiveTeil(teil: Record<string, unknown>): ExamObjGroup | null 
     }
     if (!options && !isTrueFalse) continue // viết / tự luận: chưa hỗ trợ trên app
     const passage = typeof it.text === 'string' ? it.text : undefined
-    items.push({ id, question: label, passage, options, optionKeys, gap })
+    const audio = itemAudioTurns(it) ?? undefined
+    items.push({ id, question: label, passage, options, optionKeys, gap, audio })
   }
 
   if (items.length === 0) return null
   const audio = teil.audio_script
+  const glossaryRaw = Array.isArray(teil.glossary) ? (teil.glossary as Record<string, unknown>[]) : []
+  const glossary = glossaryRaw
+    .filter((g) => typeof g?.term === 'string' && typeof g?.explanation_de === 'string')
+    .map((g) => ({ term: String(g.term), explanation: String(g.explanation_de) }))
+  const examplesRaw = Array.isArray(teil.examples) ? (teil.examples as Record<string, unknown>[]) : []
+  const examples = examplesRaw
+    .filter((e) => typeof e?.situation === 'string' && typeof e?.answer === 'string')
+    .map((e) => ({ label: typeof e.label === 'string' ? e.label : undefined, situation: String(e.situation), answer: String(e.answer) }))
   return {
     title,
     instruction,
     // Teil ghép: context đã thành lựa chọn — không lặp lại thành bài đọc.
     passage: usedMatchingContext ? undefined : teilPassage,
+    passageTitle: typeof teil.title_de === 'string' ? teil.title_de : undefined,
+    vorspann: typeof teil.vorspann_de === 'string' && teil.vorspann_de.trim() ? teil.vorspann_de : undefined,
+    passageLines: teil.context_lines === true,
+    glossary: glossary.length > 0 ? glossary : undefined,
+    examples: examples.length > 0 ? examples : undefined,
+    stimulusAd: typeof teil.stimulus_ad === 'string' && teil.stimulus_ad.trim() ? teil.stimulus_ad : undefined,
     items,
     telcType: telcType ?? undefined,
     pool,
@@ -488,5 +575,10 @@ function parseObjectiveTeil(teil: Record<string, unknown>): ExamObjGroup | null 
     audio: typeof audio === 'string' || Array.isArray(audio)
       ? (audio as ExamObjGroup['audio'])
       : undefined,
+    ansage: typeof teil.ansage_de === 'string' && teil.ansage_de.trim() ? teil.ansage_de.trim() : undefined,
+    readingSeconds:
+      typeof teil.reading_seconds === 'number' && Number.isFinite(teil.reading_seconds) && teil.reading_seconds > 0
+        ? Math.round(teil.reading_seconds) : 0,
+    framing: typeof teil.framing_de === 'string' && teil.framing_de.trim() ? teil.framing_de.trim() : undefined,
   }
 }

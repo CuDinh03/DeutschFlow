@@ -147,3 +147,127 @@ describe('đề Goethe không đổi', () => {
     expect(p.skippedSections).toEqual(['SPRECHEN'])
   })
 })
+
+/**
+ * Nghi thức bài nghe telc (17/09/2026): câu dẫn + giọng người nói ở từng câu, cổng Ansage ở Teil.
+ *
+ * Trước đợt này parser BỎ `audio_script` của từng câu — HV Teil 1 và Teil 3 trên app không có nút
+ * nghe nào (chỉ Teil 2 có audio ở cấp Teil). 10 câu / 50 điểm phần Nghe không làm được trên app
+ * mà không ai báo: câu vẫn hiện, chỉ là không có gì để nghe.
+ */
+describe('nghi thức bài nghe telc trên app', () => {
+  const HOEREN = JSON.stringify({
+    format: 'TELC',
+    sections: [
+      {
+        name: 'HOEREN', max_points: 75,
+        teile: [
+          {
+            teil: 1, max_plays: 1, reading_seconds: 30,
+            ansage_de: 'Sie hören nun fünf kurze Texte.',
+            framing_de: 'Wie kommen Sie zur Arbeit?',
+            items: [
+              { id: 'HV1-41', speaker: 'PRUEFER', question: 'Die Sprecherin fährt Rad.', audio_script: 'Ich fahre Rad.', type: 'RICHTIG_FALSCH' },
+              { id: 'HV1-42', speaker: 'PARTNER', question: 'Der Sprecher fährt Auto.', audio_script: 'Ich fahre Auto.', type: 'RICHTIG_FALSCH' },
+            ],
+          },
+          {
+            teil: 3, max_plays: 2, reading_seconds: 0,
+            ansage_de: 'Sie hören jeden Text zweimal.',
+            items: [
+              { id: 'HV3-56', speaker: 'PRUEFER', lead_in_de: 'Sie hören eine Nachricht auf dem Anrufbeantworter.', question: 'Die Frau sagt ab.', audio_script: 'Hallo, hier ist Nadine.', type: 'RICHTIG_FALSCH' },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('từng câu mang bài nghe riêng: giọng của người nói, câu dẫn đi trước bằng giọng người dẫn', () => {
+    const parsed = parseExamSections(HOEREN)
+    const [t1, t3] = parsed.sections[0].groups
+    expect(t1.items[0].audio).toEqual([{ speaker: 'PRUEFER', name: undefined, text: 'Ich fahre Rad.' }])
+    expect(t1.items[1].audio).toEqual([{ speaker: 'PARTNER', name: undefined, text: 'Ich fahre Auto.' }])
+    expect(t3.items[0].audio).toEqual([
+      { speaker: 'PRUEFER', text: 'Sie hören eine Nachricht auf dem Anrufbeantworter.', kind: 'LEAD_IN' },
+      { speaker: 'PRUEFER', name: undefined, text: 'Hallo, hier ist Nadine.' },
+    ])
+  })
+
+  it('Teil mang cổng nghi thức: Ansage, giây đọc câu hỏi, câu khung; Teil 3 không có giây đọc', () => {
+    const parsed = parseExamSections(HOEREN)
+    const [t1, t3] = parsed.sections[0].groups
+    expect(t1.ansage).toBe('Sie hören nun fünf kurze Texte.')
+    expect(t1.readingSeconds).toBe(30)
+    expect(t1.framing).toBe('Wie kommen Sie zur Arbeit?')
+    expect(t1.maxPlays).toBe(1)
+    expect(t3.ansage).toBe('Sie hören jeden Text zweimal.')
+    expect(t3.readingSeconds).toBe(0)
+    expect(t3.framing).toBeUndefined()
+  })
+
+  it('đề Goethe không khai gì thêm ⇒ không cổng, câu không có bài riêng, như trước', () => {
+    const goethe = JSON.stringify({
+      sections: [{ name: 'HOEREN', max_points: 25, teile: [{ teil: 1, audio_script: 'Guten Tag.',
+        items: [{ id: 'H1', question: 'Er kommt.', type: 'RICHTIG_FALSCH' }] }] }],
+    })
+    const [group] = parseExamSections(goethe).sections[0].groups
+    expect(group.ansage).toBeUndefined()
+    expect(group.readingSeconds).toBe(0)
+    expect(group.audio).toBe('Guten Tag.')
+    expect(group.items[0].audio).toBeUndefined()
+  })
+})
+
+/** Gói A (17/09/2026): bài đọc dài kiểu đề thật, Beispiele của LV Teil 3, mẩu tin trên thư SB2. */
+describe('bài đọc dài, Beispiele và mẩu tin kích thích trên app', () => {
+  const LESEN = JSON.stringify({
+    format: 'TELC',
+    sections: [
+      {
+        name: 'LESEN', max_points: 75,
+        teile: [
+          { teil: 2, type: 'MULTIPLE_CHOICE', title_de: 'Ehrenamt im Wandel', vorspann_de: 'Wer sich engagiert…',
+            context_lines: true, context: 'Zeile eins\nZeile zwei',
+            glossary: [{ term: 'Ehrenamt', explanation_de: 'unbezahlte Arbeit' }, { term: 'kaputt' }],
+            items: [{ id: 'LV2-6', question: 'Freiwillige hören auf, weil …', options: { a: 'x', b: 'y', c: 'z' }, type: 'MULTIPLE_CHOICE' }] },
+          { teil: 3, type: 'MATCH_AD_X', ads: { a: 'Nachhilfe', l: 'Fotograf' }, allow_none: true,
+            examples: [{ label: '01', situation: 'Goldene Hochzeit, schöne Bilder', answer: 'l' }, { situation: 'Klavierlehrerin gesucht', answer: 'x' }],
+            items: [{ id: 'LV3-11', question: 'Situation 11', type: 'MATCHING' }] },
+        ],
+      },
+      {
+        name: 'SPRACHBAUSTEINE', max_points: 30,
+        teile: [
+          { teil: 2, type: 'GAP_WORDBANK', stimulus_ad: 'Ferienwohnung am See', gapped_text: 'Anzeige ___31___ Wochenende',
+            word_bank: { a: 'AM', f: 'IM' }, items: [{ id: 'SB2-31', type: 'MATCHING' }] },
+        ],
+      },
+    ],
+  })
+
+  it('LV Teil 2 mang tiêu đề, Vorspann, cờ số dòng và chú thích (bỏ mục thiếu giải thích)', () => {
+    const [t2] = parseExamSections(LESEN).sections[0].groups
+    expect(t2.passageTitle).toBe('Ehrenamt im Wandel')
+    expect(t2.vorspann).toBe('Wer sich engagiert…')
+    expect(t2.passageLines).toBe(true)
+    expect(t2.passage).toBe('Zeile eins\nZeile zwei')
+    expect(t2.glossary).toEqual([{ term: 'Ehrenamt', explanation: 'unbezahlte Arbeit' }])
+  })
+
+  it('LV Teil 3 mang hai Beispiele, nhãn thiếu thì để trống cho màn tự đánh 01/02', () => {
+    const [, t3] = parseExamSections(LESEN).sections[0].groups
+    expect(t3.examples).toEqual([
+      { label: '01', situation: 'Goldene Hochzeit, schöne Bilder', answer: 'l' },
+      { label: undefined, situation: 'Klavierlehrerin gesucht', answer: 'x' },
+    ])
+  })
+
+  it('SB Teil 2 mang mẩu tin mà thư trả lời; đề không khai thì các trường này vắng', () => {
+    const parsed = parseExamSections(LESEN)
+    expect(parsed.sections[1].groups[0].stimulusAd).toBe('Ferienwohnung am See')
+    const [t2] = parsed.sections[0].groups
+    expect(t2.stimulusAd).toBeUndefined()
+    expect(t2.examples).toBeUndefined()
+  })
+})

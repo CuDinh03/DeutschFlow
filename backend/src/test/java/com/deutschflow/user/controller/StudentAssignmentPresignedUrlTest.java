@@ -32,6 +32,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -82,6 +84,9 @@ class StudentAssignmentPresignedUrlTest {
                 ClassAssignment.builder().id(ASSIGNMENT_ID).classId(CLASS_ID).topic("Sprechen").build()));
         when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_ID)).thenReturn(true);
         when(s3StorageService.generatePresignedUrl(anyString(), anyString())).thenReturn("https://s3/put");
+        // Học viên này THUỘC trung tâm (bài nộp là của lớp trung tâm). Từ 17/09/2026 mức 16–17 chỉ áp
+        // cho thành viên trung tâm, nên gate hỏi membership trước khi hỏi sổ đồng ý.
+        when(jdbcTemplate.queryForObject(anyString(), eq(Boolean.class), any(Object[].class))).thenReturn(true);
     }
 
     private void tuoi(MinorPolicy.Status status) {
