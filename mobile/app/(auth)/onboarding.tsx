@@ -15,7 +15,8 @@ import { claimGuestSession, ensureGuestSession, syncGuestSession, type GuestAnsw
 import { saveDailyGoalMinutes } from '@/lib/dailyGoal'
 import { speakGerman, stopGermanSpeech } from '@/lib/germanTts'
 import { MENTOR_META, mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
-import { nextAfterProfile } from '@/lib/onboardingRouting'
+import { nextAfterProfile, routeNeedsLevel, type PostProfileContext } from '@/lib/onboardingRouting'
+import { nextOnboardingState, type AccountSource } from '@/lib/onboardingMachine'
 import { queryClient } from '@/lib/queryClient'
 import { LEARNING_PROFILE_QUERY_KEY } from '@/lib/learningProfileApi'
 import {
@@ -42,6 +43,7 @@ import {
   TitleBlock,
 } from '@/components/onboarding/WizardParts'
 import { OrgLiteWizard } from '@/components/onboarding/OrgLiteWizard'
+import { PathChoiceCard, type MobilePathChoice } from '@/components/onboarding/PathChoiceCard'
 import { fetchOnboardingContext, needsLiteProfile, type LiteProfilePayload, type OnboardingContext } from '@/lib/onboardingContext'
 
 // Onboarding for iOS B2C (MVP checklist §5.1): collect goal, target level, and
@@ -125,6 +127,12 @@ export default function OnboardingScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [guestQuickWin, setGuestQuickWin] = useState(false)   // guest: quick-win + signup gate
+  // Đợt 3 PR-2 (19/09): A1+ chọn đường (M5b, `PATH_CHOICE`) TRƯỚC cổng tài khoản (I-9). Máy trạng
+  // thái quyết định ai thấy màn này (fixture T1–T4: A0 → AUTH_GATE, A1+ → PATH_CHOICE).
+  const [guestPathChoice, setGuestPathChoice] = useState(false)
+  const guestNeedsPathChoice =
+    nextOnboardingState('TASTE', 'taste_done', { authed: false, hasPlan: false, accountSource: 'SELF', level: currentLevel, pathChoice: null }) ===
+    'PATH_CHOICE'
   // Đợt 2 (17/09): phiên khách sống trên server (72 h) — best-effort, server từ chối thì phễu vẫn
   // chạy bằng draft SecureStore như trước.
   useEffect(() => {
@@ -204,7 +212,7 @@ export default function OnboardingScreen() {
           captureEvent('onboarding_motivation_selected', { motivation: a.motivation ?? null, goalType: a.goalType ?? null })
           captureEvent('onboarding_daily_goal_set', { minutes })
           await saveDailyGoalMinutes(minutes)
-          router.replace(nextAfterProfile())
+          goAfterProfile({ level: a.currentLevel ?? null, pathChoice: a.pathChoice ?? null })
           return
         }
         // Claim được nhưng phiên chưa có hồ sơ (khách rời trước bước trình độ) → thử draft.
@@ -262,7 +270,7 @@ export default function OnboardingScreen() {
         // on-device cho copy bước streak. `route` chỉ còn phục vụ analytics.
         await saveDailyGoalMinutes(parseInt(draft.dailyGoal, 10))
         void route
-        router.replace(nextAfterProfile())
+        goAfterProfile({ level: draft.currentLevel, pathChoice: draft.pathChoice ?? null })
       } catch (e) {
         // POST hỏng → trả draft về máy. Nạp lại form chỉ cứu được user còn đang ở
         // đây; ai tắt app ngay lúc đó thì mất trắng nếu draft không được khôi phục
@@ -352,7 +360,8 @@ export default function OnboardingScreen() {
       // lib/onboardingRouting.ts — xem comment ở đó về lỗi F-1 (2026-08-20).
       await saveDailyGoalMinutes(parseInt(dailyGoal, 10))
       void route
-      router.replace(nextAfterProfile())
+      // Đăng ký thẳng chưa chọn đường (fixture R5): A1+ được hỏi ở route `path-choice` sau khi có plan.
+      goAfterProfile({ level: currentLevel, pathChoice: null })
     } catch (e) {
       // Lỗi → trả lại form (state còn nguyên) + báo lỗi như trước.
       setResuming(false)
@@ -383,7 +392,7 @@ export default function OnboardingScreen() {
       captureEvent('onboarding_profile_saved', { ...base, resumed: false })
       captureEvent('onboarding_daily_goal_set', { minutes: payload.dailyGoalMinutes })
       await saveDailyGoalMinutes(payload.dailyGoalMinutes)
-      router.replace(nextAfterProfile())
+      goAfterProfile({ level: null, accountSource: orgContext?.accountSource ?? 'ORG_ROSTER', pathChoice: null })
     } catch (e) {
       setResuming(false)
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
@@ -391,6 +400,34 @@ export default function OnboardingScreen() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  /**
+   * Sau `plan_ready`: một điểm rẽ duy nhất (lib/onboardingRouting.ts, có test). Màn cần trình độ
+   * (path-choice, placement) nhận qua route param — không dựa vào state của instance nào.
+   */
+  function goAfterProfile(ctx: PostProfileContext & { accountSource?: AccountSource | null }) {
+    const route = nextAfterProfile(ctx)
+    if (routeNeedsLevel(route) && ctx.level) {
+      router.replace({ pathname: route, params: { level: ctx.level } })
+      return
+    }
+    router.replace(route)
+  }
+
+  /** Khách A1+ vừa qua quick win: mở màn Chọn đường (M5b), ghi bước lên phiên khách. */
+  function openGuestPathChoice() {
+    void Haptics.selectionAsync()
+    void syncGuestSession('PATH_CHOICE', guestAnswersSnapshot())
+    captureEvent('onboarding_placement_offered', { currentLevel, surface: 'guest' })
+    setGuestPathChoice(true)
+  }
+
+  /** Khách chọn đường xong: ghi lựa chọn (phiên + draft) rồi qua cổng tài khoản (fixture C1/C2, I-9). */
+  function handleGuestPathPick(choice: MobilePathChoice) {
+    captureEvent('onboarding_path_selected', { path: choice, level: currentLevel, guest: true })
+    if (choice === 'skip') captureEvent('onboarding_placement_skipped', { currentLevel, at: 'path_choice_guest' })
+    void handleGuestSignup(choice)
   }
 
   /** Bản chụp câu trả lời theo hình dạng chung web/mobile (spec §5.1) — gửi lên phiên khách. */
@@ -407,11 +444,11 @@ export default function OnboardingScreen() {
   }
 
   // Guest signup gate: stash the funnel answers, then route to /register to save them.
-  async function handleGuestSignup() {
+  async function handleGuestSignup(pathChoice: MobilePathChoice | null = null) {
     if (!targetLevel) return
     // Server trước (claim sẽ phát lại từ đây), draft sau (đường lùi khi server hỏng).
-    void syncGuestSession('AUTH_GATE', guestAnswersSnapshot())
-    await saveOnboardingDraft({ motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoal })
+    void syncGuestSession('AUTH_GATE', { ...guestAnswersSnapshot(), pathChoice })
+    await saveOnboardingDraft({ motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoal, pathChoice })
     captureEvent('onboarding_signup_prompted', { motivation, goalType })
     router.push('/(auth)/register')
   }
@@ -443,8 +480,26 @@ export default function OnboardingScreen() {
   if (orgContext) {
     return <OrgLiteWizard ctx={orgContext} submitting={submitting} onSubmit={handleLiteSubmit} />
   }
+  if (guestPathChoice && currentLevel) {
+    return (
+      <PathChoiceCard
+        level={currentLevel}
+        cap="Trước khi lưu · Chọn đường"
+        onPick={handleGuestPathPick}
+        onBack={() => setGuestPathChoice(false)}
+      />
+    )
+  }
   if (guestQuickWin) {
-    return <GuestQuickWin mentor={mentor} onSignup={handleGuestSignup} onBack={() => setGuestQuickWin(false)} />
+    return (
+      <GuestQuickWin
+        mentor={mentor}
+        // A0 → thẳng cổng tài khoản; A1+ → chọn đường trước (máy trạng thái quyết, không phải JSX).
+        nextLabel={guestNeedsPathChoice ? 'Tiếp tục' : 'Tạo tài khoản & lưu lộ trình'}
+        onNext={guestNeedsPathChoice ? openGuestPathChoice : () => void handleGuestSignup()}
+        onBack={() => setGuestQuickWin(false)}
+      />
+    )
   }
 
   const focusIsWork = goalType === 'WORK'
@@ -811,11 +866,13 @@ function MentorRevealCard({ mentor }: { mentor: OnboardingMentor }) {
  */
 function GuestQuickWin({
   mentor,
-  onSignup,
+  nextLabel,
+  onNext,
   onBack,
 }: {
   mentor: OnboardingMentor | null
-  onSignup: () => void
+  nextLabel: string
+  onNext: () => void
   onBack: () => void
 }) {
   const c = useTheme().colors
@@ -950,7 +1007,7 @@ function GuestQuickWin({
           paddingBottom: space[2],
         }}
       >
-        <Button label="Tạo tài khoản & lưu lộ trình" onPress={onSignup} disabled={!solved} />
+        <Button label={nextLabel} onPress={onNext} disabled={!solved} />
         <ThemedText variant="caption" color="secondary" align="center">
           Miễn phí — lộ trình, mentor và kết quả được giữ nguyên.
         </ThemedText>
