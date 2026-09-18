@@ -9,7 +9,7 @@ const DRAFT: OnboardingDraft = {
   targetLevel: 'B1',
   industry: 'IT',
   examType: 'GOETHE',
-  weeklyTarget: 5,
+  dailyGoalMinutes: 15,
 }
 
 /** localStorage/sessionStorage in-memory — jsdom ở repo này chỉ dựng một phần. */

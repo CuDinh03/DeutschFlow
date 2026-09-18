@@ -26,7 +26,11 @@
       "B2": {
         "label": "Obere Mittelstufe (B2)",
         "desc": "Komplexe Texte verstehen"
-      }
+      },
+      "currentLabel": "Heute",
+      "targetLabel": "Ziel",
+      "journey": "{nodes} Etappen · etwa {weeks} Wochen bei gleichmäßigem Tempo.",
+      "journeyGeneric": "Dein Lernweg wird genau für diese Strecke gebaut."
     },
     "goal": {
       "heading": "Warum lernst du Deutsch?",
@@ -60,6 +64,43 @@
       },
       "noteA0": "Deine ersten Schritte sind <b>Alphabet, Aussprache und Begrüßungen</b>.",
       "notePlacement": "Du kannst einen <b>optionalen 5-Minuten-Test</b> machen, um auf dem richtigen Niveau zu starten — oder direkt loslegen."
+    },
+    "rhythm": {
+      "heading": "Wie viele Minuten pro Tag?",
+      "sub": "Deine Lernserie richtet sich danach — wähle, was du langfristig durchhältst.",
+      "minutes": "Min./Tag",
+      "m5": "Zwischendurch",
+      "m10": "Locker",
+      "m15": "Regelmäßig",
+      "m20": "Ernsthaft"
+    },
+    "focus": {
+      "industryHeading": "Wo wirst du Deutsch brauchen?",
+      "industrySub": "Optional — hilft bei der Wahl des Mentors und berufsnaher Sprechsituationen.",
+      "examHeading": "Welche Prüfung strebst du an?",
+      "examSub": "Optional — Übungssets und Aufgabentypen folgen diesem Prüfungsformat.",
+      "industry": {
+        "IT": "IT",
+        "Pflege": "Pflege",
+        "Gastronomie": "Gastronomie",
+        "Verkauf": "Verkauf",
+        "Tourismus": "Tourismus",
+        "Technik": "Technik"
+      },
+      "exam": {
+        "GOETHE": {
+          "label": "Goethe-Zertifikat",
+          "desc": "Das verbreitetste Zertifikat"
+        },
+        "TELC": {
+          "label": "telc Deutsch",
+          "desc": "Gleichwertig mit Goethe anerkannt"
+        },
+        "TESTDAF": {
+          "label": "TestDaF",
+          "desc": "Für das Studium an der Universität"
+        }
+      }
     },
     "orgLite": {
       "cap": "Lernende der Sprachschule",
@@ -120,7 +161,8 @@
       "continue": "Weiter",
       "startRoadmap": "Lernweg starten",
       "progressAria": "Fortschritt der Lernweg-Einrichtung",
-      "stepOf": "Schritt {step} von {total}"
+      "stepOf": "Schritt {step} von {total}",
+      "stepAnnounce": "Schritt {step} von {total}: {title}"
     },
     "loader": {
       "title": "Dein Lernweg wird erstellt…",

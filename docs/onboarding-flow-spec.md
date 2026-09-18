@@ -86,7 +86,7 @@ stateDiagram-v2
 | State | Nghĩa | Bản ghi server-side |
 |---|---|---|
 | `WELCOME` | mobile: màn Chào mừng `app/(auth)/welcome.tsx` (Đợt 3 PR-1, 18/09/2026 — `app/index.tsx` chưa đăng nhập → welcome qua `lib/entryRoute.ts` có test; cờ PostHog `onboarding-value-first` đã gỡ, G-1); web: landing | ✗ |
-| `PROFILE` | wizard 4 bước (mục tiêu → trình độ → nhịp → lĩnh vực/kỳ thi) | guest session (`PATCH` mỗi bước) |
+| `PROFILE` | wizard 4 bước (mục tiêu → trình độ → nhịp → lĩnh vực/kỳ thi) — web đồng thứ tự từ Đợt 4 PR-1 (18/09) | guest session (`PATCH` mỗi bước) |
 | `PROFILE_LITE` | học viên trung tâm: nhịp học (+ trình độ nếu thiếu) — Đợt 5 | ✓ user |
 | `TASTE` | quick win "Guten Morgen" (khách) | guest session `activityResult` |
 | `PATH_CHOICE` | A1+: placement · nói thử 3′ (web) · bỏ qua — **ghi trước tài khoản, thực thi sau claim** | guest session `answers.pathChoice` |
@@ -142,7 +142,7 @@ một luồng**, và mọi kế hoạch "parity" đều phải xuất phát từ
 
 | Khía cạnh | Web `/v2/onboarding` | Mobile `(auth)/onboarding` | |
 |---|---|---|---|
-| Số bước phễu | 5 (level → goal → target → quick-win → signup gate) | **Chào mừng (M0, 18/09)** → wizard 4 bước (mục tiêu → trình độ → nhịp → lĩnh vực/kỳ thi) + quick-win có nút nghe (expo-speech de-DE) + gate — UI v2, #463 (02/09) | 🟡 gần parity, thứ tự khác |
+| Số bước phễu | **Đợt 4 PR-1 (18/09/2026):** wizard 4 bước KHỚP mobile (mục tiêu → trình độ → nhịp phút/ngày → lĩnh vực/kỳ thi + mentor) → quick-win → cổng tài khoản; `features/onboarding/wizardModel.ts` + `steps/*` có test; a11y radiogroup/focus h1/aria-live; progressbar 4 (đã đăng nhập) / 6 (khách) | **Chào mừng (M0, 18/09)** → wizard 4 bước (mục tiêu → trình độ → nhịp → lĩnh vực/kỳ thi) + quick-win có nút nghe (expo-speech de-DE) + gate — UI v2, #463 (02/09) | 🟢 parity thứ tự bước; web chưa có màn Chào mừng (landing thay) |
 | Bài học đầu (A0) | **không có** | `(auth)/first-sentence` — nghe/nói/chấm cục bộ | 🔴 |
 | Kiểm tra đầu vào | có (`/skill-tree/placement-test`) | **không có** | 🔴 |
 | Nói thử với AI | không | không | 🔵 cả hai đều thiếu |

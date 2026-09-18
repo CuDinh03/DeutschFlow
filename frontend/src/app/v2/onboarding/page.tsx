@@ -18,33 +18,38 @@ import { usePlanHelpers } from "@/contexts/PlanContext";
 import { claimGuestSession, ensureGuestSession, syncGuestSession, type GuestAnswers } from "@/features/onboarding/guestSession";
 import { readGuestSessionCache } from "@/lib/guestSessionStore";
 import { fetchOnboardingContext, needsLiteProfile, type OnboardingContext } from "@/features/onboarding/context";
-import { OrgLiteWizard, type LiteProfilePayload } from "./OrgLiteWizard";
+import {
+  DEFAULT_ANSWERS,
+  WIZARD_STEP_COUNT,
+  WIZARD_STEP_IDS,
+  canLeaveStep,
+  goalTypeFor,
+  guestAnswersFrom,
+  profilePayloadFrom,
+  totalStepsFor,
+  type WizardAnswers,
+} from "@/features/onboarding/wizardModel";
+import { MotivationStep } from "@/features/onboarding/steps/MotivationStep";
+import { LevelStep } from "@/features/onboarding/steps/LevelStep";
+import { RhythmStep } from "@/features/onboarding/steps/RhythmStep";
+import { FocusStep } from "@/features/onboarding/steps/FocusStep";
 import { GaBtn, GaIcon } from "@/components/ui-v2";
 import { GaAuthShell } from "../authShared";
+import { OrgLiteWizard, type LiteProfilePayload } from "./OrgLiteWizard";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// /v2/onboarding — Galerie 2.0 port of the legacy value-first funnel
-// (src/app/(auth)/onboarding/page.tsx). LOGIC IS 1:1: same steps, same API calls
-// (POST /onboarding/profile, /skill-tree/placement-test, GET /onboarding/route +
-// /onboarding/mentor|preview/mentor), same guest draft replay, same PostHog events
-// (dropping one would blind the funnel dashboards). Only the shell/tokens and the
-// outbound routes change (/register → /v2/register, /student/roadmap →
-// /v2/student/roadmap, /student/pricing → /v2/payment).
+// /v2/onboarding — phễu value-first Galerie 2.0.
 //
-// This is a PUBLIC page: a GUEST (no account) runs the whole funnel here before
-// signing up, so it wears GaAuthShell (the same chrome as /v2/login + /v2/register),
-// NOT RoleShell — there is no role and no sidebar yet. Middleware exempts
-// `/v2/onboarding` from the login bounce for exactly this reason.
+// Đợt 4 (18/09/2026, kế hoạch 17/09 §4.4 W1–W4, W-12/W-13/W-18): wizard đổi thứ tự khớp mobile
+// (mục tiêu → trình độ → nhịp phút/ngày → lĩnh vực/kỳ thi + mentor), bốn bước tách ra
+// `features/onboarding/steps/*`, mô hình bước + payload ở `wizardModel.ts` (có test). Mỗi bước
+// chuyển là focus về h1 + aria-live báo "Bước X trên Y"; progressbar đếm theo nhánh (khách 6, đã
+// đăng nhập 4). API, guest session, claim-trước-draft, placement, PROFILE_LITE giữ nguyên Đợt 0–5.
+//
+// Trang CÔNG KHAI: khách chạy trọn phễu trước khi đăng ký, nên mặc GaAuthShell (không RoleShell);
+// middleware miễn /v2/onboarding khỏi cổng đăng nhập vì đúng lý do đó.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Chỉ còn DỮ LIỆU. Nhãn/mô tả nằm ở messages/v2/onboarding.<locale>.json dưới khoá
-// `level.<value>.label|desc` — hằng số ở đây không được mang copy nữa (GĐ 4).
-// `icon` là khoá của GaIcon. Năm mức KHÔNG dùng chung một icon sách như bộ emoji cũ
-// (📗📘📙📕 chỉ khác màu — đổi sang icon một màu là năm ô giống hệt nhau): mỗi mức lấy
-// một icon nói đúng việc làm được ở mức đó, để đọc lướt vẫn thấy tiến độ.
-// Chip kỹ năng của bài kiểm tra đầu vào. Nhãn trong catalog TỪNG mang emoji dẫn đầu
-// (🎧 Nghe · 🎤 Nói · 📚 Đọc · ✍️ Viết) — tức icon giả nằm trong chuỗi dịch, mỗi máy vẽ một kiểu
-// và dịch giả có thể vô tình xoá. Nay chuỗi chỉ còn chữ, hình do GaIcon vẽ.
 const TEST_SKILL_CHIP: Record<string, { icon: string; labelKey: string; cls: string }> = {
   HOEREN:    { icon: "headphones",         labelKey: "test.skillHoeren",    cls: "bg-ga-blue-soft text-ga-blue" },
   SPRECHEN:  { icon: "mic",                labelKey: "test.skillSprechen",  cls: "bg-ga-red-soft text-ga-red" },
@@ -52,36 +57,16 @@ const TEST_SKILL_CHIP: Record<string, { icon: string; labelKey: string; cls: str
   SCHREIBEN: { icon: "draw",               labelKey: "test.skillSchreiben", cls: "bg-ga-violet-soft text-ga-violet" },
 };
 
-const LEVELS = [
-  { value: "A0", icon: "eco" },
-  { value: "A1", icon: "menu_book" },
-  { value: "A2", icon: "forum" },
-  { value: "B1", icon: "record_voice_over" },
-  { value: "B2", icon: "school" },
-];
-// "Vì sao bạn học?" — the emotional anchor (Duolingo's first question, adapted for the
-// Việt → Đức audience). Each maps to a coarse goalType the plan still uses (EXAM → CERT, else WORK).
-const MOTIVATIONS = [
-  { value: "JOB",         icon: "work",              goal: "WORK" },
-  { value: "AUSBILDUNG",  icon: "build",             goal: "WORK" },
-  { value: "STUDY",       icon: "school",            goal: "WORK" },
-  { value: "IMMIGRATION", icon: "home",              goal: "WORK" },
-  { value: "EXAM",        icon: "workspace_premium", goal: "CERT" },
-  { value: "HOBBY",       icon: "auto_awesome",      goal: "WORK" },
-];
-const EXAMS = ["GOETHE", "TELC", "TESTDAF"];
-const WEEKLY = [
-  { value: 3, icon: "local_fire_department" },
-  { value: 5, icon: "bolt" },
-  { value: 7, icon: "rocket" },
-];
-const INDUSTRIES = ["IT","Medizin","Gastronomie","Bildung","Handel","Sport","Andere"];
-
-// Post-funnel destinations on the v2 surface (the legacy funnel pushed to /student/*).
+// Post-funnel destinations on the v2 surface.
 const ROADMAP_ROUTE = "/v2/student/roadmap";
 /** Băng UPPER của ma trận `OnboardingTypeResolver` (B1+): nơi duy nhất web từng mời gói PRO. */
 const UPPER_LEVELS = ["B1", "B2", "C1", "C2"];
 const PRICING_ROUTE = "/v2/payment";
+
+// Bước ngoài wizard (sau 4 bước): khách = quick win rồi cổng tài khoản; đã đăng nhập = placement.
+const STEP_TASTE = WIZARD_STEP_COUNT + 1;      // 5 — khách: quick win (TASTE)
+const STEP_AUTH_GATE = WIZARD_STEP_COUNT + 2;  // 6 — khách: cổng tài khoản
+const STEP_PLACEMENT = WIZARD_STEP_COUNT + 1;  // 5 — đã đăng nhập: mời/làm/kết quả placement
 
 interface PQ { id: number; skillSection: string; type: string; questionDe: string; questionVi: string; audioTranscript?: string; options?: string[]; }
 
@@ -109,20 +94,15 @@ export default function V2OnboardingPage() {
   const { hideUpsell } = usePlanHelpers();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [currentLevel, setCurrentLevel] = useState("A0");
-  const [motivation, setMotivation] = useState("JOB");
-  const [goalType, setGoalType] = useState("WORK");   // derived from motivation (EXAM → CERT, else WORK)
-  const [industry, setIndustry] = useState("IT");
-  const [examType, setExamType] = useState("GOETHE");
-  const [targetLevel, setTargetLevel] = useState("B1");
-  const [weeklyTarget, setWeeklyTarget] = useState(5);
-  // Daily-goal minutes (the streak anchor) derived from the weekly cadence the user picks.
-  const dailyGoalMinutes = weeklyTarget >= 7 ? 20 : weeklyTarget >= 5 ? 15 : 10;
+  const [answers, setAnswers] = useState<WizardAnswers>(DEFAULT_ANSWERS);
+  const { motivation, currentLevel, targetLevel, dailyGoalMinutes, industry, examType } = answers;
+  const goalType = goalTypeFor(motivation);
+  const patch = useCallback((p: Partial<WizardAnswers>) => setAnswers((a) => ({ ...a, ...p })), []);
 
   // Placement test state
   const [testId, setTestId] = useState<string|null>(null);
   const [questions, setQuestions] = useState<PQ[]>([]);
-  const [answers, setAnswers] = useState<Record<string,string>>({});
+  const [testAnswers, setTestAnswers] = useState<Record<string,string>>({});
   const [currentQ, setCurrentQ] = useState(0);
   const [testResult, setTestResult] = useState<{passed:boolean;scorePercent:number;correctCount:number;totalQuestions:number;weakModules?:number[];startingNodeId?:number;retryAfterDays?:number}|null>(null);
   const [route, setRoute] = useState<OnboardingRouteData | null>(null);
@@ -131,7 +111,7 @@ export default function V2OnboardingPage() {
   const [placementOffer, setPlacementOffer] = useState(false);
   // Value-first auth inversion (Phase C): a guest runs the funnel + quick win BEFORE signing up.
   const [isGuest, setIsGuest] = useState(false);          // no access token on mount
-  const totalSteps = isGuest ? 5 : 4;
+  const totalSteps = totalStepsFor(isGuest);
   const [resuming, setResuming] = useState(false);        // authed, replaying a guest draft after signup
   const [quickWinChoice, setQuickWinChoice] = useState<string | null>(null);
   // Đợt 5 (17/09): học viên trung tâm (ORG_ROSTER | ORG_INVITE) chưa có plan đi bản rút gọn
@@ -139,50 +119,49 @@ export default function V2OnboardingPage() {
   // lỗi mạng / backend cũ ⇒ null ⇒ phễu thường như trước (không chặn ai).
   const [orgContext, setOrgContext] = useState<OnboardingContext | null>(null);
 
+  // A11y (W-12): mỗi lần đổi bước, focus về h1 của bước mới để đầu đọc màn hình đọc từ đầu.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { headingRef.current?.focus(); }, [step]);
+  // AnimatePresence mode="wait": bước mới chỉ mount SAU khi bước cũ thoát xong (~300 ms), lúc đó
+  // effect [step] đã chạy rồi và focus rơi về body. Focus lại khi hiệu ứng vào của bước mới kết thúc.
+  const focusHeading = () => { headingRef.current?.focus(); };
+
   const fetchMentor = useCallback(async () => {
     try {
       // Guests use the public preview endpoint (no auth); authed users use the live one.
       const fetch = isGuest ? getOnboardingMentorPreview : getOnboardingMentor;
-      setMentor(await fetch(goalType, industry, currentLevel));
+      setMentor(await fetch(goalType, industry ?? "", currentLevel));
     } catch { /* mentor preview is non-blocking */ }
   }, [isGuest, goalType, industry, currentLevel]);
 
+  // Mentor reveal sống ở bước 4 (và cổng tài khoản): xem trước cập nhật theo lĩnh vực đang chọn.
+  useEffect(() => {
+    if (step >= WIZARD_STEP_COUNT) void fetchMentor();
+  }, [step, fetchMentor]);
+
   /**
-   * Persist the onboarding profile. Returns true on success. Surfaces real
-   * failures instead of silently swallowing them, so callers can BLOCK the
-   * redirect and avoid leaving the user with an incomplete profile
-   * (data-integrity fix, design §5 DI-3).
+   * Persist the onboarding profile. Returns true on success. Surfaces real failures instead of
+   * silently swallowing them, so callers can BLOCK the redirect (design §5 DI-3).
    *
-   * 409 cũng là THẤT BẠI (Q-B, owner chốt 28/08; thi công Đợt 0 17/09): endpoint UPSERT
-   * và trả 201, nên 409 duy nhất có thể tới là optimistic-lock/data-integrity nổ lúc
-   * commit ⇒ toàn bộ ghi đã rollback, người dùng KHÔNG có learning plan. Cho đi tiếp là
-   * đưa họ vào lộ trình trống rồi bị guard `hasPlan=false` đá ngược về đây.
+   * 409 cũng là THẤT BẠI (Q-B, owner chốt 28/08; thi công Đợt 0 17/09): endpoint UPSERT và trả 201,
+   * nên 409 duy nhất có thể tới là optimistic-lock/data-integrity nổ lúc commit ⇒ toàn bộ ghi đã
+   * rollback, người dùng KHÔNG có learning plan.
    */
   const postProfile = useCallback(async (payload: Record<string, unknown>): Promise<boolean> => {
     try {
       await api.post("/onboarding/profile", payload);
-      // Bất biến: hồ sơ đã nằm trên server ⇒ draft hết việc. Phải dọn ở ĐÂY chứ
-      // không chỉ trong resumeFromDraft, vì đường phục hồi đi lối khác: resume
-      // hỏng → giữ draft → người dùng làm lại bằng wizard → goRoadmap/startTest
-      // → saveProfile thành công. Thiếu chỗ này thì draft cũ sống hết TTL 30
-      // phút rồi bị replay đè lên đúng hồ sơ người dùng vừa sửa.
+      // Bất biến: hồ sơ đã nằm trên server ⇒ draft hết việc. Phải dọn ở ĐÂY chứ không chỉ trong
+      // resumeFromDraft, vì đường phục hồi đi lối khác: resume hỏng → giữ draft → làm lại bằng
+      // wizard → saveProfile thành công. Thiếu chỗ này thì draft cũ sống hết TTL rồi bị replay đè.
       clearOnboardingDraft();
       return true;
     } catch (e: unknown) {
       const err = e as { response?: { status?: number; data?: { detail?: string } } };
-      // ĐỪNG dọn draft ở đây. Endpoint này trả 201 và UPSERT hồ sơ — nó không bao
-      // giờ phát 409 với nghĩa "hồ sơ đã tồn tại". 409 duy nhất có thể tới là
-      // optimistic-lock / data-integrity từ GlobalExceptionHandler, và cả hai đều
-      // nổ LÚC COMMIT của transaction saveProfileAndGeneratePlan ⇒ toàn bộ ghi đã
-      // ROLLBACK. Xoá draft ở nhánh này là vứt bản sao cuối cùng đúng lúc server
-      // KHÔNG lưu được gì. Backend đã có sẵn câu cho ca này trong `detail`
-      // ("Bản ghi vừa được cập nhật bởi một thao tác khác…") — hiện nó, không tự chế.
+      // ĐỪNG dọn draft ở đây: 409 = commit hỏng ⇒ server không lưu gì; draft là bản sao cuối cùng.
       if (err?.response?.status === 409) {
         toast.error(err.response?.data?.detail ?? t("error.saveProfile"));
         return false;
       }
-      // api.ts already retried transient 5xx/429/network errors. Reaching here is a real
-      // failure → surface it clearly and let the caller BLOCK the redirect (no silent skip).
       const offline = typeof navigator !== "undefined" && navigator.onLine === false;
       const msg = err?.response?.data?.detail
         ?? (offline || !err?.response
@@ -193,19 +172,11 @@ export default function V2OnboardingPage() {
     }
   }, [t]);
 
-  const saveProfile = useCallback((): Promise<boolean> => postProfile({
-    goalType, targetLevel, currentLevel, motivation,
-    industry: goalType === "WORK" ? industry : undefined,
-    examType: goalType === "CERT" ? examType : undefined,
-    sessionsPerWeek: weeklyTarget, minutesPerSession: 15, dailyGoalMinutes,
-    learningSpeed: weeklyTarget >= 7 ? "FAST" : weeklyTarget >= 5 ? "NORMAL" : "SLOW",
-  }), [postProfile, goalType, targetLevel, currentLevel, motivation, industry, examType, weeklyTarget, dailyGoalMinutes]);
+  const saveProfile = useCallback((): Promise<boolean> => postProfile(profilePayloadFrom(answers)), [postProfile, answers]);
 
   /**
    * PROFILE_LITE (Đợt 5): học viên trung tâm lưu nhịp học (+ trình độ nếu thiếu) rồi đi THẲNG bài
-   * đầu — không hỏi ma trận, không mời placement (I-11: ORG_* sau plan_ready → FIRST_LESSON; trên
-   * web hôm nay bài đầu = lộ trình, Ngày 1 nối ở Đợt 4). Sự kiện bắn cùng tên với wizard đầy đủ để
-   * funnel không tách nhánh; `lite: true` + `accountSource` để đọc riêng khi cần.
+   * đầu — không hỏi ma trận, không mời placement (I-11).
    */
   const saveLiteProfile = useCallback(async (payload: LiteProfilePayload): Promise<boolean> => {
     setLoading(true);
@@ -226,42 +197,37 @@ export default function V2OnboardingPage() {
       const { data } = await api.post("/skill-tree/placement-test", { claimedLevel: currentLevel });
       trackEvent('onboarding_placement_test_started', { level: currentLevel });
       trackEvent('onboarding_path_selected', { path: 'placement', level: currentLevel });
-      setTestId(data.testId); setQuestions(data.questions ?? []); setAnswers({}); setCurrentQ(0); setStep(4);
+      setTestId(data.testId); setQuestions(data.questions ?? []); setTestAnswers({}); setCurrentQ(0); setStep(STEP_PLACEMENT);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       toast.error(msg || t("error.createTest"));
     }
     setLoading(false);
-  }, [currentLevel, saveProfile, trackEvent]);
+  }, [currentLevel, saveProfile, trackEvent, t]);
 
   const submitTest = useCallback(async () => {
     if (!testId) return;
     setLoading(true);
     try {
-      const { data } = await api.post(`/skill-tree/placement-test/${testId}/submit`, { answers });
+      const { data } = await api.post(`/skill-tree/placement-test/${testId}/submit`, { answers: testAnswers });
       setTestResult(data);
       trackEvent('onboarding_placement_test_completed', { passed: data.passed, score: data.scorePercent });
       trackEvent('placement_completed', { level: currentLevel, passed: data.passed, score: data.scorePercent });
     }
     catch { toast.error(t("error.submitTest")); }
     setLoading(false);
-  }, [testId, answers, trackEvent]);
+  }, [testId, testAnswers, trackEvent, currentLevel, t]);
 
   const goRoadmap = useCallback(async () => {
     setLoading(true);
     if (!(await saveProfile())) { setLoading(false); return; } // block redirect on a failed save
-    trackEvent('onboarding_completed', { level: currentLevel, goal: goalType, industry: industry });
+    trackEvent('onboarding_completed', { level: currentLevel, goal: goalType, industry });
     // Di trú spec §6.3: `onboarding_completed` thực chất là "đã lưu hồ sơ" — bắn song song tên
     // đúng nghĩa ≥2 tuần rồi mới gỡ tên cũ. ĐỪNG đổi nghĩa tên đang chạy.
-    trackEvent('onboarding_profile_saved', { level: currentLevel, goal: goalType, industry: industry });
+    trackEvent('onboarding_profile_saved', { level: currentLevel, goal: goalType, industry });
     router.push(ROADMAP_ROUTE);
   }, [saveProfile, router, trackEvent, currentLevel, goalType, industry]);
 
-  /**
-   * Resume after signup: a guest filled the funnel, we stored a draft, sent them to /v2/register,
-   * and the register page bounced STUDENT back to /v2/onboarding. Replay the draft directly (not via
-   * component state, which updates asynchronously) to save the profile, then continue.
-   */
   /** Hồ sơ ĐÃ nằm trên server (replay draft xong hoặc claim xong): hỏi ma trận rồi đi tiếp. */
   const continueAfterProfileSaved = useCallback(async (level: string) => {
     let r: OnboardingRouteData | null = null;
@@ -272,56 +238,48 @@ export default function V2OnboardingPage() {
     } catch { /* matrix best-effort */ }
     if (r?.placementOptional) {
       trackEvent('onboarding_placement_offered', { currentLevel: level });
-      setPlacementOffer(true); setStep(4); setResuming(false);
+      setPlacementOffer(true); setStep(STEP_PLACEMENT); setResuming(false);
     } else {
       router.push(ROADMAP_ROUTE);
     }
   }, [router, trackEvent]);
 
+  /**
+   * Resume after signup: a guest filled the funnel, we stored a draft, sent them to /v2/register,
+   * and the register page bounced STUDENT back here. Replay the draft directly (not via component
+   * state, which updates asynchronously) to save the profile, then continue.
+   */
   const resumeFromDraft = useCallback(async (d: OnboardingDraft) => {
-    setMotivation(d.motivation); setGoalType(d.goalType); setCurrentLevel(d.currentLevel);
-    setTargetLevel(d.targetLevel); setIndustry(d.industry); setExamType(d.examType); setWeeklyTarget(d.weeklyTarget);
+    const restored: WizardAnswers = {
+      motivation: d.motivation, currentLevel: d.currentLevel, targetLevel: d.targetLevel,
+      industry: d.industry, examType: d.examType, dailyGoalMinutes: d.dailyGoalMinutes,
+    };
+    setAnswers(restored);
     setResuming(true);
-    const daily = d.weeklyTarget >= 7 ? 20 : d.weeklyTarget >= 5 ? 15 : 10;
     try {
-      await api.post("/onboarding/profile", {
-        goalType: d.goalType, targetLevel: d.targetLevel, currentLevel: d.currentLevel, motivation: d.motivation,
-        industry: d.goalType === "WORK" ? d.industry : undefined,
-        examType: d.goalType === "CERT" ? d.examType : undefined,
-        sessionsPerWeek: d.weeklyTarget, minutesPerSession: 15, dailyGoalMinutes: daily,
-        learningSpeed: d.weeklyTarget >= 7 ? "FAST" : d.weeklyTarget >= 5 ? "NORMAL" : "SLOW",
-      });
-      // Draft chỉ được vứt SAU khi hồ sơ đã nằm trên server. Bản cũ xoá ngay lúc
-      // đọc, nên bất kỳ lỗi POST nào (mạng chập, 5xx, timeout 8s của api.ts) là
-      // mất trắng toàn bộ câu trả lời người dùng vừa điền, không có đường lấy lại.
+      await api.post("/onboarding/profile", profilePayloadFrom(restored));
+      // Draft chỉ được vứt SAU khi hồ sơ đã nằm trên server (QW-3): lỗi POST nào cũng phải giữ.
       clearOnboardingDraft();
-      trackEvent('onboarding_completed', { level: d.currentLevel, goal: d.goalType, industry: d.industry });
-      trackEvent('onboarding_profile_saved', { level: d.currentLevel, goal: d.goalType, industry: d.industry, resumed: true });
+      const goal = goalTypeFor(d.motivation);
+      trackEvent('onboarding_completed', { level: d.currentLevel, goal, industry: d.industry });
+      trackEvent('onboarding_profile_saved', { level: d.currentLevel, goal, industry: d.industry, resumed: true });
       await continueAfterProfileSaved(d.currentLevel);
     } catch (e: unknown) {
-      // 409 ở đây KHÔNG phải "hồ sơ đã tồn tại" (endpoint UPSERT, trả 201) mà là
-      // xung đột dữ liệu lúc commit ⇒ đã rollback ⇒ hồ sơ CHƯA có trên server. Đi
-      // nhánh lỗi như mọi lỗi khác (Q-B 28/08): giữ draft, hiện `detail` của server,
-      // trả người dùng về bước 3 để bấm lại. Bản cũ vẫn đẩy sang roadmap — đó là
-      // đưa họ vào lộ trình không có plan rồi bị guard đá ngược.
+      // 409 ở đây KHÔNG phải "hồ sơ đã tồn tại" (endpoint UPSERT) mà là xung đột lúc commit ⇒ đã
+      // rollback ⇒ hồ sơ CHƯA có trên server. Giữ draft, hiện `detail`, trả về bước cuối để bấm lại.
       const err = e as { response?: { status?: number; data?: { detail?: string } } };
       const detail = err?.response?.status === 409 ? err.response?.data?.detail : undefined;
-      // Lỗi thật: GIỮ draft để lần thử sau còn dữ liệu. Draft có TTL 30 phút nên
-      // một hồ sơ hỏng vĩnh viễn cũng chỉ replay trong cửa sổ đó rồi tự hết hạn.
       toast.error(detail ?? t("error.resumeKeepsDraft"));
-      setResuming(false); setStep(3);
+      setResuming(false); setStep(WIZARD_STEP_COUNT);
     }
-  }, [continueAfterProfileSaved, trackEvent]);
+  }, [continueAfterProfileSaved, trackEvent, t]);
 
   /**
-   * Đợt 2 (17/09): sau đăng nhập/đăng ký, CLAIM phiên khách trên server TRƯỚC, draft localStorage chỉ
-   * còn là đường lùi. Server phát lại hồ sơ (UPSERT) trong claim, nên nhánh 'claimed' KHÔNG POST
-   * /profile nữa — chỉ xác nhận `hasPlan` rồi đi tiếp như draft-replay. I-7: 'foreign' (phiên của
-   * người khác) thì draft cũng đã bị vứt ⇒ hiện wizard trống, tuyệt đối không replay.
+   * Đợt 2 (17/09): sau đăng nhập/đăng ký, CLAIM phiên khách trên server TRƯỚC, draft localStorage
+   * chỉ còn là đường lùi. Server phát lại hồ sơ (UPSERT) trong claim, nên nhánh 'claimed' KHÔNG
+   * POST /profile nữa. I-7: 'foreign' (phiên của người khác) thì draft cũng đã bị vứt ⇒ wizard trống.
    */
   const resumeAfterAuth = useCallback(async () => {
-    // Không có gì để nối tiếp (đăng ký thẳng, không phiên khách, không draft) thì đừng nháy màn
-    // chờ — hiện wizard ngay như trước.
     if (!readGuestSessionCache() && !readOnboardingDraft()) return;
     setResuming(true);
     const outcome = await claimGuestSession();
@@ -332,13 +290,15 @@ export default function V2OnboardingPage() {
       if (hasPlan) {
         const a: GuestAnswers = outcome.answers ?? {};
         const level = a.currentLevel ?? 'A0';
-        if (a.motivation) setMotivation(a.motivation);
-        if (a.goalType) setGoalType(a.goalType);
-        setCurrentLevel(level);
-        if (a.targetLevel) setTargetLevel(a.targetLevel);
-        if (a.industry) setIndustry(a.industry);
-        if (a.examType) setExamType(a.examType);
-        if (a.sessionsPerWeek) setWeeklyTarget(a.sessionsPerWeek);
+        setAnswers((prev) => ({
+          ...prev,
+          motivation: a.motivation ?? prev.motivation,
+          currentLevel: level,
+          targetLevel: a.targetLevel ?? prev.targetLevel,
+          industry: a.industry ?? prev.industry,
+          examType: a.examType ?? prev.examType,
+          dailyGoalMinutes: a.dailyGoalMinutes ?? prev.dailyGoalMinutes,
+        }));
         trackEvent('onboarding_completed', { level, goal: a.goalType, industry: a.industry });
         trackEvent('onboarding_profile_saved', { level, goal: a.goalType, industry: a.industry, resumed: true, via: 'claim' });
         await continueAfterProfileSaved(level);
@@ -354,24 +314,18 @@ export default function V2OnboardingPage() {
     setResuming(false);
   }, [continueAfterProfileSaved, resumeFromDraft, trackEvent]);
 
-  // Trước đây lệnh xoá draft đồng bộ ngay tại useEffect kiêm luôn vai chống chạy
-  // hai lần: StrictMode dev double-mount đọc lại thì draft đã rỗng. Nay draft
-  // sống tới khi POST xong, nên phải có cờ riêng — không thì hai POST song song
-  // và hai event `onboarding_completed` làm nhiễu funnel.
+  // Draft sống tới khi POST xong, nên cần cờ riêng chống StrictMode chạy resume hai lần.
   const resumeStartedRef = useRef(false);
 
   // On mount: detect guest vs. authed. If authed with a stored draft, this is a post-signup resume.
   useEffect(() => {
     const authed = !!getAccessToken();
-    // Taxonomy onb_v3 (spec §6.2): chặng đầu của funnel — trước đây không có sự kiện nào đánh dấu
-    // "đã vào phễu", nên tỷ lệ rơi ở bước 1 không có mẫu số.
     trackEvent('onboarding_started', { guest: !authed });
     if (authed) {
       if (resumeStartedRef.current) return;
       resumeStartedRef.current = true;
       void resumeAfterAuth();
-      // Song song với claim: claim chỉ có việc khi khách từng đi phễu; học viên trung tâm thường
-      // đăng nhập thẳng (mật khẩu ngẫu nhiên → quên mật khẩu) nên không có phiên khách nào.
+      // Song song với claim: học viên trung tâm thường đăng nhập thẳng, không có phiên khách nào.
       void fetchOnboardingContext().then((ctx) => { if (needsLiteProfile(ctx)) setOrgContext(ctx); });
     } else {
       setIsGuest(true);
@@ -381,96 +335,106 @@ export default function V2OnboardingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Bản chụp câu trả lời theo hình dạng chung web/mobile (spec §5.1) — gửi lên phiên khách. */
-  const guestAnswersSnapshot = useCallback((): GuestAnswers => ({
-    motivation, goalType, currentLevel, targetLevel,
-    industry: goalType === "WORK" ? industry : null,
-    examType: goalType === "CERT" ? examType : null,
-    dailyGoalMinutes, sessionsPerWeek: weeklyTarget, minutesPerSession: 15,
-    learningSpeed: weeklyTarget >= 7 ? "FAST" : weeklyTarget >= 5 ? "NORMAL" : "SLOW",
-  }), [motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoalMinutes, weeklyTarget]);
-
   /** Guest signup gate: stash the funnel answers, then send the guest to /v2/register to save them. */
   const handleGuestSignup = useCallback(() => {
     // Server trước (claim sẽ phát lại từ đây), draft sau (đường lùi khi server hỏng).
-    void syncGuestSession('AUTH_GATE', guestAnswersSnapshot());
-    saveOnboardingDraft({ motivation, goalType, currentLevel, targetLevel, industry, examType, weeklyTarget });
+    void syncGuestSession('AUTH_GATE', guestAnswersFrom(answers));
+    saveOnboardingDraft({ motivation, currentLevel, targetLevel, industry, examType, dailyGoalMinutes, goalType });
     trackEvent('onboarding_signup_prompted', { motivation, goalType, currentLevel });
     router.push("/v2/register");
-  }, [motivation, goalType, currentLevel, targetLevel, industry, examType, weeklyTarget, router, trackEvent, guestAnswersSnapshot]);
+  }, [answers, motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoalMinutes, router, trackEvent]);
+
+  const stepId = WIZARD_STEP_IDS[step - 1];
+  const isLastWizardStep = step === WIZARD_STEP_COUNT;
 
   const nextStep = async () => {
-    // Khách: mỗi lần rời bước là một PATCH lên phiên server (best-effort); tới bước 3 là sang TASTE.
-    if (isGuest) void syncGuestSession(step === 3 ? 'TASTE' : 'PROFILE', guestAnswersSnapshot());
-    if (step === 1) trackOnboardingStep('Select Level', 1, { currentLevel });
-    if (step === 2) {
-      trackOnboardingStep('Select Goal', 2, { goalType, industry, targetLevel, motivation });
+    if (stepId && !canLeaveStep(stepId, answers)) return;
+    // Khách: mỗi lần rời bước là một PATCH lên phiên server (best-effort); rời bước cuối là sang TASTE.
+    if (isGuest) void syncGuestSession(isLastWizardStep ? 'TASTE' : 'PROFILE', guestAnswersFrom(answers));
+    if (step === 1) {
+      trackOnboardingStep('Select Goal', 1, { motivation, goalType });
       trackEvent('onboarding_motivation_selected', { motivation, goalType });
-      void fetchMentor();
     }
+    if (step === 2) trackOnboardingStep('Select Level', 2, { currentLevel, targetLevel });
     if (step === 3) {
-      trackOnboardingStep('Select Target', 3, { weeklyTarget });
+      trackOnboardingStep('Select Target', 3, { dailyGoalMinutes });
       trackEvent('onboarding_daily_goal_set', { minutes: dailyGoalMinutes });
     }
+    if (step === 4) trackOnboardingStep('Select Focus', 4, { goalType, industry, examType, targetLevel });
 
-    if (step === 3) {
-      if (isGuest) {
-        // Guest path: no account yet → quick win + signup gate. Nothing is saved server-side
-        // until after signup (the answers are replayed from the draft in resumeFromDraft).
-        setStep(4);
-        return;
-      }
-      // Khoá nút NGAY từ đây, không đợi tới startTest/goRoadmap: trong lúc `await
-      // getOnboardingRoute()` nút vẫn bấm được, bấm hai lần là hai POST /profile song
-      // song và bên thua đụng `uq_profile_user` → chính là nguồn 409 đáng chặn từ gốc.
-      setLoading(true);
-      // Ask the backend matrix (single source of truth) which archetype this
-      // (platform=web, level) cell maps to.
-      let r: OnboardingRouteData | null = null;
-      try {
-        r = await getOnboardingRoute(currentLevel);
-        setRoute(r);
-        trackEvent('onboarding_type_assigned', {
-          onboardingType: r.onboardingType,
-          paywallAllowed: r.paywallAllowed, platform: 'web', currentLevel,
-        });
-      } catch { /* matrix unavailable → treat as "no placement", see below */ }
+    if (!isLastWizardStep) { setStep((s) => s + 1); return; }
 
-      // Ma trận WEB không bao giờ BẮT BUỘC placement (cả 3 ô đều placementRequired=false),
-      // nên khi GET /route lỗi mạng, ép mọi A1+ vào bài kiểm tra không có nút bỏ qua là
-      // hành vi mà ma trận thật không bao giờ tạo ra. Lỗi mạng → cho vào lộ trình; placement
-      // mời lại sau ở checklist tuần đầu (Đợt 4).
-      const forced = r?.placementRequired ?? false;
-      const optional = r?.placementOptional ?? false;
-      if (forced) {
-        await startTest();
-      } else if (optional) {
-        // Value-first: offer placement as a skippable shortcut instead of gating the roadmap.
-        trackEvent('onboarding_placement_offered', { currentLevel });
-        setPlacementOffer(true);
-        setStep(4);
-        setLoading(false);
-      } else {
-        await goRoadmap();
-      }
-    } else setStep(s => s + 1);
+    if (isGuest) {
+      // Guest path: no account yet → quick win + signup gate. Nothing is saved server-side
+      // until after signup (claim phát lại, draft là đường lùi).
+      setStep(STEP_TASTE);
+      return;
+    }
+    // Khoá nút NGAY từ đây: trong lúc `await getOnboardingRoute()` bấm hai lần là hai POST /profile
+    // song song và bên thua đụng `uq_profile_user` → chính là nguồn 409 đáng chặn từ gốc.
+    setLoading(true);
+    let r: OnboardingRouteData | null = null;
+    try {
+      r = await getOnboardingRoute(currentLevel);
+      setRoute(r);
+      trackEvent('onboarding_type_assigned', {
+        onboardingType: r.onboardingType,
+        paywallAllowed: r.paywallAllowed, platform: 'web', currentLevel,
+      });
+    } catch { /* matrix unavailable → treat as "no placement", see below */ }
+
+    // Ma trận WEB không bao giờ BẮT BUỘC placement, nên khi GET /route lỗi mạng, ép A1+ vào bài
+    // kiểm tra là hành vi ma trận thật không sinh ra. Lỗi mạng → vào lộ trình (W-1).
+    const forced = r?.placementRequired ?? false;
+    const optional = r?.placementOptional ?? false;
+    if (forced) {
+      await startTest();
+    } else if (optional) {
+      trackEvent('onboarding_placement_offered', { currentLevel });
+      setPlacementOffer(true);
+      setStep(STEP_PLACEMENT);
+      setLoading(false);
+    } else {
+      await goRoadmap();
+    }
   };
 
   const card = "rounded-ga border border-ga-line bg-ga-card p-4 lg:p-6 shadow-ga-card-hover space-y-4";
-  const sel = (v: boolean) => `w-full flex items-center gap-3 p-3 rounded-ga border text-left transition-colors duration-150 ${v ? "border-ga-gold bg-ga-yellow-soft" : "border-ga-line hover:border-ga-subtle"}`;
-  const chip = (v: boolean) => `ga-ui text-[12px] px-3 py-1.5 min-h-[40px] lg:min-h-0 rounded-ga-pill border transition-colors ${v ? "bg-ga-yellow border-ga-gold text-ga-ink font-bold" : "border-ga-line text-ga-muted hover:border-ga-subtle"}`;
   // GaBtn ép whitespace-nowrap + h-11: nhãn CTA tiếng Việt dài tràn ngang ở khổ 320px.
-  // Cho xuống dòng trên mobile, từ lg trả lại đúng một dòng/44px như bản gốc.
   const btnWrap = "h-auto min-h-[44px] whitespace-normal py-2.5 text-center lg:h-11 lg:whitespace-nowrap lg:py-0";
+
+  const mentorCard = mentor ? (
+    <div className="space-y-1.5">
+      <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3 flex items-center gap-3">
+        <div className="w-11 h-11 rounded-ga-pill bg-ga-yellow flex items-center justify-center shrink-0"><GaIcon name="school" size={22} className="text-ga-ink" /></div>
+        <div className="min-w-0">
+          <p className="ga-ui text-ga-eyebrow uppercase text-ga-muted">{t("pace.mentorLabel")}</p>
+          <p className="ga-ui text-ga-small font-bold text-ga-ink">{mentor.displayName}</p>
+          <p className="text-ga-caption text-ga-muted">{mentorTagline(mentor.code) ?? t("mentorTaglines.fallback")}</p>
+        </div>
+      </div>
+      {mentor.upsellCode && mentorUpsellEnabled && !hideUpsell && (
+        <button type="button"
+          onClick={() => { trackEvent('onboarding_mentor_upsell_clicked', { mentor: mentor.code, upsell: mentor.upsellCode }); router.push(PRICING_ROUTE); }}
+          className="w-full text-left text-ga-caption text-ga-ink bg-ga-yellow-soft border border-dashed border-ga-gold rounded-ga px-3 py-2">
+          {t.rich("pace.upsell", {
+            name: mentor.upsellDisplayName ?? "",
+            tagline: mentorTaglineSuffix(mentor.upsellCode),
+            b: (chunks) => <strong>{chunks}</strong>,
+          })}
+        </button>
+      )}
+    </div>
+  ) : null;
 
   // Post-signup resume: saving the guest's draft profile, then routing on. Avoids a funnel flash.
   if (resuming) {
     return (
       <GaAuthShell showBackToLanding={false}>
-        <div className="text-center space-y-3">
+        <div className="text-center space-y-3" role="status">
           <Loader2 size={28} className="animate-spin mx-auto text-ga-gold" />
-          <p className="ga-ui text-[14px] font-semibold text-ga-ink">{t("loader.title")}</p>
-          <p className="text-[12.5px] text-ga-muted">{t("loader.sub")}</p>
+          <p className="ga-ui text-ga-body font-semibold text-ga-ink">{t("loader.title")}</p>
+          <p className="text-ga-small text-ga-muted">{t("loader.sub")}</p>
         </div>
       </GaAuthShell>
     );
@@ -485,132 +449,82 @@ export default function V2OnboardingPage() {
     );
   }
 
+  const shownStep = Math.min(step, totalSteps);
+  const stepTitle = stepId === "motivation" ? t("goal.heading")
+    : stepId === "level" ? t("level.heading")
+    : stepId === "rhythm" ? t("rhythm.heading")
+    : stepId === "focus" ? (goalType === "WORK" ? t("focus.industryHeading") : t("focus.examHeading"))
+    : step === STEP_TASTE && isGuest ? t("quickWin.heading")
+    : step === STEP_AUTH_GATE && isGuest ? t("signup.heading")
+    : t("test.heading");
+
   return (
     <GaAuthShell wide>
       <div className="mx-auto w-full max-w-lg overflow-x-clip">
         <div className="rounded-ga border border-ga-line bg-ga-card p-4 mb-4">
-          <p className="ga-ui text-[14px] font-semibold text-ga-ink">{t("intro.title")}</p>
-          <p className="mt-1 text-[12.5px] text-ga-muted">{t("intro.subtitle")}</p>
+          <p className="ga-ui text-ga-body font-semibold text-ga-ink">{t("intro.title")}</p>
+          <p className="mt-1 text-ga-small text-ga-muted">{t("intro.subtitle")}</p>
         </div>
         <div
           role="progressbar"
           aria-label={t("nav.progressAria")}
           aria-valuemin={1}
           aria-valuemax={totalSteps}
-          aria-valuenow={Math.min(step, totalSteps)}
+          aria-valuenow={shownStep}
           className="mb-6 flex items-center justify-center gap-2"
         >
-          <span className="sr-only">{t("nav.stepOf", { step: Math.min(step, totalSteps), total: totalSteps })}</span>
           {Array.from({ length: totalSteps }, (_, index) => index + 1).map(s => (
             <span aria-hidden="true" key={s} className={`h-1.5 w-8 rounded-ga-pill ${s <= step ? "bg-ga-yellow" : "bg-ga-line"}`} />
           ))}
         </div>
+        {/* W-12: đầu đọc màn hình nghe "Bước X trên Y: <tiêu đề>" mỗi lần đổi bước. */}
+        <div aria-live="polite" className="sr-only">{t("nav.stepAnnounce", { step: shownStep, total: totalSteps, title: stepTitle })}</div>
 
         <AnimatePresence mode="wait">
-          {step === 1 && (
-            <motion.div key="s1" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
-              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("level.heading")}</h1>
-              <p className="text-[13.5px] text-ga-muted">{t("level.sub")}</p>
-              {LEVELS.map(l => (
-                <button key={l.value} type="button" aria-pressed={currentLevel===l.value} onClick={() => setCurrentLevel(l.value)} className={sel(currentLevel===l.value)}>
-                  <GaIcon name={l.icon} size={22} className="text-ga-muted" />
-                  <div className="min-w-0 flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{t(`level.${l.value}.label`)}</p><p className="text-[12px] text-ga-muted">{t(`level.${l.value}.desc`)}</p></div>
-                  {currentLevel===l.value && <CheckCircle size={18} className="text-ga-gold" />}
-                </button>
-              ))}
+          {stepId === "motivation" && (
+            <motion.div key="s1" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading}>
+              <MotivationStep value={motivation} onChange={(m) => patch({ motivation: m })} headingRef={headingRef} />
             </motion.div>
           )}
 
-          {step === 2 && (
-            <motion.div key="s2" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
-              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("goal.heading")}</h1>
-              <p className="text-[13.5px] text-ga-muted">{t("goal.sub")}</p>
-              <div className="grid grid-cols-2 gap-2">
-                {MOTIVATIONS.map(m => (
-                  <button key={m.value} type="button" aria-pressed={motivation===m.value} onClick={() => { setMotivation(m.value); setGoalType(m.goal); }}
-                    className={`p-3 rounded-ga border text-center transition-colors duration-150 ${motivation===m.value ? "border-ga-gold bg-ga-yellow-soft" : "border-ga-line hover:border-ga-subtle"}`}>
-                    <GaIcon name={m.icon} size={22} className="mx-auto mb-1 text-ga-muted" />
-                    <p className="ga-ui text-[12px] font-bold leading-tight text-ga-ink">{t(`goal.${m.value}`)}</p>
-                  </button>
-                ))}
-              </div>
-              {goalType === "WORK" ? (
-                <>
-                  <label className="ga-ui block text-[13px] font-semibold text-ga-ink">{t("goal.industryLabel")}</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {INDUSTRIES.map(ind => (
-                      <button key={ind} type="button" aria-pressed={industry===ind} onClick={() => setIndustry(ind)} className={chip(industry===ind)}>
-                        {ind}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <label className="ga-ui block text-[13px] font-semibold text-ga-ink">{t("goal.examLabel")}</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {EXAMS.map(ex => (
-                      <button key={ex} type="button" aria-pressed={examType===ex} onClick={() => setExamType(ex)} className={chip(examType===ex)}>
-                        {ex}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-              <label className="ga-ui block text-[13px] font-semibold text-ga-ink">{t("goal.targetLevelLabel")}</label>
-              <select value={targetLevel} onChange={e => setTargetLevel(e.target.value)}
-                className="ga-ui block w-full rounded-ga border border-ga-line bg-ga-card px-[15px] py-2.5 text-[14px] text-ga-ink outline-none">
-                {["A1","A2","B1","B2","C1","C2"].map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
+          {stepId === "level" && (
+            <motion.div key="s2" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading}>
+              <LevelStep
+                currentLevel={currentLevel}
+                targetLevel={targetLevel}
+                onChangeCurrent={(l) => patch({ currentLevel: l })}
+                onChangeTarget={(l) => patch({ targetLevel: l })}
+                headingRef={headingRef}
+              />
             </motion.div>
           )}
 
-          {step === 3 && (
-            <motion.div key="s3" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
-              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("pace.heading")}</h1>
-              <p className="text-[13.5px] text-ga-muted">{t("pace.sub")}</p>
-              {mentor && (
-                <div className="space-y-1.5">
-                  <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3 flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-ga-pill bg-ga-yellow flex items-center justify-center text-xl shrink-0">{MENTOR_META[mentor.code]?.emoji ?? "🧑‍🏫"}</div>
-                    <div className="min-w-0">
-                      <p className="ga-ui text-[10.5px] uppercase tracking-[0.08em] text-ga-muted font-semibold">{t("pace.mentorLabel")}</p>
-                      <p className="ga-ui text-[13.5px] font-bold text-ga-ink">{mentor.displayName}</p>
-                      <p className="text-[12px] text-ga-muted">{mentorTagline(mentor.code) ?? t("mentorTaglines.fallback")}</p>
-                    </div>
-                  </div>
-                  {mentor.upsellCode && mentorUpsellEnabled && !hideUpsell && (
-                    <button type="button"
-                      onClick={() => { trackEvent('onboarding_mentor_upsell_clicked', { mentor: mentor.code, upsell: mentor.upsellCode }); router.push(PRICING_ROUTE); }}
-                      className="w-full text-left text-[12px] text-ga-ink bg-ga-yellow-soft border border-dashed border-ga-gold rounded-ga px-3 py-2">
-                      {t.rich("pace.upsell", {
-                        name: mentor.upsellDisplayName ?? "",
-                        tagline: mentorTaglineSuffix(mentor.upsellCode),
-                        b: (chunks) => <strong>{chunks}</strong>,
-                      })}
-                    </button>
-                  )}
-                </div>
-              )}
-              {WEEKLY.map(w => (
-                <button key={w.value} type="button" onClick={() => setWeeklyTarget(w.value)} className={sel(weeklyTarget===w.value)}>
-                  <GaIcon name={w.icon} size={24} className="text-ga-muted" />
-                  <div className="min-w-0 flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{t(`pace.w${w.value}.label`)}</p><p className="text-[12px] text-ga-muted">{t(`pace.w${w.value}.desc`)}</p></div>
-                </button>
-              ))}
-              {currentLevel === "A0"
-                ? <div className="rounded-ga border border-ga-green bg-ga-green-soft p-3"><p className="text-[12px] text-ga-ink">{t.rich("pace.noteA0", { b: (chunks) => <strong>{chunks}</strong> })}</p></div>
-                : <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3"><p className="text-[12px] text-ga-ink">{t.rich("pace.notePlacement", { b: (chunks) => <strong>{chunks}</strong> })}</p></div>
-              }
+          {stepId === "rhythm" && (
+            <motion.div key="s3" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading}>
+              <RhythmStep value={dailyGoalMinutes} onChange={(m) => patch({ dailyGoalMinutes: m })} currentLevel={currentLevel} headingRef={headingRef} />
             </motion.div>
           )}
 
-          {step === 4 && isGuest && (
-            <motion.div key="s4qw" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
-              <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-3xl mx-auto">🇩🇪</div>
-              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("quickWin.heading")}</h1>
-              <p className="text-[13.5px] text-ga-muted">{t("quickWin.prompt")}</p>
-              <div className="space-y-2 text-left">
+          {stepId === "focus" && (
+            <motion.div key="s4" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading}>
+              <FocusStep
+                goalType={goalType}
+                industry={industry}
+                examType={examType}
+                onChangeIndustry={(i) => patch({ industry: i })}
+                onChangeExam={(e) => patch({ examType: e })}
+                mentorCard={mentorCard}
+                headingRef={headingRef}
+              />
+            </motion.div>
+          )}
+
+          {step === STEP_TASTE && isGuest && (
+            <motion.div key="s5qw" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading} className={`${card} text-center`}>
+              <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-ga-gold mx-auto"><GaIcon name="record_voice_over" size={30} /></div>
+              <h1 ref={headingRef} tabIndex={-1} className="font-ga-display text-ga-h1-m text-ga-ink outline-none">{t("quickWin.heading")}</h1>
+              <p className="text-ga-small text-ga-muted">{t("quickWin.prompt")}</p>
+              <div className="space-y-2 text-left" role="group" aria-label={t("quickWin.prompt")}>
                 {["Guten Morgen","Gute Nacht","Auf Wiedersehen"].map(opt => {
                   const picked = quickWinChoice === opt;
                   const isCorrect = opt === "Guten Morgen";
@@ -620,13 +534,12 @@ export default function V2OnboardingPage() {
                     <button key={opt} type="button" disabled={solved}
                       onClick={() => {
                         setQuickWinChoice(opt);
-                        // Bản cũ chỉ bắn khi ĐÚNG ⇒ không đo được tỷ lệ sai. Tên mới theo taxonomy
-                        // onb_v3 bắn cả hai; tên cũ giữ nguyên nghĩa (chỉ khi đúng) trong lúc di trú.
+                        // Bản cũ chỉ bắn khi ĐÚNG ⇒ không đo được tỷ lệ sai. Tên mới bắn cả hai.
                         trackEvent('guest_activity_completed', { kind: 'quick_win', correct: isCorrect });
                         void syncGuestSession('TASTE', undefined, { quickWin: { correct: isCorrect, choice: opt } });
                         if (isCorrect) trackEvent('onboarding_quickwin_completed', { correct: true });
                       }}
-                      className={`ga-ui w-full text-left p-3 rounded-ga border text-[13.5px] transition-colors duration-150 disabled:cursor-default ${
+                      className={`ga-ui w-full text-left p-3 rounded-ga border text-ga-small transition-colors duration-150 disabled:cursor-default ${
                         answered && isCorrect ? "border-ga-green bg-ga-green-soft font-bold text-ga-ink"
                         : picked ? "border-ga-red bg-ga-red-soft text-ga-red"
                         : "border-ga-line text-ga-ink hover:border-ga-subtle"}`}>
@@ -635,45 +548,47 @@ export default function V2OnboardingPage() {
                   );
                 })}
               </div>
-              {quickWinChoice === "Guten Morgen" ? (
-                <>
-                  <p className="ga-ui text-[13.5px] font-bold text-ga-green">{t("quickWin.correct")}</p>
-                  <GaBtn variant="ink" size="lg" className="w-full" onClick={() => setStep(5)}>{t("nav.continue")} <ArrowRight size={14}/></GaBtn>
-                </>
-              ) : quickWinChoice ? (
-                <p className="text-[12px] text-ga-red">{t("quickWin.wrong")}</p>
-              ) : null}
+              <div aria-live="polite">
+                {quickWinChoice === "Guten Morgen" ? (
+                  <>
+                    <p className="ga-ui text-ga-small font-bold text-ga-green">{t("quickWin.correct")}</p>
+                    <GaBtn variant="ink" size="lg" className="w-full mt-3" onClick={() => setStep(STEP_AUTH_GATE)}>{t("nav.continue")} <ArrowRight size={14}/></GaBtn>
+                  </>
+                ) : quickWinChoice ? (
+                  <p className="text-ga-caption text-ga-red">{t("quickWin.wrong")}</p>
+                ) : null}
+              </div>
             </motion.div>
           )}
 
-          {step === 5 && isGuest && (
-            <motion.div key="s5" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
+          {step === STEP_AUTH_GATE && isGuest && (
+            <motion.div key="s6" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading} className={`${card} text-center`}>
               {mentor && (
                 <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3 flex items-center gap-3 text-left">
-                  <div className="w-11 h-11 rounded-ga-pill bg-ga-yellow flex items-center justify-center text-xl shrink-0">{MENTOR_META[mentor.code]?.emoji ?? "🧑‍🏫"}</div>
+                  <div className="w-11 h-11 rounded-ga-pill bg-ga-yellow flex items-center justify-center shrink-0"><GaIcon name="school" size={22} className="text-ga-ink" /></div>
                   <div className="min-w-0">
-                    <p className="ga-ui text-[10.5px] uppercase tracking-[0.08em] text-ga-muted font-semibold">{t("pace.mentorLabel")}</p>
-                    <p className="ga-ui text-[13.5px] font-bold text-ga-ink">{mentor.displayName}</p>
-                    <p className="text-[12px] text-ga-muted">{mentorTagline(mentor.code) ?? t("mentorTaglines.fallback")}</p>
+                    <p className="ga-ui text-ga-eyebrow uppercase text-ga-muted">{t("pace.mentorLabel")}</p>
+                    <p className="ga-ui text-ga-small font-bold text-ga-ink">{mentor.displayName}</p>
+                    <p className="text-ga-caption text-ga-muted">{mentorTagline(mentor.code) ?? t("mentorTaglines.fallback")}</p>
                   </div>
                 </div>
               )}
-              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("signup.heading")}</h1>
-              <p className="text-[13.5px] text-ga-muted">
+              <h1 ref={headingRef} tabIndex={-1} className="font-ga-display text-ga-h1-m text-ga-ink outline-none">{t("signup.heading")}</h1>
+              <p className="text-ga-small text-ga-muted">
                 {mentor ? t("signup.subWithMentor", { name: mentor.displayName }) : t("signup.sub")}
               </p>
               <GaBtn variant="yellow" size="lg" className={`w-full ${btnWrap}`} onClick={handleGuestSignup}>
                 {t("signup.cta")} <ArrowRight size={14}/>
               </GaBtn>
-              <p className="text-[12px] text-ga-muted">{t("signup.haveAccount")} <Link href="/v2/login" className="font-bold text-ga-ink underline">{t("signup.login")}</Link></p>
+              <p className="text-ga-caption text-ga-muted">{t("signup.haveAccount")} <Link href="/v2/login" className="font-bold text-ga-ink underline">{t("signup.login")}</Link></p>
             </motion.div>
           )}
 
-          {step === 4 && !isGuest && placementOffer && !testResult && questions.length === 0 && (
-            <motion.div key="s4offer" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
+          {step === STEP_PLACEMENT && !isGuest && placementOffer && !testResult && questions.length === 0 && (
+            <motion.div key="s5offer" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading} className={`${card} text-center`}>
               <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-ga-gold mx-auto"><GaIcon name="target" size={30} /></div>
-              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{t("placementOffer.heading")}</h1>
-              <p className="text-[13.5px] text-ga-muted">
+              <h1 ref={headingRef} tabIndex={-1} className="font-ga-display text-ga-h1-m text-ga-ink outline-none">{t("placementOffer.heading")}</h1>
+              <p className="text-ga-small text-ga-muted">
                 {t.rich("placementOffer.body", { level: currentLevel, b: (chunks) => <strong>{chunks}</strong> })}
               </p>
               <GaBtn variant="ink" size="lg" className="w-full" loading={loading} disabled={loading} onClick={startTest}>
@@ -686,33 +601,33 @@ export default function V2OnboardingPage() {
             </motion.div>
           )}
 
-          {step === 4 && !testResult && questions.length > 0 && (
-            <motion.div key="s4t" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
+          {step === STEP_PLACEMENT && !isGuest && !testResult && questions.length > 0 && (
+            <motion.div key="s5t" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading} className={card}>
               <div className="flex items-center justify-between gap-2">
-                <h2 className="min-w-0 font-ga-display text-[20px] font-medium text-ga-ink lg:text-[24px]">{t("test.heading")}</h2>
-                <span className="ga-ui shrink-0 text-[12px] text-ga-subtle">{currentQ+1}/{questions.length}</span>
+                <h2 ref={headingRef} tabIndex={-1} className="min-w-0 font-ga-display text-ga-h2 text-ga-ink outline-none lg:text-ga-h1-m">{t("test.heading")}</h2>
+                <span className="ga-ui shrink-0 text-ga-caption text-ga-subtle">{currentQ+1}/{questions.length}</span>
               </div>
-              <div className="flex gap-1">{questions.map((_,i) => <div key={i} className={`flex-1 h-1 rounded-ga-pill ${i<currentQ?"bg-ga-green":i===currentQ?"bg-ga-yellow":"bg-ga-line"}`} />)}</div>
-              {/* Skill chip: same four sections as v1 (HOEREN/SPRECHEN/LESEN/SCHREIBEN), retokenized. */}
-              <span className={`ga-ui inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-ga-pill ${
+              <div className="flex gap-1" aria-hidden="true">{questions.map((_,i) => <div key={i} className={`flex-1 h-1 rounded-ga-pill ${i<currentQ?"bg-ga-green":i===currentQ?"bg-ga-yellow":"bg-ga-line"}`} />)}</div>
+              <span className={`ga-ui inline-flex items-center gap-1 text-ga-eyebrow px-2 py-0.5 rounded-ga-pill ${
                 (TEST_SKILL_CHIP[questions[currentQ].skillSection] ?? TEST_SKILL_CHIP.SCHREIBEN).cls
               }`}>
                 <GaIcon name={(TEST_SKILL_CHIP[questions[currentQ].skillSection] ?? TEST_SKILL_CHIP.SCHREIBEN).icon} size={11} />
                 {t((TEST_SKILL_CHIP[questions[currentQ].skillSection] ?? TEST_SKILL_CHIP.SCHREIBEN).labelKey as never)}
               </span>
-              {questions[currentQ].audioTranscript && <div className="flex items-start gap-1.5 rounded-ga bg-ga-surface p-3 text-[12px] text-ga-muted italic"><GaIcon name="volume_up" size={13} className="mt-[2px]" /><span>&quot;{questions[currentQ].audioTranscript}&quot;</span></div>}
-              <p className="text-[13.5px] font-medium text-ga-ink whitespace-pre-line break-words">{questions[currentQ].questionDe}</p>
-              {questions[currentQ].questionVi && <p className="text-[12px] text-ga-subtle">{questions[currentQ].questionVi}</p>}
+              {questions[currentQ].audioTranscript && <div className="flex items-start gap-1.5 rounded-ga bg-ga-surface p-3 text-ga-caption text-ga-muted italic"><GaIcon name="volume_up" size={13} className="mt-[2px]" /><span>&quot;{questions[currentQ].audioTranscript}&quot;</span></div>}
+              <p className="text-ga-small font-medium text-ga-ink whitespace-pre-line break-words">{questions[currentQ].questionDe}</p>
+              {questions[currentQ].questionVi && <p className="text-ga-caption text-ga-subtle">{questions[currentQ].questionVi}</p>}
               {questions[currentQ].options ? (
-                <div className="space-y-2">{questions[currentQ].options!.map((opt,i) => (
-                  <button key={i} type="button" onClick={() => setAnswers(a => ({...a,[questions[currentQ].id]:opt}))}
-                    className={`ga-ui w-full text-left p-3 rounded-ga border text-[13.5px] transition-colors duration-150 ${answers[questions[currentQ].id]===opt?"border-ga-gold bg-ga-yellow-soft font-bold text-ga-ink":"border-ga-line text-ga-ink hover:border-ga-subtle"}`}>
+                <div className="space-y-2" role="radiogroup" aria-label={questions[currentQ].questionDe}>{questions[currentQ].options!.map((opt,i) => (
+                  <button key={i} type="button" role="radio" aria-checked={testAnswers[questions[currentQ].id]===opt} onClick={() => setTestAnswers(a => ({...a,[questions[currentQ].id]:opt}))}
+                    className={`ga-ui w-full text-left p-3 rounded-ga border text-ga-small transition-colors duration-150 ${testAnswers[questions[currentQ].id]===opt?"border-ga-gold bg-ga-yellow-soft font-bold text-ga-ink":"border-ga-line text-ga-ink hover:border-ga-subtle"}`}>
                     {String.fromCharCode(65+i)}. {opt}
                   </button>
                 ))}</div>
               ) : (
-                <textarea value={answers[questions[currentQ].id]??""} onChange={e => setAnswers(a => ({...a,[questions[currentQ].id]:e.target.value}))}
-                  placeholder={t("test.writePlaceholder")} className="ga-ui w-full rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13.5px] text-ga-ink outline-none resize-none" rows={3} />
+                <textarea value={testAnswers[questions[currentQ].id]??""} onChange={e => setTestAnswers(a => ({...a,[questions[currentQ].id]:e.target.value}))}
+                  aria-label={questions[currentQ].questionDe}
+                  placeholder={t("test.writePlaceholder")} className="ga-ui w-full rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-ga-small text-ga-ink outline-none resize-none" rows={3} />
               )}
               <div className="flex flex-wrap items-center justify-between gap-3 pt-2 lg:flex-nowrap lg:gap-0">
                 {currentQ > 0
@@ -726,13 +641,13 @@ export default function V2OnboardingPage() {
             </motion.div>
           )}
 
-          {step === 4 && testResult && (
-            <motion.div key="s4r" initial={{opacity:0,scale:0.95}} animate={{opacity:1,scale:1}} className={`${card} text-center`}>
+          {step === STEP_PLACEMENT && !isGuest && testResult && (
+            <motion.div key="s5r" initial={{opacity:0,scale:0.95}} animate={{opacity:1,scale:1}} onAnimationComplete={focusHeading} className={`${card} text-center`} aria-live="polite">
               <div className={`inline-flex w-20 h-20 rounded-ga-pill items-center justify-center mx-auto ${testResult.passed?"bg-ga-green-soft text-ga-green":"bg-ga-red-soft text-ga-red"}`}>
                 {testResult.passed ? <CheckCircle size={40}/> : <XCircle size={40}/>}
               </div>
-              <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{testResult.passed ? t("result.passed") : t("result.failed")}</h1>
-              <p className="text-[13.5px] text-ga-muted">
+              <h1 ref={headingRef} tabIndex={-1} className="font-ga-display text-ga-h1-m text-ga-ink outline-none">{testResult.passed ? t("result.passed") : t("result.failed")}</h1>
+              <p className="text-ga-small text-ga-muted">
                 {t.rich("result.score", {
                   correct: testResult.correctCount,
                   total: testResult.totalQuestions,
@@ -742,16 +657,15 @@ export default function V2OnboardingPage() {
               </p>
               {!testResult.passed && testResult.weakModules && (
                 <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3 text-left">
-                  <p className="text-[12px] text-ga-ink">{t("result.weakModules", { modules: testResult.weakModules.join(", ") })}</p>
-                  <p className="mt-1 text-[10.5px] text-ga-muted">{t("result.retryAfter", { days: testResult.retryAfterDays ?? 3 })}</p>
+                  <p className="text-ga-caption text-ga-ink">{t("result.weakModules", { modules: testResult.weakModules.join(", ") })}</p>
+                  <p className="mt-1 text-ga-eyebrow normal-case tracking-normal font-normal text-ga-muted">{t("result.retryAfter", { days: testResult.retryAfterDays ?? 3 })}</p>
                 </div>
               )}
               <GaBtn variant="ink" size="lg" className={`w-full ${btnWrap}`} onClick={() => router.push(ROADMAP_ROUTE)}>
                 {testResult.passed ? t("result.ctaPassed") : t("result.ctaFailed")}
               </GaBtn>
-              {/* Q-A (28/08): client thôi đọc `postAction`. Ô ma trận sinh PRICING_CTA là
-                  WEB × B1+, tức điều kiện tương đương suy ra được từ trình độ người dùng tự
-                  chọn + `paywallAllowed`. Cộng thêm luật GĐ 2: đang dùng thử / đã PRO thì ẩn. */}
+              {/* Q-A (28/08): client thôi đọc `postAction`; PRICING_CTA = WEB × B1+ suy từ trình độ +
+                  `paywallAllowed`; đang dùng thử / đã PRO thì ẩn (GĐ 2). */}
               {route?.paywallAllowed && UPPER_LEVELS.includes(currentLevel) && !hideUpsell && (
                 <GaBtn variant="yellow" size="lg" className={`w-full ${btnWrap}`}
                   onClick={() => { trackEvent('onboarding_pricing_cta_clicked', { currentLevel }); router.push(PRICING_ROUTE); }}>
@@ -762,13 +676,13 @@ export default function V2OnboardingPage() {
           )}
         </AnimatePresence>
 
-        {step <= 3 && (
+        {step <= WIZARD_STEP_COUNT && (
           <div className="flex flex-wrap items-center justify-between gap-3 mt-4 lg:flex-nowrap lg:gap-0">
             {step > 1
               ? <GaBtn variant="ghost" onClick={() => setStep(s=>s-1)}><ArrowLeft size={14}/> {t("nav.back")}</GaBtn>
               : <div/>}
-            <GaBtn variant="ink" size="lg" loading={loading} disabled={loading} onClick={nextStep}>
-              {step===3 && !isGuest && currentLevel==="A0" ? t("nav.startRoadmap") : t("nav.continue")}
+            <GaBtn variant="ink" size="lg" loading={loading} disabled={loading || (stepId ? !canLeaveStep(stepId, answers) : false)} onClick={nextStep}>
+              {isLastWizardStep && !isGuest && currentLevel==="A0" ? t("nav.startRoadmap") : t("nav.continue")}
               <ArrowRight size={14}/>
             </GaBtn>
           </div>

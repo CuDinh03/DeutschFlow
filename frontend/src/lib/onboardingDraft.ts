@@ -25,14 +25,22 @@ export interface OnboardingDraft {
   goalType: string       // derived from motivation (EXAM → CERT, else WORK)
   currentLevel: string
   targetLevel: string
-  industry: string
-  examType: string
-  weeklyTarget: number
+  industry: string | null
+  examType: string | null
+  /** Đợt 4 (18/09): phút/ngày như mobile — thay `weeklyTarget` của bản cũ. */
+  dailyGoalMinutes: number
 }
 
 /** Hình dạng thật sự nằm trên máy: draft + dấu thời gian để kiểm hạn. */
 interface StoredDraft extends OnboardingDraft {
   savedAt: number
+  /** Bản cũ (trước Đợt 4) — chỉ để đọc lại draft đang sống trên máy người dùng. */
+  weeklyTarget?: number
+}
+
+/** 7 bài/tuần ~ 20′, 5 ~ 15′, 3 ~ 10′ — đúng bảng suy diễn của bản cũ. */
+function dailyGoalFromLegacyWeekly(weekly: number): number {
+  return weekly >= 7 ? 20 : weekly >= 5 ? 15 : 10
 }
 
 /** Persist the guest's funnel answers before bouncing to /register. No-op during SSR. */
@@ -69,9 +77,11 @@ export function readOnboardingDraft(): OnboardingDraft | null {
       goalType: d.goalType ?? 'WORK',
       currentLevel: d.currentLevel ?? 'A0',
       targetLevel: d.targetLevel,
-      industry: d.industry ?? 'IT',
-      examType: d.examType ?? 'GOETHE',
-      weeklyTarget: typeof d.weeklyTarget === 'number' ? d.weeklyTarget : 5,
+      industry: d.industry ?? null,
+      examType: d.examType ?? null,
+      dailyGoalMinutes: typeof d.dailyGoalMinutes === 'number'
+        ? d.dailyGoalMinutes
+        : typeof d.weeklyTarget === 'number' ? dailyGoalFromLegacyWeekly(d.weeklyTarget) : 15,
     }
   } catch {
     return null

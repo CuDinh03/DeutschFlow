@@ -26,7 +26,11 @@
       "B2": {
         "label": "Upper-intermediate (B2)",
         "desc": "Handle complex texts"
-      }
+      },
+      "currentLabel": "Today",
+      "targetLabel": "Goal",
+      "journey": "{nodes} stages · about {weeks} weeks at a steady pace.",
+      "journeyGeneric": "Your roadmap will be built for this exact stretch."
     },
     "goal": {
       "heading": "Why are you learning German?",
@@ -60,6 +64,43 @@
       },
       "noteA0": "Your first steps will be <b>the alphabet, pronunciation and greetings</b>.",
       "notePlacement": "You can take an <b>optional 5-minute test</b> to land on the right level — or just start learning."
+    },
+    "rhythm": {
+      "heading": "How many minutes a day?",
+      "sub": "Your streak is measured against this — pick what you can keep up long-term.",
+      "minutes": "min/day",
+      "m5": "On the go",
+      "m10": "Light",
+      "m15": "Steady",
+      "m20": "Serious"
+    },
+    "focus": {
+      "industryHeading": "Where will you use German?",
+      "industrySub": "Optional — helps pick your mentor and job-related speaking scenarios.",
+      "examHeading": "Which exam are you aiming for?",
+      "examSub": "Optional — practice sets and task types will follow this exam format.",
+      "industry": {
+        "IT": "IT",
+        "Pflege": "Nursing",
+        "Gastronomie": "Hospitality",
+        "Verkauf": "Sales",
+        "Tourismus": "Tourism",
+        "Technik": "Engineering"
+      },
+      "exam": {
+        "GOETHE": {
+          "label": "Goethe-Zertifikat",
+          "desc": "The most common certificate"
+        },
+        "TELC": {
+          "label": "telc Deutsch",
+          "desc": "Recognised on par with Goethe"
+        },
+        "TESTDAF": {
+          "label": "TestDaF",
+          "desc": "For university study"
+        }
+      }
     },
     "orgLite": {
       "cap": "Centre learner",
@@ -120,7 +161,8 @@
       "continue": "Continue",
       "startRoadmap": "Start roadmap",
       "progressAria": "Roadmap setup progress",
-      "stepOf": "Step {step} of {total}"
+      "stepOf": "Step {step} of {total}",
+      "stepAnnounce": "Step {step} of {total}: {title}"
     },
     "loader": {
       "title": "Building your roadmap…",
