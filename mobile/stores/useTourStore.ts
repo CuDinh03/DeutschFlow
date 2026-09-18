@@ -37,7 +37,11 @@ const NONE_DONE: Record<TourFlagId, boolean> = {
 interface TourState {
   hydrated: boolean
   done: Record<TourFlagId, boolean>
-  /** Read persisted flags once per app run (subsequent calls no-op). */
+  /**
+   * Read persisted flags once per app run. Idempotent: đã hydrate thì no-op; đang hydrate dở thì
+   * trả lại đúng promise đang chạy (M-17: bootstrap ở app/_layout.tsx và SpotlightTour cùng gọi lúc
+   * khởi động — không đọc SecureStore hai lần, không đè `markDone` xen giữa bằng dữ liệu cũ).
+   */
   hydrate: () => Promise<void>
   isDone: (id: TourFlagId) => boolean
   /** Persist a flag and update state. Best-effort — storage failure only means re-showing later. */
@@ -50,27 +54,42 @@ interface TourState {
   reset: () => Promise<void>
 }
 
+/** Promise của lần hydrate đang chạy (single-flight); null khi không có lần nào dở. */
+let hydrating: Promise<void> | null = null
+
 export const useTourStore = create<TourState>((set, get) => ({
   hydrated: false,
   done: { ...NONE_DONE },
 
-  hydrate: async () => {
-    if (get().hydrated) return
-    try {
-      const [legacy, ...flags] = await Promise.all([
-        SecureStore.getItemAsync(LEGACY_KEY),
-        ...TOUR_FLAG_IDS.map((id) => SecureStore.getItemAsync(keyFor(id))),
-      ])
-      const done = { ...NONE_DONE }
-      TOUR_FLAG_IDS.forEach((id, i) => {
-        done[id] = flags[i] === '1'
-      })
-      if (legacy === '1') done.home = true
-      set({ hydrated: true, done })
-    } catch {
-      // Storage unavailable — mark hydrated so callers don't wait forever.
-      set({ hydrated: true })
-    }
+  hydrate: () => {
+    if (get().hydrated) return Promise.resolve()
+    if (hydrating) return hydrating
+    hydrating = (async () => {
+      try {
+        const [legacy, ...flags] = await Promise.all([
+          SecureStore.getItemAsync(LEGACY_KEY),
+          ...TOUR_FLAG_IDS.map((id) => SecureStore.getItemAsync(keyFor(id))),
+        ])
+        const current = get()
+        // reset() chạy xen giữa (đăng xuất) đã đặt hydrated=true với state rỗng — dữ liệu vừa đọc
+        // là của người trước, đừng hồi sinh.
+        if (current.hydrated) return
+        // OR với cờ đã đặt trong bộ nhớ lúc đang đọc (markDone xen giữa): cờ chỉ đi false → true,
+        // nên gộp là an toàn; ghi đè thẳng thì mất profile_done vừa đặt sau POST hồ sơ.
+        const done = { ...NONE_DONE }
+        TOUR_FLAG_IDS.forEach((id, i) => {
+          done[id] = flags[i] === '1' || current.done[id]
+        })
+        if (legacy === '1') done.home = true
+        set({ hydrated: true, done })
+      } catch {
+        // Storage unavailable — mark hydrated so callers don't wait forever.
+        set({ hydrated: true })
+      } finally {
+        hydrating = null
+      }
+    })()
+    return hydrating
   },
 
   isDone: (id) => get().done[id],

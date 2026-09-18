@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -122,7 +123,7 @@ class ExamScoringServiceTest {
     @Test
     @DisplayName("bài viết đọc khoá email_<teil> mà trình chạy web gửi lên")
     void scoreSchreibenSection_emailKeyFromRunner_isEvaluated() {
-        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString()))
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(aiScore(12, "AI_EVALUATED"));
         Map<String, Object> answers = new HashMap<>(Map.of(
                 "form_0", "Anna", "form_1", "Müller", "form_2", "Hanoi",
@@ -146,13 +147,13 @@ class ExamScoringServiceTest {
 
         assertThat(result.get("total")).isEqualTo(5); // 10 × 2/4, bài viết 0
         assertThat(result.get("max")).isEqualTo(25);
-        verify(aiEvaluator, never()).evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString());
+        verify(aiEvaluator, never()).evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString(), any());
     }
 
     @Test
     @DisplayName("AI chấm hỏng thì nhiệm vụ đó rời khỏi mẫu số, không trừ điểm học viên")
     void scoreSchreibenSection_aiPending_dropsTaskFromMax() {
-        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString()))
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(aiScore(0, ExamScoringService.STATUS_PENDING));
         Map<String, Object> answers = new HashMap<>(Map.of(
                 "form_0", "Anna", "form_1", "Müller", "form_2", "Hanoi", "form_3", "1999",
@@ -168,7 +169,7 @@ class ExamScoringServiceTest {
     @Test
     @DisplayName("đề chỉ có bài viết (B1/B2) chia đều thang điểm cho từng bài")
     void scoreSchreibenSection_writingOnly_splitsMaxEvenly() {
-        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString()))
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(aiScore(15, "AI_EVALUATED"));
         Map<String, Object> section = new HashMap<>();
         section.put("max_points", 25);
@@ -186,7 +187,7 @@ class ExamScoringServiceTest {
     @Test
     @DisplayName("khoá cũ email_section trong dữ liệu lịch sử vẫn chấm được")
     void scoreSchreibenSection_legacyEmailSectionKey_stillEvaluated() {
-        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString()))
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(aiScore(15, "AI_EVALUATED"));
         Map<String, Object> answers = new HashMap<>(Map.of("email_section", "Liebe Anna, ..."));
 
@@ -198,14 +199,14 @@ class ExamScoringServiceTest {
     @Test
     @DisplayName("trình độ của đề được dẫn tới rubric AI, không để mặc định")
     void scoreSchreibenSection_passesExamLevelToEvaluator() {
-        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString()))
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(aiScore(12, "AI_EVALUATED"));
         Map<String, Object> answers = new HashMap<>(Map.of("email_2", "Sehr geehrte Damen und Herren, ..."));
 
         service.scoreSchreibenSection(7L, answers, schreibenSection(), "C1");
 
         org.mockito.ArgumentCaptor<String> level = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(aiEvaluator).evaluateSchreibenEmail(anyLong(), anyString(), anyString(), level.capture());
+        verify(aiEvaluator).evaluateSchreibenEmail(anyLong(), anyString(), anyString(), level.capture(), any());
         assertThat(level.getValue()).isEqualTo("C1");
     }
 
@@ -226,14 +227,14 @@ class ExamScoringServiceTest {
     @Test
     @DisplayName("đề bài gửi cho AI mang cả chủ đề lẫn các ý bắt buộc, không chỉ một dòng tiếng Việt")
     void scoreSchreibenSection_sendsFullTaskAndRequiredPoints() {
-        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString()))
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(aiScore(12, "AI_EVALUATED"));
         Map<String, Object> answers = new HashMap<>(Map.of("email_2", "Hallo Sara, ich wohne jetzt in Berlin."));
 
         service.scoreSchreibenSection(7L, answers, schreibenSection(), "A1");
 
         org.mockito.ArgumentCaptor<String> task = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(aiEvaluator).evaluateSchreibenEmail(anyLong(), anyString(), task.capture(), anyString());
+        verify(aiEvaluator).evaluateSchreibenEmail(anyLong(), anyString(), task.capture(), anyString(), any());
         assertThat(task.getValue())
                 .as("tiêu chí aufgabenerfuellung cần chủ đề và các ý bắt buộc để đối chiếu")
                 .contains("Betreff: Neue Wohnung")
@@ -243,10 +244,39 @@ class ExamScoringServiceTest {
     }
 
     @Test
+    @DisplayName("đề telc: E-Mail của bạn (văn bản kích thích) đi theo đề bài gửi AI — để AI biết bài có trả lời đúng điều được hỏi không")
+    void scoreSchreibenSection_sendsStimulusEmailToAi() {
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString(), any()))
+                .thenReturn(aiScore(27, "AI_EVALUATED"));
+        Map<String, Object> section = new HashMap<>();
+        section.put("max_points", 45);
+        section.put("teile", List.of(Map.of("teil", 1,
+                "instruction_de", "Antworten Sie Ihrer Freundin.",
+                "prompt", "Ihre Freundin Lena hat Ihnen geschrieben.",
+                "stimulus", Map.of("type", "EMAIL", "from", "Lena", "subject", "Besuch im Juli?",
+                        "body", "Hallo! Passt dir der Juli?"),
+                "shuffle_points", true,
+                "writing_points", List.of("Reaktion auf den Vorschlag", "Tipp für die Übernachtung"))));
+        Map<String, Object> answers = new HashMap<>(Map.of("email_1", "Liebe Lena, ja, der Juli passt."));
+
+        service.scoreSchreibenSection(7L, answers, section, "B1", "TELC");
+
+        org.mockito.ArgumentCaptor<String> task = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(aiEvaluator).evaluateSchreibenEmail(anyLong(), anyString(), task.capture(), anyString(), org.mockito.ArgumentMatchers.eq("TELC"));
+        assertThat(task.getValue())
+                .contains("E-Mail, auf die geantwortet wird")
+                .contains("Von: Lena")
+                .contains("Betreff: Besuch im Juli?")
+                .contains("Passt dir der Juli?")
+                .contains("1. Reaktion auf den Vorschlag") // Leitpunkte theo thứ tự hợp lý của seed
+                .contains("2. Tipp für die Übernachtung");
+    }
+
+    @Test
     @DisplayName("phiếu AI thiếu tiêu chí: điểm phần Viết tính theo thang đã co, không mất điểm oan")
     void scoreSchreibenSection_shrunkAiMax_scoresOnThatScale() {
         // 12/12 (mô hình bỏ sót strukturen) phải là điểm tuyệt đối của nhiệm vụ viết, không phải 12/15.
-        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString()))
+        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(Map.of("total", 12, "max", 12, "status", "AI_EVALUATED"));
         Map<String, Object> answers = new HashMap<>(Map.of(
                 "form_0", "Anna", "form_1", "Müller", "form_2", "Hanoi", "form_3", "1999",
@@ -330,6 +360,95 @@ class ExamScoringServiceTest {
     }
 
     @Test
+    @DisplayName("phần client không hiển thị được cũng rời khỏi mẫu số — học viên chỉ bị chấm phần đã làm")
+    void summarize_skippedOnClientExcluded_onlyAttemptedSectionsCount() {
+        Map<String, Object> detailed = new LinkedHashMap<>();
+        detailed.put("LESEN", scored(20, 25));
+        detailed.put("HOEREN", skippedOnClient(25));
+        detailed.put("SCHREIBEN", skippedOnClient(25));
+        detailed.put("SPRECHEN", pending(25));
+
+        ExamScoringService.ExamTotals totals = service.summarize(detailed, 60);
+
+        assertThat(totals.rawPoints()).isEqualTo(20);
+        assertThat(totals.scoredMax()).isEqualTo(25);
+        assertThat(totals.totalScore()).isEqualTo(80); // 20/25, KHÔNG phải 20/75 = 27
+        assertThat(totals.passed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("điểm yếu không gọi tên phần mà client không cho làm")
+    void identifyWeakAreas_ignoresSkippedOnClientSections() {
+        Map<String, Object> detailed = new LinkedHashMap<>();
+        detailed.put("LESEN", scored(20, 25));
+        detailed.put("HOEREN", skippedOnClient(25));
+
+        List<String> weak = service.identifyWeakAreas(detailed);
+
+        assertThat(weak).isEmpty();
+    }
+
+    @Test
+    @DisplayName("phần bỏ qua mang đúng thang điểm của đề và trạng thái riêng")
+    void skippedOnClientSection_keepsSectionMax() {
+        Map<String, Object> out = service.skippedOnClientSection(objectiveSection(20, List.of()));
+
+        assertThat(out.get("max")).isEqualTo(20);
+        assertThat(out.get("total")).isEqualTo(0);
+        assertThat(out.get("status")).isEqualTo(ExamScoringService.STATUS_SKIPPED_ON_CLIENT);
+    }
+
+    // ─── Khai báo "không làm được trên app" chỉ có giá trị khi thật sự không làm ──
+
+    @Test
+    @DisplayName("phần khách quan không có câu trả lời nào ⇒ hasAnyAnswer = false")
+    void hasAnyAnswer_objectiveSectionUntouched_isFalse() {
+        Map<String, Object> section = objectiveSection(25, List.of(
+                Map.of("id", "h1", "correct", "a"), Map.of("id", "h2", "correct", "b")));
+
+        assertThat(service.hasAnyAnswer(Map.of("l1", "a"), section)).isFalse();
+    }
+
+    @Test
+    @DisplayName("đã trả lời một câu của phần đó ⇒ hasAnyAnswer = true (khai bỏ qua sẽ bị bỏ ngoài tai)")
+    void hasAnyAnswer_objectiveSectionAnswered_isTrue() {
+        Map<String, Object> section = objectiveSection(25, List.of(
+                Map.of("id", "h1", "correct", "a"), Map.of("id", "h2", "correct", "b")));
+
+        assertThat(service.hasAnyAnswer(Map.of("h2", "b"), section)).isTrue();
+    }
+
+    @Test
+    @DisplayName("ô trống không tính là đã làm")
+    void hasAnyAnswer_blankValue_isFalse() {
+        Map<String, Object> section = objectiveSection(25, List.of(Map.of("id", "h1", "correct", "a")));
+
+        assertThat(service.hasAnyAnswer(Map.of("h1", "   "), section)).isFalse();
+    }
+
+    @Test
+    @DisplayName("phần Viết: nhận cả khoá form_<i>, email_<teil> và khoá cũ email_section")
+    void hasAnyAnswer_schreibenKeys_areRecognised() {
+        Map<String, Object> section = schreibenSection();
+
+        assertThat(service.hasAnyAnswer(Map.of(), section)).isFalse();
+        assertThat(service.hasAnyAnswer(Map.of("form_0", "Anna"), section)).isTrue();
+        assertThat(service.hasAnyAnswer(Map.of("email_2", "Hallo Sara"), section)).isTrue();
+        assertThat(service.hasAnyAnswer(Map.of("schreiben_2", "Hallo"), section)).isTrue();
+        assertThat(service.hasAnyAnswer(Map.of("email_section", "Hallo"), section)).isTrue();
+    }
+
+    @Test
+    @DisplayName("phần Nói: nhận mọi khoá transcript mà nhánh chấm Nói đang đọc")
+    void hasAnyAnswer_sprechenTranscriptKeys_areRecognised() {
+        Map<String, Object> section = sprechenSection();
+
+        assertThat(service.hasAnyAnswer(Map.of(), section)).isFalse();
+        assertThat(service.hasAnyAnswer(Map.of("sprechen_transcript", "Ich heiße Anna"), section)).isTrue();
+        assertThat(service.hasAnyAnswer(Map.of("audio_transcript", "Ich heiße Anna"), section)).isTrue();
+    }
+
+    @Test
     @DisplayName("ngưỡng đỗ lấy theo pass_points/total_points của đề")
     void passPercent_readsExamThreshold() {
         assertThat(ExamScoringService.passPercent(60, 100)).isEqualTo(60);
@@ -395,5 +514,9 @@ class ExamScoringServiceTest {
 
     private Map<String, Object> pending(int max) {
         return Map.of("total", 0, "max", max, "status", ExamScoringService.STATUS_PENDING);
+    }
+
+    private Map<String, Object> skippedOnClient(int max) {
+        return Map.of("total", 0, "max", max, "status", ExamScoringService.STATUS_SKIPPED_ON_CLIENT);
     }
 }

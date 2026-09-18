@@ -580,6 +580,40 @@
         "printTeacherSign": "Unterschrift Lehrkraft",
         "printHeadSign": "Bestätigung Schulleitung",
         "printAvgScore": "Ø Aufgabenpunktzahl: {score}"
+      },
+      "reportIssue": {
+        "openButton": "Bericht ausstellen",
+        "title": "Bericht für die Familie ausstellen",
+        "subtitle": "Lernende Person: {name}",
+        "periodCap": "Berichtszeitraum",
+        "periodMIDTERM": "Halbzeit",
+        "periodFINAL": "Kursabschluss",
+        "langCap": "Sprache des Berichts",
+        "langvi": "Tiếng Việt",
+        "langen": "English",
+        "langde": "Deutsch",
+        "langHint": "Diese Sprache wird im Bericht festgeschrieben; die Anmerkungen der Lehrkraft bleiben im Wortlaut und werden nicht maschinell übersetzt.",
+        "showPreview": "Bericht in der Vorschau ansehen",
+        "hidePreview": "Vorschau ausblenden",
+        "issueButton": "Ausstellen",
+        "reissueButton": "Erneut ausstellen",
+        "reissueWarning": "Für diesen Zeitraum gibt es bereits einen gültigen Bericht (ausgestellt am {date}). Beim erneuten Ausstellen wird er ersetzt und der alte Link funktioniert sofort nicht mehr; ein bereits versendetes PDF lässt sich nicht zurückholen.",
+        "issueSuccess": "Der Bericht wurde ausgestellt",
+        "resultCap": "Bericht ausgestellt",
+        "resultHint": "DeutschFlow verschickt nichts an Eltern. Das Zentrum kopiert den Link oder lädt das PDF herunter und versendet es über den eigenen Kanal.",
+        "verificationCodeLabel": "Berichtsnummer",
+        "expiresLabel": "Link gültig bis",
+        "copyLink": "Link kopieren",
+        "copied": "Kopiert",
+        "copyError": "Der Link konnte nicht kopiert werden. Bitte markieren und von Hand kopieren.",
+        "downloadPdf": "PDF herunterladen",
+        "historyCap": "Für diese Person ausgestellte Berichte",
+        "historyEmpty": "Für diese Person wurde noch kein Bericht ausgestellt.",
+        "viewCount": "{count} Aufrufe",
+        "statusACTIVE": "Gültig",
+        "statusEXPIRED": "Abgelaufen",
+        "statusSUPERSEDED": "Ersetzt",
+        "statusREVOKED": "Zurückgezogen"
       }
     },
     "grading": {
@@ -660,7 +694,10 @@
       "aiCallError": "Fehler beim Aufruf der KI-Bewertung",
       "aiFailedWithReason": "KI-Bewertung fehlgeschlagen: {reason}",
       "aiFailedGeneric": "KI-Bewertung fehlgeschlagen. Bitte manuell bewerten.",
-      "clearFilter": "Filter zurücksetzen"
+      "clearFilter": "Filter zurücksetzen",
+      "aiProposalCap": "Von der KI vorgeschlagene Note",
+      "aiProposalScore": "{score}/100",
+      "aiProposalHint": "Das ist ein Vorschlag der KI, keine endgültige Note. Endgültig ist die Zahl, die Sie unten eintragen und speichern. Lernende und der Bericht an die Familie sehen diesen Wert nie."
     },
     "gradeImage": {
       "title": "Nach Bild bewerten",

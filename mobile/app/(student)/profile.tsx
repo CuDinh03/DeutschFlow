@@ -1,9 +1,9 @@
-import { View, Alert, Pressable, Platform } from 'react-native'
+import { View, Alert, Pressable, Platform, Image } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { isOrgPlan, orgPlanNotice, planActionRows, trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
+import { isOrgPlan, isTrialActive, orgPlanNotice, planActionRows, trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
 import api, { apiMessage } from '@/lib/api'
 import { IAP_ENABLED, PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
@@ -33,6 +33,9 @@ export default function ProfileScreen() {
   // V-06: gói do trung tâm cấp → không mời huỷ/hoàn tiền Apple (xem cụm "Gói đăng ký" bên dưới).
   const planIsOrg = isOrgPlan(plan)
   const planRows = planActionRows(plan)
+  // M-7 (Q1 28/08): đang dùng thử → ẩn thẻ mời "Nâng cấp lên PRO" chủ động. Cụm "Gói đăng ký" bên
+  // dưới (nhãn "Đang dùng thử PRO" + mục xem/đổi gói) GIỮ — đó là người dùng tự tìm đến, không phải mời.
+  const trialActive = isTrialActive(plan)
   const { data: xp } = useQuery({
     queryKey: ['xp-summary'],
     queryFn: () => gamificationApi.getXpSummary(),
@@ -144,20 +147,32 @@ export default function ProfileScreen() {
         {/* Identity — editorial ink hero, mirroring the Home streak card idiom */}
         <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
-            <View
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: radius.md,
-                backgroundColor: c.accent,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <ThemedText variant="displayLg" color="onAccent">
-                {initials}
-              </ThemedText>
-            </View>
+            {/* Ảnh tự tải lên (users.avatar_url, đổi ở settings/profile) — không có thì chữ cái tắt.
+                Store nhận avatarUrl thẳng từ /auth/me và setUser() ở màn sửa, nên đổi ảnh xong quay
+                ra đây là thấy ngay, không cần refetch. */}
+            {user?.avatarUrl ? (
+              <Image
+                source={{ uri: user.avatarUrl }}
+                style={{ width: 64, height: 64, borderRadius: radius.md }}
+                accessibilityIgnoresInvertColors
+                accessibilityLabel="Ảnh đại diện"
+              />
+            ) : (
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: radius.md,
+                  backgroundColor: c.accent,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ThemedText variant="displayLg" color="onAccent">
+                  {initials}
+                </ThemedText>
+              </View>
+            )}
             <View style={{ flex: 1, gap: space[2] }}>
               <ThemedText variant="titleLg" style={{ color: c.onInk }}>
                 {user?.displayName}
@@ -192,7 +207,7 @@ export default function ProfileScreen() {
       </FadeIn>
 
       <FadeIn delay={100} style={{ paddingHorizontal: space[5], paddingTop: space[5], gap: space[6] }}>
-        {!isPro && PAYWALL_ENABLED ? (
+        {!isPro && !trialActive && PAYWALL_ENABLED ? (
           <Card onPress={() => router.push('/(student)/upgrade')} style={{ borderColor: c.accentSoft }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
               <View
@@ -342,6 +357,13 @@ export default function ProfileScreen() {
               title="Lớp của tôi"
               subtitle="Lớp đang tham gia, bài tập, tiến độ"
               onPress={() => router.push('/(student)/classes' as never)}
+            />
+            <Divider />
+            <ListRow
+              glyph="thongke"
+              title="Phiếu gửi gia đình"
+              subtitle="Phiếu đánh giá giáo viên đã phát hành cho gia đình"
+              onPress={() => router.push('/(student)/report-issues' as never)}
             />
           </Card>
         </View>

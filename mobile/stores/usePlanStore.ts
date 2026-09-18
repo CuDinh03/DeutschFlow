@@ -62,6 +62,24 @@ export function trialDaysLeft(trialEndsAt: string | null | undefined, now: Date)
   return Math.max(0, Math.ceil((end - now.getTime()) / 86_400_000))
 }
 
+/**
+ * Đang trong thời gian dùng thử (Q1 28/08, M-7 Đợt 0 17/09): `isTrial` VÀ `trialEndsAt` còn ở
+ * tương lai. Khi true, client KHÔNG chủ động mời nâng cấp (thẻ upsell Trang chủ / Hồ sơ, nút
+ * "Nâng cấp" trong alert hết lượt AI) — người dùng vẫn tự vào màn Nâng cấp từ Hồ sơ nếu muốn.
+ *
+ * Không suy từ `tier === 'PRO'`: người đã trả tiền cũng là PRO và họ không được ẩn paywall gia hạn
+ * (PlanBadge.java). Thiếu `trialEndsAt` hoặc mốc hỏng → false: không có bằng chứng thì cứ hành xử
+ * như trước, đừng âm thầm giấu đường mua của người đã hết thử.
+ */
+export function isTrialActive(
+  plan: Pick<MyPlan, 'isTrial' | 'trialEndsAt'> | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (!plan?.isTrial || !plan.trialEndsAt) return false
+  const end = new Date(plan.trialEndsAt).getTime()
+  return Number.isFinite(end) && end > now.getTime()
+}
+
 interface PlanState {
   plan: MyPlan | null
   isPro: boolean

@@ -26,6 +26,18 @@ describe('resolveNotificationRoute', () => {
     expect(resolveNotificationRoute('ASSIGNMENT_GRADED', { assignmentType: 'SPEAKING', referenceId: 9 })).toBeNull()
   })
 
+  // Phiếu gửi gia đình mở màn phiếu, KHÔNG mở màn lớp: màn lớp hiện số liệu hiện tại, còn phiếu là
+  // ảnh chụp lúc phát hành — hai thứ khác nhau nếu giáo viên sửa điểm sau đó.
+  it('routes an issued family report to the report screen, ignoring classId', () => {
+    expect(resolveNotificationRoute('REPORT_ISSUED', { classId: 7, issueId: 42, period: 'FINAL' })).toBe(
+      '/(student)/report-issues',
+    )
+  })
+
+  it('routes an issued report even when the payload is empty', () => {
+    expect(resolveNotificationRoute('REPORT_ISSUED', null)).toBe('/(student)/report-issues')
+  })
+
   it('routes class-session events to the class schedule with the class name', () => {
     expect(resolveNotificationRoute('CLASS_SESSION_RESCHEDULED', { classId: 3, className: 'B1.2' })).toEqual({
       pathname: '/(student)/class-schedule/[classId]',

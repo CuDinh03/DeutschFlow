@@ -9,6 +9,7 @@ import { ArrowLeft, RefreshCw, Lock, CheckCircle2, Crown, AlertTriangle } from '
 import api from '@/lib/api'
 import { GaCard, GaCardBody, GaCardHeader, GaCardTitle, GaBtn, GaCap, TkModal } from '@/components/ui-v2'
 import { GaAuthShell } from '../../authShared'
+import { usePlanHelpers } from '@/contexts/PlanContext'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /v2/onboarding/error-report — Galerie 2.0 port of /onboarding/error-report.
@@ -52,6 +53,9 @@ export default function V2ErrorReportPage() {
   const [report, setReport] = useState<PlacementReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [showPaywall, setShowPaywall] = useState(false)
+  // Đợt 0 (17/09): trước đây paywall ở đây là state cục bộ, không biết người dùng đang PRO
+  // hay dùng thử — người đã trả tiền vẫn thấy lỗi bị làm mờ và nút "Mở khóa". Đọc quyền lợi thật.
+  const { hideUpsell } = usePlanHelpers()
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -211,7 +215,7 @@ export default function V2ErrorReportPage() {
             </GaCardHeader>
             <GaCardBody>
               <ul className="space-y-4">
-                {report.top_errors?.slice(0, 2).map((err, idx) => (
+                {report.top_errors?.slice(0, hideUpsell ? undefined : 2).map((err, idx) => (
                   <li key={idx} className="rounded-ga border border-ga-line bg-ga-card p-4">
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-ga bg-ga-red-soft">
@@ -227,8 +231,9 @@ export default function V2ErrorReportPage() {
                   </li>
                 ))}
 
-                {/* Locked errors — FREE sees the first 2 only; the rest are blurred behind PRO. */}
-                {report.top_errors && report.top_errors.length > 2 && (
+                {/* Locked errors — FREE sees the first 2 only; the rest are blurred behind PRO.
+                    PRO thật hoặc đang dùng thử: không làm mờ gì. */}
+                {!hideUpsell && report.top_errors && report.top_errors.length > 2 && (
                   <>
                     {report.top_errors.slice(2).map((err, idx) => (
                       <li key={idx + 2} className="relative rounded-ga border border-ga-line bg-ga-surface p-4 opacity-60">
@@ -268,15 +273,17 @@ export default function V2ErrorReportPage() {
         <div className="flex flex-col justify-center gap-4 pt-2 sm:flex-row">
           {/* GaBtn ép whitespace-nowrap + h-11 → nhãn dài này tràn ngang ở 320px. Cho xuống dòng
               trên mobile; từ lg trả lại đúng một dòng/44px như bản gốc. */}
-          <GaBtn
-            variant="yellow"
-            size="lg"
-            className="h-auto min-h-[44px] whitespace-normal py-2.5 text-center lg:h-11 lg:whitespace-nowrap lg:py-0"
-            onClick={() => setShowPaywall(true)}
-          >
-            <Crown size={18} />
-            {t('unlockAll')}
-          </GaBtn>
+          {!hideUpsell && (
+            <GaBtn
+              variant="yellow"
+              size="lg"
+              className="h-auto min-h-[44px] whitespace-normal py-2.5 text-center lg:h-11 lg:whitespace-nowrap lg:py-0"
+              onClick={() => setShowPaywall(true)}
+            >
+              <Crown size={18} />
+              {t('unlockAll')}
+            </GaBtn>
+          )}
           <GaBtn variant="ghost" size="lg" asChild>
             <Link href={MOCK_EXAM_ROUTE}>
               <RefreshCw size={16} />

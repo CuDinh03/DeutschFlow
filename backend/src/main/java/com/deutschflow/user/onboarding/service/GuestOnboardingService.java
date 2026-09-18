@@ -45,6 +45,9 @@ public class GuestOnboardingService {
 
     /** Phiên bản luồng — gắn vào mọi bản ghi để so cohort khi rollout theo %. */
     public static final String FLOW_VERSION = "onb_v3";
+    /** Mặc định khớp POST /onboarding/profile của web (weeklyTarget=5) và mobile (5 buổi, 15 phút). */
+    static final int DEFAULT_SESSIONS_PER_WEEK = 5;
+    static final int DEFAULT_MINUTES_PER_SESSION = 15;
 
     /** Quyết định owner Q-C (28/08): giữ 72h. Đừng tự nới. */
     static final Duration SESSION_TTL = Duration.ofHours(72);
@@ -182,7 +185,12 @@ public class GuestOnboardingService {
         }
         String goalType = str(a.get("goalType"));
         Integer dailyGoalMinutes = intOrNull(a.get("dailyGoalMinutes"));
-        Integer sessionsPerWeek = intOrNull(a.get("sessionsPerWeek"));
+        // B-8 (Đợt 2, 17/09): UserLearningProfileService BẮT BUỘC sessionsPerWeek + minutesPerSession
+        // ("… are required" → 400) — bản cũ hard-code minutesPerSession=null nên MỌI claim có
+        // targetLevel đều nổ 400, tức guest session chưa bao giờ phát lại được hồ sơ. Đọc từ
+        // answers; thiếu thì dùng đúng mặc định hai client đang gửi ở POST /profile (5 buổi × 15′).
+        Integer sessionsPerWeek = orDefault(intOrNull(a.get("sessionsPerWeek")), DEFAULT_SESSIONS_PER_WEEK);
+        Integer minutesPerSession = orDefault(intOrNull(a.get("minutesPerSession")), DEFAULT_MINUTES_PER_SESSION);
 
         OnboardingProfileRequest req = new OnboardingProfileRequest(
                 goalType == null ? "WORK" : goalType,
@@ -194,7 +202,7 @@ public class GuestOnboardingService {
                 null,
                 "CERT".equals(goalType) ? str(a.get("examType")) : null,
                 sessionsPerWeek,
-                null,
+                minutesPerSession,
                 str(a.get("learningSpeed")),
                 str(a.get("motivation")),
                 dailyGoalMinutes);
@@ -246,6 +254,13 @@ public class GuestOnboardingService {
     private static String str(Object o) {
         return o == null ? null : String.valueOf(o);
     }
+
+    private static Integer orDefault(Integer value, int fallback) {
+
+        return value == null ? fallback : value;
+
+    }
+
 
     private static Integer intOrNull(Object o) {
         if (o instanceof Number n) return n.intValue();

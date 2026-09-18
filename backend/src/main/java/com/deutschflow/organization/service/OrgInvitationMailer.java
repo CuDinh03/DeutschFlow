@@ -23,6 +23,8 @@ public class OrgInvitationMailer {
     private final JavaMailSender mailSender;
     private final String webUrl;
     private final boolean mailEnabled;
+    private final String mailFrom;
+    private final String mailReplyTo;
 
     public OrgInvitationMailer(
             JavaMailSender mailSender,
@@ -33,11 +35,17 @@ public class OrgInvitationMailer {
             // của danh sách CORS. Nghĩa là đổi THỨ TỰ các origin trong CORS_ALLOWED_ORIGINS — một thay
             // đổi ai cũng tưởng là vô hại — sẽ lặng lẽ đổi domain trong mọi email mời gửi ra sau đó.
             @Value("${app.web-url:http://localhost:3000}") String webUrl,
-            @Value("${spring.mail.host:}") String mailHost) {
+            @Value("${spring.mail.host:}") String mailHost,
+            // Danh tính người gửi — xem khối `app.mail` trong application.yml. Bắt buộc phải nằm trong
+            // identity đã verify ở SES, nếu không SES từ chối thư.
+            @Value("${app.mail.from}") String mailFrom,
+            @Value("${app.mail.reply-to}") String mailReplyTo) {
         this.mailSender = mailSender;
         // allowed-origins may be a comma-separated list; the first origin is the canonical web URL.
         this.webUrl = stripTrailingSlash(firstOrigin(webUrl));
         this.mailEnabled = mailHost != null && !mailHost.isBlank();
+        this.mailFrom = mailFrom;
+        this.mailReplyTo = mailReplyTo;
     }
 
     /**
@@ -66,6 +74,10 @@ public class OrgInvitationMailer {
 
         try {
             var msg = new SimpleMailMessage();
+            // setFrom là BẮT BUỘC, không phải tuỳ chọn — xem ghi chú cùng nội dung ở PasswordResetService:
+            // Gmail tự điền `From` hộ nên thiếu nó không ai thấy, còn SES thì từ chối thư không có `From`.
+            msg.setFrom(mailFrom);
+            msg.setReplyTo(mailReplyTo);
             msg.setTo(to);
             msg.setSubject("DeutschFlow — Lời mời tham gia " + orgName);
             msg.setText(

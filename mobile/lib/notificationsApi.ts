@@ -59,6 +59,7 @@ export const STUDENT_NOTIFICATION_TYPES = [
   'LEARNER_PLAN_UPDATED',
   'SYSTEM_MAINTENANCE',
   'BIRTH_DATE_UPDATED',
+  'REPORT_ISSUED',
 ] as const
 
 export function notificationTypeLabel(type: string): string {
@@ -102,6 +103,8 @@ export function notificationTypeLabel(type: string): string {
       return 'Ngày sinh được cập nhật'
     case 'SYSTEM_MAINTENANCE':
       return 'Bảo trì hệ thống'
+    case 'REPORT_ISSUED':
+      return 'Phiếu gửi gia đình'
     default:
       return 'Thông báo'
   }
@@ -132,6 +135,7 @@ export type NotificationIconKey =
   | 'plan'
   | 'maintenance'
   | 'profile'
+  | 'report'
   | 'bell'
 
 export function notificationIconKey(type: string): NotificationIconKey {
@@ -173,6 +177,8 @@ export function notificationIconKey(type: string): NotificationIconKey {
       return 'maintenance'
     case 'BIRTH_DATE_UPDATED':
       return 'profile'
+    case 'REPORT_ISSUED':
+      return 'report'
   }
   // Loại lạ (backend thêm mới): đoán theo từ khoá rồi mới rơi về chuông.
   if (type.includes('STREAK')) return 'streak'

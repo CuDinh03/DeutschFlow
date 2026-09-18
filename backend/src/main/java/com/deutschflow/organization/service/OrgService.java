@@ -77,6 +77,12 @@ public class OrgService {
         boolean readOnly = !OrgLicenseState
                 .evaluate(org.getStatus(), org.getValidUntil(), org.getSuspendedAt(), Instant.now())
                 .writable();
+        // Mốc neo ân hạn: valid_until khi HẾT HẠN, suspended_at khi ĐÌNH CHỈ (xem OrgLicenseState).
+        // Đình chỉ mà không có mốc neo ⇒ đã quá ân hạn ⇒ không có ngày cắt để đếm ngược.
+        Instant anchor = OrgLicenseState.reason(org.getStatus()) == OrgLicenseState.Reason.SUSPENDED
+                ? org.getSuspendedAt()
+                : org.getValidUntil();
+        Instant graceEndsAt = readOnly && anchor != null ? anchor.plus(OrgLicenseState.GRACE) : null;
         return new OrgSummaryDto(
                 org.getName(),
                 org.getPlanCode(),
@@ -88,7 +94,8 @@ public class OrgService {
                 countClassesWithoutTeacher(orgId),
                 readOnly,
                 readOnly ? OrgLicenseState.reason(org.getStatus()).name() : null,
-                org.getValidUntil());
+                org.getValidUntil(),
+                graceEndsAt);
     }
 
     /** Tổng số lớp của trung tâm — đếm ở máy chủ, không phải cộng tay trang đầu. */

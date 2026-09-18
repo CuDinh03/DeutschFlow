@@ -126,11 +126,22 @@ public class CertificateController {
                     ((Number) cert.get("id")).longValue(), (String) cert.get("certificate_code")));
         }
 
+        // Bài có phần bị loại khỏi mẫu số vì ứng dụng không dựng được phần đó
+        // (ExamScoringService.STATUS_SKIPPED_ON_CLIENT) KHÔNG được dùng để nhận chứng nhận: mẫu số
+        // nhỏ hơn nghĩa là ngưỡng đỗ dễ hơn, nên nếu cho qua đây thì một client sửa được sẽ khai
+        // "không làm được phần này" để lấy chứng nhận bằng một phần của đề. Phần chờ chấm
+        // (PENDING_AI_EVALUATION) vẫn được tha như trước — đó là hạ tầng của ta hỏng, không phải
+        // lựa chọn của người học.
         var passedExam = jdbcTemplate.queryForList("""
             SELECT a.id, a.total_score FROM mock_exam_attempts a
             JOIN mock_exams e ON e.id = a.exam_id
             WHERE a.user_id = ? AND e.cefr_level = ?
               AND a.status = 'COMPLETED' AND a.passed = TRUE
+              AND (a.detailed_scores_json IS NULL
+                   OR jsonb_typeof(a.detailed_scores_json) <> 'object'
+                   OR NOT EXISTS (
+                        SELECT 1 FROM jsonb_each(a.detailed_scores_json) sec
+                        WHERE sec.value->>'status' = 'SKIPPED_ON_CLIENT'))
             ORDER BY a.total_score DESC
             LIMIT 1
             """, uid, cefrLevel);

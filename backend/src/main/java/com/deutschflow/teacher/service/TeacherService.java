@@ -82,6 +82,7 @@ public class TeacherService {
     private final ClassDeletionGuard classDeletionGuard;
     private final AuditLogService auditLogService;
     private final com.deutschflow.organization.service.OrgMembershipService orgMembershipService;
+    private final com.deutschflow.organization.repository.OrgMemberRepository orgMemberRepository;
     /** Cổng D5 — chặn TẠO MỚI khi trung tâm của giáo viên đang ở chế độ chỉ đọc (G-10). */
     private final com.deutschflow.organization.service.OrgGuard orgGuard;
     /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
@@ -189,7 +190,7 @@ public class TeacherService {
                     long studentCount = studentCounts.getOrDefault(c.getId(), 0L);
                     long quizCount = assignmentCounts.getOrDefault(c.getId(), 0L);
                     long pendingCount = pendingCounts.getOrDefault(c.getId(), 0L);
-                    return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, pendingCount, c.getCreatedAt());
+                    return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, pendingCount, c.getOrgId(), c.getCreatedAt());
                 })
                 .collect(Collectors.toList());
     }
@@ -198,21 +199,59 @@ public class TeacherService {
         return v instanceof Number n ? n.longValue() : 0L;
     }
 
+    /**
+     * Ai được vào một lớp CỦA TRUNG TÂM bằng mã (Q-08, owner chốt 14/09/2026).
+     *
+     * <p><b>Điều này đổi bản chất của mã lớp.</b> Trước 14/09, bất kỳ ai có tài khoản STUDENT gõ
+     * đúng mã đều gửi được yêu cầu, và cú bấm Duyệt của giáo viên sẽ KẾT NẠP họ vào trung tâm:
+     * {@code ensureStudentSeat} tạo ghế {@code org_members}, đặt {@code users.org_id}, cấp gói của
+     * trung tâm và trừ vào {@code seat_limit}. Tức là một giáo viên quyết định được hoá đơn của
+     * trung tâm mình, và một địa chỉ email lạ nhặt được mã lớp cũng ăn một ghế có tính tiền.
+     *
+     * <p>Sau chốt này mã lớp chỉ còn là cửa vào LỚP: người gõ phải ĐÃ là thành viên ACTIVE của
+     * chính trung tâm sở hữu lớp — tức trung tâm đã nhập họ vào danh sách (CSV roster) từ trước.
+     * Giáo viên vẫn quyết "vào lớp nào", nhưng thôi quyết "vào trung tâm hay không". Bốn rủi ro tự
+     * đóng theo: email rác ăn ghế, một người hai ghế bằng hai email, giáo viên là cửa duy nhất, và
+     * ca hết ghế vỡ ngay trong tay giáo viên.
+     *
+     * <p><b>Đọc {@code org_members} chứ không {@code users.org_id}.</b> Cột kia là bản sao tiện
+     * dụng; nguồn thật là hàng ghế, và chính nó là thứ {@code ensureStudentSeat} kiểm lúc duyệt.
+     * Kiểm hai nguồn khác nhau ở hai đầu là cách một lỗ hổng lọt qua giữa chúng.
+     *
+     * <p><b>Lớp của giáo viên tự do ({@code org_id IS NULL}) KHÔNG bị siết</b> — đó là một tính
+     * năng đang dùng của người học B2C và giáo viên độc lập, không liên quan tới pilot. Siết cả hai
+     * chỗ là đóng nhầm một cánh cửa đang có người đi.
+     */
+    private void assertMayJoinOrgClass(TeacherClass teacherClass, Long studentId) {
+        Long orgId = teacherClass.getOrgId();
+        if (orgId == null) {
+            return;
+        }
+        boolean activeMember = orgMemberRepository.findByIdOrgIdAndIdUserId(orgId, studentId)
+                .filter(m -> "ACTIVE".equals(m.getStatus()))
+                .isPresent();
+        if (activeMember) {
+            return;
+        }
+        // Hai câu khác nhau vì hai lối thoát khác nhau: người đã thuộc trung tâm khác phải rời chỗ
+        // cũ trước, còn người chưa thuộc đâu thì chỉ cần trung tâm thêm mình vào danh sách.
+        Long studentOrgId = userRepository.findById(studentId).map(User::getOrgId).orElse(null);
+        if (studentOrgId != null && !studentOrgId.equals(orgId)) {
+            throw new BadRequestException("Lớp này thuộc một trung tâm khác với trung tâm của bạn.");
+        }
+        throw new BadRequestException(
+                "Lớp này thuộc một trung tâm. Bạn cần được trung tâm thêm vào danh sách học viên trước, "
+                        + "sau đó mới vào lớp bằng mã.");
+    }
+
     @Transactional
     public void joinClass(Long studentId, String inviteCode) {
         TeacherClass teacherClass = classRepository.findByInviteCode(inviteCode)
                 .orElseThrow(() -> new NotFoundException("Mã lớp học không hợp lệ"));
 
-        // Org isolation — cùng quy tắc với addStudentToClassByEmail: lớp của trung tâm không nhận
-        // người đang thuộc trung tâm khác. Chặn ngay lúc gửi yêu cầu để học viên biết liền, thay vì
-        // để giáo viên bấm duyệt rồi mới vỡ ở ensureStudentSeat. Học viên chưa thuộc trung tâm nào
-        // vẫn được gửi yêu cầu — ghế org_members sẽ được cấp lúc giáo viên duyệt.
-        if (teacherClass.getOrgId() != null) {
-            Long studentOrgId = userRepository.findById(studentId).map(User::getOrgId).orElse(null);
-            if (studentOrgId != null && !studentOrgId.equals(teacherClass.getOrgId())) {
-                throw new BadRequestException("Lớp này thuộc một trung tâm khác với trung tâm của bạn.");
-            }
-        }
+        // Q-08 — mã lớp là cửa vào LỚP, không phải cửa vào TRUNG TÂM. Chặn ngay lúc gõ mã để học
+        // viên biết liền, thay vì để giáo viên bấm duyệt rồi mới vỡ ở ensureStudentSeat.
+        assertMayJoinOrgClass(teacherClass, studentId);
 
         if (classStudentRepository.existsByIdClassIdAndIdStudentId(teacherClass.getId(), studentId)) {
             throw new ConflictException("Bạn đã tham gia lớp học này rồi");
@@ -298,6 +337,10 @@ public class TeacherService {
         // ACTIVE trong org_members. Trước đây bước này bị bỏ qua nên trung tâm có lớp đầy học viên
         // mà roster/seat của org vẫn 0. Ném lỗi (khác org, hết ghế) → rollback cả lượt duyệt.
         if (teacherClass.getOrgId() != null) {
+            // Q-08: kiểm LẠI ở đầu duyệt, không chỉ ở đầu gõ mã. Một yêu cầu PENDING có thể nằm đó
+            // nhiều ngày, và trong khoảng ấy học viên có thể đã rời trung tâm — duyệt lúc đó là
+            // ensureStudentSeat lặng lẽ kết nạp lại đúng người mà trung tâm vừa cho đi.
+            assertMayJoinOrgClass(teacherClass, req.getStudentId());
             orgMembershipService.ensureStudentSeat(teacherClass.getOrgId(), req.getStudentId());
         }
 
@@ -467,6 +510,7 @@ public class TeacherService {
     @Transactional
     public void addCoTeacher(Long teacherId, Long classId, String email) {
         assertPrimaryTeacher(teacherId, classId);
+        orgGuard.assertClassOrgWritable(classId); // D5: trung tâm chỉ-đọc không nhận thêm người vào lớp
 
         // Case-insensitive: emails are stored canonical lowercase, but a teacher may type the
         // co-teacher's address with any case. findByEmailIgnoreCase mirrors the login lookup.
@@ -511,6 +555,8 @@ public class TeacherService {
     public void addStudentToClassByEmail(Long teacherId, Long classId, String email) {
         // PR B trợ giảng: thêm HV là quản-lý-lớp — chỉ GV phụ trách.
         assertPrimaryTeacher(teacherId, classId);
+        // D5: ghi danh mới = một ghế mới bị tính tiền. Trung tâm chỉ-đọc không mở thêm ghế.
+        orgGuard.assertClassOrgWritable(classId);
 
         // Case-insensitive lookup — the teacher may type the student's email in any case.
         String normalizedEmail = email == null ? "" : email.trim();
@@ -749,6 +795,7 @@ public class TeacherService {
     public ClassAssignmentDto createAssignment(Long teacherId, Long classId, CreateAssignmentRequest req) {
         // PR B trợ giảng: tạo & giao bài là quản-lý-lớp — chỉ GV phụ trách (trợ giảng vẫn CHẤM bài).
         assertPrimaryTeacher(teacherId, classId);
+        orgGuard.assertClassOrgWritable(classId); // D5: giao bài mới là TẠO MỚI
         // If linking to a lesson (Phase 1d-D1), it must belong to this class (reject cross-class).
         if (req.lessonId() != null) {
             ClassLesson lesson = lessonRepository.findById(req.lessonId())
@@ -840,6 +887,9 @@ public class TeacherService {
     @Transactional
     public ClassAssignmentDto publishAssignment(Long teacherId, Long classId, Long assignmentId) {
         assertPrimaryTeacher(teacherId, classId);
+        // D5: công bố là lúc bài NHÁP thành nghĩa vụ của học viên (fan-out + thông báo) — tạo mới
+        // theo đúng nghĩa, dù dòng bài đã có sẵn từ trước.
+        orgGuard.assertClassOrgWritable(classId);
         ClassAssignment assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new NotFoundException("Bài tập không tồn tại"));
         if (!assignment.getClassId().equals(classId)) {
@@ -1349,7 +1399,7 @@ public class TeacherService {
         long studentCount = classStudentRepository.countByIdClassId(c.getId());
         long quizCount = assignmentRepository.countByClassId(c.getId());
         // Chỉ dùng cho lớp VỪA TẠO (createClass) — chưa thể có bài nộp nên pendingReviewCount = 0.
-        return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, 0L, c.getCreatedAt());
+        return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, 0L, c.getOrgId(), c.getCreatedAt());
     }
 
     private ClassAssignmentDto toAssignmentDto(ClassAssignment a) {

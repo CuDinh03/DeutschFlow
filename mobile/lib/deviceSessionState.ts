@@ -20,6 +20,7 @@ import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
 import { clearActiveSession } from './activeSession'
 import { clearDailyGoalMinutes } from './dailyGoal'
 import { clearOnboardingDraft } from './onboardingDraft'
+import { clearGuestSessionCache } from './guestSessionStore'
 import { disableStudyReminder } from './studyReminder'
 
 /**
@@ -43,6 +44,9 @@ export async function clearDeviceSessionState(): Promise<void> {
     useStarterStore.getState().reset(),
     clearDailyGoalMinutes(),
     clearOnboardingDraft(),
+    // Đợt 2 onboarding (17/09): con trỏ phiên khách cũng per-máy — người kế tiếp không được
+    // claim phiên của người trước (server chặn 400, đây là lớp thứ hai).
+    clearGuestSessionCache(),
     disableStudyReminder(),
     Promise.resolve().then(() => useChatOutboxStore.getState().clear()),
     Promise.resolve().then(() => useSrsOfflineStore.getState().clear()),

@@ -587,4 +587,28 @@ class TeacherTimesheetServiceTest {
                 .mode(ClassSession.Mode.OFFLINE).status(ClassSession.Status.SCHEDULED)
                 .overridden(false).build();
     }
+
+    // ─── D5/E1: bảng công là NGOẠI LỆ — chế độ chỉ-đọc không được chắn đường ghi công ────────
+
+    /**
+     * Ca gác cho một bản vá đã từng viết ra và bị gỡ: nhét
+     * {@code orgGuard.assertClassOrgWritable(classId)} vào {@code record}.
+     *
+     * <p>Buổi dạy đã diễn ra rồi; ghi công là HOÀN TẤT VIỆC ĐÃ NHẬN chứ không phải sinh thêm nghĩa
+     * vụ, nên nó nằm trong danh mục ngoại lệ E1. Nguy hiểm hơn hầu hết chỗ khác: {@code
+     * assertRecordEditable} đóng băng kỳ theo khoảng ngày, nên công bị chặn hôm nay là công MẤT
+     * HẲN, không có đường ghi bù sau khi trung tâm gia hạn.
+     */
+    @Test
+    @DisplayName("E1 — record(): không có cổng trạng thái giấy phép nào chắn đường ghi công")
+    void record_e1_noLicenceGate() {
+        LocalDateTime start = LocalDateTime.now().minusDays(1).withHour(18).withMinute(0).withSecond(0).withNano(0);
+        allowTeaches();
+        when(recordRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.record(ACTOR, new RecordTeachingRequest(null, CLASS_ID, start, 90, null, null));
+
+        verify(recordRepository).save(any());
+    }
+
 }

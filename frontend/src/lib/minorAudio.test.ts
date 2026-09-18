@@ -31,7 +31,7 @@ describe('parseMinorAudioBlocked — nhận diện đúng mã', () => {
     'GUARDIAN_CONSENT_REQUIRED',
     'GUARDIAN_CONSENT_REVOKED',
   ])('%s → { reason, detail } với detail của server', (reason) => {
-    expect(parseMinorAudioBlocked(problem(reason))).toEqual({ reason, detail: 'Câu của server.' })
+    expect(parseMinorAudioBlocked(problem(reason))).toEqual({ reason, detail: 'Câu của server.', contact: 'CENTER' })
   })
 
   it('detail rỗng/thiếu → null (component dùng câu i18n dự phòng)', () => {
@@ -43,12 +43,28 @@ describe('parseMinorAudioBlocked — nhận diện đúng mã', () => {
     expect(parseMinorAudioBlocked(problem('SOMETHING_NEW'))).toEqual({
       reason: 'GUARDIAN_CONSENT_REQUIRED',
       detail: 'Câu của server.',
+      contact: 'CENTER',
     })
   })
 
   it('thiếu extensions nhưng type kết thúc minor-audio-blocked → vẫn nhận (dây bảo hiểm)', () => {
     const e = { response: { status: 403, data: { type: 'https://x/minor-audio-blocked', detail: 'Chặn.' } } }
-    expect(parseMinorAudioBlocked(e)).toEqual({ reason: 'GUARDIAN_CONSENT_REQUIRED', detail: 'Chặn.' })
+    expect(parseMinorAudioBlocked(e)).toEqual({ reason: 'GUARDIAN_CONSENT_REQUIRED', detail: 'Chặn.', contact: 'CENTER' })
+  })
+})
+
+describe('extensions.contact — ai mở lại được (phương án D, 17/09)', () => {
+  const withContact = (contact: unknown) => {
+    const p = problem('GUARDIAN_CONSENT_REQUIRED')
+    return { response: { ...p.response, data: { ...p.response.data, extensions: { ...p.response.data.extensions, contact } } } }
+  }
+  it('NONE → contact NONE', () => {
+    expect(parseMinorAudioBlocked(withContact('NONE'))?.contact).toBe('NONE')
+  })
+  it('CENTER, thiếu (server cũ) hay giá trị lạ → CENTER', () => {
+    expect(parseMinorAudioBlocked(withContact('CENTER'))?.contact).toBe('CENTER')
+    expect(parseMinorAudioBlocked(problem('GUARDIAN_CONSENT_REQUIRED'))?.contact).toBe('CENTER')
+    expect(parseMinorAudioBlocked(withContact('PARENT'))?.contact).toBe('CENTER')
   })
 })
 
@@ -84,7 +100,7 @@ describe('minorAudioBlockedFromProblem — body fetch trần (PronunciationFeedb
   it('body problem+json đúng mã → info', () => {
     expect(
       minorAudioBlockedFromProblem({ detail: 'Chặn.', extensions: { code: MINOR_AUDIO_BLOCKED_CODE, reason: 'GUARDIAN_CONSENT_REVOKED' } }),
-    ).toEqual({ reason: 'GUARDIAN_CONSENT_REVOKED', detail: 'Chặn.' })
+    ).toEqual({ reason: 'GUARDIAN_CONSENT_REVOKED', detail: 'Chặn.', contact: 'CENTER' })
   })
 
   it('body không phải object / body lạ → null', () => {

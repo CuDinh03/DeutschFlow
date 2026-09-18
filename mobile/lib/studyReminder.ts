@@ -33,6 +33,8 @@ export async function enableStudyReminder(dailyGoalMinutes: number | null): Prom
       outcome = classifyPermission(await Notifications.requestPermissionsAsync())
     }
     captureEvent('onb_notif_permission', { granted: outcome === 'granted', outcome })
+    // Taxonomy onb_v3 (spec §6.3): `state` ∈ granted|denied|blocked — giữ đủ 3 trạng thái.
+    captureEvent('notification_permission_result', { state: outcome })
     if (outcome !== 'granted') return outcome
 
     // Idempotent: gỡ lịch cũ (nếu có) rồi đặt lại.

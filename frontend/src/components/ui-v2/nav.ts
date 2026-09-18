@@ -462,7 +462,7 @@ export function localItems(area: AreaNav): NavItem[] {
 
 /** Một khu vực cấp cao nhất trong persistent navigation. */
 export interface AreaNav {
-  /** Khoá ổn định: i18n (`v2.nav.areas.<id>`, `v2.nav.areaHelper.<id>`), analytics, test. */
+  /** Khoá ổn định: i18n (`v2.nav.areas.<id>`), analytics, test. */
   id: string
   /** Nhãn Đức — fallback khi thiếu khoá i18n. */
   label: string

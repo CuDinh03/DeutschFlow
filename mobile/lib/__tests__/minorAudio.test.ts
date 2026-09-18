@@ -13,7 +13,7 @@ import {
   type MinorAudioBlockedReason,
 } from '@/lib/minorAudio'
 
-const problem = (reason: string, detail: string | null = 'Câu của server.') => ({
+const problem = (reason: string, detail: string | null = 'Câu của server.', contact?: string) => ({
   response: {
     status: 403,
     data: {
@@ -22,9 +22,34 @@ const problem = (reason: string, detail: string | null = 'Câu của server.') =
       status: 403,
       detail,
       instance: '/api/ai-speaking/transcribe',
-      extensions: { code: MINOR_AUDIO_BLOCKED_CODE, reason },
+      extensions: { code: MINOR_AUDIO_BLOCKED_CODE, reason, ...(contact ? { contact } : {}) },
     },
   },
+})
+
+describe('extensions.contact — ai mở lại được (phương án D, 17/09)', () => {
+  test('NONE → contact NONE', () => {
+    expect(parseMinorAudioBlocked(problem('GUARDIAN_CONSENT_REQUIRED', 'x', 'NONE'))?.contact).toBe('NONE')
+  })
+  test('CENTER, thiếu (server cũ) hay giá trị lạ → CENTER', () => {
+    expect(parseMinorAudioBlocked(problem('GUARDIAN_CONSENT_REQUIRED', 'x', 'CENTER'))?.contact).toBe('CENTER')
+    expect(parseMinorAudioBlocked(problem('GUARDIAN_CONSENT_REQUIRED'))?.contact).toBe('CENTER')
+    expect(parseMinorAudioBlocked(problem('GUARDIAN_CONSENT_REQUIRED', 'x', 'PARENT'))?.contact).toBe('CENTER')
+  })
+  test('contact NONE + không có detail → câu dự phòng KHÔNG chỉ đường trung tâm', () => {
+    const copy = minorAudioCopy({ reason: 'GUARDIAN_CONSENT_REQUIRED', detail: null, contact: 'NONE' })
+    expect(copy.body).not.toContain('trung tâm')
+    expect(copy.body).toContain('đang được hoàn thiện')
+    const bd = minorAudioCopy({ reason: 'BIRTH_DATE_REQUIRED', detail: null, contact: 'NONE' })
+    expect(bd.body).toContain('Hồ sơ')
+  })
+  test('presenter nhận contact=false khi server nói NONE, dù màn cho phép rời', () => {
+    const presenter = jest.fn()
+    registerMinorAudioBlockedPresenter(presenter)
+    expect(presentMinorAudioBlocked(problem('GUARDIAN_CONSENT_REQUIRED', 'x', 'NONE'))).toBe(true)
+    expect(presenter).toHaveBeenCalledWith(expect.objectContaining({ contact: 'NONE' }), { contact: false })
+    registerMinorAudioBlockedPresenter(null)
+  })
 })
 
 describe('parseMinorAudioBlocked — nhận diện đúng mã', () => {
@@ -33,7 +58,7 @@ describe('parseMinorAudioBlocked — nhận diện đúng mã', () => {
     'GUARDIAN_CONSENT_REQUIRED',
     'GUARDIAN_CONSENT_REVOKED',
   ])('%s → { reason, detail } với detail của server', (reason) => {
-    expect(parseMinorAudioBlocked(problem(reason))).toEqual({ reason, detail: 'Câu của server.' })
+    expect(parseMinorAudioBlocked(problem(reason))).toEqual({ reason, detail: 'Câu của server.', contact: 'CENTER' })
   })
 
   test('detail rỗng/thiếu → null (client dùng câu dự phòng)', () => {
@@ -45,6 +70,7 @@ describe('parseMinorAudioBlocked — nhận diện đúng mã', () => {
     expect(parseMinorAudioBlocked(problem('SOMETHING_NEW'))).toEqual({
       reason: 'GUARDIAN_CONSENT_REQUIRED',
       detail: 'Câu của server.',
+      contact: 'CENTER',
     })
   })
 
@@ -55,7 +81,7 @@ describe('parseMinorAudioBlocked — nhận diện đúng mã', () => {
         data: { type: 'https://x/minor-audio-blocked', detail: 'Chặn.' },
       },
     }
-    expect(parseMinorAudioBlocked(e)).toEqual({ reason: 'GUARDIAN_CONSENT_REQUIRED', detail: 'Chặn.' })
+    expect(parseMinorAudioBlocked(e)).toEqual({ reason: 'GUARDIAN_CONSENT_REQUIRED', detail: 'Chặn.', contact: 'CENTER' })
   })
 })
 
@@ -129,7 +155,7 @@ describe('presentMinorAudioBlocked — cầu nối tới host', () => {
     registerMinorAudioBlockedPresenter(presenter)
     expect(presentMinorAudioBlocked(problem('GUARDIAN_CONSENT_REVOKED'))).toBe(true)
     expect(presenter).toHaveBeenCalledWith(
-      { reason: 'GUARDIAN_CONSENT_REVOKED', detail: 'Câu của server.' },
+      { reason: 'GUARDIAN_CONSENT_REVOKED', detail: 'Câu của server.', contact: 'CENTER' },
       { contact: true },
     )
   })

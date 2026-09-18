@@ -23,9 +23,9 @@ const OUT_DIR = path.resolve(HERE, '../src/content/legal')
 const LEGAL_NAME_EN = 'Cu Dinh'
 const LEGAL_NAME_VI = 'Cự Đinh'
 const EFFECTIVE_DATE = '2026-07-03'
-const LAST_UPDATED = '2026-09-10'
+const LAST_UPDATED = '2026-09-13'
 const DOMAIN = 'https://mydeutschflow.com'
-const SUPPORT_EMAIL = 'dinhhuycu0305@gmail.com'
+const SUPPORT_EMAIL = 'support@mydeutschflow.com'
 // ────────────────────────────────────────────────────────────────────────────
 
 const FILES = [

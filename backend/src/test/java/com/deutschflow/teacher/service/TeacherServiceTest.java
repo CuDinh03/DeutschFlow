@@ -154,6 +154,9 @@ class TeacherServiceTest {
     @Mock
     private com.deutschflow.organization.repository.OrganizationRepository organizationRepository;
 
+    @Mock
+    private com.deutschflow.organization.repository.OrgMemberRepository orgMemberRepository;
+
     private TeacherService teacherService;
 
     @BeforeEach
@@ -190,6 +193,7 @@ class TeacherServiceTest {
                 classDeletionGuard,
                 auditLogService,
                 orgMembershipService,
+                orgMemberRepository,
                 // OrgGuard THẬT (chỉ mock repository bên dưới): cổng D5 nằm trong chính nó, mock
                 // guard thì ca kiểm chỉ còn khẳng định "có gọi hàm", không khẳng định được luật.
                 new com.deutschflow.organization.service.OrgGuard(
@@ -818,9 +822,11 @@ class TeacherServiceTest {
         verify(classEnrollmentService).enrollAndNotify(100L, 6L, 1L);
     }
 
-    // ── Vào trung tâm qua lớp học ────────────────────────────────────────────
-    // Lớp của trung tâm: duyệt vào lớp = nhận vào trung tâm (ghế org_members qua
-    // ensureStudentSeat). Thiếu bước này thì lớp đầy học viên mà roster org đếm 0.
+    // ── Vào LỚP của trung tâm ────────────────────────────────────────────────
+    // Sau Q-08 (14/09/2026): duyệt vào lớp KHÔNG còn là nhận vào trung tâm. Người được duyệt phải
+    // đã có ghế org_members ACTIVE từ trước (trung tâm nhập roster), nên ensureStudentSeat ở đây
+    // chỉ còn xác nhận + cấp gói, không kết nạp ai. Chốt mới kiểm ở CẢ HAI đầu vì một yêu cầu
+    // PENDING có thể nằm chờ nhiều ngày, và học viên có thể đã rời trung tâm trong khoảng đó.
 
     private com.deutschflow.teacher.entity.ClassroomJoinRequest pendingRequest(Long classId, Long studentId) {
         return com.deutschflow.teacher.entity.ClassroomJoinRequest.builder()
@@ -834,11 +840,37 @@ class TeacherServiceTest {
         when(joinRequestRepository.findById(900L)).thenReturn(Optional.of(pendingRequest(100L, 5L)));
         when(classRepository.findById(100L)).thenReturn(Optional.of(
                 TeacherClass.builder().id(100L).orgId(42L).name("A1.1").build()));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(42L, 5L)).thenReturn(Optional.of(activeMember()));
 
         teacherService.approveJoinRequest(1L, 100L, 900L);
 
         verify(orgMembershipService).ensureStudentSeat(42L, 5L);
         verify(classEnrollmentService).enroll(100L, 5L);
+    }
+
+    /**
+     * Q-08 ở đầu DUYỆT: yêu cầu gửi lúc còn là thành viên, duyệt lúc đã rời. Không có chốt này thì
+     * ensureStudentSeat lặng lẽ kết nạp lại đúng người mà trung tâm vừa cho đi.
+     */
+    @Test
+    void approveJoinRequest_orgClass_rejectsWhenStudentLeftOrgWhilePending() {
+        com.deutschflow.organization.entity.OrgMember left = activeMember();
+        left.setStatus("LEFT");
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
+        when(joinRequestRepository.findById(900L)).thenReturn(Optional.of(pendingRequest(100L, 5L)));
+        when(classRepository.findById(100L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).orgId(42L).name("A1.1").build()));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(42L, 5L)).thenReturn(Optional.of(left));
+        when(userRepository.findById(5L)).thenReturn(java.util.Optional.of(
+                com.deutschflow.user.entity.User.builder().id(5L)
+                        .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.approveJoinRequest(1L, 100L, 900L));
+
+        verify(orgMembershipService, never()).ensureStudentSeat(any(), any());
+        verify(classEnrollmentService, never()).enroll(any(), any());
     }
 
     @Test
@@ -864,6 +896,7 @@ class TeacherServiceTest {
         when(joinRequestRepository.findById(900L)).thenReturn(Optional.of(pendingRequest(100L, 5L)));
         when(classRepository.findById(100L)).thenReturn(Optional.of(
                 TeacherClass.builder().id(100L).orgId(42L).name("A1.1").build()));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(42L, 5L)).thenReturn(Optional.of(activeMember()));
         org.mockito.Mockito.doThrow(new com.deutschflow.common.exception.BadRequestException("Đã đạt giới hạn chỗ ngồi"))
                 .when(orgMembershipService).ensureStudentSeat(42L, 5L);
 
@@ -878,6 +911,7 @@ class TeacherServiceTest {
     void joinClass_orgClass_rejectsStudentFromAnotherOrg() {
         when(classRepository.findByInviteCode("ABC123")).thenReturn(Optional.of(
                 TeacherClass.builder().id(100L).orgId(42L).name("A1.1").build()));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(42L, 5L)).thenReturn(Optional.empty());
         when(userRepository.findById(5L)).thenReturn(java.util.Optional.of(
                 com.deutschflow.user.entity.User.builder().id(5L).orgId(77L)
                         .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));
@@ -887,14 +921,31 @@ class TeacherServiceTest {
         verify(joinRequestRepository, never()).save(any());
     }
 
+    /**
+     * Q-08 (owner chốt 14/09/2026) ĐẢO NGƯỢC hành vi cũ ở đây. Trước: học viên chưa thuộc trung tâm
+     * nào vẫn gửi được yêu cầu, và cú bấm Duyệt của giáo viên sẽ kết nạp họ vào trung tâm — tức một
+     * email lạ nhặt được mã lớp là ăn một ghế có tính tiền. Sau: mã lớp chỉ mở cho người trung tâm
+     * ĐÃ nhập vào danh sách.
+     */
     @Test
-    void joinClass_orgClass_allowsOrglessStudent() {
-        // Học viên chưa thuộc trung tâm nào vẫn gửi được yêu cầu; ghế cấp lúc duyệt.
+    void joinClass_orgClass_rejectsStudentNotYetInTheOrgRoster() {
         when(classRepository.findByInviteCode("ABC123")).thenReturn(Optional.of(
                 TeacherClass.builder().id(100L).orgId(42L).name("A1.1").build()));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(42L, 5L)).thenReturn(Optional.empty());
         when(userRepository.findById(5L)).thenReturn(java.util.Optional.of(
                 com.deutschflow.user.entity.User.builder().id(5L)
                         .role(com.deutschflow.user.entity.User.Role.STUDENT).build())); // orgId = null
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.joinClass(5L, "ABC123"));
+        verify(joinRequestRepository, never()).save(any());
+    }
+
+    @Test
+    void joinClass_orgClass_allowsExistingActiveMember() {
+        when(classRepository.findByInviteCode("ABC123")).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).orgId(42L).name("A1.1").build()));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(42L, 5L)).thenReturn(Optional.of(activeMember()));
         when(classStudentRepository.existsByIdClassIdAndIdStudentId(100L, 5L)).thenReturn(false);
         when(joinRequestRepository.findByClassroomIdAndStudentId(100L, 5L)).thenReturn(Optional.empty());
         when(classTeacherRepository.findByIdClassId(100L)).thenReturn(List.of());
@@ -902,6 +953,46 @@ class TeacherServiceTest {
         teacherService.joinClass(5L, "ABC123");
 
         verify(joinRequestRepository).save(any());
+    }
+
+    /** Ghế đã LEFT không còn là ghế: người vừa rời trung tâm không dùng mã lớp quay lại được. */
+    @Test
+    void joinClass_orgClass_rejectsFormerMember() {
+        com.deutschflow.organization.entity.OrgMember left = activeMember();
+        left.setStatus("LEFT");
+        when(classRepository.findByInviteCode("ABC123")).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).orgId(42L).name("A1.1").build()));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(42L, 5L)).thenReturn(Optional.of(left));
+        when(userRepository.findById(5L)).thenReturn(java.util.Optional.of(
+                com.deutschflow.user.entity.User.builder().id(5L)
+                        .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.joinClass(5L, "ABC123"));
+        verify(joinRequestRepository, never()).save(any());
+    }
+
+    /** Lớp của giáo viên tự do (org_id NULL) KHÔNG bị siết — đường B2C đang dùng, giữ nguyên. */
+    @Test
+    void joinClass_freelanceClass_stillOpenToAnyone() {
+        when(classRepository.findByInviteCode("FREE01")).thenReturn(Optional.of(
+                TeacherClass.builder().id(101L).name("Lớp tự do").build())); // orgId = null
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(101L, 5L)).thenReturn(false);
+        when(joinRequestRepository.findByClassroomIdAndStudentId(101L, 5L)).thenReturn(Optional.empty());
+        when(classTeacherRepository.findByIdClassId(101L)).thenReturn(List.of());
+
+        teacherService.joinClass(5L, "FREE01");
+
+        verify(joinRequestRepository).save(any());
+        verifyNoInteractions(orgMemberRepository);
+    }
+
+    private static com.deutschflow.organization.entity.OrgMember activeMember() {
+        com.deutschflow.organization.entity.OrgMember m = new com.deutschflow.organization.entity.OrgMember();
+        m.setId(new com.deutschflow.organization.entity.OrgMemberId(42L, 5L));
+        m.setRole("STUDENT");
+        m.setStatus("ACTIVE");
+        return m;
     }
 
     @Test
@@ -1295,6 +1386,77 @@ class TeacherServiceTest {
         teacherService.createClass(1L, "A1.1 Sáng T2");
 
         verify(classRepository).save(any(TeacherClass.class));
+    }
+
+    // ─── Gói 3: cổng D5 trên các cửa TẠO MỚI khác của giáo viên trung tâm ─────────────────────
+
+    /** Lớp đã đóng dấu trung tâm 9 — chủ thể quyết định là org của LỚP, không phải của người gõ. */
+    private void stubOrgClass(Long classId, String orgStatus) {
+        when(classTeacherRepository.findById(new ClassTeacherId(classId, 1L))).thenReturn(Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, 1L)).role("PRIMARY").build()));
+        when(classRepository.findById(classId)).thenReturn(Optional.of(
+                TeacherClass.builder().id(classId).name("A1.1").orgId(9L).build()));
+        when(organizationRepository.findById(9L)).thenReturn(Optional.of(orgLicence(orgStatus, null)));
+    }
+
+    @Test
+    @DisplayName("createAssignment: trung tâm chỉ-đọc → 403 ORG_READ_ONLY, không ghi bài nào")
+    void createAssignment_readOnlyOrg_blocked() {
+        stubOrgClass(100L, "SUSPENDED");
+
+        assertThrows(com.deutschflow.common.exception.OrgReadOnlyException.class,
+                () -> teacherService.createAssignment(1L, 100L,
+                        new CreateAssignmentRequest("Bài 1", null, null, null, null, null, null, null, null)));
+
+        verify(assignmentRepository, never()).save(any(ClassAssignment.class));
+    }
+
+    @Test
+    @DisplayName("publishAssignment: trung tâm chỉ-đọc → chặn TRƯỚC khi đọc dòng bài (không fan-out)")
+    void publishAssignment_readOnlyOrg_blocked() {
+        stubOrgClass(100L, "SUSPENDED");
+
+        assertThrows(com.deutschflow.common.exception.OrgReadOnlyException.class,
+                () -> teacherService.publishAssignment(1L, 100L, 500L));
+
+        verify(assignmentRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("addStudentToClassByEmail: trung tâm chỉ-đọc → không mở thêm ghế")
+    void addStudentToClassByEmail_readOnlyOrg_blocked() {
+        stubOrgClass(100L, "SUSPENDED");
+
+        assertThrows(com.deutschflow.common.exception.OrgReadOnlyException.class,
+                () -> teacherService.addStudentToClassByEmail(1L, 100L, "hv@example.com"));
+
+        verify(classStudentRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Trung tâm KHOẺ: cùng ba cửa đó vẫn qua cổng D5 (cổng không chặn nhầm)")
+    void writeDoors_healthyOrg_passGate() {
+        when(classRepository.findById(100L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).name("A1.1").orgId(9L).build()));
+        when(organizationRepository.findById(9L)).thenReturn(Optional.of(orgLicence(
+                "ACTIVE", java.time.Instant.now().plus(30, java.time.temporal.ChronoUnit.DAYS))));
+
+        // Gọi thẳng cổng: đây là đúng thứ ba cửa trên gọi, và nó phải IM LẶNG với trung tâm khoẻ.
+        new com.deutschflow.organization.service.OrgGuard(
+                mock(com.deutschflow.organization.repository.OrgMemberRepository.class),
+                mock(com.deutschflow.organization.repository.OrgAcademicApproverRepository.class),
+                classRepository, organizationRepository)
+                .assertClassOrgWritable(100L);
+    }
+
+    @Test
+    @DisplayName("ĐƯỜNG ĐỌC vẫn sống: xem danh sách bài của lớp thuộc trung tâm chỉ-đọc không bị chặn (D5)")
+    void getClassAssignments_readOnlyOrg_stillReadable() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(100L)).thenReturn(List.of());
+
+        // Không stub organizationRepository: đường đọc mà lỡ gọi cổng thì cũng không được ném.
+        assertTrue(teacherService.getClassAssignments(1L, 100L).isEmpty());
     }
 
     @Test

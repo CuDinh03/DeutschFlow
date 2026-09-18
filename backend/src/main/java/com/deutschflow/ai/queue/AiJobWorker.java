@@ -58,8 +58,24 @@ public class AiJobWorker {
     @Value("${app.ai-jobs.max-age-days:7}")
     private int maxAgeDays;
 
+    /**
+     * Cho phép TẮT nhịp quét nền (chỉ dùng trong integration test). Bean vẫn còn nguyên nên test
+     * nào cần vẫn gọi thẳng {@link #processPendingJobs()} được.
+     *
+     * <p>Vì sao cần: nhịp 2 giây này chạy suốt integration test và nhặt job PENDING còn tồn của ca
+     * test TRƯỚC, rồi gọi vào cùng một mock AI trên luồng nền. Nếu nó chen đúng lúc {@code @BeforeEach}
+     * của ca sau đang đặt stub thì Mockito gắn stub vào lời gọi nền thay vì vào các matcher — stub
+     * coi như hỏng, mọi lời gọi của ca đó trả {@code null}. Đo được 15/09/2026: đỏ ~1/3 số lượt,
+     * và khi đỏ thì đỏ TOÀN BỘ lời gọi AI của ca đó.
+     */
+    @Value("${app.ai-jobs.scheduled-enabled:true}")
+    private boolean scheduledEnabled;
+
     @Scheduled(fixedDelay = 2000)
     public void processPendingJobs() {
+        if (!scheduledEnabled) {
+            return;
+        }
         // Claim jobs in a short transaction, then release the connection before the AI calls.
         // BUG ĐÃ VÁ (23/08): gọi this.claimJobs() là tự-gọi trong cùng bean → @Transactional(REQUIRES_NEW) KHÔNG có hiệu
         // lực (proxy bị bỏ qua) → bulkUpdateStatus (@Modifying) ném TransactionRequiredException mỗi 2s và worker

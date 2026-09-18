@@ -65,6 +65,11 @@ export function resolveNotificationRoute(
     case 'BIRTH_DATE_UPDATED':
       // Về hồ sơ của chính mình: thông báo này chỉ có ích khi người nhận đối chiếu được giá trị.
       return '/(student)/settings/profile'
+    case 'REPORT_ISSUED':
+      // Phiếu đánh giá gửi gia đình (R6/PR-R4). Không đi theo classId: học viên cần thấy ĐÚNG bản
+      // đã gửi (đọc payload đã đóng băng), mà màn lớp thì hiển thị số liệu HIỆN TẠI — hai thứ có
+      // thể khác nhau nếu giáo viên sửa điểm sau khi phát hành.
+      return '/(student)/report-issues'
 
     case 'REVIEW_DUE':
       return '/(student)/srs'

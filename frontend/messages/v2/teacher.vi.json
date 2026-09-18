@@ -580,6 +580,40 @@
         "printTeacherSign": "Giáo viên ký tên",
         "printHeadSign": "Phòng đào tạo xác nhận",
         "printAvgScore": "Điểm bài tập TB: {score}"
+      },
+      "reportIssue": {
+        "openButton": "Phát hành phiếu",
+        "title": "Phát hành phiếu đánh giá gửi gia đình",
+        "subtitle": "Học viên: {name}",
+        "periodCap": "Kỳ đánh giá",
+        "periodMIDTERM": "Giữa khoá",
+        "periodFINAL": "Cuối khoá",
+        "langCap": "Ngôn ngữ của phiếu",
+        "langvi": "Tiếng Việt",
+        "langen": "English",
+        "langde": "Deutsch",
+        "langHint": "Ngôn ngữ này được đóng băng vào phiếu; nhận xét của giáo viên giữ nguyên văn, không dịch máy.",
+        "showPreview": "Xem trước phiếu",
+        "hidePreview": "Ẩn bản xem trước",
+        "issueButton": "Phát hành",
+        "reissueButton": "Phát hành lại",
+        "reissueWarning": "Kỳ này đã có một phiếu còn hiệu lực (phát hành ngày {date}). Phát hành lại sẽ thay thế bản cũ và link cũ ngừng hoạt động ngay; bản PDF đã gửi đi thì không thu lại được.",
+        "issueSuccess": "Đã phát hành phiếu đánh giá",
+        "resultCap": "Phiếu đã phát hành",
+        "resultHint": "DeutschFlow không gửi gì cho phụ huynh. Trung tâm sao chép link hoặc tải PDF rồi tự gửi qua kênh của mình.",
+        "verificationCodeLabel": "Mã phiếu",
+        "expiresLabel": "Link hết hạn",
+        "copyLink": "Sao chép link",
+        "copied": "Đã sao chép",
+        "copyError": "Không sao chép được link. Hãy chọn và chép thủ công.",
+        "downloadPdf": "Tải PDF",
+        "historyCap": "Phiếu đã phát hành cho học viên này",
+        "historyEmpty": "Chưa phát hành phiếu nào cho học viên này.",
+        "viewCount": "{count} lượt mở",
+        "statusACTIVE": "Còn hiệu lực",
+        "statusEXPIRED": "Hết hạn",
+        "statusSUPERSEDED": "Đã thay thế",
+        "statusREVOKED": "Đã thu hồi"
       }
     },
     "grading": {
@@ -660,7 +694,10 @@
       "aiCallError": "Lỗi khi gọi AI chấm bài",
       "aiFailedWithReason": "AI chấm bài thất bại: {reason}",
       "aiFailedGeneric": "AI chấm bài thất bại. Vui lòng tự chấm điểm.",
-      "clearFilter": "Xoá bộ lọc"
+      "clearFilter": "Xoá bộ lọc",
+      "aiProposalCap": "Điểm AI đề xuất",
+      "aiProposalScore": "{score}/100",
+      "aiProposalHint": "Đây là đề xuất của AI, không phải điểm cuối. Điểm cuối là số bạn nhập bên dưới rồi bấm lưu. Học viên và phiếu gửi gia đình không thấy con số này."
     },
     "gradeImage": {
       "title": "Chấm bài qua ảnh",

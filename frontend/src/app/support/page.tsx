@@ -49,7 +49,7 @@ export default function SupportPage() {
             </p>
             <p>
               <strong>Email:</strong>{' '}
-              <a href="mailto:dinhhuycu0305@gmail.com">dinhhuycu0305@gmail.com</a>
+              <a href="mailto:support@mydeutschflow.com">support@mydeutschflow.com</a>
             </p>
             <p>
               Vui lòng kèm email tài khoản và mô tả ngắn gọn vấn đề (kèm ảnh chụp màn hình nếu có). /

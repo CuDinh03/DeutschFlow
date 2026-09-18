@@ -6,10 +6,17 @@ import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { GaBtn, GaCap, GaPageHdr } from '@/components/ui-v2'
 import { OrgOwnerOnly } from '../OwnerOnly'
+import { OrgWriteGate } from '../../OrgLicenseGate'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cấu hình trung tâm (PR-10, OWNER-only): P04 chính sách tính công + 2 ngưỡng
-// gợi ý hỗ trợ (§7). Backend gác assertOrgOwner; OrgOwnerOnly là lớp UX.
+// gợi ý hỗ trợ (§7) + 2 ngưỡng xét chứng nhận (R10, V323). Backend gác
+// assertOrgOwner; OrgOwnerOnly là lớp UX.
+//
+// Hai ngưỡng chứng nhận nhận SỐ NGUYÊN 0–100 (`OrgSettingsController.validate`), khác thang 1–100
+// của hai ngưỡng gợi ý hỗ trợ ngay bên trên: 0 là giá trị HỢP LỆ và có nghĩa "trung tâm bỏ điều kiện
+// đó", nên `min` của ô phải là 0 chứ không phải 1. Chúng quyết định dòng "đủ điều kiện cấp chứng
+// nhận" in trên phiếu đánh giá CUỐI KHOÁ gửi gia đình — mặc định 50 điểm / 80 % chuyên cần.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type Settings = Record<string, string>
@@ -113,8 +120,38 @@ function SettingsInner() {
               </div>
             </section>
 
+            {/* R10 — ngưỡng xét chứng nhận, in trên phiếu đánh giá cuối khoá */}
+            <section className="border border-ga-line bg-ga-card p-4">
+              <GaCap className="mb-2 block">{t('certificateCap')}</GaCap>
+              <div className="flex flex-col gap-3">
+                <label className="flex flex-wrap items-center justify-between gap-2 text-ga-body text-ga-ink">
+                  <span className="min-w-0 flex-1">{t('certMinAvgLabel')}</span>
+                  <input
+                    type="number" min={0} max={100}
+                    value={settings.certificate_min_avg ?? ''}
+                    onChange={(e) => set('certificate_min_avg', e.target.value)}
+                    className={`${inputCls} w-[86px]`}
+                  />
+                </label>
+                <label className="flex flex-wrap items-center justify-between gap-2 text-ga-body text-ga-ink">
+                  <span className="min-w-0 flex-1">{t('certMinAttendanceLabel')}</span>
+                  <input
+                    type="number" min={0} max={100}
+                    value={settings.certificate_min_attendance_pct ?? ''}
+                    onChange={(e) => set('certificate_min_attendance_pct', e.target.value)}
+                    className={`${inputCls} w-[86px]`}
+                  />
+                </label>
+                <p className="ga-ui m-0 text-ga-caption leading-[1.5] text-ga-muted">{t('certificateHint')}</p>
+              </div>
+            </section>
+
             <div className="flex justify-end">
-              <GaBtn variant="primary" loading={saving} onClick={save}>{t('save')}</GaBtn>
+              {/* D5/E1: đổi cài đặt trung tâm nằm trong nhóm BỊ CHẶN khi chỉ-đọc — một trung tâm
+                  hết hạn không được sửa chính sách tính công rồi chốt bảng công theo luật mới. */}
+              <OrgWriteGate>
+                <GaBtn variant="primary" loading={saving} onClick={save}>{t('save')}</GaBtn>
+              </OrgWriteGate>
             </div>
           </div>
         )}

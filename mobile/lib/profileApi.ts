@@ -6,6 +6,19 @@
 // buộc đăng nhập lại").
 import api from './api'
 
+/**
+ * Ô "tự khai ngày sinh" ở màn Thông tin cá nhân — BẬT từ 17/09/2026 (phương án D, owner chốt).
+ *
+ * Từng tắt vì học viên B2C tự khai dưới 18 bị backend `MinorGate` khoá luyện nói mà không ai mở lại
+ * được (đường ghi đồng ý chỉ có ở `/api/org/...`; plans/2026-09-14-hv-tu-dang-ky-ma-lop-vs-csv.md §7).
+ * Nay backend chỉ áp mức 16–17 cho THÀNH VIÊN trung tâm; người ngoài trung tâm dưới 16 vẫn bị chặn
+ * theo luật nhưng nhận `extensions.contact=NONE` (sheet giấu nút "Liên hệ trung tâm", thông điệp nói
+ * đường phụ huynh xác nhận đang được làm — Q-04). ⚠️ Bật ô chỉ có nghĩa khi backend ĐÃ deploy bản
+ * mang `contact` — thứ tự phát hành: BE → web → OTA. Web dùng cùng một hằng trong
+ * `frontend/src/lib/profileApi.ts` — đổi thì đổi cả hai.
+ */
+export const BIRTH_DATE_SELF_DECLARE_ENABLED = true
+
 export interface ChangePasswordPayload {
   currentPassword: string
   newPassword: string
@@ -49,7 +62,88 @@ export function validatePasswordChange(current: string, next: string, confirm: s
   return errors
 }
 
+export interface PersonalProfile {
+  userId: number
+  email: string
+  displayName: string
+  phoneNumber: string | null
+  locale: string | null
+  avatarUrl: string | null
+  role: string
+  /** ISO yyyy-MM-dd, null = chưa khai. */
+  birthDate: string | null
+  /** true = đã ghi ⇒ chỉ đọc; muốn sửa phải qua trung tâm hoặc hỗ trợ. */
+  birthDateLocked: boolean
+  notificationTimezone: string | null
+}
+
 export const profileApi = {
   changePassword: (payload: ChangePasswordPayload) =>
     api.patch<void>('/profile/me/password', payload).then(() => undefined),
+
+  me: async (): Promise<PersonalProfile> => (await api.get<PersonalProfile>('/profile/me')).data,
+
+  update: async (patch: { displayName?: string; phoneNumber?: string }) =>
+    (await api.patch('/profile/me', patch)).data,
+
+  /**
+   * Tải ảnh đại diện lên. Ảnh đã được ImagePicker cắt vuông sẵn (allowsEditing + aspect 1:1) nên
+   * không cần xử lý thêm ở đây.
+   *
+   * 🪤 RN đòi object {uri,type,name} chứ không phải Blob — ép kiểu như mọi multipart khác trong app
+   * (xem speakingApi.transcribe).
+   */
+  uploadAvatar: async (uri: string, mimeType: string, fileName: string): Promise<string> => {
+    const form = new FormData()
+    form.append('file', { uri, type: mimeType, name: fileName } as unknown as Blob)
+    const r = await api.post<{ avatarUrl: string }>('/profile/me/avatar', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30_000,
+    })
+    return r.data.avatarUrl
+  },
+
+  removeAvatar: async (): Promise<void> => {
+    await api.delete('/profile/me/avatar')
+  },
+
+  /** Ghi ngày sinh (ISO yyyy-MM-dd). Backend chỉ cho ghi MỘT LẦN, lần sau trả 409. */
+  declareBirthDate: async (birthDate: string) =>
+    (await api.patch<{ birthDate: string; minorStatus: string; requiresGuardianConsent: boolean }>(
+      '/profile/me/birth-date',
+      { birthDate }
+    )).data,
+}
+
+/**
+ * Ghép ngày/tháng/năm rời thành chuỗi ISO, hoặc trả lỗi người đọc được.
+ *
+ * <p>Ba ô số thay vì một bộ chọn lịch là quyết định có chủ đích: mọi thư viện date picker của RN
+ * đều là NATIVE MODULE, thêm vào là phải build lại app và không thể phát hành bằng OTA nữa. Ngày
+ * sinh không đáng để đánh đổi cả đường phát hành.
+ */
+export function toIsoBirthDate(
+  day: string,
+  month: string,
+  year: string
+): { iso: string } | { error: string } {
+  const d = Number(day)
+  const m = Number(month)
+  const y = Number(year)
+  if (!day || !month || !year) return { error: 'Hãy nhập đủ ngày, tháng và năm.' }
+  if (!Number.isInteger(d) || !Number.isInteger(m) || !Number.isInteger(y)) {
+    return { error: 'Ngày sinh chỉ gồm chữ số.' }
+  }
+  if (m < 1 || m > 12) return { error: 'Tháng phải từ 1 đến 12.' }
+  const thisYear = new Date().getFullYear()
+  if (y < thisYear - 120 || y > thisYear) return { error: 'Năm sinh không hợp lệ.' }
+  // new Date(y, m-1, d) tự "tràn" sang tháng sau với ngày 31/2 — so lại để bắt đúng lỗi đó thay vì
+  // lặng lẽ gửi lên 03/03.
+  const probe = new Date(Date.UTC(y, m - 1, d))
+  if (probe.getUTCMonth() !== m - 1 || probe.getUTCDate() !== d) {
+    return { error: 'Ngày này không có trong tháng đã chọn.' }
+  }
+  if (probe.getTime() > Date.now()) return { error: 'Ngày sinh không thể ở tương lai.' }
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return { iso: `${y}-${pad(m)}-${pad(d)}` }
 }

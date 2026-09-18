@@ -127,6 +127,32 @@ class ExamQuestionSanitizerTest {
     }
 
     @Test
+    @DisplayName("giữ ba khoá gốc của đề telc (format, blocks, pass_rule) nhưng vẫn cắt đáp án")
+    void stripAnswerKey_telcRootKeys_reachTheClient() {
+        // Trình chạy đề cần `blocks` để dựng ba khối thời gian 90/30/30 và `pass_rule` để nói đúng
+        // hai ngưỡng. Chúng nằm ở GỐC sections_json, không phải trong câu hỏi, nên không phải đáp án.
+        String json = """
+            {"format":"TELC",
+             "blocks":[{"id":"LV_SB","minutes":90,"sections":["LESEN","SPRACHBAUSTEINE"]}],
+             "pass_rule":{"written":{"sections":["LESEN"],"max":225,"min":135}},
+             "sections":[{"name":"SPRACHBAUSTEINE","max_points":30,"teile":[
+               {"teil":2,"type":"GAP_WORDBANK","point_per_item":1.5,
+                "word_bank":{"a":"Bescheid","b":"dringend"},
+                "items":[{"id":"SB2-31","correct":"a"}]}]}]}
+            """;
+
+        String sanitized = sanitizer.stripAnswerKey(json);
+
+        assertNotNull(sanitized);
+        assertFalse(sanitized.contains("\"correct\""), "đáp án vẫn phải bị cắt");
+        assertTrue(sanitized.contains("\"format\":\"TELC\""));
+        assertTrue(sanitized.contains("\"blocks\""));
+        assertTrue(sanitized.contains("\"pass_rule\""));
+        assertTrue(sanitized.contains("\"point_per_item\""));
+        assertTrue(sanitized.contains("\"word_bank\""), "hộp từ là thứ học viên phải nhìn thấy");
+    }
+
+    @Test
     @DisplayName("returns null on malformed JSON — never the raw input")
     void stripAnswerKey_malformed_returnsNull() {
         String malformed = "{not valid json, correct: 'richtig'";

@@ -29,6 +29,7 @@ import { useBlockBackNavigation } from '@/hooks/useBlockBackNavigation'
 import { useReducedMotion } from '@/lib/useReducedMotion'
 import { useStarterStore } from '@/stores/useStarterStore'
 import { captureEvent } from '@/lib/analytics'
+import { recordFirstLesson } from '@/lib/activation'
 import { fonts, motion, radius, space, useTheme } from '@/lib/theme'
 import { Button, Caption, Card, Icon, Screen, ThemedText, YellowSquare, GaGlyph } from '@/components/ui'
 import { MentorMonogram } from '@/components/onboarding/MentorMonogram'
@@ -82,6 +83,8 @@ export default function FirstSentenceScreen() {
   useEffect(() => {
     let active = true
     captureEvent('onb_first_sentence_started', {})
+    // Taxonomy onb_v3 (spec §6.3): bắn song song tên mới; tiền tố onb_* sẽ khai tử sau ≥2 tuần.
+    captureEvent('first_lesson_started', { kind: 'first_sentence' })
     api
       .get<OnboardingMentor>('/onboarding/mentor')
       .then(({ data }) => {
@@ -225,6 +228,17 @@ export default function FirstSentenceScreen() {
       setProcessing(false)
     }
   }
+
+  // ACTIVATION (kế hoạch 17/09 §4.6): tới màn ăn mừng — dù nói thật, success-tone hay biến thể
+  // nghe–lặp (I-5: từ chối mic không phải thất bại) — là hoàn thành bài đầu tiên. Câu đầu tiên
+  // chấm cục bộ, không có bản ghi server nào khác ⇒ client là bên duy nhất biết để gọi
+  // POST /onboarding/first-lesson/complete. Idempotent phía server; lỗi mạng/404 nuốt im
+  // (recordFirstLesson), không chặn luồng. Đặt ở effect để phủ MỌI đường tới setCelebrate.
+  useEffect(() => {
+    if (!celebrate) return
+    captureEvent('first_lesson_completed', { kind: 'first_sentence', mode: celebrate })
+    void recordFirstLesson('FIRST_SENTENCE', { mode: celebrate })
+  }, [celebrate])
 
   // ── Ăn mừng ────────────────────────────────────────────────────────────────
   if (celebrate) {

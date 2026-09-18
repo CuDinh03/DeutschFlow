@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
 public class WiktionaryScraperService {
 
     private static final String WIKTIONARY_BASE_URL = "https://en.wiktionary.org/wiki/";
-    private static final String USER_AGENT = "DeutschFlow/1.0 (Educational purposes; contact@deutschflow.com)";
+    private static final String USER_AGENT = "DeutschFlow/1.0 (Educational purposes; support@mydeutschflow.com)";
     private static final int TIMEOUT_MS = 10000;
     private static final int RATE_LIMIT_MS = 1000; // 1 request per second
     private static final Pattern IPA_FALLBACK = Pattern.compile("/[^/]{2,80}/");

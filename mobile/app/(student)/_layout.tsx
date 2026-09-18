@@ -54,6 +54,7 @@ export default function StudentLayout() {
         <Tabs.Screen name="node-practice" options={{ href: null }} />
         <Tabs.Screen name="grammar" options={{ href: null }} />
         <Tabs.Screen name="notifications" options={{ href: null }} />
+        <Tabs.Screen name="report-issues" options={{ href: null }} />
         <Tabs.Screen name="settings" options={{ href: null }} />
         <Tabs.Screen name="srs" options={{ href: null }} />
         <Tabs.Screen name="stats" options={{ href: null }} />

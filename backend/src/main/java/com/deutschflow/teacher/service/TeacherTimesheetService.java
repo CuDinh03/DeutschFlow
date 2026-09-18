@@ -167,6 +167,11 @@ public class TeacherTimesheetService {
         }
         assertDurationWithinCap(duration);
         assertTeachesClass(teacherId, classId);
+        // D5/E1 — CỐ Ý KHÔNG có cổng `assertOrgWritable`/`assertClassOrgWritable` ở đây, và đừng
+        // thêm lại. Bảng công nằm trong danh mục NGOẠI LỆ E1: buổi dạy đã diễn ra rồi, ghi công chỉ
+        // là hoàn tất việc đã nhận chứ không phải tạo thêm nghĩa vụ mới. Chặn ở đây làm giáo viên
+        // mất công đã dạy VĨNH VIỄN, vì `assertRecordEditable` ngay bên dưới đóng băng kỳ theo
+        // khoảng ngày — quá kỳ là không còn đường ghi bù.
         assertNotInFuture(startedAt);
         assertNoOverlap(teacherId, startedAt, duration, null);
         // Kỳ đã nộp trở đi thì đóng băng: không thêm công vào một kỳ manager đang xem hoặc đã duyệt.
