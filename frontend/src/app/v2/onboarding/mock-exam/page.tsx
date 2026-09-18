@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { ArrowLeft, Mic, AlertTriangle } from 'lucide-react'
 import api from '@/lib/api'
+import { useTracking } from '@/hooks/useTracking'
 import { aiSpeakingApi } from '@/lib/aiSpeakingApi'
 import { startRecorder, RecorderHandle } from '@/lib/voiceRecorder'
 import { GaCard, GaBtn, GaCap, GaIcon } from '@/components/ui-v2'
@@ -29,7 +30,11 @@ const DASHBOARD_ROUTE = '/v2/student/dashboard'
 export default function V2OnboardingMockExamPage() {
   const router = useRouter()
   const t = useTranslations('v2.onboarding.mockExam')
+  const { trackEvent } = useTracking()
   const [phase, setPhase] = useState<ExamPhase>('INTRO')
+  // Đợt 4 PR-2 (W5b/W-4): trang này nay là bài đầu tiên của nhánh A1+ chọn "nói thử" — bắn taxonomy
+  // onb_v3 như Ngày 1/placement. Activation `MOCK_EXAM` do server ghi trong evaluateMockExam (I-12).
+  useEffect(() => { trackEvent('first_lesson_started', { kind: 'mock_exam' }) }, [trackEvent])
   const [timeLeft, setTimeLeft] = useState(EXAM_SECONDS)
   const [transcript, setTranscript] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
@@ -110,6 +115,7 @@ export default function V2OnboardingMockExamPage() {
         transcript_de: realTranscript,
       })
 
+      trackEvent('first_lesson_completed', { kind: 'mock_exam' })
       // Step 3: Navigate to report page with report ID
       if (res.data?.id) {
         router.push(`${REPORT_ROUTE}?id=${res.data.id}`)
@@ -128,7 +134,7 @@ export default function V2OnboardingMockExamPage() {
       )
       setPhase('ERROR')
     }
-  }, [router, t])
+  }, [router, t, trackEvent])
 
   // ─── Start Recording ──────────────────────────────────────
   const startExam = useCallback(async () => {

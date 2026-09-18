@@ -105,10 +105,11 @@ export function profilePayloadFrom(a: WizardAnswers) {
   }
 }
 
-/** Bản chụp gửi lên phiên khách (spec §5.1) — cùng trường với payload, thêm goalType tường minh. */
-export function guestAnswersFrom(a: WizardAnswers): GuestAnswers {
+/** Bản chụp gửi lên phiên khách (spec §5.1) — cùng trường với payload, thêm goalType tường minh (+ pathChoice khi A1+ đã chọn). */
+export function guestAnswersFrom(a: WizardAnswers, pathChoice: GuestAnswers['pathChoice'] = null): GuestAnswers {
   const p = profilePayloadFrom(a)
   return {
+    ...(pathChoice ? { pathChoice } : {}),
     motivation: p.motivation,
     goalType: p.goalType,
     currentLevel: p.currentLevel,
@@ -122,7 +123,12 @@ export function guestAnswersFrom(a: WizardAnswers): GuestAnswers {
   }
 }
 
-/** Số bước hiện trên progressbar theo nhánh (W-13): khách có thêm quick win + cổng tài khoản. */
-export function totalStepsFor(isGuest: boolean): number {
-  return isGuest ? WIZARD_STEP_COUNT + 2 : WIZARD_STEP_COUNT
+/**
+ * Số bước hiện trên progressbar theo nhánh (W-13): khách có thêm quick win + cổng tài khoản, và
+ * (Đợt 4 PR-2) thêm Chọn đường khi tự khai A1+ — đúng máy trạng thái TASTE → PATH_CHOICE → AUTH_GATE.
+ */
+export function totalStepsFor(isGuest: boolean, currentLevel: string | null = null): number {
+  if (!isGuest) return WIZARD_STEP_COUNT
+  const zero = !currentLevel || currentLevel.toUpperCase() === 'A0'
+  return WIZARD_STEP_COUNT + (zero ? 2 : 3)
 }

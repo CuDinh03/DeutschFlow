@@ -244,7 +244,7 @@ describe("V2OnboardingPage — bước trình độ", () => {
   });
 });
 
-describe("V2OnboardingPage — A0 lối tắt (không placement)", () => {
+describe("V2OnboardingPage — A0 lối tắt (không placement; Đợt 4 PR-2: W8a trỏ Ngày 1)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.post).mockResolvedValue({ data: {} });
@@ -258,16 +258,30 @@ describe("V2OnboardingPage — A0 lối tắt (không placement)", () => {
     expect(screen.getByRole("button", { name: /nav\.startRoadmap/i })).toBeInTheDocument();
   });
 
-  it("redirects to /v2/student/roadmap (NOT the v1 /student/roadmap)", async () => {
+  it("W8a: A0 vào Ngày 1 /v2/student/beginner (không roadmap, không v1); có màn Đang tạo lộ trình (W7)", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
     await advance(user, 3);
     await user.click(screen.getByRole("button", { name: /nav\.startRoadmap/i }));
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
+      expect(pushMock).toHaveBeenCalledWith("/v2/student/beginner");
     });
+    expect(pushMock).not.toHaveBeenCalledWith("/v2/student/roadmap");
     expect(pushMock).not.toHaveBeenCalledWith("/student/roadmap");
+  });
+
+  it("W7: bấm lưu là thấy màn Đang tạo lộ trình (CreatingPanel) trước khi chuyển trang", async () => {
+    const user = userEvent.setup();
+    let release: () => void = () => {};
+    vi.mocked(api.post).mockImplementationOnce(() => new Promise((resolve) => { release = () => resolve({ data: {} }); }));
+    render(<V2OnboardingPage />);
+    await advance(user, 3);
+    await user.click(screen.getByRole("button", { name: /nav\.startRoadmap/i }));
+
+    await waitFor(() => expect(screen.getByTestId("creating-panel")).toBeInTheDocument());
+    release();
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/v2/student/beginner"));
   });
 
   it("W-18: payload khớp mobile — WORK, A0→B1, 5×15, 15 phút/ngày, NORMAL, không lĩnh vực", async () => {
@@ -350,7 +364,7 @@ describe("V2OnboardingPage — Đợt 0: 409 là lỗi, mất mạng /route khô
     await user.click(screen.getByRole("button", { name: /nav\.startRoadmap/i }));
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
+      expect(pushMock).toHaveBeenCalledWith("/v2/student/beginner");
     });
     expect(trackEventMock).toHaveBeenCalledWith("onboarding_completed", expect.objectContaining({ level: "A0" }));
     expect(trackEventMock).toHaveBeenCalledWith("onboarding_profile_saved", expect.objectContaining({ level: "A0" }));
@@ -358,7 +372,7 @@ describe("V2OnboardingPage — Đợt 0: 409 là lỗi, mất mạng /route khô
     expect(assigned?.[1]).not.toHaveProperty("postAction");
   });
 
-  it("A1 + GET /route lỗi mạng → vào lộ trình, KHÔNG tạo placement test (W-1)", async () => {
+  it("A1 + GET /route lỗi mạng → vẫn hỏi Chọn đường, KHÔNG tự tạo placement test, không ép đi đâu (W-1)", async () => {
     const user = userEvent.setup();
     vi.mocked(getOnboardingRoute).mockRejectedValue(new Error("network"));
     render(<V2OnboardingPage />);
@@ -368,10 +382,12 @@ describe("V2OnboardingPage — Đợt 0: 409 là lỗi, mất mạng /route khô
     await advance(user, 3);
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
+      expect(screen.getByTestId("path-choice")).toBeInTheDocument();
     });
     expect(api.post).not.toHaveBeenCalledWith("/skill-tree/placement-test", expect.anything());
     expect(api.post).toHaveBeenCalledWith("/onboarding/profile", expect.objectContaining({ currentLevel: "A1" }));
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(trackEventMock).toHaveBeenCalledWith("onboarding_placement_offered", expect.objectContaining({ currentLevel: "A1", surface: "path_choice" }));
   });
 });
 
@@ -396,7 +412,7 @@ describe("V2OnboardingPage — Đợt 2: claim guest session sau đăng nhập",
     render(<V2OnboardingPage />);
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
+      expect(pushMock).toHaveBeenCalledWith("/v2/student/beginner");
     }, { timeout: 5000 });
     expect(api.post).not.toHaveBeenCalledWith("/onboarding/profile", expect.anything());
     expect(trackEventMock).toHaveBeenCalledWith("onboarding_session_claimed", expect.objectContaining({ hasPlan: true }));
@@ -432,9 +448,40 @@ describe("V2OnboardingPage — Đợt 2: claim guest session sau đăng nhập",
       expect(api.post).toHaveBeenCalledWith("/onboarding/profile", expect.objectContaining({ targetLevel: "B1" }));
     }, { timeout: 5000 });
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
+      expect(pushMock).toHaveBeenCalledWith("/v2/student/beginner");
     }, { timeout: 5000 });
     vi.mocked(readOnboardingDraft).mockReturnValue(null);
+  });
+
+  it("claimed A2 + pathChoice=placement (fixture C1 → claim) → vào thẳng bài kiểm tra, KHÔNG POST /profile, KHÔNG hỏi lại", async () => {
+    readCacheMock.mockReturnValue({ sessionId: "s", expiresAt: "2099-01-01T00:00:00Z", currentStep: "AUTH_GATE", answers: {}, savedAt: 0 });
+    claimMock.mockResolvedValue({
+      status: "claimed", alreadyClaimed: false,
+      progress: { flowVersion: "onb_v3", lastStep: "CLAIMED", completedActivities: [], activatedAt: null, coreCompletedAt: null },
+      answers: { currentLevel: "A2", goalType: "WORK", targetLevel: "B1", industry: "IT", pathChoice: "placement" },
+    });
+    vi.mocked(api.post).mockResolvedValue({ data: { testId: "t-1", questions: [
+      { id: 9, skillSection: "LESEN", type: "MULTIPLE_CHOICE", questionDe: "Wo ist der Bahnhof?", questionVi: "", options: ["Dort", "Hier"] },
+    ] } });
+    render(<V2OnboardingPage />);
+
+    await waitFor(() => expect(screen.getByText("Wo ist der Bahnhof?")).toBeInTheDocument(), { timeout: 5000 });
+    expect(api.post).toHaveBeenCalledWith("/skill-tree/placement-test", { claimedLevel: "A2" });
+    expect(api.post).not.toHaveBeenCalledWith("/onboarding/profile", expect.anything());
+    expect(screen.queryByTestId("path-choice")).not.toBeInTheDocument();
+  });
+
+  it("claimed B1 + pathChoice=mock_exam → sang nói thử 3′ /v2/onboarding/mock-exam", async () => {
+    readCacheMock.mockReturnValue({ sessionId: "s", expiresAt: "2099-01-01T00:00:00Z", currentStep: "AUTH_GATE", answers: {}, savedAt: 0 });
+    claimMock.mockResolvedValue({
+      status: "claimed", alreadyClaimed: false,
+      progress: { flowVersion: "onb_v3", lastStep: "CLAIMED", completedActivities: [], activatedAt: null, coreCompletedAt: null },
+      answers: { currentLevel: "B1", goalType: "WORK", targetLevel: "B2", industry: null, pathChoice: "mock_exam" },
+    });
+    render(<V2OnboardingPage />);
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/v2/onboarding/mock-exam"), { timeout: 5000 });
+    expect(api.post).not.toHaveBeenCalledWith("/skill-tree/placement-test", expect.anything());
   });
 
   it("khách vào phễu → tạo phiên; rời bước 1 → PATCH PROFILE với bản chụp câu trả lời", async () => {
@@ -486,6 +533,50 @@ describe("V2OnboardingPage — khách: quick win rồi cổng tài khoản (W-13
     expect(pushMock).toHaveBeenCalledWith("/v2/register");
     expect(api.post).not.toHaveBeenCalledWith("/onboarding/profile", expect.anything());
   });
+
+  it("khách A1+: progressbar 7 bước; sau quick win là Chọn đường (I-9); chọn nói thử → cổng tài khoản; draft + phiên mang pathChoice", async () => {
+    const user = userEvent.setup();
+    render(<V2OnboardingPage />);
+    await advance(user, 1);
+    await user.click(screen.getByRole("radio", { name: /level\.B1\.label/i }));
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuemax", "7");
+    await advance(user, 3);
+    expect(screen.getByText("quickWin.heading")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Guten Morgen/ }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    expect(screen.getByTestId("path-choice")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "6");
+    expect(syncMock).toHaveBeenCalledWith("PATH_CHOICE", expect.objectContaining({ currentLevel: "B1" }));
+    expect(pushMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("radio", { name: /pathChoice\.mockExam/i }));
+    await user.click(screen.getByRole("button", { name: /pathChoice\.continue/i }));
+    expect(screen.getByText("signup.heading")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "7");
+    expect(trackEventMock).toHaveBeenCalledWith("onboarding_path_selected", { path: "mock_exam", level: "B1", guest: true });
+    expect(syncMock).toHaveBeenCalledWith("PATH_CHOICE", expect.objectContaining({ pathChoice: "mock_exam" }));
+    // I-9: chọn đường KHÔNG thực thi gì trước tài khoản.
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /signup\.cta/i }));
+    expect(saveOnboardingDraft).toHaveBeenCalledWith(expect.objectContaining({ currentLevel: "B1", pathChoice: "mock_exam" }));
+    expect(syncMock).toHaveBeenCalledWith("AUTH_GATE", expect.objectContaining({ pathChoice: "mock_exam" }));
+    expect(pushMock).toHaveBeenCalledWith("/v2/register");
+  });
+
+  it("khách A0: không có bước Chọn đường — quick win xong là cổng tài khoản ở bước 6/6", async () => {
+    const user = userEvent.setup();
+    render(<V2OnboardingPage />);
+    await advance(user, 4);
+    await user.click(screen.getByRole("button", { name: /Guten Morgen/ }));
+    await user.click(screen.getByRole("button", { name: /nav\.continue/i }));
+    expect(screen.queryByTestId("path-choice")).not.toBeInTheDocument();
+    expect(screen.getByText("signup.heading")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuemax", "6");
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "6");
+  });
 });
 
 describe("V2OnboardingPage — non-A0 level triggers placement test flow", () => {
@@ -509,7 +600,7 @@ describe("V2OnboardingPage — non-A0 level triggers placement test flow", () =>
     });
   });
 
-  it("advances to placement test and renders first question", async () => {
+  it("A1 đăng ký thẳng → hồ sơ lưu → Chọn đường (R5) → chọn placement → bài 10 câu, hồ sơ KHÔNG POST lần hai", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
 
@@ -517,9 +608,68 @@ describe("V2OnboardingPage — non-A0 level triggers placement test flow", () =>
     await user.click(screen.getByRole("radio", { name: /level\.A1\.label/i }));
     await advance(user, 3);
 
+    await waitFor(() => expect(screen.getByTestId("path-choice")).toBeInTheDocument());
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuemax", "4");
+    // Nút Tiếp tục khoá tới khi chọn.
+    expect(screen.getByRole("button", { name: /pathChoice\.continue/i })).toBeDisabled();
+    await user.click(screen.getByRole("radio", { name: /pathChoice\.placement/i }));
+    await user.click(screen.getByRole("button", { name: /pathChoice\.continue/i }));
+
     await waitFor(() => {
       expect(screen.getByText("Was ist ein Tisch?")).toBeInTheDocument();
     });
+    expect(trackEventMock).toHaveBeenCalledWith("onboarding_path_selected", { path: "placement", level: "A1", guest: false });
+    expect(vi.mocked(api.post).mock.calls.filter((c) => c[0] === "/onboarding/profile")).toHaveLength(1);
+    expect(api.post).toHaveBeenCalledWith("/skill-tree/placement-test", { claimedLevel: "A1" });
+  });
+
+  it("chọn 'Nói thử 3 phút' → /v2/onboarding/mock-exam (W5b nối trang mồ côi)", async () => {
+    const user = userEvent.setup();
+    render(<V2OnboardingPage />);
+    await advance(user, 1);
+    await user.click(screen.getByRole("radio", { name: /level\.B1\.label/i }));
+    await advance(user, 3);
+    await waitFor(() => expect(screen.getByTestId("path-choice")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("radio", { name: /pathChoice\.mockExam/i }));
+    await user.click(screen.getByRole("button", { name: /pathChoice\.continue/i }));
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/v2/onboarding/mock-exam"));
+    expect(api.post).not.toHaveBeenCalledWith("/skill-tree/placement-test", expect.anything());
+    expect(trackEventMock).toHaveBeenCalledWith("onboarding_path_selected", { path: "mock_exam", level: "B1", guest: false });
+  });
+
+  it("chọn 'Bỏ qua' (fixture C5) → lộ trình, bắn onboarding_placement_skipped", async () => {
+    const user = userEvent.setup();
+    render(<V2OnboardingPage />);
+    await advance(user, 1);
+    await user.click(screen.getByRole("radio", { name: /level\.A2\.label/i }));
+    await advance(user, 3);
+    await waitFor(() => expect(screen.getByTestId("path-choice")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("radio", { name: /pathChoice\.skip/i }));
+    await user.click(screen.getByRole("button", { name: /pathChoice\.continue/i }));
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap"));
+    expect(trackEventMock).toHaveBeenCalledWith("onboarding_placement_skipped", expect.objectContaining({ currentLevel: "A2" }));
+  });
+
+  it("tạo bài test hỏng (cooldown 400) → báo detail, vào lộ trình, hồ sơ vẫn đã lưu", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.post).mockImplementation(async (url: string) => {
+      if (url === "/skill-tree/placement-test") throw { response: { status: 400, data: { detail: "Làm lại sau 3 ngày" } } };
+      return { data: {} };
+    });
+    render(<V2OnboardingPage />);
+    await advance(user, 1);
+    await user.click(screen.getByRole("radio", { name: /level\.A1\.label/i }));
+    await advance(user, 3);
+    await waitFor(() => expect(screen.getByTestId("path-choice")).toBeInTheDocument());
+    await user.click(screen.getByRole("radio", { name: /pathChoice\.placement/i }));
+    await user.click(screen.getByRole("button", { name: /pathChoice\.continue/i }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Làm lại sau 3 ngày"));
+    expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
   });
 });
 
@@ -553,7 +703,7 @@ describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
     const postOrder = vi.mocked(api.post).mock.invocationCallOrder[0];
     const clearOrder = vi.mocked(clearOnboardingDraft).mock.invocationCallOrder[0];
     expect(clearOrder).toBeGreaterThan(postOrder);
-    expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
+    expect(pushMock).toHaveBeenCalledWith("/v2/student/beginner");
   });
 
   it("POST hồ sơ hỏng → GIỮ draft, báo lỗi, và trả người dùng về bước cuối dùng lại được", async () => {
@@ -587,7 +737,7 @@ describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
     await waitFor(() => {
       expect(clearOnboardingDraft).toHaveBeenCalled();
     }, { timeout: 5000 });
-    expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap");
+    expect(pushMock).toHaveBeenCalledWith("/v2/student/beginner");
   });
 
   it("POST trả 409 → GIỮ draft, hiện detail của server, KHÔNG đi tiếp (Q-B)", async () => {

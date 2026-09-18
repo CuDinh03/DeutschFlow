@@ -143,6 +143,21 @@ describe('readOnboardingDraft — dữ liệu hỏng', () => {
   })
 })
 
+describe('readOnboardingDraft — pathChoice (Đợt 4 PR-2, I-9)', () => {
+  it('lưu rồi đọc lại; draft cũ không có trường → vắng mặt (chưa chọn)', () => {
+    saveOnboardingDraft({ ...DRAFT, pathChoice: 'mock_exam' })
+    expect(readOnboardingDraft()?.pathChoice).toBe('mock_exam')
+
+    localStorage.setItem('df_onboarding_draft', JSON.stringify({ ...DRAFT, savedAt: Date.now() }))
+    expect(readOnboardingDraft()?.pathChoice).toBeUndefined()
+  })
+
+  it('giá trị lạ → vắng mặt, không ném', () => {
+    localStorage.setItem('df_onboarding_draft', JSON.stringify({ ...DRAFT, savedAt: Date.now(), pathChoice: 'rac' }))
+    expect(readOnboardingDraft()?.pathChoice).toBeUndefined()
+  })
+})
+
 describe('clearOnboardingDraft', () => {
   it('xoá hẳn draft khỏi máy', () => {
     saveOnboardingDraft(DRAFT)

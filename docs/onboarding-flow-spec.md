@@ -89,11 +89,11 @@ stateDiagram-v2
 | `PROFILE` | wizard 4 bước (mục tiêu → trình độ → nhịp → lĩnh vực/kỳ thi) — web đồng thứ tự từ Đợt 4 PR-1 (18/09) | guest session (`PATCH` mỗi bước) |
 | `PROFILE_LITE` | học viên trung tâm: nhịp học (+ trình độ nếu thiếu) — Đợt 5 | ✓ user |
 | `TASTE` | quick win "Guten Morgen" (khách) | guest session `activityResult` |
-| `PATH_CHOICE` | A1+: placement · nói thử 3′ (web) · bỏ qua — **ghi trước tài khoản, thực thi sau claim**. Mobile (Đợt 3 PR-2, 19/09/2026): `components/onboarding/PathChoiceCard.tsx` dùng ở sub-screen khách sau quick win và route `app/(auth)/path-choice.tsx` cho người đăng ký thẳng (R5); nói thử chưa có trên mobile, giá trị `mock_exam` gặp trên mobile = hỏi lại | guest session `answers.pathChoice` (+ draft mobile bản lùi) |
+| `PATH_CHOICE` | A1+: placement · nói thử 3′ (web) · bỏ qua — **ghi trước tài khoản, thực thi sau claim**. Mobile (Đợt 3 PR-2, 19/09/2026): `components/onboarding/PathChoiceCard.tsx` dùng ở sub-screen khách sau quick win và route `app/(auth)/path-choice.tsx` cho người đăng ký thẳng (R5); nói thử chưa có trên mobile, giá trị `mock_exam` gặp trên mobile = hỏi lại. Web (Đợt 4 PR-2, 19/09/2026): `features/onboarding/steps/PathChoiceStep.tsx` ba lựa chọn (placement · nói thử 3′ `/v2/onboarding/mock-exam` · bỏ qua) — bước 6 của khách A1+ và màn sau hồ sơ của người đăng ký thẳng | guest session `answers.pathChoice` (+ draft hai bên bản lùi) |
 | `AUTH_GATE` | đăng ký (OTP Đợt B) / đăng nhập | — |
 | `CLAIMED` | `POST /onboarding/claim` gắn phiên, server phát lại hồ sơ | ✓ `user_onboarding_progress` |
-| `CREATING` | màn "Đang tạo lộ trình…" (cả hai đường — M-13) | ✓ |
-| `FIRST_LESSON` | A0: Câu đầu tiên (mobile) / Ngày 1 (web); A1+: placement (mobile `app/(auth)/placement.tsx` từ 19/09/2026 — port 10 câu web, server ghi activation `PLACEMENT`) / nói thử (web) | ✓ `activated_at` (Đợt 1) |
+| `CREATING` | màn "Đang tạo lộ trình…" (cả hai đường — M-13); web `steps/CreatingPanel.tsx` ba dòng từ Đợt 4 PR-2 (19/09/2026), hiện cả khi đăng ký thẳng bấm lưu (I-10) | ✓ |
+| `FIRST_LESSON` | A0: Câu đầu tiên (mobile) / Ngày 1 `/v2/student/beginner` (web — onboarding trỏ thẳng từ Đợt 4 PR-2, không qua roadmap); A1+: placement (mobile `app/(auth)/placement.tsx` từ 19/09/2026 — port 10 câu web, server ghi activation `PLACEMENT`; web bài trong trang) / nói thử (web `mock-exam`, bắn `first_lesson_started/completed{kind:mock_exam}`) | ✓ `activated_at` (Đợt 1) |
 | `CELEBRATE` | ăn mừng + "Tuần đầu của bạn" | ✓ |
 | `HOME_WEEK1` | Trang chủ: tour · checklist · sheet nhắc học | ✓ |
 | `CORE_DONE` | trả lời sheet nhắc học | ✓ `core_completed_at` (Đợt 1) |
@@ -143,10 +143,10 @@ một luồng**, và mọi kế hoạch "parity" đều phải xuất phát từ
 | Khía cạnh | Web `/v2/onboarding` | Mobile `(auth)/onboarding` | |
 |---|---|---|---|
 | Số bước phễu | **Đợt 4 PR-1 (18/09/2026):** wizard 4 bước KHỚP mobile (mục tiêu → trình độ → nhịp phút/ngày → lĩnh vực/kỳ thi + mentor) → quick-win → cổng tài khoản; `features/onboarding/wizardModel.ts` + `steps/*` có test; a11y radiogroup/focus h1/aria-live; progressbar 4 (đã đăng nhập) / 6 (khách) | **Chào mừng (M0, 18/09)** → wizard 4 bước (mục tiêu → trình độ → nhịp → lĩnh vực/kỳ thi) + quick-win có nút nghe (expo-speech de-DE) + gate — UI v2, #463 (02/09) | 🟢 parity thứ tự bước; web chưa có màn Chào mừng (landing thay) |
-| Bài học đầu (A0) | **không có** | `(auth)/first-sentence` — nghe/nói/chấm cục bộ | 🔴 |
+| Bài học đầu (A0) | **Đợt 4 PR-2 (19/09/2026):** onboarding trỏ thẳng Ngày 1 `/v2/student/beginner` (W8a) | `(auth)/first-sentence` — nghe/nói/chấm cục bộ | 🟢 cả hai có bài đầu; nội dung khác nhau có chủ đích |
 | Kiểm tra đầu vào | có (`/skill-tree/placement-test`) | **Đợt 3 PR-2 (19/09/2026):** `(auth)/placement` cùng hai endpoint, cùng 10 câu; thêm nghe transcript giọng Đức, Bỏ qua mọi lúc, xác nhận khi nộp thiếu | 🟢 parity |
-| Nói thử với AI | không | không | 🔵 cả hai đều thiếu |
-| Tôn trọng `postAction` của ma trận | chỉ nhánh `PRICING_CTA` | **bỏ qua hoàn toàn** — `nextAfterProfile(ctx)` đi qua máy trạng thái (`CREATING`/`plan_ready`), không đọc route API; A0/`ORG_*` → Câu đầu tiên, A1+ theo `pathChoice` | 🔴 cố ý (vá F-1, #375) |
+| Nói thử với AI | **Đợt 4 PR-2:** có — lựa chọn "Nói thử 3 phút với mentor" ở Chọn đường → `/v2/onboarding/mock-exam` (W-4 hết mồ côi) | không | 🟡 web có, mobile đợt sau |
+| Tôn trọng `postAction` của ma trận | **Đợt 4 PR-2:** không đọc nữa — `features/onboarding/postProfileRoute.ts` đi qua máy trạng thái; `/onboarding/route` chỉ còn cho analytics + `paywallAllowed` màn kết quả | **bỏ qua hoàn toàn** — `nextAfterProfile(ctx)` đi qua máy trạng thái (`CREATING`/`plan_ready`), không đọc route API; A0/`ORG_*` → Câu đầu tiên, A1+ theo `pathChoice` | 🟢 cả hai cùng nguồn (fixture) — ma trận khai tử §8.1 |
 | Nhắc học | không có | local notification 20:00, pre-permission + cooldown 3 ngày | 🔴 |
 | Spotlight tour | không có | 5 bước, **thứ tự đã chốt với owner, có test khoá** | 🔴 |
 | Draft khách | localStorage, TTL 30′ | SecureStore, TTL 30′ | 🟢 đã đồng bộ (#407) |
