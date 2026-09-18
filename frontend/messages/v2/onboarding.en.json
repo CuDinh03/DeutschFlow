@@ -129,12 +129,6 @@
       "haveAccount": "Already have an account?",
       "login": "Log in"
     },
-    "placementOffer": {
-      "heading": "Land on exactly the right level?",
-      "body": "You rated yourself <b>{level}</b>. Take the ~5-minute test so your roadmap matches precisely — or start learning now and fine-tune later.",
-      "take": "Take the 5-minute test",
-      "skip": "Start learning now →"
-    },
     "test": {
       "heading": "Placement test",
       "skillHoeren": "Listening",
@@ -163,10 +157,6 @@
       "progressAria": "Roadmap setup progress",
       "stepOf": "Step {step} of {total}",
       "stepAnnounce": "Step {step} of {total}: {title}"
-    },
-    "loader": {
-      "title": "Building your roadmap…",
-      "sub": "Saving the goal and mentor you just picked."
     },
     "error": {
       "offline": "Connection lost — your profile wasn't saved. Check your network and try again.",
@@ -264,6 +254,26 @@
       "FELIX": "Office — apprentice",
       "MIA": "Social media assistant — beginner",
       "fallback": "Your learning companion"
+    },
+    "pathChoice": {
+      "cap": "Before your roadmap · Level {level}",
+      "heading": "Land on exactly the right level?",
+      "body": "You rated yourself <b>{level}</b>. Pick how to start — a quick test so your roadmap matches precisely, a 3-minute talk with your mentor, or jump in now and fine-tune later.",
+      "placement": "Quick 10-question check",
+      "placementDesc": "About 4 minutes · 4 skills · a roadmap that starts right where you are",
+      "mockExam": "3-minute talk with your mentor",
+      "mockExamDesc": "Record yourself and get a pronunciation and grammar report right away",
+      "skip": "Skip, go to my roadmap",
+      "skipDesc": "Start learning now at your self-rated level and fine-tune later",
+      "continue": "Continue",
+      "note": "Skipping now keeps both options available later in your roadmap."
+    },
+    "creating": {
+      "title": "Building your roadmap…",
+      "sub": "Just a few seconds — don't close this page.",
+      "stage1": "Saving your goal & level",
+      "stage2": "Matching your mentor",
+      "stage3": "Assembling your roadmap…"
     }
   }
 }

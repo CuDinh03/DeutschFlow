@@ -129,12 +129,6 @@
       "haveAccount": "Schon ein Konto?",
       "login": "Anmelden"
     },
-    "placementOffer": {
-      "heading": "Genau auf deinem Niveau starten?",
-      "body": "Du hast dich selbst mit <b>{level}</b> eingeschätzt. Mach den ~5-Minuten-Test, damit dein Lernweg genau passt — oder starte jetzt und justiere später.",
-      "take": "5-Minuten-Test machen",
-      "skip": "Jetzt loslegen →"
-    },
     "test": {
       "heading": "Einstufungstest",
       "skillHoeren": "Hören",
@@ -163,10 +157,6 @@
       "progressAria": "Fortschritt der Lernweg-Einrichtung",
       "stepOf": "Schritt {step} von {total}",
       "stepAnnounce": "Schritt {step} von {total}: {title}"
-    },
-    "loader": {
-      "title": "Dein Lernweg wird erstellt…",
-      "sub": "Ziel und Mentor werden gespeichert."
     },
     "error": {
       "offline": "Verbindung verloren — dein Profil wurde nicht gespeichert. Prüfe dein Netz und versuch es erneut.",
@@ -264,6 +254,26 @@
       "FELIX": "Büro — Azubi",
       "MIA": "Social-Media-Assistentin — Einstieg",
       "fallback": "Dein Lernbegleiter"
+    },
+    "pathChoice": {
+      "cap": "Vor deinem Lernweg · Niveau {level}",
+      "heading": "Genau auf deinem Niveau starten?",
+      "body": "Du hast dich selbst mit <b>{level}</b> eingeschätzt. Wähle, wie du startest — ein kurzer Test, damit dein Lernweg genau passt, ein 3-Minuten-Gespräch mit deinem Mentor, oder gleich loslegen und später justieren.",
+      "placement": "Kurzer Test mit 10 Fragen",
+      "placementDesc": "Etwa 4 Minuten · 4 Fertigkeiten · ein Lernweg, der genau bei dir beginnt",
+      "mockExam": "3 Minuten mit dem Mentor sprechen",
+      "mockExamDesc": "Nimm dich auf und erhalte sofort einen Bericht zu Aussprache und Grammatik",
+      "skip": "Überspringen, zum Lernweg",
+      "skipDesc": "Jetzt auf dem selbst eingeschätzten Niveau starten und später justieren",
+      "continue": "Weiter",
+      "note": "Wer jetzt überspringt, kann beides später im Lernweg nachholen."
+    },
+    "creating": {
+      "title": "Dein Lernweg wird erstellt…",
+      "sub": "Nur ein paar Sekunden — Seite bitte nicht schließen.",
+      "stage1": "Ziel & Niveau werden gespeichert",
+      "stage2": "Mentor wird zugeordnet",
+      "stage3": "Lernweg wird aufgebaut…"
     }
   }
 }

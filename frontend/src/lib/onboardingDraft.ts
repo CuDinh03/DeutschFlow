@@ -29,7 +29,14 @@ export interface OnboardingDraft {
   examType: string | null
   /** Đợt 4 (18/09): phút/ngày như mobile — thay `weeklyTarget` của bản cũ. */
   dailyGoalMinutes: number
+  /**
+   * Đợt 4 PR-2 (19/09): lựa chọn đường của A1+ ở màn Chọn đường TRƯỚC tài khoản (I-9). Đường chính
+   * là guest session (`answers.pathChoice`); draft giữ bản sao làm đường lùi. Vắng mặt = chưa chọn.
+   */
+  pathChoice?: 'placement' | 'mock_exam' | 'skip' | null
 }
+
+const PATH_CHOICES = ['placement', 'mock_exam', 'skip'] as const
 
 /** Hình dạng thật sự nằm trên máy: draft + dấu thời gian để kiểm hạn. */
 interface StoredDraft extends OnboardingDraft {
@@ -82,6 +89,10 @@ export function readOnboardingDraft(): OnboardingDraft | null {
       dailyGoalMinutes: typeof d.dailyGoalMinutes === 'number'
         ? d.dailyGoalMinutes
         : typeof d.weeklyTarget === 'number' ? dailyGoalFromLegacyWeekly(d.weeklyTarget) : 15,
+      // Chỉ thêm khi có giá trị hợp lệ — draft cũ/đường A0 giữ nguyên hình dạng (test logout/clearTokens so sánh sâu).
+      ...((PATH_CHOICES as readonly string[]).includes(d.pathChoice as string)
+        ? { pathChoice: d.pathChoice as OnboardingDraft['pathChoice'] }
+        : {}),
     }
   } catch {
     return null

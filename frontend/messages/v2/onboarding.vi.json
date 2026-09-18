@@ -129,12 +129,6 @@
       "haveAccount": "Đã có tài khoản?",
       "login": "Đăng nhập"
     },
-    "placementOffer": {
-      "heading": "Vào đúng trình độ của bạn?",
-      "body": "Bạn tự đánh giá <b>{level}</b>. Làm bài kiểm tra ~5 phút để lộ trình khớp chính xác — hoặc bắt đầu học ngay rồi tinh chỉnh sau.",
-      "take": "Làm bài kiểm tra 5 phút",
-      "skip": "Bắt đầu học ngay →"
-    },
     "test": {
       "heading": "Bài kiểm tra xếp lớp",
       "skillHoeren": "Nghe",
@@ -163,10 +157,6 @@
       "progressAria": "Tiến độ thiết lập lộ trình",
       "stepOf": "Bước {step} trên {total}",
       "stepAnnounce": "Bước {step} trên {total}: {title}"
-    },
-    "loader": {
-      "title": "Đang tạo lộ trình của bạn…",
-      "sub": "Lưu mục tiêu và mentor bạn vừa chọn."
     },
     "error": {
       "offline": "Mất kết nối — hồ sơ chưa được lưu. Kiểm tra mạng rồi thử lại.",
@@ -264,6 +254,26 @@
       "FELIX": "Văn phòng — học việc",
       "MIA": "Trợ lý mạng xã hội — nhập môn",
       "fallback": "Người đồng hành học tập"
+    },
+    "pathChoice": {
+      "cap": "Trước khi vào lộ trình · Trình độ {level}",
+      "heading": "Vào đúng trình độ của bạn?",
+      "body": "Bạn tự đánh giá <b>{level}</b>. Chọn cách bắt đầu — kiểm tra nhanh để lộ trình khớp chính xác, nói thử với mentor, hoặc vào học ngay rồi tinh chỉnh sau.",
+      "placement": "Kiểm tra nhanh 10 câu",
+      "placementDesc": "Khoảng 4 phút · 4 kỹ năng · lộ trình khớp đúng chỗ bạn đang đứng",
+      "mockExam": "Nói thử 3 phút với mentor",
+      "mockExamDesc": "Ghi âm, nhận báo cáo lỗi phát âm và ngữ pháp ngay",
+      "skip": "Bỏ qua, vào lộ trình",
+      "skipDesc": "Bắt đầu học ngay theo trình độ tự đánh giá, tinh chỉnh sau",
+      "continue": "Tiếp tục",
+      "note": "Bỏ qua bây giờ vẫn làm được sau trong lộ trình của bạn."
+    },
+    "creating": {
+      "title": "Đang tạo lộ trình của bạn…",
+      "sub": "Chỉ vài giây — đừng đóng trang.",
+      "stage1": "Lưu mục tiêu & trình độ",
+      "stage2": "Ghép mentor đồng hành",
+      "stage3": "Dựng lộ trình học…"
     }
   }
 }

@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowLeft, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { ArrowRight, ArrowLeft, CheckCircle, XCircle } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { useTracking } from "@/hooks/useTracking";
@@ -29,6 +29,10 @@ import {
   totalStepsFor,
   type WizardAnswers,
 } from "@/features/onboarding/wizardModel";
+import { nextAfterProfile, guestNeedsPathChoice, ROADMAP_ROUTE, type PostProfileContext } from "@/features/onboarding/postProfileRoute";
+import type { PathChoice } from "@/features/onboarding/machine";
+import { PathChoiceStep } from "@/features/onboarding/steps/PathChoiceStep";
+import { CreatingPanel } from "@/features/onboarding/steps/CreatingPanel";
 import { MotivationStep } from "@/features/onboarding/steps/MotivationStep";
 import { LevelStep } from "@/features/onboarding/steps/LevelStep";
 import { RhythmStep } from "@/features/onboarding/steps/RhythmStep";
@@ -43,8 +47,14 @@ import { OrgLiteWizard, type LiteProfilePayload } from "./OrgLiteWizard";
 // Đợt 4 (18/09/2026, kế hoạch 17/09 §4.4 W1–W4, W-12/W-13/W-18): wizard đổi thứ tự khớp mobile
 // (mục tiêu → trình độ → nhịp phút/ngày → lĩnh vực/kỳ thi + mentor), bốn bước tách ra
 // `features/onboarding/steps/*`, mô hình bước + payload ở `wizardModel.ts` (có test). Mỗi bước
-// chuyển là focus về h1 + aria-live báo "Bước X trên Y"; progressbar đếm theo nhánh (khách 6, đã
-// đăng nhập 4). API, guest session, claim-trước-draft, placement, PROFILE_LITE giữ nguyên Đợt 0–5.
+// chuyển là focus về h1 + aria-live báo "Bước X trên Y"; progressbar đếm theo nhánh.
+//
+// Đợt 4 PR-2 (19/09/2026, W5b/W7/W8a): sau hồ sơ, đi đâu do `features/onboarding/postProfileRoute.ts`
+// quyết (qua máy trạng thái chung, có test) — ma trận `/onboarding/route` chỉ còn cho analytics.
+// A0 → Ngày 1 `/v2/student/beginner`; A1+ tự đăng ký → Chọn đường (`PathChoiceStep`: placement
+// trong trang · nói thử 3′ `/v2/onboarding/mock-exam` · bỏ qua) — khách chọn TRƯỚC cổng tài khoản
+// (I-9, ghi vào guest session + draft), người đăng ký thẳng được hỏi sau khi có plan (fixture R5).
+// Màn "Đang tạo lộ trình…" (`CreatingPanel`) hiện cho mọi đường tới hồ sơ (I-10).
 //
 // Trang CÔNG KHAI: khách chạy trọn phễu trước khi đăng ký, nên mặc GaAuthShell (không RoleShell);
 // middleware miễn /v2/onboarding khỏi cổng đăng nhập vì đúng lý do đó.
@@ -57,16 +67,17 @@ const TEST_SKILL_CHIP: Record<string, { icon: string; labelKey: string; cls: str
   SCHREIBEN: { icon: "draw",               labelKey: "test.skillSchreiben", cls: "bg-ga-violet-soft text-ga-violet" },
 };
 
-// Post-funnel destinations on the v2 surface.
-const ROADMAP_ROUTE = "/v2/student/roadmap";
 /** Băng UPPER của ma trận `OnboardingTypeResolver` (B1+): nơi duy nhất web từng mời gói PRO. */
 const UPPER_LEVELS = ["B1", "B2", "C1", "C2"];
 const PRICING_ROUTE = "/v2/payment";
 
-// Bước ngoài wizard (sau 4 bước): khách = quick win rồi cổng tài khoản; đã đăng nhập = placement.
-const STEP_TASTE = WIZARD_STEP_COUNT + 1;      // 5 — khách: quick win (TASTE)
-const STEP_AUTH_GATE = WIZARD_STEP_COUNT + 2;  // 6 — khách: cổng tài khoản
-const STEP_PLACEMENT = WIZARD_STEP_COUNT + 1;  // 5 — đã đăng nhập: mời/làm/kết quả placement
+// Bước ngoài wizard (sau 4 bước). Khách: quick win → (A1+) Chọn đường → cổng tài khoản.
+// Đã đăng nhập: (A1+ chưa chọn) Chọn đường → placement trong trang. Số thứ tự chỉ để phân biệt
+// màn; progressbar hiện `shownStep` đã quy đổi theo nhánh (A0 khách không có bước Chọn đường).
+const STEP_TASTE = WIZARD_STEP_COUNT + 1;        // 5 — khách: quick win (TASTE)
+const STEP_PATH_CHOICE = WIZARD_STEP_COUNT + 2;  // 6 — A1+: Chọn đường (PATH_CHOICE)
+const STEP_AUTH_GATE = WIZARD_STEP_COUNT + 3;    // 7 — khách: cổng tài khoản (AUTH_GATE)
+const STEP_PLACEMENT = WIZARD_STEP_COUNT + 4;    // 8 — đã đăng nhập: làm/kết quả placement
 
 interface PQ { id: number; skillSection: string; type: string; questionDe: string; questionVi: string; audioTranscript?: string; options?: string[]; }
 
@@ -107,11 +118,12 @@ export default function V2OnboardingPage() {
   const [testResult, setTestResult] = useState<{passed:boolean;scorePercent:number;correctCount:number;totalQuestions:number;weakModules?:number[];startingNodeId?:number;retryAfterDays?:number}|null>(null);
   const [route, setRoute] = useState<OnboardingRouteData | null>(null);
   const [mentor, setMentor] = useState<OnboardingMentorData | null>(null);
-  // Value-first: A1+ are OFFERED a skippable placement test after they commit, not gated by it.
-  const [placementOffer, setPlacementOffer] = useState(false);
+  // Đợt 4 PR-2: lựa chọn đường của A1+ (PATH_CHOICE). Khách: ghi trước tài khoản (guest session +
+  // draft) rồi mới qua cổng; đã đăng nhập: thực thi ngay qua `goAfterProfile`.
+  const [pathChoice, setPathChoice] = useState<PathChoice | null>(null);
   // Value-first auth inversion (Phase C): a guest runs the funnel + quick win BEFORE signing up.
   const [isGuest, setIsGuest] = useState(false);          // no access token on mount
-  const totalSteps = totalStepsFor(isGuest);
+  const totalSteps = totalStepsFor(isGuest, currentLevel);
   const [resuming, setResuming] = useState(false);        // authed, replaying a guest draft after signup
   const [quickWinChoice, setQuickWinChoice] = useState<string | null>(null);
   // Đợt 5 (17/09): học viên trung tâm (ORG_ROSTER | ORG_INVITE) chưa có plan đi bản rút gọn
@@ -175,35 +187,60 @@ export default function V2OnboardingPage() {
   const saveProfile = useCallback((): Promise<boolean> => postProfile(profilePayloadFrom(answers)), [postProfile, answers]);
 
   /**
+   * Bài kiểm tra đầu vào 10 câu — chỉ gọi khi hồ sơ ĐÃ nằm trên server (sau Chọn đường / claim /
+   * replay draft có `pathChoice=placement`). Tạo bài hỏng (cooldown 400, mất mạng) → báo lý do và
+   * vào lộ trình: hồ sơ không mất gì, làm lại sau (W-1 tinh thần: không kẹt, không ép).
+   */
+  const startTest = useCallback(async (level: string) => {
+    setLoading(true);
+    try {
+      const { data } = await api.post("/skill-tree/placement-test", { claimedLevel: level });
+      trackEvent('onboarding_placement_test_started', { level });
+      setTestId(data.testId); setQuestions(data.questions ?? []); setTestAnswers({}); setCurrentQ(0);
+      setResuming(false); setStep(STEP_PLACEMENT);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(msg || t("error.createTest"));
+      setResuming(false);
+      router.push(ROADMAP_ROUTE);
+    }
+    setLoading(false);
+  }, [router, trackEvent, t]);
+
+  /**
+   * Hồ sơ đã lưu ⇒ đi đâu: MỘT điểm rẽ (`postProfileRoute.ts`, qua máy trạng thái, có test) cho cả
+   * bốn đường vào — đăng ký thẳng, claim, replay draft, PROFILE_LITE. Không đọc ma trận route.
+   */
+  const goAfterProfile = useCallback(async (ctx: PostProfileContext) => {
+    const dest = nextAfterProfile(ctx);
+    if (dest.kind === 'path_choice') {
+      trackEvent('onboarding_placement_offered', { currentLevel: ctx.level, surface: 'path_choice' });
+      setPathChoice(null); setResuming(false); setLoading(false); setStep(STEP_PATH_CHOICE);
+      return;
+    }
+    if (dest.kind === 'placement') { await startTest(ctx.level ?? currentLevel); return; }
+    router.push(dest.href);
+  }, [router, startTest, trackEvent, currentLevel]);
+
+  /**
    * PROFILE_LITE (Đợt 5): học viên trung tâm lưu nhịp học (+ trình độ nếu thiếu) rồi đi THẲNG bài
    * đầu — không hỏi ma trận, không mời placement (I-11).
    */
   const saveLiteProfile = useCallback(async (payload: LiteProfilePayload): Promise<boolean> => {
     setLoading(true);
+    setResuming(true); // I-10: học viên trung tâm cũng thấy "Đang tạo lộ trình…" (fixture PL1 → CREATING)
     const ok = await postProfile(payload);
-    if (!ok) { setLoading(false); return false; }
+    if (!ok) { setLoading(false); setResuming(false); return false; }
     const base = { level: payload.currentLevel, goal: payload.goalType, industry: null, lite: true, accountSource: orgContext?.accountSource ?? null };
     trackEvent('onboarding_completed', base);
     trackEvent('onboarding_profile_saved', base);
     trackEvent('onboarding_daily_goal_set', { minutes: payload.dailyGoalMinutes });
-    router.push(ROADMAP_ROUTE);
+    // Đợt 4 PR-2: A0 → Ngày 1, A1+ → lộ trình (I-11: không hỏi đường, không placement).
+    await goAfterProfile({ level: payload.currentLevel, accountSource: orgContext?.accountSource ?? 'ORG_ROSTER', pathChoice: null });
     return true;
-  }, [postProfile, router, trackEvent, orgContext]);
+  }, [postProfile, goAfterProfile, trackEvent, orgContext]);
 
-  const startTest = useCallback(async () => {
-    setLoading(true);
-    if (!(await saveProfile())) { setLoading(false); return; }
-    try {
-      const { data } = await api.post("/skill-tree/placement-test", { claimedLevel: currentLevel });
-      trackEvent('onboarding_placement_test_started', { level: currentLevel });
-      trackEvent('onboarding_path_selected', { path: 'placement', level: currentLevel });
-      setTestId(data.testId); setQuestions(data.questions ?? []); setTestAnswers({}); setCurrentQ(0); setStep(STEP_PLACEMENT);
-    } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      toast.error(msg || t("error.createTest"));
-    }
-    setLoading(false);
-  }, [currentLevel, saveProfile, trackEvent, t]);
+
 
   const submitTest = useCallback(async () => {
     if (!testId) return;
@@ -218,31 +255,19 @@ export default function V2OnboardingPage() {
     setLoading(false);
   }, [testId, testAnswers, trackEvent, currentLevel, t]);
 
-  const goRoadmap = useCallback(async () => {
-    setLoading(true);
-    if (!(await saveProfile())) { setLoading(false); return; } // block redirect on a failed save
-    trackEvent('onboarding_completed', { level: currentLevel, goal: goalType, industry });
-    // Di trú spec §6.3: `onboarding_completed` thực chất là "đã lưu hồ sơ" — bắn song song tên
-    // đúng nghĩa ≥2 tuần rồi mới gỡ tên cũ. ĐỪNG đổi nghĩa tên đang chạy.
-    trackEvent('onboarding_profile_saved', { level: currentLevel, goal: goalType, industry });
-    router.push(ROADMAP_ROUTE);
-  }, [saveProfile, router, trackEvent, currentLevel, goalType, industry]);
-
-  /** Hồ sơ ĐÃ nằm trên server (replay draft xong hoặc claim xong): hỏi ma trận rồi đi tiếp. */
-  const continueAfterProfileSaved = useCallback(async (level: string) => {
-    let r: OnboardingRouteData | null = null;
+  /**
+   * Hồ sơ ĐÃ nằm trên server (đăng ký thẳng / replay draft / claim): hỏi ma trận CHỈ để bắn
+   * analytics (`onboarding_type_assigned`, `paywallAllowed` cho màn kết quả), rồi rẽ theo máy trạng
+   * thái. Mất mạng lúc hỏi ma trận không đổi đường đi (W-1).
+   */
+  const continueAfterProfileSaved = useCallback(async (level: string, chosen: PathChoice | null = null) => {
     try {
-      r = await getOnboardingRoute(level);
+      const r = await getOnboardingRoute(level);
       setRoute(r);
       trackEvent('onboarding_type_assigned', { onboardingType: r.onboardingType, paywallAllowed: r.paywallAllowed, platform: 'web', currentLevel: level });
     } catch { /* matrix best-effort */ }
-    if (r?.placementOptional) {
-      trackEvent('onboarding_placement_offered', { currentLevel: level });
-      setPlacementOffer(true); setStep(STEP_PLACEMENT); setResuming(false);
-    } else {
-      router.push(ROADMAP_ROUTE);
-    }
-  }, [router, trackEvent]);
+    await goAfterProfile({ level, pathChoice: chosen });
+  }, [goAfterProfile, trackEvent]);
 
   /**
    * Resume after signup: a guest filled the funnel, we stored a draft, sent them to /v2/register,
@@ -263,7 +288,7 @@ export default function V2OnboardingPage() {
       const goal = goalTypeFor(d.motivation);
       trackEvent('onboarding_completed', { level: d.currentLevel, goal, industry: d.industry });
       trackEvent('onboarding_profile_saved', { level: d.currentLevel, goal, industry: d.industry, resumed: true });
-      await continueAfterProfileSaved(d.currentLevel);
+      await continueAfterProfileSaved(d.currentLevel, d.pathChoice ?? null);
     } catch (e: unknown) {
       // 409 ở đây KHÔNG phải "hồ sơ đã tồn tại" (endpoint UPSERT) mà là xung đột lúc commit ⇒ đã
       // rollback ⇒ hồ sơ CHƯA có trên server. Giữ draft, hiện `detail`, trả về bước cuối để bấm lại.
@@ -301,7 +326,7 @@ export default function V2OnboardingPage() {
         }));
         trackEvent('onboarding_completed', { level, goal: a.goalType, industry: a.industry });
         trackEvent('onboarding_profile_saved', { level, goal: a.goalType, industry: a.industry, resumed: true, via: 'claim' });
-        await continueAfterProfileSaved(level);
+        await continueAfterProfileSaved(level, a.pathChoice ?? null);
         return;
       }
       // Phiên claim được nhưng chưa có hồ sơ (khách rời phễu trước bước trình độ) → thử draft.
@@ -338,11 +363,37 @@ export default function V2OnboardingPage() {
   /** Guest signup gate: stash the funnel answers, then send the guest to /v2/register to save them. */
   const handleGuestSignup = useCallback(() => {
     // Server trước (claim sẽ phát lại từ đây), draft sau (đường lùi khi server hỏng).
-    void syncGuestSession('AUTH_GATE', guestAnswersFrom(answers));
-    saveOnboardingDraft({ motivation, currentLevel, targetLevel, industry, examType, dailyGoalMinutes, goalType });
-    trackEvent('onboarding_signup_prompted', { motivation, goalType, currentLevel });
+    void syncGuestSession('AUTH_GATE', guestAnswersFrom(answers, pathChoice));
+    saveOnboardingDraft({ motivation, currentLevel, targetLevel, industry, examType, dailyGoalMinutes, goalType, pathChoice });
+    trackEvent('onboarding_signup_prompted', { motivation, goalType, currentLevel, pathChoice });
     router.push("/v2/register");
-  }, [answers, motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoalMinutes, router, trackEvent]);
+  }, [answers, motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoalMinutes, pathChoice, router, trackEvent]);
+
+  /** Khách vừa giải quick win: A1+ sang Chọn đường (fixture T3/T4), A0 thẳng cổng tài khoản (T1/T2). */
+  const afterQuickWin = useCallback(() => {
+    if (guestNeedsPathChoice(currentLevel)) {
+      void syncGuestSession('PATH_CHOICE', guestAnswersFrom(answers));
+      trackEvent('onboarding_placement_offered', { currentLevel, surface: 'guest' });
+      setStep(STEP_PATH_CHOICE);
+      return;
+    }
+    setStep(STEP_AUTH_GATE);
+  }, [answers, currentLevel, trackEvent]);
+
+  /** Chọn đường xong: khách ghi lựa chọn rồi qua cổng (I-9, C1/C2); đã đăng nhập thực thi ngay (C3–C5). */
+  const handlePathPick = useCallback((choice: PathChoice) => {
+    trackEvent('onboarding_path_selected', { path: choice, level: currentLevel, guest: isGuest });
+    if (choice === 'skip') trackEvent('onboarding_placement_skipped', { currentLevel, at: 'path_choice' });
+    setPathChoice(choice);
+    if (isGuest) {
+      void syncGuestSession('PATH_CHOICE', guestAnswersFrom(answers, choice));
+      setStep(STEP_AUTH_GATE);
+      return;
+    }
+    // Khoá nút NGAY (cùng lý do với nút lưu hồ sơ): bấm đúp trước khi re-render là hai POST tạo bài test.
+    setLoading(true);
+    void goAfterProfile({ level: currentLevel, pathChoice: choice });
+  }, [answers, currentLevel, isGuest, goAfterProfile, trackEvent]);
 
   const stepId = WIZARD_STEP_IDS[step - 1];
   const isLastWizardStep = step === WIZARD_STEP_COUNT;
@@ -370,33 +421,17 @@ export default function V2OnboardingPage() {
       setStep(STEP_TASTE);
       return;
     }
-    // Khoá nút NGAY từ đây: trong lúc `await getOnboardingRoute()` bấm hai lần là hai POST /profile
-    // song song và bên thua đụng `uq_profile_user` → chính là nguồn 409 đáng chặn từ gốc.
+    // Khoá nút NGAY từ đây: bấm hai lần là hai POST /profile song song và bên thua đụng
+    // `uq_profile_user` → chính là nguồn 409 đáng chặn từ gốc. W7: màn "Đang tạo lộ trình…" hiện cho
+    // cả người đăng ký thẳng (I-10), không chỉ đường replay draft.
     setLoading(true);
-    let r: OnboardingRouteData | null = null;
-    try {
-      r = await getOnboardingRoute(currentLevel);
-      setRoute(r);
-      trackEvent('onboarding_type_assigned', {
-        onboardingType: r.onboardingType,
-        paywallAllowed: r.paywallAllowed, platform: 'web', currentLevel,
-      });
-    } catch { /* matrix unavailable → treat as "no placement", see below */ }
-
-    // Ma trận WEB không bao giờ BẮT BUỘC placement, nên khi GET /route lỗi mạng, ép A1+ vào bài
-    // kiểm tra là hành vi ma trận thật không sinh ra. Lỗi mạng → vào lộ trình (W-1).
-    const forced = r?.placementRequired ?? false;
-    const optional = r?.placementOptional ?? false;
-    if (forced) {
-      await startTest();
-    } else if (optional) {
-      trackEvent('onboarding_placement_offered', { currentLevel });
-      setPlacementOffer(true);
-      setStep(STEP_PLACEMENT);
-      setLoading(false);
-    } else {
-      await goRoadmap();
-    }
+    setResuming(true);
+    if (!(await saveProfile())) { setLoading(false); setResuming(false); return; } // block redirect on a failed save
+    trackEvent('onboarding_completed', { level: currentLevel, goal: goalType, industry });
+    // Di trú spec §6.3: `onboarding_completed` thực chất là "đã lưu hồ sơ" — bắn song song tên
+    // đúng nghĩa ≥2 tuần rồi mới gỡ tên cũ. ĐỪNG đổi nghĩa tên đang chạy.
+    trackEvent('onboarding_profile_saved', { level: currentLevel, goal: goalType, industry });
+    await continueAfterProfileSaved(currentLevel, null);
   };
 
   const card = "rounded-ga border border-ga-line bg-ga-card p-4 lg:p-6 shadow-ga-card-hover space-y-4";
@@ -427,15 +462,11 @@ export default function V2OnboardingPage() {
     </div>
   ) : null;
 
-  // Post-signup resume: saving the guest's draft profile, then routing on. Avoids a funnel flash.
+  // CREATING (W7): replay draft / claim sau đăng ký, VÀ người đăng ký thẳng bấm lưu — cùng một màn (I-10).
   if (resuming) {
     return (
       <GaAuthShell showBackToLanding={false}>
-        <div className="text-center space-y-3" role="status">
-          <Loader2 size={28} className="animate-spin mx-auto text-ga-gold" />
-          <p className="ga-ui text-ga-body font-semibold text-ga-ink">{t("loader.title")}</p>
-          <p className="text-ga-small text-ga-muted">{t("loader.sub")}</p>
-        </div>
+        <CreatingPanel />
       </GaAuthShell>
     );
   }
@@ -449,12 +480,15 @@ export default function V2OnboardingPage() {
     );
   }
 
-  const shownStep = Math.min(step, totalSteps);
+  // Khách A0 không có bước Chọn đường: cổng tài khoản là bước 6 chứ không phải 7 (W-13).
+  const skipsPathChoice = isGuest && !guestNeedsPathChoice(currentLevel);
+  const shownStep = Math.min(skipsPathChoice && step >= STEP_AUTH_GATE ? step - 1 : step, totalSteps);
   const stepTitle = stepId === "motivation" ? t("goal.heading")
     : stepId === "level" ? t("level.heading")
     : stepId === "rhythm" ? t("rhythm.heading")
     : stepId === "focus" ? (goalType === "WORK" ? t("focus.industryHeading") : t("focus.examHeading"))
     : step === STEP_TASTE && isGuest ? t("quickWin.heading")
+    : step === STEP_PATH_CHOICE ? t("pathChoice.heading")
     : step === STEP_AUTH_GATE && isGuest ? t("signup.heading")
     : t("test.heading");
 
@@ -474,7 +508,7 @@ export default function V2OnboardingPage() {
           className="mb-6 flex items-center justify-center gap-2"
         >
           {Array.from({ length: totalSteps }, (_, index) => index + 1).map(s => (
-            <span aria-hidden="true" key={s} className={`h-1.5 w-8 rounded-ga-pill ${s <= step ? "bg-ga-yellow" : "bg-ga-line"}`} />
+            <span aria-hidden="true" key={s} className={`h-1.5 w-8 rounded-ga-pill ${s <= shownStep ? "bg-ga-yellow" : "bg-ga-line"}`} />
           ))}
         </div>
         {/* W-12: đầu đọc màn hình nghe "Bước X trên Y: <tiêu đề>" mỗi lần đổi bước. */}
@@ -552,7 +586,7 @@ export default function V2OnboardingPage() {
                 {quickWinChoice === "Guten Morgen" ? (
                   <>
                     <p className="ga-ui text-ga-small font-bold text-ga-green">{t("quickWin.correct")}</p>
-                    <GaBtn variant="ink" size="lg" className="w-full mt-3" onClick={() => setStep(STEP_AUTH_GATE)}>{t("nav.continue")} <ArrowRight size={14}/></GaBtn>
+                    <GaBtn variant="ink" size="lg" className="w-full mt-3" onClick={afterQuickWin}>{t("nav.continue")} <ArrowRight size={14}/></GaBtn>
                   </>
                 ) : quickWinChoice ? (
                   <p className="text-ga-caption text-ga-red">{t("quickWin.wrong")}</p>
@@ -584,20 +618,9 @@ export default function V2OnboardingPage() {
             </motion.div>
           )}
 
-          {step === STEP_PLACEMENT && !isGuest && placementOffer && !testResult && questions.length === 0 && (
-            <motion.div key="s5offer" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading} className={`${card} text-center`}>
-              <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-ga-gold mx-auto"><GaIcon name="target" size={30} /></div>
-              <h1 ref={headingRef} tabIndex={-1} className="font-ga-display text-ga-h1-m text-ga-ink outline-none">{t("placementOffer.heading")}</h1>
-              <p className="text-ga-small text-ga-muted">
-                {t.rich("placementOffer.body", { level: currentLevel, b: (chunks) => <strong>{chunks}</strong> })}
-              </p>
-              <GaBtn variant="ink" size="lg" className="w-full" loading={loading} disabled={loading} onClick={startTest}>
-                {t("placementOffer.take")}
-              </GaBtn>
-              <GaBtn variant="ghost" size="lg" className="w-full" disabled={loading}
-                onClick={() => { trackEvent('onboarding_placement_skipped', { currentLevel }); trackEvent('onboarding_path_selected', { path: 'skip', level: currentLevel }); void goRoadmap(); }}>
-                {t("placementOffer.skip")}
-              </GaBtn>
+          {step === STEP_PATH_CHOICE && (
+            <motion.div key="s5pc" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading}>
+              <PathChoiceStep level={currentLevel} loading={loading} onPick={handlePathPick} headingRef={headingRef} />
             </motion.div>
           )}
 

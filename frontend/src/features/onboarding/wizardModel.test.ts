@@ -19,9 +19,13 @@ describe('thứ tự bước', () => {
     expect(WIZARD_STEP_IDS).toEqual(['motivation', 'level', 'rhythm', 'focus'])
   })
 
-  it('progressbar: người đã đăng nhập 4 bước; khách thêm quick win + cổng tài khoản = 6', () => {
+  it('progressbar: người đã đăng nhập 4 bước; khách A0 thêm quick win + cổng tài khoản = 6; khách A1+ thêm Chọn đường = 7', () => {
     expect(totalStepsFor(false)).toBe(4)
+    expect(totalStepsFor(false, 'B1')).toBe(4)
     expect(totalStepsFor(true)).toBe(6)
+    expect(totalStepsFor(true, 'A0')).toBe(6)
+    expect(totalStepsFor(true, 'A1')).toBe(7)
+    expect(totalStepsFor(true, 'b2')).toBe(7)
   })
 })
 
