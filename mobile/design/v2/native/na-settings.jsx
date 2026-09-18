@@ -250,7 +250,7 @@ function NAHelp({ onNav, state='default' }){
         <div>
           <Cap style={{padding:'0 2px 10px'}}>Liên hệ</Cap>
           <SettingsGroup>
-            <Row ic="mail" label="Email hỗ trợ" sub="support@deutschflow.vn" right={<NAIcon name="chevron_right" size={19} color={NA.faint}/>} onClick={()=>window.gaToast&&window.gaToast('Mở ứng dụng email')}/>
+            <Row ic="mail" label="Email hỗ trợ" sub="support@mydeutschflow.com" right={<NAIcon name="chevron_right" size={19} color={NA.faint}/>} onClick={()=>window.gaToast&&window.gaToast('Mở ứng dụng email')}/>
             <Row ic="chat" label="Chat với hỗ trợ" sub="Phản hồi trong giờ hành chính" right={<NAIcon name="chevron_right" size={19} color={NA.faint}/>} onClick={()=>window.gaToast&&window.gaToast('Mở khung chat hỗ trợ')}/>
           </SettingsGroup>
         </div>
