@@ -93,7 +93,7 @@ class TeacherControllerAiGradeTest {
         when(classAssignmentRepository.findById(CLASS_ASSIGNMENT_ID)).thenReturn(Optional.of(ca));
         when(teacherService.getClassesForTeacher(TEACHER_ID)).thenReturn(List.of(
                 new com.deutschflow.teacher.dto.TeacherClassDto(
-                        OWNING_CLASS_ID, "Lớp A1", "INVITE1", 0L, 0L, 0L, null)));
+                        OWNING_CLASS_ID, "Lớp A1", "INVITE1", 0L, 0L, 0L, /* orgId: lớp B2C */ null, /* createdAt */ null)));
     }
 
     @Test
