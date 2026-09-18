@@ -130,6 +130,9 @@ export default function OnboardingScreen() {
   // Đợt 3 PR-2 (19/09): A1+ chọn đường (M5b, `PATH_CHOICE`) TRƯỚC cổng tài khoản (I-9). Máy trạng
   // thái quyết định ai thấy màn này (fixture T1–T4: A0 → AUTH_GATE, A1+ → PATH_CHOICE).
   const [guestPathChoice, setGuestPathChoice] = useState(false)
+  // Khoá nút "Tiếp tục" của màn Chọn đường trong lúc PATCH phiên + lưu draft + push /register —
+  // bấm đúp lúc này đẩy /register hai lần lên ngăn xếp (review PR #694).
+  const [guestPathBusy, setGuestPathBusy] = useState(false)
   const guestNeedsPathChoice =
     nextOnboardingState('TASTE', 'taste_done', { authed: false, hasPlan: false, accountSource: 'SELF', level: currentLevel, pathChoice: null }) ===
     'PATH_CHOICE'
@@ -361,7 +364,9 @@ export default function OnboardingScreen() {
       await saveDailyGoalMinutes(parseInt(dailyGoal, 10))
       void route
       // Đăng ký thẳng chưa chọn đường (fixture R5): A1+ được hỏi ở route `path-choice` sau khi có plan.
-      goAfterProfile({ level: currentLevel, pathChoice: null })
+      // `accountSource` lấy từ /context nếu đã về; lỗi/404/chưa về = SELF theo spec §2.1 (fail-open
+      // như trước PR này — học viên trung tâm bình thường không tới nhánh này vì đã rẽ OrgLiteWizard).
+      goAfterProfile({ level: currentLevel, accountSource: orgContext?.accountSource ?? null, pathChoice: null })
     } catch (e) {
       // Lỗi → trả lại form (state còn nguyên) + báo lỗi như trước.
       setResuming(false)
@@ -424,10 +429,17 @@ export default function OnboardingScreen() {
   }
 
   /** Khách chọn đường xong: ghi lựa chọn (phiên + draft) rồi qua cổng tài khoản (fixture C1/C2, I-9). */
-  function handleGuestPathPick(choice: MobilePathChoice) {
+  async function handleGuestPathPick(choice: MobilePathChoice) {
+    if (guestPathBusy) return
+    setGuestPathBusy(true)
     captureEvent('onboarding_path_selected', { path: choice, level: currentLevel, guest: true })
     if (choice === 'skip') captureEvent('onboarding_placement_skipped', { currentLevel, at: 'path_choice_guest' })
-    void handleGuestSignup(choice)
+    try {
+      await handleGuestSignup(choice)
+    } finally {
+      // Màn này vẫn nằm dưới /register trong ngăn xếp; lùi về thì nút phải bấm được lại.
+      setGuestPathBusy(false)
+    }
   }
 
   /** Bản chụp câu trả lời theo hình dạng chung web/mobile (spec §5.1) — gửi lên phiên khách. */
@@ -485,8 +497,9 @@ export default function OnboardingScreen() {
       <PathChoiceCard
         level={currentLevel}
         cap="Trước khi lưu · Chọn đường"
-        onPick={handleGuestPathPick}
+        onPick={(choice) => void handleGuestPathPick(choice)}
         onBack={() => setGuestPathChoice(false)}
+        busy={guestPathBusy}
       />
     )
   }
