@@ -20,7 +20,7 @@ import java.time.Instant;
  * roster và dòng đó TẠO MỚI một tài khoản.
  *
  * <p><b>{@code tokenHash} là SHA-256, không phải token.</b> Bản thô tồn tại đúng một lần — trong
- * email gửi đi — và không bao giờ quay lại cơ sở dữ liệu hay log. Xem lập luận đầy đủ ở V324.
+ * email gửi đi — và không bao giờ quay lại cơ sở dữ liệu hay log. Xem lập luận đầy đủ ở V331.
  *
  * <p><b>Dùng một lần</b> qua {@code usedAt}: đặt mật khẩu xong là liên kết chết. Không dùng cờ
  * boolean vì "lúc nào" là thứ người vận hành sẽ cần khi có khiếu nại ("em bảo chưa hề bấm").

@@ -34,7 +34,7 @@ import java.util.Optional;
  * và lưu lại đúng SHA-256. Không có đường nào đọc lại token từ cơ sở dữ liệu — mất email thì phát
  * lời mời mới, không "tra cứu lại".
  *
- * <p><b>Đường "Quên mật khẩu" vẫn sống song song.</b> Hai sổ tách nhau (xem V324), nên một em không
+ * <p><b>Đường "Quên mật khẩu" vẫn sống song song.</b> Hai sổ tách nhau (xem V331), nên một em không
  * nhận được email kích hoạt vẫn tự vào được bằng OTP như mọi người dùng khác — bản này THÊM một lối,
  * không thay lối nào.
  */
