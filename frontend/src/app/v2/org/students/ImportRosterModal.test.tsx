@@ -138,6 +138,21 @@ describe('ImportRosterModal', () => {
     expect(screen.getByText(`${NS}.reportSharingNote`)).toBeTruthy()
   })
 
+  it('C3: tệp khai aiProcessingConfirmed → mọc cột Chấm bằng AI với chú thích riêng; không suy ra hai cột đồng ý kia', async () => {
+    render(<ImportRosterModal onClose={() => undefined} onImported={() => undefined} />)
+    await userEvent.upload(
+      await screen.findByTestId('roster-file-input'),
+      csvFile('email,displayName,Đồng ý chấm bằng AI\r\nan@x.com,An,x\r\nbinh@x.com,Bình,\r\n'),
+    )
+
+    await screen.findByText(`${NS}.preview:{"count":2}`)
+    expect(screen.getByText(`${NS}.colAiProcessing`)).toBeTruthy()
+    expect(screen.queryByText(`${NS}.colConsent`)).toBeNull()
+    expect(screen.queryByText(`${NS}.colReportSharing`)).toBeNull()
+    expect(screen.getAllByTestId('roster-ai-processing-cell').map((c) => c.textContent)).toEqual(['x', '—'])
+    expect(screen.getByText(`${NS}.aiProcessingNote`)).toBeTruthy()
+  })
+
   it('ngày sai định dạng bị đếm và tô đỏ ngay tại dòng đó; ô trống không bị coi là sai', async () => {
     render(<ImportRosterModal onClose={() => undefined} onImported={() => undefined} />)
     await userEvent.upload(

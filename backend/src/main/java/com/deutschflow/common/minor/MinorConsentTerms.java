@@ -21,7 +21,7 @@ public class MinorConsentTerms {
 
     private final String currentVersion;
 
-    public MinorConsentTerms(@Value("${app.minor.consent-terms-version:2026-09}") String currentVersion) {
+    public MinorConsentTerms(@Value("${app.minor.consent-terms-version:2026-10}") String currentVersion) {
         String value = currentVersion == null ? "" : currentVersion.trim();
         if (value.isEmpty()) {
             throw new IllegalStateException(
