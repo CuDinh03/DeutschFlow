@@ -111,6 +111,20 @@ describe('onboardingDraft', () => {
     expect(await readOnboardingDraft()).toBeNull()
   })
 
+  // ── pathChoice (Đợt 3 PR-2, I-9) ─────────────────────────────────────────
+  test('pathChoice lưu rồi đọc lại; draft cũ không có trường → null (chưa chọn)', async () => {
+    await saveOnboardingDraft({ ...DRAFT, currentLevel: 'A2', pathChoice: 'placement' })
+    expect((await readOnboardingDraft())?.pathChoice).toBe('placement')
+
+    backing.set(KEY, JSON.stringify({ ...DRAFT, savedAt: Date.now() }))
+    expect((await readOnboardingDraft())?.pathChoice).toBeNull()
+  })
+
+  test('pathChoice lạ (mock_exam của web, rác) → null, không ném', async () => {
+    backing.set(KEY, JSON.stringify({ ...DRAFT, savedAt: Date.now(), pathChoice: 'mock_exam' }))
+    expect((await readOnboardingDraft())?.pathChoice).toBeNull()
+  })
+
   test('clear xoá hẳn', async () => {
     await saveOnboardingDraft(DRAFT)
 

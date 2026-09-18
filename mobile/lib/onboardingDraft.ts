@@ -28,7 +28,15 @@ export interface OnboardingDraft {
   industry: string | null
   examType: string | null
   dailyGoal: string           // minutes/day as a string: '5' | '10' | '15' | '20'
+  /**
+   * Đợt 3 PR-2 (19/09/2026): lựa chọn đường của A1+ ở màn Chọn đường TRƯỚC tài khoản (I-9).
+   * Đường chính là guest session (`answers.pathChoice`); draft giữ bản sao làm đường lùi khi
+   * claim hết hạn/lỗi. Vắng mặt (draft cũ) = chưa chọn ⇒ hỏi lại sau khi có plan (fixture R5).
+   */
+  pathChoice?: 'placement' | 'skip' | null
 }
+
+const PATH_CHOICES = ['placement', 'skip'] as const
 
 /** Hình dạng thật sự nằm trên máy: draft + dấu thời gian để kiểm hạn. */
 interface StoredDraft extends OnboardingDraft {
@@ -70,6 +78,9 @@ export async function readOnboardingDraft(): Promise<OnboardingDraft | null> {
       industry: typeof d.industry === 'string' ? d.industry : null,
       examType: typeof d.examType === 'string' ? d.examType : null,
       dailyGoal: typeof d.dailyGoal === 'string' ? d.dailyGoal : '15',
+      pathChoice: (PATH_CHOICES as readonly string[]).includes(d.pathChoice as string)
+        ? (d.pathChoice as 'placement' | 'skip')
+        : null,
     }
   } catch {
     return null
