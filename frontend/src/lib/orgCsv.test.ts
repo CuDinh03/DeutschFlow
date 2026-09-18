@@ -17,9 +17,12 @@ describe('studentsToCsv', () => {
     const csv = studentsToCsv([member({})])
     expect(csv.startsWith('﻿')).toBe(true)
     const lines = csv.slice(1).split('\r\n')
-    expect(lines[0]).toBe('Tên hiển thị,Email,Trạng thái,Ngày tham gia')
-    expect(lines[1]).toBe('Nguyễn Văn A,a@b.vn,ACTIVE,2026-08-01T00:00:00Z')
-    expect(lines).toHaveLength(2)
+    // `sep=,` đứng trên cùng: không có nó, Excel trên máy đặt vùng Việt Nam (dấu phân tách mặc
+    // định là chấm phẩy) dồn cả dòng vào cột A.
+    expect(lines[0]).toBe('sep=,')
+    expect(lines[1]).toBe('Tên hiển thị,Email,Trạng thái,Ngày tham gia')
+    expect(lines[2]).toBe('Nguyễn Văn A,a@b.vn,ACTIVE,2026-08-01T00:00:00Z')
+    expect(lines).toHaveLength(3)
   })
 
   test('escape tên chứa dấu phẩy và ngoặc kép', () => {
@@ -29,14 +32,14 @@ describe('studentsToCsv', () => {
 
   test('tên null thành ô rỗng, không phải chữ "null"', () => {
     const csv = studentsToCsv([member({ displayName: null })])
-    expect(csv.slice(1).split('\r\n')[1]).toBe(',a@b.vn,ACTIVE,2026-08-01T00:00:00Z')
+    expect(csv.slice(1).split('\r\n')[2]).toBe(',a@b.vn,ACTIVE,2026-08-01T00:00:00Z')
   })
 
   test('dùng header tuỳ biến khi truyền vào (trang Students truyền bản dịch theo locale)', () => {
     const csv = studentsToCsv([member({})], ['Display name', 'Email', 'Status', 'Joined on'])
     const lines = csv.slice(1).split('\r\n')
-    expect(lines[0]).toBe('Display name,Email,Status,Joined on')
-    expect(lines[1]).toBe('Nguyễn Văn A,a@b.vn,ACTIVE,2026-08-01T00:00:00Z')
+    expect(lines[1]).toBe('Display name,Email,Status,Joined on')
+    expect(lines[2]).toBe('Nguyễn Văn A,a@b.vn,ACTIVE,2026-08-01T00:00:00Z')
   })
 })
 
@@ -70,8 +73,8 @@ describe('parseRosterCsv (PR-A5)', () => {
     expect(p.rows).toEqual([{ email: 'an@x.com', displayName: 'An', phone: '', line: 1 }])
   })
   test('file mẫu và file lỗi có BOM và đúng header', () => {
-    expect(rosterTemplateCsv().startsWith('\uFEFFemail,displayName,phone')).toBe(true)
-    expect(rosterErrorsCsv(['Dòng 2: email không hợp lệ "x"'])).toBe('\uFEFFerror\r\n"Dòng 2: email không hợp lệ ""x"""\r\n')
+    expect(rosterTemplateCsv().startsWith('\uFEFFsep=,\r\nemail,displayName,phone')).toBe(true)
+    expect(rosterErrorsCsv(['Dòng 2: email không hợp lệ "x"'])).toBe('\uFEFFsep=,\r\nerror\r\n"Dòng 2: email không hợp lệ ""x"""\r\n')
   })
 })
 
@@ -210,7 +213,7 @@ describe('parseRosterCsv — cột mới TÙY CHỌN', () => {
 describe('rosterTemplateCsv — Gói 1', () => {
   test('ba cột cũ vẫn đứng đầu, cột mới nối vào sau', () => {
     const csv = rosterTemplateCsv()
-    expect(csv.startsWith('\uFEFFemail,displayName,phone,birthDate,')).toBe(true)
+    expect(csv.startsWith('\uFEFFsep=,\r\nemail,displayName,phone,birthDate,')).toBe(true)
     expect(csv).toContain('guardianName,guardianRelationship,guardianPhone')
     // D1/R11: máy chủ nay đọc cả email người giám hộ lẫn ô xác nhận đồng ý — hai cột đứng cuối.
     expect(csv).toContain('guardianPhone,guardianEmail,consentConfirmed')
@@ -353,5 +356,63 @@ describe('parseRosterCsv — cột aiProcessingConfirmed (C3, scope AI_PROCESSIN
     expect(p.invalidEmails).toBe(0)
     expect(p.rows[1]).toMatchObject({ consentConfirmed: 'x', reportSharingConfirmed: 'x', aiProcessingConfirmed: 'x' })
     expect(p.rows[0]).toMatchObject({ aiProcessingConfirmed: '' })
+  })
+})
+
+describe('tệp mẫu mở bằng Excel: chỉ thị sep + hàng chú thích tiếng Việt (owner 14/09/2026)', () => {
+  const lines = () => rosterTemplateCsv().replace(/^﻿/, '').split('\r\n')
+
+  test('dòng đầu là sep=, — không có nó Excel vùng Việt Nam dồn cả dòng vào một ô', () => {
+    expect(lines()[0]).toBe('sep=,')
+  })
+
+  test('hàng chú thích đứng ngay dưới tiêu đề, ĐÚNG số ô, và giải nghĩa được từng tên cột', () => {
+    const [, header, guide] = lines()
+    const headerCols = parseCsvLine(header)
+    const guideCols = parseCsvLine(guide)
+    // Lệch số ô là chú thích trượt cột: người dùng đọc "Ngày sinh" dưới tên cột guardianName.
+    expect(guideCols).toHaveLength(headerCols.length)
+    expect(guideCols[0].startsWith('#')).toBe(true)
+    expect(guideCols[headerCols.indexOf('displayName')]).toBe('Họ và tên')
+    expect(guideCols[headerCols.indexOf('birthDate')]).toBe('Ngày sinh YYYY-MM-DD')
+    expect(guideCols[headerCols.indexOf('guardianPhone')]).toBe('SĐT người giám hộ')
+    // Ô có dấu phẩy sẽ phải bọc ngoặc kép — tệp mẫu còn để người ta đọc bằng mắt, giữ cho sạch.
+    expect(guide).not.toContain('"')
+  })
+
+  test('nạp lại chính tệp mẫu: hàng sep và hàng chú thích không thành dòng học viên', () => {
+    const p = parseRosterCsv(rosterTemplateCsv())
+    expect(p.hasHeader).toBe(true)
+    expect(p.rows).toHaveLength(2)
+    expect(p.invalidEmails).toBe(0)
+    expect(p.rows.map((r) => r.email)).toEqual(['hocvien@example.com', 'hocvien2@example.com'])
+  })
+})
+
+describe('parseRosterCsv — bỏ dòng chỉ thị và dòng chú thích', () => {
+  test('sep=, đứng trước tiêu đề: tiêu đề vẫn được nhận, cột vẫn đọc theo tên', () => {
+    const p = parseRosterCsv('sep=,\r\nemail,birthDate\r\nan@x.com,2011-09-15\r\n')
+    expect(p.hasHeader).toBe(true)
+    expect(p.hasBirthDate).toBe(true)
+    expect(p.rows).toEqual([{ email: 'an@x.com', displayName: '', phone: '', birthDate: '2011-09-15', line: 3 }])
+  })
+
+  test('sep=; (Excel vùng khác) cũng bỏ; tệp ba cột cũ sau nó vẫn đọc theo vị trí', () => {
+    const p = parseRosterCsv('sep=;\nemail,displayName,phone\nan@x.com,An,0912\n')
+    expect(p.hasHeader).toBe(true)
+    expect(p.hasBirthDate).toBe(false)
+    expect(p.rows).toEqual([{ email: 'an@x.com', displayName: 'An', phone: '0912', line: 3 }])
+  })
+
+  test('dòng # ở giữa tệp cũng bỏ, và số dòng của các dòng còn lại KHÔNG đổi', () => {
+    const p = parseRosterCsv('email,displayName,phone\nan@x.com,An,\n# ghi chú của trung tâm,,\nbinh@x.com,Bình,\n')
+    expect(p.rows.map((r) => [r.email, r.line])).toEqual([['an@x.com', 2], ['binh@x.com', 4]])
+    expect(p.invalidEmails).toBe(0)
+  })
+
+  test('sep= KHÔNG ở dòng đầu vẫn là dữ liệu — không nuốt im lặng dòng nào', () => {
+    const p = parseRosterCsv('email,displayName,phone\nsep=,,\n')
+    expect(p.rows).toHaveLength(1)
+    expect(p.invalidEmails).toBe(1)
   })
 })

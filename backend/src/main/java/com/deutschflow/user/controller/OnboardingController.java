@@ -10,7 +10,13 @@ import com.deutschflow.user.entity.User;
 import com.deutschflow.user.onboarding.dto.GuestSessionDtos.ClaimRequest;
 import com.deutschflow.user.onboarding.dto.GuestSessionDtos.ClaimResponse;
 import com.deutschflow.user.onboarding.dto.GuestSessionDtos.ProgressResponse;
+import com.deutschflow.user.onboarding.dto.ActivationDtos.ActivationResponse;
+import com.deutschflow.user.onboarding.dto.ActivationDtos.CoreDoneResponse;
+import com.deutschflow.user.onboarding.dto.ActivationDtos.FirstLessonCompleteRequest;
+import com.deutschflow.user.onboarding.dto.OnboardingContextDtos.OnboardingContextResponse;
+import com.deutschflow.user.onboarding.service.OnboardingContextService;
 import com.deutschflow.user.onboarding.service.GuestOnboardingService;
+import com.deutschflow.user.onboarding.service.OnboardingActivationService;
 import com.deutschflow.user.entity.UserLearningProfile;
 import com.deutschflow.user.onboarding.OnboardingRoute;
 import com.deutschflow.user.onboarding.OnboardingTypeResolver;
@@ -38,6 +44,8 @@ public class OnboardingController {
     private final UserLearningProfileRepository learningProfileRepository;
     private final OnboardingTypeResolver onboardingTypeResolver;
     private final GuestOnboardingService guestOnboardingService;
+    private final OnboardingActivationService activationService;
+    private final OnboardingContextService contextService;
 
     @PostMapping("/profile")
     @ResponseStatus(HttpStatus.CREATED)
@@ -81,6 +89,18 @@ public class OnboardingController {
     @GetMapping("/status")
     public StatusResponse status(@AuthenticationPrincipal User user) {
         return new StatusResponse(learningPlanService.hasPlan(user));
+    }
+
+    /**
+     * GET /api/onboarding/context — Đợt 5 (kế hoạch 17/09/2026 §4.1): cửa vào của tài khoản
+     * ({@code SELF | ORG_ROSTER | ORG_INVITE}), {@code hasPlan}, trung tâm + lớp, trình độ đã đặt sẵn
+     * và trạng thái dùng thử. Hai client rẽ lối onboarding (trọn phễu hay bản rút gọn cho học viên
+     * trung tâm) theo {@code accountSource}, không suy đoán từ dữ liệu khác. {@code /status} giữ
+     * nguyên cho client cũ.
+     */
+    @GetMapping("/context")
+    public OnboardingContextResponse context(@AuthenticationPrincipal User user) {
+        return contextService.contextFor(user);
     }
 
     /**
@@ -137,6 +157,28 @@ public class OnboardingController {
     @GetMapping("/progress")
     public ProgressResponse progress(@AuthenticationPrincipal User user) {
         return guestOnboardingService.readProgress(user);
+    }
+
+    // ─── Activation (Đợt 1 kế hoạch onboarding 17/09) ──────────────────────────
+
+    /**
+     * POST /api/onboarding/first-lesson/complete — ghi ACTIVATION (hoàn thành bài đầu tiên).
+     *
+     * <p>Idempotent: {@code activated_at} chỉ ghi lần đầu ({@code firstTime=true}); các lần sau
+     * chỉ nối thêm {@code FIRST_LESSON:<kind>} vào danh sách. Client dùng cho nguồn chấm cục bộ
+     * (mobile Câu đầu tiên); các nguồn có bản ghi server (Ngày 1, placement, nói thử, chặng lộ
+     * trình) được hook ở server, client KHÔNG cần gọi thêm.
+     */
+    @PostMapping("/first-lesson/complete")
+    public ActivationResponse completeFirstLesson(@AuthenticationPrincipal User user,
+                                                  @Valid @RequestBody FirstLessonCompleteRequest request) {
+        return activationService.recordFirstLesson(user.getId(), request.kind());
+    }
+
+    /** POST /api/onboarding/progress/core-done — đi hết luồng onboarding (kể cả từ chối nhắc học). */
+    @PostMapping("/progress/core-done")
+    public CoreDoneResponse coreDone(@AuthenticationPrincipal User user) {
+        return activationService.recordCoreDone(user.getId());
     }
 
     public record StatusResponse(boolean hasPlan) {}

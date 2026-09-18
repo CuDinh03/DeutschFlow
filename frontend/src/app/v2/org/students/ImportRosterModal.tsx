@@ -230,6 +230,7 @@ export function ImportRosterModal({ onClose, onImported }: { onClose: () => void
           </label>
 
           <ul className="ga-ui list-disc space-y-1 pl-5 text-ga-caption text-ga-muted">
+            <li>{t('templateNote')}</li>
             <li>{t('idempotentNote')}</li>
             <li>{t('minorNote')}</li>
             <li>{t('consentNote')}</li>

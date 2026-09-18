@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { MMKV } from 'react-native-mmkv'
+import { deviceEncryptionKey, openEncryptedStore } from '@/lib/secureMmkv'
 import { queryClient } from '@/lib/queryClient'
 import { isAxiosErr } from '@/lib/api'
 import { messagesApi } from '@/lib/messagesApi'
@@ -24,7 +25,9 @@ import {
 // for retry. Persisted to MMKV so a send survives an app kill; flushed on app-foreground and on
 // screen focus. Mirrors the useSrsOfflineStore pattern (MMKV enqueue + sync-on-foreground).
 
-const storage = new MMKV({ id: 'chat-outbox' })
+// Mã hoá tại chỗ bằng khoá của thiết bị; kho thô của bản cũ được di trú giữ nguyên
+// dữ liệu đang chờ. Xem lib/secureMmkv.ts.
+const storage = openEncryptedStore('chat-outbox', deviceEncryptionKey(), (cfg) => new MMKV(cfg))
 const KEY = 'outbox_v1'
 
 // In-flight tempIds — kept in memory (not persisted) so a concurrent flush never double-sends the

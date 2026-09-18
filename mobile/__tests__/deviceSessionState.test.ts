@@ -5,6 +5,7 @@ const tourReset = jest.fn().mockResolvedValue(undefined)
 const starterReset = jest.fn().mockResolvedValue(undefined)
 const clearDailyGoalMinutes = jest.fn().mockResolvedValue(undefined)
 const clearOnboardingDraft = jest.fn().mockResolvedValue(undefined)
+const clearGuestSessionCache = jest.fn().mockResolvedValue(undefined)
 const disableStudyReminder = jest.fn().mockResolvedValue(undefined)
 const chatOutboxClear = jest.fn()
 const srsOfflineClear = jest.fn()
@@ -28,6 +29,9 @@ jest.mock('@/lib/activeSession', () => ({
 jest.mock('@/lib/dailyGoal', () => ({
   clearDailyGoalMinutes: (...a: unknown[]) => clearDailyGoalMinutes(...a),
 }))
+jest.mock('@/lib/guestSessionStore', () => ({
+  clearGuestSessionCache: (...a: unknown[]) => clearGuestSessionCache(...a),
+}))
 jest.mock('@/lib/onboardingDraft', () => ({
   clearOnboardingDraft: (...a: unknown[]) => clearOnboardingDraft(...a),
 }))
@@ -39,7 +43,7 @@ import { clearDeviceSessionState } from '@/lib/deviceSessionState'
 
 beforeEach(() => {
   jest.clearAllMocks()
-  for (const m of [tourReset, starterReset, clearDailyGoalMinutes, clearOnboardingDraft, disableStudyReminder, clearActiveSession]) {
+  for (const m of [tourReset, starterReset, clearDailyGoalMinutes, clearOnboardingDraft, clearGuestSessionCache, disableStudyReminder, clearActiveSession]) {
     m.mockResolvedValue(undefined)
   }
 })
@@ -55,6 +59,7 @@ describe('clearDeviceSessionState', () => {
       expect(starterReset).toHaveBeenCalledTimes(1)
       expect(clearDailyGoalMinutes).toHaveBeenCalledTimes(1)
       expect(clearOnboardingDraft).toHaveBeenCalledTimes(1)
+      expect(clearGuestSessionCache).toHaveBeenCalledTimes(1)
       expect(disableStudyReminder).toHaveBeenCalledTimes(1)
       expect(chatOutboxClear).toHaveBeenCalledTimes(1)
       expect(srsOfflineClear).toHaveBeenCalledTimes(1)

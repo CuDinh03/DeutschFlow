@@ -53,6 +53,16 @@ describe('gradingFailedCopy (F-08)', () => {
     expect(gradingFailedCopy('JOB_FAILED').topUp).toBe(false)
     expect(gradingFailedCopy(null).title).toBe('Chấm bài gặp lỗi')
   })
+
+  // M-8 (Đợt 0 onboarding 17/09): hết lượt GIỮA thời gian dùng thử → lượt hồi lại ngày mai, không mời nạp.
+  it('QUOTA_EXCEEDED khi đang dùng thử → "mai có lượt mới", topUp=false; lý do khác không đổi', () => {
+    const t = gradingFailedCopy('QUOTA_EXCEEDED', true)
+    expect(t.topUp).toBe(false)
+    expect(t.message).toMatch(/Ngày mai bạn có lượt AI mới/)
+    expect(t.message).toMatch(/không phải thi lại/)
+    expect(t.message).not.toMatch(/Nạp thêm/)
+    expect(gradingFailedCopy('JOB_FAILED', true)).toEqual(gradingFailedCopy('JOB_FAILED'))
+  })
 })
 
 describe('retry idempotent (F-06)', () => {
@@ -120,6 +130,29 @@ describe('stimulusDisplay — đủ 15 kiểu thẻ (QA simulator 06/09: B1 T2/T
     expect(g.lines).toEqual(['Berichten Sie.', 'Umfrage 2025'])
     expect(g.bullets).toEqual(['Meer: 45 %', 'Berge: 30 %'])
     expect(JSON.stringify(g)).not.toContain('GEHEIM')
+  })
+
+  it('TOPIC_OPINION_PAIR (telc 2020, V330): trích dẫn + „Tên, tuổi, nghề" của THÍ SINH; partnerOpinion KHÔNG BAO GIỜ lộ', () => {
+    const d = stimulusDisplay({
+      type: 'TOPIC_OPINION_PAIR', thema: 'Haustiere in der Wohnung', instruction: 'Berichten Sie kurz.',
+      candidateOpinion: { name: 'Sophie Berger', age: 27, job: 'Verkäuferin', quote: 'Mein Hund macht mich glücklich.' },
+      partnerOpinion: { name: 'Markus Weiß', age: 52, job: 'Steuerberater', quote: 'GEHEIM' },
+    })
+    expect(d.headline).toBe('Haustiere in der Wohnung')
+    expect(d.lines).toEqual(['Berichten Sie kurz.', '„Mein Hund macht mich glücklich.“', '— Sophie Berger, 27, Verkäuferin'])
+    expect(d.bullets).toEqual([])
+    expect(JSON.stringify(d)).not.toContain('GEHEIM')
+    expect(JSON.stringify(d)).not.toContain('Markus')
+  })
+
+  it('TASK_SITUATION (telc T3, V330): instruction bốn bước là dòng phụ, Zettel là gạch đầu dòng', () => {
+    const d = stimulusDisplay({
+      type: 'TASK_SITUATION', situation: 'Sie beide planen einen Fahrradausflug.',
+      instruction: 'Entscheiden Sie zuerst, was zu tun ist.', prompts: ['Wohin?', 'Wer übernimmt welche Aufgabe?'],
+    })
+    expect(d.headline).toBe('Sie beide planen einen Fahrradausflug.')
+    expect(d.lines).toEqual(['Entscheiden Sie zuerst, was zu tun ist.'])
+    expect(d.bullets).toEqual(['Wohin?', 'Wer übernimmt welche Aufgabe?'])
   })
 
   it('A1/A2: THEME_CARD, PICTURE_CARD, QUESTION_WORD_CARD, KEYWORD_CARD, DEBATE_TEXT', () => {

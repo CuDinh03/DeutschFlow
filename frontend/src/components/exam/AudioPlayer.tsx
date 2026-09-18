@@ -1,15 +1,26 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Play, Pause, Square, Volume2, VolumeX } from 'lucide-react'
 import { useGermanTTS, TTSState } from '@/hooks/useGermanTTS'
+import { canPlayAgain, playsLeft } from './audioScript'
 
 interface AudioPlayerProps {
   script: string
   label?: string
   /** compact = small inline pill; default = full card */
   compact?: boolean
+  /**
+   * Số lần được phát, lấy từ `teil.max_plays` của đề. Hörverstehen telc cho nghe MỘT lần ở Teil 1
+   * và hai lần ở Teil 2–3; luyện mà nghe bao nhiêu lần cũng được thì không đo đúng cái đề thật đo.
+   *
+   * Bỏ trống = không giới hạn — đúng hành vi của mọi đề Goethe hiện có, và cũng là hành vi của màn
+   * XEM LẠI sau khi nộp (ở đó không có lý do gì để siết).
+   */
+  maxPlays?: number
+  /** Cổng nghi thức của Teil chưa mở (đang đọc Ansage / đếm ngược đọc câu hỏi): nút khoá, nói rõ lý do. */
+  locked?: boolean
 }
 
 const LABEL_KEY: Record<TTSState, string> = {
@@ -21,19 +32,26 @@ const LABEL_KEY: Record<TTSState, string> = {
   unsupported: 'status.unsupported',
 }
 
-export function AudioPlayer({ script, label, compact = false }: AudioPlayerProps) {
+export function AudioPlayer({ script, label, compact = false, maxPlays, locked = false }: AudioPlayerProps) {
   const t = useTranslations('v2.student.examResult.audioPlayer')
   const { state, progress, speak, pause, resume, stop } = useGermanTTS()
+  const [playsUsed, setPlaysUsed] = useState(0)
+
+  const left = playsLeft(maxPlays, playsUsed)
+  const exhausted = !canPlayAgain(maxPlays, playsUsed)
 
   const handlePrimary = useCallback(() => {
+    // Tạm dừng rồi phát tiếp KHÔNG tính là một lượt mới — nếu tính thì học viên mất lượt vì lỡ tay.
     if (state === 'playing') { pause(); return }
     if (state === 'paused')  { resume(); return }
+    if (locked || !canPlayAgain(maxPlays, playsUsed)) return
+    setPlaysUsed((n) => n + 1)
     speak(script)
-  }, [state, pause, resume, speak, script])
+  }, [state, pause, resume, speak, script, maxPlays, playsUsed, locked])
 
   const isActive  = state === 'playing' || state === 'paused'
   const isLoading = state === 'loading'
-  const disabled  = state === 'unsupported'
+  const disabled  = state === 'unsupported' || ((exhausted || locked) && !isActive)
 
   if (compact) {
     return (
@@ -58,6 +76,13 @@ export function AudioPlayer({ script, label, compact = false }: AudioPlayerProps
         <span className="text-xs text-sky-700 font-medium">
           {label ?? t(LABEL_KEY[state])}
         </span>
+        {locked && !isActive ? (
+          <span className="text-xs font-semibold text-sky-500">{t('lockedHint')}</span>
+        ) : left !== null && (
+          <span className="text-xs font-semibold text-sky-500">
+            {exhausted ? t('playsExhausted') : t('playsLeft', { n: left })}
+          </span>
+        )}
         {isActive && progress > 0 && (
           <div className="w-16 h-1 bg-sky-200 rounded-full overflow-hidden">
             <div className="h-full bg-sky-500 transition-all" style={{ width: `${progress * 100}%` }} />
@@ -110,9 +135,15 @@ export function AudioPlayer({ script, label, compact = false }: AudioPlayerProps
           </div>
 
           <p className="text-xs text-sky-500 mt-1.5 italic">
-            {disabled
+            {state === 'unsupported'
               ? t('unsupportedHint')
-              : t(LABEL_KEY[state])}
+              : locked && !isActive
+                ? t('lockedHint')
+              : exhausted
+                ? t('playsExhaustedHint')
+                : left !== null
+                  ? `${t(LABEL_KEY[state])} · ${t('playsLeft', { n: left })}`
+                  : t(LABEL_KEY[state])}
           </p>
         </div>
       </div>

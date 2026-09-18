@@ -3,7 +3,11 @@
 // Backend (MinorGate) ném một ProblemDetail 403:
 //   { type: ".../minor-audio-blocked", detail: "<câu tiếng Việt đọc thẳng được>",
 //     extensions: { code: "MINOR_AUDIO_BLOCKED", reason: BIRTH_DATE_REQUIRED | GUARDIAN_CONSENT_REQUIRED
-//                                                        | GUARDIAN_CONSENT_REVOKED } }
+//                                                        | GUARDIAN_CONSENT_REVOKED,
+//                   contact: CENTER | NONE } }
+// `contact` (phương án D, 17/09): CENTER = học viên thuộc một trung tâm, trung tâm mở lại được;
+// NONE = học viên tự đăng ký, chưa có ai mở lại được cho tới khi có đường phụ huynh xác nhận (Q-04)
+// ⇒ giấu nút "Liên hệ trung tâm". Server cũ không gửi trường này ⇒ coi là CENTER.
 // từ mọi điểm ghi âm: /ai-speaking/transcribe, /speaking/pronunciation-check, /phoneme/evaluate,
 // /skill-tree/evaluate-pronunciation, lượt nói audio thi nói, /jobs/pronunciation-eval, presigned-url
 // (audio). KHÔNG mang nhóm tuổi hay ngày sinh — client chọn thông điệp chỉ theo `reason`.
@@ -26,10 +30,15 @@ export type MinorAudioBlockedReason =
   | 'GUARDIAN_CONSENT_REQUIRED'
   | 'GUARDIAN_CONSENT_REVOKED'
 
+/** Ai mở lại được cổng — CENTER: trung tâm; NONE: chưa có ai (học viên ngoài trung tâm). */
+export type MinorAudioContact = 'CENTER' | 'NONE'
+
 export interface MinorAudioBlocked {
   reason: MinorAudioBlockedReason
   /** `detail` của server — nội dung chính khi có; thông điệp client chỉ là dự phòng. */
   detail: string | null
+  /** Thiếu = CENTER (server trước 17/09 không gửi). */
+  contact?: MinorAudioContact
 }
 
 const REASONS: ReadonlySet<string> = new Set<MinorAudioBlockedReason>([
@@ -52,7 +61,7 @@ export function minorAudioBlockedFromProblem(data: unknown): MinorAudioBlocked |
   const problem = data as { type?: unknown; detail?: unknown; extensions?: unknown }
   const ext =
     problem.extensions && typeof problem.extensions === 'object'
-      ? (problem.extensions as { code?: unknown; reason?: unknown })
+      ? (problem.extensions as { code?: unknown; reason?: unknown; contact?: unknown })
       : null
   const byCode = ext?.code === MINOR_AUDIO_BLOCKED_CODE
   const byType = typeof problem.type === 'string' && problem.type.endsWith('minor-audio-blocked')
@@ -64,7 +73,9 @@ export function minorAudioBlockedFromProblem(data: unknown): MinorAudioBlocked |
   const reason: MinorAudioBlockedReason = REASONS.has(rawReason)
     ? (rawReason as MinorAudioBlockedReason)
     : 'GUARDIAN_CONSENT_REQUIRED'
-  return { reason, detail: str(problem.detail) }
+  // Chỉ NONE mới giấu nút liên hệ; giá trị lạ hay thiếu đều rơi về CENTER (hành vi cũ).
+  const contact: MinorAudioContact = ext?.contact === 'NONE' ? 'NONE' : 'CENTER'
+  return { reason, detail: str(problem.detail), contact }
 }
 
 /**
@@ -111,6 +122,29 @@ const FALLBACK: Record<MinorAudioBlockedReason, { title: string; body: string }>
   },
 }
 
+/** Dự phòng cho học viên NGOÀI trung tâm (contact=NONE): không chỉ đường tới trung tâm. */
+const FALLBACK_NO_CENTER: Record<MinorAudioBlockedReason, { title: string; body: string }> = {
+  BIRTH_DATE_REQUIRED: {
+    title: 'Tài khoản chưa có ngày sinh',
+    body:
+      'Tài khoản chưa có ngày sinh nên hệ thống chưa xác định được có cần đồng ý của người giám hộ ' +
+      'hay không, và không gửi bản ghi âm đi khi còn chưa rõ. Hãy bổ sung ngày sinh trong màn Hồ sơ.',
+  },
+  GUARDIAN_CONSENT_REQUIRED: {
+    title: 'Cần đồng ý của cha mẹ/người giám hộ',
+    body:
+      'Tài khoản này cần đồng ý của cha mẹ hoặc người giám hộ trước khi ghi âm giọng nói. Đường xác ' +
+      'nhận dành cho phụ huynh đang được hoàn thiện; khi có, ứng dụng sẽ hướng dẫn ngay tại đây.',
+  },
+  GUARDIAN_CONSENT_REVOKED: {
+    title: 'Đồng ý ghi âm đã được thu hồi',
+    body:
+      'Đồng ý cho phép ghi âm của tài khoản này đã được thu hồi, nên phần luyện nói tạm thời không ' +
+      'dùng được. Nếu muốn mở lại, người giám hộ cần cấp lại đồng ý — đường xác nhận dành cho phụ ' +
+      'huynh đang được hoàn thiện.',
+  },
+}
+
 export const MINOR_AUDIO_EYEBROW = 'Phần luyện nói tạm khoá'
 export const MINOR_AUDIO_NOTE =
   'Nâng cấp gói không mở được phần này — chỉ trung tâm hoặc người giám hộ mới mở lại được. ' +
@@ -118,7 +152,7 @@ export const MINOR_AUDIO_NOTE =
 
 /** Câu chữ hiển thị: tiêu đề theo `reason`; nội dung = `detail` server nếu có, dự phòng nếu không. */
 export function minorAudioCopy(info: MinorAudioBlocked): MinorAudioCopy {
-  const fb = FALLBACK[info.reason]
+  const fb = (info.contact === 'NONE' ? FALLBACK_NO_CENTER : FALLBACK)[info.reason]
   return { eyebrow: MINOR_AUDIO_EYEBROW, title: fb.title, body: info.detail ?? fb.body, note: MINOR_AUDIO_NOTE }
 }
 
@@ -152,6 +186,7 @@ export function registerMinorAudioBlockedPresenter(p: Presenter | null): void {
 export function presentMinorAudioBlocked(error: unknown, options: PresentOptions = {}): boolean {
   const info = parseMinorAudioBlocked(error)
   if (!info || !presenter) return false
-  presenter(info, { contact: options.contact ?? true })
+  // Nút "Liên hệ trung tâm" chỉ khi màn cho phép rời VÀ có trung tâm để liên hệ.
+  presenter(info, { contact: (options.contact ?? true) && info.contact !== 'NONE' })
   return true
 }

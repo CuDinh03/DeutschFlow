@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -33,8 +34,41 @@ public class UserAvatarService {
     /** S3StorageService.uploadFile(category="avatar") sinh key dạng avatar/{uuid}.{ext}. */
     private static final String AVATAR_KEY_PREFIX = "avatar/";
 
+    /**
+     * Tuổi thọ URL xem ảnh. Bucket media là PRIVATE (đo 17/09/2026: GET thẳng
+     * {@code https://<bucket>.s3.amazonaws.com/avatar/…} trả 403), nên URL lưu trong
+     * {@code users.avatar_url} không xem được từ trình duyệt/app — phải ký khi đọc. Dưới trần 7 ngày
+     * của SigV4; client nạp lại {@code /auth/me} mỗi lần mở app/trang nên URL hết hạn không ai thấy.
+     */
+    static final Duration VIEW_URL_TTL = Duration.ofDays(6);
+
     private final S3StorageService s3StorageService;
     private final UserRepository userRepository;
+
+    /**
+     * URL để CLIENT hiển thị ảnh — ký sẵn từ URL đang lưu.
+     *
+     * <p>Cột {@code users.avatar_url} giữ URL public dạng chuẩn (để {@link #removeAvatar} còn suy ra
+     * key mà xoá), nhưng bucket không public-read nên mọi chỗ trả {@code avatarUrl} cho client
+     * ({@code /auth/me}, {@code GET /profile/me}, {@code POST /profile/me/avatar}) phải đi qua đây.
+     * URL không phải của bucket mình (di trú cũ, giá trị lạ) trả nguyên; ký hỏng thì trả nguyên và
+     * ghi log — ảnh không hiện chứ không làm hỏng đăng nhập.
+     */
+    public String viewUrl(String storedUrl) {
+        if (storedUrl == null || storedUrl.isBlank()) {
+            return null;
+        }
+        String key = s3StorageService.objectKeyFromOwnUrl(storedUrl);
+        if (key == null || !key.startsWith(AVATAR_KEY_PREFIX)) {
+            return storedUrl;
+        }
+        try {
+            return s3StorageService.presignedGetUrl(key, VIEW_URL_TTL);
+        } catch (RuntimeException e) {
+            log.warn("Failed to presign avatar {}: {}", key, e.getMessage());
+            return storedUrl;
+        }
+    }
 
     /**
      * Upload ảnh mới, gán vào {@code users.avatar_url} và xoá object cũ (nếu là object của mình).

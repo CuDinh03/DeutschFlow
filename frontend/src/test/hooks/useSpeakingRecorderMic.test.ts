@@ -78,7 +78,7 @@ describe("useSpeakingRecorderMic — 403 MINOR_AUDIO_BLOCKED", () => {
 
     const { result } = await recordOnce(onTranscript);
 
-    expect(result.current.minorAudioBlocked).toEqual({ reason: "GUARDIAN_CONSENT_REQUIRED", detail: "Server nói." });
+    expect(result.current.minorAudioBlocked).toEqual({ reason: "GUARDIAN_CONSENT_REQUIRED", detail: "Server nói.", contact: "CENTER" });
     expect(result.current.micError).toBeNull();
     expect(result.current.micErrorKind).toBeNull();
     expect(result.current.isTranscribing).toBe(false);

@@ -8,6 +8,8 @@ import com.deutschflow.progress.service.PhaseEngineService;
 import com.deutschflow.srs.dto.ScheduleVocabRequest;
 import com.deutschflow.srs.service.SrsVocabScheduler;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.user.onboarding.FirstLessonKind;
+import com.deutschflow.user.onboarding.service.OnboardingActivationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,7 @@ public class BeginnerJourneyService {
     private final BeginnerJourneyItemRepository itemRepository;
     private final SrsVocabScheduler srsVocabScheduler;
     private final PhaseEngineService phaseEngineService;
+    private final OnboardingActivationService activationService;
 
     @Transactional(readOnly = true)
     public BeginnerSessionResponse getFirstSession() {
@@ -64,6 +67,9 @@ public class BeginnerJourneyService {
         // advance the phase if ready — instead of re-passing the stored (zero) counters.
         phaseEngineService.recompute(user);
         scheduleFirstSrsItems(user);
+        // ACTIVATION (Đợt 1 17/09): "Ngày 1" trên web là bài đầu tiên của A0 — ghi ở server, giao
+        // dịch riêng, lỗi không làm đổ việc hoàn thành.
+        activationService.recordFirstLessonQuietly(user.getId(), FirstLessonKind.BEGINNER_SESSION);
         log.info("User {} completed first beginner session", user.getId());
     }
 

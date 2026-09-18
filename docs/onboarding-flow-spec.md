@@ -42,59 +42,96 @@ song rồi mới ngừng cái cũ.
 
 ---
 
-## 2. Hành trình mục tiêu
+## 2. Hành trình mục tiêu — máy trạng thái v3.1 (Đợt 2, 17/09/2026)
+
+> **Nguồn chân lý là fixture `docs/onboarding-flow-spec.transitions.json`** (repo root, 41 hàng
+> `state × event × ctx → next` + 5 bất biến). Hai bản thi công thuần TS —
+> `frontend/src/features/onboarding/machine.ts` và `mobile/lib/onboardingMachine.ts` — chạy
+> `test.each` trên chính fixture đó trong CI. **Đổi luồng = sửa fixture trước**, hai bên đỏ, rồi mới
+> sửa code. Bản dưới đây là hình vẽ của fixture, không phải nguồn.
+>
+> G-2 (owner 17/09): giữ thứ tự mobile 02/09 — quick win TRƯỚC tài khoản, bài đầu tiên SAU khi có
+> plan. Bản §2 cũ (A0_LESSON trước AUTH) đã bị thay.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> INTRO: mở app/web
-    INTRO --> PROFILE: chọn ngôn ngữ + xem giới thiệu
-    PROFILE --> A0_LESSON: currentLevel = A0
-    PROFILE --> PATH_CHOICE: currentLevel >= A1
-    PATH_CHOICE --> PLACEMENT: chọn kiểm tra đầu vào
-    PATH_CHOICE --> AI_CONVO: chọn nói thử với AI
-    PATH_CHOICE --> SKIPPED: bỏ qua
-    A0_LESSON --> AUTH
-    PLACEMENT --> AUTH
-    AI_CONVO --> AUTH
-    SKIPPED --> AUTH
-    AUTH --> CLAIMED: đăng nhập/đăng ký xong
-    CLAIMED --> ROADMAP_READY: gắn guest session vào tài khoản
-    ROADMAP_READY --> ACTIVATED: hoàn thành bài học đầu tiên
-    ACTIVATED --> REMINDER_SET: đặt giờ nhắc (hoặc từ chối)
-    REMINDER_SET --> CORE_DONE
+    [*] --> WELCOME
+    WELCOME --> PROFILE: intro_done (khách) · login_succeeded (SELF, chưa plan)
+    WELCOME --> PROFILE_LITE: intro_done / login_succeeded (ORG_ROSTER | ORG_INVITE)
+    WELCOME --> HOME: hasPlan = true
+    PROFILE --> TASTE: profile_submitted (khách)
+    PROFILE --> CREATING: profile_submitted (đã có tài khoản)
+    PROFILE_LITE --> CREATING: profile_submitted
+    TASTE --> AUTH_GATE: taste_done (A0 / null)
+    TASTE --> PATH_CHOICE: taste_done (A1+)
+    PATH_CHOICE --> AUTH_GATE: path_selected (khách — I-9)
+    PATH_CHOICE --> FIRST_LESSON: path_selected placement|mock_exam (đã có tài khoản)
+    PATH_CHOICE --> HOME_WEEK1: path_selected skip (đã có tài khoản)
+    AUTH_GATE --> CLAIMED: auth_succeeded
+    CLAIMED --> CREATING: claim_succeeded
+    CLAIMED --> PROFILE: claim_failed (hết hạn / của người khác — I-7)
+    CREATING --> FIRST_LESSON: plan_ready (A0 — I-1; A1+ placement|mock_exam; ORG_*)
+    CREATING --> HOME_WEEK1: plan_ready (A1+ skip)
+    CREATING --> PATH_CHOICE: plan_ready (A1+ chưa chọn đường)
+    FIRST_LESSON --> CELEBRATE: lesson_done · lesson_skipped (A0 — I-5)
+    FIRST_LESSON --> HOME_WEEK1: lesson_skipped (A1+)
+    CELEBRATE --> HOME_WEEK1: celebrate_done
+    HOME_WEEK1 --> CORE_DONE: reminder_answered (kể cả từ chối — I-4)
     CORE_DONE --> [*]
+    HOME --> [*]
 ```
 
 ### 2.1 Bảng trạng thái
 
-| State | Vào bằng | Ra bằng | Bản ghi server-side |
-|---|---|---|---|
-| `INTRO` | mở ứng dụng | `intro_done` | ✗ (guest) |
-| `PROFILE` | `intro_done` | `profile_submitted` | guest session |
-| `A0_LESSON` | `profile_submitted` ∧ `level = A0` | `lesson_done` \| `lesson_fallback` | guest session |
-| `PATH_CHOICE` | `profile_submitted` ∧ `level ≥ A1` | `path_selected` | guest session |
-| `PLACEMENT` | `path_selected(placement)` | `placement_done` \| `placement_abandoned` | guest session |
-| `AI_CONVO` | `path_selected(ai)` | `convo_done` \| `convo_abandoned` | guest session |
-| `SKIPPED` | `path_selected(skip)` | tức thì | guest session |
-| `AUTH` | mọi nhánh FIRST_ACTIVITY | `auth_succeeded` | ✓ user |
-| `CLAIMED` | `auth_succeeded` | `claim_succeeded` | ✓ `user_onboarding_progress` |
-| `ROADMAP_READY` | `claim_succeeded` | `lesson_started` | ✓ |
-| `ACTIVATED` | `first_lesson_completed` | `reminder_prompt_shown` | ✓ `activated_at` |
-| `REMINDER_SET` | `notification_permission_result` (kể cả từ chối) | `core_done` | ✓ |
-| `CORE_DONE` | `core_done` | — | ✓ `core_completed_at` |
+| State | Nghĩa | Bản ghi server-side |
+|---|---|---|
+| `WELCOME` | mobile: màn Chào mừng (Đợt 3, G-1); web: landing | ✗ |
+| `PROFILE` | wizard 4 bước (mục tiêu → trình độ → nhịp → lĩnh vực/kỳ thi) | guest session (`PATCH` mỗi bước) |
+| `PROFILE_LITE` | học viên trung tâm: nhịp học (+ trình độ nếu thiếu) — Đợt 5 | ✓ user |
+| `TASTE` | quick win "Guten Morgen" (khách) | guest session `activityResult` |
+| `PATH_CHOICE` | A1+: placement · nói thử 3′ (web) · bỏ qua — **ghi trước tài khoản, thực thi sau claim** | guest session `answers.pathChoice` |
+| `AUTH_GATE` | đăng ký (OTP Đợt B) / đăng nhập | — |
+| `CLAIMED` | `POST /onboarding/claim` gắn phiên, server phát lại hồ sơ | ✓ `user_onboarding_progress` |
+| `CREATING` | màn "Đang tạo lộ trình…" (cả hai đường — M-13) | ✓ |
+| `FIRST_LESSON` | A0: Câu đầu tiên (mobile) / Ngày 1 (web); A1+: placement / nói thử | ✓ `activated_at` (Đợt 1) |
+| `CELEBRATE` | ăn mừng + "Tuần đầu của bạn" | ✓ |
+| `HOME_WEEK1` | Trang chủ: tour · checklist · sheet nhắc học | ✓ |
+| `CORE_DONE` | trả lời sheet nhắc học | ✓ `core_completed_at` (Đợt 1) |
+| `HOME` | đã có plan — không làm lại onboarding | ✓ |
+
+`ctx` của máy: `authed`, `hasPlan`, `accountSource ∈ SELF|ORG_ROSTER|ORG_INVITE` (`GET /onboarding/context`,
+Đợt 5 — đã thi công 17/09/2026, xem §4.4; client gọi lỗi/404 thì coi là `SELF`), `level` (`null` = A0 theo
+`LevelBand.of`), `pathChoice`.
 
 ### 2.2 Bất biến — mỗi cái là một contract test
 
-| # | Bất biến | Vì sao |
+| # | Bất biến | Test |
 |---|---|---|
-| **I-1** | A0 **không được** bỏ qua FIRST_ACTIVITY. | A0 không có gì để đo bằng placement; bài học đầu là toàn bộ giá trị họ thấy trước khi đăng ký. |
-| **I-2** | Mọi state từ `AUTH` trở đi **phải** có bản ghi server-side. | Nếu không thì đổi thiết bị = mất tiến độ, và không đo được funnel thật. |
-| **I-3** | `ACTIVATED` ⟺ `first_lesson_completed`. **Không** dùng `onboarding_completed`. | §1. |
-| **I-4** | Từ chối quyền (mic, notification) **không** chặn tiến trình. | Người từ chối mic vẫn phải học được; xem I-5. |
-| **I-5** | Mic bị từ chối ở `A0_LESSON` → chuyển biến thể **nghe-lặp**, không báo lỗi, không quay lui. | Đã có tiền lệ trên mobile (`onb_first_sentence_skipped` với `reason`). |
-| **I-6** | `claim` là **idempotent** và **atomic**. Gọi lần hai = no-op. | Hai tab/hai request đua nhau không được tạo hai hồ sơ. |
-| **I-7** | Draft khách **không bao giờ** được áp cho một tài khoản khác tài khoản đã tạo ra nó. | Lỗ F-3. Xem §4.3. |
-| **I-8** | Hồ sơ đã nằm trên server ⟹ draft bị vứt; hồ sơ **chưa** nằm trên server ⟹ draft được giữ. | Bất biến này đã được #407 áp cho web; GĐ 5 phải giữ khi viết lại. |
+| **I-1** | A0 **không được** bỏ qua FIRST_LESSON: từ CREATING với A0/null, `plan_ready` luôn tới FIRST_LESSON bất kể `pathChoice`. | `machine.test.ts` / `onboardingMachine.test.ts` "I-1" |
+| **I-2** | Mọi state từ `CLAIMED` trở đi có bản ghi server-side. | IT claim + activation |
+| **I-3** | `ACTIVATED` ⟺ `first_lesson_completed` (`activated_at`), không phải `onboarding_completed`. | `OnboardingActivationIntegrationTest` |
+| **I-4** | Từ chối quyền (mic, thông báo) **không** chặn: `reminder_answered` kể cả từ chối → CORE_DONE. | fixture H1 |
+| **I-5** | A0 `lesson_skipped` (mic bị từ chối → nghe–lặp) → CELEBRATE, không phải thất bại. | fixture L2 |
+| **I-6** | `claim` idempotent + atomic. | `GuestOnboardingClaimIntegrationTest` |
+| **I-7** | Phiên khách của A không bao giờ áp cho B: claim 400 ⇒ client vứt CẢ draft; rời màn đăng ký chưa xong ⇒ vứt con trỏ phiên. | `guestSession.test.ts` (web/mobile), wizard test "foreign" |
+| **I-8** | Hồ sơ đã trên server ⟹ draft bị vứt; chưa ⟹ giữ. | wizard test 409 |
+| **I-9** | `PATH_CHOICE` khi chưa có tài khoản chỉ tới `AUTH_GATE` (chọn trước, thực thi sau claim). | fixture C1/C2 + test "I-9" |
+| **I-10** | `CREATING` hiện cho mọi đường tới hồ sơ. | M-13 (Đợt 0) |
+| **I-11** | `PROFILE_LITE` không bao giờ tới `TASTE`/`PATH_CHOICE`. | test "I-11" |
+| **I-12** | `activated_at` ghi bởi đúng một endpoint server. | Đợt 1 |
+| **I-13** | Cặp (state, event) không có trong bảng ⇒ giữ nguyên state. | test "I-13" |
+
+### 2.3 Guest session ở client (Đợt 2)
+
+- Khách vào `PROFILE` ⇒ `POST /guest-session` (best-effort; server từ chối thì phễu chạy bằng draft như trước).
+- Rời mỗi bước / quick win / bấm "Tạo tài khoản" ⇒ `PATCH` (`currentStep`, `answers` theo §5.1, `activityResult`).
+- Sau token: **claim trước, draft sau**. `claimed` ⇒ không POST `/profile` (server đã phát lại), chỉ hỏi
+  `/onboarding/status` rồi đi tiếp; `foreign` (400) ⇒ vứt cache + draft, wizard trống; `expired`/`error`
+  ⇒ rơi về replay draft. Cache client (`df_guest_session`, localStorage/SecureStore) chỉ là con trỏ +
+  bản chụp câu trả lời, hết hạn theo `expiresAt` của server; `logout()`/401 và rời màn đăng ký chưa
+  xong đều xoá nó.
+- B-8 (backend, cùng đợt): replay điền `minutesPerSession`/`sessionsPerWeek` (mặc định 5×15) — trước
+  đó mọi claim có hồ sơ đều 400 "sessionsPerWeek and minutesPerSession are required".
 
 ---
 
@@ -145,7 +182,8 @@ submit/draft/analytics còn lại không đổi.
 | `POST /api/onboarding/profile` | **201** `LearningPlanResponse` | **UPSERT** — gọi lại là cập nhật, không phải lỗi. |
 | `GET /api/onboarding/route?currentLevel=&platform=` | `OnboardingRouteResponse` | Ma trận §4.2. |
 | `GET /api/onboarding/mentor?goalType=&industry=&currentLevel=` | `OnboardingMentorResponse` | Có `upsellCode` cho nhắc nâng cấp PRO. |
-| `GET /api/onboarding/status` | `{ hasPlan: boolean }` | Guard `hasPlan === false` đang được dùng để đá về onboarding. |
+| `GET /api/onboarding/status` | `{ hasPlan: boolean }` | Guard `hasPlan === false` đang được dùng để đá về onboarding. Từ Đợt 5 login web/mobile hỏi `/context` (có cùng `hasPlan`); `/status` giữ cho client cũ và 5 trang luyện tập. |
+| `GET /api/onboarding/context` | `OnboardingContextResponse` | **Đợt 5 (17/09/2026)** — §4.4. |
 | `POST /api/onboarding/upsell-interest` | **204** | |
 | `GET /api/onboarding/me/profile` | `LearningProfileResponse` | |
 
@@ -195,6 +233,8 @@ postAction)`.
 | `PATCH /api/onboarding/guest-session/{id}` | công khai, chỉ khi **chưa claim** và **chưa hết hạn** | **200** — cập nhật từng phần `currentStep` / `answers` / `activityResult`. Trường vắng mặt = **không đổi**, không phải xoá. |
 | `POST /api/onboarding/claim` | authed (STUDENT) | Gắn session → user. Idempotent (I-6), atomic (`UPDATE … WHERE claimed_by_user_id IS NULL`). Phát lại `answers` thành hồ sơ học qua chính service của `POST /profile`. |
 | `GET /api/onboarding/progress` | authed (STUDENT) | Progress server-side để resume trên thiết bị khác. Chưa có dòng nào thì trả mặc định, **không** 404. |
+| `POST /api/onboarding/first-lesson/complete` | authed (STUDENT) | **Đợt 1 (17/09/2026).** Body `{ kind: FIRST_SENTENCE\|BEGINNER_SESSION\|PLACEMENT\|MOCK_EXAM\|ROADMAP_NODE, meta? }` → `{ activatedAt, firstTime, completedActivities[] }`. Ghi `activated_at` **đúng một lần** (I-3, I-12), an toàn đua (`INSERT … ON CONFLICT` + `UPDATE … WHERE activated_at IS NULL`), giao dịch riêng. Client chỉ gọi cho nguồn chấm cục bộ (mobile Câu đầu tiên); bốn nguồn còn lại được **hook ở server** (`BeginnerJourneyService`, `PlacementTestService.submitTest`, `AiSpeakingMockExamController.evaluateMockExam`, `RoadmapTreeService.completeNode` + `SkillTreeService` hoàn thành node). |
+| `POST /api/onboarding/progress/core-done` | authed (STUDENT) | **Đợt 1.** Ghi `core_completed_at` một lần (trả lời sheet nhắc học, kể cả từ chối — I-4) → `{ coreCompletedAt, firstTime }`. |
 
 **Bố cục controller (đã thi công).** Hai đầu công khai nằm ở
 `GuestOnboardingController` riêng, KHÔNG nhét vào `OnboardingController`: class đó
@@ -226,6 +266,35 @@ xác nhận "phiên này có chủ rồi" không thêm thông tin gì cho kẻ d
   bằng `sessionId` chứ không bằng "có mặt trên máy".
 
 ---
+
+### 4.4 🔵 MỚI — `GET /api/onboarding/context` (Đợt 5, 17/09/2026)
+
+Một nguồn duy nhất để hai client rẽ ba cửa vào (kế hoạch 17/09 §4.1). STUDENT, class-level `@PreAuthorize`.
+
+```json
+{
+  "accountSource": "SELF | ORG_ROSTER | ORG_INVITE",
+  "hasPlan": false,
+  "org": { "orgId": 7, "name": "Trung tâm Sao Việt", "classId": 42, "className": "B1 tối thứ 3" },
+  "presetCurrentLevel": "A2",
+  "trial": { "isTrial": true, "trialEndsAt": "2026-10-31T00:00:00Z" }
+}
+```
+
+| Trường | Luật |
+|---|---|
+| `accountSource` | `ORG_ROSTER` khi `users.created_via = CSV` **và** còn `org_members` STUDENT ACTIVE; `ORG_INVITE` khi `created_via ∈ {OWNER, MANAGER, ADMIN}` và còn membership ACTIVE; mọi ca khác (kể cả `created_via = SELF` rồi vào lớp bằng mã — C3, hay CSV nhưng đã rời/bị gỡ) là `SELF`. `created_via` NULL (tài khoản cũ) = `SELF`. |
+| `hasPlan` | cùng nghĩa `/status.hasPlan`. |
+| `org` | `null` khi `SELF`. `className` = lớp ACTIVE/RESERVED mới nhất (`joined_at`) **thuộc** trung tâm ấy; chưa xếp lớp → `null`. Trung tâm không tìm thấy → `name` `null` nhưng `accountSource` vẫn đúng. |
+| `presetCurrentLevel` | hồ sơ học đã có `current_level` → lấy hồ sơ; không thì `cefr_level` của giáo trình gắn vào lớp đang học; không có cả hai → `null` ⇒ client hỏi thêm một câu trình độ. |
+| `trial` | hai trường rút từ `PlanBadge` (`/auth/me/plan`) để màn chào đọc "PRO miễn phí tới {ngày}". |
+
+Client (`PROFILE_LITE`): học viên trung tâm chưa có plan → màn "Bạn thuộc lớp X — Trung tâm Y" + nhịp học
+(+ trình độ nếu `presetCurrentLevel` null) → `POST /onboarding/profile` với `goalType=WORK`,
+`industry=null`, `examType=null`, `motivation` bỏ trống, `targetLevel` = B1 khi trình độ hiện tại < B1, ngược lại
+bậc kế tiếp (`liteProfilePayload` — `frontend/src/features/onboarding/context.ts`, `mobile/lib/onboardingContext.ts`,
+cùng test). Không hỏi mục tiêu/lĩnh vực: mentor do trung tâm/giáo trình quyết. Sau plan: web → lộ trình,
+mobile → Câu đầu tiên (I-11: không qua `TASTE`/`PATH_CHOICE`).
 
 ## 5. Hợp đồng dữ liệu dùng chung
 
@@ -400,10 +469,7 @@ hai định nghĩa và không có cách nào tách lại.
 
 - Mobile: đã có `registerSuperProperties()` dùng `posthog.register()`. Thêm
   `flow_version` vào đó.
-- Web: **chưa có** cơ chế super-property — `frontend/src/providers/PostHogProvider.tsx`
-  gọi `posthog.init()` nhưng không `register()`, còn `useTracking` gọi thẳng
-  `posthog.capture`. Phải thêm `posthog.register({ flow_version })` ngay sau
-  `init()`. 🔵
+- Web: ✅ Đợt 1 (17/09/2026) — `PostHogProvider.tsx` `posthog.register({ flow_version: 'onb_v3', platform: 'web' })` ngay sau `init()`; mobile `registerSuperProperties()` thêm `flow_version`. Các tên mới ở §6.2 bắt đầu bắn **song song** tên cũ từ Đợt 1 (web: `onboarding_started`, `onboarding_profile_saved`, `guest_activity_completed`, `onboarding_path_selected`, `placement_completed`, `signup_succeeded`, `first_lesson_started/completed`; mobile: thêm `notification_permission_result`, `reminder_prompt_shown`, `onboarding_core_completed`). Tên cũ gỡ sau ≥2 tuần khi dashboard đã chuyển.
 
 🔒 **Không PII, không audio vào PostHog.** `sessionId` dạng UUID được phép; email
 thì không. Nhắc lại vì `onb_v3` thêm sự kiện cho khách chưa đăng ký.

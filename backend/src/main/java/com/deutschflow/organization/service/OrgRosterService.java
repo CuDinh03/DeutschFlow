@@ -124,6 +124,18 @@ public class OrgRosterService {
             // kép "" bên trong) được tách đúng theo RFC 4180 qua splitCsvLine — Excel/Sheets luôn xuất
             // như vậy với tên kiểu "Nguyễn, An".
             String line = rawLine.startsWith("\uFEFF") ? rawLine.substring(1) : rawLine;
+            // Hai dòng KHÔNG PHẢI dữ liệu do chính tệp mẫu của web sinh ra (`rosterTemplateCsv`),
+            // bỏ qua TRƯỚC khi đi tìm tiêu đề. Cả hai đều quay lại đây theo đúng luồng thật: trung
+            // tâm tải mẫu về, điền, rồi nạp lên nguyên tệp đó.
+            if (first && isSeparatorDirective(line)) {
+                // CỐ Ý không hạ cờ `first`: tiêu đề thật đứng ngay sau dòng này. Hạ cờ ở đây thì
+                // `email,displayName,…` bị đọc thành một DÒNG DỮ LIỆU (email "email" → lỗi) và cả
+                // tệp rơi về bố cục theo VỊ TRÍ — ngày sinh chui vào ô tên, không một tiếng báo.
+                continue;
+            }
+            if (isGuideRow(line)) {
+                continue;
+            }
             // Skip a header line: only the first non-empty line, and only when its FIRST column is
             // literally "email". Checking the whole line for "email" would wrongly drop a data row
             // whose address (e.g. "emailguy@x.com") or name contains the substring.
@@ -348,6 +360,42 @@ public class OrgRosterService {
     /** Ô thứ {@code idx}, hoặc chuỗi rỗng. {@code idx < 0} = tệp không có cột đó (xem RosterColumnLayout). */
     private static String col(String[] cols, int idx) {
         return idx >= 0 && idx < cols.length ? cols[idx] : "";
+    }
+
+    /**
+     * {@code sep=,} — chỉ thị riêng của Excel, bỏ qua chứ không nhập.
+     *
+     * <p>Vì sao tệp mẫu phải mang nó (owner yêu cầu 14/09/2026): Excel mở {@code .csv} bằng dấu
+     * phân tách của HỆ ĐIỀU HÀNH, mà máy đặt vùng Việt Nam thì dấu đó là chấm phẩy — cả dòng dồn
+     * vào một ô. Hỏng không dừng ở chỗ khó đọc: sửa xong lưu lại từ Excel thì cả dòng (đang là MỘT
+     * ô có dấu phẩy bên trong) được ghi ra KÈM NGOẶC KÉP, tệp nạp lên chỉ còn một cột và email
+     * không đọc được. {@code sep=,} bắt Excel tách đúng dấu phẩy bất kể vùng miền.
+     *
+     * <p>Chỉ nhận đúng {@code sep=} + MỘT ký tự (5 ký tự) nên không thể nuốt nhầm dòng dữ liệu
+     * thật — dòng dữ liệu nào cũng dài hơn thế và phải có email.
+     */
+    static boolean isSeparatorDirective(String line) {
+        String trimmed = line.trim();
+        return trimmed.length() == 5 && trimmed.regionMatches(true, 0, "sep=", 0, 4);
+    }
+
+    /**
+     * Dòng chú thích của tệp mẫu — ô ĐẦU bắt đầu bằng {@code #}, ví dụ
+     * {@code "# Email đăng nhập,Họ và tên,Ngày sinh YYYY-MM-DD,…"}.
+     *
+     * <p>Tệp mẫu có một hàng tiếng Việt giải nghĩa từng tên cột (owner yêu cầu 14/09/2026: nhìn tệp
+     * phải biết {@code birthDate} là ngày sinh). Hàng đó nằm ngay dưới tiêu đề để đọc THEO CỘT, nên
+     * phải bị bỏ qua — không bỏ thì mỗi lần nạp lại mẫu là thêm một dòng "email không hợp lệ", và
+     * người dùng học được thói quen xoá bớt dòng trong tệp trước khi nạp.
+     *
+     * <p>Nhận cả ô bọc ngoặc kép vì Excel bọc lại ô nào có dấu phẩy khi lưu.
+     */
+    static boolean isGuideRow(String line) {
+        String head = line.stripLeading();
+        if (head.startsWith("\"")) {
+            head = head.substring(1).stripLeading();
+        }
+        return head.startsWith("#");
     }
 
     /**

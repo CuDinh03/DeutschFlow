@@ -13,7 +13,12 @@ import { getAccessToken } from "@/lib/authSession";
 import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft, type OnboardingDraft } from "@/lib/onboardingDraft";
 import { MENTOR_META } from "@/lib/mentorMeta";
 import { useFeatureFlagEnabled } from "posthog-js/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { usePlanHelpers } from "@/contexts/PlanContext";
+import { claimGuestSession, ensureGuestSession, syncGuestSession, type GuestAnswers } from "@/features/onboarding/guestSession";
+import { readGuestSessionCache } from "@/lib/guestSessionStore";
+import { fetchOnboardingContext, needsLiteProfile, type OnboardingContext } from "@/features/onboarding/context";
+import { OrgLiteWizard, type LiteProfilePayload } from "./OrgLiteWizard";
 import { GaBtn, GaIcon } from "@/components/ui-v2";
 import { GaAuthShell } from "../authShared";
 
@@ -74,6 +79,8 @@ const INDUSTRIES = ["IT","Medizin","Gastronomie","Bildung","Handel","Sport","And
 
 // Post-funnel destinations on the v2 surface (the legacy funnel pushed to /student/*).
 const ROADMAP_ROUTE = "/v2/student/roadmap";
+/** Băng UPPER của ma trận `OnboardingTypeResolver` (B1+): nơi duy nhất web từng mời gói PRO. */
+const UPPER_LEVELS = ["B1", "B2", "C1", "C2"];
 const PRICING_ROUTE = "/v2/payment";
 
 interface PQ { id: number; skillSection: string; type: string; questionDe: string; questionVi: string; audioTranscript?: string; options?: string[]; }
@@ -81,6 +88,7 @@ interface PQ { id: number; skillSection: string; type: string; questionDe: strin
 export default function V2OnboardingPage() {
   const router = useRouter();
   const t = useTranslations("v2.onboarding");
+  const locale = useLocale();
   // Tagline mentor theo locale (onboarding.mentorTaglines.<mã> — đợt 3 audit i18n 06/09/2026):
   // mã chưa có trong catalog rơi về bảng MENTOR_META (tiếng Việt); không có nốt → câu chung.
   const mentorTagline = (code: string | null | undefined): string | null => {
@@ -96,6 +104,9 @@ export default function V2OnboardingPage() {
   // A/B: the mentor PRO-upsell nudge is gated behind a PostHog feature flag. Default-on
   // (undefined = flag not configured → shown), so no regression until an experiment is run.
   const mentorUpsellEnabled = useFeatureFlagEnabled("onboarding-mentor-upsell") !== false;
+  // Quyền lợi thật của người dùng (GĐ 2 + Đợt 0): người đã trả tiền hoặc đang dùng thử
+  // KHÔNG thấy lời mời nâng cấp nào trong phễu. Khách chưa đăng nhập → plan null → không ẩn.
+  const { hideUpsell } = usePlanHelpers();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [currentLevel, setCurrentLevel] = useState("A0");
@@ -123,6 +134,10 @@ export default function V2OnboardingPage() {
   const totalSteps = isGuest ? 5 : 4;
   const [resuming, setResuming] = useState(false);        // authed, replaying a guest draft after signup
   const [quickWinChoice, setQuickWinChoice] = useState<string | null>(null);
+  // Đợt 5 (17/09): học viên trung tâm (ORG_ROSTER | ORG_INVITE) chưa có plan đi bản rút gọn
+  // PROFILE_LITE thay vì wizard 4 bước. Chỉ tin `accountSource` từ GET /onboarding/context;
+  // lỗi mạng / backend cũ ⇒ null ⇒ phễu thường như trước (không chặn ai).
+  const [orgContext, setOrgContext] = useState<OnboardingContext | null>(null);
 
   const fetchMentor = useCallback(async () => {
     try {
@@ -138,21 +153,14 @@ export default function V2OnboardingPage() {
    * redirect and avoid leaving the user with an incomplete profile
    * (data-integrity fix, design §5 DI-3).
    *
-   * 409 cũng trả true — hành vi có sẵn từ trước. Chú thích cũ giải thích nó là
-   * "hồ sơ đã tồn tại, idempotent", điều đó SAI: endpoint UPSERT và trả 201, nên
-   * 409 duy nhất có thể tới là optimistic-lock/data-integrity lúc commit, tức
-   * ghi hỏng. Xử lý đúng phải là trả false; để lại làm nợ riêng vì đổi nó là đổi
-   * hành vi điều hướng, ngoài phạm vi đợt quick-win này.
+   * 409 cũng là THẤT BẠI (Q-B, owner chốt 28/08; thi công Đợt 0 17/09): endpoint UPSERT
+   * và trả 201, nên 409 duy nhất có thể tới là optimistic-lock/data-integrity nổ lúc
+   * commit ⇒ toàn bộ ghi đã rollback, người dùng KHÔNG có learning plan. Cho đi tiếp là
+   * đưa họ vào lộ trình trống rồi bị guard `hasPlan=false` đá ngược về đây.
    */
-  const saveProfile = useCallback(async (): Promise<boolean> => {
+  const postProfile = useCallback(async (payload: Record<string, unknown>): Promise<boolean> => {
     try {
-      await api.post("/onboarding/profile", {
-        goalType, targetLevel, currentLevel, motivation,
-        industry: goalType === "WORK" ? industry : undefined,
-        examType: goalType === "CERT" ? examType : undefined,
-        sessionsPerWeek: weeklyTarget, minutesPerSession: 15, dailyGoalMinutes,
-        learningSpeed: weeklyTarget >= 7 ? "FAST" : weeklyTarget >= 5 ? "NORMAL" : "SLOW",
-      });
+      await api.post("/onboarding/profile", payload);
       // Bất biến: hồ sơ đã nằm trên server ⇒ draft hết việc. Phải dọn ở ĐÂY chứ
       // không chỉ trong resumeFromDraft, vì đường phục hồi đi lối khác: resume
       // hỏng → giữ draft → người dùng làm lại bằng wizard → goRoadmap/startTest
@@ -167,9 +175,12 @@ export default function V2OnboardingPage() {
       // optimistic-lock / data-integrity từ GlobalExceptionHandler, và cả hai đều
       // nổ LÚC COMMIT của transaction saveProfileAndGeneratePlan ⇒ toàn bộ ghi đã
       // ROLLBACK. Xoá draft ở nhánh này là vứt bản sao cuối cùng đúng lúc server
-      // KHÔNG lưu được gì. (Việc `return true` vẫn cho đi tiếp là hành vi có sẵn
-      // từ trước, ngoài phạm vi đợt này — đã ghi vào phần nợ.)
-      if (err?.response?.status === 409) return true;
+      // KHÔNG lưu được gì. Backend đã có sẵn câu cho ca này trong `detail`
+      // ("Bản ghi vừa được cập nhật bởi một thao tác khác…") — hiện nó, không tự chế.
+      if (err?.response?.status === 409) {
+        toast.error(err.response?.data?.detail ?? t("error.saveProfile"));
+        return false;
+      }
       // api.ts already retried transient 5xx/429/network errors. Reaching here is a real
       // failure → surface it clearly and let the caller BLOCK the redirect (no silent skip).
       const offline = typeof navigator !== "undefined" && navigator.onLine === false;
@@ -180,7 +191,33 @@ export default function V2OnboardingPage() {
       toast.error(msg);
       return false;
     }
-  }, [goalType, targetLevel, currentLevel, motivation, industry, examType, weeklyTarget, dailyGoalMinutes]);
+  }, [t]);
+
+  const saveProfile = useCallback((): Promise<boolean> => postProfile({
+    goalType, targetLevel, currentLevel, motivation,
+    industry: goalType === "WORK" ? industry : undefined,
+    examType: goalType === "CERT" ? examType : undefined,
+    sessionsPerWeek: weeklyTarget, minutesPerSession: 15, dailyGoalMinutes,
+    learningSpeed: weeklyTarget >= 7 ? "FAST" : weeklyTarget >= 5 ? "NORMAL" : "SLOW",
+  }), [postProfile, goalType, targetLevel, currentLevel, motivation, industry, examType, weeklyTarget, dailyGoalMinutes]);
+
+  /**
+   * PROFILE_LITE (Đợt 5): học viên trung tâm lưu nhịp học (+ trình độ nếu thiếu) rồi đi THẲNG bài
+   * đầu — không hỏi ma trận, không mời placement (I-11: ORG_* sau plan_ready → FIRST_LESSON; trên
+   * web hôm nay bài đầu = lộ trình, Ngày 1 nối ở Đợt 4). Sự kiện bắn cùng tên với wizard đầy đủ để
+   * funnel không tách nhánh; `lite: true` + `accountSource` để đọc riêng khi cần.
+   */
+  const saveLiteProfile = useCallback(async (payload: LiteProfilePayload): Promise<boolean> => {
+    setLoading(true);
+    const ok = await postProfile(payload);
+    if (!ok) { setLoading(false); return false; }
+    const base = { level: payload.currentLevel, goal: payload.goalType, industry: null, lite: true, accountSource: orgContext?.accountSource ?? null };
+    trackEvent('onboarding_completed', base);
+    trackEvent('onboarding_profile_saved', base);
+    trackEvent('onboarding_daily_goal_set', { minutes: payload.dailyGoalMinutes });
+    router.push(ROADMAP_ROUTE);
+    return true;
+  }, [postProfile, router, trackEvent, orgContext]);
 
   const startTest = useCallback(async () => {
     setLoading(true);
@@ -188,6 +225,7 @@ export default function V2OnboardingPage() {
     try {
       const { data } = await api.post("/skill-tree/placement-test", { claimedLevel: currentLevel });
       trackEvent('onboarding_placement_test_started', { level: currentLevel });
+      trackEvent('onboarding_path_selected', { path: 'placement', level: currentLevel });
       setTestId(data.testId); setQuestions(data.questions ?? []); setAnswers({}); setCurrentQ(0); setStep(4);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
@@ -203,6 +241,7 @@ export default function V2OnboardingPage() {
       const { data } = await api.post(`/skill-tree/placement-test/${testId}/submit`, { answers });
       setTestResult(data);
       trackEvent('onboarding_placement_test_completed', { passed: data.passed, score: data.scorePercent });
+      trackEvent('placement_completed', { level: currentLevel, passed: data.passed, score: data.scorePercent });
     }
     catch { toast.error(t("error.submitTest")); }
     setLoading(false);
@@ -212,6 +251,9 @@ export default function V2OnboardingPage() {
     setLoading(true);
     if (!(await saveProfile())) { setLoading(false); return; } // block redirect on a failed save
     trackEvent('onboarding_completed', { level: currentLevel, goal: goalType, industry: industry });
+    // Di trú spec §6.3: `onboarding_completed` thực chất là "đã lưu hồ sơ" — bắn song song tên
+    // đúng nghĩa ≥2 tuần rồi mới gỡ tên cũ. ĐỪNG đổi nghĩa tên đang chạy.
+    trackEvent('onboarding_profile_saved', { level: currentLevel, goal: goalType, industry: industry });
     router.push(ROADMAP_ROUTE);
   }, [saveProfile, router, trackEvent, currentLevel, goalType, industry]);
 
@@ -220,6 +262,22 @@ export default function V2OnboardingPage() {
    * and the register page bounced STUDENT back to /v2/onboarding. Replay the draft directly (not via
    * component state, which updates asynchronously) to save the profile, then continue.
    */
+  /** Hồ sơ ĐÃ nằm trên server (replay draft xong hoặc claim xong): hỏi ma trận rồi đi tiếp. */
+  const continueAfterProfileSaved = useCallback(async (level: string) => {
+    let r: OnboardingRouteData | null = null;
+    try {
+      r = await getOnboardingRoute(level);
+      setRoute(r);
+      trackEvent('onboarding_type_assigned', { onboardingType: r.onboardingType, paywallAllowed: r.paywallAllowed, platform: 'web', currentLevel: level });
+    } catch { /* matrix best-effort */ }
+    if (r?.placementOptional) {
+      trackEvent('onboarding_placement_offered', { currentLevel: level });
+      setPlacementOffer(true); setStep(4); setResuming(false);
+    } else {
+      router.push(ROADMAP_ROUTE);
+    }
+  }, [router, trackEvent]);
+
   const resumeFromDraft = useCallback(async (d: OnboardingDraft) => {
     setMotivation(d.motivation); setGoalType(d.goalType); setCurrentLevel(d.currentLevel);
     setTargetLevel(d.targetLevel); setIndustry(d.industry); setExamType(d.examType); setWeeklyTarget(d.weeklyTarget);
@@ -238,32 +296,63 @@ export default function V2OnboardingPage() {
       // mất trắng toàn bộ câu trả lời người dùng vừa điền, không có đường lấy lại.
       clearOnboardingDraft();
       trackEvent('onboarding_completed', { level: d.currentLevel, goal: d.goalType, industry: d.industry });
-      let r: OnboardingRouteData | null = null;
-      try {
-        r = await getOnboardingRoute(d.currentLevel);
-        setRoute(r);
-        trackEvent('onboarding_type_assigned', { onboardingType: r.onboardingType, postAction: r.postAction, paywallAllowed: r.paywallAllowed, platform: 'web', currentLevel: d.currentLevel });
-      } catch { /* matrix best-effort */ }
-      if (r?.placementOptional) {
-        trackEvent('onboarding_placement_offered', { currentLevel: d.currentLevel });
-        setPlacementOffer(true); setStep(4); setResuming(false);
-      } else {
-        router.push(ROADMAP_ROUTE);
-      }
+      trackEvent('onboarding_profile_saved', { level: d.currentLevel, goal: d.goalType, industry: d.industry, resumed: true });
+      await continueAfterProfileSaved(d.currentLevel);
     } catch (e: unknown) {
       // 409 ở đây KHÔNG phải "hồ sơ đã tồn tại" (endpoint UPSERT, trả 201) mà là
-      // xung đột dữ liệu lúc commit ⇒ đã rollback. Giữ draft lại. Việc vẫn đẩy
-      // sang roadmap là hành vi có sẵn từ trước, không đổi ở đợt này.
-      if ((e as { response?: { status?: number } })?.response?.status === 409) {
-        router.push(ROADMAP_ROUTE);
-        return;
-      }
+      // xung đột dữ liệu lúc commit ⇒ đã rollback ⇒ hồ sơ CHƯA có trên server. Đi
+      // nhánh lỗi như mọi lỗi khác (Q-B 28/08): giữ draft, hiện `detail` của server,
+      // trả người dùng về bước 3 để bấm lại. Bản cũ vẫn đẩy sang roadmap — đó là
+      // đưa họ vào lộ trình không có plan rồi bị guard đá ngược.
+      const err = e as { response?: { status?: number; data?: { detail?: string } } };
+      const detail = err?.response?.status === 409 ? err.response?.data?.detail : undefined;
       // Lỗi thật: GIỮ draft để lần thử sau còn dữ liệu. Draft có TTL 30 phút nên
       // một hồ sơ hỏng vĩnh viễn cũng chỉ replay trong cửa sổ đó rồi tự hết hạn.
-      toast.error(t("error.resumeKeepsDraft"));
+      toast.error(detail ?? t("error.resumeKeepsDraft"));
       setResuming(false); setStep(3);
     }
-  }, [router, trackEvent]);
+  }, [continueAfterProfileSaved, trackEvent]);
+
+  /**
+   * Đợt 2 (17/09): sau đăng nhập/đăng ký, CLAIM phiên khách trên server TRƯỚC, draft localStorage chỉ
+   * còn là đường lùi. Server phát lại hồ sơ (UPSERT) trong claim, nên nhánh 'claimed' KHÔNG POST
+   * /profile nữa — chỉ xác nhận `hasPlan` rồi đi tiếp như draft-replay. I-7: 'foreign' (phiên của
+   * người khác) thì draft cũng đã bị vứt ⇒ hiện wizard trống, tuyệt đối không replay.
+   */
+  const resumeAfterAuth = useCallback(async () => {
+    // Không có gì để nối tiếp (đăng ký thẳng, không phiên khách, không draft) thì đừng nháy màn
+    // chờ — hiện wizard ngay như trước.
+    if (!readGuestSessionCache() && !readOnboardingDraft()) return;
+    setResuming(true);
+    const outcome = await claimGuestSession();
+    if (outcome.status === 'claimed') {
+      const hasPlan = await api.get<{ hasPlan: boolean }>('/onboarding/status')
+        .then((res) => res.data?.hasPlan === true, () => false);
+      trackEvent('onboarding_session_claimed', { alreadyClaimed: outcome.alreadyClaimed, hasPlan });
+      if (hasPlan) {
+        const a: GuestAnswers = outcome.answers ?? {};
+        const level = a.currentLevel ?? 'A0';
+        if (a.motivation) setMotivation(a.motivation);
+        if (a.goalType) setGoalType(a.goalType);
+        setCurrentLevel(level);
+        if (a.targetLevel) setTargetLevel(a.targetLevel);
+        if (a.industry) setIndustry(a.industry);
+        if (a.examType) setExamType(a.examType);
+        if (a.sessionsPerWeek) setWeeklyTarget(a.sessionsPerWeek);
+        trackEvent('onboarding_completed', { level, goal: a.goalType, industry: a.industry });
+        trackEvent('onboarding_profile_saved', { level, goal: a.goalType, industry: a.industry, resumed: true, via: 'claim' });
+        await continueAfterProfileSaved(level);
+        return;
+      }
+      // Phiên claim được nhưng chưa có hồ sơ (khách rời phễu trước bước trình độ) → thử draft.
+    } else if (outcome.status === 'foreign') {
+      setResuming(false);
+      return;
+    }
+    const draft = readOnboardingDraft();
+    if (draft) { await resumeFromDraft(draft); return; }
+    setResuming(false);
+  }, [continueAfterProfileSaved, resumeFromDraft, trackEvent]);
 
   // Trước đây lệnh xoá draft đồng bộ ngay tại useEffect kiêm luôn vai chống chạy
   // hai lần: StrictMode dev double-mount đọc lại thì draft đã rỗng. Nay draft
@@ -273,24 +362,46 @@ export default function V2OnboardingPage() {
 
   // On mount: detect guest vs. authed. If authed with a stored draft, this is a post-signup resume.
   useEffect(() => {
-    if (getAccessToken()) {
+    const authed = !!getAccessToken();
+    // Taxonomy onb_v3 (spec §6.2): chặng đầu của funnel — trước đây không có sự kiện nào đánh dấu
+    // "đã vào phễu", nên tỷ lệ rơi ở bước 1 không có mẫu số.
+    trackEvent('onboarding_started', { guest: !authed });
+    if (authed) {
       if (resumeStartedRef.current) return;
-      const draft = readOnboardingDraft();
-      if (draft) { resumeStartedRef.current = true; void resumeFromDraft(draft); }
+      resumeStartedRef.current = true;
+      void resumeAfterAuth();
+      // Song song với claim: claim chỉ có việc khi khách từng đi phễu; học viên trung tâm thường
+      // đăng nhập thẳng (mật khẩu ngẫu nhiên → quên mật khẩu) nên không có phiên khách nào.
+      void fetchOnboardingContext().then((ctx) => { if (needsLiteProfile(ctx)) setOrgContext(ctx); });
     } else {
       setIsGuest(true);
+      // Phiên khách trên server (72 h) — best-effort, không chặn wizard nếu server từ chối.
+      void ensureGuestSession(locale);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Bản chụp câu trả lời theo hình dạng chung web/mobile (spec §5.1) — gửi lên phiên khách. */
+  const guestAnswersSnapshot = useCallback((): GuestAnswers => ({
+    motivation, goalType, currentLevel, targetLevel,
+    industry: goalType === "WORK" ? industry : null,
+    examType: goalType === "CERT" ? examType : null,
+    dailyGoalMinutes, sessionsPerWeek: weeklyTarget, minutesPerSession: 15,
+    learningSpeed: weeklyTarget >= 7 ? "FAST" : weeklyTarget >= 5 ? "NORMAL" : "SLOW",
+  }), [motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoalMinutes, weeklyTarget]);
+
   /** Guest signup gate: stash the funnel answers, then send the guest to /v2/register to save them. */
   const handleGuestSignup = useCallback(() => {
+    // Server trước (claim sẽ phát lại từ đây), draft sau (đường lùi khi server hỏng).
+    void syncGuestSession('AUTH_GATE', guestAnswersSnapshot());
     saveOnboardingDraft({ motivation, goalType, currentLevel, targetLevel, industry, examType, weeklyTarget });
     trackEvent('onboarding_signup_prompted', { motivation, goalType, currentLevel });
     router.push("/v2/register");
-  }, [motivation, goalType, currentLevel, targetLevel, industry, examType, weeklyTarget, router, trackEvent]);
+  }, [motivation, goalType, currentLevel, targetLevel, industry, examType, weeklyTarget, router, trackEvent, guestAnswersSnapshot]);
 
   const nextStep = async () => {
+    // Khách: mỗi lần rời bước là một PATCH lên phiên server (best-effort); tới bước 3 là sang TASTE.
+    if (isGuest) void syncGuestSession(step === 3 ? 'TASTE' : 'PROFILE', guestAnswersSnapshot());
     if (step === 1) trackOnboardingStep('Select Level', 1, { currentLevel });
     if (step === 2) {
       trackOnboardingStep('Select Goal', 2, { goalType, industry, targetLevel, motivation });
@@ -309,20 +420,28 @@ export default function V2OnboardingPage() {
         setStep(4);
         return;
       }
+      // Khoá nút NGAY từ đây, không đợi tới startTest/goRoadmap: trong lúc `await
+      // getOnboardingRoute()` nút vẫn bấm được, bấm hai lần là hai POST /profile song
+      // song và bên thua đụng `uq_profile_user` → chính là nguồn 409 đáng chặn từ gốc.
+      setLoading(true);
       // Ask the backend matrix (single source of truth) which archetype this
-      // (platform=web, level) cell maps to. Fall back to the level heuristic if it's unavailable.
+      // (platform=web, level) cell maps to.
       let r: OnboardingRouteData | null = null;
       try {
         r = await getOnboardingRoute(currentLevel);
         setRoute(r);
         trackEvent('onboarding_type_assigned', {
-          onboardingType: r.onboardingType, postAction: r.postAction,
+          onboardingType: r.onboardingType,
           paywallAllowed: r.paywallAllowed, platform: 'web', currentLevel,
         });
-      } catch { /* matrix unavailable → fall back to the level heuristic */ }
+      } catch { /* matrix unavailable → treat as "no placement", see below */ }
 
-      const forced = r ? r.placementRequired : currentLevel !== "A0";
-      const optional = r ? r.placementOptional : false;
+      // Ma trận WEB không bao giờ BẮT BUỘC placement (cả 3 ô đều placementRequired=false),
+      // nên khi GET /route lỗi mạng, ép mọi A1+ vào bài kiểm tra không có nút bỏ qua là
+      // hành vi mà ma trận thật không bao giờ tạo ra. Lỗi mạng → cho vào lộ trình; placement
+      // mời lại sau ở checklist tuần đầu (Đợt 4).
+      const forced = r?.placementRequired ?? false;
+      const optional = r?.placementOptional ?? false;
       if (forced) {
         await startTest();
       } else if (optional) {
@@ -330,6 +449,7 @@ export default function V2OnboardingPage() {
         trackEvent('onboarding_placement_offered', { currentLevel });
         setPlacementOffer(true);
         setStep(4);
+        setLoading(false);
       } else {
         await goRoadmap();
       }
@@ -352,6 +472,15 @@ export default function V2OnboardingPage() {
           <p className="ga-ui text-[14px] font-semibold text-ga-ink">{t("loader.title")}</p>
           <p className="text-[12.5px] text-ga-muted">{t("loader.sub")}</p>
         </div>
+      </GaAuthShell>
+    );
+  }
+
+  // PROFILE_LITE (Đợt 5): học viên trung tâm — không hỏi mục tiêu/lĩnh vực, mentor do trung tâm quyết.
+  if (orgContext) {
+    return (
+      <GaAuthShell wide>
+        <OrgLiteWizard ctx={orgContext} loading={loading} onSubmit={saveLiteProfile} />
       </GaAuthShell>
     );
   }
@@ -450,7 +579,7 @@ export default function V2OnboardingPage() {
                       <p className="text-[12px] text-ga-muted">{mentorTagline(mentor.code) ?? t("mentorTaglines.fallback")}</p>
                     </div>
                   </div>
-                  {mentor.upsellCode && mentorUpsellEnabled && (
+                  {mentor.upsellCode && mentorUpsellEnabled && !hideUpsell && (
                     <button type="button"
                       onClick={() => { trackEvent('onboarding_mentor_upsell_clicked', { mentor: mentor.code, upsell: mentor.upsellCode }); router.push(PRICING_ROUTE); }}
                       className="w-full text-left text-[12px] text-ga-ink bg-ga-yellow-soft border border-dashed border-ga-gold rounded-ga px-3 py-2">
@@ -489,7 +618,14 @@ export default function V2OnboardingPage() {
                   const solved = quickWinChoice === "Guten Morgen";
                   return (
                     <button key={opt} type="button" disabled={solved}
-                      onClick={() => { setQuickWinChoice(opt); if (isCorrect) trackEvent('onboarding_quickwin_completed', { correct: true }); }}
+                      onClick={() => {
+                        setQuickWinChoice(opt);
+                        // Bản cũ chỉ bắn khi ĐÚNG ⇒ không đo được tỷ lệ sai. Tên mới theo taxonomy
+                        // onb_v3 bắn cả hai; tên cũ giữ nguyên nghĩa (chỉ khi đúng) trong lúc di trú.
+                        trackEvent('guest_activity_completed', { kind: 'quick_win', correct: isCorrect });
+                        void syncGuestSession('TASTE', undefined, { quickWin: { correct: isCorrect, choice: opt } });
+                        if (isCorrect) trackEvent('onboarding_quickwin_completed', { correct: true });
+                      }}
                       className={`ga-ui w-full text-left p-3 rounded-ga border text-[13.5px] transition-colors duration-150 disabled:cursor-default ${
                         answered && isCorrect ? "border-ga-green bg-ga-green-soft font-bold text-ga-ink"
                         : picked ? "border-ga-red bg-ga-red-soft text-ga-red"
@@ -544,7 +680,7 @@ export default function V2OnboardingPage() {
                 {t("placementOffer.take")}
               </GaBtn>
               <GaBtn variant="ghost" size="lg" className="w-full" disabled={loading}
-                onClick={() => { trackEvent('onboarding_placement_skipped', { currentLevel }); void goRoadmap(); }}>
+                onClick={() => { trackEvent('onboarding_placement_skipped', { currentLevel }); trackEvent('onboarding_path_selected', { path: 'skip', level: currentLevel }); void goRoadmap(); }}>
                 {t("placementOffer.skip")}
               </GaBtn>
             </motion.div>
@@ -613,7 +749,10 @@ export default function V2OnboardingPage() {
               <GaBtn variant="ink" size="lg" className={`w-full ${btnWrap}`} onClick={() => router.push(ROADMAP_ROUTE)}>
                 {testResult.passed ? t("result.ctaPassed") : t("result.ctaFailed")}
               </GaBtn>
-              {route?.paywallAllowed && route.postAction === "PRICING_CTA" && (
+              {/* Q-A (28/08): client thôi đọc `postAction`. Ô ma trận sinh PRICING_CTA là
+                  WEB × B1+, tức điều kiện tương đương suy ra được từ trình độ người dùng tự
+                  chọn + `paywallAllowed`. Cộng thêm luật GĐ 2: đang dùng thử / đã PRO thì ẩn. */}
+              {route?.paywallAllowed && UPPER_LEVELS.includes(currentLevel) && !hideUpsell && (
                 <GaBtn variant="yellow" size="lg" className={`w-full ${btnWrap}`}
                   onClick={() => { trackEvent('onboarding_pricing_cta_clicked', { currentLevel }); router.push(PRICING_ROUTE); }}>
                   {t("result.pricingCta")}

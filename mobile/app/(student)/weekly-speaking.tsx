@@ -17,6 +17,8 @@ import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton, GaGlyph } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useBackToMainTab } from '@/hooks/useBackTo'
+import { useLearnerLevel } from '@/hooks/useLearnerLevel'
+import { pickBand } from '@/lib/learnerBand'
 
 interface WeeklyPrompt {
   id: number
@@ -42,14 +44,17 @@ export default function WeeklySpeakingScreen() {
 
   // F-19 (soát 02/09): band từng hardcode 'B1' — tuần nào không có đề B1 là màn
   // này thành ngõ cụt dù backend có available-bands sinh ra đúng để tránh việc đó.
-  // Ưu tiên B1 (band mục tiêu phổ biến nhất), không có thì lấy band đầu tiên có đề.
+  // 17/09: band theo TRÌNH ĐỘ HỒ SƠ (A0 → A1; không có đề đúng band thì lấy band cao nhất
+  // còn thấp hơn, dưới không có thì band thấp nhất có đề) — trước đó "ưu tiên B1" đưa tài khoản
+  // A0 thẳng vào đề B1. Chờ hồ sơ trả lời rồi mới chốt band để không nháy B1 → A1.
+  const { currentLevel, settled: levelSettled } = useLearnerLevel({ enabled: hasProAccess })
   const { data: bands, isLoading: bandsLoading } = useQuery({
     queryKey: ['weekly-bands'],
     queryFn: () => api.get<string[]>('/ai-speaking/weekly/available-bands').then((r) => r.data ?? []),
     enabled: hasProAccess,
     staleTime: 60_000 * 30,
   })
-  const band = bands == null ? null : bands.includes('B1') ? 'B1' : bands[0] ?? null
+  const band = levelSettled ? pickBand(currentLevel, bands) : null
 
   const { data: prompt, isLoading: promptLoading, isError: promptError, refetch: refetchPrompt } = useQuery({
     queryKey: ['weekly-prompt', band],
@@ -104,7 +109,7 @@ export default function WeeklySpeakingScreen() {
         refreshing={pull.refreshing}
         onRefresh={() => void pull.onRefresh()}
       >
-        {bandsLoading || (band != null && promptLoading) ? (
+        {bandsLoading || !levelSettled || (band != null && promptLoading) ? (
           <Skeleton height={170} radius="2xl" />
         ) : bands != null && bands.length === 0 ? (
           <Card style={{ paddingVertical: space[6] }}>

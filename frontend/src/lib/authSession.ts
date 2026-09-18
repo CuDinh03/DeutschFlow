@@ -11,6 +11,7 @@
 // are kept as web-only stubs so existing callers (e.g. lib/api.ts) keep compiling.
 
 import { clearOnboardingDraft } from './onboardingDraft'
+import { clearGuestSessionCache } from './guestSessionStore'
 
 // ─── Storage keys ─────────────────────────────────────────────────────────────
 const ACCESS_TOKEN_KEY   = 'accessToken'
@@ -230,6 +231,9 @@ export async function logout(): Promise<void> {
   // middleware redirect, đóng trình duyệt — vẫn để lại draft. TTL 30 phút trong
   // onboardingDraft.ts là thứ chặn hậu quả ở những đường đó.
   clearOnboardingDraft()
+  // Đợt 2 onboarding (17/09): con trỏ phiên khách cũng là trạng thái per-máy — người kế tiếp đăng
+  // nhập không được claim phiên của người trước (server cũng chặn bằng 400, đây là lớp thứ hai).
+  clearGuestSessionCache()
   // Full cutover: land on the v2 login (the legacy /login is being retired).
   window.location.href = '/v2/login'
 }

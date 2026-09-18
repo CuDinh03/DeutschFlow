@@ -42,17 +42,42 @@ public class MinorAudioBlockedException extends ForbiddenException {
         BIRTH_DATE_REQUIRED
     }
 
+    /**
+     * AI có thể mở lại cổng cho người này — client dùng để quyết định có hiện lối "Liên hệ trung
+     * tâm" hay không (phương án D, owner chốt 17/09/2026).
+     *
+     * <p>Trước 17/09 mọi thông điệp đều bảo "liên hệ trung tâm" vì đường ghi đồng ý duy nhất nằm ở
+     * {@code /api/org/...}. Khi học viên tự đăng ký (B2C) được tự khai ngày sinh, một em dưới 16
+     * tuổi không thuộc trung tâm nào cũng bị chặn — và bảo em ấy "liên hệ trung tâm" là chỉ đường
+     * tới một cánh cửa không tồn tại. Với nhóm đó client phải giấu nút liên hệ và thông điệp phải
+     * nói thật: đường phụ huynh xác nhận đang được làm (Q-04).
+     */
+    public enum Contact {
+        /** Thành viên ACTIVE của một trung tâm — trung tâm có nghĩa vụ và có phương tiện mở lại. */
+        CENTER,
+        /** Không thuộc trung tâm nào — chưa có ai mở lại được cho tới khi có đường phụ huynh xác nhận. */
+        NONE
+    }
+
     private final Reason reason;
     private final MinorPolicy.Status status;
+    private final Contact contact;
 
-    public MinorAudioBlockedException(Reason reason, MinorPolicy.Status status, String message) {
+    public MinorAudioBlockedException(Reason reason, MinorPolicy.Status status, Contact contact,
+                                      String message) {
         super(message);
         this.reason = reason;
         this.status = status;
+        this.contact = contact;
     }
 
     public Reason getReason() {
         return reason;
+    }
+
+    /** Ai mở lại được — phát ra {@code extensions.contact}, không mang thông tin nhận dạng. */
+    public Contact getContact() {
+        return contact;
     }
 
     /**

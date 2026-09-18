@@ -61,6 +61,19 @@
       "noteA0": "Bước đầu tiên của bạn sẽ là <b>Bảng chữ cái, Phát âm và Chào hỏi</b>.",
       "notePlacement": "Có thể làm <b>bài kiểm tra 5 phút (tùy chọn)</b> để vào đúng trình độ — hoặc bắt đầu học ngay."
     },
+    "orgLite": {
+      "cap": "Học viên trung tâm",
+      "heading": "Bạn thuộc lớp {className}",
+      "headingNoClass": "Bạn là học viên của {orgName}",
+      "orgLine": "Trung tâm {orgName}",
+      "sub": "Mục tiêu, giáo trình và mentor do trung tâm sắp xếp — bạn chỉ cần chọn nhịp học rồi vào bài đầu tiên.",
+      "trialUntil": "PRO miễn phí tới {date}.",
+      "levelHeading": "Bạn đang ở trình độ nào?",
+      "levelSub": "Trung tâm chưa đặt trình độ — chọn mức gần đúng nhất, giáo viên chỉnh lại được sau.",
+      "levelPreset": "Trình độ hiện tại do trung tâm đặt: {level}.",
+      "paceHeading": "Bạn học được bao nhiêu mỗi tuần?",
+      "cta": "Bắt đầu học"
+    },
     "quickWin": {
       "heading": "Thử ngay câu đầu tiên!",
       "prompt": "\"Chào buổi sáng\" trong tiếng Đức là gì?",

@@ -60,6 +60,9 @@ class AuthServiceUnitTest {
     @Mock
     UserNotificationService userNotificationService;
 
+    @Mock
+    private UserAvatarService userAvatarService;
+
     @InjectMocks
     AuthService authService;
 

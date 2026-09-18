@@ -78,6 +78,44 @@ class OrgGuardianConsentControllerIntegrationTest extends AbstractPostgresIntegr
     @DisplayName("MinorGate ↔ endpoint đồng ý")
     class Gate {
 
+        /**
+         * Phương án D (owner chốt 17/09/2026): mức 16–17 là luật NỘI BỘ của trung tâm, không áp cho
+         * người tự đăng ký; dưới 16 vẫn chặn theo luật nhưng {@code contact=NONE} và thông điệp không
+         * chỉ đường "liên hệ trung tâm" (em không có trung tâm nào). Đối chứng: cùng tuổi mà thuộc
+         * trung tâm thì vẫn chặn với {@code contact=CENTER} — ca ngay dưới.
+         */
+        @Test
+        @DisplayName("🔴 Học viên TỰ ĐĂNG KÝ (không thuộc trung tâm): 17 tuổi ⇒ qua; 15 tuổi ⇒ chặn contact=NONE, không chỉ đường trung tâm")
+        void selfRegistered_centerPolicyNotApplied_legalMinorBlockedWithoutCenter() {
+            User seventeen = account(User.Role.STUDENT);
+            jdbcTemplate.update("UPDATE users SET birth_date = ? WHERE id = ?",
+                    LocalDate.now().minusYears(17).minusDays(1), seventeen.getId());
+            assertThatCode(() -> minorGate.assertAudioAllowed(seventeen.getId()))
+                    .as("16–17 ngoài trung tâm: không có trung tâm nào để áp luật nội bộ")
+                    .doesNotThrowAnyException();
+
+            User fifteen = account(User.Role.STUDENT);
+            jdbcTemplate.update("UPDATE users SET birth_date = ? WHERE id = ?",
+                    LocalDate.now().minusYears(15).minusDays(1), fifteen.getId());
+            assertThatThrownBy(() -> minorGate.assertAudioAllowed(fifteen.getId()))
+                    .as("dưới 16 là luật — vẫn chặn dù không có ai mở lại được")
+                    .isInstanceOf(MinorAudioBlockedException.class)
+                    .satisfies(ex -> {
+                        MinorAudioBlockedException blocked = (MinorAudioBlockedException) ex;
+                        assertThat(blocked.getReason())
+                                .isEqualTo(MinorAudioBlockedException.Reason.GUARDIAN_CONSENT_REQUIRED);
+                        assertThat(blocked.getContact()).isEqualTo(MinorAudioBlockedException.Contact.NONE);
+                        assertThat(blocked.getMessage()).doesNotContain("liên hệ trung tâm");
+                    });
+
+            // Đối chứng: cùng 17 tuổi nhưng THUỘC trung tâm ⇒ luật nội bộ áp, contact=CENTER.
+            User inCenter = student(org(), 17);
+            assertThatThrownBy(() -> minorGate.assertAudioAllowed(inCenter.getId()))
+                    .isInstanceOf(MinorAudioBlockedException.class)
+                    .satisfies(ex -> assertThat(((MinorAudioBlockedException) ex).getContact())
+                            .isEqualTo(MinorAudioBlockedException.Contact.CENTER));
+        }
+
         @Test
         @DisplayName("🔴 Học viên 17 tuổi có ngày sinh, chưa đồng ý ⇒ gate ném; POST GRANTED ⇒ hết ném; POST REVOKED ⇒ ném lại")
         void seventeenYearOld_blockedUntilCenterRecordsPaperConsent() throws Exception {

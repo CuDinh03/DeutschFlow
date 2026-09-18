@@ -23,6 +23,30 @@ interface AiEmailEvaluation {
   level?: string
   /** Tiêu chí AI không chấm — không vẽ thanh 0 điểm cho chúng. */
   missing_criteria?: string[]
+  /**
+   * Bản tự mô tả của bảng tiêu chí (backend gửi từ 15/09/2026): khoá + điểm + thang của đúng
+   * những tiêu chí đã chấm. Cần vì mỗi định dạng đề có một bảng khác nhau — Goethe 4 tiêu chí
+   * tổng 15, telc 3 Kriterien × 15 — mà danh sách đóng cứng bên dưới chỉ biết bảng Goethe.
+   */
+  criteria?: { key: string; score: number; max: number; band?: string }[]
+  /**
+   * Phiếu telc (17/09/2026): mỗi Kriterium là một BẬC A/B/C/D (điểm 15/9/3/0 do máy quy đổi), kèm
+   * hai cờ toàn cục, các Leitpunkte thiếu (số thứ tự trong đề) và lý do Kriterium II mất A —
+   * để nói được „ý nào thiếu, vì sao mất A" chứ không chỉ một con số.
+   */
+  bands?: Record<string, string>
+  thema_verfehlt?: boolean
+  situierung_verfehlt?: boolean
+  leitpunkte_fehlt?: number[]
+  kein_a_weil?: string[]
+}
+
+/** Bốn lý do Bewertungsbogen telc không cho A ở Kriterium II — chỉ những mã này có nhãn. */
+const NO_A_REASON_KEYS: Record<string, string> = {
+  TEXTSORTE: 'noAReason.textsorte',
+  REGISTER: 'noAReason.register',
+  UNVERBUNDEN: 'noAReason.unverbunden',
+  ICH_ANFANG: 'noAReason.ichAnfang',
 }
 
 interface ExamFeedbackProps {
@@ -30,21 +54,36 @@ interface ExamFeedbackProps {
 }
 
 // labelKey tương đối trong namespace `v2.student.examResult.examFeedback`.
+// `max` chỉ dùng cho lượt thi CŨ (trước 15/09/2026) chưa có mảng `criteria`; lượt mới lấy thang
+// từ chính dữ liệu, nên thêm một bảng tiêu chí mới không phải sửa lại các con số ở đây.
 const RUBRIC_LABELS: Record<string, { labelKey: string; max: number }> = {
   aufgabenerfuellung: { labelKey: 'rubric.aufgabenerfuellung', max: 5 },
   kohaerenz: { labelKey: 'rubric.kohaerenz', max: 4 },
   wortschatz: { labelKey: 'rubric.wortschatz', max: 3 },
   strukturen: { labelKey: 'rubric.strukturen', max: 3 },
+  // Bảng telc — Schriftlicher Ausdruck, 3 Kriterien × 15.
+  leitpunkte: { labelKey: 'rubric.leitpunkte', max: 15 },
+  kommunikative_gestaltung: { labelKey: 'rubric.kommunikativeGestaltung', max: 15 },
+  formale_richtigkeit: { labelKey: 'rubric.formaleRichtigkeit', max: 15 },
 }
 
-function RubricBar({ label, score, max }: { label: string; score: number; max: number }) {
+function RubricBar({ label, score, max, band }: { label: string; score: number; max: number; band?: string }) {
+  const t = useTranslations('v2.student.examResult.examFeedback')
   const pct = max > 0 ? Math.round((score / max) * 100) : 0
   const color = pct >= 60 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444'
   return (
     <div>
       <div className="flex justify-between gap-2 text-xs mb-1">
         <span className="min-w-0 break-words text-[#64748B]">{label}</span>
-        <span className="shrink-0 font-bold text-[#0F172A]">{score}/{max}</span>
+        <span className="flex shrink-0 items-center gap-1.5 font-bold text-[#0F172A]">
+          {/* Bậc telc in đúng chữ trên Bewertungsbogen — học viên đối chiếu được với phiếu thật. */}
+          {band && (
+            <span className="rounded-full border border-[#E2E8F0] bg-[#F8FAFC] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[#475569]">
+              {t('band', { band })}
+            </span>
+          )}
+          {score}/{max}
+        </span>
       </div>
       <div className="h-1.5 bg-[#F1F5F9] rounded-full overflow-hidden">
         <div
@@ -84,20 +123,40 @@ function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
           <span className="text-xs font-bold text-violet-700">{t('aiGraded')}</span>
         </div>
         <span className="min-w-0 text-xs text-[#94A3B8]">
-          {evalData.level ? t('officialRubricLevel', { level: evalData.level }) : t('officialRubric')}
+          {/* Có bậc ⇒ chấm theo Bewertungsbogen telc; nhãn Goethe ở đó là nói sai kỳ thi. */}
+          {evalData.bands
+            ? evalData.level
+              ? t('officialRubricTelcLevel', { level: evalData.level })
+              : t('officialRubricTelc')
+            : evalData.level
+              ? t('officialRubricLevel', { level: evalData.level })
+              : t('officialRubric')}
         </span>
       </div>
 
       {/* Rubric breakdown */}
       <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 space-y-3">
         <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide mb-3">{t('detailCap')}</p>
-        {Object.entries(RUBRIC_LABELS).map(([key, meta]) => {
-          const score = evalData[key as keyof AiEmailEvaluation]
-          // Tiêu chí AI không chấm thì KHÔNG vẽ: thanh 0/3 đọc thành "bị điểm liệt" trong khi
-          // thực ra chưa ai chấm nó (ca strukturen 0/3 quan sát trên prod 07/09/2026).
-          if (typeof score !== 'number') return null
-          return <RubricBar key={key} label={t(meta.labelKey)} score={score} max={meta.max} />
-        })}
+        {evalData.criteria && evalData.criteria.length > 0
+          ? // Lượt thi mới: vẽ đúng bảng tiêu chí mà backend đã chấm, thang lấy từ dữ liệu.
+            // Tiêu chí lạ vẫn được vẽ với nhãn chung — bỏ im lặng thì học viên mất điểm trên
+            // màn hình mà không ai biết, còn in khoá máy ra thì lộ tên kỹ thuật.
+            evalData.criteria.map((c) => (
+              <RubricBar
+                key={c.key}
+                label={RUBRIC_LABELS[c.key] ? t(RUBRIC_LABELS[c.key].labelKey) : t('rubric.other')}
+                score={c.score}
+                max={c.max}
+                band={c.band}
+              />
+            ))
+          : Object.entries(RUBRIC_LABELS).map(([key, meta]) => {
+              const score = evalData[key as keyof AiEmailEvaluation]
+              // Tiêu chí AI không chấm thì KHÔNG vẽ: thanh 0/3 đọc thành "bị điểm liệt" trong khi
+              // thực ra chưa ai chấm nó (ca strukturen 0/3 quan sát trên prod 07/09/2026).
+              if (typeof score !== 'number') return null
+              return <RubricBar key={key} label={t(meta.labelKey)} score={score} max={meta.max} />
+            })}
         <div className="pt-2 border-t border-[#F1F5F9] flex justify-between items-center gap-2">
           <span className="min-w-0 text-sm font-bold text-[#0F172A]">{t('emailTotal')}</span>
           <span className="shrink-0 text-lg font-black text-[#6366F1]">
@@ -108,6 +167,28 @@ function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
 
       {evalData.missing_criteria && evalData.missing_criteria.length > 0 && (
         <p className="text-xs text-[#94A3B8]">{t('missingCriteria', { count: evalData.missing_criteria.length })}</p>
+      )}
+
+      {/* Kết luận telc: lạc đề / sai người nhận, ý nào thiếu, vì sao Kriterium II mất A. */}
+      {(evalData.thema_verfehlt || evalData.situierung_verfehlt) && (
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-3 text-xs text-red-700">
+          {evalData.thema_verfehlt ? t('themaVerfehlt') : t('situierungVerfehlt')}
+        </div>
+      )}
+      {evalData.leitpunkte_fehlt && evalData.leitpunkte_fehlt.length > 0 && (
+        <p className="text-xs text-[#334155]">
+          {t('missingPoints', { list: evalData.leitpunkte_fehlt.join(', ') })}
+        </p>
+      )}
+      {evalData.kein_a_weil && evalData.kein_a_weil.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs font-bold text-[#64748B]">{t('noATitle')}</p>
+          <ul className="list-disc space-y-0.5 pl-5 text-xs text-[#334155]">
+            {evalData.kein_a_weil.map((reason) => (
+              <li key={reason}>{NO_A_REASON_KEYS[reason] ? t(NO_A_REASON_KEYS[reason]) : t('noAReason.other')}</li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {/* Feedback text */}

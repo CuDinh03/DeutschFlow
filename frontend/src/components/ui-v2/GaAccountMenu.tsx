@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable @next/next/no-img-element -- avatar là URL S3 ký sẵn, không qua next/image (giống GaSidebar) */
+
 import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -35,6 +37,9 @@ export function GaAccountMenu({ role }: { role: RoleId }) {
 
   const displayName = user?.displayName || t(`nav.roles.${role}`)
   const email = user?.email || ''
+  // Chip đọc cùng nguồn với sidebar: store được profile page ghi ngay sau upload/gỡ (AC-AUTH-14)
+  // và được nạp lại từ `/auth/me` mỗi lần đăng nhập — không có ảnh mới rơi về chữ cái tắt.
+  const avatarUrl = user?.avatarUrl || null
 
   const itemClass =
     'flex min-h-11 items-center gap-3 px-4 text-ga-small font-medium text-ga-ink transition-colors ' +
@@ -46,16 +51,32 @@ export function GaAccountMenu({ role }: { role: RoleId }) {
         <button
           type="button"
           aria-label={t('ui.account')}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-ga-pill bg-ga-accent text-ga-small font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg lg:h-9 lg:w-9"
+          className={cn(
+            'grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-ga-pill text-ga-small font-semibold transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg lg:h-9 lg:w-9',
+            avatarUrl ? 'border border-ga-line bg-ga-surface' : 'bg-ga-accent text-ga-accent-ink',
+          )}
         >
-          {initials(displayName)}
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            initials(displayName)
+          )}
         </button>
       </GaPopoverTrigger>
 
       <GaPopoverContent align="end" sideOffset={8} className="w-[min(100vw-2rem,17rem)] overflow-hidden p-0">
-        <div className="border-b border-ga-line bg-ga-surface px-4 py-3">
-          <p className="truncate text-ga-small font-semibold text-ga-ink">{displayName}</p>
-          {email && <p className="truncate text-ga-caption text-ga-muted">{email}</p>}
+        <div className="flex items-center gap-3 border-b border-ga-line bg-ga-surface px-4 py-3">
+          {avatarUrl && (
+            <img
+              src={avatarUrl}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-ga-pill border border-ga-line object-cover"
+            />
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-ga-small font-semibold text-ga-ink">{displayName}</p>
+            {email && <p className="truncate text-ga-caption text-ga-muted">{email}</p>}
+          </div>
         </div>
 
         <div className="flex flex-col py-1">

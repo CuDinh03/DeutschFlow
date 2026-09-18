@@ -26,7 +26,8 @@
       "^expo-router$": "<rootDir>/test/mocks/expo-router.ts",
       "^expo-secure-store$": "<rootDir>/test/mocks/expo-secure-store.ts",
       "^react-native-mmkv$": "<rootDir>/test/mocks/react-native-mmkv.ts",
-      "^expo-constants$": "<rootDir>/test/mocks/expo-constants.ts"
+      "^expo-constants$": "<rootDir>/test/mocks/expo-constants.ts",
+      "^expo-crypto$": "<rootDir>/test/mocks/expo-crypto.ts"
     },
     "testMatch": [
       "**/__tests__/**/*.test.ts",
@@ -56,6 +57,7 @@
     "expo-audio": "~1.1.1",
     "expo-blur": "~15.0.8",
     "expo-constants": "~18.0.14",
+    "expo-crypto": "~15.0.9",
     "expo-dev-client": "~6.0.21",
     "expo-device": "~8.0.10",
     "expo-document-picker": "~14.0.8",

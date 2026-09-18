@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { ArrowRight } from 'lucide-react'
 import { GaProgress, GaCap } from '@/components/ui-v2'
 import { nodeProgressPercent } from '@/lib/learning/currentNode'
+import { useNodeTitles } from '@/lib/learning/nodeTitle'
 import type { RoadmapNode } from '@/lib/roadmap-tree/types'
 
 /**
@@ -15,7 +16,8 @@ import type { RoadmapNode } from '@/lib/roadmap-tree/types'
  * học phải tự chọn "engine" trước khi học được. Khối này trả lời thẳng "học tiếp cái gì" và là
  * CTA filled DUY NHẤT trong viewport đầu.
  *
- * Microcopy song ngữ theo mẫu handoff §20: nhãn Đức tạo immersion, dòng Việt bảo đảm hiểu.
+ * Microcopy 10/09/2026: owner chốt mỗi ngôn ngữ thuần một thứ tiếng, bỏ lối nhãn Đức + dòng nghĩa
+ * của handoff §20 — nhãn nay đọc theo đúng ngôn ngữ người dùng chọn (ca AC-I18N-17).
  */
 export interface ContinueLearningProps {
   /** Node để học tiếp; `undefined` = không còn gì để học tiếp. */
@@ -26,6 +28,7 @@ export interface ContinueLearningProps {
 
 export function ContinueLearning({ node, isFirstSession }: ContinueLearningProps) {
   const t = useTranslations('v2.student.dashboard.continue')
+  const titlesOf = useNodeTitles()
 
   // Người học mới: chưa có lộ trình để "tiếp tục" — đưa vào buổi học đầu tiên.
   if (isFirstSession || !node) {
@@ -51,9 +54,7 @@ export function ContinueLearning({ node, isFirstSession }: ContinueLearningProps
   }
 
   const percent = nodeProgressPercent(node)
-  // Tiêu đề: tiếng Việt dễ hiểu trước, tiếng Đức là dòng ngữ cảnh — cùng dữ liệu node.
-  const title = node.subtitle || node.title
-  const germanTitle = node.subtitle ? node.title : null
+  const { primary: title, secondary: germanTitle } = titlesOf(node)
 
   return (
     <section aria-labelledby="continue-heading" className="border border-ga-line bg-ga-card p-5 lg:p-6">
@@ -80,17 +81,16 @@ export function ContinueLearning({ node, isFirstSession }: ContinueLearningProps
         </p>
       </div>
 
-      {/* CTA filled DUY NHẤT của màn. Nhãn Đức + dòng Việt ngay dưới (handoff §20). */}
+      {/* CTA filled DUY NHẤT của màn. */}
       <div className="mt-5">
         <Link
           href={`/v2/student/learn/${node.id}`}
           aria-label={`${t('cta')} — ${title}`}
           className="inline-flex min-h-11 items-center gap-2 rounded-ga-touch bg-ga-accent px-5 text-ga-body font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg"
         >
-          <span lang="de">{t('cta')}</span>
+          {t('cta')}
           <ArrowRight size={18} aria-hidden />
         </Link>
-        <p className="mt-1.5 text-ga-caption text-ga-muted">{t('ctaHelper')}</p>
       </div>
     </section>
   )

@@ -43,6 +43,31 @@ describe('MinorAudioBlockedNotice — 403 MINOR_AUDIO_BLOCKED (D8)', () => {
     expect(screen.getByText('bodyConsentRevoked')).toBeTruthy()
   })
 
+  it('contact NONE (học viên ngoài trung tâm, phương án D 17/09) → KHÔNG có lối liên hệ, câu dự phòng bộ *Self', () => {
+    const onDismiss = vi.fn()
+    render(
+      <MinorAudioBlockedNotice
+        info={{ reason: 'GUARDIAN_CONSENT_REQUIRED', detail: null, contact: 'NONE' }}
+        onDismiss={onDismiss}
+      />,
+    )
+    expect(screen.queryByRole('link', { name: 'contact' })).toBeNull()
+    expect(screen.getByText('bodyConsentRequiredSelf')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'dismiss' })).toBeTruthy()
+  })
+
+  it('contact NONE + BIRTH_DATE_REQUIRED → tiêu đề/câu tự khai ở Hồ sơ, không nhắc trung tâm', () => {
+    render(<MinorAudioBlockedNotice info={{ reason: 'BIRTH_DATE_REQUIRED', detail: null, contact: 'NONE' }} />)
+    expect(screen.getByText('titleBirthDateSelf')).toBeTruthy()
+    expect(screen.getByText('bodyBirthDateSelf')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'contact' })).toBeNull()
+  })
+
+  it('contact CENTER hoặc thiếu (server cũ) → vẫn có lối liên hệ như trước', () => {
+    render(<MinorAudioBlockedNotice info={{ reason: 'GUARDIAN_CONSENT_REQUIRED', detail: null, contact: 'CENTER' }} />)
+    expect(screen.getByRole('link', { name: 'contact' })).toBeTruthy()
+  })
+
   it('contactHref tuỳ ngữ cảnh', () => {
     render(<MinorAudioBlockedNotice info={{ reason: 'GUARDIAN_CONSENT_REQUIRED', detail: null }} contactHref="/v2/student/messages" />)
     expect(screen.getByRole('link', { name: 'contact' }).getAttribute('href')).toBe('/v2/student/messages')

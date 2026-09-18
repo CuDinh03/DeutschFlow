@@ -46,7 +46,12 @@ public class DefaultPrueferScriptService implements PrueferScriptService {
                         : stimulus != null && stimulus.get("prompts") != null
                             ? " Auf dem Aufgabenblatt finden Sie Punkte, die Sie besprechen sollten: " + join(stimulus, "prompts") + ". "
                             : " ")
-                    + "Machen Sie Vorschläge, reagieren Sie auf die Vorschläge Ihres Partners und einigen Sie sich.";
+                    // telc B1 T3 (2020): thẻ khai `instruction` bốn bước (entscheiden → vortragen und
+                    // begründen → reagieren → sich einigen, wer welche Aufgabe übernimmt) thì đọc đúng
+                    // câu đó; thẻ Goethe không khai ⇒ câu chung như cũ.
+                    + (stimulus != null && stimulus.get("instruction") instanceof String instr && !instr.isBlank()
+                        ? instr
+                        : "Machen Sie Vorschläge, reagieren Sie auf die Vorschläge Ihres Partners und einigen Sie sich.");
             case TOPIC_EXCHANGE -> "Teil " + part.teilNo() + ": " + part.title() + ". " + str(stimulus, "instruction")
                     + (stimulus != null && stimulus.get("thema") != null ? " Das Thema ist: " + str(stimulus, "thema") + "." : "");
             case PRESENT -> "Teil " + part.teilNo() + ": " + part.title() + ". Bitte präsentieren Sie Ihr Thema: " + str(stimulus, "topic")

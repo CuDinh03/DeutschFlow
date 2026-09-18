@@ -82,6 +82,11 @@ const AUDIENCE_META = [
  * nguyên: phễu này dành cho học viên, không dành cho trung tâm.
  */
 const START_HREF = '/v2/onboarding'
+/**
+ * Bảng giá TẠM ẨN (owner yêu cầu 17/09/2026). Giữ nguyên JSX, catalog `landing.pricing.*` và điểm
+ * đo `pricing_plan_N` để bật lại chỉ cần lật cờ này; test phễu đọc mã nguồn nên vẫn xanh.
+ */
+const SHOW_PRICING = false
 const PLAN_META = [
   { href: START_HREF, highlight: false },
   { href: START_HREF, highlight: true },
@@ -594,7 +599,8 @@ export function GaLanding() {
         </div>
       </section>
 
-      {/* Pricing */}
+      {/* Pricing — tạm ẩn, xem SHOW_PRICING */}
+      {SHOW_PRICING && (
       <section className={SECTION}>
         <GaCap className="mb-[18px]">{t('pricing.cap')}</GaCap>
         <h2 className={`${H2} mb-12`}>{t('pricing.title')}</h2>
@@ -622,6 +628,7 @@ export function GaLanding() {
           })}
         </div>
       </section>
+      )}
 
       {/* CTA footer */}
       <section className="bg-ga-ink text-ga-bg">
