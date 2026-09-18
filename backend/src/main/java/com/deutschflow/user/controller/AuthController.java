@@ -10,6 +10,7 @@ import com.deutschflow.user.entity.User;
 import com.deutschflow.user.service.AuthService;
 import com.deutschflow.user.service.AuthConcurrencyLimiter;
 import com.deutschflow.user.service.AuthRateLimiterService;
+import com.deutschflow.user.activation.AccountActivationService;
 import com.deutschflow.user.service.PasswordResetService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.RateLimitExceededException;
@@ -53,6 +54,7 @@ public class AuthController {
     private final AuthRateLimiterService authRateLimiterService;
     private final AuthConcurrencyLimiter authConcurrencyLimiter;
     private final PasswordResetService passwordResetService;
+    private final AccountActivationService accountActivationService;
     private final ClientIpResolver clientIpResolver;
 
     @Value("${app.jwt.refresh-token-expiry-ms}")
@@ -201,6 +203,65 @@ public class AuthController {
         PasswordPolicy.requireStrongEnough(req.newPassword());
         passwordResetService.resetPassword(req.email(), req.code(), req.newPassword());
     }
+
+    // ─── Kích hoạt tài khoản do trung tâm tạo (unauthenticated, Q-09) ─────────
+
+    /**
+     * GET /api/auth/activate?token=…
+     * Liên kết này còn dùng được không. Trả 200 kể cả khi token vô nghĩa ({@code state=UNKNOWN}) —
+     * đây là màn hình người dùng mở từ email, một mã 4xx ở đây chỉ làm client phải đoán.
+     *
+     * <p><b>Rate-limit khoá theo TOKEN, không theo email và không theo IP thuần.</b> Cả một lớp pilot
+     * thường ngồi cùng một mạng của trung tâm, tức cùng MỘT địa chỉ IP công cộng: khoá theo IP (hay
+     * theo một chuỗi cố định như {@code "activate"}) là 20 em chia nhau 5 lượt/15 phút — em thứ ba
+     * bấm liên kết của mình sẽ nhận 429. Khoá theo token cho mỗi liên kết một hạn mức riêng.
+     * Việc này KHÔNG làm yếu đi chỗ nào: token là 32 byte ngẫu nhiên, dò nó không phải thứ hạn mức
+     * ngăn được, và hạn mức ở đây chỉ để chặn lạm dụng tài nguyên trên MỘT liên kết.
+     */
+    @GetMapping("/activate")
+    public AccountActivationService.Preview activationPreview(@RequestParam("token") String token,
+                                                              HttpServletRequest httpRequest) {
+        String ip = resolveClientIp(httpRequest);
+        if (!authRateLimiterService.allowPasswordReset(ip, activationRateKey(token))) {
+            throw new RateLimitExceededException(
+                    "Too many activation attempts. Please try again later.",
+                    authRateLimiterService.passwordResetRetryAfterSeconds());
+        }
+        return accountActivationService.preview(token);
+    }
+
+    /**
+     * POST /api/auth/activate
+     * Đặt mật khẩu lần đầu và đốt liên kết. 204 khi xong; 400 khi liên kết hỏng/hết hạn/đã dùng.
+     */
+    @PostMapping("/activate")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void activate(@Valid @RequestBody ActivateAccountRequest req,
+                         HttpServletRequest httpRequest) {
+        String ip = resolveClientIp(httpRequest);
+        if (!authRateLimiterService.allowPasswordReset(ip, activationRateKey(req.token()))) {
+            throw new RateLimitExceededException(
+                    "Too many activation attempts. Please try again later.",
+                    authRateLimiterService.passwordResetRetryAfterSeconds());
+        }
+        PasswordPolicy.requireStrongEnough(req.newPassword());
+        accountActivationService.activate(req.token(), req.newPassword());
+    }
+
+    /**
+     * Khoá hạn mức của MỘT liên kết kích hoạt. Tiền tố {@code activate:} để không đụng không gian
+     * khoá của đường đặt lại mật khẩu (khoá bên đó là địa chỉ email).
+     */
+    private static String activationRateKey(String token) {
+        return "activate:" + (token == null ? "" : token.trim());
+    }
+
+    public record ActivateAccountRequest(
+            @jakarta.validation.constraints.NotBlank(message = "Thiếu liên kết kích hoạt")
+            String token,
+            @jakarta.validation.constraints.NotBlank(message = "Mật khẩu là bắt buộc")
+            String newPassword
+    ) {}
 
     public record ForgotPasswordRequest(
             @jakarta.validation.constraints.NotBlank

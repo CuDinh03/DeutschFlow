@@ -31,6 +31,15 @@ public final class WebRoutes {
      */
     public static final String ORG_ACCEPT_INVITE = "/v2/org/accept";
 
+    /**
+     * Trang đặt mật khẩu LẦN ĐẦU cho tài khoản do trung tâm tạo từ CSV — CÔNG KHAI (người nhận chưa
+     * từng đăng nhập), token nằm ở query string (Q-09, 14/09/2026).
+     *
+     * <p>⚠️ Cùng ràng buộc với {@link #ORG_ACCEPT_INVITE}: email ĐÃ GỬI là bất biến, nên khi route
+     * này đổi thì đường cũ phải sống tiếp bằng redirect giữ nguyên {@code ?token=}.
+     */
+    public static final String ACCOUNT_ACTIVATE = "/v2/activate";
+
     /** Lộ trình học của học viên. */
     public static final String STUDENT_ROADMAP = "/v2/student/roadmap";
 
