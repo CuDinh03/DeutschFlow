@@ -169,6 +169,109 @@ class MinorLearnerServiceTest {
     }
 
     @Nested
+    @DisplayName("setBirthDate — đường SỬA của trung tâm (Q-02/Q-05, owner chốt 14/09/2026)")
+    class SetBirthDate {
+
+        /** {@code queryForList} đọc cột hiện tại; list rỗng = không có tài khoản nào mang id đó. */
+        private void stubCurrent(LocalDate current, boolean exists) {
+            List<LocalDate> rows = !exists ? List.of()
+                    : java.util.Collections.singletonList(current);
+            when(jdbcTemplate.queryForList(anyString(), eq(LocalDate.class), eq(STUDENT)))
+                    .thenReturn(rows);
+        }
+
+        @Test
+        @DisplayName("cột đang NULL ⇒ vết là student_birth_date_recorded, firstRecord=true")
+        void firstRecordUsesRecordedEvent() {
+            LocalDate dob = aged(14);
+            stubCurrent(null, true);
+            when(jdbcTemplate.update(anyString(), eq(dob), eq(MANAGER), eq(STUDENT), eq(dob))).thenReturn(1);
+
+            BirthDateChange change = service.setBirthDate(STUDENT, dob, MANAGER, ORG, ACTOR);
+
+            assertThat(change.changed()).isTrue();
+            assertThat(change.firstRecord()).isTrue();
+            assertThat(change.minorStatus()).isEqualTo(MinorPolicy.Status.MINOR_LEGAL);
+            verify(auditLogService).log(eq("student_birth_date_recorded"), any(AuditActor.class),
+                    anyString(), anyString(), any(), any());
+        }
+
+        @Test
+        @DisplayName("đã có giá trị ⇒ SỬA được, vết là student_birth_date_updated và mang nhóm tuổi CŨ")
+        void overwriteUsesUpdatedEventWithPreviousStatus() {
+            LocalDate dob = aged(20);
+            stubCurrent(aged(15), true);
+            when(jdbcTemplate.update(anyString(), eq(dob), eq(MANAGER), eq(STUDENT), eq(dob))).thenReturn(1);
+
+            BirthDateChange change = service.setBirthDate(STUDENT, dob, MANAGER, ORG, ACTOR);
+
+            assertThat(change.changed()).isTrue();
+            assertThat(change.firstRecord()).isFalse();
+            verify(auditLogService).log(eq("student_birth_date_updated"), any(AuditActor.class),
+                    anyString(), anyString(), any(), any());
+            // Đây là ca lạm dụng đáng sợ nhất (hạ tuổi một em 15 thành người lớn để mở khoá ghi âm):
+            // sổ vết phải đọc ra được CẢ HAI đầu của lượt nhảy, nếu không nó vô hình.
+            Map<String, Object> meta = capturedMeta();
+            assertThat(meta).containsEntry("previousStatus", "MINOR_LEGAL")
+                    .containsEntry("minorStatus", "ADULT");
+        }
+
+        @Test
+        @DisplayName("⛔ vết SỬA vẫn KHÔNG mang ngày sinh thô — cũ lẫn mới")
+        void auditNeverCarriesRawBirthDate() {
+            LocalDate previous = aged(15);
+            LocalDate dob = aged(17);
+            stubCurrent(previous, true);
+            when(jdbcTemplate.update(anyString(), eq(dob), eq(MANAGER), eq(STUDENT), eq(dob))).thenReturn(1);
+
+            service.setBirthDate(STUDENT, dob, MANAGER, ORG, ACTOR);
+
+            assertThat(capturedMeta().values().stream().map(String::valueOf))
+                    .noneMatch(v -> v.contains(dob.toString()) || v.contains(previous.toString()));
+        }
+
+        @Test
+        @DisplayName("gõ lại đúng ngày đang có ⇒ changed=false, không vết (một cú bấm Lưu không đổi gì)")
+        void sameValueIsNoOp() {
+            LocalDate dob = aged(17);
+            stubCurrent(dob, true);
+            when(jdbcTemplate.update(anyString(), eq(dob), eq(MANAGER), eq(STUDENT), eq(dob))).thenReturn(0);
+
+            BirthDateChange change = service.setBirthDate(STUDENT, dob, MANAGER, ORG, ACTOR);
+
+            assertThat(change.changed()).isFalse();
+            verifyNoInteractions(auditLogService);
+        }
+
+        @Test
+        @DisplayName("không có tài khoản ⇒ NotFound, không chạm câu UPDATE")
+        void throwsWhenStudentMissing() {
+            stubCurrent(null, false);
+
+            assertThatThrownBy(() -> service.setBirthDate(STUDENT, aged(17), MANAGER, ORG, ACTOR))
+                    .isInstanceOf(NotFoundException.class);
+            verify(jdbcTemplate, never()).update(anyString(), any(), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("ngày sinh tương lai bị chặn trước cả lượt đọc")
+        void rejectsFutureBirthDate() {
+            LocalDate tomorrow = LocalDate.now(MinorPolicy.ZONE).plusDays(1);
+
+            assertThatThrownBy(() -> service.setBirthDate(STUDENT, tomorrow, MANAGER, ORG, ACTOR))
+                    .isInstanceOf(BadRequestException.class);
+            verifyNoInteractions(auditLogService);
+        }
+
+        @Test
+        @DisplayName("thiếu người sửa ⇒ chặn: sửa danh tính phải có người chịu trách nhiệm")
+        void requiresRecordedBy() {
+            assertThatThrownBy(() -> service.setBirthDate(STUDENT, aged(15), null, ORG, ACTOR))
+                    .isInstanceOf(BadRequestException.class);
+        }
+    }
+
+    @Nested
     @DisplayName("statusOf — nạp từ DB, không từ principal")
     class StatusOf {
 

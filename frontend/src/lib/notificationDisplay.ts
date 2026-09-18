@@ -42,6 +42,8 @@ export const TYPE_ICON: Record<string, string> = {
   SCHEDULE_CHANGE_REJECTED: 'event_busy',
   TIMESHEET_PERIOD_APPROVED: 'fact_check',
   TIMESHEET_PERIOD_RETURNED: 'edit',
+  // Ngày sinh do trung tâm đặt/sửa (Q-02, 14/09/2026) — người nhận là CHÍNH học viên.
+  BIRTH_DATE_UPDATED: 'cake',
 }
 
 export const TYPE_TONE: Record<string, string> = {
@@ -78,6 +80,7 @@ export const TYPE_TONE: Record<string, string> = {
   SCHEDULE_CHANGE_REJECTED: 'var(--ga-red)',
   TIMESHEET_PERIOD_APPROVED: 'var(--ga-green)',
   TIMESHEET_PERIOD_RETURNED: 'var(--ga-orange)',
+  BIRTH_DATE_UPDATED: 'var(--ga-blue)',
 }
 
 /**
@@ -118,6 +121,7 @@ export const TYPE_LABEL: Record<string, string> = {
   SCHEDULE_CHANGE_REJECTED: 'Đề xuất đổi lịch bị từ chối',
   TIMESHEET_PERIOD_APPROVED: 'Kỳ công đã được duyệt',
   TIMESHEET_PERIOD_RETURNED: 'Kỳ công bị trả lại',
+  BIRTH_DATE_UPDATED: 'Ngày sinh được cập nhật',
 }
 
 /**
@@ -219,6 +223,9 @@ export function resolveNotificationHref(item: NotificationItem, role: RoleId): s
       return classId ? `/v2/student/classes/${classId}` : '/v2/student/classes'
     case 'JOIN_REQUEST_REJECTED':
       return '/v2/student/classes'
+    case 'BIRTH_DATE_UPDATED':
+      // Về hồ sơ của chính mình: thông báo này chỉ có ích khi người nhận đối chiếu được giá trị.
+      return '/v2/profile'
     case 'REVIEW_DUE':
       return '/v2/student/review'
     case 'STREAK_REMINDER':

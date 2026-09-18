@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { TYPE_ICON, TYPE_TONE, dayBucket, notifTitle, relTime, type NotifT } from '@/lib/notificationDisplay'
+import { TYPE_ICON, TYPE_TONE, dayBucket, notifTitle, relTime, resolveNotificationHref, type NotifT } from '@/lib/notificationDisplay'
 import chromeVi from '../../messages/v2/chrome.vi.json'
 import chromeDe from '../../messages/v2/chrome.de.json'
 
@@ -52,6 +52,17 @@ describe('notificationDisplay — i18n', () => {
       expect(TYPE_ICON[type]).toBeTruthy()
       expect(TYPE_TONE[type]).toMatch(/^var\(--ga-/)
     }
+  })
+
+  // Q-05 (14/09/2026): loại BIRTH_DATE_UPDATED gửi cho CHÍNH học viên — nhãn ba locale + lối về hồ sơ.
+  it('nhãn + lối đi của thông báo sửa ngày sinh', () => {
+    expect(notifTitle(item('BIRTH_DATE_UPDATED'), tVi)).toBe('Ngày sinh được cập nhật')
+    expect(notifTitle(item('BIRTH_DATE_UPDATED'), tDe)).toBe('Geburtsdatum aktualisiert')
+    expect(notifTitle(item('BIRTH_DATE_UPDATED'))).toBe('Ngày sinh được cập nhật')
+    expect(TYPE_ICON.BIRTH_DATE_UPDATED).toBeTruthy()
+    expect(TYPE_TONE.BIRTH_DATE_UPDATED).toMatch(/^var\(--ga-/)
+    // Về hồ sơ của chính mình, không phải danh sách lớp: giá trị bị sửa nằm ở đó.
+    expect(resolveNotificationHref(item('BIRTH_DATE_UPDATED'), 'student')).toBe('/v2/profile')
   })
 
   it('không có translator thì giữ hành vi tiếng Việt cũ', () => {

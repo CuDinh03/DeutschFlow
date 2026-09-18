@@ -81,6 +81,12 @@ describe('resolveNotificationRoute', () => {
     expect(resolveNotificationRoute('REVIEW_DUE', { dueCount: 4 })).toBe('/(student)/srs')
   })
 
+  it('đưa thông báo sửa ngày sinh về CHÍNH hồ sơ của người nhận (Q-05, 14/09/2026)', () => {
+    // Thông báo này chỉ có ích khi học viên đối chiếu được giá trị — đưa về hộp thư là vô nghĩa.
+    expect(resolveNotificationRoute('BIRTH_DATE_UPDATED', { birthDate: '2009-05-17', orgName: 'TT A' }))
+      .toBe('/(student)/settings/profile')
+  })
+
   it('returns null for a type with no useful destination', () => {
     expect(resolveNotificationRoute('ADMIN_BROADCAST', { title: 'x' })).toBeNull()
     expect(resolveNotificationRoute('UNKNOWN_TYPE', null)).toBeNull()

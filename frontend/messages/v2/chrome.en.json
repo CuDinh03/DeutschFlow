@@ -267,7 +267,8 @@
       "ADMIN_ORG_INVOICE_PAID": "Invoice paid",
       "SCHEDULE_CHANGE_REJECTED": "Schedule change request declined",
       "TIMESHEET_PERIOD_APPROVED": "Timesheet period approved",
-      "TIMESHEET_PERIOD_RETURNED": "Timesheet period returned"
+      "TIMESHEET_PERIOD_RETURNED": "Timesheet period returned",
+      "BIRTH_DATE_UPDATED": "Date of birth updated"
     }
   },
   "inbox": {

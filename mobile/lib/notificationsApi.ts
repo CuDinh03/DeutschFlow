@@ -58,6 +58,7 @@ export const STUDENT_NOTIFICATION_TYPES = [
   'CLASS_SESSION_RESCHEDULED',
   'LEARNER_PLAN_UPDATED',
   'SYSTEM_MAINTENANCE',
+  'BIRTH_DATE_UPDATED',
   'REPORT_ISSUED',
 ] as const
 
@@ -98,6 +99,8 @@ export function notificationTypeLabel(type: string): string {
       return 'Đổi lịch học'
     case 'LEARNER_PLAN_UPDATED':
       return 'Cập nhật gói'
+    case 'BIRTH_DATE_UPDATED':
+      return 'Ngày sinh được cập nhật'
     case 'SYSTEM_MAINTENANCE':
       return 'Bảo trì hệ thống'
     case 'REPORT_ISSUED':
@@ -131,6 +134,7 @@ export type NotificationIconKey =
   | 'calendarMove'
   | 'plan'
   | 'maintenance'
+  | 'profile'
   | 'report'
   | 'bell'
 
@@ -171,6 +175,8 @@ export function notificationIconKey(type: string): NotificationIconKey {
       return 'plan'
     case 'SYSTEM_MAINTENANCE':
       return 'maintenance'
+    case 'BIRTH_DATE_UPDATED':
+      return 'profile'
     case 'REPORT_ISSUED':
       return 'report'
   }

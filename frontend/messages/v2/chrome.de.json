@@ -267,7 +267,8 @@
       "ADMIN_ORG_INVOICE_PAID": "Rechnung bezahlt",
       "SCHEDULE_CHANGE_REJECTED": "Terminänderung abgelehnt",
       "TIMESHEET_PERIOD_APPROVED": "Stundenzettel genehmigt",
-      "TIMESHEET_PERIOD_RETURNED": "Stundenzettel zurückgegeben"
+      "TIMESHEET_PERIOD_RETURNED": "Stundenzettel zurückgegeben",
+      "BIRTH_DATE_UPDATED": "Geburtsdatum aktualisiert"
     }
   },
   "inbox": {

@@ -243,7 +243,9 @@
           "ADULT": "Volljährig"
         },
         "birthDateRecorded": "Geburtsdatum erfasst",
-        "birthDateMissing": "Kein Geburtsdatum — per CSV-Import nachtragen (Spalte birthDate)",
+        "birthDateMissing": "Noch kein Geburtsdatum",
+        "editBirthDate": "Geburtsdatum ändern",
+        "addBirthDate": "Geburtsdatum eintragen",
         "audioConsentLabel": "Einwilligung Tonaufnahme",
         "audioConsent": {
           "NEVER_RECORDED": "Nicht erfasst",
@@ -346,6 +348,21 @@
           "confirmDetailAppendOnly": "Nur-Anhängen-Register: Dieser Eintrag kann nach dem Schreiben weder bearbeitet noch gelöscht werden.",
           "saved": "Einwilligung erfasst",
           "revoked": "Widerruf der Einwilligung erfasst"
+        },
+        "birthDateModal": {
+          "titleAdd": "Geburtsdatum eintragen",
+          "titleEdit": "Geburtsdatum ändern",
+          "description": "Das Geburtsdatum entscheidet, ob diese Lernende Person das Sprechtraining und die KI-Bewertung nutzen kann.",
+          "label": "Geburtsdatum",
+          "recordedBy": "Aktueller Wert von {name} am {at} eingetragen.",
+          "unknownRecorder": "einem gelöschten Konto",
+          "noticeHint": "Die lernende Person erhält eine Benachrichtigung über diese Änderung.",
+          "gateHint": "Eine andere Altersgruppe bedeutet andere Rechte: unter 18 bleibt das Sprechtraining gesperrt, bis das Zentrum eine Einwilligung der Erziehungsberechtigten erfasst.",
+          "invalid": "Ungültiges Geburtsdatum",
+          "future": "Das Geburtsdatum darf nicht in der Zukunft liegen",
+          "cancel": "Abbrechen",
+          "submit": "Speichern",
+          "saved": "Geburtsdatum gespeichert"
         }
       },
       "tabs": {

@@ -267,7 +267,8 @@
       "ADMIN_ORG_INVOICE_PAID": "Hoá đơn đã thanh toán",
       "SCHEDULE_CHANGE_REJECTED": "Đề xuất đổi lịch bị từ chối",
       "TIMESHEET_PERIOD_APPROVED": "Kỳ công đã được duyệt",
-      "TIMESHEET_PERIOD_RETURNED": "Kỳ công bị trả lại"
+      "TIMESHEET_PERIOD_RETURNED": "Kỳ công bị trả lại",
+      "BIRTH_DATE_UPDATED": "Ngày sinh được cập nhật"
     }
   },
   "inbox": {
