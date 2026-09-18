@@ -52,6 +52,7 @@ class ClassScheduleServiceTest {
     @Mock private UserNotificationService notificationService;
     @Mock private com.deutschflow.organization.repository.ClassCurriculumLinkRepository classCurriculumLinkRepository;
     @Mock private ScheduleChangeQueue changeQueue;
+    @Mock private com.deutschflow.organization.service.OrgGuard orgGuard;
 
     private ClassScheduleService service;
 
@@ -63,7 +64,7 @@ class ClassScheduleServiceTest {
     void setUp() {
         service = new ClassScheduleService(
                 patternRepo, sessionRepo, classRepo, classStudentRepo, classTeacherRepo, notificationService,
-                classCurriculumLinkRepository, changeQueue);
+                classCurriculumLinkRepository, changeQueue, orgGuard);
     }
 
     // ── weekForTeacher ───────────────────────────────────────────────────────
@@ -661,4 +662,48 @@ class ClassScheduleServiceTest {
     private static ArgumentCaptor<List<ClassSession>> listCaptor() {
         return ArgumentCaptor.forClass(List.class);
     }
+
+    // ─── Gói 3 (D5): buổi học / lịch cố định của lớp thuộc trung tâm chỉ-đọc ─────────────────
+
+    @Test
+    @DisplayName("createSession: trung tâm chỉ-đọc → ORG_READ_ONLY, không sinh buổi nào")
+    void createSession_readOnlyOrg_blocked() {
+        allowOwner();
+        org.mockito.Mockito.doThrow(new com.deutschflow.common.exception.OrgReadOnlyException(9L, com.deutschflow.organization.service.OrgLicenseState.Reason.SUSPENDED))
+                .when(orgGuard).assertClassOrgWritable(CLASS_ID);
+
+        assertThatThrownBy(() -> service.createSession(TEACHER_ID, CLASS_ID,
+                new CreateSessionRequest(LocalDateTime.now().plusDays(2).withHour(9).withMinute(0), 60, "OFFLINE", "P.101")))
+                .isInstanceOf(com.deutschflow.common.exception.OrgReadOnlyException.class);
+
+        verify(sessionRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("upsertPattern: chặn TRƯỚC nhánh hàng chờ duyệt — không tích đề xuất nào")
+    void upsertPattern_readOnlyOrg_blockedBeforeQueue() {
+        allowOwner();
+        org.mockito.Mockito.doThrow(new com.deutschflow.common.exception.OrgReadOnlyException(9L, com.deutschflow.organization.service.OrgLicenseState.Reason.SUSPENDED))
+                .when(orgGuard).assertClassOrgWritable(CLASS_ID);
+
+        assertThatThrownBy(() -> service.upsertPattern(TEACHER_ID, CLASS_ID, new UpsertPatternRequest(
+                (short) 1, LocalTime.of(18, 0), 90, "OFFLINE", "P.302",
+                LocalDate.now(), LocalDate.now().plusWeeks(3))))
+                .isInstanceOf(com.deutschflow.common.exception.OrgReadOnlyException.class);
+
+        verify(patternRepo, never()).save(any());
+        org.mockito.Mockito.verifyNoInteractions(changeQueue);
+    }
+
+    @Test
+    @DisplayName("ĐƯỜNG ĐỌC vẫn sống: xem lịch cố định của lớp không đi qua cổng trạng thái (D5)")
+    void patternsForClass_neverCallsWriteGate() {
+        when(classTeacherRepo.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(patternRepo.findByClassIdOrderByDayOfWeekAscStartTimeAsc(CLASS_ID)).thenReturn(List.of());
+
+        service.patternsForClass(TEACHER_ID, CLASS_ID);
+
+        org.mockito.Mockito.verifyNoInteractions(orgGuard);
+    }
+
 }

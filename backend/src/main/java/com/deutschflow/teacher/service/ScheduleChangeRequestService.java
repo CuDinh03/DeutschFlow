@@ -119,6 +119,10 @@ public class ScheduleChangeRequestService {
     public ScheduleChangeRequestDto approve(Long reviewerId, Long orgId, Long requestId) {
         ClassScheduleChangeRequest r = loadForReview(orgId, requestId);
         orgGuard.assertAcademicApprover(reviewerId, orgId, r.getClassId());
+        // D5: DUYỆT là lúc buổi học thật sự được sinh ra (áp payload ngay bên dưới) — trung tâm
+        // chỉ-đọc không duyệt. Đường TỪ CHỐI (reject) cố ý không chặn: đóng một đề xuất lại không
+        // tạo thêm gì, và khoá nó sẽ để hàng chờ phình mãi.
+        orgGuard.assertOrgWritable(orgId);
         // AC19/AC20/AC23: đề xuất chạm T7/CN chỉ giám đốc trung tâm duyệt được.
         if (r.isHasWeekend()) {
             orgGuard.assertOrgOwner(reviewerId, orgId);

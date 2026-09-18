@@ -145,12 +145,18 @@ public class OrgController {
         return ResponseEntity.noContent().build();
     }
 
-    /** L-2: xoay token lời mời PENDING khi nghi link lộ — token cũ chết ngay, email mới tự gửi. */
+    /**
+     * L-2: xoay token lời mời PENDING khi nghi link lộ — token cũ chết ngay, email mới tự gửi.
+     *
+     * <p>D5/E1: {@code rotate} nằm trong nhóm BỊ CHẶN khi trung tâm chỉ-đọc (khác hẳn
+     * {@code revoke} ngay phía trên, vốn chỉ ĐÓNG một lời mời nên luôn cho): nó hồi sinh một đường
+     * kết nạp và gửi thư mời MỚI ra ngoài, tức vẫn là mở thêm ghế cho một trung tâm đã hết quyền ghi.
+     */
     @PostMapping("/invitations/{id}/rotate")
     public OrgInvitationDto rotateInvitation(@AuthenticationPrincipal User user,
                                              @PathVariable Long id) {
         Long orgId = requireOrgId(user);
-        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        orgGuard.assertOrgAdminForWrite(user.getId(), orgId);
         return orgInvitationService.rotate(orgId, id);
     }
 
@@ -247,7 +253,10 @@ public class OrgController {
                                           @PathVariable Long id,
                                           @jakarta.validation.Valid @RequestBody com.deutschflow.organization.dto.AssignClassTeacherRequest body) {
         Long orgId = requireOrgId(user);
-        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        // D5/E1: PHÂN CÔNG người phụ trách là giao thêm việc, cùng bản chất với `addAssistantTeacher`
+        // ngay bên dưới (vốn đã có cổng từ trước) — để hở đúng một trong hai là mâu thuẫn chứ không
+        // phải ngoại lệ. GỠ trợ giảng thì vẫn cho, vì gỡ là giảm chứ không thêm.
+        orgGuard.assertOrgAdminForWrite(user.getId(), orgId);
         return orgService.assignClassTeacher(orgId, id, body.teacherId());
     }
 
