@@ -85,7 +85,7 @@ stateDiagram-v2
 
 | State | Nghĩa | Bản ghi server-side |
 |---|---|---|
-| `WELCOME` | mobile: màn Chào mừng (Đợt 3, G-1); web: landing | ✗ |
+| `WELCOME` | mobile: màn Chào mừng `app/(auth)/welcome.tsx` (Đợt 3 PR-1, 18/09/2026 — `app/index.tsx` chưa đăng nhập → welcome qua `lib/entryRoute.ts` có test; cờ PostHog `onboarding-value-first` đã gỡ, G-1); web: landing | ✗ |
 | `PROFILE` | wizard 4 bước (mục tiêu → trình độ → nhịp → lĩnh vực/kỳ thi) | guest session (`PATCH` mỗi bước) |
 | `PROFILE_LITE` | học viên trung tâm: nhịp học (+ trình độ nếu thiếu) — Đợt 5 | ✓ user |
 | `TASTE` | quick win "Guten Morgen" (khách) | guest session `activityResult` |
@@ -142,7 +142,7 @@ một luồng**, và mọi kế hoạch "parity" đều phải xuất phát từ
 
 | Khía cạnh | Web `/v2/onboarding` | Mobile `(auth)/onboarding` | |
 |---|---|---|---|
-| Số bước phễu | 5 (level → goal → target → quick-win → signup gate) | wizard 4 bước (mục tiêu → trình độ → nhịp → lĩnh vực/kỳ thi) + gate quick-win — UI v2, #463 (02/09) | 🟡 gần parity, thứ tự khác |
+| Số bước phễu | 5 (level → goal → target → quick-win → signup gate) | **Chào mừng (M0, 18/09)** → wizard 4 bước (mục tiêu → trình độ → nhịp → lĩnh vực/kỳ thi) + quick-win có nút nghe (expo-speech de-DE) + gate — UI v2, #463 (02/09) | 🟡 gần parity, thứ tự khác |
 | Bài học đầu (A0) | **không có** | `(auth)/first-sentence` — nghe/nói/chấm cục bộ | 🔴 |
 | Kiểm tra đầu vào | có (`/skill-tree/placement-test`) | **không có** | 🔴 |
 | Nói thử với AI | không | không | 🔵 cả hai đều thiếu |

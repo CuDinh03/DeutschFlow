@@ -13,6 +13,7 @@ import { captureEvent } from '@/lib/analytics'
 import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft } from '@/lib/onboardingDraft'
 import { claimGuestSession, ensureGuestSession, syncGuestSession, type GuestAnswers } from '@/lib/guestSession'
 import { saveDailyGoalMinutes } from '@/lib/dailyGoal'
+import { speakGerman, stopGermanSpeech } from '@/lib/germanTts'
 import { MENTOR_META, mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { nextAfterProfile } from '@/lib/onboardingRouting'
 import { queryClient } from '@/lib/queryClient'
@@ -226,10 +227,7 @@ export default function OnboardingScreen() {
           targetLevel: draft.targetLevel,
           currentLevel: draft.currentLevel,
           motivation: draft.motivation,
-          ageRange: null,
-          interests: [],
           industry: draft.goalType === 'WORK' ? draft.industry : null,
-          workUseCases: [],
           examType: draft.goalType === 'CERT' ? draft.examType : null,
           sessionsPerWeek: DEFAULT_SESSIONS_PER_WEEK,
           minutesPerSession: DEFAULT_MINUTES_PER_SESSION,
@@ -316,10 +314,7 @@ export default function OnboardingScreen() {
         targetLevel,
         currentLevel,
         motivation,
-        ageRange: null,
-        interests: [],
         industry: goalType === 'WORK' ? industry : null,
-        workUseCases: [],
         examType: goalType === 'CERT' ? examType : null,
         sessionsPerWeek: DEFAULT_SESSIONS_PER_WEEK,
         minutesPerSession: DEFAULT_MINUTES_PER_SESSION,
@@ -826,6 +821,8 @@ function GuestQuickWin({
   const c = useTheme().colors
   const [choice, setChoice] = useState<string | null>(null)
   const solved = choice === 'Guten Morgen'
+  // Rời màn (đăng ký / quay lại) thì tắt giọng đang đọc — không để tiếng Đức chạy đè lên màn kế.
+  useEffect(() => () => { void stopGermanSpeech() }, [])
   const OPTIONS = ['Guten Morgen', 'Gute Nacht', 'Auf Wiedersehen']
   return (
     <Screen edges={['top', 'bottom']}>
@@ -847,6 +844,17 @@ function GuestQuickWin({
         showsVerticalScrollIndicator={false}
       >
         <TitleBlock cap="Trước khi lưu · Thử nhanh" title="Thử câu đầu tiên!" sub="„Chào buổi sáng“ trong tiếng Đức là gì?" />
+        {/* M5 (Đợt 3): nghe câu đúng bằng giọng Đức — mở hơn MCQ chữ, và là lần đầu người học NGHE tiếng Đức trong app. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Nghe câu chào tiếng Đức"
+          hitSlop={8}
+          onPress={() => { void Haptics.selectionAsync(); captureEvent('guest_activity_listened', { kind: 'quick_win' }); void speakGerman('Guten Morgen') }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], alignSelf: 'flex-start' }}
+        >
+          <Icon icon={Volume2} size={18} color="accent" />
+          <ThemedText variant="bodyStrong" color="accent">Nghe thử câu chào</ThemedText>
+        </Pressable>
         <View style={{ gap: space[3] }}>
           {OPTIONS.map((opt) => {
             const picked = choice === opt
