@@ -95,16 +95,13 @@ describe('defaultTargetLevelFor', () => {
 })
 
 describe('liteProfilePayload', () => {
-  it('đủ trường của POST /onboarding/profile như wizard mobile; mục tiêu/lĩnh vực/kỳ thi để trống cố ý', () => {
+  it('đủ trường bắt buộc của POST /onboarding/profile (Đợt 3: bỏ ageRange/interests/workUseCases thừa); mục tiêu/lĩnh vực/kỳ thi để trống cố ý', () => {
     expect(liteProfilePayload({ currentLevel: 'A2', sessionsPerWeek: 5, dailyGoalMinutes: 15 })).toEqual({
       goalType: 'WORK',
       targetLevel: 'B1',
       currentLevel: 'A2',
       motivation: null,
-      ageRange: null,
-      interests: [],
       industry: null,
-      workUseCases: [],
       examType: null,
       sessionsPerWeek: 5,
       minutesPerSession: 15,

@@ -79,6 +79,9 @@ public class TimesheetPeriodService {
         assertNoOverlap(teacherId, periodStart, periodEnd);
 
         Long orgId = userRepository.findById(teacherId).map(User::getOrgId).orElse(null);   // snapshot lúc mở
+        // D5/E1 — CỐ Ý KHÔNG có cổng trạng thái giấy phép ở đây. Mở kỳ là bước ĐẦU của bảng công,
+        // mà bảng công là ngoại lệ E1: chặn mở kỳ tháng sau đồng nghĩa chặn luôn nộp/duyệt/khoá
+        // công của tháng đó, tức khoá mất đúng cái quy trình lương mà chế độ chỉ-đọc phải giữ mở.
         // Chèn ATOMIC: hai request mở kỳ đồng thời cùng mốc bắt đầu không làm request thứ hai ném 500 —
         // ON CONFLICT DO NOTHING rồi cả hai tra lại kỳ đã có (idempotent).
         periodRepository.insertIfAbsent(teacherId, orgId, periodStart, periodEnd);

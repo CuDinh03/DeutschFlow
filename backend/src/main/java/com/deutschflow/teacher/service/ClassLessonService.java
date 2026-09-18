@@ -62,6 +62,7 @@ public class ClassLessonService {
     private final CanDoStatementRepository canDoRepository;
     private final ClassCurriculumLinkRepository classCurriculumLinkRepository;
     private final CurriculumItemRepository curriculumItemRepository;
+    private final com.deutschflow.organization.service.OrgGuard orgGuard;
 
     @Transactional(readOnly = true)
     public List<ClassLessonDto> listForTeacher(Long teacherId, Long classId) {
@@ -78,6 +79,7 @@ public class ClassLessonService {
     @Transactional
     public ClassLessonDto create(Long teacherId, Long classId, CreateLessonRequest req) {
         assertTeacherOwns(teacherId, classId);
+        orgGuard.assertClassOrgWritable(classId); // D5: buổi học mới trong lớp là TẠO MỚI
         if (req == null || req.title() == null || req.title().isBlank()) {
             throw new BadRequestException("Tiêu đề buổi học không được để trống");
         }

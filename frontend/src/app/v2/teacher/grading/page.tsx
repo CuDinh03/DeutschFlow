@@ -46,6 +46,31 @@ interface GradingQueueItem {
   attachmentUrl: string | null
 }
 
+/**
+ * Điểm AI ĐỀ XUẤT cho một bài nộp (R3, V323).
+ *
+ * ⛔ CHỈ cho giáo viên. Backend không đưa `ai_score`/`ai_feedback` vào `StudentAssignmentDto.forStudent`
+ * và cũng không đưa vào payload phiếu phụ huynh (`ReportPayloadBuilder.assertNoForbiddenKeys` chặn mọi
+ * khoá `ai*`), nên trang này là bề mặt DUY NHẤT hiện nó. Trình bày như ĐỀ XUẤT — không bao giờ như
+ * điểm cuối: điểm cuối là số giáo viên gõ vào ô bên dưới và bấm lưu.
+ */
+interface AiProposal {
+  aiScore: number | null
+  aiFeedback: string | null
+}
+
+/** Một dòng của `GET /v2/teacher/grading/classes/{cid}/assignments/{aid}/submissions`. */
+interface SubmissionRow {
+  submissionId: number | null
+  status: string
+  score: number | null
+  feedback: string | null
+  aiConfidence: number | null
+  criteria: Record<string, number> | null
+  aiScore?: number | null
+  aiFeedback?: string | null
+}
+
 interface GradingStats {
   totalPending: number
   totalGraded: number
@@ -124,6 +149,11 @@ function V2TeacherGradingPage() {
   const [drafts, setDrafts] = useState<Record<number, Draft>>({})
   const [aiSuggested, setAiSuggested] = useState<Record<number, boolean>>({})
   const [aiAssess, setAiAssess] = useState<Record<number, { confidence: number | null; criteria: Record<string, number> | null }>>({})
+  // ĐỀ XUẤT CỦA AI đọc từ cột riêng `ai_score`/`ai_feedback` (R3, V323) — SỐNG SÓT sau khi giáo viên
+  // chốt điểm, nên giáo viên đối chiếu lại được chính cái AI đã đề nghị. Khoá theo submissionId.
+  const [aiProposalById, setAiProposalById] = useState<Record<number, AiProposal>>({})
+  // Bài tập đã kéo đề xuất về rồi (một lượt GET cho cả bài, không phải cho từng học viên).
+  const fetchedProposalsRef = useRef<Set<number>>(new Set())
 
   // Transient state keyed BY submission id — same pattern as drafts/aiSuggested/aiAssess. Keeping these
   // global (a single string/bool) meant a 24s AI-grade poll that finished after the teacher switched
@@ -174,6 +204,35 @@ function V2TeacherGradingPage() {
   )
   const active = useMemo(() => queue.find((g) => g.id === activeId) ?? null, [queue, activeId])
 
+  // Kéo ĐỀ XUẤT CỦA AI cho bài đang mở. Hàng đợi (`/grading/queue`) không mang `ai_score` — chỉ đường
+  // `…/assignments/{aid}/submissions` mang — nên phải gọi thêm một lượt. Gọi theo BÀI TẬP chứ không
+  // theo từng bài nộp, và nhớ bằng ref: chuyển qua lại giữa các học viên cùng một bài chỉ tốn ĐÚNG
+  // một request. Lỗi ở đây im lặng có chủ ý: thiếu đề xuất AI không được phép chặn việc chấm tay.
+  useEffect(() => {
+    if (!active) return
+    const assignmentId = active.assignmentId
+    if (fetchedProposalsRef.current.has(assignmentId)) return
+    fetchedProposalsRef.current.add(assignmentId)
+    let cancelled = false
+    api
+      .get<SubmissionRow[]>(`/v2/teacher/grading/classes/${active.classId}/assignments/${assignmentId}/submissions`)
+      .then((res) => {
+        if (cancelled) return
+        const next: Record<number, AiProposal> = {}
+        for (const row of res.data ?? []) {
+          if (row.submissionId == null) continue
+          if (row.aiScore == null && !row.aiFeedback) continue
+          next[row.submissionId] = { aiScore: row.aiScore ?? null, aiFeedback: row.aiFeedback ?? null }
+        }
+        if (Object.keys(next).length) setAiProposalById((m) => ({ ...m, ...next }))
+      })
+      .catch(() => {
+        // Cho phép thử lại ở lần mở sau thay vì khoá vĩnh viễn vì một lần mất mạng.
+        fetchedProposalsRef.current.delete(assignmentId)
+      })
+    return () => { cancelled = true }
+  }, [active])
+
   // Transient state is keyed by submission id, so switching tabs no longer needs to wipe it — each
   // submission's own error/success/loading is preserved and shown only on its own panel.
 
@@ -219,7 +278,7 @@ function V2TeacherGradingPage() {
           const res = await api.get(
             `/v2/teacher/grading/classes/${current.classId}/assignments/${current.assignmentId}/submissions`,
           )
-          const rows = (res.data ?? []) as Array<{ submissionId: number | null; status: string; score: number | null; feedback: string | null; aiConfidence: number | null; criteria: Record<string, number> | null }>
+          const rows = (res.data ?? []) as SubmissionRow[]
           const row = rows.find((r) => r.submissionId === current.id)
           if (!row) continue
           if (row.status === 'GRADING_FAILED') {
@@ -233,6 +292,12 @@ function V2TeacherGradingPage() {
             setDrafts((d) => ({ ...d, [current.id]: { score: row.score as number, feedback: row.feedback ?? '' } }))
             setAiSuggested((m) => ({ ...m, [current.id]: true }))
             setAiAssess((m) => ({ ...m, [current.id]: { confidence: row.aiConfidence ?? null, criteria: row.criteria ?? null } }))
+            // Ghi lại ĐỀ XUẤT từ cột riêng ngay tại đây: sau khi giáo viên chốt điểm khác, `score` sẽ
+            // là điểm giáo viên, còn dòng này vẫn nhớ AI đã đề nghị bao nhiêu.
+            setAiProposalById((m) => ({
+              ...m,
+              [current.id]: { aiScore: row.aiScore ?? row.score, aiFeedback: row.aiFeedback ?? row.feedback },
+            }))
             setAiLoadingFor(current.id, false)
             return
           }
@@ -456,6 +521,7 @@ function V2TeacherGradingPage() {
               suggested={!!aiSuggested[active.id]}
               confidence={aiAssess[active.id]?.confidence ?? null}
               criteria={aiAssess[active.id]?.criteria ?? null}
+              aiProposal={aiProposalById[active.id] ?? null}
               aiLoading={!!aiLoadingById[active.id]}
               onAi={runAiGrade}
               onAiImage={runAiGradeImage}
@@ -595,6 +661,8 @@ interface ScoringProps {
   suggested: boolean
   confidence: number | null
   criteria: Record<string, number> | null
+  /** Đề xuất AI đọc từ `ai_score`/`ai_feedback`; null = bài này chưa từng qua AI. */
+  aiProposal: AiProposal | null
   aiLoading: boolean
   onAi: () => void
   onAiImage: () => void
@@ -604,7 +672,7 @@ interface ScoringProps {
   success: string
 }
 
-function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoading, onAi, onAiImage, saving, onSave, error, success }: ScoringProps) {
+function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiProposal, aiLoading, onAi, onAiImage, saving, onSave, error, success }: ScoringProps) {
   const t = useTranslations('v2.teacher.grading')
   const isAiGradable = item.assignmentType !== 'SPEAKING_SCENARIO'
   const hasText = !!item.submissionContent
@@ -660,6 +728,34 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
               <CheckCircle2 size={13} /> {t('aiSuggested')}
             </p>
           )}
+        </div>
+      )}
+
+      {/*
+        ĐIỂM AI ĐỀ XUẤT (R3, V323) — đọc từ cột riêng `ai_score`/`ai_feedback`, nên vẫn còn sau khi
+        giáo viên chốt một điểm khác. Đặt TRÊN ô nhập điểm và gắn nhãn "đề xuất" ở cả tiêu đề lẫn câu
+        chú thích: đây KHÔNG phải điểm cuối, điểm cuối là số giáo viên gõ bên dưới rồi bấm lưu.
+        Học viên không bao giờ thấy khối này (backend không trả `ai_*` ra đường học viên), và nó cũng
+        không đi vào phiếu gửi gia đình.
+      */}
+      {aiProposal && (aiProposal.aiScore != null || aiProposal.aiFeedback) && (
+        <div className="mb-[18px] border border-ga-line bg-ga-card p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <span className="ga-ui flex items-center gap-1.5 text-ga-small font-semibold text-ga-ink">
+              <Sparkles size={14} style={{ color: 'var(--ga-violet)' }} /> {t('aiProposalCap')}
+            </span>
+            {aiProposal.aiScore != null && (
+              <span className="ga-ui rounded-full px-2.5 py-0.5 text-ga-caption font-bold" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>
+                {t('aiProposalScore', { score: aiProposal.aiScore })}
+              </span>
+            )}
+          </div>
+          <p className="ga-ui m-0 text-ga-caption leading-relaxed text-ga-muted">{t('aiProposalHint')}</p>
+          {aiProposal.aiFeedback ? (
+            <p className="ga-ui m-0 mt-2 whitespace-pre-line border-t border-ga-line pt-2 text-ga-caption leading-relaxed text-ga-muted">
+              {aiProposal.aiFeedback}
+            </p>
+          ) : null}
         </div>
       )}
 

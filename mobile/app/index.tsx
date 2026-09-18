@@ -1,5 +1,6 @@
 import { Redirect } from 'expo-router'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { entryHrefFor } from '@/lib/entryRoute'
 
 // Entry route for `/`: a declarative auth gate.
 //
@@ -17,5 +18,6 @@ export default function Index() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
 
   if (isLoading) return null
-  return <Redirect href={isLoggedIn ? '/(student)' : '/(auth)/login'} />
+  // M0 (Đợt 3, 17/09): chưa đăng nhập → Chào mừng (phễu value-first), không còn vào thẳng Đăng nhập.
+  return <Redirect href={entryHrefFor({ isLoggedIn })} />
 }

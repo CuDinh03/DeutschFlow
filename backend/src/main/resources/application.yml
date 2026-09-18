@@ -864,6 +864,25 @@ app:
   # env Spring trả CHUỖI RỖNG (không phải "thiếu khoá"), và fallback bên @Value sẽ không bao giờ chạy.
   web-url: ${WEB_URL:${CORS_ALLOWED_ORIGINS:http://localhost:3000}}
 
+  # ── Danh tính người gửi của MỌI thư giao dịch (OTP quên mật khẩu, lời mời vào tổ chức) ──
+  # `from` BẮT BUỘC nằm trong identity đã verify ở SES, nếu không SES từ chối thẳng.
+  #
+  # Vì sao phải khai tường minh chứ không để mặc kệ: Gmail SMTP TỰ viết lại header `From` thành tài
+  # khoản vừa xác thực, nên thiếu `setFrom()` vẫn chạy và không ai thấy. SES không làm được vậy — thứ
+  # nó xác thực là `MAIL_USERNAME`, một chuỗi `AKIA…` chứ không phải địa chỉ email, nên nó không có gì
+  # để điền vào `From`. Thư rời ứng dụng KHÔNG có header `From` và SES từ chối. Đây là loại lỗi chỉ nổ
+  # SAU khi đổi biến môi trường sang SES, ở production, đúng lúc người dùng bấm "quên mật khẩu".
+  #
+  # Mặc định là `support@` chứ KHÔNG phải `no-reply@`: đây là địa chỉ duy nhất chạy đúng ở cả hai giai
+  # đoạn — vừa là alias đã verify trong Gmail "Send mail as" (đang dùng), vừa nằm trong identity
+  # `mydeutschflow.com` đã verify ở SES (sắp dùng). Đặt thẳng `no-reply@` lúc này thì Gmail ghi đè
+  # `From` về chính hòm đang xác thực, hoặc từ chối thư. Khi SES có production access, đổi sang
+  # `no-reply@` chỉ là đặt biến MAIL_FROM — không phải sửa code.
+  mail:
+    from: ${MAIL_FROM:support@mydeutschflow.com}
+    # Hòm người thật trả lời, để người nhận bấm Reply là tới đúng chỗ. Giữ khoá riêng kể cả khi đang
+    # trùng `from`: lúc đổi `from` sang `no-reply@` thì đây là thứ giữ cho nút Reply còn nghĩa.
+    reply-to: ${MAIL_REPLY_TO:support@mydeutschflow.com}
   # Liên kết "kích hoạt tài khoản" gửi cho học viên do trung tâm nhập từ CSV (Q-09, 14/09/2026).
   # 14 ngày: trung tâm thường nhập danh sách trước ngày khai giảng khoảng một tuần, và một em đi
   # vắng vài hôm vẫn phải dùng được. Ngắn hơn thì nửa lớp phải quay về đường "Quên mật khẩu" — tức

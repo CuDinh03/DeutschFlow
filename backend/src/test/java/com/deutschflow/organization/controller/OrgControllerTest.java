@@ -190,8 +190,10 @@ class OrgControllerTest {
     @Test
     @DisplayName("assign teacher: non-admin (guard ném Forbidden) → 403, KHÔNG gọi service")
     void assignClassTeacher_nonAdmin_returns403_serviceNotCalled() throws Exception {
+        // D5: handler chuyển sang assertOrgAdminForWrite (quyền + trạng thái giấy phép) — cùng
+        // biến thể mà addAssistantTeacher đã dùng từ trước.
         doThrow(new ForbiddenException("Chỉ quản trị viên tổ chức mới được thao tác này"))
-                .when(orgGuard).assertOrgAdmin(anyLong(), anyLong());
+                .when(orgGuard).assertOrgAdminForWrite(anyLong(), anyLong());
 
         mvc.perform(patch("/api/org/classes/7/teacher")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -340,5 +342,62 @@ class OrgControllerTest {
                 .andExpect(status().isForbidden());
 
         verify(orgMembershipService, never()).transferOwnership(anyLong(), any(), anyLong());
+    }
+
+    // ── D5/E1: đâu là cửa TẠO MỚI (đi qua cổng trạng thái), đâu là NGOẠI LỆ (không) ───────────
+    //
+    // Bốn ca dưới đây chốt ranh giới bằng chính LỜI GỌI GUARD mà handler thực hiện, chứ không chỉ
+    // bằng mã trạng thái: `assertOrgAdminForWrite` = có cổng D5, `assertOrgAdmin` trần = không.
+    // Ranh giới này rất dễ trôi — `rotate` từng nằm nhầm bên "không cổng" dù nó gửi thư mời MỚI,
+    // còn `assignClassTeacher` thì hở trong khi `addAssistantTeacher` ngay cạnh đã có cổng.
+
+    @Test
+    @DisplayName("rotate lời mời: đi qua cổng trạng thái trung tâm — chặn ở đó thì KHÔNG xoay token")
+    void rotateInvitation_goesThroughWriteGate() throws Exception {
+        doThrow(new ForbiddenException("chặn tại cổng ghi"))
+                .when(orgGuard).assertOrgAdminForWrite(anyLong(), anyLong());
+
+        mvc.perform(post("/api/org/invitations/5/rotate"))
+                .andExpect(status().isForbidden());
+
+        verify(orgGuard).assertOrgAdminForWrite(1L, 10L);
+        verify(orgInvitationService, never()).rotate(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("THU HỒI lời mời: KHÔNG qua cổng trạng thái — trung tâm chỉ-đọc vẫn đóng được lời mời")
+    void revokeInvitation_notGatedByLicence() throws Exception {
+        mvc.perform(delete("/api/org/invitations/5"))
+                .andExpect(status().isNoContent());
+
+        verify(orgInvitationService).revoke(10L, 5L);
+        verify(orgGuard, never()).assertOrgAdminForWrite(anyLong(), anyLong());
+        verify(orgGuard, never()).assertOrgWritable(anyLong());
+    }
+
+    @Test
+    @DisplayName("phân công giáo viên phụ trách: đi qua cổng trạng thái — chặn ở đó thì KHÔNG gọi service")
+    void assignClassTeacher_goesThroughWriteGate() throws Exception {
+        doThrow(new ForbiddenException("chặn tại cổng ghi"))
+                .when(orgGuard).assertOrgAdminForWrite(anyLong(), anyLong());
+
+        mvc.perform(patch("/api/org/classes/3/teacher")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"teacherId\":99}"))
+                .andExpect(status().isForbidden());
+
+        verify(orgGuard).assertOrgAdminForWrite(1L, 10L);
+        verify(orgService, never()).assignClassTeacher(anyLong(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("E1 — gỡ thành viên: KHÔNG qua cổng trạng thái, trung tâm chỉ-đọc vẫn gỡ được")
+    void removeMember_e1_notGatedByLicence() throws Exception {
+        mvc.perform(delete("/api/org/members/77"))
+                .andExpect(status().isNoContent());
+
+        verify(orgMembershipService).removeMember(eq(10L), eq(77L), any(AuditActor.class));
+        verify(orgGuard, never()).assertOrgAdminForWrite(anyLong(), anyLong());
+        verify(orgGuard, never()).assertOrgWritable(anyLong());
     }
 }

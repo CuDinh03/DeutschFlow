@@ -133,10 +133,10 @@ export default function AboutPage() {
             <p className="mt-8 max-w-[54ch] text-[16px] leading-[1.7] text-ga-muted">
               Có câu hỏi hay góp ý? Viết cho mình:{' '}
               <a
-                href="mailto:dinhhuycu0305@gmail.com"
+                href="mailto:support@mydeutschflow.com"
                 className="font-medium text-ga-ink underline underline-offset-2 hover:opacity-80"
               >
-                dinhhuycu0305@gmail.com
+                support@mydeutschflow.com
               </a>{' '}
               — hoặc xem trang{' '}
               <Link href="/support" className="font-medium text-ga-ink underline underline-offset-2 hover:opacity-80">

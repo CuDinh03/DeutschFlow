@@ -19,10 +19,12 @@ import static org.mockito.Mockito.verify;
 class OrgInvitationMailerUnitTest {
 
     private static final String WEB = "https://mydeutschflow.com";
+    private static final String FROM = "support@mydeutschflow.com";
+    private static final String REPLY_TO = "support@mydeutschflow.com";
 
     /** mailHost rỗng = SMTP chưa cấu hình → mailer im lặng bỏ qua (hành vi sẵn có). */
     private static OrgInvitationMailer mailerWithMail(JavaMailSender sender) {
-        return new OrgInvitationMailer(sender, WEB, "smtp.example.com");
+        return new OrgInvitationMailer(sender, WEB, "smtp.example.com", FROM, REPLY_TO);
     }
 
     @Test
@@ -48,7 +50,7 @@ class OrgInvitationMailerUnitTest {
     @DisplayName("chưa cấu hình SMTP thì không gửi và cũng KHÔNG được ném lỗi (không chặn việc tạo lời mời)")
     void doesNotSendNorThrowWhenMailDisabled() {
         JavaMailSender sender = mock(JavaMailSender.class);
-        var mailer = new OrgInvitationMailer(sender, WEB, "");
+        var mailer = new OrgInvitationMailer(sender, WEB, "", FROM, REPLY_TO);
 
         mailer.sendInvite("teacher@example.com", "Trung tâm A", "TEACHER", "tok-123");
 
@@ -62,7 +64,8 @@ class OrgInvitationMailerUnitTest {
         var captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
         // Đúng hình dạng của CORS_ALLOWED_ORIGINS khi WEB_URL không được đặt (fallback trong yml).
         var mailer = new OrgInvitationMailer(
-                sender, "https://mydeutschflow.com/,https://www.mydeutschflow.com", "smtp.example.com");
+                sender, "https://mydeutschflow.com/,https://www.mydeutschflow.com", "smtp.example.com",
+                FROM, REPLY_TO);
 
         mailer.sendInvite("teacher@example.com", "Trung tâm A", "MANAGER", "tok-9");
 
@@ -70,5 +73,28 @@ class OrgInvitationMailerUnitTest {
         assertThat(captor.getValue().getText())
                 .contains("https://mydeutschflow.com/v2/org/accept?token=tok-9")
                 .doesNotContain("//v2/org/accept");
+    }
+
+    /**
+     * SES xác thực `MAIL_USERNAME` — một chuỗi `AKIA…`, không phải địa chỉ email — nên nó không có gì để
+     * điền vào `From`. Thư không có header `From` bị SES từ chối thẳng. Gmail che được lỗi này vì tự viết
+     * lại `From` thành tài khoản vừa xác thực, nên nó chỉ nổ SAU khi đổi biến môi trường sang SES, ở
+     * production. Ca này là thứ duy nhất bắt được nó trước lúc đó.
+     */
+    @Test
+    @DisplayName("thư mời mang đúng danh tính người gửi đã cấu hình (From + Reply-To)")
+    void inviteCarriesConfiguredSenderIdentity() {
+        JavaMailSender sender = mock(JavaMailSender.class);
+        var captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+
+        mailerWithMail(sender).sendInvite("teacher@example.com", "Trung tâm A", "TEACHER", "tok-123");
+
+        verify(sender).send(captor.capture());
+        assertThat(captor.getValue().getFrom())
+                .as("thiếu From là SES từ chối thư")
+                .isEqualTo(FROM);
+        assertThat(captor.getValue().getReplyTo())
+                .as("Reply-To phải trỏ hòm người thật trả lời được")
+                .isEqualTo(REPLY_TO);
     }
 }

@@ -13,6 +13,7 @@ import { captureEvent } from '@/lib/analytics'
 import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft } from '@/lib/onboardingDraft'
 import { claimGuestSession, ensureGuestSession, syncGuestSession, type GuestAnswers } from '@/lib/guestSession'
 import { saveDailyGoalMinutes } from '@/lib/dailyGoal'
+import { speakGerman, stopGermanSpeech } from '@/lib/germanTts'
 import { MENTOR_META, mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { nextAfterProfile } from '@/lib/onboardingRouting'
 import { queryClient } from '@/lib/queryClient'
@@ -226,10 +227,7 @@ export default function OnboardingScreen() {
           targetLevel: draft.targetLevel,
           currentLevel: draft.currentLevel,
           motivation: draft.motivation,
-          ageRange: null,
-          interests: [],
           industry: draft.goalType === 'WORK' ? draft.industry : null,
-          workUseCases: [],
           examType: draft.goalType === 'CERT' ? draft.examType : null,
           sessionsPerWeek: DEFAULT_SESSIONS_PER_WEEK,
           minutesPerSession: DEFAULT_MINUTES_PER_SESSION,
@@ -316,10 +314,7 @@ export default function OnboardingScreen() {
         targetLevel,
         currentLevel,
         motivation,
-        ageRange: null,
-        interests: [],
         industry: goalType === 'WORK' ? industry : null,
-        workUseCases: [],
         examType: goalType === 'CERT' ? examType : null,
         sessionsPerWeek: DEFAULT_SESSIONS_PER_WEEK,
         minutesPerSession: DEFAULT_MINUTES_PER_SESSION,
@@ -479,7 +474,12 @@ export default function OnboardingScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginTop: -space[2] }}>
                 <YellowSquare />
                 <ThemedText variant="caption" color="secondary">
-                  Chưa cần tài khoản — trả lời trong khoảng 1 phút.
+                  {/* Câu mời của phễu KHÁCH. Người vừa đăng ký cũng đáp xuống đây (register.tsx
+                      replace sang màn này), nên nói "chưa cần tài khoản" với họ là sai — họ vừa tạo
+                      xong. Đo trên máy ảo 16/09 ở bản 18. */}
+                  {isLoggedIn
+                    ? "Trả lời trong khoảng 1 phút — để dựng lộ trình cho bạn."
+                    : "Chưa cần tài khoản — trả lời trong khoảng 1 phút."}
                 </ThemedText>
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
@@ -581,7 +581,10 @@ export default function OnboardingScreen() {
                 <View style={{ flex: 1, gap: 2 }}>
                   <ThemedText variant="bodyStrong">Nhắc học 20:00 mỗi tối</ThemedText>
                   <ThemedText variant="caption" color="secondary">
-                    Bật sau khi tạo tài khoản — đổi giờ được trong Cài đặt.
+                    {/* Cùng lý do: người đã đăng nhập không còn "sau khi tạo tài khoản" nào để chờ. */}
+                    {isLoggedIn
+                      ? "Đổi giờ được trong Cài đặt."
+                      : "Bật sau khi tạo tài khoản — đổi giờ được trong Cài đặt."}
                   </ThemedText>
                 </View>
               </Card>
@@ -818,6 +821,8 @@ function GuestQuickWin({
   const c = useTheme().colors
   const [choice, setChoice] = useState<string | null>(null)
   const solved = choice === 'Guten Morgen'
+  // Rời màn (đăng ký / quay lại) thì tắt giọng đang đọc — không để tiếng Đức chạy đè lên màn kế.
+  useEffect(() => () => { void stopGermanSpeech() }, [])
   const OPTIONS = ['Guten Morgen', 'Gute Nacht', 'Auf Wiedersehen']
   return (
     <Screen edges={['top', 'bottom']}>
@@ -839,6 +844,17 @@ function GuestQuickWin({
         showsVerticalScrollIndicator={false}
       >
         <TitleBlock cap="Trước khi lưu · Thử nhanh" title="Thử câu đầu tiên!" sub="„Chào buổi sáng“ trong tiếng Đức là gì?" />
+        {/* M5 (Đợt 3): nghe câu đúng bằng giọng Đức — mở hơn MCQ chữ, và là lần đầu người học NGHE tiếng Đức trong app. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Nghe câu chào tiếng Đức"
+          hitSlop={8}
+          onPress={() => { void Haptics.selectionAsync(); captureEvent('guest_activity_listened', { kind: 'quick_win' }); void speakGerman('Guten Morgen') }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], alignSelf: 'flex-start' }}
+        >
+          <Icon icon={Volume2} size={18} color="accent" />
+          <ThemedText variant="bodyStrong" color="accent">Nghe thử câu chào</ThemedText>
+        </Pressable>
         <View style={{ gap: space[3] }}>
           {OPTIONS.map((opt) => {
             const picked = choice === opt
