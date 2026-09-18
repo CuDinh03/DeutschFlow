@@ -138,8 +138,7 @@
       "writePlaceholder": "Write your answer in German...",
       "prev": "Back",
       "next": "Next",
-      "submit": "Submit",
-      "take": "Take the test"
+      "submit": "Submit"
     },
     "result": {
       "passed": "Nice — you're ready!",
@@ -158,10 +157,6 @@
       "progressAria": "Roadmap setup progress",
       "stepOf": "Step {step} of {total}",
       "stepAnnounce": "Step {step} of {total}: {title}"
-    },
-    "loader": {
-      "title": "Building your roadmap…",
-      "sub": "Saving the goal and mentor you just picked."
     },
     "error": {
       "offline": "Connection lost — your profile wasn't saved. Check your network and try again.",

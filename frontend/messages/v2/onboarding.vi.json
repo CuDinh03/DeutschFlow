@@ -138,8 +138,7 @@
       "writePlaceholder": "Viết câu trả lời bằng tiếng Đức...",
       "prev": "Trước",
       "next": "Tiếp",
-      "submit": "Nộp bài",
-      "take": "Làm bài kiểm tra"
+      "submit": "Nộp bài"
     },
     "result": {
       "passed": "Tốt rồi, bạn đã sẵn sàng!",
@@ -158,10 +157,6 @@
       "progressAria": "Tiến độ thiết lập lộ trình",
       "stepOf": "Bước {step} trên {total}",
       "stepAnnounce": "Bước {step} trên {total}: {title}"
-    },
-    "loader": {
-      "title": "Đang tạo lộ trình của bạn…",
-      "sub": "Lưu mục tiêu và mentor bạn vừa chọn."
     },
     "error": {
       "offline": "Mất kết nối — hồ sơ chưa được lưu. Kiểm tra mạng rồi thử lại.",

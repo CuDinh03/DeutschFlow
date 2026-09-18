@@ -138,8 +138,7 @@
       "writePlaceholder": "Schreibe deine Antwort auf Deutsch...",
       "prev": "Zurück",
       "next": "Weiter",
-      "submit": "Abgeben",
-      "take": "Test starten"
+      "submit": "Abgeben"
     },
     "result": {
       "passed": "Super — du bist bereit!",
@@ -158,10 +157,6 @@
       "progressAria": "Fortschritt der Lernweg-Einrichtung",
       "stepOf": "Schritt {step} von {total}",
       "stepAnnounce": "Schritt {step} von {total}: {title}"
-    },
-    "loader": {
-      "title": "Dein Lernweg wird erstellt…",
-      "sub": "Ziel und Mentor werden gespeichert."
     },
     "error": {
       "offline": "Verbindung verloren — dein Profil wurde nicht gespeichert. Prüfe dein Netz und versuch es erneut.",

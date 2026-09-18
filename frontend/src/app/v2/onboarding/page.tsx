@@ -201,6 +201,7 @@ export default function V2OnboardingPage() {
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       toast.error(msg || t("error.createTest"));
+      setResuming(false);
       router.push(ROADMAP_ROUTE);
     }
     setLoading(false);
@@ -227,8 +228,9 @@ export default function V2OnboardingPage() {
    */
   const saveLiteProfile = useCallback(async (payload: LiteProfilePayload): Promise<boolean> => {
     setLoading(true);
+    setResuming(true); // I-10: học viên trung tâm cũng thấy "Đang tạo lộ trình…" (fixture PL1 → CREATING)
     const ok = await postProfile(payload);
-    if (!ok) { setLoading(false); return false; }
+    if (!ok) { setLoading(false); setResuming(false); return false; }
     const base = { level: payload.currentLevel, goal: payload.goalType, industry: null, lite: true, accountSource: orgContext?.accountSource ?? null };
     trackEvent('onboarding_completed', base);
     trackEvent('onboarding_profile_saved', base);
@@ -388,6 +390,8 @@ export default function V2OnboardingPage() {
       setStep(STEP_AUTH_GATE);
       return;
     }
+    // Khoá nút NGAY (cùng lý do với nút lưu hồ sơ): bấm đúp trước khi re-render là hai POST tạo bài test.
+    setLoading(true);
     void goAfterProfile({ level: currentLevel, pathChoice: choice });
   }, [answers, currentLevel, isGuest, goAfterProfile, trackEvent]);
 
