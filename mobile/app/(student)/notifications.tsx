@@ -55,6 +55,9 @@ const ICON_BY_KEY: Record<NotificationIconKey, GlyphName> = {
   calendarMove: 'lich',
   plan: 'thinoi',
   maintenance: 'sualoi',
+  // Phiếu đánh giá gửi gia đình: bộ glyph chưa có hình "phiếu" riêng, dùng `thongke` vì phiếu
+  // chính là bảng điểm bốn kỹ năng + chuyên cần. Thêm glyph mới phải theo mobile/GALERIE_GLYPHS.md.
+  report: 'thongke',
   bell: 'thongbao',
 }
 
