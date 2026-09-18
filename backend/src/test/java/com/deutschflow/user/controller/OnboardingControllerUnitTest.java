@@ -19,6 +19,8 @@ class OnboardingControllerUnitTest {
     private MockMvc mvc;
     @Mock
     com.deutschflow.user.service.LearningPlanService learningPlanService;
+    @Mock
+    com.deutschflow.user.onboarding.service.OnboardingContextService contextService;
 
     @InjectMocks
     OnboardingController controller;

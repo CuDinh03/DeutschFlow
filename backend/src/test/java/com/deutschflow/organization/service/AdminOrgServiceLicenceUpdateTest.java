@@ -11,6 +11,7 @@ import com.deutschflow.organization.dto.UpdateOrgRequest;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
+import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -271,6 +272,33 @@ class AdminOrgServiceLicenceUpdateTest {
         verify(auditLogService).log(eq("admin.org.created"), eq(ADMIN),
                 eq("ORG"), eq(String.valueOf(ORG_ID)), eq(ORG_ID), meta.capture());
         assertThat(meta.getValue()).containsEntry("monthlyTokenPool", 300_000L).containsEntry("poolUnlimited", false);
+    }
+
+    @Test
+    @DisplayName("🔴 createOrganization gắn giám đốc có sẵn → vết admin.org.owner_attached mang org_id — trước đây thành viên đầu tiên không có dòng nào")
+    @SuppressWarnings("unchecked")
+    void createOrganization_attachExistingOwner_writesTrail() {
+        when(organizationRepository.existsBySlug("tt-vet")).thenReturn(false);
+        when(organizationRepository.save(any(Organization.class))).thenAnswer(i -> {
+            Organization o = i.getArgument(0);
+            o.setId(ORG_ID);
+            return o;
+        });
+        when(orgMemberRepository.findByIdOrgIdAndStatus(eq(ORG_ID), eq("ACTIVE"))).thenReturn(List.of());
+        User owner = User.builder().id(77L).email("giamdoc@tt.local").role(User.Role.TEACHER).build();
+        when(userRepository.findByEmailIgnoreCase("giamdoc@tt.local")).thenReturn(Optional.of(owner));
+
+        service.createOrganization(new CreateOrgRequest("TT Vết", "tt-vet", "PRO", 10, "giamdoc@tt.local",
+                null, null, 300_000L, false), ADMIN);
+
+        ArgumentCaptor<Map> meta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("admin.org.owner_attached"), eq(ADMIN),
+                eq("ORG_MEMBER"), eq("77"), eq(ORG_ID), meta.capture());
+        assertThat(meta.getValue())
+                .containsEntry("targetUserId", 77L)
+                .containsEntry("targetEmail", "giamdoc@tt.local")
+                .containsEntry("role", "OWNER")
+                .containsEntry("accountCreated", false);
     }
 
     @Test

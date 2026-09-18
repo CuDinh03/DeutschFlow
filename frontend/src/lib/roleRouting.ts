@@ -53,3 +53,23 @@ export function homeFor(role: string, options: HomeOptions = {}): string {
 
   return '/v2/student/dashboard'
 }
+
+export interface LandingOptions extends HomeOptions {
+  /**
+   * `GET /onboarding/status.hasPlan` — chỉ có nghĩa với STUDENT. `undefined`/`true` = đã có
+   * lộ trình (hoặc không hỏi được: lỗi mạng KHÔNG được chặn đăng nhập).
+   */
+  hasPlan?: boolean
+}
+
+/**
+ * Điểm hạ cánh sau đăng nhập = `homeFor()` + cổng quay lại onboarding (Đợt 0, 17/09):
+ * học viên chưa có lộ trình (`hasPlan === false`) về phễu `/v2/onboarding` thay vì dashboard
+ * rỗng. Vai trò khác không bao giờ bị đưa vào phễu dù `hasPlan` có là gì.
+ */
+export function landingAfterLogin(role: string, options: LandingOptions = {}): string {
+  const home = homeFor(role, options)
+  const platformRole = String(role ?? '').trim().toUpperCase()
+  if (platformRole === 'STUDENT' && options.hasPlan === false) return '/v2/onboarding'
+  return home
+}

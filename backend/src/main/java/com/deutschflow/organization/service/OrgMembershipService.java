@@ -286,6 +286,17 @@ public class OrgMembershipService {
         upsertMember(orgId, userId, ROLE_STUDENT);
         organizationRepository.findById(orgId)
                 .ifPresent(org -> orgEntitlementService.grantStudent(userId, org));
+        // Vết cho đường kết nạp DỄ SÓT NHẤT (nợ Gói 2, vá 11/09/2026): học viên vào trung tâm vì
+        // được nhận vào một lớp — không qua console, không qua CSV, không qua lời mời, nên trước đây
+        // chiếm một ghế có tính tiền mà sổ hoạt động không có dòng nào. Cùng tên sự kiện
+        // `org_member_added` với các đường kia để MỘT truy vấn bắt trọn mọi lần kết nạp; `via` nói
+        // đường nào. Actor lấy từ ngữ cảnh bảo mật (giáo viên bấm duyệt, hoặc chính học viên nhập mã
+        // mời); chạy ngoài ngữ cảnh HTTP thì actor rỗng, vết vẫn ghi đủ định danh mục tiêu.
+        audit("org_member_added",
+                AuditActor.ofAuthentication(
+                        org.springframework.security.core.context.SecurityContextHolder
+                                .getContext().getAuthentication()),
+                orgId, userId, meta("role", ROLE_STUDENT, "via", "class_join"));
     }
 
     /**

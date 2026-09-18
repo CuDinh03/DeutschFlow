@@ -5,6 +5,27 @@ import { useTranslations } from 'next-intl'
 import { AlertCircle, ChevronRight, Loader2, Send, User } from 'lucide-react'
 import { AudioPlayer } from '@/components/exam/AudioPlayer'
 import { SprechenTeil2Simulator } from '@/components/exam/SprechenTeil2Simulator'
+import { TelcTeilBody } from '@/components/exam/telc/TelcTeilBody'
+import { telcTeilType } from '@/components/exam/telc/telcTeil'
+import { DialogueAudioPlayer } from '@/components/exam/DialogueAudioPlayer'
+import { HoerenGate } from '@/components/exam/HoerenGate'
+import { ReadingPassage, isRichPassage } from '@/components/exam/telc/ReadingPassage'
+import { WritingStimulus } from '@/components/exam/telc/WritingStimulus'
+import {
+  isWritingStimulus,
+  orderedWritingPoints,
+  type WritingStimulus as WritingStimulusData,
+} from '@/components/exam/telc/writingTask'
+import {
+  isDialogueScript,
+  isHoerenUnlocked,
+  itemTurns,
+  needsPersonaVoice,
+  parseHoerenGate,
+  scriptToPlainText,
+  type AudioScript,
+  type HoerenGatePhase,
+} from '@/components/exam/audioScript'
 
 // Taking view of the mock-exam runner, ported 1:1 from the legacy /student/mock-exam page
 // (same exam JSON shape, same answer keys, same widget-selection rule) with a Galerie shell.
@@ -18,7 +39,11 @@ export interface ExamQuestionItem {
   question?: string
   text?: string
   person?: string
-  audio_script?: string
+  audio_script?: AudioScript
+  /** Câu dẫn tình huống đọc trước bài (HV Teil 3 telc): „Im Radio hören Sie folgenden Hinweis." */
+  lead_in_de?: string
+  /** Giọng của người nói bài này (HV Teil 1 telc: năm người, nam nữ xen kẽ). */
+  speaker?: string
   options?: Record<string, string>
   /**
    * Non-revealing question type sent by the backend so we can pick the answer widget
@@ -37,18 +62,54 @@ export interface ExamTeil {
   instruction_vi?: string
   instruction_de?: string
   context?: string
-  audio_script?: string
+  /**
+   * Bài đọc dài kiểu đề thật (LV Teil 2 telc, 17/09/2026): tiêu đề, Vorspann in đậm, thân bài
+   * đánh số dòng mỗi 5 dòng, chú thích từ khó cuối bài. Đề không khai ⇒ `context` dựng như cũ.
+   */
+  title_de?: string
+  vorspann_de?: string
+  context_lines?: boolean
+  glossary?: Array<{ term: string; explanation_de: string }>
+  audio_script?: AudioScript
+  /** Số lần được phép nghe (telc: 1 ở HV Teil 1, 2 ở Teil 2–3). Bỏ trống = không giới hạn. */
+  max_plays?: number
+  /**
+   * Nghi thức bài nghe telc (17/09/2026): Ansage nguyên văn, giây đọc câu hỏi trước khi phát
+   * (30 / 60 / 0), câu khung của Teil 1. Đề không khai ⇒ không có cổng, phát ngay như trước.
+   */
+  ansage_de?: string
+  reading_seconds?: number
+  framing_de?: string
   items?: ExamQuestionItem[]
   form_fields?: Array<{ field: string; instruction_vi: string }>
   /** Đề bài phần Viết/Nói của các đề B1+ (seed dùng `prompt` thay cho `input_email`). */
   prompt?: string
   input_email?: string
   writing_points?: string[]
+  /**
+   * Phần Viết kiểu telc (17/09/2026): văn bản mà bài viết trả lời (E-Mail của bạn / mẩu tin / thư)
+   * in phía trên, và cờ xáo thứ tự Leitpunkte khi in (seed lưu thứ tự hợp lý cho AI chấm).
+   * Đề Goethe không khai ⇒ khối đề bài dựng như cũ.
+   */
+  stimulus?: WritingStimulusData
+  shuffle_points?: boolean
   prompt_words?: string[]
   /** Thẻ chủ đề phần Nói (seed A1/A2): trước đây chỉ dùng để bật simulator, nội dung không hiện. */
   topic_cards?: Array<{ card?: string; question_to_ask?: string }>
   /** Thẻ tình huống phần Nói Teil 3 của seed A1 — không có nhánh render nên Teil 3 ra ô trống. */
   scenario_cards?: Array<{ situation?: string; request?: string }>
+  /**
+   * Dạng bài ở cấp Teil. Đề telc khai bốn dạng riêng (`MATCH_HEADLINE`, `MATCH_AD_X`, `GAP_MC`,
+   * `GAP_WORDBANK`) mà `answerWidget` KHÔNG suy ra được từ hình dạng câu hỏi — xem
+   * `components/exam/telc/telcTeil.ts`.
+   */
+  type?: string
+  headlines?: Record<string, string>
+  ads?: Record<string, string>
+  word_bank?: Record<string, string>
+  gapped_text?: string
+  single_use?: boolean
+  allow_none?: boolean
 }
 
 export interface ExamSection {
@@ -66,6 +127,8 @@ export interface ActiveExamData {
 /** Section accent — Galerie palette (legacy used its own indigo/sky/emerald/amber set). */
 export const SECTION_COLOR: Record<string, string> = {
   LESEN: 'var(--ga-violet)',
+  // Phần riêng của telc; thiếu màu ở đây là dải trên của phần này ra màu mặc định không tên.
+  SPRACHBAUSTEINE: 'var(--ga-teal)',
   HOEREN: 'var(--ga-blue)',
   SCHREIBEN: 'var(--ga-green)',
   SPRECHEN: 'var(--ga-orange)',
@@ -182,6 +245,9 @@ export function ExamTaking({
   onExit,
 }: ExamTakingProps) {
   const t = useTranslations('v2.student.mockExamRun')
+  // Pha của cổng nghi thức từng Teil nghe — khoá theo phần + số Teil, sống suốt bài thi để đổi
+  // phần rồi quay lại không được "mở đề lần nữa" (đề thật không có nút quay lại).
+  const [gatePhases, setGatePhases] = React.useState<Record<string, HoerenGatePhase>>({})
 
   if (!data?.sections || data.sections.length === 0) {
     return <ExamRecoveryPanel title={t('recoveryNoContentTitle')} message={t('recoveryNoContentDesc')} onExit={onExit} />
@@ -220,10 +286,22 @@ export function ExamTaking({
           currentSection.name === 'SCHREIBEN' && !teil.form_fields
             ? teil.input_email ?? teil.prompt
             : teil.input_email
+        // Văn bản kích thích kiểu telc (E-Mail của bạn in nguyên văn) — có thì thay cho dòng `prompt`.
+        const richStimulus =
+          currentSection.name === 'SCHREIBEN' && !teil.form_fields && isWritingStimulus(teil.stimulus)
+            ? teil.stimulus
+            : undefined
         const speakingPrompt =
           currentSection.name === 'SPRECHEN' && !teil.prompt_words && !teil.topic_cards
             ? teil.prompt
             : undefined
+        // Cổng nghi thức (đề telc): Ansage → đọc câu hỏi → nghe được. Đề Goethe không khai ⇒ null.
+        const gate = parseHoerenGate(teil)
+        const gateKey = `${currentSection.name}-${teil.teil ?? tIdx}`
+        const gatePhase: HoerenGatePhase | undefined = gate ? (gatePhases[gateKey] ?? 'idle') : undefined
+        const audioLocked = !isHoerenUnlocked(gatePhase)
+        // Chưa bấm bắt đầu thì câu hỏi còn ẩn — cho đọc trước là vô hiệu hoá thời gian đọc của đề thật.
+        const hideBody = gatePhase === 'idle'
         return (
         <div key={teil.teil ?? tIdx} className="overflow-hidden rounded-ga border border-ga-line bg-ga-card">
           <div className="border-b border-ga-line bg-ga-surface px-4 py-3 lg:px-6">
@@ -232,30 +310,79 @@ export function ExamTaking({
           </div>
 
           <div className="p-4 lg:p-6">
-            {teil.context && (
+            {teil.context && (isRichPassage(teil) ? (
+              <ReadingPassage teil={teil} />
+            ) : (
               <div className="ga-ui mb-6 whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-4 text-ga-body text-ga-ink">
                 {teil.context}
               </div>
+            ))}
+            {gate && (
+              <HoerenGate
+                teilNo={teil.teil}
+                spec={gate}
+                phase={gatePhase ?? 'idle'}
+                onPhaseChange={(phase) => setGatePhases((prev) => ({ ...prev, [gateKey]: phase }))}
+              />
             )}
-            {teil.audio_script && (
-              <AudioPlayer script={teil.audio_script} label={t('hoertext', { n: teil.teil })} />
+            {!hideBody && teil.audio_script &&
+              (isDialogueScript(teil.audio_script) ? (
+                <DialogueAudioPlayer
+                  turns={teil.audio_script}
+                  label={t('hoertext', { n: teil.teil })}
+                  maxPlays={teil.max_plays}
+                  locked={audioLocked}
+                />
+              ) : (
+                <AudioPlayer
+                  script={scriptToPlainText(teil.audio_script)}
+                  label={t('hoertext', { n: teil.teil })}
+                  maxPlays={teil.max_plays}
+                  locked={audioLocked}
+                />
+              ))}
+
+            {/* Bốn dạng bài telc có kho lựa chọn dùng chung cả Teil và văn bản có ô trống —
+                `answerWidget` suy theo từng câu nên không dựng được. Dựng bằng nhánh riêng. */}
+            {!hideBody && telcTeilType(teil) && (
+              <TelcTeilBody teil={teil} answers={answers} onAnswerChange={onAnswerChange} />
             )}
 
             <div className="space-y-6">
-              {teil.items?.map((item, qIdx) => {
+              {!hideBody && !telcTeilType(teil) && teil.items?.map((item, qIdx) => {
                 const widget = answerWidget(item)
+                // Câu có giọng người nói / câu dẫn (đề telc) đọc bằng giọng persona, câu dẫn trước bài.
+                const personaTurns = needsPersonaVoice(item) ? itemTurns(item) : null
                 return (
                   <div
                     key={item.id ?? `${tIdx}-${qIdx}`}
                     className="border-b border-ga-line pb-6 last:border-0 last:pb-0"
                   >
-                    {item.audio_script && (
-                      <AudioPlayer
-                        script={item.audio_script}
+                    {personaTurns ? (
+                      <DialogueAudioPlayer
+                        turns={personaTurns}
                         compact
-                        label={item.person ? t('listenPerson', { person: item.person }) : t('listenDialog')}
+                        label={item.person ? t('listenPerson', { person: item.person }) : t('listenItem', { n: qIdx + 1 })}
+                        maxPlays={teil.max_plays}
+                        locked={audioLocked}
                       />
-                    )}
+                    ) : item.audio_script &&
+                      (isDialogueScript(item.audio_script) ? (
+                        <DialogueAudioPlayer
+                          turns={item.audio_script}
+                          label={item.person ? t('listenPerson', { person: item.person }) : t('listenDialog')}
+                          maxPlays={teil.max_plays}
+                          locked={audioLocked}
+                        />
+                      ) : (
+                        <AudioPlayer
+                          script={scriptToPlainText(item.audio_script)}
+                          compact
+                          label={item.person ? t('listenPerson', { person: item.person }) : t('listenDialog')}
+                          maxPlays={teil.max_plays}
+                          locked={audioLocked}
+                        />
+                      ))}
                     {item.text && <p className="ga-ui mb-3 break-words text-ga-body italic text-ga-muted">“{item.text}”</p>}
                     {item.person && <p className="ga-ui mb-3 flex items-center gap-1.5 break-words text-ga-body text-ga-muted"><User size={13} className="shrink-0" aria-hidden /> {item.person}</p>}
 
@@ -371,18 +498,29 @@ export function ExamTaking({
               )}
 
               {/* Schreiben Teil 2 — email. Answer key stays `email_<teil>` (server contract). */}
-              {writingStimulus && (
+              {(writingStimulus || richStimulus) && (
                 <div className="space-y-4">
-                  <div className="ga-ui whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-4 text-ga-body text-ga-ink">
-                    {writingStimulus}
-                  </div>
+                  {/* Đề telc in nguyên văn E-Mail của bạn; có nó thì dòng `prompt` một câu là thừa. */}
+                  {richStimulus ? (
+                    <WritingStimulus stimulus={richStimulus} />
+                  ) : (
+                    <div className="ga-ui whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-4 text-ga-body text-ga-ink">
+                      {writingStimulus}
+                    </div>
+                  )}
+                  {teil.shuffle_points && (teil.writing_points?.length ?? 0) > 1 && (
+                    <p className="ga-ui text-ga-small text-ga-muted">{t('writingPointsOrder')}</p>
+                  )}
                   <ul className="ga-ui mb-4 list-disc space-y-1 break-words pl-5 text-ga-body text-ga-muted">
-                    {teil.writing_points?.map((pt, idx) => <li key={idx}>{pt}</li>)}
+                    {orderedWritingPoints(teil.writing_points ?? [], teil.shuffle_points).map((pt) => (
+                      <li key={pt}>{pt}</li>
+                    ))}
                   </ul>
                   <textarea
                     value={answers[`email_${teil.teil}`] || ''}
                     onChange={(e) => onAnswerChange(`email_${teil.teil}`, e.target.value)}
-                    placeholder={t('emailPlaceholder')}
+                    // Placeholder cũ ghi „khoảng 30 từ" (Goethe A1) — sai thước cho đề telc không quy định số từ.
+                    placeholder={richStimulus ? t('writingPlaceholder') : t('emailPlaceholder')}
                     className="ga-ui h-40 w-full resize-none rounded-ga border border-ga-line bg-ga-card px-4 py-3 text-ga-body text-ga-ink outline-none focus:border-ga-accent"
                   />
                 </div>

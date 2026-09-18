@@ -27,6 +27,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
 import { useChatOutboxStore } from '@/stores/useChatOutboxStore'
+import { useTourStore } from '@/stores/useTourStore'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { queryClient } from '@/lib/queryClient'
 import { getAccessToken } from '@/lib/auth'
@@ -173,6 +174,11 @@ function RootLayout() {
 
   useEffect(() => {
     async function bootstrap() {
+      // M-17: cờ tour/onboarding là per-thiết bị (SecureStore), không phụ thuộc phiên — nạp ngay
+      // lúc khởi động để Trang chủ đọc `tourDone.profile_done || first_sentence` (cửa Phase D:
+      // checklist tuần đầu, sheet nhắc học) không phải chờ SpotlightTour mount mới hydrate.
+      // Idempotent: SpotlightTour vẫn gọi lại, store single-flight.
+      void useTourStore.getState().hydrate()
       const token = await getAccessToken()
       if (token) {
         await fetchMe()

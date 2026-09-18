@@ -1,9 +1,10 @@
 /**
  * Tests cho khối Ảnh đại diện của trang /v2/profile.
  *
- * jsdom không có createImageBitmap nên đường thu nhỏ ảnh (downscaleToSquare) rơi về file gốc —
- * đúng thiết kế fallback; test vì thế kiểm tra được luồng validate → upload → onChange mà không
- * cần canvas thật. next-intl / sonner / profileApi được mock.
+ * Từ đợt 14/09/2026 chọn ảnh KHÔNG upload ngay nữa: mở hộp thoại cho người dùng tự chọn khung cắt,
+ * upload chỉ chạy khi bấm "Cắt & tải lên". jsdom không có URL.createObjectURL nên hộp thoại rơi về
+ * nhánh "gửi tệp gốc" — đúng thiết kế fallback, và nhờ đó test đi hết luồng mà không cần canvas thật.
+ * next-intl / sonner / profileApi được mock.
  */
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -81,24 +82,44 @@ describe('AvatarSection', () => {
     expect(mockUpload).not.toHaveBeenCalled()
   })
 
-  it('chọn ảnh hợp lệ → upload rồi báo onChange(url mới)', async () => {
+  it('chọn ảnh hợp lệ → MỞ hộp thoại cắt, CHƯA upload gì cả', async () => {
+    render(<AvatarSection displayName="A" avatarUrl={null} onChange={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('uploadAvatar'), { target: { files: [pngFile()] } })
+    await waitFor(() => expect(screen.getByText('cropTitle')).toBeTruthy())
+    // Điểm mấu chốt của đợt này: không còn upload lén ngay lúc chọn ảnh.
+    expect(mockUpload).not.toHaveBeenCalled()
+  })
+
+  it('xác nhận khung cắt → upload rồi báo onChange(url mới)', async () => {
     mockUpload.mockResolvedValue({ avatarUrl: 'https://cdn.x/avatar/new.webp' })
     const onChange = vi.fn()
     render(<AvatarSection displayName="A" avatarUrl={null} onChange={onChange} />)
-    const input = screen.getByLabelText('uploadAvatar') as HTMLInputElement
-    fireEvent.change(input, { target: { files: [pngFile()] } })
+    fireEvent.change(screen.getByLabelText('uploadAvatar'), { target: { files: [pngFile()] } })
+    fireEvent.click(await screen.findByText('cropConfirm'))
     await waitFor(() => expect(onChange).toHaveBeenCalledWith('https://cdn.x/avatar/new.webp'))
     expect(mockUpload).toHaveBeenCalledTimes(1)
     expect(toast.success).toHaveBeenCalledWith('avatarSaved')
   })
 
-  it('upload lỗi → toast lỗi, KHÔNG gọi onChange', async () => {
+  it('huỷ hộp thoại → không upload, không đổi ảnh', async () => {
+    const onChange = vi.fn()
+    render(<AvatarSection displayName="A" avatarUrl={null} onChange={onChange} />)
+    fireEvent.change(screen.getByLabelText('uploadAvatar'), { target: { files: [pngFile()] } })
+    fireEvent.click(await screen.findByText('cropCancel'))
+    await waitFor(() => expect(screen.queryByText('cropTitle')).toBeNull())
+    expect(mockUpload).not.toHaveBeenCalled()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('upload lỗi → toast lỗi, GIỮ hộp thoại để thử lại mà không phải chọn ảnh lại', async () => {
     mockUpload.mockRejectedValue(new Error('mạng rớt'))
     const onChange = vi.fn()
     render(<AvatarSection displayName="A" avatarUrl={null} onChange={onChange} />)
     fireEvent.change(screen.getByLabelText('uploadAvatar'), { target: { files: [pngFile()] } })
+    fireEvent.click(await screen.findByText('cropConfirm'))
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('mạng rớt'))
     expect(onChange).not.toHaveBeenCalled()
+    expect(screen.getByText('cropTitle')).toBeTruthy()
   })
 
   it('Gỡ ảnh → gọi API xoá và onChange(null)', async () => {

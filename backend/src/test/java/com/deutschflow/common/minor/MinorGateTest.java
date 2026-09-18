@@ -35,6 +35,8 @@ import static org.mockito.Mockito.when;
  *       {@code NEVER_RECORDED} — rút đồng ý rồi thì tuyệt đối không mời đồng ý lại;</li>
  *   <li>nhánh {@code UNKNOWN} đi theo cấu hình, và {@code BLOCK_ORG_MEMBERS} chỉ chặn thành viên
  *       trung tâm chứ không chạm người dùng B2C;</li>
+ *   <li>phương án D (17/09/2026): mức 16–17 CHỈ áp cho thành viên trung tâm; người ngoài trung tâm
+ *       bị chặn (dưới 16) nhận {@code contact=NONE} và KHÔNG bị chỉ đường "liên hệ trung tâm";</li>
  *   <li>🔴 MẶC ĐỊNH của {@code app.minor.unknown-age-audio} KHÔNG được là {@code BLOCK_ALL} —
  *       xem {@link Cauhinh#macDinhKhongDuocLaBlockAll()}.</li>
  * </ol>
@@ -100,18 +102,20 @@ class MinorGateTest {
         }
 
         @Test
-        @DisplayName("16–17 + đã đồng ý → cho qua")
+        @DisplayName("16–17 thuộc trung tâm + đã đồng ý → cho qua")
         void tuoi16_17DaDongY() {
             ageIs(MinorPolicy.Status.MINOR_CENTER_POLICY);
+            orgMember(true);
             consentIs(ConsentState.GRANTED);
 
             gate(MinorGate.UnknownAgeAudioPolicy.BLOCK_ORG_MEMBERS).assertAudioAllowed(SUBJECT);
         }
 
         @Test
-        @DisplayName("dưới 16 + chưa từng hỏi → chặn GUARDIAN_CONSENT_REQUIRED, nêu việc cần làm")
+        @DisplayName("dưới 16 thuộc trung tâm + chưa từng hỏi → chặn GUARDIAN_CONSENT_REQUIRED, chỉ đường trung tâm")
         void duoi16ChuaTungHoi() {
             ageIs(MinorPolicy.Status.MINOR_LEGAL);
+            orgMember(true);
             consentIs(ConsentState.NEVER_RECORDED);
 
             assertThatThrownBy(() ->
@@ -123,27 +127,70 @@ class MinorGateTest {
                         assertThat(ex.getReason())
                                 .isEqualTo(MinorAudioBlockedException.Reason.GUARDIAN_CONSENT_REQUIRED);
                         assertThat(ex.getStatus()).isEqualTo(MinorPolicy.Status.MINOR_LEGAL);
+                        assertThat(ex.getContact()).isEqualTo(MinorAudioBlockedException.Contact.CENTER);
                         // Thông điệp phải nói LÀM GÌ, không chỉ nói "không được".
                         assertThat(ex.getMessage()).contains("liên hệ trung tâm");
                     });
         }
 
+        /**
+         * Phương án D (owner chốt 17/09/2026). Trước đó em này nhận đúng câu "liên hệ trung tâm" —
+         * chỉ đường tới một cánh cửa không tồn tại, và không ai mở lại được (đường ghi đồng ý chỉ có ở
+         * {@code /api/org}). Nay thông điệp nói thật là đường phụ huynh xác nhận đang được làm, và
+         * {@code contact=NONE} để client giấu nút liên hệ.
+         */
         @Test
-        @DisplayName("16–17 + chưa từng hỏi → chặn, thông điệp nói rõ là quy định NỘI BỘ của trung tâm")
-        void tuoi16_17ChuaTungHoi() {
-            ageIs(MinorPolicy.Status.MINOR_CENTER_POLICY);
+        @DisplayName("dưới 16 KHÔNG thuộc trung tâm + chưa từng hỏi → vẫn chặn (luật), nhưng contact=NONE và không chỉ đường trung tâm")
+        void duoi16B2cChuaTungHoi() {
+            ageIs(MinorPolicy.Status.MINOR_LEGAL);
+            orgMember(false);
             consentIs(ConsentState.NEVER_RECORDED);
 
             assertThatThrownBy(() ->
                     gate(MinorGate.UnknownAgeAudioPolicy.ALLOW).assertAudioAllowed(SUBJECT))
                     .isInstanceOf(MinorAudioBlockedException.class)
-                    .hasMessageContaining("nội bộ");
+                    .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories
+                            .type(MinorAudioBlockedException.class))
+                    .satisfies(ex -> {
+                        assertThat(ex.getReason())
+                                .isEqualTo(MinorAudioBlockedException.Reason.GUARDIAN_CONSENT_REQUIRED);
+                        assertThat(ex.getContact()).isEqualTo(MinorAudioBlockedException.Contact.NONE);
+                        assertThat(ex.getMessage())
+                                .contains("đang được hoàn thiện")
+                                .doesNotContain("liên hệ trung tâm");
+                    });
+        }
+
+        @Test
+        @DisplayName("16–17 KHÔNG thuộc trung tâm → CHO QUA, không hỏi sổ đồng ý (luật nội bộ không áp cho người ngoài trung tâm)")
+        void tuoi16_17B2cDiQua() {
+            ageIs(MinorPolicy.Status.MINOR_CENTER_POLICY);
+            orgMember(false);
+
+            gate(MinorGate.UnknownAgeAudioPolicy.BLOCK_ORG_MEMBERS).assertAudioAllowed(SUBJECT);
+
+            verify(learnerService, never()).consentStatus(anyLong(), any());
+        }
+
+        @Test
+        @DisplayName("16–17 thuộc trung tâm + chưa từng hỏi → chặn, thông điệp nói rõ là quy định NỘI BỘ của trung tâm")
+        void tuoi16_17ChuaTungHoi() {
+            ageIs(MinorPolicy.Status.MINOR_CENTER_POLICY);
+            orgMember(true);
+            consentIs(ConsentState.NEVER_RECORDED);
+
+            assertThatThrownBy(() ->
+                    gate(MinorGate.UnknownAgeAudioPolicy.ALLOW).assertAudioAllowed(SUBJECT))
+                    .isInstanceOf(MinorAudioBlockedException.class)
+                    .hasMessageContaining("nội bộ")
+                    .hasMessageContaining("liên hệ trung tâm");
         }
 
         @Test
         @DisplayName("đã THU HỒI → mã riêng REVOKED và KHÔNG mời đồng ý lại")
         void daThuHoi() {
             ageIs(MinorPolicy.Status.MINOR_LEGAL);
+            orgMember(true);
             consentIs(ConsentState.REVOKED);
 
             assertThatThrownBy(() ->
@@ -178,19 +225,22 @@ class MinorGateTest {
         }
 
         @Test
-        @DisplayName("BLOCK_ALL → chặn ngay, KHÔNG cần hỏi membership")
+        @DisplayName("BLOCK_ALL → chặn cả người ngoài trung tâm; với họ contact=NONE và chỉ đường tự khai ở Hồ sơ")
         void blockAll() {
             ageIs(MinorPolicy.Status.UNKNOWN);
+            orgMember(false);
 
             assertThatThrownBy(() ->
                     gate(MinorGate.UnknownAgeAudioPolicy.BLOCK_ALL).assertAudioAllowed(SUBJECT))
                     .isInstanceOf(MinorAudioBlockedException.class)
                     .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories
                             .type(MinorAudioBlockedException.class))
-                    .satisfies(ex -> assertThat(ex.getReason())
-                            .isEqualTo(MinorAudioBlockedException.Reason.BIRTH_DATE_REQUIRED));
-
-            verifyNoInteractions(jdbcTemplate);
+                    .satisfies(ex -> {
+                        assertThat(ex.getReason())
+                                .isEqualTo(MinorAudioBlockedException.Reason.BIRTH_DATE_REQUIRED);
+                        assertThat(ex.getContact()).isEqualTo(MinorAudioBlockedException.Contact.NONE);
+                        assertThat(ex.getMessage()).contains("màn Hồ sơ").doesNotContain("liên hệ trung tâm");
+                    });
         }
 
         @Test
@@ -202,7 +252,12 @@ class MinorGateTest {
             assertThatThrownBy(() ->
                     gate(MinorGate.UnknownAgeAudioPolicy.BLOCK_ORG_MEMBERS).assertAudioAllowed(SUBJECT))
                     .isInstanceOf(MinorAudioBlockedException.class)
-                    .hasMessageContaining("ngày sinh");
+                    .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories
+                            .type(MinorAudioBlockedException.class))
+                    .satisfies(ex -> {
+                        assertThat(ex.getContact()).isEqualTo(MinorAudioBlockedException.Contact.CENTER);
+                        assertThat(ex.getMessage()).contains("ngày sinh").contains("liên hệ trung tâm");
+                    });
         }
 
         @Test

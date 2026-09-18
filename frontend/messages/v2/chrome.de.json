@@ -127,19 +127,6 @@
       "wiederholen": "Wiederholen",
       "bibliothek": "Bibliothek",
       "entdecken": "Entdecken"
-    },
-    "areaHelper": {
-      "heute": "Heute",
-      "lernen": "Lernen",
-      "sprechen": "Sprechen",
-      "pruefung": "Prüfung",
-      "fortschritt": "Fortschritt",
-      "tHeute": "Heute",
-      "tKlassen": "Klassen",
-      "tBewerten": "Bewerten",
-      "tMaterialien": "Materialien",
-      "tBerichte": "Berichte",
-      "more": "Mehr"
     }
   },
   "shell": {

@@ -48,6 +48,8 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    /** Ký URL ảnh đại diện khi trả cho client — bucket private, xem javadoc {@code UserAvatarService#viewUrl}. */
+    private final UserAvatarService userAvatarService;
     private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -272,8 +274,38 @@ public class AuthService {
                 throw new BadRequestException("locale phải là vi, en hoặc de");
             }
         }
+        if (req.notificationTimezone() != null && !req.notificationTimezone().isBlank()) {
+            String zone = req.notificationTimezone().trim();
+            // Danh sách zone của JVM là nguồn duy nhất — DailyNotificationJob gọi ZoneId.of() trên
+            // đúng giá trị này mỗi giờ và âm thầm rơi về Asia/Ho_Chi_Minh nếu hỏng, nên một chuỗi
+            // sai lưu được ở đây sẽ biến thành "thông báo sai giờ" không ai giải thích nổi.
+            if (!java.time.ZoneId.getAvailableZoneIds().contains(zone)) {
+                throw new BadRequestException("Múi giờ không hợp lệ.");
+            }
+            user.setNotificationTimezone(zone);
+        }
         userRepository.save(user);
         return buildAuthResponse(user, null, null, false);
+    }
+
+    /**
+     * Đăng xuất mọi phiên KHÁC và cấp cặp token mới cho chính thiết bị đang gọi.
+     *
+     * <p>Vì sao phải cấp token mới thay vì "thu hồi tất cả trừ cái hiện tại": server không biết
+     * refresh token nào thuộc về người gọi (access token là JWT không trạng thái). Thu sạch rồi phát
+     * lại cho đúng người đang cầm access token hợp lệ đạt cùng kết quả mà không cần client gửi kèm
+     * refresh token của mình.
+     *
+     * <p>🪤 Access token của thiết bị khác vẫn sống tới khi hết hạn (tối đa 15 phút,
+     * {@code jwt.access-token-expiry-ms}) vì JWT không thu hồi được — đúng giới hạn mà
+     * {@link #changePassword} đã có. Giao diện phải nói rõ mốc này, đừng hứa "ngắt ngay lập tức".
+     */
+    @Transactional
+    public AuthResponse revokeOtherSessions(User user) {
+        refreshTokenRepository.revokeAllByUserId(user.getId());
+        // KHÔNG đụng push_token: nó trỏ tới MỘT thiết bị (thiết bị đăng nhập gần nhất) chứ không
+        // phải phiên của người gọi — xoá ở đây sẽ tắt thông báo của chính thiết bị đang dùng.
+        return buildAuthResponse(user);
     }
 
     /**
@@ -343,7 +375,7 @@ public class AuthService {
                     industry,
                     orgId,
                     orgRole,
-                    user.getAvatarUrl()
+                    userAvatarService.viewUrl(user.getAvatarUrl())
             );
         }
         return new AuthResponse(
@@ -358,7 +390,7 @@ public class AuthService {
                 industry,
                 orgId,
                 orgRole,
-                user.getAvatarUrl()
+                userAvatarService.viewUrl(user.getAvatarUrl())
         );
     }
 

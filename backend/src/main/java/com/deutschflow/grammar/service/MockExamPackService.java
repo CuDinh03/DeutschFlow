@@ -61,6 +61,31 @@ public class MockExamPackService {
     }
 
     /**
+     * Cổng gói ở ĐƯỜNG LÀM BÀI, không chỉ ở catalog: một đề thuộc bộ trả phí thì người gói miễn phí
+     * không được mở nội dung đề kể cả khi gọi thẳng {@code examId}. Trước bản này chỉ
+     * {@link #getPack} kiểm gói, còn {@code POST /{examId}/start} và {@code GET /{examId}/questions}
+     * chỉ đòi đăng nhập — biết một id là làm được đề trả phí.
+     *
+     * <p>Quan hệ đề ↔ bộ vẫn là quan hệ suy ra theo {@code (cefr_level, exam_format)} như cả lớp này
+     * đang dùng, nên không sinh bảng nối mới. Đề không thuộc bộ trả phí nào — kể cả đề không tồn tại
+     * — thì cho qua: chuyện 404 là việc của đường gọi, cổng này không biến nó thành 403.
+     */
+    @Transactional(readOnly = true)
+    public void assertExamUnlocked(Long userId, long examId) {
+        Integer lockedPacks = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM mock_exam_packs p
+                JOIN mock_exams e
+                  ON e.cefr_level = p.cefr_level AND e.exam_format = p.exam_format
+                WHERE e.id = ? AND e.is_active = TRUE
+                  AND p.is_active = TRUE AND p.requires_paid = TRUE
+                """, Integer.class, examId);
+        if (lockedPacks == null || lockedPacks == 0) return;
+        if (!isPaid(userId)) {
+            throw new ForbiddenException("Nâng cấp gói để mở khoá bộ đề luyện thi này.");
+        }
+    }
+
+    /**
      * Paid = public tier PRO or ULTRA (covers PRO/ULTRA/INTERNAL). FREE, DEFAULT (expired trial),
      * PREMIUM, and null all resolve to tier DEFAULT → locked. Uses the READ-ONLY snapshot so this
      * read-only path never triggers subscription-reconciliation writes (which would fail in a

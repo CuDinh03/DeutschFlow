@@ -39,6 +39,7 @@ public class AiSpeakingMockExamController {
     private final com.deutschflow.speaking.AiRateLimiterService aiRateLimiterService;
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
+    private final com.deutschflow.user.onboarding.service.OnboardingActivationService activationService;
 
     @PostMapping("/mock-exam/evaluate")
     public ResponseEntity<MockExamEvalDto> evaluateMockExam(
@@ -128,6 +129,9 @@ public class AiSpeakingMockExamController {
 
             // Add record ID to response for client-side navigation
             result.put("id", recordId);
+            // ACTIVATION (Đợt 1 17/09): nói thử 3 phút xong = bài đầu tiên (nhánh A1+ trên web).
+            activationService.recordFirstLessonQuietly(user.getId(),
+                    com.deutschflow.user.onboarding.FirstLessonKind.MOCK_EXAM);
 
             log.info("[MockExam] user={}, cefr={}, errors={}",
                     user.getId(), result.get("estimated_cefr"),

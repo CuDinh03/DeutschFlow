@@ -37,13 +37,17 @@ vi.mock('@/lib/authSession', () => ({
   getAccessToken: () => null,
 }))
 
+let storeUser: { displayName: string; email: string; avatarUrl?: string } = {
+  displayName: 'Nguyễn Văn A',
+  email: 'a@example.com',
+}
 vi.mock('@/stores/useUserStore', () => ({
-  useUserStore: (sel: (s: unknown) => unknown) =>
-    sel({ user: { displayName: 'Nguyễn Văn A', email: 'a@example.com' } }),
+  useUserStore: (sel: (s: unknown) => unknown) => sel({ user: storeUser }),
 }))
 
 beforeEach(() => {
   pathname = '/v2/student/dashboard'
+  storeUser = { displayName: 'Nguyễn Văn A', email: 'a@example.com' }
   logoutMock.mockClear()
 })
 
@@ -74,10 +78,14 @@ describe('GaBottomNav (S-13)', () => {
     expect(current.querySelector('.bg-ga-accent')).not.toBeNull()
   })
 
-  it('accessible name gồm nhãn Đức + nghĩa tiếng Việt (song ngữ không in hai dòng)', () => {
+  it('accessible name chính là nhãn nhìn thấy, không aria-label đè lên', () => {
+    // Trước 10/09/2026 mỗi ô có aria-label "nhãn Đức — nghĩa tiếng Việt". Owner chốt bỏ lối song
+    // ngữ: nhãn nay đã theo đúng ngôn ngữ người dùng, nên aria-label chỉ còn lặp lại chữ hiển thị
+    // (và ở bản de từng đọc thành "Heute — Heute"). Gỡ hẳn để tên truy cập = chữ trên màn hình.
     renderBottom()
     const first = screen.getAllByRole('link')[0]
-    expect(first.getAttribute('aria-label')).toBe('nav.areas.heute — nav.areaHelper.heute')
+    expect(first.getAttribute('aria-label')).toBeNull()
+    expect(first.textContent).toContain('nav.areas.heute')
   })
 
   it('ẩn HOÀN TOÀN trong route toàn màn hình (Exam Room)', () => {
@@ -206,5 +214,26 @@ describe('GaAccountMenu (S-01, utility rời persistent nav)', () => {
     const trigger = screen.getByRole('button', { name: 'ui.account' })
     expect(trigger.className).toContain('h-11')
     expect(trigger.className).toContain('ring-ga-focus')
+  })
+
+  it('không có ảnh: chip hiện chữ cái tắt của tên hiển thị', () => {
+    render(<GaAccountMenu role="student" />)
+    const trigger = screen.getByRole('button', { name: 'ui.account' })
+    expect(trigger.textContent).toBe('NA')
+    expect(trigger.querySelector('img')).toBeNull()
+    cleanup()
+  })
+
+  it('có avatarUrl trong store: chip và đầu menu hiện ảnh thay chữ cái tắt', () => {
+    storeUser = { ...storeUser, avatarUrl: 'https://media.example/avatar/1.jpg?sig=x' }
+    render(<GaAccountMenu role="student" />)
+    const trigger = screen.getByRole('button', { name: 'ui.account' })
+    const img = trigger.querySelector('img')
+    expect(img?.getAttribute('src')).toBe('https://media.example/avatar/1.jpg?sig=x')
+    expect(trigger.textContent).toBe('')
+    fireEvent.click(trigger)
+    // Đầu panel: ảnh đứng cạnh tên + email.
+    expect(document.querySelectorAll('img[src="https://media.example/avatar/1.jpg?sig=x"]').length).toBe(2)
+    cleanup()
   })
 })

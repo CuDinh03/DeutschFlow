@@ -125,15 +125,13 @@ export function GaSidebar({ nav }: GaSidebarProps) {
           <nav className="flex-1 space-y-0.5 overflow-y-auto" aria-label={t('ui.areaNav')}>
             {roleAreas.areas.map((area) => {
               const active = activeArea?.id === area.id
+              const areaLabel = t(`nav.areas.${area.id}`)
               return (
                 <Link
                   key={area.id}
                   href={area.href}
                   onClick={close}
                   aria-current={active ? 'page' : undefined}
-                  // Nhãn Đức + nghĩa tiếng Việt trong accessible name (song ngữ theo trình độ,
-                  // không tooltip-only và không in hai dòng thường trực).
-                  aria-label={`${t(`nav.areas.${area.id}`)} — ${t(`nav.areaHelper.${area.id}`)}`}
                   className={cn(
                     'flex min-h-11 items-center gap-3 rounded-ga px-3 py-2.5 transition-colors lg:min-h-0',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset',
@@ -143,14 +141,7 @@ export function GaSidebar({ nav }: GaSidebarProps) {
                   )}
                 >
                   <GaIcon name={area.icon} size={18} className={active ? 'text-ga-accent' : 'text-ga-subtle'} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-ga-body leading-tight">
-                      {t(`nav.areas.${area.id}`)}
-                    </span>
-                    <span className="block truncate text-ga-caption font-normal text-ga-subtle">
-                      {t(`nav.areaHelper.${area.id}`)}
-                    </span>
-                  </span>
+                  <span className="min-w-0 flex-1 truncate text-ga-body leading-tight">{areaLabel}</span>
                 </Link>
               )
             })}

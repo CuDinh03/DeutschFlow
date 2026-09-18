@@ -6,7 +6,7 @@ import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, useFocusEffect } from 'expo-router'
 import { MotiView } from 'moti'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { usePlanStore } from '@/stores/usePlanStore'
+import { isTrialActive, usePlanStore } from '@/stores/usePlanStore'
 import { useTourStore } from '@/stores/useTourStore'
 import { canAutoStartHomeTour, canAutoStartSrsIntro, probeStatus } from '@/lib/tourEligibility'
 import { useStarterStore } from '@/stores/useStarterStore'
@@ -16,6 +16,7 @@ import { StarterChecklist } from '@/components/guide/StarterChecklist'
 import { ReminderSheet } from '@/components/guide/ReminderSheet'
 import { getDailyGoalMinutes } from '@/lib/dailyGoal'
 import { enableStudyReminder } from '@/lib/studyReminder'
+import { recordCoreDone } from '@/lib/activation'
 import { registerPushTokenIfGranted } from '@/hooks/usePushNotifications'
 import { captureEvent } from '@/lib/analytics'
 import api from '@/lib/api'
@@ -58,7 +59,9 @@ export default function DashboardScreen() {
   // Thanh tab liquid-glass nổi đè lên nội dung — chừa đáy cho mục cuối.
   const tabClearance = useTabBarClearance()
   const { user } = useAuthStore()
-  const { isPro } = usePlanStore()
+  const { isPro, plan } = usePlanStore()
+  // M-7 (Q1 28/08): đang dùng thử thì KHÔNG chủ động mời nâng cấp — thẻ upsell dưới đây ẩn.
+  const trialActive = isTrialActive(plan)
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard'],
@@ -228,6 +231,7 @@ export default function DashboardScreen() {
       if (reminderDeclinedAt && Date.now() - reminderDeclinedAt < REMINDER_COOLDOWN_MS) return
       const t = setTimeout(() => {
         captureEvent('onb_reminder_sheet_shown', { trigger: 'auto' })
+        captureEvent('reminder_prompt_shown', { trigger: 'auto' })
         setReminderOpen(true)
       }, 900)
       return () => clearTimeout(t)
@@ -244,8 +248,17 @@ export default function DashboardScreen() {
     ]),
   )
 
+  // CORE_DONE (spec §2.1, I-4): trả lời sheet nhắc học — bật HAY từ chối — là đi hết luồng
+  // onboarding. Chỉ lần trả lời ĐẦU TIÊN mới tính; server idempotent nên gọi thừa cũng vô hại.
+  function markCoreDoneIfFirstAnswer() {
+    if (reminderEnabled || reminderDeclinedAt) return
+    captureEvent('onboarding_core_completed', {})
+    void recordCoreDone()
+  }
+
   async function acceptReminder() {
     setReminderBusy(true)
+    markCoreDoneIfFirstAnswer()
     const outcome = await enableStudyReminder(goalMinutes)
     setReminderBusy(false)
     setReminderOpen(false)
@@ -275,6 +288,7 @@ export default function DashboardScreen() {
   }
 
   function declineReminder() {
+    markCoreDoneIfFirstAnswer()
     captureEvent('onb_reminder_sheet_dismissed', {})
     useStarterStore.getState().declineReminderSheet(Date.now())
     setReminderOpen(false)
@@ -392,6 +406,7 @@ export default function DashboardScreen() {
               lessonDone={treeDone > 0}
               onEnableReminder={() => {
                 captureEvent('onb_reminder_sheet_shown', { trigger: 'checklist' })
+                captureEvent('reminder_prompt_shown', { trigger: 'checklist' })
                 setReminderOpen(true)
               }}
             />
@@ -479,7 +494,7 @@ export default function DashboardScreen() {
             </Card>
           </View>
 
-          {!isPro && PAYWALL_ENABLED ? (
+          {!isPro && !trialActive && PAYWALL_ENABLED ? (
             <Card
               onPress={() => router.push('/(student)/upgrade')}
               elevation="lifted"

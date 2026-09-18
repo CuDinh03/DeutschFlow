@@ -61,6 +61,19 @@
       "noteA0": "Your first steps will be <b>the alphabet, pronunciation and greetings</b>.",
       "notePlacement": "You can take an <b>optional 5-minute test</b> to land on the right level — or just start learning."
     },
+    "orgLite": {
+      "cap": "Centre learner",
+      "heading": "You are in class {className}",
+      "headingNoClass": "You are a learner at {orgName}",
+      "orgLine": "{orgName}",
+      "sub": "Your goals, curriculum and mentor are set by your centre — just pick a study rhythm and start your first lesson.",
+      "trialUntil": "PRO is free until {date}.",
+      "levelHeading": "What is your current level?",
+      "levelSub": "Your centre has not set a level yet — pick the closest one; your teacher can adjust it later.",
+      "levelPreset": "Current level set by your centre: {level}.",
+      "paceHeading": "How much can you study each week?",
+      "cta": "Start learning"
+    },
     "quickWin": {
       "heading": "Try your first sentence!",
       "prompt": "How do you say \"Good morning\" in German?",
