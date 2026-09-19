@@ -98,7 +98,7 @@ export default function ResetPasswordScreen() {
           <TextField
             label={t('reset.code')}
             value={code}
-            onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
+            onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
             placeholder="123456"
             keyboardType="number-pad"
             maxLength={6}
