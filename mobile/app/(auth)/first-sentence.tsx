@@ -22,7 +22,7 @@ import { speakGerman, stopGermanSpeech, setGermanRecordingActive } from '@/lib/g
 import { ensureAiConsent } from '@/lib/aiConsent'
 import { presentMinorAudioBlocked } from '@/lib/minorAudio'
 import { evaluateFirstSentence } from '@/lib/firstSentence'
-import { MENTOR_META, mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
+import { mentorFirstName, mentorTagline, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useTourStore } from '@/stores/useTourStore'
 import { useBlockBackNavigation } from '@/hooks/useBlockBackNavigation'
@@ -31,6 +31,8 @@ import { useStarterStore } from '@/stores/useStarterStore'
 import { captureEvent } from '@/lib/analytics'
 import { recordFirstLesson } from '@/lib/activation'
 import { fonts, motion, radius, space, useTheme } from '@/lib/theme'
+import { useT } from '@/lib/i18n'
+import { firstSentenceMessages } from '@/lib/i18n/messages/firstSentence'
 import { Button, Caption, Card, Icon, Screen, ThemedText, YellowSquare, GaGlyph } from '@/components/ui'
 import { MentorMonogram } from '@/components/onboarding/MentorMonogram'
 import { ConfettiBurst } from '@/components/guide/ConfettiBurst'
@@ -55,8 +57,9 @@ function transcribeWithTimeout(uri: string): Promise<string> {
 export default function FirstSentenceScreen() {
   const theme = useTheme()
   const c = theme.colors
+  const t = useT(firstSentenceMessages)
   const user = useAuthStore((s) => s.user)
-  const firstName = user?.displayName?.split(' ').at(-1) ?? 'bạn'
+  const firstName = user?.displayName?.trim().split(' ').at(-1) || t('german.nameFallback')
 
   const [mentor, setMentor] = useState<OnboardingMentor | null>(null)
   // Chờ fetch mentor xong (kể cả fail) rồi mới chào — tránh TTS 2 lần 2 tên.
@@ -76,8 +79,8 @@ export default function FirstSentenceScreen() {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
 
   const mName = mentorFirstName(mentor)
-  const greeting = `Hallo! Ich bin ${mName}. Und wie heißt du?`
-  const sentence = `Hallo, ich bin ${firstName}!`
+  const greeting = t('german.greeting', { name: mName })
+  const sentence = t('german.sentence', { name: firstName })
 
   // Mentor thật của user (đã chọn trong survey) — best-effort, fallback generic.
   useEffect(() => {
@@ -104,8 +107,8 @@ export default function FirstSentenceScreen() {
   // Mentor chào bằng giọng nói khi vào màn (câu template cố định, không LLM).
   useEffect(() => {
     if (!mentorReady || celebrate) return
-    const t = setTimeout(() => void speakGerman(greeting), 450)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => void speakGerman(greeting), 450)
+    return () => clearTimeout(timer)
     // Chỉ chào 1 lần sau khi biết mentor; greeting lúc này đã ổn định.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mentorReady])
@@ -209,7 +212,7 @@ export default function FirstSentenceScreen() {
       } else if (attemptsRef.current === 0) {
         attemptsRef.current = 1
         captureEvent('onb_first_sentence_retried', {})
-        setRetryMsg('Gần lắm rồi! Nghe lại rồi thử thêm lần nữa nhé.')
+        setRetryMsg(t('intro.retry'))
         void speakGerman(sentence)
       } else {
         // Lần 2 bất kể kết quả → success-tone. Không bao giờ fail.
@@ -264,29 +267,27 @@ export default function FirstSentenceScreen() {
           >
             <MentorAvatar mentor={mentor} />
             <ThemedText variant="display" style={{ textAlign: 'center' }}>
-              Du hast es geschafft!
+              {t('celebrate.headline')}
             </ThemedText>
             <ThemedText variant="body" color="secondary" style={{ textAlign: 'center' }}>
-              {isEcho
-                ? `Nghe ${mName} nói rồi lặp lại thành tiếng — thế là bạn đã có câu tiếng Đức đầu tiên.`
-                : 'Bạn vừa nói câu tiếng Đức đầu tiên của mình.'}
+              {isEcho ? t('celebrate.echoBody', { name: mName }) : t('celebrate.body')}
             </ThemedText>
             <SentenceCard sentence={sentence} onPlay={() => void speakGerman(sentence)} />
 
             {/* Thành quả đầu tiên — chuỗi ngày + câu đầu (artboard 08) */}
             <View style={{ flexDirection: 'row', gap: space[2], flexWrap: 'wrap', justifyContent: 'center' }}>
-              <AchievementPill glyph="chuoi" color={c.orange} label="Chuỗi ngày 1 bắt đầu" />
-              <AchievementPill color={c.accentText} label="Câu đầu: Hallo" />
+              <AchievementPill glyph="chuoi" color={c.orange} label={t('celebrate.streak')} />
+              <AchievementPill color={c.accentText} label={t('celebrate.firstWord')} />
             </View>
 
             {/* Tuần đầu của bạn — nối thẳng vào tour + checklist ở Trang chủ */}
             <Card padded={false} style={{ alignSelf: 'stretch' }}>
               <View style={{ paddingHorizontal: space[4], paddingVertical: space[3], borderBottomWidth: 1, borderBottomColor: c.border }}>
-                <Caption>Tuần đầu của bạn</Caption>
+                <Caption>{t('celebrate.weekTitle')}</Caption>
               </View>
-              <NextStepRow glyph="lernweg" title="Tour trang chủ — 1 phút" sub="Biết chỗ học, chỗ luyện nói, chỗ xem chuỗi ngày" />
-              <NextStepRow glyph="speaking" title={`Buổi luyện nói đầu với ${mName}`} sub="Tình huống chào hỏi ngắn" />
-              <NextStepRow glyph="hoc" title="Chặng 1 trên lộ trình của bạn" sub="Bắt đầu từ Trang chủ" last />
+              <NextStepRow glyph="lernweg" title={t('celebrate.steps.tour.title')} sub={t('celebrate.steps.tour.sub')} />
+              <NextStepRow glyph="speaking" title={t('celebrate.steps.speaking.title', { name: mName })} sub={t('celebrate.steps.speaking.sub')} />
+              <NextStepRow glyph="hoc" title={t('celebrate.steps.stage.title')} sub={t('celebrate.steps.stage.sub')} last />
             </Card>
           </MotiView>
         </ScrollView>
@@ -300,7 +301,7 @@ export default function FirstSentenceScreen() {
             paddingBottom: space[2],
           }}
         >
-          <Button label="Vào hành trình của tôi" onPress={finishToHome} />
+          <Button label={t('celebrate.cta')} onPress={finishToHome} />
         </View>
       </Screen>
     )
@@ -318,10 +319,10 @@ export default function FirstSentenceScreen() {
           paddingTop: space[2],
         }}
       >
-        <Caption>Khoảnh khắc đầu tiên</Caption>
-        <Pressable accessibilityRole="button" accessibilityLabel="Để sau" hitSlop={8} onPress={() => skip('later')}>
+        <Caption>{t('intro.caption')}</Caption>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('intro.later')} hitSlop={8} onPress={() => skip('later')}>
           <ThemedText variant="bodyStrong" color="faint">
-            Để sau
+            {t('intro.later')}
           </ThemedText>
         </Pressable>
       </View>
@@ -336,14 +337,14 @@ export default function FirstSentenceScreen() {
           <MentorAvatar mentor={mentor} speaking={!recording && !processing} />
           <View style={{ gap: space[1], alignItems: 'center' }}>
             <ThemedText variant="caption" color="muted">
-              {mentor ? MENTOR_META[mentor.code]?.tagline ?? 'Mentor của bạn' : 'Mentor của bạn'}
+              {mentor ? mentorTagline(mentor.code) : t('intro.mentorFallback')}
             </ThemedText>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
               <ThemedText variant="titleLg">{greeting}</ThemedText>
             </View>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Nghe lại lời chào"
+              accessibilityLabel={t('intro.replayGreeting')}
               hitSlop={8}
               onPress={() => void speakGerman(greeting)}
               style={{ padding: space[2] }}
@@ -355,9 +356,9 @@ export default function FirstSentenceScreen() {
 
         <View style={{ gap: space[3] }}>
           <ThemedText variant="bodyStrong" style={{ textAlign: 'center' }}>
-            Nói lại câu này nhé:
+            {t('intro.repeatPrompt')}
           </ThemedText>
-          <SentenceCard sentence={sentence} hint="ha-LÔ, ích bin…" onPlay={() => void speakGerman(sentence)} />
+          <SentenceCard sentence={sentence} hint={t('intro.hint')} onPlay={() => void speakGerman(sentence)} />
           {retryMsg ? (
             <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <ThemedText variant="bodyStrong" color="accent" style={{ textAlign: 'center' }}>
@@ -372,7 +373,7 @@ export default function FirstSentenceScreen() {
             <View style={{ alignItems: 'center', gap: space[2], height: 132, justifyContent: 'center' }}>
               <ActivityIndicator size="large" color={c.accent} />
               <ThemedText variant="caption" color="muted">
-                {`${mName} đang lắng nghe…`}
+                {t('mic.listening', { name: mName })}
               </ThemedText>
             </View>
           ) : (
@@ -389,7 +390,7 @@ export default function FirstSentenceScreen() {
               >
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={recording ? 'Dừng ghi âm' : 'Bấm để nói'}
+                  accessibilityLabel={recording ? t('mic.stop') : t('mic.tapToSpeak')}
                   onPress={() => void (recording ? stopRecording() : startRecording())}
                   style={{
                     width: 80,
@@ -409,17 +410,17 @@ export default function FirstSentenceScreen() {
               </View>
               <View style={{ alignItems: 'center', gap: 2 }}>
                 <ThemedText variant="bodyStrong">
-                  {recording ? 'Đang nghe… bấm để dừng' : 'Chạm & nói câu trên'}
+                  {recording ? t('mic.recordingLabel') : t('mic.idleLabel')}
                 </ThemedText>
                 <ThemedText variant="caption" color="muted">
-                  Sai cũng không sao — cứ thử thoải mái.
+                  {t('mic.reassurance')}
                 </ThemedText>
               </View>
               {/* Đường chủ động không dùng micro (UI v2) — cùng biến thể nghe–lặp
                   lại như khi bị từ chối quyền, nhưng phễu tách được hai lý do. */}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Chỉ nghe rồi lặp lại, không dùng micro"
+                accessibilityLabel={t('mic.echoA11y')}
                 hitSlop={10}
                 onPress={() => skip('no_mic_choice', 'echo')}
                 style={{ paddingVertical: space[2] }}
@@ -427,7 +428,7 @@ export default function FirstSentenceScreen() {
                 {/* textDecorationLine thay gạch-chân giả bằng border: border chỉ
                     vẽ dưới dòng CUỐI khi label xuống dòng trên máy hẹp. */}
                 <ThemedText variant="label" color="secondary" style={{ textDecorationLine: 'underline' }}>
-                  Chỉ nghe — lặp lại (không dùng micro)
+                  {t('mic.echo')}
                 </ThemedText>
               </Pressable>
             </>
@@ -559,6 +560,7 @@ function IconGlyph({ icon: LucideComponent, color }: { icon: LucideIconType; col
 
 function SentenceCard({ sentence, hint, onPlay }: { sentence: string; hint?: string; onPlay: () => void }) {
   const c = useTheme().colors
+  const t = useT(firstSentenceMessages)
   return (
     <View
       style={{
@@ -573,13 +575,13 @@ function SentenceCard({ sentence, hint, onPlay }: { sentence: string; hint?: str
         <ThemedText variant="titleLg" style={{ color: c.onInk, textAlign: 'center', flexShrink: 1 }}>
           {sentence}
         </ThemedText>
-        <Pressable accessibilityRole="button" accessibilityLabel="Nghe câu mẫu" hitSlop={8} onPress={onPlay}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('sentence.play')} hitSlop={8} onPress={onPlay}>
           <Icon icon={Volume2} size={22} color="accent" />
         </Pressable>
       </View>
       {hint ? (
         <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
-          Đọc là: {hint}
+          {t('sentence.pronounce', { hint })}
         </ThemedText>
       ) : null}
     </View>

@@ -15,9 +15,22 @@ import { passwordStrength } from '@/lib/passwordStrength'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { Screen, ThemedText, TextField, Button, Icon } from '@/components/ui'
+import { getDeviceLocale, useT } from '@/lib/i18n'
+import { authMessages } from '@/lib/i18n/messages/auth'
+
+// Nhãn độ mạnh theo `strength.level` (0–4) của `lib/passwordStrength.ts` — file đó vẫn trả nhãn tiếng
+// Việt cho phần còn lại của app; màn này chỉ ánh xạ mức sang từ điển để hiện đúng ngôn ngữ thiết bị.
+const STRENGTH_LABEL_KEYS = [
+  'register.strengthLabels.l0',
+  'register.strengthLabels.l1',
+  'register.strengthLabels.l2',
+  'register.strengthLabels.l3',
+  'register.strengthLabels.l4',
+] as const
 
 export default function RegisterScreen() {
   const theme = useTheme()
+  const t = useT(authMessages)
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -51,20 +64,20 @@ export default function RegisterScreen() {
   async function handleRegister() {
     const phoneTrimmed = phone.trim()
     if (!displayName.trim() || !email.trim() || !password.trim()) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng điền đầy đủ thông tin.')
+      Alert.alert(t('common.missingInfoTitle'), t('register.missingInfoBody'))
       return
     }
     if (!agree) {
-      Alert.alert('Điều khoản', 'Vui lòng đồng ý với Điều khoản và Chính sách bảo mật.')
+      Alert.alert(t('register.termsTitle'), t('register.termsBody'))
       return
     }
     // Phone is optional (App Store 5.1.1(v)); only validate the format when the user actually enters one.
     if (phoneTrimmed && !/^0[35789]\d{8}$/.test(phoneTrimmed)) {
-      Alert.alert('Số điện thoại không hợp lệ', 'Nhập số di động VN 10 chữ số, ví dụ 0912345678.')
+      Alert.alert(t('register.phoneInvalidTitle'), t('register.phoneInvalidBody'))
       return
     }
     if (password.length < 8) {
-      Alert.alert('Mật khẩu quá ngắn', 'Mật khẩu phải có ít nhất 8 ký tự.')
+      Alert.alert(t('common.passwordTooShortTitle'), t('common.passwordTooShortBody'))
       return
     }
     setLoading(true)
@@ -76,7 +89,7 @@ export default function RegisterScreen() {
         // Omit entirely when blank — never send "" (the phone column is UNIQUE; the backend stores NULL).
         ...(phoneTrimmed ? { phoneNumber: phoneTrimmed } : {}),
         password,
-        locale: 'vi',
+        locale: getDeviceLocale(),
       })
       await setTokens(res.data.accessToken, res.data.refreshToken)
       await fetchMe()
@@ -95,7 +108,7 @@ export default function RegisterScreen() {
       // Đừng đoán hộ nguyên nhân: mất mạng, 500, email sai định dạng đều từng bị
       // gộp thành "Email có thể đã được sử dụng" (F-9). apiMessage đọc `detail`
       // của ProblemDetail, đúng như phần còn lại của app.
-      Alert.alert('Đăng ký thất bại', apiMessage(e))
+      Alert.alert(t('register.failedTitle'), apiMessage(e))
     } finally {
       setLoading(false)
     }
@@ -134,31 +147,31 @@ export default function RegisterScreen() {
                   D
                 </ThemedText>
               </View>
-              <ThemedText variant="titleLg">Tạo tài khoản</ThemedText>
+              <ThemedText variant="titleLg">{t('register.title')}</ThemedText>
               <ThemedText variant="body" color="muted" style={{ marginTop: space[1] }}>
-                Miễn phí, không cần thẻ tín dụng
+                {t('register.subtitle')}
               </ThemedText>
             </View>
 
             <View style={{ gap: space[4] }}>
               <TextField
-                label="Tên hiển thị"
+                label={t('register.displayName')}
                 value={displayName}
                 onChangeText={setDisplayName}
-                placeholder="Nguyễn Văn A"
+                placeholder={t('register.displayNamePlaceholder')}
                 autoCapitalize="words"
               />
               <TextField
-                label="Email"
+                label={t('common.email')}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="example@email.com"
+                placeholder={t('common.emailPlaceholder')}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
               />
               <TextField
-                label="Số điện thoại (không bắt buộc)"
+                label={t('register.phone')}
                 value={phone}
                 onChangeText={setPhone}
                 placeholder="0912345678"
@@ -167,10 +180,10 @@ export default function RegisterScreen() {
               />
               <View style={{ gap: space[2] }}>
                 <TextField
-                  label="Mật khẩu"
+                  label={t('common.password')}
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="Tối thiểu 8 ký tự"
+                  placeholder={t('common.passwordMinPlaceholder')}
                   secureTextEntry
                   autoComplete="new-password"
                 />
@@ -191,7 +204,7 @@ export default function RegisterScreen() {
                       ))}
                     </View>
                     <ThemedText variant="caption" style={{ color: theme.colors[strength.tone] }}>
-                      Độ mạnh: {strength.label}
+                      {t('register.strength', { label: t(STRENGTH_LABEL_KEYS[strength.level] ?? 'register.strengthLabels.l0') })}
                     </ThemedText>
                   </View>
                 ) : null}
@@ -207,7 +220,7 @@ export default function RegisterScreen() {
                 <Pressable
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: agree }}
-                  accessibilityLabel="Đồng ý với Điều khoản sử dụng và Chính sách bảo mật"
+                  accessibilityLabel={t('register.agreeA11y')}
                   onPress={() => setAgree((a) => !a)}
                   hitSlop={11}
                   style={{
@@ -231,7 +244,7 @@ export default function RegisterScreen() {
                     Dùng hàng flexWrap để câu vẫn xuống dòng tự nhiên như cũ. */}
                 <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
                   <ThemedText variant="caption" color="secondary" style={{ lineHeight: 18 }}>
-                    Tôi đồng ý với{' '}
+                    {t('register.agreePrefix')}{' '}
                   </ThemedText>
                   <Pressable onPress={openTermsOfUse} accessibilityRole="link" hitSlop={8}>
                     <ThemedText
@@ -239,12 +252,12 @@ export default function RegisterScreen() {
                       color="primary"
                       style={{ textDecorationLine: 'underline', lineHeight: 18 }}
                     >
-                      Điều khoản sử dụng
+                      {t('register.terms')}
                     </ThemedText>
                   </Pressable>
                   <ThemedText variant="caption" color="secondary" style={{ lineHeight: 18 }}>
                     {' '}
-                    và{' '}
+                    {t('register.agreeAnd')}{' '}
                   </ThemedText>
                   <Pressable onPress={openPrivacyPolicy} accessibilityRole="link" hitSlop={8}>
                     <ThemedText
@@ -252,18 +265,18 @@ export default function RegisterScreen() {
                       color="primary"
                       style={{ textDecorationLine: 'underline', lineHeight: 18 }}
                     >
-                      Chính sách bảo mật
+                      {t('register.privacy')}
                     </ThemedText>
                   </Pressable>
                   <ThemedText variant="caption" color="secondary" style={{ lineHeight: 18 }}>
                     {' '}
-                    của MyDeutschFlow.
+                    {t('register.agreeSuffix')}
                   </ThemedText>
                 </View>
               </View>
 
               <Button
-                label="Tạo tài khoản"
+                label={t('register.submit')}
                 onPress={handleRegister}
                 loading={loading}
                 disabled={!agree}
@@ -273,12 +286,12 @@ export default function RegisterScreen() {
 
             <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: space[6] }}>
               <ThemedText variant="body" color="muted">
-                Đã có tài khoản?{' '}
+                {t('register.haveAccount')}{' '}
               </ThemedText>
               <Link href="/(auth)/login" asChild>
-                <Pressable accessibilityRole="button" accessibilityLabel="Đăng nhập" hitSlop={6}>
+                <Pressable accessibilityRole="button" accessibilityLabel={t('common.login')} hitSlop={6}>
                   <ThemedText variant="bodyStrong" color="accent">
-                    Đăng nhập
+                    {t('common.login')}
                   </ThemedText>
                 </Pressable>
               </Link>

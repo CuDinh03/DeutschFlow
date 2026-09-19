@@ -15,23 +15,15 @@ import type { PathChoice } from '@/lib/onboardingMachine'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { Button, Icon, Screen, SelectableChip, ThemedText } from '@/components/ui'
 import { IconTile, RadioDot, TitleBlock } from '@/components/onboarding/WizardParts'
+import { useT } from '@/lib/i18n'
+import { pathChoiceMessages } from '@/lib/i18n/messages/pathChoice'
 
 export type MobilePathChoice = Extract<PathChoice, 'placement' | 'skip'>
 
-const OPTIONS: { value: MobilePathChoice; label: string; desc: string; glyph: GlyphName }[] = [
-  {
-    value: 'placement',
-    label: 'Kiểm tra nhanh 10 câu',
-    desc: 'Khoảng 4 phút · 4 kỹ năng · lộ trình khớp đúng chỗ bạn đang đứng',
-    glyph: 'thithu',
-  },
-  {
-    value: 'skip',
-    label: 'Bỏ qua, vào lộ trình',
-    desc: 'Bắt đầu học ngay theo trình độ tự đánh giá, tinh chỉnh sau',
-    glyph: 'lernweg',
-  },
-]
+const OPTIONS = [
+  { value: 'placement', labelKey: 'options.placement.label', descKey: 'options.placement.desc', glyph: 'thithu' },
+  { value: 'skip', labelKey: 'options.skip.label', descKey: 'options.skip.desc', glyph: 'lernweg' },
+] as const satisfies readonly { value: MobilePathChoice; labelKey: string; descKey: string; glyph: GlyphName }[]
 
 interface PathChoiceCardProps {
   /** Trình độ tự khai (A1–C2) — hiện trong lời dẫn. */
@@ -46,6 +38,7 @@ interface PathChoiceCardProps {
 
 export function PathChoiceCard({ level, cap, onPick, onBack, busy = false }: PathChoiceCardProps) {
   const c = useTheme().colors
+  const t = useT(pathChoiceMessages)
   const [choice, setChoice] = useState<MobilePathChoice | null>(null)
   return (
     <Screen edges={['top', 'bottom']}>
@@ -53,7 +46,7 @@ export function PathChoiceCard({ level, cap, onPick, onBack, busy = false }: Pat
         {onBack ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Quay lại"
+            accessibilityLabel={t('card.back')}
             hitSlop={10}
             onPress={onBack}
             style={{ marginLeft: -space[2], padding: space[1] }}
@@ -69,16 +62,18 @@ export function PathChoiceCard({ level, cap, onPick, onBack, busy = false }: Pat
       >
         <TitleBlock
           cap={cap}
-          title="Vào đúng trình độ của bạn?"
-          sub={`Bạn tự đánh giá ${level}. Kiểm tra nhanh để lộ trình khớp chính xác — hoặc bắt đầu học ngay rồi tinh chỉnh sau.`}
+          title={t('card.title')}
+          sub={t('card.sub', { level })}
         />
         <View accessibilityRole="radiogroup" style={{ gap: space[3] }}>
           {OPTIONS.map((opt) => {
             const selected = choice === opt.value
+            const label = t(opt.labelKey)
+            const desc = t(opt.descKey)
             return (
               <SelectableChip
                 key={opt.value}
-                label={`${opt.label} — ${opt.desc}`}
+                label={`${label} — ${desc}`}
                 selected={selected}
                 disabled={busy}
                 onPress={() => {
@@ -98,9 +93,9 @@ export function PathChoiceCard({ level, cap, onPick, onBack, busy = false }: Pat
               >
                 <IconTile glyph={opt.glyph} selected={selected} size={44} />
                 <View style={{ flex: 1, gap: 2 }}>
-                  <ThemedText style={{ fontFamily: fonts.displaySemi, fontSize: 16.5, lineHeight: 20 }}>{opt.label}</ThemedText>
+                  <ThemedText style={{ fontFamily: fonts.displaySemi, fontSize: 16.5, lineHeight: 20 }}>{label}</ThemedText>
                   <ThemedText variant="caption" color="secondary">
-                    {opt.desc}
+                    {desc}
                   </ThemedText>
                 </View>
                 <RadioDot selected={selected} />
@@ -121,7 +116,7 @@ export function PathChoiceCard({ level, cap, onPick, onBack, busy = false }: Pat
         }}
       >
         <Button
-          label="Tiếp tục"
+          label={t('card.continue')}
           icon={ArrowRight}
           iconRight
           disabled={!choice || busy}
@@ -132,7 +127,7 @@ export function PathChoiceCard({ level, cap, onPick, onBack, busy = false }: Pat
           }}
         />
         <ThemedText variant="caption" color="secondary" align="center">
-          Bỏ qua bây giờ vẫn làm bài kiểm tra được sau, trong danh sách tuần đầu.
+          {t('card.footnote')}
         </ThemedText>
       </View>
     </Screen>

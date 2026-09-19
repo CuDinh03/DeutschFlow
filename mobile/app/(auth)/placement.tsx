@@ -34,11 +34,14 @@ import { motion, radius, space, useTheme } from '@/lib/theme'
 import { Button, Caption, Card, Icon, Pill, Screen, SelectableChip, TextField, ThemedText, GaGlyph } from '@/components/ui'
 import { RadioDot, TitleBlock } from '@/components/onboarding/WizardParts'
 import { ConfettiBurst } from '@/components/guide/ConfettiBurst'
+import { useT } from '@/lib/i18n'
+import { placementMessages } from '@/lib/i18n/messages/placement'
 
 type Phase = 'loading' | 'test' | 'submitting' | 'result' | 'error'
 
 export default function PlacementScreen() {
   const c = useTheme().colors
+  const t = useT(placementMessages)
   const { level: rawLevel } = useLocalSearchParams<{ level?: string }>()
   const [level, setLevel] = useState<PlacementLevel | null>(normalizePlacementLevel(rawLevel))
   const [phase, setPhase] = useState<Phase>('loading')
@@ -118,7 +121,7 @@ export default function PlacementScreen() {
     } catch (e) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       setPhase('test')
-      Alert.alert('Chưa nộp được', apiMessage(e))
+      Alert.alert(t('submitFailed.title'), apiMessage(e))
     }
   }
 
@@ -130,11 +133,11 @@ export default function PlacementScreen() {
       return
     }
     Alert.alert(
-      `Còn ${missing} câu chưa trả lời`,
-      'Câu bỏ trống tính là sai. Nộp luôn hay xem lại?',
+      t('confirm.title', { count: missing }),
+      t('confirm.body'),
       [
-        { text: 'Xem lại', style: 'cancel' },
-        { text: 'Nộp bài', onPress: () => void submit() },
+        { text: t('confirm.review'), style: 'cancel' },
+        { text: t('confirm.submit'), onPress: () => void submit() },
       ],
     )
   }
@@ -144,9 +147,9 @@ export default function PlacementScreen() {
       <Screen edges={['top', 'bottom']}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space[4], paddingHorizontal: space[6] }}>
           <ActivityIndicator size="large" color={c.accent} />
-          <ThemedText variant="titleLg" align="center">Đang chuẩn bị 10 câu…</ThemedText>
+          <ThemedText variant="titleLg" align="center">{t('loading.title')}</ThemedText>
           <ThemedText variant="caption" color="secondary" align="center">
-            Bốn kỹ năng, khoảng 4 phút. Bỏ qua lúc nào cũng được.
+            {t('loading.sub')}
           </ThemedText>
         </View>
       </Screen>
@@ -157,13 +160,13 @@ export default function PlacementScreen() {
     return (
       <Screen edges={['top', 'bottom']}>
         <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[6], gap: space[5] }}>
-          <TitleBlock cap="Kiểm tra đầu vào" title="Chưa tạo được bài kiểm tra" sub={errorMsg ?? 'Vui lòng thử lại sau.'} />
+          <TitleBlock cap={t('error.cap')} title={t('error.title')} sub={errorMsg ?? t('error.fallback')} />
           <ThemedText variant="body" color="secondary">
-            Lộ trình của bạn đã được tạo theo trình độ tự đánh giá — vào học ngay cũng được, làm bài kiểm tra sau trong danh sách tuần đầu.
+            {t('error.body')}
           </ThemedText>
         </View>
         <Footer>
-          <Button label="Vào lộ trình của tôi" onPress={() => leave('create_failed')} />
+          <Button label={t('error.cta')} onPress={() => leave('create_failed')} />
         </Footer>
       </Screen>
     )
@@ -232,16 +235,16 @@ export default function PlacementScreen() {
         {/* Header: nhãn + Bỏ qua; dải 10 vạch + bộ đếm (thông tin thật ở bộ đếm, dải chỉ trang trí). */}
         <View style={{ paddingHorizontal: space[5], gap: space[2], paddingBottom: space[2] }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 44 }}>
-            <Caption>Kiểm tra đầu vào · {level}</Caption>
+            <Caption>{t('header.cap', { level })}</Caption>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Bỏ qua bài kiểm tra, vào lộ trình"
+              accessibilityLabel={t('header.skipA11y')}
               hitSlop={10}
               disabled={busy}
               onPress={() => leave('mid_test')}
               style={{ paddingVertical: space[1], paddingHorizontal: space[2] }}
             >
-              <ThemedText variant="bodyStrong" color="accent">Bỏ qua</ThemedText>
+              <ThemedText variant="bodyStrong" color="accent">{t('header.skip')}</ThemedText>
             </Pressable>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
@@ -265,7 +268,7 @@ export default function PlacementScreen() {
             <ThemedText
               variant="label"
               color="secondary"
-              accessibilityLabel={`Câu ${current + 1} trên ${total}`}
+              accessibilityLabel={t('header.progressA11y', { current: current + 1, total })}
               style={{ fontVariant: ['tabular-nums'] }}
             >
               {current + 1}/{total}
@@ -301,7 +304,7 @@ export default function PlacementScreen() {
                 </View>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Nghe đoạn tiếng Đức"
+                  accessibilityLabel={t('audio.listenA11y')}
                   hitSlop={8}
                   onPress={() => {
                     void Haptics.selectionAsync()
@@ -311,7 +314,7 @@ export default function PlacementScreen() {
                   style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], alignSelf: 'flex-start' }}
                 >
                   <Icon icon={Volume2} size={18} color="accent" />
-                  <ThemedText variant="bodyStrong" color="accent">Nghe đoạn này</ThemedText>
+                  <ThemedText variant="bodyStrong" color="accent">{t('audio.listen')}</ThemedText>
                 </Pressable>
               </Card>
             ) : null}
@@ -366,10 +369,10 @@ export default function PlacementScreen() {
               </View>
             ) : (
               <TextField
-                label="Câu trả lời của bạn"
+                label={t('answer.label')}
                 value={answer}
                 onChangeText={(text) => setAnswers((a) => ({ ...a, [String(q.id)]: text }))}
-                placeholder="Viết bằng tiếng Đức…"
+                placeholder={t('answer.placeholder')}
                 multiline
                 numberOfLines={4}
                 autoCapitalize="sentences"
@@ -383,14 +386,14 @@ export default function PlacementScreen() {
 
         <Footer row>
           {current > 0 ? (
-            <Button label="Trước" variant="ghost" icon={ArrowLeft} disabled={busy} onPress={() => goTo(current - 1)} />
+            <Button label={t('nav.prev')} variant="ghost" icon={ArrowLeft} disabled={busy} onPress={() => goTo(current - 1)} />
           ) : (
             <View />
           )}
           {isLast ? (
-            <Button label="Nộp bài" variant="yellow" loading={busy} disabled={busy} onPress={confirmSubmit} />
+            <Button label={t('nav.submit')} variant="yellow" loading={busy} disabled={busy} onPress={confirmSubmit} />
           ) : (
-            <Button label="Tiếp" icon={ArrowRight} iconRight disabled={busy} onPress={() => goTo(current + 1)} />
+            <Button label={t('nav.next')} icon={ArrowRight} iconRight disabled={busy} onPress={() => goTo(current + 1)} />
           )}
         </Footer>
       </KeyboardAvoidingView>

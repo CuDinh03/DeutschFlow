@@ -1,4 +1,5 @@
 import api from '@/lib/api'
+import { defineMessages, translate } from '@/lib/i18n'
 import type { GlyphName } from '@/lib/galerieGlyphs'
 
 /**
@@ -59,17 +60,67 @@ export function normalizePlacementLevel(raw: unknown): PlacementLevel | null {
   return (PLACEMENT_LEVELS as readonly string[]).includes(up) ? (up as PlacementLevel) : null
 }
 
+// Câu chữ theo ngôn ngữ thiết bị (Q-D, Đợt 3 PR-3 19/09/2026). Hàm thuần, không hook — màn gọi
+// `translate()` gián tiếp qua các helper dưới; jest (mock locale vi) thấy đúng chuỗi cũ.
+const placementLibMessages = defineMessages(
+  {
+    skill: { hoeren: 'Nghe', sprechen: 'Nói', lesen: 'Đọc', schreiben: 'Viết' },
+    result: {
+      score: '{correct}/{total} câu đúng ({percent}%)',
+      passedTitle: 'Tốt rồi, bạn đã sẵn sàng!',
+      passedBody: 'Lộ trình của bạn bắt đầu ở chặng {level} — đúng với trình độ bạn tự đánh giá.',
+      passedCta: 'Vào lộ trình của tôi',
+      failedTitle: 'Mình đã tìm ra chỗ cần ôn',
+      failedWeak: 'Có {weak} chủ đề cần củng cố trước khi vào {level}. ',
+      failedNoWeak: 'Một vài phần của {level} còn chưa chắc. ',
+      failedTail: 'Lộ trình sẽ bắt đầu thấp hơn một chút để bạn không bị hụt — làm lại bài kiểm tra được sau {retry} ngày.',
+      failedCta: 'Xem lộ trình phù hợp',
+    },
+  },
+  {
+    en: {
+      skill: { hoeren: 'Listening', sprechen: 'Speaking', lesen: 'Reading', schreiben: 'Writing' },
+      result: {
+        score: '{correct}/{total} correct ({percent}%)',
+        passedTitle: "Great, you're ready!",
+        passedBody: 'Your roadmap starts at stage {level} — matching the level you chose.',
+        passedCta: 'Go to my roadmap',
+        failedTitle: 'We found what to review',
+        failedWeak: '{weak} topics need strengthening before {level}. ',
+        failedNoWeak: 'A few parts of {level} are still shaky. ',
+        failedTail: "Your roadmap will start slightly lower so you don't fall behind — you can retake the test in {retry} days.",
+        failedCta: 'See the roadmap that fits',
+      },
+    },
+    de: {
+      skill: { hoeren: 'Hören', sprechen: 'Sprechen', lesen: 'Lesen', schreiben: 'Schreiben' },
+      result: {
+        score: '{correct}/{total} richtig ({percent} %)',
+        passedTitle: 'Super, du bist bereit!',
+        passedBody: 'Dein Lernweg beginnt bei Etappe {level} – passend zu deiner Selbsteinschätzung.',
+        passedCta: 'Zu meinem Lernweg',
+        failedTitle: 'Wir haben gefunden, was du wiederholen solltest',
+        failedWeak: '{weak} Themen solltest du vor {level} festigen. ',
+        failedNoWeak: 'Einige Teile von {level} sitzen noch nicht. ',
+        failedTail: 'Dein Lernweg beginnt etwas tiefer, damit du nicht den Anschluss verlierst – den Test kannst du in {retry} Tagen wiederholen.',
+        failedCta: 'Passenden Lernweg ansehen',
+      },
+    },
+  },
+)
+
 /** Nhãn + glyph nhận diện theo kỹ năng (GaGlyph — luật GALERIE_GLYPHS.md, không emoji). */
 export function skillMeta(section: string): { label: string; glyph: GlyphName } {
+  const t = translate(placementLibMessages)
   switch (section) {
     case 'HOEREN':
-      return { label: 'Nghe', glyph: 'nghe' }
+      return { label: t('skill.hoeren'), glyph: 'nghe' }
     case 'SPRECHEN':
-      return { label: 'Nói', glyph: 'noi' }
+      return { label: t('skill.sprechen'), glyph: 'noi' }
     case 'LESEN':
-      return { label: 'Đọc', glyph: 'doc' }
+      return { label: t('skill.lesen'), glyph: 'doc' }
     default:
-      return { label: 'Viết', glyph: 'viet' }
+      return { label: t('skill.schreiben'), glyph: 'viet' }
   }
 }
 
@@ -105,26 +156,25 @@ export interface PlacementResultCopy {
  * KHÔNG hiện mã máy (số module chỉ có nghĩa với giáo trình, người học không đọc được).
  */
 export function placementResultCopy(result: PlacementResult, level: string): PlacementResultCopy {
-  const score = `${result.correctCount}/${result.totalQuestions} câu đúng (${result.scorePercent}%)`
+  const t = translate(placementLibMessages)
+  const score = t('result.score', { correct: result.correctCount, total: result.totalQuestions, percent: result.scorePercent })
   if (result.passed) {
     return {
-      title: 'Tốt rồi, bạn đã sẵn sàng!',
+      title: t('result.passedTitle'),
       score,
-      body: `Lộ trình của bạn bắt đầu ở chặng ${level} — đúng với trình độ bạn tự đánh giá.`,
-      cta: 'Vào lộ trình của tôi',
+      body: t('result.passedBody', { level }),
+      cta: t('result.passedCta'),
     }
   }
   const weak = result.weakModules?.length ?? 0
   const retry = result.retryAfterDays ?? 3
   return {
-    title: 'Mình đã tìm ra chỗ cần ôn',
+    title: t('result.failedTitle'),
     score,
     body:
-      (weak > 0
-        ? `Có ${weak} chủ đề cần củng cố trước khi vào ${level}. `
-        : `Một vài phần của ${level} còn chưa chắc. `) +
-      `Lộ trình sẽ bắt đầu thấp hơn một chút để bạn không bị hụt — làm lại bài kiểm tra được sau ${retry} ngày.`,
-    cta: 'Xem lộ trình phù hợp',
+      (weak > 0 ? t('result.failedWeak', { weak, level }) : t('result.failedNoWeak', { level })) +
+      t('result.failedTail', { retry }),
+    cta: t('result.failedCta'),
   }
 }
 

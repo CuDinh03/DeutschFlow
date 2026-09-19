@@ -7,23 +7,27 @@ import { ArrowRight } from 'lucide-react-native'
 import { motion, space, useTheme } from '@/lib/theme'
 import { captureEvent } from '@/lib/analytics'
 import { Screen, ThemedText, Button, BrandMark, YellowSquare, GaGlyph, Icon } from '@/components/ui'
+import { useT } from '@/lib/i18n'
+import { welcomeMessages } from '@/lib/i18n/messages/welcome'
 
 // M0 — màn Chào mừng (Đợt 3 kế hoạch onboarding 17/09/2026, cổng G-1 = bỏ cờ PostHog).
 //
 // Trạng thái `WELCOME` của máy trạng thái v3.1 (fixture W1: intro_done → PROFILE cho khách).
 // Đây là cửa vào duy nhất của phễu value-first: CTA chính đưa thẳng vào wizard KHÔNG cần tài
 // khoản; "Tôi đã có tài khoản" là cổng quay lại (login tự hỏi /onboarding/context để đưa người bỏ
-// dở về phễu). Đăng ký thẳng vẫn có ở màn Đăng nhập cho ai muốn. Chọn ngôn ngữ vào ở PR i18n (Q-D).
+// dở về phễu). Đăng ký thẳng vẫn có ở màn Đăng nhập cho ai muốn. Chữ theo ngôn ngữ thiết bị (Q-D,
+// Đợt 3 PR-3): từ điển `lib/i18n/messages/welcome.ts`, hook `useT`.
 // Không emoji, biểu tượng nhận diện = GaGlyph, điều khiển = Lucide (luật GALERIE_GLYPHS.md).
 
-const VALUE_POINTS: { glyph: 'thoigian' | 'phongvan' | 'lophoc'; text: string }[] = [
-  { glyph: 'thoigian', text: 'Lộ trình riêng theo mục tiêu và nhịp học của bạn' },
-  { glyph: 'phongvan', text: 'Luyện nói với mentor AI từ buổi đầu tiên' },
-  { glyph: 'lophoc', text: 'Câu tiếng Đức đầu tiên trong 2 phút — chưa cần tài khoản' },
-]
+const VALUE_POINTS = [
+  { glyph: 'thoigian', key: 'points.path' },
+  { glyph: 'phongvan', key: 'points.speaking' },
+  { glyph: 'lophoc', key: 'points.firstSentence' },
+] as const
 
 export default function WelcomeScreen() {
   const c = useTheme().colors
+  const t = useT(welcomeMessages)
 
   useEffect(() => {
     captureEvent('welcome_viewed')
@@ -63,11 +67,11 @@ export default function WelcomeScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
               <YellowSquare />
               <ThemedText variant="caption" color="secondary">
-                Tiếng Đức cho người Việt đi làm, học nghề, du học
+                {t('tagline')}
               </ThemedText>
             </View>
             <ThemedText variant="display" accessibilityRole="header">
-              Học tiếng Đức theo đúng mục tiêu của bạn
+              {t('headline')}
             </ThemedText>
           </View>
 
@@ -87,7 +91,7 @@ export default function WelcomeScreen() {
                   <GaGlyph name={p.glyph} size={18} ink="secondary" />
                 </View>
                 <ThemedText variant="body" color="secondary" style={{ flex: 1 }}>
-                  {p.text}
+                  {t(p.key)}
                 </ThemedText>
               </View>
             ))}
@@ -106,16 +110,16 @@ export default function WelcomeScreen() {
           backgroundColor: c.surface,
         }}
       >
-        <Button label="Bắt đầu — miễn phí" icon={ArrowRight} iconRight onPress={start} />
+        <Button label={t('start')} icon={ArrowRight} iconRight onPress={start} />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Tôi đã có tài khoản"
+          accessibilityLabel={t('haveAccount')}
           hitSlop={8}
           onPress={haveAccount}
           style={{ alignItems: 'center', paddingVertical: space[2], flexDirection: 'row', justifyContent: 'center', gap: space[1] }}
         >
           <ThemedText variant="bodyStrong" color="accent">
-            Tôi đã có tài khoản
+            {t('haveAccount')}
           </ThemedText>
           <Icon icon={ArrowRight} size={14} color="accent" />
         </Pressable>

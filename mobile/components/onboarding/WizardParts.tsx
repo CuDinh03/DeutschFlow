@@ -3,16 +3,22 @@ import { Check } from 'lucide-react-native'
 import type { GlyphName } from '@/lib/galerieGlyphs'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { Caption, GaGlyph, Icon, SelectableChip, ThemedText } from '@/components/ui'
+import { translate, useT } from '@/lib/i18n'
+import { onboardingMessages } from '@/lib/i18n/messages/onboarding'
 
 // Khối dựng dùng chung của wizard onboarding (Đợt 5, 17/09/2026): tách khỏi app/(auth)/onboarding.tsx
 // để bản rút gọn cho học viên trung tâm (OrgLiteWizard) dùng lại đúng ô/chip/tiêu đề của wizard
 // đầy đủ thay vì chép — và để file màn hình chính không phình quá 800 dòng. Thuần trình diễn.
 
+// Hằng số cấp module cần chuỗi sẵn (OrgLiteWizard đọc `.label`/`.tag` trực tiếp) — dịch một lần
+// theo ngôn ngữ thiết bị bằng bản không-hook (Q-D, Đợt 3 PR-3).
+const tm = translate(onboardingMessages)
+
 // Current level feeds the Platform × Level matrix; A0 = absolute beginner.
 // v2: A0 được CHỌN SẴN — đường mặc định phải tường minh, không còn lớp "chưa
 // chạm hàng chip" mơ hồ từng che bug F-1 (QA 2026-08-20).
 export const CURRENT_LEVELS: { value: string; label: string }[] = [
-  { value: 'A0', label: 'Mới bắt đầu · A0' },
+  { value: 'A0', label: tm('level.a0') },
   { value: 'A1', label: 'A1' },
   { value: 'A2', label: 'A2' },
   { value: 'B1', label: 'B1' },
@@ -21,10 +27,10 @@ export const CURRENT_LEVELS: { value: string; label: string }[] = [
 
 // Daily study goal (minutes) — the streak anchor.
 export const DAILY_GOALS: { value: string; tag: string }[] = [
-  { value: '5', tag: 'Tranh thủ' },
-  { value: '10', tag: 'Nhẹ nhàng' },
-  { value: '15', tag: 'Đều đặn' },
-  { value: '20', tag: 'Nghiêm túc' },
+  { value: '5', tag: tm('rhythm.goal5') },
+  { value: '10', tag: tm('rhythm.goal10') },
+  { value: '15', tag: tm('rhythm.goal15') },
+  { value: '20', tag: tm('rhythm.goal20') },
 ]
 
 export const DEFAULT_SESSIONS_PER_WEEK = 5
@@ -181,9 +187,10 @@ export function MinuteTile({
   onPress: () => void
 }) {
   const c = useTheme().colors
+  const t = useT(onboardingMessages)
   return (
     <SelectableChip
-      label={`${minutes} phút mỗi ngày — ${tag}`}
+      label={t('rhythm.minuteTile', { minutes, tag })}
       selected={selected}
       onPress={onPress}
       style={{
@@ -201,7 +208,7 @@ export function MinuteTile({
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[1] }}>
           <ThemedText variant="monoLg">{minutes}</ThemedText>
           <ThemedText variant="caption" color="secondary">
-            phút
+            {t('rhythm.minutes')}
           </ThemedText>
         </View>
         {selected ? <RadioDot selected /> : null}

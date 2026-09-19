@@ -14,7 +14,7 @@ import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft } from '
 import { claimGuestSession, ensureGuestSession, syncGuestSession, type GuestAnswers } from '@/lib/guestSession'
 import { saveDailyGoalMinutes } from '@/lib/dailyGoal'
 import { speakGerman, stopGermanSpeech } from '@/lib/germanTts'
-import { MENTOR_META, mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
+import { mentorFirstName, mentorTagline, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { nextAfterProfile, routeNeedsLevel, type PostProfileContext } from '@/lib/onboardingRouting'
 import { nextOnboardingState, type AccountSource } from '@/lib/onboardingMachine'
 import { queryClient } from '@/lib/queryClient'
@@ -45,6 +45,8 @@ import {
 import { OrgLiteWizard } from '@/components/onboarding/OrgLiteWizard'
 import { PathChoiceCard, type MobilePathChoice } from '@/components/onboarding/PathChoiceCard'
 import { fetchOnboardingContext, needsLiteProfile, type LiteProfilePayload, type OnboardingContext } from '@/lib/onboardingContext'
+import { getDeviceLocale, useT } from '@/lib/i18n'
+import { onboardingMessages, type OnboardingMessageKey } from '@/lib/i18n/messages/onboarding'
 
 // Onboarding for iOS B2C (MVP checklist §5.1): collect goal, target level, and
 // role/industry, then POST /api/onboarding/profile and route straight into the
@@ -71,43 +73,46 @@ interface OnboardingRoute {
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
 
-const INDUSTRIES: { value: string; label: string; glyph: GlyphName }[] = [
-  { value: 'IT', label: 'CNTT', glyph: 'laptop' },
-  { value: 'Pflege', label: 'Điều dưỡng', glyph: 't_health' },
-  { value: 'Gastronomie', label: 'Nhà hàng', glyph: 't_food' },
-  { value: 'Verkauf', label: 'Bán hàng', glyph: 't_shopping' },
-  { value: 'Tourismus', label: 'Du lịch', glyph: 't_travel' },
-  { value: 'Technik', label: 'Kỹ thuật', glyph: 'banhrang' },
+// Mảng hằng số giữ KHOÁ từ điển (`label`/`desc`), dịch lúc render bằng `t(...)` (Q-D, Đợt 3 PR-3).
+const INDUSTRIES: { value: string; label: OnboardingMessageKey; glyph: GlyphName }[] = [
+  { value: 'IT', label: 'industries.it', glyph: 'laptop' },
+  { value: 'Pflege', label: 'industries.pflege', glyph: 't_health' },
+  { value: 'Gastronomie', label: 'industries.gastronomie', glyph: 't_food' },
+  { value: 'Verkauf', label: 'industries.verkauf', glyph: 't_shopping' },
+  { value: 'Tourismus', label: 'industries.tourismus', glyph: 't_travel' },
+  { value: 'Technik', label: 'industries.technik', glyph: 'banhrang' },
 ]
 
-const EXAMS: { value: string; label: string; desc: string; glyph: GlyphName }[] = [
-  { value: 'GOETHE', label: 'Goethe-Zertifikat', desc: 'Chứng chỉ phổ biến nhất', glyph: 'thinoi' },
-  { value: 'TELC', label: 'telc Deutsch', desc: 'Được công nhận ngang Goethe', glyph: 'baigiao' },
-  { value: 'TESTDAF', label: 'TestDaF', desc: 'Dành cho du học đại học', glyph: 't_exam' },
+// `label` là tên riêng của kỳ thi — không dịch; chỉ `desc` qua từ điển.
+const EXAMS: { value: string; label: string; desc: OnboardingMessageKey; glyph: GlyphName }[] = [
+  { value: 'GOETHE', label: 'Goethe-Zertifikat', desc: 'exams.goethe', glyph: 'thinoi' },
+  { value: 'TELC', label: 'telc Deutsch', desc: 'exams.telc', glyph: 'baigiao' },
+  { value: 'TESTDAF', label: 'TestDaF', desc: 'exams.testdaf', glyph: 't_exam' },
 ]
 
 // "Vì sao bạn học?" — the emotional anchor; derives a coarse goalType (EXAM → CERT, else WORK).
-const MOTIVATIONS: { value: string; label: string; desc: string; glyph: GlyphName; goal: GoalType }[] = [
-  { value: 'JOB', label: 'Đi làm tại Đức', desc: 'Việc làm, nghề nghiệp', glyph: 'phongvan', goal: 'WORK' },
-  { value: 'AUSBILDUNG', label: 'Học nghề', desc: 'Ausbildung tại Đức', glyph: 'lophoc', goal: 'WORK' },
-  { value: 'STUDY', label: 'Du học', desc: 'Vào đại học Đức', glyph: 't_exam', goal: 'WORK' },
-  { value: 'IMMIGRATION', label: 'Định cư · đoàn tụ', desc: 'Cuộc sống gia đình', glyph: 't_home', goal: 'WORK' },
-  { value: 'EXAM', label: 'Thi chứng chỉ', desc: 'Goethe · telc · TestDaF', glyph: 'thinoi', goal: 'CERT' },
-  { value: 'HOBBY', label: 'Sở thích', desc: 'Học cho chính mình', glyph: 't_hobby', goal: 'WORK' },
+const MOTIVATIONS: { value: string; label: OnboardingMessageKey; desc: OnboardingMessageKey; glyph: GlyphName; goal: GoalType }[] = [
+  { value: 'JOB', label: 'motivations.job.label', desc: 'motivations.job.desc', glyph: 'phongvan', goal: 'WORK' },
+  { value: 'AUSBILDUNG', label: 'motivations.ausbildung.label', desc: 'motivations.ausbildung.desc', glyph: 'lophoc', goal: 'WORK' },
+  { value: 'STUDY', label: 'motivations.study.label', desc: 'motivations.study.desc', glyph: 't_exam', goal: 'WORK' },
+  { value: 'IMMIGRATION', label: 'motivations.immigration.label', desc: 'motivations.immigration.desc', glyph: 't_home', goal: 'WORK' },
+  { value: 'EXAM', label: 'motivations.exam.label', desc: 'motivations.exam.desc', glyph: 'thinoi', goal: 'CERT' },
+  { value: 'HOBBY', label: 'motivations.hobby.label', desc: 'motivations.hobby.desc', glyph: 't_hobby', goal: 'WORK' },
 ]
 
 // VoiceOver/TalkBack không tự biết wizard vừa đổi bước (nội dung thay tại chỗ,
 // không có điều hướng) — đọc to tiêu đề bước mới mỗi lần chuyển.
-const STEP_ANNOUNCEMENTS: Record<OnboardingStepId, string> = {
-  motivation: 'Bước 1 trên 4: Vì sao bạn học tiếng Đức?',
-  levels: 'Bước 2 trên 4: Bạn đang ở đâu, và muốn tới đâu?',
-  rhythm: 'Bước 3 trên 4: Mỗi ngày bao nhiêu phút?',
-  focus: 'Bước 4 trên 4: Lĩnh vực hoặc kỳ thi của bạn.',
+const STEP_ANNOUNCEMENTS: Record<OnboardingStepId, OnboardingMessageKey> = {
+  motivation: 'announce.motivation',
+  levels: 'announce.levels',
+  rhythm: 'announce.rhythm',
+  focus: 'announce.focus',
 }
 
 export default function OnboardingScreen() {
   const theme = useTheme()
   const c = theme.colors
+  const t = useT(onboardingMessages)
   const [step, setStep] = useState(0)
   const [motivation, setMotivation] = useState('JOB')
   const [goalType, setGoalType] = useState<GoalType>('WORK')   // derived from motivation
@@ -139,7 +144,7 @@ export default function OnboardingScreen() {
   // Đợt 2 (17/09): phiên khách sống trên server (72 h) — best-effort, server từ chối thì phễu vẫn
   // chạy bằng draft SecureStore như trước.
   useEffect(() => {
-    if (!isLoggedIn) void ensureGuestSession('vi')
+    if (!isLoggedIn) void ensureGuestSession(getDeviceLocale())
   }, [isLoggedIn])
   // Màn "Đang tạo lộ trình…": bật khi replay draft khách SAU đăng ký, và (M-13) cả khi người
   // đăng ký thẳng bấm lưu — hai đường vào cùng một màn chờ, không phải chỉ đường khách.
@@ -167,8 +172,8 @@ export default function OnboardingScreen() {
   // Bước đầu do chính màn hình tự giới thiệu; các bước sau cần announce tay.
   useEffect(() => {
     if (step === 0) return
-    AccessibilityInfo.announceForAccessibility(STEP_ANNOUNCEMENTS[ONBOARDING_STEP_IDS[step]])
-  }, [step])
+    AccessibilityInfo.announceForAccessibility(t(STEP_ANNOUNCEMENTS[ONBOARDING_STEP_IDS[step]]))
+  }, [step, t])
 
   // Live mentor preview — updates as the learner picks goal / level / industry.
   useEffect(() => {
@@ -291,7 +296,7 @@ export default function OnboardingScreen() {
           setMotivation(draft.motivation); setGoalType(draft.goalType); setCurrentLevel(draft.currentLevel)
           setTargetLevel(draft.targetLevel); setIndustry(draft.industry); setExamType(draft.examType); setDailyGoal(draft.dailyGoal)
           setResuming(false)
-          Alert.alert('Chưa lưu được', apiMessage(e))
+          Alert.alert(t('alert.notSavedYet'), apiMessage(e))
         }
       }
     })()
@@ -304,7 +309,7 @@ export default function OnboardingScreen() {
 
   async function handleSubmit() {
     if (!targetLevel) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng chọn trình độ mục tiêu.')
+      Alert.alert(t('alert.missingTitle'), t('alert.missingTargetLevel'))
       return
     }
     if (isGuest) {
@@ -371,7 +376,7 @@ export default function OnboardingScreen() {
       // Lỗi → trả lại form (state còn nguyên) + báo lỗi như trước.
       setResuming(false)
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      Alert.alert('Không lưu được', apiMessage(e))
+      Alert.alert(t('alert.saveFailed'), apiMessage(e))
     } finally {
       setSubmitting(false)
     }
@@ -401,7 +406,7 @@ export default function OnboardingScreen() {
     } catch (e) {
       setResuming(false)
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      Alert.alert('Không lưu được', apiMessage(e))
+      Alert.alert(t('alert.saveFailed'), apiMessage(e))
     } finally {
       setSubmitting(false)
     }
@@ -467,7 +472,7 @@ export default function OnboardingScreen() {
 
   function advance() {
     if (!canLeaveStep(stepId, { targetLevel })) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng chọn trình độ mục tiêu.')
+      Alert.alert(t('alert.missingTitle'), t('alert.missingTargetLevel'))
       return
     }
     if (!isLastStep) {
@@ -496,7 +501,7 @@ export default function OnboardingScreen() {
     return (
       <PathChoiceCard
         level={currentLevel}
-        cap="Trước khi lưu · Chọn đường"
+        cap={t('pathChoice.cap')}
         onPick={(choice) => void handleGuestPathPick(choice)}
         onBack={() => setGuestPathChoice(false)}
         busy={guestPathBusy}
@@ -508,7 +513,7 @@ export default function OnboardingScreen() {
       <GuestQuickWin
         mentor={mentor}
         // A0 → thẳng cổng tài khoản; A1+ → chọn đường trước (máy trạng thái quyết, không phải JSX).
-        nextLabel={guestNeedsPathChoice ? 'Tiếp tục' : 'Tạo tài khoản & lưu lộ trình'}
+        nextLabel={guestNeedsPathChoice ? t('cta.continue') : t('cta.createAccount')}
         onNext={guestNeedsPathChoice ? openGuestPathChoice : () => void handleGuestSignup()}
         onBack={() => setGuestQuickWin(false)}
       />
@@ -538,24 +543,22 @@ export default function OnboardingScreen() {
         >
           {stepId === 'motivation' && (
             <>
-              <TitleBlock cap="Bước 1 / 4 · Mục tiêu" title="Vì sao bạn học tiếng Đức?" />
+              <TitleBlock cap={t('goal.cap')} title={t('goal.title')} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginTop: -space[2] }}>
                 <YellowSquare />
                 <ThemedText variant="caption" color="secondary">
                   {/* Câu mời của phễu KHÁCH. Người vừa đăng ký cũng đáp xuống đây (register.tsx
                       replace sang màn này), nên nói "chưa cần tài khoản" với họ là sai — họ vừa tạo
                       xong. Đo trên máy ảo 16/09 ở bản 18. */}
-                  {isLoggedIn
-                    ? "Trả lời trong khoảng 1 phút — để dựng lộ trình cho bạn."
-                    : "Chưa cần tài khoản — trả lời trong khoảng 1 phút."}
+                  {isLoggedIn ? t('goal.introAuthed') : t('goal.introGuest')}
                 </ThemedText>
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
                 {MOTIVATIONS.map((m) => (
                   <OptionTile
                     key={m.value}
-                    label={m.label}
-                    desc={m.desc}
+                    label={t(m.label)}
+                    desc={t(m.desc)}
                     glyph={m.glyph}
                     selected={motivation === m.value}
                     onPress={() =>
@@ -572,13 +575,13 @@ export default function OnboardingScreen() {
 
           {stepId === 'levels' && (
             <>
-              <TitleBlock cap="Bước 2 / 4 · Trình độ" title="Bạn đang ở đâu — và muốn tới đâu?" />
+              <TitleBlock cap={t('level.cap')} title={t('level.title')} />
               <View style={{ gap: space[3] }}>
-                <Caption>Hiện tại</Caption>
+                <Caption>{t('level.current')}</Caption>
                 <LevelChips options={CURRENT_LEVELS} selected={currentLevel} onSelect={(v) => pick(() => setCurrentLevel(v))} />
               </View>
               <View style={{ gap: space[3] }}>
-                <Caption>Mục tiêu</Caption>
+                <Caption>{t('level.target')}</Caption>
                 <LevelChips
                   options={LEVELS.map((l) => ({ value: l, label: l }))}
                   selected={targetLevel}
@@ -590,7 +593,7 @@ export default function OnboardingScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
                     <View style={{ alignItems: 'center', gap: space[1] }}>
                       <ThemedText variant="monoLg">{currentLevel ?? 'A0'}</ThemedText>
-                      <Caption color={c.textMuted}>Hôm nay</Caption>
+                      <Caption color={c.textMuted}>{t('level.today')}</Caption>
                     </View>
                     <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
                       <YellowSquare />
@@ -601,7 +604,7 @@ export default function OnboardingScreen() {
                       <ThemedText variant="monoLg" color="accent">
                         {targetLevel}
                       </ThemedText>
-                      <Caption color={c.textMuted}>Mục tiêu</Caption>
+                      <Caption color={c.textMuted}>{t('level.target')}</Caption>
                     </View>
                   </View>
                   <View
@@ -617,8 +620,8 @@ export default function OnboardingScreen() {
                     <GaGlyph name="thoigian" size={15} ink="secondary" />
                     <ThemedText variant="caption" color="secondary" style={{ flex: 1 }}>
                       {estimate
-                        ? `Lộ trình ${estimate.nodes} chặng · khoảng ${estimate.weeks} tuần với nhịp đều đặn.`
-                        : 'Lộ trình sẽ được dựng riêng cho chặng này của bạn.'}
+                        ? t('level.estimate', { nodes: estimate.nodes, weeks: estimate.weeks })
+                        : t('level.estimateFallback')}
                     </ThemedText>
                   </View>
                 </Card>
@@ -629,9 +632,9 @@ export default function OnboardingScreen() {
           {stepId === 'rhythm' && (
             <>
               <TitleBlock
-                cap="Bước 3 / 4 · Nhịp học"
-                title="Mỗi ngày bao nhiêu phút?"
-                sub="Chuỗi ngày học (streak) tính theo mức này — chọn mức bạn giữ được lâu dài."
+                cap={t('rhythm.cap')}
+                title={t('rhythm.title')}
+                sub={t('rhythm.sub')}
               />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
                 {DAILY_GOALS.map((g) => (
@@ -647,12 +650,10 @@ export default function OnboardingScreen() {
               <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
                 <IconTile glyph="thongbao" />
                 <View style={{ flex: 1, gap: 2 }}>
-                  <ThemedText variant="bodyStrong">Nhắc học 20:00 mỗi tối</ThemedText>
+                  <ThemedText variant="bodyStrong">{t('rhythm.reminderTitle')}</ThemedText>
                   <ThemedText variant="caption" color="secondary">
                     {/* Cùng lý do: người đã đăng nhập không còn "sau khi tạo tài khoản" nào để chờ. */}
-                    {isLoggedIn
-                      ? "Đổi giờ được trong Cài đặt."
-                      : "Bật sau khi tạo tài khoản — đổi giờ được trong Cài đặt."}
+                    {isLoggedIn ? t('rhythm.reminderAuthed') : t('rhythm.reminderGuest')}
                   </ThemedText>
                 </View>
               </Card>
@@ -664,15 +665,15 @@ export default function OnboardingScreen() {
               {focusIsWork ? (
                 <>
                   <TitleBlock
-                    cap="Bước 4 / 4 · Lĩnh vực"
-                    title="Bạn sẽ dùng tiếng Đức ở đâu?"
-                    sub="Không bắt buộc — giúp chọn mentor và tình huống luyện nói sát nghề."
+                    cap={t('focus.workCap')}
+                    title={t('focus.workTitle')}
+                    sub={t('focus.workSub')}
                   />
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
                     {INDUSTRIES.map((it) => (
                       <IndustryTile
                         key={it.value}
-                        label={it.label}
+                        label={t(it.label)}
                         glyph={it.glyph}
                         selected={industry === it.value}
                         onPress={() => pick(() => setIndustry(industry === it.value ? null : it.value))}
@@ -683,16 +684,16 @@ export default function OnboardingScreen() {
               ) : (
                 <>
                   <TitleBlock
-                    cap="Bước 4 / 4 · Kỳ thi"
-                    title="Bạn nhắm kỳ thi nào?"
-                    sub="Không bắt buộc — đề luyện và dạng bài sẽ bám theo format kỳ thi này."
+                    cap={t('focus.examCap')}
+                    title={t('focus.examTitle')}
+                    sub={t('focus.examSub')}
                   />
                   <View style={{ gap: space[3] }}>
                     {EXAMS.map((ex) => (
                       <ExamRow
                         key={ex.value}
                         label={ex.label}
-                        desc={ex.desc}
+                        desc={t(ex.desc)}
                         glyph={ex.glyph}
                         selected={examType === ex.value}
                         onPress={() => pick(() => setExamType(examType === ex.value ? null : ex.value))}
@@ -721,10 +722,10 @@ export default function OnboardingScreen() {
         }}
       >
         {showSkip ? (
-          <Button label="Bỏ qua" variant="secondary" fullWidth={false} onPress={advance} />
+          <Button label={t('cta.skip')} variant="secondary" fullWidth={false} onPress={advance} />
         ) : null}
         <Button
-          label={isLastStep ? 'Tạo lộ trình của tôi' : 'Tiếp tục'}
+          label={isLastStep ? t('cta.createPath') : t('cta.continue')}
           onPress={advance}
           loading={submitting}
           disabled={stepId === 'levels' && !targetLevel}
@@ -820,7 +821,8 @@ function ExamRow({
 /** Mentor reveal — đỉnh cảm xúc của phễu: thẻ viền gold + monogram + lời hứa. */
 function MentorRevealCard({ mentor }: { mentor: OnboardingMentor }) {
   const c = useTheme().colors
-  const tagline = MENTOR_META[mentor.code]?.tagline ?? 'Người đồng hành học tập'
+  const t = useT(onboardingMessages)
+  const tagline = mentorTagline(mentor.code)
   return (
     <MotiView
       from={{ opacity: 0, translateY: 10 }}
@@ -836,7 +838,7 @@ function MentorRevealCard({ mentor }: { mentor: OnboardingMentor }) {
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Caption color={c.accentText}>Mentor của bạn</Caption>
+        <Caption color={c.accentText}>{t('mentor.cap')}</Caption>
         <View style={{ flexDirection: 'row', gap: 3 }}>
           <YellowSquare size={6} color={c.inkSurface} />
           <YellowSquare size={6} color={c.brand} />
@@ -864,7 +866,7 @@ function MentorRevealCard({ mentor }: { mentor: OnboardingMentor }) {
       >
         <Icon icon={Volume2} size={16} color="secondary" strokeWidth={1.8} />
         <ThemedText variant="caption" color="secondary" style={{ flex: 1 }}>
-          Sẽ chào bạn bằng tiếng Đức ngay khi lộ trình sẵn sàng — và cùng bạn luyện nói từ buổi đầu.
+          {t('mentor.promise')}
         </ThemedText>
       </View>
     </MotiView>
@@ -889,6 +891,7 @@ function GuestQuickWin({
   onBack: () => void
 }) {
   const c = useTheme().colors
+  const t = useT(onboardingMessages)
   const [choice, setChoice] = useState<string | null>(null)
   const solved = choice === 'Guten Morgen'
   // Rời màn (đăng ký / quay lại) thì tắt giọng đang đọc — không để tiếng Đức chạy đè lên màn kế.
@@ -899,7 +902,7 @@ function GuestQuickWin({
       <View style={{ flexDirection: 'row', alignItems: 'center', height: 44, paddingHorizontal: space[5] }}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Quay lại các câu hỏi"
+          accessibilityLabel={t('quickWin.back')}
           hitSlop={10}
           onPress={onBack}
           style={{ marginLeft: -space[2], padding: space[1] }}
@@ -913,17 +916,17 @@ function GuestQuickWin({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <TitleBlock cap="Trước khi lưu · Thử nhanh" title="Thử câu đầu tiên!" sub="„Chào buổi sáng“ trong tiếng Đức là gì?" />
+        <TitleBlock cap={t('quickWin.cap')} title={t('quickWin.title')} sub={t('quickWin.sub')} />
         {/* M5 (Đợt 3): nghe câu đúng bằng giọng Đức — mở hơn MCQ chữ, và là lần đầu người học NGHE tiếng Đức trong app. */}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Nghe câu chào tiếng Đức"
+          accessibilityLabel={t('quickWin.listenA11y')}
           hitSlop={8}
           onPress={() => { void Haptics.selectionAsync(); captureEvent('guest_activity_listened', { kind: 'quick_win' }); void speakGerman('Guten Morgen') }}
           style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], alignSelf: 'flex-start' }}
         >
           <Icon icon={Volume2} size={18} color="accent" />
-          <ThemedText variant="bodyStrong" color="accent">Nghe thử câu chào</ThemedText>
+          <ThemedText variant="bodyStrong" color="accent">{t('quickWin.listen')}</ThemedText>
         </Pressable>
         <View style={{ gap: space[3] }}>
           {OPTIONS.map((opt) => {
@@ -961,7 +964,7 @@ function GuestQuickWin({
                 <ThemedText variant="bodyStrong" color={isRight ? 'primary' : 'secondary'} style={{ flex: 1 }}>
                   {opt}
                 </ThemedText>
-                {isRight ? <Pill label="Đúng" tone="success" solid /> : null}
+                {isRight ? <Pill label={t('quickWin.correct')} tone="success" solid /> : null}
               </SelectableChip>
             )
           })}
@@ -991,7 +994,7 @@ function GuestQuickWin({
                   Richtig!
                 </ThemedText>
                 <ThemedText variant="caption" color="secondary">
-                  Bạn vừa học câu chào tiếng Đức đầu tiên.
+                  {t('quickWin.learned')}
                 </ThemedText>
               </View>
             </View>
@@ -999,9 +1002,9 @@ function GuestQuickWin({
               <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
                 <MentorMonogram mentor={mentor} size={42} />
                 <View style={{ flex: 1, gap: 2 }}>
-                  <ThemedText variant="bodyStrong">{`${mentorFirstName(mentor)} đang chờ bạn`}</ThemedText>
+                  <ThemedText variant="bodyStrong">{t('quickWin.waiting', { name: mentorFirstName(mentor) })}</ThemedText>
                   <ThemedText variant="caption" color="secondary">
-                    Buổi luyện nói đầu tiên đã xếp sẵn trong lộ trình của bạn.
+                    {t('quickWin.waitingSub')}
                   </ThemedText>
                 </View>
               </Card>
@@ -1022,7 +1025,7 @@ function GuestQuickWin({
       >
         <Button label={nextLabel} onPress={onNext} disabled={!solved} />
         <ThemedText variant="caption" color="secondary" align="center">
-          Miễn phí — lộ trình, mentor và kết quả được giữ nguyên.
+          {t('quickWin.free')}
         </ThemedText>
       </View>
     </Screen>
@@ -1035,6 +1038,7 @@ function GuestQuickWin({
  */
 function Resuming() {
   const c = useTheme().colors
+  const t = useT(onboardingMessages)
   return (
     <Screen edges={['top', 'bottom']}>
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: space[5], paddingHorizontal: space[6] }}>
@@ -1044,16 +1048,16 @@ function Resuming() {
         <ActivityIndicator size="large" color={c.accent} />
         <View style={{ alignItems: 'center', gap: space[2] }}>
           <ThemedText variant="titleLg" align="center">
-            Đang tạo lộ trình của bạn…
+            {t('resuming.title')}
           </ThemedText>
           <ThemedText variant="caption" color="secondary" align="center">
-            Chỉ vài giây — đừng đóng ứng dụng.
+            {t('resuming.sub')}
           </ThemedText>
         </View>
         <Card padded={false} style={{ alignSelf: 'stretch' }}>
-          <StageRow label="Lưu mục tiêu & trình độ" delay={300} />
-          <StageRow label="Ghép mentor đồng hành" delay={1000} />
-          <StageRow label="Dựng lộ trình học…" delay={0} spinning last />
+          <StageRow label={t('resuming.stageSave')} delay={300} />
+          <StageRow label={t('resuming.stageMentor')} delay={1000} />
+          <StageRow label={t('resuming.stageBuild')} delay={0} spinning last />
         </Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], opacity: 0.65 }}>
           <BrandMark size={18} />
