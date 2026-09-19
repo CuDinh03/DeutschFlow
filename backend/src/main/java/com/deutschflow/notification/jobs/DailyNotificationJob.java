@@ -45,7 +45,7 @@ public class DailyNotificationJob {
         long offset = 0;
         while (true) {
             List<Map<String, Object>> page = jdbcTemplate.queryForList(
-                    "SELECT id, notification_timezone FROM users WHERE role = 'STUDENT' AND is_active = TRUE ORDER BY id LIMIT ? OFFSET ?",
+                    "SELECT id, notification_timezone, reminder_hour_local FROM users WHERE role = 'STUDENT' AND is_active = TRUE ORDER BY id LIMIT ? OFFSET ?",
                     PAGE_SIZE, offset);
             if (page.isEmpty()) break;
 
@@ -61,8 +61,11 @@ public class DailyNotificationJob {
                         tz = ZoneId.of("Asia/Ho_Chi_Minh");
                     }
                     int currentHour = ZonedDateTime.now(tz).getHour();
+                    // Đợt 6 (V333): giờ nhắc chuỗi = users.reminder_hour_local nếu người dùng đã chọn, không thì 18h;
+                    // ngày đã có tin lifecycle (lifecycle_sends) thì bỏ nhắc chuỗi — luật hợp nhất §4.7.
+                    int streakHour = streakHourFor(row.get("reminder_hour_local"));
                     if (currentHour == REVIEW_DUE_HOUR) sendReviewDueIfNeeded(userId);
-                    if (currentHour == STREAK_REMINDER_HOUR) sendStreakReminderIfNeeded(userId);
+                    if (currentHour == streakHour && !hasLifecycleSendToday(userId, tz)) sendStreakReminderIfNeeded(userId);
                 } catch (Exception e) {
                     log.warn("[DailyNotificationJob] Error processing user {}: {}", userId, e.getMessage());
                 }
@@ -70,6 +73,28 @@ public class DailyNotificationJob {
 
             if (page.size() < PAGE_SIZE) break;
             offset += PAGE_SIZE;
+        }
+    }
+
+    /** 0–23 từ cột reminder_hour_local; NULL/lạ ⇒ {@value #STREAK_REMINDER_HOUR}. */
+    static int streakHourFor(Object raw) {
+        if (raw instanceof Number n) {
+            int h = n.intValue();
+            if (h >= 0 && h <= 23) return h;
+        }
+        return STREAK_REMINDER_HOUR;
+    }
+
+    /** Ngày (theo múi giờ người dùng) đã có tin lifecycle chưa — có thì OnboardingLifecycleService đã nói chuyện hôm nay. */
+    private boolean hasLifecycleSendToday(long userId, ZoneId tz) {
+        try {
+            java.time.Instant dayStart = ZonedDateTime.now(tz).toLocalDate().atStartOfDay(tz).toInstant();
+            Integer n = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM lifecycle_sends WHERE user_id = ? AND sent_at >= ?",
+                    Integer.class, userId, java.sql.Timestamp.from(dayStart));
+            return n != null && n > 0;
+        } catch (Exception e) {
+            return false; // sổ lifecycle hỏng thì vẫn nhắc chuỗi như cũ
         }
     }
 

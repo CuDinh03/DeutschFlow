@@ -1,5 +1,7 @@
 package com.deutschflow.user.dto;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -28,5 +30,13 @@ public record UpdateProfileRequest(
          */
         @Size(max = 50, message = "notificationTimezone must be at most 50 characters")
         @Pattern(regexp = "^[A-Za-z]+(/[A-Za-z0-9_+-]+){1,2}$", message = "notificationTimezone must be an IANA zone id")
-        String notificationTimezone
+        String notificationTimezone,
+
+        /**
+         * Giờ nhắc học 0–23 theo {@code notificationTimezone} (Đợt 6, W11/M10). null = không đổi;
+         * client muốn tắt gửi {@code -1} (server ghi NULL ⇒ nhắc chuỗi 18h mặc định).
+         */
+        @Min(value = -1, message = "reminderHourLocal phải từ 0 đến 23 (hoặc -1 để bỏ)")
+        @Max(value = 23, message = "reminderHourLocal phải từ 0 đến 23 (hoặc -1 để bỏ)")
+        Integer reminderHourLocal
 ) {}

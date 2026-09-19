@@ -414,6 +414,16 @@ kèm `step_name`/`step_number`) · `onboarding_motivation_selected` ·
 `onboarding_celebrate_viewed{kind,passed}` · `onboarding_celebrate_done{kind}` (W9, Đợt 4 PR-3 19/09) ·
 `onboarding_starter_item_clicked{key}` (W10 checklist tuần đầu trên dashboard; `onboarding_placement_offered{surface:starter_checklist}` khi mời lại placement qua `?placement=1`)
 
+**Lifecycle tuần đầu + trial (Đợt 6, 19/09/2026, kế hoạch §4.7):** `OnboardingLifecycleJob` mỗi giờ phút 05 →
+`OnboardingLifecycleService.runHourly`; mỗi (user, key) gửi MỘT lần qua sổ `lifecycle_sends` (V333). Loại thông báo
+mới: `ONBOARDING_D0_WELCOME` (≤ 26 h sau `activated_at`, bất kỳ giờ) · `ONBOARDING_D1_NEXT_LESSON` (24–48 h, chưa có
+XP sau activation, đúng giờ nhắc) · `ONBOARDING_D3_CHECKIN` (72–96 h) · `ONBOARDING_D7_SUMMARY` (7–8 ngày) ·
+`TRIAL_ENDING_SOON` (trial `source=TRIAL` ACTIVE, `ends_at` ≤ 3 ngày, đúng giờ nhắc; copy đọc `ends_at` thật) ·
+`TRIAL_ENDED` (ENDED trong 24 h, bất kỳ giờ). Giờ nhắc = `users.reminder_hour_local` theo `notification_timezone`,
+NULL ⇒ 18 h; `DailyNotificationJob` nhắc chuỗi đúng giờ đó và BỎ ngày đã có tin lifecycle. Kênh: in-app + Expo push;
+email (D1/D3/T3) sau cờ `app.onboarding.lifecycle.email-enabled` (mặc định tắt, chờ SES). Client ghi giờ nhắc bằng
+`PATCH /profile/me {reminderHourLocal: 0–23 | -1 = bỏ}`; `GET /profile/me` trả `reminderHourLocal`.
+
 **Mobile** (`captureEvent`): các sự kiện `onboarding_*` dùng chung ở trên, cộng
 `onb_first_sentence_started|spoken|succeeded|retried|skipped` ·
 `onb_notif_permission` · `onb_starter_checklist_completed` ·
