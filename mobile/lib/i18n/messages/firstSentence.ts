@@ -12,6 +12,8 @@ export const firstSentenceMessages = defineMessages(
     german: {
       greeting: 'Hallo! Ich bin {name}. Und wie heißt du?',
       sentence: 'Hallo, ich bin {name}!',
+      /** Tên gọi khi hồ sơ chưa có displayName — theo ngôn ngữ, không lộ tiếng Việt giữa câu Đức. */
+      nameFallback: 'bạn',
     },
     intro: {
       caption: 'Khoảnh khắc đầu tiên',
@@ -59,6 +61,7 @@ export const firstSentenceMessages = defineMessages(
       german: {
         greeting: 'Hallo! Ich bin {name}. Und wie heißt du?',
         sentence: 'Hallo, ich bin {name}!',
+        nameFallback: 'you',
       },
       intro: {
         caption: 'Your first moment',
@@ -105,6 +108,7 @@ export const firstSentenceMessages = defineMessages(
       german: {
         greeting: 'Hallo! Ich bin {name}. Und wie heißt du?',
         sentence: 'Hallo, ich bin {name}!',
+        nameFallback: 'du',
       },
       intro: {
         caption: 'Dein erster Moment',

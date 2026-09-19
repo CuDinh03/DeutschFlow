@@ -59,7 +59,7 @@ export default function FirstSentenceScreen() {
   const c = theme.colors
   const t = useT(firstSentenceMessages)
   const user = useAuthStore((s) => s.user)
-  const firstName = user?.displayName?.split(' ').at(-1) ?? 'bạn'
+  const firstName = user?.displayName?.trim().split(' ').at(-1) || t('german.nameFallback')
 
   const [mentor, setMentor] = useState<OnboardingMentor | null>(null)
   // Chờ fetch mentor xong (kể cả fail) rồi mới chào — tránh TTS 2 lần 2 tên.
