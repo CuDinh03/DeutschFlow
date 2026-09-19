@@ -99,6 +99,41 @@ public class PlacementTestService {
         );
     }
 
+    /**
+     * Đọc {@code placement_test_sessions.question_ids} (BIGINT[]) bất kể driver trả về dạng nào:
+     * {@link java.sql.Array} (PgArray — đường thật của JdbcTemplate {@code SELECT *}), {@code Long[]},
+     * {@code Object[]}, {@code long[]}, hay chuỗi literal {@code "{1,2,3}"}. Không đọc được ⇒ 400 với câu
+     * người đọc được (không lộ mã máy).
+     */
+    static long[] parseQuestionIds(Object raw) {
+        try {
+            if (raw instanceof java.sql.Array sqlArray) {
+                raw = sqlArray.getArray();
+            }
+        } catch (java.sql.SQLException e) {
+            throw new BadRequestException("Bài kiểm tra không hợp lệ, hãy tạo bài mới.");
+        }
+        if (raw instanceof long[] primitive) return primitive.clone();
+        if (raw instanceof Object[] objects) {
+            try {
+                return Arrays.stream(objects).mapToLong(o -> ((Number) o).longValue()).toArray();
+            } catch (ClassCastException | NullPointerException e) {
+                throw new BadRequestException("Bài kiểm tra không hợp lệ, hãy tạo bài mới.");
+            }
+        }
+        if (raw instanceof String literal) {
+            String body = literal.trim();
+            if (body.startsWith("{") && body.endsWith("}")) body = body.substring(1, body.length() - 1);
+            if (body.isBlank()) throw new BadRequestException("Bài kiểm tra không hợp lệ, hãy tạo bài mới.");
+            try {
+                return Arrays.stream(body.split(",")).map(String::trim).mapToLong(Long::parseLong).toArray();
+            } catch (NumberFormatException e) {
+                throw new BadRequestException("Bài kiểm tra không hợp lệ, hãy tạo bài mới.");
+            }
+        }
+        throw new BadRequestException("Bài kiểm tra không hợp lệ, hãy tạo bài mới.");
+    }
+
     // ─────────────────────────────────────────────────────────────
     // 2. SUBMIT TEST — Chấm điểm
     // ─────────────────────────────────────────────────────────────
@@ -116,16 +151,9 @@ public class PlacementTestService {
             throw new BadRequestException("Bài test đã được nộp rồi.");
         }
 
-        // Load question IDs from session
-        Object qidsRaw = session.get("question_ids");
-        long[] questionIds;
-        if (qidsRaw instanceof Long[] la) {
-            questionIds = Arrays.stream(la).mapToLong(Long::longValue).toArray();
-        } else if (qidsRaw instanceof Object[] oa) {
-            questionIds = Arrays.stream(oa).mapToLong(o -> ((Number) o).longValue()).toArray();
-        } else {
-            throw new BadRequestException("Invalid test session data");
-        }
+        // Load question IDs from session — cột BIGINT[] về qua JdbcTemplate là java.sql.Array (PgArray),
+        // KHÔNG phải Long[]/Object[] như mã cũ giả định ⇒ mọi lượt nộp đều 400 (phát hiện QA simulator 19/09/2026).
+        long[] questionIds = parseQuestionIds(session.get("question_ids"));
 
         // Load questions
         int correctCount = 0;
