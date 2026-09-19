@@ -9,10 +9,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const apiGet = vi.fn()
 const getMyLearningProfile = vi.fn()
+const updateProfile = vi.fn()
 const trackEvent = vi.fn()
 
 vi.mock('@/lib/api', () => ({ default: { get: (...a: unknown[]) => apiGet(...a) } }))
-vi.mock('@/lib/profileApi', () => ({ getMyLearningProfile: () => getMyLearningProfile() }))
+vi.mock('@/lib/profileApi', () => ({
+  getMyLearningProfile: () => getMyLearningProfile(),
+  updateProfile: (p: unknown) => updateProfile(p),
+}))
 vi.mock('@/hooks/useTracking', () => ({ useTracking: () => ({ trackEvent }) }))
 vi.mock('next/link', () => ({
   default: ({ children, href, onClick }: { children: React.ReactNode; href: string; onClick?: () => void }) => (
@@ -41,19 +45,29 @@ function progress(p: Record<string, unknown>) {
   return { data: { flowVersion: 'onb_v3', lastStep: 'CLAIMED', completedActivities: [], activatedAt: null, coreCompletedAt: null, ...p } }
 }
 
+/** apiGet trả progress cho /onboarding/progress và hồ sơ cá nhân cho /profile/me. */
+function mockApi(progressResp: unknown, me: unknown = { data: { reminderHourLocal: null } }) {
+  apiGet.mockImplementation((url: string) => {
+    if (url === '/profile/me') return Promise.resolve(me)
+    return progressResp instanceof Error ? Promise.reject(progressResp) : Promise.resolve(progressResp)
+  })
+}
+
 beforeEach(() => {
-  for (const m of [apiGet, getMyLearningProfile, trackEvent]) m.mockReset()
+  for (const m of [apiGet, getMyLearningProfile, updateProfile, trackEvent]) m.mockReset()
   getMyLearningProfile.mockResolvedValue({ currentLevel: 'A0' })
+  updateProfile.mockResolvedValue({})
 })
 
 describe('StarterChecklist — W10', () => {
-  it('A0 có 1/3 việc xong: Ngày 1 gạch bỏ, hai mục còn lại là link đúng đích', async () => {
-    apiGet.mockResolvedValue(progress({ completedActivities: ['FIRST_LESSON:BEGINNER_SESSION'], activatedAt: new Date().toISOString() }))
+  it('A0 có 1/4 việc xong: Ngày 1 gạch bỏ, hai mục link đúng đích, mục giờ nhắc có ô chọn', async () => {
+    mockApi(progress({ completedActivities: ['FIRST_LESSON:BEGINNER_SESSION'], activatedAt: new Date().toISOString() }))
 
     render(<StarterChecklist />)
 
     await waitFor(() => expect(screen.getByTestId('starter-checklist')).toBeTruthy())
-    expect(screen.getByTestId('starter-progress').textContent).toBe(`${NS}.progress:{"done":1,"total":3}`)
+    expect(screen.getByTestId('starter-progress').textContent).toBe(`${NS}.progress:{"done":1,"total":4}`)
+    expect(screen.getByTestId('starter-reminder-hour')).toBeTruthy()
     expect(screen.getByTestId('starter-item-first_lesson').getAttribute('data-done')).toBe('true')
     const roadmap = screen.getByTestId('starter-item-roadmap_node').querySelector('a')
     expect(roadmap?.getAttribute('href')).toBe('/v2/student/roadmap')
@@ -64,7 +78,7 @@ describe('StarterChecklist — W10', () => {
 
   it('A1+ bỏ qua Chọn đường: mục đầu là Kiểm tra đầu vào trỏ ?placement=1 (AC-ONB-15)', async () => {
     getMyLearningProfile.mockResolvedValue({ currentLevel: 'B1' })
-    apiGet.mockResolvedValue(progress({}))
+    mockApi(progress({}))
 
     render(<StarterChecklist />)
 
@@ -74,7 +88,7 @@ describe('StarterChecklist — W10', () => {
   })
 
   it('bấm một mục bắn onboarding_starter_item_clicked{key}', async () => {
-    apiGet.mockResolvedValue(progress({}))
+    mockApi(progress({}))
     render(<StarterChecklist />)
     await waitFor(() => expect(screen.getByTestId('starter-item-mock_exam')).toBeTruthy())
 
@@ -84,14 +98,14 @@ describe('StarterChecklist — W10', () => {
   })
 
   it('không có hàng progress (tài khoản cũ) ⇒ không render gì', async () => {
-    apiGet.mockResolvedValue({ data: { flowVersion: 'onb_v3', lastStep: 'INTRO', completedActivities: [], activatedAt: null, coreCompletedAt: null } })
+    mockApi({ data: { flowVersion: 'onb_v3', lastStep: 'INTRO', completedActivities: [], activatedAt: null, coreCompletedAt: null } })
     const { container } = render(<StarterChecklist />)
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/onboarding/progress'))
     await waitFor(() => expect(container.innerHTML).toBe(''))
   })
 
   it('/onboarding/progress lỗi ⇒ không render gì (không đoán)', async () => {
-    apiGet.mockRejectedValue(new Error('502'))
+    mockApi(new Error('502'))
     const { container } = render(<StarterChecklist />)
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
     await waitFor(() => expect(container.innerHTML).toBe(''))
@@ -99,18 +113,55 @@ describe('StarterChecklist — W10', () => {
 
   it('hồ sơ lỗi nhưng progress có ⇒ vẫn hiện, trình độ coi như A0', async () => {
     getMyLearningProfile.mockRejectedValue(new Error('404'))
-    apiGet.mockResolvedValue(progress({}))
+    mockApi(progress({}))
     render(<StarterChecklist />)
     await waitFor(() => expect(screen.getByTestId('starter-item-first_lesson')).toBeTruthy())
   })
 
-  it('đủ ba việc ⇒ tự ẩn', async () => {
-    apiGet.mockResolvedValue(progress({
+  it('đủ ba bài + đã đặt giờ nhắc ⇒ tự ẩn', async () => {
+    mockApi(progress({
       completedActivities: ['FIRST_LESSON:BEGINNER_SESSION', 'FIRST_LESSON:ROADMAP_NODE', 'FIRST_LESSON:MOCK_EXAM'],
       activatedAt: new Date().toISOString(),
-    }))
+    }), { data: { reminderHourLocal: 20 } })
     const { container } = render(<StarterChecklist />)
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
     await waitFor(() => expect(container.innerHTML).toBe(''))
+  })
+
+  it('W11: chọn giờ + Lưu → PATCH /profile/me {reminderHourLocal}, mục chuyển sang đã xong với giờ, bắn event', async () => {
+    mockApi(progress({}))
+    render(<StarterChecklist />)
+    await waitFor(() => expect(screen.getByTestId('starter-reminder-hour')).toBeTruthy())
+
+    const select = screen.getByTestId('starter-reminder-hour') as HTMLSelectElement
+    expect(select.value).toBe('20')
+    select.value = '21'
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+    screen.getByTestId('starter-reminder-save').click()
+
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledWith({ reminderHourLocal: 21 }))
+    await waitFor(() => expect(screen.getByTestId('starter-item-reminder').getAttribute('data-done')).toBe('true'))
+    expect(screen.getByText(`${NS}.reminderHour:{"hour":"21"}`)).toBeTruthy()
+    expect(trackEvent).toHaveBeenCalledWith('onboarding_reminder_hour_set', { hour: 21, surface: 'starter_checklist' })
+    expect(screen.getByTestId('starter-progress').textContent).toBe(`${NS}.progress:{"done":1,"total":4}`)
+  })
+
+  it('W11: giờ đã đặt từ trước ⇒ mục tích sẵn, không có ô chọn', async () => {
+    mockApi(progress({}), { data: { reminderHourLocal: 7 } })
+    render(<StarterChecklist />)
+    await waitFor(() => expect(screen.getByTestId('starter-item-reminder')).toBeTruthy())
+    expect(screen.getByTestId('starter-item-reminder').getAttribute('data-done')).toBe('true')
+    expect(screen.queryByTestId('starter-reminder-hour')).toBeNull()
+    expect(screen.getByText(`${NS}.reminderHour:{"hour":"07"}`)).toBeTruthy()
+  })
+
+  it('W11: PATCH lỗi ⇒ báo lỗi, mục vẫn chưa xong', async () => {
+    mockApi(progress({}))
+    updateProfile.mockRejectedValue(new Error('500'))
+    render(<StarterChecklist />)
+    await waitFor(() => expect(screen.getByTestId('starter-reminder-save')).toBeTruthy())
+    screen.getByTestId('starter-reminder-save').click()
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy())
+    expect(screen.getByTestId('starter-item-reminder').getAttribute('data-done')).toBe('false')
   })
 })

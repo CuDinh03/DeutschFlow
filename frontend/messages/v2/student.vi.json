@@ -97,9 +97,15 @@
           "first_lesson": "Học Ngày 1 — bài đầu tiên",
           "placement": "Làm kiểm tra đầu vào 10 câu",
           "roadmap_node": "Học chặng đầu tiên trên lộ trình",
-          "mock_exam": "Nói thử 3 phút với mentor"
+          "mock_exam": "Nói thử 3 phút với mentor",
+          "reminder": "Đặt giờ nhắc học mỗi ngày"
         },
-        "note": "Trạng thái đồng bộ với ứng dụng điện thoại."
+        "note": "Trạng thái đồng bộ với ứng dụng điện thoại.",
+        "reminderLabel": "Nhắc tôi lúc",
+        "reminderSave": "Lưu giờ nhắc",
+        "reminderSaved": "Đã đặt giờ nhắc {hour}:00 — đổi được trong Hồ sơ.",
+        "reminderError": "Chưa lưu được giờ nhắc, thử lại sau.",
+        "reminderHour": "{hour}:00"
       }
     },
     "vocabulary": {

@@ -92,7 +92,11 @@
       "confirmDeleteDesc": "This cannot be undone.",
       "confirmDeleteDetail1": "All of your progress, submissions, scores and messages will be deleted.",
       "confirmDeleteDetail2": "An active subscription is NOT cancelled automatically — cancel it in the App Store first.",
-      "confirmDeleteDetail3": "You will be signed out immediately and the account cannot be restored."
+      "confirmDeleteDetail3": "You will be signed out immediately and the account cannot be restored.",
+      "fieldReminderHour": "Study reminder time",
+      "reminderHourHint": "One notification a day at this hour (in the timezone above). Leave empty for the default 18:00 reminder when you haven't studied.",
+      "reminderHourNone": "Default (18:00)",
+      "reminderHourAt": "{hour}:00"
     },
     "payment": {
       "title": "Upgrade plan",
