@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { ArrowLeft, Mic, AlertTriangle } from 'lucide-react'
 import api from '@/lib/api'
+import { readFirstCompletion } from '@/features/onboarding/celebrate'
 import { useTracking } from '@/hooks/useTracking'
 import { aiSpeakingApi } from '@/lib/aiSpeakingApi'
 import { startRecorder, RecorderHandle } from '@/lib/voiceRecorder'
@@ -110,20 +111,23 @@ export default function V2OnboardingMockExamPage() {
       setTranscript(realTranscript)
       setPhase('ANALYZING')
 
+      // W9 (Đợt 4 PR-3): chỉ ăn mừng LẦN ĐẦU nói thử — server khử trùng lặp activity nên phải hỏi
+      // TRƯỚC khi evaluate; cờ đi theo query sang trang báo cáo (nút "Làm lại" nộp lại thì không có cờ).
+      const firstTime = await readFirstCompletion('MOCK_EXAM')
+
       // Step 2: Send transcript to mock-exam evaluate API
       const res = await api.post('/onboarding/mock-exam/evaluate', {
         transcript_de: realTranscript,
       })
 
-      trackEvent('first_lesson_completed', { kind: 'mock_exam' })
+      trackEvent('first_lesson_completed', { kind: 'mock_exam', firstTime })
       // Step 3: Navigate to report page with report ID
-      if (res.data?.id) {
-        router.push(`${REPORT_ROUTE}?id=${res.data.id}`)
-      } else {
-        // Fallback: use localStorage if backend doesn't return ID
-        localStorage.setItem('mockExamReport', JSON.stringify(res.data))
-        router.push(REPORT_ROUTE)
-      }
+      const q = new URLSearchParams()
+      if (res.data?.id) q.set('id', String(res.data.id))
+      else localStorage.setItem('mockExamReport', JSON.stringify(res.data)) // Fallback khi backend không trả ID
+      if (firstTime) q.set('celebrate', '1')
+      const qs = q.toString()
+      router.push(qs ? `${REPORT_ROUTE}?${qs}` : REPORT_ROUTE)
     } catch (err: unknown) {
       console.error('Mock exam evaluation failed:', err)
       const status = (err as { response?: { status?: number } })?.response?.status

@@ -274,6 +274,48 @@
       "stage1": "Saving your goal & level",
       "stage2": "Matching your mentor",
       "stage3": "Assembling your roadmap…"
+    },
+    "celebrate": {
+      "cap": "First lesson done",
+      "title": "You did it!",
+      "body": {
+        "beginner": "You just finished Day 1 — your first German words and sentences.",
+        "placementPassed": "You just finished the placement test — your roadmap now starts exactly where you are.",
+        "placementFailed": "You just finished the placement test — we now know what to review so the roadmap fits you.",
+        "placement": "You just finished the placement test — your roadmap will follow your real level.",
+        "mockExam": "You just did a 3-minute mock talk with your mentor and got your first report."
+      },
+      "pillStreak": "Day-1 streak started",
+      "pill": {
+        "beginner": "Day 1 complete",
+        "placement": "Placement test done",
+        "mockExam": "Mock talk done"
+      },
+      "mentorLabel": "Your mentor",
+      "weekCap": "Your first week",
+      "week": {
+        "roadmap": {
+          "title": "Stage 1 on your roadmap",
+          "sub": "Start from the home page"
+        },
+        "speaking": {
+          "title": "First speaking session with {name}",
+          "sub": "A short greeting scenario"
+        },
+        "speakingNoMentor": {
+          "title": "Your first speaking session",
+          "sub": "A short greeting scenario"
+        },
+        "review": {
+          "title": "Review 5 cards",
+          "sub": "Remember longer with spaced repetition"
+        },
+        "checklist": {
+          "title": "First-week checklist on the home page",
+          "sub": "Three small tasks to try every main tool"
+        }
+      },
+      "cta": "Go to my journey"
     }
   }
 }

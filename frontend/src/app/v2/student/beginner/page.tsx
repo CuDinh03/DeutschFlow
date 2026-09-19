@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ArrowRight, CheckCircle2, Mic, Sparkles, Star, Volume2 } from 'lucide-react'
 import { beginnerApi, type BeginnerItem, type BeginnerSessionResponse } from '@/lib/beginnerApi'
+import { celebrateHref, readFirstCompletion } from '@/features/onboarding/celebrate'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useTracking } from '@/hooks/useTracking'
 import { GaBtn, GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState } from '@/components/ui-v2'
@@ -19,12 +21,18 @@ import { GaBtn, GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState } from '@/co
 // speechSynthesis pronunciation (de-DE, rate 0.85 — no TTS backend call), same completion flow.
 // Only the shell changed; the speaking CTA now points at /v2/student/speaking.
 //
+// W9 (Đợt 4 PR-3, 19/09/2026): hoàn thành LẦN ĐẦU → trang ăn mừng `/v2/onboarding/celebrate?kind=beginner`
+// (fixture L1). "Lần đầu" = chưa có `FIRST_LESSON:BEGINNER_SESSION` trong `GET /onboarding/progress` ngay trước khi gọi complete —
+// người mở lại Ngày 1 từ checklist/dashboard chỉ thấy khối "đã xong" tại chỗ như trước, không ăn
+// mừng lần hai. Hỏi progress hỏng ⇒ coi như không phải lần đầu (đường an toàn: ở lại trang).
+//
 // NOTE: /v2/student/welcome is a static orientation page — it does NOT call beginnerApi and does
 // not replace this screen.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function V2StudentBeginnerPage() {
   usePageTimeTracker('beginner')
+  const router = useRouter()
   const t = useTranslations('v2.student.beginner')
   const { trackEvent } = useTracking()
 
@@ -53,9 +61,11 @@ export default function V2StudentBeginnerPage() {
     if (completing || completed) return
     setCompleting(true)
     try {
+      const firstTime = await readFirstCompletion('BEGINNER_SESSION')
       await beginnerApi.completeFirstSession()
       setCompleted(true)
-      trackEvent('first_lesson_completed', { kind: 'beginner_session' })
+      trackEvent('first_lesson_completed', { kind: 'beginner_session', firstTime })
+      if (firstTime) router.push(celebrateHref('beginner'))
     } catch {
       setError(t('completeError'))
     } finally {

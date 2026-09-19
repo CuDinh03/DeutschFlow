@@ -17,6 +17,8 @@ const pushMock = vi.fn();
 // `refresh` is required too: GaAuthShell renders LanguageToggle, which calls router.refresh().
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, replace: vi.fn(), refresh: vi.fn() }),
+  // Đợt 4 PR-3: lối `?placement=1` — mặc định không có tham số.
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 // Trả về chính KEY cho cả t() lẫn t.rich(); t.has trả true. Mọi truy vấn tìm theo KEY.
@@ -358,7 +360,7 @@ describe("V2OnboardingPage — Đợt 0: 409 là lỗi, mất mạng /route khô
   it("Đợt 1: mount bắn onboarding_started; lưu hồ sơ bắn onboarding_profile_saved SONG SONG onboarding_completed", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
-    expect(trackEventMock).toHaveBeenCalledWith("onboarding_started", { guest: false });
+    expect(trackEventMock).toHaveBeenCalledWith("onboarding_started", { guest: false, retakePlacement: false });
 
     await advance(user, 3);
     await user.click(screen.getByRole("button", { name: /nav\.startRoadmap/i }));
@@ -639,7 +641,7 @@ describe("V2OnboardingPage — non-A0 level triggers placement test flow", () =>
     expect(trackEventMock).toHaveBeenCalledWith("onboarding_path_selected", { path: "mock_exam", level: "B1", guest: false });
   });
 
-  it("chọn 'Bỏ qua' (fixture C5) → lộ trình, bắn onboarding_placement_skipped", async () => {
+  it("chọn 'Bỏ qua' (fixture C5) → dashboard (HOME_WEEK1), bắn onboarding_placement_skipped", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
     await advance(user, 1);
@@ -650,7 +652,8 @@ describe("V2OnboardingPage — non-A0 level triggers placement test flow", () =>
     await user.click(screen.getByRole("radio", { name: /pathChoice\.skip/i }));
     await user.click(screen.getByRole("button", { name: /pathChoice\.continue/i }));
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/v2/student/roadmap"));
+    // Đợt 4 PR-3: HOME_WEEK1 = dashboard — checklist tuần đầu ở đó mời lại Kiểm tra đầu vào (AC-ONB-15).
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/v2/student/dashboard"));
     expect(trackEventMock).toHaveBeenCalledWith("onboarding_placement_skipped", expect.objectContaining({ currentLevel: "A2" }));
   });
 

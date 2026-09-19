@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { celebrateHref } from '@/features/onboarding/celebrate'
 import { useTranslations } from 'next-intl'
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts'
 import { ArrowLeft, RefreshCw, Lock, CheckCircle2, Crown, AlertTriangle } from 'lucide-react'
@@ -127,8 +128,10 @@ export default function V2ErrorReportPage() {
       (report.radar_chart?.fluency || 0)) / 4,
   )
 
+  // W9 (Đợt 4 PR-3): nói thử LẦN ĐẦU (mock-exam hỏi progress trước khi evaluate, gắn `celebrate=1`)
+  // → ăn mừng rồi mới về dashboard (HOME_WEEK1); làm lại / xem lại báo cáo → về dashboard thẳng.
   const continueFree = () => {
-    router.push(DASHBOARD_ROUTE)
+    router.push(searchParams.get('celebrate') === '1' ? celebrateHref('mock_exam') : DASHBOARD_ROUTE)
   }
 
   const upgradeClick = () => {

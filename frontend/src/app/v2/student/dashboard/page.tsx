@@ -14,6 +14,7 @@ import { ContinueLearning } from '@/components/learning/ContinueLearning'
 import { TodayList, type TodayTask } from '@/components/learning/TodayList'
 import { HabitStrip } from '@/components/learning/HabitStrip'
 import { JourneyPreview } from '@/components/learning/JourneyPreview'
+import { StarterChecklist } from '@/components/learning/StarterChecklist'
 
 /**
  * Heute (Student Dashboard) — S-02.
@@ -131,6 +132,11 @@ export default function V2StudentDashboardPage() {
           </div>
         ) : (
           <div className="space-y-8">
+            {/* W10 (Đợt 4 PR-3): checklist tuần đầu — tự tải từ /onboarding/progress, tự ẩn khi
+                không có hàng / đã xong / quá 7 ngày. Đứng trên Continue: tuần đầu ưu tiên "thử hết
+                công cụ" hơn "học tiếp". */}
+            <StarterChecklist />
+
             <ContinueLearning node={continueNode} isFirstSession={isFirstSession} />
 
             <TodayList tasks={tasks} />

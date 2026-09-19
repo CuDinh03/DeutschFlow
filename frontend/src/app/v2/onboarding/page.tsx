@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useCallback, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ArrowLeft, CheckCircle, XCircle } from "lucide-react";
@@ -29,8 +29,10 @@ import {
   totalStepsFor,
   type WizardAnswers,
 } from "@/features/onboarding/wizardModel";
-import { nextAfterProfile, guestNeedsPathChoice, ROADMAP_ROUTE, type PostProfileContext } from "@/features/onboarding/postProfileRoute";
+import { nextAfterProfile, guestNeedsPathChoice, ROADMAP_ROUTE, DASHBOARD_ROUTE, type PostProfileContext } from "@/features/onboarding/postProfileRoute";
 import type { PathChoice } from "@/features/onboarding/machine";
+import { celebrateHref, readFirstCompletion } from "@/features/onboarding/celebrate";
+import { getMyLearningProfile } from "@/lib/profileApi";
 import { PathChoiceStep } from "@/features/onboarding/steps/PathChoiceStep";
 import { CreatingPanel } from "@/features/onboarding/steps/CreatingPanel";
 import { MotivationStep } from "@/features/onboarding/steps/MotivationStep";
@@ -55,6 +57,10 @@ import { OrgLiteWizard, type LiteProfilePayload } from "./OrgLiteWizard";
 // trong trang · nói thử 3′ `/v2/onboarding/mock-exam` · bỏ qua) — khách chọn TRƯỚC cổng tài khoản
 // (I-9, ghi vào guest session + draft), người đăng ký thẳng được hỏi sau khi có plan (fixture R5).
 // Màn "Đang tạo lộ trình…" (`CreatingPanel`) hiện cho mọi đường tới hồ sơ (I-10).
+//
+// Đợt 4 PR-3 (19/09/2026, W9/W10): placement xong (đậu hay rớt — fixture L3) → trang ăn mừng
+// `/v2/onboarding/celebrate?kind=placement`; `?placement=1` (đã đăng nhập, có hồ sơ) = checklist tuần
+// đầu mời lại Kiểm tra đầu vào cho người đã bỏ qua ở Chọn đường (W-1, AC-ONB-15) — vào thẳng bài.
 //
 // Trang CÔNG KHAI: khách chạy trọn phễu trước khi đăng ký, nên mặc GaAuthShell (không RoleShell);
 // middleware miễn /v2/onboarding khỏi cổng đăng nhập vì đúng lý do đó.
@@ -81,7 +87,16 @@ const STEP_PLACEMENT = WIZARD_STEP_COUNT + 4;    // 8 — đã đăng nhập: l�
 
 interface PQ { id: number; skillSection: string; type: string; questionDe: string; questionVi: string; audioTranscript?: string; options?: string[]; }
 
+// `useSearchParams` (lối `?placement=1`) cần ranh giới Suspense để Next không bail-out CSR cả trang.
 export default function V2OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <V2OnboardingFunnel />
+    </Suspense>
+  );
+}
+
+function V2OnboardingFunnel() {
   const router = useRouter();
   const t = useTranslations("v2.onboarding");
   const locale = useLocale();
@@ -117,6 +132,8 @@ export default function V2OnboardingPage() {
   const [currentQ, setCurrentQ] = useState(0);
   const [testResult, setTestResult] = useState<{passed:boolean;scorePercent:number;correctCount:number;totalQuestions:number;weakModules?:number[];startingNodeId?:number;retryAfterDays?:number}|null>(null);
   const [route, setRoute] = useState<OnboardingRouteData | null>(null);
+  // W9: placement chỉ ăn mừng LẦN ĐẦU (hỏi progress trước khi nộp; làm lại từ `?placement=1` → dashboard).
+  const [placementFirstTime, setPlacementFirstTime] = useState(false);
   const [mentor, setMentor] = useState<OnboardingMentorData | null>(null);
   // Đợt 4 PR-2: lựa chọn đường của A1+ (PATH_CHOICE). Khách: ghi trước tài khoản (guest session +
   // draft) rồi mới qua cổng; đã đăng nhập: thực thi ngay qua `goAfterProfile`.
@@ -246,7 +263,9 @@ export default function V2OnboardingPage() {
     if (!testId) return;
     setLoading(true);
     try {
+      const firstTime = await readFirstCompletion('PLACEMENT');
       const { data } = await api.post(`/skill-tree/placement-test/${testId}/submit`, { answers: testAnswers });
+      setPlacementFirstTime(firstTime);
       setTestResult(data);
       trackEvent('onboarding_placement_test_completed', { passed: data.passed, score: data.scorePercent });
       trackEvent('placement_completed', { level: currentLevel, passed: data.passed, score: data.scorePercent });
@@ -341,14 +360,32 @@ export default function V2OnboardingPage() {
 
   // Draft sống tới khi POST xong, nên cần cờ riêng chống StrictMode chạy resume hai lần.
   const resumeStartedRef = useRef(false);
+  const searchParams = useSearchParams();
+  const retakePlacement = searchParams.get('placement') === '1';
+
+  /**
+   * `?placement=1` (W10 → W-1): người đã có hồ sơ quay lại làm Kiểm tra đầu vào từ checklist tuần
+   * đầu. Lấy trình độ từ hồ sơ trên server rồi vào thẳng bài — không chạy lại wizard, không claim.
+   * Hồ sơ không có (chưa onboarding) ⇒ rơi về phễu thường.
+   */
+  const startRetakePlacement = useCallback(async () => {
+    setResuming(true);
+    let level: string | null = null;
+    try { level = (await getMyLearningProfile()).currentLevel; } catch { /* rơi về phễu */ }
+    if (!level) { setResuming(false); return; }
+    setAnswers((a) => ({ ...a, currentLevel: level as string }));
+    trackEvent('onboarding_placement_offered', { currentLevel: level, surface: 'starter_checklist' });
+    await startTest(level);
+  }, [startTest, trackEvent]);
 
   // On mount: detect guest vs. authed. If authed with a stored draft, this is a post-signup resume.
   useEffect(() => {
     const authed = !!getAccessToken();
-    trackEvent('onboarding_started', { guest: !authed });
+    trackEvent('onboarding_started', { guest: !authed, retakePlacement: authed && retakePlacement });
     if (authed) {
       if (resumeStartedRef.current) return;
       resumeStartedRef.current = true;
+      if (retakePlacement) { void startRetakePlacement(); return; }
       void resumeAfterAuth();
       // Song song với claim: học viên trung tâm thường đăng nhập thẳng, không có phiên khách nào.
       void fetchOnboardingContext().then((ctx) => { if (needsLiteProfile(ctx)) setOrgContext(ctx); });
@@ -684,7 +721,7 @@ export default function V2OnboardingPage() {
                   <p className="mt-1 text-ga-eyebrow normal-case tracking-normal font-normal text-ga-muted">{t("result.retryAfter", { days: testResult.retryAfterDays ?? 3 })}</p>
                 </div>
               )}
-              <GaBtn variant="ink" size="lg" className={`w-full ${btnWrap}`} onClick={() => router.push(ROADMAP_ROUTE)}>
+              <GaBtn variant="ink" size="lg" className={`w-full ${btnWrap}`} onClick={() => router.push(placementFirstTime ? celebrateHref('placement', { passed: testResult.passed }) : DASHBOARD_ROUTE)}>
                 {testResult.passed ? t("result.ctaPassed") : t("result.ctaFailed")}
               </GaBtn>
               {/* Q-A (28/08): client thôi đọc `postAction`; PRICING_CTA = WEB × B1+ suy từ trình độ +
