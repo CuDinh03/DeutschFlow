@@ -73,7 +73,8 @@ public class OnboardingLifecycleService {
             }
         }
 
-        // ends_at của user_subscriptions là TIMESTAMP (không tz) như QuotaService so sánh — dùng Timestamp.from.
+        // user_subscriptions.ends_at là TIMESTAMPTZ (V199) — bind Timestamp.from(Instant) như QuotaService; index
+        // idx_user_subscriptions_trial_ends (V333) phủ (source, status, ends_at) cho câu quét không có user_id này.
         List<Map<String, Object>> trials = jdbc.queryForList("""
                 SELECT us.user_id, us.status, us.ends_at, u.notification_timezone, u.reminder_hour_local
                 FROM user_subscriptions us

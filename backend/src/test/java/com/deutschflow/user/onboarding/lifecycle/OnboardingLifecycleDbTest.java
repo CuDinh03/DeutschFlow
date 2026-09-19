@@ -1,6 +1,7 @@
 package com.deutschflow.user.onboarding.lifecycle;
 
 import com.deutschflow.notification.NotificationType;
+import com.deutschflow.notification.jobs.DailyNotificationJob;
 import com.deutschflow.testsupport.AbstractPostgresIntegrationTest;
 import com.deutschflow.user.dto.UpdateProfileRequest;
 import com.deutschflow.user.entity.User;
@@ -24,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Đợt 6 §4.7 trên Postgres thật (V333): sổ {@code lifecycle_sends} chốt "một lần", thông báo vào
  * {@code user_notifications}, giờ nhắc ghi qua {@code AuthService.updateProfile}, và
- * {@code DailyNotificationJob} bỏ nhắc chuỗi ngày có tin lifecycle.
+ * {@code DailyNotificationJob.hasLifecycleSendToday} thấy dòng sổ đó (điểm nối để bỏ nhắc chuỗi).
  */
 @SpringBootTest
 @DisplayName("Lifecycle tuần đầu — DB thật")
@@ -33,6 +34,7 @@ class OnboardingLifecycleDbTest extends AbstractPostgresIntegrationTest {
     private static final ZoneId HCM = ZoneId.of("Asia/Ho_Chi_Minh");
 
     @Autowired private OnboardingLifecycleService service;
+    @Autowired private DailyNotificationJob dailyNotificationJob;
     @Autowired private AuthService authService;
     @Autowired private UserRepository userRepository;
     @Autowired private JdbcTemplate jdbc;
@@ -75,6 +77,24 @@ class OnboardingLifecycleDbTest extends AbstractPostgresIntegrationTest {
                 "SELECT COUNT(*) FROM lifecycle_sends WHERE user_id = ? AND message_key = 'D0'", Integer.class, u.getId());
         assertThat(ledger).isEqualTo(1);
         assertThat(service.hasSendOnLocalDay(u.getId(), HCM, now)).isTrue();
+    }
+
+    @Test
+    @DisplayName("Điểm nối hai job: ngày đã có tin lifecycle ⇒ DailyNotificationJob.hasLifecycleSendToday = true (bỏ nhắc chuỗi); người khác = false")
+    void streakReminderSuppressedOnLifecycleDay() throws Exception {
+        User u = newStudent();
+        User other = newStudent();
+        Instant now = Instant.now();
+        activate(u.getId(), now.minus(Duration.ofHours(1)));
+        service.runHourly(now);
+
+        // Bean có @SchedulerLock ⇒ Spring bọc proxy CGLIB; gọi private method qua reflection phải đi vào
+        // TARGET thật, không thì field jdbcTemplate của lớp con proxy là null (catch → false, đỏ nhầm).
+        Object target = org.springframework.test.util.AopTestUtils.getUltimateTargetObject(dailyNotificationJob);
+        java.lang.reflect.Method m = DailyNotificationJob.class.getDeclaredMethod("hasLifecycleSendToday", long.class, ZoneId.class);
+        m.setAccessible(true);
+        assertThat((Boolean) m.invoke(target, u.getId(), HCM)).isTrue();
+        assertThat((Boolean) m.invoke(target, other.getId(), HCM)).isFalse();
     }
 
     @Test
