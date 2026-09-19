@@ -76,6 +76,15 @@ export function resolveNotificationRoute(
 
     case 'STREAK_REMINDER':
       return '/(student)'
+    // Đợt 6: tin tuần đầu → Trang chủ (checklist + lộ trình); tin trial → Hồ sơ (gói/nâng cấp).
+    case 'ONBOARDING_D0_WELCOME':
+    case 'ONBOARDING_D1_NEXT_LESSON':
+    case 'ONBOARDING_D3_CHECKIN':
+    case 'ONBOARDING_D7_SUMMARY':
+      return '/(student)'
+    case 'TRIAL_ENDING_SOON':
+    case 'TRIAL_ENDED':
+      return '/(student)/profile'
 
     case 'ACHIEVEMENT_UNLOCKED':
     case 'LEVEL_UP':
