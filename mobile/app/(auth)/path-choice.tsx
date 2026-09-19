@@ -12,8 +12,11 @@ import { captureEvent } from '@/lib/analytics'
 import { normalizePlacementLevel } from '@/lib/placementTest'
 import { useBlockBackNavigation } from '@/hooks/useBlockBackNavigation'
 import { PathChoiceCard, type MobilePathChoice } from '@/components/onboarding/PathChoiceCard'
+import { useT } from '@/lib/i18n'
+import { pathChoiceMessages } from '@/lib/i18n/messages/pathChoice'
 
 export default function PathChoiceScreen() {
+  const t = useT(pathChoiceMessages)
   const { level: rawLevel } = useLocalSearchParams<{ level?: string }>()
   // Route chỉ có nghĩa với A1+; param hỏng thì vẫn hỏi (không chặn), placement sẽ tự tra hồ sơ.
   const level = normalizePlacementLevel(rawLevel) ?? 'A1'
@@ -36,5 +39,5 @@ export default function PathChoiceScreen() {
     router.replace('/(student)')
   }
 
-  return <PathChoiceCard level={level} cap="Trước khi vào lộ trình" onPick={pick} />
+  return <PathChoiceCard level={level} cap={t('screen.cap')} onPick={pick} />
 }

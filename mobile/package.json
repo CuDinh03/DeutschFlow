@@ -27,7 +27,8 @@
       "^expo-secure-store$": "<rootDir>/test/mocks/expo-secure-store.ts",
       "^react-native-mmkv$": "<rootDir>/test/mocks/react-native-mmkv.ts",
       "^expo-constants$": "<rootDir>/test/mocks/expo-constants.ts",
-      "^expo-crypto$": "<rootDir>/test/mocks/expo-crypto.ts"
+      "^expo-crypto$": "<rootDir>/test/mocks/expo-crypto.ts",
+      "^expo-localization$": "<rootDir>/test/mocks/expo-localization.ts"
     },
     "testMatch": [
       "**/__tests__/**/*.test.ts",

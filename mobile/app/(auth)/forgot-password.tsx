@@ -6,9 +6,12 @@ import * as Haptics from 'expo-haptics'
 import api, { apiMessage } from '@/lib/api'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { Screen, ThemedText, TextField, Button, GaGlyph } from '@/components/ui'
+import { useT } from '@/lib/i18n'
+import { authMessages } from '@/lib/i18n/messages/auth'
 
 export default function ForgotPasswordScreen() {
   const theme = useTheme()
+  const t = useT(authMessages)
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
@@ -16,7 +19,7 @@ export default function ForgotPasswordScreen() {
   async function handleRequest() {
     const trimmed = email.trim()
     if (!trimmed || !trimmed.includes('@')) {
-      Alert.alert('Email không hợp lệ', 'Vui lòng nhập đúng địa chỉ email.')
+      Alert.alert(t('forgot.invalidEmailTitle'), t('forgot.invalidEmailBody'))
       return
     }
     setLoading(true)
@@ -26,7 +29,7 @@ export default function ForgotPasswordScreen() {
       setSent(true)
     } catch (e) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      Alert.alert('Lỗi', apiMessage(e))
+      Alert.alert(t('common.errorTitle'), apiMessage(e))
     } finally {
       setLoading(false)
     }
@@ -59,18 +62,18 @@ export default function ForgotPasswordScreen() {
               <GaGlyph name="tinnhan" size={34} ink="success" gold="success" />
             </View>
             <ThemedText variant="titleLg" align="center">
-              Kiểm tra email của bạn
+              {t('forgot.sentTitle')}
             </ThemedText>
             <ThemedText variant="body" color="muted" align="center">
-              Chúng tôi đã gửi mã 6 chữ số đến {email.trim()}. Mã có hiệu lực 15 phút.
+              {t('forgot.sentBody', { email: email.trim() })}
             </ThemedText>
             <Button
-              label="Nhập mã đặt lại"
+              label={t('forgot.enterCode')}
               onPress={() => router.push({ pathname: '/(auth)/reset-password', params: { email: email.trim() } })}
               style={{ marginTop: space[2] }}
             />
             <Button
-              label="Thử lại với email khác"
+              label={t('forgot.tryAnotherEmail')}
               variant="ghost"
               onPress={() => setSent(false)}
             />
@@ -106,23 +109,23 @@ export default function ForgotPasswordScreen() {
             >
               <GaGlyph name="tinnhan" size={26} ink="primary" />
             </View>
-            <ThemedText variant="titleLg">Quên mật khẩu</ThemedText>
+            <ThemedText variant="titleLg">{t('forgot.title')}</ThemedText>
             <ThemedText variant="body" color="muted" style={{ marginTop: space[1] }} align="center">
-              Nhập email tài khoản để nhận mã đặt lại
+              {t('forgot.subtitle')}
             </ThemedText>
           </View>
 
           <TextField
-            label="Email"
+            label={t('common.email')}
             value={email}
             onChangeText={setEmail}
-            placeholder="example@email.com"
+            placeholder={t('common.emailPlaceholder')}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
           />
-          <Button label="Gửi mã" onPress={handleRequest} loading={loading} />
-          <Button label="Quay lại đăng nhập" variant="ghost" onPress={() => router.back()} />
+          <Button label={t('forgot.send')} onPress={handleRequest} loading={loading} />
+          <Button label={t('forgot.backToLogin')} variant="ghost" onPress={() => router.back()} />
         </MotiView>
       </KeyboardAvoidingView>
     </Screen>

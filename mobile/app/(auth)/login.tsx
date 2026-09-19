@@ -10,9 +10,12 @@ import { usePlanStore } from '@/stores/usePlanStore'
 import { motion, space, useTheme } from '@/lib/theme'
 import { captureEvent } from '@/lib/analytics'
 import { Screen, ThemedText, TextField, Button, BrandMark } from '@/components/ui'
+import { useT } from '@/lib/i18n'
+import { authMessages } from '@/lib/i18n/messages/auth'
 
 export default function LoginScreen() {
   const theme = useTheme()
+  const t = useT(authMessages)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -21,7 +24,7 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập email và mật khẩu.')
+      Alert.alert(t('common.missingInfoTitle'), t('login.missingInfoBody'))
       return
     }
     setLoading(true)
@@ -41,13 +44,9 @@ export default function LoginScreen() {
       captureEvent('login_failed', { reason: msg || 'unknown' })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       if (msg === 'NON_STUDENT_ROLE') {
-        Alert.alert(
-          'Tài khoản không phù hợp',
-          'App chỉ dành cho học viên. Giáo viên và admin vui lòng dùng mydeutschflow.com',
-          [{ text: 'OK' }],
-        )
+        Alert.alert(t('login.wrongRoleTitle'), t('login.wrongRoleBody'), [{ text: t('common.ok') }])
       } else {
-        Alert.alert('Đăng nhập thất bại', 'Email hoặc mật khẩu không đúng.')
+        Alert.alert(t('login.failedTitle'), t('login.failedBody'))
       }
     } finally {
       setLoading(false)
@@ -82,57 +81,57 @@ export default function LoginScreen() {
                 </ThemedText>
               </View>
               <ThemedText variant="body" color="muted" style={{ marginTop: space[1] }}>
-                Học tiếng Đức hiệu quả
+                {t('login.tagline')}
               </ThemedText>
             </View>
 
             <View style={{ gap: space[4] }}>
               <TextField
-                label="Email"
+                label={t('common.email')}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="example@email.com"
+                placeholder={t('common.emailPlaceholder')}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
               />
               <TextField
-                label="Mật khẩu"
+                label={t('common.password')}
                 value={password}
                 onChangeText={setPassword}
                 placeholder="••••••••"
                 secureTextEntry
                 autoComplete="current-password"
               />
-              <Button label="Đăng nhập" onPress={handleLogin} loading={loading} style={{ marginTop: space[1] }} />
+              <Button label={t('common.login')} onPress={handleLogin} loading={loading} style={{ marginTop: space[1] }} />
 
-              <Pressable accessibilityRole="button" accessibilityLabel="Quên mật khẩu" hitSlop={8} onPress={() => router.push('/(auth)/forgot-password')} style={{ alignItems: 'center', marginTop: space[2] }}>
-                <ThemedText variant="caption" color="accent">Quên mật khẩu?</ThemedText>
+              <Pressable accessibilityRole="button" accessibilityLabel={t('login.forgotA11y')} hitSlop={8} onPress={() => router.push('/(auth)/forgot-password')} style={{ alignItems: 'center', marginTop: space[2] }}>
+                <ThemedText variant="caption" color="accent">{t('login.forgot')}</ThemedText>
               </Pressable>
 
               {/* Đợt 3 (G-1): lối "Học thử" không còn sau cờ PostHog `onboarding-value-first` —
                   màn Chào mừng là cửa vào phễu khách; ở đây chỉ giữ cổng quay lại. */}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Học thử miễn phí — không cần tài khoản"
+                accessibilityLabel={t('login.tryFreeA11y')}
                 hitSlop={8}
                 onPress={() => { void Haptics.selectionAsync(); router.push('/(auth)/onboarding') }}
                 style={{ alignItems: 'center', marginTop: space[3] }}
               >
                 <ThemedText variant="bodyStrong" color="accent">
-                  Học thử miễn phí — không cần tài khoản →
+                  {t('login.tryFree')}
                 </ThemedText>
               </Pressable>
             </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: space[6] }}>
               <ThemedText variant="body" color="muted">
-                Chưa có tài khoản?{' '}
+                {t('login.noAccount')}{' '}
               </ThemedText>
               <Link href="/(auth)/register" asChild>
-                <Pressable accessibilityRole="button" accessibilityLabel="Đăng ký miễn phí" hitSlop={6}>
+                <Pressable accessibilityRole="button" accessibilityLabel={t('login.registerFree')} hitSlop={6}>
                   <ThemedText variant="bodyStrong" color="accent">
-                    Đăng ký miễn phí
+                    {t('login.registerFree')}
                   </ThemedText>
                 </Pressable>
               </Link>

@@ -6,9 +6,12 @@ import * as Haptics from 'expo-haptics'
 import api, { apiMessage } from '@/lib/api'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { Screen, ThemedText, TextField, Button, GaGlyph } from '@/components/ui'
+import { useT } from '@/lib/i18n'
+import { authMessages } from '@/lib/i18n/messages/auth'
 
 export default function ResetPasswordScreen() {
   const theme = useTheme()
+  const t = useT(authMessages)
   const params = useLocalSearchParams<{ email?: string }>()
   const [email, setEmail] = useState(params.email ?? '')
   const [code, setCode] = useState('')
@@ -18,19 +21,19 @@ export default function ResetPasswordScreen() {
 
   async function handleReset() {
     if (!email.trim() || !code.trim() || !newPassword) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng điền đầy đủ.')
+      Alert.alert(t('common.missingInfoTitle'), t('reset.missingInfoBody'))
       return
     }
     if (code.trim().length !== 6) {
-      Alert.alert('Mã không hợp lệ', 'Mã đặt lại gồm 6 chữ số.')
+      Alert.alert(t('reset.invalidCodeTitle'), t('reset.invalidCodeBody'))
       return
     }
     if (newPassword.length < 8) {
-      Alert.alert('Mật khẩu quá ngắn', 'Mật khẩu phải có ít nhất 8 ký tự.')
+      Alert.alert(t('common.passwordTooShortTitle'), t('common.passwordTooShortBody'))
       return
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Mật khẩu không khớp', 'Hai lần nhập mật khẩu phải giống nhau.')
+      Alert.alert(t('reset.mismatchTitle'), t('reset.mismatchBody'))
       return
     }
     setLoading(true)
@@ -41,12 +44,12 @@ export default function ResetPasswordScreen() {
         newPassword,
       })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-      Alert.alert('Thành công', 'Mật khẩu đã được đặt lại. Vui lòng đăng nhập lại.', [
-        { text: 'Đăng nhập', onPress: () => router.replace('/(auth)/login') },
+      Alert.alert(t('reset.successTitle'), t('reset.successBody'), [
+        { text: t('common.login'), onPress: () => router.replace('/(auth)/login') },
       ])
     } catch (e) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      Alert.alert('Lỗi', apiMessage(e))
+      Alert.alert(t('common.errorTitle'), apiMessage(e))
     } finally {
       setLoading(false)
     }
@@ -78,22 +81,22 @@ export default function ResetPasswordScreen() {
             >
               <GaGlyph name="matkhau" size={26} ink="primary" />
             </View>
-            <ThemedText variant="titleLg">Đặt lại mật khẩu</ThemedText>
+            <ThemedText variant="titleLg">{t('reset.title')}</ThemedText>
             <ThemedText variant="body" color="muted" style={{ marginTop: space[1] }} align="center">
-              Nhập mã 6 chữ số từ email và mật khẩu mới
+              {t('reset.subtitle')}
             </ThemedText>
           </View>
 
           <TextField
-            label="Email"
+            label={t('common.email')}
             value={email}
             onChangeText={setEmail}
-            placeholder="example@email.com"
+            placeholder={t('common.emailPlaceholder')}
             keyboardType="email-address"
             autoCapitalize="none"
           />
           <TextField
-            label="Mã 6 chữ số"
+            label={t('reset.code')}
             value={code}
             onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
             placeholder="123456"
@@ -101,28 +104,28 @@ export default function ResetPasswordScreen() {
             maxLength={6}
           />
           <TextField
-            label="Mật khẩu mới"
+            label={t('reset.newPassword')}
             value={newPassword}
             onChangeText={setNewPassword}
-            placeholder="Tối thiểu 8 ký tự"
+            placeholder={t('common.passwordMinPlaceholder')}
             secureTextEntry
             autoComplete="new-password"
           />
           <TextField
-            label="Xác nhận mật khẩu"
+            label={t('reset.confirmPassword')}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
-            placeholder="Nhập lại mật khẩu mới"
+            placeholder={t('reset.confirmPlaceholder')}
             secureTextEntry
-            error={confirmPassword && newPassword !== confirmPassword ? 'Mật khẩu không khớp' : undefined}
+            error={confirmPassword && newPassword !== confirmPassword ? t('reset.mismatchTitle') : undefined}
           />
           <Button
-            label="Đặt lại mật khẩu"
+            label={t('reset.submit')}
             onPress={handleReset}
             loading={loading}
             disabled={code.length !== 6 || newPassword.length < 8}
           />
-          <Button label="Quay lại" variant="ghost" onPress={() => router.back()} />
+          <Button label={t('reset.back')} variant="ghost" onPress={() => router.back()} />
         </MotiView>
       </KeyboardAvoidingView>
     </Screen>

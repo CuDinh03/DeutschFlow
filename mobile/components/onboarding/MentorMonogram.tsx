@@ -5,6 +5,8 @@ import { View, type StyleProp, type ViewStyle } from 'react-native'
 import { fonts, radius, useTheme } from '@/lib/theme'
 import { ThemedText } from '@/components/ui'
 import { mentorFirstName, type OnboardingMentor } from '@/lib/onboardingMentor'
+import { useT } from '@/lib/i18n'
+import { firstSentenceMessages } from '@/lib/i18n/messages/firstSentence'
 
 interface MentorMonogramProps {
   mentor: OnboardingMentor | null
@@ -14,11 +16,12 @@ interface MentorMonogramProps {
 
 export function MentorMonogram({ mentor, size = 56, style }: MentorMonogramProps) {
   const c = useTheme().colors
+  const t = useT(firstSentenceMessages)
   const letter = mentorFirstName(mentor).charAt(0).toUpperCase()
   return (
     <View
       accessible
-      accessibilityLabel={`Mentor ${mentorFirstName(mentor)}`}
+      accessibilityLabel={t('mentor.a11yLabel', { name: mentorFirstName(mentor) })}
       style={[
         {
           width: size,

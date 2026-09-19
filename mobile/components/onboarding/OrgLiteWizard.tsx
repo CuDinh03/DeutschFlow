@@ -18,6 +18,8 @@ import {
   type LiteProfilePayload,
   type OnboardingContext,
 } from '@/lib/onboardingContext'
+import { useT, type Translator } from '@/lib/i18n'
+import { orgLiteMessages } from '@/lib/i18n/messages/orgLite'
 
 // PROFILE_LITE — bản rút gọn cho học viên trung tâm (Đợt 5, kế hoạch 17/09/2026 §4.1 C2).
 //
@@ -31,22 +33,23 @@ interface Props {
   onSubmit: (payload: LiteProfilePayload) => void
 }
 
-/** "17 tháng 10, 2026" — không kéo thư viện ngày, copy chỉ có tiếng Việt trong app (Q-D: i18n ở Đợt 3). */
-function formatTrialDate(iso: string): string | null {
+/** "17 tháng 10, 2026" / "10/17/2026" / "17.10.2026" — không kéo thư viện ngày; mẫu ngày nằm trong từ điển orgLite (Q-D). */
+function formatTrialDate(iso: string, t: Translator<typeof orgLiteMessages.vi>): string | null {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
-  return `${d.getDate()} tháng ${d.getMonth() + 1}, ${d.getFullYear()}`
+  return t('trial.date', { day: d.getDate(), month: d.getMonth() + 1, year: d.getFullYear() })
 }
 
 export function OrgLiteWizard({ ctx, submitting, onSubmit }: Props) {
   const c = useTheme().colors
+  const t = useT(orgLiteMessages)
   const preset = normalizePresetLevel(ctx.presetCurrentLevel)
   const [currentLevel, setCurrentLevel] = useState<string>(preset ?? 'A0')
   const [dailyGoal, setDailyGoal] = useState('15')
 
   const orgName = ctx.org?.name ?? null
   const className = ctx.org?.className ?? null
-  const trialUntil = ctx.trial?.isTrial && ctx.trial.trialEndsAt ? formatTrialDate(ctx.trial.trialEndsAt) : null
+  const trialUntil = ctx.trial?.isTrial && ctx.trial.trialEndsAt ? formatTrialDate(ctx.trial.trialEndsAt, t) : null
 
   function pick(update: () => void) {
     void Haptics.selectionAsync()
@@ -63,9 +66,9 @@ export function OrgLiteWizard({ ctx, submitting, onSubmit }: Props) {
         testID="org-lite-wizard"
       >
         <TitleBlock
-          cap="Học viên trung tâm"
-          title={className ? `Bạn thuộc lớp ${className}` : orgName ? `Bạn là học viên của ${orgName}` : 'Bạn là học viên trung tâm'}
-          sub="Mục tiêu, giáo trình và mentor do trung tâm sắp xếp — bạn chỉ cần chọn nhịp học rồi vào bài đầu tiên."
+          cap={t('cap')}
+          title={className ? t('title.withClass', { className }) : orgName ? t('title.withOrg', { orgName }) : t('title.plain')}
+          sub={t('sub')}
         />
 
         {orgName ? (
@@ -74,7 +77,7 @@ export function OrgLiteWizard({ ctx, submitting, onSubmit }: Props) {
             <View style={{ flex: 1, gap: 2 }}>
               <ThemedText variant="bodyStrong">{orgName}</ThemedText>
               {trialUntil ? (
-                <ThemedText variant="caption" color="secondary">{`PRO miễn phí tới ${trialUntil}.`}</ThemedText>
+                <ThemedText variant="caption" color="secondary">{t('trial.proUntil', { date: trialUntil })}</ThemedText>
               ) : null}
             </View>
           </Card>
@@ -82,21 +85,21 @@ export function OrgLiteWizard({ ctx, submitting, onSubmit }: Props) {
 
         {preset === null ? (
           <View style={{ gap: space[3] }}>
-            <Caption>Trình độ hiện tại</Caption>
+            <Caption>{t('level.cap')}</Caption>
             <ThemedText variant="caption" color="secondary">
-              Trung tâm chưa đặt trình độ — chọn mức gần đúng nhất, giáo viên chỉnh lại được sau.
+              {t('level.hint')}
             </ThemedText>
             <LevelChips options={CURRENT_LEVELS} selected={currentLevel} onSelect={(v) => pick(() => setCurrentLevel(v))} />
           </View>
         ) : (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
             <YellowSquare />
-            <ThemedText variant="caption" color="secondary">{`Trình độ hiện tại do trung tâm đặt: ${preset}.`}</ThemedText>
+            <ThemedText variant="caption" color="secondary">{t('level.preset', { level: preset })}</ThemedText>
           </View>
         )}
 
         <View style={{ gap: space[3] }}>
-          <Caption>Nhịp học · mỗi ngày bao nhiêu phút?</Caption>
+          <Caption>{t('pace.cap')}</Caption>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
             {DAILY_GOALS.map((g) => (
               <MinuteTile
@@ -113,7 +116,7 @@ export function OrgLiteWizard({ ctx, submitting, onSubmit }: Props) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <GaGlyph name="thoigian" size={15} ink="secondary" />
           <ThemedText variant="caption" color="secondary" style={{ flex: 1 }}>
-            Chuỗi ngày học (streak) tính theo mức này — chọn mức bạn giữ được lâu dài.
+            {t('pace.streakHint')}
           </ThemedText>
         </View>
       </ScrollView>
@@ -129,7 +132,7 @@ export function OrgLiteWizard({ ctx, submitting, onSubmit }: Props) {
         }}
       >
         <Button
-          label="Bắt đầu học"
+          label={t('start')}
           loading={submitting}
           disabled={submitting}
           onPress={() =>
