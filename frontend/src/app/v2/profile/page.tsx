@@ -21,6 +21,7 @@ import { GaPageHdr, GaBtn, GaCard, LoadingState, ConfirmDialog } from '@/compone
 import { RoleShell } from '../RoleShell'
 import { AvatarSection } from './AvatarSection'
 import { timezoneOptionsFor, deviceTimezone, canonicalTimezone } from './timezones'
+import { REMINDER_HOURS } from '@/features/onboarding/starterChecklist'
 
 type Tab = 'info' | 'learning' | 'security'
 // labelKey resolves via t('tab…'); id drives tab logic (stable).
@@ -114,6 +115,8 @@ function ProfileBody() {
   const [locale, setLocale] = useState('vi')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [timezone, setTimezone] = useState('Asia/Ho_Chi_Minh')
+  // Đợt 6 (W11): '' = chưa chọn (server NULL ⇒ 18:00 mặc định); số = giờ 0–23.
+  const [reminderHour, setReminderHour] = useState<number | ''>('')
   const [savingInfo, setSavingInfo] = useState(false)
 
   // birth date — ghi MỘT LẦN (backend chặn lần hai), nên có nút lưu riêng + hộp thoại xác nhận
@@ -164,6 +167,7 @@ function ProfileBody() {
           setTimezone(
             canonicalTimezone(me.notificationTimezone || deviceTimezone() || 'Asia/Ho_Chi_Minh')
           )
+          setReminderHour(typeof me.reminderHourLocal === 'number' ? me.reminderHourLocal : '')
           const serverAvatar = me.avatarUrl || null
           setAvatarUrl(serverAvatar)
           // Store persist từ phiên đăng nhập cũ có thể chưa có avatarUrl — đồng bộ để sidebar hiện ảnh.
@@ -200,6 +204,8 @@ function ProfileBody() {
         phoneNumber: phone || undefined,
         locale,
         notificationTimezone: timezone || undefined,
+        // -1 = bỏ giờ nhắc (server ghi NULL). Gửi luôn để chọn 'Mặc định' cũng lưu được.
+        reminderHourLocal: reminderHour === '' ? -1 : reminderHour,
       })
       setLocaleStore(locale)
       // Đồng bộ store để sidebar đổi tên ngay (loadedRef chặn refetch nên không đè form).
@@ -365,6 +371,21 @@ function ProfileBody() {
                     {timezoneOptionsFor(timezone).map((zone) => (
                       <option key={zone} value={zone}>
                         {zone.replace(/_/g, ' ')}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label={t('fieldReminderHour')} hint={t('reminderHourHint')}>
+                  <select
+                    className={inputCls}
+                    value={reminderHour === '' ? '' : String(reminderHour)}
+                    onChange={(e) => setReminderHour(e.target.value === '' ? '' : Number(e.target.value))}
+                    data-testid="profile-reminder-hour"
+                  >
+                    <option value="">{t('reminderHourNone')}</option>
+                    {REMINDER_HOURS.map((h) => (
+                      <option key={h} value={h}>
+                        {t('reminderHourAt', { hour: String(h).padStart(2, '0') })}
                       </option>
                     ))}
                   </select>

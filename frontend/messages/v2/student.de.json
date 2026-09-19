@@ -97,9 +97,15 @@
           "first_lesson": "Tag 1 lernen — deine erste Lektion",
           "placement": "Einstufungstest mit 10 Fragen machen",
           "roadmap_node": "Erste Etappe auf dem Lernweg abschließen",
-          "mock_exam": "3 Minuten Probegespräch mit deinem Mentor"
+          "mock_exam": "3 Minuten Probegespräch mit deinem Mentor",
+          "reminder": "Tägliche Lernerinnerung einstellen"
         },
-        "note": "Der Fortschritt wird mit der App synchronisiert."
+        "note": "Der Fortschritt wird mit der App synchronisiert.",
+        "reminderLabel": "Erinnere mich um",
+        "reminderSave": "Erinnerung speichern",
+        "reminderSaved": "Erinnerung um {hour}:00 Uhr gesetzt – änderbar im Profil.",
+        "reminderError": "Erinnerung konnte nicht gespeichert werden, bitte erneut versuchen.",
+        "reminderHour": "{hour}:00 Uhr"
       }
     },
     "vocabulary": {

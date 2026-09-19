@@ -19,7 +19,7 @@ function progress(p: Record<string, unknown> = {}) {
   return { flowVersion: 'onb_v3', lastStep: 'CLAIMED', completedActivities: [], activatedAt: null, coreCompletedAt: null, ...p }
 }
 
-async function setup(page: Page, opts: { progress: Record<string, unknown> | null; level?: string }) {
+async function setup(page: Page, opts: { progress: Record<string, unknown> | null; level?: string; reminderHour?: number | null }) {
   await page.context().addCookies([
     { name: 'locale', value: 'vi', domain: 'localhost', path: '/' },
     { name: 'NEXT_LOCALE', value: 'vi', domain: 'localhost', path: '/' },
@@ -39,6 +39,10 @@ async function setup(page: Page, opts: { progress: Record<string, unknown> | nul
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ planCode: 'FREE', tier: 'FREE', isTrial: true, trialEndsAt: new Date(Date.now() + 30 * DAY_MS).toISOString() }) }),
   )
   await page.route('**/api/roadmap/me', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
+  await page.route('**/api/profile/me', (r) => {
+    if (r.request().method() === 'PATCH') return r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 1, email: 's@t.com', displayName: 'Test Student', locale: 'vi', role: 'STUDENT', notificationTimezone: 'Asia/Ho_Chi_Minh', reminderHourLocal: opts.reminderHour ?? null }) })
+  })
   await page.route('**/api/onboarding/me/profile', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ currentLevel: opts.level ?? 'A0', assignedPersonaCode: 'ANNA', targetLevel: 'B1' }) }),
   )
@@ -77,13 +81,14 @@ test.describe('W9 — ăn mừng', () => {
 })
 
 test.describe('W10 — checklist tuần đầu trên dashboard', () => {
-  test('A0 đã xong Ngày 1: 1/3 việc, mục Ngày 1 gạch bỏ, hai mục còn lại là link', async ({ page }) => {
+  test('A0 đã xong Ngày 1: 1/4 việc, mục Ngày 1 gạch bỏ, hai mục link, mục giờ nhắc có ô chọn', async ({ page }) => {
     await setup(page, { progress: progress({ completedActivities: ['FIRST_LESSON:BEGINNER_SESSION'], activatedAt: new Date().toISOString() }) })
     await page.goto('/v2/student/dashboard')
 
     const list = page.getByTestId('starter-checklist')
     await expect(list).toBeVisible()
-    await expect(page.getByTestId('starter-progress')).toHaveText('1/3 việc')
+    await expect(page.getByTestId('starter-progress')).toHaveText('1/4 việc')
+    await expect(page.getByTestId('starter-reminder-hour')).toBeVisible()
     await expect(page.getByTestId('starter-item-first_lesson')).toHaveAttribute('data-done', 'true')
     await expect(page.getByTestId('starter-item-roadmap_node').getByRole('link')).toHaveAttribute('href', /^\/v2\/student\/roadmap\/?$/)
     await expect(page.getByTestId('starter-item-mock_exam').getByRole('link')).toHaveAttribute('href', /^\/v2\/onboarding\/mock-exam\/?$/)
@@ -160,12 +165,28 @@ test.describe('W10 — checklist tuần đầu trên dashboard', () => {
     await expect(page.getByTestId('starter-checklist')).toHaveCount(0)
   })
 
-  test('đã xong đủ, hoặc quá 7 ngày ⇒ tự ẩn', async ({ page }) => {
+  test('W11: chọn giờ nhắc rồi Lưu → PATCH /profile/me và mục chuyển sang đã xong (2/4)', async ({ page }) => {
+    await setup(page, { progress: progress({ completedActivities: ['FIRST_LESSON:BEGINNER_SESSION'], activatedAt: new Date().toISOString() }) })
+    let patched: unknown = null
+    await page.route('**/api/profile/me', (r) => {
+      if (r.request().method() === 'PATCH') { patched = r.request().postDataJSON(); return r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }) }
+      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 1, email: 's@t.com', displayName: 'Test Student', locale: 'vi', role: 'STUDENT', notificationTimezone: 'Asia/Ho_Chi_Minh', reminderHourLocal: null }) })
+    })
+    await page.goto('/v2/student/dashboard')
+    await page.getByTestId('starter-reminder-hour').selectOption('21')
+    await page.getByTestId('starter-reminder-save').click()
+    await expect(page.getByTestId('starter-item-reminder')).toHaveAttribute('data-done', 'true')
+    await expect(page.getByTestId('starter-progress')).toHaveText('2/4 việc')
+    expect(patched).toEqual({ reminderHourLocal: 21 })
+  })
+
+  test('đã xong đủ (kể cả giờ nhắc), hoặc quá 7 ngày ⇒ tự ẩn', async ({ page }) => {
     await setup(page, {
       progress: progress({
         completedActivities: ['FIRST_LESSON:BEGINNER_SESSION', 'FIRST_LESSON:ROADMAP_NODE', 'FIRST_LESSON:MOCK_EXAM'],
         activatedAt: new Date().toISOString(),
       }),
+      reminderHour: 20,
     })
     await page.goto('/v2/student/dashboard')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()

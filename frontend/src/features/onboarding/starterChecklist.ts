@@ -14,7 +14,8 @@ import { BEGINNER_ROUTE, MOCK_EXAM_ROUTE, ROADMAP_ROUTE } from './postProfileRou
  *   AC-ONB-15), lối `/v2/onboarding?placement=1`.
  * - Chặng đầu tiên trên lộ trình (`ROADMAP_NODE`).
  * - Nói thử 3 phút với mentor (`MOCK_EXAM`).
- * (W11 "đặt giờ nhắc" nối thêm khi Đợt 6 có cột `users.reminder_hour_local`.)
+ * - Đặt giờ nhắc (W11, Đợt 6): tích khi `GET /profile/me.reminderHourLocal` khác null; chọn giờ ngay trên
+ *   checklist → `PATCH /profile/me {reminderHourLocal}`. Không xin Notification API trình duyệt (G-5).
  *
  * Ẩn khi: không có hàng progress trên server (tài khoản cũ, trước onb_v3 — không dựng checklist từ
  * chỗ không biết), đã tích đủ, hoặc quá `STARTER_WINDOW_DAYS` ngày kể từ `activatedAt`.
@@ -36,7 +37,7 @@ export interface OnboardingProgress {
 /** `FirstLessonKind` backend — thêm nguồn mới thì thêm ở đây VÀ hook server. */
 export type FirstLessonKind = 'FIRST_SENTENCE' | 'BEGINNER_SESSION' | 'PLACEMENT' | 'MOCK_EXAM' | 'ROADMAP_NODE'
 
-export type StarterItemKey = 'first_lesson' | 'placement' | 'roadmap_node' | 'mock_exam'
+export type StarterItemKey = 'first_lesson' | 'placement' | 'roadmap_node' | 'mock_exam' | 'reminder'
 
 export interface StarterItem {
   key: StarterItemKey
@@ -80,8 +81,15 @@ export function isProgressRowMissing(progress: OnboardingProgress | null | undef
 export interface StarterContext {
   /** `currentLevel` của hồ sơ học; null/undefined coi như A0 (I-1). */
   level: string | null | undefined
+  /** `GET /profile/me.reminderHourLocal`; null/undefined = chưa đặt giờ nhắc. */
+  reminderHourLocal?: number | null
   now?: number
 }
+
+/** Giờ nhắc mặc định khi người dùng chọn trên checklist (khớp sheet mobile 20:00). */
+export const DEFAULT_REMINDER_HOUR = 20
+/** Các giờ cho phép chọn trên web (sáng sớm tới tối muộn). */
+export const REMINDER_HOURS: readonly number[] = [6, 7, 8, 9, 12, 18, 19, 20, 21, 22]
 
 export function buildStarterChecklist(
   progress: OnboardingProgress | null | undefined,
@@ -103,6 +111,8 @@ export function buildStarterChecklist(
       : { key: 'placement', done: hasActivity(progress, 'PLACEMENT'), href: PLACEMENT_RETRY_ROUTE },
     { key: 'roadmap_node', done: hasActivity(progress, 'ROADMAP_NODE'), href: ROADMAP_ROUTE },
     { key: 'mock_exam', done: hasActivity(progress, 'MOCK_EXAM'), href: MOCK_EXAM_ROUTE },
+    // W11: không có trang đích — checklist tự mở ô chọn giờ; href chỉ để đồng nhất kiểu.
+    { key: 'reminder', done: typeof ctx.reminderHourLocal === 'number', href: '#reminder' },
   ]
   const doneCount = items.filter((i) => i.done).length
 
