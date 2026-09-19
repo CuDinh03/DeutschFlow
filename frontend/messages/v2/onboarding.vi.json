@@ -274,6 +274,48 @@
       "stage1": "Lưu mục tiêu & trình độ",
       "stage2": "Ghép mentor đồng hành",
       "stage3": "Dựng lộ trình học…"
+    },
+    "celebrate": {
+      "cap": "Bài đầu tiên đã xong",
+      "title": "Bạn đã làm được!",
+      "body": {
+        "beginner": "Bạn vừa học xong Ngày 1 — những từ và câu tiếng Đức đầu tiên của mình.",
+        "placementPassed": "Bạn vừa làm xong bài kiểm tra đầu vào — lộ trình đã khớp đúng chỗ bạn đang đứng.",
+        "placementFailed": "Bạn vừa làm xong bài kiểm tra đầu vào — mình đã biết chỗ cần ôn để lộ trình vừa sức.",
+        "placement": "Bạn vừa làm xong bài kiểm tra đầu vào — lộ trình sẽ bám đúng trình độ của bạn.",
+        "mockExam": "Bạn vừa nói thử 3 phút với mentor và có báo cáo đầu tiên."
+      },
+      "pillStreak": "Chuỗi ngày 1 bắt đầu",
+      "pill": {
+        "beginner": "Ngày 1 hoàn thành",
+        "placement": "Kiểm tra đầu vào xong",
+        "mockExam": "Nói thử xong"
+      },
+      "mentorLabel": "Mentor đồng hành",
+      "weekCap": "Tuần đầu của bạn",
+      "week": {
+        "roadmap": {
+          "title": "Chặng 1 trên lộ trình",
+          "sub": "Bắt đầu từ trang chủ"
+        },
+        "speaking": {
+          "title": "Buổi luyện nói đầu với {name}",
+          "sub": "Tình huống chào hỏi ngắn"
+        },
+        "speakingNoMentor": {
+          "title": "Buổi luyện nói đầu tiên",
+          "sub": "Tình huống chào hỏi ngắn"
+        },
+        "review": {
+          "title": "Ôn lại 5 thẻ",
+          "sub": "Nhớ lâu hơn nhờ lặp ngắt quãng"
+        },
+        "checklist": {
+          "title": "Checklist tuần đầu trên trang chủ",
+          "sub": "Ba việc nhỏ để quen hết công cụ chính"
+        }
+      },
+      "cta": "Vào hành trình của tôi"
     }
   }
 }

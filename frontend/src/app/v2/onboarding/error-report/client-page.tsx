@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { celebrateHref } from '@/features/onboarding/celebrate'
 import { useTranslations } from 'next-intl'
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts'
 import { ArrowLeft, RefreshCw, Lock, CheckCircle2, Crown, AlertTriangle } from 'lucide-react'
@@ -127,8 +128,10 @@ export default function V2ErrorReportPage() {
       (report.radar_chart?.fluency || 0)) / 4,
   )
 
+  // W9 (Đợt 4 PR-3): nói thử xong = bài đầu tiên (kind MOCK_EXAM, server đã ghi activation) → ăn mừng
+  // rồi mới về dashboard (HOME_WEEK1). Link "về dashboard" ở đầu trang giữ nguyên cho người xem lại.
   const continueFree = () => {
-    router.push(DASHBOARD_ROUTE)
+    router.push(celebrateHref('mock_exam'))
   }
 
   const upgradeClick = () => {

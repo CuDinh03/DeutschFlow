@@ -86,6 +86,20 @@
           "available": "Sẵn sàng",
           "locked": "Chưa mở"
         }
+      },
+      "starter": {
+        "cap": "Bắt đầu",
+        "title": "Tuần đầu của bạn",
+        "aria": "Checklist tuần đầu",
+        "progress": "{done}/{total} việc",
+        "done": "Đã xong",
+        "items": {
+          "first_lesson": "Học Ngày 1 — bài đầu tiên",
+          "placement": "Làm kiểm tra đầu vào 10 câu",
+          "roadmap_node": "Học chặng đầu tiên trên lộ trình",
+          "mock_exam": "Nói thử 3 phút với mentor"
+        },
+        "note": "Trạng thái đồng bộ với ứng dụng điện thoại."
       }
     },
     "vocabulary": {

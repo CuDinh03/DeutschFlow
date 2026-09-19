@@ -15,17 +15,20 @@ import { isZeroLevel, nextOnboardingState, type AccountSource, type PathChoice }
  * - A1+ tự đăng ký: `placement` → bài 10 câu trong trang; `mock_exam` → nói thử 3′ (`/v2/onboarding/mock-exam`,
  *   W5b nối lại trang mồ côi); `skip` → HOME_WEEK1; chưa chọn → màn Chọn đường (fixture R5).
  *
- * HOME_WEEK1 tạm là lộ trình cho tới khi W10 (checklist tuần đầu trên dashboard) có mặt — đổi ở
- * MỘT chỗ này khi đó.
+ * HOME_WEEK1 = dashboard (Đợt 4 PR-3, 19/09/2026): checklist tuần đầu W10 sống ở đó — A1+ bỏ qua
+ * Chọn đường được mời lại "Kiểm tra đầu vào" ngay trên checklist (AC-ONB-15).
  */
 
 export const BEGINNER_ROUTE = '/v2/student/beginner'
 export const ROADMAP_ROUTE = '/v2/student/roadmap'
+export const DASHBOARD_ROUTE = '/v2/student/dashboard'
 export const MOCK_EXAM_ROUTE = '/v2/onboarding/mock-exam'
 
 export type PostProfileDestination =
   | { kind: 'beginner'; href: typeof BEGINNER_ROUTE }
   | { kind: 'roadmap'; href: typeof ROADMAP_ROUTE }
+  /** HOME_WEEK1: dashboard với checklist tuần đầu (W10). */
+  | { kind: 'dashboard'; href: typeof DASHBOARD_ROUTE }
   | { kind: 'mock_exam'; href: typeof MOCK_EXAM_ROUTE }
   /** Ở lại trang: hiện bài kiểm tra đầu vào. */
   | { kind: 'placement' }
@@ -52,7 +55,7 @@ export function nextAfterProfile(ctx: PostProfileContext): PostProfileDestinatio
   const isOrg = accountSource === 'ORG_ROSTER' || accountSource === 'ORG_INVITE'
   switch (state) {
     case 'HOME_WEEK1':
-      return { kind: 'roadmap', href: ROADMAP_ROUTE }
+      return { kind: 'dashboard', href: DASHBOARD_ROUTE }
     case 'PATH_CHOICE':
       return { kind: 'path_choice' }
     case 'FIRST_LESSON':

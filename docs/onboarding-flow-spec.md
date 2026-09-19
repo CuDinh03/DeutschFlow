@@ -94,8 +94,8 @@ stateDiagram-v2
 | `CLAIMED` | `POST /onboarding/claim` gắn phiên, server phát lại hồ sơ | ✓ `user_onboarding_progress` |
 | `CREATING` | màn "Đang tạo lộ trình…" (cả hai đường — M-13); web `steps/CreatingPanel.tsx` ba dòng từ Đợt 4 PR-2 (19/09/2026), hiện cả khi đăng ký thẳng bấm lưu (I-10) | ✓ |
 | `FIRST_LESSON` | A0: Câu đầu tiên (mobile) / Ngày 1 `/v2/student/beginner` (web — onboarding trỏ thẳng từ Đợt 4 PR-2, không qua roadmap); A1+: placement (mobile `app/(auth)/placement.tsx` từ 19/09/2026 — port 10 câu web, server ghi activation `PLACEMENT`; web bài trong trang) / nói thử (web `mock-exam`, bắn `first_lesson_started/completed{kind:mock_exam}`) | ✓ `activated_at` (Đợt 1) |
-| `CELEBRATE` | ăn mừng + "Tuần đầu của bạn" | ✓ |
-| `HOME_WEEK1` | Trang chủ: tour · checklist · sheet nhắc học | ✓ |
+| `CELEBRATE` | ăn mừng + "Tuần đầu của bạn" | ✓ (web: `/v2/onboarding/celebrate?kind=beginner|placement|mock_exam`, Đợt 4 PR-3 19/09) |
+| `HOME_WEEK1` | Trang chủ: tour · checklist · sheet nhắc học | ✓ (web: dashboard + `StarterChecklist` đọc `GET /onboarding/progress`; giờ nhắc chờ Đợt 6) |
 | `CORE_DONE` | trả lời sheet nhắc học | ✓ `core_completed_at` (Đợt 1) |
 | `HOME` | đã có plan — không làm lại onboarding | ✓ |
 
@@ -410,7 +410,9 @@ kèm `step_name`/`step_number`) · `onboarding_motivation_selected` ·
 `onboarding_placement_test_completed` · `onboarding_placement_skipped` ·
 `onboarding_quickwin_completed` · `onboarding_signup_prompted` ·
 `onboarding_mentor_upsell_clicked` · `onboarding_pricing_cta_clicked` ·
-`onboarding_completed` · `register_started|success|failed`
+`onboarding_completed` · `register_started|success|failed` ·
+`onboarding_celebrate_viewed{kind,passed}` · `onboarding_celebrate_done{kind}` (W9, Đợt 4 PR-3 19/09) ·
+`onboarding_starter_item_clicked{key}` (W10 checklist tuần đầu trên dashboard; `onboarding_placement_offered{surface:starter_checklist}` khi mời lại placement qua `?placement=1`)
 
 **Mobile** (`captureEvent`): các sự kiện `onboarding_*` dùng chung ở trên, cộng
 `onb_first_sentence_started|spoken|succeeded|retried|skipped` ·

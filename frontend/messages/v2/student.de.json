@@ -86,6 +86,20 @@
           "available": "Bereit",
           "locked": "Gesperrt"
         }
+      },
+      "starter": {
+        "cap": "Erste Schritte",
+        "title": "Deine erste Woche",
+        "aria": "Checkliste der ersten Woche",
+        "progress": "{done}/{total} erledigt",
+        "done": "Erledigt",
+        "items": {
+          "first_lesson": "Tag 1 lernen — deine erste Lektion",
+          "placement": "Einstufungstest mit 10 Fragen machen",
+          "roadmap_node": "Erste Etappe auf dem Lernweg abschließen",
+          "mock_exam": "3 Minuten Probegespräch mit deinem Mentor"
+        },
+        "note": "Der Fortschritt wird mit der App synchronisiert."
       }
     },
     "vocabulary": {

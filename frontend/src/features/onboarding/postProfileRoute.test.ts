@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   BEGINNER_ROUTE,
+  DASHBOARD_ROUTE,
   MOCK_EXAM_ROUTE,
   ROADMAP_ROUTE,
   guestNeedsPathChoice,
@@ -44,8 +45,8 @@ describe('nextAfterProfile — A1+ tự đăng ký', () => {
     expect(nextAfterProfile({ level: 'B1', pathChoice: 'mock_exam' })).toEqual({ kind: 'mock_exam', href: MOCK_EXAM_ROUTE })
   })
 
-  it('skip (fixture C5) → HOME_WEEK1 = lộ trình cho tới khi có checklist W10', () => {
-    expect(nextAfterProfile({ level: 'A1', pathChoice: 'skip' })).toEqual({ kind: 'roadmap', href: ROADMAP_ROUTE })
+  it('skip (fixture C5) → HOME_WEEK1 = dashboard, nơi checklist W10 mời lại Kiểm tra đầu vào', () => {
+    expect(nextAfterProfile({ level: 'A1', pathChoice: 'skip' })).toEqual({ kind: 'dashboard', href: DASHBOARD_ROUTE })
   })
 })
 

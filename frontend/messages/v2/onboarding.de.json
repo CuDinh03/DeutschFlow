@@ -274,6 +274,48 @@
       "stage1": "Ziel & Niveau werden gespeichert",
       "stage2": "Mentor wird zugeordnet",
       "stage3": "Lernweg wird aufgebaut…"
+    },
+    "celebrate": {
+      "cap": "Erste Lektion geschafft",
+      "title": "Du hast es geschafft!",
+      "body": {
+        "beginner": "Du hast Tag 1 abgeschlossen — deine ersten deutschen Wörter und Sätze.",
+        "placementPassed": "Du hast den Einstufungstest abgeschlossen — dein Lernweg beginnt genau dort, wo du stehst.",
+        "placementFailed": "Du hast den Einstufungstest abgeschlossen — wir wissen jetzt, was zu wiederholen ist, damit der Lernweg passt.",
+        "placement": "Du hast den Einstufungstest abgeschlossen — dein Lernweg folgt deinem echten Niveau.",
+        "mockExam": "Du hast 3 Minuten mit deinem Mentor gesprochen und deinen ersten Bericht erhalten."
+      },
+      "pillStreak": "Tag-1-Serie gestartet",
+      "pill": {
+        "beginner": "Tag 1 geschafft",
+        "placement": "Einstufungstest geschafft",
+        "mockExam": "Probegespräch geschafft"
+      },
+      "mentorLabel": "Dein Mentor",
+      "weekCap": "Deine erste Woche",
+      "week": {
+        "roadmap": {
+          "title": "Etappe 1 auf deinem Lernweg",
+          "sub": "Starte von der Startseite"
+        },
+        "speaking": {
+          "title": "Erste Sprechübung mit {name}",
+          "sub": "Eine kurze Begrüßungssituation"
+        },
+        "speakingNoMentor": {
+          "title": "Deine erste Sprechübung",
+          "sub": "Eine kurze Begrüßungssituation"
+        },
+        "review": {
+          "title": "5 Karten wiederholen",
+          "sub": "Länger merken dank verteiltem Wiederholen"
+        },
+        "checklist": {
+          "title": "Checkliste der ersten Woche auf der Startseite",
+          "sub": "Drei kleine Aufgaben, um alle Hauptwerkzeuge kennenzulernen"
+        }
+      },
+      "cta": "Zu meinem Lernweg"
     }
   }
 }

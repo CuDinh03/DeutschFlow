@@ -86,6 +86,20 @@
           "available": "Ready",
           "locked": "Locked"
         }
+      },
+      "starter": {
+        "cap": "Getting started",
+        "title": "Your first week",
+        "aria": "First-week checklist",
+        "progress": "{done}/{total} done",
+        "done": "Done",
+        "items": {
+          "first_lesson": "Do Day 1 — your first lesson",
+          "placement": "Take the 10-question placement test",
+          "roadmap_node": "Finish the first stage on your roadmap",
+          "mock_exam": "Do a 3-minute mock talk with your mentor"
+        },
+        "note": "Progress syncs with the mobile app."
       }
     },
     "vocabulary": {
