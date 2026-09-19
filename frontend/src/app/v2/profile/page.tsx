@@ -117,6 +117,8 @@ function ProfileBody() {
   const [timezone, setTimezone] = useState('Asia/Ho_Chi_Minh')
   // Đợt 6 (W11): '' = chưa chọn (server NULL ⇒ 18:00 mặc định); số = giờ 0–23.
   const [reminderHour, setReminderHour] = useState<number | ''>('')
+  // Chỉ gửi reminderHourLocal khi /profile/me đã tải được: tải lỗi mà vẫn Lưu thì -1 sẽ xoá giờ đã đặt (review #701).
+  const [reminderLoaded, setReminderLoaded] = useState(false)
   const [savingInfo, setSavingInfo] = useState(false)
 
   // birth date — ghi MỘT LẦN (backend chặn lần hai), nên có nút lưu riêng + hộp thoại xác nhận
@@ -168,6 +170,7 @@ function ProfileBody() {
             canonicalTimezone(me.notificationTimezone || deviceTimezone() || 'Asia/Ho_Chi_Minh')
           )
           setReminderHour(typeof me.reminderHourLocal === 'number' ? me.reminderHourLocal : '')
+          setReminderLoaded(true)
           const serverAvatar = me.avatarUrl || null
           setAvatarUrl(serverAvatar)
           // Store persist từ phiên đăng nhập cũ có thể chưa có avatarUrl — đồng bộ để sidebar hiện ảnh.
@@ -204,8 +207,9 @@ function ProfileBody() {
         phoneNumber: phone || undefined,
         locale,
         notificationTimezone: timezone || undefined,
-        // -1 = bỏ giờ nhắc (server ghi NULL). Gửi luôn để chọn 'Mặc định' cũng lưu được.
-        reminderHourLocal: reminderHour === '' ? -1 : reminderHour,
+        // -1 = bỏ giờ nhắc (server ghi NULL) — chỉ khi đã đọc được giá trị thật, để 'Mặc định' lưu được
+        // mà tải hồ sơ lỗi không xoá nhầm giờ đã đặt.
+        ...(reminderLoaded ? { reminderHourLocal: reminderHour === '' ? -1 : reminderHour } : {}),
       })
       setLocaleStore(locale)
       // Đồng bộ store để sidebar đổi tên ngay (loadedRef chặn refetch nên không đè form).

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { ArrowRight, BellRing, BookOpen, CheckCircle2, Map, Mic, Target } from 'lucide-react'
@@ -48,9 +48,11 @@ export function StarterChecklist() {
   const [savedHour, setSavedHour] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [reminderError, setReminderError] = useState(false)
+  const aliveRef = useRef(true)
 
   useEffect(() => {
     let alive = true
+    aliveRef.current = true
     Promise.allSettled([
       api.get<OnboardingProgress>('/onboarding/progress'),
       getMyLearningProfile(),
@@ -65,7 +67,7 @@ export function StarterChecklist() {
       if (hour !== null) setReminderHour(hour)
       setModel(buildStarterChecklist(p.value.data, { level: lv, reminderHourLocal: hour }))
     })
-    return () => { alive = false }
+    return () => { alive = false; aliveRef.current = false }
   }, [])
 
   async function saveReminder() {
@@ -75,12 +77,13 @@ export function StarterChecklist() {
     try {
       await updateProfile({ reminderHourLocal: reminderHour })
       trackEvent('onboarding_reminder_hour_set', { hour: reminderHour, surface: 'starter_checklist' })
+      if (!aliveRef.current) return
       setSavedHour(reminderHour)
       setModel(buildStarterChecklist(progress, { level, reminderHourLocal: reminderHour }))
     } catch {
-      setReminderError(true)
+      if (aliveRef.current) setReminderError(true)
     } finally {
-      setSaving(false)
+      if (aliveRef.current) setSaving(false)
     }
   }
 
