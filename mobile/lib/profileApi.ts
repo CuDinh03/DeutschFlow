@@ -76,7 +76,7 @@ export interface PersonalProfile {
   birthDateLocked: boolean
   notificationTimezone: string | null
   /** Giờ nhắc học đã ghi trên server; null = chưa (Đợt 6). */
-  reminderHourLocal?: number | null
+  reminderHourLocal: number | null
 }
 
 export const profileApi = {
