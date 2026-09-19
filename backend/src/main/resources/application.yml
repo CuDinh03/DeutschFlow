@@ -901,6 +901,14 @@ app:
   # đúng vấn đề mà đợt này vá. Hết hạn KHÔNG khoá ai ra ngoài: đường "Quên mật khẩu" vẫn sống.
   activation:
     ttl-days: ${ACTIVATION_TTL_DAYS:14}
+  onboarding:
+    # Đợt 6 kế hoạch onboarding 17/09/2026 §4.7 — lifecycle tuần đầu + trial (OnboardingLifecycleJob).
+    lifecycle:
+      enabled: ${APP_ONBOARDING_LIFECYCLE_ENABLED:true}
+      # Mỗi giờ phút 05 — sau DailyNotificationJob (phút 00).
+      cron: ${APP_ONBOARDING_LIFECYCLE_CRON:0 5 * * * *}
+      # Email D1/D3/T−3 chỉ khi SES production (cổng G-5/B0) — mặc định TẮT; in-app + push luôn bật.
+      email-enabled: ${APP_ONBOARDING_LIFECYCLE_EMAIL_ENABLED:false}
 
 # ============================================================
 # Payment Gateway — MoMo

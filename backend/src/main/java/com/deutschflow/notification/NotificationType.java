@@ -127,6 +127,20 @@ public enum NotificationType {
      */
     REPORT_ISSUED,
 
+    // ── Đợt 6 onboarding (19/09/2026, §4.7): lifecycle tuần đầu + trial — mỗi (user, key) gửi một lần ──
+    /** D0 — vừa kích hoạt (bài đầu tiên xong): chúc mừng + mời đặt giờ nhắc. */
+    ONBOARDING_D0_WELCOME,
+    /** D1 — 24–48 h sau activation mà chưa học lại: bài tiếp theo 5 phút. */
+    ONBOARDING_D1_NEXT_LESSON,
+    /** D3 — 72–96 h sau activation: chuỗi ngày hoặc "quay lại 5 phút". */
+    ONBOARDING_D3_CHECKIN,
+    /** D7 — tổng kết tuần đầu; checklist tự ẩn. */
+    ONBOARDING_D7_SUMMARY,
+    /** T−3 — trial còn ≤ 3 ngày (đọc ends_at thật, không "7 ngày"). */
+    TRIAL_ENDING_SOON,
+    /** T0 — trial đã ENDED, về gói mặc định. */
+    TRIAL_ENDED,
+
     // ── Ngày sinh do trung tâm đặt (Q-02/Q-05, owner chốt 14/09/2026) ─────
 
     /**

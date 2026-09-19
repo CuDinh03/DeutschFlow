@@ -67,7 +67,8 @@ public class ProfileController {
                 fresh.getRole().name(),
                 fresh.getBirthDate(),
                 fresh.getBirthDate() != null,
-                fresh.getNotificationTimezone());
+                fresh.getNotificationTimezone(),
+                fresh.getReminderHourLocal());
     }
 
     /**

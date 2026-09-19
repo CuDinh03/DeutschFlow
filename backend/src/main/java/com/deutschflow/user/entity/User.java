@@ -56,6 +56,13 @@ public class User implements UserDetails {
     @Builder.Default
     private String notificationTimezone = "Asia/Ho_Chi_Minh";
 
+    /**
+     * Giờ nhắc học 0–23 theo {@code notificationTimezone} (Đợt 6 onboarding 19/09/2026, V333).
+     * NULL = chưa chọn ⇒ nhắc chuỗi 18h như cũ. Mobile ghi 20 khi bật sheet nhắc học; web ghi ở checklist/Hồ sơ.
+     */
+    @Column(name = "reminder_hour_local")
+    private Integer reminderHourLocal;
+
     // push_token identifies a DEVICE, not this account, so it is mutated out-of-band by native
     // queries (AuthService.savePushToken / clearPushToken*) whenever a device is re-assigned or a
     // session ends. updatable=false keeps Hibernate from ever writing these columns during an
