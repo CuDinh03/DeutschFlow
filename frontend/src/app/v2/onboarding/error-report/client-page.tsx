@@ -128,10 +128,10 @@ export default function V2ErrorReportPage() {
       (report.radar_chart?.fluency || 0)) / 4,
   )
 
-  // W9 (Đợt 4 PR-3): nói thử xong = bài đầu tiên (kind MOCK_EXAM, server đã ghi activation) → ăn mừng
-  // rồi mới về dashboard (HOME_WEEK1). Link "về dashboard" ở đầu trang giữ nguyên cho người xem lại.
+  // W9 (Đợt 4 PR-3): nói thử LẦN ĐẦU (mock-exam hỏi progress trước khi evaluate, gắn `celebrate=1`)
+  // → ăn mừng rồi mới về dashboard (HOME_WEEK1); làm lại / xem lại báo cáo → về dashboard thẳng.
   const continueFree = () => {
-    router.push(celebrateHref('mock_exam'))
+    router.push(searchParams.get('celebrate') === '1' ? celebrateHref('mock_exam') : DASHBOARD_ROUTE)
   }
 
   const upgradeClick = () => {

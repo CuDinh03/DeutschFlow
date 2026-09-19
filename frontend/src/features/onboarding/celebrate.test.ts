@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { CELEBRATE_ROUTE, afterCelebrateState, celebrateHref, parseCelebrateParams } from './celebrate'
+import { CELEBRATE_ROUTE, afterCelebrateState, celebrateHref, isFirstCompletion, parseCelebrateParams } from './celebrate'
+import type { OnboardingProgress } from './starterChecklist'
 
 function params(q: string) {
   const sp = new URLSearchParams(q)
@@ -28,5 +29,15 @@ describe('W9 — ăn mừng', () => {
 
   it('celebrate_done → HOME_WEEK1 theo fixture E1', () => {
     expect(afterCelebrateState()).toBe('HOME_WEEK1')
+  })
+
+  it('isFirstCompletion: chưa có FIRST_LESSON:<kind> ⇒ lần đầu; đã có ⇒ không; payload lệch ⇒ không (an toàn)', () => {
+    const p = (a: string[]): OnboardingProgress => ({ flowVersion: 'onb_v3', lastStep: 'CLAIMED', completedActivities: a, activatedAt: null, coreCompletedAt: null })
+    expect(isFirstCompletion(p([]), 'MOCK_EXAM')).toBe(true)
+    expect(isFirstCompletion(p(['FIRST_LESSON:BEGINNER_SESSION']), 'MOCK_EXAM')).toBe(true)
+    expect(isFirstCompletion(p(['FIRST_LESSON:MOCK_EXAM']), 'MOCK_EXAM')).toBe(false)
+    expect(isFirstCompletion(p(['FIRST_LESSON:PLACEMENT']), 'PLACEMENT')).toBe(false)
+    expect(isFirstCompletion(null, 'PLACEMENT')).toBe(false)
+    expect(isFirstCompletion({} as OnboardingProgress, 'PLACEMENT')).toBe(false)
   })
 })

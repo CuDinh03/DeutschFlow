@@ -29,9 +29,9 @@ import {
   totalStepsFor,
   type WizardAnswers,
 } from "@/features/onboarding/wizardModel";
-import { nextAfterProfile, guestNeedsPathChoice, ROADMAP_ROUTE, type PostProfileContext } from "@/features/onboarding/postProfileRoute";
+import { nextAfterProfile, guestNeedsPathChoice, ROADMAP_ROUTE, DASHBOARD_ROUTE, type PostProfileContext } from "@/features/onboarding/postProfileRoute";
 import type { PathChoice } from "@/features/onboarding/machine";
-import { celebrateHref } from "@/features/onboarding/celebrate";
+import { celebrateHref, readFirstCompletion } from "@/features/onboarding/celebrate";
 import { getMyLearningProfile } from "@/lib/profileApi";
 import { PathChoiceStep } from "@/features/onboarding/steps/PathChoiceStep";
 import { CreatingPanel } from "@/features/onboarding/steps/CreatingPanel";
@@ -132,6 +132,8 @@ function V2OnboardingFunnel() {
   const [currentQ, setCurrentQ] = useState(0);
   const [testResult, setTestResult] = useState<{passed:boolean;scorePercent:number;correctCount:number;totalQuestions:number;weakModules?:number[];startingNodeId?:number;retryAfterDays?:number}|null>(null);
   const [route, setRoute] = useState<OnboardingRouteData | null>(null);
+  // W9: placement chỉ ăn mừng LẦN ĐẦU (hỏi progress trước khi nộp; làm lại từ `?placement=1` → dashboard).
+  const [placementFirstTime, setPlacementFirstTime] = useState(false);
   const [mentor, setMentor] = useState<OnboardingMentorData | null>(null);
   // Đợt 4 PR-2: lựa chọn đường của A1+ (PATH_CHOICE). Khách: ghi trước tài khoản (guest session +
   // draft) rồi mới qua cổng; đã đăng nhập: thực thi ngay qua `goAfterProfile`.
@@ -261,7 +263,9 @@ function V2OnboardingFunnel() {
     if (!testId) return;
     setLoading(true);
     try {
+      const firstTime = await readFirstCompletion('PLACEMENT');
       const { data } = await api.post(`/skill-tree/placement-test/${testId}/submit`, { answers: testAnswers });
+      setPlacementFirstTime(firstTime);
       setTestResult(data);
       trackEvent('onboarding_placement_test_completed', { passed: data.passed, score: data.scorePercent });
       trackEvent('placement_completed', { level: currentLevel, passed: data.passed, score: data.scorePercent });
@@ -717,7 +721,7 @@ function V2OnboardingFunnel() {
                   <p className="mt-1 text-ga-eyebrow normal-case tracking-normal font-normal text-ga-muted">{t("result.retryAfter", { days: testResult.retryAfterDays ?? 3 })}</p>
                 </div>
               )}
-              <GaBtn variant="ink" size="lg" className={`w-full ${btnWrap}`} onClick={() => router.push(celebrateHref('placement', { passed: testResult.passed }))}>
+              <GaBtn variant="ink" size="lg" className={`w-full ${btnWrap}`} onClick={() => router.push(placementFirstTime ? celebrateHref('placement', { passed: testResult.passed }) : DASHBOARD_ROUTE)}>
                 {testResult.passed ? t("result.ctaPassed") : t("result.ctaFailed")}
               </GaBtn>
               {/* Q-A (28/08): client thôi đọc `postAction`; PRICING_CTA = WEB × B1+ suy từ trình độ +

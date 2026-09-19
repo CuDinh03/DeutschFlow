@@ -5,10 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ArrowRight, CheckCircle2, Mic, Sparkles, Star, Volume2 } from 'lucide-react'
-import api from '@/lib/api'
 import { beginnerApi, type BeginnerItem, type BeginnerSessionResponse } from '@/lib/beginnerApi'
-import { celebrateHref } from '@/features/onboarding/celebrate'
-import { type OnboardingProgress } from '@/features/onboarding/starterChecklist'
+import { celebrateHref, readFirstCompletion } from '@/features/onboarding/celebrate'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useTracking } from '@/hooks/useTracking'
 import { GaBtn, GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState } from '@/components/ui-v2'
@@ -24,7 +22,7 @@ import { GaBtn, GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState } from '@/co
 // Only the shell changed; the speaking CTA now points at /v2/student/speaking.
 //
 // W9 (Đợt 4 PR-3, 19/09/2026): hoàn thành LẦN ĐẦU → trang ăn mừng `/v2/onboarding/celebrate?kind=beginner`
-// (fixture L1). "Lần đầu" đọc từ `GET /onboarding/progress.activatedAt` ngay trước khi gọi complete —
+// (fixture L1). "Lần đầu" = chưa có `FIRST_LESSON:BEGINNER_SESSION` trong `GET /onboarding/progress` ngay trước khi gọi complete —
 // người mở lại Ngày 1 từ checklist/dashboard chỉ thấy khối "đã xong" tại chỗ như trước, không ăn
 // mừng lần hai. Hỏi progress hỏng ⇒ coi như không phải lần đầu (đường an toàn: ở lại trang).
 //
@@ -63,9 +61,7 @@ export default function V2StudentBeginnerPage() {
     if (completing || completed) return
     setCompleting(true)
     try {
-      const firstTime = await api
-        .get<OnboardingProgress>('/onboarding/progress')
-        .then((r) => !r.data?.activatedAt, () => false)
+      const firstTime = await readFirstCompletion('BEGINNER_SESSION')
       await beginnerApi.completeFirstSession()
       setCompleted(true)
       trackEvent('first_lesson_completed', { kind: 'beginner_session', firstTime })

@@ -1,4 +1,6 @@
+import api from '@/lib/api'
 import { nextOnboardingState } from './machine'
+import { hasActivity, type FirstLessonKind, type OnboardingProgress } from './starterChecklist'
 
 /**
  * W9 — Ăn mừng (trạng thái `CELEBRATE`, Đợt 4 PR-3, 19/09/2026; kế hoạch 17/09 §4.4 W9).
@@ -46,4 +48,24 @@ export function afterCelebrateState() {
     level: null,
     pathChoice: null,
   })
+}
+
+/**
+ * Chỉ ăn mừng LẦN ĐẦU hoàn thành một loại bài. Server khử trùng lặp `completedActivities`
+ * (`@>` rồi mới `||`), nên phải hỏi TRƯỚC khi nộp/complete — sau đó không phân biệt được nữa.
+ */
+export function isFirstCompletion(progress: OnboardingProgress | null | undefined, kind: FirstLessonKind): boolean {
+  // Không xác nhận được (payload lệch hợp đồng) ⇒ không ăn mừng nhầm, cùng đường với lỗi mạng.
+  if (!progress || !Array.isArray(progress.completedActivities)) return false
+  return !hasActivity(progress, kind)
+}
+
+/** Hỏi `GET /onboarding/progress`; lỗi ⇒ `false` (đường an toàn: không ăn mừng nhầm, ở lại luồng thường). */
+export async function readFirstCompletion(kind: FirstLessonKind): Promise<boolean> {
+  try {
+    const { data } = await api.get<OnboardingProgress>('/onboarding/progress')
+    return isFirstCompletion(data, kind)
+  } catch {
+    return false
+  }
 }

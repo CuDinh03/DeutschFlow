@@ -125,6 +125,34 @@ test.describe('W10 — checklist tuần đầu trên dashboard', () => {
     await expect(page.getByText('Bạn tên gì?')).toBeVisible()
   })
 
+  test('placement: lần đầu → ăn mừng; làm lại từ checklist (đã có PLACEMENT) → dashboard, không ăn mừng lần hai', async ({ page }) => {
+    const QUESTION_PAGE = {
+      testId: 't1',
+      questions: [{ id: 1, skillSection: 'LESEN', type: 'MULTIPLE_CHOICE', questionDe: 'Wie heißt du?', questionVi: 'Bạn tên gì?', options: ['Anna', 'Berlin'] }],
+    }
+    const RESULT = { passed: true, scorePercent: 100, correctCount: 1, totalQuestions: 1 }
+    async function runPlacement() {
+      await page.route('**/api/skill-tree/placement-test', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(QUESTION_PAGE) }))
+      await page.route('**/api/skill-tree/placement-test/t1/submit', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RESULT) }))
+      await page.goto('/v2/onboarding?placement=1')
+      await page.getByRole('radio', { name: /Anna/ }).click()
+      await page.getByRole('button', { name: 'Nộp bài' }).click()
+      await page.getByRole('button', { name: /Bắt đầu lộ trình cá nhân hóa/ }).click()
+    }
+
+    // Lần đầu: chưa có FIRST_LESSON:PLACEMENT ⇒ ăn mừng.
+    await setup(page, { progress: progress({}), level: 'B1' })
+    await runPlacement()
+    await expect(page).toHaveURL(/\/v2\/onboarding\/celebrate\/?\?kind=placement&passed=1$/)
+
+    // Làm lại: đã có PLACEMENT ⇒ về dashboard.
+    await page.route('**/api/onboarding/progress', (r) =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(progress({ completedActivities: ['FIRST_LESSON:PLACEMENT'], activatedAt: new Date().toISOString() })) }),
+    )
+    await runPlacement()
+    await expect(page).toHaveURL(/\/v2\/student\/dashboard\/?$/)
+  })
+
   test('không có hàng progress (tài khoản cũ) ⇒ dashboard không có checklist', async ({ page }) => {
     await setup(page, { progress: null })
     await page.goto('/v2/student/dashboard')
@@ -194,5 +222,36 @@ test.describe('Ngày 1 → ăn mừng (fixture L1)', () => {
 
     await expect(page.getByText('Super!')).toBeVisible()
     await expect(page).toHaveURL(/\/v2\/student\/beginner\/?$/)
+  })
+})
+
+test.describe('Nói thử → báo cáo → ăn mừng chỉ lần đầu', () => {
+  const REPORT = {
+    id: 1,
+    estimated_cefr: 'A2',
+    radar_chart: { grammar: 60, pronunciation: 55, vocabulary: 70, fluency: 50 },
+    top_errors: [
+      { type: 'grammar', original: 'Ich bin Student seit zwei Jahre', corrected: 'Ich bin seit zwei Jahren Student', explanation_vi: 'Dativ sau seit' },
+    ],
+    summary_vi: 'Tốt.',
+  }
+  async function openReport(page: Page, query: string) {
+    await setup(page, { progress: progress({}), level: 'B1' })
+    // Nút "Mở khóa" (mở paywall chứa "Tiếp tục miễn phí") chỉ hiện cho FREE không trial — đúng thiết kế Đợt 0.
+    await page.route('**/api/auth/me/plan', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ planCode: 'FREE', tier: 'FREE', isTrial: false, trialEndsAt: null }) }))
+    await page.route('**/api/onboarding/placement-tests/latest', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(REPORT) }))
+    await page.goto(`/v2/onboarding/error-report?${query}`)
+    await page.getByRole('button', { name: /Mở khóa toàn bộ lỗi/ }).click()
+    await page.getByRole('button', { name: 'Tiếp tục miễn phí' }).click()
+  }
+
+  test('mock-exam gắn celebrate=1 khi là lần đầu ⇒ "Tiếp tục miễn phí" → ăn mừng', async ({ page }) => {
+    await openReport(page, 'id=1&celebrate=1')
+    await expect(page).toHaveURL(/\/v2\/onboarding\/celebrate\/?\?kind=mock_exam$/)
+  })
+
+  test('xem lại / làm lại (không có cờ) ⇒ về dashboard thẳng', async ({ page }) => {
+    await openReport(page, 'id=1')
+    await expect(page).toHaveURL(/\/v2\/student\/dashboard\/?$/)
   })
 })
