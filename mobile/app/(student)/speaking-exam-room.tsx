@@ -437,7 +437,7 @@ export default function SpeakingExamRoomScreen() {
         subtitle={`Sprechen ${session.level} · ${session.mode === 'MOCK' ? 'thi thử' : 'luyện Teil'}`}
         onBack={leaveRoom}
         right={
-          inPart || session.state === 'BETWEEN' || session.state === 'PREP' ? (
+          inPart || session.state === 'PREP' ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
               <Pressable
                 accessibilityRole="button"
@@ -577,8 +577,8 @@ export default function SpeakingExamRoomScreen() {
         </Screen>
       )}
 
-      {/* ── IN_PART / BETWEEN ── */}
-      {(inPart || session.state === 'BETWEEN') && (
+      {/* ── IN_PART ── */}
+      {inPart && (
         <View style={{ flex: 1 }}>
           <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[4], gap: space[3] }}>
             {inPart && d && (
@@ -616,14 +616,6 @@ export default function SpeakingExamRoomScreen() {
                     <ThemedText variant="caption" color="secondary">{session.notesText}</ThemedText>
                   </View>
                 ) : null}
-              </Card>
-            )}
-
-            {session.state === 'BETWEEN' && (
-              <Card style={{ alignItems: 'center', gap: space[3], paddingVertical: space[6] }}>
-                <ThemedText variant="title">Xong phần này</ThemedText>
-                <ThemedText variant="caption" color="secondary">Thở một nhịp rồi vào phần tiếp theo nhé.</ThemedText>
-                <Button label="Bắt đầu Teil tiếp theo" onPress={() => void doAdvance()} loading={busy} />
               </Card>
             )}
 
