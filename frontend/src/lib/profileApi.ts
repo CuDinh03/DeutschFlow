@@ -20,6 +20,8 @@ export interface UpdateProfilePayload {
   locale?: string;
   /** IANA zone id — DailyNotificationJob đọc để biết 8h/18h của người dùng là lúc nào. */
   notificationTimezone?: string;
+  /** 0–23; -1 = bỏ giờ nhắc (về mặc định 18h). Đợt 6 W11/M10. */
+  reminderHourLocal?: number;
 }
 
 /** Thông tin cá nhân đầy đủ của trang Hồ sơ (GET /profile/me) — nhiều hơn /auth/me. */
@@ -35,6 +37,8 @@ export interface PersonalProfileData {
   /** true = đã có ngày sinh ⇒ chỉ đọc, muốn sửa phải qua trung tâm/hỗ trợ. */
   birthDateLocked: boolean;
   notificationTimezone: string | null;
+  /** Giờ nhắc học 0–23 theo múi giờ; null = chưa chọn (Đợt 6, V333). */
+  reminderHourLocal: number | null;
 }
 
 export interface BirthDateResult {

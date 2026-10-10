@@ -97,9 +97,15 @@
           "first_lesson": "Do Day 1 — your first lesson",
           "placement": "Take the 10-question placement test",
           "roadmap_node": "Finish the first stage on your roadmap",
-          "mock_exam": "Do a 3-minute mock talk with your mentor"
+          "mock_exam": "Do a 3-minute mock talk with your mentor",
+          "reminder": "Set a daily study reminder"
         },
-        "note": "Progress syncs with the mobile app."
+        "note": "Progress syncs with the mobile app.",
+        "reminderLabel": "Remind me at",
+        "reminderSave": "Save reminder",
+        "reminderSaved": "Reminder set for {hour}:00 — change it in your profile.",
+        "reminderError": "Could not save the reminder, please try again.",
+        "reminderHour": "{hour}:00"
       }
     },
     "vocabulary": {
