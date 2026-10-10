@@ -273,6 +273,9 @@ public class MockExamController {
         UserDetails capturedPrincipal = principal;
         CompletableFuture.runAsync(() -> {
             try {
+                // PROCESSING khi việc chấm THẬT SỰ bắt đầu: StaleAsyncJobMaintenance đo tuổi theo
+                // updated_at, nên thời gian nằm trong hàng đợi aiExecutor và thời gian chấm được tính riêng.
+                asyncJobService.updateStatus(job.getId(), AsyncJob.Status.PROCESSING);
                 Map<String, Object> result = processFinishExam(uid, attemptId, safeBody, capturedPrincipal);
                 asyncJobService.completeJob(job.getId(), om.writeValueAsString(result));
             } catch (Exception e) {
