@@ -1,6 +1,7 @@
 package com.deutschflow.grammar.controller;
 
 import com.deutschflow.common.async.AsyncJob;
+import com.deutschflow.common.async.AsyncJobDispatch;
 import com.deutschflow.common.async.AsyncJobService;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.grammar.dto.ExamAttemptDto;
@@ -33,7 +34,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -271,7 +271,8 @@ public class MockExamController {
         Map<String, Object> safeBody = body != null ? new HashMap<>(body) : Map.of();
 
         UserDetails capturedPrincipal = principal;
-        CompletableFuture.runAsync(() -> {
+        // aiExecutor đầy ⇒ job FAILED ngay + 503 AI_BUSY (AsyncJobDispatch), không để PENDING mồ côi.
+        AsyncJobDispatch.runOrFail(asyncJobService, job.getId(), aiExecutor, () -> {
             try {
                 // PROCESSING khi việc chấm THẬT SỰ bắt đầu: StaleAsyncJobMaintenance đo tuổi theo
                 // updated_at, nên thời gian nằm trong hàng đợi aiExecutor và thời gian chấm được tính riêng.
@@ -284,7 +285,7 @@ public class MockExamController {
                 log.error("[MockExam] Async finish failed attempt={} uid={}: {}",
                         attemptId, uid, e.getMessage(), e);
             }
-        }, aiExecutor);
+        });
 
         return ResponseEntity.accepted().body(new ExamFinishAcceptedDto(
                 job.getId().toString(),
