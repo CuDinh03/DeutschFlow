@@ -143,6 +143,10 @@ class AdminModerationReadAuditIntegrationTest extends AbstractPostgresIntegratio
     @Test
     @DisplayName("Đối chứng: đọc lọc không chạm trung tâm nào (status=DISMISSED, rỗng) ⇒ sổ A im lặng, vết không org vẫn có ở nền tảng")
     void filteredReadTouchingNoOrg_staysOutOfOrgLedgers() throws Exception {
+        // DB dùng chung giữa các lớp IT: ContentReportPendingUniqueIntegrationTest (chạy trước theo thứ tự
+        // filesystem của Failsafe) để lại dòng DISMISSED ⇒ danh sách không còn rỗng và vết count 0 không
+        // sinh ra. Dọn dòng DISMISSED sót của lớp đã chạy xong để tiền đề "rỗng" của ca này là thật.
+        jdbcTemplate.update("DELETE FROM content_reports WHERE status = 'DISMISSED'");
         mockMvc.perform(get(REPORTS).param("status", "DISMISSED").with(user(admin)))
                 .andExpect(status().isOk());
 

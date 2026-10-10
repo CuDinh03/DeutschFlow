@@ -45,7 +45,6 @@ export function stateLabel(state: ExamSessionState): string {
   switch (state) {
     case 'PREP': return 'Chuẩn bị'
     case 'IN_PART': return 'Đang thi'
-    case 'BETWEEN': return 'Giữa hai phần'
     case 'DONE': return 'Đã nói xong'
     case 'GRADING': return 'Đang chấm'
     case 'RESULTS': return 'Có kết quả'

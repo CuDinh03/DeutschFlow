@@ -12,7 +12,7 @@ import api from './api'
 export type ExamProvider = 'GOETHE' | 'TELC'
 export type ExamMode = 'DRILL' | 'MOCK'
 export type ExamSessionState =
-  | 'PREP' | 'IN_PART' | 'BETWEEN' | 'DONE' | 'GRADING' | 'RESULTS' | 'GRADING_FAILED' | 'ABORTED'
+  | 'PREP' | 'IN_PART' | 'DONE' | 'GRADING' | 'RESULTS' | 'GRADING_FAILED' | 'ABORTED'
 
 export interface BlueprintPartSummary {
   teilNo: number
