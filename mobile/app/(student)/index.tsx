@@ -15,7 +15,8 @@ import { SPOTLIGHT_TARGETS } from '@/components/guide/spotlightTours'
 import { StarterChecklist } from '@/components/guide/StarterChecklist'
 import { ReminderSheet } from '@/components/guide/ReminderSheet'
 import { getDailyGoalMinutes } from '@/lib/dailyGoal'
-import { enableStudyReminder } from '@/lib/studyReminder'
+import { enableStudyReminder, REMINDER_HOUR } from '@/lib/studyReminder'
+import { profileApi } from '@/lib/profileApi'
 import { recordCoreDone } from '@/lib/activation'
 import { registerPushTokenIfGranted } from '@/hooks/usePushNotifications'
 import { captureEvent } from '@/lib/analytics'
@@ -265,6 +266,9 @@ export default function DashboardScreen() {
 
     if (outcome === 'granted') {
       useStarterStore.getState().markReminderEnabled()
+      // Đợt 6 (§4.7 M10): cho server biết giờ nhắc để nhắc chuỗi + lifecycle đúng giờ này thay 18h.
+      // Best-effort — lịch cục bộ 20:00 đã đặt xong ở trên; server hỏng thì lần bật sau ghi lại.
+      profileApi.update({ reminderHourLocal: REMINDER_HOUR }).catch(() => undefined)
       // Quyền vừa được cấp → lấy push token luôn. Không gọi ở đây thì thiết bị
       // phải chờ tới lần đăng nhập kế tiếp mới đăng ký được (F-14).
       void registerPushTokenIfGranted()
