@@ -129,4 +129,26 @@ class PracticeNodeJobSettlementTest {
         verify(asyncJobService).failJob(eq(jobId), anyString());
         verify(asyncJobService, never()).completeJob(any(), anyString());
     }
+
+    // ─── aiExecutor đầy: job không được mồ côi PENDING ────────────────────────
+
+    @Test
+    void executorTuChoiThiJobFailedNgayVaNem503() {
+        UUID jobId = UUID.randomUUID();
+        when(asyncJobService.createJob(anyString(), anyLong()))
+                .thenReturn(AsyncJob.builder().id(jobId).jobType("GENERATE_PRACTICE").build());
+        PracticeNodeService saturated = new PracticeNodeService(
+                jdbcTemplate, groqChatClient,
+                org.mockito.Mockito.mock(com.deutschflow.ai.tier.LlmTierResolver.class),
+                aiUsageLedgerService, objectMapper, asyncJobService, xpService, srsVocabScheduler,
+                quotaService, orgPoolGuard,
+                task -> { throw new java.util.concurrent.RejectedExecutionException("aiExecutor full"); });
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> saturated.startPracticeSessionAsync(7L, 106L, "HOEREN"))
+                .isInstanceOf(com.deutschflow.speaking.exception.AiServiceException.class);
+
+        verify(asyncJobService).failJob(jobId, com.deutschflow.common.async.AsyncJobDispatch.BUSY_MESSAGE);
+        verify(asyncJobService, never()).completeJob(any(), anyString());
+    }
 }
