@@ -52,16 +52,17 @@ const FEATURE_META = [
   { de: 'Prüfung', accent: 'var(--ga-orange)' },
   { de: 'Fortschritt', accent: 'var(--ga-teal)' },
 ]
+// 18/10/2026 (đợt 0, sổ lời hứa): lộ trình đang chạy là A1–B1; B2 đang xây nên gắn `soon`;
+// bỏ C1 vì chưa có nội dung — landing không được hứa cấp độ chưa dạy được.
 const PATH_META = [
-  { id: 'A1', de: 'Anfänger', current: false },
-  { id: 'A2', de: 'Grundlagen', current: false },
-  { id: 'B1', de: 'Beruf', current: true },
-  { id: 'B2', de: 'Fortgeschritten', current: false },
-  { id: 'C1', de: 'Kompetent', current: false },
+  { id: 'A1', de: 'Anfänger', current: false, soon: false },
+  { id: 'A2', de: 'Grundlagen', current: false, soon: false },
+  { id: 'B1', de: 'Beruf', current: true, soon: false },
+  { id: 'B2', de: 'Fortgeschritten', current: false, soon: true },
 ]
 const EXAM_DE = ['Lesen', 'Hören', 'Schreiben', 'Sprechen']
 const AUDIENCE_META = [
-  { de: 'Pflegekräfte', color: 'var(--ga-red)' },
+  { de: 'Ausbildung', color: 'var(--ga-red)' },
   { de: 'IT & Ingenieurwesen', color: 'var(--ga-blue)' },
   { de: 'Gastronomie & Service', color: 'var(--ga-green)' },
 ]
@@ -92,27 +93,34 @@ const PLAN_META = [
   { href: START_HREF, highlight: true },
   { href: '/v2/register', highlight: false },
 ]
+/**
+ * Thứ tự tab = thứ tự `landing.industries.items` trong catalog (ghép theo chỉ số).
+ *
+ * 18/10/2026 (đợt 0, sổ lời hứa): Pflege và Bau CHƯA có bộ câu hỏi phỏng vấn riêng trong
+ * InterviewQuestionBank (người dùng chọn hai ngành này nhận bộ câu hỏi chung) nên gắn `soon` và
+ * dời xuống cuối; tab mặc định là ngành đã có nội dung. Gỡ `soon` khi đợt 2 duyệt xong bộ câu hỏi.
+ */
 const INDUSTRY_META = [
   {
-    id: 'pflege', de: 'Pflege / Krankenpflege', color: 'var(--ga-red)',
-    level: 'B1 – B2', topic: 'Krankenhaus & Pflege', roles: 'Krankenpfleger · Altenpfleger · Pflegehelfer',
-    questions: ['„Warum möchten Sie als Pflegekraft in Deutschland arbeiten?"', '„Wie gehen Sie mit schwierigen oder dementen Patienten um?"', '„Beschreiben Sie Ihren typischen Arbeitstag im Krankenhaus."'],
-    vocab: ['die Pflegekraft', 'die Untersuchung', 'das Medikament', 'der Patient', 'die Behandlung', 'die Krankenversicherung'],
-  },
-  {
-    id: 'it', de: 'IT / Ingenieur', color: 'var(--ga-blue)',
+    id: 'it', de: 'IT / Ingenieur', color: 'var(--ga-blue)', soon: false,
     level: 'B1 – B2', topic: 'Fachvokabular IT', roles: 'Softwareentwickler · Systemadmin · Ingenieur',
     questions: ['„Können Sie ein Projekt beschreiben, an dem Sie gearbeitet haben?"', '„Welche Programmiersprachen beherrschen Sie am besten?"', '„Wie lösen Sie technische Konflikte im Team?"'],
     vocab: ['die Programmierung', 'die Schnittstelle', 'die Datenbank', 'der Algorithmus', 'die Anforderung', 'die Bereitstellung'],
   },
   {
-    id: 'gastro', de: 'Gastronomie / Küche', color: 'var(--ga-green)',
+    id: 'gastro', de: 'Gastronomie / Küche', color: 'var(--ga-green)', soon: false,
     level: 'A2 – B1', topic: 'Gastronomie', roles: 'Koch · Küchenhilfe · Servicekraft',
     questions: ['„Haben Sie Erfahrung in einer professionellen Küche?"', '„Wie halten Sie die Hygienevorschriften (HACCP) ein?"', '„Wie arbeiten Sie unter Zeitdruck im Service?"'],
     vocab: ['die Küche', 'die Hygiene', 'die Zutat', 'das Gericht', 'die Bestellung', 'der Arbeitsplatz'],
   },
   {
-    id: 'bau', de: 'Bau / Handwerk', color: 'var(--ga-orange)',
+    id: 'pflege', de: 'Pflege / Krankenpflege', color: 'var(--ga-red)', soon: true,
+    level: 'B1 – B2', topic: 'Krankenhaus & Pflege', roles: 'Krankenpfleger · Altenpfleger · Pflegehelfer',
+    questions: ['„Warum möchten Sie als Pflegekraft in Deutschland arbeiten?"', '„Wie gehen Sie mit schwierigen oder dementen Patienten um?"', '„Beschreiben Sie Ihren typischen Arbeitstag im Krankenhaus."'],
+    vocab: ['die Pflegekraft', 'die Untersuchung', 'das Medikament', 'der Patient', 'die Behandlung', 'die Krankenversicherung'],
+  },
+  {
+    id: 'bau', de: 'Bau / Handwerk', color: 'var(--ga-orange)', soon: true,
     level: 'A2 – B1', topic: 'Bau & Sicherheit', roles: 'Maurer · Elektriker · Bauhelfer',
     questions: ['„Welche handwerklichen Fähigkeiten bringen Sie mit?"', '„Kennen Sie die Sicherheitsvorschriften auf der Baustelle?"', '„Können Sie technische Zeichnungen lesen?"'],
     vocab: ['die Baustelle', 'die Sicherheit', 'das Werkzeug', 'der Beton', 'die Zeichnung', 'der Schutzhelm'],
@@ -279,8 +287,11 @@ export function GaLanding() {
             <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
               <Link href={START_HREF} onClick={() => trackCta('hero')}><YellowSq />{t('hero.ctaStart')}</Link>
             </GaBtn>
+            {/* 18/10/2026 (đợt 0): nút phụ trước là "Đăng nhập để trải nghiệm" — chỉ dành cho người
+                đã có tài khoản (header đã có Đăng nhập). Thay bằng lối xem câu hỏi phỏng vấn thật
+                theo ngành ngay trên trang, cho khách còn phân vân. */}
             <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-              <Link href="/v2/login">{t('hero.ctaLogin')}</Link>
+              <a href="#industries">{t('hero.ctaSample')}</a>
             </GaBtn>
           </div>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 sm:mt-[38px]">
@@ -291,13 +302,17 @@ export function GaLanding() {
             ))}
           </div>
         </div>
-        {/* Interview preview card — hội thoại mẫu tiếng Đức giữ nguyên ở mọi locale (nội dung học). */}
+        {/* Interview preview card — hội thoại mẫu tiếng Đức giữ nguyên ở mọi locale (nội dung học).
+            18/10/2026 (đợt 0): thẻ trước dựng phiên ngành Pflege (chưa có bộ câu hỏi riêng) với
+            điểm "Phát âm" (app không chấm âm). Nay dựng theo nhân vật Klaus (bếp) và câu hỏi lấy từ
+            InterviewQuestionBank.gastroQuestions; ba ô điểm theo đúng giai đoạn của báo cáo phỏng
+            vấn (phaseResults: INTRO, STAR_SOFT, HARD_SKILLS). Nhãn ghi rõ là minh hoạ. */}
         <div className="border border-ga-border bg-ga-card p-5 shadow-[0_8px_48px_rgba(22,21,19,0.07)] sm:p-[28px_30px]">
           <GaCap className="mb-[18px]">{t('hero.previewCap')}</GaCap>
           <div className="mb-[18px] flex items-center gap-3 border-b border-ga-border pb-[18px]">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-ga-ink text-[16px] font-bold text-ga-yellow">S</div>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-ga-ink text-[16px] font-bold text-ga-yellow">K</div>
             <div>
-              <div className="text-[15px] font-bold">Frau Schmidt</div>
+              <div className="text-[15px] font-bold">Klaus</div>
               <div className="text-[12.5px] text-ga-muted">{t('hero.hrRole')}</div>
             </div>
             <span className="ml-auto inline-flex items-center gap-1.5 text-[11.5px] font-bold tracking-[0.04em] text-ga-red">
@@ -306,14 +321,14 @@ export function GaLanding() {
           </div>
           <div className="mb-3 bg-ga-bg p-[14px_16px]">
             <GaCap className="mb-[7px] text-ga-subtle">{t('hero.qCap')}</GaCap>
-            <div className="font-ga-display text-[16px] italic leading-[1.5]">„Warum haben Sie sich entschieden, als Pflegekraft in Deutschland zu arbeiten?“</div>
+            <div className="font-ga-display text-[16px] italic leading-[1.5]">„Nennen Sie einen Hygiene-Vorfall in der Küche und Ihre sofortigen Maßnahmen.“</div>
           </div>
           <div className="mb-[18px] border border-ga-yellow bg-ga-yellow-soft p-[13px_16px]">
             <GaCap className="mb-[7px] text-ga-gold">{t('hero.answeringCap')}</GaCap>
-            <div className="text-[15px] leading-[1.55] text-ga-ink">„Ich möchte meine Fähigkeiten im deutschen Gesundheitssystem erweitern und…“</div>
+            <div className="text-[15px] leading-[1.55] text-ga-ink">„Einmal war die Kühltemperatur zu hoch. Ich habe die Ware sofort aussortiert und…“</div>
           </div>
           <div className="grid grid-cols-3">
-            {[[t('hero.scorePron'), '82'], [t('hero.scoreGrammar'), '76'], [t('hero.scoreContent'), '88']].map(([l, v], i) => (
+            {[[t('hero.scoreIntro'), '82'], [t('hero.scoreStar'), '76'], [t('hero.scoreSkills'), '88']].map(([l, v], i) => (
               <div key={l} className={`border-t-2 border-ga-border py-3 text-center ${i ? 'border-l border-l-ga-border' : ''}`}>
                 <div className="font-ga-display text-[26px] font-medium">{v}</div>
                 <div className="mt-1 text-[11.5px] text-ga-muted">{l}</div>
@@ -392,15 +407,17 @@ export function GaLanding() {
           <p className="mb-11 max-w-[600px] text-[17px] leading-[1.6] text-ga-muted">
             {t.rich('path.sub', strong)}
           </p>
-          <div className="grid grid-cols-2 border border-ga-border md:grid-cols-5">
+          <div className="grid grid-cols-2 border border-ga-border md:grid-cols-4">
             {levels.map((lv, i) => {
               const meta = PATH_META[i]
+              if (!meta) return null
               return (
-                <div key={meta.id} className={`relative border-ga-border p-5 sm:p-[28px_26px] ${i ? (i % 2 ? 'border-l' : 'md:border-l') : ''} ${i >= 2 ? 'border-t md:border-t-0' : ''} ${i === levels.length - 1 ? 'col-span-2 md:col-span-1' : ''} ${meta.current ? 'bg-ga-ink text-ga-bg' : ''}`}>
+                <div key={meta.id} className={`relative border-ga-border p-5 sm:p-[28px_26px] ${i ? (i % 2 ? 'border-l' : 'md:border-l') : ''} ${i >= 2 ? 'border-t md:border-t-0' : ''} ${meta.current ? 'bg-ga-ink text-ga-bg' : ''}`}>
                   {meta.current && <div className="absolute inset-x-0 top-0 h-[3px] bg-ga-yellow" />}
                   <div className="mb-3.5 flex items-baseline gap-2">
                     <span className={`font-ga-display text-[36px] font-medium leading-none ${meta.current ? 'text-ga-yellow' : 'text-[#D8D3C8]'}`}>{meta.id}</span>
                     {meta.current && <span className="text-[9.5px] font-bold uppercase tracking-[0.1em] text-ga-yellow">{t('path.popular')}</span>}
+                    {meta.soon && <span className="text-[9.5px] font-bold uppercase tracking-[0.1em] text-ga-muted">{t('path.soon')}</span>}
                   </div>
                   <div className="mb-1 text-[15.5px] font-bold">{lv.name}</div>
                   <div className={`mb-3 font-ga-display text-[12.5px] italic ${meta.current ? 'text-[#A39E94]' : 'text-ga-subtle'}`}>{meta.de} · {lv.weeks}</div>
@@ -440,7 +457,12 @@ export function GaLanding() {
                 style={{ borderTopColor: on ? x.color : 'transparent' }}
                 className={`border-t-[3px] p-[14px_16px] text-left transition-colors sm:p-[18px_20px] ${i ? (i % 2 ? 'border-l border-l-ga-border' : 'md:border-l md:border-l-ga-border') : ''} ${on ? 'bg-ga-ink text-ga-bg' : 'bg-ga-card text-ga-ink'}`}
               >
-                <span className="mb-2.5 inline-block h-[9px] w-[9px]" style={{ background: x.color }} />
+                <span className="mb-2.5 flex items-center gap-2">
+                  <span className="inline-block h-[9px] w-[9px]" style={{ background: x.color }} />
+                  {x.soon && (
+                    <span className={`text-[9.5px] font-bold uppercase tracking-[0.1em] ${on ? 'text-ga-yellow' : 'text-ga-muted'}`}>{t('industries.soon')}</span>
+                  )}
+                </span>
                 <div className="mb-1 text-[15.5px] font-bold">{industries[i]?.label}</div>
                 <div className={`font-ga-display text-[12.5px] italic ${on ? 'text-[#A39E94]' : 'text-ga-subtle'}`}>{x.de}</div>
               </button>
@@ -454,6 +476,9 @@ export function GaLanding() {
               <span className="text-[18px] font-bold">{indCopy?.label}</span>
             </div>
             <p className="mb-[22px] text-[15px] leading-[1.7] text-ga-muted">{indCopy?.pitch}</p>
+            {ind.soon && (
+              <p className="mb-[22px] border-l-2 border-ga-yellow pl-3 text-[13.5px] leading-[1.6] text-ga-ink">{t('industries.soonNote')}</p>
+            )}
             {[[t('industries.roles'), ind.roles], [t('industries.level'), ind.level], [t('industries.topic'), ind.topic]].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 border-t border-ga-border py-[11px]">
                 <span className="shrink-0 text-[12.5px] text-ga-muted">{k}</span>
@@ -499,6 +524,11 @@ export function GaLanding() {
             </div>
           ))}
         </div>
+        {/* 18/10/2026 (đợt 0, sổ lời hứa): thi thử là mô phỏng, phần chấm Nói chưa hiệu chuẩn. */}
+        <p className="mt-4 flex items-start gap-2.5 text-[13.5px] leading-[1.6] text-ga-muted">
+          <span className="mt-[7px] inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
+          <span>{t('exam.disclaimer')}</span>
+        </p>
         <div className="mt-9 md:mt-11">
           <GaShot
             name="exam"

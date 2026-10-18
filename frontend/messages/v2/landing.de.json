@@ -3,7 +3,7 @@
     "shotScrollHint": "Seitwärts scrollen für den Rest",
     "meta": {
       "title": "myDeutschFlow — Vorstellungsgespräche auf Deutsch mit KI üben",
-      "description": "Eine KI spielt die deutsche HR-Interviewerin: Fragen für Ihren Beruf, Aussprachekorrektur und eine Bewertung für jede Antwort. Lernpfad A1–B2, Goethe-Prüfungstraining, für Vietnamesinnen und Vietnamesen auf dem Weg nach Deutschland."
+      "description": "Vorstellungsgespräche auf Deutsch mit KI üben: Fragen passend zum Beruf, Feedback nach jeder Antwort. Lernpfad A1–B1, Probeprüfungen im Goethe-Format."
     },
     "nav": {
       "features": "Funktionen",
@@ -20,23 +20,23 @@
       "closeMenu": "Menü schließen"
     },
     "hero": {
-      "eyebrow": "AI Interview Coach · Für Vietnamesen auf dem Weg nach Deutschland",
-      "titleLead": "Bestehen Sie Ihr deutsches Vorstellungsgespräch",
-      "titleEm": "gleich beim ersten Mal.",
-      "sub": "Eine KI spielt die deutsche HR-Interviewerin — sie stellt Fragen zu Ihrem Beruf, korrigiert Ihre Aussprache und bewertet jede Antwort nach dem, was deutsche Arbeitgeber erwarten.",
-      "ctaStart": "Kostenlos starten",
-      "ctaLogin": "Anmelden und ausprobieren",
-      "bullets": ["Fragen passend zu Ihrem Beruf", "Alle 4 Goethe-Fertigkeiten", "Keine Kreditkarte nötig"],
-      "previewCap": "Laufendes Gespräch",
-      "hrRole": "KI-HR · Pflegezentrum Berlin · B1",
+      "eyebrow": "AI Interview Coach · Für Arbeit und Ausbildung in Deutschland",
+      "titleLead": "Vorstellungsgespräch auf Deutsch üben,",
+      "titleEm": "passend zu Ihrem Beruf.",
+      "sub": "Eine KI spielt den deutschen Arbeitgeber, stellt Fragen zu Ihrem Beruf und zeigt nach jeder Antwort, was Sie verbessern können: Grammatik, Wortwahl, fehlende Inhalte.",
+      "ctaStart": "Kostenlos testen",
+      "ctaSample": "Fragen nach Beruf ansehen",
+      "bullets": ["Fragen passend zu Ihrem Beruf", "Probeprüfungen im Goethe-Format", "Keine Kreditkarte nötig"],
+      "previewCap": "Beispiel · Vorstellungsgespräch",
+      "hrRole": "KI-Interviewer · Küchenchef · München · B1",
       "qCap": "Frage 3 / 8",
       "answeringCap": "Sie antworten gerade…",
-      "scorePron": "Aussprache",
-      "scoreGrammar": "Grammatik",
-      "scoreContent": "Inhalt"
+      "scoreIntro": "Vorstellung",
+      "scoreStar": "Situationen",
+      "scoreSkills": "Fachwissen"
     },
     "stats": [
-      { "n": "A1–B2", "l": "Lernpfad nach dem GER-Rahmen" },
+      { "n": "A1–B1", "l": "Lernpfad nach dem GER-Rahmen" },
       { "n": "4 Fertigkeiten", "l": "Lesen · Hören · Schreiben · Sprechen" },
       { "n": "24/7", "l": "KI-Interviewerin jederzeit bereit" }
     ],
@@ -44,7 +44,7 @@
       "cap": "Das eigentliche Problem",
       "title": "Warum ein deutsches Vorstellungsgespräch schwerer ist, als Sie denken",
       "items": [
-        { "title": "Warum wollen Sie bei uns arbeiten?", "body": "Eine einfache Frage — und doch beantworten Tausende vietnamesische Bewerber sie völlig falsch, weil sie die deutsche Interviewkultur nicht kennen." },
+        { "title": "Warum wollen Sie bei uns arbeiten?", "body": "Eine einfache Frage, und doch antworten viele Bewerberinnen und Bewerber zu knapp, weil die deutsche Gesprächskultur für sie neu ist." },
         { "title": "Klare Aussprache in Ruhe, weg unter Druck", "body": "Beim Alleinüben korrigiert niemand. Im echten Gespräch lässt der Stress Sie genau die Wörter falsch aussprechen, die Sie gelernt haben." },
         { "title": "Unklar, was deutsche HR erwartet", "body": "Deutsche schätzen Vorbereitung, Genauigkeit und eine direkte Haltung — ganz anders als Vorstellungsgespräche in Vietnam." },
         { "title": "Kein sicherer Ort zum Üben", "body": "Bei einer echten Recruiterin können Sie sich keine Fehler leisten. Üben mit Freunden fehlt das fachliche Feedback und der deutsche Kontext." }
@@ -54,9 +54,9 @@
       "cap": "So funktioniert es",
       "title": "Drei Schritte zum erfolgreichen Gespräch",
       "items": [
-        { "title": "Beruf und Niveau wählen", "body": "Beruf und Deutschniveau eingeben. Die KI erstellt einen Fragenkatalog für Ihren Beruf, von A2 bis C1." },
+        { "title": "Beruf und Niveau wählen", "body": "Beruf und Deutschniveau eingeben. Die KI wählt Fragen passend zu Ihrem Beruf und Niveau, von A2 bis B2." },
         { "title": "Gespräch mit deutscher KI-HR", "body": "Die KI spielt die deutsche Interviewerin, fragt auf Deutsch und passt Tempo und Schwierigkeit an Sie an." },
-        { "title": "Detaillierte Auswertung erhalten", "body": "Nach jeder Sitzung: Punkte für Grammatik, Aussprache und Inhalt jeder Antwort plus konkrete Verbesserungstipps." }
+        { "title": "Detaillierte Auswertung erhalten", "body": "Nach jeder Sitzung: Punkte für jeden Gesprächsteil, Ihre Antworten im Wortlaut und konkrete Verbesserungstipps." }
       ]
     },
     "features": {
@@ -64,11 +64,11 @@
       "title": "Alle Werkzeuge, um bereit für Deutschland zu sein",
       "sub": "Eine geschlossene Plattform — vom Sprechtraining über Wortschatz bis zu Prüfungstraining und Fortschrittsverfolgung, alles auf Ihren Beruf zugeschnitten.",
       "items": [
-        { "name": "KI-Sprechtraining", "desc": "Die KI spielt deutsche HR, interviewt Sie für Ihren Beruf und bewertet Aussprache, Grammatik und Inhalt Satz für Satz." },
-        { "name": "Video-Lektionen", "desc": "Bilder + deutsche Vertonung + zweisprachige Untertitel Vietnamesisch–Deutsch für Wortschatz, Grammatik und Hörverstehen." },
+        { "name": "KI-Sprechtraining", "desc": "Die KI spielt den deutschen Arbeitgeber, interviewt Sie für Ihren Beruf und zeigt nach jedem Satz Grammatikfehler, unpassende Wörter und fehlende Inhalte." },
+        { "name": "Video-Lektionen", "desc": "In der App: Bilder, deutsche Vertonung und zweisprachige Untertitel Vietnamesisch–Deutsch für Wortschatz, Grammatik und Hörverstehen." },
         { "name": "SRS-Wortschatz", "desc": "Karten im richtigen Moment wiederholen — mit Spaced Repetition länger behalten, weniger vergessen." },
-        { "name": "Persönlicher Lernpfad", "desc": "Lektionen nach Ihrem Niveau und Ziel geordnet — ein klarer Weg von A1 bis C1." },
-        { "name": "Goethe-Prüfungstraining", "desc": "Simuliert alle vier Teile — Lesen, Hören, Schreiben, Sprechen — nah an der echten Prüfung, automatisch bewertet." },
+        { "name": "Persönlicher Lernpfad", "desc": "Lektionen nach Ihrem Niveau und Ziel geordnet, ein klarer Weg von A1 bis B1." },
+        { "name": "Goethe-Prüfungstraining", "desc": "Simuliert alle vier Teile (Lesen, Hören, Schreiben, Sprechen) im Prüfungsformat, automatisch bewertet. Die Sprechbewertung ist in der Beta-Phase." },
         { "name": "Fortschrittsberichte", "desc": "XP, Lernserien, starke und schwache Fertigkeiten und die gesamte Aktivitätshistorie im Blick." }
       ]
     },
@@ -76,16 +76,16 @@
       "shotCap": "Echter Screen · Lernpfad-Baum einer lernenden Person",
       "shotAlt": "Ein Lernpfad-Baum für 30 Tage: die 12 abgeschlossenen Etappen sind zu Blättern geworden, die laufende Etappe ist eine Blüte, und rechts stehen die vier Fertigkeiten von Tag 13 — Hören, Lesen, Sprechen und Schreiben.",
       "cap": "Lernpfad",
-      "title": "Von A1 bis B2 — ein klarer Weg",
+      "title": "Von A1 bis B1, ein klarer Weg",
       "sub": "Die meisten Lernenden, die zum Arbeiten ausreisen, brauchen <b>B1</b>. Wir planen jeden Schritt vor und passen uns Ihrem Tempo an.",
       "popular": "Beliebt",
-      "goal": "Standardziel: <b>B2 Goethe-Zertifikat</b> — jederzeit im Profil änderbar.",
+      "soon": "In Arbeit",
+      "goal": "Standardziel: <b>B1</b>. Jederzeit im Profil änderbar.",
       "levels": [
         { "name": "Einstieg", "weeks": "6–8 Wochen", "body": "Begrüßen, sich vorstellen, Zahlen, einfache Alltagssätze." },
         { "name": "Grundlegende Kommunikation", "weeks": "8 Wochen", "body": "Arbeitsalltag, Einkaufen, Termine, über Vergangenes sprechen mit Perfekt." },
-        { "name": "Sicher im Beruf", "weeks": "10–12 Wochen", "body": "Vorstellungsgespräche, Arbeitsumfeld Pflege, Nebensätze mit „weil\", „dass\"." },
-        { "name": "Fachlich souverän", "weeks": "12 Wochen", "body": "Medizinisches Schreiben, Diskussionen, Passiv und komplexe Satzstrukturen." },
-        { "name": "Fortgeschritten", "weeks": "12+ Wochen", "body": "Akademische Sprache, Präsentationen und Führung im deutschen Arbeitsumfeld." }
+        { "name": "Sicher im Beruf", "weeks": "10–12 Wochen", "body": "Vorstellungsgespräche, Arbeitsumfeld, Nebensätze mit „weil\", „dass\"." },
+        { "name": "Fachlich souverän", "weeks": "12 Wochen", "body": "Schreiben im Beruf, Diskussionen, Passiv und komplexe Satzstrukturen." }
       ]
     },
     "industries": {
@@ -97,11 +97,13 @@
       "topic": "Wortschatzthema",
       "sampleQ": "Beispielfragen im Gespräch",
       "vocab": "Kernwortschatz",
-      "more": "Neben diesen vier Berufen deckt DeutschFlow auch <b>Büro und Einzelhandel</b> und viele weitere Positionen ab — die KI erstellt den Fragenkatalog für den Beruf, den Sie wählen.",
+      "more": "Für andere Positionen wie <b>Büro und Einzelhandel</b> nutzt die KI einen allgemeinen Fragenkatalog, passt ihn an die angegebene Position an und ergänzt bei Bedarf weitere Fragen.",
+      "soon": "Bald verfügbar",
+      "soonNote": "Der eigene Fragenkatalog für diesen Beruf wird gerade erstellt. Bis dahin nutzt die KI den allgemeinen Fragenkatalog, angepasst an die angegebene Position.",
       "items": [
-        { "label": "Pflege", "pitch": "Der Bereich mit dem größten Fachkräftemangel in Deutschland. Im Gespräch geht es um Pflegeerfahrung, Ethik und den Umgang mit Patientinnen und Patienten." },
         { "label": "IT / Ingenieurwesen", "pitch": "Technische Gespräche auf Deutsch — Sie präsentieren Projekte, erklären Lösungen und arbeiten im internationalen Team zusammen." },
         { "label": "Küche / Gastronomie", "pitch": "Gespräche für Köche und Küchenhilfen — Hygiene, Abläufe und schnelles Arbeiten unter Druck stehen im Mittelpunkt." },
+        { "label": "Pflege", "pitch": "Der Bereich mit dem größten Fachkräftemangel in Deutschland. Im Gespräch geht es um Pflegeerfahrung, Ethik und den Umgang mit Patientinnen und Patienten." },
         { "label": "Bau", "pitch": "Gespräche für Maurer und Handwerker — Fertigkeiten, Arbeitssicherheit und das Lesen technischer Zeichnungen." }
       ]
     },
@@ -109,23 +111,24 @@
       "shotCap": "Echter Screen · Prüfungsraum Lesen, Uhr läuft",
       "shotAlt": "Der Leseteil der Goethe-B1-Modellprüfung: noch 58 von 65 Minuten, Fortschrittsbalken 2 von 4, Richtig-Falsch-Aufgaben auf Deutsch und der Hinweis, dass gespeichert wird.",
       "cap": "Goethe-Prüfungstraining",
-      "title": "Realistische Probeprüfungen, sofortige Bewertung",
+      "title": "Probeprüfungen im echten Prüfungsformat",
       "sub": "Alle vier Teile des Goethe-Zertifikats B1/B2 unter prüfungsnahen Bedingungen üben — mit Schwächenanalyse nach jedem Durchgang.",
       "parts": [
         { "name": "Leseverstehen", "time": "65 Min.", "body": "5 Leseteile mit Alltags- und Arbeitstexten, sofort automatisch bewertet." },
         { "name": "Hörverstehen", "time": "40 Min.", "body": "Dialoge, Durchsagen und Radiointerviews im echten Prüfungstempo." },
         { "name": "Schreiben", "time": "60 Min.", "body": "E-Mails und Stellungnahmen — als Foto einreichen, die KI bewertet Aufbau und Grammatik." },
-        { "name": "Sprechen", "time": "15 Min.", "body": "Partnergespräch — vor dem Prüfungstag live mit der KI-Interviewerin üben." }
+        { "name": "Sprechen", "time": "15 Min.", "body": "Partnergespräch, vor dem Prüfungstag mit der KI üben. Die Sprechbewertung ist in der Beta-Phase." }
       ],
+      "disclaimer": "Die Probeprüfungen sind Simulationen im Prüfungsformat und stehen in keiner Verbindung zum Goethe-Institut oder zu telc. Die Sprechbewertung ist in der Beta-Phase, die Punkte dienen nur zur Orientierung.",
       "bannerCap": "Probeprüfung mit KI-Bewertung",
-      "bannerTitle": "Sofort wissen, wo Sie im Vergleich zu B1 stehen — bevor Sie für die echte Prüfung zahlen.",
-      "cta": "Kostenlos ausprobieren"
+      "bannerTitle": "Wissen, wo Sie im Vergleich zu B1 stehen, bevor Sie sich zur echten Prüfung anmelden.",
+      "cta": "Kostenlos testen"
     },
     "audiences": {
       "cap": "Für wen",
       "title": "Gemacht für Ihren Weg nach Deutschland",
       "items": [
-        { "title": "Pflegekräfte nach Deutschland", "body": "Situationsfragen zur Patientenversorgung auf Deutsch üben — genau die Fragetypen, die Arbeitgeber in der Pflege am häufigsten stellen, mit Aussprachekorrektur für jeden Satz." },
+        { "title": "Auszubildende", "body": "Fragen zu Motivation, Plänen und Berufswissen auf Deutsch üben, so wie Ausbildungsbetriebe fragen, mit Feedback nach jeder Antwort." },
         { "title": "Ingenieure & IT", "body": "Projekte präsentieren, technische Lösungen erklären und Fachfragen auf Deutsch beantworten — bevor Sie einer echten Recruiterin gegenübersitzen." },
         { "title": "Küche & Service", "body": "Schichtkommunikation, Hygieneabläufe und Vorstellungsgespräche auf A2–B1 mit der echten Sprache deutscher Küchen und Restaurants üben." }
       ]
@@ -136,7 +139,7 @@
       "sub": "Weniger Korrigieren und Materialvorbereitung, damit Sie sich auf das Wichtigste konzentrieren — Ihre Lernenden zum selbstbewussten Sprechen bringen.",
       "values": [
         { "t": "Klassenverwaltung", "s": "Klassen per Code anlegen und den Fortschritt jedes Lernenden in Echtzeit verfolgen." },
-        { "t": "Bewertung mit KI", "s": "Die KI bewertet Sprechen und nimmt schriftliche Arbeiten als Foto entgegen — spart jede Woche Stunden." },
+        { "t": "Bewertung mit KI", "s": "Die KI erstellt einen Bewertungsvorschlag für Sprech- und Schreibaufgaben, auch für Fotos handschriftlicher Texte. Die Lehrkraft prüft und bestätigt die Note." },
         { "t": "KI-Materialien", "s": "Übungen, Quizze und Tests zu jedem Thema in Sekunden erstellen." },
         { "t": "Fortschrittsberichte", "s": "Stärken und Schwächen pro Klasse und pro Person sehen, um gezielt zu unterrichten." }
       ],
@@ -159,7 +162,7 @@
       "title": "Das passende Paket wählen",
       "plans": [
         { "name": "Kostenlos", "price": "0₫", "sub": "", "features": ["Wortschatz & Grammatik A1–B1", "Tägliche Wiederholung (SRS)", "KI-Gespräche mit Tageslimit"], "cta": "Jetzt starten" },
-        { "name": "Pro", "price": "299.000₫", "sub": "/Monat", "features": ["Hohes Tageslimit für KI-Gespräche", "Detaillierte Aussprache- & Grammatikanalyse", "Alle Berufe im Gesprächstraining", "Goethe-Prüfungstraining A1–B2"], "cta": "7 Tage kostenlos testen" },
+        { "name": "Pro", "price": "299.000₫", "sub": "/Monat", "features": ["Hohes Tageslimit für KI-Gespräche", "Detailliertes Feedback zu Grammatik & Inhalt", "Alle Berufe im Gesprächstraining", "Goethe-Prüfungstraining A1–B2"], "cta": "7 Tage kostenlos testen" },
         { "name": "Lehrkräfte", "price": "Auf Anfrage", "sub": "", "features": ["Klassenverwaltung", "KI-Materialien", "Sprechbewertung", "Fortschrittsberichte der Lernenden"], "cta": "Beratung anfragen" }
       ]
     },

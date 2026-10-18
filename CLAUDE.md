@@ -10,6 +10,7 @@ Repo PUBLIC — không commit credential. Trả lời tiếng Việt; giữ nguy
 | Runbook mobile: build/submit/OTA, fingerprint, QA simulator | `mobile/README.md` (nếu có) và handoff mới nhất trong `plans/` (`*handoff*mobile*`) |
 | Đặc tả sản phẩm (SRS) — nguồn duy nhất là `chi-tiet/`, bản gộp sinh bằng `node pdf/pipeline/merge-md.mjs` | `TAI_LIEU_DAC_TA_SAN_PHAM/chi-tiet/` |
 | Kế hoạch / handoff các đợt (LOCAL, untracked) | `plans/` |
+| Định hướng A+B+E (chốt 18/10/2026): landing, trang công khai, onboarding, phỏng vấn theo nghề, trang trung tâm/nhà tuyển dụng — 9 quyết định, thứ tự đợt 0–5, sổ lời hứa | `plans/2026-10-18-quyet-dinh-dinh-huong-abe.md` (LOCAL) |
 
 ## Quy ước
 
