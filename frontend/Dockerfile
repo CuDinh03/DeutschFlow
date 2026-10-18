@@ -27,6 +27,13 @@ ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
 ARG NEXT_PUBLIC_MEDIA_ORIGINS
 ENV NEXT_PUBLIC_MEDIA_ORIGINS=$NEXT_PUBLIC_MEDIA_ORIGINS
 
+# next.config.mjs `env` NHÚNG hai biến này vào gói middleware lúc dựng (đặt lúc chạy không có tác
+# dụng). Thiếu JWT_RSA_PUBLIC_KEY ⇒ cổng vai trò tầng biên tắt lặng. Khoá CÔNG KHAI, không phải secret.
+ARG JWT_RSA_PUBLIC_KEY
+ENV JWT_RSA_PUBLIC_KEY=$JWT_RSA_PUBLIC_KEY
+ARG CSP_ENFORCE
+ENV CSP_ENFORCE=$CSP_ENFORCE
+
 # PostHog Analytics
 ARG NEXT_PUBLIC_POSTHOG_KEY
 ARG NEXT_PUBLIC_POSTHOG_HOST
@@ -50,6 +57,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
+# server.js standalone bind theo HOSTNAME; Docker đặt HOSTNAME = id container ⇒ chốt bind mọi interface.
+ENV HOSTNAME=0.0.0.0
 
 # Security: non-root user
 RUN addgroup --system --gid 1001 nodejs && \

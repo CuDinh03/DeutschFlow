@@ -71,6 +71,9 @@ const securityHeaders = [
 const nextConfig = {
   trailingSlash: true,
 
+  // Gói tự đủ cho container (frontend/Dockerfile chép .next/standalone; chạy `node server.js`).
+  output: 'standalone',
+
   // Bộ kiểm chữ ký JWT của middleware — NHÚNG LÚC DỰNG, cố ý.
   //
   // Đo 07/09/2026: `process.env.JWT_RSA_PUBLIC_KEY` trong `src/middleware.ts` KHÔNG được Next
