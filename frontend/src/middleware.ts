@@ -3,6 +3,7 @@
 // why the middleware did nothing in production for a long time. Do not move it back to the root.
 import { jwtVerify, decodeProtectedHeader, importSPKI } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
+import { mediaOrigins } from '../media-origins.mjs'
 
 type Role = 'STUDENT' | 'TEACHER' | 'MANAGER' | 'OWNER' | 'ADMIN'
 
@@ -210,7 +211,6 @@ async function verifyAccessToken(token: string): Promise<VerifiedClaims | null> 
 // 72h, keeping the Report-Only header in parallel for comparison.
 const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/api\/?$/, '')
 const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com'
-const cloudfront = process.env.NEXT_PUBLIC_CLOUDFRONT_URL || ''
 // CSP violation collector (backend Spring endpoint). `report-uri` is the legacy CSP2
 // delivery (CORS-exempt); `Reporting-Endpoints` + `report-to` is the modern Reporting API
 // (its delivery preflights, which the backend's global /api/** CORS already answers).
@@ -226,12 +226,8 @@ const cspReportCollector = backendOrigin ? `${backendOrigin}/api/public/csp-repo
 // flow chính sạch vi phạm 72h liên tục (gate Q2 — plan hạ tầng biên 07/09, cần owner gật).
 const cspEnforceEnabled = process.env.CSP_ENFORCE === '1'
 
-// Hai bucket S3 chứa học liệu (PDF/audio/video/ảnh giáo trình) — presigned URL, không qua CDN.
-// PHẢI khớp `images.remotePatterns` trong `next.config.mjs`; có ca test đọc chéo hai nơi để khoá.
-const MEDIA_HOSTS = [
-  'https://deutschflow-media-storage.s3.ap-southeast-1.amazonaws.com',
-  'https://deutschflow-media-storage.s3.amazonaws.com',
-]
+// Kho học liệu (PDF/audio/video/ảnh) — R2, presigned URL. Cùng nguồn với `images.remotePatterns`.
+const MEDIA_HOSTS = mediaOrigins()
 
 /**
  * Origin của iframe dashboard PostHog ở `/v2/admin/analytics`.
@@ -257,8 +253,9 @@ function buildCsp(nonce: string): string {
   // ra 0 vi phạm mà con số 0 đó không chứng minh được gì cho việc siết floor (đo 08/09, xem
   // plans/2026-09-07-soak-e3-lenh-doc-so-lieu.md). Vẫn là Report-Only nên KHÔNG chặn gì của người
   // dùng; cái giá là đồng hồ soak đặt lại từ ngày deploy bản này.
-  const mediaHosts = [...MEDIA_HOSTS, cloudfront].filter(Boolean)
-  const connectSrc = ["'self'", backendOrigin, posthogHost, cloudfront].filter(Boolean).join(' ')
+  const mediaHosts = MEDIA_HOSTS
+  // Kho media nằm ở connect-src vì trình duyệt PUT thẳng tệp lên presigned URL (học liệu >25MB, bài nộp).
+  const connectSrc = ["'self'", backendOrigin, posthogHost, ...MEDIA_HOSTS].filter(Boolean).join(' ')
   return [
     "default-src 'self'",
     // 'strict-dynamic' + nonce is honored by modern browsers; 'unsafe-inline' + https: are

@@ -1,5 +1,6 @@
 import createNextIntlPlugin from 'next-intl/plugin';
 import { legacyV1Redirects } from './legacy-redirects.mjs';
+import { mediaRemotePatterns } from './media-origins.mjs';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
@@ -101,18 +102,8 @@ const nextConfig = {
 
   // Image optimization stays ON for the Amplify web/SSR build so <Image> is actually optimized. (P1-5)
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'deutschflow-media-storage.s3.ap-southeast-1.amazonaws.com',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'deutschflow-media-storage.s3.amazonaws.com',
-        pathname: '/**',
-      },
-    ],
+    // Kho media R2 (NEXT_PUBLIC_MEDIA_ORIGINS) — cùng nguồn với CSP trong middleware.ts.
+    remotePatterns: mediaRemotePatterns(),
   },
 
   async headers() {
