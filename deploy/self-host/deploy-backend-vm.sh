@@ -67,7 +67,7 @@ else
     error "build thất bại — 200 dòng cuối:"; tail -n 200 "$BUILD_LOG"; exit 1
   fi
   success "build xong ($(( $(date +%s) - START ))s)"
-  RUN_IMAGE=$IMAGE:new
+  RUN_IMAGE=$IMAGE:$SHA
 
   # Edge TTS: chỉ build lại khi thư mục sidecar đổi (so tree hash với label của image)
   TREE=$(git -C "$DF_REPO" rev-parse HEAD:backend/edge-tts-sidecar)
@@ -89,6 +89,7 @@ if [ -f "$DF_SECRETS/google-sa.json" ]; then
 fi
 remove_container "$NEW" 5
 docker run -d --name "$NEW" "${RUN_ARGS[@]}" -p "127.0.0.1:$NEW_PORT:8080" "$RUN_IMAGE" >/dev/null
+BOOT=$(date +%s)
 
 info "Chờ $NEW healthy (tối đa 300s)..."
 if ! wait_http "http://127.0.0.1:$NEW_PORT/actuator/health" '"UP"' 300; then
@@ -96,10 +97,10 @@ if ! wait_http "http://127.0.0.1:$NEW_PORT/actuator/health" '"UP"' 300; then
   curl -s "http://127.0.0.1:$NEW_PORT/actuator/health" || true; echo
   docker logs "$NEW" --tail 300 2>&1 || true
   remove_container "$NEW" 5
-  [ "$RUN_IMAGE" = "$IMAGE:new" ] && docker rmi "$IMAGE:new" >/dev/null 2>&1 || true
+  [ "$MODE" != --rollback ] && docker rmi "$IMAGE:new" >/dev/null 2>&1 || true
   exit 1
 fi
-success "$NEW healthy sau $(( $(date +%s) - START ))s"
+success "$NEW healthy sau $(( $(date +%s) - BOOT ))s boot"
 for w in 1 2 3 4 5; do sleep 2; curl -sf "http://127.0.0.1:$NEW_PORT/actuator/health" >/dev/null || warn "warm-up $w/5 chưa UP"; done
 success "warm-up xong"
 
@@ -122,9 +123,9 @@ if container_running "$OLD"; then
 fi
 
 # ── Tag ───────────────────────────────────────────────────────
-if [ "$RUN_IMAGE" = "$IMAGE:new" ]; then
+if [ "$MODE" != --rollback ]; then
   docker image inspect "$IMAGE:latest" >/dev/null 2>&1 && docker tag "$IMAGE:latest" "$IMAGE:prev"
-  docker tag "$IMAGE:new" "$IMAGE:latest"
+  docker tag "$RUN_IMAGE" "$IMAGE:latest"
   docker rmi "$IMAGE:new" >/dev/null 2>&1 || true
 else
   # rollback: :prev đang chạy thành :latest, bản lỗi giữ dưới tag :<sha> của nó

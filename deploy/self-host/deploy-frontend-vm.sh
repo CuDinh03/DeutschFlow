@@ -56,7 +56,7 @@ else
     error "build thất bại — 200 dòng cuối:"; tail -n 200 "$BUILD_LOG"; exit 1
   fi
   success "build xong ($(( $(date +%s) - START ))s)"
-  RUN_IMAGE=$IMAGE:new
+  RUN_IMAGE=$IMAGE:$SHA
 fi
 
 step "Khởi động $NEW (:$NEW_PORT)"
@@ -87,9 +87,9 @@ success "traffic đã ở $NEW — https://mydeutschflow.com 200"
 
 if container_running "$OLD"; then sleep 5; remove_container "$OLD" 10 && success "$OLD đã gỡ" || warn "$OLD chưa gỡ được"; fi
 
-if [ "$RUN_IMAGE" = "$IMAGE:new" ]; then
+if [ "$MODE" != --rollback ]; then
   docker image inspect "$IMAGE:latest" >/dev/null 2>&1 && docker tag "$IMAGE:latest" "$IMAGE:prev"
-  docker tag "$IMAGE:new" "$IMAGE:latest"; docker rmi "$IMAGE:new" >/dev/null 2>&1 || true
+  docker tag "$RUN_IMAGE" "$IMAGE:latest"; docker rmi "$IMAGE:new" >/dev/null 2>&1 || true
 else
   docker tag "$IMAGE:prev" "$IMAGE:latest"
 fi
