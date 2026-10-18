@@ -43,7 +43,7 @@ type FieldErrors = Record<string, string>
 // ─── Maintenance Banner ──────────────────────────────────────────────────────
 // Công cụ VẬN HÀNH (port từ /login legacy — mất nó là mất đường báo bảo trì cho người dùng).
 // Cách bật/tắt:
-//   - Thêm vào amplify.yml hoặc AWS Amplify env vars:
+//   - Truyền build arg khi dựng image frontend (biến NEXT_PUBLIC_ nhúng lúc build):
 //       NEXT_PUBLIC_MAINTENANCE_MESSAGE="Máy chủ đang bảo trì từ 02:00–04:00 (giờ VN). Vui lòng thử lại sau."
 //   - Để trống ("") hoặc xóa biến để ẩn banner.
 // Nội dung thông báo do người vận hành viết (không qua i18n — họ tự chọn ngôn ngữ); chỉ tiêu đề và
