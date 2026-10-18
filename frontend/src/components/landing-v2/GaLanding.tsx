@@ -417,7 +417,7 @@ export function GaLanding() {
                   <div className="mb-3.5 flex items-baseline gap-2">
                     <span className={`font-ga-display text-[36px] font-medium leading-none ${meta.current ? 'text-ga-yellow' : 'text-[#D8D3C8]'}`}>{meta.id}</span>
                     {meta.current && <span className="text-[9.5px] font-bold uppercase tracking-[0.1em] text-ga-yellow">{t('path.popular')}</span>}
-                    {meta.soon && <span className="text-[9.5px] font-bold uppercase tracking-[0.1em] text-ga-muted">{t('path.soon')}</span>}
+                    {meta.soon && <span className="text-ga-eyebrow uppercase text-ga-muted">{t('path.soon')}</span>}
                   </div>
                   <div className="mb-1 text-[15.5px] font-bold">{lv.name}</div>
                   <div className={`mb-3 font-ga-display text-[12.5px] italic ${meta.current ? 'text-[#A39E94]' : 'text-ga-subtle'}`}>{meta.de} · {lv.weeks}</div>
@@ -460,7 +460,7 @@ export function GaLanding() {
                 <span className="mb-2.5 flex items-center gap-2">
                   <span className="inline-block h-[9px] w-[9px]" style={{ background: x.color }} />
                   {x.soon && (
-                    <span className={`text-[9.5px] font-bold uppercase tracking-[0.1em] ${on ? 'text-ga-yellow' : 'text-ga-muted'}`}>{t('industries.soon')}</span>
+                    <span className={`text-ga-eyebrow uppercase ${on ? 'text-ga-yellow' : 'text-ga-muted'}`}>{t('industries.soon')}</span>
                   )}
                 </span>
                 <div className="mb-1 text-[15.5px] font-bold">{industries[i]?.label}</div>
@@ -477,7 +477,7 @@ export function GaLanding() {
             </div>
             <p className="mb-[22px] text-[15px] leading-[1.7] text-ga-muted">{indCopy?.pitch}</p>
             {ind.soon && (
-              <p className="mb-[22px] border-l-2 border-ga-yellow pl-3 text-[13.5px] leading-[1.6] text-ga-ink">{t('industries.soonNote')}</p>
+              <p className="mb-[22px] border-l-2 border-ga-yellow pl-3 text-ga-small text-ga-ink">{t('industries.soonNote')}</p>
             )}
             {[[t('industries.roles'), ind.roles], [t('industries.level'), ind.level], [t('industries.topic'), ind.topic]].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 border-t border-ga-border py-[11px]">
@@ -525,7 +525,7 @@ export function GaLanding() {
           ))}
         </div>
         {/* 18/10/2026 (đợt 0, sổ lời hứa): thi thử là mô phỏng, phần chấm Nói chưa hiệu chuẩn. */}
-        <p className="mt-4 flex items-start gap-2.5 text-[13.5px] leading-[1.6] text-ga-muted">
+        <p className="mt-4 flex items-start gap-2.5 text-ga-small text-ga-muted">
           <span className="mt-[7px] inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
           <span>{t('exam.disclaimer')}</span>
         </p>
